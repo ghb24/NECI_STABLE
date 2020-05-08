@@ -20,7 +20,6 @@ module semi_stoch_procs
     use Determinants, only: get_helement
     use procedure_pointers, only: shiftFactorFunction
     use timing_neci
-    use unit_test_helpers, only: eig
     use bit_reps, only: encode_sign
     use hamiltonian_linalg, only: parallel_sparse_hamil_type
     use davidson_neci, only: DavidsonCalcType, perform_davidson, DestroyDavidsonCalc
@@ -31,19 +30,14 @@ module semi_stoch_procs
     use sparse_arrays, only: deallocate_sparse_ham, sparse_ham, hamil_diag, HDiagTag
     use sparse_arrays, only: core_ht, SparseCoreHamilTags
     use sparse_arrays, only: SparseHamilTags, allocate_sparse_ham_row
-    use unit_test_helpers, only: print_matrix
+!     use unit_test_helpers, only: print_matrix, eig
+    use matrix_util, only: print_matrix, eig
     use adi_data, only: tSignedRepAv
     use global_det_data, only: readFVals, readAPVals
     use LoggingData, only: tAccumPopsActive
     use gdata_io, only: gdata_io_t
 
     implicit none
-
-    interface global_most_populated_states
-        module procedure &
-            global_most_populated_states_ilut, &
-            global_most_populated_states_SpinOrbIdx
-    end interface
 
 contains
 
@@ -1209,7 +1203,7 @@ contains
 !>  Return as many states as the size of largest_walkers.
 !>  Returns the norm as well, if requested.
 !>  @param[out] largest_walkers, Array of most `n_keep` most populated states.
-    subroutine global_most_populated_states_ilut(n_keep, largest_walkers, norm, rank_of_largest)
+    subroutine global_most_populated_states(n_keep, largest_walkers, norm, rank_of_largest)
         use Parallel_neci, only: MPISumAll, MPIAllReduceDatatype, MPIBCast
         use bit_reps, only: extract_sign
 
@@ -1222,6 +1216,7 @@ contains
         integer(n_int), allocatable :: proc_largest_walkers(:, :)
         integer, allocatable :: rank_of_largest_(:)
 
+        largest_walkers = 0_n_int
         allocate(proc_largest_walkers(0:NIfTot, n_keep), source=0_n_int)
         block
             real(dp) :: proc_norm, all_norm
@@ -1284,26 +1279,6 @@ contains
 
         rank_of_largest = rank_of_largest_
 
-    end subroutine
-
-    subroutine global_most_populated_states_SpinOrbIdx(largest_walkers, norm, rank_of_largest)
-        type(SpinOrbIdx_t), intent(inout) :: largest_walkers(:)
-        real(dp), intent(out), optional :: norm
-        integer, intent(out), optional :: rank_of_largest(size(largest_walkers))
-
-
-        integer(n_int), allocatable :: ilut_largest_walkers(:, :)
-        integer :: i, n_keep
-
-        allocate(ilut_largest_walkers(0:NIfTot, size(largest_walkers)), source=0_n_int)
-
-        call global_most_populated_states_ilut(&
-            size(largest_walkers), ilut_largest_walkers, norm, rank_of_largest)
-
-        convert_iluts: do i = 1, size(largest_walkers)
-            ! Unfortunately there are no class methods, that can be called from the type.
-            largest_walkers(i) = largest_walkers(1)%from_ilut(ilut_largest_walkers(:, i))
-        end do convert_iluts
     end subroutine
 
     subroutine return_largest_indices(n_keep, list_size, list, largest_indices)

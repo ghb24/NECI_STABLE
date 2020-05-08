@@ -1372,7 +1372,8 @@ contains
         allocate(GlobalLargestWalkers(0:NIfTot,iHighPopWrite), source=0_n_int)
         allocate(GlobalProc(iHighPopWrite), source=0)
 
-        call global_most_populated_states(iHighPopWrite, GlobalLargestWalkers, norm, rank_of_largest=GlobalProc)
+        call global_most_populated_states(iHighPopWrite, GlobalLargestWalkers, &
+                                          norm, rank_of_largest=GlobalProc)
 
         ! This has to be done by all procs
         if(tAdiActive) call update_ref_signs()

@@ -205,6 +205,7 @@ set( SRC_FILES
     lib/timing.F90
     lib/util_mod_fmt.F90
     lib/fortran_strings.f90
+    lib/matrix_util.F90
 )
 
 set( FYPP_SRC_FILES

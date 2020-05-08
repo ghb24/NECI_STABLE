@@ -28,7 +28,7 @@ module analyse_wf_symmetry
 
     use sort_mod, only: sort
 
-    use unit_test_helpers, only: print_matrix
+    use matrix_util, only: print_matrix
 
     use ras, only: sort_orbitals
 

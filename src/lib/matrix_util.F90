@@ -1,0 +1,385 @@
+
+module matrix_util
+    use constants, only: dp, EPS
+    use util_mod, only: near_zero
+    use sort_mod, only: sort
+    implicit none
+    private
+    public :: eig, print_matrix, matrix_exponential, det, blas_matmul
+
+contains
+
+    subroutine eig(matrix, e_values, e_vectors, t_left_ev)
+        ! for very restricted matrices do a diag routine here!
+        HElement_t(dp), intent(in) :: matrix(:,:)
+        real(dp), intent(out) :: e_values(size(matrix,1))
+        HElement_t(dp), intent(out), optional :: e_vectors(size(matrix,1),size(matrix,1))
+        logical, intent(in), optional :: t_left_ev
+
+        ! get the specifics for the eigenvectors still..
+        ! i think i need a bigger work, and maybe also a flag for how many
+        ! eigenvectors i want.. maybe also the number of eigenvalues..
+        integer :: n, info
+        HElement_t(dp) :: work(4*size(matrix,1)), tmp_matrix(size(matrix,1),size(matrix,2))
+        HElement_t(dp) :: left_ev(size(matrix,1),size(matrix,1)), dummy_eval(size(matrix,1))
+        real(dp), allocatable :: rwork(:)
+        real(dp) :: right_ev(size(matrix,1),size(matrix,1))
+        integer :: sort_ind(size(matrix,1))
+        character :: left, right
+
+
+        ! and convention is: we only want the right eigenvectors!!
+        ! and always assume real-only eigenvalues
+        if (present(e_vectors)) then
+
+            if (present(t_left_ev)) then
+                if (t_left_ev) then
+                    left = 'V'
+                    right = 'N'
+                else
+                    left = 'N'
+                    right = 'V'
+                end if
+            else
+                left = 'N'
+                right = 'V'
+            end if
+
+            n = size(matrix,1)
+
+            tmp_matrix = matrix
+
+            left = 'V'
+            right = 'V'
+
+!             call print_matrix(tmp_matrix)
+
+!             print *, "bounds left_ev: ", lbound(left_ev,1),ubound(left_ev,1), &
+            !                 lbound(left_ev,2),ubound(left_ev,2)
+#ifdef CMPLX_
+            allocate(rwork(max(1,3*n-2)))
+            call zheev(&
+                 left, &
+                 right, &
+                 n, &
+                 tmp_matrix, &
+                 n, &
+                 e_values, &
+                 work, &
+                 4*n, &
+                 rwork,&
+                 info)
+            deallocate(rwork)
+#else
+            call dgeev(&
+                left, &
+                right, &
+                n, &
+                tmp_matrix, &
+                n, &
+                e_values, &
+                dummy_eval, &
+                left_ev, &
+                n, &
+                right_ev, &
+                n, &
+                work, &
+                4*n, &
+                info)
+#endif
+
+            sort_ind = [(n, n = 1, size(matrix,1))]
+
+            call sort(e_values, sort_ind)
+
+!             print *, "bounds left_ev: ", lbound(left_ev,1),ubound(left_ev,1), &
+!                 lbound(left_ev,2),ubound(left_ev,2)
+
+!             print *, "Re(eval):", e_values
+!             print *, "Im(eval):", dummy_eval(sort_ind)
+
+!             print *, "left evectors: "
+!             call print_matrix(left_ev(:,sort_ind))
+!             print *, "right evectors: "
+!             call print_matrix(right_ev(:,sort_ind))
+
+!             print *, "tmp matrix:"
+!             call print_matrix(tmp_matrix)
+
+            if (present(t_left_ev)) then
+                if (t_left_ev) then
+                    e_vectors = left_ev(:,sort_ind)
+                else
+                    e_vectors = right_ev(:,sort_ind)
+                end if
+            else
+                e_vectors = right_ev(:,sort_ind)
+            end if
+
+        else
+            e_values = calc_eigenvalues(matrix)
+        end if
+
+    end subroutine eig
+
+    function calc_eigenvalues(matrix) result(e_values)
+        HElement_t(dp), intent(in) :: matrix(:,:)
+        real(dp) :: e_values(size(matrix,1))
+
+        integer :: n, info
+        HElement_t(dp) :: work(3*size(matrix,1))
+        real(dp) :: tmp_matrix(size(matrix,1),size(matrix,2)),dummy_val(size(matrix,1))
+        real(dp) :: dummy_vec_1(1,size(matrix,1)), dummy_vec_2(1,size(matrix,1))
+        real(dp), allocatable :: rwork(:)
+
+        n = size(matrix,1)
+
+        tmp_matrix = matrix
+#ifdef CMPLX_
+        allocate(rwork(max(1,3*n-2)))
+        call zheev('N','N', n, tmp_matrix, n, e_values, work, 3*n, rwork)
+        deallocate(rwork)
+#else
+        call dgeev('N','N', n, tmp_matrix, n, e_values, &
+            dummy_val, dummy_vec_1,1,dummy_vec_2,1,work,3*n,info)
+#endif
+        call sort(e_values)
+
+    end function calc_eigenvalues
+
+    subroutine eig_sym(matrix, e_values, e_vectors)
+        real(dp), intent(in) :: matrix(:,:)
+        real(dp), intent(out) :: e_values(size(matrix,1))
+        real(dp), intent(out), optional :: e_vectors(size(matrix,1),size(matrix,2))
+        integer :: n, info, lwork
+        character(1) :: jobz
+        real(dp) :: tmp_matrix(size(matrix,1),size(matrix,2))
+        real(dp) :: work(3*size(matrix,1))
+
+        n = size(matrix,1)
+        lwork = 3*n
+
+        tmp_matrix = matrix
+
+        if (present(e_vectors)) then
+            jobz = 'V'
+        else
+            jobz = 'N'
+        end if
+
+        call dsyev(&
+            jobz, &
+            'U', &
+            n, &
+            tmp_matrix, &
+            n, &
+            e_values, &
+            work, &
+            lwork, &
+            info)
+
+        if (present(e_vectors)) then
+            e_vectors = tmp_matrix
+        end if
+
+    end subroutine eig_sym
+
+    logical function check_symmetric(matrix)
+        ! function to check if a given matrix is symmetric
+        ! for a square matrix!
+        real(dp), intent(in) :: matrix(:,:)
+
+        real(dp) :: diff(size(matrix,1),size(matrix,2))
+
+        diff = matrix - transpose(matrix)
+
+        check_symmetric = .false.
+
+        if (near_zero(sum(abs(diff)))) check_symmetric = .true.
+
+    end function check_symmetric
+
+    subroutine print_matrix(matrix, iunit)
+        ! print a 2-D real matrix
+        class(*), intent(in) :: matrix(:,:)
+        integer, intent(in), optional :: iunit
+
+        integer :: i
+
+        select type (matrix)
+        type is (integer)
+            if (present(iunit)) then
+                do i = lbound(matrix,1), ubound(matrix,1)
+                    write(iunit,*) matrix(i,:)
+                end do
+            else
+                do i = lbound(matrix,1), ubound(matrix,1)
+                    print *, matrix(i,:)
+                end do
+            end if
+        type is (real(dp))
+            if (present(iunit)) then
+                do i = lbound(matrix,1),ubound(matrix,1)
+                    write(iunit,*) matrix(i,:)
+                end do
+            else
+                do i = lbound(matrix,1),ubound(matrix,1)
+                    print *, matrix(i,:)
+                end do
+            end if
+        end select
+    end subroutine print_matrix
+
+    real(dp) function det(matrix)
+        real(dp), intent(in) :: matrix(:,:)
+
+        integer :: n, i, info
+        integer, allocatable :: ipiv(:)
+        real(dp) :: sgn
+        real(dp), allocatable :: tmp_matrix(:,:)
+
+        n = size(matrix,1)
+        allocate(tmp_matrix(n,n), source = matrix)
+        allocate(ipiv(n))
+
+        ipiv = 0
+
+        call dgetrf(n,n,tmp_matrix,n,ipiv,info)
+
+        det = 1.0_dp
+
+        do i = 1, N
+            det = det * tmp_matrix(i,i)
+        end do
+
+        sgn = 1.0_dp
+        do i = 1, n
+            if (ipiv(i) /= i) then
+                sgn = -sgn
+            end if
+        end do
+
+        det = sgn * det
+
+    end function det
+
+
+    function blas_matmul(A, B) result(C)
+        ! a basic wrapper to the most fundamental matrix mult with blas
+        HElement_t(dp), intent(in) :: A(:,:), B(:,:)
+        HElement_t(dp) :: C(size(A,1),size(A,2))
+
+        integer :: n
+
+        n = size(A,1)
+#ifdef CMPLX_
+        call zgemm('N','N', n, n, n, cmplx(1.0_dp,0.0_dp), A, n, B, n, cmplx(1.0_dp,0.0_dp), C, n)
+#else
+        call dgemm('N', 'N', n, n, n, 1.0_dp, A, n, B, n, 0.0_dp, C, n)
+#endif
+    end function blas_matmul
+
+    function linspace(start_val, end_val, n_opt) result(vec)
+        real(dp), intent(in) :: start_val, end_val
+        integer, intent(in), optional :: n_opt
+        real(dp), allocatable :: vec(:)
+
+        integer :: n, i
+        real(dp) :: dist
+
+        ! set default
+        if (present(n_opt)) then
+            n = n_opt
+        else
+            n = 100
+        end if
+
+        dist = (end_val - start_val) / real(n - 1, dp)
+
+        allocate(vec(n))
+
+        vec = [ ( start_val + i * dist, i = 0,n-1)]
+
+    end function linspace
+
+    function matrix_exponential(matrix) result(exp_matrix)
+        ! calculate the matrix exponential of a real, symmetric 2-D matrix with lapack
+        ! routines
+        ! i need A = UDU^-1
+        ! e^A = Ue^DU^-1
+        HElement_t(dp), intent(in) :: matrix(:,:)
+        HElement_t(dp) :: exp_matrix(size(matrix,1),size(matrix,2))
+
+        ! maybe i need to allocate this stuff:
+        HElement_t(dp) :: vectors(size(matrix,1),size(matrix,2))
+        real(dp) :: values(size(matrix,1))
+        HElement_t(dp) :: work(3*size(matrix,1)-1)
+        HElement_t(dp) :: inverse(size(matrix,1),size(matrix,2))
+        HElement_t(dp) :: exp_diag(size(matrix,1),size(matrix,2))
+        integer :: info, n
+        real(dp), allocatable :: rwork(:)
+
+        n = size(matrix,1)
+
+        ! first i need to diagonalise the matrix and calculate the
+        ! eigenvectors
+        vectors = matrix
+#ifdef CMPLX_
+        allocate(rwork(max(1,3*n-2)))
+        call zheev('V', 'U', n, vectors, n, values, work, 3*n-1, rwork, info)
+        deallocate(rwork)
+#else
+        call dsyev('V', 'U', n, vectors, n, values, work, 3*n-1,info)
+#endif
+        ! now i have the eigenvectors, which i need the inverse of
+        ! it is rotation only or? so i would just need a transpose or?
+!         inverse = matrix_inverse(vectors)
+        inverse = transpose(vectors)
+
+        ! i need to construct exp(eigenvalues) as a diagonal matrix!
+        exp_diag = matrix_diag(exp(values))
+
+        exp_matrix = blas_matmul(blas_matmul(vectors,exp_diag),inverse)
+!         exp_matrix = matmul(matmul(vectors,exp_diag),inverse)
+
+    end function matrix_exponential
+
+    function matrix_diag(vector) result(diag)
+        ! constructs a diagonal matrix with the vector on the diagonal
+        real(dp), intent(in) :: vector(:)
+        HElement_t(dp) :: diag(size(vector),size(vector))
+
+        integer :: i
+
+        diag = 0.0_dp
+
+        do i = 1, size(vector)
+            diag(i,i) = vector(i)
+        end do
+
+    end function matrix_diag
+
+    function matrix_inverse(matrix) result(inverse)
+        ! from fortran-wiki! search there for "matrix+inversion"
+        real(dp), intent(in) :: matrix(:,:)
+        real(dp) :: inverse(size(matrix,1),size(matrix,2))
+        character(*), parameter :: this_routine = "matrix_inverse"
+
+        real(dp) :: work(size(matrix,1))
+        integer :: ipiv(size(matrix,1))
+        integer :: n, info
+
+        inverse = matrix
+        n = size(matrix,1)
+
+        call dgetrf(n,n,inverse,n,ipiv,info)
+
+        if (info /= 0) call stop_all(this_routine, "matrix singular!")
+
+        call dgetri(n, inverse, n, ipiv, work, n, info)
+
+        if (info /= 0) call stop_all(this_routine, "matrix inversion failed!")
+
+    end function matrix_inverse
+
+end module

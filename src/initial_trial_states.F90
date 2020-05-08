@@ -6,7 +6,7 @@ module initial_trial_states
     use constants
     use kp_fciqmc_data_mod
     use SystemData, only: t_non_hermitian
-    use unit_test_helpers, only: eig, print_matrix
+    use matrix_util, only: eig, print_matrix
     use util_mod, only: operator(.div.)
 
     implicit none
@@ -146,7 +146,7 @@ contains
         endif
 
         ! Perform the Lanczos procedure in parallel.
-        if (t_non_hermitian) then 
+        if (t_non_hermitian) then
             call stop_all(t_r, &
                 "perform_lanczos not implemented for non-hermitian Hamiltonians!")
         end if
@@ -394,8 +394,8 @@ contains
             deallocate(ilut_list)
 #else
 
-            ! should we switch here, if it is not hermitian? 
-            if (t_non_hermitian) then 
+            ! should we switch here, if it is not hermitian?
+            if (t_non_hermitian) then
                 ndets_int=int(ndets_all_procs,sizeof_int)
                 allocate(H_tmp(ndets_all_procs,ndets_all_procs), stat=ierr)
                 if (ierr /= 0) call stop_all(t_r, "Error allocating H_tmp array")
@@ -413,12 +413,12 @@ contains
                     do j = 1, ndets_all_procs
                         if (i == j) cycle
                         if (tHPHF) then
-                            H_tmp(j,i) = hphf_off_diag_helement(det_list(:,i), & 
+                            H_tmp(j,i) = hphf_off_diag_helement(det_list(:,i), &
                                 det_list(:,j),ilut_list(:,i), ilut_list(:,j))
                         else
-                            H_tmp(j,i) = get_helement(det_list(:,i), & 
+                            H_tmp(j,i) = get_helement(det_list(:,i), &
                                 det_list(:,j),ilut_list(:,i),ilut_list(:,j))
-                        end if 
+                        end if
                     end do
                 end do
 
@@ -427,11 +427,11 @@ contains
                 allocate(evecs_all(ndets_all_procs,ndets_all_procs), stat = ierr)
                 evecs_all = 0.0_dp
 
-                ! i think i need the left eigenvector for the trial-projection 
+                ! i think i need the left eigenvector for the trial-projection
                 ! if it is non-hermitian..
                 call eig(H_tmp, evals_all, evecs_all,.true.)
 !                 call eig(H_tmp, evals_all, evecs_all)
-                ! is it sorted by energy? 
+                ! is it sorted by energy?
 
                 if_root
                     call print_matrix(evecs_all)
