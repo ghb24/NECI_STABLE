@@ -5,8 +5,8 @@
 
 module semi_stoch_procs
 
-    use bit_rep_data, only: flag_deterministic, nIfDBO, NIfD, NIfTot, test_flag, NOffSgn, &
-        NOffFlag, test_flag_multi
+    use bit_rep_data, only: flag_deterministic, NIfD, NIfTot, test_flag, &
+                            test_flag_multi, IlutBits
 
     use bit_reps, only: decode_bit_det, get_initiator_flag_by_run
 
@@ -71,10 +71,12 @@ module semi_stoch_procs
 
     use shared_memory_mpi, only: shared_allocate_mpi, shared_deallocate_mpi
 
+    use guga_bitrepops, only: init_csf_information
+
     implicit none
 
-    ! Distinguishing value for 'use all runs' 
-    integer, parameter :: GLOBAL_RUN = -45    
+    ! Distinguishing value for 'use all runs'
+    integer, parameter :: GLOBAL_RUN = -45
 
 contains
 
@@ -92,9 +94,9 @@ contains
         integer :: i, j, ierr, part_type, c_run
         real(dp) :: scaledDiagSft(inum_runs)
 
-        
-        do run = 1, size(cs_replicas) 
-            associate( rep => cs_replicas(run)) 
+
+        do run = 1, size(cs_replicas)
+            associate( rep => cs_replicas(run))
               call MPIBarrier(ierr)
 
               call set_timer(SemiStoch_Comms_Time)
@@ -639,7 +641,7 @@ contains
         integer :: i
         integer(MPIArg) :: node_size, num_nodes
         integer(MPIArg) :: global_offset
-        
+
         call mpi_comm_size(mpi_comm_intra, node_size, ierr)
         call mpi_comm_size(mpi_comm_inter, num_nodes, ierr)
 
@@ -693,7 +695,7 @@ contains
         node_offsets = node_offsets * core_width
         total_size_this_node = total_size_this_node * core_width
         sizes_per_node = sizes_per_node * core_width
-        
+
         ! Give explicit limits for SpawnedParts slice, as NIfTot is not nesc.
         ! equal to NIfBCast. (It may be longer)
         call MPI_AllGatherV(MPI_IN_PLACE,total_size_this_node,MPI_INTEGER8, rep%core_space, &
@@ -706,7 +708,7 @@ contains
         ! to the first index position in the vector (i.e. the array displs in MPI routines).
         call MPIAllGather(global_offset, rep%determ_displs, ierr)
 
-        deallocate(sizes_per_node)        
+        deallocate(sizes_per_node)
         deallocate(node_offsets)
         deallocate(sizes_this_node)
 
@@ -964,7 +966,7 @@ contains
             open(iunit, file='CORESPACE', status='replace')
 
             do i = 1, rep%determ_space_size
-                do k = 0, NIfDBO
+                do k = 0, nifd
                     write(iunit, '(i24)', advance='no') rep%core_space(k,i)
                 end do
                 write(iunit, '()')
@@ -991,7 +993,7 @@ contains
         integer :: i, comp, MinInd, PartInd, nwalkers
         logical :: tSuccess
 
-        associate(rep => cs_replicas(run)) 
+        associate(rep => cs_replicas(run))
           MinInd = 1
           nwalkers = int(TotWalkers,sizeof_int)
 
@@ -1001,7 +1003,7 @@ contains
                   ! If there is only one state in CurrentDets to check then BinSearchParts doesn't
                   ! return the desired value for PartInd, so do this separately...
                   if (MinInd == nwalkers) then
-                      comp = DetBitLT(CurrentDets(:,MinInd), SpawnedParts(0:NIfTot,i), NIfDBO)
+                      comp = DetBitLT(CurrentDets(:,MinInd), SpawnedParts(0:NIfTot,i), nifd)
                       if (comp == 0) then
                           tSuccess = .true.
                           PartInd = MinInd
@@ -1081,7 +1083,7 @@ contains
 
         nwalkers = int(TotWalkers,sizeof_int)
 
-        associate(rep => cs_replicas(run)) 
+        associate(rep => cs_replicas(run))
           ! Test that SpawnedParts is going to be big enough
           if (rep%determ_sizes(iProcIndex) > MaxSpawned) then
 #ifdef DEBUG_
@@ -1118,7 +1120,7 @@ contains
               temp_node => HashIndex(hash_val)
               if (temp_node%ind /= 0) then
                   do while (associated(temp_node))
-                      if ( all(SpawnedParts(0:NIfDBO, i) == CurrentDets(0:NIfDBO, temp_node%ind)) ) then
+                      if ( all(SpawnedParts(0:nifd, i) == CurrentDets(0:nifd, temp_node%ind)) ) then
                           tSuccess = .true.
                           PartInd = temp_node%ind
                           exit
@@ -1135,8 +1137,8 @@ contains
                   call extract_sign(CurrentDets(:,PartInd), walker_sign)
                   call encode_sign(SpawnedParts(:,i), walker_sign)
                   ! Add up the already set flags to those to be set
-                  SpawnedParts(NOffFlag, i) = ior(CurrentDets(NOffFlag, PartInd), &
-                      SpawnedParts(NOffFlag, i))
+                  SpawnedParts(IlutBits%ind_flag, i) = ior(CurrentDets(IlutBits%ind_flag, PartInd), &
+                      SpawnedParts(IlutBits%ind_flag, i))
                   ! Cache the accumulated global det data
                   call reorder_handler%write_gdata(gdata_buf, 1, PartInd, i)
               else
@@ -1226,7 +1228,7 @@ contains
         integer(n_int), intent(in), optional :: opt_source(0:,1:)
         integer, intent(in) :: n_keep, run
         integer(n_int), intent(out) :: largest_walkers(0:NIfTot, n_keep)
-        real(dp), intent(out), optional :: norm        
+        real(dp), intent(out), optional :: norm
         integer :: i, j, smallest_pos, part_type
         real(dp) :: smallest_sign, sign_curr_real
         real(dp), dimension(lenof_sign) :: sign_curr, low_sign
@@ -1328,7 +1330,7 @@ contains
     end subroutine return_most_populated_states
 
     !> Weight function for picking the most populated states. Trivial in
-    !! single run mode, but multiple options exist in mneci   
+    !! single run mode, but multiple options exist in mneci
     pure function core_space_weight(sign_curr, run) result(sign_curr_real)
         real(dp), intent(in) :: sign_curr(lenof_sign)
         integer, intent(in) :: run
@@ -1346,10 +1348,10 @@ contains
             endif
         endif
 #endif
-        
+
     end function core_space_weight
 
-    !> Specialized routine that returns the number of determinants that are going into 
+    !> Specialized routine that returns the number of determinants that are going into
     !! the core-space on this processor. Once the leading determinants have been obtained on each
     !! processor, this function requires the minimal and maximal populations among these for all
     !! processors (requires previous MPI_Gather), then the procedure to determine the core-space
@@ -1398,7 +1400,7 @@ contains
 
         ! Definitely take these determinants
         n_dets_this_proc = n_max(iProcIndex)
-        
+
         max_min = min_max + 1
         total_pool = -1
         ! Reduce the cutoff until we are below the min_max
@@ -1406,7 +1408,7 @@ contains
             call get_pp_ex(max_min, n_min, sum_min, min_vals, t_max = .true.)
             ! Size of the pool left when not keeping the minimal ones ( has to be at least
             ! big enough to fill the core-space)
-            total_pool = sum(lengths) - sum_max - sum_min                    
+            total_pool = sum(lengths) - sum_max - sum_min
         end do
 
         ! If the corespace consists of all chosen determinants, the remaining pool might be 0
@@ -1420,7 +1422,7 @@ contains
             n_dets_this_proc = n_dets_this_proc + int(ip_ratio * dets_left)
         endif
 
-        
+
     contains
 
         subroutine get_pp_ex(ex, n_ex, sum_ex, vals, t_max)
@@ -1528,7 +1530,7 @@ contains
         character(len=*), parameter :: t_r = "start_walkers_from_core_ground"
 
         type(davidson_ss) :: dc
-        
+
         if (tPrintInfo) then
             write(6,'(a69)') "Using the deterministic ground state as initial walker configuration."
             write(6,'(a34)') "Performing Davidson calculation..."
@@ -1544,7 +1546,7 @@ contains
             call neci_flush(6)
         end if
 
-        associate(rep => cs_replicas(run)) 
+        associate(rep => cs_replicas(run))
           ! We need to normalise this vector to have the correct 'number of walkers'.
           eigenvec_pop = 0.0_dp
           do i = 1, rep%determ_sizes(iProcIndex)
@@ -1566,7 +1568,7 @@ contains
                 pop_sign = dc%davidson_eigenvector(counter)
                 call decode_bit_det(nI, CurrentDets(:,i))
                 tmp = transfer(pop_sign(rep%min_part():rep%max_part()), tmp)
-                CurrentDets(NOffSgn+rep%min_part()-1:NOffSgn+rep%max_part()-1, i) = tmp
+                CurrentDets(IlutBits%ind_pop+rep%min_part()-1:IlutBits%ind_pop+rep%max_part()-1, i) = tmp
             end if
         end do
         end associate
@@ -1630,7 +1632,7 @@ contains
                   counter = counter + 1
                   pop_sign = e_vectors(counter,1)
                   tmp = transfer(pop_sign(min_pt:max_pt), tmp)
-                  CurrentDets(NOffSgn+min_part_type(run)-1:NOffSgn+max_part_type(run)-1,i) = tmp
+                  CurrentDets(IlutBits%ind_pop+min_part_type(run)-1:IlutBits%ind_pop+max_part_type(run)-1,i) = tmp
               end if
           end do
         end associate
@@ -1703,7 +1705,6 @@ contains
         HElement_t(dp), allocatable :: full_H(:,:)
         integer i, nI(nel),space_size
 
-       root_print "The determinants are"
 
         ! if the Hamiltonian is non-hermitian we cannot use the
         ! standard Lanzcos or Davidson routines. so:
@@ -1711,6 +1712,7 @@ contains
         call calc_determin_hamil_full(full_H, rep)
 
         if (t_print_core_info) then
+            root_print "The determinants are"
             root_print "semistochastic basis:"
             if_root
                 do i = 1, rep%determ_space_size
@@ -1754,6 +1756,8 @@ contains
         do i = 1, rep%determ_space_size
             call decode_bit_det(nI, rep%core_space(:,i))
 
+            call init_csf_information(rep%core_space(0:nifd,i))
+
             if (tHPHF) then
                 hamil(i,i) = hphf_diag_helement(nI,rep%core_space(:,i))
             else
@@ -1771,7 +1775,7 @@ contains
                         rep%core_space(:,i), rep%core_space(:,j))
                 else if (tGUGA) then
                     call calc_guga_matrix_element(rep%core_space(:,i), rep%core_space(:,j), &
-                        excitInfo, hamil(i,j), .true., 2)
+                        excitInfo, hamil(i,j), .true., 1)
                 else
                     hamil(i,j) = get_helement(nI, nJ, rep%core_space(:,i), rep%core_space(:,j))
                 end if
@@ -1821,10 +1825,9 @@ contains
         use Determinants, only: GetH0Element3, GetH0Element4
         use FciMCData, only: ilutHF, HFDet, Fii
         use SystemData, only: tUEG
-        use CalcData, only: t_guga_mat_eles
         use SystemData, only: tGUGA
         use guga_matrixElements, only: calcDiagMatEleGUGA_nI
-        use guga_excitations, only: calc_off_diag_guga_gen, calc_guga_matrix_element
+        use guga_excitations, only: calc_guga_matrix_element
         use guga_data, only: ExcitationInformation_t
         integer, intent(in) :: nI(nel)
         integer(n_int), intent(in) :: ilut(0:NIfTot)
@@ -1850,14 +1853,10 @@ contains
             ! fock energies, so can consider either.
             hel = hphf_off_diag_helement(HFDet, nI, iLutHF, ilut)
         else if (tGUGA) then
-            if (t_guga_mat_eles) then
-                ! i am not sure if the ref_stepvector thingies are set up for
-                ! the ilutHF in this case..
-                call calc_guga_matrix_element(ilut, ilutHF, excitInfo, hel, &
-                    .true., 2)
-            else
-                hel = calc_off_diag_guga_gen(ilut, ilutHF)
-            end if
+            ! i am not sure if the ref_stepvector thingies are set up for
+            ! the ilutHF in this case..
+            call calc_guga_matrix_element(ilut, ilutHF, excitInfo, hel, &
+                .true., 2)
         else
             hel = get_helement(HFDet, nI, ic, ex, tParity)
         end if
@@ -1957,7 +1956,7 @@ contains
             call cs_replicas(run)%dealloc()
         end do
         deallocate(cs_replicas)
-        
+
     end subroutine end_semistoch
 
 end module semi_stoch_procs

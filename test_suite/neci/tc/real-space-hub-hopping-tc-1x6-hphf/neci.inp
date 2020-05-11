@@ -17,6 +17,7 @@ endmethods
 
 totalwalkers   1000
 
+load-balance-blocks off
 tau 0.01
 
 semi-stochastic 10

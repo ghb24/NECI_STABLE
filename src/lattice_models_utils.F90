@@ -768,7 +768,7 @@ contains
         basis = set_alpha_beta_spins(alpha, n_orbs, .false.)
 
         ! i need the zeros, but just in the n_orbs range
-        mask_zeros = iand(not(alpha), maskr(n_orbs))
+        mask_zeros = iand(not(alpha), int(maskr(n_orbs),n_int))
 
         allocate(nZeros(popcnt(mask_zeros)))
 
@@ -798,7 +798,7 @@ contains
         integer, allocatable :: nOnes(:)
         integer :: i
 
-        allocate(nOnes(popcnt(iand(beta_mask, maskr(n_orbs)))))
+        allocate(nOnes(popcnt(iand(beta_mask, int(maskr(n_orbs),n_int)))))
 
         call decode_bit_det(nOnes, [beta_mask])
 
@@ -884,7 +884,7 @@ contains
 
         ! first truncate the integer to be save..
         ! set all the ones left of n_orbs to 0
-        j = iand(i, maskr(n_orbs))
+        j = iand(i, int(maskr(n_orbs),n_int))
 
         ! be sure to avoid the edge case:
         if (j == 0_n_int) then

@@ -11,12 +11,14 @@ module rdm_data_utils
     ! rdm_list_t object, and adding to and communicating with rdm_spawn_t
     ! objects.
 
-    use bit_rep_data, only: NIfTot, NIfDBO
+    use bit_rep_data, only: NIfTot, nifd, IlutBits
     use constants
     use Parallel_neci, only: iProcIndex, nProcessors
     use rdm_data, only: rdm_list_t, rdm_spawn_t, one_rdm_t, en_pert_t
     use util_mod
-    use SystemData, only: tGUGA
+    use SystemData, only: tGUGA, nSpatOrbs
+    use guga_bitRepOps, only: contract_2_rdm_ind, contract_1_rdm_ind, &
+                              extract_2_rdm_ind
 
     implicit none
 
@@ -111,7 +113,7 @@ contains
         en_pert%nhashes = nhashes
         en_pert%ndets = 0
 
-        allocate(en_pert%dets(0:sign_length+NIfDBO, max_ndets))
+        allocate(en_pert%dets(0:sign_length+nifd, max_ndets))
         en_pert%dets = 0_n_int
 
         allocate(en_pert%hash_table(nhashes), stat=ierr)
@@ -498,7 +500,7 @@ contains
         real(dp), intent(out) :: real_sign(sign_length)
         integer(n_int) :: sign(sign_length)
 
-        sign = ilut(NIfDBO+1:NIfDBO+sign_length)
+        sign = ilut(IlutBits%ind_pop:IlutBits%ind_pop+sign_length-1)
         real_sign = transfer(sign, real_sign)
 
     end subroutine extract_sign_EN
@@ -511,7 +513,7 @@ contains
         integer(n_int) :: sign(sign_length)
 
         sign = transfer(real_sign, sign)
-        ilut(NIfDBO+1:NIfDBO+sign_length) = sign
+        ilut(IlutBits%ind_pop:IlutBits%ind_pop+sign_length-1) = sign
 
     end subroutine encode_sign_EN
 
@@ -534,7 +536,7 @@ contains
         logical, intent(inout), optional :: nearly_full
 
         integer(int_rdm) :: ijkl
-        integer :: ij_compressed, proc, ind, hash_val, slots_left
+        integer :: ij_compressed, proc, ind, hash_val, slots_left, kl_compressed
         real(dp) :: real_sign_old(spawn%rdm_send%sign_length), real_sign_new(spawn%rdm_send%sign_length)
         logical :: tSuccess
         character(*), parameter :: t_r = 'add_to_rdm_spawn_t'
@@ -544,13 +546,13 @@ contains
             ! Calculate combined RDM labels. A different ordering is used for
             ! outputting RDMs with and without spin. The following definitions
             ! will aid ordering via a sort operation later.
-            if (.not. spinfree) then
-                call calc_combined_rdm_label(i, j, k, l, ijkl)
+            if (tGUGA) then
+                ijkl = contract_2_rdm_ind(i,j,k,l)
             else
-                if (tGUGA) then
-                    call calc_combined_rdm_label(j, l, i, k, ijkl)
-                else
+                if (spinfree) then
                     call calc_combined_rdm_label(k, l, j, i, ijkl)
+                else
+                    call calc_combined_rdm_label(i, j, k, l, ijkl)
                 end if
             end if
 
@@ -568,7 +570,13 @@ contains
                 call encode_sign_rdm(rdm%elements(:,ind), real_sign_new)
             else
                 ! Determine the process label.
-                if (.not. spinfree) then
+                if (spinfree .or. tGUGA) then
+                    ! For spin-free case, we halve the number of labels. Also,
+                    ! the last two labels are dominant in the ordering, so use
+                    ! these instead, to allow writing out in the correct order.
+                    kl_compressed = int(contract_1_rdm_ind(k,l))
+                    proc = (kl_compressed-1)*nProcessors/(nbasis**2/4)
+                else
                     ! The following maps (p,q), with p<q, to single integers
                     ! with no gaps. It is benefical to have no gaps here, for
                     ! good load balancing. The final integers are ordered so
@@ -576,12 +584,6 @@ contains
                     ij_compressed = nbasis*(i-1) - i*(i-1)/2 + j - i
                     ! Calculate the process for the element.
                     proc = (ij_compressed-1)*nProcessors/spawn%nrows
-                else
-                    ! For spin-free case, we halve the number of labels. Also,
-                    ! the last two labels are dominant in the ordering, so use
-                    ! these instead, to allow writing out in the correct order.
-                    ij_compressed = (nbasis/2)*(k-1) + l
-                    proc = (ij_compressed-1)*nProcessors/(nbasis**2/4)
                 end if
 
                 ! Check that there is enough memory for the new spawned RDM entry.
@@ -854,16 +856,23 @@ contains
             ! Update hash table. Don't need to update proc 1 section, since this
             ! does not get moved.
             if (iproc > 0) then
-                if (spinfree) then
+                if (tGUGA) then
                     do idet = new_init_slots(iproc), new_init_slots(iproc)+nstored-1
-                        call calc_separate_rdm_labels(rdm%elements(0,idet), ij, kl, k, l, j, i)
+                        call extract_2_rdm_ind(rdm%elements(0,idet), i, j, k, l)
                         call update_hash_table_ind(rdm%hash_table, (/i,j,k,l/), idet-pos_diff, idet)
                     end do
                 else
-                    do idet = new_init_slots(iproc), new_init_slots(iproc)+nstored-1
-                        call calc_separate_rdm_labels(rdm%elements(0,idet), ij, kl, i, j, k, l)
-                        call update_hash_table_ind(rdm%hash_table, (/i,j,k,l/), idet-pos_diff, idet)
-                    end do
+                    if (spinfree) then
+                        do idet = new_init_slots(iproc), new_init_slots(iproc)+nstored-1
+                            call calc_separate_rdm_labels(rdm%elements(0,idet), ij, kl, k, l, j, i)
+                            call update_hash_table_ind(rdm%hash_table, (/i,j,k,l/), idet-pos_diff, idet)
+                        end do
+                    else
+                        do idet = new_init_slots(iproc), new_init_slots(iproc)+nstored-1
+                            call calc_separate_rdm_labels(rdm%elements(0,idet), ij, kl, i, j, k, l)
+                            call update_hash_table_ind(rdm%hash_table, (/i,j,k,l/), idet-pos_diff, idet)
+                        end do
+                    end if
                 end if
             end if
         end do
@@ -880,7 +889,7 @@ contains
     subroutine add_rdm_1_to_rdm_2(rdm_1, rdm_2, scale_factor)
 
         ! Take the RDM elements in the rdm_1 object, and add them to the rdm_2
-        ! object. The has table for rdm_2 will also be updated. This literally
+        ! object. The hash table for rdm_2 will also be updated. This literally
         ! performs the numerical addition of the two RDM objects.
         use SystemData, only: nel, nBasis
         use hash, only: hash_table_lookup, add_hash_table_entry
@@ -898,9 +907,12 @@ contains
         real(dp) :: spawn_sign(rdm_2%sign_length)
         real(dp) :: internal_scale_factor(rdm_1%sign_length), rdm_trace(rdm_1%sign_length)
         logical :: tSuccess
-        character(*), parameter :: t_r = 'add_rdm_1_to_rdm_2'
+        character(*), parameter :: this_routine = 'add_rdm_1_to_rdm_2'
 
         if(present(scale_factor)) then
+            if (tGUGA) then
+                call stop_all(this_routine, "check scale factor and trace for GUGA!")
+            end if
            ! normalize and rescale the rdm_1 if requested here
            call calc_rdm_trace(rdm_1, rdm_trace)
            call MPISumAll(rdm_trace, internal_scale_factor)
@@ -909,12 +921,17 @@ contains
            internal_scale_factor = 1.0_dp
         endif
 
-        if(rdm_1%sign_length .ne. rdm_2%sign_length) call stop_all(t_r,"nrdms mismatch")
+        if(rdm_1%sign_length .ne. rdm_2%sign_length) &
+            call stop_all(this_routine,"nrdms mismatch")
 
         do ielem = 1, rdm_1%nelements
             ! Decode the compressed RDM labels.
             ijkl = rdm_1%elements(0,ielem)
-            call calc_separate_rdm_labels(ijkl, ij, kl, i, j, k, l)
+            if (tGUGA) then
+                call extract_2_rdm_ind(ijkl, i, j, k, l)
+            else
+                call calc_separate_rdm_labels(ijkl, ij, kl, i, j, k, l)
+            end if
 
             ! Extract the spawned sign.
             call extract_sign_rdm(rdm_1%elements(:,ielem), spawn_sign)
@@ -922,10 +939,8 @@ contains
             ! Search to see if this RDM element is already in the RDM 2.
             ! If it, tSuccess will be true and ind will hold the position of the
             ! element in rdm.
-            if(any((/i,j,k,l/)<=0) .or. any((/i,j,k,l/)>nBasis)) then
-               write(iout,*) "Invalid rdm element", i,j,k,l,ijkl, ielem, rdm_1%nelements
-               call stop_all(t_r,"Erroneous indices")
-            endif
+            ASSERT(all([i,j,k,l] > 0) .and. all([i,j,k,l] <= nBasis))
+
             call hash_table_lookup((/i,j,k,l/), (/ijkl/), 0, rdm_2%hash_table, rdm_2%elements, ind, hash_val, tSuccess)
 
             if (tSuccess) then
@@ -1047,7 +1062,7 @@ contains
         ! Search to see if this determinant is already in the dets array.
         ! If it, tSuccess will be true and ind will hold the position of the
         ! entry in en_pert%dets.
-        call hash_table_lookup(nI, ilut, NIfDBO, en_pert%hash_table, en_pert%dets, ind, hash_val, tSuccess)
+        call hash_table_lookup(nI, ilut, nifd, en_pert%hash_table, en_pert%dets, ind, hash_val, tSuccess)
 
         if (tSuccess) then
             ! Extract the existing sign.
@@ -1071,7 +1086,7 @@ contains
                            &when there are no slots remaining.")'); call neci_flush(6)
             end if
 
-            en_pert%dets(0:NIfDBO, en_pert%ndets) = ilut(0:NIfDBO)
+            en_pert%dets(0:nifd, en_pert%ndets) = ilut(0:nifd)
             call encode_sign_EN(en_pert%sign_length, en_pert%dets(:, en_pert%ndets), contrib_sign)
 
             call add_hash_table_entry(en_pert%hash_table, en_pert%ndets, hash_val)
@@ -1099,6 +1114,7 @@ contains
         integer(int_rdm) :: ijkl
         integer :: ielem
         integer :: ij, kl, i, j, k, l ! spin orbitals
+        integer(int_rdm) :: ij_, kl_
         real(dp) :: rdm_sign(rdm%sign_length)
 
         rdm_trace = 0.0_dp
@@ -1107,12 +1123,21 @@ contains
         do ielem = 1, rdm%nelements
             ijkl = rdm%elements(0,ielem)
 
-            call calc_separate_rdm_labels(ijkl, ij, kl, i, j, k, l)
+            if (tGUGA) then
+                call extract_2_rdm_ind(ijkl, i, j, k, l)
 
-            ! If this is a diagonal element, add the element to the trace.
-            if (ij == kl) then
-                call extract_sign_rdm(rdm%elements(:,ielem), rdm_sign)
-                rdm_trace = rdm_trace + rdm_sign
+                if ((i == j .and. k == l)) then! .or. (i == l .and. j == k)) then
+                    call extract_sign_rdm(rdm%elements(:,ielem), rdm_sign)
+                    rdm_trace = rdm_trace + rdm_sign
+                end if
+            else
+                call calc_separate_rdm_labels(ijkl, ij, kl, i, j, k, l)
+
+                ! If this is a diagonal element, add the element to the trace.
+                if (ij == kl) then
+                    call extract_sign_rdm(rdm%elements(:,ielem), rdm_sign)
+                    rdm_trace = rdm_trace + rdm_sign
+                end if
             end if
         end do
 

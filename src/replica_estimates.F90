@@ -101,11 +101,11 @@ module replica_estimates
             if(.not. cs_replicas(core_run)%t_global) then
                 call stop_all(t_r, "Invalid core space for preconditioning. Global core space required")
             end if
-            
+
             do run = 1, lenof_sign
-                associate( rep => cs_replicas(core_run))                
+                associate( rep => cs_replicas(core_run))
                 do i = 1, rep%determ_sizes(iProcIndex)
-                    if (DetBitEQ(rep%core_space(0:NIfDBO, rep%determ_displs(iProcIndex)+i), iLutRef(:,run), NIfDBO)) then
+                    if (DetBitEQ(rep%core_space(0:nifd, rep%determ_displs(iProcIndex)+i), iLutRef(:,run), nifd)) then
                         ! This might need adjustment for the complex case
                         proj_energy(run) = -rep%partial_determ_vecs(run,i)
                         ref_found(run) = .true.
@@ -117,7 +117,7 @@ module replica_estimates
 
         do i = 1, ValidSpawned
             do run = 1, lenof_sign
-                if (DetBitEQ(SpawnedParts(:,i), iLutRef(:,run), NIfDBO)) then
+                if (DetBitEQ(SpawnedParts(:,i), iLutRef(:,run), nifd)) then
                     call extract_sign(SpawnedParts(:,i), SignTemp)
                     proj_energy(run) = proj_energy(run) - SignTemp(run)
                     ref_found(run) = .true.
@@ -135,7 +135,7 @@ module replica_estimates
                     write(6,'("WARNING: The projected energy from the last iteration was zero. Setting to -0.1.")')
                 end if
 
-                call hash_table_lookup(ProjEDet(:,run), ilutRef(:,run), NIfDBO, HashIndex, &
+                call hash_table_lookup(ProjEDet(:,run), ilutRef(:,run), nifd, HashIndex, &
                                        CurrentDets, PartInd, DetHash, tSuccess)
 
                 if (tSuccess) then
@@ -233,7 +233,7 @@ module replica_estimates
             call extract_sign(SpawnedParts(:,i), spwnsign)
 
             ! Now add in the diagonal elements
-            call hash_table_lookup(nI_spawn, SpawnedParts(:,i), NIfDBO, HashIndex, &
+            call hash_table_lookup(nI_spawn, SpawnedParts(:,i), nifd, HashIndex, &
                                    CurrentDets, PartInd, DetHash, tSuccess)
 
             if (tSuccess) then
@@ -382,7 +382,7 @@ module replica_estimates
                 call extract_sign(SpawnedParts(:,i), spwnsign)
 
                 ! Now add in the diagonal elements
-                call hash_table_lookup(nI_spawn, SpawnedParts(:,i), NIfDBO, HashIndex, &
+                call hash_table_lookup(nI_spawn, SpawnedParts(:,i), nifd, HashIndex, &
                                        CurrentDets, PartInd, DetHash, tSuccess)
 
                 if (tSuccess .and. tSemiStochastic) then
@@ -495,7 +495,7 @@ module replica_estimates
         abort = .false.
 
         tDetermSpawnedTo = .false.
-        associate( rep => cs_replicas(core_run)) 
+        associate( rep => cs_replicas(core_run))
         ! Contributions from diagonal where necessary
           do i = 1, int(TotWalkers, sizeof_int)
               hdiag = det_diagH(i) + Hii
@@ -524,7 +524,7 @@ module replica_estimates
                   ! This is an initiator
                   call extract_sign(SpawnedParts(:,i), spwnsign_init)
                   if (i+1 <= ValidSpawned) then
-                      if (DetBitEq(SpawnedParts(:,i), SpawnedParts(:,i+1), NIfDBO)) then
+                      if (DetBitEq(SpawnedParts(:,i), SpawnedParts(:,i+1), nifd)) then
                           ! This next state is a different state, and so will
                           ! be a non-initiator
                           call extract_sign(SpawnedParts(:,i+1), spwnsign_non)
@@ -538,7 +538,7 @@ module replica_estimates
               spwnsign = spwnsign_init + spwnsign_non
 
               ! Now add in the diagonal elements
-              call hash_table_lookup(nI_spawn, SpawnedParts(:,i), NIfDBO, HashIndex, &
+              call hash_table_lookup(nI_spawn, SpawnedParts(:,i), nifd, HashIndex, &
                   CurrentDets, PartInd, DetHash, tSuccess)
 
               if (tSuccess) then
@@ -696,7 +696,7 @@ module replica_estimates
                       ! This is an initiator
                       call extract_sign(SpawnedParts(:,i), spwnsign_init)
                       if (i+1 <= ValidSpawned) then
-                          if (DetBitEq(SpawnedParts(:,i), SpawnedParts(:,i+1), NIfDBO)) then
+                          if (DetBitEq(SpawnedParts(:,i), SpawnedParts(:,i+1), nifd)) then
                               ! This next state is a different state, and so will
                               ! be a non-initiator
                               call extract_sign(SpawnedParts(:,i+1), spwnsign_non)
@@ -710,7 +710,7 @@ module replica_estimates
                   spwnsign = spwnsign_init + spwnsign_non
 
                   ! Now add in the diagonal elements
-                  call hash_table_lookup(nI_spawn, SpawnedParts(:,i), NIfDBO, HashIndex, &
+                  call hash_table_lookup(nI_spawn, SpawnedParts(:,i), nifd, HashIndex, &
                       CurrentDets, PartInd, DetHash, tSuccess)
 
                   if (tSuccess) then
@@ -801,7 +801,7 @@ module replica_estimates
 
         do i = 1, ValidSpawned
             call decode_bit_det(nI, SpawnedParts(:,i))
-            call hash_table_lookup(nI, SpawnedParts(:,i), NIfDBO, HashIndex, &
+            call hash_table_lookup(nI, SpawnedParts(:,i), nifd, HashIndex, &
                                    CurrentDets, PartInd, DetHash, tSuccess)
         end do
 

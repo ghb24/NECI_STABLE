@@ -5,7 +5,7 @@ module fcimc_helper
     use constants
     use util_mod
     use systemData, only: nel, tHPHF, tNoBrillouin, G1, tUEG, &
-                          tLatticeGens, nBasis, tHistSpinDist, tRef_Not_HF, &
+                          tLatticeGens, nBasis, tRef_Not_HF, &
                           tGUGA, ref_stepvector, ref_b_vector_int, ref_occ_vector, &
                           ref_b_vector_real, t_3_body_excits, t_non_hermitian, &
                           t_ueg_3_body, t_mol_3_body
@@ -14,8 +14,10 @@ module fcimc_helper
 
     use semi_stoch_procs, only: recalc_core_hamil_diag, is_core_state, check_determ_flag
 
+    use bit_rep_data, only: IlutBits
+
     use bit_reps, only: NIfTot, test_flag, extract_flags, &
-                        encode_bit_rep, NIfD, set_flag_general, NIfDBO, &
+                        encode_bit_rep, NIfD, set_flag_general, &
                         extract_sign, set_flag, encode_sign, &
                         flag_trial, flag_connected, flag_deterministic, &
                         extract_part_sign, encode_part_sign, decode_bit_det, &
@@ -30,8 +32,7 @@ module fcimc_helper
 
     use Determinants, only: get_helement, write_det
     use FciMCData
-    use hist, only: test_add_hist_spin_dist_det, add_hist_spawn, &
-                    add_hist_energies, HistMinInd
+    use hist, only: add_hist_spawn, add_hist_energies, HistMinInd
     use hist_data, only: tHistSpawn
     use hphf_integrals, only: hphf_off_diag_helement
     use LoggingData, only: OrbOccs, tPrintOrbOcc, tPrintOrbOccInit, &
@@ -54,7 +55,7 @@ module fcimc_helper
                         tSeniorInitiators, SeniorityAge, tInitCoherentRule, &
                         tLogAverageSpawns, &
                         spawnSgnThresh, minInitSpawns, &
-                        t_trunc_nopen_diff, trunc_nopen_diff, t_guga_mat_eles,&
+                        t_trunc_nopen_diff, trunc_nopen_diff, t_direct_guga_ref,&
                         tAutoAdaptiveShift, tAAS_MatEle, tAAS_MatEle2, &
                         tAAS_MatEle3, tAAS_MatEle4, AAS_DenCut, &
                         tSimpleInit, &
@@ -77,8 +78,6 @@ module fcimc_helper
     use rdm_general, only: store_parent_with_spawned, extract_bit_rep_avsign_norm
     use Parallel_neci
     use FciMCLoggingMod, only: HistInitPopulations, WriteInitPops
-    use csf_data, only: csf_orbital_mask
-    use csf, only: iscsf
     use hphf_integrals, only: hphf_diag_helement
     use global_det_data, only: get_av_sgn_tot, set_av_sgn_tot, set_det_diagH, &
                                global_determinant_data, det_diagH, &
@@ -88,8 +87,8 @@ module fcimc_helper
 
     use guga_procedure_pointers, only: calc_off_diag_guga_ref
     use guga_excitations, only: create_projE_list
-    use guga_matrixElements, only: calc_off_diag_guga_ref_list
-    use guga_bitrepops, only: write_det_guga, calc_csf_info
+    use guga_bitrepops, only: write_det_guga, calc_csf_info, &
+                              transfer_stochastic_rdm_info
 
     use real_time_data, only: t_complex_ints, runge_kutta_step, tVerletSweep,&
         t_rotated_time, t_real_time_fciqmc
@@ -99,6 +98,7 @@ module fcimc_helper
     use fortran_strings, only: str
 
     use initiator_space_procs, only: is_in_initiator_space
+
 
     implicit none
 
@@ -231,8 +231,10 @@ contains
             end if
 
             !Enocde weight, which is real, as an integer
-            SpawnInfo(SpawnWeightAcc, ValidSpawnedList(proc)) = transfer(weight_acc, SpawnInfo(SpawnWeightAcc, ValidSpawnedList(proc)))
-            SpawnInfo(SpawnWeightRej, ValidSpawnedList(proc)) = transfer(weight_rej, SpawnInfo(SpawnWeightRej, ValidSpawnedList(proc)))
+            SpawnInfo(SpawnWeightAcc, ValidSpawnedList(proc)) = &
+                transfer(weight_acc, SpawnInfo(SpawnWeightAcc, ValidSpawnedList(proc)))
+            SpawnInfo(SpawnWeightRej, ValidSpawnedList(proc)) = &
+                transfer(weight_rej, SpawnInfo(SpawnWeightRej, ValidSpawnedList(proc)))
 
         end if
 
@@ -243,9 +245,11 @@ contains
         ! rejected by the initiator criterion, so set the initiator
         ! flag now if not done already.
         if (tPureInitiatorSpace) then
-            if ( .not. test_flag(SpawnedParts(:, ValidSpawnedList(proc)), get_initiator_flag(part_type)) ) then
+            if ( .not. test_flag(SpawnedParts(:, ValidSpawnedList(proc)), &
+                get_initiator_flag(part_type)) ) then
                 if (is_in_initiator_space(SpawnedParts(:, ValidSpawnedList(proc)), nJ)) then
-                    call set_flag(SpawnedParts(:,ValidSpawnedList(proc)), get_initiator_flag(part_type))
+                    call set_flag(SpawnedParts(:,ValidSpawnedList(proc)), &
+                        get_initiator_flag(part_type))
                 end if
             end if
         end if
@@ -256,11 +260,18 @@ contains
             ! SpawnedParts(:,ValidSpawnedList(proc)). We want to store the
             ! parent (D_i) with the spawned child (D_j) so that we can add in
             ! Ci.Cj to the RDM later.
-            ! The parent is NIfDBO integers long, and stored in the second
-            ! part of the SpawnedParts array from NIfTot+1 --> NIfTot+1+NIfDBO
+            ! The parent is nifd integers long, and stored in the second
+            ! part of the SpawnedParts array from NIfTot+1 --> NIfTot+1+nifd
             call store_parent_with_spawned (RDMBiasFacCurr, WalkerNo, &
-                                            ilutI, WalkersToSpawn, ilutJ, &
-                                            proc)
+                ilutI, WalkersToSpawn, ilutJ, proc)
+
+            ! in the GUGA case I also need to store the rdm info in the
+            ! spawned parts arrays here
+            if (tGUGA) then
+                call transfer_stochastic_rdm_info(ilutJ, &
+                    SpawnedParts(:,ValidSpawnedList(proc)), &
+                    BitIndex_from = IlutBits, BitIndex_to = IlutBits)
+            end if
         end if
 
         if (tPreCond .or. tReplicaEstimates) then
@@ -274,7 +285,8 @@ contains
         ! element which has changed.
         ! rmneci_setup: clarified dependence of run on part_type
         run = part_type_to_run(part_type)
-        acceptances(run) = acceptances(run) + sum(abs(child(min_part_type(run):max_part_type(run))))
+        acceptances(run) = acceptances(run) + &
+            sum(abs(child(min_part_type(run):max_part_type(run))))
 
     end subroutine create_particle
 
@@ -309,7 +321,7 @@ contains
                                         &simple-initiator option.")
         end if
 
-        call hash_table_lookup(nI_child, ilut_child, NIfDBO, spawn_ht, &
+        call hash_table_lookup(nI_child, ilut_child, nifd, spawn_ht, &
             SpawnedParts, ind, hash_val, tSuccess)
 
         if (tSuccess) then
@@ -396,7 +408,8 @@ contains
                return
             endif
 
-            call encode_bit_rep(SpawnedParts(:, ValidSpawnedList(proc)), ilut_child(0:NIfDBO), child_sign, flags)
+            call encode_bit_rep(SpawnedParts(:, ValidSpawnedList(proc)), &
+                ilut_child(0:nifd), child_sign, flags)
 
            ! If the parent was an initiator then set the initiator flag for the
            ! child, to allow it to survive.
@@ -406,7 +419,7 @@ contains
                 ! set the initiator flag to prevent abort due to the RK reset
                 if(tTruncInitiator .and. runge_kutta_step == 2) then
                     ! check whether the target is already in CurrentDets
-                    call hash_table_lookup(nI_child, ilut_child, NIfDBO, HashIndex, &
+                    call hash_table_lookup(nI_child, ilut_child, nifd, HashIndex, &
                         CurrentDets, ind, hash_val_cd, tSuccess)
                     if(tSuccess) then
                         call extract_sign(CurrentDets(:,ind), sgn_prod)
@@ -503,6 +516,7 @@ contains
 
         use CalcData, only: qmc_trial_wf
         use searching, only: get_con_amp_trial_space
+        use guga_excitations, only: calc_off_diag_guga_ref_direct
 
         integer, intent(in) :: nI(nel), ExcitLevel
         real(dp), intent(in) :: RealwSign(lenof_sign)
@@ -772,18 +786,10 @@ contains
             call add_hist_energies (ilut, RealwSign, HDiagCurr)
         endif
 
-        ! Are we doing a spin-projection histogram?
-        if (tHistSpinDist) then
-            if (tRealCoeffByExcitLevel) &
-                call stop_all(this_routine, 'Not set up to use real coeffs &
-                                            &with tHistSpindist')
-            call test_add_hist_spin_dist_det (ilut, RealwSign)
-        end if
-
         ! Maintain a list of the degree of occupation of each orbital
         if (tPrintOrbOcc .and. (iter >= StartPrintOrbOcc)) then
             if (iter == StartPrintOrbOcc .and. &
-                 DetBitEq(ilut, ilutHF, NIfDBO)) then
+                 DetBitEq(ilut, ilutHF, nifd)) then
                 write(6,*) 'Beginning to fill the HF orbital occupation list &
                            &during iteration', iter
                 if (tPrintOrbOccInit) &
@@ -791,9 +797,8 @@ contains
             end if
             if ((tPrintOrbOccInit .and. test_flag(ilut,get_initiator_flag(1)))&
                 .or. .not. tPrintOrbOccInit) then
-                forall (i = 1:nel) OrbOccs(iand(nI(i), csf_orbital_mask)) &
-                        = OrbOccs(iand(nI(i), csf_orbital_mask)) &
-                                   + (RealwSign(1) * RealwSign(1))
+                forall (i = 1:nel) OrbOccs(nI(i)) &
+                        = OrbOccs(nI(i)) + (RealwSign(1) * RealwSign(1))
             endif
         endif
 
@@ -837,10 +842,10 @@ contains
         HElement_t(dp) :: amps(size(current_trial_amps,1))
 
         if (tHistSpawn .or. &
-            (tCalcFCIMCPsi .and. tFCIMC) .or. tHistEnergies .or. &
-            tHistSpinDist .or. tPrintOrbOcc) &
+            (tCalcFCIMCPsi .and. tFCIMC) .or. tHistEnergies .or. tPrintOrbOcc) then
             call stop_all(this_routine, "Not yet supported: Turn off HISTSPAWN,&
                    & PRINTFCIMCPSI, PRINTORBOCCS, HISTPARTENERGIES, HIST-SPIN-DIST")
+        end if
 
         ! Add in the contributions to the numerator and denominator of the trial
         ! estimator, if it is being used.
@@ -1219,7 +1224,7 @@ contains
            ! n_add (this is on by default).
 
            ! All of the references stay initiators
-           if(DetBitEQ(ilut, ilutRef(:,run),NIfDBO)) staticInit = .true.
+           if(DetBitEQ(ilut, ilutRef(:,run),nifd)) staticInit = .true.
            ! If det. is the HF det, or it
            ! is in the deterministic space, then it must remain an initiator.
            if ( .not. (staticInit) &
@@ -1549,7 +1554,7 @@ contains
 
     LOGICAL FUNCTION TestifDETinCAS(CASDet)
         INTEGER :: k,z,CASDet(NEl), orb
-        LOGICAL :: tElecInVirt, bIsCsf
+        LOGICAL :: tElecInVirt
 
         ! CASmax is the max spin orbital number (when ordered energetically)
         ! within the chosen active space. Spin orbitals with energies larger
@@ -1566,18 +1571,10 @@ contains
         !  calculated each time).
 !        CASmin=NEl-OccCASorbs
 
-        bIsCsf = iscsf(CASDet)
-
         z=0
         tElecInVirt=.false.
         do k=1,NEl      ! running over all electrons
-            ! TODO: is it reasonable to just apply the orbital mask anyway?
-            !       it is probably faster than running iscsf...
-            if (bIsCsf) then
-                orb = iand(CASDet(k), csf_orbital_mask)
-            else
-                orb = CASDet(k)
-            endif
+            orb = CASDet(k)
 
             if (SpinInvBRR(orb).gt.CASmax) THEN
                 tElecInVirt=.true.
@@ -1622,9 +1619,6 @@ contains
         real(dp) :: HighPopInNeg(2),HighPopInPos(2),HighPopoutNeg(2),HighPopoutPos(2)
         real(dp) :: TempSign(lenof_sign)
 
-!        WRITE(6,*) 'HighPopPos',HighPopPos
-!        WRITE(6,*) 'CurrentSign(HighPopPos)',CurrentSign(HighPopPos)
-
         IF(TotWalkersNew.gt.0) THEN
             call extract_sign(CurrentDets(:,HighPopNeg),TempSign)
         ELSE
@@ -1632,9 +1626,6 @@ contains
         ENDIF
 
         HighPopInNeg(1) = TempSign(1)
-        ! [W.D. 15.5.2017:]
-        ! why cast to int32?? and not real(dp)
-!         HighPopInNeg(2)= int(iProcIndex,int32)
         HighPopInNeg(2)= real(iProcIndex,dp)
 
         CALL MPIAllReduceDatatype(HighPopinNeg,1,MPI_MINLOC,MPI_2DOUBLE_PRECISION,HighPopoutNeg)
@@ -1646,9 +1637,6 @@ contains
         ENDIF
 
         HighPopInPos(1) = TempSign(1)
-        ! [W.D. 15.5.2017:]
-        ! why cast to int32?? and not real(dp)
-!         HighPopInPos(2)=int(iProcIndex,int32)
         HighPopInPos(2)=real(iProcIndex,dp)
 
         CALL MPIAllReduceDatatype(HighPopinPos,1,MPI_MAXLOC,MPI_2DOUBLE_PRECISION,HighPopoutPos)
@@ -2112,7 +2100,7 @@ contains
             do i=1,int(TotWalkers,sizeof_int)
                 call extract_sign(CurrentDets(:,i),CurrentSign)
                 if((abs(CurrentSign(1)) > InitiatorWalkNo) .or. &
-                        (DetBitEQ(CurrentDets(:,i),iLutHF,NIfDBO))) then
+                        (DetBitEQ(CurrentDets(:,i),iLutHF,nifd))) then
                     !Is allowed initiator. Add to subspace.
                     iSubspaceSize = iSubspaceSize + 1
                 endif
@@ -2126,7 +2114,7 @@ contains
             do i=1,int(TotWalkers,sizeof_int)
                 call extract_sign(CurrentDets(:,i),CurrentSign)
                 if((abs(CurrentSign(1)) > InitiatorWalkNo) .or. &
-                        (DetBitEQ(CurrentDets(:,i),iLutHF,NIfDBO))) then
+                        (DetBitEQ(CurrentDets(:,i),iLutHF,nifd))) then
                     !Is allowed initiator. Add to subspace.
                     iSubspaceSize = iSubspaceSize + 1
                     call decode_bit_det(ExpandedWalkerDets(:,iSubspaceSize),CurrentDets(:,i))
@@ -2252,7 +2240,7 @@ contains
             call decode_bit_det(nI_spawn, SpawnedParts(:,i))
 
             ! Now add in the diagonal elements
-            call hash_table_lookup(nI_spawn, SpawnedParts(:,i), NIfDBO, HashIndex, &
+            call hash_table_lookup(nI_spawn, SpawnedParts(:,i), nifd, HashIndex, &
                                    CurrentDets, PartInd, DetHash, tSuccess)
 
             if (tSuccess) then
@@ -2510,7 +2498,7 @@ contains
         Type(BasisFn) :: isym
 
         iLutRef(:, run) = 0_n_int
-        iLutRef(0:NIfDBO, run) = ilut(0:NIfDBO)
+        iLutRef(0:nifd, run) = ilut(0:nifd)
         call decode_bit_det (ProjEDet(:, run), iLutRef(:, run))
         write (iout, '(a,i3,a)', advance='no') 'Changing projected &
               &energy reference determinant for run', run, &
@@ -2532,7 +2520,7 @@ contains
 
             ref_b_vector_real = real(ref_b_vector_int,dp)
 
-            if (.not. t_guga_mat_eles)  call create_projE_list(run)
+            if (.not. t_direct_guga_ref)  call create_projE_list(run)
 
         end if
 

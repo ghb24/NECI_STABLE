@@ -1,0 +1,47 @@
+Title
+
+System read
+electrons  5
+nonuniformrandexcits mol_guga_weighted
+guga 3
+endsys
+
+calc
+
+methods
+method vertex fcimc
+endmethods
+
+tau 0.01
+totalwalkers   1000
+load-balance-blocks off
+
+definedet 1 2 3 5 7
+
+seed 1
+
+nmcyc 2000
+
+core-inits
+startsinglepart 100
+shiftdamp 0.02
+stepsshift 10
+truncinitiator
+addtoinitiator 2
+maxwalkerbloom 1
+memoryfacspawn 20.0
+memoryfacpart 10.0
+semi-stochastic 100
+pops-core 1000
+allrealcoeff
+time 2700
+endcalc
+
+logging
+printonerdm
+calcrdmonfly          1    100 10
+explicitallrdm
+popsfile -1
+highlypopwrite 100
+endlog
+end

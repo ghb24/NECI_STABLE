@@ -3,7 +3,7 @@
 MODULE Calc
 
     use CalcData
-    use SystemData, only: beta, nel, STOT, tCSF, LMS, tSpn, AA_elec_pairs, &
+    use SystemData, only: beta, nel, STOT, LMS, tSpn, AA_elec_pairs, &
                           BB_elec_pairs, par_elec_pairs, AB_elec_pairs, &
                           AA_hole_pairs, BB_hole_pairs, AB_hole_pairs, &
                           par_hole_pairs, hole_pairs, nholes_a, nholes_b, &
@@ -12,12 +12,6 @@ MODULE Calc
                           t_k_space_hubbard, tHPHF, t_non_hermitian, &
                           tGUGA, t_mixed_hubbard, t_olle_hubbard
     use Determinants, only: write_det
-    use spin_project, only: spin_proj_interval, &
-                            spin_proj_gamma, spin_proj_shift, &
-                            spin_proj_cutoff, spin_proj_stochastic_yama, &
-                            spin_proj_spawn_initiators, spin_proj_no_death, &
-                            spin_proj_iter_count, spin_proj_nopen_max, &
-                            disable_spin_proj_varyshift
     use default_sets
     use Determinants, only: iActiveBasis, SpecDet, tSpecDet, nActiveSpace, &
                             tDefineDet
@@ -334,18 +328,6 @@ contains
               RhoEpsilon=1.0e-8_dp
           ENDIF
 
-          ! Spin Projection defaults
-          spin_proj_gamma = 0.1_dp
-          tSpinProject  = .false.
-          spin_proj_stochastic_yama = .false.
-          spin_proj_spawn_initiators = .true.
-          spin_proj_no_death = .false.
-          spin_proj_interval = 5
-          spin_proj_shift = 0.0_dp
-          spin_proj_cutoff = 0
-          spin_proj_iter_count = 1
-          spin_proj_nopen_max = -1
-          disable_spin_proj_varyshift = .false.
           tUseProcsAsNodes=.false.
 
           ! Truncation based on number of unpaired electrons
@@ -361,7 +343,6 @@ contains
 
           ! Semi-stochastic and trial wavefunction options.
           tSemiStochastic = .false.
-          tCSFCore = .false.
           t_fast_pops_core = .true.
           t_global_core_space = .true.
           tDynamicCoreSpace = .false.
@@ -1288,17 +1269,10 @@ contains
                 ! keyword
                 t_read_probs = .false.
 
-            case ("GUGA-MATELES")
-                ! turn on the new guga-matrix element calculation for stuff
-                ! like the projected energy, semi-stochastic initialization
-                ! and trail-wavefunction creation
-                t_guga_mat_eles = .true.
-
-            case ("NO-GUGA-MATELES")
-                ! changed the default setting to always use the new direct
-                ! way to calculate the guga matrix elements. This keyword
-                ! changes the behavior back to the old way
-                t_guga_mat_eles = .false.
+            case ("DIRECT-GUGA-REF")
+                ! option to calculate the reference energy directly and not
+                ! via a pre-computed list
+                t_direct_guga_ref = .true.
 
             case('TRUNC-GUGA-PGEN')
                 ! truncate GUGA excitation with a pgen below a chosen
@@ -1549,15 +1523,6 @@ contains
                     tSemiStochastic = .false.
                     tStartCoreGroundState = .false.
                 end if
-            case("CSF-CORE")
-                if(item.lt.nitems) then
-                   call geti(STOT)
-                else
-                   STOT=0
-                endif
-                tCSFCore = .true.
-                tCSF = .true.
-                LMS = STOT
 
             case("ALL-CONN-CORE")
                 ss_space_in%tAllConnCore = .true.
@@ -2628,76 +2593,6 @@ contains
 !                tMultipleDetsSpawn=.true.
 !                call Geti(iDetGroup)
 
-            case("SPIN-PROJECT")
-                ! Enable spin projection (spin_project.F90).
-                ! Optional argument specifies no. of iterations between
-                ! each application of stochastic spin projection.
-                tSpinProject = .true.
-                if (item < nitems) call geti (spin_proj_interval)
-
-            case("SPIN-PROJECT-GAMMA")
-                ! Change the value of delta-gamma used by the spin projection
-                ! routines. Similar to modifying tau for normal FCIQMC.
-                call getf (spin_proj_gamma)
-
-            case("SPIN-PROJECT-SHIFT")
-                ! Change the value of delta-gamma used by the spin projection
-                ! routines. Similar to modifying tau for normal FCIQMC.
-                call getf (spin_proj_shift)
-
-            case("SPIN-PROJECT-CUTOFF")
-                ! Change the minimum number of walkers required for spin
-                ! projection to be applied to a determinant
-                call geti (spin_proj_cutoff)
-
-            case("SPIN-PROJECT-STOCHASTIC-YAMA")
-                ! Only project via one Yamanouchi symbol on each iteration,
-                ! selecting that symbol stochastically.
-                spin_proj_stochastic_yama = .true.
-
-            case("SPIN-PROJECT-NOPEN-LIMIT")
-                ! Determine the largest number of unpaired electrons a
-                ! determinant may have for us to apply spin projectino to it.
-                !
-                ! --> Attempt to reduce the exponential scaling of the
-                !     projection sum.
-                call geti (spin_proj_nopen_max)
-
-            case("SPIN-PROJECT-SPAWN-INITIATORS")
-                ! If TRUNCINITIATOR is set, then ensure that all children of
-                ! initiators created by spin projection are made into
-                ! initiators.
-                spin_proj_spawn_initiators = readt_default (.true.)
-                if (spin_proj_spawn_initiators) &
-                    write(6,*) 'Disabling spin projected progeny of &
-                               &initiators automatically being initiators'
-
-            case("SPIN-PROJECT-NO-DEATH")
-                ! Only spawn, don't die, particles in spin projection
-                spin_proj_no_death = readt_default (.true.)
-                if (spin_proj_no_death) &
-                    write(6,*) 'Disabling death for spin projection'
-
-            case("SPIN-PROJECT-ITER-COUNT")
-                ! How many times should the spin projection step be applied
-                ! on each occasion it gets called? (default 1)
-                call geti (spin_proj_iter_count)
-
-            case("SPIN-PROJECT-VARYSHIFT-OFF")
-                ! When VARYSHIFT is enabled, turn spin projection off.
-                ! TODO: Should this be made default?
-                if (item < nitems) then
-                    call readu(w)
-                    select case(w)
-                    case("OFF")
-                        disable_spin_proj_varyshift = .false.
-                    case default
-                        disable_spin_proj_varyshift = .true.
-                    end select
-                else
-                    disable_spin_proj_varyshift = .true.
-                endif
-
             case("TRUNC-NOPEN")
                 ! Truncate determinant spawning at a specified number of
                 ! unpaired electrons.
@@ -3587,7 +3482,7 @@ contains
 
         Subroutine CalcInit()
           use constants, only: dp
-          use SystemData, only: G1, Alat, Beta, BRR, ECore, LMS, nBasis, nBasisMax, STot,tCSF,nMsh,nEl,tSmallBasisForThreeBody
+          use SystemData, only: G1, Alat, Beta, BRR, ECore, LMS, nBasis, nBasisMax, STot,nMsh,nEl,tSmallBasisForThreeBody
           use SystemData, only: tUEG,nOccAlpha,nOccBeta,ElecPairs,tExactSizeSpace,tMCSizeSpace,MaxABPairs,tMCSizeTruncSpace
           use SystemData, only: tContact
           use IntegralsData, only: FCK, CST, nMax, UMat
@@ -3720,22 +3615,19 @@ contains
               write(6,*) " but is kept for now to not break remaining code!"
           end if
 
-          if (tCSF) then
-              nOccAlpha = (nel / 2) + LMS
-              nOccBeta =  (nel / 2) - LMS
-          else
-              nOccAlpha=0
-              nOccBeta=0
-              do i=1,NEl
-                  CALL GETUNCSFELEC(FDET(I),J,IC)
-                  IF(G1(J)%Ms.eq.1) THEN
-                      ! Orbital is an alpha orbital
-                     nOccAlpha=nOccAlpha+1
-                  ELSE
-                     nOccBeta=nOccBeta+1
-                  ENDIF
-              enddo
-          end if
+          nOccAlpha=0
+          nOccBeta=0
+          do i=1,NEl
+              j = fdet(i)
+              ic = 0
+              IF(G1(J)%Ms.eq.1) THEN
+                  ! Orbital is an alpha orbital
+                 nOccAlpha=nOccAlpha+1
+              ELSE
+                 nOccBeta=nOccBeta+1
+              ENDIF
+          enddo
+
           WRITE(6,"(A,I5,A,I5,A)") " FDet has ",nOccAlpha," alpha electrons, and ",nOccBeta," beta electrons."
           ElecPairs=(NEl*(NEl-1))/2
           MaxABPairs=(nBasis*(nBasis-1)/2)
@@ -3827,7 +3719,7 @@ contains
 
         subroutine CalcDoCalc(kp)
           use SystemData, only: Alat, Arr,Brr, Beta, ECore, G1, LMS, LMS2, nBasis,NMSH, nBasisMax
-          use SystemData, only: SymRestrict, tCSFOLD, tParity, tSpn, ALat, Beta,tMolpro,tMolproMimic
+          use SystemData, only: SymRestrict, tParity, tSpn, ALat, Beta,tMolpro,tMolproMimic
           use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB,BasisFN,BasisFNSize,BasisFNSizeB,nEl
           Use DetCalcData, only : nDet, nEval, nmrks, w
           USE FciMCParMod , only : FciMCPar
@@ -4228,10 +4120,8 @@ contains
          INTEGER NEL,NI(NEL),I,J
          TYPE(BasisFN) G1(*)
          real(dp) ALAT(4),CST,TMAT,CALCT2
-         LOGICAL ISCSF_old
 
          CALCT2=0.0_dp
-         IF(iscsf_old(NI,NEL)) RETURN
 
          !===============================
          if (TUEG2) then

@@ -2,7 +2,7 @@
 
 module real_time_aux
   use real_time_data, only: overlap_states, gf_count
-  use bit_rep_data, only: extract_sign, niftot, nifdbo
+  use bit_rep_data, only: extract_sign, niftot, nifd
   use bit_reps, only: decode_bit_det, flag_deterministic
   use FciMCData, only: SpawnedParts, ValidSpawnedList, MaxSpawned, InitialSpawnedSlots, &
        CurrentDets, hashindex
@@ -149,7 +149,7 @@ module real_time_aux
       character(*), parameter :: this_routine = "add_semistochastic_state"
 
       call decode_bit_det(nI,ilut)
-      call hash_table_lookup(nI,ilut,nifDBO,ssht,ilut_list,index,hash_val,tSuccess)
+      call hash_table_lookup(nI,ilut,nifd,ssht,ilut_list,index,hash_val,tSuccess)
       ! If it is already in corespace, we check which population is higher
       if(tSuccess) then
          call extract_sign(ilut_list(:,index),old_sgn)

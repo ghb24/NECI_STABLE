@@ -16,7 +16,7 @@ module analyse_wf_symmetry
 
     use lattice_mod, only: lat
 
-    use bit_rep_data, only: niftot, nifd, noffsgn, nifsgn
+    use bit_rep_data, only: niftot, nifd
 
     use constants, only: n_int, dp, pi, lenof_sign
 

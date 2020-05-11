@@ -36,7 +36,6 @@ module sltcnd_mod
         TripleExc_t, FurtherExc_t, &
         UNKNOWN, get_excitation, get_bit_excitation, create_excitation
     use DetBitOps, only: count_open_orbs, FindBitExcitLevel
-    use csf_data, only: csf_sort_det_block
     use timing_neci
     use bit_reps, only: NIfTot
     use LMat_mod, only: get_lmat_el, get_lmat_el_ua

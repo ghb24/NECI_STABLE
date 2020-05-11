@@ -2179,7 +2179,7 @@ contains
     end subroutine get_offdiag_helement_rs_hub_test
 
     subroutine get_helement_test
-        use SystemData, only: nel, tCSF, bhub, uhub, nbasis, G1
+        use SystemData, only: nel, bhub, uhub, nbasis, G1
         use bit_rep_data, only: nifd, niftot
         use Determinants, only: get_helement
         use constants, only: dp, n_int
@@ -2392,15 +2392,6 @@ contains
 
         print *, ""
         print *, "testing get_umat_el_hub"
-!
-        ! for the mateles then..
-!         ecore = 0.0
-!         tcsf = .false.
-!         texch = .false.
-!         treltvy = .false.
-!         niftot = 0
-!         ! bits_n_int ..
-!         ! n_int ..
 
         uhub = 1.0
         nbasis = 8

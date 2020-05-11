@@ -8,13 +8,13 @@ program test_gasci
   use IntegralsData, only: UMat, umat_win
   use Integrals_neci, only: IntInit, get_umat_el_normal
   use procedure_pointers, only: get_umat_el
-  use SystemData, only: nel, nBasis, UMatEps, tStoreSpinOrbs, tReadFreeFormat, tCSF, &
+  use SystemData, only: nel, nBasis, UMatEps, tStoreSpinOrbs, tReadFreeFormat, &
        tReadInt, tSpinConservingGAS
   use System, only: SysInit, SetSysDefaults
   use Parallel_neci, only: MPIInit
   use UMatCache, only: GetUMatSize, tTransGTID
   use OneEInts, only: Tmat2D
-  use bit_rep_data, only: NIfTot, NIfDBO, NOffSgn, NIfSgn, extract_sign
+  use bit_rep_data, only: NIfTot, nifd, IlutBits, extract_sign
   use bit_reps, only: encode_sign, decode_bit_det
   use DetBitOps, only: EncodeBitDet, DetBitEq
   use SymExcit3, only: countExcitations3, GenExcitations3
@@ -42,9 +42,9 @@ contains
     integer(MPIArg) :: ierr
     umatsize = 0
     nel = 5
-    NIfDBO = 0
-    NOffSgn = 1
-    NIfSgn = 1
+    nifd = 0
+    IlutBits%ind_pop = 1
+    IlutBits%len_pop = 1
     NIfTot = 2
 
     fcidump_name = "FCIDUMP"
@@ -117,7 +117,6 @@ contains
        nI(i) = i
     end do
 
-    tCSF = .false.
     tSpinConservingGAS = .false.
     call EncodeBitDet(nI,ilut)
 
@@ -132,7 +131,7 @@ contains
        if(tAllExFound) exit
        call encodeBitDet(nJ,ilutJ)
        numEx = numEx + 1
-       allEx(0:NIfDBO,numEx) = ilutJ(0:NIfDBO)
+       allEx(0:nifd,numEx) = ilutJ(0:nifd)
     end do
 
     ! set the biases for excitation generation

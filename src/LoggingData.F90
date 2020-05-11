@@ -237,4 +237,6 @@ module LoggingData
     ! histogram the matrix elements of the six-index operator
     logical :: tHistLMat
 
+    ! output RDMs also in Molcas format in the GUGA RDMs implementation
+    logical :: t_print_molcas_rdms = .false.
 end module LoggingData

@@ -3,7 +3,7 @@
 module semi_stoch_gen
 
     use SystemData, only: tGUGA
-    use bit_rep_data, only: nIfDBO, NIfD, NIfTot
+    use bit_rep_data, only: NIfD, NIfTot
     use bit_reps, only: decode_bit_det, nifguga
     use CalcData
     use constants
@@ -26,7 +26,7 @@ module semi_stoch_gen
     use guga_data, only: tGUGACore
     use util_mod, only: near_zero
     use core_space_util, only: core_space_t, cs_replicas, deallocate_sparse_ham
-    
+
     implicit none
 
 contains
@@ -46,7 +46,6 @@ contains
         use FciMCData, only: SemiStoch_Davidson_Time
         use FciMCData, only: SemiStoch_nonhermit_Time
         use FciMCData, only: NoInitDets, AllNoInitDets
-        use FciMCData, only: tFillingStochRdmOnFly
         use load_balance, only: adjust_load_balance
         use load_balance_calcnodes, only: tLoadBalanceBlocks
         use sort_mod, only: sort
@@ -85,7 +84,7 @@ contains
         end if
         ! Allocate the corespace replicas
         allocate(cs_replicas(num_core_runs))
-        
+
         write(6,'(/,12("="),1x,a30,1x,12("="))') "Semi-stochastic initialisation"; call neci_flush(6)
         do run = 1, size(cs_replicas)
             associate(rep => cs_replicas(run))
@@ -157,7 +156,7 @@ contains
               ! Do a check that no states are in the deterministic space twice. The list is sorted
               ! already so simply check states next to each other in the list.
               do i = 2, rep%determ_sizes(iProcIndex)
-                  if (all(SpawnedParts(0:NIfDBO, i-1) == SpawnedParts(0:NIfDBO, i))) then
+                  if (all(SpawnedParts(0:nifd, i-1) == SpawnedParts(0:nifd, i))) then
                       call decode_bit_det(nI, SpawnedParts(:,i))
                       write(6,'("State found twice:")')
                       write(6,*) SpawnedParts(:,i)
@@ -292,7 +291,7 @@ contains
                                     core_in%tApproxSpace, core_in%nApproxSpace, &
                                     SpawnedParts, space_size, run, t_opt_fast_core = t_fast_pops_core)
         if (core_in%tRead) call generate_space_from_file(core_in%read_filename, SpawnedParts, space_size)
-        if (.not. (tCSFCore .or. tGUGACore)) then
+        if (.not. (tGUGACore)) then
            if (core_in%tDoubles) call generate_sing_doub_determinants(SpawnedParts, space_size, core_in%tHFConn)
            if(core_in%tTriples) call generate_trip_determinants(SpawnedParts, space_size, &
                 core_in%tHFConn)
@@ -331,25 +330,6 @@ contains
                               &currently implemented.")
             else if (core_in%tMP1) then
                 call generate_using_mp1_criterion(core_in%mp1_ndets, SpawnedParts, space_size)
-            end if
-        else if (tCSFCore) then
-            if (core_in%tDoubles) then
-                call generate_sing_doub_csfs(SpawnedParts, space_size)
-            else if (core_in%tCAS) then
-                call stop_all("init_semi_stochastic", "CAS core space with CSFs is not &
-                              &currently implemented.")
-            else if (core_in%tCAS) then
-                call stop_all("init_semi_stochastic", "Cannot use a RAS core space with &
-                              &CSFs.")
-            else if (core_in%tOptimised) then
-                call stop_all("init_semi_stochastic", "Optimised core space with CSFs is not &
-                              &currently implemented.")
-            else if (core_in%tLowE) then
-                call stop_all("init_semi_stochastic", "Low energy core space with CSFs is not &
-                              &currently implemented.")
-            else if (core_in%tMP1) then
-                call stop_all("init_semi_stochastic", "The use of the MP1 wave function criterion &
-                              &with CSFs is not implemented.")
             end if
         end if
 
@@ -620,71 +600,6 @@ contains
 
 !------------------------------------------------------------------------------------------!
 
-    subroutine generate_sing_doub_csfs(ilut_list, space_size)
-
-        ! In/Out: ilut_list - List of determinants generated.
-        ! In/Out: space_size - Number of determinants in the generated space.
-        !             If ilut_list is not empty on input and you want to keep
-        !             the states already in it, then on input space_size should
-        !             be equal to the number of states to be kept in ilut_list,
-        !             and new states will be added in from space_size+1.
-        !             Otherwise, space_size must equal 0 on input.
-        !             On output space_size will equal the total number of
-        !             generated plus what space_size was on input.
-
-        use bit_rep_data, only: nOffY
-        use csf_data, only: csf_orbital_mask
-        use enumerate_excitations, only: excit_store, enumerate_spatial_excitations
-        use SystemData, only: nel, tFixLz
-
-        integer(n_int), intent(inout) :: ilut_list(0:,:)
-        integer, intent(inout) :: space_size
-
-        type(excit_store), target :: gen_store
-        integer(n_int) :: ilutHF_loc(0:NIfTot), ilut(0:NIfTot)
-        integer :: HFDet_loc(nel), nI(nel)
-        integer :: ex_flag
-        logical :: first_loop
-
-        if (tFixLz) call stop_all("generate_sing_doub_csfs", "The CSF generating routine &
-            &does not work when Lz symmetry is applied.")
-
-        ! Setting the first two bits of this flag tells the generating subroutine to
-        ! generate both single and double spatial excitations.
-        ex_flag = 0
-        ex_flag = ibset(ex_flag, 0)
-        ex_flag = ibset(ex_flag, 1)
-
-        ! For Stot /= 0, the HF state will be a CSF. For the purpose of
-        ! generating all spatial orbitals we just want a determinant, so use a
-        ! state without the CSF information.
-        HFdet_loc = iand(HFDet, csf_orbital_mask)
-        ilutHF_loc = ilutHF
-        ilutHF_loc(NOffY) = 0
-
-        ! Ensure ilut(0) \= -1 so that the loop can be entered.
-        ilut(0) = 0
-        first_loop = .true.
-        do while (ilut(0) /= -1)
-
-            if (first_loop) then
-                ilut(0) = -1
-                first_loop = .false.
-            end if
-
-            ! Generate the next spatial excitation (orbital configuration).
-            call enumerate_spatial_excitations(ilutHF_loc, HFDet_loc, ilut, ex_flag, gen_store)
-
-            if (ilut(0) == -1) exit
-
-            call decode_bit_det(nI, ilut)
-
-            call gen_all_csfs_from_orb_config(ilut, nI, ilut_list, space_size)
-
-        end do
-
-    end subroutine generate_sing_doub_csfs
-
     subroutine generate_ras(ras_info, ilut_list, space_size)
 
         ! In: ras - Parameters for the RAS space.
@@ -753,7 +668,6 @@ contains
         !             On output space_size will equal the total number of
         !             generated plus what space_size was on input.
 
-        use csf_data, only: csf_orbital_mask
         use DetBitOps, only: DetBitLT
         use sort_mod, only: sort
         use sym_mod, only: getsym
@@ -766,7 +680,7 @@ contains
         type(BasisFN) :: CASSym
         integer(n_int) :: ilut(0:NIfTot)
         integer(n_int), allocatable, dimension(:,:) :: ilut_store
-        integer :: HFdet_loc(nel), iCASDet
+        integer :: iCASDet
         integer :: num_active_orbs, nCASDet, i, j, counter, comp, ierr
         integer, allocatable :: CASBrr(:), CASRef(:)
         integer(n_int) :: cas_bitmask(0:NIfD), cas_not_bitmask(0:NIfD)
@@ -803,10 +717,6 @@ contains
         ! all other orbitals.
         cas_not_bitmask = not(cas_bitmask)
 
-        ! For Stot /= 0, the HF state will be a CSF. For the purpose of generating all spatial
-        ! orbitals, we just want a determinant, so use a state without the CSF information.
-        HFdet_loc = iand(HFDet, csf_orbital_mask)
-
         ! CASRef holds the part of the HF determinant in the active space.
         CASRef = CasBRR(1:occ_orbs)
         call sort(CasRef)
@@ -823,13 +733,6 @@ contains
         allocate(CASDets(occ_orbs, nCASDet), stat=ierr)
         call LogMemAlloc("CASDets", occ_orbs*nCASDet, 8, t_r, CASDetsTag, ierr)
         CASDets(:,:) = 0
-
-        if (tCSFCore) then
-            allocate(ilut_store(nCASDet-1, 0:NIfTot), stat=ierr)
-            call LogMemAlloc("ilut_store", (nCASDet-1)*(NIfTot+1), size_n_int, t_r, IlutTag, ierr)
-            ilut_store = 0_n_int
-            counter = 1
-        end if
 
         ! Now fill up CASDets...
         call gndts(occ_orbs, num_active_orbs, CASBrr, nBasisMax, CASDets, &
@@ -852,13 +755,8 @@ contains
             comp = DetBitLT(ilut, ilutHF, NIfD)
             if (comp == 0) cycle
 
-            if (tCSFCore) then
-                ilut_store(counter, 0:NifD) = ilut(0:NifD)
-                counter = counter + 1
-            else
-                ! Now that we have fully generated the determinant, add it to the main list.
-                call add_state_to_space(ilut, ilut_list, space_size)
-            end if
+            ! Now that we have fully generated the determinant, add it to the main list.
+            call add_state_to_space(ilut, ilut_list, space_size)
 
         end do
 
@@ -866,10 +764,6 @@ contains
         deallocate(CASRef)
         deallocate(CASDets, stat=ierr)
         call LogMemDealloc(t_r, CASDetsTag, ierr)
-        if (tCSFCore) then
-            deallocate(ilut_store, stat=ierr)
-            call LogMemDealloc(t_r, IlutTag, ierr)
-        end if
 
     end subroutine generate_cas
 
@@ -1178,7 +1072,7 @@ contains
         else
             max_size = int(n_pops_keep, MPIArg)
         end if
-        
+
         length_this_proc = min( max_size, int(source_size - nzero_dets, MPIArg))
 
         call MPIAllGather(length_this_proc, lengths, ierr)
@@ -1213,12 +1107,12 @@ contains
             loc_source, int(source_size))
 
         do i = 1, length_this_proc
-            ! Store the real amplitudes in their real form.            
+            ! Store the real amplitudes in their real form.
             call extract_sign(largest_states(:,i), real_sign)
             ! We are interested in the absolute values of the ampltiudes.
             amps_this_proc(i) = core_space_weight(real_sign, run)
         end do
-        
+
         if(t_use_fast_pops_core) then
             min_sign = amps_this_proc(1)
             max_sign = amps_this_proc(ubound(amps_this_proc, dim=1))
@@ -1259,7 +1153,7 @@ contains
 
             end do
         end if
-        
+
         ! Add the states to the ilut_list array.
         temp_ilut = 0_n_int
         core_sum = 0.0_dp
@@ -1317,7 +1211,7 @@ contains
         ilut_tmp = 0_n_int
 
         do
-            read(iunit, *, iostat=stat) ilut(0:NIfDBO)
+            read(iunit, *, iostat=stat) ilut(0:nifd)
 
             ! If the end of the file.
             if (stat < 0) exit
@@ -1341,64 +1235,6 @@ contains
         close(iunit)
 
     end subroutine generate_space_from_file
-
-    subroutine gen_all_csfs_from_orb_config(ilut, nI, ilut_list, space_size)
-
-        ! In/Out: ilut_list - List of determinants generated.
-        ! In/Out: space_size - Number of determinants in the generated space.
-        !             If ilut_list is not empty on input and you want to keep
-        !             the states already in it, then on input space_size should
-        !             be equal to the number of states to be kept in ilut_list,
-        !             and new states will be added in from space_size+1.
-        !             Otherwise, space_size must equal 0 on input.
-        !             On output space_size will equal the total number of
-        !             generated plus what space_size was on input.
-
-        use bit_rep_data, only: NIfY, NOffY
-        use csf, only: csf_get_yamas, get_num_csfs, get_csf_bit_yama, csf_apply_yama
-        use DetBitOps, only: count_open_orbs
-        use SystemData, only: nel, Stot
-
-        integer(n_int), intent(inout) :: ilut(0:NIfTot)
-        integer, intent(inout) :: nI(nel)
-        integer(n_int), intent(inout) :: ilut_list(0:,:)
-        integer, intent(inout) :: space_size
-
-        integer :: i, n_open, num_csfs, max_num_csfs
-        integer, allocatable, dimension(:,:) :: yama_symbols
-
-        ! Can't possibly have more open orbitals than nel.
-        ! TODO: Check that num_csfs *always* increases with n_open.
-        max_num_csfs = get_num_csfs(nel, Stot)
-
-        ! Use max_num_csfs to allocate the array of Yamanouchi symbols to be large enough.
-        allocate(yama_symbols(max_num_csfs, nel))
-        yama_symbols = 0
-
-        ! Find the number of open orbitals.
-        n_open = count_open_orbs(ilut)
-        ! Find the number of CSFs (and hence Yamanouchi symbols) with this value of Stot for
-        ! this orbital configuration.
-        num_csfs = get_num_csfs(n_open, Stot)
-
-        ! Enumerate the list of all possible Yamanouchi symbols for this orbital
-        ! configuration.
-        call csf_get_yamas(n_open, Stot, yama_symbols(1:num_csfs,1:n_open), num_csfs)
-
-        ! Loop over all Yamanouchi symbols.
-        do i = 1, num_csfs
-            ! If n_open = 0 then we just have a determinant.
-            if (n_open > 0) then
-                ! Encode the Yamanouchi symbol in nI representation.
-                call csf_apply_yama(nI, yama_symbols(i,1:n_open))
-                ! Encode the Yamanouchi symbol in the ilut representation.
-                call get_csf_bit_yama(nI, ilut(nOffY:nOffY+nIfY-1))
-            end if
-            ! Finally add the CSF to ilut_list.
-            call add_state_to_space(ilut, ilut_list, space_size, nI)
-        end do
-
-    end subroutine gen_all_csfs_from_orb_config
 
     subroutine generate_using_mp1_criterion(target_ndets, ilut_list, space_size)
 
@@ -1566,7 +1402,6 @@ contains
         !             On output space_size will equal the total number of
         !             generated plus what space_size was on input.
 
-        use csf_data, only: csf_orbital_mask
         use neci_intfce
         use SystemData, only: nel, G1, tUseBrillouin, nBasis
 
@@ -1580,14 +1415,10 @@ contains
         integer, allocatable :: excit_gen(:)
         integer(n_int) :: ilut(0:NIfTot)
         integer :: iExcit, iMaxExcit, ierr
-        integer :: nJ(nel), hfdet_loc(nel), nStore(6), nExcitMemLen(1)
+        integer :: nJ(nel), nStore(6), nExcitMemLen(1)
         logical :: tTempUseBrill
         character(*), parameter :: t_r = 'enumerate_doubles_kpnt'
         HElement_t(dp) :: HEl
-
-        ! A quick hack. Count excitations as though we were a determinant.
-        ! We could fix this later...
-        hfdet_loc = iand(hfdet, csf_orbital_mask)
 
         nSing = 0
         nDoub = 0
@@ -1603,14 +1434,14 @@ contains
             tTempUseBrill = .false.
         end if
 
-        call GenSymExcitIt2(HFDet_loc, nel, G1, nBasis, .true., nExcitMemLen, &
+        call GenSymExcitIt2(hfdet, nel, G1, nBasis, .true., nExcitMemLen, &
                 nJ, iMaxExcit, nStore, ex_flag)
 
         allocate(excit_gen(nExcitMemLen(1)), stat=ierr)
         if (ierr .ne. 0) call Stop_All(t_r, "Problem allocating excitation generator")
         excit_gen = 0
 
-        call GenSymExcitIt2(HFDet_loc, nel, G1, nBasis, .true., excit_gen, nJ, &
+        call GenSymExcitIt2(hfdet, nel, G1, nBasis, .true., excit_gen, nJ, &
                 iMaxExcit, nStore, ex_flag)
 
         if (tGUGA) then
@@ -1618,7 +1449,7 @@ contains
                 "modify get_helement for GUGA")
         end if
         do while(.true.)
-            call GenSymExcitIt2(HFDet_loc, nel, G1, nBasis, .false., excit_gen, &
+            call GenSymExcitIt2(hfdet, nel, G1, nBasis, .false., excit_gen, &
                     nJ, iExcit, nStore, ex_flag)
 
             if (nJ(1).eq.0) exit
@@ -1628,7 +1459,7 @@ contains
                 ! If using a deterministic space connected to the Hartree-Fock
                 ! then check that this determinant is actually connected to it!
                 if (only_keep_conn) then
-                    HEl = get_helement(HFDet_loc, nJ, ilutHF, ilut)
+                    HEl = get_helement(hfdet, nJ, ilutHF, ilut)
                     if (abs(real(HEl,dp)) < 1.e-12_dp) cycle
                 end if
                 call add_state_to_space(ilut, ilut_list, space_size, nJ)
@@ -1901,7 +1732,7 @@ contains
                 end if
 
                 do j = 1, space_size
-                    do k = 0, NIfDBO
+                    do k = 0, nifd
                         write(iunit, '(i24)', advance='no') SpawnedParts(k,j)
                     end do
                     write(iunit, *)

@@ -8,7 +8,7 @@ use adi_data, only: ilutRefAdi, nRefs, nIRef, signsRef, &
      targetRefPop, lastAllNoatHF, lastNRefs, tVariableNRef, maxNRefs, minSIConnect, &
      nIncoherentDets, nConnection, tWeightedConnections, tSignedRepAv
 use CalcData, only: InitiatorWalkNo
-use bit_rep_data, only: niftot, nifdbo, extract_sign
+use bit_rep_data, only: niftot, nifd, extract_sign
 use bit_reps, only: decode_bit_det
 use DetBitOps, only: FindBitExcitLevel, sign_gt, sign_lt
 use sort_mod, only: sort
@@ -457,7 +457,7 @@ contains
       logical :: tSuccess
 
       call decode_bit_det(nI,ilutRefAdi(:,iRef))
-      call hash_table_lookup(nI, ilutRefAdi(:,iRef),NIfDBO,HashIndex,CurrentDets,&
+      call hash_table_lookup(nI, ilutRefAdi(:,iRef),nifd,HashIndex,CurrentDets,&
            index,hash_val,tSuccess)
       if(tSuccess) then
          call extract_sign(CurrentDets(:,index),tmp_sgn)
@@ -495,7 +495,7 @@ contains
          missing = .true.
          ! check if it is already present
          do jRef = 1, nRefs
-            if(DetBitEQ(tmp_ilut,ilutRefAdi(:,jRef),NIfDBO)) missing = .false.
+            if(DetBitEQ(tmp_ilut,ilutRefAdi(:,jRef),nifd)) missing = .false.
          end do
          ! If not, also add it to the list
          if(missing) then

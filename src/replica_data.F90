@@ -312,7 +312,7 @@ contains
 
     subroutine set_initial_global_data(ndets, ilut_list)
 
-        use bit_rep_data, only: NIfTot, NIfDBO, extract_sign
+        use bit_rep_data, only: NIfTot, nifd, extract_sign
         use Parallel_neci, only: iProcIndex, MPISumAll
 
         ! Take in a list of determinants and calculate and set all of the
@@ -334,7 +334,7 @@ contains
         do i = 1, ndets
             call extract_sign(ilut_list(:,i), real_sign)
             TotParts = TotParts + abs(real_sign)
-            if ( all(ilut_list(0:NIfDBO,i) == iLutRef(0:NIfDBO, 1)) ) NoAtHF = real_sign
+            if ( all(ilut_list(0:nifd,i) == iLutRef(0:nifd, 1)) ) NoAtHF = real_sign
 
             do run = 1, inum_runs
                 if (abs_sign(real_sign(min_part_type(run):max_part_type(run))) > iHighestPop(run)) then
@@ -388,7 +388,7 @@ contains
                     SumNoatHF(i) = AllSumNoatHF(i)
                     InstNoatHF(i) = NoatHF(i)
                 end do
-                SumENum(run) = AllSumENum(run)                
+                SumENum(run) = AllSumENum(run)
             end if
 
         enddo
