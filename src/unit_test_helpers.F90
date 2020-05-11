@@ -28,7 +28,7 @@ module unit_test_helpers
     use DetBitOps, only: ilut_lt, ilut_gt, EncodeBitDet, findbitexcitlevel, &
                          count_open_orbs
 
-    use orb_idx_mod, only: SpinOrbIdx_t, new_write_det => write_det
+    use orb_idx_mod, only: SpinOrbIdx_t, new_write_det => write_det, size
 
     use excitation_types, only: Excitation_t, get_excitation
 
@@ -460,12 +460,12 @@ contains
 !>      By default all states with a pgen_diagnostic that deviates with more than 5\,\%
 !>      are printed.
     subroutine run_excit_gen_tester(excit_gen, excit_gen_name, opt_nI, opt_n_iters, &
-            gen_all_excits, calc_pgen, print_predicate)
+            gen_all_excits, calc_pgen, print_predicate, i_unit)
         use procedure_pointers, only: generate_excitation_t
         use util_mod, only: binary_search
 
         procedure(generate_excitation_t) :: excit_gen
-        integer, intent(in), optional :: opt_nI(nel), opt_n_iters
+        integer, intent(in), optional :: opt_nI(nel), opt_n_iters, i_unit
         procedure(generate_all_excits_t), optional :: gen_all_excits
         procedure(calc_pgen_t), optional :: calc_pgen
         procedure(print_predicate_t), optional :: print_predicate
@@ -473,6 +473,7 @@ contains
         character(*), parameter :: this_routine = "run_excit_gen_tester"
 
         integer :: i, nI(nel), n_iters
+        integer :: i_unit_
         integer :: default_n_iters = 100000
         integer :: default_n_dets = 1
 
@@ -494,6 +495,12 @@ contains
         ! and also nbasis and stuff..
         ASSERT(nbasis > 0)
         ASSERT(nel <= nbasis)
+
+        if (present(i_unit)) then
+            i_unit_ = i_unit
+        else
+            i_unit_ = iout
+        end if
 
         if (present(print_predicate)) then
             print_predicate_ => print_predicate
@@ -549,16 +556,16 @@ contains
 
         n_dets = min(n_dets, n_excits)
 
-        print *, "---------------------------------"
-        print *, "testing: ", excit_gen_name
-        print *, "for ", n_dets, " determinants"
-        print *, " and ", n_iters, " iterations "
+        write(i_unit_, *) "---------------------------------"
+        write(i_unit_, *) "testing: ", excit_gen_name
+        write(i_unit_, *) "for ", n_dets, " determinants"
+        write(i_unit_, *) " and ", n_iters, " iterations "
 
         call EncodeBitDet(nI, ilut)
-        print *, "for starting determinant: ", nI
+        write(i_unit_, *) "for starting determinant: ", nI
 
-        write(iout, *) ! linebreak
-        write(iout, '(A)') 'Progressbar'
+        write(i_unit_, *) ! linebreak
+        write(i_unit_, '(A)') 'Progressbar'
 
         ! call this below now for the number of specified determinants
         ! (also use excitations of the first inputted, to be really
@@ -569,8 +576,8 @@ contains
             L = n_iters .div. 100
             do i = 1, int(n_iters, kind=int64)
                 if (mod(i, L) == 0_int64) then
-                    write(iout, '(A)', advance='no') '#'
-                    flush(iout)
+                    write(i_unit_, '(A)', advance='no') '#'
+                    flush(i_unit_)
                 end if
                 call excit_gen(nI, ilut, nJ, tgt_ilut, ex_flag, ic, ex, tpar, pgen, &
                             hel, store)
@@ -579,8 +586,8 @@ contains
                 call EncodeBitDet(nJ, tgt_ilut)
                 pos = binary_search(det_list, tgt_ilut, nifd+1)
                 if (pos < 0) then
-                    print *, "nJ: ", nJ
-                    print *, "ilutJ:", tgt_ilut
+                    write(i_unit_, *) "nJ: ", nJ
+                    write(i_unit_, *) "ilutJ:", tgt_ilut
                     call stop_all(this_routine, 'Unexpected determinant generated')
                 else
                     generated_list(pos) = .true.
@@ -591,13 +598,13 @@ contains
                     pgen_list(pos) = pgen
                 end if
             end do
-            write(iout, *) ! linebreak
+            write(i_unit_, *) ! linebreak
         end block
 
 
-        print *, n_generated, " dets generated in ", n_iters, " iterations "
-        print *, 100.0_dp * (n_iters - n_generated) / real(n_iters,dp), "% abortion rate"
-        print *, "Averaged contribution: ", contrib / real(n_excits*n_iters,dp)
+        write(i_unit_, *) n_generated, " dets generated in ", n_iters, " iterations "
+        write(i_unit_, *) 100.0_dp * (n_iters - n_generated) / real(n_iters,dp), "% abortion rate"
+        write(i_unit_, *) "Averaged contribution: ", contrib / real(n_excits*n_iters,dp)
 
         block
             type(SpinOrbIdx_t) :: det_I
@@ -607,12 +614,12 @@ contains
             logical :: tParity
 
 
-            write(iout, *) "=================================="
-            write(iout, *) "Problematic contribution List: "
-            write(iout, *) "=================================="
-            write(iout, '("|       Determinant         |   Sum{1 / pgen} / n_iter |  ic |    <psi_I H psi_J >        |    pgen    |")', advance='no')
-            if (present(calc_pgen)) write(iout, '("   calc_pgen |")', advance='no')
-            write(iout, *) ! linebreak
+            write(i_unit_, *) "=================================="
+            write(i_unit_, *) "Problematic contribution List: "
+            write(i_unit_, *) "=================================="
+            write(i_unit_, '("|       Determinant         |   Sum{1 / pgen} / n_iter |  ic |    <psi_I H psi_J >        |    pgen    |")', advance='no')
+            if (present(calc_pgen)) write(i_unit_, '("   calc_pgen |")', advance='no')
+            write(i_unit_, *) ! linebreak
 
             do i = 1, n_excits
                 pgen_diagnostic = contrib_list(i) / real(n_iters, dp)
@@ -621,18 +628,18 @@ contains
                 call get_excitation(nI, nJ, ic, exc, tParity)
 
                 if (print_predicate_(SpinOrbIdx_t(nI), exc, pgen_diagnostic)) then
-                    call write_det (iout, nJ, .false.)
-                    write(iout, '("|"F10.5"|"I2"|"F10.5"|"F15.10"|")', advance='no') &
+                    call write_det (i_unit_, nJ, .false.)
+                    write(i_unit_, '("|"F10.5"|"I2"|"F10.5"|"F15.10"|")', advance='no') &
                         pgen_diagnostic, ic, get_helement(nI, nJ),  pgen_list(i)
                     if (present(calc_pgen)) then
-                        write(iout, '(F15.10"|")', advance='no') &
+                        write(i_unit_, '(F15.10"|")', advance='no') &
                             calc_pgen(SpinOrbIdx_t(nI), det_list(:, i), exc)
                     end if
-                    write(iout, *)
+                    write(i_unit_, *)
                 end if
             end do
-            write(iout, *) "=================================="
-            write(iout, *) ! linebreak
+            write(i_unit_, *) "=================================="
+            write(i_unit_, *) ! linebreak
         end block
 
         contains
@@ -650,13 +657,60 @@ contains
 
     subroutine batch_run_excit_gen_tester(pgen_unit_test_spec)
 
-        ! TODO(@Oskar): Remove
-        use FciMCData, only: TotWalkers
+        use Parallel_neci, only: iProcIndex
+        use FciMCData, only: TotWalkers, tPopsAlreadyRead
+        use SystemData, only:  t_new_real_space_hubbard, &
+            t_tJ_model, t_heisenberg_model, t_k_space_hubbard
+        use procedure_pointers, only: generate_excitation
+
+        use fcimc_initialisation, only: SetupParameters, init_fcimc_fn_pointers, &
+            InitFCIMCCalcPar, init_real_space_hubbard, init_k_space_hubbard
+        use tJ_model, only: init_tJ_model, init_heisenberg_model
+        use neci_signals, only: init_signals
+
+        use fcimc_iter_utils, only: population_check
+
 
         type(PgenUnitTestSpec_t), intent(in) :: pgen_unit_test_spec
 
         integer :: i
         type(SpinOrbIdx_t), allocatable :: largest_walkers(:)
+
+        ! This is set here not in SetupParameters, as otherwise it would be
+        ! wiped just when we need it!
+        tPopsAlreadyRead = .false.
+
+        call SetupParameters()
+        call init_fcimc_fn_pointers()
+        call InitFCIMCCalcPar()
+
+        if (t_new_real_space_hubbard) then
+            call init_real_space_hubbard()
+        end if
+        if (t_tJ_model) then
+            call init_tJ_model()
+        end if
+        if (t_heisenberg_model) then
+            call init_heisenberg_model()
+        end if
+        ! try to call this earlier..
+        ! just do it twice for now..
+        if (t_k_space_hubbard) then
+            call init_k_space_hubbard()
+        end if
+
+        ! Attach signal handlers to give a more graceful death-mannerism
+        call init_signals()
+
+        ! We want to do some population checking before we run any iterations.
+        ! In the normal case this is run between iterations, but it is
+        ! helpful to do it here.
+        call population_check()
+
+        if (n_int /= int64) then
+            call stop_all('setup parameters', 'Use of realcoefficients requires 64 bit integers.')
+        end if
+
 
         associate(n_most_populated => pgen_unit_test_spec%n_most_populated)
         block
@@ -680,9 +734,48 @@ contains
         end block
         end associate
 
-        do i = 1, size(largest_walkers)
-            call new_write_det(largest_walkers(i))
-        end do
+!         do i = 1, size(largest_walkers)
+!             call new_write_det(largest_walkers(i))
+!             write(*, *) iProcIndex
+!         end do
+
+        associate(bounds => distribute_work(nProcessors , size(largest_walkers), iProcIndex))
+        block
+            use fortran_strings, only: str
+            integer :: file_id
+            do i = bounds(1), bounds(2)
+                open(newunit=file_id, file=str(i)//'.test', action='write')
+                    write(file_id, *) 'rank =', iProcIndex
+                    call new_write_det(largest_walkers(i), file_id)
+                    call run_excit_gen_tester( &
+                        generate_excitation, 'Batch test', &
+                        opt_nI=largest_walkers(i)%idx, &
+                        opt_n_iters=pgen_unit_test_spec%n_iter, &
+!                         gen_all_excits=gen_all_excits,&
+            !             print_predicate=is_spin_flip)
+!                         print_predicate=print_all, &
+                        i_unit=file_id)
+                close(file_id)
+            end do
+        end block
+        end associate
+
+        contains
+
+            pure function distribute_work(n_procs, n_tasks, i_rank) result(res)
+                integer, intent(in) :: n_procs, n_tasks, i_rank
+                integer :: res(2)
+
+                integer :: division, rest
+
+                division = n_tasks .div. n_procs
+                rest = modulo(n_tasks, n_procs)
+
+                res = [&
+                        i_rank * division + min(rest, i_rank) + 1, &
+                        (i_rank + 1) * division + min(rest, i_rank + 1)]
+            end function
+
     end subroutine
 
     subroutine create_hilbert_space(nI, n_states, state_list_ni, state_list_ilut, &

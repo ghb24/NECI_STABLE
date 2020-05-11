@@ -248,9 +248,9 @@ module FciMCParMod
         ! helpful to do it here.
         call population_check()
 
-        if(n_int.eq.4) CALL Stop_All('Setup Parameters', &
-                'Use of RealCoefficients does not work with 32 bit integers due to the use &
-                &of the transfer operation from dp reals to 64 bit integers.')
+        if (n_int /= int64) then
+            call stop_all('setup parameters', 'Use of realcoefficients requires 64 bit integers.')
+        end if
 
         if (tDetermProj) then
             ! If performing a deterministic projection instead of an FCIQMC calc:

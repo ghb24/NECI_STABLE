@@ -1277,7 +1277,7 @@ contains
             end do fill_largest_walkers
         end block
 
-        rank_of_largest = rank_of_largest_
+        if (present(rank_of_largest)) rank_of_largest = rank_of_largest_
 
     end subroutine
 

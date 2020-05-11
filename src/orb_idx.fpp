@@ -6,7 +6,8 @@
 
 module orb_idx_mod
     use constants, only: n_int, iout
-    use bit_rep_data, only: nIfTot
+    use fortran_strings, only: str
+    use bit_rep_data, only: nIfTot, nIfD
     use bit_reps, only: decode_bit_det
     use DetBitOps, only: EncodeBitDet
     implicit none
@@ -162,7 +163,7 @@ module orb_idx_mod
 
     pure function to_ilut(det_I) result(ilut)
         type(SpinOrbIdx_t), intent(in) :: det_I
-        integer(kind=n_int) :: iLut(0:NIfTot)
+        integer(kind=n_int) :: iLut(0:nIfTot)
         call EncodeBitDet(det_I%idx, ilut)
     end function
 
@@ -269,7 +270,7 @@ module orb_idx_mod
         logical, intent(in), optional :: advance
 
         integer :: i, i_unit_
-        character(:), allocatable :: advance_str
+        character(:), allocatable :: advance_str, format
 
         @:def_default(i_unit_, i_unit, iout)
 
@@ -283,17 +284,18 @@ module orb_idx_mod
             advance_str = 'yes'
         end if
 
+        format = "(I"//str(int(log10(real(maxval(det_I%idx)))) + 2)//", a)"
 
         write(i_unit_, "(a)", advance='no') '${type}$(['
         do i = 1, size(det_I) - 1
-            write(i_unit_, "(I3, a)", advance='no') det_I%idx(i), ','
+            write(i_unit_, format, advance='no') det_I%idx(i), ','
         end do
-        write(i_unit_, "(I2, a)", advance=advance_str) det_I%idx(size(det_I)), '])'
+        write(i_unit_, format, advance=advance_str) det_I%idx(size(det_I)), '])'
     end subroutine
 #:endfor
 
     pure function from_ilut_SpinOrbIdx_t(ilut) result(res)
-        integer(n_int), intent(in) :: ilut(0:NIftot)
+        integer(n_int), intent(in) :: ilut(0:nIfD)
         type(SpinOrbIdx_t) :: res
         integer :: n_el
         n_el = sum(popCnt(ilut))
