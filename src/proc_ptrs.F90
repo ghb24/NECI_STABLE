@@ -37,7 +37,7 @@ module procedure_pointers
             use FciMCData, only: excit_gen_store_type
             use constants
             implicit none
-            
+
             integer, intent(in) :: nI(nel)
             integer(n_int), intent(in) :: ilutI(0:NIfTot)
             integer, intent(out) :: nJ(nel), ex(2,maxExcit)
@@ -262,6 +262,15 @@ module procedure_pointers
 
         end function shift_factor_function_t
 
+        !> Generate all excitations for a given determinant in the ilut Format
+        subroutine generate_all_excits_t(nI, n_excits, det_list)
+            use SystemData, only: nel
+            use constants, only: n_int
+            integer, intent(in) :: nI(nel)
+            integer, intent(out) :: n_excits
+            integer(n_int), intent(out), allocatable :: det_list(:,:)
+        end subroutine generate_all_excits_t
+
     end interface
 
     !
@@ -289,5 +298,8 @@ module procedure_pointers
     procedure(scale_function_t), pointer :: scaleFunction
     ! the function used to scale the shift
     procedure(shift_factor_function_t), pointer :: shiftFactorFunction
+
+    ! the procedure to generate all determinants that are connected to a given determinant
+    procedure(generate_all_excits_t), pointer :: gen_all_excits
 
 end module

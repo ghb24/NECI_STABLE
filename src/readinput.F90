@@ -202,7 +202,8 @@ MODULE ReadInput_neci
                             tAllRealCoeff, tUseRealCoeffs, tChangeProjEDet, &
                             tOrthogonaliseReplicas, tReadPops, tStartMP1, &
                             tStartCAS, tUniqueHFNode, tContTimeFCIMC, &
-                            tContTimeFull, tFCIMC, tPreCond, tOrthogonaliseReplicas, tMultipleInitialStates, tSpinProject
+                            tContTimeFull, tFCIMC, tPreCond, tOrthogonaliseReplicas, tMultipleInitialStates, tSpinProject, &
+                            pgen_unit_test_spec
         use Calc, only : RDMsamplingiters_in_inp
         Use Determinants, only: SpecDet, tagSpecDet, tDefinedet
         use IntegralsData, only: nFrozen, tDiscoNodes, tQuadValMax, &
@@ -610,7 +611,11 @@ MODULE ReadInput_neci
         end if
 
 
-
+        if (allocated(pgen_unit_test_spec)) then
+            if (.not. tReadPops) then
+                call stop_all(t_r, "UNIT-TEST-PGEN requires READPOPS.")
+            end if
+        end if
     end subroutine checkinput
 
 end Module ReadInput_neci

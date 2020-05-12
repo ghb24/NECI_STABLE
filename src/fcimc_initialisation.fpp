@@ -113,7 +113,7 @@ module fcimc_initialisation
                                   attempt_die, extract_bit_rep_avsign, &
                                   fill_rdm_diag_currdet, &
                                   new_child_stats, get_conn_helement, scaleFunction, &
-                                  generate_two_body_excitation, shiftFactorFunction
+                                  generate_two_body_excitation, shiftFactorFunction, gen_all_excits
     use symrandexcit3, only: gen_rand_excit3
     use symrandexcit_Ex_Mag, only: gen_rand_excit_Ex_Mag
     use excit_gens_int_weighted, only: gen_excit_hel_weighted, &
@@ -210,7 +210,7 @@ module fcimc_initialisation
     use back_spawn_excit_gen, only: gen_excit_back_spawn, gen_excit_back_spawn_ueg, &
                                     gen_excit_back_spawn_hubbard, gen_excit_back_spawn_ueg_new
     use gasci, only: gen_general_GASCI => generate_nGAS_excitation, GAS_exc_gen, possible_GAS_exc_gen, &
-        operator(==)
+        operator(==), gen_all_excits_GAS => gen_all_excits
     use disconnected_gasci, only: gen_disconnected_GASCI => generate_nGAS_excitation
 
     use tj_model, only: init_get_helement_tj, init_get_helement_heisenberg
@@ -223,6 +223,8 @@ module fcimc_initialisation
     use lattice_models_utils, only: gen_all_excits_k_space_hubbard
 
     use pchb_excitgen, only: gen_rand_excit_pchb, init_pchb_excitgen, finalize_pchb_excitgen
+
+    use symexcit3, only: gen_all_excits_default => gen_all_excits
     implicit none
 
 contains
@@ -2097,6 +2099,17 @@ contains
            shiftFactorFunction => autoShiftFactorFunction
         else
            shiftFactorFunction => constShiftFactorFunction
+        end if
+
+
+        ! select the procedure that returns all connected determinants.
+        if (tGAS) then
+            gen_all_excits => gen_all_excits_GAS
+        ! TODO(@Werner, @Kai): is this correct?
+        else if (t_k_space_hubbard) then
+            gen_all_excits => gen_all_excits_k_space_hubbard
+        else
+            gen_all_excits => gen_all_excits_default
         end if
 
     end subroutine init_fcimc_fn_pointers

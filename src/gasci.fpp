@@ -11,6 +11,7 @@ module gasci
     use util_mod, only: get_free_unit, binary_search_first_ge, operator(.div.), &
         near_zero, cumsum, operator(.isclose.)
     use sort_mod, only: sort
+    use DetBitOps, only: ilut_lt, ilut_gt
     use sets_mod, only: is_sorted, complement, union, disjoint
     use bit_rep_data, only: NIfTot, NIfD
     use dSFMT_interface, only: genrand_real2_dSFMT
@@ -22,7 +23,7 @@ module gasci
         last_tgt_unknown, set_last_tgt, excite, defined, UNKNOWN
     use orb_idx_mod, only: SpinOrbIdx_t, SpatOrbIdx_t, SpinProj_t, size, calc_spin, &
         calc_spin_raw, alpha, beta, sum, operator(==), operator(/=), &
-        operator(+), operator(-), lex_leq
+        operator(+), operator(-), lex_leq, to_ilut
     use sltcnd_mod, only: sltcnd_excit, dyn_sltcnd_excit
     implicit none
 
@@ -35,7 +36,7 @@ module gasci
         contains_det, particles_per_GAS, &
         get_possible_spaces, get_possible_holes, split_per_GAS, &
         get_available_singles, get_available_doubles, operator(==), &
-        operator(/=)
+        operator(/=), gen_all_excits
 
 
     public :: get_iGAS, operator(.contains.)
@@ -992,5 +993,37 @@ contains
         type(GAS_exc_gen_t), intent(in) :: lhs, rhs
         neq_GAS_exc_gen_t = lhs%val /= rhs%val
     end function
+
+
+    subroutine gen_all_excits(nI, n_excits, det_list)
+        integer, intent(in) :: nI(nel)
+        integer, intent(out) :: n_excits
+        integer(n_int), intent(out), allocatable :: det_list(:,:)
+
+        type(SpinOrbIdx_t) :: det_I
+        type(SpinOrbIdx_t), allocatable :: singles(:), doubles(:)
+        integer :: i, j, k
+
+        det_I = SpinOrbIdx_t(nI)
+
+        singles = get_available_singles(GAS_specification, det_I)
+        doubles = get_available_doubles(GAS_specification, det_I)
+
+        n_excits = size(singles) + size(doubles)
+        allocate(det_list(0:niftot, n_excits))
+        j = 1
+        do i = 1, size(singles)
+            det_list(:, j) = to_ilut(singles(i))
+            j = j + 1
+        end do
+
+        do i = 1, size(doubles)
+            det_list(:, j) = to_ilut(doubles(i))
+            j = j + 1
+        end do
+
+        call sort(det_list, ilut_lt, ilut_gt)
+    end subroutine gen_all_excits
+
 
 end module gasci

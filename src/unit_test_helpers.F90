@@ -15,7 +15,7 @@ module unit_test_helpers
 
     use fcimcdata, only: excit_gen_store_type
 
-    use util_mod, only: binary_search, choose, operator(.div.), operator(.isclose.)
+    use util_mod, only: binary_search, choose, operator(.div.), operator(.isclose.), near_zero
 
     use sltcnd_mod, only: dyn_sltcnd_excit
 
@@ -40,20 +40,16 @@ module unit_test_helpers
 
     use ras, only: sort_orbitals
 
+    use symexcit3, only: gen_all_excits_default => gen_all_excits
+
+    use procedure_pointers, only: generate_all_excits_t
+
     implicit none
 
     private
     public :: run_excit_gen_tester, batch_run_excit_gen_tester
 
     abstract interface
-        subroutine generate_all_excits_t(nI, n_excits, det_list)
-            use SystemData, only: nel
-            use constants, only: n_int
-            integer, intent(in) :: nI(nel)
-            integer, intent(out) :: n_excits
-            integer(n_int), intent(out), allocatable :: det_list(:,:)
-        end subroutine generate_all_excits_t
-
         real(dp) function calc_pgen_t(det_I, ilutI, exc)
             import :: dp, SpinOrbIdx_t, Excitation_t, n_int, NifTot
             type(SpinOrbIdx_t), intent(in) :: det_I
@@ -461,7 +457,7 @@ contains
 !>      are printed.
     subroutine run_excit_gen_tester(excit_gen, excit_gen_name, opt_nI, opt_n_iters, &
             gen_all_excits, calc_pgen, print_predicate, i_unit)
-        use procedure_pointers, only: generate_excitation_t
+        use procedure_pointers, only: generate_excitation_t, generate_all_excits_t
         use util_mod, only: binary_search
 
         procedure(generate_excitation_t) :: excit_gen
@@ -649,19 +645,19 @@ contains
             class(Excitation_t), intent(in) :: exc
             real(dp), intent(in) :: pgen_diagnostic
             default_predicate = &
-                pgen_diagnostic <= 0.95_dp .or. 1.05_dp <= pgen_diagnostic &
-                .and. .not. (abs(dyn_sltcnd_excit(det_I, exc)) .isclose. 0.0_dp)
+                    (pgen_diagnostic <= 0.95_dp .or. 1.05_dp <= pgen_diagnostic) &
+                    .and. .not. near_zero(dyn_sltcnd_excit(det_I, exc))
         end function
 
     end subroutine run_excit_gen_tester
 
     subroutine batch_run_excit_gen_tester(pgen_unit_test_spec)
 
-        use Parallel_neci, only: iProcIndex
+        use Parallel_neci, only: iProcIndex, nProcessors
         use FciMCData, only: TotWalkers, tPopsAlreadyRead
         use SystemData, only:  t_new_real_space_hubbard, &
             t_tJ_model, t_heisenberg_model, t_k_space_hubbard
-        use procedure_pointers, only: generate_excitation
+        use procedure_pointers, only: generate_excitation, gen_all_excits
 
         use fcimc_initialisation, only: SetupParameters, init_fcimc_fn_pointers, &
             InitFCIMCCalcPar, init_real_space_hubbard, init_k_space_hubbard
@@ -751,9 +747,7 @@ contains
                         generate_excitation, 'Batch test', &
                         opt_nI=largest_walkers(i)%idx, &
                         opt_n_iters=pgen_unit_test_spec%n_iter, &
-!                         gen_all_excits=gen_all_excits,&
-            !             print_predicate=is_spin_flip)
-!                         print_predicate=print_all, &
+                        gen_all_excits=gen_all_excits,&
                         i_unit=file_id)
                 close(file_id)
             end do
@@ -878,57 +872,5 @@ contains
         allocate(state_list_ilut(0:niftot,n_states), source = temp_list_ilut(:,1:n_states))
 
     end subroutine create_hilbert_space
-
-    subroutine gen_all_excits_default(nI, n_excits, det_list)
-        use SymExcit3, only: CountExcitations3, GenExcitations3
-        integer, intent(in) :: nI(nel)
-        integer, intent(out) :: n_excits
-        integer(n_int), intent(out), allocatable :: det_list(:,:)
-        character(*), parameter :: this_routine = "gen_all_excits_default"
-
-        integer :: n_singles, n_doubles, n_dets, ex(2,maxExcit), ex_flag
-        integer :: nJ(nel)
-        logical :: tpar, found_all
-        integer(n_int) :: ilut(0:niftot)
-
-        n_excits = -1
-
-        call EncodeBitDet(nI, ilut)
-
-        ! for reference in the "normal" case it looks like that:
-        call CountExcitations3(nI, 2, n_singles, n_doubles)
-
-        n_excits = n_singles + n_doubles
-
-        print *, "n_singles: ", n_singles
-        print *, "n_doubles: ", n_doubles
-
-        allocate(det_list(0:niftot,n_excits))
-        n_dets = 0
-        found_all = .false.
-        ex = 0
-        ex_flag = 2
-        call GenExcitations3 (nI, ilut, nJ, ex_flag, ex, tpar, found_all, &
-                              .false.)
-
-        do while (.not. found_all)
-            n_dets = n_dets + 1
-            call EncodeBitDet (nJ, det_list(:,n_dets))
-
-            call GenExcitations3 (nI, ilut, nJ, ex_flag, ex, tpar, &
-                                  found_all, .false.)
-        end do
-
-        if (n_dets /= n_excits) then
-            print *, "expected number of excitations: ", n_excits
-            print *, "actual calculated ones: ", n_dets
-            call stop_all(this_routine,"Incorrect number of excitations found")
-        end if
-
-        ! Sort the dets, so they are easy to find by binary searching
-        call sort(det_list, ilut_lt, ilut_gt)
-
-    end subroutine gen_all_excits_default
-
 
 end module unit_test_helpers
