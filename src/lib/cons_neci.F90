@@ -60,8 +60,8 @@ integer, parameter :: rep_size = 1
     integer :: lenof_sign       !2 x inum_runs (2 for complex x number of seperate wavefuncs sampled)
     integer :: inum_runs        !nreplicas x nstates
     integer :: lenof_sign_kp
-    integer, parameter :: lenof_sign_max = 14
-    integer, parameter :: inum_runs_max = 14
+    integer, parameter :: lenof_sign_max = 16
+    integer, parameter :: inum_runs_max = 16
     integer, parameter :: sizeof_helement = 16
     HElement_t(dp), parameter :: HEl_zero = cmplx(0.0_dp, 0.0_dp, dp)
 #else
@@ -72,8 +72,8 @@ integer, parameter :: rep_size = 1
     integer :: lenof_sign
     integer :: inum_runs
     integer :: lenof_sign_kp
-    integer, parameter :: lenof_sign_max = 14
-    integer, parameter :: inum_runs_max = 14
+    integer, parameter :: lenof_sign_max = 16
+    integer, parameter :: inum_runs_max = 16
     integer, parameter :: sizeof_helement = 16
     real(dp), parameter :: HEl_zero = 0.0_dp
 #endif
