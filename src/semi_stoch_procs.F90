@@ -1447,10 +1447,15 @@ contains
             ex_ind = minloc(pre*vals, dim = 1) - 1
             ex = vals(ex_ind)
             ! Invalidate this value, such that the next call finds the second smallest value and so on
-            vals(ex_ind) = pre*sum(vals)
-
+            vals(ex_ind) = pre*sum(abs(vals))
             ! Now, get the location of the first element above the extremum
-            n_ex_loc = binary_search_first_ge(list, ex)
+            if(size(list) > 0) then
+                n_ex_loc = binary_search_first_ge(list, ex)
+            else
+                ! it might be possible that a proc is empty (has no candidates)
+                ! in this case, never find anything above/below global extremal values
+                n_ex_loc = -1
+            endif
             ! If no such element exists, return 0 on this proc
             if(n_ex_loc < 0) then
                 n_ex_loc = 0

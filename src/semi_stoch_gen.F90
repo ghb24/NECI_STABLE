@@ -1114,8 +1114,13 @@ contains
         end do
 
         if(t_use_fast_pops_core) then
-            min_sign = amps_this_proc(1)
-            max_sign = amps_this_proc(ubound(amps_this_proc, dim=1))
+            if(length_this_proc > 0) then
+                min_sign = amps_this_proc(1)
+                max_sign = amps_this_proc(ubound(amps_this_proc, dim=1))
+            else
+                min_sign = 0.0
+                max_sign = 0.0
+            end if
 
             ! Make the max/min values available on all procs
             call MPIAllGather(min_sign, min_vals, ierr)
