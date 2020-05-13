@@ -1498,7 +1498,7 @@ contains
         character(len=*), parameter :: t_r='PrintHighPops'
 
         character(1024) :: header
-        character(22) :: format_string
+        character(25) :: format_string
         character(11), allocatable :: walker_string(:)
         character(13), allocatable :: amplitude_string(:)
         character(9), allocatable :: init_string(:)
