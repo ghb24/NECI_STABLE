@@ -18,12 +18,7 @@ module double_occ_mod
                               calc_combined_rdm_label
     use UMatCache, only: spatial
     use sort_mod, only: sort
-    use hash, only: hash_table_lookup
     use FciMCData, only: fcimc_iter_data
-
-#ifdef DEBUG_
-!     use Determinants, only: writedetbit
-#endif
 
     implicit none
 
@@ -148,8 +143,6 @@ contains
                 ! check if it is a doubly occupied orb
                 if (IsDoub(ilut,spin_orb)) then
                     ! then we want to add to the double_occ vector
-!                     double_occ_vec(spat_orb(i)) = double_occ_vec(spat_orb(i)) + &
-!                         contrib
 
                     inst_spatial_doub_occ(spat_orb(i)) = &
                         inst_spatial_doub_occ(spat_orb(i)) + contrib
@@ -158,8 +151,6 @@ contains
                     i = i + 2
                 else
                     ! beta spin contributes negatively!
-!                     spin_diff(spat_orb(i)) = spin_diff(spat_orb(i)) - contrib
-
                     inst_spin_diff(spat_orb(i)) = inst_spin_diff(spat_orb(i)) &
                                                   - contrib
 
@@ -170,8 +161,6 @@ contains
                 ! the way i plan to set it up, we check beta spins in the
                 ! same orbital first.. so it can't be doubly occupied at
                 ! this point!
-!                 spin_diff(spat_orb(i)) = spin_diff(spat_orb(i)) + contrib
-
                 inst_spin_diff(spat_orb(i)) = inst_spin_diff(spat_orb(i)) &
                                               + contrib
 
@@ -212,15 +201,8 @@ contains
             print *, "double occupancy for each orbital: "
             print *, sum_double_occ_vec / (sum_norm_psi_squared * real(StepsSft,dp))
 
-!             print *, all_double_occ_vec / (sum_norm_psi_squared * real(StepsSft,dp))
-
-!             print *, "yet another.."
-
             print *, "spin difference for each orbital: "
             print *, sum_spin_diff / (sum_norm_psi_squared * real(StepsSft,dp))
-
-!             print *, all_spin_diff / sum_norm_psi_squared
-!             print *, "different calc:"
 
             ! and also calculate the summed value over all orbitals to
             ! compare it with the other method and two_rdms
@@ -232,9 +214,6 @@ contains
             print *, "total spin difference (should have to do with Ms!)"
             print *, 2.0_dp * sum(sum_spin_diff) / &
                 (sum_norm_psi_squared * real(nbasis,dp) * real(StepsSft,dp))
-
-!             print *, "different calc:"
-!             print *, 2.0_dp * sum(all_sum_spin_diff) / (sum_norm_psi_squared * real(nbasis,dp))
 
         end if
 
@@ -276,10 +255,6 @@ contains
 #ifdef CMPLX_
             call stop_all(this_routine, &
                 "complex double occupancy measurement not yet implemented!")
-!                 spin_up_occ(i) = spin_up_occ(i) + &
-!                     conjg(cmplx(real_sgn(1),real_sgn(2),dp)) * &
-!                     cmplx(real_sgn(3),real_sgn(4),dp)
-
 #else
                 spin_up_occ(i) = spin_up_occ(i) + real_sgn(1) * real_sgn(2)
 #endif
@@ -293,9 +268,6 @@ contains
 #ifdef CMPLX_
             call stop_all(this_routine, &
                 "complex double occupancy measurement not yet implemented!")
-!                 spin_down_occ(i) = spin_down_occ(i) + &
-!                     conjg(cmplx(real_sgn(1),real_sgn(2),dp)) * &
-!                     cmplx(real_sgn(3),real_sgn(4),dp)
 
 #else
                 spin_down_occ(i) = spin_down_occ(i) + real_sgn(1) * real_sgn(2)
@@ -327,10 +299,6 @@ contains
 #ifdef CMPLX_
             call stop_all(this_routine, &
                 "complex double occupancy measurement not yet implemented!")
-!                 spin_up_occ(spat_orb) = spin_up_occ(spat_orb) + &
-!                     conjg(cmplx(real_sgn(1),real_sgn(2),dp)) * &
-!                     cmplx(real_sgn(3),real_sgn(4),dp)
-
 #else
                 spin_up_occ(spat_orb) = spin_up_occ(spat_orb) + real_sgn(1) * real_sgn(2)
 #endif
@@ -343,10 +311,6 @@ contains
 #ifdef CMPLX_
             call stop_all(this_routine, &
                 "complex double occupancy measurement not yet implemented!")
-!                 spin_down_occ(spat_orb) = spin_down_occ(spat_orb) + &
-!                     conjg(cmplx(real_sgn(1),real_sgn(2),dp)) * &
-!                     cmplx(real_sgn(3),real_sgn(4),dp)
-
 #else
                 spin_down_occ(spat_orb) = spin_down_occ(spat_orb) + real_sgn(1) * real_sgn(2)
 #endif
@@ -407,8 +371,6 @@ contains
         ! todo: have to figure out how to access the different runs
 
         ! extract the walker occupation
-!         sgn = ilut(nOffSgn:nOffSgn + lenof_sign -1)
-!         real_sgn = transfer(sgn, real_sgn)
 
         ! do i want to do that for complex walkers also?? i guess so..
         ! to get it running do it only for  single run for now!
@@ -419,10 +381,6 @@ contains
             "complex double occupancy measurement not yet implemented!")
         ! i in the case of complex runs i guess that the double_occ
         ! can be complex too.. atleast in the case of doubleruns..
-!         double_occ = conjg(real_sgn(1)) * real_sgn(2) * frac_double_orbs
-        ! i hope this works..
-!         double_occ = conjg(cmplx(real_sgn(1),real_sgn(2),dp)) * &
-!                     cmplx(real_sgn(3),real_sgn(4),dp) * frac_double_orbs
 #else
         ! i essentially only need two runs!
         double_occ = real_sgn(1) * real_sgn(2) * frac_double_orbs
@@ -458,9 +416,9 @@ contains
 
     end subroutine rezero_spin_diff
 
-    subroutine write_spin_diff_stats(iter_data, initial)
+    subroutine write_spin_diff_stats(initial)
         ! routine to print out the instant spin-difference to a file
-        type(fcimc_iter_data), intent(in) :: iter_data
+        ! routine to print out the instant spin-difference to a file
         logical, intent(in), optional :: initial
         character(*), parameter :: this_routine = "write_spin_diff_stats"
 
@@ -469,7 +427,6 @@ contains
         integer :: i
         character(12) :: num
 
-        unused_var(iter_data)
         def_default(state%init,initial,.false.)
 
         if (iProcIndex == root .and. .not. inited) then
@@ -489,6 +446,7 @@ contains
             end if
 
             state%cols = 0
+            state%cols_mc = 0
             state%mc_out = tMCOutput
 
             call stats_out(state, .false., iter + PreviousCycles, 'Iter.')
@@ -596,9 +554,8 @@ contains
 
     end subroutine init_spat_doub_occ_stats
 
-    subroutine write_spat_doub_occ_stats(iter_data, initial)
+    subroutine write_spat_doub_occ_stats(initial)
         ! routine to write out the double occupancy data
-        type(fcimc_iter_data), intent(in) :: iter_data
         logical, intent(in), optional :: initial
         character(*), parameter :: this_routine = "write_spat_doub_occ_stats"
 
@@ -607,7 +564,6 @@ contains
         integer :: i
         character(12) :: num
 
-        unused_var(iter_data)
         def_default(state%init,initial,.false.)
 
         ! If the output file hasn't been opened yet, then create it.
@@ -688,11 +644,11 @@ contains
 
             call stats_out(state,.false., iter + PreviousCycles, 'Iter.')
             call stats_out(state,.false., all_inst_double_occ / &
-                (sum(all_norm_psi_squared) / real(inum_runs, dp)), 'Double Occ.')
-!             call stats_out(state, .true., inst_double_occ / norm_psi(1), 'Double Occ.')
+                (real(StepsSft,dp) * sum(all_norm_psi_squared) / real(inum_runs, dp)), 'Double Occ.')
             if (t_calc_double_occ_av) then
                if(.not. near_zero(sum_norm_psi_squared)) then
-                  call stats_out(state,.false., sum_double_occ / sum_norm_psi_squared, 'DoubOcc Av')
+                  call stats_out(state,.false., sum_double_occ / &
+                      (real(StepsSft,dp) * sum_norm_psi_squared), 'DoubOcc Av')
                else
                   call stats_out(state,.false.,0.0_dp,'DoubOcc Av')
                endif
@@ -754,11 +710,12 @@ contains
 
     end subroutine init_double_occ_output
 
-    subroutine calc_double_occ_from_rdm(rdm, rdm_trace)
+    subroutine calc_double_occ_from_rdm(rdm, rdm_trace, inst_occ)
         ! also write a routine which calculates the double occupancy from the
         ! 2-rdm, if it has been calculated!
         type(rdm_list_t), intent(inout) :: rdm
         real(dp), intent(in) :: rdm_trace(rdm%sign_length)
+        real(dp), intent(out), optional :: inst_occ
         character(*), parameter :: this_routine = "calc_double_occ_from_rdm"
 
         integer :: ielem, ij, kl, i, j, k, l, p, q, r, s, iproc, irdm, ierr, hash_val
@@ -779,36 +736,6 @@ contains
         end if
         ! todo: find out about the flags to ensure the rdm was actually
         ! calculated!
-
-!         call sort(rdm%elements(:,1:rdm%nelements))
-
-        ! i have to do that over all processors i guess since the rdms are
-        ! stored in a distributed way!
-        ! although i could do that with an MPI communication
-        ! seperately on all processors do this summation and then
-        ! communicate the results in the end..
-
-        ! do the sum more efficiently! loop over spatial orbitals and look up
-        ! the corresponding elements
-!         do i = 1, nBasis/2
-!             call calc_combined_rdm_label(i,i,i,i, ijkl)
-!
-!             call hash_table_lookup([i,i,i,i], [ijkl], 0, rdm%hash_table, &
-!                 rdm%elements, ielem, hash_val, tSuccess)
-!
-!             if (tSuccess) then
-!                 call extract_sign_rdm(rdm%elements(:,ielem), rdm_sign)
-!
-!                 rdm_sign = rdm_sign / rdm_trace
-!
-!                 ! add up all the diagonal contributions
-!                 double_occ = double_occ + rdm_sign
-!
-!                 if (t_spin_measurements) spatial_double_occ(p) = rdm_sign(1)
-!
-!             end if
-!         end do
-
         ! seperately on all processors do this summation and then
         ! communicate the results in the end..
         do ielem = 1, rdm%nelements
@@ -839,10 +766,14 @@ contains
         end do
 
         ! at the end average over the spatial orbitals
-        double_occ = double_occ / (real(nbasis, dp) / 2.0_dp)
+        double_occ = 2.0_dp * double_occ / real(nbasis, dp)
 
         ! MPI communicate:
         call MPISumAll(double_occ, all_double_occ)
+
+        if (present(inst_occ)) then
+            inst_occ = double_occ(1)
+        end if
 
         if (t_spin_measurements) then
             call MPIAllreduce(spatial_double_occ, MPI_SUM, all_spatial_double_occ)
@@ -863,6 +794,5 @@ contains
         end if
 
     end subroutine calc_double_occ_from_rdm
-
 
 end module double_occ_mod

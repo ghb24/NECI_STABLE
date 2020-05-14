@@ -40,6 +40,9 @@ logical :: tRotatedOrbsReal     !This means we are reading in a complex FCIDUMP,
                                 !but kpoint symmetry can still be used.
 logical :: tReadFreeFormat,tReltvy
 
+! impurity system
+logical :: t_impurity_system
+
 logical :: tRIIntegrals   ! Read in RI 2-e integrals from RIDUMP file
 logical :: tStoreSpinOrbs ! This is set when the orbitals are stored in
                           ! spin-orbital notation
@@ -93,6 +96,7 @@ integer(int64) :: CalcDetPrint, CalcDetCycles   ! parameters
 logical :: tUEGTrueEnergies ! This is the logical for use of unscaled energies in the UEG calculation; will normally break spawning
 logical :: tLatticeGens   ! Use new UEG excitation generators
 logical :: t_uniform_excits = .false.
+logical :: t_mixed_excits = .false.
 logical :: tNoFailAb
 logical :: tUEGOffset     ! Use twisted boundary conditions
 real(dp) :: k_offset(3)      ! UEG parameter for twist-averaging
@@ -148,6 +152,15 @@ integer :: nIfP     ! Size appended to nIfD in CASSTAR calculations. Keeps
 ! From NECICB
 integer :: lmsBasis
 
+! hm.. for hubbard/UEG systems with >= 64 orbitals we need more integers
+! to store since 2^63-1 is the max 64bit integer. but i dont know yet what
+! changes that introduces in the rest of the code... additionally this change
+! does not only depend on the number of orbitals, but on the number of
+! symmetry labels, since for molecular systems this is usually much smaller
+! than the number of orbitals.. so in this case no change is necessary..
+! and the problem here is, we do not know yet the number of orbitals in
+! the compilation stage.. so i would have to make it allocatable..
+! hm.. can i think of a nice workaround??
 TYPE Symmetry
    SEQUENCE
    integer(int64) :: S
@@ -248,8 +261,67 @@ logical :: tSymSet = .false.
 
 logical :: tGiovannisBrokenInit
 
+! ==================== GUGA Implementation ========================
+! input for graphical unitary group approach (GUGA) CSF implementation
+logical :: tGUGA = .false. ! flag to indicate usage of GUGA
+
+! use a flag to determine if unit tests should be performed! with an
+! additional optional input how often the the excitation generator should
+! be tested!
+logical :: t_guga_unit_tests = .false., t_full_guga_tests = .false., &
+           t_test_most_populated = .false.
+integer :: n_guga_excit_gen, n_most_populated
+! introduce a new flag to indicate the testsuite is running!
+logical :: t_guga_testsuite = .false.
+
+
+! use new flags for the new guga excitation generator implementations
+logical :: tGen_nosym_guga =    .false., &
+           tGen_sym_guga_ueg =  .false., &
+           tGen_sym_guga_mol =  .false., &
+           tgen_guga_weighted = .false., &
+           tgen_guga_crude =    .false., &
+           tgen_guga_mixed =    .false., &
+           tgen_guga_exchange = .false., &
+           t_approx_exchange =  .false., &
+           t_crude_exchange =   .false., &
+           t_crude_exchange_noninits = .false., &
+           is_init_guga = .false., &
+           t_approx_exchange_noninits = .false.
+
+logical :: t_guga_mixed_init = .true., t_guga_mixed_semi = .false.
+
+logical :: t_consider_diff_bias = .false.
+
+! also store the number of spatial orbitals here, to use it generally
+integer :: nSpatOrbs
+
+! try to store current_stepvector here.. if that improves stuff
+integer, allocatable :: current_stepvector(:)
+! maybe also define currentOcc and currentB here.. if that helps..
+integer, allocatable :: currentOcc_int(:), currentB_int(:)
+real(dp), allocatable :: currentOcc_ilut(:), currentB_ilut(:), currentB_nI(:)
+
+! also use this kind of information for the reference determinant
+! which i should initialize in the reference determinant init
+integer, allocatable :: ref_stepvector(:), ref_b_vector_int(:)
+real(dp), allocatable :: ref_b_vector_real(:), ref_occ_vector(:)
+
+! also use a fake cum-list of the non-doubly occupied orbital to increase
+! preformance in the picking of orbitals (a)
+real(dp), allocatable :: current_cum_list(:)
+
+! use a flag for only running the excitation generator test in the dets case
+logical :: t_test_excit_gen = .false.
+
+! put in a logical to not reorder the orbitals in the guga + hubbard case
+! to directly compare it with the determinental implementation, even if
+! this might decrease the efficiency of the guga implmenetation
+logical :: t_guga_noreorder = .false.
+
 ! Are we restricting excitations
 logical :: tGAS = .false., tGASSpinRecoupling = .true.
+
 ! twisted boundary implementation for the hubbard model:
 ! use keyword twisted-bc [real, real] in System Block of input
 ! twist value is in values of periodicity (2*pi/L) for cubic and (pi/L) for
@@ -294,6 +366,15 @@ real(dp) :: trans_corr_param_2body = 0.0_dp
 ! real-space hubbard. it comes from a hopping correlation form in real-space
 ! reuse the trans_corr_param variable though!
 logical :: t_trans_corr_hop = .false.
+
+! hole focusing (one body) excitation generator, designed for Hubbard model at extremely large U ragion.
+logical :: t_hole_focus_excits = .false.
+real(dp) :: pholefocus = 0.5_dp
+
+! simple preconditioner for Hubbard model
+logical :: t_precond_hub = .false.
+logical :: t_no_ref_shift = .false.
+
 logical :: t12FoldSym = .false.
 
 ! and the other lattice models:
@@ -330,6 +411,7 @@ character(20) :: lattice_type
 
 ! i need
 integer :: length_x = 1, length_y = 1, length_z = 1
+
 ! flag for the pre-computed power-pitzer excitaion generator
 logical :: t_pcpp_excitgen = .false.
 ! flags for the pre-computed heat-bath excitation generator
@@ -345,6 +427,17 @@ logical :: t_iiaa = .false., t_ratio = .false.
 
 ! spin-dependent transcorrelation
 logical :: t_spin_dependent_transcorr = .false.
+
+! some changes in matrix elements for mixed hubbard basis
+logical :: t_mixed_hubbard = .false.
+
+logical :: t_olle_hubbard = .false.
+
+logical :: t_test_double = .false., t_test_single = .false.
+integer :: test_i, test_j, test_k, test_l
+
+! flag for anti-periodic BCs in the real-space Hubbard implementation
+logical :: t_anti_periodic(2) = .false.
 
 ! Operators for type(symmetry)
 interface assignment (=)

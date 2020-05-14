@@ -1,12 +1,16 @@
 #include "macros.h"
 
 module initial_trial_states
-
+    use semi_stoch_procs, only: GLOBAL_RUN
     use bit_rep_data
     use constants
     use kp_fciqmc_data_mod
     use SystemData, only: t_non_hermitian
+    use core_space_util, only: cs_replicas
+    use FciMCData, only: core_run
+#ifndef CMPLX_
     use matrix_util, only: eig, print_matrix
+#endif
     use util_mod, only: operator(.div.)
 
     implicit none
@@ -29,7 +33,7 @@ contains
         use ParallelHelper, only: root
         use semi_stoch_gen
         use sort_mod, only: sort
-        use SystemData, only: nel, tAllSymSectors
+        use SystemData, only: nel, tAllSymSectors, tGUGA
         use sparse_arrays, only: calculate_sparse_ham_par, sparse_ham
 
         use hamiltonian_linalg, only: sparse_hamil_type, parallel_sparse_hamil_type
@@ -62,17 +66,28 @@ contains
         ndets_this_proc = 0
         trial_iluts = 0_n_int
 
+        ! do some GUGA checks to abort non-supported trial wavefunctions
+        if (tGUGA .and. (space_in%tCAS .or. space_in%tRAS .or. space_in%tFCI)) then
+            call stop_all(t_r, "non-supported trial space for GUGA!")
+        end if
+
         write(6,*) " Initialising wavefunctions by the Lanczos algorithm"
 
         ! Choose the correct generating routine.
-        if (space_in%tHF)       call add_state_to_space(ilutHF, trial_iluts, ndets_this_proc)
-        if (space_in%tPops)     call generate_space_most_populated(space_in%npops, &
-                                    space_in%tApproxSpace, space_in%nApproxSpace, trial_iluts, ndets_this_proc, CurrentDets, TotWalkers)
-        if (space_in%tRead)     call generate_space_from_file(space_in%read_filename, trial_iluts, ndets_this_proc)
-        if (space_in%tDoubles)  call generate_sing_doub_determinants(trial_iluts, ndets_this_proc, .false.)
-        if (space_in%tCAS)      call generate_cas(space_in%occ_cas, space_in%virt_cas, trial_iluts, ndets_this_proc)
-        if (space_in%tRAS)      call generate_ras(space_in%ras, trial_iluts, ndets_this_proc)
-        if (space_in%tOptimised)call generate_optimised_space(space_in%opt_data, space_in%tLimitSpace, &
+        if (space_in%tHF) call add_state_to_space(ilutHF, trial_iluts, ndets_this_proc)
+        if (space_in%tPops) call generate_space_most_populated(space_in%npops, &
+                                    space_in%tApproxSpace, space_in%nApproxSpace, trial_iluts, ndets_this_proc, GLOBAL_RUN)
+        if (space_in%tRead) call generate_space_from_file(space_in%read_filename, trial_iluts, ndets_this_proc)
+        if (space_in%tDoubles) then
+            if (tGUGA) then
+                call generate_sing_doub_guga(trial_iluts, ndets_this_proc, .false.)
+            else
+                call generate_sing_doub_determinants(trial_iluts, ndets_this_proc, .false.)
+            end if
+        end if
+        if (space_in%tCAS) call generate_cas(space_in%occ_cas, space_in%virt_cas, trial_iluts, ndets_this_proc)
+        if (space_in%tRAS) call generate_ras(space_in%ras, trial_iluts, ndets_this_proc)
+        if (space_in%tOptimised) call generate_optimised_space(space_in%opt_data, space_in%tLimitSpace, &
                                                          trial_iluts, ndets_this_proc, space_in%max_size)
         if (space_in%tMP1)      call generate_using_mp1_criterion(space_in%mp1_ndets, trial_iluts, ndets_this_proc)
         if (space_in%tFCI) then
@@ -234,6 +249,8 @@ contains
         use sort_mod, only: sort
         use SystemData, only: nel, tAllSymSectors
         use lanczos_wrapper, only: frsblk_wrapper
+        use guga_excitations, only: calc_guga_matrix_element
+        use guga_data, only: ExcitationInformation_t
 
         type(subspace_in) :: space_in
         integer, intent(in) :: nexcit
@@ -257,19 +274,26 @@ contains
         HElement_t(dp), allocatable :: work(:)
         real(dp), allocatable :: evals_all(:), rwork(:)
         character(len=*), parameter :: t_r = "calc_trial_states_direct"
+        type(ExcitationInformation_t) :: excitInfo
 
         ndets_this_proc = 0
         trial_iluts = 0_n_int
 
         ! Choose the correct generating routine.
-        if (space_in%tHF)       call add_state_to_space(ilutHF, trial_iluts, ndets_this_proc)
-        if (space_in%tPops)     call generate_space_most_populated(space_in%npops, &
-                                    space_in%tApproxSpace, space_in%nApproxSpace, trial_iluts, ndets_this_proc, CurrentDets, TotWalkers)
-        if (space_in%tRead)     call generate_space_from_file(space_in%read_filename, trial_iluts, ndets_this_proc)
-        if (space_in%tDoubles)  call generate_sing_doub_determinants(trial_iluts, ndets_this_proc, .false.)
-        if (space_in%tCAS)      call generate_cas(space_in%occ_cas, space_in%virt_cas, trial_iluts, ndets_this_proc)
-        if (space_in%tRAS)      call generate_ras(space_in%ras, trial_iluts, ndets_this_proc)
-        if (space_in%tOptimised)call generate_optimised_space(space_in%opt_data, space_in%tLimitSpace, &
+        if (space_in%tHF) call add_state_to_space(ilutHF, trial_iluts, ndets_this_proc)
+        if (space_in%tPops) call generate_space_most_populated(space_in%npops, &
+                                    space_in%tApproxSpace, space_in%nApproxSpace, trial_iluts, ndets_this_proc, GLOBAL_RUN)
+        if (space_in%tRead) call generate_space_from_file(space_in%read_filename, trial_iluts, ndets_this_proc)
+        if (space_in%tDoubles) then
+            if (tGUGA) then
+                call generate_sing_doub_guga(trial_iluts, ndets_this_proc, .false.)
+            else
+                call generate_sing_doub_determinants(trial_iluts, ndets_this_proc, .false.)
+            end if
+        end if
+        if (space_in%tCAS) call generate_cas(space_in%occ_cas, space_in%virt_cas, trial_iluts, ndets_this_proc)
+        if (space_in%tRAS) call generate_ras(space_in%ras, trial_iluts, ndets_this_proc)
+        if (space_in%tOptimised) call generate_optimised_space(space_in%opt_data, space_in%tLimitSpace, &
                                                          trial_iluts, ndets_this_proc, space_in%max_size)
         if (space_in%tMP1)      call generate_using_mp1_criterion(space_in%mp1_ndets, trial_iluts, ndets_this_proc)
         if (space_in%tFCI) then
@@ -366,6 +390,9 @@ contains
                 if (tHPHF) then
                    H_tmp(i,j) = hphf_off_diag_helement(det_list(:,i),det_list(:,j),ilut_list(:,i), &
                                 ilut_list(:,j))
+                else if (tGUGA) then
+                    call calc_guga_matrix_element(ilut_list(:,i), &
+                            ilut_list(:,j), excitInfo, H_tmp(j,i), .true., 2)
                 else
                    H_tmp(i,j) = get_helement(det_list(:,i),det_list(:,j),ilut_list(:,i),ilut_list(:,j))
                 end if
@@ -415,6 +442,9 @@ contains
                         if (tHPHF) then
                             H_tmp(j,i) = hphf_off_diag_helement(det_list(:,i), &
                                 det_list(:,j),ilut_list(:,i), ilut_list(:,j))
+                        else if (tGUGA) then
+                            call calc_guga_matrix_element(ilut_list(:,i), &
+                                ilut_list(:,j), excitInfo, H_tmp(j,i), .true., 2)
                         else
                             H_tmp(j,i) = get_helement(det_list(:,i), &
                                 det_list(:,j),ilut_list(:,i),ilut_list(:,j))
@@ -429,18 +459,12 @@ contains
 
                 ! i think i need the left eigenvector for the trial-projection
                 ! if it is non-hermitian..
-                call eig(H_tmp, evals_all, evecs_all,.true.)
-!                 call eig(H_tmp, evals_all, evecs_all)
-                ! is it sorted by energy?
-
-                if_root
-                    call print_matrix(evecs_all)
-                end_if_root
+                ! apparently not.. maybe with the j,i convention above not..
+                ! confusing
+                call eig(H_tmp, evals_all, evecs_all,.false.)
 
                 evals = evals_all(1:nexcit)
                 evecs = evecs_all(:,1:nexcit)
-!                 print *, "eigenvector: "
-!                 print *, evecs(:,1)
 
                 deallocate(H_tmp)
                 deallocate(evecs_all)
@@ -451,8 +475,6 @@ contains
                     nexcit, evals, evecs)
             end if
 
-
-!             call dsyev('V','L',ndets_int,H_tmp,ndets_int,evals_all,work,3*ndets_int,info)
 #endif
             ! For consistency between compilers, enforce a rule for the sign of
             ! the eigenvector. To do this, make sure that the largest component
@@ -483,7 +505,6 @@ contains
                 call sort(temp_reorder, evecs)
             end if
 
-!             print *, "eigen-values: ", evals
             ! Unfortunately to perform the MPIScatterV call we need the transpose
             ! of the eigenvector array.
             allocate(evecs_transpose(nexcit, ndets_all_procs), stat=ierr)
@@ -515,8 +536,6 @@ contains
         deallocate(evecs_transpose)
 
     end subroutine calc_trial_states_direct
-
-
 
 
     subroutine calc_trial_states_qmc(space_in, nexcit, qmc_iluts, qmc_ht, paired_replicas, ndets_this_proc, &
@@ -556,14 +575,20 @@ contains
         trial_iluts = 0_n_int
 
         ! Choose the correct generating routine.
-        if (space_in%tHF)       call add_state_to_space(ilutHF, trial_iluts, ndets_this_proc)
-        if (space_in%tPops)     call generate_space_most_populated(space_in%npops, &
-                                    space_in%tApproxSpace, space_in%nApproxSpace, trial_iluts, ndets_this_proc, CurrentDets, TotWalkers)
-        if (space_in%tRead)     call generate_space_from_file(space_in%read_filename, trial_iluts, ndets_this_proc)
-        if (space_in%tDoubles)  call generate_sing_doub_determinants(trial_iluts, ndets_this_proc, .false.)
-        if (space_in%tCAS)      call generate_cas(space_in%occ_cas, space_in%virt_cas, trial_iluts, ndets_this_proc)
-        if (space_in%tRAS)      call generate_ras(space_in%ras, trial_iluts, ndets_this_proc)
-        if (space_in%tOptimised)call generate_optimised_space(space_in%opt_data, space_in%tLimitSpace, &
+        if (space_in%tHF) call add_state_to_space(ilutHF, trial_iluts, ndets_this_proc)
+        if (space_in%tPops) call generate_space_most_populated(space_in%npops, &
+                                    space_in%tApproxSpace, space_in%nApproxSpace, trial_iluts, ndets_this_proc, GLOBAL_RUN)
+        if (space_in%tRead) call generate_space_from_file(space_in%read_filename, trial_iluts, ndets_this_proc)
+        if (space_in%tDoubles) then
+            if (tGUGA) then
+                call generate_sing_doub_guga(trial_iluts, ndets_this_proc, .false.)
+            else
+                call generate_sing_doub_determinants(trial_iluts, ndets_this_proc, .false.)
+            end if
+        end if
+        if (space_in%tCAS) call generate_cas(space_in%occ_cas, space_in%virt_cas, trial_iluts, ndets_this_proc)
+        if (space_in%tRAS) call generate_ras(space_in%ras, trial_iluts, ndets_this_proc)
+        if (space_in%tOptimised) call generate_optimised_space(space_in%opt_data, space_in%tLimitSpace, &
                                                          trial_iluts, ndets_this_proc, space_in%max_size)
         if (space_in%tMP1)      call generate_using_mp1_criterion(space_in%mp1_ndets, trial_iluts, ndets_this_proc)
         if (space_in%tFCI) then
@@ -747,10 +772,10 @@ contains
         if (tSemiStochastic .and. semistoch_started) then
             ! core_space stores all core determinants from all processors. Move those on this
             ! processor to trial_iluts, which add_core_states_currentdet_hash uses.
-            call copy_core_dets_to_spawnedparts()
+            call copy_core_dets_to_spawnedparts(cs_replicas(core_run))
             ! Any core space determinants which are not already in CurrentDets will be added
             ! by this routine.
-            call add_core_states_currentdet_hash()
+            call add_core_states_currentdet_hash(core_run)
         end if
 
         if (tTrialWavefunction) call reinit_current_trial_amps()

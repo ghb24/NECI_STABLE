@@ -1,7 +1,7 @@
 #include "macros.h"
 module adi_references
 use Parallel_neci
-use FciMCData, only: ilutRef, TotWalkers, CurrentDets
+use FciMCData, only: ilutRef, TotWalkers, CurrentDets, core_run
 use adi_data, only: ilutRefAdi, nRefs, nIRef, signsRef, &
      tAdiActive, tSetupSIs, NoTypeN, tSetupSIs, &
      tReferenceChanged, SIThreshold, tUseCaches, nIRef, signsRef, exLvlRef, tSuppressSIOutput, &
@@ -13,7 +13,7 @@ use bit_reps, only: decode_bit_det
 use DetBitOps, only: FindBitExcitLevel, sign_gt, sign_lt
 use sort_mod, only: sort
 use constants
-use SystemData, only: nel, t_3_body_excits
+use SystemData, only: nel, t_3_body_excits, tGUGA
 use util_mod, only: operator(.isclose.)
 
 implicit none
@@ -84,6 +84,7 @@ contains
 
   subroutine fixed_number_SI_generation()
       use semi_stoch_gen, only: generate_space_most_populated
+      use semi_stoch_procs, only: GLOBAL_RUN
       use LoggingData, only: ref_filename, tWriteRefs
       implicit none
       integer(MPIArg) :: mpi_refs_found
@@ -98,7 +99,7 @@ contains
          ! Get the nRefs most populated determinants
          refs_found = 0
          call generate_space_most_populated(maxNRefs, .false., 1, ref_buf, refs_found, &
-              CurrentDets, TotWalkers)
+              GLOBAL_RUN, CurrentDets(0:NifTot,:), TotWalkers)
          ! Communicate the refs_found info
          mpi_refs_found = int(refs_found,MPIArg)
          call MPIAllGather(mpi_refs_found, refs_found_per_proc, ierr)
@@ -516,6 +517,8 @@ contains
       use Determinants, only: get_helement
       use SystemData, only: tHPHF
       use hphf_integrals, only: hphf_off_diag_helement
+    use guga_excitations, only: calc_guga_matrix_element
+    use guga_data, only: ExcitationInformation_t
       implicit none
       integer(n_int), intent(in) :: ilut(0:NIfTot)
       integer, intent(in) :: iRef, run, nI(nel)
@@ -526,6 +529,7 @@ contains
 #ifdef CMPLX_
       complex(dp) :: tmp
 #endif
+      type(ExcitationInformation_t) :: excitInfo
       HElement_t(dp) :: h_el
 
       is_coherent = .true.
@@ -538,6 +542,8 @@ contains
       ! Then, get the matrix element
       if(tHPHF) then
          h_el = hphf_off_diag_helement(nI,nJRef(:),ilut,ilutRefAdi(:,iRef))
+      else if (tGUGA) then
+          call calc_guga_matrix_element(ilut,ilutRefAdi(:,iref), excitInfo, h_el, .true., 2)
       else
          h_el = get_helement(nI,nJRef(:),ilut,ilutRefAdi(:,iRef))
       endif
@@ -586,6 +592,8 @@ contains
     use SystemData, only: tHPHF
     use Determinants, only: get_helement
     use hphf_integrals, only: hphf_off_diag_helement
+    use guga_excitations, only: calc_guga_matrix_element
+    use guga_data, only: ExcitationInformation_t
     implicit none
     integer, intent(in) :: nI(nel), i
     integer(n_int), intent(in) :: ilut(0:NIfTot)
@@ -596,6 +604,7 @@ contains
     integer :: run
     HElement_t(dp) :: h_el, tmp
     character(*), parameter :: this_routine = "upadte_coherence_check"
+    type(ExcitationInformation_t) :: excitInfo
 
     ! TODO: Only if ilutRefAdi(:,i) is a SI on this run
 
@@ -604,6 +613,8 @@ contains
     ! First, get the matrix element
     if(tHPHF) then
        h_el = hphf_off_diag_helement(nI,nIRef(:,i),ilut,ilutRefAdi(:,i))
+    else if (tGUGA) then
+          call calc_guga_matrix_element(ilut,ilutRefAdi(:,i), excitInfo, h_el, .true., 2)
     else
        h_el = get_helement(nI,nIRef(:,i),ilut,ilutRefAdi(:,i))
     endif
@@ -612,7 +623,7 @@ contains
 
     ! Add tmp = Hij cj to the caches
 
-    tmp  = 0.0_dp
+    tmp  = h_cast(0.0_dp)
     do run = 1, inum_runs
 #ifdef CMPLX_
        tmp = tmp + h_el * cmplx(signsRef(min_part_type(run),i),&
@@ -987,6 +998,8 @@ contains
       call resize_ilutRefAdi(nRefs - 1)
 
     end subroutine remove_superinitiator
+
+!------------------------------------------------------------------------------------------!
 
     subroutine clean_adi()
       implicit none

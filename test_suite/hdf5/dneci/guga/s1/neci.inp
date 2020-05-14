@@ -1,0 +1,55 @@
+Title
+
+System read
+electrons  14
+nonuniformrandexcits mol_guga_weighted
+nobrillouintheorem
+guga 2
+freeformat
+endsys
+
+calc
+definedet    1    2    3    6   11   12   13   14   17   18   19   25   26   27
+
+methods
+method vertex fcimc
+endmethods
+seed -7
+totalwalkers    400
+load-balance-blocks on
+(load-balance-interval 1000
+nmcyc 500
+diagshift 0.00
+shiftdamp 0.02
+stepsshift 10
+proje-changeref 1.2
+truncinitiator
+addtoinitiator 3
+allrealcoeff
+ realspawncutoff 0.30
+jump-shift
+tau 0.001 search
+max-tau 0.02
+maxwalkerbloom 1
+memoryfacspawn 10.0
+memoryfacpart 5.0
+time 2800
+startsinglepart 100
+readpops
+(walkcontgrow
+semi-stochastic
+pops-core 1000
+core-inits
+trial-wavefunction
+pops-trial 10
+endcalc
+
+logging
+HDF5-POPS-read
+HDF5-POPS-write
+
+Highlypopwrite 50
+popsfile -1
+no-append-stats
+endlog
+end

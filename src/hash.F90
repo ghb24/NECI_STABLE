@@ -3,7 +3,7 @@
 module hash
 
     use FciMCData, only: hash_iter, hash_shift, RandomHash2, HFDet, ll_node
-    use bit_rep_data, only: flag_deterministic, test_flag
+    use bit_rep_data, only: flag_deterministic, test_flag, test_flag_multi
     use bit_reps, only: extract_sign, decode_bit_det
     use Systemdata, only: nel, tCSF, nBasis
     use csf_data, only: csf_orbital_mask
@@ -111,6 +111,9 @@ module hash
         character(len=*), parameter :: this_routine = "remove_hash_table_entry"
 #endif
 
+        ASSERT(all(nI <= nBasis))
+        ASSERT(all(nI > 0))
+
         found = .false.
 
         ! Find the hash value corresponding to this determinant.
@@ -151,6 +154,9 @@ module hash
 #ifdef DEBUG_
         character(len=*), parameter :: this_routine = "update_hash_table_ind"
 #endif
+
+        ASSERT(all(nI <= nBasis))
+        ASSERT(all(nI > 0))
 
         found = .false.
 
@@ -357,9 +363,12 @@ module hash
         logical, intent(in) :: ignore_unocc
 
         type(ll_node), pointer :: temp_node
-        integer :: i, hash_val, nI(nel)
+        integer :: i, hash_val, nI(nel), run
         real(dp) :: real_sign(lenof_sign)
         logical :: tCoreDet
+#ifdef DEBUG_
+        character(*), parameter :: this_routine = "fill_in_hash_table"
+#endif
 
         tCoreDet = .false.
 
@@ -368,13 +377,18 @@ module hash
             ! unoccupied determinants in the hash table, unless they're
             ! deterministic states.
             if (ignore_unocc) then
-                if (tSemiStochastic) tCoreDet = test_flag(walker_list(:,i), flag_deterministic)
+                if (tSemiStochastic) then
+                        tCoreDet = test_flag_multi(walker_list(:,i), flag_deterministic)
+                endif
                 call extract_sign(walker_list(:,i), real_sign)
                 if (IsUnoccDet(real_sign) .and. (.not. tCoreDet) .and. (.not. tAccumEmptyDet(walker_list(:,i)))) cycle
             end if
 
             call decode_bit_det(nI, walker_list(:,i))
             ! Find the hash value corresponding to this determinant.
+            ASSERT(all(nI <= nBasis))
+            ASSERT(all(nI > 0))
+
             hash_val = FindWalkerHash(nI, table_length)
 
             call add_hash_table_entry(hash_table, i, hash_val)
@@ -404,10 +418,14 @@ module hash
         do i = 1, list_length
             call extract_sign(walker_list(:,i), real_sign)
             tCoreDet = .false.
-            if (tSemiStochastic) tCoreDet = test_flag(walker_list(:,i), flag_deterministic)
+            if (tSemiStochastic) tCoreDet = test_flag_multi(walker_list(:,i), flag_deterministic)
             if (IsUnoccDet(real_sign) .and. (.not. tCoreDet) .and. (.not. tAccumEmptyDet(walker_list(:,i)))) cycle
             found = .false.
             call decode_bit_det(nI, walker_list(:, i))
+
+            ASSERT(all(nI <= nBasis))
+            ASSERT(all(nI > 0))
+
             hash_val = FindWalkerHash(nI, size(hash_table))
             temp_node => hash_table(hash_val)
             prev => null()

@@ -13,23 +13,12 @@ import optparse
 import re
 import sys
 import matplotlib
-print(matplotlib.rcsetup.all_backends)
-print(matplotlib.matplotlib_fname())
-matplotlib.use("TkAgg")
+matplotlib.use('TkAgg')
 # import pylab
 import matplotlib.pyplot as plt
 import numpy
 
 PYLAB = True
-# try:
-# #     print (pylab.rcsetup.all_backend)
-# #     pylab.use("qt4agg")
-#     PYLAB = True
-#     pylab.ion()
-# 
-# except ImportError:
-#     print "Can't import matplotlib.  Skipping graph production."
-#     PYLAB = False
 
 __author__ = 'James Spencer'
 
@@ -346,8 +335,8 @@ If plotfile is given, then the graph is saved to the specifed file rather than b
             if plotfile:
                 plt.savefig(plotfile)
             else:
-                plt.draw()
-                plt.show()
+                pylab.draw()
+                pylab.show()
 
 def parse_options(args):
     '''Parse command line options.'''

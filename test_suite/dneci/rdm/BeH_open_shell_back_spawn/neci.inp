@@ -17,7 +17,6 @@ seed -7
 memoryfacspawn 4.0
 memoryfacpart 2.0
 truncinitiator
-keepdoubspawns
 addtoinitiator 3
 walkcontgrow
 back-spawn-flex 1
@@ -30,6 +29,7 @@ shiftdamp 0.1
 nmcyc 15000
 semi-stochastic
 doubles-core
+core-inits
 stochastic-hf-spawning
 allrealcoeff
 realspawncutoff 0.5

@@ -24,6 +24,7 @@ realspawncutoff 0.01
 seed 101
 semi-stochastic
 doubles-core
+core-inits
 truncinitiator
 addtoinitiator 2
 stochastic-hf-spawning

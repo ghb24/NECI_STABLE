@@ -9,7 +9,8 @@ MODULE Calc
                           par_hole_pairs, hole_pairs, nholes_a, nholes_b, &
                           nholes, UMATEPS, tHub, t_lattice_model, t_tJ_model, &
                           t_new_real_space_hubbard, t_heisenberg_model, &
-                          t_k_space_hubbard, tHPHF, t_non_hermitian
+                          t_k_space_hubbard, tHPHF, t_non_hermitian, &
+                          tGUGA, t_mixed_hubbard, t_olle_hubbard
     use Determinants, only: write_det
     use spin_project, only: spin_proj_interval, &
                             spin_proj_gamma, spin_proj_shift, &
@@ -31,7 +32,9 @@ MODULE Calc
                          tTrialHash, tIncCancelledInitEnergy, MaxTau, &
                          tStartCoreGroundState, pParallel, pops_pert, &
                          alloc_popsfile_dets, tSearchTauOption, tZeroRef, &
-                         sFAlpha, tEScaleWalkers, sFBeta, sFTag, tLogNumSpawns
+                        sFAlpha, tEScaleWalkers, sFBeta, sFTag, tLogNumSpawns, &
+                       tAllAdaptiveShift, cAllAdaptiveShift, t_global_core_space
+
     use adi_data, only: maxNRefs, nRefs, tAllDoubsInitiators, tDelayGetRefs, &
                         tDelayAllDoubsInits, tSetDelayAllDoubsInits, &
                         NoTypeN, tAdiActive, tReadRefs, SIUpdateInterval, &
@@ -46,18 +49,26 @@ tSuppressSIOutput, targetRefPop, targetRefPopTol, tSingleSteps, tVariableNRef, &
     use spectral_lanczos, only: n_lanc_vecs_sl
     use exact_spectrum
     use perturbations, only: init_perturbation_creation, init_perturbation_annihilation
+
     use real_space_hubbard, only: t_start_neel_state, create_neel_state, &
                                   init_get_helement_hubbard
-    use tJ_model, only: init_get_helement_heisenberg, init_get_helement_tj
+    use tJ_model, only: init_get_helement_heisenberg, init_get_helement_tj, &
+                    init_get_helement_heisenberg_guga, init_get_helement_tj_guga
     use k_space_hubbard, only: init_get_helement_k_space_hub
     use kp_fciqmc_data_mod, only: overlap_pert, tOverlapPert
-    use lattice_models_utils, only: return_hphf_sym_det
-    use DetBitOps, only: DetBitEq, EncodeBitDet
+    use DetBitOps, only: DetBitEq, EncodeBitDet, return_hphf_sym_det
     use DeterminantData, only: write_det
     use bit_reps, only: decode_bit_det
+    use cepa_shifts, only: t_cepa_shift, cepa_method
+    use cc_amplitudes, only: t_cc_amplitudes, cc_order, cc_delay
+
+    use guga_data, only: tGUGACore
+
     use util_mod, only: near_zero, operator(.isclose.), operator(.div.)
     use unit_test_helpers, only: batch_run_excit_gen_tester
 
+    use real_time_data, only: allGfs, gf_count, gf_type, t_real_time_fciqmc
+    use real_time, only: perform_real_time_fciqmc
     implicit none
 
     logical, public :: RDMsamplingiters_in_inp
@@ -91,6 +102,7 @@ contains
 !       Calc defaults
         iSampleRDMIters = -1
         tStartCoreGroundState = .true.
+        t_core_inits = .false.
         HashLengthFrac = 0.7_dp
         nWalkerHashes = 0
         tTrialHash = .true.
@@ -103,6 +115,9 @@ contains
         tSearchTau = .true.
         tSearchTauOption = .true.
         tSearchTauDeath = .false.
+
+        t_hist_tau_search = .false.
+        t_hist_tau_search_option = .false.
 
         t_lanczos_init = .false.
         t_lanczos_store_vecs = .true.
@@ -286,8 +301,6 @@ contains
         TLADDER = .false.
         tDefineDet = .false.
         tTruncInitiator = .false.
-!           tKeepDoubSpawns = .true.
-!           tMultiSpawnThreshold = .false.
         tAddtoInitiator = .false.
         tActivateLAS = .false.
         tLogAverageSpawns = .false.
@@ -350,10 +363,13 @@ contains
         ! Semi-stochastic and trial wavefunction options.
         tSemiStochastic = .false.
         tCSFCore = .false.
+        t_fast_pops_core = .true.
+        t_global_core_space = .true.
         tDynamicCoreSpace = .false.
         tIntervalSet = .false.
         tStaticCore = .true.
         coreSpaceUpdateCycle = 400
+
         semistoch_shift_iter = 0
         tTrialWavefunction = .false.
         tDynamicTrial = .false.
@@ -368,6 +384,7 @@ contains
         delta_beta_ftlm = 0.1_dp
         n_lanc_vecs_sl = 20
         nomega_spectral = 100
+        tIWSpec = .false.
         delta_omega_spectral = 0.01_dp
         min_omega_spectral = 0.0_dp
         spectral_broadening = 0.05_dp
@@ -377,7 +394,11 @@ contains
         tDetermHFSpawning = .true.
         tOverlapPert = .false.
 
-        pParallel = 0.5_dp
+        if (t_mixed_hubbard .or. t_olle_hubbard) then
+            pParallel = 0.0_dp
+        else
+            pParallel = 0.5_dp
+        end if
 
         MaxTau = 1.0_dp
         pop_change_min = 50
@@ -433,6 +454,11 @@ contains
         sFBeta = 1.0_dp
         sFTag = 0
 
+        ! shift scaling with local population
+        tAllAdaptiveShift = .false.
+        ! First calculations indicate that this is a reasonable value
+        cAllAdaptiveShift = 2
+
         ! Epstein-Nesbet second-order correction logicals.
         tEN2 = .false.
         tEN2Init = .false.
@@ -449,6 +475,7 @@ contains
         tSetInitFlagsBeforeDeath = .false.
 
         pSinglesIn = 0.0_dp
+        pDoublesIn = 0.0_dp
         pParallelIn = 0.0_dp
 
         tSetInitialRunRef = .true.
@@ -488,6 +515,8 @@ contains
         use Parallel_neci, only: nProcessors
         use util_mod, only: addToIntArray
         use LoggingData, only: tLogDets
+        use guga_bitRepOps, only: isProperCSF_ni
+
         IMPLICIT NONE
         LOGICAL eof
         CHARACTER(LEN=100) w
@@ -501,12 +530,12 @@ contains
         integer :: npops_pert, npert_spectral_left, npert_spectral_right
         real(dp) :: InputDiagSftSingle
         integer(n_int) :: def_ilut(0:niftot), def_ilut_sym(0:niftot)
-
+        logical :: t_force_global_core
         ! Allocate and set this default here, because we don't have inum_runs
         ! set when the other defaults are set.
         if (.not. allocated(InputDiagSft)) allocate (InputDiagSft(inum_runs))
         InputDiagSft = 0.0_dp
-
+        t_force_global_core = .false.
         calc: do
             call read_line(eof)
             if (eof) then
@@ -981,6 +1010,15 @@ if (i - 1 /= nel) call stop_all(t_r, "Insufficient orbitals given in DEFINEDET")
                     end if
                 end if
 
+                if (tGUGA) then
+                    if (.not. isProperCSF_ni(defdet)) then
+          write (iout, *) " automatic neel-state creation produced invalid CSF!"
+                        write (iout, *) "created neel-state: "
+                        call write_det(iout, DefDet, .true.)
+         call stop_all(t_r, " definedet is not a proper CSF or has wrong SPIN!")
+                    end if
+                end if
+
             case ("MULTIPLE-INITIAL-REFS")
                 tMultipleInitialRefs = .true.
                 allocate (initial_refs(nel, inum_runs), stat=ierr)
@@ -1189,9 +1227,6 @@ if (i - 1 /= nel) call stop_all(t_r, "Insufficient orbitals given in DEFINEDET")
                     end do
                 end if
 
-            case ("PDOUBLES")
-                ! for a transcorrelation with triple excitations
-                call getf(p_doubles_input)
             case ("TAUFACTOR")
 !For FCIMC, this is the factor by which 1/(HF connectivity) will be multiplied by to give the timestep for the calculation.
                 tSearchTau = .false.  !Tau is set, so don't search for it.
@@ -1221,25 +1256,100 @@ if (i - 1 /= nel) call stop_all(t_r, "Insufficient orbitals given in DEFINEDET")
                     tSearchTauOption = .false.
                 end if
 
-            case ("MAX-TAU")
-                ! For tau searching, set a maximum value of tau. This places
-                ! a limit to prevent craziness at the start of a calculation
-                call getf(MaxTau)
-
             case ("MIN-TAU")
-                ! introduce a minimum value of tau for the automated
-                ! tau-search to limit the lower bound of the automated
-                ! tau-search
+                ! use a minimum tau value or the automated tau-search
+                ! to avoid that a single, worst case excitation kills your
+                ! time-step
                 t_min_tau = .true.
 
                 if (item < nitems) then
                     call getf(min_tau_global)
                 end if
 
-                ! also only use that if the automated tau-search is used
-                ! so enable the automated tau search here
+                ! assume thats only for the tau-search so enable all the
+                ! other quantities
                 tSearchTau = .true.
                 tSearchTauOption = .true.
+
+            case ("MAX-TAU")
+                ! For tau searching, set a maximum value of tau. This places
+                ! a limit to prevent craziness at the start of a calculation
+                call getf(MaxTau)
+
+            case ("READ-PROBABILITIES")
+                ! introduce a new flag to read pSingles/pParallel etc. from
+                ! a popsfile even if the tau-search is not turned on, since
+                ! this scenario often shows up in my restarted calculations
+                t_read_probs = .true.
+
+            case ("NO-READ-PROBABILITIES")
+                ! change the default behavior to always read in the
+                ! pSingles etc. quantities! and only turn that off with this
+                ! keyword
+                t_read_probs = .false.
+
+            case ("GUGA-MATELES")
+                ! turn on the new guga-matrix element calculation for stuff
+                ! like the projected energy, semi-stochastic initialization
+                ! and trail-wavefunction creation
+                t_guga_mat_eles = .true.
+
+            case ("NO-GUGA-MATELES")
+                ! changed the default setting to always use the new direct
+                ! way to calculate the guga matrix elements. This keyword
+                ! changes the behavior back to the old way
+                t_guga_mat_eles = .false.
+
+            case ('TRUNC-GUGA-PGEN')
+                ! truncate GUGA excitation with a pgen below a chosen
+                ! threshold
+                t_trunc_guga_pgen = .true.
+
+                if (item < nitems) then
+                    call getf(trunc_guga_pgen)
+                end if
+
+            case ('TRUNC-GUGA-PGEN-NONINITS')
+                ! truncate GUGA excitation with a pgen below a chosen
+                ! threshold
+                t_trunc_guga_pgen_noninits = .true.
+
+                if (item < nitems) then
+                    call getf(trunc_guga_pgen)
+                end if
+
+            case ('TRUNC-GUGA-MATEL')
+                ! truncate GUGA excitations with a coupling coefficient below
+                ! a chosen threshold
+                t_trunc_guga_matel = .true.
+
+                if (item < nitems) then
+                    call getf(trunc_guga_matel)
+                end if
+
+            case ('GUGA-BACK-SPAWN')
+                ! treat excitiation, which increase the excit-lvl
+                ! by the crude approximation for non-initiators
+                t_guga_back_spawn = .true.
+
+                if (item < nitems) then
+                    ! this integer indicates if we want to
+                    ! -2    only treat double excitations, decreasing the excit-lvl by 2 fully
+                    ! -1    treat single and doubly excits decreasing excit-lvl by 1 or 1 fully
+                    !  0    treat all excitations leaving the excit-lvl unchanged or lowering fully
+                    !  1    also treat singly excits increasing excit-lvl up to 1 full
+
+                    ! default = 0
+                    call geti(n_guga_back_spawn_lvl)
+                end if
+
+                if (item < nitems) then
+                    call readu(w)
+                    select case (w)
+                    case ('TRUNC')
+                        t_guga_back_spawn_trunc = .true.
+                    end select
+                end if
 
             case ("KEEPTAUFIXED")
                 ! option for a restarted run to keep the tau, read in from the
@@ -1326,6 +1436,7 @@ if (i - 1 /= nel) call stop_all(t_r, "Insufficient orbitals given in DEFINEDET")
                 ! implemented a truncation of those. But this might be an
                 ! uncontrolled approximation, so be careful!
                 t_truncate_spawns = .true.
+                tLogNumSpawns = .true.
                 if (item < nitems) then
                     call getf(n_truncate_spawns)
                     if (item < nitems) then
@@ -1385,6 +1496,16 @@ if (i - 1 /= nel) call stop_all(t_r, "Insufficient orbitals given in DEFINEDET")
                 end if
                 ! i hope everything is setup already
                 DefDet = create_neel_state()
+
+                if (tGUGA) then
+                    if (.not. isProperCSF_ni(defdet)) then
+          write (iout, *) " automatic neel-state creation produced invalid CSF!"
+                        write (iout, *) "created neel-state: "
+                        call write_det(iout, DefDet, .true.)
+      call stop_all(t_r, " automatic neel-state creation produced invalid CSF!")
+                    end if
+                end if
+
                 write (iout, *) "created neel-state: "
                 call write_det(iout, DefDet, .true.)
 
@@ -1411,6 +1532,10 @@ if (i - 1 /= nel) call stop_all(t_r, "Insufficient orbitals given in DEFINEDET")
                 ! By default this value is 0.7 (see above)
                 call getf(HashLengthFrac)
 
+            case ("OLD-POPS-CORE")
+                ! Use the old way of creating a pops-core space
+                t_fast_pops_core = .false.
+
             case ("SEMI-STOCHASTIC")
                 tSemiStochastic = .true.
                 ! If there is ane extra item, it should specify that we turn
@@ -1430,8 +1555,10 @@ if (i - 1 /= nel) call stop_all(t_r, "Insufficient orbitals given in DEFINEDET")
                 tCSFCore = .true.
                 tCSF = .true.
                 LMS = STOT
+
             case ("ALL-CONN-CORE")
                 ss_space_in%tAllConnCore = .true.
+
             case ("DOUBLES-CORE")
                 ss_space_in%tDoubles = .true.
             case ("TRIPLES-CORE")
@@ -1484,9 +1611,11 @@ if (i - 1 /= nel) call stop_all(t_r, "Insufficient orbitals given in DEFINEDET")
             case ("POPS-CORE")
                 ss_space_in%tPops = .true.
                 call geti(ss_space_in%npops)
+                t_fast_pops_core = .false.
                 if (ss_space_in%npops * nProcessors > 1000000) then
                     if (.not. tForceFullPops) then
                         ss_space_in%tApproxSpace = .true.
+                        t_fast_pops_core = .true.
                     end if
                 end if
             case ("POPS-CORE-AUTO")
@@ -1726,7 +1855,9 @@ allocate (init_trial_in%opt_data%cutoff_nums(init_trial_in%opt_data%ngen_loops))
                 !    tTrialInit = .true.
             case ("START-FROM-HF")
                 tStartCoreGroundState = .false.
-
+            case ("CORE-INITS")
+                ! Make all determinants in the core-space initiators
+                t_core_inits = .true.
             case ("INITIATOR-SPACE")
                 tTruncInitiator = .true.
                 tInitiatorSpace = .true.
@@ -1997,7 +2128,7 @@ allocate (init_trial_in%opt_data%cutoff_nums(init_trial_in%opt_data%ngen_loops))
 !For FCIMC, if this is a way to scale up the number of walkers, after having read in a POPSFILE
                 call getf(ScaleWalkers)
             case ("UNIT-TEST-PGEN")
-                allocate(pgen_unit_test_spec)
+                allocate (pgen_unit_test_spec)
                 call geti(pgen_unit_test_spec%n_most_populated)
                 call geti(pgen_unit_test_spec%n_iter)
 
@@ -2128,7 +2259,7 @@ allocate (init_trial_in%opt_data%cutoff_nums(init_trial_in%opt_data%ngen_loops))
                 endif
 
             case ("FORCE-FULL-POPS")
-                tForceFullPops = .false.
+                tForceFullPops = .true.
                 ss_space_in%tApproxSpace = .false.
                 trial_space_in%tApproxSpace = .false.
 
@@ -2309,17 +2440,6 @@ allocate (init_trial_in%opt_data%cutoff_nums(init_trial_in%opt_data%ngen_loops))
 
             case ("KEEPDOUBSPAWNS")
 !This option is now on permanently by default and cannot be turned off.
-
-! for testing purposes, it can now be turned off, using the following keyword
-!             case("DISCARDDOUBSPAWNS")
-!                tKeepDoubSpawns = .false.
-
-! manually set the number of simultaneous spawns required for keeping a spawn from a
-! non-inititator to an unoccupied determinant
-!             case("MULTISPAWN-THRESHOLD")
-!                tMultiSpawnThreshold = .true.
-!                tKeepDoubSpawns = .false.
-!                call geti(multiSpawnThreshold)
 
             case ("ADDTOINITIATOR")
 !This option means that if a determinant outside the initiator space becomes significantly populated -
@@ -2585,6 +2705,12 @@ allocate (init_trial_in%opt_data%cutoff_nums(init_trial_in%opt_data%ngen_loops))
                 tTruncNOpen = .true.
                 call geti(trunc_nopen_max)
 
+            case ("TRUNC-NOPEN-DIFF")
+                ! trunc the seniority based on the difference to the seniority
+                ! of the reference determinant
+                t_trunc_nopen_diff = .true.
+                call geti(trunc_nopen_diff)
+
             case ("WEAKINITIATORS")
                 !Additionally allow the children of initiators to spawn freely
                 !This adaptation is applied stochastically with probability weakthresh
@@ -2713,6 +2839,9 @@ allocate (init_trial_in%opt_data%cutoff_nums(init_trial_in%opt_data%ngen_loops))
                 call getf(delta_omega_spectral)
             case ("MIN-OMEGA-SPECTRAL")
                 call getf(min_omega_spectral)
+            case ("I-OMEGA-SPECTRAL")
+                ! get the spectrum as a function of 1i*w
+                tIWSpec = .true.
             case ("BROADENING_SPECTRAL")
                 call getf(spectral_broadening)
             case ("INCLUDE-GROUND-SPECTRAL")
@@ -2865,6 +2994,8 @@ allocate (init_trial_in%opt_data%cutoff_nums(init_trial_in%opt_data%ngen_loops))
                 if (item < nitems) then
                     call readi(orthogonalise_iter)
                 endif
+                ! With orthogonalisation, each replica needs its own core space
+                if (.not. t_force_global_core) t_global_core_space = .false.
 
                 ! Don't start all replicas from the deterministic ground state
                 ! when using this option.
@@ -2882,6 +3013,7 @@ allocate (init_trial_in%opt_data%cutoff_nums(init_trial_in%opt_data%ngen_loops))
                 ! Don't start all replicas from the deterministic ground state
                 ! when using this option.
                 tStartCoreGroundState = .false.
+                if (.not. t_force_global_core) t_global_core_space = .false.
 
             case ("TEST-NON-ORTHOGONALITY")
                 ! for the non-hermitian eigenstates the shift gives a
@@ -2909,6 +3041,15 @@ allocate (init_trial_in%opt_data%cutoff_nums(init_trial_in%opt_data%ngen_loops))
                 ! Don't print overlaps between replicas when using the
                 ! orthogonalise-replicas option.
                 tPrintReplicaOverlaps = .false.
+
+            case ("CORE-SPACE-REPLICAS")
+                ! Use one core space per replica (implicit for orthogonalise-replicas)
+                t_global_core_space = .false.
+
+            case ("GLOBAL-CORE-SPACE")
+                ! Use only one single core-spae for multiple replicas
+                t_global_core_space = .true.
+                t_force_global_core = .true.
 
             case ("USE-SPAWN-HASH-TABLE")
                 use_spawn_hash_table = .true.
@@ -3032,6 +3173,135 @@ allocate (init_trial_in%opt_data%cutoff_nums(init_trial_in%opt_data%ngen_loops))
                 ! to indicate (de-)excitation
                 if (item < nitems) then
                     call geti(occ_virt_level)
+                end if
+
+            case ("LOG-GREENSFUNCTION")
+                ! Writes out the Greensfunction. Beware that this disables the
+                ! dynamic shift (the Green's function wouldnt make a lot of sense)
+                tLogGreensfunction = .true.
+                gf_type = 0
+                gf_count = 1
+                allGfs = 0
+
+            case ("LESSER")
+                tLogGreensfunction = .true.
+                alloc_popsfile_dets = .true.
+                ! lesser GF -> photo emission: apply a annihilation operator
+                tOverlapPert = .true.
+                tWritePopsNorm = .true.
+                ! i probably also can use the overlap-perturbed routines
+                ! from nick
+                ! but since applying <y(0)|a^+_i for all i is way cheaper
+                ! and should be done for all possible and allowed i.
+                ! and creating all those vectors should be done in the init
+                ! step and stored, and then just calc. the overlap each time
+                ! step
+
+                ! store the information of the type of greensfunction
+                gf_type = -1
+                allGfs = 0
+
+                ! probably have to loop over spin-orbitals dont i? yes!
+
+                ! if no specific orbital is specified-> loop over all j!
+                ! but only do that later: input is a SPINORBITAL!
+                if (item < nitems) then
+                    allocate (pops_pert(1))
+                    pops_pert%nannihilate = 1
+                    allocate (pops_pert(1)%ann_orbs(1))
+                    call readi(pops_pert(1)%ann_orbs(1))
+                    call init_perturbation_annihilation(pops_pert(1))
+                else
+                    call stop_all(t_r, "Invalid input for Green's function")
+                endif
+                if (nitems == 3) then
+                    gf_count = 1
+                    !allocate the perturbation object
+
+                    ! and also the lefthand perturbation object for overlap
+                    allocate (overlap_pert(1))
+                    overlap_pert%nannihilate = 1
+                    allocate (overlap_pert(1)%ann_orbs(1))
+
+                    ! read left hand operator first
+                    call readi(overlap_pert(1)%ann_orbs(1))
+                    call init_perturbation_annihilation(overlap_pert(1))
+
+                else
+                    if (nitems == 2) then
+                        allGfs = 1
+                    else
+                        call stop_all(t_r, "Invalid input for Green's function")
+                    endif
+                endif
+            case ("GREATER")
+                tLogGreensfunction = .true.
+                ! greater GF -> photo absorption: apply a creation operator
+                alloc_popsfile_dets = .true.
+                tOverlapPert = .true.
+                tWritePopsNorm = .true.
+
+                ! i probably also can use the overlap-perturbed routines
+                ! from nick
+                ! but since applying <y(0)|a_i for all i is way cheaper
+                ! and should be done for all possible and allowed i.
+                ! and creating all those vectors should be done in the init
+                ! step and stored, and then just calc. the overlap each time
+                ! step
+
+                ! store type of greensfunction
+                gf_type = 1
+                allGfs = 0
+                ! if no specific orbital is specified-> loop over all j!
+                ! but only do that later
+                if (item < nitems) then
+                    allocate (pops_pert(1))
+                    pops_pert%ncreate = 1
+                    allocate (pops_pert(1)%crtn_orbs(1))
+                    call readi(pops_pert(1)%crtn_orbs(1))
+                    call init_perturbation_creation(pops_pert(1))
+                else
+                    call stop_all(t_r, "Invalid input for Green's function")
+                endif
+                if (nitems == 3) then
+                    ! allocate the perturbation object
+                    allocate (overlap_pert(1))
+                    overlap_pert%ncreate = 1
+                    allocate (overlap_pert(1)%crtn_orbs(1))
+                    call readi(overlap_pert(1)%crtn_orbs(1))
+                    call init_perturbation_creation(overlap_pert(1))
+                else
+                    if (nitems == 2) then
+                        allGfs = 2
+                    else
+                        call stop_all(t_r, "Invalid input for Green's function")
+                    endif
+                endif
+
+            case ("CEPA-SHIFTS", "CEPA", "CEPA-SHIFT")
+                t_cepa_shift = .true.
+                if (item < nitems) then
+                    call readl(cepa_method)
+                else
+                    cepa_method = '0'
+                end if
+
+            case ("CC-AMPLITUDES")
+                t_cc_amplitudes = .true.
+                if (item < nitems) then
+                    call geti(cc_order)
+                    if (item < nitems) then
+                        call geti(cc_delay)
+                    else
+                        cc_delay = 1000
+                    end if
+                else
+                    ! 2 is the default cc_order
+                    cc_order = 2
+                    ! and also have an default delay of iterations after
+                    ! the variable shift mode is turned on, when we want
+                    ! to do the amplitude sampling
+                    cc_delay = 1000
                 end if
 
             case ("DELAY-DEATHS")
@@ -3260,8 +3530,12 @@ allocate (init_trial_in%opt_data%cutoff_nums(init_trial_in%opt_data%ngen_loops))
 
             case ("PSINGLES")
                 call getf(pSinglesIn)
+
             case ("PPARALLEL")
                 call getf(pParallelIn)
+
+            case ("PDOUBLES")
+                call getf(pDoublesIn)
 
             case ("NO-INIT-REF-CHANGE")
                 tSetInitialRunRef = .false.
@@ -3331,7 +3605,7 @@ allocate (init_trial_in%opt_data%cutoff_nums(init_trial_in%opt_data%ngen_loops))
 
         !Checking whether we have large enoguh basis for ultracold atoms and
         !three-body excitations
-          if(tContact.and.((nBasis/2).lt.(noccAlpha+2).or.(nBasis/2).lt.(noccBeta+2))) then
+        if(tContact.and.((nBasis/2).lt.(noccAlpha+2).or.(nBasis/2).lt.(noccBeta+2))) then
             if (noccAlpha == 1 .or. noccBeta == 1) then
                 tSmallBasisForThreeBody = .false.
             else
@@ -3391,15 +3665,21 @@ allocate (init_trial_in%opt_data%cutoff_nums(init_trial_in%opt_data%ngen_loops))
 
 !C         DBRAT=0.001
 !C         DBETA=DBRAT*BETA
-        IF (.not. tFCIMC) WRITE (6, *) "DBETA=", DBETA
-
         ! actually i have to initialize the matrix elements here
 
         if (t_lattice_model) then
             if (t_tJ_model) then
-                call init_get_helement_tj()
+                if (tGUGA) then
+                    call init_get_helement_tj_guga()
+                else
+                    call init_get_helement_tj()
+                end if
             else if (t_heisenberg_model) then
-                call init_get_helement_heisenberg()
+                if (tGUGA) then
+                    call init_get_helement_heisenberg_guga()
+                else
+                    call init_get_helement_heisenberg()
+                end if
             else if (t_new_real_space_hubbard) then
                 call init_get_helement_hubbard()
             else if (t_k_space_hubbard) then
@@ -3421,6 +3701,18 @@ allocate (init_trial_in%opt_data%cutoff_nums(init_trial_in%opt_data%ngen_loops))
         ENDIF
 
 ! Find out the number of alpha and beta electrons. For restricted calculations, these should be the same.
+        ! TODO: in GUGA this information is not quite correct, since there
+        ! is no notion of alpha/beta orbitals only positively or negatively
+        ! coupled orbitals, with respect to the total spin quantum number
+        ! but for now, leave it in to not break the remaining code, which
+        ! esp. in the excitation generator depends on those values!
+        ! But change this in future and include a corresponding CalcInitGUGA()
+
+        if (tGUGA) then
+              write(6,*) " !! NOTE: running a GUGA simulation, so following info makes no sense!"
+            write (6, *) " but is kept for now to not break remaining code!"
+        end if
+
         if (tCSF) then
             nOccAlpha = (nel / 2) + LMS
             nOccBeta = (nel / 2) - LMS
@@ -3522,102 +3814,115 @@ allocate (init_trial_in%opt_data%cutoff_nums(init_trial_in%opt_data%ngen_loops))
             RHOEPS = RHOEPSILON
         ENDIF
 
-    End Subroutine CalcInit
+        End Subroutine CalcInit
 
-    subroutine CalcDoCalc(kp)
+        subroutine CalcDoCalc(kp)
         use SystemData, only: Alat, Arr,Brr, Beta, ECore, G1, LMS, LMS2, nBasis,NMSH, nBasisMax, &
-            SymRestrict, tCSFOLD, tParity, tSpn, ALat, Beta,tMolpro,tMolproMimic, &
-            Symmetry,SymmetrySize,SymmetrySizeB,BasisFN,BasisFNSize,BasisFNSizeB,nEl
-        Use DetCalcData, only: nDet, nEval, nmrks, w
-        USE FciMCParMod, only: FciMCPar
-        use RPA_Mod, only: RunRPA_QBA
-        use DetCalc, only: CK, DetInv, tEnergy, tRead
-        Use Determinants, only: FDet, nActiveBasis, SpecDet, tSpecDet
-        use IntegralsData, only: FCK, NMAX, UMat, FCK, &
-            HFEDelta, HFMix, nTay
-        Use LoggingData, only: iLogging
-        use Parallel_Calc
-        use util_mod, only: get_free_unit, NECI_ICOPY
-        use sym_mod
-        use davidson_neci, only: DavidsonCalcType, DestroyDavidsonCalc, &
-            davidson_direct_ci_init, davidson_direct_ci_end, perform_davidson
-        use hamiltonian_linalg, only: direct_ci_type
-        use kp_fciqmc, only: perform_kp_fciqmc, perform_subspace_fciqmc
-        use kp_fciqmc_data_mod, only: tExcitedStateKP
-        use kp_fciqmc_procs, only: kp_fciqmc_data
-        use util_mod, only: int_fmt
+       SymRestrict, tCSFOLD, tParity, tSpn, ALat, Beta, tMolpro, tMolproMimic, &
+  Symmetry, SymmetrySize, SymmetrySizeB, BasisFN, BasisFNSize, BasisFNSizeB, nEl
+            Use DetCalcData, only: nDet, nEval, nmrks, w
+            USE FciMCParMod, only: FciMCPar
+            use RPA_Mod, only: RunRPA_QBA
+            use DetCalc, only: CK, DetInv, tEnergy, tRead
+            Use Determinants, only: FDet, nActiveBasis, SpecDet, tSpecDet
+            use IntegralsData, only: FCK, NMAX, UMat, FCK, &
+                                     HFEDelta, HFMix, nTay
+            Use LoggingData, only: iLogging
+            use Parallel_Calc
+            use util_mod, only: get_free_unit, NECI_ICOPY
+            use sym_mod
+            use davidson_neci, only: DavidsonCalcType, DestroyDavidsonCalc, &
+               davidson_direct_ci_init, davidson_direct_ci_end, perform_davidson
+            use hamiltonian_linalg, only: direct_ci_type
+            use kp_fciqmc, only: perform_kp_fciqmc, perform_subspace_fciqmc
+            use kp_fciqmc_data_mod, only: tExcitedStateKP
+            use kp_fciqmc_procs, only: kp_fciqmc_data
+            use util_mod, only: int_fmt
 
-        real(dp) :: EN, WeightDum, EnerDum
-        real(dp), allocatable :: final_energy(:)
-        integer :: iSeed, iunit, i
-        type(kp_fciqmc_data), intent(inout) :: kp
-        character(*), parameter :: this_routine = 'CalcDoCalc'
-        type(DavidsonCalcType) :: davidsonCalc
+            real(dp) :: EN, WeightDum, EnerDum
+            real(dp), allocatable :: final_energy(:)
+            integer :: iSeed, iunit, i
+            type(kp_fciqmc_data), intent(inout) :: kp
+            character(*), parameter :: this_routine = 'CalcDoCalc'
+            type(DavidsonCalcType) :: davidsonCalc
 
-        iSeed = 7
+            iSeed = 7
 
-        IF (tMP2Standalone) then
-            call ParMP2(FDet)
-            ! Parallal 2v sum currently for testing only.
-            !          call Par2vSum(FDet)
-        ELSE IF (tDavidson) then
-            davidsonCalc = davidson_direct_ci_init()
-            if (t_non_hermitian) then
-                call stop_all(this_routine, &
+            IF (tMP2Standalone) then
+                call ParMP2(FDet)
+                ! Parallal 2v sum currently for testing only.
+                !          call Par2vSum(FDet)
+            ELSE IF (tDavidson) then
+                davidsonCalc = davidson_direct_ci_init()
+                if (t_non_hermitian) then
+                    call stop_all(this_routine, &
                  "perform_davidson not adapted for non-hermitian Hamiltonians!")
-            end if
-            call perform_davidson(davidsonCalc, direct_ci_type, .true.)
-            call davidson_direct_ci_end(davidsonCalc)
-            call DestroyDavidsonCalc(davidsonCalc)
+                end if
+                if (tGUGA) then
+                    call stop_all(this_routine, &
+                                  "perform_davidson not adapted for GUGA yet")
+                end if
+                call perform_davidson(davidsonCalc, direct_ci_type, .true.)
+                call davidson_direct_ci_end(davidsonCalc)
+                call DestroyDavidsonCalc(davidsonCalc)
 
-        else if (allocated(pgen_unit_test_spec)) then
-            call batch_run_excit_gen_tester(pgen_unit_test_spec)
-        ELSE IF (NPATHS /= 0 .OR. DETINV > 0) THEN
-            !Old and obsiolecte
-            !             IF(TRHOIJND) THEN
-            !C.. We're calculating the RHOs for interest's sake, and writing them,
-            !C.. but not keeping them in memory
-            !                  WRITE(6,*) "Calculating RHOS..."
-            !                  WRITE(6,*) "Using approx NTAY=",NTAY
-            !                  CALL CALCRHOSD(NMRKS,BETA,I_P,I_HMAX,I_VMAX,NEL,NDET,        &
-            !     &               NBASISMAX,G1,nBasis,BRR,NMSH,FCK,NMAX,ALAT,UMAT,             &
-            !     &               NTAY,RHOEPS,NWHTAY,ECORE)
-            !             ENDIF
+            ELSE IF (NPATHS /= 0 .OR. DETINV > 0) THEN
+                !Old and obsiolecte
+                !             IF(TRHOIJND) THEN
+                !C.. We're calculating the RHOs for interest's sake, and writing them,
+                !C.. but not keeping them in memory
+                !                  WRITE(6,*) "Calculating RHOS..."
+                !                  WRITE(6,*) "Using approx NTAY=",NTAY
+                !                  CALL CALCRHOSD(NMRKS,BETA,I_P,I_HMAX,I_VMAX,NEL,NDET,        &
+                !     &               NBASISMAX,G1,nBasis,BRR,NMSH,FCK,NMAX,ALAT,UMAT,             &
+                !     &               NTAY,RHOEPS,NWHTAY,ECORE)
+                !             ENDIF
 
-            if (tFCIMC) then
-                call FciMCPar(final_energy)
-                if ((.not. tMolpro) .and. (.not. tMolproMimic)) then
-                    if (allocated(final_energy)) then
-                        do i = 1, size(final_energy)
+                if (tFCIMC) then
+                    call FciMCPar(final_energy)
+                    if ((.not. tMolpro) .and. (.not. tMolproMimic)) then
+                        if (allocated(final_energy)) then
+                            do i = 1, size(final_energy)
                       write(6,'(1X,"Final energy estimate for state",1X,'//int_fmt(i)//',":",g25.14)') &
-                                i, final_energy(i)
-                        end do
-                    endif
-                end if
-            elseif (tRPA_QBA) then
-                call RunRPA_QBA(WeightDum, EnerDum)
-                WRITE (6, *) "Summed approx E(Beta)=", EnerDum
-            elseif (tKP_FCIQMC) then
-                if (tExcitedStateKP) then
-                    call perform_subspace_fciqmc(kp)
-                else
-                    call perform_kp_fciqmc(kp)
-                end if
-            ENDIF
-        endif
-        IF (TMONTE .and. .not. tMP2Standalone) THEN
+                                    i, final_energy(i)
+                            end do
+                        endif
+                    end if
+                elseif (tRPA_QBA) then
+                    call RunRPA_QBA(WeightDum, EnerDum)
+                    WRITE (6, *) "Summed approx E(Beta)=", EnerDum
+                elseif (tKP_FCIQMC) then
+                    if (tExcitedStateKP) then
+                        call perform_subspace_fciqmc(kp)
+                    else
+                        call perform_kp_fciqmc(kp)
+                    end if
+                elseif (tRPA_QBA) then
+                    call RunRPA_QBA(WeightDum, EnerDum)
+                    WRITE (6, *) "Summed approx E(Beta)=", EnerDum
+                elseif (tKP_FCIQMC) then
+                    if (tExcitedStateKP) then
+                        call perform_subspace_fciqmc(kp)
+                    else
+                        call perform_kp_fciqmc(kp)
+                    end if
+                else if (t_real_time_fciqmc) then
+                    call perform_real_time_fciqmc()
+                ENDIF
+            endif
+            IF (TMONTE .and. .not. tMP2Standalone) THEN
 !             DBRAT=0.01
 !             DBETA=DBRAT*BETA
-            WRITE (6, *) "I_HMAX:", I_HMAX
-            WRITE (6, *) "Calculating MC Energy..."
-            CALL neci_flush(6)
-            IF (NTAY(1) > 0) THEN
+                WRITE (6, *) "I_HMAX:", I_HMAX
+                WRITE (6, *) "Calculating MC Energy..."
+                CALL neci_flush(6)
+                IF (NTAY(1) > 0) THEN
            WRITE (6, *) "Using approx RHOs generated on the fly, NTAY=", NTAY(1)
 !C.. NMAX is now ARR
               call stop_all(this_routine, "DMONTECARLO2 is now non-functional.")
-            ELSEIF (NTAY(1) == 0) THEN
-                IF (TENERGY) THEN
-                    WRITE (6, *) "Using exact RHOs generated on the fly"
+                ELSEIF (NTAY(1) == 0) THEN
+                    IF (TENERGY) THEN
+                        WRITE (6, *) "Using exact RHOs generated on the fly"
 !C.. NTAY=0 signifying we're going to calculate the RHO values when we
 !C.. need them from the list of eigenvalues.
 !C.. Hide NMSH=NEVAL
@@ -3630,314 +3935,314 @@ allocate (init_trial_in%opt_data%cutoff_nums(init_trial_in%opt_data%ngen_loops))
 !                   EN=DMONTECARLO2(MCDET,I_P,BETA,DBETA,I_HMAX,I_VMAX,IMCSTEPS,             &
 !     &                G1,NEL,NBASISMAX,nBasis,BRR,IEQSTEPS,                                 &
 !     &                NEVAL,W,CK,ARR,NMRKS,NDET,NTAY,RHOEPS,NWHTAY,ILOGGING,ECORE,BETAEQ)
-                ELSE
-                    call stop_all(this_routine, "TENERGY not set, but NTAY=0")
+                    ELSE
+                      call stop_all(this_routine, "TENERGY not set, but NTAY=0")
+                    ENDIF
                 ENDIF
-            ENDIF
-            WRITE (6, *) "MC Energy:", EN
+                WRITE (6, *) "MC Energy:", EN
 !CC           WRITE(12,*) DBRAT,EN
-        ENDIF
+            ENDIF
 !C.. /AJWT
-    End Subroutine CalcDoCalc
+        End Subroutine CalcDoCalc
 
-    Subroutine CalcCleanup()
-        != Clean up (e.g. via deallocation) mess from Calc routines.
-        use global_utilities
-        character(*), parameter :: this_routine = 'CalcCleanup'
+        Subroutine CalcCleanup()
+            != Clean up (e.g. via deallocation) mess from Calc routines.
+            use global_utilities
+            character(*), parameter :: this_routine = 'CalcCleanup'
 
-        deallocate (MCDet)
-        call LogMemDealloc(this_routine, tagMCDet)
+            deallocate (MCDet)
+            call LogMemDealloc(this_routine, tagMCDet)
 
-    End Subroutine CalcCleanup
+        End Subroutine CalcCleanup
 
-END MODULE Calc
+    END MODULE Calc
 
-subroutine inpgetmethod(I_HMAX, NWHTAY, I_V)
-    use constants
-    use input_neci
-    use CalcData, only: calcp_sub2vstar, calcp_logWeight, tMCDirectSum, &
-                        g_multiweight, g_vmc_fac, tMPTheory, StarProd, &
-                        tDiagNodes, tStarStars, tGraphMorph, tStarTrips, &
-                        tHDiag, tMCStar, tFCIMC, tMCDets, tRhoElems, &
-                        tReturnPathMC, tUseProcsAsNodes, tRPA_QBA, &
-                        tDetermProj, tFTLM, TSpecLanc, tContTimeFCIMC, &
-                        tExactSpec, tExactDiagAllSym
-    use RPA_Mod, only: tDirectRPA
-    use LoggingData, only: tCalcFCIMCPsi
-    implicit none
-    integer I_HMAX, NWHTAY, I_V
-    CHARACTER(LEN=16) w
-    do while (item < nitems)
-        call readu(w)
-        select case (w)
-        case ("VERTEX")
+    subroutine inpgetmethod(I_HMAX, NWHTAY, I_V)
+        use constants
+        use input_neci
+        use CalcData, only: calcp_sub2vstar, calcp_logWeight, tMCDirectSum, &
+                            g_multiweight, g_vmc_fac, tMPTheory, StarProd, &
+                            tDiagNodes, tStarStars, tGraphMorph, tStarTrips, &
+                            tHDiag, tMCStar, tFCIMC, tMCDets, tRhoElems, &
+                            tReturnPathMC, tUseProcsAsNodes, tRPA_QBA, &
+                            tDetermProj, tFTLM, TSpecLanc, tContTimeFCIMC, &
+                            tExactSpec, tExactDiagAllSym
+        use RPA_Mod, only: tDirectRPA
+        use LoggingData, only: tCalcFCIMCPsi
+        implicit none
+        integer I_HMAX, NWHTAY, I_V
+        CHARACTER(LEN=16) w
+        do while (item < nitems)
             call readu(w)
             select case (w)
-            case ("FCIMC")
-                I_HMAX = -21
-                TFCIMC = .true.
-                tUseProcsAsNodes = .true.
-                do while (item < nitems)
-                    call readu(w)
-                    select case (w)
-                    case ("CONT-TIME")
-                        tContTimeFCIMC = .true.
-                    case ("MCDIFFUSION")
+            case ("VERTEX")
+                call readu(w)
+                select case (w)
+                case ("FCIMC")
+                    I_HMAX = -21
+                    TFCIMC = .true.
+                    tUseProcsAsNodes = .true.
+                    do while (item < nitems)
+                        call readu(w)
+                        select case (w)
+                        case ("CONT-TIME")
+                            tContTimeFCIMC = .true.
+                        case ("MCDIFFUSION")
 !                          TMCDiffusion=.true.
                  CALL Stop_All("inpgetmethod", "MCDIFFUSION option depreciated")
-                    case ("RESUMFCIMC")
+                        case ("RESUMFCIMC")
 !                          TResumFCIMC=.true.
                  CALL Stop_All("inpgetmethod", "MCDIFFUSION option depreciated")
-                    case default
-                        call report("Keyword error with "//trim(w), .true.)
-                    endselect
-                enddo
-            case ("RPA")
-                tRPA_QBA = .true.
-                tDirectRPA = .false.
-                do while (item < nitems)
+                        case default
+                            call report("Keyword error with "//trim(w), .true.)
+                        endselect
+                    enddo
+                case ("RPA")
+                    tRPA_QBA = .true.
+                    tDirectRPA = .false.
+                    do while (item < nitems)
+                        call readu(w)
+                        select case (w)
+                        case ("DIRECT")
+                            tDirectRPA = .true.
+                        endselect
+                    enddo
+                case ("RETURNPATHMC")
+                    I_HMAX = -21
+                    TReturnPathMC = .true.
                     call readu(w)
                     select case (w)
-                    case ("DIRECT")
-                        tDirectRPA = .true.
+                    case ("RHOELEMS")
+                        TRhoElems = .true.
                     endselect
-                enddo
-            case ("RETURNPATHMC")
-                I_HMAX = -21
-                TReturnPathMC = .true.
-                call readu(w)
-                select case (w)
-                case ("RHOELEMS")
-                    TRhoElems = .true.
-                endselect
-            case ("MCDets")
-                I_HMAX = -21
-                TMCDets = .true.
-            case ("SUM")
-                do while (item < nitems)
-                    call readu(w)
-                    select case (w)
-                    case ("OLD")
-                        I_HMAX = -1
-                    case ("NEW")
-                        I_HMAX = -8
-                    case ("HDIAG")
-                        I_HMAX = -20
-                    case ("READ")
-                        I_HMAX = -14
-                    case ("SUB2VSTAR")
-                        CALCP_SUB2VSTAR = .TRUE.
-                    case ("LOGWEIGHT")
-                        CALCP_LOGWEIGHT = .TRUE.
-                    case default
+                case ("MCDets")
+                    I_HMAX = -21
+                    TMCDets = .true.
+                case ("SUM")
+                    do while (item < nitems)
+                        call readu(w)
+                        select case (w)
+                        case ("OLD")
+                            I_HMAX = -1
+                        case ("NEW")
+                            I_HMAX = -8
+                        case ("HDIAG")
+                            I_HMAX = -20
+                        case ("READ")
+                            I_HMAX = -14
+                        case ("SUB2VSTAR")
+                            CALCP_SUB2VSTAR = .TRUE.
+                        case ("LOGWEIGHT")
+                            CALCP_LOGWEIGHT = .TRUE.
+                        case default
         call report("Error - must specify OLD or NEW vertex sum method", .true.)
-                    end select
-                enddo
-            case ("MC", "MCMETROPOLIS")
-                I_HMAX = -7
-                call readu(w)
-                select case (w)
-                case ("HDIAG")
-                    I_HMAX = -19
-                end select
-                tMCDirectSum = .FALSE.
-                IF (I_V > 0) g_MultiWeight(I_V) = 1.0_dp
-            case ("MCDIRECT")
-                I_HMAX = -7
-                tMCDirectSum = .TRUE.
-                call readu(w)
-                select case (w)
-                case ("HDIAG")
-                    I_HMAX = -19
-                end select
-                G_VMC_FAC = 0.0_dp
-            case ("MCMP")
-                tMCDirectSum = .TRUE.
-                I_HMAX = -19
-                G_VMC_FAC = 0.0_dp
-                TMPTHEORY = .TRUE.
-            case ("GRAPHMORPH")
-                TGraphMorph = .true.
-                I_HMAX = -21
-                call readu(w)
-                select case (w)
-                case ("HDIAG")
-                    !If this is true, then it uses the hamiltonian matrix to determinant coupling to excitations,
-                    !and to diagonalise to calculate the energy
-                    THDiag = .true.
-                endselect
-            case ("STAR")
-                I_HMAX = 0
-                do while (item < nitems)
+                        end select
+                    enddo
+                case ("MC", "MCMETROPOLIS")
+                    I_HMAX = -7
                     call readu(w)
                     select case (w)
-                    case ("NEW")
-                        I_HMAX = -21
-                    case ("OLD")
-                        I_HMAX = -9
-                    case ("NODAL")
-                        TDIAGNODES = .TRUE.
-                    case ("STARSTARS")
-                        TSTARSTARS = .true.
-                    case ("MCSTAR")
-                        NWHTAY = IBSET(NWHTAY, 0)
-                        TMCSTAR = .true.
-                    case ("STARPROD")
-                        STARPROD = .TRUE.
-                    case ("TRIPLES")
-                        TStarTrips = .TRUE.
-                    case ("COUNTEXCITS")
-                        NWHTAY = IBSET(NWHTAY, 8)
-                    case ("ADDSINGLES")
-                        NWHTAY = IBSET(NWHTAY, 7)
-                        IF (I_HMAX /= -21) call report(        &
-     &                     "Error - cannot use ADDSINGLES"     &
-     &                     //" without STAR NEW", .true.)
-                    case ("DIAG")
-                        NWHTAY = IBCLR(NWHTAY, 0)
-                    case ("POLY")
-                        NWHTAY = IBSET(NWHTAY, 0)
-                    case ("POLYMAX")
-                        NWHTAY = IBSET(NWHTAY, 0)
-                        NWHTAY = IBSET(NWHTAY, 1)
-                    case ("POLYCONVERGE")
-                        NWHTAY = IBSET(NWHTAY, 0)
-                        NWHTAY = IBSET(NWHTAY, 2)
-                    case ("POLYCONVERGE2")
-                        NWHTAY = IBSET(NWHTAY, 0)
-                        NWHTAY = IBSET(NWHTAY, 6)
-                    case ("H0")
-                        NWHTAY = IBSET(NWHTAY, 5)
-                        if (I_HMAX /= -21) call report("H0 "  &
-    &              //"can only be specified with POLY... NEW")
-                    case default
-                        call report("Error - must specify DIAG" &
-      &               //" or POLY vertex star method", .true.)
+                    case ("HDIAG")
+                        I_HMAX = -19
                     end select
-                enddo
+                    tMCDirectSum = .FALSE.
+                    IF (I_V > 0) g_MultiWeight(I_V) = 1.0_dp
+                case ("MCDIRECT")
+                    I_HMAX = -7
+                    tMCDirectSum = .TRUE.
+                    call readu(w)
+                    select case (w)
+                    case ("HDIAG")
+                        I_HMAX = -19
+                    end select
+                    G_VMC_FAC = 0.0_dp
+                case ("MCMP")
+                    tMCDirectSum = .TRUE.
+                    I_HMAX = -19
+                    G_VMC_FAC = 0.0_dp
+                    TMPTHEORY = .TRUE.
+                case ("GRAPHMORPH")
+                    TGraphMorph = .true.
+                    I_HMAX = -21
+                    call readu(w)
+                    select case (w)
+                    case ("HDIAG")
+                        !If this is true, then it uses the hamiltonian matrix to determinant coupling to excitations,
+                        !and to diagonalise to calculate the energy
+                        THDiag = .true.
+                    endselect
+                case ("STAR")
+                    I_HMAX = 0
+                    do while (item < nitems)
+                        call readu(w)
+                        select case (w)
+                        case ("NEW")
+                            I_HMAX = -21
+                        case ("OLD")
+                            I_HMAX = -9
+                        case ("NODAL")
+                            TDIAGNODES = .TRUE.
+                        case ("STARSTARS")
+                            TSTARSTARS = .true.
+                        case ("MCSTAR")
+                            NWHTAY = IBSET(NWHTAY, 0)
+                            TMCSTAR = .true.
+                        case ("STARPROD")
+                            STARPROD = .TRUE.
+                        case ("TRIPLES")
+                            TStarTrips = .TRUE.
+                        case ("COUNTEXCITS")
+                            NWHTAY = IBSET(NWHTAY, 8)
+                        case ("ADDSINGLES")
+                            NWHTAY = IBSET(NWHTAY, 7)
+                            IF (I_HMAX /= -21) call report(        &
+         &                     "Error - cannot use ADDSINGLES"     &
+         &                     //" without STAR NEW", .true.)
+                        case ("DIAG")
+                            NWHTAY = IBCLR(NWHTAY, 0)
+                        case ("POLY")
+                            NWHTAY = IBSET(NWHTAY, 0)
+                        case ("POLYMAX")
+                            NWHTAY = IBSET(NWHTAY, 0)
+                            NWHTAY = IBSET(NWHTAY, 1)
+                        case ("POLYCONVERGE")
+                            NWHTAY = IBSET(NWHTAY, 0)
+                            NWHTAY = IBSET(NWHTAY, 2)
+                        case ("POLYCONVERGE2")
+                            NWHTAY = IBSET(NWHTAY, 0)
+                            NWHTAY = IBSET(NWHTAY, 6)
+                        case ("H0")
+                            NWHTAY = IBSET(NWHTAY, 5)
+                            if (I_HMAX /= -21) call report("H0 "  &
+        &              //"can only be specified with POLY... NEW")
+                        case default
+                            call report("Error - must specify DIAG" &
+          &               //" or POLY vertex star method", .true.)
+                        end select
+                    enddo
 !                  IF(TSTARSTARS.and..not.BTEST(NWHTAY,0)) THEN
 !                      call report("STARSTARS must be used with " &
 !     &                 //"a poly option",.true.)
 !                  ENDIF
-                IF (STARPROD .and. BTEST(NWHTAY, 0)) THEN
-                    call report("STARPROD can only be "      &
-   &               //"specified with DIAG option", .true.)
-                ENDIF
-                if (i_hmax == 0)                              &
-   &          call report("OLD/NEW not specified for STAR",  &
-   &                 .true.)
-            case ("DETERM-PROJ")
-                tDetermProj = .true.
-                I_HMAX = -21
-                TFCIMC = .true.
-                tUseProcsAsNodes = .true.
-            case ("FTLM")
-                tFTLM = .true.
-                I_HMAX = -21
-                TFCIMC = .true.
-                tUseProcsAsNodes = .true.
-            case ("EXACT-SPECTRUM")
-                tExactSpec = .true.
-                I_HMAX = -21
-                TFCIMC = .true.
-                tUseProcsAsNodes = .true.
-            case ("EXACT-DIAG")
-                tExactDiagAllSym = .true.
-                I_HMAX = -21
-                TFCIMC = .true.
-                tUseProcsAsNodes = .true.
-            case ("SPECTRAL-LANCZOS")
-                tSpecLanc = .true.
-                I_HMAX = -21
-                TFCIMC = .true.
-                tUseProcsAsNodes = .true.
+                    IF (STARPROD .and. BTEST(NWHTAY, 0)) THEN
+                        call report("STARPROD can only be "      &
+       &               //"specified with DIAG option", .true.)
+                    ENDIF
+                    if (i_hmax == 0)                              &
+       &          call report("OLD/NEW not specified for STAR",  &
+       &                 .true.)
+                case ("DETERM-PROJ")
+                    tDetermProj = .true.
+                    I_HMAX = -21
+                    TFCIMC = .true.
+                    tUseProcsAsNodes = .true.
+                case ("FTLM")
+                    tFTLM = .true.
+                    I_HMAX = -21
+                    TFCIMC = .true.
+                    tUseProcsAsNodes = .true.
+                case ("EXACT-SPECTRUM")
+                    tExactSpec = .true.
+                    I_HMAX = -21
+                    TFCIMC = .true.
+                    tUseProcsAsNodes = .true.
+                case ("EXACT-DIAG")
+                    tExactDiagAllSym = .true.
+                    I_HMAX = -21
+                    TFCIMC = .true.
+                    tUseProcsAsNodes = .true.
+                case ("SPECTRAL-LANCZOS")
+                    tSpecLanc = .true.
+                    I_HMAX = -21
+                    TFCIMC = .true.
+                    tUseProcsAsNodes = .true.
+                case default
+                    call report("Keyword error with "//trim(w),     &
+          &                 .true.)
+                end select
             case default
-                call report("Keyword error with "//trim(w),     &
-      &                 .true.)
+                call report("Error.  Method not specified."     &
+      &           //" Stopping.", .true.)
             end select
-        case default
-            call report("Error.  Method not specified."     &
-  &           //" Stopping.", .true.)
-        end select
-    end do
+        end do
 
-end subroutine inpgetmethod
+    end subroutine inpgetmethod
 
-subroutine inpgetexcitations(NWHTAY, w)
-    use input_neci
-    IMPLICIT NONE
-    INTEGER NWHTAY
-    CHARACTER(LEN=16) w
+    subroutine inpgetexcitations(NWHTAY, w)
+        use input_neci
+        IMPLICIT NONE
+        INTEGER NWHTAY
+        CHARACTER(LEN=16) w
 !         call readu(w)
-    select case (w)
-    case ("FORCEROOT")
-        NWHTAY = IOR(NWHTAY, 1)
-    case ("FORCETREE")
-        NWHTAY = IOR(NWHTAY, 2)
-    case ("SINGLES")
-        NWHTAY = IOR(NWHTAY, 8)
-    case ("DOUBLES")
-        NWHTAY = IOR(NWHTAY, 16)
-    case ("ALL")
-        NWHTAY = 0
-    case default
-        call report("Keyword error with EXCITATIONS "//trim(w), .true.)
-    end select
-end subroutine inpgetexcitations
+        select case (w)
+        case ("FORCEROOT")
+            NWHTAY = IOR(NWHTAY, 1)
+        case ("FORCETREE")
+            NWHTAY = IOR(NWHTAY, 2)
+        case ("SINGLES")
+            NWHTAY = IOR(NWHTAY, 8)
+        case ("DOUBLES")
+            NWHTAY = IOR(NWHTAY, 16)
+        case ("ALL")
+            NWHTAY = 0
+        case default
+            call report("Keyword error with EXCITATIONS "//trim(w), .true.)
+        end select
+    end subroutine inpgetexcitations
 
 ! Given an input RHOEPSILON, create Fermi det D out of lowest orbitals and get RHOEPS (which is rhoepsilon * exp(-(beta/P)<D|H|D>
-FUNCTION GETRHOEPS(RHOEPSILON, BETA, NEL, BRR, I_P)
-    Use Determinants, only: get_helement, write_det
-    use constants, only: dp
-    use SystemData, only: BasisFN
-    use sort_mod
-    IMPLICIT NONE
-    INTEGER NEL, NI(NEL), I, I_P
-    INTEGER BRR(*)
-    real(dp) RHOEPSILON, BETA, GETRHOEPS
-    HElement_t(dp) BP, tmp
-    DO I = 1, NEL
-        NI(I) = BRR(I)
-    ENDDO
-    call sort(nI)
-    BP = -BETA / I_P
-    tmp = RHOEPSILON * exp(BP * get_helement(nI, nI, 0))
-    GETRHOEPS = sqrt(tmp * tmp)
-    RETURN
-END FUNCTION GetRhoEps
+    FUNCTION GETRHOEPS(RHOEPSILON, BETA, NEL, BRR, I_P)
+        Use Determinants, only: get_helement, write_det
+        use constants, only: dp
+        use SystemData, only: BasisFN
+        use sort_mod
+        IMPLICIT NONE
+        INTEGER NEL, NI(NEL), I, I_P
+        INTEGER BRR(*)
+        real(dp) RHOEPSILON, BETA, GETRHOEPS
+        HElement_t(dp) BP, tmp
+        DO I = 1, NEL
+            NI(I) = BRR(I)
+        ENDDO
+        call sort(nI)
+        BP = -BETA / I_P
+        tmp = RHOEPSILON * exp(BP * get_helement(nI, nI, 0))
+        GETRHOEPS = sqrt(tmp * tmp)
+        RETURN
+    END FUNCTION GetRhoEps
 
 ! Calculate the kinetic energy of the UEG (this differs from CALCT by including the constant CST
-FUNCTION CALCT2(NI, NEL, G1, ALAT, CST)
-    use constants, only: dp
-    use SystemData, only: BasisFN, kvec, k_lattice_constant, TUEG2
-    IMPLICIT NONE
-    INTEGER NEL, NI(NEL), I, J
-    TYPE(BasisFN) G1(*)
-    real(dp) ALAT(4), CST, TMAT, CALCT2
-    LOGICAL ISCSF_old
+    FUNCTION CALCT2(NI, NEL, G1, ALAT, CST)
+        use constants, only: dp
+        use SystemData, only: BasisFN, kvec, k_lattice_constant, TUEG2
+        IMPLICIT NONE
+        INTEGER NEL, NI(NEL), I, J
+        TYPE(BasisFN) G1(*)
+        real(dp) ALAT(4), CST, TMAT, CALCT2
+        LOGICAL ISCSF_old
 
-    CALCT2 = 0.0_dp
-    IF (iscsf_old(NI, NEL)) RETURN
+        CALCT2 = 0.0_dp
+        IF (iscsf_old(NI, NEL)) RETURN
 
-    !===============================
-    if (TUEG2) then
+        !===============================
+        if (TUEG2) then
+            DO J = 1, NEL
+                I = NI(J)
+                TMAT = real(kvec(I, 1)**2 + kvec(I, 2)**2 + kvec(I, 3)**2, dp)
+                TMAT = 0.5_dp * TMAT * k_lattice_constant**2
+                CALCT2 = CALCT2 + TMAT
+            ENDDO
+            return
+        end if ! TUEG2
+        !===============================
         DO J = 1, NEL
             I = NI(J)
-            TMAT = real(kvec(I, 1)**2 + kvec(I, 2)**2 + kvec(I, 3)**2, dp)
-            TMAT = 0.5_dp * TMAT * k_lattice_constant**2
+            TMAT = ((ALAT(1)**2) * ((G1(I)%K(1)**2) / (ALAT(1)**2) + &
+                                    (G1(I)%K(2)**2) / (ALAT(2)**2) + &
+                                    (G1(I)%K(3)**2) / (ALAT(3)**2)))
+            TMAT = TMAT * CST
             CALCT2 = CALCT2 + TMAT
         ENDDO
-        return
-    end if ! TUEG2
-    !===============================
-    DO J = 1, NEL
-        I = NI(J)
-        TMAT = ((ALAT(1)**2) * ((G1(I)%K(1)**2) / (ALAT(1)**2) + &
-                                (G1(I)%K(2)**2) / (ALAT(2)**2) + &
-                                (G1(I)%K(3)**2) / (ALAT(3)**2)))
-        TMAT = TMAT * CST
-        CALCT2 = CALCT2 + TMAT
-    ENDDO
-    RETURN
-END FUNCTION CALCT2
+        RETURN
+    END FUNCTION CALCT2
 

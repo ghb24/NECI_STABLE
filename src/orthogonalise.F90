@@ -107,10 +107,10 @@ contains
 #else
                     delta_real = - sgn(src_run) * all_overlaps_real(src_run, tgt_run) &
                                            / all_norms(src_run)
-                    ! test if a small remaining overlap still gives the 
-                    ! correct shift.. 
+                    ! test if a small remaining overlap still gives the
+                    ! correct shift..
                     if (t_test_overlap .and. tgt_run == inum_runs) then
-                        ! draw a random sign and change by the 
+                        ! draw a random sign and change by the
                         ! specified epsilon
                         ! or choose just a random number out of [-eps,+eps]
 !                         delta_real = delta_real + rand_sign * overlap_eps

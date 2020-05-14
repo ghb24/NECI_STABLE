@@ -454,6 +454,7 @@ module fruit
     module procedure assert_eq_2d_real_in_range_
     module procedure assert_eq_double_
     module procedure assert_eq_double_in_range_
+    module procedure assert_eq_double_in_range_dp
     module procedure assert_eq_1d_double_
     module procedure assert_eq_1d_double_in_range_
     module procedure assert_eq_2d_double_
@@ -489,6 +490,7 @@ module fruit
     module procedure assert_eq_2d_real_in_range_
     module procedure assert_eq_double_
     module procedure assert_eq_double_in_range_
+    module procedure assert_eq_double_in_range_dp
     module procedure assert_eq_1d_double_
     module procedure assert_eq_1d_double_in_range_
     module procedure assert_eq_2d_double_
@@ -1675,6 +1677,7 @@ contains
     call add_success
   end subroutine assert_eq_real_
 
+
   !------ 0d_real ------
   subroutine assert_eq_real_in_range_(var1, var2, delta, message)
 
@@ -1789,7 +1792,7 @@ contains
   subroutine assert_eq_double_in_range_(var1, var2, delta, message)
 
     real(dp), intent (in) :: var1, var2
-    real(dp), intent (in) :: delta
+    real(sp), intent (in) :: delta
     character(len = *), intent (in), optional :: message
 
         if (abs(var1 - var2) > delta) then
@@ -1801,6 +1804,24 @@ contains
 
     call add_success
   end subroutine assert_eq_double_in_range_
+
+  !------ 0d_double ------
+  subroutine assert_eq_double_in_range_dp(var1, var2, delta, message)
+
+    real(dp), intent (in) :: var1, var2
+    real(dp), intent (in) :: delta
+    character(len = *), intent (in), optional :: message
+
+        if (abs(var1 - var2) > delta) then
+          call failed_assert_action(&
+          & to_s(var1), &
+          & to_s(var2), message, if_is = .true.)
+          return
+        endif
+
+    call add_success
+  end subroutine assert_eq_double_in_range_dp
+
 
   !------ 1d_double ------
   subroutine assert_eq_1d_double_(var1, var2, n, message)

@@ -12,18 +12,21 @@ module fcimc_initialisation
                           tRotatedOrbs, MolproID, nBasis, arr, brr, nel, tCSF,&
                           tHistSpinDist, tPickVirtUniform, tGen_4ind_reverse, &
                           tGenHelWeighted, tGen_4ind_weighted, tLatticeGens, &
-                          tUEGNewGenerator, tGen_4ind_2, tReltvy, t_new_real_space_hubbard, &
+                          tGUGA, tGen_nosym_guga, ref_stepvector, ref_b_vector_int, &
+                          ref_occ_vector, ref_b_vector_real, tUEGNewGenerator, &
+                          tGen_4ind_2, tReltvy, t_new_real_space_hubbard, &
                           t_lattice_model, t_tJ_model, t_heisenberg_model, &
-                          t_k_space_hubbard, t_3_body_excits, omega, breathingCont, &
+                          t_k_space_hubbard, t_3_body_excits, breathingCont, &
                           momIndexTable, t_trans_corr_2body, t_non_hermitian, &
+                          tgen_guga_crude, &
                           t_uniform_excits, t_mol_3_body,t_ueg_transcorr,t_ueg_3_body,tLatticeGens, &
-                          nClosedOrbs, irrepOrbOffset, nIrreps, &
+                          irrepOrbOffset, nIrreps, &
                           tTrcorrExgen, nClosedOrbs, irrepOrbOffset, nIrreps, &
                           nOccOrbs, tNoSinglesPossible, t_pcpp_excitgen, &
                           t_pchb_excitgen, tGAS
     use tc_three_body_data, only: ptriples
     use SymExcitDataMod, only: tBuildOccVirtList, tBuildSpinSepLists
-
+    use core_space_util, only: cs_replicas
     use dSFMT_interface, only: dSFMT_init
 
     use CalcData, only: G_VMC_Seed, MemoryFacPart, TauFactor, StepsSftImag, &
@@ -36,7 +39,7 @@ module fcimc_initialisation
                         tShiftOnHFPop, tReadPopsRestart, tTruncNOpen, &
                         trunc_nopen_max, MemoryFacInit, MaxNoatHF, HFPopThresh, &
                         tAddToInitiator, InitiatorWalkNo, tRestartHighPop, &
-                        tAllRealCoeff, tRealCoeffByExcitLevel, &
+                        tAllRealCoeff, tRealCoeffByExcitLevel, tTruncInitiator, &
                         RealCoeffExcitThresh, aliasStem, tPopsAlias, &
                         tDynamicCoreSpace, TargetGrowRate, &
                         TargetGrowRateWalk, InputTargetGrowRate, semistoch_shift_iter,&
@@ -47,19 +50,25 @@ module fcimc_initialisation
                         initial_refs, trial_init_reorder, tStartTrialLater, tTrialInit, &
                         ntrial_ex_calc, tPairedReplicas, tMultiRefShift, tPreCond, &
                         tMultipleInitialStates, initial_states, t_hist_tau_search, &
+                        t_guga_mat_eles, &
                         t_previous_hist_tau, t_fill_frequency_hists, t_back_spawn, &
+                        t_trunc_nopen_diff, t_guga_back_spawn, tExpAdaptiveShift, &
                         t_back_spawn_option, t_back_spawn_flex_option, &
                         t_back_spawn_flex, back_spawn_delay, ScaleWalkers, tfixedN0, &
-                        tAutoAdaptiveShift, AAS_Cut, &
-                        tInitializeCSF, S2Init, tWalkContGrow, tSkipRef, &
                         tReplicaEstimates, tDeathBeforeComms, pSinglesIn, pParallelIn, &
                         tSetInitFlagsBeforeDeath, tSetInitialRunRef, tEN2Init, &
+                        tAutoAdaptiveShift, &
+                        tInitializeCSF, S2Init, tWalkContgrow, tSkipRef, &
+                        AAS_Cut, &
                         tInitiatorSpace, i_space_in, tLinearAdaptiveShift,&
                         tExpAdaptiveShift, tAS_TrialOffset, ShiftOffset, &
                         tSpinProject
+
     use spin_project, only: init_yama_store, clean_yama_store
-    use adi_data, only: tReferenceChanged, tAdiActive, &
-         nExChecks, nExCheckFails, nRefUpdateInterval, SIUpdateInterval
+
+    use adi_data, only: tReferenceChanged, tAdiActive, nExChecks, nExCheckFails,&
+                        nRefUpdateInterval, SIUpdateInterval
+
     use Determinants, only: GetH0Element3, GetH0Element4, tDefineDet, &
                             get_helement, get_helement_det_only
 
@@ -81,17 +90,20 @@ module fcimc_initialisation
                            OffDiagBinRange, iDiagSubspaceIter, &
                            AllHistInitPopsTag, HistInitPopsTag, tHDF5PopsRead, &
                            tTransitionRDMs, tLogEXLEVELStats, t_no_append_stats, &
-                           maxInitExLvlWrite, initsPerExLvl, AllInitsPerExLvl, &
-                           t_spin_measurements
+                           t_spin_measurements,&
+                           maxInitExLvlWrite, initsPerExLvl, AllInitsPerExLvl
+
     use DetCalcData, only: NMRKS, tagNMRKS, FCIDets, NKRY, NBLK, B2L, nCycle, &
                            ICILevel, det
     use IntegralsData, only: tPartFreezeCore, nHolesFrozen, tPartFreezeVirt, &
                              nVirtPartFrozen, nPartFrozen, nelVirtFrozen
+
     use bit_rep_data, only: NIfTot, NIfD, NIfDBO, NIfBCast, flag_initiator, &
                             flag_deterministic, extract_sign
+
     use bit_reps, only: encode_det, clear_all_flags, set_flag, encode_sign, &
                         decode_bit_det, nullify_ilut, encode_part_sign, &
-                        extract_run_sign, tBuildSpinSepLists , &
+                        extract_run_sign, tBuildSpinSepLists , nifguga, &
                         get_initiator_flag, &
                         get_initiator_flag_by_run
     use hist_data, only: tHistSpawn, HistMinInd, HistMinInd2, Histogram, &
@@ -142,8 +154,10 @@ module fcimc_initialisation
                                  new_child_stats_normal, &
                                  null_encode_child, attempt_die_normal, attempt_die_precond, &
                                  powerScaleFunction, expScaleFunction, negScaleFunction, &
-                                 expCOScaleFunction, expShiftFactorFunction, constShiftFactorFunction, &
+                                 expCOScaleFunction, &
+                                 expShiftFactorFunction, constShiftFactorFunction, &
                                  linearShiftFactorFunction, autoShiftFactorFunction
+
     use csf_data, only: csf_orbital_mask
     use initial_trial_states, only: calc_trial_states_lanczos, &
                                     set_trial_populations, set_trial_states, calc_trial_states_direct
@@ -197,13 +211,29 @@ module fcimc_initialisation
 
     use constants
 
+    use guga_tausearch, only: init_tau_search_guga_nosym, log_spawn_magnitude_guga_nosym, &
+                              update_tau_guga_nosym, init_hist_tau_search_guga_nosym, &
+                              update_hist_tau_guga_nosym
+    use guga_data, only: bVectorRef_ilut, bVectorRef_nI, projE_replica
+    use guga_bitRepOps, only: calcB_vector_nI, calcB_vector_ilut, convert_ilut_toNECI, &
+                              convert_ilut_toGUGA, getDeltaB, write_det_guga, write_guga_list, &
+                              calc_csf_info
+
+    use guga_excitations, only: generate_excitation_guga, create_projE_list, &
+                                actHamiltonian
+    use guga_matrixElements, only: calcDiagMatEleGUGA_ilut, calcDiagMatEleGUGA_nI
+
+    use real_time_data, only: t_real_time_fciqmc
+
+    use real_time_procs, only: attempt_create_realtime
+
     use adi_references, only: setup_reference_space, clean_adi
 
     use tau_search_hist, only: init_hist_tau_search
 
     use double_occ_mod, only: init_spin_measurements
 
-    use back_spawn, only: init_back_spawn
+    use back_spawn, only: init_back_spawn, setup_virtual_mask
 
     use real_space_hubbard, only: init_real_space_hubbard, init_get_helement_hubbard
 
@@ -213,7 +243,10 @@ module fcimc_initialisation
         operator(==), gen_all_excits_GAS => gen_all_excits
     use disconnected_gasci, only: gen_disconnected_GASCI => generate_nGAS_excitation
 
-    use tj_model, only: init_get_helement_tj, init_get_helement_heisenberg
+    use cepa_shifts, only: t_cepa_shift, init_cepa_shifts
+
+    use tj_model, only: init_get_helement_tj, init_get_helement_heisenberg, &
+                        init_get_helement_heisenberg_guga, init_get_helement_tj_guga
 
     use k_space_hubbard, only: init_get_helement_k_space_hub, init_k_space_hubbard, &
          gen_excit_k_space_hub_transcorr, gen_excit_uniform_k_space_hub_transcorr
@@ -445,6 +478,38 @@ contains
             iLutHF_True = iLutHF
             HFDet_True = HFDet
         endif
+
+        ! for GUGA calculations also save the b vector of the reference det
+        ! also initialize the persistently stored list of H|ref> to
+        ! calculate the projected energy
+        if (tGUGA) then
+            allocate(bVectorRef_nI(nEl), stat = ierr)
+            allocate(bVectorRef_ilut(nBasis/2), stat = ierr)
+
+            ! store more information of the reference determinant, like
+            ! stepvector and stuff
+
+            ASSERT(allocated(ref_stepvector))
+
+            call calc_csf_info(ilutRef, ref_stepvector, ref_b_vector_int, &
+                ref_occ_vector)
+
+            ref_b_vector_real = real(ref_b_vector_int, dp)
+
+            ! for multiple runs i have to initialize all the necessary
+            ! projected energy lists
+            ! have to first allocate the type proje_replica
+            allocate(projE_replica(inum_runs), stat = ierr)
+
+            ! only initialize that if we use the old way to calc the
+            ! reference energy!
+            ! for testing purposes initiaize both
+            if (.not. t_guga_mat_eles) then
+                do run = 1, inum_runs
+                    call create_projE_list(run)
+                end do
+            end if
+        end if
 
         if(tHPHF) then
             allocate(RefDetFlip(NEl, inum_runs), &
@@ -782,18 +847,6 @@ contains
             enddo
         ENDIF
 
-        ! Initiate mswalkercounts
-!        if (tReltvy) then
-!            allocate(walkPopByMsReal(nel+1))
-!            allocate(walkPopByMsImag(nel+1))
-!            do i=1, nel+1
-!                walkPopByMsReal(i) = 0.0_dp
-!                walkPopByMsImag(i) = 0.0_dp
-!            enddo
-!        endif
-
-
-
         !Now broadcast to all processors
         CALL MPIBCast(RandomOrbIndex,nBasis)
         call MPIBCast(RandomHash2,nBasis)
@@ -810,9 +863,17 @@ contains
 
         if (t_lattice_model) then
             if (t_tJ_model) then
-                call init_get_helement_tj()
+                if (tGUGA) then
+                    call init_get_helement_tj_guga()
+                else
+                    call init_get_helement_tj()
+                end if
             else if (t_heisenberg_model) then
-                call init_get_helement_heisenberg()
+                if (tGUGA) then
+                    call init_get_helement_heisenberg_guga
+                else
+                    call init_get_helement_heisenberg()
+                end if
             else if (t_new_real_space_hubbard) then
                 call init_get_helement_hubbard()
             else if (t_k_space_hubbard) then
@@ -824,7 +885,6 @@ contains
         if(tZeroRef) then
            TempHii = 0.0_dp
         else IF(tHPHF) THEN
-
             TempHii = hphf_diag_helement (HFDet, iLutHF)
         ELSE
             TempHii = get_helement (HFDet, HFDet, 0)
@@ -847,6 +907,7 @@ contains
             do i=1,NEl
                 HighEDet(i)=Brr(nBasis-(i-1))
             enddo
+            call sort(HighEDet)
             IF(tHPHF) THEN
                 call EncodeBitDet (HighEDet, iLutTemp)
                 TempHii = hphf_diag_helement (HighEDet, iLutTemp)
@@ -860,8 +921,8 @@ contains
             endif
             WRITE(iout,"(A,G25.15)") "Highest energy determinant is (approximately): ",REAL(TempHii,dp)
             write(iout,"(a,g25.15)") "Corresponding to a correlation energy of: ", real(temphii - hii, dp)
-!            WRITE(iout,"(A,F25.15)") "This means tau should be no more than about ",UpperTau
-!            WRITE(iout,*) "Highest energy determinant is: ", HighEDet(:)
+           WRITE(iout,"(A,F25.15)") "This means tau should be no more than about ",UpperTau
+           WRITE(iout,*) "Highest energy determinant is: ", HighEDet(:)
         else
             UpperTau=0.0_dp
         ENDIF
@@ -965,6 +1026,7 @@ contains
         AllInitsENumCyc(:) = 0.0_dp
         AllNoatHF(:)=0.0_dp
         AllNoatDoubs(:)=0.0_dp
+        NoAtDoubs = 0.0_dp
         if (tLogEXLEVELStats) AllEXLEVEL_WNorm(:,:,:)=0.0_dp
         AllSumNoatHF(:)=0.0_dp
         AllGrowRate(:)=0.0_dp
@@ -994,10 +1056,13 @@ contains
         AllNoNonInitWalk=0.0_dp
         AllNoExtraInitDoubs=0
         AllInitRemoved=0
+        all_n_core_non_init = 0
+        n_core_non_init = 0
         proje_iter = 0
         inits_proje_iter = 0.0_dp
         AccRat = 0
         HFShift = 0
+        bloom_count = 0
         InstShift = 0
         AbsProjE = 0
         norm_semistoch = 0
@@ -1005,7 +1070,9 @@ contains
         bloom_sizes = 0
         proje_iter_tot = 0.0_dp
         ! initialize as one (kind of makes sense for a norm)
+        norm_psi_squared = 1.0_dp
         all_norm_psi_squared = 1.0_dp
+        norm_semistoch_squared = 1.0_dp
         tSoftExitFound = .false.
         tReferenceChanged = .false.
 
@@ -1033,10 +1100,6 @@ contains
         nValidExcits = 0
         allNInvalidExcits = 0
         allNValidExcits = 0
-!            if (tReltvy) then
-!                open(mswalkercounts_unit, file='MSWALKERCOUNTS', status='UNKNOWN')
-!                write(mswalkercounts_unit, "(A)") "# ms real    imag    magnitude"
-!            endif
 
         if(tEScaleWalkers) then
            if(abs(RealSpawnCutoff-sFBeta) > eps) then
@@ -1174,13 +1237,9 @@ contains
         if (tHistExcitToFrom) &
             call init_hist_excit_tofrom()
 
-!Need to declare a new MPI type to deal with the long integers we use in the hashing, and when reading in from POPSFILEs
-!        CALL MPI_Type_create_f90_integer(18,mpilongintegertype,error)
-!        CALL MPI_Type_commit(mpilongintegertype,error)
         IF(tUseBrillouin) THEN
             WRITE(iout,"(A)") "Brillouin theorem in use for calculation of projected energy."
         ENDIF
-!        WRITE(iout,*) "Non-uniform excitation generators in use."
         if (.not. (t_k_space_hubbard .and. t_trans_corr_2body)) then
             ! for too big lattices my implementation breaks, due to
             ! memory limitations.. but i think we do not actually need it.
@@ -1196,21 +1255,23 @@ contains
             WRITE(iout,*) "Timestep set to: ",Tau
         ENDIF
 
-!        if (tSearchTau .and. (.not. tFillingStochRDMonFly)) then
-!                       ^ Removed by GLM as believed not necessary
+        ! [W.D.] I guess I want to initialize that before the tau-search,
+        ! or otherwise some pgens get calculated incorrectly
+        if (t_back_spawn .or. t_back_spawn_flex) then
+            call init_back_spawn()
+        end if
 
-        ! [Werner Dobrautz 5.5.2017:]
-        ! if this is a continued run from a histogramming tau-search
-        ! and a restart of the tau-search is not forced by input, turn
-        ! both the new and the old tau-search off!
-        ! i cannot do it here, since this is called before the popsfile read-in
-        if (t_previous_hist_tau) then
-            ! i have to check for tau-search option and stuff also, so that
-            ! the death tau adaption is still used atleast! todo!
-            tSearchTau = .false.
-            t_hist_tau_search = .false.
-            t_fill_frequency_hists = .false.
-            Write(iout,*) "Turning OFF the tau-search, since continued run!"
+        if (t_guga_back_spawn) then
+            call setup_virtual_mask()
+        end if
+
+        ! also i should warn the user if this is a restarted run with a
+        ! set delay in the back-spawning method:
+        ! is there actually a use-case where someone really wants to delay
+        ! a back-spawn in a restarted run?
+        if (tReadPops .and. back_spawn_delay /= 0) then
+            call Warning_neci(t_r, &
+                "Do you really want a delayed back-spawn in a restarted run?")
         end if
 
         ! can i initialize the k-space hubbard here already?
@@ -1262,7 +1323,7 @@ contains
         IF(.not.TReadPops) THEN
             WRITE(iout,"(A,F20.10)") "Initial Diagonal Shift: ", DiagSft(1)
         ENDIF
-!        WRITE(iout,*) "Damping parameter for Diag Shift set to: ", SftDamp
+
         if(tShiftonHFPop) then
             write(iout,*) "Shift will be varied in order to keep the population on the reference determinant fixed"
         endif
@@ -1345,22 +1406,12 @@ contains
                     &unpaired electrons.")') trunc_nopen_max
         endif
 
-!        SymFactor=(Choose(NEl,2)*Choose(nBasis-NEl,2))/(HFConn+0.0_dp)
-!        TotDets=1.0_dp
-!        do i=1,NEl
-!            ExcitLevPop=int((Choose(NEl,i)*Choose(nBasis-NEl,i))/SymFactor,int64)
-!            if(ExcitLevPop.lt.0) cycle  !int overflow
-!            WRITE(iout,"(A,I5,I20)") "Approximate excitation level population: ",i,ExcitLevPop
-!            TotDets=TotDets+(Choose(NEl,i)*Choose(nBasis-NEl,i))/SymFactor
-!        enddo
-!        if(TotDets.gt.0) then
-!            WRITE(iout,"(A,I20)") "Approximate size of determinant space is: ",NINT(TotDets)
-!        endif
 
         ! for the (uniform) 3-body excitgen, the generation probabilities are uniquely given
         ! by the number of alpha and beta electrons and the number of orbitals
         ! and can hence be precomputed
         if(t_mol_3_body.or.t_ueg_3_body) call setup_mol_tc_excitgen()
+
     END SUBROUTINE SetupParameters
 
     ! This initialises the calculation, by allocating memory, setting up the
@@ -1386,11 +1437,12 @@ contains
         integer :: perturb_ncreate, perturb_nannihilate
         integer :: nrdms_standard, nrdms_transition
         character(255) :: identifier
-        real(dp) :: dummy(lenof_sign)
-        !default
-        Popinum_runs=1
         ! set default pops version, this should not have any functional impact,
         ! but prevents using it uninitialized
+        !default
+        Popinum_runs=1
+        ! default version for popsfiles, this does not have any functional effect,
+        ! but prevents it from using uninitialized
         PopsVersion=4
 
         if(tPopsAlias) then
@@ -1713,27 +1765,39 @@ contains
         end if
 
         if (tSearchTau) then
-           call init_tau_search()
-
-           ! [Werner Dobrautz 4.4.2017:]
-           if (t_hist_tau_search) then
-              ! some setup went wrong!
-              call Stop_All(t_r, &
-                   "Input error! both standard AND Histogram tau-search chosen!")
-           end if
+            if (tGen_nosym_guga) then
+                call init_tau_search_guga_nosym()
+            else
+                call init_tau_search()
+            end if
+            ! set!
+            ! [Werner Dobrautz 4.4.2017:]
+            if (t_hist_tau_search) then
+                ! some setup went wrong!
+                call Stop_All(t_r, &
+                    "Input error! both standard AND Histogram tau-search chosen!")
+            end if
 
         else if (t_hist_tau_search) then
-           call init_hist_tau_search()
+            if (tGen_nosym_guga) then
+                call init_hist_tau_search_guga_nosym()
+            else
+                call init_hist_tau_search()
+            end if
+
+        else if (t_hist_tau_search) then
+            call init_hist_tau_search()
 
         else
-           ! Add a couple of checks for sanity
-           if (nOccAlpha == 0 .or. nOccBeta == 0) then
-              pParallel = 1.0_dp
-           end if
-           if (nOccAlpha == 1 .and. nOccBeta == 1) then
-              pParallel = 0.0_dp
-           end if
+            ! Add a couple of checks for sanity
+            if (nOccAlpha == 0 .or. nOccBeta == 0) then
+                pParallel = 1.0_dp
+            end if
+            if (nOccAlpha == 1 .and. nOccBeta == 1) then
+                pParallel = 0.0_dp
+            end if
         end if
+
 
         IF((NMCyc.ne.0).and.(tRotateOrbs.and.(.not.tFindCINatOrbs))) then
             CALL Stop_All(this_routine,"Currently not set up to rotate and then go straight into a spawning &
@@ -1763,8 +1827,9 @@ contains
         ! deterministic space, finding their processors, ordering them, inserting them into
         ! CurrentDets, calculating and storing all Hamiltonian matrix elements and initalising all
         ! arrays required to store and distribute the vectors in the deterministic space later.
+
         ! in the real-time application, this is done after the initial state is set up
-        if (tSemiStochastic) then
+        if (tSemiStochastic .and. .not. t_real_time_fciqmc) then
            if(tDynamicCoreSpace .and. tRDMonFly) then
               tSemiStochastic = .false.
               semistoch_shift_iter = 1
@@ -1827,9 +1892,11 @@ contains
          replica_overlaps_imag(:, :) = 0.0_dp
 #endif
 
+        if (t_cepa_shift) call init_cepa_shifts()
+
         ! Set up the reference space for the adi-approach
         ! in real-time, we do this in the real-time init
-        call setup_reference_space(tReadPops)
+         if(.not. t_real_time_fciqmc) call setup_reference_space(tReadPops)
 
         ! in fixed-n0, the variable shift mode and everything connected is
         ! controlled over the reference population
@@ -1858,7 +1925,8 @@ contains
                                             &block, in order to calculate replica estimates.)")
             end if
 
-            if (tSemiStochastic) allocate(tDetermSpawnedTo(determ_sizes(iProcIndex)))
+            if (tSemiStochastic) allocate(tDetermSpawnedTo(&
+                cs_replicas(core_run)%determ_sizes(iProcIndex)))
 
             call open_replica_est_file()
         end if
@@ -1896,7 +1964,9 @@ contains
     end subroutine InitFCIMCCalcPar
 
     subroutine init_fcimc_fn_pointers()
-      character(*), parameter :: t_r = 'init_fcimc_fn_pointers'
+        character(*), parameter :: this_routine = "init_fcimc_fn_pointers"
+        character(*), parameter :: t_r = 'init_fcimc_fn_pointers'
+
         ! Select the excitation generator.
         if (tHPHF) then
             generate_excitation => gen_hphf_excit
@@ -1946,70 +2016,58 @@ contains
             else
                 call stop_all(t_r,"Excitation generator has not been set!")
             endif
-      elseif ((t_back_spawn_option .or. t_back_spawn_flex_option)) then
-         if (tHUB .and. tLatticeGens) then
-            ! for now the hubbard + back-spawn still uses the old
-            ! genrand excit gen
-            generate_excitation => gen_excit_back_spawn_hubbard
-         else if (tUEGNewGenerator .and. tLatticeGens) then
-            generate_excitation => gen_excit_back_spawn_ueg_new
-         else if (tUEG .and. tLatticeGens) then
-            generate_excitation => gen_excit_back_spawn_ueg
-         else
-            generate_excitation => gen_excit_back_spawn
-         end if
-      elseif (tUEGNewGenerator) then
-         generate_excitation => gen_ueg_excit
-      elseif (tCSF) then
-         generate_excitation => gen_csf_excit
-      elseif (tPickVirtUniform) then
-         ! pick-uniform-random-mag is on
-         if (tReltvy) then
-            generate_excitation => gen_rand_excit_Ex_Mag
-         else
-            generate_excitation => gen_rand_excit3
-         endif
-      elseif (tGenHelWeighted) then
-         generate_excitation => gen_excit_hel_weighted
-      elseif (tGen_4ind_2) then
-         generate_excitation => gen_excit_4ind_weighted2
-      elseif (tGen_4ind_weighted) then
-         generate_excitation => gen_excit_4ind_weighted
-      elseif (tGen_4ind_reverse) then
-         generate_excitation => gen_excit_4ind_reverse
-      elseif (t_pcpp_excitgen) then
-         generate_excitation => gen_rand_excit_pcpp
-      elseif (t_pchb_excitgen) then
-         generate_excitation => gen_rand_excit_pchb
-      else
-         generate_excitation => gen_rand_excit
-      endif
-      ! if we are using the 3-body excitation generator, embed the chosen excitgen
-      ! in the three-body one
-      if(t_mol_3_body) then
-         ! yes, fortran pointers work this way
-         generate_two_body_excitation => generate_excitation
-         generate_excitation => gen_excit_mol_tc
-      endif
+        elseif (tGenHelWeighted) then
+            generate_excitation => gen_excit_hel_weighted
+        elseif (tGen_4ind_2) then
+            generate_excitation => gen_excit_4ind_weighted2
+        elseif (tGen_4ind_weighted) then
+            generate_excitation => gen_excit_4ind_weighted
+        elseif (tGen_4ind_reverse) then
+            generate_excitation => gen_excit_4ind_reverse
 
-      ! In the main loop, we only need to find out if a determinant is
-      ! connected to the reference det or not (so no ex. level above 2 is
-      ! required). Except in some cases where we need to know the maximum
-      ! excitation level
-      if (tTruncSpace .or. tHistSpawn .or. tCalcFCIMCPsi) then
-         max_calc_ex_level = nel
-      else
-         if (t_3_body_excits) then
-            max_calc_ex_level = 3
+        elseif (tGUGA) then
+            if (tgen_guga_crude) then
+                generate_excitation => gen_excit_4ind_weighted2
+            else
+                generate_excitation => generate_excitation_guga
+            end if
+
+        elseif (t_pcpp_excitgen) then
+           generate_excitation => gen_rand_excit_pcpp
+        elseif(t_pchb_excitgen) then
+           generate_excitation => gen_rand_excit_pchb
          else
-            max_calc_ex_level = 2
-         end if
-      endif
+            generate_excitation => gen_rand_excit
+        endif
+
+        ! if we are using the 3-body excitation generator, embed the chosen excitgen
+        ! in the three-body one
+        if(t_mol_3_body) then
+           ! yes, fortran pointers work this way
+           generate_two_body_excitation => generate_excitation
+           generate_excitation => gen_excit_mol_tc
+        endif
+
+        ! In the main loop, we only need to find out if a determinant is
+        ! connected to the reference det or not (so no ex. level above 2 is
+        ! required). Except in some cases where we need to know the maximum
+        ! excitation level
+        if (tTruncSpace .or. tHistSpawn .or. tCalcFCIMCPsi) then
+            max_calc_ex_level = nel
+        else
+            if (t_3_body_excits) then
+                max_calc_ex_level = 3
+            else
+                max_calc_ex_level = 2
+            end if
+        endif
 
         ! How many children should we spawn given an excitation?
-        if (tTruncCas .or. tTruncSpace .or. &
+        if(t_real_time_fciqmc) then
+            attempt_create => attempt_create_realtime
+        else if (tTruncCas .or. tTruncSpace .or. &
             tPartFreezeCore .or. tPartFreezeVirt .or. tFixLz .or. &
-            (tUEG .and. .not. tLatticeGens) .or. tTruncNOpen) then
+            (tUEG .and. .not. tLatticeGens) .or. tTruncNOpen .or. t_trunc_nopen_diff) then
             if (tHPHF .or. tCSF .or. tSemiStochastic) then
                 attempt_create => attempt_create_trunc_spawn
             else
@@ -2029,6 +2087,11 @@ contains
             else
                 get_spawn_helement => hphf_off_diag_helement_spawn
             endif
+
+        ! new guga addition: do not need to recalculate Helement
+        elseif (tGUGA) then
+            ! use hphf_routine also, since it does exactly what needed
+            get_spawn_helement => hphf_spawn_sign
         else
             get_spawn_helement => get_helement_det_only
         endif
@@ -2045,7 +2108,7 @@ contains
         endif
 
         ! Once we have generated the children, do we need to encode them?
-        if (.not. (tCSF .or. tHPHF .or. tGen_4ind_weighted)) then
+        if (.not. (tCSF .or. tHPHF .or. tGen_4ind_weighted .or. tGUGA)) then
             encode_child => FindExcitBitDet
         else
             encode_child => null_encode_child
@@ -2489,14 +2552,6 @@ contains
              write(iout,*) "nOpen/iOpen conflict", FDet, openOrbList, iOpen, nOpen
              call stop_all(t_r,"Error in determining open shell orbitals")
           end if
-!          do i = 1, nIrreps
-!             do j = 1, nClosedOrbs(i)
-!                nIBase(iElBase) = irrepOrbOffset(i) + 2*j - 1
-!                iElBase = iElBase + 1
-!                nIBase(iElBase) = irrepOrbOffset(i) + 2*j
-!                iElBase = iElBase + 1
-!             end do
-!          end do
 
           allocate(initSpace(0:NIfTot,count))
           ! now, add the open-shell contribution
@@ -2608,7 +2663,11 @@ contains
 
             ! If running a semi-stochastic simulation, set flag to specify the Hartree-Fock is in the
             ! deterministic space.
-            if (tSemiStochastic) call set_flag (CurrentDets(:,1), flag_deterministic)
+            if (tSemiStochastic) then
+                do run = 1, inum_runs
+                    call set_flag (CurrentDets(:,1), flag_deterministic(run))
+                end do
+            end if
 
             ! if no reference energy is used, explicitly get the HF energy
             if(tZeroRef) then
@@ -3374,6 +3433,9 @@ contains
         logical :: tAllExcitsFound, tParity
         type(ll_node), pointer :: TempNode
         character(len=*), parameter :: this_routine="InitFCIMC_MP1"
+        integer(n_int) :: ilutG(0:nifguga)
+        integer(n_int), pointer :: excitations(:,:)
+        integer :: i
 
 #ifdef CMPLX_
         call stop_all(this_routine,"StartMP1 currently does not work with complex walkers")
@@ -3406,6 +3468,21 @@ contains
             exflag=3
         endif
         Ex(:,:)=0
+        ! for GUGA, this whole excitation generation is different!
+        if (tGUGA) then
+            ! should finally do some general routine, which does all this
+            ! below...
+            call convert_ilut_toGUGA(ilutHF, ilutG)
+            call actHamiltonian(ilutG, excitations, iExcits)
+            do i = 1, iExcits
+                call convert_ilut_toNECI(excitations(:,i), ilutnJ)
+                call decode_bit_det(nJ, iLutnJ)
+                call return_mp1_amp_and_mp2_energy(nJ,iLutnJ,Ex,tParity,amp,energy_contrib)
+                TotMP1Weight = TotMP1Weight + abs(amp)
+                MP2Energy = MP2Energy + energy_contrib
+            end do
+
+        else
         do while(.true.)
             call GenExcitations3(HFDet,iLutHF,nJ,exflag,Ex,tParity,tAllExcitsFound,.false.)
             if(tAllExcitsFound) exit !All excits found
@@ -3421,8 +3498,9 @@ contains
             TotMP1Weight=TotMP1Weight+abs(amp)
             MP2Energy=MP2Energy+energy_contrib
         enddo
+        endif
 
-        if((.not.tHPHF).and.(iExcits.ne.(nDoubles+nSingles))) then
+        if((.not.tHPHF .and. .not. tGUGA).and.(iExcits.ne.(nDoubles+nSingles))) then
             write(iout,*) nDoubles,nSingles,iExcits
             call stop_all(this_routine,"Not all excitations accounted for in StartMP1")
         endif
@@ -3451,6 +3529,8 @@ contains
 
 
         !Now generate all excitations again, creating the required number of walkers on each one.
+        ! puh... for GUGA this gets messy to change below.. damn
+
         DetIndex=1
         TotParts=0.0
         tAllExcitsFound=.false.
@@ -3460,6 +3540,11 @@ contains
             exflag=3
         endif
         Ex(:,:)=0
+            ! figure out if the HF det gets store in the excitation list too?
+            ! if yes I have to modify that all a bit, and maybe also in
+            ! other parts of the NECI code ... todo
+        if (tGUGA) call stop_all(this_routine, "deprecated option with GUGA!")
+
         do while(.true.)
             call GenExcitations3(HFDet,iLutHF,nJ,exflag,Ex,tParity,tAllExcitsFound,.false.)
             if(tAllExcitsFound) exit !All excits found
@@ -3541,6 +3626,7 @@ contains
 
         !Now for the walkers on the HF det
         if(iRefProc(1) .eq. iProcIndex) then
+            ! dont have to change this below, should also work for the GUGAc
             if (tAllRealCoeff .or. tRealCoeffByExcitLevel) then
                     NoWalkers=PartFac
             else
@@ -4260,6 +4346,14 @@ contains
         integer :: run, cc_idx, label_idx, i, j, found_orbs(inum_runs)
         real(dp) :: energies(nel), hdiag
 
+        ! for now guga only works with non-complex code
+        integer(n_int), pointer :: excitations(:,:)
+        integer :: n_excits, ierr
+        real(dp), allocatable :: diag_energies(:)
+        logical, allocatable :: found_mask(:)
+        character(*), parameter :: this_routine = "assign_reference_dets"
+
+
         ! If the user has specified all of the (multiple) reference states,
         ! then just copy these across to the ilutRef array:
         if (tMultipleInitialStates) then
@@ -4280,47 +4374,108 @@ contains
             ProjEDet(:, 1) = HFDet
 
             found_orbs = 0
-            do run = 2, inum_runs
 
-                ! Now we want to find the lowest energy single excitation with
-                ! the same symmetry as the reference site.
-                do i = 1, nel
-                    ! Find the excitations, and their energy
-                    orb = HFDet(i)
-                    cc_idx = ClassCountInd(orb)
-                    label_idx = SymLabelCounts2(1, cc_idx)
-                    norb = OrbClassCount(cc_idx)
+            ! in the GUGA approach we have to change that simple
+            ! single excitation of course or otherwise we get non-
+            ! allowed CSF or the wrong STOT symmetry sector.
+            if (tGUGA) then
+                ! run the exact single excitations on the HF det
+                ! and find inum_runs lowest energetically ones..
 
-                    ! nb. No excitation is performed,
-                    !     so it does not depend on the ordering of the det,
-                    !     so we don't need to do any sorting here.
-                    energies(i) = 9999999.9_dp
-                    do j = 1, norb
-                        orb2 = SymLabelList2(label_idx + j - 1)
-                        if ((.not. any(orb2 == HFDet)) .and. &
-                            (.not. any(orb2 == found_orbs))) then
-                            det = HFDet
-                            det(i) = orb2
-                            hdiag = real(sltcnd_excit(det, NoExc_t()), dp)
-                            if (hdiag < energies(i)) then
-                                energies(i) = hdiag
-                                orbs(i) = orb2
-                            end if
-                        end if
-                    end do
+                ! create all excitations from the HF
+                ! do i remain in the same symmetry sector with this
+                ! info??
+                ! i think my exact hamil application routine does not
+                ! deal with symmetry at all...
+                ! i guess i have to change that for the real-space
+                ! hubbard model implementation!
+                if (tHUB .or. tUEG .or. .not.(tNoBrillouin)) then
+                    call actHamiltonian(ilutHF, excitations, n_excits)
+                else
+                    call actHamiltonian(ilutHF, excitations, n_excits, .true.)
+                end if
+
+                ! if no excitations possible... there is something wrong
+                if (.not.(n_excits > 0) .or. n_excits < inum_runs-1) then
+                    print *, "n_excits: ", n_excits
+                    print *, "requested excited states:", inum_runs-1
+                    call write_guga_list(6, excitations(:,1:n_excits))
+                    call stop_all(this_routine, "not enough excitations from HF!")
+                end if
+
+                ! and the choose the inum_runs - 1 lowest energetically
+                ! excitations
+
+                ! also have to calculate the correct diagonal element to
+                ! compare energies
+                allocate(diag_energies(n_excits), stat = ierr)
+                allocate(found_mask(n_excits), stat = ierr)
+                found_mask = .true.
+
+                do i = 1, n_excits
+                    diag_energies(i) = &
+                        calcDiagMatEleGUGA_ilut(excitations(:,i))
                 end do
 
-                ! Which of the electrons that is excited gives the lowest energy?
-                i = minloc(energies, 1)
-                found_orbs(run) = orbs(i)
+                ! can i sort the excitation list, according to energies?
+                do run = 2, inum_runs
+                    ! find the minimum energy
+                    i = minloc(diag_energies, 1, found_mask)
+                    ! dont find that specific one again
+                    found_mask(i) = .false.
+                    ! assign the reference determinant(transform between
+                    ! guga and actual iluts!)
+                    call convert_ilut_toNECI(excitations(:,i), ilutRef(:,run))
+                    ! and calc. the nI representation
+                    call decode_bit_det(ProjEDet(:,run), ilutRef(:,run))
+                    ! that should be it.. should the diagonal element also
+                    ! be already stored within the ilut? is that done here?
+                end do
 
-                ! Construct that determinant, and set it as the reference.
-                ProjEDet(:, run) = HFDet
-                ProjEDet(i, run) = orbs(i)
-                call sort(ProjEDet(:, run))
-                call EncodeBitDet(ProjEDet(:, run), ilutRef(:, run))
+            else
+                do run = 2, inum_runs
 
-            end do
+                    ! Now we want to find the lowest energy single excitation with
+                    ! the same symmetry as the reference site.
+
+                    do i = 1, nel
+                        ! Find the excitations, and their energy
+                        orb = HFDet(i)
+                        cc_idx = ClassCountInd(orb)
+                        label_idx = SymLabelCounts2(1, cc_idx)
+                        norb = OrbClassCount(cc_idx)
+
+                        ! nb. sltcnd_0 does not depend on the ordering of the det,
+                        !     so we don't need to do any sorting here.
+                        energies(i) = 9999999.9_dp
+                        do j = 1, norb
+                            orb2 = SymLabelList2(label_idx + j - 1)
+                            if ((.not. any(orb2 == HFDet)) .and. &
+                                (.not. any(orb2 == found_orbs))) then
+                                det = HFDet
+                                det(i) = orb2
+                                hdiag = real(sltcnd_excit(det, NoExc_t()), dp)
+                                if (hdiag < energies(i)) then
+                                    energies(i) = hdiag
+                                    orbs(i) = orb2
+                                end if
+                            end if
+                        end do
+                    end do
+
+                    ! Which of the electrons that is excited gives the lowest energy?
+                    i = minloc(energies, 1)
+                    found_orbs(run) = orbs(i)
+
+                    ! Construct that determinant, and set it as the reference.
+                    ProjEDet(:, run) = HFDet
+                    ProjEDet(i, run) = orbs(i)
+                    call sort(ProjEDet(:, run))
+                    call EncodeBitDet(ProjEDet(:, run), ilutRef(:, run))
+
+
+                end do
+            end if
 
         else if (tPreCond) then
 
@@ -4350,8 +4505,8 @@ contains
         write(6,*) 'Generated reference determinants:'
         do run = 1, inum_runs
             call write_det(6, ProjEDet(:, run), .false.)
-            write(6, '(" E = ", f16.9)') &
-                real(get_helement(ProjEDet(:, run), ProjEDet(:, run), 0), dp)
+            hdiag = real(get_helement(ProjEDet(:, run), ProjEDet(:, run), 0), dp)
+            write(6, '(" E = ", f16.9)') hdiag
         end do
 
     end subroutine assign_reference_dets
@@ -4443,7 +4598,7 @@ contains
 !------------------------------------------------------------------------------------------!
 
     subroutine init_norm()
-      use bit_rep_data, only: test_flag
+      use bit_rep_data, only: test_flag_multi
       ! initialize the norm_psi, norm_psi_squared
       implicit none
       integer(int64) :: j
@@ -4457,7 +4612,7 @@ contains
       do j = 1, TotWalkers
          ! get the sign
          call extract_sign(CurrentDets(:,j),sgn)
-         if(tSemiStochastic) tIsStateDeterm = test_flag(CurrentDets(:,j),flag_deterministic)
+         if(tSemiStochastic) tIsStateDeterm = test_flag_multi(CurrentDets(:,j),flag_deterministic)
          call addNormContribution(sgn,tIsStateDeterm)
       end do
 
@@ -4474,6 +4629,8 @@ contains
 #endif
 
       old_norm_psi = norm_psi
+
+      all_norms = all_norm_psi_squared
     end subroutine init_norm
 
 !------------------------------------------------------------------------------------------!

@@ -1,11 +1,16 @@
 
 module matrix_util
-    use constants, only: dp, EPS
+    use constants, only: sp, dp, EPS
     use util_mod, only: near_zero
     use sort_mod, only: sort
     implicit none
     private
-    public :: eig, print_matrix, matrix_exponential, det, blas_matmul
+    public :: eig, print_matrix, matrix_exponential, det, blas_matmul, linspace
+
+    interface linspace
+        module procedure linspace_sp
+        module procedure linspace_dp
+    end interface linspace
 
 contains
 
@@ -204,7 +209,7 @@ contains
         class(*), intent(in) :: matrix(:,:)
         integer, intent(in), optional :: iunit
 
-        integer :: i
+        integer :: i, j, tmp_unit
 
         select type (matrix)
         type is (integer)
@@ -227,8 +232,26 @@ contains
                     print *, matrix(i,:)
                 end do
             end if
+        type is (complex(dp))
+            if (present(iunit)) then
+                tmp_unit = iunit
+            else
+                tmp_unit = 6
+            end if
+            do i = lbound(matrix,1),ubound(matrix,1)
+                do j = lbound(matrix,2), ubound(matrix,2)
+                    if (j < ubound(matrix,2)) then
+                        write(tmp_unit,fmt = '(F10.8,SP,F10.8,"i",1x)', advance = 'no') matrix(i,j)
+                    else
+                        write(tmp_unit,fmt = '(F10.8,SP,F10.8,"i")', advance = 'yes') matrix(i,j)
+                    end if
+                end do
+            end do
         end select
+
+
     end subroutine print_matrix
+
 
     real(dp) function det(matrix)
         real(dp), intent(in) :: matrix(:,:)
@@ -279,7 +302,31 @@ contains
 #endif
     end function blas_matmul
 
-    function linspace(start_val, end_val, n_opt) result(vec)
+    function linspace_sp(start_val, end_val, n_opt) result(vec)
+        real(sp), intent(in) :: start_val, end_val
+        integer, intent(in), optional :: n_opt
+        real(sp), allocatable :: vec(:)
+
+        integer :: n, i
+        real(sp) :: dist
+
+        ! set default
+        if (present(n_opt)) then
+            n = n_opt
+        else
+            n = 100
+        end if
+
+        dist = (end_val - start_val) / real(n - 1, sp)
+
+        allocate(vec(n))
+
+        vec = [ ( start_val + i * dist, i = 0,n-1)]
+
+    end function linspace_sp
+
+
+    function linspace_dp(start_val, end_val, n_opt) result(vec)
         real(dp), intent(in) :: start_val, end_val
         integer, intent(in), optional :: n_opt
         real(dp), allocatable :: vec(:)
@@ -300,7 +347,7 @@ contains
 
         vec = [ ( start_val + i * dist, i = 0,n-1)]
 
-    end function linspace
+    end function linspace_dp
 
     function matrix_exponential(matrix) result(exp_matrix)
         ! calculate the matrix exponential of a real, symmetric 2-D matrix with lapack
@@ -381,5 +428,36 @@ contains
         if (info /= 0) call stop_all(this_routine, "matrix inversion failed!")
 
     end function matrix_inverse
+
+    real(dp) function norm(vec,p_in)
+        ! function to calculate the Lp norm of a given vector
+        ! if p_in = -1 this indicates the p_inf norm
+        real(dp), intent(in) :: vec(:)
+        integer, intent(in), optional :: p_in
+#ifdef DEBUG_
+        character(*), parameter :: this_routine = "norm"
+#endif
+        integer :: p, i
+
+        if (present(p_in)) then
+!             ASSERT(p_in == -1 .or. p_in >= 0)
+            p = p_in
+        else
+            ! default is the L2 norm
+            p = 2
+        end if
+
+        if (p == -1) then
+            norm = maxval(abs(vec))
+        else
+            norm = 0.0_dp
+            do i = 1, size(vec)
+                norm = norm + abs(vec(i))**p
+            end do
+
+            norm = norm**(1.0_dp/real(p,dp))
+        end if
+
+    end function norm
 
 end module

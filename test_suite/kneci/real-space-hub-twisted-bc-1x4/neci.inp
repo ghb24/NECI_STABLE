@@ -1,0 +1,42 @@
+title
+
+system hubbard real-space
+lattice chain 4 1
+electrons 4
+b -1
+u 8
+twisted-bc 0.5
+endsys
+
+calc
+
+methods
+method vertex fcimc
+endmethods
+
+start-neel-state
+
+allrealcoeff
+semi-stochastic 10
+pops-core 10
+core-inits
+tau 0.001
+
+seed 1
+
+nmcyc 10000
+
+truncinitiator
+addtoinitiator 2
+totalwalkers 100
+shiftdamp 0.1
+stepsshift 10
+
+endcalc
+
+
+logging
+popsfile -1
+endlog
+
+end

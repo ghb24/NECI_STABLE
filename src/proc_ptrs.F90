@@ -302,4 +302,7 @@ module procedure_pointers
     ! the procedure to generate all determinants that are connected to a given determinant
     procedure(generate_all_excits_t), pointer :: gen_all_excits
 
+    ! the function used to scale the shift
+    procedure(scale_function_t), pointer :: shiftScaleFunction
+
 end module

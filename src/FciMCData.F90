@@ -96,12 +96,13 @@ MODULE FciMCData
     integer(int64), allocatable :: NoAddedInitiators(:), NoInitDets(:), NoNonInitDets(:)
     real(dp), allocatable :: NoInitWalk(:), NoNonInitWalk(:)
     integer(int64), allocatable :: NoExtraInitDoubs(:), InitRemoved(:)
-
     integer(int64), allocatable :: AllNoAddedInitiators(:), AllNoInitDets(:)
     integer(int64), allocatable :: AllNoNonInitDets(:)
     real(dp),allocatable :: AllNoInitWalk(:), AllNoNonInitWalk(:)
     integer(int64), allocatable :: AllNoExtraInitDoubs(:), AllInitRemoved(:)
     integer(int64), allocatable :: AllGrowRateAbort(:)
+    integer :: n_core_non_init = 0
+    integer :: all_n_core_non_init = 0
 
     integer :: doubleSpawns = 0
     integer :: allDoubleSpawns
@@ -120,7 +121,6 @@ MODULE FciMCData
                                      !the instantaneous shift, including the number of aborted as though they had lived.
 
       real(dp), allocatable :: DiagSftRe(:), DiagSftIm(:)     !For complex walkers - this is just for info - not used for population control.
-
       INTEGER , ALLOCATABLE :: HFDet(:), HFDet_True(:)       !This will store the HF determinant
       INTEGER(TagIntType) :: HFDetTag=0
 
@@ -146,6 +146,11 @@ MODULE FciMCData
       integer :: sfTag
       real(dp) :: sFAlpha, sFBeta
       logical :: tEScaleWalkers
+      ! scaling of shift
+      ! if true, the shift is always scaled with the population on each det
+      logical :: tAllAdaptiveShift = .false.
+      ! control parameter for shift scaling
+      real(dp) :: cAllAdaptiveShift
       ! flag to indicate that the number of spawns shall be tracked
       logical :: tLogNumSpawns
       ! total truncated weight
@@ -210,7 +215,7 @@ MODULE FciMCData
       ! (respectively output cycle)
       HElement_t(dp), allocatable :: AllHFCyc(:), AllHFOut(:)
       !This is the sum of HF*sign particles over all processors over the course of the update/output cycle
-      HElement_t(dp), allocatable :: OldAllHFCyc(:) 
+      HElement_t(dp), allocatable :: OldAllHFCyc(:)
       !This is the old *average* (not sum) of HF*sign over all procs over previous update cycle
       HElement_t(dp), allocatable :: ENumCyc(:), InitsENumCyc(:)
       !This is the sum of doubles*sign*Hij on a given processor over the course of the update cycle
@@ -227,9 +232,9 @@ MODULE FciMCData
 
       ! The projected energy over the current update cycle.
       HElement_t(dp), allocatable :: ProjECyc(:)
-      
+
       ! [W.D.12.12.2017]
-      ! for triples allow bigger bloom counts! 
+      ! for triples allow bigger bloom counts!
       real(dp) :: bloom_sizes(0:3), bloom_max(0:3)
       integer :: bloom_count(0:3), all_bloom_count(0:3)
 
@@ -314,14 +319,13 @@ MODULE FciMCData
       real(dp) :: pDoubles, pSingles, pParallel
       real(dp) :: pSing_spindiff1, pDoub_spindiff1, pDoub_spindiff2
       integer :: nSingles, nDoubles
-      
       ! The number of determinants connected to the Hartree-Fock determinant.
       integer :: HFConn
 
       ! Bit representation of the HF determinant
       integer(kind=n_int), allocatable :: iLutHF(:), iLutHF_True(:)
 
-      REAL(KIND=sp) :: IterTime
+      REAL(KIND=dp) :: IterTime
 
       REAL(KIND=dp) , ALLOCATABLE :: AttemptHist(:),AllAttemptHist(:),SpawnHist(:),AllSpawnHist(:)
       REAL(KIND=dp) , ALLOCATABLE :: AvAnnihil(:,:),AllAvAnnihil(:,:),InstAnnihil(:,:),AllInstAnnihil(:,:)
@@ -338,6 +342,13 @@ MODULE FciMCData
       INTEGER , ALLOCATABLE :: DoublesDets(:,:)
       INTEGER(TagIntType) :: DoublesDetsTag
       INTEGER :: NoDoubs
+
+      ! this is used for logging the excitation level of the unocc dets when
+      ! delaying the deletion
+      integer, allocatable :: HolesByExLvl(:)
+      integer, allocatable :: AllHolesByExLvl(:)
+      integer :: nUnoccDets, AllNUnoccDets
+      integer :: maxHoleExLvlWrite
 
 !This is used for the direct annihilation, and ValidSpawnedList(i) indicates the next
 !free slot in the processor iProcIndex ( 0 -> nProcessors-1 )
@@ -483,46 +494,10 @@ MODULE FciMCData
 
       ! This array stores the Hamiltonian matrix, or part of it, when performing a diagonalisation. It is currently
       ! only used for the code for the Davidson method and semi-stochastic method.
-      real(dp), allocatable, dimension(:,:) :: hamiltonian
+      HElement_t(dp), allocatable, dimension(:,:) :: hamiltonian
 
       integer(TagIntType) :: HamTag, DavidsonTag, LanczosTag
-
-      ! Semi-stochastic data.
-
-      ! The diagonal elements of the core-space Hamiltonian (with Hii taken away).
-      real(dp), allocatable, dimension(:) :: core_ham_diag
-
-      ! This stores the entire core space from all processes, on each process.
-      integer(n_int), allocatable, dimension(:,:) :: core_space
-
-      ! This stores all the amplitudes of the walkers in the deterministic space. This vector has the size of the part
-      ! of the deterministic space stored on *this* processor only. It is therefore used to store the deterministic vector
-      ! on this processor, before it is combined to give the whole vector, which is stored in full_determ_vecs.
-      ! Later in the iteration, it is also used to store the result of the multiplication by the core Hamiltonian on
-      ! full_determ_vecs.
-      real(dp), allocatable, dimension(:,:) :: partial_determ_vecs
-      real(dp), allocatable, dimension(:,:) :: full_determ_vecs
-      real(dp), allocatable, dimension(:,:) :: full_determ_vecs_av
-
-      ! determ_sizes(i) holds the core space size on processor i.
-      integer(MPIArg), allocatable, dimension(:) :: determ_sizes
-      ! determ_displs(i) holds sum(determ_sizes(i-1)), that is, the
-      ! total number of core states on all processors up to processor i.
-      ! (determ_displs(1) == 0).
-      integer(MPIArg), allocatable, dimension(:) :: determ_displs
-      ! determ_last(i) holds the final index belonging process i.
-      integer(MPIArg), allocatable, dimension(:) :: determ_last
-      ! The first and last indices on this process.
-      integer :: s_first_ind, s_last_ind
-      ! The total size of the core space on all processors.
-      integer(MPIArg) :: determ_space_size
-      ! determ_space_size_int is identical to determ_space_size, but converted
-      ! to the default integer kind.
-      integer :: determ_space_size_int
-
-      ! This vector will store the indicies of the deterministic states in CurrentDets. This is worked out in the main loop.
-      integer, allocatable, dimension(:) :: indices_of_determ_states
-
+          
       ! If true (as is the case by default) then semi-stochastic calculations
       ! will start from the ground state of the core space
       logical :: tStartCoreGroundState
@@ -662,6 +637,9 @@ MODULE FciMCData
       real(dp), allocatable, dimension(:) :: precond_e_num,     precond_denom
       real(dp), allocatable, dimension(:) :: precond_e_num_all, precond_denom_all
 
+      ! for the automated tau-search with the guga non-weighted excitation
+      ! generator, i need multiple new specific excitation type probabilities
+      real(dp) :: pExcit2, pExcit4, pExcit2_same, pExcit3_same
       !This arrays contain information related to the spawns. Currently only used with auto-adaptive-shift
       INTEGER(KIND=n_int) , ALLOCATABLE , TARGET :: SpawnInfoVec(:,:),SpawnInfoVec2(:,:)
       INTEGER(KIND=n_int) , POINTER :: SpawnInfo(:,:),SpawnInfo2(:,:)
@@ -684,5 +662,10 @@ MODULE FciMCData
 
       ! Guard flag to monitor if the random orbital mapping indices have been initialized
       logical :: t_initialized_roi = .false.
+
+      ! Default core space
+      integer, parameter :: core_run = 1
+
+      logical :: t_global_core_space = .true.
 
 end module FciMCData

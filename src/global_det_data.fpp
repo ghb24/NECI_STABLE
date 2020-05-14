@@ -2,7 +2,6 @@
 #:include "macros.fpph"
 
 module global_det_data
-
     use SystemData, only: nel
     use CalcData, only: tContTimeFCIMC, tContTimeFull, tStoredDets, tActivateLAS, &
                         tSeniorInitiators, tAutoAdaptiveShift, tPairedReplicas, &

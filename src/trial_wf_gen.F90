@@ -8,7 +8,12 @@ module trial_wf_gen
     use semi_stoch_gen
     use semi_stoch_procs
     use sparse_arrays
-    use SystemData, only: nel, tHPHF
+    use SystemData, only: nel, tHPHF, t_non_hermitian
+
+    use guga_data, only: ExcitationInformation_t
+    use guga_excitations, only: calc_guga_matrix_element
+    use guga_bitrepops, only: write_det_guga, init_csf_information
+
     use util_mod, only: get_free_unit, binary_search_custom, operator(.div.)
     use FciMCData, only: con_send_buf, NConEntry
 
@@ -247,9 +252,11 @@ contains
         write(6,'("Generating the vector \sum_j H_{ij} \psi^T_j...")'); call neci_flush(6)
         allocate(con_space_vecs(nexcit_keep, con_space_size), stat=ierr)
         call LogMemAlloc('con_space_vecs', con_space_size, 8, t_r, ConVecTag, ierr)
-        write(6,*)"before generate_connected_space_vector"
-        call generate_connected_space_vector(SpawnedParts, trial_wfs_all_procs, con_space, con_space_vecs)
-        write(6,*)"after generate_connected_space_vector"
+        if (tGUGA .and. (.not. t_guga_mat_eles)) then
+            call generate_connected_space_vector_guga(SpawnedParts, trial_wfs_all_procs, con_space, con_space_vecs)
+        else
+            call generate_connected_space_vector(SpawnedParts, trial_wfs_all_procs, con_space, con_space_vecs)
+        end if
 
         call MPIBarrier(ierr)
 
@@ -323,6 +330,7 @@ contains
 #ifdef CMPLX_
         overlaps_imag = 0.0_dp
         all_overlaps_imag = 0.0_dp
+        unused_var(replica_pairs)
 #endif
 
         ! Loop over all basis states (determinants) in the trial space.
@@ -509,6 +517,68 @@ contains
 
     end subroutine remove_list1_states_from_list2
 
+    subroutine generate_connected_space_vector_guga(trial_space, trial_vecs, con_space, con_vecs)
+        ! need a specific routine for the guga case, to do it more efficiently
+        ! although i realise by now, that i probably could do it way more
+        ! efficient if i rewrite everything from scratch for the guga case..
+
+        use MemoryManager, only: LogMemAlloc, LogMemDealloc
+        use guga_bitrepops, only: convert_ilut_toGUGA, extract_h_element
+        use guga_excitations, only: actHamiltonian
+        use guga_matrixelements, only: calcDiagMatEleGuga_nI
+        use guga_data, only: tag_excitations
+        use util_mod, only: binary_search
+        use bit_reps, only: nifguga
+
+
+        integer(n_int), intent(in) :: trial_space(0:,:)
+        HElement_t(dp), intent(in) :: trial_vecs(:,:)
+        integer(n_int), intent(in) :: con_space(0:,:)
+        HElement_t(dp), intent(out) :: con_vecs(:,:)
+
+        integer :: i, j, nJ(nel), pos, nexcits
+        integer(n_int) :: ilutG(0:nifguga)
+        HElement_t(dp) :: H_ij
+        integer(n_int), pointer :: excitations(:,:)
+        character(*), parameter :: this_routine = "generate_connected_space_vector_guga"
+
+        con_vecs = 0.0_dp
+
+        ! in the guga case it is more efficient i guess to loop over the
+        ! smaller trial space, act the hamiltonian on it and get the specific
+        ! matrix element for the connected space
+
+        do j = 1, size(trial_vecs,2)
+
+            call decode_bit_det(nJ, trial_space(0:niftot, j))
+
+            call convert_ilut_toGUGA(trial_space(0:niftot,j), ilutG)
+
+            call actHamiltonian(ilutG, excitations, nexcits)
+
+            do i = 1, size(con_vecs,2)
+
+                if (all(con_space(0:NIfDBO,i) == trial_space(0:NIfDBO,j))) then
+                    H_ij = calcDiagMatEleGuga_nI(nJ)
+
+                else
+
+                    pos = binary_search(excitations(0:nifd,1:nexcits), con_space(0:nifd,i))
+
+                    if (pos > 0) then
+                        H_ij = extract_h_element(excitations(:,pos))
+                    else
+                        H_ij = HEl_zero
+                    end if
+                end if
+                con_vecs(:,i) = con_vecs(:,i) + H_ij * trial_vecs(:,j)
+            end do
+            deallocate(excitations)
+            call LogMemDealloc(this_routine, tag_excitations)
+        end do
+
+    end subroutine generate_connected_space_vector_guga
+
     subroutine generate_connected_space_vector(trial_space, trial_vecs, con_space, con_vecs)
 
         ! Calculate the vector
@@ -528,30 +598,56 @@ contains
         integer :: i, j, ierr
         integer :: nI(nel), nJ(nel)
         HElement_t(dp) :: H_ij
-        character (len=*), parameter :: t_r = "generate_connected_space_vector"
-
+        character (len=*), parameter :: this_routine = "generate_connected_space_vector"
+        type(ExcitationInformation_t) :: excitInfo
         con_vecs = 0.0_dp
 
         ! do i need to change this here for the non-hermitian transcorrelated
         ! hamiltonians?
         do i = 1, size(con_vecs,2)
             call decode_bit_det(nI, con_space(0:NIfTot, i))
+
+            ! i am only here in the guga case if i use the new way to calc
+            ! the off-diagonal elements..
+!             if (tGUGA) call init_csf_information(con_space(0:nifd,i))
+
             do j = 1, size(trial_vecs,2)
+
                 call decode_bit_det(nJ, trial_space(0:NIfTot, j))
 
                 if (all(con_space(0:NIfDBO, i) == trial_space(0:NIfDBO, j))) then
-                    if (.not. tHPHF) then
-                        H_ij = get_helement(nI, nJ, 0)
-                    else
+                    if ( tHPHF) then
                         H_ij = hphf_diag_helement(nI, trial_space(:,j))
+                    else if (tGUGA) then
+                        H_ij = calcDiagMatEleGuga_nI(nI)
+                    else
+                        H_ij = get_helement(nI, nJ, 0)
                     end if
                 else
-                    if (.not. tHPHF) then
-                        H_ij = get_helement(nI, nJ, con_space(:,i), trial_space(:,j))
+                    ! need guga changes here!
+                    ! and need
+                    if (tHPHF) then
+                        ! maybe i need a non-hermitian keyword here..
+                        ! since I am not sure if this breaks the kneci
+                        H_ij = hphf_off_diag_helement(nJ, nI, trial_space(:,j), con_space(:,i))
+                        ! H_ij = hphf_off_diag_helement(nI, nJ, con_space(:,i), trial_space(:,j))
+                    else if (tGUGA) then
+                        ASSERT(.not. t_non_hermitian)
+                        call calc_guga_matrix_element(trial_space(:,j), con_space(:,i), &
+                            excitInfo, H_ij, .true., 2)
+!                         call calc_guga_matrix_element(con_space(:,i), trial_space(:,j), &
+!                             excitInfo, H_ij, .true., 1)
                     else
-                        H_ij = hphf_off_diag_helement(nI, nJ, con_space(:,i), trial_space(:,j))
+                        ! maybe i need a non-hermitian keyword here..
+                        ! since I am not sure if this breaks the kneci
+                        H_ij = get_helement(nJ, nI, trial_space(:,j), con_space(:,i))
+                        ! H_ij = get_helement(nI, nJ, con_space(:,i), trial_space(:,j))
                     end if
                 end if
+                ! workaround for complex matrix elements here:
+#ifdef CMPLX_
+                H_ij = conjg(H_ij)
+#endif
                 con_vecs(:,i) = con_vecs(:,i) + H_ij*trial_vecs(:,j)
             end do
         end do

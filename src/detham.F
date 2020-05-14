@@ -4,6 +4,7 @@
       use constants, only: dp, n_int, eps
       Use Determinants, only: get_helement
       use SystemData , only : BasisFN, tGAS, t_lattice_model
+      use SystemData, only: tGUGA
       use CalcData , only : TStar
       use bit_rep_data, only: NIfTot
       use SystemData, only: tHPHF
@@ -14,8 +15,16 @@
       use gasci, only: GAS_spec=>GAS_specification,operator(.contains.),
      &  GAS_exc_gen, possible_GAS_exc_gen, operator(==)
       use disconnected_gasci, only: isValidExcit
+
+      use guga_matrixElements, only: calcDiagMatEleGuga_nI
+      use guga_excitations, only: calc_guga_matrix_element
+      use guga_data, only: ExcitationInformation_t
+      use guga_bitrepops, only: init_csf_information
+
       use lattice_mod, only: get_helement_lattice
+
       use util_mod, only: near_zero
+
       IMPLICIT NONE
       HElement_t(dp) HAMIL(*)
       INTEGER NDET,NEL
@@ -28,6 +37,7 @@
       integer(n_int) :: ilutI(0:NIfTot), ilutJ(0:NIfTot)
       HElement_t(dp) totSUM
       type(timer), save :: proc_timer
+      type(ExcitationInformation_t) :: excitInfo
       integer :: ic=0
 !      LOGICAL TSTAR
 C ==-------------------------------------------------------------------==
@@ -69,6 +79,11 @@ C..   Now we need to match up any two determinants
            ENDIF
          ENDIF
          IF(STEP.EQ.0) STEP=1
+         ! try to use the new guga matrix element calc here.. for this
+         ! misuse the current_stepvector quantities to init this only
+         ! once for nI
+         if (tGUGA) call init_csf_information(ilutI)
+
          DO KJ=IBEGJ,IMAXJ,STEP
             call EncodeBitDet(NMRKS(:,KJ), ilutJ)
             if (tHPHF) then
@@ -78,6 +93,16 @@ C..   Now we need to match up any two determinants
                 totsum = hphf_off_diag_helement(NMRKS(:,KI),
      &                            NMRKS(:,KJ), ilutI, ilutJ)
               end if
+
+            else if (tGUGA) then
+              if (KI == KJ) then
+                  totsum = calcDiagMatEleGuga_nI(NMRKS(:,KI))
+              else
+!                   totsum = calc_off_diag_guga_gen(ilutI, ilutJ)
+                  call calc_guga_matrix_element(ilutI,ilutJ,excitInfo,
+     &              totsum, .true., 1)
+              end if
+
             else if (t_lattice_model) then
               if (KI == KJ) then
                 totsum=get_helement_lattice(NMRKS(:,KI),NMRKS(:,KJ),ic)
@@ -130,16 +155,6 @@ C..No. of columns
         WRITE(6,*) ' MAXIMUM WIDTH OF HAMIL : ' , ICMAX
         WRITE(6,*) ' TOTAL NUMBER OF NON-ZERO ELEMENTS : ' , GC
       ENDIF
-C      IF(.NOT.TCOUNT) THEN
-C        WRITE(6,*)
-C        WRITE(6,*) ' SECTION OF MAP OF HAMILTONIAN : '
-C        WRITE(6,*)
-C        WRITE(6,*) NDET,ICMAX
-C        DO I=1,NDET
-C          WRITE(6,*) (LAB(J,I),J=1,ICMAX)
-C          WRITE(6,*) I,(HAMIL(J,I),J=1,ICMAX)
-C        ENDDO
-C      ENDIF
 C ==-------------------------------------------------------------------==
       call halt_timer(proc_timer)
 C ==-------------------------------------------------------------------==

@@ -807,7 +807,7 @@ C            CALL LOWDIN_ORTH(FMAT(1,1,ISPN),NSBASIS,R1,R2,WORK)
           ! Generate an initial determinant of specified spin.
           use SystemData, only: BasisFN, tMolpro, brr, g1, nbasis, lms,
      &                          nel, tGiovannisBrokenInit, SymRestrict,
-     &                          tSymSet, nBasisMax, tHub
+     &                          tSymSet, nBasisMax, tHub, tGUGA
           use SystemData, only: t_k_space_hubbard
           use util_mod, only: int_fmt
           use sort_mod
@@ -830,9 +830,15 @@ C            CALL LOWDIN_ORTH(FMAT(1,1,ISPN),NSBASIS,R1,R2,WORK)
           NSBASIS=NBASIS/2
           NELS(2)=(LMS+NEL)/2
           NELS(1)=NEL-NELS(2)
+
+         if (tGUGA) then
+            write(6,'(4(A,'//int_fmt(nel)//'))') "N_neg:",NELS(1),
+     &   " ; N_pos:", NELS(2)," ; S:",LMS," ; nEl:", nEL
+         else
+            WRITE(6,'(4(A,'//int_fmt(nel)//'))') " N_alpha:",NELS(1),
+     &   " ; N_beta:",  NELS(2)," ; LMS:",LMS," ; NEl:",NEL
+         end if
           nclosed = minval(nels)
-          WRITE(6,'(4(A,'//int_fmt(nel)//'))') " N_alpha:",NELS(2),
-     &   " ; N_beta:",  NELS(1)," ; LMS:",LMS," ; NEl:",NEL
 
           if (tGiovannisBrokenInit) then
               call GLM_BROKEN_GENFDET(brr, g1, nbasis, lms, nel, fdet)
@@ -875,13 +881,8 @@ C            CALL LOWDIN_ORTH(FMAT(1,1,ISPN),NSBASIS,R1,R2,WORK)
                     totK = totK + G1(brr(ireal))%k
                 end if
                 totSpin = totSpin + G1(brr(ireal))%Ms
-!                print *, "Contribution", brr(ireal), G1(brr(ireal))%k
-                if(tHub) then
-                    if (t_k_space_hubbard) then
-!                         totk = lat%map_k_vec(totK)
-                    else
-                        call MomPbcSym(totK,nBasisMax)
-                    end if
+                if(tHub .and. .not. t_k_space_hubbard) then
+                    call MomPbcSym(totK,nBasisMax)
                 end if
              endif
           enddo

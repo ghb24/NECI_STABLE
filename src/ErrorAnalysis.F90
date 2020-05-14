@@ -223,7 +223,9 @@ module errors
             !Call routine here to write out a file (Blocks_proje) with the projected energy mean and error for all block sizes.
             if(lenof_sign == 2 .and. inum_runs == 1) then
                 call print_proje_blocks(pophf_data,numerator_data,2,'Blocks_proje_re')
+#ifdef CMPLX_
                 call print_proje_blocks(pophf_data,imnumerator_data,2,'Blocks_proje_im')
+#endif
             else
                 call print_proje_blocks(pophf_data,numerator_data,2,'Blocks_proje')
             endif
@@ -503,7 +505,11 @@ module errors
             end if
             OPEN(iunit,file='FCIMCStats',status='old',action='read',position='rewind')
             write(6,"(A)") "Reading back in FCIMCStats datafile..."
+            if (inum_runs == 2 .and. exists) then
+                write(6,"(A)") " This is a DNECI run! But we just analyse the first FCIMCStats!"
+            end if
         endif
+
 
         comments=0
         datapoints=0
@@ -575,7 +581,6 @@ module errors
                         denom
                 endif
 
-!                read(iunit,*,iostat=eof) iters
                 if(eof.lt.0) then
                     call stop_all(t_r,"Should not be at end of file")
                 elseif(eof.gt.0) then

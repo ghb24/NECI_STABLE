@@ -7,7 +7,7 @@ module hist
     use MemoryManager
     use SystemData, only: tHistSpinDist, ilut_spindist, nbasis, nel, LMS, &
                           hist_spin_dist_iter, nI_spindist, LMS, tHPHF, &
-                          tOddS_HPHF, G1
+                          tOddS_HPHF, G1, tGUGA
     use DetBitOps, only: count_open_orbs, EncodeBitDet, spatial_bit_det, &
                          DetBitEq, count_open_orbs, TestClosedShellDet, &
                          CalcOpenOrbs, IsAllowedHPHF, FindBitExcitLevel
@@ -971,7 +971,6 @@ contains
         logical, intent(in), optional :: only_init_
         integer, intent(in), optional :: n_opt
         integer(n_int), intent(in), optional :: ilut_list_opt(0:,:)
-!         integer(int64) :: ssq
         real(dp) :: ssq
 #ifdef DEBUG_
         character(*), parameter :: this_routine = "ssquared_contrib"
@@ -1056,6 +1055,7 @@ contains
 
                             call extract_sign (ilut_list(:,pos), sgn2)
                             ssq = ssq + sgn(1) * sgn2(1) * sgn_hphf
+
                         endif
                     endif
                 enddo
@@ -1116,10 +1116,12 @@ contains
         real(dp) :: abschild
         integer :: exlevelI, exlevelJ
 
+        character(*), parameter :: this_routine = "add_hist_excit_tofrom"
         ! We want a total count of the particle weight formed.
         abschild = sum(abs(child))
 
         ! Get the excitation levels of the source and target
+        ASSERT(.not. tGUGA)
         exlevelI = FindBitExcitLevel(ilutRef(:,1), ilutI, t_hphf_ic = .true.)
         exlevelJ = FindBitExcitLevel(ilutRef(:,1), ilutJ, t_hphf_ic = .true.)
 

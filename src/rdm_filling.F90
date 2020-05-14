@@ -8,6 +8,8 @@ module rdm_filling
     use bit_rep_data, only: NIfTot, NIfDBO, test_flag
     use bit_reps, only: get_initiator_flag_by_run
     use constants
+    use SystemData, only: tGUGA
+    use guga_bitRepOps, only: getExcitation_guga
     use rdm_data, only: rdm_spawn_t, rdmCorrectionFactor
     use CalcData, only: tAdaptiveShift, tNonInitsForRDMs, tInitsRDMRef, &
          tNonVariationalRDMs
@@ -686,7 +688,12 @@ contains
 
         ! Ex(1,:) comes out as the orbital(s) excited from, i.e. i,j.
         ! Ex(2,:) comes out as the orbital(s) excited to, i.e. a,b.
-        call GetExcitation(nI, nJ, nel, Ex, tParity)
+        if (tGUGA) then
+            call getExcitation_guga(nI, nJ, Ex)
+
+        else
+            call GetExcitation(nI, nJ, nel, Ex, tParity)
+        end if
 
         full_sign = 0.0_dp
         if (tParity) then
@@ -835,11 +842,11 @@ contains
             else
                 ind = SymLabelListInv_rot(gtID(nI(i)))
             end if
-            if (inum_runs==1.and.tExplicitAllRDM) then !for explicit rdm calculations
-                final_contrib = contrib_sign(1)**2 * ScaleContribFac
+            if (size(contrib_sign) == 1) then
+                final_contrib = contrib_sign**2 * RDMIters * ScaleContribFac
             else
                 final_contrib = contrib_sign(1::2) * contrib_sign(2::2) * RDMIters * ScaleContribFac
-            endif
+            end if
             ! in adaptive shift mode, the reference contribution is rescaled
             ! we assume that projEDet is the same on all runs, else there is no point
             if(tAdaptiveShift .and. all(nI == projEDet(:,1)) &
@@ -905,13 +912,12 @@ contains
         use bit_rep_data, only: NIfD
         use bit_reps, only: decode_bit_det
         use DetBitOps, only: get_bit_excitmat
-        use FciMCData, only: Iter, IterRDMStart, PreviousCycles, iLutHF_True
-        use FciMCData, only: core_space, determ_sizes, determ_displs, full_determ_vecs_av
+        use FciMCData, only: Iter, IterRDMStart, PreviousCycles, iLutHF_True, core_run
+        use core_space_util, only: cs_replicas        
         use LoggingData, only: RDMExcitLevel, RDMEnergyIter
         use Parallel_neci, only: iProcIndex
         use rdm_data, only: one_rdm_t, rdm_definitions_t
         use rdm_data_utils, only: add_to_rdm_spawn_t
-        use sparse_arrays, only: sparse_core_ham, core_connections
         use SystemData, only: nel, tHPHF
 
         type(rdm_definitions_t), intent(in) :: rdm_defs
@@ -940,21 +946,21 @@ contains
         end if
 
         Ex = 0
-
+        associate( rep => cs_replicas(core_run))
         ! Cycle over all core dets on this process.
-        do i = 1, determ_sizes(iProcIndex)
-            iLutI = core_space(:,determ_displs(iProcIndex)+i)
+        do i = 1, rep%determ_sizes(iProcIndex)
+            iLutI = rep%core_space(:,rep%determ_displs(iProcIndex)+i)
 
             ! Connections to the HF are added in elsewhere, so skip them here.
             if (DetBitEq(iLutI, iLutHF_True, NifDBO)) cycle
 
             do irdm = 1, rdm_defs%nrdms
-                AvSignI(irdm) = full_determ_vecs_av(rdm_defs%sim_labels(2,irdm), determ_displs(iProcIndex)+i)
+                AvSignI(irdm) = rep%full_determ_vecs_av(rdm_defs%sim_labels(2,irdm), rep%determ_displs(iProcIndex)+i)
             end do
 
             call decode_bit_det(nI,iLutI)
 
-            do j = 1, sparse_core_ham(i)%num_elements-1
+            do j = 1, rep%sparse_core_ham(i)%num_elements-1
                 ! Running over all non-zero off-diag matrix elements
                 ! Connections to whole space (1 row), excluding diagonal elements
 
@@ -964,16 +970,16 @@ contains
                 ! to this proc (using determ_displs) and then select the
                 ! correct one, i.
 
-                iLutJ = core_space(:,core_connections(i)%positions(j))
+                iLutJ = rep%core_space(:,rep%core_connections(i)%positions(j))
 
                 ! Connections to the HF are added in elsewhere, so skip them here.
                 if (DetBitEq(iLutJ, iLutHF_True, NifDBO)) cycle
 
                 do irdm = 1, rdm_defs%nrdms
-                    AvSignJ(irdm) = full_determ_vecs_av(rdm_defs%sim_labels(1, irdm), core_connections(i)%positions(j))
+                    AvSignJ(irdm) = rep%full_determ_vecs_av(rdm_defs%sim_labels(1, irdm), rep%core_connections(i)%positions(j))
                 end do
 
-                connect_elem = core_connections(i)%elements(j)
+                connect_elem = rep%core_connections(i)%elements(j)
 
                 IC = abs(connect_elem)
 
@@ -1017,6 +1023,7 @@ contains
                 end if
             end do
         end do
+      end associate
 
     end subroutine fill_RDM_offdiag_deterministic
 

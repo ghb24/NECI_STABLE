@@ -111,6 +111,10 @@ contains
 
         call this%initTable(arr)
 
+        ! Sync the shared resource between tasks
+        call this%biasTable%sync()
+        call this%aliasTable%sync()        
+
     end subroutine setupTable
 
     !------------------------------------------------------------------------------------------!
@@ -274,6 +278,8 @@ contains
 
         ! set the probabilities
         call this%initProbs(arr)
+
+        call this%probs%sync()
     end subroutine setupSampler
 
     !------------------------------------------------------------------------------------------!
@@ -425,6 +431,11 @@ contains
         real(dp), intent(in) :: arr(:)
 
         call this%samplerArray(iEntry)%initSampler(arr)
+
+        ! Sync the shared resources
+        call this%allBiasTable%sync()
+        call this%allAliasTable%sync()
+        call this%allProbs%sync()
     end subroutine setupEntry
 
     !------------------------------------------------------------------------------------------!

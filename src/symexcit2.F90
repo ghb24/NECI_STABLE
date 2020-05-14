@@ -418,7 +418,7 @@ MODULE SymExcit2
          iFromIndex=I
          deallocate(ews)
          call LogMemDealloc(this_routine,tagEWS)
-!  pGen is the prob of choosing a specific FROM (given having chosen iExcitType proportional 
+!  pGen is the prob of choosing a specific FROM (given having chosen iExcitType proportional
 !to the number of excitations in each iExcitType)
 !           times the prob of choosing iExcitType
 

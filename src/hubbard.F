@@ -90,13 +90,14 @@ C..Returned in sum
           TOTSUM = 0.0_dp
           return
       else
-      LX=NBASISMAX(1,2)-NBASISMAX(1,1)+1
-      LY=NBASISMAX(2,2)-NBASISMAX(2,1)+1
-      LZ=NBASISMAX(3,2)-NBASISMAX(3,1)+1
-      IF(TTILT) THEN
+
+       LX=NBASISMAX(1,2)-NBASISMAX(1,1)+1
+       LY=NBASISMAX(2,2)-NBASISMAX(2,1)+1
+       LZ=NBASISMAX(3,2)-NBASISMAX(3,1)+1
        AX=NBASISMAX(1,4)
        AY=NBASISMAX(2,4)
 
+       IF(TTILT) THEN
 CCCC.. NBASISMAX goes from -NMAXX+1 to MAXX so LX=2MAXX
          LX=NBASISMAX(1,5)
          LX=(LX*(AX*AX+AY*AY))
@@ -121,7 +122,7 @@ C         IF(LZ.GT.1) TOTSUM=TOTSUM+COS(PI*K/(LZ+1))
          use SystemData, only: BasisFN, t_open_bc_x, t_open_bc_y
          USE OneEInts, only: TMat2D,TMATSYM,SetupTMAT
          USE Parallel_neci, only : iProcIndex
-         use sym_mod, only: MOMPBCSYM
+         use sym_mod, only: mompbcsym
          IMPLICIT NONE
          INTEGER NBASIS,nBasisMax(5,*)
          TYPE(BasisFN) G1(nBasis)
@@ -132,13 +133,15 @@ C         IF(LZ.GT.1) TOTSUM=TOTSUM+COS(PI*K/(LZ+1))
          LOGICAL TTILT,TREAL,TPBC
          real(dp) TOTSUM
          character(*), parameter :: this_routine = 'CALCTMATHUB'
-         integer :: temp_k(3)
+         integer temp_k(3)
          IF(iProcIndex.eq.0) OPEN(10,FILE='TMAT',STATUS='UNKNOWN')
          CALL SetupTMAT(NBASIS,2,iSize)
          TOTSUM=0.0_dp
          LX=NBASISMAX(1,2)-NBASISMAX(1,1)
          LY=NBASISMAX(2,2)-NBASISMAX(2,1)
          LZ=NBASISMAX(3,2)-NBASISMAX(3,1)
+         ! here i have to make some changes in the real-space tilted
+         ! case to construct the correct TMAT
          IF(LY.EQ.0) LY=-1
          IF(LZ.EQ.0) LZ=-1
          IF(TREAL) THEN
@@ -147,10 +150,8 @@ C         IF(LZ.GT.1) TOTSUM=TOTSUM+COS(PI*K/(LZ+1))
                   DX=ABS(G1(I)%k(1)-G1(J)%k(1))
                   DY=ABS(G1(I)%k(2)-G1(J)%k(2))
                   DZ=ABS(G1(I)%k(3)-G1(J)%k(3))
-                  ! to implement the real-space tilted, check if
-                  ! resulting basis state is in the extendend BZ
                   temp_k = [DX,DY,DZ]
-                  call MOMPBCSYM(temp_k,nBasisMax)
+                  call mompbcsym(temp_k,NBASISMAX)
                   temp_k = abs(temp_k)
                   TOTSUM=BHUB
                   IF(TPBC) THEN
@@ -316,6 +317,7 @@ C     &         *((NBASISMAX(4,2)-NBASISMAX(4,1))/2+1)
 
 !Generate the Sym table for a Hubbard Lattice
       Subroutine GenHubMomIrrepsSymTable(G1,nBasis,nBasisMax)
+         use constants, only: int64
          use global_utilities
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
@@ -373,8 +375,8 @@ C.. place the sym label of each state in SymClasses(ISTATE).
                SymClasses(I)=nSyms
             ENDIF
 C.. list the symmetry string of each sym label
-C.. try the new symmetry encoding here 
-            if (t_k_space_hubbard) then 
+C.. try the new symmetry encoding here
+            if (t_k_space_hubbard) then
                 SymLabels(I)%s = i
             else
                 SymLabels(I)%s=2_int64**(I-1_int64)
@@ -401,7 +403,7 @@ C.. Setup the symmetry product table
             NQNS%k=-G1(I*2)%k
             CALL RoundSym(NQNS,nBasisMax)
             if (t_k_space_hubbard) then
-                ! i could actually include the symmetry rounding in the 
+                ! i could actually include the symmetry rounding in the
                 ! get_orb_from_k_vec functionality!
                 ! i was doing this incorrectly.. i want the spin orbital
                 ! j
@@ -467,7 +469,7 @@ C.. now work out which reps are degenerate and label them
          allocate(SymReps(2,nBasis))
          call LogMemAlloc('SymReps',2*nBasis,4,this_routine,tagSymReps)
          J=0
-         ! this does not make sense.. 
+         ! this does not make sense..
          SYMREPS = 0
          DO I=1,NBASIS
             IF(I.EQ.1) THEN
@@ -487,10 +489,6 @@ C.. we have a new rep
             SYMREPS(1,BRR(I))=J
          ENDDO
 
-!         print *, "symreps: " 
-!         DO I=1,NBASIS
-!            WRITE(6,*) SYMREPS(1,I),SYMREPS(2,I)
-!         ENDDO
       END
 
       LOGICAL FUNCTION KALLOWED(G,NBASISMAX)
@@ -590,3 +588,42 @@ C.. we have a new rep
          IFINDBASISFN=0
          RETURN
       END FUNCTION IFINDBASISFN
+
+      subroutine write_kspace_umat()
+          ! subroutine to output the umat also in the case of the
+          ! momentum space hubbard model, to be easier able to compare it
+          ! with the DMRG calculations for the GUGA matrix elements!
+          use SystemData, only: G1, nSpatOrbs, nBasisMax, uHub, omega
+          use sym_mod, only: mompbcsym
+          use UMatCache, only: gtid
+          character(*), parameter :: this_routine = "write_kspace_umat"
+
+          integer :: i, j, k, l, k_in(3), k_out(3)
+          open(10, file="UMAT", status="unknown")
+          ! do it really naively and just loop over all the indices and
+          ! check if the momentum consercation is fullfilled!
+          ! actually it is more efficient to loop over the spatial orbitals
+          ! only! and check the momentum for the spin-orbs!
+          do i = 1, nSpatOrbs
+              do j = 1, nSpatOrbs
+                  do k = 1, nSpatOrbs
+                      do l = 1, nSpatOrbs
+                          ! have to figure out which orbitals to compare in
+                          ! the physicist notation!
+                          ! and convert to fake spin-orbtitals
+                          k_in = G1(2*i)%k + G1(2*k)%k
+                          k_out = G1(2*j)%k + G1(2*l)%k
+                          ! apply periodic BC
+                          call mompbcsym(k_in, nBasisMax)
+                          call mompbcsym(k_out, nBasisMax)
+                          if (all(k_in == k_out)) then
+                              write(10, '(4i7, f19.9)') i,j,k,l,
+     &                          uHub/Omega
+                          end if
+                      end do
+                  end do
+              end do
+          end do
+          close(10)
+
+      end subroutine write_kspace_umat

@@ -1,0 +1,42 @@
+title
+
+system read
+electrons 4
+nonuniformrandexcits mol_guga_weighted
+system-replicas 3
+guga 0
+endsys
+
+calc
+methods
+method vertex fcimc
+endmethods
+memoryfacspawn 20.0
+memoryfacpart 20.0
+diagshift 1.5 3.0 3.0
+totalwalkers 1000
+tau 0.01
+startsinglepart 300
+shiftdamp 0.5
+stepsshift 10
+nmcyc 2000
+allrealcoeff
+realspawncutoff 0.01
+orthogonalise-replicas
+doubles-init
+semi-stochastic
+doubles-core
+global-core-space
+trial-wavefunction 1000
+pops-trial 70
+load-balance-blocks off
+seed 10
+endcalc
+
+integral
+endint
+
+logging
+popsfile -1
+endlog
+end

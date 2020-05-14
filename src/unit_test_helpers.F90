@@ -3,7 +3,7 @@
 ! a small module with functions needed for the unit-tests
 module unit_test_helpers
 
-    use constants, only: dp, EPS, n_int, bits_n_int, maxExcit, int64, iout, lenof_sign
+    use constants, only: dp, EPS, n_int, bits_n_int, maxExcit, int64, iout, lenof_sign, sp
 
     use lattice_mod, only: get_helement_lattice, lattice
 
@@ -11,7 +11,7 @@ module unit_test_helpers
 
     use SystemData, only: t_lattice_model, nOccAlpha, nOccBeta, &
                           trans_corr_param_2body, omega, nel, nBasis, &
-                          arr, brr, nBasis, bhub
+                          arr, brr, nBasis, bhub, tGUGA
 
     use fcimcdata, only: excit_gen_store_type
 
@@ -23,7 +23,7 @@ module unit_test_helpers
 
     use bit_rep_data, only: niftot, nifd
 
-    use semi_stoch_procs, only: global_most_populated_states
+    use semi_stoch_procs, only: global_most_populated_states, GLOBAL_RUN
 
     use DetBitOps, only: ilut_lt, ilut_gt, EncodeBitDet, findbitexcitlevel, &
                          count_open_orbs
@@ -37,6 +37,8 @@ module unit_test_helpers
     use matrix_util, only: matrix_exponential, blas_matmul
 
     use CalcData, only: PgenUnitTestSpec_t
+
+    use GenRandSymExcitNUMod, only: init_excit_gen_store, clean_excit_gen_store
 
     use ras, only: sort_orbitals
 
@@ -64,6 +66,7 @@ module unit_test_helpers
             real(dp), intent(in) :: pgen_diagnostic
         end function
     end interface
+
 contains
 
     subroutine setup_arr_brr(in_lat)
@@ -167,6 +170,10 @@ contains
         integer :: i, j
 
         t_lattice_model = .false.
+        if (tGUGA) then
+            call stop_all("create_hamiltonian_old", &
+                "modify get_helement for GUGA")
+        end if
         do i = 1, size(list_nI,2)
             do j = 1, size(list_nI,2)
                 hamil(i,j) = get_helement(list_nI(:,j),list_nI(:,i))
@@ -427,7 +434,6 @@ contains
 
     end function find_open_shell_indices
 
-
 !>  @brief
 !>      Test if an excitation generator generates all and only expected states
 !>      with the correct pgen.
@@ -462,6 +468,8 @@ contains
 
         procedure(generate_excitation_t) :: excit_gen
         integer, intent(in), optional :: opt_nI(nel), opt_n_iters, i_unit
+
+
         procedure(generate_all_excits_t), optional :: gen_all_excits
         procedure(calc_pgen_t), optional :: calc_pgen
         procedure(print_predicate_t), optional :: print_predicate
@@ -470,8 +478,8 @@ contains
 
         integer :: i, nI(nel), n_iters
         integer :: i_unit_
-        integer :: default_n_iters = 100000
-        integer :: default_n_dets = 1
+        integer, parameter :: default_n_iters = 100000
+        integer, parameter :: default_n_dets = 1
 
         integer(n_int) :: ilut(0:niftot), tgt_ilut(0:niftot)
         integer :: nJ(nel), n_excits, ex(2,maxExcit), ic, ex_flag, i_unused = 0
@@ -504,6 +512,7 @@ contains
             print_predicate_ => default_predicate
         end if
 
+        call init_excit_gen_store(store)
         ! use some default values if not provided:
         ! nel must be set!
         if (present(opt_nI)) then
@@ -638,6 +647,8 @@ contains
             write(i_unit_, *) ! linebreak
         end block
 
+        call clean_excit_gen_store(store)
+
         contains
 
         logical function default_predicate(det_I, exc, pgen_diagnostic)
@@ -714,7 +725,7 @@ contains
             integer :: counter
 
             allocate(ilut_largest_walkers(0:NIfTot, n_most_populated), source=0_n_int)
-            call global_most_populated_states(n_most_populated, ilut_largest_walkers)
+            call global_most_populated_states(n_most_populated, GLOBAL_RUN, ilut_largest_walkers)
 
             count_non_zeros: do i = 1, n_most_populated
                 if (get_weight(ilut_largest_walkers(:, i)) <= 1.0e-7_dp) exit
@@ -872,5 +883,4 @@ contains
         allocate(state_list_ilut(0:niftot,n_states), source = temp_list_ilut(:,1:n_states))
 
     end subroutine create_hilbert_space
-
 end module unit_test_helpers

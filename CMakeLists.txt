@@ -82,11 +82,13 @@ find_package( LAPACK_NECI REQUIRED )
 
 set(${PROJECT_NAME}_CONFIGURATIONS neci kneci dneci mneci kdneci kmneci)
 set(${PROJECT_NAME}_neci_DEFINITIONS HElement_t=real)
+
 set(${PROJECT_NAME}_kneci_DEFINITIONS HElement_t=complex CMPLX_)
 set(${PROJECT_NAME}_dneci_DEFINITIONS HElement_t=real DOUBLERUN_)
 set(${PROJECT_NAME}_mneci_DEFINITIONS HElement_t=real PROG_NUMRUNS_)
 set(${PROJECT_NAME}_kdneci_DEFINITIONS HElement_t=complex CMPLX_ DOUBLERUN_)
 set(${PROJECT_NAME}_kmneci_DEFINITIONS HElement_t=complex CMPLX_ PROG_NUMRUNS_)
+
 set(${PROJECT_NAME}_neci_WARNERR TRUE)
 set(${PROJECT_NAME}_dneci_WARNERR TRUE)
 

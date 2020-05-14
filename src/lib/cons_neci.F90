@@ -21,6 +21,7 @@ real(dp), parameter ::  PI    = 3.1415926535897932384626433832795028841971693993
 real(dp), parameter ::  PI2   = 9.8696044010893586188344909998761511353136994072408_dp
 real(dp), parameter ::  THIRD = 0.3333333333333333333333333333333333333333333333333_dp
 real(dp), parameter ::  Root2 = 1.4142135623730950488016887242096980785696718753769_dp
+real(dp), parameter ::  OverR2 = 1.0_dp/Root2
 real(dp), parameter :: EPS = 0.0000000000001_dp
 real(dp), parameter :: INFINITY = huge(1.0_dp)
 !real(dp), parameter ::  Root2 = sqrt(2.0_dp)   !Removed since sun comiler didn't like this: bug 3853
@@ -44,6 +45,12 @@ integer, parameter :: sizeof_sp = 4
 ! number of possible excitations per step
 integer, parameter :: maxExcit = 3
 
+#if defined(CMPLX_)
+! The ratio of lenof_sign / inum_runs
+integer, parameter :: rep_size = 2
+#else
+integer, parameter :: rep_size = 1
+#endif
 ! Give ourselves the option of lenof_sign/inum_runs being a runtime
 ! variable, rather than a compile-time constant
 #if defined(PROG_NUMRUNS_)
@@ -53,8 +60,8 @@ integer, parameter :: maxExcit = 3
     integer :: lenof_sign       !2 x inum_runs (2 for complex x number of seperate wavefuncs sampled)
     integer :: inum_runs        !nreplicas x nstates
     integer :: lenof_sign_kp
-    integer, parameter :: lenof_sign_max = 20
-    integer, parameter :: inum_runs_max = 20
+    integer, parameter :: lenof_sign_max = 16
+    integer, parameter :: inum_runs_max = 16
     integer, parameter :: sizeof_helement = 16
     HElement_t(dp), parameter :: HEl_zero = cmplx(0.0_dp, 0.0_dp, dp)
 #else
@@ -65,8 +72,8 @@ integer, parameter :: maxExcit = 3
     integer :: lenof_sign
     integer :: inum_runs
     integer :: lenof_sign_kp
-    integer, parameter :: lenof_sign_max = 20
-    integer, parameter :: inum_runs_max = 20
+    integer, parameter :: lenof_sign_max = 16
+    integer, parameter :: inum_runs_max = 16
     integer, parameter :: sizeof_helement = 16
     real(dp), parameter :: HEl_zero = 0.0_dp
 #endif
@@ -118,7 +125,7 @@ integer, parameter :: maxExcit = 3
     real(dp), parameter :: HEl_zero = 0.0_dp
 #endif
 #endif
-
+    
 real(dp), dimension(lenof_sign_max), parameter :: null_part = 0.0_dp
 
 !This is the integer type which is used in MPI call arguments
@@ -148,6 +155,10 @@ integer, parameter :: int_rdm=int32
 ! bit_size(int(0,n_int)) to return an incorrect value.
 integer(n_int) :: temp3=0
 integer, parameter :: bits_n_int = bit_size(temp3)
+! to avoid too long lines in GUGA macros.h introduce a shorter named bits_n_int
+integer, parameter :: bni_ = bits_n_int
+! also define a bits_n_int/2 to further reduce the character count
+integer, parameter :: bn2_ = bits_n_int/2
 ! Number of bytes in an n_int integer.
 integer, parameter :: size_n_int = bits_n_int/8
 ! Index of last bit in an n_int integer (bits are indexed 0,1,...,bits_n_int-1).
@@ -161,7 +172,7 @@ integer, parameter :: size_int_rdm = bits_int_rdm/8
 ! Index of last bit in an int_rdm integer (bits are indexed 0,1,...,bits_n_int-1).
 integer, parameter :: end_int_rdm = bits_int_rdm - 1
 
-    integer, parameter :: iout = 6 
+    integer, parameter :: iout = 6
 
     ! Internal state storage for the stats_out integration
     ! n.b. This shouldn't be here, but there is nowhere els eto put it

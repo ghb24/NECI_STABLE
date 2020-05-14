@@ -12,7 +12,7 @@ module analyse_wf_symmetry
 
     use fcimcdata, only: CurrentDets, TotWalkers
 
-    use semi_stoch_procs, only: proc_most_populated_states
+    use semi_stoch_procs, only: proc_most_populated_states, GLOBAL_RUN
 
     use lattice_mod, only: lat
 
@@ -20,7 +20,8 @@ module analyse_wf_symmetry
 
     use constants, only: n_int, dp, pi, lenof_sign
 
-    use util_mod, only: binary_search, binary_search_int, operator(.isclose.)
+    use util_mod, only: binary_search, binary_search_int, near_zero, &
+                        operator(.isclose.)
 
     use bit_reps, only: extract_sign, encode_sign, decode_bit_det
 
@@ -869,9 +870,8 @@ contains
         ! globally
         integer, intent(in) :: n_states
         integer(n_int), intent(out) :: largest_dets(0:niftot, n_states)
-#ifdef DEBUG_
+
         character(*), parameter :: this_routine = "get_highest_pop"
-#endif
         integer(n_int) :: largest_dets_node(0:niftot,n_states)
         real(dp) :: norm_node
 
@@ -945,7 +945,7 @@ contains
 #endif
         real(dp) :: norm
 
-        call proc_most_populated_states(n_symmetry_states, &
+        call proc_most_populated_states(n_symmetry_states, GLOBAL_RUN, &
             largest_dets, CurrentDets, TotWalkers, norm)
 
         if (present(all_norm)) then
@@ -1004,7 +1004,7 @@ contains
 #endif
         integer :: i
 
-        if (.not. t_symmetry_rotation .or. ((rot_angle .isclose. 0.0_dp) &
+        if (.not. t_symmetry_rotation .or. (near_zero(rot_angle) &
             .or. (rot_angle .isclose. 360.0_dp))) then
             out_orbs = in_orbs
             return
@@ -1122,7 +1122,7 @@ contains
 
         ASSERT(associated(lat))
 
-        if ((rot_angle .isclose. 0.0_dp) .or. (rot_angle .isclose. 0.0_dp)) then
+        if (near_zero(rot_angle) .or. (rot_angle .isclose. 360.0_dp)) then
             out_orb = in_orb
             return
         end if
