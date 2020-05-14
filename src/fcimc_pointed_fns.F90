@@ -159,6 +159,9 @@ module fcimc_pointed_fns
                                     walkExcitLevel, part_type, AvSignCurr, AvExPerWalker, &
                                     RDMBiasFacCurr, precond_fac) result(child)
 
+        use orb_idx_mod, only: SpinOrbIdx_t
+        use gasci, only: operator(.contains.), GAS_specification
+
         integer, intent(in) :: DetCurr(nel), nJ(nel)
         integer, intent(in) :: part_type    ! odd = Real parent particle, even = Imag parent particle
         integer(kind=n_int), intent(in) :: iLutCurr(0:NIfTot)
@@ -208,6 +211,13 @@ module fcimc_pointed_fns
 
         rh = get_spawn_helement (nJ, DetCurr, ilutnJ, iLutCurr,  ic, temp_ex, &
             tParity, HElGen)
+
+        ! TODO(@Oskar): Remove again
+        if (tGAS) then
+            if (.not. (GAS_specification .contains. SpinOrbIdx_t(nJ))) then
+                rh = 0.0_dp
+            end if
+        end if
 
         ! assign the matrix element
         HElGen = abs(rh)
