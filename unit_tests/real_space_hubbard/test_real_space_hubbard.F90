@@ -27,7 +27,10 @@ program test_real_space_hubbard
 
     use util_mod, only: get_free_unit
 
-    use unit_test_helpers
+    use unit_test_helpers, only: create_spin_dependent_hopping, create_hamiltonian, &
+        similarity_transform, run_excit_gen_tester, setup_arr_brr
+
+    use matrix_util, only: norm, calc_eigenvalues, linspace, matrix_exponential, print_matrix, eig
 
     use dsfmt_interface, only: dsfmt_init
 

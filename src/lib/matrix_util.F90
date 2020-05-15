@@ -5,7 +5,9 @@ module matrix_util
     use sort_mod, only: sort
     implicit none
     private
-    public :: eig, print_matrix, matrix_exponential, det, blas_matmul, linspace
+    public :: eig, print_matrix, matrix_exponential, det, blas_matmul, linspace, norm, &
+        calc_eigenvalues, check_symmetric, find_degeneracies, eig_sym
+
 
     interface linspace
         module procedure linspace_sp
@@ -459,5 +461,69 @@ contains
         end if
 
     end function norm
+
+
+    subroutine find_degeneracies(e_values, ind, pairs)
+        ! find the indices of degenerate eigenvalues
+        ! ind will have as many rows as degenerate eigenvalues exist
+        ! and the columns will be the maximum number of degeneracy + 1
+        ! since in the first column the number of degenerate eigenvalues are
+        ! stored!
+        ! it assumes the eigenvalues are sorted!!
+        ! in pairs the paired indices of the degenerate eigenvalue are stored!
+        real(dp), intent(in) :: e_values(:)
+        integer, intent(out), allocatable :: ind(:,:), pairs(:,:)
+
+        integer :: i,j,tmp_ind(size(e_values),size(e_values)+1), e_ind
+        integer :: max_val
+
+        tmp_ind = 0
+        e_ind = 1
+        i = 1
+
+        do while (i < size(e_values) .and. e_ind < size(e_values))
+            j = 0
+            do while(e_ind + j <= size(e_values))
+                if (abs(e_values(e_ind) - e_values(e_ind+j)) < 10.e-8) then
+                    tmp_ind(i,j+2) = e_ind+j
+                    j = j + 1
+                else
+                    exit
+                end if
+            end do
+            tmp_ind(i,1) = j
+            i = i + 1
+            e_ind = e_ind + j
+        end do
+
+        ! deal with end-value specifically
+        if (e_ind == size(e_values)) then
+            tmp_ind(i,1) = 1
+            tmp_ind(i,2) = e_ind
+        end if
+
+        max_val = maxval(tmp_ind(:,1))+1
+        allocate(ind(i-1,max_val), source = tmp_ind(1:i-1,1:max_val))
+
+        if (max_val == 2) then
+            ! if no degeneracies
+            allocate(pairs(size(e_values),1))
+            pairs = 0
+            return
+        end if
+        allocate(pairs(size(e_values),max_val-2))
+        pairs = 0
+        ! do it in a stupid way and reuse the created array ind
+        do i = 1, size(ind,1)
+            if (ind(i,1) > 1) then
+                do j = 2, ind(i,1) + 1
+                    pairs(ind(i,j),:) = pack(ind(i,2:ind(i,1)+1), &
+                        ind(i,2:ind(i,1)+1) /= ind(i,j))
+                end do
+            end if
+        end do
+
+    end subroutine find_degeneracies
+
 
 end module
