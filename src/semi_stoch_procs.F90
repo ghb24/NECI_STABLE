@@ -1223,7 +1223,7 @@ contains
         use DetBitOps, only: sign_lt, sign_gt
         use sort_mod, only: sort
 
-        integer, intent(in), optional :: opt_source_size
+        integer(int64), intent(in), optional :: opt_source_size
         integer(n_int), intent(in), optional :: opt_source(0:,1:)
         integer, intent(in) :: n_keep, run
         integer(n_int), intent(out) :: largest_walkers(0:NIfTot, n_keep)
@@ -1239,7 +1239,7 @@ contains
         if (present(opt_source)) then
             ASSERT(present(opt_source_size))
 
-            source_size = int(opt_source_size, int64)
+            source_size = opt_source_size
             ! ask Kai if I have to allocate
             allocate(loc_source(0:niftot,1:source_size),&
                 source = opt_source(0:NIfTot, 1:source_size))
