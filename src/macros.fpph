@@ -23,6 +23,9 @@ endif
 #:enddef
 
 #:def ASSERT(cond, *args)
+#:enddef
+
+#:def asdf_ASSERT(cond, *args)
     if (.not. (${cond}$)) then
         write(6, *) ""
         write(6, *) "Assertion ${cond}$"

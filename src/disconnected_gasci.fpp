@@ -12,7 +12,7 @@ module disconnected_gasci
     use sets_mod, only: operator(.in.)
     use bit_rep_data, only: NIfTot, NIfD
     use dSFMT_interface, only: genrand_real2_dSFMT
-    use FciMCData, only: pDoubles
+    use FciMCData, only: pDoubles, pSingles
     use get_excit, only: make_double, make_single
     use Determinants, only: get_helement
     use excit_gens_int_weighted, only: pick_biased_elecs, pgen_select_orb
@@ -236,6 +236,9 @@ contains
 #ifdef WARNING_WORKAROUND_
         hel = 0.0_dp
 #endif
+        pSingles = 1.0
+        pDoubles = 1.0 - pSingles
+
         ! single or double excitation?
         r = genrand_real2_dSFMT()
         if (r < pDoubles) then
@@ -522,7 +525,7 @@ contains
             character(*), parameter :: this_routine = 'pick_weighted_hole_${Excitation_t}$'
 
             integer :: tgt, nOrbs, GAS_list(GAS_size(iGAS))
-            real(dp) :: r, cSum(GAS_size(iGAS))
+            real(dp) :: cSum(GAS_size(iGAS))
 
 
             ! initialize auxiliary variables
@@ -532,13 +535,10 @@ contains
             ASSERT(last_tgt_unknown(exc))
             cSum = get_cumulative_list(GAS_list, nI, exc)
 
-            ! now, pick with the weight from the cumulative list
-            r = genrand_real2_dSFMT() * cSum(nOrbs)
-
             ! there might not be such an excitation
             if (cSum(nOrbs) > 0) then
                 ! find the index of the target orbital in the gasList
-                tgt = binary_search_first_ge(cSum, r)
+                tgt = binary_search_first_ge(cSum, genrand_real2_dSFMT())
 
                 ! adjust pgen with the probability for picking tgt from the cumulative list
                 if (tgt == 1) then

@@ -235,6 +235,9 @@ module fcimc_pointed_fns
 
         ! We actually want to calculate Hji - take the complex conjugate,
         ! rather than swap around DetCurr and nJ.
+        if (any(ex(:, 1) == 0)) then
+            write(*, *) 'hello'
+        end if
         rh_used = get_spawn_helement (nJ, DetCurr, ilutnJ, iLutCurr,  ic, temp_ex, &
                                  tParity, HElGen)
         ! TODO(@Oskar): Remove again

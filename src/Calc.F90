@@ -3865,7 +3865,8 @@ allocate (init_trial_in%opt_data%cutoff_nums(init_trial_in%opt_data%ngen_loops))
                 call perform_davidson(davidsonCalc, direct_ci_type, .true.)
                 call davidson_direct_ci_end(davidsonCalc)
                 call DestroyDavidsonCalc(davidsonCalc)
-
+            else if (allocated(pgen_unit_test_spec)) then
+                call batch_run_excit_gen_tester(pgen_unit_test_spec)
             ELSE IF (NPATHS /= 0 .OR. DETINV > 0) THEN
                 !Old and obsiolecte
                 !             IF(TRHOIJND) THEN

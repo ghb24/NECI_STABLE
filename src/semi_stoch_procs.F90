@@ -75,8 +75,15 @@ module semi_stoch_procs
 
     implicit none
 
+<<<<<<< Updated upstream
     ! Distinguishing value for 'use all runs'
     integer, parameter :: GLOBAL_RUN = -45
+=======
+    interface global_most_populated_states
+        module procedure global_most_populated_states_ilut, global_most_populated_states_SpinOrbIdx
+    end interface
+
+>>>>>>> Stashed changes
 
 contains
 
