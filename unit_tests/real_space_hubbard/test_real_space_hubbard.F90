@@ -21,6 +21,8 @@ program test_real_space_hubbard
                           t_trans_corr_new, t_uniform_excits, tHPHF, &
                           length_x, length_y
 
+    use bit_reps, only: niftot
+
     use lattice_mod, only: lat, init_dispersion_rel_cache
 
     use sort_mod, only: sort

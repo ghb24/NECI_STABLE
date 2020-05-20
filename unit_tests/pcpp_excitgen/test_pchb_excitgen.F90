@@ -30,7 +30,7 @@ contains
     calc_pgen => calc_pgen_pchb
 
     ! prepare an excitation generator test
-    call init_excitgen_test(n_el=5, n_spat_orbs=12, fcidump_writer=FciDumpWriter_t(random_fcidump, 'FCIDUMP'))
+    call init_excitgen_test(n_el=5, fcidump_writer=FciDumpWriter_t(random_fcidump, 'FCIDUMP'))
 
     ! prepare the pchb excitgen: set the weights/map-table
     call set_ref()

@@ -29,7 +29,7 @@ contains
     ! set the excitation we want to test
     generate_excitation => gen_rand_excit_pcpp
     ! prepare everything for testing the excitgen
-    call init_excitgen_test(n_el=5, n_spat_orbs=12, fcidump_writer=FciDumpWriter_t(random_fcidump, 'FCIDUMP'))
+    call init_excitgen_test(n_el=5, fcidump_writer=FciDumpWriter_t(random_fcidump, 'FCIDUMP'))
 
     ! prepare the pcpp excitation generator: get the precomputed weights
 
