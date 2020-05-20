@@ -672,11 +672,6 @@ contains
         end block
         end associate
 
-!         do i = 1, size(largest_walkers)
-!             call new_write_det(largest_walkers(i))
-!             write(*, *) iProcIndex
-!         end do
-
         associate(bounds => distribute_work(nProcessors , size(largest_walkers), iProcIndex))
         block
             use fortran_strings, only: str
