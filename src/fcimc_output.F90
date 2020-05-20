@@ -38,13 +38,9 @@ module fcimc_output
     use DetCalcData, only: det, fcidets, ReIndex, NDet, NRow, HAMIL, LAB
 
     use bit_reps, only: decode_bit_det, test_flag, extract_sign, get_initiator_flag
-<<<<<<< Updated upstream
 
     use semi_stoch_procs, only: global_most_populated_states, GLOBAL_RUN
 
-=======
-    use semi_stoch_procs, only: proc_most_populated_states, global_most_populated_states
->>>>>>> Stashed changes
     use bit_rep_data, only: niftot, nifd, flag_initiator
 
     use hist, only: calc_s_squared_star, calc_s_squared
@@ -1490,17 +1486,10 @@ contains
       use adi_references, only: update_ref_signs, print_reference_notification, nRefs
       use adi_data, only: tSetupSIs
         real(dp), dimension(lenof_sign) :: SignCurr
-<<<<<<< Updated upstream
         integer :: ierr,i,j,counter,ExcitLev,nopen
         integer :: full_orb, run
         real(dp) :: HighSign, norm
         integer(n_int) , allocatable :: GlobalLargestWalkers(:, :)
-=======
-        integer :: ierr,i,j,counter,ExcitLev,SmallestPos,HighPos,nopen
-        integer :: full_orb, run
-        real(dp) :: HighSign,Norm
-        integer(n_int) , allocatable :: GlobalLargestWalkers(:,:)
->>>>>>> Stashed changes
         integer, allocatable :: GlobalProc(:), tmp_ni(:)
         character(100) :: bufEnd, bufStart
         integer :: lenEnd, lenStart
@@ -1512,8 +1501,6 @@ contains
         character(13), allocatable :: amplitude_string(:)
         character(9), allocatable :: init_string(:)
 
-<<<<<<< Updated upstream
-
         allocate(GlobalLargestWalkers(0:NIfTot,iHighPopWrite), source=0_n_int)
         allocate(GlobalProc(iHighPopWrite), source=0)
 
@@ -1523,12 +1510,6 @@ contains
         ! This has to be done by all procs
         if(tAdiActive) call update_ref_signs()
 
-=======
-        allocate(GlobalLargestWalkers(0:NIfTot, iHighPopWrite), source=0_n_int)
-        allocate(GlobalProc(iHighPopWrite), source=0)
-
-        call global_most_populated_states(iHighPopWrite, GlobalLargestWalkers, norm)
->>>>>>> Stashed changes
 
         if(iProcIndex.eq.Root) then
             !Now print out the info contained in GlobalLargestWalkers and GlobalProc

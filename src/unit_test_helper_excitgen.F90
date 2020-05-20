@@ -241,11 +241,11 @@ contains
 
   !------------------------------------------------------------------------------------------!
 
-  subroutine init_excitgen_test(n_el, n_spat_orbs, fcidump_writer)
+  subroutine init_excitgen_test(n_el, fcidump_writer)
     ! mimick the initialization of an FCIQMC calculation to the point where we can generate
     ! excitations with a weighted excitgen
     ! This requires setup of the basis, the symmetries and the integrals
-    integer, intent(in) :: n_el, n_spat_orbs
+    integer, intent(in) :: n_el
     type(FciDumpWriter_t), intent(in) :: fcidump_writer
     integer :: nBasisMax(n_el, 3), lms
     integer(int64) :: umatsize

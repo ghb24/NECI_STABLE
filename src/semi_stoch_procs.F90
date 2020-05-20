@@ -75,15 +75,8 @@ module semi_stoch_procs
 
     implicit none
 
-<<<<<<< Updated upstream
     ! Distinguishing value for 'use all runs'
     integer, parameter :: GLOBAL_RUN = -45
-=======
-    interface global_most_populated_states
-        module procedure global_most_populated_states_ilut, global_most_populated_states_SpinOrbIdx
-    end interface
-
->>>>>>> Stashed changes
 
 contains
 
@@ -1363,7 +1356,7 @@ contains
         block
             real(dp) :: proc_norm, all_norm
             call proc_most_populated_states(&
-                n_keep, GLOBAL_RUN, proc_largest_walkers, CurrentDets, TotWalkers, proc_norm)
+                n_keep, run, proc_largest_walkers, CurrentDets, TotWalkers, proc_norm)
             if (present(norm)) then
                 call MpiSumAll(proc_norm, all_norm)
                 norm = sqrt(all_norm)

@@ -186,6 +186,7 @@ contains
     elemental function defined_NoExc_t(exc) result(res)
         type(NoExc_t), intent(in) :: exc
         logical :: res
+        @:unused_var(exc)
         res = .true.
     end function
 
