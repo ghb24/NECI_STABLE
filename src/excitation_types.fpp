@@ -30,7 +30,7 @@ module excitation_types
     implicit none
     private
     public :: Excitation_t, NoExc_t, SingleExc_t, DoubleExc_t, TripleExc_t, &
-        FurtherExc_t, UNKNOWN, defined, dyn_defined, last_tgt_unknown, set_last_tgt, &
+        FurtherExc_t, UNKNOWN, defined, dyn_defined, get_last_tgt, set_last_tgt, &
         create_excitation, get_excitation, get_bit_excitation, excite, dyn_excite
 
 
@@ -122,17 +122,16 @@ module excitation_types
     end interface
 
 !>  @brief
-!>     Return true if all sources are known and all targets
-!>     except the last are known.
+!>     Get the last target of a non trivial excitation.
 !>
 !>  @author Oskar Weser
 !>
 !>  @details
 !>
 !>  @param[in] exc, A non_trivial_excitation.
-    interface last_tgt_unknown
+    interface get_last_tgt
     #:for Excitation_t in non_trivial_excitations
-        module procedure last_tgt_unknown_${Excitation_t}$
+        module procedure get_last_tgt_${Excitation_t}$
     #:endfor
     end interface
 
@@ -366,15 +365,19 @@ contains
     #:endfor
 
 
-    #:for Excitation_t in non_trivial_excitations
-        pure function last_tgt_unknown_${Excitation_t}$(exc) result(res)
+    pure function get_last_tgt_SingleExc_t(exc) result(res)
+        type(SingleExc_t), intent(in) :: exc
+        integer :: res
+        res = exc%val(2)
+    end function get_last_tgt_SingleExc_t
+
+    #:for Excitation_t in ['DoubleExc_t', 'TripleExc_t']
+        pure function get_last_tgt_${Excitation_t}$(exc) result(res)
             type(${Excitation_t}$), intent(in) :: exc
-            logical :: res
-            integer :: flattened(size(exc%val))
-            flattened(:) = pack(exc%val, .true.)
-            res = (all(flattened(: size(flattened) - 1) /= UNKNOWN) &
-                   .and.  flattened(size(flattened)) == UNKNOWN)
-        end function last_tgt_unknown_${Excitation_t}$
+            integer :: res
+
+            res = exc%val(2, size(exc%val, 2))
+        end function get_last_tgt_${Excitation_t}$
     #:endfor
 
     pure function excite_SpinOrbIdx_t_NoExc_t(det_I, exc) result(res)

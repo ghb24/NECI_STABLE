@@ -85,14 +85,14 @@ contains
         GAS_spec = GASSpec_t(n_orbs=[2, 4], n_min=[2, 4], n_max=[2, 4])
 
         associate(expected => [2, 2], &
-                  calculated => &
-                    particles_per_GAS(split_per_GAS(GAS_spec, SpinOrbIdx_t([1, 2, 5, 6]))))
+                  calculated => particles_per_GAS(split_per_GAS(&
+                                        GAS_spec, SpinOrbIdx_t([1, 2, 5, 6]))))
             call assert_equals(expected, calculated, size(expected))
         end associate
 
         associate(expected => [1, 3], &
-                  calculated => &
-                    particles_per_GAS(split_per_GAS(GAS_spec, SpinOrbIdx_t([1, 5, 6, 7]))))
+                  calculated => particles_per_GAS(split_per_GAS(&
+                                        GAS_spec, SpinOrbIdx_t([1, 5, 6, 7]))))
             call assert_equals(expected, calculated, size(expected))
         end associate
 
@@ -991,82 +991,46 @@ contains
         use FciMCData, only: pSingles, pDoubles, pParallel
         type(GASSpec_t) :: GAS_spec
         type(SpinOrbIdx_t) :: det_I
-        integer, parameter :: n_iters=10**7
+
+        logical :: successful
+        integer, parameter :: n_iters=10**5
 
         pParallel = 0.05_dp
         pSingles = 0.3_dp
         pDoubles = 1.0_dp - pSingles
 
-!         call assert_true(tGASSpinRecoupling)
-!         det_I = SpinOrbIdx_t([1, 2, 3, 7, 8, 10])
-!
-!         GAS_spec = GASSpec_t(&
-!             n_orbs=[3, 6], &
-!             n_min=[3, size(det_I)], &
-!             n_max=[3, size(det_I)])
-!         call assert_true(is_valid(GAS_spec))
-!         call assert_true(GAS_spec .contains. det_I)
-!         global_GAS_spec = GAS_spec
-!
-!         call init_excitgen_test(size(det_I), GAS_spec%n_orbs(get_nGAS(GAS_spec)), FciDumpWriter_t(write_small_Li2_FCIDUMP, 'FCIDUMP'))
-!         call run_excit_gen_tester( &
-!             generate_nGAS_excitation, 'general, disconnected, Li2', &
-!             opt_nI=det_I%idx, &
-!             opt_n_iters=n_iters, &
-!             gen_all_excits=gen_all_excits,&
-! !             print_predicate=is_spin_flip)
-!             print_predicate=print_all)
-!         call finalize_excitgen_test()
-!
-!         call init_excitgen_test(size(det_I), GAS_spec%n_orbs(get_nGAS(GAS_spec)), FciDumpWriter_t(write_small_Li2_FCIDUMP, 'FCIDUMP'))
-!         call init_disconnected_GAS(GAS_spec)
-!         call run_excit_gen_tester( &
-!             gen_disconnected, 'old implementation, disconnected, Li2', &
-!             opt_nI=det_I%idx, opt_n_iters=n_iters, &
-!             gen_all_excits=gen_all_excits, &
-!             calc_pgen=dyn_calc_pgen, &
-! !             print_predicate=is_spin_flip)
-!             print_predicate=print_all)
-!         call clearGAS()
-!         call finalize_excitgen_test()
+        call assert_true(tGASSpinRecoupling)
+        det_I = SpinOrbIdx_t([1, 2, 3, 7, 8, 10])
 
-
-        det_I = SpinOrbIdx_t([1, 2, 3, 11, 12, 14])
-
-!         GAS_spec = GASSpec_t(&
-!             n_orbs=[5, 10], &
-!             n_min=[3, size(det_I)], &
-!             n_max=[3, size(det_I)])
         GAS_spec = GASSpec_t(&
-            n_orbs=[10], &
-            n_min=[size(det_I)], &
-            n_max=[size(det_I)])
+            n_orbs=[3, 6], &
+            n_min=[3, size(det_I)], &
+            n_max=[3, size(det_I)])
         call assert_true(is_valid(GAS_spec))
         call assert_true(GAS_spec .contains. det_I)
         global_GAS_spec = GAS_spec
 
-        call init_excitgen_test(size(det_I), GAS_spec%n_orbs(get_nGAS(GAS_spec)), FciDumpWriter_t(write_large_Li2_FCIDUMP, 'FCIDUMP'))
+        call init_excitgen_test(size(det_I), FciDumpWriter_t(write_small_Li2_FCIDUMP, 'FCIDUMP'))
         call run_excit_gen_tester( &
-            generate_nGAS_excitation, 'general, disconnected, Li2, large', &
+            generate_nGAS_excitation, 'general implementation, disconnected, Li2', &
             opt_nI=det_I%idx, &
             opt_n_iters=n_iters, &
-            gen_all_excits=gen_all_excits,&
-!             print_predicate=is_spin_flip)
-            print_predicate=print_all)
+            gen_all_excits=gen_all_excits, &
+            successful=successful)
+        call assert_true(successful)
         call finalize_excitgen_test()
 
-        call init_excitgen_test(size(det_I), GAS_spec%n_orbs(get_nGAS(GAS_spec)), FciDumpWriter_t(write_large_Li2_FCIDUMP, 'FCIDUMP'))
+        call init_excitgen_test(size(det_I), FciDumpWriter_t(write_small_Li2_FCIDUMP, 'FCIDUMP'))
         call init_disconnected_GAS(GAS_spec)
         call run_excit_gen_tester( &
-            gen_disconnected, 'old implementation, disconnected, Li2, large', &
+            gen_disconnected, 'only disconnected implementation, disconnected, Li2', &
             opt_nI=det_I%idx, opt_n_iters=n_iters, &
             gen_all_excits=gen_all_excits, &
             calc_pgen=dyn_calc_pgen, &
-!             print_predicate=is_spin_flip)
-            print_predicate=print_all)
+            successful=successful)
+        call assert_true(successful)
         call clearGAS()
         call finalize_excitgen_test()
-
     contains
         subroutine gen_all_excits(nI, n_excits, det_list)
             integer, intent(in) :: nI(nel)
@@ -1104,35 +1068,6 @@ contains
                 iunit, n_el=size(det_I), n_spat_orb=GAS_spec%n_orbs(get_nGAS(GAS_spec)), &
                 sparse=1.0_dp, sparseT=1.0_dp, total_ms=sum(calc_spin(det_I)))
         end subroutine
-
-        function print_all(det_I, exc, pgen_diagnostic) result(res)
-            type(SpinOrbIdx_t), intent(in) :: det_I
-            class(Excitation_t), intent(in) :: exc
-            real(dp), intent(in) :: pgen_diagnostic
-            logical :: res
-            res = .not. (dyn_sltcnd_excit(det_I, exc) .isclose. 0.0_dp)
-        end function
-
-        function is_spin_flip(det_I, exc, pgen_diagnostic) result(res)
-            type(SpinOrbIdx_t), intent(in) :: det_I
-            class(Excitation_t), intent(in) :: exc
-            real(dp), intent(in) :: pgen_diagnostic
-            logical :: res
-
-            type(SpinOrbIdx_t), allocatable :: splitted_det_I(:), splitted_det_J(:)
-            integer :: i
-
-            splitted_det_I = split_per_GAS(GAS_spec, det_I)
-            splitted_det_J = split_per_GAS(GAS_spec, dyn_excite(det_I, exc))
-
-            res = .false.
-            do i = 1, size(splitted_det_I)
-                if (sum(calc_spin(splitted_det_I(i))) /= sum(calc_spin(splitted_det_J(i)))) then
-                    res = .true.
-                    return
-                end if
-            end do
-        end function
 
         subroutine write_large_Li2_FCIDUMP(unit_id)
             integer, intent(in) :: unit_id

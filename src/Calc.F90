@@ -32,15 +32,15 @@ MODULE Calc
                          tTrialHash, tIncCancelledInitEnergy, MaxTau, &
                          tStartCoreGroundState, pParallel, pops_pert, &
                          alloc_popsfile_dets, tSearchTauOption, tZeroRef, &
-                        sFAlpha, tEScaleWalkers, sFBeta, sFTag, tLogNumSpawns, &
-                       tAllAdaptiveShift, cAllAdaptiveShift, t_global_core_space
+                         sFAlpha, tEScaleWalkers, sFBeta, sFTag, tLogNumSpawns, &
+                         tAllAdaptiveShift, cAllAdaptiveShift, t_global_core_space
 
     use adi_data, only: maxNRefs, nRefs, tAllDoubsInitiators, tDelayGetRefs, &
                         tDelayAllDoubsInits, tSetDelayAllDoubsInits, &
                         NoTypeN, tAdiActive, tReadRefs, SIUpdateInterval, &
-                tReferenceChanged, allDoubsInitsDelay, tStrictCoherentDoubles, &
-    tWeakCoherentDoubles, tAvCoherentDoubles, coherenceThreshold, SIThreshold, &
-tSuppressSIOutput, targetRefPop, targetRefPopTol, tSingleSteps, tVariableNRef, &
+                        tReferenceChanged, allDoubsInitsDelay, tStrictCoherentDoubles, &
+                        tWeakCoherentDoubles, tAvCoherentDoubles, coherenceThreshold, SIThreshold, &
+                        tSuppressSIOutput, targetRefPop, targetRefPopTol, tSingleSteps, tVariableNRef, &
                         minSIConnect, tWeightedConnections, tSignedRepAv
     use ras_data, only: core_ras, trial_ras
     use load_balance, only: tLoadBalanceBlocks, loadBalanceInterval

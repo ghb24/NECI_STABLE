@@ -20,7 +20,7 @@ module gasci
     use Determinants, only: get_helement
     use excit_gens_int_weighted, only: pick_biased_elecs, pgen_select_orb
     use excitation_types, only: Excitation_t, SingleExc_t, DoubleExc_t, &
-        last_tgt_unknown, set_last_tgt, excite, defined, UNKNOWN
+        get_last_tgt, set_last_tgt, excite, defined, UNKNOWN
     use orb_idx_mod, only: SpinOrbIdx_t, SpatOrbIdx_t, SpinProj_t, size, calc_spin, &
         calc_spin_raw, alpha, beta, sum, operator(==), operator(/=), &
         operator(+), operator(-), lex_leq, to_ilut
@@ -36,15 +36,8 @@ module gasci
         contains_det, particles_per_GAS, &
         get_possible_spaces, get_possible_holes, split_per_GAS, &
         get_available_singles, get_available_doubles, operator(==), &
-        operator(/=), gen_all_excits
-
-
-    public :: get_iGAS, operator(.contains.)
-
-    interface get_mat_element
-        module procedure get_mat_element_SingleExc_t, get_mat_element_DoubleExc_t
-    end interface
-
+        operator(/=), gen_all_excits, &
+        get_iGAS, operator(.contains.)
 
     !> Speficies the GAS spaces.
     !> It is assumed, that the GAS spaces are contigous.
@@ -57,10 +50,6 @@ module gasci
     type :: GASSpec_t
         integer, allocatable :: n_orbs(:), n_min(:), n_max(:)
     end type
-
-    interface GASSpec_t
-        module procedure construction_from_array_GAS_specification_t
-    end interface
 
     type(GASSpec_t) :: GAS_specification
 
@@ -219,14 +208,6 @@ module gasci
 
 contains
 
-    pure function construction_from_array_GAS_specification_t(n_orbs, n_min, n_max) result(GAS_spec)
-        integer, intent(in) :: n_orbs(:), n_min(:), n_max(:)
-        type(GASSpec_t) :: GAS_spec
-        GAS_spec%n_orbs = n_orbs(:)
-        GAS_spec%n_min = n_min(:)
-        GAS_spec%n_max = n_max(:)
-    end function
-
     pure integer function get_nGAS(GAS_spec)
         type(GASSpec_t), intent(in) :: GAS_spec
         get_nGAS = size(GAS_spec%n_orbs)
@@ -283,12 +264,12 @@ contains
 
     subroutine init_GAS()
         character(*), parameter :: this_routine = 'init_GAS'
-        write(*, *) this_routine, 'called'
+        ! The init and clear get called, but I have nothing to initialize yet
     end subroutine
 
     subroutine clear_GAS()
         character(*), parameter :: this_routine = 'clear_GAS'
-        write(*, *) this_routine, 'called'
+        ! The init and clear get called, but I have nothing to initialize yet
     end subroutine
 
     !> Could be changed into lookup variable
@@ -335,6 +316,7 @@ contains
         n_particle = [(size(splitted_det_I(i)), i = 1, size(splitted_det_I))]
     end function
 #:endfor
+
 
 #:for orb_idx_type in OrbIdxTypes
     function split_per_GAS_${orb_idx_type}$(GAS_spec, occupied) result(splitted_orbitals)
@@ -530,11 +512,6 @@ contains
 
     subroutine generate_nGAS_excitation(nI, ilutI, nJ, ilutJ, exFlag, ic, &
                                         ex_mat, tParity, pGen, hel, store, part_type)
-        ! particle number conserving GAS excitation generator:
-        ! we create only excitations, that preserver the number of electrons within
-        ! each active space
-
-
         integer, intent(in) :: nI(nel), exFlag
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
         integer, intent(out) :: nJ(nel), ic, ex_mat(2, maxExcit)
@@ -548,155 +525,27 @@ contains
 
         type(SpinOrbIdx_t) :: det_J
 
-        real(dp) :: r
+
+        @:unused_var(exFlag, part_type, store)
 
 #ifdef WARNING_WORKAROUND_
         hel = 0.0_dp
 #endif
-
-        pSingles = 1.0
-        pDoubles = 1.0 - pSingles
-
-
-        ! single or double excitation?
-        @:ASSERT(0.0_dp <= pDoubles .and. pDoubles <= 1.0_dp, pDoubles)
-        r = genrand_real2_dSFMT()
-        if (r >= pDoubles) then
+        if (genrand_real2_dSFMT()  >= pDoubles) then
             ic = 1
-            call ad_hoc_gen_exc_single(GAS_specification, SpinOrbIdx_t(nI), ilutI, &
+            call gen_exc_single(GAS_specification, SpinOrbIdx_t(nI), ilutI, &
                                 nJ, ilutJ, ex_mat, tParity, pgen)
             pgen = pgen * (1.0_dp - pDoubles)
         else
             ic = 2
             call gen_exc_double(GAS_specification, SpinOrbIdx_t(nI), ilutI,&
                                 nJ, ilutJ, ex_mat, tParity, pgen)
-            @:ASSERT(all(ex_mat(:, :ic) /= UNKNOWN) .or. nJ(1) == 0, nJ, ic, ex_mat(:, :ic), UNKNOWN)
             pgen = pgen * pDoubles
         end if
+
         @:ASSERT(0.0_dp <= pgen .and. pgen <= 1.0_dp, pgen)
-
-
-        if (nJ(1) /= 0) then
-            associate (src1 => ex_mat(1, 1), tgt1 => ex_mat(2, 1), &
-                       src2 => ex_mat(1, 2), tgt2 => ex_mat(2, 2))
-                select case (ic)
-                case(1)
-                    @:ASSERT(src1 /= tgt1)
-                case(2)
-                    block
-                        integer :: ex_mat_copy(2, maxExcit)
-                        ex_mat_copy = ex_mat
-                        call sort(ex_mat_copy(:, 1))
-                        call sort(ex_mat_copy(:, 2))
-                        if (src1 == src2 .or. tgt1 == tgt2 .or. .not. disjoint(ex_mat_copy(:, 1), ex_mat_copy(:, 2))) then
-                            call stop_all(this_routine, 'DoubleExcitation is trivial')
-                        end if
-                    end block
-                end select
-            end associate
-        end if
-
-        @:ASSERT(all(ex_mat(:, :ic) /= UNKNOWN) .or. nJ(1) == 0, ic, ex_mat(:, :ic), UNKNOWN)
+        @:ASSERT(all(ex_mat(:, :ic) /= UNKNOWN) .or. nJ(1) == 0)
     end subroutine generate_nGAS_excitation
-
-    subroutine ad_hoc_gen_exc_single(GAS_spec, det_I, ilutI, nJ, ilutJ, ex_mat, par, pgen)
-        type(GASSpec_t), intent(in) :: GAS_spec
-        type(SpinOrbIdx_t), intent(in) :: det_I
-        integer(n_int), intent(in) :: ilutI(0:NIfTot)
-        integer, intent(out) :: nJ(nel), ex_mat(2, maxExcit)
-        integer(n_int), intent(out) :: ilutJ(0:NifTot)
-        logical, intent(out) :: par
-        real(dp), intent(out) :: pgen
-        character(*), parameter :: this_routine = 'gen_exc_SingleExc_t'
-
-        type(SingleExc_t) :: exc
-        type(SpinOrbIdx_t) :: possible_values
-        real(dp) :: pgen_particle, pgen_hole
-        real(dp), allocatable :: c_sum(:)
-        integer :: i, elec
-        type(SpinProj_t) :: m_s
-
-        real(dp) :: r
-
-        integer, parameter :: iGAS = 1
-        integer :: tgt
-
-        ! Pick any random electron
-        r = genrand_real2_dSFMT()
-        elec = int(r * nEl) + 1
-        exc%val(1) = det_I%idx(elec)
-        pgen_particle = 1.0_dp / real(nEl, kind=dp)
-
-        m_s = calc_spin_raw(exc%val(1))
-
-        tgt = pick_weighted_hole(det_I, exc, m_s, pgen_hole)
-        exc%val(2) = tgt
-
-        if (tgt == 0) then
-            nJ(1) = 0
-            ilutJ = 0_n_int
-            return
-        end if
-
-        pgen = pgen_particle * pgen_hole
-
-        call make_single(det_I%idx, nJ, elec, tgt, ex_mat, par)
-        ilutJ = ilutI
-        clr_orb(ilutJ, exc%val(1))
-        set_orb(ilutJ, exc%val(2))
-
-    end subroutine
-
-
-    function pick_weighted_hole(det_I, exc, m_s, pgen) result(tgt)
-        ! pick a hole of nI with spin ms from the active space with index
-        ! srcGASInd the random number is to be supplied as r
-        ! nI is the source determinant, nJBase the one from which we obtain
-        ! the ket of the matrix element by single excitation
-        type(SpinOrbIdx_t), intent(in) :: det_I
-        type(SingleExc_t), intent(in) :: exc
-        type(SpinProj_t), intent(in) :: m_s
-        real(dp), intent(out) :: pgen
-        character(*), parameter :: this_routine = 'pick_weighted_hole_${Excitation_t}$'
-
-        integer :: tgt
-
-        integer :: nOrbs, iOrb
-        real(dp), allocatable :: cSum(:)
-        type(SpinOrbIdx_t) :: possible_values
-
-
-        ! initialize auxiliary variables
-        nOrbs = GAS_specification%n_orbs(1)
-        if (m_s == alpha) then
-!             possible_values = SpinOrbIdx_t(complement([(2 * iOrb, iOrb = 1, nOrbs)], det_I%idx))
-            possible_values = SpinOrbIdx_t([(2 * iOrb, iOrb = 1, nOrbs)])
-        else if (m_s == beta) then
-            possible_values = SpinOrbIdx_t([(2 * iOrb - 1, iOrb = 1, nOrbs)])
-        end if
-        ! build the cumulative list of matrix elements <src|H|tgt>
-
-        cSum = get_cumulative_list(det_I, exc, possible_values)
-
-        ! there might not be such an excitation
-        if (cSum(size(cSum)) > 0) then
-            ! find the index of the target orbital in the gasList
-            tgt = binary_search_first_ge(cSum, genrand_real2_dSFMT())
-
-            ! adjust pgen with the probability for picking tgt from the cumulative list
-            if (tgt == 1) then
-                pgen = cSum(1)
-            else
-                pgen = cSum(tgt) - cSum(tgt - 1)
-            end if
-
-            ! convert to global orbital index
-            tgt = possible_values%idx(tgt)
-        else
-            tgt = 0
-        end if
-
-    end function pick_weighted_hole
 
 
     subroutine gen_exc_single(GAS_spec, det_I, ilutI, nJ, ilutJ, ex_mat, par, pgen)
@@ -715,16 +564,8 @@ contains
         real(dp), allocatable :: c_sum(:)
         integer :: i, elec
 
-        real(dp) :: r
-
-        r = genrand_real2_dSFMT()
-
-        ! two random numbers \in [0, 1)
-        @:ASSERT(all(0.0_dp <= r .and. r < 1.0))
-
-
         ! Pick any random electron
-        elec = int(r * nEl) + 1
+        elec = int(genrand_real2_dSFMT() * nEl) + 1
         exc%val(1) = det_I%idx(elec)
         pgen_particle = 1.0_dp / real(nEl, kind=dp)
 
@@ -747,7 +588,7 @@ contains
         ! with tgt \in possible_holes
         c_sum = get_cumulative_list(det_I, exc, possible_holes)
         call draw_from_cum_list(c_sum, i, pgen_hole)
-        @:ASSERT(i == 0 .neqv. (0.0_dp < pgen_hole .and. pgen_hole <= 1.0_dp), c_sum, r, i, pgen_hole)
+        @:ASSERT(i == 0 .neqv. (0.0_dp < pgen_hole .and. pgen_hole <= 1.0_dp))
         if (i /= 0) then
             exc%val(2) = possible_holes%idx(i)
             call make_single(det_I%idx, nJ, elec, exc%val(2), ex_mat, par)
@@ -758,7 +599,7 @@ contains
         end if
 
         pgen = pgen_particle * pgen_hole
-        @:ASSERT(all(nJ == 0) .neqv. 0.0_dp < pgen .and. pgen <= 1.0_dp, pgen, pgen_particle, pgen_hole)
+        @:ASSERT(all(nJ == 0) .neqv. 0.0_dp < pgen .and. pgen <= 1.0_dp)
     end subroutine
 
     subroutine gen_exc_double(GAS_spec, det_I, ilutI, nJ, ilutJ, ex_mat, par, pgen)
@@ -791,9 +632,6 @@ contains
         integer :: elecs(2), sym_product, ispn, sum_ml, tgt(2)
         integer :: ms, nJBase(nel)
         logical :: tExchange
-
-        ! two random numbers \in [0, 1]
-        @:ASSERT(all(0.0_dp <= r .and. r <= 1.0))
 
         call pick_biased_elecs(det_I%idx, elecs, exc%val(1, :), &
                                sym_product, ispn, sum_ml, pgen_particles)
@@ -900,8 +738,9 @@ contains
         end associate
 
         pgen = pgen_particles * pgen_first_pick * sum(pgen_second_pick)
-        @:ASSERT(0.0_dp < pgen .and. pgen <= 1.0_dp, pgen, pgen_particles, pgen_first_pick, pgen_second_pick)
-        @:ASSERT(all(ex_mat(:, :2) /= UNKNOWN), ex_mat(:, :2), UNKNOWN)
+
+        @:ASSERT(0.0_dp < pgen .and. pgen <= 1.0_dp)
+        @:ASSERT(all(ex_mat(:, :2) /= UNKNOWN))
 
         contains
 
@@ -923,20 +762,14 @@ contains
         real(dp), intent(out) :: pgen
         character(*), parameter :: this_routine = 'draw_from_cum_list'
 
-        real(dp) :: r
-
-        r = genrand_real2_dSFMT()
-
         @:ASSERT((c_sum(size(c_sum)) .isclose. 0.0_dp) &
-          .or. (c_sum(size(c_sum)) .isclose. 1.0_dp))
+            .or. (c_sum(size(c_sum)) .isclose. 1.0_dp))
         @:ASSERT(is_sorted(c_sum))
-        @:ASSERT(0.0_dp <= r .and. r <= 1.0_dp, r)
 
         ! there might not be such an excitation
         if (c_sum(size(c_sum)) > 0) then
             ! find the index of the target hole in the cumulative list
-            @:ASSERT(0.0_dp <= r .and. r <= c_sum(size(c_sum)), r, c_sum)
-            idx = binary_search_first_ge(c_sum, r)
+            idx = binary_search_first_ge(c_sum, genrand_real2_dSFMT())
             @:ASSERT(1 <= idx .and. idx <= size(c_sum))
 
             ! adjust pgen with the probability for picking tgt from the cumulative list
@@ -1022,7 +855,9 @@ contains
                     do l = 1, size(possible_holes(2))
                         tgt2 = possible_holes(2)%idx(l)
                         i_buffer = i_buffer + 1
-                        call grow_assign(tmp_buffer, i_buffer, excite(det_I, DoubleExc_t(src1, tgt1, src2, tgt2)))
+                        call grow_assign(&
+                            tmp_buffer, i_buffer, &
+                            excite(det_I, DoubleExc_t(src1, tgt1, src2, tgt2)))
                     end do
                 end do
             end do
@@ -1077,18 +912,14 @@ contains
         type(${excitation_t}$) :: exc
         integer :: i
 
+        @:ASSERT(get_last_tgt(exc) == UNKNOWN)
         exc = incomplete_exc
-        @:ASSERT(last_tgt_unknown(exc))
 
         ! build the cumulative list of matrix elements <src|H|tgt>
         previous = 0.0_dp
         do i = 1, size(possible_holes)
             call set_last_tgt(exc, possible_holes%idx(i))
-
-            @:ASSERT(defined(exc), exc%val)
-
-            ! TODO(@Oskar): remove this afterwards
-            cSum(i) = get_mat_element(det_I%idx, exc) + previous
+            cSum(i) = abs(sltcnd_excit(det_I, exc, .false.)) + previous
             previous = cSum(i)
         end do
 
@@ -1101,39 +932,6 @@ contains
     end function get_cumulative_list_${excitation_t}$
 #:endfor
 
-
-    function debug_get_cumulative_list(det_I, incomplete_exc, possible_holes) result(cSum)
-        type(SpinOrbIdx_t), intent(in) :: det_I
-        type(SingleExc_t), intent(in) :: incomplete_exc
-        type(SpinOrbIdx_t), intent(in) :: possible_holes
-        real(dp) :: cSum(size(possible_holes))
-        character(*), parameter :: this_routine = 'debug_get_cumulative_list'
-
-        real(dp) :: previous
-        type(SingleExc_t) :: exc
-        integer :: i
-
-        real(dp) :: E(size(possible_holes))
-
-        exc = incomplete_exc
-        @:ASSERT(last_tgt_unknown(exc))
-
-        ! build the cumulative list of matrix elements <src|H|tgt>
-        previous = 0.0_dp
-        do i = 1, size(possible_holes)
-            call set_last_tgt(exc, possible_holes%idx(i))
-            E(i) = get_mat_element(det_I%idx, exc)
-            cSum(i) = E(i) + previous
-            previous = cSum(i)
-        end do
-
-        ! Normalize
-        if (near_zero(cSum(size(cSum)))) then
-            cSum(:) = 0.0_dp
-        else
-            cSum(:) = cSum(:) / cSum(size(cSum))
-        end if
-    end function debug_get_cumulative_list
 
     logical pure function eq_GAS_exc_gen_t(lhs, rhs)
         type(GAS_exc_gen_t), intent(in) :: lhs, rhs
@@ -1175,38 +973,4 @@ contains
 
         call sort(det_list, ilut_lt, ilut_gt)
     end subroutine gen_all_excits
-
-
-
-    function get_mat_element_SingleExc_t(nI, exc) result(res)
-        integer, intent(in) :: nI(nEl)
-        type(SingleExc_t), intent(in) :: exc
-        real(dp) :: res
-
-        associate (tgt => exc%val(2))
-            if (all(nI /= tgt)) then
-                res = abs(sltcnd_excit(nI, exc, .false.))
-            else
-                res = 0.0_dp
-            end if
-        end associate
-    end function get_mat_element_SingleExc_t
-
-    function get_mat_element_DoubleExc_t(nI, exc) result(res)
-        integer, intent(in) :: nI(nEl)
-        type(DoubleExc_t), intent(in) :: exc
-        real(dp) :: res
-
-        associate (src1 => exc%val(1, 1), tgt1 => exc%val(2, 1), &
-                   src2 => exc%val(1, 2), tgt2 => exc%val(2, 2))
-            if (tgt1 /= tgt2 .and. all(tgt2 /= nI)) then
-                res = abs(sltcnd_excit(nI, exc, .false.))
-            else
-                res = 0.0_dp
-            end if
-        end associate
-
-    end function get_mat_element_DoubleExc_t
-
-
 end module gasci

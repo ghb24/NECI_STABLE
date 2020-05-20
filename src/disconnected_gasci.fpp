@@ -17,7 +17,7 @@ module disconnected_gasci
     use Determinants, only: get_helement
     use excit_gens_int_weighted, only: pick_biased_elecs, pgen_select_orb
     use excitation_types, only: Excitation_t, SingleExc_t, DoubleExc_t, &
-        last_tgt_unknown, set_last_tgt, defined, dyn_defined
+        get_last_tgt, set_last_tgt, defined, dyn_defined, UNKNOWN
     use sltcnd_mod, only: sltcnd_excit, dyn_sltcnd_excit
     use orb_idx_mod, only: SpinOrbIdx_t, calc_spin_raw, SpinProj_t, operator(==), operator(/=)
     use gasci, only: GASSpec_t, get_nGAS
@@ -236,8 +236,6 @@ contains
 #ifdef WARNING_WORKAROUND_
         hel = 0.0_dp
 #endif
-        pSingles = 1.0
-        pDoubles = 1.0 - pSingles
 
         ! single or double excitation?
         r = genrand_real2_dSFMT()
@@ -462,7 +460,7 @@ contains
             nOrbs = size(GAS_list)
 
             exc = incomplete_exc
-            ASSERT(last_tgt_unknown(exc))
+            ASSERT(get_last_tgt(exc) == UNKNOWN)
 
             ! build the cumulative list of matrix elements <src|H|tgt>
             previous = 0.0_dp
@@ -532,7 +530,7 @@ contains
             nOrbs = GAS_size(iGAS)
             GAS_list = GAS_spin_orb_list(1:nOrbs, iGAS, spin_idx)
             ! build the cumulative list of matrix elements <src|H|tgt>
-            ASSERT(last_tgt_unknown(exc))
+            ASSERT(get_last_tgt(exc) == UNKNOWN)
             cSum = get_cumulative_list(GAS_list, nI, exc)
 
             ! there might not be such an excitation

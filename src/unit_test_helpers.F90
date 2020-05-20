@@ -44,7 +44,7 @@ module unit_test_helpers
 
     use symexcit3, only: gen_all_excits_default => gen_all_excits
 
-    use procedure_pointers, only: generate_all_excits_t
+    use procedure_pointers, only: generate_all_excits_t, generate_excitation_t
 
     implicit none
 
@@ -63,7 +63,10 @@ module unit_test_helpers
             class(Excitation_t), intent(in) :: exc
         end function calc_pgen_t
 
-        logical function print_predicate_t(det_I, exc, pgen_diagnostic)
+        !> Return true, if an excitation exc from determinant det_I
+        !> and a given pgen_diagnostic (sum 1/pgen) is considered
+        !> to be problematic.
+        logical function problem_filter_t(det_I, exc, pgen_diagnostic)
             import :: dp, SpinOrbIdx_t, Excitation_t
             type(SpinOrbIdx_t), intent(in) :: det_I
             class(Excitation_t), intent(in) :: exc
@@ -399,29 +402,31 @@ contains
 !>      for a given reference an excitation. If a state is never generated,
 !>      the pgen cannot be taken from the excitation generator.
 !>      Adds an additional column to the output table.
-!>  @param[in] print_predicate, An optional predicate function.
+!>  @param[in] problem_filter, An optional predicate function.
+!>      Return true, if an excitation exc from determinant det_I
+!>      and a given pgen_diagnostic (sum 1/pgen) is considered
+!>      to be problematic.
 !>      If it returns true, an entry in the final table is printed.
-!>      By default all states with a pgen_diagnostic that deviates with more than 5\,\%
+!>      If there is any problematic excitation, the out parameter
+!>      `successful` will become `.false.`.
+!>      By default all states with a pgen_diagnostic that deviate
+!>      with more than 5\,\% from 100\,\% and have nonzereo matrix element
 !>      are printed.
     subroutine run_excit_gen_tester(excit_gen, excit_gen_name, opt_nI, opt_n_iters, &
-            gen_all_excits, calc_pgen, print_predicate, i_unit)
-        use procedure_pointers, only: generate_excitation_t, generate_all_excits_t
-        use util_mod, only: binary_search
-
+            gen_all_excits, calc_pgen, problem_filter, i_unit, successful)
         procedure(generate_excitation_t) :: excit_gen
-        integer, intent(in), optional :: opt_nI(nel), opt_n_iters, i_unit
-
-
+        character(*), intent(in) :: excit_gen_name
+        integer, intent(in), optional :: opt_nI(nel), opt_n_iters
         procedure(generate_all_excits_t), optional :: gen_all_excits
         procedure(calc_pgen_t), optional :: calc_pgen
-        procedure(print_predicate_t), optional :: print_predicate
-        character(*), intent(in) :: excit_gen_name
+        procedure(problem_filter_t), optional :: problem_filter
+        integer, intent(in), optional :: i_unit
+        logical, intent(out), optional :: successful
         character(*), parameter :: this_routine = "run_excit_gen_tester"
 
         integer :: i, nI(nel), n_iters
         integer :: i_unit_
         integer, parameter :: default_n_iters = 100000
-        integer, parameter :: default_n_dets = 1
 
         integer(n_int) :: ilut(0:niftot), tgt_ilut(0:niftot)
         integer :: nJ(nel), n_excits, ex(2,maxExcit), ic, ex_flag, i_unused = 0
@@ -433,11 +438,10 @@ contains
         integer(n_int), allocatable :: det_list(:,:)
         real(dp), allocatable :: contrib_list(:)
         logical, allocatable :: generated_list(:)
-        integer :: n_dets, n_generated, pos
+        integer :: n_generated, pos
 
-        procedure(print_predicate_t), pointer :: print_predicate_
+        procedure(problem_filter_t), pointer :: problem_filter_
 
-        ASSERT(nel > 0)
         ! and also nbasis and stuff..
         ASSERT(nbasis > 0)
         ASSERT(nel <= nbasis)
@@ -448,10 +452,10 @@ contains
             i_unit_ = iout
         end if
 
-        if (present(print_predicate)) then
-            print_predicate_ => print_predicate
+        if (present(problem_filter)) then
+            problem_filter_ => problem_filter
         else
-            print_predicate_ => default_predicate
+            problem_filter_ => default_predicate
         end if
 
         call init_excit_gen_store(store)
@@ -470,42 +474,22 @@ contains
             n_iters = default_n_iters
         end if
 
-        ! i have to rewrite this routine, to a part which
-        ! creates all excitations and another who runs on possibly
-        ! multiple excitations!
-!         if (present(opt_n_dets)) then
-!             n_dets = opt_n_dets
-!         else
-            n_dets = default_n_dets
-!         end if
-
-        ! the problem here is now.. we want to calulate all the possible
-        ! excitations.. i would need a general routine, which does that
-        ! with only the hamiltonian knowledge.. this is not really there..
-        ! i should have a routine:
-        ! for this special setup, which is tested..
-
-        ! for some special systems we should provide a routine to
-        ! calculate all the excitations (hubbard, UEG eg.)
+        ! Calculate all possible excitations.
+        ! For special systems (hubbard, UEG, GAS, etc.) the calling site
+        ! has to support a function.
         if (present(gen_all_excits)) then
             call gen_all_excits(nI, n_excits, det_list)
         else
             call gen_all_excits_default(nI, n_excits, det_list)
         end if
 
-        ! Lists to keep track of things
         allocate(generated_list(n_excits), source=.false.)
         allocate(contrib_list(n_excits), source=0.0_dp)
         allocate(pgen_list(n_excits), source=0.0_dp)
 
-        n_generated = 0
-        contrib = 0.0_dp
-
-        n_dets = min(n_dets, n_excits)
-
         write(i_unit_, *) "---------------------------------"
         write(i_unit_, *) "testing: ", excit_gen_name
-        write(i_unit_, *) "for ", n_dets, " determinants"
+        write(i_unit_, *) "for ",size(det_list, 2), " configurations"
         write(i_unit_, *) " and ", n_iters, " iterations "
 
         call EncodeBitDet(nI, ilut)
@@ -521,6 +505,9 @@ contains
         block
             integer(int64) :: i, L
             L = n_iters .div. 100
+
+            n_generated = 0
+            contrib = 0.0_dp
             do i = 1, int(n_iters, kind=int64)
                 if (mod(i, L) == 0_int64) then
                     write(i_unit_, '(A)', advance='no') '#'
@@ -568,13 +555,15 @@ contains
             if (present(calc_pgen)) write(i_unit_, '("   calc_pgen |")', advance='no')
             write(i_unit_, *) ! linebreak
 
+            successful = .true.
             do i = 1, n_excits
                 pgen_diagnostic = contrib_list(i) / real(n_iters, dp)
                 ic = findbitexcitlevel(ilut, det_list(:, i))
                 call decode_bit_det(nJ, det_list(:, i))
                 call get_excitation(nI, nJ, ic, exc, tParity)
 
-                if (print_predicate_(SpinOrbIdx_t(nI), exc, pgen_diagnostic)) then
+                if (problem_filter_(SpinOrbIdx_t(nI), exc, pgen_diagnostic)) then
+                    successful = .false.
                     call write_det (i_unit_, nJ, .false.)
                     write(i_unit_, '("|"F10.5"|"I2"|"F10.5"|"F15.10"|")', advance='no') &
                         pgen_diagnostic, ic, get_helement(nI, nJ),  pgen_list(i)
