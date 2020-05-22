@@ -187,7 +187,6 @@ module gasci
     #:endfor
     end interface
 
-
     interface get_cumulative_list
         #:for Excitation_t in ExcitationTypes
             module procedure get_cumulative_list_${Excitation_t}$
