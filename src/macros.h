@@ -268,3 +268,6 @@ endif
 #else
 #define debug_function_name(name)
 #endif
+
+#define routine_name(name) character(*), parameter :: this_routine = name
+#define test_name(name) character(*), parameter :: test_name = name

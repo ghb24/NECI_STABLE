@@ -16,7 +16,7 @@ MODULE HPHFRandExcitMod
                           t_tJ_model, t_heisenberg_model, t_lattice_model, &
                           t_k_space_hubbard, t_3_body_excits, t_uniform_excits, &
                           t_trans_corr_hop, t_spin_dependent_transcorr, &
-                          t_pchb_excitgen, t_mol_3_body, t_ueg_3_body
+                          t_pchb_excitgen, t_mol_3_body, t_ueg_3_body, tGUGA
 
     use IntegralsData, only: UMat, fck, nMax
 
@@ -78,6 +78,8 @@ MODULE HPHFRandExcitMod
 
     use k_space_hubbard, only: gen_excit_k_space_hub, calc_pgen_k_space_hubbard, &
                                gen_excit_uniform_k_space_hub
+
+    use guga_pchb_excitgen, only: calc_pgen_guga_pchb
 
     IMPLICIT NONE
 !    SAVE
@@ -770,7 +772,7 @@ MODULE HPHFRandExcitMod
         ! nI is the determinant from which the excitation comes from.
 
         use bit_reps, only: get_initiator_flag
-        use bit_rep_data, only: test_flag
+        use bit_rep_data, only: test_flag, IlutBits
 
         integer, intent(in) :: nI(nel), ex(2,maxExcit), ic
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
@@ -782,6 +784,7 @@ MODULE HPHFRandExcitMod
         character(*), parameter :: this_routine = 'CalcNonUniPGen'
 
         integer :: temp_part_type
+        integer(n_int) :: ilutJ(0:IlutBits%len_tot)
 
         ! We need to consider which of the excitation generators are in use,
         ! and call the correct routine in each case.
@@ -872,7 +875,11 @@ MODULE HPHFRandExcitMod
                     pgen = calc_pgen_k_space_hubbard(nI, ilutI, ex, ic)
                 end if
             else if (t_pchb_excitgen) then
-                pgen = calc_pgen_pchb(nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2)
+                if (tGUGA) then
+                    pgen = calc_pgen_guga_pchb(ilutI, ilutJ)
+                else
+                    pgen = calc_pgen_pchb(nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2)
+                end if
             else
                 ! Here we assume that the normal excitation generators in
                 ! symrandexcit2.F90 are being used.

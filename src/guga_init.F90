@@ -13,7 +13,7 @@ module guga_init
                           ref_stepvector, ref_b_vector_int, ref_occ_vector, &
                           ref_b_vector_real, treal, tHUB, t_guga_noreorder, tgen_guga_crude, &
                           t_new_real_space_hubbard, t_heisenberg_model, &
-                          t_tJ_model
+                          t_tJ_model, t_pchb_excitgen, t_pchb_weighted_singles
 
     use CalcData, only: tUseRealCoeffs, tRealCoeffByExcitLevel, RealCoeffExcitThresh, &
                         t_direct_guga_ref, t_hist_tau_search, tSpinProject, &
@@ -33,7 +33,8 @@ module guga_init
                         calc_orbital_pgen_contr, calc_mixed_contr, calc_mixed_start_l2r_contr, &
                         calc_mixed_start_r2l_contr, calc_mixed_end_r2l_contr, calc_mixed_end_l2r_contr, &
                         pick_first_orbital, orb_pgen_contrib_type_2, orb_pgen_contrib_type_3, &
-                        calc_off_diag_guga_ref
+                        calc_off_diag_guga_ref, calc_orbital_pgen_contr_start, &
+                        calc_orbital_pgen_contr_end
 
     use guga_excitations, only: pickOrbs_sym_uniform_ueg_single, pickOrbs_sym_uniform_ueg_double, &
                         pickOrbs_sym_uniform_mol_single, pickOrbs_sym_uniform_mol_double, &
@@ -65,6 +66,12 @@ module guga_init
     use back_spawn, only: setup_virtual_mask
 
     use guga_bitRepOps, only: init_guga_bitrep
+
+    use guga_pchb_excitgen, only: pick_orbitals_pure_uniform_singles, &
+                                  pick_orbitals_double_pchb, &
+                                  calc_orbital_pgen_contr_pchb, &
+                                  calc_orbital_pgen_contr_start_pchb, &
+                                  calc_orbital_pgen_contr_end_pchb
 
     ! variable declaration
     implicit none
@@ -107,6 +114,28 @@ contains
             calc_mixed_end_l2r_contr => calc_mixed_end_contr_sym
             calc_mixed_end_r2l_contr => calc_mixed_end_contr_sym
             calc_mixed_contr => calc_mixed_contr_sym
+
+        else if (t_pchb_excitgen) then
+
+            if (t_pchb_weighted_singles) then
+                pickOrbitals_single => pickOrbs_sym_uniform_mol_single
+            else
+                pickOrbitals_single => pick_orbitals_pure_uniform_singles
+            end if
+
+            pickOrbitals_double => pick_orbitals_double_pchb
+            ! rest has to be determined what needs a change..
+            calc_orbital_pgen_contr => calc_orbital_pgen_contr_pchb
+            calc_orbital_pgen_contr_start => calc_orbital_pgen_contr_start_pchb
+           calc_orbital_pgen_contr_end => calc_orbital_pgen_contr_end_pchb
+            calc_mixed_start_l2r_contr => calc_mixed_start_contr_sym
+            calc_mixed_start_r2l_contr => calc_mixed_start_contr_sym
+            calc_mixed_end_l2r_contr => calc_mixed_end_contr_sym
+            calc_mixed_end_r2l_contr => calc_mixed_end_contr_sym
+            calc_mixed_contr => calc_mixed_contr_sym
+
+
+
 
         else if (tGen_nosym_guga) then
             pickOrbitals_single => pickOrbitals_nosym_single

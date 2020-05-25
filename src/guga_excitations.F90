@@ -62,7 +62,7 @@ module guga_excitations
 
     use FciMCData, only: excit_gen_store_type, pSingles, pDoubles, ilutRef, &
                          pExcit4, pExcit2, pExcit2_same, pExcit3_same, ilutHF, &
-                         tFillingStochRDMOnFly
+                         tFillingStochRDMOnFly, nValidExcits, nInvalidExcits
 
     use util_mod, only: get_free_unit, binary_search, get_unique_filename, &
                         binary_search_first_ge, abs_l1, operator(.isclose.), &
@@ -155,7 +155,9 @@ module guga_excitations
               calcfullstopr2l_stochastic, calcdoubleloweringstochastic, &
               calcdoubleraisingstochastic, calcdoublel2r2l_stochastic, &
               calcdoubler2l2r_stochastic, calcdoublel2r_stochastic, &
-              calcdoubler2l_stochastic, test_excit_gen_guga, calcallexcitations
+              calcdoubler2l_stochastic, test_excit_gen_guga, calcallexcitations, &
+              pick_elec_pair_uniform_guga, get_guga_integral_contrib, &
+              calc_pgen_mol_guga_single, get_excit_level_from_excitInfo
 
 
     ! use a "global" bVector variable here so that a b vector only has to be
@@ -4619,6 +4621,12 @@ contains
             call createStochasticExcitation_double(ilut, nI, excitation, pgen, excit_typ)
             pgen = pgen * pDoubles
 
+            if (near_zero(pgen)) then
+                nInvalidExcits = nInvalidExcits + 1
+            else
+                nValidExcits = nValidExcits + 1
+            end if
+
         end if
 
         ! for now add a sanity check to compare the stochastic obtained
@@ -4741,7 +4749,7 @@ contains
 
         ! check if orbitals were correctly picked
         if ( .not. excitInfo%valid ) then
-            excitation = 0
+            excitation = 0_n_int
             pgen = 0.0_dp
             return
         end if
@@ -5191,6 +5199,7 @@ contains
                     excit_typ(2) = 0
 
                 case default
+                    call print_excitInfo(excitInfo)
                     call stop_all(this_routine, "wrong excit level info!")
 
             end select
@@ -13074,7 +13083,7 @@ contains
 
         if ( .not. excitInfo%valid ) then
             ! if no valid indices were picked, return 0 excitation and return
-            exc = 0
+            exc = 0_n_int
             pgen = 0.0_dp
             return
         end if
@@ -30533,14 +30542,19 @@ contains
 
         print *, "Excitation Information: "
         print *, "Typ: ", excitInfo%typ, trim(excit_names(excitInfo%typ)%str)
-        print *, "i,j,k,l:", excitInfo%i, excitInfo%j,excitInfo%k,excitInfo%l
-        print *, "fullStart,secondStart,firstEnd,fullEnd:", excitInfo%fullStart, &
-            excitInfo%secondStart, excitInfo%firstEnd, excitInfo%fullEnd
-        print *, "gen1,gen2,currentGen ", excitInfo%gen1, excitInfo%gen2, excitInfo%currentGen
-        print *, "firstGen,lastGen: ", excitInfo%firstGen, excitInfo%lastGen
+        print *, "i,j,k,l:"
+        print *, excitInfo%i, excitInfo%j,excitInfo%k,excitInfo%l
+        print *, "fullStart,secondStart,firstEnd,fullEnd:"
+        print *, excitInfo%fullStart, excitInfo%secondStart, &
+            excitInfo%firstEnd, excitInfo%fullEnd
+        print *, "gen1,gen2,currentGen "
+        print *, excitInfo%gen1, excitInfo%gen2, excitInfo%currentGen
+        print *, "firstGen,lastGen: "
+        print *, excitInfo%firstGen, excitInfo%lastGen
         print *, "valid? ", excitInfo%valid
         print *, "spin_change?", excitInfo%spin_change
         print *, "orders:", excitInfo%order, excitInfo%order1
+        print *, "excit-level: ", excitInfo%excitLvl
 
     end subroutine print_excitInfo
 

@@ -12,8 +12,8 @@ module guga_bitRepOps
                           currentB_ilut, currentB_int, current_cum_list, nbasis
     use guga_data, only: ExcitationInformation_t, excit_type, gen_type, &
                          rdm_ind_bitmask, pos_excit_lvl_bits, pos_excit_type_bits, &
-                         n_excit_lvl_bits, n_excit_type_bits
-    use constants, only: dp, n_int, bits_n_int, bni_, bn2_, int_rdm
+                         n_excit_lvl_bits, n_excit_type_bits, n_excit_index_bits
+    use constants, only: dp, n_int, bits_n_int, bni_, bn2_, int_rdm, int64
     use DetBitOps, only: return_ms, count_set_bits, MaskAlpha, &
                     count_open_orbs, ilut_lt, ilut_gt, MaskAlpha, MaskBeta, &
                     CountBits, DetBitEQ
@@ -53,7 +53,7 @@ module guga_bitRepOps
         extract_stochastic_rdm_x0, extract_stochastic_rdm_x1, &
         extract_stochastic_rdm_ind, extract_stochastic_rdm_info, &
         init_guga_bitrep, transfer_stochastic_rdm_info, &
-        extract_excit_lvl_rdm, extract_excit_type_rdm
+        extract_excit_lvl_rdm, extract_excit_type_rdm, encode_excit_info
 
 
 
@@ -81,6 +81,11 @@ module guga_bitRepOps
         module procedure update_matrix_element_cmplx
 #endif
     end interface update_matrix_element
+
+    interface encode_excit_info
+        module procedure encode_excit_info_scalar
+        module procedure encode_excit_info_obj
+    end interface encode_excit_info
 
 contains
 
@@ -3003,7 +3008,7 @@ contains
         integer(int_rdm), intent(inout) :: rdm_ind
         integer, intent(in) :: excit_typ
 
-        call mvbits(int(excit_typ,int_rdm), 0, n_excit_type_bits, &
+        call mvbits(int(excit_typ, int_rdm), 0, n_excit_type_bits, &
                      rdm_ind, pos_excit_type_bits)
 
     end subroutine encode_excit_typ_rdm
@@ -3105,4 +3110,211 @@ contains
         if (allocated(currentOcc_int))     deallocate(currentOcc_int)
 
     end subroutine deinit_csf_information
+
+    function encode_excit_info_scalar(typ, a, i, b, j) result(excit_info_int)
+        ! function to encode the minimal information of an excit-info
+        ! object into a single 64bit integer. used in the PCHB excitation
+        ! generation.
+        debug_function_name("encode_excit_info_scalar")
+        integer, intent(in) :: typ, a, i, b, j
+        integer(int64) :: excit_info_int
+
+        ASSERT(&
+            typ == excit_type%single_overlap_L_to_R  .or. &
+            typ == excit_type%single_overlap_R_to_L  .or. &
+            typ == excit_type%double_lowering  .or. &
+            typ == excit_type%double_raising  .or. &
+            typ == excit_type%double_L_to_R_to_L  .or. &
+            typ == excit_type%double_R_to_L_to_R  .or. &
+            typ == excit_type%double_L_to_R  .or. &
+            typ == excit_type%double_R_to_L  .or. &
+            typ == excit_type%fullstop_lowering  .or. &
+            typ == excit_type%fullstart_raising  .or. &
+            typ == excit_type%fullstop_L_to_R  .or. &
+            typ == excit_type%fullstop_R_to_L  .or. &
+            typ == excit_type%fullstart_lowering  .or. &
+            typ == excit_type%fullstart_raising  .or. &
+            typ == excit_type%fullstart_L_to_R  .or. &
+            typ == excit_type%fullstart_R_to_L  .or. &
+            typ == excit_type%fullstart_stop_alike  .or. &
+            typ == excit_type%fullstart_stop_mixed &
+            )
+
+        ASSERT(a > 0 .and. a <= nSpatOrbs)
+        ASSERT(i > 0 .and. i <= nSpatOrbs)
+        ASSERT(b > 0 .and. b <= nSpatOrbs)
+        ASSERT(j > 0 .and. j <= nSpatOrbs)
+
+        ! the excit type has 0 - 25 possibilities so 5 bits : 2^5 = 32
+        ! are enough to encode
+        excit_info_int = 0_int64
+
+        call encode_excit_info_type(excit_info_int, typ)
+
+        call encode_excit_info_indices(excit_info_int, [a, i, b, j])
+
+    end function encode_excit_info_scalar
+
+    subroutine encode_excit_info_type(excit_info_int, typ)
+        debug_function_name("encode_excit_info_type")
+        integer(int64), intent(inout) :: excit_info_int
+        integer, intent(in) :: typ
+
+        ASSERT(&
+            typ == excit_type%single_overlap_L_to_R  .or. &
+            typ == excit_type%single_overlap_R_to_L  .or. &
+            typ == excit_type%double_lowering  .or. &
+            typ == excit_type%double_raising  .or. &
+            typ == excit_type%double_L_to_R_to_L  .or. &
+            typ == excit_type%double_R_to_L_to_R  .or. &
+            typ == excit_type%double_L_to_R  .or. &
+            typ == excit_type%double_R_to_L  .or. &
+            typ == excit_type%fullstop_lowering  .or. &
+            typ == excit_type%fullstart_raising  .or. &
+            typ == excit_type%fullstop_L_to_R  .or. &
+            typ == excit_type%fullstop_R_to_L  .or. &
+            typ == excit_type%fullstart_lowering  .or. &
+            typ == excit_type%fullstart_raising  .or. &
+            typ == excit_type%fullstart_L_to_R  .or. &
+            typ == excit_type%fullstart_R_to_L  .or. &
+            typ == excit_type%fullstart_stop_alike  .or. &
+            typ == excit_type%fullstart_stop_mixed &
+            )
+
+        ! the convention is to store the excit-type 'first' at the LSB
+        ! so this should be fine:
+        excit_info_int = int(typ, int64)
+
+    end subroutine encode_excit_info_type
+
+    function extract_excit_info_type(excit_info_int) result(typ)
+        debug_function_name("extract_excit_info_type")
+        integer(int64), intent(in) :: excit_info_int
+        integer :: typ
+
+        typ = int(ibits(excit_info_int, 0, n_excit_type_bits))
+
+    end function extract_excit_info_type
+
+    subroutine encode_excit_info_indices(excit_info_int, inds)
+        debug_function_name("encode_excit_info_indices")
+        integer(int64), intent(inout) :: excit_info_int
+        integer, intent(in) :: inds(4)
+
+        integer :: i
+
+        ! i already used 5 bits for the excit-type: so 64-5 = 59 remaining
+        ! 59/4 = 14.. so theoretically 14 bits remaining for each SPATIAL
+        ! orbital.. 2^14 > 16k orbitals... not necessary.. maybe store more
+        ! info. for now i use 8 bits: 256 SPATIAL orbital max.. that
+        ! should be enough..
+        ASSERT(all(inds > 0) .and. all(inds <= nSpatOrbs))
+        ASSERT(nSpatOrbs <= 256)
+
+        do i = 1, 4
+            call mvbits(int(inds(i), int64), 0, n_excit_index_bits, &
+                excit_info_int, n_excit_type_bits + (i - 1) * n_excit_index_bits)
+        end do
+
+
+    end subroutine encode_excit_info_indices
+
+    function extract_excit_info_indices_fct(excit_info_int) result(inds)
+        debug_function_name("extract_excit_info_indices_fct")
+        integer(int64), intent(in) :: excit_info_int
+        integer :: inds(4)
+
+        integer :: i
+
+        inds = 0
+        do i = 1, 4
+            inds(i) = extract_excit_info_index(excit_info_int, i)
+        end do
+
+    end function extract_excit_info_indices_fct
+
+    subroutine extract_excit_info_indices_sub(excit_info_int, a, i, b, j)
+        debug_function_name("extract_excit_info_indices_sub")
+        integer(int64), intent(in) :: excit_info_int
+        integer, intent(out) :: a, i, b, j
+
+        a = extract_excit_info_index(excit_info_int, 1)
+        i = extract_excit_info_index(excit_info_int, 2)
+        b = extract_excit_info_index(excit_info_int, 3)
+        j = extract_excit_info_index(excit_info_int, 4)
+
+    end subroutine extract_excit_info_indices_sub
+
+    function extract_excit_info_index(excit_info_int, pos) result(ind)
+        debug_function_name("extract_excit_info_index")
+        integer(int64), intent(in) :: excit_info_int
+        integer, intent(in) :: pos
+        integer :: ind
+
+        ASSERT(pos > 0 .and. pos <= 4)
+
+        ind = int(ibits(excit_info_int, n_excit_type_bits &
+            + (pos - 1) * n_excit_index_bits, n_excit_index_bits))
+
+    end function extract_excit_info_index
+
+    subroutine extract_excit_info_scalar(excit_info_int, typ, a, i, b, j)
+        debug_function_name("extract_excit_info_scalar")
+        integer(int64), intent(in) :: excit_info_int
+        integer, intent(out) :: typ, a, i, b, j
+
+        typ = extract_excit_info_type(excit_info_int)
+
+        call extract_excit_info_indices_sub(excit_info_int, a, i, b, j)
+
+    end subroutine extract_excit_info_scalar
+
+    subroutine extract_excit_info_vector(excit_info_int, typ, inds)
+        debug_function_name("extract_excit_info_vector")
+        integer(int64), intent(in) :: excit_info_int
+        integer, intent(out) :: typ, inds(4)
+
+        typ = extract_excit_info_type(excit_info_int)
+
+        inds = extract_excit_info_indices_fct(excit_info_int)
+
+    end subroutine extract_excit_info_vector
+
+    function extract_excit_info_obj(excit_info_int) result(excitInfo)
+        debug_function_name("extract_excit_info_obj")
+        integer(int64), intent(in) :: excit_info_int
+        type(ExcitationInformation_t) :: excitInfo
+
+        integer :: typ, a, i, b, j
+        ! this function needs to do additional processing of the
+        ! minimal info stored in excit_info_int
+
+        typ = extract_excit_info_type(excit_info_int)
+
+        call extract_excit_info_indices_sub(excit_info_int, a, i, b, j)
+
+        excitInfo = calc_remaining_excit_info(typ, a, i, b, j)
+
+    end function extract_excit_info_obj
+
+    function calc_remaining_excit_info(typ, a, i, b, j) result(excitInfo)
+        debug_function_name("calc_remaining_excit_info")
+        integer, intent(in) :: typ, a, i, b, j
+        type(ExcitationInformation_t) :: excitInfo
+
+        ! do the necessary recomputation of excitInfo entries
+
+    end function calc_remaining_excit_info
+
+    function encode_excit_info_obj(excitInfo) result(excit_info_int)
+        debug_function_name("encode_excit_info_obj")
+        type(ExcitationInformation_t), intent(in) :: excitInfo
+        integer(int64) :: excit_info_int
+
+        ! function to encode directly from ExcitationInformation_t type to
+        ! a 64-bit integer
+        excit_info_int = 0
+
+    end function encode_excit_info_obj
+
 end module guga_bitRepOps

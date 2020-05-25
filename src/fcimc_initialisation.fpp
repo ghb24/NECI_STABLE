@@ -250,6 +250,8 @@ module fcimc_initialisation
 
     use pchb_excitgen, only: gen_rand_excit_pchb, init_pchb_excitgen, finalize_pchb_excitgen
 
+    use guga_pchb_excitgen, only: init_guga_pchb_excitgen
+
     implicit none
 
 contains
@@ -1724,7 +1726,13 @@ contains
 
         ! initialize excitation generator
         if(t_pcpp_excitgen) call init_pcpp_excitgen()
-        if(t_pchb_excitgen) call init_pchb_excitgen()
+        if(t_pchb_excitgen) then
+            if (tGUGA) then
+                call init_guga_pchb_excitgen()
+            else
+                call init_pchb_excitgen()
+            end if
+        end if
         ! [W.D.] I guess I want to initialize that before the tau-search,
         ! or otherwise some pgens get calculated incorrectly
         if (t_back_spawn .or. t_back_spawn_flex) then

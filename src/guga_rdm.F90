@@ -225,8 +225,6 @@ contains
             open(iunit_psmat, file = 'PSMAT', status = 'replace')
             do i = 1, size(psmat)
                 if (abs(psmat(i)) > 1e-12_dp) then
-    !                 call extract_molcas_2_rdm_index(i, p, q, r, s, pq, rs)
-    !                 write(iunit_psmat, '(I6,G25.17,4I6)') i, psmat(i), p, q, r, s
                     write(iunit_psmat, '(I6, G25.17)') i, psmat(i)
                 end if
             end do
@@ -235,8 +233,6 @@ contains
             open(iunit_pamat, file = 'PAMAT', status = 'replace')
             do i = 1, size(pamat)
                 if (abs(pamat(i)) > 1e-12_dp) then
-    !                 call extract_molcas_2_rdm_index(i, p, q, r, s, pq, rs)
-    !                 write(iunit_psmat, '(I6,G25.17,4I6)') i, pamat(i), p, q, r, s
                     write(iunit_pamat, '(I6, G25.17)') i, pamat(i)
                 end if
             end do
@@ -245,8 +241,6 @@ contains
             open(iunit_dmat, file = 'DMAT', status = 'replace')
             do i = 1, size(dmat)
                 if (abs(dmat(i)) > 1e-12_dp) then
-    !                 call extract_molcas_1_rdm_index(i, p, q)
-    !                 write(iunit_dmat, '(I6, G25.17,2I6)') i, dmat(i), p, q
                     write(iunit_dmat, '(I6, G25.17)') i, dmat(i)
                 end if
             end do

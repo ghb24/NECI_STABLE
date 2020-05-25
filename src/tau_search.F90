@@ -104,10 +104,15 @@ contains
         ! Unless it is already specified, set an initial value for tau
         if (.not. tRestart .and. .not. tReadPops .and. near_zero(tau)) then
             if (tGUGA) then
-                print *, "Warning: FindMaxTauDoubs misused for GUGA!"
-                print *, "still need a specific implementation for that!"
+                if (near_zero(MaxTau)) then
+                    call stop_all(this_routine, &
+                        "please specify a sensible 'max-tau' in input for GUGA calculations!")
+                else
+                    tau = MaxTau
+                end if
+            else
+                call FindMaxTauDoubs()
             end if
-            call FindMaxTauDoubs()
         end if
 
         write(6,*) 'Using initial time-step: ', tau
@@ -148,7 +153,7 @@ contains
             ! possible parallel excitations now. and to make the tau-search
             ! working we need to set this to true ofc:
             consider_par_bias = .true.
-        else if(t_pchb_excitgen) then
+        else if(t_pchb_excitgen .and.  .not. tGUGA) then
             ! The default pchb excitgen also uses parallel biases
             consider_par_bias = .true.
         else
@@ -629,12 +634,6 @@ contains
         integer(n_int), allocatable :: det_list(:,:)
         integer :: n_excits, i, ex_3(2,3)
 
-
-        if (tGUGA) then
-            ! in the case of GUGA i need a specialised max-tau-doubs routine
-            print *, "Warning: FindMaxTauDoubs misused for GUGA! "
-            print *, "Still need a specific implememtation for that"
-        end if
 
         if(MaxWalkerBloom .isclose. -1._dp) then
             !No MaxWalkerBloom specified

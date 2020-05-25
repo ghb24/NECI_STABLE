@@ -54,3 +54,5 @@ add_subdirectory( pcpp_excitgen)
 add_subdirectory( gdata_io )
 
 add_subdirectory( test_loop )
+
+add_subdirectory( guga_pchb )

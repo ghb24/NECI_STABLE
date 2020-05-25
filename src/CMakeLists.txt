@@ -21,9 +21,6 @@ set( SRC_FILES
     CPMDData.F90
     cpmdinit.F
     cpmdstub.F
-    #csf_data.F90
-    #csf.F90
-    #csf_old.F
     davidson_neci.F90
     davidson_semistoch.F90
     default_sets.F90
@@ -142,7 +139,7 @@ set( SRC_FILES
     searching.F90
     semi_stoch_gen.F90
     semi_stoch_procs.F90
-	shared_ragged_array.F90	
+	shared_ragged_array.F90
 	shared_rhash.F90
     sparse_arrays.F90
     spectral_data.F90
@@ -163,7 +160,6 @@ set( SRC_FILES
     symrandexcit_Ex_Mag.F90
     symrandexcit4.F90
     symrandexcit5.F90
-    #symrandexcit_csf.F90
     symrandexcit.F
     symrandexcit_ueg.F90
     SystemData.F90
@@ -210,6 +206,7 @@ set( SRC_FILES
     real_time_procs.F90
     real_time_read_input.F90
     verlet_aux.F90
+    guga_pchb_excitgen.F90
 
     lib/backtrace.cpp
     lib/cons_neci.F90

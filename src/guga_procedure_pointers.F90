@@ -8,7 +8,8 @@ module guga_procedure_pointers
               calc_mixed_start_r2l_contr, calc_mixed_end_l2r_contr, &
               calc_mixed_start_l2r_contr, calc_mixed_end_r2l_contr, &
               pick_first_orbital, orb_pgen_contrib_type_3, orb_pgen_contrib_type_2, &
-              calc_off_diag_guga_ref
+              calc_off_diag_guga_ref, gen_single_excit_guga, gen_double_excit_guga, &
+              calc_orbital_pgen_contr_start, calc_orbital_pgen_contr_end
 
     abstract interface
         subroutine PickOrbitals_t(ilut, nI, excitInfo, pgen)
@@ -22,6 +23,14 @@ module guga_procedure_pointers
             type(ExcitationInformation_t), intent(out) :: excitInfo
             real(dp), intent(out) :: pgen
         end subroutine PickOrbitals_t
+
+        function CalcOrbitalPgenContr_t(occ_orbs, orb_a) result(orb_pgen)
+            use constants, only: dp
+            implicit none
+            integer, intent(in) :: occ_orbs(2), orb_a
+            real(dp) :: orb_pgen
+
+        end function CalcOrbitalPgenContr_t
 
         subroutine calc_orbital_pgen_contr_t(ilut, occ_orbs, above_cpt, below_cpt)
             use constants, only: dp, n_int
@@ -100,6 +109,30 @@ module guga_procedure_pointers
             integer, intent(out), optional :: exlevel
             HElement_t(dp) :: hel
         end function calc_off_diag_guga_t
+
+        subroutine CreateSingleExcitGUGA_t(ilut, nI, excitation, pgen)
+            use constants, only: n_int, dp
+            use bit_rep_data, only: GugaBits
+            use SystemData, only: nel
+            implicit none
+            integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
+            integer, intent(in) :: nI(nel)
+            integer(n_int), intent(out) :: excitation(0:GugaBits%len_tot)
+            real(dp), intent(out) :: pgen
+        end subroutine CreateSingleExcitGUGA_t
+
+        subroutine CreateDoubleExcitGUGA_t(ilut, nI, excitation, pgen, excit_typ)
+            use constants, only: n_int, dp
+            use bit_rep_data, only: GugaBits
+            use SystemData, only: nel
+            implicit none
+            integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
+            integer, intent(in) :: nI(nel)
+            integer(n_int), intent(out) :: excitation(0:GugaBits%len_tot)
+            real(dp), intent(out) :: pgen
+            integer, intent(out) :: excit_typ(2)
+        end subroutine CreateDoubleExcitGUGA_t
+
     end interface
 
     procedure(PickOrbitals_t), pointer :: pickOrbitals_single
@@ -116,6 +149,12 @@ module guga_procedure_pointers
     procedure(orb_pgen_contrib_type_t), pointer :: orb_pgen_contrib_type_2
 
     procedure(calc_off_diag_guga_t), pointer :: calc_off_diag_guga_ref
+
+    procedure(CreateSingleExcitGUGA_t), pointer :: gen_single_excit_guga
+    procedure(CreateDoubleExcitGUGA_t), pointer :: gen_double_excit_guga
+
+    procedure(CalcOrbitalPgenContr_t), pointer :: calc_orbital_pgen_contr_start
+    procedure(CalcOrbitalPgenContr_t), pointer :: calc_orbital_pgen_contr_end
 
 
 end module
