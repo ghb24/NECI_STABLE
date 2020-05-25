@@ -462,7 +462,8 @@ contains
         i = gtID(src(1))
         j = gtID(src(2))
 
-        ! use the sampler for this electron pair -> order of src electrons does not matter
+        ! use the sampler for this electron pair -> order of src electrons
+        ! does not matter
         ij = fuseIndex(i, j)
 
         ! get a pair of orbitals using the precomputed weights
@@ -506,7 +507,7 @@ contains
         integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
         integer, intent(in) :: nI(nel)
         type(ExcitationInformation_t), intent(out) :: excitInfo
-        real(dp) :: pgen
+        real(dp), intent(out) :: pgen
 
         integer :: elec
 
@@ -631,7 +632,6 @@ contains
         pgen = 0.0_dp
 
     end function calc_orb_pgen_uniform_singles_excitInfo
-
 
     function calc_pgen_guga_pchb(ilutI, ilutJ, excitInfo_in) result(pgen)
         debug_function_name("calc_pgen_guga_pchb")

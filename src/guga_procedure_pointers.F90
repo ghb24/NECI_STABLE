@@ -3,6 +3,7 @@ module guga_procedure_pointers
     implicit none
 
     private
+
     public :: general_weight_dummy, general_weight_zero, pickorbitals_single, &
               pickorbitals_double, calc_orbital_pgen_contr, calc_mixed_contr, &
               calc_mixed_start_r2l_contr, calc_mixed_end_l2r_contr, &
@@ -155,6 +156,5 @@ module guga_procedure_pointers
 
     procedure(CalcOrbitalPgenContr_t), pointer :: calc_orbital_pgen_contr_start
     procedure(CalcOrbitalPgenContr_t), pointer :: calc_orbital_pgen_contr_end
-
 
 end module

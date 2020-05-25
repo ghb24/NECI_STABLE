@@ -3286,6 +3286,7 @@ contains
         type(ExcitationInformation_t) :: excitInfo
 
         integer :: typ, a, i, b, j
+
         ! this function needs to do additional processing of the
         ! minimal info stored in excit_info_int
 
@@ -3313,7 +3314,7 @@ contains
 
         ! function to encode directly from ExcitationInformation_t type to
         ! a 64-bit integer
-        excit_info_int = 0
+        excit_info_int = 0_int64
 
     end function encode_excit_info_obj
 
