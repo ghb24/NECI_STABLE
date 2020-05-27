@@ -166,11 +166,8 @@ C..
 C..
       IF(MS1.NE.MS2) THEN
        IF(IFLG.EQ.1) call stop_all(t_r,'PROBLEM IN TWO DIFFER')
-       endif
        IF(IFLG.EQ.2) call stop_all(t_r,'PROBLEM IN ONE DIFFER')
-       endif
        IF(IFLG.EQ.3) call stop_all(t_r,'PROBLEM IN SAME')
-       endif
       ENDIF
 C..
       RETURN
