@@ -347,12 +347,6 @@ contains
         logical, intent(in), optional :: tSinglesOnlyOpt
         character(*), parameter :: this_routine = "generate_connected_space"
 
-        ! this restriction does not apply anymore:
-!         if (tGUGA .and. tKPntSym) then
-!             call stop_all(this_routine, &
-!                 "k-point symmetry and GUGA + semi-stochastic or trial-wavefunction not yet implemented!")
-!         end if
-
         if (tKPntSym) then
             call generate_connected_space_kpnt(original_space_size, original_space, &
                     connected_space_size, connected_space, tSinglesOnlyOpt)

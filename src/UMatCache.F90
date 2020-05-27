@@ -1415,7 +1415,7 @@ MODULE UMatCache
         ! allocate the storage
         if(.not.associated(UMat2D)) then
             allocate(UMat2D(nBI,nBI))
-            call LogMemAlloc('UMat2D',nBI**2,8*HElement_t_size,t_r,tagUMat2D,ierr)      
+            call LogMemAlloc('UMat2D',nBI**2,8*HElement_t_size,t_r,tagUMat2D,ierr)
         endif
 
         ! and fill in the array

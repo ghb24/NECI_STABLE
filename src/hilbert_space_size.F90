@@ -535,12 +535,6 @@ contains
                      ExcitLev=ExcitLev+1
                  ENDIF
 
-                 !Test
-!                 IF((alpha.lt.2).or.(alpha.gt.nBasis)) THEN
-!                     CALL Stop_All("FindSymMCSizeofSpace","Error "      &
-!     &                   //"calculating whether determinant is allowed")
-!                 ENDIF
-
              enddo
 
              !Loop over beta electrons
@@ -574,13 +568,6 @@ contains
                      !orbital chosen is *not* in the reference determinant
                      ExcitLev=ExcitLev+1
                  ENDIF
-
-
-                 !Test
-!                 IF((beta.lt.1).or.(beta.gt.(nBasis-1))) THEN
-!                     CALL Stop_All("FindSymMCSizeofSpace","Error "      &
-!     &                   //"calculating whether determinant is allowed")
-!                 ENDIF
 
              enddo
 
@@ -859,10 +846,8 @@ contains
          enddo
          do i=0,7
              IF(mod((ClassCounts(1,i)+ClassCounts(2,i)),2).ne.0) THEN
-!                 call stop_all(this_routine, 'Error counting determinants')
                  WRITE(6,*) 'WARNING: Different number of symmetries between the alpha and beta orbitals.'
              ENDIF
-!             ClassCounts(i)=ClassCounts(i)/2
          enddo
 
          Lima(0)=min(nOccAlpha,ClassCounts(1,0))
@@ -1065,7 +1050,6 @@ contains
          ClassCountsOcc(i)=FLOOR(REAL(ClassCountsOcc(i),dp)/2.0_dp)
          ClassCountsVirt(i)=FLOOR(REAL(ClassCountsVirt(i),dp)/2.0_dp)
 
-!         ClassCounts(i)=ClassCounts(i)/2
          enddo
 
          IF(nOccAlpha.gt.nOccBeta) THEN

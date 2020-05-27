@@ -33,6 +33,7 @@ module symrandexcit_Ex_mag
     use symrandexcit3, only: pick_elec_pair, count_orb_pairs, select_syms, select_orb_pair, &
                              create_excit_det2, construct_class_counts
     use symexcit3, only: GenSingleExcit
+
     implicit none
 
 contains

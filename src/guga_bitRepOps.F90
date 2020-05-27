@@ -53,7 +53,9 @@ module guga_bitRepOps
         extract_stochastic_rdm_x0, extract_stochastic_rdm_x1, &
         extract_stochastic_rdm_ind, extract_stochastic_rdm_info, &
         init_guga_bitrep, transfer_stochastic_rdm_info, &
-        extract_excit_lvl_rdm, extract_excit_type_rdm, encode_excit_info
+        extract_excit_lvl_rdm, extract_excit_type_rdm, encode_excit_info, &
+        encode_excit_info_type, extract_excit_info_type, encode_excit_info_indices, &
+        extract_excit_info_indices, extract_excit_info
 
 
 
@@ -85,7 +87,24 @@ module guga_bitRepOps
     interface encode_excit_info
         module procedure encode_excit_info_scalar
         module procedure encode_excit_info_obj
+        module procedure encode_excit_info_vec
     end interface encode_excit_info
+
+    interface extract_excit_info_indices
+        module procedure extract_excit_info_indices_vec
+        module procedure extract_excit_info_indices_scalar
+    end interface extract_excit_info_indices
+
+    interface extract_excit_info
+        module procedure extract_excit_info_scalar
+        module procedure extract_excit_info_vector
+        module procedure extract_excit_info_obj
+    end interface extract_excit_info
+
+    interface encode_excit_info_indices
+        module procedure encode_excit_info_indices_vec
+        module procedure encode_excit_info_indices_scalar
+    end interface encode_excit_info_indices
 
 contains
 
@@ -1472,7 +1491,7 @@ contains
                                fullEnd, weight, excitLvl
         integer, intent(in), optional :: overlap
         real(dp), intent(in) :: order, order1
-        logical, intent(in) :: spin_change
+        logical, intent(in), optional :: spin_change
         type(ExcitationInformation_t) :: excitInfo
 
         ! todo: asserts!
@@ -1494,7 +1513,11 @@ contains
         excitInfo%excitLvl = excitLvl
         excitInfo%order = order
         excitInfo%order1 = order1
-        excitInfo%spin_change = spin_change
+        if (present(spin_change)) then
+            excitInfo%spin_change = spin_change
+        else
+            excitInfo%spin_change = .false.
+        end if
         if (present(overlap)) then
             excitInfo%overlap = overlap
         else
@@ -3111,6 +3134,44 @@ contains
 
     end subroutine deinit_csf_information
 
+    function encode_excit_info_vec(typ, inds) result(excit_info_int)
+        ! function to encode the minimal information of an excit-info
+        ! object into a single 64bit integer. used in the PCHB excitation
+        ! generation.
+        debug_function_name("encode_excit_info_vec")
+        integer, intent(in) :: typ, inds(4)
+        integer(int64) :: excit_info_int
+
+        ASSERT(&
+            typ == excit_type%single_overlap_L_to_R  .or. &
+            typ == excit_type%single_overlap_R_to_L  .or. &
+            typ == excit_type%double_lowering  .or. &
+            typ == excit_type%double_raising  .or. &
+            typ == excit_type%double_L_to_R_to_L  .or. &
+            typ == excit_type%double_R_to_L_to_R  .or. &
+            typ == excit_type%double_L_to_R  .or. &
+            typ == excit_type%double_R_to_L  .or. &
+            typ == excit_type%fullstop_lowering  .or. &
+            typ == excit_type%fullstart_raising  .or. &
+            typ == excit_type%fullstop_L_to_R  .or. &
+            typ == excit_type%fullstop_R_to_L  .or. &
+            typ == excit_type%fullstart_lowering  .or. &
+            typ == excit_type%fullstart_raising  .or. &
+            typ == excit_type%fullstart_L_to_R  .or. &
+            typ == excit_type%fullstart_R_to_L  .or. &
+            typ == excit_type%fullstart_stop_alike  .or. &
+            typ == excit_type%fullstart_stop_mixed &
+            )
+
+        ASSERT(all(inds > 0) .and. all(inds <= nSpatOrbs))
+
+        excit_info_int = 0_int64
+
+        call encode_excit_info_type(excit_info_int, typ)
+        call encode_excit_info_indices(excit_info_int, inds)
+
+    end function encode_excit_info_vec
+
     function encode_excit_info_scalar(typ, a, i, b, j) result(excit_info_int)
         ! function to encode the minimal information of an excit-info
         ! object into a single 64bit integer. used in the PCHB excitation
@@ -3145,13 +3206,7 @@ contains
         ASSERT(b > 0 .and. b <= nSpatOrbs)
         ASSERT(j > 0 .and. j <= nSpatOrbs)
 
-        ! the excit type has 0 - 25 possibilities so 5 bits : 2^5 = 32
-        ! are enough to encode
-        excit_info_int = 0_int64
-
-        call encode_excit_info_type(excit_info_int, typ)
-
-        call encode_excit_info_indices(excit_info_int, [a, i, b, j])
+        excit_info_int = encode_excit_info_vec(typ, [a,i,b,j])
 
     end function encode_excit_info_scalar
 
@@ -3170,7 +3225,7 @@ contains
             typ == excit_type%double_L_to_R  .or. &
             typ == excit_type%double_R_to_L  .or. &
             typ == excit_type%fullstop_lowering  .or. &
-            typ == excit_type%fullstart_raising  .or. &
+            typ == excit_type%fullstop_raising  .or. &
             typ == excit_type%fullstop_L_to_R  .or. &
             typ == excit_type%fullstop_R_to_L  .or. &
             typ == excit_type%fullstart_lowering  .or. &
@@ -3183,7 +3238,7 @@ contains
 
         ! the convention is to store the excit-type 'first' at the LSB
         ! so this should be fine:
-        excit_info_int = int(typ, int64)
+        call mvbits(int(typ, int64), 0, n_excit_type_bits, excit_info_int, 0)
 
     end subroutine encode_excit_info_type
 
@@ -3196,8 +3251,8 @@ contains
 
     end function extract_excit_info_type
 
-    subroutine encode_excit_info_indices(excit_info_int, inds)
-        debug_function_name("encode_excit_info_indices")
+    subroutine encode_excit_info_indices_vec(excit_info_int, inds)
+        debug_function_name("encode_excit_info_indices_vec")
         integer(int64), intent(inout) :: excit_info_int
         integer, intent(in) :: inds(4)
 
@@ -3216,13 +3271,21 @@ contains
                 excit_info_int, n_excit_type_bits + (i - 1) * n_excit_index_bits)
         end do
 
+    end subroutine encode_excit_info_indices_vec
 
-    end subroutine encode_excit_info_indices
+    subroutine encode_excit_info_indices_scalar(excit_info_int, a, i, b, j)
+        debug_function_name("encode_excit_info_indices_scalar")
+        integer(int64), intent(inout) :: excit_info_int
+        integer, intent(in) :: a, i, b, j
 
-    function extract_excit_info_indices_fct(excit_info_int) result(inds)
-        debug_function_name("extract_excit_info_indices_fct")
+        call encode_excit_info_indices_vec(excit_info_int, [a,i,b,j])
+
+    end subroutine encode_excit_info_indices_scalar
+
+    subroutine extract_excit_info_indices_vec(excit_info_int, inds)
+        debug_function_name("extract_excit_info_indices_vec")
         integer(int64), intent(in) :: excit_info_int
-        integer :: inds(4)
+        integer, intent(out) :: inds(4)
 
         integer :: i
 
@@ -3231,10 +3294,10 @@ contains
             inds(i) = extract_excit_info_index(excit_info_int, i)
         end do
 
-    end function extract_excit_info_indices_fct
+    end subroutine extract_excit_info_indices_vec
 
-    subroutine extract_excit_info_indices_sub(excit_info_int, a, i, b, j)
-        debug_function_name("extract_excit_info_indices_sub")
+    subroutine extract_excit_info_indices_scalar(excit_info_int, a, i, b, j)
+        debug_function_name("extract_excit_info_indices_scalar")
         integer(int64), intent(in) :: excit_info_int
         integer, intent(out) :: a, i, b, j
 
@@ -3243,7 +3306,7 @@ contains
         b = extract_excit_info_index(excit_info_int, 3)
         j = extract_excit_info_index(excit_info_int, 4)
 
-    end subroutine extract_excit_info_indices_sub
+    end subroutine extract_excit_info_indices_scalar
 
     function extract_excit_info_index(excit_info_int, pos) result(ind)
         debug_function_name("extract_excit_info_index")
@@ -3265,7 +3328,7 @@ contains
 
         typ = extract_excit_info_type(excit_info_int)
 
-        call extract_excit_info_indices_sub(excit_info_int, a, i, b, j)
+        call extract_excit_info_indices_scalar(excit_info_int, a, i, b, j)
 
     end subroutine extract_excit_info_scalar
 
@@ -3276,11 +3339,11 @@ contains
 
         typ = extract_excit_info_type(excit_info_int)
 
-        inds = extract_excit_info_indices_fct(excit_info_int)
+        call extract_excit_info_indices_vec(excit_info_int, inds)
 
     end subroutine extract_excit_info_vector
 
-    function extract_excit_info_obj(excit_info_int) result(excitInfo)
+    subroutine extract_excit_info_obj(excit_info_int, excitInfo)
         debug_function_name("extract_excit_info_obj")
         integer(int64), intent(in) :: excit_info_int
         type(ExcitationInformation_t) :: excitInfo
@@ -3292,18 +3355,423 @@ contains
 
         typ = extract_excit_info_type(excit_info_int)
 
-        call extract_excit_info_indices_sub(excit_info_int, a, i, b, j)
+        call extract_excit_info_indices_scalar(excit_info_int, a, i, b, j)
 
         excitInfo = calc_remaining_excit_info(typ, a, i, b, j)
 
-    end function extract_excit_info_obj
+    end subroutine extract_excit_info_obj
 
     function calc_remaining_excit_info(typ, a, i, b, j) result(excitInfo)
         debug_function_name("calc_remaining_excit_info")
         integer, intent(in) :: typ, a, i, b, j
         type(ExcitationInformation_t) :: excitInfo
 
+        integer :: gen1, gen2, currentGen, firstGen, lastGen, fullstart, &
+                   secondStart, firstEnd, fullEnd, weight, excitLvl, overlap
+        real(dp) :: order, order1
+
+        ASSERT(&
+            typ == excit_type%single_overlap_L_to_R  .or. &
+            typ == excit_type%single_overlap_R_to_L  .or. &
+            typ == excit_type%double_lowering  .or. &
+            typ == excit_type%double_raising  .or. &
+            typ == excit_type%double_L_to_R_to_L  .or. &
+            typ == excit_type%double_R_to_L_to_R  .or. &
+            typ == excit_type%double_L_to_R  .or. &
+            typ == excit_type%double_R_to_L  .or. &
+            typ == excit_type%fullstop_lowering  .or. &
+            typ == excit_type%fullstop_raising  .or. &
+            typ == excit_type%fullstop_L_to_R  .or. &
+            typ == excit_type%fullstop_R_to_L  .or. &
+            typ == excit_type%fullstart_lowering  .or. &
+            typ == excit_type%fullstart_raising  .or. &
+            typ == excit_type%fullstart_L_to_R  .or. &
+            typ == excit_type%fullstart_R_to_L  .or. &
+            typ == excit_type%fullstart_stop_alike  .or. &
+            typ == excit_type%fullstart_stop_mixed &
+            )
+
+
+        ASSERT(a > 0 .and. a <= nSpatOrbs)
+        ASSERT(i > 0 .and. i <= nSpatOrbs)
+        ASSERT(b > 0 .and. b <= nSpatOrbs)
+        ASSERT(j > 0 .and. j <= nSpatOrbs)
+
         ! do the necessary recomputation of excitInfo entries
+        ! in Debug mode also check if the indices are correct!
+        ! and for now assume that this function gets only called in the
+        ! pchb list creation, which quite restricts the indices.
+        ! this might need to be changed in the future, but for now it is
+        ! good to also ensure the PCHB lists are created correctly!
+
+        ! set up some defaults which are only changed if necessary:
+
+        weight = 0
+        ! fuck this excitLvl info is so stupid... i need to change that :(
+        excitLvl = -1
+        order = 1.0_dp
+        order = 1.0_dp
+
+        select case (typ)
+
+        case ( excit_type%single_overlap_L_to_R )
+
+            ASSERT(a == b)
+            ASSERT(i < j)
+            ASSERT(a > i .and. a < j)
+
+            gen1        = gen_type%L
+            gen2        = gen_type%R
+            currentGen  = gen_type%L
+            firstGen    = gen_type%L
+            lastGen     = gen_type%R
+            fullstart   = i
+            secondStart = a
+            firstEnd    = a
+            fullEnd     = j
+            overlap     = 1
+
+
+
+        case ( excit_type%single_overlap_R_to_L )
+
+            ASSERT(i == j)
+            ASSERT(a < b)
+            ASSERT( i > a .and. i < b)
+
+            gen1        = gen_type%R
+            gen2        = gen_type%L
+            currentGen  = gen_type%R
+            firstGen    = gen_type%R
+            lastGen     = gen_type%L
+            fullstart   = a
+            secondStart = i
+            firstEnd    = i
+            fullEnd     = b
+            overlap     = 1
+
+        case ( excit_type%double_lowering )
+
+            ASSERT(i < j)
+            ASSERT(j < a)
+            ASSERT(a < b)
+
+            gen1        = gen_type%L
+            gen2        = gen_type%L
+            currentGen  = gen_type%L
+            firstGen    = gen_type%L
+            lastGen     = gen_type%L
+            fullstart   = i
+            secondStart = j
+            firstEnd    = a
+            fullEnd     = b
+            overlap     = firstEnd - secondStart + 1
+
+
+        case ( excit_type%double_raising )
+
+            ! in this assignment i switch to E_{bj}E_{ai} assignement to
+            ! ensure 'correct' sign convention of the x1 coupling coeffs!
+            ASSERT(b < a)
+            ASSERT(a < j)
+            ASSERT(j < i)
+
+            gen1        = gen_type%R
+            gen2        = gen_type%R
+            currentGen  = gen_type%R
+            firstGen    = gen_type%R
+            lastGen     = gen_type%R
+            fullstart   = b
+            secondStart = a
+            firstEnd    = j
+            fullEnd     = i
+
+            overlap     = firstEnd - secondStart + 1
+
+        case ( excit_type%double_L_to_R_to_L )
+            ! here we switch to E_{aj}E_{bi}
+
+            ASSERT( j < a )
+            ASSERT( a < i )
+            ASSERT( i < b )
+
+            gen1        = gen_type%R
+            gen2        = gen_type%L
+            currentGen  = gen_type%L
+            firstGen    = gen_type%L
+            lastGen     = gen_type%L
+            fullstart   = j
+            secondStart = a
+            firstEnd    = i
+            fullEnd     = b
+
+            overlap     = firstEnd - secondStart + 1
+
+
+        case ( excit_type%double_R_to_L_to_R )
+
+            ! switch to E_{aj}E_{bi}
+            ASSERT( a < j )
+            ASSERT( j < b )
+            ASSERT( b < i )
+
+            gen1        = gen_type%R
+            gen2        = gen_type%L
+            currentGen  = gen_type%R
+            firstGen    = gen_type%R
+            lastGen     = gen_type%R
+            fullstart   = a
+            secondStart = j
+            firstEnd    = b
+            fullEnd     = i
+
+            overlap = firstEnd - secondStart + 1
+
+        case ( excit_type%double_L_to_R )
+
+            ! switch to E_{aj}E_{bi}
+            ASSERT( j < a )
+            ASSERT( a < b )
+            ASSERT( b < i )
+
+            gen1        = gen_type%R
+            gen2        = gen_type%L
+            currentGen  = gen_type%L
+            firstGen    = gen_type%L
+            lastGen     = gen_type%R
+            fullstart   = j
+            secondStart = a
+            firstEnd    = b
+            fullEnd     = i
+
+            overlap = firstEnd - secondStart + 1
+
+
+        case ( excit_type%double_R_to_L )
+
+            ! switch to E_{aj}E_{bi}
+            ASSERT( a < j )
+            ASSERT( j < i )
+            ASSERT( i < b )
+
+            gen1        = gen_type%R
+            gen2        = gen_type%L
+            currentGen  = gen_type%R
+            firstGen    = gen_type%R
+            lastGen     = gen_type%L
+            fullstart   = a
+            secondStart = j
+            firstEnd    = i
+            fullEnd     = b
+
+            overlap = firstEnd - secondStart + 1
+
+
+        case ( excit_type%fullstop_lowering )
+
+            ASSERT( i < j )
+            ASSERT( j < a )
+            ASSERT( a == b )
+
+            gen1        = gen_type%L
+            gen2        = gen_type%L
+            currentGen  = gen_type%L
+            firstGen    = gen_type%L
+            lastGen     = gen_type%L
+            fullstart   = i
+            secondStart = j
+            firstEnd    = a
+            fullEnd     = a
+
+            overlap = firstEnd - secondStart + 1
+
+
+        case ( excit_type%fullstop_raising )
+
+            ASSERT(a < b )
+            ASSERT(b < i )
+            ASSERT(i == j)
+
+            gen1        = gen_type%R
+            gen2        = gen_type%R
+            currentGen  = gen_type%R
+            firstGen    = gen_type%R
+            lastGen     = gen_type%R
+            fullstart   = a
+            secondStart = b
+            firstEnd    = i
+            fullEnd     = j
+
+            overlap = firstEnd - secondStart + 1
+
+
+        case ( excit_type%fullstop_R_to_L )
+
+            ! switch to E_{aj}E_{bi}
+            ASSERT(a < j )
+            ASSERT(j < b )
+            ASSERT(b == i )
+
+            gen1        = gen_type%R
+            gen2        = gen_type%L
+            currentGen  = gen_type%R
+            firstGen    = gen_type%R
+            lastGen     = gen_type%L
+            fullstart   = a
+            secondStart = j
+            firstEnd    = b
+            fullEnd     = b
+
+            overlap = firstEnd - secondStart + 1
+
+
+        case ( excit_type%fullstop_L_to_R )
+
+            ! switch to E_{aj}E_{bi}
+            ASSERT( j < a )
+            ASSERT( a < b )
+            ASSERT( b == i )
+
+            gen1        = gen_type%R
+            gen2        = gen_type%L
+            currentGen  = gen_type%L
+            firstGen    = gen_type%L
+            lastGen     = gen_type%R
+            fullstart   = j
+            secondStart = a
+            firstEnd    = b
+            fullEnd     = b
+
+            overlap = firstEnd - secondStart + 1
+
+
+        case ( excit_type%fullstart_lowering )
+
+            ASSERT( i == j)
+            ASSERT( j < a )
+            ASSERT( a < b )
+
+            gen1        = gen_type%L
+            gen2        = gen_type%L
+            currentGen  = gen_type%L
+            firstGen    = gen_type%L
+            lastGen     = gen_type%L
+            fullstart   = i
+            secondStart = i
+            firstEnd    = a
+            fullEnd     = b
+
+            overlap = firstEnd - secondStart + 1
+
+
+        case ( excit_type%fullstart_raising )
+
+            ASSERT( a == b )
+            ASSERT( b < i )
+            ASSERT( i < j )
+
+            gen1        = gen_type%R
+            gen2        = gen_type%R
+            currentGen  = gen_type%R
+            firstGen    = gen_type%R
+            lastGen     = gen_type%R
+            fullstart   = a
+            secondStart = b
+            firstEnd    = i
+            fullEnd     = j
+
+            overlap = firstEnd - secondStart + 1
+
+
+        case ( excit_type%fullstart_L_to_R )
+
+            ! switch to E_{aj} E_{bi}
+            ASSERT( a == j )
+            ASSERT( j < b )
+            ASSERT( b < i )
+
+            gen1        = gen_type%R
+            gen2        = gen_type%L
+            currentGen  = gen_type%L
+            firstGen    = gen_type%L
+            lastGen     = gen_type%L
+            fullstart   = a
+            secondStart = a
+            firstEnd    = b
+            fullEnd     = i
+
+            overlap = firstEnd - secondStart + 1
+
+
+        case ( excit_type%fullstart_R_to_L )
+
+            ! switch to E_{aj}E_{bi}
+            ASSERT( a == j )
+            ASSERT( j < i )
+            ASSERT( i < b )
+
+            gen1        = gen_type%R
+            gen2        = gen_type%L
+            currentGen  = gen_type%R
+            firstGen    = gen_type%R
+            lastGen     = gen_type%R
+            fullstart   = a
+            secondStart = a
+            firstEnd    = i
+            fullEnd     = b
+
+            overlap = firstEnd - secondStart + 1
+
+
+        case ( excit_type%fullstart_stop_alike )
+
+            ! here i need if statement..
+
+            ASSERT( i == j )
+            ASSERT( a == b )
+            ASSERT( a /= i )
+
+            if (a < i) then
+                gen1 = gen_type%R
+            else if (a > i) then
+                gen1 = gen_type%L
+            end if
+
+            gen2        = gen1
+            currentGen  = gen1
+            firstGen    = gen1
+            lastGen     = gen1
+            fullstart   = min(i,a)
+            secondStart = min(i,a)
+            firstEnd    = max(i,a)
+            fullEnd     = max(i,a)
+
+            overlap = firstEnd - secondStart + 1
+
+        case ( excit_type%fullstart_stop_mixed )
+
+            ! switch to E_{aj}E_{bi}
+            ASSERT(a == j)
+            ASSERT(b == i)
+            ASSERT(a /= b)
+
+            gen1        = gen_type%R
+            gen2        = gen_type%L
+            currentGen  = gen_type%R
+            firstGen    = gen_type%R
+            lastGen     = gen_type%R
+            fullstart   = min(a,i)
+            secondStart = min(a,i)
+            firstEnd    = max(a,i)
+            fullEnd     = max(a,i)
+
+            overlap = firstEnd - secondStart + 1
+
+        end select
+
+        excitInfo = assign_excitInfo_values_exact(typ, gen1, gen2, currentGen, &
+            firstGen, lastGen, a, i, b, j, fullstart, secondStart, firstEnd, &
+            fullEnd, weight, excitLvl, order, order1, overlap)
 
     end function calc_remaining_excit_info
 
@@ -3315,6 +3783,9 @@ contains
         ! function to encode directly from ExcitationInformation_t type to
         ! a 64-bit integer
         excit_info_int = 0_int64
+
+        excit_info_int =  encode_excit_info_vec(excitInfo%typ, &
+            [excitInfo%i, excitInfo%j, excitInfo%k, excitInfo%l])
 
     end function encode_excit_info_obj
 

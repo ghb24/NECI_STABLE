@@ -37,7 +37,6 @@ MODULE System
 
     use guga_data, only: tGUGACore
 
-
     IMPLICIT NONE
 
     contains

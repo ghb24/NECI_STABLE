@@ -71,6 +71,7 @@ contains
 
       subroutine shared_allocate_mpi (win_shm, p_shm, dims)
       use HElem
+
       integer(MPIArg):: win_shm
 
       %(type1)s, dimension(%(dim)s), pointer :: p_shm

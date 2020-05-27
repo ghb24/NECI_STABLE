@@ -18,12 +18,12 @@ module tc_three_body_excitgen
   use procedure_pointers, only: generate_two_body_excitation
   use sym_general_mod, only: ClassCountInd
   use sym_mod, only: symprod, symconj
-  
+
   implicit none
   ! Factors accounting for permutation of electrons
   real(dp), parameter :: same_spin_perm = 6.0_dp
   real(dp), parameter :: opp_spin_perm = 4.0_dp
-  
+
   contains
 
     subroutine gen_excit_mol_tc(nI, ilut, nJ, ilutJ, exFlag, ic, ExcitMat, &
@@ -141,7 +141,7 @@ module tc_three_body_excitgen
                 / (nUnoccBeta * nUnoccAlpha * (nUnoccAlpha - 1))
         else
             pgen = pgen * same_spin_perm &
-                / (nUnoccAlpha * (nUnoccAlpha - 1) * (nUnoccAlpha - 2))            
+                / (nUnoccAlpha * (nUnoccAlpha - 1) * (nUnoccAlpha - 2))
         endif
     end subroutine calc_pgen_triple_target_nosym
 
@@ -152,7 +152,7 @@ module tc_three_body_excitgen
     !> @param[in] ex  the excitation matrix (2x3 array)
     !> @param[in] ms  total spin of the picked orbitals
     !> @param[inout] pgen  on call, the probability of picking the electrons, on return, the total
-    !! probability    
+    !! probability
     subroutine calc_pgen_triple_target_sym(nI, ex, ms, pgen)
         integer, intent(in) :: nI(nel)
         integer, intent(in) :: ex(2,3)
@@ -162,7 +162,7 @@ module tc_three_body_excitgen
         ! Temporary: Store the probability of picking the canonical order
         real(dp) :: pgen_pick
         integer :: pool_sizes(3), tgt_spin, tmp_ex(2,3)
-        integer :: cc_unocc(ScratchSize), cc_occ(ScratchSize), cc_ind        
+        integer :: cc_unocc(ScratchSize), cc_occ(ScratchSize), cc_ind
 
         ! manually mimick pass-by-value
         tmp_ex = ex
@@ -195,14 +195,14 @@ module tc_three_body_excitgen
         cc_ind = ClassCountInd(tgt_spin, G1(tmp_ex(2,3))%Sym%S, 0)
         ! And the from that number of available orbs
         pool_sizes(3) = cc_unocc(cc_ind)
-        
+
         ! The pool for the second is one smaller, because the first one is not available anymore
         pool_sizes(2) = pool_sizes(2) - 1
         pgen_pick = pgen / product(pool_sizes)
 
         ! now, account for permutations
         call add_permutations_to_pgen(pgen, pgen_pick, pool_sizes, ms, tmp_ex(2,:), cc_unocc)
-        
+
     end subroutine calc_pgen_triple_target_sym
 
 !------------------------------------------------------------------------------------------!
@@ -233,7 +233,7 @@ module tc_three_body_excitgen
       pgen1B = nOccBeta * nOccAlpha * (nOccAlpha - 1)
       pgen1B = scaleInvert(opp_spin_perm, pgen1B)
 
-      pgen0B = nOccAlpha * (nOccAlpha - 1) * (nOccAlpha - 2) 
+      pgen0B = nOccAlpha * (nOccAlpha - 1) * (nOccAlpha - 2)
       pgen0B = scaleInvert(same_spin_perm, pgen0B)
 
       contains
@@ -323,7 +323,7 @@ module tc_three_body_excitgen
             else
                 call pick_three_orbs_sym(nI, src, tgt, pgen, ms)
             end if
-            
+
             if(tgt(3).eq.0)then
                 ! the excitation is invalid
                 nJ = 0
@@ -474,7 +474,7 @@ module tc_three_body_excitgen
     end subroutine get_missing_elec
 
     !------------------------------------------------------------------------------------------!
-    
+
     !> picks three random unoccupied orbitals, given the occupied orbitals, ignoring symmetry
     !! This is a more efficient version of pick_three_orbs_sym for the case that point-group symmetry
     !! is not used
@@ -505,7 +505,7 @@ module tc_three_body_excitgen
 
     end subroutine pick_three_orbs_nosym
 
-    !------------------------------------------------------------------------------------------! 
+    !------------------------------------------------------------------------------------------!
 
     subroutine pick_three_orbs_sym(nI, src, tgt, pgen, ms)
         ! picks three random unoccupied orbitals, given the occupied orbitals
@@ -543,7 +543,7 @@ module tc_three_body_excitgen
         end do
 
         ! Get the number of orbitals per symmetry/occupation
-        call construct_class_counts(nI, cc_occ, cc_unocc)        
+        call construct_class_counts(nI, cc_occ, cc_unocc)
         ! Now, pick the last one according to symmetry
         tgt_sym = get_tgt_sym(tgt, src)
         call create_sym_pool(nI, tgt, msCur, pool, i, tgt_sym, cc_unocc)
@@ -556,7 +556,7 @@ module tc_three_body_excitgen
             tgt = 0
             return
         endif
-        
+
         call add_permutations_to_pgen(pgen, pgen_pick, pool_sizes, ms, tgt, cc_unocc)
 
         ! sort the target orbitals for further usage
@@ -569,10 +569,10 @@ module tc_three_body_excitgen
         real(dp), intent(inout) :: pgen
         real(dp), intent(inout) :: pgen_pick
         integer, intent(in) :: pool_sizes(3), ms, tgt(3), cc_unocc(ScratchSize)
-        
-        integer :: swap_pool_size, spin_ind, cc_ind, i    
+
+        integer :: swap_pool_size, spin_ind, cc_ind, i
         integer :: irreps(3)
-        
+
         do i = 1, 3
             irreps(i) = int(G1(tgt(i))%Sym%S)
         end do
@@ -605,9 +605,9 @@ module tc_three_body_excitgen
             end do
         end if
         pgen = pgen_pick
-        
+
     end subroutine add_permutations_to_pgen
- 
+
     !------------------------------------------------------------------------------------------!
 
     subroutine pick_three_orbs_ueg(nI, src,  tgt, pgen, ms)
@@ -837,7 +837,7 @@ module tc_three_body_excitgen
         do i = 1, nPicked
             if((ms > 0) .neqv. is_beta(tgt(i))) pool_size = pool_size - 1
         end do
-        
+
         allocate(pool(pool_size))
 
         k = 0
@@ -845,7 +845,7 @@ module tc_three_body_excitgen
         do i = 1, nBasis
             ! Check if this has the right spin
             if(ms > 0 .neqv. is_beta(i)) then
-                ! Check if the orb is both unocc and 
+                ! Check if the orb is both unocc and
                 if(all(tgt(1:nPicked) /= i) .and. all(nI /= i)) then
                     k = k + 1
                     pool(k) = i
@@ -892,7 +892,7 @@ module tc_three_body_excitgen
             if((sign(1,ms) == G1(tgt(i))%Ms) .and. &
                 G1(tgt(i))%Sym%S == tgt_sym) pool_size = pool_size - 1
         end do
-        
+
         allocate(pool(pool_size))
 
         k = 0
@@ -900,7 +900,7 @@ module tc_three_body_excitgen
         do i = 1, nBasis
             ! Check if this has the right spin
             if((ms > 0 .neqv. is_beta(i)) .and. (G1(i)%Sym%S == tgt_sym)) then
-                ! Check if the orb is both unocc and 
+                ! Check if the orb is both unocc and
                 if(all(tgt(1:nPicked) /= i) .and. all(nI /= i)) then
                     k = k + 1
                     pool(k) = i

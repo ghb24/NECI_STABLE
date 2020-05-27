@@ -87,13 +87,15 @@
 
 ! Useful for fixing things. Requires this_routine to be defined
 #ifdef DEBUG_
+#define stringify(x) #x
+#define tostring(x) stringify(x)
 #define ASSERT(x) \
 if (.not. (x)) then; \
- call stop_all (this_routine, "Assert fail: "//"x"); \
+ call pp_stop_all (this_routine, "Assert fail: " // tostring(x), __FILE__, __LINE__); \
 endif
 #define ASSERTROOT(x) \
 if ((iProcIndex.eq.Root).and.(.not. (x))) then; \
- call stop_all (this_routine, "Assert fail: "//"x"); \
+ call pp_stop_all (this_routine, "Assert fail: "// tostring(x), __FILE__, __LINE__); \
 endif
 ! Do some debugging if X>=Y
 #define IFDEBUG(PrintLevel,ThisLevel) if (PrintLevel>=ThisLevel)

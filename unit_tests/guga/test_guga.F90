@@ -53,6 +53,7 @@ program test_guga
     use unit_test_helper_excitgen, only: generate_uniform_integrals
     use rdm_data_utils, only: calc_combined_rdm_label, calc_separate_rdm_labels
     use LoggingData, only: tRDMonfly, tExplicitAllRDM
+    use fruit_extensions, only: my_run_test_case
 
     implicit none
 
@@ -1696,11 +1697,182 @@ contains
         call run_test_case(test_contract_extract_2_rdm_molcas, &
             "test_contract_extract_2_rdm_molcas")
 
+        call my_run_test_case(encode_excit_info_type_test, &
+            "encode_excit_info_type_test", "encode_excit_info_type")
+
+        call my_run_test_case(extract_excit_info_type_test, &
+            "extract_excit_info_type_test", "extract_excit_info_type")
+
+        call my_run_test_case(encode_extract_excit_info_indices, &
+            "encode_extract_excit_info_indices", &
+            "encode_excit_info_indices() and extract_excit_info_indices")
+
+
+        call my_run_test_case(encode_and_extract_excit_info_test, &
+            "encode_and_extract_excit_info_test", &
+            "encode_excit_info_scalar(), encode_excit_info_vec(), &
+            & encode_excit_info_type(), extract_excit_info_obj(), &
+            & extract_excit_info_scalar() and extract_excit_info_vec")
+
+        call stop_all("here", "now")
+
         print *, ""
         print *, "guga_bitRepOps tests passed!"
         print *, ""
 
     end subroutine test_guga_bitRepOps
+
+    subroutine encode_extract_excit_info_indices
+        integer(int64) :: excit_info_int
+        integer :: a, i, b, j, vec(4)
+
+        call encode_excit_info_indices(excit_info_int, 1, 2, 3, 4)
+        call extract_excit_info_indices(excit_info_int, a, i, b, j)
+        call extract_excit_info_indices(excit_info_int, vec)
+        call assert_equals(1, a)
+        call assert_equals(2, i)
+        call assert_equals(3, b)
+        call assert_equals(4, j)
+        call assert_equals([1,2,3,4], vec, 4)
+
+        call encode_excit_info_indices(excit_info_int, [4,3,2,1])
+        call extract_excit_info_indices(excit_info_int, a, i, b, j)
+        call extract_excit_info_indices(excit_info_int, vec)
+        call assert_equals(4, a)
+        call assert_equals(3, i)
+        call assert_equals(2, b)
+        call assert_equals(1, j)
+        call assert_equals([4,3,2,1], vec, 4)
+
+
+    end subroutine encode_extract_excit_info_indices
+
+    subroutine encode_excit_info_type_test
+        integer(int64) :: excit_info_int
+
+        excit_info_int = 0_int64
+
+        call encode_excit_info_type(excit_info_int, excit_type%single_overlap_R_to_L)
+        call assert_equals(excit_type%single_overlap_R_to_L, int(excit_info_int))
+
+        call encode_excit_info_type(excit_info_int, excit_type%double_lowering)
+        call assert_equals(excit_type%double_lowering, int(excit_info_int))
+
+        call encode_excit_info_type(excit_info_int, excit_type%double_R_to_L)
+        call assert_equals(excit_type%double_R_to_L, int(excit_info_int))
+
+        call encode_excit_info_type(excit_info_int, excit_type%fullstop_R_to_L)
+        call assert_equals(excit_type%fullstop_R_to_L, int(excit_info_int))
+
+        call encode_excit_info_type(excit_info_int, excit_type%fullstart_R_to_L)
+        call assert_equals(excit_type%fullstart_R_to_L, int(excit_info_int))
+
+
+        call encode_excit_info_type(excit_info_int, excit_type%fullstop_raising)
+        call assert_equals(excit_type%fullstop_raising, int(excit_info_int))
+
+        call encode_excit_info_type(excit_info_int, excit_type%fullstart_stop_mixed)
+        call assert_equals(excit_type%fullstart_stop_mixed, int(excit_info_int))
+
+        call encode_excit_info_type(excit_info_int, excit_type%single_overlap_L_to_R)
+        call assert_equals(excit_type%single_overlap_L_to_R, int(excit_info_int))
+
+    end subroutine encode_excit_info_type_test
+
+    subroutine extract_excit_info_type_test
+        integer(int64) :: excit_info_int
+
+        excit_info_int = 0_int64
+        call encode_excit_info_type(excit_info_int, excit_type%single_overlap_R_to_L)
+        call assert_equals(excit_type%single_overlap_R_to_L, &
+            extract_excit_info_type(excit_info_int))
+
+        call encode_excit_info_type(excit_info_int, excit_type%fullstop_R_to_L)
+        call assert_equals(excit_type%fullstop_R_to_L, &
+            extract_excit_info_type(excit_info_int))
+
+        call encode_excit_info_type(excit_info_int, excit_type%fullstart_R_to_L)
+        call assert_equals(excit_type%fullstart_R_to_L, &
+            extract_excit_info_type(excit_info_int))
+
+        call encode_excit_info_type(excit_info_int, excit_type%double_lowering)
+        call assert_equals(excit_type%double_lowering, &
+            extract_excit_info_type(excit_info_int))
+
+        call encode_excit_info_type(excit_info_int, excit_type%double_R_to_L)
+        call assert_equals(excit_type%double_R_to_L, &
+            extract_excit_info_type(excit_info_int))
+
+        call encode_excit_info_type(excit_info_int, excit_type%fullstart_stop_alike)
+        call assert_equals(excit_type%fullstart_stop_alike, &
+            extract_excit_info_type(excit_info_int))
+
+    end subroutine extract_excit_info_type_test
+
+    subroutine encode_and_extract_excit_info_test
+        integer(int64) :: excit_info_int
+        integer :: typ, a, i, b, j, inds(4)
+        type(ExcitationInformation_t) :: excitInfo
+
+        excit_info_int = encode_excit_info(excit_type%double_R_to_L_to_R, &
+            1, 4, 3, 2)
+
+        call extract_excit_info(excit_info_int, typ, a, i, b, j)
+        call assert_equals(excit_type%double_R_to_L_to_R, typ)
+        call extract_excit_info(excit_info_int, typ, inds)
+        call assert_equals(excit_type%double_R_to_L_to_R, typ)
+        call extract_excit_info(excit_info_int, excitInfo)
+        call assert_equals(1, a)
+        call assert_equals(4, i)
+        call assert_equals(3, b)
+        call assert_equals(2, j)
+        call assert_equals([1,4,3,2], inds, 4)
+        call assert_equals(excit_type%double_R_to_L_to_R, excitInfo%typ)
+        call assert_equals(gen_type%R, excitInfo%gen1)
+        call assert_equals(gen_type%L, excitInfo%gen2)
+
+
+        excit_info_int = encode_excit_info(excit_type%double_L_to_R_to_L, &
+            [4,1,3,2])
+
+        call extract_excit_info(excit_info_int, typ, a, i, b, j)
+        call assert_equals(excit_type%double_L_to_R_to_L, typ)
+        call extract_excit_info(excit_info_int, typ, inds)
+        call assert_equals(excit_type%double_L_to_R_to_L, typ)
+        call extract_excit_info(excit_info_int, excitInfo)
+        call assert_equals(2, a)
+        call assert_equals(3, i)
+        call assert_equals(4, b)
+        call assert_equals(1, j)
+        call assert_equals([2,3,4,1], inds, 4)
+        call assert_equals(excit_type%double_L_to_R_to_L, excitInfo%typ)
+        call assert_equals(gen_type%R, excitInfo%gen1)
+        call assert_equals(gen_type%L, excitInfo%gen2)
+
+        excitInfo%typ = excit_type%fullstart_stop_mixed
+        excitInfo%i = 1
+        excitInfo%j = 4
+        excitInfo%k = 4
+        excitInfo%l = 1
+
+        excit_info_int = encode_excit_info(excitInfo)
+
+        call extract_excit_info(excit_info_int, typ, a, i, b, j)
+        call assert_equals(excit_type%fullstart_stop_mixed, typ)
+        call extract_excit_info(excit_info_int, typ, inds)
+        call assert_equals(excit_type%fullstart_stop_mixed, typ)
+        call extract_excit_info(excit_info_int, excitInfo)
+        call assert_equals(1, a)
+        call assert_equals(4, i)
+        call assert_equals(4, b)
+        call assert_equals(1, j)
+        call assert_equals([1,4,4,1], inds, 4)
+        call assert_equals(excit_type%fullstart_stop_mixed, excitInfo%typ)
+        call assert_equals(gen_type%R, excitInfo%gen1)
+        call assert_equals(gen_type%L, excitInfo%gen2)
+
+
+    end subroutine encode_and_extract_excit_info_test
 
     subroutine test_guga_excitations_stochastic
         character(*), parameter :: this_routine = "test_guga_excitations_stochastic"

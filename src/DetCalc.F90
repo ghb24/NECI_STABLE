@@ -736,8 +736,6 @@ CONTAINS
                 else
                     call sort (temp(1:Det), FCIDets(:,1:Det), FCIGS(1:Det))
                 endif
-!                CALL Stop_All("DetCalc","Cannot do histogramming FCI without JUSTFINDDETS at the
-                    !moment (need new sorting - bug ghb24)")
             ENDIF
 
 !Test that HF determinant is the first determinant

@@ -37,6 +37,7 @@ subroutine VASPInitIntegrals(nOrbUsed,ECore,tOrder)
    use UMatCache, only: SetupUMatCache,UMat2D
    use global_utilities
    use constants, only: dp
+
    implicit none
    integer :: nOrbUsed
    real(dp) ::  ECore

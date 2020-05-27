@@ -1672,8 +1672,6 @@ contains
                     ! yes:
                     print *, "setting ntrial_ex_calc to max(trial_excit_choice)!"
                     ntrial_ex_calc = maxval(trial_excit_choice)
-!                     call stop_all(this_routine, &
-!                         "NUM-TRIAL-STATES-CALC must be >= max(TRIAL-EXCITS)!")
                 end if
 
             case("QMC-TRIAL-WF")
@@ -2105,7 +2103,6 @@ contains
                 tShiftonHFPop=.true.
             case("STARTMP1")
 !For FCIMC, this has an initial configuration of walkers which is proportional to the MP1 wavefunction
-!                CALL Stop_All(t_r,"STARTMP1 option depreciated")
                 TStartMP1=.true.
                 TStartSinglePart=.false.
                 if(item.lt.nitems) then
@@ -2115,7 +2112,6 @@ contains
                 endif
             case("STARTCAS")
 !For FCIMC, this has an initial configuration of walkers which is proportional to the MP1 wavefunction
-!                CALL Stop_All(t_r,"STARTMP1 option depreciated")
                 TStartCAS=.true.
                 TStartSinglePart=.false.
                 call geti(OccCASOrbs)  !Number of electrons in CAS
@@ -2890,7 +2886,7 @@ contains
                 endif
                 ! With orthogonalisation, each replica needs its own core space
                 if(.not. t_force_global_core) t_global_core_space = .false.
-                
+
                 ! Don't start all replicas from the deterministic ground state
                 ! when using this option.
                 tStartCoreGroundState = .false.

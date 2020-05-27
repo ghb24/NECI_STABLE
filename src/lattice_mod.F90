@@ -1377,29 +1377,6 @@ contains
 
         is_bath_site = this%sites(ind)%is_bath()
 
-        ! maybe i will use inherited sites(impurity and stuff)
-
-!         allocate(temp, source=this%sites(ind))
-! !         temp => this%sites(ind)
-! !         associate(sites => this%sites(ind))
-!             select type(temp)
-!
-!             class is (impurity)
-!
-!                 is_bath_site = .false.
-!
-!             class is (bath)
-!
-!                 is_bath_site = .false.
-!
-!             class default
-!
-!                 call stop_all(this_routine, &
-!                     "something went wrong.. neither impurity nor bath..")
-!
-!             end select
-!         end associate
-
     end function is_bath_site
 
     logical function is_impurity_site(this, ind)
@@ -1423,18 +1400,6 @@ contains
         character(*), parameter :: this_routine = "get_bath"
 
         integer :: i, j
-        ! do i store the bath seperately or do i just loop here??
-
-!         bath_sites = -1
-!         j = 1
-!         do i = 1, this%get_nsites()
-!             if (this%is_bath_site(i)) then
-!                 bath_sites(j) = this%get_site_index(i)
-!                 j = j + 1
-!             end if
-!         end do
-!
-!         ASSERT(.not. any(bath_sites == -1))
 
         bath_sites = this%bath_sites
 
@@ -1446,18 +1411,6 @@ contains
         character(*), parameter :: this_routine = "get_impurities"
 
         integer :: i, j
-!
-!         imp_sites = -1
-!
-!         j = 1
-!         do i = 1, this%get_nsites()
-!             if (this%is_impurity_site(i)) then
-!                 imp_sites(j) = this%get_site_index(i)
-!                 j = j + 1
-!             end if
-!         end do
-!
-!         ASSERT(.not. any(imp_sites == -1))
 
         ! i guees it is better to store the impurity and the bath
         ! indices
@@ -3708,7 +3661,6 @@ contains
         end select
 
         ! the initializer deals with the different types then..
-!         call this%initialize(length_x, length_y)
         call this%initialize(length_x, length_y, 1, .false., .false., .false.)
 
     end function aim_lattice_constructor
@@ -3758,13 +3710,6 @@ contains
             allocate(rectangle :: this)
 
         case('tilted','tilted-square','square-tilted')
-
-            ! this restriction gets lifted now: we can also have
-            ! rectangular tilted!
-!             if (length_x /= length_y) then
-!                 call stop_all(this_routine, &
-!                     "incorrect length_x /= length_y input for tilted lattice!")
-!             end if
 
             allocate(tilted :: this)
 
@@ -3847,7 +3792,6 @@ contains
         type(site) :: this
         character(*), parameter :: this_routine = "site_constructor"
 
-!         allocate(site :: this)
         if (present(site_type)) then
             ! not yet implementetd or to do.. so wait..
             select case (site_type)

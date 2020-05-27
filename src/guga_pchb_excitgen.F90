@@ -696,7 +696,6 @@ contains
 
         pgen = 0.0_dp
 
-
     end function calc_orb_pgen_guga_pchb_double_excitInfo
 
     ! I need the pgen-recalculation routines for exchange type excitations

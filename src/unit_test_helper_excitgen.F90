@@ -26,6 +26,7 @@ module unit_test_helper_excitgen
   use dSFMT_interface, only: dSFMT_init, genrand_real2_dSFMT
   use Determinants, only: DetInit, DetPreFreezeInit, get_helement
   use util_mod, only: get_free_unit
+
   implicit none
 
   integer, parameter :: nelBase = 5

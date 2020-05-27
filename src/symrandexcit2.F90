@@ -57,6 +57,8 @@ MODULE GenRandSymExcitNUMod
     use back_spawn, only: pick_occupied_orbital_hubbard, check_electron_location, get_ispn
     use neci_intfce
     use bit_rep_data, only: test_flag
+!     use error_handling, only: stop_all
+
     IMPLICIT NONE
 !    INTEGER , SAVE :: Counter=0
 
@@ -146,20 +148,6 @@ MODULE GenRandSymExcitNUMod
                                     store%ClassCountUnocc, ILUT, ExcitMat, &
                                     tParity, pGen)
 
-!            IF(pGen.eq.-1.0_dp) THEN
-!NOTE: ghb24 5/6/09 Cannot choose to create double instead, since you could have chosen
-!a double first and it would have a different pGen.
-!                IF((ExFlag.ne.3).or.tHPHF) THEN
-!If using HPHF wavefunctions, then we do not want to do this, since it will affect the
-!generation probabilities calculated using CalcNonUniPGens.
-!                    CALL Stop_All("GenRandSymExcitNU","Found determinant with no singles,
-!but can only have got here from single. Should never be in this position! (or HPHF is on and this will screw with pGens)")
-!                ENDIF
-!                pDoubNew=1.0_dp
-!                IC=2
-!                CALL CreateDoubExcit(nI,nJ,ClassCount2,ClassCountUnocc2,ILUT,ExcitMat,tParity,pGen)
-!            ENDIF
-
         ENDIF
 
     end subroutine
@@ -239,23 +227,7 @@ MODULE GenRandSymExcitNUMod
             CALL CreateDoubExcit(nI,nJ,ClassCountUnocc2,ILUT,ExcitMat,tParity,pGen)
         ELSE
 
-!            IF(nI(3).eq.3) THEN
-!                write(6,*) 'creating single, pdoub',pDoubNew
-!            ENDIF
-
             CALL CreateSingleExcit(nI,nJ,ClassCount2,ClassCountUnocc2,ILUT,ExcitMat,tParity,pGen)
-!            IF(pGen.eq.-1.0_dp) THEN
-!NOTE: ghb24 5/6/09 Cannot choose to create double instead,
-! since you could have chosen a double first and it would have a different pGen.
-!                IF(ExFlag.ne.3) THEN
-!                    CALL Stop_All("GenRandSymExcitNU","Found determinant with no singles,
-!but can only have got here from single. Should never be in this position!")
-!                ENDIF
-!                pDoubNew=1.0_dp
-!                IC=2
-!                CALL CreateDoubExcit(nI,nJ,ClassCount2,ClassCountUnocc2,ILUT,ExcitMat,tParity,pGen)
-!            ENDIF
-
         ENDIF
 
 
@@ -1427,11 +1399,6 @@ MODULE GenRandSymExcitNUMod
                     WRITE(6,*) "Number of orbitals (of correct spin) in symmetry = ",nOrbs
                     WRITE(6,*) "Number of orbitals to legitimatly pick = ",NExcit
                     call write_det (6, nI, .true.)
-!                    WRITE(6,*) "ClassCount2(1,:)= ",ClassCount2(1,:)
-!                    WRITE(6,*) "ClassCount2(2,:)= ",ClassCount2(2,:)
-!                    WRITE(6,*) "***"
-!                    WRITE(6,*) "ClassCountUnocc2(1,:)= ",ClassCountUnocc2(1,:)
-!                    WRITE(6,*) "ClassCountUnocc2(2,:)= ",ClassCountUnocc2(2,:)
                     call stop_all(t_r, "Cannot find single excitation &
                                    &unoccupied orbital after 250 attempts...")
                 ENDIF
@@ -1688,7 +1655,6 @@ MODULE GenRandSymExcitNUMod
         ELSEIF(tFixLz) THEN
             CALL Stop_All(this_routine,"GenRandSymExcitBiased can not be used with tFixLz currently")
         ENDIF
-!        MaxABPairs=(nBasis*(nBasis-1)/2)
 
 !ExFlag is 1 for singles, 2 for just doubles, and 3 for both.
         IF(ExFlag.eq.3) THEN

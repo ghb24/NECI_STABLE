@@ -6,6 +6,7 @@ MODULE SymExcit2
       use IntegralsData, only: ChemPot
       use constants, only: dp
       use util_mod, only : near_zero
+
       IMPLICIT NONE
 
       TYPE ExcitWeight

@@ -96,9 +96,6 @@ C..   Now we need to match up any two determinants
               else
                   call calc_guga_matrix_element(ilutI,ilutJ,excitInfo,
      &              totsum, .true., 1)
-! #ifdef CMPLX_
-!                     totsum = conjg(totsum)
-! #endif
               end if
 
             else if (t_lattice_model) then
@@ -168,9 +165,15 @@ C..
       MS2=MS2/2
 C..
       IF(MS1.NE.MS2) THEN
-        IF(IFLG.EQ.1) call stop_all(t_r, ' PROBLEM IN TWO DIFFER ')
-        IF(IFLG.EQ.2) call stop_all(t_r, ' PROBLEM IN ONE DIFFER ')
-        IF(IFLG.EQ.3) call stop_all(t_r, ' PROBLEM IN SAME ')
+       IF(IFLG.EQ.1) then
+        call pp_stop_all(t_r,'PROBLEM IN TWO DIFFER',__FILE__,__LINE__)
+       endif
+       IF(IFLG.EQ.2) then
+        call pp_stop_all(t_r,'PROBLEM IN ONE DIFFER',__FILE__,__LINE__)
+       endif
+       IF(IFLG.EQ.3) then
+        call pp_stop_all(t_r,'PROBLEM IN SAME',__FILE__,__LINE__)
+       endif
       ENDIF
 C..
       RETURN

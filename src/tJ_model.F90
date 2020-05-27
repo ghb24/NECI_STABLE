@@ -59,7 +59,6 @@ module tJ_model
 
     use guga_bitRepOps, only: count_alpha_orbs_ij, count_beta_orbs_ij
 
-
     implicit none
 
     real(dp), allocatable :: exchange_matrix(:,:)

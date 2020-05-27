@@ -1,23 +1,26 @@
-subroutine stop_all_c (sub_name, error_msg) bind(c)
-    use iso_c_hack
-    use util_mod, only: strlen_wrap
+subroutine pp_stop_all(sub_name, error_msg, file_name, line_number)
+    ! additional pre-processor info (pp) of file and line-number in
+    ! stop_all call
     implicit none
 
-    character(c_char), target, intent(in) :: sub_name(*), error_msg(*)
-    character(len=strlen_wrap(sub_name)), target :: sub_name_tmp
-    character(len=strlen_wrap(error_msg)), target :: error_msg_tmp
+    character(*), intent(in) :: sub_name, error_msg, file_name
+    integer, intent(in) :: line_number
 
-    ! Convert from C character to standard fortran character string.
-    ! Note that strlen does not include the null character at the end of the
-    ! C string.  This is the behaviour we want.
-    sub_name_tmp = transfer(sub_name(:strlen_wrap(sub_name)), sub_name_tmp)
-    error_msg_tmp = transfer(error_msg(:strlen_wrap(error_msg)), error_msg_tmp)
 
-    call stop_all (sub_name_tmp, error_msg_tmp)
+    ! print to stdout
+    write (6,'(/a10,17X,a)')  ' In file: ', adjustl(file_name)
+    write (6,'(a10,17X,i6)') ' At line: ', line_number
 
-end subroutine
+    ! print to stderr
+    write (7,'(/a10,17X,a)')  ' In file: ', adjustl(file_name)
+    write (7,'(a10,17X,i6)') ' At line: ', line_number
 
-subroutine stop_all (sub_name, error_msg)
+    call stop_all(sub_name, error_msg)
+
+end subroutine pp_stop_all
+
+
+subroutine stop_all(sub_name, error_msg)
 
     ! Stop calculation due to an error. Exit with code 999?
     !
@@ -40,23 +43,15 @@ subroutine stop_all (sub_name, error_msg)
     ! MPI_Abort requires an integer though.
     character(3), parameter :: error_str='999'
 
+    write (6,'(/a7)') 'ERROR.'
+    write (6,'(a27,a)') 'NECI stops in subroutine: ',adjustl(sub_name)
+    write (6,'(a9,18X,a)') 'Reason: ',adjustl(error_msg)
+#ifdef PARALLEL
+    write (6,'(a12,15X,i5)') 'Processor: ',iProcIndex
+#endif
+    write (6,'(a11)') 'EXITING...'
 #ifdef DEBUG_
-    write (6,'(/a7)') 'ERROR.'
-    write (6,'(a27,a)') 'NECI stops in subroutine: ',adjustl(sub_name)
-    write (6,'(a9,18X,a)') 'Reason: ',adjustl(error_msg)
-#ifdef PARALLEL
-    write (6,'(a12,15X,i5)') 'Processor: ',iProcIndex
-#endif
-    write (6,'(a11)') 'EXITING...'
     call neci_flush (6)
-#else
-    write (6,'(/a7)') 'ERROR.'
-    write (6,'(a27,a)') 'NECI stops in subroutine: ',adjustl(sub_name)
-    write (6,'(a9,18X,a)') 'Reason: ',adjustl(error_msg)
-#ifdef PARALLEL
-    write (6,'(a12,15X,i5)') 'Processor: ',iProcIndex
-#endif
-    write (6,'(a11)') 'EXITING...'
 #endif
 
     ! Also push this to the stderr unit, so it hopefully ends up somewhere
@@ -82,51 +77,73 @@ end subroutine stop_all
 
 
 subroutine warning_neci(sub_name,error_msg)
-!= Print a warning message in a (helpfully consistent) format.
-!= I was bored of typing the same formatting in different places. ;-)
-!=
-!= In:
-!=    sub_name:  calling subroutine name.
-!=    error_msg: error message.
-use, intrinsic :: iso_fortran_env, only: stderr => error_unit
-implicit none
-character(*), intent(in) :: sub_name,error_msg
+    != Print a warning message in a (helpfully consistent) format.
+    != I was bored of typing the same formatting in different places. ;-)
+    !=
+    != In:
+    !=    sub_name:  calling subroutine name.
+    !=    error_msg: error message.
+    use, intrinsic :: iso_fortran_env, only: stderr => error_unit
+    implicit none
+    character(*), intent(in) :: sub_name,error_msg
 
 #ifdef DEBUG_
-write (stderr,'(/a)') 'WARNING.  Error in '//adjustl(sub_name)
-write (stderr,'(a/)') adjustl(error_msg)
+    write (stderr,'(/a)') 'WARNING.  Error in '//adjustl(sub_name)
+    write (stderr,'(a/)') adjustl(error_msg)
 #else
-write (stderr,'(/a)') 'WARNING.  Error in '//adjustl(sub_name)
-write (stderr,'(a/)') adjustl(error_msg)
+    write (stderr,'(/a)') 'WARNING.  Error in '//adjustl(sub_name)
+    write (stderr,'(a/)') adjustl(error_msg)
 #endif
 
-return
+    return
 end subroutine warning_neci
 
 
 
 subroutine quiet_stop(msg)
-!= Exit without making any noise.  Useful for when there's no error, but you
-!= still want to exit midway through a calculation (e.g. for testing purposes,
-!= or for use with the SOFTEXIT functionality).
-!= In:
-!=    msg (optional) : Print msg before exiting if msg is present.
+    != Exit without making any noise.  Useful for when there's no error, but you
+    != still want to exit midway through a calculation (e.g. for testing purposes,
+    != or for use with the SOFTEXIT functionality).
+    != In:
+    !=    msg (optional) : Print msg before exiting if msg is present.
 #ifdef PARALLEL
-use Parallel_neci, only: MPIStopAll
+    use Parallel_neci, only: MPIStopAll
 #endif
 
-implicit none
-character(*), intent(in), optional :: msg
+    implicit none
+    character(*), intent(in), optional :: msg
 
-if (present(msg)) then
-    write (6,'(1X,a)') adjustl(msg)
-    CALL neci_flush(6)
-end if
+    if (present(msg)) then
+        write (6,'(1X,a)') adjustl(msg)
+        CALL neci_flush(6)
+    end if
 
 #ifdef PARALLEL
-call MPIStopAll(msg)
+    call MPIStopAll(msg)
 #else
-stop
+    stop
 #endif
 
 end subroutine quiet_stop
+
+
+subroutine stop_all_c (sub_name, error_msg) bind(c)
+    use iso_c_hack
+    use util_mod, only: strlen_wrap
+    implicit none
+
+    character(c_char), target, intent(in) :: sub_name(*), error_msg(*)
+    character(len=strlen_wrap(sub_name)), target :: sub_name_tmp
+    character(len=strlen_wrap(error_msg)), target :: error_msg_tmp
+
+    ! Convert from C character to standard fortran character string.
+    ! Note that strlen does not include the null character at the end of the
+    ! C string.  This is the behaviour we want.
+    sub_name_tmp = transfer(sub_name(:strlen_wrap(sub_name)), sub_name_tmp)
+    error_msg_tmp = transfer(error_msg(:strlen_wrap(error_msg)), error_msg_tmp)
+
+    call stop_all (sub_name_tmp, error_msg_tmp)
+
+end subroutine
+
+

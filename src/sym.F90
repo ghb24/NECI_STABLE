@@ -1,22 +1,4 @@
-module sym_mod
 
-use constants, only: dp,int64,sizeof_int
-use SymExcitDataMod, only: SymTableLabels, SymLabelList2, SymLabelCounts2, &
-                           OrbClassCount
-use SystemData, only: tKpntSym, tNoSymGenRandExcits, tHub, t_new_hubbard, &
-                      t_k_space_hubbard, Symmetry, BasisFN, SymmetrySize, &
-                      tUEG, treal , arr, brr, tSymIgnoreEnergies, &
-                      nBasis, G1, tKPntSym, tFixLz, lNoSymmetry, nBasisMax, nel, &
-                      NullBasisFn, Tperiodicinmom
-use lattice_mod, only: lat
-! use SymData, only: SymTable,nProp,tAbelian,TwoCycleSymGens, SymConjTab, nSym, &
-!                    SymClasses, nSymLabels, SymLabels, tagSymLabels, tagSymClasses, &
-!                    tagSymConjTab, SymReps, SymClasses2, tagSymClasses2, &
-!                    tagSymReps
-use SymData
-use util_mod, only: int_fmt
-use global_utilities
-use sort_mod
 implicit none
 
 contains

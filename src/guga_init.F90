@@ -470,14 +470,6 @@ contains
             call stop_all(this_routine, &
                 "'precond' not yet implemented with GUGA. mostly because of communication")
         end if
-        ! assert that tUseFlags is set, to be able to encode deltaB values
-        ! in the ilut representation for excitation generation
-        !if (.not.tUseFlags) then
-        !    call stop_all(this_routine, &
-        !        "tUseFlags has to be .true. to encode deltaB values in ilut!")
-        !end if
-        ! cannot do assertion here, since flag is set afterwards, but changed
-        ! corresponding code, so flag is set.
 
     end subroutine checkInputGUGA
 
