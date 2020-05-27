@@ -165,14 +165,11 @@ C..
       MS2=MS2/2
 C..
       IF(MS1.NE.MS2) THEN
-       IF(IFLG.EQ.1) then
-        call pp_stop_all(t_r,'PROBLEM IN TWO DIFFER',__FILE__,__LINE__)
+       IF(IFLG.EQ.1) call stop_all(t_r,'PROBLEM IN TWO DIFFER')
        endif
-       IF(IFLG.EQ.2) then
-        call pp_stop_all(t_r,'PROBLEM IN ONE DIFFER',__FILE__,__LINE__)
+       IF(IFLG.EQ.2) call stop_all(t_r,'PROBLEM IN ONE DIFFER')
        endif
-       IF(IFLG.EQ.3) then
-        call pp_stop_all(t_r,'PROBLEM IN SAME',__FILE__,__LINE__)
+       IF(IFLG.EQ.3) call stop_all(t_r,'PROBLEM IN SAME')
        endif
       ENDIF
 C..
