@@ -250,7 +250,7 @@ module fcimc_initialisation
 
     use pchb_excitgen, only: gen_rand_excit_pchb, init_pchb_excitgen, finalize_pchb_excitgen
 
-    use guga_pchb_excitgen, only: init_guga_pchb_excitgen
+    use guga_pchb_excitgen, only: init_guga_pchb_excitgen, finalize_pchb_excitgen_guga
 
     implicit none
 
@@ -2300,7 +2300,13 @@ contains
 
         ! Cleanup excitation generator
         if(t_pcpp_excitgen) call finalize_pcpp_excitgen()
-        if(t_pchb_excitgen) call finalize_pchb_excitgen()
+        if(t_pchb_excitgen) then
+            if (tGUGA) then
+                call finalize_pchb_excitgen_guga()
+            else
+                call finalize_pchb_excitgen()
+            end if
+        end if
 
         if (tSemiStochastic) call end_semistoch()
 

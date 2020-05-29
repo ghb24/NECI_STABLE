@@ -19,7 +19,8 @@ module guga_excitations
                           tgen_guga_mixed, t_new_hubbard, t_new_real_space_hubbard, &
                           t_crude_exchange, t_crude_exchange_noninits, &
                           t_approx_exchange, t_approx_exchange_noninits, &
-                          is_init_guga, t_heisenberg_model, t_tJ_model, t_mixed_hubbard
+                          is_init_guga, t_heisenberg_model, t_tJ_model, t_mixed_hubbard, &
+                          t_pchb_excitgen
 
     use constants, only: dp, n_int, bits_n_int, lenof_sign, Root2, THIRD, HEl_zero, &
                          EPS, bni_, bn2_, iout, int64, inum_runs, maxExcit, int_rdm
@@ -4629,12 +4630,6 @@ contains
 
         end if
 
-        print *, " ****************** AFTER *********************** "
-        print *, "I: "
-        call write_det_guga(6, ilut)
-        print *, "J: "
-        call write_det_guga(6, excitation)
-
         ! for now add a sanity check to compare the stochastic obtained
         ! matrix elements with the exact calculation..
         ! since something is going obviously wrong..
@@ -4681,8 +4676,6 @@ contains
             end if
         end if
 #endif
-
-        print *, " ************* after check.. ***************** "
 
         ! check if excitation generation was successful
         if (near_zero(pgen)) then
@@ -4781,10 +4774,6 @@ contains
             pgen = 0.0_dp
             return
         end if
-
-        print *, " *************** BEFORE *********************"
-        call write_det_guga(6, ilut)
-        call print_excitInfo(excitInfo)
 
         if (t_guga_back_spawn) then
             if (increase_ex_levl(excitInfo) .and. .not. is_init_guga) then
@@ -13076,6 +13065,7 @@ contains
         type(WeightObj_t) :: weights
         integer :: iO, st, en, step, ierr, i, j, gen, deltaB, step2
         integer(n_int) :: ilutI(0:niftot), ilutJ(0:niftot)
+        logical :: compFlag
 
         ASSERT(isProperCSF_ilut(ilut))
 
@@ -13098,6 +13088,18 @@ contains
             pgen = 0.0_dp
             return
         end if
+
+        if (t_pchb_excitgen) then
+            call checkCompatibility_single(ilut, excitInfo, compFlag, &
+                posSwitches, negSwitches, weights)
+
+            if (.not.compFlag) then
+                exc = 0_n_int
+                pgen = 0.0_dp
+                return
+            end if
+        end if
+
 
         if (t_guga_back_spawn) then
             ! do smth like this:
@@ -13170,10 +13172,11 @@ contains
         integral = getTmatEl(2*i, 2*j)
 
         ! then calculate the remaing switche given indices
-        call calcRemainingSwitches_excitInfo_single(excitInfo, posSwitches, negSwitches)
-
-        ! intitialize the weights
-        weights = init_singleWeight(ilut, excitInfo%fullEnd)
+        if (.not. t_pchb_excitgen) then
+            call calcRemainingSwitches_excitInfo_single(excitInfo, posSwitches, negSwitches)
+            ! intitialize the weights
+            weights = init_singleWeight(ilut, excitInfo%fullEnd)
+        end if
 
         ! create the start randomly(if multiple possibilities)
         ! create the start in such a way to use it for double excitations too
@@ -13540,8 +13543,6 @@ contains
                     return
                 end if
             end if
-            print *, "t:"
-            call write_det_guga(6, t)
             ASSERT(deltaB == 1)
 
             if (gen == gen_type%R) then
@@ -20871,6 +20872,73 @@ contains
 
     end subroutine calcDoubleExcitation_withWeight
 
+    subroutine checkCompatibility_single(L, excitInfo, flag, posSwitches, negSwitches, opt_weight)
+        integer(n_int), intent(in) :: L(0:nifguga)
+        type(ExcitationInformation_t), intent(in) :: excitInfo
+        logical, intent(out) :: flag
+        real(dp), intent(out), optional :: posSwitches(nSpatOrbs), &
+                                           negSwitches(nSpatOrbs)
+
+        type(WeightObj_t), intent(out), optional :: opt_weight
+        debug_function_name("checkCompatibility_single")
+
+        real(dp) :: pw, mw
+        integer ::  st, en
+        type(WeightObj_t) :: weights
+
+        ASSERT(excitInfo%typ == excit_type%single)
+        ASSERT(excitInfo%gen1 == gen_type%R .or. excitInfo%gen1 == gen_type%L)
+
+        call calcRemainingSwitches_excitInfo_single(excitInfo, posSwitches, negSwitches)
+
+        st = excitInfo%fullStart
+        en = excitInfo%fullEnd
+        flag = .true.
+
+        if (excitInfo%gen1 == gen_type%R) then
+            ! raising
+            if (current_stepvector(st) == 3 .or. current_stepvector(en)) then
+                flag = .false.
+                return
+            end if
+
+            weights = init_singleWeight(L, en)
+            mw = weights%proc%minus(negSwitches(st), currentB_ilut(st), weights%dat)
+            pw = weights%proc%plus(posSwitches(st), currentB_ilut(st), weights%dat)
+
+            if ((near_zero(pw) .and. near_zero(mw)) .or. &
+                (current_stepvector(st) == 1 .and. near_zero(pw)) .or. &
+                (current_stepvector(st) == 2 .and. near_zero(mw))) then
+                flag = .false.
+                return
+            end if
+
+        else if (excitInfo%gen1 == gen_type%L) then
+            ! lowering
+
+            if (current_stepvector(en) == 3 .or. current_stepvector(st) == 0) then
+                flag = .false.
+                return
+            end if
+
+            weights = init_singleWeight(L, en)
+            mw = weights%proc%minus(negSwitches(st), currentB_ilut(st), weights%dat)
+            pw = weights%proc%plus(posSwitches(st), currentB_ilut(st), weights%dat)
+
+
+            if ((current_stepvector(st) == 1 .and. near_zero(pw)) .or. &
+                (current_stepvector(st) == 2 .and. near_zero(mw)) .or. &
+                (near_zero(pw + mw))) then
+                flag = .false.
+                return
+            end if
+        end if
+
+        if (present(opt_weight)) opt_weight = weights
+
+    end subroutine checkCompatibility_single
+
+
     subroutine checkCompatibility(L, excitInfo, flag, posSwitches, negSwitches, opt_weight)
         ! depending on the type of excitation determined in the
         ! excitationIdentifier check if the provided ilut and excitation and
@@ -21541,9 +21609,7 @@ contains
 
         end select
 
-        if (present(opt_weight)) then
-            opt_weight = weights
-        end if
+        if (present(opt_weight)) opt_weight = weights
 
     end subroutine checkCompatibility
 

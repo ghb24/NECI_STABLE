@@ -36,7 +36,7 @@ module guga_pchb_excitgen
               calc_orbital_pgen_contr_end_pchb, init_guga_pchb_excitgen, &
               calc_pgen_guga_pchb, pick_uniform_spatial_hole, &
               calc_orb_pgen_uniform_singles, setup_pchb_sampler_conditional, &
-              tgtOrbs, guga_pchb_sampler
+              tgtOrbs, guga_pchb_sampler, finalize_pchb_excitgen_guga
 
 
 
