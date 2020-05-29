@@ -12,7 +12,8 @@ module guga_bitRepOps
                           currentB_ilut, currentB_int, current_cum_list, nbasis
     use guga_data, only: ExcitationInformation_t, excit_type, gen_type, &
                          rdm_ind_bitmask, pos_excit_lvl_bits, pos_excit_type_bits, &
-                         n_excit_lvl_bits, n_excit_type_bits, n_excit_index_bits
+                         n_excit_lvl_bits, n_excit_type_bits, n_excit_index_bits, &
+                         excit_names
     use constants, only: dp, n_int, bits_n_int, bni_, bn2_, int_rdm, int64
     use DetBitOps, only: return_ms, count_set_bits, MaskAlpha, &
                     count_open_orbs, ilut_lt, ilut_gt, MaskAlpha, MaskBeta, &
@@ -1974,7 +1975,7 @@ contains
                     extract_stochastic_rdm_x1(GugaBits, ilut)
             end if
         else
-            if (flag) then
+            if (flag_) then
                 write(nunit, "(A,i8)", advance = 'yes') ") ", getDeltaB(ilut)
             else
                 write(nunit, "(A,i8)", advance = 'no') ") ", getDeltaB(ilut)
@@ -3142,26 +3143,31 @@ contains
         integer, intent(in) :: typ, inds(4)
         integer(int64) :: excit_info_int
 
-        ASSERT(&
-            typ == excit_type%single_overlap_L_to_R  .or. &
-            typ == excit_type%single_overlap_R_to_L  .or. &
-            typ == excit_type%double_lowering  .or. &
-            typ == excit_type%double_raising  .or. &
-            typ == excit_type%double_L_to_R_to_L  .or. &
-            typ == excit_type%double_R_to_L_to_R  .or. &
-            typ == excit_type%double_L_to_R  .or. &
-            typ == excit_type%double_R_to_L  .or. &
-            typ == excit_type%fullstop_lowering  .or. &
-            typ == excit_type%fullstart_raising  .or. &
-            typ == excit_type%fullstop_L_to_R  .or. &
-            typ == excit_type%fullstop_R_to_L  .or. &
-            typ == excit_type%fullstart_lowering  .or. &
-            typ == excit_type%fullstart_raising  .or. &
-            typ == excit_type%fullstart_L_to_R  .or. &
-            typ == excit_type%fullstart_R_to_L  .or. &
-            typ == excit_type%fullstart_stop_alike  .or. &
-            typ == excit_type%fullstart_stop_mixed &
-            )
+#ifdef DEBUG_
+        select case(typ)
+        case( excit_type%single_overlap_L_to_R)
+        case( excit_type%single_overlap_R_to_L )
+        case( excit_type%double_lowering )
+        case( excit_type%double_raising )
+        case( excit_type%double_L_to_R_to_L)
+        case( excit_type%double_R_to_L_to_R )
+        case( excit_type%double_L_to_R )
+        case( excit_type%double_R_to_L )
+        case( excit_type%fullstop_lowering )
+        case( excit_type%fullstop_raising )
+        case( excit_type%fullstop_L_to_R )
+        case( excit_type%fullstop_R_to_L )
+        case( excit_type%fullstart_lowering)
+        case( excit_type%fullstart_raising)
+        case( excit_type%fullstart_L_to_R)
+        case( excit_type%fullstart_R_to_L)
+        case( excit_type%fullstart_stop_alike)
+        case( excit_type%fullstart_stop_mixed)
+        case default
+            print *, "incorrect typ: ", excit_names(typ)
+            call pp_stop_all(this_routine, "see above", __FILE__, __LINE__)
+        end select
+#endif
 
         ASSERT(all(inds > 0) .and. all(inds <= nSpatOrbs))
 
@@ -3180,26 +3186,31 @@ contains
         integer, intent(in) :: typ, a, i, b, j
         integer(int64) :: excit_info_int
 
-        ASSERT(&
-            typ == excit_type%single_overlap_L_to_R  .or. &
-            typ == excit_type%single_overlap_R_to_L  .or. &
-            typ == excit_type%double_lowering  .or. &
-            typ == excit_type%double_raising  .or. &
-            typ == excit_type%double_L_to_R_to_L  .or. &
-            typ == excit_type%double_R_to_L_to_R  .or. &
-            typ == excit_type%double_L_to_R  .or. &
-            typ == excit_type%double_R_to_L  .or. &
-            typ == excit_type%fullstop_lowering  .or. &
-            typ == excit_type%fullstart_raising  .or. &
-            typ == excit_type%fullstop_L_to_R  .or. &
-            typ == excit_type%fullstop_R_to_L  .or. &
-            typ == excit_type%fullstart_lowering  .or. &
-            typ == excit_type%fullstart_raising  .or. &
-            typ == excit_type%fullstart_L_to_R  .or. &
-            typ == excit_type%fullstart_R_to_L  .or. &
-            typ == excit_type%fullstart_stop_alike  .or. &
-            typ == excit_type%fullstart_stop_mixed &
-            )
+#ifdef DEBUG_
+        select case(typ)
+        case( excit_type%single_overlap_L_to_R)
+        case( excit_type%single_overlap_R_to_L )
+        case( excit_type%double_lowering )
+        case( excit_type%double_raising )
+        case( excit_type%double_L_to_R_to_L)
+        case( excit_type%double_R_to_L_to_R )
+        case( excit_type%double_L_to_R )
+        case( excit_type%double_R_to_L )
+        case( excit_type%fullstop_lowering )
+        case( excit_type%fullstop_raising )
+        case( excit_type%fullstop_L_to_R )
+        case( excit_type%fullstop_R_to_L )
+        case( excit_type%fullstart_lowering)
+        case( excit_type%fullstart_raising)
+        case( excit_type%fullstart_L_to_R)
+        case( excit_type%fullstart_R_to_L)
+        case( excit_type%fullstart_stop_alike)
+        case( excit_type%fullstart_stop_mixed)
+        case default
+            print *, "incorrect typ: ", excit_names(typ)
+            call pp_stop_all(this_routine, "see above", __FILE__, __LINE__)
+        end select
+#endif
 
         ASSERT(a > 0 .and. a <= nSpatOrbs)
         ASSERT(i > 0 .and. i <= nSpatOrbs)
@@ -3215,26 +3226,31 @@ contains
         integer(int64), intent(inout) :: excit_info_int
         integer, intent(in) :: typ
 
-        ASSERT(&
-            typ == excit_type%single_overlap_L_to_R  .or. &
-            typ == excit_type%single_overlap_R_to_L  .or. &
-            typ == excit_type%double_lowering  .or. &
-            typ == excit_type%double_raising  .or. &
-            typ == excit_type%double_L_to_R_to_L  .or. &
-            typ == excit_type%double_R_to_L_to_R  .or. &
-            typ == excit_type%double_L_to_R  .or. &
-            typ == excit_type%double_R_to_L  .or. &
-            typ == excit_type%fullstop_lowering  .or. &
-            typ == excit_type%fullstop_raising  .or. &
-            typ == excit_type%fullstop_L_to_R  .or. &
-            typ == excit_type%fullstop_R_to_L  .or. &
-            typ == excit_type%fullstart_lowering  .or. &
-            typ == excit_type%fullstart_raising  .or. &
-            typ == excit_type%fullstart_L_to_R  .or. &
-            typ == excit_type%fullstart_R_to_L  .or. &
-            typ == excit_type%fullstart_stop_alike  .or. &
-            typ == excit_type%fullstart_stop_mixed &
-            )
+#ifdef DEBUG_
+        select case(typ)
+        case( excit_type%single_overlap_L_to_R)
+        case( excit_type%single_overlap_R_to_L )
+        case( excit_type%double_lowering )
+        case( excit_type%double_raising )
+        case( excit_type%double_L_to_R_to_L)
+        case( excit_type%double_R_to_L_to_R )
+        case( excit_type%double_L_to_R )
+        case( excit_type%double_R_to_L )
+        case( excit_type%fullstop_lowering )
+        case( excit_type%fullstop_raising )
+        case( excit_type%fullstop_L_to_R )
+        case( excit_type%fullstop_R_to_L )
+        case( excit_type%fullstart_lowering)
+        case( excit_type%fullstart_raising)
+        case( excit_type%fullstart_L_to_R)
+        case( excit_type%fullstart_R_to_L)
+        case( excit_type%fullstart_stop_alike)
+        case( excit_type%fullstart_stop_mixed)
+        case default
+            print *, "incorrect typ: ", excit_names(typ)
+            call pp_stop_all(this_routine, "see above", __FILE__, __LINE__)
+        end select
+#endif
 
         ! the convention is to store the excit-type 'first' at the LSB
         ! so this should be fine:
@@ -3370,27 +3386,31 @@ contains
                    secondStart, firstEnd, fullEnd, weight, excitLvl, overlap
         real(dp) :: order, order1
 
-        ASSERT(&
-            typ == excit_type%single_overlap_L_to_R  .or. &
-            typ == excit_type%single_overlap_R_to_L  .or. &
-            typ == excit_type%double_lowering  .or. &
-            typ == excit_type%double_raising  .or. &
-            typ == excit_type%double_L_to_R_to_L  .or. &
-            typ == excit_type%double_R_to_L_to_R  .or. &
-            typ == excit_type%double_L_to_R  .or. &
-            typ == excit_type%double_R_to_L  .or. &
-            typ == excit_type%fullstop_lowering  .or. &
-            typ == excit_type%fullstop_raising  .or. &
-            typ == excit_type%fullstop_L_to_R  .or. &
-            typ == excit_type%fullstop_R_to_L  .or. &
-            typ == excit_type%fullstart_lowering  .or. &
-            typ == excit_type%fullstart_raising  .or. &
-            typ == excit_type%fullstart_L_to_R  .or. &
-            typ == excit_type%fullstart_R_to_L  .or. &
-            typ == excit_type%fullstart_stop_alike  .or. &
-            typ == excit_type%fullstart_stop_mixed &
-            )
-
+#ifdef DEBUG_
+        select case(typ)
+        case( excit_type%single_overlap_L_to_R)
+        case( excit_type%single_overlap_R_to_L )
+        case( excit_type%double_lowering )
+        case( excit_type%double_raising )
+        case( excit_type%double_L_to_R_to_L)
+        case( excit_type%double_R_to_L_to_R )
+        case( excit_type%double_L_to_R )
+        case( excit_type%double_R_to_L )
+        case( excit_type%fullstop_lowering )
+        case( excit_type%fullstop_raising )
+        case( excit_type%fullstop_L_to_R )
+        case( excit_type%fullstop_R_to_L )
+        case( excit_type%fullstart_lowering)
+        case( excit_type%fullstart_raising)
+        case( excit_type%fullstart_L_to_R)
+        case( excit_type%fullstart_R_to_L)
+        case( excit_type%fullstart_stop_alike)
+        case( excit_type%fullstart_stop_mixed)
+        case default
+            print *, "incorrect typ: ", excit_names(typ)
+            call pp_stop_all(this_routine, "see above", __FILE__, __LINE__)
+        end select
+#endif
 
         ASSERT(a > 0 .and. a <= nSpatOrbs)
         ASSERT(i > 0 .and. i <= nSpatOrbs)
@@ -3408,9 +3428,9 @@ contains
 
         weight = 0
         ! fuck this excitLvl info is so stupid... i need to change that :(
-        excitLvl = -1
+        excitLvl = 2
         order = 1.0_dp
-        order = 1.0_dp
+        order1 = 1.0_dp
 
         select case (typ)
 
@@ -3692,9 +3712,9 @@ contains
 
             gen1        = gen_type%R
             gen2        = gen_type%L
-            currentGen  = gen_type%L
+            currentGen  = gen_type%R
             firstGen    = gen_type%L
-            lastGen     = gen_type%L
+            lastGen     = gen_type%R
             fullstart   = a
             secondStart = a
             firstEnd    = b
@@ -3712,9 +3732,9 @@ contains
 
             gen1        = gen_type%R
             gen2        = gen_type%L
-            currentGen  = gen_type%R
+            currentGen  = gen_type%L
             firstGen    = gen_type%R
-            lastGen     = gen_type%R
+            lastGen     = gen_type%L
             fullstart   = a
             secondStart = a
             firstEnd    = i

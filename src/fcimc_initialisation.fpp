@@ -499,6 +499,10 @@ contains
             ! reference energy!
             ! for testing purposes initiaize both
             if (.not. t_direct_guga_ref) then
+                root_print &
+                    "initialising the projected energy list H|ref>. &
+                   & This can take some time. Try using 'direct-guga-ref' in the&
+                   & Calc Block of the input if it takes too long"
                 do run = 1, inum_runs
                     call create_projE_list(run)
                 end do

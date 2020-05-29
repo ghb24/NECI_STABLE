@@ -113,7 +113,7 @@ contains
 
         ! Sync the shared resource between tasks
         call this%biasTable%sync()
-        call this%aliasTable%sync()        
+        call this%aliasTable%sync()
 
     end subroutine setupTable
 
@@ -122,7 +122,7 @@ contains
     !> Set the bias and alias values for each value in range
     !> @param[in] arr - array containing the (not necessarily normalized) probabilities we
     !>              want to use for sampling
-    subroutine initTable(this,arr)
+    subroutine initTable(this, arr)
         implicit none
         class(aliasTable_t) :: this
         real(dp), intent(in) :: arr(:)

@@ -4629,6 +4629,12 @@ contains
 
         end if
 
+        print *, " ****************** AFTER *********************** "
+        print *, "I: "
+        call write_det_guga(6, ilut)
+        print *, "J: "
+        call write_det_guga(6, excitation)
+
         ! for now add a sanity check to compare the stochastic obtained
         ! matrix elements with the exact calculation..
         ! since something is going obviously wrong..
@@ -4676,6 +4682,7 @@ contains
         end if
 #endif
 
+        print *, " ************* after check.. ***************** "
 
         ! check if excitation generation was successful
         if (near_zero(pgen)) then
@@ -4774,6 +4781,10 @@ contains
             pgen = 0.0_dp
             return
         end if
+
+        print *, " *************** BEFORE *********************"
+        call write_det_guga(6, ilut)
+        call print_excitInfo(excitInfo)
 
         if (t_guga_back_spawn) then
             if (increase_ex_levl(excitInfo) .and. .not. is_init_guga) then
@@ -13529,6 +13540,8 @@ contains
                     return
                 end if
             end if
+            print *, "t:"
+            call write_det_guga(6, t)
             ASSERT(deltaB == 1)
 
             if (gen == gen_type%R) then

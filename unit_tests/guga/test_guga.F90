@@ -1833,7 +1833,7 @@ contains
 
 
         excit_info_int = encode_excit_info(excit_type%double_L_to_R_to_L, &
-            [4,1,3,2])
+            [2,3,4,1])
 
         call extract_excit_info(excit_info_int, typ, a, i, b, j)
         call assert_equals(excit_type%double_L_to_R_to_L, typ)
