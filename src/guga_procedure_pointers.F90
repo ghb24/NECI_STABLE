@@ -10,7 +10,7 @@ module guga_procedure_pointers
               calc_mixed_start_l2r_contr, calc_mixed_end_r2l_contr, &
               pick_first_orbital, orb_pgen_contrib_type_3, orb_pgen_contrib_type_2, &
               calc_off_diag_guga_ref, gen_single_excit_guga, gen_double_excit_guga, &
-              calc_orbital_pgen_contr_start, calc_orbital_pgen_contr_end
+              calc_orbital_pgen_contrib_start, calc_orbital_pgen_contrib_end
 
     abstract interface
         subroutine PickOrbitals_t(ilut, nI, excitInfo, pgen)
@@ -25,13 +25,13 @@ module guga_procedure_pointers
             real(dp), intent(out) :: pgen
         end subroutine PickOrbitals_t
 
-        function CalcOrbitalPgenContr_t(occ_orbs, orb_a) result(orb_pgen)
+        subroutine CalcOrbitalPgenContr_t(occ_orbs, orb_a, orb_pgen)
             use constants, only: dp
             implicit none
             integer, intent(in) :: occ_orbs(2), orb_a
-            real(dp) :: orb_pgen
+            real(dp), intent(out) :: orb_pgen
 
-        end function CalcOrbitalPgenContr_t
+        end subroutine CalcOrbitalPgenContr_t
 
         subroutine calc_orbital_pgen_contr_t(ilut, occ_orbs, above_cpt, below_cpt)
             use constants, only: dp, n_int
@@ -154,7 +154,7 @@ module guga_procedure_pointers
     procedure(CreateSingleExcitGUGA_t), pointer :: gen_single_excit_guga
     procedure(CreateDoubleExcitGUGA_t), pointer :: gen_double_excit_guga
 
-    procedure(CalcOrbitalPgenContr_t), pointer :: calc_orbital_pgen_contr_start
-    procedure(CalcOrbitalPgenContr_t), pointer :: calc_orbital_pgen_contr_end
+    procedure(CalcOrbitalPgenContr_t), pointer :: calc_orbital_pgen_contrib_start
+    procedure(CalcOrbitalPgenContr_t), pointer :: calc_orbital_pgen_contrib_end
 
 end module

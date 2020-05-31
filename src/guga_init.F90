@@ -33,8 +33,8 @@ module guga_init
                         calc_orbital_pgen_contr, calc_mixed_contr, calc_mixed_start_l2r_contr, &
                         calc_mixed_start_r2l_contr, calc_mixed_end_r2l_contr, calc_mixed_end_l2r_contr, &
                         pick_first_orbital, orb_pgen_contrib_type_2, orb_pgen_contrib_type_3, &
-                        calc_off_diag_guga_ref, calc_orbital_pgen_contr_start, &
-                        calc_orbital_pgen_contr_end
+                        calc_off_diag_guga_ref, calc_orbital_pgen_contrib_start, &
+                        calc_orbital_pgen_contrib_end
 
     use guga_excitations, only: pickOrbs_sym_uniform_ueg_single, pickOrbs_sym_uniform_ueg_double, &
                         pickOrbs_sym_uniform_mol_single, pickOrbs_sym_uniform_mol_double, &
@@ -48,7 +48,8 @@ module guga_init
                         orb_pgen_contrib_type_3_diff, orb_pgen_contrib_type_2_uniform, &
                         orb_pgen_contrib_type_3_uniform, temp_step_i, temp_step_j, &
                         temp_delta_b, temp_occ_i, temp_b_real_i, calc_off_diag_guga_ref_direct, &
-                        pickOrbs_real_hubbard_single, pickOrbs_real_hubbard_double
+                        pickOrbs_real_hubbard_single, pickOrbs_real_hubbard_double, &
+                        calc_orbital_pgen_contrib_start_def, calc_orbital_pgen_contrib_end_def
 
     use guga_matrixElements, only: calc_off_diag_guga_ref_list
 
@@ -88,6 +89,10 @@ contains
 
         ! now i have to differentiate between the real- and momentum space
         ! hubbard models..
+        ! this is default for all, except PCHB excit-gens
+        calc_orbital_pgen_contrib_start => calc_orbital_pgen_contrib_start_def
+        calc_orbital_pgen_contrib_end => calc_orbital_pgen_contrib_end_def
+
         if (tGen_sym_guga_ueg) then
             if (.not. (treal .or. t_new_real_space_hubbard)) then
                 pickOrbitals_single => pickOrbs_sym_uniform_ueg_single
@@ -126,8 +131,8 @@ contains
             pickOrbitals_double => pick_orbitals_double_pchb
             ! rest has to be determined what needs a change..
             calc_orbital_pgen_contr => calc_orbital_pgen_contr_pchb
-            calc_orbital_pgen_contr_start => calc_orbital_pgen_contr_start_pchb
-           calc_orbital_pgen_contr_end => calc_orbital_pgen_contr_end_pchb
+            calc_orbital_pgen_contrib_start => calc_orbital_pgen_contr_start_pchb
+            calc_orbital_pgen_contrib_end => calc_orbital_pgen_contr_end_pchb
             calc_mixed_start_l2r_contr => calc_mixed_start_contr_sym
             calc_mixed_start_r2l_contr => calc_mixed_start_contr_sym
             calc_mixed_end_l2r_contr => calc_mixed_end_contr_sym

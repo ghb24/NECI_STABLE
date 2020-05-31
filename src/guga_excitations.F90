@@ -87,7 +87,8 @@ module guga_excitations
     use guga_procedure_pointers, only: pickOrbitals_single, pickOrbitals_double, &
                 calc_orbital_pgen_contr, calc_mixed_contr, calc_mixed_start_r2l_contr, &
                 calc_mixed_start_l2r_contr, calc_mixed_end_l2r_contr, calc_mixed_end_r2l_contr, &
-                pick_first_orbital, orb_pgen_contrib_type_3, orb_pgen_contrib_type_2
+                pick_first_orbital, orb_pgen_contrib_type_3, orb_pgen_contrib_type_2, &
+                calc_orbital_pgen_contrib_start, calc_orbital_pgen_contrib_end
 
     use Umatcache, only: UMat2D
 
@@ -158,7 +159,9 @@ module guga_excitations
               calcdoubler2l2r_stochastic, calcdoublel2r_stochastic, &
               calcdoubler2l_stochastic, test_excit_gen_guga, calcallexcitations, &
               pick_elec_pair_uniform_guga, get_guga_integral_contrib, &
-              calc_pgen_mol_guga_single, get_excit_level_from_excitInfo
+              calc_pgen_mol_guga_single, get_excit_level_from_excitInfo, &
+              get_guga_integral_contrib_spat, calc_orbital_pgen_contrib_start_def, &
+              calc_orbital_pgen_contrib_end_def
 
 
     ! use a "global" bVector variable here so that a b vector only has to be
@@ -5044,7 +5047,6 @@ contains
                 else
                     pgen = branch_pgen
                 end if
-
 
             end if
 
@@ -11498,12 +11500,12 @@ contains
 
     end subroutine calc_mixed_start_contr_sym
 
-    subroutine calc_orbital_pgen_contrib_end(occ_orbs, orb_a, orb_pgen)
+    subroutine calc_orbital_pgen_contrib_end_def(occ_orbs, orb_a, orb_pgen)
         ! write a combined function for both r2l and l2r since its only
         ! one difference -> only one if condition to adjust for both!
         integer, intent(in) :: occ_orbs(2), orb_a
         real(dp), intent(out) :: orb_pgen
-        character(*), parameter :: this_routine = "calc_orbital_pgen_contrib_end"
+        character(*), parameter :: this_routine = "calc_orbital_pgen_contrib_end_def"
 
         integer :: i, j, orb
         real(dp) :: cum_sum, cpt_a, cpt_b, cpt_ba, cpt_ab, ba_sum, ab_sum
@@ -11582,14 +11584,14 @@ contains
             orb_pgen = cpt_a + cpt_b
         end if
 
-    end subroutine calc_orbital_pgen_contrib_end
+    end subroutine calc_orbital_pgen_contrib_end_def
 
-    subroutine calc_orbital_pgen_contrib_start(occ_orbs, orb_a, orb_pgen)
+    subroutine calc_orbital_pgen_contrib_start_def(occ_orbs, orb_a, orb_pgen)
         ! write a combined function for both r2l and l2r since its only
         ! one difference -> only one if condition to adjust for both!
         integer, intent(in) :: occ_orbs(2), orb_a
         real(dp), intent(out) :: orb_pgen
-        character(*), parameter :: this_routine = "calc_orbital_pgen_contrib_start"
+        character(*), parameter :: this_routine = "calc_orbital_pgen_contrib_start_def"
 
         integer :: i, j, orb
         real(dp) :: cum_sum, cpt_a, cpt_b, cpt_ba, cpt_ab, ba_sum, ab_sum
@@ -11674,7 +11676,7 @@ contains
             orb_pgen = cpt_a + cpt_b
         end if
 
-    end subroutine calc_orbital_pgen_contrib_start
+    end subroutine calc_orbital_pgen_contrib_start_def
 
     subroutine calc_mixed_start_l2r_contr_nosym(ilut, t, excitInfo, branch_pgen, &
             pgen, integral, rdm_ind, rdm_mat)
@@ -20897,7 +20899,7 @@ contains
 
         if (excitInfo%gen1 == gen_type%R) then
             ! raising
-            if (current_stepvector(st) == 3 .or. current_stepvector(en)) then
+            if (current_stepvector(st) == 3 .or. current_stepvector(en) == 0) then
                 flag = .false.
                 return
             end if
@@ -25206,6 +25208,53 @@ contains
         end if
 
     end subroutine gen_a_orb_cum_list_guga_mol_restricted
+
+    function get_guga_integral_contrib_spat(occ_orbs, orb_a, orb_b) result(cpt)
+        debug_function_name("get_guga_integral_contrib_spat")
+        integer, intent(in) :: occ_orbs(2), orb_a, orb_b
+        real(dp) :: cpt
+
+        integer :: ind(2)
+
+        ind = occ_orbs
+        ! for now, since i dont know how to correctly do it, and for testing
+        ! purposes just add a uniformly factor to all of the orbitals.
+
+        ! do a input dependent switch to compare influence on the pgens..
+        if (tGen_guga_weighted) then
+
+            if (orb_b < 0) then
+
+                cpt = sqrt(abs_l1(UMat2D(max(ind(1),orb_a), min(ind(1),orb_a)))) &
+                    + sqrt(abs_l1(UMat2D(max(ind(2),orb_a), min(ind(2),orb_a))))
+            else
+
+                cpt = sqrt(abs(get_umat_el(ind(1),ind(2),orb_a,orb_b)) &
+                                 + abs(get_umat_el(ind(1),ind(2),orb_b,orb_a)))
+
+            end if
+
+        else
+
+            if (orb_b < 0) then
+
+                cpt = 1.0_dp
+
+            else
+
+                if (t_pchb_excitgen) then
+                    cpt = abs(get_umat_el(ind(1),ind(2),orb_a,orb_b)) +&
+                          abs(get_umat_el(ind(1),ind(2),orb_b,orb_a))
+
+                else
+                    cpt = sqrt(abs(get_umat_el(ind(1),ind(2),orb_a,orb_b)) +&
+                          abs(get_umat_el(ind(1),ind(2),orb_b,orb_a)))
+                  end if
+            end if
+        end if
+
+
+    end function get_guga_integral_contrib_spat
 
     function get_guga_integral_contrib(occ_orbs, orb_a, orb_b) result(cpt)
         ! routine which gets the correct FCIDUMP integral contribution for

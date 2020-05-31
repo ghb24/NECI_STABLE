@@ -19,13 +19,15 @@ module guga_pchb_excitgen
     use guga_excitations, only: assign_excitinfo_values_single, &
                                 createStochasticExcitation_single, &
                                 pick_elec_pair_uniform_guga, &
-                                excitationIdentifier_double, get_guga_integral_contrib, &
+                                excitationIdentifier_double, get_guga_integral_contrib_spat, &
                                 calc_pgen_mol_guga_single, get_excit_level_from_excitInfo
     use guga_procedure_pointers, only: gen_single_excit_guga, gen_double_excit_guga
     use guga_bitrepops, only: identify_excitation, encode_excit_info, extract_excit_info
     use bit_reps, only: decode_bit_det
     use shared_array, only: shared_array_int64_t
     use ParallelHelper, only: iProcIndex_intra
+    use GenRandSymExcitNUMod, only: RandExcitSymLabelProd
+
 
     implicit none
 
@@ -206,6 +208,14 @@ contains
                 excit_info = 0_int64
                 do a = 1, nSpatOrbs
                     do b = a, nSpatOrbs
+                        ! shoud i point group symmetry restrctions here?
+                        ! this would avoid unnecessary if statements..
+
+                        if (RandExcitSymLabelProd(SpinOrbSymLabel(2*i), &
+                            SpinOrbSymLabel(2*j)) /= &
+                            RandExcitSymLabelProd(SpinOrbSymLabel(2*a), &
+                            SpinOrbSymLabel(2*b))) cycle
+
                         ab = fuseIndex(a,b)
                         if (i == j) then
                             if (a == b) then
@@ -213,13 +223,13 @@ contains
                                 ! a != i
                                 if (a < i) then
                                     ! _RR_(a) -> ^RR^(i)
-                                    w(ab) = get_guga_integral_contrib([i,j],a,b)
+                                    w(ab) = get_guga_integral_contrib_spat([i,j],a,b)
                                     excit_info(ab) = encode_excit_info(&
                                         typ = excit_type%fullstart_stop_alike, &
                                         a = a, i = i, b = b, j = j)
                                 else if (a > i) then
                                     ! _LL_(i) > ^LL^(a)
-                                    w(ab) = get_guga_integral_contrib([i,j],a,b)
+                                    w(ab) = get_guga_integral_contrib_spat([i,j],a,b)
                                     excit_info(ab) = encode_excit_info(&
                                         typ = excit_type%fullstart_stop_alike, &
                                         a = a, i = i, b = b, j = j)
@@ -231,13 +241,13 @@ contains
                                 if (a < i) then
                                     if (b < i) then
                                         ! _R(a) -> _RR(b) -> ^RR^(i)
-                                        w(ab) = get_guga_integral_contrib([i,j],a,b)
+                                        w(ab) = get_guga_integral_contrib_spat([i,j],a,b)
                                         excit_info(ab) = encode_excit_info(&
                                             typ = excit_type%fullstop_raising, &
                                             a = a, i = i, b = b, j = j)
                                     else if (b > i) then
                                         ! _R(a) -> ^RL_(i) -> ^L(b)
-                                        w(ab) = get_guga_integral_contrib([i,j],a,b)
+                                        w(ab) = get_guga_integral_contrib_spat([i,j],a,b)
                                         excit_info(ab) = encode_excit_info(&
                                             typ = excit_type%single_overlap_R_to_L, &
                                             a = a, i = i, b = b, j = j)
@@ -245,7 +255,7 @@ contains
                                 else if (a > i) then
                                     ! since b > a ensured only:
                                     ! _LL_(i) -> ^LL(a) -> ^L(b)
-                                    w(ab) = get_guga_integral_contrib([i,j],a,b)
+                                    w(ab) = get_guga_integral_contrib_spat([i,j],a,b)
                                     excit_info(ab) = encode_excit_info(&
                                         typ = excit_type%fullstart_lowering, &
                                         a = a, i = i, b = b, j = j)
@@ -256,19 +266,19 @@ contains
                                 ! a == i or a == j NOT allowed!
                                 if (a < i) then
                                     ! _RR_(a) -> ^RR(i) -> ^R(j)
-                                    w(ab) = get_guga_integral_contrib([i,j],a,b)
+                                    w(ab) = get_guga_integral_contrib_spat([i,j],a,b)
                                     excit_info(ab) = encode_excit_info(&
                                         typ = excit_type%fullstart_raising, &
                                         a = a, i = i, b = b, j = j)
                                 else if (a > i .and. a < j) then
                                     ! _L(i) -> ^LR_(a) -> ^R(j)
-                                    w(ab) = get_guga_integral_contrib([i,j],a,b)
+                                    w(ab) = get_guga_integral_contrib_spat([i,j],a,b)
                                     excit_info(ab) = encode_excit_info(&
                                         typ = excit_type%single_overlap_L_to_R, &
                                         a = a, i = i, b = b, j = j)
                                 else if (a > j) then
                                     ! _L(i) -> _LL(j) -> ^LL^(a)
-                                    w(ab) = get_guga_integral_contrib([i,j],a,b)
+                                    w(ab) = get_guga_integral_contrib_spat([i,j],a,b)
                                     excit_info(ab) = encode_excit_info(&
                                         typ = excit_type%fullstop_lowering, &
                                         a = a, i = i, b = b, j = j)
@@ -277,7 +287,7 @@ contains
                                 ! this is the most general case. a lot of IFs
                                 if (a < i) then
                                     if (b < i) then
-                                        w(ab) = get_guga_integral_contrib([i,j],a,b)
+                                        w(ab) = get_guga_integral_contrib_spat([i,j],a,b)
                                         ! in E_{ai}E_{bi} form this would be
                                         ! _R(a) -> RR_(b) -> ^RR(i) -> ^R(j)
                                         ! which would have the opposite
@@ -298,7 +308,7 @@ contains
                                         ! since this would correspond to
                                         ! a single!
                                     else if (b > i .and. b < j) then
-                                        w(ab) = get_guga_integral_contrib([i,j],a,b)
+                                        w(ab) = get_guga_integral_contrib_spat([i,j],a,b)
                                         ! for E_{ai}E_{bj} this would
                                         ! correspond to a non-overlap:
                                         ! _R(a) -> ^R(i) + _R(b) > ^R(j)
@@ -309,7 +319,7 @@ contains
                                             typ = excit_type%double_R_to_L_to_R, &
                                             a = a, i = j, b = b, j = i)
                                     else if (b == j) then
-                                        w(ab) = get_guga_integral_contrib([i,j],a,b)
+                                        w(ab) = get_guga_integral_contrib_spat([i,j],a,b)
                                         ! here we also have to switch
                                         ! indices to E_{aj}E_{bi} to get:
                                         ! _R(i) -> _LR(a) -> ^LR^(j)
@@ -318,7 +328,7 @@ contains
                                             a = a, i = j, b = b, j = i)
 
                                     else if (b > j) then
-                                        w(ab) = get_guga_integral_contrib([i,j],a,b)
+                                        w(ab) = get_guga_integral_contrib_spat([i,j],a,b)
                                         ! here we have to switch to
                                         ! E_{aj}E_{bi} to get:
                                         ! _R(a) > _LR(i) -> LR^(j) -> ^L(b)
@@ -329,7 +339,7 @@ contains
                                 else if (a == i) then
                                     ! b > i is ensured here since b > a in here!
                                     if (b < j) then
-                                        w(ab) = get_guga_integral_contrib([i,j],a,b)
+                                        w(ab) = get_guga_integral_contrib_spat([i,j],a,b)
                                         ! here we have to switch again:
                                         ! E_{aj}E_{bi}:
                                         ! _RL_(i) -> ^LR(b) -> ^R(j)
@@ -337,14 +347,14 @@ contains
                                             typ = excit_type%fullstart_L_to_R, &
                                             a = a, i = j, b = b, j = i)
                                     else if (b == j) then
-                                        w(ab) = get_guga_integral_contrib([i,j],a,b)
+                                        w(ab) = get_guga_integral_contrib_spat([i,j],a,b)
                                         ! switch again: E_{aj}E_{bi}
                                         ! _RL_(i) -> _RL_(j)
                                         excit_info(ab) = encode_excit_info(&
                                             typ = excit_type%fullstart_stop_mixed, &
                                             a = a, i = j, b = b, j = i)
                                     else if (b > j) then
-                                        w(ab) = get_guga_integral_contrib([i,j],a,b)
+                                        w(ab) = get_guga_integral_contrib_spat([i,j],a,b)
                                         ! switch again: E_{aj}E_{bi}
                                         ! _RL_(i) -> ^RL(j) -> ^L(b)
                                         excit_info(ab) = encode_excit_info(&
@@ -354,7 +364,7 @@ contains
                                 else if (a > i .and. a < j) then
                                     ! b > a still ensured!
                                     if (b < j) then
-                                        w(ab) = get_guga_integral_contrib([i,j],a,b)
+                                        w(ab) = get_guga_integral_contrib_spat([i,j],a,b)
                                         ! switch: E_{aj}E_{bi}:
                                         ! _L(j) -> _RL(a) -> ^LR(b) -> ^R(j)
                                         excit_info(ab) = encode_excit_info(&
@@ -362,14 +372,14 @@ contains
                                             a = a, i = j, b = b, j = i)
 
                                     else if (b == j) then
-                                        w(ab) = get_guga_integral_contrib([i,j],a,b)
+                                        w(ab) = get_guga_integral_contrib_spat([i,j],a,b)
                                         ! switch: E_{aj}E_{bi}
                                         ! _L(i) -> _RL(a) -> ^RL^(j)
                                         excit_info(ab) = encode_excit_info(&
                                             typ = excit_type%fullstop_L_to_R, &
                                             a = a, i = j, b = b, j = i)
                                     else if (b > j) then
-                                        w(ab) = get_guga_integral_contrib([i,j],a,b)
+                                        w(ab) = get_guga_integral_contrib_spat([i,j],a,b)
                                         ! switch: E_{aj}E_{bi}
                                         ! _L(i) -> _RL(a) - > ^RL(j) -> ^L(b)
                                         excit_info(ab) = encode_excit_info(&
@@ -380,7 +390,7 @@ contains
                                     ! a == j also NOT allowed here!
                                 else if (a > j) then
                                     ! b > a > j implied here!
-                                    w(ab) = get_guga_integral_contrib([i,j],a,b)
+                                    w(ab) = get_guga_integral_contrib_spat([i,j],a,b)
                                     ! E_{ai}E_{bj} would lead to:
                                     ! _L(i) -> LL_(j) -> ^LL(a) -> ^L(b)
                                     ! which has the correct sign convention
@@ -423,10 +433,18 @@ contains
         ! maybe I will also produce a weighted electron pickin in the
         ! GUGA formalism.. but for now pick them uniformly:
         call pick_elec_pair_uniform_guga(nI, src, sym_prod, sum_ml, pgen_elec)
+        ! make a different picker, which does not bias towards doubly
+        ! occupied orbitals here too!
+
         ASSERT( src(1) < src(2) )
 
         i = gtID(src(1))
         j = gtID(src(2))
+
+        if (i /= j) then
+            if (current_stepvector(i) == 3) pgen_elec = 2.0_dp * pgen_elec
+            if (current_stepvector(j) == 3) pgen_elec = 2.0_dp * pgen_elec
+        end if
 
         ! use the sampler for this electron pair -> order of src electrons
         ! does not matter
@@ -491,14 +509,16 @@ contains
 
         ! pick random electron
         ! have to modify pgen for doubly occupied orbs! since double the
+        elec = 1 + int(genrand_real2_dSFMT() * nel)
+
         ! chance!
         ! i have this fake bias towards double occupied spatial orbitals
         ! this way...
         ! try it with a 'real pure' uniform picking here..
         s_elec = gtID(nI)
 
-        r = genrand_real2_dSFMT() * s_elec(nel)
-        elec = binary_search_first_ge(real(s_elec,dp), r)
+        ! r = genrand_real2_dSFMT() * s_elec(nel)
+        ! elec = binary_search_first_ge(real(s_elec,dp), r)
         elec = s_elec(elec)
         nOcc = count(currentOcc_int /= 0)
 
@@ -510,7 +530,9 @@ contains
             return
         end if
 
-        pgen = pgen / real(nOcc, dp)
+        ! pgen = pgen / real(nOcc, dp)
+        pgen = pgen / real(nel, dp)
+        if (current_stepvector(elec) == 3) pgen = 2.0_dp * pgen
 
         if (orb < elec) then
             excitInfo = assign_excitinfo_values_single(gen_type%R, orb, elec, &
@@ -746,7 +768,9 @@ contains
         ij = fuseIndex(gtID(occ_orbs(1)), gtID(occ_orbs(2)))
 
         ! and both I and J are electron and hole indices here
-        cpt_a = guga_pchb_sampler(1)%alias_sampler%aGetProb(ij, ij)
+        cpt_a = guga_pchb_sampler(1)%alias_sampler%aGetProb(ij, ij) / 2.0_dp
+        ! but since they will get added in later routines i actually have
+        ! do divide by 2 here..
 
         ! and in the PCHB there is no difference between the 2!
         cpt_b = cpt_a
@@ -755,10 +779,10 @@ contains
 
 
     ! i think it would be better if i 'just' reimplement:
-    function calc_orbital_pgen_contr_start_pchb(occ_orbs, a) result(orb_pgen)
+    subroutine calc_orbital_pgen_contr_start_pchb(occ_orbs, a, orb_pgen)
         debug_function_name("calc_orbital_pgen_contr_start_pchb")
         integer, intent(in) :: occ_orbs(2), a
-        real(dp) :: orb_pgen
+        real(dp), intent(out) :: orb_pgen
 
         integer :: i, j, ij, ab
 
@@ -775,12 +799,12 @@ contains
 
         orb_pgen = guga_pchb_sampler(1)%alias_sampler%aGetProb(ij, ab)
 
-    end function calc_orbital_pgen_contr_start_pchb
+    end subroutine calc_orbital_pgen_contr_start_pchb
 
-    function calc_orbital_pgen_contr_end_pchb(occ_orbs, a) result(orb_pgen)
+    subroutine calc_orbital_pgen_contr_end_pchb(occ_orbs, a, orb_pgen)
         debug_function_name("calc_orbital_pgen_contr_end_pchb")
         integer, intent(in) :: occ_orbs(2), a
-        real(dp) :: orb_pgen
+        real(dp), intent(out) :: orb_pgen
 
         integer :: i, j, ij, ab
 
@@ -799,7 +823,7 @@ contains
 
         orb_pgen = guga_pchb_sampler(1)%alias_sampler%aGetProb(ij,ab)
 
-    end function calc_orbital_pgen_contr_end_pchb
+    end subroutine calc_orbital_pgen_contr_end_pchb
 
 end module guga_pchb_excitgen
 
