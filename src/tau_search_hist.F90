@@ -35,7 +35,7 @@ module tau_search_hist
 
     use procedure_pointers, only: get_umat_el
     use UMatCache, only: gtid, UMat2d
-    use util_mod, only: abs_l1, operator(.isclose.)
+    use util_mod, only: abs_l1, operator(.isclose.), near_zero
     use LoggingData, only: t_log_ija, ija_bins_sing, all_ija_bins_sing, ija_thresh, &
                             ija_bins_para, all_ija_bins, ija_bins_anti, &
                             ija_orbs_sing, all_ija_orbs_sing, &
