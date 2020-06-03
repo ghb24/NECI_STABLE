@@ -408,12 +408,17 @@ contains
         ! should we use the same variables in both tau-searches??
 
         ! Unless it is already specified, set an initial value for tau
-        if (.not. tRestart .and. .not. tReadPops .and. tau < EPS) then
+        if (.not. tRestart .and. .not. tReadPops .and. near_zero(tau)) then
             if (tGUGA) then
-                root_print "Warning: FindMaxTauDoubs misused for GUGA!"
-                root_print "still need a specific implementation for that!"
+                if (near_zero(MaxTau)) then
+                    call stop_all(this_routine, &
+                        "please specify a sensible 'max-tau' in input for GUGA calculations!")
+                else
+                    tau = MaxTau
+                end if
+            else
+                call FindMaxTauDoubs()
             end if
-            call FindMaxTauDoubs()
         end if
 
         if (tReadPops) then
