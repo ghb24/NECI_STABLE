@@ -1087,7 +1087,7 @@ contains
                 ShiftOffset(2*i) = trial_energies(i)
             enddo
         else
-            ASSERT(nexit_keep == inum_runs)
+            ASSERT(nexcit_keep == inum_runs)
             ShiftOffset(1:inum_runs) = trial_energies(1:inum_runs)
         endif
 
