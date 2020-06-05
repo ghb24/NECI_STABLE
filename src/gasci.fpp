@@ -23,7 +23,7 @@ module gasci
         get_last_tgt, set_last_tgt, excite, defined, UNKNOWN
     use orb_idx_mod, only: SpinOrbIdx_t, SpatOrbIdx_t, SpinProj_t, size, calc_spin, &
         calc_spin_raw, alpha, beta, sum, operator(==), operator(/=), &
-        operator(+), operator(-), lex_leq, to_ilut
+        operator(+), operator(-), lex_leq, to_ilut, write_det
     use sltcnd_mod, only: sltcnd_excit, dyn_sltcnd_excit
     implicit none
 
@@ -40,18 +40,24 @@ module gasci
         get_iGAS, operator(.contains.)
 
     !> Speficies the GAS spaces.
-    !> It is assumed, that the GAS spaces are contigous.
     !> The indices are:
-    !>  n_orbs_per_GAS(1:nGAS), n_min(1:nGAS), n_max(1:nGAS)
+    !>  n_orbs_per_GAS(1:nGAS), n_min(1:nGAS), n_max(1:nGAS), GAS_table(1 : nBasis)
     !> n_orbs_per_GAS(iGAS) specifies how many orbitals are in
     !> the `iGAS` GAS space in the `iRep` Irrep.
     !> n_min(iGAS) specifies the cumulated! minimum particle number per GAS space.
     !> n_max(iGAS) specifies the cumulated! maximum particle number per GAS space.
+    !> GAS_table(i) returns the GAS space for the i-th spin orbital
     type :: GASSpec_t
-        integer, allocatable :: n_orbs(:), n_min(:), n_max(:)
+        integer, allocatable :: n_orbs(:), n_min(:), n_max(:), GAS_table(:)
     end type
 
     type(GASSpec_t) :: GAS_specification
+
+    !> splitted_orbitals orbitals is the preimage of GAS_specification%GAS_table.
+    !> An array that contains the spin orbitals per GAS space.
+    !> splitted_orbitals(1 : nGAS)
+    type(SpinOrbIdx_t), allocatable :: splitted_orbitals(:)
+
 
     type :: GAS_exc_gen_t
         integer :: val
@@ -157,7 +163,8 @@ module gasci
     !>      or spin orbitals (SpinOrbIdx_t, SpatOrbIdx_t).
     interface particles_per_GAS
         #:for orb_idx_type in OrbIdxTypes
-            module procedure particles_per_GAS_${orb_idx_type}$
+!             module procedure particles_per_GAS_${orb_idx_type}$
+            module procedure particles_per_GAS_splitted_${orb_idx_type}$
         #:endfor
     end interface
 
@@ -194,9 +201,9 @@ module gasci
     end interface
 
     interface split_per_GAS
-        #:for orb_idx_type in OrbIdxTypes
-            module procedure split_per_GAS_${orb_idx_type}$
-        #:endfor
+    #:for orb_idx_type in OrbIdxTypes
+        module procedure split_per_GAS_${orb_idx_type}$
+    #:endfor
     end interface
 
     interface
@@ -217,22 +224,34 @@ contains
         integer, intent(in), optional :: n_particles, n_basis
 
         logical :: shapes_match, nEl_correct, pauli_principle, monotonic, &
-            n_orbs_correct
-        integer :: nGAS, iGAS
-
-        nGAS = get_nGAS(GAS_spec)
+            n_orbs_correct, GAS_sizes_match
+        integer :: nGAS, iGAS, i
 
         associate(n_orbs => GAS_spec%n_orbs, n_min => GAS_spec%n_min, &
                   n_max => GAS_spec%n_max)
 
+            nGAS = get_nGAS(GAS_spec)
+
             shapes_match = &
-                all([size(n_orbs), size(n_min), size(n_max)] == nGAS)
+                all([size(n_orbs), size(n_min), size(n_max)] == nGAS) &
+                .and. maxval(GAS_specification%GAS_table) == size(n_orbs)
 
             if (present(n_particles)) then
                 nEl_correct = all([n_min(nGAS), n_max(nGAS)] == n_particles)
             else
                 nEl_correct = n_min(nGAS) == n_max(nGAS)
             end if
+
+            block
+                integer :: GAS_sizes(nGAS), iGAS
+                GAS_sizes = 0
+                do i = 1, nBasis - 1, 2
+                    iGAS = GAS_spec%GAS_table(i)
+                    GAS_sizes(iGAS) = GAS_sizes(iGAS) + 1
+                end do
+                GAS_sizes_match = all(cumsum(GAS_sizes) == n_orbs)
+            end block
+
 
             pauli_principle = all(n_min(:) <= n_orbs(:) * 2)
 
@@ -262,8 +281,14 @@ contains
     end function
 
     subroutine init_GAS()
+
         character(*), parameter :: this_routine = 'init_GAS'
-        ! The init and clear get called, but I have nothing to initialize yet
+
+        type(SpinOrbIdx_t) :: all_orbitals
+        integer :: i
+
+        all_orbitals = SpinOrbIdx_t([(i, i = 1, nBasis)])
+        splitted_orbitals = split_per_GAS(GAS_specification, all_orbitals)
     end subroutine
 
     subroutine clear_GAS()
@@ -271,44 +296,22 @@ contains
         ! The init and clear get called, but I have nothing to initialize yet
     end subroutine
 
-    !> Could be changed into lookup variable
     pure function get_iGAS_SpatOrbIdx_t(GAS_spec, idx) result(res)
         type(GASSpec_t), intent(in) :: GAS_spec
         type(SpatOrbIdx_t), intent(in) :: idx
         integer :: res(size(idx))
-        res = f(idx%idx)
-        contains
-            elemental function f(orbidx) result(iGAS)
-                integer, intent(in) :: orbidx
-                integer :: iGAS
-                ! We assume that orbidx <= GAS_specification%n_orbs(nGAS)
-                do iGAS = 1, get_nGAS(GAS_spec)
-                    if (orbidx <= GAS_spec%n_orbs(iGAS)) return
-                end do
-                iGAS =  -1
-            end function
+        res = GAS_spec%GAS_table(idx%idx * 2 - 1)
     end function
 
     pure function get_iGAS_SpinOrbIdx_t(GAS_spec, idx) result(res)
         type(GASSpec_t), intent(in) :: GAS_spec
         type(SpinOrbIdx_t), intent(in) :: idx
         integer :: res(size(idx))
-        res = f(idx%idx)
-        contains
-            elemental function f(orbidx) result(iGAS)
-                integer, intent(in) :: orbidx
-                integer :: iGAS
-                ! We assume that orbidx <= GAS_specification%n_orbs(nGAS)
-                do iGAS = 1, get_nGAS(GAS_spec)
-                    if (((orbidx + 1) .div. 2) <= GAS_spec%n_orbs(iGAS)) return
-                end do
-                iGAS =  -1
-            end function
+        res = GAS_spec%GAS_table(idx%idx)
     end function
 
-
 #:for orb_idx_type in OrbIdxTypes
-    pure function particles_per_GAS_${orb_idx_type}$(splitted_det_I) result(n_particle)
+    pure function particles_per_GAS_splitted_${orb_idx_type}$(splitted_det_I) result(n_particle)
         type(${orb_idx_type}$), intent(in) :: splitted_det_I(:)
         integer :: n_particle(size(splitted_det_I))
         integer :: i
@@ -324,27 +327,26 @@ contains
 
         type(${orb_idx_type}$), allocatable :: splitted_orbitals(:)
 
-        integer :: iGAS, prev, i, GAS_table(size(occupied))
+        integer :: iel, iGAS, GAS_table(size(occupied)), n_particle(get_nGAS(GAS_spec)), counter(get_nGAS(GAS_spec))
 
         allocate(splitted_orbitals(get_nGAS(GAS_spec)))
         GAS_table = get_iGAS(GAS_spec, occupied)
 
-        ! We assume that GAS_table is sorted and looks like:
-        ! [1, 1, ..., 2, 2, ..., nGAS, nGAS]
-        i = 0
-        do iGAS = 1, get_nGAS(GAS_spec)
-            prev = i
-            if (i < size(GAS_table)) then
-                do while (GAS_table(i + 1) == iGAS)
-                    i = i + 1
-                    if (i == size(GAS_table)) exit
-                end do
-            end if
-            if (prev + 1 <= size(occupied%idx) .and. prev + 1 <= i) then
-                splitted_orbitals(iGAS)%idx = occupied%idx(prev + 1 : i)
-            else
-                splitted_orbitals(iGAS)%idx = [integer::]
-            end if
+        n_particle = 0
+        do iel = 1, size(GAS_table)
+            iGAS = GAS_table(iel)
+            n_particle(iGAS) = n_particle(iGAS) + 1
+        end do
+
+        do iGAS = 1, size(n_particle)
+            allocate(splitted_orbitals(iGAS)%idx(n_particle(iGAS)))
+        end do
+
+        counter = 1
+        do iel = 1, size(occupied)
+            iGAS = GAS_table(iel)
+            splitted_orbitals(iGAS)%idx(counter(iGAS)) = occupied%idx(iel)
+            counter(iGAS) = counter(iGAS) + 1
         end do
     end function
 #:endfor
@@ -480,24 +482,51 @@ contains
         end if
 
         block
-            integer :: i, lower_bound, upper_bound
+            integer :: i, k, iGAS, incr, curr_value, iGAS_min_val
+            integer, allocatable :: counter(:)
             type(SpinOrbIdx_t) :: possible_values
-            type(SpinProj_t), allocatable :: m_s
+            type(SpinProj_t) :: m_s
 
-            if (spaces(1) == 1) then
-                lower_bound = 1
-            else
-                lower_bound = GAS_spec%n_orbs(spaces(1) - 1) + 1
-            end if
-            upper_bound = GAS_spec%n_orbs(spaces(2))
-
+            m_s = SpinProj_t(0)
             if (present(excess)) then
-                if (abs(excess%val) == n_total_) then
-                    allocate(m_s)
-                    m_s%val = -(excess%val / abs(excess%val))
-                end if
+                if (abs(excess%val) == n_total_) m_s = SpinProj_t(sign(1, -excess%val))
             end if
-            possible_values = SpinOrbIdx_t(SpatOrbIdx_t([(i, i = lower_bound, upper_bound)]), m_s)
+
+
+            block
+                integer :: M, L
+                L = sum(particles_per_GAS(splitted_orbitals(spaces(1) : spaces(2))))
+                if (m_s == beta) then
+                    allocate(possible_values%idx(L .div. 2))
+                    allocate(counter(spaces(1) : spaces(2)), source=1)
+                    incr = 2
+                else if (m_s == alpha) then
+                    allocate(possible_values%idx(L .div. 2))
+                    allocate(counter(spaces(1) : spaces(2)), source=2)
+                    incr = 2
+                else
+                    allocate(possible_values%idx(L))
+                    allocate(counter(spaces(1) : spaces(2)), source=1)
+                    incr = 1
+                end if
+            end block
+
+            i = 1
+            do while (i <= size(possible_values))
+                curr_value = huge(curr_value)
+                do iGAS = spaces(1), spaces(2)
+                    if (counter(iGAS) <= size(splitted_orbitals(iGAS))) then
+                        if (splitted_orbitals(iGAS)%idx(counter(iGAS)) < curr_value) then
+                            curr_value = splitted_orbitals(iGAS)%idx(counter(iGAS))
+                            iGAS_min_val = iGAS
+                        end if
+                    end if
+                end do
+                counter(iGAS_min_val) = counter(iGAS_min_val) + incr
+                possible_values%idx(i) = curr_value
+                i = i + 1
+            end do
+
 
             if (present(add_particles)) then
                 possible_holes%idx = complement(possible_values%idx, union(det_I%idx, add_particles%idx))

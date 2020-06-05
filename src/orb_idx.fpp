@@ -284,13 +284,18 @@ module orb_idx_mod
             advance_str = 'yes'
         end if
 
-        format = "(I"//str(int(log10(real(maxval(det_I%idx)))) + 2)//", a)"
-
         write(i_unit_, "(a)", advance='no') '${type}$(['
-        do i = 1, size(det_I) - 1
-            write(i_unit_, format, advance='no') det_I%idx(i), ','
-        end do
-        write(i_unit_, format, advance=advance_str) det_I%idx(size(det_I)), '])'
+
+        if (size(det_I) == 0) then
+            write(i_unit_, "(a)", advance=advance_str) '])'
+        else
+            format = "(I"//str(int(log10(real(maxval(det_I%idx)))) + 2)//", a)"
+
+            do i = 1, size(det_I) - 1
+                write(i_unit_, format, advance='no') det_I%idx(i), ','
+            end do
+            write(i_unit_, format, advance=advance_str) det_I%idx(size(det_I)), '])'
+        end if
     end subroutine
 #:endfor
 

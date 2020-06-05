@@ -21,7 +21,7 @@ MODULE System
     use read_fci, only: FCIDUMP_name
 
     use util_mod, only: error_function, error_function_c,&
-        near_zero, operator(.isclose.)
+        near_zero, operator(.isclose.), get_free_unit, operator(.div.)
 
     use lattice_mod, only: lattice, lat
 
@@ -31,7 +31,7 @@ MODULE System
 
     use tc_three_body_data, only: LMatEps, tSparseLMat
 
-    use gasci, only: GAS_specification, is_valid, GAS_exc_gen, possible_GAS_exc_gen
+    use gasci, only: GAS_specification, GAS_exc_gen, possible_GAS_exc_gen
 
     use ParallelHelper, only: iprocindex, root
 
@@ -1815,8 +1815,9 @@ system: do
         case("GAS-SPEC")
             tGAS = .true.
             tGASSpinRecoupling = .true.
+
             block
-                integer :: nGAS, iGAS
+                integer :: nGAS, iGAS, n_basis
                 call geti(nGAS)
                 allocate(GAS_specification%n_orbs(nGAS), &
                          GAS_specification%n_min(nGAS), &
@@ -1826,7 +1827,19 @@ system: do
                     call geti(GAS_specification%n_min(iGAS))
                     call geti(GAS_specification%n_max(iGAS))
                 end do
+
+                n_basis = 2 * GAS_specification%n_orbs(nGAS)
+
+                block
+                    integer :: GAS_unit, GAS(n_basis .div. 2), i
+                    GAS_unit = get_free_unit()
+                    open(GAS_unit, file="GASOrbs", status='old')
+                        read(GAS_unit,  *) GAS(:)
+                    close(GAS_unit)
+                    GAS_specification%GAS_table = [(GAS((i + 1) .div. 2), i = 1, n_basis)]
+                end block
             end block
+
 
         case("GAS-CI")
             do while (item < nitems)
