@@ -33,7 +33,7 @@ MODULE Calc
                          tStartCoreGroundState, pParallel, pops_pert, &
                          alloc_popsfile_dets, tSearchTauOption, tZeroRef, &
                          sFAlpha, tEScaleWalkers, sFBeta, sFTag, tLogNumSpawns, &
-                         tAllAdaptiveShift, cAllAdaptiveShift
+                         tAllAdaptiveShift, cAllAdaptiveShift, t_global_core_space
 
     use adi_data, only: maxNRefs, nRefs, tAllDoubsInitiators, tDelayGetRefs, &
          tDelayAllDoubsInits, tSetDelayAllDoubsInits, &
@@ -363,7 +363,7 @@ contains
           tSemiStochastic = .false.
           tCSFCore = .false.
           t_fast_pops_core = .true.
-
+          t_global_core_space = .true.
           tDynamicCoreSpace = .false.
           tIntervalSet = .false.
           tStaticCore = .true.
@@ -405,7 +405,7 @@ contains
           tOrthogonaliseSymmetric = .false.
           orthogonalise_iter = 0
           tReplicaSingleDetStart = .false.
-
+          tSignedRepAv = .false.         
           use_spawn_hash_table = .false.
 
           ! Continuous time FCIQMC control
@@ -474,6 +474,7 @@ contains
           tSetInitFlagsBeforeDeath = .false.
 
           pSinglesIn = 0.0_dp
+          pDoublesIn = 0.0_dp
           pParallelIn = 0.0_dp
 
           tSetInitialRunRef = .true.
@@ -528,12 +529,12 @@ contains
           integer :: npops_pert, npert_spectral_left, npert_spectral_right
           real(dp) :: InputDiagSftSingle, ShiftOffsetTmp
           integer(n_int) :: def_ilut(0:niftot), def_ilut_sym(0:niftot)
-
+          logical :: t_force_global_core
           ! Allocate and set this default here, because we don't have inum_runs
           ! set when the other defaults are set.
           if(.not.allocated(InputDiagSft)) allocate(InputDiagSft(inum_runs))
           InputDiagSft=0.0_dp
-
+          t_force_global_core = .false.
           calc: do
             call read_line(eof)
             if (eof) then
@@ -2271,7 +2272,7 @@ contains
                 endif
 
             case("FORCE-FULL-POPS")
-                tForceFullPops = .false.
+                tForceFullPops = .true.
                 ss_space_in%tApproxSpace = .false.
                 trial_space_in%tApproxSpace = .false.
 
@@ -3007,7 +3008,9 @@ contains
                 if (item < nitems) then
                     call readi(orthogonalise_iter)
                 endif
-
+                ! With orthogonalisation, each replica needs its own core space
+                if(.not. t_force_global_core) t_global_core_space = .false.
+                
                 ! Don't start all replicas from the deterministic ground state
                 ! when using this option.
                 tStartCoreGroundState = .false.
@@ -3024,6 +3027,7 @@ contains
                 ! Don't start all replicas from the deterministic ground state
                 ! when using this option.
                 tStartCoreGroundState = .false.
+                if(.not. t_force_global_core) t_global_core_space = .false.
 
             case("TEST-NON-ORTHOGONALITY")
                 ! for the non-hermitian eigenstates the shift gives a
@@ -3051,6 +3055,15 @@ contains
                 ! Don't print overlaps between replicas when using the
                 ! orthogonalise-replicas option.
                 tPrintReplicaOverlaps = .false.
+
+            case("CORE-SPACE-REPLICAS")
+                ! Use one core space per replica (implicit for orthogonalise-replicas)
+                t_global_core_space = .false.
+
+            case("GLOBAL-CORE-SPACE")
+                ! Use only one single core-spae for multiple replicas
+                t_global_core_space = .true.
+                t_force_global_core = .true.
 
             case("USE-SPAWN-HASH-TABLE")
                 use_spawn_hash_table = .true.

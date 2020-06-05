@@ -26,7 +26,7 @@ module fcimc_initialisation
                           t_pchb_excitgen, tNConservingGAS
     use tc_three_body_data, only: ptriples
     use SymExcitDataMod, only: tBuildOccVirtList, tBuildSpinSepLists
-
+    use core_space_util, only: cs_replicas
     use dSFMT_interface, only: dSFMT_init
 
     use CalcData, only: G_VMC_Seed, MemoryFacPart, TauFactor, StepsSftImag, &
@@ -1914,7 +1914,8 @@ contains
                                             &block, in order to calculate replica estimates.)")
             end if
 
-            if (tSemiStochastic) allocate(tDetermSpawnedTo(determ_sizes(iProcIndex)))
+            if (tSemiStochastic) allocate(tDetermSpawnedTo(&
+                cs_replicas(core_run)%determ_sizes(iProcIndex)))
 
             call open_replica_est_file()
         end if
@@ -2634,7 +2635,11 @@ contains
 
             ! If running a semi-stochastic simulation, set flag to specify the Hartree-Fock is in the
             ! deterministic space.
-            if (tSemiStochastic) call set_flag (CurrentDets(:,1), flag_deterministic)
+            if (tSemiStochastic) then
+                do run = 1, inum_runs
+                    call set_flag (CurrentDets(:,1), flag_deterministic(run))
+                end do
+            end if
 
             ! if no reference energy is used, explicitly get the HF energy
             if(tZeroRef) then
@@ -4565,7 +4570,7 @@ contains
 !------------------------------------------------------------------------------------------!
 
     subroutine init_norm()
-      use bit_rep_data, only: test_flag
+      use bit_rep_data, only: test_flag_multi
       ! initialize the norm_psi, norm_psi_squared
       implicit none
       integer(int64) :: j
@@ -4579,7 +4584,7 @@ contains
       do j = 1, TotWalkers
          ! get the sign
          call extract_sign(CurrentDets(:,j),sgn)
-         if(tSemiStochastic) tIsStateDeterm = test_flag(CurrentDets(:,j),flag_deterministic)
+         if(tSemiStochastic) tIsStateDeterm = test_flag_multi(CurrentDets(:,j),flag_deterministic)
          call addNormContribution(sgn,tIsStateDeterm)
       end do
 
@@ -4596,6 +4601,8 @@ contains
 #endif
 
       old_norm_psi = norm_psi
+
+      all_norms = all_norm_psi_squared
     end subroutine init_norm
 
 !------------------------------------------------------------------------------------------!

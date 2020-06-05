@@ -34,6 +34,7 @@ jump-shift
 stepsshift 1
 maxwalkerbloom 3
 semi-stochastic
+core-inits
 doubles-core
 en2-initiator
 endcalc

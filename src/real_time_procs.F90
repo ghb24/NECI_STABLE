@@ -30,21 +30,20 @@ module real_time_procs
                         set_flag, encode_bit_rep, extract_bit_rep, &
                         flag_deterministic, encode_part_sign, &
                         get_initiator_flag, get_initiator_flag_by_run, &
-                        clr_flag
+                        clr_flag, test_flag_multi
     use util_mod, only: get_free_unit, get_unique_filename, near_zero, &
                         operator(.isclose.)
     use bit_rep_data, only: extract_sign, nifdbo, niftot
     use FciMCData, only: CurrentDets, HashIndex, popsfile_dets, MaxWalkersPart, &
                          WalkVecDets, freeslot, spawn_ht, nhashes_spawn, MaxSpawned, &
                          iStartFreeSlot, iEndFreeSlot, ValidSpawnedList, &
-                         InitialSpawnedSlots, iLutRef, inum_runs, max_cyc_spawn, &
+                         InitialSpawnedSlots, iLutRef, inum_runs, max_cyc_spawn, core_run, &
                          tSearchTau, tFillingStochRDMonFly, fcimc_iter_data, &
                          NoAddedInitiators, SpawnedParts, acceptances, TotWalkers, &
                          nWalkerHashes, iter, fcimc_excit_gen_store, NoDied, &
                          NoBorn, NoAborted, NoRemoved, HolesInList, TotParts, Hii, &
-                         determ_sizes, determ_displs, determ_space_size, core_space, &
                          tSinglePartPhase, perturbation, alloc_popsfile_dets
-    use sparse_arrays, only: sparse_core_ham
+    use core_space_util, only: cs_replicas
     use perturbations, only: apply_perturbation, init_perturbation_creation, &
          init_perturbation_annihilation, apply_perturbation_array
     use util_mod, only: int_fmt
@@ -71,7 +70,8 @@ module real_time_procs
     use LoggingData, only: tNoNewRDMContrib
     use AnnihilationMod, only: test_abort_spawn
     use load_balance, only: AddNewHashDet, CalcHashTableStats, get_diagonal_matel
-    use semi_stoch_gen, only: generate_space_most_populated
+    use semi_stoch_gen, only: generate_space_most_populated, reset_core_space
+    use semi_stoch_procs, only: GLOBAL_RUN
     implicit none
 
     type(timer) :: calc_gf_time
@@ -167,7 +167,7 @@ contains
 
                 SignProd = CurrentSign*SpawnedSign
 
-                tDetermState = test_flag(CurrentDets(:,PartInd), flag_deterministic)
+                tDetermState = test_flag_multi(CurrentDets(:,PartInd), flag_deterministic)
 
                 if (sum(abs(CurrentSign)) >= 1.e-12_dp .or. tDetermState) then
                     ! Transfer new sign across.
@@ -1237,18 +1237,19 @@ contains
         ! that the full vector for the whole deterministic space is stored on each processor.
         ! It then performs the deterministic multiplication of the projector on this full vector.
 
-        use FciMCData, only: partial_determ_vecs, full_determ_vecs, SemiStoch_Comms_Time
+        use FciMCData, only: SemiStoch_Comms_Time
         use FciMCData, only: SemiStoch_Multiply_Time
         use Parallel_neci, only: MPIBarrier, MPIAllGatherV
 
         integer :: i, j, ierr, run
 
+        associate( rep => cs_replicas(core_run)) 
         call MPIBarrier(ierr)
 
         call set_timer(SemiStoch_Comms_Time)
 
-        call MPIAllGatherV(partial_determ_vecs, full_determ_vecs, &
-                            determ_sizes, determ_displs)
+        call MPIAllGatherV(rep%partial_determ_vecs, rep%full_determ_vecs, &
+                            rep%determ_sizes, rep%determ_displs)
 
         call halt_timer(SemiStoch_Comms_Time)
 
@@ -1256,78 +1257,79 @@ contains
 
 #ifdef CMPLX_
 
-        if (determ_sizes(iProcIndex) >= 1) then
+        if (rep%determ_sizes(iProcIndex) >= 1) then
 
             ! Perform the multiplication.
 
-            partial_determ_vecs = 0.0_dp
+            rep%partial_determ_vecs = 0.0_dp
 
-            do i = 1, determ_sizes(iProcIndex)
-                do j = 1, sparse_core_ham(i)%num_elements
+            do i = 1, rep%determ_sizes(iProcIndex)
+                do j = 1, rep%sparse_core_ham(i)%num_elements
                     do run = 1, inum_runs
                        ! real part of the 'spawn'
-                       partial_determ_vecs(min_part_type(run),i) = &
-                            partial_determ_vecs(min_part_type(run),i) + &
+                       rep%partial_determ_vecs(min_part_type(run),i) = &
+                            rep%partial_determ_vecs(min_part_type(run),i) + &
 
-                            tau_real*Aimag(sparse_core_ham(i)%elements(j))*full_determ_vecs(&
-                            min_part_type(run),sparse_core_ham(i)%positions(j)) +&
+                            tau_real*Aimag(rep%sparse_core_ham(i)%elements(j))*rep%full_determ_vecs(&
+                            min_part_type(run),rep%sparse_core_ham(i)%positions(j)) +&
 
-                            tau_real*Real(sparse_core_ham(i)%elements(j))*full_determ_vecs(&
-                            max_part_type(run),sparse_core_ham(i)%positions(j)) +&
+                            tau_real*Real(rep%sparse_core_ham(i)%elements(j))*rep%full_determ_vecs(&
+                            max_part_type(run),rep%sparse_core_ham(i)%positions(j)) +&
 
-                            tau_imag*Real(sparse_core_ham(i)%elements(j))*full_determ_vecs(&
-                            min_part_type(run),sparse_core_ham(i)%positions(j)) -&
+                            tau_imag*Real(rep%sparse_core_ham(i)%elements(j))*rep%full_determ_vecs(&
+                            min_part_type(run),rep%sparse_core_ham(i)%positions(j)) -&
 
-                            tau_imag*Aimag(sparse_core_ham(i)%elements(j))*full_determ_vecs(&
-                            max_part_type(run),sparse_core_ham(i)%positions(j))
+                            tau_imag*Aimag(rep%sparse_core_ham(i)%elements(j))*rep%full_determ_vecs(&
+                            max_part_type(run),rep%sparse_core_ham(i)%positions(j))
 
                        ! imaginary part
-                       partial_determ_vecs(max_part_type(run),i) = &
-                            partial_determ_vecs(max_part_type(run),i) - &
+                       rep%partial_determ_vecs(max_part_type(run),i) = &
+                            rep%partial_determ_vecs(max_part_type(run),i) - &
 
-                            tau_real*Real(sparse_core_ham(i)%elements(j))*full_determ_vecs(&
-                            min_part_type(run),sparse_core_ham(i)%positions(j)) +&
+                            tau_real*Real(rep%sparse_core_ham(i)%elements(j))*rep%full_determ_vecs(&
+                            min_part_type(run),rep%sparse_core_ham(i)%positions(j)) +&
 
-                            tau_real*Aimag(sparse_core_ham(i)%elements(j))*full_determ_vecs(&
-                            max_part_type(run),sparse_core_ham(i)%positions(j)) +&
+                            tau_real*Aimag(rep%sparse_core_ham(i)%elements(j))*rep%full_determ_vecs(&
+                            max_part_type(run),rep%sparse_core_ham(i)%positions(j)) +&
 
-                            tau_imag*Real(sparse_core_ham(i)%elements(j))*full_determ_vecs(&
-                            max_part_type(run),sparse_core_ham(i)%positions(j)) +&
+                            tau_imag*Real(rep%sparse_core_ham(i)%elements(j))*rep%full_determ_vecs(&
+                            max_part_type(run),rep%sparse_core_ham(i)%positions(j)) +&
 
-                            tau_imag*Aimag(sparse_core_ham(i)%elements(j))*full_determ_vecs(&
-                            min_part_type(run),sparse_core_ham(i)%positions(j))
+                            tau_imag*Aimag(rep%sparse_core_ham(i)%elements(j))*rep%full_determ_vecs(&
+                            min_part_type(run),rep%sparse_core_ham(i)%positions(j))
 
                     end do
                 end do
             end do
 
-            ! Now add shift*full_determ_vecs to account for the shift, not stored in
-            ! sparse_core_ham.
-            do i = 1, determ_sizes(iProcIndex)
+            ! Now add shift*rep%full_determ_vecs to account for the shift, not stored in
+            ! rep%sparse_core_ham.
+            do i = 1, rep%determ_sizes(iProcIndex)
                 do run  = 1, inum_runs
                    ! real part
-                   partial_determ_vecs(min_part_type(run),i) = &
-                        partial_determ_vecs(min_part_type(run),i) + &
-                        (Hii - gs_energy(run)) * full_determ_vecs(max_part_type(run),i + &
-                        determ_displs(iProcIndex)) * &
+                   rep%partial_determ_vecs(min_part_type(run),i) = &
+                        rep%partial_determ_vecs(min_part_type(run),i) + &
+                        (Hii - gs_energy(run)) * rep%full_determ_vecs(max_part_type(run),i + &
+                        rep%determ_displs(iProcIndex)) * &
                         tau_real + (tau_imag * (Hii - gs_energy(run) - DiagSft(run)) + &
-                        tau_real * real_time_info%damping) * full_determ_vecs( &
-                        min_part_type(run),i + determ_displs(iProcIndex))
+                        tau_real * real_time_info%damping) * rep%full_determ_vecs( &
+                        min_part_type(run),i + rep%determ_displs(iProcIndex))
 
                    ! imaginary part
-                   partial_determ_vecs(max_part_type(run),i) = &
-                        partial_determ_vecs(max_part_type(run),i) + (tau_imag * &
+                   rep%partial_determ_vecs(max_part_type(run),i) = &
+                        rep%partial_determ_vecs(max_part_type(run),i) + (tau_imag * &
                         (Hii - gs_energy(run) - DiagSft(run)) + tau_real &
-                        * real_time_info%damping) * full_determ_vecs( &
-                        max_part_type(run),i + determ_displs(iProcIndex)) - tau_real &
-                        * (Hii - gs_energy(run)) * full_determ_vecs(min_part_type(run),i &
-                        + determ_displs(iProcIndex))
+                        * real_time_info%damping) * rep%full_determ_vecs( &
+                        max_part_type(run),i + rep%determ_displs(iProcIndex)) - tau_real &
+                        * (Hii - gs_energy(run)) * rep%full_determ_vecs(min_part_type(run),i &
+                        + rep%determ_displs(iProcIndex))
                 enddo
             end do
         end if
 
 #endif
         call halt_timer(SemiStoch_Multiply_Time)
+      end associate
 
     end subroutine real_time_determ_projection
 
@@ -1348,18 +1350,6 @@ contains
       call init_semi_stochastic(ss_space_in, tStartedFromCoreGround)
 
     end subroutine refresh_semistochastic_space
-
-!------------------------------------------------------------------------------------------!
-
-    subroutine reset_core_space()
-      implicit none
-      integer(int64) :: i
-
-      do i=1, TotWalkers
-         call clr_flag(CurrentDets(:,i),flag_deterministic)
-      enddo
-
-    end subroutine reset_core_space
 
 !------------------------------------------------------------------------------------------!
 
@@ -1468,7 +1458,7 @@ contains
       nPertRefs = 0
       ! i.e. take the most populated determinant (over all procs)
       call generate_space_most_populated(1,.false.,1,tmpRef,nPertRefs,&
-           perturbed_buf, int(tmp_totwalkers, n_int))
+           GLOBAL_RUN, perturbed_buf, int(tmp_totwalkers, n_int))
 
       ! from now on, we treat the perturbed_buf as 1-sized
       perturbed_buf = 0
@@ -1795,7 +1785,7 @@ contains
 !------------------------------------------------------------------------------------------!
 
     subroutine get_corespace_from_buf(buffer, buffer_size)
-      use FciMCData, only: determ_sizes, determ_space_size, determ_displs
+      use core_space_util, only: cs_replicas
       use CalcData, only: ss_space_in
       use semi_stoch_gen, only: generate_space_most_populated
       use semi_stoch_procs, only: store_whole_core_space, write_core_space
@@ -1805,33 +1795,27 @@ contains
       integer :: space_size, ierr, i
       integer(MPIArg) :: mpi_buf
 
-      ! Get the most populated from those determinants that exceeded the threshold once
-      space_size = 0
-      allocate(determ_sizes(0:nProcessors-1))
-      call generate_space_most_populated(ss_space_in%npops, ss_space_in%tApproxSpace, &
-           ss_space_in%nApproxSpace, SpawnedParts, space_size, buffer, &
-           int(buffer_size,n_int))
+      associate( rep => cs_replicas(core_run)) 
+        ! Get the most populated from those determinants that exceeded the threshold once
+        space_size = 0
+        allocate(rep%determ_sizes(0:nProcessors-1))
+        call generate_space_most_populated(ss_space_in%npops, ss_space_in%tApproxSpace, &
+            ss_space_in%nApproxSpace, SpawnedParts, space_size, GLOBAL_RUN, buffer, &
+            int(buffer_size,n_int))
 
-      ! Then, communicate the number of states per core
-      mpi_buf = int(space_size,MPIArg)
-      call MPIAllGather(mpi_buf, determ_sizes, ierr)
-      determ_space_size = sum(determ_sizes)
+        ! Then, communicate the number of states per core
+        mpi_buf = int(space_size,MPIArg)
+        call MPIAllGather(mpi_buf, rep%determ_sizes, ierr)
+        rep%determ_space_size = sum(rep%determ_sizes)
 
-      ! Prepare the store_whole_core_space communication routine
-      allocate(determ_displs(0:nProcessors-1))
-      determ_displs(0) = 0
-      do i = 1, nProcessors-1
-         determ_displs(i) = sum(determ_sizes(:i-1))
-      enddo
+        ! Prepare the store_whole_core_space communication routine
+        allocate(rep%determ_displs(0:nProcessors-1))
 
-      ! Communciate the newly built corespace and output it
-      call store_whole_core_space()
+        ! Communciate the newly built corespace and output it
+        call store_whole_core_space(rep)
 
-      call write_core_space()
-
-      ! Cleanup
-      deallocate(determ_displs)
-      deallocate(determ_sizes)
+        call write_core_space(rep)
+      end associate
 
     end subroutine get_corespace_from_buf
 

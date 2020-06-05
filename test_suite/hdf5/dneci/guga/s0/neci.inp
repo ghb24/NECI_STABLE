@@ -39,6 +39,7 @@ readpops
 (walkcontgrow
 semi-stochastic
 pops-core 1000
+core-inits
 trial-wavefunction
 pops-trial 10
 endcalc

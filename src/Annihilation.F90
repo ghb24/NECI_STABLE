@@ -17,8 +17,10 @@ module AnnihilationMod
     use dSFMT_interface, only: genrand_real2_dSFMT
     use FciMCData
     use DetBitOps, only: DetBitEQ, FindBitExcitLevel, ilut_lt, &
-                         ilut_gt, DetBitZero, count_open_orbs, tAccumEmptyDet
+        ilut_gt, DetBitZero, count_open_orbs, tAccumEmptyDet
+    use semi_stoch_procs, only: check_determ_flag
     use sort_mod
+    use core_space_util, only: cs_replicas
     use constants, only: n_int, lenof_sign, null_part, sizeof_int
     use bit_rep_data
     use bit_reps, only: decode_bit_det, &
@@ -872,27 +874,36 @@ module AnnihilationMod
     subroutine deterministic_annihilation(iter_data)
 
         type(fcimc_iter_data), intent(inout) :: iter_data
-        integer :: i, j
+        integer :: i, j, run, pt
         real(dp), dimension(lenof_sign) :: SpawnedSign, CurrentSign, SignProd
 
         ! Copy across the weights from partial_determ_vecs (the result of the deterministic projection)
         ! to CurrentDets:
-        do i = 1, determ_sizes(iProcIndex)
-            call extract_sign(CurrentDets(:, indices_of_determ_states(i)), CurrentSign)
-            SpawnedSign = partial_determ_vecs(:,i)
-            call encode_sign(CurrentDets(:, indices_of_determ_states(i)), SpawnedSign + CurrentSign)
+        do run = 1, size(cs_replicas)
 
-            ! Update stats:
-            ! Number born:
-            iter_data%nborn = iter_data%nborn + abs(SpawnedSign)
-            ! Number annihilated:
-            SignProd = CurrentSign*SpawnedSign
-            do j = 1, lenof_sign
-                if (SignProd(j) < 0.0_dp) iter_data%nannihil(j) = iter_data%nannihil(j) + &
-                    2*(min(abs(CurrentSign(j)), abs(SpawnedSign(j))))
-            end do
+            associate( rep => cs_replicas(run)) 
+              
+              do i = 1, rep%determ_sizes(iProcIndex)
+                  call extract_sign(CurrentDets(:, rep%indices_of_determ_states(i)), CurrentSign)
+                  ! Update the sign of this replica only
+                  SpawnedSign = 0.0_dp
+                  SpawnedSign(rep%min_part():rep%max_part()) = rep%partial_determ_vecs(:,i)
+                  do pt = rep%min_part(), rep%max_part()
+                      call encode_part_sign(CurrentDets(:, rep%indices_of_determ_states(i)), SpawnedSign(pt) + CurrentSign(pt), pt)
+                  end do
+
+                  ! Update stats:
+                  ! Number born:
+                  iter_data%nborn = iter_data%nborn + abs(SpawnedSign)
+                  ! Number annihilated:
+                  SignProd = CurrentSign*SpawnedSign
+                  do j = 1, lenof_sign
+                      if (SignProd(j) < 0.0_dp) iter_data%nannihil(j) = iter_data%nannihil(j) + &
+                          2*(min(abs(CurrentSign(j)), abs(SpawnedSign(j))))
+                  end do
+              end do
+            end associate
         end do
-
     end subroutine deterministic_annihilation
 
     subroutine AnnihilateSpawnedParts(ValidSpawned, TotWalkersNew, iter_data, err)
@@ -976,7 +987,7 @@ module AnnihilationMod
                               print *, " Parent was initiator?: ",  &
                                   any_run_is_initiator(SpawnedParts(:,i))
                               print *, " Parent was in deterministic space?: ",  &
-                                  test_flag(SpawnedParts(:,i), flag_deterministic)
+                                  test_flag_multi(SpawnedParts(:,i), flag_deterministic)
                               print *, " Current det is initiator?: ", &
                                   any_run_is_initiator(CurrentDets(:,PartInd))
                               print *, " Current det is in deterministic space?: ", &
@@ -998,7 +1009,7 @@ module AnnihilationMod
                   endif
               end if
 
-              tDetermState = test_flag(CurrentDets(:,PartInd), flag_deterministic)
+              tDetermState = test_flag_multi(CurrentDets(:,PartInd), flag_deterministic)
               ! Transfer new sign across.
 
               if (sum(abs(CurrentSign)) >= 1.e-12_dp .or. tDetermState) then
@@ -1320,7 +1331,7 @@ module AnnihilationMod
                 print *, " Parent was initiator?: ",  &
                     any_run_is_initiator(SpawnedParts(:,i))
                 print *, " Parent was in deterministic space?: ",  &
-                    test_flag(SpawnedParts(:,i), flag_deterministic)
+                    test_flag_multi(SpawnedParts(:,i), flag_deterministic)
                 print *, " ------------"
 #endif
 
@@ -1591,7 +1602,7 @@ module AnnihilationMod
                 call hash_table_lookup(nI, SpawnedParts(:,i), NIfDBO, HashIndex, &
                                CurrentDets, PartInd, DetHash, tSuccess)
                 if (tSuccess) then
-                    tDetermState = test_flag(CurrentDets(:,PartInd), flag_deterministic)
+                    tDetermState = check_determ_flag(CurrentDets(:,PartInd), run)
                     call extract_sign(CurrentDets(:,PartInd),CurrentSign)
                     tUnocc = is_run_unnocc(CurrentSign,run)
                     tToEmptyDet =  tUnocc .and. (.not. tDetermState)

@@ -23,7 +23,7 @@ CHARACTER(LEN=455), SAVE :: concat = "+++"
 CHARACTER(LEN=455) :: file(10)=""
 
 INTEGER, SAVE :: lc=3
-
+external :: stop_all, neci_getarg
 !INTEGER, PARAMETER :: sp=kind(1.0_4),dp=kind(1.0_8)!, qp=selected_real_kind(30)
 
 interface readf

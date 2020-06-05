@@ -48,7 +48,8 @@ module real_time_init
                          AllGrowRate, spawn_ht, pDoubles, pSingles, TotParts, &
                          MaxSpawned, tSearchTauOption, TotWalkers, SumWalkersCyc, &
                          CurrentDets, popsfile_dets, MaxWalkersPart, WalkVecDets, &
-                         SpawnedParts, determ_sizes
+                         SpawnedParts, core_run
+    use core_space_util, only: cs_replicas
     use SystemData, only: lms, G1, nBasisMax, tHub, nel, tComplexWalkers_RealInts, &
          nBasis, tReal, t_k_space_hubbard
     use k_space_hubbard, only: init_k_space_hubbard
@@ -334,7 +335,7 @@ contains
          call truncate_initial_state()
          call truncate_overlap_states()
          call reset_tot_parts()
-         TotWalkers = determ_sizes(iProcIndex)
+         TotWalkers = cs_replicas(core_run)%determ_sizes(iProcIndex)
       end if
 
       ! if a ground-state POPSFILE is used, we need to ensure coherence between the replicas
@@ -917,10 +918,11 @@ contains
 !------------------------------------------------------------------------------------------!
 
     subroutine set_deterministic_flag(i)
-      use FciMCData, only: HashIndex, core_space
+      use FciMCData, only: HashIndex, core_run
       use bit_rep_data, only: flag_deterministic
       use hash, only: hash_table_lookup
       use bit_reps, only: set_flag
+      use core_space_util, only: cs_replicas
       implicit none
       integer, intent(in) :: i
       integer ::  nI(nel), DetHash, PartInd
@@ -929,15 +931,17 @@ contains
 
       ! For each core-state, we check if it is in the CurrentDets (which should
       ! always be the case in the initialization
-      call decode_bit_det(nI,core_space(:,i))
-      call hash_table_lookup(nI,core_space(:,i),nifdbo,HashIndex,CurrentDets,PartInd,&
+      associate( rep => cs_replicas(core_run))
+      call decode_bit_det(nI,rep%core_space(:,i))
+      call hash_table_lookup(nI,rep%core_space(:,i),nifdbo,HashIndex,CurrentDets,PartInd,&
            DetHash, tSuccess)
       if(tSuccess) then
          ! And then we set the deterministic flag
-         call set_flag(CurrentDets(:,PartInd),flag_deterministic)
+         call set_flag(CurrentDets(:,PartInd),flag_deterministic(core_run))
       else
          call stop_all(this_routine,"Deterministic state not present in CurrentDets")
-      endif
+     endif
+   end associate
     end subroutine set_deterministic_flag
 
 !------------------------------------------------------------------------------------------!

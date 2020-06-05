@@ -24,6 +24,7 @@ allrealcoeff
 realspawncutoff 0.01
 semi-stochastic
 doubles-core
+core-inits
 stochastic-hf-spawning
 readpops
 pops-creation 1

@@ -70,7 +70,7 @@ module FciMCParMod
          refresh_semistochastic_space
     use semi_stoch_procs, only: is_core_state, check_determ_flag, &
                                 determ_projection, average_determ_vector, &
-                                determ_projection_no_death
+                                determ_projection_no_death, core_space_pos
     use trial_wf_gen, only: update_compare_trial_file, init_trial_wf, refresh_trial_wf
     use hist, only: write_zero_hist_excit_tofrom, write_clear_hist_spin_dist
     use orthogonalise, only: orthogonalise_replicas, calc_replica_overlaps, &
@@ -1188,7 +1188,7 @@ module FciMCParMod
         integer(kind=n_int) :: iLutnJ(0:niftot)
         integer :: IC, walkExcitLevel, walkExcitLevel_toHF, ex(2,3), TotWalkersNew, part_type, run
         integer(int64) :: tot_parts_tmp(lenof_sign)
-        logical :: tParity, tSuccess, tCoreDet
+        logical :: tParity, tSuccess, tCoreDet(inum_runs), tGlobalCoreDet
         real(dp) :: prob, HDiagCurr, EnergyCurr, hdiag_bare, TempTotParts, Di_Sign_Temp
         real(dp) :: RDMBiasFacCurr
         real(dp) :: lstart
@@ -1240,7 +1240,7 @@ module FciMCParMod
         if (use_spawn_hash_table) call clear_hash_table(spawn_ht)
 
         ! Index for counting deterministic states.
-        determ_index = 1
+        determ_index = 0
 
         call rezero_iter_stats_each_iter(iter_data, rdm_definitions)
 
@@ -1318,7 +1318,10 @@ module FciMCParMod
             ! (AvSignCurr).
 
             ! Is this state is in the deterministic space?
-            tCoreDet = check_determ_flag(CurrentDets(:,j))
+            do run = 1, inum_runs
+                tCoreDet(run) = check_determ_flag(CurrentDets(:,j), run)
+            end do
+            tGlobalCoreDet = all(tCoreDet)
 
             call extract_bit_rep_avsign(rdm_definitions, CurrentDets(:,j), j, DetCurr, SignCurr, FlagsCurr, &
                                         IterRDMStartCurr, AvSignCurr, fcimc_excit_gen_store)
@@ -1375,47 +1378,61 @@ module FciMCParMod
                     if(tInitsRDM .and. all_runs_are_initiator(CurrentDets(:,j))) &
                          call fill_rdm_diag_currdet(two_rdm_inits_spawn, inits_one_rdms, &
                          CurrentDets(:,j), DetCurr, walkExcitLevel_toHF, av_sign, iter_occ, &
-                         tCoreDet,.false.)
+                         tGlobalCoreDet,.false.)
                     call fill_rdm_diag_currdet(two_rdm_spawn, one_rdms, CurrentDets(:,j), &
-                         DetCurr, walkExcitLevel_toHF, av_sign, iter_occ, tCoreDet, tApplyLC)
+                         DetCurr, walkExcitLevel_toHF, av_sign, iter_occ, tGlobalCoreDet, tApplyLC)
                 endif
             endif
 
             ! This if-statement is only entered when using semi-stochastic and
             ! only if this determinant is in the core space.
-            if (tCoreDet) then
-                ! Store the index of this state, for use in annihilation later.
-                indices_of_determ_states(determ_index) = j
+            ! Potential optimization: This list does not change between iterations, only set it up once
+            if(allocated(cs_replicas)) then
+                do run = 1, size(cs_replicas)
+                    associate( rep => cs_replicas(run)) 
+                      if (tCoreDet(run)) then
+                          ! Store the index of this state, for use in annihilation later.
 
-                ! Add this amplitude to the deterministic vector.
-                partial_determ_vecs(:,determ_index) = SignCurr
+                          ! A global core-space is ordered in the same fashion
+                          ! in currentdets as internally in the core_space
+                          if(t_global_core_space) then
+                              determ_index = determ_index + 1
+                          else
+                              ! In general, that is not true however, the
+                              ! core-space index has to be looked up
+                              determ_index = core_space_pos(CurrentDets(:,j), DetCurr, &
+                                  run) - rep%determ_displs(iProcIndex)
+                          endif
 
-                determ_index = determ_index + 1
+                          rep%indices_of_determ_states(determ_index) = j
 
-                ! The deterministic states are always kept in CurrentDets, even when
-                ! the amplitude is zero. Hence we must check if the amplitude is zero,
-                ! and if so, skip the state.
-                if (IsUnoccDet(SignCurr)) cycle
-            end if
-
-            ! As the main list (which is storing a hash table) no longer needs
-            ! to be contiguous, we need to skip sites that are empty.
-            if(IsUnoccDet(SignCurr)) then
-
-               if(tAccumEmptyDet(CurrentDets(:,j))) cycle
-
-               !It has been removed from the hash table already
-               !Just add to the "freeslot" list
-               iEndFreeSlot=iEndFreeSlot+1
-               FreeSlot(iEndFreeSlot)=j
-               cycle
-
+                          ! Add this amplitude to the deterministic vector.
+                          rep%partial_determ_vecs(:,determ_index) = SignCurr(rep%min_part():rep%max_part())
+                      end if
+                    end associate
+                end do
             endif
+          
+          ! As the main list (which is storing a hash table) no longer needs
+          ! to be contiguous, we need to skip sites that are empty.
+          if(IsUnoccDet(SignCurr)) then
+              ! The deterministic states are always kept in CurrentDets, even when
+              ! the amplitude is zero. Hence we must check if the amplitude is zero,
+              ! and if so, skip the state.                
+              if(any(tCoreDet) .or. tAccumEmptyDet(CurrentDets(:,j))) cycle
+
+              !It has been removed from the hash table already
+              !Just add to the "freeslot" list
+              iEndFreeSlot=iEndFreeSlot+1
+              FreeSlot(iEndFreeSlot)=j
+              cycle
+
+          endif
 
             ! sum in (fmu-1)*cmu^2 for the purpose of RDMs
             if(tAdaptiveShift .and. all(.not. tSinglePartPhase) .and. tFillingStochRDMOnFly) then
                ! Only add the contribution from the corespace if it is explicitly demanded
-               if((.not. tCoreDet) .or. tCoreAdaptiveShift) &
+               if((.not. tGlobalCoreDet) .or. tCoreAdaptiveShift) &
                     call SumCorrectionContrib(SignCurr,j)
             endif
 
@@ -1454,7 +1471,6 @@ module FciMCParMod
                     end if
                 end do
             end if
-
             if (tTruncInitiator) then
                 call CalcParentFlag (j, DetCurr, WalkExcitLevel, parent_flags)
             end if
@@ -1538,7 +1554,7 @@ module FciMCParMod
 
                 else if (t_guga_mixed_semi) then
                     if (tSemiStochastic) then
-                        flag_mixed = tCoreDet
+                        flag_mixed = tGlobalCoreDet
                     else
                         flag_mixed = any_run_is_initiator(CurrentDets(:,j))
                     end if
@@ -1633,8 +1649,8 @@ module FciMCParMod
                     else
                         ! Generate a (random) excitation
                         call generate_excitation(DetCurr, CurrentDets(:,j), nJ, &
-                                        ilutnJ, exFlag, IC, ex, tParity, prob, &
-                                        HElGen, fcimc_excit_gen_store, part_type)
+                            ilutnJ, exFlag, IC, ex, tParity, prob, &
+                            HElGen, fcimc_excit_gen_store, part_type)
                     end if
 
                     !If we are fixing the population of reference det, skip spawing into it.
@@ -1655,9 +1671,9 @@ module FciMCParMod
                             iLutnJ(nOffFlag) = 0_n_int
 
                             ! If the parent state in the core space.
-                            if (test_flag(CurrentDets(:,j), flag_deterministic)) then
+                            if (check_determ_flag(CurrentDets(:,j), run)) then
                                 ! Is the spawned state in the core space?
-                                tInDetermSpace = is_core_state(iLutnJ, nJ)
+                                tInDetermSpace = is_core_state(iLutnJ, nJ, run)
                                 ! If spawning is from and to the core space, cancel it.
                                 if (tInDetermSpace) cycle
                                 ! Set the flag to specify that the spawning is occuring
@@ -1666,23 +1682,23 @@ module FciMCParMod
                             end if
 
                         end if
-
+                        
                         if (tPreCond .or. tReplicaEstimates) then
                             hdiag_spawn = get_hdiag_from_excit(DetCurr, nJ, iLutnJ, ic, ex, hdiag_bare)
 
                             if (tPreCond) then
                                 precond_fac = hdiag_spawn - proj_e_for_precond(part_type) - &
-                                               proje_ref_energy_offsets(part_type) - Hii
+                                    proje_ref_energy_offsets(part_type) - Hii
                             end if
                         end if
                         child = attempt_create (DetCurr, &
-                                            CurrentDets(:,j), SignCurr, &
-                                            nJ,iLutnJ, Prob, HElGen, IC, ex, &
-                                            tParity, walkExcitLevel, part_type, &
-                                            AvSignCurr, AvMCExcitsLoc, RDMBiasFacCurr, precond_fac)
-                                            ! Note these last two, AvSignCurr and
-                                            ! RDMBiasFacCurr are not used unless we're
-                                            ! doing an RDM calculation.
+                            CurrentDets(:,j), SignCurr, &
+                            nJ,iLutnJ, Prob, HElGen, IC, ex, &
+                            tParity, walkExcitLevel, part_type, &
+                            AvSignCurr, AvMCExcitsLoc, RDMBiasFacCurr, precond_fac)
+                        ! Note these last two, AvSignCurr and
+                        ! RDMBiasFacCurr are not used unless we're
+                        ! doing an RDM calculation.
                     endif
 
                     IFDEBUG(FCIMCDebug, 3) then
@@ -1706,7 +1722,7 @@ module FciMCParMod
                         if (tTrialWavefunction) then
                             call clr_flag(iLutnJ, flag_trial)
                             call clr_flag(iLutnJ, flag_connected)
-                         end if
+                        end if
 
                         ! If using a preconditioner, update the child weight for statistics
                         ! (mainly for blooms and hence updating the time step).
@@ -1746,9 +1762,10 @@ module FciMCParMod
             ! deterministically later. Otherwise, perform the death step now.
             ! If using a preconditioner, then death is done in the annihilation
             ! routine, after the energy has been calculated.
-            if (tDeathBeforeComms .and. (.not. tCoreDet)) then
+            if (tDeathBeforeComms) then
                 call walker_death (iter_data, DetCurr, CurrentDets(:,j), &
-                                   HDiagCurr, SignCurr, j, WalkExcitLevel)
+                    HDiagCurr, SignCurr, j, WalkExcitLevel, &
+                    t_core_die_ = .false.)
             end if
 
          enddo ! Loop over determinants.

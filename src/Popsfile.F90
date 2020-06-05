@@ -293,7 +293,7 @@ contains
 
         ! Clear all deterministic and trial flags so that they can be changed later.
         do i = 1, CurrWalkers
-           call clr_flag(Dets(:,i), flag_deterministic)
+           call clr_flag_multi(Dets(:,i), flag_deterministic)
            call clr_flag(Dets(:,i), flag_determ_parent)
            call clr_flag(Dets(:,i), flag_trial)
            call clr_flag(Dets(:,i), flag_connected)

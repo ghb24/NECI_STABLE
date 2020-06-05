@@ -6,7 +6,6 @@ nonuniformrandexcits mol_guga_weighted
 guga 0
 sym 0 0 0 0
 system-replicas 2
-molpromimic
 freeformat
 endsys
 

@@ -46,6 +46,9 @@ program test_real_space_hubbard
 
     use Detbitops, only: count_open_orbs
 
+    use SymExcitDataMod, only: excit_gen_store_type, ScratchSize, &
+                               Scratchsize1, Scratchsize2
+
 
     implicit none
 
@@ -57,18 +60,18 @@ program test_real_space_hubbard
 
     call dsfmt_init(1)
     call init_fruit()
+    ! change flag to run excit-gen testers:
+    t_excit_gen = .false.
+    if (t_excit_gen) call test_excit_gen_realspace()
     ! run the test-driver
+    ! change flag for the exact study:
+    t_exact_study = .false.
+    if (t_exact_study) call exact_test()
     call real_space_hubbard_test_driver()
     call fruit_summary()
     call fruit_finalize()
 
-    ! change flag for the exact study:
-    t_exact_study = .false.
-    if (t_exact_study) call exact_test()
 
-    ! change flag to run excit-gen testers:
-    t_excit_gen = .false.
-    if (t_excit_gen) call test_excit_gen_realspace()
 
     call get_failed_count(failed_count)
     if (failed_count /= 0) stop -1
@@ -133,9 +136,9 @@ contains
 
         t_optimize_corr_param  = .false.
         t_do_diag_elements = .false.
-        t_do_exact_transcorr = .false.
+        t_do_exact_transcorr = .true.
         t_do_exact_double_occ = .false.
-        t_j_vec = .true.
+        t_j_vec = .false.
         t_input_U = .true.
         t_calc_singles = .true.
         t_start_neel = .true.
@@ -143,8 +146,8 @@ contains
         phase = 1.0_dp
         t_input_nel = .true.
         t_input_lattice = .true.
-        t_twisted_bc = .true.
-        twisted_bc(1) = 0.1_dp
+        ! t_twisted_bc = .true.
+        ! twisted_bc(1) = 0.1_dp
 
         if (t_input_lattice) then
             print *, "input lattice type: (chain,square,rectangle,tilted)"
@@ -214,7 +217,7 @@ contains
         if (t_j_vec) then
             j_vec = linspace(-0.5,0.5,100)
         else
-            allocate(j_vec(1), source = -0.17_dp)
+            allocate(j_vec(1), source = 0.05_dp)
         end if
 
         if (t_do_diag_elements) then
@@ -294,7 +297,7 @@ contains
         print *, "hamil:"
         call print_matrix(hamil)
 
-#ifndef __CMPLX
+#ifndef CMPLX_
         call eig(hamil, e_orig, e_vecs)
 
         ! first create the exact similarity transformation
@@ -317,6 +320,13 @@ contains
         t_mat_t = similarity_transform(t_mat, j_vec(1) * gutzwiller)
 
         call eig(hamil_onsite, e_values, e_vecs_right)
+
+        print *, "hamil on-site exact:"
+        call print_matrix(hamil_onsite)
+
+        print *, "hamil-hop exact:"
+        call print_matrix(hamil_hop)
+
 
         print *, "onsite e_values correct?: "
         do i = 1, size(hilbert_space,2)
@@ -533,7 +543,7 @@ contains
 
     end function calc_exact_double_occ
 
-#ifndef __CMPLX
+#ifndef CMPLX_
     subroutine exact_transcorrelation(lat, nI, J, U, hilbert_space)
         class(lattice), intent(in) :: lat
         integer, intent(in) :: nI(nel)
@@ -715,6 +725,8 @@ contains
                     call print_matrix(hamil_hop)
                     print *, "neci hop hamil: "
                     call print_matrix(hamil_hop_neci)
+                    print *, "difference:"
+                    call print_matrix(hamil_hop - hamil_hop_neci)
                 end if
             end if
 
@@ -956,6 +968,12 @@ contains
         call init_get_helement_hubbard()
         t_lattice_model = .true.
 
+        ! call SpinOrbSymSetup
+        ScratchSize = 1
+        ScratchSize1 = 1
+        ScratchSize2 = 1
+
+
     end subroutine init_realspace_tests
 
     subroutine get_optimal_correlation_factor_test
@@ -1010,14 +1028,44 @@ contains
 
         call init_realspace_tests()
 
-        nel = 2
+!         nel = 2
+!         allocate(nI(nel))
+! !         nI = [(i, i = 1, nel)]
+!         nI = [1,4]
+!
+!         nOccAlpha = 0
+!         nOccBeta = 0
+!         do i = 1, nel
+!             if (is_beta(nI(i))) nOccBeta = nOccBeta + 1
+!             if (is_alpha(nI(i))) nOccAlpha = nOccAlpha + 1
+!         end do
+!
+!         call run_excit_gen_tester(gen_excit_rs_hubbard_transcorr, &
+!             "gen_excit_rs_hubbard_transcorr", nI, n_iters, gen_all_excits_r_space_hubbard)
+
+        ! nI = [1,2]
+        ! call run_excit_gen_tester(gen_excit_rs_hubbard_transcorr, &
+        !     "gen_excit_rs_hubbard_transcorr", nI, n_iters, gen_all_excits_r_space_hubbard)
+        !
+        ! nI = [1,6]
+        ! call run_excit_gen_tester(gen_excit_rs_hubbard_transcorr, &
+        !     "gen_excit_rs_hubbard_transcorr", nI, n_iters, gen_all_excits_r_space_hubbard)
+        !
+        ! nI = [1,8]
+        ! call run_excit_gen_tester(gen_excit_rs_hubbard_transcorr, &
+        !     "gen_excit_rs_hubbard_transcorr", nI, n_iters, gen_all_excits_r_space_hubbard)
+        ! nI = [2,3]
+        ! call run_excit_gen_tester(gen_excit_rs_hubbard_transcorr, &
+        !     "gen_excit_rs_hubbard_transcorr", nI, n_iters, gen_all_excits_r_space_hubbard)
+
+        ! deallocate(nI)
+
+        nel = 3
         allocate(nI(nel))
-!         nI = [(i, i = 1, nel)]
-        nI = [1,4]
+        nI = [1,4,5]
 
         nOccAlpha = 0
         nOccBeta = 0
-
         do i = 1, nel
             if (is_beta(nI(i))) nOccBeta = nOccBeta + 1
             if (is_alpha(nI(i))) nOccAlpha = nOccAlpha + 1
@@ -1026,20 +1074,11 @@ contains
         call run_excit_gen_tester(gen_excit_rs_hubbard_transcorr, &
             "gen_excit_rs_hubbard_transcorr", nI, n_iters, gen_all_excits_r_space_hubbard)
 
-        nI = [1,2]
+        nI = [1,2,3]
         call run_excit_gen_tester(gen_excit_rs_hubbard_transcorr, &
             "gen_excit_rs_hubbard_transcorr", nI, n_iters, gen_all_excits_r_space_hubbard)
 
-        nI = [1,6]
-        call run_excit_gen_tester(gen_excit_rs_hubbard_transcorr, &
-            "gen_excit_rs_hubbard_transcorr", nI, n_iters, gen_all_excits_r_space_hubbard)
-
-        nI = [1,8]
-        call run_excit_gen_tester(gen_excit_rs_hubbard_transcorr, &
-            "gen_excit_rs_hubbard_transcorr", nI, n_iters, gen_all_excits_r_space_hubbard)
-        nI = [2,3]
-        call run_excit_gen_tester(gen_excit_rs_hubbard_transcorr, &
-            "gen_excit_rs_hubbard_transcorr", nI, n_iters, gen_all_excits_r_space_hubbard)
+        call stop_all("here", "now")
         t_trans_corr_hop = .false.
 
     end subroutine gen_excit_rs_hubbard_transcorr_test_stoch
@@ -1189,6 +1228,7 @@ contains
 
         integer, allocatable :: nI(:)
         integer :: n_iters, n_orbs, i
+        type(excit_gen_store_type) :: store
 
         n_iters = 1000000
 
@@ -1758,7 +1798,6 @@ contains
         use bit_rep_data, only: niftot
         use Detbitops, only: encodebitdet
         use constants, only: n_int, dp
-        use fcimcdata, only: excit_gen_store_type
 
         integer, allocatable :: nI(:), nJ(:)
         integer(n_int), allocatable :: ilutI(:), ilutJ(:)
@@ -2165,7 +2204,6 @@ contains
         G1([1,3])%ms = -1
         G1([2,4])%ms = 1
 
-        print *, "here?"
         lat => lattice('chain', 2, 1, 1, .false., .false., .false.)
         call init_tmat(lat)
         call init_get_helement_hubbard()
@@ -2253,10 +2291,10 @@ contains
         print *, "and now for transcorrelated hamiltonian with K = 1"
         t_trans_corr = .true.
         trans_corr_param = 1.0
-        call assert_equals(h_cast(1.0 * exp(-1.0_dp)), get_helement([1,2],[1,4]))
-        call assert_equals(h_cast(1.0 * exp(1.0_dp)), get_helement([1,4],[1,2]))
-        call assert_equals(h_cast(-1.0 * exp(-1.0_dp)), get_helement([1,2],[2,3]))
-        call assert_equals(h_cast(-1.0 * exp(1.0_dp)), get_helement([2,3],[1,2]))
+        call assert_equals(h_cast(1.0 * exp(1.0_dp)), get_helement([1,2],[1,4]))
+        call assert_equals(h_cast(1.0 * exp(-1.0_dp)), get_helement([1,4],[1,2]))
+        call assert_equals(h_cast(-1.0 * exp(1.0_dp)), get_helement([1,2],[2,3]))
+        call assert_equals(h_cast(-1.0 * exp(-1.0_dp)), get_helement([2,3],[1,2]))
         call assert_equals(h_cast(0.0_dp), get_helement([2,3],[2,5]))
         call assert_equals(h_cast(1.0_dp), get_helement([2,3],[2,7]))
         call assert_equals(h_cast(0.0_dp), get_helement([2,3],[3,8]))

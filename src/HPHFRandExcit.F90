@@ -38,7 +38,7 @@ MODULE HPHFRandExcitMod
                          TestClosedShellDet, CalcOpenOrbs, IsAllowedHPHF, &
                          DetBitEQ
 
-    use FciMCData, only: pDoubles, excit_gen_store_type, ilutRef
+    use FciMCData, only: pDoubles, ilutRef
 
     use constants, only: dp,n_int, EPS, maxExcit
 
