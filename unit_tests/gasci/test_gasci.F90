@@ -18,7 +18,7 @@ module test_gasci_mod
 
 
     use gasci, only: GASSpec_t, get_iGAS, &
-        contains_det, get_nGAS, particles_per_GAS, operator(.contains.), &
+        contains_det, get_nGAS, count_per_GAS, operator(.contains.), &
         is_valid, is_connected, get_possible_spaces, get_possible_holes, &
         split_per_GAS, generate_nGAS_excitation, &
         get_available_singles, get_available_doubles
@@ -44,7 +44,8 @@ contains
 
     subroutine test_igas_from_spatorb()
         type(GASSpec_t) :: GAS_spec
-        GAS_spec = GASSpec_t(n_orbs=[2, 4], n_min=[2, 4],  n_max=[2, 4])
+        GAS_spec = GASSpec_t(n_orbs=[2, 4], n_min=[2, 4],  n_max=[2, 4], GAS_table=[1, 1, 1, 1, 2, 2, 2, 2])
+        call GAS_spec%init()
         call assert_equals([1, 1, 2, 2], &
                            get_iGAS(GAS_spec, SpatOrbIdx_t([1, 2, 3, 4])), 4)
 
@@ -52,7 +53,8 @@ contains
 
     subroutine test_igas_from_spinorb()
         type(GASSpec_t) :: GAS_spec
-        GAS_spec = GASSpec_t(n_orbs=[2, 4], n_min=[2, 4], n_max=[2, 4])
+        GAS_spec = GASSpec_t(n_orbs=[2, 4], n_min=[2, 4],  n_max=[2, 4], GAS_table=[1, 1, 1, 1, 2, 2, 2, 2])
+        call GAS_spec%init()
 
         call assert_equals([1, 1, 1, 1, 2, 2, 2, 2], &
                           get_iGAS(GAS_spec, SpinOrbIdx_t([1, 2, 3, 4, 5, 6, 7, 8])), 8)
@@ -64,17 +66,18 @@ contains
 
     subroutine test_particles_per_GAS_spatorb()
         type(GASSpec_t) :: GAS_spec
-        GAS_spec = GASSpec_t(n_orbs=[2, 4], n_min=[2, 4], n_max=[2, 4])
+        GAS_spec = GASSpec_t(n_orbs=[2, 4], n_min=[2, 4],  n_max=[2, 4], GAS_table=[1, 1, 1, 1, 2, 2, 2, 2])
+        call GAS_spec%init()
 
         associate(expected => [2, 2], &
                   calculated => &
-                    particles_per_GAS(split_per_GAS(GAS_spec, SpatOrbIdx_t([1, 2, 3, 4]))))
+                    count_per_GAS(split_per_GAS(GAS_spec, SpatOrbIdx_t([1, 2, 3, 4]))))
             call assert_equals(expected, calculated, size(expected))
         end associate
 
         associate(expected => [1, 3], &
                   calculated => &
-                    particles_per_GAS(split_per_GAS(GAS_spec, SpatOrbIdx_t([1, 3, 3, 4]))))
+                    count_per_GAS(split_per_GAS(GAS_spec, SpatOrbIdx_t([1, 3, 3, 4]))))
             call assert_equals(expected, calculated, size(expected))
         end associate
     end subroutine
@@ -82,16 +85,17 @@ contains
 
     subroutine test_particles_per_GAS_spinorb()
         type(GASSpec_t) :: GAS_spec
-        GAS_spec = GASSpec_t(n_orbs=[2, 4], n_min=[2, 4], n_max=[2, 4])
+        GAS_spec = GASSpec_t(n_orbs=[2, 4], n_min=[2, 4],  n_max=[2, 4], GAS_table=[1, 1, 1, 1, 2, 2, 2, 2])
+        call GAS_spec%init()
 
         associate(expected => [2, 2], &
-                  calculated => particles_per_GAS(split_per_GAS(&
+                  calculated => count_per_GAS(split_per_GAS(&
                                         GAS_spec, SpinOrbIdx_t([1, 2, 5, 6]))))
             call assert_equals(expected, calculated, size(expected))
         end associate
 
         associate(expected => [1, 3], &
-                  calculated => particles_per_GAS(split_per_GAS(&
+                  calculated => count_per_GAS(split_per_GAS(&
                                         GAS_spec, SpinOrbIdx_t([1, 5, 6, 7]))))
             call assert_equals(expected, calculated, size(expected))
         end associate
@@ -100,7 +104,8 @@ contains
 
     subroutine test_contains_det_spinorb()
         type(GASSpec_t) :: GAS_spec
-        GAS_spec = GASSpec_t(n_orbs=[2, 4], n_min=[2, 4], n_max=[2, 4])
+        GAS_spec = GASSpec_t(n_orbs=[2, 4], n_min=[2, 4],  n_max=[2, 4], GAS_table=[1, 1, 1, 1, 2, 2, 2, 2])
+        call GAS_spec%init()
 
         call assert_true(GAS_spec .contains. SpinOrbIdx_t([1, 2, 5, 6]))
         call assert_true(GAS_spec .contains. SpinOrbIdx_t([1, 3, 5, 6]))
@@ -112,7 +117,8 @@ contains
 
     subroutine test_contains_det_spatorb()
         type(GASSpec_t) :: GAS_spec
-        GAS_spec = GASSpec_t(n_orbs=[2, 4], n_min=[2, 4], n_max=[2, 4])
+        GAS_spec = GASSpec_t(n_orbs=[2, 4], n_min=[2, 4],  n_max=[2, 4], GAS_table=[1, 1, 1, 1, 2, 2, 2, 2])
+        call GAS_spec%init()
 
         call assert_true(GAS_spec .contains. SpatOrbIdx_t([1, 1, 3, 3]))
         call assert_true(GAS_spec .contains. SpatOrbIdx_t([1, 2, 3, 4]))
@@ -123,33 +129,34 @@ contains
     end subroutine
 
     subroutine test_is_valid()
-        call assert_true(is_valid(GASSpec_t(n_orbs=[2, 4], n_min=[2, 4], n_max=[2, 4])))
-        call assert_true(is_valid(GASSpec_t(n_orbs=[1, 4], n_min=[2, 4], n_max=[2, 4])))
-        call assert_true(is_valid(GASSpec_t(n_orbs=[2, 4], n_min=[1, 4], n_max=[3, 4])))
-        call assert_true(is_valid(GASSpec_t(n_orbs=[2, 4], n_min=[1, 4], n_max=[3, 4]), &
+        call assert_true(is_valid(GASSpec_t(n_orbs=[2, 4], n_min=[2, 4], n_max=[2, 4], GAS_table=[1, 1, 1, 1, 2, 2, 2, 2])))
+        call assert_true(is_valid(GASSpec_t(n_orbs=[1, 4], n_min=[2, 4], n_max=[2, 4], GAS_table=[1, 1, 1, 1, 2, 2, 2, 2])))
+        call assert_true(is_valid(GASSpec_t(n_orbs=[2, 4], n_min=[1, 4], n_max=[3, 4], GAS_table=[1, 1, 1, 1, 2, 2, 2, 2])))
+        call assert_true(is_valid(GASSpec_t(n_orbs=[2, 4], n_min=[1, 4], n_max=[3, 4], GAS_table=[1, 1, 1, 1, 2, 2, 2, 2]), &
                                   n_particles=4))
-        call assert_true(is_valid(GASSpec_t(n_orbs=[2, 4], n_min=[1, 4], n_max=[3, 4]), &
+        call assert_true(is_valid(GASSpec_t(n_orbs=[2, 4], n_min=[1, 4], n_max=[3, 4], GAS_table=[1, 1, 1, 1, 2, 2, 2, 2]), &
                                   n_particles=4, n_basis=8))
 
-        call assert_false(is_valid(GASSpec_t(n_orbs=[1, 4], n_min=[3, 4], n_max=[3, 4])))
-        call assert_false(is_valid(GASSpec_t(n_orbs=[2, 4], n_min=[3, 3], n_max=[3, 4])))
-        call assert_false(is_valid(GASSpec_t(n_orbs=[1, 2], n_min=[3, 5], n_max=[3, 5])))
-        call assert_false(is_valid(GASSpec_t(n_orbs=[1, 2], n_min=[3, 5], n_max=[3, 5])))
-        call assert_false(is_valid(GASSpec_t(n_orbs=[2, 4], n_min=[1, 4], n_max=[3, 4]), &
+        call assert_false(is_valid(GASSpec_t(n_orbs=[1, 4], n_min=[3, 4], n_max=[3, 4], GAS_table=[1, 1, 1, 1, 2, 2, 2, 2])))
+        call assert_false(is_valid(GASSpec_t(n_orbs=[2, 4], n_min=[3, 3], n_max=[3, 4], GAS_table=[1, 1, 1, 1, 2, 2, 2, 2])))
+        call assert_false(is_valid(GASSpec_t(n_orbs=[1, 2], n_min=[3, 5], n_max=[3, 5], GAS_table=[1, 1, 1, 1, 2, 2, 2, 2])))
+        call assert_false(is_valid(GASSpec_t(n_orbs=[1, 2], n_min=[3, 5], n_max=[3, 5], GAS_table=[1, 1, 1, 1, 2, 2, 2, 2])))
+        call assert_false(is_valid(GASSpec_t(n_orbs=[2, 4], n_min=[1, 4], n_max=[3, 4], GAS_table=[1, 1, 1, 1, 2, 2, 2, 2]), &
                                    n_particles=5))
-        call assert_false(is_valid(GASSpec_t(n_orbs=[2, 4], n_min=[1, 4], n_max=[3, 4]), &
+        call assert_false(is_valid(GASSpec_t(n_orbs=[2, 4], n_min=[1, 4], n_max=[3, 4], GAS_table=[1, 1, 1, 1, 2, 2, 2, 2]), &
                                    n_particles=4, n_basis=5))
-        call assert_false(is_valid(GASSpec_t(n_orbs=[2, 4], n_min=[1, 4], n_max=[3, 4]), &
+        call assert_false(is_valid(GASSpec_t(n_orbs=[2, 4], n_min=[1, 4], n_max=[3, 4], GAS_table=[1, 1, 1, 1, 2, 2, 2, 2]), &
                                    n_particles=5, n_basis=5))
     end subroutine
 
 
     subroutine test_is_connected()
-        call assert_true(is_connected(GASSpec_t(n_orbs=[2, 4], n_min=[1, 4], n_max=[3, 4])))
-        call assert_true(is_connected(GASSpec_t(n_orbs=[2, 4], n_min=[1, 5], n_max=[3, 5])))
+        integer, parameter :: GAS_table(8) = [1, 1, 1, 1, 2, 2, 2, 2]
+        call assert_true(is_connected(GASSpec_t(n_orbs=[2, 4], n_min=[1, 4], n_max=[3, 4], GAS_table=GAS_table)))
+        call assert_true(is_connected(GASSpec_t(n_orbs=[2, 4], n_min=[1, 5], n_max=[3, 5], GAS_table=GAS_table)))
 
-        call assert_false(is_connected(GASSpec_t(n_orbs=[2, 4], n_min=[2, 4], n_max=[2, 4])))
-        call assert_false(is_connected(GASSpec_t(n_orbs=[2, 4], n_min=[2, 5], n_max=[2, 5])))
+        call assert_false(is_connected(GASSpec_t(n_orbs=[2, 4], n_min=[2, 4], n_max=[2, 4], GAS_table=GAS_table)))
+        call assert_false(is_connected(GASSpec_t(n_orbs=[2, 4], n_min=[2, 5], n_max=[2, 5], GAS_table=GAS_table)))
     end subroutine
 
     subroutine test_available()
@@ -163,7 +170,9 @@ contains
             GAS_spec = GASSpec_t(&
                 n_orbs=[2, 4], &
                 n_min=[2, 4], &
-                n_max=[2, 4])
+                n_max=[2, 4], &
+                GAS_table = [1, 1, 1, 1, 2, 2, 2, 2])
+            call GAS_spec%init()
             det_I = SpinOrbIdx_t([1, 2, 5, 6])
             call assert_true(is_valid(GAS_spec))
             call assert_true(GAS_spec .contains. det_I)
@@ -197,7 +206,9 @@ contains
             GAS_spec = GASSpec_t(&
                 n_orbs=[2, 4], &
                 n_min=[0, 4], &
-                n_max=[4, 4])
+                n_max=[4, 4], &
+                GAS_table=[1, 1, 1, 1, 2, 2, 2, 2])
+            call GAS_spec%init()
             det_I = SpinOrbIdx_t([1, 2, 5, 6])
             call assert_true(is_valid(GAS_spec))
             call assert_true(GAS_spec .contains. det_I)
@@ -237,10 +248,13 @@ contains
         end block
 
         block
+            integer :: i
             GAS_spec = GASSpec_t(&
                 n_orbs=[6, 12], &
                 n_min=[6, 12], &
-                n_max=[6, 12])
+                n_max=[6, 12], &
+                GAS_table=[[(1, i = 1, 12)], [(2, i = 1, 12)]])
+            call GAS_spec%init()
             det_I = SpinOrbIdx_t([1, 2, 3, 4, 5, 6, 13, 14, 15, 16, 17, 18])
             call assert_true(is_valid(GAS_spec))
             call assert_true(GAS_spec .contains. det_I)
@@ -1005,7 +1019,9 @@ contains
         GAS_spec = GASSpec_t(&
             n_orbs=[3, 6], &
             n_min=[3, size(det_I)], &
-            n_max=[3, size(det_I)])
+            n_max=[3, size(det_I)], &
+            GAS_table=[1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2])
+        call GAS_spec%init()
         call assert_true(is_valid(GAS_spec))
         call assert_true(GAS_spec .contains. det_I)
         global_GAS_spec = GAS_spec
@@ -1820,7 +1836,9 @@ contains
     subroutine test_get_possible_spaces_spinorb()
         type(GASSpec_t) :: GAS_spec
         type(SpinOrbIdx_t), allocatable :: splitted_det_I(:)
-        GAS_spec = GASSpec_t(n_orbs=[2, 4], n_min=[2, 4], n_max=[2, 4])
+        GAS_spec = GASSpec_t(n_orbs=[2, 4], n_min=[2, 4], n_max=[2, 4], GAS_table=[1, 1, 1, 1, 2, 2, 2, 2])
+        call GAS_spec%init()
+
         splitted_det_I = split_per_GAS(GAS_spec, SpinOrbIdx_t([1, 2, 5, 6]))
 
 
@@ -1871,7 +1889,8 @@ contains
     subroutine test_get_possible_spaces_spatorb()
         type(GASSpec_t) :: GAS_spec
         type(SpatOrbIdx_t), allocatable :: splitted_det_I(:)
-        GAS_spec = GASSpec_t(n_orbs=[2, 4], n_min=[2, 4], n_max=[2, 4])
+        GAS_spec = GASSpec_t(n_orbs=[2, 4], n_min=[2, 4], n_max=[2, 4], GAS_table=[1, 1, 1, 1, 2, 2, 2, 2])
+        call GAS_spec%init()
         splitted_det_I = split_per_GAS(GAS_spec, SpatOrbIdx_t([1, 1, 3, 3]))
 
         call assert_equals(0, size(get_possible_spaces(GAS_spec, splitted_det_I)))
@@ -1920,7 +1939,8 @@ contains
         type(GASSpec_t) :: GAS_spec
         type(SpinOrbIdx_t) :: reference
         type(SpinOrbIdx_t) :: expected, calculated
-        GAS_spec = GASSpec_t(n_orbs=[2, 4], n_min=[2, 4], n_max=[2, 4])
+        GAS_spec = GASSpec_t(n_orbs=[2, 4], n_min=[2, 4], n_max=[2, 4], GAS_table=[1, 1, 1, 1, 2, 2, 2, 2])
+        call GAS_spec%init()
         reference = SpinOrbIdx_t([1, 2, 5, 6])
 
         expected = SpinOrbIdx_t([integer::])
@@ -1958,7 +1978,8 @@ contains
         call assert_true(size(expected) == size(calculated))
         call assert_true(all(expected == calculated))
 
-        GAS_spec = GASSpec_t(n_orbs=[2, 4, 6], n_min=[1, 3, 6], n_max=[3, 5, 6])
+        GAS_spec = GASSpec_t(n_orbs=[2, 4, 6], n_min=[1, 3, 6], n_max=[3, 5, 6], GAS_table=[1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3])
+        call GAS_spec%init()
 
         reference = SpinOrbIdx_t([1, 2, 5, 6, 9, 10])
         expected = SpinOrbIdx_t([3, 4, 7, 8, 11, 12])
@@ -1997,7 +2018,8 @@ contains
         call assert_true(size(expected) == size(calculated))
         call assert_true(all(expected == calculated))
 
-        GAS_spec = GASSpec_t(n_orbs=[2, 4], n_min=[0, 4], n_max=[0, 4])
+        GAS_spec = GASSpec_t(n_orbs=[2, 4], n_min=[0, 4], n_max=[0, 4], GAS_table=[1, 1, 1, 1, 2, 2, 2, 2])
+        call GAS_spec%init()
         reference = SpinOrbIdx_t([5, 6, 7, 8])
         expected = SpinOrbIdx_t([integer::])
         calculated = get_possible_holes( &
@@ -2010,7 +2032,8 @@ contains
     subroutine test_split_per_GAS
         type(GASSpec_t) :: GAS_spec
         integer :: i
-        GAS_spec = GASSpec_t(n_orbs=[2, 4], n_min=[2, 4], n_max=[2, 4])
+        GAS_spec = GASSpec_t(n_orbs=[2, 4], n_min=[2, 4], n_max=[2, 4], GAS_table=[1, 1, 1, 1, 2, 2, 2, 2])
+        call GAS_spec%init()
 
         associate(expected => [SpinOrbIdx_t([1, 2]), SpinOrbIdx_t([5, 6])], &
                   calculated => split_per_GAS(GAS_spec, SpinOrbIdx_t([1, 2, 5, 6])))
@@ -2049,7 +2072,8 @@ contains
         end associate
 
 
-        GAS_spec = GASSpec_t(n_orbs=[2, 4, 6], n_min=[2, 4, 6], n_max=[2, 4, 6])
+        GAS_spec = GASSpec_t(n_orbs=[2, 4, 6], n_min=[2, 4, 6], n_max=[2, 4, 6], GAS_table=[1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3])
+        call GAS_spec%init()
         associate(expected => [SpatOrbIdx_t([1, 1, 2]), SpatOrbIdx_t([3]), SpatOrbIdx_t([5, 6])], &
                   calculated => split_per_GAS(GAS_spec, SpatOrbIdx_t([1, 1, 2, 3, 5, 6])))
             do i = 1, get_nGAS(GAS_spec)

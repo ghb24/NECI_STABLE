@@ -31,7 +31,7 @@ MODULE System
 
     use tc_three_body_data, only: LMatEps, tSparseLMat
 
-    use gasci, only: GAS_specification, GAS_exc_gen, possible_GAS_exc_gen
+    use gasci, only: GAS_specification, GAS_exc_gen, possible_GAS_exc_gen, GASSpec_t
 
     use ParallelHelper, only: iprocindex, root
 
@@ -1839,6 +1839,7 @@ system: do
                     GAS_specification%GAS_table = [(GAS((i + 1) .div. 2), i = 1, n_basis)]
                 end block
             end block
+            call GAS_specification%init()
 
 
         case("GAS-CI")
