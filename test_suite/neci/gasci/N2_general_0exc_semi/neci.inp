@@ -21,7 +21,8 @@ calc
     definedet 1-2 5-6 9-10
 
     totalwalkers 1000
-    semistochastic
+    semi-stochastic
+    pops-core 10000
 
     methods
         method vertex fcimc
