@@ -1209,7 +1209,7 @@ contains
 
 
         ! Return the most populated states in source on *this* processor.
-        call proc_most_populated_states(int(length_this_proc,sizeof_int), GLOBAL_RUN, largest_states)
+        call proc_most_populated_states(int(length_this_proc,sizeof_int), run, largest_states)
 
         do i = 1, length_this_proc
             ! Store the real amplitudes in their real form.
