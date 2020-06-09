@@ -1,7 +1,6 @@
 Title
 
 System read
-    seed 7
     electrons  6
     nobrillouintheorem
     freeformat
@@ -16,6 +15,7 @@ System read
 endsys
 
 calc
+    seed 7
 
     definedet 1-2 5-6 9-10
 
@@ -27,7 +27,7 @@ calc
 
     diagshift .00
     shiftdamp .02
-    nmcyc 1500
+    nmcyc 1000
     stepsshift 10
     proje-changeref 1.20
     truncinitiator
