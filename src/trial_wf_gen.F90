@@ -1082,7 +1082,7 @@ contains
         character(*), parameter :: this_routine='Set_AS_TrialOffset'
 
         if(replica_pairs)then
-            ASSERT(nexcit_keep == inum_runs/2)
+            ASSERT(nexcit_keep == int(inum_runs/2.0))
             do i = 1, nexcit_keep
                 ShiftOffset(2*i-1) = trial_energies(i)
                 ShiftOffset(2*i) = trial_energies(i)
