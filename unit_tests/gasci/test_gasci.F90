@@ -48,7 +48,7 @@ contains
         call GAS_spec%init()
         call assert_equals([1, 1, 2, 2], &
                            get_iGAS(GAS_spec, SpatOrbIdx_t([1, 2, 3, 4])), 4)
-
+        call GAS_spec%destroy()
     end subroutine
 
     subroutine test_igas_from_spinorb()
@@ -61,7 +61,7 @@ contains
 
         call assert_equals([1, 2, 2, 2], &
                           get_iGAS(GAS_spec, SpinOrbIdx_t([1, 5, 6, 7])), 4)
-
+        call GAS_spec%destroy()
     end subroutine
 
     subroutine test_particles_per_GAS_spatorb()
@@ -80,6 +80,8 @@ contains
                     count_per_GAS(split_per_GAS(GAS_spec, SpatOrbIdx_t([1, 3, 3, 4]))))
             call assert_equals(expected, calculated, size(expected))
         end associate
+
+        call GAS_spec%destroy()
     end subroutine
 
 
@@ -100,6 +102,8 @@ contains
             call assert_equals(expected, calculated, size(expected))
         end associate
 
+        call GAS_spec%destroy()
+
     end subroutine
 
     subroutine test_contains_det_spinorb()
@@ -113,6 +117,8 @@ contains
         call assert_false(GAS_spec .contains. SpinOrbIdx_t([1, 2, 3, 5]))
         call assert_false(GAS_spec .contains. SpinOrbIdx_t([5, 6, 7, 8]))
         call assert_false(GAS_spec .contains. SpinOrbIdx_t([1, 6, 7, 8]))
+
+        call GAS_spec%destroy()
     end subroutine
 
     subroutine test_contains_det_spatorb()
@@ -126,6 +132,8 @@ contains
         call assert_false(GAS_spec .contains. SpatOrbIdx_t([1, 1, 2, 2]))
         call assert_false(GAS_spec .contains. SpatOrbIdx_t([1, 3, 3, 4]))
         call assert_false(GAS_spec .contains. SpatOrbIdx_t([3, 3, 4, 4]))
+
+        call GAS_spec%destroy()
     end subroutine
 
     subroutine test_is_valid()
@@ -200,6 +208,7 @@ contains
             do i = 1, size(expect_doubles)
                 call assert_true(all(expect_doubles(i) == doubles_exc_list(i)))
             end do
+            call GAS_spec%destroy()
         end block
 
         block
@@ -245,6 +254,7 @@ contains
             do i = 1, size(expect_doubles)
                 call assert_true(all(expect_doubles(i) == doubles_exc_list(i)))
             end do
+            call GAS_spec%destroy()
         end block
 
         block
@@ -995,6 +1005,7 @@ contains
             do i = 1, size(expect_doubles)
                 call assert_true(all(expect_doubles(i) == doubles_exc_list(i)))
             end do
+            call GAS_spec%destroy()
         end block
     end subroutine
 
@@ -1047,6 +1058,8 @@ contains
         call assert_true(successful)
         call clearGAS()
         call finalize_excitgen_test()
+
+        call GAS_spec%destroy()
     contains
         subroutine gen_all_excits(nI, n_excits, det_list)
             integer, intent(in) :: nI(nel)
@@ -1883,6 +1896,7 @@ contains
                                 add_holes=SpinOrbIdx_t([5, 6]), &
                                 n_total=2), &
             2)
+        call GAS_spec%destroy()
     end subroutine
 
 
@@ -1933,6 +1947,8 @@ contains
                                 add_holes=SpatOrbIdx_t([3, 3]), &
                                 n_total=2), &
             2)
+
+        call GAS_spec%destroy()
     end subroutine
 
     subroutine test_possible_holes
@@ -1978,6 +1994,7 @@ contains
         call assert_true(size(expected) == size(calculated))
         call assert_true(all(expected == calculated))
 
+        call GAS_spec%destroy()
         GAS_spec = GASSpec_t(n_orbs=[2, 4, 6], n_min=[1, 3, 6], n_max=[3, 5, 6], GAS_table=[1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3])
         call GAS_spec%init()
 
@@ -2018,6 +2035,7 @@ contains
         call assert_true(size(expected) == size(calculated))
         call assert_true(all(expected == calculated))
 
+        call GAS_spec%destroy()
         GAS_spec = GASSpec_t(n_orbs=[2, 4], n_min=[0, 4], n_max=[0, 4], GAS_table=[1, 1, 1, 1, 2, 2, 2, 2])
         call GAS_spec%init()
         reference = SpinOrbIdx_t([5, 6, 7, 8])
@@ -2026,6 +2044,7 @@ contains
               GAS_spec, reference, add_holes=SpinOrbIdx_t([5]))
         call assert_true(size(expected) == size(calculated))
         call assert_true(all(expected == calculated))
+        call GAS_spec%destroy()
 
     end subroutine
 
@@ -2070,6 +2089,7 @@ contains
             call assert_true(all(expected(1) == calculated(1)))
             call assert_true(all(expected(2) == calculated(2)))
         end associate
+        call GAS_spec%destroy()
 
 
         GAS_spec = GASSpec_t(n_orbs=[2, 4, 6], n_min=[2, 4, 6], n_max=[2, 4, 6], GAS_table=[1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3])
@@ -2089,6 +2109,7 @@ contains
             end do
         end associate
 
+        call GAS_spec%destroy()
     end subroutine
 
 end module test_gasci_mod

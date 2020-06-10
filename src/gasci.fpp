@@ -59,7 +59,8 @@ module gasci
         type(SpinOrbIdx_t), private, pointer :: splitted_orbitals(:) => null()
     contains
         procedure :: init => init_GAS_spec
-        final :: destroy_GAS_spec
+        ! NOTE: Should be a final procedure, but not possible because of GFortran 5
+        procedure :: destroy => destroy_GAS_spec
     end type
 
     type(GASSpec_t) :: GAS_specification
@@ -304,15 +305,17 @@ contains
     end subroutine
 
     subroutine destroy_GAS_spec(GAS_spec)
-        type(GASSpec_t), intent(inout) :: GAS_spec
+        class(GASSpec_t), intent(inout) :: GAS_spec
         character(*), parameter :: this_routine = 'destroy_GAS_spec'
 
         integer :: iGAS
 
-        do iGAS = 1, size(GAS_spec%splitted_orbitals)
-            deallocate(GAS_spec%splitted_orbitals(iGAS)%idx)
-        end do
-        deallocate(GAS_spec%splitted_orbitals)
+        if (allocated(GAS_spec%splitted_orbitals)) then
+            do iGAS = 1, size(GAS_spec%splitted_orbitals)
+                deallocate(GAS_spec%splitted_orbitals(iGAS)%idx)
+            end do
+            deallocate(GAS_spec%splitted_orbitals)
+        end if
         ! The other components are allocatables and not pointers
         ! and are automatically cleaned up.
     end subroutine
