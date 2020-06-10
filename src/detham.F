@@ -12,9 +12,9 @@
       use hphf_integrals, only: hphf_off_diag_helement
       use DetBitOps, only: EncodeBitDet
       use orb_idx_mod, only: SpinOrbIdx_t
-      use gasci, only: GAS_spec=>GAS_specification,operator(.contains.),
-     &  GAS_exc_gen, possible_GAS_exc_gen, operator(==)
+      use gasci, only: GAS_exc_gen, possible_GAS_exc_gen, operator(==)
       use disconnected_gasci, only: isValidExcit
+      use fast_gasci, only: GAS_spec=>GAS_specification
 
       use guga_matrixElements, only: calcDiagMatEleGuga_nI
       use guga_excitations, only: calc_guga_matrix_element
@@ -127,8 +127,8 @@ C     &     FCK,NMAX,ALAT,UMAT,TOTSUM)
               else if (GAS_exc_gen == possible_GAS_exc_gen%GENERAL) then
                 associate(det_I => SpinOrbIdx_t(NMRKS(:, KI)),
      &                    det_J => SpinOrbIdx_t(NMRKS(:, KJ)))
-                    if (.not. ((GAS_spec .contains. det_I)
-     &                         .and. (GAS_spec .contains. det_J))) then
+                    if (.not. ((GAS_spec%contains(det_I))
+     &                         .and. (GAS_spec%contains(det_J)))) then
                         totsum = 0.0_dp
                     end if
                 end associate
