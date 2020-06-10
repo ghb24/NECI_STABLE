@@ -310,11 +310,12 @@ contains
 
         integer :: iGAS
 
-        if (allocated(GAS_spec%splitted_orbitals)) then
+        if (associated(GAS_spec%splitted_orbitals)) then
             do iGAS = 1, size(GAS_spec%splitted_orbitals)
                 deallocate(GAS_spec%splitted_orbitals(iGAS)%idx)
             end do
             deallocate(GAS_spec%splitted_orbitals)
+            nullify(GAS_spec%splitted_orbitals)
         end if
         ! The other components are allocatables and not pointers
         ! and are automatically cleaned up.

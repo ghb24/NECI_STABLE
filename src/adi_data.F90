@@ -42,6 +42,6 @@ module adi_data
   logical :: tWeightedConnections
 
   ! if we use a signed average over replicas to determine superinitiators
-  logical :: tSignedRepAv
+  logical :: tSignedRepAv = .false.
 
 end module adi_data

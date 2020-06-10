@@ -241,7 +241,7 @@ module fcimc_initialisation
                                     gen_excit_back_spawn_hubbard, gen_excit_back_spawn_ueg_new
     use gasci, only: gen_general_GASCI => generate_nGAS_excitation, GAS_exc_gen, possible_GAS_exc_gen, &
         operator(==), gen_all_excits_GAS => gen_all_excits, GAS_specification
-    use disconnected_gasci, only: gen_disconnected_GASCI => generate_nGAS_excitation
+    use disconnected_gasci, only: gen_disconnected_GASCI => generate_nGAS_excitation, clearGAS
 
     use cepa_shifts, only: t_cepa_shift, init_cepa_shifts
 
