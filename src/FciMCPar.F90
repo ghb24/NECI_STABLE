@@ -10,7 +10,8 @@ module FciMCParMod
                           tGen_guga_mixed, t_guga_mixed_init, t_guga_mixed_semi, &
                           tReal, t_mixed_excits, tgen_nosym_guga, &
                           t_crude_exchange_noninits, t_approx_exchange_noninits, &
-                          is_init_guga, tGen_sym_guga_ueg, t_guga_unit_tests
+                          is_init_guga, tGen_sym_guga_ueg, t_guga_unit_tests, &
+                          t_analyze_pchb
 
     use CalcData, only: tFTLM, tSpecLanc, tExactSpec, tDetermProj, tMaxBloom, &
                         tUseRealCoeffs, tWritePopsNorm, tExactDiagAllSym, &
@@ -114,7 +115,8 @@ module FciMCParMod
     use excit_gen_5, only: gen_excit_4ind_weighted2
 
     use guga_testsuite, only: run_test_excit_gen_det, runTestsGUGA
-    use guga_excitations, only: deallocate_projE_list, generate_excitation_guga
+    use guga_excitations, only: deallocate_projE_list, generate_excitation_guga, &
+                                global_excitInfo
     use guga_bitrepops, only: init_csf_information
     use tJ_model, only: init_guga_heisenberg_model, init_guga_tj_model
 
@@ -151,6 +153,8 @@ module FciMCParMod
 
     use sltcnd_mod, only: sltcnd_excit
     use hdf5_popsfile, only: write_popsfile_hdf5
+
+    use guga_pchb_excitgen, only: store_pchb_analysis
 
     implicit none
 
@@ -1600,6 +1604,7 @@ module FciMCParMod
                         call generate_excitation(DetCurr, CurrentDets(:,j), nJ, &
                             ilutnJ, exFlag, IC, ex, tParity, prob, &
                             HElGen, fcimc_excit_gen_store, part_type)
+
                     end if
 
                     !If we are fixing the population of reference det, skip spawing into it.
@@ -1610,6 +1615,10 @@ module FciMCParMod
 
                     ! If a valid excitation, see if we should spawn children.
                     if (.not. IsNullDet(nJ)) then
+
+                        if (t_analyze_pchb) then
+                            call store_pchb_analysis(real(HElGen,dp), prob, global_excitInfo)
+                        end if
 
                         if (tSemiStochastic) then
                             call encode_child (CurrentDets(:,j), iLutnJ, ic, ex)

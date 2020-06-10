@@ -5,12 +5,14 @@ module guga_pchb_excitgen
     use constants, only: n_int, dp, maxExcit, int64, iout
     use bit_rep_data, only: IlutBits, GugaBits
     use SystemData, only: nel, G1, current_stepvector, t_pchb_weighted_singles, &
-                          nBasis, nSpatOrbs, ElecPairs, currentOcc_int
+                          nBasis, nSpatOrbs, ElecPairs, currentOcc_int, &
+                          t_analyze_pchb, t_old_pchb, t_exchange_pchb
     use FciMCData, only: excit_gen_store_type, pSingles, pDoubles
     use guga_data, only: tNewDet, ExcitationInformation_t, gen_type, excit_type
     use guga_bitrepops, only: convert_ilut_toGUGA, isProperCSF_ilut
     use dSFMT_interface, only: genrand_real2_dSFMT
-    use util_mod, only: near_zero, fuseIndex, intswap, binary_search_first_ge
+    use util_mod, only: near_zero, fuseIndex, intswap, binary_search_first_ge, &
+                        get_free_unit
     use CalcData, only: t_matele_cutoff, matele_cutoff
     use sym_general_mod, only: ClassCountInd
     use SymExcitDataMod, only: OrbClassCount, SymLabelCounts2, &
@@ -24,7 +26,7 @@ module guga_pchb_excitgen
     use guga_procedure_pointers, only: gen_single_excit_guga, gen_double_excit_guga
     use guga_bitrepops, only: identify_excitation, encode_excit_info, extract_excit_info
     use bit_reps, only: decode_bit_det
-    use shared_array, only: shared_array_int64_t
+    use shared_array, only: shared_array_int64_t, shared_array_real_t
     use ParallelHelper, only: iProcIndex_intra
     use GenRandSymExcitNUMod, only: RandExcitSymLabelProd
     use procedure_pointers, only: get_umat_el
@@ -39,7 +41,8 @@ module guga_pchb_excitgen
               calc_orbital_pgen_contr_end_pchb, init_guga_pchb_excitgen, &
               calc_pgen_guga_pchb, pick_uniform_spatial_hole, &
               calc_orb_pgen_uniform_singles, setup_pchb_sampler_conditional, &
-              tgtOrbs, guga_pchb_sampler, finalize_pchb_excitgen_guga
+              tgtOrbs, guga_pchb_sampler, finalize_pchb_excitgen_guga, &
+              store_pchb_analysis
 
     type :: GugaAliasSampler_t
 
@@ -50,6 +53,26 @@ module guga_pchb_excitgen
         type(shared_array_int64_t) :: all_info_table
         type(shared_array_int64_t), allocatable :: info_tables(:)
 
+
+        ! for analysis also keep track: (will be removed after optimization)
+        type(shared_array_int64_t) :: all_counts
+        type(shared_array_int64_t), allocatable :: count_tables(:)
+
+        type(shared_array_real_t) :: all_sums
+        type(shared_array_real_t), allocatable :: sums_tables(:)
+
+        type(shared_array_real_t) :: all_worst_orb
+        type(shared_array_real_t), allocatable :: worst_orb_table(:)
+
+        type(shared_array_real_t) :: all_high_pgen
+        type(shared_array_real_t), allocatable :: high_pgen_table(:)
+
+        type(shared_array_real_t) :: all_pgen
+        type(shared_array_real_t), allocatable :: pgen_table(:)
+
+        type(shared_array_real_t) :: all_low_pgen
+        type(shared_array_real_t), allocatable :: low_pgen_table(:)
+
     contains
 
         procedure :: setup_info_table
@@ -57,13 +80,52 @@ module guga_pchb_excitgen
         procedure :: info_table_destructor
         procedure :: get_info
 
+        ! for analysis (will be removed after optimization)
+
+        procedure :: setup_count_table
+        procedure :: setup_entry_count_vec
+        procedure :: setup_entry_count_scalar
+        procedure :: count_table_destructor
+        procedure :: get_count
+
+        procedure :: setup_sum_table
+        procedure :: setup_entry_sum_vec
+        procedure :: setup_entry_sum_scalar
+        procedure :: sum_table_destructor
+        procedure :: get_sum
+
+        procedure :: setup_worst_orb_table
+        procedure :: setup_entry_worst_orb_vec
+        procedure :: setup_entry_worst_orb_scalar
+        procedure :: worst_orb_table_destructor
+        procedure :: get_worst_orb
+
+        procedure :: setup_pgen_table
+        procedure :: setup_entry_pgen_vec
+        procedure :: setup_entry_pgen_scalar
+        procedure :: pgen_table_destructor
+        procedure :: get_pgen
+
+        procedure :: setup_high_pgen_table
+        procedure :: setup_entry_pgen_high_vec
+        procedure :: setup_entry_pgen_high_scalar
+        procedure :: high_pgen_table_destructor
+        procedure :: get_high_pgen
+
+        procedure :: setup_low_pgen_table
+        procedure :: setup_entry_pgen_low_vec
+        procedure :: setup_entry_pgen_low_scalar
+        procedure :: low_pgen_table_destructor
+        procedure :: get_low_pgen
+
+
+
     end type GugaAliasSampler_t
 
 
     ! start with one sampler for now!
     type(GugaAliasSampler_t) :: guga_pchb_sampler(1)
     integer, allocatable :: tgtOrbs(:,:)
-
     interface calc_orb_pgen_uniform_singles
         module procedure calc_orb_pgen_uniform_singles_exmat
         module procedure calc_orb_pgen_uniform_singles_excitInfo
@@ -87,13 +149,21 @@ contains
         real(dp) :: cpt1, cpt2, cpt3, cpt4
 
         ! use a flag to maybe also intialize the anti-symmetric combination
-        def_default(flag_, flag, .false.)
+        ! def_default(flag_, flag, .false.)
+
 
         ASSERT(a > 0 .and. a <= nSpatOrbs)
         ASSERT(i > 0 .and. i <= nSpatOrbs)
         ASSERT(b > 0 .and. b <= nSpatOrbs)
         ASSERT(j > 0 .and. j <= nSpatOrbs)
 
+
+        if (t_old_pchb) then
+            integral = get_guga_integral_contrib_spat([i,j],a,b)
+            return
+        end if
+
+        flag_ = t_exchange_pchb
 
         select case (typ)
 
@@ -153,7 +223,6 @@ contains
 
             integral = abs(get_umat_el(b, a, j, b) + get_umat_el(a, b, b, j))/2.0_dp
 
-
         case (excit_type%fullstart_L_to_R, excit_type%fullstart_R_to_L)
 
             integral = abs(get_umat_el(a, b, i, a) + get_umat_el(b, a, a, i))/2.0_dp
@@ -174,6 +243,613 @@ contains
         end select
 
     end function get_pchb_integral_contrib
+
+
+    subroutine store_pchb_analysis(h_element, pgen, excitInfo)
+        real(dp), intent(in) :: h_element, pgen
+        type(ExcitationInformation_t), intent(in) :: excitInfo
+        debug_function_name("store_pchb_analysis")
+        integer :: ij, ab
+
+
+        associate(a => excitInfo%i, i => excitInfo%j, b => excitInfo%k, &
+                  j => excitInfo%l)
+
+
+            select case (excitInfo%typ)
+
+            ! all the cases without recalculating
+            case (excit_type%single_overlap_L_to_R, &
+                  excit_type%single_overlap_R_to_L, &
+                  excit_type%double_lowering, &
+                  excit_type%double_raising, &
+                  excit_type%double_L_to_R_to_L, &
+                  excit_type%double_R_to_L_to_R, &
+                  excit_type%double_L_to_R, &
+                  excit_type%double_R_to_L, &
+                  excit_type%fullstop_lowering, &
+                  excit_type%fullstop_raising, &
+                  excit_type%fullstart_lowering, &
+                  excit_type%fullstart_raising, &
+                  excit_type%fullstart_stop_alike, &
+                  excit_type%fullstop_R_to_L, &
+                  excit_type%fullstop_L_to_R, &
+                  excit_type%fullstart_L_to_R, &
+                  excit_type%fullstart_R_to_L, &
+                  excit_type%fullstart_stop_mixed)
+
+                ij = fuseIndex(i,j)
+                ab = fuseIndex(a,b)
+
+                call guga_pchb_sampler(1)%setup_entry_count_scalar(ij,ab)
+                call guga_pchb_sampler(1)%setup_entry_sum_scalar(ij,ab,abs(h_element))
+                call guga_pchb_sampler(1)%setup_entry_worst_orb_scalar(ij,ab, &
+                    abs(h_element) / guga_pchb_sampler(1)%alias_sampler%aGetProb(ij,ab))
+                call guga_pchb_sampler(1)%setup_entry_pgen_scalar(ij,ab,pgen)
+                call guga_pchb_sampler(1)%setup_entry_pgen_high_scalar(ij,ab, &
+                    abs(h_element) / pgen)
+                call guga_pchb_sampler(1)%setup_entry_pgen_low_scalar(ij,ab, &
+                    abs(h_element) / pgen)
+
+               ! in the other cases no contribution to PCHB
+            end select
+
+        end associate
+
+    end subroutine store_pchb_analysis
+
+! **************** analysis functions (to be removed after optimization) ******
+
+    subroutine setup_count_table(this, nEntries, entrySize)
+        debug_function_name("setup_count_table")
+        class(GugaAliasSampler_t) :: this
+        integer(int64), intent(in) :: nEntries, entrySize
+
+        integer(int64) :: total_size
+        integer :: iEntry, windowStart, windowEnd
+
+        allocate(this%count_tables(nEntries))
+
+        total_size = nEntries * entrySize
+
+        call this%all_counts%shared_alloc(total_size)
+
+        do iEntry = 1, nEntries
+            windowStart = (iEntry - 1) * entrySize + 1
+            windowEnd = windowStart + entrySize - 1
+
+            this%count_tables(iEntry)%ptr => this%all_counts%ptr(windowStart:windowEnd)
+        end do
+
+    end subroutine setup_count_table
+
+    subroutine setup_sum_table(this, nEntries, entrySize)
+        debug_function_name("setup_sum_table")
+        class(GugaAliasSampler_t) :: this
+        integer(int64), intent(in) :: nEntries, entrySize
+
+        integer(int64) :: total_size
+        integer :: iEntry, windowStart, windowEnd
+
+        allocate(this%sums_tables(nEntries))
+
+        total_size = nEntries * entrySize
+
+        call this%all_sums%shared_alloc(total_size)
+
+        do iEntry = 1, nEntries
+            windowStart = (iEntry - 1) * entrySize + 1
+            windowEnd = windowStart + entrySize - 1
+
+            this%sums_tables(iEntry)%ptr => this%all_sums%ptr(windowStart:windowEnd)
+        end do
+
+    end subroutine setup_sum_table
+
+    subroutine setup_pgen_table(this, nEntries, entrySize)
+        debug_function_name("setup_pgen_table")
+        class(GugaAliasSampler_t) :: this
+        integer(int64), intent(in) :: nEntries, entrySize
+
+        integer(int64) :: total_size
+        integer :: iEntry, windowStart, windowEnd
+
+        allocate(this%pgen_table(nEntries))
+
+        total_size = nEntries * entrySize
+
+        call this%all_pgen%shared_alloc(total_size)
+
+        do iEntry = 1, nEntries
+            windowStart = (iEntry - 1) * entrySize + 1
+            windowEnd = windowStart + entrySize - 1
+
+            this%pgen_table(iEntry)%ptr => this%all_pgen%ptr(windowStart:windowEnd)
+        end do
+
+    end subroutine setup_pgen_table
+
+
+    subroutine setup_worst_orb_table(this, nEntries, entrySize)
+        debug_function_name("setup_worst_orb_table")
+        class(GugaAliasSampler_t) :: this
+        integer(int64), intent(in) :: nEntries, entrySize
+
+        integer(int64) :: total_size
+        integer :: iEntry, windowStart, windowEnd
+
+        allocate(this%worst_orb_table(nEntries))
+
+        total_size = nEntries * entrySize
+
+        call this%all_worst_orb%shared_alloc(total_size)
+
+        do iEntry = 1, nEntries
+            windowStart = (iEntry - 1) * entrySize + 1
+            windowEnd = windowStart + entrySize - 1
+
+            this%worst_orb_table(iEntry)%ptr => this%all_worst_orb%ptr(windowStart:windowEnd)
+        end do
+
+    end subroutine setup_worst_orb_table
+
+    subroutine setup_high_pgen_table(this, nEntries, entrySize)
+        debug_function_name("setup_high_pgen_table")
+        class(GugaAliasSampler_t) :: this
+        integer(int64), intent(in) :: nEntries, entrySize
+
+        integer(int64) :: total_size
+        integer :: iEntry, windowStart, windowEnd
+
+        allocate(this%high_pgen_table(nEntries))
+
+        total_size = nEntries * entrySize
+
+        call this%all_high_pgen%shared_alloc(total_size)
+
+        do iEntry = 1, nEntries
+            windowStart = (iEntry - 1) * entrySize + 1
+            windowEnd = windowStart + entrySize - 1
+
+            this%high_pgen_table(iEntry)%ptr => this%all_high_pgen%ptr(windowStart:windowEnd)
+        end do
+
+    end subroutine setup_high_pgen_table
+
+    subroutine setup_low_pgen_table(this, nEntries, entrySize)
+        debug_function_name("setup_low_pgen_table")
+        class(GugaAliasSampler_t) :: this
+        integer(int64), intent(in) :: nEntries, entrySize
+
+        integer(int64) :: total_size
+        integer :: iEntry, windowStart, windowEnd
+
+        allocate(this%low_pgen_table(nEntries))
+
+        total_size = nEntries * entrySize
+
+        call this%all_low_pgen%shared_alloc(total_size)
+
+        do iEntry = 1, nEntries
+            windowStart = (iEntry - 1) * entrySize + 1
+            windowEnd = windowStart + entrySize - 1
+
+            this%low_pgen_table(iEntry)%ptr => this%all_low_pgen%ptr(windowStart:windowEnd)
+        end do
+
+    end subroutine setup_low_pgen_table
+
+
+
+    subroutine setup_entry_count_vec(this, iEntry, counts)
+        class(GugaAliasSampler_t) :: this
+        integer, intent(in) :: iEntry
+        integer(int64), intent(in) :: counts(:)
+
+        ! i think this is everyhing...
+        if (iProcIndex_intra == 0) then
+            this%count_tables(iEntry)%ptr = counts
+        end if
+
+        ! then sync:
+        call this%all_counts%sync()
+
+    end subroutine setup_entry_count_vec
+
+    subroutine setup_entry_count_scalar(this, iEntry, tgt)
+        class(GugaAliasSampler_t) :: this
+        integer, intent(in) :: iEntry, tgt
+
+        ! i think this is everyhing...
+        if (iProcIndex_intra == 0) then
+            this%count_tables(iEntry)%ptr(tgt) = this%get_count(iEntry,tgt) + 1_int64
+        end if
+
+        ! then sync:
+        call this%all_counts%sync()
+
+    end subroutine setup_entry_count_scalar
+
+    subroutine setup_entry_sum_vec(this, iEntry, sums)
+        class(GugaAliasSampler_t) :: this
+        integer, intent(in) :: iEntry
+        real(dp), intent(in) :: sums(:)
+
+        ! i think this is everyhing...
+        if (iProcIndex_intra == 0) then
+            this%sums_tables(iEntry)%ptr = sums
+        end if
+
+        ! then sync:
+        call this%all_sums%sync()
+
+    end subroutine setup_entry_sum_vec
+
+    subroutine setup_entry_pgen_vec(this, iEntry, pgens)
+        class(GugaAliasSampler_t) :: this
+        integer, intent(in) :: iEntry
+        real(dp), intent(in) :: pgens(:)
+
+        ! i think this is everyhing...
+        if (iProcIndex_intra == 0) then
+            this%pgen_table(iEntry)%ptr = pgens
+        end if
+
+        ! then sync:
+        call this%all_pgen%sync()
+
+    end subroutine setup_entry_pgen_vec
+
+
+    subroutine setup_entry_sum_scalar(this, iEntry, tgt, sigma)
+        class(GugaAliasSampler_t) :: this
+        integer, intent(in) :: iEntry, tgt
+        real(dp), intent(in) :: sigma
+
+        ! i think this is everyhing...
+        if (iProcIndex_intra == 0) then
+            this%sums_tables(iEntry)%ptr(tgt) = this%get_sum(iEntry,tgt) + sigma
+        end if
+
+        ! then sync:
+        call this%all_sums%sync()
+
+    end subroutine setup_entry_sum_scalar
+
+    subroutine setup_entry_pgen_scalar(this, iEntry, tgt, pgen)
+        class(GugaAliasSampler_t) :: this
+        integer, intent(in) :: iEntry, tgt
+        real(dp), intent(in) :: pgen
+
+        ! i think this is everyhing...
+        if (iProcIndex_intra == 0) then
+            this%pgen_table(iEntry)%ptr(tgt) = this%get_pgen(iEntry,tgt) + pgen
+        end if
+
+        ! then sync:
+        call this%all_pgen%sync()
+
+    end subroutine setup_entry_pgen_scalar
+
+    subroutine setup_entry_worst_orb_vec(this, iEntry, worst)
+        class(GugaAliasSampler_t) :: this
+        integer, intent(in) :: iEntry
+        real(dp), intent(in) :: worst(:)
+
+        ! i think this is everyhing...
+        if (iProcIndex_intra == 0) then
+            this%worst_orb_table(iEntry)%ptr = worst
+        end if
+
+        ! then sync:
+        call this%all_worst_orb%sync()
+    end subroutine setup_entry_worst_orb_vec
+
+
+    subroutine setup_entry_pgen_low_vec(this, iEntry, worst)
+        class(GugaAliasSampler_t) :: this
+        integer, intent(in) :: iEntry
+        real(dp), intent(in) :: worst(:)
+
+        ! i think this is everyhing...
+        if (iProcIndex_intra == 0) then
+            this%low_pgen_table(iEntry)%ptr = worst
+        end if
+
+        ! then sync:
+        call this%all_low_pgen%sync()
+    end subroutine setup_entry_pgen_low_vec
+
+
+
+    subroutine setup_entry_pgen_high_vec(this, iEntry, worst)
+        class(GugaAliasSampler_t) :: this
+        integer, intent(in) :: iEntry
+        real(dp), intent(in) :: worst(:)
+
+        ! i think this is everyhing...
+        if (iProcIndex_intra == 0) then
+            this%high_pgen_table(iEntry)%ptr = worst
+        end if
+
+        ! then sync:
+        call this%all_high_pgen%sync()
+    end subroutine setup_entry_pgen_high_vec
+
+    subroutine setup_entry_worst_orb_scalar(this, iEntry, tgt, worst)
+        class(GugaAliasSampler_t) :: this
+        integer, intent(in) :: iEntry, tgt
+        real(dp), intent(in) :: worst
+
+        ! i think this is everyhing...
+        ! do i need to change this iProcIndex_intra if? i guess so..
+        if (iProcIndex_intra == 0) then
+            this%worst_orb_table(iEntry)%ptr(tgt) = max(worst, this%get_worst_orb(iEntry,tgt))
+        end if
+
+        ! then sync:
+        call this%all_worst_orb%sync()
+    end subroutine setup_entry_worst_orb_scalar
+
+    subroutine setup_entry_pgen_low_scalar(this, iEntry, tgt, worst)
+        class(GugaAliasSampler_t) :: this
+        integer, intent(in) :: iEntry, tgt
+        real(dp), intent(in) :: worst
+
+        real(dp) :: old
+
+        if (near_zero(worst)) return
+
+        ! i think this is everyhing...
+        ! do i need to change this iProcIndex_intra if? i guess so..
+        if (iProcIndex_intra == 0) then
+            old = this%get_low_pgen(iEntry,tgt)
+            if (near_zero(old)) then
+                this%low_pgen_table(iEntry)%ptr(tgt) = worst
+            else
+                this%low_pgen_table(iEntry)%ptr(tgt) = min(worst, old)
+            end if
+        end if
+
+        ! then sync:
+        call this%all_low_pgen%sync()
+
+    end subroutine setup_entry_pgen_low_scalar
+
+
+    subroutine setup_entry_pgen_high_scalar(this, iEntry, tgt, worst)
+        class(GugaAliasSampler_t) :: this
+        integer, intent(in) :: iEntry, tgt
+        real(dp), intent(in) :: worst
+
+        ! i think this is everyhing...
+        ! do i need to change this iProcIndex_intra if? i guess so..
+        if (iProcIndex_intra == 0) then
+            this%high_pgen_table(iEntry)%ptr(tgt) = max(worst, this%get_high_pgen(iEntry,tgt))
+        end if
+
+        ! then sync:
+        call this%all_high_pgen%sync()
+
+    end subroutine setup_entry_pgen_high_scalar
+
+
+    subroutine count_table_destructor(this)
+        class(GugaAliasSampler_t) :: this
+
+        call this%all_counts%shared_dealloc()
+        this%all_counts%ptr => null()
+
+
+        if (allocated(this%count_tables)) deallocate(this%count_tables)
+
+    end subroutine count_table_destructor
+
+    subroutine sum_table_destructor(this)
+        class(GugaAliasSampler_t) :: this
+
+        call this%all_sums%shared_dealloc()
+        this%all_sums%ptr => null()
+
+
+        if (allocated(this%sums_tables)) deallocate(this%sums_tables)
+
+    end subroutine sum_table_destructor
+
+    subroutine pgen_table_destructor(this)
+        class(GugaAliasSampler_t) :: this
+
+        call this%all_pgen%shared_dealloc()
+        this%all_pgen%ptr => null()
+
+
+        if (allocated(this%pgen_table)) deallocate(this%pgen_table)
+
+    end subroutine pgen_table_destructor
+
+
+    subroutine worst_orb_table_destructor(this)
+        class(GugaAliasSampler_t) :: this
+
+        call this%all_worst_orb%shared_dealloc()
+        this%all_worst_orb%ptr => null()
+
+
+        if (allocated(this%worst_orb_table)) deallocate(this%worst_orb_table)
+
+    end subroutine worst_orb_table_destructor
+
+    subroutine high_pgen_table_destructor(this)
+        class(GugaAliasSampler_t) :: this
+
+        call this%all_high_pgen%shared_dealloc()
+        this%all_high_pgen%ptr => null()
+
+
+        if (allocated(this%high_pgen_table)) deallocate(this%high_pgen_table)
+
+    end subroutine high_pgen_table_destructor
+
+    subroutine low_pgen_table_destructor(this)
+        class(GugaAliasSampler_t) :: this
+
+        call this%all_low_pgen%shared_dealloc()
+        this%all_low_pgen%ptr => null()
+
+
+        if (allocated(this%low_pgen_table)) deallocate(this%low_pgen_table)
+
+    end subroutine low_pgen_table_destructor
+
+
+
+    function get_count(this, iEntry, tgt) result(cnt)
+        debug_function_name("get_count")
+        class(GugaAliasSampler_t) :: this
+        integer, intent(in) :: iEntry, tgt
+        integer(int64) :: cnt
+
+        ASSERT(associated(this%count_tables(iEntry)%ptr))
+
+        cnt = this%count_tables(iEntry)%ptr(tgt)
+
+    end function get_count
+
+    function get_sum(this, iEntry, tgt) result(sigma)
+        debug_function_name("get_sum")
+        class(GugaAliasSampler_t) :: this
+        integer, intent(in) :: iEntry, tgt
+        real(dp) :: sigma
+
+        ASSERT(associated(this%sums_tables(iEntry)%ptr))
+
+        sigma = this%sums_tables(iEntry)%ptr(tgt)
+
+    end function get_sum
+
+    function get_pgen(this, iEntry, tgt) result(pgen)
+        debug_function_name("get_pgen")
+        class(GugaAliasSampler_t) :: this
+        integer, intent(in) :: iEntry, tgt
+        real(dp) :: pgen
+
+        ASSERT(associated(this%pgen_table(iEntry)%ptr))
+
+        pgen = this%pgen_table(iEntry)%ptr(tgt)
+
+    end function get_pgen
+
+    function get_worst_orb(this, iEntry, tgt) result(worst)
+        debug_function_name("get_worst_orb")
+        class(GugaAliasSampler_t) :: this
+        integer, intent(in) :: iEntry, tgt
+        real(dp) :: worst
+
+        ASSERT(associated(this%worst_orb_table(iEntry)%ptr))
+
+        worst = this%worst_orb_table(iEntry)%ptr(tgt)
+
+    end function get_worst_orb
+
+    function get_high_pgen(this, iEntry, tgt) result(worst)
+        debug_function_name("get_high_pgen")
+        class(GugaAliasSampler_t) :: this
+        integer, intent(in) :: iEntry, tgt
+        real(dp) :: worst
+
+        ASSERT(associated(this%high_pgen_table(iEntry)%ptr))
+
+        worst = this%high_pgen_table(iEntry)%ptr(tgt)
+
+    end function get_high_pgen
+
+    function get_low_pgen(this, iEntry, tgt) result(worst)
+        debug_function_name("get_low_pgen")
+        class(GugaAliasSampler_t) :: this
+        integer, intent(in) :: iEntry, tgt
+        real(dp) :: worst
+
+        ASSERT(associated(this%low_pgen_table(iEntry)%ptr))
+
+        worst = this%low_pgen_table(iEntry)%ptr(tgt)
+
+    end function get_low_pgen
+
+
+
+
+    subroutine print_pchb_statistics
+        ! routine to print out the accumulated PCHB excit-gen statistics
+        integer :: i, j, a, b, iunit, ij, ab, dist, overlap
+        type(ExcitationInformation_t) :: excitInfo
+        real(dp) :: weight, sums, worst_orb, ratio_orb, pgen_sum, high_pgen, &
+                    ratio_pgen, low_pgen
+        integer(int64) :: counts
+
+        ! can i do this on the root? do i have to accumulate over all nodes??
+        ! i guess so.. for now test on 1 node..
+        if (iProcIndex_intra == 0) then
+
+            iunit = get_free_unit()
+            open(iunit, file = 'pchb-stats', status = 'unknown')
+
+            write(iunit, *) &
+                '# E_{a,i} E_{b,j}, dist, overlap, weight, counts, sums, worst_orb-case, &
+                &sums/(counts*weights), pgen-sum, high-pgen, low-pgen, sums/pgens, typ'
+
+            do i = 1, nSpatOrbs
+                do j = i, nSpatOrbs
+                    ij = fuseIndex(i,j)
+                    do a = 1, nSpatOrbs
+                        do b = a, nSpatOrbs
+                            ab = fuseIndex(a,b)
+
+                            weight = guga_pchb_sampler(1)%alias_sampler%aGetProb(ij,ab)
+
+                            if (.not. near_zero(weight)) then
+                                call extract_excit_info(guga_pchb_sampler(1)%get_info(ij, ab), &
+                                    excitInfo)
+
+                                counts = guga_pchb_sampler(1)%get_count(ij,ab)
+                                sums = guga_pchb_sampler(1)%get_sum(ij,ab)
+                                worst_orb = guga_pchb_sampler(1)%get_worst_orb(ij,ab)
+                                pgen_sum = guga_pchb_sampler(1)%get_pgen(ij,ab)
+                                high_pgen = guga_pchb_sampler(1)%get_high_pgen(ij,ab)
+                                low_pgen = guga_pchb_sampler(1)%get_low_pgen(ij,ab)
+                                dist = excitInfo%fullEnd - excitInfo%fullstart
+                                overlap = excitInfo%firstEnd - excitInfo%secondStart
+
+
+                                if (counts > 0_int64) then
+                                    ratio_orb = sums / (real(counts,dp) * weight)
+                                else
+                                    ratio_orb = 0.0_dp
+                                end if
+
+                                if (.not. near_zero(pgen_sum)) then
+                                    ratio_pgen = sums / pgen_sum
+                                else
+                                    ratio_pgen = 0.0_dp
+                                end if
+
+                                write(iunit, *) excitInfo%i, excitInfo%j, &
+                                    excitInfo%k, excitInfo%l, dist, overlap, weight, counts, &
+                                    sums, worst_orb, ratio_orb, pgen_sum, &
+                                    high_pgen, low_pgen, ratio_pgen, excitInfo%typ
+
+                            end if
+                        end do
+                    end do
+                end do
+            end do
+
+            close(iunit)
+        end if
+
+    end subroutine print_pchb_statistics
+
+
+! *************END  analysis functions (to be removed after optimization) ******
 
     subroutine setup_info_table(this, nEntries, entrySize)
         debug_function_name("setup_info_table")
@@ -275,8 +951,8 @@ contains
     subroutine setup_pchb_sampler_conditional()
         debug_function_name("setup_pchb_sampler_conditional")
         integer :: i, j, ij, ijMax, a, b, ab, abMax, aerr
-        integer(int64), allocatable :: excit_info(:)
-        real(dp), allocatable :: w(:)
+        integer(int64), allocatable :: excit_info(:), counts(:)
+        real(dp), allocatable :: w(:), x(:)
 
         ijMax = fuseIndex(nSpatOrbs, nSpatOrbs)
         abMax = fuseIndex(nSpatOrbs, nSpatOrbs)
@@ -294,6 +970,26 @@ contains
         ! todo: do the same for the excit_info array!
         call guga_pchb_sampler(1)%setup_info_table(int(ijMax,int64), &
             int(abMax, int64))
+
+
+        if (t_analyze_pchb) then
+            ! also for the analysis for now..
+            call guga_pchb_sampler(1)%setup_count_table(int(ijMax,int64), &
+                int(abMax, int64))
+            call guga_pchb_sampler(1)%setup_sum_table(int(ijMax,int64), &
+                int(abMax, int64))
+            call guga_pchb_sampler(1)%setup_worst_orb_table(int(ijMax,int64), &
+                int(abMax, int64))
+            call guga_pchb_sampler(1)%setup_high_pgen_table(int(ijMax,int64), &
+                int(abMax, int64))
+            call guga_pchb_sampler(1)%setup_low_pgen_table(int(ijMax,int64), &
+                int(abMax, int64))
+            call guga_pchb_sampler(1)%setup_pgen_table(int(ijMax,int64), &
+                int(abMax, int64))
+
+            allocate(x(abMax), stat = aerr, source = 0.0_dp)
+            allocate(counts(abMax), stat = aerr, source = 0_int64)
+        end if
 
         ! the encode_excit_info function encodes as: E_{ai}E_{bj)
         ! but for some index combinations we have to change the input so
@@ -522,6 +1218,17 @@ contains
                 end do
                 call guga_pchb_sampler(1)%alias_sampler%setupEntry(ij,w)
                 call guga_pchb_sampler(1)%setup_entry_info(ij,excit_info)
+
+                if (t_analyze_pchb) then
+                    ! for analysis
+                    call guga_pchb_sampler(1)%setup_entry_sum_vec(ij,x)
+                    call guga_pchb_sampler(1)%setup_entry_count_vec(ij,counts)
+                    call guga_pchb_sampler(1)%setup_entry_pgen_vec(ij,x)
+                    call guga_pchb_sampler(1)%setup_entry_worst_orb_vec(ij,x)
+                    call guga_pchb_sampler(1)%setup_entry_pgen_high_vec(ij,x)
+                    call guga_pchb_sampler(1)%setup_entry_pgen_low_vec(ij,x)
+                end if
+
                 ! todo: do the same for the excit_info array!
             end do
         end do
@@ -530,9 +1237,21 @@ contains
 
     subroutine finalize_pchb_excitgen_guga()
 
+        if (t_analyze_pchb) then
+            ! for analysis:
+            call print_pchb_statistics()
+            call guga_pchb_sampler(1)%count_table_destructor()
+            call guga_pchb_sampler(1)%sum_table_destructor()
+            call guga_pchb_sampler(1)%worst_orb_table_destructor()
+            call guga_pchb_sampler(1)%high_pgen_table_destructor()
+            call guga_pchb_sampler(1)%low_pgen_table_destructor()
+            call guga_pchb_sampler(1)%pgen_table_destructor()
+        end if
+
         call guga_pchb_sampler(1)%alias_sampler%samplerArrayDestructor()
         call guga_pchb_sampler(1)%info_table_destructor()
         deallocate(tgtOrbs)
+
 
     end subroutine finalize_pchb_excitgen_guga
 
