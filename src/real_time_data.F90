@@ -199,4 +199,7 @@ module real_time_data
     integer :: csbuf_size, corespace_log_interval
     type(ll_node), pointer :: ssht(:)
 
+    ! energy-dependent damping (quadratic)
+    logical :: t_quad_damp = .false.
+
 end module real_time_data

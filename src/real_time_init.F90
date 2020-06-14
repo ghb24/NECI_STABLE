@@ -514,6 +514,9 @@ contains
         corespace_log_interval = 300
         ! Get the full Green's function, not only in the corespace
         tGZero = .false.
+
+        ! Do not use additional damping quadratic in energy
+        t_quad_damp = .false.
     end subroutine set_real_time_defaults
 
     ! need a specific popsfile read function for the real-time calculation

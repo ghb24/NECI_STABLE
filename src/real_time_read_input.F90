@@ -453,6 +453,10 @@ module real_time_read_input_module
                 ! and tau(iter)
                 tLogTrajectory = .true.
 
+             case("QUAD-DAMP")
+                ! Additional energy-dependent damping (quadratic in H)
+                t_quad_damp = .true.
+
              case("GENERATE-CORESPACE")
                 ! Now, we write out the most important determinants along the contour
                 ! Also, the contour is logged
