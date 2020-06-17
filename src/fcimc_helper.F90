@@ -57,10 +57,9 @@ module fcimc_helper
                         t_trunc_nopen_diff, trunc_nopen_diff, t_guga_mat_eles,&
                         tAutoAdaptiveShift, tAAS_MatEle, tAAS_MatEle2, &
                         tAAS_MatEle3, tAAS_MatEle4, AAS_DenCut, &
-                        tSimpleInit, &
-                        tPureInitiatorSpace, tPreCond, tReplicaEstimates, &
-                        tInitiatorSpace, allowedSpawnSign
-
+                        tPrecond, &
+                        tReplicaEstimates, tInitiatorSpace, tPureInitiatorSpace, tSimpleInit, &
+                        allowedSpawnSign, tAS_Offset, ShiftOffset
     use adi_data, only: tSignedRepAv
 
     use IntegralsData, only: tPartFreezeVirt, tPartFreezeCore, NElVirtFrozen, &
