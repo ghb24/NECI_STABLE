@@ -1867,9 +1867,12 @@ r_loop: do while(.not.tStoreDet)
 !First, make sure we have up-to-date information - again collect AllTotWalkers
 ! ,AllSumNoatHF and AllSumENum...
 !Calculate the energy by summing all on HF and doubles - convert number at HF
-!  to a real since no int*8 MPI data type
-        CALL MPISum(SumNoatHF,1,AllSumNoatHF)
-        CALL MPISum(SumENum,1,AllSumENum)
+        !  to a real since no int*8 MPI data type
+        if(.not. t_real_time_fcqicm) then
+            ! Not required for real-time popsfiles: those values have no meaning there
+            CALL MPISum(SumNoatHF,1,AllSumNoatHF)
+            CALL MPISum(SumENum,1,AllSumENum)
+        endif
 
         Tag=125
         Tag2=126

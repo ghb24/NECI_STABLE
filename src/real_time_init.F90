@@ -9,7 +9,7 @@ module real_time_init
                               temp_det_pointer, temp_det_hash, temp_freeslot, tOverpopulate, &
                               pert_norm, second_spawn_iter_data, DiagParts, stepsAlpha, &
                               DiagVec, normsize, valid_diag_spawns, tStabilizerShift, &
-                              spawnBuf, &
+                              spawnBuf, t_quad_damp,&
                               tDynamicAlpha, &
                               gf_count, &
                               allPopSnapshot, &
