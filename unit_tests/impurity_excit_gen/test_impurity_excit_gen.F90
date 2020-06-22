@@ -18,9 +18,9 @@ program test_impurity_excit_gen
     subroutine impurity_excit_gen_test_driver
       implicit none
       call init_impurity_tests
-      call run_test_case(test_imp_excitation, "test_imp_excitation")
-      call run_test_case(test_single_excitation, "test_single_excitation")
-      call run_test_case(test_gen_excit_impurity_model, "test_gen_excit_impurity_model")
+      call test_imp_excitation
+      call test_single_excitation
+      call test_gen_excit_impurity_model
     end subroutine impurity_excit_gen_test_driver
 
 !------------------------------------------------------------------------------------------!
@@ -58,8 +58,6 @@ program test_impurity_excit_gen
 
       get_umat_el => get_umat_el_test
       call dSFMT_init(3)
-      call setupImpurityExcitgen()
-      call constructConnections()
 
     end subroutine init_impurity_tests
 
@@ -73,11 +71,11 @@ program test_impurity_excit_gen
       integer(n_int) :: ilut(0:niftot)
       integer :: dest, nI(nel)
       real(dp) :: pGen
-
+      
       dest = 0
       call generate_test_ilut(ilut,nI)
       call hamiltonian_weighted_pick_single(1,dest,pGen,ilut)
-!       call assert_true((dest .eq. 1) .and. (dest > 0))
+      call assert_true((dest .eq. 1) .and. (dest > 0))
     end subroutine test_imp_excitation
 
 !------------------------------------------------------------------------------------------!
@@ -93,12 +91,11 @@ program test_impurity_excit_gen
       integer :: nI(nel), nJ(nel), ExcitMat(2,2)
       logical :: tParity
       real(dp) :: pGen
-
+      
       call generate_test_ilut(ilut,nI)
-      pgen = 1.0_dp
       call generate_imp_single_excitation(nI,ilut,nJ,ilutnJ,ExcitMat,tParity,pGen)
-!       call assert_true(FindBitExcitLevel(ilut,ilutnJ)==1)
-!       call assert_true(ExcitMat(2,1) <= nImp)
+      call assert_true(FindBitExcitLevel(ilut,ilutnJ)==1)
+      call assert_true(ExcitMat(2,1) <= nImp)
     end subroutine test_single_excitation
 
 !------------------------------------------------------------------------------------------!
@@ -108,7 +105,7 @@ program test_impurity_excit_gen
       use bit_rep_data, only: niftot
       use SystemData, only: nel
       use DetBitOps, only: FindBitExcitLevel
-
+      
       implicit none
       integer(n_int) :: ilut(0:niftot), ilutnJ(0:niftot)
       integer :: nI(nel), nJ(nel), ex(2,2)
@@ -155,7 +152,7 @@ program test_impurity_excit_gen
       implicit none
       integer, intent(in) :: a,b,c,d
       HElement_t(dp) :: uel
-
+      
       uel = 0.0
       if(((a .eq. 1) .and. (a .eq. c)) .and. (b .eq. d) .and. (b .eq. 2)) uel = 1
       if(((a .eq. 1) .and. (a .eq. d)) .and. (b .eq. c) .and. (b .eq. 2)) uel = -1

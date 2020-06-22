@@ -18,7 +18,7 @@ module fcimc_initialisation
                           t_lattice_model, t_tJ_model, t_heisenberg_model, &
                           t_k_space_hubbard, t_3_body_excits, breathingCont, &
                           momIndexTable, t_trans_corr_2body, t_non_hermitian, &
-                          tgen_guga_crude, &
+                          tgen_guga_crude, t_impurity_excitgen, &
                           t_uniform_excits, t_mol_3_body,t_ueg_transcorr,t_ueg_3_body,tLatticeGens, &
                           irrepOrbOffset, nIrreps, &
                           tTrcorrExgen, nClosedOrbs, irrepOrbOffset, nIrreps, &
@@ -255,6 +255,8 @@ module fcimc_initialisation
     use lattice_models_utils, only: gen_all_excits_k_space_hubbard
 
     use pchb_excitgen, only: gen_rand_excit_pchb, init_pchb_excitgen, finalize_pchb_excitgen
+
+    use impurity_models, only: setupImpurityExcitgen, clearImpurityExcitgen, gen_excit_impurity_model
 
     implicit none
 
@@ -1734,6 +1736,7 @@ contains
         ! initialize excitation generator
         if(t_pcpp_excitgen) call init_pcpp_excitgen()
         if(t_pchb_excitgen) call init_pchb_excitgen()
+        if(t_impurity_excitgen) call setupImpurityExcitgen()
         ! [W.D.] I guess I want to initialize that before the tau-search,
         ! or otherwise some pgens get calculated incorrectly
         if (t_back_spawn .or. t_back_spawn_flex) then
@@ -1984,7 +1987,9 @@ contains
             elseif(TLatticeGens) then
                 generate_two_body_excitation => gen_rand_excit
             endif
-         generate_excitation => gen_excit_mol_tc
+            generate_excitation => gen_excit_mol_tc
+        elseif(t_impurity_excitgen) then
+            generate_excitation => gen_excit_impurity_model
         elseif ((t_back_spawn_option .or. t_back_spawn_flex_option)) then
             if (tHUB .and. tLatticeGens) then
                 ! for now the hubbard + back-spawn still uses the old
@@ -2318,6 +2323,7 @@ contains
         ! Cleanup excitation generator
         if(t_pcpp_excitgen) call finalize_pcpp_excitgen()
         if(t_pchb_excitgen) call finalize_pchb_excitgen()
+        if(t_impurity_excitgen) call clearImpurityExcitgen()
 
         if (tSemiStochastic) call end_semistoch()
 

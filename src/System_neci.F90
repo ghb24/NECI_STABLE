@@ -75,7 +75,6 @@ MODULE System
       tNoSinglesPossible = .false.
       t_mol_3_body = .false.
       tMCSizeSpace=.false.
-      t_impurity_system = .false.
       CalcDetPrint=1000
       CalcDetCycles=10000
       tFixLz=.false.
@@ -246,6 +245,7 @@ MODULE System
       Tperiodicinmom=.false.
       t12FoldSym = .false.
       t_initialized_roi = .false.
+      t_impurity_excitgen = .false.
 
       inum_runs = 1
 #ifdef CMPLX_
@@ -931,7 +931,11 @@ system: do
         case("LATTICE-EXCITGEN")
             tLatticeGens =.true.
         ! use the simplified random excitation generator for k-space hubbard that
-        ! does not use a cumulative list (it is much more efficient)
+            ! does not use a cumulative list (it is much more efficient)
+
+        case("IMPURITY-EXCITGEN")
+            ! Use the impurity model excitation generator (star geometry)
+            t_impurity_excitgen = .true.
         case("UNIFORM-EXCITGEN")
             t_uniform_excits = .true.
 
@@ -1748,8 +1752,6 @@ system: do
             call readi(LzTot)
         case("KPOINTS")
             tKPntSym=.true.
-         case("IMPURITY-EXCITGEN")
-            t_impurity_system = .true.
         case("MOLPROMIMIC")
             !Mimic the run-time behaviour of molpros NECI implementation
             tMolpro=.true.

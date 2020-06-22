@@ -40,9 +40,6 @@ logical :: tRotatedOrbsReal     !This means we are reading in a complex FCIDUMP,
                                 !but kpoint symmetry can still be used.
 logical :: tReadFreeFormat,tReltvy
 
-! impurity system
-logical :: t_impurity_system
-
 logical :: tRIIntegrals   ! Read in RI 2-e integrals from RIDUMP file
 logical :: tStoreSpinOrbs ! This is set when the orbitals are stored in
                           ! spin-orbital notation
@@ -417,6 +414,9 @@ logical :: t_pcpp_excitgen = .false.
 ! flags for the pre-computed heat-bath excitation generator
 logical :: t_pchb_excitgen = .false.
 logical :: t_pchb_weighted_singles = .false.
+
+! flag for the impurity excitation generator
+logical :: t_impurity_excitgen = .false.
 
 ! also implement a next-nearest neighbor Hubbard model implementation:
 ! for k-space hubbard, this only affects the diagonal part!
