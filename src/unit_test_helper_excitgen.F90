@@ -28,9 +28,10 @@ module unit_test_helper_excitgen
   use util_mod, only: get_free_unit
   implicit none
 
-  integer, parameter :: nelBase = 5
-  integer, parameter :: nBasisBase = 12
+  integer, parameter :: nelBase_ = 6
+  integer, parameter :: nBasisBase_ = 12
   integer, parameter :: lmsBase = -1
+  integer :: nBasisBase = nBasisBase_
 
   abstract interface
      function calc_pgen_t(nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2) result(pgen)
@@ -218,185 +219,207 @@ contains
 
   !------------------------------------------------------------------------------------------!
 
-  subroutine init_excitgen_test()
-    ! mimick the initialization of an FCIQMC calculation to the point where we can generate
-    ! excitations with a weighted excitgen
-    ! This requires setup of the basis, the symmetries and the integrals
-    integer :: nBasisMax(5,3), lms
-    integer(int64) :: umatsize
-    real(dp) :: ecore
-    umatsize = 0
-    nel = nelBase
-    NIfDBO = 0
-    NOffSgn = 1
-    NIfSgn = 1
-    NIfTot = 2
+  subroutine init_excitgen_test(nb, ne)
+      ! mimick the initialization of an FCIQMC calculation to the point where we can generate
+      ! excitations with a weighted excitgen
+      ! This requires setup of the basis, the symmetries and the integrals
+      integer, optional, intent(in) :: nb, ne
+      integer :: nBasisMax(5,3), lms
+      integer(int64) :: umatsize
+      real(dp) :: ecore
 
-    fcidump_name = "FCIDUMP"
-    UMatEps = 1.0e-8
-    tStoreSpinOrbs = .false.
-    tTransGTID = .false.
-    tReadFreeFormat = .true.
+      def_default(nBasisBase, nb, nBasisBase_)
+      def_default(nel, ne, nElBase_)
+      umatsize = 0
+      NIfDBO = 0
+      NOffSgn = 1
+      NIfSgn = 1
+      NIfTot = 2
 
-    call MPIInit(.false.)
+      fcidump_name = "FCIDUMP"
+      UMatEps = 1.0e-8
+      tStoreSpinOrbs = .false.
+      tTransGTID = .false.
+      tReadFreeFormat = .true.
 
-    call dSFMT_init(25)
+      call MPIInit(.false.)
 
-    call SetCalcDefaults()
-    call SetSysDefaults()
-    tReadInt = .true.
+      call dSFMT_init(25)
 
-    call generate_random_integrals()
+      call SetCalcDefaults()
+      call SetSysDefaults()
+      tReadInt = .true.
 
-    get_umat_el => get_umat_el_normal
+      call generate_random_integrals()
 
-    call initfromfcid(nel,nbasismax,nBasis,lms,.false.)
-    lms = lmsBase
-    call GetUMatSize(nBasis, umatsize)
+      get_umat_el => get_umat_el_normal
 
-    allocate(TMat2d(nBasis,nBasis))
+      call initfromfcid(nel,nbasismax,nBasis,lms,.false.)
+      lms = lmsBase
+      call GetUMatSize(nBasis, umatsize)
 
-    call shared_allocate_mpi(umat_win, umat, (/umatsize/))
+      allocate(TMat2d(nBasis,nBasis))
 
-    call readfciint(UMat,umat_win,nBasis,ecore,.false.)
+      call shared_allocate_mpi(umat_win, umat, (/umatsize/))
 
-    ! init the umat2d storage
-    call setupUMat2d_dense(nBasis)
+      call readfciint(UMat,umat_win,nBasis,ecore,.false.)
 
-    call SysInit()
-    ! required: set up the spin info
+      ! init the umat2d storage
+      call setupUMat2d_dense(nBasis)
 
-    call DetInit()
-    ! call SpinOrbSymSetup()
+      call SysInit()
+      ! required: set up the spin info
 
-    call DetPreFreezeInit()
+      call DetInit()
+      ! call SpinOrbSymSetup()
 
-    call CalcInit()
-    t_pcpp_excitgen = .true.
-    call init_excit_gen_store(fcimc_excit_gen_store)
+      call DetPreFreezeInit()
+
+      call CalcInit()
+      t_pcpp_excitgen = .true.
+      call init_excit_gen_store(fcimc_excit_gen_store)
   end subroutine init_excitgen_test
 
   !------------------------------------------------------------------------------------------!
 
   subroutine finalize_excitgen_test()
-    deallocate(TMat2D)
-    call shared_deallocate_mpi(umat_win, UMat)
-    call MPIEnd(.false.)
+      deallocate(TMat2D)
+      call shared_deallocate_mpi(umat_win, UMat)
+      call MPIEnd(.false.)
   end subroutine finalize_excitgen_test
 
   !------------------------------------------------------------------------------------------!
 
   ! generate an FCIDUMP file with random numbers with a given sparsity
   subroutine generate_random_integrals()
-    real(dp), parameter :: sparse = 0.9
-    real(dp), parameter :: sparseT = 0.1
-    integer :: i,j,k,l, iunit
-    real(dp) :: r, matel
-    ! we get random matrix elements from the cauchy-schwartz inequalities, so
-    ! only <ij|ij> are random -> random 2d matrix
-    real(dp) :: umatRand(nBasisBase,nBasisBase)
+      real(dp), parameter :: sparse = 0.9
+      real(dp), parameter :: sparseT = 0.1
+      integer :: i,j,k,l, iunit
+      real(dp) :: r, matel
+      ! we get random matrix elements from the cauchy-schwartz inequalities, so
+      ! only <ij|ij> are random -> random 2d matrix
+      real(dp) :: umatRand(nBasisBase,nBasisBase)
 
-    umatRand = 0.0_dp
-    do i = 1, nBasisBase
-       do j = 1, nBasisBase
-          r = genrand_real2_dSFMT()
-          if(r < sparse) &
-               umatRand(i,j) = r*r
-       end do
-    end do
-
-    ! write the canonical FCIDUMP header
-    iunit = get_free_unit()
-    open(iunit,file="FCIDUMP")
-    write(iunit,*) "&FCI NORB=",nBasisBase,",NELEC=",nelBase,"MS2=",lmsBase,","
-    write(iunit,"(A)",advance="no") "ORBSYM="
-    do i = 1, nBasisBase
-       write(iunit,"(A)",advance="no") "1,"
-    end do
-    write(iunit,*)
-    write(iunit,*) "ISYM=1,"
-    write(iunit,*) "&END"
-    ! generate random 4-index integrals with a given sparsity
-    do i = 1, nBasisBase
-       do j = 1, i
-          do k = i, nBasisBase
-             do l = 1, k
-                matel = sqrt(umatRand(i,j)*umatRand(k,l))
-                if(matel > eps) write(iunit, *) matel,i,j,k,l
-             end do
+      umatRand = 0.0_dp
+      do i = 1, nBasisBase
+          do j = 1, nBasisBase
+              r = genrand_real2_dSFMT()
+              if(r < sparse) &
+                  umatRand(i,j) = r*r
           end do
-       end do
-    end do
-    ! generate random 2-index integrals with a given sparsity
-    do i = 1, nBasisBase
-       do j = 1, i
-          r = genrand_real2_dSFMT()
-          if(r < sparseT) then
-             write(iunit,*) r, i,j,0,0
-          endif
-       end do
-    end do
-    close(iunit)
+      end do
+
+      ! write the canonical FCIDUMP header
+      iunit = get_free_unit()
+      open(iunit,file="FCIDUMP")
+      write(iunit,*) "&FCI NORB=",nBasisBase,",NELEC=",nel,"MS2=",lmsBase,","
+      write(iunit,"(A)",advance="no") "ORBSYM="
+      do i = 1, nBasisBase
+          write(iunit,"(A)",advance="no") "1,"
+      end do
+      write(iunit,*)
+      write(iunit,*) "ISYM=1,"
+      write(iunit,*) "&END"
+      ! generate random 4-index integrals with a given sparsity
+      do i = 1, nBasisBase
+          do j = 1, i
+              do k = i, nBasisBase
+                  do l = 1, k
+                      matel = sqrt(umatRand(i,j)*umatRand(k,l))
+                      if(matel > eps) write(iunit, *) matel,i,j,k,l
+                  end do
+              end do
+          end do
+      end do
+      ! generate random 2-index integrals with a given sparsity
+      do i = 1, nBasisBase
+          do j = 1, i
+              r = genrand_real2_dSFMT()
+              if(r < sparseT) then
+                  write(iunit,*) r, i,j,0,0
+              endif
+          end do
+      end do
+      close(iunit)
 
   end subroutine generate_random_integrals
 
   !------------------------------------------------------------------------------------------!
-    subroutine generate_uniform_integrals
+  subroutine generate_uniform_integrals
 
-        use SystemData, only: nSpatOrbs, nel, lms
+      use SystemData, only: nSpatOrbs, nel, lms
 
-        integer :: i, j, k, l,iunit
+      integer :: i, j, k, l,iunit
 
-        iunit = get_free_unit()
+      iunit = get_free_unit()
 
-        open(iunit,file="FCIDUMP")
-        write(iunit,*) "&FCI NORB=",nSpatOrbs,",NELEC=",nel,"MS2=",lms,","
-        write(iunit,"(A)",advance="no") "ORBSYM="
-        do i = 1, nSpatOrbs
-           write(iunit,"(A)",advance="no") "1,"
-        end do
-        write(iunit,*)
-        write(iunit,*) "ISYM=1,"
-        write(iunit,*) "&END"
+      open(iunit,file="FCIDUMP")
+      write(iunit,*) "&FCI NORB=",nSpatOrbs,",NELEC=",nel,"MS2=",lms,","
+      write(iunit,"(A)",advance="no") "ORBSYM="
+      do i = 1, nSpatOrbs
+          write(iunit,"(A)",advance="no") "1,"
+      end do
+      write(iunit,*)
+      write(iunit,*) "ISYM=1,"
+      write(iunit,*) "&END"
 
-        do i = 1, nSpatOrbs
-            do j = 1, nSpatOrbs
-                do l = 1, nSpatOrbs
-                    do k = 1, nSpatOrbs
-                        write(iunit, *) h_cast(1.0_dp), i, j, k, l
-                    end do
-                end do
-            end do
-        end do
-        do i = 1, nSpatOrbs
-            do j = i, nSpatOrbs
-                write(iunit,*) h_cast(1.0_dp), i, j, 0, 0
-            end do
-        end do
+      do i = 1, nSpatOrbs
+          do j = 1, nSpatOrbs
+              do l = 1, nSpatOrbs
+                  do k = 1, nSpatOrbs
+                      write(iunit, *) h_cast(1.0_dp), i, j, k, l
+                  end do
+              end do
+          end do
+      end do
+      do i = 1, nSpatOrbs
+          do j = i, nSpatOrbs
+              write(iunit,*) h_cast(1.0_dp), i, j, 0, 0
+          end do
+      end do
 
-        write(iunit,*) h_cast(0.0_dp), 0, 0, 0, 0
+      write(iunit,*) h_cast(0.0_dp), 0, 0, 0, 0
 
-        close(iunit)
+      close(iunit)
 
-    end subroutine generate_uniform_integrals
+  end subroutine generate_uniform_integrals
 
 
   !------------------------------------------------------------------------------------------!
 
   ! set the reference to the determinant with the first nel orbitals occupied
   subroutine set_ref()
-    integer :: i
-    allocate(projEDet(nel,1))
-    do i = 1, nel
-       projEDet(i,1) = i + 2
-    end do
-    allocate(ilutRef(0:NifTot,1))
-    call encodeBitDet(projEDet(:,1),ilutRef(:,1))
+      integer :: i
+      allocate(projEDet(nel,1))
+      do i = 1, nel
+          projEDet(i,1) = i + 2
+      end do
+      allocate(ilutRef(0:NifTot,1))
+      call encodeBitDet(projEDet(:,1),ilutRef(:,1))
   end subroutine set_ref
 
   subroutine free_ref()
-    deallocate(ilutRef)
-    deallocate(projEDet)
+      deallocate(ilutRef)
+      deallocate(projEDet)
   end subroutine free_ref
+
+      !------------------------------------------------------------------------------------------!
+
+    function get_umat_el_test(a,b,c,d) result(uel)
+        use constants, only: dp
+
+        implicit none
+        integer, intent(in) :: a,b,c,d
+        HElement_t(dp) :: uel
+
+        uel = 0.0
+        if(((a .eq. 1) .and. (a .eq. c)) .and. (b .eq. d) .and. (b .eq. 2)) uel = 1
+        if(((a .eq. 1) .and. (a .eq. d)) .and. (b .eq. c) .and. (b .eq. 2)) uel = -1
+        if(((a .eq. 2) .and. (a .eq. c)) .and. (b .eq. d) .and. (b .eq. 1)) uel = 1
+        if(((a .eq. 2) .and. (a .eq. d)) .and. (b .eq. c) .and. (b .eq. 1)) uel = -1
+    end function get_umat_el_test
+
+    !------------------------------------------------------------------------------------------!
+
 
 end module unit_test_helper_excitgen

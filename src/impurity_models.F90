@@ -7,7 +7,7 @@ use procedure_pointers, only: get_umat_el
 use OneEInts, only: getTMatEl
 use FciMCData, only: pSingles
 use dSFMT_interface, only: genrand_real2_dSFMT
-use constants, only: dp, n_int, eps, bits_n_int, HEl_zero
+use constants, only: dp, n_int, eps, bits_n_int, HEl_zero, maxExcit
 use util_mod, only: abs_l1
 use util_mod_numerical, only: binary_search_first_ge
 use get_excit, only: make_single, make_double
@@ -25,7 +25,12 @@ use procedure_pointers, only: get_umat_el
 ! TODO: ADD A SUBROUTINE TO INITIALIZATION THAT ORDERS THE ORBITALS, SO
 ! THE ORDERING DOES NOT HAVE TO BE PROVIDED
 
-implicit none 
+implicit none
+
+private
+
+public :: setupImpurityExcitgen, clearImpurityExcitgen, gen_excit_impurity_model
+
 integer, allocatable :: connections(:,:), ImpuritySites(:), nConnects(:)
 integer :: nImp
 
@@ -120,22 +125,27 @@ end subroutine constructConnections
     nImp = 0
     isImp = .false.
     do i=1,nBasis
-       ! for each orbital, check if it is in the bath, that is, check if there are 
-       ! UMAT entries for that orbital
-       do j=1,nBasis
-          do k=1,nBasis
-             do l=1,nBasis
-                if(abs(get_umat_el(i,j,k,l))>eps) then
-                   ! as we know the first orbitals have to be the ImpuritySites,
-                   ! the only information needed is their number
-                   nImp = nImp + 1
-                   ! auxiliary flag for checking the correct ordering
-                   isImp(i) = .true.
-                endif
-             enddo
-          enddo
-       enddo
+        ! for each orbital, check if it is in the bath, that is, check if there are 
+        ! UMAT entries for that orbital
+        do j=i+1,nBasis
+            do k=1,nBasis
+                do l=k+1,nBasis
+                    if(abs(get_umat_el(gtId(i),gtID(j),gtID(k),gtID(l)))>eps) then
+                        ! as we know the first orbitals have to be the ImpuritySites,
+                        ! the only information needed is their number
+                        ! auxiliary flag for checking the correct ordering
+                        isImp(i) = .true.
+                        exit
+                    endif
+                    ! No double counting
+                    if(isImp(i)) exit
+                enddo
+                if(isImp(i)) exit
+            enddo
+            if(isImp(i)) exit
+        enddo
     enddo
+    nImp = count(isImp)
 
     ! dummy array of impurity orbitals
     allocate(ImpuritySites(nImp))
@@ -216,7 +226,7 @@ end subroutine constructConnections
     integer, intent(in) :: nI(nel)
     integer, intent(in) :: exFlag
     integer(n_int), intent(in) :: iLut(0:NIfTot)
-    integer, intent(out) :: nJ(nel), IC, ExcitMat(2,2)
+    integer, intent(out) :: nJ(nel), IC, ExcitMat(2,maxExcit)
     logical, intent(out) :: tParity
     type(excit_gen_store_type), intent(inout), target :: store
     real(dp), intent(out) :: pgen
@@ -352,11 +362,11 @@ end subroutine constructConnections
       pools = 0
       poolsize = 0
       do i = 1, nel
-          do j = 1, nConnects(i)
-              if(IsNotOcc(ilut,connections(i,j))) then
+          do j = 1, nConnects(nI(i))
+              if(IsNotOcc(ilut,connections(nI(i),j))) then
                   tAvail(i) = .true.
                   poolsize(i) = poolsize(i) + 1
-                  pools(i,poolsize(i)) = connections(i,j)
+                  pools(i,poolsize(i)) = connections(nI(i),j)
               end if
           end do
       end do
