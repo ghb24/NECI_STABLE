@@ -241,6 +241,10 @@ end subroutine constructConnections
     integer :: nImpEls
     character(*), parameter :: this_routine = 'gen_rand_excit'
 
+    unused_var(store)
+    unused_var(part_type)
+    unused_var(exFlag)
+
     HElGen = HEl_zero
     pSingles = 1.0_dp
 
@@ -324,8 +328,8 @@ end subroutine constructConnections
 
       ! we now have two electrons from the impurity
       ! so get two holes weighted with the matrix elements
-      k = pick_random_unocc_impurity(nI,nOccImp,G1(i)%Ms,pgen)
-      j = pick_random_unocc_impurity(nI,nOccImp,G1(j)%Ms,pgen)
+      k = pick_random_unocc_impurity(nI,G1(i)%Ms,pgen)
+      j = pick_random_unocc_impurity(nI,G1(j)%Ms,pgen)
       ! Since the spin is fixed, the holes cannot be picked in any order
       ! and write the resulting det to output
       call make_double(nI,nJ,i,j,k,l,ex,tparity)
@@ -402,10 +406,9 @@ end subroutine constructConnections
 
 !------------------------------------------------------------------------------------------!
 
-  function pick_random_unocc_impurity(nI,nOccImp,ms,pgen) result(i)
+  function pick_random_unocc_impurity(nI,ms,pgen) result(i)
       implicit none
       integer, intent(in) :: nI(nel)
-      integer, intent(in) :: nOccImp
       integer, intent(in) :: ms
       real(dp), intent(inout) :: pgen
       integer :: i
