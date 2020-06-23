@@ -1839,13 +1839,6 @@ contains
             else
                 call init_trial_wf(trial_space_in, ntrial_ex_calc, inum_runs, .false.)
             end if
-            if(tAS_TrialOffset)then
-                do run=1, inum_runs
-                    if(trial_energies(run)-Hii<ShiftOffset) &
-                        ShiftOffset = trial_energies(run)-Hii
-                enddo
-                write(6,*) "The adaptive shift is offset by the correlation energy of trail-wavefunction: ", ShiftOffset
-            endif
         else if (tStartTrialLater) then
             ! If we are going to turn on the use of a trial wave function
             ! later in the calculation, then zero the trial estimate arrays
