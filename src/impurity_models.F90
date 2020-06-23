@@ -376,7 +376,7 @@ end subroutine constructConnections
       end do
       nAvail = count(poolsize/=0)
 
-      nIPick = pack(nI,tAvail)
+      nIPick = pack(nI,tAvail,vector=nI)
       r = genrand_real2_dSFMT()
       source = nIPick(int(r*nAvail)+1)
       ! each pickable electron has the same probability to be chosen
@@ -422,7 +422,7 @@ end subroutine constructConnections
       do j = 1, nImp
           tEmpty(j) = (all(nI/=ImpuritySites(j)) .and. G1(ImpuritySites(j))%Ms==ms)
       end do
-      pool = pack(ImpuritySites,tEmpty)
+      pool = pack(ImpuritySites,tEmpty,vector=ImpuritySites)
       nEmpty = count(tEmpty)
 
       r = genrand_real2_dSFMT()
