@@ -395,7 +395,8 @@ contains
         ! The number of elements required to store all replicas of all Krylov vectors.
         lenof_all_signs = lenof_sign_kp*kp%nvecs
         ! The total length of a bitstring containing all Krylov vectors.
-        NIfTotKP = NIfDBO + lenof_all_signs + NIfFlag
+        ! +1 one is for the flag integer
+        NIfTotKP = nifd + lenof_all_signs + 1
 
         ! Set up kp_ind_* arrays.
         allocate(kp_ind_1(kp%nvecs))
@@ -471,8 +472,8 @@ contains
 
             call init_hash_table(krylov_vecs_ht)
 
-            allocate(SpawnVecKP(0:NOffSgn+lenof_all_signs-1,MaxSpawned),stat=ierr)
-            allocate(SpawnVecKP2(0:NOffSgn+lenof_all_signs-1,MaxSpawned),stat=ierr)
+            allocate(SpawnVecKP(0:IlutBits%ind_pop+lenof_all_signs-1,MaxSpawned),stat=ierr)
+            allocate(SpawnVecKP2(0:IlutBits%ind_pop+lenof_all_signs-1,MaxSpawned),stat=ierr)
             SpawnVecKP(:,:) = 0_n_int
             SpawnVecKP2(:,:) = 0_n_int
             SpawnedPartsKP => SpawnVecKP
@@ -802,7 +803,7 @@ contains
             AllTotPartsOld = AllTotPartsInit
             do i = 1, int(TotWalkers, sizeof_int)
                 ! Copy across the bitstring encoding of the determinant and also the walker signs.
-                CurrentDets(0:NOffSgn+lenof_sign_kp-1,i) = krylov_vecs(0:NOffSgn+lenof_sign_kp-1,i)
+                CurrentDets(0:IlutBits%ind_pop+lenof_sign_kp-1,i) = krylov_vecs(0:IlutBits%ind_pop+lenof_sign_kp-1,i)
                 ! Copy across the flags.
                 CurrentDets(NIfTot,i) = krylov_vecs(NIfTotKP,i)
             end do
@@ -816,7 +817,7 @@ contains
         if (nrepeats > 1 .and. irepeat == 1) then
             HolesInList = 0
             do i = 1, TotWalkers
-                int_sign = CurrentDets(NOffSgn:NOffSgn+lenof_sign_kp-1,i)
+                int_sign = CurrentDets(IlutBits%ind_pop:IlutBits%ind_pop+lenof_sign_kp-1,i)
                 call extract_sign (CurrentDets(:,i), real_sign)
                 tCoreDet = check_determ_flag(CurrentDets(:,i))
                 ! Don't add unoccpied determinants, unless they are core determinants.
@@ -952,7 +953,7 @@ contains
         TotParts = 0.0_dp
         do i = 1, ndets
             CurrentDets(:,i) = SpawnedParts(0:NIfTot,i)
-            walker_sign = transfer(CurrentDets(NOffSgn:NOffSgn+lenof_sign_kp-1, i), walker_sign)
+            walker_sign = transfer(CurrentDets(IlutBits%ind_pop:IlutBits%ind_pop+lenof_sign_kp-1, i), walker_sign)
             TotParts = TotParts + abs(walker_sign)
         end do
         TotPartsOld = TotParts
@@ -1054,11 +1055,11 @@ contains
             tDetFound = .false.
             ! Search the hash table to see if this determinant is in CurrentDets
             ! already.
-            call hash_table_lookup(nI, ilut, NIfDBO, HashIndex, CurrentDets, det_ind, hash_val, tDetFound)
+            call hash_table_lookup(nI, ilut, nifd, HashIndex, CurrentDets, det_ind, hash_val, tDetFound)
             if (tDetFound) then
                 ! This determinant is already in CurrentDets. Just need to add
                 ! the sign of this new walker on and update stats.
-                int_sign = CurrentDets(NOffSgn:NOffSgn+lenof_sign_kp-1, det_ind)
+                int_sign = CurrentDets(IlutBits%ind_pop:IlutBits%ind_pop+lenof_sign_kp-1, det_ind)
                 real_sign_2 = transfer(int_sign, real_sign_2)
                 new_sign = real_sign_1 + real_sign_2
                 call encode_sign(CurrentDets(:, det_ind), new_sign)
@@ -1070,9 +1071,9 @@ contains
                 ! Add the new determinant to the hash table.
                 call add_hash_table_entry(HashIndex, det_ind, hash_val)
                 ! Copy determinant data across.
-                CurrentDets(0:NIfDBO, det_ind) = ilut(0:NIfDBO)
-                CurrentDets(NOffSgn:NOffSgn+lenof_sign_kp-1, det_ind) = int_sign
-                CurrentDets(NOffFlag, det_ind) = 0_n_int
+                CurrentDets(0:nifd, det_ind) = ilut(0:nifd)
+                CurrentDets(IlutBits%ind_pop:IlutBits%ind_pop+lenof_sign_kp-1, det_ind) = int_sign
+                CurrentDets(IlutBits%ind_flag, det_ind) = 0_n_int
                 TotParts = TotParts + abs(real_sign_1)
             end if
 

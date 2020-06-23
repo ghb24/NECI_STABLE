@@ -3,13 +3,11 @@
 module bit_reps
     use FciMCData, only: WalkVecDets, MaxWalkersPart, tLogNumSpawns, blank_det
 
-    use SystemData, only: nel, tCSF, tTruncateCSF, nbasis, csf_trunc_level, &
-                        tGUGA
+    use SystemData, only: nel, nbasis, tGUGA
 
     use CalcData, only: tTruncInitiator, tUseRealCoeffs, tSemiStochastic, &
-                        tCSFCore, tTrialWavefunction, semistoch_shift_iter, &
+                        tTrialWavefunction, semistoch_shift_iter, &
                         tStartTrialLater, tPreCond, tReplicaEstimates, tStoredDets
-    use csf_data, only: csf_yama_bit, csf_test_bit
 
     use constants, only: lenof_sign, end_n_int, bits_n_int, n_int, dp,sizeof_int
 
@@ -32,18 +30,24 @@ module bit_reps
 
     use global_det_data, only: get_determinant
 
+    use guga_bitRepOps, only: init_guga_bitrep
+
+    use LoggingData, only: tRDMOnfly
+
+    use guga_bitRepOps, only: transfer_stochastic_rdm_info
+
     implicit none
 
     ! Structure of a bit representation:
 
-    ! | 0-NIfD: Det | Yamanouchi | Sign(Re) | Sign(Im) | Flags |
+    ! | 0-NIfD: Det | Sign(Re) | Sign(Im) | Flags |
     !
     ! -------
     ! (NIfD + 1) * 64-bits              Orbital rep.
-    !  NIfY      * 32-bits              Yamanouchi symbol
     !  1         * 32-bits              Signs (Re)
     ! (1         * 32-bits if needed)   Signs (Im)
     ! (1         * 32-bits if needed)   Flags
+
 
 
     interface set_flag
@@ -163,30 +167,12 @@ contains
         ! This indicates the upper-bound for the determinants when expressed
         ! in bit-form. This will equal int(nBasis/32).
         ! The actual total length for a determinant in bit form will be
-        ! NoIntforDet+1 + nIfY (which is the size of the Yamanouchi Symbol
         nIfD = int(nbasis / bits_n_int)
-
-        ! Could use only 32-bits for this, except that it makes it very
-        ! tricky to do do anything like sorting, as the latter 32-bits of the
-        ! integer would contain random junk.
-        NOffY = NIfD + 1
-        if (tCSF) then
-            if (tTruncateCSF) then
-                NIfY = int(csf_trunc_level / bits_n_int) + 1
-            else
-                NIfY = int(nel / bits_n_int) + 1
-            endif
-        else
-            NIfY = 0
-        endif
-        if (NIfY > 1) &
-            call stop_all (this_routine, "CSFs with more than bits_n_int &
-                          &open-shell electrons are not supported, and are &
-                          &probably not a good idea.")
+        IlutBits%len_orb = nifd
 
         ! The signs array
-        NOffSgn = NOffY + NIfY
-        NIfSgn = lenof_sign
+        IlutBits%ind_pop = IlutBits%len_orb + 1
+        IlutBits%len_pop = lenof_sign
 #ifdef PROG_NUMRUNS_
         write(6,*) 'Calculation supports multiple parallel runs'
 #elif defined(DOUBLERUN_)
@@ -196,10 +182,11 @@ contains
         WRITE(6,*) "Complex walkers in use."
 #endif
         write(6,*) 'Number of simultaneous walker distributions: ',inum_runs
-        write(6,*) 'Number of sign components in bit representation of determinant: ', NIfSgn
+        write(6,*) 'Number of sign components in bit representation of determinant: ', &
+            IlutBits%len_pop
 
         ! The number of integers used for sorting / other bit manipulations
-        NIfDBO = NIfD + NIfY
+        ! WD: this is always just nifd.. so remove nifdbo..
 
 #ifdef PROG_NUMRUNS_
         if (inum_runs > inum_runs_max) then
@@ -212,31 +199,29 @@ contains
 ! integers for the flags, as the number of initiator/parent flags increases
 ! dramatically!
 
-        ! K.G. 24.08.18
-        ! Flags are being used in basically every calculation,
-        ! considering recent developments, the possibility not to
-        ! use flags is obsolete
-        NIfFlag = 1
-
-        NOffFlag = NOffSgn + NIfSgn
+        IlutBits%ind_flag = IlutBits%ind_pop + IlutBits%len_pop
 
         ! N.B. Flags MUST be last!!!!!
         !      If we change this bit, then we need to adjust ilut_lt and
         !      ilut_gt.
 
         ! The total number of bits_n_int-bit integers used - 1
-        NIfTot = NIfD + NIfY + NIfSgn + NIfFlag
+        ! WD: the +1 is for the always used flag entry now
+        NIfTot = IlutBits%len_orb + IlutBits%len_pop + 1
+        IlutBits%len_tot = IlutBits%len_orb + IlutBits%len_pop + 1
 
-        WRITE(6,"(A,I6)") "Setting integer length of determinants as bit-strings to: ", NIfTot + 1
-        WRITE(6,"(A,I6)") "Setting integer bit-length of determinants as bit-strings to: ", bits_n_int
+        WRITE(6,"(A,I6)") "Setting integer length of determinants as bit-strings to: ", &
+            IlutBits%len_tot + 1
+        WRITE(6,"(A,I6)") "Setting integer bit-length of determinants as bit-strings to: ", &
+            bits_n_int
 
         if (tGUGA) then
             ! set up a nIfGUGA variable to use a similar integer list to
             ! calculate excitations for a given GUGA CSF
 
             ! Structure of a bit representation:
-
-            ! | 0-NIfD: Det | x0 | x1 | deltaB |
+            ! the parenthesis is for the stochastic GUGA rdm implementation
+            ! | 0-NIfD: Det | x0 | x1 | deltaB | (rdm_ind | rdm_x0 | rdm_x1)
             !
             ! -------
             ! (NIfD + 1) * 64-bits              Orbital rep.
@@ -244,9 +229,30 @@ contains
             !  1         * 64-bits              x1 matrix element
             !  1         * 32-bits              deltaB value
 
-            nIfGUGA = nIfD + 3
-            write(6,"(A,I6)") "For GUGA calculation set up a integer list of length: ", nIfGUGA + 1
+            call init_guga_bitrep(nifd)
+            write(6,"(A,I6)") "For GUGA calculation set up a integer list of length: ", &
+                nIfGUGA + 1
 
+            ! if we use fast guga rdms we also need space in the
+            ! 'normal' ilut to store the rdm_ind and x0 and x1..
+            ! for communication or? yes.. and also the parent stuff below
+            ! need to be adapted..
+            ! but this gets changed in rdm_general.. so do the GUGA
+            ! changes there!
+            ! no.. I also need to change niftot to be able to hold
+            ! rdm_ind, x0 and x1 from the excitation generation step..
+            ! so I also need to adapt this here!
+            ! and I think I just need to store it within niftot!
+            ! I do not even need and additional entry in the parent
+            ! atleast in the communication within spawnedparts!
+            if (tRDMOnfly) then
+                IlutBits%ind_rdm_ind = niftot + 1
+                IlutBits%ind_rdm_x0 = IlutBits%ind_rdm_ind + 1
+                IlutBits%ind_rdm_x1 = IlutBits%ind_rdm_x0 + 1
+
+                niftot = IlutBits%ind_rdm_x1
+                IlutBits%len_tot = IlutBits%ind_rdm_x1
+            end if
         end if
 
         ! By default we DO NOT initialise RDM parts of the bit rep now
@@ -256,29 +262,41 @@ contains
         ! The broadcasted information, used in annihilation, may require more
         ! information to be used.
         ! TODO: We may not always need the flags array. Test that...
-
-        ! Create space for broadcasting the parent particle coefficient?
-        ! ghb removed this ability on 14/4/16
-        nOffParentCoeff = NIfTot + 1
-        nIfParentCoeff = 0
-
-        NIfBCast = NIfTot + nIfParentCoeff
+        IlutBits%len_bcast = IlutBits%len_tot
 
         ! sometimes, we also need to store the number of spawn events
         ! in this iteration
-        NSpawnOffset = NIfTot + 1
+        IlutBits%ind_spawn = IlutBits%len_tot + 1
+
         if(tLogNumSpawns) then
             ! then, there is an extra integer in spawnedparts just behind
             ! the ilut noting the number of spawn events
-            nOffParentCoeff = nOffParentCoeff + 1
-            NIfBCast = NIfBCast + 1
+            IlutBits%len_bcast = IlutBits%len_bcast + 1
         end if
 
         ! If we need to communicate the diagonal Hamiltonian element
         ! for the spawning
         if (tPreCond .or. tReplicaEstimates) then
-            NOffSpawnHDiag = NIfBCast + 1
-            NIfBCast = NIfBCast + 1
+            IlutBits%ind_hdiag = IlutBits%len_bcast + 1
+            IlutBits%len_bcast = IlutBits%len_bcast + 1
+        end if
+
+        ! also store the information for the spawned_parents in the
+        ! RDM calculation in this data-stucture! for a nicer overview!
+        IlutBitsParent%len_orb = IlutBits%len_orb
+        IlutBitsParent%ind_pop = IlutBitsParent%len_orb + 1
+        IlutBitsParent%ind_flag = IlutBitsParent%ind_pop + 1
+        IlutBitsParent%ind_source  = IlutBitsParent%ind_flag + 1
+
+        IlutBitsParent%len_tot = IlutBitsParent%ind_source
+
+        ! and if we use GUGA we have to enlarge this array by 3 entries
+        if (tRDMOnfly .and. tGUGA) then
+            IlutBitsParent%ind_rdm_ind = IlutBitsParent%ind_source + 1
+            IlutBitsParent%ind_rdm_x0 = IlutBitsParent%ind_rdm_ind + 1
+            IlutBitsParent%ind_rdm_x1 = IlutBitsParent%ind_rdm_x0 + 1
+
+            IlutBitsParent%len_tot = IlutBitsParent%ind_rdm_x1
         end if
 
     end subroutine
@@ -306,10 +324,10 @@ contains
             call decode_bit_det (nI, ilut)
         endif
 
-        sgn = iLut(NOffSgn:NOffSgn+lenof_sign-1)
+        sgn = iLut(IlutBits%ind_pop:IlutBits%ind_pop+lenof_sign-1)
         real_sgn = transfer(sgn, real_sgn)
 
-        flags = int(iLut(NOffFlag), sizeof_int)
+        flags = int(iLut(IlutBits%ind_flag), sizeof_int)
 
     end subroutine extract_bit_rep
 
@@ -318,7 +336,7 @@ contains
         integer(n_int), intent(in) :: ilut(0:nIfTot)
         integer :: flags
 
-        flags = int(ilut(NOffFlag), sizeof_int)
+        flags = int(ilut(IlutBits%ind_flag), sizeof_int)
 
     end function extract_flags
 
@@ -327,7 +345,7 @@ contains
         integer(n_int), intent(in) :: ilut(0:niftot)
         integer, intent(in) :: part_type
         real(dp) :: real_sgn
-        real_sgn = transfer( ilut(nOffSgn + part_type - 1), real_sgn)
+        real_sgn = transfer( ilut(IlutBits%ind_pop + part_type - 1), real_sgn)
     end function
 
     pure function extract_run_sign(ilut, run) result(sgn)
@@ -350,16 +368,16 @@ contains
     pure subroutine encode_bit_rep (ilut, Det, real_sgn, flag)
         integer(n_int), intent(out) :: ilut(0:nIfTot)
         real(dp), intent(in) :: real_sgn(lenof_sign)
-        integer(n_int), intent(in) :: Det(0:NIfDBO)
+        integer(n_int), intent(in) :: Det(0:IlutBits%len_orb)
         integer, intent(in) :: flag
         integer(n_int) :: sgn(lenof_sign)
 
-        iLut(0:NIfDBO) = Det
+        iLut(0:IlutBits%len_orb) = Det
 
         sgn = transfer(real_sgn, sgn)
-        iLut(NOffSgn:NOffSgn+NIfSgn-1) = sgn
+        iLut(IlutBits%ind_pop:IlutBits%ind_pop+IlutBits%len_pop-1) = sgn
 
-        ilut(NOffFlag) = int(flag,n_int)
+        ilut(IlutBits%ind_flag) = int(flag,n_int)
 
     end subroutine encode_bit_rep
 
@@ -370,7 +388,7 @@ contains
         integer(n_int), intent(inout) :: ilut(0:nIfTot)
         integer, intent(in) :: flag
 
-        iLut(NOffFlag) = int(flag, n_int)
+        iLut(IlutBits%ind_flag) = int(flag, n_int)
 
     end subroutine encode_flags
 
@@ -426,7 +444,7 @@ contains
 
         integer(n_int), intent(inout) :: ilut(0:niftot)
 
-        ilut(NOffFlag) = 0_n_int
+        ilut(IlutBits%ind_flag) = 0_n_int
 
     end subroutine clear_all_flags
 
@@ -441,7 +459,7 @@ contains
         integer(n_int) :: sgn(lenof_sign)
 
         sgn = transfer(real_sgn, sgn)
-        iLut(NOffSgn:NOffSgn+NIfSgn-1) = sgn
+        iLut(IlutBits%ind_pop:IlutBits%ind_pop+IlutBits%len_pop-1) = sgn
 
     end subroutine encode_sign
 
@@ -484,7 +502,7 @@ contains
         integer(n_int) :: sgn
 
         sgn = transfer(real_sgn, sgn)
-        iLut(NOffSgn+part_type-1) = sgn
+        iLut(IlutBits%ind_pop+part_type-1) = sgn
 
     end subroutine encode_part_sign
 
@@ -493,7 +511,8 @@ contains
         ! Sets the sign of a determinant to equal zero.
         integer(n_int), intent(inout) :: ilut(0:NIfTot)
 
-        iLut(NOffSgn:NOffSgn+NIfSgn-1) = transfer(0.0_dp, 0_n_int)
+        iLut(IlutBits%ind_pop:IlutBits%ind_pop+IlutBits%len_pop-1) &
+            = transfer(0.0_dp, 0_n_int)
 
     end subroutine
 
@@ -504,7 +523,7 @@ contains
         integer(n_int), intent(inout) :: ilut(0:NIfTot)
         integer, intent(in) :: part_type
 
-        iLut(NOffSgn+part_type-1) = transfer(0.0_dp, 0_n_int)
+        iLut(IlutBits%ind_pop+part_type-1) = transfer(0.0_dp, 0_n_int)
 
     end subroutine
 
@@ -538,15 +557,10 @@ contains
 
         integer(n_int), intent(inout) :: ilut(0:nIfTot)
         integer, intent(in) :: flg
-!        integer :: off, ind
-
-!        ind = NOffFlag + flg / bits_n_int
-!        off = mod(flg, bits_n_int)
-!        ilut(ind) = ibset(ilut(ind), off)
 
         ! This now assumes that we do not have more flags than bits in an
         ! integer.
-        ilut(NOffFlag) = ibset(ilut(NOffFlag), flg)
+        ilut(IlutBits%ind_flag) = ibset(ilut(IlutBits%ind_flag), flg)
 
     end subroutine set_flag_single
 
@@ -573,14 +587,9 @@ contains
 
         integer(n_int), intent(inout) :: ilut(0:nIfTot)
         integer, intent(in) :: flg
-!        integer :: off, ind
-
-!        ind = NOffFlag + flg / bits_n_int
-!        off = mod(flg, bits_n_int)
-!        ilut(ind) = ibclr(ilut(ind), off)
 
 !This now assumes that we do not have more flags than bits in an integer.
-        ilut(NOffFlag) = ibclr(ilut(NOffFlag), flg)
+        ilut(IlutBits%ind_flag) = ibclr(ilut(IlutBits%ind_flag), flg)
 
     end subroutine clr_flag
 
@@ -595,9 +604,9 @@ contains
         integer, intent(in) :: flg(:)
 
         integer :: i
-        
+
         do i = 1, size(flg)
-            ilut(NOffFlag) = ibclr(ilut(NOffFlag), flg(i))
+            ilut(IlutBits%ind_flag) = ibclr(ilut(IlutBits%ind_flag), flg(i))
         end do
 
     end subroutine clr_flag_multi
@@ -607,7 +616,7 @@ contains
         ! Used by the RDM functions
         ! Is the communicated parent zero?
 
-        integer(n_int), intent(in) :: ilut(0:nIfBCast)
+        integer(n_int), intent(in) :: ilut(0:IlutBits%len_bcast)
         logical :: zero
 #ifdef DEBUG_
         character(*), parameter :: this_routine = 'bit_parent_zero'
@@ -615,27 +624,27 @@ contains
 
         ASSERT(bit_rdm_init)
 
-        zero = all(ilut(NOffParent:NOffParent + NIfDBO) == 0)
+        zero = all(ilut(IlutBits%ind_parent:IlutBits%ind_parent + IlutBits%len_orb) == 0)
 
     end function
 
     subroutine extract_parent(ilut, parent_ilut)
 
-        integer(n_int), intent(in) :: ilut(0:nIfBCast)
-        integer(n_int), intent(out) :: parent_ilut(0:NIfDBO)
+        integer(n_int), intent(in) :: ilut(0:IlutBits%len_bcast)
+        integer(n_int), intent(out) :: parent_ilut(0:IlutBits%len_orb)
 #ifdef DEBUG_
         character(*), parameter :: this_routine = 'extract_parent'
 #endif
 
         ASSERT(bit_rdm_init)
 
-        parent_ilut = ilut(nOffParent:nOffParent + NIfDBO)
+        parent_ilut = ilut(IlutBits%ind_parent:IlutBits%ind_parent + IlutBits%len_orb)
 
     end subroutine
 
     subroutine encode_parent(ilut, ilut_parent, RDMBiasFacCurr)
 
-        integer(n_int), intent(inout) :: ilut(0:NIfBCast)
+        integer(n_int), intent(inout) :: ilut(0:IlutBits%len_bcast)
         integer(n_int), intent(in) :: ilut_parent(0:NIfTot)
         real(dp), intent(in) :: RDMBiasFacCurr
 #ifdef DEBUG_
@@ -644,78 +653,54 @@ contains
 
         ASSERT(bit_rdm_init)
 
-        ilut(nOffParent:nOffParent + nIfDBO) = ilut_parent(0:NIfDBO)
+        ilut(IlutBits%ind_parent:IlutBits%ind_parent + IlutBits%len_orb) &
+            = ilut_parent(0:IlutBits%len_orb)
 
-        ilut(nOffParent + nIfDBO + 1) = &
-            transfer(RDMBiasFacCurr, ilut(nOffParent + nIfDBO + 1))
+        ilut(IlutBits%ind_rdm_fac) = &
+            transfer(RDMBiasFacCurr, ilut(IlutBits%ind_rdm_fac))
         ! store the flag
-        ilut(nOffParent + nIfDBO + 2) = ilut_parent(NIfTot)
+        ilut(IlutBits%ind_parent_flag) = ilut_parent(IlutBits%ind_flag)
+
+        ! in GUGA we also need to encode the rdm information
+        ! BUT be careful here! the encoding should actually be done with
+        ! IlutBits here, as the input ilut is of len_bcast length
+        if (tGUGA) then
+            call transfer_stochastic_rdm_info(ilut_parent, ilut, &
+                BitIndex_from = IlutBits, BitIndex_to = IlutBits)
+        end if
 
     end subroutine
 
     subroutine zero_parent(ilut)
 
-        integer(n_int), intent(inout) :: ilut(0:nIfBCast)
+        integer(n_int), intent(inout) :: ilut(0:IlutBits%len_bcast)
 #ifdef DEBUG_
         character(*), parameter :: this_routine = 'zero_parent'
 #endif
 
         ASSERT(bit_rdm_init)
 
-        ilut(nOffParent:nOffParent+nIfDBO+1) = 0
+        ! is it intentional that the flag does not get zeroed?
+        ilut(IlutBits%ind_parent:IlutBits%ind_rdm_fac) = 0_n_int
 
     end subroutine
-
-    subroutine set_parent_coeff(ilut, coeff)
-
-        ! Store the coefficient of the parent walker of a spawn for more
-        ! complex initiator logic. This option was removed by ghb on 14/4/16.
-        ! so this routine should never be called
-
-        integer(n_int), intent(inout) :: ilut(0:nIfBCast)
-        real(dp), intent(in) :: coeff
-        character(*), parameter :: this_routine = 'set_parent_coeff'
-
-        call stop_all(this_routine,'Routine deprecated')
-
-        ASSERT(nIfParentCoeff == 1)
-        ilut(nOffParentCoeff) = transfer(coeff, ilut(nOffParentCoeff))
-
-    end subroutine
-
-    function extract_parent_coeff(ilut) result(coeff)
-
-        ! Obtain the coefficient of the parent walker of a spawn for more
-        ! complex initiator logic. This option was deprecated by ghb on 14/4/16.
-
-        integer(n_int), intent(in) :: ilut(0:nIfBCast)
-        real(dp) :: coeff
-        character(*), parameter :: this_routine = 'extract_parent_coeff'
-
-        call stop_all(this_routine,'Routine deprecated by ghb on 14/4/16')
-
-        ASSERT(nIfParentCoeff == 1)
-
-        coeff = transfer(ilut(nOffParentCoeff), coeff)
-
-    end function
 
     subroutine encode_spawn_hdiag(ilut, hel)
 
-        integer(n_int), intent(inout) :: ilut(0:NIfBCast)
+        integer(n_int), intent(inout) :: ilut(0:IlutBits%len_bcast)
         HElement_t(dp), intent(in) :: hel
 
-        ilut(nOffSpawnHDiag) = transfer(hel, ilut(nOffSpawnHDiag))
+        ilut(IlutBits%ind_hdiag) = transfer(hel, ilut(IlutBits%ind_hdiag))
 
     end subroutine encode_spawn_hdiag
 
     function extract_spawn_hdiag(ilut) result(hel)
 
-        integer(n_int), intent(in) :: ilut(0:nIfBCast)
+        integer(n_int), intent(in) :: ilut(0:IlutBits%len_bcast)
 
         HElement_t(dp) :: hel
 
-        hel = transfer(ilut(nOffSpawnHDiag), hel)
+        hel = transfer(ilut(IlutBits%ind_hdiag), hel)
 
     end function extract_spawn_hdiag
 
@@ -723,30 +708,29 @@ contains
 
       ! set the spawn counter to 1
       implicit none
-      integer(n_int), intent(inout) :: ilut(0:NIfBCast)
+      integer(n_int), intent(inout) :: ilut(0:IlutBits%len_bcast)
 
-      ilut(NSpawnOffset) = 1
+      ilut(IlutBits%ind_spawn) = 1
     end subroutine log_spawn
 
     subroutine increase_spawn_counter(ilut)
       ! increase the spawn counter by 1
       implicit none
-      integer(n_int), intent(inout) :: ilut(0:NIfBCast)
+      integer(n_int), intent(inout) :: ilut(0:IlutBits%len_bcast)
 
-      ilut(NSPawnOffset) = ilut(NSpawnOffset) + 1
+      ilut(IlutBits%ind_spawn) = ilut(IlutBits%ind_spawn) + 1
 
     end subroutine increase_spawn_counter
 
     function get_num_spawns(ilut) result(nSpawn)
       ! read the number of spawns to this det so far
       implicit none
-      integer(n_int), intent(inout) :: ilut(0:NIfBCast)
+      integer(n_int), intent(inout) :: ilut(0:IlutBits%len_bcast)
       integer :: nSpawn
 
-      nSpawn = int(ilut(nSpawnOffset))
+      nSpawn = int(ilut(IlutBits%ind_spawn))
 
     end function get_num_spawns
-
 
 
     ! function test_flag is in bit_rep_data
@@ -757,9 +741,9 @@ contains
         ! Add new det information to a packaged walker.
 
         integer(n_int), intent(inout) :: ilut(0:nIfTot)
-        integer(n_int), intent(in) :: Det(0:NIfDBO)
+        integer(n_int), intent(in) :: Det(0:nifd)
 
-        iLut(0:NIfDBO) = Det
+        iLut(0:nifd) = Det
 
     end subroutine encode_det
 
@@ -957,7 +941,6 @@ contains
                 else
                     ! Update count
                     virt(ind) = virt(ind) + 1
-        !            write(iout,*) "filling virt"
                     ! Store orbital in list of unocc. orbs.
                     store%virt_list(virt(ind), ind) = orb
                 endif
@@ -994,86 +977,23 @@ contains
         integer(n_int), intent(in) :: ilut(0:NIftot)
         integer, intent(out) :: nI(:)
         integer :: nopen, i, j, k, val, elec, offset, pos
-        logical :: bIsCsf
         integer :: nel_loc
 
         nel_loc = size(nI)
 
-        ! We need to use the CSF decoding routine if CSFs are enabled, and
-        ! we are below a truncation limit if set.
-
-        bIsCsf = .false.
-        if (tCSF) then
-            if (tTruncateCSF) then
-                nopen = count_open_orbs(ilut)
-                if (nopen <= csf_trunc_level) then
-                    bIsCsf = .true.
-                endif
-            else
-                bIsCsf = .true.
-            endif
-        endif
-
         elec = 0
-        if (bIsCsf) then
-            ! ****************
-            ! Currently this just works in the old fashioned way. We aren't
-            ! really that worried about CSF efficiency atm.
-            ! ****************
-            ! Consider the closed shell electrons first
-            do i=0,NIfD
-                do j=0,bits_n_int-2,2
-                    if (btest(iLut(i),j)) then
-                        if (btest(iLut(i),j+1)) then
-                            ! An electron pair is in this spatial orbital
-                            ! (2 matched spin orbitals)
-                            elec = elec + 2
-                            nI(elec-1) = (bits_n_int*i) + (j+1)
-                            nI(elec) = (bits_n_int*i) + (j+2)
-                            if (elec == nel_loc) return
-                        endif
-                    endif
+        offset = 0
+        do i = 0, NIfD
+            do j = 0, bits_n_int - 1, 8
+                val = int(iand(ishft(ilut(i), -j), int(255,n_int)),sizeof_int)
+                do k = 1, decode_map_arr(0, val)
+                    elec = elec + 1
+                    nI(elec) = offset + decode_map_arr(k, val)
+                    if (elec == nel_loc) return ! exit
                 enddo
+                offset = offset + 8
             enddo
-
-            ! Now consider the open shell electrons
-            ! TODO: can we move in steps of two, to catch unmatched pairs?
-            nopen = 0
-            do i=0,NIfD
-                do j=0,end_n_int
-                    if (btest(iLut(i),j)) then
-                        if (.not.btest(iLut(i),ieor(j,1))) then
-                            elec = elec + 1
-                            nI(elec) = (bits_n_int*i) + (j+1)
-                            pos = NIfD + 1 + (nopen/bits_n_int)
-                            if (btest(iLut(Pos),mod(nopen,bits_n_int))) then
-                                nI(elec) = ibset(nI(elec),csf_yama_bit)
-                            endif
-                            nopen = nopen + 1
-                        endif
-                    endif
-                    if (elec==nel_loc) exit
-                enddo
-                if (elec==nel_loc) exit
-            enddo
-            ! If there are any open shell e-, set the csf bit
-            nI = ibset(nI, csf_test_bit)
-        else
-            offset = 0
-            do i = 0, NIfD
-                do j = 0, bits_n_int - 1, 8
-!                    val = iand(ishft(ilut(i), -j), Z'FF')
-                    val = int(iand(ishft(ilut(i), -j), int(255,n_int)),sizeof_int)
-                    do k = 1, decode_map_arr(0, val)
-                        elec = elec + 1
-                        nI(elec) = offset + decode_map_arr(k, val)
-                        if (elec == nel_loc) return ! exit
-                    enddo
-                    offset = offset + 8
-                enddo
-            enddo
-
-        endif
+        enddo
 
     end subroutine
 
@@ -1087,77 +1007,22 @@ contains
         integer, intent(out) :: nI(:)
         integer :: i, j, elec, pos, nopen
         integer :: nel_loc
-        logical :: bIsCsf
 
         nel_loc = size(nI)
 
-        ! We need to use the CSF decoding routine if CSFs are enable, and we
-        ! are below a truncation limit if set.
-        bIsCsf = .false.
-        if (tCSF) then
-            if (tTruncateCSF) then
-                nopen = count_open_orbs(iLut)
-                if (nopen <= csf_trunc_level) then
-                    bIsCsf = .true.
-                endif
-            else
-                bIsCsf = .true.
-            endif
-        endif
-
         elec=0
-        if (bIsCsf) then
-            ! Consider the closed shell electrons first
-            do i=0,NIfD
-                do j=0,bits_n_int-2,2
-                    if (btest(iLut(i),j)) then
-                        if (btest(iLut(i),j+1)) then
-                            ! An electron pair is in this spatial orbital
-                            ! (2 matched spin orbitals)
-                            elec = elec + 2
-                            nI(elec-1) = (bits_n_int*i) + (j+1)
-                            nI(elec) = (bits_n_int*i) + (j+2)
-                            if (elec == nel_loc) return
-                        endif
-                    endif
-                enddo
+        do i=0,NIfD
+            do j=0,end_n_int
+                if(btest(iLut(i),j)) then
+                    !An electron is at this orbital
+                    elec=elec+1
+                    nI(elec)=(i*bits_n_int)+(j+1)
+                    if (elec == nel_loc) exit
+                endif
             enddo
+            if (elec == nel_loc) exit
+        enddo
 
-            ! Now consider the open shell electrons
-            ! TODO: can we move in steps of two, to catch unmatched pairs?
-            nopen = 0
-            do i=0,NIfD
-                do j=0,end_n_int
-                    if (btest(iLut(i),j)) then
-                        if (.not.btest(iLut(i),ieor(j,1))) then
-                            elec = elec + 1
-                            nI(elec) = (bits_n_int*i) + (j+1)
-                            pos = NIfD + 1 + (nopen/bits_n_int)
-                            if (btest(iLut(Pos),mod(nopen,bits_n_int))) then
-                                nI(elec) = ibset(nI(elec),csf_yama_bit)
-                            endif
-                            nopen = nopen + 1
-                        endif
-                    endif
-                    if (elec==nel_loc) exit
-                enddo
-                if (elec==nel_loc) exit
-            enddo
-            ! If there are any open shell e-, set the csf bit
-            nI = ibset(nI, csf_test_bit)
-        else
-            do i=0,NIfD
-                do j=0,end_n_int
-                    if(btest(iLut(i),j)) then
-                        !An electron is at this orbital
-                        elec=elec+1
-                        nI(elec)=(i*bits_n_int)+(j+1)
-                        if (elec == nel_loc) exit
-                    endif
-                enddo
-                if (elec == nel_loc) exit
-            enddo
-        endif
     end subroutine decode_bit_det_bitwise
 
     subroutine add_ilut_lists(ndets_1, ndets_2, sorted_lists, list_1, list_2, list_out, &

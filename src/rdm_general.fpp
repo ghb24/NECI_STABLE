@@ -3,7 +3,7 @@
 
 module rdm_general
 
-    use bit_rep_data, only: NIfTot, NIfDBO, nifguga
+    use bit_rep_data, only: NIfTot, nifd, nifguga, IlutBits, IlutBitsParent
     use constants
     use SystemData, only: nel, nbasis
     use rdm_data, only: InstRDMCorrectionFactor, RDMCorrectionFactor, ThisRDMIter, &
@@ -322,14 +322,15 @@ contains
 
             ! Finally, we need to hold onto the parents of the spawned particles.
             ! This is not necessary if we're doing completely explicit calculations.
-            allocate(Spawned_Parents(0:(NIfDBO+3), MaxSpawned), stat=ierr)
+            ! WD: maybe I have to change this for the GUGA implementation..
+            allocate(Spawned_Parents(0:IlutBitsParent%len_tot, MaxSpawned), stat=ierr)
             if (ierr /= 0) call stop_all(t_r,'Problem allocating Spawned_Parents array,')
-            call LogMemAlloc('Spawned_Parents', MaxSpawned*(NIfDBO+3), size_n_int,&
-                                                t_r,Spawned_ParentsTag, ierr)
+            call LogMemAlloc('Spawned_Parents', MaxSpawned*IlutBitsParent%len_tot,&
+                size_n_int,t_r,Spawned_ParentsTag, ierr)
             allocate(Spawned_Parents_Index(2,MaxSpawned),stat=ierr)
             if (ierr /= 0) call stop_all(t_r, 'Problem allocating Spawned_Parents_Index array,')
             call LogMemAlloc('Spawned_Parents_Index', MaxSpawned*2,4, t_r,&
-                                                        Spawned_Parents_IndexTag, ierr)
+                Spawned_Parents_IndexTag, ierr)
 
             memory_alloc = memory_alloc + ( (NIfTot + 3) * MaxSpawned * size_n_int )
             memory_alloc = memory_alloc + ( 2 * MaxSpawned * 4 )
@@ -383,6 +384,10 @@ contains
         end if
 
         if (tPrint1RDMsFromSpinfree) then
+            if (tGUGA) then
+                call stop_all(t_r, "check if 'print-1rdms-from-spinfree' &
+                   & works with GUGA")
+            end if
             call read_spinfree_2rdm_files(rdm_definitions, two_rdm_main, two_rdm_spawn)
             call print_1rdms_from_sf2rdms_wrapper(rdm_definitions, one_rdms, two_rdm_main)
             ! now clear these objects before the main simulation.
@@ -391,6 +396,9 @@ contains
         end if
 
         if (tReadRDMs) then
+            if (tGUGA) then
+                call stop_all(t_r, "check if reading RDMs works with GUGA")
+            end if
             if (RDMExcitLevel == 1) then
                 do irdm = 1, size(one_rdms)
                     call read_1rdm(rdm_definitions, one_rdms(irdm), irdm)
@@ -589,7 +597,7 @@ contains
         ! When we start calculating the RDMs this routine is called and the
         ! SpawnedParts array is made larger to accommodate the parents.
 
-        use bit_rep_data, only: nifbcast, NOffParent, bit_rdm_init
+        use bit_rep_data, only: bit_rdm_init
         use FciMCData, only: MaxSpawned, SpawnVec, SpawnVec2, SpawnVecTag, SpawnVec2Tag
         use FciMCData, only: SpawnedParts, SpawnedParts2
         use MemoryManager, only: LogMemAlloc, LogMemDealloc
@@ -607,14 +615,19 @@ contains
         call LogMemDealloc(this_routine, SpawnVec2Tag)
 
         ! Resize the RDM arrays
-        NIfBCast_old = NIfBCast
-        NOffParent = NIfBCast + 1
+        NIfBCast_old = IlutBits%len_bcast
+        IlutBits%ind_parent = IlutBits%len_bcast + 1
 
-        NIfBCast = NIfBCast + NIfDBO + 3
+        IlutBits%ind_rdm_fac = IlutBits%ind_parent + IlutBits%len_orb +1
 
-        allocate(SpawnVec(0:NIfBCast, MaxSpawned), stat=ierr)
+        IlutBits%ind_parent_flag = IlutBits%ind_rdm_fac + 1
+
+        IlutBits%len_bcast = IlutBits%ind_parent_flag
+        ! IlutBits%len_bcast = IlutBits%len_bcast + nifd + 3
+
+        allocate(SpawnVec(0:IlutBits%len_bcast, MaxSpawned), stat=ierr)
         @:log_alloc(SpawnVec, SpawnVecTag, ierr)
-        allocate(SpawnVec2(0:NIfBCast, MaxSpawned), stat=ierr)
+        allocate(SpawnVec2(0:IlutBits%len_bcast, MaxSpawned), stat=ierr)
         @:log_alloc(SpawnVec2, SpawnVec2Tag, ierr)
 
         ! Point at correct spawning arrays
@@ -625,7 +638,7 @@ contains
             'Memory requirement for spawned arrays increased from ',&
             real(((NIfBCast_old+1)*MaxSpawned*2*size_n_int),dp)/1048576.0_dp, &
             ' to ', &
-            real(((NIfBCast+1)*MaxSpawned*2*size_n_int),dp)/1048576.0_dp, &
+            real(((IlutBits%len_bcast+1)*MaxSpawned*2*size_n_int),dp)/1048576.0_dp, &
             ' Mb/Processor'
 
         ! And we are done
@@ -763,7 +776,6 @@ contains
     end subroutine dealloc_global_rdm_data
 
     ! Some general routines used during the main simulation.
-
     subroutine extract_bit_rep_avsign_no_rdm(rdm_defs, iLutnI, j, nI, SignI, FlagsI, IterRDMStartI, AvSignI, store)
 
         ! This is just the standard extract_bit_rep routine for when we're not
@@ -842,7 +854,8 @@ contains
         associate(ind => rdm_defs%sim_labels)
 
         if (((Iter+PreviousCycles-IterRDMStart) > 0) .and. &
-            & (mod(((Iter-1)+PreviousCycles - IterRDMStart + 1), RDMEnergyIter) == 0)) then
+            & (mod(((Iter-1)+PreviousCycles - IterRDMStart + 1), &
+            RDMEnergyIter) == 0)) then
 
             ! The previous iteration was one where we added in diagonal elements
             ! To keep things unbiased, we need to set up a new averaging block now.
@@ -1068,16 +1081,18 @@ contains
 
     end subroutine calc_rdmbiasfac
 
-    subroutine store_parent_with_spawned(RDMBiasFacCurr, WalkerNumber, iLutI, DetSpawningAttempts, iLutJ, procJ)
+    subroutine store_parent_with_spawned(RDMBiasFacCurr, WalkerNumber, iLutI, &
+            DetSpawningAttempts, iLutJ, procJ)
 
         ! We are spawning from iLutI to SpawnedParts(:,ValidSpawnedList(proc)).
         ! This routine stores the parent (D_i) with the spawned child (D_j) so
-        ! that we can add in Ci.Cj to the RDM later on. The parent is NIfDBO
+        ! that we can add in Ci.Cj to the RDM later on. The parent is nifd
         ! integers long, and stored in the second part of the SpawnedParts array
-        ! from NIfTot+1 -> NIfTot+1 + NIfDBO.
+        ! from NIfTot+1 -> NIfTot+1 + nifd.
 
         use DetBitOps, only: DetBitEQ
-        use FciMCData, only: SpawnedParts, ValidSpawnedList, TempSpawnedParts, TempSpawnedPartsInd
+        use FciMCData, only: SpawnedParts, ValidSpawnedList, TempSpawnedParts, &
+                             TempSpawnedPartsInd
         use bit_reps, only: zero_parent, encode_parent, all_runs_are_initiator
         use CalcData, only: tNonInitsForRDMs
 
@@ -1089,12 +1104,16 @@ contains
         integer :: j
 
         if (abs(RDMBiasFacCurr) < 1.0e-12_dp) then
-            ! If RDMBiasFacCurr is exactly zero, any contribution from Ci.Cj will be zero
-            ! so it is not worth carrying on.
+            ! If RDMBiasFacCurr is exactly zero, any contribution from Ci.Cj
+            ! will be zero so it is not worth carrying on.
             call zero_parent(SpawnedParts(:, ValidSpawnedList(procJ)))
-        ! in the case of non-variational rdms, we also require the parent to be an initiator,
-        ! -> only take non-initiators when the init-agnostic rdms are requested (tNonInitsForRDMs)
-        else if(tNonInitsForRDMs .or. all_runs_are_initiator(ilutI)) then
+            ! in the case of non-variational rdms, we also require the parent
+            ! to be an initiator -> only take non-initiators when the
+            ! init-agnostic rdms are requested (tNonInitsForRDMs)
+            return
+        end if
+
+        if(tNonInitsForRDMs .or. all_runs_are_initiator(ilutI)) then
 
             ! First we want to check if this Di.Dj pair has already been accounted for.
             ! This means searching the Dj's that have already been spawned from this Di, to make sure
@@ -1110,7 +1129,7 @@ contains
             ! just wont run over anything.
 
             do j = 1, TempSpawnedPartsInd
-                if (DetBitEQ(iLutJ(0:NIfDBO), TempSpawnedParts(0:NIfDBO,j), NIfDBO)) then
+                if (DetBitEQ(iLutJ(0:nifd), TempSpawnedParts(0:nifd,j), nifd)) then
                     ! If this Dj is found, we do not want to store the parent with this spawned walker.
                     tRDMStoreParent = .false.
                     exit
@@ -1124,7 +1143,7 @@ contains
                     ! Don't bother storing these if we're on the last walker, or if we only have one
                     ! walker on Di.
                     TempSpawnedPartsInd = TempSpawnedPartsInd + 1
-                    TempSpawnedParts(0:NIfDBO,TempSpawnedPartsInd) = iLutJ(0:NIfDBO)
+                    TempSpawnedParts(0:nifd,TempSpawnedPartsInd) = iLutJ(0:nifd)
                 end if
 
                 ! We also want to make sure the parent Di is stored with this Dj.

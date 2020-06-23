@@ -30,13 +30,13 @@ program test_impurity_excit_gen
       use OneEInts, only: tmat2d, tCPMDSymTMat, tOneElecDiag
       use procedure_pointers, only: get_umat_el
       use Integrals_neci, only: get_umat_el_tumat2d
-      use bit_rep_data, only: niftot, nifdbo
+      use bit_rep_data, only: niftot, nifd
       use dSFMT_interface, only: dSFMT_init
       implicit none
       nel = 3
       nBasis = 6
       niftot = 8
-      nifdbo = 0
+      nifd = 0
       tCPMDSymTMat = .false.
       tOneElecDiag = .false.
       allocate(tmat2d(6,6))

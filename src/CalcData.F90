@@ -276,7 +276,6 @@ logical :: t_fast_pops_core = .true.
 
 ! Options regarding splitting the space into core and non-core elements. Needed, for example when performing a
 ! semi-stochastic simulation, to specify the deterministic space.
-logical :: tCSFCore ! Use CSFs for the core states.
 logical :: tSparseCoreHamil ! Use a sparse representation of the core Hamiltonian.
 
 ! If this is non-zero then we turn semi-stochastic on semistoch_shift_iter
@@ -601,11 +600,9 @@ logical :: enough_sing_hist, enough_doub_hist, enough_par_hist, enough_opp_hist
 real(dp) :: int_ratio_singles, int_ratio_para, int_ratio_anti, int_ratio_doubles
 
 
-! introduce a new logical to decide if we want to calculate matrix elements
-! by applying the full hamiltonian(the old way) or use the new guga matrix
-! element calculation routines. to compare the influence on the time per
-! iteration
-logical :: t_guga_mat_eles = .true.
+! make a flag to decide to calculate the projected energy directly and not
+! by initialising a list of all connected states
+logical :: t_direct_guga_ref = .false.
 
 ! introduce a flag to read the pSingles/pDoubles quantity even though the
 ! tau-search may be turned off

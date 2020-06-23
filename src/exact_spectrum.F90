@@ -53,7 +53,7 @@ contains
 
     subroutine init_exact_spectrum(ndets)
 
-        use bit_rep_data, only: NIfTot, NIfDBO
+        use bit_rep_data, only: NIfTot, nifd
         use DetBitOps, only: EncodeBitDet, ilut_lt, ilut_gt
         use exact_diag, only: calculate_full_hamiltonian
         use gndts_mod, only: gndts
@@ -86,7 +86,7 @@ contains
 
         do i = 1, ndets
             call EncodeBitDet(nI_list(:,i), ilut)
-            ilut_list(0:NIfDBO, i) = ilut(0:NIfDBO)
+            ilut_list(0:nifd, i) = ilut(0:nifd)
         end do
 
         call sort(ilut_list, ilut_lt, ilut_gt)

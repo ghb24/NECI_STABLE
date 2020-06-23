@@ -750,28 +750,15 @@ contains
          TYPE(BasisFn) G1(*),ISym
          INTEGER I,J,NI2(NEL)
          INTEGER NREPS(NEL),NELECS(NEL),SSYM
-         LOGICAL iscsf_old,ISC
-!          if (lnosymmetry) then
-!              isym%sym%s = 0
-!              return
-!          end if
          I=1
          NREPS(1:NEL)=0
          CALL SETUPSYM(ISYM)
-         ISC=iscsf_old(NI2,NEL)
          IF(tFixLz) THEN
             CALL GetLz(NI2,NEL,ISYM%Ml)
          ELSE
             ISYM%Ml=0
          ENDIF
-         IF(ISC) THEN
-            DO I=1,NEL
-               CALL GETUNCSFELEC(NI2(I),NI(I),SSYM)
-            ENDDO
-         ELSE
-!            CALL NECI_ICOPY(NEL,NI2,1,NI,1)
-            NI(1:NEL)=NI2(1:NEL)
-         ENDIF
+         NI(1:NEL)=NI2(1:NEL)
          IF(tAbelian) THEN !For Abelian symmetry we don't need the symreps malarky.
             DO I=1,NEL
                ISYM%Sym=SYMPROD(ISYM%Sym,G1(NI(I))%Sym)
@@ -820,7 +807,6 @@ contains
          ENDIF
 !   round the momentum
          CALL ROUNDSYM(ISYM,NBASISMAX)
-         IF(ISC) CALL CSFGETSPIN(NI2,NEL,ISYM%Ms)
          RETURN
       END SUBROUTINE GETSYM
 
@@ -1347,7 +1333,8 @@ contains
          TYPE(BASISFN) ISYM,G1(*)
          INTEGER IELEC,nBasisMax(5,*)
          INTEGER I,IEL,SSYM
-         CALL GETUNCSFELEC(IEL,IELEC,SSYM)
+        ielec = iel
+        ssym = 0
         IF(NBASISMAX(1,3).LT.4) THEN
 !   Momentum space
             if (t_k_space_hubbard) then

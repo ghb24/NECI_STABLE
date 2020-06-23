@@ -63,7 +63,7 @@ contains
 
     subroutine init_spectral_lanczos()
 
-        use bit_rep_data, only: NIfDBO, extract_sign
+        use bit_rep_data, only: nifd, extract_sign
         use DetBitOps, only: DetBitEq, EncodeBitDet, ilut_lt, ilut_gt
         use gndts_mod, only: gndts
         use load_balance_calcnodes, only: DetermineDetNode
@@ -112,7 +112,7 @@ contains
             if (proc == iProcIndex) then
                 call EncodeBitDet(nI_list(:,i), ilut)
                 j = j + 1
-                sl_ilut_list(0:NIfDBO, j) = ilut(0:NIfDBO)
+                sl_ilut_list(0:nifd, j) = ilut(0:nifd)
             end if
         end do
 
@@ -182,7 +182,7 @@ contains
         ! perturbation is applied (as needed for spectral calculations) and
         ! returns the norm of the perturbed popsfile as an output.
 
-        use bit_rep_data, only: NIfDBO, extract_sign
+        use bit_rep_data, only: nifd, extract_sign
         use bit_reps, only: decode_bit_det
         use DetBitOps, only: DetBitEq, EncodeBitDet, ilut_lt, ilut_gt
         use FciMCData, only: TotWalkers, CurrentDets
@@ -217,12 +217,12 @@ contains
             ! algorithm then it is possible to have the same determinant twice in a
             ! row, once with zero weight. If this is the case, skip the second case.
             if (i > 1) then
-                if (DetBitEq(CurrentDets(:,i-1), CurrentDets(:,i), NIfDBO)) cycle
+                if (DetBitEq(CurrentDets(:,i-1), CurrentDets(:,i), nifd)) cycle
             end if
             norm_pert = norm_pert + real_sign(1)*real_sign(1)
             do
                 j = j + 1
-                if (DetBitEq(CurrentDets(:,i), ilut_list(:,j), NIfDBO)) then
+                if (DetBitEq(CurrentDets(:,i), ilut_list(:,j), nifd)) then
                     pert_ground_local(j) = real_sign(1)
                     exit
                 end if
@@ -284,7 +284,7 @@ contains
 
     subroutine print_sl_eigenvecs()
 
-        use bit_rep_data, only: NIfDBO
+        use bit_rep_data, only: nifd
         use util_mod, only: get_free_unit
 
         integer :: ndets_this_proc, ndets_tot
@@ -310,7 +310,7 @@ contains
         do iproc = 0, nProcessors-1
             if (iproc == iProcIndex) then
                 do idet = 1, ndets_this_proc
-                    do k = 0, NIfDBO
+                    do k = 0, nifd
                         write(iunit, '(i12)', advance='no') sl_ilut_list(k,idet)
                     end do
                     do k = 1, n_lanc_vecs_sl
