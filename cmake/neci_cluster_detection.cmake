@@ -23,7 +23,7 @@ if( ${_hostname} MATCHES "eslogin[0-9]" )
     set( ${PROJECT_NAME}_KNOWN_CLUSTER "Archer" )
 
     if ( DEFINED CMAKE_TOOLCHAIN_FILE )
-        get_filename_compontent( _toolchain_file ${CMAKE_TOOLCHAIN_FILE} NAME )
+        get_filename_component( _toolchain_file ${CMAKE_TOOLCHAIN_FILE} NAME )
     endif()
 
     if ( NOT DEFINED CMAKE_TOOLCHAIN_FILE OR
@@ -56,6 +56,29 @@ if( ${_hostname} MATCHES "hydra[0-9]" )
 
 endif()
 
+if( ${_hostname} MATCHES "maui[0-9]" )
+
+    set( ${PROJECT_NAME}_KNOWN_CLUSTER "Maui" )
+
+    if( CMAKE_Fortran_COMPILER_ID STREQUAL "Intel" )
+	message("***************************************************************************************" )
+	message("Compilation on Maui detected, with the intel environment" )
+	message("For this, a special toolchain file is needed, so it finds the right compilers" )
+	message("Run cmake with -DCMAKE_TOOLCHAIN_FILE=<neci_dir>/toolchains/maui.cmake" )
+	message("***************************************************************************************" )		
+    endif()
+    if ( DEFINED CMAKE_TOOLCHAIN_FILE )
+        get_filename_component( _toolchain_file ${CMAKE_TOOLCHAIN_FILE} NAME )
+    endif()
+
+    if ( NOT DEFINED CMAKE_TOOLCHAIN_FILE OR
+         NOT _toolchain_file STREQUAL "maui.cmake" )
+        message(FATAL_ERROR "Compiling on Archer requires the archer.cmake toolchain file")
+    endif()
+	
+endif()
++
++
 set( ${PROJECT_NAME}_BUILD_HOSTNAME ${_hostname} )
 mark_as_advanced( _hostname ${PROJECT_NAME}_BUILD_HOSTNAME )
 
