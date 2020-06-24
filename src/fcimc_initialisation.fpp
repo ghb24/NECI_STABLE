@@ -2136,9 +2136,10 @@ contains
         ! select the procedure that returns all connected determinants.
         if (tGAS) then
             gen_all_excits => gen_all_excits_GAS
-        ! TODO(@Werner, @Kai): is this correct?
         else if (t_k_space_hubbard) then
             gen_all_excits => gen_all_excits_k_space_hubbard
+        else if (t_new_real_space_hubbard) then
+            gen_all_excits => gen_all_excits_r_space_hubbard
         else
             gen_all_excits => gen_all_excits_default
         end if
