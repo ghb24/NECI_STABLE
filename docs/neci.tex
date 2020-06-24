@@ -32,6 +32,9 @@
 \usepackage{xcolor}
 \definecolor{mred}{rgb}{0.9, 0.1, 0.1}
 \definecolor{oblue}{rgb}{0.1, 0.1, 0.9}
+\definecolor{mgreen}{rgb}{0.1, 0.9, 0.1}
+
+\newcommand{\devcolor}[1]{\textcolor{mgreen}{#1}}
 
 % An itemize with a bit less space floating around
 \newenvironment{packed_enum}{
@@ -574,6 +577,9 @@ Some keywords are mandatory, those are marked in \textcolor{mred}{red} and are
 given at the beginning of the description of each paragraph. Then come
 recommended options, marked in \textcolor{oblue}{blue}, followed by further
 options given in black.
+
+Keywords which are purely for debugging purposes and
+  only interesting for developers are markes as \devcolor{green}.
 
 \subsection{SYSTEM Block}
 The SYSTEM block specifies the properties of the physical system that is
@@ -1299,6 +1305,16 @@ the \texttt{endsys} keyword.
     \codeitem{sparse-lmat}
     Store the 3-body integrals in a sparse format to save
     memory. Initialisation and iterations might be slower. Requires \texttt{hdf5-integrals}.
+  \end{description}
+
+  \subsection{Development keywords}
+  \begin{description}
+    \codeitem{\devcolor{UNIT-TEST-PGEN}}
+      Test the pgens for the $n(\text{most populated})$ configurations
+        of an existing pops-file.
+      Perform the tests $n(\text{iterations})$ times for each configuration.
+      The order of arguments is $n(\text{most populated}), n(\text{iterations})$.
+
   \end{description}
 
   \subsection{KP-FCIQMC Block}
