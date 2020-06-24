@@ -32,6 +32,8 @@ module fast_gasci
     private
 
     public :: generate_nGAS_excitation, gen_all_excits
+    public :: get_possible_spaces, get_possible_holes, &
+        get_available_singles, get_available_doubles
 
 
     interface get_cumulative_list
