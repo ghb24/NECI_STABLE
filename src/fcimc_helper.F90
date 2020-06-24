@@ -8,7 +8,7 @@ module fcimc_helper
                           tLatticeGens, nBasis, tRef_Not_HF, &
                           tGUGA, ref_stepvector, ref_b_vector_int, ref_occ_vector, &
                           ref_b_vector_real, t_3_body_excits, t_non_hermitian, &
-                          t_ueg_3_body, t_mol_3_body
+                          t_ueg_3_body, t_mol_3_body, t_pcpp_excitgen
     use core_space_util, only: cs_replicas
     use HPHFRandExcitMod, only: ReturnAlphaOpenDet
 
@@ -98,6 +98,7 @@ module fcimc_helper
 
     use initiator_space_procs, only: is_in_initiator_space
 
+    use pcpp_excitgen, only: update_pcpp_excitgen
 
     implicit none
 
@@ -2635,6 +2636,9 @@ contains
 
         ! Also update ilutRefAdi - this has to be done completely
         call update_first_reference()
+
+        ! If using a reference-oriented excitgen, update it
+        if(t_pcpp_excitgen) call update_pcpp_excitgen()
 
       end subroutine update_run_reference
 

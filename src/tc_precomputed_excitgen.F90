@@ -380,7 +380,7 @@ contains
   subroutine init_pcpp_excitgen()
     implicit none
 
-    allocate(refDet(nel))
+    if(.not. allocated(refDet)) allocate(refDet(nel))
     refDet = projEDet(:,1)
 
     call init_pcpp_doubles_excitgen()
@@ -642,6 +642,15 @@ contains
     end function acc_doub_matel
     !------------------------------------------------------------------------------------------!
   end subroutine init_pcpp_singles_excitgen
+
+  !------------------------------------------------------------------------------------------!
+
+  subroutine update_pcpp_excitgen()
+
+    call finalize_pcpp_excitgen()
+    call init_pcpp_excitgen()
+
+  end subroutine update_pcpp_excitgen
 
   !------------------------------------------------------------------------------------------!
   ! Finalization routines
