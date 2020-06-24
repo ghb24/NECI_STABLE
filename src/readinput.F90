@@ -175,9 +175,38 @@ MODULE ReadInput_neci
             WRITE (6,*) 'Problem reading input file ',TRIM(cFilename)
             call stop_all('ReadInputMain','Input error.')
         END IF
-        call checkinput()
+        call sanitize_input()
         RETURN
     END SUBROUTINE ReadInputMain
+
+
+    subroutine sanitize_input()
+        call evaluate_depending_keywords()
+        call checkinput()
+    end subroutine
+
+
+    !> @brief
+    !>   Certain keywords are optional and/or depend on others.
+    !>   Evaluate this dependency here.
+    subroutine evaluate_depending_keywords()
+        use SystemData, only: tGAS
+        use gasci, only: GAS_specification, is_connected, GAS_exc_gen, &
+            possible_GAS_exc_gen, user_input_GAS_exc_gen
+        character(*), parameter :: this_routine = 'evaluate_depending_keywords'
+
+        if (tGAS) then
+            if (allocated(user_input_GAS_exc_gen)) then
+                GAS_exc_gen = user_input_GAS_exc_gen
+            else
+                if (is_connected(GAS_specification)) then
+                    GAS_exc_gen = possible_GAS_exc_gen%GENERAL
+                else
+                    GAS_exc_gen = possible_GAS_exc_gen%DISCONNECTED
+                end if
+            end if
+        end if
+    end subroutine
 
 
 
@@ -231,7 +260,8 @@ MODULE ReadInput_neci
         use hist_data, only: tHistSpawn
         use Parallel_neci, only: nNodes,nProcessors
         use UMatCache, only: tDeferred_Umat2d
-        use gasci, only: GAS_specification, is_connected, is_valid, GAS_exc_gen, possible_GAS_exc_gen, operator(==)
+        use gasci, only: GAS_specification, is_connected, is_valid, GAS_exc_gen, &
+            possible_GAS_exc_gen, operator(==)
 
         use guga_init, only: checkInputGUGA
         implicit none
@@ -589,7 +619,6 @@ MODULE ReadInput_neci
               call stop_all(t_r, "Invalid excitation options")
            end if
         end if
-
 
         if (tGAS) then
             if(.not. tDefineDet) then

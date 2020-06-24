@@ -31,7 +31,7 @@ MODULE System
 
     use tc_three_body_data, only: LMatEps, tSparseLMat
 
-    use gasci, only: GAS_specification, GAS_exc_gen, possible_GAS_exc_gen, GASSpec_t
+    use gasci, only: GAS_specification, GAS_exc_gen, possible_GAS_exc_gen, GASSpec_t, user_input_GAS_exc_gen
 
     use ParallelHelper, only: iprocindex, root
 
@@ -1818,9 +1818,9 @@ system: do
                 call readu(w)
                 select case(w)
                 case('ONLY_DISCONNECTED')
-                    GAS_exc_gen = possible_GAS_exc_gen%DISCONNECTED
+                    user_input_GAS_exc_gen = possible_GAS_exc_gen%DISCONNECTED
                 case('GENERAL')
-                    GAS_exc_gen = possible_GAS_exc_gen%GENERAL
+                    user_input_GAS_exc_gen = possible_GAS_exc_gen%GENERAL
                 case default
                     call Stop_All("ReadSysInp",trim(w)//" not a valid keyword")
                 end select

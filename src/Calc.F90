@@ -2107,7 +2107,10 @@ allocate (init_trial_in%opt_data%cutoff_nums(init_trial_in%opt_data%ngen_loops))
             case ("SCALEWALKERS")
 !For FCIMC, if this is a way to scale up the number of walkers, after having read in a POPSFILE
                 call getf(ScaleWalkers)
+
             case ("UNIT-TEST-PGEN")
+            ! Test the pgens n_iter times on the n_most_populated configurations
+            ! of a supplied popsfile
                 allocate (pgen_unit_test_spec)
                 call geti(pgen_unit_test_spec%n_most_populated)
                 call geti(pgen_unit_test_spec%n_iter)
