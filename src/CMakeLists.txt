@@ -142,7 +142,7 @@ set( SRC_FILES
     searching.F90
     semi_stoch_gen.F90
     semi_stoch_procs.F90
-	shared_ragged_array.F90	
+	shared_ragged_array.F90
 	shared_rhash.F90
     sparse_arrays.F90
     spectral_data.F90
@@ -226,9 +226,9 @@ set( SRC_FILES
     lib/signals_helper.cpp
     lib/soft_exit.F90
     lib/timing.F90
-    lib/util_mod.F90
     lib/util_mod_fmt.F90
     lib/fortran_strings.f90
+    lib/matrix_util.F90
     lib/display_matrices.F90
 )
 
@@ -237,13 +237,17 @@ set( FYPP_SRC_FILES
     fcimc_initialisation.fpp
     HPHFIntegrals.fpp
     sltcnd.fpp
+    disconnected_gasci.fpp
     gasci.fpp
+    orb_idx.fpp
     excitation_types.fpp
 	shared_array.fpp
     load_balancer.fpp
     global_det_data.fpp
     rdm_general.fpp
     hist.fpp
+    lib/util_mod.fpp
+    sets_mod.fpp
 )
 
 set( TEMPLATED_SRC_FILES

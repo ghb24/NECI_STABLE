@@ -161,4 +161,18 @@ contains
 
     end subroutine extract_sign
 
+
+    pure function get_weight(ilut) result(res)
+        integer(n_int), intent(in) :: ilut(0:NIfTot)
+        real(dp) :: res
+
+        real(dp) :: curr_sign(lenof_sign)
+        call extract_sign(ilut, curr_sign)
+#ifdef CMPLX_
+        res = sqrt(sum(abs(curr_sign(1::2)))**2 + sum(abs(curr_sign(2::2)))**2)
+#else
+        res = sum(real(abs(curr_sign),dp))
+#endif
+    end function
+
 end module

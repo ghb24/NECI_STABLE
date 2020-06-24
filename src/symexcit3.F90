@@ -6,10 +6,12 @@ MODULE SymExcit3
 
     use SystemData, only: NEl, G1, nBasis, tNoSymGenRandExcits
     use bit_reps, only: NIfTot
-    use constants, only: n_int, maxExcit
+    use constants, only: n_int, maxExcit, iout
     USE GenRandSymExcitNUMod, only: SymLabelList2,SymLabelCounts2,ClassCountInd,ScratchSize
     use SymExcitDataMod, only: SpinOrbSymLabel
     use get_excit, only: make_double
+    use sort_mod, only: sort
+    use DetBitOps, only: ilut_lt, ilut_gt, EncodeBitDet
     IMPLICIT NONE
 
 
@@ -641,6 +643,61 @@ MODULE SymExcit3
         CALL FindExcitDet(ExcitMat3,nJ,1,tParity)
 
     END SUBROUTINE FindNewSingDet
+
+    !> @brief
+    !>   Return all configurations that are connected to nI as
+    !>   array of iluts (det_list(0:niftot, n_excits)).
+    subroutine gen_all_excits(nI, n_excits, det_list)
+        integer, intent(in) :: nI(nel)
+        integer, intent(out) :: n_excits
+        integer(n_int), intent(out), allocatable :: det_list(:,:)
+        character(*), parameter :: this_routine = "gen_all_excits_default"
+
+        integer :: n_singles, n_doubles, n_dets, ex(2,maxExcit), ex_flag
+        integer :: nJ(nel)
+        logical :: tpar, found_all
+        integer(n_int) :: ilut(0:niftot)
+
+        n_excits = -1
+
+        call EncodeBitDet(nI, ilut)
+
+        ! for reference in the "normal" case it looks like that:
+        call CountExcitations3(nI, 2, n_singles, n_doubles)
+
+        n_excits = n_singles + n_doubles
+
+        write(iout, *) "n_singles: ", n_singles
+        write(iout, *) "n_doubles: ", n_doubles
+
+        allocate(det_list(0:niftot, n_excits))
+        n_dets = 0
+        found_all = .false.
+        ex = 0
+        ex_flag = 2
+        call GenExcitations3 (nI, ilut, nJ, ex_flag, ex, tpar, found_all, &
+                              .false.)
+
+        do while (.not. found_all)
+            n_dets = n_dets + 1
+            call EncodeBitDet (nJ, det_list(:,n_dets))
+
+            call GenExcitations3 (nI, ilut, nJ, ex_flag, ex, tpar, &
+                                  found_all, .false.)
+        end do
+
+        if (n_dets /= n_excits) then
+            write(iout, *) "expected number of excitations: ", n_excits
+            write(iout, *) "actual calculated ones: ", n_dets
+            call stop_all(this_routine,"Incorrect number of excitations found")
+        end if
+
+        ! Sort the dets, so they are easy to find by binary searching
+        call sort(det_list, ilut_lt, ilut_gt)
+
+    end subroutine gen_all_excits
+
+
 
 
 END MODULE SymExcit3

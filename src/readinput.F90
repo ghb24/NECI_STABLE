@@ -160,10 +160,8 @@ MODULE ReadInput_neci
                 tKP_FCIQMC = .true.
                 tUseProcsAsNodes = .true.
                 call kp_fciqmc_read_inp(kp)
-
             case ("REALTIME")
                 call real_time_read_input()
-
             case("END")
                 exit
             case default
@@ -177,9 +175,38 @@ MODULE ReadInput_neci
             WRITE (6,*) 'Problem reading input file ',TRIM(cFilename)
             call stop_all('ReadInputMain','Input error.')
         END IF
-        call checkinput()
+        call sanitize_input()
         RETURN
     END SUBROUTINE ReadInputMain
+
+
+    subroutine sanitize_input()
+        call evaluate_depending_keywords()
+        call checkinput()
+    end subroutine
+
+
+    !> @brief
+    !>   Certain keywords are optional and/or depend on others.
+    !>   Evaluate this dependency here.
+    subroutine evaluate_depending_keywords()
+        use SystemData, only: tGAS
+        use gasci, only: GAS_specification, is_connected, GAS_exc_gen, &
+            possible_GAS_exc_gen, user_input_GAS_exc_gen
+        character(*), parameter :: this_routine = 'evaluate_depending_keywords'
+
+        if (tGAS) then
+            if (allocated(user_input_GAS_exc_gen)) then
+                GAS_exc_gen = user_input_GAS_exc_gen
+            else
+                if (is_connected(GAS_specification)) then
+                    GAS_exc_gen = possible_GAS_exc_gen%GENERAL
+                else
+                    GAS_exc_gen = possible_GAS_exc_gen%DISCONNECTED
+                end if
+            end if
+        end if
+    end subroutine
 
 
 
@@ -193,7 +220,7 @@ MODULE ReadInput_neci
                               tGen_4ind_weighted, tGen_4ind_reverse, &
                               tMultiReplicas, tGen_4ind_part_exact, &
                               tGUGA, tgen_guga_weighted, &
-                              tGen_4ind_lin_exact, tGen_4ind_2, tNConservingGAS, &
+                              tGen_4ind_lin_exact, tGen_4ind_2, tGAS, tGASSpinRecoupling, &
                               tComplexOrbs_RealInts, tLatticeGens
         use CalcData, only: I_VMAX, NPATHS, G_VMC_EXCITWEIGHT, &
                             G_VMC_EXCITWEIGHTS, EXCITFUNCS, TMCDIRECTSUM, &
@@ -208,7 +235,7 @@ MODULE ReadInput_neci
                             tOrthogonaliseReplicas, tReadPops, tStartMP1, &
                             tStartCAS, tUniqueHFNode, tContTimeFCIMC, &
                             tContTimeFull, tFCIMC, tPreCond, tOrthogonaliseReplicas, &
-                            tMultipleInitialStates
+                            tMultipleInitialStates, pgen_unit_test_spec
         use Calc, only : RDMsamplingiters_in_inp
         Use Determinants, only: SpecDet, tagSpecDet, tDefinedet
         use IntegralsData, only: nFrozen, tDiscoNodes, tQuadValMax, &
@@ -233,6 +260,8 @@ MODULE ReadInput_neci
         use hist_data, only: tHistSpawn
         use Parallel_neci, only: nNodes,nProcessors
         use UMatCache, only: tDeferred_Umat2d
+        use gasci, only: GAS_specification, is_connected, is_valid, GAS_exc_gen, &
+            possible_GAS_exc_gen, operator(==)
 
         use guga_init, only: checkInputGUGA
         implicit none
@@ -591,11 +620,27 @@ MODULE ReadInput_neci
            end if
         end if
 
-        if(.not. tDefineDet .and. tNConservingGAS) then
-           call stop_all(t_r, "Running n-GAS requires a user-defined reference via definedet")
-        endif
+        if (tGAS) then
+            if(.not. tDefineDet) then
+                call stop_all(t_r, "Running GAS requires a user-defined reference via definedet.")
+            endif
+            if (.not. is_valid(GAS_specification)) then
+                call stop_all(t_r, "GAS specification not valid.")
+            end if
+            if (is_connected(GAS_specification) .and. .not. tGASSpinRecoupling) then
+                call stop_all(t_r, "Running GAS without spin-recoupling requires disconnected spaces.")
+            end if
+            if (GAS_exc_gen == possible_GAS_exc_gen%DISCONNECTED .and. is_connected(GAS_specification)) then
+                call stop_all(t_r, "Running GAS-CI = ONLY_DISCONNECTED requires disconnected spaces.")
+            end if
+        end if
 
+
+        if (allocated(pgen_unit_test_spec)) then
+            if (.not. tReadPops) then
+                call stop_all(t_r, "UNIT-TEST-PGEN requires READPOPS.")
+            end if
+        end if
     end subroutine checkinput
 
 end Module ReadInput_neci
-

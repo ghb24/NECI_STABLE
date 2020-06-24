@@ -2,8 +2,7 @@
 
 module guga_write_H_matrix
     use constants, only: n_int, dp
-    use display_matrices, only: write_matrix
-    use unit_test_helpers, only: print_matrix
+    use matrix_util, only: print_matrix
 
     use guga_data, only: ExcitationInformation_t
     use guga_excitations, only: calc_guga_matrix_element

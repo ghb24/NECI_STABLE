@@ -1,5 +1,7 @@
 #include "macros.h"
 
+#:set primitive_types = {'integer': {'int32', 'int64'}, 'real': {'sp', 'dp'}, 'complex': {'sp', 'dp'}}
+
 module util_mod
     use util_mod_comparisons
     use util_mod_numerical
@@ -94,6 +96,14 @@ module util_mod
         module procedure intSwap_int64
         module procedure intSwap_int32
      end interface intSwap
+
+    interface cumsum
+        #:for type, kinds in primitive_types.items()
+        #:for kind in kinds
+            module procedure cumsum_${type}$_${kind}$
+        #:endfor
+        #:endfor
+    end interface
 
     ! sds: It would be nice to use a proper private/public interface here,
     !      BUT PGI throws a wobbly on using the public definition on
@@ -1124,6 +1134,24 @@ contains
       open(funit, file=filename, status='unknown', iostat=ierr)
 
     end subroutine open_new_file
+
+    #:for type, kinds in primitive_types.items()
+    #:for kind in kinds
+        pure function cumsum_${type}$_${kind}$(X) result(Y)
+            ${type}$(${kind}$), intent(in) :: X(:)
+            ${type}$(${kind}$) :: Y(lbound(X, 1) : ubound(X, 1))
+
+            integer :: i
+
+            if (size(X) /= 0) then
+                Y(lbound(X, 1)) = X(lbound(X, 1))
+                do i = lbound(X, 1) + 1, ubound(X, 1)
+                    Y(i) = Y(i - 1) + X(i)
+                end do
+            end if
+        end function
+    #:endfor
+    #:endfor
 
 end module
 

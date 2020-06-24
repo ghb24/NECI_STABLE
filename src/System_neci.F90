@@ -21,13 +21,17 @@ MODULE System
     use read_fci, only: FCIDUMP_name
 
     use util_mod, only: error_function, error_function_c,&
-        near_zero, operator(.isclose.)
+        near_zero, operator(.isclose.), get_free_unit, operator(.div.)
 
     use lattice_mod, only: lattice, lat
 
     use k_space_hubbard, only: setup_symmetry_table
 
     use breathing_Hub, only: setupMomIndexTable, setupBreathingCont
+
+    use tc_three_body_data, only: LMatEps, tSparseLMat
+
+    use gasci, only: GAS_specification, GAS_exc_gen, possible_GAS_exc_gen, GASSpec_t, user_input_GAS_exc_gen
 
     use ParallelHelper, only: iprocindex, root
 
@@ -223,8 +227,8 @@ MODULE System
       tMultiReplicas = .false.
       tGiovannisBrokenInit = .false.
       ! GAS options
-      tSpinConservingGAS = .false.
-      tNConservingGAS = .false.
+      tGASSpinRecoupling = .true.
+      tGAS = .false.
 
 #ifdef PROG_NUMRUNS_
       ! by default, excitation generation already creates matrix elements
@@ -1672,7 +1676,7 @@ system: do
                     case default
                         call Stop_All("ReadSysInp",trim(w)//" not a valid keyword")
                 end select
-            enddo
+            end do
 
         case("PCHB-WEIGHTED-SINGLES")
             ! Enable using weighted single excitations with the pchb excitation generator
@@ -1779,13 +1783,51 @@ system: do
             ! Looks nice, but it currently breaks lots of other stuff!
             tGiovannisBrokenInit = .true.
 
-         case("SPIN-CONSERVING-GAS")
-            tNConservingGAS = .true.
-            tSpinConservingGAS = .true.
+        case("GAS-SPEC")
+            tGAS = .true.
+            tGASSpinRecoupling = .true.
 
-         case("PART-CONSERVING-GAS")
-            tNConservingGAS = .true.
-            tSpinConservingGAS = .false.
+            block
+                integer :: nGAS, iGAS, n_basis
+                call geti(nGAS)
+                allocate(GAS_specification%n_orbs(nGAS), &
+                         GAS_specification%n_min(nGAS), &
+                         GAS_specification%n_max(nGAS), source=0)
+                do iGAS = 1, nGAS
+                    call geti(GAS_specification%n_orbs(iGAS))
+                    call geti(GAS_specification%n_min(iGAS))
+                    call geti(GAS_specification%n_max(iGAS))
+                end do
+
+                n_basis = 2 * GAS_specification%n_orbs(nGAS)
+
+                block
+                    integer :: GAS_unit, GAS(n_basis .div. 2), i
+                    GAS_unit = get_free_unit()
+                    open(GAS_unit, file="GASOrbs", status='old')
+                        read(GAS_unit,  *) GAS(:)
+                    close(GAS_unit)
+                    GAS_specification%GAS_table = [(GAS((i + 1) .div. 2), i = 1, n_basis)]
+                end block
+            end block
+            call GAS_specification%init()
+
+
+        case("GAS-CI")
+            do while (item < nitems)
+                call readu(w)
+                select case(w)
+                case('ONLY_DISCONNECTED')
+                    user_input_GAS_exc_gen = possible_GAS_exc_gen%DISCONNECTED
+                case('GENERAL')
+                    user_input_GAS_exc_gen = possible_GAS_exc_gen%GENERAL
+                case default
+                    call Stop_All("ReadSysInp",trim(w)//" not a valid keyword")
+                end select
+            end do
+
+        case("GAS-NO-SPIN-RECOUPLING")
+            tGASSpinRecoupling = .false.
 
         case("ENDSYS")
             exit system
@@ -3633,6 +3675,3 @@ SUBROUTINE GetUEGKE(I,J,K,ALAT,tUEGTrueEnergies,tUEGOffset,k_offset,Energy,dUnsc
        Energy=E
     ENDIF
 END SUBROUTINE GetUEGKE
-
-
-

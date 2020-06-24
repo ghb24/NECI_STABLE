@@ -14,8 +14,11 @@ module semi_stoch_procs
 
     use constants
 
+    use orb_idx_mod, only: SpinOrbIdx_t
+
     use FciMCData, only: SpawnedParts, TotWalkers, CurrentDets, &
-                         MaxSpawned, ilutRef, t_global_core_space, core_run
+                         MaxSpawned, ilutRef, &
+                         t_global_core_space, core_run
 
     use core_space_util, only: core_space_t, cs_replicas, min_pt, max_pt, &
         deallocate_sparse_ham
@@ -35,8 +38,6 @@ module semi_stoch_procs
     use procedure_pointers, only: shiftFactorFunction
 
     use timing_neci
-
-    use unit_test_helpers, only: eig
 
     use bit_reps, only: encode_sign
 
@@ -58,9 +59,10 @@ module semi_stoch_procs
 
     use sparse_arrays, only: SparseHamilTags, allocate_sparse_ham_row
 
-    use unit_test_helpers, only: print_matrix
+    use matrix_util, only: print_matrix, eig
 
     use adi_data, only: tSignedRepAv
+
     use global_det_data, only: readFVals, readAPVals
 
     use LoggingData, only: tAccumPopsActive
@@ -1214,9 +1216,8 @@ contains
         TotWalkers = int(nwalkers, int64)
     end subroutine add_core_states_currentdet_hash
 
-    subroutine return_most_populated_states(n_keep, run, &
-         largest_walkers, opt_source, opt_source_size, norm)
-
+    subroutine proc_most_populated_states(n_keep, run, &
+            largest_walkers, opt_source, opt_source_size, norm)
         ! Return the most populated states in CurrentDets on *this* processor only.
         ! Also return the norm of these states, if requested.
 
@@ -1224,7 +1225,7 @@ contains
         use DetBitOps, only: sign_lt, sign_gt
         use sort_mod, only: sort
 
-        integer, intent(in), optional :: opt_source_size
+        integer(int64), intent(in), optional :: opt_source_size
         integer(n_int), intent(in), optional :: opt_source(0:,1:)
         integer, intent(in) :: n_keep, run
         integer(n_int), intent(out) :: largest_walkers(0:NIfTot, n_keep)
@@ -1240,7 +1241,7 @@ contains
         if (present(opt_source)) then
             ASSERT(present(opt_source_size))
 
-            source_size = int(opt_source_size, int64)
+            source_size = opt_source_size
             ! ask Kai if I have to allocate
             allocate(loc_source(0:niftot,1:source_size),&
                 source = opt_source(0:NIfTot, 1:source_size))
@@ -1327,7 +1328,95 @@ contains
 
         end function sign_gt_run
 
-    end subroutine return_most_populated_states
+    end subroutine proc_most_populated_states
+
+!>  @brief
+!>      Return the most populated states over all processors.
+!>
+!>  @author Oskar Weser
+!>
+!>  @details
+!>  Reducing version of `proc_most_populated_states`, which works per process.
+!>  Return as many states as the size of largest_walkers.
+!>  Returns the norm as well, if requested.
+!>  @param[out] largest_walkers, Array of most `n_keep` most populated states.
+    subroutine global_most_populated_states(n_keep, run, largest_walkers, norm, rank_of_largest)
+        use Parallel_neci, only: MPISumAll, MPIAllReduceDatatype, MPIBCast
+        use bit_reps, only: extract_sign
+
+        integer, intent(in) :: n_keep, run
+        integer(n_int), intent(out) :: largest_walkers(0:NIfTot, n_keep)
+        real(dp), intent(out), optional :: norm
+        integer, intent(out), optional :: rank_of_largest(n_keep)
+        character(*), parameter :: this_routine = 'global_most_populated_states'
+
+        integer(n_int), allocatable :: proc_largest_walkers(:, :)
+        integer, allocatable :: rank_of_largest_(:)
+
+        largest_walkers = 0_n_int
+        allocate(proc_largest_walkers(0:NIfTot, n_keep), source=0_n_int)
+        block
+            real(dp) :: proc_norm, all_norm
+            call proc_most_populated_states(&
+                n_keep, run, proc_largest_walkers, CurrentDets, TotWalkers, proc_norm)
+            if (present(norm)) then
+                call MpiSumAll(proc_norm, all_norm)
+                norm = sqrt(all_norm)
+            end if
+        end block
+
+        allocate(rank_of_largest_(n_keep))
+        block
+            real(dp) :: high_sign, curr_sign(lenof_sign)
+            integer :: high_pos
+            integer :: i, j
+
+            fill_largest_walkers: do i = 1, n_keep
+                high_sign = 0.0_dp
+                high_pos = 1
+                find_largest_sign_per_proc: do j = n_keep, 1, -1
+                    if (any(proc_largest_walkers(:, j) /= 0)) then
+                        call extract_sign(proc_largest_walkers(:, j), curr_sign)
+                        high_pos = j
+#ifdef CMPLX_
+                        high_sign = sqrt(sum(abs(curr_sign(1::2)))**2 &
+                                         + sum(abs(curr_sign(2::2)))**2)
+#else
+                        high_sign = sum(real(abs(curr_sign), dp))
+#endif
+                        exit find_largest_sign_per_proc
+                    end if
+                end do find_largest_sign_per_proc
+
+                block
+                    real(dp) :: reduce_in(2, 1), reduce_out(2, 1)
+                    reduce_in = reshape([high_sign, real(iProcIndex, dp)], shape(reduce_in))
+                    call MPIAllReduceDatatype(&
+                            reduce_in, size(reduce_in, 2), MPI_MAXLOC, MPI_2DOUBLE_PRECISION, reduce_out)
+                    ! Now, reduce_out(2, :) has the rank of the largest weighted determinant
+                    rank_of_largest_(i) = nint(reduce_out(2, 1))
+                end block
+
+                block
+                    integer(n_int) :: HighestDet(0:NIfTot)
+                    if (iProcIndex == rank_of_largest_(i)) then
+                        HighestDet(0:NIfTot) = proc_largest_walkers(:, high_pos)
+                    endif
+                    call MPIBCast(HighestDet(0:NIfTot), size(HighestDet), rank_of_largest_(i))
+                    largest_walkers(0:NIfTot, i) = HighestDet(:)
+                end block
+
+                ! Zeroing essentially deletes the element because we search
+                ! for first nonzero from the end. Also no resorting is required.
+                if (iProcIndex == rank_of_largest_(i)) then
+                    proc_largest_walkers(:, high_pos) = 0_n_int
+                endif
+            end do fill_largest_walkers
+        end block
+
+        if (present(rank_of_largest)) rank_of_largest = rank_of_largest_
+
+    end subroutine
 
     !> Weight function for picking the most populated states. Trivial in
     !! single run mode, but multiple options exist in mneci

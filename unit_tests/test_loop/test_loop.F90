@@ -1,31 +1,12 @@
 module test_loop_helpers
     use mpi
     use util_mod, only: get_free_unit
+    use unit_test_helper_excitgen, only: FciDumpWriter_t, InputWriter_t, Writer_t, write_file, delete_file
     implicit none
 #include "macros.h"
 #include "NECICore.h"
     private
-    public :: test_loop_factory, FciDumpWriter_t, InputWriter_t, Writer_t
-
-    abstract interface
-        subroutine to_unit_writer_t(iunit)
-            integer, intent(in) :: iunit
-        end subroutine
-    end interface
-
-    type, abstract :: Writer_t
-        procedure(to_unit_writer_t), pointer, nopass :: write
-        ! I would like it to be:
-        ! character(:), allocatable :: filepath
-        ! but for gfortran <= 4.8.5 it has to be
-        character(512) :: filepath
-    end type
-
-    type, extends(Writer_t) :: FciDumpWriter_t
-    end type
-
-    type, extends(Writer_t) :: InputWriter_t
-    end type
+    public :: test_loop_factory
 
 contains
 
@@ -64,30 +45,11 @@ contains
         end if
     end subroutine test_loop_factory
 
-    subroutine delete_file(path)
-        character(*), intent(in) :: path
-        integer :: file_id
-
-        file_id = get_free_unit()
-        open(file_id, file=path, status='old')
-        close(file_id, status='delete')
-    end subroutine
-
-    subroutine write_file(writer)
-        class(Writer_t), intent(in) :: writer
-        integer :: file_id
-
-        file_id = get_free_unit()
-        open(file_id, file=writer%filepath)
-            call writer%write(file_id)
-        close(file_id)
-    end subroutine
-
 end module test_loop_helpers
 
 module test_loop_testcases
-    use test_loop_helpers, only: &
-        test_loop_factory, InputWriter_t, FciDumpWriter_t
+    use test_loop_helpers, only: test_loop_factory
+    use unit_test_helper_excitgen, only: FciDumpWriter_t, InputWriter_t
     implicit none
     private
     public :: test_loop_4ind_wghtd_2, test_loop_pchb, test_loop_guga

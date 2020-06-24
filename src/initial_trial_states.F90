@@ -9,7 +9,7 @@ module initial_trial_states
     use core_space_util, only: cs_replicas
     use FciMCData, only: core_run
 #ifndef CMPLX_
-    use unit_test_helpers, only: eig, print_matrix
+    use matrix_util, only: eig, print_matrix
 #endif
     use util_mod, only: operator(.div.)
 
@@ -463,6 +463,7 @@ contains
                 ! apparently not.. maybe with the j,i convention above not..
                 ! confusing
                 call eig(H_tmp, evals_all, evecs_all,.false.)
+
                 evals = evals_all(1:nexcit)
                 evecs = evecs_all(:,1:nexcit)
 

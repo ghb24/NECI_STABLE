@@ -23,7 +23,7 @@ module fcimc_initialisation
                           irrepOrbOffset, nIrreps, &
                           tTrcorrExgen, nClosedOrbs, irrepOrbOffset, nIrreps, &
                           nOccOrbs, tNoSinglesPossible, t_pcpp_excitgen, &
-                          t_pchb_excitgen, tNConservingGAS
+                          t_pchb_excitgen, tGAS
     use tc_three_body_data, only: ptriples
     use SymExcitDataMod, only: tBuildOccVirtList, tBuildSpinSepLists
     use core_space_util, only: cs_replicas
@@ -121,8 +121,7 @@ module fcimc_initialisation
                                   attempt_die, extract_bit_rep_avsign, &
                                   fill_rdm_diag_currdet, &
                                   new_child_stats, get_conn_helement, scaleFunction, &
-                                  generate_two_body_excitation, shiftFactorFunction
-
+                                  generate_two_body_excitation, shiftFactorFunction, gen_all_excits
     use symrandexcit3, only: gen_rand_excit3
     use symrandexcit_Ex_Mag, only: gen_rand_excit_Ex_Mag
     use excit_gens_int_weighted, only: gen_excit_hel_weighted, &
@@ -234,7 +233,9 @@ module fcimc_initialisation
 
     use back_spawn_excit_gen, only: gen_excit_back_spawn, gen_excit_back_spawn_ueg, &
                                     gen_excit_back_spawn_hubbard, gen_excit_back_spawn_ueg_new
-    use gasci, only: generate_nGAS_excitation, clearGAS
+    use gasci, only: gen_general_GASCI => generate_nGAS_excitation, GAS_exc_gen, possible_GAS_exc_gen, &
+        operator(==), gen_all_excits_GAS => gen_all_excits, GAS_specification
+    use disconnected_gasci, only: gen_disconnected_GASCI => generate_nGAS_excitation, clearGAS
 
     use cepa_shifts, only: t_cepa_shift, init_cepa_shifts
 
@@ -246,10 +247,11 @@ module fcimc_initialisation
 
     use OneEInts, only: tmat2d
 
-    use lattice_models_utils, only: gen_all_excits_k_space_hubbard
+    use lattice_models_utils, only: gen_all_excits_k_space_hubbard, gen_all_excits_r_space_hubbard
 
     use pchb_excitgen, only: gen_rand_excit_pchb, init_pchb_excitgen, finalize_pchb_excitgen
 
+    use symexcit3, only: gen_all_excits_default => gen_all_excits
     implicit none
 
 contains
@@ -1942,8 +1944,14 @@ contains
         ! Select the excitation generator.
         if (tHPHF) then
             generate_excitation => gen_hphf_excit
-        elseif(tNConservingGAS) then
-            generate_excitation => generate_nGAS_excitation
+        elseif(tGAS) then
+            if (GAS_exc_gen == possible_GAS_exc_gen%GENERAL) then
+                generate_excitation => gen_general_GASCI
+            else if (GAS_exc_gen == possible_GAS_exc_gen%DISCONNECTED) then
+                generate_excitation => gen_disconnected_GASCI
+            else
+                call stop_all(t_r, 'Invalid GAS excitation generator')
+            end if
         elseif(t_3_body_excits.and..not.(t_mol_3_body.or.t_ueg_3_body)) then
             if (t_uniform_excits) then
                 generate_excitation => gen_excit_uniform_k_space_hub_transcorr
@@ -2124,6 +2132,18 @@ contains
            shiftFactorFunction => constShiftFactorFunction
         end if
 
+
+        ! select the procedure that returns all connected determinants.
+        if (tGAS) then
+            gen_all_excits => gen_all_excits_GAS
+        else if (t_k_space_hubbard) then
+            gen_all_excits => gen_all_excits_k_space_hubbard
+        else if (t_new_real_space_hubbard) then
+            gen_all_excits => gen_all_excits_r_space_hubbard
+        else
+            gen_all_excits => gen_all_excits_default
+        end if
+
     end subroutine init_fcimc_fn_pointers
 
     subroutine DeallocFCIMCMemPar()
@@ -2278,6 +2298,8 @@ contains
         call clean_adi()
 
         call clearGAS()
+
+        call GAS_specification%destroy()
 
         ! Cleanup excitation generator
         if(t_pcpp_excitgen) call finalize_pcpp_excitgen()

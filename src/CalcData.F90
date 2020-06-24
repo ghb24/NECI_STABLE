@@ -94,6 +94,11 @@ type subspace_in
     character(255) :: read_filename
 end type subspace_in
 
+type :: PgenUnitTestSpec_t
+    integer :: n_iter = 1 * 10**4
+    integer :: n_most_populated = 100
+end type
+
 LOGICAL :: TSTAR,TTROT,TGrowInitGraph
 LOGICAL :: TNEWEXCITATIONS,TVARCALC(0:10),TBIN,TVVDISALLOW
 LOGICAL :: TMCDIRECTSUM,TMPTHEORY,TMODMPTHEORY,TUPOWER,tMP2Standalone
@@ -172,6 +177,11 @@ logical :: tInitsRDMRef, tInitsRDM
 ! Base hash values only on spatial orbitals
 ! --> All dets with same spatial structure on the same processor.
 logical :: tSpatialOnlyHash
+!> Do a unit test of the pgens by summing up `1 / pgen` n_iter times from the n most populated determinants.
+!> Requires a read pops.
+!> The information if to do a pgen test is encoded in the allocation status.
+type(PgenUnitTestSpec_t), allocatable :: pgen_unit_test_spec
+
 
 ! if all determinants are stored to prevent the need for conversion each iteration
 logical :: tStoredDets
@@ -458,6 +468,7 @@ logical :: t_consider_par_bias = .false.
 ! quickly implement a control parameter to test the order of matrix element
 ! calculation in the transcorrelated approach
 logical :: t_test_order = .false.
+! also introduce an integer, to delay the actual changing of the time-step
 ! for a set amount of iterations
 ! (in the restart case for now!)
 integer :: hist_search_delay = 0

@@ -16,7 +16,7 @@ module rdm_finalising
     use RotateOrbsMod, only: FourIndInts
     use SystemData, only: tGUGA, nSpatorbs
     use LoggingData, only: tWriteSpinFreeRDM, t_print_molcas_rdms
-    use unit_test_helpers, only: print_matrix
+    use matrix_util, only: print_matrix
     use guga_bitRepOps, only: extract_2_rdm_ind
     use guga_rdm, only: output_molcas_rdms
 

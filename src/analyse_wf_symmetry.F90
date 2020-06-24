@@ -12,7 +12,7 @@ module analyse_wf_symmetry
 
     use fcimcdata, only: CurrentDets, TotWalkers
 
-    use semi_stoch_procs, only: return_most_populated_states, GLOBAL_RUN
+    use semi_stoch_procs, only: proc_most_populated_states, GLOBAL_RUN
 
     use lattice_mod, only: lat
 
@@ -29,7 +29,7 @@ module analyse_wf_symmetry
 
     use sort_mod, only: sort
 
-    use unit_test_helpers, only: print_matrix
+    use matrix_util, only: print_matrix
 
     use ras, only: sort_orbitals
 
@@ -945,8 +945,8 @@ contains
 #endif
         real(dp) :: norm
 
-        call return_most_populated_states(n_symmetry_states, GLOBAL_RUN, &
-            largest_dets, norm = norm)
+        call proc_most_populated_states(n_symmetry_states, GLOBAL_RUN, &
+            largest_dets, CurrentDets, TotWalkers, norm)
 
         if (present(all_norm)) then
             call MpiSum(norm, all_norm)
@@ -1152,4 +1152,3 @@ contains
     end function rotate_vec
 
 end module analyse_wf_symmetry
-

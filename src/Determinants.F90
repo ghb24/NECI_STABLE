@@ -11,9 +11,10 @@ MODULE Determinants
 
     use IntegralsData, only: UMat, FCK, NMAX
 
-    use excitation_types, only: excitation_t, DoubleExc_t, get_excitation
+    use excitation_types, only: Excitation_t, DoubleExc_t, get_excitation
     use sltcnd_mod, only: sltcnd, dyn_sltcnd_excit_old, sltcnd_compat, &
                           sltcnd_excit, sltcnd_knowIC, SumFock, CalcFockOrbEnergy
+
     use global_utilities
     use sort_mod
     use DetBitOps, only: EncodeBitDet, count_open_orbs, spatial_bit_det

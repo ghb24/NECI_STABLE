@@ -178,6 +178,10 @@ module fcimc_pointed_fns
             prob, HElGen, ic, ex, tParity, walkExcitLevel, part_type, AvSignCurr, &
             AvExPerWalker, RDMBiasFacCurr, precond_fac) result(child)
 
+        use orb_idx_mod, only: SpinOrbIdx_t
+        use gasci, only: operator(.contains.), GAS_specification
+        use SystemData, only: tGAS
+
         integer, intent(in) :: DetCurr(nel), nJ(nel)
         integer, intent(in) :: part_type    ! odd = Real parent particle, even = Imag parent particle
         integer(kind=n_int), intent(in) :: iLutCurr(0:NIfTot)
@@ -364,6 +368,7 @@ module fcimc_pointed_fns
             end if
 #endif
 
+!             ASSERT(prob /= 0.0_dp)
             nSpawn = - tau * MatEl * walkerweight / prob
 
 #ifdef DEBUG_

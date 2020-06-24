@@ -50,7 +50,12 @@ program test_k_space_hubbard
 
     use lanczos_wrapper, only: frsblk_wrapper
 
-    use unit_test_helpers
+    use unit_test_helpers, only: run_excit_gen_tester, setup_arr_brr, create_hamiltonian, &
+        create_hamiltonian, similarity_transform, create_all_spin_flips, get_tranformation_matrix, &
+        create_hamiltonian_old, create_hilbert_space
+
+    use matrix_util, only: check_symmetric, calc_eigenvalues, matrix_exponential, linspace, &
+        norm, det, eig, print_matrix, find_degeneracies, eig_sym
 
     use lattice_models_utils, only: gen_all_excits_k_space_hubbard, &
                                     gen_all_triples_k_space, create_hilbert_space_kspace, &

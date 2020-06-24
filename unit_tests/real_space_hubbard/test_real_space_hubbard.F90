@@ -21,13 +21,18 @@ program test_real_space_hubbard
                           t_trans_corr_new, t_uniform_excits, tHPHF, &
                           length_x, length_y
 
+    use bit_reps, only: niftot
+
     use lattice_mod, only: lat, init_dispersion_rel_cache
 
     use sort_mod, only: sort
 
     use util_mod, only: get_free_unit
 
-    use unit_test_helpers
+    use unit_test_helpers, only: create_spin_dependent_hopping, create_hamiltonian, &
+        similarity_transform, run_excit_gen_tester, setup_arr_brr
+
+    use matrix_util, only: norm, calc_eigenvalues, linspace, matrix_exponential, print_matrix, eig
 
     use dsfmt_interface, only: dsfmt_init
 

@@ -32,9 +32,10 @@ module sltcnd_mod
     use IntegralsData, only: UMAT
     use OneEInts, only: GetTMatEl, TMat2D
     use procedure_pointers, only: get_umat_el
-    use excitation_types, only: excitation_t, NoExc_t, SingleExc_t, DoubleExc_t, &
+    use excitation_types, only: Excitation_t, NoExc_t, SingleExc_t, DoubleExc_t, &
         TripleExc_t, FurtherExc_t, &
         UNKNOWN, get_excitation, get_bit_excitation, create_excitation
+    use orb_idx_mod, only: SpinOrbIdx_t
     use DetBitOps, only: count_open_orbs, FindBitExcitLevel
     use timing_neci
     use bit_reps, only: NIfTot
@@ -78,9 +79,28 @@ module sltcnd_mod
 !>
 !>  @param[in] exc, An excitation of a subtype of excitation_t.
     interface sltcnd_excit
-    #:for excitation_t in excitations
-        module procedure sltcnd_excit_${excitation_t}$
+    #:for Excitation_t in excitations
+        module procedure sltcnd_excit_${Excitation_t}$
     #:endfor
+        module procedure sltcnd_excit_SpinOrbIdx_t_SingleExc_t
+        module procedure sltcnd_excit_SpinOrbIdx_t_DoubleExc_t
+    end interface
+
+!>  @brief
+!>      Evaluate Matrix Element for different excitations
+!>      using the Slater-Condon rules.
+!>
+!>  @details
+!>  This generic function uses run time dispatch.
+!>  This means that exc can be any subtype of class(excitation_t).
+!>  For performance reason it is advised to use sltcnd_excit,
+!>  if the actual type is known at compile time.
+!>
+!>  @param[in] ref, The reference determinant as array of occupied orbital indices.
+!>  @param[in] exc, An excitation of type excitation_t.
+!>  @param[in] tParity, The parity of the excitation.
+    interface dyn_sltcnd_excit
+        module procedure dyn_sltcnd_excit_integer, dyn_sltcnd_excit_SpinOrbIdx_t
     end interface
 
     abstract interface
@@ -160,42 +180,42 @@ contains
     end subroutine initSltCndPtr
 
 
-!>  @brief
-!>      Evaluate Matrix Element for different excitations
-!>      using the Slater-Condon rules.
-!>
-!>  @details
-!>  This generic function uses run time dispatch.
-!>  This means that exc can be any subtype of class(excitation_t).
-!>  For performance reason it is advised to use sltcnd_excit,
-!>  if the actual type is known at compile time.
-!>
-!>  @param[in] ref, The reference determinant as array of occupied orbital indices.
-!>  @param[in] exc, An excitation of type excitation_t.
-!>  @param[in] tParity, The parity of the excitation.
-    function dyn_sltcnd_excit(ref, exc, tParity) result(hel)
+    function dyn_sltcnd_excit_integer(ref, exc, tParity) result(hel)
         integer, intent(in) :: ref(nel)
-        class(excitation_t), intent(in) :: exc
-        logical, intent(in) :: tParity
+        class(Excitation_t), intent(in) :: exc
+        logical, intent(in), optional :: tParity
+        logical :: tParity_
         HElement_t(dp) :: hel
         character(*), parameter :: this_routine = 'dyn_sltcnd_excit'
+
+        @:def_default(tParity_, tParity, .false.)
 
         ! The compiler has to statically know, of what type exc is.
         select type(exc)
         type is (NoExc_t)
             hel = sltcnd_excit(ref, exc)
         type is (SingleExc_t)
-            hel = sltcnd_excit(ref, exc, tParity)
+            hel = sltcnd_excit(ref, exc, tParity_)
         type is (DoubleExc_t)
-            hel = sltcnd_excit(ref, exc, tParity)
+            hel = sltcnd_excit(ref, exc, tParity_)
         type is (TripleExc_t)
-            hel = sltcnd_excit(exc, tParity)
+            hel = sltcnd_excit(exc, tParity_)
         type is (FurtherExc_t)
             hel = sltcnd_excit(exc)
         class default
             call stop_all(this_routine, "Error in downcast.")
         end select
     end function
+
+    function dyn_sltcnd_excit_SpinOrbIdx_t(ref, exc, tParity) result(hel)
+        type(SpinOrbIdx_t), intent(in) :: ref
+        class(Excitation_t), intent(in) :: exc
+        logical, intent(in), optional :: tParity
+        HElement_t(dp) :: hel
+        character(*), parameter :: this_routine = 'dyn_sltcnd_excit'
+        hel = dyn_sltcnd_excit(ref%idx, exc, tParity)
+    end function
+
 
     function dyn_sltcnd_excit_old(nI, IC, ex, tParity) result(hel)
 
@@ -214,7 +234,7 @@ contains
         HElement_t(dp) :: hel
         character(*), parameter :: this_routine = 'sltcnd_excit_old'
 
-        class(excitation_t), allocatable :: exc
+        class(Excitation_t), allocatable :: exc
 
         if (IC /= 0 .and. .not. (present(ex) .and. present(tParity))) &
             call stop_all(this_routine, "ex and tParity must be provided to &
@@ -228,7 +248,7 @@ contains
         integer, intent(in) :: nI(nel), nJ(nel), IC
         HElement_t(dp) :: hel
 
-        class(excitation_t), allocatable :: exc
+        class(Excitation_t), allocatable :: exc
         logical :: tParity
 
         call get_excitation(nI, nJ, IC, exc, tParity)
@@ -252,7 +272,7 @@ contains
 
         HElement_t(dp) :: hel
 
-        class(excitation_t), allocatable :: exc
+        class(Excitation_t), allocatable :: exc
         logical :: tParity
 
         call get_bit_excitation(ilutI, ilutJ, IC, exc, tParity)
@@ -879,9 +899,24 @@ contains
         type(SingleExc_t), intent(in) :: exc
         logical, intent(in) :: tParity
 
-
         sltcnd_excit_SingleExc_t = sltcnd_1(ref, exc, tParity)
     end function
+
+
+!>  @brief
+!>      Evaluate Matrix Element for SingleExc_t.
+!>
+!>  @param[in] ref, The occupied spin orbitals of the reference.
+!>  @param[in] exc, An excitation of type SingleExc_t.
+!>  @param[in] tParity, The parity of the excitation.
+    HElement_t(dp) function sltcnd_excit_SpinOrbIdx_t_SingleExc_t(ref, exc, tParity)
+        type(SpinOrbIdx_t), intent(in) :: ref
+        type(SingleExc_t), intent(in) :: exc
+        logical, intent(in) :: tParity
+
+        sltcnd_excit_SpinOrbIdx_t_SingleExc_t = sltcnd_1(ref%idx, exc, tParity)
+    end function
+
 
 !>  @brief
 !>      Evaluate Matrix Element for DoubleExc_t.
@@ -895,6 +930,21 @@ contains
         logical, intent(in) :: tParity
 
         sltcnd_excit_DoubleExc_t = sltcnd_2(ref, exc, tParity)
+    end function
+
+
+!>  @brief
+!>      Evaluate Matrix Element for DoubleExc_t.
+!>
+!>  @param[in] ref, The occupied spin orbitals of the reference.
+!>  @param[in] exc, An excitation of type DoubleExc_t.
+!>  @param[in] tParity, The parity of the excitation.
+    HElement_t(dp) function sltcnd_excit_SpinOrbIdx_t_DoubleExc_t(ref, exc, tParity)
+        type(SpinOrbIdx_t), intent(in) :: ref
+        type(DoubleExc_t), intent(in) :: exc
+        logical, intent(in) :: tParity
+
+        sltcnd_excit_SpinOrbIdx_t_DoubleExc_t = sltcnd_2(ref%idx, exc, tParity)
     end function
 
 !>  @brief
@@ -920,5 +970,6 @@ contains
 
         sltcnd_excit_FurtherExc_t = h_cast(0.0_dp)
     end function
+
 
 end module

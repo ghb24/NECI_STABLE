@@ -1,22 +1,33 @@
 Title
- 
+
 System read
     electrons  6
-    nonuniformrandexcits 4ind-weighted-2
     nobrillouintheorem
     freeformat
-    spin-conserving-gas
+    spin-restrict 0
+    GAS-CI only_disconnected
+    ( GAS-NO-SPIN-RECOUPLING
+    GAS-SPEC +++
+    3 +++
+    2 2 2 +++
+    4 4 4 +++
+    6 6 6
 endsys
- 
+
 calc
+    seed 7
+
+    definedet 1-2 5-6 9-10
+
+    totalwalkers 1000
+
     methods
         method vertex fcimc
     endmethods
-	seed 44
-    totalwalkers 2000
+
     diagshift .00
     shiftdamp .02
-    nmcyc 5000
+    nmcyc 1000
     stepsshift 10
     proje-changeref 1.20
     truncinitiator
@@ -31,12 +42,11 @@ calc
     memoryfacpart 5.00
     time 200
     startsinglepart 10
-	definedet 1-6
-	load-balance-interval 1000	
+
 endcalc
- 
+
 logging
     highlypopwrite 50
-	popsfile -1
+    hdf5-pops
 endlog
 end

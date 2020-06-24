@@ -305,7 +305,7 @@ logical :: t_test_excit_gen = .false.
 logical :: t_guga_noreorder = .false.
 
 ! Are we restricting excitations
-logical :: tNConservingGAS, tSpinConservingGAS
+logical :: tGAS = .false., tGASSpinRecoupling = .true.
 
 ! twisted boundary implementation for the hubbard model:
 ! use keyword twisted-bc [real, real] in System Block of input

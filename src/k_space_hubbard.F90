@@ -88,8 +88,6 @@ module k_space_hubbard
                                     pick_spin_opp_elecs, pick_from_cum_list, &
                                     pick_spin_par_elecs, pick_three_opp_elecs
 
-    use unit_test_helpers, only: print_matrix
-
     use guga_excitations, only: generate_excitation_guga, generate_excitation_guga_crude, &
                                 calc_guga_matrix_element, global_excitinfo, print_excitInfo
     use guga_bitRepOps, only: convert_ilut_toGUGA, init_csf_information, &
