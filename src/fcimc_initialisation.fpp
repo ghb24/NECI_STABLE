@@ -247,7 +247,7 @@ module fcimc_initialisation
 
     use OneEInts, only: tmat2d
 
-    use lattice_models_utils, only: gen_all_excits_k_space_hubbard
+    use lattice_models_utils, only: gen_all_excits_k_space_hubbard, gen_all_excits_r_space_hubbard
 
     use pchb_excitgen, only: gen_rand_excit_pchb, init_pchb_excitgen, finalize_pchb_excitgen
 
