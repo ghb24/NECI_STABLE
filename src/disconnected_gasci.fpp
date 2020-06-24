@@ -132,18 +132,6 @@ contains
         end subroutine setOrb
     end subroutine
 
-    subroutine init_from_file()
-        integer :: GAS_unit, nOrbs, GAS(nBasis .div. 2)
-
-        nOrbs = nBasis .div. 2
-        GAS_unit = get_free_unit()
-        open(GAS_unit, file="GASOrbs", status='old')
-            read(GAS_unit,  * ) GAS(1:nOrbs)
-        close(GAS_unit)
-
-        call init_GAS(GAS)
-    end subroutine init_from_file
-
     subroutine init_disconnected_GAS(GAS_spec)
         type(GASSpec_t), intent(in) :: GAS_spec
 
