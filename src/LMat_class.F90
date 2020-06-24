@@ -4,6 +4,7 @@ module LMat_class
     use LMat_indexing, only: lMatIndSym
     use shared_array
     use SystemData, only: nBasis
+    use IntegralsData, only: nFrozen, UMat
     use ParallelHelper
     use Parallel_neci
     use procedure_pointers, only: lMatInd_t
@@ -13,7 +14,7 @@ module LMat_class
     use util_mod, only: get_free_unit, operator(.div.)
     use tc_three_body_data, only: lMatEps, tHDF5LMat
     use HElem, only: HElement_t_sizeB
-    use UMatCache, only: numBasisIndices
+    use UMatCache, only: numBasisIndices, UMatInd
     use LoggingData, only: tHistLMat    
 #ifdef USE_HDF_
     use hdf5
@@ -205,7 +206,7 @@ contains
 
         integer(int64) :: nBI
 
-        nBI = int(numBasisIndices(nBasis),int64)
+        nBI = int(numBasisIndices(nBasis-nFrozen),int64)
         ! The size is given by the largest index (LMatInd is monotonous in all arguments)        
         size = this%indexFunc(nBI,nBI,nBI,nBI,nBI,nBI)
     end function lMat_size
@@ -225,6 +226,108 @@ contains
         if(tHistLMat) call this%histogram_lMat()
 
     end subroutine read
+
+    !------------------------------------------------------------------------------------------!  
+
+    subroutine freeze_lmat(matel, indices)
+        HElement_t(dp), intent(inout) :: matel
+        integer(int64), intent(inout) :: indices(6)
+
+        call add_core_en(matel, indices)
+        ! Offset the orbital indexing
+        indices = indices - nFrozen/2
+    end subroutine freeze_lmat
+
+    !------------------------------------------------------------------------------------------!    
+
+    subroutine add_core_en(matel, indices)
+        HElement_t(dp), intent(inout) :: matel
+        integer(int64), intent(in) :: indices(6)
+
+        integer(int64) :: index
+        logical :: t_par, t_freeze
+
+        index = frozen_entry(indices, t_freeze, t_par)
+        if(t_freeze) then
+            ! If the index is assigned, there is a duplicate frozen orb
+            if(index > 0) then
+                if(t_par) matel = -1.0_dp*matel
+                ! Absorb the matrix element into UMat
+                UMat(index) = UMat(index) + matel
+            endif
+            ! Zero the matrix element for further usage (i.e. will not turn up anymore)
+            matel = 0.0_dp
+        endif        
+    end subroutine add_core_en
+
+    !------------------------------------------------------------------------------------------!    
+
+    function frozen_entry(indices, t_freeze, t_par) result(index)
+        integer(int64), intent(in) :: indices(6)
+        logical, intent(out) :: t_freeze, t_par
+        integer(int64) :: index
+        integer :: a,b,c,i,j,k
+        logical :: frozenArr(6)
+
+        t_par = .false.
+        index = 0        
+        frozenArr = (indices-nFrozen/2) < 1
+        t_freeze = any(frozenArr)
+        ! Check if the matrix element is affected by freezing
+        if(t_freeze) then
+            a = int(indices(1))
+            b = int(indices(2))
+            c = int(indices(3))
+            i = int(indices(4))
+            j = int(indices(5))
+            k = int(indices(6))
+            ! Check if the matrix element shall be absorbed into the two-body terms
+            ! This is the case if there is any repeated index that is in the frozen
+            ! space
+            if(a==i .and. frozenArr(1)) then
+                index = UMatInd(b,c,j,k)
+            elseif(a==j .and. frozenArr(1)) then
+                index = UMatInd(b,c,i,k)
+                ! Odd permutations carry a different sign
+                t_par = .true.
+            elseif(a==k .and. frozenArr(1)) then
+                index = UMatInd(b,c,i,j)
+            elseif(a==b .and. frozenArr(1)) then
+                index = UMatInd(j,c,i,k)
+                t_par = .true.
+            elseif(a==c .and. frozenArr(1)) then
+                index = UMatInd(b,k,i,j)
+            elseif(b==i .and. frozenArr(2)) then
+                index = UMatInd(a,c,j,k)
+                t_par = .true.
+            elseif(b==j .and. frozenArr(2)) then
+                index = UMatInd(a,c,i,k)
+            elseif(b==k .and. frozenArr(2)) then
+                index = UMatInd(a,c,i,j)
+                t_par = .true.
+            elseif(b==c .and. frozenArr(2)) then
+                index = UMatInd(a,k,i,j)
+                t_par = .true.
+            elseif(c==i .and. frozenArr(3)) then
+                index = UMatInd(a,b,j,k)
+            elseif(c==j .and. frozenArr(3)) then
+                index = UMatInd(a,b,i,k)
+                t_par = .true.
+            elseif(c==k .and. frozenArr(3)) then
+                index = UMatInd(a,b,i,j)
+            elseif(i==j .and. frozenArr(4)) then
+                index = UMatInd(b,c,a,k)
+                t_par = .false.
+            elseif(i==k .and. frozenArr(4)) then
+                index = UMatInd(a,b,j,c)
+            elseif(j==k .and. frozenArr(5)) then
+                index = UMatInd(a,c,i,b)
+                t_par = .true.
+            endif
+
+        end if
+    end function frozen_entry
+
 
     !------------------------------------------------------------------------------------------!
     ! Dense lMat routines
@@ -286,10 +389,10 @@ contains
         class(dense_lMat_t), intent(inout) :: this
         character(*), intent(in) :: filename    
         integer :: iunit, ierr
-        integer(int64) :: a,b,c,i,j,k
+        integer(int64) :: indices(6)
         HElement_t(dp) :: matel
         character(*), parameter :: t_r = "readLMat"
-        integer(int64) :: counter
+        integer(int64) :: counter, index
 
         call this%alloc(this%lMat_size())
 
@@ -305,7 +408,8 @@ contains
                 open(iunit,file = filename, status = 'old')
                 counter = 0
                 do
-                    read(iunit,*,iostat = ierr) matel, a,b,c,i,j,k
+                    read(iunit,*,iostat = ierr) matel, indices
+                    call freeze_lmat(matel,indices)
                     ! end of file reached?
                     if(ierr < 0) then
                         exit
@@ -314,13 +418,15 @@ contains
                         call stop_all(t_r,"Error reading TCDUMP file")
                     else
                         ! else assign the matrix element
-                        if(this%indexFunc(a,b,c,i,j,k) > this%lMat_size()) then
-                            counter = this%indexFunc(a,b,c,i,j,k)
-                            write(iout,*) "Warning, exceeding size"
+                        if(abs(3.0_dp*matel) > LMatEps) then                        
+                            index = this%indexFunc(&
+                                indices(1),indices(2),indices(3),indices(4),indices(5), indices(6))
+                            if(index > this%lMat_size()) then
+                                counter = index
+                                write(iout,*) "Warning, exceeding size"
+                            endif
+                            this%lMat_vals%ptr(index) = 3.0_dp * matel
                         endif
-                        if(abs(3.0_dp*matel) > LMatEps) &
-                            this%lMat_vals%ptr(this%indexFunc(a,b,c,i,j,k)) = 3.0_dp * matel
-                        if(abs(matel)> 0.0_dp) counter = counter + 1
                     endif
 
                 end do
@@ -379,6 +485,7 @@ contains
         do i = 1, this_blocksize
             ! truncate down to lMatEps
             rVal = 3.0_dp * transfer(entries(1,i),rVal)
+            call freeze_lmat(rVal, indices(:,i))
             if(abs(rVal)>lMatEps) then
                 call this%set_elem(this%indexFunc(int(indices(1,i),int64),int(indices(2,i),int64),&
                     int(indices(3,i),int64),&
@@ -509,7 +616,7 @@ contains
 
         integer(int64) :: block_size, i
         integer(int64), allocatable :: combined_inds(:)        
-
+        integer(int64) :: dummy
         block_size = size(indices, dim=2)
         allocate(combined_inds(block_size))
         ! Transfer the 6 orbitals to one contiguous index
