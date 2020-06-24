@@ -62,7 +62,7 @@ module real_time
                             SumEContrib, end_iter_stats, check_semistoch_flags
     use procedure_pointers, only: generate_excitation, encode_child, &
                                   attempt_create, new_child_stats
-    use bit_rep_data, only:  nOffFlag, niftot, extract_sign
+    use bit_rep_data, only:  IlutBits, niftot, extract_sign
     use bit_reps, only: set_flag, flag_deterministic, flag_determ_parent, test_flag
     use fcimc_iter_utils, only: update_iter_data, collate_iter_data, iter_diagnostics, &
         population_check, update_shift, calculate_new_shift_wrapper, &
@@ -721,7 +721,7 @@ contains
                      if (.not. IsNullDet(nI_child)) then
 
                         call encode_child (CurrentDets(:,idet), ilut_child, ic, ex)
-                        ilut_child(nOffFlag) = 0_n_int
+                        ilut_child(IlutBits%ind_flag) = 0_n_int
 
                         if (tSemiStochastic) then
                            break = check_semistoch_flags(ilut_child, nI_child, part_type_to_run(ireplica), tParentIsDeterm)
@@ -894,7 +894,7 @@ contains
                     if (.not. IsNullDet(nI_child)) then
 
                         call encode_child (CurrentDets(:,idet), ilut_child, ic, ex)
-                        ilut_child(nOffFlag) = 0_n_int
+                        ilut_child(IlutBits%ind_flag) = 0_n_int
 
                         if (tSemiStochastic) then
                            break = check_semistoch_flags(ilut_child, nI_child, part_type_to_run(ireplica), tParentIsDeterm)
@@ -1106,7 +1106,7 @@ if(iProcIndex == root .and. .false.) then
             err = all_err
             throw = all_err /= 0
         end function catch_error
-        
+
     end subroutine perform_real_time_iteration
 
     subroutine perform_verlet_iteration(err)

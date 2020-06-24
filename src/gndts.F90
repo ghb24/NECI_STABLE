@@ -8,7 +8,7 @@ module gndts_mod
     use DetBitOps, only: count_open_orbs,encodebitdet
     use CalcData, only: tTruncNOpen,trunc_nopen_max, t_trunc_nopen_diff, &
                         trunc_nopen_diff
-    use bit_reps, only: niftot,encode_bit_rep
+    use bit_reps, only: niftot
     use constants, only: n_int
     use fcimcdata, only: ilutRef
     implicit none

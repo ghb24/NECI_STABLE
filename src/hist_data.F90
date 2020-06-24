@@ -14,8 +14,7 @@ module hist_data
     ! Should we histogram the distribution of spin dets within a given
     ! spatial structure --> Analyse spin development
     integer(n_int), allocatable, target :: hist_spin_dist(:,:)
-    real(dp), allocatable :: hist_csf_coeffs(:,:)
-    integer(TagIntType) :: tag_spindist=0, tag_histcsfs=0
+    integer(TagIntType) :: tag_spindist=0
 
     real(dp), allocatable :: Histogram(:,:), AllHistogram(:,:)
     real(dp), allocatable :: BeforeNormHist(:)

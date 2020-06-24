@@ -747,7 +747,7 @@ contains
     subroutine write_walkers(parent, MaxEx)
 
         use iso_c_hack
-        use bit_rep_data, only: NIfD, NIfTot, NOffSgn, extract_sign
+        use bit_rep_data, only: NIfD, NIfTot, IlutBits, extract_sign
         use FciMCData, only: AllTotWalkers, CurrentDets, MaxWalkersPart, &
                              TotWalkers, iLutHF,Iter, PreviousCycles
         use CalcData, only: tUseRealCoeffs
@@ -904,7 +904,7 @@ contains
                 wfn_grp_id, nm_sgns, H5T_NATIVE_REAL_8, &
                 PrintedDets, &
                 [int(lenof_sign, hsize_t), int(printed_count, hsize_t)], & ! dims
-                [int(nOffSgn, hsize_t), 0_hsize_t], & ! offset
+                [int(IlutBits%ind_pop, hsize_t), 0_hsize_t], & ! offset
                 [int(lenof_sign, hsize_t), all_count], & ! all dims
                 [0_hsize_t, sum(counts(0:iProcIndex-1))] & ! output offset
         )
@@ -1373,14 +1373,14 @@ contains
         use FciMCData, only: SpawnedParts2, SpawnedParts, ValidSpawnedList
 
         use Determinants, only: write_det
-        use bit_rep_data, only: NIfD, NIFBCast
+        use bit_rep_data, only: NIfD, IlutBits
         use SystemData, only: nel
 
         integer(hsize_t), intent(in) :: block_size
         character(*), parameter :: t_r = 'distribute_walkers_from_block'
         integer(hsize_t), dimension(:,:) :: temp_ilut, temp_sgns, gdata_buf, gdata_comm
         integer(hsize_t), dimension(:,:) :: gdata_loc
-        integer(hsize_t) :: onepart(0:NIfBCast)
+        integer(hsize_t) :: onepart(0:IlutBits%len_bcast)
         integer :: det(nel), p, j, proc, sizeilut, targetproc(block_size)
         integer(MPIArg) :: sendcount(0:nProcessors-1)
         integer :: index, index2

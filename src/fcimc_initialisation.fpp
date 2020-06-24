@@ -9,8 +9,8 @@ module fcimc_initialisation
                           tNoSingExcits, tOddS_HPHF, tSpn, tNoBrillouin, G1, &
                           tAssumeSizeExcitgen, tMolproMimic, tMolpro, tFixLz, &
                           tRef_Not_HF, LzTot, LMS, tKPntSym, tReal, nBasisMax,&
-                          tRotatedOrbs, MolproID, nBasis, arr, brr, nel, tCSF,&
-                          tHistSpinDist, tPickVirtUniform, tGen_4ind_reverse, &
+                          tRotatedOrbs, MolproID, nBasis, arr, brr, nel, &
+                          tPickVirtUniform, tGen_4ind_reverse, &
                           tGenHelWeighted, tGen_4ind_weighted, tLatticeGens, &
                           tGUGA, tGen_nosym_guga, ref_stepvector, ref_b_vector_int, &
                           ref_occ_vector, ref_b_vector_real, tUEGNewGenerator, &
@@ -50,7 +50,7 @@ module fcimc_initialisation
                         initial_refs, trial_init_reorder, tStartTrialLater, tTrialInit, &
                         ntrial_ex_calc, tPairedReplicas, tMultiRefShift, tPreCond, &
                         tMultipleInitialStates, initial_states, t_hist_tau_search, &
-                        t_guga_mat_eles, &
+                        t_direct_guga_ref, &
                         t_previous_hist_tau, t_fill_frequency_hists, t_back_spawn, &
                         t_trunc_nopen_diff, t_guga_back_spawn, tExpAdaptiveShift, &
                         t_back_spawn_option, t_back_spawn_flex_option, &
@@ -63,8 +63,6 @@ module fcimc_initialisation
                         tInitiatorSpace, i_space_in, tLinearAdaptiveShift,&
                         tExpAdaptiveShift, tAS_TrialOffset, ShiftOffset, &
                         tSpinProject
-
-    use spin_project, only: init_yama_store, clean_yama_store
 
     use adi_data, only: tReferenceChanged, tAdiActive, nExChecks, nExCheckFails,&
                         nRefUpdateInterval, SIUpdateInterval
@@ -98,7 +96,7 @@ module fcimc_initialisation
     use IntegralsData, only: tPartFreezeCore, nHolesFrozen, tPartFreezeVirt, &
                              nVirtPartFrozen, nPartFrozen, nelVirtFrozen
 
-    use bit_rep_data, only: NIfTot, NIfD, NIfDBO, NIfBCast, flag_initiator, &
+    use bit_rep_data, only: NIfTot, NIfD, IlutBits, flag_initiator, &
                             flag_deterministic, extract_sign
 
     use bit_reps, only: encode_det, clear_all_flags, set_flag, encode_sign, &
@@ -110,13 +108,11 @@ module fcimc_initialisation
                          BeforeNormHist, InstHist, iNoBins, AllInstHist, &
                          HistogramEnergy, AllHistogramEnergy, AllHistogram, &
                          BinRange
-    use hist, only: init_hist_spin_dist, init_hist_excit_tofrom, &
-                    clean_hist_spin_dist, clean_hist_excit_tofrom
+    use hist, only: init_hist_excit_tofrom, clean_hist_excit_tofrom
     use PopsfileMod, only: FindPopsfileVersion, initfcimc_pops, &
                            ReadFromPopsfilePar, ReadPopsHeadv3, &
                            ReadPopsHeadv4, open_pops_head, checkpopsparams
     use HPHFRandExcitMod, only: gen_hphf_excit, FindDetSpinSym
-    use GenRandSymExcitCSF, only: gen_csf_excit
     use GenRandSymExcitNUMod, only: gen_rand_excit, init_excit_gen_store, &
                                     clean_excit_gen_store
     use replica_estimates, only: open_replica_est_file
@@ -159,7 +155,6 @@ module fcimc_initialisation
                                  expShiftFactorFunction, constShiftFactorFunction, &
                                  linearShiftFactorFunction, autoShiftFactorFunction
 
-    use csf_data, only: csf_orbital_mask
     use initial_trial_states, only: calc_trial_states_lanczos, &
                                     set_trial_populations, set_trial_states, calc_trial_states_direct
     use global_det_data, only: global_determinant_data, set_det_diagH, &
@@ -178,7 +173,6 @@ module fcimc_initialisation
     use excit_gen_5, only: gen_excit_4ind_weighted2
     use tc_three_body_excitgen, only: gen_excit_mol_tc, setup_mol_tc_excitgen
     use pcpp_excitgen, only: gen_rand_excit_pcpp, init_pcpp_excitgen, finalize_pcpp_excitgen
-    use csf, only: get_csf_helement
 
     use tau_search, only: init_tau_search, max_death_cpt
 
@@ -502,7 +496,7 @@ contains
             ! only initialize that if we use the old way to calc the
             ! reference energy!
             ! for testing purposes initiaize both
-            if (.not. t_guga_mat_eles) then
+            if (.not. t_direct_guga_ref) then
                 do run = 1, inum_runs
                     call create_projE_list(run)
                 end do
@@ -572,10 +566,10 @@ contains
             ENDIF
         enddo
         CALL LargestBitSet(iLutHF,NIfD,LargestOrb)
-        IF(LargestOrb .ne. iand(HFDet(NEl), csf_orbital_mask)) THEN
+        IF(LargestOrb .ne. hfdet(nel)) then
             write(6,*) 'ilut HF', ilutHF
             write(6,*) 'largest orb', largestorb
-            write(6,*) 'HFDet', iand(hfdet, csf_orbital_mask)
+            write(6,*) 'HFDet', hfdet
             CALL Stop_All(t_r,"LargestBitSet FAIL")
         ENDIF
         nBits = CountBits(iLutHF, NIfD, NEl)
@@ -646,7 +640,7 @@ contains
         ! random excitation generator, we also want to use the NoSpinSym full
         ! excitation generators if they are needed.
 
-        CALL GetSym(iand(HFDet, csf_orbital_mask),NEl,G1,NBasisMax,HFSym)
+        CALL GetSym(HFDet,NEl,G1,NBasisMax,HFSym)
 
         Sym_Psi=INT(HFSym%Sym%S,sizeof_int)  !Store the symmetry of the wavefunction for later
         WRITE(iout,"(A,I10)") "Symmetry of reference determinant is: ",INT(HFSym%Sym%S,sizeof_int)
@@ -654,7 +648,7 @@ contains
         if (TwoCycleSymGens) then
             SymHF=0
             do i=1,NEl
-                SymHF=IEOR(SymHF,G1(iand(HFDet(i), csf_orbital_mask))%Sym%S)
+                SymHF=IEOR(SymHF,G1(HFDet(i))%Sym%S)
             enddo
             WRITE(iout,"(A,I10)") "Symmetry of reference determinant from spin orbital symmetry info is: ",SymHF
             if(SymHF.ne.HFSym%Sym%S) then
@@ -695,7 +689,7 @@ contains
         IF(.not.tKPntSym) THEN
 !Count all possible excitations - put into HFConn
 !TODO: Get CountExcitations3 working with tKPntSym
-            CALL CountExcitations3(iand(HFDet, csf_orbital_mask),exflag,nSingles,nDoubles)
+            CALL CountExcitations3(HFDet,exflag,nSingles,nDoubles)
         ELSE
             if (t_k_space_hubbard) then
                 ! use my gen_all_excits_k_space_hubbard routine from the
@@ -893,10 +887,10 @@ contains
             !We require calculation of the sum of fock eigenvalues,
             !without knowing them - calculate from the full 1e matrix elements
             !of full hamiltonian removing two electron terms.
-            TempHii=GetH0Element4(iand(HFDet, csf_orbital_mask),iand(HFDet, csf_orbital_mask))
+            TempHii=GetH0Element4(HFDet,HFDet)
         else
             !Know fock eigenvalues, so just use these.
-            TempHii=GetH0Element3(iand(HFDet, csf_orbital_mask))
+            TempHii=GetH0Element3(hfdet)
         endif
         Fii=REAL(TempHii,dp)
 
@@ -1227,11 +1221,6 @@ contains
             endif
         endif
 
-        ! Initialise the spin distribution histogramming
-        if (tHistSpinDist) then
-            call init_hist_spin_dist ()
-        endif
-
         if (tHistExcitToFrom) &
             call init_hist_excit_tofrom()
 
@@ -1425,7 +1414,7 @@ contains
         integer :: read_nnodes
         !Variables from popsfile header...
         logical :: tPop64Bit,tPopHPHF,tPopLz
-        integer :: iPopLenof_sign,iPopNel,iPopIter,PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot,Popinum_runs
+        integer :: iPopLenof_sign,iPopNel,iPopIter,PopNIfD,PopNIfSgn,PopNIfFlag,PopNIfTot,Popinum_runs
         integer :: PopRandomHash(2056), PopBalanceBlocks
         integer(int64) :: iPopAllTotWalkers
         integer :: i, run
@@ -1479,7 +1468,7 @@ contains
                 if(PopsVersion.eq.3) then
                     call ReadPopsHeadv3(iunithead,tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
                             iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter,   &
-                            PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot)
+                            PopNIfD,PopNIfSgn,PopNIfFlag,PopNIfTot)
 
                     ! The following values were not read in...
                     read_tau = 0.0_dp
@@ -1491,7 +1480,7 @@ contains
                     ! whenever we want.
                     call ReadPopsHeadv4(iunithead,tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
                             iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter, &
-                            PopNIfD,PopNIfY,PopNIfSgn,Popinum_runs,PopNIfFlag,PopNIfTot, &
+                            PopNIfD,PopNIfSgn,Popinum_runs,PopNIfFlag,PopNIfTot, &
                             read_tau,PopBlockingIter, PopRandomHash, read_psingles, &
                             read_pparallel, read_ptriples, read_nnodes, read_walkers_on_nodes,&
                             PopBalanceBlocks)
@@ -1520,7 +1509,7 @@ contains
 
                 call CheckPopsParams(tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
                         iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter, &
-                        PopNIfD,PopNIfY,PopNIfSgn,PopNIfTot, &
+                        PopNIfD,PopNIfSgn,PopNIfTot, &
                         MaxWalkersUncorrected,read_tau,PopBlockingIter, read_psingles, read_pparallel, &
                         read_ptriples, perturb_ncreate, perturb_nannihilate)
 
@@ -1584,12 +1573,14 @@ contains
 
             write(iout,"(A,I12,A)") "Spawning vectors allowing for a total of ",MaxSpawned, &
                     " particles to be spawned in any one iteration per core."
-            write(iout,*) "Memory requirement ", NIfBcast*8.0_dp*( &
+            write(iout,*) "Memory requirement ", IlutBits%len_bcast*8.0_dp*( &
                  MaxSpawned/1048576.0_dp), "MB"
 
-            allocate(SpawnVec(0:NIfBCast, MaxSpawned), stat=ierr, source=0_n_int)
+            allocate(SpawnVec(0:IlutBits%len_bcast, MaxSpawned), &
+                stat=ierr, source=0_n_int)
             @:log_alloc(SpawnVec, SpawnVecTag, ierr)
-            allocate(SpawnVec2(0:NIfBCast, MaxSpawned), stat=ierr, source=0_n_int)
+            allocate(SpawnVec2(0:IlutBits%len_bcast, MaxSpawned), &
+                stat=ierr, source=0_n_int)
             @:log_alloc(SpawnVec2, SpawnVec2Tag, ierr)
 
             if (use_spawn_hash_table) then
@@ -1802,20 +1793,10 @@ contains
             & calculation.  Ordering of orbitals is incorrect.  This may be fixed if needed.")
         endif
 
-        if (tSpinProject) then
-            if (inum_runs.eq.2) call stop_all(this_routine,"Code not yet set up to do a double run &
-                    & with tSpinProject. E.g. when calling the main loop, tSinglePartPhase is now length 2")
-            call init_yama_store ()
-        endif
-
         if (tRDMonFly) then
             call init_rdms(nrdms_standard, nrdms_transition)
-        end if
-        ! This keyword (tRDMonFly) is on from the beginning if we eventually plan to calculate the RDM's.
-
-        !If the iteration specified to start filling the RDM has already been, want to
-        !start filling as soon as possible.
-        if (tRDMonFly) then
+            !If the iteration specified to start filling the RDM has already been, want to
+            !start filling as soon as possible.
             do run=1,inum_runs
                 if(.not.tSinglePartPhase(run)) VaryShiftIter(run) = 0
             enddo
@@ -1858,13 +1839,6 @@ contains
             else
                 call init_trial_wf(trial_space_in, ntrial_ex_calc, inum_runs, .false.)
             end if
-            if(tAS_TrialOffset)then
-                do run=1, inum_runs
-                    if(trial_energies(run)-Hii<ShiftOffset) &
-                        ShiftOffset = trial_energies(run)-Hii
-                enddo
-                write(6,*) "The adaptive shift is offset by the correlation energy of trail-wavefunction: ", ShiftOffset
-            endif
         else if (tStartTrialLater) then
             ! If we are going to turn on the use of a trial wave function
             ! later in the calculation, then zero the trial estimate arrays
@@ -1999,8 +1973,6 @@ contains
             end if
         elseif (tUEGNewGenerator) then
             generate_excitation => gen_ueg_excit
-        elseif (tCSF) then
-            generate_excitation => gen_csf_excit
         elseif (tPickVirtUniform) then
             ! pick-uniform-random-mag is on
             if (tReltvy) then
@@ -2060,7 +2032,7 @@ contains
         else if (tTruncCas .or. tTruncSpace .or. &
             tPartFreezeCore .or. tPartFreezeVirt .or. tFixLz .or. &
             (tUEG .and. .not. tLatticeGens) .or. tTruncNOpen .or. t_trunc_nopen_diff) then
-            if (tHPHF .or. tCSF .or. tSemiStochastic) then
+            if (tHPHF .or. tSemiStochastic) then
                 attempt_create => attempt_create_trunc_spawn
             else
                 attempt_create => att_create_trunc_spawn_enc
@@ -2071,9 +2043,7 @@ contains
 
         ! In attempt create, how should we evaluate the off diagonal matrix
         ! elements between a parent and its (potentially) spawned offspring?
-        if (tCSF) then
-            get_spawn_helement => get_csf_helement
-        elseif (tHPHF) then
+        if (tHPHF) then
             if (tGenMatHEL) then
                 get_spawn_helement => hphf_spawn_sign
             else
@@ -2091,16 +2061,14 @@ contains
         ! When calling routines to generate all possible connections, this
         ! routine is called to generate the corresponding Hamiltonian matrix
         ! elements.
-        if (tCSF) then
-            get_conn_helement => get_csf_helement
-        elseif (tHPHF) then
+        if (tHPHF) then
             get_conn_helement => hphf_off_diag_helement_spawn
         else
             get_conn_helement => get_helement_det_only
         endif
 
         ! Once we have generated the children, do we need to encode them?
-        if (.not. (tCSF .or. tHPHF .or. tGen_4ind_weighted .or. tGUGA)) then
+        if (.not. (tHPHF .or. tGen_4ind_weighted .or. tGUGA)) then
             encode_child => FindExcitBitDet
         else
             encode_child => null_encode_child
@@ -2228,7 +2196,6 @@ contains
                 DEALLOCATE(AllSinglesHistVirtVirt)
             ENDIF
         ENDIF
-        if (tHistSpinDist) call clean_hist_spin_dist()
         if (tHistExcitToFrom) call clean_hist_excit_tofrom()
         DEALLOCATE(WalkVecDets)
         CALL LogMemDealloc(this_routine,WalkVecDetsTag)
@@ -2300,9 +2267,6 @@ contains
 
         ! Cleanup excitation generation storage
         call clean_excit_gen_store (fcimc_excit_gen_store)
-
-        ! Cleanup storage for spin projection
-        call clean_yama_store ()
 
         ! Cleanup cont time
         call clean_cont_time()
@@ -2435,7 +2399,7 @@ contains
          ! reset the reference?
       end do
 
-      call hash_table_lookup(HFDet,ilutHF,NIfDBO,HashIndex,CurrentDets,i,DetHash,tSuccess)
+      call hash_table_lookup(HFDet,ilutHF,nifd,HashIndex,CurrentDets,i,DetHash,tSuccess)
       if(tSuccess) then
          call extract_sign(CurrentDets(:,i),tmpSgn)
          do i = 1, inum_runs
@@ -3330,7 +3294,7 @@ contains
 
                 if (abs(NoWalkers) > 1.0e-12_dp) then
                     call EncodeBitDet(CASFullDets(:,i),iLutnJ)
-                    if(DetBitEQ(iLutnJ, iLutRef(:,1), NIfDBO)) then
+                    if(DetBitEQ(iLutnJ, iLutRef(:,1), nifd)) then
                         !Check if this determinant is reference determinant, so we can count number on hf.
                         do run=1,inum_runs
                             NoatHF(run) = NoWalkers
@@ -3763,22 +3727,11 @@ contains
         implicit none
         real(dp) :: denom
         INTEGER :: iTotal
-        integer :: nSingles, nDoubles, ncsf, nSing_spindiff1, nDoub_spindiff1, nDoub_spindiff2
+        integer :: nSingles, nDoubles, nSing_spindiff1, nDoub_spindiff1, nDoub_spindiff2
         integer :: nTot
-        integer :: hfdet_loc(nel)
         character(*), parameter :: this_routine = "CalcApproxpDoubles"
         integer(n_int), allocatable :: dummy_list(:,:)
 
-        ! A quick hack. Count excitations as though we were a determinant.
-        ! We could fix this later...
-        hfdet_loc = iand(hfdet, csf_orbital_mask)
-
-        ! TODO: A better approximation for ncsf.
-        if (tCSF) then
-            ncsf = 10
-        else
-            ncsf = 0
-        endif
         nSingles=0
         nDoubles=0
         if (tReltvy) then
@@ -3798,15 +3751,15 @@ contains
         if (tReltvy) then
             write(iout,*) "Counting magnetic excitations"
             ! subroutine CountExcitations4(nI, minRank, maxRank, minSpinDiff, maxSpinDiff, tot)
-            call CountExcitations4(HFDet_loc, 1, 1, 0, 0, nSingles)
-            call CountExcitations4(HFDet_loc, 1, 1, 1, 1, nSing_spindiff1)
-            call CountExcitations4(HFDet_loc, 2, 2, 0, 0, nDoubles)
-            call CountExcitations4(HFDet_loc, 2, 2, 1, 1, nDoub_spindiff1)
-            call CountExcitations4(HFDet_loc, 2, 2, 2, 2, nDoub_spindiff2)
-            call CountExcitations4(HFDet_loc, 1, 2, 0, 2, nTot)
+            call CountExcitations4(hfdet, 1, 1, 0, 0, nSingles)
+            call CountExcitations4(hfdet, 1, 1, 1, 1, nSing_spindiff1)
+            call CountExcitations4(hfdet, 2, 2, 0, 0, nDoubles)
+            call CountExcitations4(hfdet, 2, 2, 1, 1, nDoub_spindiff1)
+            call CountExcitations4(hfdet, 2, 2, 2, 2, nDoub_spindiff2)
+            call CountExcitations4(hfdet, 1, 2, 0, 2, nTot)
             ASSERT(nTot==(nSingles+nSing_spindiff1+nDoubles+nDoub_spindiff1+nDoub_spindiff2))
 
-            iTotal=nSingles + nDoubles + nSing_spindiff1 + nDoub_spindiff1 + nDoub_spindiff2 + ncsf
+            iTotal=nSingles + nDoubles + nSing_spindiff1 + nDoub_spindiff1 + nDoub_spindiff2
 
         else
             if (tKPntSym) THEN
@@ -3817,9 +3770,9 @@ contains
                     call enumerate_sing_doub_kpnt(exFlag, .false., nSingles, nDoubles, .false.)
                 end if
             else
-                call CountExcitations3(HFDet_loc,exflag,nSingles,nDoubles)
+                call CountExcitations3(hfdet,exflag,nSingles,nDoubles)
             endif
-            iTotal=nSingles + nDoubles + ncsf
+            iTotal=nSingles + nDoubles
         endif
 
         IF(tHub.or.tUEG) THEN
@@ -3878,34 +3831,24 @@ contains
             pDoubles = 0.95_dp
             pSingles = 0.05_dp
             return
-        elseif ((nSingles < 0) .or. (nDoubles < 0) .or. (ncsf < 0)) then
+        elseif ((nSingles < 0) .or. (nDoubles < 0)) then
             call stop_all("CalcApproxpDoubles", &
                           "Number of singles, doubles or Yamanouchi symbols &
                           &found to be a negative number. Error here.")
         endif
-
-        ! Set pDoubles to be the fraction of double excitations.
-        ! If using CSFs, also consider only changing Yamanouchi Symbol
-        if (tCSF) then
-            denom=real(nSingles,dp)*SinglesBias+real(nDoubles,dp)+real(ncsf,dp)
-            pSingles = real(nSingles,dp) / denom
+        if (tReltvy) then
+            denom=real(nSingles+nSing_spindiff1,dp)*SinglesBias &
+                + real(nDoubles+nDoub_spindiff1+nDoub_spindiff2,dp)
+            pSingles = real(nSingles,dp)*SinglesBias / denom
+            pSing_spindiff1 = real(nSing_spindiff1,dp)*SinglesBias / denom
             pDoubles = real(nDoubles,dp) / denom
-            !Note that this does not sum to one, since it also allows for
-            !changing on yamanouchi symbol
-            ASSERT(.not.tReltvy)
+            pDoub_spindiff1 = real(nDoub_spindiff1,dp) / denom
+            pDoub_spindiff2 = 1.0_dp - pSingles - pSing_spindiff1 &
+                - pDoubles - pDoub_spindiff1 - pDoub_spindiff2
         else
-            if (tReltvy) then
-                denom=real(nSingles+nSing_spindiff1,dp)*SinglesBias+real(nDoubles+nDoub_spindiff1+nDoub_spindiff2,dp)
-                pSingles = real(nSingles,dp)*SinglesBias / denom
-                pSing_spindiff1 = real(nSing_spindiff1,dp)*SinglesBias / denom
-                pDoubles = real(nDoubles,dp) / denom
-                pDoub_spindiff1 = real(nDoub_spindiff1,dp) / denom
-                pDoub_spindiff2 = 1.0_dp - pSingles - pSing_spindiff1 - pDoubles - pDoub_spindiff1 - pDoub_spindiff2
-            else
-                denom=real(nSingles,dp)*SinglesBias+real(nDoubles,dp)
-                pSingles = real(nSingles,dp)*SinglesBias / denom
-                pDoubles = 1.0_dp - pSingles
-           endif
+            denom=real(nSingles,dp)*SinglesBias+real(nDoubles,dp)
+            pSingles = real(nSingles,dp)*SinglesBias / denom
+            pDoubles = 1.0_dp - pSingles
         endif
 
         IF (abs(SinglesBias - 1.0_dp) > 1.0e-12_dp) THEN

@@ -158,8 +158,11 @@ real(dp) :: AAS_DenCut !Threshold on the denominators of MatEles
 real(dp) :: AAS_Const
 logical :: tExpAdaptiveShift !Make the shift depends on the population exponentialy
 real(dp) :: EAS_Scale !Scale parameter of exponentail adaptive shift
-logical :: tAS_TrialOffset !Whether the adaptive shift scheme should be applied with respect to trial-wf energy not HF energy
-real(dp) :: ShiftOffset ! An offest for the adaptive shift
+
+logical :: tAS_Offset !Whether the adaptive shift scheme should be applied with respect to a custom energy instead of ref energy
+real(dp) ShiftOffset(1:inum_runs_max)! Offset of the adaptive shift (Full offset including the reference energy Hii)
+logical :: tAS_TrialOffset ! Whether the trial-wf energy should be used as an adaptive shift offset
+
 ! Giovannis option for using only initiators for the RDMs (off by default)
 logical :: tOutputInitsRDM = .false.
 logical :: tNonInitsForRDMs = .true.
@@ -273,7 +276,6 @@ logical :: t_fast_pops_core = .true.
 
 ! Options regarding splitting the space into core and non-core elements. Needed, for example when performing a
 ! semi-stochastic simulation, to specify the deterministic space.
-logical :: tCSFCore ! Use CSFs for the core states.
 logical :: tSparseCoreHamil ! Use a sparse representation of the core Hamiltonian.
 
 ! If this is non-zero then we turn semi-stochastic on semistoch_shift_iter
@@ -598,11 +600,9 @@ logical :: enough_sing_hist, enough_doub_hist, enough_par_hist, enough_opp_hist
 real(dp) :: int_ratio_singles, int_ratio_para, int_ratio_anti, int_ratio_doubles
 
 
-! introduce a new logical to decide if we want to calculate matrix elements
-! by applying the full hamiltonian(the old way) or use the new guga matrix
-! element calculation routines. to compare the influence on the time per
-! iteration
-logical :: t_guga_mat_eles = .true.
+! make a flag to decide to calculate the projected energy directly and not
+! by initialising a list of all connected states
+logical :: t_direct_guga_ref = .false.
 
 ! introduce a flag to read the pSingles/pDoubles quantity even though the
 ! tau-search may be turned off

@@ -10,6 +10,8 @@ module rdm_estimators
 
     use SystemData, only: tGUGA
     use guga_rdm, only: calc_rdm_energy_guga
+    use guga_bitRepOps, only: extract_2_rdm_ind
+    use util_mod, only: near_zero
 
     implicit none
 
@@ -51,9 +53,9 @@ contains
         allocate(est%energy_1_num(nrdms), stat=ierr)
         allocate(est%energy_2_num(nrdms), stat=ierr)
         allocate(est%energy_num(nrdms), stat=ierr)
-        allocate(est%spin_num(nrdms), stat=ierr)
+        if (.not. tGUGA)  allocate(est%spin_num(nrdms), stat=ierr)
         if (tCalcPropEst) allocate(est%property(iNumPropToEst,nrdms), stat=ierr)
-        if (tEN2) allocate(est%energy_pert(nrdms_standard), stat=ierr)
+        if (tEN2)         allocate(est%energy_pert(nrdms_standard), stat=ierr)
 
         ! "Instantaneous" estimates over the previous sampling block.
         allocate(est%trace_inst(nrdms), stat=ierr)
@@ -61,9 +63,9 @@ contains
         allocate(est%energy_1_num_inst(nrdms), stat=ierr)
         allocate(est%energy_2_num_inst(nrdms), stat=ierr)
         allocate(est%energy_num_inst(nrdms), stat=ierr)
-        allocate(est%spin_num_inst(nrdms), stat=ierr)
+        if (.not. tGUGA)  allocate(est%spin_num_inst(nrdms), stat=ierr)
         if (tCalcPropEst) allocate(est%property_inst(iNumPropToEst,nrdms), stat=ierr)
-        if (tEN2) allocate(est%energy_pert_inst(nrdms_standard), stat=ierr)
+        if (tEN2)         allocate(est%energy_pert_inst(nrdms_standard), stat=ierr)
 
         ! Hermiticity errors, for the final RDMs.
         allocate(est%max_error_herm(nrdms), stat=ierr)
@@ -74,16 +76,16 @@ contains
         est%energy_1_num = 0.0_dp
         est%energy_2_num = 0.0_dp
         est%energy_num = 0.0_dp
-        est%spin_num = 0.0_dp
+        if (.not. tGUGA)  est%spin_num = 0.0_dp
         if (tCalcPropEst) est%property = 0.0_dp
-        if (tEN2) est%energy_pert = 0.0_dp
+        if (tEN2)         est%energy_pert = 0.0_dp
 
         est%trace_inst = 0.0_dp
         est%norm_inst = 0.0_dp
         est%energy_1_num_inst = 0.0_dp
         est%energy_2_num_inst = 0.0_dp
         est%energy_num_inst = 0.0_dp
-        est%spin_num_inst = 0.0_dp
+        if (.not. tGUGA) est%spin_num_inst = 0.0_dp
         if (tCalcPropEst) est%property_inst = 0.0_dp
         if (tEN2) est%energy_pert_inst = 0.0_dp
 
@@ -234,7 +236,7 @@ contains
         est%energy_1_num_inst = est%energy_1_num
         est%energy_2_num_inst = est%energy_2_num
         est%energy_num_inst = est%energy_num
-        est%spin_num_inst = est%spin_num
+        if (.not. tGUGA)  est%spin_num_inst = est%spin_num
         if (tCalcPropEst) est%property_inst = est%property
 
         ! Calculate the new total values.
@@ -243,8 +245,13 @@ contains
         call MPISumAll(rdm_trace, est%trace)
 
         ! RDMs are normalised so that their trace is nel*(nel-1)/2.
-        rdm_norm = rdm_trace*2.0_dp/(nel*(nel-1))
-        est%norm = est%trace*2.0_dp/(nel*(nel-1))
+        if (tGUGA) then
+            rdm_norm = rdm_trace*1.0_dp/(nel*(nel-1))
+            est%norm = est%trace*1.0_dp/(nel*(nel-1))
+        else
+            rdm_norm = rdm_trace*2.0_dp/(nel*(nel-1))
+            est%norm = est%trace*2.0_dp/(nel*(nel-1))
+        end if
 
         ! For the transition RDMs, we want to calculate the norms using the
         ! non-transition RDMs.
@@ -253,10 +260,10 @@ contains
         end do
 
         ! The 1- and 2- electron operator contributions to the RDM energy.
-        if (.not. tGUGA) then
-            call calc_rdm_energy(rdm, rdm_energy_1, rdm_energy_2)
-        else
+        if (tGUGA) then
             call calc_rdm_energy_guga(rdm, rdm_energy_1, rdm_energy_2)
+        else
+            call calc_rdm_energy(rdm, rdm_energy_1, rdm_energy_2)
         end if
 
         call MPISumAll(rdm_energy_1, est%energy_1_num)
@@ -289,7 +296,7 @@ contains
         est%energy_1_num_inst = est%energy_1_num - est%energy_1_num_inst
         est%energy_2_num_inst = est%energy_2_num - est%energy_2_num_inst
         est%energy_num_inst = est%energy_num - est%energy_num_inst
-        est%spin_num_inst = est%spin_num - est%spin_num_inst
+        if (.not. tGUGA) est%spin_num_inst = est%spin_num - est%spin_num_inst
         if(tCalcPropEst) est%property_inst = est%property - est%property_inst
 
         ! For the EN Perturbation terms, we clear them at the start of
@@ -333,8 +340,12 @@ contains
             if (tRDMInstEnergy) then
                 write(est%write_unit, '(1x,i13)', advance='no') Iter+PreviousCycles
                 do irdm = 1, est%nrdms_standard
-                    write(est%write_unit, '(2(3x,es20.13))', advance='no') &
-                        est%energy_num_inst(irdm), est%spin_num_inst(irdm)
+                    write(est%write_unit, '(3x,es20.13)', advance='no') &
+                        est%energy_num_inst(irdm)
+                    if (.not. tGUGA) then
+                        write(est%write_unit, '(3x,es20.13)', advance = 'no') &
+                            est%spin_num_inst(irdm)
+                    end if
                     if (tEN2) then
                         write(est%write_unit,'(2(3x,es20.13))', advance='no') &
                             est%energy_pert_inst(irdm), est%energy_pert_inst(irdm) + est%energy_num_inst(irdm)
@@ -360,8 +371,12 @@ contains
             else
                 write(est%write_unit, '(1x,i13)', advance='no') Iter+PreviousCycles
                 do irdm = 1, est%nrdms_standard
-                    write(est%write_unit, '(2(3x,es20.13))', advance='no') &
-                        est%energy_num(irdm), est%spin_num(irdm)
+                    write(est%write_unit, '(3x,es20.13)', advance='no') &
+                        est%energy_num(irdm)
+                    if (.not. tGUGA) then
+                        write(est%write_unit, '(3x,es20.13)', advance = 'no') &
+                            est%spin_num(irdm)
+                    end if
                     if (tEN2) then
                         write(est%write_unit,'(2(3x,es20.13))', advance='no') &
                             est%energy_pert(irdm), est%energy_pert(irdm) + est%energy_num(irdm)
@@ -403,7 +418,11 @@ contains
                 write(6,'(1x,"2-RDM ESTIMATES FOR STATE",1x,'//int_fmt(irdm)//',":",)') irdm
 
                 write(6,'(1x,"Trace of 2-el-RDM before normalisation:",1x,es17.10)') est%trace(irdm)
-                write(6,'(1x,"Trace of 2-el-RDM after normalisation:",1x,es17.10)') est%trace(irdm)/est%norm(irdm)
+                if (tGUGA) then
+                    write(6,'(1x,"Trace of 2-el-RDM after normalisation:",1x,es17.10)') est%trace(irdm)/est%norm(irdm)/2.0_dp
+                else
+                    write(6,'(1x,"Trace of 2-el-RDM after normalisation:",1x,es17.10)') est%trace(irdm)/est%norm(irdm)
+                end if
 
                 write(6,'(1x,"Energy contribution from the 1-RDM:",1x,es17.10)') est%energy_1_num(irdm)/est%norm(irdm)
                 write(6,'(1x,"Energy contribution from the 2-RDM:",1x,es17.10)') est%energy_2_num(irdm)/est%norm(irdm)
@@ -613,7 +632,7 @@ contains
         ! The values ( \sum_i H_{ai} \psi_i )^2 are what is stored as the signs
         ! in the en_pert%dets objects.
 
-        use bit_rep_data, only: nIfDBO, NIfTot
+        use bit_rep_data, only: nifd, NIfTot
         use bit_reps, only: decode_bit_det
         use determinants, only: get_helement
         use FciMCData, only: Hii
@@ -639,7 +658,7 @@ contains
 
         ! Loop over all determinants.
         do idet = 1, en_pert%ndets
-            ilut(0:NIfDBO) = en_pert%dets(0:NIfDBO,idet)
+            ilut(0:nifd) = en_pert%dets(0:nifd,idet)
             call decode_bit_det(nI, ilut)
 
             if (tHPHF) then
@@ -689,10 +708,12 @@ contains
         real(dp), intent(in) :: rdm_norm(rdm%sign_length)
         real(dp), intent(out) :: max_error_herm_all(rdm%sign_length)
         real(dp), intent(out) :: sum_error_herm_all(rdm%sign_length)
+        character(*), parameter :: this_routine = "calc_hermitian_errors"
 
         integer(int_rdm) :: ijkl
         integer :: ielem
         integer :: ij, kl, i, j, k, l ! spin orbitals
+        integer(int_rdm) :: ij_, kl_
         real(dp) :: rdm_sign(rdm%sign_length)
         real(dp) :: max_error_herm(rdm%sign_length), sum_error_herm(rdm%sign_length)
         logical :: nearly_full, finished, all_finished
@@ -716,15 +737,18 @@ contains
             end if
 
             ijkl = rdm%elements(0,ielem)
-            ! Obtain spin orbital labels and the RDM element sign.
-            call calc_separate_rdm_labels(ijkl, ij, kl, i, j, k, l)
+            ! Obtain RDM element sign
             call extract_sign_rdm(rdm%elements(:,ielem), rdm_sign)
 
-            ! If in the lower half of the RDM, reflect to the upper half and
-            ! include with a minus sign.
             if (tGUGA) then
-                call add_to_rdm_spawn_t(spawn, i, j, k, l, rdm_sign, .false., nearly_full)
+                call extract_2_rdm_ind(ijkl, i, j, k, l, ij_, kl_)
+                call add_to_rdm_spawn_t(spawn, i, j, k, l, rdm_sign, .true., nearly_full)
+                call add_to_rdm_spawn_t(spawn, k, l, i, j, -rdm_sign, .true., nearly_full)
             else
+                ! Obtain spin orbital labels
+                call calc_separate_rdm_labels(ijkl, ij, kl, i, j, k, l)
+                ! If in the lower half of the RDM, reflect to the upper half and
+                ! include with a minus sign.
                 if (ij > kl) then
                     call add_to_rdm_spawn_t(spawn, k, l, i, j, -rdm_sign, .false., nearly_full)
                 else if (ij < kl) then
@@ -749,7 +773,6 @@ contains
         ! Find the largest error and sum of errrors on this processor.
         do ielem = 1, rdm_recv%nelements
             call extract_sign_rdm(rdm_recv%elements(:,ielem), rdm_sign)
-            call calc_separate_rdm_labels(ijkl, ij, kl, i, j, k, l)
             rdm_sign = abs(rdm_sign)
             max_error_herm = max(max_error_herm, rdm_sign)
             sum_error_herm = sum_error_herm + rdm_sign
@@ -759,9 +782,9 @@ contains
         max_error_herm = max_error_herm/rdm_norm
         sum_error_herm = sum_error_herm/rdm_norm
 
-       ! Find the largest error and sum of errors across all processors.
-       call MPIAllReduce(max_error_herm, MPI_MAX, max_error_herm_all)
-       call MPIAllReduce(sum_error_herm, MPI_SUM, sum_error_herm_all)
+        ! Find the largest error and sum of errors across all processors.
+        call MPIAllReduce(max_error_herm, MPI_MAX, max_error_herm_all)
+        call MPIAllReduce(sum_error_herm, MPI_SUM, sum_error_herm_all)
 
     end subroutine calc_hermitian_errors
 

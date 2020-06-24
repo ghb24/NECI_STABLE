@@ -120,7 +120,7 @@ contains
 
             end if
 
-            call calc_guga_matrix_element(ilutI, ilutJ, excitInfo, HelGen, .true., 2)
+            call calc_guga_matrix_element(ilutI, ilutJ, excitInfo, HelGen, .true., 1)
 
             if (abs(HelGen) < EPS) then
                 nJ(1) = 0

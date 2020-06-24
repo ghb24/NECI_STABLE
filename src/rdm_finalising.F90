@@ -5,7 +5,7 @@
 
 module rdm_finalising
 
-    use bit_rep_data, only: NIfTot, NIfDBO
+    use bit_rep_data, only: NIfTot
     use constants
     use Parallel_neci, only: iProcIndex, nProcessors
     use rdm_data, only: rdm_list_t, rdm_spawn_t, one_rdm_t
@@ -15,10 +15,10 @@ module rdm_finalising
     use CalcData, only: tAdaptiveShift
     use RotateOrbsMod, only: FourIndInts
     use SystemData, only: tGUGA, nSpatorbs
-    use LoggingData, only: tWriteSpinFreeRDM
+    use LoggingData, only: tWriteSpinFreeRDM, t_print_molcas_rdms
     use unit_test_helpers, only: print_matrix
-
-    use guga_rdm, only: t_test_sym_fill
+    use guga_bitRepOps, only: extract_2_rdm_ind
+    use guga_rdm, only: output_molcas_rdms
 
     implicit none
 
@@ -89,10 +89,10 @@ contains
 
             ! Calculate the 1-RDMs from the 2-RDMS, if required.
             if (RDMExcitLevel == 3 .or. tDiagRDM .or. tPrint1RDM .or. tDumpForcesInfo .or. tDipoles) then
-                if (.not. tGUGA) then
-                    call calc_1rdms_from_2rdms(rdm_defs, one_rdms, two_rdms, rdm_estimates%norm, tOpenShell)
-                else
+                if (tGUGA) then
                     call calc_1rdms_from_spinfree_2rdms(one_rdms, two_rdms, rdm_estimates%norm)
+                else
+                    call calc_1rdms_from_2rdms(rdm_defs, one_rdms, two_rdms, rdm_estimates%norm, tOpenShell)
                 end if
                 ! The 1-RDM will have been constructed to be normalised already.
                 norm_1rdm = 1.0_dp
@@ -170,6 +170,7 @@ contains
         use LoggingData, only: tWrite_normalised_RDMs, tWrite_RDMs_to_read
         use rdm_data, only: rdm_definitions_t, rdm_estimates_t, rdm_list_t, rdm_spawn_t, tOpenShell
         use rdm_estimators, only: calc_hermitian_errors
+        use hash, only: clear_hash_table
 
         type(rdm_definitions_t), intent(in) :: rdm_defs
         type(rdm_estimates_t), intent(inout) :: est
@@ -183,10 +184,17 @@ contains
         ! communication! Then at least we can read the RDM back in...
         if (tWrite_RDMs_to_read) call print_rdm_popsfile(rdm)
 
-        call calc_hermitian_errors(rdm, rdm_recv, spawn, est%norm, est%max_error_herm, est%sum_error_herm)
+        call calc_hermitian_errors(rdm, rdm_recv, spawn, est%norm, &
+            est%max_error_herm, est%sum_error_herm)
 
         if (tGUGA) then
+            spawn%free_slots = spawn%init_free_slots(0:nProcessors-1)
+            call clear_hash_table(spawn%rdm_send%hash_table)
+            call make_hermitian_rdm(rdm, rdm_defs%nrdms_standard, spawn, rdm_recv)
             call print_spinfree_2rdm(rdm_defs, rdm_recv, est%norm)
+            if (t_print_molcas_rdms) then
+                call output_molcas_rdms(rdm_defs, rdm_recv, est%norm)
+            end if
         else
             if (tWriteSpinFreeRDM) &
                 call print_spinfree_2rdm_wrapper(rdm_defs, rdm, rdm_recv, spawn, est%norm)
@@ -246,27 +254,36 @@ contains
         do ielem = 1, two_rdms%nelements
             pqrs = two_rdms%elements(0,ielem)
             ! Obtain spin orbital labels and the RDM element.
-            if (.not. tGUGA) then
-                call calc_separate_rdm_labels(pqrs, pq, rs, r, s, q, p)
+            if (tGUGA) then
+                call extract_2_rdm_ind(pqrs, p, q, r, s)
             else
-                call calc_separate_rdm_labels(pqrs, pq, rs, p, q, r, s)
+                call calc_separate_rdm_labels(pqrs, pq, rs, r, s, q, p)
             end if
 
             call extract_sign_rdm(two_rdms%elements(:,ielem), rdm_sign)
 
             associate(ind => SymLabelListInv_rot)
-                ! An element of the form \Gamma_{pa,ra}.
-                if (q == s) then
-                    do irdm = 1, size(one_rdms)
-                        one_rdms(irdm)%matrix(ind(p), ind(r)) = one_rdms(irdm)%matrix(ind(p), ind(r)) + rdm_sign(irdm)
-                    end do
-                end if
 
-                if (tGUGA .and. .not. t_test_sym_fill) then
-                    if (p == r) then
+                if (tGUGA) then
+                    if (r == s) then
                         do irdm = 1, size(one_rdms)
-                            one_rdms(irdm)%matrix(ind(q),ind(s)) = &
-                                one_rdms(irdm)%matrix(ind(q),ind(s)) + rdm_sign(irdm)
+                            one_rdms(irdm)%matrix(ind(p),ind(q)) = &
+                                one_rdms(irdm)%matrix(ind(p),ind(q)) + rdm_sign(irdm)/2.0_dp
+                        end do
+                    end if
+                    ! if I count both, I do not need the factor 2..
+                    if (p == q) then
+                        do irdm = 1, size(one_rdms)
+                            one_rdms(irdm)%matrix(ind(r),ind(s)) = &
+                                one_rdms(irdm)%matrix(ind(r),ind(s)) + rdm_sign(irdm) / 2.0_dp
+                        end do
+                    end if
+                else
+                    ! An element of the form \Gamma_{pa,ra}.
+                    if (q == s) then
+                        do irdm = 1, size(one_rdms)
+                            one_rdms(irdm)%matrix(ind(p), ind(r)) = &
+                                one_rdms(irdm)%matrix(ind(p), ind(r)) + rdm_sign(irdm)
                         end do
                     end if
                 end if
@@ -281,10 +298,6 @@ contains
             call MPISumAll(one_rdms(irdm)%matrix, temp_rdm)
             ! Copy summed RDM back to the main array, and normalise.
             one_rdms(irdm)%matrix = temp_rdm / (rdm_trace(irdm)*real(nel-1,dp))
-            if (tGUGA .and. t_test_sym_fill) then
-                ! the GUGA rdms have a different normalisation
-                one_rdms(irdm)%matrix = 2.0_dp * one_rdms(irdm)%matrix
-            end if
         end do
 
         deallocate(temp_rdm, stat=ierr)
@@ -332,6 +345,10 @@ contains
         real(dp) :: rdm_sign(two_rdms%sign_length)
         real(dp), allocatable :: temp_rdm(:,:)
         logical :: is_transition_rdm
+#ifdef DEBUG_
+        character(*), parameter :: this_routine = "calc_1rdms_from_2rdms"
+#endif
+        ASSERT(.not. tGUGA)
 
         do irdm = 1, size(one_rdms)
             one_rdms(irdm)%matrix = 0.0_dp
@@ -449,6 +466,10 @@ contains
         integer :: ielem, ij, kl, i, j, k, l
         real(dp) :: rdm_sign(rdm%sign_length)
         logical :: nearly_full, finished, all_finished
+#ifdef DEBUG_
+        character(*), parameter :: this_routine = "make_hermitian_rdm"
+#endif
+        integer(int_rdm) :: ij_, kl_
 
         ! If we're about to fill up the spawn list, perform a communication.
         nearly_full = .false.
@@ -464,22 +485,37 @@ contains
             end if
 
             ijkl = rdm%elements(0,ielem)
-            ! Obtain spin orbital labels and the RDM element.
-            call calc_separate_rdm_labels(ijkl, ij, kl, i, j, k, l)
+
             call extract_sign_rdm(rdm%elements(:,ielem), rdm_sign)
             ! Set sign for transition RDMs to 0.
             rdm_sign(nrdms_standard+1:) = 0.0_dp
 
-            ! Factor of a half to account for prevent double-counting, and
-            ! instead average elements from above and below the diagonal.
-            if (ij /= kl) rdm_sign = 0.5_dp*rdm_sign
+            if (tGUGA) then
+                call extract_2_rdm_ind(ijkl, i, j, k, l, ij_, kl_)
+                ij = int(ij_)
+                kl = int(kl_)
 
-            ! If in the lower half of the RDM, reflect to the upper half.
-            if (ij > kl) then
-                call add_to_rdm_spawn_t(spawn, k, l, i, j, rdm_sign, .false., nearly_full)
+                rdm_sign = rdm_sign / 2.0_dp
+                call add_to_rdm_spawn_t(spawn, k, l, i, j, rdm_sign, .true., nearly_full)
+                call add_to_rdm_spawn_t(spawn, i, j, k, l, rdm_sign, .true., nearly_full)
+
             else
-                call add_to_rdm_spawn_t(spawn, i, j, k, l, rdm_sign, .false., nearly_full)
+                ! Obtain spin orbital labels and the RDM element.
+                call calc_separate_rdm_labels(ijkl, ij, kl, i, j, k, l)
+
+                ! Factor of a half to account for prevent double-counting, and
+                ! instead average elements from above and below the diagonal.
+                if (ij /= kl) rdm_sign = 0.5_dp*rdm_sign
+
+                ! If in the lower half of the RDM, reflect to the upper half.
+                if (ij > kl) then
+                    call add_to_rdm_spawn_t(spawn, k, l, i, j, rdm_sign, .false., nearly_full)
+                else
+                    call add_to_rdm_spawn_t(spawn, i, j, k, l, rdm_sign, .false., nearly_full)
+                end if
             end if
+
+
         end do
 
         finished = .true.
@@ -522,6 +558,10 @@ contains
         integer :: pq_legacy, rs_legacy ! spatial orbitals
         real(dp) :: rdm_sign(rdm%sign_length)
         logical :: nearly_full, finished, all_finished
+#ifdef DEBUG_
+        character(*), parameter :: this_routine = "apply_symmetries_for_output"
+#endif
+        ASSERT(.not. tGUGA)
 
         ! If we're about to fill up the spawn list, perform a communication.
         nearly_full = .false.
@@ -1130,43 +1170,38 @@ contains
         ! 2-RDMs.
 
         use Parallel_neci, only: MPIBarrier
-        use ParallelHelper, only: root
         use rdm_data, only: rdm_definitions_t
         use sort_mod, only: sort
         use util_mod, only: get_free_unit
         implicit none
         type(rdm_definitions_t), intent(in) :: rdm_defs
-        type(rdm_list_t), intent(inout) :: rdm
+        type(rdm_list_t), intent(in) :: rdm
         real(dp), intent(in) :: rdm_trace(rdm%sign_length)
+        character(*), parameter :: this_routine = "print_spinfree_2rdm"
 
         integer(int_rdm) :: pqrs
         integer :: ielem, irdm, iunit, iproc, ierr
         integer :: pq, rs, p, q, r, s ! spatial orbitals
+        integer(n_int) :: pq_, rs_
         real(dp) :: rdm_sign(rdm%sign_length)
         character(40) :: rdm_filename
 
         associate(state_labels => rdm_defs%state_labels, repeat_label => rdm_defs%repeat_label)
-
-        call sort(rdm%elements(:,1:rdm%nelements))
 
         do iproc = 0, nProcessors-1
             if (iproc == iProcIndex) then
 
                 ! Loop over all RDMs beings sampled.
                 do irdm = 1, rdm_defs%nrdms
-                    if (tGUGA) then
-                        rdm_filename = "2-RDM-GUGA"
+                    if (state_labels(1,irdm) == state_labels(2,irdm)) then
+                       write(rdm_filename, '("spinfree_","'//trim(rdm_defs%output_file_prefix)//'",".",'&
+                             //int_fmt(state_labels(1,irdm),0)//')') irdm
                     else
-                        if (state_labels(1,irdm) == state_labels(2,irdm)) then
-                           write(rdm_filename, '("spinfree_","'//trim(rdm_defs%output_file_prefix)//'",".",'&
-                                 //int_fmt(state_labels(1,irdm),0)//')') irdm
-                        else
-                            write(rdm_filename, '("spinfree_","'//trim(rdm_defs%output_file_prefix)//&
-                                 '",".",'//int_fmt(state_labels(1,irdm),0)//',"_",'&
-                                 //int_fmt(state_labels(2,irdm),0)//',".",i1)') &
-                                 state_labels(1,irdm), state_labels(2,irdm), repeat_label(irdm)
-                         end if
-                    end if
+                        write(rdm_filename, '("spinfree_","'//trim(rdm_defs%output_file_prefix)//&
+                             '",".",'//int_fmt(state_labels(1,irdm),0)//',"_",'&
+                             //int_fmt(state_labels(2,irdm),0)//',".",i1)') &
+                             state_labels(1,irdm), state_labels(2,irdm), repeat_label(irdm)
+                     end if
 
                     ! Open the file to be written to.
                     iunit = get_free_unit()
@@ -1179,26 +1214,25 @@ contains
 
                     do ielem = 1, rdm%nelements
                         pqrs = rdm%elements(0,ielem)
-                        ! Obtain spin orbital labels.
-                        if (.not. tGUGA) then
-                            call calc_separate_rdm_labels(pqrs, pq, rs, r, s, q, p)
-                        else
-                            call calc_separate_rdm_labels(pqrs, pq, rs, p, q, r, s)
-                        end if
                         call extract_sign_rdm(rdm%elements(:,ielem), rdm_sign)
                         ! Normalise.
                         rdm_sign = rdm_sign/rdm_trace
+                        if (tGUGA) then
+                            ! Obtain spatial orbital labels.
+                            call extract_2_rdm_ind(pqrs, p, q, r, s, pq_, rs_)
+                            pq = int(pq_)
+                            rs = int(rs_)
+                        else
+                            ! Obtain spin orbital labels.
+                            call calc_separate_rdm_labels(pqrs, pq, rs, p, s, q, r)
+                        end if
 
                         if (abs(rdm_sign(irdm)) > 1.e-12_dp) then
-                            write(iunit,"(4I15, F30.20)") p, q, r, s, rdm_sign(irdm)
+                            if (p >= q .and. pq >= rs .and. p >= r .and. p >= s) then
+                                write(iunit,"(4I6, G25.17)") p, q, r, s, rdm_sign(irdm)
+                            end if
                         end if
                     end do
-
-                    ! The following final line is required by (I assume!) MPQC.
-                    ! Let the last process print it.
-                    if (iProcIndex == nProcessors-1) then
-                        write(iunit, "(4I15, F30.20)") -1, -1, -1, -1, -1.0_dp
-                    end if
 
                     close(iunit)
                 end do
@@ -1436,7 +1470,7 @@ contains
 
         ! Output the hermiticity errors.
         write(6,'(1X,"MAX ABS ERROR IN 1-RDM HERMITICITY",F20.13)') max_error_herm
-        write(6,'(1X,"MAX ABS ERROR IN 1-RDM HERMITICITY",F20.13)') sum_error_herm
+        write(6,'(1X,"MAX SUM ERROR IN 1-RDM HERMITICITY",F20.13)') sum_error_herm
 
     end subroutine make_1e_rdm_hermitian
 
@@ -1482,61 +1516,55 @@ contains
 
         is_transition_rdm = state_labels(1,irdm) /= state_labels(2,irdm)
 
-        if (tWriteSpinFreeRDM) then
+        if (tWriteSpinFreeRDM .or. tGUGA) then
             one_rdm_unit_spinfree = get_free_unit()
-            open(one_rdm_unit_spinfree, file = "spin-free-1-RDM")
+            open(one_rdm_unit_spinfree, file = "spinfree-1-RDM")
         end if
 
-        if (tNormalise) then
-            ! Haven't got the capabilities to produce multiple 1-RDMs yet.
-            write(6,'(1X,"Writing out the *normalised* 1 electron density matrix to file")')
-            call neci_flush(6)
-            one_rdm_unit = get_free_unit()
+        if (.not. tGUGA) then
+            if (tNormalise) then
+                ! Haven't got the capabilities to produce multiple 1-RDMs yet.
+                write(6,'(1X,"Writing out the *normalised* 1 electron density matrix to file")')
+                call neci_flush(6)
+                one_rdm_unit = get_free_unit()
 
-            if (is_transition_rdm) then
-                write(filename, '("'//trim(filename_prefix)//'",'&
-                     //int_fmt(state_labels(1,irdm),0)//',"_",'&
-                     //int_fmt(state_labels(2,irdm),0)//',".",i1)') &
-                     state_labels(1,irdm), state_labels(2,irdm), repeat_label(irdm)
+                if (is_transition_rdm) then
+                    write(filename, '("'//trim(filename_prefix)//'",'&
+                         //int_fmt(state_labels(1,irdm),0)//',"_",'&
+                         //int_fmt(state_labels(2,irdm),0)//',".",i1)') &
+                         state_labels(1,irdm), state_labels(2,irdm), repeat_label(irdm)
+                else
+                    write(filename, '("'//trim(filename_prefix)//'",'&
+                         //int_fmt(state_labels(1,irdm),0)//')') irdm
+                end if
+                open(one_rdm_unit, file=trim(filename), status='unknown')
             else
-                write(filename, '("'//trim(filename_prefix)//'",'&
-                     //int_fmt(state_labels(1,irdm),0)//')') irdm
+                ! Only every write out 1 of these at the moment.
+                write(6,'(1X,"Writing out the *unnormalised* 1 electron density matrix to file for reading in")')
+                call neci_flush(6)
+                one_rdm_unit = get_free_unit()
+                if (is_transition_rdm) then
+                    write(filename, '("OneRDM_POPS.",'//int_fmt(state_labels(1,irdm),0)//',"_",'&
+                                                      //int_fmt(state_labels(2,irdm),0)//',".",i1)') &
+                                        state_labels(1,irdm), state_labels(2,irdm), repeat_label(irdm)
+                else
+                    write(filename, '("OneRDM_POPS.",'//int_fmt(state_labels(1,irdm),0)//')') irdm
+                end if
+                open(one_rdm_unit, file=trim(filename), status='unknown', form='unformatted')
             end if
-            open(one_rdm_unit, file=trim(filename), status='unknown')
-        else
-            ! Only every write out 1 of these at the moment.
-            write(6,'(1X,"Writing out the *unnormalised* 1 electron density matrix to file for reading in")')
-            call neci_flush(6)
-            one_rdm_unit = get_free_unit()
-            if (is_transition_rdm) then
-                write(filename, '("OneRDM_POPS.",'//int_fmt(state_labels(1,irdm),0)//',"_",'&
-                                                  //int_fmt(state_labels(2,irdm),0)//',".",i1)') &
-                                    state_labels(1,irdm), state_labels(2,irdm), repeat_label(irdm)
-            else
-                write(filename, '("OneRDM_POPS.",'//int_fmt(state_labels(1,irdm),0)//')') irdm
-            end if
-            open(one_rdm_unit, file=trim(filename), status='unknown', form='unformatted')
         end if
 
         if (tGUGA) then
-
             do i = 1, nSpatorbs
                 do j = 1, nSpatorbs
-
                     if (abs(one_rdm(ind(i),ind(j))) > EPS) then
-                        if (.not. t_test_sym_fill .and. tNormalise) then
-
-
-                            write(one_rdm_unit, "(2i6, g25.17)") i, j, &
-                                (one_rdm(ind(i),ind(j)) * norm_1rdm)
-
-                        else if (tNormalise .and. (i <= j .or. is_transition_rdm)) then
-
-                            write(one_rdm_unit, "(2i6, g25.17)") i, j, &
-                                (one_rdm(ind(i),ind(j)) * norm_1rdm)
-
-                        else if (.not. tNormalise) then
-                            write(one_rdm_unit) i, j, one_rdm(ind(i), ind(j))
+                        if (tNormalise) then
+                            if (i <= j) then
+                                write(one_rdm_unit_spinfree, "(2i6, g25.17)") i, j, &
+                                    (one_rdm(ind(i),ind(j)) * norm_1rdm)
+                            end if
+                        else
+                            write(one_rdm_unit_spinfree) i, j, one_rdm(ind(i), ind(j))
                         end if
                     end if
                 end do
@@ -1581,10 +1609,12 @@ contains
                 do i = 1, nbasis/2
                     do j = 1, nbasis/2
                         if (abs(one_rdm(ind(i),ind(j))) > EPS) then
-                            if (tNormalise .and. (i <= j .or. is_transition_rdm)) then
-                                write(one_rdm_unit_spinfree,"(2I6,G25.17)") i, j, &
-                                    one_rdm(ind(i), ind(j)) * norm_1rdm
-                            else if (.not. tNormalise) then
+                            if (tNormalise) then
+                                if (i <= j .or. is_transition_rdm) then
+                                    write(one_rdm_unit_spinfree,"(2I6,G25.17)") i, j, &
+                                        one_rdm(ind(i), ind(j)) * norm_1rdm
+                                end if
+                            else
                                 write(one_rdm_unit_spinfree) i, j, one_rdm(ind(i), ind(j))
                             end if
                         end if
@@ -1593,9 +1623,9 @@ contains
             end if
         end if ! tGUGA
 
-        close(one_rdm_unit)
+        if (.not. tGUGA) close(one_rdm_unit)
 
-        if (tWriteSpinFreeRDM) close(one_rdm_unit_spinfree)
+        if (tWriteSpinFreeRDM .or. tGUGA) close(one_rdm_unit_spinfree)
 
         end associate
 

@@ -3,7 +3,7 @@
 ! a guga simulation
 module guga_init
     ! module use statements
-    use SystemData, only: tCSF, tSPN, tHPHF, lNoSymmetry, STOT, nEl, &
+    use SystemData, only: tSPN, tHPHF, lNoSymmetry, STOT, nEl, &
         nBasis, tGUGA, tNoBrillouin, tExactSizeSpace, tUHF, tUEGNewGenerator, &
                           tPickVirtUniform, tGenHelWeighted, tGen_4ind_2, tGen_4ind_weighted, &
                           tGen_4ind_reverse, tGen_sym_guga_ueg, tGen_sym_guga_mol, &
@@ -16,16 +16,18 @@ module guga_init
                           t_tJ_model
 
     use CalcData, only: tUseRealCoeffs, tRealCoeffByExcitLevel, RealCoeffExcitThresh, &
-                        t_guga_mat_eles, t_hist_tau_search, tSpinProject, &
-                        tReplicaEstimates
+                        t_direct_guga_ref, t_hist_tau_search, tSpinProject, &
+                        tReplicaEstimates, tPreCond, ss_space_in, trial_space_in, &
+                        t_fast_pops_core, t_core_inits
 
     use hist_data, only: tHistSpawn
 
-    use LoggingData, only: tCalcFCIMCPsi, tPrintOrbOcc
+    use LoggingData, only: tCalcFCIMCPsi, tPrintOrbOcc, tRDMonfly, tExplicitAllRDM
 
-    use bit_rep_data, only: tUseFlags
+    use bit_rep_data, only: tUseFlags, nifd
 
-    use guga_data, only: init_guga_data_procPtrs, orbitalIndex
+    use guga_data, only: init_guga_data_procPtrs, orbitalIndex, &
+                         n_excit_info_bits
 
     use guga_procedure_pointers, only: pickOrbitals_single, pickOrbitals_double, &
                         calc_orbital_pgen_contr, calc_mixed_contr, calc_mixed_start_l2r_contr, &
@@ -51,7 +53,7 @@ module guga_init
 
     use FciMCData, only: pExcit2, pExcit4, pExcit2_same, pExcit3_same, tSearchTau
 
-    use constants, only: dp
+    use constants, only: dp, int_rdm, n_int
 
     use ParallelHelper, only: iProcIndex
 
@@ -61,6 +63,8 @@ module guga_init
                         pick_orbitals_guga_tJ
 
     use back_spawn, only: setup_virtual_mask
+
+    use guga_bitRepOps, only: init_guga_bitrep
 
     ! variable declaration
     implicit none
@@ -276,7 +280,7 @@ contains
 
         ! for now (time/iteration comparison) reasons, decide which
         ! reference energy calculation method we use
-        if (t_guga_mat_eles) then
+        if (t_direct_guga_ref) then
             ! use the new "direct" calculation method
             calc_off_diag_guga_ref => calc_off_diag_guga_ref_direct
 
@@ -286,7 +290,39 @@ contains
 
         end if
 
+        ! make checks for the RDM calculation
+        if (tRDMonfly) then
+            call check_rdm_guga_setup()
+        end if
+
+        ! make a unified bit rep initializer:
+        call init_guga_bitrep(nifd)
+
+        ! set some defaults for non-working things:
+        t_fast_pops_core = .false.
+        ss_space_in%tApproxSpace = .false.
+        trial_space_in%tApproxSpace = .false.
+        t_core_inits = .true.
+
     end subroutine init_guga
+
+    subroutine check_rdm_guga_setup
+        character(*), parameter :: this_routine = "check_rdm_guga_setup"
+
+
+        ! check if the integer types fit for out setup
+        if (bit_size(0_n_int) /= bit_size(0_int_rdm)) then
+            call stop_all(this_routine, "n_int and int_rdm have different size!")
+        end if
+
+        ! we use some bits in the rdm_ind for other information..
+        ! check if we still have enough space for all the indices..
+        if (nSpatOrbs ** 4 > 2 ** (bit_size(int_rdm) - n_excit_info_bits - 1) - 1) then
+            call stop_all(this_routine, "cannot store enough indices in rdm_ind!")
+        end if
+
+    end subroutine check_rdm_guga_setup
+
 
     subroutine checkInputGUGA()
         ! routine to check if all the input parameters given are consistent
@@ -294,11 +330,6 @@ contains
         ! is called inf checkinput() in file readinput.F90
         character(*), parameter :: this_routine = 'checkInputGUGA'
 
-        ! check in certain system options have conflicts:
-        if (tCSF) then
-            call stop_all(this_routine, &
-                "Cannot use two CSF implementations tGUGA and tCSF at the same time!")
-        end if
 
         if (tSPN) then
             call stop_all(this_routine, &
@@ -362,24 +393,6 @@ contains
                 "wrong input: tGen_4ind_reverse excitation generator chosen with GUGA! abort!")
         end if
 
-        ! probably also have to assert against all the hist and exact
-        ! calculation flags.. also rdms... and certain excitation generators
-!         if (tHistSpawn) then
-!             call stop_all(this_routine, &
-!                 "HISTSPAWN not yet compatible with GUGA!")
-!         end if
-!
-!         if (tCalcFCIMCPsi) then
-!             call stop_all(this_routine, &
-!                 "PRINTFCIMCPSI not yet compatible with GUGA!")
-!         end if
-!
-!         if (tPrintOrbOcc) then
-!             call stop_all(this_routine, &
-!                 "PRINTORBOCCS not yet implemented with GUGA!")
-!         end if
-
-
         if (.not. tNoBrillouin) then
             call stop_all(this_routine, &
                 "Brillouin theorem not valid for GUGA approach!(I think atleast...)")
@@ -422,6 +435,11 @@ contains
         if (tReplicaEstimates) then
             call stop_all(this_routine, &
                 "'replica-estimates' not yet implemented with GUGA")
+        end if
+
+        if (tPreCond) then
+            call stop_all(this_routine, &
+                "'precond' not yet implemented with GUGA. mostly because of communication")
         end if
         ! assert that tUseFlags is set, to be able to encode deltaB values
         ! in the ilut representation for excitation generation

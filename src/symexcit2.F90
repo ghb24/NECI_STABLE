@@ -809,7 +809,7 @@ MODULE SymExcit2
 !SYMPRODIND - Indexing system for ORBPAIRS. NPR is the number of symmetry classes, which for abelian
 ! symmetry will always be less than or equal to nSymLabels, so we need a total of (nSymLabels+1)*6
 
-!For 'extras', we want space for ILUT (NBASIS/32+1+NIfY) and CLASSES (SymClassSize*NEL)
+!For 'extras', we want space for ILUT (NBASIS/32+1) and CLASSES (SymClassSize*NEL)
                    STORE(1)=SymClassSize*NEl+(nBasis/32)+1    !ILUT and CLASSES
                    STORE(2)=5*(3*nSymPairProds+2*nSymLabels)    !EXCITTYPES (Could be compressed)
                    STORE(3)=0   !Do not need to store nAllowPPS

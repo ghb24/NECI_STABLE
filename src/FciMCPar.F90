@@ -3,7 +3,7 @@ module FciMCParMod
 
     ! This module contains the main loop for FCIMC calculations, and the
     ! main per-iteration processing loop.
-    use SystemData, only: nel, tUEG2, hist_spin_dist_iter, tGen_4ind_2, &
+    use SystemData, only: nel, tUEG2, tGen_4ind_2, &
                           tGen_4ind_weighted, t_test_excit_gen, tGUGA, &
                           t_new_real_space_hubbard, t_tJ_model, t_heisenberg_model, &
                           t_k_space_hubbard, max_ex_level, t_uniform_excits, &
@@ -26,11 +26,11 @@ module FciMCParMod
                         t_back_spawn_option, tDynamicCoreSpace, coreSpaceUpdateCycle, &
                         DiagSft, tDynamicTrial, trialSpaceUpdateCycle, semistochStartIter, &
                         tSkipRef, tTrialShift, tSpinProject, t_activate_decay, &
-                        t_guga_mat_eles, t_trunc_guga_pgen_noninits, &
+                        t_direct_guga_ref, t_trunc_guga_pgen_noninits, &
                         tLogAverageSpawns, tActivateLAS, &
                         t_guga_back_spawn, tEN2Init, tEN2Rigorous, tDeathBeforeComms, &
                         tDetermProjApproxHamil, tCoreAdaptiveShift, &
-                        tScaleBlooms, max_allowed_spawn, ShiftOffset
+                        tScaleBlooms, max_allowed_spawn
 
     use adi_data, only: tReadRefs, tDelayGetRefs, allDoubsInitsDelay, &
                         tDelayAllDoubsInits, tReferenceChanged, &
@@ -52,10 +52,6 @@ module FciMCParMod
                            tPopsProjE, iHDF5TruncPopsIter, iAccumPopsCounter, &
                            AccumPopsExpirePercent
 
-    use spin_project, only: spin_proj_interval, disable_spin_proj_varyshift, &
-                            spin_proj_iter_count, generate_excit_spin_proj, &
-                            get_spawn_helement_spin_proj, iter_data_spin_proj,&
-                            attempt_die_spin_proj
     use rdm_data, only: print_2rdm_est, ThisRDMIter, inits_one_rdms, two_rdm_inits_spawn, &
          two_rdm_inits, rdm_inits_defs, RDMCorrectionFactor, inits_estimates, tSetupInitsEst, &
          tApplyLC
@@ -72,7 +68,7 @@ module FciMCParMod
                                 determ_projection, average_determ_vector, &
                                 determ_projection_no_death, core_space_pos
     use trial_wf_gen, only: update_compare_trial_file, init_trial_wf, refresh_trial_wf
-    use hist, only: write_zero_hist_excit_tofrom, write_clear_hist_spin_dist
+    use hist, only: write_zero_hist_excit_tofrom
     use orthogonalise, only: orthogonalise_replicas, calc_replica_overlaps, &
                              orthogonalise_replica_pairs
     use bit_reps, only: set_flag, clr_flag, any_run_is_initiator, &
@@ -81,7 +77,7 @@ module FciMCParMod
         need_load_balancing, loadBalanceInterval
     use exact_diag, only: perform_exact_diag_all_symmetry
     use spectral_lanczos, only: perform_spectral_lanczos
-    use bit_rep_data, only: nOffFlag, flag_determ_parent, test_flag, flag_prone
+    use bit_rep_data, only: IlutBits, flag_determ_parent, test_flag, flag_prone
     use errors, only: standalone_errors, error_analysis
     use PopsFileMod, only: WriteToPopsFileParOneArr
     use AnnihilationMod, only: DirectAnnihilation, communicate_and_merge_spawns, &
@@ -485,13 +481,6 @@ module FciMCParMod
                     else
                         call init_trial_wf(trial_space_in, ntrial_ex_calc, inum_runs, .false.)
                     end if
-                    if(tAS_TrialOffset)then
-                        do run=1, inum_runs
-                            if(trial_energies(run)-Hii<ShiftOffset) &
-                                ShiftOffset = trial_energies(run) - Hii
-                        enddo
-                        write(6,*) "The adaptive shift is offset by the correlation energy of trail-wavefunction: ", ShiftOffset
-                    endif
                 end if
             end if
 
@@ -507,33 +496,8 @@ module FciMCParMod
             if (tContTimeFCIMC) then
                 call iterate_cont_time(iter_data_fciqmc)
             else
-                if (.not. (tSpinProject .and. spin_proj_interval == -1)) &
-                    call PerformFciMCycPar(iter_data_fciqmc, err)
+                call PerformFciMCycPar(iter_data_fciqmc, err)
             end if
-
-            ! Are we projecting the spin out between iterations?
-            if (tSpinProject .and. (mod(Iter, spin_proj_interval) == 0 .or. &
-                                    spin_proj_interval == -1) .and. &
-                (tSinglePartPhase(1) .or. .not. disable_spin_proj_varyshift))then
-
-                ! Set this up for a different type of iteration
-                ge_tmp => generate_excitation
-                gs_tmp => get_spawn_helement
-                ad_tmp => attempt_die
-                generate_excitation => generate_excit_spin_proj
-                get_spawn_helement => get_spawn_helement_spin_proj
-                attempt_die => attempt_die_spin_proj
-
-                do i = 1, max(spin_proj_iter_count, 1)
-                    call PerformFciMCycPar (iter_data_spin_proj, err)
-                    if(err.ne.0) exit
-                enddo
-
-                ! Return to prior config
-                generate_excitation => ge_tmp
-                get_spawn_helement => gs_tmp
-                attempt_die => ad_tmp
-            endif
 
             if(tAccumPops .and. iter+PreviousCycles>=iAccumPopsIter) then
                 if(.not. tAccumPopsActive) then
@@ -709,13 +673,6 @@ module FciMCParMod
                     NMCyc=Iter+StepsSft
                     tSoftExitFound = .false.
 
-                    !TIncrement=.false.
-                    !! The diagonal elements of the RDM will not have been calculated (as we didn't know
-                    !! it was the last iteration), so this must be done now.
-                    !It's problematic trying to det the core space off-diags done here too, hence my change
-                    !to the way softexit is handled.
-                    !if(tFillingStochRDMonFly) call fill_rdm_softexit(TotWalkers)
-                    !EXIT
                 ENDIF
                 IF(tTimeExit.and.(TotalTime8.ge.MaxTimeExit)) THEN
                     !Is it time to exit yet?
@@ -723,9 +680,6 @@ module FciMCParMod
                     NMCyc=Iter+StepsSft
                     ! Set this to false so that this if statement won't be entered next time.
                     tTimeExit = .false.
-                    !tIncrement=.false.
-                    !if(tFillingStochRDMonFly) call fill_rdm_softexit(TotWalkers)
-                    !EXIT
                 ENDIF
                 IF(iExitWalkers /= -1_int64 .and. sum(AllTotParts) > iExitWalkers) THEN
                     !Exit criterion based on total walker number met.
@@ -761,15 +715,6 @@ module FciMCParMod
                     call write_zero_hist_excit_tofrom()
 
             ENDIF   !Endif end of update cycle
-
-            if (tHistSpinDist .and. (mod(iter, hist_spin_dist_iter) == 0)) then
-                if (inum_runs.eq.2) then
-                    !COMPLEX
-                    call stop_all(this_routine, "Not set up to combine HistSpinDist with double runs. &
-                                    & Level of changes required to get this working: unknown.")
-                endif
-                call write_clear_hist_spin_dist (iter, hist_spin_dist_iter)
-            endif
 
             IF(TPopsFile.and.(.not.tPrintPopsDefault).and.(mod(Iter,iWritePopsEvery).eq.0)) THEN
                 ! differentiate between normal routine and the real-time
@@ -919,7 +864,7 @@ module FciMCParMod
         end if
 
         if (tGUGA) then
-            if (.not. t_guga_mat_eles) call deallocate_projE_list()
+            if (.not. t_direct_guga_ref) call deallocate_projE_list()
         end if
 
         if (t_cc_amplitudes .and. t_plot_cc_amplitudes) then
@@ -1233,9 +1178,6 @@ module FciMCParMod
         HighPopPos=1
         FlagsCurr=0
 
-        ! Synchronise processors
-!        CALL MPIBarrier(error)
-
         ! Reset iteration variables
         ! Next free position in newly spawned list.
         ValidSpawnedList = InitialSpawnedSlots
@@ -1255,11 +1197,6 @@ module FciMCParMod
         ! The processor with the HF determinant on it will have to check
         ! through each determinant until it's found. Once found, tHFFound is
         ! true, and it no longer needs to be checked.
-
-        ! This is a bit of a hack based on the fact that we mean something
-        ! different by exFlag for CSFs than in normal determinential code.
-        ! It would be nice to fix this properly
-        if (tCSF) exFlag = 7
 
         precond_fac = 1.0_dp
 
@@ -1396,7 +1333,7 @@ module FciMCParMod
             ! Potential optimization: This list does not change between iterations, only set it up once
             if(allocated(cs_replicas)) then
                 do run = 1, size(cs_replicas)
-                    associate( rep => cs_replicas(run)) 
+                    associate( rep => cs_replicas(run))
                       if (tCoreDet(run)) then
                           ! Store the index of this state, for use in annihilation later.
 
@@ -1419,13 +1356,13 @@ module FciMCParMod
                     end associate
                 end do
             endif
-          
+
           ! As the main list (which is storing a hash table) no longer needs
           ! to be contiguous, we need to skip sites that are empty.
           if(IsUnoccDet(SignCurr)) then
               ! The deterministic states are always kept in CurrentDets, even when
               ! the amplitude is zero. Hence we must check if the amplitude is zero,
-              ! and if so, skip the state.                
+              ! and if so, skip the state.
               if(any(tCoreDet) .or. tAccumEmptyDet(CurrentDets(:,j))) cycle
 
               !It has been removed from the hash table already
@@ -1493,13 +1430,11 @@ module FciMCParMod
                 call neci_flush(iout)
             ENDIFDEBUG
 
-!            call test_sym_excit3 (DetCurr, 1000000, pDoubles, 3)
-
             if(walkExcitLevel_toHF.eq.0) HFInd = j
 
             IFDEBUGTHEN(FCIMCDebug,1)
                 if(j.gt.1) then
-                    if(DetBitEQ(CurrentDets(:,j-1),CurrentDets(:,j),NIfDBO)) then
+                    if(DetBitEQ(CurrentDets(:,j-1),CurrentDets(:,j),nifd)) then
                         call stop_all(this_routine,"Shouldn't have the same determinant twice")
                     endif
                 endif
@@ -1675,7 +1610,7 @@ module FciMCParMod
                             ! Temporary fix: FindExcitBitDet copies the flags of the parent onto the
                             ! child, which causes semi-stochastic simulations to crash. Should it copy
                             ! these flags? There are comments questioning this in create_particle, too.
-                            iLutnJ(nOffFlag) = 0_n_int
+                            iLutnJ(IlutBits%ind_flag) = 0_n_int
 
                             ! If the parent state in the core space.
                             if (check_determ_flag(CurrentDets(:,j), run)) then
@@ -1689,15 +1624,17 @@ module FciMCParMod
                             end if
 
                         end if
-                        
+
                         if (tPreCond .or. tReplicaEstimates) then
-                            hdiag_spawn = get_hdiag_from_excit(DetCurr, nJ, iLutnJ, ic, ex, hdiag_bare)
+                            hdiag_spawn = get_hdiag_from_excit(DetCurr, nJ, &
+                                iLutnJ, ic, ex, hdiag_bare)
 
                             if (tPreCond) then
                                 precond_fac = hdiag_spawn - proj_e_for_precond(part_type) - &
                                     proje_ref_energy_offsets(part_type) - Hii
                             end if
                         end if
+
                         child = attempt_create (DetCurr, &
                             CurrentDets(:,j), SignCurr, &
                             nJ,iLutnJ, Prob, HElGen, IC, ex, &
@@ -1723,7 +1660,9 @@ module FciMCParMod
                     if (.not. all(near_zero(child))) then
 
                         ! Encode child if not done already.
-                        if(.not. (tSemiStochastic)) call encode_child (CurrentDets(:,j), iLutnJ, ic, ex)
+                        if(.not. tSemiStochastic) then
+                            call encode_child (CurrentDets(:,j), iLutnJ, ic, ex)
+                        end if
                         ! FindExcitBitDet copies the parent flags so that unwanted flags must be unset.
                         ! Should it really do this?
                         if (tTrialWavefunction) then

@@ -18,7 +18,7 @@ module NatOrbsMod
                           nOccBeta, tSeparateOccVirt, tRotateOccOnly, tRotateVirtOnly, &
                           tFindCINatOrbs, tUseMP2VarDenMat, nBasisMax, ALAT, iSpinSkip, &
                           t_3_body_excits
-    use bit_reps, only: NIfY, NIfTot
+    use bit_reps, only: NIfTot
     use RotateOrbsData, only: SymLabelList2_rot, SymLabelCounts2_rot, SymLabelCounts2_rotTag, &
                               SymLabelListInv_rot, NoOrbs, SpatOrbs, FillOneRDM_time, &
                               FillMP2VDM_Time, DiagNatOrbMat_Time, OrderCoeff_Time, FillCoeff_Time, &

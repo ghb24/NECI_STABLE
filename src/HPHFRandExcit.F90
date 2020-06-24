@@ -9,7 +9,7 @@ MODULE HPHFRandExcitMod
 !We therefore need to find the excitation matrix between the determinant which wasn't
 !excited and the determinant which was created.
 
-    use SystemData, only: nel, tCSF, Alat, G1, nbasis, nbasismax, nmsh, arr, &
+    use SystemData, only: nel, Alat, G1, nbasis, nbasismax, nmsh, arr, &
                           tOddS_HPHF, modk_offdiag, tGen_4ind_weighted, &
                           tGen_4ind_reverse, tLatticeGens, tGen_4ind_2, tHUB, &
                           tUEG, tUEGNewGenerator, t_new_real_space_hubbard, &
@@ -44,7 +44,7 @@ MODULE HPHFRandExcitMod
 
     use sltcnd_mod, only: dyn_sltcnd_excit_old
 
-    use bit_reps, only: NIfD, NIfDBO, NIfTot
+    use bit_reps, only: NIfD, NIfTot
 
     use SymExcitDataMod, only: excit_gen_store_type
 
@@ -675,7 +675,7 @@ MODULE HPHFRandExcitMod
         i=MinInd
         j=MaxInd
         IF(i-j.eq.0) THEN
-            Comp=DetBitLT(List(:,MaxInd),iLut(:),NIfDBO)
+            Comp=DetBitLT(List(:,MaxInd),iLut(:),nifd)
             IF(Comp.eq.0) THEN
                 tSuccess=.true.
                 PartInd=MaxInd
@@ -689,7 +689,7 @@ MODULE HPHFRandExcitMod
             N=(i+j)/2       !Find the midpoint of the two indices
 
 !Comp is 1 if CyrrebtDets(N) is "less" than iLut, and -1 if it is more or 0 if they are the same
-            Comp=DetBitLT(List(:,N),iLut(:),NIfDBO)
+            Comp=DetBitLT(List(:,N),iLut(:),nifd)
 
             IF(Comp.eq.0) THEN
 !Praise the lord, we've found it!
@@ -707,7 +707,7 @@ MODULE HPHFRandExcitMod
                 IF(i.eq.MaxInd-1) THEN
 !This deals with the case where we are interested in the final/first entry in the list. Check the final entry of the list and leave
 !We need to check the last index.
-                    Comp=DetBitLT(List(:,i+1),iLut(:),NIfDBO)
+                    Comp=DetBitLT(List(:,i+1),iLut(:),nifd)
                     IF(Comp.eq.0) THEN
                         tSuccess=.true.
                         PartInd=i+1
@@ -785,7 +785,6 @@ MODULE HPHFRandExcitMod
 
         ! We need to consider which of the excitation generators are in use,
         ! and call the correct routine in each case.
-        ASSERT(.not. (tCSF)) ! .or. tSpinProjDets
 
         pgen = 0.0_dp
 
@@ -803,7 +802,7 @@ MODULE HPHFRandExcitMod
         if(t_mol_3_body.or.t_ueg_3_body) then
            pgen = calc_pgen_mol_tc(nI, ex, ic, ClassCount2, ClassCountUnocc2, pDoub)
         else if ((t_back_spawn .or. t_back_spawn_flex) .and. &
-            (.not. DetBitEq(ilutI,ilutRef(:,temp_part_type),nifdbo)) .and. &
+            (.not. DetBitEq(ilutI,ilutRef(:,temp_part_type),nifd)) .and. &
             (.not. test_flag(ilutI, get_initiator_flag(temp_part_type)))) then
             ! i just realised this also has to be done for the hubbard
             ! and the ueg model.. -> create those functions!
