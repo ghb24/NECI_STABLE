@@ -1817,30 +1817,27 @@ system: do
             tGASSpinRecoupling = .true.
 
             block
-                integer :: nGAS, iGAS, n_basis
+                integer :: nGAS, iGAS
+                integer, allocatable :: n_min(:), n_max(:), spat_GAS_orbs(:)
                 call geti(nGAS)
-                allocate(GAS_specification%n_orbs(nGAS), &
-                         GAS_specification%n_min(nGAS), &
-                         GAS_specification%n_max(nGAS), source=0)
+                allocate(n_min(nGAS), n_max(nGAS), source=0)
                 do iGAS = 1, nGAS
-                    call geti(GAS_specification%n_orbs(iGAS))
-                    call geti(GAS_specification%n_min(iGAS))
-                    call geti(GAS_specification%n_max(iGAS))
+                    call geti(n_min(iGAS))
+                    call geti(n_max(iGAS))
                 end do
 
-                n_basis = 2 * GAS_specification%n_orbs(nGAS)
-
                 block
-                    integer :: GAS_unit, GAS(n_basis .div. 2), i
+                    integer :: GAS_unit, n_spat_orbs
                     GAS_unit = get_free_unit()
                     open(GAS_unit, file="GASOrbs", status='old')
-                        read(GAS_unit,  *) GAS(:)
+                        read(GAS_unit, *) n_spat_orbs
+                        allocate(spat_GAS_orbs(n_spat_orbs))
+                        read(GAS_unit,  *) spat_GAS_orbs
                     close(GAS_unit)
-                    GAS_specification%GAS_table = [(GAS((i + 1) .div. 2), i = 1, n_basis)]
                 end block
-            end block
-            call GAS_specification%init()
 
+                GAS_specification = GASSpec_t(n_min, n_max, spat_GAS_orbs)
+            end block
 
         case("GAS-CI")
             do while (item < nitems)

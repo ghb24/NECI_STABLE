@@ -8,9 +8,9 @@ module fast_gasci
     use SystemData, only: tGAS, tGASSpinRecoupling, nBasis, nel
     use constants
     use util_mod, only: get_free_unit, binary_search_first_ge, operator(.div.), &
-        near_zero, cumsum, operator(.isclose.), lex_leq
+        near_zero, cumsum, operator(.isclose.), lex_leq, stop_all
     use sort_mod, only: sort
-    use DetBitOps, only: ilut_lt, ilut_gt
+    use DetBitOps, only: ilut_lt, ilut_gt, EncodeBitDet
     use sets_mod, only: is_sorted, complement, union, disjoint
     use bit_rep_data, only: NIfTot, NIfD
     use dSFMT_interface, only: genrand_real2_dSFMT
@@ -19,51 +19,20 @@ module fast_gasci
     use Determinants, only: get_helement
     use excit_gens_int_weighted, only: pick_biased_elecs, pgen_select_orb
     use excitation_types, only: Excitation_t, SingleExc_t, DoubleExc_t, &
-        get_last_tgt, set_last_tgt, excite, defined, UNKNOWN
-    use orb_idx_mod, only: SpinProj_t, calc_spin_raw, alpha, beta
+        get_last_tgt, set_last_tgt, defined, UNKNOWN, &
+        excite, ilut_excite
+    use orb_idx_mod, only: SpinProj_t, calc_spin_raw, alpha, beta, &
+        operator(-), operator(==), operator(/=), sum
 
     use sltcnd_mod, only: sltcnd_excit, dyn_sltcnd_excit
 
-!     use gasci, only: GAS_specification, GASSpec_t
+    use gasci, only: GAS_specification, GASSpec_t
     implicit none
 
     private
 
-    public :: &
-        generate_nGAS_excitation, count_per_GAS, &
-        get_possible_spaces, get_possible_holes, split_per_GAS
+    public :: generate_nGAS_excitation, gen_all_excits
 
-
-    !> Speficies the GAS spaces.
-    !> The indices are:
-    !>  n_orbs_per_GAS(1:nGAS), n_min(1:nGAS), n_max(1:nGAS), GAS_table(1 : nBasis)
-    !> n_orbs_per_GAS(iGAS) specifies how many orbitals are in
-    !> the `iGAS` GAS space in the `iRep` Irrep.
-    !> n_min(iGAS) specifies the cumulated! minimum particle number per GAS space.
-    !> n_max(iGAS) specifies the cumulated! maximum particle number per GAS space.
-    !> GAS_table(i) returns the GAS space for the i-th spin orbital
-    type :: GASSpec_t
-        integer, allocatable :: n_orbs(:), n_min(:), n_max(:), GAS_table(:)
-        !> The number of GAS spaces
-        integer, private :: nGAS
-        !> The sizes of each GAS_space (n_orbs = cumsum(GAS_sizes))
-        integer, private, allocatable  :: GAS_sizes(:)
-        !> maxval(GAS_sizes)
-        integer, private :: max_GAS_size
-        !> splitted_orbitals orbitals is the preimage of GAS_specification%GAS_table.
-        !> An array that contains the spin orbitals per GAS space.
-        !> splitted_orbitals(1 : maxval(GAS_sizes), 1 : nGAS)
-        !> only splitted_orbitals(i, j), 1 <= i <= GAS_sizes(j)
-        !> is defined.
-        integer, private, allocatable :: splitted_orbitals(:, :)
-    contains
-        procedure :: init => init_GAS_spec
-        procedure :: contains => contains_det
-        procedure :: is_connected
-        procedure :: is_valid
-    end type
-
-    type(GASSpec_t) :: GAS_specification
 
     interface get_cumulative_list
         #:for Excitation_t in ExcitationTypes
@@ -71,169 +40,7 @@ module fast_gasci
         #:endfor
     end interface
 
-    interface
-        subroutine stop_all(sub_name, error_msg)
-            character(*), intent(in) :: sub_name, error_msg
-        end subroutine
-    end interface
-
 contains
-
-    logical pure function is_valid(GAS_spec, n_particles, n_basis)
-        class(GASSpec_t), intent(in) :: GAS_spec
-        integer, intent(in), optional :: n_particles, n_basis
-
-        logical :: shapes_match, nEl_correct, pauli_principle, monotonic, &
-            n_orbs_correct, GAS_sizes_match
-        integer :: nGAS, iGAS, i
-
-        associate(n_orbs => GAS_spec%n_orbs, n_min => GAS_spec%n_min, &
-                  n_max => GAS_spec%n_max)
-
-            nGAS = GAS_spec%nGAS
-
-            shapes_match = &
-                all([size(n_orbs), size(n_min), size(n_max)] == nGAS) &
-                .and. maxval(GAS_spec%GAS_table) == size(n_orbs)
-
-            if (present(n_particles)) then
-                nEl_correct = all([n_min(nGAS), n_max(nGAS)] == n_particles)
-            else
-                nEl_correct = n_min(nGAS) == n_max(nGAS)
-            end if
-
-            block
-                integer :: GAS_sizes(nGAS), iGAS
-                GAS_sizes = 0
-                do i = 1, nBasis - 1, 2
-                    iGAS = GAS_spec%GAS_table(i)
-                    GAS_sizes(iGAS) = GAS_sizes(iGAS) + 1
-                end do
-                GAS_sizes_match = all(cumsum(GAS_sizes) == n_orbs)
-            end block
-
-
-            pauli_principle = all(n_min(:) <= n_orbs(:) * 2)
-
-            if (nGAS >= 2) then
-                monotonic = all([all(n_orbs(2:) >= n_orbs(: nGAS - 1)), &
-                                 all(n_max(2:) >= n_max(: nGAS - 1)), &
-                                 all(n_min(2:) >= n_min(: nGAS - 1))])
-            else
-                monotonic = .true.
-            end if
-
-            if (present(n_basis)) then
-                n_orbs_correct = 2 * n_orbs(nGAS) == n_basis
-            else
-                n_orbs_correct = .true.
-            end if
-        end associate
-
-        is_valid = all([shapes_match, nEl_correct, pauli_principle, &
-                        monotonic, n_orbs_correct])
-    end function
-
-    pure function is_connected(GAS_spec) result(res)
-        class(GASSpec_t), intent(in) :: GAS_spec
-        logical :: res
-        res = any(GAS_spec%n_min(:) /= GAS_spec%n_max(:))
-    end function
-
-
-    subroutine init_GAS_spec(GAS_spec)
-        class(GASSpec_t), intent(inout) :: GAS_spec
-        character(*), parameter :: this_routine = 'init_GAS_spec'
-
-        integer :: n_spin_orbs
-
-        GAS_spec%nGAS = size(GAS_spec%n_orbs)
-        GAS_spec%GAS_sizes = GAS_spec%n_orbs - eoshift(GAS_spec%n_orbs, -1)
-        GAS_spec%max_GAS_size = maxval(GAS_spec%GAS_sizes)
-
-        allocate(GAS_spec%splitted_orbitals(GAS_spec%max_GAS_size, GAS_spec%nGAS))
-
-        n_spin_orbs = 2 * GAS_spec%n_orbs(GAS_spec%nGAS)
-        block
-            integer :: counter(GAS_spec%nGAS), i, all_orbitals(n_spin_orbs)
-            integer :: splitted_sizes(GAS_spec%nGAS)
-            all_orbitals = [(i, i = 1, n_spin_orbs)]
-            call split_per_GAS(GAS_spec, all_orbitals, GAS_spec%splitted_orbitals, splitted_sizes)
-            @:ASSERT(all(GAS_spec%GAS_sizes == splitted_sizes))
-        end block
-
-        @:ASSERT(is_valid(GAS_spec))
-    end subroutine
-
-    subroutine split_per_GAS(GAS_spec, occupied, splitted, splitted_sizes)
-        type(GASSpec_t), intent(in) :: GAS_spec
-        integer, intent(in) :: occupied(:)
-        integer, intent(out) :: &
-            splitted(GAS_spec%max_GAS_size, GAS_spec%nGAS), &
-            splitted_sizes(GAS_spec%nGAS)
-
-        integer :: iel, iGAS
-
-        splitted_sizes = 0
-        do iel = 1, size(occupied)
-            iGAS = GAS_spec%GAS_table(iel)
-            splitted_sizes(iGAS) = splitted_sizes(iGAS) + 1
-            splitted(splitted_sizes(iGAS), iGAS) = occupied(iel)
-        end do
-    end subroutine
-
-    function count_per_GAS(GAS_spec, occupied) result(splitted_sizes)
-        type(GASSpec_t), intent(in) :: GAS_spec
-        integer, intent(in) :: occupied(:)
-
-        integer :: splitted_sizes(GAS_spec%nGAS)
-
-        integer :: iel, iGAS
-
-        splitted_sizes = 0
-        do iel = 1, size(occupied)
-            iGAS = GAS_spec%GAS_table(iel)
-            splitted_sizes(iGAS) = splitted_sizes(iGAS) + 1
-        end do
-    end function
-
-
-    !>  @brief
-    !>      Query wether a determinant is contained in the GAS space.
-    !>
-    !>  @details
-    !>  It is **assumed** that the determinant is contained in the
-    !>  Full CI space and obeys e.g. the Pauli principle.
-    !>  The return value is not defined, if that is not the case!
-    !>
-    !>  An operator for this function is also implemented that allows
-    !>  to write::
-    !>
-    !>  GAS_spec .contains. det_I
-    !>
-    !>  @param[in] GAS_spec, Specification of GAS spaces (GASSpec_t).
-    !>  @param[in] occupied, An index of occupied spatial
-    !>      or spin orbitals (SpinOrbIdx_t, SpatOrbIdx_t).
-    function contains_det(GAS_spec, occupied) result(res)
-        class(GASSpec_t), intent(in) :: GAS_spec
-        integer, intent(in) :: occupied(:)
-
-        logical :: res
-        integer :: &
-            splitted(GAS_spec%max_GAS_size, GAS_spec%nGAS), &
-            splitted_sizes(GAS_spec%nGAS)
-
-        !> Cumulated number of particles per iGAS
-        integer :: cum_n_particle(GAS_spec%nGAS), i
-
-        call split_per_GAS(GAS_spec, occupied, splitted, splitted_sizes)
-
-        cum_n_particle = cumsum(splitted_sizes)
-
-        res = all(GAS_spec%n_min(:) <= cum_n_particle(:) &
-            .and. cum_n_particle(:) <= GAS_spec%n_max(:))
-    end function
-
 
     !>  @brief
     !>      Return the GAS spaces, where one particle can be created.
@@ -302,20 +109,20 @@ contains
         block
             integer :: B(GAS_spec%nGAS), C(GAS_spec%nGAS)
             if (present(add_holes)) then
-                B = count_per_GAS(GAS_spec, add_holes)
+                B = GAS_spec%count_per_GAS(add_holes)
             else
                 B = 0
             end if
             if (present(add_particles)) then
-                C = count_per_GAS(GAS_spec, add_particles)
+                C = GAS_spec%count_per_GAS(add_particles)
             else
                 C = 0
             end if
             cum_n_particle = cumsum(size_per_GAS - B + C)
         end block
 
-        deficit = GAS_spec%n_min(:) - cum_n_particle(:)
-        vacant = GAS_spec%n_max(:) - cum_n_particle(:)
+        deficit = GAS_spec%cn_min(:) - cum_n_particle(:)
+        vacant = GAS_spec%cn_max(:) - cum_n_particle(:)
 
         if (any(n_total_ < deficit) .or. all(vacant < n_total_)) then
             spaces = 0
@@ -370,7 +177,7 @@ contains
             @:ASSERT(abs(excess%val) <= n_total_, excess, n_total_)
         end if
 
-        call split_per_GAS(GAS_spec, det_I, splitted, splitted_sizes)
+        call GAS_spec%split_per_GAS(det_I, splitted, splitted_sizes)
 
         ! Note, that non-present optional arguments can be passed
         ! into optional arguments without checking!
@@ -521,7 +328,7 @@ contains
         if (i /= 0) then
             exc%val(2) = possible_holes(i)
             call make_single(det_I, nJ, elec, exc%val(2), ex_mat, par)
-            ilutJ = excite(ilutI, exc)
+            ilutJ = ilut_excite(ilutI, exc)
         else
             nJ = 0
             ilutJ = 0
@@ -661,7 +468,7 @@ contains
 
             if (i /= 0) then
                 call make_double(det_I, nJ, elecs(1), elecs(2), tgt1, tgt2, ex_mat, par)
-                ilutJ = excite(ilutI, exc)
+                ilutJ = ilut_excite(ilutI, exc)
             else
                 ilutJ = 0
             end if
@@ -786,38 +593,38 @@ contains
         integer, allocatable :: doubles_exc_list(:, :)
         character(*), parameter :: this_routine = 'get_available_doubles'
 
-        type(SpinOrbIdx_t) :: possible_holes(2), deleted
-        type(SpinOrbIdx_t), allocatable :: tmp_buffer(:)
+        integer, allocatable :: first_pick_possible_holes(:), second_pick_possible_holes(:), deleted(:)
+        integer, allocatable :: tmp_buffer(:, :)
         integer :: i, j, k, l, i_buffer, src1, src2, tgt1, tgt2
         type(SpinProj_t) :: m_s_1
 
-        @:ASSERT(GAS_spec .contains. det_I)
+        @:ASSERT(GAS_spec%contains(det_I))
 
         i_buffer = 0
         do i = 1, size(det_I)
             do j = i + 1, size(det_I)
-                src1 = det_I%idx(i)
-                src2 = det_I%idx(j)
-                deleted = SpinOrbIdx_t([src1, src2])
-                possible_holes(1) = get_possible_holes(GAS_spec, det_I, &
-                                        add_holes=deleted, excess=-sum(calc_spin(deleted)), &
+                src1 = det_I(i)
+                src2 = det_I(j)
+                deleted = det_I([i, j])
+                first_pick_possible_holes = get_possible_holes(GAS_spec, det_I, &
+                                        add_holes=deleted, excess=-sum(calc_spin_raw(deleted)), &
                                         n_total=2)
-                @:ASSERT(disjoint(possible_holes(1)%idx, det_I%idx))
-                do k = 1, size(possible_holes(1))
-                    tgt1 = possible_holes(1)%idx(k)
+                @:ASSERT(disjoint(first_pick_possible_holes, det_I))
+                do k = 1, size(first_pick_possible_holes)
+                    tgt1 = first_pick_possible_holes(k)
                     m_s_1 = calc_spin_raw(tgt1)
                     @:ASSERT(any(m_s_1 == [alpha, beta]))
 
-                    possible_holes(2) = get_possible_holes(&
+                    second_pick_possible_holes = get_possible_holes(&
                             GAS_spec, det_I, add_holes=deleted, &
-                            add_particles=SpinOrbIdx_t([tgt1]), &
-                            n_total=1, excess=m_s_1 - sum(calc_spin(deleted)))
+                            add_particles=[tgt1], &
+                            n_total=1, excess=m_s_1 - sum(calc_spin_raw(deleted)))
 
-                    @:ASSERT(disjoint(possible_holes(2)%idx, [tgt1]))
-                    @:ASSERT(disjoint(possible_holes(2)%idx, det_I%idx))
+                    @:ASSERT(disjoint(second_pick_possible_holes, [tgt1]))
+                    @:ASSERT(disjoint(second_pick_possible_holes, det_I))
 
-                    do l = 1, size(possible_holes(2))
-                        tgt2 = possible_holes(2)%idx(l)
+                    do l = 1, size(second_pick_possible_holes)
+                        tgt2 = second_pick_possible_holes(l)
                         i_buffer = i_buffer + 1
                         call grow_assign(&
                             tmp_buffer, i_buffer, &
@@ -827,41 +634,40 @@ contains
             end do
         end do
 
-        doubles_exc_list = tmp_buffer(:i_buffer)
+        doubles_exc_list = tmp_buffer(:, :i_buffer)
 
         @:sort(integer, doubles_exc_list, rank=2, along=2, comp=lex_leq)
 
         ! Remove double appearances
         j = 1
-        tmp_buffer(j) = doubles_exc_list(1)
-        do i = 2, size(doubles_exc_list)
-            if (any(doubles_exc_list(i - 1) /= doubles_exc_list(i))) then
+        tmp_buffer(:, j) = doubles_exc_list(:, 1)
+        do i = 2, size(doubles_exc_list, 2)
+            if (any(doubles_exc_list(:, i - 1) /= doubles_exc_list(:, i))) then
                 j = j + 1
-                tmp_buffer(j) = doubles_exc_list(i)
+                tmp_buffer(:, j) = doubles_exc_list(:, i)
             end if
         end do
-        doubles_exc_list = tmp_buffer(: j)
+        doubles_exc_list = tmp_buffer(:, : j)
     end function
 
     subroutine grow_assign(lhs, i, rhs)
-        type(SpinOrbIdx_t), intent(inout), allocatable :: lhs(:)
-        integer, intent(in) :: i
-        type(SpinOrbIdx_t), intent(in) :: rhs
+        integer, intent(inout), allocatable :: lhs(:, :)
+        integer, intent(in) :: i, rhs(:)
 
-        type(SpinOrbIdx_t), allocatable :: buffer(:)
+        integer, allocatable :: buffer(:, :)
         integer :: n
         real(dp), parameter :: grow_factor = 2.0_dp
         integer, parameter :: start_n = 10
 
-        if (.not. allocated(lhs)) allocate(lhs(start_n))
+        if (.not. allocated(lhs)) allocate(lhs(size(rhs), start_n))
 
-        if (i > size(lhs)) then
-            buffer = lhs(:)
+        if (i > size(lhs, 2)) then
+            buffer = lhs(:, :)
             deallocate(lhs)
-            allocate(lhs(int(i * grow_factor)))
-            lhs(: size(buffer)) = buffer
+            allocate(lhs(size(rhs), int(i * grow_factor)))
+            lhs(:, : size(buffer)) = buffer
         end if
-        lhs(i) = rhs
+        lhs(:, i) = rhs
     end subroutine
 
     subroutine gen_all_excits(nI, n_excits, det_list)
@@ -869,25 +675,22 @@ contains
         integer, intent(out) :: n_excits
         integer(n_int), intent(out), allocatable :: det_list(:,:)
 
-        type(SpinOrbIdx_t) :: det_I
-        type(SpinOrbIdx_t), allocatable :: singles(:), doubles(:)
+        integer, allocatable :: singles(:, :), doubles(:, :)
         integer :: i, j, k
 
-        det_I = SpinOrbIdx_t(nI)
+        singles = get_available_singles(GAS_specification, nI)
+        doubles = get_available_doubles(GAS_specification, nI)
 
-        singles = get_available_singles(GAS_specification, det_I)
-        doubles = get_available_doubles(GAS_specification, det_I)
-
-        n_excits = size(singles) + size(doubles)
+        n_excits = size(singles, 2) + size(doubles, 2)
         allocate(det_list(0:niftot, n_excits))
         j = 1
-        do i = 1, size(singles)
-            det_list(:, j) = to_ilut(singles(i))
+        do i = 1, size(singles, 2)
+            call EncodeBitDet(singles(:, i), det_list(:, j))
             j = j + 1
         end do
 
-        do i = 1, size(doubles)
-            det_list(:, j) = to_ilut(doubles(i))
+        do i = 1, size(doubles, 2)
+            call EncodeBitDet(doubles(:, i), det_list(:, j))
             j = j + 1
         end do
 

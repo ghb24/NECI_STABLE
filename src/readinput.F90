@@ -233,7 +233,7 @@ MODULE ReadInput_neci
         use hist_data, only: tHistSpawn
         use Parallel_neci, only: nNodes,nProcessors
         use UMatCache, only: tDeferred_Umat2d
-        use gasci, only: GAS_specification, is_connected, is_valid, GAS_exc_gen, possible_GAS_exc_gen, operator(==)
+        use gasci, only: GAS_specification, GAS_exc_gen, possible_GAS_exc_gen, operator(==)
 
         use guga_init, only: checkInputGUGA
         implicit none
@@ -618,13 +618,13 @@ MODULE ReadInput_neci
             if(.not. tDefineDet) then
                 call stop_all(t_r, "Running GAS requires a user-defined reference via definedet.")
             endif
-            if (.not. is_valid(GAS_specification)) then
+            if (.not. GAS_specification%is_valid()) then
                 call stop_all(t_r, "GAS specification not valid.")
             end if
-            if (is_connected(GAS_specification) .and. .not. tGASSpinRecoupling) then
+            if (GAS_specification%is_connected() .and. .not. tGASSpinRecoupling) then
                 call stop_all(t_r, "Running GAS without spin-recoupling requires disconnected spaces.")
             end if
-            if (GAS_exc_gen == possible_GAS_exc_gen%DISCONNECTED .and. is_connected(GAS_specification)) then
+            if (GAS_exc_gen == possible_GAS_exc_gen%DISCONNECTED .and.  GAS_specification%is_connected()) then
                 call stop_all(t_r, "Running GAS-CI = ONLY_DISCONNECTED requires disconnected spaces.")
             end if
         end if

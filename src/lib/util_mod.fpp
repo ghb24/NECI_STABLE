@@ -49,6 +49,14 @@ module util_mod
 !     public :: pDoubles, pSingles
 !     public :: set_timer, halt_timer
 
+
+    interface
+        subroutine stop_all(sub_name, error_msg)
+            character(*), intent(in) :: sub_name, error_msg
+        end subroutine
+    end interface
+
+
     interface
         pure function strlen_wrap (str) result(len) bind(c)
             use iso_c_hack

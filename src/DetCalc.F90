@@ -4,8 +4,7 @@ MODULE DetCalc
         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB, tStoreSpinOrbs, &
              tGAS, t_non_hermitian
         use disconnected_gasci, only: init_disconnected_GAS
-        use gasci, only: GAS_exc_gen, possible_GAS_exc_gen, operator(==)
-        use fast_gasci, only: GAS_specification
+        use gasci, only: GAS_exc_gen, possible_GAS_exc_gen, operator(==), GAS_specification
         use sort_mod
 
         use DetCalcData

@@ -186,7 +186,6 @@ module fcimc_pointed_fns
                                     RDMBiasFacCurr, precond_fac) result(child)
 
         use orb_idx_mod, only: SpinOrbIdx_t
-        use gasci, only: operator(.contains.), GAS_specification
         use SystemData, only: tGAS
 
         integer, intent(in) :: DetCurr(nel), nJ(nel)

@@ -20,11 +20,11 @@ module disconnected_gasci
         get_last_tgt, set_last_tgt, defined, dyn_defined, UNKNOWN
     use sltcnd_mod, only: sltcnd_excit, dyn_sltcnd_excit
     use orb_idx_mod, only: SpinOrbIdx_t, calc_spin_raw, SpinProj_t, operator(==), operator(/=)
-    use gasci, only: GASSpec_t, get_nGAS
+    use gasci, only: GASSpec_t
     implicit none
 
     private
-    public :: isValidExcit, init_disconnected_GAS, generate_nGAS_excitation, &
+    public :: init_disconnected_GAS, generate_nGAS_excitation, &
         clearGAS, oddBits, calc_pgen, dyn_calc_pgen
 
 
@@ -147,15 +147,7 @@ contains
     subroutine init_disconnected_GAS(GAS_spec)
         type(GASSpec_t), intent(in) :: GAS_spec
 
-        integer :: iGAS, a, GAS(nBasis .div. 2)
-
-        a = 1
-        do iGAS = 1, get_nGAS(GAS_spec)
-            GAS(a : GAS_spec%n_orbs(iGAS)) = iGAS
-            a = GAS_spec%n_orbs(iGAS) + 1
-        end do
-
-        call init_GAS(GAS)
+        call init_GAS(GAS_spec%GAS_table(::2) )
     end subroutine
 
 !----------------------------------------------------------------------------!
@@ -170,46 +162,6 @@ contains
 
 !----------------------------------------------------------------------------!
 
-    pure function isValidExcit(ilut_i, ilut_j) result(valid)
-        ! check if the excitation from ilut_i to ilut_j is valid within the GAS
-        integer(n_int), intent(in) :: ilut_i(0:NIfTot), ilut_j(0:NIfTot)
-        integer(n_int) :: GAS_ilut_i(0:NIfD), GAS_ilut_j(0:NIfD)
-        logical :: valid
-
-        integer :: iGAS
-
-        valid = .true.
-        ! safety check: do the GAS_orbs exist
-        if (.not. allocated(GAS_orbs)) return
-        do iGAS = 1, nGAS
-            GAS_ilut_i = GAS_Component(ilut_i, iGAS)
-            GAS_ilut_j = GAS_Component(ilut_j, iGAS)
-            ! check if ilut_i and ilut_j have the same number of electrons in GAS-i
-            valid = sum(popCnt(GAS_ilut_i)) == sum(popCnt(GAS_ilut_j))
-            if (valid .and. .not. tGASSpinRecoupling) then
-                ! check if the number of odd bits set
-                ! (=number of beta electrons) is the
-                ! same in both determinants.
-                valid = sum(popCnt(iand(GAS_ilut_i, oddBits))) &
-                        &== sum(popCnt(iand(GAS_ilut_j, oddBits)))
-            end if
-        end do
-
-    contains
-
-        pure function GAS_Component(ilut, i) result(GAS_Ilut)
-            integer(n_int), intent(in) :: ilut(0:NIfTot)
-            integer, intent(in) :: i
-
-            integer(n_int) :: GAS_Ilut(0:NIfD)
-
-            GAS_Ilut = iand(ilut(0:NIfD), GAS_orbs(0:NIfD, i))
-
-        end function GAS_Component
-
-    end function isValidExcit
-
-!----------------------------------------------------------------------------!
 
     subroutine generate_nGAS_excitation(nI, ilutI, nJ, ilutJ, exFlag, ic, &
                                         ex, tParity, pGen, hel, store, part_type)
