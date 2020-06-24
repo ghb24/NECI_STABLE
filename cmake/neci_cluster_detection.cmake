@@ -73,7 +73,7 @@ if( ${_hostname} MATCHES "maui[0-9]" )
 
     if ( NOT DEFINED CMAKE_TOOLCHAIN_FILE OR
          NOT _toolchain_file STREQUAL "maui.cmake" )
-        message(FATAL_ERROR "Compiling on Archer requires the archer.cmake toolchain file")
+        message(FATAL_ERROR "Compiling on Maui requires the maui.cmake toolchain file")
     endif()
 	
 endif()
