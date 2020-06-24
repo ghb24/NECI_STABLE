@@ -78,14 +78,6 @@ integer :: hole_pairs, nholes_a, nholes_b, nholes
 integer :: nEl             ! Number of (non-frozen) electrons in the system
 integer :: Stot            ! Restrict S to Stot when using CSFs
 integer :: LMS             ! Restrict determinants/CSFs to Ms == LMS
-integer :: csf_trunc_level ! Max nopen for CSFs if tTruncateCSF enabled. Above
-                           ! this, switch to using determinants.
-
-! Inputs for CSFs
-logical :: tCSFOld        ! Use (Alex's) old CSF code
-logical :: tCSF           ! Use CSFs
-logical :: tTruncateCSF   ! Use determinants not CSFs for nopen >
-                          ! csf_trunc_level
 
 ! Calculate size of FCI determinant space using MC
 logical :: tMCSizeSpace,tMCSizeTruncSpace
@@ -234,13 +226,6 @@ LOGICAL :: tHFNoOrder
 ! When set, ignore differences in orbital energies between pairs of orbitals (which should be beta/alpha)
 !  and group them under the same symrep
 LOGICAL :: tSymIgnoreEnergies
-
-! These should really be in hist.F90, but we get circular dependencies
-! These are bad.
-logical :: tHistSpinDist
-integer(n_int), allocatable :: ilut_spindist(:)
-integer :: hist_spin_dist_iter
-integer, allocatable :: nI_spindist(:)
 
 ! Should we use |K| for FCIQMC?
 logical :: modk_offdiag

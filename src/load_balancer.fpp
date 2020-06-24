@@ -15,7 +15,7 @@ module load_balance
                                set_all_spawn_pops, reset_all_tau_ints, &
                                reset_all_shift_ints, det_diagH, store_decoding, &
                                reset_all_tot_spawns, reset_all_acc_spawns
-    use bit_rep_data, only: flag_initiator, NIfDBO, &
+    use bit_rep_data, only: flag_initiator, nifd, &
                             flag_connected, flag_trial, flag_prone, flag_removed
     use bit_reps, only: set_flag, nullify_ilut_part, &
                         encode_part_sign, nullify_ilut
@@ -640,7 +640,7 @@ contains
         use hphf_integrals, only: hphf_off_diag_helement
         use FciMCData, only: ProjEDet, CurrentDets, n_prone_dets
         use LoggingData, only: FCIMCDebug
-        use bit_rep_data, only: NOffSgn
+        use bit_rep_data, only: IlutBits
 
         integer, intent(inout) :: TotWalkersNew
         type(fcimc_iter_data), intent(inout) :: iter_data
@@ -741,7 +741,7 @@ contains
 
                 if (tFillingStochRDMonFly) then
                     if (IsUnoccDet(CurrentSign) .and. (.not. tIsStateDeterm)) then
-                        if (DetBitEQ(CurrentDets(:,i), iLutHF_True, NIfDBO)) then
+                        if (DetBitEQ(CurrentDets(:,i), iLutHF_True, nifd)) then
                             ! We have to do this such that AvNoAtHF matches up with AvSign.
                             ! AvSign is extracted from CurrentH, and if the HFDet is unoccupied
                             ! at this moment during annihilation, it's CurrentH entry is removed
@@ -756,7 +756,7 @@ contains
 
                 ! This InstNoAtHF call must be placed at the END of the routine
                 ! as the value of CurrentSign can change during it!
-                if (DetBitEQ(CurrentDets(:,i), iLutHF_True, NIfDBO)) then
+                if (DetBitEQ(CurrentDets(:,i), iLutHF_True, nifd)) then
                     InstNoAtHF=CurrentSign
                 end if
 
@@ -771,7 +771,9 @@ contains
             write(iout,"(A,I12)") "Walker list length: ",TotWalkersNew
             write(iout,"(A)") "TW: Walker  Det"
             do j = 1, int(TotWalkersNew,sizeof_int)
-                CurrentSign = transfer(CurrentDets(NOffSgn:NOffSgn+lenof_sign-1,j),CurrentSign)
+                CurrentSign = &
+                    transfer(CurrentDets(IlutBits%ind_pop:IlutBits%ind_pop+lenof_sign-1,j), &
+                    CurrentSign)
                 write(iout, "(A,I10,a)", advance='no') 'TW:', j, '['
                 do part_type = 1, lenof_sign
                     write(iout, "(f16.3)", advance='no') CurrentSign(part_type)
@@ -826,7 +828,7 @@ contains
   function need_load_balancing(lt_imb) result(t_lb)
       real(dp), intent(in) :: lt_imb
       logical :: t_lb
-      
+
       real(dp), save :: last_imb = 0.0_dp
       logical, save :: last_t_lb = .false.
 

@@ -3,7 +3,7 @@
 module tau_search
 
     use SystemData, only: AB_elec_pairs, par_elec_pairs, tGen_4ind_weighted, &
-                          tHPHF, tCSF, tKpntSym, nel, G1, nbasis, &
+                          tHPHF, tKpntSym, nel, G1, nbasis, &
                           AB_hole_pairs, par_hole_pairs, tGen_4ind_reverse, &
                           nOccAlpha, nOccBeta, tUEG, tGen_4ind_2, tReltvy, &
                           t_3_body_excits, t_k_space_hubbard, t_trans_corr_2body, &
@@ -629,7 +629,6 @@ contains
         integer(n_int), allocatable :: det_list(:,:)
         integer :: n_excits, i, ex_3(2,3)
 
-        if(tCSF) call stop_all(t_r,"TauSearching needs fixing to work with CSFs or MI funcs")
 
         if (tGUGA) then
             ! in the case of GUGA i need a specialised max-tau-doubs routine

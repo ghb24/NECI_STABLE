@@ -23,7 +23,8 @@ module real_space_hubbard
                           t_spin_dependent_transcorr, tGUGA, tgen_guga_crude, &
                           tNoBrillouin, tUseBrillouin, &
                           t_trans_corr_hop, t_uniform_excits, t_hole_focus_excits, &
-                          pholefocus, t_twisted_bc, twisted_bc, t_anti_periodic
+                          pholefocus, t_twisted_bc, twisted_bc, lnosymmetry, &
+                          t_anti_periodic
 
     use lattice_mod, only: lattice, determine_optimal_time_step, lat, &
                     get_helement_lattice, get_helement_lattice_ex_mat, &
@@ -138,6 +139,8 @@ contains
         ! just to be save swithc of Brillouins
         tNoBrillouin = .true.
         tUseBrillouin = .false.
+
+        lnosymmetry = .true.
 
         ! first assert all the right input!
         call check_real_space_hubbard_input()
@@ -730,7 +733,7 @@ contains
     end subroutine init_get_helement_hubbard
 
     subroutine check_real_space_hubbard_input()
-        use SystemData, only: tCSF, tReltvy, tUEG, tUEG2, tHub, &
+        use SystemData, only: tReltvy, tUEG, tUEG2, tHub, &
                               tKPntSym, tLatticeGens, tUEGNewGenerator, &
                 tGenHelWeighted, tGen_4ind_weighted, tGen_4ind_reverse, &
                 tUEGNewGenerator, tGen_4ind_part_exact, tGen_4ind_lin_exact, &
@@ -741,7 +744,6 @@ contains
         character(*), parameter :: this_routine = "check_real_space_hubbard_input"
         ! do all the input checking here, so no wrong input is used!
 
-        if (tCSF)             call stop_all(this_routine, "tCSF set to true!")
         if (tReltvy)          call stop_all(this_routine, "tReltvy set to true!")
 
         ! what else..
@@ -2071,7 +2073,7 @@ contains
 
             end if
 
-            call calc_guga_matrix_element(ilutI, ilutJ, excitInfo, hel, .true., 2)
+            call calc_guga_matrix_element(ilutI, ilutJ, excitInfo, hel, .true., 1)
 
             if (abs(hel) < EPS) then
                 nJ(1) = 0
@@ -2164,7 +2166,6 @@ contains
                     ! change the order of determinants to reflect
                     ! non-hermiticity correctly
                     ! old implo:
-                    ! elem = abs(get_offdiag_helement_rs_hub(nI,[src,neighbors(i)],.false.))
                     ex(2) = neighbors(i)
                     call swap_excitations(nI, ex, nJ, ex2)
                     elem = abs(get_offdiag_helement_rs_hub(nJ,ex2,.false.))
@@ -2185,7 +2186,6 @@ contains
                 elem = 0.0_dp
                 ASSERT(is_beta(src) .eqv. is_beta(neighbors(i)))
                 if (IsNotOcc(ilutI,neighbors(i))) then
-                    ! elem = abs(get_offdiag_helement_rs_hub(nI,[src,neighbors(i)],.false.))
                     ex(2) = neighbors(i)
                     call swap_excitations(nI, ex, nJ, ex2)
                     elem = abs(get_offdiag_helement_rs_hub(nJ,ex2,.false.))

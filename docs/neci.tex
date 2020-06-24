@@ -1558,6 +1558,9 @@ the \texttt{endsys} keyword.
     Output the spin-free 2-RDMs to disk at the end of the calculation.
       \codeitem{printRoDump}
       Output the integrals of the natural orbitals to a file.
+      
+     \codeitem{print-molcas-rdms} 
+     	It is now possible to calculate stochastic spin-free RDMs with the GUGA implementation. This keyword is necessary if one intends to use this feature in conjunction with \texttt{Molcas} to perform a spin-free Stochastic-CASSCF. It produces the three files \texttt{DMAT, PAMAT} and \texttt{PSMAT}, which are read-in by \texttt{Molcas}. 
     \end{description}
 
 \section{Useful References Containing Technical Details}

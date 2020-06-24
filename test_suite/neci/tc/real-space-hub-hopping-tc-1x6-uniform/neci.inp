@@ -15,6 +15,7 @@ methods
 method vertex fcimc
 endmethods
 
+load-balance-blocks off
 totalwalkers   1000
 
 tau 0.01

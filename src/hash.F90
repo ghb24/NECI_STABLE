@@ -5,8 +5,7 @@ module hash
     use FciMCData, only: hash_iter, hash_shift, RandomHash2, HFDet, ll_node
     use bit_rep_data, only: flag_deterministic, test_flag, test_flag_multi
     use bit_reps, only: extract_sign, decode_bit_det
-    use Systemdata, only: nel, tCSF, nBasis
-    use csf_data, only: csf_orbital_mask
+    use Systemdata, only: nel, nBasis
     use CalcData, only: tSemiStochastic
     use constants
 
@@ -28,17 +27,10 @@ module hash
         integer :: i
         integer(int64) :: hash
         hash = 0
-        if(tCSF) then
-            do i = 1, size(orb_array)
-                hash = (1099511628211_int64 * hash) + &
-                        int(RandomHash2(mod(iand(orb_array(i), csf_orbital_mask)-1,nBasis)+1) * i,int64)
-            enddo
-        else
-            do i = 1, size(orb_array)
-                hash = (1099511628211_int64 * hash) + &
-                        int(RandomHash2(orb_array(i))*i,int64)
-            enddo
-        endif
+        do i = 1, size(orb_array)
+            hash = (1099511628211_int64 * hash) + &
+                    int(RandomHash2(orb_array(i))*i,int64)
+        enddo
         hashInd = int(abs(mod(hash, int(HashIndexLength, int64))),sizeof_int)+1
 
     end function FindWalkerHash

@@ -10,7 +10,7 @@ module verlet_aux
 
   use hash, only: clear_hash_table, hash_table_lookup, add_hash_table_entry
 
-  use bit_rep_data, only: niftot, nifdbo, extract_sign, nOffFlag
+  use bit_rep_data, only: niftot, nifd, extract_sign, IlutBits
 
   use bit_reps, only: decode_bit_det, set_flag, get_initiator_flag_by_run, encode_sign, &
        add_ilut_lists, extract_bit_rep, test_flag, encode_bit_rep
@@ -280,7 +280,7 @@ module verlet_aux
 
             if(.not. IsNullDet(nI_child)) then
                call encode_child(ilut_parent, ilut_child, ic, ex)
-               ilut_child(nOffFlag) = 0_n_int
+               ilut_child(IlutBits%ind_flag) = 0_n_int
 
                ! treating semi-stochastic space
                ! note that diagonal event either are not in the core space at all
@@ -341,7 +341,7 @@ module verlet_aux
 
       err = 0
 
-      call hash_table_lookup(nI,iLut,nifdbo,spawn_ht,SpawnedParts,ind,hash_val,tSuccess)
+      call hash_table_lookup(nI,iLut,nifd,spawn_ht,SpawnedParts,ind,hash_val,tSuccess)
       if(tSuccess) then
          ! if it already exists, add in the
          call extract_sign(SpawnedParts(:,ind),old_sign)
@@ -370,7 +370,7 @@ module verlet_aux
             return
          endif
 
-         call encode_bit_rep(SpawnedParts(:,ValidSpawnedList(proc)),ilut(0:nifdbo), &
+         call encode_bit_rep(SpawnedParts(:,ValidSpawnedList(proc)),ilut(0:nifd), &
               sign, flags)
 
          if(tTruncInitiator) then
@@ -419,7 +419,7 @@ module verlet_aux
       do i = 1, rep%determ_sizes(iProcIndex)
          ! check if the core-space determinant was already spawned upon
          call decode_bit_det(nI, sourcePopulation(:,rep%indices_of_determ_states(i)))
-         call hash_table_lookup(nI, sourcePopulation(:,rep%indices_of_determ_states(i)), nifdbo, &
+         call hash_table_lookup(nI, sourcePopulation(:,rep%indices_of_determ_states(i)), nifd, &
               hashTable, population, ilutindex, hashValue, tSuccess)
 
          if(tSuccess) then
@@ -460,7 +460,7 @@ module verlet_aux
       do i = 1, sizeB
          call decode_bit_det(nJ, listB(:,i))
 
-         call hash_table_lookup(nJ, listB(:,i), nifdbo, hashTable, listA, ilutIndex, &
+         call hash_table_lookup(nJ, listB(:,i), nifd, hashTable, listA, ilutIndex, &
               hashValue, tSuccess)
 
          if(tSuccess) then

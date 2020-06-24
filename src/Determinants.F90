@@ -1,17 +1,15 @@
 #include "macros.h"
 MODULE Determinants
     use constants, only: dp, n_int, bits_n_int, int64, maxExcit
-    use SystemData, only: BasisFN, tCSF, nel, G1, Brr, ECore, ALat, NMSH, &
+    use SystemData, only: BasisFN, nel, G1, Brr, ECore, ALat, NMSH, &
                           nBasis, nBasisMax, tStoreAsExcitations, tHPHFInts, &
-                          tCSF, tCPMD, tPickVirtUniform, LMS, modk_offdiag, &
+                          tCPMD, tPickVirtUniform, LMS, modk_offdiag, &
                           tGUGA, STOT, &
                           t_lattice_model, arr, tFixLz, tUEGSpecifyMomentum, &
                           tRef_Not_HF, tMolpro, tHub, tUEG, &
                           nClosedOrbs, nOccOrbs, nIrreps, tspn, irrepOrbOffset
 
     use IntegralsData, only: UMat, FCK, NMAX
-    use csf, only: det_to_random_csf, iscsf, csf_orbital_mask, &
-                   csf_yama_bit, CSFGetHelement
 
     use excitation_types, only: Excitation_t, DoubleExc_t, get_excitation
     use sltcnd_mod, only: sltcnd, dyn_sltcnd_excit_old, sltcnd_compat, &
@@ -91,7 +89,7 @@ contains
 
        ! A quick check that we have defined a reasonable det.
        ms = sum(get_spin_pn(fdet(1:nel)))
-       if (abs(ms) /= abs(lms) .and. .not. tCSF) then
+       if (abs(ms) /= abs(lms)) then
           write(6,*) 'LMS', lms
           write(6,*) 'Calculated Ms', ms
           call stop_all (this_routine, "Defined determinant has the &
@@ -456,9 +454,7 @@ contains
                 !CALL SpinOrbSymSetup() !.false.)
             ENDIF
 
-            if (tCSF) then
-                call csf_sym_setup ()
-            elseif (tPickVirtUniform) then
+            if (tPickVirtUniform) then
                 call virt_uniform_sym_setup ()
             else
                 ! Includes normal & HPHF
@@ -468,13 +464,6 @@ contains
         ENDIF
 ! From now on, the orbitals are also contained in symlabellist2 and symlabelcounts2.
 ! These are stored using spin orbitals.
-
-        ! If we are using CSFs, then we need to convert this into a csf
-        if (tCSF) then
-            ncsf = det_to_random_csf (FDET)
-            write (6, '("Generated starting CSF: ")', advance='no')
-            call write_det (6, FDET, .true.)
-        endif
 
     End Subroutine DetInit
 
@@ -520,13 +509,6 @@ contains
             hel = get_helement_lattice(nI, nJ, temp_ic)
             return
         end if
-
-        if (tCSF) then
-            if (iscsf(nI) .or. iscsf(nJ)) then
-                hel = CSFGetHelement (nI, nJ)
-                return
-            endif
-        endif
 
         if (tStoreAsExcitations) &
             call stop_all(this_routine, "tStoreExcitations not supported")
@@ -580,13 +562,6 @@ contains
         if (tHPHFInts) &
             call stop_all (this_routine, "Should not be calling HPHF &
                           &integrals from here.")
-
-        if (tCSF) then
-            if (iscsf(nI) .or. iscsf(nJ)) then
-                hel = CSFGetHelement (nI, nJ)
-                return
-            endif
-        endif
 
         if (t_lattice_model) then
             if (present(ICret)) then
@@ -672,15 +647,6 @@ contains
             end if
 
         end if
-
-        ! If we are using CSFs, then call the csf routine.
-        ! TODO: Passing through of ExcitMat to CSFGetHelement
-        if (tCSF) then
-            if (iscsf(NI) .or. iscsf(NJ)) then
-                hel = CSFGetHelement (nI, nJ)
-                return
-            endif
-        endif
 
         if (IC < 0) &
             call stop_all(this_routine, "get_helement_excit should only be &
@@ -1075,63 +1041,6 @@ END MODULE Determinants
          RETURN
       END
 
-    subroutine writedet_oldcsf (nunit, nI, nel, lTerm)
-        use systemdata, only: tCSF, tCSFOLD
-
-        ! Write a human readable determinant to specified file unit. For use
-        ! with old csf routines.
-        ! Not easy to test, as both iscsf routines will return true sometimes.
-        ! This is here for use if it becomes necessary (eg debugging)
-        !
-        ! In: nunit    - File unit
-        !     nI (nel) - Determinant to print
-        !     nel      - Number of electrons
-        !     lTerm    - Do we write an end-of-line character
-
-        use legacy_data, only: CSF_NBSTART
-        implicit none
-        integer, intent(in) :: nunit, nel, nI(nel)
-        logical, intent(in) :: lTerm
-        integer :: i, orb
-        logical iscsf_old, bCSF
-
-        ! Is this a csf? Note use of old (non-modularised) iscsf
-        bCSF = (tCSF .or. tCSFOLD) .and. iscsf_old(nI, nel)
-
-        ! Begin with an open bracket
-        write(nunit,'("(")',advance='no')
-        do i=1,nel
-            orb = nI(i)
-            if (bCSF .and. orb > CSF_NBSTART) then
-                ! Output the component orbital
-                orb = (orb - CSF_NBSTART) / 4 + 1
-                write(nunit,'(i4)',advance='no') orb
-
-                ! Output components of Yamanouchi symbol
-                orb = nI(i) - csf_nbstart
-                if (btest(orb, 1)) then
-                    write(nunit,'("+")',advance='no')
-                else
-                    write(nunit,'("-")',advance='no')
-                endif
-
-                ! Output components of Ms
-                if (btest(orb, 0)) then
-                    write(nunit,'("A")',advance='no')
-                else
-                    write(nunit,'("B")',advance='no')
-                endif
-            else
-                write(nunit,'(i6)',advance='no') orb
-            endif
-            if (i /= nel) write(nunit,'(",")',advance='no')
-        enddo
-
-        ! Close the written determinant off
-        write(nunit,'(")")',advance='no')
-        if (lTerm) write(nunit,*)
-
-    end subroutine
 
 
 ! Calculate the one-electron part of the energy of a det
@@ -1141,10 +1050,8 @@ END MODULE Determinants
          USE OneEInts, only : GetTMatEl
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),I
-         LOGICAL ISCSF_old
          real(dp) :: CALCT
          CALCT=0.0_dp
-         IF(ISCSF_old(NI,NEL)) RETURN
          DO I=1,NEL
             CALCT=CALCT+GetTMATEl(NI(I),NI(I))
          ENDDO

@@ -5,8 +5,8 @@
 
 module semi_stoch_procs
 
-    use bit_rep_data, only: flag_deterministic, nIfDBO, NIfD, NIfTot, test_flag, NOffSgn, &
-        NOffFlag, test_flag_multi
+    use bit_rep_data, only: flag_deterministic, NIfD, NIfTot, test_flag, &
+                            test_flag_multi, IlutBits
 
     use bit_reps, only: decode_bit_det, get_initiator_flag_by_run
 
@@ -72,6 +72,8 @@ module semi_stoch_procs
     use LoggingData, only: t_print_core_info
 
     use shared_memory_mpi, only: shared_allocate_mpi, shared_deallocate_mpi
+
+    use guga_bitrepops, only: init_csf_information
 
     implicit none
 
@@ -966,7 +968,7 @@ contains
             open(iunit, file='CORESPACE', status='replace')
 
             do i = 1, rep%determ_space_size
-                do k = 0, NIfDBO
+                do k = 0, nifd
                     write(iunit, '(i24)', advance='no') rep%core_space(k,i)
                 end do
                 write(iunit, '()')
@@ -1003,7 +1005,7 @@ contains
                   ! If there is only one state in CurrentDets to check then BinSearchParts doesn't
                   ! return the desired value for PartInd, so do this separately...
                   if (MinInd == nwalkers) then
-                      comp = DetBitLT(CurrentDets(:,MinInd), SpawnedParts(0:NIfTot,i), NIfDBO)
+                      comp = DetBitLT(CurrentDets(:,MinInd), SpawnedParts(0:NIfTot,i), nifd)
                       if (comp == 0) then
                           tSuccess = .true.
                           PartInd = MinInd
@@ -1120,7 +1122,7 @@ contains
               temp_node => HashIndex(hash_val)
               if (temp_node%ind /= 0) then
                   do while (associated(temp_node))
-                      if ( all(SpawnedParts(0:NIfDBO, i) == CurrentDets(0:NIfDBO, temp_node%ind)) ) then
+                      if ( all(SpawnedParts(0:nifd, i) == CurrentDets(0:nifd, temp_node%ind)) ) then
                           tSuccess = .true.
                           PartInd = temp_node%ind
                           exit
@@ -1137,8 +1139,8 @@ contains
                   call extract_sign(CurrentDets(:,PartInd), walker_sign)
                   call encode_sign(SpawnedParts(:,i), walker_sign)
                   ! Add up the already set flags to those to be set
-                  SpawnedParts(NOffFlag, i) = ior(CurrentDets(NOffFlag, PartInd), &
-                      SpawnedParts(NOffFlag, i))
+                  SpawnedParts(IlutBits%ind_flag, i) = ior(CurrentDets(IlutBits%ind_flag, PartInd), &
+                      SpawnedParts(IlutBits%ind_flag, i))
                   ! Cache the accumulated global det data
                   call reorder_handler%write_gdata(gdata_buf, 1, PartInd, i)
               else
@@ -1660,7 +1662,7 @@ contains
                 pop_sign = dc%davidson_eigenvector(counter)
                 call decode_bit_det(nI, CurrentDets(:,i))
                 tmp = transfer(pop_sign(rep%min_part():rep%max_part()), tmp)
-                CurrentDets(NOffSgn+rep%min_part()-1:NOffSgn+rep%max_part()-1, i) = tmp
+                CurrentDets(IlutBits%ind_pop+rep%min_part()-1:IlutBits%ind_pop+rep%max_part()-1, i) = tmp
             end if
         end do
         end associate
@@ -1724,7 +1726,7 @@ contains
                   counter = counter + 1
                   pop_sign = e_vectors(counter,1)
                   tmp = transfer(pop_sign(min_pt:max_pt), tmp)
-                  CurrentDets(NOffSgn+min_part_type(run)-1:NOffSgn+max_part_type(run)-1,i) = tmp
+                  CurrentDets(IlutBits%ind_pop+min_part_type(run)-1:IlutBits%ind_pop+max_part_type(run)-1,i) = tmp
               end if
           end do
         end associate
@@ -1797,7 +1799,6 @@ contains
         HElement_t(dp), allocatable :: full_H(:,:)
         integer i, nI(nel),space_size
 
-       root_print "The determinants are"
 
         ! if the Hamiltonian is non-hermitian we cannot use the
         ! standard Lanzcos or Davidson routines. so:
@@ -1805,6 +1806,7 @@ contains
         call calc_determin_hamil_full(full_H, rep)
 
         if (t_print_core_info) then
+            root_print "The determinants are"
             root_print "semistochastic basis:"
             if_root
                 do i = 1, rep%determ_space_size
@@ -1848,6 +1850,8 @@ contains
         do i = 1, rep%determ_space_size
             call decode_bit_det(nI, rep%core_space(:,i))
 
+            call init_csf_information(rep%core_space(0:nifd,i))
+
             if (tHPHF) then
                 hamil(i,i) = hphf_diag_helement(nI,rep%core_space(:,i))
             else
@@ -1865,7 +1869,7 @@ contains
                         rep%core_space(:,i), rep%core_space(:,j))
                 else if (tGUGA) then
                     call calc_guga_matrix_element(rep%core_space(:,i), rep%core_space(:,j), &
-                        excitInfo, hamil(i,j), .true., 2)
+                        excitInfo, hamil(i,j), .true., 1)
                 else
                     hamil(i,j) = get_helement(nI, nJ, rep%core_space(:,i), rep%core_space(:,j))
                 end if
@@ -1915,10 +1919,9 @@ contains
         use Determinants, only: GetH0Element3, GetH0Element4
         use FciMCData, only: ilutHF, HFDet, Fii
         use SystemData, only: tUEG
-        use CalcData, only: t_guga_mat_eles
         use SystemData, only: tGUGA
         use guga_matrixElements, only: calcDiagMatEleGUGA_nI
-        use guga_excitations, only: calc_off_diag_guga_gen, calc_guga_matrix_element
+        use guga_excitations, only: calc_guga_matrix_element
         use guga_data, only: ExcitationInformation_t
         integer, intent(in) :: nI(nel)
         integer(n_int), intent(in) :: ilut(0:NIfTot)
@@ -1944,14 +1947,10 @@ contains
             ! fock energies, so can consider either.
             hel = hphf_off_diag_helement(HFDet, nI, iLutHF, ilut)
         else if (tGUGA) then
-            if (t_guga_mat_eles) then
-                ! i am not sure if the ref_stepvector thingies are set up for
-                ! the ilutHF in this case..
-                call calc_guga_matrix_element(ilut, ilutHF, excitInfo, hel, &
-                    .true., 2)
-            else
-                hel = calc_off_diag_guga_gen(ilut, ilutHF)
-            end if
+            ! i am not sure if the ref_stepvector thingies are set up for
+            ! the ilutHF in this case..
+            call calc_guga_matrix_element(ilut, ilutHF, excitInfo, hel, &
+                .true., 2)
         else
             hel = get_helement(HFDet, nI, ic, ex, tParity)
         end if

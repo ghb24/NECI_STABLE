@@ -105,6 +105,8 @@ contains
         use SystemData, only: tHPHF, nel
         use guga_excitations, only: calc_guga_matrix_element
         use guga_data, only: ExcitationInformation_t
+        use guga_bitrepops, only: init_csf_information
+        use bit_rep_data, only: nifd
         integer(n_int), intent(in) :: ilut_list(0:,:)
         HElement_t(dp), intent(inout), allocatable :: local_hamil(:,:)
 
@@ -131,6 +133,8 @@ contains
         end if
         do i = 1, ndets
             call decode_bit_det(nI, ilut_list(:,i))
+            if (tGUGA) call init_csf_information(ilut_list(0:nifd,i))
+
             do j = i, ndets
                 call decode_bit_det(nJ, ilut_list(:,j))
                 if (i == j) then
@@ -144,7 +148,10 @@ contains
                         local_hamil(i,j) = hphf_off_diag_helement(nI, nJ, ilut_list(:,i), ilut_list(:,j))
                     else if (tGUGA) then
                         call calc_guga_matrix_element(ilut_list(:,i),ilut_list(:,j), &
-                            excitInfo, local_hamil(i,j), .true., 2)
+                            excitInfo, local_hamil(i,j), .true., 1)
+! #ifdef CMPLX_
+!                         local_hamil(i,j) = conjg(local_hamil(i,j))
+! #endif
                     else
                         local_hamil(i,j) = get_helement(nI, nJ, ilut_list(:,i), ilut_list(:,j))
                     end if
