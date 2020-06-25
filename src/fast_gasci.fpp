@@ -667,7 +667,7 @@ contains
             buffer = lhs(:, :)
             deallocate(lhs)
             allocate(lhs(size(rhs), int(i * grow_factor)))
-            lhs(:, : size(buffer)) = buffer
+            lhs(:, : size(buffer, 2)) = buffer
         end if
         lhs(:, i) = rhs
     end subroutine
