@@ -8,8 +8,8 @@ module spin_project
     use bit_reps, only: NIfD, NIfTot, flag_initiator, test_flag, set_flag, &
                         get_initiator_flag_by_run
     use csf, only: csf_get_yamas, get_num_csfs, csf_coeff, random_spin_permute
-    use constants, only: dp, bits_n_int, lenof_sign, n_int, end_n_int, int32,sizeof_int, &
-                        inum_runs, maxExcit
+    use constants, only: dp, bits_n_int, lenof_sign, n_int, end_n_int, int32, sizeof_int, &
+                         inum_runs, maxExcit
     use FciMCData, only: TotWalkers, CurrentDets, fcimc_iter_data, &
                          yama_global, excit_gen_store_type, &
                          fcimc_excit_gen_store
@@ -38,14 +38,14 @@ module spin_project
     ! For spin projection, pre-calculate and store the Yamanouchi
     ! symbols --> don't need to re-calculate them all the time.
     type yama_storage_type
-        integer, allocatable :: yamas(:,:)
+        integer, allocatable :: yamas(:, :)
         integer :: nyama
     end type
     type(yama_storage_type), allocatable, target :: y_storage(:)
 
 contains
 
-    subroutine init_yama_store ()
+    subroutine init_yama_store()
 
         ! Calculate all of  the allowed Yamanouchi symbols with the given
         ! values of S, Ms for all allowed unpaired electrons.
@@ -66,36 +66,35 @@ contains
         do nopen = LMS, spin_proj_nopen_max, 2
 
             ! Obtain all of the csfs
-            ncsf = get_num_csfs (nopen, STOT)
+            ncsf = get_num_csfs(nopen, STOT)
             y_storage(nopen)%nyama = ncsf
             allocate(y_storage(nopen)%yamas(ncsf, nopen))
 
             if (ncsf > 0 .and. nopen > 0) then
-                call csf_get_yamas (nopen, STOT, y_storage(nopen)%yamas, ncsf)
-            endif
-        enddo
+                call csf_get_yamas(nopen, STOT, y_storage(nopen)%yamas, ncsf)
+            end if
+        end do
 
     end subroutine
 
-    subroutine clean_yama_store ()
+    subroutine clean_yama_store()
 
         integer :: i
 
         if (allocated(y_storage)) then
 
-            do i = lbound(y_storage,1), ubound(y_storage, 1)
+            do i = lbound(y_storage, 1), ubound(y_storage, 1)
                 if (allocated(y_storage(i)%yamas)) &
                     deallocate(y_storage(i)%yamas)
-            enddo
+            end do
 
             deallocate(y_storage)
 
-        endif
+        end if
 
     end subroutine
 
-
-    subroutine test_spin_proj (nI, ilutI)
+    subroutine test_spin_proj(nI, ilutI)
 
         integer, intent(in) :: nI(nel)
         integer(n_int), intent(in) :: ilutI(0:nIfTot)
@@ -112,11 +111,11 @@ contains
         nup = 0
         do while (i <= nel)
             if (is_beta(nI(i)) .and. i < nel) then
-                if (is_in_pair(nI(i), nI(i+1))) then
+                if (is_in_pair(nI(i), nI(i + 1))) then
                     i = i + 2
                     cycle
-                endif
-            endif
+                end if
+            end if
 
             nopen = nopen + 1
             open_el(nopen) = nI(i)
@@ -125,26 +124,26 @@ contains
                 nup = nup + 1
             else
                 dorder_i(nopen) = 1
-            endif
+            end if
 
             i = i + 1
-        enddo
+        end do
 
         if (nopen /= 0) then
             ! How many dets are there to choose from
-            ndet = int(choose (nopen, nup),sizeof_int)
+            ndet = int(choose(nopen, nup), sizeof_int)
 
             ! initialise iluttmp
             iluttmp = ilutI
             tot_cpt = 0
 
             ! Get the sign for det I
-            call extract_sign (iLutI, sgnI)
+            call extract_sign(iLutI, sgnI)
 
             ! Generate the list of all possible determinants, one by one.
             count_dets = 0
             dorder_j(1) = -1
-            call get_lexicographic (dorder_j, nopen, nup)
+            call get_lexicographic(dorder_j, nopen, nup)
             do while (dorder_j(1) /= -1)
 
                 count_dets = count_dets + 1
@@ -155,38 +154,38 @@ contains
                         orb = get_alpha(open_el(i))
                     else
                         orb = get_beta(open_el(i))
-                    endif
+                    end if
                     orb2 = ab_pair(orb)
                     set_orb(iluttmp, orb)
                     clr_orb(iluttmp, orb2)
-                enddo
+                end do
 
-                pos = binary_search (CurrentDets(:,1:TotWalkers), iLutTmp, &
-                                     nIfD + 1)
+                pos = binary_search(CurrentDets(:, 1:TotWalkers), iLutTmp, &
+                                    nIfD + 1)
 
-                call extract_sign (CurrentDets(:,pos), sgnJ)
+                call extract_sign(CurrentDets(:, pos), sgnJ)
 
-                elem =  csf_spin_project_elem (dorder_i, dorder_j, nopen)
+                elem = csf_spin_project_elem(dorder_i, dorder_j, nopen)
                 tot_cpt = tot_cpt + (sgnJ(1) * elem)
 
                 !print*, '   -- cpt', sgnj(1), pos, elem, tot_cpt
 
-                call get_lexicographic (dorder_j, nopen, nup)
-            enddo
+                call get_lexicographic(dorder_j, nopen, nup)
+            end do
 
             if (count_dets /= ndet) then
                 !print*, ndet, count_dets
-                call stop_all ("Det count failure", "Here")
-            endif
+                call stop_all("Det count failure", "Here")
+            end if
 
             !print*, 'test cpt', tot_cpt, '(', sgnI(1), ')'
-        endif
+        end if
 
         !print*, 'test cpt', 'this is closed shell...'
 
     end subroutine
 
-    subroutine csf_spin_project_one_yama (nI, yama)
+    subroutine csf_spin_project_one_yama(nI, yama)
 
         ! Apply the operator Os to the determinant nI (ilutI) using only the
         ! csf Yama, and print out the resultant coefficients.
@@ -211,11 +210,11 @@ contains
         i = 1
         do while (i <= nel)
             if (is_beta(nI(i)) .and. i < nel) then
-                if (is_in_pair(nI(i), nI(i+1))) then
+                if (is_in_pair(nI(i), nI(i + 1))) then
                     i = i + 2
                     cycle
-                endif
-            endif
+                end if
+            end if
 
             nopen = nopen + 1
             if (is_alpha(nI(i))) then
@@ -223,16 +222,16 @@ contains
                 dorder_i(nopen) = 0
             else
                 dorder_i(nopen) = 1
-            endif
+            end if
 
             i = i + 1
-        enddo
+        end do
 
         ! <Y|I>
-        elem_i = csf_coeff (yama, dorder_i, nopen)
+        elem_i = csf_coeff(yama, dorder_i, nopen)
 
         ! How many dets are there to choose from
-        ndet = int(choose (nopen, nup),sizeof_int)
+        ndet = int(choose(nopen, nup), sizeof_int)
 
         ! Construct the format string
         write(fmt_num, '(i6)') nopen
@@ -242,12 +241,12 @@ contains
 
         ! Obtain a list of possible determinants
         count_dets = 0
-        dorder_j(1) = - 1
+        dorder_j(1) = -1
         tot_wgt = 0
         tot_sum = 0
         tot_wgt_2 = 0
         tot_sum_2 = 0
-        call get_lexicographic (dorder_j, nopen, nup)
+        call get_lexicographic(dorder_j, nopen, nup)
         !print*, '     |J>            <J|Y><Y|I>             <J|Y>        &
         !        &     sum_Y <J|Y><Y|I>'
         do while (dorder_j(1) /= -1)
@@ -255,20 +254,20 @@ contains
             count_dets = count_dets + 1
 
             ! <J|Y>
-            elem_j = csf_coeff (yama, dorder_j, nopen)
+            elem_j = csf_coeff(yama, dorder_j, nopen)
             elem = elem_i * elem_j
             tot_wgt = tot_wgt + abs(elem)
-            tot_wgt_2 = tot_wgt_2 + (elem*elem)
+            tot_wgt_2 = tot_wgt_2 + (elem * elem)
 
-            elem_sum = csf_spin_project_elem (dorder_i, dorder_j, nopen)
+            elem_sum = csf_spin_project_elem(dorder_i, dorder_j, nopen)
             tot_sum = tot_sum + abs(elem_sum)
-            tot_sum_2 = tot_sum_2 + elem_sum*elem_sum
+            tot_sum_2 = tot_sum_2 + elem_sum * elem_sum
 
-            write (6, fmt_str, advance='no') 'det: ', dorder_j(1:nopen)
-            write (6,*) elem, '(', elem_j, ')', elem_sum
+            write(6, fmt_str, advance='no') 'det: ', dorder_j(1:nopen)
+            write(6, *) elem, '(', elem_j, ')', elem_sum
 
-            call get_lexicographic (dorder_j, nopen, nup)
-        enddo
+            call get_lexicographic(dorder_j, nopen, nup)
+        end do
 
 !        print*, 'total amplitude: ', tot_wgt, tot_sum
 !        print*, 'total amplitude squared: ', tot_wgt_2, tot_sum_2
@@ -277,8 +276,8 @@ contains
 
     end subroutine
 
-    function csf_spin_project_elem (dorder_i, dorder_j, nopen) &
-                                        result (ret)
+    function csf_spin_project_elem(dorder_i, dorder_j, nopen) &
+        result(ret)
 
         ! Obtain the projection: \sum_Y <J|Y><Y|I>
         ! Used for spin projection.
@@ -292,7 +291,7 @@ contains
         !     nopen              - The number of unpaired electrons
 
         integer, intent(in) :: nopen, dorder_i(nopen), dorder_j(nopen)
-        integer, pointer :: yamas(:,:)
+        integer, pointer :: yamas(:, :)
         integer :: i, ncsf, ind
         real(dp) :: ret, r
 
@@ -306,19 +305,19 @@ contains
             r = genrand_real2_dSFMT()
             ind = int(ncsf * r) + 1
 
-            ret = ncsf * (csf_coeff (yamas(ind, :), dorder_i, nopen) * &
-                          csf_coeff (yamas(ind, :), dorder_j, nopen))
+            ret = ncsf * (csf_coeff(yamas(ind, :), dorder_i, nopen) * &
+                          csf_coeff(yamas(ind, :), dorder_j, nopen))
         else
             ret = 0
             do i = 1, ncsf
-                ret = ret + (csf_coeff (yamas(i, :), dorder_i, nopen) * &
-                             csf_coeff (yamas(i, :), dorder_j, nopen))
-            enddo
-        endif
+                ret = ret + (csf_coeff(yamas(i, :), dorder_i, nopen) * &
+                             csf_coeff(yamas(i, :), dorder_j, nopen))
+            end do
+        end if
 
     end function
 
-    function csf_spin_project_elem_self (dorder, nopen) result (ret)
+    function csf_spin_project_elem_self(dorder, nopen) result(ret)
 
         ! Obtain the projection: \sum_Y <I|Y><Y|I>
         ! Used for spin projection.
@@ -327,7 +326,7 @@ contains
         ! self element, so the sum is simplied.
 
         integer, intent(in) :: nopen, dorder(nopen)
-        integer, pointer :: yamas(:,:)
+        integer, pointer :: yamas(:, :)
         integer :: i, ncsf
         real(dp) :: ret, tmp
 
@@ -346,17 +345,17 @@ contains
 
         !    ret = ncsf * (tmp * tmp)
         !else
-            ret = 0
-            do i = 1, ncsf
-                tmp = csf_coeff (yamas(i, :), dorder, nopen)
-                ret = ret + (tmp * tmp)
-            enddo
-        !endif
+        ret = 0
+        do i = 1, ncsf
+            tmp = csf_coeff(yamas(i, :), dorder, nopen)
+            ret = ret + (tmp * tmp)
+        end do
+         end if
 
     end function
 
-    function get_spawn_helement_spin_proj (nI, nJ, ilutI, ilutJ, ic, ex, &
-                                         tParity, HElGen) result (hel)
+    function get_spawn_helement_spin_proj(nI, nJ, ilutI, ilutJ, ic, ex, &
+                                          tParity, HElGen) result(hel)
 
         ! Calculate ( - \delta_\gamma \sum_Y <J|Y><Y|I> ) / \delta_\tau
         !
@@ -366,7 +365,7 @@ contains
 
         integer, intent(in) :: nI(nel), nJ(nel)
         integer(kind=n_int), intent(in) :: iLutI(0:niftot), iLutJ(0:niftot)
-        integer, intent(in) :: ic, ex(2,ic)
+        integer, intent(in) :: ic, ex(2, ic)
         logical, intent(in) :: tParity
         HElement_t(dp), intent(in) :: HElGen
         HElement_t(dp) :: hel
@@ -381,31 +380,31 @@ contains
 
         ! We invert the sign of the returned element, so that the
         ! the attempt_create routine creates walkers of the correct sign.
-        hel = csf_spin_project_elem (fcimc_excit_gen_store%dorder_i, &
-                                     fcimc_excit_gen_store%dorder_j, &
-                                     fcimc_excit_gen_store%nopen)
-        hel = - hel * spin_proj_gamma / tau
+        hel = csf_spin_project_elem(fcimc_excit_gen_store%dorder_i, &
+                                    fcimc_excit_gen_store%dorder_j, &
+                                    fcimc_excit_gen_store%nopen)
+        hel = -hel * spin_proj_gamma / tau
 
         ! If we are not permitting death, modify this
         if (spin_proj_no_death) &
             hel = hel / &
-                csf_spin_project_elem_self (fcimc_excit_gen_store%dorder_i, &
-                                            fcimc_excit_gen_store%nopen)
+                  csf_spin_project_elem_self(fcimc_excit_gen_store%dorder_i, &
+                                             fcimc_excit_gen_store%nopen)
 
         if (tHPHF) then
-ASSERT(count_open_orbs(ilutI) /= 0)
+            ASSERT(count_open_orbs(ilutI) /= 0)
             hel = 2 * hel
-        endif
+        end if
 
         ! Avoid warnings
-        lUnused = tParity; iUnused = IC; iUnused = ex(1,1)
-        iUnused2 = iLutI(0); iUnused2 = iLutJ(0); iUnused=nI(1)
-        iUnused=nJ(1); hUnused=helgen
+        lUnused = tParity; iUnused = IC; iUnused = ex(1, 1)
+        iUnused2 = iLutI(0); iUnused2 = iLutJ(0); iUnused = nI(1)
+        iUnused = nJ(1); hUnused = helgen
 
     end function get_spawn_helement_spin_proj
 
-    subroutine generate_excit_spin_proj (nI, iLutI, nJ, iLutJ, exFlag, IC, &
-                                         ex, tParity, pGen, HElGen, store, part_type)
+    subroutine generate_excit_spin_proj(nI, iLutI, nJ, iLutJ, exFlag, IC, &
+                                        ex, tParity, pGen, HElGen, store, part_type)
 
         ! This returns an excitation of the source determiant (iLutI).
         !
@@ -420,7 +419,7 @@ ASSERT(count_open_orbs(ilutI) /= 0)
         integer, intent(in) :: exFlag
         integer, intent(out) :: nJ(nel)
         integer(kind=n_int), intent(out) :: iLutJ(0:niftot)
-        integer, intent(out) :: ic, ex(2,maxExcit)
+        integer, intent(out) :: ic, ex(2, maxExcit)
         real(dp), intent(out) :: pGen
         logical, intent(out) :: tParity
         HElement_t(dp), intent(out) :: HElGen
@@ -436,15 +435,15 @@ ASSERT(count_open_orbs(ilutI) /= 0)
         unused_var(part_type)
 
         ! Only consider determinants with a significant (specified) weight.
-        call extract_sign (iLutI, sgn_tmp)
+        call extract_sign(iLutI, sgn_tmp)
         if (sum(abs(sgn_tmp(1:lenof_sign))) < spin_proj_cutoff) then
             nJ(1) = 0
             return
-        endif
+        end if
 
         ! TODO: this test should end up somewhere else...
         if (LMS /= STOT) &
-            call stop_all (this_routine, "STOT must equal LMS")
+            call stop_all(this_routine, "STOT must equal LMS")
 
         ! Loop over the bit representation to find the unpaired electrons
         ! Can we store the results of this bit?
@@ -454,11 +453,11 @@ ASSERT(count_open_orbs(ilutI) /= 0)
         do while (i <= nel)
             ! Is this an unpaired electron?
             if (is_beta(nI(i)) .and. i < nel) then
-                if (is_in_pair(nI(i), nI(i+1))) then
+                if (is_in_pair(nI(i), nI(i + 1))) then
                     i = i + 2
                     cycle
-                endif
-            endif
+                end if
+            end if
 
             ! We have another unpaired electron
             nopen = nopen + 1
@@ -470,11 +469,11 @@ ASSERT(count_open_orbs(ilutI) /= 0)
                 fcimc_excit_gen_store%dorder_i(nopen) = 0
             else
                 fcimc_excit_gen_store%dorder_i(nopen) = 1
-            endif
+            end if
 
             ! Loop
             i = i + 1
-        enddo
+        end do
         fcimc_excit_gen_store%nopen = nopen
 
         ! If we know that there are no possible excitations to be made
@@ -482,26 +481,26 @@ ASSERT(count_open_orbs(ilutI) /= 0)
             (tHPHF .and. nopen == 2)) then
             nJ(1) = 0
             return
-        endif
+        end if
 
         nTmp(1:nopen) = open_orbs(1:nopen)
         do while (.true.)
-            nchoose = random_spin_permute (nTmp(1:nopen), LMS)
+            nchoose = random_spin_permute(nTmp(1:nopen), LMS)
 
             ! Removable for speed?
             if (nchoose == -1) &
-                call stop_all (this_routine, "All possible cases here should &
+                call stop_all(this_routine, "All possible cases here should &
                                              &have been excluded above")
 
             ! In HPHF, a determinant is allowed if its last e- is alpha
             ! TODO: Is this definition general with > 64 orbitals?
             if (tHPHF) then
                 if (is_beta(nTmp(nopen))) cycle
-            endif
+            end if
 
             ! If we have found our target, exit the loop
-            if (.not.all(open_orbs(1:nopen) == nTmp(1:nopen))) exit
-        enddo
+            if (.not. all(open_orbs(1:nopen) == nTmp(1:nopen))) exit
+        end do
 
         ! Change the spin structure of nI (only the unpaired elecs)
         ilutJ = ilutI
@@ -517,17 +516,17 @@ ASSERT(count_open_orbs(ilutI) /= 0)
                 fcimc_excit_gen_store%dorder_j(i) = 0
             else
                 fcimc_excit_gen_store%dorder_j(i) = 1
-            endif
-        enddo
+            end if
+        end do
 
         ! If we are in initiator mode, then we may want to make all of the
         ! children into initiators as well
         if (tTruncInitiator) then
             do i = 1, inum_runs
                 ! We always want our particles to survive.
-                call set_flag (ilutJ, get_initiator_flag_by_run(i))
-            enddo
-        endif
+                call set_flag(ilutJ, get_initiator_flag_by_run(i))
+            end do
+        end if
 
         ! Generation probability, -1 as we exclude the starting det above.
         ! Invert sign so that a positive overlap element spawns walkers with
@@ -536,15 +535,15 @@ ASSERT(count_open_orbs(ilutI) /= 0)
             pGen = 2_dp / real(nchoose - 2, dp)
         else
             pGen = 1_dp / real(nchoose - 1, dp)
-        endif
+        end if
 
         ! Protect against compiler warnings
-        ex(1,1) = ex(1,1); IC = IC; iUnused = exFlag; tParity = tParity
-        HelGen = HelGen; iUnused=store%nopen
+        ex(1, 1) = ex(1, 1); IC = IC; iUnused = exFlag; tParity = tParity
+        HelGen = HelGen; iUnused = store%nopen
 
     end subroutine generate_excit_spin_proj
 
-    function attempt_die_spin_proj (nI, Kii, RealwSign, WalkExcitLevel, DetPosition) result (ndie)
+    function attempt_die_spin_proj(nI, Kii, RealwSign, WalkExcitLevel, DetPosition) result(ndie)
 
         integer, intent(in) :: nI(nel)
         real(dp), dimension(lenof_sign), intent(in) :: RealwSign
@@ -564,43 +563,42 @@ ASSERT(count_open_orbs(ilutI) /= 0)
             sum(abs(realwSign(1:lenof_sign))) < spin_proj_cutoff) then
             ndie = 0.0_dp
             return
-        endif
+        end if
 
         if (fcimc_excit_gen_store%nopen == STOT .or. &
             fcimc_excit_gen_store%nopen > spin_proj_nopen_max) then
             ndie = 0.0_dp
             return
-        endif
+        end if
 
         ! Subtract the crurrent value of the shift and multiply by
         ! delta_gamma. If there are multiple particles, scale the
         ! probability.
-        elem = csf_spin_project_elem_self (fcimc_excit_gen_store%dorder_i, &
-                                           fcimc_excit_gen_store%nopen)
+        elem = csf_spin_project_elem_self(fcimc_excit_gen_store%dorder_i, &
+                                          fcimc_excit_gen_store%nopen)
         if (tHPHF) elem = 2 * elem
         elem = elem - 1 + spin_proj_shift
-        elem = - elem * spin_proj_gamma
+        elem = -elem * spin_proj_gamma
 
-        if (tAllRealCoeff .or. (tRealCoeffByExcitLevel .and.(WalkExcitLevel .le. RealCoeffExcitThresh))) then
-            ndie(1)=elem*abs(realwSign(1))
+        if (tAllRealCoeff .or. (tRealCoeffByExcitLevel .and. (WalkExcitLevel <= RealCoeffExcitThresh))) then
+            ndie(1) = elem * abs(realwSign(1))
         else
             do i = 1, lenof_sign
                 rat = elem * abs(realwSign(i))
 
-                ndie(i) = real(int(rat),dp)
+                ndie(i) = real(int(rat), dp)
                 rat = rat - real(ndie(i), dp)
                 !print*, 'RAT die', rat
 
                 ! Choose to die or not stochastically
                 r = genrand_real2_dSFMT()
-                if (abs(rat) > r) ndie(i) = ndie(i) + real(nint(sign(1.0_dp, rat)),dp)
-            enddo
-        endif
+                if (abs(rat) > r) ndie(i) = ndie(i) + real(nint(sign(1.0_dp, rat)), dp)
+            end do
+        end if
 
         ! Protect against compiler warnings
         rUnused = Kii; iUnused = nI(1)
 
     end function attempt_die_spin_proj
-
 
 end module

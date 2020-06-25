@@ -8,16 +8,16 @@ module guga_tausearch
                         enough_four, tReadPops, tau, MaxWalkerBloom, tTruncInitiator, &
                         InitiatorWalkNo, tWalkContGrow, max_permitted_spawn, &
                         enough_three, enough_two, &
-                    frequency_bins_type2, frequency_bounds_type2, frequency_bins_type3, &
-                    frequency_bounds_type3, frequency_bins_type4, frequency_bounds_type4, &
-                    frequency_bins_type2_diff, frequency_bins_type3_diff, &
-                    frequency_bounds_type2_diff, frequency_bounds_type3_diff, &
-                    frequency_bins_singles, frequency_bounds_singles, &
-                    t_frequency_analysis, frq_step_size, max_frequency_bound, &
-                    n_frequency_bins, t_min_tau, min_tau_global, t_hist_tau_search, &
-                    cnt_type2_same, cnt_type2_diff, cnt_type3_same, cnt_type3_diff, &
-                    cnt_type4, cnt_sing_hist, cnt_doub_hist, enough_sing_hist, &
-                    enough_doub_hist, t_hist_tau_search_option
+                        frequency_bins_type2, frequency_bounds_type2, frequency_bins_type3, &
+                        frequency_bounds_type3, frequency_bins_type4, frequency_bounds_type4, &
+                        frequency_bins_type2_diff, frequency_bins_type3_diff, &
+                        frequency_bounds_type2_diff, frequency_bounds_type3_diff, &
+                        frequency_bins_singles, frequency_bounds_singles, &
+                        t_frequency_analysis, frq_step_size, max_frequency_bound, &
+                        n_frequency_bins, t_min_tau, min_tau_global, t_hist_tau_search, &
+                        cnt_type2_same, cnt_type2_diff, cnt_type3_same, cnt_type3_diff, &
+                        cnt_type4, cnt_sing_hist, cnt_doub_hist, enough_sing_hist, &
+                        enough_doub_hist, t_hist_tau_search_option
     use SystemData, only: tUEG, t_consider_diff_bias, nel, tgen_sym_guga_mol
     use FciMCData, only: tRestart, pSingles, pDoubles, pExcit2, pExcit4, &
                          pExcit2_same, pExcit3_same, MaxTau, tSearchTau, &
@@ -45,7 +45,7 @@ module guga_tausearch
               init_hist_tau_search_guga_nosym, update_hist_tau_guga_nosym
 
     integer :: cnt_sing, cnt_four, cnt_two_same, cnt_two_mixed, cnt_three_same, &
-        cnt_three_mixed
+               cnt_three_mixed
 
 contains
     ! put the previous specifically defined variables in tau_search
@@ -99,9 +99,9 @@ contains
             call FindMaxTauDoubs()
 !             call find_max_tau_doubs_guga()
         end if
-        write(6,*) "Using initial time-step: ", tau
-        write(6,*) "NOTE: this is not yet correctly adapted for the GUGA implementation"
-        write(6,*) " -> so use this with caution and check for erroneous values!"
+        write(6, *) "Using initial time-step: ", tau
+        write(6, *) "NOTE: this is not yet correctly adapted for the GUGA implementation"
+        write(6, *) " -> so use this with caution and check for erroneous values!"
 
         ! check maximum spawn size:
         if (int(MaxWalkerBloom) == -1) then
@@ -126,7 +126,6 @@ contains
     end subroutine init_tau_search_guga_nosym
 
     subroutine init_hist_tau_search_guga_nosym()
-
 
         ! not yet 100% sure about implementation:
         ! do i really want to distinguish between case(3) e
@@ -198,10 +197,10 @@ contains
             ! should we use the same variables in both tau-searches??
 
             ! Unless it is already specified, set an initial value for tau
-            if (.not. tRestart .and. .not. tReadPops .and. (tau .isclose. 0.0_dp)) &
+            if (.not. tRestart .and. .not. tReadPops .and. (tau.isclose.0.0_dp)) &
                 call FindMaxTauDoubs()
 !                 call find_max_tau_doubs_guga()
-            write(6,*) 'Using initial time-step: ', tau
+            write(6, *) 'Using initial time-step: ', tau
 
             ! Set the maximum spawn size
             if (int(MaxWalkerBloom) == -1) then
@@ -233,7 +232,7 @@ contains
 
         character(*), parameter :: this_routine = "find_max_tau_doubs_guga"
         integer(n_int) :: ilutG(0:nifguga)
-        integer(n_int), pointer :: excitations(:,:)
+        integer(n_int), pointer :: excitations(:, :)
         integer :: i, n_ex
         integer :: nHF(nel), nJ(nel)
         integer(n_int) :: ilutJ(0:niftot)
@@ -247,18 +246,18 @@ contains
             call stop_all(this_routine, "only implemented for mol_guga_weighted for now!")
         end if
 
-        if(int(MaxWalkerBloom).eq.-1) then
+        if (int(MaxWalkerBloom) == -1) then
             !No MaxWalkerBloom specified
             !Therefore, assume that we do not want blooms larger than n_add if initiator,
             !or 5 if non-initiator calculation.
-            if(tTruncInitiator) then
+            if (tTruncInitiator) then
                 nAddFac = InitiatorWalkNo
             else
                 nAddFac = 5.0_dp    !Won't allow more than 5 particles at a time
-            endif
+            end if
         else
-            nAddFac = real(MaxWalkerBloom,dp) !Won't allow more than MaxWalkerBloom particles to spawn in one event.
-        endif
+            nAddFac = real(MaxWalkerBloom, dp) !Won't allow more than MaxWalkerBloom particles to spawn in one event.
+        end if
 
         Tau = 1000.0_dp
 
@@ -267,9 +266,9 @@ contains
         call actHamiltonian(ilutG, excitations, n_ex)
         call decode_bit_det(nHF, iLutHF)
         do i = 1, n_ex
-            call convert_ilut_toNECI(excitations(:,i), ilutJ, helgen)
+            call convert_ilut_toNECI(excitations(:, i), ilutJ, helgen)
             call calc_guga_matrix_element(ilutHF, ilutJ, excitInfo, &
-                hel, .true., 1)
+                                          hel, .true., 1)
 
             if (abs(helgen - hel) > EPS) then
                 call stop_all(this_routine, "something wrong with mat-eles!")
@@ -288,14 +287,14 @@ contains
             end if
         end do
 
-        if(tau.gt.0.075_dp) then
-            tau=0.075_dp
-            write(iout,"(A,F8.5,A)") "Small system. Setting initial timestep to be ",Tau," although this &
+        if (tau > 0.075_dp) then
+            tau = 0.075_dp
+            write(iout, "(A,F8.5,A)") "Small system. Setting initial timestep to be ", Tau, " although this &
                                             &may be inappropriate. Care needed"
         else
-            write(iout,"(A,F18.10)") "From analysis of reference determinant and connections, &
-                                     &an upper bound for the timestep is: ",Tau
-        endif
+            write(iout, "(A,F18.10)") "From analysis of reference determinant and connections, &
+                                     &an upper bound for the timestep is: ", Tau
+        end if
 
     end subroutine find_max_tau_doubs_guga
 
@@ -303,7 +302,7 @@ contains
         ! to allow to use these sort of routines as function pointers,
         ! dependend on the type of calculation run, also use the 2x2 ex
         ! matrix, but store the type of guga non-weighted excitation!
-        integer, intent(in) :: ic, ex(2,2)
+        integer, intent(in) :: ic, ex(2, 2)
         real(dp), intent(in) :: pgen, matel
 
         real(dp) :: tmp_gamma, tmp_prob
@@ -316,8 +315,8 @@ contains
 
         if (t_hist_tau_search) return
 
-        guga_type = ex(1,1)
-        same_ind = ex(1,2)
+        guga_type = ex(1, 1)
+        same_ind = ex(1, 2)
 
         if (ic == 1) then
             ! single excitation
@@ -345,7 +344,7 @@ contains
             ! for now, consider all type of differentiations!
             if (guga_type == 2) then
                 ! excit_level 2 excitation (ii,jj)
-                tmp_prob = tmp_prob / ((1.0_dp - pExcit4) * pExcit2 )
+                tmp_prob = tmp_prob / ((1.0_dp - pExcit4) * pExcit2)
 
                 if (t_consider_diff_bias) then
                     if (same_ind == 1) then
@@ -366,8 +365,8 @@ contains
 
                             if (enough_two .and. enough_three .and. enough_four) enough_doub = .true.
 
-    !                         if (all([enough_two_same,enough_two_mixed,enough_three_same,&
-    !                             enough_three_mixed,enough_four])) enough_doub = .true.
+                            !                         if (all([enough_two_same,enough_two_mixed,enough_three_same,&
+                            !                             enough_three_mixed,enough_four])) enough_doub = .true.
                         end if
 
                     else
@@ -489,7 +488,7 @@ contains
 
     end subroutine log_spawn_magnitude_guga_nosym
 
-    subroutine update_tau_guga_nosym ()
+    subroutine update_tau_guga_nosym()
         ! specialised tau update routine for the guga non-weighted
         ! excitation generator, which uses no symmetry
         ! but i have to update that depending if consider diff bias is used
@@ -515,7 +514,7 @@ contains
 
             ! The range of tau is restricted by particle death. It MUST be <=
             ! the value obtained to restrict the maximum death-factor to 1.0.
-            call MPIAllReduce (max_death_cpt, MPI_MAX, mpi_tmp)
+            call MPIAllReduce(max_death_cpt, MPI_MAX, mpi_tmp)
             max_death_cpt = mpi_tmp
             tau_death = 1.0_dp / max_death_cpt
 
@@ -550,16 +549,16 @@ contains
         ! Considering two types of double exctitaion...
         ! change that implementation to depent on the input if
         ! t_consider_diff_bias is true
-        call MPIAllReduce (gamma_sing, MPI_MAX, mpi_tmp)
+        call MPIAllReduce(gamma_sing, MPI_MAX, mpi_tmp)
         gamma_sing = mpi_tmp
 
-        call MPIAllReduce (gamma_two_same, MPI_MAX, mpi_tmp)
+        call MPIAllReduce(gamma_two_same, MPI_MAX, mpi_tmp)
         gamma_two_same = mpi_tmp
 
-        call MPIAllReduce (gamma_three_same, MPI_MAX, mpi_tmp)
+        call MPIAllReduce(gamma_three_same, MPI_MAX, mpi_tmp)
         gamma_three_same = mpi_tmp
 
-        call MPIAllReduce (gamma_four, MPI_MAX, mpi_tmp)
+        call MPIAllReduce(gamma_four, MPI_MAX, mpi_tmp)
         gamma_four = mpi_tmp
 
         call MPIAllLORLogical(enough_two_same, mpi_ltmp)
@@ -574,10 +573,10 @@ contains
         gamma_doub = gamma_two_same + gamma_three_same + gamma_four
 
         if (t_consider_diff_bias) then
-            call MPIAllReduce (gamma_two_mixed, MPI_MAX, mpi_tmp)
+            call MPIAllReduce(gamma_two_mixed, MPI_MAX, mpi_tmp)
             gamma_two_mixed = mpi_tmp
 
-            call MPIAllReduce (gamma_three_mixed, MPI_MAX, mpi_tmp)
+            call MPIAllReduce(gamma_three_mixed, MPI_MAX, mpi_tmp)
             gamma_three_mixed = mpi_tmp
 
             call MPIAllLORLogical(enough_two_mixed, mpi_ltmp)
@@ -587,7 +586,7 @@ contains
             enough_three_mixed = mpi_ltmp
 
             gamma_doub = gamma_two_same + gamma_two_mixed + gamma_three_same &
-                    + gamma_three_mixed + gamma_four
+                         + gamma_three_mixed + gamma_four
         end if
 
         ! change: already unbiased in the histogram:
@@ -607,14 +606,14 @@ contains
                 pExcit4_new = gamma_four / gamma_doub
 
                 pExcit2_new = (gamma_two_same + gamma_two_mixed) / &
-                    (gamma_two_same + gamma_two_mixed + gamma_three_same + gamma_three_mixed)
+                              (gamma_two_same + gamma_two_mixed + gamma_three_same + gamma_three_mixed)
 
                 pSingles_new = gamma_sing / (gamma_sing + gamma_doub)
 
-    !             tau_new = pSingles_new * max_permitted_spawn / gamma_sing
+                !             tau_new = pSingles_new * max_permitted_spawn / gamma_sing
 
                 ! this is the same, but gives more insight on what it is
-                tau_new = max_permitted_spawn / ( gamma_sing + gamma_doub )
+                tau_new = max_permitted_spawn / (gamma_sing + gamma_doub)
 
             else
                 ! do the default worst case, according to simons implementation
@@ -624,12 +623,12 @@ contains
                 pExcit3_same_new = pExcit3_same
                 pExcit4_new = pExcit4
 
-                tau_new = max_permitted_spawn * min( pSingles / gamma_sing, &
-                    pDoubles * pExcit4 / gamma_four, &
-                    pBranch2 * pExcit2_same / gamma_two_same, &
-                    pBranch2 * (1.0_dp - pExcit2_same) / gamma_two_mixed, &
-                    pBranch3 * pExcit3_same / gamma_three_same, &
-                    pBranch3 * (1.0_dp - pExcit3_same) / gamma_three_mixed)
+                tau_new = max_permitted_spawn * min(pSingles / gamma_sing, &
+                                                    pDoubles * pExcit4 / gamma_four, &
+                                                    pBranch2 * pExcit2_same / gamma_two_same, &
+                                                    pBranch2 * (1.0_dp - pExcit2_same) / gamma_two_mixed, &
+                                                    pBranch3 * pExcit3_same / gamma_three_same, &
+                                                    pBranch3 * (1.0_dp - pExcit3_same) / gamma_three_mixed)
 
             end if
         else
@@ -649,9 +648,9 @@ contains
                 pExcit4_new = pExcit4
 
                 tau_new = max_permitted_spawn * min( &
-                    pSingles / gamma_sing, &
-                    pDoubles * pExcit4 / gamma_four, &
-                    pBranch2 / gamma_two_same)
+                          pSingles / gamma_sing, &
+                          pDoubles * pExcit4 / gamma_four, &
+                          pBranch2 / gamma_two_same)
             end if
         end if
 
@@ -713,7 +712,7 @@ contains
 
         ! The range of tau is restricted by particle death. It MUST be <=
         ! the value obtained to restrict the maximum death-factor to 1.0.
-        call MPIAllReduce (max_death_cpt, MPI_MAX, mpi_tmp)
+        call MPIAllReduce(max_death_cpt, MPI_MAX, mpi_tmp)
         max_death_cpt = mpi_tmp
         tau_death = 1.0_dp / max_death_cpt
         if (tau_death < tau_new) then
@@ -730,7 +729,7 @@ contains
         ! If the calculated tau is less than the current tau, we should ALWAYS
         ! update it. Once we have a reasonable sample of excitations, then we
         ! can permit tau to increase if we have started too low.
-        if (tau_new < tau .or. ((tUEG .or. enough_sing) .and. enough_doub))then
+        if (tau_new < tau .or. ((tUEG .or. enough_sing) .and. enough_doub)) then
 
             ! Make the final tau smaller than tau_new by a small amount
             ! so that we don't get spawns exactly equal to the
@@ -764,7 +763,6 @@ contains
                     pExcit3_same_new, pExcit2_same_new, pExcit4_new, pExcit2_new, &
                     pSingles_new, tau_new, ratio_doubles, pBranch2, pBranch3
 
-
         logical :: mpi_ltmp
 
         if (.not. t_hist_tau_search) then
@@ -778,7 +776,7 @@ contains
 
             ! The range of tau is restricted by particle death. It MUST be <=
             ! the value obtained to restrict the maximum death-factor to 1.0.
-            call MPIAllReduce (max_death_cpt, MPI_MAX, mpi_tmp)
+            call MPIAllReduce(max_death_cpt, MPI_MAX, mpi_tmp)
             max_death_cpt = mpi_tmp
             tau_death = 1.0_dp / max_death_cpt
 
@@ -910,14 +908,14 @@ contains
 !             ratio_type4 = ratio_type4 * pDoubles * pExcit4
 !
             ratio_doubles = ratio_type2 + ratio_type2_diff + ratio_type3 + &
-                ratio_type3_diff + ratio_type4
+                            ratio_type3_diff + ratio_type4
 
             if (enough_sing_hist .and. enough_doub_hist) then
                 pExcit3_same_new = ratio_type3 / (ratio_type3 + ratio_type3_diff)
                 pExcit2_same_new = ratio_type2 / (ratio_type2 + ratio_type2_diff)
                 pExcit4_new = ratio_type4 / ratio_doubles
                 pExcit2_new = (ratio_type2 + ratio_type2_diff) / &
-                    (ratio_type2 + ratio_type2_diff + ratio_type3 + ratio_type3_diff)
+                              (ratio_type2 + ratio_type2_diff + ratio_type3 + ratio_type3_diff)
                 pSingles_new = ratio_singles / (ratio_singles + ratio_doubles)
 
                 tau_new = max_permitted_spawn / (ratio_singles + ratio_doubles)
@@ -964,16 +962,15 @@ contains
                 end if
 
             else
-                tau_new = max_permitted_spawn * min(&
-                    pSingles / ratio_singles, &
-                    pDoubles * pExcit4 / ratio_type4, &
-                    pBranch2 * pExcit2_same / ratio_type2, &
-                    pBranch2 * (1.0_dp - pExcit2_same) / ratio_type2_diff, &
-                    pBranch3 * pExcit3_same / ratio_type3, &
-                    pBranch3 * (1.0_dp - pExcit3_same) / ratio_type3_diff)
+                tau_new = max_permitted_spawn * min( &
+                          pSingles / ratio_singles, &
+                          pDoubles * pExcit4 / ratio_type4, &
+                          pBranch2 * pExcit2_same / ratio_type2, &
+                          pBranch2 * (1.0_dp - pExcit2_same) / ratio_type2_diff, &
+                          pBranch3 * pExcit3_same / ratio_type3, &
+                          pBranch3 * (1.0_dp - pExcit3_same) / ratio_type3_diff)
 
             end if
-
 
         else
             ! no differentiating between mixed and alike type 2 and 3
@@ -1068,10 +1065,10 @@ contains
                 end if
 
             else
-                tau_new = max_permitted_spawn * min(&
-                    pSingles / ratio_singles, &
-                    pDoubles * pExcit4 / ratio_type4, &
-                    pBranch2 / ratio_type2)
+                tau_new = max_permitted_spawn * min( &
+                          pSingles / ratio_singles, &
+                          pDoubles * pExcit4 / ratio_type4, &
+                          pBranch2 / ratio_type2)
 
             end if
         end if
@@ -1079,7 +1076,7 @@ contains
         ! to deatch check again and finally update time-step
         ! The range of tau is restricted by particle death. It MUST be <=
         ! the value obtained to restrict the maximum death-factor to 1.0.
-        call MPIAllReduce (max_death_cpt, MPI_MAX, mpi_tmp)
+        call MPIAllReduce(max_death_cpt, MPI_MAX, mpi_tmp)
         max_death_cpt = mpi_tmp
         tau_death = 1.0_dp / max_death_cpt
 
@@ -1099,7 +1096,7 @@ contains
         ! If the calculated tau is less than the current tau, we should ALWAYS
         ! update it. Once we have a reasonable sample of excitations, then we
         ! can permit tau to increase if we have started too low.
-        if (tau_new < tau .or. ((tUEG .or. enough_sing) .and. enough_doub))then
+        if (tau_new < tau .or. ((tUEG .or. enough_sing) .and. enough_doub)) then
 
             ! Make the final tau smaller than tau_new by a small amount
             ! so that we don't get spawns exactly equal to the

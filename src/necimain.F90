@@ -2,12 +2,12 @@
     ! If calling from C, then we need to have an available fortran calling
     ! point available to the C-start point
 
-    subroutine neci_main_c () bind(c)
-        use NECICore_mod, only : NECICore
+    subroutine neci_main_c() bind(c)
+        use NECICore_mod, only: NECICore
         implicit none
 
 #ifdef DEBUG_
-        write(6,*) 'STARTING NECI'
+        write(6, *) 'STARTING NECI'
 #endif
         ! Indicate not called by CPMD, VASP, Molpro
         call NECICore()
@@ -24,7 +24,7 @@
 #include "NECICore.h"
 
 #ifdef DEBUG_
-        write(6,*) "STARTING NECI"
+        write(6, *) "STARTING NECI"
 #endif
 
 !         dummy1=' '

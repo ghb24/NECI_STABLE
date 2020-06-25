@@ -21,29 +21,29 @@ module searching
 
 contains
 
-    SUBROUTINE LinSearchParts(DetArray,iLut,MinInd,MaxInd,PartInd,tSuccess)
-        INTEGER :: MinInd,MaxInd,PartInd
-        INTEGER(KIND=n_int) :: iLut(0:NIfTot),DetArray(0:NIfTot,1:MaxInd)
-        INTEGER :: N,Comp
+    SUBROUTINE LinSearchParts(DetArray, iLut, MinInd, MaxInd, PartInd, tSuccess)
+        INTEGER :: MinInd, MaxInd, PartInd
+        INTEGER(KIND=n_int) :: iLut(0:NIfTot), DetArray(0:NIfTot, 1:MaxInd)
+        INTEGER :: N, Comp
         LOGICAL :: tSuccess
 
-        N=MinInd
-        do while(N.le.MaxInd)
-            Comp=DetBitLT(DetArray(:,N),iLut(:),nifd)
-            IF(Comp.eq.1) THEN
-                N=N+1
-            ELSEIF(Comp.eq.-1) THEN
-                PartInd=N-1
-                tSuccess=.false.
+        N = MinInd
+        do while (N <= MaxInd)
+            Comp = DetBitLT(DetArray(:, N), iLut(:), nifd)
+            IF (Comp == 1) THEN
+                N = N + 1
+            else if (Comp == -1) THEN
+                PartInd = N - 1
+                tSuccess = .false.
                 RETURN
             ELSE
-                tSuccess=.true.
-                PartInd=N
+                tSuccess = .true.
+                PartInd = N
                 RETURN
-            ENDIF
-        enddo
-        tSuccess=.false.
-        PartInd=MaxInd-1
+            end if
+        end do
+        tSuccess = .false.
+        PartInd = MaxInd - 1
 
     END SUBROUTINE LinSearchParts
 
@@ -51,88 +51,86 @@ contains
 !PartInd will be a coincident determinant. If there are multiple values, the chosen one may be any of them...
 !If failure, then the index will be one less than the index that the particle would be in if it was present in the list.
 !(or close enough!)
-    SUBROUTINE BinSearchParts(iLut,MinInd,MaxInd,PartInd,tSuccess)
+    SUBROUTINE BinSearchParts(iLut, MinInd, MaxInd, PartInd, tSuccess)
         INTEGER(KIND=n_int) :: iLut(0:NIfTot)
-        INTEGER :: MinInd,MaxInd,PartInd
-        INTEGER :: i,j,N,Comp
+        INTEGER :: MinInd, MaxInd, PartInd
+        INTEGER :: i, j, N, Comp
         LOGICAL :: tSuccess
 
-        i=MinInd
-        j=MaxInd
-        IF(i-j.eq.0) THEN
-            Comp=DetBitLT(CurrentDets(:,MaxInd),iLut(:),nifd)
-            IF(Comp.eq.0) THEN
-                tSuccess=.true.
-                PartInd=MaxInd
+        i = MinInd
+        j = MaxInd
+        IF (i - j == 0) THEN
+            Comp = DetBitLT(CurrentDets(:, MaxInd), iLut(:), nifd)
+            IF (Comp == 0) THEN
+                tSuccess = .true.
+                PartInd = MaxInd
                 RETURN
             ELSE
-                tSuccess=.false.
-                PartInd=MinInd
-            ENDIF
-        ENDIF
+                tSuccess = .false.
+                PartInd = MinInd
+            end if
+        end if
 
-        do while(j-i.gt.0)  !End when the upper and lower bound are the same.
-            N=(i+j)/2       !Find the midpoint of the two indices
-!            WRITE(6,*) i,j,n
+        do while (j - i > 0)  !End when the upper and lower bound are the same.
+            N = (i + j) / 2       !Find the midpoint of the two indices
+!            write(6,*) i,j,n
 
 !Comp is 1 if CyrrebtDets(N) is "less" than iLut, and -1 if it is more or 0 if they are the same
-            Comp=DetBitLT(CurrentDets(:,N),iLut(:),nifd)
+            Comp = DetBitLT(CurrentDets(:, N), iLut(:), nifd)
 
-            IF(Comp.eq.0) THEN
+            IF (Comp == 0) THEN
 !Praise the lord, we've found it!
-                tSuccess=.true.
-                PartInd=N
+                tSuccess = .true.
+                PartInd = N
                 RETURN
-            ELSEIF((Comp.eq.1).and.(i.ne.N)) THEN
+            else if ((Comp == 1) .and. (i /= N)) THEN
 !The value of the determinant at N is LESS than the determinant we're looking for. Therefore, move the lower
 !bound of the search up to N.  However, if the lower bound is already equal to N then the two bounds are
 !consecutive and we have failed...
-                i=N
-            ELSEIF(i.eq.N) THEN
+                i = N
+            else if (i == N) THEN
 
-
-                IF(i.eq.MaxInd-1) THEN
+                IF (i == MaxInd - 1) THEN
 !This deals with the case where we are interested in the final/first entry in the list. Check the final entry
 !of the list and leave.  We need to check the last index.
-                    Comp=DetBitLT(CurrentDets(:,i+1),iLut(:),nifd)
-                    IF(Comp.eq.0) THEN
-                        tSuccess=.true.
-                        PartInd=i+1
+                    Comp = DetBitLT(CurrentDets(:, i + 1), iLut(:), nifd)
+                    IF (Comp == 0) THEN
+                        tSuccess = .true.
+                        PartInd = i + 1
                         RETURN
-                    ELSEIF(Comp.eq.1) THEN
+                    else if (Comp == 1) THEN
 !final entry is less than the one we want.
-                        tSuccess=.false.
-                        PartInd=i+1
+                        tSuccess = .false.
+                        PartInd = i + 1
                         RETURN
                     ELSE
-                        tSuccess=.false.
-                        PartInd=i
+                        tSuccess = .false.
+                        PartInd = i
                         RETURN
-                    ENDIF
+                    end if
 
-                ELSEIF(i.eq.MinInd) THEN
-                    tSuccess=.false.
-                    PartInd=i
+                else if (i == MinInd) THEN
+                    tSuccess = .false.
+                    PartInd = i
                     RETURN
 
                 ELSE
-                    i=j
-                ENDIF
+                    i = j
+                end if
 
-
-            ELSEIF(Comp.eq.-1) THEN
+            else if (Comp == -1) THEN
 !The value of the determinant at N is MORE than the determinant we're looking for. Move the upper bound of the search down to N.
-                j=N
+                j = N
             ELSE
 !We have failed - exit loop
-                i=j
-            ENDIF
+                i = j
+            end if
 
-        enddo
+        end do
 
 !If we have failed, then we want to find the index that is one less than where the particle would have been.
-        tSuccess=.false.
-        PartInd=MAX(MinInd,i-1)
+        tSuccess = .false.
+        PartInd = MAX(MinInd, i - 1)
 
     END SUBROUTINE BinSearchParts
 
@@ -150,10 +148,10 @@ contains
 
         ! Search both the trial space and connected space to see if this state exists in either list.
         ! First the trial space:
-        pos = binary_search_custom(trial_space(:, min_trial_ind:trial_space_size), ilut, NIfTot+1, ilut_gt)
+        pos = binary_search_custom(trial_space(:, min_trial_ind:trial_space_size), ilut, NIfTot + 1, ilut_gt)
 
         if (pos > 0) then
-            amp = trial_wfs(:,pos+min_trial_ind-1)
+            amp = trial_wfs(:, pos + min_trial_ind - 1)
             min_trial_ind = min_trial_ind + pos
             tTrial = .true.
         else
@@ -164,10 +162,10 @@ contains
         ! If pos > 0 then the state is in the trial space. A state cannot be in both the trial and
         ! connected space, so, unless pos < 0, don't bother doing the following binary search.
         if (pos < 0) then
-            pos = binary_search_custom(con_space(:, min_conn_ind:con_space_size), ilut, NIfTot+1, ilut_gt)
+            pos = binary_search_custom(con_space(:, min_conn_ind:con_space_size), ilut, NIfTot + 1, ilut_gt)
 
             if (pos > 0) then
-                amp = con_space_vecs(:,pos+min_conn_ind-1)
+                amp = con_space_vecs(:, pos + min_conn_ind - 1)
                 min_conn_ind = min_conn_ind + pos
                 tCon = .true.
             else
@@ -197,9 +195,9 @@ contains
             ! Find the hash value of this state.
             hash_val = FindWalkerHash(nI, trial_space_size)
             do i = 1, trial_ht(hash_val)%nclash
-                if (DetBitEq(ilut, trial_ht(hash_val)%states(0:nifd,i))) then
+                if (DetBitEq(ilut, trial_ht(hash_val)%states(0:nifd, i))) then
                     tTrial = .true.
-                    amp = transfer(trial_ht(hash_val)%states(IlutBits%ind_pop:,i), amp)
+                    amp = transfer(trial_ht(hash_val)%states(IlutBits%ind_pop:, i), amp)
                     return
                 end if
             end do
@@ -210,9 +208,9 @@ contains
             hash_val = FindWalkerHash(nI, con_space_size)
             ! Loop over all hash clashes for this hash value.
             do i = 1, con_ht(hash_val)%nclash
-                if (DetBitEq(ilut, con_ht(hash_val)%states(0:nifd,i))) then
+                if (DetBitEq(ilut, con_ht(hash_val)%states(0:nifd, i))) then
                     tCon = .true.
-                    amp = transfer(con_ht(hash_val)%states(IlutBits%ind_pop:,i), amp)
+                    amp = transfer(con_ht(hash_val)%states(IlutBits%ind_pop:, i), amp)
                     return
                 end if
             end do
@@ -237,13 +235,13 @@ contains
         hash_val = FindWalkerHash(nI, con_space_size)
         ! Loop over all hash clashes for this hash value.
         do i = 1, con_ht(hash_val)%nclash
-            if (all(ilut(0:nifd) == con_ht(hash_val)%states(0:nifd,i))) then
-                amps = transfer(con_ht(hash_val)%states(IlutBits%ind_pop:,i), amps)
+            if (all(ilut(0:nifd) == con_ht(hash_val)%states(0:nifd, i))) then
+                amps = transfer(con_ht(hash_val)%states(IlutBits%ind_pop:, i), amps)
                 return
             end if
         end do
 
-        call stop_all("get_trial_wf_amp","The input state is not in the trial space.")
+        call stop_all("get_trial_wf_amp", "The input state is not in the trial space.")
 
     end subroutine get_con_amp_trial_space
 
@@ -263,12 +261,12 @@ contains
         if (trial_space_size > 0) then
             hash_val = FindWalkerHash(nI, trial_space_size)
             do i = 1, trial_ht(hash_val)%nclash
-                if (DetBitEq(trial_ht(hash_val)%states(0:nifd,i), ilut)) then
-                    amp = transfer(trial_ht(hash_val)%states(IlutBits%ind_pop:,i), amp)
+                if (DetBitEq(trial_ht(hash_val)%states(0:nifd, i), ilut)) then
+                    amp = transfer(trial_ht(hash_val)%states(IlutBits%ind_pop:, i), amp)
                     if (ntrial_excits == 1) then
-                        trial_denom(ireplica) = trial_denom(ireplica) + amp(1)*RealwSign
+                        trial_denom(ireplica) = trial_denom(ireplica) + amp(1) * RealwSign
                     else if (ntrial_excits == lenof_sign) then
-                        trial_denom(ireplica) = trial_denom(ireplica) + amp(ireplica)*RealwSign
+                        trial_denom(ireplica) = trial_denom(ireplica) + amp(ireplica) * RealwSign
                     end if
                     return
                 end if
@@ -279,12 +277,12 @@ contains
         if (con_space_size > 0) then
             hash_val = FindWalkerHash(nI, con_space_size)
             do i = 1, con_ht(hash_val)%nclash
-                if (DetBitEq(con_ht(hash_val)%states(0:nifd,i), ilut)) then
-                    amp = transfer(con_ht(hash_val)%states(IlutBits%ind_pop:,i), amp)
+                if (DetBitEq(con_ht(hash_val)%states(0:nifd, i), ilut)) then
+                    amp = transfer(con_ht(hash_val)%states(IlutBits%ind_pop:, i), amp)
                     if (ntrial_excits == 1) then
-                        trial_numerator(ireplica) = trial_numerator(ireplica) + amp(1)*RealwSign
+                        trial_numerator(ireplica) = trial_numerator(ireplica) + amp(1) * RealwSign
                     else if (ntrial_excits == lenof_sign) then
-                        trial_numerator(ireplica) = trial_numerator(ireplica) + amp(ireplica)*RealwSign
+                        trial_numerator(ireplica) = trial_numerator(ireplica) + amp(ireplica) * RealwSign
                     end if
                     return
                 end if
@@ -308,10 +306,10 @@ contains
             if (con_space_size > 0) then
                 hash_val = FindWalkerHash(nI, con_space_size)
                 do i = 1, con_ht(hash_val)%nclash
-                    if (DetBitEq(con_ht(hash_val)%states(0:nifd,i), ilut)) then
-                        do istate = 1, lenof_sign .div. 2
-                            amp(istate*2-1) = transfer(con_ht(hash_val)%states(nifd+istate,i), amp(istate*2-1))
-                            amp(istate*2) = amp(istate*2-1)
+                    if (DetBitEq(con_ht(hash_val)%states(0:nifd, i), ilut)) then
+                        do istate = 1, lenof_sign.div.2
+                            amp(istate * 2 - 1) = transfer(con_ht(hash_val)%states(nifd + istate, i), amp(istate * 2 - 1))
+                            amp(istate * 2) = amp(istate * 2 - 1)
                         end do
                         return
                     end if
@@ -321,8 +319,8 @@ contains
             if (con_space_size > 0) then
                 hash_val = FindWalkerHash(nI, con_space_size)
                 do i = 1, con_ht(hash_val)%nclash
-                    if (DetBitEq(con_ht(hash_val)%states(0:nifd,i), ilut)) then
-                        amp = transfer(con_ht(hash_val)%states(IlutBits%ind_pop:,i), amp)
+                    if (DetBitEq(con_ht(hash_val)%states(0:nifd, i), ilut)) then
+                        amp = transfer(con_ht(hash_val)%states(IlutBits%ind_pop:, i), amp)
                         return
                     end if
                 end do
@@ -338,99 +336,98 @@ contains
     ! This is outside the module so it is accessible to AnnihilateMod
     subroutine BinSearchParts2(iLut, MinInd, MaxInd, PartInd, tSuccess)
 
-        use DetCalcData , only : FCIDets
+        use DetCalcData, only: FCIDets
         use DetBitOps, only: DetBitLT
         use constants, only: n_int
-        use bit_reps, only: NIfTot,nifd
+        use bit_reps, only: NIfTot, nifd
 
         IMPLICIT NONE
-        INTEGER :: MinInd,MaxInd,PartInd
+        INTEGER :: MinInd, MaxInd, PartInd
         INTEGER(KIND=n_int) :: iLut(0:NIfTot)
-        INTEGER :: i,j,N,Comp
+        INTEGER :: i, j, N, Comp
         LOGICAL :: tSuccess
 
-    !    WRITE(iout,*) "Binary searching between ",MinInd, " and ",MaxInd
-    !    CALL neci_flush(iout)
-        i=MinInd
-        j=MaxInd
-        IF(i-j.eq.0) THEN
-            Comp=DetBitLT(FCIDets(:,MaxInd),iLut(:),nifd)
-            IF(Comp.eq.0) THEN
-                tSuccess=.true.
-                PartInd=MaxInd
+        !    write(iout,*) "Binary searching between ",MinInd, " and ",MaxInd
+        !    CALL neci_flush(iout)
+        i = MinInd
+        j = MaxInd
+        IF (i - j == 0) THEN
+            Comp = DetBitLT(FCIDets(:, MaxInd), iLut(:), nifd)
+            IF (Comp == 0) THEN
+                tSuccess = .true.
+                PartInd = MaxInd
                 RETURN
             ELSE
-                tSuccess=.false.
-                PartInd=MinInd
-            ENDIF
-        ENDIF
-        do while(j-i.gt.0)  !End when the upper and lower bound are the same.
-            N=(i+j)/2       !Find the midpoint of the two indices
-    !        WRITE(iout,*) i,j,n
+                tSuccess = .false.
+                PartInd = MinInd
+            end if
+        end if
+        do while (j - i > 0)  !End when the upper and lower bound are the same.
+            N = (i + j) / 2       !Find the midpoint of the two indices
+            !        write(iout,*) i,j,n
 
             ! Comp is 1 if CyrrebtDets(N) is "less" than iLut, and -1 if it is
             ! more or 0 if they are the same
-            Comp=DetBitLT(FCIDets(:,N),iLut(:),nifd)
+            Comp = DetBitLT(FCIDets(:, N), iLut(:), nifd)
 
-            IF(Comp.eq.0) THEN
-    !Praise the lord, we've found it!
-                tSuccess=.true.
-                PartInd=N
+            IF (Comp == 0) THEN
+                !Praise the lord, we've found it!
+                tSuccess = .true.
+                PartInd = N
                 RETURN
-            ELSEIF((Comp.eq.1).and.(i.ne.N)) THEN
+            else if ((Comp == 1) .and. (i /= N)) THEN
                 ! The value of the determinant at N is LESS than the determinant
                 ! we're looking for. Therefore, move the lower bound of the
                 ! search up to N. However, if the lower bound is already equal to
                 ! N then the two bounds are consecutive and we have failed...
-                i=N
-            ELSEIF(i.eq.N) THEN
+                i = N
+            else if (i == N) THEN
 
-                IF(i.eq.MaxInd-1) THEN
+                IF (i == MaxInd - 1) THEN
                     ! This deals with the case where we are interested in the
                     ! final/first entry in the list. Check the final entry of the
                     ! list and leave. We need to check the last index.
-                    Comp=DetBitLT(FCIDets(:,i+1),iLut(:),nifd)
-                    IF(Comp.eq.0) THEN
-                        tSuccess=.true.
-                        PartInd=i+1
+                    Comp = DetBitLT(FCIDets(:, i + 1), iLut(:), nifd)
+                    IF (Comp == 0) THEN
+                        tSuccess = .true.
+                        PartInd = i + 1
                         RETURN
-                    ELSEIF(Comp.eq.1) THEN
-    !final entry is less than the one we want.
-                        tSuccess=.false.
-                        PartInd=i+1
+                    else if (Comp == 1) THEN
+                        !final entry is less than the one we want.
+                        tSuccess = .false.
+                        PartInd = i + 1
                         RETURN
                     ELSE
-                        tSuccess=.false.
-                        PartInd=i
+                        tSuccess = .false.
+                        PartInd = i
                         RETURN
-                    ENDIF
+                    end if
 
-                ELSEIF(i.eq.MinInd) THEN
-                    tSuccess=.false.
-                    PartInd=i
+                else if (i == MinInd) THEN
+                    tSuccess = .false.
+                    PartInd = i
                     RETURN
                 ELSE
-                    i=j
-                ENDIF
+                    i = j
+                end if
 
-
-            ELSEIF(Comp.eq.-1) THEN
-    !The value of the determinant at N is MORE than the determinant we're looking for. Move the upper bound of the search down to N.
-                j=N
+            else if (Comp == -1) THEN
+                !The value of the determinant at N is MORE than the determinant we're looking for. Move the upper bound of the search down to N.
+                j = N
             ELSE
-    !We have failed - exit loop
-                i=j
-            ENDIF
+                !We have failed - exit loop
+                i = j
+            end if
 
-        enddo
+        end do
 
-    !If we have failed, then we want to find the index that is one less than where the particle would have been.
-        tSuccess=.false.
-        PartInd=MAX(MinInd,i-1)
+        !If we have failed, then we want to find the index that is one less than where the particle would have been.
+        tSuccess = .false.
+        PartInd = MAX(MinInd, i - 1)
 
     end subroutine BinSearchParts2
 
-    subroutine BinSearchParts_rdm(iLut,MinInd,MaxInd,PartInd,tSuccess)
+    subroutine BinSearchParts_rdm(iLut, MinInd, MaxInd, PartInd, tSuccess)
 
         ! Do a binary search in CurrentDets, between the indices of MinInd and
         ! MaxInd. If successful, tSuccess will be true and  PartInd will be a
@@ -446,9 +443,9 @@ contains
 
         i = MinInd
         j = MaxInd
-        if (i-j .eq. 0) then
-            Comp=DetBitLT(CurrentDets(:,MaxInd),iLut(:),nifd)
-            if (Comp .eq. 0) then
+        if (i - j == 0) then
+            Comp = DetBitLT(CurrentDets(:, MaxInd), iLut(:), nifd)
+            if (Comp == 0) then
                 tSuccess = .true.
                 PartInd = MaxInd
                 return
@@ -458,37 +455,36 @@ contains
             end if
         end if
 
-        do while(j-i .gt. 0)  ! End when the upper and lower bound are the same.
-            N = (i+j)/2       ! Find the midpoint of the two indices.
+        do while (j - i > 0)  ! End when the upper and lower bound are the same.
+            N = (i + j) / 2       ! Find the midpoint of the two indices.
 
             ! Comp is 1 if CyrrebtDets(N) is "less" than iLut, and -1 if it is
             ! more or 0 if they are the same
-            Comp = DetBitLT(CurrentDets(:,N),iLut(:),nifd)
+            Comp = DetBitLT(CurrentDets(:, N), iLut(:), nifd)
 
-            if (Comp .eq. 0) then
+            if (Comp == 0) then
                 ! Praise the lord, we've found it!
                 tSuccess = .true.
                 PartInd = N
                 return
-            else if ((Comp .eq. 1) .and. (i .ne. N)) then
+            else if ((Comp == 1) .and. (i /= N)) then
                 ! The value of the determinant at N is LESS than the determinant
                 ! we're looking for. Therefore, move the lower bound of the search
                 ! up to N. However, if the lower bound is already equal to N then
                 ! the two bounds are consecutive and we have failed...
                 i = N
-            else if (i .eq. N) then
+            else if (i == N) then
 
-
-                if (i .eq. MaxInd-1) then
+                if (i == MaxInd - 1) then
                     ! This deals with the case where we are interested in the
                     ! final/first entry in the list. Check the final entry of
                     ! the list and leave. We need to check the last index.
-                    Comp = DetBitLT(CurrentDets(:,i+1), iLut(:), nifd)
-                    if (Comp .eq. 0) then
+                    Comp = DetBitLT(CurrentDets(:, i + 1), iLut(:), nifd)
+                    if (Comp == 0) then
                         tSuccess = .true.
                         PartInd = i + 1
                         return
-                    else if (Comp .eq. 1) then
+                    else if (Comp == 1) then
                         ! final entry is less than the one we want.
                         tSuccess = .false.
                         PartInd = i + 1
@@ -499,7 +495,7 @@ contains
                         return
                     end if
 
-                else if (i .eq. MinInd) then
+                else if (i == MinInd) then
                     tSuccess = .false.
                     PartInd = i
                     return
@@ -507,7 +503,7 @@ contains
                     i = j
                 end if
 
-            else if (Comp .eq. -1) then
+            else if (Comp == -1) then
                 ! The value of the determinant at N is MORE than the determinant
                 ! we're looking for. Move the upper bound of the search down to N.
                 j = N
@@ -521,7 +517,7 @@ contains
         ! If we have failed, then we want to find the index that is one less
         ! than where the particle would have been.
         tSuccess = .false.
-        PartInd = max(MinInd,i-1)
+        PartInd = max(MinInd, i - 1)
 
     end subroutine BinSearchParts_rdm
 
@@ -531,7 +527,7 @@ contains
         use sort_mod, only: sort
 
         integer, intent(inout) :: list_size
-        integer(n_int), intent(inout) :: list(0:,:)
+        integer(n_int), intent(inout) :: list(0:, :)
         integer :: i, counter
 
         if (list_size > 0) then
@@ -541,7 +537,7 @@ contains
             do i = 2, list_size
                 ! If this state and the previous one were identical, don't add this state to the
                 ! list so that repeats aren't included.
-                if (.not. all(list(0:nifd, i-1) == list(0:nifd, i)) ) then
+                if (.not. all(list(0:nifd, i - 1) == list(0:nifd, i))) then
                     counter = counter + 1
                     list(:, counter) = list(:, i)
                 end if

@@ -11,19 +11,19 @@ MODULE ReadInput_neci
     integer, parameter :: idFeb08 = 1
     integer, parameter :: idNov11 = 2
 
-    contains
+contains
 
-    Subroutine ReadInputMain(cFilename,ios,tOverride_input, kp)
+    Subroutine ReadInputMain(cFilename, ios, tOverride_input, kp)
         USE input_neci
-        use SystemData, only : tMolpro
-        use System,     only : SysReadInput,SetSysDefaults
-        use Calc,       only : CalcReadInput,SetCalcDefaults
+        use SystemData, only: tMolpro
+        use System, only: SysReadInput, SetSysDefaults
+        use Calc, only: CalcReadInput, SetCalcDefaults
         use CalcData, only: tKP_FCIQMC, tUseProcsAsNodes
         use kp_fciqmc_data_mod, only: kp_fciqmc_data
         use kp_fciqmc_init, only: kp_fciqmc_read_inp
-        use Integrals_neci,  only : IntReadInput,SetIntDefaults
-        Use Logging,    only : LogReadInput,SetLogDefaults
-        use Parallel_neci,   only : iProcIndex
+        use Integrals_neci, only: IntReadInput, SetIntDefaults
+        Use Logging, only: LogReadInput, SetLogDefaults
+        use Parallel_neci, only: iProcIndex
         use default_sets
         use util_mod, only: get_free_unit
         use real_time_read_input_module, only: real_time_read_input
@@ -35,87 +35,87 @@ MODULE ReadInput_neci
 !#ifndef NAGF95
 !        Integer :: iargc
 !#endif
-    !  INPUT/OUTPUT params
-        Character(len=*)  cFilename    !Input  filename or "" if we check arg list or stdin
-        Integer             ios         !Output 0 if no error or nonzero iostat if error
+        !  INPUT/OUTPUT params
+        Character(len=*) cFilename    !Input  filename or "" if we check arg list or stdin
+        Integer ios         !Output 0 if no error or nonzero iostat if error
 
-        Character(len=255)  cInp         !temp storage for command line params
-        Character(len=32)   cTitle
+        Character(len=255) cInp         !temp storage for command line params
+        Character(len=32) cTitle
 !  Predeclared
 !        Integer             ir         !The file descriptor we are reading from
-        Character(len=100)  w,x         !strings for input storage
-        Logical             tEof        !set when read_line runs out of lines
-        logical             tExists     !test for existence of input file.
-        Integer             idDef       !What default set do we use
+        Character(len=100) w, x         !strings for input storage
+        Logical tEof        !set when read_line runs out of lines
+        logical tExists     !test for existence of input file.
+        Integer idDef       !What default set do we use
         integer neci_iargc
         logical, intent(in) :: tOverride_input  !If running through molpro, is this an override input?
         integer, allocatable :: tmparr(:)
         type(kp_fciqmc_data), intent(inout) :: kp
 
-        cTitle=""
-        idDef=idDefault                 !use the Default defaults (pre feb08)
-        ir=get_free_unit()              !default to a free unit which we'll open below
-        If(trim(adjustl(cFilename)) .ne. '') Then
-            Write(6,*) "Reading from file: ", Trim(cFilename)
-            inquire(file=cFilename,exist=tExists)
-            if (.not.tExists) call stop_all('ReadInputMain','File '//Trim(cFilename)//' does not exist.')
-            Open(ir,File=cFilename,Status='OLD',err=99,iostat=ios)
-        ElseIf(neci_iArgC().gt.0) then
-    ! We have some arguments we can process instead
+        cTitle = ""
+        idDef = idDefault                 !use the Default defaults (pre feb08)
+        ir = get_free_unit()              !default to a free unit which we'll open below
+        If (trim(adjustl(cFilename)) /= '') Then
+            write(6, *) "Reading from file: ", Trim(cFilename)
+            inquire (file=cFilename, exist=tExists)
+            if (.not. tExists) call stop_all('ReadInputMain', 'File '//Trim(cFilename)//' does not exist.')
+            open(ir, File=cFilename, Status='OLD', err=99, iostat=ios)
+        else if (neci_iArgC() > 0) then
+            ! We have some arguments we can process instead
 #ifdef BLUEGENE_HACKS
             call neci_GetArg(neci_iArgC(), cInp)
 #else
-            Call neci_GetArg(1,cInp)      !Read argument 1 into inp
+            Call neci_GetArg(1, cInp)      !Read argument 1 into inp
 #endif
-            write(6,*) "Processing arguments", cinp
-            Write(6,*) "Reading from file: ", Trim(cInp)
-            inquire(file=cInp,exist=tExists)
-            if (.not.tExists) call stop_all('ReadInputMain','File '//Trim(cInp)//' does not exist.')
-            Open(ir,File=cInp,Status='OLD',FORM="FORMATTED",err=99,iostat=ios)
+            write(6, *) "Processing arguments", cinp
+            write(6, *) "Reading from file: ", Trim(cInp)
+            inquire (file=cInp, exist=tExists)
+            if (.not. tExists) call stop_all('ReadInputMain', 'File '//Trim(cInp)//' does not exist.')
+            open(ir, File=cInp, Status='OLD', FORM="FORMATTED", err=99, iostat=ios)
         Else
-            ir=5                    !file descriptor 5 is stdin
-            Write(6,*) "Reading from STDIN"
+            ir = 5                    !file descriptor 5 is stdin
+            write(6, *) "Reading from STDIN"
             ! Save the input to a temporary file so we can scan for the
             ! defaults option and then re-read it for all other options.
-            open(7,status='scratch',iostat=ios)
-        Endif
-        Call input_options(echo_lines=.false.,skip_blank_lines=.true.)
+            open(7, status='scratch', iostat=ios)
+        end if
+        Call input_options(echo_lines=.false., skip_blank_lines=.true.)
 
-    !Look to find default options (line can be added anywhere in input)
+        !Look to find default options (line can be added anywhere in input)
         Do
             Call read_line(tEof)
-            if (ir.eq.5) write (7,*) trim(char) ! Dump line from STDIN to temporary file.
-            If(tEof) Exit
+            if (ir == 5) write(7, *) trim(char) ! Dump line from STDIN to temporary file.
+            If (tEof) Exit
             Call readu(w)
-            Select case(w)
-            Case("DEFAULTS")
+            Select case (w)
+            Case ("DEFAULTS")
                 call readu(x)
-                select case(x)
+                select case (x)
 !Add default options here
-                case("DEFAULT")
-                    idDef=idDefault
-                case("FEB08")
-                    idDef=idFeb08
-                case("NOV11")
-                    idDef=idNov11
+                case ("DEFAULT")
+                    idDef = idDefault
+                case ("FEB08")
+                    idDef = idFeb08
+                case ("NOV11")
+                    idDef = idNov11
                 case default
-                    write(6,*) "No defaults selected - using 'default' defaults"
-                    idDef=idDefault
+                    write(6, *) "No defaults selected - using 'default' defaults"
+                    idDef = idDefault
                 end select
-            case("END")
+            case ("END")
                 exit
             end select
         End Do
 
-        select case(idDef)
-        case(0)
-            write (6,*) 'Using the default set of defaults.'
-        case(idFeb08)
+        select case (idDef)
+        case (0)
+            write(6, *) 'Using the default set of defaults.'
+        case (idFeb08)
             Feb08 = .true.
-            write (6,*) 'Using the Feb08 set of defaults.'
-        case(idNov11)
+            write(6, *) 'Using the Feb08 set of defaults.'
+        case (idNov11)
             Nov11 = .true.
-            write(6,*) 'Using the November 2011 set of defaults'
+            write(6, *) 'Using the November 2011 set of defaults'
         end select
 
         ! Set up defaults.
@@ -125,66 +125,63 @@ MODULE ReadInput_neci
         call SetLogDefaults
 
 !Now return to the beginning and process the whole input file
-        if (ir.eq.5) ir=7 ! If read from STDIN, re-read from our temporary scratch file.
-        Rewind(ir)
-        if(tMolpro.and.(.not.tOverride_input)) then
+        if (ir == 5) ir = 7 ! If read from STDIN, re-read from our temporary scratch file.
+        Rewind (ir)
+        if (tMolpro .and. (.not. tOverride_input)) then
 !Molpro writes out its own input file
-            Call input_options(echo_lines=.false.,skip_blank_lines=.true.)
+            Call input_options(echo_lines=.false., skip_blank_lines=.true.)
         else
-            Call input_options(echo_lines=iProcIndex.eq.0,skip_blank_lines=.true.)
-            Write (6,'(/,64("*"),/)')
-        endif
-
+            Call input_options(echo_lines=iProcIndex == 0, skip_blank_lines=.true.)
+            write(6, '(/,64("*"),/)')
+        end if
 
         Do
             Call read_line(tEof)
             If (tEof) exit
             call readu(w)
-            select case(w)
-            case("TITLE")
-                do while (item.lt.nitems)
+            select case (w)
+            case ("TITLE")
+                do while (item < nitems)
                     call reada(w)
                     cTitle = trim(cTitle)//" "//trim(w)
-                enddo
-            case("DEFAULTS")
+                end do
+            case ("DEFAULTS")
                 CONTINUE
-            case("SYSTEM")
+            case ("SYSTEM")
                 call SysReadInput()
-            case("CALC")
+            case ("CALC")
                 call CalcReadInput()
-            case("INTEGRAL")
+            case ("INTEGRAL")
                 call IntReadInput()
-            case("LOGGING")
+            case ("LOGGING")
                 call LogReadInput()
-            case("KP-FCIQMC")
+            case ("KP-FCIQMC")
                 tKP_FCIQMC = .true.
                 tUseProcsAsNodes = .true.
                 call kp_fciqmc_read_inp(kp)
             case ("REALTIME")
                 call real_time_read_input()
-            case("END")
+            case ("END")
                 exit
             case default
-                call report ("Keyword "//trim(w)//" not recognized",.true.)
+                call report("Keyword "//trim(w)//" not recognized", .true.)
             end select
         end do
-        write (6,'(/,64("*"),/)')
-!        IF(IR.EQ.1.or.IR.EQ.7) CLOSE(ir)
-        CLOSE(ir)
-   99   IF (ios.gt.0) THEN
-            WRITE (6,*) 'Problem reading input file ',TRIM(cFilename)
-            call stop_all('ReadInputMain','Input error.')
+        write(6, '(/,64("*"),/)')
+!        IF(IR.EQ.1.or.IR.EQ.7) close(ir)
+        close(ir)
+99      IF (ios > 0) THEN
+            write(6, *) 'Problem reading input file ', TRIM(cFilename)
+            call stop_all('ReadInputMain', 'Input error.')
         END IF
         call sanitize_input()
         RETURN
     END SUBROUTINE ReadInputMain
 
-
     subroutine sanitize_input()
         call evaluate_depending_keywords()
         call checkinput()
     end subroutine
-
 
     !> @brief
     !>   Certain keywords are optional and/or depend on others.
@@ -192,7 +189,7 @@ MODULE ReadInput_neci
     subroutine evaluate_depending_keywords()
         use SystemData, only: tGAS
         use gasci, only: GAS_specification, is_connected, GAS_exc_gen, &
-            possible_GAS_exc_gen, user_input_GAS_exc_gen
+                         possible_GAS_exc_gen, user_input_GAS_exc_gen
         character(*), parameter :: this_routine = 'evaluate_depending_keywords'
 
         if (tGAS) then
@@ -208,14 +205,12 @@ MODULE ReadInput_neci
         end if
     end subroutine
 
-
-
     subroutine checkinput()
 
         ! Check that the specified runtime options are consistent and valid
 
         use SystemData, only: nel, tUseBrillouin, beta, tFixLz, &
-                              tFindCINatOrbs, tNoRenormRandExcits, LMS, STOT,&
+                              tFindCINatOrbs, tNoRenormRandExcits, LMS, STOT, &
                               tSpn, tUHF, tGenHelWeighted, tHPHF, &
                               tGen_4ind_weighted, tGen_4ind_reverse, &
                               tMultiReplicas, tGen_4ind_part_exact, &
@@ -236,7 +231,7 @@ MODULE ReadInput_neci
                             tStartCAS, tUniqueHFNode, tContTimeFCIMC, &
                             tContTimeFull, tFCIMC, tPreCond, tOrthogonaliseReplicas, &
                             tMultipleInitialStates, pgen_unit_test_spec
-        use Calc, only : RDMsamplingiters_in_inp
+        use Calc, only: RDMsamplingiters_in_inp
         Use Determinants, only: SpecDet, tagSpecDet, tDefinedet
         use IntegralsData, only: nFrozen, tDiscoNodes, tQuadValMax, &
                                  tQuadVecMax, tCalcExcitStar, tJustQuads, &
@@ -244,12 +239,12 @@ MODULE ReadInput_neci
         use IntegralsData, only: tDiagStarStars, tExcitStarsRootChange, &
                                  tRmRootExcitStarsRootChange, tLinRootChange
         use LoggingData, only: iLogging, tCalcFCIMCPsi, tRDMOnFly, &
-                           tCalcInstantS2, tDiagAllSpaceEver, &
-                           tCalcVariationalEnergy, tCalcInstantS2Init, &
-                           tPopsFile, tRDMOnFly, tExplicitAllRDM, &
-                           tHDF5PopsRead, tHDF5PopsWrite, tCalcFcimcPsi, &
-                           tHistEnergies, tPrintOrbOcc
-        use Logging, only : calcrdmonfly_in_inp, RDMlinspace_in_inp
+                               tCalcInstantS2, tDiagAllSpaceEver, &
+                               tCalcVariationalEnergy, tCalcInstantS2Init, &
+                               tPopsFile, tRDMOnFly, tExplicitAllRDM, &
+                               tHDF5PopsRead, tHDF5PopsWrite, tCalcFcimcPsi, &
+                               tHistEnergies, tPrintOrbOcc
+        use Logging, only: calcrdmonfly_in_inp, RDMlinspace_in_inp
         use real_time_data, only: t_real_time_fciqmc
         use DetCalc, only: tEnergy, tCalcHMat, tFindDets, tCompressDets
         use load_balance_calcnodes, only: tLoadBalanceBlocks
@@ -258,10 +253,10 @@ MODULE ReadInput_neci
         use global_utilities
         use FciMCData, only: nWalkerHashes, HashLengthFrac, InputDiagSft, t_global_core_space
         use hist_data, only: tHistSpawn
-        use Parallel_neci, only: nNodes,nProcessors
+        use Parallel_neci, only: nNodes, nProcessors
         use UMatCache, only: tDeferred_Umat2d
         use gasci, only: GAS_specification, is_connected, is_valid, GAS_exc_gen, &
-            possible_GAS_exc_gen, operator(==)
+                         possible_GAS_exc_gen, operator(==)
 
         use guga_init, only: checkInputGUGA
         implicit none
@@ -269,20 +264,19 @@ MODULE ReadInput_neci
         integer :: vv, kk, cc, ierr
         real(dp) :: InputDiagSftSingle
         logical :: check
-        character(*), parameter :: t_r='checkinput'
+        character(*), parameter :: t_r = 'checkinput'
 
-        if(tDiagAllSpaceEver.and..not.tHistSpawn) then
-            call stop_all(t_r,"DIAGALLSPACEEVER requires HISTSPAWN option")
-        endif
-        if(tCalcVariationalEnergy.and..not.tHistSpawn) then
-            call stop_all(t_r,"CALCVARIATIONALENERGY requires HISTSPAWN option")
-        endif
-        if(tCalcVariationalEnergy.and..not.tEnergy) then
-           call stop_all(t_r,"CALCVARIATIONALENERGY requires initial FCI calculation")
-        endif
+        if (tDiagAllSpaceEver .and. .not. tHistSpawn) then
+            call stop_all(t_r, "DIAGALLSPACEEVER requires HISTSPAWN option")
+        end if
+        if (tCalcVariationalEnergy .and. .not. tHistSpawn) then
+            call stop_all(t_r, "CALCVARIATIONALENERGY requires HISTSPAWN option")
+        end if
+        if (tCalcVariationalEnergy .and. .not. tEnergy) then
+            call stop_all(t_r, "CALCVARIATIONALENERGY requires initial FCI calculation")
+        end if
 
-        nWalkerHashes=nint(HashLengthFrac*InitWalkers)
-
+        nWalkerHashes = nint(HashLengthFrac * InitWalkers)
 
         ! ================ GUGA implementation ===============================
         ! design convention to store as many guga related functionality in
@@ -296,9 +290,9 @@ MODULE ReadInput_neci
 
         ! Used in the FCIMC. We find dets and compress them for later use
         if (tCalcFCIMCPsi .or. tHistSpawn) then
-           tFindDets = .true.
-           tCompressDets = .true.
-        endif
+            tFindDets = .true.
+            tCompressDets = .true.
+        end if
 
         ! We need to have found the dets before calculating the H mat.
         if (tCalcHMat) tFindDets = .true.
@@ -307,178 +301,178 @@ MODULE ReadInput_neci
         ! the other random graph algorithm cannot remove same excitation
         ! links yet.
         if (tNoSameExcit .and. .not. tInitStar) then
-            call report ("If we are using TNoSameExcit, then we have to start&
+            call report("If we are using TNoSameExcit, then we have to start&
                          & with the star. The other random graph algorithm &
                          &cannot remove same excitation links yet.", .true.)
-        endif
+        end if
 
         ! The MoveDets and Biasing algorithms cannot both be used in the
         ! GraphMorph Algorithm.
         if (tBiasing .and. tMoveDets) then
             call report("Biasing algorithm and MoveDets algorithm cannot both&
-                        & be used",.true.)
-        endif
+                        & be used", .true.)
+        end if
 
         ! ..RmRootExcitStarsRootChange must be used with DiagStarStars, and not
         ! with ExcitStarsRootChange
         if (tRmRootExcitStarsRootChange .and. .not. tDiagStarStars) then
             call report("RmRootExcitStarsRootChange can only with used with &
-                        &DiagStarStars currently",.true.)
-        endif
+                        &DiagStarStars currently", .true.)
+        end if
 
         if (TRmRootExcitStarsRootChange .and. TExcitStarsRootChange) then
             call report("RmRootExcitStarsRootChange and ExcitStarsRootChange &
                         &cannot both be used as they are both different &
                         &options with diagstarstars", .true.)
-        endif
+        end if
 
         !..ExcitStarsRootChange must be used with TDiagStarStars
         if (tExcitStarsRootChange .and. .not. tDiagStarStars) then
             call report("ExcitStarsRootChange can only with used with &
                         &DiagStarStars currently", .true.)
-        endif
+        end if
 
         ! ..TDiagStarStars must be used with TStarStars, and cannot be used
         ! with TCalcExcitStar
         if (tDiagStarStars .and. .not. tStarStars) then
             call report("DiagStarStars must be used with StarStars", .true.)
-        endif
+        end if
         if (tDiagStarStars .and. tCalcExcitStar) then
             call report("DiagStarStars is incompatable with CalcExcitStar", &
                         .true.)
-        endif
-        if(tDiagStarStars .and. (tNoDoubs .or. tJustQuads)) then
+        end if
+        if (tDiagStarStars .and. (tNoDoubs .or. tJustQuads)) then
             call report("NoDoubs/JustQuads cannot be used with DiagStarStars &
                         &- try CalcExcitStar")
-        endif
+        end if
 
         ! ..TNoDoubs is only an option which applied to TCalcExcitStar, and
         ! cannot occurs with TJustQuads.
         if (tNoDoubs .and. .not. tCalcExcitStar) then
             call report("STARNODOUBS is only an option which applied to &
                         &TCalcExcitStar", .true.)
-        endif
+        end if
 
         if (tNoDoubs .and. tJustQuads) then
             call report("STARNODOUBS and STARQUADEXCITS cannot be applied &
                         &together!", .true.)
-        endif
+        end if
 
         ! .. TJustQuads is only an option which applies to TCalcExcitStar
-        if (tJustQuads.and..not.tCalcExcitStar) then
+        if (tJustQuads .and. .not. tCalcExcitStar) then
             call report("STARQUADEXCITS is only an option which applies to &
-                        &tCalcExcitStar",.true.)
-        endif
+                        &tCalcExcitStar", .true.)
+        end if
 
         !.. tCalcExcitStar can only be used with tStarStars
-        if (tCalcExcitStar.and..not.tStarStars) then
+        if (tCalcExcitStar .and. .not. tStarStars) then
             call report("CalcExcitStar can only be used with StarStars set", &
                         .true.)
-        endif
+        end if
 
         !.. Brillouin Theorem must be applied when using TStarStars
-        if (tStarStars.and..not.tUseBrillouin) then
+        if (tStarStars .and. .not. tUseBrillouin) then
             call report("Brillouin Theorem must be used when using &
                         &CalcExcitStar", .true.)
-        endif
+        end if
 
         !.. TQuadValMax and TQuadVecMax can only be used if TLINESTARSTARS set
         if ((tQuadValMax .or. tQuadVecMax) .and. .not. tStarStars) then
             call report("TQuadValMax or TQuadVecMax can only be specified if &
                         &STARSTARS specified in method line", .true.)
-        endif
+        end if
 
         !.. TQuadValMax and TQuadVecMax cannot both be set
-        if (tQuadValMax.and.tQuadVecMax) then
+        if (tQuadValMax .and. tQuadVecMax) then
             call report("TQuadValMax and TQuadVecMax cannot both be set", &
                         .true.)
-        endif
+        end if
 
         !.. TDISCONODES can only be set if NODAL is set in the star methods
         ! section
         if (tDiscoNodes .and. .not. tDiagNodes) then
             call report("DISCONNECTED NODES ONLY POSSIBLE IF NODAL SET IN &
-                        &METHOD",.true.)
-        endif
+                        &METHOD", .true.)
+        end if
 
-        if(tMultipleInitialStates .or. tOrthogonaliseReplicas .or. &
-             tPreCond) then
-           if (tHistSpawn .or. &
+        if (tMultipleInitialStates .or. tOrthogonaliseReplicas .or. &
+            tPreCond) then
+            if (tHistSpawn .or. &
                 (tCalcFCIMCPsi .and. tFCIMC) .or. tHistEnergies .or. tPrintOrbOcc) then
-                call report("HistSpawn and PrintOrbOcc not yet supported for multi-replica with different references"&
-                ,.true.)
-           end if
-        endif
+                call report("HistSpawn and PrintOrbOcc not yet supported for multi-replica with different references" &
+                            , .true.)
+            end if
+        end if
 
-        if(.not. t_global_core_space) then
-            if(t_real_time_fciqmc) call report("Real-time FCIQMC requires a global core space")
-            if(tKP_FCIQMC) call report("KP-FCIQMC requires a global core space")
-            if(tReplicaEstimates) call report("Replica estimates require a global core space")
+        if (.not. t_global_core_space) then
+            if (t_real_time_fciqmc) call report("Real-time FCIQMC requires a global core space")
+            if (tKP_FCIQMC) call report("KP-FCIQMC requires a global core space")
+            if (tReplicaEstimates) call report("Replica estimates require a global core space")
         end if
 
         !.. We still need a specdet space even if we don't have a specdet.
         if (.not. associated(SPECDET)) then
             allocate(SPECDET(nel - nFrozen), stat=ierr)
-            call LogMemAlloc('SPECDET', nel-nFrozen, 4, t_r, tagSPECDET, ierr)
-        endif
+            call LogMemAlloc('SPECDET', nel - nFrozen, 4, t_r, tagSPECDET, ierr)
+        end if
 
         !..   Testing ILOGGING
         !     ILOGGING = 0771
         if (I_VMAX == 0 .and. nPaths /= 0 .and. (.not. tKP_FCIQMC)) then
-            call report ('NPATHS!=0 and I_VMAX=0.  VERTEX SUM max level not &
+            call report('NPATHS!=0 and I_VMAX=0.  VERTEX SUM max level not &
                          &set', .true.)
-        endif
+        end if
 
         !Ensure beta is set.
         if (beta < 1.0e-6_dp .and. .not. tMP2Standalone) then
             call report("No beta value provided.", .true.)
-        endif
+        end if
 
-        do vv=2,I_VMAX
-            g_VMC_ExcitWeights(:,vv)=g_VMC_ExcitWeights(:,1)
-            G_VMC_EXCITWEIGHT(vv)=G_VMC_EXCITWEIGHT(1)
-        enddo
+        do vv = 2, I_VMAX
+            g_VMC_ExcitWeights(:, vv) = g_VMC_ExcitWeights(:, 1)
+            G_VMC_EXCITWEIGHT(vv) = G_VMC_EXCITWEIGHT(1)
+        end do
 
         !IF THERE IS NO WEIGHTING FUNCTION, ExcitFuncs(10)=.true.
-        do vv=1,9
-            IF(EXCITFUNCS(vv)) EXCITFUNCS(10)=.false.
-        enddo
+        do vv = 1, 9
+            IF (EXCITFUNCS(vv)) EXCITFUNCS(10) = .false.
+        end do
 
-        if (tNoRenormRandExcits .and. (.not.ExcitFuncs(10))) then
-            write(6,*) "Random excitations WILL have to be renormalised, &
+        if (tNoRenormRandExcits .and. (.not. ExcitFuncs(10))) then
+            write(6, *) "Random excitations WILL have to be renormalised, &
                        &since an excitation weighting has been detected."
-        ENDIF
+        end if
 
         ! if the LMS value specified is not reachable with the number of electrons,
         ! fix this
-        if(mod(abs(lms),2).ne.mod(nel,2)) then
-           write(6,*) "WARNING: LMS Value is not reachable with the given number of electrons."
-           write(6,*) "Resetting LMS"
-           LMS = -mod(nel,2)
-        endif
+        if (mod(abs(lms), 2) /= mod(nel, 2)) then
+            write(6, *) "WARNING: LMS Value is not reachable with the given number of electrons."
+            write(6, *) "Resetting LMS"
+            LMS = -mod(nel, 2)
+        end if
 
         if (tCalcInstantS2 .or. tCalcInstantS2Init) then
             if (tUHF) &
-                call stop_all (t_r, 'Cannot calculate instantaneous values of&
+                call stop_all(t_r, 'Cannot calculate instantaneous values of&
                               & S^2 with UF enabled.')
-            write(6,*) 'Enabling calculation of instantaneous S^2 each &
+            write(6, *) 'Enabling calculation of instantaneous S^2 each &
                        &iteration.'
-        endif
+        end if
 
         if (tUniqueHFNode .and. nProcessors < 2) then
-            write(6,*) "nNodes: ",nNodes
-            write(6,*) 'nProcessors: ', nProcessors
-            call stop_all (t_r, 'At least two nodes required to designate &
+            write(6, *) "nNodes: ", nNodes
+            write(6, *) 'nProcessors: ', nProcessors
+            call stop_all(t_r, 'At least two nodes required to designate &
                           &a node uniquely to the HF determinant')
         end if
 
         if (tGenHelWeighted) then
-            write(6,*)
-            write(6,*) '*** WARNING ***'
-            write(6,*) 'Slow HElement biased excitation generators in use.'
-            write(6,*) 'NOT FOR PRODUCTION RUNS'
-            write(6,*) '***************'
-            write(6,*)
+            write(6, *)
+            write(6, *) '*** WARNING ***'
+            write(6, *) 'Slow HElement biased excitation generators in use.'
+            write(6, *) 'NOT FOR PRODUCTION RUNS'
+            write(6, *) '***************'
+            write(6, *)
         end if
 
         if (tGen_4ind_weighted .or. tGen_4ind_reverse .or. tGen_4ind_2 &
@@ -496,9 +490,9 @@ MODULE ReadInput_neci
 #if PROG_NUMRUNS_
         if (tKP_FCIQMC .and. .not. tMultiReplicas) then
 
-            write(6,*) 'Using KPFCIQMC without explicitly specifying the &
+            write(6, *) 'Using KPFCIQMC without explicitly specifying the &
                        &number of replica simulations'
-            write(6,*) 'Defaulting to using 2 replicas'
+            write(6, *) 'Defaulting to using 2 replicas'
             tMultiReplicas = .true.
 #ifdef CMPLX_
             lenof_sign = 4
@@ -517,13 +511,13 @@ MODULE ReadInput_neci
 
 #if PROG_NUMRUNS_
         if (tRDMonFly) then
-            write(6,*) 'RDM on fly'
+            write(6, *) 'RDM on fly'
 
             if (.not. tMultiReplicas) then
-                write(6,*) 'unspecified'
-                write(6,*) 'Filling RDMs without explicitly specifying the &
+                write(6, *) 'unspecified'
+                write(6, *) 'Filling RDMs without explicitly specifying the &
                            &number of replica simplations'
-                write(6,*) 'Defaulting to using 2 replicas'
+                write(6, *) 'Defaulting to using 2 replicas'
                 tMultiReplicas = .true.
                 lenof_sign = 2
                 inum_runs = 2
@@ -538,14 +532,14 @@ MODULE ReadInput_neci
 #endif
 
         if (tRDMOnFly .and. .not. tCheckHighestPop) then
-            write(6,*) 'Highest population checking required for calculating &
+            write(6, *) 'Highest population checking required for calculating &
                        &RDMs on the fly'
-            write(6,*) 'If you are seeing this, it is an input parsing error'
+            write(6, *) 'If you are seeing this, it is an input parsing error'
             call stop_all(t_r, 'RDMs without CheckHighestPop')
         end if
 
-        if (tSemiStochastic .and. .not.(tAllRealCoeff.and.tUseRealCoeffs)) then
-            write(6,*) 'Semi-stochastic simulations only supported when using &
+        if (tSemiStochastic .and. .not. (tAllRealCoeff .and. tUseRealCoeffs)) then
+            write(6, *) 'Semi-stochastic simulations only supported when using &
                        &ALLREALCOEFF option'
             call stop_all(t_r, 'Semistochastic without ALLREALCOEFF')
         end if
@@ -573,7 +567,6 @@ MODULE ReadInput_neci
             end if
         end if
 
-
         if (tLoadBalanceBlocks) then
             if (tUniqueHFNode) then
                 call stop_all(t_r, "UNIQUE-HF-NODE requires disabling &
@@ -583,7 +576,7 @@ MODULE ReadInput_neci
             ! If there is only one node, then load balancing doesn't make
             ! a great deal of sense, and only slows things down...
             if (nNodes == 1) then
-                write(6,*) 'Disabling load balancing for single node calculation'
+                write(6, *) 'Disabling load balancing for single node calculation'
                 tLoadBalanceBlocks = .false.
             end if
 
@@ -601,29 +594,29 @@ MODULE ReadInput_neci
 #endif
 
         if (tFixLz .and. tComplexOrbs_RealInts) then
-            write(6,*) 'Options LZTOT and COMPLEXORBS_REALINTS incompatible'
-            write(6,*)
-            write(6,*) '1. Using multiple options that filter integrals at runtime is unsupported.'
-            write(6,*) '   Only one integral filter may be used at once.'
-            write(6,*)
-            write(6,*) '2. This is almost certainly not what you intended to do.  LZTOT works using'
-            write(6,*) '   abelian symmetries combined with momentum information. COMPLEXORBS_REALINTS'
-            write(6,*) '   provides support for non-abelian symmetries in FCIDUMP files produced'
-            write(6,*) '   using VASP'
-            write(6,*)
+            write(6, *) 'Options LZTOT and COMPLEXORBS_REALINTS incompatible'
+            write(6, *)
+            write(6, *) '1. Using multiple options that filter integrals at runtime is unsupported.'
+            write(6, *) '   Only one integral filter may be used at once.'
+            write(6, *)
+            write(6, *) '2. This is almost certainly not what you intended to do.  LZTOT works using'
+            write(6, *) '   abelian symmetries combined with momentum information. COMPLEXORBS_REALINTS'
+            write(6, *) '   provides support for non-abelian symmetries in FCIDUMP files produced'
+            write(6, *) '   using VASP'
+            write(6, *)
             call stop_all(t_r, 'Options incompatible')
         end if
 
         if (tLatticeGens) then
-           if (tGen_4ind_2 .or. tGen_4ind_weighted .or. tGen_4ind_reverse) then
-              call stop_all(t_r, "Invalid excitation options")
-           end if
+            if (tGen_4ind_2 .or. tGen_4ind_weighted .or. tGen_4ind_reverse) then
+                call stop_all(t_r, "Invalid excitation options")
+            end if
         end if
 
         if (tGAS) then
-            if(.not. tDefineDet) then
+            if (.not. tDefineDet) then
                 call stop_all(t_r, "Running GAS requires a user-defined reference via definedet.")
-            endif
+            end if
             if (.not. is_valid(GAS_specification)) then
                 call stop_all(t_r, "GAS specification not valid.")
             end if
@@ -634,7 +627,6 @@ MODULE ReadInput_neci
                 call stop_all(t_r, "Running GAS-CI = ONLY_DISCONNECTED requires disconnected spaces.")
             end if
         end if
-
 
         if (allocated(pgen_unit_test_spec)) then
             if (.not. tReadPops) then

@@ -21,7 +21,7 @@ module DeterminantData
 
 contains
 
-    subroutine write_det (nunit, nI, lTerm)
+    subroutine write_det(nunit, nI, lTerm)
 
         ! Write the specified determinant (or CSF) to the output unit nunit.
         ! Terminate the line (with '\n') if lTerm = .true.
@@ -33,10 +33,10 @@ contains
         integer, intent(in) :: nunit, nI(nel)
         logical, intent(in) :: lTerm
 
-        call write_det_len (nunit, nI, nel, lterm)
+        call write_det_len(nunit, nI, nel, lterm)
     end subroutine write_det
 
-    subroutine write_det_len (nunit, nI, nlen, lterm)
+    subroutine write_det_len(nunit, nI, nlen, lterm)
 
         ! Worker function for the above. Can be accessed to print an unusual
         ! lengthed determinant.
@@ -46,21 +46,21 @@ contains
         integer :: i, elec
 
         ! Start with a bracket, and loop over all the electrons
-        write(nunit,'("(")',advance='no')
-        do i=1,nlen
+        write(nunit, '("(")', advance='no')
+        do i = 1, nlen
             elec = nI(i)
 
             ! Write out the orbital number
-            write(nunit,'(i5)',advance='no') elec
-            if (i /= nlen) write(nunit,'(",")',advance='no')
-        enddo
+            write(nunit, '(i5)', advance='no') elec
+            if (i /= nlen) write(nunit, '(",")', advance='no')
+        end do
 
         ! Close the written determinant off
-        write(nunit,'(")")',advance='no')
-        if (lTerm) write(nunit,*)
+        write(nunit, '(")")', advance='no')
+        if (lTerm) write(nunit, *)
     end subroutine write_det_len
 
-    subroutine get_lexicographic (dorder, nopen, nup)
+    subroutine get_lexicographic(dorder, nopen, nup)
 
         ! Unlike the csf version, this uses 1 == alpha, 0 = beta.
 
@@ -73,7 +73,7 @@ contains
         ! Initialise
         if (dorder(1) == -1) then
             dorder(1:nup) = 0
-            dorder(nup+1:nopen) = 1
+            dorder(nup + 1:nopen) = 1
         else
             ! Get the list of positions of the beta electrons
             j = 0
@@ -86,31 +86,31 @@ contains
                     if (j == 1 .and. i == nopen - nup + 1) then
                         dorder(1) = -1
                         return
-                    endif
+                    end if
 
                     if (j == nup) exit
-                endif
-            enddo
+                end if
+            end do
 
             do i = 1, nup
                 bInc = .false.
                 if (i == nup) then
                     bInc = .true.
                 else if (i < nup) then
-                    if (comb(i+1) /= comb(i) + 1) bInc = .true.
-                endif
+                    if (comb(i + 1) /= comb(i) + 1) bInc = .true.
+                end if
 
                 if (bInc) then
                     comb(i) = comb(i) + 1
                     exit
                 else
                     comb(i) = i
-                endif
-            enddo
+                end if
+            end do
 
             dorder = 1
             dorder(comb) = 0
-        endif
+        end if
     end subroutine
 
     subroutine write_spins_heisenberg(ilut)
@@ -119,20 +119,20 @@ contains
         integer :: i, nsites, beta_ind, alpha_ind, pos
         logical :: is_alpha, is_beta
 
-        nsites = nbasis/2
+        nsites = nbasis / 2
 
         do i = 1, nsites
-            beta_ind = 2*i-1
-            alpha_ind = 2*i
-            pos = (alpha_ind - 1)/bits_n_int
+            beta_ind = 2 * i - 1
+            alpha_ind = 2 * i
+            pos = (alpha_ind - 1) / bits_n_int
 
-            is_alpha = btest(ilut(pos), mod(alpha_ind-1, bits_n_int))
-            is_beta = btest(ilut(pos), mod(beta_ind-1, bits_n_int))
+            is_alpha = btest(ilut(pos), mod(alpha_ind - 1, bits_n_int))
+            is_beta = btest(ilut(pos), mod(beta_ind - 1, bits_n_int))
 
             if (is_alpha .and. (.not. is_beta)) then
-                write(6,'(a1)',advance='no') "1"
+                write(6, '(a1)', advance='no') "1"
             else if (is_beta .and. (.not. is_alpha)) then
-                write(6,'(a1)',advance='no') "0"
+                write(6, '(a1)', advance='no') "0"
             else if (is_beta .and. is_alpha) then
                 call stop_all("t_r", "A spin is both up and down, this shouldn't happen!")
             else if ((.not. is_beta) .and. (.not. is_alpha)) then
@@ -140,7 +140,7 @@ contains
             end if
         end do
 
-        write(6,'()',advance='yes')
+        write(6, '()', advance='yes')
 
     end subroutine write_spins_heisenberg
 

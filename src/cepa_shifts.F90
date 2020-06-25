@@ -6,7 +6,7 @@ module cepa_shifts
     use replica_data, only: diagsft
     use SystemData, only: nel, nOccAlpha, nBasis
     use cc_amplitudes, only: t_cc_amplitudes, cc_singles_factor, &
-                        cc_doubles_factor, cc_triples_factor, cc_quads_factor
+                             cc_doubles_factor, cc_triples_factor, cc_quads_factor
 
     implicit none
 
@@ -74,12 +74,12 @@ contains
         end if
 
         do i = 1, inum_runs
-            if (.not. TestClosedShellDet(ilutref(:,i))) then
+            if (.not. TestClosedShellDet(ilutref(:, i))) then
                 call stop_all(this_routine, "Cepa shifts only for closed shell reference!")
             end if
         end do
 
-        select case(trim(adjustl(cepa_method)))
+        select case (trim(adjustl(cepa_method)))
 
         case ('0')
             ! here the shift has to cancel the correlation energy, but i can't
@@ -114,7 +114,7 @@ contains
                 call stop_all(this_routine, "not enough electrons for aqcc shift!")
             end if
 
-            aqcc_factor = (1.0_dp - real((nel - 3)*(nel - 2),dp)/real(nel*(nel - 1), dp))
+            aqcc_factor = (1.0_dp - real((nel - 3) * (nel - 2), dp) / real(nel * (nel - 1), dp))
 
             cepa_shift_single => cepa_aqcc
             cepa_shift_double => cepa_aqcc
@@ -208,7 +208,7 @@ contains
         ! tod-
         call stop_all("cepa_1_double", "TODO")
         unused_var(run)
-        cepa_1_double= 0.0_dp
+        cepa_1_double = 0.0_dp
 
     end function cepa_1_double
 
@@ -217,7 +217,7 @@ contains
         ! todo
         call stop_all("cepa_3_single", "TODO")
         unused_var(run)
-        cepa_3_single= 0.0_dp
+        cepa_3_single = 0.0_dp
     end function cepa_3_single
 
     real(dp) function cepa_3_double(run)
@@ -225,7 +225,7 @@ contains
         ! todo
         call stop_all("cepa_3_double", "TODO")
         unused_var(run)
-        cepa_3_double= 0.0_dp
+        cepa_3_double = 0.0_dp
     end function cepa_3_double
 
     real(dp) function cepa_acpf(run)
@@ -233,14 +233,14 @@ contains
         ! do i use the shift or the projected energy here?? tbd
         ! change the implementation, so that it actually gives
         ! S - D = 2S/N -> D = S(1 - 2/N)
-        cepa_acpf = diagsft(run)*(1.0_dp - 2.0_dp/real(nel,dp))
+        cepa_acpf = diagsft(run) * (1.0_dp - 2.0_dp / real(nel, dp))
 
     end function cepa_acpf
 
     real(dp) function cepa_aqcc(run)
         integer, intent(in) :: run
 
-        cepa_aqcc = diagsft(run)*(1.0_dp - aqcc_factor)
+        cepa_aqcc = diagsft(run) * (1.0_dp - aqcc_factor)
 
     end function cepa_aqcc
 

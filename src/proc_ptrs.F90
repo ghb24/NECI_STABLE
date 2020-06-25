@@ -10,8 +10,8 @@ module procedure_pointers
 
         !
         ! Generic excitaiton generator
-        subroutine generate_excitation_t (nI, ilutI, nJ, ilutJ, exFlag, ic, &
-                                          ex, tParity, pGen, hel, store, part_type)
+        subroutine generate_excitation_t(nI, ilutI, nJ, ilutJ, exFlag, ic, &
+                                         ex, tParity, pGen, hel, store, part_type)
 
             use SystemData, only: nel
             use bit_rep_data, only: NIfTot
@@ -21,7 +21,7 @@ module procedure_pointers
 
             integer, intent(in) :: nI(nel), exFlag
             integer(n_int), intent(in) :: ilutI(0:NIfTot)
-            integer, intent(out) :: nJ(nel), ic, ex(2,maxExcit)
+            integer, intent(out) :: nJ(nel), ic, ex(2, maxExcit)
             integer(n_int), intent(out) :: ilutJ(0:NifTot)
             real(dp), intent(out) :: pGen
             logical, intent(out) :: tParity
@@ -40,7 +40,7 @@ module procedure_pointers
 
             integer, intent(in) :: nI(nel)
             integer(n_int), intent(in) :: ilutI(0:NIfTot)
-            integer, intent(out) :: nJ(nel), ex(2,maxExcit)
+            integer, intent(out) :: nJ(nel), ex(2, maxExcit)
             integer(n_int), intent(out) :: ilutJ(0:NIfTot)
             logical, intent(out) :: tpar
             real(dp), intent(out) :: pGen
@@ -48,20 +48,19 @@ module procedure_pointers
 
         end subroutine generate_single_excit_t
 
-
         !
         ! Generic attempt create routine
-        function attempt_create_t (nI, ilutI, wSign, nJ, ilutJ, prob, HElGen, &
-                                   ic, ex, tPar, exLevel, part_type, &
-                                   AvSignCurr, AvExPerWalker, RDMBiasFacCurr, precond_fac) &
-                                   result(child)
+        function attempt_create_t(nI, ilutI, wSign, nJ, ilutJ, prob, HElGen, &
+                                  ic, ex, tPar, exLevel, part_type, &
+                                  AvSignCurr, AvExPerWalker, RDMBiasFacCurr, precond_fac) &
+            result(child)
 
             use SystemData, only: nel
             use bit_rep_data, only: NIfTot
             use constants
             implicit none
 
-            integer, intent(in) :: nI(nel), nJ(nel), part_type, ic, ex(2,ic)
+            integer, intent(in) :: nI(nel), nJ(nel), part_type, ic, ex(2, ic)
             integer, intent(in) :: exLevel
             integer(n_int), intent(in) :: ilutI(0:NifTot)
             integer(n_int), intent(inout) :: ilutJ(0:NifTot)
@@ -78,11 +77,10 @@ module procedure_pointers
 
         end function
 
-
         !
         ! Generic spawning HElement routine
-        function get_spawn_helement_t (nI, nJ, ilutI, ilutJ, ic, ex, tParity, &
-                                       HElGen) result(hel)
+        function get_spawn_helement_t(nI, nJ, ilutI, ilutJ, ic, ex, tParity, &
+                                      HElGen) result(hel)
 
             use SystemData, only: nel
             use bit_rep_data, only: NIfTot
@@ -91,16 +89,15 @@ module procedure_pointers
 
             integer, intent(in) :: nI(nel), nJ(nel)
             integer(n_int), intent(in) :: ilutI(0:NIfTot), ilutJ(0:NIfTot)
-            integer, intent(in) :: ic, ex(2,ic)
+            integer, intent(in) :: ic, ex(2, ic)
             logical, intent(in) :: tParity
             HElement_t(dp), intent(in) :: HElGen
             HElement_t(dp) :: hel
 
         end function
 
-
         ! Generic routine to encode child determinants
-        subroutine encode_child_t (ilutI, ilutJ, ic, ex)
+        subroutine encode_child_t(ilutI, ilutJ, ic, ex)
 
             use SystemData, only: nel
             use bit_rep_data, only: NIfTot
@@ -109,16 +106,15 @@ module procedure_pointers
 
             integer(n_int), intent(in) :: ilutI(0:NifTot)
             integer, intent(in) :: ic
-            integer, intent(in) :: ex(2,ic)
+            integer, intent(in) :: ex(2, ic)
             integer(n_int), intent(inout) :: ilutJ(0:NIfTot)
 
         end subroutine
 
-
         ! Generic routine to deal with new particle statistics
-        subroutine new_child_stats_t (iter_data, ilutI, nJ, ilutJ, ic, &
-                                      walkExLevel, child, parent_flags, &
-                                      part_type)
+        subroutine new_child_stats_t(iter_data, ilutI, nJ, ilutJ, ic, &
+                                     walkExLevel, child, parent_flags, &
+                                     part_type)
 
             use SystemData, only: nel
             use bit_rep_data, only: NIfTot
@@ -134,10 +130,9 @@ module procedure_pointers
 
         end subroutine
 
-
         !
         ! Generic particle death routine
-        function attempt_die_t (nI, Kii, wSign, exLevel, DetPosition) result(ndie)
+        function attempt_die_t(nI, Kii, wSign, exLevel, DetPosition) result(ndie)
 
             use SystemData, only: nel
             use constants
@@ -150,12 +145,11 @@ module procedure_pointers
 
         end function
 
-
         !
         ! Generic extract_bit_rep_avsign routine
-        subroutine extract_bit_rep_avsign_t (rdm_defs, ilutI, j, nI, signI, &
-                                             flagsI, IterRDMStartI, AvSignI, &
-                                             store)
+        subroutine extract_bit_rep_avsign_t(rdm_defs, ilutI, j, nI, signI, &
+                                            flagsI, IterRDMStartI, AvSignI, &
+                                            store)
 
             ! j --> Which slot in CurrentDets are we examining.
 
@@ -177,10 +171,9 @@ module procedure_pointers
 
         end subroutine
 
-
         !
         ! Generic fill_rdm_diag_currdet routine
-        subroutine fill_rdm_diag_currdet_t (spawn, one_rdms, ilutI, nI, ExcitLevelI, av_sign, iter_occ, tCoreSpaceDet, tLC)
+        subroutine fill_rdm_diag_currdet_t(spawn, one_rdms, ilutI, nI, ExcitLevelI, av_sign, iter_occ, tCoreSpaceDet, tLC)
 
             use bit_rep_data, only: NIfTot
             use constants
@@ -197,10 +190,9 @@ module procedure_pointers
 
         end subroutine
 
-
         !
         ! Generic UMAT element routine (2e integrals)
-        function get_umat_el_t (i, j, k, l) result(hel)
+        function get_umat_el_t(i, j, k, l) result(hel)
 
             use constants
             implicit none
@@ -211,13 +203,13 @@ module procedure_pointers
         end function
 
         ! generic lMat element routine (3e integrals)
-        function get_lmat_el_t(a,b,c,i,j,k) result(hel)
-          use constants
-          implicit none
+        function get_lmat_el_t(a, b, c, i, j, k) result(hel)
+            use constants
+            implicit none
 
-          integer, value :: a,b,c
-          integer, value :: i,j,k
-          HElement_t(dp) :: hel
+            integer, value :: a, b, c
+            integer, value :: i, j, k
+            HElement_t(dp) :: hel
 
         end function get_lmat_el_t
 
@@ -230,35 +222,35 @@ module procedure_pointers
 !         end subroutine generate_all_excits_t
 
         pure function scale_function_t(hdiag) result(Si)
-          use constants
-          implicit none
+            use constants
+            implicit none
 
-          real(dp), intent(in) :: hdiag
-          real(dp) :: Si
+            real(dp), intent(in) :: hdiag
+            real(dp) :: Si
 
         end function scale_function_t
 
-        pure function lMatInd_t(a,b,c,i,j,k) result(index)
-          use constants, only: int64
-          implicit none
-          integer(int64), value, intent(in) :: a,b,c ! occupied orb indices
-          integer(int64), value, intent(in) :: i,j,k ! unoccupied orb
-          integer(int64) :: index
+        pure function lMatInd_t(a, b, c, i, j, k) result(index)
+            use constants, only: int64
+            implicit none
+            integer(int64), value, intent(in) :: a, b, c ! occupied orb indices
+            integer(int64), value, intent(in) :: i, j, k ! unoccupied orb
+            integer(int64) :: index
         end function lMatInd_t
 
-        pure function shift_factor_function_t(pos, run , pop) result(f)
-          ! Scale facotr function for adpative shift
-          ! Input: pos - position of given determinant in CurrentDets
-          ! Input: run - run for which the factor is needed
-          ! Input: pop - population of given determinant
-          ! Output: f - scaling factor for the shift
-          use constants
-          implicit none
+        pure function shift_factor_function_t(pos, run, pop) result(f)
+            ! Scale facotr function for adpative shift
+            ! Input: pos - position of given determinant in CurrentDets
+            ! Input: run - run for which the factor is needed
+            ! Input: pop - population of given determinant
+            ! Output: f - scaling factor for the shift
+            use constants
+            implicit none
 
-          integer, intent(in) :: pos
-          integer, intent(in) :: run
-          real(dp), intent(in) :: pop
-          real(dp) :: f
+            integer, intent(in) :: pos
+            integer, intent(in) :: run
+            real(dp), intent(in) :: pop
+            real(dp) :: f
 
         end function shift_factor_function_t
 
@@ -268,7 +260,7 @@ module procedure_pointers
             use constants, only: n_int
             integer, intent(in) :: nI(nel)
             integer, intent(out) :: n_excits
-            integer(n_int), intent(out), allocatable :: det_list(:,:)
+            integer(n_int), intent(out), allocatable :: det_list(:, :)
         end subroutine generate_all_excits_t
 
     end interface
@@ -286,7 +278,6 @@ module procedure_pointers
     procedure(attempt_die_t), pointer :: attempt_die
     procedure(extract_bit_rep_avsign_t), pointer :: extract_bit_rep_avsign
     procedure(fill_rdm_diag_currdet_t), pointer :: fill_rdm_diag_currdet
-
 
     !
     ! The two UMAT (2e integral) routines. The second is only used if a

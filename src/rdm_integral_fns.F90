@@ -9,7 +9,7 @@ contains
 
     pure function one_elec_int(i, j) result(integral)
 
-      use OneEInts, only: GetTMatEl
+        use OneEInts, only: GetTMatEl
 
         integer, intent(in) :: i, j
         real(dp) :: integral
@@ -26,17 +26,17 @@ contains
         integer, intent(in) :: i, j, k, l
         real(dp) :: integral
 
-        integral = real(sltcnd_2_kernel(DoubleExc_t(j, l, i , k)), dp)
+        integral = real(sltcnd_2_kernel(DoubleExc_t(j, l, i, k)), dp)
 
     end function two_elec_int
 
-    function GetPropInts(i,j,iprop) result(integral)
+    function GetPropInts(i, j, iprop) result(integral)
 
         use OneEInts, only: OneEPropInts
         integer, intent(in) :: i, j, iprop
         real(dp) :: integral
 
-        integral = OneEPropInts(i,j,iprop)
+        integral = OneEPropInts(i, j, iprop)
 
     end function GetPropInts
 

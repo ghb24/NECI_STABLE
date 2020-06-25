@@ -1,6 +1,6 @@
 indent=4
 whitespace=4
-line-length=120
+line-length=140
 whitespace-comma=true
 whitespace-assignment=true
 whitespace-relational=true

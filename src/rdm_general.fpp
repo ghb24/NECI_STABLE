@@ -7,7 +7,7 @@ module rdm_general
     use constants
     use SystemData, only: nel, nbasis
     use rdm_data, only: InstRDMCorrectionFactor, RDMCorrectionFactor, ThisRDMIter, &
-         inits_estimates, tSetupInitsEst
+                        inits_estimates, tSetupInitsEst
     use FciMCData, only: proje_iter, Hii
     use rdm_data, only: inits_one_rdms, two_rdm_inits_spawn, two_rdm_inits, rdm_inits_defs
     use CalcData, only: tInitsRDM, tOutputInitsRDM, tInitsRDMRef
@@ -45,7 +45,7 @@ contains
         use rdm_data_utils, only: init_en_pert_t
         use rdm_estimators, only: init_rdm_estimates_t, calc_2rdm_estimates_wrapper
         use rdm_reading
-        use RotateOrbsData, only: SymLabelCounts2_rot,SymLabelList2_rot, SymLabelListInv_rot
+        use RotateOrbsData, only: SymLabelCounts2_rot, SymLabelList2_rot, SymLabelListInv_rot
         use RotateOrbsData, only: SymLabelCounts2_rotTag, SymLabelList2_rotTag, NoOrbs
         use RotateOrbsData, only: SymLabelListInv_rotTag, SpatOrbs, NoSymLabelCounts
         use SystemData, only: tStoreSpinOrbs, tHPHF, tFixLz, iMaxLz, tROHF
@@ -73,20 +73,20 @@ contains
             call stop_all(t_r, '2-RDM calculations not set up for systems stored as spin orbitals.')
         end if
 
-        if (tROHF .or. tStoreSpinOrbs.or.t_spin_resolved_rdms) then
+        if (tROHF .or. tStoreSpinOrbs .or. t_spin_resolved_rdms) then
             tOpenShell = .true.
         else
             tOpenShell = .false.
         end if
         ! it is possible to have open-shell systems with spatial orbitals,
         ! these have to be indexed differently
-        tOpenSpatialOrbs = tOpenShell .and. .not.tStoreSpinOrbs
+        tOpenSpatialOrbs = tOpenShell .and. .not. tStoreSpinOrbs
 
         if (tExplicitAllRDM) then
-            write(6,'(1X,"Explicitly calculating the reduced density matrices from the FCIQMC wavefunction.")')
+            write(6, '(1X,"Explicitly calculating the reduced density matrices from the FCIQMC wavefunction.")')
         else
-            write(6,'(1X,"Stochastically calculating the reduced density matrices from the FCIQMC wavefunction")')
-            write(6,'(1X,"incl. explicit connections to the following HF determinant:")', advance='no')
+            write(6, '(1X,"Stochastically calculating the reduced density matrices from the FCIQMC wavefunction")')
+            write(6, '(1X,"incl. explicit connections to the following HF determinant:")', advance='no')
             call write_det(6, HFDet_True, .true.)
         end if
 
@@ -100,14 +100,14 @@ contains
                 print_2rdm_est = .false.
             else
                 print_2rdm_est = .true.
-                write(6,'(1X,"Calculating the energy from the reduced density matrix. &
+                write (6, '(1X,"Calculating the energy from the reduced density matrix. &
                               &This requires the 2 electron RDM from which the 1-RDM can also be constructed.")')
             end if
         end if
 
         call init_rdm_definitions_t(rdm_definitions, nrdms_standard, nrdms_transition, states_for_transition_rdm)
-        if(tinitsRDM) call init_rdm_definitions_t(&
-             rdm_inits_defs, nrdms_standard, nrdms_transition, states_for_transition_rdm,'Inits_TwoRDM')
+        if (tinitsRDM) call init_rdm_definitions_t( &
+            rdm_inits_defs, nrdms_standard, nrdms_transition, states_for_transition_rdm, 'Inits_TwoRDM')
 
         ! Allocate arrays for holding averaged signs and block lengths for the
         ! HF determinant.
@@ -121,11 +121,11 @@ contains
         if (tHPHF .and. tExplicitAllRDM) call stop_all(t_r, 'HPHF not set up with the explicit calculation of the RDM.')
 
         if (tDipoles) then
-            write(6,'("WARNING - The calculation of dipole moments is currently not supported for the new RDM code. &
+            write (6, '("WARNING - The calculation of dipole moments is currently not supported for the new RDM code. &
                       &Use the OLDRDMS option to use feature.")')
         end if
 
-        SpatOrbs = nbasis/2
+        SpatOrbs = nbasis / 2
         if (tOpenShell) then
             NoOrbs = nbasis
         else
@@ -144,15 +144,14 @@ contains
         max_nelems_main = int(1.5_dp * real(rdm_nrows**2, dp) / (8._dp * nProcessors) * rdm_main_size_fac)
         nhashes_rdm_main = int(0.75 * max_nelems_main * rdm_main_size_fac)
 
-        main_mem = max_nelems_main*(nrdms+1)*size_int_rdm
-        if(tinitsRDM) main_mem = 2*main_mem
-        write(6,'(/,1X,"About to allocate main RDM array, size per MPI process (MB):", f14.6)') real(main_mem,dp)/1048576.0_dp
+        main_mem = max_nelems_main * (nrdms + 1) * size_int_rdm
+        if (tinitsRDM) main_mem = 2 * main_mem
+        write(6, '(/,1X,"About to allocate main RDM array, size per MPI process (MB):", f14.6)') real(main_mem, dp) / 1048576.0_dp
         call init_rdm_list_t(two_rdm_main, nrdms, max_nelems_main, nhashes_rdm_main)
-        if(tinitsRDM) then
-           call init_rdm_list_t(two_rdm_inits, nrdms, max_nelems_main, nhashes_rdm_main)
+        if (tinitsRDM) then
+            call init_rdm_list_t(two_rdm_inits, nrdms, max_nelems_main, nhashes_rdm_main)
         end if
-        write(6,'(1X,"Allocation of main RDM array complete.")')
-
+        write(6, '(1X,"Allocation of main RDM array complete.")')
 
         ! Factor of 10 over perfectly distributed size, for some safety.
         standard_spawn_size = int(10_int64 * rdm_nrows**2_int64 / (8_int64 * nProcessors))
@@ -166,24 +165,24 @@ contains
         nhashes_rdm_spawn = int(0.75 * max_nelems_spawn * rdm_spawn_size_fac)
 
         spawn_mem = max_nelems_spawn * (nrdms + 1) * size_int_rdm
-        if(tinitsRDM) spawn_mem = 2*spawn_mem
-        write(6,'(1X,"About to allocate RDM spawning array, size per MPI process (MB):", f14.6)') real(spawn_mem,dp)/1048576.0_dp
+        if (tinitsRDM) spawn_mem = 2 * spawn_mem
+        write(6, '(1X,"About to allocate RDM spawning array, size per MPI process (MB):", f14.6)') real(spawn_mem, dp) / 1048576.0_dp
         call init_rdm_spawn_t(two_rdm_spawn, rdm_nrows, nrdms, max_nelems_spawn, nhashes_rdm_spawn)
-        if(tinitsRDM) then
-           call init_rdm_spawn_t(two_rdm_inits_spawn, rdm_nrows, nrdms, max_nelems_spawn,&
-                nhashes_rdm_spawn)
-        endif
-        write(6,'(1X,"Allocation of RDM spawning array complete.")')
+        if (tinitsRDM) then
+            call init_rdm_spawn_t(two_rdm_inits_spawn, rdm_nrows, nrdms, max_nelems_spawn, &
+                                  nhashes_rdm_spawn)
+        end if
+        write(6, '(1X,"Allocation of RDM spawning array complete.")')
 
         max_nelems_recv = 4 * rdm_nrows**2 / (8 * nProcessors) * int(rdm_recv_size_fac)
         max_nelems_recv_2 = 2 * rdm_nrows**2 / (8 * nProcessors) * int(rdm_recv_size_fac)
 
-        recv_mem = (max_nelems_recv + max_nelems_recv_2)*(nrdms+1)*size_int_rdm
-        write(6,'(1X,"About to allocate RDM receiving arrays, size per MPI process (MB):", f14.6)') real(recv_mem,dp)/1048576.0_dp
+        recv_mem = (max_nelems_recv + max_nelems_recv_2) * (nrdms + 1) * size_int_rdm
+        write(6, '(1X,"About to allocate RDM receiving arrays, size per MPI process (MB):", f14.6)') real(recv_mem, dp) / 1048576.0_dp
         ! Don't need the hash table for the received list, so pass 0 for nhashes.
         call init_rdm_list_t(two_rdm_recv, nrdms, max_nelems_recv, 0)
         call init_rdm_list_t(two_rdm_recv_2, nrdms, max_nelems_recv_2, 0)
-        write(6,'(1X,"Allocation of RDM receiving arrays complete.",/)')
+        write(6, '(1X,"Allocation of RDM receiving arrays complete.",/)')
 
         ! Count the memory the various RDM lists (but this does *not* count
         ! the memory of the hash tables - this will increase dynamically
@@ -191,29 +190,29 @@ contains
         memory_alloc = memory_alloc + main_mem + spawn_mem + recv_mem
 
         call init_rdm_estimates_t(rdm_estimates, nrdms_standard, nrdms_transition, print_2rdm_est)
-        if(tOutputInitsRDM .or. tInitsRDMRef) &
-             call init_rdm_estimates_t(inits_estimates, nrdms_standard, &
-             nrdms_transition, print_2rdm_est, 'InitsRDMEstimates')
+        if (tOutputInitsRDM .or. tInitsRDMRef) &
+            call init_rdm_estimates_t(inits_estimates, nrdms_standard, &
+                                      nrdms_transition, print_2rdm_est, 'InitsRDMEstimates')
 
         ! Initialise 1-RDM objects.
         if (RDMExcitLevel == 1 .or. RDMExcitLevel == 3 .or. &
-              tDiagRDM .or. tPrint1RDM .or. tDumpForcesInfo .or. tDipoles) then
+            tDiagRDM .or. tPrint1RDM .or. tDumpForcesInfo .or. tDipoles) then
 
             allocate(one_rdms(nrdms), stat=ierr)
             if (ierr /= 0) call stop_all(t_r, 'Problem allocating one_rdms array.')
 
-            if(tinitsRDM) then
-               allocate(inits_one_rdms(nrdms), stat=ierr)
-               if (ierr /= 0) call stop_all(t_r, 'Problem allocating one_rdms array.')
-            endif
+            if (tinitsRDM) then
+                allocate(inits_one_rdms(nrdms), stat=ierr)
+                if (ierr /= 0) call stop_all(t_r, 'Problem allocating one_rdms array.')
+            end if
             do irdm = 1, nrdms
                 call init_one_rdm_t(one_rdms(irdm), NoOrbs)
 
-                memory_alloc = memory_alloc + ( NoOrbs * NoOrbs * 8 )
-                if(tinitsRDM) then
-                   call init_one_rdm_t(inits_one_rdms(irdm), NoOrbs)
-                   memory_alloc = memory_alloc + ( NoOrbs * NoOrbs * 8 )
-                endif
+                memory_alloc = memory_alloc + (NoOrbs * NoOrbs * 8)
+                if (tinitsRDM) then
+                    call init_one_rdm_t(inits_one_rdms(irdm), NoOrbs)
+                    memory_alloc = memory_alloc + (NoOrbs * NoOrbs * 8)
+                end if
             end do
         end if
 
@@ -239,40 +238,40 @@ contains
                 ! Sing_ExcDjs array, so we do not have to recalculate it!
                 ! so we need nifguga entries or? one for the matrix element
                 ! and i can use the delta-b storage to encode the RDM ind
-                allocate(Sing_ExcDjs(0:nifguga, nint((nel*nbasis)*MemoryFacPart)), stat=ierr)
-                allocate(Sing_ExcDjs2(0:nifguga, nint((nel*nbasis)*MemoryFacPart)), stat=ierr)
+                allocate(Sing_ExcDjs(0:nifguga, nint((nel * nbasis) * MemoryFacPart)), stat=ierr)
+                allocate(Sing_ExcDjs2(0:nifguga, nint((nel * nbasis) * MemoryFacPart)), stat=ierr)
             else
-                allocate(Sing_ExcDjs(0:NIfTot, nint((nel*nbasis)*MemoryFacPart)), stat=ierr)
-                allocate(Sing_ExcDjs2(0:NIfTot, nint((nel*nbasis)*MemoryFacPart)), stat=ierr)
+                allocate(Sing_ExcDjs(0:NIfTot, nint((nel * nbasis) * MemoryFacPart)), stat=ierr)
+                allocate(Sing_ExcDjs2(0:NIfTot, nint((nel * nbasis) * MemoryFacPart)), stat=ierr)
             end if
             if (ierr /= 0) call stop_all(t_r, 'Problem allocating Sing_ExcDjs array.')
-            call LogMemAlloc('Sing_ExcDjs', nint(nel*nbasis*MemoryFacPart)*(NIfTot+1),&
-                                            size_n_int, t_r, Sing_ExcDjsTag, ierr)
+            call LogMemAlloc('Sing_ExcDjs', nint(nel * nbasis * MemoryFacPart) * (NIfTot + 1), &
+                             size_n_int, t_r, Sing_ExcDjsTag, ierr)
 
             if (ierr /= 0) call stop_all(t_r, 'Problem allocating Sing_ExcDjs2 array.')
-            call LogMemAlloc('Sing_ExcDjs2', nint(nel*nbasis*MemoryFacPart)*(NIfTot+1),&
-                                            size_n_int, t_r, Sing_ExcDjs2Tag, ierr)
+            call LogMemAlloc('Sing_ExcDjs2', nint(nel * nbasis * MemoryFacPart) * (NIfTot + 1), &
+                             size_n_int, t_r, Sing_ExcDjs2Tag, ierr)
 
-            Sing_ExcDjs(:,:) = 0
-            Sing_ExcDjs2(:,:) = 0
+            Sing_ExcDjs(:, :) = 0
+            Sing_ExcDjs2(:, :) = 0
 
-            memory_alloc = memory_alloc + ( (NIfTot + 1) * nint((nel*nbasis)*MemoryFacPart) * size_n_int * 2 )
+            memory_alloc = memory_alloc + ((NIfTot + 1) * nint((nel * nbasis) * MemoryFacPart) * size_n_int * 2)
 
             ! We need room to potentially generate N*M single excitations but
             ! these will be spread across each processor.
-            OneEl_Gap = (real(nel,dp)*real(nbasis,dp)*MemoryFacPart)/real(nProcessors,dp)
+            OneEl_Gap = (real(nel, dp) * real(nbasis, dp) * MemoryFacPart) / real(nProcessors, dp)
 
             ! This array contains the initial positions of the excitations
             ! for each processor.
-            allocate(Sing_InitExcSlots(0:(nProcessors-1)), stat=ierr)
+            allocate(Sing_InitExcSlots(0:(nProcessors - 1)), stat=ierr)
             if (ierr /= 0) call stop_all(t_r, 'Problem allocating Sing_InitExcSlots array,')
             do iproc = 0, nProcessors - 1
-                Sing_InitExcSlots(iproc) = nint(OneEl_Gap*iproc) + 1
+                Sing_InitExcSlots(iproc) = nint(OneEl_Gap * iproc) + 1
             end do
 
             ! This array contains the current position of the excitations as
             ! they're added.
-            allocate(Sing_ExcList(0:(nProcessors-1)), stat=ierr)
+            allocate(Sing_ExcList(0:(nProcessors - 1)), stat=ierr)
             if (ierr /= 0) call stop_all(t_r, 'Problem allocating Sing_ExcList array,')
             Sing_ExcList(:) = Sing_InitExcSlots(:)
 
@@ -280,40 +279,40 @@ contains
                 ! This array actually contains the excitations in blocks of
                 ! the processor they will be sent to.
                 if (tGUGA) then
-                    allocate(Doub_ExcDjs(0:nifguga,nint(((nel*nbasis)**2)*MemoryFacPart)), stat=ierr)
-                    allocate(Doub_ExcDjs2(0:nifguga, nint(((nel*nbasis)**2)*MemoryFacPart)), stat=ierr)
+                    allocate(Doub_ExcDjs(0:nifguga, nint(((nel * nbasis)**2) * MemoryFacPart)), stat=ierr)
+                    allocate(Doub_ExcDjs2(0:nifguga, nint(((nel * nbasis)**2) * MemoryFacPart)), stat=ierr)
                 else
-                    allocate(Doub_ExcDjs(0:NIfTot,nint(((nel*nbasis)**2)*MemoryFacPart)), stat=ierr)
-                    allocate(Doub_ExcDjs2(0:NIfTot, nint(((nel*nbasis)**2)*MemoryFacPart)), stat=ierr)
+                    allocate(Doub_ExcDjs(0:NIfTot, nint(((nel * nbasis)**2) * MemoryFacPart)), stat=ierr)
+                    allocate(Doub_ExcDjs2(0:NIfTot, nint(((nel * nbasis)**2) * MemoryFacPart)), stat=ierr)
                 end if
-                if (ierr /= 0) call stop_all(t_r,'Problem allocating Doub_ExcDjs array.')
-                call LogMemAlloc('Doub_ExcDjs', nint(((nel*nbasis)**2)*MemoryFacPart)&
-                                *(NIfTot+1), size_n_int, t_r, Doub_ExcDjsTag, ierr)
+                if (ierr /= 0) call stop_all(t_r, 'Problem allocating Doub_ExcDjs array.')
+                call LogMemAlloc('Doub_ExcDjs', nint(((nel * nbasis)**2) * MemoryFacPart) &
+                                 * (NIfTot + 1), size_n_int, t_r, Doub_ExcDjsTag, ierr)
 
                 if (ierr /= 0) call stop_all(t_r, 'Problem allocating Doub_ExcDjs2 array.')
-                call LogMemAlloc('Doub_ExcDjs2',nint(((nel*nbasis)**2)*MemoryFacPart)&
-                                *(NIfTot+1), size_n_int, t_r, Doub_ExcDjs2Tag, ierr)
+                call LogMemAlloc('Doub_ExcDjs2', nint(((nel * nbasis)**2) * MemoryFacPart) &
+                                 * (NIfTot + 1), size_n_int, t_r, Doub_ExcDjs2Tag, ierr)
 
-                memory_alloc = memory_alloc + ( (NIfTot + 1) * nint(((nel*nbasis)**2)*MemoryFacPart) * size_n_int * 2 )
+                memory_alloc = memory_alloc + ((NIfTot + 1) * nint(((nel * nbasis)**2) * MemoryFacPart) * size_n_int * 2)
 
                 ! We need room to potentially generate (N*M)^2 double excitations
                 ! but these will be spread across each processor.
-                TwoEl_Gap = (((real(nel,dp)*real(nbasis,dp))**2)*MemoryFacPart)/real(nProcessors,dp)
+                TwoEl_Gap = (((real(nel, dp) * real(nbasis, dp))**2) * MemoryFacPart) / real(nProcessors, dp)
 
-                Doub_ExcDjs(:,:) = 0
-                Doub_ExcDjs2(:,:) = 0
+                Doub_ExcDjs(:, :) = 0
+                Doub_ExcDjs2(:, :) = 0
 
                 ! This array contains the initial positions of the excitations
                 ! for each processor.
-                allocate(Doub_InitExcSlots(0:(nProcessors-1)), stat=ierr)
+                allocate(Doub_InitExcSlots(0:(nProcessors - 1)), stat=ierr)
                 if (ierr /= 0) call stop_all(t_r, 'Problem allocating Doub_InitExcSlots array,')
-                do iproc = 0, nProcessors-1
-                    Doub_InitExcSlots(iproc) = nint(TwoEl_Gap*iproc) + 1
+                do iproc = 0, nProcessors - 1
+                    Doub_InitExcSlots(iproc) = nint(TwoEl_Gap * iproc) + 1
                 end do
 
                 ! This array contains the current position of the excitations
                 ! as they're added.
-                allocate(Doub_ExcList(0:(nProcessors-1)), stat=ierr)
+                allocate(Doub_ExcList(0:(nProcessors - 1)), stat=ierr)
                 if (ierr /= 0) call stop_all(t_r, 'Problem allocating Doub_ExcList array,')
                 Doub_ExcList(:) = Doub_InitExcSlots(:)
             end if
@@ -324,22 +323,22 @@ contains
             ! This is not necessary if we're doing completely explicit calculations.
             ! WD: maybe I have to change this for the GUGA implementation..
             allocate(Spawned_Parents(0:IlutBitsParent%len_tot, MaxSpawned), stat=ierr)
-            if (ierr /= 0) call stop_all(t_r,'Problem allocating Spawned_Parents array,')
-            call LogMemAlloc('Spawned_Parents', MaxSpawned*IlutBitsParent%len_tot,&
-                size_n_int,t_r,Spawned_ParentsTag, ierr)
-            allocate(Spawned_Parents_Index(2,MaxSpawned),stat=ierr)
+            if (ierr /= 0) call stop_all(t_r, 'Problem allocating Spawned_Parents array,')
+            call LogMemAlloc('Spawned_Parents', MaxSpawned * IlutBitsParent%len_tot, &
+                             size_n_int, t_r, Spawned_ParentsTag, ierr)
+            allocate(Spawned_Parents_Index(2, MaxSpawned), stat=ierr)
             if (ierr /= 0) call stop_all(t_r, 'Problem allocating Spawned_Parents_Index array,')
-            call LogMemAlloc('Spawned_Parents_Index', MaxSpawned*2,4, t_r,&
-                Spawned_Parents_IndexTag, ierr)
+            call LogMemAlloc('Spawned_Parents_Index', MaxSpawned * 2, 4, t_r, &
+                             Spawned_Parents_IndexTag, ierr)
 
-            memory_alloc = memory_alloc + ( (NIfTot + 3) * MaxSpawned * size_n_int )
-            memory_alloc = memory_alloc + ( 2 * MaxSpawned * 4 )
+            memory_alloc = memory_alloc + ((NIfTot + 3) * MaxSpawned * size_n_int)
+            memory_alloc = memory_alloc + (2 * MaxSpawned * 4)
 
         end if
 
         if (iProcIndex == 0) then
             write(6, "(A,F14.6,A,F14.6,A)") " Main RDM memory arrays consists of: ", &
-                      real(memory_alloc,dp)/1048576.0_dp," MB per MPI process."
+                real(memory_alloc, dp) / 1048576.0_dp, " MB per MPI process."
         end if
 
         ! These parameters are set for the set up of the symmetry arrays, which
@@ -347,13 +346,13 @@ contains
 
         if (tOpenShell) then
             if (tFixLz) then
-                NoSymLabelCounts = 16*((2 * iMaxLz) + 1)
+                NoSymLabelCounts = 16 * ((2 * iMaxLz) + 1)
             else
                 NoSymLabelCounts = 16
             end if
         else
             if (tFixLz) then
-                NoSymLabelCounts = 8*((2 * iMaxLz) + 1)
+                NoSymLabelCounts = 8 * ((2 * iMaxLz) + 1)
             else
                 NoSymLabelCounts = 8
             end if
@@ -366,7 +365,7 @@ contains
 
             if (.not. allocated(SymLabelCounts2_rot)) allocate(SymLabelCounts2_rot(2, NoSymLabelCounts), stat=ierr)
             if (ierr /= 0) call stop_all(t_r, 'Problem allocating SymLabelCounts2_rot array,')
-            call LogMemAlloc('SymLabelCounts2_rot', 2*NoSymLabelCounts, 4, t_r, SymLabelCounts2_rotTag, ierr)
+            call LogMemAlloc('SymLabelCounts2_rot', 2 * NoSymLabelCounts, 4, t_r, SymLabelCounts2_rotTag, ierr)
             SymLabelCounts2_rot = 0
 
             allocate(SymLabelList2_rot(NoOrbs), stat=ierr)
@@ -413,7 +412,7 @@ contains
             end if
 
             if (any(tSinglePartPhase)) then
-                write(6,'("WARNING - Asking to read in the RDMs, but not varying shift from the beginning of &
+                write (6, '("WARNING - Asking to read in the RDMs, but not varying shift from the beginning of &
                           &the calculation. All RDMs just read in will be zeroed, to prevent invalid averaging.")')
                 ! Clear these objects, before the main simulation, since we
                 ! haven't started averaging RDMs yet.
@@ -431,7 +430,7 @@ contains
         ! is on, these wont be printed.
         if (tPopsfile .and. (.not. tno_RDMs_to_read)) twrite_RDMs_to_read = .true.
 
-        if (iProcIndex == 0) write(6,'(1X,"RDM memory allocation complete.",/)')
+        if (iProcIndex == 0) write(6, '(1X,"RDM memory allocation complete.",/)')
 
         nElRDM_Time%timer_name = 'nElRDMTime'
         FinaliseRDMs_Time%timer_name = 'FinaliseRDMsTime'
@@ -471,29 +470,29 @@ contains
         do i = 1, SpatOrbs
             if (tOpenShell) then
                 ! For open shell systems, all alpha are followed by all beta.
-                SymLabelList2_rot(i) = BRR(2*i)
-                SymLabelList2_rot(i+SpatOrbs) = BRR((2*i)-1)
+                SymLabelList2_rot(i) = BRR(2 * i)
+                SymLabelList2_rot(i + SpatOrbs) = BRR((2 * i) - 1)
 
                 if (tFixLz) then
-                    SpatSym = int(G1(BRR(2*i))%sym%S)
-                    LzSym = int(G1(BRR(2*i))%Ml)
-                    SymOrbs_rot(i) = ( SpatSym * ((2 * iMaxLz) + 1) ) + ( LzSym + iMaxLz )
+                    SpatSym = int(G1(BRR(2 * i))%sym%S)
+                    LzSym = int(G1(BRR(2 * i))%Ml)
+                    SymOrbs_rot(i) = (SpatSym * ((2 * iMaxLz) + 1)) + (LzSym + iMaxLz)
 
-                    SpatSym = int(G1(BRR((2*i)-1))%sym%S)
-                    LzSym = int(G1(BRR((2*i)-1))%Ml)
-                    SymOrbs_rot(i+SpatOrbs) = ( SpatSym * ((2 * iMaxLz) + 1) ) + ( LzSym + iMaxLz )
+                    SpatSym = int(G1(BRR((2 * i) - 1))%sym%S)
+                    LzSym = int(G1(BRR((2 * i) - 1))%Ml)
+                    SymOrbs_rot(i + SpatOrbs) = (SpatSym * ((2 * iMaxLz) + 1)) + (LzSym + iMaxLz)
                 else
-                    SymOrbs_rot(i) = int(G1(BRR(2*i))%sym%S)
-                    SymOrbs_rot(i+SpatOrbs) = int(G1(BRR((2*i)-1))%sym%S)
+                    SymOrbs_rot(i) = int(G1(BRR(2 * i))%sym%S)
+                    SymOrbs_rot(i + SpatOrbs) = int(G1(BRR((2 * i) - 1))%sym%S)
                 end if
             else
-                SymLabelList2_rot(i) = gtID(BRR(2*i))
+                SymLabelList2_rot(i) = gtID(BRR(2 * i))
                 if (tFixLz) then
-                    SpatSym = int(G1(BRR(2*i))%sym%S)
-                    LzSym = int(G1(BRR(2*i))%Ml)
-                    SymOrbs_rot(i) = ( SpatSym * ((2 * iMaxLz) + 1) ) + ( LzSym + iMaxLz )
+                    SpatSym = int(G1(BRR(2 * i))%sym%S)
+                    LzSym = int(G1(BRR(2 * i))%Ml)
+                    SymOrbs_rot(i) = (SpatSym * ((2 * iMaxLz) + 1)) + (LzSym + iMaxLz)
                 else
-                    SymOrbs_rot(i) = int(G1(BRR(2*i))%sym%S)
+                    SymOrbs_rot(i) = int(G1(BRR(2 * i))%sym%S)
                 end if
                 ! Orbital BRR(2*i) for i = 1 will be the beta orbital with the
                 ! second lowest energy - want the spatial orbital index to go with this.
@@ -502,12 +501,12 @@ contains
             end if
         end do
 
-        call sort (SymOrbs_rot(1:SpatOrbs), SymLabelList2_rot(1:SpatOrbs))
+        call sort(SymOrbs_rot(1:SpatOrbs), SymLabelList2_rot(1:SpatOrbs))
         ! Sorts SymLabelList2_rot according to the order of SymOrbs_rot
         ! (i.e. in terms of symmetry).
         if (tOpenShell) &
-            call sort (SymOrbs_rot(SpatOrbs+1:nBasis), SymLabelList2_rot(SpatOrbs+1:nBasis))
-            ! Also do this for the beta set if spin orbitals.
+            call sort(SymOrbs_rot(SpatOrbs + 1:nBasis), SymLabelList2_rot(SpatOrbs + 1:nBasis))
+        ! Also do this for the beta set if spin orbitals.
 
         ! *** STEP 2 *** Fill SymLabelCounts2_rot_rot. This is like
         ! SymLabelCounts2_rot, but has a different ordering - BEWARE.
@@ -520,41 +519,41 @@ contains
         if (lNoSymmetry) then
             ! If we are ignoring symmetry, all orbitals essentially have
             ! symmetry 0.
-            SymLabelCounts2_rot(1,1) = 1
-            SymLabelCounts2_rot(2,1) = SpatOrbs
+            SymLabelCounts2_rot(1, 1) = 1
+            SymLabelCounts2_rot(2, 1) = SpatOrbs
             if (tOpenShell) then
-                SymLabelCounts2_rot(1,9) = SpatOrbs+1
-                SymLabelCounts2_rot(2,9) = SpatOrbs
+                SymLabelCounts2_rot(1, 9) = SpatOrbs + 1
+                SymLabelCounts2_rot(2, 9) = SpatOrbs
             end if
         else
             ! Otherwise we run through the occupied orbitals, counting the
             ! number with each symmetry (spatial and Lz) and noting where in
             ! SymLabelList2_rot each symmetry block starts.
             SymCurr = 0
-            SymLabelCounts2_rot(1,1) = 1
+            SymLabelCounts2_rot(1, 1) = 1
             if (tOpenShell) then
                 SymCurr2 = 0
-                SymLabelCounts2_rot(1,9) = SpatOrbs + 1
+                SymLabelCounts2_rot(1, 9) = SpatOrbs + 1
             end if
-            do i = 1,SpatOrbs
+            do i = 1, SpatOrbs
                 if (tOpenShell) then
                     Symi = SymOrbs_rot(i)
                     Symi2 = SymOrbs_rot(i + SpatOrbs)
                 else
                     Symi = SymOrbs_rot(i)
                 end if
-                SymLabelCounts2_rot(2,(Symi+1)) = SymLabelCounts2_rot(2,(Symi+1)) + 1
+                SymLabelCounts2_rot(2, (Symi + 1)) = SymLabelCounts2_rot(2, (Symi + 1)) + 1
                 if (Symi /= SymCurr) then
                     do j = SymCurr + 1, Symi
-                        SymLabelCounts2_rot(1,(j+1)) = i
+                        SymLabelCounts2_rot(1, (j + 1)) = i
                     end do
                     SymCurr = Symi
                 end if
                 if (tOpenShell) then
-                    SymLabelCounts2_rot(2,(Symi2+9)) = SymLabelCounts2_rot(2,(Symi2+9))+1
+                    SymLabelCounts2_rot(2, (Symi2 + 9)) = SymLabelCounts2_rot(2, (Symi2 + 9)) + 1
                     if (Symi2 /= SymCurr2) then
                         do j = SymCurr2 + 1, Symi2
-                            SymLabelCounts2_rot(1,(j+9)) = i + SpatOrbs
+                            SymLabelCounts2_rot(1, (j + 9)) = i + SpatOrbs
                         end do
                         SymCurr2 = Symi2
                     end if
@@ -565,10 +564,10 @@ contains
         ! Go through each symmetry group, making sure the orbitals are
         ! ordered lowest to highest within each symmetry.
         do i = 1, NoSymLabelCounts
-            if (SymLabelCounts2_rot(2,i) /= 0) then
+            if (SymLabelCounts2_rot(2, i) /= 0) then
                 lo = SymLabelCounts2_rot(1, i)
                 hi = lo + SymLabelCounts2_rot(2, i) - 1
-                call sort (SymLabelList2_rot (lo:hi))
+                call sort(SymLabelList2_rot(lo:hi))
             end if
         end do
 
@@ -581,7 +580,7 @@ contains
 
         ! Deallocate the arrays just used in this routine.
         deallocate(SymOrbs_rot)
-        call LogMemDealloc(t_r,SymOrbs_rotTag)
+        call LogMemDealloc(t_r, SymOrbs_rotTag)
 
     end subroutine SetUpSymLabels_RDM
 
@@ -618,7 +617,7 @@ contains
         NIfBCast_old = IlutBits%len_bcast
         IlutBits%ind_parent = IlutBits%len_bcast + 1
 
-        IlutBits%ind_rdm_fac = IlutBits%ind_parent + IlutBits%len_orb +1
+        IlutBits%ind_rdm_fac = IlutBits%ind_parent + IlutBits%len_orb + 1
 
         IlutBits%ind_parent_flag = IlutBits%ind_rdm_fac + 1
 
@@ -634,11 +633,11 @@ contains
         SpawnedParts => SpawnVec
         SpawnedParts2 => SpawnVec2
 
-        write(6,'(A54,F10.4,A4,F10.4,A13)') &
-            'Memory requirement for spawned arrays increased from ',&
-            real(((NIfBCast_old+1)*MaxSpawned*2*size_n_int),dp)/1048576.0_dp, &
+        write(6, '(A54,F10.4,A4,F10.4,A13)') &
+            'Memory requirement for spawned arrays increased from ', &
+            real(((NIfBCast_old + 1) * MaxSpawned * 2 * size_n_int), dp) / 1048576.0_dp, &
             ' to ', &
-            real(((IlutBits%len_bcast+1)*MaxSpawned*2*size_n_int),dp)/1048576.0_dp, &
+            real(((IlutBits%len_bcast + 1) * MaxSpawned * 2 * size_n_int), dp) / 1048576.0_dp, &
             ' Mb/Processor'
 
         ! And we are done
@@ -681,9 +680,9 @@ contains
         call dealloc_rdm_list_t(two_rdm_recv_2)
         call dealloc_rdm_spawn_t(two_rdm_spawn)
         ! deallocate the inits-only rdms
-        if(tinitsRDM) then
-           call dealloc_rdm_list_t(two_rdm_inits)
-           call dealloc_rdm_spawn_t(two_rdm_inits_spawn)
+        if (tinitsRDM) then
+            call dealloc_rdm_list_t(two_rdm_inits)
+            call dealloc_rdm_spawn_t(two_rdm_inits_spawn)
         end if
 
         ! Deallocate the EN perturbation orbject.
@@ -698,10 +697,10 @@ contains
         if (allocated(one_rdms)) then
             do irdm = 1, size(one_rdms)
                 call dealloc_one_rdm_t(one_rdms(irdm))
-                if(tinitsRDM) call dealloc_one_rdm_t(inits_one_rdms(irdm))
+                if (tinitsRDM) call dealloc_one_rdm_t(inits_one_rdms(irdm))
             end do
             deallocate(one_rdms)
-            if(tinitsRDM .and. allocated(inits_one_rdms)) deallocate(inits_one_rdms)
+            if (tinitsRDM .and. allocated(inits_one_rdms)) deallocate(inits_one_rdms)
         end if
 
         if (tExplicitAllRDM) then
@@ -716,10 +715,10 @@ contains
             ! This array actually contains the single excitations in blocks of
             ! the processor they will be sent to.
             deallocate(Sing_ExcDjs)
-            call LogMemDeAlloc(t_r,Sing_ExcDjsTag)
+            call LogMemDeAlloc(t_r, Sing_ExcDjsTag)
 
             deallocate(Sing_ExcDjs2)
-            call LogMemDeAlloc(t_r,Sing_ExcDjs2Tag)
+            call LogMemDeAlloc(t_r, Sing_ExcDjs2Tag)
 
             if (RDMExcitLevel /= 1) then
                 ! This array contains the initial positions of the
@@ -733,41 +732,41 @@ contains
                 ! This array actually contains the single excitations in
                 ! blocks of the  processor they will be sent to.
                 deallocate(Doub_ExcDjs)
-                call LogMemDeAlloc(t_r,Doub_ExcDjsTag)
+                call LogMemDeAlloc(t_r, Doub_ExcDjsTag)
 
                 deallocate(Doub_ExcDjs2)
-                call LogMemDeAlloc(t_r,Doub_ExcDjs2Tag)
+                call LogMemDeAlloc(t_r, Doub_ExcDjs2Tag)
             end if
         else
             if (allocated(Spawned_Parents)) then
                 deallocate(Spawned_Parents)
-                call LogMemDeAlloc(t_r,Spawned_ParentsTag)
+                call LogMemDeAlloc(t_r, Spawned_ParentsTag)
             end if
 
             if (allocated(Spawned_Parents_Index)) then
                 deallocate(Spawned_Parents_Index)
-                call LogMemDeAlloc(t_r,Spawned_Parents_IndexTag)
+                call LogMemDeAlloc(t_r, Spawned_Parents_IndexTag)
             end if
         end if
 
         if (allocated(FourIndInts)) then
             deallocate(FourIndInts)
-            call LogMemDeAlloc(t_r,FourIndIntsTag)
+            call LogMemDeAlloc(t_r, FourIndIntsTag)
         end if
 
         if (allocated(SymLabelCounts2_rot)) then
             deallocate(SymLabelCounts2_rot)
-            call LogMemDeAlloc(t_r,SymLabelCounts2_rotTag)
+            call LogMemDeAlloc(t_r, SymLabelCounts2_rotTag)
         end if
 
         if (allocated(SymLabelList2_rot)) then
             deallocate(SymLabelList2_rot)
-            call LogMemDeAlloc(t_r,SymLabelList2_rotTag)
+            call LogMemDeAlloc(t_r, SymLabelList2_rotTag)
         end if
 
         if (allocated(SymLabelListInv_rot)) then
             deallocate(SymLabelListInv_rot)
-            call LogMemDeAlloc(t_r,SymLabelListInv_rotTag)
+            call LogMemDeAlloc(t_r, SymLabelListInv_rotTag)
         end if
 
         if (allocated(AvNoatHF)) deallocate(AvNoatHF)
@@ -797,7 +796,7 @@ contains
         unused_var(j); unused_var(rdm_defs)
 
         ! This extracts everything.
-        call extract_bit_rep (iLutnI, nI, SignI, FlagsI, j, store)
+        call extract_bit_rep(iLutnI, nI, SignI, FlagsI, j, store)
 
         IterRDMStartI = 0.0_dp
         AvSignI = 0.0_dp
@@ -849,186 +848,186 @@ contains
         IterRDMStartI = get_iter_occ_tot(j)
 
         ! This extracts everything.
-        call extract_bit_rep (iLutnI, nI, SignI, FlagsI, j, store)
+        call extract_bit_rep(iLutnI, nI, SignI, FlagsI, j, store)
 
         associate(ind => rdm_defs%sim_labels)
 
-        if (((Iter+PreviousCycles-IterRDMStart) > 0) .and. &
-            & (mod(((Iter-1)+PreviousCycles - IterRDMStart + 1), &
-            RDMEnergyIter) == 0)) then
+            if (((Iter + PreviousCycles - IterRDMStart) > 0) .and. &
+                & (mod(((Iter - 1) + PreviousCycles - IterRDMStart + 1), &
+                RDMEnergyIter) == 0)) then
 
-            ! The previous iteration was one where we added in diagonal elements
-            ! To keep things unbiased, we need to set up a new averaging block now.
-            ! NB: if doing single run cutoff, note that doing things this way is now
-            ! NOT the same as the technique described in CMO (and DMC's) thesis.
-            ! Would expect diagonal elements to be slightly worse quality, improving
-            ! as one calculates the RDM energy less frequently.  As this method is
-            ! biased anyway, I'm not going to lose sleep over it.
-            do irdm = 1, rdm_defs%nrdms
-                av_ind_1 = irdm*2-1
-                av_ind_2 = irdm*2
+                ! The previous iteration was one where we added in diagonal elements
+                ! To keep things unbiased, we need to set up a new averaging block now.
+                ! NB: if doing single run cutoff, note that doing things this way is now
+                ! NOT the same as the technique described in CMO (and DMC's) thesis.
+                ! Would expect diagonal elements to be slightly worse quality, improving
+                ! as one calculates the RDM energy less frequently.  As this method is
+                ! biased anyway, I'm not going to lose sleep over it.
+                do irdm = 1, rdm_defs%nrdms
+                    av_ind_1 = irdm * 2 - 1
+                    av_ind_2 = irdm * 2
 
-                AvSignI(av_ind_1) = SignI(ind(1,irdm))
-                IterRDMStartI(av_ind_1) = real(Iter + PreviousCycles,dp)
-                AvSignI(av_ind_2) = SignI(ind(2,irdm))
-                IterRDMStartI(av_ind_2) = real(Iter + PreviousCycles,dp)
-            end do
-        else
-            ! Now let's consider other instances in which we need to start a new block:
-            do irdm = 1, rdm_defs%nrdms
-                ! The indicies of the first and second replicas in this
-                ! particular pair, in the *average* sign arrays.
-                av_ind_1 = irdm*2-1
-                av_ind_2 = irdm*2
+                    AvSignI(av_ind_1) = SignI(ind(1, irdm))
+                    IterRDMStartI(av_ind_1) = real(Iter + PreviousCycles, dp)
+                    AvSignI(av_ind_2) = SignI(ind(2, irdm))
+                    IterRDMStartI(av_ind_2) = real(Iter + PreviousCycles, dp)
+                end do
+            else
+                ! Now let's consider other instances in which we need to start a new block:
+                do irdm = 1, rdm_defs%nrdms
+                    ! The indicies of the first and second replicas in this
+                    ! particular pair, in the *average* sign arrays.
+                    av_ind_1 = irdm * 2 - 1
+                    av_ind_2 = irdm * 2
 
-                if (near_zero(SignI(ind(1,irdm))) .and. (.not. near_zero(IterRDMStartI(av_ind_1)))) then
-                    ! The population has just gone to zero on population 1.
-                    ! Therefore, we need to start a new averaging block.
-                    AvSignI(av_ind_1) = 0
-                    IterRDMStartI(av_ind_1) = 0
-                    AvSignI(av_ind_2) = SignI(ind(2,irdm))
-                    IterRDMStartI(av_ind_2) = real(Iter + PreviousCycles,dp)
+                    if (near_zero(SignI(ind(1, irdm))) .and. (.not. near_zero(IterRDMStartI(av_ind_1)))) then
+                        ! The population has just gone to zero on population 1.
+                        ! Therefore, we need to start a new averaging block.
+                        AvSignI(av_ind_1) = 0
+                        IterRDMStartI(av_ind_1) = 0
+                        AvSignI(av_ind_2) = SignI(ind(2, irdm))
+                        IterRDMStartI(av_ind_2) = real(Iter + PreviousCycles, dp)
 
-                else if (near_zero(SignI(ind(2,irdm))) .and. (.not. near_zero(IterRDMStartI(av_ind_2)))) then
-                    ! The population has just gone to zero on population 2.
-                    ! Therefore, we need to start a new averaging block.
-                    AvSignI(av_ind_2) = 0
-                    IterRDMStartI(av_ind_2) = 0
-                    AvSignI(av_ind_1) = SignI(ind(1,irdm))
-                    IterRDMStartI(av_ind_1) = real(Iter + PreviousCycles,dp)
+                    else if (near_zero(SignI(ind(2, irdm))) .and. (.not. near_zero(IterRDMStartI(av_ind_2)))) then
+                        ! The population has just gone to zero on population 2.
+                        ! Therefore, we need to start a new averaging block.
+                        AvSignI(av_ind_2) = 0
+                        IterRDMStartI(av_ind_2) = 0
+                        AvSignI(av_ind_1) = SignI(ind(1, irdm))
+                        IterRDMStartI(av_ind_1) = real(Iter + PreviousCycles, dp)
 
-                else if (.not. near_zero(SignI(ind(1,irdm))) .and. near_zero(IterRDMStartI(av_ind_1))) then
-                    ! Population 1 has just become occupied.
-                    IterRDMStartI(av_ind_1) = real(Iter + PreviousCycles,dp)
-                    IterRDMStartI(av_ind_2) = real(Iter + PreviousCycles,dp)
-                    AvSignI(av_ind_1) = SignI(ind(1,irdm))
-                    AvSignI(av_ind_2) = SignI(ind(2,irdm))
-                    if (near_zero(SignI(ind(2,irdm)))) IterRDMStartI(av_ind_2) = 0
+                    else if (.not. near_zero(SignI(ind(1, irdm))) .and. near_zero(IterRDMStartI(av_ind_1))) then
+                        ! Population 1 has just become occupied.
+                        IterRDMStartI(av_ind_1) = real(Iter + PreviousCycles, dp)
+                        IterRDMStartI(av_ind_2) = real(Iter + PreviousCycles, dp)
+                        AvSignI(av_ind_1) = SignI(ind(1, irdm))
+                        AvSignI(av_ind_2) = SignI(ind(2, irdm))
+                        if (near_zero(SignI(ind(2, irdm)))) IterRDMStartI(av_ind_2) = 0
 
-                else if (.not. near_zero(SignI(ind(2,irdm))) .and. near_zero(IterRDMStartI(av_ind_2))) then
-                    ! Population 2 has just become occupied.
-                    IterRDMStartI(av_ind_1) = real(Iter + PreviousCycles,dp)
-                    IterRDMStartI(av_ind_2) = real(Iter + PreviousCycles,dp)
-                    AvSignI(av_ind_1) = SignI(ind(1,irdm))
-                    AvSignI(av_ind_2) = SignI(ind(2,irdm))
-                    if (near_zero(SignI(ind(1,irdm)))) IterRDMStartI(av_ind_1) = 0
+                    else if (.not. near_zero(SignI(ind(2, irdm))) .and. near_zero(IterRDMStartI(av_ind_2))) then
+                        ! Population 2 has just become occupied.
+                        IterRDMStartI(av_ind_1) = real(Iter + PreviousCycles, dp)
+                        IterRDMStartI(av_ind_2) = real(Iter + PreviousCycles, dp)
+                        AvSignI(av_ind_1) = SignI(ind(1, irdm))
+                        AvSignI(av_ind_2) = SignI(ind(2, irdm))
+                        if (near_zero(SignI(ind(1, irdm)))) IterRDMStartI(av_ind_1) = 0
 
-                else
-                    ! Nothing unusual has happened so update both average
-                    ! populations as normal.
-                    AvSignI(av_ind_1) = &
-                        ( ((real(Iter+PreviousCycles,dp) - IterRDMStartI(av_ind_1)) * get_av_sgn_tot(j, av_ind_1)) &
-                          + SignI(ind(1,irdm)) ) / ( real(Iter+PreviousCycles,dp) - IterRDMStartI(av_ind_1) + 1.0_dp )
+                    else
+                        ! Nothing unusual has happened so update both average
+                        ! populations as normal.
+                        AvSignI(av_ind_1) = &
+                            (((real(Iter + PreviousCycles, dp) - IterRDMStartI(av_ind_1)) * get_av_sgn_tot(j, av_ind_1)) &
+                             + SignI(ind(1, irdm))) / (real(Iter + PreviousCycles, dp) - IterRDMStartI(av_ind_1) + 1.0_dp)
 
-                    AvSignI(av_ind_2) = &
-                        ( ((real(Iter+PreviousCycles,dp) - IterRDMStartI(av_ind_2)) * get_av_sgn_tot(j, av_ind_2)) &
-                          + SignI(ind(2,irdm)) ) / ( real(Iter+PreviousCycles,dp) - IterRDMStartI(av_ind_2) + 1.0_dp )
-                end if
-            end do
-        end if
+                        AvSignI(av_ind_2) = &
+                            (((real(Iter + PreviousCycles, dp) - IterRDMStartI(av_ind_2)) * get_av_sgn_tot(j, av_ind_2)) &
+                             + SignI(ind(2, irdm))) / (real(Iter + PreviousCycles, dp) - IterRDMStartI(av_ind_2) + 1.0_dp)
+                    end if
+                end do
+            end if
 
         end associate
 
     end subroutine extract_bit_rep_avsign_norm
 
-  !------------------------------------------------------------------------------------------!
+    !------------------------------------------------------------------------------------------!
 
     subroutine UpdateRDMCorrectionTerm()
-      use Parallel_neci
-      ! first, communicate the rdm correction term between the procs
-      ! take the instantaneous correction term and sum it into the accumulated one
-      implicit none
-      real(dp) :: AllInstRDMCorrectionFactor
+        use Parallel_neci
+        ! first, communicate the rdm correction term between the procs
+        ! take the instantaneous correction term and sum it into the accumulated one
+        implicit none
+        real(dp) :: AllInstRDMCorrectionFactor
 
-      call MPISumAll(InstRDMCorrectionFactor, AllInstRDMCorrectionFactor)
-      ! rezero the instantaneous, proc local correction
-      InstRDMCorrectionFactor = 0.0_dp
+        call MPISumAll(InstRDMCorrectionFactor, AllInstRDMCorrectionFactor)
+        ! rezero the instantaneous, proc local correction
+        InstRDMCorrectionFactor = 0.0_dp
 
-      ! average the so-far accumulated RDMCorrection factor with the instantaneous one
-      RDMCorrectionFactor = (RDMCorrectionFactor * ThisRDMIter + AllInstRDMCorrectionFactor) /&
-           (ThisRDMIter+1.0_dp)
+        ! average the so-far accumulated RDMCorrection factor with the instantaneous one
+        RDMCorrectionFactor = (RDMCorrectionFactor * ThisRDMIter + AllInstRDMCorrectionFactor) / &
+                              (ThisRDMIter + 1.0_dp)
 
-      ! increase the iteration number count for averaging
-      ThisRDMIter = ThisRDMIter + 1.0_dp
+        ! increase the iteration number count for averaging
+        ThisRDMIter = ThisRDMIter + 1.0_dp
     end subroutine UpdateRDMCorrectionTerm
 
-  !------------------------------------------------------------------------------------------!
+    !------------------------------------------------------------------------------------------!
 
     subroutine SumCorrectionContrib(DetSgn, DetPosition)
-      ! gather the sum (f_mu - 1) c_mu^2 used in the rdm filling
-      implicit none
-      real(dp), intent(in) :: DetSgn(lenof_sign)
-      integer, intent(in) :: DetPosition
+        ! gather the sum (f_mu - 1) c_mu^2 used in the rdm filling
+        implicit none
+        real(dp), intent(in) :: DetSgn(lenof_sign)
+        integer, intent(in) :: DetPosition
 
-      InstRDMCorrectionFactor = InstRDMCorrectionFactor + getRDMCorrectionTerm(DetSgn, &
-           DetPosition)
+        InstRDMCorrectionFactor = InstRDMCorrectionFactor + getRDMCorrectionTerm(DetSgn, &
+                                                                                 DetPosition)
 
     end subroutine SumCorrectionContrib
 
-  !------------------------------------------------------------------------------------------!
+    !------------------------------------------------------------------------------------------!
 
     function getRDMCorrectionTerm(DetSgn, DetPosition) result(rdmC)
-      ! get (fmu - 1) c_mu^2 for a single mu
-      implicit none
-      real(dp), intent(in) :: DetSgn(lenof_sign)
-      integer, intent(in) :: DetPosition
-      real(dp) :: rdmC
+        ! get (fmu - 1) c_mu^2 for a single mu
+        implicit none
+        real(dp), intent(in) :: DetSgn(lenof_sign)
+        integer, intent(in) :: DetPosition
+        real(dp) :: rdmC
 
-      integer :: run, pairRun
+        integer :: run, pairRun
 
-      rdmC = 0.0_dp
-      do run = 1, inum_runs, 2
-         if(run+1 <= inum_runs) then
-            pairRun = run + 1
-         else
-            pairRun = run
-         endif
-         rdmC = rdmC + (avFFunc(DetSgn,DetPosition)-1) * DetSgn(run)*DetSgn(pairRun)
-      end do
+        rdmC = 0.0_dp
+        do run = 1, inum_runs, 2
+            if (run + 1 <= inum_runs) then
+                pairRun = run + 1
+            else
+                pairRun = run
+            end if
+            rdmC = rdmC + (avFFunc(DetSgn, DetPosition) - 1) * DetSgn(run) * DetSgn(pairRun)
+        end do
 
     end function getRDMCorrectionTerm
 
-  !------------------------------------------------------------------------------------------!
+    !------------------------------------------------------------------------------------------!
 
-    function avFFunc(DetSgn,DetPosition) result(AvFmu)
-      ! get fmu
-      use procedure_pointers, only: shiftFactorFunction
-      implicit none
-      real(dp), intent(in) :: DetSgn(lenof_sign)
-      integer, intent(in) :: DetPosition
-      real(dp) :: AvFmu
+    function avFFunc(DetSgn, DetPosition) result(AvFmu)
+        ! get fmu
+        use procedure_pointers, only: shiftFactorFunction
+        implicit none
+        real(dp), intent(in) :: DetSgn(lenof_sign)
+        integer, intent(in) :: DetPosition
+        real(dp) :: AvFmu
 
-      integer :: run
-      real(dp) :: fmu
+        integer :: run
+        real(dp) :: fmu
 
-      AvFmu = 1.0_dp
-      do run = 1, inum_runs
-         fmu = shiftFactorFunction(DetPosition, run, mag_of_run(DetSgn,run))
-         AvFmu = AvFmu * fmu
-      end do
-      AvFmu = dressedFactor(AvFmu ** (1.0_dp/real(inum_runs,dp)))
+        AvFmu = 1.0_dp
+        do run = 1, inum_runs
+            fmu = shiftFactorFunction(DetPosition, run, mag_of_run(DetSgn, run))
+            AvFmu = AvFmu * fmu
+        end do
+        AvFmu = dressedFactor(AvFmu**(1.0_dp / real(inum_runs, dp)))
     end function avFFunc
 
-  !------------------------------------------------------------------------------------------!
+    !------------------------------------------------------------------------------------------!
 
     function dressedFactor(fmu) result(fmup)
-      implicit none
-      real(dp), intent(in) :: fmu
-      real(dp) :: fmup
-      real(dp) :: eCorr, e0Inits, enOffset
-      if(tInitsRDMRef .and. tSetupInitsEst .and. sum(abs(proje_iter)) > eps) then
-         ! initiator-only reference energy
-         e0Inits = inits_estimates%energy_num(1)/inits_estimates%norm(1)
-         ! correlation energy
-         eCorr = sum(proje_iter)/inum_runs + Hii - e0Inits
-         enOffset = (Hii - e0Inits)/eCorr
-         fmup = enOffset + fmu*(inum_runs*eCorr)/(sum(proje_iter))
-      else
-         fmup = fmu
-      endif
+        implicit none
+        real(dp), intent(in) :: fmu
+        real(dp) :: fmup
+        real(dp) :: eCorr, e0Inits, enOffset
+        if (tInitsRDMRef .and. tSetupInitsEst .and. sum(abs(proje_iter)) > eps) then
+            ! initiator-only reference energy
+            e0Inits = inits_estimates%energy_num(1) / inits_estimates%norm(1)
+            ! correlation energy
+            eCorr = sum(proje_iter) / inum_runs + Hii - e0Inits
+            enOffset = (Hii - e0Inits) / eCorr
+            fmup = enOffset + fmu * (inum_runs * eCorr) / (sum(proje_iter))
+        else
+            fmup = fmu
+        end if
     end function dressedFactor
 
-  !------------------------------------------------------------------------------------------!
+    !------------------------------------------------------------------------------------------!
 
     subroutine calc_rdmbiasfac(p_spawn_rdmfac, p_gen, SignCurr, RDMBiasFacCurr)
 
@@ -1057,7 +1056,7 @@ contains
         ! This requires either not generating j, or generating j and not succesfully spawning, n_i times.
         ! P_not_spawn(j | i )[n_i] = [(1 - P_gen(j | i)) + ( P_gen( j | i ) * (1 - P_spawn(j | i))]^n_i
 
-        p_notlist_rdmfac = ( 1.0_dp - p_gen ) + ( p_gen * (1.0_dp - p_spawn_rdmfac) )
+        p_notlist_rdmfac = (1.0_dp - p_gen) + (p_gen * (1.0_dp - p_spawn_rdmfac))
 
         ! The bias fac is now n_i / P_successful_spawn(j | i)[n_i].
 
@@ -1065,9 +1064,9 @@ contains
             ! There's a non-integer population on this determinant. We need to
             ! consider both possibilities - whether we attempted to spawn
             ! int(SignCurr) times or int(SignCurr)+1 times.
-            p_max_walktospawn = abs(SignCurr-real(int(SignCurr),dp))
-            p_not_spawn = (1.0_dp - p_max_walktospawn)*(p_notlist_rdmfac**abs(int(SignCurr))) + &
-                        p_max_walktospawn*(p_notlist_rdmfac**(abs(int(SignCurr))+1))
+            p_max_walktospawn = abs(SignCurr - real(int(SignCurr), dp))
+            p_not_spawn = (1.0_dp - p_max_walktospawn) * (p_notlist_rdmfac**abs(int(SignCurr))) + &
+                          p_max_walktospawn * (p_notlist_rdmfac**(abs(int(SignCurr)) + 1))
 
         else
             p_not_spawn = p_notlist_rdmfac**(abs(SignCurr))
@@ -1082,7 +1081,7 @@ contains
     end subroutine calc_rdmbiasfac
 
     subroutine store_parent_with_spawned(RDMBiasFacCurr, WalkerNumber, iLutI, &
-            DetSpawningAttempts, iLutJ, procJ)
+                                         DetSpawningAttempts, iLutJ, procJ)
 
         ! We are spawning from iLutI to SpawnedParts(:,ValidSpawnedList(proc)).
         ! This routine stores the parent (D_i) with the spawned child (D_j) so
@@ -1113,7 +1112,7 @@ contains
             return
         end if
 
-        if(tNonInitsForRDMs .or. all_runs_are_initiator(ilutI)) then
+        if (tNonInitsForRDMs .or. all_runs_are_initiator(ilutI)) then
 
             ! First we want to check if this Di.Dj pair has already been accounted for.
             ! This means searching the Dj's that have already been spawned from this Di, to make sure
@@ -1129,7 +1128,7 @@ contains
             ! just wont run over anything.
 
             do j = 1, TempSpawnedPartsInd
-                if (DetBitEQ(iLutJ(0:nifd), TempSpawnedParts(0:nifd,j), nifd)) then
+                if (DetBitEQ(iLutJ(0:nifd), TempSpawnedParts(0:nifd, j), nifd)) then
                     ! If this Dj is found, we do not want to store the parent with this spawned walker.
                     tRDMStoreParent = .false.
                     exit
@@ -1143,7 +1142,7 @@ contains
                     ! Don't bother storing these if we're on the last walker, or if we only have one
                     ! walker on Di.
                     TempSpawnedPartsInd = TempSpawnedPartsInd + 1
-                    TempSpawnedParts(0:nifd,TempSpawnedPartsInd) = iLutJ(0:nifd)
+                    TempSpawnedParts(0:nifd, TempSpawnedPartsInd) = iLutJ(0:nifd)
                 end if
 
                 ! We also want to make sure the parent Di is stored with this Dj.
@@ -1163,7 +1162,7 @@ contains
                 ! double count this pair.
                 call zero_parent(SpawnedParts(:, ValidSpawnedList(procJ)))
             end if
-         else
+        else
             ! This Di is a non-initiator, and we specified to take only initiators into account
             call zero_parent(SpawnedParts(:, ValidSpawnedList(procJ)))
         end if

@@ -8,20 +8,20 @@ module OneEInts
 ! orbitals after freezing has been done. The "original" versions are used in the
 ! pre-freezing stage.
 
-use constants, only: dp
-use MemoryManager, only: TagIntType, LogMemalloc, LogMemDealloc
-use util_mod, only: get_free_unit
-use SystemData, only: tCPMD, tVASP
-use LoggingData, only: iNumPropToEst
-use CPMDData, only: tKP
-use HElem, only: HElement_t_size
-use global_utilities
-use SymData
+    use constants, only: dp
+    use MemoryManager, only: TagIntType, LogMemalloc, LogMemDealloc
+    use util_mod, only: get_free_unit
+    use SystemData, only: tCPMD, tVASP
+    use LoggingData, only: iNumPropToEst
+    use CPMDData, only: tKP
+    use HElem, only: HElement_t_size
+    use global_utilities
+    use SymData
 
-implicit none
+    implicit none
 
-save
-public
+    save
+    public
 
 ! For storing the <i|h|j> elements which are non-zero by symmetry.
 ! Ranges from -1 to N, where N is the # of non-zero elements. The -1
@@ -29,43 +29,42 @@ public
 ! where i and j must span the same representation in order for <i|h|j>
 ! to be non-zero.
 ! The symmetries used in Dalton and Molpro are all Abelian.
-HElement_t(dp), dimension(:), POINTER :: TMATSYM
+    HElement_t(dp), dimension(:), POINTER :: TMATSYM
 ! For non-Abelian symmetries, we store the entire <i|h|j> matrix, as
 ! the direct products of the representations can contain the totally
 ! symmetric representation (and are not necessarily the same).  We could
 ! compress this in a similar fashion at some point.
-HElement_t(dp), dimension(:,:), POINTER :: TMAT2D
-HElement_t(dp), pointer :: spin_free_tmat(:,:)
+    HElement_t(dp), dimension(:, :), POINTER :: TMAT2D
+    HElement_t(dp), pointer :: spin_free_tmat(:, :)
 
-HElement_t(dp), dimension(:), POINTER :: TMATSYM2
-HElement_t(dp), dimension(:,:), POINTER :: TMAT2D2
+    HElement_t(dp), dimension(:), POINTER :: TMATSYM2
+    HElement_t(dp), dimension(:, :), POINTER :: TMAT2D2
 
 ! One electron integrals corresponding to properties that would be estimated
 ! using 1 body RDM
-HElement_t(dp), dimension(:,:,:), pointer :: OneEPropInts
-real(dp), dimension(:), pointer :: PropCore
+    HElement_t(dp), dimension(:, :, :), pointer :: OneEPropInts
+    real(dp), dimension(:), pointer :: PropCore
 
 ! A second pointer to get the integrals after freezing orbitals
-HElement_t(dp), dimension(:,:,:), pointer :: OneEPropInts2
+    HElement_t(dp), dimension(:, :, :), pointer :: OneEPropInts2
 
 ! True if using TMatSym in CPMD (currently only if using k-points, which form
 ! an Abelian group).
-logical tCPMDSymTMat
-logical tOneElecDiag    !Indicates that the one-electron integral matrix is diagonal -
-                        !basis functions are eigenstates of KE operator.
+    logical tCPMDSymTMat
+    logical tOneElecDiag    !Indicates that the one-electron integral matrix is diagonal -
+    !basis functions are eigenstates of KE operator.
 
 ! Memory book-keeping tags
-integer(TagIntType) :: tagTMat2D=0
-integer(TagIntType) :: tagTMat2D2=0
-integer(TagIntType) :: tagTMATSYM=0,tagTMATSYM2=0
-integer(TagIntType) :: tagOneEPropInts=0
-integer(TagIntType) :: tagOneEPropInts2=0
-integer(TagIntType) :: tagPropCore=0
-
+    integer(TagIntType) :: tagTMat2D = 0
+    integer(TagIntType) :: tagTMat2D2 = 0
+    integer(TagIntType) :: tagTMATSYM = 0, tagTMATSYM2 = 0
+    integer(TagIntType) :: tagOneEPropInts = 0
+    integer(TagIntType) :: tagOneEPropInts2 = 0
+    integer(TagIntType) :: tagPropCore = 0
 
 contains
 
-      pure INTEGER FUNCTION TMatInd(I,J)
+    pure INTEGER FUNCTION TMatInd(I, J)
         ! In:
         !    i,j: spin orbitals.
         ! Return the index of the <i|h|j> element in TMatSym2.
@@ -85,99 +84,96 @@ contains
         !   preceeding the block i and j are in.  This is given by SYMLABELINTSCUM(symI-1).
         !        TMatInd=k*(k-1)/2+l + SymLabelIntsCum(symI-1).
         !   If the element is zero by symmetry, return -1 (TMatSym(-1) is set to 0).
-        use SymData, only: SymClasses,StateSymMap,SymLabelIntsCum
+        use SymData, only: SymClasses, StateSymMap, SymLabelIntsCum
         IMPLICIT NONE
         integer, intent(in) :: i, j
-        integer A,B,symI,symJ,Block,ind,K,L
-        A=mod(I,2)
-        B=mod(J,2)
+        integer A, B, symI, symJ, Block, ind, K, L
+        A = mod(I, 2)
+        B = mod(J, 2)
         !If TMatInd = -1, then the spin-orbitals have different spins, or are symmetry disallowed
 !therefore have a zero integral (apart from in UHF - might cause problem if we want this)
-        IF(A.ne.B) THEN
-            TMatInd=-1
+        IF (A /= B) THEN
+            TMatInd = -1
             RETURN
-        ENDIF
+        end if
         !To convert to spatial orbitals
-        K=(I+1)/2
-        L=(J+1)/2
+        K = (I + 1) / 2
+        L = (J + 1) / 2
 
-        symI=SYMCLASSES(K)
-        symJ=SYMCLASSES(L)
+        symI = SYMCLASSES(K)
+        symJ = SYMCLASSES(L)
 
-        IF(symI.ne.symJ) THEN
+        IF (symI /= symJ) THEN
             ! <i|t|j> is symmetry forbidden.
-            TMatInd=-1
+            TMatInd = -1
             RETURN
         ELSE
             ! Convert K and L into their index within their symmetry class.
-            K=StateSymMap(K)
-            L=StateSymMap(L)
+            K = StateSymMap(K)
+            L = StateSymMap(L)
             ! Block index: how many symmetry allowed integrals are there in the
             ! preceeding blocks?
-            IF(symI.eq.1) THEN
-                Block=0
+            IF (symI == 1) THEN
+                Block = 0
             ELSE
-                Block=SYMLABELINTSCUM(symI-1)
-            ENDIF
+                Block = SYMLABELINTSCUM(symI - 1)
+            end if
             ! Index within symmetry block.
-            IF(K.ge.L) THEN
-                ind=(K*(K-1))/2+L
+            IF (K >= L) THEN
+                ind = (K * (K - 1)) / 2 + L
             ELSE
-                ind=(L*(L-1))/2+K
-            ENDIF
-            TMatInd=Block+ind
+                ind = (L * (L - 1)) / 2 + K
+            end if
+            TMatInd = Block + ind
             RETURN
-        ENDIF
-      END FUNCTION TMatInd
+        end if
+    END FUNCTION TMatInd
 
-
-
-      INTEGER FUNCTION NEWTMatInd(I,J)
-      ! In:
-      !    i,j: spin orbitals.
-      ! Return the index of the <i|h|j> element in TMatSym2.
-      ! See notes for TMatInd. Used post-freezing.
+    INTEGER FUNCTION NEWTMatInd(I, J)
+        ! In:
+        !    i,j: spin orbitals.
+        ! Return the index of the <i|h|j> element in TMatSym2.
+        ! See notes for TMatInd. Used post-freezing.
         IMPLICIT NONE
-        INTEGER I,J,A,B,symI,symJ,Block,ind,K,L
-        A=mod(I,2)
-        B=mod(J,2)
+        INTEGER I, J, A, B, symI, symJ, Block, ind, K, L
+        A = mod(I, 2)
+        B = mod(J, 2)
         ! If TMatInd = -1, then the spin-orbitals have different spins, or are symmetry
 !disallowed therefore have a zero integral (apart from in UHF - might cause problem if we want this)
-        IF(A.ne.B) THEN
-            NEWTMatInd=-1
+        IF (A /= B) THEN
+            NEWTMatInd = -1
             RETURN
-        ENDIF
+        end if
         !To convert to spatial orbitals
-        K=(I+1)/2
-        L=(J+1)/2
+        K = (I + 1) / 2
+        L = (J + 1) / 2
 
-        symI=SYMCLASSES2(K)
-        symJ=SYMCLASSES2(L)
+        symI = SYMCLASSES2(K)
+        symJ = SYMCLASSES2(L)
 
-        IF(symI.ne.symJ) THEN
-            NEWTMatInd=-1
+        IF (symI /= symJ) THEN
+            NEWTMatInd = -1
             RETURN
         ELSE
-            IF(symI.eq.1) THEN
-                Block=0
+            IF (symI == 1) THEN
+                Block = 0
             ELSE
-                Block=SYMLABELINTSCUM2(symI-1)
-            ENDIF
+                Block = SYMLABELINTSCUM2(symI - 1)
+            end if
             ! Convert K and L into their index within their symmetry class.
-            K=StateSymMap(K)
-            L=StateSymMap(L)
-            IF(K.ge.L) THEN
-                ind=(K*(K-1))/2+L
+            K = StateSymMap(K)
+            L = StateSymMap(L)
+            IF (K >= L) THEN
+                ind = (K * (K - 1)) / 2 + L
             ELSE
-                ind=(L*(L-1))/2+K
-            ENDIF
-            NEWTMatInd=Block+ind
+                ind = (L * (L - 1)) / 2 + K
+            end if
+            NEWTMatInd = Block + ind
             RETURN
-        ENDIF
-      END FUNCTION NewTMatInd
+        end if
+    END FUNCTION NewTMatInd
 
-
-    elemental function GetTMatEl (i, j) result(ret)
+    elemental function GetTMatEl(i, j) result(ret)
 
         ! Return the one electron integral <i|h|j>
         !
@@ -192,167 +188,166 @@ contains
         if (tCPMDSymTMat) then
             ! TMat is Hermitian, rather than symmetric.
             ! Only the upper diagonal of each symmetry block is stored
-            if (j .ge. i) then
-                ret = TMatSym(TMatInd(i,j))
+            if (j >= i) then
+                ret = TMatSym(TMatInd(i, j))
             else
                 ! Work around a bug in gfortran's parser: it doesn't like
                 ! doing conjg(TMatSym).
 #ifdef CMPLX_
-                t = TMatSym(TmatInd(i,j))
+                t = TMatSym(TmatInd(i, j))
                 ret = conjg(t)
 #else
-                ret = TMatSym(TmatInd(i,j))
+                ret = TMatSym(TmatInd(i, j))
 #endif
-            endif
+            end if
         else
-            if(tOneElecDiag) then
-                if(i.ne.j) then
+            if (tOneElecDiag) then
+                if (i /= j) then
                     ret = 0.0_dp
                 else
-                    ret = TMat2D(i,1)
-                endif
+                    ret = TMat2D(i, 1)
+                end if
             else
                 ret = TMat2D(i, j)
-            endif
-        endif
+            end if
+        end if
     end function GetTMatEl
 
-    function GetPropIntEl(i,j,iprop) result(integral)
+    function GetPropIntEl(i, j, iprop) result(integral)
         integer, intent(in) :: i, j, iprop
         real(dp) :: integral
 
-        integral = OneEPropInts(i,j,iprop)
+        integral = OneEPropInts(i, j, iprop)
 
     end function
 
-      FUNCTION GetNewTMatEl(I,J)
-      ! In:
-      !    i,j: spin orbitals.
-      ! Return <i|h|j>, the "TMat" element.
-      ! Used post-freezing. See also GetTMatEl.
+    FUNCTION GetNewTMatEl(I, J)
+        ! In:
+        !    i,j: spin orbitals.
+        ! Return <i|h|j>, the "TMat" element.
+        ! Used post-freezing. See also GetTMatEl.
         IMPLICIT NONE
-        INTEGER I,J
+        INTEGER I, J
         HElement_t(dp) GetNEWTMATEl
 
         if (tCPMDSymTMat) then
 #ifdef CMPLX_
-            if (j.ge.i) then
-                GetNewTMatEl=TMATSYM2(TMatInd(I,J))
+            if (j >= i) then
+                GetNewTMatEl = TMATSYM2(TMatInd(I, J))
             else
-                GetNewTMatEl=Conjg(TMATSYM2(TMatInd(I,J)))
+                GetNewTMatEl = Conjg(TMATSYM2(TMatInd(I, J)))
             end if
 #else
-            GetNewTMatEl=TMATSYM2(TMatInd(I,J))
+            GetNewTMatEl = TMATSYM2(TMatInd(I, J))
 #endif
         ELSE
-            if(tOneElecDiag) then
-                if(I.ne.J) then
-                    GetNEWTMATEl=0.0_dp
+            if (tOneElecDiag) then
+                if (I /= J) then
+                    GetNEWTMATEl = 0.0_dp
                 else
-                    GetNewTMATEl=TMAT2D2(I,1)
-                endif
+                    GetNewTMATEl = TMAT2D2(I, 1)
+                end if
             else
-                GetNEWTMATEl=TMAT2D2(I,J)
-            endif
-        ENDIF
-      END FUNCTION GetNewTMatEl
+                GetNEWTMATEl = TMAT2D2(I, J)
+            end if
+        end if
+    END FUNCTION GetNewTMatEl
 
-
-      SUBROUTINE WriteTMat(NBASIS)
+    SUBROUTINE WriteTMat(NBASIS)
         ! In:
         !    nBasis: size of basis (# orbitals).
         IMPLICIT NONE
-        INTEGER II,I,J,NBASIS,iunit
+        INTEGER II, I, J, NBASIS, iunit
 
         iunit = get_free_unit()
         open(iunit, file="TMATSYMLABEL", status="unknown")
-        IF(associated(SYMLABELINTSCUM)) THEN
-            write(iunit,*) "SYMLABELCOUNTS,SYMLABELCOUNTSCUM,SYMLABELINTSCUM:"
-            DO I=1,NSYMLABELS
-                WRITE(iunit,"(I5)",advance='no') SYMLABELCOUNTS(2,I)
+        IF (associated(SYMLABELINTSCUM)) THEN
+            write(iunit, *) "SYMLABELCOUNTS,SYMLABELCOUNTSCUM,SYMLABELINTSCUM:"
+            DO I = 1, NSYMLABELS
+                write(iunit, "(I5)", advance='no') SYMLABELCOUNTS(2, I)
                 CALL neci_flush(iunit)
-            ENDDO
-            WRITE(iunit,*) ""
-            DO I=1,NSYMLABELS
-                WRITE(iunit,"(I5)",advance='no') SYMLABELCOUNTSCUM(I)
+            end do
+            write(iunit, *) ""
+            DO I = 1, NSYMLABELS
+                write(iunit, "(I5)", advance='no') SYMLABELCOUNTSCUM(I)
                 CALL neci_flush(iunit)
-            ENDDO
-            WRITE(iunit,*) ""
-            DO I=1,NSYMLABELS
-                WRITE(iunit,"(I5)",advance='no') SYMLABELINTSCUM(I)
+            end do
+            write(iunit, *) ""
+            DO I = 1, NSYMLABELS
+                write(iunit, "(I5)", advance='no') SYMLABELINTSCUM(I)
                 CALL neci_flush(iunit)
-            ENDDO
-            WRITE(iunit,*) ""
-            WRITE(iunit,*) "**********************************"
-        ENDIF
-        IF(associated(SYMLABELINTSCUM2)) THEN
-            write(iunit,*) "SYMLABELCOUNTS,SYMLABELCOUNTSCUM2,SYMLABELINTSCUM2:"
-            DO I=1,NSYMLABELS
-                WRITE(iunit,"(I5)",advance='no') SYMLABELCOUNTS(2,I)
+            end do
+            write(iunit, *) ""
+            write(iunit, *) "**********************************"
+        end if
+        IF (associated(SYMLABELINTSCUM2)) THEN
+            write(iunit, *) "SYMLABELCOUNTS,SYMLABELCOUNTSCUM2,SYMLABELINTSCUM2:"
+            DO I = 1, NSYMLABELS
+                write(iunit, "(I5)", advance='no') SYMLABELCOUNTS(2, I)
                 CALL neci_flush(iunit)
-            ENDDO
-            WRITE(iunit,*) ""
-            DO I=1,NSYMLABELS
-                WRITE(iunit,"(I5)",advance='no') SYMLABELCOUNTSCUM2(I)
+            end do
+            write(iunit, *) ""
+            DO I = 1, NSYMLABELS
+                write(iunit, "(I5)", advance='no') SYMLABELCOUNTSCUM2(I)
                 CALL neci_flush(iunit)
-            ENDDO
-            WRITE(iunit,*) ""
-            DO I=1,NSYMLABELS
-                WRITE(iunit,"(I5)",advance='no') SYMLABELINTSCUM2(I)
+            end do
+            write(iunit, *) ""
+            DO I = 1, NSYMLABELS
+                write(iunit, "(I5)", advance='no') SYMLABELINTSCUM2(I)
                 CALL neci_flush(iunit)
-            ENDDO
-            WRITE(iunit,*) ""
-            WRITE(iunit,*) "**********************************"
+            end do
+            write(iunit, *) ""
+            write(iunit, *) "**********************************"
             CALL neci_flush(iunit)
-        ENDIF
-        WRITE(iunit,*) "TMAT:"
-        DO I=1,NBASIS,2
-            DO J=1,NBASIS,2
-                WRITE(iunit,*) (I+1)/2,(J+1)/2, GetTMATEl(I,J)
-            ENDDO
-        ENDDO
-        WRITE(iunit,*) "**********************************"
+        end if
+        write(iunit, *) "TMAT:"
+        DO I = 1, NBASIS, 2
+            DO J = 1, NBASIS, 2
+                write(iunit, *) (I + 1) / 2, (J + 1) / 2, GetTMATEl(I, J)
+            end do
+        end do
+        write(iunit, *) "**********************************"
         CALL neci_flush(iunit)
-        IF(ASSOCIated(TMATSYM2).or.ASSOCIated(TMAT2D2)) THEN
-            WRITE(iunit,*) "TMAT2:"
-            DO II=1,NSYMLABELS
-                DO I=SYMLABELCOUNTSCUM(II-1)+1,SYMLABELCOUNTSCUM(II)
-                    DO J=SYMLABELCOUNTSCUM(II-1)+1,I
-                        WRITE(iunit,*) I,J,GetNEWTMATEl((2*I),(2*J))
+        IF (ASSOCIated(TMATSYM2) .or. ASSOCIated(TMAT2D2)) THEN
+            write(iunit, *) "TMAT2:"
+            DO II = 1, NSYMLABELS
+                DO I = SYMLABELCOUNTSCUM(II - 1) + 1, SYMLABELCOUNTSCUM(II)
+                    DO J = SYMLABELCOUNTSCUM(II - 1) + 1, I
+                        write(iunit, *) I, J, GetNEWTMATEl((2 * I), (2 * J))
                         CALL neci_flush(iunit)
-                    ENDDO
-                ENDDO
-            ENDDO
-        ENDIF
-        WRITE(iunit,*) "*********************************"
-        WRITE(iunit,*) "*********************************"
+                    end do
+                end do
+            end do
+        end if
+        write(iunit, *) "*********************************"
+        write(iunit, *) "*********************************"
         CALL neci_flush(iunit)
-      END SUBROUTINE WriteTMat
+    END SUBROUTINE WriteTMat
 
 !Routine to calculate number of elements allocated for TMAT matrix
-      SUBROUTINE CalcTMATSize(nBasis,iSize)
-      INTEGER :: iSize,nBasis,basirrep,i,Nirrep
+    SUBROUTINE CalcTMATSize(nBasis, iSize)
+        INTEGER :: iSize, nBasis, basirrep, i, Nirrep
 
-          IF(tCPMDSymTMat) THEN
-              iSize=0
-              Nirrep=NSYMLABELS
-              do i=1,Nirrep
-                  basirrep=SYMLABELCOUNTS(2,i)
-                  ! Block diagonal.
-                  iSize=iSize+(basirrep*(basirrep+1))/2
-              enddo
-              iSize=iSize+2     !lower index is -1
-          ELSE
-              if(tOneElecDiag) then
-                  iSize=nBasis
-              else
-                  iSize=nBasis*nBasis
-              endif
-          ENDIF
+        IF (tCPMDSymTMat) THEN
+            iSize = 0
+            Nirrep = NSYMLABELS
+            do i = 1, Nirrep
+                basirrep = SYMLABELCOUNTS(2, i)
+                ! Block diagonal.
+                iSize = iSize + (basirrep * (basirrep + 1)) / 2
+            end do
+            iSize = iSize + 2     !lower index is -1
+        ELSE
+            if (tOneElecDiag) then
+                iSize = nBasis
+            else
+                iSize = nBasis * nBasis
+            end if
+        end if
 
-      END SUBROUTINE CalcTMATSize
+    END SUBROUTINE CalcTMATSize
 
-      SUBROUTINE SetupTMAT(nBASIS,iSS,iSize)
+    SUBROUTINE SetupTMAT(nBASIS, iSS, iSize)
         ! In:
         !    nBasis: number of basis functions (orbitals).
         !    iSS: ratio of nBasis to the number of spatial orbitals.
@@ -360,151 +355,151 @@ contains
         ! Initial allocation of TMat2D or TMatSym (if using symmetry-compressed
         ! storage of the <i|h|j> integrals).
         IMPLICIT NONE
-        integer Nirrep,nBasis,iSS,nBi,i,basirrep,t,ierr,iState,nStateIrrep
+        integer Nirrep, nBasis, iSS, nBi, i, basirrep, t, ierr, iState, nStateIrrep
         integer iSize, iunit
         character(*), parameter :: thisroutine = 'SetupTMAT'
 
         ! If this is a CPMD k-point calculation, then we're operating
         ! under Abelian symmetry: can use George's memory efficient
         ! TMAT.
-        if (tCPMD) tCPMDSymTMat=tKP
-        if (tVASP) tCPMDSymTMat=.true.
-        IF(tCPMDSymTMat) THEN
+        if (tCPMD) tCPMDSymTMat = tKP
+        if (tVASP) tCPMDSymTMat = .true.
+        IF (tCPMDSymTMat) THEN
             ! Set up info for indexing scheme (see TMatInd for full description).
-            Nirrep=NSYMLABELS
-            nBi=nBasis/iSS
-            iSize=0
+            Nirrep = NSYMLABELS
+            nBi = nBasis / iSS
+            iSize = 0
 
             if (associated(SymLabelIntsCum)) then
                 deallocate(SymLabelIntsCum)
-                call LogMemDealloc(thisroutine,tagSymLabelIntsCum)
+                call LogMemDealloc(thisroutine, tagSymLabelIntsCum)
             end if
             if (allocated(StateSymMap)) then
                 deallocate(StateSymMap)
-                call LogMemDealloc(thisroutine,tagStateSymMap)
+                call LogMemDealloc(thisroutine, tagStateSymMap)
             end if
             if (associated(SymLabelCountsCum)) then
                 deallocate(SymLabelCountsCum)
-                call LogMemDealloc(thisroutine,tagSymLabelCountsCum)
+                call LogMemDealloc(thisroutine, tagSymLabelCountsCum)
             end if
 
             allocate(SymLabelIntsCum(nIrrep))
-            call LogMemAlloc('SymLabelIntsCum',nIrrep,4,thisroutine,tagSymLabelIntsCum)
+            call LogMemAlloc('SymLabelIntsCum', nIrrep, 4, thisroutine, tagSymLabelIntsCum)
             allocate(SymLabelCountsCum(nIrrep))
-            call LogMemAlloc('SymLabelCountsCum',nIrrep,4,thisroutine,tagSymLabelCountsCum)
+            call LogMemAlloc('SymLabelCountsCum', nIrrep, 4, thisroutine, tagSymLabelCountsCum)
             allocate(StateSymMap(nBi))
-            call LogMemAlloc('StateSymMap',nBi,4,thisroutine,tagStateSymMap)
-            SYMLABELCOUNTSCUM(1:Nirrep)=0
-            SYMLABELINTSCUM(1:Nirrep)=0
+            call LogMemAlloc('StateSymMap', nBi, 4, thisroutine, tagStateSymMap)
+            SYMLABELCOUNTSCUM(1:Nirrep) = 0
+            SYMLABELINTSCUM(1:Nirrep) = 0
 
             ! Ensure no compiler warnings
-            basirrep=SYMLABELCOUNTS(2, 1)
+            basirrep = SYMLABELCOUNTS(2, 1)
 
-            do i=1,Nirrep
-                basirrep=SYMLABELCOUNTS(2,i)
+            do i = 1, Nirrep
+                basirrep = SYMLABELCOUNTS(2, i)
                 ! Block diagonal.
-                iSize=iSize+(basirrep*(basirrep+1))/2
+                iSize = iSize + (basirrep * (basirrep + 1)) / 2
                 ! # of integrals in this symmetry class and all preceeding
                 ! symmetry classes.
-                SYMLABELINTSCUM(i)=iSize
+                SYMLABELINTSCUM(i) = iSize
                 ! JSS: we no longer need SymLabelCountsCum, but it's a useful test.
                 ! SymLabelCountsCum is the cumulative total # of basis functions
                 ! in the preceeding symmetry classes.
-                IF(i.eq.1) THEN
-                    SYMLABELCOUNTSCUM(i)=0
+                IF (i == 1) THEN
+                    SYMLABELCOUNTSCUM(i) = 0
                 ELSE
-                    DO t=1,(i-1)
-                        SYMLABELCOUNTSCUM(i)=SYMLABELCOUNTSCUM(i)+SYMLABELCOUNTS(2,t)
-                    ENDDO
-                ENDIF
+                    DO t = 1, (i - 1)
+                        SYMLABELCOUNTSCUM(i) = SYMLABELCOUNTSCUM(i) + SYMLABELCOUNTS(2, t)
+                    end do
+                end if
                 ! JSS: Label states of symmetry i by the order in which they come.
-                nStateIrrep=0
-                do iState=1,nBi
-                    if (SymClasses(iState).eq.i) then
-                        nStateIrrep=nStateIrrep+1
-                        StateSymMap(iState)=nStateIrrep
+                nStateIrrep = 0
+                do iState = 1, nBi
+                    if (SymClasses(iState) == i) then
+                        nStateIrrep = nStateIrrep + 1
+                        StateSymMap(iState) = nStateIrrep
                     end if
                 end do
-            enddo
+            end do
             ! The number of basis functions before the last irrep
             ! plus the number of basis functions in the last irrep
             ! (which is in basirrep on exiting the above do loop)
             ! must equal the total # of basis functions.
-            IF((SYMLABELCOUNTSCUM(Nirrep)+basirrep).ne.nBI) THEN
+            IF ((SYMLABELCOUNTSCUM(Nirrep) + basirrep) /= nBI) THEN
                 iunit = get_free_unit()
                 open(iunit, file="TMATSYMLABEL", status="unknown")
-                DO i=1,Nirrep
-                    WRITE(iunit,*) SYMLABELCOUNTSCUM(i)
-                ENDDO
-                write(iunit,*) "***************"
-                write(iunit,*) NBI
+                DO i = 1, Nirrep
+                    write(iunit, *) SYMLABELCOUNTSCUM(i)
+                end do
+                write(iunit, *) "***************"
+                write(iunit, *) NBI
                 CALL neci_flush(iunit)
                 close(iunit)
                 call stop_all(thisroutine, 'Not all basis functions found while setting up TMAT')
-            ENDIF
+            end if
             !iSize=iSize+2
             !This is to allow the index of '-1' in the array to give a zero value
             !Refer to TMatSym(-1) for when <i|h|j> is zero by symmetry.
 
-            Allocate(TMATSYM(-1:iSize),STAT=ierr)
-            Call LogMemAlloc('TMATSym',iSize+2,HElement_t_size*8,thisroutine,tagTMATSYM,ierr)
-            TMATSYM=(0.0_dp)
+            allocate(TMATSYM(-1:iSize), STAT=ierr)
+            Call LogMemAlloc('TMATSym', iSize + 2, HElement_t_size * 8, thisroutine, tagTMATSYM, ierr)
+            TMATSYM = (0.0_dp)
 
         ELSE
 
-            if(tOneElecDiag) then
+            if (tOneElecDiag) then
                 ! In the UEG, the orbitals are eigenfunctions of KE operator, so TMAT is diagonal.
-                iSize=nBasis
-                Allocate(TMAT2D(nBasis,1),STAT=ierr)
-                call LogMemAlloc('TMAT2D',nBasis,HElement_t_size*8,thisroutine,tagTMat2D)
-                TMAT2D=(0.0_dp)
+                iSize = nBasis
+                allocate(TMAT2D(nBasis, 1), STAT=ierr)
+                call LogMemAlloc('TMAT2D', nBasis, HElement_t_size * 8, thisroutine, tagTMat2D)
+                TMAT2D = (0.0_dp)
             else
                 ! Using a square array to hold <i|h|j> (incl. elements which are
                 ! zero by symmetry).
-                iSize=nBasis*nBasis
-                Allocate(TMAT2D(nBasis,nBasis),STAT=ierr)
-                call LogMemAlloc('TMAT2D',nBasis*nBasis,HElement_t_size*8,thisroutine,tagTMat2D)
-                TMAT2D=(0.0_dp)
-            endif
+                iSize = nBasis * nBasis
+                allocate(TMAT2D(nBasis, nBasis), STAT=ierr)
+                call LogMemAlloc('TMAT2D', nBasis * nBasis, HElement_t_size * 8, thisroutine, tagTMat2D)
+                TMAT2D = (0.0_dp)
+            end if
 
-        ENDIF
+        end if
 
-      END SUBROUTINE SetupTMAT
+    END SUBROUTINE SetupTMAT
 
-      subroutine SetupPropInts(nBasis)
+    subroutine SetupPropInts(nBasis)
         implicit none
         integer, intent(in) :: nBasis
-        integer :: ierr,iSize
-        character(*),parameter :: t_r = 'SetupPropertyInts'
+        integer :: ierr, iSize
+        character(*), parameter :: t_r = 'SetupPropertyInts'
 
         ! Using a square array to hold <i|h|j> (incl. elements which are
         ! zero by symmetry).
-        Allocate(OneEPropInts(nBasis,nBasis,iNumPropToEst),STAT=ierr)
-        iSize = NBasis*NBasis*iNumPropToEst
-        call LogMemAlloc('OneEPropInts',nBasis*nBasis*iNumPropToEst,HElement_t_size*8,t_r,tagOneEPropInts)
+        allocate(OneEPropInts(nBasis, nBasis, iNumPropToEst), STAT=ierr)
+        iSize = NBasis * NBasis * iNumPropToEst
+        call LogMemAlloc('OneEPropInts', nBasis * nBasis * iNumPropToEst, HElement_t_size * 8, t_r, tagOneEPropInts)
         OneEPropInts = (0.0_dp)
-        Allocate(PropCore(iNumPropToEst),STAT=ierr)
-        call LogMemAlloc('PropCore',iNumPropToEst,dp,t_r,tagPropCore)
+        allocate(PropCore(iNumPropToEst), STAT=ierr)
+        call LogMemAlloc('PropCore', iNumPropToEst, dp, t_r, tagPropCore)
         PropCore = 0.0d0
 
-      end subroutine SetupPropInts
+    end subroutine SetupPropInts
 
-      subroutine SetupPropInts2(nBasisFrz)
+    subroutine SetupPropInts2(nBasisFrz)
         implicit none
         integer, intent(in) :: nBasisFrz
-        integer :: ierr,iSize
-        character(*),parameter :: t_r = 'SetupPropertyInts2'
+        integer :: ierr, iSize
+        character(*), parameter :: t_r = 'SetupPropertyInts2'
 
         ! Using a square array to hold <i|h|j> (incl. elements which are
         ! zero by symmetry).
-        Allocate(OneEPropInts2(nBasisFrz,nBasisFrz,iNumPropToEst),STAT=ierr)
-        iSize = NBasisFrz*NBasisFrz*iNumPropToEst
-        call LogMemAlloc('OneEPropInts2',iSize,HElement_t_size*8,t_r,tagOneEPropInts2)
+        allocate(OneEPropInts2(nBasisFrz, nBasisFrz, iNumPropToEst), STAT=ierr)
+        iSize = NBasisFrz * NBasisFrz * iNumPropToEst
+        call LogMemAlloc('OneEPropInts2', iSize, HElement_t_size * 8, t_r, tagOneEPropInts2)
         OneEPropInts2 = (0.0_dp)
 
-      end subroutine SetupPropInts2
+    end subroutine SetupPropInts2
 
-      SUBROUTINE SetupTMAT2(nBASISFRZ,iSS,iSize)
+    SUBROUTINE SetupTMAT2(nBASISFRZ, iSS, iSize)
         ! In:
         !    nBasisFRZ: number of active basis functions (orbitals).
         !    iSS: ratio of nBasisFRZ to the number of active spatial orbitals.
@@ -513,145 +508,143 @@ contains
         ! storage of the <i|h|j> integrals) for post-freezing.
         ! See also notes in SetupTMat.
         IMPLICIT NONE
-        integer Nirrep,nBasisfrz,iSS,nBi,i,basirrep,t,ierr,iState,nStateIrrep
+        integer Nirrep, nBasisfrz, iSS, nBi, i, basirrep, t, ierr, iState, nStateIrrep
         integer iSize, iunit
-        character(*),parameter :: thisroutine='SetupTMAT2'
+        character(*), parameter :: thisroutine = 'SetupTMAT2'
 
         ! If this is a CPMD k-point calculation, then we're operating
         ! under Abelian symmetry: can use George's memory efficient
         ! TMAT.
-        if (tCPMD) tCPMDSymTMat=tKP
-        if (tVASP) tCPMDSymTMat=.true.
-        IF(tCPMDSymTMat) THEN
+        if (tCPMD) tCPMDSymTMat = tKP
+        if (tVASP) tCPMDSymTMat = .true.
+        IF (tCPMDSymTMat) THEN
             ! Set up info for indexing scheme (see TMatInd for full description).
-            Nirrep=NSYMLABELS
-            nBi=nBasisFRZ/iSS
-            iSize=0
+            Nirrep = NSYMLABELS
+            nBi = nBasisFRZ / iSS
+            iSize = 0
             if (associated(SymLabelIntsCum2)) then
                 deallocate(SymLabelIntsCum2)
-                call LogMemDealloc(thisroutine,tagSymLabelIntsCum2)
+                call LogMemDealloc(thisroutine, tagSymLabelIntsCum2)
             end if
             if (allocated(StateSymMap2)) then
                 deallocate(StateSymMap2)
-                call LogMemDealloc(thisroutine,tagStateSymMap2)
+                call LogMemDealloc(thisroutine, tagStateSymMap2)
             end if
             allocate(SymLabelIntsCum2(nIrrep))
-            call LogMemAlloc('SymLabelIntsCum2',nIrrep,4,thisroutine,tagSymLabelIntsCum2)
+            call LogMemAlloc('SymLabelIntsCum2', nIrrep, 4, thisroutine, tagSymLabelIntsCum2)
             allocate(SymLabelCountsCum2(nIrrep))
-            call LogMemAlloc('SymLabelCountsCum2',nIrrep,4,thisroutine,tagSymLabelCountsCum2)
+            call LogMemAlloc('SymLabelCountsCum2', nIrrep, 4, thisroutine, tagSymLabelCountsCum2)
             allocate(StateSymMap2(nBi))
-            call LogMemAlloc('StateSymMap2',nBi,4,thisroutine,tagStateSymMap2)
-            SYMLABELINTSCUM2(1:Nirrep)=0
-            SYMLABELCOUNTSCUM2(1:Nirrep)=0
+            call LogMemAlloc('StateSymMap2', nBi, 4, thisroutine, tagStateSymMap2)
+            SYMLABELINTSCUM2(1:Nirrep) = 0
+            SYMLABELCOUNTSCUM2(1:Nirrep) = 0
 
             ! Ensure no compiler warnings
-            basirrep=SYMLABELCOUNTS(2, 1)
+            basirrep = SYMLABELCOUNTS(2, 1)
 
-            do i=1,Nirrep
-            !SYMLABELCOUNTS is now mbas only for the frozen orbitals
-                basirrep=SYMLABELCOUNTS(2,i)
-                iSize=iSize+(basirrep*(basirrep+1))/2
+            do i = 1, Nirrep
+                !SYMLABELCOUNTS is now mbas only for the frozen orbitals
+                basirrep = SYMLABELCOUNTS(2, i)
+                iSize = iSize + (basirrep * (basirrep + 1)) / 2
                 ! # of integrals in this symmetry class and all preceeding
                 ! symmetry classes.
-                SYMLABELINTSCUM2(i)=iSize
+                SYMLABELINTSCUM2(i) = iSize
                 ! JSS: we no longer need SymLabelCountsCum, but it's a useful test.
                 ! SymLabelCountsCum is the cumulative total # of basis functions
                 ! in the preceeding symmetry classes.
-                IF(i.eq.1) THEN
-                    SYMLABELCOUNTSCUM2(i)=0
+                IF (i == 1) THEN
+                    SYMLABELCOUNTSCUM2(i) = 0
                 ELSE
-                    DO t=1,(i-1)
-                        SYMLABELCOUNTSCUM2(i)=SYMLABELCOUNTSCUM2(i)+SYMLABELCOUNTS(2,t)
-                    ENDDO
-                ENDIF
+                    DO t = 1, (i - 1)
+                        SYMLABELCOUNTSCUM2(i) = SYMLABELCOUNTSCUM2(i) + SYMLABELCOUNTS(2, t)
+                    end do
+                end if
 !                write(6,*) basirrep,SYMLABELINTSCUM(i),SYMLABELCOUNTSCUM(i)
 !                call neci_flush(6)
                 ! JSS: Label states of symmetry i by the order in which they come.
-                nStateIrrep=0
-                do iState=1,nBi
-                    if (SymClasses2(iState).eq.i) then
-                        nStateIrrep=nStateIrrep+1
-                        StateSymMap2(iState)=nStateIrrep
+                nStateIrrep = 0
+                do iState = 1, nBi
+                    if (SymClasses2(iState) == i) then
+                        nStateIrrep = nStateIrrep + 1
+                        StateSymMap2(iState) = nStateIrrep
                     end if
                 end do
-            enddo
-            IF((SYMLABELCOUNTSCUM2(Nirrep)+basirrep).ne.nBI) THEN
+            end do
+            IF ((SYMLABELCOUNTSCUM2(Nirrep) + basirrep) /= nBI) THEN
                 iunit = get_free_unit()
                 open(iunit, file="SYMLABELCOUNTS", status="unknown")
-                DO i=1,Nirrep
-                    WRITE(iunit,*) SYMLABELCOUNTS(2,i)
+                DO i = 1, Nirrep
+                    write(iunit, *) SYMLABELCOUNTS(2, i)
                     CALL neci_flush(iunit)
-                ENDDO
+                end do
                 call stop_all(thisroutine, 'Not all basis functions found while setting up TMAT2')
-            ENDIF
+            end if
             !iSize=iSize+2
             !This is to allow the index of '-1' in the array to give a zero value
             !Refer to TMatSym(-1) for when <i|h|j> is zero by symmetry.
 
-            Allocate(TMATSYM2(-1:iSize),STAT=ierr)
-            CALL LogMemAlloc('TMatSym2',iSize+2,HElement_t_size*8,thisroutine,tagTMATSYM2,ierr)
-            TMATSYM2=(0.0_dp)
+            allocate(TMATSYM2(-1:iSize), STAT=ierr)
+            CALL LogMemAlloc('TMatSym2', iSize + 2, HElement_t_size * 8, thisroutine, tagTMATSYM2, ierr)
+            TMATSYM2 = (0.0_dp)
 
         ELSE
 
-            if(tOneElecDiag) then
+            if (tOneElecDiag) then
                 ! In the UEG, the orbitals are eigenfunctions of KE operator, so TMAT is diagonal.
-                iSize=nBasisFRZ
-                Allocate(TMAT2D2(nBasisFRZ,1),STAT=ierr)
-                call LogMemAlloc('TMAT2D2',nBasisFRZ,HElement_t_size*8,thisroutine,tagTMat2D2)
-                TMAT2D2=(0.0_dp)
+                iSize = nBasisFRZ
+                allocate(TMAT2D2(nBasisFRZ, 1), STAT=ierr)
+                call LogMemAlloc('TMAT2D2', nBasisFRZ, HElement_t_size * 8, thisroutine, tagTMat2D2)
+                TMAT2D2 = (0.0_dp)
             else
                 ! Using a square array to hold <i|h|j> (incl. elements which are
                 ! zero by symmetry).
-                iSize=nBasisFRZ*nBasisFRZ
-                Allocate(TMAT2D2(nBasisFRZ,nBasisFRZ),STAT=ierr)
-                call LogMemAlloc('TMAT2D2',nBasisFRZ*nBasisFRZ,HElement_t_size*8,thisroutine,tagTMat2D2)
-                TMAT2D2=(0.0_dp)
-            endif
+                iSize = nBasisFRZ * nBasisFRZ
+                allocate(TMAT2D2(nBasisFRZ, nBasisFRZ), STAT=ierr)
+                call LogMemAlloc('TMAT2D2', nBasisFRZ * nBasisFRZ, HElement_t_size * 8, thisroutine, tagTMat2D2)
+                TMAT2D2 = (0.0_dp)
+            end if
 
-        ENDIF
-      END SUBROUTINE SetupTMat2
+        end if
+    END SUBROUTINE SetupTMat2
 
-
-
-      SUBROUTINE DestroyTMat(NEWTMAT)
+    SUBROUTINE DestroyTMat(NEWTMAT)
         ! In:
         !    NewTMat : if true, destroy arrays used in storing "new" (post-freezing) TMat,
         !              else destroy those used for the pre-freezing TMat.
         IMPLICIT NONE
         LOGICAL :: NEWTMAT
-        character(len=*), parameter :: thisroutine='DestroyTMat'
+        character(len=*), parameter :: thisroutine = 'DestroyTMat'
 
-        IF(NEWTMAT) THEN
-            IF(ASSOCIATED(TMAT2D2)) THEN
-                call LogMemDealloc(thisroutine,tagTMat2D2)
+        IF (NEWTMAT) THEN
+            IF (ASSOCIATED(TMAT2D2)) THEN
+                call LogMemDealloc(thisroutine, tagTMat2D2)
                 Deallocate(TMAT2D2)
-                NULLIFY(TMAT2D2)
-            ENDIF
+                NULLIFY (TMAT2D2)
+            end if
         ELSE
-            IF(ASSOCIATED(TMAT2D)) THEN
+            IF (ASSOCIATED(TMAT2D)) THEN
                 Deallocate(TMAT2D)
-                call LogMemDealloc(thisroutine,tagTMat2D)
-                NULLIFY(TMAT2D)
-            ENDIF
-        ENDIF
-      END SUBROUTINE DestroyTMat
+                call LogMemDealloc(thisroutine, tagTMat2D)
+                NULLIFY (TMAT2D)
+            end if
+        end if
+    END SUBROUTINE DestroyTMat
 
-      SUBROUTINE DestroyPropInts()
+    SUBROUTINE DestroyPropInts()
         implicit none
-        character(*),parameter :: t_r = 'DestroyPropInts'
+        character(*), parameter :: t_r = 'DestroyPropInts'
 
         Deallocate(OneEPropInts)
-        call LogMemDealloc(t_r,tagOneEPropInts)
+        call LogMemDealloc(t_r, tagOneEPropInts)
         if (associated(OneEPropInts2)) then
-            call LogMemDealloc(t_r,tagOneEPropInts2)
+            call LogMemDealloc(t_r, tagOneEPropInts2)
             Deallocate(OneEPropInts2)
         end if
         Deallocate(PropCore)
 
-      END SUBROUTINE DestroyPropInts
+    END SUBROUTINE DestroyPropInts
 
-      SUBROUTINE SwapTMat()
+    SUBROUTINE SwapTMat()
         ! In:
         !    nBasis: the number of active orbitals post-freezing.
         !    NHG: the number of orbitals used initially (pre-freezing).
@@ -662,15 +655,15 @@ contains
         ! arrays and point them to the post-freezing arrays, so the code
         ! referencing pre-freezing arrays can be used post-freezing.
         IMPLICIT NONE
-        character(*),parameter :: this_routine='SwapTMat'
+        character(*), parameter :: this_routine = 'SwapTMat'
 
         ! Deallocate TMAT & reallocate with right size
         CALL DestroyTMAT(.false.)
         TMAT2D => TMAT2D2
-        NULLIFY(TMAT2D2)
-      END SUBROUTINE SwapTMat
+        NULLIFY (TMAT2D2)
+    END SUBROUTINE SwapTMat
 
-      SUBROUTINE SwapOneEPropInts(nBasisFrz,iNum)
+    SUBROUTINE SwapOneEPropInts(nBasisFrz, iNum)
 
         ! IN: iNum is the number of perturbation operator used in the calculation
         ! During freezing, we need to know the OneEPropInts arrays both pre- and
@@ -678,22 +671,22 @@ contains
         ! arrays and point them to the post-freezing arrays, so the code
         ! referencing pre-freezing arrays can be used post-freezing.
         implicit none
-        integer, intent(in) :: nBasisFrz,iNum
+        integer, intent(in) :: nBasisFrz, iNum
         integer :: iSize, ierr
-        character(*),parameter :: t_r = 'SwapOneEPropInts'
+        character(*), parameter :: t_r = 'SwapOneEPropInts'
 
         Deallocate(OneEPropInts)
-        call LogMemDealloc(t_r,tagOneEPropInts)
-        NULLIFY(OneEPropInts)
+        call LogMemDealloc(t_r, tagOneEPropInts)
+        NULLIFY (OneEPropInts)
 
-        Allocate(OneEPropInts(nBasisFrz,nBasisFrz,iNum),STAT=ierr)
-        iSize = nBasisFrz*nBasisFrz*iNum
-        call LogMemAlloc('OneEPropInts',iSize,HElement_t_size*8,t_r,tagOneEPropInts)
+        allocate(OneEPropInts(nBasisFrz, nBasisFrz, iNum), STAT=ierr)
+        iSize = nBasisFrz * nBasisFrz * iNum
+        call LogMemAlloc('OneEPropInts', iSize, HElement_t_size * 8, t_r, tagOneEPropInts)
 
         OneEPropInts => OneEPropInts2
 
-        NULLIFY(OneEPropInts2)
+        NULLIFY (OneEPropInts2)
 
-      END SUBROUTINE SwapOneEPropInts
+    END SUBROUTINE SwapOneEPropInts
 
 end module OneEInts

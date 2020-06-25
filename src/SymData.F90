@@ -19,22 +19,22 @@ module SymData
     type SymPairProd
         type(Symmetry) :: Sym    ! The symmetry of a set of pairs.
         integer :: nPairs        ! The number of pairs where the direct
-                                 ! product of the syms of the orbs in the
-                                 ! pair is Sym.
+        ! product of the syms of the orbs in the
+        ! pair is Sym.
         integer :: nIndex        ! The index of the first of these pairs in
-                                 ! the complete list of pairs (SymStatePairs).
+        ! the complete list of pairs (SymStatePairs).
         integer :: nPairsStateSS ! For abelian, SymPairProds actually holds
-                                 ! info on pairs of sym classes not individual
-                                 ! states. This is the number of pairs of
-                                 ! states which could be generated.
-                                 ! This is if the states have the same spin.
+        ! info on pairs of sym classes not individual
+        ! states. This is the number of pairs of
+        ! states which could be generated.
+        ! This is if the states have the same spin.
         integer :: nPairsStateOS ! For abelian, SymPairProds actually holds
-                                 ! info on pairs of sym classes not individual
-                                 ! states. This is the number of pairs of
-                                 ! states which could be generated.
-                                 ! This is if the states have opposite spin.
+        ! info on pairs of sym classes not individual
+        ! states. This is the number of pairs of
+        ! states which could be generated.
+        ! This is if the states have opposite spin.
     end type
-    integer, parameter :: SymPairProdSize=SymmetrySize+4
+    integer, parameter :: SymPairProdSize = SymmetrySize + 4
     interface assignment(=)
         module procedure SymPairAssign
     end interface
@@ -56,13 +56,13 @@ module SymData
     TYPE SymClass
         sequence
         TYPE(Symmetry) SymRem    ! The symmetry remaining from the determinant we excite from when one orbital
-                                 !from this symmetry is removed
-        INTEGER        SymLab    ! The symmetry label (i.e. from SymClasses) corresponding to the symmetry of
-                                 !the orbital being removed.
-        INTEGER        spacer    ! The spacer is there to make sure we have a structure which is a multiple
-                                 !of 8-bytes for 64-bit machines.
+        !from this symmetry is removed
+        INTEGER SymLab    ! The symmetry label (i.e. from SymClasses) corresponding to the symmetry of
+        !the orbital being removed.
+        INTEGER spacer    ! The spacer is there to make sure we have a structure which is a multiple
+        !of 8-bytes for 64-bit machines.
     ENDTYPE
-    INTEGER, PARAMETER :: SymClassSize=2+SymmetrySize
+    INTEGER, PARAMETER :: SymClassSize = 2 + SymmetrySize
 
     !  The resultant symmetry of any frozen orbitals
     TYPE(BasisFN) :: FrozenSym
@@ -91,14 +91,14 @@ module SymData
     ! supercell dimension)
     INTEGER :: Nprop(3)
     ! and the k-vectors in the dimensions of the symmetry supercell
-    INTEGER, ALLOCATABLE :: KPntSym(:,:) ! size=3,nKP
+    INTEGER, ALLOCATABLE :: KPntSym(:, :) ! size=3,nKP
     ! and the number of bits each property takes up.
     INTEGER :: PropBitLen
 
     ! The symmetry conjugate of each symmetry (i.e. its index in the list of irreps)
     INTEGER, ALLOCATABLE :: SymConjTab(:) ! length=nSym
 
-    TYPE(Symmetry), ALLOCATABLE :: SYMTABLE(:,:) ! size=NSYM,NSYM
+    TYPE(Symmetry), ALLOCATABLE :: SYMTABLE(:, :) ! size=NSYM,NSYM
 
     ! SYMREPS is used to group together degenerate sets of orbitals of the same
     ! sym (e.g. the six orbitals which might make up a T2g set), and is used
@@ -111,14 +111,14 @@ module SymData
     !     SYMREPS(1,IBASISFN) contains the numnber of the representation
     !                         of which IBASISFN is a part.
     !     SYMPREPS(2,IREP) contains the degeneracy of the rep IREP
-    INTEGER, ALLOCATABLE :: SYMREPS(:,:) ! size=2,
+    INTEGER, ALLOCATABLE :: SYMREPS(:, :) ! size=2,
 
     ! The total number of symmetry labels is NSYMLABELS
     INTEGER :: NSYMLABELS
     ! The symmetry bit string, decomposing the sym label into its component
     ! irreps is in SYMLABELS(ISYMLABEL).
     Type(Symmetry), ALLOCATABLE :: SYMLABELS(:)
-    INTEGER, ALLOCATABLE ::  StateSymMap(:),StateSymMap2(:)
+    INTEGER, ALLOCATABLE ::  StateSymMap(:), StateSymMap2(:)
     ! SymClasses is used to classify all states which transform with the same
     ! symmetry for the excitation generation routines.
     ! Each state's symmetry falls into a class ISYMLABEL=SymClasses(ISTATE).
@@ -126,7 +126,7 @@ module SymData
     INTEGER, POINTER ::  SymClasses2(:)
     ! The characters of this class are stored in
     ! SYMLABELCHARS(1:NROT, SymClasses(ISTATE)).
-    complex(dp), ALLOCATABLE ::  SYMLABELCHARS(:,:) ! size=NROT,NSYMLABELS
+    complex(dp), ALLOCATABLE ::  SYMLABELCHARS(:, :) ! size=NROT,NSYMLABELS
 
     !.. SYMLABELLIST holds a list of states grouped under symmlabel
     INTEGER, ALLOCATABLE ::  SYMLABELLIST(:)
@@ -136,7 +136,7 @@ module SymData
     ! SYMLABELCOUNTS(2,I) is the number of states with symlabel I
     ! SYMLABELCOUNTSCUM(I) is the cumulative number of states with symlabel I
     ! SYMLABELINTSCUM(I) is the cumulative number of one-electron integrals with symlabel I
-    INTEGER, ALLOCATABLE ::  SYMLABELCOUNTS(:,:) ! size=2,
+    INTEGER, ALLOCATABLE ::  SYMLABELCOUNTS(:, :) ! size=2,
     INTEGER, POINTER ::  SYMLABELCOUNTSCUM(:)
     INTEGER, POINTER ::  SYMLABELINTSCUM(:)
 
@@ -154,7 +154,7 @@ module SymData
     INTEGER :: NROT
     ! All symmetries are decomposable into component irreps.
     ! The characters corresponding to each irrep are in IRREPCHARS
-    complex(dp), ALLOCATABLE ::  IRREPCHARS(:,:) ! size=NROT,NSYM
+    complex(dp), ALLOCATABLE ::  IRREPCHARS(:, :) ! size=NROT,NSYM
 
     ! SYMPAIRPRODS(1:NSYMPAIRPRODS) contains the list of all SYMPRODs
     ! available, the number of pairs of states (listed in SymStatePairs), and
@@ -164,11 +164,10 @@ module SymData
     ! For a given (unique) SymPairProds(J)%Sym, I=SymPairProds(J)%Index.
     ! [ SymStatePairs(1,I) , SymStatePairs(2,I) ] is the pair of states whose
     ! prod is of that symmetry.
-    INTEGER, ALLOCATABLE ::  SymStatePairs(:,:) ! shape=2,0:*
-
+    INTEGER, ALLOCATABLE ::  SymStatePairs(:, :) ! shape=2,0:*
 
     LOGICAL TAbelian  ! TAbelian for Abelian point groups (specifically k-point
-                      ! symmetry).
+    ! symmetry).
 
     LOGICAL tAbelianFastExcitGen
     ! tAbelianFastExcitGen is a temporary flag.
@@ -197,10 +196,10 @@ module SymData
     INTEGER(TagIntType) :: tagIRREPCHARS
     INTEGER(TagIntType) :: tagSymStatePairs
     INTEGER(TagIntType) :: tagSymPairProds
-    integer(TagIntType) :: tagSymIndex=0, tagSymIndex2=0
+    integer(TagIntType) :: tagSymIndex = 0, tagSymIndex2 = 0
 
 contains
-    elemental subroutine SymPairAssign (lhs, rhs)
+    elemental subroutine SymPairAssign(lhs, rhs)
         type(SymPairProd), intent(out) :: lhs
         type(SymPairProd), intent(in) :: rhs
         lhs%Sym = rhs%Sym
@@ -209,7 +208,7 @@ contains
         lhs%nPairsStateSS = rhs%nPairsStateSS
         lhs%nPairsStateOS = rhs%nPairsStateOS
     end subroutine
-    elemental logical function SymPairEq (a, b)
+    elemental logical function SymPairEq(a, b)
         type(SymPairProd), intent(in) :: a, b
         if (a%Sym /= b%Sym .or. a%nPairs /= a%nPairs .or. &
             a%nIndex /= b%nIndex .or. a%nPairsStateSS /= b%nPairsStateSS &
@@ -217,9 +216,9 @@ contains
             SymPairEq = .false.
         else
             SymPairEq = .true.
-        endif
+        end if
     end function
-    elemental logical function SymPairNEq (a, b)
+    elemental logical function SymPairNEq(a, b)
         type(SymPairProd), intent(in) :: a, b
         if (a%Sym /= b%Sym .or. a%nPairs /= a%nPairs .or. &
             a%nIndex /= b%nIndex .or. a%nPairsStateSS /= b%nPairsStateSS &
@@ -227,9 +226,9 @@ contains
             SymPairNEq = .true.
         else
             SymPairNEq = .false.
-        endif
+        end if
     end function
-    elemental function SymPairGt (a, b) result (bGt)
+    elemental function SymPairGt(a, b) result(bGt)
         ! Compare the first differing term in a,b. TRUE if the term in a is >.
         type(SymPairProd), intent(in) :: a, b
         logical :: bGt
@@ -241,18 +240,18 @@ contains
                         if (a%nPairsStateOS > b%nPairsStateOS) bGt = .true.
                     else
                         if (a%nPairsStateSS > b%nPairsStateSS) bGt = .true.
-                    endif
+                    end if
                 else
                     if (a%nIndex > b%nIndex) bGt = .true.
-                endif
+                end if
             else
                 if (a%nPairs > b%nPairs) bGt = .true.
-            endif
+            end if
         else
             if (a%Sym > b%Sym) bGt = .true.
-        endif
+        end if
     end function
-    elemental function SymPairLt (a, b) result (bLt)
+    elemental function SymPairLt(a, b) result(bLt)
         ! Compare the first differing term in a,b. TRUE if the term in a is <.
         type(SymPairProd), intent(in) :: a, b
         logical :: bLt
@@ -264,16 +263,16 @@ contains
                         if (a%nPairsStateOS < b%nPairsStateOS) bLt = .true.
                     else
                         if (a%nPairsStateSS < b%nPairsStateSS) bLt = .true.
-                    endif
+                    end if
                 else
                     if (a%nIndex < b%nIndex) bLt = .true.
-                endif
+                end if
             else
                 if (a%nPairs < b%nPairs) bLt = .true.
-            endif
+            end if
         else
             if (a%Sym < b%Sym) bLt = .true.
-        endif
+        end if
     end function
 
 end module SymData
