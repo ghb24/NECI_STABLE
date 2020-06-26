@@ -3,8 +3,7 @@
 module DeterminantData
     use bit_rep_data, only: NIfTot
     use constants
-    use SystemData, only: nel, tCSF, nbasis
-    use csf_data, only: iscsf, csf_orbital_mask, csf_yama_bit
+    use SystemData, only: nel, nbasis
     use MemoryManager, only: TagIntType
     implicit none
 
@@ -45,40 +44,14 @@ contains
         integer, intent(in) :: nunit, nlen, nI(nlen)
         logical, intent(in) :: lTerm
         integer :: i, elec
-        logical open_shell, bCSF
-
-        bCSF = .false.
-        if(nlen > 0) then
-           ! Is this a csf?
-           bCSF = tCSF .and. iscsf(nI)
-           open_shell = .false.
-        endif
 
         ! Start with a bracket, and loop over all the electrons
         write(nunit,'("(")',advance='no')
         do i=1,nlen
-            ! If this is a csf, extract the orbital number, and test
-            ! if we have passed all the closed shell electrons
-            if (bCSF) then
-                if ((.not.open_shell) .and. &
-                    btest(nI(i), csf_yama_bit)) open_shell = .true.
+            elec = nI(i)
 
-                elec = iand(nI(i), csf_orbital_mask)
-            else
-                elec = nI(i)
-            endif
-
-            ! Write out the orbital number, and +/- for open shell csf e-
-            if (open_shell) then
-                write(nunit,'(i4)',advance='no') elec
-                if (btest(nI(i), csf_yama_bit)) then
-                    write(nunit,'("+")',advance='no')
-                else
-                    write(nunit,'("-")',advance='no')
-                endif
-            else
-                write(nunit,'(i5)',advance='no') elec
-            endif
+            ! Write out the orbital number
+            write(nunit,'(i5)',advance='no') elec
             if (i /= nlen) write(nunit,'(",")',advance='no')
         enddo
 

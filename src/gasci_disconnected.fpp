@@ -440,7 +440,7 @@ contains
 
         associate (src1 => exc%val(1, 1), tgt1 => exc%val(2, 1), &
                    src2 => exc%val(1, 2), tgt2 => exc%val(2, 2))
-            if (tgt1 /= tgt2 .and. all(tgt2 /= nI)) then
+            if (tgt1 /= tgt2 .and. all(tgt1 /= nI) .and. all(tgt2 /= nI)) then
                 res = abs(sltcnd_excit(nI, exc, .false.))
             else
                 res = 0.0_dp
@@ -520,8 +520,7 @@ contains
         end if
         ! adjust pgen
         pgen = 1.0_dp / real(nEmpty, dp)
-        ! TODO: check if there are enough empty orbs
-        ! Re: We can safely assume there is always an empty orb in each active space
+        ! We can safely assume there is always an empty orb in each active space
 
         ! index of the target orb
         nOrb = int(r * nEmpty) + 1

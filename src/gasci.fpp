@@ -8,7 +8,7 @@ module gasci
 
     private
     public :: operator(==), operator(/=), possible_GAS_exc_gen, &
-        GAS_exc_gen, GAS_specification, GASSpec_t
+        GAS_exc_gen, GAS_specification, GASSpec_t, user_input_GAS_exc_gen
 
 
     type :: GAS_exc_gen_t
@@ -24,6 +24,7 @@ module gasci
     type(possible_GAS_exc_gen_t), parameter :: possible_GAS_exc_gen = possible_GAS_exc_gen_t()
 
     type(GAS_exc_gen_t) :: GAS_exc_gen = possible_GAS_exc_gen%GENERAL
+    type(GAS_exc_gen_t), allocatable :: user_input_GAS_exc_gen
 
     interface operator(==)
         module procedure eq_GAS_exc_gen_t

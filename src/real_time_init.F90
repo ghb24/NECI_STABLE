@@ -62,7 +62,7 @@ module real_time_init
     use LoggingData, only: tZeroProjE, tFCIMCStats2
     use fcimc_output, only: write_fcimcstats2, WriteFciMCStatsHeader
     use replica_data, only: allocate_iter_data, set_initial_global_data
-    use bit_rep_data, only: nifbcast, niftot, extract_sign, nifdbo
+    use bit_rep_data, only: IlutBits, niftot, extract_sign, nifd
     use bit_reps, only: decode_bit_det
     use adi_references, only: setup_reference_space
 
@@ -249,8 +249,8 @@ contains
 
         ! also intitialize the 2nd spawning array to deal with the
         ! diagonal death step in the 2nd rt-fciqmc loop
-        allocate(DiagVec(0:nifbcast, MaxWalkersPart), stat = ierr)
-        call LogMemAlloc('DiagVec',MaxWalkersPart*(1+nifbcast),size_n_int,&
+        allocate(DiagVec(0:IlutBits%len_bcast, MaxWalkersPart), stat = ierr)
+        call LogMemAlloc('DiagVec',MaxWalkersPart*(1+IlutBits%len_bcast),size_n_int,&
              this_routine,DiagVecTag,ierr)
 
         DiagVec = 0
@@ -537,7 +537,7 @@ contains
         implicit none
 
         integer :: iunit, popsversion, iPopLenof_Sign, iPopNel, iPopIter, &
-                   PopNIfD, PopNIfY, PopNIfSgn, PopNIfFlag, PopNIfTot, &
+                   PopNIfD, PopNIfSgn, PopNIfFlag, PopNIfTot, &
                    PopBlockingIter, Popinum_runs, PopRandomHash(2056), &
                    read_nnodes, PopBalanceBlocks
         logical :: formpops, binpops, tPop64Bit, tPopHPHF, tPopLz
@@ -560,7 +560,7 @@ contains
             end if
             call ReadPopsHeadv4(iunit,tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
                 iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter,   &
-                PopNIfD,PopNIfY,PopNIfSgn,Popinum_runs, PopNIfFlag,PopNIfTot, &
+                PopNIfD,PopNIfSgn,Popinum_runs, PopNIfFlag,PopNIfTot, &
                 read_tau,PopBlockingIter, PopRandomHash, read_psingles, &
                 read_pparallel, unused_triples, read_nnodes, read_walkers_on_nodes, PopBalanceBlocks)
 
@@ -588,7 +588,7 @@ contains
       implicit none
 
         integer :: iunit, popsversion, iPopLenof_Sign, iPopNel, iPopIter, &
-                   PopNIfD, PopNIfY, PopNIfSgn, PopNIfFlag, PopNIfTot, &
+                   PopNIfD, PopNIfSgn, PopNIfFlag, PopNIfTot, &
                    PopBlockingIter, Popinum_runs, PopRandomHash(2056), &
                    read_nnodes, PopBalanceBlocks
         logical :: formpops, binpops, tPop64Bit, tPopHPHF, tPopLz
@@ -621,7 +621,7 @@ contains
 
         call ReadPopsHeadv4(iunit,tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
              iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter,   &
-             PopNIfD,PopNIfY,PopNIfSgn,Popinum_runs, PopNIfFlag,PopNIfTot, &
+             PopNIfD,PopNIfSgn,Popinum_runs, PopNIfFlag,PopNIfTot, &
              read_tau,PopBlockingIter, PopRandomHash, read_psingles, &
              read_pparallel, unused_triples, read_nnodes, read_walkers_on_nodes, PopBalanceBlocks)
 
@@ -878,7 +878,7 @@ contains
          if(.not. check_determ_flag(CurrentDets(:,i))) then
             call nullify_ilut(CurrentDets(:,i))
             call decode_bit_det(nI,CurrentDets(:,i))
-            call hash_table_lookup(nI,CurrentDets(:,i),nifdbo,HashIndex,CurrentDets,&
+            call hash_table_lookup(nI,CurrentDets(:,i),nifd,HashIndex,CurrentDets,&
                  PartInd,DetHash,tSuccess)
             if(tSuccess) call remove_hash_table_entry(HashIndex,nI,PartInd)
          endif
@@ -900,7 +900,7 @@ contains
          ! For each gf, truncate the corresponding overlap state
          do i = 1, overlap_states(iGf)%ndets
             call decode_bit_det(nI,overlap_states(iGf)%dets(:,i))
-            call hash_table_lookup(nI,overlap_states(iGf)%dets(:,i),nifdbo,HashIndex,&
+            call hash_table_lookup(nI,overlap_states(iGf)%dets(:,i),nifd,HashIndex,&
                  CurrentDets,PartInd,DetHash,tSuccess)
             if(tSuccess) then
                ! In principle, there are no non-core determinants left when this
@@ -933,7 +933,7 @@ contains
       ! always be the case in the initialization
       associate( rep => cs_replicas(core_run))
       call decode_bit_det(nI,rep%core_space(:,i))
-      call hash_table_lookup(nI,rep%core_space(:,i),nifdbo,HashIndex,CurrentDets,PartInd,&
+      call hash_table_lookup(nI,rep%core_space(:,i),nifd,HashIndex,CurrentDets,PartInd,&
            DetHash, tSuccess)
       if(tSuccess) then
          ! And then we set the deterministic flag

@@ -175,9 +175,38 @@ MODULE ReadInput_neci
             WRITE (6,*) 'Problem reading input file ',TRIM(cFilename)
             call stop_all('ReadInputMain','Input error.')
         END IF
-        call checkinput()
+        call sanitize_input()
         RETURN
     END SUBROUTINE ReadInputMain
+
+
+    subroutine sanitize_input()
+        call evaluate_depending_keywords()
+        call checkinput()
+    end subroutine
+
+
+    !> @brief
+    !>   Certain keywords are optional and/or depend on others.
+    !>   Evaluate this dependency here.
+    subroutine evaluate_depending_keywords()
+        use SystemData, only: tGAS
+        use gasci, only: GAS_specification, GAS_exc_gen, &
+            possible_GAS_exc_gen, user_input_GAS_exc_gen
+        character(*), parameter :: this_routine = 'evaluate_depending_keywords'
+
+        if (tGAS) then
+            if (allocated(user_input_GAS_exc_gen)) then
+                GAS_exc_gen = user_input_GAS_exc_gen
+            else
+                if (GAS_specification%is_connected()) then
+                    GAS_exc_gen = possible_GAS_exc_gen%GENERAL
+                else
+                    GAS_exc_gen = possible_GAS_exc_gen%DISCONNECTED
+                end if
+            end if
+        end if
+    end subroutine
 
 
 
@@ -187,13 +216,12 @@ MODULE ReadInput_neci
 
         use SystemData, only: nel, tUseBrillouin, beta, tFixLz, &
                               tFindCINatOrbs, tNoRenormRandExcits, LMS, STOT,&
-                              tCSF, tSpn, tUHF, tGenHelWeighted, tHPHF, &
+                              tSpn, tUHF, tGenHelWeighted, tHPHF, &
                               tGen_4ind_weighted, tGen_4ind_reverse, &
                               tMultiReplicas, tGen_4ind_part_exact, &
                               tGUGA, tgen_guga_weighted, &
                               tGen_4ind_lin_exact, tGen_4ind_2, tGAS, tGASSpinRecoupling, &
-                              tComplexOrbs_RealInts, tLatticeGens, tHistSpinDist
-
+                              tComplexOrbs_RealInts, tLatticeGens
         use CalcData, only: I_VMAX, NPATHS, G_VMC_EXCITWEIGHT, &
                             G_VMC_EXCITWEIGHTS, EXCITFUNCS, TMCDIRECTSUM, &
                             TDIAGNODES, TSTARSTARS, TBiasing, TMoveDets, &
@@ -206,8 +234,8 @@ MODULE ReadInput_neci
                             tAllRealCoeff, tUseRealCoeffs, tChangeProjEDet, &
                             tOrthogonaliseReplicas, tReadPops, tStartMP1, &
                             tStartCAS, tUniqueHFNode, tContTimeFCIMC, &
-                            tContTimeFull, tFCIMC, tPreCond, tOrthogonaliseReplicas, tMultipleInitialStates, tSpinProject, &
-                            pgen_unit_test_spec
+                            tContTimeFull, tFCIMC, tPreCond, tOrthogonaliseReplicas, &
+                            tMultipleInitialStates, pgen_unit_test_spec
         use Calc, only : RDMsamplingiters_in_inp
         Use Determinants, only: SpecDet, tagSpecDet, tDefinedet
         use IntegralsData, only: nFrozen, tDiscoNodes, tQuadValMax, &
@@ -228,7 +256,6 @@ MODULE ReadInput_neci
         use input_neci
         use constants
         use global_utilities
-        use spin_project, only: spin_proj_nopen_max
         use FciMCData, only: nWalkerHashes, HashLengthFrac, InputDiagSft, t_global_core_space
         use hist_data, only: tHistSpawn
         use Parallel_neci, only: nNodes,nProcessors
@@ -376,17 +403,17 @@ MODULE ReadInput_neci
         if(tMultipleInitialStates .or. tOrthogonaliseReplicas .or. &
              tPreCond) then
            if (tHistSpawn .or. &
-                (tCalcFCIMCPsi .and. tFCIMC) .or. tHistEnergies .or. &
-                tHistSpinDist .or. tPrintOrbOcc) &
+                (tCalcFCIMCPsi .and. tFCIMC) .or. tHistEnergies .or. tPrintOrbOcc) then
                 call report("HistSpawn and PrintOrbOcc not yet supported for multi-replica with different references"&
                 ,.true.)
-       endif
+           end if
+        endif
 
-       if(.not. t_global_core_space) then
-           if(t_real_time_fciqmc) call report("Real-time FCIQMC requires a global core space")
-           if(tKP_FCIQMC) call report("KP-FCIQMC requires a global core space")
-           if(tReplicaEstimates) call report("Replica estimates require a global core space")
-       end if
+        if(.not. t_global_core_space) then
+            if(t_real_time_fciqmc) call report("Real-time FCIQMC requires a global core space")
+            if(tKP_FCIQMC) call report("KP-FCIQMC requires a global core space")
+            if(tReplicaEstimates) call report("Replica estimates require a global core space")
+        end if
 
         !.. We still need a specdet space even if we don't have a specdet.
         if (.not. associated(SPECDET)) then
@@ -429,24 +456,6 @@ MODULE ReadInput_neci
            LMS = -mod(nel,2)
         endif
 
-        ! Check details for spin projection
-        if (tSpinProject) then
-            if (tCSF) &
-                call stop_all (t_r, "Spin projection must not be used with &
-                                    &CSFs")
-
-            if (.not. tSpn) &
-                call stop_all (t_r, "SPIN-RESTRICT must be used with SPIN-&
-                                    &PROJECT to set the value of S, Ms")
-
-            ! Unless specified, apply spin projection to ALL determinants.
-            if (spin_proj_nopen_max == -1) &
-                spin_proj_nopen_max = nel
-
-            ! Set the value of STOT as required
-            STOT = LMS
-        endif
-
         if (tCalcInstantS2 .or. tCalcInstantS2Init) then
             if (tUHF) &
                 call stop_all (t_r, 'Cannot calculate instantaneous values of&
@@ -477,9 +486,6 @@ MODULE ReadInput_neci
             ! We want to use UMAT2D...
             tDeferred_Umat2d = .true.
 
-            if (tCSF) &
-                call stop_all (t_r, 'Integral weighted excitation generators &
-                              &not yet implemented with these keywords')
         end if
 
         if (tHPHF .and. tUHF) then
@@ -612,7 +618,6 @@ MODULE ReadInput_neci
               call stop_all(t_r, "Invalid excitation options")
            end if
         end if
-
 
         if (tGAS) then
             if(.not. tDefineDet) then

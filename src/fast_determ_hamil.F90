@@ -2,7 +2,7 @@
 
 module fast_determ_hamil
 
-    use bit_rep_data, only: NIfTot, NIfDBO, NIfD
+    use bit_rep_data, only: NIfTot, NIfD
     use bit_reps, only: decode_bit_det
     use constants
     use DetBitOps, only: CountBits, TestClosedShellDet, CalcOpenOrbs
@@ -101,7 +101,7 @@ contains
         type(buffer_hel_t) :: hamil_row
         type(buffer_int32_t) :: hamil_pos
         ! End shared resources
-        
+
         character(len=*), parameter :: t_r = "calc_determ_hamil_opt_hphf"
 
         call shared_allocate_mpi(beta_list_win, beta_list_ptr, &
@@ -132,7 +132,7 @@ contains
             nalpha = 0
             ! The number of occurences per different string
             nalpha_dets%ptr = 0
-            nbeta_dets%ptr = 0            
+            nbeta_dets%ptr = 0
             ! The number of alpha strings with nel-1 electrons among the dets
             nbeta_m1 = 0
             nalpha_m1 = 0
@@ -310,7 +310,7 @@ contains
         call nbeta_dets%sync()
         call nalpha_dets%sync()
         call cs%sync()
-        
+
         ! Allocate the shared resource used
         call beta_dets%shared_alloc(nbeta_dets%ptr(1:nbeta_unpaired))
         call alpha_dets%shared_alloc(nalpha_dets%ptr(1:nalpha_unpaired))
@@ -438,7 +438,7 @@ contains
         call nbeta_beta%sync()
         call beta_beta%shared_alloc(nbeta_beta%ptr(1:nbeta))
         ! Wait until allocation is complete before overwriting nbeta_beta
-        call MPI_Barrier(mpi_comm_intra, ierr)                
+        call MPI_Barrier(mpi_comm_intra, ierr)
 
         if(iProcIndex_intra == 0) then
             ! Rezero this so that we can use it as a counter for the following
@@ -475,7 +475,7 @@ contains
         call nalpha_alpha%sync()
         call alpha_alpha%shared_alloc(nalpha_alpha%ptr(1:nalpha))
         ! Wait until allocation is complete before overwriting nalpha_alpha
-        call MPI_Barrier(mpi_comm_intra, ierr)                        
+        call MPI_Barrier(mpi_comm_intra, ierr)
 
         if(iProcIndex_intra == 0) then
             ! Rezero this so that we can use it as a counter for the following
@@ -524,12 +524,12 @@ contains
             end block
 
             call halt_timer(sort_aux_time)
-            write(6,'("Time to sort auxiliary arrays:", f9.3)') get_total_time(sort_aux_time); call neci_flush(6)                   
+            write(6,'("Time to sort auxiliary arrays:", f9.3)') get_total_time(sort_aux_time); call neci_flush(6)
         endif
 
         ! On procs which are not node-root, we need to reassign the internal pointers
         ! after sorting
-        call MPI_Barrier(mpi_comm_intra, ierr)        
+        call MPI_Barrier(mpi_comm_intra, ierr)
         call beta_beta%reassign_pointers()
         call alpha_alpha%reassign_pointers()
         call beta_with_alpha%reassign_pointers()
@@ -571,9 +571,9 @@ contains
         call MPI_Win_Sync(beta_list_win, ierr)
         call MPI_Win_Sync(alpha_list_win, ierr)
         call MPI_Barrier(mpi_comm_intra, ierr)
-        ! Create the node shared read-only hashtables        
+        ! Create the node shared read-only hashtables
         call initialise_shared_rht(beta_list, nbeta, beta_rht, nOccBeta, hash_size_1)
-        call initialise_shared_rht(alpha_list, nalpha, alpha_rht, nOccAlpha, hash_size_1)        
+        call initialise_shared_rht(alpha_list, nalpha, alpha_rht, nOccAlpha, hash_size_1)
 
         ! Actually create the Hamiltonian
         call set_timer(ham_time)
@@ -582,7 +582,7 @@ contains
 
         call hamil_row%init(int(rep%determ_sizes(iProcIndex),int64))
         call hamil_pos%init(int(rep%determ_sizes(iProcIndex),int64))
-        
+
         allocate(rep%sparse_core_ham(rep%determ_sizes(iProcIndex)), stat=ierr)
         allocate(rep%core_ham_diag(rep%determ_sizes(iProcIndex)), stat=ierr)
 
@@ -669,7 +669,7 @@ contains
                                 call hamil_row%add_val(hel)
                             end if
                         end if
-                        
+
                     end do
                 end if
             end if
@@ -790,7 +790,7 @@ contains
                             hel = hphf_off_diag_special_case(nI_paired, ilut_paired, rep%core_space(:,ind_k), 2, OpenOrbsI)
                             if (abs(hel) > 0.0_dp) then
                                 call hamil_pos%add_val(ind_k)
-                                call hamil_row%add_val(hel)                            
+                                call hamil_row%add_val(hel)
                             end if
 
                         end do
@@ -823,13 +823,6 @@ contains
         ! Optional: sort the Hamiltonian? This could speed up subsequent
         ! multiplications, as we don't jump about in memory so much
         call set_timer(sort_ham_time)
-        !do i = 1, rep%determ_sizes(iProcIndex)
-        !    call sort(sparse_core_ham(i)%positions, sparse_core_ham(i)%elements)
-        !    write(6,*) "i:", i
-        !    do j = 1, sparse_core_ham(i)%num_elements
-        !        write(6,*) "pos:", sparse_core_ham(i)%positions(j), "elem:", sparse_core_ham(i)%elements(j)
-        !    end do
-        !end do
         call halt_timer(sort_ham_time)
         !write(6,'("Time to sort the Hamiltonian:", f9.3)') get_total_time(sort_ham_time); call neci_flush(6)
 
@@ -855,7 +848,7 @@ contains
         call beta_with_alpha%shared_dealloc()
         call nbeta_beta%shared_dealloc()
         call nalpha_alpha%shared_dealloc()
-        
+
         deallocate(intersec_inds)
         call hamil_row%finalize()
         call hamil_pos%finalize()
@@ -883,7 +876,7 @@ contains
         integer(n_int) :: alpha_ilut(0:NIfTot), alpha_m1_ilut(0:NIfTot), beta_ilut(0:NIfTot), beta_m1_ilut(0:NIfTot)
         integer(n_int) :: beta_ilut_1(0:NIfD), beta_ilut_2(0:NIfD)
         integer(n_int), allocatable :: alpha_m1_list(:,:), beta_m1_list(:,:)
-        
+
         integer :: nI_alpha(nOccAlpha), nI_alpha_m1(nOccAlpha-1), nI_beta(nOccBeta), nI_beta_m1(nOccBeta-1)
         integer :: nbeta, nalpha, nbeta_m1, nalpha_m1
 
@@ -902,7 +895,7 @@ contains
         integer :: nI(nel), nJ(nel), nK(nel)
 
         HElement_t(dp) :: hel
-        
+
         type(timer), save :: aux_time
         type(timer), save :: sort_aux_time
         type(timer), save :: ham_time
@@ -922,7 +915,7 @@ contains
         type(shared_array_int32_t) :: nalpha_alpha, nbeta_beta
         type(shared_ragged_array_t) :: alpha_alpha, beta_beta
         type(shared_ragged_array_t) :: beta_with_alpha
-        
+
         type(buffer_hel_t) :: hamil_row
         type(buffer_int32_t) :: hamil_pos
         ! End shared resources
@@ -950,9 +943,9 @@ contains
             call init_hash_table(beta_ht)
             allocate(alpha_ht( hash_size_1 ), stat=ierr)
             call init_hash_table(alpha_ht)
-            
+
             ! --- Set up auxiliary arrays ------------------------------
-            
+
             ! The number of different alpha and beta strings among the determinants
             nbeta = 0
             nalpha = 0
@@ -1081,8 +1074,8 @@ contains
                 end do
             end do
             ! Now we know the size of the auxiliary arrays
-        
-            ! --- Allocate the auxiliary arrays ---------------           
+
+            ! --- Allocate the auxiliary arrays ---------------
             allocate(beta_m1_contribs(nbeta_m1), stat=ierr)
             allocate(alpha_m1_contribs(nalpha_m1), stat=ierr)
 
@@ -1092,8 +1085,8 @@ contains
             do i = 1, nalpha_m1
                 allocate(alpha_m1_contribs(i)%pos(nalpha_m1_contribs(i)), stat=ierr)
             end do
-            
-            
+
+
         endif
         ! Continue the allocation of auxiliary arrays, these are shared now
         ! Internally broadcast the size of the arrays
@@ -1102,7 +1095,7 @@ contains
 
         call nbeta_dets%sync()
         call nalpha_dets%sync()
-        
+
         ! Allocate the shared resource used
         call beta_dets%shared_alloc(nbeta_dets%ptr(1:nbeta))
         call alpha_dets%shared_alloc(nalpha_dets%ptr(1:nalpha))
@@ -1217,7 +1210,7 @@ contains
         call beta_beta%shared_alloc(nbeta_beta%ptr(1:nbeta))
         ! Wait unti all tasks allocated before overwriting nbeta_beta
         call MPI_Barrier(mpi_comm_intra, ierr)
-        
+
         if(iProcIndex_intra == 0) then
             ! Rezero this so that we can use it as a counter for the following
             nbeta_beta%ptr = 0
@@ -1244,7 +1237,7 @@ contains
         endif
 
         ! Allocate the alpha_alpha array...
-        call nalpha_alpha%sync()        
+        call nalpha_alpha%sync()
         call alpha_alpha%shared_alloc(nalpha_alpha%ptr(1:nalpha))
         ! Wait unti all tasks allocated before overwriting nalpha_alpha
         call MPI_Barrier(mpi_comm_intra, ierr)
@@ -1294,6 +1287,7 @@ contains
             end block
 
             call halt_timer(sort_aux_time)
+            write(6,'("Time to sort auxiliary arrays:", f9.3)') get_total_time(sort_aux_time); call neci_flush(6)
         endif
 
         ! On procs which are not node-root, we need to reassign the internal pointers
@@ -1307,8 +1301,8 @@ contains
         call alpha_dets%sync()
         call alpha_alpha%sync()
         call beta_with_alpha%sync()
-        call beta_beta%sync()        
-        
+        call beta_beta%sync()
+
         if(iProcIndex_intra == 0) then
 
             ! Deallocate the arrays which we don't need for the following.
@@ -1333,9 +1327,6 @@ contains
             call clear_hash_table(alpha_ht)
             deallocate(alpha_ht, stat=ierr)
             nullify(alpha_ht)
-            
-
-            write(6,'("Time to sort auxiliary arrays:", f9.3)') get_total_time(sort_aux_time); call neci_flush(6)
         endif
         ! Sync the ilut lists
         call MPI_Win_Sync(beta_list_win, ierr)
@@ -1451,15 +1442,6 @@ contains
         write(6,'("Time to create the Hamiltonian:", f9.3)') get_total_time(ham_time); call neci_flush(6)
         ! Optional: sort the Hamiltonian? This could speed up subsequent
         ! multiplications, as we don't jump about in memory so much
-        !call set_timer(sort_ham_time)
-        !do i = 1, rep%determ_sizes(iProcIndex)
-        !    call sort(sparse_core_ham(i)%positions, sparse_core_ham(i)%elements)
-        !end do
-        !call halt_timer(sort_ham_time)
-        !write(6,'("Time to sort the Hamiltonian:", f9.3)') get_total_time(sort_ham_time); call neci_flush(6)
-
-        !total_time = get_total_time(aux_time) + get_total_time(sort_aux_time) + &
-        !              get_total_time(ham_time) + get_total_time(sort_ham_time)
 
         total_time = get_total_time(aux_time) + get_total_time(sort_aux_time) + get_total_time(ham_time)
         write(6,'("total_time:", f9.3)') total_time; call neci_flush(6)

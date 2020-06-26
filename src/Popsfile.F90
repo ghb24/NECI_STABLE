@@ -2,7 +2,7 @@
 
 MODULE PopsfileMod
 
-    use SystemData, only: nel, tHPHF, tFixLz, tCSF, nBasis, tNoBrillouin, tReal, &
+    use SystemData, only: nel, tHPHF, tFixLz, nBasis, tNoBrillouin, tReal, &
                           AB_elec_pairs, par_elec_pairs, tMultiReplicas, tReltvy, &
                           t_lattice_model, t_non_hermitian, t_3_body_excits
     use CalcData, only: DiagSft, tWalkContGrow, nEquilSteps, aliasStem, tSpecifiedTau,&
@@ -29,7 +29,7 @@ MODULE PopsfileMod
     use Determinants, only: get_helement, write_det
     use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement
     USE dSFMT_interface, only: genrand_real2_dSFMT
-    use bit_rep_data, only: extract_sign, NOffSgn
+    use bit_rep_data, only: extract_sign
     use bit_reps
     use constants
     use Parallel_neci
@@ -61,9 +61,8 @@ MODULE PopsfileMod
      use lattice_mod, only: get_helement_lattice
 
     use SystemData, only: tGUGA
-    use guga_matrixElements, only: calcDiagMatEleGUGA_nI
-    use guga_excitations, only: calc_off_diag_guga_gen, calc_guga_matrix_element
     use guga_data, only: ExcitationInformation_t
+    use guga_procedure_pointers, only: calc_off_diag_guga_ref
 
     use real_time_data, only: t_real_time_fciqmc, phase_factors, t_kspace_operators, &
                               TotWalkers_orig
@@ -118,7 +117,7 @@ contains
         character(255) :: popsfile
         !variables from header file
         logical :: tPopHPHF, tPopLz, tPop64Bit
-        integer :: iPopLenof_sign, iPopIter, PopNIfD, PopNIfY, PopNIfSgn, PopNIfFlag
+        integer :: iPopLenof_sign, iPopIter, PopNIfD, PopNIfSgn, PopNIfFlag
         integer :: PopNIfTot, PopBlockingIter, read_nnodes, Popinum_runs
         integer :: PopRandomHash(2056)
         integer(int64) :: iPopAllTotWalkers
@@ -173,11 +172,11 @@ contains
                 if(PopsVersion.eq.3) then
                     call ReadPopsHeadv3(iunit,tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,PopNel, &
                         iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter, &
-                        PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot)
+                        PopNIfD,PopNIfSgn,PopNIfFlag,PopNIfTot)
                 else
                     call ReadPopsHeadv4(iunit,tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,PopNel, &
                         iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter, &
-                        PopNIfD,PopNIfY,PopNIfSgn,Popinum_runs,PopNIfFlag,PopNIfTot,read_tau, &
+                        PopNIfD,PopNIfSgn,Popinum_runs,PopNIfFlag,PopNIfTot,read_tau, &
                         PopBlockingIter, PopRandomHash, read_psingles, read_pparallel, &
                         read_ptriples, read_nnodes, read_walkers_on_nodes, PopBalanceBlocks)
                 endif
@@ -321,7 +320,7 @@ contains
                 call extract_sign(Dets(:,i),SignTemp)
 
                 CurrParts=CurrParts+abs(SignTemp)
-                if(DetBitEQ(Dets(:,i),iLutRef(:,1),NIfDBO)) then
+                if(DetBitEQ(Dets(:,i),iLutRef(:,1),nifd)) then
                     if(abs(CurrHF(1)) > 1.0e-12_dp) then
                         call stop_all(this_routine,"HF already found, but shouldn't have")
                     endif
@@ -829,18 +828,18 @@ r_loop: do while(.not.tStoreDet)
             ! All basis parameters match --> Read in directly.
             if (tRealPOPSfile) then
                 if (BinPops) then
-                    read(iunit, iostat=stat) WalkerTemp(0:NIfDBO), sgn,&
+                    read(iunit, iostat=stat) WalkerTemp(0:nifd), sgn,&
                         flg_read, gdata_tmp
                 else
-                    read(iunit,*, iostat=stat) WalkerTemp(0:NIfDBO), &
+                    read(iunit,*, iostat=stat) WalkerTemp(0:nifd), &
                         sgn, flg_read, gdata_tmp
                 end if
             else
                 if (BinPops) then
-                    read(iunit, iostat=stat) WalkerTemp(0:NIfDBO), &
+                    read(iunit, iostat=stat) WalkerTemp(0:nifd), &
                         sgn_int, flg_read, gdata_tmp
                 else
-                    read(iunit,*, iostat=stat) WalkerTemp(0:NIfDBO), &
+                    read(iunit,*, iostat=stat) WalkerTemp(0:nifd), &
                         sgn_int, flg_read, gdata_tmp
                 end if
 
@@ -899,7 +898,7 @@ r_loop: do while(.not.tStoreDet)
 
         integer :: iunithead, PopsVersion
         ! Variables from popsfile header...
-        integer :: iPopLenof_sign, PopNel, iPopIter, PopNIfD, PopNIfY, WalkerListSize
+        integer :: iPopLenof_sign, PopNel, iPopIter, PopNIfD, WalkerListSize
         integer :: PopNIfSgn, PopNIfFlag, PopNIfTot, PopBlockingIter, read_nnodes
         integer :: Popinum_runs
         integer :: PopRandomHash(2056)
@@ -913,7 +912,7 @@ r_loop: do while(.not.tStoreDet)
         HElement_t(dp) :: PopAllSumENum(inum_runs)
         integer :: perturb_ncreate, perturb_nannihilate, PopBalanceBlocks
 
-        character(len=*), parameter :: t_r = "read_popsfile_wrapper"
+        character(len=*), parameter :: this_routine = "read_popsfile_wrapper"
 
         read_psingles = 0.0_dp
         read_ptriples = 0.0_dp
@@ -929,12 +928,12 @@ r_loop: do while(.not.tStoreDet)
         if(PopsVersion == 4) then
             call ReadPopsHeadv4(iunithead,tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,PopNel, &
                     iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter, &
-                    PopNIfD,PopNIfY,PopNIfSgn,Popinum_runs,PopNIfFlag,PopNIfTot, &
+                    PopNIfD,PopNIfSgn,Popinum_runs,PopNIfFlag,PopNIfTot, &
                     read_tau,PopBlockingIter, PopRandomHash, read_psingles, &
                     read_pparallel, read_ptriples, read_nnodes, read_walkers_on_nodes, &
                     PopBalanceBlocks)
         else
-            call stop_all(t_r, "Only version 4 popsfile are supported with kp-fciqmc.")
+            call stop_all(this_routine, "Only version 4 popsfile are supported with kp-fciqmc.")
         endif
 
         ! Check the number of electrons created and annihilated by the
@@ -949,7 +948,7 @@ r_loop: do while(.not.tStoreDet)
 
         call CheckPopsParams(tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,PopNel, &
                 iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter, &
-                PopNIfD,PopNIfY,PopNIfSgn,PopNIfTot, &
+                PopNIfD,PopNIfSgn,PopNIfTot, &
                 WalkerListSize,read_tau,PopBlockingIter, read_psingles, read_pparallel, &
                 read_ptriples, perturb_ncreate, perturb_nannihilate)
 
@@ -1183,12 +1182,12 @@ r_loop: do while(.not.tStoreDet)
 
     subroutine CheckPopsParams(tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
                     iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter,   &
-                    PopNIfD,PopNIfY,PopNIfSgn,PopNIfTot, &
+                    PopNIfD,PopNIfSgn,PopNIfTot, &
                     WalkerListSize,read_tau,PopBlockingIter, read_psingles, &
                     read_pparallel, read_ptriples, perturb_ncreate, perturb_nann)
         use LoggingData , only : tZeroProjE
         logical, intent(in) :: tPop64Bit,tPopHPHF,tPopLz
-        integer , intent(in) :: iPopLenof_sign,iPopNel,iPopIter,PopNIfD,PopNIfY,PopNIfSgn,PopNIfTot
+        integer , intent(in) :: iPopLenof_sign,iPopNel,iPopIter,PopNIfD,PopNIfSgn,PopNIfTot
         integer , intent(in) :: PopBlockingIter
         integer(int64) , intent(in) :: iPopAllTotWalkers
         real(dp) , intent(in) :: PopDiagSft(inum_runs),read_tau
@@ -1210,30 +1209,24 @@ r_loop: do while(.not.tStoreDet)
         if(iPopNEl+perturb_ncreate-perturb_nann.ne.NEl) call stop_all(this_routine,"The number of electrons &
             &in the POPSFILE is not consistent with the number you have asked to run with.")
         if(PopNIfD.ne.NIfD) call stop_all(this_routine,"Popsfile NIfD and calculated NIfD not same")
-        if(PopNIfY.ne.NIfY) call stop_all(this_routine,"Popsfile NIfY and calculated NIfY not same")
         if(inum_runs.eq.1) then
             !We allow these two values to be different if we're reading in a popsfile fine inum_runs=1 and we want to
             !continue the calculation with inum_runs=2
             ! also allow these values to differ for a real-time fciqmc calc.
             ! started from a converged groundstate, which is assumed to be
             ! real valued only
-            if(iPopLenof_sign.ne.lenof_sign) call stop_all(this_routine,"Popsfile lenof_sign and input lenof_sign not same")
-            if(PopNIfSgn.ne.NIfSgn) call stop_all(this_routine,"Popsfile NIfSgn and calculated NIfSgn not same")
+            if(iPopLenof_sign.ne.lenof_sign) then
+                call stop_all(this_routine,"Popsfile lenof_sign and input lenof_sign not same")
+            end if
+            if(PopNIfSgn.ne.IlutBits%len_pop) then
+                call stop_all(this_routine,"Popsfile NIfSgn and calculated NIfSgn not same")
+            end if
         endif
 
-        ! This test is no longer needed. NIfFlag depends on how we represent
-        ! the flags in memory, PopsNIfFlag depends on tUseFlags. The are
-        ! allowed to differ.
-!        if(PopNIfFlag.ne.NIfFlag) call stop_all(this_routine,"Popsfile NIfFlag and calculated NIfFlag not same")
         if (inum_runs.eq.1 .and. .not. t_real_time_fciqmc) then
-            if (NIfFlag == 0) then
-                if (PopNIFTot /= NIfTot + 1) &
-                    call stop_all(this_routine, "Popsfile NIfTot and &
-                                 &calculated NIfTot don't match.")
-            else
-                if (PopNIfTot /= NIfTot) &
-                    call stop_all(this_routine,"Popsfile NIfTot and calculated&
-                                               & NIfTot not same")
+            if (PopNIfTot /= NIfTot) then
+                call stop_all(this_routine, &
+                "Popsfile NIfTot and calculated NIfTot not same")
             end if
         endif
 
@@ -1338,10 +1331,6 @@ r_loop: do while(.not.tStoreDet)
                     ! If we have been searching for tau, we may have been searching
                     ! for psingles (it is done at the same time).
                     if (abs(read_psingles) > 1.0e-12_dp) then
-                        if (tCSF) then ! .or. tSpinProjDets) then
-                            call stop_all(this_routine, "pSingles storage not yet &
-                                &implemented for CSFs")
-                        end if
                         pSingles = read_psingles
                         if (.not. tReltvy) &
                             pDoubles = 1.0_dp - pSingles
@@ -1390,10 +1379,6 @@ r_loop: do while(.not.tStoreDet)
                     endif
                 endif
                 if (abs(read_psingles) > 1.0e-12_dp) then
-                    if (tCSF) then ! .or. tSpinProjDets) then
-                        call stop_all(this_routine, "pSingles storage not yet &
-                            &implemented for CSFs")
-                    end if
                     pSingles = read_psingles
                     if (.not. tReltvy) &
                         pDoubles = 1.0_dp - pSingles
@@ -1415,16 +1400,17 @@ r_loop: do while(.not.tStoreDet)
 !Routine for reading in from iunit the header information from a popsile v3 file.
     subroutine ReadPopsHeadv3(iunithead,tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
                 iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter,   &
-                PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot)
+                PopNIfD,PopNIfSgn,PopNIfFlag,PopNIfTot)
         integer , intent(in) :: iunithead
         logical, intent(out) :: tPop64Bit, tPopLz, tPopHPHF
-        integer , intent(out) :: iPopLenof_sign,iPopNel,iPopIter,PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot
+        integer , intent(out) :: iPopLenof_sign,iPopNel,iPopIter,PopNIfD,PopNIfSgn,PopNIfFlag,PopNIfTot
         integer(int64) , intent(out) :: iPopAllTotWalkers
         real(dp) , intent(out) :: PopDiagSft(inum_runs)
         real(dp) , dimension(lenof_sign/inum_runs) , intent(out) :: PopSumNoatHF
         HElement_t(dp), intent(out) :: PopAllSumENum(inum_runs)
         character(len=24) :: junk,junk2,junk3,junk4,junk5
         integer :: PopsVersion
+        integer :: PopNifY
 
         PopsVersion=FindPopsfileVersion(iunithead)
         if(PopsVersion.ne.3) call stop_all("ReadPopsfileHeadv3","Wrong popsfile version for this routine.")
@@ -1440,7 +1426,7 @@ r_loop: do while(.not.tStoreDet)
             read(iunithead,*) PopAllSumENum(1)
             read(iunithead,*) iPopIter
             read(iunithead,*) PopNIfD
-            read(iunithead,*) PopNIfY
+            read(iunithead,*) PopNifY
             read(iunithead,*) PopNIfSgn
             read(iunithead,*) PopNIfFlag
             read(iunithead,*) PopNIfTot
@@ -1457,7 +1443,6 @@ r_loop: do while(.not.tStoreDet)
         call MPIBCast(PopAllSumENum)
         call MPIBCast(iPopIter)
         call MPIBCast(PopNIfD)
-        call MPIBCast(PopNIfY)
         call MPIBCast(PopNIfSgn)
         call MPIBCast(PopNIfFlag)
         call MPIBCast(PopNIfTot)
@@ -1467,13 +1452,13 @@ r_loop: do while(.not.tStoreDet)
     !Routine for reading in from iunit the header information from a popsile v4 file.
     subroutine ReadPopsHeadv4(iunithead,tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
                 iPopAllTotWalkers,PopDiagSft,PopSumNoatHF_out,PopAllSumENum,iPopIter,   &
-                PopNIfD,PopNIfY,PopNIfSgn,Popinum_runs,PopNIfFlag,PopNIfTot,read_tau, &
+                PopNIfD,PopNIfSgn,Popinum_runs,PopNIfFlag,PopNIfTot,read_tau, &
                 PopBlockingIter, PopRandomHash, read_psingles, read_pparallel, read_ptriples, &
                 read_nnodes, read_walkers_on_nodes, PopBalanceBlocks)
         integer , intent(in) :: iunithead
         logical, intent(out) :: tPop64Bit,tPopHPHF,tPopLz
         integer, intent(out) :: iPopLenof_sign, iPopNel, iPopIter, PopNIfD
-        integer, intent(out) :: PopNIfY, PopNIfSgn, PopNIfFlag, PopNIfTot
+        integer, intent(out) :: PopNIfSgn, PopNIfFlag, PopNIfTot
         integer, intent(out) :: PopBlockingIter, read_nnodes, Popinum_runs
         integer, intent(out) :: PopRandomHash(2056), PopBalanceBlocks
         integer(int64), intent(out) :: read_walkers_on_nodes(0:nProcessors-1)
@@ -1498,14 +1483,15 @@ r_loop: do while(.not.tStoreDet)
         real(dp) :: PopGammaSing_spindiff1, PopGammaDoub_spindiff1, PopGammaDoub_spindiff2
         logical :: PopPreviousHistTau
         integer :: PopAccumPopsCounter
-        character(*), parameter :: t_r = 'ReadPopsHeadv4'
+        character(*), parameter :: this_routine = 'ReadPopsHeadv4'
         ! need dummy read-in variable, since we start from a converged real
         ! calculation usually! atleast thats the default for now!
         HElement_t(dp) :: PopSumENum
+        integer :: PopNifY
 
         namelist /POPSHEAD/ Pop64Bit,PopHPHF,PopLz,PopLensign,PopNEl, &
                     PopTotwalk,PopSft,PopSft2,PopSumNoatHF,PopSumENum, &
-                    PopCyc,PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot, &
+                    PopCyc,PopNIfD,PopNifY, PopNIfSgn,PopNIfFlag,PopNIfTot, &
                     PopTau,PopiBlockingIter,PopRandomHash,&
                     PopPSingles, PopPSing_spindiff1, PopPDoubles, PopPDoub_spindiff1, PopPDoub_spindiff2, PopPTriples, &
                     PopPParallel, PopNNodes, PopWalkersOnNodes, PopGammaSing, &
@@ -1548,7 +1534,6 @@ r_loop: do while(.not.tStoreDet)
         call MPIBCast(PopSumENum)
         call MPIBCast(PopCyc)
         call MPIBCast(PopNIfD)
-        call MPIBCast(PopNIfY)
         call MPIBCast(PopNIfSgn)
         call MPIBCast(PopNIfFlag)
         call MPIBCast(PopNIfTot)
@@ -1574,7 +1559,7 @@ r_loop: do while(.not.tStoreDet)
             ! What is the maximum number of nodes currently supported. We might
             ! need to update this...
             if (PopNNodes > max_nodes) &
-                call stop_all(t_r, "Too many processors in POPSFILE. Update &
+                call stop_all(this_routine, "Too many processors in POPSFILE. Update &
                                    &max_nodes")
 
             call MPIBCast(PopWalkersOnNodes(1:PopNNodes))
@@ -2014,9 +1999,6 @@ r_loop: do while(.not.tStoreDet)
             do j = 1, int(ndets, sizeof_int)
                 ! Count the number of written particles
                 if (write_pops_det (iunit, iunit_2, Dets(:,j), j, gdata)) then
-                    !if(tRDMonFly.and.(.not.tExplicitAllRDM)) then
-                    !    write(iunit_3) CurrentH(1:1+2*lenof_sign,j)
-                    !endif
                     write_count = write_count + 1
                 end if
             end do
@@ -2154,11 +2136,7 @@ r_loop: do while(.not.tStoreDet)
         ! representation of flags in memory, then the representation in
         ! the popsfile is one unit longer than in memory.
         pops_niftot = NIfTot
-        pops_nifflag = NIfFlag
-        if (NIfFlag == 0) then
-            pops_niftot = pops_niftot + 1
-            pops_nifflag = 1
-        end if
+        pops_nifflag = 1
 
         write(iunit, '(a)') '# POPSFILE VERSION 4'
         write(iunit, '("&POPSHEAD Pop64Bit=",l1)') build_64bit
@@ -2179,8 +2157,8 @@ r_loop: do while(.not.tStoreDet)
         end if
 
         write(iunit, '(a,i16,a,i2,a,i2,a,i2,a)') &
-            'PopCyc=', Iter+PreviousCycles, ',PopNIfD=', NIfD, &
-            ',PopNIfY=', NIfY, ',PopNIfSgn=' ,NIfSgn, ','
+            'PopCyc=', Iter+PreviousCycles, ',PopNIfD=', NIfD, ',PopNifY=',0,&
+            ',PopNIfSgn=' ,IlutBits%len_pop, ','
         write(iunit, '(a,i2,a,i2,a,f18.12,a)') &
             'PopNIfFlag=', pops_nifflag, ',PopNIfTot=', pops_niftot, &
             ',PopTau=', Tau, ','
@@ -2276,7 +2254,7 @@ r_loop: do while(.not.tStoreDet)
         logical :: bWritten, is_init, is_init_tmp
         integer :: gdata_size
         character(12) :: format_string
-        type(ExcitationInformation_t) :: excitInfo
+        character(*), parameter :: this_routine = "write_pops_det"
 
         bWritten = .false.
 
@@ -2304,7 +2282,7 @@ r_loop: do while(.not.tStoreDet)
                 ! TODO: For POPSFILE V5 --> stream output.
                 write(iunit) det(0:NIfD), real_sgn, int(flg, n_int), gdata(1:gdata_size,j)
             else
-                do k = 0, NIfDBO
+                do k = 0, nifd
                     write(iunit, '(i24)', advance='no') det(k)
                 end do
                 do k = 1, lenof_sign
@@ -2327,43 +2305,48 @@ r_loop: do while(.not.tStoreDet)
                enddo
                if(is_init) then
                   call decode_bit_det(nI, det)
-                  ex_level = FindBitExcitLevel(ilutRef(:,1), det, nel, .true.)
                   nopen = count_open_orbs(det)
+
                   hf_helemt = 0.0_dp
                   hf_helemt_trans = 0.0_dp
-                  if (ex_level <= 2 .or. (ex_level == 3 .and. t_3_body_excits)) then
-                      if (tHPHF) then
-                          hf_helemt = hphf_off_diag_helement(ProjEDet(:,1), &
-                              nI, iLutRef(:,1), det)
 
-                          if (t_non_hermitian) then
-                              hf_helemt_trans = hphf_off_diag_helement(nI, &
-                                  ProjEDet(:,1), det, iLutRef(:,1))
+                  if (tGUGA) then
+                      ASSERT(.not. t_non_hermitian)
+                      hf_helemt = calc_off_diag_guga_ref(det, 1, ex_level)
+                  else
+                      ex_level = FindBitExcitLevel(ilutRef(:,1), det, nel, .true.)
+                      if (ex_level <= 2 .or. (ex_level == 3 .and. t_3_body_excits)) then
+                          if (tHPHF) then
+                              hf_helemt = hphf_off_diag_helement(ProjEDet(:,1), &
+                                  nI, iLutRef(:,1), det)
 
-                          end if
-                      else if (tGUGA) then
-
-                          call calc_guga_matrix_element(det, ilutRef(:,1), &
-                              excitInfo, hf_helemt, .true., 2)
-                      else
-                          if (t_lattice_model) then
-                              hf_helemt = get_helement_lattice(ProjEDet(:,1), &
-                                  nI, ex_level)
                               if (t_non_hermitian) then
-                                  hf_helemt_trans = get_helement_lattice(nI, &
-                                      ProjEDet(:,1), ex_level)
+                                  hf_helemt_trans = hphf_off_diag_helement(nI, &
+                                      ProjEDet(:,1), det, iLutRef(:,1))
+
                               end if
                           else
-                              hf_helemt = get_helement(ProjEDet(:,1), nI, &
-                                  ex_level, iLutRef(:,1), det)
-                              if (t_non_hermitian) then
-                                  hf_helemt_trans = get_helement(nI, ProjEDet(:,1), &
-                                      ex_level, det, iLutRef(:,1))
+                              if (t_lattice_model) then
+                                  hf_helemt = get_helement_lattice(ProjEDet(:,1), &
+                                      nI, ex_level)
+                                  if (t_non_hermitian) then
+                                      hf_helemt_trans = get_helement_lattice(nI, &
+                                          ProjEDet(:,1), ex_level)
+                                  end if
+                              else
+                                  hf_helemt = get_helement(ProjEDet(:,1), nI, &
+                                      ex_level, iLutRef(:,1), det)
+                                  if (t_non_hermitian) then
+                                      hf_helemt_trans = get_helement(nI, ProjEDet(:,1), &
+                                          ex_level, det, iLutRef(:,1))
+                                  end if
                               end if
                           end if
                       end if
                   end if
+
                   ! for singles and doubles also include the excitation matrix
+                  ! for GUGA this does not make really sense..
                   ex = 0
                   if (ex_level <= 2) then
                       call get_bit_excitmat(ilutRef(:,1), det, ex, ex_level)
@@ -2674,18 +2657,14 @@ r_loop: do while(.not.tStoreDet)
         IF((PopsVersion.ne.1).and.(.not.tFixLz).and.tPopLz) THEN
             CALL Stop_All(this_routine,"Lz off, but Lz was used for creation of the POPSFILE")
         ENDIF
-        ! TODO: Add tests for CSFs here.
         IF(PopsVersion.eq.1) THEN
             tPop64BitDets=.false.
             NIfWriteOut=nBasis/32
-            IF(tCSF) NIfWriteOut=NIfWriteOut+1
         ELSE
             IF(.not.tPop64BitDets) THEN
                 NIfWriteOut=nBasis/32
-                IF(tCSF) NIfWriteOut=NIfWriteOut+1
             ELSE
                 NIfWriteOut=nBasis/64
-                IF(tCSF) NIfWriteOut=NIfWriteOut+1
             ENDIF
         ENDIF
 
@@ -2725,36 +2704,40 @@ r_loop: do while(.not.tStoreDet)
             if (.not.tPop64BitDets) then
                 ! If we are using 64 bit integers, but have read in 32 bit
                 ! integers, then we need to convert them.
-                do ii=0,nBasis/32
-                    do j=0,31
-                        if(btest(iLutTemp32(ii),j)) then
-                            orb=(ii*32)+j+1
-                            pos=(orb-1)/bits_n_int
-                            iLutTemp(pos)=ibset(iLutTemp(pos),mod(orb-1,bits_n_int))
-                        endif
-                    enddo
-                enddo
-                iLutTemp(NIfD+1:NIfDBO) = iLutTemp64(ii:NIfWriteOut)
+                call stop_all(this_routine, &
+                    "WD: I removed nifdbo as i assumes its always = nifd.. this is a problem here")
+                ! do ii=0,nBasis/32
+                !     do j=0,31
+                !         if(btest(iLutTemp32(ii),j)) then
+                !             orb=(ii*32)+j+1
+                !             pos=(orb-1)/bits_n_int
+                !             iLutTemp(pos)=ibset(iLutTemp(pos),mod(orb-1,bits_n_int))
+                !         endif
+                !     enddo
+                ! enddo
+                ! iLutTemp(NIfD+1:NIfDBO) = iLutTemp64(ii:NIfWriteOut)
             else
-                iLutTemp(0:NIfDBO)=iLutTemp64(0:NIfDBO)
+                iLutTemp(0:nifd)=iLutTemp64(0:nifd)
             endif
 
 #else
             ! If we are using 32 bit integers, but have read in 64 bit
             ! integers, then we need to convert them.
             if (tPop64BitDets) then
-                do ii=0,nBasis/64
-                    do j=0,63
-                        if(btest(iLutTemp64(ii),j)) then
-                            orb=(ii*64)+j+1
-                            pos=(orb-1)/bits_n_int
-                            iLutTemp(pos)=ibset(iLutTemp(pos),mod(orb-1,bits_n_int))
-                        endif
-                    enddo
-                enddo
-                iLutTemp(NIfD+1:NIfDBO) = iLutTemp32(ii:NIfWriteOut)
+                call stop_all(this_routine, &
+                    "WD: I removed nifdbo as i assumes its always = nifd.. this is a problem here")
+                ! do ii=0,nBasis/64
+                !     do j=0,63
+                !         if(btest(iLutTemp64(ii),j)) then
+                !             orb=(ii*64)+j+1
+                !             pos=(orb-1)/bits_n_int
+                !             iLutTemp(pos)=ibset(iLutTemp(pos),mod(orb-1,bits_n_int))
+                !         endif
+                !     enddo
+                ! enddo
+                ! iLutTemp(NIfD+1:NIfDBO) = iLutTemp32(ii:NIfWriteOut)
             else
-                iLutTemp(0:NIfDBO)=iLutTemp32(0:NIfDBO)
+                iLutTemp(0:nifd)=iLutTemp32(0:nifd)
             endif
 
 #endif
@@ -2763,7 +2746,7 @@ r_loop: do while(.not.tStoreDet)
             IF((Proc.eq.iNodeIndex).and.(abs(RealTempSign(1)).ge.iWeightPopRead)) THEN
                 CurrWalkers=CurrWalkers+1
                 !Do not need to send a flag here...
-                call encode_bit_rep(CurrentDets(:,CurrWalkers),iLutTemp(0:NIfDBO),RealTempSign,0)
+                call encode_bit_rep(CurrentDets(:,CurrWalkers),iLutTemp(0:nifd),RealTempSign,0)
                 !TODO: Add flag for complex walkers to read in both
 
 !>>>"                CurrentH(1:1+2*lenof_sign,CurrWalkers)=CurrentHEntry(1:1+2*lenof_sign)
@@ -2787,7 +2770,7 @@ r_loop: do while(.not.tStoreDet)
 
         ! Check that the bit-det comparisons agree that it is in order.
         do i=2,currwalkers
-            if(DetBitLT(CurrentDets(:,i),CurrentDets(:,i-1),NIfDBO) == 1) then
+            if(DetBitLT(CurrentDets(:,i),CurrentDets(:,i-1),nifd) == 1) then
                 print*, 'Walkers: ', i-1, i
                 print*, 'bit reps: '
                 print*, currentdets(:, i-1)
@@ -3111,18 +3094,14 @@ r_loop: do while(.not.tStoreDet)
         IF((PopsVersion.ne.1).and.(.not.tFixLz).and.tPopLz) THEN
             CALL Stop_All(this_routine,"Lz off, but Lz was used for creation of the POPSFILE")
         ENDIF
-        ! TODO: Add tests for CSFs here.
         IF(PopsVersion.eq.1) THEN
             tPop64BitDets=.false.
             NIfWriteOut=nBasis/32
-            IF(tCSF) NIfWriteOut=NIfWriteOut+1
         ELSE
             IF(.not.tPop64BitDets) THEN
                 NIfWriteOut=nBasis/32
-                IF(tCSF) NIfWriteOut=NIfWriteOut+1
             ELSE
                 NIfWriteOut=nBasis/64
-                IF(tCSF) NIfWriteOut=NIfWriteOut+1
             ENDIF
         ENDIF
 
@@ -3163,36 +3142,40 @@ r_loop: do while(.not.tStoreDet)
             if (.not.tPop64BitDets) then
                 ! If we are using 64 bit integers, but have read in 32 bit
                 ! integers, then we need to convert them.
-                do ii=0,nBasis/32
-                    do j=0,31
-                        if(btest(iLutTemp32(ii),j)) then
-                            orb=(ii*32)+j+1
-                            pos=(orb-1)/bits_n_int
-                            iLutTemp(pos)=ibset(iLutTemp(pos),mod(orb-1,bits_n_int))
-                        endif
-                    enddo
-                enddo
-                iLutTemp(NIfD+1:NIfDBO) = iLutTemp64(ii:NIfWriteOut)
+                call stop_all(this_routine, &
+                    "WD: I removed nifdbo as i assumes its always = nifd.. this is a problem here")
+                ! do ii=0,nBasis/32
+                !     do j=0,31
+                !         if(btest(iLutTemp32(ii),j)) then
+                !             orb=(ii*32)+j+1
+                !             pos=(orb-1)/bits_n_int
+                !             iLutTemp(pos)=ibset(iLutTemp(pos),mod(orb-1,bits_n_int))
+                !         endif
+                !     enddo
+                ! enddo
+                ! iLutTemp(NIfD+1:NIfDBO) = iLutTemp64(ii:NIfWriteOut)
             else
-                iLutTemp(0:NIfDBO)=iLutTemp64(0:NIfDBO)
+                iLutTemp(0:nifd)=iLutTemp64(0:nifd)
             endif
 
 #else
             ! If we are using 32 bit integers, but have read in 64 bit
             ! integers, then we need to convert them.
             if (tPop64BitDets) then
-                do ii=0,nBasis/64
-                    do j=0,63
-                        if(btest(iLutTemp64(ii),j)) then
-                            orb=(ii*64)+j+1
-                            pos=(orb-1)/bits_n_int
-                            iLutTemp(pos)=ibset(iLutTemp(pos),mod(orb-1,bits_n_int))
-                        endif
-                    enddo
-                enddo
-                iLutTemp(NIfD+1:NIfDBO) = iLutTemp32(ii:NIfWriteOut)
+                call stop_all(this_routine, &
+                    "WD: I removed nifdbo as i assumes its always = nifd.. this is a problem here")
+                ! do ii=0,nBasis/64
+                !     do j=0,63
+                !         if(btest(iLutTemp64(ii),j)) then
+                !             orb=(ii*64)+j+1
+                !             pos=(orb-1)/bits_n_int
+                !             iLutTemp(pos)=ibset(iLutTemp(pos),mod(orb-1,bits_n_int))
+                !         endif
+                !     enddo
+                ! enddo
+                ! iLutTemp(NIfD+1:NIfDBO) = iLutTemp32(ii:NIfWriteOut)
             else
-                iLutTemp(0:NIfDBO)=iLutTemp32(0:NIfDBO)
+                iLutTemp(0:nifd)=iLutTemp32(0:nifd)
             endif
 
 #endif
@@ -3201,7 +3184,7 @@ r_loop: do while(.not.tStoreDet)
             IF((Proc.eq.iProcIndex).and.(abs(RealTempSign(1)).ge.iWeightPopRead)) THEN
                 CurrWalkers=CurrWalkers+1
                 !Do not need to send a flag here...
-                call encode_bit_rep(Dets(:,CurrWalkers),iLutTemp(0:NIfDBO),RealTempSign,0)
+                call encode_bit_rep(Dets(:,CurrWalkers),iLutTemp(0:nifd),RealTempSign,0)
                 !TODO: Add flag for complex walkers to read in both
             ENDIF
 
@@ -3220,7 +3203,7 @@ r_loop: do while(.not.tStoreDet)
 
         ! Check that the bit-det comparisons agree that it is in order.
         do i=2,currwalkers
-            if(DetBitLT(Dets(:,i),Dets(:,i-1),NIfDBO) == 1) then
+            if(DetBitLT(Dets(:,i),Dets(:,i-1),nifd) == 1) then
                 print*, 'Walkers: ', i-1, i
                 print*, 'bit reps: '
                 print*, dets(:, i-1)

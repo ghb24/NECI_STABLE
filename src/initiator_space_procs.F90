@@ -2,7 +2,7 @@
 
 module initiator_space_procs
 
-    use bit_rep_data, only: nIfDBO, NIfTot
+    use bit_rep_data, only: nifd, NIfTot
     use bit_reps, only: decode_bit_det
     use CalcData
     use constants
@@ -91,7 +91,7 @@ contains
         ! Do a check that no states are in the initiator space twice. The list is sorted
         ! already so simply check states next to each other in the list.
         do i = 2, initiator_sizes(iProcIndex)
-            if (all(SpawnedParts(0:NIfDBO, i-1) == SpawnedParts(0:NIfDBO, i))) then
+            if (all(SpawnedParts(0:nifd, i-1) == SpawnedParts(0:nifd, i))) then
                 call decode_bit_det(nI, SpawnedParts(:,i))
                 write(6,'("State found twice:")')
                 write(6,*) SpawnedParts(:,i)
@@ -224,7 +224,7 @@ contains
         function loc_verify(ind) result(match)
             integer(int64), intent(in) :: ind
             logical :: match
-            match =  (all(ilut(0:NIfDBO) == initiator_space(0:NIfDBO, ind)))
+            match =  (all(ilut(0:nifd) == initiator_space(0:nifd, ind)))
         end function loc_verify
 
     end function is_in_initiator_space

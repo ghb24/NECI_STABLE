@@ -8,7 +8,7 @@ module cc_amplitudes
                          HashIndex, CurrentDets, ll_node
     use bit_reps, only: extract_sign
     use constants, only: dp, lenof_sign, EPS, n_int, bits_n_int
-    use bit_reps, only: niftot, nifdbo, decode_bit_det
+    use bit_reps, only: niftot, nifd, decode_bit_det
     use replica_data, only: AllEXLEVEL_WNorm
     use back_spawn, only: setup_virtual_mask, mask_virt_ni
     use hash, only: hash_table_lookup, FindWalkerHash
@@ -716,8 +716,6 @@ contains
 
         do i = 1, hash_table_size
             hash_table(i)%found = .false.
-!             allocate(hash_table%ind(0,nifdbo))
-!             hash_table(i)%ind = 0_n_int
             hash_table(i)%amp = 0.0_dp
             nullify(hash_table(i)%next)
         end do
@@ -925,7 +923,7 @@ contains
 
     subroutine cc_hash_look_up(ind, tgt, hash_table, hash_val, t_found)
         integer, intent(in) :: ind(:)
-        integer(n_int), intent(in) :: tgt(0:nifdbo)
+        integer(n_int), intent(in) :: tgt(0:nifd)
         type(cc_hash), pointer :: hash_table(:)
         integer, intent(out) :: hash_val
         logical, intent(out) :: t_found
@@ -999,7 +997,7 @@ contains
         if (.not.temp_node%found) then
             ! this means this entry is empty so we cann fill it here
             temp_node%found = .true.
-            allocate(temp_node%ind(0:nifdbo))
+            allocate(temp_node%ind(0:nifd))
             temp_node%ind = tgt
             temp_node%amp = amp
         else
@@ -1010,7 +1008,7 @@ contains
             allocate(temp_node%next)
             nullify(temp_node%next%next)
             temp_node%next%found = .true.
-            allocate(temp_node%next%ind(0:nifdbo))
+            allocate(temp_node%next%ind(0:nifd))
             temp_node%next%ind = tgt
             temp_node%next%amp = amp
 
@@ -1720,7 +1718,7 @@ contains
                                     call decode_bit_det(temp_nI, temp_ilut)
 
                                     call hash_table_lookup(temp_nI, temp_ilut, &
-                                        nifdbo, HashIndex, CurrentDets, dummy_ind, &
+                                        nifd, HashIndex, CurrentDets, dummy_ind, &
                                         dummy_hash, tSuccess)
 
                                     if (.not. tSuccess) then

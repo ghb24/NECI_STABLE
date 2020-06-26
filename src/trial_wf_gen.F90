@@ -2,7 +2,7 @@
 
 module trial_wf_gen
 
-    use bit_rep_data, only: NIfTot, NIfDBO, flag_trial, flag_connected
+    use bit_rep_data, only: NIfTot, nifd, flag_trial, flag_connected, IlutBits
     use CalcData
     use Parallel_neci
     use semi_stoch_gen
@@ -137,9 +137,9 @@ contains
 
         ! set the size of the entries in con_ht
 #ifdef CMPLX_
-        NConEntry = NIfDBO + 2*nexcit_keep
+        NConEntry = nifd + 2*nexcit_keep
 #else
-        NConEntry = NIfDBO + nexcit_keep
+        NConEntry = nifd + nexcit_keep
 #endif
 
         if (num_elem > 0) then
@@ -252,11 +252,7 @@ contains
         write(6,'("Generating the vector \sum_j H_{ij} \psi^T_j...")'); call neci_flush(6)
         allocate(con_space_vecs(nexcit_keep, con_space_size), stat=ierr)
         call LogMemAlloc('con_space_vecs', con_space_size, 8, t_r, ConVecTag, ierr)
-        if (tGUGA .and. (.not. t_guga_mat_eles)) then
-            call generate_connected_space_vector_guga(SpawnedParts, trial_wfs_all_procs, con_space, con_space_vecs)
-        else
-            call generate_connected_space_vector(SpawnedParts, trial_wfs_all_procs, con_space, con_space_vecs)
-        end if
+        call generate_connected_space_vector(SpawnedParts, trial_wfs_all_procs, con_space, con_space_vecs)
 
         call MPIBarrier(ierr)
 
@@ -289,6 +285,11 @@ contains
         root_print "Total time (seconds) taken for trial wavefunction initialisation:",&
             get_total_time(Trial_Init_Time)
         call neci_flush(6)
+
+
+        if(tAS_TrialOffset)then
+            call set_AS_TrialOffset(nexcit_keep, replica_pairs)
+        endif
 
     end subroutine init_trial_wf
 
@@ -342,7 +343,7 @@ contains
             ! functions.
             call decode_bit_det(nI, trial_dets(0:NIfTot,idet))
             ! Search the hash table for this determinant.
-            call hash_table_lookup(nI, trial_dets(:,idet), NIfDBO, ilut_ht, ilut_list, det_ind, hash_val, tDetFound)
+            call hash_table_lookup(nI, trial_dets(:,idet), nifd, ilut_ht, ilut_list, det_ind, hash_val, tDetFound)
             if (tDetFound) then
                 call extract_sign(ilut_list(:,det_ind), all_fciqmc_amps)
 #ifdef CMPLX_
@@ -517,68 +518,6 @@ contains
 
     end subroutine remove_list1_states_from_list2
 
-    subroutine generate_connected_space_vector_guga(trial_space, trial_vecs, con_space, con_vecs)
-        ! need a specific routine for the guga case, to do it more efficiently
-        ! although i realise by now, that i probably could do it way more
-        ! efficient if i rewrite everything from scratch for the guga case..
-
-        use MemoryManager, only: LogMemAlloc, LogMemDealloc
-        use guga_bitrepops, only: convert_ilut_toGUGA, extract_h_element
-        use guga_excitations, only: actHamiltonian
-        use guga_matrixelements, only: calcDiagMatEleGuga_nI
-        use guga_data, only: tag_excitations
-        use util_mod, only: binary_search
-        use bit_reps, only: nifguga
-
-
-        integer(n_int), intent(in) :: trial_space(0:,:)
-        HElement_t(dp), intent(in) :: trial_vecs(:,:)
-        integer(n_int), intent(in) :: con_space(0:,:)
-        HElement_t(dp), intent(out) :: con_vecs(:,:)
-
-        integer :: i, j, nJ(nel), pos, nexcits
-        integer(n_int) :: ilutG(0:nifguga)
-        HElement_t(dp) :: H_ij
-        integer(n_int), pointer :: excitations(:,:)
-        character(*), parameter :: this_routine = "generate_connected_space_vector_guga"
-
-        con_vecs = 0.0_dp
-
-        ! in the guga case it is more efficient i guess to loop over the
-        ! smaller trial space, act the hamiltonian on it and get the specific
-        ! matrix element for the connected space
-
-        do j = 1, size(trial_vecs,2)
-
-            call decode_bit_det(nJ, trial_space(0:niftot, j))
-
-            call convert_ilut_toGUGA(trial_space(0:niftot,j), ilutG)
-
-            call actHamiltonian(ilutG, excitations, nexcits)
-
-            do i = 1, size(con_vecs,2)
-
-                if (all(con_space(0:NIfDBO,i) == trial_space(0:NIfDBO,j))) then
-                    H_ij = calcDiagMatEleGuga_nI(nJ)
-
-                else
-
-                    pos = binary_search(excitations(0:nifd,1:nexcits), con_space(0:nifd,i))
-
-                    if (pos > 0) then
-                        H_ij = extract_h_element(excitations(:,pos))
-                    else
-                        H_ij = HEl_zero
-                    end if
-                end if
-                con_vecs(:,i) = con_vecs(:,i) + H_ij * trial_vecs(:,j)
-            end do
-            deallocate(excitations)
-            call LogMemDealloc(this_routine, tag_excitations)
-        end do
-
-    end subroutine generate_connected_space_vector_guga
-
     subroutine generate_connected_space_vector(trial_space, trial_vecs, con_space, con_vecs)
 
         ! Calculate the vector
@@ -609,13 +548,13 @@ contains
 
             ! i am only here in the guga case if i use the new way to calc
             ! the off-diagonal elements..
-!             if (tGUGA) call init_csf_information(con_space(0:nifd,i))
+            if (tGUGA) call init_csf_information(con_space(0:nifd,i))
 
             do j = 1, size(trial_vecs,2)
 
                 call decode_bit_det(nJ, trial_space(0:NIfTot, j))
 
-                if (all(con_space(0:NIfDBO, i) == trial_space(0:NIfDBO, j))) then
+                if (all(con_space(0:nifd, i) == trial_space(0:nifd, j))) then
                     if ( tHPHF) then
                         H_ij = hphf_diag_helement(nI, trial_space(:,j))
                     else if (tGUGA) then
@@ -633,8 +572,11 @@ contains
                         ! H_ij = hphf_off_diag_helement(nI, nJ, con_space(:,i), trial_space(:,j))
                     else if (tGUGA) then
                         ASSERT(.not. t_non_hermitian)
-                        call calc_guga_matrix_element(trial_space(:,j), con_space(:,i), &
-                            excitInfo, H_ij, .true., 2)
+                        call calc_guga_matrix_element(con_space(:,i), trial_space(:,j), &
+                            excitInfo, H_ij, .true., 1)
+#ifdef CMPLX_
+                        H_ij = conjg(H_ij)
+#endif
 !                         call calc_guga_matrix_element(con_space(:,i), trial_space(:,j), &
 !                             excitInfo, H_ij, .true., 1)
                     else
@@ -722,7 +664,7 @@ contains
                 end if
 
                 do j = 1, trial_space_size
-                    do k = 0, NIfDBO
+                    do k = 0, nifd
                         write(iunit, '(i24)', advance = 'no') trial_space(k,j)
                     end do
                     write(iunit, *)
@@ -840,7 +782,7 @@ contains
             temp_node => HashIndex(hash_val)
             if (temp_node%ind /= 0) then
                 do while (associated(temp_node))
-                    if ( all(trial_space(0:NIfDBO,i) == CurrentDets(0:NIfDBO,temp_node%ind)) ) then
+                    if ( all(trial_space(0:nifd,i) == CurrentDets(0:nifd,temp_node%ind)) ) then
                         call set_flag(CurrentDets(:,temp_node%ind), flag_trial)
                         current_trial_amps(:,temp_node%ind) = trial_wfs(:,i)
                         exit
@@ -857,7 +799,7 @@ contains
             temp_node => HashIndex(hash_val)
             if (temp_node%ind /= 0) then
                 do while (associated(temp_node))
-                    if ( all(con_space(0:NIfDBO,i) == CurrentDets(0:NIfDBO,temp_node%ind)) ) then
+                    if ( all(con_space(0:nifd,i) == CurrentDets(0:nifd,temp_node%ind)) ) then
                         ! If not also in the trial space. If it is, then we
                         ! don't want the connected flag to be set, or the
                         ! connected vector amplitude to be used.
@@ -916,8 +858,9 @@ contains
                 else
                     nclash = trial_ht(hash_val)%nclash + 1
                     trial_ht(hash_val)%nclash = nclash
-                    trial_ht(hash_val)%states(0:NIfDBO,nclash) = trial_space(0:NIfDBO,i)
-                    trial_ht(hash_val)%states(NIfDBO+1:,nclash) = transfer(trial_wfs(:,i), temp)
+                    trial_ht(hash_val)%states(0:nifd,nclash) = trial_space(0:nifd,i)
+                    trial_ht(hash_val)%states(IlutBits%ind_pop:,nclash) = &
+                        transfer(trial_wfs(:,i), temp)
                 end if
             end do
 
@@ -964,8 +907,9 @@ contains
                 else
                     nclash = con_ht(hash_val)%nclash + 1
                     con_ht(hash_val)%nclash = nclash
-                    con_ht(hash_val)%states(0:NIfDBO,nclash) = con_space(0:NIfDBO,i)
-                    con_ht(hash_val)%states(NIfDBO+1:,nclash) = transfer(con_space_vecs(:,i), temp)
+                    con_ht(hash_val)%states(0:nifd,nclash) = con_space(0:nifd,i)
+                    con_ht(hash_val)%states(IlutBits%ind_pop:,nclash) &
+                        = transfer(con_space_vecs(:,i), temp)
                 end if
             end do
 
@@ -1063,5 +1007,33 @@ contains
          call clr_flag(CurrentDets(:,i),flag_trial)
       enddo
     end subroutine reset_trial_space
+
+
+    !> Set the offset of the adaptive shift equal to the eigen energy(s)
+    !> of the trial space.
+    !> @param[in] nexcit_keep  number of wave functions/energies kept during trial-wf initialization
+    !> @param[in] replica_pairs  whether replicas are assumed to be paired during trial-wf initialization
+    subroutine Set_AS_TrialOffset(nexcit_keep, replica_pairs)
+        use FciMCData, only: trial_energies
+        integer, intent(in) :: nexcit_keep
+        logical, intent(in) :: replica_pairs 
+        integer :: i
+        character(*), parameter :: this_routine='Set_AS_TrialOffset'
+
+        if(replica_pairs)then
+            ASSERT(nexcit_keep == int(inum_runs/2.0))
+            do i = 1, nexcit_keep
+                ShiftOffset(2*i-1) = trial_energies(i)
+                ShiftOffset(2*i) = trial_energies(i)
+            enddo
+        else
+            ASSERT(nexcit_keep == inum_runs)
+            ShiftOffset(1:inum_runs) = trial_energies(1:inum_runs)
+        endif
+
+        tAS_Offset = .true.
+        write(6,*) "The adaptive shift is offset by the eigen energy(s) of this trial-space."
+
+    end subroutine
 
 end module trial_wf_gen

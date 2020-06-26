@@ -2,19 +2,20 @@
 
 module unit_test_helper_excitgen
     use constants
+    use bit_reps, only: IlutBits
     use read_fci, only: readfciint, initfromfcid, fcidump_name
     use shared_memory_mpi, only: shared_allocate_mpi, shared_deallocate_mpi
     use IntegralsData, only: UMat, umat_win
     use Integrals_neci, only: IntInit, get_umat_el_normal
     use procedure_pointers, only: get_umat_el, generate_excitation
-    use SystemData, only: nel, nBasis, UMatEps, tStoreSpinOrbs, tReadFreeFormat, tCSF, &
+    use SystemData, only: nel, nBasis, UMatEps, tStoreSpinOrbs, tReadFreeFormat, &
        tReadInt, t_pcpp_excitgen
     use sort_mod
     use System, only: SysInit, SetSysDefaults, SysCleanup
     use Parallel_neci, only: MPIInit, MPIEnd
     use UMatCache, only: GetUMatSize, tTransGTID, setupUMat2d_dense
     use OneEInts, only: Tmat2D
-    use bit_rep_data, only: NIfTot, NIfDBO, NOffSgn, NIfSgn, extract_sign
+    use bit_rep_data, only: NIfTot, nifd, extract_sign
     use bit_reps, only: encode_sign, decode_bit_det
     use DetBitOps, only: EncodeBitDet, DetBitEq
     use SymExcit3, only: countExcitations3, GenExcitations3
@@ -116,7 +117,6 @@ contains
         call sort(nI)
     end if
 
-    tCSF = .false.
     call EncodeBitDet(nI,ilut)
 
     exflag = 3
@@ -131,7 +131,7 @@ contains
        if(tAllExFound) exit
        call encodeBitDet(nJ,ilutJ)
        numEx = numEx + 1
-       allEx(0:NIfDBO,numEx) = ilutJ(0:NIfDBO)
+       allEx(0:nifd,numEx) = ilutJ(0:nifd)
     end do
 
     write(iout,*) "In total", numEx, "excits, (", nSingles,nDoubles,")"
@@ -253,11 +253,16 @@ contains
     character(*), parameter :: this_routine = 'init_excitgen_test'
     integer, parameter :: seed = 25
 
+    umatsize = 0
     nel = n_el
-    NIfDBO = 0
-    NOffSgn = 1
-    NIfSgn = 1
-    NIfTot = NIfDBO + NOffSgn + NIfSgn
+
+    IlutBits%len_orb = 0
+    IlutBits%ind_pop = 1
+    IlutBits%len_pop = 1
+    IlutBits%len_tot = 2
+
+    nifd = 0
+    NIfTot = 2
 
     fcidump_name = "FCIDUMP"
     UMatEps = 1.0e-8

@@ -39,12 +39,12 @@ contains
         end if
 
         ! The index of the first element referring to the sign, for this ivec.
-        sign_ind = NIfDBO + lenof_sign_kp*(ivec-1) + 1
-        flag_ind = NIfDBO + lenof_all_signs + 1
+        sign_ind = nifd + lenof_sign_kp*(ivec-1) + 1
+        flag_ind = nifd + lenof_all_signs + 1
 
         ! Loop over all occupied determinants for this new Krylov vector.
         do idet = 1, int(TotWalkers)
-            int_sign = CurrentDets(NOffSgn:NOffSgn+lenof_sign_kp-1,idet)
+            int_sign = CurrentDets(IlutBits%ind_pop:IlutBits%ind_pop+lenof_sign_kp-1,idet)
             call extract_sign (CurrentDets(:,idet), real_sign)
             tCoreDet = check_determ_flag(CurrentDets(:,idet))
             ! Don't add unoccpied determinants, unless they are core determinants.
@@ -53,7 +53,7 @@ contains
             tDetFound = .false.
             call decode_bit_det(nI, CurrentDets(:,idet))
             ! Search the hash table for this determinant.
-            call hash_table_lookup(nI, CurrentDets(:,idet), NIfDBO, krylov_vecs_ht, krylov_vecs, det_ind, hash_val, tDetFound)
+            call hash_table_lookup(nI, CurrentDets(:,idet), nifd, krylov_vecs_ht, krylov_vecs, det_ind, hash_val, tDetFound)
             if (tDetFound) then
                 ! In this case the determinant is already in the Krylov vector
                 ! array.
@@ -72,10 +72,10 @@ contains
                 call add_hash_table_entry(krylov_vecs_ht, det_ind, hash_val)
 
                 ! Copy determinant data across.
-                krylov_vecs(0:NIfDBO, det_ind) = CurrentDets(0:NIfDBO, idet)
+                krylov_vecs(0:nifd, det_ind) = CurrentDets(0:nifd, idet)
                 krylov_vecs(sign_ind:sign_ind+lenof_sign_kp-1, det_ind) = int_sign
                 krylov_helems(det_ind) = det_diagH(idet)
-                krylov_vecs(flag_ind, det_ind) = CurrentDets(NOffFlag, idet)
+                krylov_vecs(flag_ind, det_ind) = CurrentDets(IlutBits%ind_flag, idet)
             end if
 
             ! Update information about how much of the hash table is filled.
@@ -114,7 +114,7 @@ contains
 
         do jvec = 1, nvecs
             ! The first index of the sign in krylov_array, for each vector.
-            ind(jvec) = NIfDBO + lenof_sign_kp*(jvec-1) + 1
+            ind(jvec) = nifd + lenof_sign_kp*(jvec-1) + 1
         end do
 
         ! Loop over all determinants in the Krylov array.
@@ -158,7 +158,7 @@ contains
 
         overlap = 0.0_dp
 
-        sign_ind = NIfDBO + lenof_sign_kp*(ivec-1) + 1
+        sign_ind = nifd + lenof_sign_kp*(ivec-1) + 1
 
         ! Loop over all determinants in perturbed_ground
         do idet = 1, size(perturbed_ground, dim=2)
@@ -167,7 +167,7 @@ contains
 
             call decode_bit_det(nI, perturbed_ground(:,idet))
             ! Search to see if this determinant is in any Krylov vector.
-            call hash_table_lookup(nI, perturbed_ground(:,idet), NIfDBO, krylov_vecs_ht, krylov_vecs, &
+            call hash_table_lookup(nI, perturbed_ground(:,idet), nifd, krylov_vecs_ht, krylov_vecs, &
                                     det_ind, hash_val, tDetFound)
             if (tDetFound) then
                 ! If here then this determinant was found in the hash table.
@@ -220,7 +220,7 @@ contains
 
         ! Check to see if there are any replica 1 or 2 walkers on this determinant.
         do idet = 1, array_len
-            int_sign = krylov_array(NIfDBO+1:NIfDBO+lenof_all_signs, idet)
+            int_sign = krylov_array(IlutBits%ind_pop:IlutBits%ind_pop+lenof_all_signs-1, idet)
 
             any_occ = .false.
             do i = 1, nvecs
@@ -237,9 +237,9 @@ contains
 
         ! Loop over all determinants in krylov_array.
         do idet = 1, array_len
-            ilut_1(0:NIfDBO) = krylov_array(0:NIfDBO, idet)
+            ilut_1(0:nifd) = krylov_array(0:nifd, idet)
             call decode_bit_det(nI, ilut_1)
-            int_sign = krylov_array(NIfDBO+1:NIfDBO+lenof_all_signs, idet)
+            int_sign = krylov_array(IlutBits%ind_pop:IlutBits%ind_pop+lenof_all_signs-1, idet)
             real_sign_1 = transfer(int_sign, real_sign_1)
             occ_1 = btest(occ_flags(idet),0)
             occ_2 = btest(occ_flags(idet),1)
@@ -250,12 +250,12 @@ contains
                 if (.not. ((occ_1 .and. btest(occ_flags(jdet),1)) .or. &
                     (occ_2 .and. btest(occ_flags(jdet),0)))) cycle
 
-                ilut_2(0:NIfDBO) = krylov_array(0:NIfDBO, jdet)
+                ilut_2(0:nifd) = krylov_array(0:nifd, jdet)
                 ic = FindBitExcitLevel(ilut_1, ilut_2)
                 if (ic > 2) cycle
 
                 call decode_bit_det(nJ, ilut_2)
-                int_sign = krylov_array(NIfDBO+1:NIfDBO+lenof_all_signs, jdet)
+                int_sign = krylov_array(IlutBits%ind_pop:IlutBits%ind_pop+lenof_all_signs-1, jdet)
                 real_sign_2 = transfer(int_sign, real_sign_1)
 
                 if (idet == jdet) then
@@ -776,7 +776,7 @@ contains
             temp_node => krylov_vecs_ht(ihash)
             if (temp_node%ind /= 0) then
                 do while (associated(temp_node))
-                    int_sign = krylov_vecs(NIfDBO+1:NIfDBO+lenof_all_signs, temp_node%ind)
+                    int_sign = krylov_vecs(IlutBits%ind_pop:IlutBits%ind_pop+lenof_all_signs-1, temp_node%ind)
                     real_sign = transfer(int_sign, real_sign)
                     total_pop = total_pop + abs(real_sign)
                     temp_node => temp_node%next
@@ -835,15 +835,15 @@ contains
             ! Only carry on if the symmetry of this determinant is correct.
             if (iSym%Sym%S /= HFSym%Sym%S .or. iSym%Ms /= HFSym%Ms .or. iSym%Ml /= HFSym%Ml) cycle
             call EncodeBitDet(nI_list(:,i), ilut)
-            if (.not. IsAllowedHPHF(ilut(0:NIfDBO))) cycle
+            if (.not. IsAllowedHPHF(ilut(0:nifd))) cycle
             counter = counter + 1
             real_sign = 0.0_dp
             DetHash = FindWalkerHash(nI_list(:,i), nWalkerHashes)
             temp_node => HashIndex(DetHash)
             if (temp_node%ind /= 0) then
                 do while (associated(temp_node))
-                    if ( all(ilut(0:NIfDBO) == CurrentDets(0:NIfDBO, temp_node%ind)) ) then
-                        int_sign = CurrentDets(NOffSgn:NOffSgn+lenof_sign-1,temp_node%ind)
+                    if ( all(ilut(0:nifd) == CurrentDets(0:nifd, temp_node%ind)) ) then
+                        int_sign = CurrentDets(IlutBits%ind_pop:IlutBits%ind_pop+lenof_sign-1,temp_node%ind)
                         real_sign = transfer(int_sign, real_sign)
                         exit
                     end if

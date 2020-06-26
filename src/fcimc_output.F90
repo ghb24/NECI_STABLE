@@ -76,6 +76,8 @@ module fcimc_output
                                   lMatCalcHit,   lMatCalcTot,    lMatCalcHUsed,   lMatCalcHSize
     use fortran_strings, only: str
 
+    use guga_matrixElements, only: calcDiagMatEleGUGA_nI
+
     implicit none
 
 contains
@@ -253,7 +255,6 @@ contains
     END SUBROUTINE WriteFciMCStatsHeader
 
     subroutine WriteFCIMCStats()
-        use guga_matrixElements, only: calcDiagMatEleGUGA_nI
 
         INTEGER :: i, j, run
         real(dp),dimension(inum_runs) :: FracFromSing
@@ -297,10 +298,12 @@ contains
             endif
 
             if(t_no_ref_shift)then
-                if(.not. tguga)then
-                    E_ref_tmp(run) = get_helement (ProjEDet(:,run), ProjEDet(:,run), 0)
-                else
+                if (tHPHF) then
+                    E_ref_tmp(run) = hphf_diag_helement (ProjEDet(:,run), iLutRef(:,run))
+                else if(tguga)then
                     E_ref_tmp(run) = calcDiagMatEleGUGA_nI(ProjEDet(:,run))
+                else
+                    E_ref_tmp(run) = get_helement (ProjEDet(:,run), ProjEDet(:,run), 0)
                 end if
             else
                 E_ref_tmp(run) = 0.0_dp
@@ -802,111 +805,111 @@ contains
             ! want to record the details of each of these
 #ifdef PROG_NUMRUNS_
             if(.not. t_real_time_fciqmc) then
-            do p = 1, inum_runs
-                write(tmpc, '(i5)') p
-                call stats_out (state, .false., AllTotParts(p), &
-                                'Parts (' // trim(adjustl(tmpc)) // ')')
-                call stats_out (state, .false., AllNoatHF(p), &
-                                'Ref (' // trim(adjustl(tmpc)) // ')')
-                call stats_out(state, .false., proje_ref_energy_offsets(p), &
-                                'ref. energy offset('//trim(adjustl(tmpc))// ')')
-                call stats_out (state, .false., DiagSft(p) + Hii, &
-                                'Shift (' // trim(adjustl(tmpc)) // ')')
+                do p = 1, inum_runs
+                    write(tmpc, '(i5)') p
+                    call stats_out (state, .false., AllTotParts(p), &
+                                    'Parts (' // trim(adjustl(tmpc)) // ')')
+                    call stats_out (state, .false., AllNoatHF(p), &
+                                    'Ref (' // trim(adjustl(tmpc)) // ')')
+                    call stats_out(state, .false., proje_ref_energy_offsets(p), &
+                                    'ref. energy offset('//trim(adjustl(tmpc))// ')')
+                    call stats_out (state, .false., DiagSft(p) + Hii, &
+                                    'Shift (' // trim(adjustl(tmpc)) // ')')
 #ifdef CMPLX_
-                call stats_out (state, .false., real(proje_iter(p) + OutputHii), &
-                                'Tot ProjE real (' // trim(adjustl(tmpc)) // ')')
-                call stats_out (state, .false., aimag(proje_iter(p) + OutputHii), &
-                                'Tot ProjE imag (' // trim(adjustl(tmpc)) // ')')
+                    call stats_out (state, .false., real(proje_iter(p) + OutputHii), &
+                                    'Tot ProjE real (' // trim(adjustl(tmpc)) // ')')
+                    call stats_out (state, .false., aimag(proje_iter(p) + OutputHii), &
+                                    'Tot ProjE imag (' // trim(adjustl(tmpc)) // ')')
 
-                call stats_out (state, .false., real(AllHFOut(p) / StepsPrint), &
-                                'ProjE Denom real (' // trim(adjustl(tmpc)) // ")")
-                call stats_out (state, .false., aimag(AllHFOut(p) / StepsPrint), &
-                                'ProjE Denom imag (' // trim(adjustl(tmpc)) // ")")
-
-                call stats_out (state, .false., &
-                                real((AllENumOut(p) + OutputHii*AllHFOut(p))) / StepsPrint,&
-                                'ProjE Num real (' // trim(adjustl(tmpc)) // ")")
-                call stats_out (state, .false., &
-                                aimag((AllENumOut(p) + OutputHii*AllHFOut(p))) / StepsPrint,&
-                                'ProjE Num imag (' // trim(adjustl(tmpc)) // ")")
-                if (tTrialWavefunction .or. tStartTrialLater) then
-                    call stats_out (state, .false., &
-                                    real(tot_trial_numerator(p) / StepsPrint), &
-                                    'TrialE Num real (' // trim(adjustl(tmpc)) // ")")
-                    call stats_out (state, .false., &
-                                    aimag(tot_trial_numerator(p) / StepsPrint), &
-                                    'TrialE Num imag (' // trim(adjustl(tmpc)) // ")")
+                    call stats_out (state, .false., real(AllHFOut(p) / StepsPrint), &
+                                    'ProjE Denom real (' // trim(adjustl(tmpc)) // ")")
+                    call stats_out (state, .false., aimag(AllHFOut(p) / StepsPrint), &
+                                    'ProjE Denom imag (' // trim(adjustl(tmpc)) // ")")
 
                     call stats_out (state, .false., &
-                                    real(tot_trial_denom(p) / StepsPrint), &
-                                    'TrialE Denom real (' // trim(adjustl(tmpc)) // ")")
+                                    real((AllENumOut(p) + OutputHii*AllHFOut(p))) / StepsPrint,&
+                                    'ProjE Num real (' // trim(adjustl(tmpc)) // ")")
                     call stats_out (state, .false., &
-                                    aimag(tot_trial_denom(p) / StepsPrint), &
-                                    'TrialE Denom imag (' // trim(adjustl(tmpc)) // ")")
-                end if
+                                    aimag((AllENumOut(p) + OutputHii*AllHFOut(p))) / StepsPrint,&
+                                    'ProjE Num imag (' // trim(adjustl(tmpc)) // ")")
+                    if (tTrialWavefunction .or. tStartTrialLater) then
+                        call stats_out (state, .false., &
+                                        real(tot_trial_numerator(p) / StepsPrint), &
+                                        'TrialE Num real (' // trim(adjustl(tmpc)) // ")")
+                        call stats_out (state, .false., &
+                                        aimag(tot_trial_numerator(p) / StepsPrint), &
+                                        'TrialE Num imag (' // trim(adjustl(tmpc)) // ")")
+
+                        call stats_out (state, .false., &
+                                        real(tot_trial_denom(p) / StepsPrint), &
+                                        'TrialE Denom real (' // trim(adjustl(tmpc)) // ")")
+                        call stats_out (state, .false., &
+                                        aimag(tot_trial_denom(p) / StepsPrint), &
+                                        'TrialE Denom imag (' // trim(adjustl(tmpc)) // ")")
+                    end if
 #else
-                call stats_out (state, .false., proje_iter(p) + OutputHii, &
-                                'Tot ProjE (' // trim(adjustl(tmpc)) // ")")
-                call stats_out (state, .false., AllHFOut(p) / StepsPrint, &
-                                'ProjE Denom (' // trim(adjustl(tmpc)) // ")")
-                call stats_out (state, .false., &
-                                (AllENumOut(p) + OutputHii*AllHFOut(p)) / StepsPrint,&
-                                'ProjE Num (' // trim(adjustl(tmpc)) // ")")
-                if (tTrialWavefunction .or. tStartTrialLater) then
+                    call stats_out (state, .false., proje_iter(p) + OutputHii, &
+                                    'Tot ProjE (' // trim(adjustl(tmpc)) // ")")
+                    call stats_out (state, .false., AllHFOut(p) / StepsPrint, &
+                                    'ProjE Denom (' // trim(adjustl(tmpc)) // ")")
                     call stats_out (state, .false., &
-                                    tot_trial_numerator(p) / StepsPrint, &
-                                    'TrialE Num (' // trim(adjustl(tmpc)) // ")")
-                    call stats_out (state, .false., &
-                                    tot_trial_denom(p) / StepsPrint, &
-                                    'TrialE Denom (' // trim(adjustl(tmpc)) // ")")
-                end if
+                                    (AllENumOut(p) + OutputHii*AllHFOut(p)) / StepsPrint,&
+                                    'ProjE Num (' // trim(adjustl(tmpc)) // ")")
+                    if (tTrialWavefunction .or. tStartTrialLater) then
+                        call stats_out (state, .false., &
+                                        tot_trial_numerator(p) / StepsPrint, &
+                                        'TrialE Num (' // trim(adjustl(tmpc)) // ")")
+                        call stats_out (state, .false., &
+                                        tot_trial_denom(p) / StepsPrint, &
+                                        'TrialE Denom (' // trim(adjustl(tmpc)) // ")")
+                    end if
 #endif
 
 
-                call stats_out (state, .false., &
-                                AllNoBorn(p), &
-                                'Born (' // trim(adjustl(tmpc)) // ')')
-                call stats_out (state, .false., &
-                                AllNoDied(p), &
-                                'Died (' // trim(adjustl(tmpc)) // ')')
-                call stats_out (state, .false., &
-                                AllAnnihilated(p), &
-                                'Annihil (' // trim(adjustl(tmpc)) // ')')
-                call stats_out (state, .false., &
-                                AllNoAtDoubs(p), &
-                                'Doubs (' // trim(adjustl(tmpc)) // ')')
-            end do
+                    call stats_out (state, .false., &
+                                    AllNoBorn(p), &
+                                    'Born (' // trim(adjustl(tmpc)) // ')')
+                    call stats_out (state, .false., &
+                                    AllNoDied(p), &
+                                    'Died (' // trim(adjustl(tmpc)) // ')')
+                    call stats_out (state, .false., &
+                                    AllAnnihilated(p), &
+                                    'Annihil (' // trim(adjustl(tmpc)) // ')')
+                    call stats_out (state, .false., &
+                                    AllNoAtDoubs(p), &
+                                    'Doubs (' // trim(adjustl(tmpc)) // ')')
+                end do
 
-            call stats_out(state,.false.,all_max_cyc_spawn, &
-                 'MaxCycSpawn')
+                call stats_out(state,.false.,all_max_cyc_spawn, &
+                     'MaxCycSpawn')
 
-            ! Print overlaps between replicas at the end.
-            do p = 1, inum_runs
-                write(tmpc, '(i5)') p
-                if (tPrintReplicaOverlaps) then
-                    do q = p+1, inum_runs
-                        write(tmpc2, '(i5)') q
+                ! Print overlaps between replicas at the end.
+                do p = 1, inum_runs
+                    write(tmpc, '(i5)') p
+                        if (tPrintReplicaOverlaps) then
+                        do q = p+1, inum_runs
+                            write(tmpc2, '(i5)') q
 #ifdef CMPLX_
-                        call stats_out(state, .false.,  replica_overlaps_real(p, q),&
-                                       '<psi_' // trim(adjustl(tmpc)) // '|' &
-                                       // 'psi_' // trim(adjustl(tmpc2)) &
-                                       // '> (real)')
-                        call stats_out(state, .false.,  replica_overlaps_imag(p, q),&
-                                       '<psi_' // trim(adjustl(tmpc)) // '|' &
-                                       // 'psi_' // trim(adjustl(tmpc2)) &
-                                       // '> (imag)')
+                            call stats_out(state, .false.,  replica_overlaps_real(p, q),&
+                                           '<psi_' // trim(adjustl(tmpc)) // '|' &
+                                           // 'psi_' // trim(adjustl(tmpc2)) &
+                                           // '> (real)')
+                            call stats_out(state, .false.,  replica_overlaps_imag(p, q),&
+                                           '<psi_' // trim(adjustl(tmpc)) // '|' &
+                                           // 'psi_' // trim(adjustl(tmpc2)) &
+                                           // '> (imag)')
 
 #else
-                        call stats_out(state, .false.,  replica_overlaps_real(p, q),&
-                             '<psi_' // trim(adjustl(tmpc)) // '|' &
-                             // 'psi_' // trim(adjustl(tmpc2)) &
-                             // '>')
+                            call stats_out(state, .false.,  replica_overlaps_real(p, q),&
+                                 '<psi_' // trim(adjustl(tmpc)) // '|' &
+                                 // 'psi_' // trim(adjustl(tmpc2)) &
+                                 // '>')
 #endif
 
-                     end do
-                  end if
-               end do
-           end if
+                        end do
+                    end if
+                end do
+            end if
 #endif
             if (tEN2) call stats_out(state,.true., en_pert_main%ndets_all, 'EN2 Dets.')
 
@@ -1496,7 +1499,7 @@ contains
         character(len=*), parameter :: t_r='PrintHighPops'
 
         character(1024) :: header
-        character(22) :: format_string
+        character(25) :: format_string
         character(11), allocatable :: walker_string(:)
         character(13), allocatable :: amplitude_string(:)
         character(9), allocatable :: init_string(:)
@@ -2574,22 +2577,22 @@ contains
     end subroutine print_frequency_histogram
 
     subroutine getProjEOffset()
-      ! get the offset of the projected energy versus the total energy,
-      ! which is the reference energy
+        ! get the offset of the projected energy versus the total energy,
+        ! which is the reference energy
 
-      implicit none
-      ! if the reference energy is used as an offset to the hamiltonian (default behaviour)
-      ! just get it
-      if(.not.tZeroRef) then
-         OutputHii = Hii
-      ! else, calculate the reference energy
-      else if (tHPHF) then
-         OutputHii = hphf_diag_helement (ProjEDet(:,1), &
-              iLutRef(:,1))
-      else
-         OutputHii = get_helement (ProjEDet(:,1), &
-              ProjEDet(:,1), 0)
-      endif
+        implicit none
+        ! if the reference energy is used as an offset to the hamiltonian (default behaviour)
+        ! just get it
+        if(.not.tZeroRef) then
+            OutputHii = Hii
+        ! else, calculate the reference energy
+        else if (tHPHF) then
+            OutputHii = hphf_diag_helement (ProjEDet(:,1), iLutRef(:,1))
+        else if (tGUGA) then
+            OutputHii = calcDiagMatEleGUGA_nI(ProjEDet(:,1))
+        else
+            OutputHii = get_helement (ProjEDet(:,1), ProjEDet(:,1), 0)
+        endif
 
 
     end subroutine getProjEOffset

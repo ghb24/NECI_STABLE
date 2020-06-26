@@ -441,7 +441,7 @@ contains
 
             ASSERT(excitInfo%valid)
 
-            if (excitInfo%typ /= 0) then
+            if (excitInfo%typ /= excit_type%single) then
                 call checkCompatibility(ilutG, excitInfo, valid, pos, neg)
 
                 ASSERT(valid)
@@ -4164,7 +4164,7 @@ contains
         ! set up correct excitation information
         excitInfo = excitationIdentifier(1,3,4,2)
 
-        ASSERT(excitInfo%typ == 13 )
+        ASSERT(excitInfo%typ == excit_type%double_R_to_L )
 
         call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
         print *, "testing calcDoubleR2L_stochastic(ilut,exinfo,ex,pgen):"
@@ -4194,7 +4194,7 @@ contains
         ! set up correct excitation information
         excitInfo = excitationIdentifier(1,3,4,2)
 
-        ASSERT(excitInfo%typ == 13 )
+        ASSERT(excitInfo%typ == excit_type%double_R_to_L )
 
         call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
 
@@ -4231,7 +4231,7 @@ contains
         ! set up correct excitation information
         excitInfo = excitationIdentifier(3,1,2,4)
 
-        ASSERT(excitInfo%typ == 12)
+        ASSERT(excitInfo%typ == excit_type%double_L_to_R)
 
         call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
 
@@ -4262,7 +4262,7 @@ contains
         ! set up correct excitation information
         excitInfo = excitationIdentifier(3,1,2,4)
 
-        ASSERT(excitInfo%typ == 12)
+        ASSERT(excitInfo%typ == excit_type%double_L_to_R)
 
         call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
 
@@ -4302,7 +4302,7 @@ contains
         ! set up correct excitation information
         excitInfo = excitationIdentifier(1,4,3,2 )
 
-        ASSERT(excitInfo%typ == 11)
+        ASSERT(excitInfo%typ == excit_type%double_R_to_L_to_R)
 
         call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
 
@@ -4330,7 +4330,7 @@ contains
         ! set up correct excitation information
         excitInfo = excitationIdentifier(1,4,3,2 )
 
-        ASSERT(excitInfo%typ == 11)
+        ASSERT(excitInfo%typ == excit_type%double_R_to_L_to_R)
 
         call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
 
@@ -4372,7 +4372,7 @@ contains
         ! set up correct excitation information
         excitInfo = excitationIdentifier(4,1,2,3)
 
-        ASSERT(excitInfo%typ == 10)
+        ASSERT(excitInfo%typ == excit_type%double_L_to_R_to_L)
 
         call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
 
@@ -4404,7 +4404,7 @@ contains
         ! set up correct excitation information
         excitInfo = excitationIdentifier(4,1,2,3)
 
-        ASSERT(excitInfo%typ == 10)
+        ASSERT(excitInfo%typ == excit_type%double_L_to_R_to_L)
 
         call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
 
@@ -4441,7 +4441,7 @@ contains
         ! set up correct excitation information
         excitInfo = excitationIdentifier(1,4,2,3)
 
-        ASSERT(excitInfo%typ == 9)
+        ASSERT(excitInfo%typ  == excit_type%double_raising)
 
         call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
 
@@ -4457,7 +4457,7 @@ contains
 
         excitInfo = excitationIdentifier(1,3,2,4)
 
-        ASSERT(excitInfo%typ == 9)
+        ASSERT(excitInfo%typ  == excit_type%double_raising)
 
         call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
         call calcDoubleRaisingStochastic(ilut,excitInfo,ex,pgen,posSwitches,negSwitches)
@@ -4484,7 +4484,7 @@ contains
         ! set up correct excitation information
         excitInfo = excitationIdentifier(1,4,2,3)
 
-        ASSERT(excitInfo%typ == 9)
+        ASSERT(excitInfo%typ  == excit_type%double_raising)
 
         call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
 
@@ -4497,7 +4497,7 @@ contains
 
         excitInfo = excitationIdentifier(1,3,2,4)
 
-        ASSERT(excitInfo%typ == 9)
+        ASSERT(excitInfo%typ  == excit_type%double_raising)
 
         call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
 
@@ -4535,7 +4535,7 @@ contains
         ! set up correct excitation information
         excitInfo = excitationIdentifier(4,1,3,2)
 
-        ASSERT(excitInfo%typ == 8)
+        ASSERT(excitInfo%typ  == excit_type%double_lowering)
 
         call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
 
@@ -4552,7 +4552,7 @@ contains
 
         excitInfo = excitationIdentifier(3,2,4,1)
 
-        ASSERT(excitInfo%typ == 8)
+        ASSERT(excitInfo%typ  == excit_type%double_lowering)
 
         call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
         call calcDoubleLoweringStochastic(ilut,excitInfo,ex,pgen,posSwitches,negSwitches)
@@ -4579,7 +4579,7 @@ contains
         ! set up correct excitation information
         excitInfo = excitationIdentifier(4,1,3,2)
 
-        ASSERT(excitInfo%typ == 8)
+        ASSERT(excitInfo%typ  == excit_type%double_lowering)
 
         call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
 
@@ -4592,7 +4592,7 @@ contains
 
         excitInfo = excitationIdentifier(4,2,3,1)
 
-        ASSERT(excitInfo%typ == 8)
+        ASSERT(excitInfo%typ  == excit_type%double_lowering)
 
         call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
 
@@ -4629,7 +4629,7 @@ contains
         ! set up correct excitation information
         excitInfo = excitationIdentifier( 1,4,4,2  )
 
-        ASSERT(excitInfo%typ == 17)
+        ASSERT(excitInfo%typ == excit_type%fullstop_R_to_L)
 
         call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
 
@@ -4658,7 +4658,7 @@ contains
         ! set up correct excitation information
         excitInfo = excitationIdentifier(1,4,4,2)
 
-        ASSERT(excitInfo%typ == 17)
+        ASSERT(excitInfo%typ == excit_type%fullstop_R_to_L)
 
         call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
 
@@ -4670,7 +4670,7 @@ contains
         ! set up correct excitation information
         excitInfo = excitationIdentifier(1,3,3,2)
 
-        ASSERT(excitInfo%typ == 17)
+        ASSERT(excitInfo%typ == excit_type%fullstop_R_to_L)
 
         call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
 
@@ -4704,7 +4704,7 @@ contains
         ! set up correct excitation information
         excitInfo = excitationIdentifier(4,1,2,4 )
 
-        ASSERT(excitInfo%typ == 16 )
+        ASSERT(excitInfo%typ == excit_type%fullstop_L_to_R )
 
         call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
 
@@ -4732,7 +4732,7 @@ contains
         ! set up correct excitation information
         excitInfo = excitationIdentifier(4,1,2,4 )
 
-        ASSERT(excitInfo%typ == 16 )
+        ASSERT(excitInfo%typ == excit_type%fullstop_L_to_R )
 
         call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
 
@@ -4746,7 +4746,7 @@ contains
 
         excitInfo = excitationIdentifier(4,1,2,4 )
 
-        ASSERT(excitInfo%typ == 16 )
+        ASSERT(excitInfo%typ == excit_type%fullstop_L_to_R )
 
         call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
 
@@ -4780,7 +4780,7 @@ contains
         ! set up correct excitation information
         excitInfo = excitationIdentifier(1,2,4,1)
 
-        ASSERT(excitInfo%typ == 21 )
+        ASSERT(excitInfo%typ == excit_type%fullstart_R_to_L )
 
         call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
 
@@ -4807,7 +4807,7 @@ contains
         ! set up correct excitation information
         excitInfo = excitationIdentifier(1,3,4,1)
 
-        ASSERT(excitInfo%typ == 21 )
+        ASSERT(excitInfo%typ == excit_type%fullstart_R_to_L )
 
         call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
 
@@ -4819,7 +4819,7 @@ contains
         ! set up correct excitation information
         excitInfo = excitationIdentifier(2,3,4,2)
 
-        ASSERT(excitInfo%typ == 21 )
+        ASSERT(excitInfo%typ == excit_type%fullstart_R_to_L )
 
         call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
 
@@ -4853,7 +4853,7 @@ contains
         ! set up correct excitation information
         excitInfo = excitationIdentifier( 1,4,2,1 )
 
-        ASSERT(excitInfo%typ == 20)
+        ASSERT(excitInfo%typ == excit_type%fullstart_L_to_R)
 
         call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
 
@@ -4879,7 +4879,7 @@ contains
         ! set up correct excitation information
         excitInfo = excitationIdentifier( 1,4,3,1 )
 
-        ASSERT(excitInfo%typ == 20)
+        ASSERT(excitInfo%typ == excit_type%fullstart_L_to_R)
 
         call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
 
@@ -4891,7 +4891,7 @@ contains
         ! set up correct excitation information
         excitInfo = excitationIdentifier( 2,4,3,2 )
 
-        ASSERT(excitInfo%typ == 20)
+        ASSERT(excitInfo%typ == excit_type%fullstart_L_to_R)
 
         call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
 
@@ -4924,7 +4924,7 @@ contains
         ! set up correct excitation information
         excitInfo = excitationIdentifier(1,2,4,1)
 
-        ASSERT(excitInfo%typ == 21)
+        ASSERT(excitInfo%typ == excit_type%fullstart_R_to_L)
 
         ! calc the possible switches
         call calcRemainingSwitches_excitInfo_single(excitInfo, posSwitch, negSwitch)
@@ -5012,7 +5012,7 @@ contains
         ! set up correct excitation information
         excitInfo = excitationIdentifier(2,1,1,4)
 
-        ASSERT(excitInfo%typ == 20)
+        ASSERT(excitInfo%typ == excit_type%fullstart_L_to_R)
 
         ! calc the possible switches
         call calcRemainingSwitches_excitInfo_single(excitInfo, posSwitch, negSwitch)
@@ -5100,7 +5100,7 @@ contains
         ! 0132
         ! is this even compatible??
 
-        ASSERT(excitInfo%typ == 16)
+        ASSERT(excitInfo%typ == excit_type%fullstop_L_to_R)
 
         ! calc the possible switches
         call calcRemainingSwitches_excitInfo_single(excitInfo, posSwitch, negSwitch)
@@ -5153,7 +5153,7 @@ contains
         ! set up correct excitation information
         excitInfo = excitationIdentifier(1,4,4,2 )
 
-        ASSERT(excitInfo%typ == 17)
+        ASSERT(excitInfo%typ == excit_type%fullstop_R_to_L)
 
         ! calc the possible switches
         call calcRemainingSwitches_excitInfo_single(excitInfo, posSwitch, negSwitch)
@@ -5201,7 +5201,7 @@ contains
 
         excitInfo = excitationIdentifier(1,3,4,3)
 
-        ASSERT(excitInfo%typ == 7)
+        ASSERT(excitInfo%typ == excit_type%single_overlap_R_to_L)
 
         call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
 
@@ -5226,7 +5226,7 @@ contains
 
         excitInfo = excitationIdentifier(3,1,3,4)
 
-        ASSERT(excitInfo%typ == 6)
+        ASSERT(excitInfo%typ  == excit_type%single_overlap_L_to_R)
 
         call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
 
@@ -5262,7 +5262,7 @@ contains
         currentB_int = calcB_vector_int(ilut)
         excitInfo = excitationIdentifier(4,1,4,3)
 
-        ASSERT(excitInfo%typ == 14)
+        ASSERT(excitInfo%typ == excit_type%fullstop_lowering)
 
         call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
         print *, "testing calcFullStopLoweringStochastic(ilut, exInfo, ex, pgen):"
@@ -5296,7 +5296,7 @@ contains
         currentB_int = calcB_vector_int(ilut)
         excitInfo = excitationIdentifier(1,4,3,4)
 
-        ASSERT(excitInfo%typ == 15)
+        ASSERT(excitInfo%typ == excit_type%fullstop_raising)
 
         call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
         print *, "testing calcFullStopRaisingStochastic(ilut, exInfo, ex, pgen):"
@@ -5332,7 +5332,7 @@ contains
         currentB_int = calcB_vector_int(ilut)
         excitInfo = excitationIdentifier(3,1,4,1)
 
-        ASSERT(excitInfo%typ == 18)
+        ASSERT(excitInfo%typ == excit_type%fullstart_lowering)
 
         call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
         ASSERT(.not.compFlag)
@@ -5341,7 +5341,7 @@ contains
 
         excitInfo = excitationIdentifier(2,1,4,1)
 
-        ASSERT(excitInfo%typ == 18)
+        ASSERT(excitInfo%typ == excit_type%fullstart_lowering)
 
         call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
 
@@ -5377,7 +5377,7 @@ contains
 
         excitInfo = excitationIdentifier(1,3,1,4)
 
-        ASSERT(excitInfo%typ == 19)
+        ASSERT(excitInfo%typ == excit_type%fullstart_raising)
 
         call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
         print *, "testing calcFullStartRaisingStochastic(ilut, exInfo, ex, pgen):"
@@ -5394,7 +5394,7 @@ contains
 
         excitInfo = excitationIdentifier(2,3,2,4)
 
-        ASSERT(excitInfo%typ == 19)
+        ASSERT(excitInfo%typ == excit_type%fullstart_raising)
 
         call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
 
@@ -5547,7 +5547,7 @@ contains
         currentB_int = calcB_vector_int(ilut)
         excitInfo = excitationIdentifier(1,4,4,1)
 
-        ASSERT(excitInfo%typ==23)
+        ASSERT(excitInfo%typ == excit_type%fullstart_stop_mixed)
 
         call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
         print *, "testing calcFullStartFullStopMixedStochastic(ilut,exInfo,ex,pgen)"
@@ -5567,7 +5567,7 @@ contains
         currentB_int = calcB_vector_int(ilut)
         excitInfo = excitationIdentifier(1,4,4,1)
 
-        ASSERT(excitInfo%typ==23)
+        ASSERT(excitInfo%typ == excit_type%fullstart_stop_mixed)
 
         call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
         print *, "testing calcFullStartFullStopMixedStochastic(ilut,exInfo,ex,pgen)"
@@ -5777,7 +5777,7 @@ contains
 !         excitInfo = pickOrbitals_single(ilut)
         excitInfo = excitationIdentifier(4,1)
 
-        ASSERT(excitInfo%typ == 0)
+        ASSERT(excitInfo%typ == excit_type%single)
         ASSERT(excitInfo%fullStart == 1 .and. excitInfo%fullEnd == 4)
         ASSERT(excitInfo%gen1 == -1)
 
@@ -5962,7 +5962,7 @@ contains
 
         excitInfo = excitationIdentifier(4,1)
 
-        ASSERT(excitInfo%typ == 0)
+        ASSERT(excitInfo%typ == excit_type%single)
         ASSERT(excitInfo%fullStart == 1 .and. excitInfo%fullEnd == 4)
         ASSERT(excitInfo%gen1 == -1)
 
@@ -6011,7 +6011,7 @@ contains
 
         if (excitInfo%valid) then
             ASSERT(pgen > 0.0_dp)
-            ASSERT(excitInfo%typ == 0)
+            ASSERT(excitInfo%typ == excit_type%single)
             ASSERT(excitInfo%fullstart == 1 .or. excitInfo%fullstart == 2)
             ASSERT(excitInfo%fullEnd == 3 .or. excitInfo%fullEnd == 4)
             ASSERT(excitInfo%gen1 == -1)
@@ -6020,7 +6020,7 @@ contains
         call pickOrbitals_single(ilut, nI, excitInfo, pgen)
         if (excitInfo%valid) then
             ASSERT(pgen > 0.0_dp)
-            ASSERT(excitInfo%typ == 0)
+            ASSERT(excitInfo%typ == excit_type%single)
             ASSERT(excitInfo%fullstart == 1 .or. excitInfo%fullstart == 2)
             ASSERT(excitInfo%fullEnd == 3 .or. excitInfo%fullEnd == 4)
             ASSERT(excitInfo%gen1 == -1)
@@ -6029,7 +6029,7 @@ contains
         call pickOrbitals_single(ilut, nI, excitInfo, pgen)
         if (excitInfo%valid) then
             ASSERT(pgen > 0.0_dp)
-            ASSERT(excitInfo%typ == 0)
+            ASSERT(excitInfo%typ == excit_type%single)
             ASSERT(excitInfo%fullstart == 1 .or. excitInfo%fullstart == 2)
             ASSERT(excitInfo%fullEnd == 3 .or. excitInfo%fullEnd == 4)
             ASSERT(excitInfo%gen1 == -1)
@@ -6050,7 +6050,7 @@ contains
 
         if (excitInfo%valid) then
             ASSERT(pgen > 0.0_dp)
-            ASSERT(excitInfo%typ == 0)
+            ASSERT(excitInfo%typ == excit_type%single)
             ASSERT(excitInfo%fullstart == 1 .or. excitInfo%fullstart == 2)
             ASSERT(excitInfo%fullEnd == 3 .or. excitInfo%fullEnd == 4)
             ASSERT(excitInfo%gen1 == 1)
@@ -6059,7 +6059,7 @@ contains
         call pickOrbitals_single(ilut, nI, excitInfo, pgen)
         if (excitInfo%valid) then
             ASSERT(pgen > 0.0_dp)
-            ASSERT(excitInfo%typ == 0)
+            ASSERT(excitInfo%typ == excit_type%single)
             ASSERT(excitInfo%fullstart == 1 .or. excitInfo%fullstart == 2)
             ASSERT(excitInfo%fullEnd == 3 .or. excitInfo%fullEnd == 4)
             ASSERT(excitInfo%gen1 == 1)
@@ -6069,7 +6069,7 @@ contains
 
         if (excitInfo%valid) then
             ASSERT(pgen > 0.0_dp)
-            ASSERT(excitInfo%typ == 0)
+            ASSERT(excitInfo%typ == excit_type%single)
             ASSERT(excitInfo%fullstart == 1 .or. excitInfo%fullstart == 2)
             ASSERT(excitInfo%fullEnd == 3 .or. excitInfo%fullEnd == 4)
             ASSERT(excitInfo%gen1 == 1)
@@ -6089,13 +6089,13 @@ contains
         call pickOrbitals_single(ilut, nI, excitInfo, pgen)
         if (excitInfo%valid) then
             ASSERT(pgen > 0.0_dp)
-            ASSERT(excitInfo%typ == 0)
+            ASSERT(excitInfo%typ == excit_type%single)
         end if
 
         call pickOrbitals_single(ilut, nI, excitInfo, pgen)
         if (excitInfo%valid) then
             ASSERT(pgen > 0.0_dp)
-            ASSERT(excitInfo%typ == 0)
+            ASSERT(excitInfo%typ == excit_type%single)
         end if
 
         print *, "pickOrbitals_single tests passed!"
@@ -6346,7 +6346,7 @@ contains
 
         excitInfo = excitationIdentifier(1,4,1,4)
         call calcRemainingSwitches_excitInfo_double(excitInfo, posSwitch, negSwitch)
-        ASSERT(excitInfo%typ == 22)
+        ASSERT(excitInfo%typ == excit_type%fullstart_stop_alike)
 
         print *, "testing: calcFullStartFullStopAlike(ilut, exInfo, ex)"
         call calcFullStartFullStopAlike(ilut, excitInfo, ex)
@@ -6370,7 +6370,7 @@ contains
         excitInfo = excitationIdentifier(4,1,4,1)
         call calcRemainingSwitches_excitInfo_double(excitInfo, posSwitch, negSwitch)
         currentB_ilut = calcB_vector_ilut(ilut)
-        ASSERT(excitInfo%typ == 22)
+        ASSERT(excitInfo%typ == excit_type%fullstart_stop_alike)
 
         print *, "testing: calcFullStartFullStopAlike(ilut, exInfo, ex)"
         call calcFullStartFullStopAlike(ilut, excitInfo, ex)
@@ -6405,7 +6405,7 @@ contains
 
         excitInfo = excitationIdentifier(1,4,3,1)
         call calcRemainingSwitches_excitInfo_double(excitInfo, posSwitch, negSwitch)
-        ASSERT(excitInfo%typ == 20)
+        ASSERT(excitInfo%typ == excit_type%fullstart_L_to_R)
 
         print *, "testing: calcFullStartL2R(ilut, exInfo, ex, num, posSwitch, negSwitch)"
         call calcFullStartL2R(ilut, excitInfo, ex, num, posSwitch, negSwitch)
@@ -6444,7 +6444,7 @@ contains
 
         excitInfo = excitationIdentifier(1,3,4,1)
         call calcRemainingSwitches_excitInfo_double(excitInfo, posSwitch, negSwitch)
-        ASSERT(excitInfo%typ == 21)
+        ASSERT(excitInfo%typ == excit_type%fullstart_R_to_L)
 
         print *, "testing: calcFullStartR2L(ilut, exInfo, ex, num, posSwitch, negSwitch)"
         call calcFullStartR2L(ilut, excitInfo, ex, num, posSwitch, negSwitch)
@@ -6483,7 +6483,7 @@ contains
 
         excitInfo = excitationIdentifier(1,4,1,3)
         call calcRemainingSwitches_excitInfo_double(excitInfo, posSwitch, negSwitch)
-        ASSERT(excitInfo%typ == 19)
+        ASSERT(excitInfo%typ == excit_type%fullstart_raising)
 
         print *, "testing: calcFullStartRaising(ilut, exInfo, ex, num, posSwitch, negSwitch)"
         call calcFullStartRaising(ilut, excitInfo, ex, num, posSwitch, negSwitch)
@@ -6517,7 +6517,7 @@ contains
 
         excitInfo = excitationIdentifier(4,1,3,1)
         call calcRemainingSwitches_excitInfo_double(excitInfo, posSwitch, negSwitch)
-        ASSERT(excitInfo%typ == 18)
+        ASSERT(excitInfo%typ == excit_type%fullstart_lowering)
 
         print *, "testing: calcFullStartLowering(ilut, exInfo, ex, num, posSwitch, negSwitch)"
         call calcFullStartLowering(ilut, excitInfo, ex, num, posSwitch, negSwitch)
@@ -6552,7 +6552,7 @@ contains
 
         excitInfo = excitationIdentifier(1,4,4,3)
         call calcRemainingSwitches_excitInfo_double(excitInfo, posSwitch, negSwitch)
-        ASSERT(excitInfo%typ == 17)
+        ASSERT(excitInfo%typ == excit_type%fullstop_R_to_L)
 
         print *, "testing: calcFullStopR2L(ilut, exInfo, ex, num, posSwitch, negSwitch)"
         call calcFullStopR2L(ilut, excitInfo, ex, num, posSwitch, negSwitch)
@@ -6592,7 +6592,7 @@ contains
 
         excitInfo = excitationIdentifier(4,1,3,4)
         call calcRemainingSwitches_excitInfo_double(excitInfo, posSwitch, negSwitch)
-        ASSERT(excitInfo%typ == 16)
+        ASSERT(excitInfo%typ == excit_type%fullstop_L_to_R)
 
         print *, "testing: calcFullStopL2R(ilut, exInfo, ex, num, posSwitch, negSwitch)"
         call calcFullStopL2R(ilut, excitInfo, ex, num, posSwitch, negSwitch)
@@ -6633,7 +6633,7 @@ contains
 
         excitInfo = excitationIdentifier(1,4,2,4)
         call calcRemainingSwitches_excitInfo_double(excitInfo, posSwitch, negSwitch)
-        ASSERT(excitInfo%typ == 15)
+        ASSERT(excitInfo%typ == excit_type%fullstop_raising)
 
         print *, "testing: calcFullStopRaising(ilut, exInfo, ex, num, posSwitch, negSwitch)"
         call calcFullStopRaising(ilut, excitInfo, ex, num, posSwitch, negSwitch)
@@ -6665,7 +6665,7 @@ contains
 
         excitInfo = excitationIdentifier(4,1,4,2)
         call calcRemainingSwitches_excitInfo_double(excitInfo, posSwitch, negSwitch)
-        ASSERT(excitInfo%typ == 14)
+        ASSERT(excitInfo%typ == excit_type%fullstop_lowering)
 
         print *, "testing: calcFullStopLowering(ilut, exInfo, ex, num, posSwitch, negSwitch)"
         call calcFullStopLowering(ilut, excitInfo, ex, num, posSwitch, negSwitch)
@@ -6697,7 +6697,7 @@ contains
 
         excitInfo = excitationIdentifier(1,3,4,2)
         call calcRemainingSwitches_excitInfo_double(excitInfo, posSwitch, negSwitch)
-        ASSERT(excitInfo%typ == 13)
+        ASSERT(excitInfo%typ == excit_type%double_R_to_L)
 
         print *, "testing: calcDoubleR2L(ilut, exInfo, ex, num, posSwitch, negSwitch)"
         call calcDoubleR2L(ilut, excitInfo, ex, num, posSwitch, negSwitch)
@@ -6731,7 +6731,7 @@ contains
 
         excitInfo = excitationIdentifier(3,1,2,4)
         call calcRemainingSwitches_excitInfo_double(excitInfo, posSwitch, negSwitch)
-        ASSERT(excitInfo%typ == 12)
+        ASSERT(excitInfo%typ == excit_type%double_L_to_R)
 
         print *, "testing: calcDoubleL2R(ilut, exInfo, ex, num, posSwitch, negSwitch)"
         call calcDoubleL2R(ilut, excitInfo, ex, num, posSwitch, negSwitch)
@@ -6764,7 +6764,7 @@ contains
 
         excitInfo = excitationIdentifier(1,3,2,4)
         call calcRemainingSwitches_excitInfo_double(excitInfo, posSwitch, negSwitch)
-        ASSERT(excitInfo%typ == 9)
+        ASSERT(excitInfo%typ  == excit_type%double_raising)
 
         print *, "testing: calcDoubleRaising(ilut, exInfo, ex, num, posSwitch, negSwitch)"
         call calcDoubleRaising(ilut, excitInfo, ex, num, posSwitch, negSwitch)
@@ -6800,7 +6800,7 @@ contains
         excitInfo = excitationIdentifier(3,1,4,2)
         call calcRemainingSwitches_excitInfo_double(excitInfo, posSwitch, negSwitch)
 
-        ASSERT(excitInfo%typ==8)
+        ASSERT(excitInfo%typ == excit_type%double_lowering)
         print *, "testing: calcDoubleLowering(ilut, exInfo, ex, num, posSwitch, negSwitch)"
         call calcDoubleLowering(ilut, excitInfo, ex, num, posSwitch, negSwitch)
 
@@ -6933,7 +6933,7 @@ contains
 
         excitInfo = excitationIdentifier(1,2,3,4)
         call calcRemainingSwitches_excitInfo_double(excitInfo, posSwitch, negSwitch)
-        ASSERT(excitInfo%typ == 3)
+        ASSERT(excitInfo%typ == excit_type%non_overlap)
 
         print *, "testing: calcNonOverlapDouble(ilut, exInfo, exs, num, posSwitch, negSwitch"
         call calcNonOverlapDouble(ilut, excitInfo, ex, num, posSwitch, negSwitch)
@@ -6993,7 +6993,7 @@ contains
 
         excitInfo = excitationIdentifier(2,2,1,4)
         call calcRemainingSwitches_excitInfo_single(excitInfo, posSwitch, negSwitch)
-        ASSERT(excitInfo%typ == 1)
+        ASSERT(excitInfo%typ == excit_type%raising)
 
         print *, "testing: calcDoubleExcitation_withWeight(ilut, exInfo, exc, num)"
         call calcDoubleExcitation_withWeight(ilut, excitInfo, ex, num, posSwitch, &
@@ -7119,29 +7119,29 @@ contains
         ASSERT(excitInfo%j==2)
         ASSERT(excitInfo%gen1==1)
         ASSERT(excitInfo%gen2==1)
-        ASSERT(excitInfo%typ==3)
+        ASSERT(excitInfo%typ==excit_type%non_overlap)
         excitInfo = excitationIdentifier_double(1,2,2,4)
         ASSERT(excitInfo%fullStart==1)
         ASSERT(excitInfo%secondStart==2)
         ASSERT(excitInfo%firstEnd==2)
         ASSERT(excitInfo%fullEnd==4)
         ASSERT(excitInfo%currentGen==1)
-        ASSERT(excitInfo%typ==5)
+        ASSERT(excitInfo%typ == excit_type%single_overlap_raising)
 
         excitInfo = excitationIdentifier_double(3,2,3,4)
-        ASSERT(excitInfo%typ==6)
+        ASSERT(excitInfo%typ == excit_type%single_overlap_L_to_R)
         excitInfo = excitationIdentifier_double(4,2,3,1)
-        ASSERT(excitInfo%typ==8)
+        ASSERT(excitInfo%typ == excit_type%double_lowering)
         excitInfo = excitationIdentifier_double(1,1,3,4)
-        ASSERT(excitInfo%typ==1)
+        ASSERT(excitInfo%typ==excit_type%raising)
         excitInfo = excitationIdentifier_double(1,1,4,4)
-        ASSERT(excitInfo%typ==0)
+        ASSERT(excitInfo%typ==excit_type%single)
         excitInfo = excitationIdentifier_double(1,1,1,1)
-        ASSERT(excitInfo%typ==0)
+        ASSERT(excitInfo%typ==excit_type%single)
         excitInfo = excitationIdentifier_double(1,3,2,4)
-        ASSERT(excitInfo%typ==9)
+        ASSERT(excitInfo%typ == excit_type%double_raising)
         excitInfo = excitationIdentifier_double(1,4,3,2)
-        ASSERT(excitInfo%typ==11)
+        ASSERT(excitInfo%typ== excit_type%double_R_to_L_to_R)
 
         print *, "excitationIdentifier_double tests passed!"
 
@@ -7410,7 +7410,7 @@ contains
         ASSERT(excitInfo%fullEnd==4)
         ASSERT(excitInfo%currentGen == 1)
         ASSERT(excitInfo%excitLvl == 2)
-        ASSERT(excitInfo%typ == 0)
+        ASSERT(excitInfo%typ == excit_type%single)
 
         excitInfo = excitationIdentifier(1, 4)
         ASSERT(excitInfo%i==1)
@@ -7420,7 +7420,7 @@ contains
         ASSERT(excitInfo%fullEnd==4)
         ASSERT(excitInfo%currentGen == 1)
         ASSERT(excitInfo%excitLvl == 2)
-        ASSERT(excitInfo%typ == 0)
+        ASSERT(excitInfo%typ == excit_type%single)
 
         excitInfo = excitationIdentifier(2, 4)
         ASSERT(excitInfo%i==2)
@@ -7430,7 +7430,7 @@ contains
         ASSERT(excitInfo%fullEnd==4)
         ASSERT(excitInfo%currentGen == 1)
         ASSERT(excitInfo%excitLvl == 2)
-        ASSERT(excitInfo%typ == 0)
+        ASSERT(excitInfo%typ == excit_type%single)
 
         excitInfo = excitationIdentifier(3, 2)
         ASSERT(excitInfo%i==3)
@@ -7440,7 +7440,7 @@ contains
         ASSERT(excitInfo%fullEnd==3)
         ASSERT(excitInfo%currentGen == -1)
         ASSERT(excitInfo%excitLvl == 2)
-        ASSERT(excitInfo%typ == 0)
+        ASSERT(excitInfo%typ == excit_type%single)
 
         print *, "excitationIdentifier_single tests passed!"
 

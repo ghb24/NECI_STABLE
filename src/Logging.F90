@@ -5,8 +5,7 @@ MODULE Logging
     use constants, only: dp, int64, nreplicas
     use input_neci
     use MemoryManager, only: LogMemAlloc, LogMemDealloc,TagIntType
-    use SystemData, only: nel, LMS, nbasis, tHistSpinDist, nI_spindist, &
-                          hist_spin_dist_iter
+    use SystemData, only: nel, LMS, nbasis
     use CalcData, only: tCheckHighestPop, semistoch_shift_iter, trial_shift_iter, &
                         tPairedReplicas, tReplicaEstimates, iSampleRDMIters, tMoveGlobalDetData
     use constants, only: n_int, size_n_int, bits_n_int
@@ -31,10 +30,9 @@ MODULE Logging
                            t_pop_symmetry_states, symmetry_states, &
                            symmetry_weights, symmetry_states_ilut
 
-    use guga_rdm, only: t_test_sym_fill, t_direct_exchange, t_more_sym, &
-                        t_mimic_stochastic
-
     use cc_amplitudes, only: t_plot_cc_amplitudes
+
+    use fcimcdata, only: tFillingStochRDMonFly
 
     IMPLICIT NONE
 
@@ -128,9 +126,7 @@ MODULE Logging
       NoDumpTruncs=0
       tWriteTransMat=.false.
       tHistInitPops=.false.
-      tHistSpinDist = .false.
       HistInitPopsIter=100000
-      hist_spin_dist_iter = 1000
       tLogDets=.false.
       tLogEXLEVELStats=.false.
       tCalcInstantS2 = .false.
@@ -140,6 +136,7 @@ MODULE Logging
       iNumPropToEst=0
       instant_s2_multiplier = 1
       tRDMonFly=.false.
+      tFillingStochRDMonFly = .false.
       tChangeVarsRDM = .false.
       RDMEnergyIter=100
       tDiagRDM=.false.
@@ -249,23 +246,15 @@ MODULE Logging
         call readu(w)
         select case(w)
 
+        case ("PRINT-MOLCAS-RDMS")
+            ! output density matrices also in Molcas format in the GUGA RDM
+            ! implementation
+            t_print_molcas_rdms = .true.
+
         case ("PRINT-FREQUENCY-HISTOGRAMS")
             ! in this case print the frequency histograms to analyze the
             ! matrix element vs. pgen ratios
             t_print_frq_histograms = .true.
-
-        case ("TEST-SYM-FILL")
-            t_test_sym_fill = .true.
-
-        case ("MORE-SYM")
-            t_test_sym_fill = .true.
-            t_more_sym = .true.
-
-        case ("DIRECT-EXCHANGE")
-            t_direct_exchange = .true.
-
-        case ("MIMIC-STOCHASTIC")
-            t_mimic_stochastic = .true.
 
         case("REBLOCKSHIFT")
             !Abort all other calculations, and just block data again with given equilibration time (in iterations)
@@ -420,24 +409,6 @@ MODULE Logging
 !PGI - this will be fixed at
 !some stage.  Also - QChem INTDUMP files must be used to be compatible.
             tWriteTransMat=.true.
-
-
-        case("HIST-SPIN-DIST")
-            ! Histogram the distribution of walkers within determinants of the
-            ! given spatial configuration
-            ! --> The determinant is specified using SPIN orbitals, but these
-            !     are converted to a spatial structure for use.
-
-            tHistSpinDist = .true.
-            call readi(hist_spin_dist_iter)
-            if (.not. allocated(nI_spindist)) &
-                allocate(nI_spindist(nel))
-            nI_spindist = 0
-            i = 1
-            do while (item < nitems .and. i <= nel)
-                call geti(nI_spindist(i))
-                i = i+1
-            enddo
 
          case("HIST-INTEGRALS")
             tHistLMat = .true.
@@ -1295,7 +1266,7 @@ MODULE Logging
 
         case("FVAL-POP-HIST")
             ! When using auto-adaptive shift, print a histogram of the shift factors over
-            ! the population            
+            ! the population
             tFValPopHist = .true.
             if(item < nitems) call readi(FValPopHist_PopBins)
             if(item < nitems) call readi(FValPopHist_FvalBins)

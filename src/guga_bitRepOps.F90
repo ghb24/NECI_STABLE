@@ -10,16 +10,23 @@ module guga_bitRepOps
     use SystemData, only: nEl, Stot, nSpatOrbs, &
                           current_stepvector, currentOcc_ilut, currentOcc_int, &
                           currentB_ilut, currentB_int, current_cum_list, nbasis
-    use guga_data, only: ExcitationInformation_t, excit_type, gen_type
+    use guga_data, only: ExcitationInformation_t, excit_type, gen_type, &
+                         rdm_ind_bitmask, pos_excit_lvl_bits, pos_excit_type_bits, &
+                         n_excit_lvl_bits, n_excit_type_bits
     use constants, only: dp, n_int, bits_n_int, bni_, bn2_, int_rdm
     use DetBitOps, only: return_ms, count_set_bits, MaskAlpha, &
                     count_open_orbs, ilut_lt, ilut_gt, MaskAlpha, MaskBeta, &
                     CountBits, DetBitEQ
-    use bit_rep_data, only: test_flag, flag_deltaB_single, &
-        flag_deltaB_double, flag_deltaB_sign, niftot, nIfGUGA, nIfd, nifdbo
+    use bit_rep_data, only: test_flag, flag_deltaB_single, IlutBits, &
+                            flag_deltaB_double, flag_deltaB_sign, niftot, &
+                            nIfGUGA, nIfd, BitRep_t, GugaBits
     use util_mod, only: binary_search, binary_search_custom, operator(.div.), &
                         near_zero
     use sort_mod, only: sort
+
+    use LoggingData, only: tRDMonfly
+
+    use Fcimcdata, only: tFillingStochRDMonfly
 
     implicit none
 
@@ -40,8 +47,13 @@ module guga_bitRepOps
         calc_csf_info, extract_h_element, getexcitation_guga, &
         getspatialoccupation, getExcitationRangeMask, &
         contract_1_rdm_ind, contract_2_rdm_ind, extract_1_rdm_ind, &
-        extract_2_rdm_ind
-
+        extract_2_rdm_ind, encode_rdm_ind, extract_rdm_ind, &
+        encode_stochastic_rdm_x0, encode_stochastic_rdm_x1, &
+        encode_stochastic_rdm_ind, encode_stochastic_rdm_info, &
+        extract_stochastic_rdm_x0, extract_stochastic_rdm_x1, &
+        extract_stochastic_rdm_ind, extract_stochastic_rdm_info, &
+        init_guga_bitrep, transfer_stochastic_rdm_info, &
+        extract_excit_lvl_rdm, extract_excit_type_rdm
 
 
 
@@ -71,6 +83,58 @@ module guga_bitRepOps
     end interface update_matrix_element
 
 contains
+
+    subroutine init_guga_bitrep(n_spatial_bits)
+        ! set up a nIfGUGA variable to use a similar integer list to
+        ! calculate excitations for a given GUGA CSF
+        integer, intent(in) :: n_spatial_bits
+        integer :: x0_pos, x1_pos, deltaB_pos, rdm_ind_pos, rdm_x0_pos, rdm_x1_pos
+
+        ! Structure of a bit representation:
+        ! the parenthesis is for the stochastic GUGA rdm implementation
+        ! | 0-NIfD: Det | x0 | x1 | deltaB | (rdm_ind | rdm_x0 | rdm_x1)
+        !
+        ! -------
+        ! (NIfD + 1) * 64-bits              Orbital rep.
+        !  1         * 64-bits              x0 matrix element
+        !  1         * 64-bits              x1 matrix element
+        !  1         * 64-bits              deltaB value
+        ! if we sample RDMs:
+        !  1         * 64-bits              rdm_index (contains ex-level and type info!)
+        !  1         * 64-bits              x0 coupling coeff for RDMs
+        !  1         * 64-bits              x1-coupling coeff for RDMs
+
+        x0_pos = n_spatial_bits + 1
+        x1_pos = x0_pos + 1
+        deltaB_pos = x1_pos + 1
+
+        if (tRDMonfly) then
+            rdm_ind_pos = deltaB_pos + 1
+            rdm_x0_pos = rdm_ind_pos + 1
+            rdm_x1_pos = rdm_x0_pos  + 1
+
+            nifguga = rdm_x1_pos
+        else
+            rdm_ind_pos = -1
+            rdm_x0_pos = -1
+            rdm_x1_pos = -1
+
+            nIfGUGA = deltaB_pos
+        end if
+
+        ! and also use a global data structure for more overview
+        GugaBits = BitRep_t(&
+            len_tot   = nIfGUGA, &
+            len_orb   = n_spatial_bits, &
+            ind_x0    = x0_pos, &
+            ind_x1    = x1_pos, &
+            ind_b     = deltaB_pos, &
+            ind_rdm_ind = rdm_ind_pos, &
+            ind_rdm_x0  = rdm_x0_pos, &
+            ind_rdm_x1  = rdm_x1_pos)
+
+
+    end subroutine init_guga_bitrep
 
     ! finally with the, after all, usable trialz, popcnt, and leadz routines
     ! (except for the PGI and NAG compilers) i can write an efficient
@@ -551,7 +615,7 @@ contains
                             excitInfo = assign_excitInfo_values_exact(&
                                 excit_type%double_raising, &
                                 gen_type%R,gen_type%R,gen_type%R,gen_type%R,gen_type%R,&
-                                j,l,i,k,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                                j,l,i,k,i,j,k,l,0,2,1.0_dp,1.0_dp,2,spin_change_flag)
 
                         else if (isThree(ilutI,j)) then
                             ! have to check where the electron goes
@@ -560,14 +624,14 @@ contains
                                 excitInfo = assign_excitInfo_values_exact(&
                                     excit_type%double_R_to_L_to_R, &
                                     gen_type%R, gen_type%L,gen_type%R,gen_type%R,gen_type%R,&
-                                    i,l,k,j,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                                    i,l,k,j,i,j,k,l,0,2,1.0_dp,1.0_dp,2,spin_change_flag)
 
                             else if (isThree(ilutI,k)) then
                                 ! _R(i) -> _LR(j) -> ^RL(k) -> ^L(l)
                                 excitInfo = assign_excitInfo_values_exact(&
                                     excit_type%double_R_to_L, &
                                     gen_type%R, gen_type%L,gen_type%R,gen_type%R,gen_type%L,&
-                                    i,k,l,j,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                                    i,k,l,j,i,j,k,l,0,2,1.0_dp,1.0_dp,2,spin_change_flag)
 
                             else
                                 ! n(k) = 1
@@ -576,14 +640,14 @@ contains
                                     excitInfo = assign_excitInfo_values_exact(&
                                         excit_type%double_R_to_L, &
                                         gen_type%R,gen_type%L,gen_type%R,gen_type%R,gen_type%L,&
-                                        i,k,l,j,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                                        i,k,l,j,i,j,k,l,0,2,1.0_dp,1.0_dp,2,spin_change_flag)
 
                                 else
                                     ! _R(i) -> _LR(j) -> ^LR(k) -> ^R(l)
                                     excitInfo = assign_excitInfo_values_exact(&
                                         excit_type%double_R_to_L_to_R, &
                                         gen_type%R,gen_type%L,gen_type%R,gen_type%R,gen_type%R,&
-                                        i,l,k,j,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                                        i,l,k,j,i,j,k,l,0,2,1.0_dp,1.0_dp,2,spin_change_flag)
 
                                 end if
                             end if
@@ -596,14 +660,14 @@ contains
                                     excitInfo = assign_excitInfo_values_exact(&
                                         excit_type%double_R_to_L_to_R, &
                                         gen_type%R,gen_type%L,gen_type%R,gen_type%R,gen_type%R,&
-                                        i,l,k,j,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                                        i,l,k,j,i,j,k,l,0,2,1.0_dp,1.0_dp,2,spin_change_flag)
 
                                 else if (isThree(ilutI,k)) then
                                     ! _R(i) -> _LR(j) -> ^RL(k) -> ^L(l)
                                     excitInfo = assign_excitInfo_values_exact(&
                                         excit_type%double_R_to_L, &
                                         gen_type%R,gen_type%L,gen_type%R,gen_type%R,gen_type%L,&
-                                        i,k,l,j,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                                        i,k,l,j,i,j,k,l,0,2,1.0_dp,1.0_dp,2,spin_change_flag)
 
                                 else
                                     ! n(k) = 1
@@ -612,14 +676,14 @@ contains
                                         excitInfo = assign_excitInfo_values_exact(&
                                             excit_type%double_R_to_L, &
                                             gen_type%R,gen_type%L,gen_type%R,gen_type%R,gen_type%L,&
-                                            i,k,l,j,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                                            i,k,l,j,i,j,k,l,0,2,1.0_dp,1.0_dp,2,spin_change_flag)
 
                                     else
                                         ! _R(i) -> _LR(j) -> ^LR(k) -> ^R(l)
                                         excitInfo = assign_excitInfo_values_exact(&
                                             excit_type%double_R_to_L_to_R, &
                                             gen_type%R,gen_type%L,gen_type%R,gen_type%R,gen_type%R,&
-                                            i,l,k,j,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                                            i,l,k,j,i,j,k,l,0,2,1.0_dp,1.0_dp,2,spin_change_flag)
 
                                     end if
                                 end if
@@ -628,7 +692,7 @@ contains
                                 excitInfo = assign_excitInfo_values_exact(&
                                     excit_type%double_raising, &
                                     gen_type%R,gen_type%R,gen_type%R,gen_type%R,gen_type%R,&
-                                    j,l,i,k,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                                    j,l,i,k,i,j,k,l,0,2,1.0_dp,1.0_dp,2,spin_change_flag)
                             end if
                         end if
                     else if (isThree(ilutI,i)) then
@@ -641,7 +705,7 @@ contains
                                     excit_type%double_L_to_R, &
                                     gen_type%R,gen_type%L,&
                                     gen_type%L,gen_type%L,gen_type%R,&
-                                    j,l,k,i,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                                    j,l,k,i,i,j,k,l,0,2,1.0_dp,1.0_dp,2,spin_change_flag)
 
                             else if (isThree(ilutI,k)) then
                                 ! _L(i) -> _RL(j) -> ^RL(k) -> ^L(l)
@@ -649,7 +713,7 @@ contains
                                     excit_type%double_L_to_R_to_L, &
                                     gen_type%R,gen_type%L,&
                                     gen_type%L,gen_type%L,gen_type%L,&
-                                    j,k,l,i,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                                    j,k,l,i,i,j,k,l,0,2,1.0_dp,1.0_dp,2,spin_change_flag)
 
                             else
                                 ! n(k) = 1
@@ -659,7 +723,7 @@ contains
                                         excit_type%double_L_to_R_to_L, &
                                         gen_type%R,gen_type%L,&
                                         gen_type%L,gen_type%L,gen_type%L,&
-                                        j,k,l,i,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                                        j,k,l,i,i,j,k,l,0,2,1.0_dp,1.0_dp,2,spin_change_flag)
 
                                 else
                                     ! _L(i) -> _RL(j) -> ^LR(k) -> ^R(l)
@@ -667,7 +731,7 @@ contains
                                         excit_type%double_L_to_R, &
                                         gen_type%R,gen_type%L,&
                                         gen_type%L,gen_type%L,gen_type%R,&
-                                        j,l,k,i,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                                        j,l,k,i,i,j,k,l,0,2,1.0_dp,1.0_dp,2,spin_change_flag)
 
                                 end if
                             end if
@@ -677,7 +741,7 @@ contains
                                 excit_type%double_lowering, &
                                 gen_type%L,gen_type%L,&
                                 gen_type%L,gen_type%L,gen_type%L,&
-                                k,i,l,j,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                                k,i,l,j,i,j,k,l,0,2,1.0_dp,1.0_dp,2,spin_change_flag)
 
                         else
                             ! n(j) = 1
@@ -687,7 +751,7 @@ contains
                                     excit_type%double_lowering, &
                                     gen_type%L,gen_type%L,&
                                     gen_type%L,gen_type%L,gen_type%L,&
-                                    k,i,l,j,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                                    k,i,l,j,i,j,k,l,0,2,1.0_dp,1.0_dp,2,spin_change_flag)
 
                             else
                                 ! _L(i) -> _RL(j) -> ...
@@ -697,7 +761,7 @@ contains
                                         excit_type%double_L_to_R, &
                                         gen_type%R,gen_type%L,&
                                         gen_type%L,gen_type%L,gen_type%R,&
-                                        j,l,k,i,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                                        j,l,k,i,i,j,k,l,0,2,1.0_dp,1.0_dp,2,spin_change_flag)
 
                                 else if (isThree(ilutI,k)) then
                                     ! _L(i) -> _RL(j) -> ^RL(k) -> ^L(l)
@@ -705,7 +769,7 @@ contains
                                         excit_type%double_L_to_R_to_L, &
                                         gen_type%R,gen_type%L,&
                                         gen_type%L,gen_type%L,gen_type%L,&
-                                        j,k,l,i,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                                        j,k,l,i,i,j,k,l,0,2,1.0_dp,1.0_dp,2,spin_change_flag)
 
                                 else
                                     ! n(k) = 1
@@ -715,7 +779,7 @@ contains
                                             excit_type%double_L_to_R_to_L, &
                                             gen_type%R,gen_type%L,&
                                             gen_type%L,gen_type%L,gen_type%L,&
-                                            j,k,l,i,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                                            j,k,l,i,i,j,k,l,0,2,1.0_dp,1.0_dp,2,spin_change_flag)
 
                                     else
                                         ! _L(i) -> _RL(j) -> ^LR(k) -> ^R(l)
@@ -723,7 +787,7 @@ contains
                                             excit_type%double_L_to_R, &
                                             gen_type%R,gen_type%L,&
                                             gen_type%L,gen_type%L,gen_type%R,&
-                                            j,l,k,i,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                                            j,l,k,i,i,j,k,l,0,2,1.0_dp,1.0_dp,2,spin_change_flag)
 
                                     end if
                                 end if
@@ -741,7 +805,7 @@ contains
                                         excit_type%double_L_to_R, &
                                         gen_type%R,gen_type%L,&
                                         gen_type%L,gen_type%L,gen_type%R,&
-                                        j,l,k,i,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                                        j,l,k,i,i,j,k,l,0,2,1.0_dp,1.0_dp,2,spin_change_flag)
 
                                 else if (isThree(ilutI,k)) then
                                     ! _L(i) -> _RL(j) -> ^RL(k) -> ^L(l)
@@ -749,7 +813,7 @@ contains
                                         excit_type%double_L_to_R_to_L, &
                                         gen_type%R,gen_type%L,&
                                         gen_type%L,gen_type%L,gen_type%L,&
-                                        j,k,l,i,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                                        j,k,l,i,i,j,k,l,0,2,1.0_dp,1.0_dp,2,spin_change_flag)
 
                                 else
                                     ! n(k) = 1
@@ -759,7 +823,7 @@ contains
                                             excit_type%double_L_to_R_to_L, &
                                             gen_type%R,gen_type%L,&
                                             gen_type%L,gen_type%L,gen_type%L,&
-                                            j,k,l,i,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                                            j,k,l,i,i,j,k,l,0,2,1.0_dp,1.0_dp,2,spin_change_flag)
 
                                     else
                                         ! _L(i) -> _RL(j) -> ^LR(k) -> ^R(l)
@@ -767,7 +831,7 @@ contains
                                             excit_type%double_L_to_R, &
                                             gen_type%R,gen_type%L,&
                                             gen_type%L,gen_type%L,gen_type%R,&
-                                            j,l,k,i,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                                            j,l,k,i,i,j,k,l,0,2,1.0_dp,1.0_dp,2,spin_change_flag)
 
                                     end if
                                 end if
@@ -777,7 +841,7 @@ contains
                                     excit_type%double_lowering, &
                                     gen_type%L,gen_type%L,&
                                     gen_type%L,gen_type%L,gen_type%L,&
-                                    k,i,l,j,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                                    k,i,l,j,i,j,k,l,0,2,1.0_dp,1.0_dp,2,spin_change_flag)
 
                             else
                                 ! n(j) = 1
@@ -787,7 +851,7 @@ contains
                                         excit_type%double_lowering, &
                                         gen_type%L,gen_type%L,&
                                         gen_type%L,gen_type%L,gen_type%L,&
-                                        k,i,l,j,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                                        k,i,l,j,i,j,k,l,0,2,1.0_dp,1.0_dp,2,spin_change_flag)
 
                                 else
                                     ! _L(i) -> _RL(j) -> ...
@@ -797,7 +861,7 @@ contains
                                             excit_type%double_L_to_R, &
                                             gen_type%R,gen_type%L,&
                                             gen_type%L,gen_type%L,gen_type%R,&
-                                            j,l,k,i,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                                            j,l,k,i,i,j,k,l,0,2,1.0_dp,1.0_dp,2,spin_change_flag)
 
                                     else if (isThree(ilutI,k)) then
                                         ! _L(i) -> _RL(j) -> ^RL(k) -> ^L(l)
@@ -805,7 +869,7 @@ contains
                                             excit_type%double_L_to_R_to_L, &
                                             gen_type%R,gen_type%L,&
                                             gen_type%L,gen_type%L,gen_type%L,&
-                                            j,k,l,i,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                                            j,k,l,i,i,j,k,l,0,2,1.0_dp,1.0_dp,2,spin_change_flag)
 
                                     else
                                         ! n(k) = 1
@@ -815,7 +879,7 @@ contains
                                                 excit_type%double_L_to_R_to_L, &
                                                 gen_type%R,gen_type%L,&
                                                 gen_type%L,gen_type%L,gen_type%L,&
-                                                j,k,l,i,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                                                j,k,l,i,i,j,k,l,0,2,1.0_dp,1.0_dp,2,spin_change_flag)
 
                                         else
                                             ! _L(i) -> _RL(j) -> ^LR(k) -> ^R(l)
@@ -823,7 +887,7 @@ contains
                                                 excit_type%double_L_to_R, &
                                                 gen_type%R,gen_type%L,&
                                                 gen_type%L,gen_type%L,gen_type%R,&
-                                                j,l,k,i,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                                                j,l,k,i,i,j,k,l,0,2,1.0_dp,1.0_dp,2,spin_change_flag)
 
                                         end if
                                     end if
@@ -837,7 +901,7 @@ contains
                                     excit_type%double_raising, &
                                     gen_type%R,gen_type%R,&
                                     gen_type%R,gen_type%R,gen_type%R,&
-                                    j,l,i,k,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                                    j,l,i,k,i,j,k,l,0,2,1.0_dp,1.0_dp,2,spin_change_flag)
 
                             else if (isThree(ilutI,j)) then
                                 ! have to check where the electron goes
@@ -847,7 +911,7 @@ contains
                                         excit_type%double_R_to_L_to_R, &
                                         gen_type%R,gen_type%L,&
                                         gen_type%R,gen_type%R,gen_type%R,&
-                                        i,l,k,j,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                                        i,l,k,j,i,j,k,l,0,2,1.0_dp,1.0_dp,2,spin_change_flag)
 
                                 else if (isThree(ilutI,k)) then
                                     ! _R(i) -> _LR(j) -> ^RL(k) -> ^L(l)
@@ -855,7 +919,7 @@ contains
                                         excit_type%double_R_to_L, &
                                         gen_type%R,gen_type%L,&
                                         gen_type%R,gen_type%R,gen_type%L,&
-                                        i,k,l,j,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                                        i,k,l,j,i,j,k,l,0,2,1.0_dp,1.0_dp,2,spin_change_flag)
 
                                 else
                                     ! n(k) = 1
@@ -865,7 +929,7 @@ contains
                                             excit_type%double_R_to_L, &
                                             gen_type%R,gen_type%L,&
                                             gen_type%R,gen_type%R,gen_type%L,&
-                                            i,k,l,j,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                                            i,k,l,j,i,j,k,l,0,2,1.0_dp,1.0_dp,2,spin_change_flag)
 
                                     else
                                         ! _R(i) -> _LR(j) -> ^LR(k) -> ^R(l)
@@ -873,7 +937,7 @@ contains
                                             excit_type%double_R_to_L_to_R, &
                                             gen_type%R,gen_type%L,&
                                             gen_type%R,gen_type%R,gen_type%R,&
-                                            i,l,k,j,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                                            i,l,k,j,i,j,k,l,0,2,1.0_dp,1.0_dp,2,spin_change_flag)
 
                                     end if
                                 end if
@@ -887,7 +951,7 @@ contains
                                             excit_type%double_R_to_L_to_R, &
                                             gen_type%R,gen_type%L,&
                                             gen_type%R,gen_type%R,gen_type%R,&
-                                            i,l,k,j,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                                            i,l,k,j,i,j,k,l,0,2,1.0_dp,1.0_dp,2,spin_change_flag)
 
                                     else if (isThree(ilutI,k)) then
                                         ! _R(i) -> _LR(j) -> ^RL(k) -> ^L(l)
@@ -895,7 +959,7 @@ contains
                                             excit_type%double_R_to_L, &
                                             gen_type%R,gen_type%L,&
                                             gen_type%R,gen_type%R,gen_type%L,&
-                                            i,k,l,j,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                                            i,k,l,j,i,j,k,l,0,2,1.0_dp,1.0_dp,2,spin_change_flag)
 
                                     else
                                         ! n(k) = 1
@@ -905,7 +969,7 @@ contains
                                                 excit_type%double_R_to_L, &
                                                 gen_type%R,gen_type%L,&
                                                 gen_type%R,gen_type%R,gen_type%L,&
-                                                i,k,l,j,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                                                i,k,l,j,i,j,k,l,0,2,1.0_dp,1.0_dp,2,spin_change_flag)
 
                                         else
                                             ! _R(i) -> _LR(j) -> ^LR(k) -> ^R(l)
@@ -913,7 +977,7 @@ contains
                                                 excit_type%double_R_to_L_to_R, &
                                                 gen_type%R,gen_type%L,&
                                                 gen_type%R,gen_type%R,gen_type%R,&
-                                                i,l,k,j,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                                                i,l,k,j,i,j,k,l,0,2,1.0_dp,1.0_dp,2,spin_change_flag)
 
                                         end if
                                     end if
@@ -923,7 +987,7 @@ contains
                                         excit_type%double_raising, &
                                         gen_type%R,gen_type%R,&
                                         gen_type%R,gen_type%R,gen_type%R,&
-                                        j,l,i,k,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                                        j,l,i,k,i,j,k,l,0,2,1.0_dp,1.0_dp,2,spin_change_flag)
                                 end if
                             end if
                         end if
@@ -1031,7 +1095,7 @@ contains
                                             excit_type%fullstart_raising, &
                                             gen_type%R,gen_type%R,&
                                             gen_type%R,gen_type%R,gen_type%R,&
-                                            i,j,i,k,i,i,j,k,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                                            i,j,i,k,i,i,j,k,0,2,1.0_dp,1.0_dp,2,spin_change_flag)
 
                                     else
                                         ! _LL_(i) -> ^LL(j) -> ^L(k)
@@ -1039,7 +1103,7 @@ contains
                                             excit_type%fullstart_lowering, &
                                             gen_type%L,gen_type%L,&
                                             gen_type%L,gen_type%L,gen_type%L,&
-                                            k,i,j,i,i,i,j,k,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                                            k,i,j,i,i,i,j,k,0,2,1.0_dp,1.0_dp,2,spin_change_flag)
 
                                     end if
                                 end if
@@ -1089,7 +1153,7 @@ contains
                                             excit_type%fullstop_lowering, &
                                             gen_type%L,gen_type%L,&
                                             gen_type%L,gen_type%L,gen_type%L,&
-                                            k,i,k,j,i,j,k,k,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                                            k,i,k,j,i,j,k,k,0,2,1.0_dp,1.0_dp,2,spin_change_flag)
 
                                     else
                                         ! _R(i) -> _RR(j) -> ^RR^(k)
@@ -1097,7 +1161,7 @@ contains
                                             excit_type%fullstop_raising, &
                                             gen_type%R,gen_type%R,&
                                             gen_type%R,gen_type%R,gen_type%R,&
-                                            i,k,j,k,i,j,k,k,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                                            i,k,j,k,i,j,k,k,0,2,1.0_dp,1.0_dp,2,spin_change_flag)
 
                                     end if
                                 end if
@@ -1117,7 +1181,7 @@ contains
                                     excit_type%single_overlap_L_to_R, &
                                     gen_type%R,gen_type%L,&
                                     gen_type%L,gen_type%L,gen_type%R,&
-                                    j,k,j,i,i,j,j,k,0,4,1.0_dp,1.0_dp,1,spin_change_flag)
+                                    j,k,j,i,i,j,j,k,0,2,1.0_dp,1.0_dp,1,spin_change_flag)
 
                             else
                                 ! _R(i) -> ^RL_(j) -> ^L(k)
@@ -1125,7 +1189,7 @@ contains
                                     excit_type%single_overlap_R_to_L, &
                                     gen_type%R,gen_type%L,&
                                     gen_type%R,gen_type%R,gen_type%L,&
-                                    i,j,k,j,i,j,j,k,0,4,1.0_dp,1.0_dp,1,spin_change_flag)
+                                    i,j,k,j,i,j,j,k,0,2,1.0_dp,1.0_dp,1,spin_change_flag)
 
                             end if
                         end if
@@ -1172,7 +1236,7 @@ contains
                                 excit_type%fullstart_L_to_R, &
                                 gen_type%R,gen_type%L,&
                                 gen_type%R,gen_type%R,gen_type%R,&
-                                i,k,j,i,i,i,j,k,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                                i,k,j,i,i,i,j,k,0,2,1.0_dp,1.0_dp,2,spin_change_flag)
 
                         else if (isThree(ilutI,j)) then
                             ! _RL_(i) -> ^RL(j) -> ^L(k)
@@ -1180,7 +1244,7 @@ contains
                                 excit_type%fullstart_R_to_L, &
                                 gen_type%R,gen_type%L,&
                                 gen_type%R,gen_type%R,gen_type%L,&
-                                i,j,k,i,i,i,j,k,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                                i,j,k,i,i,i,j,k,0,2,1.0_dp,1.0_dp,2,spin_change_flag)
 
                         else
                             if (isZero(ilutJ,j)) then
@@ -1189,7 +1253,7 @@ contains
                                     excit_type%fullstart_R_to_L, &
                                     gen_type%R,gen_type%L,&
                                     gen_type%R,gen_type%R,gen_type%L,&
-                                    i,j,k,i,i,i,j,k,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                                    i,j,k,i,i,i,j,k,0,2,1.0_dp,1.0_dp,2,spin_change_flag)
 
                             else
                                 ! _RL_(i) -> ^LR(j) -> ^R(k)
@@ -1197,7 +1261,7 @@ contains
                                     excit_type%fullstart_L_to_R, &
                                     gen_type%R,gen_type%L,&
                                     gen_type%R,gen_type%R,gen_type%R,&
-                                    i,k,j,i,i,i,j,k,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                                    i,k,j,i,i,i,j,k,0,2,1.0_dp,1.0_dp,2,spin_change_flag)
 
                             end if
                         end if
@@ -1215,7 +1279,7 @@ contains
                                 excit_type%fullstop_R_to_L, &
                                 gen_type%R,gen_type%L,&
                                 gen_type%R,gen_type%R,gen_type%R,&
-                                i,k,k,j,i,j,k,k,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                                i,k,k,j,i,j,k,k,0,2,1.0_dp,1.0_dp,2,spin_change_flag)
 
                         else if (isThree(ilutI,i)) then
                             ! _L(i) -> _RL(j) -> ^RL^(k)
@@ -1223,7 +1287,7 @@ contains
                                 excit_type%fullstop_L_to_R, &
                                 gen_type%R,gen_type%L,&
                                 gen_type%L,gen_type%L,gen_type%R,&
-                                j,k,k,i,i,j,k,k,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                                j,k,k,i,i,j,k,k,0,2,1.0_dp,1.0_dp,2,spin_change_flag)
 
                         else
                             if (isZero(ilutJ,i)) then
@@ -1232,7 +1296,7 @@ contains
                                     excit_type%fullstop_L_to_R, &
                                     gen_type%R,gen_type%L,&
                                     gen_type%L,gen_type%L,gen_type%R,&
-                                    j,k,k,i,i,j,k,k,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                                    j,k,k,i,i,j,k,k,0,2,1.0_dp,1.0_dp,2,spin_change_flag)
 
                             else
                                 ! _R(i) -> _LR(j) -> ^RL^(k)
@@ -1240,7 +1304,7 @@ contains
                                     excit_type%fullstop_R_to_L, &
                                     gen_type%R,gen_type%L,&
                                     gen_type%R,gen_type%R,gen_type%R,&
-                                    i,k,k,j,i,j,k,k,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                                    i,k,k,j,i,j,k,k,0,2,1.0_dp,1.0_dp,2,spin_change_flag)
 
                             end if
                         end if
@@ -1351,7 +1415,7 @@ contains
                                 excit_type%fullstart_stop_alike, &
                                 gen_type%R,gen_type%R,&
                                 gen_type%R,gen_type%R,gen_type%R,&
-                                i,j,i,j,i,i,j,j,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                                i,j,i,j,i,i,j,j,0,2,1.0_dp,1.0_dp,2,spin_change_flag)
 
                         else
                             ! _LL_(i) -> ^LL^(j)
@@ -1359,7 +1423,7 @@ contains
                                 excit_type%fullstart_stop_alike, &
                                 gen_type%L,gen_type%L,&
                                 gen_type%L,gen_type%L,gen_type%L,&
-                                j,i,j,i,i,i,j,j,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                                j,i,j,i,i,i,j,j,0,2,1.0_dp,1.0_dp,2,spin_change_flag)
 
                         end if
                     end if
@@ -1383,7 +1447,7 @@ contains
                     excitInfo = assign_excitInfo_values_exact(&
                         excit_type%fullstart_stop_mixed, &
                         gen_type%R,gen_type%L,gen_type%R,gen_type%R,gen_type%R,&
-                        i,j,j,i,i,i,j,j,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                        i,j,j,i,i,i,j,j,0,2,1.0_dp,1.0_dp,2,spin_change_flag)
 
 
                 end select
@@ -1454,7 +1518,7 @@ contains
             excitInfo%excitLvl = 0
             excitInfo%weight = i
         else
-            excitInfo%excitLvl = 2
+            excitInfo%excitLvl = 1
             excitInfo%weight = 0
         end if
         excitInfo%k = 0
@@ -1585,7 +1649,7 @@ contains
     subroutine find_switches_ilut(ilut, ind, lower, upper)
         ! for single excitations this checks for available switches around an
         ! already chosen index
-        integer(n_int), intent(in) :: ilut(0:nifguga)
+        integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
         integer, intent(in) :: ind
         integer, intent(out) :: lower, upper
         character(*), parameter :: this_routine = "find_switches_ilut"
@@ -1668,7 +1732,7 @@ contains
         ! write a scratch implementation to find the first change in
         ! stepvector for two given CSFs. do it inefficiently for now
         ! improve later on
-        integer(n_int), intent(in) :: iI(0:nifguga), iJ(0:nifguga)
+        integer(n_int), intent(in) :: iI(0:GugaBits%len_tot), iJ(0:GugaBits%len_tot)
         integer, intent(in) :: start, semi
         integer :: orb, a, b
         character(*), parameter :: this_routine = "findFirstSwitch"
@@ -1713,7 +1777,7 @@ contains
 
     function findLastSwitch(ilutI, ilutJ, semi, ende) result(orb)
         ! function to find last switch in a mixed fullstop excitation
-        integer(n_int), intent(in) :: ilutI(0:nifguga), ilutJ(0:nifguga)
+        integer(n_int), intent(in) :: ilutI(0:GugaBits%len_tot), ilutJ(0:GugaBits%len_tot)
         integer, intent(in) :: ende, semi
         integer :: orb, a, b
         character(*), parameter :: this_routine = "findLastSwitch"
@@ -1837,13 +1901,17 @@ contains
 
     subroutine write_det_guga(nunit, ilut, flag)
         ! subroutine which prints the stepvector representation of an ilut
-        integer(n_int), intent(in) :: ilut(0:nIfGUGA)
+        integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
         integer, intent(in) :: nunit
         logical, intent(in), optional :: flag
 
         integer :: step(nSpatOrbs), i
+        logical :: flag_
+        integer(int_rdm) :: rdm_ind
 
-        step = calcStepvector(ilut(0:nifd))
+        def_default(flag_, flag, .true.)
+
+        step = calcStepvector(ilut(0:GugaBits%len_orb))
 
         write(nunit,'("(")', advance='no')
 
@@ -1860,14 +1928,29 @@ contains
             if (i /= 2) write(nunit, "(A)", advance = 'no') ","
         end do
 
-        if (present(flag)) then
-            if (flag) then
-                write(nunit, "(A,i8)", advance = 'yes') ") ", ilut(nifguga)
+        ! if we have more entries due to RDMs, print it here
+        if (tRDMonfly) then
+            rdm_ind = extract_rdm_ind(ilut)
+            write(nunit, "(A,i8)", advance = 'no') ") ", getDeltaB(ilut)
+            write(nunit, "(A,3i8,A)", advance = 'no') " | ( ", &
+                extract_excit_lvl_rdm(rdm_ind), &
+                extract_excit_type_rdm(rdm_ind), &
+                int(iand(rdm_ind, rdm_ind_bitmask)), ' ) '
+            write(nunit, "(f16.7)", advance = 'no') &
+                extract_stochastic_rdm_x0(GugaBits, ilut)
+            if (flag_) then
+                write(nunit, "(f16.7)", advance = 'yes') &
+                    extract_stochastic_rdm_x1(GugaBits, ilut)
             else
-                write(nunit, "(A,i8)", advance = 'no') ") ", ilut(nifguga)
+                write(nunit, "(f16.7)", advance = 'no')  &
+                    extract_stochastic_rdm_x1(GugaBits, ilut)
             end if
         else
-            write(nunit, "(A,i8)", advance = 'yes') ") ", ilut(nifguga)
+            if (flag) then
+                write(nunit, "(A,i8)", advance = 'yes') ") ", getDeltaB(ilut)
+            else
+                write(nunit, "(A,i8)", advance = 'no') ") ", getDeltaB(ilut)
+            end if
         end if
 
     end subroutine write_det_guga
@@ -1877,7 +1960,7 @@ contains
         ! creation.
         ! mat_ele   ... x0 or x1 matrix element
         ! mat_type  ... 1...x0, 2...x1
-        integer(n_int), intent(inout) :: ilut(0:nIfGUGA)
+        integer(n_int), intent(inout) :: ilut(0:GugaBits%len_tot)
         real(dp), intent(in) :: mat_ele
         integer, intent(in) :: mat_type
         character(*), parameter :: this_routine = "encode_matrix_element_real"
@@ -1888,7 +1971,7 @@ contains
 
         mat_int = transfer(mat_ele, mat_int)
 
-        ilut(nIfD + mat_type) = mat_int
+        ilut(GugaBits%len_orb + mat_type) = mat_int
 
     end subroutine encode_matrix_element_real
 
@@ -1897,7 +1980,7 @@ contains
         ! this is specific for complex matrix elements.. here
         ! i can use the two storage slots for x0 and x1 to encode
         ! both the real and imaginary parts of the Hamiltonian matrix elements
-        integer(n_int), intent(inout) :: ilut(0:nifguga)
+        integer(n_int), intent(inout) :: ilut(0:GugaBits%len_tot)
         complex(dp), intent(in) :: mat_ele
         integer, intent(in) :: mat_type
         character(*), parameter :: this_routine = "encode_matrix_element_cmplx"
@@ -1910,30 +1993,30 @@ contains
 !         ASSERT(near_zero(extract_matrix_element(ilut, 2)))
 
         mat_int = transfer(real(real(mat_ele),dp), mat_int)
-        ilut(nifd + 1) = mat_int
+        ilut(GugaBits%ind_x0) = mat_int
 
         mat_int = transfer(real(aimag(mat_ele),dp), mat_int)
-        ilut(nifd + 2) = mat_int
+        ilut(GugaBits%ind_x1) = mat_int
 
     end subroutine encode_matrix_element_cmplx
 #endif
 
     function extract_matrix_element(ilut, mat_type) result(mat_ele)
         ! function to extract matrix element of a GUGA ilut
-        integer(n_int), intent(in) :: ilut(0:nIfGUGA)
+        integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
         integer, intent(in) :: mat_type
         real(dp) :: mat_ele
         character(*), parameter :: this_routine = "extract_matrix_element"
 
         ASSERT(mat_type == 1 .or. mat_type == 2)
 
-        mat_ele = transfer(ilut(nIfD + mat_type), mat_ele)
+        mat_ele = transfer(ilut(GugaBits%len_orb + mat_type), mat_ele)
 
     end function extract_matrix_element
 
     subroutine update_matrix_element_real(ilut, mat_ele, mat_type)
         ! function to update already encoded matrix element multiplicative
-        integer(n_int), intent(inout) :: ilut(0:nIfGUGA)
+        integer(n_int), intent(inout) :: ilut(0:GugaBits%len_tot)
         real(dp), intent(in) :: mat_ele
         integer, intent(in) :: mat_type
         character(*), parameter :: this_routine = "update_matrix_element_real"
@@ -1943,18 +2026,18 @@ contains
 
         ASSERT(mat_type == 1 .or. mat_type == 2)
 
-        temp_ele = transfer(ilut(nIfD + mat_type), temp_ele)
+        temp_ele = transfer(ilut(GugaBits%len_orb + mat_type), temp_ele)
 
         mat_int = transfer(temp_ele * mat_ele, mat_int)
 
-        ilut(nIfD + mat_type) = mat_int
+        ilut(GugaBits%len_orb + mat_type) = mat_int
 
     end subroutine update_matrix_element_real
 
 #ifdef CMPLX_
     subroutine update_matrix_element_cmplx(ilut, mat_ele, mat_type)
         ! specific function if we need to update with a complex integral
-        integer(n_int), intent(inout) :: ilut(0:nifguga)
+        integer(n_int), intent(inout) :: ilut(0:GugaBits%len_tot)
         complex(dp), intent(in) :: mat_ele
         integer, intent(in) :: mat_type
         character(*), parameter :: this_routine = "update_matrix_element_cmplx"
@@ -1970,13 +2053,13 @@ contains
         ASSERT(near_zero(extract_matrix_element(ilut,2)))
 
         ! and now we want to store the real and imag part in x0 and x1..
-        temp_ele = transfer(ilut(nifd + 1), temp_ele)
+        temp_ele = transfer(ilut(GugaBits%ind_x0), temp_ele)
         mat_int = transfer(temp_ele * real(real(mat_ele),dp), mat_int)
 
-        ilut(nifd + 1) = mat_int
+        ilut(GugaBits%ind_x0) = mat_int
 
         mat_int = transfer(temp_ele * real(aimag(mat_ele),dp), mat_int)
-        ilut(nifd + 2) = mat_int
+        ilut(GugaBits%ind_x1) = mat_int
 
     end subroutine update_matrix_element_cmplx
 #endif
@@ -1984,12 +2067,13 @@ contains
     function count_beta_orbs_ij(ilut, i, j) result(nOpen)
         ! function to count the number of 1s in a CSF det between spatial
         ! orbitals i and j
-        integer(n_int), intent(in) :: ilut(0:nifd)
+        integer(n_int), intent(in) :: ilut(0:GugaBits%len_orb)
         integer, intent(in) :: i, j
         integer :: nOpen
         character(*), parameter :: this_routine = "count_beta_orbs_ij"
 
-        integer(n_int) :: mask(0:nifd), beta(0:nifd), alpha(0:nifd)
+        integer(n_int) :: mask(0:GugaBits%len_orb), &
+            beta(0:GugaBits%len_orb), alpha(0:GugaBits%len_orb)
         integer :: k
 
         ASSERT(i > 0 .and. i <= nSpatOrbs)
@@ -2011,12 +2095,13 @@ contains
     function count_alpha_orbs_ij(ilut, i, j) result(nOpen)
         ! function to count the number of 2s in a CSF det between spatial
         ! orbitals i and j
-        integer(n_int), intent(in) :: ilut(0:nifd)
+        integer(n_int), intent(in) :: ilut(0:GugaBits%len_orb)
         integer, intent(in) :: i, j
         integer :: nOpen
         character(*), parameter :: this_routine = "count_alpha_orbs_ij"
 
-        integer(n_int) :: mask(0:nifd), alpha(0:nifd), beta(0:nifd)
+        integer(n_int) :: mask(0:GugaBits%len_orb), alpha(0:GugaBits%len_orb), &
+                          beta(0:GugaBits%len_orb)
         integer :: k
 
         ASSERT(i > 0 .and. i <= nSpatOrbs)
@@ -2038,7 +2123,7 @@ contains
         ! function to calculate the number of open orbitals between spatial
         ! orbitals i and j in ilut. i and j have to be given ordered i<j
         integer, intent(in) :: i, j
-        integer(n_int), intent(in), optional :: L(0:nifd)
+        integer(n_int), intent(in), optional :: L(0:GugaBits%len_orb)
         integer :: nOpen
         character(*), parameter :: this_routine = "count_open_orbs_ij"
 
@@ -2110,32 +2195,32 @@ contains
         ! and if necessary
         ! flag_deltaB_double ... 6
         integer, intent(in) :: deltaB
-        integer(n_int), intent(inout) :: ilut(0:nIfGUGA)
+        integer(n_int), intent(inout) :: ilut(0:GugaBits%len_tot)
         character(*), parameter :: this_routine = "setDeltaB"
 
 
         ASSERT(deltaB <= 2 .and. deltaB >= -2)
 
         ! should no just be:
-        ilut(nIfGUGA) = deltaB
+        ilut(GugaBits%ind_b) = deltaB
 
     end subroutine setDeltaB
 
     function getDeltaB(ilut) result(deltaB)
         ! function to get the deltaB value encoded in the flag-byte in ilut
-        integer(n_int), intent(in) :: ilut(0:nIfGUGA)
+        integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
         integer :: deltaB
         character(*), parameter :: this_routine = "getDeltaB"
 
         ! check if flags are correctly set
 
         ! and this should now jsut be:
-        deltaB = int(ilut(nIfGUGA))
+        deltaB = int(ilut(GugaBits%ind_b))
 
     end function getDeltaB
 
     function extract_h_element(ilutG) result(HElement)
-        integer(n_int), intent(in) :: ilutG(0:nifguga)
+        integer(n_int), intent(in) :: ilutG(0:GugaBits%len_tot)
         HElement_t(dp) :: HElement
 
 #ifdef CMPLX_
@@ -2148,7 +2233,7 @@ contains
     end function extract_h_element
 
     subroutine convert_ilut_toNECI(ilutG, ilutN, HElement)
-        integer(n_int), intent(in) :: ilutG(0:nifguga)
+        integer(n_int), intent(in) :: ilutG(0:GugaBits%len_tot)
         integer(n_int), intent(inout) :: ilutN(0:niftot)
         HElement_t(dp), intent(out), optional :: HElement
         character(*), parameter :: this_routine = "convert_ilut_toNECI"
@@ -2157,8 +2242,9 @@ contains
 
         ASSERT(isProperCSF_ilut(ilutG))
 
+        ilutN = 0_n_int
         ! i think i just need to copy over the det part again
-        ilutN(0:nifd) = ilutG(0:nifd)
+        ilutN(0:GugaBits%len_orb) = ilutG(0:GugaBits%len_orb)
 
         ! and then extract the matrix element
         ! here i need to check what type of matrix element is necessary
@@ -2168,17 +2254,48 @@ contains
             HElement = extract_h_element(ilutG)
         end if
 
+        if (tFillingStochRDMonfly) then
+            ! in this case I need to transfer the rdm_ind and x0,x1 info to
+            ! the 'neci ilut'
+            call transfer_stochastic_rdm_info(ilutG, ilutN)
+        end if
+
     end subroutine convert_ilut_toNECI
+
+    pure subroutine transfer_stochastic_rdm_info(ilutG, ilutN, &
+            BitIndex_from, BitIndex_to)
+        ! I need to keep this general with BitIndex unfortunately because
+        ! i have to perform this on ilut with niftot and on parent arrays..
+        integer(n_int), intent(in) :: ilutG(0:)
+        integer(n_int), intent(inout) :: ilutN(0:)
+        type(BitRep_t), intent(in), optional :: BitIndex_from, BitIndex_to
+
+        type(BitRep_t) :: from, to
+
+        def_default(from, BitIndex_from, GugaBits)
+        def_default(to, BitIndex_to, IlutBits)
+
+        ! here i now I get a GUGA ilut, but could be that I have to
+        ! transfer to Parent array? I dont think so..
+
+        call encode_stochastic_rdm_info(to, ilutN, &
+            rdm_ind  = extract_stochastic_rdm_ind(from, ilutG), &
+            x0       = extract_stochastic_rdm_x0(from, ilutG), &
+            x1       = extract_stochastic_rdm_x1(from, ilutG))
+
+    end subroutine transfer_stochastic_rdm_info
 
     subroutine convert_ilut_toGUGA(ilutN, ilutG, HElement, delta_b)
         integer(n_int), intent(in) :: ilutN(0:niftot)
-        integer(n_int), intent(out) :: ilutG(0:nifguga)
+        integer(n_int), intent(out) :: ilutG(0:GugaBits%len_tot)
         HElement_t(dp), intent(in), optional :: HElement
         integer, intent(in), optional :: delta_b
         character(*), parameter :: this_routine = "convert_ilut_toGUGA"
 
+        ilutG = 0_n_int
+
         ! need only the det part essentially..
-        ilutG(0:nifd) = ilutN(0:nifd)
+        ilutG(0:GugaBits%len_orb) = ilutN(0:GugaBits%len_orb)
 
         if (present(HElement)) then
             call encode_matrix_element(ilutG, 0.0_dp, 2)
@@ -2221,20 +2338,20 @@ contains
     end function isProperCSF_nI
 
     function isProperCSF_b(ilut) result(flag)
-        integer(n_int), intent(in) :: ilut(0:nifguga)
+        integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
         logical :: flag
 
         flag = .true.
 
         ! check if b value drops below zero
-        if (any(calcB_vector_int(ilut(0:nifd)) < 0)) flag = .false.
+        if (any(calcB_vector_int(ilut(0:GugaBits%len_orb)) < 0)) flag = .false.
 
     end function isProperCSF_b
 
     function isProperCSF_sys(ilut, sysFlag, t_print_in) result(flag)
         ! function to check if provided CSF in ilut format is a proper CSF
         ! checks b vector positivity and is total S is correct
-        integer(n_int), intent(in) :: ilut(0:nifguga)
+        integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
         logical, intent(in):: sysFlag
         logical, intent(in), optional :: t_print_in
         logical :: flag
@@ -2251,7 +2368,7 @@ contains
         flag = .true.
 
         ! check if b value drops below zero
-        if (any(calcB_vector_int(ilut(0:nifd)) < 0)) flag = .false.
+        if (any(calcB_vector_int(ilut(0:GugaBits%len_orb)) < 0)) flag = .false.
 
         ! check if total spin is same as input, cant avoid loop here i think..
         !calcS = 0
@@ -2261,7 +2378,7 @@ contains
         !end do
 
         tmp_ilut = 0_n_int
-        tmp_ilut(0:nifd) = ilut(0:nifd)
+        tmp_ilut(0:GugaBits%len_orb) = ilut(0:GugaBits%len_orb)
 
         ! if system flag is also given as input also check if the CSF fits
         ! concerning total S and the number of electrons
@@ -2276,12 +2393,13 @@ contains
                 flag = .false.
             end if
 
-            if (int(sum(calcOcc_vector_ilut(ilut(0:nifd)))) /= nEl) then
+            if (int(sum(calcOcc_vector_ilut(ilut(0:GugaBits%len_orb)))) /= nEl) then
                 if (t_print) then
                     print *, "CSF does not have right number of electrons!:"
                     call write_det_guga(6,ilut)
                     print *, "System electrons: ", nEl
-                    print *, "CSF electrons: ", int(sum(calcOcc_vector_ilut(ilut(0:nifd))))
+                    print *, "CSF electrons: ", &
+                        int(sum(calcOcc_vector_ilut(ilut(0:GugaBits%len_orb))))
                 end if
                 flag = .false.
             end if
@@ -2362,7 +2480,7 @@ contains
         ! often within a function.
         ! there is probably a very efficient way of programming that!
         !TODO ask simon for improvements.
-        integer(n_int), intent(in) :: ilut(0:nIfD)
+        integer(n_int), intent(in) :: ilut(0:GugaBits%len_orb)
         integer :: stepVector(nSpatOrbs)
         integer :: iOrb
 
@@ -2375,7 +2493,7 @@ contains
     function calcOcc_vector_ilut(ilut) result(occVector)
         ! probably more efficiently implemented by simon already...
         ! but for now do it in this stupid way todo -> ask simon
-        integer(n_int), intent(in) :: ilut(0:nIfD)
+        integer(n_int), intent(in) :: ilut(0:GugaBits%len_orb)
         real(dp) :: occVector(nSpatOrbs)
 
         integer :: iOrb
@@ -2388,7 +2506,7 @@ contains
 
     function calcOcc_vector_int(ilut) result(occVector)
         ! function which gives the occupation vector in integer form
-        integer(n_int), intent(in) :: ilut(0:nifd)
+        integer(n_int), intent(in) :: ilut(0:GugaBits%len_orb)
         integer :: occVector(nSpatOrbs)
 
         integer :: i
@@ -2415,7 +2533,7 @@ contains
         ! ahead. and never the first entry otherwise. and that would cause
         ! problems when accessing b vector at the end of an excitaiton if
         ! that is the last orbital..
-        integer(n_int), intent(in) :: ilut(0:nIfD)
+        integer(n_int), intent(in) :: ilut(0:GugaBits%len_orb)
         real(dp) :: bVector(nSpatOrbs)        ! b-vector stored in bVector
         integer :: i
         real(dp) :: bValue
@@ -2443,7 +2561,7 @@ contains
 
     function calcB_vector_int(ilut) result(bVector)
         ! function to calculate the bvector in integer form
-        integer(n_int), intent(in) :: ilut(0:nifd)
+        integer(n_int), intent(in) :: ilut(0:GugaBits%len_orb)
         integer :: bVector(nSpatOrbs)
 
         integer :: i, bValue
@@ -2472,7 +2590,7 @@ contains
         ! function to get stepvector value of a given spatial orbital
         ! sOrb -> has to later be included in "macros.h" for efficiency
 
-        integer(n_int), intent(in) :: ilut(0:nIfD)
+        integer(n_int), intent(in) :: ilut(0:GugaBits%len_orb)
         integer, intent(in) :: sOrb     ! spatial orbital
         integer :: stepValue            ! resulting stepvector value
         ! if the number of orbitals is too large, multiple integers
@@ -2480,7 +2598,8 @@ contains
         ! have to figure out this access to the iluts
         ! determinants are stores as a list of integer in form of iluts
         ! first have to figure out which integer to take:
-        integer :: indInt, offset, mask
+        integer :: indInt, offset
+        integer(n_int) :: mask
 
         ! integer division to get the necessary ilut entry, remember
         ! the occupation of the spatial orbitals are asked for
@@ -2507,7 +2626,7 @@ contains
         ! special function to encode bit dets for the use in the guga
         ! excitation generation
         integer, intent(in) :: nI(nEl)
-        integer(n_int), intent(out) :: ilut(0:nifguga)
+        integer(n_int), intent(out) :: ilut(0:GugaBits%len_tot)
 
         integer :: i, pos
         integer(n_int) :: zero_int
@@ -2519,17 +2638,11 @@ contains
             ilut(pos) = ibset(ilut(pos), mod(nI(i)-1, bits_n_int))
         end do
 
-        zero_int = transfer(0.0_dp, zero_int)
-
-        ilut(nifd + 1) = zero_int
-        ilut(nifd + 2) = zero_int
-        ilut(nifguga) = 0_n_int
-
     end subroutine EncodeBitDet_guga
 
     function getSpatialOccupation(iLut, s) result(nOcc)
 
-        integer(n_int), intent(in) :: ilut(0:nIfD)
+        integer(n_int), intent(in) :: ilut(0:GugaBits%len_orb)
         integer, intent(in) :: s
         real(dp) :: nOcc
 
@@ -2649,7 +2762,7 @@ contains
         ! place
         ! and combine all the necessary calcs. into one loop instead of
         ! the seperate ones..
-        integer(n_int), intent(in) :: ilut(0:nifguga)
+        integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
         character(*), parameter :: this_routine = "init_csf_information"
 
         integer :: i, ierr, step, b_int
@@ -2731,59 +2844,225 @@ contains
 
     end subroutine init_csf_information
 
-    subroutine extract_1_rdm_ind(rdm_ind, i, a)
+    pure subroutine encode_stochastic_rdm_info(BitIndex, ilut, rdm_ind, x0, x1)
+        ! make these function general by also providing the
+        ! bit-rep index data-structure!
+        type(BitRep_t), intent(in) :: BitIndex
+        integer(n_int), intent(inout) :: ilut(0:BitIndex%len_tot)
+        integer(int_rdm), intent(in) :: rdm_ind
+        real(dp), intent(in) :: x0, x1
+
+        ! i need to be sure that int_rdm and n_int are of the same
+        ! size otherwise this breaks..
+        call encode_stochastic_rdm_ind(BitIndex, ilut, rdm_ind)
+        call encode_stochastic_rdm_x0(BitIndex, ilut, x0)
+        call encode_stochastic_rdm_x1(BitIndex, ilut, x1)
+
+    end subroutine encode_stochastic_rdm_info
+
+    pure subroutine extract_stochastic_rdm_info(BitIndex, ilut, rdm_ind, x0, x1)
+        type(BitRep_t), intent(in) :: BitIndex
+        integer(n_int), intent(in) :: ilut(0:BitIndex%len_tot)
+        integer(int_rdm), intent(out) :: rdm_ind
+        real(dp), intent(out) :: x0, x1
+
+        rdm_ind = extract_stochastic_rdm_ind(BitIndex, ilut)
+        x0 = extract_stochastic_rdm_x0(BitIndex, ilut)
+        x1 = extract_stochastic_rdm_x1(BitIndex, ilut)
+
+    end subroutine extract_stochastic_rdm_info
+
+    pure subroutine encode_stochastic_rdm_ind(BitIndex, ilut, rdm_ind)
+        type(BitRep_t), intent(in) :: BitIndex
+        integer(n_int), intent(inout) :: ilut(0:BitIndex%len_tot)
+        integer(int_rdm), intent(in) :: rdm_ind
+
+        ilut(BitIndex%ind_rdm_ind) = rdm_ind
+
+    end subroutine encode_stochastic_rdm_ind
+
+    pure function extract_stochastic_rdm_ind(BitIndex, ilut) result(rdm_ind)
+        type(BitRep_t), intent(in) :: BitIndex
+        integer(n_int), intent(in) :: ilut(0:BitIndex%len_tot)
+        integer(int_rdm) :: rdm_ind
+
+        rdm_ind = ilut(BitIndex%ind_rdm_ind)
+
+    end function extract_stochastic_rdm_ind
+
+    pure subroutine encode_stochastic_rdm_x0(BitIndex, ilut, x0)
+        type(BitRep_t), intent(in) :: BitIndex
+        integer(n_int), intent(inout) :: ilut(0:BitIndex%len_tot)
+        real(dp), intent(in) :: x0
+
+        integer(n_int) :: x0_int
+
+        x0_int = transfer(x0, x0_int)
+
+        ilut(BitIndex%ind_rdm_x0) = x0_int
+
+    end subroutine encode_stochastic_rdm_x0
+
+    pure function extract_stochastic_rdm_x0(BitIndex, ilut) result(x0)
+        type(BitRep_t), intent(in) :: BitIndex
+        integer(n_int), intent(in) :: ilut(0:BitIndex%len_tot)
+        real(dp) :: x0
+
+        x0 = transfer(ilut(BitIndex%ind_rdm_x0), x0)
+
+    end function extract_stochastic_rdm_x0
+
+    pure subroutine encode_stochastic_rdm_x1(BitIndex, ilut, x1)
+        type(BitRep_t), intent(in) :: BitIndex
+        integer(n_int), intent(inout) :: ilut(0:BitIndex%len_tot)
+        real(dp), intent(in) :: x1
+
+        integer(n_int) :: x1_int
+
+        x1_int = transfer(x1, x1_int)
+
+        ilut(BitIndex%ind_rdm_x1) = x1_int
+
+    end subroutine encode_stochastic_rdm_x1
+
+    pure function extract_stochastic_rdm_x1(BitIndex, ilut) result(x1)
+        type(BitRep_t), intent(in) :: BitIndex
+        integer(n_int), intent(in) :: ilut(0:BitIndex%len_tot)
+        real(dp) :: x1
+
+        x1 = transfer(ilut(BitIndex%ind_rdm_x1), x1)
+
+    end function extract_stochastic_rdm_x1
+
+    pure subroutine extract_1_rdm_ind(rdm_ind, i, a, excit_lvl, excit_typ)
         ! the converstion routine between the combined and explicit rdm
         ! indices for the 1-RDM
         integer(int_rdm), intent(in) :: rdm_ind
         integer, intent(out) :: i, a
-        character(*), parameter :: this_routine = "extract_matrix_element"
+        integer, intent(out), optional :: excit_lvl, excit_typ
+        character(*), parameter :: this_routine = "extract_1_rdm_ind"
 
-        a = int(mod(rdm_ind - 1, nSpatOrbs)  + 1)
-        i = int((rdm_ind - 1)/nSpatOrbs + 1)
+        integer(int_rdm) :: rdm_ind_
+
+        ! if we also want to use the top 7 bits of rdm_ind for information
+        ! of the excit-lvl and type we have to 0 them out before
+        ! extracting the indices
+
+        rdm_ind_ = iand(rdm_ind, rdm_ind_bitmask)
+
+        a = int(mod(rdm_ind_ - 1, nSpatOrbs)  + 1)
+        i = int((rdm_ind_ - 1)/nSpatOrbs + 1)
+
+        if (present(excit_lvl)) then
+            excit_lvl = extract_excit_lvl_rdm(rdm_ind)
+        end if
+
+        if (present(excit_typ)) then
+            excit_typ = extract_excit_type_rdm(rdm_ind)
+        end if
 
     end subroutine extract_1_rdm_ind
 
-    function contract_1_rdm_ind(i,a) result(rdm_ind)
+    pure function contract_1_rdm_ind(i, a, excit_lvl, excit_typ) result(rdm_ind)
         ! the inverse function of the routine above, to give the combined
         ! rdm index of two explicit ones
         integer, intent(in) :: i, a
-        integer :: rdm_ind
+        integer, intent(in), optional :: excit_lvl, excit_typ
+        integer(int_rdm) :: rdm_ind
         character(*), parameter :: this_routine = "contract_1_rdm_ind"
 
         rdm_ind = nSpatOrbs * (i - 1) + a
 
+        if (present(excit_lvl)) then
+            call encode_excit_lvl_rdm(rdm_ind, excit_lvl)
+        end if
+
+        if (present(excit_typ)) then
+            call encode_excit_typ_rdm(rdm_ind, excit_typ)
+        end if
+
     end function contract_1_rdm_ind
 
-    function contract_2_rdm_ind(i,j,k,l) result(ijkl)
+    pure function extract_excit_type_rdm(rdm_ind) result(excit_typ)
+        integer(int_rdm), intent(in) :: rdm_ind
+        integer :: excit_typ
+
+        excit_typ = int(ibits(rdm_ind, pos_excit_type_bits, n_excit_type_bits))
+
+    end function extract_excit_type_rdm
+
+    pure function extract_excit_lvl_rdm(rdm_ind) result(excit_lvl)
+        integer(int_rdm), intent(in) :: rdm_ind
+        integer :: excit_lvl
+
+        excit_lvl = int(ibits(rdm_ind, pos_excit_lvl_bits, n_excit_lvl_bits))
+
+    end function extract_excit_lvl_rdm
+
+    pure subroutine encode_excit_typ_rdm(rdm_ind, excit_typ)
+        integer(int_rdm), intent(inout) :: rdm_ind
+        integer, intent(in) :: excit_typ
+
+        call mvbits(int(excit_typ,int_rdm), 0, n_excit_type_bits, &
+                     rdm_ind, pos_excit_type_bits)
+
+    end subroutine encode_excit_typ_rdm
+
+    pure subroutine encode_excit_lvl_rdm(rdm_ind, excit_lvl)
+        integer(int_rdm), intent(inout) :: rdm_ind
+        integer, intent(in) :: excit_lvl
+
+        ! i need to mv the bit-rep of excit_lvl to the corresponding
+        ! position in rdm_ind
+        call mvbits(int(excit_lvl, int_rdm), 0, n_excit_lvl_bits, &
+                    rdm_ind, pos_excit_lvl_bits)
+
+    end subroutine encode_excit_lvl_rdm
+
+    pure function contract_2_rdm_ind(i, j, k, l, excit_lvl, excit_typ) result(ijkl)
         ! since I only ever have spatial orbitals in the GUGA-RDM make
         ! the definition of the RDM-index combination differently
         integer, intent(in) :: i,j,k,l
-        integer :: ijkl
+        integer, intent(in), optional :: excit_lvl, excit_typ
+        integer(int_rdm) :: ijkl
         character(*), parameter :: this_routine = "contract_2_rdm_ind"
 
-        integer :: ij, kl
-
+        integer(int_rdm) :: ij, kl
 
         ij = contract_1_rdm_ind(i, j)
         kl = contract_1_rdm_ind(k, l)
 
         ijkl = (ij - 1) * (nSpatOrbs**2) + kl
 
+        if (present(excit_lvl)) then
+            call encode_excit_lvl_rdm(ijkl, excit_lvl)
+        end if
+
+        if (present(excit_typ)) then
+            call encode_excit_typ_rdm(ijkl, excit_typ)
+        end if
+
     end function contract_2_rdm_ind
 
-    subroutine extract_2_rdm_ind(ijkl, j, l, i, k, ij_out, kl_out)
+    pure subroutine extract_2_rdm_ind(ijkl, i, j, k, l, &
+            ij_out, kl_out, excit_lvl, excit_typ)
         ! the inverse routine of the function above.
         ! it is actually practical to have ij and kl also available at
         ! times, since it can identify diagonal entries of the two-RDM
         integer(int_rdm), intent(in) :: ijkl
         integer, intent(out) :: i,j,k,l
         integer(int_rdm), intent(out), optional :: ij_out, kl_out
+        integer, intent(out), optional :: excit_lvl, excit_typ
         character(*), parameter :: this_routine = "extract_2_rdm_ind"
 
         integer(int_rdm) :: ij, kl
 
-        kl = mod(ijkl - 1, int(nSpatOrbs, int_rdm)**2) + 1
-        ij = (ijkl - kl)/(nSpatOrbs ** 2) + 1
+        integer(int_rdm) :: ijkl_
+
+        ijkl_ = iand(ijkl, rdm_ind_bitmask)
+
+        kl = mod(ijkl_ - 1, int(nSpatOrbs, int_rdm)**2) + 1
+        ij = (ijkl_ - kl)/(nSpatOrbs ** 2) + 1
 
         call extract_1_rdm_ind(ij, i, j)
         call extract_1_rdm_ind(kl, k, l)
@@ -2791,7 +3070,30 @@ contains
         if (present(ij_out)) ij_out = ij
         if (present(kl_out)) kl_out = kl
 
+        if (present(excit_lvl)) then
+            excit_lvl = extract_excit_lvl_rdm(ijkl)
+        end if
+        if (present(excit_typ)) then
+            excit_typ = extract_excit_type_rdm(ijkl)
+        end if
+
     end subroutine extract_2_rdm_ind
+
+    pure function extract_rdm_ind(ilutG) result(rdm_ind)
+        integer(n_int), intent(in) :: ilutG(0:GugaBits%len_tot)
+        integer(int_rdm) :: rdm_ind
+
+        rdm_ind = ilutG(GugaBits%ind_rdm_ind)
+
+    end function extract_rdm_ind
+
+    pure subroutine encode_rdm_ind(ilutG, rdm_ind)
+        integer(n_int), intent(inout) :: ilutG(0:GugaBits%len_tot)
+        integer(int_rdm), intent(in) :: rdm_ind
+
+        ilutG(GugaBits%ind_rdm_ind) = rdm_ind
+
+    end subroutine encode_rdm_ind
 
     subroutine deinit_csf_information
         ! deallocate the currently stored csf information

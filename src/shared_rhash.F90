@@ -22,8 +22,8 @@ module shared_rhash
     !! The input values are stored in order of ascending hash value, with conflicts stored
     !! adjacently. For each hash value, the position of the first value with that hash value
     !! is stored. The lookup then searches for a given value between the first and the last
-    !! stored value with the same hash value. 
-    type :: shared_rhash_t             
+    !! stored value with the same hash value.
+    type :: shared_rhash_t
         ! All arrays here are mpi-3 shared memory
         private
         ! The hashed data is stored in one contiguous array
@@ -74,7 +74,7 @@ contains
 
     !------------------------------------------------------------------------------------------!
     ! Memory management
-    !------------------------------------------------------------------------------------------!   
+    !------------------------------------------------------------------------------------------!
 
     !> Allocate the internal (shared) memory
     !> @param[in] n_elem number of distinct values to store
@@ -83,7 +83,7 @@ contains
         class(shared_rhash_t), intent(inout) :: this
         integer(int64), intent(in) :: n_elem
         integer(int64), intent(in) :: htsize
-        
+
         this%hval_range = htsize
         ! Store all the indices with nonzero entries
         call this%indices%shared_alloc(n_elem)
@@ -112,7 +112,7 @@ contains
 
     !------------------------------------------------------------------------------------------!
     ! Initialisation routines
-    !------------------------------------------------------------------------------------------!  
+    !------------------------------------------------------------------------------------------!
 
     !> Log the occurence of this hash value in the set of values to be stored
     !! Does not add it, only updates the offsets
@@ -173,10 +173,10 @@ contains
     subroutine finalize_setup(this)
         class(shared_rhash_t), intent(inout) :: this
 
-        if(iProcIndex_intra == 0) then            
+        if(iProcIndex_intra == 0) then
             deallocate(this%mult)
         endif
-    end subroutine finalize_setup    
+    end subroutine finalize_setup
 
     !------------------------------------------------------------------------------------------!
     ! Read access
@@ -194,7 +194,7 @@ contains
         logical, intent(out) :: t_found
 
         integer(int64) :: lower, upper, i
-        
+
         lower = this%hval_offsets%ptr(hval) + 1
         upper = this%hval_offsets%ptr(hval+1)
 
@@ -216,7 +216,7 @@ contains
     !> @param[in] hval hash value of the index to look up
     !> @param[out] pos on return, the matching entry
     !> @param[out] t_found on return, true if and only if index was found
-    !> @param[in] verify  function to check if an entry matches    
+    !> @param[in] verify  function to check if an entry matches
     subroutine callback_lookup(this, hval, pos, t_found, loc_verify)
         class(shared_rhash_t), intent(in) :: this
         integer(int64), intent(in) :: hval
@@ -271,7 +271,7 @@ contains
         h_range = this%hval_range
     end function val_range
 
-    !------------------------------------------------------------------------------------------!    
+    !------------------------------------------------------------------------------------------!
 
     !> Synchronize the shared resource
     subroutine sync(this)
@@ -293,7 +293,7 @@ contains
     !> @param[in] space_size  size of the index space
     !> @param[out] hash_table  shared read-only hashtable to index the ilut_list
     !> @param[out] ht_size  optional, the size of the hash table. Defaults to space_size
-    subroutine initialise_shared_rht_impl(ilut_list, space_size, hash_table, ht_size)    
+    subroutine initialise_shared_rht_impl(ilut_list, space_size, hash_table, ht_size)
         use SystemData, only: nel
         integer(n_int), intent(in) :: ilut_list(0:,:)
         integer, intent(in) :: space_size
@@ -301,12 +301,12 @@ contains
         integer, intent(in), optional :: ht_size
         integer :: ht_size_
 
-        def_default(ht_size_, ht_size, space_size)        
+        def_default(ht_size_, ht_size, space_size)
 
         call initialise_shared_rht_expl(ilut_list, space_size, hash_table, nel, ht_size_)
     end subroutine initialise_shared_rht_impl
 
-    !------------------------------------------------------------------------------------------!    
+    !------------------------------------------------------------------------------------------!
 
     !> Explicit initializer for shared read-only hash-tables that allows to set the
     !> determinant size
@@ -323,13 +323,13 @@ contains
         integer, intent(in) :: space_size
         type(shared_rhash_t), intent(out) :: hash_table
         integer, intent(in) :: det_size
-        ! ht_size cannot be defaulted anymore as this would be ambigious        
+        ! ht_size cannot be defaulted anymore as this would be ambigious
         integer, intent(in) :: ht_size
 
         integer :: nI(det_size)
         integer :: i, ierr
-        integer(int64) :: hash_val, pos       
-        
+        integer(int64) :: hash_val, pos
+
         call hash_table%alloc(int(space_size,int64), int(ht_size,int64))
 
         ! Count the number of states with each hash value.
@@ -351,7 +351,7 @@ contains
         call hash_table%sync()
     end subroutine initialise_shared_rht_expl
 
-    !------------------------------------------------------------------------------------------!    
+    !------------------------------------------------------------------------------------------!
 
     !> Lookup a value in a shared-read-only hashtable. Returns the position of a given ilut
     !! in the target space used for setting up this hash table
@@ -365,7 +365,7 @@ contains
     !> @param[out] core_state  on return, true if ilut is found, false else
     subroutine shared_rht_lookup(core_ht, ilut, nI, tgt_space, i, core_state)
         use hash, only: FindWalkerHash
-        use bit_rep_data, only: NIfTot, NIfDBO
+        use bit_rep_data, only: NIfTot, nifd
         type(shared_rhash_t), intent(in) :: core_ht
         integer(n_int), intent(in) :: ilut(0:NIfTot)
         integer, intent(in) :: nI(:)
@@ -376,20 +376,20 @@ contains
         integer(int64) :: hash_val, i_tmp
 
         hash_val = FindWalkerHash(nI, int(core_ht%val_range()))
-        
+
         call core_ht%callback_lookup(hash_val, i_tmp, core_state, loc_verify)
         ! cast down to int32
         i = int(i_tmp)
-        
+
     contains
 
         function loc_verify(ind) result(match)
             integer(int64), intent(in) :: ind
             logical :: match
 
-            match = all(ilut(0:NIfDBO) == tgt_space(0:NIfDBO,ind))
+            match = all(ilut(0:nifd) == tgt_space(0:nifd,ind))
         end function loc_verify
 
-    end subroutine shared_rht_lookup   
-    
+    end subroutine shared_rht_lookup
+
 end module shared_rhash
