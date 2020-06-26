@@ -3,7 +3,7 @@
 
 #:set ExcitationTypes = ['SingleExc_t', 'DoubleExc_t']
 
-module disconnected_gasci
+module gasci_disconnected
     use SystemData, only: tGAS, tGASSpinRecoupling, nBasis, nel
     use constants
     use util_mod, only: get_free_unit, binary_search_first_ge, operator(.div.), &
@@ -670,4 +670,4 @@ contains
         end select
     end function
 
-end module disconnected_gasci
+end module gasci_disconnected

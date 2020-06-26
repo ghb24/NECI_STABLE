@@ -12,10 +12,6 @@ module test_gasci_mod
         operator(-), to_ilut, write_det, operator(/=)
     use excitation_types, only: Excitation_t, SingleExc_t, DoubleExc_t, excite, dyn_excite
     use util_mod, only: cumsum
-    use disconnected_gasci, only: init_disconnected_GAS, &
-        gen_disconnected => generate_nGAS_excitation, clearGAS, &
-        dyn_calc_pgen
-
 
     use gasci, only: GASSpec_t
 

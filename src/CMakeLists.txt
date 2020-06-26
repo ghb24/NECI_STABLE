@@ -237,9 +237,9 @@ set( FYPP_SRC_FILES
     fcimc_initialisation.fpp
     HPHFIntegrals.fpp
     sltcnd.fpp
-    disconnected_gasci.fpp
     gasci.fpp
-    fast_gasci.fpp
+    gasci_disconnected.fpp
+    gasci_general.fpp
     orb_idx.fpp
     excitation_types.fpp
 	shared_array.fpp

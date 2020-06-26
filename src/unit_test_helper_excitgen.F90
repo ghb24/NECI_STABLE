@@ -251,6 +251,8 @@ contains
     integer(int64) :: umatsize
     real(dp) :: ecore
     character(*), parameter :: this_routine = 'init_excitgen_test'
+    integer, parameter :: seed = 25
+
     nel = n_el
     NIfDBO = 0
     NOffSgn = 1
@@ -263,7 +265,7 @@ contains
     tTransGTID = .false.
     tReadFreeFormat = .true.
 
-    call dSFMT_init(25)
+    call dSFMT_init(seed)
 
     call SetCalcDefaults()
     call SetSysDefaults()

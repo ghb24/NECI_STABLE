@@ -3,7 +3,7 @@ MODULE DetCalc
         use constants, only: dp,n_int
         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB, tStoreSpinOrbs, &
              tGAS, t_non_hermitian
-        use disconnected_gasci, only: init_disconnected_GAS
+        use gasci_disconnected, only: init_disconnected_GAS
         use gasci, only: GAS_exc_gen, possible_GAS_exc_gen, operator(==), GAS_specification
         use sort_mod
 

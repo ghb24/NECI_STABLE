@@ -4,7 +4,7 @@
 
 #:set ExcitationTypes = ['SingleExc_t', 'DoubleExc_t']
 
-module fast_gasci
+module gasci_general
     use SystemData, only: tGAS, tGASSpinRecoupling, nBasis, nel
     use constants
     use util_mod, only: get_free_unit, binary_search_first_ge, operator(.div.), &
@@ -698,4 +698,4 @@ contains
 
         call sort(det_list, ilut_lt, ilut_gt)
     end subroutine gen_all_excits
-end module fast_gasci
+end module gasci_general
