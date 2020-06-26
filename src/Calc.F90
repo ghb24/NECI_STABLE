@@ -3799,27 +3799,27 @@ contains
                                 i, final_energy(i)
                         end do
                     end if
-                else if (tRPA_QBA) then
-                    call RunRPA_QBA(WeightDum, EnerDum)
-                    write(6, *) "Summed approx E(Beta)=", EnerDum
-                else if (tKP_FCIQMC) then
-                    if (tExcitedStateKP) then
-                        call perform_subspace_fciqmc(kp)
-                    else
-                        call perform_kp_fciqmc(kp)
-                    end if
-                else if (tRPA_QBA) then
-                    call RunRPA_QBA(WeightDum, EnerDum)
-                    write(6, *) "Summed approx E(Beta)=", EnerDum
-                else if (tKP_FCIQMC) then
-                    if (tExcitedStateKP) then
-                        call perform_subspace_fciqmc(kp)
-                    else
-                        call perform_kp_fciqmc(kp)
-                    end if
-                else if (t_real_time_fciqmc) then
-                    call perform_real_time_fciqmc()
                 end if
+            else if (tRPA_QBA) then
+                call RunRPA_QBA(WeightDum, EnerDum)
+                write(6, *) "Summed approx E(Beta)=", EnerDum
+            else if (tKP_FCIQMC) then
+                if (tExcitedStateKP) then
+                    call perform_subspace_fciqmc(kp)
+                else
+                    call perform_kp_fciqmc(kp)
+                end if
+            else if (tRPA_QBA) then
+                call RunRPA_QBA(WeightDum, EnerDum)
+                write(6, *) "Summed approx E(Beta)=", EnerDum
+            else if (tKP_FCIQMC) then
+                if (tExcitedStateKP) then
+                    call perform_subspace_fciqmc(kp)
+                else
+                    call perform_kp_fciqmc(kp)
+                end if
+            else if (t_real_time_fciqmc) then
+                call perform_real_time_fciqmc()
             end if
             IF (TMONTE .and. .not. tMP2Standalone) THEN
 !             DBRAT=0.01
