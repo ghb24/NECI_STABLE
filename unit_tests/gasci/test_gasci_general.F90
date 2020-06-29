@@ -950,80 +950,69 @@ contains
 
     subroutine test_possible_holes
 
-        block
-            type(GASSpec_t) :: GAS_spec
-            integer, parameter :: reference(4) = [1, 2, 5, 6]
-            integer, allocatable :: expected(:), calculated(:)
-            GAS_spec = GASSpec_t(n_min=[2, 4], n_max=[2, 4], spat_GAS_orbs=[1, 1, 2, 2])
-
-            expected = [integer::]
-            calculated = get_possible_holes(GAS_spec, reference)
-            call assert_equals(expected, calculated, size(expected))
-
-            expected = [3, 4]
-            calculated = get_possible_holes(GAS_spec, reference, add_holes=[1])
-            call assert_equals(expected, calculated, size(expected))
-
-            expected = [integer::]
-            calculated = get_possible_holes(GAS_spec, reference, add_holes=[1, 2])
-            call assert_equals(expected, calculated, size(expected))
-
-            expected = [7, 8]
-            calculated = get_possible_holes(GAS_spec, reference, add_holes=[5])
-            call assert_equals(expected, calculated, size(expected))
-
-            expected = [7]
-            calculated = get_possible_holes(GAS_spec, reference, add_holes=[5], excess=alpha)
-            call assert_equals(expected, calculated, size(expected))
-
-            expected = [8]
-            calculated = get_possible_holes(GAS_spec, reference, add_holes=[5], excess=beta)
-            call assert_equals(expected, calculated, size(expected))
-
-        end block
+        type(GASSpec_t) :: GAS_spec
+        integer, allocatable :: expected(:), calculated(:), reference(:)
 
 
-        block
-            type(GASSpec_t) :: GAS_spec
-            integer, allocatable :: expected(:), calculated(:)
-            GAS_spec = GASSpec_t(n_min=[1, 3, 6], n_max=[3, 5, 6], spat_GAS_orbs=[1, 1, 2, 2, 3, 3])
+        reference = [1, 2, 5, 6]
+        GAS_spec = GASSpec_t(n_min=[2, 4], n_max=[2, 4], spat_GAS_orbs=[1, 1, 2, 2])
 
-            block
-                integer, parameter :: reference(6) = [1, 2, 5, 6, 9, 10]
-                expected = [3, 4, 7, 8, 11, 12]
-                calculated = get_possible_holes(GAS_spec, reference, add_holes=[5])
-                call assert_equals(expected, calculated, size(expected))
-            end block
+        expected = [integer::]
+        calculated = get_possible_holes(GAS_spec, reference)
+        call assert_equals(expected, calculated, size(expected))
 
-            block
-                integer, parameter :: reference(6) = [1, 5, 6, 7, 9, 10]
-                expected = [2, 3, 4]
-                calculated = get_possible_holes(GAS_spec, reference, add_holes=[1])
-                call assert_equals(expected, calculated, size(expected))
+        expected = [3, 4]
+        calculated = get_possible_holes(GAS_spec, reference, add_holes=[1])
+        call assert_equals(expected, calculated, size(expected))
 
-                expected = [2, 3, 4, 8, 11, 12]
-                calculated = get_possible_holes(GAS_spec, reference, add_holes=[1, 5], n_total=2)
-                call assert_equals(expected, calculated, size(expected))
+        expected = [integer::]
+        calculated = get_possible_holes(GAS_spec, reference, add_holes=[1, 2])
+        call assert_equals(expected, calculated, size(expected))
 
-                expected = [2, 3, 4]
-                calculated = get_possible_holes(GAS_spec, excite(reference, SingleExc_t(5, 11)), add_holes=[1])
-                call assert_equals(expected, calculated, size(expected))
+        expected = [7, 8]
+        calculated = get_possible_holes(GAS_spec, reference, add_holes=[5])
+        call assert_equals(expected, calculated, size(expected))
 
-                expected = [2, 3, 4]
-                calculated = get_possible_holes(GAS_spec, reference, add_particles=[11], add_holes=[1, 5])
-                call assert_equals(expected, calculated, size(expected))
-            end block
-        end block
+        expected = [7]
+        calculated = get_possible_holes(GAS_spec, reference, add_holes=[5], excess=alpha)
+        call assert_equals(expected, calculated, size(expected))
 
-        block
-            type(GASSpec_t) :: GAS_spec
-            integer, allocatable :: expected(:), calculated(:)
-            integer, parameter :: reference(4) = [5, 6, 7, 8]
-            GAS_spec = GASSpec_t(n_min=[0, 4], n_max=[0, 4], spat_GAS_orbs=[1, 1, 2, 2])
-            expected = [integer::]
-            calculated = get_possible_holes(GAS_spec, reference, add_holes=[5])
-            call assert_equals(expected, calculated, size(expected))
-        end block
+        expected = [8]
+        calculated = get_possible_holes(GAS_spec, reference, add_holes=[5], excess=beta)
+        call assert_equals(expected, calculated, size(expected))
+
+
+
+
+
+        GAS_spec = GASSpec_t(n_min=[1, 3, 6], n_max=[3, 5, 6], spat_GAS_orbs=[1, 1, 2, 2, 3, 3])
+        reference = [1, 2, 5, 6, 9, 10]
+
+        expected = [3, 4, 7, 8, 11, 12]
+        calculated = get_possible_holes(GAS_spec, reference, add_holes=[5])
+        call assert_equals(expected, calculated, size(expected))
+
+        reference = [1, 5, 6, 7, 9, 10]
+        call assert_equals(expected, calculated, size(expected))
+
+        expected = [2, 3, 4, 8, 11, 12]
+        calculated = get_possible_holes(GAS_spec, reference, add_holes=[1, 5], n_total=2)
+        call assert_equals(expected, calculated, size(expected))
+
+        expected = [2, 3, 4]
+        calculated = get_possible_holes(GAS_spec, excite(reference, SingleExc_t(5, 11)), add_holes=[1])
+        call assert_equals(expected, calculated, size(expected))
+
+        expected = [2, 3, 4]
+        calculated = get_possible_holes(GAS_spec, reference, add_particles=[11], add_holes=[1, 5])
+        call assert_equals(expected, calculated, size(expected))
+
+
+        reference = [5, 6, 7, 8]
+        GAS_spec = GASSpec_t(n_min=[0, 4], n_max=[0, 4], spat_GAS_orbs=[1, 1, 2, 2])
+        expected = [integer::]
+        calculated = get_possible_holes(GAS_spec, reference, add_holes=[5])
+        call assert_equals(expected, calculated, size(expected))
     end subroutine
 end module test_gasci_mod
 
