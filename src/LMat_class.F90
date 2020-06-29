@@ -409,7 +409,6 @@ contains
                 counter = 0
                 do
                     read(iunit,*,iostat = ierr) matel, indices
-                    call freeze_lmat(matel,indices)
                     ! end of file reached?
                     if(ierr < 0) then
                         exit
@@ -417,6 +416,7 @@ contains
                         ! error while reading?
                         call stop_all(t_r,"Error reading TCDUMP file")
                     else
+                        call freeze_lmat(matel,indices)
                         ! else assign the matrix element
                         if(abs(3.0_dp*matel) > LMatEps) then                        
                             index = this%indexFunc(&

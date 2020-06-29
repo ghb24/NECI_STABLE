@@ -8,9 +8,9 @@ module Integrals_neci
                           t_new_hubbard, t_k_space_hubbard,  t_mol_3_body, &
                           tContact, t12FoldSym
 
-    use UmatCache, only: tUmat2D, UMatInd, UMatConj, umat2d, tTransFIndx, nHits, &
+    use UmatCache, only: tUmat2D, UMatInd, UMat2Ind, UMatConj, umat2d, tTransFIndx, nHits, &
                          nMisses, GetCachedUMatEl, HasKPoints, TransTable, &
-                         nTypes, gen2CPMDInts, tDFInts
+                         nTypes, gen2CPMDInts, tDFInts, setup_UMatInd
 
     use vasp_neci_interface
 
@@ -466,7 +466,9 @@ contains
          I=NEL+(-NTFROZEN)
       ELSE
          I=nBasis-NTFROZEN
-      ENDIF
+     ENDIF
+     ! Initialize the umat-index function
+     call setup_UMatInd()
       IF(TCPMD) THEN
 !.. We don't need to do init any 4-index integrals, but we do need to init the 2-index
          WRITE(6,*) " *** INITIALIZING CPMD 2-index integrals ***"
@@ -834,6 +836,7 @@ contains
          nullify(UMat2)
          tagUMat=tagUMat2
          tagUMat2=0
+         call setup_UMatInd()
 !         CALL N_MEMORY_CHECK()
 !         WRITE(6,*) "Active basis functions:",NHG
          CALL WRITEBASIS(6,G1,NHG,ARR,BRR)
@@ -1444,7 +1447,7 @@ contains
                                                  IF(ISS.NE.0.OR.G1(I)%MS.EQ.1) THEN
                                                     IDL = GTID(LB)
                                                     IDLP = GTID(LPB)
-                                                    UMAT2(UMatInd(IDIP,IDJP,IDKP,IDLP)) = &
+                                                    UMAT2(UMat2Ind(IDIP,IDJP,IDKP,IDLP)) = &
                    &                                             UMAT(UMatInd(IDI,IDJ,IDK,IDL))
                                                  ENDIF
                                               ENDIF

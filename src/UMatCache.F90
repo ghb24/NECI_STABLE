@@ -46,6 +46,7 @@ MODULE UMatCache
       INTEGER, Pointer :: UMatLabels(:,:) => null() !(nSlots,nPairs)
       INTEGER :: nSlots, nPairs, nTypes
       INTEGER :: nStates
+      integer :: nBI_umat
 
 ! tSmallUMat is set if we have nStates slots per pair for storing the <ik|jk> integrals.
 ! This should only be used prior to freezing to store precalculated integrals.
@@ -209,9 +210,28 @@ MODULE UMatCache
         RETURN
       END SUBROUTINE CreateInvBRR
 
+      subroutine setup_UMatInd()
+          use SystemData, only: nBasis
+          
+          nBI_umat = numBasisIndices(nBasis)
+      end subroutine setup_UMatInd
 
+      function UMat2Ind(i,j,k,l) result(ind)
+          use SystemData, only: nBasis
+          integer :: i,j,k,l
+          integer(int64) :: ind
 
-      INTEGER(int64) FUNCTION UMatInd(I,J,K,L)
+          ind = UMatInd_base(i,j,k,l,numBasisIndices(nBasis))
+      end function UMat2Ind
+
+      function UMatInd(i,j,k,l) result(ind)
+          integer :: i,j,k,l
+          integer(int64) :: ind
+
+          ind = UMatInd_base(i,j,k,l,nBI_umat)
+      end function UMatInd      
+
+      FUNCTION UMatInd_base(I,J,K,L,nBI) result(UMatInd)
          ! Get the index of physical order UMAT element <IJ|KL>.
          ! Indices are internally reordered such that I>K, J>L,(I,K)>(J,L)
          ! Note: (i,k)>(j,l) := (k>l) || ((k==l)&&(i>j))
@@ -222,24 +242,15 @@ MODULE UMatCache
          !    nBasis: size of basis. If =0, use nStates instead.
          !    nOccupied: # of occupied orbitals.  If =0, then nOcc is used.
          !    Should only be passed as non-zero during the freezing process.
-         use SystemData, only: nbasis
          IMPLICIT NONE
-         INTEGER, intent(in) :: I,J,K,L
-         INTEGER A,B, nbi, iss
+         INTEGER, intent(in) :: I,J,K,L,nBI
+         integer(int64) :: UMatInd
+         INTEGER A,B, iss
 
          if (t_non_hermitian) then
-             IF(tStoreSpinOrbs) THEN
-                 iSS=1
-             ELSE
-                 iSS=2
-             ENDIF
-
-             nBi=nBasis/iSS
-
              A=(I-1)*nBi+K
              B=(J-1)*nBi+L
          else
-
              !Combine indices I and K, ensuring I>K
              IF(I.GT.K) THEN
                  A=(I*(I-1))/2+K
@@ -271,7 +282,7 @@ MODULE UMatCache
              endif
          endif
 #endif
-      END FUNCTION UMatInd
+     END FUNCTION UMatInd_Base
 
       HElement_t(dp) function UMatConj(I,J,K,L,val)
          integer, intent(in) :: I,J,K,L

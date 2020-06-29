@@ -50,7 +50,7 @@ HElement_t(dp), dimension(:,:,:), pointer :: OneEPropInts2
 
 ! True if using TMatSym in CPMD (currently only if using k-points, which form
 ! an Abelian group).
-logical tCPMDSymTMat
+logical :: tCPMDSymTMat = .false.
 logical tOneElecDiag    !Indicates that the one-electron integral matrix is diagonal -
                         !basis functions are eigenstates of KE operator.
 
