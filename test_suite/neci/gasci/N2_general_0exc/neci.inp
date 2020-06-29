@@ -28,7 +28,7 @@ calc
 
     diagshift .00
     shiftdamp .02
-    nmcyc 1000
+    nmcyc 10000
     stepsshift 10
     proje-changeref 1.20
     truncinitiator
