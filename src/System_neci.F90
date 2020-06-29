@@ -1789,25 +1789,31 @@ system: do
 
             block
                 integer :: nGAS, iGAS
-                integer, allocatable :: n_min(:), n_max(:), spat_GAS_orbs(:)
+                integer :: i_orb, n_spat_orbs
+                ! n_orbs are the number of spatial orbitals per GAS space
+                ! cn_min, cn_max are cumulated particle numbers per GAS space
+                integer, allocatable :: n_orbs(:), cn_min(:), cn_max(:), spat_GAS_orbs(:)
+
                 call geti(nGAS)
-                allocate(n_min(nGAS), n_max(nGAS), source=0)
+                allocate(n_orbs(nGAS), cn_min(nGAS), cn_max(nGAS), source=0)
                 do iGAS = 1, nGAS
-                    call geti(n_min(iGAS))
-                    call geti(n_max(iGAS))
+                    call geti(n_orbs(iGAS))
+                    call geti(cn_min(iGAS))
+                    call geti(cn_max(iGAS))
                 end do
 
-                block
-                    integer :: GAS_unit, n_spat_orbs
-                    GAS_unit = get_free_unit()
-                    open(GAS_unit, file="GASOrbs", status='old')
-                        read(GAS_unit, *) n_spat_orbs
-                        allocate(spat_GAS_orbs(n_spat_orbs))
-                        read(GAS_unit,  *) spat_GAS_orbs
-                    close(GAS_unit)
-                end block
+                n_spat_orbs = sum(n_orbs)
+                allocate(spat_GAS_orbs(n_spat_orbs))
+                do i_orb = 1, n_spat_orbs
+                    call geti(spat_GAS_orbs(i_orb))
+                end do
 
-                GAS_specification = GASSpec_t(n_min, n_max, spat_GAS_orbs)
+                GAS_specification = GASSpec_t(cn_min, cn_max, spat_GAS_orbs)
+                associate(beta_orbs => [(i, i = 1, n_spat_orbs * 2, 2)])
+                    if (.not. all(n_orbs == GAS_specification%count_per_GAS(beta_orbs))) then
+                        call stop_all(t_r, "Inconsistent GAS specification")
+                    end if
+                end associate
             end block
 
         case("GAS-CI")

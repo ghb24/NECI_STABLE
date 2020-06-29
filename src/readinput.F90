@@ -237,7 +237,7 @@ MODULE ReadInput_neci
                             tContTimeFull, tFCIMC, tPreCond, tOrthogonaliseReplicas, &
                             tMultipleInitialStates, pgen_unit_test_spec
         use Calc, only : RDMsamplingiters_in_inp
-        Use Determinants, only: SpecDet, tagSpecDet, tDefinedet
+        Use Determinants, only: SpecDet, tagSpecDet, tDefinedet, DefDet
         use IntegralsData, only: nFrozen, tDiscoNodes, tQuadValMax, &
                                  tQuadVecMax, tCalcExcitStar, tJustQuads, &
                                  tNoDoubs
@@ -620,8 +620,11 @@ MODULE ReadInput_neci
         end if
 
         if (tGAS) then
-            if(.not. tDefineDet) then
+            if (.not. tDefineDet) then
                 call stop_all(t_r, "Running GAS requires a user-defined reference via definedet.")
+            endif
+            if (.not. GAS_specification%contains(DefDet)) then
+                call stop_all(t_r, "Reference determinant has to be contained in GAS space.")
             endif
             if (.not. GAS_specification%is_valid()) then
                 call stop_all(t_r, "GAS specification not valid.")
