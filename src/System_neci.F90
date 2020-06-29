@@ -1792,7 +1792,8 @@ system: do
                 integer :: i_orb, n_spat_orbs
                 ! n_orbs are the number of spatial orbitals per GAS space
                 ! cn_min, cn_max are cumulated particle numbers per GAS space
-                integer, allocatable :: n_orbs(:), cn_min(:), cn_max(:), spat_GAS_orbs(:)
+                integer, allocatable :: n_orbs(:), cn_min(:), cn_max(:), &
+                                        spat_GAS_orbs(:), beta_orbs(:)
 
                 call geti(nGAS)
                 allocate(n_orbs(nGAS), cn_min(nGAS), cn_max(nGAS), source=0)
@@ -1809,11 +1810,11 @@ system: do
                 end do
 
                 GAS_specification = GASSpec_t(cn_min, cn_max, spat_GAS_orbs)
-                associate(beta_orbs => [(i, i = 1, n_spat_orbs * 2, 2)])
-                    if (.not. all(n_orbs == GAS_specification%count_per_GAS(beta_orbs))) then
-                        call stop_all(t_r, "Inconsistent GAS specification")
-                    end if
-                end associate
+
+                beta_orbs = [(i, i = 1, n_spat_orbs * 2, 2)]
+                if (.not. all(n_orbs == GAS_specification%count_per_GAS(beta_orbs))) then
+                    call stop_all(t_r, "Inconsistent GAS specification")
+                end if
             end block
 
         case("GAS-CI")
