@@ -1,4 +1,4 @@
-module test_gasci_mod
+module test_gasci_general_mod
     use fruit
     use constants, only: dp, n_int
     use util_mod, only: operator(.div.), operator(.isclose.), near_zero
@@ -997,14 +997,14 @@ contains
         calculated = get_possible_holes(GAS_spec, reference, add_holes=[5])
         call assert_equals(expected, calculated, size(expected))
     end subroutine
-end module test_gasci_mod
+end module test_gasci_general_mod
 
 program test_gasci_program
 
     use mpi
     use fruit
     use Parallel_neci, only: MPIInit, MPIEnd
-    use test_gasci_mod, only: &
+    use test_gasci_general_mod, only: &
         test_get_possible_spaces, test_possible_holes, test_available, test_pgen
 
 
