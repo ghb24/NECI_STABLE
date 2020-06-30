@@ -27,96 +27,91 @@ contains
 
 
     subroutine test_available()
+        type(GASSpec_t) :: GAS_spec
+        integer, allocatable :: det_I(:), expect_singles(:, :), expect_doubles(:, :)
         integer, allocatable :: singles_exc_list(:, :), doubles_exc_list(:, :)
         integer :: i, j
 
-        block
-            integer, parameter :: det_I(4) = [1, 2, 5, 6]
-            integer, parameter :: &
-                expect_singles(4, 4) = &
-                   reshape(&
-                        [[1, 2, 5, 8], [1, 2, 6, 7], &
-                         [1, 4, 5, 6], [2, 3, 5, 6]], &
-                    [4, 4])
 
-            integer, parameter :: &
-                expect_doubles(4, 8) = &
-                   reshape(&
-                       [[1, 2, 7, 8], [1, 3, 6, 8], &
-                        [1, 4, 5, 8], [1, 4, 6, 7], &
-                        [2, 3, 5, 8], [2, 3, 6, 7], &
-                        [2, 4, 5, 7], [3, 4, 5, 6]], &
-                    [4, 8])
-            type(GASSpec_t) :: GAS_spec
+        GAS_spec = GASSpec_t(&
+            n_min=[2, 4], &
+            n_max=[2, 4], &
+            spat_GAS_orbs = [1, 1, 2, 2])
+        det_I = [1, 2, 5, 6]
 
-            GAS_spec = GASSpec_t(&
-                n_min=[2, 4], &
-                n_max=[2, 4], &
-                spat_GAS_orbs = [1, 1, 2, 2])
+        call assert_true(GAS_spec%is_valid())
+        call assert_true(GAS_spec%contains(det_I))
 
-            call assert_true(GAS_spec%is_valid())
-            call assert_true(GAS_spec%contains(det_I))
+        expect_singles = reshape(&
+                                [[1, 2, 5, 8], [1, 2, 6, 7], &
+                                 [1, 4, 5, 6], [2, 3, 5, 6]], &
+                            [4, 4])
 
-            singles_exc_list = get_available_singles(GAS_spec, det_I)
-            doubles_exc_list = get_available_doubles(GAS_spec, det_I)
+        expect_doubles = reshape(&
+                               [[1, 2, 7, 8], [1, 3, 6, 8], &
+                                [1, 4, 5, 8], [1, 4, 6, 7], &
+                                [2, 3, 5, 8], [2, 3, 6, 7], &
+                                [2, 4, 5, 7], [3, 4, 5, 6]], &
+                            [4, 8])
 
 
-            call assert_equals(expect_singles, singles_exc_list, &
-                size(expect_singles, 1), size(expect_singles, 2))
-            call assert_equals(expect_doubles, doubles_exc_list, &
-                size(expect_doubles, 1), size(expect_doubles, 2))
-        end block
-
-        block
-            integer, parameter :: det_I(4) = [1, 2, 5, 6]
-            integer, parameter :: &
-                expect_singles(4, 8) = &
-                   reshape(&
-                        [[1, 2, 3, 6], [1, 2, 4, 5], &
-                         [1, 2, 5, 8], [1, 2, 6, 7], &
-                         [1, 4, 5, 6], [1, 5, 6, 8], &
-                         [2, 3, 5, 6], [2, 5, 6, 7]], &
-                    [4, 8])
-
-            integer, parameter :: &
-                expect_doubles(4, 18) = &
-                   reshape(&
-                       [[1, 2, 3, 4], [1, 2, 3, 8], &
-                        [1, 2, 4, 7], [1, 2, 7, 8], &
-                        [1, 3, 4, 6], [1, 3, 6, 8], &
-                        [1, 4, 5, 8], [1, 4, 6, 7], &
-                        [1, 6, 7, 8], [2, 3, 4, 5], &
-                        [2, 3, 5, 8], [2, 3, 6, 7], &
-                        [2, 4, 5, 7], [2, 5, 7, 8], &
-                        [3, 4, 5, 6], [3, 5, 6, 8], &
-                        [4, 5, 6, 7], [5, 6, 7, 8]], &
-                    [4, 18])
-
-            type(GASSpec_t) :: GAS_spec
-
-            GAS_spec = GASSpec_t(&
-                n_min=[0, 4], &
-                n_max=[4, 4], &
-                spat_GAS_orbs = [1, 1, 2, 2])
-
-            call assert_true(GAS_spec%is_valid())
-            call assert_true(GAS_spec%contains(det_I))
-
-            singles_exc_list = get_available_singles(GAS_spec, det_I)
-            doubles_exc_list = get_available_doubles(GAS_spec, det_I)
+        singles_exc_list = get_available_singles(GAS_spec, det_I)
+        doubles_exc_list = get_available_doubles(GAS_spec, det_I)
 
 
-            call assert_equals(expect_singles, singles_exc_list, &
-                size(expect_singles, 1), size(expect_singles, 2))
-            call assert_equals(expect_doubles, doubles_exc_list, &
-                size(expect_doubles, 1), size(expect_doubles, 2))
-        end block
+        call assert_equals(expect_singles, singles_exc_list, &
+            size(expect_singles, 1), size(expect_singles, 2))
+        call assert_equals(expect_doubles, doubles_exc_list, &
+            size(expect_doubles, 1), size(expect_doubles, 2))
 
-        block
-            integer, parameter :: det_I(12) = [1, 2, 3, 4, 5, 6, 13, 14, 15, 16, 17, 18]
-            integer, parameter :: &
-                expect_singles(12, 36) = &
-                    reshape( &
+
+
+        GAS_spec = GASSpec_t(n_min=[0, 4], n_max=[4, 4], spat_GAS_orbs = [1, 1, 2, 2])
+        det_I = [1, 2, 5, 6]
+        call assert_true(GAS_spec%is_valid())
+        call assert_true(GAS_spec%contains(det_I))
+
+        expect_singles = reshape(&
+                            [[1, 2, 3, 6], [1, 2, 4, 5], &
+                             [1, 2, 5, 8], [1, 2, 6, 7], &
+                             [1, 4, 5, 6], [1, 5, 6, 8], &
+                             [2, 3, 5, 6], [2, 5, 6, 7]], &
+                        [4, 8])
+
+        expect_doubles(4, 18) = reshape(&
+                               [[1, 2, 3, 4], [1, 2, 3, 8], &
+                                [1, 2, 4, 7], [1, 2, 7, 8], &
+                                [1, 3, 4, 6], [1, 3, 6, 8], &
+                                [1, 4, 5, 8], [1, 4, 6, 7], &
+                                [1, 6, 7, 8], [2, 3, 4, 5], &
+                                [2, 3, 5, 8], [2, 3, 6, 7], &
+                                [2, 4, 5, 7], [2, 5, 7, 8], &
+                                [3, 4, 5, 6], [3, 5, 6, 8], &
+                                [4, 5, 6, 7], [5, 6, 7, 8]], &
+                            [4, 18])
+
+        singles_exc_list = get_available_singles(GAS_spec, det_I)
+        doubles_exc_list = get_available_doubles(GAS_spec, det_I)
+
+
+        call assert_equals(expect_singles, singles_exc_list, &
+            size(expect_singles, 1), size(expect_singles, 2))
+        call assert_equals(expect_doubles, doubles_exc_list, &
+            size(expect_doubles, 1), size(expect_doubles, 2))
+
+
+
+
+        GAS_spec = GASSpec_t(&
+            n_min=[6, 12], &
+            n_max=[6, 12], &
+            spat_GAS_orbs = [[(1, i = 1, 6)], [(2, i = 1, 6)]])
+        det_I = [1, 2, 3, 4, 5, 6, 13, 14, 15, 16, 17, 18]
+
+        call assert_true(GAS_spec%is_valid())
+        call assert_true(GAS_spec%contains(det_I))
+
+        expect_singles = reshape( &
                         [[1, 2, 3, 4, 5, 6, 13, 14, 15, 16, 17, 20], &
                          [1, 2, 3, 4, 5, 6, 13, 14, 15, 16, 17, 22], &
                          [1, 2, 3, 4, 5, 6, 13, 14, 15, 16, 17, 24], &
@@ -155,8 +150,7 @@ contains
                          [2, 3, 4, 5, 6, 11, 13, 14, 15, 16, 17, 18]], &
                     [12, 36])
 
-            integer, parameter :: &
-                expect_doubles(12, 684) = reshape([&
+            expect_doubles = reshape([&
                     [1, 2, 3, 4, 5, 6, 13, 14, 15, 16, 19, 20], &
                     [1, 2, 3, 4, 5, 6, 13, 14, 15, 16, 19, 22], &
                     [1, 2, 3, 4, 5, 6, 13, 14, 15, 16, 19, 24], &
@@ -843,25 +837,14 @@ contains
                     [3, 4, 5, 6, 11, 12, 13, 14, 15, 16, 17, 18]], &
                 [12, 684])
 
-            type(GASSpec_t) :: GAS_spec
-
-            GAS_spec = GASSpec_t(&
-                n_min=[6, 12], &
-                n_max=[6, 12], &
-                spat_GAS_orbs = [[(1, i = 1, 6)], [(2, i = 1, 6)]])
-
-            call assert_true(GAS_spec%is_valid())
-            call assert_true(GAS_spec%contains(det_I))
-
-            singles_exc_list = get_available_singles(GAS_spec, det_I)
-            doubles_exc_list = get_available_doubles(GAS_spec, det_I)
+        singles_exc_list = get_available_singles(GAS_spec, det_I)
+        doubles_exc_list = get_available_doubles(GAS_spec, det_I)
 
 
-            call assert_equals(expect_singles, singles_exc_list, &
-                size(expect_singles, 1), size(expect_singles, 2))
-            call assert_equals(expect_doubles, doubles_exc_list, &
-                size(expect_doubles, 1), size(expect_doubles, 2))
-        end block
+        call assert_equals(expect_singles, singles_exc_list, &
+            size(expect_singles, 1), size(expect_singles, 2))
+        call assert_equals(expect_doubles, doubles_exc_list, &
+            size(expect_doubles, 1), size(expect_doubles, 2))
     end subroutine
 
 
