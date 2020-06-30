@@ -10,8 +10,9 @@ System read
     GAS-SPEC +++
     3 +++
     2 2 2 +++
-    4 4 4 +++
-    6 6 6
+    2 4 4 +++
+    2 6 6 +++
+    1 2 3 1 2 3
 endsys
 
 calc
