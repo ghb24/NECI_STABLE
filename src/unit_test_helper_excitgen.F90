@@ -134,25 +134,10 @@ contains
         end do
         call sort(nI)
 
-        call EncodeBitDet(nI,ilut)
-
-        exflag = 3
-        ex = 0
-        ! create a list of all singles and doubles for reference
-        call CountExcitations3(nI,exflag,nSingles,nDoubles)
-        allocate(allEx(0:(NIfTot+1),nSingles+nDoubles), source = 0_n_int)
-        numEx = 0
-        tAllExFound = .false.
-        do
-           call GenExcitations3(nI,ilut,nJ,exflag,ex,tPar,tAllExFound,.false.)
-           if(tAllExFound) exit
-           call encodeBitDet(nJ,ilutJ)
-           numEx = numEx + 1
-           allEx(0:nifd,numEx) = ilutJ(0:nifd)
-        end do
-
         write(iout,*) "In total", numEx, "excits, (", nSingles,nDoubles,")"
         write(iout,*) "Exciting from", nI
+
+        call EncodeBitDet(nI, ilut)
 
         ! set the biases for excitation generation
         pParallel = 0.5_dp
