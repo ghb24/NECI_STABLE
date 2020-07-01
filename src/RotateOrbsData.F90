@@ -11,7 +11,7 @@ module RotateOrbsData
 
     ! This contains the transformation matrix which rotates the HF orbitals
     ! into their new basis.
-    real(dp), allocatable :: CoeffT1(:,:)
+    real(dp), allocatable :: CoeffT1(:, :)
     integer(TagIntType) :: CoeffT1Tag
 
     integer :: MemAllocRot
@@ -20,7 +20,7 @@ module RotateOrbsData
     ! orbitals, mix all together, use spin or spatial
     ! orbitals and maintain symmetry etc.
     integer :: NoSymLabelCounts
-    integer, allocatable :: SymLabelList2_rot(:), SymLabelCounts2_rot(:,:)
+    integer, allocatable :: SymLabelList2_rot(:), SymLabelCounts2_rot(:, :)
     integer, allocatable :: SymLabelListInv_rot(:), SymLabelList3_rot(:)
     integer, allocatable :: SymOrbs_rot(:)
 

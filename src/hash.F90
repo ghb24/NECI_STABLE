@@ -16,7 +16,7 @@ module hash
         module procedure hash_table_lookup_int_64
     end interface
 
-    contains
+contains
 
     ! Routine to find the correct position in the hash table.
     pure function FindWalkerHash(orb_array, HashIndexLength) result(hashInd)
@@ -29,9 +29,9 @@ module hash
         hash = 0
         do i = 1, size(orb_array)
             hash = (1099511628211_int64 * hash) + &
-                    int(RandomHash2(orb_array(i))*i,int64)
-        enddo
-        hashInd = int(abs(mod(hash, int(HashIndexLength, int64))),sizeof_int)+1
+                   int(RandomHash2(orb_array(i)) * i, int64)
+        end do
+        hashInd = int(abs(mod(hash, int(HashIndexLength, int64))), sizeof_int) + 1
 
     end function FindWalkerHash
 
@@ -49,7 +49,7 @@ module hash
 
         do i = 1, size(hash_table)
             hash_table(i)%ind = 0
-            nullify(hash_table(i)%next)
+            nullify (hash_table(i)%next)
         end do
 
     end subroutine init_hash_table
@@ -72,7 +72,7 @@ module hash
             prev => hash_table(i)
             ! Set the first index to zero.
             prev%ind = 0
-            nullify(prev%next)
+            nullify (prev%next)
             ! Loop over the whole linked list and deallocate all pointers.
             do while (associated(curr))
                 prev => curr
@@ -81,8 +81,8 @@ module hash
             end do
         end do
 
-        nullify(curr)
-        nullify(prev)
+        nullify (curr)
+        nullify (prev)
 
     end subroutine clear_hash_table
 
@@ -236,11 +236,11 @@ module hash
                 temp_node => temp_node%next
             end do
             allocate(temp_node%next)
-            nullify(temp_node%next%next)
+            nullify (temp_node%next%next)
             temp_node%next%ind = ind
         end if
 
-        nullify(temp_node)
+        nullify (temp_node)
 
     end subroutine add_hash_table_entry
 
@@ -258,7 +258,7 @@ module hash
         ! Note that hash_table won't actually change, but we need the inout
         ! label to make this routine pure.
         type(ll_node), pointer, intent(inout) :: hash_table(:)
-        integer(int32), intent(in) :: targ_array(0:,:)
+        integer(int32), intent(in) :: targ_array(0:, :)
         integer, intent(out) :: ind
         integer, intent(out) :: hash_val
         logical, intent(out) :: found
@@ -286,7 +286,7 @@ module hash
             end do
         end if
 
-        nullify(temp_node)
+        nullify (temp_node)
 
     end subroutine hash_table_lookup_int_32
 
@@ -304,7 +304,7 @@ module hash
         ! Note that hash_table won't actually change, but we need the inout
         ! label to make this routine pure.
         type(ll_node), pointer, intent(inout) :: hash_table(:)
-        integer(int64), intent(in) :: targ_array(0:,:)
+        integer(int64), intent(in) :: targ_array(0:, :)
         integer, intent(out) :: ind
         integer, intent(out) :: hash_val
         logical, intent(out) :: found
@@ -332,7 +332,7 @@ module hash
             end do
         end if
 
-        nullify(temp_node)
+        nullify (temp_node)
 
     end subroutine hash_table_lookup_int_64
 
@@ -351,7 +351,7 @@ module hash
         use DetBitOps, only: tAccumEmptyDet
         integer, intent(in) :: table_length, list_length
         type(ll_node), pointer, intent(inout) :: hash_table(:)
-        integer(n_int), intent(in) :: walker_list(0:,:)
+        integer(n_int), intent(in) :: walker_list(0:, :)
         logical, intent(in) :: ignore_unocc
 
         type(ll_node), pointer :: temp_node
@@ -370,13 +370,13 @@ module hash
             ! deterministic states.
             if (ignore_unocc) then
                 if (tSemiStochastic) then
-                        tCoreDet = test_flag_multi(walker_list(:,i), flag_deterministic)
-                endif
-                call extract_sign(walker_list(:,i), real_sign)
-                if (IsUnoccDet(real_sign) .and. (.not. tCoreDet) .and. (.not. tAccumEmptyDet(walker_list(:,i)))) cycle
+                    tCoreDet = test_flag_multi(walker_list(:, i), flag_deterministic)
+                end if
+                call extract_sign(walker_list(:, i), real_sign)
+                if (IsUnoccDet(real_sign) .and. (.not. tCoreDet) .and. (.not. tAccumEmptyDet(walker_list(:, i)))) cycle
             end if
 
-            call decode_bit_det(nI, walker_list(:,i))
+            call decode_bit_det(nI, walker_list(:, i))
             ! Find the hash value corresponding to this determinant.
             ASSERT(all(nI <= nBasis))
             ASSERT(all(nI > 0))
@@ -396,7 +396,7 @@ module hash
         ! unoccupied and not core determinants.
 
         type(ll_node), pointer, intent(inout) :: hash_table(:)
-        integer(n_int), intent(in) :: walker_list(0:,:)
+        integer(n_int), intent(in) :: walker_list(0:, :)
         integer, intent(in) :: list_length
 
         integer :: i, hash_val, nI(nel)
@@ -408,10 +408,10 @@ module hash
 #endif
 
         do i = 1, list_length
-            call extract_sign(walker_list(:,i), real_sign)
+            call extract_sign(walker_list(:, i), real_sign)
             tCoreDet = .false.
-            if (tSemiStochastic) tCoreDet = test_flag_multi(walker_list(:,i), flag_deterministic)
-            if (IsUnoccDet(real_sign) .and. (.not. tCoreDet) .and. (.not. tAccumEmptyDet(walker_list(:,i)))) cycle
+            if (tSemiStochastic) tCoreDet = test_flag_multi(walker_list(:, i), flag_deterministic)
+            if (IsUnoccDet(real_sign) .and. (.not. tCoreDet) .and. (.not. tAccumEmptyDet(walker_list(:, i)))) cycle
             found = .false.
             call decode_bit_det(nI, walker_list(:, i))
 

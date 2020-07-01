@@ -9,13 +9,12 @@ module get_excit
     use sym_mod, only: MomPbcSym
     implicit none
 
-
 contains
 
-    subroutine make_single (nI, nJ, elec, tgt, ex, tParity)
+    subroutine make_single(nI, nJ, elec, tgt, ex, tParity)
 
         integer, intent(in) :: nI(nel), elec, tgt
-        integer, intent(out) :: ex(2,1), nJ(nel)
+        integer, intent(out) :: ex(2, 1), nJ(nel)
         logical, intent(out) :: tParity
 #ifdef DEBUG_
         character(*), parameter :: this_routine = 'make_single'
@@ -26,33 +25,33 @@ contains
         ! Initialise return values, Returned excitation matrix includes the
         ! orbitals of the source, rather than their position.
         nJ = nI
-        ex(1,1) = nI(elec)
-        ex(2,1) = tgt
+        ex(1, 1) = nI(elec)
+        ex(2, 1) = tgt
 
         ! Get the parity
         src = nI(elec)
         if (src < tgt) then
 
             ! How far do we have to move the unaffected orbitals?
-            do i = elec+1, nel
+            do i = elec + 1, nel
                 if (tgt < nJ(i)) then
-                    nJ(i-1) = tgt
+                    nJ(i - 1) = tgt
                     exit
                 else
-                    nJ(i-1) = nJ(i)
+                    nJ(i - 1) = nJ(i)
                 end if
             end do
-            if (i == nel+1) nJ(nel) = tgt
+            if (i == nel + 1) nJ(nel) = tgt
 
         else
 
             ! How far do we have to move the unaffected orbitals?
-            do i = elec-1, 1, -1
+            do i = elec - 1, 1, -1
                 if (tgt > nJ(i)) then
-                    nJ(i+1) = tgt
+                    nJ(i + 1) = tgt
                     exit
                 else
-                    nJ(i+1) = nJ(i)
+                    nJ(i + 1) = nJ(i)
                 end if
             end do
             if (i == 0) nJ(1) = tgt
@@ -70,11 +69,10 @@ contains
 
     end subroutine
 
-
-    subroutine make_double (nI, nJ, elec1, elec2, tgt1, tgt2, ex, tParity)
+    subroutine make_double(nI, nJ, elec1, elec2, tgt1, tgt2, ex, tParity)
 
         integer, intent(in) :: nI(:), elec1, elec2, tgt1, tgt2
-        integer, intent(inout) :: ex(2,2), nJ(:)
+        integer, intent(inout) :: ex(2, 2), nJ(:)
         logical, intent(out) :: tParity
 #ifdef DEBUG_
         character(*), parameter :: this_routine = 'make_double'
@@ -89,8 +87,8 @@ contains
 
         ! Fill in the excitation matrix
         srcs = nI(elecs)
-        ex(1,1:2) = srcs
-        ex(2,1:2) = tgts
+        ex(1, 1:2) = srcs
+        ex(2, 1:2) = tgts
 
         ! Initialise return value
         nJ = nI
@@ -117,15 +115,15 @@ contains
                     i = nel + 1
                     nJ(nel) = tgts(k)
                 else
-                    do i = elecs(k)+1, nel
+                    do i = elecs(k) + 1, nel
                         if (tgts(k) < nJ(i)) then
-                            nJ(i-1) = tgts(k)
+                            nJ(i - 1) = tgts(k)
                             exit
                         else
-                            nJ(i-1) = nJ(i)
+                            nJ(i - 1) = nJ(i)
                         end if
                     end do
-                    if (i == nel+1) nJ(nel) = tgts(k)
+                    if (i == nel + 1) nJ(nel) = tgts(k)
 
                 end if
 
@@ -136,12 +134,12 @@ contains
                     i = 0
                     nJ(1) = tgts(k)
                 else
-                    do i = elecs(k)-1, 1, -1
+                    do i = elecs(k) - 1, 1, -1
                         if (tgts(k) > nJ(i)) then
-                            nJ(i+1) = tgts(k)
+                            nJ(i + 1) = tgts(k)
                             exit
                         else
-                            nJ(i+1) = nJ(i)
+                            nJ(i + 1) = nJ(i)
                         end if
                     end do
                     if (i == 0) nJ(1) = tgts(k)
@@ -159,28 +157,26 @@ contains
         if (.not. SymAllowedExcit(nI, nJ, 2, ex, err_msg)) then
             print *, "nI: ", nI
             print *, "nJ: ", nJ
-            print *, "elecs: ", ex(1,:)
-            print *, "orbs: ", ex(2,:)
-            call stop_all(this_routine, 'Generated invalid excitation. ' // trim(err_msg))
+            print *, "elecs: ", ex(1, :)
+            print *, "orbs: ", ex(2, :)
+            call stop_all(this_routine, 'Generated invalid excitation. '//trim(err_msg))
         end if
 #endif
 
     end subroutine
 
-    function exciteIlut(ilut,src,orbs) result(ilutJ)
-      implicit none
-      integer(n_int), intent(in) :: ilut(0:NIfTot)
-      integer, intent(in) :: src(2), orbs(2)
-      integer(n_int) :: ilutJ(0:NIfTot)
+    function exciteIlut(ilut, src, orbs) result(ilutJ)
+        implicit none
+        integer(n_int), intent(in) :: ilut(0:NIfTot)
+        integer, intent(in) :: src(2), orbs(2)
+        integer(n_int) :: ilutJ(0:NIfTot)
 
-      ilutJ = ilut
-      clr_orb (ilutJ, src(1))
-      clr_orb (ilutJ, src(2))
-      set_orb (ilutJ, orbs(1))
-      set_orb (ilutJ, orbs(2))
+        ilutJ = ilut
+        clr_orb(ilutJ, src(1))
+        clr_orb(ilutJ, src(2))
+        set_orb(ilutJ, orbs(1))
+        set_orb(ilutJ, orbs(2))
 
     end function exciteIlut
-
-
 
 end module

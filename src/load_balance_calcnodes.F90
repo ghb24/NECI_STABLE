@@ -22,7 +22,7 @@ module load_balance_calcnodes
 
 contains
 
-    pure function DetermineDetNode (nel_loc, nI, iIterOffset) result(node)
+    pure function DetermineDetNode(nel_loc, nI, iIterOffset) result(node)
 
         ! Depending on the Hash, determine which node determinant nI
         ! belongs to in the DirectAnnihilation scheme. NB FCIMC has each
@@ -34,7 +34,6 @@ contains
 
         ! --> This function takes the calculated block (from get_det_block)
         !     and converts it via a simple lookup into the required node
-
 
         integer, intent(in) :: nel_loc
         integer, intent(in) :: nI(nel_loc)
@@ -49,7 +48,6 @@ contains
         node = LoadBalanceMapping(block)
 
     end function
-
 
     pure function get_det_block(nel_loc, nI, iIterOffset) result(block)
 
@@ -90,33 +88,32 @@ contains
         ! 2^hash_shift iterations, but the change spread throughout the
         ! different iters.
         ! Generate a hash to work out an offset.  Probably very inefficient.
-        if (hash_iter>0) then
-           acc = 0
-           do i = 1, nel_loc
-               acc = (large_prime * acc) + &
-                       (RandomOrbIndex(mod(nI(i)-1,nBasis)+1) * i)
-           enddo
-           offset=ishft(abs(ishft(acc+hash_iter+iIterOffset, -hash_shift) ),-4)
+        if (hash_iter > 0) then
+            acc = 0
+            do i = 1, nel_loc
+                acc = (large_prime * acc) + &
+                      (RandomOrbIndex(mod(nI(i) - 1, nBasis) + 1) * i)
+            end do
+            offset = ishft(abs(ishft(acc + hash_iter + iIterOffset, -hash_shift)), -4)
         else
-           offset=0
-        endif
+            offset = 0
+        end if
         acc = 0
         do i = 1, nel_loc
             acc = (large_prime * acc) + &
-                 (RandomOrbIndex(mod(nI(i)+offset-1,int(nBasis,int64))+1) * i)
-        enddo
+                  (RandomOrbIndex(mod(nI(i) + offset - 1, int(nBasis, int64)) + 1) * i)
+        end do
 
         ! If the last available processor is being used for the HF det, then
         ! we can only use the the remaining (nNodes-1) processors to
         ! distribute the rest ofthe particles
         if (tUniqueHFNode) then
-            block = int(abs(mod(acc, int(balance_blocks-1, int64))),sizeof_int)
+            block = int(abs(mod(acc, int(balance_blocks - 1, int64))), sizeof_int)
         else
-            block = int(abs(mod(acc, int(balance_blocks, int64))),sizeof_int)
+            block = int(abs(mod(acc, int(balance_blocks, int64))), sizeof_int)
         end if
         block = block + 1
 
     end function
-
 
 end module

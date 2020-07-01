@@ -20,46 +20,46 @@ module bit_rep_data
     ! a more clear representation
     type :: BitRep_t
         ! number of integers (-1) to store the orbital occupation
-        integer :: len_orb      = -1
+        integer :: len_orb = -1
         ! position of the first entry for walker population
-        integer :: ind_pop      =  -1
+        integer :: ind_pop = -1
         ! length necessar to store the population (for complex and mneci..)
-        integer :: len_pop      = -1
+        integer :: len_pop = -1
         ! the index where the flag is stored
-        integer :: ind_flag     = -1
+        integer :: ind_flag = -1
         ! the total length of the bit-representation
-        integer :: len_tot      = -1
+        integer :: len_tot = -1
         ! the length how much of the bit-rep is broadcasted
-        integer :: len_bcast    = -1
+        integer :: len_bcast = -1
         ! the index for truncated spawning events
-        integer :: ind_spawn    = -1
+        integer :: ind_spawn = -1
         ! the index for hdiag in some implementation
-        integer :: ind_hdiag    = -1
+        integer :: ind_hdiag = -1
 
         ! GUGA specific entries:
         ! the index of the communicated rdm-index (containing info about
         ! the excit-level and excit-type)
-        integer :: ind_rdm_ind  = -1
+        integer :: ind_rdm_ind = -1
         ! the index of the x0 coupling coefficient contribution
-        integer :: ind_rdm_x0       = -1
+        integer :: ind_rdm_x0 = -1
         ! the index of the x1 coupling coefficient contribution
-        integer :: ind_rdm_x1       = -1
+        integer :: ind_rdm_x1 = -1
         ! the x0 element (in the hamiltonian matrix element calc.)
-        integer :: ind_x0       = -1
+        integer :: ind_x0 = -1
         ! the x1 element -||-
-        integer :: ind_x1           = -1
+        integer :: ind_x1 = -1
         ! the delta b element in the stochastic excit-gen
-        integer :: ind_b            = -10
+        integer :: ind_b = -10
 
         ! RDM specific entries:
         ! the index of the rdm biasing factor
-        integer :: ind_rdm_fac      = -1
+        integer :: ind_rdm_fac = -1
         ! the flags (initiator) of the parent
-        integer :: ind_parent_flag  = -1
+        integer :: ind_parent_flag = -1
         ! the index where the information where the spawn came from is stored
-        integer :: ind_source       = -1
+        integer :: ind_source = -1
         ! the index of the parent ci coeff ( in the enlarged SpawnedParts!)
-        integer :: ind_parent   = -1
+        integer :: ind_parent = -1
 
     end type BitRep_t
 
@@ -98,30 +98,29 @@ module bit_rep_data
                           flag_negative_sign = 11, &
                           flag_large_matel = 12
 
-
 #ifdef PROG_NUMRUNS_
     integer, parameter :: flag_initiator(lenof_sign_max) &
-                            = (/ 13, 14, 15, 16, 17, 18, 19, &
-                                20, 21, 22, 23, 24, 25, 26, 57, 58/), &
+                          = (/13, 14, 15, 16, 17, 18, 19, &
+                              20, 21, 22, 23, 24, 25, 26, 57, 58/), &
                           flag_static_init(lenof_sign_max) &
                           = (/27, 28, 29, 30, 31, 32, 33, &
-                          34, 35, 36, 37, 38, 39, 40, 59, 60/), &
+                              34, 35, 36, 37, 38, 39, 40, 59, 60/), &
                           flag_deterministic(lenof_sign_max) &
                           = (/41, 42, 43, 44, 45, 46, 47, &
-                          48, 49, 50, 51, 52, 53, 54, 61, 62/), &
-                          flag_adi_checked = 56, &                          
+                              48, 49, 50, 51, 52, 53, 54, 61, 62/), &
+                          flag_adi_checked = 56, &
                           num_flags = 63
 #else
-    integer, parameter :: flag_initiator(2) = (/ 13, 14/), &
+    integer, parameter :: flag_initiator(2) = (/13, 14/), &
                           flag_adi_checked = 15, &
                           flag_static_init(2) = (/16, 17/), &
-                          flag_deterministic(2) = (/19,20/), &
+                          flag_deterministic(2) = (/19, 20/), &
                           num_flags = 21
 #endif
 
 contains
 
-    pure function test_flag (ilut, flg) result(bSet)
+    pure function test_flag(ilut, flg) result(bSet)
 
         ! Test specified flag (0 indexed) in the bit representation.
         !
@@ -150,17 +149,16 @@ contains
         end do
     end function test_flag_multi
 
-    pure subroutine extract_sign (ilut, real_sgn)
+    pure subroutine extract_sign(ilut, real_sgn)
         integer(n_int), intent(in) :: ilut(0:nIfTot)
         real(dp), intent(out) :: real_sgn(lenof_sign)
         integer(n_int) :: sgn(lenof_sign)
 
-        sgn = iLut(IlutBits%ind_pop:IlutBits%ind_pop+lenof_sign-1)
+        sgn = iLut(IlutBits%ind_pop:IlutBits%ind_pop + lenof_sign - 1)
         ! transfer operates elementwise
         real_sgn = transfer(sgn, real_sgn)
 
     end subroutine extract_sign
-
 
     pure function get_weight(ilut) result(res)
         integer(n_int), intent(in) :: ilut(0:NIfTot)
@@ -171,7 +169,7 @@ contains
 #ifdef CMPLX_
         res = sqrt(sum(abs(curr_sign(1::2)))**2 + sum(abs(curr_sign(2::2)))**2)
 #else
-        res = sum(real(abs(curr_sign),dp))
+        res = sum(real(abs(curr_sign), dp))
 #endif
     end function
 

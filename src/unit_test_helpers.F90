@@ -50,10 +50,10 @@ module unit_test_helpers
 
     private
     public :: run_excit_gen_tester, batch_run_excit_gen_tester, &
-        create_spin_dependent_hopping, create_hamiltonian, &
-        similarity_transform, setup_arr_brr, create_all_spin_flips, &
-        get_tranformation_matrix, create_hamiltonian_old, &
-        create_hilbert_space
+              create_spin_dependent_hopping, create_hamiltonian, &
+              similarity_transform, setup_arr_brr, create_all_spin_flips, &
+              get_tranformation_matrix, create_hamiltonian_old, &
+              create_hilbert_space
 
     abstract interface
         real(dp) function calc_pgen_t(det_I, ilutI, exc)
@@ -82,19 +82,19 @@ contains
         integer :: i
 
         if (associated(arr)) deallocate(arr)
-        allocate(arr(nBasis,2))
+        allocate(arr(nBasis, 2))
         if (associated(brr)) deallocate(brr)
         allocate(brr(nBasis))
 
-        brr = [(i, i = 1, nBasis)]
+        brr = [(i, i=1, nBasis)]
         arr = 0.0_dp
 
         do i = 1, nbasis
-            arr(i,:) = bhub * in_lat%dispersion_rel_orb(get_spatial(i))
+            arr(i, :) = bhub * in_lat%dispersion_rel_orb(get_spatial(i))
         end do
 
-        call sort(arr(1:nBasis,1), brr(1:nBasis), nskip = 2)
-        call sort(arr(2:nBasis,1), brr(2:nBasis), nskip = 2)
+        call sort(arr(1:nBasis, 1), brr(1:nBasis), nskip=2)
+        call sort(arr(2:nBasis, 1), brr(2:nBasis), nskip=2)
 !
 !         print *, "arr: "
 !         do i = 1, nBasis
@@ -109,16 +109,16 @@ contains
 
     function create_hamiltonian(list_nI) result(hamil)
         ! quite specific hamiltonian creation for my tests..
-        integer, intent(in) :: list_nI(:,:)
-        HElement_t(dp) :: hamil(size(list_nI,2),size(list_nI,2))
+        integer, intent(in) :: list_nI(:, :)
+        HElement_t(dp) :: hamil(size(list_nI, 2), size(list_nI, 2))
 
         integer :: i, j
 
         hamil = h_cast(0.0_dp)
 
-        do i = 1, size(list_nI,2)
-            do j = 1, size(list_nI,2)
-                hamil(i,j) = get_helement_lattice(list_nI(:,j),list_nI(:,i))
+        do i = 1, size(list_nI, 2)
+            do j = 1, size(list_nI, 2)
+                hamil(i, j) = get_helement_lattice(list_nI(:, j), list_nI(:, i))
             end do
         end do
 
@@ -129,11 +129,11 @@ contains
         ! exact tests of the spin-dependent hoppint transcorrelation
         ! is no spin (1 alpha, -1 beta) is given then alpha hopping is the
         ! default
-        integer, intent(in) :: list_nI(:,:)
+        integer, intent(in) :: list_nI(:, :)
         integer, intent(in), optional :: spin_opt
-        HElement_t(dp) :: hamil(size(list_nI,2),size(list_nI,2))
+        HElement_t(dp) :: hamil(size(list_nI, 2), size(list_nI, 2))
 
-        integer :: i, j, spin, ex(2,maxExcit), ic
+        integer :: i, j, spin, ex(2, maxExcit), ic
         integer(n_int) :: ilutI(0:NifTot), ilutJ(0:niftot)
         logical :: tpar
 
@@ -145,22 +145,22 @@ contains
             spin = 1
         end if
 
-        do i = 1, size(list_nI,2)
-            call EncodeBitDet(list_nI(:,i), ilutI)
-            do j = 1, size(list_nI,2)
-                call EncodeBitDet(list_nI(:,j), ilutJ)
+        do i = 1, size(list_nI, 2)
+            call EncodeBitDet(list_nI(:, i), ilutI)
+            do j = 1, size(list_nI, 2)
+                call EncodeBitDet(list_nI(:, j), ilutJ)
 
-                ic = findbitexcitlevel(ilutI,ilutJ)
+                ic = findbitexcitlevel(ilutI, ilutJ)
 
                 if (ic /= 1) cycle
 
-                ex(1,1) = 1
-                call GetBitExcitation(ilutI,ilutJ,ex,tpar)
+                ex(1, 1) = 1
+                call GetBitExcitation(ilutI, ilutJ, ex, tpar)
 
-                if (.not. same_spin(ex(1,1),ex(2,1))) cycle
+                if (.not. same_spin(ex(1, 1), ex(2, 1))) cycle
 
-                if (get_spin_pn(ex(1,1)) == spin) then
-                    hamil(i,j) = get_helement_lattice(list_nI(:,j),list_nI(:,i))
+                if (get_spin_pn(ex(1, 1)) == spin) then
+                    hamil(i, j) = get_helement_lattice(list_nI(:, j), list_nI(:, i))
                 end if
 
             end do
@@ -171,19 +171,19 @@ contains
     function create_hamiltonian_old(list_nI) result(hamil)
         ! try to also create the hamiltonian with the old implementation..
         ! although i think there needs to be more setup done..
-        integer, intent(in) :: list_nI(:,:)
-        HElement_t(dp) :: hamil(size(list_nI,2),size(list_nI,2))
+        integer, intent(in) :: list_nI(:, :)
+        HElement_t(dp) :: hamil(size(list_nI, 2), size(list_nI, 2))
 
         integer :: i, j
 
         t_lattice_model = .false.
         if (tGUGA) then
             call stop_all("create_hamiltonian_old", &
-                "modify get_helement for GUGA")
+                          "modify get_helement for GUGA")
         end if
-        do i = 1, size(list_nI,2)
-            do j = 1, size(list_nI,2)
-                hamil(i,j) = get_helement(list_nI(:,j),list_nI(:,i))
+        do i = 1, size(list_nI, 2)
+            do j = 1, size(list_nI, 2)
+                hamil(i, j) = get_helement(list_nI(:, j), list_nI(:, i))
             end do
         end do
         t_lattice_model = .true.
@@ -191,49 +191,47 @@ contains
     end function create_hamiltonian_old
 
     function similarity_transform(H, t_mat_opt) result(trans_H)
-        HElement_t(dp), intent(in) :: H(:,:)
-        HElement_t(dp), intent(in), optional :: t_mat_opt(:,:)
-        real(dp) :: trans_H(size(H,1),size(H,2))
+        HElement_t(dp), intent(in) :: H(:, :)
+        HElement_t(dp), intent(in), optional :: t_mat_opt(:, :)
+        real(dp) :: trans_H(size(H, 1), size(H, 2))
 
-        HElement_t(dp) :: t_mat(size(H,1),size(H,2))
+        HElement_t(dp) :: t_mat(size(H, 1), size(H, 2))
 
         if (present(t_mat_opt)) then
             t_mat = t_mat_opt
         else
             ! otherwise assume the on-site correlation factor is used
-            t_mat = get_tranformation_matrix(H, nOccAlpha*nOccBeta)
+            t_mat = get_tranformation_matrix(H, nOccAlpha * nOccBeta)
         end if
 
         trans_H = blas_matmul(blas_matmul(matrix_exponential(-t_mat), H), matrix_exponential(t_mat))
 
     end function similarity_transform
 
-
-
     function get_tranformation_matrix(hamil, n_pairs) result(t_matrix)
         ! n_pairs is actually also a global system dependent quantitiy..
         ! which actually might be helpful.. but input it here!
-        HElement_t(dp), intent(in) :: hamil(:,:)
+        HElement_t(dp), intent(in) :: hamil(:, :)
         integer, intent(in) :: n_pairs
-        real(dp) :: t_matrix(size(hamil,1),size(hamil,2))
+        real(dp) :: t_matrix(size(hamil, 1), size(hamil, 2))
 
         integer :: i, j
 
         t_matrix = 0.0_dp
 
-        do i = 1, size(hamil,1)
-            do j = 1, size(hamil,1)
+        do i = 1, size(hamil, 1)
+            do j = 1, size(hamil, 1)
                 if (i == j) then
-                    t_matrix(i,i) = n_pairs
+                    t_matrix(i, i) = n_pairs
                 else
-                    if (abs(hamil(i,j)) > EPS) then
-                        t_matrix(i,j) = sign(1.0_dp, real(hamil(i,j),dp))
+                    if (abs(hamil(i, j)) > EPS) then
+                        t_matrix(i, j) = sign(1.0_dp, real(hamil(i, j), dp))
                     end if
                 end if
             end do
         end do
 
-        t_matrix = trans_corr_param_2body/omega * t_matrix
+        t_matrix = trans_corr_param_2body / omega * t_matrix
 
     end function get_tranformation_matrix
 
@@ -241,13 +239,13 @@ contains
         ! takes a given spin-configuration in nI representation and
         ! creates all possible states with flipped spin and same ms
         integer, intent(in) :: nI_in(:)
-        integer, allocatable :: spin_flips(:,:)
+        integer, allocatable :: spin_flips(:, :)
 
         integer :: nI(size(nI_in)), nJ(size(nI_in))
         integer :: num, n_open, ms, n_states, i, j, k, n_found
         integer(n_int) :: ilutI(0:niftot), ilutJ(0:niftot)
         integer, allocatable :: open_shells(:)
-        integer(n_int), allocatable :: ilut_list(:,:)
+        integer(n_int), allocatable :: ilut_list(:, :)
 
         nI = nI_in
 
@@ -262,16 +260,16 @@ contains
         ms = sum(get_spin_pn(nI))
 
         ! the number of possible spin distributions:
-        n_states = int(choose(n_open, n_open/2 + ms))
+        n_states = int(choose(n_open, n_open / 2 + ms))
 
-        allocate(spin_flips(num,n_states))
+        allocate(spin_flips(num, n_states))
         spin_flips = 0
         ! the first det will be the original one
-        spin_flips(:,1) = nI
+        spin_flips(:, 1) = nI
 
-        allocate(ilut_list(0:niftot,n_states))
+        allocate(ilut_list(0:niftot, n_states))
         ilut_list = 0_n_int
-        ilut_list(:,1) = ilutI
+        ilut_list(:, 1) = ilutI
 
         n_found = 1
         ! i have a brute force solution for now:
@@ -280,28 +278,28 @@ contains
         ! i dont need to take the last one..
         do i = 1, n_states - 1
             ! here determine the positions of the open-shell orbitals
-            open_shells = find_open_shell_indices(spin_flips(:,i))
+            open_shells = find_open_shell_indices(spin_flips(:, i))
 
             ! and now flip all possible open-shell pairs
             do j = 1, n_open - 1
                 do k = j + 1, n_open
                     ! cycle if same orbital or parallel spin
 !                     if (j == k) cycle
-                    if (same_spin(spin_flips(open_shells(j),i), spin_flips(open_shells(k),i))) cycle
+                    if (same_spin(spin_flips(open_shells(j), i), spin_flips(open_shells(k), i))) cycle
 
-                    nj = spin_flips(:,i)
-                    if (is_beta(spin_flips(open_shells(j),i))) then
+                    nj = spin_flips(:, i)
+                    if (is_beta(spin_flips(open_shells(j), i))) then
                         ! then we know (j) is beta and (k) is alpha
                         nJ(open_shells(j)) = &
-                            get_alpha(spin_flips(open_shells(j),i))
+                            get_alpha(spin_flips(open_shells(j), i))
                         nJ(open_shells(k)) = &
-                            get_beta(spin_flips(open_shells(k),i))
+                            get_beta(spin_flips(open_shells(k), i))
                     else
                         ! otherwise (j) is alpha and (k) is beta
                         nJ(open_shells(j)) = &
-                            get_beta(spin_flips(open_shells(j),i))
+                            get_beta(spin_flips(open_shells(j), i))
                         nJ(open_shells(k)) = &
-                            get_alpha(spin_flips(open_shells(k),i))
+                            get_alpha(spin_flips(open_shells(k), i))
                     end if
 
                     ! if this determinant is not yet in the spin-flip
@@ -309,8 +307,8 @@ contains
                     call EncodeBitDet(nJ, ilutJ)
                     if (.not. is_in_list_ilut(ilutJ, n_found, ilut_list)) then
                         n_found = n_found + 1
-                        ilut_list(:,n_found) = ilutJ
-                        spin_flips(:,n_found) = nJ
+                        ilut_list(:, n_found) = ilutJ
+                        spin_flips(:, n_found) = nJ
                     end if
                 end do
             end do
@@ -324,12 +322,12 @@ contains
         ! interfaced function for finding a ilut rep. in a ilut list
         integer(n_int), intent(in) :: tgt_ilut(0:niftot)
         integer, intent(in) :: n_states
-        integer(n_int), intent(in) :: ilut_list_in(0:niftot,n_states)
+        integer(n_int), intent(in) :: ilut_list_in(0:niftot, n_states)
         logical, intent(in), optional :: t_sorted_opt
 
         logical :: t_sorted
         integer :: pos
-        integer(n_int) :: ilut_list(0:niftot,n_states)
+        integer(n_int) :: ilut_list(0:niftot, n_states)
 
         if (present(t_sorted_opt)) then
             t_sorted = t_sorted_opt
@@ -344,7 +342,7 @@ contains
             call sort(ilut_list, ilut_lt, ilut_gt)
         end if
 
-        pos = binary_search(ilut_list, tgt_ilut, nifd+1)
+        pos = binary_search(ilut_list, tgt_ilut, nifd + 1)
 
         if (pos > 0) then
             is_in_list_ilut = .true.
@@ -371,7 +369,7 @@ contains
 
         cnt = 0
         do i = 1, size(nI)
-            if (.not. IsDoub(ilutI,nI(i))) then
+            if (.not. IsDoub(ilutI, nI(i))) then
                 cnt = cnt + 1
                 open_shells(cnt) = i
             end if
@@ -413,7 +411,7 @@ contains
 !>      with more than 5\,\% from 100\,\% and have nonzereo matrix element
 !>      are printed.
     subroutine run_excit_gen_tester(excit_gen, excit_gen_name, opt_nI, opt_n_iters, &
-            gen_all_excits, calc_pgen, problem_filter, i_unit, successful)
+                                    gen_all_excits, calc_pgen, problem_filter, i_unit, successful)
         procedure(generate_excitation_t) :: excit_gen
         character(*), intent(in) :: excit_gen_name
         integer, intent(in), optional :: opt_nI(nel), opt_n_iters
@@ -429,13 +427,13 @@ contains
         integer, parameter :: default_n_iters = 100000
 
         integer(n_int) :: ilut(0:niftot), tgt_ilut(0:niftot)
-        integer :: nJ(nel), n_excits, ex(2,maxExcit), ic, ex_flag, i_unused = 0
+        integer :: nJ(nel), n_excits, ex(2, maxExcit), ic, ex_flag, i_unused = 0
         type(excit_gen_store_type) :: store
         logical :: tPar, found_all
         real(dp) :: pgen, contrib
         real(dp), allocatable :: pgen_list(:)
         HElement_t(dp) :: hel
-        integer(n_int), allocatable :: det_list(:,:)
+        integer(n_int), allocatable :: det_list(:, :)
         real(dp), allocatable :: contrib_list(:)
         logical, allocatable :: generated_list(:)
         integer :: n_generated, pos
@@ -465,7 +463,7 @@ contains
             nI = opt_nI
         else
             ! use HF-det as default
-            nI = [(i, i = 1, nel)]
+            nI = [(i, i=1, nel)]
         end if
 
         if (present(opt_n_iters)) then
@@ -489,7 +487,7 @@ contains
 
         write(i_unit_, *) "---------------------------------"
         write(i_unit_, *) "testing: ", excit_gen_name
-        write(i_unit_, *) "for ",size(det_list, 2), " configurations"
+        write(i_unit_, *) "for ", size(det_list, 2), " configurations"
         write(i_unit_, *) " and ", n_iters, " iterations "
 
         call EncodeBitDet(nI, ilut)
@@ -504,21 +502,21 @@ contains
 
         block
             integer(int64) :: i, L
-            L = n_iters .div. 100
+            L = n_iters.div.100
 
             n_generated = 0
             contrib = 0.0_dp
             do i = 1, int(n_iters, kind=int64)
                 if (mod(i, L) == 0_int64) then
                     write(i_unit_, '(A)', advance='no') '#'
-                    flush(i_unit_)
+                    flush (i_unit_)
                 end if
                 call excit_gen(nI, ilut, nJ, tgt_ilut, ex_flag, ic, ex, tpar, pgen, &
-                            hel, store)
+                               hel, store)
 
                 if (nJ(1) == 0) cycle
                 call EncodeBitDet(nJ, tgt_ilut)
-                pos = binary_search(det_list, tgt_ilut, nifd+1)
+                pos = binary_search(det_list, tgt_ilut, nifd + 1)
                 if (pos < 0) then
                     write(i_unit_, *) "nJ: ", nJ
                     write(i_unit_, *) "ilutJ:", tgt_ilut
@@ -535,10 +533,9 @@ contains
             write(i_unit_, *) ! linebreak
         end block
 
-
         write(i_unit_, *) n_generated, " dets generated in ", n_iters, " iterations "
-        write(i_unit_, *) 100.0_dp * (n_iters - n_generated) / real(n_iters,dp), "% abortion rate"
-        write(i_unit_, *) "Averaged contribution: ", contrib / real(n_excits*n_iters,dp)
+        write(i_unit_, *) 100.0_dp * (n_iters - n_generated) / real(n_iters, dp), "% abortion rate"
+        write(i_unit_, *) "Averaged contribution: ", contrib / real(n_excits * n_iters, dp)
 
         block
             type(SpinOrbIdx_t) :: det_I
@@ -546,7 +543,6 @@ contains
             class(Excitation_t), allocatable :: exc
             integer :: nJ(nEl)
             logical :: tParity
-
 
             write(i_unit_, *) "=================================="
             write(i_unit_, *) "Problematic contribution List: "
@@ -564,9 +560,9 @@ contains
 
                 if (problem_filter_(SpinOrbIdx_t(nI), exc, pgen_diagnostic)) then
                     successful = .false.
-                    call write_det (i_unit_, nJ, .false.)
+                    call write_det(i_unit_, nJ, .false.)
                     write(i_unit_, '("|"F10.5"|"I2"|"F10.5"|"F15.10"|")', advance='no') &
-                        pgen_diagnostic, ic, get_helement(nI, nJ),  pgen_list(i)
+                        pgen_diagnostic, ic, get_helement(nI, nJ), pgen_list(i)
                     if (present(calc_pgen)) then
                         write(i_unit_, '(F15.10"|")', advance='no') &
                             calc_pgen(SpinOrbIdx_t(nI), det_list(:, i), exc)
@@ -580,15 +576,15 @@ contains
 
         call clean_excit_gen_store(store)
 
-        contains
+    contains
 
         logical function default_predicate(det_I, exc, pgen_diagnostic)
             type(SpinOrbIdx_t), intent(in) :: det_I
             class(Excitation_t), intent(in) :: exc
             real(dp), intent(in) :: pgen_diagnostic
             default_predicate = &
-                    (pgen_diagnostic <= 0.95_dp .or. 1.05_dp <= pgen_diagnostic) &
-                    .and. .not. near_zero(dyn_sltcnd_excit(det_I, exc))
+                (pgen_diagnostic <= 0.95_dp .or. 1.05_dp <= pgen_diagnostic) &
+                .and. .not. near_zero(dyn_sltcnd_excit(det_I, exc))
         end function
 
     end subroutine run_excit_gen_tester
@@ -597,17 +593,16 @@ contains
 
         use Parallel_neci, only: iProcIndex, nProcessors
         use FciMCData, only: TotWalkers, tPopsAlreadyRead
-        use SystemData, only:  t_new_real_space_hubbard, &
-            t_tJ_model, t_heisenberg_model, t_k_space_hubbard
+        use SystemData, only: t_new_real_space_hubbard, &
+                              t_tJ_model, t_heisenberg_model, t_k_space_hubbard
         use procedure_pointers, only: generate_excitation, gen_all_excits
 
         use fcimc_initialisation, only: SetupParameters, init_fcimc_fn_pointers, &
-            InitFCIMCCalcPar, init_real_space_hubbard, init_k_space_hubbard
+                                        InitFCIMCCalcPar, init_real_space_hubbard, init_k_space_hubbard
         use tJ_model, only: init_tJ_model, init_heisenberg_model
         use neci_signals, only: init_signals
 
         use fcimc_iter_utils, only: population_check
-
 
         type(PgenUnitTestSpec_t), intent(in) :: pgen_unit_test_spec
 
@@ -649,68 +644,67 @@ contains
             call stop_all('setup parameters', 'Use of realcoefficients requires 64 bit integers.')
         end if
 
-
         associate(n_most_populated => pgen_unit_test_spec%n_most_populated)
-        block
-            integer(n_int), allocatable :: ilut_largest_walkers(:, :)
-            integer :: counter
+            block
+                integer(n_int), allocatable :: ilut_largest_walkers(:, :)
+                integer :: counter
 
-            allocate(ilut_largest_walkers(0:NIfTot, n_most_populated), source=0_n_int)
-            call global_most_populated_states(n_most_populated, GLOBAL_RUN, ilut_largest_walkers)
+                allocate(ilut_largest_walkers(0:NIfTot, n_most_populated), source=0_n_int)
+                call global_most_populated_states(n_most_populated, GLOBAL_RUN, ilut_largest_walkers)
 
-            count_non_zeros: do i = 1, n_most_populated
-                if (get_weight(ilut_largest_walkers(:, i)) <= 1.0e-7_dp) exit
-            end do count_non_zeros
-            counter = i - 1
+                count_non_zeros: do i = 1, n_most_populated
+                    if (get_weight(ilut_largest_walkers(:, i)) <= 1.0e-7_dp) exit
+                end do count_non_zeros
+                counter = i - 1
 
-            allocate(largest_walkers(counter))
+                allocate(largest_walkers(counter))
 
-            convert_iluts: do i = 1, counter
-                ! Unfortunately there are no class methods, that can be called from the type.
-                largest_walkers(i) = largest_walkers(1)%from_ilut(ilut_largest_walkers(:, i))
-            end do convert_iluts
-        end block
+                convert_iluts: do i = 1, counter
+                    ! Unfortunately there are no class methods, that can be called from the type.
+                    largest_walkers(i) = largest_walkers(1)%from_ilut(ilut_largest_walkers(:, i))
+                end do convert_iluts
+            end block
         end associate
 
-        associate(bounds => distribute_work(nProcessors , size(largest_walkers), iProcIndex))
-        block
-            use fortran_strings, only: str
-            integer :: file_id
-            do i = bounds(1), bounds(2)
-                open(newunit=file_id, file=str(i)//'.test', action='write')
+        associate(bounds => distribute_work(nProcessors, size(largest_walkers), iProcIndex))
+            block
+                use fortran_strings, only: str
+                integer :: file_id
+                do i = bounds(1), bounds(2)
+                    open(newunit=file_id, file=str(i)//'.test', action='write')
                     write(file_id, *) 'rank =', iProcIndex
                     call new_write_det(largest_walkers(i), file_id)
                     call run_excit_gen_tester( &
                         generate_excitation, 'Batch test', &
                         opt_nI=largest_walkers(i)%idx, &
                         opt_n_iters=pgen_unit_test_spec%n_iter, &
-                        gen_all_excits=gen_all_excits,&
+                        gen_all_excits=gen_all_excits, &
                         i_unit=file_id)
-                close(file_id)
-            end do
-        end block
+                    close(file_id)
+                end do
+            end block
         end associate
 
-        contains
+    contains
 
-            pure function distribute_work(n_procs, n_tasks, i_rank) result(res)
-                integer, intent(in) :: n_procs, n_tasks, i_rank
-                integer :: res(2)
+        pure function distribute_work(n_procs, n_tasks, i_rank) result(res)
+            integer, intent(in) :: n_procs, n_tasks, i_rank
+            integer :: res(2)
 
-                integer :: division, rest
+            integer :: division, rest
 
-                division = n_tasks .div. n_procs
-                rest = modulo(n_tasks, n_procs)
+            division = n_tasks.div.n_procs
+            rest = modulo(n_tasks, n_procs)
 
-                res = [&
-                        i_rank * division + min(rest, i_rank) + 1, &
-                        (i_rank + 1) * division + min(rest, i_rank + 1)]
-            end function
+            res = [ &
+                  i_rank * division + min(rest, i_rank) + 1, &
+                  (i_rank + 1) * division + min(rest, i_rank + 1)]
+        end function
 
     end subroutine
 
     subroutine create_hilbert_space(nI, n_states, state_list_ni, state_list_ilut, &
-            gen_all_excits_opt)
+                                    gen_all_excits_opt)
         ! a really basic routine, which creates the whole hilbert space based
         ! on a input determinant and other quantities, like symmetry sectors,
         ! already set outside the routine. for now this is specifically
@@ -718,14 +712,14 @@ contains
         ! test the transcorrelated approach there!
         integer, intent(in) :: nI(nel)
         integer, intent(out) :: n_states
-        integer, intent(out), allocatable :: state_list_ni(:,:)
-        integer(n_int), intent(out), allocatable :: state_list_ilut(:,:)
+        integer, intent(out), allocatable :: state_list_ni(:, :)
+        integer(n_int), intent(out), allocatable :: state_list_ilut(:, :)
         procedure(generate_all_excits_t), optional :: gen_all_excits_opt
         character(*), parameter :: this_routine = "create_hilbert_space"
 
         procedure(generate_all_excits_t), pointer :: gen_all_excits
-        integer(n_int), allocatable :: excit_list(:,:), temp_list_ilut(:,:)
-        integer, allocatable :: temp_list_ni(:,:)
+        integer(n_int), allocatable :: excit_list(:, :), temp_list_ilut(:, :)
+        integer, allocatable :: temp_list_ni(:, :)
         integer :: n_excits, n_total, tmp_n_states, cnt, i, j, pos
         integer(n_int) :: ilutI(0:niftot)
 
@@ -738,7 +732,7 @@ contains
         end if
 
         ! estimate the total number of excitations
-        n_total = int(choose(nBasis/2, nOccAlpha) * choose(nBasis/2,nOccBeta))
+        n_total = int(choose(nBasis / 2, nOccAlpha) * choose(nBasis / 2, nOccBeta))
 
         n_states = 1
         allocate(temp_list_ilut(0:niftot, n_total))
@@ -746,8 +740,8 @@ contains
 
         call EncodeBitDet(nI, ilutI)
 
-        temp_list_ilut(:,1) = ilutI
-        temp_list_ni(:,1) = nI
+        temp_list_ilut(:, 1) = ilutI
+        temp_list_ni(:, 1) = nI
 
         tmp_n_states = 1
         ! thats a really inefficient way to do it:
@@ -761,13 +755,13 @@ contains
 
             ! i need a temporary loop variable
             do i = 1, tmp_n_states
-                call gen_all_excits(temp_list_ni(:,i), n_excits, excit_list)
+                call gen_all_excits(temp_list_ni(:, i), n_excits, excit_list)
 
                 ! now i have to check if those states are already in the list
                 do j = 1, n_excits
 
-                    pos = binary_search(temp_list_ilut(:,1:(tmp_n_states + cnt)), &
-                        excit_list(:,j), nifd+1)
+                    pos = binary_search(temp_list_ilut(:, 1:(tmp_n_states + cnt)), &
+                                        excit_list(:, j), nifd + 1)
 
                     ! if not yet found:
                     if (pos < 0) then
@@ -776,15 +770,15 @@ contains
                         pos = -pos
                         ! lets try.. and temp_list is always big enough i think..
                         ! first move
-                        temp_list_ilut(:,(pos+1):tmp_n_states+cnt+1) = &
-                            temp_list_ilut(:,pos:(tmp_n_states+cnt))
+                        temp_list_ilut(:, (pos + 1):tmp_n_states + cnt + 1) = &
+                            temp_list_ilut(:, pos:(tmp_n_states + cnt))
 
-                        temp_list_ni(:,(pos+1):(tmp_n_states+cnt+1)) = &
-                            temp_list_ni(:,pos:(tmp_n_states+cnt))
+                        temp_list_ni(:, (pos + 1):(tmp_n_states + cnt + 1)) = &
+                            temp_list_ni(:, pos:(tmp_n_states + cnt))
                         ! then insert
-                        temp_list_ilut(:,pos) = excit_list(:,j)
+                        temp_list_ilut(:, pos) = excit_list(:, j)
 
-                        call decode_bit_det(temp_list_ni(:,pos), excit_list(:,j))
+                        call decode_bit_det(temp_list_ni(:, pos), excit_list(:, j))
 
                         ! and increase the number of state counter
                         cnt = cnt + 1
@@ -805,8 +799,8 @@ contains
 
         ! it should be already sorted or?? i think so..
         ! or does binary_search not indicate the position
-        allocate(state_list_ni(nel,n_states), source = temp_list_ni(:,1:n_states))
-        allocate(state_list_ilut(0:niftot,n_states), source = temp_list_ilut(:,1:n_states))
+        allocate(state_list_ni(nel, n_states), source=temp_list_ni(:, 1:n_states))
+        allocate(state_list_ilut(0:niftot, n_states), source=temp_list_ilut(:, 1:n_states))
 
     end subroutine create_hilbert_space
 end module unit_test_helpers

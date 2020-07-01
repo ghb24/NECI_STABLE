@@ -3,9 +3,9 @@
 ! April 2016
 module SymExcit4
 
-    use SystemData, only : nEl, nBasis, tkPntSym, tReltvy, G1, BasisFn
-    use SymExcitDataMod, only : SpinOrbSymLabel
-    use GenRandSymExcitNUMod, only : RandExcitSymLabelProd
+    use SystemData, only: nEl, nBasis, tkPntSym, tReltvy, G1, BasisFn
+    use SymExcitDataMod, only: SpinOrbSymLabel
+    use GenRandSymExcitNUMod, only: RandExcitSymLabelProd
     use constants, only: maxExcit
 
     implicit none
@@ -54,10 +54,10 @@ module SymExcit4
 
     type(ExcitGenSessionType) :: storedSession
 
-    contains
+contains
 
-    function InitExcitGenSession(nI, minRank, maxRank, minSpinDiff, maxSpinDiff) result (session)
-        use sym_mod, only : getsym_wrapper
+    function InitExcitGenSession(nI, minRank, maxRank, minSpinDiff, maxSpinDiff) result(session)
+        use sym_mod, only: getsym_wrapper
         implicit none
         integer, intent(in) :: nI(nEl)
         integer, intent(in) :: minRank, maxRank, minSpinDiff, maxSpinDiff
@@ -65,7 +65,7 @@ module SymExcit4
         integer :: i, orb
 
         allocate(session%nI(nEl))
-        allocate(session%holes(nBasis-nEl))
+        allocate(session%holes(nBasis - nEl))
 
         session%nI = nI
         session%minRank = minRank
@@ -76,14 +76,14 @@ module SymExcit4
         call InitExcitVecs(session)
         i = 1
         do orb = 1, nBasis
-            if (.not. any(session%nI==orb)) then
+            if (.not. any(session%nI == orb)) then
                 session%holes(i) = orb
-                i = i+1
-            endif
-        enddo
+                i = i + 1
+            end if
+        end do
         if (tkPntSym) then
             call getsym_wrapper(session%nI, session%nISym)
-        endif
+        end if
         session%tInitialised = .true.
     end function InitExcitGenSession
 
@@ -94,7 +94,7 @@ module SymExcit4
         integer :: i
         do i = 1, maxIdx
             vec(i) = i
-        enddo
+        end do
     end subroutine ResetIndices
 
     subroutine NewParentDet(session)
@@ -146,30 +146,30 @@ module SymExcit4
         ! with its right-hand neighbour
 
         ! if we are starting from empty indices:
-        if (vec(1)==0) then
+        if (vec(1) == 0) then
             call resetIndices(vec, rank)
             return
-        endif
+        end if
 
-        do i=1,rank
-            if (i==rank) then
-                if (vec(rank)<limit) then
+        do i = 1, rank
+            if (i == rank) then
+                if (vec(rank) < limit) then
                     vec(rank) = vec(rank) + 1
-                    call ResetIndices(vec, rank-1)
+                    call ResetIndices(vec, rank - 1)
                     return
                 else
                     tReachedLimit = .true.
                     return
-                endif
-            else if (vec(i+1)-vec(i)>1) then
+                end if
+            else if (vec(i + 1) - vec(i) > 1) then
                 vec(i) = vec(i) + 1
-                call ResetIndices(vec, i-1)
+                call ResetIndices(vec, i - 1)
                 return
-            endif
-        enddo
+            end if
+        end do
     end subroutine IncrementIndex
 
-    function GetPosIdentifier(vec, rank, limit) result (posId)
+    function GetPosIdentifier(vec, rank, limit) result(posId)
         implicit none
         ! this is not a triangular index, it is only computed for the
         ! purpose of evaluating ti_lt_a_only condition
@@ -177,22 +177,22 @@ module SymExcit4
         integer :: posId, i
         posId = 0
         do i = 1, rank
-            posId = posId + vec(rank)+limit*(rank-1)
-        enddo
+            posId = posId + vec(rank) + limit * (rank - 1)
+        end do
     end function GetPosIdentifier
 
-    function GetElecPosIdentifier(session) result (posId)
+    function GetElecPosIdentifier(session) result(posId)
         implicit none
         type(ExcitGenSessionType), intent(in) :: session
         integer :: posId
         posId = GetPosIdentifier(session%elecIndices, session%rank, nEl)
     end function GetElecPosIdentifier
 
-    function GetHolePosIdentifier(session) result (posId)
+    function GetHolePosIdentifier(session) result(posId)
         implicit none
         type(excitGenSessionType), intent(in) :: session
         integer :: posId
-        posId = GetPosIdentifier(session%holeIndices, session%rank, nBasis-nEl)
+        posId = GetPosIdentifier(session%holeIndices, session%rank, nBasis - nEl)
     end function GetHolePosIdentifier
 
     subroutine GoToNextRank(session, tReachedLimit)
@@ -200,15 +200,15 @@ module SymExcit4
         type(ExcitGenSessionType), intent(inout) :: session
         logical, intent(out) :: tReachedLimit
         tReachedLimit = .false.
-        if (session%rank<session%maxRank) then
-            session%rank = session%rank+1
+        if (session%rank < session%maxRank) then
+            session%rank = session%rank + 1
             call initExcitVecs(session)
             ! reset bot occupied and unoccupied indices
             call ResetIndices(session%elecIndices, session%rank)
             call ResetIndices(session%holeIndices, session%rank)
         else
             tReachedLimit = .true.
-        endif
+        end if
     end subroutine GoToNextRank
 
     subroutine GoToNextElecIndices(session, tReachedLimit)
@@ -224,7 +224,7 @@ module SymExcit4
         implicit none
         type(ExcitGenSessionType), intent(inout) :: session
         logical, intent(out) :: tReachedLimit
-        call IncrementIndex(session%holeIndices, session%rank, nBasis-nEl, tReachedLimit)
+        call IncrementIndex(session%holeIndices, session%rank, nBasis - nEl, tReachedLimit)
     end subroutine GoToNextHoleIndices
 
     subroutine SetSpinOrbs(session)
@@ -248,21 +248,21 @@ module SymExcit4
             if (is_beta(session%elecSpinOrbs(i))) then
                 ! odd => beta
                 elecBetaOrbCount = elecBetaOrbCount + 1
-            endif
+            end if
             if (is_beta(session%holeSpinOrbs(i))) then
                 ! odd => beta
                 holeBetaOrbCount = holeBetaOrbCount + 1
-            endif
+            end if
             session%spinDiff = abs(elecBetaOrbCount - holeBetaOrbCount)
             ! set total ml value
             session%elecTotMl = session%elecTotMl + G1(session%elecSpinOrbs(i))%Ml
             session%holeTotMl = session%holeTotMl + G1(session%holeSpinOrbs(i))%Ml
             ! accumulate total point group symmetry label
             session%elecSymLabel = RandExcitSymLabelProd( &
-                session%elecSymLabel, SpinOrbSymLabel(session%elecSpinOrbs(i)))
+                                   session%elecSymLabel, SpinOrbSymLabel(session%elecSpinOrbs(i)))
             session%holeSymLabel = RandExcitSymLabelProd( &
-                session%holeSymLabel, SpinOrbSymLabel(session%holeSpinOrbs(i)))
-        enddo
+                                   session%holeSymLabel, SpinOrbSymLabel(session%holeSpinOrbs(i)))
+        end do
 
     end subroutine SetSpinOrbs
 
@@ -273,7 +273,7 @@ module SymExcit4
         logical, intent(out) :: tParity
         integer :: nJtmp(nEL)
         integer :: minOrbBound, maxOrbBound
-        integer :: holes(nBasis-nEl)
+        integer :: holes(nBasis - nEl)
         integer :: i, j, switchedElecs
         integer :: elecIdx, elecOrb, holeOrb
         nJ = session%nI
@@ -294,12 +294,12 @@ module SymExcit4
             do j = 1, nEl
                 ! the number of electrons inbetween determines parity
                 ! and also determines insertion position
-                if (nJ(j)>minOrbBound .and. nJ(j)<maxOrbBound) then
+                if (nJ(j) > minOrbBound .and. nJ(j) < maxOrbBound) then
                     switchedElecs = switchedElecs + 1
                     tParity = .not. tParity
-                endif
+                end if
 
-            enddo
+            end do
 
             ! Suppose we have the following excitation
             !
@@ -364,37 +364,36 @@ module SymExcit4
             ! but there are 0 switched elements, so simply do
             ! nJ(elecIdx) = holeOrb
 
-
             ! we can't just take elecIdx from session%elecIndices, because of the re-ordering
             ! that occurs in this loop, so first we have to find it
 
             do j = 1, nEl
-                if (nJ(j)==elecOrb) then
+                if (nJ(j) == elecOrb) then
                     elecIdx = j
-                endif
-            enddo
+                end if
+            end do
 
             ! then construct the arrays
             if (switchedElecs == 0) then
                 ! this is easy
                 nJ(elecIdx) = holeOrb
             else
-                if (holeOrb-elecOrb>0) then
-                    nJtmp(1:elecIdx-1) = nJ(1:elecIdx-1)
-                    nJtmp(elecIdx:elecIdx+switchedElecs-1) = nJ(elecIdx+1:elecIdx+switchedElecs)
-                    nJtmp(elecIdx+switchedElecs) = holeOrb
-                    nJtmp(elecIdx+switchedElecs+1:nEl) = nJ(elecIdx+switchedElecs+1:nEl)
+                if (holeOrb - elecOrb > 0) then
+                    nJtmp(1:elecIdx - 1) = nJ(1:elecIdx - 1)
+                    nJtmp(elecIdx:elecIdx + switchedElecs - 1) = nJ(elecIdx + 1:elecIdx + switchedElecs)
+                    nJtmp(elecIdx + switchedElecs) = holeOrb
+                    nJtmp(elecIdx + switchedElecs + 1:nEl) = nJ(elecIdx + switchedElecs + 1:nEl)
                 else
                     ! same as above, but with elecIdx -> elecIdx - switchedElecs
-                    nJtmp(1:elecIdx-switchedElecs-1) = nJ(1:elecIdx-switchedElecs-1)
-                    nJtmp(elecIdx-switchedElecs:elecIdx-1) = nJ(elecIdx-switchedElecs+1:elecIdx)
+                    nJtmp(1:elecIdx - switchedElecs - 1) = nJ(1:elecIdx - switchedElecs - 1)
+                    nJtmp(elecIdx - switchedElecs:elecIdx - 1) = nJ(elecIdx - switchedElecs + 1:elecIdx)
                     nJtmp(elecIdx) = holeOrb
-                    nJtmp(elecIdx+1:nEl) = nJ(elecIdx+1:nEl)
-                endif
+                    nJtmp(elecIdx + 1:nEl) = nJ(elecIdx + 1:nEl)
+                end if
                 ! copy back into target det array
                 nJ(1:nEl) = nJtmp
-            endif
-        enddo
+            end if
+        end do
     end subroutine FindNewDet
 
     subroutine GenExcitations4_non_initd(session, nI, nJ, tParity, tAllExcitFound, ti_lt_a_only)
@@ -420,16 +419,16 @@ module SymExcit4
             maxRankDefault = 2
             minSpinDiffDefault = 0
             if (tReltvy) then
-               maxSpinDiffDefault = 2
-           else
-               maxSpinDiffDefault = 2
-           endif
-           session = InitExcitGenSession(nI, minRankDefault, maxRankDefault, minSpinDiffDefault, maxSpinDiffDefault)
-        endif
+                maxSpinDiffDefault = 2
+            else
+                maxSpinDiffDefault = 2
+            end if
+            session = InitExcitGenSession(nI, minRankDefault, maxRankDefault, minSpinDiffDefault, maxSpinDiffDefault)
+        end if
 
-        do while(.true.)
+        do while (.true.)
             ! exit loop when we find a legal excitation
-            if (session%elecIndices(1)==0) then
+            if (session%elecIndices(1) == 0) then
                 ! new session
                 ! hole indices get reset in the following call:
                 call GoToNextElecIndices(session, tReachedLimit)
@@ -445,18 +444,18 @@ module SymExcit4
                             ! exhausted all excitation classes
                             tAllExcitFound = .true.
                             exit
-                        endif
-                    endif
-                endif
-            endif
+                        end if
+                    end if
+                end if
+            end if
 
             if (ti_lt_a_only) then
                 elecPosIdentifier = getElecPosIdentifier(session)
                 holePosIdentifier = getHolePosIdentifier(session)
-                if (elecPosIdentifier>=holePosIdentifier) then
+                if (elecPosIdentifier >= holePosIdentifier) then
                     cycle
-                endif
-            endif
+                end if
+            end if
 
             ! first, dereference the indices
             call setSpinOrbs(session)
@@ -471,17 +470,17 @@ module SymExcit4
             ! 1. spin difference
             if (session%spinDiff > session%maxSpinDiff .or. session%spinDiff < session%minSpinDiff) then
                 cycle
-            endif
+            end if
 
             ! 2. spatial symmetry
-            if (session%elecSymLabel-session%holeSymLabel/=0) then
+            if (session%elecSymLabel - session%holeSymLabel /= 0) then
                 cycle
-            endif
+            end if
 
             ! 3. mL number conservation
-            if (session%elecTotMl-session%holeTotMl/=0) then
+            if (session%elecTotMl - session%holeTotMl /= 0) then
                 cycle
-            endif
+            end if
 
             ! 4. k-point symmetry
             ! at this point we have to generate the target determinant
@@ -489,18 +488,18 @@ module SymExcit4
             if (tkPntSym) then
                 if (.not. IsMomAllowedDetAnyParent(nJ, session%nISym%Sym)) then
                     cycle
-                endif
-            endif
+                end if
+            end if
 
             ! if we made it this far, the selected electron hole pairs have
             ! passed all the selection criteria
             return
-        enddo
+        end do
 
         if (tAllExcitFound) then
             ! tidy up
             call DestructSession(session)
-        endif
+        end if
     end subroutine GenExcitations4_non_initd
 
     subroutine GenExcitations4_initd(session, nJ, tParity, tAllExcitFound, ti_lt_a_only)
@@ -512,14 +511,13 @@ module SymExcit4
         call GenExcitations4_non_initd(session, session%nI, nJ, tParity, tAllExcitFound, ti_lt_a_only)
     end subroutine GenExcitations4_initd
 
-
     subroutine GenExcitations4_compat_non_initd(session, nI, nJ, exFlag, excitMat, tParity, tAllExcitFound, ti_lt_a_only)
         ! this routine is only included to provide an interface consistent with that of
         ! the existing GenExcitations3. Here we have to assume a max rank of 2
         implicit none
         type(ExcitGenSessionType), intent(inout) :: session
         integer, intent(in) :: nI(nEl)
-        integer, intent(out) :: nJ(nEl), exFlag, excitMat(2,2)
+        integer, intent(out) :: nJ(nEl), exFlag, excitMat(2, 2)
         logical, intent(out) :: tParity, tAllExcitFound
         logical, intent(in) :: ti_lt_a_only
         integer :: i
@@ -527,10 +525,10 @@ module SymExcit4
         if (tAllExcitFound) return
         exFlag = session%rank
         ! fill the excitation matrix
-        excitMat(:,:) = 0
+        excitMat(:, :) = 0
         do i = 1, exFlag
-            excitMat(:,i) = (/ session%elecSpinOrbs(i), session%holeSpinOrbs(i) /)
-        enddo
+            excitMat(:, i) = (/session%elecSpinOrbs(i), session%holeSpinOrbs(i)/)
+        end do
 
     end subroutine
 
@@ -546,12 +544,12 @@ module SymExcit4
 
         tot = 0
         tAllExcitFound = .false.
-        do while(.true.)
+        do while (.true.)
             call GenExcitations4(session, nJ, tParity, tAllExcitFound, .false.)
             if (tAllExcitFound) then
                 exit
-            endif
-            tot = tot+1
-        enddo
+            end if
+            tot = tot + 1
+        end do
     end subroutine CountExcitations4
 end module

@@ -37,10 +37,10 @@ module guga_data
     end type WeightData_t
 
     type :: GeneratorType_Values_t
-        integer ::  &
-            R =  1, &
+        integer :: &
+            R = 1, &
             L = -1, &
-            W =  0
+            W = 0
     end type GeneratorType_Values_t
 
     type(GeneratorType_Values_t), parameter :: gen_type = GeneratorType_Values_t()
@@ -62,7 +62,7 @@ module guga_data
     ! i need to encode 26 numbers, 2^5 = 32
     integer, parameter :: n_excit_type_bits = 5
     ! i need 4 values to the excit lvl. 2^2 = 4
-    integer, parameter :: n_excit_lvl_bits  = 2
+    integer, parameter :: n_excit_lvl_bits = 2
 
     ! the total number of bits is:
     integer, parameter :: n_excit_info_bits = n_excit_type_bits + n_excit_lvl_bits
@@ -76,17 +76,17 @@ module guga_data
     ! create an integer with as many ones as needed (2**0 + 2**1 + ..) and
     ! then shift it to the correct position (with the correct amount)
     integer(int_rdm), parameter :: excitLvl_bitmask = &
-        ishft(int(sum([(2**i_, i_ = 0, n_excit_lvl_bits - 1)]), int_rdm), &
-            pos_excit_lvl_bits)
+                                   ishft(int(sum([(2**i_, i_=0, n_excit_lvl_bits - 1)]), int_rdm), &
+                                         pos_excit_lvl_bits)
 
     ! and do the same for the excit_type mask:
     integer(int_rdm), parameter :: excitType_bitmask = &
-        ishft(int(sum([(2**i_, i_ = 0, n_excit_type_bits - 1)]), int_rdm), &
-            pos_excit_type_bits)
+                                   ishft(int(sum([(2**i_, i_=0, n_excit_type_bits - 1)]), int_rdm), &
+                                         pos_excit_type_bits)
 
     ! and the whole bit-mask is then the or operation of these two
     integer(int_rdm), parameter :: excitInfo_bitmask = &
-        ior(excitLvl_bitmask, excitType_bitmask)
+                                   ior(excitLvl_bitmask, excitType_bitmask)
 
     ! and maybe for performance also set a bit-mask of the index part of
     ! the rdm_ind
@@ -98,32 +98,32 @@ module guga_data
     type :: ExcitationTypeValues_t
         ! save type of excitation encoded as integer: all different possibs:
         integer :: &
-            invalid                 =  0, & ! 0 ... indicate invalid excitation
-            weight                  =  1, & ! 0 ... pure weight identifier
-            single                  =  2, & ! 1 ... all kind of single excitations which dont need much care
-            raising                 =  3, & ! 2 ... weight raising
-            lowering                =  4, & ! 3 ... weight lowering
-            non_overlap             =  5, & ! 4 ... non overlap
-            single_overlap_lowering =  6, & ! 5 ... single overlap 2 lowering
-            single_overlap_raising  =  7, & ! 6 ... single overlap 2 raising
-            single_overlap_L_to_R   =  8, & ! 7 ... single overlap lowering into raising
-            single_overlap_R_to_L   =  9, & ! 8 ... single overlap raising into lowering
-            double_lowering         = 10, & ! 9 ... normal double two lowering
-            double_raising          = 11, & ! 10 .. normal double two raising
-            double_L_to_R_to_L      = 12, & ! 11 .. lowering into raising into lowering
-            double_R_to_L_to_R      = 13, & ! 12 .. raising into lowering into raising
-            double_L_to_R           = 14, & ! 13 .. lowering into raising double
-            double_R_to_L           = 15, & ! 14 .. raising into lowering double
-            fullstop_lowering       = 16, & ! 15 .. full stop 2 lowering
-            fullstop_raising        = 17, & ! 16 .. full stop 2 raising
-            fullstop_L_to_R         = 18, & ! 17 .. full stop lowering into raising
-            fullstop_R_to_L         = 19, & ! 18 .. full stop raising into lowering
-            fullstart_lowering      = 20, & ! 19 .. full start 2 lowering
-            fullstart_raising       = 21, & ! 20 .. full start 2 raising
-            fullstart_L_to_R        = 22, & ! 21 .. full start lowering into raising
-            fullstart_R_to_L        = 23, & ! 22 .. full start raising into lowering
-            fullstart_stop_alike    = 24, & ! 23 .. full start into full stop alike
-            fullstart_stop_mixed    = 25    ! 24 .. full start into full stop mixed
+            invalid = 0, & ! 0 ... indicate invalid excitation
+            weight = 1, & ! 0 ... pure weight identifier
+            single = 2, & ! 1 ... all kind of single excitations which dont need much care
+            raising = 3, & ! 2 ... weight raising
+            lowering = 4, & ! 3 ... weight lowering
+            non_overlap = 5, & ! 4 ... non overlap
+            single_overlap_lowering = 6, & ! 5 ... single overlap 2 lowering
+            single_overlap_raising = 7, & ! 6 ... single overlap 2 raising
+            single_overlap_L_to_R = 8, & ! 7 ... single overlap lowering into raising
+            single_overlap_R_to_L = 9, & ! 8 ... single overlap raising into lowering
+            double_lowering = 10, & ! 9 ... normal double two lowering
+            double_raising = 11, & ! 10 .. normal double two raising
+            double_L_to_R_to_L = 12, & ! 11 .. lowering into raising into lowering
+            double_R_to_L_to_R = 13, & ! 12 .. raising into lowering into raising
+            double_L_to_R = 14, & ! 13 .. lowering into raising double
+            double_R_to_L = 15, & ! 14 .. raising into lowering double
+            fullstop_lowering = 16, & ! 15 .. full stop 2 lowering
+            fullstop_raising = 17, & ! 16 .. full stop 2 raising
+            fullstop_L_to_R = 18, & ! 17 .. full stop lowering into raising
+            fullstop_R_to_L = 19, & ! 18 .. full stop raising into lowering
+            fullstart_lowering = 20, & ! 19 .. full start 2 lowering
+            fullstart_raising = 21, & ! 20 .. full start 2 raising
+            fullstart_L_to_R = 22, & ! 21 .. full start lowering into raising
+            fullstart_R_to_L = 23, & ! 22 .. full start raising into lowering
+            fullstart_stop_alike = 24, & ! 23 .. full start into full stop alike
+            fullstart_stop_mixed = 25    ! 24 .. full start into full stop mixed
 
     end type ExcitationTypeValues_t
 
@@ -132,33 +132,33 @@ module guga_data
 
     end type ExcitationTypeNames_t
 
-    type(ExcitationTypeNames_t), parameter :: excit_names(0:25) = [&
-        ExcitationTypeNames_t('Weight'), &
-        ExcitationTypeNames_t('invalid'), &
-        ExcitationTypeNames_t('Single'), &
-        ExcitationTypeNames_t('Weight + Raising'), &
-        ExcitationTypeNames_t('Weight + Lowering'), &
-        ExcitationTypeNames_t('Non Overlap'), &
-        ExcitationTypeNames_t('Single Overlap Lowering'), &
-        ExcitationTypeNames_t('Single Overlap Raising'), &
-        ExcitationTypeNames_t('Single Overlap L to R'), &
-        ExcitationTypeNames_t('Single Overlap R to L'), &
-        ExcitationTypeNames_t('Double Lowering'), &
-        ExcitationTypeNames_t('Double Raising'), &
-        ExcitationTypeNames_t('Double L to R to L'), &
-        ExcitationTypeNames_t('Double R to L to R'), &
-        ExcitationTypeNames_t('Double L to R'), &
-        ExcitationTypeNames_t('Double R to L'), &
-        ExcitationTypeNames_t('Fullstop Lowering'), &
-        ExcitationTypeNames_t('Fullstop Raising'), &
-        ExcitationTypeNames_t('Fullstop L to R'), &
-        ExcitationTypeNames_t('Fullstop R to L'), &
-        ExcitationTypeNames_t('Fullstart Lowering'), &
-        ExcitationTypeNames_t('Fullstart Raising'), &
-        ExcitationTypeNames_t('Fullstart L to R'), &
-        ExcitationTypeNames_t('Fullstart R to L'), &
-        ExcitationTypeNames_t('Fullstart to Fullstop Alike'), &
-        ExcitationTypeNames_t('Fullstart to Fullstop Mixed')]
+    type(ExcitationTypeNames_t), parameter :: excit_names(0:25) = [ &
+                                              ExcitationTypeNames_t('Weight'), &
+                                              ExcitationTypeNames_t('invalid'), &
+                                              ExcitationTypeNames_t('Single'), &
+                                              ExcitationTypeNames_t('Weight + Raising'), &
+                                              ExcitationTypeNames_t('Weight + Lowering'), &
+                                              ExcitationTypeNames_t('Non Overlap'), &
+                                              ExcitationTypeNames_t('Single Overlap Lowering'), &
+                                              ExcitationTypeNames_t('Single Overlap Raising'), &
+                                              ExcitationTypeNames_t('Single Overlap L to R'), &
+                                              ExcitationTypeNames_t('Single Overlap R to L'), &
+                                              ExcitationTypeNames_t('Double Lowering'), &
+                                              ExcitationTypeNames_t('Double Raising'), &
+                                              ExcitationTypeNames_t('Double L to R to L'), &
+                                              ExcitationTypeNames_t('Double R to L to R'), &
+                                              ExcitationTypeNames_t('Double L to R'), &
+                                              ExcitationTypeNames_t('Double R to L'), &
+                                              ExcitationTypeNames_t('Fullstop Lowering'), &
+                                              ExcitationTypeNames_t('Fullstop Raising'), &
+                                              ExcitationTypeNames_t('Fullstop L to R'), &
+                                              ExcitationTypeNames_t('Fullstop R to L'), &
+                                              ExcitationTypeNames_t('Fullstart Lowering'), &
+                                              ExcitationTypeNames_t('Fullstart Raising'), &
+                                              ExcitationTypeNames_t('Fullstart L to R'), &
+                                              ExcitationTypeNames_t('Fullstart R to L'), &
+                                              ExcitationTypeNames_t('Fullstart to Fullstop Alike'), &
+                                              ExcitationTypeNames_t('Fullstart to Fullstop Mixed')]
 
     type(ExcitationTypeValues_t), parameter :: excit_type = ExcitationTypeValues_t()
 
@@ -301,7 +301,6 @@ module guga_data
     ! single excitation matrix element calculation
     type(ProcedurePtrArray_t) :: singleMatElesGUGA(15)
 
-
     ! define an array to give the correct indices to access matrix element
     ! function for given stepvectors, delta b, and generator type
     ! delta b value = {-1,1} and generator flags = {-1...lowering,1...raising}
@@ -314,7 +313,7 @@ module guga_data
         2, 2, 2, -1, 2,10, 14, 5, 2, -1, 3, 7, -1, 7, 5, 3, & ! DeltaB = -1 & L
         2, 2, 2, -1, 2, 3, 12, 6, 2, -1,11, 8, -1, 5, 7, 3, & ! DeltaB = -1 & R
         2, 2, 2, -1, 2, 3, -1, 5, 2, 13,10, 7, -1, 7, 5, 3, & ! DeltaB = +1 & L
-        2, 2, 2, -1, 2, 9, -1, 6, 2, 15, 3, 8, -1, 5, 7, 3  & ! DeltaB = +1 & R
+        2, 2, 2, -1, 2, 9, -1, 6, 2, 15, 3, 8, -1, 5, 7, 3 & ! DeltaB = +1 & R
         /), (/ 4, 4, 4 /))
 
     ! use two different arrays of procedure pointers for the x=0 and x=1
@@ -340,7 +339,7 @@ module guga_data
        -1, 16,  2, -1, -1, -1, -1, 24, -1, -1, -1,  7, -1, -1, -1, -1, &! db = +1 & RR
         2,  2, -1, -1, -1,  2, -1, -1, -1, 33, 30, 14, -1, -1, -1,  2, &! db = +2 & LL
         2,  2, -1, -1, -1, 41, -1, -1,  2, 43, 41, 25, -1, 19, -1,  2, &! db = +2 & RL
-        2, -1, -1, -1, -1, 36, -1, -1,  2, 32,  2, -1, -1,  8, -1,  2  &! db = +2 & RR
+        2, -1, -1, -1, -1, 36, -1, -1,  2, 32,  2, -1, -1,  8, -1,  2 &! db = +2 & RR
         /), (/4, 4, 15/))
 
     ! x0 elemets:
@@ -373,7 +372,7 @@ module guga_data
         1, 14,  1, -1, -1, 1,-1,  1, -1,  2, 2,  7, -1, -1, -1, 2, & ! db=+1 & RR
         1,  1, -1, -1, -1, 1,-1, -1, -1,  1, 1,  1, -1, -1, -1, 1, & ! db=+2 & LL -> always 0
         1,  1, -1, -1, -1, 1,-1, -1,  1,  1, 1,  1, -1,  1, -1, 1, & ! db=+2 & RL
-        1, -1, -1, -1, -1, 1,-1, -1,  1,  1, 1, -1, -1,  1, -1, 1  & ! db=+2 & RR -> always 0
+        1, -1, -1, -1, -1, 1,-1, -1,  1,  1, 1, -1, -1,  1, -1, 1 & ! db=+2 & RR -> always 0
         /),(/ 4, 4, 15 /))
     ! to index third matrix dimension use: (db + 2)*3 + (G1 + G2)/2 + 2
     ! where G = +1 for R and -1 for L
@@ -389,15 +388,14 @@ module guga_data
     ! the delta b values has to be included here too.
 
     ! could write function or do matrix again, but almost only -1 in matrix...
-    integer, dimension(0:3,0:3,-1:1) :: indArrEnd = reshape( [ &
-        -1, -1, -1, -1, -1, -1, 5, -1, -1, -1, -1, -1, -1, -1, -1, -1, & ! db = -2
-         1, -1, -1, -1, -1,  2,-1, -1, -1, -1,  3, -1, -1, -1, -1,  4, & ! db = 0
-        -1, -1, -1, -1, -1, -1, -1, -1, -1, 5, -1, -1, -1, -1, -1, -1  & ! db = +2
-        ], [4,4,3])
+    integer, dimension(0:3, 0:3, -1:1) :: indArrEnd = reshape([ &
+                                                              -1, -1, -1, -1, -1, -1, 5, -1, -1, -1, -1, -1, -1, -1, -1, -1, & ! db = -2
+                                                              1, -1, -1, -1, -1, 2, -1, -1, -1, -1, 3, -1, -1, -1, -1, 4, & ! db = 0
+                                                              -1, -1, -1, -1, -1, -1, -1, -1, -1, 5, -1, -1, -1, -1, -1, -1 & ! db = +2
+                                                              ], [4, 4, 3])
     ! and create a indexing array to acces matrix elements through:
     ! doubleMatEle(indArrTwo(d',d',db,G1,G2,x0,x1,b))
     ! think about a good way to combine possible
-
 
     ! also need a similar procedure pointer array for the necessary calculation
     ! of the r_k terms, coming from the two-particle contributions to single
@@ -408,7 +406,6 @@ module guga_data
     ! rest are just constants... think ybout that efficiency and ask simon it
     ! this is too costly..
     type(ProcedurePtrArray_t) :: doubleContribution(7)
-
 
     ! write similar matrix indication table
     ! delete out the start and end values, as they are never needed!
@@ -435,7 +432,7 @@ module guga_data
     ! probably have to use it as a type, to store lists or different lists
     ! in it, and also be able to (de)allocate them individually
     type ProjE_t
-        integer(n_int), allocatable :: projE_ilut_list(:,:)
+        integer(n_int), allocatable :: projE_ilut_list(:, :)
         HElement_t(dp), allocatable :: projE_hel_list(:)
         ! also store the excitation level in the projected list, since otherwise
         ! it is really hard to determine it in the GUGA formalism
@@ -447,7 +444,7 @@ module guga_data
     type(ProjE_t), allocatable :: projE_replica(:)
 
     type RdmContribList_t
-        integer(n_int), allocatable :: ilut_list(:,:)
+        integer(n_int), allocatable :: ilut_list(:, :)
         real(dp), allocatable :: rdm_contrib(:)
         integer(int_rdm), allocatable :: rdm_ind(:)
         integer, allocatable :: repeat_count(:)
@@ -552,7 +549,6 @@ contains
         doubleMatEleX1GUGA(44)%ptr => minFunOverB_0_R2
         doubleMatEleX1GUGA(45)%ptr => funD_2
 
-
         ! -------------- double excitation x0 matrix element part ------------
         doubleMatEleX0GUGA(1)%ptr => funZero
         doubleMatEleX0GUGA(2)%ptr => funPlus1
@@ -572,14 +568,12 @@ contains
         doubleMatEleX0GUGA(16)%ptr => funA_2_1_overR2
         doubleMatEleX0GUGA(17)%ptr => minFunA_2_1_overR2
 
-
         ! ------ mixed generator full-stop matrix elements--------------------
         mixedGenFullStopMatEle(1)%ptr => fullStop_00
         mixedGenFullStopMatEle(2)%ptr => fullStop_11
         mixedGenFullStopMatEle(3)%ptr => fullStop_22
         mixedGenFullStopMatEle(4)%ptr => fullStop_33
         mixedGenFullStopMatEle(5)%ptr => fullStop_12
-
 
         ! --------- double contributions to single excitaitons----------------
         doubleContribution(1)%ptr => funZero
@@ -597,23 +591,23 @@ contains
         integer :: i
 
         do i = 1, 15
-            nullify(singleMatElesGUGA(i)%ptr)
+            nullify (singleMatElesGUGA(i)%ptr)
         end do
 
-        do i = 1,45
-            nullify(doubleMatEleX1GUGA(i)%ptr)
+        do i = 1, 45
+            nullify (doubleMatEleX1GUGA(i)%ptr)
         end do
 
         do i = 1, 17
-            nullify(doubleMatEleX0GUGA(i)%ptr)
+            nullify (doubleMatEleX0GUGA(i)%ptr)
         end do
 
         do i = 1, 5
-            nullify(mixedGenFullStopMatEle(i)%ptr)
+            nullify (mixedGenFullStopMatEle(i)%ptr)
         end do
 
         do i = 1, 7
-            nullify(doubleContribution(i)%ptr)
+            nullify (doubleContribution(i)%ptr)
         end do
 
     end subroutine nullify_guga_data_procPtrs
@@ -624,7 +618,7 @@ contains
     ! mixed gen full-stops.
 
     subroutine getMixedFullStop(step1, step2, deltaB, bValue, x0_element, &
-            x1_element)
+                                x1_element)
         ! function to access the special mixed generator full-stop elements
         ! which due to storage reasons are stored in a seperate func. pointer
         ! array
@@ -634,15 +628,15 @@ contains
         integer :: ind
 
         ! get index:
-        ind = indArrEnd(step1, step2, deltaB/2)
+        ind = indArrEnd(step1, step2, deltaB / 2)
 
         ! with the optional output arguments can also just calc. x0 or x1
         call mixedGenFullStopMatEle(ind)%ptr(bValue, x0_element, x1_element)
 
     end subroutine getMixedFullStop
 
-    function getDoubleContribution(step1,step2,deltaB,genFlag,bValue) &
-            result (doubleContr)
+    function getDoubleContribution(step1, step2, deltaB, genFlag, bValue) &
+        result(doubleContr)
         ! Access necessary two-particle contribution to single excitation
         ! matrix elements.
         !
@@ -661,13 +655,13 @@ contains
         integer :: ind
 
         ! get index
-        ind = indContr(step1, step2, deltaB + (genFlag + 1)/2)
+        ind = indContr(step1, step2, deltaB + (genFlag + 1) / 2)
 
         doubleContr = doubleContribution(ind)%ptr(bValue)
     end function getDoubleContribution
 
-    function getSingleMatrixElement(step1,step2,deltaB,genFlag,bValue) &
-            result(hElement)
+    function getSingleMatrixElement(step1, step2, deltaB, genFlag, bValue) &
+        result(hElement)
         ! Access the necessary single excitation product terms for the H matrix
         ! element calculation.
         !
@@ -687,7 +681,7 @@ contains
 
         ! only need for this function is to correctly access the procedure
         ! pointers to get correct function -> get index from index matrix:
-        ind = indArrOne(step1, step2, deltaB + (genFlag + 1)/2)
+        ind = indArrOne(step1, step2, deltaB + (genFlag + 1) / 2)
 
         ! call correct function:
         hElement = singleMatElesGUGA(ind)%ptr(bValue)
@@ -695,7 +689,7 @@ contains
     end function getSingleMatrixElement
 
     subroutine getDoubleMatrixElement(step1, step2, deltaB, genFlag1, genFlag2, &
-            bValue, order, x0_element, x1_element)
+                                      bValue, order, x0_element, x1_element)
         ! access the necessary double excitation product terms for the H matrix
         ! element calculation
         !
@@ -719,7 +713,7 @@ contains
 
         if (present(x0_element)) then
             ! first get correct indices to access procedure pointer array
-            x0_ind = indArrTwoX0(step1,step2,3*deltaB +(genFlag1 + genFlag2)/2)
+            x0_ind = indArrTwoX0(step1, step2, 3 * deltaB + (genFlag1 + genFlag2) / 2)
 
             ! then call corresponding function
             x0_element = doubleMatEleX0GUGA(x0_ind)%ptr(bValue)
@@ -727,7 +721,7 @@ contains
 
         ! same for x1 element
         if (present(x1_element)) then
-            x1_ind = indArrTwoX1(step1,step2,3*deltaB+(genFlag1+genFlag2)/2)
+            x1_ind = indArrTwoX1(step1, step2, 3 * deltaB + (genFlag1 + genFlag2) / 2)
 
             x1_element = order * doubleMatEleX1GUGA(x1_ind)%ptr(bValue)
         end if
@@ -789,7 +783,7 @@ contains
         if (present(x0)) x0 = Root2
         if (present(x1)) x1 = 0.0_dp
 
-    end  subroutine fullStop_33
+    end subroutine fullStop_33
 
     ! ===== special functions for the double contribution to single excitation
     ! matrix elements
@@ -994,7 +988,7 @@ contains
     function funA_m1_1_overR2(b) result(ret)
         real(dp), intent(in) :: b
         real(dp) :: ret
-        ret = OverR2 *funA(b, -1.0_dp, 1.0_dp)
+        ret = OverR2 * funA(b, -1.0_dp, 1.0_dp)
     end function funA_m1_1_overR2
 
     function minFunA_m1_1_overR2(b) result(ret)
@@ -1099,11 +1093,6 @@ contains
         real(dp) :: ret
         ret = -funB(b, 0.0_dp, 2.0_dp)
     end function minFunB_0_2
-
-
-
-
-
 
     !========= function for the single particle matrix calculation ===========
     ! ASSERT() probably not usable in "elemental" function, due to side-effects
@@ -1212,7 +1201,7 @@ contains
         real(dp), intent(in) :: b, x, y
         real(dp) :: ret
         !ASSERT( (b + y) >= 0.0_dp)
-        ret = sqrt((b + x)/(b + y))
+        ret = sqrt((b + x) / (b + y))
     end function funA
 
     function funB(b, x, y) result(ret)
@@ -1220,14 +1209,14 @@ contains
         real(dp) :: ret
         !ASSERT( (b + x) > 0.0_dp)
         !ASSERT( (b + y) > 0.0_dp)
-        ret = sqrt(2.0_dp/((b + x)*(b + y)))
+        ret = sqrt(2.0_dp / ((b + x) * (b + y)))
     end function funB
 
     function funC(b, x) result(ret)
         real(dp), intent(in) :: b, x
         real(dp) :: ret
         !ASSERT( (b + x) > 0.0_dp)
-        ret = funA(b, x - 1.0_dp, x) * funA(b, x + 1.0_dp,x)
+        ret = funA(b, x - 1.0_dp, x) * funA(b, x + 1.0_dp, x)
     end function funC
 
     function funD(b, x) result(ret)
@@ -1241,14 +1230,9 @@ contains
         real(dp), intent(in) :: b, x
         real(dp) :: ret
         !ASSERT( (b + x) > 0.0_dp)
-        ret = 1.0_dp/(b + x)
+        ret = 1.0_dp / (b + x)
     end function funOverB
 
     ! =========== end of generic necessary functions ========================
-
-
-
-
-
 
 end module

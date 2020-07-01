@@ -58,9 +58,9 @@ contains
         ASSERT(lbound(ilutG, 1) == 0 .and. ubound(ilutG, 2) == nIfGUGA)
 
         open(file_id, file=path)
-            call write_header(unit_id=file_id)
-            call write_CSF_repr(ilutG, unit_id=file_id)
-            call print_matrix(get_H_mat(ilutG), file_id)
+        call write_header(unit_id=file_id)
+        call write_CSF_repr(ilutG, unit_id=file_id)
+        call print_matrix(get_H_mat(ilutG), file_id)
         close(file_id)
 
     contains

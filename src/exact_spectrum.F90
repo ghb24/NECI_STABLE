@@ -26,16 +26,16 @@ contains
         h_sum = sum(hamiltonian)
 
         ! Create the workspace for dsyev.
-        lwork = max(1,3*ndets-1)
+        lwork = max(1, 3 * ndets - 1)
         allocate(work(lwork))
 
-        write(6,'(1x,a28)',advance='no') "Diagonalising Hamiltonian..."
+        write(6, '(1x,a28)', advance='no') "Diagonalising Hamiltonian..."
         call neci_flush(6)
 
         ! Perform the diagonalisation.
         call dsyev('V', 'U', ndets, hamiltonian, ndets, eigv_es, work, lwork, info)
 
-        write(6,'(1x,a9,/)') "Complete."
+        write(6, '(1x,a9,/)') "Complete."
         call neci_flush(6)
 
         trans_amps_right = matmul(pert_ground_right, hamiltonian)
@@ -61,16 +61,16 @@ contains
         use SystemData, only: nbasis, nel, BRR, nBasisMax, G1, tSpn, lms, tParity, SymRestrict
 
         integer, intent(out) :: ndets
-        integer, allocatable :: nI_list(:,:)
-        integer(n_int), allocatable :: ilut_list(:,:)
+        integer, allocatable :: nI_list(:, :)
+        integer(n_int), allocatable :: ilut_list(:, :)
         integer(n_int) :: ilut(0:NIfTot)
-        integer :: i, hf_ind, temp(1,1), ierr
+        integer :: i, hf_ind, temp(1, 1), ierr
         character(len=*), parameter :: t_r = 'init_exact_spectrum'
 
-        write(6,'(/,1x,a48,/)') "Beginning calculation of exact spectral density."
+        write(6, '(/,1x,a48,/)') "Beginning calculation of exact spectral density."
         call neci_flush(6)
 
-        write(6,'(1x,a56)',advance='yes') "Enumerating and storing all determinants in the space..."
+        write(6, '(1x,a56)', advance='yes') "Enumerating and storing all determinants in the space..."
         call neci_flush(6)
 
         ! Calculate the number of determinants.
@@ -79,13 +79,13 @@ contains
         ! Now generate them again and store them this time.
         call gndts(nel, nbasis, BRR, nBasisMax, nI_list, .false., G1, tSpn, lms, tParity, SymRestrict, ndets, hf_ind)
 
-        write(6,'(1x,a33,i7)') "Number of determinants in space: ", ndets
+        write(6, '(1x,a33,i7)') "Number of determinants in space: ", ndets
 
         allocate(ilut_list(0:NIfTot, ndets))
         ilut_list = 0_n_int
 
         do i = 1, ndets
-            call EncodeBitDet(nI_list(:,i), ilut)
+            call EncodeBitDet(nI_list(:, i), ilut)
             ilut_list(0:nifd, i) = ilut(0:nifd)
         end do
 
@@ -93,48 +93,48 @@ contains
 
         allocate(eigv_es(ndets), stat=ierr)
         if (ierr /= 0) then
-            write(6,'(1x,a11,1x,i5)') "Error code:", ierr
+            write(6, '(1x,a11,1x,i5)') "Error code:", ierr
             call stop_all(t_r, "Error allocating eigenvalue array.")
         end if
         eigv_es = 0.0_dp
 
         allocate(trans_amps_left(ndets), stat=ierr)
         if (ierr /= 0) then
-            write(6,'(1x,a11,1x,i5)') "Error code:", ierr
+            write(6, '(1x,a11,1x,i5)') "Error code:", ierr
             call stop_all(t_r, "Error allocating array to hold left transition amplitudes.")
         end if
         trans_amps_left = 0.0_dp
 
         allocate(trans_amps_right(ndets), stat=ierr)
         if (ierr /= 0) then
-            write(6,'(1x,a11,1x,i5)') "Error code:", ierr
+            write(6, '(1x,a11,1x,i5)') "Error code:", ierr
             call stop_all(t_r, "Error allocating array to hold right transition amplitudes.")
         end if
         trans_amps_right = 0.0_dp
 
         allocate(pert_ground_left(ndets), stat=ierr)
         if (ierr /= 0) then
-            write(6,'(1x,a11,1x,i5)') "Error code:", ierr
+            write(6, '(1x,a11,1x,i5)') "Error code:", ierr
             call stop_all(t_r, "Error allocating array to hold left perturbed ground state components.")
         end if
 
         allocate(pert_ground_right(ndets), stat=ierr)
         if (ierr /= 0) then
-            write(6,'(1x,a11,1x,i5)') "Error code:", ierr
+            write(6, '(1x,a11,1x,i5)') "Error code:", ierr
             call stop_all(t_r, "Error allocating array to hold right perturbed ground state components.")
         end if
 
-        write(6,'(1x,a48)') "Allocating and calculating Hamiltonian matrix..."
+        write(6, '(1x,a48)') "Allocating and calculating Hamiltonian matrix..."
         call neci_flush(6)
         allocate(hamiltonian(ndets, ndets), stat=ierr)
         if (ierr /= 0) then
-            write(6,'(1x,a11,1x,i5)') "Error code:", ierr
+            write(6, '(1x,a11,1x,i5)') "Error code:", ierr
             call stop_all(t_r, "Error allocating Hamiltonian array.")
         end if
-        write(6,'(1x,a46)') "Hamiltonian allocation completed successfully."
+        write(6, '(1x,a46)') "Hamiltonian allocation completed successfully."
         call neci_flush(6)
         call calculate_full_hamiltonian(ilut_list, hamiltonian)
-        write(6,'(1x,a33)') "Hamiltonian calculation complete."
+        write(6, '(1x,a33)') "Hamiltonian calculation complete."
         call neci_flush(6)
 
         call return_perturbed_ground_spec(left_perturb_spectral, ilut_list, pert_ground_left, left_pert_norm)
@@ -149,12 +149,12 @@ contains
 
         real(dp), intent(in) :: h_sum, spec_low, spec_high
 
-        write(6,'(/,1X,64("="))')
-        write(6,'(1X,"Exact spectrum testsuite data:")')
-        write(6,'(1X,"Sum of H elements:",26X,es20.13)') h_sum
-        write(6,'(1X,"Spectral weight at the lowest omega value:",2X,es20.13)') spec_low
-        write(6,'(1X,"Spectral weight at the highest omega value:",1X,es20.13)') spec_high
-        write(6,'(1X,64("="))')
+        write(6, '(/,1X,64("="))')
+        write(6, '(1X,"Exact spectrum testsuite data:")')
+        write(6, '(1X,"Sum of H elements:",26X,es20.13)') h_sum
+        write(6, '(1X,"Spectral weight at the lowest omega value:",2X,es20.13)') spec_low
+        write(6, '(1X,"Spectral weight at the highest omega value:",1X,es20.13)') spec_high
+        write(6, '(1X,64("="))')
 
     end subroutine write_exact_spec_testsuite_data
 

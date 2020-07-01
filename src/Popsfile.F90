@@ -2435,7 +2435,7 @@ r_loop: do while(.not.tStoreDet)
         iunit = get_free_unit()
         INQUIRE(FILE=popsfile,EXIST=exists)
         IF(exists) THEN
-            OPEN(iunit,FILE=popsfile,Status='old')
+            open(iunit,FILE=popsfile,Status='old')
             tBinRead=.false.
         ELSE
             tBinRead=.true.
@@ -2458,7 +2458,7 @@ r_loop: do while(.not.tStoreDet)
                     & //"for particle information - this is also needed")
                 ELSE
                     call get_unique_filename('POPSFILEHEAD',tIncrementPops,.false.,iPopsFileNoRead,popsfile)
-                    OPEN(iunit,FILE=popsfile,Status='old')
+                    open(iunit,FILE=popsfile,Status='old')
                 ENDIF
             ENDIF
         ENDIF
@@ -2513,9 +2513,9 @@ r_loop: do while(.not.tStoreDet)
 !If this is not the end of the file, there is one more keyword that tells us
 ! the calculation had not entered variable shift mode yet.
 !Want to put this test at the end of the non-binary file too.
-            CLOSE(iunit)
+            close(iunit)
             call get_unique_filename('POPSFILEBIN',tIncrementPops,.false.,iPopsFileNoRead,popsfile)
-            OPEN(iunit,FILE=popsfile,Status='old',form='unformatted')
+            open(iunit,FILE=popsfile,Status='old',form='unformatted')
         ENDIF
 
         IF(iProcIndex.eq.Root) THEN
@@ -2760,7 +2760,7 @@ r_loop: do while(.not.tStoreDet)
                 endif
             end do
         enddo
-        CLOSE(iunit)
+        close(iunit)
         TempCurrWalkers=int(CurrWalkers,int64)
 
         ! Sort the lists so that they are in order if we change the number
@@ -2940,7 +2940,7 @@ r_loop: do while(.not.tStoreDet)
         iunit = get_free_unit()
         INQUIRE(FILE=popsfile,EXIST=exists)
         IF(exists) THEN
-            OPEN(iunit,FILE=popsfile,Status='old')
+            open(iunit,FILE=popsfile,Status='old')
             tBinRead=.false.
         ELSE
             tBinRead=.true.
@@ -2962,7 +2962,7 @@ r_loop: do while(.not.tStoreDet)
                     & //"particle information - this is also needed")
                 ELSE
                     call get_unique_filename('POPSFILEHEAD',tIncrementPops,.false.,iPopsFileNoRead,popsfile)
-                    OPEN(iunit,FILE=popsfile,Status='old')
+                    open(iunit,FILE=popsfile,Status='old')
                 ENDIF
             ENDIF
         ENDIF
@@ -3016,9 +3016,9 @@ r_loop: do while(.not.tStoreDet)
 !If this is not the end of the file, there is one more keyword that tells us
 ! the calculation had not entered variable shift mode yet.
 !Want to put this test at the end of the non-binary file too.
-            CLOSE(iunit)
+            close(iunit)
             call get_unique_filename('POPSFILEBIN',tIncrementPops,.false.,iPopsFileNoRead,popsfile)
-            OPEN(iunit,FILE=popsfile,Status='old',form='unformatted')
+            open(iunit,FILE=popsfile,Status='old',form='unformatted')
         ENDIF
 
         IF(iProcIndex.eq.Root) THEN
@@ -3194,7 +3194,7 @@ r_loop: do while(.not.tStoreDet)
                 ilut_largest = iLutTemp
             endif
         enddo
-        CLOSE(iunit)
+        close(iunit)
         TempCurrWalkers=int(CurrWalkers,int64)
 
         ! Sort the lists so that they are in order if we change the number

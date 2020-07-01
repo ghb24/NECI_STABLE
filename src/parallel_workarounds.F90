@@ -18,12 +18,12 @@ module Parallel_neci
     !      imports of mpi_ functions which annoy ifort
     use ParallelHelper
     use par_internal, only: MPIBCast, MPIAllReduce, MpiAllGather, &
-                    MPIReduce,  MPISum, MPISumAll, MPIScatter, MPIAllGather, &
-                    MPIAllGatherV, MPIGather, MPIGatherV, MPIScatterV, &
-                    MPIAllReduceDatatype, MPIAllToAll, MPIAllToAllV, &
-                    MPIStopAll, MPINodes, MPIInit, MPIEnd, clean_parallel, &
-                    MPISend, MPIRecv, GetProcElectrons, nProcessors, &
-                    neci_MPIInit_called, neci_MPINodes_called
+                            MPIReduce, MPISum, MPISumAll, MPIScatter, MPIAllGather, &
+                            MPIAllGatherV, MPIGather, MPIGatherV, MPIScatterV, &
+                            MPIAllReduceDatatype, MPIAllToAll, MPIAllToAllV, &
+                            MPIStopAll, MPINodes, MPIInit, MPIEnd, clean_parallel, &
+                            MPISend, MPIRecv, GetProcElectrons, nProcessors, &
+                            neci_MPIInit_called, neci_MPINodes_called
 
     use constants
     implicit none
@@ -43,7 +43,7 @@ module Parallel_neci
 
 #ifdef CBINDMPI
     interface
-        subroutine MPI_Bcast (buf, cnt, dtype, rt, comm, ierr) &
+        subroutine MPI_Bcast(buf, cnt, dtype, rt, comm, ierr) &
             bind(c, name='mpi_bcast_wrap')
             use iso_c_hack
             use constants
@@ -96,7 +96,7 @@ contains
         vptr = loc_neci(v)
 #endif
 
-        call GetComm (Comm, Node, rt)
+        call GetComm(Comm, Node, rt)
 
         ! Broadcast the length
         length = int(len_trim(v), MPIArg)
@@ -123,7 +123,7 @@ contains
 
 #ifdef PARALLEL
 
-        call GetComm (Comm, Node)
+        call GetComm(Comm, Node)
 
         ! We cast the logical to an integer. It is a bit yucky, but avoids
         ! oddities in behaviour with some MPI implementations
@@ -191,7 +191,7 @@ contains
         c_ptr_t :: vptr
         vptr = loc_neci(v)
 #endif
-        call GetComm (Comm, Node, rt, tMe)
+        call GetComm(Comm, Node, rt, tMe)
 
         v = param_inout
 
@@ -264,7 +264,7 @@ contains
         vptr = loc_neci(v)
 #endif
 
-        call GetComm (Comm, Node, rt, tMe)
+        call GetComm(Comm, Node, rt, tMe)
         v = param_inout
 
         ! Which processor is root?

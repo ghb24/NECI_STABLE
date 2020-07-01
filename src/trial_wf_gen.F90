@@ -49,15 +49,15 @@ contains
 
         integer :: i, ierr, num_states_on_proc, con_space_size_old
         integer :: excit, tot_con_space_size
-        integer :: con_counts(0:nProcessors-1)
+        integer :: con_counts(0:nProcessors - 1)
         integer :: min_elem, max_elem, num_elem
-        integer(MPIArg) :: trial_counts(0:nProcessors-1), trial_displs(0:nProcessors-1)
-        integer(MPIArg) :: con_sendcounts(0:nProcessors-1), con_recvcounts(0:nProcessors-1)
-        integer(MPIArg) :: con_senddispls(0:nProcessors-1), con_recvdispls(0:nProcessors-1)
-        integer(n_int), allocatable, dimension(:,:) :: temp_space
-        HElement_t(dp), allocatable :: trial_wfs_all_procs(:,:), temp_wfs(:,:)
+        integer(MPIArg) :: trial_counts(0:nProcessors - 1), trial_displs(0:nProcessors - 1)
+        integer(MPIArg) :: con_sendcounts(0:nProcessors - 1), con_recvcounts(0:nProcessors - 1)
+        integer(MPIArg) :: con_senddispls(0:nProcessors - 1), con_recvdispls(0:nProcessors - 1)
+        integer(n_int), allocatable, dimension(:, :) :: temp_space
+        HElement_t(dp), allocatable :: trial_wfs_all_procs(:, :), temp_wfs(:, :)
         real(dp) :: temp_energies(nexcit_calc)
-        character (len=*), parameter :: t_r = "init_trial_wf"
+        character(len=*), parameter :: t_r = "init_trial_wf"
 
         ! Perform checks.
         if (tIncCancelledInitEnergy .and. (.not. tTrialHash)) &
@@ -70,20 +70,20 @@ contains
 
         call set_timer(Trial_Init_Time)
 
-        write(6,'(/,11("="),1X,"Trial wavefunction initialisation",1X,10("="))')
+        write(6, '(/,11("="),1X,"Trial wavefunction initialisation",1X,10("="))')
 
         ntrial_excits = nexcit_keep
 
         ! Simply allocate the trial vector to have up to 1 million elements for now...
         allocate(trial_space(0:NIfTot, 1000000), stat=ierr)
-        call LogMemAlloc('trial_space', 1000000*(NIfTot+1), size_n_int, t_r, TrialTag, ierr)
+        call LogMemAlloc('trial_space', 1000000 * (NIfTot + 1), size_n_int, t_r, TrialTag, ierr)
 
         allocate(trial_energies(nexcit_keep))
 
         trial_energies = 0.0_dp
         trial_space = 0_n_int
 
-        write(6,'("Generating the trial space...")'); call neci_flush(6)
+        write(6, '("Generating the trial space...")'); call neci_flush(6)
 
         if (qmc_trial_wf) then
 #ifdef CMPLX_
@@ -93,16 +93,16 @@ contains
                                        trial_space_size, trial_space, trial_wfs, trial_counts, trial_displs)
 #endif
         else
-           if(allocated(trial_est_reorder)) then
-              call calc_trial_states_lanczos(trial_in, nexcit_calc, trial_space_size, trial_space, temp_wfs, &
-                   temp_energies, trial_counts, trial_displs, trial_est_reorder)
-           else
-              call calc_trial_states_lanczos(trial_in, nexcit_calc, trial_space_size, trial_space, temp_wfs, &
-                   temp_energies, trial_counts, trial_displs)
-           endif
+            if (allocated(trial_est_reorder)) then
+                call calc_trial_states_lanczos(trial_in, nexcit_calc, trial_space_size, trial_space, temp_wfs, &
+                                               temp_energies, trial_counts, trial_displs, trial_est_reorder)
+            else
+                call calc_trial_states_lanczos(trial_in, nexcit_calc, trial_space_size, trial_space, temp_wfs, &
+                                               temp_energies, trial_counts, trial_displs)
+            end if
         end if
 
-        write(6,'("Size of trial space on this processor:",1X,i8)') trial_space_size; call neci_flush(6)
+        write(6, '("Size of trial space on this processor:",1X,i8)') trial_space_size; call neci_flush(6)
 
         if (.not. qmc_trial_wf) then
             ! Allocate the array to hold the final trial wave functions which we
@@ -125,7 +125,7 @@ contains
         ! At this point, each processor has only those states which reside on them, and
         ! have only counted those states. Send all states to all processors for the next bit.
         tot_trial_space_size = int(sum(trial_counts), sizeof_int)
-        write(6,'("Total size of the trial space:",1X,i8)') tot_trial_space_size; call neci_flush(6)
+        write(6, '("Total size of the trial space:",1X,i8)') tot_trial_space_size; call neci_flush(6)
 
         ! Use SpawnedParts as temporary space:
         call MPIAllGatherV(trial_space(0:NIfTot, 1:trial_space_size), &
@@ -137,7 +137,7 @@ contains
 
         ! set the size of the entries in con_ht
 #ifdef CMPLX_
-        NConEntry = nifd + 2*nexcit_keep
+        NConEntry = nifd + 2 * nexcit_keep
 #else
         NConEntry = nifd + nexcit_keep
 #endif
@@ -147,24 +147,24 @@ contains
             ! Find the states connected to the trial space. This typically takes a long time, so
             ! it is done in parallel by letting each processor find the states connected to a
             ! portion of the trial space.
-            write(6,'("Calculating the number of states in the connected space...")'); call neci_flush(6)
+            write(6, '("Calculating the number of states in the connected space...")'); call neci_flush(6)
 
-            call generate_connected_space(num_elem, SpawnedParts(0:NIfTot,min_elem:max_elem), con_space_size)
+            call generate_connected_space(num_elem, SpawnedParts(0:NIfTot, min_elem:max_elem), con_space_size)
 
-            write(6,'("Attempting to allocate con_space. Size =",1X,F12.3,1X,"Mb")') &
-                    real(con_space_size,dp)*(NIfTot+1.0_dp)*7.629392e-06_dp; call neci_flush(6)
+            write(6, '("Attempting to allocate con_space. Size =",1X,F12.3,1X,"Mb")') &
+                real(con_space_size, dp) * (NIfTot + 1.0_dp) * 7.629392e-06_dp; call neci_flush(6)
             allocate(con_space(0:NIfTot, con_space_size), stat=ierr)
-            call LogMemAlloc('con_space', con_space_size*(NIfTot+1), size_n_int, t_r, ConTag, ierr)
+            call LogMemAlloc('con_space', con_space_size * (NIfTot + 1), size_n_int, t_r, ConTag, ierr)
             con_space = 0_n_int
 
-            write(6,'("States found on this processor, including repeats:",1X,i8)') con_space_size
+            write(6, '("States found on this processor, including repeats:",1X,i8)') con_space_size
 
-            write(6,'("Generating and storing the connected space...")'); call neci_flush(6)
+            write(6, '("Generating and storing the connected space...")'); call neci_flush(6)
 
             call generate_connected_space(num_elem, SpawnedParts(0:NIfTot, min_elem:max_elem), &
                                           con_space_size, con_space)
 
-            write(6,'("Removing repeated states and sorting by processor...")'); call neci_flush(6)
+            write(6, '("Removing repeated states and sorting by processor...")'); call neci_flush(6)
 
             call remove_repeated_states(con_space, con_space_size)
 
@@ -173,14 +173,14 @@ contains
         else
             con_space_size = 0
             con_sendcounts = 0
-            allocate(con_space(0,0),stat=ierr)
-            write(6,'("This processor will not search for connected states.")'); call neci_flush(6)
+            allocate(con_space(0, 0), stat=ierr)
+            write(6, '("This processor will not search for connected states.")'); call neci_flush(6)
             !Although the size is zero, we should allocate it, because the rest of the code use it.
             !Otherwise, we get segmentation fault later.
             allocate(con_space(0:NIfTot, con_space_size), stat=ierr)
         end if
 
-        write(6,'("Performing MPI communication of connected states...")'); call neci_flush(6)
+        write(6, '("Performing MPI communication of connected states...")'); call neci_flush(6)
 
         ! Send the connected states to their processors.
         ! con_sendcounts holds the number of states to send to other processors from this one.
@@ -189,31 +189,31 @@ contains
         con_space_size_old = con_space_size
         con_space_size = sum(con_recvcounts)
         ! The displacements necessary for mpi_alltoall.
-        con_sendcounts = con_sendcounts*int(NIfTot+1,MPIArg)
-        con_recvcounts = con_recvcounts*int(NIfTot+1,MPIArg)
+        con_sendcounts = con_sendcounts * int(NIfTot + 1, MPIArg)
+        con_recvcounts = con_recvcounts * int(NIfTot + 1, MPIArg)
         con_senddispls(0) = 0
         con_recvdispls(0) = 0
-        do i = 1, nProcessors-1
-            con_senddispls(i) = con_senddispls(i-1) + con_sendcounts(i-1)
-            con_recvdispls(i) = con_recvdispls(i-1) + con_recvcounts(i-1)
+        do i = 1, nProcessors - 1
+            con_senddispls(i) = con_senddispls(i - 1) + con_sendcounts(i - 1)
+            con_recvdispls(i) = con_recvdispls(i - 1) + con_recvcounts(i - 1)
         end do
 
-        write(6,'("Attempting to allocate temp_space. Size =",1X,F12.3,1X,"Mb")') &
-            real(con_space_size,dp)*(NIfTot+1.0_dp)*7.629392e-06_dp; call neci_flush(6)
+        write(6, '("Attempting to allocate temp_space. Size =",1X,F12.3,1X,"Mb")') &
+            real(con_space_size, dp) * (NIfTot + 1.0_dp) * 7.629392e-06_dp; call neci_flush(6)
         allocate(temp_space(0:NIfTot, con_space_size), stat=ierr)
-        call LogMemAlloc('temp_space', con_space_size*(NIfTot+1), size_n_int, t_r, TempTag, ierr)
+        call LogMemAlloc('temp_space', con_space_size * (NIfTot + 1), size_n_int, t_r, TempTag, ierr)
 
-        call MPIAlltoAllV(con_space(:,1:con_space_size_old), con_sendcounts, con_senddispls, &
-                          temp_space(:,1:con_space_size), con_recvcounts, con_recvdispls, ierr)
+        call MPIAlltoAllV(con_space(:, 1:con_space_size_old), con_sendcounts, con_senddispls, &
+                          temp_space(:, 1:con_space_size), con_recvcounts, con_recvdispls, ierr)
 
         if (allocated(con_space)) then
             deallocate(con_space, stat=ierr)
             call LogMemDealloc(t_r, ConTag, ierr)
         end if
-        write(6,'("Attempting to allocate con_space. Size =",1X,F12.3,1X,"Mb")') &
-            real(con_space_size,dp)*(NIfTot+1.0_dp)*7.629392e-06_dp; call neci_flush(6)
+        write(6, '("Attempting to allocate con_space. Size =",1X,F12.3,1X,"Mb")') &
+            real(con_space_size, dp) * (NIfTot + 1.0_dp) * 7.629392e-06_dp; call neci_flush(6)
         allocate(con_space(0:NIfTot, 1:con_space_size), stat=ierr)
-        call LogMemAlloc('con_space', con_space_size*(NIfTot+1), size_n_int, t_r, ConTag, ierr)
+        call LogMemAlloc('con_space', con_space_size * (NIfTot + 1), size_n_int, t_r, ConTag, ierr)
         con_space = temp_space
         deallocate(temp_space, stat=ierr)
         call LogMemDealloc(t_r, TempTag, ierr)
@@ -230,17 +230,17 @@ contains
         call MPISumAll(con_space_size, tot_con_space_size)
         ! get the sizes of the connected/trial space on the other procs, for
         ! estimating the max size of the buffer
-        call MPIAllGather(con_space_size,con_counts,ierr)
+        call MPIAllGather(con_space_size, con_counts, ierr)
         ! allocate buffer for communication of con_ht
         ! it is normally also allocated upon initialization, so deallocate
         ! the dummy version
-        if(allocated(con_send_buf)) deallocate(con_send_buf)
+        if (allocated(con_send_buf)) deallocate(con_send_buf)
         ! the most we can communicate at once is the full size of the largest
         ! trial/connected space on a single proc
-        allocate(con_send_buf(0:NConEntry,max(maxval(con_counts),maxval(trial_counts))))
+        allocate(con_send_buf(0:NConEntry, max(maxval(con_counts), maxval(trial_counts))))
 
-        write(6,'("Total size of connected space:",1X,i10)') tot_con_space_size
-        write(6,'("Size of connected space on this processor:",1X,i10)') con_space_size
+        write(6, '("Total size of connected space:",1X,i10)') tot_con_space_size
+        write(6, '("Size of connected space on this processor:",1X,i10)') con_space_size
         call neci_flush(6)
 
         ! Create the trial wavefunction from all processors, on all processors.
@@ -249,7 +249,7 @@ contains
 
         call sort_space_by_proc(SpawnedParts(0:NIfTot, 1:tot_trial_space_size), tot_trial_space_size, trial_counts)
 
-        write(6,'("Generating the vector \sum_j H_{ij} \psi^T_j...")'); call neci_flush(6)
+        write(6, '("Generating the vector \sum_j H_{ij} \psi^T_j...")'); call neci_flush(6)
         allocate(con_space_vecs(nexcit_keep, con_space_size), stat=ierr)
         call LogMemAlloc('con_space_vecs', con_space_size, 8, t_r, ConVecTag, ierr)
         call generate_connected_space_vector(SpawnedParts, trial_wfs_all_procs, con_space, con_space_vecs)
@@ -260,7 +260,7 @@ contains
         if (tCompareTrialAmps) call update_compare_trial_file(.true.)
 
         allocate(current_trial_amps(nexcit_keep, MaxWalkersPart), stat=ierr)
-        call LogMemAlloc('current_trial_amps', nexcit_keep*MaxWalkersPart, 8, t_r, CurrentTrialTag, ierr)
+        call LogMemAlloc('current_trial_amps', nexcit_keep * MaxWalkersPart, 8, t_r, CurrentTrialTag, ierr)
         call init_current_trial_amps()
 
         if (tTrialHash) call create_trial_hashtables(nexcit_keep)
@@ -282,20 +282,18 @@ contains
             root_print "Energy eigenvalue(s) of the trial space:", trial_energies(1:nexcit_keep)
         end if
         root_print "Trial wavefunction initialisation complete."
-        root_print "Total time (seconds) taken for trial wavefunction initialisation:",&
+        root_print "Total time (seconds) taken for trial wavefunction initialisation:", &
             get_total_time(Trial_Init_Time)
         call neci_flush(6)
 
-
-        if(tAS_TrialOffset)then
+        if (tAS_TrialOffset) then
             call set_AS_TrialOffset(nexcit_keep, replica_pairs)
-        endif
+        end if
 
     end subroutine init_trial_wf
 
-
     subroutine assign_trial_states(replica_pairs, ilut_list, ilut_ht, trial_dets, trial_amps, &
-                                    trials_kept, energies, energies_kept)
+                                   trials_kept, energies, energies_kept)
 
         ! Calculate the overlaps between each trial state and FCIQMC replica
         ! pair. For each replica, keep the trial state which has the largest
@@ -306,22 +304,22 @@ contains
         use hash, only: hash_table_lookup
 
         logical, intent(in) :: replica_pairs
-        integer(n_int), intent(in) :: ilut_list(0:,:)
+        integer(n_int), intent(in) :: ilut_list(0:, :)
         type(ll_node), pointer, intent(inout) :: ilut_ht(:)
-        integer(n_int), intent(in) :: trial_dets(0:,:)
-        HElement_t(dp), intent(in) :: trial_amps(:,:)
-        HElement_t(dp), intent(out) :: trials_kept(:,:)
+        integer(n_int), intent(in) :: trial_dets(0:, :)
+        HElement_t(dp), intent(in) :: trial_amps(:, :)
+        HElement_t(dp), intent(out) :: trials_kept(:, :)
         real(dp), intent(in) :: energies(:)
         real(dp), intent(out) :: energies_kept(:)
 
         integer :: i, idet, itrial, ireplica, det_ind, hash_val
         integer :: nI(nel), best_trial(1)
         real(dp) :: fciqmc_amps_real(size(energies_kept)), all_fciqmc_amps(lenof_sign)
-        real(dp) :: overlaps_real(size(energies_kept), size(trial_amps,1))
-        real(dp) :: all_overlaps_real(size(energies_kept), size(trial_amps,1))
+        real(dp) :: overlaps_real(size(energies_kept), size(trial_amps, 1))
+        real(dp) :: all_overlaps_real(size(energies_kept), size(trial_amps, 1))
 #ifdef CMPLX_
-        real(dp) :: overlaps_imag(size(energies_kept), size(trial_amps,1))
-        real(dp) :: all_overlaps_imag(size(energies_kept), size(trial_amps,1))
+        real(dp) :: overlaps_imag(size(energies_kept), size(trial_amps, 1))
+        real(dp) :: all_overlaps_imag(size(energies_kept), size(trial_amps, 1))
         real(dp) :: fciqmc_amps_imag(size(energies_kept))
 #endif
         logical :: tDetFound
@@ -338,25 +336,25 @@ contains
         ! For each, add the overlap for each trial amplitude to a running
         ! total for replica-trial state combinations.
 
-        do idet = 1, size(trial_amps,2)
+        do idet = 1, size(trial_amps, 2)
             ! Find if this determinant is occupied in any of the FCIQMC wave
             ! functions.
-            call decode_bit_det(nI, trial_dets(0:NIfTot,idet))
+            call decode_bit_det(nI, trial_dets(0:NIfTot, idet))
             ! Search the hash table for this determinant.
-            call hash_table_lookup(nI, trial_dets(:,idet), nifd, ilut_ht, ilut_list, det_ind, hash_val, tDetFound)
+            call hash_table_lookup(nI, trial_dets(:, idet), nifd, ilut_ht, ilut_list, det_ind, hash_val, tDetFound)
             if (tDetFound) then
-                call extract_sign(ilut_list(:,det_ind), all_fciqmc_amps)
+                call extract_sign(ilut_list(:, det_ind), all_fciqmc_amps)
 #ifdef CMPLX_
-            do i=1, inum_runs
-                fciqmc_amps_real(i) = all_fciqmc_amps(min_part_type(i))
-                fciqmc_amps_imag(i) = all_fciqmc_amps(max_part_type(i))
-            enddo
+                do i = 1, inum_runs
+                    fciqmc_amps_real(i) = all_fciqmc_amps(min_part_type(i))
+                    fciqmc_amps_imag(i) = all_fciqmc_amps(max_part_type(i))
+                end do
 #else
                 if (replica_pairs) then
 #if defined(PROG_NUMRUNS_) || defined(DOUBLERUN_)
-                    do i = 1, lenof_sign .div. 2
+                    do i = 1, lenof_sign.div.2
                         ! When using pairs of replicas, average their amplitudes.
-                        fciqmc_amps_real(i) = sum(all_fciqmc_amps(2*i-1:2*i))/2.0_dp
+                        fciqmc_amps_real(i) = sum(all_fciqmc_amps(2 * i - 1:2 * i)) / 2.0_dp
                     end do
 #endif
                 else
@@ -365,15 +363,15 @@ contains
 #endif
                 ! Add in the outer product between fciqmc_amps and the trial
                 ! state amplitudes.
-                do itrial = 1, size(trial_amps,1)
+                do itrial = 1, size(trial_amps, 1)
 #ifdef CMPLX_
                     ! (a+ib)(c+id) = ac-bd +i(ad+bc)
-                    overlaps_real(:,itrial) = overlaps_real(:,itrial) &
-                        + real(trial_amps(itrial,idet))*fciqmc_amps_real - aimag(trial_amps(itrial, idet))*fciqmc_amps_imag
-                    overlaps_imag(:,itrial) = overlaps_imag(:,itrial) &
-                        + real(trial_amps(itrial,idet))*fciqmc_amps_imag + aimag(trial_amps(itrial, idet))*fciqmc_amps_real
+                    overlaps_real(:, itrial) = overlaps_real(:, itrial) &
+                                    + real(trial_amps(itrial, idet)) * fciqmc_amps_real - aimag(trial_amps(itrial, idet)) * fciqmc_amps_imag
+                    overlaps_imag(:, itrial) = overlaps_imag(:, itrial) &
+                                    + real(trial_amps(itrial, idet)) * fciqmc_amps_imag + aimag(trial_amps(itrial, idet)) * fciqmc_amps_real
 #else
-                    overlaps_real(:,itrial) = overlaps_real(:,itrial) + trial_amps(itrial,idet)*fciqmc_amps_real
+                    overlaps_real(:, itrial) = overlaps_real(:, itrial) + trial_amps(itrial, idet) * fciqmc_amps_real
 #endif
                 end do
             end if
@@ -389,13 +387,13 @@ contains
 
 #ifdef CMPLX_
             do ireplica = 1, inum_runs
-                trials_kept(ireplica,:) = trial_amps(trial_excit_choice(ireplica),:)
+                trials_kept(ireplica, :) = trial_amps(trial_excit_choice(ireplica), :)
                 energies_kept(ireplica) = energies(trial_excit_choice(ireplica))
             end do
 #else
             if (replica_pairs) then
-                do ireplica = 1, lenof_sign .div. 2
-                    trials_kept(ireplica,:) = trial_amps(trial_excit_choice(ireplica),:)
+                do ireplica = 1, lenof_sign.div.2
+                    trials_kept(ireplica, :) = trial_amps(trial_excit_choice(ireplica), :)
                     energies_kept(ireplica) = energies(trial_excit_choice(ireplica))
 
                     root_print "trial state: ", trial_excit_choice(ireplica), &
@@ -404,7 +402,7 @@ contains
                 end do
             else
                 do ireplica = 1, lenof_sign
-                    trials_kept(ireplica,:) = trial_amps(trial_excit_choice(ireplica),:)
+                    trials_kept(ireplica, :) = trial_amps(trial_excit_choice(ireplica), :)
                     energies_kept(ireplica) = energies(trial_excit_choice(ireplica))
 
                     root_print "trial state: ", trial_excit_choice(ireplica), &
@@ -417,15 +415,15 @@ contains
         else
 #ifdef CMPLX_
             do ireplica = 1, inum_runs
-                best_trial = maxloc(abs(all_overlaps_real(ireplica,:)**2+all_overlaps_imag(ireplica,:)**2))
-                trials_kept(ireplica,:) = trial_amps(best_trial(1),:)
+                best_trial = maxloc(abs(all_overlaps_real(ireplica, :)**2 + all_overlaps_imag(ireplica, :)**2))
+                trials_kept(ireplica, :) = trial_amps(best_trial(1), :)
                 energies_kept(ireplica) = energies(best_trial(1))
             end do
 #else
             if (replica_pairs) then
-                do ireplica = 1, lenof_sign .div. 2
-                    best_trial = maxloc(abs(all_overlaps_real(ireplica,:)))
-                    trials_kept(ireplica,:) = trial_amps(best_trial(1),:)
+                do ireplica = 1, lenof_sign.div.2
+                    best_trial = maxloc(abs(all_overlaps_real(ireplica, :)))
+                    trials_kept(ireplica, :) = trial_amps(best_trial(1), :)
                     energies_kept(ireplica) = energies(best_trial(1))
 #ifdef DEBUG_
                     root_print "trial state: ", best_trial, " kept for replica ", ireplica, &
@@ -434,8 +432,8 @@ contains
                 end do
             else
                 do ireplica = 1, lenof_sign
-                    best_trial = maxloc(abs(all_overlaps_real(ireplica,:)))
-                    trials_kept(ireplica,:) = trial_amps(best_trial(1),:)
+                    best_trial = maxloc(abs(all_overlaps_real(ireplica, :)))
+                    trials_kept(ireplica, :) = trial_amps(best_trial(1), :)
                     energies_kept(ireplica) = energies(best_trial(1))
 
                     root_print "trial state: ", best_trial, " kept for replica ", ireplica, &
@@ -446,9 +444,7 @@ contains
 #endif
         end if
 
-
     end subroutine assign_trial_states
-
 
     subroutine remove_states_not_on_proc(ilut_list, ilut_list_size, update_trial_vector)
 
@@ -456,7 +452,7 @@ contains
         use load_balance_calcnodes, only: DetermineDetNode
 
         integer, intent(inout) :: ilut_list_size
-        integer(n_int), intent(inout) :: ilut_list(0:,:)
+        integer(n_int), intent(inout) :: ilut_list(0:, :)
         logical, intent(in) :: update_trial_vector
         integer :: i, counter, proc
         integer :: nI(nel)
@@ -470,7 +466,7 @@ contains
             if (proc == iProcIndex) then
                 counter = counter + 1
                 ilut_list(:, counter) = ilut_list(:, i)
-                if (update_trial_vector) trial_wfs(:,counter) = trial_wfs(:,i)
+                if (update_trial_vector) trial_wfs(:, counter) = trial_wfs(:, i)
             end if
         end do
 
@@ -492,11 +488,11 @@ contains
 
         do i = 1, list_2_size
             ! Binary search list_1 to see if list_2(:,i) is in it.
-            pos = binary_search(list_1(:, min_ind:list_1_size), list_2(:,i), NifD+1)
+            pos = binary_search(list_1(:, min_ind:list_1_size), list_2(:, i), NifD + 1)
             ! If it is in list 1, remove the state by setting it to 0.
             ! If it isn't in list 1 (pos < 0) then we can still search a smaller list next time.
             if (pos > 0) then
-                list_2(:,i) = 0
+                list_2(:, i) = 0
                 min_ind = min_ind + pos
             else
                 min_ind = min_ind - pos - 1
@@ -508,13 +504,13 @@ contains
         counter = 0
         do i = 1, list_2_size
             ! If the state wasn't set to 0:
-            if (.not. all(list_2(:,i) == 0)) then
+            if (.not. all(list_2(:, i) == 0)) then
                 counter = counter + 1
                 list_2(:, counter) = list_2(:, i)
             end if
         end do
 
-     list_2_size = counter
+        list_2_size = counter
 
     end subroutine remove_list1_states_from_list2
 
@@ -529,34 +525,34 @@ contains
         use hphf_integrals, only: hphf_off_diag_helement
         use MemoryManager, only: LogMemAlloc
 
-        integer(n_int), intent(in) :: trial_space(0:,:)
-        HElement_t(dp), intent(in) :: trial_vecs(:,:)
-        integer(n_int), intent(in) :: con_space(0:,:)
-        HElement_t(dp), intent(out) :: con_vecs(:,:)
+        integer(n_int), intent(in) :: trial_space(0:, :)
+        HElement_t(dp), intent(in) :: trial_vecs(:, :)
+        integer(n_int), intent(in) :: con_space(0:, :)
+        HElement_t(dp), intent(out) :: con_vecs(:, :)
 
         integer :: i, j, ierr
         integer :: nI(nel), nJ(nel)
         HElement_t(dp) :: H_ij
-        character (len=*), parameter :: this_routine = "generate_connected_space_vector"
+        character(len=*), parameter :: this_routine = "generate_connected_space_vector"
         type(ExcitationInformation_t) :: excitInfo
         con_vecs = 0.0_dp
 
         ! do i need to change this here for the non-hermitian transcorrelated
         ! hamiltonians?
-        do i = 1, size(con_vecs,2)
+        do i = 1, size(con_vecs, 2)
             call decode_bit_det(nI, con_space(0:NIfTot, i))
 
             ! i am only here in the guga case if i use the new way to calc
             ! the off-diagonal elements..
-            if (tGUGA) call init_csf_information(con_space(0:nifd,i))
+            if (tGUGA) call init_csf_information(con_space(0:nifd, i))
 
-            do j = 1, size(trial_vecs,2)
+            do j = 1, size(trial_vecs, 2)
 
                 call decode_bit_det(nJ, trial_space(0:NIfTot, j))
 
                 if (all(con_space(0:nifd, i) == trial_space(0:nifd, j))) then
-                    if ( tHPHF) then
-                        H_ij = hphf_diag_helement(nI, trial_space(:,j))
+                    if (tHPHF) then
+                        H_ij = hphf_diag_helement(nI, trial_space(:, j))
                     else if (tGUGA) then
                         H_ij = calcDiagMatEleGuga_nI(nI)
                     else
@@ -568,12 +564,12 @@ contains
                     if (tHPHF) then
                         ! maybe i need a non-hermitian keyword here..
                         ! since I am not sure if this breaks the kneci
-                        H_ij = hphf_off_diag_helement(nJ, nI, trial_space(:,j), con_space(:,i))
+                        H_ij = hphf_off_diag_helement(nJ, nI, trial_space(:, j), con_space(:, i))
                         ! H_ij = hphf_off_diag_helement(nI, nJ, con_space(:,i), trial_space(:,j))
                     else if (tGUGA) then
                         ASSERT(.not. t_non_hermitian)
-                        call calc_guga_matrix_element(con_space(:,i), trial_space(:,j), &
-                            excitInfo, H_ij, .true., 1)
+                        call calc_guga_matrix_element(con_space(:, i), trial_space(:, j), &
+                                                      excitInfo, H_ij, .true., 1)
 #ifdef CMPLX_
                         H_ij = conjg(H_ij)
 #endif
@@ -582,7 +578,7 @@ contains
                     else
                         ! maybe i need a non-hermitian keyword here..
                         ! since I am not sure if this breaks the kneci
-                        H_ij = get_helement(nJ, nI, trial_space(:,j), con_space(:,i))
+                        H_ij = get_helement(nJ, nI, trial_space(:, j), con_space(:, i))
                         ! H_ij = get_helement(nI, nJ, con_space(:,i), trial_space(:,j))
                     end if
                 end if
@@ -590,7 +586,7 @@ contains
 #ifdef CMPLX_
                 H_ij = conjg(H_ij)
 #endif
-                con_vecs(:,i) = con_vecs(:,i) + H_ij*trial_vecs(:,j)
+                con_vecs(:, i) = con_vecs(:, i) + H_ij * trial_vecs(:, j)
             end do
         end do
 
@@ -603,13 +599,13 @@ contains
         integer, intent(in) :: list_length
         integer, intent(out) :: min_elem, max_elem, num_elem
         integer :: floor_div_list_length, mod_list_length
-        integer :: num_elem_all_procs(0:nProcessors-1)
+        integer :: num_elem_all_procs(0:nProcessors - 1)
         integer :: i
 
         mod_list_length = mod(list_length, nProcessors)
-        floor_div_list_length = (list_length-mod_list_length)/nProcessors
+        floor_div_list_length = (list_length - mod_list_length) / nProcessors
 
-        do i = 0, nProcessors-1
+        do i = 0, nProcessors - 1
             num_elem_all_procs(i) = floor_div_list_length
             if (i < mod_list_length) num_elem_all_procs(i) = num_elem_all_procs(i) + 1
         end do
@@ -617,7 +613,7 @@ contains
         num_elem = num_elem_all_procs(iProcIndex)
 
         if (num_elem == 0) then
-            if (iProcIndex == 0) call stop_all("assign_elements_on_procs","There are no states &
+            if (iProcIndex == 0) call stop_all("assign_elements_on_procs", "There are no states &
                                                &in the trial space.")
             min_elem = 0
             max_elem = 0
@@ -628,12 +624,12 @@ contains
             min_elem = 1
             max_elem = num_elem
         else
-           min_elem = 0
-           do i = 0, iProcIndex-1
-              min_elem = min_elem + num_elem_all_procs(i)
-           end do
-           max_elem = min_elem + num_elem_all_procs(iProcIndex)
-           min_elem = min_elem + 1
+            min_elem = 0
+            do i = 0, iProcIndex - 1
+                min_elem = min_elem + num_elem_all_procs(i)
+            end do
+            max_elem = min_elem + num_elem_all_procs(iProcIndex)
+            min_elem = min_elem + 1
         end if
 
     end subroutine assign_elements_on_procs
@@ -646,26 +642,26 @@ contains
         logical :: texist
         character(len=*), parameter :: t_r = 'write_trial_space'
 
-        write(6,'("Writing the trial space to a file...")');
+        write(6, '("Writing the trial space to a file...")'); 
         iunit = get_free_unit()
 
         ! Let each processor write its trial states to the file. Each processor waits for
         ! the processor before it to finish before starting.
-        do i = 0, nProcessors-1
+        do i = 0, nProcessors - 1
 
             if (iProcIndex == i) then
 
                 if (i == 0) then
                     open(iunit, file='TRIALSPACE', status='replace')
                 else
-                    inquire(file='TRIALSPACE',exist=texist)
-                    if(.not.texist) call stop_all(t_r,'"TRIALSPACE" file not found')
+                    inquire (file='TRIALSPACE', exist=texist)
+                    if (.not. texist) call stop_all(t_r, '"TRIALSPACE" file not found')
                     open(iunit, file='TRIALSPACE', status='old', position='append')
                 end if
 
                 do j = 1, trial_space_size
                     do k = 0, nifd
-                        write(iunit, '(i24)', advance = 'no') trial_space(k,j)
+                        write(iunit, '(i24)', advance='no') trial_space(k, j)
                     end do
                     write(iunit, *)
                 end do
@@ -699,7 +695,7 @@ contains
         real(dp) :: all_norm_squared, norm_squared, norm
 
         MinInd = 1
-        n_walkers = int(TotWalkers,sizeof_int)
+        n_walkers = int(TotWalkers, sizeof_int)
 
         if (tFirstCall) then
             if (iProcIndex == root) then
@@ -712,7 +708,7 @@ contains
             ! Calculate the norm of the wavefunction.
             norm_squared = 0.0_dp
             do i = 1, n_walkers
-                call extract_sign(CurrentDets(:,i), temp_sign)
+                call extract_sign(CurrentDets(:, i), temp_sign)
                 norm_squared = norm_squared + sum(temp_sign**2)
             end do
             call MPIAllReduce(norm_squared, MPI_SUM, all_norm_squared)
@@ -720,7 +716,7 @@ contains
 
             ! Let each processor write its amplitudes to the file. Each processor waits for
             ! the processor before it to finish before starting.
-            do i = 0, nProcessors-1
+            do i = 0, nProcessors - 1
 
                 if (iProcIndex == i) then
 
@@ -732,15 +728,15 @@ contains
                     end if
 
                     do j = 1, trial_space_size
-                        write(iunit, '(es15.8,3x)', advance = 'no') trial_wfs(1,j)
+                        write(iunit, '(es15.8,3x)', advance='no') trial_wfs(1, j)
 
-                        call BinSearchParts(trial_space(:,j), MinInd, n_walkers, PartInd, tSuccess)
+                        call BinSearchParts(trial_space(:, j), MinInd, n_walkers, PartInd, tSuccess)
 
                         if (tSuccess) then
-                            call extract_sign (CurrentDets(:,PartInd), temp_sign)
-                            write(iunit, '(es15.8)', advance = 'yes') temp_sign/norm
+                            call extract_sign(CurrentDets(:, PartInd), temp_sign)
+                            write(iunit, '(es15.8)', advance='yes') temp_sign / norm
                         else
-                            write(iunit, '(es15.8)', advance = 'yes') 0.0_dp
+                            write(iunit, '(es15.8)', advance='yes') 0.0_dp
                         end if
 
                         MinInd = PartInd
@@ -777,42 +773,42 @@ contains
         current_trial_amps = 0.0_dp
 
         do i = 1, trial_space_size
-            call decode_bit_det(nI, trial_space(:,i))
-            hash_val = FindWalkerHash(nI,nWalkerHashes)
+            call decode_bit_det(nI, trial_space(:, i))
+            hash_val = FindWalkerHash(nI, nWalkerHashes)
             temp_node => HashIndex(hash_val)
             if (temp_node%ind /= 0) then
                 do while (associated(temp_node))
-                    if ( all(trial_space(0:nifd,i) == CurrentDets(0:nifd,temp_node%ind)) ) then
-                        call set_flag(CurrentDets(:,temp_node%ind), flag_trial)
-                        current_trial_amps(:,temp_node%ind) = trial_wfs(:,i)
+                    if (all(trial_space(0:nifd, i) == CurrentDets(0:nifd, temp_node%ind))) then
+                        call set_flag(CurrentDets(:, temp_node%ind), flag_trial)
+                        current_trial_amps(:, temp_node%ind) = trial_wfs(:, i)
                         exit
                     end if
                     temp_node => temp_node%next
                 end do
             end if
-            nullify(temp_node)
+            nullify (temp_node)
         end do
 
         do i = 1, con_space_size
-            call decode_bit_det(nI, con_space(:,i))
-            hash_val = FindWalkerHash(nI,nWalkerHashes)
+            call decode_bit_det(nI, con_space(:, i))
+            hash_val = FindWalkerHash(nI, nWalkerHashes)
             temp_node => HashIndex(hash_val)
             if (temp_node%ind /= 0) then
                 do while (associated(temp_node))
-                    if ( all(con_space(0:nifd,i) == CurrentDets(0:nifd,temp_node%ind)) ) then
+                    if (all(con_space(0:nifd, i) == CurrentDets(0:nifd, temp_node%ind))) then
                         ! If not also in the trial space. If it is, then we
                         ! don't want the connected flag to be set, or the
                         ! connected vector amplitude to be used.
-                        if (.not. test_flag(CurrentDets(:,temp_node%ind), flag_trial)) then
-                            call set_flag(CurrentDets(:,temp_node%ind), flag_connected)
-                            current_trial_amps(:,temp_node%ind) = con_space_vecs(:,i)
+                        if (.not. test_flag(CurrentDets(:, temp_node%ind), flag_trial)) then
+                            call set_flag(CurrentDets(:, temp_node%ind), flag_connected)
+                            current_trial_amps(:, temp_node%ind) = con_space_vecs(:, i)
                         end if
                         exit
                     end if
                     temp_node => temp_node%next
                 end do
             end if
-            nullify(temp_node)
+            nullify (temp_node)
         end do
 
     end subroutine init_current_trial_amps
@@ -830,7 +826,7 @@ contains
         integer :: i, nclash, hash_val, mode, ierr
         integer :: nI(nel)
 #ifdef CMPLX_
-        integer(n_int) :: temp(2*nexcit)
+        integer(n_int) :: temp(2 * nexcit)
 #else
         integer(n_int) :: temp(nexcit)
 #endif
@@ -850,7 +846,7 @@ contains
         ! When mode = 2, fill in arrays.
         do mode = 1, 2
             do i = 1, trial_space_size
-                call decode_bit_det(nI, trial_space(:,i))
+                call decode_bit_det(nI, trial_space(:, i))
                 hash_val = FindWalkerHash(nI, trial_space_size)
 
                 if (mode == 1) then
@@ -858,16 +854,16 @@ contains
                 else
                     nclash = trial_ht(hash_val)%nclash + 1
                     trial_ht(hash_val)%nclash = nclash
-                    trial_ht(hash_val)%states(0:nifd,nclash) = trial_space(0:nifd,i)
-                    trial_ht(hash_val)%states(IlutBits%ind_pop:,nclash) = &
-                        transfer(trial_wfs(:,i), temp)
+                    trial_ht(hash_val)%states(0:nifd, nclash) = trial_space(0:nifd, i)
+                    trial_ht(hash_val)%states(IlutBits%ind_pop:, nclash) = &
+                        transfer(trial_wfs(:, i), temp)
                 end if
             end do
 
             if (mode == 1) then
                 do i = 1, size(trial_ht)
                     nclash = trial_ht(i)%nclash
-                    allocate(trial_ht(i)%states(0:NConEntry,nclash))
+                    allocate(trial_ht(i)%states(0:NConEntry, nclash))
                     ! Set this back to zero to use it as a counter next time
                     ! around (when mode == 2).
                     trial_ht(i)%nclash = 0
@@ -888,7 +884,7 @@ contains
 
         allocate(con_ht(con_space_size), stat=ierr)
         if (ierr /= 0) then
-            write(6,'("ierr:")') ierr
+            write(6, '("ierr:")') ierr
             call neci_flush(6)
             call stop_all("t_r", "Error in allocating con_ht array.")
         end if
@@ -899,7 +895,7 @@ contains
 
         do mode = 1, 2
             do i = 1, con_space_size
-                call decode_bit_det(nI, con_space(:,i))
+                call decode_bit_det(nI, con_space(:, i))
                 hash_val = FindWalkerHash(nI, con_space_size)
 
                 if (mode == 1) then
@@ -907,16 +903,16 @@ contains
                 else
                     nclash = con_ht(hash_val)%nclash + 1
                     con_ht(hash_val)%nclash = nclash
-                    con_ht(hash_val)%states(0:nifd,nclash) = con_space(0:nifd,i)
-                    con_ht(hash_val)%states(IlutBits%ind_pop:,nclash) &
-                        = transfer(con_space_vecs(:,i), temp)
+                    con_ht(hash_val)%states(0:nifd, nclash) = con_space(0:nifd, i)
+                    con_ht(hash_val)%states(IlutBits%ind_pop:, nclash) &
+                        = transfer(con_space_vecs(:, i), temp)
                 end if
             end do
 
             if (mode == 1) then
                 do i = 1, size(con_ht)
                     nclash = con_ht(i)%nclash
-                    allocate(con_ht(i)%states(0:NConEntry,nclash))
+                    allocate(con_ht(i)%states(0:NConEntry, nclash))
                     ! Set this back to zero to use it as a counter next time
                     ! around (when mode == 2).
                     con_ht(i)%nclash = 0
@@ -961,7 +957,7 @@ contains
         end if
         if (allocated(trial_energies)) then
             deallocate(trial_energies, stat=ierr)
-            if (ierr /= 0) write(6,'("Error when deallocating trial_energies:",1X,i8)') ierr
+            if (ierr /= 0) write(6, '("Error when deallocating trial_energies:",1X,i8)') ierr
         end if
         if (allocated(con_space)) then
             deallocate(con_space, stat=ierr)
@@ -975,39 +971,38 @@ contains
             deallocate(current_trial_amps, stat=ierr)
             call LogMemDealloc(t_r, CurrentTrialTag, ierr)
         end if
-        if(allocated(con_send_buf)) deallocate(con_send_buf)
+        if (allocated(con_send_buf)) deallocate(con_send_buf)
 
     end subroutine end_trial_wf
 
 !------------------------------------------------------------------------------------------!
 
     subroutine refresh_trial_wf(trial_in, nexcit_calc, nexcit_keep, replica_pairs)
-      implicit none
-      type(subspace_in) :: trial_in
-      integer, intent(in) :: nexcit_calc, nexcit_keep
-      logical, intent(in) :: replica_pairs
+        implicit none
+        type(subspace_in) :: trial_in
+        integer, intent(in) :: nexcit_calc, nexcit_keep
+        logical, intent(in) :: replica_pairs
 
-      ! first, clear the current trial wavefunction
-      call end_trial_wf()
-      ! then, remove the flag from all determinants
-      call reset_trial_space()
-      ! now, generate the new trial wavefunction
-      call init_trial_wf(trial_in, nexcit_calc, nexcit_keep, replica_pairs)
+        ! first, clear the current trial wavefunction
+        call end_trial_wf()
+        ! then, remove the flag from all determinants
+        call reset_trial_space()
+        ! now, generate the new trial wavefunction
+        call init_trial_wf(trial_in, nexcit_calc, nexcit_keep, replica_pairs)
     end subroutine refresh_trial_wf
 
 !------------------------------------------------------------------------------------------!
 
     subroutine reset_trial_space()
-      use bit_reps, only: clr_flag
-      implicit none
-      integer(int64) :: i
+        use bit_reps, only: clr_flag
+        implicit none
+        integer(int64) :: i
 
-      do i = 1_int64, TotWalkers
-         ! remove the trial flag from all determinants
-         call clr_flag(CurrentDets(:,i),flag_trial)
-      enddo
+        do i = 1_int64, TotWalkers
+            ! remove the trial flag from all determinants
+            call clr_flag(CurrentDets(:, i), flag_trial)
+        end do
     end subroutine reset_trial_space
-
 
     !> Set the offset of the adaptive shift equal to the eigen energy(s)
     !> of the trial space.
@@ -1016,23 +1011,23 @@ contains
     subroutine Set_AS_TrialOffset(nexcit_keep, replica_pairs)
         use FciMCData, only: trial_energies
         integer, intent(in) :: nexcit_keep
-        logical, intent(in) :: replica_pairs 
+        logical, intent(in) :: replica_pairs
         integer :: i
-        character(*), parameter :: this_routine='Set_AS_TrialOffset'
+        character(*), parameter :: this_routine = 'Set_AS_TrialOffset'
 
-        if(replica_pairs)then
-            ASSERT(nexcit_keep == int(inum_runs/2.0))
+        if (replica_pairs) then
+            ASSERT(nexcit_keep == int(inum_runs / 2.0))
             do i = 1, nexcit_keep
-                ShiftOffset(2*i-1) = trial_energies(i)
-                ShiftOffset(2*i) = trial_energies(i)
-            enddo
+                ShiftOffset(2 * i - 1) = trial_energies(i)
+                ShiftOffset(2 * i) = trial_energies(i)
+            end do
         else
             ASSERT(nexcit_keep == inum_runs)
             ShiftOffset(1:inum_runs) = trial_energies(1:inum_runs)
-        endif
+        end if
 
         tAS_Offset = .true.
-        write(6,*) "The adaptive shift is offset by the eigen energy(s) of this trial-space."
+        write(6, *) "The adaptive shift is offset by the eigen energy(s) of this trial-space."
 
     end subroutine
 
