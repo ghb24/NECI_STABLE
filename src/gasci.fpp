@@ -10,7 +10,6 @@ module gasci
     public :: operator(==), operator(/=), possible_GAS_exc_gen, &
         GAS_exc_gen, GAS_specification, GASSpec_t, user_input_GAS_exc_gen
 
-
     type :: GAS_exc_gen_t
         integer :: val
     end type

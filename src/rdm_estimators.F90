@@ -18,7 +18,7 @@ module rdm_estimators
 contains
 
     subroutine init_rdm_estimates_t(est, nrdms_standard, nrdms_transition, open_output_file, &
-         filename)
+                                    filename)
 
         ! Initialise an rdm_estimates_t object. Allocate arrays to be large
         ! enough to hold estimates for nrdms_srandard+nrdms_transition RDMs.
@@ -53,9 +53,9 @@ contains
         allocate(est%energy_1_num(nrdms), stat=ierr)
         allocate(est%energy_2_num(nrdms), stat=ierr)
         allocate(est%energy_num(nrdms), stat=ierr)
-        if (.not. tGUGA)  allocate(est%spin_num(nrdms), stat=ierr)
-        if (tCalcPropEst) allocate(est%property(iNumPropToEst,nrdms), stat=ierr)
-        if (tEN2)         allocate(est%energy_pert(nrdms_standard), stat=ierr)
+        if (.not. tGUGA) allocate(est%spin_num(nrdms), stat=ierr)
+        if (tCalcPropEst) allocate(est%property(iNumPropToEst, nrdms), stat=ierr)
+        if (tEN2) allocate(est%energy_pert(nrdms_standard), stat=ierr)
 
         ! "Instantaneous" estimates over the previous sampling block.
         allocate(est%trace_inst(nrdms), stat=ierr)
@@ -63,9 +63,9 @@ contains
         allocate(est%energy_1_num_inst(nrdms), stat=ierr)
         allocate(est%energy_2_num_inst(nrdms), stat=ierr)
         allocate(est%energy_num_inst(nrdms), stat=ierr)
-        if (.not. tGUGA)  allocate(est%spin_num_inst(nrdms), stat=ierr)
-        if (tCalcPropEst) allocate(est%property_inst(iNumPropToEst,nrdms), stat=ierr)
-        if (tEN2)         allocate(est%energy_pert_inst(nrdms_standard), stat=ierr)
+        if (.not. tGUGA) allocate(est%spin_num_inst(nrdms), stat=ierr)
+        if (tCalcPropEst) allocate(est%property_inst(iNumPropToEst, nrdms), stat=ierr)
+        if (tEN2) allocate(est%energy_pert_inst(nrdms_standard), stat=ierr)
 
         ! Hermiticity errors, for the final RDMs.
         allocate(est%max_error_herm(nrdms), stat=ierr)
@@ -76,9 +76,9 @@ contains
         est%energy_1_num = 0.0_dp
         est%energy_2_num = 0.0_dp
         est%energy_num = 0.0_dp
-        if (.not. tGUGA)  est%spin_num = 0.0_dp
+        if (.not. tGUGA) est%spin_num = 0.0_dp
         if (tCalcPropEst) est%property = 0.0_dp
-        if (tEN2)         est%energy_pert = 0.0_dp
+        if (tEN2) est%energy_pert = 0.0_dp
 
         est%trace_inst = 0.0_dp
         est%norm_inst = 0.0_dp
@@ -95,13 +95,13 @@ contains
         ! If appropriate, create a new RDMEstimates file.
         if (iProcIndex == 0 .and. open_output_file) then
             est%write_unit = get_free_unit()
-            if(present(filename)) then
-               rdm_filename = filename
+            if (present(filename)) then
+                rdm_filename = filename
             else
-               rdm_filename = "RDMEstimates"
-            endif
+                rdm_filename = "RDMEstimates"
+            end if
             call write_rdm_est_file_header(est%write_unit, nrdms_standard, nrdms_transition, &
-                 rdm_filename)
+                                           rdm_filename)
         else
             ! If we don't have a file open with this unit, set it to something
             ! unique, so we can easily check, and which will cause an obvious
@@ -154,7 +154,7 @@ contains
     end subroutine dealloc_rdm_estimates_t
 
     subroutine write_rdm_est_file_header(write_unit, nrdms_standard, nrdms_transition, &
-         filename)
+                                         filename)
 
         ! Open a new RDMEstimates file (overwriting any existing file), and
         ! write a header to it, appropriate for when we are sampling nrdms RDMs.
@@ -181,22 +181,22 @@ contains
                 write(write_unit, '(3x,"Var+EN2 numerator",1x,i2)', advance='no') irdm
             end if
             if (tCalcPropEst) then
-                do iprop = 1,iNumPropToEst
+                do iprop = 1, iNumPropToEst
                     write(write_unit, '(4x,"Property(",i2,")",1x,i2)', advance='no') iprop, irdm
                 end do
             end if
             write(write_unit, '(7x,"Normalisation",1x,i2)', advance='no') irdm
         end do
 
-        do irdm = nrdms_standard+1, nrdms_standard+nrdms_transition
+        do irdm = nrdms_standard + 1, nrdms_standard + nrdms_transition
             if (tCalcPropEst) then
-                do iprop = 1,iNumPropToEst
+                do iprop = 1, iNumPropToEst
                     write(write_unit, '(4x,"Property(",i2,")",1x,i2)', advance='no') iprop, irdm
                 end do
             end if
         end do
 
-        write(write_unit,'()')
+        write(write_unit, '()')
 
     end subroutine write_rdm_est_file_header
 
@@ -226,7 +226,7 @@ contains
         real(dp) :: rdm_trace(est%nrdms), rdm_norm(est%nrdms)
         real(dp) :: rdm_energy_1(est%nrdms), rdm_energy_2(est%nrdms)
         real(dp) :: rdm_spin(est%nrdms)
-        real(dp) :: rdm_prop(iNumProptoEst,est%nrdms)
+        real(dp) :: rdm_prop(iNumProptoEst, est%nrdms)
         real(dp) :: energy_pert(est%nrdms_standard)
 
         ! Use the _inst variables as temporary variables to store the current
@@ -236,7 +236,7 @@ contains
         est%energy_1_num_inst = est%energy_1_num
         est%energy_2_num_inst = est%energy_2_num
         est%energy_num_inst = est%energy_num
-        if (.not. tGUGA)  est%spin_num_inst = est%spin_num
+        if (.not. tGUGA) est%spin_num_inst = est%spin_num
         if (tCalcPropEst) est%property_inst = est%property
 
         ! Calculate the new total values.
@@ -246,17 +246,17 @@ contains
 
         ! RDMs are normalised so that their trace is nel*(nel-1)/2.
         if (tGUGA) then
-            rdm_norm = rdm_trace*1.0_dp/(nel*(nel-1))
-            est%norm = est%trace*1.0_dp/(nel*(nel-1))
+            rdm_norm = rdm_trace * 1.0_dp / (nel * (nel - 1))
+            est%norm = est%trace * 1.0_dp / (nel * (nel - 1))
         else
-            rdm_norm = rdm_trace*2.0_dp/(nel*(nel-1))
-            est%norm = est%trace*2.0_dp/(nel*(nel-1))
+            rdm_norm = rdm_trace * 2.0_dp / (nel * (nel - 1))
+            est%norm = est%trace * 2.0_dp / (nel * (nel - 1))
         end if
 
         ! For the transition RDMs, we want to calculate the norms using the
         ! non-transition RDMs.
-        do irdm = est%nrdms_standard+1, est%nrdms
-            est%norm(irdm) = sqrt( est%norm(rdm_defs%state_labels(1,irdm)) * est%norm(rdm_defs%state_labels(2,irdm)) )
+        do irdm = est%nrdms_standard + 1, est%nrdms
+            est%norm(irdm) = sqrt(est%norm(rdm_defs%state_labels(1, irdm)) * est%norm(rdm_defs%state_labels(2, irdm)))
         end do
 
         ! The 1- and 2- electron operator contributions to the RDM energy.
@@ -269,7 +269,7 @@ contains
         call MPISumAll(rdm_energy_1, est%energy_1_num)
         call MPISumAll(rdm_energy_2, est%energy_2_num)
         ! The *total* energy, including the core contribution.
-        est%energy_num = est%energy_1_num + est%energy_2_num + ecore*est%norm
+        est%energy_num = est%energy_1_num + est%energy_2_num + ecore * est%norm
 
         ! Estimate of the expectation value of the spin squared operator
         ! (equal to S(S+1) for spin quantum number S).
@@ -285,7 +285,7 @@ contains
             call MPISumAll(rdm_prop, est%property)
             ! Add the contribution from the core (zero body) part of the perturbation.
             do iprop = 1, iNumPropToEst
-                est%property(iprop,:) = est%property(iprop,:) + est%norm*PropCore(iprop)
+                est%property(iprop, :) = est%property(iprop, :) + est%norm * PropCore(iprop)
             end do
         end if
 
@@ -297,7 +297,7 @@ contains
         est%energy_2_num_inst = est%energy_2_num - est%energy_2_num_inst
         est%energy_num_inst = est%energy_num - est%energy_num_inst
         if (.not. tGUGA) est%spin_num_inst = est%spin_num - est%spin_num_inst
-        if(tCalcPropEst) est%property_inst = est%property - est%property_inst
+        if (tCalcPropEst) est%property_inst = est%property - est%property_inst
 
         ! For the EN Perturbation terms, we clear them at the start of
         ! every RDM averaging cycle, so they're treated a bit differently.
@@ -313,7 +313,7 @@ contains
     end subroutine calc_2rdm_estimates_wrapper
 
     subroutine write_rdm_estimates(rdm_defs, est, final_output, write_to_separate_file, &
-         tInitsRDM)
+                                   tInitsRDM)
 
         ! Write RDM estimates to the RDMEstimates file. Specifically, the
         ! numerator of the energy and spin^2 estimators are output, as is the
@@ -334,69 +334,69 @@ contains
 
         integer :: irdm, iprop
 
-        write(6,*) "Writing RDMs to file at iteration ", iter
+        write(6, *) "Writing RDMs to file at iteration ", iter
 
         if (write_to_separate_file) then
             if (tRDMInstEnergy) then
-                write(est%write_unit, '(1x,i13)', advance='no') Iter+PreviousCycles
+                write(est%write_unit, '(1x,i13)', advance='no') Iter + PreviousCycles
                 do irdm = 1, est%nrdms_standard
                     write(est%write_unit, '(3x,es20.13)', advance='no') &
                         est%energy_num_inst(irdm)
                     if (.not. tGUGA) then
-                        write(est%write_unit, '(3x,es20.13)', advance = 'no') &
+                        write(est%write_unit, '(3x,es20.13)', advance='no') &
                             est%spin_num_inst(irdm)
                     end if
                     if (tEN2) then
-                        write(est%write_unit,'(2(3x,es20.13))', advance='no') &
+                        write(est%write_unit, '(2(3x,es20.13))', advance='no') &
                             est%energy_pert_inst(irdm), est%energy_pert_inst(irdm) + est%energy_num_inst(irdm)
                     end if
                     if (tCalcPropEst) then
-                        do iprop=1,iNumPropToEst
-                            write(est%write_unit,'(3x,es20.13)', advance='no') &
-                                est%property_inst(iprop,irdm)
+                        do iprop = 1, iNumPropToEst
+                            write(est%write_unit, '(3x,es20.13)', advance='no') &
+                                est%property_inst(iprop, irdm)
                         end do
                     end if
                     write(est%write_unit, '(3x,es20.13)', advance='no') &
                         est%norm_inst(irdm)
                 end do
-                do irdm = est%nrdms_standard+1, est%nrdms_standard+est%nrdms_transition
-                    if(tCalcPropEst) then
+                do irdm = est%nrdms_standard + 1, est%nrdms_standard + est%nrdms_transition
+                    if (tCalcPropEst) then
                         do iprop = 1, iNumPropToEst
-                            write(est%write_unit,'(3x,es20.13)', advance='no') &
-                                est%property_inst(iprop,irdm)
-                        enddo
-                    endif
+                            write(est%write_unit, '(3x,es20.13)', advance='no') &
+                                est%property_inst(iprop, irdm)
+                        end do
+                    end if
                 end do
-                write(est%write_unit,'()')
+                write(est%write_unit, '()')
             else
-                write(est%write_unit, '(1x,i13)', advance='no') Iter+PreviousCycles
+                write(est%write_unit, '(1x,i13)', advance='no') Iter + PreviousCycles
                 do irdm = 1, est%nrdms_standard
                     write(est%write_unit, '(3x,es20.13)', advance='no') &
                         est%energy_num(irdm)
                     if (.not. tGUGA) then
-                        write(est%write_unit, '(3x,es20.13)', advance = 'no') &
+                        write(est%write_unit, '(3x,es20.13)', advance='no') &
                             est%spin_num(irdm)
                     end if
                     if (tEN2) then
-                        write(est%write_unit,'(2(3x,es20.13))', advance='no') &
+                        write(est%write_unit, '(2(3x,es20.13))', advance='no') &
                             est%energy_pert(irdm), est%energy_pert(irdm) + est%energy_num(irdm)
                     end if
                     if (tCalcPropEst) then
                         do iprop = 1, iNumPropToEst
-                            write(est%write_unit,'(3x,es20.13)', advance='no') &
-                                est%property(iprop,irdm)
+                            write(est%write_unit, '(3x,es20.13)', advance='no') &
+                                est%property(iprop, irdm)
                         end do
                     end if
                     write(est%write_unit, '(3x,es20.13)', advance='no') &
                         est%norm(irdm)
                 end do
-                do irdm = est%nrdms_standard+1, est%nrdms_standard+est%nrdms_transition
-                    if(tCalcPropEst) then
-                        do iprop=1,iNumPropToEst
-                            write(est%write_unit,'(3x,es20.13)',advance='no') &
-                                est%property(iprop,irdm)
-                        enddo
-                    endif
+                do irdm = est%nrdms_standard + 1, est%nrdms_standard + est%nrdms_transition
+                    if (tCalcPropEst) then
+                        do iprop = 1, iNumPropToEst
+                            write(est%write_unit, '(3x,es20.13)', advance='no') &
+                                est%property(iprop, irdm)
+                        end do
+                    end if
                 end do
                 write(est%write_unit, '()')
             end if
@@ -406,68 +406,68 @@ contains
 
         if (final_output) then
             ! Banner for the start of the 2-RDM section in output.
-           if(tInitsRDM) then
-              write(6,'(1x,2("="),1x,"INFORMATION FOR FINAL 2-RDMS (Initiators)",1x,57("="),/)')
-           else if(tAdaptiveShift) then
-              write(6,'(1x,2("="),1x,"INFORMATION FOR FINAL 2-RDMS (Lagrangian)",1x,57("="),/)')
-           else
-              write(6,'(1x,2("="),1x,"INFORMATION FOR FINAL 2-RDMS",1x,57("="),/)')
-           endif
+            if (tInitsRDM) then
+                write(6, '(1x,2("="),1x,"INFORMATION FOR FINAL 2-RDMS (Initiators)",1x,57("="),/)')
+            else if (tAdaptiveShift) then
+                write(6, '(1x,2("="),1x,"INFORMATION FOR FINAL 2-RDMS (Lagrangian)",1x,57("="),/)')
+            else
+                write(6, '(1x,2("="),1x,"INFORMATION FOR FINAL 2-RDMS",1x,57("="),/)')
+            end if
 
             do irdm = 1, est%nrdms_standard
-                write(6,'(1x,"2-RDM ESTIMATES FOR STATE",1x,'//int_fmt(irdm)//',":",)') irdm
+                write(6, '(1x,"2-RDM ESTIMATES FOR STATE",1x,'//int_fmt(irdm)//',":",)') irdm
 
-                write(6,'(1x,"Trace of 2-el-RDM before normalisation:",1x,es17.10)') est%trace(irdm)
+                write(6, '(1x,"Trace of 2-el-RDM before normalisation:",1x,es17.10)') est%trace(irdm)
                 if (tGUGA) then
-                    write(6,'(1x,"Trace of 2-el-RDM after normalisation:",1x,es17.10)') est%trace(irdm)/est%norm(irdm)/2.0_dp
+                    write(6, '(1x,"Trace of 2-el-RDM after normalisation:",1x,es17.10)') est%trace(irdm) / est%norm(irdm) / 2.0_dp
                 else
-                    write(6,'(1x,"Trace of 2-el-RDM after normalisation:",1x,es17.10)') est%trace(irdm)/est%norm(irdm)
+                    write(6, '(1x,"Trace of 2-el-RDM after normalisation:",1x,es17.10)') est%trace(irdm) / est%norm(irdm)
                 end if
 
-                write(6,'(1x,"Energy contribution from the 1-RDM:",1x,es17.10)') est%energy_1_num(irdm)/est%norm(irdm)
-                write(6,'(1x,"Energy contribution from the 2-RDM:",1x,es17.10)') est%energy_2_num(irdm)/est%norm(irdm)
-                write(6,'(1x,"*TOTAL ENERGY* CALCULATED USING THE *REDUCED DENSITY MATRICES*:",1x,es20.13,/)') &
-                    est%energy_num(irdm)/est%norm(irdm)
+                write(6, '(1x,"Energy contribution from the 1-RDM:",1x,es17.10)') est%energy_1_num(irdm) / est%norm(irdm)
+                write(6, '(1x,"Energy contribution from the 2-RDM:",1x,es17.10)') est%energy_2_num(irdm) / est%norm(irdm)
+                write(6, '(1x,"*TOTAL ENERGY* CALCULATED USING THE *REDUCED DENSITY MATRICES*:",1x,es20.13,/)') &
+                    est%energy_num(irdm) / est%norm(irdm)
 
                 if (tEN2) then
-                    write(6,'(1x,"EN2 corrections are below. Note that these may have a much &
+                    write (6, '(1x,"EN2 corrections are below. Note that these may have a much &
                                   &larger error bar than the",/," variational energy above. Please do a &
                                   &blocking analysis rather than just using the energies below.")')
-                    write(6,'(1x,"EN2 energy correction:",1x,es17.10)') est%energy_pert(irdm)/est%norm(irdm)
-                    write(6,'(1x,"*TOTAL ENERGY* including the EN2 correction:",1x,es17.10,/)') &
-                        (est%energy_num(irdm) + est%energy_pert(irdm))/est%norm(irdm)
+                    write(6, '(1x,"EN2 energy correction:",1x,es17.10)') est%energy_pert(irdm) / est%norm(irdm)
+                    write(6, '(1x,"*TOTAL ENERGY* including the EN2 correction:",1x,es17.10,/)') &
+                        (est%energy_num(irdm) + est%energy_pert(irdm)) / est%norm(irdm)
                 end if
 
                 ! Hermiticity error measures.
-                write(6,'(1x,"Hermiticty error estimates:")')
-                write(6,'(1x,i15,f30.20,5x,a41)') Iter+PreviousCycles, est%max_error_herm(irdm), &
-                                                '(Iteration, MAX ABS ERROR IN HERMITICITY)'
-                write(6,'(1x,i15,f30.20,5x,a41,/)') Iter+PreviousCycles, est%sum_error_herm(irdm), &
-                                                '(Iteration, SUM ABS ERROR IN HERMITICITY)'
+                write(6, '(1x,"Hermiticty error estimates:")')
+                write(6, '(1x,i15,f30.20,5x,a41)') Iter + PreviousCycles, est%max_error_herm(irdm), &
+                    '(Iteration, MAX ABS ERROR IN HERMITICITY)'
+                write(6, '(1x,i15,f30.20,5x,a41,/)') Iter + PreviousCycles, est%sum_error_herm(irdm), &
+                    '(Iteration, SUM ABS ERROR IN HERMITICITY)'
             end do
-            do irdm = est%nrdms_standard+1, est%nrdms
+            do irdm = est%nrdms_standard + 1, est%nrdms
                 associate(state_labels => rdm_defs%state_labels, repeat_label => rdm_defs%repeat_label)
-                    write(6,'(1x,"2-RDM ESTIMATES FOR TRANSITION",1x,'//int_fmt(state_labels(2,irdm))//'," -> ",&
-                              &'//int_fmt(state_labels(1,irdm))//',1x,"(",i1,")",)') &
-                              state_labels(2,irdm), state_labels(1,irdm), repeat_label(irdm)
+                    write(6, '(1x,"2-RDM ESTIMATES FOR TRANSITION",1x,'//int_fmt(state_labels(2, irdm))//'," -> ",&
+                              &'//int_fmt(state_labels(1, irdm))//',1x,"(",i1,")",)') &
+                              state_labels(2, irdm), state_labels(1, irdm), repeat_label(irdm)
                 end associate
 
-                write(6,'(1x,"Trace of 2-el-RDM before normalisation:",1x,es17.10)') est%trace(irdm)
-                write(6,'(1x,"Trace of 2-el-RDM after normalisation:",1x,es17.10,/)') est%trace(irdm)/est%norm(irdm)
+                write(6, '(1x,"Trace of 2-el-RDM before normalisation:",1x,es17.10)') est%trace(irdm)
+                write(6, '(1x,"Trace of 2-el-RDM after normalisation:",1x,es17.10,/)') est%trace(irdm) / est%norm(irdm)
 
                 ! Hermiticity difference measures - these shouldn't be zero for
                 ! transition RDMs, but it useful to give them to the test
                 ! suite, to make sure somebody doesn't change something to
                 ! start adding an RDM element on the wrong side of the diagonal.
-                write(6,'(1x,"Hermiticty difference estimates, for test suite:")')
-                write(6,'(1x,i15,f30.20,5x,a41)') Iter+PreviousCycles, est%max_error_herm(irdm), &
-                                                '(Iteration, MAX ABS DIFF IN HERMITICITY)'
-                write(6,'(1x,i15,f30.20,5x,a41,/)') Iter+PreviousCycles, est%sum_error_herm(irdm), &
-                                                '(Iteration, SUM ABS DIFF IN HERMITICITY)'
+                write(6, '(1x,"Hermiticty difference estimates, for test suite:")')
+                write(6, '(1x,i15,f30.20,5x,a41)') Iter + PreviousCycles, est%max_error_herm(irdm), &
+                    '(Iteration, MAX ABS DIFF IN HERMITICITY)'
+                write(6, '(1x,i15,f30.20,5x,a41,/)') Iter + PreviousCycles, est%sum_error_herm(irdm), &
+                    '(Iteration, SUM ABS DIFF IN HERMITICITY)'
             end do
 
             ! Banner for the end of the 2-RDM section in output.
-            write(6,'(1x,89("="))')
+            write(6, '(1x,89("="))')
         end if
 
     end subroutine write_rdm_estimates
@@ -495,19 +495,19 @@ contains
 
         ! Loop over all elements in the 2-RDM.
         do ielem = 1, rdm%nelements
-            ijkl = rdm%elements(0,ielem)
-            call extract_sign_rdm(rdm%elements(:,ielem), rdm_sign)
+            ijkl = rdm%elements(0, ielem)
+            call extract_sign_rdm(rdm%elements(:, ielem), rdm_sign)
 
             ! Decode pqrs label into p, q, r and s labels.
             call calc_separate_rdm_labels(ijkl, ij, kl, i, j, k, l)
 
             ! The 2-RDM contribution to the energy:
-            rdm_energy_2 = rdm_energy_2 + rdm_sign*two_elec_int(i,j,k,l)
+            rdm_energy_2 = rdm_energy_2 + rdm_sign * two_elec_int(i, j, k, l)
             ! The 1-RDM contribution to the energy:
-            if (i == k) rdm_energy_1 = rdm_energy_1 + rdm_sign*one_elec_int(j,l)/(nel-1)
-            if (j == l) rdm_energy_1 = rdm_energy_1 + rdm_sign*one_elec_int(i,k)/(nel-1)
-            if (i == l) rdm_energy_1 = rdm_energy_1 - rdm_sign*one_elec_int(j,k)/(nel-1)
-            if (j == k) rdm_energy_1 = rdm_energy_1 - rdm_sign*one_elec_int(i,l)/(nel-1)
+            if (i == k) rdm_energy_1 = rdm_energy_1 + rdm_sign * one_elec_int(j, l) / (nel - 1)
+            if (j == l) rdm_energy_1 = rdm_energy_1 + rdm_sign * one_elec_int(i, k) / (nel - 1)
+            if (i == l) rdm_energy_1 = rdm_energy_1 - rdm_sign * one_elec_int(j, k) / (nel - 1)
+            if (j == k) rdm_energy_1 = rdm_energy_1 - rdm_sign * one_elec_int(i, l) / (nel - 1)
         end do
 
     end subroutine calc_rdm_energy
@@ -520,7 +520,7 @@ contains
         use LoggingData, only: iNumPropToEst
 
         type(rdm_list_t), intent(in) :: rdm
-        real(dp), intent(out) :: rdm_prop(iNumPropToEst,rdm%sign_length)
+        real(dp), intent(out) :: rdm_prop(iNumPropToEst, rdm%sign_length)
 
         integer(int_rdm) :: ijkl
         integer :: ielem, iprop, ij, kl, i, j, k, l
@@ -530,18 +530,18 @@ contains
 
         ! Loop over all elements in the 2-RDM.
         do ielem = 1, rdm%nelements
-            ijkl = rdm%elements(0,ielem)
-            call extract_sign_rdm(rdm%elements(:,ielem), rdm_sign)
+            ijkl = rdm%elements(0, ielem)
+            call extract_sign_rdm(rdm%elements(:, ielem), rdm_sign)
 
             ! Decode pqrs label into p, q, r and s labels.
             call calc_separate_rdm_labels(ijkl, ij, kl, i, j, k, l)
 
-            do iprop=1, iNumPropToEst
-            ! We get dot product of the 1-RDM and one-electron property integrals:
-                if (i == k) rdm_prop(iprop,:) = rdm_prop(iprop,:) + rdm_sign*GetPropInts(j,l,iprop)/(nel-1)
-                if (j == l) rdm_prop(iprop,:) = rdm_prop(iprop,:) + rdm_sign*GetPropInts(i,k,iprop)/(nel-1)
-                if (i == l) rdm_prop(iprop,:) = rdm_prop(iprop,:) - rdm_sign*GetPropInts(j,k,iprop)/(nel-1)
-                if (j == k) rdm_prop(iprop,:) = rdm_prop(iprop,:) - rdm_sign*GetPropInts(i,l,iprop)/(nel-1)
+            do iprop = 1, iNumPropToEst
+                ! We get dot product of the 1-RDM and one-electron property integrals:
+                if (i == k) rdm_prop(iprop, :) = rdm_prop(iprop, :) + rdm_sign * GetPropInts(j, l, iprop) / (nel - 1)
+                if (j == l) rdm_prop(iprop, :) = rdm_prop(iprop, :) + rdm_sign * GetPropInts(i, k, iprop) / (nel - 1)
+                if (i == l) rdm_prop(iprop, :) = rdm_prop(iprop, :) - rdm_sign * GetPropInts(j, k, iprop) / (nel - 1)
+                if (j == k) rdm_prop(iprop, :) = rdm_prop(iprop, :) - rdm_sign * GetPropInts(i, l, iprop) / (nel - 1)
             end do
         end do
     end subroutine calc_rdm_prop
@@ -569,13 +569,12 @@ contains
 
         ! Loop over all RDM elements.
         do ielem = 1, rdm%nelements
-            ijkl = rdm%elements(0,ielem)
+            ijkl = rdm%elements(0, ielem)
             ! Obtain spin orbital labels.
             call calc_separate_rdm_labels(ijkl, ij, kl, i, j, k, l)
             ! Obtain spatial orbital labels.
-            p = spatial(i); q = spatial(j);
-            r = spatial(k); s = spatial(l);
-
+            p = spatial(i); q = spatial(j); 
+            r = spatial(k); s = spatial(l); 
             ! Note to the reader for the following code: if mod(i,2) == 1 then
             ! i is a beta (b) orbital, if mod(i,2) == 0 then it is an alpha (a)
             ! obrital.
@@ -584,12 +583,12 @@ contains
             if (p == r .and. q == s) then
                 ! If we get to this point then we definitely have a contribution
                 ! to add in, so extract the sign.
-                call extract_sign_rdm(rdm%elements(:,ielem), rdm_sign)
+                call extract_sign_rdm(rdm%elements(:, ielem), rdm_sign)
 
                 ! If all labels have the same spatial part (IIII):
                 if (p == q) then
                     if (is_beta(i) .and. is_alpha(j) .and. is_beta(k) .and. is_alpha(l)) then
-                        rdm_spin = rdm_spin - 6.0_dp*rdm_sign
+                        rdm_spin = rdm_spin - 6.0_dp * rdm_sign
                     end if
 
                 else
@@ -597,26 +596,26 @@ contains
 
                     ! The following if-statement allows the following spin combinations:
                     ! aaaa, bbbb, abab and baba.
-                    if (mod(i,2) == mod(k,2) .and. mod(j,2) == mod(l,2)) then
+                    if (mod(i, 2) == mod(k, 2) .and. mod(j, 2) == mod(l, 2)) then
 
-                        if (mod(i,2) == mod(j,2)) then
+                        if (mod(i, 2) == mod(j, 2)) then
                             ! aaaa and bbbb.
-                            rdm_spin = rdm_spin + 2.0_dp*rdm_sign
+                            rdm_spin = rdm_spin + 2.0_dp * rdm_sign
                         else
                             ! abab and baba.
-                            rdm_spin = rdm_spin - 2.0_dp*rdm_sign
+                            rdm_spin = rdm_spin - 2.0_dp * rdm_sign
                         end if
                     else
                         ! We only get here if the spin parts are abba or baab.
-                        rdm_spin = rdm_spin + 4.0_dp*rdm_sign
+                        rdm_spin = rdm_spin + 4.0_dp * rdm_sign
                     end if
 
                 end if
             end if
         end do
 
-        rdm_spin = rdm_spin + 3.0_dp*real(nel,dp)*rdm_norm
-        rdm_spin = rdm_spin/4.0_dp
+        rdm_spin = rdm_spin + 3.0_dp * real(nel, dp) * rdm_norm
+        rdm_spin = rdm_spin / 4.0_dp
 
     end subroutine calc_rdm_spin
 
@@ -658,7 +657,7 @@ contains
 
         ! Loop over all determinants.
         do idet = 1, en_pert%ndets
-            ilut(0:nifd) = en_pert%dets(0:nifd,idet)
+            ilut(0:nifd) = en_pert%dets(0:nifd, idet)
             call decode_bit_det(nI, ilut)
 
             if (tHPHF) then
@@ -667,10 +666,10 @@ contains
                 h_aa = get_helement(nI, nI, 0)
             end if
 
-            call extract_sign_EN(en_pert%sign_length, en_pert%dets(:,idet), contrib)
+            call extract_sign_EN(en_pert%sign_length, en_pert%dets(:, idet), contrib)
 
             do istate = 1, en_pert%sign_length
-                contrib_rdm(istate) = contrib(istate)/( (rdm_energy_num(istate)/rdm_norm(istate)) - h_aa )
+                contrib_rdm(istate) = contrib(istate) / ((rdm_energy_num(istate) / rdm_norm(istate)) - h_aa)
             end do
 
             energy_pert = energy_pert + contrib_rdm
@@ -725,7 +724,7 @@ contains
         rdm_recv%nelements = 0
 
         ! Clear the spawn object before we use it.
-        spawn%free_slots = spawn%init_free_slots(0:nProcessors-1)
+        spawn%free_slots = spawn%init_free_slots(0:nProcessors - 1)
         call clear_hash_table(spawn%rdm_send%hash_table)
 
         ! Loop over all RDM elements.
@@ -736,9 +735,9 @@ contains
                 nearly_full = .false.
             end if
 
-            ijkl = rdm%elements(0,ielem)
+            ijkl = rdm%elements(0, ielem)
             ! Obtain RDM element sign
-            call extract_sign_rdm(rdm%elements(:,ielem), rdm_sign)
+            call extract_sign_rdm(rdm%elements(:, ielem), rdm_sign)
 
             if (tGUGA) then
                 call extract_2_rdm_ind(ijkl, i, j, k, l, ij_, kl_)
@@ -772,15 +771,15 @@ contains
 
         ! Find the largest error and sum of errrors on this processor.
         do ielem = 1, rdm_recv%nelements
-            call extract_sign_rdm(rdm_recv%elements(:,ielem), rdm_sign)
+            call extract_sign_rdm(rdm_recv%elements(:, ielem), rdm_sign)
             rdm_sign = abs(rdm_sign)
             max_error_herm = max(max_error_herm, rdm_sign)
             sum_error_herm = sum_error_herm + rdm_sign
         end do
 
         ! The input 2-RDM wasn't normalised, so need to normalise these.
-        max_error_herm = max_error_herm/rdm_norm
-        sum_error_herm = sum_error_herm/rdm_norm
+        max_error_herm = max_error_herm / rdm_norm
+        sum_error_herm = sum_error_herm / rdm_norm
 
         ! Find the largest error and sum of errors across all processors.
         call MPIAllReduce(max_error_herm, MPI_MAX, max_error_herm_all)

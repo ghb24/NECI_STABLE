@@ -14,9 +14,9 @@ module orb_idx_mod
     implicit none
     private
     public :: OrbIdx_t, SpinOrbIdx_t, SpatOrbIdx_t, size, &
-        SpinProj_t, calc_spin, calc_spin_raw, alpha, beta, &
-        operator(==), operator(/=), operator(+), operator(-), &
-        sum, to_ilut, lex_leq, lex_geq, write_det
+              SpinProj_t, calc_spin, calc_spin_raw, alpha, beta, &
+              operator(==), operator(/=), operator(+), operator(-), &
+              sum, to_ilut, lex_leq, lex_geq, write_det
 
     type, abstract :: OrbIdx_t
         integer, allocatable :: idx(:)
@@ -68,11 +68,11 @@ module orb_idx_mod
         module procedure neq_SpinProj_t_SpinProj_t
     end interface
 
-    interface operator (+)
+    interface operator(+)
         module procedure add_SpinProj_t_SpinProj_t
     end interface
 
-    interface operator (-)
+    interface operator(-)
         module procedure sub_SpinProj_t_SpinProj_t
         module procedure neg_SpinProj_t
     end interface
@@ -91,7 +91,7 @@ module orb_idx_mod
         module procedure sum_SpinProj_t
     end interface
 
-    contains
+contains
 
     DEBUG_IMPURE function construction_from_array_SpinOrbIdx_t(idx, m_s) result(res)
         integer, intent(in) :: idx(:)
@@ -110,7 +110,7 @@ module orb_idx_mod
     end function
 
 #:for orb_idx_type in OrbIdxTypes
-    pure function size_${orb_idx_type}$(orbs) result(res)
+    pure function size_${orb_idx_type}$ (orbs) result(res)
         type(${orb_idx_type}$), intent(in) :: orbs
         integer :: res
         res = size(orbs%idx)
@@ -118,7 +118,7 @@ module orb_idx_mod
 #:endfor
 
 #:for orb_idx_type in OrbIdxTypes
-    pure function eq_${orb_idx_type}$(lhs, rhs) result(res)
+    pure function eq_${orb_idx_type}$ (lhs, rhs) result(res)
         type(${orb_idx_type}$), intent(in) :: lhs, rhs
         logical :: res(size(lhs))
         res = lhs%idx == rhs%idx
@@ -126,7 +126,7 @@ module orb_idx_mod
 #:endfor
 
 #:for orb_idx_type in OrbIdxTypes
-    pure function neq_${orb_idx_type}$(lhs, rhs) result(res)
+    pure function neq_${orb_idx_type}$ (lhs, rhs) result(res)
         type(${orb_idx_type}$), intent(in) :: lhs, rhs
         logical :: res(size(lhs))
         res = lhs%idx /= rhs%idx
@@ -140,7 +140,6 @@ module orb_idx_mod
 
         character(*), parameter :: this_routine = 'SpinOrbIdx_t_from_SpatOrbIdx_t'
 
-
         if (present(m_s)) then
             @:ASSERT(any(m_s == [alpha, beta]))
             res%idx = f(spat_orbs%idx(:), m_s)
@@ -149,17 +148,17 @@ module orb_idx_mod
             res%idx(1::2) = f(spat_orbs%idx(:), beta)
             res%idx(2::2) = f(spat_orbs%idx(:), alpha)
         end if
-        contains
-            elemental function f(spat_orb_idx, m_s) result(spin_orb_idx)
-                integer, intent(in) :: spat_orb_idx
-                type(SpinProj_t), intent(in) :: m_s
-                integer :: spin_orb_idx
-                if (m_s == alpha) then
-                    spin_orb_idx = 2 * spat_orb_idx
-                else
-                    spin_orb_idx = 2 * spat_orb_idx - 1
-                end if
-            end function
+    contains
+        elemental function f(spat_orb_idx, m_s) result(spin_orb_idx)
+            integer, intent(in) :: spat_orb_idx
+            type(SpinProj_t), intent(in) :: m_s
+            integer :: spin_orb_idx
+            if (m_s == alpha) then
+                spin_orb_idx = 2 * spat_orb_idx
+            else
+                spin_orb_idx = 2 * spat_orb_idx - 1
+            end if
+        end function
     end function
 
     pure function to_ilut(det_I) result(ilut)
@@ -221,7 +220,7 @@ module orb_idx_mod
     end function
 
 #:for type in OrbIdxTypes
-    DEBUG_IMPURE function lex_leq_${type}$(lhs, rhs) result(res)
+    DEBUG_IMPURE function lex_leq_${type}$ (lhs, rhs) result(res)
         type(${type}$), intent(in) :: lhs, rhs
         integer :: i
         logical :: res
@@ -231,7 +230,7 @@ module orb_idx_mod
         res = ilex_leq(lhs%idx, rhs%idx)
     end function
 
-    DEBUG_IMPURE function lex_geq_${type}$(lhs, rhs) result(res)
+    DEBUG_IMPURE function lex_geq_${type}$ (lhs, rhs) result(res)
         type(${type}$), intent(in) :: lhs, rhs
         integer :: i
         logical :: res
@@ -243,7 +242,7 @@ module orb_idx_mod
 #:endfor
 
 #:for type in OrbIdxTypes
-    subroutine write_det_${type}$(det_I, i_unit, advance)
+    subroutine write_det_${type}$ (det_I, i_unit, advance)
         type(${type}$), intent(in) :: det_I
         integer, intent(in), optional :: i_unit
         logical, intent(in), optional :: advance

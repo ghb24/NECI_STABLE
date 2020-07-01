@@ -70,23 +70,23 @@ module fcimc_pointed_fns
 
     implicit none
 
-    contains
+contains
 
-    function attempt_create_trunc_spawn (DetCurr, iLutCurr, RealwSign, nJ, &
-            iLutnJ, prob, HElGen,ic, ex, tparity, walkExcitLevel, part_type, &
-            AvSignCurr, AvExPerWalker, RDMBiasFacCurr, precond_fac) result(child)
+    function attempt_create_trunc_spawn(DetCurr, iLutCurr, RealwSign, nJ, &
+                                        iLutnJ, prob, HElGen, ic, ex, tparity, walkExcitLevel, part_type, &
+                                        AvSignCurr, AvExPerWalker, RDMBiasFacCurr, precond_fac) result(child)
 
         integer, intent(in) :: DetCurr(nel), nJ(nel), part_type
         integer(kind=n_int), intent(in) :: iLutCurr(0:NIfTot)
         integer(kind=n_int), intent(inout) :: iLutnJ(0:niftot)
-        integer, intent(in) :: ic, ex(2,ic), walkExcitLevel
+        integer, intent(in) :: ic, ex(2, ic), walkExcitLevel
         real(dp), dimension(lenof_sign), intent(in) :: RealwSign
         logical, intent(in) :: tParity
         real(dp), intent(inout) :: prob
         real(dp), dimension(lenof_sign) :: child
-        real(dp) , dimension(lenof_sign), intent(in) :: AvSignCurr
+        real(dp), dimension(lenof_sign), intent(in) :: AvSignCurr
         real(dp), intent(in) :: AvExPerWalker
-        real(dp) , intent(out) :: RDMBiasFacCurr
+        real(dp), intent(out) :: RDMBiasFacCurr
         real(dp), intent(in) :: precond_fac
         logical :: tAllowForEN2Calc
         HElement_t(dp), intent(inout) :: HElGen
@@ -100,17 +100,17 @@ module fcimc_pointed_fns
         tAllowForEN2Calc = tEN2Truncated .and. (.not. tTruncInitiator)
 
         if (.not. tAllowForEN2Calc) then
-            if (CheckAllowedTruncSpawn (walkExcitLevel, nJ, iLutnJ, IC)) then
-                child = attempt_create_normal (DetCurr, iLutCurr, RealwSign, &
-                    nJ, iLutnJ, prob, HElGen, ic, ex, tParity, walkExcitLevel, &
-                    part_type, AvSignCurr, AvExPerWalker, RDMBiasFacCurr, precond_fac)
+            if (CheckAllowedTruncSpawn(walkExcitLevel, nJ, iLutnJ, IC)) then
+                child = attempt_create_normal(DetCurr, iLutCurr, RealwSign, &
+                                              nJ, iLutnJ, prob, HElGen, ic, ex, tParity, walkExcitLevel, &
+                                              part_type, AvSignCurr, AvExPerWalker, RDMBiasFacCurr, precond_fac)
             else
                 child = 0
-            endif
+            end if
         else
-            child = attempt_create_normal (DetCurr, iLutCurr, RealwSign, nJ, &
-                iLutnJ, prob, HElGen, ic, ex, tParity, walkExcitLevel, part_type, &
-                AvSignCurr, AvExPerWalker, RDMBiasFacCurr, precond_fac)
+            child = attempt_create_normal(DetCurr, iLutCurr, RealwSign, nJ, &
+                                          iLutnJ, prob, HElGen, ic, ex, tParity, walkExcitLevel, part_type, &
+                                          AvSignCurr, AvExPerWalker, RDMBiasFacCurr, precond_fac)
         end if
     end function
 
@@ -128,28 +128,28 @@ module fcimc_pointed_fns
 !  walkExcitLevel:      Is Unused
 !
 !  child:      A lenof_sign array containing the particles spawned.
-    function att_create_trunc_spawn_enc (DetCurr,&
-                                         iLutCurr, RealwSign, nJ, iLutnJ, prob, HElGen, &
-                                         ic, ex, tparity, walkExcitLevel, part_type, &
-                                         AvSignCurr, AvExPerWalker,  RDMBiasFacCurr, precond_fac) result(child)
+    function att_create_trunc_spawn_enc(DetCurr, &
+                                        iLutCurr, RealwSign, nJ, iLutnJ, prob, HElGen, &
+                                        ic, ex, tparity, walkExcitLevel, part_type, &
+                                        AvSignCurr, AvExPerWalker, RDMBiasFacCurr, precond_fac) result(child)
 
         integer, intent(in) :: DetCurr(nel), nJ(nel), part_type
         integer(kind=n_int), intent(in) :: iLutCurr(0:NIfTot)
         integer(kind=n_int), intent(inout) :: iLutnJ(0:niftot)
-        integer, intent(in) :: ic, ex(2,ic), walkExcitLevel
+        integer, intent(in) :: ic, ex(2, ic), walkExcitLevel
         real(dp), dimension(lenof_sign), intent(in) :: RealwSign
         logical, intent(in) :: tParity
         real(dp), intent(inout) :: prob
         real(dp), dimension(lenof_sign) :: child
-        real(dp) , dimension(lenof_sign), intent(in) :: AvSignCurr
+        real(dp), dimension(lenof_sign), intent(in) :: AvSignCurr
         real(dp), intent(in) :: AvExPerWalker
-        real(dp) , intent(out) :: RDMBiasFacCurr
+        real(dp), intent(out) :: RDMBiasFacCurr
         real(dp), intent(in) :: precond_fac
         logical :: tAllowForEN2Calc
         ! make sure that HElgen is assigned on return
-        HElement_t(dp) , intent(inout) :: HElGen
+        HElement_t(dp), intent(inout) :: HElGen
 
-        call EncodeBitDet (nJ, iLutnJ)
+        call EncodeBitDet(nJ, iLutnJ)
 
         ! If tEN2Truncated is true, then we want to allow the otherwise
         ! truncated spawning to allow an EN2 correction to be calculated,
@@ -160,23 +160,23 @@ module fcimc_pointed_fns
         tAllowForEN2Calc = tEN2Truncated .and. (.not. tTruncInitiator)
 
         if (.not. tAllowForEN2Calc) then
-            if (CheckAllowedTruncSpawn (walkExcitLevel, nJ, iLutnJ, IC)) then
-                child = attempt_create_normal (DetCurr, iLutCurr, RealwSign, &
-                    nJ, iLutnJ, prob, HElGen, ic, ex, tParity, walkExcitLevel, &
-                    part_type, AvSignCurr, AvExPerWalker, RDMBiasFacCurr, precond_fac)
+            if (CheckAllowedTruncSpawn(walkExcitLevel, nJ, iLutnJ, IC)) then
+                child = attempt_create_normal(DetCurr, iLutCurr, RealwSign, &
+                                              nJ, iLutnJ, prob, HElGen, ic, ex, tParity, walkExcitLevel, &
+                                              part_type, AvSignCurr, AvExPerWalker, RDMBiasFacCurr, precond_fac)
             else
                 child = 0
-            endif
+            end if
         else
-            child = attempt_create_normal (DetCurr, iLutCurr, RealwSign, nJ, &
-                iLutnJ, prob, HElGen, ic, ex, tParity, walkExcitLevel, part_type, &
-                AvSignCurr, AvExPerWalker, RDMBiasFacCurr, precond_fac)
+            child = attempt_create_normal(DetCurr, iLutCurr, RealwSign, nJ, &
+                                          iLutnJ, prob, HElGen, ic, ex, tParity, walkExcitLevel, part_type, &
+                                          AvSignCurr, AvExPerWalker, RDMBiasFacCurr, precond_fac)
         end if
     end function
 
-    function attempt_create_normal (DetCurr, iLutCurr, RealwSign, nJ, iLutnJ, &
-            prob, HElGen, ic, ex, tParity, walkExcitLevel, part_type, AvSignCurr, &
-            AvExPerWalker, RDMBiasFacCurr, precond_fac) result(child)
+    function attempt_create_normal(DetCurr, iLutCurr, RealwSign, nJ, iLutnJ, &
+                                   prob, HElGen, ic, ex, tParity, walkExcitLevel, part_type, AvSignCurr, &
+                                   AvExPerWalker, RDMBiasFacCurr, precond_fac) result(child)
 
         use orb_idx_mod, only: SpinOrbIdx_t
         use SystemData, only: tGAS
@@ -185,16 +185,16 @@ module fcimc_pointed_fns
         integer, intent(in) :: part_type    ! odd = Real parent particle, even = Imag parent particle
         integer(kind=n_int), intent(in) :: iLutCurr(0:NIfTot)
         integer(kind=n_int), intent(inout) :: iLutnJ(0:niftot)
-        integer, intent(in) :: ic, ex(2,ic), walkExcitLevel
+        integer, intent(in) :: ic, ex(2, ic), walkExcitLevel
         real(dp), dimension(lenof_sign), intent(in) :: RealwSign
         logical, intent(in) :: tParity
         real(dp), intent(inout) :: prob
         real(dp), dimension(lenof_sign) :: child
-        real(dp) , dimension(lenof_sign), intent(in) :: AvSignCurr
+        real(dp), dimension(lenof_sign), intent(in) :: AvSignCurr
         real(dp), intent(in) :: AvExPerWalker
-        real(dp) , intent(out) :: RDMBiasFacCurr
+        real(dp), intent(out) :: RDMBiasFacCurr
         real(dp), intent(in) :: precond_fac
-        HElement_t(dp) , intent(inout) :: HElGen
+        HElement_t(dp), intent(inout) :: HElGen
         character(*), parameter :: this_routine = 'attempt_create_normal'
 
         real(dp) :: rat, r, walkerweight, pSpawn, nSpawn, MatEl, p_spawn_rdmfac
@@ -210,7 +210,7 @@ module fcimc_pointed_fns
         real(dp) :: temp_prob, pgen_a, dummy_arr(nBasis), cum_sum
         integer :: ispn, n_double
 
-        integer :: temp_ex(2,ic)
+        integer :: temp_ex(2, ic)
 
         unused_var(AvSignCurr)
         unused_var(WalkExcitLevel)
@@ -224,13 +224,13 @@ module fcimc_pointed_fns
         ! and returned in HElGen. In this case, get_spawn_helement simply
         ! returns HElGen, rather than recomputing the matrix element.
 
-        temp_ex(1,:) = ex(2,:)
-        temp_ex(2,:) = ex(1,:)
+        temp_ex(1, :) = ex(2, :)
+        temp_ex(2, :) = ex(1, :)
 
         ! We actually want to calculate Hji - take the complex conjugate,
         ! rather than swap around DetCurr and nJ.
-        rh_used = get_spawn_helement (nJ, DetCurr, ilutnJ, iLutCurr,  ic, temp_ex, &
-                                 tParity, HElGen)
+        rh_used = get_spawn_helement(nJ, DetCurr, ilutnJ, iLutCurr, ic, temp_ex, &
+                                     tParity, HElGen)
 
         ! assign the matrix element
         HElGen = abs(rh_used)
@@ -245,35 +245,35 @@ module fcimc_pointed_fns
             if (tHUB .or. tUEG .or. &
                 (t_new_real_space_hubbard .and. .not. t_trans_corr_hop) .or. &
                 (t_k_space_hubbard .and. .not. t_trans_corr_2body)) then
-                call fill_frequency_histogram(abs(rh_used / precond_fac), prob )
+                call fill_frequency_histogram(abs(rh_used / precond_fac), prob)
 
             else
                 if (t_consider_par_bias) then
                     ! determine if excitation was parallel or anti-parallel
                     ! ex(1,1) and ex(1,2) are the electrons
                     if (ic == 2) then
-                        t_par = (is_beta(ex(1,1)) .eqv. is_beta(ex(1,2)))
+                        t_par = (is_beta(ex(1, 1)) .eqv. is_beta(ex(1, 2)))
                     else
                         t_par = .false.
                     end if
 
-                    call fill_frequency_histogram_4ind(abs(rh_used / precond_fac), prob , &
-                        ic, t_par, ex)
+                    call fill_frequency_histogram_4ind(abs(rh_used / precond_fac), prob, &
+                                                       ic, t_par, ex)
 
                 else if (tGen_nosym_guga) then
                     ! have to also check if diff bias is considered
                     if (t_consider_diff_bias) then
-                        call fill_frequency_histogram_nosym_diff(abs(rh_used / precond_fac), prob , &
-                            ic, ex(1,1), ex(1,2))
+                        call fill_frequency_histogram_nosym_diff(abs(rh_used / precond_fac), prob, &
+                                                                 ic, ex(1, 1), ex(1, 2))
                     else
                         call fill_frequency_histogram_nosym_nodiff(abs(rh_used / precond_fac), &
-                            prob , ic, ex(1,1))
+                                                                   prob, ic, ex(1, 1))
                     end if
 
                 else
                     ! for any other excitation generator just use one histogram
                     ! for all the excitations..
-                    call fill_frequency_histogram_sd(abs(rh_used / precond_fac), prob, ic )
+                    call fill_frequency_histogram_sd(abs(rh_used / precond_fac), prob, ic)
 
                 end if
             end if
@@ -287,30 +287,27 @@ module fcimc_pointed_fns
         ! i am not so sure about hongjuns change here...
         ! is this for GUGA only?? Ask him
 
-        if(tGUGA .and. t_precond_hub)then
-          Eii_curr = calcDiagMatEleGUGA_nI(nJ)
+        if (tGUGA .and. t_precond_hub) then
+            Eii_curr = calcDiagMatEleGUGA_nI(nJ)
         end if
-
 
         tRealSpawning = .false.
         if (tAllRealCoeff) then
             tRealSpawning = .true.
-        elseif (tRealCoeffByExcitLevel) then
-            if (tGUGA) call stop_all(this_routine,&
-                "excit level does not work with GUGA here...")
+        else if (tRealCoeffByExcitLevel) then
+            if (tGUGA) call stop_all(this_routine, &
+                                     "excit level does not work with GUGA here...")
 
-            TargetExcitLevel = FindBitExcitLevel (iLutRef(:,1), iLutnJ)
+            TargetExcitLevel = FindBitExcitLevel(iLutRef(:, 1), iLutnJ)
 
             if (TargetExcitLevel <= RealCoeffExcitThresh) &
                 tRealSpawning = .true.
-        endif
+        end if
 
         ! Spawn to real and imaginary particles. Note that spawning from
         ! imaginary parent particles has slightly different rules:
         !       - Attempt to spawn REAL walkers with prob +AIMAG(Hij)/P
         !       - Attempt to spawn IMAG walkers with prob -REAL(Hij)/P
-
-
 
 #if !defined(CMPLX_) && (defined(PROG_NUMRUNS_) || defined(DOUBLERUN_))
         child = 0.0_dp
@@ -321,7 +318,7 @@ module fcimc_pointed_fns
             if (abs(matEl) < matele_cutoff) matel = 0.0_dp
         end if
 #else
-        do tgt_cpt = 1, (lenof_sign/inum_runs)
+        do tgt_cpt = 1, (lenof_sign / inum_runs)
 
             ! Real, single run:    inum_runs=1, lenof_sign=1 --> 1 loop
             ! Real, double run:    inum_runs=2, lenof_sign=1 --> 1 loop
@@ -332,21 +329,20 @@ module fcimc_pointed_fns
             ! For spawning from imaginary particles, we cross-match the
             ! real/imaginary matrix-elements/target-particles.
 
-
 #if defined(CMPLX_) && (defined(PROG_NUMRUNS_) || defined(DOUBLERUN_))
-            component = part_type+tgt_cpt-1
-            if (.not. btest(part_type,0)) then
+            component = part_type + tgt_cpt - 1
+            if (.not. btest(part_type, 0)) then
                 ! even part_type => imag replica =>  map 4->3,4 ; 6->5,6 etc.
                 component = part_type - tgt_cpt + 1
-            endif
+            end if
 #else
             component = tgt_cpt
-            if ((part_type.eq.2).and.(inum_runs.eq.1)) component = 3 - tgt_cpt
+            if ((part_type == 2) .and. (inum_runs == 1)) component = 3 - tgt_cpt
 #endif
 
             ! Get the correct part of the matrix element
             walkerweight = sign(1.0_dp, RealwSign(part_type))
-            if (btest(component,0)) then
+            if (btest(component, 0)) then
                 ! real component
                 MatEl = real(rh_used, dp)
                 if (t_matele_cutoff) then
@@ -359,16 +355,16 @@ module fcimc_pointed_fns
                     if (abs(MatEl) < matele_cutoff) MatEl = 0.0_dp
                 end if
                 ! n.b. In this case, spawning is of opposite sign.
-                if (.not. btest(part_type,0)) then
+                if (.not. btest(part_type, 0)) then
                     ! imaginary parent -> imaginary child
                     walkerweight = -walkerweight
-                endif
+                end if
 #endif
             end if
 #endif
 
 !             ASSERT(prob /= 0.0_dp)
-            nSpawn = - tau * MatEl * walkerweight / prob
+            nSpawn = -tau * MatEl * walkerweight / prob
 
 #ifdef DEBUG_
             ! so.. does a |nSpawn| > 1 in my new tau-search implitly mean
@@ -380,21 +376,21 @@ module fcimc_pointed_fns
                 ! etc. are used
                 if (abs(nSpawn) > 10.0_dp) then
                     if (tGUGA) then
-                        write(iout,*) "=================================================="
+                        write(iout, *) "=================================================="
                         call convert_ilut_toGUGA(iLutCurr, ilutTmpI)
                         call convert_ilut_toGUGA(ilutnj, ilutTmpJ)
-                        write(iout,*) "nSpawn > n_truncate_spawns!", nSpawn
-                        write(iout,*) "limit the number of spawned walkers to: ", n_truncate_spawns
-                        write(iout,*) "for spawn from determinant: "
-                        call write_det_guga(6,ilutTmpI)
-                        write(iout,*) "to: "
+                        write(iout, *) "nSpawn > n_truncate_spawns!", nSpawn
+                        write(iout, *) "limit the number of spawned walkers to: ", n_truncate_spawns
+                        write(iout, *) "for spawn from determinant: "
+                        call write_det_guga(6, ilutTmpI)
+                        write(iout, *) "to: "
                         call write_det_guga(iout, ilutTmpJ)
                         nOpen = count_open_orbs(iLutCurr)
-                        write(iout,*) "# of openshell orbitals: ", nOpen, count_open_orbs(ilutnj)
-                        write(iout,*) "open/spatial: ", nOpen/real(nSpatOrbs,dp)
-                        write(iout,*) "(t |H_ij|/pgen) / #open ratio: ", abs(nSpawn) / real(nOpen,dp)
-                        write(iout,*) " H_ij, pgen: ", MatEl, prob
-                        write(iout,*) "=================================================="
+                        write(iout, *) "# of openshell orbitals: ", nOpen, count_open_orbs(ilutnj)
+                        write(iout, *) "open/spatial: ", nOpen / real(nSpatOrbs, dp)
+                        write(iout, *) "(t |H_ij|/pgen) / #open ratio: ", abs(nSpawn) / real(nOpen, dp)
+                        write(iout, *) " H_ij, pgen: ", MatEl, prob
+                        write(iout, *) "=================================================="
                         ! excitation type would be cool too.. but how do i get it
                         ! to here?? do i still have global_excitInfo??
                         call print_excitInfo(global_excitInfo)
@@ -404,19 +400,19 @@ module fcimc_pointed_fns
             end if
 #endif
 
-            if(tGUGA .and. t_precond_hub.and. abs(Eii_curr).gt.10.0_dp)then
-             nSpawn = nSpawn / (1.0_dp + dble(Eii_curr))
+            if (tGUGA .and. t_precond_hub .and. abs(Eii_curr) > 10.0_dp) then
+                nSpawn = nSpawn / (1.0_dp + dble(Eii_curr))
             end if
 
             ! [Werner Dobrautz 4.4.2017:]
             ! apply the spawn truncation, when using histogramming tau-search
-            if ((t_truncate_spawns .and. .not. t_truncate_unocc)  .and. abs(nspawn) > &
-                 n_truncate_spawns .and. .not. tEScaleWalkers) then
-               ! does not work with scaled walkers, as the scaling factor is not
-               ! computed here for performance reasons (it was a huge performance bottleneck)
+            if ((t_truncate_spawns .and. .not. t_truncate_unocc) .and. abs(nspawn) > &
+                n_truncate_spawns .and. .not. tEScaleWalkers) then
+                ! does not work with scaled walkers, as the scaling factor is not
+                ! computed here for performance reasons (it was a huge performance bottleneck)
                 ! TODO: add some additional output if this event happens
 #ifdef DEBUG_
-                 write(iout,*) "Truncating spawn magnitude from: ", abs(nspawn), " to ", n_truncate_spawns
+                write(iout, *) "Truncating spawn magnitude from: ", abs(nspawn), " to ", n_truncate_spawns
 #endif
                 truncatedWeight = truncatedWeight + abs(nSpawn) - n_truncate_spawns
                 nSpawn = sign(n_truncate_spawns, nspawn)
@@ -430,7 +426,7 @@ module fcimc_pointed_fns
                 ! back, to be sure the time-step covers the changed
                 ! non-initiators spawns!
 
-                call log_spawn_magnitude (ic, ex, matel/precond_fac, prob)
+                call log_spawn_magnitude(ic, ex, matel / precond_fac, prob)
             end if
 
             ! Keep track of the biggest spawn this cycle
@@ -440,44 +436,43 @@ module fcimc_pointed_fns
                 ! Continuous spawning. Add in acceptance probabilities.
                 if (tRealSpawnCutoff .and. &
                     abs(nSpawn) < RealSpawnCutoff) then
-                    p_spawn_rdmfac=abs(nSpawn)/RealSpawnCutoff
+                    p_spawn_rdmfac = abs(nSpawn) / RealSpawnCutoff
                     nSpawn = RealSpawnCutoff &
-                           * stochastic_round (nSpawn / RealSpawnCutoff)
-               else
-                    p_spawn_rdmfac=1.0_dp !The acceptance probability of some kind of child was equal to 1
-               endif
+                             * stochastic_round(nSpawn / RealSpawnCutoff)
+                else
+                    p_spawn_rdmfac = 1.0_dp !The acceptance probability of some kind of child was equal to 1
+                end if
             else
-                if(abs(nSpawn) >= 1.0) then
-                    p_spawn_rdmfac=1.0_dp !We were certain to create a child here.
+                if (abs(nSpawn) >= 1.0) then
+                    p_spawn_rdmfac = 1.0_dp !We were certain to create a child here.
                     ! This is the special case whereby if P_spawn(j | i) > 1,
                     ! then we will definitely spawn from i->j.
                     ! I.e. the pair Di,Dj will definitely be in the SpawnedParts list.
                     ! We don't care about multiple spawns - if it's in the list, an RDM contribution will result
                     ! regardless of the number spawned - so if P_spawn(j | i) > 1, we treat it as = 1.
                 else
-                    p_spawn_rdmfac=abs(nSpawn)
-                endif
+                    p_spawn_rdmfac = abs(nSpawn)
+                end if
 
                 ! How many children should we spawn?
 
                 ! And round this to an integer in the usual way
                 ! HACK: To use the same number of random numbers for the tests.
-                nSpawn = real(stochastic_round (nSpawn), dp)
+                nSpawn = real(stochastic_round(nSpawn), dp)
 
-            endif
+            end if
             ! And create the parcticles
 #ifdef CMPLX_
-            child((part_type_to_run(part_type)-1)*2+tgt_cpt) = nSpawn
+            child((part_type_to_run(part_type) - 1) * 2 + tgt_cpt) = nSpawn
 #else
             child(tgt_cpt) = nSpawn
 #endif
 
 #if defined(CMPLX_) || !defined(PROG_NUMRUNS_) && !defined(DOUBLERUN_)
-        enddo
+        end do
 #endif
 
-
-        if(tFillingStochRDMonFly) then
+        if (tFillingStochRDMonFly) then
             if (.not. near_zero(child(part_type))) then
                 !Only add in contributions for spawning events within population 1
                 !(Otherwise it becomes tricky in annihilation as spawnedparents doesn't tell you which population
@@ -485,90 +480,90 @@ module fcimc_pointed_fns
                 call calc_rdmbiasfac(p_spawn_rdmfac, prob, realwSign(part_type), RDMBiasFacCurr)
             else
                 RDMBiasFacCurr = 0.0_dp
-            endif
+            end if
         else
             ! Not filling the RDM stochastically, bias is zero.
             RDMBiasFacCurr = 0.0_dp
-        endif
+        end if
 
     end function
 
     !
     ! This is a null routine for encoding spawned sites
     ! --> DOES NOTHING!!!
-    subroutine null_encode_child (ilutI, ilutJ, ic, ex)
+    subroutine null_encode_child(ilutI, ilutJ, ic, ex)
         implicit none
         integer(kind=n_int), intent(in) :: ilutI(0:niftot)
         integer, intent(in) :: ic
-        integer, intent(in) :: ex(2,ic)
+        integer, intent(in) :: ex(2, ic)
         integer(kind=n_int), intent(inout) :: ilutj(0:niftot)
 
         unused_var(ilutI); unused_var(ilutJ); unused_var(ic); unused_var(ex)
 
     end subroutine
 
-    subroutine new_child_stats_hist_hamil (iter_data, iLutI, nJ, iLutJ, ic, &
-                                           walkExLevel, child, parent_flags, &
-                                           part_type)
+    subroutine new_child_stats_hist_hamil(iter_data, iLutI, nJ, iLutJ, ic, &
+                                          walkExLevel, child, parent_flags, &
+                                          part_type)
         ! Based on old AddHistHamilEl. Histograms the hamiltonian matrix, and
         ! then calls the normal statistics routine.
 
         integer(kind=n_int), intent(in) :: iLutI(0:niftot), iLutJ(0:niftot)
         integer, intent(in) :: ic, walkExLevel, parent_flags, nJ(nel)
         integer, intent(in) :: part_type
-        real(dp), dimension(lenof_sign) , intent(in) :: child
+        real(dp), dimension(lenof_sign), intent(in) :: child
         type(fcimc_iter_data), intent(inout) :: iter_data
         character(*), parameter :: this_routine = 'new_child_stats_hist_hamil'
         integer :: partInd, partIndChild, childExLevel
         logical :: tSuccess
 
         if (walkExLevel == nel) then
-            call BinSearchParts2 (iLutI, FCIDetIndex(walkExLevel), Det, &
-                                  PartInd, tSuccess)
+            call BinSearchParts2(iLutI, FCIDetIndex(walkExLevel), Det, &
+                                 PartInd, tSuccess)
         else
-            call BinSearchParts2 (iLutI, FCIDetIndex(walkExLevel), &
-                                  FciDetIndex(walkExLevel+1)-1, partInd, &
-                                  tSuccess)
-        endif
+            call BinSearchParts2(iLutI, FCIDetIndex(walkExLevel), &
+                                 FciDetIndex(walkExLevel + 1) - 1, partInd, &
+                                 tSuccess)
+        end if
 
         if (.not. tSuccess) &
-            call stop_all (this_routine, 'Cannot find determinant nI in list')
+            call stop_all(this_routine, 'Cannot find determinant nI in list')
 
-        childExLevel = FindBitExcitLevel (iLutHF, iLutJ, nel)
+        childExLevel = FindBitExcitLevel(iLutHF, iLutJ, nel)
         if (tGUGA) call stop_all(this_routine, &
-            "excit level does not work with GUGA here...")
+                                 "excit level does not work with GUGA here...")
 
         if (childExLevel == nel) then
-            call BinSearchParts2 (iLutJ, FCIDetIndex(childExLevel), Det, &
-                                  partIndChild, tSuccess)
-        elseif (childExLevel == 0) then
+            call BinSearchParts2(iLutJ, FCIDetIndex(childExLevel), Det, &
+                                 partIndChild, tSuccess)
+        else if (childExLevel == 0) then
             partIndChild = 1
             tSuccess = .true.
         else
-            call BinSearchParts2 (iLutJ, FCIDetIndex(childExLevel), &
-                                  FciDetIndex(childExLevel+1)-1, &
-                                  partIndChild, tSuccess)
-        endif
+            call BinSearchParts2(iLutJ, FCIDetIndex(childExLevel), &
+                                 FciDetIndex(childExLevel + 1) - 1, &
+                                 partIndChild, tSuccess)
+        end if
 
-        histHamil (partIndChild, partInd) = &
-                histHamil (partIndChild, partInd) + (1.0_dp * child(1))
-        histHamil (partInd, partIndChild) = &
-                histHamil (partInd, partIndChild) + (1.0_dp * child(1))
-        avHistHamil (partIndChild, partInd) = &
-                avHistHamil (partIndChild, partInd) + (1.0_dp * child(1))
-        avHistHamil (partInd, partIndChild) = &
-                avHistHamil (partInd, partIndChild) + (1.0_dp * child(1))
+        histHamil(partIndChild, partInd) = &
+            histHamil(partIndChild, partInd) + (1.0_dp * child(1))
+        histHamil(partInd, partIndChild) = &
+            histHamil(partInd, partIndChild) + (1.0_dp * child(1))
+        avHistHamil(partIndChild, partInd) = &
+            avHistHamil(partIndChild, partInd) + (1.0_dp * child(1))
+        avHistHamil(partInd, partIndChild) = &
+            avHistHamil(partInd, partIndChild) + (1.0_dp * child(1))
 
         ! Call the normal stats routine
-        call new_child_stats_normal (iter_data, iLutI, nJ, iLutJ, ic, &
-                                     walkExLevel, child, parent_flags, &
-                                     part_type)
+        call new_child_stats_normal(iter_data, iLutI, nJ, iLutJ, ic, &
+                                    walkExLevel, child, parent_flags, &
+                                    part_type)
 
     end subroutine
 
-    subroutine new_child_stats_normal (iter_data, iLutI, nJ, iLutJ, ic, &
-                                       walkExLevel, child, parent_flags, &
-                                       part_type)
+    subroutine new_child_stats_normal(iter_data, iLutI, nJ, iLutJ, ic, &
+                                      walkExLevel, child, parent_flags, &
+                                      part_type)
 
         integer(kind=n_int), intent(in) :: iLutI(0:niftot), iLutJ(0:niftot)
         integer, intent(in) :: ic, walkExLevel, parent_flags, nJ(nel)
@@ -582,17 +577,17 @@ module fcimc_pointed_fns
         unused_var(nJ); unused_var(walkExLevel)
 
         ! Write out some debugging information if asked
-        IFDEBUG(FCIMCDebug,3) then
-            write(iout,"(A)",advance='no') "Creating "
-            do i = 1,lenof_sign
-                write(iout,"(f10.5)",advance='no') child(i)
-            enddo
-            write(iout,"(A)",advance='no') " particles: "
-            write(iout,"(A,2I4,A)",advance='no') &
-                                      "Parent flag: ", parent_flags, part_type
-            call writebitdet (iout, ilutJ, .true.)
-            call neci_flush(iout)
-        endif
+        IFDEBUG(FCIMCDebug, 3) then
+        write(iout, "(A)", advance='no') "Creating "
+        do i = 1, lenof_sign
+            write(iout, "(f10.5)", advance='no') child(i)
+        end do
+        write(iout, "(A)", advance='no') " particles: "
+        write(iout, "(A,2I4,A)", advance='no') &
+            "Parent flag: ", parent_flags, part_type
+        call writebitdet(iout, ilutJ, .true.)
+        call neci_flush(iout)
+        end if
 
         ! Count the number of children born
         ! in the real-time fciqmc, it is probably good to keep track of the
@@ -602,7 +597,7 @@ module fcimc_pointed_fns
 
         ! rmneci_setup: Added multirun support for real-time case
 
-        if(.not. t_real_time_fciqmc .or. runge_kutta_step == 2) then
+        if (.not. t_real_time_fciqmc .or. runge_kutta_step == 2) then
 #if defined( CMPLX_)
             do run = 1, inum_runs
                 NoBorn(run) = NoBorn(run) + sum(abs(child(min_part_type(run):max_part_type(run))))
@@ -611,9 +606,9 @@ module fcimc_pointed_fns
                 ! Count particle blooms, and their sources
                 if (sum(abs(child(min_part_type(run):max_part_type(run)))) > InitiatorWalkNo) then
                     bloom_count(ic) = bloom_count(ic) + 1
-                    bloom_sizes(ic) = max(real( sum(abs(child(min_part_type(run):max_part_type(run)))),dp), bloom_sizes(ic))
+                    bloom_sizes(ic) = max(real(sum(abs(child(min_part_type(run):max_part_type(run)))), dp), bloom_sizes(ic))
                 end if
-            enddo
+            end do
 #else
             NoBorn = NoBorn + abs(child)
             if (ic == 1) SpawnFromSing = SpawnFromSing + abs(child)
@@ -624,7 +619,7 @@ module fcimc_pointed_fns
                 bloom_sizes(ic) = max(real((abs(child(part_type))), dp), bloom_sizes(ic))
             end if
 #endif
-        endif
+        end if
         if (.not. tPrecond) iter_data%nborn = iter_data%nborn + abs(child)
 
         ! Histogram the excitation levels as required
@@ -634,388 +629,385 @@ module fcimc_pointed_fns
         ! Avoid compiler warnings
         iUnused = iLutI(0); iUnused = iLutJ(0)
 
-    end subroutine
+        end subroutine
 
-    function attempt_die_normal (DetCurr, Kii, realwSign, WalkExcitLevel, DetPosition) result(ndie)
+        function attempt_die_normal(DetCurr, Kii, realwSign, WalkExcitLevel, DetPosition) result(ndie)
 
-        ! Should we kill the particle at determinant DetCurr.
-        ! The function allows multiple births (if +ve shift), or deaths from
-        ! the same particle. The returned number is the number of deaths if
-        ! positive, and the
-        !
-        ! In:  DetCurr - The determinant to consider
-        !      Kii     - The diagonal matrix element of DetCurr (-Ecore)
-        !      wSign   - The sign of the determinant being considered. If
-        !                |wSign| > 1, attempt to die multiple particles at
-        !                once (multiply probability of death by |wSign|)
-        ! Ret: ndie    - The number of deaths (if +ve), or births (If -ve).
+            ! Should we kill the particle at determinant DetCurr.
+            ! The function allows multiple births (if +ve shift), or deaths from
+            ! the same particle. The returned number is the number of deaths if
+            ! positive, and the
+            !
+            ! In:  DetCurr - The determinant to consider
+            !      Kii     - The diagonal matrix element of DetCurr (-Ecore)
+            !      wSign   - The sign of the determinant being considered. If
+            !                |wSign| > 1, attempt to die multiple particles at
+            !                once (multiply probability of death by |wSign|)
+            ! Ret: ndie    - The number of deaths (if +ve), or births (If -ve).
 
-        integer, intent(in) :: DetCurr(nel)
-        real(dp), dimension(lenof_sign), intent(in) :: RealwSign
-        real(dp), intent(in) :: Kii
-        real(dp), dimension(lenof_sign) :: ndie
-        integer, intent(in) :: WalkExcitLevel
-        integer, intent(in), optional :: DetPosition
-        character(*), parameter :: t_r = 'attempt_die_normal'
+            integer, intent(in) :: DetCurr(nel)
+            real(dp), dimension(lenof_sign), intent(in) :: RealwSign
+            real(dp), intent(in) :: Kii
+            real(dp), dimension(lenof_sign) :: ndie
+            integer, intent(in) :: WalkExcitLevel
+            integer, intent(in), optional :: DetPosition
+            character(*), parameter :: t_r = 'attempt_die_normal'
 
-        integer(kind=n_int) :: iLutnI(0:niftot)
-        integer :: N_double
+            integer(kind=n_int) :: iLutnI(0:niftot)
+            integer :: N_double
 
-        real(dp) :: probsign, r
-        real(dp), dimension(inum_runs) :: fac
-        integer :: i, run, iUnused
+            real(dp) :: probsign, r
+            real(dp), dimension(inum_runs) :: fac
+            integer :: i, run, iUnused
 #ifdef CMPLX_
-        real(dp) :: rat(2)
+            real(dp) :: rat(2)
 #else
-        real(dp) :: rat(1)
+            real(dp) :: rat(1)
 #endif
-        real(dp) :: shift
-        real(dp) :: relShiftOffset ! ShiftOffset relative to Hii
+            real(dp) :: shift
+            real(dp) :: relShiftOffset ! ShiftOffset relative to Hii
 
-        do i=1, inum_runs
-            if (t_cepa_shift) then
+            do i = 1, inum_runs
+                if (t_cepa_shift) then
 
-                fac(i) = tau * (Kii -  (DiagSft(i) - cepa_shift(i, WalkExcitLevel)))
-                call log_death_magnitude(Kii - (DiagSft(i) - cepa_shift(i, WalkExcitLevel)))
+                    fac(i) = tau * (Kii - (DiagSft(i) - cepa_shift(i, WalkExcitLevel)))
+                    call log_death_magnitude(Kii - (DiagSft(i) - cepa_shift(i, WalkExcitLevel)))
 
-            else if (tSkipRef(i) .and. all(DetCurr==projEdet(:,i))) then
-                !If we are fixing the population of reference det, skip death/birth
-                fac(i)=0.0
-            else
-                 ! rescale the shift. It is better to wait till the shift starts varying
-                if(tAdaptiveShift .and. .not. tSinglePartPhase(i)) then
-                    if(tAS_Offset)then
-                        !Since DiagSft is relative to Hii, ShiftOffset should also be adjusted
-                        relShiftOffset = ShiftOffset(i) - Hii
+                else if (tSkipRef(i) .and. all(DetCurr == projEdet(:, i))) then
+                    !If we are fixing the population of reference det, skip death/birth
+                    fac(i) = 0.0
+                else
+                    ! rescale the shift. It is better to wait till the shift starts varying
+                    if (tAdaptiveShift .and. .not. tSinglePartPhase(i)) then
+                        if (tAS_Offset) then
+                            !Since DiagSft is relative to Hii, ShiftOffset should also be adjusted
+                            relShiftOffset = ShiftOffset(i) - Hii
+                        else
+                            !Each replica's shift should be scaled using its own reference
+                            relShiftOffset = proje_ref_energy_offsets(i) ! i.e. E(Ref(i)) - Hii
+                        end if
+                      shift = relShiftOffset + (DiagSft(i) - relShiftOffset) * shiftFactorFunction(DetPosition, i, mag_of_run(RealwSign, i))
                     else
-                        !Each replica's shift should be scaled using its own reference
-                        relShiftOffset = proje_ref_energy_offsets(i) ! i.e. E(Ref(i)) - Hii
-                    endif
-                    shift = relShiftOffset + (DiagSft(i)-relShiftOffset) * shiftFactorFunction(DetPosition, i, mag_of_run(RealwSign,i))
-                else
-                    shift = DiagSft(i)
+                        shift = DiagSft(i)
+                    end if
+
+                    fac(i) = tau * (Kii - shift)
+
+                    if (t_precond_hub .and. Kii > 10.0_dp) then
+                        call log_death_magnitude(((Kii - shift) / (1.0_dp + Kii)))
+                    else
+                        call log_death_magnitude(Kii - shift)
+                    end if
                 end if
 
-                fac(i)=tau*(Kii-shift)
+                if (t_precond_hub .and. Kii > 10.0_dp) then
+                    fac(i) = fac(i) / (1.0_dp + Kii)
+                end if
+            end do
 
-                if(t_precond_hub.and.Kii.gt.10.0_dp)then
-                   call log_death_magnitude (((Kii - shift)/(1.0_dp+Kii)))
+            if (any(fac > 1.0_dp)) then
+                if (any(fac > 2.0_dp)) then
+                    if (tSearchTauOption .or. t_hist_tau_search_option) then
+                        ! If we are early in the calculation, and are using tau
+                        ! searching, then this is not a big deal. Just let the
+                        ! searching deal with it
+                        write(iout, '("** WARNING ** Death probability > 2: Algorithm unstable.")')
+                        write(iout, '("** WARNING ** Truncating spawn to ensure stability")')
+                        do i = 1, inum_runs
+                            fac(i) = min(2.0_dp, fac(i))
+                        end do
+                    else
+                        print *, "Diag sft", DiagSft
+                        print *, "Death probability", fac
+                        call stop_all(t_r, "Death probability > 2: Algorithm unstable. Reduce timestep.")
+                    end if
                 else
-                   call log_death_magnitude (Kii - shift)
-               end if
-            endif
-
-            if(t_precond_hub.and.Kii.gt.10.0_dp)then
-                 fac(i)=fac(i)/(1.0_dp+Kii)
-            end if
-        enddo
-
-        if(any(fac > 1.0_dp)) then
-            if (any(fac > 2.0_dp)) then
-                if (tSearchTauOption .or. t_hist_tau_search_option) then
-                    ! If we are early in the calculation, and are using tau
-                    ! searching, then this is not a big deal. Just let the
-                    ! searching deal with it
-                    write(iout, '("** WARNING ** Death probability > 2: Algorithm unstable.")')
-                    write(iout, '("** WARNING ** Truncating spawn to ensure stability")')
+                    write (iout, '("** WARNING ** Death probability > 1: Creating Antiparticles. "&
+                        & //"Timestep errors possible: ")', advance='no')
                     do i = 1, inum_runs
-                        fac(i) = min(2.0_dp, fac(i))
+                        write(iout, '(1X,f13.7)', advance='no') fac(i)
                     end do
-                else
-                   print *, "Diag sft", DiagSft
-                   print *, "Death probability", fac
-                    call stop_all(t_r, "Death probability > 2: Algorithm unstable. Reduce timestep.")
+                    write(iout, '()')
                 end if
-            else
-                write(iout,'("** WARNING ** Death probability > 1: Creating Antiparticles. "&
-                    & //"Timestep errors possible: ")',advance='no')
-                do i = 1, inum_runs
-                    write(iout,'(1X,f13.7)',advance='no') fac(i)
+            end if
+
+            if ((tRealCoeffByExcitLevel .and. (WalkExcitLevel <= RealCoeffExcitThresh)) &
+                .or. tAllRealCoeff) then
+                do run = 1, inum_runs
+                    ndie(min_part_type(run)) = fac(run) * abs(realwSign(min_part_type(run)))
+#ifdef CMPLX_
+                    ndie(max_part_type(run)) = fac(run) * abs(realwSign(max_part_type(run)))
+#endif
                 end do
-                write(iout,'()')
-            endif
-        endif
+            else
+                do run = 1, inum_runs
 
+                    ! Subtract the current value of the shift, and multiply by tau.
+                    ! If there are multiple particles, scale the probability.
 
-        if ((tRealCoeffByExcitLevel .and. (WalkExcitLevel .le. RealCoeffExcitThresh)) &
-            .or. tAllRealCoeff ) then
-            do run=1, inum_runs
-                ndie(min_part_type(run))=fac(run)*abs(realwSign(min_part_type(run)))
+                    rat(:) = fac(run) * abs(realwSign(min_part_type(run):max_part_type(run)))
+
+                    ndie(min_part_type(run):max_part_type(run)) = real(int(rat), dp)
+                    rat(:) = rat(:) - ndie(min_part_type(run):max_part_type(run))
+
+                    ! Choose to die or not stochastically
+                    r = genrand_real2_dSFMT()
+                    if (abs(rat(1)) > r) ndie(min_part_type(run)) = &
+                        ndie(min_part_type(run)) + real(nint(sign(1.0_dp, rat(1))), dp)
 #ifdef CMPLX_
-                ndie(max_part_type(run))=fac(run)*abs(realwSign(max_part_type(run)))
+                    r = genrand_real2_dSFMT()
+                    if (abs(rat(2)) > r) ndie(max_part_type(run)) = &
+                        ndie(max_part_type(run)) + real(nint(sign(1.0_dp, rat(2))), dp)
 #endif
-            enddo
-        else
-            do run=1,inum_runs
+                end do
+            end if
 
-                ! Subtract the current value of the shift, and multiply by tau.
-                ! If there are multiple particles, scale the probability.
+            ! Avoid compiler warnings
+            iUnused = DetCurr(1)
 
-                rat(:) = fac(run) * abs(realwSign(min_part_type(run):max_part_type(run)))
+        end function attempt_die_normal
 
-                ndie(min_part_type(run):max_part_type(run)) = real(int(rat), dp)
-                rat(:) = rat(:) - ndie(min_part_type(run):max_part_type(run))
+        function attempt_die_precond(DetCurr, Kii, realwSign, WalkExcitLevel, DetPos) result(ndie)
+            ! Should we kill the particle at determinant DetCurr.
+            ! The function allows multiple births (if +ve shift), or deaths from
+            ! the same particle. The returned number is the number of deaths if
+            ! positive, and the
+            !
+            ! In:  DetCurr - The determinant to consider
+            !      Kii     - The diagonal matrix element of DetCurr (-Ecore)
+            !      wSign   - The sign of the determinant being considered. If
+            !                |wSign| > 1, attempt to die multiple particles at
+            !                once (multiply probability of death by |wSign|)
+            !      DetPos  - Position of the spawning determinant
+            ! Ret: ndie    - The number of deaths (if +ve), or births (If -ve).
 
-                ! Choose to die or not stochastically
-                r = genrand_real2_dSFMT()
-                if (abs(rat(1)) > r) ndie(min_part_type(run)) = &
-                    ndie(min_part_type(run)) + real(nint(sign(1.0_dp, rat(1))), dp)
+            integer, intent(in) :: DetCurr(nel)
+            real(dp), dimension(lenof_sign), intent(in) :: RealwSign
+            real(dp), intent(in) :: Kii
+            real(dp), dimension(lenof_sign) :: ndie
+            integer, intent(in) :: WalkExcitLevel
+
+            integer, intent(in), optional :: DetPos
+            character(*), parameter :: t_r = 'attempt_die_normal'
+
+            real(dp) :: probsign, r
+            real(dp), dimension(inum_runs) :: fac
+            integer :: i, run, iUnused
 #ifdef CMPLX_
-                r = genrand_real2_dSFMT()
-                if (abs(rat(2)) > r) ndie(max_part_type(run)) = &
-                    ndie(max_part_type(run)) + real(nint(sign(1.0_dp, rat(2))), dp)
-#endif
-            enddo
-        endif
-
-        ! Avoid compiler warnings
-        iUnused = DetCurr(1)
-
-    end function attempt_die_normal
-
-
-    function attempt_die_precond (DetCurr, Kii, realwSign, WalkExcitLevel, DetPos) result(ndie)
-        ! Should we kill the particle at determinant DetCurr.
-        ! The function allows multiple births (if +ve shift), or deaths from
-        ! the same particle. The returned number is the number of deaths if
-        ! positive, and the
-        !
-        ! In:  DetCurr - The determinant to consider
-        !      Kii     - The diagonal matrix element of DetCurr (-Ecore)
-        !      wSign   - The sign of the determinant being considered. If
-        !                |wSign| > 1, attempt to die multiple particles at
-        !                once (multiply probability of death by |wSign|)
-        !      DetPos  - Position of the spawning determinant
-        ! Ret: ndie    - The number of deaths (if +ve), or births (If -ve).
-
-        integer, intent(in) :: DetCurr(nel)
-        real(dp), dimension(lenof_sign), intent(in) :: RealwSign
-        real(dp), intent(in) :: Kii
-        real(dp), dimension(lenof_sign) :: ndie
-        integer, intent(in) :: WalkExcitLevel
-
-        integer, intent(in), optional :: DetPos
-        character(*), parameter :: t_r = 'attempt_die_normal'
-
-        real(dp) :: probsign, r
-        real(dp), dimension(inum_runs) :: fac
-        integer :: i, run, iUnused
-#ifdef CMPLX_
-        real(dp) :: rat(2)
+            real(dp) :: rat(2)
 #else
-        real(dp) :: rat(1)
+            real(dp) :: rat(1)
 #endif
-        unused_var(Kii); unused_var(DetPos)
+            unused_var(Kii); unused_var(DetPos)
 
-        do i=1, inum_runs
-            fac(i)=tau
+            do i = 1, inum_runs
+                fac(i) = tau
 
-            ! And for tau searching purposes
-            call log_death_magnitude (1.0_dp)
-        enddo
+                ! And for tau searching purposes
+                call log_death_magnitude(1.0_dp)
+            end do
 
-        if ((tRealCoeffByExcitLevel .and. (WalkExcitLevel .le. RealCoeffExcitThresh)) &
-            .or. tAllRealCoeff ) then
-            do run=1, inum_runs
-                ndie(min_part_type(run))=fac(run)*abs(realwSign(min_part_type(run)))
+            if ((tRealCoeffByExcitLevel .and. (WalkExcitLevel <= RealCoeffExcitThresh)) &
+                .or. tAllRealCoeff) then
+                do run = 1, inum_runs
+                    ndie(min_part_type(run)) = fac(run) * abs(realwSign(min_part_type(run)))
 #ifdef CMPLX_
-                ndie(max_part_type(run))=fac(run)*abs(realwSign(max_part_type(run)))
+                    ndie(max_part_type(run)) = fac(run) * abs(realwSign(max_part_type(run)))
 #endif
-            enddo
-        else
-            do run = 1, inum_runs
+                end do
+            else
+                do run = 1, inum_runs
 
-                ! Subtract the current value of the shift, and multiply by tau.
-                ! If there are multiple particles, scale the probability.
+                    ! Subtract the current value of the shift, and multiply by tau.
+                    ! If there are multiple particles, scale the probability.
 
-                rat(:) = fac(run) * abs(realwSign(min_part_type(run):max_part_type(run)))
+                    rat(:) = fac(run) * abs(realwSign(min_part_type(run):max_part_type(run)))
 
-                ndie(min_part_type(run):max_part_type(run)) = real(int(rat), dp)
-                rat(:) = rat(:) - ndie(min_part_type(run):max_part_type(run))
+                    ndie(min_part_type(run):max_part_type(run)) = real(int(rat), dp)
+                    rat(:) = rat(:) - ndie(min_part_type(run):max_part_type(run))
 
-                ! Choose to die or not stochastically
-                r = genrand_real2_dSFMT()
-                if (abs(rat(1)) > r) ndie(min_part_type(run)) = &
-                    ndie(min_part_type(run)) + real(nint(sign(1.0_dp, rat(1))), dp)
+                    ! Choose to die or not stochastically
+                    r = genrand_real2_dSFMT()
+                    if (abs(rat(1)) > r) ndie(min_part_type(run)) = &
+                        ndie(min_part_type(run)) + real(nint(sign(1.0_dp, rat(1))), dp)
 #ifdef CMPLX_
-                r = genrand_real2_dSFMT()
-                if (abs(rat(2)) > r) ndie(max_part_type(run)) = &
-                    ndie(max_part_type(run)) + real(nint(sign(1.0_dp, rat(2))), dp)
+                    r = genrand_real2_dSFMT()
+                    if (abs(rat(2)) > r) ndie(max_part_type(run)) = &
+                        ndie(max_part_type(run)) + real(nint(sign(1.0_dp, rat(2))), dp)
 #endif
-            enddo
-        endif
+                end do
+            end if
 
-        ! Avoid compiler warnings
-        iUnused = DetCurr(1)
-        iUnused = DetPos
+            ! Avoid compiler warnings
+            iUnused = DetCurr(1)
+            iUnused = DetPos
 
-    end function attempt_die_precond
-
-!------------------------------------------------------------------------------------------!
-
-    pure function powerScaleFunction(hdiag) result(Si)
-      implicit none
-
-      real(dp), intent(in) :: hdiag
-      real(dp) :: Si
-
-      Si = 1.0 / ( (sFAlpha * (hdiag) + 1)**sFBeta )
-    end function powerScaleFunction
+        end function attempt_die_precond
 
 !------------------------------------------------------------------------------------------!
 
-    pure function expScaleFunction(hdiag) result(Si)
-      implicit none
+        pure function powerScaleFunction(hdiag) result(Si)
+            implicit none
 
-      real(dp), intent(in) :: hdiag
-      real(dp) :: Si
+            real(dp), intent(in) :: hdiag
+            real(dp) :: Si
 
-      Si = 1.0/( sfBeta*exp(sFAlpha*hdiag) )
-    end function expScaleFunction
-
-!------------------------------------------------------------------------------------------!
-
-    pure function expCOScaleFunction(hdiag) result(Si)
-      implicit none
-
-      real(dp), intent(in) :: hdiag
-      real(dp) :: Si
-
-      Si = (1 - sFbeta)/( exp(sFAlpha*hdiag) ) + sFbeta
-    end function expCOScaleFunction
+            Si = 1.0 / ((sFAlpha * (hdiag) + 1)**sFBeta)
+        end function powerScaleFunction
 
 !------------------------------------------------------------------------------------------!
 
-    pure function negScaleFunction(hdiag) result(Si)
-      implicit none
+        pure function expScaleFunction(hdiag) result(Si)
+            implicit none
 
-      real(dp), intent(in) :: hdiag
-      real(dp) :: Si
+            real(dp), intent(in) :: hdiag
+            real(dp) :: Si
 
-      unused_var(hdiag)
-
-      Si = -1
-
-    end function negScaleFunction
+            Si = 1.0 / (sfBeta * exp(sFAlpha * hdiag))
+        end function expScaleFunction
 
 !------------------------------------------------------------------------------------------!
 
+        pure function expCOScaleFunction(hdiag) result(Si)
+            implicit none
 
-    pure function expShiftFactorFunction(pos, run, pop) result(f)
-      implicit none
-      ! Exponential scale function for the shift
-      ! Input: pos - position of given determinant in CurrentDets
-      ! Input: run - run for which the factor is needed
-      ! Input: pop - population of given determinant
-      ! Output: f - scaling factor for the shift
-      integer, intent(in) :: pos
-      integer, intent(in) :: run
-      real(dp), intent(in) :: pop
-      real(dp) :: f
+            real(dp), intent(in) :: hdiag
+            real(dp) :: Si
+
+            Si = (1 - sFbeta) / (exp(sFAlpha * hdiag)) + sFbeta
+        end function expCOScaleFunction
+
+!------------------------------------------------------------------------------------------!
+
+        pure function negScaleFunction(hdiag) result(Si)
+            implicit none
+
+            real(dp), intent(in) :: hdiag
+            real(dp) :: Si
+
+            unused_var(hdiag)
+
+            Si = -1
+
+        end function negScaleFunction
+
+!------------------------------------------------------------------------------------------!
+
+        pure function expShiftFactorFunction(pos, run, pop) result(f)
+            implicit none
+            ! Exponential scale function for the shift
+            ! Input: pos - position of given determinant in CurrentDets
+            ! Input: run - run for which the factor is needed
+            ! Input: pop - population of given determinant
+            ! Output: f - scaling factor for the shift
+            integer, intent(in) :: pos
+            integer, intent(in) :: run
+            real(dp), intent(in) :: pop
+            real(dp) :: f
 #ifdef DEBUG_
-      ! Disable compiler warnings
-      real(dp) :: dummy
-      dummy = pos
-      dummy = run
+            ! Disable compiler warnings
+            real(dp) :: dummy
+            dummy = pos
+            dummy = run
 #endif
 
-      f = 1.0 - exp(-pop/EAS_Scale)
+            f = 1.0 - exp(-pop / EAS_Scale)
 
-    end function expShiftFactorFunction
+        end function expShiftFactorFunction
 
 !------------------------------------------------------------------------------------------!
 
-    pure function constShiftFactorFunction(pos, run, pop) result(f)
-      implicit none
-      ! Dummy scale function for the shift: S' = S
-      ! Input: pos - position of given determinant in CurrentDets
-      ! Input: run - run for which the factor is needed
-      ! Input: pop - population of given determinant
-      ! Output: f - scaling factor for the shift
-      integer, intent(in) :: pos
-      integer, intent(in) :: run
-      real(dp), intent(in) :: pop
-      real(dp) :: f
+        pure function constShiftFactorFunction(pos, run, pop) result(f)
+            implicit none
+            ! Dummy scale function for the shift: S' = S
+            ! Input: pos - position of given determinant in CurrentDets
+            ! Input: run - run for which the factor is needed
+            ! Input: pop - population of given determinant
+            ! Output: f - scaling factor for the shift
+            integer, intent(in) :: pos
+            integer, intent(in) :: run
+            real(dp), intent(in) :: pop
+            real(dp) :: f
 #ifdef WARNING_WORKAROUND_
-      ! Disable compiler warnings
-      real(dp) :: dummy
-      dummy = pos
-      dummy = run
-      dummy = pop
+            ! Disable compiler warnings
+            real(dp) :: dummy
+            dummy = pos
+            dummy = run
+            dummy = pop
 #endif
-      f = 1.0
-    end function constShiftFactorFunction
+            f = 1.0
+        end function constShiftFactorFunction
 
 !------------------------------------------------------------------------------------------!
 
-    pure function linearShiftFactorFunction(pos, run, pop) result(f)
-      implicit none
-      ! Piecewise-linear scale function for the shift
-      ! Input: pos - position of given determinant in CurrentDets
-      ! Input: run - run for which the factor is needed
-      ! Input: pop - population of given determinant
-      ! Output: f - scaling factor for the shift
-      integer, intent(in) :: pos
-      integer, intent(in) :: run
-      real(dp), intent(in) :: pop
-      real(dp) :: f, slope
+        pure function linearShiftFactorFunction(pos, run, pop) result(f)
+            implicit none
+            ! Piecewise-linear scale function for the shift
+            ! Input: pos - position of given determinant in CurrentDets
+            ! Input: run - run for which the factor is needed
+            ! Input: pop - population of given determinant
+            ! Output: f - scaling factor for the shift
+            integer, intent(in) :: pos
+            integer, intent(in) :: run
+            real(dp), intent(in) :: pop
+            real(dp) :: f, slope
 #ifdef WARNING_WORKAROUND_
-      ! Disable compiler warnings
-      real(dp) :: dummy
-      dummy = pos
-      dummy = run
+            ! Disable compiler warnings
+            real(dp) :: dummy
+            dummy = pos
+            dummy = run
 #endif
 
-      if(pop>InitiatorWalkNo)then
-          f = 1.0
-      elseif(pop<LAS_Sigma)then
-          f = 0.0
-      else
-          if(InitiatorWalkNo .isclose. LAS_Sigma)then
-              !In this case the slope is ill-defined.
-              !Since initiators are strictly large than InitiatorWalkNo, set shift to zero
-              f = 0.0
-          else
-              !Apply linear modifcation that equals F1 at Sigma and F2 at InitatorWalkNo
-              slope = (LAS_F2-LAS_F1)/(InitiatorWalkNo-LAS_Sigma)
-              f = (LAS_F1+(pop-LAS_Sigma)*slope)
-          end if
-      end if
-    end function linearShiftFactorFunction
+            if (pop > InitiatorWalkNo) then
+                f = 1.0
+            else if (pop < LAS_Sigma) then
+                f = 0.0
+            else
+                if (InitiatorWalkNo.isclose.LAS_Sigma) then
+                    !In this case the slope is ill-defined.
+                    !Since initiators are strictly large than InitiatorWalkNo, set shift to zero
+                    f = 0.0
+                else
+                    !Apply linear modifcation that equals F1 at Sigma and F2 at InitatorWalkNo
+                    slope = (LAS_F2 - LAS_F1) / (InitiatorWalkNo - LAS_Sigma)
+                    f = (LAS_F1 + (pop - LAS_Sigma) * slope)
+                end if
+            end if
+        end function linearShiftFactorFunction
 !------------------------------------------------------------------------------------------!
 
-    pure function autoShiftFactorFunction(pos, run, pop) result(f)
-      implicit none
-      ! Scale function for the shift based on the ratio of reject spawns
-      ! Input: pos - position of given determinant in CurrentDets
-      ! Input: run - run for which the factor is needed
-      ! Input: pop - population of given determinant
-      ! Output: f - scaling factor for the shift
-      integer, intent(in) :: pos
-      integer, intent(in) :: run
-      real(dp), intent(in) :: pop
-      real(dp) :: f, tot, acc, tmp
+        pure function autoShiftFactorFunction(pos, run, pop) result(f)
+            implicit none
+            ! Scale function for the shift based on the ratio of reject spawns
+            ! Input: pos - position of given determinant in CurrentDets
+            ! Input: run - run for which the factor is needed
+            ! Input: pop - population of given determinant
+            ! Output: f - scaling factor for the shift
+            integer, intent(in) :: pos
+            integer, intent(in) :: run
+            real(dp), intent(in) :: pop
+            real(dp) :: f, tot, acc, tmp
 
-      unused_var(pop)
+            unused_var(pop)
 
-      tot = get_tot_spawns(pos, run)
-      acc = get_acc_spawns(pos, run)
+            tot = get_tot_spawns(pos, run)
+            acc = get_acc_spawns(pos, run)
 
-      if(test_flag(CurrentDets(:, pos), get_initiator_flag_by_run(run)))then
-          tmp = 1.0
-      elseif(tot>AAS_Thresh)then
-          tmp = acc/tot
-      else
-          tmp = 0.0
-      endif
-      !The factor is actually never zero, because at least the parent is occupied
-      !As a heuristic, we use the connectivity of HF
-      if(tmp<AAS_Cut)then
-          tmp = AAS_Cut
-      endif
-      tmp = (tmp+AAS_Const)/(1+AAS_Const)
-      f = tmp**AAS_Expo
+            if (test_flag(CurrentDets(:, pos), get_initiator_flag_by_run(run))) then
+                tmp = 1.0
+            else if (tot > AAS_Thresh) then
+                tmp = acc / tot
+            else
+                tmp = 0.0
+            end if
+            !The factor is actually never zero, because at least the parent is occupied
+            !As a heuristic, we use the connectivity of HF
+            if (tmp < AAS_Cut) then
+                tmp = AAS_Cut
+            end if
+            tmp = (tmp + AAS_Const) / (1 + AAS_Const)
+            f = tmp**AAS_Expo
 
-    end function autoShiftFactorFunction
+        end function autoShiftFactorFunction
 
-end module
+    end module

@@ -7,7 +7,7 @@ module hamiltonian_linalg
     !
     use constants
     use ras_data
-    use FciMCData, only : hamiltonian
+    use FciMCData, only: hamiltonian
     use sparse_arrays, only: sparse_ham, hamil_diag, HDiagTag
     use Parallel_neci, only: iProcIndex, nProcessors, MPIArg, MPIBarrier
     use Parallel_neci, only: MPIBCast, MPIGatherV, MPIAllGather
@@ -41,13 +41,13 @@ module hamiltonian_linalg
         integer(MPIArg), allocatable, dimension(:) :: partial_H_ket_disps
         ! All algorithms for solving large eigenproblems involve a unitary rotation of the
         ! Hamiltonian into a smaller basis. basis_vectors(:,i) is the ith such unit vector
-        HElement_t(dp), allocatable, dimension(:,:) :: basis_vectors
+        HElement_t(dp), allocatable, dimension(:, :) :: basis_vectors
         ! the location in the basis is the HF determinant
         integer :: hfindex
         ! the hamiltonian projected into basis_vectors
-        real(dp), allocatable, dimension(:,:) :: projected_hamil
+        real(dp), allocatable, dimension(:, :) :: projected_hamil
         ! we'll usually need some working space for diagonalisation of H in the small basis
-        real(dp), allocatable, dimension(:,:) :: projected_hamil_work
+        real(dp), allocatable, dimension(:, :) :: projected_hamil_work
         ! For parallel calculations, only the processor with label root performs the main
         HElement_t(dp), allocatable, dimension(:) :: temp_in, temp_out
         logical :: skip_calc
@@ -58,8 +58,7 @@ module hamiltonian_linalg
     end type
 
     ! leaving these as global data, since direct CI currently only works for Davidson
-    type(ras_vector), allocatable, dimension(:,:,:) :: direct_ci_inp, direct_ci_out
-
+    type(ras_vector), allocatable, dimension(:, :, :) :: direct_ci_inp, direct_ci_out
 
     interface inner_product
         module procedure inner_product_real
@@ -101,7 +100,7 @@ module hamiltonian_linalg
         module procedure mult_hamil_vector_direct_ci_complex
     end interface
 
-    contains
+contains
 
     subroutine InitHamiltonianCalc(this, print_info, hamil_type, max_subspace_size, t_store_subspace_basis, t_orthogonalise)
         use direct_ci, only: create_ham_diag_direct_ci
@@ -122,110 +121,108 @@ module hamiltonian_linalg
         this%t_store_subspace_basis = t_store_subspace_basis
         this%t_orthogonalise = t_orthogonalise
 
-        associate(&
+        associate ( &
             space_size => this%space_size, &
-            hfindex => this%hfindex&
-        )
+            hfindex => this%hfindex &
+            )
 
-        ! allocate and define the hamiltonian diagonal, if not done so already.
-        if (.not. allocated(hamil_diag)) then
-            if (hamil_type == direct_ci_type) then
-                allocate(hamil_diag(space_size), stat=ierr)
-                call logmemalloc("hamil_diag", space_size, 8, t_r, hdiagtag, ierr)
-                call create_ham_diag_direct_ci(davidson_ras, davidson_classes, davidson_strings, hamil_diag)
-            else if (hamil_type == full_hamil_type) then
-                space_size = size(hamiltonian,1)
-                allocate(hamil_diag(space_size), stat=ierr)
-                call logmemalloc("hamil_diag", space_size, 8, t_r, hdiagtag, ierr)
-                do i = 1, space_size
-                    hamil_diag(i) = hamiltonian(i,i)
-                end do
-            else if (hamil_type == parallel_sparse_hamil_type .or. hamil_type == sparse_hamil_type) then
+            ! allocate and define the hamiltonian diagonal, if not done so already.
+            if (.not. allocated(hamil_diag)) then
+                if (hamil_type == direct_ci_type) then
+                    allocate(hamil_diag(space_size), stat=ierr)
+                    call logmemalloc("hamil_diag", space_size, 8, t_r, hdiagtag, ierr)
+                    call create_ham_diag_direct_ci(davidson_ras, davidson_classes, davidson_strings, hamil_diag)
+                else if (hamil_type == full_hamil_type) then
+                    space_size = size(hamiltonian, 1)
+                    allocate(hamil_diag(space_size), stat=ierr)
+                    call logmemalloc("hamil_diag", space_size, 8, t_r, hdiagtag, ierr)
+                    do i = 1, space_size
+                        hamil_diag(i) = hamiltonian(i, i)
+                    end do
+                else if (hamil_type == parallel_sparse_hamil_type .or. hamil_type == sparse_hamil_type) then
                     ! in the case of sparse implementations, the diagonal should be
                     ! created when the hamiltonian itself is.
                     call stop_all("t_r", "the diagonal of the hamiltonian has not been allocated. &
                                          &cannot perform Davidson or Lanczos calculation.")
+                end if
             end if
-        end if
 
-        space_size = size(hamil_diag)
-        ! may not exceed size of space)
-        this%max_subspace_size = max_subspace_size!min(max_subspace_size, space_size)
+            space_size = size(hamil_diag)
+            ! may not exceed size of space)
+            this%max_subspace_size = max_subspace_size!min(max_subspace_size, space_size)
 
-        if (hamil_type == parallel_sparse_hamil_type) then
+            if (hamil_type == parallel_sparse_hamil_type) then
 
-            allocate(this%space_sizes(0:nProcessors-1))
-            allocate(this%partial_H_ket_disps(0:nProcessors-1))
-            allocate(this%partial_H_ket(space_size))
+                allocate(this%space_sizes(0:nProcessors - 1))
+                allocate(this%partial_H_ket_disps(0:nProcessors - 1))
+                allocate(this%partial_H_ket(space_size))
 
-            mpi_temp = int(space_size, MPIArg)
-            call MPIAllGather(mpi_temp, this%space_sizes, ierr)
-            ! The total space size across all processors.
-            space_size = int(sum(this%space_sizes), sizeof_int)
-            allocate(hamil_diag_temp(space_size))
-            this%partial_H_ket_disps(0) = 0
-            do i = 1, nProcessors-1
-                this%partial_H_ket_disps(i) = this%partial_H_ket_disps(i-1) &
-                                            + this%space_sizes(i-1)
-            end do
-            call MPIGatherV(hamil_diag, hamil_diag_temp, this%space_sizes, this%partial_H_ket_disps, ierr)
+                mpi_temp = int(space_size, MPIArg)
+                call MPIAllGather(mpi_temp, this%space_sizes, ierr)
+                ! The total space size across all processors.
+                space_size = int(sum(this%space_sizes), sizeof_int)
+                allocate(hamil_diag_temp(space_size))
+                this%partial_H_ket_disps(0) = 0
+                do i = 1, nProcessors - 1
+                    this%partial_H_ket_disps(i) = this%partial_H_ket_disps(i - 1) &
+                                                  + this%space_sizes(i - 1)
+                end do
+                call MPIGatherV(hamil_diag, hamil_diag_temp, this%space_sizes, this%partial_H_ket_disps, ierr)
 
-            if (iProcIndex == root) then
-                safe_realloc(hamil_diag, (space_size))
-                hamil_diag = hamil_diag_temp
+                if (iProcIndex == root) then
+                    safe_realloc(hamil_diag, (space_size))
+                    hamil_diag = hamil_diag_temp
+                end if
+                deallocate(hamil_diag_temp)
             end if
-            deallocate(hamil_diag_temp)
-        end if
 
-
-        if (print_info) then
-            write(6,'(1x,"number of determinants in total:",'//int_fmt(space_size,1)//')') space_size; call neci_flush(6)
-        end if
-
-        if(tCalcHFIndex)then
-            hfindex = maxloc((-hamil_diag),1)
-        end if
-
-        ! the memory required to allocate each of basis_vectors and
-        ! multipied_basis_vectors, in mb.
-        mem_reqd = max_subspace_size*this%space_size*8/1000000
-
-        ! allocate the necessary arrays:
-        if (t_store_subspace_basis) then
-            safe_calloc(this%basis_vectors, (this%space_size, max_subspace_size), 0.0_dp)
             if (print_info) then
-                write(6,'(1x,"allocating array to hold subspace vectors (",'//int_fmt(mem_reqd,0)//',1x,"mb).")') mem_reqd
-                call neci_flush(6)
-            endif
-        endif
-        safe_calloc(this%projected_hamil, (max_subspace_size,max_subspace_size), 0.0_dp)
-        safe_calloc(this%projected_hamil_work, (max_subspace_size,max_subspace_size), 0.0_dp)
-        if (iprocindex /= root) then
-            safe_malloc(this%temp_in, (this%space_size))
-            safe_malloc(this%temp_out, (this%space_size))
-        end if
+                write(6, '(1x,"number of determinants in total:",'//int_fmt(space_size, 1)//')') space_size; call neci_flush(6)
+            end if
 
-        this%skip_calc = .false.
-        if (print_info) then
-            write(6,'(1x,"Hamiltonian calculation setup complete.",/)')
-        endif
-        call neci_flush(6)
+            if (tCalcHFIndex) then
+                hfindex = maxloc((-hamil_diag), 1)
+            end if
+
+            ! the memory required to allocate each of basis_vectors and
+            ! multipied_basis_vectors, in mb.
+            mem_reqd = max_subspace_size * this%space_size * 8 / 1000000
+
+            ! allocate the necessary arrays:
+            if (t_store_subspace_basis) then
+                safe_calloc(this%basis_vectors, (this%space_size, max_subspace_size), 0.0_dp)
+                if (print_info) then
+                    write(6, '(1x,"allocating array to hold subspace vectors (",'//int_fmt(mem_reqd, 0)//',1x,"mb).")') mem_reqd
+                    call neci_flush(6)
+                end if
+            end if
+            safe_calloc(this%projected_hamil, (max_subspace_size, max_subspace_size), 0.0_dp)
+            safe_calloc(this%projected_hamil_work, (max_subspace_size, max_subspace_size), 0.0_dp)
+            if (iprocindex /= root) then
+                safe_malloc(this%temp_in, (this%space_size))
+                safe_malloc(this%temp_out, (this%space_size))
+            end if
+
+            this%skip_calc = .false.
+            if (print_info) then
+                write(6, '(1x,"Hamiltonian calculation setup complete.",/)')
+            end if
+            call neci_flush(6)
 
         end associate
 
     end subroutine InitHamiltonianCalc
-
 
     subroutine orthogonalise_against_previous_basis_vectors(this, basis_index)
         type(HamiltonianCalcType), intent(inout) :: this
         integer, intent(in) :: basis_index
         integer :: i
 
-        associate(v => this%basis_vectors(:,basis_index))
-        do i = 1, basis_index-1
-            v = v - this%basis_vectors(:,i)*inner_product(v,this%basis_vectors(:,i)) &
-                /inner_product(this%basis_vectors(:,i), this%basis_vectors(:,i))
-        enddo
+        associate(v => this%basis_vectors(:, basis_index))
+        do i = 1, basis_index - 1
+            v = v - this%basis_vectors(:, i) * inner_product(v, this%basis_vectors(:, i)) &
+                / inner_product(this%basis_vectors(:, i), this%basis_vectors(:, i))
+        end do
         !v = v/euclidean_norm(v)
         end associate
 
@@ -233,23 +230,23 @@ module hamiltonian_linalg
 
     subroutine build_full_hamiltonian_from_sparse(this, full_ham)
         type(HamiltonianCalcType), intent(inout) :: this
-        HElement_t(dp), intent(out) :: full_ham(:,:)
+        HElement_t(dp), intent(out) :: full_ham(:, :)
         HElement_t(dp), allocatable :: vec(:)
         integer :: i, ierr
-        write(6,*) "converting sparse hamiltonian to full"
+        write(6, *) "converting sparse hamiltonian to full"
         safe_malloc(vec, (this%space_size))
         do i = 1, this%space_size
             call MPIBarrier(ierr)
             vec = h_cast(0.0_dp)
             vec(i) = h_cast(1.0_dp)
-            if (iprocindex==root) then
-                call multiply_hamil_and_vector(this, vec, full_ham(i,1:this%space_size))
+            if (iprocindex == root) then
+                call multiply_hamil_and_vector(this, vec, full_ham(i, 1:this%space_size))
             else
                 call multiply_hamil_and_vector(this, vec, this%temp_out)
-            endif
-            write(6,*) i,"hamiltonian columns converted"
+            end if
+            write(6, *) i, "hamiltonian columns converted"
             call MPIBarrier(ierr)
-        enddo
+        end do
         safe_free(vec)
     end subroutine build_full_hamiltonian_from_sparse
 
@@ -266,41 +263,41 @@ module hamiltonian_linalg
     end subroutine DestroyHamiltonianCalc
 
     ! static BLAS wrappers
-    function inner_product_real(u, v) result (inner_product)
+    function inner_product_real(u, v) result(inner_product)
         real(dp), intent(in) :: u(:), v(:)
         real(dp) :: inner_product, ddot
         character(*), parameter :: this_routine = "inner_product_real"
-        ASSERT(size(u)==size(v))
+        ASSERT(size(u) == size(v))
         inner_product = ddot(size(u), u, 1, v, 1)
     end function inner_product_real
 
-    function inner_product_complex(u, v) result (inner_product)
+    function inner_product_complex(u, v) result(inner_product)
         complex(dp), intent(in) :: u(:), v(:)
         complex(dp) :: inner_product, zdotc
         character(*), parameter :: this_routine = "inner_product_complex"
-        ASSERT(size(u)==size(v))
-        inner_product = dot_product(u,v)
+        ASSERT(size(u) == size(v))
+        inner_product = dot_product(u, v)
     end function inner_product_complex
 
-    function euclidean_norm_square_real(u) result (euclidean_norm_square)
+    function euclidean_norm_square_real(u) result(euclidean_norm_square)
         real(dp), intent(in) :: u(:)
         real(dp) :: euclidean_norm_square
         euclidean_norm_square = inner_product(u, u)
     end function euclidean_norm_square_real
 
-    function euclidean_norm_square_complex(u) result (euclidean_norm_square)
+    function euclidean_norm_square_complex(u) result(euclidean_norm_square)
         complex(dp), intent(in) :: u(:)
         real(dp) :: euclidean_norm_square
         euclidean_norm_square = real(inner_product(u, u), dp)
     end function euclidean_norm_square_complex
 
-    function euclidean_norm_real(u) result (euclidean_norm)
+    function euclidean_norm_real(u) result(euclidean_norm)
         real(dp), intent(in) :: u(:)
         real(dp) :: euclidean_norm
         euclidean_norm = sqrt(euclidean_norm_square(u))
     end function euclidean_norm_real
 
-    function euclidean_norm_complex(u) result (euclidean_norm)
+    function euclidean_norm_complex(u) result(euclidean_norm)
         complex(dp), intent(in) :: u(:)
         real(dp) :: euclidean_norm
         euclidean_norm = sqrt(euclidean_norm_square(u))
@@ -308,11 +305,11 @@ module hamiltonian_linalg
 
     subroutine pretty_print(out_unit, mat)
         integer :: out_unit, shp(2), i
-        real(dp) :: mat(:,:)
+        real(dp) :: mat(:, :)
         shp = shape(mat)
         do i = 1, shp(2)
-            write(out_unit, *) real(mat(:,i))
-        enddo
+            write(out_unit, *) real(mat(:, i))
+        end do
         write(out_unit, *)
     end subroutine
 
@@ -324,15 +321,15 @@ module hamiltonian_linalg
 
         associate(hamil_type => this%hamil_type)
 
-        if (hamil_type == full_hamil_type) then
-            call multiply_hamil_and_vector_full(this, input_vector, output_vector)
-        else if (hamil_type == sparse_hamil_type) then
-            call mult_hamil_vector_sparse(this, input_vector, output_vector)
-        else if (hamil_type == parallel_sparse_hamil_type) then
-            call mult_hamil_vector_par_sparse(this, input_vector, output_vector)
-        else if (hamil_type == direct_ci_type) then
-            call mult_hamil_vector_direct_ci(input_vector, output_vector)
-        end if
+            if (hamil_type == full_hamil_type) then
+                call multiply_hamil_and_vector_full(this, input_vector, output_vector)
+            else if (hamil_type == sparse_hamil_type) then
+                call mult_hamil_vector_sparse(this, input_vector, output_vector)
+            else if (hamil_type == parallel_sparse_hamil_type) then
+                call mult_hamil_vector_par_sparse(this, input_vector, output_vector)
+            else if (hamil_type == direct_ci_type) then
+                call mult_hamil_vector_direct_ci(input_vector, output_vector)
+            end if
         end associate
     end subroutine multiply_hamil_and_vector_real
 
@@ -343,15 +340,15 @@ module hamiltonian_linalg
 
         associate(hamil_type => this%hamil_type)
 
-        if (hamil_type == full_hamil_type) then
-            call multiply_hamil_and_vector_full(this, input_vector, output_vector)
-        else if (hamil_type == sparse_hamil_type) then
-            call mult_hamil_vector_sparse(this, input_vector, output_vector)
-        else if (hamil_type == parallel_sparse_hamil_type) then
-            call mult_hamil_vector_par_sparse(this, input_vector, output_vector)
-        else if (hamil_type == direct_ci_type) then
-            call mult_hamil_vector_direct_ci(input_vector, output_vector)
-        end if
+            if (hamil_type == full_hamil_type) then
+                call multiply_hamil_and_vector_full(this, input_vector, output_vector)
+            else if (hamil_type == sparse_hamil_type) then
+                call mult_hamil_vector_sparse(this, input_vector, output_vector)
+            else if (hamil_type == parallel_sparse_hamil_type) then
+                call mult_hamil_vector_par_sparse(this, input_vector, output_vector)
+            else if (hamil_type == direct_ci_type) then
+                call mult_hamil_vector_direct_ci(input_vector, output_vector)
+            end if
         end associate
     end subroutine multiply_hamil_and_vector_complex
 
@@ -375,19 +372,19 @@ module hamiltonian_linalg
 
         associate(space_size => this%space_size)
 
-        call dgemv('N', &
-                   space_size, &
-                   space_size, &
-                   1.0_dp, &
-                   hamiltonian, &
-                   space_size, &
-                   input_vector, &
-                   1, &
-                   0.0_dp, &
-                   output_vector, &
-                   1)
+            call dgemv('N', &
+                       space_size, &
+                       space_size, &
+                       1.0_dp, &
+                       hamiltonian, &
+                       space_size, &
+                       input_vector, &
+                       1, &
+                       0.0_dp, &
+                       output_vector, &
+                       1)
 
-       end associate
+        end associate
     end subroutine multiply_hamil_and_vector_full_real
 
     subroutine multiply_hamil_and_vector_full_complex(this, input_vector, output_vector)
@@ -397,19 +394,19 @@ module hamiltonian_linalg
 
         associate(space_size => this%space_size)
 
-        call zgemv('N', &
-                   space_size, &
-                   space_size, &
-                   1.0_dp, &
-                   hamiltonian, &
-                   space_size, &
-                   input_vector, &
-                   1, &
-                   0.0_dp, &
-                   output_vector, &
-                   1)
+            call zgemv('N', &
+                       space_size, &
+                       space_size, &
+                       1.0_dp, &
+                       hamiltonian, &
+                       space_size, &
+                       input_vector, &
+                       1, &
+                       0.0_dp, &
+                       output_vector, &
+                       1)
 
-       end associate
+        end associate
     end subroutine multiply_hamil_and_vector_full_complex
 
     subroutine mult_hamil_vector_sparse_real(this, input_vector, output_vector)
@@ -419,13 +416,13 @@ module hamiltonian_linalg
         integer :: i, j
 
         associate(space_size => this%space_size)
-        output_vector = 0.0_dp
+            output_vector = 0.0_dp
 
-        do i = 1, space_size
-            do j = 1, sparse_ham(i)%num_elements
-                output_vector(i) = output_vector(i) + real(sparse_ham(i)%elements(j)*input_vector(sparse_ham(i)%positions(j)), dp)
+            do i = 1, space_size
+                do j = 1, sparse_ham(i)%num_elements
+                    output_vector(i) = output_vector(i) + real(sparse_ham(i)%elements(j) * input_vector(sparse_ham(i)%positions(j)), dp)
+                end do
             end do
-        end do
 
         end associate
     end subroutine mult_hamil_vector_sparse_real
@@ -437,13 +434,13 @@ module hamiltonian_linalg
         integer :: i, j
 
         associate(space_size => this%space_size)
-        output_vector = 0.0_dp
+            output_vector = 0.0_dp
 
-        do i = 1, space_size
-            do j = 1, sparse_ham(i)%num_elements
-                output_vector(i) = output_vector(i) + sparse_ham(i)%elements(j)*input_vector(sparse_ham(i)%positions(j))
+            do i = 1, space_size
+                do j = 1, sparse_ham(i)%num_elements
+                    output_vector(i) = output_vector(i) + sparse_ham(i)%elements(j) * input_vector(sparse_ham(i)%positions(j))
+                end do
             end do
-        end do
 
         end associate
     end subroutine mult_hamil_vector_sparse_complex
@@ -466,7 +463,7 @@ module hamiltonian_linalg
         do i = 1, this%space_sizes(iProcIndex)
             do j = 1, sparse_ham(i)%num_elements
                 this%partial_H_ket(i) = this%partial_H_ket(i) + &
-                    sparse_ham(i)%elements(j)*output_vector(sparse_ham(i)%positions(j))
+                                        sparse_ham(i)%elements(j) * output_vector(sparse_ham(i)%positions(j))
             end do
         end do
         ! this templated routine forbids mixing real and complex arrays
@@ -492,14 +489,14 @@ module hamiltonian_linalg
             do j = 1, sparse_ham(i)%num_elements
 #ifdef CMPLX_
                 this%partial_H_ket(i) = this%partial_H_ket(i) + &
-                    sparse_ham(i)%elements(j)*output_vector(sparse_ham(i)%positions(j))
+                                        sparse_ham(i)%elements(j) * output_vector(sparse_ham(i)%positions(j))
 #endif
             end do
         end do
 #ifdef CMPLX_
         call MPIGatherV(this%partial_H_ket, output_vector, this%space_sizes, this%partial_H_ket_disps, ierr)
 #else
-        call MPIGatherV(cmplx(this%partial_H_ket,0.0_dp,dp), output_vector, this%space_sizes, this%partial_H_ket_disps, ierr)
+        call MPIGatherV(cmplx(this%partial_H_ket, 0.0_dp, dp), output_vector, this%space_sizes, this%partial_H_ket_disps, ierr)
 #endif
         !call MPIGatherV(this%partial_H_ket, output_vector, this%space_sizes, this%partial_H_ket_disps, ierr)
     end subroutine mult_hamil_vector_par_sparse_complex
@@ -519,15 +516,14 @@ module hamiltonian_linalg
         call transfer_to_block_form(davidson_ras, davidson_classes, input_vector, direct_ci_inp)
 
         call perform_multiplication(davidson_ras, davidson_classes, davidson_strings, davidson_iluts, davidson_excits, &
-                direct_ci_inp, direct_ci_out)
+                                    direct_ci_inp, direct_ci_out)
 
         call transfer_from_block_form(davidson_ras, davidson_classes, output_vector, direct_ci_out)
 
         ! The above multiplication does not include the nuclear-nuclear energy, so add this
         ! contribution now.
-        output_vector = output_vector + ecore*input_vector
+        output_vector = output_vector + ecore * input_vector
     end subroutine mult_hamil_vector_direct_ci_real
-
 
     subroutine mult_hamil_vector_direct_ci_complex(input_vector, output_vector)
         use direct_ci, only: perform_multiplication, transfer_from_block_form, transfer_to_block_form

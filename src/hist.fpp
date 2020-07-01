@@ -10,7 +10,7 @@ module hist
     use DetBitOps, only: count_open_orbs, EncodeBitDet, spatial_bit_det, &
                          DetBitEq, count_open_orbs, TestClosedShellDet, &
                          CalcOpenOrbs, IsAllowedHPHF, FindBitExcitLevel
-    use load_balance_calcnodes, only : DetermineDetNode
+    use load_balance_calcnodes, only: DetermineDetNode
     use CalcData, only: tFCIMC, tTruncInitiator
     use DetCalcData, only: FCIDetIndex, det
     use FciMCData, only: tFlippedSign, TotWalkers, CurrentDets, iter, &
@@ -34,7 +34,7 @@ module hist
 
 contains
 
-    subroutine ilut_nifd_pointer_assign (ptr, ilut)
+    subroutine ilut_nifd_pointer_assign(ptr, ilut)
 
         ! This is a useful helper function to get around some irritating
         ! behaviour (namely that pointer array slices are indexed to
@@ -47,7 +47,7 @@ contains
 
     end subroutine
 
-    subroutine add_hist_spawn (ilut, sign, ExcitLevel, dProbFin)
+    subroutine add_hist_spawn(ilut, sign, ExcitLevel, dProbFin)
 
         integer(n_int), intent(in) :: ilut(0:NIfTot)
         integer, intent(in) :: ExcitLevel
@@ -61,27 +61,27 @@ contains
         character(*), parameter :: t_r = 'add_hist_spawn'
 
         if (ExcitLevel == nel) then
-            call BinSearchParts2 (ilut, HistMinInd(ExcitLevel), det, PartInd,&
-                                  tSuccess)
+            call BinSearchParts2(ilut, HistMinInd(ExcitLevel), det, PartInd, &
+                                 tSuccess)
             ! CCMC doesn't sum particle contributions in order, so we must
             ! search the whole space again!
             if (tFCIMC) HistMinInd(ExcitLevel) = PartInd
-        elseif (ExcitLevel == 0) then
+        else if (ExcitLevel == 0) then
             PartInd = 1
             tSuccess = .true.
         else
-            call BinSearchParts2 (ilut, HistMinInd(ExcitLevel), &
-                                  FCIDetIndex(ExcitLevel+1)-1, PartInd, &
-                                  tSuccess)
-        endif
+            call BinSearchParts2(ilut, HistMinInd(ExcitLevel), &
+                                 FCIDetIndex(ExcitLevel + 1) - 1, PartInd, &
+                                 tSuccess)
+        end if
 
         if (tSuccess) then
             delta = sign / dProbFin
 
             if (tHPHF) then
-                call FindExcitBitDetSym (ilut, ilut_sym)
+                call FindExcitBitDetSym(ilut, ilut_sym)
                 if (.not. DetBitEq(ilut, ilut_sym)) delta = delta / sqrt(2.0_dp)
-            endif
+            end if
 
             if (tFlippedSign) delta = -delta
 
@@ -94,16 +94,16 @@ contains
             ! is antisymmetric.
             if (tHPHF .and. .not. DetBitEQ(ilut, ilut_sym)) then
                 if (ExcitLevel == nel) then
-                    call BinSearchParts2 (ilut_sym, FCIDetIndex(ExcitLevel), &
-                                          Det, PartInd, tSuccess)
-                elseif (ExcitLevel == 0) then
+                    call BinSearchParts2(ilut_sym, FCIDetIndex(ExcitLevel), &
+                                         Det, PartInd, tSuccess)
+                else if (ExcitLevel == 0) then
                     PartInd = 1
                     tSuccess = .true.
                 else
-                    call BinSearchParts2 (ilut_sym, FCIDetIndex(ExcitLevel), &
-                                          FCIDetIndex(ExcitLevel+1)-1, &
-                                          PartInd, tSuccess)
-                endif
+                    call BinSearchParts2(ilut_sym, FCIDetIndex(ExcitLevel), &
+                                         FCIDetIndex(ExcitLevel + 1) - 1, &
+                                         PartInd, tSuccess)
+                end if
                 if (tSuccess) then
                     delta = (sign / sqrt(2.0_dp)) / dProbFin
 
@@ -116,42 +116,42 @@ contains
                     Histogram(:, PartInd) = Histogram(:, PartInd) + delta
                     if (tHistSpawn) &
                         InstHist(:, PartInd) = InstHist(:, PartInd) + delta
-                endif
-            endif
+                end if
+            end if
         else
-            call writebitdet (6, ilut, .true.)
-            write(6,*) '***', ilut
-            write(6,*) '***', ExcitLevel, HistMinInd(ExcitLevel), Det
-            call stop_all (t_r, "Cannot find corresponding FCI determinant &
+            call writebitdet(6, ilut, .true.)
+            write(6, *) '***', ilut
+            write(6, *) '***', ExcitLevel, HistMinInd(ExcitLevel), Det
+            call stop_all(t_r, "Cannot find corresponding FCI determinant &
                                 &when histogramming")
-        endif
+        end if
 
     end subroutine
 
-    subroutine find_hist_coeff_explicit (ilut, ExcitLevel, PartInd, tSuccess)
+    subroutine find_hist_coeff_explicit(ilut, ExcitLevel, PartInd, tSuccess)
 
         implicit none
         integer(n_int), intent(in) :: ilut(0:NIfTot)
         integer, intent(in) :: ExcitLevel
         integer, intent(out) :: PartInd
-        logical , intent(out) :: tSuccess
+        logical, intent(out) :: tSuccess
 
         tSuccess = .false.
         if (ExcitLevel == nel) then
-            call BinSearchParts2 (ilut,  FCIDetIndex(ExcitLevel), det, PartInd,&
-                                  tSuccess)
-        elseif (ExcitLevel == 0) then
+            call BinSearchParts2(ilut, FCIDetIndex(ExcitLevel), det, PartInd, &
+                                 tSuccess)
+        else if (ExcitLevel == 0) then
             PartInd = 1
             tSuccess = .true.
         else
-            call BinSearchParts2 (ilut, FCIDetIndex(ExcitLevel), &
-                                  FCIDetIndex(ExcitLevel+1)-1, PartInd, &
-                                  tSuccess)
-        endif
+            call BinSearchParts2(ilut, FCIDetIndex(ExcitLevel), &
+                                 FCIDetIndex(ExcitLevel + 1) - 1, PartInd, &
+                                 tSuccess)
+        end if
 
     end subroutine
 
-    subroutine add_hist_energies (ilut, Sign, HDiag)
+    subroutine add_hist_energies(ilut, Sign, HDiag)
 
         ! This will histogram the energies of the particles, rather than the
         ! determinants themselves.
@@ -166,7 +166,7 @@ contains
 
         bin = int(HDiag / BinRange) + 1
         if (bin > iNoBins) &
-            call stop_all (t_r, "Histogramming energies higher than the &
+            call stop_all(t_r, "Histogramming energies higher than the &
                          &arrays can cope with. Increase iNoBins or BinRange")
         HistogramEnergy(bin) = HistogramEnergy(bin) + sum(abs(Sign))
 
@@ -175,7 +175,7 @@ contains
 
     end subroutine
 
-    function calc_s_squared (only_init) result (ssq)
+    function calc_s_squared(only_init) result(ssq)
 
         ! Calculate the instantaneous value of S^2 for the walkers stored
         ! in CurrentDets
@@ -189,19 +189,19 @@ contains
         type(timer), save :: s2_timer
 
         s2_timer%timer_name = 'S2 local'
-        call set_timer (s2_timer)
+        call set_timer(s2_timer)
 
         ssq = 0
-        do i = 1, int(TotWalkers,sizeof_int)
-            if ((test_flag(CurrentDets(:,i), get_initiator_flag(1)) .or. &
-                 test_flag(CurrentDets(:,i), get_initiator_flag(lenof_sign)))&
-                 .and. .not. TestClosedShellDet(CurrentDets(:,i))) then
-                ssq = ssq + ssquared_contrib (CurrentDets(:,i), only_init)
+        do i = 1, int(TotWalkers, sizeof_int)
+            if ((test_flag(CurrentDets(:, i), get_initiator_flag(1)) .or. &
+                 test_flag(CurrentDets(:, i), get_initiator_flag(lenof_sign))) &
+                .and. .not. TestClosedShellDet(CurrentDets(:, i))) then
+                ssq = ssq + ssquared_contrib(CurrentDets(:, i), only_init)
             end if
-        enddo
+        end do
 
         ! Sum over all processors and normalise
-        call MPISum (ssq, tmp)
+        call MPISum(ssq, tmp)
         ssq = tmp
 
         do run = 1, inum_runs
@@ -215,35 +215,35 @@ contains
                 !            system I am somewhat astounded I haven't noticed this
                 !            before...
                 ssq(run) = ssq(run) &
-                         + real(calculated_ms * (calculated_ms + 2), dp) / 4
+                           + real(calculated_ms * (calculated_ms + 2), dp) / 4
             end if
         end do
 
-        call halt_timer (s2_timer)
+        call halt_timer(s2_timer)
 
     end function
 
-    function calc_s_squared_multi () result (ssq)
+    function calc_s_squared_multi() result(ssq)
 
         integer :: max_linked, max_per_proc, max_spawned
         real(dp), dimension(inum_runs) :: ssq
         type(timer), save :: s2_timer
 
         s2_timer%timer_name = 'S^2'
-        call set_timer (s2_timer)
+        call set_timer(s2_timer)
 
         max_linked = int(choose(nel, (nel + LMS) / 2))
         max_per_proc = 2 * (max_linked / nProcessors) + 1
         max_spawned = max_per_proc * nProcessors
 
-        ssq = calc_s_squared_multi_worker (max_per_proc, max_spawned)
+        ssq = calc_s_squared_multi_worker(max_per_proc, max_spawned)
 
-        call halt_timer (s2_timer)
+        call halt_timer(s2_timer)
 
     end function
 
-    function calc_s_squared_multi_worker (max_per_proc, max_spawned) &
-             result(ssq)
+    function calc_s_squared_multi_worker(max_per_proc, max_spawned) &
+        result(ssq)
 
         integer :: i, j, k, orb2, orbtmp, pos, ierr
         integer :: nI(nel), nJ(nel), proc
@@ -254,12 +254,11 @@ contains
         integer :: max_per_proc, max_spawned, run
         real(dp) :: sgn1(lenof_sign), sgn2(lenof_sign)
 
-
         ! Could we pre-initialise all of these data structures
         !integer :: max_linked = int(choose(nel, (nel + LMS)/2))
         integer(n_int) :: det_list(0:NIfTot, max_spawned)
         integer(n_int) :: recv_dets(0:NIfTot, max_spawned)
-        integer :: proc_pos (nProcessors), proc_pos_init(nProcessors)
+        integer :: proc_pos(nProcessors), proc_pos_init(nProcessors)
         integer :: send_count(nProcessors), recv_count(nProcessors)
         integer(MPIArg) :: send_data(nProcessors), recv_data(nProcessors)
         integer(MPIArg) :: send_off(nProcessors), recv_off(nProcessors)
@@ -268,7 +267,7 @@ contains
         any_running = .true.
         j = 1
         ssq = 0
-        forall (i=1:nProcessors) proc_pos_init(i) = (i-1)*max_per_proc + 1
+        forall (i=1:nProcessors) proc_pos_init(i) = (i - 1) * max_per_proc + 1
 
         do while (any_running)
 
@@ -279,8 +278,8 @@ contains
 
                 ! Generate items, add to list (and use the sgn of initial
                 ! walker, so we send it to the target processor)
-                call ilut_nifd_pointer_assign(detcurr, CurrentDets(0:NIfTot,j))
-                call decode_bit_det (nI, detcurr)
+                call ilut_nifd_pointer_assign(detcurr, CurrentDets(0:NIfTot, j))
+                call decode_bit_det(nI, detcurr)
 
                 do i = 1, nel
                     orbtmp = get_alpha(nI(i))
@@ -303,61 +302,61 @@ contains
 
                                 ! Store this det (n.b. contains original sgn)
                                 call decode_bit_det(nJ, sminus)
-                                proc = DetermineDetNode(nel,nJ, 0) + 1
-                                det_list(:,proc_pos(proc)) = sminus
+                                proc = DetermineDetNode(nel, nJ, 0) + 1
+                                det_list(:, proc_pos(proc)) = sminus
                                 proc_pos(proc) = proc_pos(proc) + 1
-                            endif
-                        enddo
-                    endif
-                enddo
+                            end if
+                        end do
+                    end if
+                end do
 
                 ! Walk through the list. Stop when we get to the end.
                 j = j + 1
                 if (j > TotWalkers) running = .false.
 
-            endif
+            end if
 
             ! How many elements are there in each list?
             send_count = proc_pos - proc_pos_init
             if (any(send_count > max_per_proc)) &
                 send_count = max_per_proc + 1
 
-            call MPIAlltoAll (send_count, 1, recv_count, 1, ierr)
+            call MPIAlltoAll(send_count, 1, recv_count, 1, ierr)
 
-            send_off = int((proc_pos_init - 1) * (NIfTot + 1),MPIArg)
+            send_off = int((proc_pos_init - 1) * (NIfTot + 1), MPIArg)
             recv_off(1) = 0
             do i = 2, nProcessors
-                recv_off(i) = recv_off(i - 1) + int(recv_count(i - 1),MPIArg)
-            enddo
-            recv_off = recv_off * int(NIfTot + 1,MPIArg)
-            send_data = int(send_count * (NIfTot + 1),MPIArg)
-            recv_data = int(recv_count * (NIfTot + 1),MPIArg)
+                recv_off(i) = recv_off(i - 1) + int(recv_count(i - 1), MPIArg)
+            end do
+            recv_off = recv_off * int(NIfTot + 1, MPIArg)
+            send_data = int(send_count * (NIfTot + 1), MPIArg)
+            recv_data = int(recv_count * (NIfTot + 1), MPIArg)
 
-            call MPIAlltoAllv (det_list, send_data, send_off, &
-                               recv_dets, recv_data, recv_off, ierr)
+            call MPIAlltoAllv(det_list, send_data, send_off, &
+                              recv_dets, recv_data, recv_off, ierr)
 
             ! Find the det in list, and sum in its term.
             do i = 1, sum(recv_count)
 
                 ! The sign of the source particle
-                call extract_sign (recv_dets(:,i), sgn1)
+                call extract_sign(recv_dets(:, i), sgn1)
 
                 ! And the generated, connected particle
-                pos = binary_search(CurrentDets(:,1:TotWalkers), &
-                                    recv_dets(:,i), NIfD+1)
+                pos = binary_search(CurrentDets(:, 1:TotWalkers), &
+                                    recv_dets(:, i), NIfD + 1)
                 if (pos > 0) then
-                    call extract_sign (CurrentDets(:,pos), sgn2)
+                    call extract_sign(CurrentDets(:, pos), sgn2)
                     ssq = ssq + (sgn1(1) * sgn2(1))
-                endif
+                end if
 
-            enddo
+            end do
 
             ! Is there anything left to do on any process?
-            call MPIAllLORLogical (running, any_running)
+            call MPIAllLORLogical(running, any_running)
 
-        enddo
+        end do
 
-        call MPISum (ssq, tmp)
+        call MPISum(ssq, tmp)
         ssq = tmp
 
         do run = 1, inum_runs
@@ -370,18 +369,17 @@ contains
                 !            system. I am somewhat astounded I haven't noticed
                 !            this before...
                 ssq(run) = ssq(run) &
-                         + real(calculated_ms * (calculated_ms + 2), dp) / 4
+                           + real(calculated_ms * (calculated_ms + 2), dp) / 4
             end if
         end do
 
     end function
 
-
-    function calc_s_squared_star (only_init) result (ssq)
+    function calc_s_squared_star(only_init) result(ssq)
 
         real(dp), dimension(inum_runs) :: ssq
         integer, parameter :: max_per_proc = 1000
-        integer(n_int) :: recv_dets(0:NIfTot,max_per_proc)
+        integer(n_int) :: recv_dets(0:NIfTot, max_per_proc)
         integer :: proc_dets, start_pos, nsend, i, p
         integer :: bcast_tmp(2), run
         real(dp) :: sgn_tmp(lenof_sign)
@@ -390,48 +388,47 @@ contains
         real(dp), dimension(inum_runs):: All_ssq_sum, All_psi_squared
         logical, intent(in) :: only_init
 
-
         s2_timer%timer_name = 'S^2 star'
         s2_timer_init%timer_name = 'S^2 init'
         if (only_init) then
             call set_timer(s2_timer_init)
         else
-            call set_timer (s2_timer)
-        endif
+            call set_timer(s2_timer)
+        end if
 
         ssq_sum = 0.0_dp
         psi_squared = 0.0_dp
-        do p = 0, nProcessors-1
+        do p = 0, nProcessors - 1
 
             ! How many dets are on processor p
-            proc_dets = int(TotWalkers,sizeof_int)
-            call MPIBcast (proc_dets, iProcIndex == p)
+            proc_dets = int(TotWalkers, sizeof_int)
+            call MPIBcast(proc_dets, iProcIndex == p)
 
             ! Send the dets around bit by bit
             start_pos = 1
-            do while(start_pos <= proc_dets)
+            do while (start_pos <= proc_dets)
 
                 if (tTruncInitiator .and. only_init) then
                     ! Loop over walkers and only add initiators to bcast list
                     nsend = 0
                     if (p == iProcIndex) then
-                        do i = start_pos, int(TotWalkers,sizeof_int)
+                        do i = start_pos, int(TotWalkers, sizeof_int)
                             ! Break up the list into correctly sized chunks
                             if (nsend == max_per_proc) exit
 
-                            if (any_run_is_initiator(CurrentDets(:,i))) then
+                            if (any_run_is_initiator(CurrentDets(:, i))) then
                                 nsend = nsend + 1
-                                recv_dets(:,nsend) = CurrentDets(:,i)
+                                recv_dets(:, nsend) = CurrentDets(:, i)
 
                                 ! If we are using initiators only, keep track
                                 ! of the overall magnitude of the init-only
                                 ! wavefunction.
-                                call extract_sign (CurrentDets(:,i), sgn_tmp)
-                                psi_squared = psi_squared + sum(sgn_tmp ** 2)
-                            endif
-                        enddo
+                                call extract_sign(CurrentDets(:, i), sgn_tmp)
+                                psi_squared = psi_squared + sum(sgn_tmp**2)
+                            end if
+                        end do
                         start_pos = i
-                    endif
+                    end if
                     bcast_tmp = (/nsend, start_pos/)
                     call MPIBcast(bcast_tmp, p == iProcIndex)
                     nsend = bcast_tmp(1)
@@ -443,69 +440,68 @@ contains
                         nsend = proc_dets - start_pos + 1
                     else
                         nsend = max_per_proc
-                    endif
+                    end if
 
                     ! Update list of received dets
-                    if (p == iProcIndex) recv_dets(:,1:nsend) = &
-                                    CurrentDets(:,start_pos:start_pos+nsend-1)
+                    if (p == iProcIndex) recv_dets(:, 1:nsend) = &
+                        CurrentDets(:, start_pos:start_pos + nsend - 1)
 
                     ! Increment position
                     start_pos = start_pos + nsend
 
-                endif
+                end if
 
                 ! Broadcast to all processors
-                call MPIBcast (recv_dets(:,1:nsend), iProcIndex == p)
+                call MPIBcast(recv_dets(:, 1:nsend), iProcIndex == p)
 
                 ! All processors loop over these dets, and calculate their
                 ! contribution to S^2
                 do i = 1, nsend
-                    if (.not. TestClosedShellDet(recv_dets(:,i))) then
+                    if (.not. TestClosedShellDet(recv_dets(:, i))) then
                         ! If nopen == 2, and tHPHF, then this can be
                         ! optimised further
-                        ssq_sum = ssq_sum + ssquared_contrib (recv_dets(:,i),&
-                                                              only_init)
-                    endif
-                enddo
+                        ssq_sum = ssq_sum + ssquared_contrib(recv_dets(:, i), &
+                                                             only_init)
+                    end if
+                end do
 
-            enddo
+            end do
 
-        enddo ! Loop over processors
-
+        end do ! Loop over processors
 
         ! Sum all of the s squared terms
         if (tTruncInitiator .and. only_init) then
             call MPISum(psi_squared, All_psi_squared)
-            psi_squared=All_psi_squared
+            psi_squared = All_psi_squared
         else
             psi_squared = all_norm_psi_squared
         end if
         call MPISum(ssq_sum, All_ssq_sum)
-        ssq_sum=All_ssq_sum
+        ssq_sum = All_ssq_sum
 
         do run = 1, inum_runs
             if (abs(psi_squared(run)) < 1.0e-10_dp) then
                 ssq(run) = 0.0_dp
             else
-                ssq(run) = real(ssq_sum(run),dp) / psi_squared(run)
+                ssq(run) = real(ssq_sum(run), dp) / psi_squared(run)
 
                 ! TODO: n.b. This is a hack. LMS appears to contain -2Ms of the
                 !            system. I am somewhat astounded I haven't noticed
                 !            this before...
                 ssq(run) = ssq(run) &
-                         + real(calculated_ms * (calculated_ms + 2), dp) / 4.0
+                           + real(calculated_ms * (calculated_ms + 2), dp) / 4.0
             end if
         end do
 
         if (only_init) then
             call halt_timer(s2_timer_init)
         else
-            call halt_timer (s2_timer)
-        endif
+            call halt_timer(s2_timer)
+        end if
 
     end function
 
-    function ssquared_contrib (ilut, only_init_, n_opt, ilut_list_opt) result(ssq)
+    function ssquared_contrib(ilut, only_init_, n_opt, ilut_list_opt) result(ssq)
 
         ! Calculate the contribution to s-squared from the determinant
         ! provided (from walkers on this processor).
@@ -517,7 +513,7 @@ contains
         integer(n_int), intent(in) :: ilut(0:NIfTot)
         logical, intent(in), optional :: only_init_
         integer, intent(in), optional :: n_opt
-        integer(n_int), intent(in), optional :: ilut_list_opt(0:,:)
+        integer(n_int), intent(in), optional :: ilut_list_opt(0:, :)
         real(dp) :: ssq
 #ifdef DEBUG_
         character(*), parameter :: this_routine = "ssquared_contrib"
@@ -528,8 +524,7 @@ contains
         integer :: flg, nI(nel), j, k, orb2, pos, orb_tmp
         logical :: only_init, inc
         integer :: n_states
-        integer(n_int), allocatable :: ilut_list(:,:)
-
+        integer(n_int), allocatable :: ilut_list(:, :)
 
         if (present(only_init_)) then
             only_init = only_init_
@@ -540,19 +535,19 @@ contains
         ! make this routine more flexible and usable not only for CurrentDets
         if (present(n_opt)) then
             ASSERT(present(ilut_list_opt))
-            ASSERT(size(ilut_list_opt,2) == n_opt)
+            ASSERT(size(ilut_list_opt, 2) == n_opt)
 
             n_states = n_opt
-            allocate(ilut_list(0:niftot,n_states), source = ilut_list_opt(0:niftot,1:n_opt))
+            allocate(ilut_list(0:niftot, n_states), source=ilut_list_opt(0:niftot, 1:n_opt))
 
         else
             n_states = int(TotWalkers)
-            allocate(ilut_list(0:niftot,TotWalkers), source = CurrentDets(0:niftot,1:TotWalkers))
+            allocate(ilut_list(0:niftot, TotWalkers), source=CurrentDets(0:niftot, 1:TotWalkers))
 
         end if
 
         ! Extract details of determinant
-        call extract_bit_rep (ilut, nI, sgn, flg)
+        call extract_bit_rep(ilut, nI, sgn, flg)
 
         ssq = 0.0_dp
         do j = 1, nel
@@ -581,15 +576,15 @@ contains
                                 ilut_srch = sminus
                             else
                                 ilut_srch = ilut_sym
-                                sgn_hphf = hphf_sign (ilut_srch)
-                            endif
+                                sgn_hphf = hphf_sign(ilut_srch)
+                            end if
                         else
                             ilut_srch = sminus
-                        endif
+                        end if
 
                         ! --> sminus is an allowed result of applying S-S+
-                        pos = binary_search (ilut_list(:,1:n_states), &
-                                             ilut_srch, NIfD+1)
+                        pos = binary_search(ilut_list(:, 1:n_states), &
+                                            ilut_srch, NIfD + 1)
                         if (pos > 0) then
 
                             ! If we are looking for the spin of the initiator
@@ -597,20 +592,19 @@ contains
                             ! are projecting onto an initiator...
                             inc = .true.
                             if (tTruncInitiator .and. only_init) then
-                                inc = (any_run_is_initiator(ilut_list(:,pos)))
+                                inc = (any_run_is_initiator(ilut_list(:, pos)))
                             end if
 
-                            call extract_sign (ilut_list(:,pos), sgn2)
+                            call extract_sign(ilut_list(:, pos), sgn2)
                             ssq = ssq + sgn(1) * sgn2(1) * sgn_hphf
 
-                        endif
-                    endif
-                enddo
-            endif
-        enddo
+                        end if
+                    end if
+                end do
+            end if
+        end do
 
     end function
-
 
     subroutine init_hist_excit_tofrom()
 
@@ -628,21 +622,21 @@ contains
 
             ! Open an output file
             excit_tofrom_unit = get_free_unit()
-            open(excit_tofrom_unit, file='spawns_tofrom_excit', &
-                 status='replace')
+            open (excit_tofrom_unit, file='spawns_tofrom_excit', &
+                  status='replace')
 
             ! Write a header in the output file
-            write(excit_tofrom_unit, '("# Number of particles spawned between &
+            write (excit_tofrom_unit, '("# Number of particles spawned between &
                                        &excitation levels from the Hartree--&
                                        &Fock on this update cycle")')
-            write(excit_tofrom_unit,'("# iter,  0-->0,  0-->1,  0-->2, ..., &
+            write (excit_tofrom_unit, '("# iter,  0-->0,  0-->1,  0-->2, ..., &
                                       &1-->0, ...")')
 
         end if
 
     end subroutine
 
-    subroutine clean_hist_excit_tofrom ()
+    subroutine clean_hist_excit_tofrom()
 
         character(*), parameter :: this_routine = 'clean_hist_excit_tofrom'
 
@@ -656,7 +650,7 @@ contains
 
     end subroutine
 
-    subroutine add_hist_excit_tofrom (iluti, ilutj, child)
+    subroutine add_hist_excit_tofrom(iluti, ilutj, child)
 
         integer(n_int), intent(in) :: ilutI(0:NIfTot), ilutJ(0:NIfTot)
         real(dp), intent(in) :: child(lenof_sign)
@@ -669,8 +663,8 @@ contains
 
         ! Get the excitation levels of the source and target
         ASSERT(.not. tGUGA)
-        exlevelI = FindBitExcitLevel(ilutRef(:,1), ilutI, t_hphf_ic = .true.)
-        exlevelJ = FindBitExcitLevel(ilutRef(:,1), ilutJ, t_hphf_ic = .true.)
+        exlevelI = FindBitExcitLevel(ilutRef(:, 1), ilutI, t_hphf_ic=.true.)
+        exlevelJ = FindBitExcitLevel(ilutRef(:, 1), ilutJ, t_hphf_ic=.true.)
 
         ! And store it!
         hist_excit_tofrom(exlevelI, exlevelJ) = &

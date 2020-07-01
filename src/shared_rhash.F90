@@ -89,9 +89,9 @@ contains
         call this%indices%shared_alloc(n_elem)
         ! For each possible hash value, there will be on offset
         ! Add one additional offset at the end for easier initialization
-        call this%hval_offsets%shared_alloc(this%hval_range+1)
+        call this%hval_offsets%shared_alloc(this%hval_range + 1)
         ! Only on node-root, the multiplicity of each hash value is counted during setup
-        if(iProcIndex_intra == 0) then
+        if (iProcIndex_intra == 0) then
             allocate(this%mult(this%hval_range))
             ! Initialize with 0
             this%hval_offsets%ptr = 0
@@ -107,7 +107,7 @@ contains
 
         call this%indices%shared_dealloc()
         call this%hval_offsets%shared_dealloc()
-        if(allocated(this%mult)) deallocate(this%mult)
+        if (allocated(this%mult)) deallocate(this%mult)
     end subroutine dealloc
 
     !------------------------------------------------------------------------------------------!
@@ -124,10 +124,10 @@ contains
         integer(int64) :: n_hval
 
         ! all following entries get their offset increased by one
-        if(iProcIndex_intra == 0) then
+        if (iProcIndex_intra == 0) then
             n_hval = hval + 1
             this%hval_offsets%ptr(n_hval) = this%hval_offsets%ptr(n_hval) + 1
-        endif
+        end if
     end subroutine count_value
 
     !------------------------------------------------------------------------------------------!
@@ -141,11 +141,11 @@ contains
         integer(int64) :: i
 
         ! The first offset stays unchanged
-        if(iProcIndex_intra == 0) then
-            do i = 2, this%hval_range+1
-                this%hval_offsets%ptr(i) = this%hval_offsets%ptr(i) + this%hval_offsets%ptr(i-1)
+        if (iProcIndex_intra == 0) then
+            do i = 2, this%hval_range + 1
+                this%hval_offsets%ptr(i) = this%hval_offsets%ptr(i) + this%hval_offsets%ptr(i - 1)
             end do
-        endif
+        end if
         this%t_conflicts_known = .true.
     end subroutine setup_offsets
 
@@ -160,8 +160,8 @@ contains
         integer(int64), intent(in) :: hval, index
         integer(int64), intent(out) :: pos
 
-        if(iProcIndex_intra == 0) then
-            pos = this%hval_offsets%ptr(hval)+this%mult(hval)
+        if (iProcIndex_intra == 0) then
+            pos = this%hval_offsets%ptr(hval) + this%mult(hval)
             this%indices%ptr(pos) = index
             this%mult(hval) = this%mult(hval) + 1
         end if
@@ -173,9 +173,9 @@ contains
     subroutine finalize_setup(this)
         class(shared_rhash_t), intent(inout) :: this
 
-        if(iProcIndex_intra == 0) then
+        if (iProcIndex_intra == 0) then
             deallocate(this%mult)
-        endif
+        end if
     end subroutine finalize_setup
 
     !------------------------------------------------------------------------------------------!
@@ -196,12 +196,12 @@ contains
         integer(int64) :: lower, upper, i
 
         lower = this%hval_offsets%ptr(hval) + 1
-        upper = this%hval_offsets%ptr(hval+1)
+        upper = this%hval_offsets%ptr(hval + 1)
 
         t_found = .false.
         pos = 0
         do i = lower, upper
-            if(this%indices%ptr(i) == index) then
+            if (this%indices%ptr(i) == index) then
                 pos = i
                 t_found = .true.
                 return
@@ -234,12 +234,12 @@ contains
         end interface
 
         lower = this%hval_offsets%ptr(hval) + 1
-        upper = this%hval_offsets%ptr(hval+1)
+        upper = this%hval_offsets%ptr(hval + 1)
 
         t_found = .false.
         pos = 0
         do i = lower, upper
-            if(loc_verify(this%indices%ptr(i))) then
+            if (loc_verify(this%indices%ptr(i))) then
                 pos = this%indices%ptr(i)
                 t_found = .true.
                 return
@@ -295,7 +295,7 @@ contains
     !> @param[out] ht_size  optional, the size of the hash table. Defaults to space_size
     subroutine initialise_shared_rht_impl(ilut_list, space_size, hash_table, ht_size)
         use SystemData, only: nel
-        integer(n_int), intent(in) :: ilut_list(0:,:)
+        integer(n_int), intent(in) :: ilut_list(0:, :)
         integer, intent(in) :: space_size
         type(shared_rhash_t), intent(out) :: hash_table
         integer, intent(in), optional :: ht_size
@@ -319,7 +319,7 @@ contains
         use bit_reps, only: decode_bit_det
         use hash, only: FindWalkerHash
 
-        integer(n_int), intent(in) :: ilut_list(0:,:)
+        integer(n_int), intent(in) :: ilut_list(0:, :)
         integer, intent(in) :: space_size
         type(shared_rhash_t), intent(out) :: hash_table
         integer, intent(in) :: det_size
@@ -330,11 +330,11 @@ contains
         integer :: i, ierr
         integer(int64) :: hash_val, pos
 
-        call hash_table%alloc(int(space_size,int64), int(ht_size,int64))
+        call hash_table%alloc(int(space_size, int64), int(ht_size, int64))
 
         ! Count the number of states with each hash value.
         do i = 1, space_size
-            call decode_bit_det(nI, ilut_list(:,i))
+            call decode_bit_det(nI, ilut_list(:, i))
             hash_val = FindWalkerHash(nI, ht_size)
             call hash_table%count_value(hash_val)
         end do
@@ -342,9 +342,9 @@ contains
         call hash_table%setup_offsets()
         ! Now fill in the indices of the states in the space.
         do i = 1, space_size
-            call decode_bit_det(nI, ilut_list(:,i))
+            call decode_bit_det(nI, ilut_list(:, i))
             hash_val = FindWalkerHash(nI, ht_size)
-            call hash_table%add_value(hash_val, int(i,int64), pos)
+            call hash_table%add_value(hash_val, int(i, int64), pos)
         end do
 
         ! Synchronize the node afterwards to keep tasks from using the un-initialized ht
@@ -369,7 +369,7 @@ contains
         type(shared_rhash_t), intent(in) :: core_ht
         integer(n_int), intent(in) :: ilut(0:NIfTot)
         integer, intent(in) :: nI(:)
-        integer(int64), intent(in) :: tgt_space(0:,1:)
+        integer(int64), intent(in) :: tgt_space(0:, 1:)
 
         integer, intent(out) :: i
         logical, intent(out) :: core_state
@@ -387,7 +387,7 @@ contains
             integer(int64), intent(in) :: ind
             logical :: match
 
-            match = all(ilut(0:nifd) == tgt_space(0:nifd,ind))
+            match = all(ilut(0:nifd) == tgt_space(0:nifd, ind))
         end function loc_verify
 
     end subroutine shared_rht_lookup

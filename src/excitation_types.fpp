@@ -136,7 +136,6 @@ module excitation_types
     #:endfor
     end interface
 
-
 !>  @brief
 !>     Set the last target of a non trivial excitation.
 !>
@@ -176,7 +175,7 @@ module excitation_types
     interface ilut_excite
     #:for det_type in ['Ilut_t']
         #:for Excitation_t in ['NoExc_t', 'SingleExc_t', 'DoubleExc_t']
-            module procedure excite_${det_type}$_${Excitation_t}$
+        module procedure excite_${det_type}$_${Excitation_t}$
         #:endfor
     #:endfor
     end interface
@@ -184,12 +183,12 @@ module excitation_types
 contains
 
     #:for Excitation_t in non_trivial_excitations
-        elemental function defined_${Excitation_t}$(exc) result(res)
-            type(${Excitation_t}$), intent(in) :: exc
-            logical :: res
+    elemental function defined_${Excitation_t}$ (exc) result(res)
+        type(${Excitation_t}$), intent(in) :: exc
+        logical :: res
 
-            res = all(exc%val /= UNKNOWN)
-        end function
+        res = all(exc%val /= UNKNOWN)
+    end function
     #:endfor
     elemental function defined_NoExc_t(exc) result(res)
         type(NoExc_t), intent(in) :: exc
@@ -202,18 +201,17 @@ contains
         class(Excitation_t), intent(in) :: exc
         logical :: res
 
-        select type(exc)
-        type is(NoExc_t)
+        select type (exc)
+        type is (NoExc_t)
             res = defined(exc)
-        type is(SingleExc_t)
+        type is (SingleExc_t)
             res = defined(exc)
-        type is(DoubleExc_t)
+        type is (DoubleExc_t)
             res = defined(exc)
-        type is(TripleExc_t)
+        type is (TripleExc_t)
             res = defined(exc)
         end select
     end function
-
 
     pure function from_integer_SingleExc_t(src, tgt) result(res)
         integer, intent(in), optional :: src, tgt
@@ -266,19 +264,19 @@ contains
 #endif
 
         select case (IC)
-        case(0)
+        case (0)
             allocate(NoExc_t :: exc)
-        case(1)
+        case (1)
             allocate(SingleExc_t :: exc)
-        case(2)
+        case (2)
             allocate(DoubleExc_t :: exc)
-        case(3)
+        case (3)
             allocate(TripleExc_t :: exc)
         case (4:)
             allocate(FurtherExc_t :: exc)
         case default
 #ifdef DEBUG_
-        call stop_all(this_routine, 'invalid IC < 0 passed.')
+            call stop_all(this_routine, 'invalid IC < 0 passed.')
 #endif
         end select
 
@@ -366,13 +364,12 @@ contains
     end subroutine set_last_tgt_SingleExc_t
 
     #:for Excitation_t in ['DoubleExc_t', 'TripleExc_t']
-        pure subroutine set_last_tgt_${Excitation_t}$(exc, tgt)
-            type(${Excitation_t}$), intent(inout) :: exc
-            integer, intent(in) :: tgt
-            exc%val(2, size(exc%val, 2)) = tgt
-        end subroutine set_last_tgt_${Excitation_t}$
+    pure subroutine set_last_tgt_${Excitation_t}$ (exc, tgt)
+        type(${Excitation_t}$), intent(inout) :: exc
+        integer, intent(in) :: tgt
+        exc%val(2, size(exc%val, 2)) = tgt
+    end subroutine set_last_tgt_${Excitation_t}$
     #:endfor
-
 
     pure function get_last_tgt_SingleExc_t(exc) result(res)
         type(SingleExc_t), intent(in) :: exc
@@ -381,12 +378,12 @@ contains
     end function get_last_tgt_SingleExc_t
 
     #:for Excitation_t in ['DoubleExc_t', 'TripleExc_t']
-        pure function get_last_tgt_${Excitation_t}$(exc) result(res)
-            type(${Excitation_t}$), intent(in) :: exc
-            integer :: res
+    pure function get_last_tgt_${Excitation_t}$ (exc) result(res)
+        type(${Excitation_t}$), intent(in) :: exc
+        integer :: res
 
-            res = exc%val(2, size(exc%val, 2))
-        end function get_last_tgt_${Excitation_t}$
+        res = exc%val(2, size(exc%val, 2))
+    end function get_last_tgt_${Excitation_t}$
     #:endfor
 
     pure function excite_nI_NoExc_t(det_I, exc) result(res)
@@ -434,14 +431,14 @@ contains
 
         res = special_union_complement(det_I, tgt, src)
 
-        contains
-            pure subroutine swap(a, b)
-                integer, intent(inout) :: a, b
-                integer :: tmp
-                tmp = a
-                a = b
-                b = tmp
-            end subroutine
+    contains
+        pure subroutine swap(a, b)
+            integer, intent(inout) :: a, b
+            integer :: tmp
+            tmp = a
+            a = b
+            b = tmp
+        end subroutine
     end function
 
 
@@ -494,7 +491,6 @@ contains
         end associate
     end function
 
-
     DEBUG_IMPURE function excite_Ilut_t_DoubleExc_t(ilut_I, exc) result(res)
         integer(n_int), intent(in) :: ilut_I(:)
         type(DoubleExc_t), intent(in) :: exc
@@ -515,7 +511,6 @@ contains
         set_orb(res, tgt(1))
         set_orb(res, tgt(2))
     end function
-
 
     DEBUG_IMPURE function dyn_excite(det_I, exc) result(res)
         type(SpinOrbIdx_t), intent(in) :: det_I
