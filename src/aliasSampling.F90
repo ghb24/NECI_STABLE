@@ -4,7 +4,7 @@ module aliasSampling
     use constants
     use shared_memory_mpi
     use ParallelHelper, only: iProcIndex_intra
-    use dSFMT_interface , only : genrand_real2_dSFMT
+    use dSFMT_interface, only: genrand_real2_dSFMT
     use shared_array
     implicit none
 
@@ -100,8 +100,8 @@ contains
 
         character(*), parameter :: t_r = "setupTable"
         integer(int64) :: arrSize
-        if(sum(arr) < eps) call stop_all(t_r,&
-            "Trying to setup empty alias table")
+        if (sum(arr) < eps) call stop_all(t_r, &
+                                          "Trying to setup empty alias table")
 
         ! allocate the shared memory segment for the alias table
         arrSize = size(arr)
@@ -113,7 +113,7 @@ contains
 
         ! Sync the shared resource between tasks
         call this%biasTable%sync()
-        call this%aliasTable%sync()        
+        call this%aliasTable%sync()
 
     end subroutine setupTable
 
@@ -122,21 +122,21 @@ contains
     !> Set the bias and alias values for each value in range
     !> @param[in] arr - array containing the (not necessarily normalized) probabilities we
     !>              want to use for sampling
-    subroutine initTable(this,arr)
+    subroutine initTable(this, arr)
         implicit none
         class(aliasTable_t) :: this
         real(dp), intent(in) :: arr(:)
 
-        integer :: i,j,cV, cU
+        integer :: i, j, cV, cU
         integer(int64) :: arrSize
         integer, allocatable :: overfull(:), underfull(:)
 
         arrSize = size(arr)
 
         ! as this is shared memory, only node-root has to do this
-        if(iProcIndex_intra == 0) then
+        if (iProcIndex_intra == 0) then
             ! initialize the probabilities
-            this%biasTable%ptr = arr/sum(arr)*arrSize
+            this%biasTable%ptr = arr / sum(arr) * arrSize
 
             ! indices of subarrays
             allocate(overfull(arrSize))
@@ -153,7 +153,7 @@ contains
             ! -> reverse overfull
             overfull(1:cV) = overfull(cV:1:-1)
             do
-                if((cV == 0) .or. (cU == 0)) then
+                if ((cV == 0) .or. (cU == 0)) then
                     exit
                 end if
                 ! pick one overfull and one underfull index
@@ -172,17 +172,17 @@ contains
             end do
 
             ! make sure we do not leave anything unfilled
-            call roundTo1(overfull,cV)
-            call roundTo1(underfull,cU)
+            call roundTo1(overfull, cV)
+            call roundTo1(underfull, cU)
 
-        endif
+        end if
 
     contains
 
         subroutine assignLabel(i)
             integer, intent(in) :: i
 
-            if(this%biasTable%ptr(i) > 1) then
+            if (this%biasTable%ptr(i) > 1) then
                 cV = cV + 1
                 overfull(cV) = i
             else
@@ -191,18 +191,18 @@ contains
             end if
         end subroutine assignLabel
 
-        subroutine roundTo1(labels,cI)
+        subroutine roundTo1(labels, cI)
             integer, intent(in) :: labels(:)
             integer, intent(in) :: cI
 
             ! if, due to floating point errors, one of the categories is not empty, empty it
             ! (error is negligible then)
-            if(cI > 0) then
+            if (cI > 0) then
                 do i = 1, cI
                     this%biasTable%ptr(labels(i)) = 1.0_dp
                     this%aliasTable%ptr(labels(i)) = labels(i)
                 end do
-            endif
+            end if
 
         end subroutine roundTo1
 
@@ -236,18 +236,18 @@ contains
         ! random number between 0 and 1
         r = genrand_real2_dSFMT()
         ! random position in arr
-        pos = int(sizeArr*r)+1
+        pos = int(sizeArr * r) + 1
         ! remainder of the integer conversion
         ! floating point errors can lead to very small negative values of bias here
         ! this would allow for picking elements which have probability 0 (-> biasTable entry 0)
         ! -> ensure that bias>=0
-        bias = max(sizeArr*r + 1.0_dp - real(pos,dp),0.0_dp)
+        bias = max(sizeArr * r + 1.0_dp - real(pos, dp), 0.0_dp)
 
-        if(bias < this%biasTable%ptr(pos)) then
+        if (bias < this%biasTable%ptr(pos)) then
             ind = pos
         else
             ind = this%aliasTable%ptr(pos)
-        endif
+        end if
     end function getRand
 
     !------------------------------------------------------------------------------------------!
@@ -264,10 +264,10 @@ contains
 
         integer(int64) :: arrSize
         ! if all weights are 0, throw an error
-        if(sum(arr) < eps) then
+        if (sum(arr) < eps) then
             ! probs defaults to null(), so it is not associated at this point (i.e. in a well-defined state)
             return
-        endif
+        end if
 
         ! initialize the alias table
         call this%table%setupTable(arr)
@@ -294,11 +294,11 @@ contains
         real(dp), intent(in) :: arr(:)
 
         ! if all weights are 0, throw an error
-        if(sum(arr) < eps) then
+        if (sum(arr) < eps) then
             ! if we reach this point, probs is uninitialized -> null it
             this%probs%ptr => null()
             return
-        endif
+        end if
 
         ! load the data - assume this is pre-allocated
         call this%table%initTable(arr)
@@ -316,7 +316,7 @@ contains
         real(dp), intent(in) :: arr(:)
 
         ! the array is shared memory, so only node-root has to do this
-        if(iProcIndex_intra == 0) then
+        if (iProcIndex_intra == 0) then
             ! the probabilities are taken from input and normalized
             this%probs%ptr = arr / sum(arr)
         end if
@@ -346,7 +346,7 @@ contains
         real(dp), intent(out) :: prob
 
         ! empty samplers don't return anything - since probs defaults to null(), this check is safe
-        if(.not.associated(this%probs%ptr)) then
+        if (.not. associated(this%probs%ptr)) then
             tgt = 0
             prob = 1.0
             return
@@ -369,11 +369,11 @@ contains
         real(dp) :: prob
 
         ! the probability of drawing anything from an empty sampler is 0
-        if(.not.associated(this%probs%ptr)) then
+        if (.not. associated(this%probs%ptr)) then
             prob = 0.0
         else
             prob = this%probs%ptr(tgt)
-        endif
+        end if
     end function getProb
 
     !------------------------------------------------------------------------------------------!
@@ -408,7 +408,7 @@ contains
 
         do iEntry = 1, nEntries
             ! from where to where this entry has memory access in the shared resources
-            windowStart = (iEntry-1)*entrySize + 1
+            windowStart = (iEntry - 1) * entrySize + 1
             windowEnd = windowStart + entrySize - 1
 
             ! set this entry's pointers
@@ -454,7 +454,7 @@ contains
         this%allProbs%ptr => null()
         this%allAliasTable%ptr => null()
 
-        if(allocated(this%samplerArray)) deallocate(this%samplerArray)
+        if (allocated(this%samplerArray)) deallocate(this%samplerArray)
     end subroutine samplerArrayDestructor
 
     !------------------------------------------------------------------------------------------!
@@ -472,7 +472,7 @@ contains
         integer, intent(out) :: tgt
         real(dp), intent(out) :: prob
 
-        call this%samplerArray(iEntry)%sample(tgt,prob)
+        call this%samplerArray(iEntry)%sample(tgt, prob)
     end subroutine aSample
 
     !> Returns the probability to draw tgt from the sampler with index iEntry

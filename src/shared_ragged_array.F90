@@ -36,7 +36,7 @@ contains
         integer :: n_entries, i
 
         ! Allocate the shared resource
-        call this%data_array%shared_alloc(int(sum(sizes),int64))
+        call this%data_array%shared_alloc(int(sum(sizes), int64))
 
         ! Assign the pointers
         n_entries = size(sizes)
@@ -50,23 +50,23 @@ contains
         call this%reassign_pointers()
     end subroutine shared_alloc
 
-    !------------------------------------------------------------------------------------------!    
-    
+    !------------------------------------------------------------------------------------------!
+
     subroutine shared_dealloc(this)
         class(shared_ragged_array_t), intent(inout) :: this
 
         call this%data_array%shared_dealloc()
-        if(allocated(this%ptr)) deallocate(this%ptr)
-        if(allocated(this%store_sizes)) deallocate(this%store_sizes)        
+        if (allocated(this%ptr)) deallocate(this%ptr)
+        if (allocated(this%store_sizes)) deallocate(this%store_sizes)
     end subroutine shared_dealloc
 
-    !------------------------------------------------------------------------------------------!    
+    !------------------------------------------------------------------------------------------!
 
     subroutine reassign_pointers(this)
         class(shared_ragged_array_t), intent(inout) :: this
         integer :: n_entries
         integer :: i, win_start, win_end
-        
+
         n_entries = size(this%store_sizes)
         win_start = 1
         do i = 1, n_entries
@@ -79,14 +79,14 @@ contains
     !------------------------------------------------------------------------------------------!
 
     subroutine set_val(this, i, j, val)
-        class(shared_ragged_array_t), intent(inout) :: this        
+        class(shared_ragged_array_t), intent(inout) :: this
         integer, intent(in) :: i, j
         integer, intent(in) :: val
 
         this%ptr(i)%res(j) = val
     end subroutine set_val
-    
-    !------------------------------------------------------------------------------------------!        
+
+    !------------------------------------------------------------------------------------------!
 
     subroutine sync(this)
         class(shared_ragged_array_t), intent(inout) :: this
@@ -94,20 +94,20 @@ contains
         call this%data_array%sync()
     end subroutine sync
 
-    !------------------------------------------------------------------------------------------!        
+    !------------------------------------------------------------------------------------------!
 
     function pos_2d(this, i, j) result(val)
-        class(shared_ragged_array_t), intent(inout) :: this        
+        class(shared_ragged_array_t), intent(inout) :: this
         integer, intent(in) :: i, j
         integer :: val
 
         val = this%ptr(i)%res(j)
     end function pos_2d
 
-    !------------------------------------------------------------------------------------------!    
+    !------------------------------------------------------------------------------------------!
 
     function pos_1d(this, i) result(pt)
-        class(shared_ragged_array_t), intent(inout) :: this        
+        class(shared_ragged_array_t), intent(inout) :: this
         integer, intent(in) :: i
         integer, pointer :: pt(:)
 

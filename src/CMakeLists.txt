@@ -21,9 +21,9 @@ set( SRC_FILES
     CPMDData.F90
     cpmdinit.F
     cpmdstub.F
-    csf_data.F90
-    csf.F90
-    csf_old.F
+    #csf_data.F90
+    #csf.F90
+    #csf_old.F
     davidson_neci.F90
     davidson_semistoch.F90
     default_sets.F90
@@ -142,12 +142,12 @@ set( SRC_FILES
     searching.F90
     semi_stoch_gen.F90
     semi_stoch_procs.F90
-	shared_ragged_array.F90	
+	shared_ragged_array.F90
 	shared_rhash.F90
     sparse_arrays.F90
     spectral_data.F90
     spectral_lanczos.F90
-    spin_project.F90
+    #spin_project.F90
     SymData.F90
     symexcit2.F90
     symexcit3.F90
@@ -163,7 +163,7 @@ set( SRC_FILES
     symrandexcit_Ex_Mag.F90
     symrandexcit4.F90
     symrandexcit5.F90
-    symrandexcit_csf.F90
+    #symrandexcit_csf.F90
     symrandexcit.F
     symrandexcit_ueg.F90
     SystemData.F90
@@ -226,9 +226,9 @@ set( SRC_FILES
     lib/signals_helper.cpp
     lib/soft_exit.F90
     lib/timing.F90
-    lib/util_mod.F90
     lib/util_mod_fmt.F90
     lib/fortran_strings.f90
+    lib/matrix_util.F90
     lib/display_matrices.F90
 )
 
@@ -237,13 +237,17 @@ set( FYPP_SRC_FILES
     fcimc_initialisation.fpp
     HPHFIntegrals.fpp
     sltcnd.fpp
+    disconnected_gasci.fpp
     gasci.fpp
+    orb_idx.fpp
     excitation_types.fpp
 	shared_array.fpp
     load_balancer.fpp
     global_det_data.fpp
     rdm_general.fpp
     hist.fpp
+    lib/util_mod.fpp
+    sets_mod.fpp
 )
 
 set( TEMPLATED_SRC_FILES

@@ -114,7 +114,7 @@ def parse_args():
 
 
 def _fortran_suffix(path):
-    return path.endswith(('.f', '.F', '.f90', '.F90'))
+    return path.endswith(('.f', '.F', '.f90', '.F90', '.fpp'))
 
 
 def _C_suffix(path):

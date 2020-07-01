@@ -13,3 +13,26 @@ if (${ierr}$ /= 0) then
 end if
 $:'call LogMemAlloc("{arr}", size({arr}), tbs_({arr}), this_routine, {tag}, {ierr})'.format(arr=arr, tag=tag, ierr=ierr)
 #:enddef
+
+#:def def_default(Var_, Var, Val)
+if(present(${Var}$)) then
+    ${Var_}$ = ${Var}$
+else
+    ${Var_}$ = ${Val}$
+endif
+#:enddef
+
+#:def ASSERT(cond, *args)
+    if (.not. (${cond}$)) then
+        write(6, *) ""
+        write(6, *) "Assertion ${cond}$"
+        write(6, *) "failed in ${_FILE_}$:${_LINE_}$"
+#:if args
+        write(6, *) "Values leading to this error:"
+#:for value in args
+        write(6, *) "${value}$ = ", ${value}$
+#:endfor
+#:endif
+        call stop_all (this_routine, "Assert fail: ${cond}$")
+    end if
+#:enddef
