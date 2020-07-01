@@ -3587,55 +3587,29 @@ contains
         integer :: k, b, kk(sdim), kb(sdim)
 
         nsites = this%get_nsites()
-        ! for the 2-body transcorrelation we need to consider 5 involved momenta
-        if (t_trans_corr_2body) then
-            do i = 1, nsites
-                ki = this%get_k_vec(i)
-                do j = 1, nsites
-                    kj = this%get_k_vec(j)
-                    do k = 1, nsites
-                        kk = this%get_k_vec(k)
-                        do a = 1, nsites
-                            ka = this%get_k_vec(a)
-                            do b = 1, nsites
-                                kb = this%get_k_vec(b)
+			!U.Ebling:  
+      !The loop above takes very long to finish for any lattice that isn't super tiny.
+      !I tried a 21x5x1 rectangle and it didn't finish after 2 days
+      !It over-counts a lot 
+      !Below is much faster. It should work for all lattices, but I'm not 100%
+      !sure          
+        do i=this%kmin(1),this%kmax(1)
+			do j=this%kmin(2),this%kmax(2)
+				do k=this%kmin(3),this%kmax(3)
+					k_sum(1)=i
+                    k_sum(2)=j
+                    k_sum(3)=k
+                    k_check=this%map_k_vec(k_sum)
+                    do m=1,nsites
+						if(all(k_check == this%get_k_vec(m))) then
+							this%lu_table(k_sum(1),k_sum(2),k_sum(3)) = m
+                            exit
+                        end if
+                    end do
+                end do
+            end do
+        end do
 
-                                k_sum = ki + kj + kk - ka - kb
-                                k_check = this%map_k_vec(k_sum)
-                                do m = 1, nsites
-                                    if (all(k_check == this%get_k_vec(m))) then
-                                        ! the entry k is the site-index of the state with momentum k
-                                        this%lu_table(k_sum(1), k_sum(2), k_sum(3)) = m
-                                        exit
-                                    end if
-                                end do
-                            end do
-                        end do
-                    end do
-                end do
-            end do
-        else
-            do i = 1, nsites
-                ki = this%get_k_vec(i)
-                do j = 1, nsites
-                    kj = this%get_k_vec(j)
-                    do a = 1, nsites
-                        ! again, we want every possible combination ki+kj-ka
-                        ! the construction costs O(nsites^4), but I think this is no problem
-                        ka = this%get_k_vec(a)
-                        k_sum = ki + kj - ka
-                        k_check = this%map_k_vec(k_sum)
-                        do m = 1, nsites
-                            if (all(k_check == this%get_k_vec(m))) then
-                                ! the entry k is the site-index of the state with momentum k
-                                this%lu_table(k_sum(1), k_sum(2), k_sum(3)) = m
-                                exit
-                            end if
-                        end do
-                    end do
-                end do
-            end do
-        end if
     end subroutine fill_lu_table
 
     subroutine fill_bz_table(this)
