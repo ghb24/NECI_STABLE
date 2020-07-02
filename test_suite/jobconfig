@@ -87,6 +87,7 @@ program = neci
 nprocs = 2
 min_nprocs = 2
 max_nprocs = 2
+tolerance = (1e-2, 1.e-4)
 
 [neci/rdm_singlerun/serial/*]
 program = neci
