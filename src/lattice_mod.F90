@@ -3620,7 +3620,7 @@ contains
 	
 	subroutine fill_lu_table_tilted(this)
         implicit none
-        class(lattice) :: this
+        class(tilted) :: this
         integer :: ki(sdim), kj(sdim), ka(sdim), i, j, m, a, k_check(sdim), k_sum(sdim), nsites
         integer :: k, b, kk(sdim), kb(sdim)
 
