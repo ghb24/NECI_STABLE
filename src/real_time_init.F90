@@ -5,7 +5,7 @@
 module real_time_init
 
     use real_time_data, only: t_real_time_fciqmc, gf_type, real_time_info, &
-                              t_complex_ints, gf_overlap, temp_det_list, dyn_norm_red, &
+                              gf_overlap, temp_det_list, dyn_norm_red, &
                               temp_det_pointer, temp_det_hash, temp_freeslot, tOverpopulate, &
                               pert_norm, second_spawn_iter_data, DiagParts, stepsAlpha, &
                               DiagVec, normsize, valid_diag_spawns, tStabilizerShift, &
@@ -51,7 +51,7 @@ module real_time_init
                          SpawnedParts, core_run
     use core_space_util, only: cs_replicas
     use SystemData, only: lms, G1, nBasisMax, tHub, nel, tComplexWalkers_RealInts, &
-         nBasis, tReal, t_k_space_hubbard
+         nBasis, tReal, t_k_space_hubbard, t_complex_ints
     use k_space_hubbard, only: init_k_space_hubbard
     use SymExcitDataMod, only: kTotal
     use sym_mod, only: MomPbcSym

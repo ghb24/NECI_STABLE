@@ -6,7 +6,7 @@ module real_time_read_input_module
        tWritePopsNorm, tReadPops, ss_space_in, tSemiStochastic
   use perturbations, only: init_perturbation_creation, init_perturbation_annihilation
   use kp_fciqmc_data_mod, only: tOverlapPert, overlap_pert, tScalePopulation
-  use SystemData, only: nel, tComplexWalkers_RealInts
+  use SystemData, only: nel, tComplexWalkers_RealInts, t_complex_ints
   use constants
 
   contains

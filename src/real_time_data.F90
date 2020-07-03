@@ -133,9 +133,6 @@ module real_time_data
 
     type(real_time_type) :: real_time_info
 
-    ! info if the FCIDUMP integrals are complex
-    logical :: t_complex_ints = .true.
-
     ! for hubbard model: Info if the perturbation operators are in k-space
     logical :: t_kspace_operators
     ! and the corresponding phases for the fourier transformation

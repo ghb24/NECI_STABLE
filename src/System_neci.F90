@@ -1768,7 +1768,9 @@ system: do
          case("COMPLEXWALKERS-REALINTS")
             ! In case complex walkers shall be used but not complex basis functions,
             ! such that the integrals are real and have full symmetry
-            tComplexWalkers_RealInts = .true.
+             tComplexWalkers_RealInts = .true.
+             ! Do not use complex integrals anymore
+             t_complex_ints = .false.
 
         case("SYSTEM-REPLICAS")
             ! How many copies of the simulation do we want to run in parallel?

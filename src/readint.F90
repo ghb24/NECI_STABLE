@@ -615,7 +615,7 @@ contains
          use Parallel_neci
          use shared_memory_mpi
          use SymData, only: nProp, PropBitLen, TwoCycleSymGens
-         use real_time_data, only: t_complex_ints
+         use SystemData, only: t_complex_ints
          use util_mod, only: get_free_unit, near_zero
          IMPLICIT NONE
          integer, intent(in) :: NBASIS
@@ -723,12 +723,12 @@ contains
              ! This means it won't work with more than 999 basis
              ! functions...
 #if defined(CMPLX_)
-101            if (t_complex_ints) then
-                READ(iunit,*,END=199) Z,I,J,K,L
+101          if (t_complex_ints) then
+                 READ(iunit,*,END=199) Z,I,J,K,L
              else
-               read(iunit,*,END=199) real_time_Z,I,J,K,L
-                Z = dcmplx(real_time_Z, 0.0_dp)
-            end if
+                 read(iunit,*,END=199) real_time_Z,I,J,K,L
+                 Z = dcmplx(real_time_Z, 0.0_dp)
+             end if
 #else
 101           CONTINUE
              !It is possible that the FCIDUMP can be written out in complex notation, but still only
