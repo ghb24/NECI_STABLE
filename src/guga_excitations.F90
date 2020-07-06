@@ -5208,7 +5208,25 @@ contains
         end if
 
 
-        global_excitInfo = excitInfo
+        select case(excitInfo%typ)
+        case (excit_type%single_overlap_L_to_R, &
+              excit_type%single_overlap_R_to_L, &
+              excit_type%double_lowering, &
+              excit_type%double_raising, &
+              excit_type%double_L_to_R_to_L, &
+              excit_type%double_R_to_L_to_R, &
+              excit_type%double_L_to_R, &
+              excit_type%double_R_to_L, &
+              excit_type%fullstop_raising, &
+              excit_type%fullstop_lowering, &
+              excit_type%fullstart_lowering, &
+              excit_type%fullstart_raising, &
+              excit_type%fullstart_stop_alike)
+
+            ! in the other cases global_excitInfo gets assigned before it
+            ! gets changed
+            global_excitInfo = excitInfo
+        end select
 
     end subroutine createStochasticExcitation_double
 
@@ -5305,6 +5323,8 @@ contains
                 below_cpt)
             p_orig = (above_cpt + below_cpt) * branch_pgen / real(ElecPairs, dp)
         end if
+
+        global_excitInfo = excitInfo
 
         if (t_approx_exchange .or. (t_approx_exchange_noninits .and. (.not. is_init_guga))) then
 
@@ -7237,6 +7257,8 @@ contains
         ! point to a new function, which only calculates the
         ! matrix element contribution
 
+        global_excitInfo = excitInfo
+
         if (t_approx_exchange .or. (t_approx_exchange_noninits .and. (.not. is_init_guga))) then
             call calc_mixed_end_contr_approx(t, excitInfo, integral)
             pgen = branch_pgen
@@ -7890,6 +7912,8 @@ contains
         ! the x1-element is still encoded in the second entry..
         ! move it to the first elemen
         call encode_matrix_element(t, extract_matrix_element(t,2), 1)
+
+        global_excitInfo = excitInfo
 
         if (t_approx_exchange .or. (t_approx_exchange_noninits .and. (.not. is_init_guga))) then
 
@@ -10067,6 +10091,8 @@ contains
             return
         end if
 
+        global_excitInfo = excitInfo
+
         if (t_approx_exchange .or. (t_approx_exchange_noninits .and. (.not. is_init_guga))) then
             call calc_mixed_start_contr_approx(t, excitInfo, integral)
             pgen = branch_pgen
@@ -10757,6 +10783,8 @@ contains
             t = 0_n_int
             return
         end if
+
+        global_excitInfo = excitInfo
 
         if (t_approx_exchange .or. (t_approx_exchange_noninits .and. (.not. is_init_guga))) then
             call calc_mixed_start_contr_approx(t, excitInfo, integral)

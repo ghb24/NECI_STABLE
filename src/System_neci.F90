@@ -1677,6 +1677,16 @@ system: do
             ! Enable using weighted single excitations with the pchb excitation generator
             t_pchb_weighted_singles = .true.
 
+        ! enable intermediately some pchb+guga testing
+        case("ANALYZE-PCHB")
+            t_analyze_pchb = .true.
+
+        case("OLD-PCHB")
+            t_old_pchb = .true.
+
+        case("EXCHANGE-PCHB")
+            t_exchange_pchb = .true.
+
         case("SPAWNLISTDETS")
 !This option will mean that a file called SpawnOnlyDets will be read in,
 ! and only these determinants will be allowed to be spawned at.

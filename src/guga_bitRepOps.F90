@@ -3617,7 +3617,7 @@ contains
             fullstart   = a
             secondStart = b
             firstEnd    = i
-            fullEnd     = j
+            fullEnd     = i
 
             overlap = firstEnd - secondStart + 1
 
@@ -3693,7 +3693,7 @@ contains
             firstGen    = gen_type%R
             lastGen     = gen_type%R
             fullstart   = a
-            secondStart = b
+            secondStart = a
             firstEnd    = i
             fullEnd     = j
 
