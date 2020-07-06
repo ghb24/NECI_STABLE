@@ -15,6 +15,7 @@ endsys
 
 calc
     seed 7
+    load-balance-interval 1000
 
     definedet 1 2 3 11 12 14
 
