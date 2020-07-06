@@ -5,9 +5,7 @@ System read
     nobrillouintheorem
     freeformat
     spin-restrict 0
-    ( GAS-CI only_disconnected
     GAS-CI general
-    ( GAS-NO-SPIN-RECOUPLING
     GAS-SPEC +++
     3 +++
     2 2 2 +++
@@ -29,7 +27,7 @@ calc
 
     diagshift .00
     shiftdamp .02
-    nmcyc 1000
+    nmcyc 800
     stepsshift 10
     proje-changeref 1.20
     truncinitiator
