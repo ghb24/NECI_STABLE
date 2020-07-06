@@ -2227,9 +2227,6 @@ contains
         integer(n_int), intent(inout) :: ilut(0:GugaBits%len_tot)
         character(*), parameter :: this_routine = "setDeltaB"
 
-
-        ASSERT(deltaB <= 2 .and. deltaB >= -2)
-
         ! should no just be:
         ilut(GugaBits%ind_b) = deltaB
 
