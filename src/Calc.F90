@@ -768,7 +768,8 @@ contains
 !     &                //"method",.true.)
 !                end if
             case ("SEED")
-                call readi(G_VMC_SEED)
+                allocate(user_input_seed)
+                call readi(user_input_seed)
 !                if ( I_HMAX .ne. -7 ) then
 !                    call report(trim(w)//" only valid for MC "
 !     &                //"method",.true.)

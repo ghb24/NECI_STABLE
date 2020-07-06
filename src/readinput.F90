@@ -190,6 +190,7 @@ contains
         use SystemData, only: tGAS
         use gasci, only: GAS_specification, GAS_exc_gen, &
             possible_GAS_exc_gen, user_input_GAS_exc_gen
+        use CalcData, only: user_input_seed, G_VMC_SEED
         character(*), parameter :: this_routine = 'evaluate_depending_keywords'
 
         if (tGAS) then
@@ -202,6 +203,10 @@ contains
                     GAS_exc_gen = possible_GAS_exc_gen%DISCONNECTED
                 end if
             end if
+        end if
+
+        if (allocated(user_input_seed)) then
+            G_VMC_SEED = user_input_seed
         end if
     end subroutine
 
@@ -230,7 +235,8 @@ contains
                             tOrthogonaliseReplicas, tReadPops, tStartMP1, &
                             tStartCAS, tUniqueHFNode, tContTimeFCIMC, &
                             tContTimeFull, tFCIMC, tPreCond, tOrthogonaliseReplicas, &
-                            tMultipleInitialStates, pgen_unit_test_spec
+                            tMultipleInitialStates, pgen_unit_test_spec, &
+                            user_input_seed
         use Calc, only : RDMsamplingiters_in_inp
         Use Determinants, only: SpecDet, tagSpecDet, tDefinedet, DefDet
         use IntegralsData, only: nFrozen, tDiscoNodes, tQuadValMax, &
@@ -635,6 +641,20 @@ contains
                 call stop_all(t_r, "UNIT-TEST-PGEN requires READPOPS.")
             end if
         end if
+
+        block
+            use load_balance_calcnodes, only: &
+                tLoadBalanceBlocks, loadBalanceInterval
+            logical :: deterministic
+            if (allocated(user_input_seed)) then
+                deterministic = loadBalanceInterval /= 0
+                if (tLoadBalanceBlocks .and. .not. deterministic) then
+        write(iout, *) 'Seed was specified in input.'
+        write(iout, *) 'Please note that because of load-balancing the calculation is not fully deterministic (CPU load).'
+        write(iout, *) 'If a fully deterministic calculation is required use the `load-balance-interval` keyword.'
+                end if
+            end if
+        end block
     end subroutine checkinput
 
 end Module ReadInput_neci
