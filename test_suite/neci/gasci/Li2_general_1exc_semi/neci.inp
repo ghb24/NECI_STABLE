@@ -48,6 +48,5 @@ endcalc
 
 logging
     highlypopwrite 50
-    hdf5-pops
 endlog
 end
