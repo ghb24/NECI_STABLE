@@ -751,36 +751,27 @@ contains
                         tMP2Standalone = .true.
                     end select
                 end if
-!                if ( I_HMAX .ne. -7.and.
-!     &               I_HMAX .ne. -19) then
-!                    call report(trim(w)//" only valid for MC "
-!     &                 //"method",.true.)
-!                end if
+
             case ("MAXVERTICES")
                 if (I_VMAX /= 0) then
                     call report("Cannot reset MAXVERTICES", .true.)
                 end if
                 call readi(I_VMAX)
+
             case ("IMPORTANCE")
                 call readf(G_VMC_PI)
-!                if ( I_HMAX .ne. -7 ) then
-!                    call report(trim(w)//" only valid for MC "
-!     &                //"method",.true.)
-!                end if
+
             case ("SEED")
-                allocate(user_input_seed)
-                call readi(user_input_seed)
-!                if ( I_HMAX .ne. -7 ) then
-!                    call report(trim(w)//" only valid for MC "
-!     &                //"method",.true.)
-!                end if
+                if (allocated(user_input_seed)) then
+                    call stop_all(t_r, "Seed given twice")
+                else
+                    allocate(user_input_seed)
+                    call readi(user_input_seed)
+                end if
+
             case ("BIAS")
                 call readf(G_VMC_FAC)
 
-!                if ( I_HMAX .ne. -7 ) then
-!                    call report(trim(w)//" only valid for MC "
-!     &              //" method",.true.)
-!                end if
             case ("STARCONVERGE")
                 call readf(STARCONV)
                 if ((NWHTAY(1, I_VMAX) /= 0) .and. (NWHTAY(1, I_VMAX) /= -21)&
