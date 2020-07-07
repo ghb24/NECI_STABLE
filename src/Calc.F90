@@ -3866,6 +3866,8 @@ contains
         deallocate(MCDet)
         call LogMemDealloc(this_routine, tagMCDet)
 
+        deallocate(user_input_seed)
+
     End Subroutine CalcCleanup
 
 END MODULE Calc
