@@ -1,3 +1,5 @@
+#include "macros.h"
+
 module test_loop_testcases
     use test_loop_helpers, only: test_loop_factory
     use unit_test_helper_excitgen, only: FciDumpWriter_t, InputWriter_t

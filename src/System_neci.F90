@@ -1753,7 +1753,7 @@ contains
 #else
                 call readi(itmp)
 #ifdef DOUBLERUN_
-!                 if (itmp /= 2) then
+                if (itmp /= 2) then
 #else
                 if (itmp /= 1) then
 #endif
