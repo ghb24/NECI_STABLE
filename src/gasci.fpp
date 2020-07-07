@@ -98,37 +98,36 @@ contains
         character(*), parameter :: this_routine = 'construct_GASSpec_t'
 
         integer :: n_spin_orbs, max_GAS_size
-        integer, allocatable :: splitted_orbitals(:, :), GAS_table(:)
-        integer :: i, iel, iGAS
+        integer, allocatable :: splitted_orbitals(:, :), GAS_table(:), GAS_sizes(:)
+        integer :: i, iel, iGAS, nGAS
 
-        associate(nGAS => maxval(spat_GAS_orbs), &
-                  GAS_sizes => 2 * frequency(spat_GAS_orbs))
+        nGAS = maxval(spat_GAS_orbs)
+        GAS_sizes = 2 * frequency(spat_GAS_orbs)
 
-            max_GAS_size = maxval(GAS_sizes)
-            n_spin_orbs = sum(GAS_sizes)
+        max_GAS_size = maxval(GAS_sizes)
+        n_spin_orbs = sum(GAS_sizes)
 
-            allocate(GAS_table(n_spin_orbs))
-            GAS_table(1::2) = spat_GAS_orbs
-            GAS_table(2::2) = spat_GAS_orbs
+        allocate(GAS_table(n_spin_orbs))
+        GAS_table(1::2) = spat_GAS_orbs
+        GAS_table(2::2) = spat_GAS_orbs
 
-            allocate(splitted_orbitals(max_GAS_size, nGAS))
-            block
-                integer :: counter(nGAS), all_orbs(n_spin_orbs)
-                integer :: splitted_sizes(nGAS)
-                all_orbs = [(i, i = 1, n_spin_orbs)]
-                splitted_sizes = 0
-                do iel = 1, size(all_orbs)
-                    iGAS = GAS_table(iel)
-                    splitted_sizes(iGAS) = splitted_sizes(iGAS) + 1
-                    splitted_orbitals(splitted_sizes(iGAS), iGAS) = all_orbs(iel)
-                end do
-                @:ASSERT(all(GAS_sizes == splitted_sizes))
-            end block
+        allocate(splitted_orbitals(max_GAS_size, nGAS))
+        block
+            integer :: counter(nGAS), all_orbs(n_spin_orbs)
+            integer :: splitted_sizes(nGAS)
+            all_orbs = [(i, i = 1, n_spin_orbs)]
+            splitted_sizes = 0
+            do iel = 1, size(all_orbs)
+                iGAS = GAS_table(iel)
+                splitted_sizes(iGAS) = splitted_sizes(iGAS) + 1
+                splitted_orbitals(splitted_sizes(iGAS), iGAS) = all_orbs(iel)
+            end do
+            @:ASSERT(all(GAS_sizes == splitted_sizes))
+        end block
 
-            GAS_spec = GASSpec_t(&
-                    n_min, n_max, GAS_table, nGAS, &
-                    GAS_sizes, max_GAS_size, splitted_orbitals)
-        end associate
+        GAS_spec = GASSpec_t(&
+                n_min, n_max, GAS_table, nGAS, &
+                GAS_sizes, max_GAS_size, splitted_orbitals)
         @:ASSERT(GAS_spec%is_valid())
 
         contains

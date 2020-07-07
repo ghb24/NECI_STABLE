@@ -192,7 +192,6 @@ contains
             return
         end if
 
-        associate(splitted_orbs => GAS_spec%splitted_orbitals)
         block
             integer :: i, k, iGAS, incr, curr_value, iGAS_min_val
             integer :: L(spaces(1) : spaces(2)), counter(spaces(1) : spaces(2))
@@ -227,8 +226,8 @@ contains
                 curr_value = huge(curr_value)
                 do iGAS = spaces(1), spaces(2)
                     if (counter(iGAS) <= GAS_spec%GAS_sizes(iGAS)) then
-                        if (splitted_orbs(counter(iGAS), iGAS) < curr_value) then
-                            curr_value = splitted_orbs(counter(iGAS), iGAS)
+                        if (GAS_spec%splitted_orbitals(counter(iGAS), iGAS) < curr_value) then
+                            curr_value = GAS_spec%splitted_orbitals(counter(iGAS), iGAS)
                             iGAS_min_val = iGAS
                         end if
                     end if
@@ -245,7 +244,6 @@ contains
                 possible_holes = complement(possible_values, det_I)
             end if
         end block
-        end associate
     end function
 
 
@@ -440,14 +438,17 @@ contains
 
         ! We could have picked the holes the other way round and have to
         ! determine the probability of picking tgt1 with spin m_s_1 upon picking tgt2 first.
-        associate (src1 => exc%val(1, 1), tgt1 => exc%val(2, 1), &
-                   src2 => exc%val(1, 2), tgt2 => exc%val(2, 2))
+        block
+            integer :: src1, tgt1, src2, tgt2
+            src1 = exc%val(1, 1); tgt1 = exc%val(2, 1)
+            src2 = exc%val(1, 2); tgt2 = exc%val(2, 2)
+
             @:ASSERT(src1 /= tgt2 .and. src2 /= tgt2, src1, tgt2, src2)
             possible_holes = get_possible_holes(&
                     GAS_spec, det_I, add_holes=deleted, &
-                    add_particles=[tgt2], &
+                    add_particles=exc%val(2, 2:2), &
                     n_total=1, excess=calc_spin_raw(tgt2) - sum(calc_spin_raw(deleted)))
-            @:ASSERT(disjoint(possible_holes, [tgt2]))
+            @:ASSERT(disjoint(possible_holes, exc%val(2, 2:2)))
             @:ASSERT(disjoint(possible_holes, det_I))
 
             if (size(possible_holes) == 0) then
@@ -474,7 +475,7 @@ contains
             else
                 ilutJ = 0
             end if
-        end associate
+        end block
 
         pgen = pgen_particles * pgen_first_pick * sum(pgen_second_pick)
 
