@@ -3857,7 +3857,7 @@ contains
         deallocate(MCDet)
         call LogMemDealloc(this_routine, tagMCDet)
 
-        deallocate(user_input_seed)
+        if (allocated(user_input_seed)) deallocate(user_input_seed)
 
     End Subroutine CalcCleanup
 
