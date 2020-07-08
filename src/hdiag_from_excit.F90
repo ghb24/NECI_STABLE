@@ -12,18 +12,18 @@ module hdiag_from_excit
 
     implicit none
 
-    contains
+contains
 
     function get_hdiag_from_excit(nI, nJ, iLutnJ, IC, ex, hel_old) result(hel)
 
-        integer, intent(in) :: nI(nel), nJ(nel), IC, ex(2,2)
+        integer, intent(in) :: nI(nel), nJ(nel), IC, ex(2, 2)
         integer(n_int), intent(in) :: iLutnJ(0:NIfTot)
         real(dp), intent(in) :: hel_old
 
         HElement_t(dp) :: hel
 
         if (IC == 1) then
-            hel = get_hdiag_from_sing_excit(nI, ex(:,1), hel_old)
+            hel = get_hdiag_from_sing_excit(nI, ex(:, 1), hel_old)
         else if (IC == 2) then
             hel = get_hdiag_from_doub_excit(nI, ex, hel_old)
         else
@@ -54,12 +54,12 @@ module hdiag_from_excit
 
         do i = 1, nel
             if (nI(i) /= ex(1)) then
-                hel = hel - get_umat_el (id_ex(1), id(i), id_ex(1), id(i)) &
-                          + get_umat_el (id_ex(2), id(i), id_ex(2), id(i))
+                hel = hel - get_umat_el(id_ex(1), id(i), id_ex(1), id(i)) &
+                      + get_umat_el(id_ex(2), id(i), id_ex(2), id(i))
 
-                if ( tReltvy .or. (G1(ex(1))%Ms == G1(nI(i))%Ms) ) then
-                    hel = hel + get_umat_el (id_ex(1), id(i), id(i), id_ex(1)) &
-                              - get_umat_el (id_ex(2), id(i), id(i), id_ex(2))
+                if (tReltvy .or. (G1(ex(1))%Ms == G1(nI(i))%Ms)) then
+                    hel = hel + get_umat_el(id_ex(1), id(i), id(i), id_ex(1)) &
+                          - get_umat_el(id_ex(2), id(i), id(i), id_ex(2))
                 end if
             end if
         end do
@@ -71,20 +71,20 @@ module hdiag_from_excit
         ! Calculate the  by the SlaterCondon Rules when the two
         ! determinants are the same (so we only need to specify one).
 
-        integer, intent(in) :: nI(nel), ex(2,2)
+        integer, intent(in) :: nI(nel), ex(2, 2)
         real(dp), intent(in) :: hel_old
 
         HElement_t(dp) :: hel
-        integer :: id(nel), ex_ordered(2,2), id_ex(2,2), i
+        integer :: id(nel), ex_ordered(2, 2), id_ex(2, 2), i
 
         ! Correct one electron integral contribution
-        hel = hel_old - GetTMATEl(ex(1,1), ex(1,1)) + GetTMATEl(ex(2,1), ex(2,1)) &
-                      - GetTMATEl(ex(1,2), ex(1,2)) + GetTMATEl(ex(2,2), ex(2,2))
+        hel = hel_old - GetTMATEl(ex(1, 1), ex(1, 1)) + GetTMATEl(ex(2, 1), ex(2, 1)) &
+              - GetTMATEl(ex(1, 2), ex(1, 2)) + GetTMATEl(ex(2, 2), ex(2, 2))
 
         ex_ordered = ex
-        if (G1(ex(1,1))%Ms /= G1(ex(2,1))%Ms) then
-            ex_ordered(2,1) = ex(2,2)
-            ex_ordered(2,2) = ex(2,1)
+        if (G1(ex(1, 1))%Ms /= G1(ex(2, 1))%Ms) then
+            ex_ordered(2, 1) = ex(2, 2)
+            ex_ordered(2, 2) = ex(2, 1)
         end if
 
         ! Obtain the spatial rather than spin indices if required
@@ -92,35 +92,35 @@ module hdiag_from_excit
         id_ex = gtID(ex_ordered)
 
         do i = 1, nel
-            if (nI(i) /= ex_ordered(1,1)) then
-                hel = hel - get_umat_el (id_ex(1,1), id(i), id_ex(1,1), id(i)) &
-                          + get_umat_el (id_ex(2,1), id(i), id_ex(2,1), id(i))
+            if (nI(i) /= ex_ordered(1, 1)) then
+                hel = hel - get_umat_el(id_ex(1, 1), id(i), id_ex(1, 1), id(i)) &
+                      + get_umat_el(id_ex(2, 1), id(i), id_ex(2, 1), id(i))
 
-                if ( tReltvy .or. (G1(ex_ordered(1,1))%Ms == G1(nI(i))%Ms) ) then
-                    hel = hel + get_umat_el (id_ex(1,1), id(i), id(i), id_ex(1,1)) &
-                              - get_umat_el (id_ex(2,1), id(i), id(i), id_ex(2,1))
+                if (tReltvy .or. (G1(ex_ordered(1, 1))%Ms == G1(nI(i))%Ms)) then
+                    hel = hel + get_umat_el(id_ex(1, 1), id(i), id(i), id_ex(1, 1)) &
+                          - get_umat_el(id_ex(2, 1), id(i), id(i), id_ex(2, 1))
                 end if
             end if
         end do
 
         do i = 1, nel
-            if (nI(i) /= ex_ordered(1,1) .and. nI(i) /= ex_ordered(1,2)) then
-                hel = hel - get_umat_el (id_ex(1,2), id(i), id_ex(1,2), id(i)) &
-                          + get_umat_el (id_ex(2,2), id(i), id_ex(2,2), id(i))
+            if (nI(i) /= ex_ordered(1, 1) .and. nI(i) /= ex_ordered(1, 2)) then
+                hel = hel - get_umat_el(id_ex(1, 2), id(i), id_ex(1, 2), id(i)) &
+                      + get_umat_el(id_ex(2, 2), id(i), id_ex(2, 2), id(i))
 
-                if ( tReltvy .or. (G1(ex_ordered(1,2))%Ms == G1(nI(i))%Ms) ) then
-                    hel = hel + get_umat_el (id_ex(1,2), id(i), id(i), id_ex(1,2)) &
-                              - get_umat_el (id_ex(2,2), id(i), id(i), id_ex(2,2))
+                if (tReltvy .or. (G1(ex_ordered(1, 2))%Ms == G1(nI(i))%Ms)) then
+                    hel = hel + get_umat_el(id_ex(1, 2), id(i), id(i), id_ex(1, 2)) &
+                          - get_umat_el(id_ex(2, 2), id(i), id(i), id_ex(2, 2))
                 end if
             end if
         end do
 
-        hel = hel - get_umat_el (id_ex(1,2), id_ex(2,1), id_ex(1,2), id_ex(2,1)) &
-                  + get_umat_el (id_ex(2,1), id_ex(2,2), id_ex(2,1), id_ex(2,2))
+        hel = hel - get_umat_el(id_ex(1, 2), id_ex(2, 1), id_ex(1, 2), id_ex(2, 1)) &
+              + get_umat_el(id_ex(2, 1), id_ex(2, 2), id_ex(2, 1), id_ex(2, 2))
 
-        if (G1(ex_ordered(1,1))%Ms == G1(ex_ordered(1,2))%Ms) then
-            hel = hel + get_umat_el (id_ex(1,2), id_ex(2,1), id_ex(2,1), id_ex(1,2)) &
-                      - get_umat_el (id_ex(2,1), id_ex(2,2), id_ex(2,2), id_ex(2,1))
+        if (G1(ex_ordered(1, 1))%Ms == G1(ex_ordered(1, 2))%Ms) then
+            hel = hel + get_umat_el(id_ex(1, 2), id_ex(2, 1), id_ex(2, 1), id_ex(1, 2)) &
+                  - get_umat_el(id_ex(2, 1), id_ex(2, 2), id_ex(2, 2), id_ex(2, 1))
         end if
 
     end function get_hdiag_from_doub_excit
@@ -148,18 +148,18 @@ module hdiag_from_excit
             call FindExcitBitDetSym(iLutnI, iLutnI2)
             ExcitLevel = FindBitExcitLevel(iLutnI, iLutnI2, 2)
             if (ExcitLevel <= 2) then
-                call CalcOpenOrbs (iLutnI, OpenOrbs)
-                MatEl2 = sltcnd (nI, iLutnI, iLutnI2)
+                call CalcOpenOrbs(iLutnI, OpenOrbs)
+                MatEl2 = sltcnd(nI, iLutnI, iLutnI2)
 
                 if (tOddS_HPHF) then
-                    if (mod(OpenOrbs,2) == 1) then
+                    if (mod(OpenOrbs, 2) == 1) then
                         ! Subtract cross terms if determinant is antisymmetric.
                         hel = hel - MatEl2
                     else
                         hel = hel + MatEl2
                     end if
                 else
-                    if (mod(OpenOrbs,2) == 1) then
+                    if (mod(OpenOrbs, 2) == 1) then
                         ! Subtract cross terms if determinant is antisymmetric.
                         hel = hel + MatEl2
                     else
@@ -190,18 +190,18 @@ module hdiag_from_excit
             call FindExcitBitDetSym(iLutnJ, iLutnJ2)
             ExcitLevel = FindBitExcitLevel(iLutnJ, iLutnJ2, 2)
             if (ExcitLevel <= 2) then
-                call CalcOpenOrbs (iLutnJ, OpenOrbs)
-                MatEl2 = sltcnd (nJ, iLutnJ, iLutnJ2)
+                call CalcOpenOrbs(iLutnJ, OpenOrbs)
+                MatEl2 = sltcnd(nJ, iLutnJ, iLutnJ2)
 
                 if (tOddS_HPHF) then
-                    if (mod(OpenOrbs,2) == 1) then
+                    if (mod(OpenOrbs, 2) == 1) then
                         ! Subtract cross terms if determinant is antisymmetric.
                         hel = hel + MatEl2
                     else
                         hel = hel - MatEl2
                     end if
                 else
-                    if (mod(OpenOrbs,2) == 1) then
+                    if (mod(OpenOrbs, 2) == 1) then
                         ! Subtract cross terms if determinant is antisymmetric.
                         hel = hel - MatEl2
                     else

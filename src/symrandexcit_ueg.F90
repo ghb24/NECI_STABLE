@@ -19,8 +19,8 @@ module ueg_excit_gens
 
 contains
 
-    subroutine gen_ueg_excit (nI, ilutI, nJ, ilutJ, exFlag, ic, ex, tPar, &
-                              pgen, HelGen, store, part_type)
+    subroutine gen_ueg_excit(nI, ilutI, nJ, ilutJ, exFlag, ic, ex, tPar, &
+                             pgen, HelGen, store, part_type)
 
         ! This is a new excitation generator, modelled on the lines of the
         ! 4ind-weighted excitation generator used for determinants
@@ -31,7 +31,7 @@ contains
 
         integer, intent(in) :: nI(nel), exFlag
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
-        integer, intent(out) :: nJ(nel), ic, ex(2,maxExcit)
+        integer, intent(out) :: nJ(nel), ic, ex(2, maxExcit)
         logical, intent(out) :: tPar
         real(dp), intent(out) :: pgen
         HElement_t(dp), intent(out) :: HelGen
@@ -42,18 +42,17 @@ contains
 #ifdef WARNING_WORKAROUND_
         HelGen = h_cast(0.0_dp)
 #endif
-        unused_var(exFlag); unused_var(store); unused_var(part_type);
-
+        unused_var(exFlag); unused_var(store); unused_var(part_type); 
         ! W.D:
         ! split this functionality to allow back-spawning to reuse code
-        call gen_double_ueg(nI, ilutI, nJ, ilutJ, tPar,ex, pgen)
+        call gen_double_ueg(nI, ilutI, nJ, ilutJ, tPar, ex, pgen)
         ic = 2
     end subroutine gen_ueg_excit
 
     subroutine gen_double_ueg(nI, ilutI, nJ, ilutJ, tPar, ex, pgen)
         integer, intent(in) :: nI(nel)
         integer(n_int), intent(in) :: ilutI(0:niftot)
-        integer, intent(out) :: nJ(nel), ex(2,maxExcit)
+        integer, intent(out) :: nJ(nel), ex(2, maxExcit)
         integer(n_int), intent(out) :: ilutJ(0:niftot)
         logical, intent(out) :: tPar
         real(dp), intent(out) :: pgen
@@ -79,10 +78,10 @@ contains
         ! If this is also unoccupied, then contribute to the cumulative list
         ! for making selections
         if (TContact) then
-                call create_ab_list_ua(nI,ilutI, [orbi,orbj], cum_arr, cum_sum)
+            call create_ab_list_ua(nI, ilutI, [orbi, orbj], cum_arr, cum_sum)
         else
-                call create_ab_list_ueg(ilutI, [orbi,orbj], cum_arr, cum_sum)
-        endif
+            call create_ab_list_ueg(ilutI, [orbi, orbj], cum_arr, cum_sum)
+        end if
 
         ! If there are no available excitations, then we need to reject this
         ! excitation
@@ -123,7 +122,7 @@ contains
         integer :: ind, eleci, elecj
 
         ind = 1 + int(ElecPairs * genrand_real2_dSFMT())
-        elecs(1) = ceiling((1 + sqrt(1 + 8*real(ind, dp))) / 2)
+        elecs(1) = ceiling((1 + sqrt(1 + 8 * real(ind, dp))) / 2)
         elecs(2) = ind - ((elecs(1) - 1) * (elecs(1) - 2)) / 2
         pelec = 1.0_dp / real(ElecPairs, dp)
 
@@ -146,19 +145,19 @@ contains
             elem = 0.0_dp
             if (IsNotOcc(ilutI, orba) .and. &
                 (.not. ((iSpn == 1 .and. .not. is_beta(orba)) .or. &
-                       (iSpn == 3 .and. is_beta(orba))))) then
+                        (iSpn == 3 .and. is_beta(orba))))) then
 
                 if (is_allowed_ueg_k_vector(src(1), src(2), orba)) then
 
                     orbb = get_orb_from_kpoints(src(1), src(2), orba)
 
-                   ! n.b. we enforce strict selection a-b, not b-a
+                    ! n.b. we enforce strict selection a-b, not b-a
                     if (orbb > orba .and. IsNotOcc(ilutI, orbb)) then
 
                         ! We don't need to worry about which a,b is which, as
                         ! we don't care about the overall sign.
-                        elem = abs(sltcnd_2_kernel(&
-                            DoubleExc_t(src1=src(1), src2=src(2), tgt1=orba, tgt2=orbb)))
+                        elem = abs(sltcnd_2_kernel( &
+                                   DoubleExc_t(src1=src(1), src2=src(2), tgt1=orba, tgt2=orbb)))
                     end if
                 end if
             end if
@@ -171,16 +170,16 @@ contains
 
     end subroutine create_ab_list_ueg
 
-    subroutine create_ab_list_ua(nI,ilutI, src, cum_arr, cum_sum)
+    subroutine create_ab_list_ua(nI, ilutI, src, cum_arr, cum_sum)
         integer, intent(in) :: nI(nel)
         integer(n_int), intent(in) :: ilutI(0:niftot)
         integer, intent(in) :: src(2)
         real(dp), intent(out) :: cum_arr(nbasis), cum_sum
 
-        integer :: ex(2,2), orba, orbb, ispn
+        integer :: ex(2, 2), orba, orbb, ispn
         real(dp) :: elem, testE
 
-        ex(1,:) = src
+        ex(1, :) = src
 
         ispn = get_ispn(src)
 
@@ -191,13 +190,13 @@ contains
             elem = 0.0_dp
             if (IsNotOcc(ilutI, orba) .and. &
                 (.not. ((iSpn == 1 .and. .not. is_beta(orba)) .or. &
-                       (iSpn == 3 .and. is_beta(orba))))) then
+                        (iSpn == 3 .and. is_beta(orba))))) then
 
                 if (is_allowed_ueg_k_vector(src(1), src(2), orba)) then
 
                     orbb = get_orb_from_kpoints(src(1), src(2), orba)
 
-                   ! n.b. we enforce strict selection a-b, not b-a
+                    ! n.b. we enforce strict selection a-b, not b-a
                     if (orbb > orba .and. IsNotOcc(ilutI, orbb)) then
 
                         ! We don't need to worry about which a,b is which, as
@@ -218,12 +217,12 @@ contains
 
     end subroutine create_ab_list_ua
 
-     function calc_pgen_ueg(ilutI, ex, ic) result(pgen)
+    function calc_pgen_ueg(ilutI, ex, ic) result(pgen)
         ! i also have to write a pgen recalculator for the pgens with this
         ! new UEG excitation generator.. i am a bit confused why this has
         ! not been done yet i have to admit..
         ! and i need this function if i want to use it with HPHF..
-        integer, intent(in) :: ex(2,2), ic
+        integer, intent(in) :: ex(2, 2), ic
         integer(n_int), intent(in) :: ilutI(0:niftot)
         real(dp) :: pgen
 
@@ -249,7 +248,7 @@ contains
 !         end if
 
         ! now the real part..
-        p_elec = 1.0_dp /real(ElecPairs, dp)
+        p_elec = 1.0_dp / real(ElecPairs, dp)
 
         orb_a = tgt(1)
 

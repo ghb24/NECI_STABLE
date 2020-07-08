@@ -41,17 +41,17 @@ contains
     !> Get the hash value for an arbitrary input value
     !> @param index input value to get the hash value for
     function hash_function(this, index) result(hval)
-        class(index_rhash_t), intent(in) :: this 
+        class(index_rhash_t), intent(in) :: this
         integer(int64), intent(in) :: index
         integer(int64) :: hval
 
 ! TODO: Implement an actual hash function
-        hval = mod(index-1,this%shared_ht%val_range())+1_int64
+        hval = mod(index - 1, this%shared_ht%val_range()) + 1_int64
     end function hash_function
 
     !------------------------------------------------------------------------------------------!
     ! Memory management
-    !------------------------------------------------------------------------------------------!   
+    !------------------------------------------------------------------------------------------!
 
     !> Allocate the internal (shared) memory
     !> @param[in] n_elem number of distinct values to store
@@ -75,7 +75,7 @@ contains
 
     !------------------------------------------------------------------------------------------!
     ! Initialisation routines
-    !------------------------------------------------------------------------------------------!  
+    !------------------------------------------------------------------------------------------!
 
     !> Log the occurence of this index in the set of indices to be stored
     !! Does not add it, only updates the offsets

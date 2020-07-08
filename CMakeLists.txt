@@ -28,6 +28,12 @@ else ()
    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 endif ()
 
+# We require at least ifort17, previous versions do not support all required options
+if(${CMAKE_Fortran_COMPILER_ID} STREQUAL "Intel")
+    if(${CMAKE_Fortran_COMPILER_VERSION} LESS 17)
+	    message(FATAL_ERROR "ifort 17 or newer required")
+    endif()
+endif()
 
 include(neci_system)
 

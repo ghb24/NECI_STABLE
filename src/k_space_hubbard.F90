@@ -11,14 +11,14 @@
 ! use a real or momentum space basis (and in the future maybe even wavelets)
 module k_space_hubbard
     use SystemData, only: t_lattice_model, t_k_space_hubbard, t_trans_corr, &
-                    trans_corr_param, t_trans_corr_2body, trans_corr_param_2body, &
-                    nel, tHPHF, nOccBeta, nOccAlpha, nbasis, tLatticeGens, tHub, &
-                    omega, bhub, nBasisMax, G1, BasisFN, NullBasisFn, TSPINPOLAR, &
-                    treal, ttilt, tExch, ElecPairs, MaxABPairs, Symmetry, SymEq, &
-                    t_new_real_space_hubbard, SymmetrySize, tNoBrillouin, tUseBrillouin, &
-                    excit_cache, t_uniform_excits, brr, uhub, lms, t_mixed_excits, &
-                    tGUGA, tgen_guga_mixed, tgen_guga_crude, t_approx_exchange, &
-                    t_anti_periodic
+                          trans_corr_param, t_trans_corr_2body, trans_corr_param_2body, &
+                          nel, tHPHF, nOccBeta, nOccAlpha, nbasis, tLatticeGens, tHub, &
+                          omega, bhub, nBasisMax, G1, BasisFN, NullBasisFn, TSPINPOLAR, &
+                          treal, ttilt, tExch, ElecPairs, MaxABPairs, Symmetry, SymEq, &
+                          t_new_real_space_hubbard, SymmetrySize, tNoBrillouin, tUseBrillouin, &
+                          excit_cache, t_uniform_excits, brr, uhub, lms, t_mixed_excits, &
+                          tGUGA, tgen_guga_mixed, tgen_guga_crude, t_approx_exchange, &
+                          t_anti_periodic
 
     use lattice_mod, only: get_helement_lattice_ex_mat, get_helement_lattice_general, &
                            determine_optimal_time_step, lattice, sort_unique, lat, &
@@ -72,11 +72,11 @@ module k_space_hubbard
 
     use SymData, only: nSymLabels, SymClasses, Symlabels
 
-    use SymData, only: nSym,SymConjTab
+    use SymData, only: nSym, SymConjTab
 
-    use SymData, only: tAbelian,SymTable
+    use SymData, only: tAbelian, SymTable
 
-    use SymData, only: tagSymConjTab,tagSymClasses,tagSymLabels
+    use SymData, only: tagSymConjTab, tagSymClasses, tagSymLabels
 
     use SymData, only: tagSymTable
 
@@ -87,8 +87,6 @@ module k_space_hubbard
                                     get_orb_from_kpoints_three, swap_excitations, &
                                     pick_spin_opp_elecs, pick_from_cum_list, &
                                     pick_spin_par_elecs, pick_three_opp_elecs
-
-    use unit_test_helpers, only: print_matrix
 
     use guga_excitations, only: generate_excitation_guga, generate_excitation_guga_crude, &
                                 calc_guga_matrix_element, global_excitinfo, print_excitInfo
@@ -102,14 +100,14 @@ module k_space_hubbard
     integer, parameter :: N_DIM = 3
 
     real(dp) :: three_body_prefac = 0.0_dp
-    real(dp), allocatable :: umat_cache_kspace(:,:)
+    real(dp), allocatable :: umat_cache_kspace(:, :)
     real(dp) :: n_opp(-1:1) = 0.0_dp
 
     ! temporary flag for the j optimization
     logical :: t_symmetric = .true.
 
-    real(dp), allocatable :: two_body_transcorr_factor_matrix(:,:), &
-                             three_body_const_mat(:,:,:)
+    real(dp), allocatable :: two_body_transcorr_factor_matrix(:, :), &
+                             three_body_const_mat(:, :, :)
     ! i especially need an interface for the matrix element calculation to
     ! implement the transcorrelated hamiltonian
     interface get_helement_k_space_hub
@@ -168,30 +166,30 @@ contains
         ASSERT(associated(lat))
         ASSERT(associated(G1))
 
-        nsym = nBasis/2
+        nsym = nBasis / 2
         nSymLabels = nsym
 
         ! copy the output from the old hubbard code:
-         WRITE(6,"(A,I3,A)") "Generating abelian symmetry table with", &
-         nsym , " generators for Hubbard momentum"
-         if (allocated(SymLabels)) then
-             write (6,'(a/a)') &
-                     'Warning: symmetry info already allocated.', &
-                     'Deallocating and reallocating.'
-             deallocate(SymLabels)
-             call LogMemDealloc(this_routine,tagSymLabels)
-         end if
-         allocate(SymLabels(nSym))
-         call LogMemAlloc('SymLabels',nSym,SymmetrySize,this_routine, tagSymLabels)
-         if (associated(SymClasses)) then
-             deallocate(SymClasses)
-             call LogMemDealloc(this_routine,tagSymClasses)
-         end if
-         ! [W.D]
-         ! why is symclasses allocated to nBasis? it is actually only used
-         ! and filled up to nBasis/2, also in the rest of the code..
-         allocate(SymClasses(nBasis/2))
-         call LogMemAlloc('SymClasses',nBasis,4,this_routine,tagSymClasses)
+        write(6, "(A,I3,A)") "Generating abelian symmetry table with", &
+            nsym, " generators for Hubbard momentum"
+        if (allocated(SymLabels)) then
+            write(6, '(a/a)') &
+                'Warning: symmetry info already allocated.', &
+                'Deallocating and reallocating.'
+            deallocate(SymLabels)
+            call LogMemDealloc(this_routine, tagSymLabels)
+        end if
+        allocate(SymLabels(nSym))
+        call LogMemAlloc('SymLabels', nSym, SymmetrySize, this_routine, tagSymLabels)
+        if (associated(SymClasses)) then
+            deallocate(SymClasses)
+            call LogMemDealloc(this_routine, tagSymClasses)
+        end if
+        ! [W.D]
+        ! why is symclasses allocated to nBasis? it is actually only used
+        ! and filled up to nBasis/2, also in the rest of the code..
+        allocate(SymClasses(nBasis / 2))
+        call LogMemAlloc('SymClasses', nBasis, 4, this_routine, tagSymClasses)
 
         ! for some strange reason the (0,0,0) k-vector is treated
         ! special in the old implementation.. since it is its own
@@ -205,16 +203,16 @@ contains
 
         if (allocated(SymTable)) then
             deallocate(SymTable)
-            call LogMemDealloc(this_routine,tagSymTable)
+            call LogMemDealloc(this_routine, tagSymTable)
         end if
-        allocate(SymTable(nSym,nSym))
-        call LogMemAlloc('SymTable',nSym**2,SymmetrySize,this_routine,tagSymTable)
+        allocate(SymTable(nSym, nSym))
+        call LogMemAlloc('SymTable', nSym**2, SymmetrySize, this_routine, tagSymTable)
         if (allocated(SymConjTab)) then
             deallocate(SymConjTab)
-            call LogMemDealloc(this_routine,tagSymConjTab)
+            call LogMemDealloc(this_routine, tagSymConjTab)
         end if
         allocate(SymConjTab(nSym))
-        call LogMemAlloc('SymConjTable',nSym,4,this_routine, tagSymConjTab)
+        call LogMemAlloc('SymConjTable', nSym, 4, this_routine, tagSymConjTab)
 
         SYMTABLE = Symmetry(0)
 
@@ -223,27 +221,27 @@ contains
         ! also setup the stuff contained in the lattice class.
         ASSERT(associated(lat))
 
-        if (allocated(lat%k_to_sym))   deallocate(lat%k_to_sym)
-        if (allocated(lat%sym_to_k))   deallocate(lat%sym_to_k)
+        if (allocated(lat%k_to_sym)) deallocate(lat%k_to_sym)
+        if (allocated(lat%sym_to_k)) deallocate(lat%sym_to_k)
         if (allocated(lat%mult_table)) deallocate(lat%mult_table)
-        if (allocated(lat%inv_table))  deallocate(lat%inv_table)
+        if (allocated(lat%inv_table)) deallocate(lat%inv_table)
 
-        allocate(lat%sym_to_k(lat%get_nsites(),3))
+        allocate(lat%sym_to_k(lat%get_nsites(), 3))
         allocate(lat%mult_table(lat%get_nsites(), lat%get_nsites()))
         allocate(lat%inv_table(lat%get_nsites()))
 
         ! i have to setup the symlabels first ofc..
         do i = 1, lat%get_nsites()
-            ind = get_spatial(brr(2*i))
+            ind = get_spatial(brr(2 * i))
             SymClasses(ind) = i
             ! and also just encode the symmetry labels as integers, instead of
-           ! 2^(k-1), to be able to treat more than 64 orbitals (in the old
+            ! 2^(k-1), to be able to treat more than 64 orbitals (in the old
             ! implementation, an integer overflow happened in this case!)
             SymLabels(ind)%s = i
             ! i also need it in G1:
             ! is G1 already ordered by energy??
 
-            call lat%set_sym(ind,i)
+            call lat%set_sym(ind, i)
 
         end do
 
@@ -257,18 +255,17 @@ contains
             end do
         end do
 
-        allocate(lat%k_to_sym(kmin(1):kmax(1),kmin(2):kmax(2),kmin(3):kmax(3)))
+        allocate(lat%k_to_sym(kmin(1):kmax(1), kmin(2):kmax(2), kmin(3):kmax(3)))
 
         lat%k_to_sym = 0
 
         ! now find the inverses:
         do i = 1, lat%get_nsites()
-            G1(2*i-1)%Sym = SymLabels(i)
-            G1(2*i)%Sym = SymLabels(i)
+            G1(2 * i - 1)%Sym = SymLabels(i)
+            G1(2 * i)%Sym = SymLabels(i)
 
             ! find the orbital of -k
             j = lat%get_orb_from_k_vec(-lat%get_k_vec(i))
-
 
             ! since i have a linear encoding of the symmetries i do not need
             ! to use SymClasses here..
@@ -277,10 +274,10 @@ contains
             lat%inv_table(SymClasses(i)) = SymClasses(j)
             ! maybe also store the k_inverse of a orbital..
 
-            lat%sym_to_k(SymClasses(i),:) = lat%get_k_vec(i)
+            lat%sym_to_k(SymClasses(i), :) = lat%get_k_vec(i)
 
             k_i = lat%get_k_vec(i)
-            lat%k_to_sym(k_i(1),k_i(2),k_i(3)) = SymClasses(i)
+            lat%k_to_sym(k_i(1), k_i(2), k_i(3)) = SymClasses(i)
 
             ! and create the symmetry product of (i) with every other symmetry
             do k = 1, lat%get_nsites()
@@ -288,21 +285,21 @@ contains
 
                 l = lat%get_orb_from_k_vec(lat%get_k_vec(i) + lat%get_k_vec(k))
 
-                SymTable(SymClasses(i),SymClasses(k)) = SymLabels(l)
+                SymTable(SymClasses(i), SymClasses(k)) = SymLabels(l)
 
                 lat%mult_table(SymClasses(i), SymClasses(k)) = SymClasses(l)
 
             end do
         end do
 #ifdef DEBUG_
-        WRITE(6,*) "Symmetry, Symmetry Conjugate"
+        write(6, *) "Symmetry, Symmetry Conjugate"
         do i = 1, lat%get_nsites()
             print *, i, SymConjTab(i)
         end do
 
         print *, "lat%sym_to_k: "
         do i = 1, lat%get_nsites()
-            print *, i, "|", SymClasses(i), "|", lat%sym_to_k(i,:)
+            print *, i, "|", SymClasses(i), "|", lat%sym_to_k(i, :)
         end do
 
         print *, "lat%inv_table: "
@@ -312,13 +309,13 @@ contains
 
         print *, "lat%mult_table: "
         do i = 1, lat%get_nsites()
-            print *, lat%mult_table(i,:)
+            print *, lat%mult_table(i, :)
         end do
 
         print *, "lat%k_to_sym: "
         do i = 1, lat%get_nsites()
             k_i = lat%get_k_vec(i)
-            print *, k_i, "|", lat%k_to_sym(k_i(1),k_i(2),k_i(3))
+            print *, k_i, "|", lat%k_to_sym(k_i(1), k_i(2), k_i(3))
         end do
 
 #endif
@@ -333,14 +330,14 @@ contains
 
         integer :: i, j
         if (allocated(symreps)) deallocate(symreps)
-        allocate(symreps(2,nbasis))
+        allocate(symreps(2, nbasis))
         symreps = 0
 
         j = 0
 
         print *, "arr: "
         do i = 1, nbasis
-            print *, arr(i,:)
+            print *, arr(i, :)
         end do
 
         print *, "brr: "
@@ -348,8 +345,7 @@ contains
             print *, brr(i)
         end do
 
-        do i = 1, 2*lat%get_nsites()
-
+        do i = 1, 2 * lat%get_nsites()
 
         end do
 
@@ -370,8 +366,8 @@ contains
         ! do i have to access this with the symmetry label or the orbital
         ! number?? i think i need the symmetry labels..
         ! i could set this on the site level!
-        if (SymTable(lat%get_sym(i),lat%get_sym(j))%S == &
-            SymTable(lat%get_sym(k),lat%get_sym(l))%S) then
+        if (SymTable(lat%get_sym(i), lat%get_sym(j))%S == &
+            SymTable(lat%get_sym(k), lat%get_sym(l))%S) then
             hel = Umat(1)
         else
             hel = 0.0_dp
@@ -385,7 +381,6 @@ contains
 
         character(*), parameter :: this_routine = "init_k_space_hubbard"
         real(dp) :: tau_opt
-
 
         if (iProcIndex == root) then
             print *, " new k-space hubbard implementation init:"
@@ -414,11 +409,11 @@ contains
         end if
 
         if (.not. tHPHF .and. .not. t_uniform_excits) then
-             generate_excitation => gen_excit_k_space_hub
-         end if
+            generate_excitation => gen_excit_k_space_hub
+        end if
 
         ! for more efficiency, use the uniform excitation generation
-        if(t_uniform_excits) then
+        if (t_uniform_excits) then
             generate_excitation => gen_excit_uniform_k_space_hub
         end if
 
@@ -480,7 +475,7 @@ contains
                 call Stop_All(this_routine, "not yet implemented with HPHF")
             end if
 
-            three_body_prefac = real(bhub,dp) * 2.0_dp * (cosh(trans_corr_param_2body) - 1.0_dp) / real(omega**2,dp)
+            three_body_prefac = real(bhub, dp) * 2.0_dp * (cosh(trans_corr_param_2body) - 1.0_dp) / real(omega**2, dp)
             ! i also have to set some generation probability parameters..
 
             if (.not. near_zero(pDoublesIn)) then
@@ -505,44 +500,43 @@ contains
             call initialize_excit_table()
         end if
 
-
     end subroutine init_k_space_hubbard
 
     subroutine initialize_excit_table()
-      implicit none
-      ! This cannot be a member of the lattice class because that would introduce
-      ! a circulat dependency on get_offdiag_helement_k_sp_hub
-      integer :: a, b, i, j, ex(2,2)
-      ! nI is not needed anywhere, it is a redundant argument in the k_space_hubbard module
-      integer :: nI(2)
-      real(dp) :: matEL
+        implicit none
+        ! This cannot be a member of the lattice class because that would introduce
+        ! a circulat dependency on get_offdiag_helement_k_sp_hub
+        integer :: a, b, i, j, ex(2, 2)
+        ! nI is not needed anywhere, it is a redundant argument in the k_space_hubbard module
+        integer :: nI(2)
+        real(dp) :: matEL
 
-      ! the buffer for excitations is (number of states)^3
-      ! strictly speaking, we do not need to distinguish spin orbs here for simple hubbard
-      ! but for transcorrelated, it might matter
-      if (allocated(excit_cache)) deallocate(excit_cache)
+        ! the buffer for excitations is (number of states)^3
+        ! strictly speaking, we do not need to distinguish spin orbs here for simple hubbard
+        ! but for transcorrelated, it might matter
+        if (allocated(excit_cache)) deallocate(excit_cache)
 
-      allocate(excit_cache(nbasis,nbasis,nbasis))
-      ! loop over all pairs of orbitals
-      do i = 1, nbasis
-         do j = 1, nbasis
-            nI = [i,j]
-            ex(1,:) = [i,j]
-            ! and for each, check all possible excitations
-            do a = 1, nbasis
-               matEl = 0.0_dp
-               if(a /= i .and. a/=j) then
-                  b = get_orb_from_kpoints(i,j,a)
-                  if(b /= a .and. b /= i .and. b /= j) then
-                     ex(2,:) = [a,b]
-                     matEl = abs(get_offdiag_helement_k_sp_hub(nI,ex,.false.))
-                  endif
-               endif
-               ! most excitations will have a finite amplitude, so store all
-               excit_cache(i,j,a) = matEl
+        allocate(excit_cache(nbasis, nbasis, nbasis))
+        ! loop over all pairs of orbitals
+        do i = 1, nbasis
+            do j = 1, nbasis
+                nI = [i, j]
+                ex(1, :) = [i, j]
+                ! and for each, check all possible excitations
+                do a = 1, nbasis
+                    matEl = 0.0_dp
+                    if (a /= i .and. a /= j) then
+                        b = get_orb_from_kpoints(i, j, a)
+                        if (b /= a .and. b /= i .and. b /= j) then
+                            ex(2, :) = [a, b]
+                            matEl = abs(get_offdiag_helement_k_sp_hub(nI, ex, .false.))
+                        end if
+                    end if
+                    ! most excitations will have a finite amplitude, so store all
+                    excit_cache(i, j, a) = matEl
+                end do
             end do
-         end do
-      end do
+        end do
 
     end subroutine initialize_excit_table
 
@@ -559,11 +553,11 @@ contains
 
     end subroutine check_k_space_hubbard_input
 
-    subroutine gen_excit_k_space_hub (nI, ilutI, nJ, ilutJ, exFlag, ic, &
-                                      ex, tParity, pGen, hel, store, run)
+    subroutine gen_excit_k_space_hub(nI, ilutI, nJ, ilutJ, exFlag, ic, &
+                                     ex, tParity, pGen, hel, store, run)
         integer, intent(in) :: nI(nel), exFlag
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
-        integer, intent(out) :: nJ(nel), ic, ex(2,maxExcit)
+        integer, intent(out) :: nJ(nel), ic, ex(2, maxExcit)
         integer(n_int), intent(out) :: ilutJ(0:NifTot)
         real(dp), intent(out) :: pGen
         logical, intent(out) :: tParity
@@ -583,9 +577,9 @@ contains
         unused_var(store)
 #ifdef WARNING_WORKAROUND_
         ! mark unused vars
-        if(present(run)) then
+        if (present(run)) then
             unused_var(run)
-        endif
+        end if
 #endif
 
         hel = h_cast(0.0_dp)
@@ -642,7 +636,7 @@ contains
 
             end if
 
-            call calc_guga_matrix_element(ilutI, ilutJ, excitInfo, hel, .true., 2)
+            call calc_guga_matrix_element(ilutI, ilutJ, excitInfo, hel, .true., 1)
 
             if (abs(hel) < EPS) then
                 nJ(1) = 0
@@ -655,89 +649,88 @@ contains
         end if
 
 #ifdef DEBUG_
-        if (.not. isvaliddet(nI,nel)) then
+        if (.not. isvaliddet(nI, nel)) then
             if (nJ(1) /= 0) then
                 print *, "nI: ", nI
                 print *, "nJ: ", nJ
-                print *, "src: ", ex(1,:)
-                print *, "tgt: ", ex(2,:)
+                print *, "src: ", ex(1, :)
+                print *, "tgt: ", ex(2, :)
             end if
         end if
 #endif
 
-
     end subroutine gen_excit_k_space_hub
 
     subroutine gen_excit_uniform_k_space_hub(nI, ilutI, nJ, ilutJ, exFlag, ic, ex, &
-         tParity, pGen, hel, store, run)
-      implicit none
-      integer, intent(in) :: nI(nel), exFlag
-      integer(n_int), intent(in) :: ilutI(0:NIfTot)
-      integer, intent(out) :: nJ(nel), ic, ex(2,maxExcit)
-      real(dp), intent(out) :: pGen
-      logical, intent(out) :: tParity
-      type(excit_gen_store_type), intent(inout), target :: store
-      integer, intent(in), optional :: run
+                                             tParity, pGen, hel, store, run)
+        implicit none
+        integer, intent(in) :: nI(nel), exFlag
+        integer(n_int), intent(in) :: ilutI(0:NIfTot)
+        integer, intent(out) :: nJ(nel), ic, ex(2, maxExcit)
+        real(dp), intent(out) :: pGen
+        logical, intent(out) :: tParity
+        type(excit_gen_store_type), intent(inout), target :: store
+        integer, intent(in), optional :: run
 
-      ! not used
-      HElement_t(dp), intent(out) :: hel
-      integer(n_int), intent(out) :: ilutJ(0:NifTot)
+        ! not used
+        HElement_t(dp), intent(out) :: hel
+        integer(n_int), intent(out) :: ilutJ(0:NifTot)
 
-      real(dp) :: p_elec, r
-      integer :: i, a, b, ki(N_DIM), kj(N_DIM), ka(N_DIM), kb(N_DIM), elecs(2)
-      integer, parameter :: maxTrials = 1000
+        real(dp) :: p_elec, r
+        integer :: i, a, b, ki(N_DIM), kj(N_DIM), ka(N_DIM), kb(N_DIM), elecs(2)
+        integer, parameter :: maxTrials = 1000
 
-      unused_var(store)
-      unused_var(exFlag)
+        unused_var(store)
+        unused_var(exFlag)
 
-      if(present(run)) then
-          unused_var(run)
-      endif
+        if (present(run)) then
+            unused_var(run)
+        end if
 
-      hel = h_cast(0.0_dp)
+        hel = h_cast(0.0_dp)
 
-      ilutJ = 0
-      ic = 0
+        ilutJ = 0
+        ic = 0
 
-      nJ = nI
+        nJ = nI
 
-      ! first, get two electrons
-      call pick_spin_opp_elecs(nI,elecs,p_elec)
+        ! first, get two electrons
+        call pick_spin_opp_elecs(nI, elecs, p_elec)
 
-      ! uniform random excit gen probability
-      pGen = 1.0_dp/(nbasis-nel)*2.0_dp/(nOccAlpha*nOccBeta)
+        ! uniform random excit gen probability
+        pGen = 1.0_dp / (nbasis - nel) * 2.0_dp / (nOccAlpha * nOccBeta)
 
-      ! try finding an allowed excitation
-      do i = 1, maxTrials
-         ! we do this by picking random momenta and checking if the targets are
-         ! empty
-         r = genrand_real2_dSFMT()
-         ! this is our random orb
-         a = INT(nBasis*r)+1
-         ! only empty targets are of interest
-         if(IsOcc(ilutI,a)) cycle
+        ! try finding an allowed excitation
+        do i = 1, maxTrials
+            ! we do this by picking random momenta and checking if the targets are
+            ! empty
+            r = genrand_real2_dSFMT()
+            ! this is our random orb
+            a = INT(nBasis * r) + 1
+            ! only empty targets are of interest
+            if (IsOcc(ilutI, a)) cycle
 
-         ! now, get the missing momentum
-         b = get_orb_from_kpoints(nI(elecs(1)),nI(elecs(2)),a)
-         ! and check if its empty and differs from a
-         if(IsOcc(ilutI,b) .or. a==b) then
-            ! if not, the excitation is rejected (!)
-            nJ(1) = 0
-            return
-         endif
+            ! now, get the missing momentum
+            b = get_orb_from_kpoints(nI(elecs(1)), nI(elecs(2)), a)
+            ! and check if its empty and differs from a
+            if (IsOcc(ilutI, b) .or. a == b) then
+                ! if not, the excitation is rejected (!)
+                nJ(1) = 0
+                return
+            end if
 
-         call make_double(nI,nJ,elecs(1),elecs(2),a,b,ex,tParity)
-         ic = 2
-         exit
-      end do
+            call make_double(nI, nJ, elecs(1), elecs(2), a, b, ex, tParity)
+            ic = 2
+            exit
+        end do
 
     end subroutine gen_excit_uniform_k_space_hub
 
     subroutine gen_excit_uniform_k_space_hub_transcorr(nI, ilutI, nJ, ilutJ, &
-            exFlag, ic, ex, tParity, pgen, hel, store, run)
+                                                       exFlag, ic, ex, tParity, pgen, hel, store, run)
         integer, intent(in) :: nI(nel), exFlag
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
-        integer, intent(out) :: nJ(nel), ic, ex(2,maxExcit)
+        integer, intent(out) :: nJ(nel), ic, ex(2, maxExcit)
         integer(n_int), intent(out) :: ilutJ(0:NIfTot)
         real(dp), intent(out) :: pgen
         logical, intent(out) :: tParity
@@ -750,7 +743,7 @@ contains
 
         unused_var(exFlag)
         unused_var(store)
-        if(present(run)) then
+        if (present(run)) then
             unused_var(run)
         end if
 
@@ -795,11 +788,11 @@ contains
 
 #ifdef DEBUG_
         if (nJ(1) /= 0) then
-            if (abs(pgen - calc_pgen_k_space_hubbard_uniform_transcorr(ex, ic))>EPS) then
+            if (abs(pgen - calc_pgen_k_space_hubbard_uniform_transcorr(ex, ic)) > EPS) then
                 print *, "nI: ", nI
                 print *, "nJ: ", nJ
                 print *, "ic: ", ic
-                print *, "calc. pgen: ",calc_pgen_k_space_hubbard_uniform_transcorr(ex, ic)
+                print *, "calc. pgen: ", calc_pgen_k_space_hubbard_uniform_transcorr(ex, ic)
                 print *, "prd. pgen: ", pgen
                 call stop_all(this_routine, "pgens wrong!")
             end if
@@ -809,13 +802,13 @@ contains
     end subroutine gen_excit_uniform_k_space_hub_transcorr
 
     subroutine gen_excit_mixed_k_space_hub_transcorr(nI, ilutI, nJ, ilutJ, &
-            exFlag, ic, ex, tParity, pgen, hel, store, run)
+                                                     exFlag, ic, ex, tParity, pgen, hel, store, run)
         ! excitation generator, which makes doubles uniform and triples in a
         ! weighted fashion to reduce cost, but at the same time increase
         ! the time-step and the sampling
         integer, intent(in) :: nI(nel), exFlag
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
-        integer, intent(out) :: nJ(nel), ic, ex(2,3)
+        integer, intent(out) :: nJ(nel), ic, ex(2, 3)
         integer(n_int), intent(out) :: ilutJ(0:NIfTot)
         real(dp), intent(out) :: pgen
         logical, intent(out) :: tParity
@@ -864,11 +857,11 @@ contains
 
 #ifdef DEBUG_
         if (nJ(1) /= 0) then
-            if (abs(pgen - calc_pgen_mixed_k_space_hub_transcorr(nI, ilutI, ex, ic))>EPS) then
+            if (abs(pgen - calc_pgen_mixed_k_space_hub_transcorr(nI, ilutI, ex, ic)) > EPS) then
                 print *, "nI: ", nI
                 print *, "nJ: ", nJ
                 print *, "ic: ", ic
-                print *, "calc. pgen: ",calc_pgen_mixed_k_space_hub_transcorr(nI, ilutI, ex, ic)
+                print *, "calc. pgen: ", calc_pgen_mixed_k_space_hub_transcorr(nI, ilutI, ex, ic)
                 print *, "prd. pgen: ", pgen
                 call stop_all(this_routine, "pgens wrong!")
             end if
@@ -878,7 +871,7 @@ contains
     end subroutine gen_excit_mixed_k_space_hub_transcorr
 
     function calc_pgen_mixed_k_space_hub_transcorr(nI, ilutI, ex, ic) result(pgen)
-        integer, intent(in) :: nI(nel), ex(:,:), ic
+        integer, intent(in) :: nI(nel), ex(:, :), ic
         integer(n_int), intent(in) :: ilutI(0:niftot)
         real(dp) :: pgen
 #ifdef DEBUG_
@@ -890,20 +883,20 @@ contains
 
             pgen = pDoubles
 
-            if (same_spin(ex(1,1),ex(1,2))) then
+            if (same_spin(ex(1, 1), ex(1, 2))) then
                 pgen = pgen * pParallel
 
-                if (is_beta(ex(1,1))) then
-                    p_elec = 1.0_dp / real(nOccBeta*(nOccBeta-1),dp)
-                    p_orb = 2.0_dp / real(nbasis/2 - nOccBeta, dp)
+                if (is_beta(ex(1, 1))) then
+                    p_elec = 1.0_dp / real(nOccBeta * (nOccBeta - 1), dp)
+                    p_orb = 2.0_dp / real(nbasis / 2 - nOccBeta, dp)
                 else
-                    p_elec = 1.0_dp / real(nOccAlpha*(nOccAlpha-1),dp)
-                    p_orb = 2.0_dp / real(nbasis/2 - nOccAlpha, dp)
+                    p_elec = 1.0_dp / real(nOccAlpha * (nOccAlpha - 1), dp)
+                    p_orb = 2.0_dp / real(nbasis / 2 - nOccAlpha, dp)
                 end if
 
             else
                 pgen = pgen * (1.0_dp - pParallel)
-                p_elec = 1.0_dp / real(nOccBeta * nOccAlpha,dp)
+                p_elec = 1.0_dp / real(nOccBeta * nOccAlpha, dp)
 
                 p_orb = 2.0_dp / real(nbasis - nel, dp)
 
@@ -914,7 +907,7 @@ contains
         else
 
             pgen = calc_pgen_k_space_hubbard_triples(nI, ilutI, ex, ic)
-            pgen = pgen * (1.0_dp - pDoubles)*2.0_dp
+            pgen = pgen * (1.0_dp - pDoubles) * 2.0_dp
 
         end if
 
@@ -924,7 +917,7 @@ contains
         ! routine to do a uniform paralles spin double excitation
         integer, intent(in) :: nI(nel)
         integer(n_int), intent(in) :: ilutI(0:niftot)
-        integer, intent(out) :: nJ(nel), ex(2,3)
+        integer, intent(out) :: nJ(nel), ex(2, 3)
         integer(n_int), intent(out) :: ilutJ(0:niftot)
         logical, intent(out) :: tParity
         real(dp), intent(out) :: pgen
@@ -935,7 +928,6 @@ contains
         integer, parameter :: max_trials = 1000
         real(dp) :: p_elec, p_orb
 
-
         nJ(1) = 0
         ! pick two spin-parallel electrons
         call pick_spin_par_elecs(nI, elecs, p_elec, ispn)
@@ -943,10 +935,10 @@ contains
         ! i have to figure out the probabilty of two spin-parallel
         if (ispn == 1) then
             spin = 1
-            p_orb = 1.0_dp / real(nbasis/2 - nOccBeta, dp)
+            p_orb = 1.0_dp / real(nbasis / 2 - nOccBeta, dp)
         else if (ispn == 3) then
             spin = 2
-            p_orb = 1.0_dp / real(nbasis/2 - nOccAlpha, dp)
+            p_orb = 1.0_dp / real(nbasis / 2 - nOccAlpha, dp)
 #ifdef DEBUG_
         else
             call stop_all(this_routine, "no parallel spin!")
@@ -956,7 +948,7 @@ contains
         ! pick 2 holes now
         do i = 1, max_trials
 
-            a = 2*int(nbasis/2 * genrand_real2_dsfmt()) + spin
+            a = 2 * int(nbasis / 2 * genrand_real2_dsfmt()) + spin
 
             if (IsOcc(ilutI, a)) cycle
 
@@ -966,7 +958,7 @@ contains
             ! a == b test has to be here for the spin-parallel
             ! excitations!
             ! try not returning but cycling
-            if (IsOcc(ilutI,b) .or. a == b) then
+            if (IsOcc(ilutI, b) .or. a == b) then
                 nJ(1) = 0
                 return
             end if
@@ -986,7 +978,7 @@ contains
         ! routine to do a uniform anti-parallel spin double excitation
         integer, intent(in) :: nI(nel)
         integer(n_int), intent(in) :: ilutI(0:niftot)
-        integer, intent(out) :: nJ(nel), ex(2,3)
+        integer, intent(out) :: nJ(nel), ex(2, 3)
         integer(n_int), intent(out) :: ilutJ(0:niftot)
         logical, intent(out) :: tParity
         real(dp), intent(out) :: pgen
@@ -996,7 +988,6 @@ contains
         integer :: elecs(2), ispn, spin, i, a, b
         integer, parameter :: max_trials = 1000
         real(dp) :: p_elec, p_orb
-
 
         call pick_spin_opp_elecs(nI, elecs, p_elec)
 
@@ -1016,7 +1007,7 @@ contains
             ! do we have to reject or can we cycle if not fitting?
             ! a == b test has to be here for the spin-parallel
             ! excitations!
-            if (IsOcc(ilutI,b) .or. a == b) then
+            if (IsOcc(ilutI, b) .or. a == b) then
                 nJ(1) = 0
                 return
             end if
@@ -1035,7 +1026,7 @@ contains
         ! routine to do a uniform triple excitation
         integer, intent(in) :: nI(nel)
         integer(n_int), intent(in) :: ilutI(0:niftot)
-        integer, intent(out) :: nJ(nel), ex(2,3)
+        integer, intent(out) :: nJ(nel), ex(2, 3)
         integer(n_int), intent(out) :: ilutJ(0:niftot)
         logical, intent(out) :: tParity
         real(dp), intent(out) :: pgen
@@ -1045,7 +1036,6 @@ contains
         integer :: elecs(3), ispn, spin, i, a, b, c, sum_ms, src(3)
         integer, parameter :: max_trials = 1000
         real(dp) :: p_elec, p_orb, p_orb_a
-
 
         nJ(1) = 0
 
@@ -1060,29 +1050,29 @@ contains
         ! way.. i hope this still works with the probabilities
         ! if A is beta, we need to pick a alpha B uniformly and vv.
         if (is_beta(a)) then
-            p_orb = 1.0_dp / real(nbasis/2 - nOccAlpha, dp)
+            p_orb = 1.0_dp / real(nbasis / 2 - nOccAlpha, dp)
             ! also use a spin to specify the spin-orbital
             ! is a is beta we want an alpha -> so add +1
             ispn = 0
         else
-            p_orb = 1.0_dp / real(nBasis/2 - nOccBeta, dp)
+            p_orb = 1.0_dp / real(nBasis / 2 - nOccBeta, dp)
             ispn = 1
         end if
 
         do i = 1, max_trials
 
-            b = 2 * (1 + int(genrand_real2_dsfmt() * nbasis/2)) - ispn
+            b = 2 * (1 + int(genrand_real2_dsfmt() * nbasis / 2)) - ispn
 
-            if (IsOcc(ilutI,b)) cycle
+            if (IsOcc(ilutI, b)) cycle
 
             c = get_orb_from_kpoints_three(src, a, b)
 
-            if (IsOcc(ilutI,c) .or. b == c) then
+            if (IsOcc(ilutI, c) .or. b == c) then
                 nJ(1) = 0
                 return
             end if
 
-            call make_triple(nI, nJ, elecs, [a,b,c], ex, tParity)
+            call make_triple(nI, nJ, elecs, [a, b, c], ex, tParity)
 
             ilutJ = make_ilutJ(ilutI, ex, 3)
             exit
@@ -1093,13 +1083,13 @@ contains
 
     end subroutine gen_uniform_triple
 
-    subroutine gen_excit_k_space_hub_transcorr (nI, ilutI, nJ, ilutJ, exFlag, ic, &
-                                      ex, tParity, pGen, hel, store, run)
+    subroutine gen_excit_k_space_hub_transcorr(nI, ilutI, nJ, ilutJ, exFlag, ic, &
+                                               ex, tParity, pGen, hel, store, run)
 
         integer, intent(in) :: nI(nel), exFlag
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
         integer, intent(out) :: nJ(nel), ic
-        integer, intent(out) :: ex(2,maxExcit)
+        integer, intent(out) :: ex(2, maxExcit)
         integer(n_int), intent(out) :: ilutJ(0:NifTot)
         real(dp), intent(out) :: pGen
         logical, intent(out) :: tParity
@@ -1109,7 +1099,7 @@ contains
 #ifdef DEBUG_
         character(*), parameter :: this_routine = "gen_excit_k_space_hub_transcorr"
 #endif
-        integer :: temp_ex(2,3)
+        integer :: temp_ex(2, 3)
 
         if (genrand_real2_dsfmt() < pDoubles) then
             if (genrand_real2_dsfmt() < pParallel) then
@@ -1120,8 +1110,8 @@ contains
 
             else
                 ! do a "normal" hubbard k-space excitation
-                call gen_excit_k_space_hub (nI, ilutI, nJ, ilutJ, exFlag, ic, &
-                                      ex, tParity, pGen, hel, store, run)
+                call gen_excit_k_space_hub(nI, ilutI, nJ, ilutJ, exFlag, ic, &
+                                           ex, tParity, pGen, hel, store, run)
 
                 pgen = pgen * pDoubles * (1.0_dp - pParallel)
 
@@ -1141,14 +1131,14 @@ contains
     ! run the stochastic test driver on it! so it must have the same
     ! interface as the other excitation generators!
     subroutine gen_excit_uniform_k_space_hub_test(nI, ilutI, nJ, ilutJ, exFlag, ic, &
-                                      ex, tParity, pGen, hel, store, run)
+                                                  ex, tParity, pGen, hel, store, run)
 
         implicit none
 
         integer, intent(in) :: nI(nel), exFlag
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
         integer, intent(out) :: nJ(nel), ic
-        integer, intent(out) :: ex(2,maxExcit)
+        integer, intent(out) :: ex(2, maxExcit)
         integer(n_int), intent(out) :: ilutJ(0:NifTot)
         real(dp), intent(out) :: pGen
         logical, intent(out) :: tParity
@@ -1158,7 +1148,7 @@ contains
 #ifdef DEBUG_
         character(*), parameter :: this_routine = "gen_excit_uniform_k_space_hub_test"
 #endif
-        integer :: temp_ex(2,3) , elecs(3), ispn, i, a, b, c, src(3), sum_ms, spin
+        integer :: temp_ex(2, 3), elecs(3), ispn, i, a, b, c, src(3), sum_ms, spin
         real(dp) :: p_elec, p_orb, p_orb_a
         integer, parameter :: max_trials = 1000
 
@@ -1206,16 +1196,15 @@ contains
     ! make an exact copy of the transcorrelation excitation generator to
     ! run the stochastic test driver on it! so it must have the same
     ! interface as the other excitation generators!
-    subroutine gen_excit_k_space_hub_transcorr_test (nI, ilutI, nJ, ilutJ, exFlag, ic, &
-                                      ex, tParity, pGen, hel, store, run)
-
+    subroutine gen_excit_k_space_hub_transcorr_test(nI, ilutI, nJ, ilutJ, exFlag, ic, &
+                                                    ex, tParity, pGen, hel, store, run)
 
         implicit none
 
         integer, intent(in) :: nI(nel), exFlag
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
         integer, intent(out) :: nJ(nel), ic
-        integer, intent(out) :: ex(2,maxExcit)
+        integer, intent(out) :: ex(2, maxExcit)
         integer(n_int), intent(out) :: ilutJ(0:NifTot)
         real(dp), intent(out) :: pGen
         logical, intent(out) :: tParity
@@ -1225,7 +1214,7 @@ contains
 #ifdef DEBUG_
         character(*), parameter :: this_routine = "gen_excit_k_space_hub_transcorr_test"
 #endif
-        integer :: temp_ex(2,3)
+        integer :: temp_ex(2, 3)
 
         if (genrand_real2_dsfmt() < pDoubles) then
             if (genrand_real2_dsfmt() < pParallel) then
@@ -1235,8 +1224,8 @@ contains
                 pgen = pgen * pDoubles * pParallel
             else
                 ! do a "normal" hubbard k-space excitation
-                call gen_excit_k_space_hub (nI, ilutI, nJ, ilutJ, exFlag, ic, &
-                                      ex, tParity, pGen, hel, store, run)
+                call gen_excit_k_space_hub(nI, ilutI, nJ, ilutJ, exFlag, ic, &
+                                           ex, tParity, pGen, hel, store, run)
 
                 pgen = pgen * pDoubles * (1.0_dp - pParallel)
             end if
@@ -1250,7 +1239,6 @@ contains
 
     end subroutine gen_excit_k_space_hub_transcorr_test
 
-
     subroutine gen_triple_hubbard(nI, ilutI, nJ, ilutJ, ex, tParity, pgen)
         ! i think i should calculat the matrix element in here already!
         ! in this case.. otherwise i have to carry the tParity and ex
@@ -1258,7 +1246,7 @@ contains
         ! i guess, since triples are actually never considered .. todo
         integer, intent(in) :: nI(nel)
         integer(n_int), intent(in) :: ilutI(0:niftot)
-        integer, intent(out) :: nJ(nel), ex(2,3)
+        integer, intent(out) :: nJ(nel), ex(2, 3)
         integer(n_int), intent(out) :: ilutJ(0:niftot)
         logical, intent(out) :: tParity
         real(dp), intent(out) :: pgen
@@ -1318,8 +1306,8 @@ contains
         character(*), parameter :: this_routine = "pick_bc_orbitals_hubbard"
         real(dp) :: test
 #endif
-        real(dp) :: cum_arr(nbasis/2), cum_sum
-        integer :: orb_list(nbasis/2, 2), ind
+        real(dp) :: cum_arr(nbasis / 2), cum_sum
+        integer :: orb_list(nbasis / 2, 2), ind
 
         ! do it similar to the other routines..
         call create_bc_list_hubbard(nI, ilutI, src, orb_a, orb_list, cum_arr, cum_sum)
@@ -1331,12 +1319,12 @@ contains
 
         call pick_from_cum_list(cum_arr, cum_sum, ind, p_orb)
 
-        orbs = orb_list(ind,:)
+        orbs = orb_list(ind, :)
 
 #ifdef DEBUG_
         ! the influence of orb_a is important in the pgen recalc!!
         call create_bc_list_hubbard(nI, ilutI, src, orb_a, orb_list, cum_arr, cum_sum, &
-            orbs(2), test)
+                                    orbs(2), test)
 
         if (abs(test - p_orb) > 1.e-8) then
             print *, "pgen assumption wrong: in ", this_routine
@@ -1346,8 +1334,8 @@ contains
             print *, "a: ", orb_a
             print *, "orbs: ", orbs
             print *, "cum_arr: ", cum_arr
-            print *, "orb_list(:,1): ", orb_list(:,1)
-            print *, "orb_list(:,2): ", orb_list(:,2)
+            print *, "orb_list(:,1): ", orb_list(:, 1)
+            print *, "orb_list(:,2): ", orb_list(:, 2)
         end if
 #endif
 
@@ -1356,26 +1344,26 @@ contains
     end subroutine pick_bc_orbitals_hubbard
 
     subroutine create_bc_list_hubbard(nI, ilutI, src, orb_a, orb_list, cum_arr, &
-                cum_sum, tgt, cpt)
+                                      cum_sum, tgt, cpt)
         integer, intent(in) :: nI(nel), src(3), orb_a
         integer(n_int), intent(in) :: ilutI(0:niftot)
-        integer, intent(out) :: orb_list(nbasis/2, 2)
-        real(dp), intent(out) :: cum_arr(nbasis/2), cum_sum
+        integer, intent(out) :: orb_list(nbasis / 2, 2)
+        real(dp), intent(out) :: cum_arr(nbasis / 2), cum_sum
         integer, intent(in), optional :: tgt
         real(dp), intent(out), optional :: cpt
 #ifdef DEBUG_
         character(*), parameter :: this_routine = "create_bc_list_hubbard"
 #endif
-        integer :: b, c, ex(2,3), spin, orb_b
+        integer :: b, c, ex(2, 3), spin, orb_b
         real(dp) :: elem
         integer :: nJ(nel)
-        integer, allocatable :: ex2(:,:)
+        integer, allocatable :: ex2(:, :)
 
         orb_list = -1
         cum_arr = 0.0_dp
         cum_sum = 0.0_dp
-        ex(1,:) = src
-        ex(2,1) = orb_a
+        ex(1, :) = src
+        ex(2, 1) = orb_a
 
         ! we want to do a restriction! to make it easier to recalculate the
         ! pgens and stuff!
@@ -1409,19 +1397,19 @@ contains
             if (same_spin(orb_a, tgt)) return
 
             !TODO: we only need to consider one spin-type!!
-            do b = 1, nbasis/2
+            do b = 1, nbasis / 2
                 elem = 0.0_dp
 
                 ! convert to the appropriate spin-orbitals
                 orb_b = 2 * b - spin
 
-                if (IsNotOcc(ilutI,orb_b)) then
+                if (IsNotOcc(ilutI, orb_b)) then
                     ! get the appropriate momentum conserverd orbital c
                     c = get_orb_from_kpoints_three(src, orb_a, orb_b)
 
-                    if (c /= orb_b .and. IsNotOcc(ilutI,c)) then
+                    if (c /= orb_b .and. IsNotOcc(ilutI, c)) then
 
-                        ex(2,2:3) = [orb_b, c]
+                        ex(2, 2:3) = [orb_b, c]
 
                         ! actually i messed up with the non-hermiticity
                         ! i should actually switch the order of the
@@ -1443,7 +1431,7 @@ contains
                 cpt = cpt / cum_sum
             end if
         else
-            do b = 1, nbasis/2
+            do b = 1, nbasis / 2
                 orb_b = 2 * b - spin
 
                 elem = 0.0_dp
@@ -1452,16 +1440,16 @@ contains
                 if (IsNotOcc(ilutI, orb_b)) then
                     c = get_orb_from_kpoints_three(src, orb_a, orb_b)
 
-                    if (c /= orb_b .and. IsNotOcc(ilutI,c)) then
+                    if (c /= orb_b .and. IsNotOcc(ilutI, c)) then
 
-                        ex(2,2:3) = [orb_b, c]
+                        ex(2, 2:3) = [orb_b, c]
                         call swap_excitations(nI, ex, nJ, ex2)
                         elem = abs(get_3_body_helement_ks_hub(ex2, .false.))
                     end if
                 end if
                 cum_sum = cum_sum + elem
                 cum_arr(b) = cum_sum
-                orb_list(b,:) = [orb_b,c]
+                orb_list(b, :) = [orb_b, c]
             end do
         end if
 
@@ -1488,14 +1476,14 @@ contains
                 ! there a are 2 beta and one alpha electron picked ->
                 ! so pick alpha here!
                 spin = 0
-                p_orb = 1.0_dp / real(nbasis/2 - nOccAlpha, dp)
+                p_orb = 1.0_dp / real(nbasis / 2 - nOccAlpha, dp)
             else if (sum_ms == 1) then
                 spin = -1
-                p_orb = 1.0_dp / real(nbasis/2 - nOccBeta, dp)
+                p_orb = 1.0_dp / real(nbasis / 2 - nOccBeta, dp)
             end if
 
             do
-                orb = 2*(1 + int(genrand_real2_dsfmt() * nbasis/2)) + spin
+                orb = 2 * (1 + int(genrand_real2_dsfmt() * nbasis / 2)) + spin
 
                 if (IsNotOcc(ilutI, orb)) exit
 
@@ -1509,7 +1497,7 @@ contains
 
             end do
 
-            p_orb = 1.0_dp/real(nbasis - nel, dp)
+            p_orb = 1.0_dp / real(nbasis - nel, dp)
         end if
 
     end subroutine pick_a_orbital_hubbard
@@ -1517,7 +1505,7 @@ contains
     subroutine gen_parallel_double_hubbard(nI, ilutI, nJ, ilutJ, ex, tParity, pgen)
         integer, intent(in) :: nI(nel)
         integer(n_int), intent(in) :: ilutI(0:niftot)
-        integer, intent(out) :: nJ(nel), ex(2,2)
+        integer, intent(out) :: nJ(nel), ex(2, 2)
         integer(n_int), intent(out) :: ilutJ(0:niftot)
         logical, intent(out) :: tParity
         real(dp), intent(out) :: pgen
@@ -1571,12 +1559,12 @@ contains
         real(dp), intent(out) :: p_orb
 #ifdef DEBUG_
         character(*), parameter :: this_routine = "pick_ab_orbitals_par_hubbard"
-        real(dp) :: test, test_arr(nBasis/2)
-        integer :: ex(2,2)
+        real(dp) :: test, test_arr(nBasis / 2)
+        integer :: ex(2, 2)
 #endif
-        real(dp) :: cum_arr(nbasis/2)
+        real(dp) :: cum_arr(nbasis / 2)
         real(dp) :: cum_sum
-        integer :: orb_list(nbasis/2, 2)
+        integer :: orb_list(nbasis / 2, 2)
         integer :: ind
 
         ! without transcorrelation factor this is uniform, but with a
@@ -1595,13 +1583,13 @@ contains
         ! out of that
         call pick_from_cum_list(cum_arr, cum_sum, ind, p_orb)
 
-        orbs = orb_list(ind,:)
+        orbs = orb_list(ind, :)
 
 #ifdef DEBUG_
         ! check that the other way of picking the orbital has the same
         ! probability..
         call create_ab_list_par_hubbard(nI, ilutI, src, orb_list, test_arr, cum_sum, &
-            orbs(2), test)
+                                        orbs(2), test)
 
         if (abs(test - p_orb) > 1.e-8) then
             print *, "pgen assumption wrong in ", this_routine
@@ -1616,8 +1604,8 @@ contains
 
         !todo: also call the calc_pgen_k_space_hubbard here and check
         ! pgens
-        ex(1,:) = src
-        ex(2,:) = orbs
+        ex(1, :) = src
+        ex(2, :) = orbs
 
 #endif
 
@@ -1641,7 +1629,7 @@ contains
 #ifdef DEBUG_
         character(*), parameter :: this_routine = "pick_ab_orbitals_hubbard"
         real(dp) :: test
-        integer :: ex(2,2)
+        integer :: ex(2, 2)
 #endif
         real(dp) :: cum_arr(nbasis)
         real(dp) :: cum_sum
@@ -1662,13 +1650,13 @@ contains
         ! out of that
         call pick_from_cum_list(cum_arr, cum_sum, ind, p_orb)
 
-        orbs = orb_list(ind,:)
+        orbs = orb_list(ind, :)
 
 #ifdef DEBUG_
         ! check that the other way of picking the orbital has the same
         ! probability..
         call create_ab_list_hubbard(nI, ilutI, src, orb_list, cum_arr, cum_sum, &
-            orbs(2), test)
+                                    orbs(2), test)
 
         if (abs(test - p_orb) > 1.e-8) then
             print *, "pgen assumption wrong:!"
@@ -1679,8 +1667,8 @@ contains
 
         !todo: also call the calc_pgen_k_space_hubbard here and check
         ! pgens
-        ex(1,:) = src
-        ex(2,:) = orbs
+        ex(1, :) = src
+        ex(2, :) = orbs
 
 #endif
 
@@ -1695,21 +1683,21 @@ contains
     end subroutine pick_ab_orbitals_hubbard
 
     subroutine create_ab_list_par_hubbard(nI, ilutI, src, orb_list, cum_arr, cum_sum, &
-            tgt, cpt)
+                                          tgt, cpt)
         integer, intent(in) :: nI(nel), src(2)
         integer(n_int), intent(in) :: ilutI(0:niftot)
-        integer, intent(out) :: orb_list(nbasis/2, 2)
-        real(dp), intent(out) :: cum_arr(nbasis/2)
+        integer, intent(out) :: orb_list(nbasis / 2, 2)
+        real(dp), intent(out) :: cum_arr(nbasis / 2)
         real(dp), intent(out) :: cum_sum
         integer, intent(in), optional :: tgt
         real(dp), intent(out), optional :: cpt
 #ifdef DEBUG_
         character(*), parameter :: this_routine = "create_ab_list_par_hubbard"
 #endif
-        integer :: a, b, ex(2,2), spin, orb_a
+        integer :: a, b, ex(2, 2), spin, orb_a
         real(dp) :: elem
         integer :: nJ(nel)
-        integer, allocatable :: ex2(:,:)
+        integer, allocatable :: ex2(:, :)
         ! do the cum_arr for the k-space hubbard
         ! i think here i might really use flags.. and not just do the
         ! influence over the matrix elements.. since without transcorrelation
@@ -1719,10 +1707,10 @@ contains
         cum_arr = 0.0_dp
         cum_sum = 0.0_dp
 
-        ex(1,:) = src
+        ex(1, :) = src
 
         ! this routine only checks for parallel spins, depending on src
-        ASSERT(same_spin(src(1),src(2)))
+        ASSERT(same_spin(src(1), src(2)))
 
         ! make a spin factor for the orbital conversion
         ! 0...alpha
@@ -1736,21 +1724,21 @@ contains
             cpt = 0.0_dp
 
             ! if target does not have the same spin, do we abort or return?
-            if (.not. same_spin(src(1),tgt)) return
+            if (.not. same_spin(src(1), tgt)) return
 
-            do a = 1, nbasis/2
+            do a = 1, nbasis / 2
                 elem = 0.0_dp
 
                 orb_a = 2 * a - spin
 
-                if (IsNotOcc(ilutI,orb_a)) then
+                if (IsNotOcc(ilutI, orb_a)) then
                     ! modify get_orb_from_kpoints to give spin-parallel
                     ! it already does i think!
-                    b = get_orb_from_kpoints(src(1),src(2),orb_a)
+                    b = get_orb_from_kpoints(src(1), src(2), orb_a)
 
-                    if (b /= orb_a .and. IsNotOcc(ilutI,b)) then
+                    if (b /= orb_a .and. IsNotOcc(ilutI, b)) then
 
-                        ex(2,:) = [orb_a,b]
+                        ex(2, :) = [orb_a, b]
 
                         call swap_excitations(nI, ex, nJ, ex2)
                         elem = abs(get_offdiag_helement_k_sp_hub(nJ, ex2, .false.))
@@ -1768,31 +1756,31 @@ contains
                 cpt = cpt / cum_sum
             end if
         else
-            do a = 1, nbasis/2
+            do a = 1, nbasis / 2
                 orb_a = 2 * a - spin
 
                 elem = 0.0_dp
                 b = 0
 
-                if (IsNotOcc(ilutI,orb_a)) then
-                    b = get_orb_from_kpoints(src(1),src(2), orb_a)
+                if (IsNotOcc(ilutI, orb_a)) then
+                    b = get_orb_from_kpoints(src(1), src(2), orb_a)
 
                     if (b /= orb_a .and. IsNotOcc(ilutI, b)) then
-                        ex(2,:) = [orb_a, b]
+                        ex(2, :) = [orb_a, b]
                         call swap_excitations(nI, ex, nJ, ex2)
                         elem = abs(get_offdiag_helement_k_sp_hub(nJ, ex2, .false.))
                     end if
                 end if
                 cum_sum = cum_sum + elem
                 cum_arr(a) = cum_sum
-                orb_list(a,:) = [orb_a,b]
+                orb_list(a, :) = [orb_a, b]
             end do
         end if
 
     end subroutine create_ab_list_par_hubbard
 
     subroutine create_ab_list_hubbard(nI, ilutI, src, orb_list, cum_arr, cum_sum, &
-            tgt, cpt)
+                                      tgt, cpt)
         integer, intent(in) :: nI(nel), src(2)
         integer(n_int), intent(in) :: ilutI(0:niftot)
         integer, intent(out) :: orb_list(nbasis, 2)
@@ -1803,10 +1791,10 @@ contains
 #ifdef DEBUG_
         character(*), parameter :: this_routine = "create_ab_list_hubbard"
 #endif
-        integer :: a, b, ex(2,2)
+        integer :: a, b, ex(2, 2)
         real(dp) :: elem
         integer :: nJ(nel)
-        integer, allocatable :: ex2(:,:)
+        integer, allocatable :: ex2(:, :)
 
         ! do the cum_arr for the k-space hubbard
         ! i think here i might really use flags.. and not just do the
@@ -1817,7 +1805,7 @@ contains
         cum_arr = 0.0_dp
         cum_sum = 0.0_dp
 
-        ex(1,:) = src
+        ex(1, :) = src
 
         ! we are also using this routine for the parallel excitations due to
         ! the transcorrelation factor.. this is nice, since it is easily
@@ -1842,27 +1830,27 @@ contains
                     ! to take into account spin-parallel double
                     ! excitations!
 
-                   ! get the excitation
-                   b = get_orb_from_kpoints(src(1), src(2), a)
-                   ! we have yet to check if b is unoccupied
-                   if(b /= a .and. IsNotOcc(ilutI,b)) then
-                      ! assert that we hit opposite spins
-                      if(.not. t_trans_corr_2body) then
-                         ASSERT(.not. same_spin(a,b))
-                      endif
-                      ! get the matrix element (from storage)
-                      if (.not. (t_trans_corr .or. t_trans_corr_2body)) then
-                          elem = excit_cache(src(1),src(2),a)
-                      else
-                          ex(2,:) = [a,b]
-                          call swap_excitations(nI, ex, nJ, ex2)
-                          elem = abs(get_offdiag_helement_k_sp_hub(nJ, ex2, .false.))
-                      end if
-                   endif
+                    ! get the excitation
+                    b = get_orb_from_kpoints(src(1), src(2), a)
+                    ! we have yet to check if b is unoccupied
+                    if (b /= a .and. IsNotOcc(ilutI, b)) then
+                        ! assert that we hit opposite spins
+                        if (.not. t_trans_corr_2body) then
+                            ASSERT(.not. same_spin(a, b))
+                        end if
+                        ! get the matrix element (from storage)
+                        if (.not. (t_trans_corr .or. t_trans_corr_2body)) then
+                            elem = excit_cache(src(1), src(2), a)
+                        else
+                            ex(2, :) = [a, b]
+                            call swap_excitations(nI, ex, nJ, ex2)
+                            elem = abs(get_offdiag_helement_k_sp_hub(nJ, ex2, .false.))
+                        end if
+                    end if
                 end if
                 cum_sum = cum_sum + elem
 
-                if (tgt == a)  then
+                if (tgt == a) then
                     cpt = elem
                 end if
             end do
@@ -1884,9 +1872,9 @@ contains
                     if (b /= a .and. IsNotOcc(ilutI, b)) then
                         ! get the matrix element (from storage)
                         if (.not. (t_trans_corr .or. t_trans_corr_2body)) then
-                            elem = excit_cache(src(1),src(2),a)
+                            elem = excit_cache(src(1), src(2), a)
                         else
-                            ex(2,:) = [a,b]
+                            ex(2, :) = [a, b]
                             call swap_excitations(nI, ex, nJ, ex2)
                             elem = abs(get_offdiag_helement_k_sp_hub(nJ, ex2, .false.))
                         end if
@@ -1894,7 +1882,7 @@ contains
                 end if
                 cum_sum = cum_sum + elem
                 cum_arr(a) = cum_sum
-                orb_list(a,:) = [a,b]
+                orb_list(a, :) = [a, b]
             end do
         end if
 
@@ -1903,7 +1891,7 @@ contains
     function calc_pgen_k_space_hubbard_uniform_transcorr(ex, ic) result(pgen)
         ! need a calc pgen functionality for the uniform transcorrelated
         ! excitation generator
-        integer, intent(in) :: ex(:,:), ic
+        integer, intent(in) :: ex(:, :), ic
         real(dp) :: pgen
 #ifdef DEBUG_
         character(*), parameter :: this_routine = "calc_pgen_k_space_hubbard_uniform_transcorr"
@@ -1917,20 +1905,20 @@ contains
 
             pgen = pDoubles
 
-            if (same_spin(ex(1,1),ex(1,2))) then
+            if (same_spin(ex(1, 1), ex(1, 2))) then
                 pgen = pgen * pParallel
 
-                if (is_beta(ex(1,1))) then
-                    p_elec = 1.0_dp / real(nOccBeta*(nOccBeta-1),dp)
-                    p_orb = 2.0_dp / real(nbasis/2 - nOccBeta, dp)
+                if (is_beta(ex(1, 1))) then
+                    p_elec = 1.0_dp / real(nOccBeta * (nOccBeta - 1), dp)
+                    p_orb = 2.0_dp / real(nbasis / 2 - nOccBeta, dp)
                 else
-                    p_elec = 1.0_dp / real(nOccAlpha*(nOccAlpha-1),dp)
-                    p_orb = 2.0_dp / real(nbasis/2 - nOccAlpha, dp)
+                    p_elec = 1.0_dp / real(nOccAlpha * (nOccAlpha - 1), dp)
+                    p_orb = 2.0_dp / real(nbasis / 2 - nOccAlpha, dp)
                 end if
 
             else
                 pgen = pgen * (1.0_dp - pParallel)
-                p_elec = 1.0_dp / real(nOccBeta * nOccAlpha,dp)
+                p_elec = 1.0_dp / real(nOccBeta * nOccAlpha, dp)
 
                 p_orb = 2.0_dp / real(nbasis - nel, dp)
 
@@ -1939,23 +1927,23 @@ contains
         else
             pgen = 1.0_dp - pDoubles
 
-            sum_ms = sum(get_spin_pn(ex(1,:)))
+            sum_ms = sum(get_spin_pn(ex(1, :)))
 
             ASSERT(sum_ms == 1 .or. sum_ms == -1)
 
             if (sum_ms == 1) then
-                p_elec = 2.0_dp/real(nel*(nel-1),dp) * &
-                    (1.0_dp/real(nOccBeta,dp) + 2.0_dp/real(nel-2,dp))
+                p_elec = 2.0_dp / real(nel * (nel - 1), dp) * &
+                         (1.0_dp / real(nOccBeta, dp) + 2.0_dp / real(nel - 2, dp))
 
-                p_orb = 1.0_dp / real(nbasis/2 - nOccBeta, dp) * &
-                        2.0_dp / real(nbasis/2 - nOccAlpha, dp)
+                p_orb = 1.0_dp / real(nbasis / 2 - nOccBeta, dp) * &
+                        2.0_dp / real(nbasis / 2 - nOccAlpha, dp)
 
             else if (sum_ms == -1) then
-                p_elec = 2.0_dp/real(nel*(nel-1),dp) * &
-                    (1.0_dp/real(nOccAlpha,dp) + 2.0_dp/real(nel-2,dp))
+                p_elec = 2.0_dp / real(nel * (nel - 1), dp) * &
+                         (1.0_dp / real(nOccAlpha, dp) + 2.0_dp / real(nel - 2, dp))
 
-                p_orb = 1.0_dp / real(nbasis/2 - nOccAlpha, dp) * &
-                        2.0_dp / real(nBasis/2 - nOccBeta, dp)
+                p_orb = 1.0_dp / real(nbasis / 2 - nOccAlpha, dp) * &
+                        2.0_dp / real(nBasis / 2 - nOccBeta, dp)
 
             end if
         end if
@@ -1968,7 +1956,7 @@ contains
         ! this function i have to rewrite for the transcorrelated to take
         ! the same-spin doubles and triples into account!
         ! NOTE: ex could be of form (2,3) in the case of triples!
-        integer, intent(in) :: nI(nel), ex(:,:), ic
+        integer, intent(in) :: nI(nel), ex(:, :), ic
         integer(n_int), intent(in) :: ilutI(0:niftot)
         real(dp) :: pgen
 #ifdef DEBUG_
@@ -1978,10 +1966,10 @@ contains
         pgen = 0.0_dp
 
         if (ic == 2) then
-            if (same_spin(ex(1,1),ex(1,2))) then
+            if (same_spin(ex(1, 1), ex(1, 2))) then
                 ! parallel double excitation
                 ! the spins are checked within the function:
-                pgen = calc_pgen_k_space_hubbard_par(nI,ilutI,ex,ic)
+                pgen = calc_pgen_k_space_hubbard_par(nI, ilutI, ex, ic)
 
                 pgen = pgen * pDoubles * pParallel
 
@@ -2002,78 +1990,78 @@ contains
     end function calc_pgen_k_space_hubbard_transcorr
 
     function calc_pgen_k_space_hubbard_triples(nI, ilutI, ex, ic) result(pgen)
-        integer, intent(in) :: nI(nel), ex(:,:), ic
+        integer, intent(in) :: nI(nel), ex(:, :), ic
         integer(n_int), intent(in) :: ilutI(0:niftot)
         real(dp) :: pgen
 #ifdef DEBUG_
         character(*), parameter :: this_routine = "calc_pgen_k_space_hubbard_triples"
         real(dp) :: test
 #endif
-        real(dp) :: p_elec, p_orb(2), cum_arr(nbasis/2), cum_sum
-        integer :: orb_list(nbasis/2,2), sum_ms, orb_a, orbs(2)
+        real(dp) :: p_elec, p_orb(2), cum_arr(nbasis / 2), cum_sum
+        integer :: orb_list(nbasis / 2, 2), sum_ms, orb_a, orbs(2)
 
         if (ic /= 3) then
             pgen = 0.0_dp
             return
         end if
 
-        sum_ms = sum(get_spin_pn(ex(1,:)))
+        sum_ms = sum(get_spin_pn(ex(1, :)))
 
         ! check spins
-        if (.not. (sum_ms == 1 .or. sum_ms == -1) .or. sum_ms /= sum(get_spin_pn(ex(2,:)))) then
+        if (.not. (sum_ms == 1 .or. sum_ms == -1) .or. sum_ms /= sum(get_spin_pn(ex(2, :)))) then
             pgen = 0.0_dp
             return
         end if
 
         ! get the probabilites for the electrons and orbital (a)
         if (sum_ms == 1) then
-            p_elec = 1.0_dp / real(nel*(nel-1),dp) * &
-                (1.0_dp/real(nOccBeta,dp) + 2.0_dp / real(nel-2,dp))
+            p_elec = 1.0_dp / real(nel * (nel - 1), dp) * &
+                     (1.0_dp / real(nOccBeta, dp) + 2.0_dp / real(nel - 2, dp))
 
-            p_orb(1) = 1.0_dp / real(nbasis/2 - nOccBeta, dp)
+            p_orb(1) = 1.0_dp / real(nbasis / 2 - nOccBeta, dp)
 
         else
-            p_elec = 1.0_dp / real(nel*(nel-1),dp) * &
-                (1.0_dp/real(nOccAlpha,dp) + 2.0_dp / real(nel-2,dp))
+            p_elec = 1.0_dp / real(nel * (nel - 1), dp) * &
+                     (1.0_dp / real(nOccAlpha, dp) + 2.0_dp / real(nel - 2, dp))
 
-            p_orb(1) = 1.0_dp / real(nbasis/2 - nOccAlpha, dp)
+            p_orb(1) = 1.0_dp / real(nbasis / 2 - nOccAlpha, dp)
 
         end if
 
         ! for this i need the minority spin orbital (a)
-        orb_a = find_minority_spin(ex(2,:))
+        orb_a = find_minority_spin(ex(2, :))
 
-        orbs = pack(ex(2,:), ex(2,:) /= orb_a)
+        orbs = pack(ex(2, :), ex(2, :) /= orb_a)
 
-        call create_bc_list_hubbard(nI, ilutI, ex(1,:), orb_a, orb_list, cum_arr, &
-            cum_sum, orbs(1), p_orb(2))
+        call create_bc_list_hubbard(nI, ilutI, ex(1, :), orb_a, orb_list, cum_arr, &
+                                    cum_sum, orbs(1), p_orb(2))
 
         pgen = p_elec * product(p_orb) * 2.0_dp
 
 #ifdef DEBUG_
-        call create_bc_list_hubbard(nI, ilutI, ex(1,:), orb_a, orb_list, cum_arr, &
-            cum_sum, orbs(2), test)
+        call create_bc_list_hubbard(nI, ilutI, ex(1, :), orb_a, orb_list, cum_arr, &
+                                    cum_sum, orbs(2), test)
 
         if (abs(test - p_orb(2)) > 1.e-8) then
             print *, "pgen assumption wrong:!"
             print *, "p_orb: ", p_orb(2)
             print *, "test: ", test
-            print *, "ex(2,:): ", ex(2,:)
+            print *, "ex(2,:): ", ex(2, :)
         end if
 #endif
 
     end function calc_pgen_k_space_hubbard_triples
 
     function calc_pgen_k_space_hubbard_par(nI, ilutI, ex, ic) result(pgen)
-        integer, intent(in) :: nI(nel), ex(:,:), ic
+        integer, intent(in) :: nI(nel), ex(:, :), ic
         integer(n_int), intent(in) :: ilutI(0:niftot)
         real(dp) :: pgen
 #ifdef DEBUG_
         character(*), parameter :: this_routine = "calc_pgen_k_space_hubbard_par"
         real(dp) :: test
 #endif
-        real(dp) :: p_elec, p_orb, cum_arr(nbasis/2), cum_sum
-        integer :: orb_list(nbasis/2,2)
+        real(dp) :: p_elec, p_orb, cum_arr(nbasis / 2), cum_sum
+        integer :: orb_list(nbasis / 2, 2)
 
         ! check ic:
         if (ic /= 2) then
@@ -2082,32 +2070,32 @@ contains
         end if
 
         ! check spin:
-        if (.not.(same_spin(ex(1,1),ex(1,2)) .and. same_spin(ex(2,1),ex(2,2)) .and. &
-            same_spin(ex(1,1),ex(2,1)))) then
+        if (.not. (same_spin(ex(1, 1), ex(1, 2)) .and. same_spin(ex(2, 1), ex(2, 2)) .and. &
+                   same_spin(ex(1, 1), ex(2, 1)))) then
             pgen = 0.0_dp
             return
         end if
 
-        if (get_ispn(ex(1,1:2)) == 1) then
-            p_elec = 1.0_dp / real(nbasis/2 - nOccBeta, dp)
+        if (get_ispn(ex(1, 1:2)) == 1) then
+            p_elec = 1.0_dp / real(nbasis / 2 - nOccBeta, dp)
         else
-            p_elec = 1.0_dp / real(nbasis/2 - nOccAlpha, dp)
+            p_elec = 1.0_dp / real(nbasis / 2 - nOccAlpha, dp)
         end if
 
-        call create_ab_list_par_hubbard(nI, ilutI, ex(1,1:2), orb_list, cum_arr, &
-            cum_sum, ex(2,1), p_orb)
+        call create_ab_list_par_hubbard(nI, ilutI, ex(1, 1:2), orb_list, cum_arr, &
+                                        cum_sum, ex(2, 1), p_orb)
 
         pgen = p_elec * p_orb * 2.0_dp
 
 #ifdef DEBUG_
-        call create_ab_list_par_hubbard(nI, ilutI, ex(1,1:2), orb_list, cum_arr, &
-            cum_sum, ex(2,1), test)
+        call create_ab_list_par_hubbard(nI, ilutI, ex(1, 1:2), orb_list, cum_arr, &
+                                        cum_sum, ex(2, 1), test)
 
         if (abs(test - p_orb) > 1.e-8) then
             print *, "pgen assumption wrong:!"
             print *, "p_orb: ", p_orb
             print *, "test: ", test
-            print *, "ex(2,:): ", ex(2,:)
+            print *, "ex(2,:): ", ex(2, :)
         end if
 
 #endif
@@ -2116,21 +2104,21 @@ contains
 
     function calc_pgen_k_space_hubbard(nI, ilutI, ex, ic) result(pgen)
         integer(n_int), intent(in) :: ilutI(0:niftot)
-        integer, intent(in) :: nI(nel), ex(2,2), ic
+        integer, intent(in) :: nI(nel), ex(2, 2), ic
         real(dp) :: pgen
 #ifdef DEBUG_
         character(*), parameter :: this_routine = "calc_pgen_k_space_hubbard"
         real(dp) :: test
 #endif
         real(dp) :: p_elec, p_orb, cum_arr(nbasis), cum_sum
-        integer :: orb_list(nbasis,2), src(2)
+        integer :: orb_list(nbasis, 2), src(2)
 
         if (ic /= 2) then
             pgen = 0.0_dp
             return
         end if
 
-        if (same_spin(ex(1,1),ex(1,2)) .or. same_spin(ex(2,1),ex(2,2))) then
+        if (same_spin(ex(1, 1), ex(1, 2)) .or. same_spin(ex(2, 1), ex(2, 2))) then
             pgen = 0.0_dp
             return
         end if
@@ -2140,17 +2128,17 @@ contains
         src = get_src(ex)
 
         call create_ab_list_hubbard(nI, ilutI, src, orb_list, cum_arr, cum_sum, &
-                ex(2,1), p_orb)
+                                    ex(2, 1), p_orb)
 
 #ifdef DEBUG_
         call create_ab_list_hubbard(nI, ilutI, src, orb_list, cum_arr, cum_sum, &
-                ex(2,2), test)
+                                    ex(2, 2), test)
 
         if (abs(test - p_orb) > 1.e-8) then
             print *, "pgen assumption wrong:!"
             print *, "p_orb: ", p_orb
             print *, "test: ", test
-            print *, "ex(2,:): ", ex(2,:)
+            print *, "ex(2,:): ", ex(2, :)
         end if
 
 #endif
@@ -2168,14 +2156,14 @@ contains
         end if
 
         if (t_trans_corr_2body) then
-            three_body_prefac = real(bhub,dp) * 2.0_dp * (cosh(trans_corr_param_2body) - 1.0_dp) / real(omega**2,dp)
+            three_body_prefac = real(bhub, dp) * 2.0_dp * (cosh(trans_corr_param_2body) - 1.0_dp) / real(omega**2, dp)
         end if
 
         call init_dispersion_rel_cache()
         call init_tmat_kspace(lat)
         call init_two_body_trancorr_fac_matrix()
-        n_opp(-1) = real(nel/2 + lms,dp)
-        n_opp(1) = real(nel/2 - lms,dp)
+        n_opp(-1) = real(nel / 2 + lms, dp)
+        n_opp(1) = real(nel / 2 - lms, dp)
         call init_three_body_const_mat()
 
         get_umat_el => get_umat_kspace
@@ -2187,15 +2175,14 @@ contains
 
         call initSltCndPtr()
 
-
     end subroutine init_get_helement_k_space_hub
 
     function get_helement_k_space_hub_ex_mat(nI, ic, ex, tpar) result(hel)
-        integer, intent(in) :: nI(nel), ic, ex(2,ic)
+        integer, intent(in) :: nI(nel), ic, ex(2, ic)
         logical, intent(in) :: tpar
         HElement_t(dp) :: hel
 #ifdef DEBUG_
-        character(*), parameter :: this_routine ="get_helement_k_space_hub_ex_mat"
+        character(*), parameter :: this_routine = "get_helement_k_space_hub_ex_mat"
 #endif
 
         !todo: if 2-body-transcorrelation, we can have triple excitations now..
@@ -2222,7 +2209,6 @@ contains
 
     end function get_helement_k_space_hub_ex_mat
 
-
     function get_helement_k_space_hub_general(nI, nJ, ic_ret) result(hel)
         integer, intent(in) :: nI(nel), nJ(nel)
         integer, intent(inout), optional :: ic_ret
@@ -2230,7 +2216,7 @@ contains
 #ifdef DEBUG_
         character(*), parameter :: this_routine = "get_helement_k_space_hub_general"
 #endif
-        integer :: ic, ex(2,3), ex_2(2,2)
+        integer :: ic, ex(2, 3), ex_2(2, 2)
         logical :: tpar
         integer(n_int) :: ilutI(0:NIfTot), ilutJ(0:niftot)
 
@@ -2241,13 +2227,13 @@ contains
                 hel = get_diag_helement_k_sp_hub(nI)
 
             else if (ic_ret == 2) then
-                ex_2(1,1) = 2
+                ex_2(1, 1) = 2
 
                 call GetExcitation(nI, nJ, nel, ex_2, tpar)
                 hel = get_offdiag_helement_k_sp_hub(nI, ex_2, tpar)
 
             else if (ic_ret == 3 .and. t_trans_corr_2body) then
-                ex(1,1) = 3
+                ex(1, 1) = 3
                 call GetExcitation(nI, nJ, nel, ex, tpar)
                 hel = get_3_body_helement_ks_hub(ex, tpar)
 
@@ -2261,12 +2247,12 @@ contains
                     hel = get_diag_helement_k_sp_hub(nI)
 
                 else if (ic_ret == 2) then
-                    ex_2(1,1) = 2
+                    ex_2(1, 1) = 2
                     call GetBitExcitation(ilutI, ilutJ, ex_2, tpar)
                     hel = get_offdiag_helement_k_sp_hub(nI, ex_2, tpar)
 
                 else if (ic_ret == 3 .and. t_trans_corr_2body) then
-                    ex(1,1) = 3
+                    ex(1, 1) = 3
                     call GetBitExcitation(ilutI, ilutJ, ex, tpar)
 
                     hel = get_3_body_helement_ks_hub(ex, tpar)
@@ -2286,13 +2272,13 @@ contains
             if (ic == 0) then
                 hel = get_diag_helement_k_sp_hub(nI)
             else if (ic == 2) then
-                ex_2(1,1) = 2
+                ex_2(1, 1) = 2
 
                 call GetBitExcitation(ilutI, ilutJ, ex_2, tpar)
                 hel = get_offdiag_helement_k_sp_hub(nI, ex_2, tpar)
 
             else if (ic == 3 .and. t_trans_corr_2body) then
-                ex(1,1) = 3
+                ex(1, 1) = 3
                 call GetBitExcitation(ilutI, ilutJ, ex, tpar)
 
                 hel = get_3_body_helement_ks_hub(ex, tpar)
@@ -2322,7 +2308,7 @@ contains
 
         if (t_trans_corr_2body) then
             ! this is the
-            hel_sing = sum(GetTMatEl(nI,nI))
+            hel_sing = sum(GetTMatEl(nI, nI))
 
             id = get_spatial(nI)
 
@@ -2339,20 +2325,20 @@ contains
                 do j = 1, nel
                     ! the restriction is, that i and j must have opposite
                     ! spin! this also excludes i == j
-                    if (.not. same_spin(nI(i),nI(j))) then
+                    if (.not. same_spin(nI(i), nI(j))) then
 
-                        idX = max(id(i),id(j))
-                        idN = min(id(i),id(j))
+                        idX = max(id(i), id(j))
+                        idN = min(id(i), id(j))
 
                         ! now we need 1/2, since we loop over all electrons
-                        hel_doub = hel_doub + 0.5_dp * get_umat_kspace(idN,idX,idN,idX)
+                        hel_doub = hel_doub + 0.5_dp * get_umat_kspace(idN, idX, idN, idX)
 
                         ! then we need the factor of the one-body transcorr influence
                         ! t is defined as -t in our code!, so bhub is usually -1
                         ! and look in the formulas it is actually -2t*cos(k)*2(cosh J - 1)
                         ! (with the k-vector of orbial i!
                         hel_one = hel_one + epsilon_kvec(G1(nI(i))%Sym) &
-                                * omega * three_body_prefac
+                                  * omega * three_body_prefac
 
                         ! and the next part is the three-body with the direct
                         ! and the exchange parts
@@ -2360,7 +2346,7 @@ contains
                             ! and the convention is that j and k have same spin!
                             ! and j == k is also allowed and part of it!
                             if (j == k) cycle
-                            if (same_spin(ni(j),nI(k))) then
+                            if (same_spin(ni(j), nI(k))) then
                                 ! the k vector is of i and i + j - k
                                 ! i need the electrons here ofc..
                                 ! even better then the correct k-vector addition
@@ -2370,11 +2356,9 @@ contains
                                 p_sym = G1(nI(i))%sym
                                 k_sym = SymTable(G1(nI(j))%sym%s, SymConjTab(G1(nI(k))%sym%s))
 
-
-                                hel_three = hel_three - three_body_prefac * (&
-                                    epsilon_kvec(p_sym) -  &
-                                    (epsilon_kvec(SymTable(p_sym%s,k_sym%s))))
-
+                                hel_three = hel_three - three_body_prefac * ( &
+                                            epsilon_kvec(p_sym) - &
+                                            (epsilon_kvec(SymTable(p_sym%s, k_sym%s))))
 
                             end if
                         end do
@@ -2399,7 +2383,7 @@ contains
         integer(n_int) :: ilut(0:niftot)
         type(symmetry) :: p_sym, q_sym, a_sym, b_sym, k_sym
 
-        integer :: src(2), tgt(2), ex(2,2), nJ(nel)
+        integer :: src(2), tgt(2), ex(2, 2), nJ(nel)
         real(dp) :: sgn
         real(dp) :: two, rpa, exchange, sum_3, tmp_hel, sum_hel
         logical :: tsign
@@ -2418,14 +2402,14 @@ contains
                 do j = 1, nel
                     ! i only have a contribution if the spins of nI and nJ
                     ! are not the same!
-                    if (.not. same_spin(nI(i),nI(j))) then
+                    if (.not. same_spin(nI(i), nI(j))) then
                         ! and then I need to loop over the holes, but due to
                         ! momentum conservation, only once!
                         do a = 1, nBasis
                             ! if a is empty
-                            if (IsNotOcc(ilut,a)) then
-                                b = get_orb_from_kpoints(nI(i),nI(j),a)
-                                if (IsNotOcc(ilut,b) .and. .not. same_spin(a,b)) then
+                            if (IsNotOcc(ilut, a)) then
+                                b = get_orb_from_kpoints(nI(i), nI(j), a)
+                                if (IsNotOcc(ilut, b) .and. .not. same_spin(a, b)) then
 
                                     p_sym = G1(nI(i))%sym
                                     q_sym = G1(nI(j))%sym
@@ -2446,12 +2430,12 @@ contains
                                     ! since i loop over all possible i,j i do not need
                                     ! the sum like below i think
                                     get_j_opt = get_j_opt + &
-                                        two_body_contrib(corr_J, p_sym, a_sym) + &
-                                        three_body_rpa_contrib(corr_J, p_sym, a_sym, spin_p) + &
-                                        three_body_exchange_contrib(nI, corr_J, p_sym, q_sym, a_sym, spin_q)
+                                                two_body_contrib(corr_J, p_sym, a_sym) + &
+                                                three_body_rpa_contrib(corr_J, p_sym, a_sym, spin_p) + &
+                                                three_body_exchange_contrib(nI, corr_J, p_sym, q_sym, a_sym, spin_q)
 
                                     two = two + two_body_contrib(corr_J, p_sym, a_sym)
-                                    rpa = rpa +  three_body_rpa_contrib(corr_J, p_sym, a_sym, spin_p)
+                                    rpa = rpa + three_body_rpa_contrib(corr_J, p_sym, a_sym, spin_p)
                                     exchange = exchange + three_body_exchange_contrib(nI, corr_J, p_sym, q_sym, a_sym, spin_p)
 
                                 end if
@@ -2465,17 +2449,17 @@ contains
                 do j = 1, nel
                     ! i only have a contribution if the spins of nI and nJ
                     ! are not the same!
-                    if (.not. same_spin(nI(i),nI(j))) then
+                    if (.not. same_spin(nI(i), nI(j))) then
                         ! and then I need to loop over the holes, but due to
                         ! momentum conservation, only once!
                         do a = 1, nBasis
                             ! if a is empty
-                            if (IsNotOcc(ilut,a)) then
-                                b = get_orb_from_kpoints(nI(i),nI(j),a)
-                                if (IsNotOcc(ilut,b) .and. .not. same_spin(a,b))then! .and. a < b) then
+                            if (IsNotOcc(ilut, a)) then
+                                b = get_orb_from_kpoints(nI(i), nI(j), a)
+                                if (IsNotOcc(ilut, b) .and. .not. same_spin(a, b)) then! .and. a < b) then
 
-                                    src = [min(nI(i),nI(j)),max(nI(i),nI(j))]
-                                    tgt = [min(a,b),max(a,b)]
+                                    src = [min(nI(i), nI(j)), max(nI(i), nI(j))]
+                                    tgt = [min(a, b), max(a, b)]
 
                                     if (is_beta(src(1))) then
                                         p_sym = G1(src(1))%sym
@@ -2488,7 +2472,7 @@ contains
                                     spin_p = get_spin_pn(src(1))
                                     spin_q = get_spin_pn(src(2))
 
-                                    if (same_spin(src(1),tgt(1))) then
+                                    if (same_spin(src(1), tgt(1))) then
                                         a_sym = G1(tgt(1))%sym
                                         b_sym = G1(tgt(2))%sym
                                         sgn = 1.0_dp
@@ -2504,12 +2488,12 @@ contains
                                     ! the sum like below i think
 
                                     get_j_opt = get_j_opt + ( &
-                                        two_body_contrib(corr_J, p_sym, a_sym) + &
-                                        two_body_contrib(corr_J, q_sym, b_sym) + &
-                                        three_body_rpa_contrib(corr_J, p_sym, a_sym, spin_p) + &
-                                        three_body_rpa_contrib(corr_J, q_sym, b_sym, spin_q) + &
-                                        three_body_exchange_contrib(nI, corr_J, p_sym, q_sym, a_sym, spin_p)+&
-                                        three_body_exchange_contrib(nI, corr_J, q_sym, p_sym, b_sym, spin_q))
+                                                two_body_contrib(corr_J, p_sym, a_sym) + &
+                                                two_body_contrib(corr_J, q_sym, b_sym) + &
+                                                three_body_rpa_contrib(corr_J, p_sym, a_sym, spin_p) + &
+                                                three_body_rpa_contrib(corr_J, q_sym, b_sym, spin_q) + &
+                                                three_body_exchange_contrib(nI, corr_J, p_sym, q_sym, a_sym, spin_p) + &
+                                                three_body_exchange_contrib(nI, corr_J, q_sym, p_sym, b_sym, spin_q))
 
                                 end if
                             end if
@@ -2521,7 +2505,7 @@ contains
 
     end function get_j_opt
 
-    function get_one_body_diag_sym(nI, spin, k_sym,t_sign) result(hel)
+    function get_one_body_diag_sym(nI, spin, k_sym, t_sign) result(hel)
         integer, intent(in) :: nI(nel)
         integer, intent(in) :: spin
         type(symmetry), intent(in) :: k_sym
@@ -2584,9 +2568,9 @@ contains
             end if
         end if
 
-     end function get_one_body_diag_sym
+    end function get_one_body_diag_sym
 
-    function get_one_body_diag_kvec(nI, spin, k_shift,t_sign) result(hel)
+    function get_one_body_diag_kvec(nI, spin, k_shift, t_sign) result(hel)
         integer, intent(in) :: nI(nel)
         integer, intent(in) :: spin, k_shift(3)
         logical, intent(in), optional :: t_sign
@@ -2613,7 +2597,7 @@ contains
             sgn = 1
         end if
 
-        sym_shift = lat%k_to_sym(k_shift(1),k_shift(2),k_shift(3))
+        sym_shift = lat%k_to_sym(k_shift(1), k_shift(2), k_shift(3))
 
         if (sgn == 1) then
             ASSERT(spin == -1 .or. spin == 1)
@@ -2659,7 +2643,7 @@ contains
         ! spin-parallel excitations now. the triple excitation have a
         ! seperate routine!
         ! The result does not depend on nI!
-        integer, intent(in) :: nI(nel), ex(2,2)
+        integer, intent(in) :: nI(nel), ex(2, 2)
         logical, intent(in) :: tpar
         HElement_t(dp) :: hel
 #ifdef DEBUG_
@@ -2675,14 +2659,14 @@ contains
         tgt = get_tgt(ex)
 
         if (.not. t_trans_corr_2body) then
-            if (same_spin(src(1),src(2)) .or. same_spin(tgt(1),tgt(2))) then
+            if (same_spin(src(1), src(2)) .or. same_spin(tgt(1), tgt(2))) then
                 hel = h_cast(0.0_dp)
                 return
             end if
         else
             ! if src has same spin but tgt has opposite spin -> 0 mat ele
-            if (same_spin(src(1),src(2)) .and. (.not. same_spin(tgt(1),tgt(2)) &
-                .or. .not. same_spin(src(1),tgt(1)))) then
+            if (same_spin(src(1), src(2)) .and. (.not. same_spin(tgt(1), tgt(2)) &
+                                                 .or. .not. same_spin(src(1), tgt(1)))) then
 
                 hel = h_cast(0.0_dp)
                 return
@@ -2700,10 +2684,10 @@ contains
 
         ! the U part is still just the the spin-opposite part
         ! damn... i need a sign convention here too..
-        if (same_spin(src(1),tgt(1)) .and. same_spin(src(2),tgt(2))) then
-            hel = get_umat_kspace(ij(1),ij(2),ab(1),ab(2))
-        else if (same_spin(src(1),tgt(2)) .and. same_spin(src(2),tgt(1))) then
-            hel = -get_umat_kspace(ij(1),ij(2),ab(1),ab(2))
+        if (same_spin(src(1), tgt(1)) .and. same_spin(src(2), tgt(2))) then
+            hel = get_umat_kspace(ij(1), ij(2), ab(1), ab(2))
+        else if (same_spin(src(1), tgt(2)) .and. same_spin(src(2), tgt(1))) then
+            hel = -get_umat_kspace(ij(1), ij(2), ab(1), ab(2))
         end if
 
         ! if hel == 0, due to momentum conservation violation we can already
@@ -2716,9 +2700,9 @@ contains
             ! here the one-body term with out (-t) is necessary
 
             ! optimized version:
-            hel = hel * exp(trans_corr_param/2.0_dp * &
-                (epsilon_kvec(G1(src(1))%Sym) + epsilon_kvec(G1(src(2))%Sym) &
-                - epsilon_kvec(G1(tgt(1))%Sym) - epsilon_kvec(G1(tgt(2))%Sym)))
+            hel = hel * exp(trans_corr_param / 2.0_dp * &
+                            (epsilon_kvec(G1(src(1))%Sym) + epsilon_kvec(G1(src(2))%Sym) &
+                             - epsilon_kvec(G1(tgt(1))%Sym) - epsilon_kvec(G1(tgt(2))%Sym)))
         end if
 
         if (t_trans_corr_2body) then
@@ -2730,7 +2714,7 @@ contains
             ! with momentum k_i + k_j - k_a and we need the
             ! k_j - k_a momentum
 
-            if (same_spin(src(1),src(2))) then
+            if (same_spin(src(1), src(2))) then
                 spin = get_spin_pn(src(1))
                 ! we need the spin of the excitation here if it is parallel
 
@@ -2754,9 +2738,8 @@ contains
                 ! maybe only look at i < j and a < b, as in the rest of the
                 ! code! and then take the symmetrized matrix element
 
-                src = [minval(src),maxval(src)]
-                tgt = [minval(tgt),maxval(tgt)]
-
+                src = [minval(src), maxval(src)]
+                tgt = [minval(tgt), maxval(tgt)]
 
                 k_sym_a = SymTable(G1(src(1))%sym%s, SymConjTab(G1(tgt(1))%sym%s))
                 k_sym_b = SymTable(G1(src(1))%sym%s, SymConjTab(G1(tgt(2))%sym%s))
@@ -2767,7 +2750,7 @@ contains
                 spin = get_spin_pn(src(1))
 
                 hel = (same_spin_transcorr_factor(nI, k_sym_a, spin) &
-                    - same_spin_transcorr_factor(nI, k_sym_b, spin))! &
+                       - same_spin_transcorr_factor(nI, k_sym_b, spin))! &
 
             else
                 ! else we need the opposite spin contribution
@@ -2795,7 +2778,7 @@ contains
 
                 sgn = 1.0_dp
                 ! also adapt this two body factor.. i hope this is correct now
-                if (same_spin(src(1),tgt(1))) then
+                if (same_spin(src(1), tgt(1))) then
                     ! i need the right hole-momenta
                     k_sym_c = G1(tgt(1))%sym
                     k_sym_d = G1(tgt(2))%sym
@@ -2806,10 +2789,8 @@ contains
                     sgn = -1.0_dp
                 end if
 
-
-                hel = hel + sgn*(two_body_transcorr_factor(G1(src(1))%sym, k_sym_c) &
-                          + two_body_transcorr_factor(G1(src(2))%sym, k_sym_d))
-
+                hel = hel + sgn * (two_body_transcorr_factor(G1(src(1))%sym, k_sym_c) &
+                                   + two_body_transcorr_factor(G1(src(2))%sym, k_sym_d))
 
                 ! and now the 3-body contribution:
                 ! which also needs the third involved mometum, which then
@@ -2823,16 +2804,15 @@ contains
                 ! influences!! damn.. todo!
                 ! and this then determines which momentum i have to take.. or?
 
-                hel = hel + sgn*(three_body_transcorr_fac(nI, G1(src(1))%sym, &
-                                G1(src(2))%sym, k_sym_c, get_spin_pn(src(1))) &
-                          + three_body_transcorr_fac(nI, G1(src(2))%sym, &
-                                G1(src(1))%sym, k_sym_d, get_spin_pn(src(2))))
+                hel = hel + sgn * (three_body_transcorr_fac(nI, G1(src(1))%sym, &
+                                                            G1(src(2))%sym, k_sym_c, get_spin_pn(src(1))) &
+                                   + three_body_transcorr_fac(nI, G1(src(2))%sym, &
+                                                              G1(src(1))%sym, k_sym_d, get_spin_pn(src(2))))
 
             end if
         end if
 
         if (tpar) hel = -hel
-
 
     end function get_offdiag_helement_k_sp_hub
 
@@ -2840,32 +2820,31 @@ contains
         ! routine to reobtain transferred momentum from a given excitation
         ! for spin-opposite double excitations i am pretty sure how, but
         ! for triple excitations and spin-parallel doubles not so much.. todo
-        integer, intent(in) :: ex(:,:)
+        integer, intent(in) :: ex(:, :)
         integer, intent(out) :: k_vec_a(3), k_vec_b(3)
 #ifdef DEBUG_
         character(*), parameter :: this_routine = "get_transferred_momenta"
 #endif
-        integer :: sort_ex(2,size(ex,2))
+        integer :: sort_ex(2, size(ex, 2))
 
         ! just to be sure, sort ex again..
-        sort_ex(1,:) = [minval(ex(1,:)),maxval(ex(1,:))]
-        sort_ex(2,:) = [minval(ex(2,:)),maxval(ex(2,:))]
+        sort_ex(1, :) = [minval(ex(1, :)), maxval(ex(1, :))]
+        sort_ex(2, :) = [minval(ex(2, :)), maxval(ex(2, :))]
 
-        ASSERT(size(ex,1) == 2)
-        ASSERT(size(ex,2) == 2 .or. size(ex,2) == 3)
+        ASSERT(size(ex, 1) == 2)
+        ASSERT(size(ex, 2) == 2 .or. size(ex, 2) == 3)
 
-        if (size(sort_ex,2) == 2) then
+        if (size(sort_ex, 2) == 2) then
             ! double excitation
-            if (same_spin(sort_ex(1,1),sort_ex(1,2))) then
+            if (same_spin(sort_ex(1, 1), sort_ex(1, 2))) then
                 ! spin-parallel excitation
-                ASSERT(same_spin(sort_ex(2,1),sort_ex(2,2)))
-                ASSERT(same_spin(sort_ex(1,1),sort_ex(2,1)))
+                ASSERT(same_spin(sort_ex(2, 1), sort_ex(2, 2)))
+                ASSERT(same_spin(sort_ex(1, 1), sort_ex(2, 1)))
 
                 ! for now just take the momentum of ex(1,2) - ex(2,1)
                 ! and ex(2,1) - ex(1,1)
-                k_vec_a = lat%subtract_k_vec(G1(sort_ex(1,1))%k, G1(sort_ex(2,1))%k)
-                k_vec_b = lat%subtract_k_vec(G1(sort_ex(1,2))%k, G1(sort_ex(2,1))%k)
-
+                k_vec_a = lat%subtract_k_vec(G1(sort_ex(1, 1))%k, G1(sort_ex(2, 1))%k)
+                k_vec_b = lat%subtract_k_vec(G1(sort_ex(1, 2))%k, G1(sort_ex(2, 1))%k)
 
                 if (.not. t_k_space_hubbard) then
                     call mompbcsym(k_vec_a, nBasisMax)
@@ -2874,18 +2853,18 @@ contains
 
             else
                 ! "normal" hubbard spin-opposite excitation
-                ASSERT(.not. same_spin(ex(2,1),ex(2,2)))
+                ASSERT(.not. same_spin(ex(2, 1), ex(2, 2)))
                 ! here it is easier, we need the momentum difference of the
                 ! same spin-electrons
                 ! the sign of k should be irrelevant or? todo!
-                if (same_spin(ex(1,1),ex(2,1))) then
+                if (same_spin(ex(1, 1), ex(2, 1))) then
 
-                    k_vec_a = lat%subtract_k_vec(G1(ex(1,1))%k, G1(ex(2,1))%k)
-                    k_vec_b = lat%subtract_k_vec(G1(ex(1,2))%k, G1(ex(2,2))%k)
+                    k_vec_a = lat%subtract_k_vec(G1(ex(1, 1))%k, G1(ex(2, 1))%k)
+                    k_vec_b = lat%subtract_k_vec(G1(ex(1, 2))%k, G1(ex(2, 2))%k)
 
                 else
-                    k_vec_a = lat%subtract_k_vec(G1(ex(1,1))%k, G1(ex(2,2))%k)
-                    k_vec_b = lat%subtract_k_vec(G1(ex(1,2))%k, G1(ex(2,1))%k)
+                    k_vec_a = lat%subtract_k_vec(G1(ex(1, 1))%k, G1(ex(2, 2))%k)
+                    k_vec_b = lat%subtract_k_vec(G1(ex(1, 2))%k, G1(ex(2, 1))%k)
 
                 end if
 
@@ -2927,15 +2906,14 @@ contains
 
     end subroutine setup_k_total
 
-
     ! finally write the functions to setup up the pesky G1 and nBasisMax
     ! quantities to be consistent with the rest of the old code
     subroutine setup_k_space_hub_sym(in_lat)
         class(lattice), intent(in), optional :: in_lat
         character(*), parameter :: this_routine = "setup_k_space_hub_sym"
 
-        INTEGER :: i,j,SymInd,Lab, spin, sym0
-        INTEGER , ALLOCATABLE :: Temp(:)
+        INTEGER :: i, j, SymInd, Lab, spin, sym0
+        INTEGER, ALLOCATABLE :: Temp(:)
         ! These are for the hubbard and UEG model look-up table
         type(Symmetry) :: SymProduct, SymI, SymJ
 
@@ -2950,63 +2928,63 @@ contains
             ! do only the necessary setup here!
             ! this is essentially from symrandexcit2.F90 SpinOrbSymSetup()
 
-            ElecPairs=(NEl*(NEl-1))/2
-            MaxABPairs=(nBasis*(nBasis-1)/2)
+            ElecPairs = (NEl * (NEl - 1)) / 2
+            MaxABPairs = (nBasis * (nBasis - 1) / 2)
 
             ScratchSize = 2 * nSymLabels
 
-            if(allocated(SpinOrbSymLabel)) deallocate(SpinOrbSymLabel)
+            if (allocated(SpinOrbSymLabel)) deallocate(SpinOrbSymLabel)
 
-            Allocate(SpinOrbSymLabel(nBasis))
-            do i=1,nBasis
-            !This ensures that the symmetry labels go from 0 -> nSymLabels-1
-                SpinOrbSymLabel(i)=SymClasses(((i+1)/2))-1
+            allocate(SpinOrbSymLabel(nBasis))
+            do i = 1, nBasis
+                !This ensures that the symmetry labels go from 0 -> nSymLabels-1
+                SpinOrbSymLabel(i) = SymClasses(((i + 1) / 2)) - 1
             end do
 #ifdef DEBUG_
-            WRITE(6,*) "SpinOrbSymLabel: "
-            do i=1,nBasis
-                WRITE(6,*) i,SpinOrbSymLabel(i)
-            enddo
+            write(6, *) "SpinOrbSymLabel: "
+            do i = 1, nBasis
+                write(6, *) i, SpinOrbSymLabel(i)
+            end do
 #endif
             if (allocated(SymTableLabels)) deallocate(SymTableLabels)
 
-            Allocate(SymTableLabels(0:nSymLabels-1,0:nSymLabels-1))
-            SymTableLabels(:,:)=-9000    !To make it easier to track bugs
-            do i=0,nSymLabels-1
-                do j=0,i
-                    SymI=SymLabels(i+1)        !Convert to the other symlabel convention to use SymLabels -
-                                            !TODO: I will fix this to make them consistent when working (ghb24)!
-                    SymJ=SymLabels(j+1)
-                    SymProduct=SymProd(SymI,SymJ)
+            allocate(SymTableLabels(0:nSymLabels - 1, 0:nSymLabels - 1))
+            SymTableLabels(:, :) = -9000    !To make it easier to track bugs
+            do i = 0, nSymLabels - 1
+                do j = 0, i
+                    SymI = SymLabels(i + 1)        !Convert to the other symlabel convention to use SymLabels -
+                    !TODO: I will fix this to make them consistent when working (ghb24)!
+                    SymJ = SymLabels(j + 1)
+                    SymProduct = SymProd(SymI, SymJ)
                     !Now, we need to find the label according to this symmetry!
                     !Run through all symmetries to make working (this could be far more efficient, but its only once, so sod it...
-                    do Lab=1,nSymLabels
-                        if(SymLabels(Lab)%S.eq.SymProduct%S) then
+                    do Lab = 1, nSymLabels
+                        if (SymLabels(Lab)%S == SymProduct%S) then
                             EXIT
-                        endif
-                    enddo
-                    if(Lab.eq.nSymLabels+1) then
-                        call stop_all("SpinOrbSymSetup","Cannot find symmetry label")
-                    endif
-                    SymTableLabels(i,j)=Lab-1
-                    SymTableLabels(j,i)=Lab-1
-                enddo
-            enddo
+                        end if
+                    end do
+                    if (Lab == nSymLabels + 1) then
+                        call stop_all("SpinOrbSymSetup", "Cannot find symmetry label")
+                    end if
+                    SymTableLabels(i, j) = Lab - 1
+                    SymTableLabels(j, i) = Lab - 1
+                end do
+            end do
 #ifdef DEBUG_
-            WRITE(6,*) "SymTable:"
-            do i=0,nSymLabels-1
-                do j=0,nSymLabels-1
-                    WRITE(6,"(I6)",advance='no') SymTableLabels(i,j)
-                enddo
-                WRITE(6,*) ""
-            enddo
+            write(6, *) "SymTable:"
+            do i = 0, nSymLabels - 1
+                do j = 0, nSymLabels - 1
+                    write(6, "(I6)", advance='no') SymTableLabels(i, j)
+                end do
+                write(6, *) ""
+            end do
 #endif
 
             !SymInvLabel takes the label (0 -> nSymLabels-1) of a spin orbital, and returns the inverse symmetry label, suitable for
             !use in ClassCountInd.
-            if(allocated(SymInvLabel)) deallocate(SymInvLabel)
-            Allocate(SymInvLabel(0:nSymLabels-1))
-            SymInvLabel=-999
+            if (allocated(SymInvLabel)) deallocate(SymInvLabel)
+            allocate(SymInvLabel(0:nSymLabels - 1))
+            SymInvLabel = -999
 
             ! Dongxia changes the gamma point away from center.
             ! SDS: Provide a default sym0 for cases where this doesn't apply
@@ -3024,87 +3002,87 @@ contains
                 do j = 0, nSymLabels - 1
                     ! Run through all labels to find what gives totally symmetric
                     ! rep
-                    if(SymTableLabels(i,j) == sym0) then
-                        if(SymInvLabel(i) /= -999) then
-                            write(6,*) "SymLabel: ", i
+                    if (SymTableLabels(i, j) == sym0) then
+                        if (SymInvLabel(i) /= -999) then
+                            write(6, *) "SymLabel: ", i
                             call stop_all(this_routine, &
-                                           "Multiple inverse irreps found - error")
-                        endif
+                                          "Multiple inverse irreps found - error")
+                        end if
                         ! This is the inverse
                         SymInvLabel(i) = j
-                    endif
-                enddo
+                    end if
+                end do
                 if (SymInvLabel(i) == -999) then
-                    write(6,*) "SymLabel: ", i
-                    call stop_all(this_routine,"No inverse symmetry found - error")
-                endif
-            enddo
+                    write(6, *) "SymLabel: ", i
+                    call stop_all(this_routine, "No inverse symmetry found - error")
+                end if
+            end do
 #ifdef DEBUG_
-            write(6,*) "SymInvLabel: "
+            write(6, *) "SymInvLabel: "
             do i = 0, nSymLabels - 1
-                write(6,*) i, SymInvLabel(i)
-            enddo
+                write(6, *) i, SymInvLabel(i)
+            end do
 #endif
 
-        !SymLabelList2 and SymLabelCounts2 are now organised differently, so that it is more efficient, and easier to add new symmetries.
-        !SymLabelCounts is of size (2,ScratchSize), where 1,x gives the index in SymlabelList2 where the orbitals of symmetry x start.
-        !SymLabelCounts(2,x) tells us the number of orbitals of spin & symmetry x there are.
+            !SymLabelList2 and SymLabelCounts2 are now organised differently, so that it is more efficient, and easier to add new symmetries.
+            !SymLabelCounts is of size (2,ScratchSize), where 1,x gives the index in SymlabelList2 where the orbitals of symmetry x start.
+            !SymLabelCounts(2,x) tells us the number of orbitals of spin & symmetry x there are.
 
-        !Therefore, if you want to run over all orbitals of a specific symmetry, you want to run over
-        !SymLabelList from SymLabelCounts(1,sym) to SymLabelCounts(1,sym)+SymLabelCounts(2,sym)-1
+            !Therefore, if you want to run over all orbitals of a specific symmetry, you want to run over
+            !SymLabelList from SymLabelCounts(1,sym) to SymLabelCounts(1,sym)+SymLabelCounts(2,sym)-1
 
             if (allocated(SymLabelList2)) deallocate(SymLabelList2)
             if (allocated(SymLabelCounts2)) deallocate(SymLabelCounts2)
 
-            Allocate(SymLabelList2(nBasis))
-            Allocate(SymLabelCounts2(2,ScratchSize))
-            SymLabelList2(:)=0          !Indices:   spin-orbital number
-            SymLabelCounts2(:,:)=0      !Indices:   index/Number , symmetry(inc. spin)
-            Allocate(Temp(ScratchSize))
+            allocate(SymLabelList2(nBasis))
+            allocate(SymLabelCounts2(2, ScratchSize))
+            SymLabelList2(:) = 0          !Indices:   spin-orbital number
+            SymLabelCounts2(:, :) = 0      !Indices:   index/Number , symmetry(inc. spin)
+            allocate(Temp(ScratchSize))
 
-            do j=1,nBasis
-                IF(G1(j)%Ms.eq.1) THEN
-                    Spin=1
+            do j = 1, nBasis
+                IF (G1(j)%Ms == 1) THEN
+                    Spin = 1
                 ELSE
-                    Spin=2
-                ENDIF
-                SymInd=ClassCountInd(Spin,SpinOrbSymLabel(j),G1(j)%Ml)
-                SymLabelCounts2(2,SymInd)=SymLabelCounts2(2,SymInd)+1
-            enddo
-            SymLabelCounts2(1,1)=1
-            do j=2,ScratchSize
-                SymLabelCounts2(1,j)=SymLabelCounts2(1,j-1)+SymLabelCounts2(2,j-1)
-            enddo
-            Temp(:)=SymLabelCounts2(1,:)
-            do j=1,nBasis
-                IF(G1(j)%Ms.eq.1) THEN
-                    Spin=1
+                    Spin = 2
+                end if
+                SymInd = ClassCountInd(Spin, SpinOrbSymLabel(j), G1(j)%Ml)
+                SymLabelCounts2(2, SymInd) = SymLabelCounts2(2, SymInd) + 1
+            end do
+            SymLabelCounts2(1, 1) = 1
+            do j = 2, ScratchSize
+                SymLabelCounts2(1, j) = SymLabelCounts2(1, j - 1) + SymLabelCounts2(2, j - 1)
+            end do
+            Temp(:) = SymLabelCounts2(1, :)
+            do j = 1, nBasis
+                IF (G1(j)%Ms == 1) THEN
+                    Spin = 1
                 ELSE
-                    Spin=2
-                ENDIF
-                SymInd=ClassCountInd(Spin,SpinOrbSymLabel(j),G1(j)%Ml)
-                SymLabelList2(Temp(SymInd))=j
-                Temp(SymInd)=Temp(SymInd)+1
-            enddo
+                    Spin = 2
+                end if
+                SymInd = ClassCountInd(Spin, SpinOrbSymLabel(j), G1(j)%Ml)
+                SymLabelList2(Temp(SymInd)) = j
+                Temp(SymInd) = Temp(SymInd) + 1
+            end do
 
             Deallocate(Temp)
 
             if (allocated(OrbClassCount)) deallocate(OrbClassCount)
-            ALLOCATE(OrbClassCount(ScratchSize))
-            OrbClassCount(:)=0
-            do i=1,nBasis
-                IF(G1(i)%Ms.eq.1) THEN
-                    OrbClassCount(ClassCountInd(1,SpinOrbSymLabel(i),G1(i)%Ml))= &
-                    & OrbClassCount(ClassCountInd(1,SpinOrbSymLabel(i),G1(i)%Ml))+1
+            allocate(OrbClassCount(ScratchSize))
+            OrbClassCount(:) = 0
+            do i = 1, nBasis
+                IF (G1(i)%Ms == 1) THEN
+                    OrbClassCount(ClassCountInd(1, SpinOrbSymLabel(i), G1(i)%Ml)) = &
+                    & OrbClassCount(ClassCountInd(1, SpinOrbSymLabel(i), G1(i)%Ml)) + 1
                 ELSE
-                    OrbClassCount(ClassCountInd(2,SpinOrbSymLabel(i),G1(i)%Ml))= &
-                    & OrbClassCount(ClassCountInd(2,SpinOrbSymLabel(i),G1(i)%Ml))+1
-                ENDIF
-            enddo
+                    OrbClassCount(ClassCountInd(2, SpinOrbSymLabel(i), G1(i)%Ml)) = &
+                    & OrbClassCount(ClassCountInd(2, SpinOrbSymLabel(i), G1(i)%Ml)) + 1
+                end if
+            end do
 
             call setup_kPointToBasisFn(in_lat)
 
-            call gensymstatepairs(nbasis/2,.false.)
+            call gensymstatepairs(nbasis / 2, .false.)
 
         else
             call Stop_All(this_routine, "not yet implemented")
@@ -3118,7 +3096,7 @@ contains
         character(*), parameter :: this_routine = "setup_g1"
 
         type(BasisFN) :: temp_g
-        integer :: i,j,k,l,ind
+        integer :: i, j, k, l, ind
         logical :: kallowed
 
         ! i think everything is in the System_neci file
@@ -3126,7 +3104,7 @@ contains
             ! only do it if G1 has not been setup yet!
             if (.not. associated(G1)) then
                 ! i need number of spin-orbitals
-                allocate(G1(in_lat%get_nsites()*2))
+                allocate(G1(in_lat%get_nsites() * 2))
                 G1 = NullBasisFn
 
                 ! should i rely on the already setup nBasisMax?
@@ -3136,15 +3114,15 @@ contains
 
                 ! do a new setup of the G1..
                 do i = 1, in_lat%get_nsites()
-                    G1(2*i-1)%k = in_lat%get_k_vec(i)
-                    G1(2*i-1)%ms = -1
+                    G1(2 * i - 1)%k = in_lat%get_k_vec(i)
+                    G1(2 * i - 1)%ms = -1
                     ! can i already write the symmetry representation in here?
                     ! i guess so..
-                    G1(2*i-1)%Sym = Symmetry(i)
+                    G1(2 * i - 1)%Sym = Symmetry(i)
 
-                    G1(2*i)%k = in_lat%get_k_vec(i)
-                    G1(2*i)%ms = 1
-                    G1(2*i)%Sym = Symmetry(i)
+                    G1(2 * i)%k = in_lat%get_k_vec(i)
+                    G1(2 * i)%ms = 1
+                    G1(2 * i)%Sym = Symmetry(i)
                 end do
 
                 if (in_lat%is_k_space()) then
@@ -3153,9 +3131,9 @@ contains
                 else
                     ! also to the rest of the symmetry stuff here:
                     ! in case of real-space turn off symmetry completely:
-                    call GenMolpSymTable(1, G1, in_lat%get_nsites()*2)
+                    call GenMolpSymTable(1, G1, in_lat%get_nsites() * 2)
                     ! and i have to redo the symmetry setting to 0
-                    do i = 1, in_lat%get_nsites()*2
+                    do i = 1, in_lat%get_nsites() * 2
                         G1(i)%sym%s = 0
                     end do
                 end if
@@ -3170,7 +3148,7 @@ contains
 
     subroutine setup_nbasismax(in_lat)
         class(lattice), intent(in), optional :: in_lat
-        character(*), parameter :: this_routine =  "setup_nbasismax"
+        character(*), parameter :: this_routine = "setup_nbasismax"
 
         integer :: dummy_size
         ! thats a fucking pain in the ass.. i do not want to do that now!
@@ -3180,23 +3158,23 @@ contains
 
                 ! whatever spin-polar means:
                 if (TSPINPOLAR) then
-                    nBasisMax(4,1) = 1
-                    nBasisMax(2,3) = 1
+                    nBasisMax(4, 1) = 1
+                    nBasisMax(2, 3) = 1
                 else
-                    nBasisMax(4,1) = -1
-                    if (nBasisMax(2,3) == 0) nBasisMax(2,3) = 2
+                    nBasisMax(4, 1) = -1
+                    if (nBasisMax(2, 3) == 0) nBasisMax(2, 3) = 2
                 end if
 
                 if (t_k_space_hubbard) then
-                    nBasisMax(1,3) = 0
+                    nBasisMax(1, 3) = 0
                 else if (t_new_real_space_hubbard) then
-                    nBasisMax(1,3) = 4
-                    nBasisMax(3,3) = 0
-                    nBasisMax(2,3) = 1
+                    nBasisMax(1, 3) = 4
+                    nBasisMax(3, 3) = 0
+                    nBasisMax(2, 3) = 1
                 end if
 
                 ! this is never explained:
-                nBasisMax(4,2) = 1
+                nBasisMax(4, 2) = 1
 
                 return
 
@@ -3204,20 +3182,20 @@ contains
                 if (trim(in_lat%get_name()) == 'tilted') then
                     ! how do i get nmaxx and the rest effectively??
                     ! if it is tilted the nmax stuff is usualy 1 or??
-                    call SETBASISLIM_HUBTILT(nBasisMax, 1,1,1, dummy_size, &
-                        in_lat%is_periodic(), in_lat%get_length(1), in_lat%get_length(2))
+                    call SETBASISLIM_HUBTILT(nBasisMax, 1, 1, 1, dummy_size, &
+                                             in_lat%is_periodic(), in_lat%get_length(1), in_lat%get_length(2))
                 else
                     call SETBASISLIM_HUB(nBasisMax, in_lat%get_length(1), &
-                        in_lat%get_length(2), in_lat%get_length(3), dummy_size, &
-                        in_lat%is_periodic(), .not. in_lat%is_k_space())
+                                         in_lat%get_length(2), in_lat%get_length(3), dummy_size, &
+                                         in_lat%is_periodic(),.not. in_lat%is_k_space())
                 end if
                 if (thub .and. treal) then
                     ! apparently this allows integrals between different
                     ! spins: so in the transcorrelated hubbard this should
                     ! be changed also maybe?
-                    nBasisMax(2,3) = 1
+                    nBasisMax(2, 3) = 1
                 end if
-                ASSERT(dummy_size == in_lat%get_nsites()*2)
+                ASSERT(dummy_size == in_lat%get_nsites() * 2)
             end if
         else
             call Stop_All(this_routine, "not yet implemented")
@@ -3244,32 +3222,32 @@ contains
                 call setup_g1(in_lat)
             end if
 
-            kmaxX=0
-            kminX=0
-            kmaxY=0
-            kminY=0
+            kmaxX = 0
+            kminX = 0
+            kmaxY = 0
+            kminY = 0
             ! [W.D:] can we make this the same as in the UEG:
             kminZ = 0
             kmaxZ = 0
-            do i=1, 2 * in_lat%get_nsites()
+            do i = 1, 2 * in_lat%get_nsites()
                 ! In the hubbard model with tilted lattice boundary conditions,
                 ! it's unobvious what the maximum values of
                 ! kx and ky are, so this should be found
-                IF(G1(i)%k(1).gt.kmaxX) kmaxX=G1(i)%k(1)
-                IF(G1(i)%k(1).lt.kminX) kminX=G1(i)%k(1)
-                IF(G1(i)%k(2).gt.kmaxY) kmaxY=G1(i)%k(2)
-                IF(G1(i)%k(2).lt.kminY) kminY=G1(i)%k(2)
+                IF (G1(i)%k(1) > kmaxX) kmaxX = G1(i)%k(1)
+                IF (G1(i)%k(1) < kminX) kminX = G1(i)%k(1)
+                IF (G1(i)%k(2) > kmaxY) kmaxY = G1(i)%k(2)
+                IF (G1(i)%k(2) < kminY) kminY = G1(i)%k(2)
                 if (G1(i)%k(3) > kmaxz) kmaxz = g1(i)%k(3)
                 if (G1(i)%k(3) < kminz) kminz = g1(i)%k(3)
-            enddo
-            ALLOCATE(kPointToBasisFn(kminX:kmaxX,kminY:kmaxY,kminz:kmaxz,2))
+            end do
+            allocate(kPointToBasisFn(kminX:kmaxX, kminY:kmaxY, kminz:kmaxz, 2))
             !Init to invalid
-            kPointToBasisFn=-1
-            do i=1, 2*in_lat%get_nsites()
+            kPointToBasisFn = -1
+            do i = 1, 2 * in_lat%get_nsites()
                 ! iSpinIndex equals 1 for a beta spin (ms=-1), and 2 for an alpha spin (ms=1)
-                iSpinIndex=(G1(i)%Ms+1)/2+1
-                kPointToBasisFn(G1(i)%k(1),G1(i)%k(2),G1(i)%k(3),iSpinIndex)=i
-            enddo
+                iSpinIndex = (G1(i)%Ms + 1) / 2 + 1
+                kPointToBasisFn(G1(i)%k(1), G1(i)%k(2), G1(i)%k(3), iSpinIndex) = i
+            end do
         else
             call Stop_All(this_routine, "not yet implemented!")
         end if
@@ -3284,7 +3262,7 @@ contains
         integer, intent(in) :: nI(nel), k_vec(N_DIM), spin
 
         same_spin_transcorr_factor_kvec = -three_body_prefac * ( &
-            get_one_body_diag(nI,-spin,k_vec) + get_one_body_diag(nI,-spin,k_vec,.true.))
+                                          get_one_body_diag(nI, -spin, k_vec) + get_one_body_diag(nI, -spin, k_vec, .true.))
 
     end function same_spin_transcorr_factor_kvec
 
@@ -3297,7 +3275,7 @@ contains
         type(symmetry), intent(in) :: k_sym
 
         same_spin_transcorr_factor_ksym = -three_body_prefac * ( &
-            get_one_body_diag(nI,-spin,k_sym) + get_one_body_diag(nI,-spin,k_sym,.true.))
+                                          get_one_body_diag(nI, -spin, k_sym) + get_one_body_diag(nI, -spin, k_sym, .true.))
 
     end function same_spin_transcorr_factor_ksym
 
@@ -3310,12 +3288,12 @@ contains
 #endif
         integer :: q(N_DIM)
 
-        q = lat%subtract_k_vec(p,k)
+        q = lat%subtract_k_vec(p, k)
 
         ASSERT(spin == 1 .or. spin == -1)
 
-        rpa_contrib_kvec = real(bhub,dp) * (cosh(J) - 1.0_dp) / real(omega,dp) * &
-            (n_opp(spin) - 1.0_dp) * (epsilon_kvec(p) + epsilon_kvec(q))
+        rpa_contrib_kvec = real(bhub, dp) * (cosh(J) - 1.0_dp) / real(omega, dp) * &
+                           (n_opp(spin) - 1.0_dp) * (epsilon_kvec(p) + epsilon_kvec(q))
 
     end function rpa_contrib_kvec
 
@@ -3335,13 +3313,13 @@ contains
         ASSERT(spin == -1 .or. spin == 1)
 
         if (spin == -1) then
-            n_opp_loc = real(nOccAlpha,dp)
+            n_opp_loc = real(nOccAlpha, dp)
         else
-            n_opp_loc = real(nOccBeta,dp)
+            n_opp_loc = real(nOccBeta, dp)
         end if
 
-        rpa_contrib_ksym = -2.0_dp * real(bhub,dp)*(cosh(J) - 1.0_dp) / real(omega, dp) * &
-            n_opp_loc * (epsilon_kvec(p) + epsilon_kvec(a))
+        rpa_contrib_ksym = -2.0_dp * real(bhub, dp) * (cosh(J) - 1.0_dp) / real(omega, dp) * &
+                           n_opp_loc * (epsilon_kvec(p) + epsilon_kvec(a))
 
     end function rpa_contrib_ksym
 
@@ -3352,12 +3330,12 @@ contains
 
         integer :: q(N_DIM)
 
-        q = lat%subtract_k_vec(p,k)
+        q = lat%subtract_k_vec(p, k)
 
         ! i still have to decide how to loop over the HF.. maybe i dont
         ! double count and then i dont need the /2 here!
-        two_body_contrib_kvec = real(uhub, dp) / 2.0_dp - real(bhub,dp) * &
-            ((exp(J) - 1.0_dp) * epsilon_kvec(p) + (exp(-J) - 1.0) * epsilon_kvec(q))
+        two_body_contrib_kvec = real(uhub, dp) / 2.0_dp - real(bhub, dp) * &
+                                ((exp(J) - 1.0_dp) * epsilon_kvec(p) + (exp(-J) - 1.0) * epsilon_kvec(q))
 
     end function two_body_contrib_kvec
 
@@ -3368,13 +3346,12 @@ contains
         type(symmetry), intent(in) :: p, a
 
         if (.not. t_symmetric) then
-            two_body_contrib_ksym = real(uhub,dp) / 2.0_dp + real(bhub,dp) * &
-                ((exp(J) - 1.0_dp) * epsilon_kvec(a) + (exp(-J) - 1.0) * epsilon_kvec(p))
+            two_body_contrib_ksym = real(uhub, dp) / 2.0_dp + real(bhub, dp) * &
+                                    ((exp(J) - 1.0_dp) * epsilon_kvec(a) + (exp(-J) - 1.0) * epsilon_kvec(p))
         else
-            two_body_contrib_ksym = real(uhub,dp)/2.0_dp + real(bhub,dp) * &
-                ((exp(J) - 1.0_dp) * epsilon_kvec(a) + (exp(-J) - 1.0) * epsilon_kvec(p))
+            two_body_contrib_ksym = real(uhub, dp) / 2.0_dp + real(bhub, dp) * &
+                                    ((exp(J) - 1.0_dp) * epsilon_kvec(a) + (exp(-J) - 1.0) * epsilon_kvec(p))
         end if
-
 
     end function two_body_contrib_ksym
 
@@ -3389,12 +3366,12 @@ contains
 
         ASSERT(spin == -1 .or. spin == 1)
 
-        k1 = lat%add_k_vec(p,q)
-        k2 = lat%subtract_k_vec(p,q)
-        k2 = lat%subtract_k_vec(k2,k)
+        k1 = lat%add_k_vec(p, q)
+        k2 = lat%subtract_k_vec(p, q)
+        k2 = lat%subtract_k_vec(k2, k)
 
-        exchange_contrib_kvec = -2.0_dp * real(bhub,dp)*(cosh(J)-1.0_dp)/real(omega,dp) &
-            * (get_one_body_diag(nI,-spin,k1,.true.) + get_one_body_diag(nI,-spin,k2,.true.))
+        exchange_contrib_kvec = -2.0_dp * real(bhub, dp) * (cosh(J) - 1.0_dp) / real(omega, dp) &
+                                * (get_one_body_diag(nI, -spin, k1, .true.) + get_one_body_diag(nI, -spin, k2, .true.))
 
     end function exchange_contrib_kvec
 
@@ -3420,19 +3397,19 @@ contains
         ! and we need the dipersion of p-k - q = a - q
         k2 = SymTable(a%s, SymConjTab(q%s))
 
-        exchange_contrib_ksym = 2.0_dp * real(bhub,dp)*(cosh(J)-1.0_dp)/real(omega,dp) &
-            * (get_one_body_diag(nI,-spin,k1,.true.) + get_one_body_diag(nI,-spin,k2))
+        exchange_contrib_ksym = 2.0_dp * real(bhub, dp) * (cosh(J) - 1.0_dp) / real(omega, dp) &
+                                * (get_one_body_diag(nI, -spin, k1, .true.) + get_one_body_diag(nI, -spin, k2))
 
     end function exchange_contrib_ksym
 
-    HElement_t(dp) function two_body_transcorr_factor_kvec(p,k)
+    HElement_t(dp) function two_body_transcorr_factor_kvec(p, k)
         integer, intent(in) :: p(N_DIM), k(N_DIM)
 
         ! take out the part with U/2 since this is already covered in the
         ! "normal" matrix elements
-        two_body_transcorr_factor_kvec = real(bhub,dp)/real(omega,dp) * ( &
-            (exp(trans_corr_param_2body) - 1.0_dp) * epsilon_kvec(k) + &
-            (exp(-trans_corr_param_2body) -1.0_dp) * epsilon_kvec(p))
+        two_body_transcorr_factor_kvec = real(bhub, dp) / real(omega, dp) * ( &
+                                         (exp(trans_corr_param_2body) - 1.0_dp) * epsilon_kvec(k) + &
+                                         (exp(-trans_corr_param_2body) - 1.0_dp) * epsilon_kvec(p))
 
     end function two_body_transcorr_factor_kvec
 
@@ -3444,25 +3421,25 @@ contains
         ! symmetry symbols
         if (allocated(two_body_transcorr_factor_matrix)) deallocate(two_body_transcorr_factor_matrix)
 
-        allocate(two_body_transcorr_factor_matrix(nBasis/2,nBasis/2), source = 0.0_dp)
+        allocate(two_body_transcorr_factor_matrix(nBasis / 2, nBasis / 2), source=0.0_dp)
 
         ! loop over spatial orbitals
-        do i = 1, nBasis/2
-            sym_i = G1(2*i)%sym
-            do j = 1, nBasis/2
-                sym_j = G1(2*j)%Sym
+        do i = 1, nBasis / 2
+            sym_i = G1(2 * i)%sym
+            do j = 1, nBasis / 2
+                sym_j = G1(2 * j)%Sym
 
-                two_body_transcorr_factor_matrix(sym_j%s,sym_i%s) = &
-                    real(bhub,dp)/real(omega,dp) * &
-                    ((exp(trans_corr_param_2body) - 1.0_dp)*epsilon_kvec(sym_i) + &
-                     (exp(-trans_corr_param_2body) - 1.0_dp)*epsilon_kvec(sym_j))
+                two_body_transcorr_factor_matrix(sym_j%s, sym_i%s) = &
+                    real(bhub, dp) / real(omega, dp) * &
+                    ((exp(trans_corr_param_2body) - 1.0_dp) * epsilon_kvec(sym_i) + &
+                     (exp(-trans_corr_param_2body) - 1.0_dp) * epsilon_kvec(sym_j))
 
             end do
         end do
 
     end subroutine init_two_body_trancorr_fac_matrix
 
-    HElement_t(dp) function two_body_transcorr_factor_ksym(p,k)
+    HElement_t(dp) function two_body_transcorr_factor_ksym(p, k)
         type(symmetry), intent(in) :: p, k
 
         ! take out the part with U/2 since this is already covered in the
@@ -3470,7 +3447,7 @@ contains
 
         ! optimize this better and precompute more stuff!
 
-        two_body_transcorr_factor_ksym = two_body_transcorr_factor_matrix(p%s,k%s)
+        two_body_transcorr_factor_ksym = two_body_transcorr_factor_matrix(p%s, k%s)
 
     end function two_body_transcorr_factor_ksym
 
@@ -3484,11 +3461,11 @@ contains
         ASSERT(spin == 1 .or. spin == -1)
 
         ! update: add k-vec to not leave first BZ
-        k1 = lat%subtract_k_vec(k,q)
-        k2 = lat%add_k_vec(p,q)
-        three_body_transcorr_fac_kvec = -three_body_prefac * (&
-            n_opp(spin) * (epsilon_kvec(p) + epsilon_kvec(k)) - (&
-            get_one_body_diag(nI,-spin,k1) + get_one_body_diag(nI,-spin,k2,.true.)))
+        k1 = lat%subtract_k_vec(k, q)
+        k2 = lat%add_k_vec(p, q)
+        three_body_transcorr_fac_kvec = -three_body_prefac * ( &
+                                        n_opp(spin) * (epsilon_kvec(p) + epsilon_kvec(k)) - ( &
+                                        get_one_body_diag(nI, -spin, k1) + get_one_body_diag(nI, -spin, k2, .true.)))
 
     end function three_body_transcorr_fac_kvec
 
@@ -3504,16 +3481,16 @@ contains
         ASSERT(spin == 1 .or. spin == -1)
 
         if (spin == -1) then
-            n_opp_loc = real(nOccAlpha,dp)
+            n_opp_loc = real(nOccAlpha, dp)
         else
-            n_opp_loc = real(nOccBeta,dp)
+            n_opp_loc = real(nOccBeta, dp)
         end if
 
         k1 = SymTable(k%s, SymConjTab(q%s))
         k2 = SymTable(p%s, q%s)
 
-        three_body_transcorr_fac_ksym = three_body_const_mat(p%s,k%s,spin) + &
-            three_body_prefac * (get_one_body_diag(nI,-spin,k1) + get_one_body_diag(nI,-spin,k2,.true.))
+        three_body_transcorr_fac_ksym = three_body_const_mat(p%s, k%s, spin) + &
+                                        three_body_prefac * (get_one_body_diag(nI, -spin, k1) + get_one_body_diag(nI, -spin, k2, .true.))
 
     end function three_body_transcorr_fac_ksym
 
@@ -3522,18 +3499,18 @@ contains
         type(symmetry) :: sym_i, sym_j
 
         if (allocated(three_body_const_mat)) deallocate(three_body_const_mat)
-        allocate(three_body_const_mat(nBasis/2,nBasis/2,-1:1), source = 0.0_dp)
+        allocate(three_body_const_mat(nBasis / 2, nBasis / 2, -1:1), source=0.0_dp)
 
-        do i = 1, nBasis/2
-            sym_i = G1(2*i)%Sym
-            do j = 1, nBasis/2
-                sym_j = G1(2*j)%Sym
+        do i = 1, nBasis / 2
+            sym_i = G1(2 * i)%Sym
+            do j = 1, nBasis / 2
+                sym_j = G1(2 * j)%Sym
 
-                three_body_const_mat(sym_i%s,sym_j%s,-1) = -three_body_prefac * &
-                    n_opp(-1)*(epsilon_kvec(sym_i) + epsilon_kvec(sym_j))
+                three_body_const_mat(sym_i%s, sym_j%s, -1) = -three_body_prefac * &
+                                                             n_opp(-1) * (epsilon_kvec(sym_i) + epsilon_kvec(sym_j))
 
-                three_body_const_mat(sym_i%s,sym_j%s,1) = -three_body_prefac * &
-                    n_opp(1)*(epsilon_kvec(sym_i) + epsilon_kvec(sym_j))
+                three_body_const_mat(sym_i%s, sym_j%s, 1) = -three_body_prefac * &
+                                                            n_opp(1) * (epsilon_kvec(sym_i) + epsilon_kvec(sym_j))
 
             end do
         end do
@@ -3544,7 +3521,7 @@ contains
         ! the 3-body matrix element.. here i have to be careful about
         ! the sign and stuff.. and also if momentum conservation is
         ! fullfilled ..
-        integer, intent(in) ::  ex(2,3)
+        integer, intent(in) ::  ex(2, 3)
         logical, intent(in) :: tpar
         HElement_t(dp) :: hel
 #ifdef DEBUG_
@@ -3558,15 +3535,15 @@ contains
 
         hel = h_cast(0.0_dp)
 
-        ms_elec = sum(get_spin_pn(ex(1,:)))
-        ms_orbs = sum(get_spin_pn(ex(2,:)))
+        ms_elec = sum(get_spin_pn(ex(1, :)))
+        ms_orbs = sum(get_spin_pn(ex(2, :)))
 
         ! check spin:
-        if (.not.(ms_elec == ms_orbs)) return
-        if (.not.(ms_elec == 1 .or. ms_elec == -1)) return
+        if (.not. (ms_elec == ms_orbs)) return
+        if (.not. (ms_elec == 1 .or. ms_elec == -1)) return
 
         ! check momentum conservation:
-        if (.not. check_momentum_sym(ex(1,:),ex(2,:))) return
+        if (.not. check_momentum_sym(ex(1, :), ex(2, :))) return
 
         ! i have to get the correct momenta for the epsilon contribution
         ! see the sheets for the k-vec relations.
@@ -3586,20 +3563,19 @@ contains
         ! W(k_p + k_s - k_b) - W(k_p + k_q - k_b)
         ! for this we have to figure out what the minority and majority
         ! electrons are!
-        opp_elec = find_minority_spin(ex(1,:))
+        opp_elec = find_minority_spin(ex(1, :))
 
         ! although i really can't be sure about the minority whole always
         ! being at the first position in ex(2,:)..
-        opp_orb = find_minority_spin(ex(2,:))
+        opp_orb = find_minority_spin(ex(2, :))
 
         p_sym = G1(opp_elec)%sym
         hole_sym = G1(opp_orb)%sym
 
-        par_elecs = pack(ex(1,:),ex(1,:) /= opp_elec)
-        par_orbs = pack(ex(2,:),ex(2,:) /= opp_orb)
+        par_elecs = pack(ex(1, :), ex(1, :) /= opp_elec)
+        par_orbs = pack(ex(2, :), ex(2, :) /= opp_orb)
 
         k_sym = SymTable(p_sym%s, hole_sym%s)
-
 
         ! we have to define an order here too
         par_elecs = [minval(par_elecs), maxval(par_elecs)]
@@ -3619,14 +3595,14 @@ contains
         kd_sym = SymTable(k2_sym%s, SymConjTab(p_sym%s))
 
         hel = three_body_prefac * ( &
-            epsilon_kvec(ka_sym) - epsilon_kvec(kb_sym) +  &
-            epsilon_kvec(kc_sym) - epsilon_kvec(kd_sym))
+              epsilon_kvec(ka_sym) - epsilon_kvec(kb_sym) + &
+              epsilon_kvec(kc_sym) - epsilon_kvec(kd_sym))
 
         ! i have to decide on a sign here depending on the order of the
         ! operators.. todo!
         sgn = get_3body_sign(ex)
 
-        if (.not.sgn) hel = -hel
+        if (.not. sgn) hel = -hel
 
         if (tpar) hel = -hel
 
@@ -3635,9 +3611,9 @@ contains
     logical function get_3body_sign(ex)
         ! i need to find some sign convention on the 3-body term, depending
         ! on the spin of the involved orbitals
-        integer, intent(in) :: ex(2,3)
+        integer, intent(in) :: ex(2, 3)
 
-        integer :: src(3), tgt(3),i, elec_pos, orb_pos
+        integer :: src(3), tgt(3), i, elec_pos, orb_pos
 
         ! we also have to define an order of the parallel spins..
         ! or is this ensured? i guess it should..
@@ -3722,7 +3698,7 @@ contains
 
     subroutine make_triple(nI, nJ, elecs, orbs, ex, tPar)
         integer, intent(in) :: nI(nel), elecs(3), orbs(3)
-        integer, intent(out) :: nJ(nel), ex(2,3)
+        integer, intent(out) :: nJ(nel), ex(2, 3)
         logical, intent(out) :: tPar
 #ifdef DEBUG_
         character(*), parameter :: this_routine = "make_triple"
@@ -3747,8 +3723,8 @@ contains
 
         src = nI(sort_elecs)
 
-        ex(1,:) = src
-        ex(2,:) = sort_orbs
+        ex(1, :) = src
+        ex(2, :) = sort_orbs
 
         nJ = nI
 
@@ -3786,10 +3762,10 @@ contains
                 else
                     do i = sort_elecs(k) + 1, nel
                         if (sort_orbs(k) < nJ(i)) then
-                            nJ(i-1) = sort_orbs(k)
+                            nJ(i - 1) = sort_orbs(k)
                             exit
                         else
-                            nJ(i-1) = nJ(i)
+                            nJ(i - 1) = nJ(i)
                         end if
                     end do
                     if (i == nel + 1) then
@@ -3801,12 +3777,12 @@ contains
                     i = 0
                     nJ(1) = sort_orbs(k)
                 else
-                    do i = sort_elecs(k)-1, 1, -1
+                    do i = sort_elecs(k) - 1, 1, -1
                         if (sort_orbs(k) > nJ(i)) then
-                            nJ(i+1) = sort_orbs(k)
+                            nJ(i + 1) = sort_orbs(k)
                             exit
                         else
-                            nJ(i+1) = nJ(i)
+                            nJ(i + 1) = nJ(i)
                         end if
                     end do
                     if (i == 0) then
@@ -3838,8 +3814,8 @@ contains
             tmat2d = 0.0_dp
 
             do i = 1, in_lat%get_nsites()
-                tmat2d(2*i-1,2*i-1) = bhub * in_lat%dispersion_rel_orb(i)
-                tmat2d(2*i,2*i) = bhub * in_lat%dispersion_rel_orb(i)
+                tmat2d(2 * i - 1, 2 * i - 1) = bhub * in_lat%dispersion_rel_orb(i)
+                tmat2d(2 * i, 2 * i) = bhub * in_lat%dispersion_rel_orb(i)
             end do
 
         else
@@ -3868,8 +3844,8 @@ contains
             if (.not. associated(tmat2d)) then
                 ! call the already implemented hubbard tmat calculator..
                 ! for now only.. in the future we should do this standalone
-                call CALCTMATHUB(in_lat%get_nsites()*2, nBasisMax, bhub, &
-                    ttilt,G1,.not. in_lat%is_k_space(), in_lat%is_periodic())
+                call CALCTMATHUB(in_lat%get_nsites() * 2, nBasisMax, bhub, &
+                                 ttilt, G1,.not. in_lat%is_k_space(), in_lat%is_periodic())
 
             end if
 

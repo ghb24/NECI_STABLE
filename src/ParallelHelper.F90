@@ -1,9 +1,9 @@
 #include "macros.h"
 
 module ParallelHelper
-   use constants
-   use iso_c_hack
-   use timing_neci, only: timer, set_timer, halt_timer
+    use constants
+    use iso_c_hack
+    use timing_neci, only: timer, set_timer, halt_timer
     implicit none
 
     type(timer), save :: Sync_Time
@@ -22,12 +22,6 @@ module ParallelHelper
 ! We would like to define these consts as here, but this breaks gfortran 4.5.1
 ! --> See macros.h
 ! ********************
-!#if defined(__PATHSCALE__) || defined(__ISO_C_HACK) || defined (__OPEN64__)
-!    c_ptr_t, parameter :: MPI_IN_PLACE = 0
-!#else
-!    c_ptr_t, parameter :: MPI_IN_PLACE = C_NULL_PTR
-!#endif
-
     ! Define values so our C-wrapper can work nicely
     integer(MPIArg), parameter :: MPI_INTEGER4 = 0, &
                                   MPI_INTEGER8 = 1, &
@@ -50,69 +44,69 @@ module ParallelHelper
     integer, parameter :: MPI_MAX_ERROR_STRING = 500
 
     interface
-        subroutine MPI_Error_string (err, s, l, ierr) &
+        subroutine MPI_Error_string(err, s, l, ierr) &
             bind(c, name='mpi_error_string_wrap')
             use iso_c_hack
             integer(c_int), intent(in), value :: err, l
             integer(c_int), intent(out) :: ierr
             character(c_char), intent(out) :: s(*)
         end subroutine
-        subroutine MPI_Barrier (comm, ierr) bind(c, name='mpi_barrier_wrap')
+        subroutine MPI_Barrier(comm, ierr) bind(c, name='mpi_barrier_wrap')
             use iso_c_hack
             integer(c_int), intent(in), value :: comm
             integer(c_int), intent(out) :: ierr
         end subroutine
-        subroutine MPI_Init (ierr) bind(c, name='mpi_init_wrap')
+        subroutine MPI_Init(ierr) bind(c, name='mpi_init_wrap')
             use iso_c_hack
             integer(c_int), intent(out) :: ierr
         end subroutine
-        subroutine MPI_Initialized (flag, ierr) bind(c, name='mpi_initialized_wrap')
+        subroutine MPI_Initialized(flag, ierr) bind(c, name='mpi_initialized_wrap')
             use iso_c_hack
             integer(c_int), intent(out) :: flag, ierr
         end subroutine
-        subroutine MPI_Finalize (ierr) bind(c, name='mpi_finalize_wrap')
+        subroutine MPI_Finalize(ierr) bind(c, name='mpi_finalize_wrap')
             use iso_c_hack
             integer(c_int), intent(out) :: ierr
         end subroutine
-        subroutine MPI_Abort (comm, err, ierr) bind(c, name='mpi_abort_wrap')
+        subroutine MPI_Abort(comm, err, ierr) bind(c, name='mpi_abort_wrap')
             use iso_c_hack
             integer(c_int), intent(in), value :: comm, err
             integer(c_int), intent(out) :: ierr
         end subroutine
-        subroutine MPI_Comm_rank (comm, rank, ierr) &
+        subroutine MPI_Comm_rank(comm, rank, ierr) &
             bind(c, name='mpi_comm_rank_wrap')
             use iso_c_hack
             integer(c_int), intent(in), value :: comm
             integer(c_int), intent(out) :: rank, ierr
         end subroutine
-        subroutine MPI_Comm_size (comm, sz, ierr) &
+        subroutine MPI_Comm_size(comm, sz, ierr) &
             bind(c, name='mpi_comm_size_wrap')
             use iso_c_hack
             integer(c_int), intent(in), value :: comm
             integer(c_int), intent(out) :: sz, ierr
         end subroutine
-        subroutine MPI_Comm_create (comm, group, ncomm, ierr) &
+        subroutine MPI_Comm_create(comm, group, ncomm, ierr) &
             bind(c, name='mpi_comm_create_wrap')
             use iso_c_hack
             integer(c_int), intent(in), value :: comm, group
             integer(c_int), intent(out) :: ncomm, ierr
         end subroutine
-        subroutine MPI_Group_incl (grp, n, rnks, ogrp, ierr) &
+        subroutine MPI_Group_incl(grp, n, rnks, ogrp, ierr) &
             bind(c, name='mpi_group_incl_wrap')
             use iso_c_hack
             integer(c_int), intent(in), value :: grp, n
             integer(c_int), intent(in) :: rnks(*)
             integer(c_int), intent(out) :: ierr, ogrp
         end subroutine
-        subroutine MPI_Comm_group (comm, group, ierr) &
+        subroutine MPI_Comm_group(comm, group, ierr) &
             bind(c, name='mpi_comm_group_wrap')
             use iso_c_hack
             integer(c_int), intent(in), value :: comm
             integer(c_int), intent(out) :: group, ierr
         end subroutine
-        subroutine MPI_Gather (sbuf, scnt, stype, rbuf, rcnt, rtype, &
-                                 rt, comm, ierr) &
-                                 bind(c, name='mpi_gather_wrap')
+        subroutine MPI_Gather(sbuf, scnt, stype, rbuf, rcnt, rtype, &
+                              rt, comm, ierr) &
+            bind(c, name='mpi_gather_wrap')
             use iso_c_hack
             use constants
             c_ptr_t, intent(in), value :: sbuf, rbuf
@@ -120,7 +114,7 @@ module ParallelHelper
             integer(c_int), intent(in), value :: comm, rt
             integer(c_int), intent(out) :: ierr
         end subroutine
-        function mpicommworld_c2f () result(cw) &
+        function mpicommworld_c2f() result(cw) &
             bind(c, name='mpicommworld_c2f')
             use constants
             integer(MPIArg) :: cw
@@ -141,13 +135,6 @@ module ParallelHelper
 !      integers instead
 !! This is a hack to work around disagreement between compilers on what
 !! datatype is acceptable for logical variables in MPI routines.
-!#ifdef __MPILOGTYPE
-!    integer(MPIArg), parameter :: MPI_LOGTYPE4 = MPI_LOGICAL4
-!    integer(MPIArg), parameter :: MPI_LOGTYPE8 = MPI_LOGICAL8
-!#else
-!    integer(MPIArg), parameter :: MPI_LOGTYPE4 = MPI_INTEGER4
-!    integer(MPIArg), parameter :: MPI_LOGTYPE8 = MPI_INTEGER8
-!#endif
 #else
     ! In serial, set this to a nonsense value
     integer(MPIArg), parameter :: MpiDetInt = -1
@@ -155,135 +142,129 @@ module ParallelHelper
 
 #ifndef PARALLEL
     ! These don't exist in serial, so fudge them
-    integer(MPIArg), parameter :: MPI_2INTEGER=0
-    integer(MPIArg), parameter :: MPI_2DOUBLE_PRECISION=0
-    integer(MPIArg), parameter :: MPI_MIN=0
-    integer(MPIArg), parameter :: MPI_MAX=0
-    integer(MPIArg), parameter :: MPI_SUM=0
-    integer(MPIArg), parameter :: MPI_LOR=0
-    integer(MPIArg), parameter :: MPI_MAXLOC=0
-    integer(MPIArg), parameter :: MPI_MINLOC=0
-    integer(MPIArg), parameter :: MPI_MAX_ERROR_STRING=255
+    integer(MPIArg), parameter :: MPI_2INTEGER = 0
+    integer(MPIArg), parameter :: MPI_2DOUBLE_PRECISION = 0
+    integer(MPIArg), parameter :: MPI_MIN = 0
+    integer(MPIArg), parameter :: MPI_MAX = 0
+    integer(MPIArg), parameter :: MPI_SUM = 0
+    integer(MPIArg), parameter :: MPI_LOR = 0
+    integer(MPIArg), parameter :: MPI_MAXLOC = 0
+    integer(MPIArg), parameter :: MPI_MINLOC = 0
+    integer(MPIArg), parameter :: MPI_MAX_ERROR_STRING = 255
 #endif
 
+    Type :: CommI
+        Integer n
+    End Type
+    ! Rank of the root processor
+    integer, parameter :: root = 0
+    integer              :: iProcIndex
+    integer              :: nNodes            !The total number of nodes
+    integer              :: iIndexInNode      !The index (zero-based) of this processor in its node
+    integer iNodeIndex  ! Set from ParallelHelper.  Use this if an integer rather than a CommI object is needed.
+    type(CommI)          :: Node              !The index of this node - this is a type to allow overloading
+    logical              :: bNodeRoot         !Set if this processor is root of its node
+    integer, allocatable :: CommNodes(:)      !Each node has a separate communicator
+    integer(MPIArg), allocatable :: GroupNodes(:)     !Each node has a separate communicator
+    integer(MPIArg), allocatable :: GroupNodesDum(:), CommNodesDum(:)
+    type(CommI), allocatable :: Nodes(:)      !The node for each processor
+    integer, allocatable :: ProcNode(:)   !The node for each processor (as a zero-based integer)
+    integer, allocatable :: NodeRoots(:)      !The root for each node (zero-based)
+    integer, allocatable :: NodeLengths(:)    !The number of procs in each node
 
-   Type :: CommI
-      Integer n
-   End Type
-   ! Rank of the root processor
-   integer, parameter :: root = 0
-   integer              :: iProcIndex
-   integer              :: nNodes            !The total number of nodes
-   integer              :: iIndexInNode      !The index (zero-based) of this processor in its node
-   integer iNodeIndex  ! Set from ParallelHelper.  Use this if an integer rather than a CommI object is needed.
-   type(CommI)          :: Node              !The index of this node - this is a type to allow overloading
-   logical              :: bNodeRoot         !Set if this processor is root of its node
-   integer, allocatable :: CommNodes(:)      !Each node has a separate communicator
-   integer(MPIArg), allocatable :: GroupNodes(:)     !Each node has a separate communicator
-   integer(MPIArg), allocatable :: GroupNodesDum(:), CommNodesDum(:)
-   type(CommI), allocatable :: Nodes(:)      !The node for each processor
-   integer, allocatable :: ProcNode(:)   !The node for each processor (as a zero-based integer)
-   integer, allocatable :: NodeRoots(:)      !The root for each node (zero-based)
-   integer, allocatable :: NodeLengths(:)    !The number of procs in each node
+    ! A communicator to all processors
+    integer(MPIArg)      :: CommGlobal
 
-   ! A communicator to all processors
-   integer(MPIArg)      :: CommGlobal
+    ! A group with all node roots in it
+    integer(MPIArg)      :: GroupRoots
 
-   ! A group with all node roots in it
-   integer(MPIArg)      :: GroupRoots
+    ! A communicator between the roots on each node
+    integer(MPIArg)      :: CommRoot
 
-   ! A communicator between the roots on each node
-   integer(MPIArg)      :: CommRoot
+    ! Communicator/indices for MPI3 version of shared memory communication.
+    ! Probably this can eventually be merged with the variables above
+    integer(MPIArg):: mpi_comm_inter, mpi_comm_intra
+    integer(MPIArg):: iProcIndex_inter, iProcIndex_intra
 
-   ! Communicator/indices for MPI3 version of shared memory communication.
-   ! Probably this can eventually be merged with the variables above
-   integer(MPIArg):: mpi_comm_inter, mpi_comm_intra
-   integer(MPIArg):: iProcIndex_inter, iProcIndex_intra
+    ! A null-info structure
+    integer(MPIArg)      :: mpiInfoNull
 
-   ! A null-info structure
-   integer(MPIArg)      :: mpiInfoNull
-
-   ! A 'node' which communicates between roots on each node
-   type(CommI)          :: Roots
-
+    ! A 'node' which communicates between roots on each node
+    type(CommI)          :: Roots
 
 contains
-   Subroutine GetComm(Comm,Node,rt,tMe)
-       implicit none
-       type(CommI), intent(in),optional :: Node
-       integer(MPIArg), intent(out) :: Comm
-       integer(MPIArg), intent(out), optional :: rt
-       logical, intent(in), optional :: tMe
-       logical tMe2
-       if(present(tMe)) then
-         tMe2=tMe
-       else
-         tMe2=.false.
-       endif
-       if(nNodes==0) then
-         Comm=CommGlobal
-         if(present(rt)) then
-            if(tMe2) then
-               rt=int(iProcIndex,MPIArg)
-            else
-               rt=Root
-            endif
-         endif
-         return
-       endif
-
-       if (present(Node)) then
-         if(Node%n==Roots%n) then
-            Comm=CommRoot
+    Subroutine GetComm(Comm, Node, rt, tMe)
+        implicit none
+        type(CommI), intent(in), optional :: Node
+        integer(MPIArg), intent(out) :: Comm
+        integer(MPIArg), intent(out), optional :: rt
+        logical, intent(in), optional :: tMe
+        logical tMe2
+        if (present(tMe)) then
+            tMe2 = tMe
+        else
+            tMe2 = .false.
+        end if
+        if (nNodes == 0) then
+            Comm = CommGlobal
             if (present(rt)) then
-               if(tMe2) then
-                  rt=int(iNodeIndex,MPIArg)
-               else
-                  rt=Root
-               endif
-            endif
-         else
-            Comm=int(CommNodes(Node%n),MPIArg)
-            if (present(rt)) then
-               if(tMe2) then
-                  rt=int(iIndexInNode,MPIArg)
-               else
-                  rt=0 !NodeRoots(Node%n) is the procindex of the root, but not the index within the communicator
-               endif
-            endif
-         endif
-       else
-         Comm=CommGlobal
-         if (present(rt)) then
-            if(tMe2) then
-               rt=int(iProcIndex,MPIArg)
+                if (tMe2) then
+                    rt = int(iProcIndex, MPIArg)
+                else
+                    rt = Root
+                end if
+            end if
+            return
+        end if
+
+        if (present(Node)) then
+            if (Node%n == Roots%n) then
+                Comm = CommRoot
+                if (present(rt)) then
+                    if (tMe2) then
+                        rt = int(iNodeIndex, MPIArg)
+                    else
+                        rt = Root
+                    end if
+                end if
             else
-               rt=Root
-            endif
-         endif
-       endif
-   end subroutine
+                Comm = int(CommNodes(Node%n), MPIArg)
+                if (present(rt)) then
+                    if (tMe2) then
+                        rt = int(iIndexInNode, MPIArg)
+                    else
+                        rt = 0 !NodeRoots(Node%n) is the procindex of the root, but not the index within the communicator
+                    end if
+                end if
+            end if
+        else
+            Comm = CommGlobal
+            if (present(rt)) then
+                if (tMe2) then
+                    rt = int(iProcIndex, MPIArg)
+                else
+                    rt = Root
+                end if
+            end if
+        end if
+    end subroutine
 
-
-
-    subroutine MPIErr (iunit, err)
+    subroutine MPIErr(iunit, err)
         integer, intent(in) :: err, iunit
         integer(MPIArg) :: l, e
 #ifdef PARALLEL
         character(len=MPI_MAX_ERROR_STRING) :: s
 
-        l=0
-        e=0
-        call MPI_Error_string (int(err, MPIArg), s, l, e)
+        l = 0
+        e = 0
+        call MPI_Error_string(int(err, MPIArg), s, l, e)
 
-        write(iunit,*) s
+        write(iunit, *) s
 #endif
 
     end subroutine
 
-
-
-    subroutine MPIBarrier (err, Node, tTimeIn)
+    subroutine MPIBarrier(err, Node, tTimeIn)
 
         integer, intent(out) :: err
         type(CommI), intent(in), optional :: Node
@@ -301,9 +282,9 @@ contains
         if (tTime) call set_timer(Sync_Time)
 
 #ifdef PARALLEL
-        call GetComm (comm, node)
+        call GetComm(comm, node)
 
-        call MPI_Barrier (comm, ierr)
+        call MPI_Barrier(comm, ierr)
         err = ierr
 #else
         err = 0
@@ -313,7 +294,7 @@ contains
 
     end subroutine
 
-    subroutine MPIGroupIncl (grp, n, rnks, ogrp, ierr)
+    subroutine MPIGroupIncl(grp, n, rnks, ogrp, ierr)
 
         integer, intent(in) :: grp, n
         integer, intent(in) :: rnks(:)
@@ -322,8 +303,8 @@ contains
         integer(MPIArg) :: err
 
 #ifdef PARALLEL
-        call MPI_Group_incl (int(grp, MPIArg), int(n, MPIArg), &
-                int(rnks, MPIArg), ogrp, err)
+        call MPI_Group_incl(int(grp, MPIArg), int(n, MPIArg), &
+                            int(rnks, MPIArg), ogrp, err)
         ierr = err
 #else
         ogrp = 0
@@ -332,7 +313,7 @@ contains
 
     end subroutine
 
-    subroutine MPICommcreate (comm, group, ncomm, ierr)
+    subroutine MPICommcreate(comm, group, ncomm, ierr)
 
         integer(MPIArg), intent(in) :: comm
         integer(MPIArg), intent(in) :: group
@@ -341,8 +322,8 @@ contains
         integer(MPIArg) :: err
 
 #ifdef PARALLEL
-        call MPI_Comm_create (int(comm, MPIArg), int(group, MPIArg), &
-                              ncomm, err)
+        call MPI_Comm_create(int(comm, MPIArg), int(group, MPIArg), &
+                             ncomm, err)
         ierr = err
 #else
         ncomm = 0
@@ -351,7 +332,7 @@ contains
 
     end subroutine
 
-    subroutine MPICommGroup (comm, grp, ierr)
+    subroutine MPICommGroup(comm, grp, ierr)
 
         integer(MPIArg), intent(in) :: comm
         integer(MPIArg), intent(out) :: grp
@@ -359,7 +340,7 @@ contains
         integer(MPIArg) :: err, gout
 
 #ifdef PARALLEL
-        call MPI_Comm_Group (comm, gout, err)
+        call MPI_Comm_Group(comm, gout, err)
         ierr = err
         grp = gout
 #else
@@ -381,7 +362,7 @@ contains
 #define val_out Ret
 #endif
 
-    subroutine MPIGather_hack (v, ret, nchar, nprocs, ierr, Node)
+    subroutine MPIGather_hack(v, ret, nchar, nprocs, ierr, Node)
 
         integer, intent(in) :: nchar, nprocs
         character(len=nchar), target :: v
@@ -396,7 +377,6 @@ contains
         integer :: i, st, fn
 #endif
 
-
 #ifdef PARALLEL
 #ifdef CBINDMPI
 #ifdef GFORTRAN_
@@ -407,11 +387,11 @@ contains
         rptr = loc_neci(ret)
 #endif
 
-        call GetComm (Comm, Node, rt)
+        call GetComm(Comm, Node, rt)
 
-        call MPI_Gather (val_in, int(nchar, MPIArg), MPI_CHARACTER, &
-                         val_out, int(nchar, MPIArg), MPI_CHARACTER, &
-                         rt, comm, err)
+        call MPI_Gather(val_in, int(nchar, MPIArg), MPI_CHARACTER, &
+                        val_out, int(nchar, MPIArg), MPI_CHARACTER, &
+                        rt, comm, err)
 
         ierr = err
 #else
@@ -427,7 +407,7 @@ contains
 #ifdef CBINDMPI
         interface
             ! Put this here to avoid polluting the global namespace
-            subroutine MPI_Allreduce_rt(val, ret, cnt, dtype, op, comm, ierr)&
+            subroutine MPI_Allreduce_rt(val, ret, cnt, dtype, op, comm, ierr) &
                 bind(c, name='mpi_allreduce_wrap')
                 use iso_c_hack
                 use constants
@@ -437,22 +417,22 @@ contains
                 integer(c_int), intent(out) :: ierr
             end subroutine
         end interface
-        call MPI_Allreduce_rt (rt, nrt, 1_MPIArg, MPI_INTEGER, MPI_MAX, &
-                               comm, ierr)
+        call MPI_Allreduce_rt(rt, nrt, 1_MPIArg, MPI_INTEGER, MPI_MAX, &
+                              comm, ierr)
 #else
-        call MPI_Allreduce (rt, nrt, 1_MPIArg, MPI_INTEGER, MPI_MAX, &
-                            comm, ierr)
+        call MPI_Allreduce(rt, nrt, 1_MPIArg, MPI_INTEGER, MPI_MAX, &
+                           comm, ierr)
 #endif
 #else
-        ierr=0  !Avoid compiler warnings
-        nrt=rt
+        ierr = 0  !Avoid compiler warnings
+        nrt = rt
 #endif
 
     end subroutine
 
 end module
 
-subroutine mpibarrier_c (error) bind(c)
+subroutine mpibarrier_c(error) bind(c)
     use ParallelHelper, only: MPIBarrier
     use constants
     use iso_c_hack
@@ -461,8 +441,8 @@ subroutine mpibarrier_c (error) bind(c)
     integer :: ierr
 
 #ifdef PARALLEL
-    call MPIBarrier (ierr)
-    error = int(ierr,kind=kind(error))
+    call MPIBarrier(ierr)
+    error = int(ierr, kind=kind(error))
 #else
     error = 0
 #endif

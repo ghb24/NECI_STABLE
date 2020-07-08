@@ -16,7 +16,7 @@ module global_utilities
 != required (e.g. it doesn't include initialisation and termination routines,
 != which are typically only required once).
 
-use MemoryManager, only: LogMemAlloc,LogMemDealloc
-use timing_neci, only: set_timer,halt_timer,get_total_time, timer
+    use MemoryManager, only: LogMemAlloc, LogMemDealloc
+    use timing_neci, only: set_timer, halt_timer, get_total_time, timer
 
 end module global_utilities

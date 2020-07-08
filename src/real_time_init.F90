@@ -14,7 +14,7 @@ module real_time_init
                               gf_count, &
                               allPopSnapshot, &
                               current_overlap, &
-                              TotPartsStorage,  t_rotated_time, TotPartsPeak, asymptoticShift, &
+                              TotPartsStorage, t_rotated_time, TotPartsPeak, asymptoticShift, &
                               tau_imag, tau_real, elapsedRealTime, elapsedImagTime, tNewOverlap, &
                               TotWalkers_orig, dyn_norm_psi, gs_energy, shift_damping, &
                               tStaticShift, MaxSpawnedDiag, tDynamicCoreSpace, overlap_states, &
@@ -22,7 +22,7 @@ module real_time_init
                               tLimitShift, nspawnMax, shiftLimit, numCycShiftExcess, &
                               TotPartsLastAlpha, alphaDamping, tDynamicDamping, iterInit, &
                               etaDamping, tStartVariation, rotThresh, stabilizerThresh, &
-                              tInfInit,  popSnapshot, snapshotOrbs, phase_factors, tVerletSweep, &
+                              tInfInit, popSnapshot, snapshotOrbs, phase_factors, tVerletSweep, &
                               numSnapshotOrbs, tLowerThreshold, t_kspace_operators, tVerletScheme, &
                               tLogTrajectory, tReadTrajectory, alphaCache, tauCache, trajFile, &
                               tGenerateCoreSpace, tGZero, wn_threshold, corespace_log_interval, &
@@ -62,7 +62,7 @@ module real_time_init
     use LoggingData, only: tZeroProjE, tFCIMCStats2
     use fcimc_output, only: write_fcimcstats2, WriteFciMCStatsHeader
     use replica_data, only: allocate_iter_data, set_initial_global_data
-    use bit_rep_data, only: nifbcast, niftot, extract_sign, nifdbo
+    use bit_rep_data, only: IlutBits, niftot, extract_sign, nifd
     use bit_reps, only: decode_bit_det
     use adi_references, only: setup_reference_space
 
@@ -73,7 +73,7 @@ module real_time_init
 contains
 
     subroutine init_real_time_calc_single()
-      use real_time_procs, only: get_tot_parts
+        use real_time_procs, only: get_tot_parts
         ! this routine takes care of the correct setup of the real-time
         ! calculation. like reading the popsfiles and preparing the start
         ! of the calculation and setting certain global variables
@@ -82,7 +82,7 @@ contains
 
         integer :: ierr
 
-        write(iout,*) " Entering real-time FCIQMC initialisation "
+        write(iout, *) " Entering real-time FCIQMC initialisation "
 
         ! think about what variables have to be set for a succesful calc.
 
@@ -90,7 +90,7 @@ contains
         call SetupParameters()
 
         ! for real-space hubbard, we conver to momentum operators if desired
-        if(t_kspace_operators) call setup_momentum_operators()
+        if (t_kspace_operators) call setup_momentum_operators()
 
         ! have to think about the the order about the above setup routines!
         ! within this Init a readpops is called
@@ -117,7 +117,7 @@ contains
         ! do an MPIbarrier here.. although don't quite know why
         call MPIBarrier(ierr)
 
-        if(.not. tReadPops) call set_initial_global_data(TotWalkers, CurrentDets)
+        if (.not. tReadPops) call set_initial_global_data(TotWalkers, CurrentDets)
 
     end subroutine init_real_time_calc_single
 
@@ -125,73 +125,72 @@ contains
         ! this is the last setup routine, which depending on compilation,
         ! number of copies etc. sets up the final needed quantities to run
         ! a simulation
-      implicit none
+        implicit none
         character(*), parameter :: this_routine = "setup_real_time_fciqmc"
-        integer :: ierr,  run
-
+        integer :: ierr, run
 
         ! the new total momentum has to be constructed before the
         ! time-evolved state is read in, as the latter deletes the
         ! pops_pert, because perturbation and read-in are done in one
         ! function (dependencies...)
-        if(tHub) then
-           if(allocated(pops_pert)) then
+        if (tHub) then
+            if (allocated(pops_pert)) then
 
-              if(pops_pert(1)%nannihilate == 1) kTotal = kTotal &
-                   - G1(pops_pert(1)%ann_orbs(1))%k
-              if(pops_pert(1)%ncreate == 1) kTotal = kTotal &
-                   + G1(pops_pert(1)%crtn_orbs(1))%k
-              call MomPbcSym(kTotal,nBasisMax)
-              write(iout,*) "New total momentum", kTotal
-           endif
-        endif
+                if (pops_pert(1)%nannihilate == 1) kTotal = kTotal &
+                                                            - G1(pops_pert(1)%ann_orbs(1))%k
+                if (pops_pert(1)%ncreate == 1) kTotal = kTotal &
+                                                        + G1(pops_pert(1)%crtn_orbs(1))%k
+                call MomPbcSym(kTotal, nBasisMax)
+                write(iout, *) "New total momentum", kTotal
+            end if
+        end if
 
         ! allocate the according quantities!
         ! n_time_steps have to be set here!
-        write(iout,*) " Allocating greensfunction and wavefunction norm arrays!"
+        write(iout, *) " Allocating greensfunction and wavefunction norm arrays!"
         ! allocate an additional slot for initial values
-        if(numSnapshotOrbs>0) then
-           allocate(popSnapshot(numSnapshotOrbs),stat=ierr)
-           allocate(allPopSnapshot(numSnapshotOrbs),stat=ierr)
-           popSnapshot = 0.0_dp
-           allPopSnapshot = 0.0_dp
+        if (numSnapshotOrbs > 0) then
+            allocate(popSnapshot(numSnapshotOrbs), stat=ierr)
+            allocate(allPopSnapshot(numSnapshotOrbs), stat=ierr)
+            popSnapshot = 0.0_dp
+            allPopSnapshot = 0.0_dp
         else
-           allocate(popSnapshot(1),stat=ierr)
-           allocate(allPopSnapshot(numSnapshotOrbs),stat=ierr)
-           popSnapshot = 0.0_dp
-           allPopSnapshot = 0.0_dp
-        endif
-        allocate(gs_energy(inum_runs),stat = ierr)
-        allocate(temp_freeslot(MaxWalkersPart),stat = ierr)
-        allocate(TotPartsPeak(inum_runs),stat = ierr)
-        allocate(numCycShiftExcess(inum_runs), stat = ierr)
+            allocate(popSnapshot(1), stat=ierr)
+            allocate(allPopSnapshot(numSnapshotOrbs), stat=ierr)
+            popSnapshot = 0.0_dp
+            allPopSnapshot = 0.0_dp
+        end if
+        allocate(gs_energy(inum_runs), stat=ierr)
+        allocate(temp_freeslot(MaxWalkersPart), stat=ierr)
+        allocate(TotPartsPeak(inum_runs), stat=ierr)
+        allocate(numCycShiftExcess(inum_runs), stat=ierr)
         ! allocate the buffer for storing previous values of alpha
         ! for now, take 50 values of alpha in the log
         alphaLogSize = 50
         alphaLogPos = 1
-        allocate(alphaLog(alphaLogSize), stat = ierr)
+        allocate(alphaLog(alphaLogSize), stat=ierr)
         alphalog = 0.0_dp
         numCycShiftExcess = 0
         ! allocate spawn buffer for verlet scheme
-        if(tVerletScheme) allocate(spawnBuf(0:niftot,1:maxSpawned))
+        if (tVerletScheme) allocate(spawnBuf(0:niftot, 1:maxSpawned))
 
         TotPartsPeak = 0.0_dp
         gs_energy = benchmarkEnergy
 
         ! when projecting onto the perturbed reference, we obviously need to create
         ! a new state
-        if(tHFOverlap) tNewOverlap = .true.
+        if (tHFOverlap) tNewOverlap = .true.
 
         call init_overlap_buffers()
 
-        if(tRealTimePopsfile) call readTimeEvolvedState()
+        if (tRealTimePopsfile) call readTimeEvolvedState()
 
         ! check for set lms.. i think that does not quite work yet
-        write(iout,*) "mz spin projection: ", lms
+        write(iout, *) "mz spin projection: ", lms
 
-        write(iout,*) "tSinglePartPhase?:",tSinglePartPhase
-        write(iout,*) "tWalkContGrow?", tWalkContGrow
-        write(iout,*) "diagSft:", diagSft
+        write(iout, *) "tSinglePartPhase?:", tSinglePartPhase
+        write(iout, *) "tWalkContGrow?", tWalkContGrow
+        write(iout, *) "diagSft:", diagSft
 
         ! intialize the 2nd temporary determinant list needed in the
         ! real-time fciqmc
@@ -199,13 +198,13 @@ contains
         ! also maybe use the spawn_ht hash table, so allocated it here!
         call setup_temp_det_list()
 
-        write(iout,*) "allocated(temp_det_list)?", allocated(temp_det_list)
-        write(iout,*) "associated(temp_det_pointer)?", associated(temp_det_pointer)
-        write(iout,*) "associated(temp_det_hash)?", associated(temp_det_hash)
+        write(iout, *) "allocated(temp_det_list)?", allocated(temp_det_list)
+        write(iout, *) "associated(temp_det_pointer)?", associated(temp_det_pointer)
+        write(iout, *) "associated(temp_det_hash)?", associated(temp_det_hash)
 
-        write(iout,*) "associated(spawn_ht)?", associated(spawn_ht)
+        write(iout, *) "associated(spawn_ht)?", associated(spawn_ht)
 
-        write(iout,*) "Allgrowrate: ", AllGrowRate
+        write(iout, *) "Allgrowrate: ", AllGrowRate
         ! print out the first infos on the calculation..
         ! although that definetly has to be changed for the real-time fciqm
 
@@ -213,7 +212,7 @@ contains
         tFCIMCStats2 = .true.
 
         if (tFCIMCStats2) then
-           call write_fcimcstats2(iter_data_fciqmc, initial = .true.)
+            call write_fcimcstats2(iter_data_fciqmc, initial=.true.)
         else
             call WriteFciMCStatsHeader()
         end if
@@ -249,9 +248,9 @@ contains
 
         ! also intitialize the 2nd spawning array to deal with the
         ! diagonal death step in the 2nd rt-fciqmc loop
-        allocate(DiagVec(0:nifbcast, MaxWalkersPart), stat = ierr)
-        call LogMemAlloc('DiagVec',MaxWalkersPart*(1+nifbcast),size_n_int,&
-             this_routine,DiagVecTag,ierr)
+        allocate(DiagVec(0:IlutBits%len_bcast, MaxWalkersPart), stat=ierr)
+        call LogMemAlloc('DiagVec', MaxWalkersPart * (1 + IlutBits%len_bcast), size_n_int, &
+                         this_routine, DiagVecTag, ierr)
 
         DiagVec = 0
 
@@ -264,22 +263,22 @@ contains
         valid_diag_spawns = 1
 
         do run = 1, inum_runs
-           SumWalkersCyc(run) = SumWalkersCyc(run) + &
-                sum(TotParts(min_part_type(run):max_part_type(run)))
-        enddo
+            SumWalkersCyc(run) = SumWalkersCyc(run) + &
+                                 sum(TotParts(min_part_type(run):max_part_type(run)))
+        end do
 
         tVerletSweep = .false.
-        if(tVerletScheme) then
-           call setup_delta_psi()
-           call backup_initial_state()
-           tau = tau/iterInit
-        endif
+        if (tVerletScheme) then
+            call setup_delta_psi()
+            call backup_initial_state()
+            tau = tau / iterInit
+        end if
 
-        if(tStaticShift) DiagSft = asymptoticShift
+        if (tStaticShift) DiagSft = asymptoticShift
 
-        if(tGenerateCoreSpace) call initialize_corespace_construction()
+        if (tGenerateCoreSpace) call initialize_corespace_construction()
 
-        if(tReadTrajectory) call read_in_trajectory()
+        if (tReadTrajectory) call read_in_trajectory()
 
         ! Set up the reference space for the adi-approach
         call setup_reference_space(tReadPops)
@@ -289,84 +288,84 @@ contains
     end subroutine setup_real_time_fciqmc
 
     subroutine rotate_time()
-      implicit none
-      ! to avoid code multiplication
-      if(t_rotated_time) then
-         tau_imag = - sin(real_time_info%time_angle)*tau
-         tau_real = cos(real_time_info%time_angle)*tau
-      else
-         tau_imag = 0.0_dp
-         tau_real = tau
-      endif
+        implicit none
+        ! to avoid code multiplication
+        if (t_rotated_time) then
+            tau_imag = -sin(real_time_info%time_angle) * tau
+            tau_real = cos(real_time_info%time_angle) * tau
+        else
+            tau_imag = 0.0_dp
+            tau_real = tau
+        end if
     end subroutine rotate_time
 
     subroutine init_overlap_buffers
-      use CalcData, only: tSemiStochastic, ss_space_in
-      use semi_stoch_gen, only: init_semi_stochastic
-      use real_time_procs, only: reset_tot_parts
-      implicit none
-      ! this subroutine sets up everything required to compute green's functions
-      integer :: ierr, j, i
-      complex(dp), allocatable :: norm_buf(:)
-      logical :: tStartedFromCoreGround
+        use CalcData, only: tSemiStochastic, ss_space_in
+        use semi_stoch_gen, only: init_semi_stochastic
+        use real_time_procs, only: reset_tot_parts
+        implicit none
+        ! this subroutine sets up everything required to compute green's functions
+        integer :: ierr, j, i
+        complex(dp), allocatable :: norm_buf(:)
+        logical :: tStartedFromCoreGround
 
-      normsize = inum_runs**2
-      allocate(overlap_real(gf_count),overlap_imag(gf_count))
-      allocate(gf_overlap(normsize,gf_count), stat = ierr)
-      allocate(pert_norm(normsize,gf_count),stat = ierr)
-      allocate(dyn_norm_psi(normsize),stat = ierr)
-      dyn_norm_psi = 1.0_dp
-      allocate(dyn_norm_red(normsize,gf_count), stat = ierr)
-      allocate(current_overlap(normsize,gf_count),stat = ierr)
-      dyn_norm_red = 1.0_dp
-      gf_overlap = 0.0_dp
+        normsize = inum_runs**2
+        allocate(overlap_real(gf_count), overlap_imag(gf_count))
+        allocate(gf_overlap(normsize, gf_count), stat=ierr)
+        allocate(pert_norm(normsize, gf_count), stat=ierr)
+        allocate(dyn_norm_psi(normsize), stat=ierr)
+        dyn_norm_psi = 1.0_dp
+        allocate(dyn_norm_red(normsize, gf_count), stat=ierr)
+        allocate(current_overlap(normsize, gf_count), stat=ierr)
+        dyn_norm_red = 1.0_dp
+        gf_overlap = 0.0_dp
 
-      ! also need to create the perturbed ground state to calculate the
-      ! overlaps to |y(t)>
-      call create_perturbed_ground()
+        ! also need to create the perturbed ground state to calculate the
+        ! overlaps to |y(t)>
+        call create_perturbed_ground()
 
-      if(tSemiStochastic) call init_semi_stochastic(ss_space_in, tStartedFromCoreGround)
+        if (tSemiStochastic) call init_semi_stochastic(ss_space_in, tStartedFromCoreGround)
 
-      ! If only the corespace time-evolution is to be taken, truncate the
-      ! initial wavefunction to the corespace
-      ! We currently do not truncate the overlap state too, but it might come
-      ! later
-      if(tGZero) then
-         call truncate_initial_state()
-         call truncate_overlap_states()
-         call reset_tot_parts()
-         TotWalkers = cs_replicas(core_run)%determ_sizes(iProcIndex)
-      end if
+        ! If only the corespace time-evolution is to be taken, truncate the
+        ! initial wavefunction to the corespace
+        ! We currently do not truncate the overlap state too, but it might come
+        ! later
+        if (tGZero) then
+            call truncate_initial_state()
+            call truncate_overlap_states()
+            call reset_tot_parts()
+            TotWalkers = cs_replicas(core_run)%determ_sizes(iProcIndex)
+        end if
 
-      ! if a ground-state POPSFILE is used, we need to ensure coherence between the replicas
-      if(.not. tRealTimePopsfile) call equalize_initial_phase()
+        ! if a ground-state POPSFILE is used, we need to ensure coherence between the replicas
+        if (.not. tRealTimePopsfile) call equalize_initial_phase()
 
-      allocate(norm_buf(normsize),stat=ierr)
-      ! to avoid dividing by 0 if not all entries get filled
-      pert_norm = 1.0_dp
-      norm_buf = calc_norm(CurrentDets,int(TotWalkers))
-      call MPIReduce(norm_buf,MPI_SUM,dyn_norm_psi)
-      do j = 1,gf_count
-         ! calc. the norm of the perturbed ground states
-         norm_buf = calc_norm(overlap_states(j)%dets,overlap_states(j)%nDets)
-         write(iout,*) "Number of walkers / in overlap state", TotWalkers, overlap_states(j)%nDets
-         ! the norm (squared) can be obtained by reduction over all processes
-         call MPIReduce(norm_buf,MPI_SUM,pert_norm(:,j))
-         ! for diagonal green's functions, this is the same as pert_norm, but
-         ! in general, this general normalization is required.
-         do i = 1, normsize
-            dyn_norm_red(i,j) = sqrt(pert_norm(i,j)*dyn_norm_psi(i))
-         end do
-      enddo
+        allocate(norm_buf(normsize), stat=ierr)
+        ! to avoid dividing by 0 if not all entries get filled
+        pert_norm = 1.0_dp
+        norm_buf = calc_norm(CurrentDets, int(TotWalkers))
+        call MPIReduce(norm_buf, MPI_SUM, dyn_norm_psi)
+        do j = 1, gf_count
+            ! calc. the norm of the perturbed ground states
+            norm_buf = calc_norm(overlap_states(j)%dets, overlap_states(j)%nDets)
+            write(iout, *) "Number of walkers / in overlap state", TotWalkers, overlap_states(j)%nDets
+            ! the norm (squared) can be obtained by reduction over all processes
+            call MPIReduce(norm_buf, MPI_SUM, pert_norm(:, j))
+            ! for diagonal green's functions, this is the same as pert_norm, but
+            ! in general, this general normalization is required.
+            do i = 1, normsize
+                dyn_norm_red(i, j) = sqrt(pert_norm(i, j) * dyn_norm_psi(i))
+            end do
+        end do
 
-      deallocate(norm_buf)
+        deallocate(norm_buf)
 
-      if(.not. allocated(shift_damping)) then
-         allocate(shift_damping(inum_runs), stat = ierr)
-         shift_damping = 0.0_dp
-      endif
+        if (.not. allocated(shift_damping)) then
+            allocate(shift_damping(inum_runs), stat=ierr)
+            shift_damping = 0.0_dp
+        end if
 
-      if(tLogTrajectory) call openTauContourFile()
+        if (tLogTrajectory) call openTauContourFile()
 
     end subroutine init_overlap_buffers
 
@@ -540,11 +539,11 @@ contains
         implicit none
 
         integer :: iunit, popsversion, iPopLenof_Sign, iPopNel, iPopIter, &
-                   PopNIfD, PopNIfY, PopNIfSgn, PopNIfFlag, PopNIfTot, &
+                   PopNIfD, PopNIfSgn, PopNIfFlag, PopNIfTot, &
                    PopBlockingIter, Popinum_runs, PopRandomHash(2056), &
                    read_nnodes, PopBalanceBlocks
         logical :: formpops, binpops, tPop64Bit, tPopHPHF, tPopLz
-        integer(int64) :: iPopAllTotWalkers, read_walkers_on_nodes(0:nProcessors-1)
+        integer(int64) :: iPopAllTotWalkers, read_walkers_on_nodes(0:nProcessors - 1)
         real(dp) :: PopDiagSft(inum_runs), read_tau, PopSumNoatHF(lenof_sign), &
                     read_psingles, read_pparallel
         HElement_t(dp) :: PopAllSumENum(inum_runs)
@@ -553,7 +552,7 @@ contains
 
         character(*), parameter :: this_routine = "read_popsfile_real_time"
 
-        call open_pops_head(iunit,formpops,binpops)
+        call open_pops_head(iunit, formpops, binpops)
 
         if (formpops) then
             ! this is the NON-binary read
@@ -561,41 +560,41 @@ contains
             if (popsversion /= 4) then
                 call stop_all(this_routine, "wrong POPSFILE version /= 4!")
             end if
-            call ReadPopsHeadv4(iunit,tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
-                iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter,   &
-                PopNIfD,PopNIfY,PopNIfSgn,Popinum_runs, PopNIfFlag,PopNIfTot, &
-                read_tau,PopBlockingIter, PopRandomHash, read_psingles, &
-                read_pparallel, unused_triples, read_nnodes, read_walkers_on_nodes, PopBalanceBlocks)
+            call ReadPopsHeadv4(iunit, tPop64Bit, tPopHPHF, tPopLz, iPopLenof_Sign, iPopNel, &
+                                iPopAllTotWalkers, PopDiagSft, PopSumNoatHF, PopAllSumENum, iPopIter, &
+                                PopNIfD, PopNIfSgn, Popinum_runs, PopNIfFlag, PopNIfTot, &
+                                read_tau, PopBlockingIter, PopRandomHash, read_psingles, &
+                                read_pparallel, unused_triples, read_nnodes, read_walkers_on_nodes, PopBalanceBlocks)
 
         else
             ! if popsfiles are stored in binary! there are seperate files for
             ! the header and the actual population stats
             if (iProcIndex == root) then
                 close(iunit)
-                call get_unique_filename('POPSFILEBIN', tIncrementPops,.false.,&
-                        iPopsFileNoRead,popsfile)
-                open(iunit, file = popsfile, status = 'old', form = 'unformatted')
+                call get_unique_filename('POPSFILEBIN', tIncrementPops, .false., &
+                                         iPopsFileNoRead, popsfile)
+                open(iunit, file=popsfile, status='old', form='unformatted')
             end if
         end if
 
     end subroutine read_popsfile_real_time
 
     subroutine readTimeEvolvedState()
-      use PopsfileMod, only : FindPopsfileVersion, ReadPopsHeadv4, InitFCIMC_pops, &
-           open_pops_head
-      use semi_stoch_gen, only: init_semi_stochastic
-      use semi_stoch_procs, only: end_semistoch
-      use real_time_procs, only: reset_core_space
-      use CalcData, only: ss_space_in
-      use FciMCData, only : TotImagTime
-      implicit none
+        use PopsfileMod, only: FindPopsfileVersion, ReadPopsHeadv4, InitFCIMC_pops, &
+                               open_pops_head
+        use semi_stoch_gen, only: init_semi_stochastic
+        use semi_stoch_procs, only: end_semistoch
+        use real_time_procs, only: reset_core_space
+        use CalcData, only: ss_space_in
+        use FciMCData, only: TotImagTime
+        implicit none
 
         integer :: iunit, popsversion, iPopLenof_Sign, iPopNel, iPopIter, &
-                   PopNIfD, PopNIfY, PopNIfSgn, PopNIfFlag, PopNIfTot, &
+                   PopNIfD, PopNIfSgn, PopNIfFlag, PopNIfTot, &
                    PopBlockingIter, Popinum_runs, PopRandomHash(2056), &
                    read_nnodes, PopBalanceBlocks
         logical :: formpops, binpops, tPop64Bit, tPopHPHF, tPopLz
-        integer(int64) :: iPopAllTotWalkers, read_walkers_on_nodes(0:nProcessors-1)
+        integer(int64) :: iPopAllTotWalkers, read_walkers_on_nodes(0:nProcessors - 1)
         real(dp) :: PopDiagSft(inum_runs), read_tau, PopSumNoatHF(lenof_sign), &
                     read_psingles, read_pparallel
         HElement_t(dp) :: PopAllSumENum(inum_runs)
@@ -605,12 +604,12 @@ contains
         character(*), parameter :: this_routine = "readTimeEvolvedState"
         real(dp) :: unused_triples
 
-        if(tSemiStochastic) then
-           ! if semi-stochastic mode is enabled, it has to be disabled for read-in again
-           ! as load balancing has to be performed
-           call end_semistoch()
-           call reset_core_space()
-        endif
+        if (tSemiStochastic) then
+            ! if semi-stochastic mode is enabled, it has to be disabled for read-in again
+            ! as load balancing has to be performed
+            call end_semistoch()
+            call reset_core_space()
+        end if
 
         binpops = .false.
 
@@ -620,349 +619,347 @@ contains
         call open_pops_head(iunit, formpops, binpops, rtPOPSFILE_name)
 
         popsversion = FindPopsfileVersion(iunit)
-        if(popsversion /= 4) call stop_all(this_routine, "wrong popsfile version of TIME_EVOLVED_POP")
+        if (popsversion /= 4) call stop_all(this_routine, "wrong popsfile version of TIME_EVOLVED_POP")
 
-        call ReadPopsHeadv4(iunit,tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
-             iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter,   &
-             PopNIfD,PopNIfY,PopNIfSgn,Popinum_runs, PopNIfFlag,PopNIfTot, &
-             read_tau,PopBlockingIter, PopRandomHash, read_psingles, &
-             read_pparallel, unused_triples, read_nnodes, read_walkers_on_nodes, PopBalanceBlocks)
+        call ReadPopsHeadv4(iunit, tPop64Bit, tPopHPHF, tPopLz, iPopLenof_Sign, iPopNel, &
+                            iPopAllTotWalkers, PopDiagSft, PopSumNoatHF, PopAllSumENum, iPopIter, &
+                            PopNIfD, PopNIfSgn, Popinum_runs, PopNIfFlag, PopNIfTot, &
+                            read_tau, PopBlockingIter, PopRandomHash, read_psingles, &
+                            read_pparallel, unused_triples, read_nnodes, read_walkers_on_nodes, PopBalanceBlocks)
 
         ! at this point, we do not want to perturb the state and have no use for the
         ! pops_pert variable anymore -> deallocate it
 
         ! read in the hacked shift_damping
-        if(.not. allocated(shift_damping)) allocate(shift_damping(inum_runs),stat=ierr)
+        if (.not. allocated(shift_damping)) allocate(shift_damping(inum_runs), stat=ierr)
         shift_damping = PopSumNoatHF(1:inum_runs)
 
         call clear_pops_pert(pops_pert)
 
         ! read in the time evolved state and use it as initial state
         call InitFCIMC_pops(iPopAllTotWalkers, PopNIfSgn, iPopNel, read_nnodes, &
-             read_walkers_on_nodes, pops_pert, &
-             PopBalanceBLocks, PopDiagSft, rtPOPSFILE_name)
+                            read_walkers_on_nodes, pops_pert, &
+                            PopBalanceBLocks, PopDiagSft, rtPOPSFILE_name)
 
-        call set_initial_times(read_tau, TotImagTime,PopDiagSft(1))
+        call set_initial_times(read_tau, TotImagTime, PopDiagSft(1))
 
         ! if we disabled semi-stochastic mode temporarily, reenable it now
-        if(tSemiStochastic) call init_semi_stochastic(ss_space_in, tStartedFromCoreGround)
+        if (tSemiStochastic) call init_semi_stochastic(ss_space_in, tStartedFromCoreGround)
 
     end subroutine readTimeEvolvedState
 
     subroutine set_initial_times(real_time, imag_time, alpha)
-      implicit none
-      real(dp), intent(in) :: real_time, imag_time, alpha
+        implicit none
+        real(dp), intent(in) :: real_time, imag_time, alpha
 
-      ! with the inclusion of dynamic alpha, both, the real and the imaginary part
-      ! have to be stored in the time-evolved popsfile
-      ! the
-      elapsedImagTime = imag_time
-      elapsedRealTime = real_time
-      ! also, the previous value of alpha is to be loaded
-      real_time_info%time_angle = alpha
+        ! with the inclusion of dynamic alpha, both, the real and the imaginary part
+        ! have to be stored in the time-evolved popsfile
+        ! the
+        elapsedImagTime = imag_time
+        elapsedRealTime = real_time
+        ! also, the previous value of alpha is to be loaded
+        real_time_info%time_angle = alpha
     end subroutine set_initial_times
 
     subroutine equalize_initial_phase()
-      use FciMCData, only: AllSumNoatHF
-      use bit_rep_data, only: extract_sign
-      use bit_reps, only: encode_sign
-      implicit none
+        use FciMCData, only: AllSumNoatHF
+        use bit_rep_data, only: extract_sign
+        use bit_reps, only: encode_sign
+        implicit none
 
-      integer :: signs(lenof_sign), iGf
-      integer(int64) :: i
-      real(dp) :: tmp_sgn(lenof_sign)
+        integer :: signs(lenof_sign), iGf
+        integer(int64) :: i
+        real(dp) :: tmp_sgn(lenof_sign)
 
-      signs = 1
-      if(AllSumNoatHF(1) > 0) then
-      do i = 1, lenof_sign
-         if(AllSumNoatHF(i)/AllSumNoatHF(1) < 0) then
-            signs(i) = -1
-         else
-            signs(i) = 1
-         endif
-      enddo
-      endif
-      if(any(signs<0)) then
-         do i = 1, TotWalkers
-            call extract_sign(CurrentDets(:,i),tmp_sgn)
-            tmp_sgn = tmp_sgn * signs
-            call encode_sign(CurrentDets(:,i),tmp_sgn)
-         end do
-         do iGf = 1, gf_count
-            do i = 1, overlap_states(iGf)%nDets
-               call extract_sign(overlap_states(iGf)%dets(:,i),tmp_sgn)
-               tmp_sgn = tmp_sgn * signs
-               call encode_sign(overlap_states(iGf)%dets(:,i),tmp_sgn)
+        signs = 1
+        if (AllSumNoatHF(1) > 0) then
+        do i = 1, lenof_sign
+            if (AllSumNoatHF(i) / AllSumNoatHF(1) < 0) then
+                signs(i) = -1
+            else
+                signs(i) = 1
+            end if
+        end do
+        end if
+        if (any(signs < 0)) then
+            do i = 1, TotWalkers
+                call extract_sign(CurrentDets(:, i), tmp_sgn)
+                tmp_sgn = tmp_sgn * signs
+                call encode_sign(CurrentDets(:, i), tmp_sgn)
             end do
-         end do
-      endif
+            do iGf = 1, gf_count
+                do i = 1, overlap_states(iGf)%nDets
+                    call extract_sign(overlap_states(iGf)%dets(:, i), tmp_sgn)
+                    tmp_sgn = tmp_sgn * signs
+                    call encode_sign(overlap_states(iGf)%dets(:, i), tmp_sgn)
+                end do
+            end do
+        end if
 
     end subroutine equalize_initial_phase
 
-
     ! here, we convert the real-space annihilation/creation operators to momentum space
     subroutine setup_momentum_operators()
-      use SystemData, only: G1
-      implicit none
+        use SystemData, only: G1
+        implicit none
 
-      integer :: k(3),state, momentum_state,spin, i, j
+        integer :: k(3), state, momentum_state, spin, i, j
 
-      if(gf_type == -1) then
-         momentum_state = pops_pert(1)%ann_orbs(1)
-      else if(gf_type == 1) then
-         momentum_state = pops_pert(1)%crtn_orbs(1)
-      else
-         call stop_all("Equalize initial phase","Invalid momentum space green's function")
-      endif
-      allocate(phase_factors(nBasis/2))
-      k = G1(momentum_state)%k
-      spin = G1(momentum_state)%ms
-      call clear_pops_pert(pops_pert)
-      call clear_pops_pert(overlap_pert)
-      allocate(pops_pert(nBasis/2))
-      allocate(overlap_pert(nBasis/2))
-      i = 0
-      do state = 1, nBasis
-         if(G1(state)%ms /= spin) cycle
-         i = i + 1
-         phase_factors(i) = 0
-         do j = 1,3
-            phase_factors(i) = phase_factors(i) + G1(state)%k(j) * k(j)
-         end do
-         call setup_single_perturbation(i,state,gf_type)
-      end do
+        if (gf_type == -1) then
+            momentum_state = pops_pert(1)%ann_orbs(1)
+        else if (gf_type == 1) then
+            momentum_state = pops_pert(1)%crtn_orbs(1)
+        else
+            call stop_all("Equalize initial phase", "Invalid momentum space green's function")
+        end if
+        allocate(phase_factors(nBasis / 2))
+        k = G1(momentum_state)%k
+        spin = G1(momentum_state)%ms
+        call clear_pops_pert(pops_pert)
+        call clear_pops_pert(overlap_pert)
+        allocate(pops_pert(nBasis / 2))
+        allocate(overlap_pert(nBasis / 2))
+        i = 0
+        do state = 1, nBasis
+            if (G1(state)%ms /= spin) cycle
+            i = i + 1
+            phase_factors(i) = 0
+            do j = 1, 3
+                phase_factors(i) = phase_factors(i) + G1(state)%k(j) * k(j)
+            end do
+            call setup_single_perturbation(i, state, gf_type)
+        end do
     end subroutine setup_momentum_operators
 
-    subroutine setup_single_perturbation(pos,orbital,type)
-      implicit none
+    subroutine setup_single_perturbation(pos, orbital, type)
+        implicit none
 
-      integer, intent(in) :: pos, orbital, type
+        integer, intent(in) :: pos, orbital, type
 
-      if(type == 1) then
-         allocate(pops_pert(pos)%crtn_orbs(1))
-         allocate(overlap_pert(pos)%crtn_orbs(1))
-         overlap_pert(pos)%ncreate = 1
-         pops_pert(pos)%ncreate = 1
-         pops_pert(pos)%crtn_orbs(1) = orbital
-         overlap_pert(pos)%crtn_orbs(1) = orbital
-         call init_perturbation_creation(overlap_pert(pos))
-         call init_perturbation_creation(pops_pert(pos))
-      else
-         allocate(pops_pert(pos)%ann_orbs(1))
-         allocate(overlap_pert(pos)%ann_orbs(1))
-         overlap_pert(pos)%nannihilate = 1
-         pops_pert(pos)%nannihilate = 1
-         pops_pert(pos)%ann_orbs(1) = orbital
-         overlap_pert(pos)%ann_orbs(1) = orbital
-         call init_perturbation_annihilation(overlap_pert(pos))
-         call init_perturbation_annihilation(pops_pert(pos))
-      end if
+        if (type == 1) then
+            allocate(pops_pert(pos)%crtn_orbs(1))
+            allocate(overlap_pert(pos)%crtn_orbs(1))
+            overlap_pert(pos)%ncreate = 1
+            pops_pert(pos)%ncreate = 1
+            pops_pert(pos)%crtn_orbs(1) = orbital
+            overlap_pert(pos)%crtn_orbs(1) = orbital
+            call init_perturbation_creation(overlap_pert(pos))
+            call init_perturbation_creation(pops_pert(pos))
+        else
+            allocate(pops_pert(pos)%ann_orbs(1))
+            allocate(overlap_pert(pos)%ann_orbs(1))
+            overlap_pert(pos)%nannihilate = 1
+            pops_pert(pos)%nannihilate = 1
+            pops_pert(pos)%ann_orbs(1) = orbital
+            overlap_pert(pos)%ann_orbs(1) = orbital
+            call init_perturbation_annihilation(overlap_pert(pos))
+            call init_perturbation_annihilation(pops_pert(pos))
+        end if
     end subroutine setup_single_perturbation
 
 !------------------------------------------------------------------------------------------!
 
     subroutine dealloc_real_time_memory
-      use replica_data, only: clean_iter_data
-      implicit none
+        use replica_data, only: clean_iter_data
+        implicit none
 
-      integer :: ierr
-      character(*), parameter :: this_routine = "dealloc_real_time_memory"
+        integer :: ierr
+        character(*), parameter :: this_routine = "dealloc_real_time_memory"
 
-      if(numSnapshotOrbs>0) deallocate(snapShotOrbs,stat=ierr)
-      if(allocated(numCycShiftExcess)) deallocate(numCycShiftExcess, stat=ierr)
-      deallocate(DiagVec,stat=ierr)
-      call LogMemDealloc(this_routine, DiagVecTag)
-      call clean_iter_data(second_spawn_iter_data)
-      deallocate(shift_damping, stat=ierr)
-      deallocate(temp_freeslot, stat=ierr)
-      deallocate(current_overlap,stat=ierr)
-      deallocate(gs_energy,stat=ierr)
-      deallocate(dyn_norm_red,stat=ierr)
-      deallocate(dyn_norm_psi,stat=ierr)
-      deallocate(pert_norm,stat=ierr)
-      deallocate(gf_overlap,stat=ierr)
-      deallocate(TotPartsPeak,stat=ierr)
-      deallocate(temp_det_list,stat=ierr)
-      call clean_overlap_states()
-      call clear_pops_pert(pops_pert)
-      call clear_pops_pert(overlap_pert)
+        if (numSnapshotOrbs > 0) deallocate(snapShotOrbs, stat=ierr)
+        if (allocated(numCycShiftExcess)) deallocate(numCycShiftExcess, stat=ierr)
+        deallocate(DiagVec, stat=ierr)
+        call LogMemDealloc(this_routine, DiagVecTag)
+        call clean_iter_data(second_spawn_iter_data)
+        deallocate(shift_damping, stat=ierr)
+        deallocate(temp_freeslot, stat=ierr)
+        deallocate(current_overlap, stat=ierr)
+        deallocate(gs_energy, stat=ierr)
+        deallocate(dyn_norm_red, stat=ierr)
+        deallocate(dyn_norm_psi, stat=ierr)
+        deallocate(pert_norm, stat=ierr)
+        deallocate(gf_overlap, stat=ierr)
+        deallocate(TotPartsPeak, stat=ierr)
+        deallocate(temp_det_list, stat=ierr)
+        call clean_overlap_states()
+        call clear_pops_pert(pops_pert)
+        call clear_pops_pert(overlap_pert)
 
-      if(allocated(tauCache)) deallocate(tauCache)
+        if (allocated(tauCache)) deallocate(tauCache)
 
     end subroutine dealloc_real_time_memory
 
 !------------------------------------------------------------------------------------------!
 
     subroutine clear_pops_pert(perturbs)
-      use FciMCData, only : perturbation
-      implicit none
+        use FciMCData, only: perturbation
+        implicit none
 
-      type(perturbation), intent(inout), allocatable :: perturbs(:)
-      integer :: j
+        type(perturbation), intent(inout), allocatable :: perturbs(:)
+        integer :: j
 
-      if(allocated(perturbs)) then
-         do j = 1, gf_count
-            if(allocated(perturbs(j)%crtn_orbs)) deallocate(perturbs(j)%crtn_orbs)
-            if(allocated(perturbs(j)%ann_orbs)) deallocate(perturbs(j)%ann_orbs)
-            deallocate(perturbs)
-         end do
-      endif
+        if (allocated(perturbs)) then
+            do j = 1, gf_count
+                if (allocated(perturbs(j)%crtn_orbs)) deallocate(perturbs(j)%crtn_orbs)
+                if (allocated(perturbs(j)%ann_orbs)) deallocate(perturbs(j)%ann_orbs)
+                deallocate(perturbs)
+            end do
+        end if
     end subroutine clear_pops_pert
 
 !------------------------------------------------------------------------------------------!
 
     subroutine read_from_contour_file(iunit)
-      use CalcData, only: nmcyc
-      use real_time_data, only: tauCache, alphaCache
-      implicit none
-      integer, intent(in) :: iunit
-      integer :: i
+        use CalcData, only: nmcyc
+        use real_time_data, only: tauCache, alphaCache
+        implicit none
+        integer, intent(in) :: iunit
+        integer :: i
 
-      ! Then, the cache for the values of alpha and tau is allocated
-      if(allocated(tauCache)) deallocate(tauCache)
-      if(allocated(alphaCache)) deallocate(alphaCache)
-      allocate(tauCache(nmcyc))
-      allocate(alphaCache(nmcyc))
+        ! Then, the cache for the values of alpha and tau is allocated
+        if (allocated(tauCache)) deallocate(tauCache)
+        if (allocated(alphaCache)) deallocate(alphaCache)
+        allocate(tauCache(nmcyc))
+        allocate(alphaCache(nmcyc))
 
-      ! And then the values for alpha/tau
-      open(iunit,file=trajFile,status='old')
-      ! Here, we read in the timesteps and alphas that shall be used
-      do i = 1,nmcyc
-         read(iunit,*) tauCache(i), alphaCache(i)
-      enddo
-      close(iunit)
+        ! And then the values for alpha/tau
+        open(iunit, file=trajFile, status='old')
+        ! Here, we read in the timesteps and alphas that shall be used
+        do i = 1, nmcyc
+            read(iunit, *) tauCache(i), alphaCache(i)
+        end do
+        close(iunit)
     end subroutine read_from_contour_file
 
 !------------------------------------------------------------------------------------------!
 
     subroutine read_in_trajectory
-      use CalcData, only: nmcyc
-      use real_time_data, only: tauCache, alphaCache
-      implicit none
-      integer :: i, iunit, eof
-      real(dp) :: x,y
-      logical :: checkTraj
-      character(*), parameter :: this_routine = "read_in_trajectory"
+        use CalcData, only: nmcyc
+        use real_time_data, only: tauCache, alphaCache
+        implicit none
+        integer :: i, iunit, eof
+        real(dp) :: x, y
+        logical :: checkTraj
+        character(*), parameter :: this_routine = "read_in_trajectory"
 
-      call get_unique_filename('tauContour',.false.,.false.,0,trajFile)
-      iunit = get_free_unit()
-      inquire(file=trajFile,exist=checkTraj)
-      if(.not. checkTraj) call stop_all(this_routine,"No tauContour file detected.")
+        call get_unique_filename('tauContour', .false., .false., 0, trajFile)
+        iunit = get_free_unit()
+        inquire (file=trajFile, exist=checkTraj)
+        if (.not. checkTraj) call stop_all(this_routine, "No tauContour file detected.")
 
+        ! We first need to read in the number of cycles
+        open(iunit, file=trajFile, status='old')
+        nmcyc = 0
+        ! check the number of lines
+        do
+            read(iunit, *, iostat=eof) x, y
+            if (eof /= 0) exit
+            nmcyc = nmcyc + 1
+        end do
+        close(iunit)
 
-      ! We first need to read in the number of cycles
-      open(iunit,file=trajFile,status='old')
-      nmcyc = 0
-      ! check the number of lines
-      do
-         read(iunit,*,iostat=eof) x,y
-         if(eof .ne. 0) exit
-         nmcyc = nmcyc + 1
-      end do
-      close(iunit)
-
-      call read_from_contour_file(iunit)
+        call read_from_contour_file(iunit)
 
     end subroutine read_in_trajectory
 
 !------------------------------------------------------------------------------------------!
 
     subroutine truncate_initial_state
-      use semi_stoch_procs, only: check_determ_flag
-      use hash, only: hash_table_lookup, remove_hash_table_entry
-      use FciMCData, only: HashIndex
-      use bit_reps, only: nullify_ilut, decode_bit_det
-      implicit none
-      integer :: nI(nel), DetHash, PartInd
-      integer(int64) :: i
-      logical :: tSuccess
+        use semi_stoch_procs, only: check_determ_flag
+        use hash, only: hash_table_lookup, remove_hash_table_entry
+        use FciMCData, only: HashIndex
+        use bit_reps, only: nullify_ilut, decode_bit_det
+        implicit none
+        integer :: nI(nel), DetHash, PartInd
+        integer(int64) :: i
+        logical :: tSuccess
 
-      do i = 1, TotWalkers
-         if(.not. check_determ_flag(CurrentDets(:,i))) then
-            call nullify_ilut(CurrentDets(:,i))
-            call decode_bit_det(nI,CurrentDets(:,i))
-            call hash_table_lookup(nI,CurrentDets(:,i),nifdbo,HashIndex,CurrentDets,&
-                 PartInd,DetHash,tSuccess)
-            if(tSuccess) call remove_hash_table_entry(HashIndex,nI,PartInd)
-         endif
-      enddo
+        do i = 1, TotWalkers
+            if (.not. check_determ_flag(CurrentDets(:, i))) then
+                call nullify_ilut(CurrentDets(:, i))
+                call decode_bit_det(nI, CurrentDets(:, i))
+                call hash_table_lookup(nI, CurrentDets(:, i), nifd, HashIndex, CurrentDets, &
+                                       PartInd, DetHash, tSuccess)
+                if (tSuccess) call remove_hash_table_entry(HashIndex, nI, PartInd)
+            end if
+        end do
     end subroutine truncate_initial_state
 
 !------------------------------------------------------------------------------------------!
 
     subroutine truncate_overlap_states
-      use semi_stoch_procs, only: check_determ_flag
-      use FciMCData, only: HashIndex
-      use bit_reps, only: nullify_ilut
-      use hash, only: hash_table_lookup
-      implicit none
-      integer :: i, iGf, nI(nel), DetHash, PartInd
-      logical :: tSuccess
+        use semi_stoch_procs, only: check_determ_flag
+        use FciMCData, only: HashIndex
+        use bit_reps, only: nullify_ilut
+        use hash, only: hash_table_lookup
+        implicit none
+        integer :: i, iGf, nI(nel), DetHash, PartInd
+        logical :: tSuccess
 
-      do iGf = 1, gf_count
-         ! For each gf, truncate the corresponding overlap state
-         do i = 1, overlap_states(iGf)%ndets
-            call decode_bit_det(nI,overlap_states(iGf)%dets(:,i))
-            call hash_table_lookup(nI,overlap_states(iGf)%dets(:,i),nifdbo,HashIndex,&
-                 CurrentDets,PartInd,DetHash,tSuccess)
-            if(tSuccess) then
-               ! In principle, there are no non-core determinants left when this
-               ! is called, but we do not want to depend on the order in which the
-               ! truncation is carried out
-               if(.not. check_determ_flag(CurrentDets(:,PartInd))) call nullify_ilut(&
-                    overlap_states(iGf)%dets(:,i))
-            else
-               call nullify_ilut(overlap_states(iGf)%dets(:,i))
-            endif
-         enddo
-      enddo
+        do iGf = 1, gf_count
+            ! For each gf, truncate the corresponding overlap state
+            do i = 1, overlap_states(iGf)%ndets
+                call decode_bit_det(nI, overlap_states(iGf)%dets(:, i))
+                call hash_table_lookup(nI, overlap_states(iGf)%dets(:, i), nifd, HashIndex, &
+                                       CurrentDets, PartInd, DetHash, tSuccess)
+                if (tSuccess) then
+                    ! In principle, there are no non-core determinants left when this
+                    ! is called, but we do not want to depend on the order in which the
+                    ! truncation is carried out
+                    if (.not. check_determ_flag(CurrentDets(:, PartInd))) call nullify_ilut( &
+                        overlap_states(iGf)%dets(:, i))
+                else
+                    call nullify_ilut(overlap_states(iGf)%dets(:, i))
+                end if
+            end do
+        end do
     end subroutine truncate_overlap_states
 
 !------------------------------------------------------------------------------------------!
 
     subroutine set_deterministic_flag(i)
-      use FciMCData, only: HashIndex, core_run
-      use bit_rep_data, only: flag_deterministic
-      use hash, only: hash_table_lookup
-      use bit_reps, only: set_flag
-      use core_space_util, only: cs_replicas
-      implicit none
-      integer, intent(in) :: i
-      integer ::  nI(nel), DetHash, PartInd
-      logical :: tSuccess
-      character(*), parameter :: this_routine = "set_deterministic_flag"
+        use FciMCData, only: HashIndex, core_run
+        use bit_rep_data, only: flag_deterministic
+        use hash, only: hash_table_lookup
+        use bit_reps, only: set_flag
+        use core_space_util, only: cs_replicas
+        implicit none
+        integer, intent(in) :: i
+        integer ::  nI(nel), DetHash, PartInd
+        logical :: tSuccess
+        character(*), parameter :: this_routine = "set_deterministic_flag"
 
-      ! For each core-state, we check if it is in the CurrentDets (which should
-      ! always be the case in the initialization
-      associate( rep => cs_replicas(core_run))
-      call decode_bit_det(nI,rep%core_space(:,i))
-      call hash_table_lookup(nI,rep%core_space(:,i),nifdbo,HashIndex,CurrentDets,PartInd,&
-           DetHash, tSuccess)
-      if(tSuccess) then
-         ! And then we set the deterministic flag
-         call set_flag(CurrentDets(:,PartInd),flag_deterministic(core_run))
-      else
-         call stop_all(this_routine,"Deterministic state not present in CurrentDets")
-     endif
-   end associate
+        ! For each core-state, we check if it is in the CurrentDets (which should
+        ! always be the case in the initialization
+        associate(rep => cs_replicas(core_run))
+            call decode_bit_det(nI, rep%core_space(:, i))
+            call hash_table_lookup(nI, rep%core_space(:, i), nifd, HashIndex, CurrentDets, PartInd, &
+                                   DetHash, tSuccess)
+            if (tSuccess) then
+                ! And then we set the deterministic flag
+                call set_flag(CurrentDets(:, PartInd), flag_deterministic(core_run))
+            else
+                call stop_all(this_routine, "Deterministic state not present in CurrentDets")
+            end if
+        end associate
     end subroutine set_deterministic_flag
 
 !------------------------------------------------------------------------------------------!
 
     subroutine initialize_corespace_construction
-      use hash, only: init_hash_table
-      use FciMCData, only: nWalkerHashes, MaxWalkersPart
-      use real_time_data, only: ssht, core_space_buf, csbuf_size
-      implicit none
-      integer :: ierr
+        use hash, only: init_hash_table
+        use FciMCData, only: nWalkerHashes, MaxWalkersPart
+        use real_time_data, only: ssht, core_space_buf, csbuf_size
+        implicit none
+        integer :: ierr
 
-      ! allocate the buffer for the corespace
-      allocate(core_space_buf(0:niftot,MaxWalkersPart),stat = ierr)
-      ! set the position to 0
-      csbuf_size = 0
-      ! setup the buffer hashtable
-      allocate(ssht(nWalkerHashes),stat = ierr)
-      call init_hash_table(ssht)
+        ! allocate the buffer for the corespace
+        allocate(core_space_buf(0:niftot, MaxWalkersPart), stat=ierr)
+        ! set the position to 0
+        csbuf_size = 0
+        ! setup the buffer hashtable
+        allocate(ssht(nWalkerHashes), stat=ierr)
+        call init_hash_table(ssht)
 
     end subroutine initialize_corespace_construction
 

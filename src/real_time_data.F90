@@ -18,9 +18,9 @@ module real_time_data
     ! rotated_time_setup: flag to indicate whether pure real time is
     ! used or not
     logical :: t_real_time_fciqmc, t_new_stats_file, t_rotated_time, tStaticShift, &
-         tDynamicCoreSpace, tRealTimePopsfile, tStabilizerShift, tLimitShift, &
-         tDynamicAlpha, tDynamicDamping, tInfInit, tStartVariation, tOverpopulate, &
-         tNewOverlap, tOnlyPositiveShift, tHFOverlap
+               tDynamicCoreSpace, tRealTimePopsfile, tStabilizerShift, tLimitShift, &
+               tDynamicAlpha, tDynamicDamping, tInfInit, tStartVariation, tOverpopulate, &
+               tNewOverlap, tOnlyPositiveShift, tHFOverlap
 
     logical :: tLowerThreshold
     ! also use a second iter_data type to keep track of the 2 distinct
@@ -58,14 +58,14 @@ module real_time_data
     real(dp), allocatable :: overlap_real(:), overlap_imag(:)
     ! and dynamic reduced norm, used only when rescaling the wave function
     ! i.e. outdated feature
-    complex(dp), allocatable :: dyn_norm_red(:,:)
+    complex(dp), allocatable :: dyn_norm_red(:, :)
     ! norms are complex because they are taken between different replicas
     ! -> not necesserily entirely real
     ! need a global variable for the overlap <y(0)|y(t)>
     ! determined by the max. cycle
 !     real(dp), allocatable :: gf_overlap(:)
     ! for tests now only make it of length 1
-    complex(dp), allocatable :: gf_overlap(:,:)
+    complex(dp), allocatable :: gf_overlap(:, :)
     ! also store the norm of the time-evolved wavefunction
     complex(dp), allocatable :: dyn_norm_psi(:)
     ! the ground state energy of the N-particle problem which is added as a global shift
@@ -80,33 +80,33 @@ module real_time_data
 
     ! also store the current overlap of the cycle..
 
-    complex(dp), allocatable :: current_overlap(:,:)
+    complex(dp), allocatable :: current_overlap(:, :)
 
     ! flag to indicate usage of verlet scheme
     logical :: tVerletScheme, tVerletSweep
 
     ! buffers for the verlet scheme
-    integer(n_int), allocatable :: spawnBuf(:,:)
+    integer(n_int), allocatable :: spawnBuf(:, :)
     integer :: spawnBufSize
 
     ! initialization variables for the verlet scheme
     integer :: iterInit
 
     ! cache for delta psi
-    integer(n_int), pointer :: dpsi_cache(:,:)
+    integer(n_int), pointer :: dpsi_cache(:, :)
     integer :: dpsi_size, max_cache_size, backup_size
 
     ! also store the norm of the perturbed ground state to adjust the overlap
-    complex(dp), allocatable :: pert_norm(:,:)
+    complex(dp), allocatable :: pert_norm(:, :)
 
     ! need additional info of the original walker number and the number of
     ! walkers remaining in the perturbed ground state
     integer(int64) :: TotWalkers_orig
 
     type perturbed_state
-       ! type for a state that is used as a reference state for the overlap
-       integer :: nDets
-       integer(n_int), allocatable :: dets(:,:)
+        ! type for a state that is used as a reference state for the overlap
+        integer :: nDets
+        integer(n_int), allocatable :: dets(:, :)
     end type perturbed_state
 
     type(perturbed_state), allocatable :: overlap_states(:)
@@ -141,8 +141,8 @@ module real_time_data
     ! need a 2nd list to combine y(n) + k1/2 in the 2nd order RK method
     ! from this list the spawns k2 are created, which can be stored in a
     ! reinitialized spawnvec arrays
-    integer(n_int), allocatable, target :: temp_det_list(:,:)
-    integer(n_int), pointer :: temp_det_pointer(:,:)
+    integer(n_int), allocatable, target :: temp_det_list(:, :)
+    integer(n_int), pointer :: temp_det_pointer(:, :)
 
     ! also use hash table to access those lists
     type(ll_node), pointer :: temp_det_hash(:)
@@ -157,10 +157,10 @@ module real_time_data
     ! also start to store the diagonal "spawns" in the second rt-fciqmc loop
     ! in a seperate Spawned Parts array, to better keep track of stats and
     ! do seperate different distinct processes
-    integer(n_int), pointer :: DiagParts(:,:)
+    integer(n_int), pointer :: DiagParts(:, :)
 
     ! also need the associated actual arrays to point to
-    integer(n_int), allocatable, target :: DiagVec(:,:)
+    integer(n_int), allocatable, target :: DiagVec(:, :)
 
     ! i dont think i need a hash table to go with that..
     ! but i need this valid_spawned list thingy..
@@ -192,7 +192,7 @@ module real_time_data
 
     ! For corespace construction
     real(dp) :: wn_threshold
-    integer(n_int), pointer :: core_space_buf(:,:)
+    integer(n_int), pointer :: core_space_buf(:, :)
     integer :: csbuf_size, corespace_log_interval
     type(ll_node), pointer :: ssht(:)
 

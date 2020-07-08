@@ -41,10 +41,10 @@ module back_spawn
     ! increase the chance to hit already occupied determinants
 
     ! i could use a mask in the ilut format..
-    integer(n_int), allocatable :: mask_virt_ilut(:,:)
+    integer(n_int), allocatable :: mask_virt_ilut(:, :)
 
     ! or i could use a list of orbitals in the nI format
-    integer, allocatable :: mask_virt_ni(:,:)
+    integer, allocatable :: mask_virt_ni(:, :)
 
     ! and i guess it could also be wise to do it in a spatial resolved way.
     integer, allocatable :: mask_virt_spat(:)
@@ -77,25 +77,25 @@ contains
         ! first it only makes sense if we actually use the initiator method
         if (.not. tTruncInitiator) then
             call stop_all(this_routine, &
-                "back spawning makes only sense in the initiator method!")
+                          "back spawning makes only sense in the initiator method!")
         end if
 
         if (.not. tGen_4ind_2) then
             if (.not. (tHub .or. tUEG)) then
                 call stop_all(this_routine, &
-                    "for molecular systems this back-spawning need 4ind-weighted-2 or above!")
+                              "for molecular systems this back-spawning need 4ind-weighted-2 or above!")
             end if
         end if
 
         if (tGen_4ind_2_symmetric) then
             call stop_all(this_routine, &
-                "back-spawning not compatible with symmetric excitation generator!")
+                          "back-spawning not compatible with symmetric excitation generator!")
         end if
 
         if (tUEG .and. t_back_spawn) then
             if (.not. tUEGNewGenerator) then
                 call stop_all(this_routine, &
-                    "the old UEG excitation generator only works with back-spawn-flex")
+                              "the old UEG excitation generator only works with back-spawn-flex")
             end if
         end if
 
@@ -125,15 +125,15 @@ contains
         ! and assure that this routine is called after the first HFDET is
         ! already assigned
         ASSERT(allocated(projedet))
-        if (.not.allocated(projedet)) then
+        if (.not. allocated(projedet)) then
             call stop_all(this_routine, &
-                "init_back_spawn() called to early; run reference not yet setup!")
+                          "init_back_spawn() called to early; run reference not yet setup!")
         end if
 
         ASSERT(allocated(ilutref))
         if (.not. allocated(ilutref)) then
             call stop_all(this_routine, &
-                "init_back_spawn() called to early; run reference not yet setup!")
+                          "init_back_spawn() called to early; run reference not yet setup!")
         end if
 
         ! first use the most simple implementation of an nI style
@@ -150,7 +150,7 @@ contains
         ! ok now for more efficiency i also want to have an ilut version of
         ! mask_virt_ni!
         if (allocated(mask_virt_ilut)) deallocate(mask_virt_ilut)
-        allocate(mask_virt_ilut(0:niftot,inum_runs))
+        allocate(mask_virt_ilut(0:niftot, inum_runs))
 
         mask_virt_ilut = 0_n_int
         mask_virt_ni = 0
@@ -159,26 +159,26 @@ contains
             j = 1
             do i = 1, nbasis
                 ! if (i) is in the reference cycle
-                if (is_in_ref(i,k)) cycle
+                if (is_in_ref(i, k)) cycle
 !                 if (any(i == projedet(:,k))) cycle
                 ! otherwise fill up the virtual mask
-                mask_virt_ni(j,k) = i
+                mask_virt_ni(j, k) = i
                 j = j + 1
             end do
-            if (any(mask_virt_ni(:,k) == 0)) then
+            if (any(mask_virt_ni(:, k) == 0)) then
                 call stop_all(this_routine, &
-                    "something went wrong in the mask_virt_ni setup")
+                              "something went wrong in the mask_virt_ni setup")
             end if
 
             ! and also encode the the ilut version
             ! oh thats true.. mask_virt_ni is not always of length(nel)
-            call encode_mask_virt(mask_virt_ni(:,k), mask_virt_ilut(:,k))
+            call encode_mask_virt(mask_virt_ni(:, k), mask_virt_ilut(:, k))
         end do
 
     end subroutine setup_virtual_mask
 
     pure subroutine encode_mask_virt(nI, ilut)
-        integer, intent(in) :: nI(nBasis -nel)
+        integer, intent(in) :: nI(nBasis - nel)
         integer(n_int), intent(out) :: ilut(0:niftot)
 
         integer :: i, pos
@@ -251,8 +251,8 @@ contains
 
         integer :: i
 
-        ASSERT(all(orbs >= [0,0]))
-        ASSERT(all(orbs <= [nBasis/2,nBasis/2]))
+        ASSERT(all(orbs >= [0, 0]))
+        ASSERT(all(orbs <= [nBasis / 2, nBasis / 2]))
 
         if (ic == 1) then
             if (is_in_ref_spatial(orbs(1), part_type)) then
@@ -341,11 +341,10 @@ contains
         ASSERT(loc >= 0)
         ASSERT(loc <= 2)
 
-
     end function check_orbital_location_spatial
 
     subroutine pick_virtual_electrons_double(nI, part_type, elecs, src, ispn, &
-                                                sum_ml, pgen, calc_pgen)
+                                             sum_ml, pgen, calc_pgen)
         ! this is the important routine!
         ! for non-initiator determinants this pick electrons only from the
         ! virtual orbitals of the reference determinant to increase the
@@ -377,7 +376,7 @@ contains
         sum_ml = -1
 
         do i = 1, nel
-            if (is_in_virt_mask(nI(i),part_type)) then
+            if (is_in_virt_mask(nI(i), part_type)) then
                 n_valid = n_valid + 1
                 virt_elecs(j) = i
                 j = j + 1
@@ -409,7 +408,7 @@ contains
 
         ! and is it now enough to do is just like in the symrandexcit3 routine:
         ind = 1 + int(n_valid_pairs * genrand_real2_dSFMT())
-        ind_1 = ceiling((1 + sqrt(1 + 8*real(ind,dp))) / 2)
+        ind_1 = ceiling((1 + sqrt(1 + 8 * real(ind, dp))) / 2)
         ind_2 = ind - ((ind_1 - 1) * (ind_1 - 2)) / 2
 
         ! and retro pick the electron number from the created list?
@@ -422,7 +421,6 @@ contains
         ! all the symmetry related stuff at the end:
         src = nI(elecs)
 
-
         ispn = get_ispn(src)
 
         ! The Ml value is obtained from the orbitals
@@ -430,9 +428,8 @@ contains
 
     end subroutine pick_virtual_electrons_double
 
-
-    subroutine pick_occupied_orbital_single(ilut, src, cc_index, part_type,&
-            pgen, orb, calc_pgen)
+    subroutine pick_occupied_orbital_single(ilut, src, cc_index, part_type, &
+                                            pgen, orb, calc_pgen)
         integer, intent(in) :: src, cc_index, part_type
         integer(n_int), intent(in) :: ilut(0:niftot)
         real(dp), intent(out) :: pgen
@@ -458,7 +455,7 @@ contains
         ! ok do it now with symmetries
         do i = 1, norb
             orb = SymLabelList2(label_index + i - 1)
-            if (is_in_ref(orb,part_type) .and. IsNotOcc(ilut,orb)) then
+            if (is_in_ref(orb, part_type) .and. IsNotOcc(ilut, orb)) then
 
                 ASSERT(SpinOrbSymLabel(orb) == SpinOrbSymLabel(src))
 
@@ -486,7 +483,6 @@ contains
 
         ASSERT(orb > 0)
 
-
     end subroutine pick_occupied_orbital_single
 
     subroutine pick_occupied_orbital_hubbard(ilutI, part_type, pgen, orb, calc_pgen)
@@ -509,7 +505,7 @@ contains
         ! i also have to include the whole symmetry shabang in the
         ! picker here or?? wtf
         do i = 1, nel
-            orb_a = projedet(i,part_type_to_run(part_type))
+            orb_a = projedet(i, part_type_to_run(part_type))
 
             ! what am i testing here, actually
             ! i want to loop over the reference det and check if it is
@@ -543,11 +539,10 @@ contains
         ASSERT(orb > 0)
         ASSERT(orb <= nbasis)
 
-
     end subroutine pick_occupied_orbital_hubbard
 
     subroutine pick_occupied_orbital_ueg(ilutI, src, ispn, part_type, cpt, &
-            cum_sum, orb, calc_pgen)
+                                         cum_sum, orb, calc_pgen)
         integer, intent(in) :: src(2), ispn, part_type
         integer(n_int), intent(in) :: ilutI(0:niftot)
         real(dp), intent(out) :: cpt, cum_sum
@@ -629,9 +624,8 @@ contains
 
     end subroutine pick_occupied_orbital_ueg
 
-
     subroutine pick_occupied_orbital(ilutI, src, ispn, part_type, cpt, cum_sum, &
-            orb, calc_pgen)
+                                     orb, calc_pgen)
         integer, intent(in) :: src(2), ispn, part_type
         integer(n_int), intent(in) :: ilutI(0:niftot)
         real(dp), intent(out) :: cpt, cum_sum
@@ -656,9 +650,9 @@ contains
         orb = -1
         ! loop over ref det
         do i = 1, nel
-            orb_a = projedet(i,part_type_to_run(part_type))
+            orb_a = projedet(i, part_type_to_run(part_type))
             ! check if ref-det electron is NOT in nI
-             if (IsNotOcc(ilutI, orb_a)) then
+            if (IsNotOcc(ilutI, orb_a)) then
                 ! check the symmetry here.. or atleast the spin..
                 ! if we are parallel i have to ensure the orbital has the
                 ! same spin
@@ -714,11 +708,10 @@ contains
         ASSERT(orb > 0)
         ASSERT(orb <= nbasis)
 
-
     end subroutine pick_occupied_orbital
 
-    subroutine pick_second_occupied_orbital(ilutI, cc_b, orb_a, ispn,&
-            part_type, cpt, cum_sum, orb, calc_pgen)
+    subroutine pick_second_occupied_orbital(ilutI, cc_b, orb_a, ispn, &
+                                            part_type, cpt, cum_sum, orb, calc_pgen)
         ! routine which picks second orbital from the occupied manifold for
         ! a double excitation. this function gets called if we have picked
         ! two electrons also from the occupied manifold in the flex version
@@ -816,7 +809,7 @@ contains
     end subroutine pick_second_occupied_orbital
 
     subroutine pick_virtual_electrons_double_hubbard(nI, part_type, elecs, src, &
-            ispn, pgen, calc_pgen)
+                                                     ispn, pgen, calc_pgen)
         ! specific routine to pick 2 electrons in the k-space hubbard,
         ! since apparently it is important to allow all orderings of
         ! electrons possible.. although this could just be a artifact of the
@@ -843,8 +836,8 @@ contains
 
         j = 1
         do i = 1, nel
-            if (is_in_virt_mask(nI(i),part_type)) then
-                if (is_beta(nI(i)))  n_beta = n_beta + 1
+            if (is_in_virt_mask(nI(i), part_type)) then
+                if (is_beta(nI(i))) n_beta = n_beta + 1
                 if (is_alpha(nI(i))) n_alpha = n_alpha + 1
                 ! the electron is in the virtual of the
                 n_valid = n_valid + 1
@@ -898,10 +891,9 @@ contains
         if (i > 999 .or. j > 999) then
             print *, "something went wrong, did not find two valid electrons!"
             print *, "nI: ", nI
-            print *, "mask_virt_ni:", mask_virt_ni(:,part_type_to_run(part_type))
+            print *, "mask_virt_ni:", mask_virt_ni(:, part_type_to_run(part_type))
             print *, "virt_elecs: ", virt_elecs
         end if
-
 
     end subroutine pick_virtual_electrons_double_hubbard
 
@@ -978,7 +970,7 @@ contains
 
         ! there is an inefficient way to check projedet:
 
-        temp_ilut = ilutref(:,part_type_to_run(temp_part_type))
+        temp_ilut = ilutref(:, part_type_to_run(temp_part_type))
         is_in_ref = (IsOcc(temp_ilut, orb))
 
     end function is_in_ref
@@ -993,7 +985,7 @@ contains
         integer(n_int) :: temp_ilut(0:niftot)
 
         ASSERT(orb >= 0)
-        ASSERT(orb <= nBasis/2)
+        ASSERT(orb <= nBasis / 2)
 
         if (present(part_type)) then
             temp_part_type = part_type
@@ -1003,7 +995,7 @@ contains
 
         ! there is an inefficient way to check projedet:
 
-        temp_ilut = ilutref(:,part_type_to_run(temp_part_type))
+        temp_ilut = ilutref(:, part_type_to_run(temp_part_type))
         is_in_ref_spatial = (IsOcc(temp_ilut, 2 * orb) .or. IsOcc(temp_ilut, 2 * orb - 1))
 
     end function is_in_ref_spatial
@@ -1023,7 +1015,7 @@ contains
             temp_part_type = 1
         end if
 
-        temp_ilut = mask_virt_ilut(:,part_type_to_run(temp_part_type))
+        temp_ilut = mask_virt_ilut(:, part_type_to_run(temp_part_type))
         is_in_virt_mask = (IsOcc(temp_ilut, orb))
 
     end function is_in_virt_mask
@@ -1038,7 +1030,7 @@ contains
         integer(n_int) :: temp_ilut(0:niftot)
 
         ASSERT(orb >= 0)
-        ASSERT(orb <= nBasis/2)
+        ASSERT(orb <= nBasis / 2)
 
         if (present(part_type)) then
             temp_part_type = part_type
@@ -1046,7 +1038,7 @@ contains
             temp_part_type = 1
         end if
 
-        temp_ilut = mask_virt_ilut(:,part_type_to_run(temp_part_type))
+        temp_ilut = mask_virt_ilut(:, part_type_to_run(temp_part_type))
         is_in_virt_mask_spatial = (IsOcc(temp_ilut, 2 * orb) .or. IsOcc(temp_ilut, 2 * orb - 1))
 
     end function is_in_virt_mask_spatial

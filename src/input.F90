@@ -2,43 +2,43 @@
 
 MODULE input_neci
 
-use constants, only: sp,dp,int64
+    use constants, only: sp, dp, int64
 
-IMPLICIT NONE
+    IMPLICIT NONE
 
-CHARACTER(LEN=1900), SAVE :: char=""
-LOGICAL, SAVE :: skipbl=.false., clear=.true., echo=.false.,           &
-    debug=.false., more
-INTEGER, SAVE :: item=0, nitems=0, loc(0:120)=0, end(120)=0,               &
-    line(0:10)=0, level=0, nerror=0, ir=5, last=0, unit(0:10)
+    CHARACTER(LEN=1900), SAVE :: char = ""
+    LOGICAL, SAVE :: skipbl = .false., clear = .true., echo = .false., &
+                     debug = .false., more
+    INTEGER, SAVE :: item = 0, nitems = 0, loc(0:120) = 0, end(120) = 0, &
+                     line(0:10) = 0, level = 0, nerror = 0, ir = 5, last = 0, unit(0:10)
 
-CHARACTER(LEN=26), PARAMETER ::                                        &
-    upper_case="ABCDEFGHIJKLMNOPQRSTUVWXYZ",                           &
-    lower_case="abcdefghijklmnopqrstuvwxyz"
-CHARACTER, PARAMETER :: space = " ", bra = "(", ket = ")",             &
-    comma = ",", squote = "'", dquote = '"', tab=achar(9),             &
-    plus="+", minus="-", dot="."
+    CHARACTER(LEN=26), PARAMETER :: &
+        upper_case = "ABCDEFGHIJKLMNOPQRSTUVWXYZ", &
+        lower_case = "abcdefghijklmnopqrstuvwxyz"
+    CHARACTER, PARAMETER :: space = " ", bra = "(", ket = ")", &
+                            comma = ",", squote = "'", dquote = '"', tab = achar(9), &
+                            plus = "+", minus = "-", dot = "."
 
-CHARACTER(LEN=455), SAVE :: concat = "+++"
-CHARACTER(LEN=455) :: file(10)=""
+    CHARACTER(LEN=455), SAVE :: concat = "+++"
+    CHARACTER(LEN=455) :: file(10) = ""
 
-INTEGER, SAVE :: lc=3
-external :: stop_all, neci_getarg
+    INTEGER, SAVE :: lc = 3
+    external :: stop_all, neci_getarg
 !INTEGER, PARAMETER :: sp=kind(1.0_4),dp=kind(1.0_8)!, qp=selected_real_kind(30)
 
-interface readf
+    interface readf
 #ifndef SX
-    module procedure read_single
+        module procedure read_single
 #endif
-    module procedure read_double
+        module procedure read_double
 !    module procedure read_quad
-end interface
+    end interface
 
-PRIVATE
-PUBLIC :: item, nitems, read_line, stream, reada, readu, readl,        &
-    readf, readi,readiLong, getf, geta, geti, getiLong, reread,        &
-    input_options, upcase, locase, report, die, assert, find_io,       &
-    read_colour, getargs, parse, char, ir, readt_default, getRange
+    PRIVATE
+    PUBLIC :: item, nitems, read_line, stream, reada, readu, readl, &
+              readf, readi, readiLong, getf, geta, geti, getiLong, reread, &
+              input_options, upcase, locase, report, die, assert, find_io, &
+              read_colour, getargs, parse, char, ir, readt_default, getRange
 !  AJWT - added , ir to above
 !  Free-format input routines
 
@@ -137,15 +137,13 @@ PUBLIC :: item, nitems, read_line, stream, reada, readu, readl,        &
 
 !  LAST gives the position of the last non-blank character in the line.
 
-
-
 !     CALL REPORT(message[,REFLECT])
 !  Error-message routine. Prints the error message, followed by the
 !  current input buffer if REFLECT is present and TRUE, and stops.
 
 CONTAINS
 
-SUBROUTINE read_line(eof,inunit)
+    SUBROUTINE read_line(eof, inunit)
 
 !  Read next input record from unit IR into buffer, and analyse for data
 !  items, null items (enclosed by commas), and comment (enclosed in
@@ -170,7 +168,6 @@ SUBROUTINE read_line(eof,inunit)
 !         Input line width limited to n characters. Default is 128; may
 !         need to be reduced to 80 for some IBM computers. Maximum is 255.
 
-
 !  CONCAT is the line concatenation string: if it is found as the last
 !  non-blank character string on a line, the following line is read and
 !  appended to the current line, overwriting the concatenation string.
@@ -181,180 +178,180 @@ SUBROUTINE read_line(eof,inunit)
 !  above. If it is null, no concatentation occurs. The concatenation string
 !  may also be changed by the #concat directive in the data file.
 
-LOGICAL, INTENT(OUT) :: eof
-INTEGER, INTENT(IN), OPTIONAL :: inunit
+        LOGICAL, INTENT(OUT) :: eof
+        INTEGER, INTENT(IN), OPTIONAL :: inunit
 
-CHARACTER(LEN=455) :: w, f
-CHARACTER :: term
+        CHARACTER(LEN=455) :: w, f
+        CHARACTER :: term
 
-INTEGER, SAVE :: lrecl = 466
-INTEGER :: in, fail, i, k, l, m
+        INTEGER, SAVE :: lrecl = 466
+        INTEGER :: in, fail, i, k, l, m
 
-eof=.false.
-if (present(inunit)) then
-  in=inunit
-else
-  in=ir
-end if
+        eof = .false.
+        if (present(inunit)) then
+            in = inunit
+        else
+            in = ir
+        end if
 
-char=""
-lines: do
-  more=.true.
-  m=1
-  do while (more)
-    last=m+lrecl-1
-    line(level)=line(level)+1
-    read (in,"(a)",end=900) char(m:last)
-    go to 10
+        char = ""
+        lines: do
+            more = .true.
+            m = 1
+            do while (more)
+                last = m + lrecl - 1
+                line(level) = line(level) + 1
+                read(in, "(a)", end=900) char(m:last)
+                go to 10
 !  End of file
-900 if (more .and. m .gt. 1) then
-      write(6,"(a)") "Apparently concatenating at end-of-file"
-      call report("Unexpected end of data file",.true.)
-    endif
-    if (level .gt. 0) then
-      !  Revert to previous input
-      close(in)
-      level=level-1
-      ir=unit(level)
-      in=ir
-      cycle lines
-    else
-      !  End of input
-      char(1:last)=""
-      item=0
-      nitems=-1
-      eof=.true.
-      return
-    endif
+900             if (more .and. m > 1) then
+                    write(6, "(a)") "Apparently concatenating at end-of-file"
+                    call report("Unexpected end of data file", .true.)
+                end if
+                if (level > 0) then
+                    !  Revert to previous input
+                    close(in)
+                    level = level - 1
+                    ir = unit(level)
+                    in = ir
+                    cycle lines
+                else
+                    !  End of input
+                    char(1:last) = ""
+                    item = 0
+                    nitems = -1
+                    eof = .true.
+                    return
+                end if
 
 !  Find last non-blank character
-10  last=verify(char,space//tab,back=.true.)
-    if (echo) write(6,"(a)") char(m:last)
+10              last = verify(char, space//tab, back=.true.)
+                if (echo) write(6, "(a)") char(m:last)
 !  Look for concatenation string
-    if (lc .gt. 0 .and. last .ge. lc) then
-      more=(char(last-lc+1:last) .eq. concat)
-      if (more) then
-        m=last-lc+1
-      endif
-    else
-      more=.false.
-    endif
-  end do  ! while (more)
+                if (lc > 0 .and. last >= lc) then
+                    more = (char(last - lc + 1:last) == concat)
+                    if (more) then
+                        m = last - lc + 1
+                    end if
+                else
+                    more = .false.
+                end if
+            end do  ! while (more)
 
 !  Replace tab by single space
-  do while (index(char,tab) .gt. 0)
-    L=index(char,tab)
-    char(L:L)=space
-  end do
+            do while (index(char, tab) > 0)
+                L = index(char, tab)
+                char(L:L) = space
+            end do
 
 !  Logical line assembled. First look for input directives
-  L=1
-  do while (char(L:L) .eq. space .and. L .lt. last)
-    L=L+1
-  end do
-  if (char(L:L) .eq. "#") then
-    !       M=index(char(L:),space)+L-1
-    M=L
-    do while(char(M:M) .ne. space .and. M .le. last)
-      M=M+1
-    end do
-    w=char(L:M-1)
-    call upcase(w)
-    if (M .gt. last) then
-      f=" "
-    else
-      do while (char(M:M) .eq. space)
-        M=M+1
-      end do
-      if (char(M:M) .eq. squote .or. char(M:M) .eq. dquote) then
-        term=char(M:M)
-        M=M+1
-      else
-        term=space
-      endif
-      !         L=index(char(M:),term)+M-1
-      L=M
-      do while(char(M:M) .ne. term .and. M .le. last)
-        M=M+1
-      end do
-      f=char(L:M-1)
-    endif
-    select case(w)
-    case("#")          ! Comment -- ignore
-    case("#INCLUDE")   ! Take input from specified file
-      if (f .eq. " ") call report                                      &
-          ("No filename given in #include directive",.true.)
-      if (level .eq. 0) unit(0)=ir
-      level=level+1
-      line(level)=0
-      ir=find_io(91)
-      unit(level)=ir
-      open(unit=ir,file=f,status="old",iostat=fail)
-      if (fail .ne. 0) then
-        call report(trim(f)//" could not be opened",.true.)
-      end if
-      in=ir
-      file(level)=f
-    case("#CONCAT")
-      concat=f
-      lc=len(trim(concat))
-    case("#REVERT")
-      close(in)
-      file(level)=""
-      level=level-1
-      ir=unit(level)
-      in=ir
-    case("#WIDTH")
-      read (unit=f,fmt="(i6)") lrecl
-    case("#ECHO")
-      echo=.true.
-      if (f .eq. "OFF") echo=.false.
-    case("#DEBUG")
-      debug=.true.
-      if (f .eq. "OFF") debug=.false.
-    case default
-      call report("Unrecognized directive "//trim(w)//"in input",.true.)
-    end select
-    cycle lines
-  endif
+            L = 1
+            do while (char(L:L) == space .and. L < last)
+                L = L + 1
+            end do
+            if (char(L:L) == "#") then
+                !       M=index(char(L:),space)+L-1
+                M = L
+                do while (char(M:M) /= space .and. M <= last)
+                    M = M + 1
+                end do
+                w = char(L:M - 1)
+                call upcase(w)
+                if (M > last) then
+                    f = " "
+                else
+                    do while (char(M:M) == space)
+                        M = M + 1
+                    end do
+                    if (char(M:M) == squote .or. char(M:M) == dquote) then
+                        term = char(M:M)
+                        M = M + 1
+                    else
+                        term = space
+                    end if
+                    !         L=index(char(M:),term)+M-1
+                    L = M
+                    do while (char(M:M) /= term .and. M <= last)
+                        M = M + 1
+                    end do
+                    f = char(L:M - 1)
+                end if
+                select case (w)
+                case ("#")          ! Comment -- ignore
+                case ("#INCLUDE")   ! Take input from specified file
+                    if (f == " ") call report &
+                        ("No filename given in #include directive", .true.)
+                    if (level == 0) unit(0) = ir
+                    level = level + 1
+                    line(level) = 0
+                    ir = find_io(91)
+                    unit(level) = ir
+                    open(unit=ir, file=f, status="old", iostat=fail)
+                    if (fail /= 0) then
+                        call report(trim(f)//" could not be opened", .true.)
+                    end if
+                    in = ir
+                    file(level) = f
+                case ("#CONCAT")
+                    concat = f
+                    lc = len(trim(concat))
+                case ("#REVERT")
+                    close(in)
+                    file(level) = ""
+                    level = level - 1
+                    ir = unit(level)
+                    in = ir
+                case ("#WIDTH")
+                    read(unit=f, fmt="(i6)") lrecl
+                case ("#ECHO")
+                    echo = .true.
+                    if (f == "OFF") echo = .false.
+                case ("#DEBUG")
+                    debug = .true.
+                    if (f == "OFF") debug = .false.
+                case default
+                    call report("Unrecognized directive "//trim(w)//"in input", .true.)
+                end select
+                cycle lines
+            end if
 
-  call parse
+            call parse
 
 !  Blank except for comment?
-  if (nitems .eq. 0 .and. skipbl) then
-    cycle lines   !  Read another line
-  else
-    exit lines    !  Finished
-  end if
+            if (nitems == 0 .and. skipbl) then
+                cycle lines   !  Read another line
+            else
+                exit lines    !  Finished
+            end if
 
-end do lines
+        end do lines
 
-if (debug) then
-  !       print "(8(I6,I4))", (loc(i), end(i), i=1,nitems)
-  if (echo .and. nitems .gt. 0) then
-    write(6,"(100a1)") (" ", i=1,loc(1)-1),                              &
-        (("+", i=loc(k), end(k)), (" ", i=end(k)+1, loc(k+1)-1), k=1,nitems-1), &
-        ("+", i=loc(nitems), end(nitems))
-  endif
-  write(6,"(I2,A)") nitems, " items"
-endif
+        if (debug) then
+            !       print "(8(I6,I4))", (loc(i), end(i), i=1,nitems)
+            if (echo .and. nitems > 0) then
+                write(6, "(100a1)") (" ", i=1, loc(1) - 1), &
+                    (("+", i=loc(k), end(k)), (" ", i=end(k) + 1, loc(k + 1) - 1), k=1, nitems - 1), &
+                    ("+", i=loc(nitems), end(nitems))
+            end if
+            write(6, "(I2,A)") nitems, " items"
+        end if
 
-END SUBROUTINE read_line
+    END SUBROUTINE read_line
 
 !-----------------------------------------------------------------------
 
-SUBROUTINE parse(string)
+    SUBROUTINE parse(string)
 
-CHARACTER(LEN=*), OPTIONAL :: string
+        CHARACTER(LEN=*), OPTIONAL :: string
 
-INTEGER :: L, state, nest
-LOGICAL :: tcomma
-CHARACTER :: term, c
+        INTEGER :: L, state, nest
+        LOGICAL :: tcomma
+        CHARACTER :: term, c
 
-if (present(string)) then
-  char=string
-  last=len_trim(string)
-end if
+        if (present(string)) then
+            char = string
+            last = len_trim(string)
+        end if
 
 !  Analyse input
 !  State numbers:
@@ -364,226 +361,225 @@ end if
 !  3  Reading comment
 !  4  Expecting space or comma after quoted string
 
-state=0
-item=0
-nitems=0
-L=0            ! Position in input buffer
-tcomma=.true.  !  True if last item was terminated by comma
-               !  and also at start of buffer
+        state = 0
+        item = 0
+        nitems = 0
+        L = 0            ! Position in input buffer
+        tcomma = .true.  !  True if last item was terminated by comma
+        !  and also at start of buffer
 
-
-chars: do
+        chars: do
 
 !  Read next character
-  L=L+1
-  if (L .gt. last) then
+            L = L + 1
+            if (L > last) then
 !  End of line
-    if (nitems .gt. 0) then
-      select case(state)
-      case(1)
-        call report("Closing quote missing",.true.)
-      case(2)
-        end(nitems)=L-1
-      end select
-    endif
-    return
-  endif
+                if (nitems > 0) then
+                    select case (state)
+                    case (1)
+                        call report("Closing quote missing", .true.)
+                    case (2)
+                        end(nitems) = L - 1
+                    end select
+                end if
+                return
+            end if
 
-  c=char(L:L)
+            c = char(L:L)
 !   if (debug) print "(A,I3,A,A,A,I1)",                                &
 !       "L = ", L, "  Character ", c, "  state ", state
-  select case (state)
-  case(0)                ! Looking for next item
-    select case(c)
-    case(space,tab)      ! Keep on looking
-      !           cycle chars
-    case(bra)            ! Start of comment
-      nest=1
-      state=3
-      !           cycle chars
-    case(squote,dquote)  ! Start of quoted string
-      nitems=nitems+1
-      loc(nitems)=L
-      term=c
-      state=1
-    case(comma)
-      if (tcomma) then   ! Null item between commas
-        nitems=nitems+1
-        loc(nitems)=0
-      endif
-      tcomma=.true.
-    case default         ! Start of unquoted item
-      nitems=nitems+1
-      loc(nitems)=L
-      state=2
-    end select
+            select case (state)
+            case (0)                ! Looking for next item
+                select case (c)
+                case (space, tab)      ! Keep on looking
+                    !           cycle chars
+                case (bra)            ! Start of comment
+                    nest = 1
+                    state = 3
+                    !           cycle chars
+                case (squote, dquote)  ! Start of quoted string
+                    nitems = nitems + 1
+                    loc(nitems) = L
+                    term = c
+                    state = 1
+                case (comma)
+                    if (tcomma) then   ! Null item between commas
+                        nitems = nitems + 1
+                        loc(nitems) = 0
+                    end if
+                    tcomma = .true.
+                case default         ! Start of unquoted item
+                    nitems = nitems + 1
+                    loc(nitems) = L
+                    state = 2
+                end select
 
-  case(1)                ! Reading through quoted string
-    if (c .eq. term) then ! Closing quote found
-      end(nitems)=L
-      state=4
-      !         else
-      !           cycle chars
-    endif
+            case (1)                ! Reading through quoted string
+                if (c == term) then ! Closing quote found
+                    end(nitems) = L
+                    state = 4
+                    !         else
+                    !           cycle chars
+                end if
 
-  case(2)                ! Reading through unquoted item
-    select case(c)
-    case(space,tab)      ! Terminator
-      end(nitems)=L-1
-      state=0
-      tcomma=.false.
+            case (2)                ! Reading through unquoted item
+                select case (c)
+                case (space, tab)      ! Terminator
+                    end(nitems) = L - 1
+                    state = 0
+                    tcomma = .false.
 !   case(bra)            ! Start of comment -- treat as space
 !     end(nitems)=L-1    ! This code allows for parenthesised comments
 !     tcomma=.false.     ! to be embedded in unquoted strings. This is
 !     state=3            ! not a good idea. Such comments now have to occur
 !     nest=1             ! only where a new item might begin.
-    case(comma)          ! Comma-terminated
-      end(nitems)=L-1
-      state=0
-      tcomma=.true.
-      !         case default
-      !           cycle chars
-    end select
+                case (comma)          ! Comma-terminated
+                    end(nitems) = L - 1
+                    state = 0
+                    tcomma = .true.
+                    !         case default
+                    !           cycle chars
+                end select
 
-  case(3)                ! Reading through comment
-    select case(c)
-    case(bra)            ! Nested parenthesis
-      nest=nest+1
-    case(ket)
-      nest=nest-1
-      if (nest .eq. 0) then  ! End of comment
-        state=0          ! Space or comma not required after comment
-      endif
-      !         case default
-      !           cycle chars
-    end select
+            case (3)                ! Reading through comment
+                select case (c)
+                case (bra)            ! Nested parenthesis
+                    nest = nest + 1
+                case (ket)
+                    nest = nest - 1
+                    if (nest == 0) then  ! End of comment
+                        state = 0          ! Space or comma not required after comment
+                    end if
+                    !         case default
+                    !           cycle chars
+                end select
 
-  case(4)                ! Expecting space or comma
-    select case(c)
-    case(space,tab)
-      tcomma=.false.
-      state=0
-    case(comma)
-      tcomma=.true.
-      state=0
-    case(bra)            ! Start of comment -- treat as space
-      tcomma=.false.
-      state=3
-      nest=1
-    case default
-      call report("Space or comma needed after quoted string",.true.)
-    end select
+            case (4)                ! Expecting space or comma
+                select case (c)
+                case (space, tab)
+                    tcomma = .false.
+                    state = 0
+                case (comma)
+                    tcomma = .true.
+                    state = 0
+                case (bra)            ! Start of comment -- treat as space
+                    tcomma = .false.
+                    state = 3
+                    nest = 1
+                case default
+                    call report("Space or comma needed after quoted string", .true.)
+                end select
 
-  end select
+            end select
 
-end do chars
+        end do chars
 
-END SUBROUTINE parse
-
-!-----------------------------------------------------------------------
-
-SUBROUTINE getargs
-
-CHARACTER(LEN=120) :: word
-
-nitems=0
-last=-1
-
-do
-  nitems=nitems+1
-  call neci_getarg(nitems,word)
-  if (word .eq. "") then
-    nitems=nitems-1
-    exit
-  else
-    loc(nitems)=last+2
-    char(last+2:)=word
-    last=len_trim(char)
-    end(nitems)=last
-  endif
-end do
-
-END SUBROUTINE getargs
+    END SUBROUTINE parse
 
 !-----------------------------------------------------------------------
 
-SUBROUTINE input_options(default,clear_if_null,skip_blank_lines,       &
-    echo_lines, error_flag, concat_string)
+    SUBROUTINE getargs
 
-IMPLICIT NONE
-LOGICAL, OPTIONAL :: default, clear_if_null, skip_blank_lines,         &
-    echo_lines
-INTEGER, OPTIONAL :: error_flag
-CHARACTER(LEN=*), optional :: concat_string
+        CHARACTER(LEN=120) :: word
 
-if (present(default)) then
-  if (default) then
-    clear=.true.
-    skipbl=.false.
-    echo=.false.
-    nerror=0
-    concat="+++"
-  endif
-endif
-if (present(clear_if_null)) then
-  clear=clear_if_null
-endif
-if (present(skip_blank_lines)) then
-  skipbl=skip_blank_lines
-endif
-if (present(echo_lines)) then
-  echo=echo_lines
-endif
-if (present(error_flag)) then
-  nerror=error_flag
-endif
-if (present(concat_string)) then
-  if (len(trim(concat_string)) .gt. 8) call report                     &
-      ("Concatenation string must be 8 characters or fewer",.false.)
-  concat=concat_string
-  lc=len(trim(concat_string))
-endif
+        nitems = 0
+        last = -1
 
-END SUBROUTINE input_options
+        do
+            nitems = nitems + 1
+            call neci_getarg(nitems, word)
+            if (word == "") then
+                nitems = nitems - 1
+                exit
+            else
+                loc(nitems) = last + 2
+                char(last + 2:) = word
+                last = len_trim(char)
+                end(nitems) = last
+            end if
+        end do
+
+    END SUBROUTINE getargs
 
 !-----------------------------------------------------------------------
 
-SUBROUTINE stream(n)
+    SUBROUTINE input_options(default, clear_if_null, skip_blank_lines, &
+                             echo_lines, error_flag, concat_string)
 
-INTEGER, INTENT(IN) :: n
+        IMPLICIT NONE
+        LOGICAL, OPTIONAL :: default, clear_if_null, skip_blank_lines, &
+                             echo_lines
+        INTEGER, OPTIONAL :: error_flag
+        CHARACTER(LEN=*), optional :: concat_string
+
+        if (present(default)) then
+            if (default) then
+                clear = .true.
+                skipbl = .false.
+                echo = .false.
+                nerror = 0
+                concat = "+++"
+            end if
+        end if
+        if (present(clear_if_null)) then
+            clear = clear_if_null
+        end if
+        if (present(skip_blank_lines)) then
+            skipbl = skip_blank_lines
+        end if
+        if (present(echo_lines)) then
+            echo = echo_lines
+        end if
+        if (present(error_flag)) then
+            nerror = error_flag
+        end if
+        if (present(concat_string)) then
+            if (len(trim(concat_string)) > 8) call report &
+                ("Concatenation string must be 8 characters or fewer", .false.)
+            concat = concat_string
+            lc = len(trim(concat_string))
+        end if
+
+    END SUBROUTINE input_options
+
+!-----------------------------------------------------------------------
+
+    SUBROUTINE stream(n)
+
+        INTEGER, INTENT(IN) :: n
 !  Set the input stream for subsequent data to be N.
 
-ir=n
+        ir = n
 
-END SUBROUTINE stream
+    END SUBROUTINE stream
 
 !-----------------------------------------------------------------------
 
-SUBROUTINE reada(m)
+    SUBROUTINE reada(m)
 
 !  Copy characters from the next item into the character variable M.
 !  If the first character is a single or double quote, the string is
 !  terminated by a matching quote and the quotes are removed.
 
-CHARACTER(LEN=*), INTENT(INOUT) :: m
-INTEGER :: l
+        CHARACTER(LEN=*), INTENT(INOUT) :: m
+        INTEGER :: l
 
-if (clear) m=""
+        if (clear) m = ""
 !  If there are no more items on the line, M is unchanged
-if (item .ge. nitems) return
+        if (item >= nitems) return
 
-item=item+1
+        item = item + 1
 !  Null item?
-if (loc(item) .eq. 0) return
+        if (loc(item) == 0) return
 
-l=loc(item)
-if (char(l:l) .eq. squote .or. char(l:l) .eq. dquote) then
-  m=char(l+1:end(item)-1)
-else
-  m=char(l:end(item))
-endif
+        l = loc(item)
+        if (char(l:l) == squote .or. char(l:l) == dquote) then
+            m = char(l + 1:end(item) - 1)
+        else
+            m = char(l:end(item))
+        end if
 
-END SUBROUTINE reada
+    END SUBROUTINE reada
 
 !-----------------------------------------------------------------------
 
@@ -607,10 +603,10 @@ END SUBROUTINE reada
 ! call reada(string)
 ! !  If the item is null, I is unchanged
 ! if (string == "") return
-! read (unit=string,fmt=*,err=99) a
+! read(unit=string,fmt=*,err=99) a
 ! if (present(factor)) then
 !   a=a/factor
-! endif
+! end if
 ! return
 !
 ! 99 a=0.0_qp
@@ -627,101 +623,101 @@ END SUBROUTINE reada
 
 !-----------------------------------------------------------------------
 
-SUBROUTINE read_double(A,factor)
+    SUBROUTINE read_double(A, factor)
 
 !  Read the next item from the buffer as a real (double precision) number.
 !  If the optional argument factor is present, the value read should be
 !  divided by it. (External value = factor*internal value)
 
-REAL(KIND=dp), INTENT(INOUT) :: a
-REAL(KIND=dp), INTENT(IN), OPTIONAL :: factor
-CHARACTER(LEN=90) :: string
+        REAL(KIND=dp), INTENT(INOUT) :: a
+        REAL(KIND=dp), INTENT(IN), OPTIONAL :: factor
+        CHARACTER(LEN=90) :: string
 
-if (clear) a=0d0
+        if (clear) a = 0d0
 
 !  If there are no more items on the line, I is unchanged
-if (item .ge. nitems) return
+        if (item >= nitems) return
 
-string=""
-call reada(string)
+        string = ""
+        call reada(string)
 !  If the item is null, I is unchanged
-if (string == "") return
-read (unit=string,fmt=*,err=99) a
-if (present(factor)) then
-  a=a/factor
-endif
-return
+        if (string == "") return
+        read(unit=string, fmt=*, err=99) a
+        if (present(factor)) then
+            a = a / factor
+        end if
+        return
 
-99 a=0d0
-select case(nerror)
-case(-1,0)
-  call report("Error while reading real number",.true.)
-case(1)
-  write(6,"(2a)") "Error while reading real number. Input is ", trim(string)
-case(2)
-  nerror=-1
-end select
+99      a = 0d0
+        select case (nerror)
+        case (-1, 0)
+            call report("Error while reading real number", .true.)
+        case (1)
+            write(6, "(2a)") "Error while reading real number. Input is ", trim(string)
+        case (2)
+            nerror = -1
+        end select
 
-END SUBROUTINE read_double
+    END SUBROUTINE read_double
 
 !-----------------------------------------------------------------------
 
-SUBROUTINE read_single(A,factor)
+    SUBROUTINE read_single(A, factor)
 
 !  Read the next item from the buffer as a real (double precision) number.
 !  If the optional argument factor is present, the value read should be
 !  divided by it. (External value = factor*internal value)
 
-REAL(kind=sp), INTENT(INOUT) :: a
-REAL(kind=sp), INTENT(IN), OPTIONAL :: factor
+        REAL(kind=sp), INTENT(INOUT) :: a
+        REAL(kind=sp), INTENT(IN), OPTIONAL :: factor
 
-REAL(kind=dp) :: aa
+        REAL(kind=dp) :: aa
 
-if (present(factor)) then
-  call read_double(aa,real(factor,dp))
-else
-  call read_double(aa)
-endif
-a=real(aa,sp)
+        if (present(factor)) then
+            call read_double(aa, real(factor, dp))
+        else
+            call read_double(aa)
+        end if
+        a = real(aa, sp)
 
-END SUBROUTINE read_single
+    END SUBROUTINE read_single
 
 !-----------------------------------------------------------------------
 
-SUBROUTINE readi(I)
+    SUBROUTINE readi(I)
 !  Read an integer from the current record
 
-INTEGER, INTENT(INOUT) :: i
+        INTEGER, INTENT(INOUT) :: i
 
-CHARACTER(LEN=90) :: string
+        CHARACTER(LEN=90) :: string
 
-if (clear) i=0
+        if (clear) i = 0
 
 !  If there are no more items on the line, I is unchanged
-if (item .ge. nitems) return
+        if (item >= nitems) return
 
-string=""
-call reada(string)
+        string = ""
+        call reada(string)
 !  If the item is null, I is unchanged
-if (string == "") return
-read (unit=string,fmt=*,err=99) i
-return
+        if (string == "") return
+        read(unit=string, fmt=*, err=99) i
+        return
 
-99 i=0
-select case(nerror)
-case(-1,0)
-  call report("Error while reading integer",.true.)
-case(1)
-  write(6,"(2a)") "Error while reading integer. Input is ", trim(string)
-case(2)
-  nerror=-1
-end select
+99      i = 0
+        select case (nerror)
+        case (-1, 0)
+            call report("Error while reading integer", .true.)
+        case (1)
+            write(6, "(2a)") "Error while reading integer. Input is ", trim(string)
+        case (2)
+            nerror = -1
+        end select
 
-END SUBROUTINE readi
+    END SUBROUTINE readi
 
 !---------------------------------------------------
 
-    function readt_default (def) result(val)
+    function readt_default(def) result(val)
 
         logical, intent(in), optional :: def
         logical :: val
@@ -732,384 +728,382 @@ END SUBROUTINE readi
             val = def
         else
             val = .true.
-        endif
+        end if
 
         ! Or read it in from the input file if present.
         if (item < nitems) then
             call readu(w)
-            select case(w)
-            case("OFF")
+            select case (w)
+            case ("OFF")
                 val = .false.
-            case("NO")
+            case ("NO")
                 val = .false.
-            case("N")
+            case ("N")
                 val = .false.
-            case("FALSE")
+            case ("FALSE")
                 val = .false.
-            case("F")
+            case ("F")
                 val = .false.
-            case("ON")
+            case ("ON")
                 val = .true.
-            case("YES")
+            case ("YES")
                 val = .true.
-            case("Y")
+            case ("Y")
                 val = .true.
-            case("TRUE")
+            case ("TRUE")
                 val = .true.
-            case("T")
+            case ("T")
                 val = .true.
             case default
-                write(6,*) 'Error interpreting value: ', trim(w)
+                write(6, *) 'Error interpreting value: ', trim(w)
             end select
-        endif
+        end if
 
     end function
 
-
-
 !-----------------------------------------------------------------------
 
-SUBROUTINE readiLong(I)
+    SUBROUTINE readiLong(I)
 !  Read a long integer from the current record
 
-integer(int64), INTENT(INOUT) :: i
+        integer(int64), INTENT(INOUT) :: i
 
-CHARACTER(LEN=90) :: string
+        CHARACTER(LEN=90) :: string
 
-if (clear) i=0
+        if (clear) i = 0
 
 !  If there are no more items on the line, I is unchanged
-if (item .ge. nitems) return
+        if (item >= nitems) return
 
-string=""
-call reada(string)
+        string = ""
+        call reada(string)
 !  If the item is null, I is unchanged
-if (string == "") return
-read (unit=string,fmt=*,err=99) i
-return
+        if (string == "") return
+        read(unit=string, fmt=*, err=99) i
+        return
 
-99 i=0
-select case(nerror)
-case(-1,0)
-  call report("Error while reading long integer",.true.)
-case(1)
-  write(6,"(2a)") "Error while reading long integer. Input is ", trim(string)
-case(2)
-  nerror=-1
-end select
+99      i = 0
+        select case (nerror)
+        case (-1, 0)
+            call report("Error while reading long integer", .true.)
+        case (1)
+            write(6, "(2a)") "Error while reading long integer. Input is ", trim(string)
+        case (2)
+            nerror = -1
+        end select
 
-END SUBROUTINE readiLong
-
-!-----------------------------------------------------------------------
-
-SUBROUTINE readu(m)
-CHARACTER(LEN=*) m
-
-call reada(m)
-call upcase(m)
-
-END SUBROUTINE readu
+    END SUBROUTINE readiLong
 
 !-----------------------------------------------------------------------
 
-SUBROUTINE readl(m)
-CHARACTER(LEN=*) m
+    SUBROUTINE readu(m)
+        CHARACTER(LEN=*) m
 
-call reada(m)
-call locase(m)
+        call reada(m)
+        call upcase(m)
 
-END SUBROUTINE readl
+    END SUBROUTINE readu
 
 !-----------------------------------------------------------------------
 
-SUBROUTINE getf(A,factor)
+    SUBROUTINE readl(m)
+        CHARACTER(LEN=*) m
+
+        call reada(m)
+        call locase(m)
+
+    END SUBROUTINE readl
+
+!-----------------------------------------------------------------------
+
+    SUBROUTINE getf(A, factor)
 !  Read the next item as a double-precision number, reading new data
 !  records if necessary.
 !  If the optional argument factor is present, the value read should be
 !  divided by it. (External value = factor*internal value)
 
-REAL(kind=dp), INTENT(INOUT) :: A
-REAL(kind=dp), INTENT(IN), OPTIONAL :: factor
+        REAL(kind=dp), INTENT(INOUT) :: A
+        REAL(kind=dp), INTENT(IN), OPTIONAL :: factor
 
-LOGICAL :: eof
+        LOGICAL :: eof
 
-do
-  if (item .lt. nitems) then
-    call readf(a,factor)
-    exit
-  else
-    call read_line(eof)
-    if (eof) then
-      call stop_all('getf', "End of file while attempting to read a number")
-    endif
-  endif
-end do
+        do
+            if (item < nitems) then
+                call readf(a, factor)
+                exit
+            else
+                call read_line(eof)
+                if (eof) then
+                    call stop_all('getf', "End of file while attempting to read a number")
+                end if
+            end if
+        end do
 
-END SUBROUTINE getf
+    END SUBROUTINE getf
 
 !-----------------------------------------------------------------------
 
-SUBROUTINE geti(I)
+    SUBROUTINE geti(I)
 !  Get an integer, reading new data records if necessary.
-INTEGER, INTENT(INOUT) :: i
-LOGICAL :: eof
+        INTEGER, INTENT(INOUT) :: i
+        LOGICAL :: eof
 
-do
-  if (item .lt. nitems) then
-    call readi(i)
-    exit
-  else
-    call read_line(eof)
-    if (eof) then
-      call stop_all('geti', "End of file while attempting to read a number")
-    endif
-  endif
-end do
+        do
+            if (item < nitems) then
+                call readi(i)
+                exit
+            else
+                call read_line(eof)
+                if (eof) then
+                    call stop_all('geti', "End of file while attempting to read a number")
+                end if
+            end if
+        end do
 
-END SUBROUTINE geti
+    END SUBROUTINE geti
 
 !-----------------------------------------------------------------------
 
-SUBROUTINE getiLong(I)
+    SUBROUTINE getiLong(I)
 !  Get an integer, reading new data records if necessary.
-integer(int64), INTENT(INOUT) :: i
-LOGICAL :: eof
+        integer(int64), INTENT(INOUT) :: i
+        LOGICAL :: eof
 
-do
-  if (item .lt. nitems) then
-    call readiLong(i)
-    exit
-  else
-    call read_line(eof)
-    if (eof) then
-      call stop_all('getiLong', "End of file while attempting to read a number")
-    endif
-  endif
-end do
+        do
+            if (item < nitems) then
+                call readiLong(i)
+                exit
+            else
+                call read_line(eof)
+                if (eof) then
+                    call stop_all('getiLong', "End of file while attempting to read a number")
+                end if
+            end if
+        end do
 
-END SUBROUTINE getiLong
+    END SUBROUTINE getiLong
 
 !-----------------------------------------------------------------------
 
-SUBROUTINE geta(m)
+    SUBROUTINE geta(m)
 !  Get a character string
-CHARACTER(LEN=*) m
+        CHARACTER(LEN=*) m
 
-LOGICAL eof
+        LOGICAL eof
 
-do
-  if (item .lt. nitems) then
-    call reada(m)
-    exit
-  else
-    call read_line(eof)
-    if (eof) then
-      call stop_all('geta', "End of file while attempting to read a character string")
-    endif
-  endif
-end do
+        do
+            if (item < nitems) then
+                call reada(m)
+                exit
+            else
+                call read_line(eof)
+                if (eof) then
+                    call stop_all('geta', "End of file while attempting to read a character string")
+                end if
+            end if
+        end do
 
-END SUBROUTINE geta
+    END SUBROUTINE geta
 
 !-----------------------------------------------------------------------
 
-SUBROUTINE reread(k)
+    SUBROUTINE reread(k)
 
-INTEGER, INTENT(IN) :: k
+        INTEGER, INTENT(IN) :: k
 !  k>0  Reread from item k
 !  k<0  Go back |k| items
 !  k=0  Same as k=-1, i.e. reread last item.
 
-if (k .lt. 0) then
-  item=item+k
-else if (k .eq. 0) then
-  item=item-1
-else
-  item=k-1
-endif
-if (item .lt. 0) item=0
+        if (k < 0) then
+            item = item + k
+        else if (k == 0) then
+            item = item - 1
+        else
+            item = k - 1
+        end if
+        if (item < 0) item = 0
 
-END SUBROUTINE reread
-
-!-----------------------------------------------------------------------
-
-subroutine getRange(w, start, end)
-  implicit none
-  character(*), intent(inout) :: w
-  integer, intent(out) :: start, end
-  integer :: index
-
-  w = adjustl(trim(w))
-  index = scan(w,"-")
-  read(w(1:index-1),*) start
-  read(w(index+1:),*) end
-end subroutine getRange
+    END SUBROUTINE reread
 
 !-----------------------------------------------------------------------
 
-SUBROUTINE upcase(word)
-CHARACTER(LEN=*), INTENT(INOUT) :: word
-INTEGER :: i,k
+    subroutine getRange(w, start, end)
+        implicit none
+        character(*), intent(inout) :: w
+        integer, intent(out) :: start, end
+        integer :: index
 
-do i=1,len(word)
-  k=index(lower_case,word(i:i))
-  if (k .ne. 0) word(i:i)=upper_case(k:k)
-end do
-
-END SUBROUTINE upcase
-
-!-----------------------------------------------------------------------
-
-SUBROUTINE locase(word)
-CHARACTER(LEN=*), INTENT(INOUT) :: word
-INTEGER :: i,k
-
-do i=1,len(word)
-  k=index(upper_case,word(i:i))
-  if (k .ne. 0) word(i:i)=lower_case(k:k)
-end do
-
-END SUBROUTINE locase
+        w = adjustl(trim(w))
+        index = scan(w, "-")
+        read(w(1:index - 1), *) start
+        read(w(index + 1:), *) end
+    end subroutine getRange
 
 !-----------------------------------------------------------------------
 
-SUBROUTINE die(c,reflect)
+    SUBROUTINE upcase(word)
+        CHARACTER(LEN=*), INTENT(INOUT) :: word
+        INTEGER :: i, k
 
-CHARACTER(LEN=*), INTENT(IN) :: c
-LOGICAL, INTENT(IN), OPTIONAL :: reflect
+        do i = 1, len(word)
+            k = index(lower_case, word(i:i))
+            if (k /= 0) word(i:i) = upper_case(k:k)
+        end do
 
-call report(c,reflect)
-
-END SUBROUTINE die
+    END SUBROUTINE upcase
 
 !-----------------------------------------------------------------------
 
-SUBROUTINE report(c,reflect)
+    SUBROUTINE locase(word)
+        CHARACTER(LEN=*), INTENT(INOUT) :: word
+        INTEGER :: i, k
 
-CHARACTER(LEN=*), INTENT(IN) :: c
-LOGICAL, INTENT(IN), OPTIONAL :: reflect
-INTEGER :: i, i1, i2, l
+        do i = 1, len(word)
+            k = index(upper_case, word(i:i))
+            if (k /= 0) word(i:i) = lower_case(k:k)
+        end do
 
-CHARACTER(LEN=3) s1, s2
+    END SUBROUTINE locase
 
-write(6,"(a)") c
-if (present(reflect)) then
-  if (reflect) then
-    l=loc(item)
-    i2=min(last,l+20)
-    i1=max(1,i2-70)
-    s1=" "
-    if (i1 .gt. 1) s1="..."
-    s2=" "
-    if (i2 .lt. last) s2="..."
-    if (level .gt. 0) then
-      write(6,"(a, I5, a,a)") "Input line ", line(level),                &
-          " in file ", trim(file(level))
-    else
-      write(6,"(a, I5)") "Input line ", line(level)
-    endif
-    write(6,"(a3,1x,a,1x,a3)") s1, char(i1:i2), s2
-    write(6,"(3x,80a1)") (" ", i=i1,l), "*"
-  end if
-end if
-call stop_all("report", 'Input error')
+!-----------------------------------------------------------------------
 
-END SUBROUTINE report
+    SUBROUTINE die(c, reflect)
+
+        CHARACTER(LEN=*), INTENT(IN) :: c
+        LOGICAL, INTENT(IN), OPTIONAL :: reflect
+
+        call report(c, reflect)
+
+    END SUBROUTINE die
+
+!-----------------------------------------------------------------------
+
+    SUBROUTINE report(c, reflect)
+
+        CHARACTER(LEN=*), INTENT(IN) :: c
+        LOGICAL, INTENT(IN), OPTIONAL :: reflect
+        INTEGER :: i, i1, i2, l
+
+        CHARACTER(LEN=3) s1, s2
+
+        write(6, "(a)") c
+        if (present(reflect)) then
+            if (reflect) then
+                l = loc(item)
+                i2 = min(last, l + 20)
+                i1 = max(1, i2 - 70)
+                s1 = " "
+                if (i1 > 1) s1 = "..."
+                s2 = " "
+                if (i2 < last) s2 = "..."
+                if (level > 0) then
+                    write(6, "(a, I5, a,a)") "Input line ", line(level), &
+                        " in file ", trim(file(level))
+                else
+                    write(6, "(a, I5)") "Input line ", line(level)
+                end if
+                write(6, "(a3,1x,a,1x,a3)") s1, char(i1:i2), s2
+                write(6, "(3x,80a1)") (" ", i=i1, l), "*"
+            end if
+        end if
+        call stop_all("report", 'Input error')
+
+    END SUBROUTINE report
 
 !----------------------------------------------------------------
 
-SUBROUTINE assert(test,string,reflect)
+    SUBROUTINE assert(test, string, reflect)
 
-LOGICAL, INTENT(IN) :: test
-CHARACTER(LEN=*), INTENT(IN) :: string
-LOGICAL, INTENT(IN), OPTIONAL :: reflect
+        LOGICAL, INTENT(IN) :: test
+        CHARACTER(LEN=*), INTENT(IN) :: string
+        LOGICAL, INTENT(IN), OPTIONAL :: reflect
 
-if (.not. test) call report(string,reflect)
+        if (.not. test) call report(string, reflect)
 
-END SUBROUTINE assert
+    END SUBROUTINE assert
 
 !----------------------------------------------------------------
 
-INTEGER FUNCTION find_io(start)
+    INTEGER FUNCTION find_io(start)
 
 !  Find an unused unit number for input or output. Unit n=start is used
 !  if available; otherwise n is incremented until an unused unit is found.
 !  Unit numbers are limited to the range 1-100; if n reaches 100 the
 !  search starts again at 1.
 
-IMPLICIT NONE
-INTEGER, INTENT(IN) :: start
-LOGICAL :: in_use, exists
-CHARACTER(LEN=90) :: string
-INTEGER :: n, n0
-INTEGER, PARAMETER :: max_unit=199
+        IMPLICIT NONE
+        INTEGER, INTENT(IN) :: start
+        LOGICAL :: in_use, exists
+        CHARACTER(LEN=90) :: string
+        INTEGER :: n, n0
+        INTEGER, PARAMETER :: max_unit = 199
 
-n0=start
-if (n0 .le. 1 .or. n0 .gt. max_unit) n0=1
-n=n0
-in_use=.true.
-do while (in_use)
-  inquire(n,opened=in_use,exist=exists)
-  if (exists) then
-    if (.not. in_use) exit
-  else
-    write (unit=string,fmt="(a,i3,a)") "Unit number", n, " out of range"
-    call report (string)
-  endif
-  n=n+1
-  if (n > max_unit) n=1
-  if (n == n0) then
-    call report ("No i/o unit available")
-  end if
-end do
-find_io=n
+        n0 = start
+        if (n0 <= 1 .or. n0 > max_unit) n0 = 1
+        n = n0
+        in_use = .true.
+        do while (in_use)
+            inquire (n, opened=in_use, exist=exists)
+            if (exists) then
+                if (.not. in_use) exit
+            else
+                write(unit=string, fmt="(a,i3,a)") "Unit number", n, " out of range"
+                call report(string)
+            end if
+            n = n + 1
+            if (n > max_unit) n = 1
+            if (n == n0) then
+                call report("No i/o unit available")
+            end if
+        end do
+        find_io = n
 
-END FUNCTION find_io
+    END FUNCTION find_io
 
 !----------------------------------------------------------------
 
-SUBROUTINE read_colour(fmt, colour, clamp)
+    SUBROUTINE read_colour(fmt, colour, clamp)
 
-CHARACTER(LEN=*), INTENT(IN) :: fmt
-REAL(kind=sp), INTENT(OUT) :: colour(3)
-LOGICAL, INTENT(IN), OPTIONAL :: clamp
-CHARACTER(LEN=6) :: x
-INTEGER :: i, r, g, b
-REAL(kind=dp) :: c
+        CHARACTER(LEN=*), INTENT(IN) :: fmt
+        REAL(kind=sp), INTENT(OUT) :: colour(3)
+        LOGICAL, INTENT(IN), OPTIONAL :: clamp
+        CHARACTER(LEN=6) :: x
+        INTEGER :: i, r, g, b
+        REAL(kind=dp) :: c
 
-select case(fmt)
-case("GREY","GRAY")
-  call readf(c)
-  colour(:)=real(c,sp)
-case("RGB")
-  call readf(colour(1))
-  call readf(colour(2))
-  call readf(colour(3))
-case("RGB255")
-  call readf(colour(1),255.0_sp)
-  call readf(colour(2),255.0_sp)
-  call readf(colour(3),255.0_sp)
-case("RGBX")
-  call readu(x)
-  read (x(1:2),"(z2)") r
-  colour(1)=real(real(r,dp)/255.0_dp,sp)
-  read (x(3:4),"(z2)") g
-  colour(2)=real(real(g,dp)/255.0_dp,sp)
-  read (x(5:6),"(z2)") b
-  colour(3)=real(real(b,dp)/255.0_dp,sp)
-case default
-  call die('COLOUR keyword not recognised',.true.)
-end select
+        select case (fmt)
+        case ("GREY", "GRAY")
+            call readf(c)
+            colour(:) = real(c, sp)
+        case ("RGB")
+            call readf(colour(1))
+            call readf(colour(2))
+            call readf(colour(3))
+        case ("RGB255")
+            call readf(colour(1), 255.0_sp)
+            call readf(colour(2), 255.0_sp)
+            call readf(colour(3), 255.0_sp)
+        case ("RGBX")
+            call readu(x)
+            read(x(1:2), "(z2)") r
+            colour(1) = real(real(r, dp) / 255.0_dp, sp)
+            read(x(3:4), "(z2)") g
+            colour(2) = real(real(g, dp) / 255.0_dp, sp)
+            read(x(5:6), "(z2)") b
+            colour(3) = real(real(b, dp) / 255.0_dp, sp)
+        case default
+            call die('COLOUR keyword not recognised', .true.)
+        end select
 
-if (present(clamp)) then
-  if (clamp) then
-    do i=1,3
-      if (colour(i)>1d0) colour(i)=1d0
-      if (colour(i)<0d0) colour(i)=0d0
-    end do
-  end if
-end if
+        if (present(clamp)) then
+            if (clamp) then
+                do i = 1, 3
+                    if (colour(i) > 1d0) colour(i) = 1d0
+                    if (colour(i) < 0d0) colour(i) = 0d0
+                end do
+            end if
+        end if
 
-END SUBROUTINE read_colour
+    END SUBROUTINE read_colour
 
 END MODULE input_neci

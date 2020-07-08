@@ -19,6 +19,7 @@ start-neel-state
 
 seed 1
 
+load-balance-blocks off
 allrealcoeff
 semi-stochastic 10
 pops-core 10
