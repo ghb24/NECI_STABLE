@@ -1072,6 +1072,8 @@ contains
             ! also for the analysis for now..
             call guga_pchb_sampler(1)%setup_count_table(int(ijMax,int64), &
                 int(abMax, int64))
+            call guga_pchb_sampler(1)%setup_invalid_table(int(ijMax,int64), &
+                int(abMax, int64))
             call guga_pchb_sampler(1)%setup_sum_table(int(ijMax,int64), &
                 int(abMax, int64))
             call guga_pchb_sampler(1)%setup_worst_orb_table(int(ijMax,int64), &
