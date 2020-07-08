@@ -2,7 +2,7 @@
 module guga_pchb_excitgen
 
     use aliasSampling, only: aliasSamplerArray_t
-    use constants, only: n_int, dp, maxExcit, int64, iout
+    use constants, only: n_int, dp, maxExcit, int64, iout, int_rdm
     use bit_rep_data, only: IlutBits, GugaBits
     use SystemData, only: nel, G1, current_stepvector, t_pchb_weighted_singles, &
                           nBasis, nSpatOrbs, ElecPairs, currentOcc_int, &
@@ -24,7 +24,8 @@ module guga_pchb_excitgen
                                 excitationIdentifier_double, get_guga_integral_contrib_spat, &
                                 calc_pgen_mol_guga_single, get_excit_level_from_excitInfo
     use guga_procedure_pointers, only: gen_single_excit_guga, gen_double_excit_guga
-    use guga_bitrepops, only: identify_excitation, encode_excit_info, extract_excit_info
+    use guga_bitrepops, only: identify_excitation, encode_excit_info, extract_excit_info, &
+                              contract_2_rdm_ind
     use bit_reps, only: decode_bit_det
     use shared_array, only: shared_array_int64_t, shared_array_real_t
     use ParallelHelper, only: iProcIndex_intra
@@ -785,6 +786,7 @@ contains
         real(dp) :: weight, sums, worst_orb, ratio_orb, pgen_sum, high_pgen, &
                     ratio_pgen, low_pgen
         integer(int64) :: counts
+        integer(int_rdm) :: ijkl
 
         ! can i do this on the root? do i have to accumulate over all nodes??
         ! i guess so.. for now test on 1 node..
@@ -793,8 +795,8 @@ contains
             iunit = get_free_unit()
             open(iunit, file = 'pchb-stats', status = 'unknown')
 
-            write(iunit, *) &
-                '# E_{a,i} E_{b,j}, dist, overlap, weight, counts, sums, worst_orb-case, &
+            write(iunit, '(a)') &
+                '# E_{a,i} E_{b,j}, rdm-ind, dist, overlap, weight, counts, sums, worst_orb-case, &
                 &sums/(counts*weights), pgen-sum, high-pgen, low-pgen, sums/pgens, typ'
 
             do i = 1, nSpatOrbs
@@ -818,6 +820,8 @@ contains
                                 low_pgen = guga_pchb_sampler(1)%get_low_pgen(ij,ab)
                                 dist = excitInfo%fullEnd - excitInfo%fullstart
                                 overlap = excitInfo%firstEnd - excitInfo%secondStart
+                                ijkl = contract_2_rdm_ind(excitInfo%i, &
+                                    excitInfo%j, excitInfo%k, excitInfo%l)
 
 
                                 if (counts > 0_int64) then
@@ -832,8 +836,9 @@ contains
                                     ratio_pgen = 0.0_dp
                                 end if
 
-                                write(iunit, *) excitInfo%i, excitInfo%j, &
-                                    excitInfo%k, excitInfo%l, dist, overlap, weight, counts, &
+                                write(iunit, '(4I3,I12,2I4,E15.8,I12,7E15.8,I3)') &
+                                    excitInfo%i, excitInfo%j, &
+                                    excitInfo%k, excitInfo%l, ijkl, dist, overlap, weight, counts, &
                                     sums, worst_orb, ratio_orb, pgen_sum, &
                                     high_pgen, low_pgen, ratio_pgen, excitInfo%typ
 
@@ -847,7 +852,6 @@ contains
         end if
 
     end subroutine print_pchb_statistics
-
 
 ! *************END  analysis functions (to be removed after optimization) ******
 
