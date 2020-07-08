@@ -6,7 +6,7 @@ module test_gasci_disconnected_mod
     use excitation_types, only: Excitation_t
 
     use gasci, only: GASSpec_t
-    use gasci_disconnected, only: gen_GASCI_disconnected, init_disconnected_GAS, clearGAS
+    use gasci_discarding, only: gen_GASCI_discarding, init_GASCI_discarding, finalize_GASCI_discarding
     use gasci_general, only: gen_all_excits
 
     use sltcnd_mod, only: dyn_sltcnd_excit
@@ -31,7 +31,7 @@ contains
         integer, parameter :: det_I(6) = [1, 2, 3, 7, 8, 10]
 
         logical :: successful
-        integer, parameter :: n_iters=10**5
+        integer, parameter :: n_iters=5 * 10**6
 
         pParallel = 0.05_dp
         pSingles = 0.3_dp
@@ -46,15 +46,15 @@ contains
         global_GAS_spec = GAS_spec
 
         call init_excitgen_test(size(det_I), FciDumpWriter_t(random_fcidump, 'FCIDUMP'))
-        call init_disconnected_GAS(GAS_spec)
+        call init_GASCI_discarding()
         call run_excit_gen_tester( &
-            gen_GASCI_disconnected, 'only disconnected implementation, disconnected, Li2', &
+            gen_GASCI_discarding, 'discarding GASCI implementation, random fcidump', &
             opt_nI=det_I, opt_n_iters=n_iters, &
             gen_all_excits=gen_all_excits, &
             problem_filter=is_problematic,&
             successful=successful)
         call assert_true(successful)
-        call clearGAS()
+        call finalize_GASCI_discarding()
         call finalize_excitgen_test()
 
     contains

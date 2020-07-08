@@ -9,7 +9,7 @@ module test_gasci_general_mod
     use gasci, only: GASSpec_t
     use gasci_general, only: &
         get_possible_spaces, get_possible_holes, &
-        generate_nGAS_excitation, &
+        gen_GASCI_general, &
         get_available_singles, get_available_doubles, gen_all_excits
 
     use sltcnd_mod, only: dyn_sltcnd_excit
@@ -872,7 +872,7 @@ contains
 
         call init_excitgen_test(size(det_I), FciDumpWriter_t(random_fcidump, 'FCIDUMP'))
         call run_excit_gen_tester( &
-            generate_nGAS_excitation, 'general implementation, disconnected, Li2', &
+            gen_GASCI_general, 'general implementation, disconnected, Li2', &
             opt_nI=det_I, &
             opt_n_iters=n_iters, &
             gen_all_excits=gen_all_excits, &
@@ -895,7 +895,7 @@ contains
             class(Excitation_t), intent(in) :: exc
             real(dp), intent(in) :: pgen_diagnostic
             is_problematic = (abs(1.0_dp - pgen_diagnostic) >= 0.15_dp) &
-                              .and. .not. near_zero(dyn_sltcnd_excit(det_I, exc))
+                              .and. .not. near_zero(dyn_sltcnd_excit(det_I%idx, exc, .true.))
         end function
 
     end subroutine test_pgen

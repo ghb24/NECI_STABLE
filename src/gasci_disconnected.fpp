@@ -24,7 +24,7 @@ module gasci_disconnected
     implicit none
 
     private
-    public :: init_disconnected_GAS, generate_nGAS_excitation, &
+    public :: init_disconnected_GAS, gen_GASCI_disconnected, &
         clearGAS, oddBits, calc_pgen, dyn_calc_pgen
 
 
@@ -146,7 +146,7 @@ contains
 !----------------------------------------------------------------------------!
 
 
-    subroutine generate_nGAS_excitation(nI, ilutI, nJ, ilutJ, exFlag, ic, &
+    subroutine gen_GASCI_disconnected(nI, ilutI, nJ, ilutJ, exFlag, ic, &
                                         ex, tParity, pGen, hel, store, part_type)
         ! particle number conserving GAS excitation generator:
         ! we create only excitations, that preserver the number of electrons within
@@ -184,7 +184,7 @@ contains
             ic = 1
         end if
 
-    end subroutine generate_nGAS_excitation
+    end subroutine gen_GASCI_disconnected
 
 !----------------------------------------------------------------------------!
 

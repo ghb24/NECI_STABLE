@@ -636,10 +636,8 @@ contains
             end if
         end if
 
-        if (allocated(pgen_unit_test_spec)) then
-            if (.not. tReadPops) then
-                call stop_all(t_r, "UNIT-TEST-PGEN requires READPOPS.")
-            end if
+        if (allocated(pgen_unit_test_spec) .and. .not. tReadPops) then
+            call stop_all(t_r, "UNIT-TEST-PGEN requires READPOPS.")
         end if
 
         block

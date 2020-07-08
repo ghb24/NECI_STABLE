@@ -17,7 +17,8 @@ module gasci
     type :: possible_GAS_exc_gen_t
         type(GAS_exc_gen_t) :: &
             DISCONNECTED = GAS_exc_gen_t(1), &
-            GENERAL = GAS_exc_gen_t(2)
+            GENERAL = GAS_exc_gen_t(2), &
+            DISCARDING = GAS_exc_gen_t(3)
     end type
 
     type(possible_GAS_exc_gen_t), parameter :: possible_GAS_exc_gen = possible_GAS_exc_gen_t()

@@ -31,7 +31,7 @@ module gasci_general
 
     private
 
-    public :: generate_nGAS_excitation, gen_all_excits
+    public :: gen_GASCI_general, gen_all_excits
     public :: get_possible_spaces, get_possible_holes, &
         get_available_singles, get_available_doubles
 
@@ -248,7 +248,7 @@ contains
 
 
 
-    subroutine generate_nGAS_excitation(nI, ilutI, nJ, ilutJ, exFlag, ic, &
+    subroutine gen_GASCI_general(nI, ilutI, nJ, ilutJ, exFlag, ic, &
                                         ex_mat, tParity, pGen, hel, store, part_type)
         integer, intent(in) :: nI(nel), exFlag
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
@@ -281,7 +281,7 @@ contains
 
         @:ASSERT(0.0_dp <= pgen .and. pgen <= 1.0_dp, pgen)
         @:ASSERT(all(ex_mat(:, :ic) /= UNKNOWN) .or. nJ(1) == 0)
-    end subroutine generate_nGAS_excitation
+    end subroutine gen_GASCI_general
 
 
     subroutine gen_exc_single(GAS_spec, det_I, ilutI, nJ, ilutJ, ex_mat, par, pgen)
