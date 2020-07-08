@@ -199,15 +199,14 @@ contains
             cpt1 = (get_umat_el(a, b, j, i) + get_umat_el(b, a, i, j))
             cpt2 = (get_umat_el(b, a, j, i) + get_umat_el(a, b, i, j))
 
-            cpt3 = abs(cpt1 - cpt2)
-            cpt4 = abs(cpt1 + cpt2)
-
-            cpt1 = abs(cpt2 - 2.0_dp * cpt1)
+            cpt3 = abs(cpt2 - cpt1)
+            ! cpt4 = abs(cpt1 + cpt2)
+            cpt4 = abs(cpt2 - 2.0_dp * cpt1)/2.0_dp
 
             if (flag_) then
                 integral = abs(cpt2)
             else
-                integral = maxval([cpt1, cpt2, cpt3, cpt4])
+                integral = maxval([abs(cpt1),abs(cpt2)/2.0_dp, cpt3, cpt4])
             end if
 
 
