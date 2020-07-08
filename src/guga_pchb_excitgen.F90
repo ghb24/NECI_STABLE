@@ -59,6 +59,9 @@ module guga_pchb_excitgen
         type(shared_array_int64_t) :: all_counts
         type(shared_array_int64_t), allocatable :: count_tables(:)
 
+        type(shared_array_int64_t) :: all_invalids
+        type(shared_array_int64_t), allocatable :: invalid_tables(:)
+
         type(shared_array_real_t) :: all_sums
         type(shared_array_real_t), allocatable :: sums_tables(:)
 
@@ -88,6 +91,12 @@ module guga_pchb_excitgen
         procedure :: setup_entry_count_scalar
         procedure :: count_table_destructor
         procedure :: get_count
+
+        procedure :: setup_invalid_table
+        procedure :: setup_entry_invalid_vec
+        procedure :: setup_entry_invalid_scalar
+        procedure :: invalid_table_destructor
+        procedure :: get_invalid
 
         procedure :: setup_sum_table
         procedure :: setup_entry_sum_vec
@@ -244,9 +253,10 @@ contains
     end function get_pchb_integral_contrib
 
 
-    subroutine store_pchb_analysis(h_element, pgen, excitInfo)
+    subroutine store_pchb_analysis(h_element, pgen, excitInfo, not_valid)
         real(dp), intent(in) :: h_element, pgen
         type(ExcitationInformation_t), intent(in) :: excitInfo
+        logical, intent(in) :: not_valid
         debug_function_name("store_pchb_analysis")
         integer :: ij, ab
 
@@ -280,15 +290,19 @@ contains
                 ij = fuseIndex(i,j)
                 ab = fuseIndex(a,b)
 
-                call guga_pchb_sampler(1)%setup_entry_count_scalar(ij,ab)
-                call guga_pchb_sampler(1)%setup_entry_sum_scalar(ij,ab,abs(h_element))
-                call guga_pchb_sampler(1)%setup_entry_worst_orb_scalar(ij,ab, &
-                    abs(h_element) / guga_pchb_sampler(1)%alias_sampler%aGetProb(ij,ab))
-                call guga_pchb_sampler(1)%setup_entry_pgen_scalar(ij,ab,pgen)
-                call guga_pchb_sampler(1)%setup_entry_pgen_high_scalar(ij,ab, &
-                    abs(h_element) / pgen)
-                call guga_pchb_sampler(1)%setup_entry_pgen_low_scalar(ij,ab, &
-                    abs(h_element) / pgen)
+                if (not_valid) then
+                    call guga_pchb_sampler(1)%setup_entry_invalid_scalar(ij,ab)
+                else
+                    call guga_pchb_sampler(1)%setup_entry_count_scalar(ij,ab)
+                    call guga_pchb_sampler(1)%setup_entry_sum_scalar(ij,ab,abs(h_element))
+                    call guga_pchb_sampler(1)%setup_entry_worst_orb_scalar(ij,ab, &
+                        abs(h_element) / guga_pchb_sampler(1)%alias_sampler%aGetProb(ij,ab))
+                    call guga_pchb_sampler(1)%setup_entry_pgen_scalar(ij,ab,pgen)
+                    call guga_pchb_sampler(1)%setup_entry_pgen_high_scalar(ij,ab, &
+                        abs(h_element) / pgen)
+                    call guga_pchb_sampler(1)%setup_entry_pgen_low_scalar(ij,ab, &
+                        abs(h_element) / pgen)
+                end if
 
                ! in the other cases no contribution to PCHB
             end select
@@ -298,6 +312,29 @@ contains
     end subroutine store_pchb_analysis
 
 ! **************** analysis functions (to be removed after optimization) ******
+
+    subroutine setup_invalid_table(this, nEntries, entrySize)
+        debug_function_name("setup_invalid_table")
+        class(GugaAliasSampler_t) :: this
+        integer(int64), intent(in) :: nEntries, entrySize
+
+        integer(int64) :: total_size
+        integer :: iEntry, windowStart, windowEnd
+
+        allocate(this%invalid_tables(nEntries))
+
+        total_size = nEntries * entrySize
+
+        call this%all_invalids%shared_alloc(total_size)
+
+        do iEntry = 1, nEntries
+            windowStart = (iEntry - 1) * entrySize + 1
+            windowEnd = windowStart + entrySize - 1
+
+            this%invalid_tables(iEntry)%ptr => this%all_invalids%ptr(windowStart:windowEnd)
+        end do
+
+    end subroutine setup_invalid_table
 
     subroutine setup_count_table(this, nEntries, entrySize)
         debug_function_name("setup_count_table")
@@ -437,6 +474,36 @@ contains
         end do
 
     end subroutine setup_low_pgen_table
+
+    subroutine setup_entry_invalid_vec(this, iEntry, invalids)
+        class(GugaAliasSampler_t) :: this
+        integer, intent(in) :: iEntry
+        integer(int64), intent(in) :: invalids(:)
+
+        ! i think this is everyhing...
+        if (iProcIndex_intra == 0) then
+            this%invalid_tables(iEntry)%ptr = invalids
+        end if
+
+        ! then sync:
+        call this%all_invalids%sync()
+
+    end subroutine setup_entry_invalid_vec
+
+    subroutine setup_entry_invalid_scalar(this, iEntry, tgt)
+        class(GugaAliasSampler_t) :: this
+        integer, intent(in) :: iEntry, tgt
+
+        ! i think this is everyhing...
+        if (iProcIndex_intra == 0) then
+            this%invalid_tables(iEntry)%ptr(tgt) = this%get_invalid(iEntry,tgt) &
+                + 1_int64
+        end if
+
+        ! then sync:
+        call this%all_invalids%sync()
+
+    end subroutine setup_entry_invalid_scalar
 
 
 
@@ -633,6 +700,18 @@ contains
     end subroutine setup_entry_pgen_high_scalar
 
 
+    subroutine invalid_table_destructor(this)
+        class(GugaAliasSampler_t) :: this
+
+        call this%all_invalids%shared_dealloc()
+        this%all_invalids%ptr => null()
+
+
+        if (allocated(this%invalid_tables)) deallocate(this%invalid_tables)
+
+    end subroutine invalid_table_destructor
+
+
     subroutine count_table_destructor(this)
         class(GugaAliasSampler_t) :: this
 
@@ -700,6 +779,19 @@ contains
 
     end subroutine low_pgen_table_destructor
 
+
+
+    function get_invalid(this, iEntry, tgt) result(cnt)
+        debug_function_name("get_invalid")
+        class(GugaAliasSampler_t) :: this
+        integer, intent(in) :: iEntry, tgt
+        integer(int64) :: cnt
+
+        ASSERT(associated(this%invalid_tables(iEntry)%ptr))
+
+        cnt = this%invalid_tables(iEntry)%ptr(tgt)
+
+    end function get_invalid
 
 
     function get_count(this, iEntry, tgt) result(cnt)
@@ -783,7 +875,7 @@ contains
         type(ExcitationInformation_t) :: excitInfo
         real(dp) :: weight, sums, worst_orb, ratio_orb, pgen_sum, high_pgen, &
                     ratio_pgen, low_pgen
-        integer(int64) :: counts
+        integer(int64) :: counts, invalids
         integer(int_rdm) :: ijkl
 
         ! can i do this on the root? do i have to accumulate over all nodes??
@@ -811,6 +903,7 @@ contains
                                     excitInfo)
 
                                 counts = guga_pchb_sampler(1)%get_count(ij,ab)
+                                invalids = guga_pchb_sampler(1)%get_invalid(ij,ab)
                                 sums = guga_pchb_sampler(1)%get_sum(ij,ab)
                                 worst_orb = guga_pchb_sampler(1)%get_worst_orb(ij,ab)
                                 pgen_sum = guga_pchb_sampler(1)%get_pgen(ij,ab)
@@ -834,11 +927,12 @@ contains
                                     ratio_pgen = 0.0_dp
                                 end if
 
-                                write(iunit, '(4I3,I12,2I4,E15.8,I12,7E15.8,I3)') &
+                                write(iunit, '(4I3,I12,2I4,E15.8,I12,7E15.8,I3,I12)') &
                                     excitInfo%i, excitInfo%j, &
                                     excitInfo%k, excitInfo%l, ijkl, dist, overlap, weight, counts, &
                                     sums, worst_orb, ratio_orb, pgen_sum, &
-                                    high_pgen, low_pgen, ratio_pgen, excitInfo%typ
+                                    high_pgen, low_pgen, ratio_pgen, excitInfo%typ, &
+                                    invalids
 
                             end if
                         end do
@@ -1236,6 +1330,7 @@ contains
                     ! for analysis
                     call guga_pchb_sampler(1)%setup_entry_sum_vec(ij,x)
                     call guga_pchb_sampler(1)%setup_entry_count_vec(ij,counts)
+                    call guga_pchb_sampler(1)%setup_entry_invalid_vec(ij,counts)
                     call guga_pchb_sampler(1)%setup_entry_pgen_vec(ij,x)
                     call guga_pchb_sampler(1)%setup_entry_worst_orb_vec(ij,x)
                     call guga_pchb_sampler(1)%setup_entry_pgen_high_vec(ij,x)
@@ -1254,6 +1349,7 @@ contains
             ! for analysis:
             call print_pchb_statistics()
             call guga_pchb_sampler(1)%count_table_destructor()
+            call guga_pchb_sampler(1)%invalid_table_destructor()
             call guga_pchb_sampler(1)%sum_table_destructor()
             call guga_pchb_sampler(1)%worst_orb_table_destructor()
             call guga_pchb_sampler(1)%high_pgen_table_destructor()

@@ -1613,12 +1613,13 @@ module FciMCParMod
                         nJ(1) = 0
                     end if
 
+                    if (t_analyze_pchb) then
+                        call store_pchb_analysis(real(HElGen,dp), prob, &
+                            global_excitInfo, IsNullDet(nJ))
+                    end if
+
                     ! If a valid excitation, see if we should spawn children.
                     if (.not. IsNullDet(nJ)) then
-
-                        if (t_analyze_pchb) then
-                            call store_pchb_analysis(real(HElGen,dp), prob, global_excitInfo)
-                        end if
 
                         if (tSemiStochastic) then
                             call encode_child (CurrentDets(:,j), iLutnJ, ic, ex)
