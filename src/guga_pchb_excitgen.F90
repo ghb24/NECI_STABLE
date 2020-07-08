@@ -219,7 +219,6 @@ contains
 
             integral = abs(get_umat_el(a, b, i, i) + get_umat_el(b, a, i, i))/2.0_dp
 
-
         case (excit_type%fullstop_R_to_L, excit_type%fullstop_L_to_R)
 
             integral = abs(get_umat_el(b, a, j, b) + get_umat_el(a, b, b, j))/2.0_dp
@@ -1093,8 +1092,9 @@ contains
                                 ! this is the most general case. a lot of IFs
                                 if (a < i) then
                                     if (b < i) then
-                                        w(ab) = get_pchb_integral_contrib(i,j,a,b,&
-                                            excit_type%double_raising)
+                                        w(ab) = get_pchb_integral_contrib(&
+                                            i = j, j = i, a = b, b = a, &
+                                            typ = excit_type%double_raising)
                                         ! in E_{ai}E_{bi} form this would be
                                         ! _R(a) -> RR_(b) -> ^RR(i) -> ^R(j)
                                         ! which would have the opposite
@@ -1115,8 +1115,9 @@ contains
                                         ! since this would correspond to
                                         ! a single!
                                     else if (b > i .and. b < j) then
-                                        w(ab) = get_pchb_integral_contrib(i,j,a,b,&
-                                            excit_type%double_R_to_L_to_R)
+                                        w(ab) = get_pchb_integral_contrib(&
+                                            i = j, j = i, a = a, b = b, &
+                                            typ = excit_type%double_R_to_L_to_R)
                                         ! for E_{ai}E_{bj} this would
                                         ! correspond to a non-overlap:
                                         ! _R(a) -> ^R(i) + _R(b) > ^R(j)
@@ -1127,8 +1128,9 @@ contains
                                             typ = excit_type%double_R_to_L_to_R, &
                                             a = a, i = j, b = b, j = i)
                                     else if (b == j) then
-                                        w(ab) = get_pchb_integral_contrib(i,j,a,b, &
-                                            excit_type%fullstop_R_to_L)
+                                        w(ab) = get_pchb_integral_contrib(&
+                                            i = j, j = i, a = a, b = b, &
+                                            typ = excit_type%fullstop_R_to_L)
                                         ! here we also have to switch
                                         ! indices to E_{aj}E_{bi} to get:
                                         ! _R(i) -> _LR(a) -> ^LR^(j)
@@ -1137,8 +1139,9 @@ contains
                                             a = a, i = j, b = b, j = i)
 
                                     else if (b > j) then
-                                        w(ab) = get_pchb_integral_contrib(i,j,a,b,&
-                                            excit_type%double_R_to_L)
+                                        w(ab) = get_pchb_integral_contrib(&
+                                            i = j, j = i, a = a, b = b, &
+                                            typ = excit_type%double_R_to_L)
                                         ! here we have to switch to
                                         ! E_{aj}E_{bi} to get:
                                         ! _R(a) > _LR(i) -> LR^(j) -> ^L(b)
@@ -1149,8 +1152,9 @@ contains
                                 else if (a == i) then
                                     ! b > i is ensured here since b > a in here!
                                     if (b < j) then
-                                        w(ab) = get_pchb_integral_contrib(i,j,a,b,&
-                                            excit_type%fullstart_L_to_R)
+                                        w(ab) = get_pchb_integral_contrib(&
+                                            i = j, j = i, a = a, b = b, &
+                                            typ = excit_type%fullstart_L_to_R)
                                         ! here we have to switch again:
                                         ! E_{aj}E_{bi}:
                                         ! _RL_(i) -> ^LR(b) -> ^R(j)
@@ -1158,16 +1162,18 @@ contains
                                             typ = excit_type%fullstart_L_to_R, &
                                             a = a, i = j, b = b, j = i)
                                     else if (b == j) then
-                                        w(ab) = get_pchb_integral_contrib(i,j,a,b, &
-                                            excit_type%fullstart_stop_mixed)
+                                        w(ab) = get_pchb_integral_contrib(&
+                                            i = j, j = i, a = a, b = b, &
+                                            typ = excit_type%fullstart_stop_mixed)
                                         ! switch again: E_{aj}E_{bi}
                                         ! _RL_(i) -> _RL_(j)
                                         excit_info(ab) = encode_excit_info(&
                                             typ = excit_type%fullstart_stop_mixed, &
                                             a = a, i = j, b = b, j = i)
                                     else if (b > j) then
-                                        w(ab) = get_pchb_integral_contrib(i,j,a,b,&
-                                            excit_type%fullstart_R_to_L)
+                                        w(ab) = get_pchb_integral_contrib(&
+                                            i = j, j = i, a = a, b = b, &
+                                            typ = excit_type%fullstart_R_to_L)
                                         ! switch again: E_{aj}E_{bi}
                                         ! _RL_(i) -> ^RL(j) -> ^L(b)
                                         excit_info(ab) = encode_excit_info(&
@@ -1177,8 +1183,9 @@ contains
                                 else if (a > i .and. a < j) then
                                     ! b > a still ensured!
                                     if (b < j) then
-                                        w(ab) = get_pchb_integral_contrib(i,j,a,b, &
-                                            excit_type%double_L_to_R)
+                                        w(ab) = get_pchb_integral_contrib(&
+                                            i = j, j = i, a = a, b = b, &
+                                            typ = excit_type%double_L_to_R)
                                         ! switch: E_{aj}E_{bi}:
                                         ! _L(j) -> _RL(a) -> ^LR(b) -> ^R(j)
                                         excit_info(ab) = encode_excit_info(&
@@ -1186,16 +1193,18 @@ contains
                                             a = a, i = j, b = b, j = i)
 
                                     else if (b == j) then
-                                        w(ab) = get_pchb_integral_contrib(i,j,a,b,&
-                                            excit_type%fullstop_L_to_R)
+                                        w(ab) = get_pchb_integral_contrib(&
+                                            i = j, j = i, a = a, b = b, &
+                                            typ = excit_type%fullstop_L_to_R)
                                         ! switch: E_{aj}E_{bi}
                                         ! _L(i) -> _RL(a) -> ^RL^(j)
                                         excit_info(ab) = encode_excit_info(&
                                             typ = excit_type%fullstop_L_to_R, &
                                             a = a, i = j, b = b, j = i)
                                     else if (b > j) then
-                                        w(ab) = get_pchb_integral_contrib(i,j,a,b,&
-                                            excit_type%double_L_to_R_to_L)
+                                        w(ab) = get_pchb_integral_contrib(&
+                                            i = j, j = i, a = a, b = b, &
+                                            typ = excit_type%double_L_to_R_to_L)
                                         ! switch: E_{aj}E_{bi}
                                         ! _L(i) -> _RL(a) - > ^RL(j) -> ^L(b)
                                         excit_info(ab) = encode_excit_info(&
@@ -1206,8 +1215,9 @@ contains
                                     ! a == j also NOT allowed here!
                                 else if (a > j) then
                                     ! b > a > j implied here!
-                                    w(ab) = get_pchb_integral_contrib(i,j,a,b, &
-                                        excit_type%double_lowering)
+                                    w(ab) = get_pchb_integral_contrib(&
+                                        i = i, j = j, a = a, b = b, &
+                                        typ = excit_type%double_lowering)
                                     ! E_{ai}E_{bj} would lead to:
                                     ! _L(i) -> LL_(j) -> ^LL(a) -> ^L(b)
                                     ! which has the correct sign convention
