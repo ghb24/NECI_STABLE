@@ -794,13 +794,9 @@ contains
             ilut_tmp = spatial_bit_det(ilut_src)
             do i = 1, nbasis-1, 2
                 if (IsOcc(ilut_tmp, i)) then
-                    if (IsOcc(ilut_tmp, i+1)) then
-                    !    nelec = nelec + 2
-                    else
+                    if (.not.(IsOcc(ilut_tmp, i+1))) then
                         nfound = nfound + 1
-                    !    nelec = nelec + 1
                         store%open_orbs(nfound) = i
-                    !    nhoce%open_indices(nfound) = nelec
                         if (nfound == store%nopen) exit
                     end if
                 end if
