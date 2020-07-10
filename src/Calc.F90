@@ -1270,9 +1270,11 @@ contains
                 t_read_probs = .false.
 
             case ("DIRECT-GUGA-REF")
-                ! option to calculate the reference energy directly and not
-                ! via a pre-computed list
-                t_direct_guga_ref = .true.
+                ! obsolet since standard now!
+
+            case ("LIST-GUGA-REF")
+                ! option to calculate the reference energy via a pre-computed list
+                t_direct_guga_ref = .false.
 
             case('TRUNC-GUGA-PGEN')
                 ! truncate GUGA excitation with a pgen below a chosen

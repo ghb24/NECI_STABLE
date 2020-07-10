@@ -7,13 +7,15 @@ module guga_pchb_excitgen
     use SystemData, only: nel, G1, current_stepvector, t_pchb_weighted_singles, &
                           nBasis, nSpatOrbs, ElecPairs, currentOcc_int, &
                           t_analyze_pchb, t_old_pchb, t_exchange_pchb
-    use FciMCData, only: excit_gen_store_type, pSingles, pDoubles
+    use FciMCData, only: excit_gen_store_type, pSingles, pDoubles, MaxTau
     use guga_data, only: tNewDet, ExcitationInformation_t, gen_type, excit_type
     use guga_bitrepops, only: convert_ilut_toGUGA, isProperCSF_ilut
     use dSFMT_interface, only: genrand_real2_dSFMT
     use util_mod, only: near_zero, fuseIndex, intswap, binary_search_first_ge, &
                         get_free_unit
-    use CalcData, only: t_matele_cutoff, matele_cutoff
+    use CalcData, only: t_matele_cutoff, matele_cutoff, frq_ratio_cutoff, &
+                        max_frequency_bound, n_frequency_bins, &
+                        t_hist_tau_search, t_truncate_spawns
     use sym_general_mod, only: ClassCountInd
     use SymExcitDataMod, only: OrbClassCount, SymLabelCounts2, &
                                sym_label_list_spat, SpinOrbSymLabel
@@ -28,7 +30,7 @@ module guga_pchb_excitgen
                               contract_2_rdm_ind
     use bit_reps, only: decode_bit_det
     use shared_array, only: shared_array_int64_t, shared_array_real_t
-    use ParallelHelper, only: iProcIndex_intra
+    use ParallelHelper, only: iProcIndex_intra, iprocindex
     use GenRandSymExcitNUMod, only: RandExcitSymLabelProd
     use procedure_pointers, only: get_umat_el
 
@@ -1012,6 +1014,33 @@ contains
         debug_function_name("init_guga_pchb_excitgen")
         integer :: ab, a, b, abMax, aerr, ijMax
         integer(int64) :: memCost
+
+        ! also set some more strict defaults for the PCHB implo:
+        root_print "Setting reasonable defaults for GUGA-PCHB:"
+        if (near_zero(MaxTau) .or. MaxTau > 1e-3) then
+            root_print "max-tau zero or > 1e-3. setting it to: 1e-3"
+            MaxTau = 1e-3
+        end if
+
+        if (t_hist_tau_search) then
+            if (frq_ratio_cutoff < 0.999999) then
+                root_print "setting frequency cutoff to 0.999999"
+                frq_ratio_cutoff = 0.999999
+            end if
+            if (max_frequency_bound < 1e5) then
+                root_print "setting  max_frequency_bound to 1e5"
+                max_frequency_bound = 1e5
+            end if
+            if (n_frequency_bins < 1e5) then
+                root_print "setting n_frequency_bins to 1e5"
+                n_frequency_bins = 1e5
+            end if
+        end if
+
+        if (.not. t_truncate_spawns) then
+            root_print "'truncate-spawns' not activated! consider turning it &
+                &on if too many blooms happen!"
+        end if
 
         write(iout,*) "Allocating GUGA PCHB excitation generator objects"
         ! total memory cost
