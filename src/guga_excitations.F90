@@ -238,7 +238,7 @@ contains
             tmp_ilut = ilutRef(0:niftot, 1)
         end if
 
-        call calc_guga_matrix_element(ilut, tmp_ilut, excitInfo, hel, .true., 2)
+        call calc_guga_matrix_element(ilut, tmp_ilut, excitInfo, hel, .true., 0)
 
         if (present(exlevel)) then
             if (excitInfo%valid) then
@@ -399,13 +399,13 @@ contains
             ! intermediate variables here to be able to write the below
             ! function generally
 
-            temp_step_i = ref_stepvector
-            temp_b_real_i = ref_b_vector_real
-            temp_occ_i = ref_occ_vector
+            temp_step_i = current_stepvector
+            temp_b_real_i = currentB_ilut
+            temp_occ_i = currentOcc_ilut
 
-            temp_step_j = current_stepvector
+            temp_step_j = ref_stepvector
 
-            temp_delta_b = ref_b_vector_int - currentB_int
+            temp_delta_b = currentB_int - ref_b_vector_int
 
         case (1)
             ! this used in the initialization of semi-stochastic and

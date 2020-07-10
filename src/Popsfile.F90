@@ -63,6 +63,7 @@ MODULE PopsfileMod
     use SystemData, only: tGUGA
     use guga_data, only: ExcitationInformation_t
     use guga_procedure_pointers, only: calc_off_diag_guga_ref
+    use guga_excitations, only: calc_guga_matrix_element
 
     use guga_bitrepops, only: init_csf_information
     use real_time_data, only: t_real_time_fciqmc, phase_factors, t_kspace_operators, &
@@ -2256,6 +2257,7 @@ r_loop: do while(.not.tStoreDet)
         integer :: gdata_size
         character(12) :: format_string
         character(*), parameter :: this_routine = "write_pops_det"
+        type(ExcitationInformation_t) :: excitInfo
 
         bWritten = .false.
 
@@ -2313,7 +2315,8 @@ r_loop: do while(.not.tStoreDet)
 
                   if (tGUGA) then
                       call init_csf_information(det)
-                      hf_helemt = calc_off_diag_guga_ref(det, 1, ex_level)
+                      call calc_guga_matrix_element(det, iLutRef(:,1), &
+                        excitInfo, hf_helemt, .true., 2)
                   else
                       ex_level = FindBitExcitLevel(ilutRef(:,1), det, nel, .true.)
                       if (ex_level <= 2 .or. (ex_level == 3 .and. t_3_body_excits)) then
