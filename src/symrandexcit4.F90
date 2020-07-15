@@ -1010,6 +1010,7 @@ contains
             end if
 
         else if (tgen_guga_crude .or. tgen_guga_mixed) then
+            ! TODO(@Werner): Delete this
 
             inda = gtID(orba)
             indb = gtID(orbb)
