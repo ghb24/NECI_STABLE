@@ -13,6 +13,8 @@ module lattice_mod
     use constants, only: dp, pi, EPS
     use SystemData, only: twisted_bc, nbasis, basisfn, t_trans_corr_2body, &
                           symmetry, brr
+    use input_neci
+    use util_mod, only: get_free_unit
 
     implicit none
     private
@@ -456,6 +458,28 @@ module lattice_mod
         procedure :: initialize_sites => init_sites_sujun
 
     end type sujun
+
+    type, extends(rectangle) :: ext_input
+        private
+
+        ! how to encode the length?
+!        integer :: length(2) = -1
+    contains
+        private
+
+!        procedure :: init_basis_vecs_rect_base
+
+!        procedure, public :: get_length => get_length_rect
+!        procedure, public :: is_periodic => is_periodic_rect
+!        procedure, public :: dispersion_rel => dispersion_rel_rect
+
+!        procedure :: set_length => set_length_rect
+!        procedure :: calc_nsites => calc_nsites_rect
+        procedure :: calc_nsites => read_lattice_n_sites
+        procedure :: initialize_sites => read_sites
+!        procedure, public :: dot_prod => dot_prod_rect
+
+    end type ext_input
 
     type, extends(rectangle) :: ole
         private
@@ -2121,10 +2145,63 @@ contains
 
     end subroutine init_sites_rect
 
-    subroutine init_sites_sujun(this)
-        class(sujun) :: this
-        character(*), parameter :: this_routine = "init_sites_sujun"
+    subroutine read_sites(this)
+        class(ext_input):: this
+        character(*), parameter :: this_routine = "read_sites"
+        integer:: iunit, ios, i, n_site, n_neighbors, neigh
+        integer, allocatable :: neighs(:)
 
+        logical :: exists, leof
+        CHARACTER(len=3) :: fmat
+        CHARACTER(LEN=100) w
+
+        fmat = 'NO'
+        iunit = get_free_unit()
+        INQUIRE (FILE="lattice.inp", EXIST=exists, FORMATTED=fmat)
+        IF (.not. exists) THEN
+                CALL Stop_All('lattice.inp', 'lattice.inp file does not exist')
+        end if
+        open(iunit, File="lattice.inp",Status='OLD', FORM="FORMATTED", iostat=ios)
+        readsites: do
+                call read_line(leof,iunit)
+                if (leof) then
+                        exit
+                end if
+                call readu(w)
+                select case (w)
+                case('SITE')
+                        if (item < nitems) then
+                                call geti(n_site)
+                        end if
+                        if (item < nitems) then
+                                call geti(n_neighbors)
+                                if (allocated(neighs)) then 
+                                        deallocate(neighs) 
+                                end if
+                                allocate(neighs(n_neighbors))
+                                neighs(:) = 0
+                        end if
+
+                        i = 1
+                        do while (item < nitems)
+                                call geti(neigh)
+                                neighs(i) = neigh
+                                i = i+1
+                        end do
+                        this%sites(n_site) = site(n_site, n_neighbors, neighs)
+                end select
+        end do readsites
+        close(iunit)
+    end subroutine read_sites
+
+    subroutine init_sites_sujun(this)
+        ! order of the lattice sites
+        !   4 7 10
+        !   3 6 9
+        ! 1 2 5 8 
+        !
+        class(sujun) :: this
+        character(*), parameter :: this_routine = "init_sites_sujun" 
         this%sites(1) = site(1, 4, [2,4,8,10])
         this%sites(2) = site(2, 4, [1,3,5,7])
         this%sites(3) = site(3, 4, [2,4,6,8])
@@ -3288,6 +3365,24 @@ contains
 
             ! k-vec todo..
 
+        class is (ext_input)
+
+            call read_lattice_struct(this)
+
+!            call this%set_ndim(DIM_RECT)
+
+!            if (length_x /= 1 .or. length_y /= 3) then
+!                call stop_all(this_routine, "incorrect size for ext_input cluster")
+!            end if
+
+!            call this%set_length(1,3)
+!            call this%set_nconnect_max(4)
+
+!            this%lat_vec(1:2, 1) = [1,3]
+!            this%lat_vec(1:2, 2) = [-3,1]
+
+            ! k-vec todo..
+
         class is (cube)
             call this%set_ndim(DIM_CUBE)
             call this%set_length(length_x, length_y, length_z)
@@ -3697,6 +3792,9 @@ contains
 
         case ('sujun')
             allocate(sujun :: this)
+
+        case ('ext_input')
+            allocate(ext_input :: this)
 
         case default
             ! stop here because a incorrect lattice type was given
@@ -4744,5 +4842,99 @@ contains
         end if
 
     end function determine_optimal_time_step
+
+    function read_lattice_n_sites(this, length_x, length_y, length_z) result(n_sites)
+        class(ext_input):: this
+        integer :: iunit, ios
+        logical :: exists, leof
+        CHARACTER(len=3) :: fmat
+        CHARACTER(LEN=100) w
+
+        integer, intent(in) :: length_x, length_y
+        integer, intent(in), optional :: length_z
+        integer :: n_sites
+        character(*), parameter :: this_routine = "calc_nsites_gen"
+        unused_var(this)
+        unused_var(length_x)
+        unused_var(length_y)
+        if (present(length_z)) then
+            unused_var(length_z)
+        end if
+        fmat = 'NO'
+        iunit = get_free_unit()
+        INQUIRE (FILE="lattice.inp", EXIST=exists, FORMATTED=fmat)
+        IF (.not. exists) THEN
+                CALL Stop_All('lattice.inp', 'lattice.inp file does not exist')
+        end if
+        open(iunit, File="lattice.inp",Status='OLD', FORM="FORMATTED", iostat=ios)
+
+        lat: do
+                call read_line(leof,iunit)
+                if (leof) then
+                        exit
+                end if
+                call readu(w)
+                select case (w)
+
+                case('N_SITES')
+                        if (item < nitems) then
+                                call geti(n_sites)
+                        end if
+                end select
+        end do lat
+        close(iunit)
+    end function read_lattice_n_sites
+
+
+    subroutine read_lattice_struct(this)
+        class(ext_input):: this
+        integer :: iunit, lat_dim, x1,y1, x2,y2, z1,z2, length_x, length_y, n_sites, ios
+        logical :: exists, leof
+        CHARACTER(len=3) :: fmat
+        CHARACTER(LEN=100) w
+
+        fmat = 'NO'
+        iunit = get_free_unit()
+        INQUIRE (FILE="lattice.inp", EXIST=exists, FORMATTED=fmat)
+        IF (.not. exists) THEN
+                CALL Stop_All('lattice.inp', 'lattice.inp file does not exist')
+        end if
+        open(iunit, File="lattice.inp",Status='OLD', FORM="FORMATTED", iostat=ios)
+        lat: do
+                call read_line(leof,iunit)
+                if (leof) then
+                        exit
+                end if
+                call readu(w)
+                select case (w)
+
+                case('DIM')
+                        if (item < nitems) then
+                                call geti(lat_dim)
+                        end if
+                        call this%set_ndim(lat_dim)
+
+                case('LATTICE_PARAM')
+                        if (item < nitems) then
+                                call geti(x1)
+                        end if
+                        if (item < nitems) then
+                                call geti(y1)
+                        end if
+                        if (item < nitems) then
+                                call geti(x2)
+                        end if
+                        if (item < nitems) then
+                                call geti(y2)
+                        end if
+                        this%lat_vec(1:2, 1) = [x1,y1]
+                        this%lat_vec(1:2, 2) = [x2,y2]
+                end select
+        end do lat
+        close(iunit)
+        call this%set_length(1,3)
+        call this%set_nconnect_max(4)
+    end subroutine read_lattice_struct
+
 
 end module lattice_mod
