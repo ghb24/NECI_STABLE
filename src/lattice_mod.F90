@@ -2192,6 +2192,7 @@ contains
                 end select
         end do readsites
         close(iunit)
+        Call input_options(echo_lines=.false., skip_blank_lines=.true.)
     end subroutine read_sites
 
     subroutine init_sites_sujun(this)
@@ -4883,6 +4884,7 @@ contains
                 end select
         end do lat
         close(iunit)
+        Call input_options(echo_lines=.false., skip_blank_lines=.true.)
     end function read_lattice_n_sites
 
 
@@ -4892,6 +4894,7 @@ contains
         logical :: exists, leof
         CHARACTER(len=3) :: fmat
         CHARACTER(LEN=100) w
+
 
         fmat = 'NO'
         iunit = get_free_unit()
@@ -4934,6 +4937,7 @@ contains
         close(iunit)
         call this%set_length(1,3)
         call this%set_nconnect_max(4)
+        Call input_options(echo_lines=.false., skip_blank_lines=.true.)
     end subroutine read_lattice_struct
 
 
