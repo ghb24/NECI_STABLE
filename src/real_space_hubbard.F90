@@ -125,7 +125,7 @@ contains
         integer :: neel_state_ni(nel)
         integer(n_int) :: ilut_neel(0:NIfTot)
 
-        print *, "using new real-space hubbard implementation: "
+        root_print "using new real-space hubbard implementation: "
 
         ! i do not need exchange integrals in the real-space hubbard model
         if (.not. t_trans_corr_hop) then
@@ -233,13 +233,13 @@ contains
         ! the optimal time-step
         tau_opt = determine_optimal_time_step()
         if (tau < EPS) then
-            print *, "setting time-step to optimally determined time-step: ", tau_opt
-            print *, "times: ", lat_tau_factor
+            root_print "setting time-step to optimally determined time-step: ", tau_opt
+            root_print "times: ", lat_tau_factor
             tau = lat_tau_factor * tau_opt
 
         else
-            print *, "optimal time-step would be: ", tau_opt
-            print *, "but tau specified in input!"
+            root_print "optimal time-step would be: ", tau_opt
+            root_print "but tau specified in input!"
         end if
 
         ! re-enable tau-search if we have transcorrelation
@@ -1192,13 +1192,13 @@ contains
 #ifdef DEBUG_
         temp_pgen = calc_pgen_rs_hubbard_transcorr_uniform(ex, ic)
         if (abs(pgen - temp_pgen) > EPS) then
-            print *, "calculated pgen differ for exitation: "
-            print *, "nI: ", nI
-            print *, "ex: ", ex
-            print *, "ic: ", ic
-            print *, "pgen: ", pgen
-            print *, "calc. pgen: ", temp_pgen
-            print *, "H_ij: ", get_helement_lattice(nI, nJ, ic)
+            root_print "calculated pgen differ for exitation: "
+            root_print "nI: ", nI
+            root_print "ex: ", ex
+            root_print "ic: ", ic
+            root_print "pgen: ", pgen
+            root_print "calc. pgen: ", temp_pgen
+            root_print "H_ij: ", get_helement_lattice(nI, nJ, ic)
         end if
 #endif
 
@@ -1336,13 +1336,13 @@ contains
 #ifdef DEBUG_
         temp_pgen = calc_pgen_rs_hubbard_transcorr(nI, ilutI, ex, ic)
         if (abs(pgen - temp_pgen) > EPS) then
-            print *, "calculated pgen differ for exitation: "
-            print *, "nI: ", nI
-            print *, "ex: ", ex
-            print *, "ic: ", ic
-            print *, "pgen: ", pgen
-            print *, "calc. pgen: ", temp_pgen
-            print *, "H_ij: ", get_helement_lattice(nI, nJ, ic)
+            root_print  "calculated pgen differ for exitation: "
+            root_print  "nI: ", nI
+            root_print  "ex: ", ex
+            root_print  "ic: ", ic
+            root_print  "pgen: ", pgen
+            root_print  "calc. pgen: ", temp_pgen
+            root_print  "H_ij: ", get_helement_lattice(nI, nJ, ic)
         end if
 #endif
 
@@ -1510,13 +1510,13 @@ contains
 #ifdef DEBUG_
         temp_pgen = calc_pgen_rs_hubbard_transcorr(nI, ilutI, ex, ic)
         if (abs(pgen - temp_pgen) > EPS) then
-            print *, "calculated pgen differ for exitation: "
-            print *, "nI: ", nI
-            print *, "ex: ", ex
-            print *, "ic: ", ic
-            print *, "pgen: ", pgen
-            print *, "calc. pgen: ", temp_pgen
-            print *, "H_ij: ", get_helement_lattice(nI, nJ, ic)
+            root_print "calculated pgen differ for exitation: "
+            root_print "nI: ", nI
+            root_print "ex: ", ex
+            root_print "ic: ", ic
+            root_print "pgen: ", pgen
+            root_print "calc. pgen: ", temp_pgen
+            root_print "H_ij: ", get_helement_lattice(nI, nJ, ic)
         end if
 #endif
 
