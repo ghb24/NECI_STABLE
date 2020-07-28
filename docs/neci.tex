@@ -729,17 +729,16 @@ the \texttt{endsys} keyword.
     It is advantageous to use the line continuation (\texttt{+++})
       for human-readable formatting as table.
     Two benzenes with single inter-space excitation would be e.g. denoted as:
-    \begin{table}[htbp]
-    \centering
-    \begin{tabular}{rrrrrrrrrrrr}
-     2 & +++ \\
-     6 & 5 & 7 & +++ \\
-     6 &12 &12 & +++ \\
-     1 & 1 & 1 & 1 & 1 & 1 & 2 & 2 & 2 & 2 & 2 & 2
-    \end{tabular}
-    \end{table}
+
+    \begin{lstlisting}[gobble=4]
+    GAS-SPEC  2 +++
+         6  5  7  +++
+         6 12 12  +++
+         1  1  1  1  1  1  2  2  2  2  2  2
+    \end{lstlisting}
 
   \codeitem{GAS-CI}
+    \emph{Optional keyword.}
     Specify the actual implementation for GAS.
     If it is ommitted, it will be deduced from \texttt{GAS-SPEC}.
     \begin{description}
