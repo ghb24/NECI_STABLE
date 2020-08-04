@@ -505,21 +505,22 @@ contains
         ! number of successful/invalid excits
         sizes(36) = 1
         sizes(37) = 1
+
+        sizes(38) = 1 ! local spin
         ! en pert space size
-        if (tEN2) sizes(38) = 1
+        if (tEN2) sizes(39) = 1
         ! Output variable
         if (t_output) then
-            sizes(39) = size(HFOut)
-            sizes(40) = size(Acceptances)
-            sizes(41) = size(SumWalkersOut)
-            sizes(42) = 1
+            sizes(40) = size(HFOut)
+            sizes(41) = size(Acceptances)
+            sizes(42) = size(SumWalkersOut)
+            sizes(43) = 1
         end if
-
         if (t_real_time_fciqmc) then
-            sizes(43) = size(popSnapShot)
-            NoArrs = 43
+            sizes(44) = size(popSnapShot)
+            NoArrs = 44
         else
-            NoArrs = 42
+            NoArrs = 43
         end if
 
         send_arr = 0.0_dp
@@ -528,40 +529,40 @@ contains
              "No space left in arrays for communication of estimates. Please increase &
              & the size of the send_arr and recv_arr arrays in the source code.")
 
-        low = upp + 1; upp = low + sizes(1) - 1; send_arr(low:upp) = SpawnFromSing; 
-        low = upp + 1; upp = low + sizes(2) - 1; send_arr(low:upp) = iter_data%update_growth; 
-        low = upp + 1; upp = low + sizes(3) - 1; send_arr(low:upp) = NoBorn; 
-        low = upp + 1; upp = low + sizes(4) - 1; send_arr(low:upp) = NoDied; 
-        low = upp + 1; upp = low + sizes(5) - 1; send_arr(low:upp) = HFCyc; 
-        low = upp + 1; upp = low + sizes(6) - 1; send_arr(low:upp) = NoAtDoubs; 
-        low = upp + 1; upp = low + sizes(7) - 1; send_arr(low:upp) = Annihilated; 
+        low = upp + 1; upp = low + sizes(1) - 1; send_arr(low:upp) = SpawnFromSing;
+        low = upp + 1; upp = low + sizes(2) - 1; send_arr(low:upp) = iter_data%update_growth;
+        low = upp + 1; upp = low + sizes(3) - 1; send_arr(low:upp) = NoBorn;
+        low = upp + 1; upp = low + sizes(4) - 1; send_arr(low:upp) = NoDied;
+        low = upp + 1; upp = low + sizes(5) - 1; send_arr(low:upp) = HFCyc;
+        low = upp + 1; upp = low + sizes(6) - 1; send_arr(low:upp) = NoAtDoubs;
+        low = upp + 1; upp = low + sizes(7) - 1; send_arr(low:upp) = Annihilated;
         if (tTruncInitiator) then
-            low = upp + 1; upp = low + sizes(8) - 1; send_arr(low:upp) = NoAddedInitiators; 
-            low = upp + 1; upp = low + sizes(9) - 1; send_arr(low:upp) = NoInitDets; 
-            low = upp + 1; upp = low + sizes(10) - 1; send_arr(low:upp) = NoNonInitDets; 
-            low = upp + 1; upp = low + sizes(11) - 1; send_arr(low:upp) = NoExtraInitDoubs; 
-            low = upp + 1; upp = low + sizes(12) - 1; send_arr(low:upp) = InitRemoved; 
-            low = upp + 1; upp = low + sizes(13) - 1; send_arr(low:upp) = NoAborted; 
-            low = upp + 1; upp = low + sizes(14) - 1; send_arr(low:upp) = NoRemoved; 
-            low = upp + 1; upp = low + sizes(15) - 1; send_arr(low:upp) = NoNonInitWalk; 
-            low = upp + 1; upp = low + sizes(16) - 1; send_arr(low:upp) = NoInitWalk; 
+            low = upp + 1; upp = low + sizes(8) - 1; send_arr(low:upp) = NoAddedInitiators;
+            low = upp + 1; upp = low + sizes(9) - 1; send_arr(low:upp) = NoInitDets;
+            low = upp + 1; upp = low + sizes(10) - 1; send_arr(low:upp) = NoNonInitDets;
+            low = upp + 1; upp = low + sizes(11) - 1; send_arr(low:upp) = NoExtraInitDoubs;
+            low = upp + 1; upp = low + sizes(12) - 1; send_arr(low:upp) = InitRemoved;
+            low = upp + 1; upp = low + sizes(13) - 1; send_arr(low:upp) = NoAborted;
+            low = upp + 1; upp = low + sizes(14) - 1; send_arr(low:upp) = NoRemoved;
+            low = upp + 1; upp = low + sizes(15) - 1; send_arr(low:upp) = NoNonInitWalk;
+            low = upp + 1; upp = low + sizes(16) - 1; send_arr(low:upp) = NoInitWalk;
         end if
 
-        low = upp + 1; upp = low + sizes(17) - 1; send_arr(low:upp) = TotWalkersTemp; 
-        low = upp + 1; upp = low + sizes(18) - 1; send_arr(low:upp) = norm_psi_squared; 
-        low = upp + 1; upp = low + sizes(19) - 1; send_arr(low:upp) = norm_semistoch_squared; 
-        low = upp + 1; upp = low + sizes(20) - 1; send_arr(low:upp) = TotParts; 
-        low = upp + 1; upp = low + sizes(21) - 1; send_arr(low:upp) = tot_parts_new; 
-        low = upp + 1; upp = low + sizes(22) - 1; send_arr(low:upp) = SumNoAtHf; 
-        low = upp + 1; upp = low + sizes(23) - 1; send_arr(low:upp) = bloom_count; 
-        low = upp + 1; upp = low + sizes(24) - 1; send_arr(low:upp) = NoAtHF; 
-        low = upp + 1; upp = low + sizes(25) - 1; send_arr(low:upp) = SumWalkersCyc; 
-        low = upp + 1; upp = low + sizes(26) - 1; send_arr(low:upp) = nspawned; 
+        low = upp + 1; upp = low + sizes(17) - 1; send_arr(low:upp) = TotWalkersTemp;
+        low = upp + 1; upp = low + sizes(18) - 1; send_arr(low:upp) = norm_psi_squared;
+        low = upp + 1; upp = low + sizes(19) - 1; send_arr(low:upp) = norm_semistoch_squared;
+        low = upp + 1; upp = low + sizes(20) - 1; send_arr(low:upp) = TotParts;
+        low = upp + 1; upp = low + sizes(21) - 1; send_arr(low:upp) = tot_parts_new;
+        low = upp + 1; upp = low + sizes(22) - 1; send_arr(low:upp) = SumNoAtHf;
+        low = upp + 1; upp = low + sizes(23) - 1; send_arr(low:upp) = bloom_count;
+        low = upp + 1; upp = low + sizes(24) - 1; send_arr(low:upp) = NoAtHF;
+        low = upp + 1; upp = low + sizes(25) - 1; send_arr(low:upp) = SumWalkersCyc;
+        low = upp + 1; upp = low + sizes(26) - 1; send_arr(low:upp) = nspawned;
         ! double occ change:
         low = upp + 1; upp = low + sizes(27) - 1; send_arr(low:upp) = inst_double_occ
 
         if (tTruncInitiator) then
-            low = upp + 1; upp = low + sizes(28) - 1; send_arr(low:upp) = doubleSpawns; 
+            low = upp + 1; upp = low + sizes(28) - 1; send_arr(low:upp) = doubleSpawns;
         end if
         low = upp + 1; upp = low + sizes(29) - 1; send_arr(low:upp) = nCoherentDoubles
         low = upp + 1; upp = low + sizes(30) - 1; send_arr(low:upp) = nIncoherentDets
@@ -573,25 +574,29 @@ contains
         end if
 
         ! truncated weight
-        low = upp + 1; upp = low + sizes(34) - 1; send_arr(low:upp) = truncatedWeight; 
+        low = upp + 1; upp = low + sizes(34) - 1; send_arr(low:upp) = truncatedWeight;
         ! initiators per excitation level
-        low = upp + 1; upp = low + sizes(35) - 1; send_arr(low:upp) = initsPerExLvl; 
+        low = upp + 1; upp = low + sizes(35) - 1; send_arr(low:upp) = initsPerExLvl;
         ! excitation number trackers
 
-        low = upp + 1; upp = low + sizes(36) - 1; send_arr(low:upp) = nInvalidExcits; 
-        low = upp + 1; upp = low + sizes(37) - 1; send_arr(low:upp) = nValidExcits; 
+        low = upp + 1; upp = low + sizes(36) - 1; send_arr(low:upp) = nInvalidExcits;
+        low = upp + 1; upp = low + sizes(37) - 1; send_arr(low:upp) = nValidExcits;
+
+        ! local spin
+        low = upp + 1; upp = low + sizes(38) - 1; send_arr(low:upp) = inst_local_spin;
+
         ! en pert space size
         if (tEN2) then
-            low = upp + 1; upp = low + sizes(38) - 1; send_arr(low:upp) = en_pert_main%ndets; 
+            low = upp + 1; upp = low + sizes(39) - 1; send_arr(low:upp) = en_pert_main%ndets;
         end if
 
         if (t_output) then
-            low = upp + 1; upp = low + sizes(39) - 1; send_arr(low:upp) = HFOut
-            low = upp + 1; upp = low + sizes(40) - 1; send_arr(low:upp) = Acceptances
-            low = upp + 1; upp = low + sizes(41) - 1; send_arr(low:upp) = SumWalkersOut
-            low = upp + 1; upp = low + sizes(42) - 1; send_arr(low:upp) = n_core_non_init
+            low = upp + 1; upp = low + sizes(40) - 1; send_arr(low:upp) = HFOut
+            low = upp + 1; upp = low + sizes(41) - 1; send_arr(low:upp) = Acceptances
+            low = upp + 1; upp = low + sizes(42) - 1; send_arr(low:upp) = SumWalkersOut
+            low = upp + 1; upp = low + sizes(43) - 1; send_arr(low:upp) = n_core_non_init
             if (t_real_time_fciqmc) then
-                low = upp + 1; upp = low + sizes(43) - 1; send_arr(low:upp) = popSnapShot; 
+                low = upp + 1; upp = low + sizes(44) - 1; send_arr(low:upp) = popSnapShot;
             end if
         end if
 
@@ -603,72 +608,76 @@ contains
 
         low = 0; upp = 0
 
-        low = upp + 1; upp = low + sizes(1) - 1; AllSpawnFromSing = recv_arr(low:upp); 
-        low = upp + 1; upp = low + sizes(2) - 1; iter_data%update_growth_tot = recv_arr(low:upp); 
-        low = upp + 1; upp = low + sizes(3) - 1; AllNoBorn = recv_arr(low:upp); 
-        low = upp + 1; upp = low + sizes(4) - 1; AllNoDied = recv_arr(low:upp); 
-        low = upp + 1; upp = low + sizes(5) - 1; RealAllHFCyc = recv_arr(low:upp); 
-        low = upp + 1; upp = low + sizes(6) - 1; AllNoAtDoubs = recv_arr(low:upp); 
-        low = upp + 1; upp = low + sizes(7) - 1; AllAnnihilated = recv_arr(low:upp); 
+        low = upp + 1; upp = low + sizes(1) - 1; AllSpawnFromSing = recv_arr(low:upp);
+        low = upp + 1; upp = low + sizes(2) - 1; iter_data%update_growth_tot = recv_arr(low:upp);
+        low = upp + 1; upp = low + sizes(3) - 1; AllNoBorn = recv_arr(low:upp);
+        low = upp + 1; upp = low + sizes(4) - 1; AllNoDied = recv_arr(low:upp);
+        low = upp + 1; upp = low + sizes(5) - 1; RealAllHFCyc = recv_arr(low:upp);
+        low = upp + 1; upp = low + sizes(6) - 1; AllNoAtDoubs = recv_arr(low:upp);
+        low = upp + 1; upp = low + sizes(7) - 1; AllAnnihilated = recv_arr(low:upp);
         if (tTruncInitiator) then
-            low = upp + 1; upp = low + sizes(8) - 1; AllNoAddedInitiators = nint(recv_arr(low:upp), int64); 
-            low = upp + 1; upp = low + sizes(9) - 1; AllNoInitDets = nint(recv_arr(low:upp), int64); 
-            low = upp + 1; upp = low + sizes(10) - 1; AllNoNonInitDets = nint(recv_arr(low:upp), int64); 
-            low = upp + 1; upp = low + sizes(11) - 1; AllNoExtraInitDoubs = nint(recv_arr(low:upp), int64); 
-            low = upp + 1; upp = low + sizes(12) - 1; AllInitRemoved = nint(recv_arr(low:upp), int64); 
-            low = upp + 1; upp = low + sizes(13) - 1; AllNoAborted = recv_arr(low:upp); 
-            low = upp + 1; upp = low + sizes(14) - 1; AllNoRemoved = recv_arr(low:upp); 
-            low = upp + 1; upp = low + sizes(15) - 1; AllNoNonInitWalk = recv_arr(low:upp); 
-            low = upp + 1; upp = low + sizes(16) - 1; AllNoInitWalk = recv_arr(low:upp); 
+            low = upp + 1; upp = low + sizes(8) - 1; AllNoAddedInitiators = nint(recv_arr(low:upp), int64);
+            low = upp + 1; upp = low + sizes(9) - 1; AllNoInitDets = nint(recv_arr(low:upp), int64);
+            low = upp + 1; upp = low + sizes(10) - 1; AllNoNonInitDets = nint(recv_arr(low:upp), int64);
+            low = upp + 1; upp = low + sizes(11) - 1; AllNoExtraInitDoubs = nint(recv_arr(low:upp), int64);
+            low = upp + 1; upp = low + sizes(12) - 1; AllInitRemoved = nint(recv_arr(low:upp), int64);
+            low = upp + 1; upp = low + sizes(13) - 1; AllNoAborted = recv_arr(low:upp);
+            low = upp + 1; upp = low + sizes(14) - 1; AllNoRemoved = recv_arr(low:upp);
+            low = upp + 1; upp = low + sizes(15) - 1; AllNoNonInitWalk = recv_arr(low:upp);
+            low = upp + 1; upp = low + sizes(16) - 1; AllNoInitWalk = recv_arr(low:upp);
         end if
-        low = upp + 1; upp = low + sizes(17) - 1; AllTotWalkers = nint(recv_arr(low), int64); 
-        low = upp + 1; upp = low + sizes(18) - 1; all_norm_psi_squared = recv_arr(low:upp); 
-        low = upp + 1; upp = low + sizes(19) - 1; all_norm_semistoch_squared = recv_arr(low:upp); 
-        low = upp + 1; upp = low + sizes(20) - 1; AllTotParts = recv_arr(low:upp); 
-        low = upp + 1; upp = low + sizes(21) - 1; tot_parts_new_all = recv_arr(low:upp); 
-        low = upp + 1; upp = low + sizes(22) - 1; AllSumNoAtHF = recv_arr(low:upp); 
-        low = upp + 1; upp = low + sizes(23) - 1; all_bloom_count = nint(recv_arr(low:upp)); 
-        low = upp + 1; upp = low + sizes(24) - 1; AllNoAtHf = recv_arr(low:upp); 
-        low = upp + 1; upp = low + sizes(25) - 1; AllSumWalkersCyc = recv_arr(low:upp); 
-        low = upp + 1; upp = low + sizes(26) - 1; nspawned_tot = nint(recv_arr(low), int64); 
+        low = upp + 1; upp = low + sizes(17) - 1; AllTotWalkers = nint(recv_arr(low), int64);
+        low = upp + 1; upp = low + sizes(18) - 1; all_norm_psi_squared = recv_arr(low:upp);
+        low = upp + 1; upp = low + sizes(19) - 1; all_norm_semistoch_squared = recv_arr(low:upp);
+        low = upp + 1; upp = low + sizes(20) - 1; AllTotParts = recv_arr(low:upp);
+        low = upp + 1; upp = low + sizes(21) - 1; tot_parts_new_all = recv_arr(low:upp);
+        low = upp + 1; upp = low + sizes(22) - 1; AllSumNoAtHF = recv_arr(low:upp);
+        low = upp + 1; upp = low + sizes(23) - 1; all_bloom_count = nint(recv_arr(low:upp));
+        low = upp + 1; upp = low + sizes(24) - 1; AllNoAtHf = recv_arr(low:upp);
+        low = upp + 1; upp = low + sizes(25) - 1; AllSumWalkersCyc = recv_arr(low:upp);
+        low = upp + 1; upp = low + sizes(26) - 1; nspawned_tot = nint(recv_arr(low), int64);
         ! double occ:
-        low = upp + 1; upp = low + sizes(27) - 1; all_inst_double_occ = recv_arr(low); 
+        low = upp + 1; upp = low + sizes(27) - 1; all_inst_double_occ = recv_arr(low);
         if (tTruncInitiator) then
-            low = upp + 1; upp = low + sizes(28) - 1; allDoubleSpawns = nint(recv_arr(low)); 
+            low = upp + 1; upp = low + sizes(28) - 1; allDoubleSpawns = nint(recv_arr(low));
             doubleSpawns = 0
         end if
-        low = upp + 1; upp = low + sizes(29) - 1; AllCoherentDoubles = nint(recv_arr(low)); 
-        low = upp + 1; upp = low + sizes(30) - 1; AllIncoherentDets = nint(recv_arr(low)); 
-        low = upp + 1; upp = low + sizes(31) - 1; AllConnection = nint(recv_arr(low)); 
+        low = upp + 1; upp = low + sizes(29) - 1; AllCoherentDoubles = nint(recv_arr(low));
+        low = upp + 1; upp = low + sizes(30) - 1; AllIncoherentDets = nint(recv_arr(low));
+        low = upp + 1; upp = low + sizes(31) - 1; AllConnection = nint(recv_arr(low));
         if (t_spin_measurements) then
             low = upp + 1; upp = low + sizes(32) - 1; all_inst_spin_diff = recv_arr(low:upp)
             low = upp + 1; upp = low + sizes(33) - 1; all_inst_spatial_doub_occ = recv_arr(low:upp)
         end if
 
         ! truncated weight
-        low = upp + 1; upp = low + sizes(34) - 1; AllTruncatedWeight = recv_arr(low); 
+        low = upp + 1; upp = low + sizes(34) - 1; AllTruncatedWeight = recv_arr(low);
         ! initiators per excitation level
-        low = upp + 1; upp = low + sizes(35) - 1; AllInitsPerExLvl = nint(recv_arr(low:upp)); 
+        low = upp + 1; upp = low + sizes(35) - 1; AllInitsPerExLvl = nint(recv_arr(low:upp));
         ! excitation number trackers
-        low = upp + 1; upp = low + sizes(36) - 1; allNInvalidExcits = nint(recv_arr(low), int64); 
-        low = upp + 1; upp = low + sizes(37) - 1; allNValidExcits = nint(recv_arr(low), int64); 
+        low = upp + 1; upp = low + sizes(36) - 1; allNInvalidExcits = nint(recv_arr(low), int64);
+        low = upp + 1; upp = low + sizes(37) - 1; allNValidExcits = nint(recv_arr(low), int64);
+
+        ! local spin
+        low = upp + 1; upp = low + sizes(38) - 1; all_local_spin = recv_arr(low);
+
         ! en_pert space size
         if (tEN2) then
-            low = upp + 1; upp = low + sizes(38) - 1; en_pert_main%ndets_all = nint(recv_arr(low)); 
+            low = upp + 1; upp = low + sizes(39) - 1; en_pert_main%ndets_all = nint(recv_arr(low));
         end if
         ! Output variables
         if (t_output) then
-            low = upp + 1; upp = low + sizes(39) - 1; RealAllHFOut = recv_arr(low:upp)
-            low = upp + 1; upp = low + sizes(40) - 1; AllAcceptances = recv_arr(low:upp)
-            low = upp + 1; upp = low + sizes(41) - 1; AllSumWalkersOut = recv_arr(low:upp)
-            low = upp + 1; upp = low + sizes(42) - 1; all_n_core_non_init = nint(recv_arr(low))
+            low = upp + 1; upp = low + sizes(40) - 1; RealAllHFOut = recv_arr(low:upp)
+            low = upp + 1; upp = low + sizes(41) - 1; AllAcceptances = recv_arr(low:upp)
+            low = upp + 1; upp = low + sizes(42) - 1; AllSumWalkersOut = recv_arr(low:upp)
+            low = upp + 1; upp = low + sizes(43) - 1; all_n_core_non_init = nint(recv_arr(low))
             if (t_real_time_fciqmc) then
-                low = upp + 1; upp = low + sizes(43) - 1; allPopSnapShot = recv_arr(low:upp); 
+                low = upp + 1; upp = low + sizes(44) - 1; allPopSnapShot = recv_arr(low:upp);
             end if
         end if
         ! Communicate HElement_t variables:
 
-        low = 0; upp = 0; 
+        low = 0; upp = 0;
         sizes(1) = size(ENumCyc)
         sizes(2) = size(SumENum)
         sizes(3) = size(ENumCycAbs)
@@ -689,43 +698,43 @@ contains
                                                         & increase the size of the send_arr_helem and recv_arr_helem &
                                                         & arrays in the source code.")
 
-        low = upp + 1; upp = low + sizes(1) - 1; send_arr_helem(low:upp) = ENumCyc; 
-        low = upp + 1; upp = low + sizes(2) - 1; send_arr_helem(low:upp) = SumENum; 
-        low = upp + 1; upp = low + sizes(3) - 1; send_arr_helem(low:upp) = ENumCycAbs; 
-        low = upp + 1; upp = low + sizes(4) - 1; send_arr_helem(low:upp) = cyc_proje_denominator; 
-        low = upp + 1; upp = low + sizes(5) - 1; send_arr_helem(low:upp) = sum_proje_denominator; 
+        low = upp + 1; upp = low + sizes(1) - 1; send_arr_helem(low:upp) = ENumCyc;
+        low = upp + 1; upp = low + sizes(2) - 1; send_arr_helem(low:upp) = SumENum;
+        low = upp + 1; upp = low + sizes(3) - 1; send_arr_helem(low:upp) = ENumCycAbs;
+        low = upp + 1; upp = low + sizes(4) - 1; send_arr_helem(low:upp) = cyc_proje_denominator;
+        low = upp + 1; upp = low + sizes(5) - 1; send_arr_helem(low:upp) = sum_proje_denominator;
         if (t_comm_trial) then
-            low = upp + 1; upp = low + sizes(6) - 1; send_arr_helem(low:upp) = trial_numerator; 
-            low = upp + 1; upp = low + sizes(7) - 1; send_arr_helem(low:upp) = trial_denom; 
-            low = upp + 1; upp = low + sizes(8) - 1; send_arr_helem(low:upp) = trial_num_inst; 
-            low = upp + 1; upp = low + sizes(9) - 1; send_arr_helem(low:upp) = trial_denom_inst; 
-            low = upp + 1; upp = low + sizes(10) - 1; send_arr_helem(low:upp) = init_trial_numerator; 
-            low = upp + 1; upp = low + sizes(11) - 1; send_arr_helem(low:upp) = init_trial_denom; 
+            low = upp + 1; upp = low + sizes(6) - 1; send_arr_helem(low:upp) = trial_numerator;
+            low = upp + 1; upp = low + sizes(7) - 1; send_arr_helem(low:upp) = trial_denom;
+            low = upp + 1; upp = low + sizes(8) - 1; send_arr_helem(low:upp) = trial_num_inst;
+            low = upp + 1; upp = low + sizes(9) - 1; send_arr_helem(low:upp) = trial_denom_inst;
+            low = upp + 1; upp = low + sizes(10) - 1; send_arr_helem(low:upp) = init_trial_numerator;
+            low = upp + 1; upp = low + sizes(11) - 1; send_arr_helem(low:upp) = init_trial_denom;
         end if
-        low = upp + 1; upp = low + sizes(12) - 1; send_arr_helem(low:upp) = InitsENumCyc; 
+        low = upp + 1; upp = low + sizes(12) - 1; send_arr_helem(low:upp) = InitsENumCyc;
         if (t_output) then
-            low = upp + 1; upp = low + sizes(13) - 1; send_arr_helem(low:upp) = ENumOut; 
+            low = upp + 1; upp = low + sizes(13) - 1; send_arr_helem(low:upp) = ENumOut;
         end if
 
         call MPISumAll(send_arr_helem(1:upp), recv_arr_helem(1:upp))
 
-        low = 0; upp = 0; 
-        low = upp + 1; upp = low + sizes(1) - 1; AllENumCyc = recv_arr_helem(low:upp); 
-        low = upp + 1; upp = low + sizes(2) - 1; AllSumENum = recv_arr_helem(low:upp); 
-        low = upp + 1; upp = low + sizes(3) - 1; AllENumCycAbs = recv_arr_helem(low:upp); 
-        low = upp + 1; upp = low + sizes(4) - 1; all_cyc_proje_denominator = recv_arr_helem(low:upp); 
-        low = upp + 1; upp = low + sizes(5) - 1; all_sum_proje_denominator = recv_arr_helem(low:upp); 
+        low = 0; upp = 0;
+        low = upp + 1; upp = low + sizes(1) - 1; AllENumCyc = recv_arr_helem(low:upp);
+        low = upp + 1; upp = low + sizes(2) - 1; AllSumENum = recv_arr_helem(low:upp);
+        low = upp + 1; upp = low + sizes(3) - 1; AllENumCycAbs = recv_arr_helem(low:upp);
+        low = upp + 1; upp = low + sizes(4) - 1; all_cyc_proje_denominator = recv_arr_helem(low:upp);
+        low = upp + 1; upp = low + sizes(5) - 1; all_sum_proje_denominator = recv_arr_helem(low:upp);
         if (t_comm_trial) then
-            low = upp + 1; upp = low + sizes(6) - 1; tot_trial_numerator = recv_arr_helem(low:upp); 
-            low = upp + 1; upp = low + sizes(7) - 1; tot_trial_denom = recv_arr_helem(low:upp); 
-            low = upp + 1; upp = low + sizes(8) - 1; tot_trial_num_inst = recv_arr_helem(low:upp); 
-            low = upp + 1; upp = low + sizes(9) - 1; tot_trial_denom_inst = recv_arr_helem(low:upp); 
-            low = upp + 1; upp = low + sizes(10) - 1; tot_init_trial_numerator = recv_arr_helem(low:upp); 
-            low = upp + 1; upp = low + sizes(11) - 1; tot_init_trial_denom = recv_arr_helem(low:upp); 
+            low = upp + 1; upp = low + sizes(6) - 1; tot_trial_numerator = recv_arr_helem(low:upp);
+            low = upp + 1; upp = low + sizes(7) - 1; tot_trial_denom = recv_arr_helem(low:upp);
+            low = upp + 1; upp = low + sizes(8) - 1; tot_trial_num_inst = recv_arr_helem(low:upp);
+            low = upp + 1; upp = low + sizes(9) - 1; tot_trial_denom_inst = recv_arr_helem(low:upp);
+            low = upp + 1; upp = low + sizes(10) - 1; tot_init_trial_numerator = recv_arr_helem(low:upp);
+            low = upp + 1; upp = low + sizes(11) - 1; tot_init_trial_denom = recv_arr_helem(low:upp);
         end if
-        low = upp + 1; upp = low + sizes(12) - 1; AllInitsENumCyc = recv_arr_helem(low:upp); 
+        low = upp + 1; upp = low + sizes(12) - 1; AllInitsENumCyc = recv_arr_helem(low:upp);
         if (t_output) then
-            low = upp + 1; upp = low + sizes(13) - 1; AllEnumOut = recv_arr_helem(low:upp); 
+            low = upp + 1; upp = low + sizes(13) - 1; AllEnumOut = recv_arr_helem(low:upp);
         end if
 
         ! Optionally communicate EXLEVEL_WNorm.
@@ -814,6 +823,17 @@ contains
 
             ! and also sum up the double occupancy:
             sum_double_occ = sum_double_occ + all_inst_double_occ
+        end if
+
+        if (t_measure_local_spin_av) then
+
+            if (.not. t_calc_double_occ_av) then
+                sum_norm_psi_squared = sum_norm_psi_squared + &
+                                   sum(all_norm_psi_squared) / real(inum_runs, dp)
+            end if
+
+            sum_local_spin = sum_local_spin + all_local_spin
+
         end if
 
 #ifdef DEBUG_

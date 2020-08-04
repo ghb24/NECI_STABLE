@@ -344,6 +344,10 @@ contains
             call WriteFCIMCStats()
         end if
 
+        if (t_measure_local_spin) then
+            call write_local_spin_stats(initial = .true.)
+            call write_local_spin_stats()
+        end if
         ! double occupancy:
         if (t_calc_double_occ) then
             call write_double_occ_stats(initial=.true.)
@@ -632,6 +636,9 @@ contains
                                                                       tPairedReplicas, t_comm_req=.false.)
                 call halt_timer(Stats_Comms_Time)
 
+                if (t_measure_local_spin) then
+                    call write_local_spin_stats()
+                end if
                 ! in calculate_new_shift_wrapper output is plotted too!
                 ! so for now do it here for double occupancy
                 if (t_calc_double_occ) then
@@ -926,6 +933,15 @@ contains
 
         IF (tPrintOrbOcc) THEN
             CALL PrintOrbOccs(OrbOccs)
+        end if
+
+        if (t_measure_local_spin) then
+            if (iProcIndex == root) then
+                print *, " ===== "
+                print *, " Local spin measurement up to orbital ", num_local_spin_orbs
+                print *, sum_local_spin / (sum_norm_psi_squared * real(StepsSft, dp))
+                print *, " ===== "
+            end if
         end if
 
         if (t_calc_double_occ) then
@@ -1449,6 +1465,10 @@ contains
             if (t_calc_double_occ) then
                 inst_double_occ = inst_double_occ + &
                                   get_double_occupancy(CurrentDets(:, j), SignCurr)
+            end if
+
+            if (t_measure_local_spin) then
+                call measure_local_spin(ilut, nI, SignCurr)
             end if
 
             if (t_spin_measurements) then
