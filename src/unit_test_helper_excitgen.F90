@@ -2,7 +2,7 @@
 
 module unit_test_helper_excitgen
     use constants
-    use bit_reps, only: IlutBits
+    use bit_reps, only: IlutBits, init_bit_rep
     use read_fci, only: readfciint, initfromfcid, fcidump_name
     use shared_memory_mpi, only: shared_allocate_mpi, shared_deallocate_mpi
     use IntegralsData, only: UMat, umat_win
@@ -301,6 +301,8 @@ contains
         call CalcInit()
         t_pcpp_excitgen = .true.
         call init_excit_gen_store(fcimc_excit_gen_store)
+
+        call init_bit_rep()
     end subroutine init_excitgen_test
 
     !------------------------------------------------------------------------------------------!
