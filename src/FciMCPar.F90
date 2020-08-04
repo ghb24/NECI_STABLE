@@ -50,7 +50,7 @@ module FciMCParMod
                            tHDF5TruncPopsWrite, iHDF5TruncPopsEx, tAccumPops, &
                            tAccumPopsActive, iAccumPopsIter, iAccumPopsExpireIters, &
                            tPopsProjE, iHDF5TruncPopsIter, iAccumPopsCounter, &
-                           AccumPopsExpirePercent
+                           AccumPopsExpirePercent, num_local_spin_orbs
 
     use rdm_data, only: print_2rdm_est, ThisRDMIter, inits_one_rdms, two_rdm_inits_spawn, &
                         two_rdm_inits, rdm_inits_defs, RDMCorrectionFactor, inits_estimates, tSetupInitsEst, &
@@ -151,6 +151,7 @@ module FciMCParMod
 
     use sltcnd_mod, only: sltcnd_excit
     use hdf5_popsfile, only: write_popsfile_hdf5
+    use local_spin, only: measure_local_spin, write_local_spin_stats
 
     implicit none
 
@@ -1468,7 +1469,7 @@ contains
             end if
 
             if (t_measure_local_spin) then
-                call measure_local_spin(ilut, nI, SignCurr)
+                call measure_local_spin(CurrentDets(:, j), DetCurr, SignCurr)
             end if
 
             if (t_spin_measurements) then

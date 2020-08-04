@@ -24,7 +24,8 @@ module fcimc_iter_utils
     use hphf_integrals, only: hphf_diag_helement
     use Determinants, only: get_helement
     use LoggingData, only: tFCIMCStats2, t_calc_double_occ, t_calc_double_occ_av, &
-                           AllInitsPerExLvl, initsPerExLvl, tCoupleCycleOutput
+                           AllInitsPerExLvl, initsPerExLvl, tCoupleCycleOutput, &
+                           t_measure_local_spin, t_measure_local_spin_av
     use tau_search, only: update_tau
     use rdm_data, only: en_pert_main, InstRDMCorrectionFactor
     use Parallel_neci
@@ -46,6 +47,10 @@ module fcimc_iter_utils
     use tau_search_hist, only: update_tau_hist
 
     use guga_tausearch, only: update_tau_guga_nosym
+
+    use local_spin, only: all_local_spin, sum_local_spin, inst_local_spin, &
+                          rezero_local_spin_stats
+
 
     implicit none
 
@@ -1330,6 +1335,10 @@ contains
                                 call rezero_spin_diff()
                             end if
                         end if
+                        if (t_measure_local_spin) then
+                            call rezero_local_spin_stats()
+                        end if
+
                     end subroutine rezero_iter_stats_update_cycle
 
                     subroutine iteration_output_wrapper(iter_data, tot_parts_new, &
