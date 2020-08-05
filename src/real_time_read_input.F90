@@ -452,6 +452,11 @@ module real_time_read_input_module
              case("QUAD-DAMP")
                 ! Additional energy-dependent damping (quadratic in H)
                 t_quad_damp = .true.
+                if (item < nitems) then
+                    call readf(real_time_info%quad_damp_fac)
+                else
+                    real_time_info%quad_damp_fac = 0.5d0
+                end if
 
             case ("GENERATE-CORESPACE")
                 ! Now, we write out the most important determinants along the contour

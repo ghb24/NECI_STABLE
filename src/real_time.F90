@@ -990,6 +990,10 @@ contains
         if(.not. t_quad_damp) then
            tau_real = tau_real/2.0
            tau_imag = tau_imag/2.0
+       else
+           ! The factor corresponding to the quadratic damping is added to the initial half factor
+           tau_real = (real_time_info%quad_damp_fac + 0.5d0)*tau_real
+           tau_imag = (real_time_info%quad_damp_fac + 0.5d0)*tau_imag
        end if
        
         call first_real_time_spawn(err)
