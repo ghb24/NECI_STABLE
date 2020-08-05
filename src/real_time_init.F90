@@ -9,7 +9,7 @@ module real_time_init
                               temp_det_pointer, temp_det_hash, temp_freeslot, tOverpopulate, &
                               pert_norm, second_spawn_iter_data, DiagParts, stepsAlpha, &
                               DiagVec, normsize, valid_diag_spawns, tStabilizerShift, &
-                              spawnBuf, t_quad_damp,&
+                              spawnBuf,&
                               tDynamicAlpha, &
                               gf_count, &
                               allPopSnapshot, &
@@ -515,7 +515,7 @@ contains
         tGZero = .false.
 
         ! Do not use additional damping quadratic in energy
-        t_quad_damp = .false.
+        real_time_info%quad_damp_fac = 0.0_dp
     end subroutine set_real_time_defaults
 
     ! need a specific popsfile read function for the real-time calculation

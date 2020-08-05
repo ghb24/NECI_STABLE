@@ -15,7 +15,7 @@ module real_time
                                makePopSnapshot, update_elapsed_time, logTimeCurve, &
                                get_current_alpha_from_cache, closeTauContourFile, &
                                get_corespace_from_buf
-    use real_time_data, only: gf_type,  tVerletSweep, t_quad_damp, &
+    use real_time_data, only: gf_type,  tVerletSweep, &
                               pert_norm, second_spawn_iter_data, runge_kutta_step,&
                               current_overlap, DiagParts, stepsAlpha, &
                               elapsedRealTime, elapsedImagTime, TotPartsPeak, tVerletScheme, &
@@ -987,14 +987,10 @@ contains
 
         tau_real_tmp = tau_real
         tau_imag_tmp = tau_imag
-        if(.not. t_quad_damp) then
-           tau_real = tau_real/2.0
-           tau_imag = tau_imag/2.0
-       else
-           ! The factor corresponding to the quadratic damping is added to the initial half factor
-           tau_real = (real_time_info%quad_damp_fac + 0.5d0)*tau_real
-           tau_imag = (real_time_info%quad_damp_fac + 0.5d0)*tau_imag
-       end if
+        ! The factor corresponding to the quadratic damping is added to the initial half factor (defaults to 0)
+        tau_real = (real_time_info%quad_damp_fac + 0.5d0)*tau_real
+        tau_imag = (real_time_info%quad_damp_fac + 0.5d0)*tau_imag
+
        
         call first_real_time_spawn(err)
         if (catch_error()) return
