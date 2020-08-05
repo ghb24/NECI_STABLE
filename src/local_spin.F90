@@ -49,8 +49,8 @@ contains
         coeff = abs(real_sgn(1))**2
 #endif
         ! the current b vector should be fine to get the total spin
-        loc_spin = 2*currentB_ilut(num_local_spin_orbs) * &
-            (2*currentB_ilut(num_local_spin_orbs) + 1.0_dp)
+        loc_spin = currentB_ilut(num_local_spin_orbs) / 2.0_dp * &
+            (currentB_ilut(num_local_spin_orbs) / 2.0_dp + 1.0_dp)
 
         inst_local_spin = inst_local_spin + coeff * loc_spin
 
