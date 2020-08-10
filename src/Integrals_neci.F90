@@ -429,7 +429,7 @@ contains
       use real_space_hubbard, only: init_tmat
       use k_space_hubbard, only: init_tmat_kspace
       use lattice_mod, only: lat
-      use LMat_mod, only: readLMat
+
       implicit none
       INTEGER iCacheFlag
       complex(dp),ALLOCATABLE :: ZIA(:)
@@ -735,8 +735,6 @@ contains
 
       ! Setup the umatel pointers as well
       call init_getumatel_fn_pointers ()
-
-      if(t_mol_3_body) call readLMat()
 
     End Subroutine IntInit
 

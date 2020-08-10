@@ -227,33 +227,71 @@ contains
 
     end subroutine read
 
+    !------------------------------------------------------------------------------------------!
+
+    !> Checks if an entry is zeroed due to frozen orbitals being included
+    !> @param[in] indices  array of size 6 containing the indices of the entry in question in the frozen orbital numbering
+    !> @return t_freeze  true if the entry is zeroed
+    function t_freeze(indices)
+        integer, intent(in) :: indices(6)
+        logical :: t_freeze
+
+        t_freeze = any(indices < 1)
+    end function t_freeze
+
     !------------------------------------------------------------------------------------------!  
 
+    !> Maps a set of six indices from pre-freeze to post-freeze orbital indexing
+    !> @param indices  on entry: array of indices in pre-freeze indexing, on return: same array in post-freeze indexing
+    subroutine map_indices(indices)
+        integer(int64), intent(in) :: indices(:)
+
+        indices = indices - numBasisIndices(nFrozen)
+    end function map_indices
+
+    !------------------------------------------------------------------------------------------!  
+
+    !> Checks if the entry is neglected due to frozen orbitals being included and absorbs entries
+    !! into the lower order matrix elements if required
     subroutine freeze_lmat(matel, indices)
         HElement_t(dp), intent(inout) :: matel
         integer(int64), intent(inout) :: indices(6)
-
-        call add_core_en(matel, indices)
+        
         ! Offset the orbital indexing
-        indices = indices - nFrozen/2
+        call map_indices(indices)
+        call add_core_en(matel, indices)
     end subroutine freeze_lmat
 
     !------------------------------------------------------------------------------------------!    
 
+    !> Absorb entries with repeated frozen orbitals into the corresponding lower-order
+    !! terms.
     subroutine add_core_en(matel, indices)
         HElement_t(dp), intent(inout) :: matel
         integer(int64), intent(in) :: indices(6)
 
-        integer(int64) :: index
-        logical :: t_par, t_freeze
+        integer :: counts(6)
+        integer(int64) :: index, ct
+        logical :: t_par, t_freeze, t_check
+        HElement_t(dp), save :: accum = 0.0       
 
-        index = frozen_entry(indices, t_freeze, t_par)
-        if(t_freeze) then
-            ! If the index is assigned, there is a duplicate frozen orb
-            if(index > 0) then
-                if(t_par) matel = -1.0_dp*matel
-                ! Absorb the matrix element into UMat
-                UMat(index) = UMat(index) + matel
+        if(t_freeze(indices)) then
+            ! Count the number of different indices appearing
+            call count_frozen_ints(indices, counts)
+            ! How many unique indices do appear?
+            ! 4 => double excitation
+            if(counts == 1) then 
+                index = frozen_entry(indices, t_par)            
+                ! If the index is assigned, there is a duplicate frozen orb
+                if(index > 0) then
+                    if(t_par) matel = -1.0_dp*matel
+                    ! Absorb the matrix element into UMat
+                    UMat(index) = UMat(index) + matel
+                endif
+            ! 2 => single excitation
+            elseif(counts == 2)
+            ! none => diagonal element
+            elseif(counts == 3)
             endif
             ! Zero the matrix element for further usage (i.e. will not turn up anymore)
             matel = 0.0_dp
@@ -262,19 +300,53 @@ contains
 
     !------------------------------------------------------------------------------------------!    
 
-    function frozen_entry(indices, t_freeze, t_par) result(index)
+    function count_frozen_inds(indices) result(level)
+        use util_mod, only: operator(.div.)
+        integer(int64) :: indices(:)
+        integer :: level
+        integer :: counts
+
+        integer :: ct
+        level= 0
+        ! If there is an unpaired frozen orbital, the entry is discarded, it does not
+        ! contribute to any contraction
+        do ct = 1, len(indices)
+            if(count(indices(ct) == indices) == 1 .and. indices(ct) < 1) return
+        end do
+        ! Else, it contributes to a contraction according to the number of frozen indices
+        counts = count(indices < 1)
+        if(module(counts,2) .ne. 0) return
+        
+        level = counts .div. 2
+        
+    end function count_frozen_inds
+
+    !------------------------------------------------------------------------------------------!    
+
+    !> Get the index of the UMat entry to which the LMat entry with given indices shall be
+    !! added if it is frozen.
+    !> @param[in] indices  array of lenght 6 with the orbital indices of the LMat entry
+    !> @param[ou] t_par  flag indicating if the matrix element enters UMat with a -1
+    !> @return index  index of the UMat entry to add the LMat entry to, 0 if entry is not frozen
+    function frozen_entry(indices, t_par) result(index)
         integer(int64), intent(in) :: indices(6)
-        logical, intent(out) :: t_freeze, t_par
+        logical, intent(out) :: t_par
         integer(int64) :: index
-        integer :: a,b,c,i,j,k
+        integer :: a,b,c,i,j,k,ct
         logical :: frozenArr(6)
 
         t_par = .false.
         index = 0        
-        frozenArr = (indices-nFrozen/2) < 1
-        t_freeze = any(frozenArr)
-        ! Check if the matrix element is affected by freezing
-        if(t_freeze) then
+        frozenArr = (indices) < 1
+        ! At least two frozen indices are needed to enter UMat
+        if(count(frozenArr) > 1) then
+            ! Only need to check the first two values, if they are negative, there can be no
+            ! five repeated indices
+            do ct = 1,2
+                ! If at least five indices match, no contribution to UMat is made (matrix element cannot occur due to an orbital being occupied with three electrons)
+                if(count(indices(ct) == indices) > 4) return
+            end do
+            
             a = int(indices(1))
             b = int(indices(2))
             c = int(indices(3))
@@ -317,7 +389,7 @@ contains
                 index = UMatInd(a,b,i,j)
             elseif(i==j .and. frozenArr(4)) then
                 index = UMatInd(b,c,a,k)
-                t_par = .false.
+                t_par = .true.
             elseif(i==k .and. frozenArr(4)) then
                 index = UMatInd(a,b,j,c)
             elseif(j==k .and. frozenArr(5)) then
@@ -416,16 +488,18 @@ contains
                         ! error while reading?
                         call stop_all(t_r,"Error reading TCDUMP file")
                     else
-                        call freeze_lmat(matel,indices)
+                        ! permutational factor of 3 (not accounted for in integral calculation)
+                        matel = 3.0_dp * matel
+                        call this%freeze_lmat(matel,indices)
                         ! else assign the matrix element
-                        if(abs(3.0_dp*matel) > LMatEps) then                        
+                        if(abs(matel) > LMatEps) then                        
                             index = this%indexFunc(&
                                 indices(1),indices(2),indices(3),indices(4),indices(5), indices(6))
                             if(index > this%lMat_size()) then
                                 counter = index
                                 write(iout,*) "Warning, exceeding size"
                             endif
-                            this%lMat_vals%ptr(index) = 3.0_dp * matel
+                            this%lMat_vals%ptr(index) = matel
                         endif
                     endif
 
@@ -485,7 +559,7 @@ contains
         do i = 1, this_blocksize
             ! truncate down to lMatEps
             rVal = 3.0_dp * transfer(entries(1,i),rVal)
-            call freeze_lmat(rVal, indices(:,i))
+            call this%freeze_lmat(rVal, indices(:,i))
             if(abs(rVal)>lMatEps) then
                 call this%set_elem(this%indexFunc(int(indices(1,i),int64),int(indices(2,i),int64),&
                     int(indices(3,i),int64),&

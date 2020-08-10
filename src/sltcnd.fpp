@@ -393,8 +393,7 @@ contains
         ! Obtain the spatial rather than spin indices if required
         id = gtID(nI)
 
-        ! Sum in the two electron contributions. Use max(id...) as we cannot
-        ! guarantee that if j>i then nI(j)>nI(i).
+        ! Sum in the two electron contributions. 
         hel_doub = (0)
         hel_tmp = (0)
         do i = 1, nel - 1
