@@ -4,7 +4,6 @@ module LMat_class
     use LMat_indexing, only: lMatIndSym
     use shared_array
     use SystemData, only: nBasis
-    use IntegralsData, only: nFrozen, UMat
     use ParallelHelper
     use Parallel_neci
     use procedure_pointers, only: lMatInd_t
@@ -14,16 +13,18 @@ module LMat_class
     use util_mod, only: get_free_unit, operator(.div.)
     use tc_three_body_data, only: lMatEps, tHDF5LMat
     use HElem, only: HElement_t_sizeB
-    use UMatCache, only: numBasisIndices, UMatInd
-    use LoggingData, only: tHistLMat    
+    use LoggingData, only: tHistLMat
+    use UMatCache, only: numBasisIndices
+    use LMat_freeze, only: freeze_lmat, t_freeze, map_indices
 #ifdef USE_HDF_
     use hdf5
     use hdf5_util
 #endif
     implicit none
+
     private
     public :: lMat_t, sparse_lMat_t, dense_lMat_t
-
+    
     !> Abstract base class for lMat_t objects (6-index integrals)
     type, abstract :: lMat_t
         private
@@ -206,7 +207,7 @@ contains
 
         integer(int64) :: nBI
 
-        nBI = int(numBasisIndices(nBasis-nFrozen),int64)
+        nBI = int(numBasisIndices(nBasis),int64)
         ! The size is given by the largest index (LMatInd is monotonous in all arguments)        
         size = this%indexFunc(nBI,nBI,nBI,nBI,nBI,nBI)
     end function lMat_size
@@ -226,180 +227,6 @@ contains
         if(tHistLMat) call this%histogram_lMat()
 
     end subroutine read
-
-    !------------------------------------------------------------------------------------------!
-
-    !> Checks if an entry is zeroed due to frozen orbitals being included
-    !> @param[in] indices  array of size 6 containing the indices of the entry in question in the frozen orbital numbering
-    !> @return t_freeze  true if the entry is zeroed
-    function t_freeze(indices)
-        integer, intent(in) :: indices(6)
-        logical :: t_freeze
-
-        t_freeze = any(indices < 1)
-    end function t_freeze
-
-    !------------------------------------------------------------------------------------------!  
-
-    !> Maps a set of six indices from pre-freeze to post-freeze orbital indexing
-    !> @param indices  on entry: array of indices in pre-freeze indexing, on return: same array in post-freeze indexing
-    subroutine map_indices(indices)
-        integer(int64), intent(in) :: indices(:)
-
-        indices = indices - numBasisIndices(nFrozen)
-    end function map_indices
-
-    !------------------------------------------------------------------------------------------!  
-
-    !> Checks if the entry is neglected due to frozen orbitals being included and absorbs entries
-    !! into the lower order matrix elements if required
-    subroutine freeze_lmat(matel, indices)
-        HElement_t(dp), intent(inout) :: matel
-        integer(int64), intent(inout) :: indices(6)
-        
-        ! Offset the orbital indexing
-        call map_indices(indices)
-        call add_core_en(matel, indices)
-    end subroutine freeze_lmat
-
-    !------------------------------------------------------------------------------------------!    
-
-    !> Absorb entries with repeated frozen orbitals into the corresponding lower-order
-    !! terms.
-    subroutine add_core_en(matel, indices)
-        HElement_t(dp), intent(inout) :: matel
-        integer(int64), intent(in) :: indices(6)
-
-        integer :: counts(6)
-        integer(int64) :: index, ct
-        logical :: t_par, t_freeze, t_check
-        HElement_t(dp), save :: accum = 0.0       
-
-        if(t_freeze(indices)) then
-            ! Count the number of different indices appearing
-            call count_frozen_ints(indices, counts)
-            ! How many unique indices do appear?
-            ! 4 => double excitation
-            if(counts == 1) then 
-                index = frozen_entry(indices, t_par)            
-                ! If the index is assigned, there is a duplicate frozen orb
-                if(index > 0) then
-                    if(t_par) matel = -1.0_dp*matel
-                    ! Absorb the matrix element into UMat
-                    UMat(index) = UMat(index) + matel
-                endif
-            ! 2 => single excitation
-            elseif(counts == 2)
-            ! none => diagonal element
-            elseif(counts == 3)
-            endif
-            ! Zero the matrix element for further usage (i.e. will not turn up anymore)
-            matel = 0.0_dp
-        endif        
-    end subroutine add_core_en
-
-    !------------------------------------------------------------------------------------------!    
-
-    function count_frozen_inds(indices) result(level)
-        use util_mod, only: operator(.div.)
-        integer(int64) :: indices(:)
-        integer :: level
-        integer :: counts
-
-        integer :: ct
-        level= 0
-        ! If there is an unpaired frozen orbital, the entry is discarded, it does not
-        ! contribute to any contraction
-        do ct = 1, len(indices)
-            if(count(indices(ct) == indices) == 1 .and. indices(ct) < 1) return
-        end do
-        ! Else, it contributes to a contraction according to the number of frozen indices
-        counts = count(indices < 1)
-        if(module(counts,2) .ne. 0) return
-        
-        level = counts .div. 2
-        
-    end function count_frozen_inds
-
-    !------------------------------------------------------------------------------------------!    
-
-    !> Get the index of the UMat entry to which the LMat entry with given indices shall be
-    !! added if it is frozen.
-    !> @param[in] indices  array of lenght 6 with the orbital indices of the LMat entry
-    !> @param[ou] t_par  flag indicating if the matrix element enters UMat with a -1
-    !> @return index  index of the UMat entry to add the LMat entry to, 0 if entry is not frozen
-    function frozen_entry(indices, t_par) result(index)
-        integer(int64), intent(in) :: indices(6)
-        logical, intent(out) :: t_par
-        integer(int64) :: index
-        integer :: a,b,c,i,j,k,ct
-        logical :: frozenArr(6)
-
-        t_par = .false.
-        index = 0        
-        frozenArr = (indices) < 1
-        ! At least two frozen indices are needed to enter UMat
-        if(count(frozenArr) > 1) then
-            ! Only need to check the first two values, if they are negative, there can be no
-            ! five repeated indices
-            do ct = 1,2
-                ! If at least five indices match, no contribution to UMat is made (matrix element cannot occur due to an orbital being occupied with three electrons)
-                if(count(indices(ct) == indices) > 4) return
-            end do
-            
-            a = int(indices(1))
-            b = int(indices(2))
-            c = int(indices(3))
-            i = int(indices(4))
-            j = int(indices(5))
-            k = int(indices(6))
-            ! Check if the matrix element shall be absorbed into the two-body terms
-            ! This is the case if there is any repeated index that is in the frozen
-            ! space
-            if(a==i .and. frozenArr(1)) then
-                index = UMatInd(b,c,j,k)
-            elseif(a==j .and. frozenArr(1)) then
-                index = UMatInd(b,c,i,k)
-                ! Odd permutations carry a different sign
-                t_par = .true.
-            elseif(a==k .and. frozenArr(1)) then
-                index = UMatInd(b,c,i,j)
-            elseif(a==b .and. frozenArr(1)) then
-                index = UMatInd(j,c,i,k)
-                t_par = .true.
-            elseif(a==c .and. frozenArr(1)) then
-                index = UMatInd(b,k,i,j)
-            elseif(b==i .and. frozenArr(2)) then
-                index = UMatInd(a,c,j,k)
-                t_par = .true.
-            elseif(b==j .and. frozenArr(2)) then
-                index = UMatInd(a,c,i,k)
-            elseif(b==k .and. frozenArr(2)) then
-                index = UMatInd(a,c,i,j)
-                t_par = .true.
-            elseif(b==c .and. frozenArr(2)) then
-                index = UMatInd(a,k,i,j)
-                t_par = .true.
-            elseif(c==i .and. frozenArr(3)) then
-                index = UMatInd(a,b,j,k)
-            elseif(c==j .and. frozenArr(3)) then
-                index = UMatInd(a,b,i,k)
-                t_par = .true.
-            elseif(c==k .and. frozenArr(3)) then
-                index = UMatInd(a,b,i,j)
-            elseif(i==j .and. frozenArr(4)) then
-                index = UMatInd(b,c,a,k)
-                t_par = .true.
-            elseif(i==k .and. frozenArr(4)) then
-                index = UMatInd(a,b,j,c)
-            elseif(j==k .and. frozenArr(5)) then
-                index = UMatInd(a,c,i,b)
-                t_par = .true.
-            endif
-
-        end if
-    end function frozen_entry
-
 
     !------------------------------------------------------------------------------------------!
     ! Dense lMat routines
@@ -490,7 +317,7 @@ contains
                     else
                         ! permutational factor of 3 (not accounted for in integral calculation)
                         matel = 3.0_dp * matel
-                        call this%freeze_lmat(matel,indices)
+                        call freeze_lmat(matel,indices)
                         ! else assign the matrix element
                         if(abs(matel) > LMatEps) then                        
                             index = this%indexFunc(&
@@ -559,7 +386,7 @@ contains
         do i = 1, this_blocksize
             ! truncate down to lMatEps
             rVal = 3.0_dp * transfer(entries(1,i),rVal)
-            call this%freeze_lmat(rVal, indices(:,i))
+            call freeze_lmat(rVal, indices(:,i))
             if(abs(rVal)>lMatEps) then
                 call this%set_elem(this%indexFunc(int(indices(1,i),int64),int(indices(2,i),int64),&
                     int(indices(3,i),int64),&

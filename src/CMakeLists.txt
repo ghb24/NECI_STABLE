@@ -91,6 +91,7 @@ set( SRC_FILES
     lineup.F
     LMat_calc.F90
 	LMat_class.F90
+	LMat_freeze.F90
     LMat_indexing.F90
     LMat_mod.F90
     load_balance_calcnodes.F90

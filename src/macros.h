@@ -38,8 +38,8 @@
 ! could write that with already provided isOcc functions too, but would have to translate between spin and spatial orbs..
 
 ! Convert spatial orbital indices to spin orbital indices
-#define spatToSpinBeta(sOrb) 2*(sOrb-1)
-#define spatToSpinAlpha(sOrb) 2*sOrb
+#define spatToSpinBeta(sOrb) (2*(sOrb)-1)
+#define spatToSpinAlpha(sOrb) 2*(sOrb)
 ! Do the two orbitals have the same spin?
 #define same_spin(orb1, orb2) (mod(orb1,2) == mod(orb2,2))
 
