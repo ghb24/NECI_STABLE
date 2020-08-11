@@ -665,6 +665,7 @@ contains
         use FciMCData, only: AllSumNoatHF
         use bit_rep_data, only: extract_sign
         use bit_reps, only: encode_sign
+        use util_mod, only: near_zero
         implicit none
 
         integer :: signs(lenof_sign), iGf
