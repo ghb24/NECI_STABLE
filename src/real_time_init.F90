@@ -673,13 +673,15 @@ contains
 
         signs = 1
 
-        do i = 1, lenof_sign
-            if (AllSumNoatHF(i) / AllSumNoatHF(1) < 0) then
-                signs(i) = -1
-            else
-                signs(i) = 1
-            end if
-        end do
+        if(.not. near_zero(AllSumNoatHF(1))) then
+            do i = 1, lenof_sign
+                if (AllSumNoatHF(i) / AllSumNoatHF(1) < 0) then
+                    signs(i) = -1
+                else
+                    signs(i) = 1
+                end if
+            end do
+        end if
 
         if (any(signs < 0)) then
             do i = 1, TotWalkers
