@@ -11,12 +11,14 @@ module rdm_data_utils
     ! rdm_list_t object, and adding to and communicating with rdm_spawn_t
     ! objects.
 
-    use bit_rep_data, only: NIfTot, NIfDBO
+    use bit_rep_data, only: NIfTot, nifd, IlutBits
     use constants
     use Parallel_neci, only: iProcIndex, nProcessors
     use rdm_data, only: rdm_list_t, rdm_spawn_t, one_rdm_t, en_pert_t
     use util_mod
-    use SystemData, only: tGUGA
+    use SystemData, only: tGUGA, nSpatOrbs
+    use guga_bitRepOps, only: contract_2_rdm_ind, contract_1_rdm_ind, &
+                              extract_2_rdm_ind
 
     implicit none
 
@@ -71,22 +73,22 @@ contains
 
         call init_rdm_list_t(spawn%rdm_send, sign_length, max_nelements_send, nhashes)
 
-        allocate(spawn%free_slots(0:nProcessors-1), stat=ierr)
+        allocate(spawn%free_slots(0:nProcessors - 1), stat=ierr)
         ! init_free_slots has one extra element compared to free_slots. This
         ! is set equal to the total number of elements + 1, which allows us to
         ! avoid an extra if-statement for an edge case in add_to_rdm_spawn_t.
         allocate(spawn%init_free_slots(0:nProcessors), stat=ierr)
 
         ! Equally divide RDM rows across all processors.
-        slots_per_proc = real(max_nelements_send, dp)/real(nProcessors, dp)
-        do iproc = 0, nProcessors-1
-            spawn%init_free_slots(iproc) = nint(slots_per_proc*iproc)+1
+        slots_per_proc = real(max_nelements_send, dp) / real(nProcessors, dp)
+        do iproc = 0, nProcessors - 1
+            spawn%init_free_slots(iproc) = nint(slots_per_proc * iproc) + 1
         end do
         ! For edge cases - see comment above.
         spawn%init_free_slots(nProcessors) = max_nelements_send + 1
 
         ! Set the free slots array to its initial value.
-        spawn%free_slots = spawn%init_free_slots(0:nProcessors-1)
+        spawn%free_slots = spawn%init_free_slots(0:nProcessors - 1)
 
     end subroutine init_rdm_spawn_t
 
@@ -111,7 +113,7 @@ contains
         en_pert%nhashes = nhashes
         en_pert%ndets = 0
 
-        allocate(en_pert%dets(0:sign_length+NIfDBO, max_ndets))
+        allocate(en_pert%dets(0:sign_length + nifd, max_ndets))
         en_pert%dets = 0_n_int
 
         allocate(en_pert%hash_table(nhashes), stat=ierr)
@@ -156,7 +158,7 @@ contains
 
     end subroutine init_one_rdm_t
 
-    subroutine init_rdm_definitions_t(rdm_defs, nrdms_standard, nrdms_transition, states_for_transition_rdm,filename)
+    subroutine init_rdm_definitions_t(rdm_defs, nrdms_standard, nrdms_transition, states_for_transition_rdm, filename)
 
         ! Set up arrays which define which RDMs and tRDMs are being sampled by
         ! specifying which states and FCIQMC simualtions are involved in those
@@ -171,7 +173,7 @@ contains
 
         type(rdm_definitions_t), intent(out) :: rdm_defs
         integer, intent(in) :: nrdms_standard, nrdms_transition
-        integer, intent(in) :: states_for_transition_rdm(:,:) ! (2, nrdms_transition/nreplicas)
+        integer, intent(in) :: states_for_transition_rdm(:, :) ! (2, nrdms_transition/nreplicas)
         character(*), intent(in), optional :: filename
 
         integer :: nrdms, irdm, counter
@@ -187,22 +189,22 @@ contains
         allocate(rdm_defs%state_labels(2, nrdms))
         ! The 'standard' (non-transition) RDMs.
         do irdm = 1, nrdms_standard
-            rdm_defs%state_labels(1,irdm) = irdm
-            rdm_defs%state_labels(2,irdm) = irdm
+            rdm_defs%state_labels(1, irdm) = irdm
+            rdm_defs%state_labels(2, irdm) = irdm
         end do
         ! The transition RDMs - these were passed in in
         ! states_for_transition_rdm, which in practice is read in from the
         ! input and then passed to this routine.
         if (nrdms_transition > 0) then
             if (nreplicas == 1) then
-                rdm_defs%state_labels(:,nrdms_standard+1:nrdms_standard+nrdms_transition) = states_for_transition_rdm
+                rdm_defs%state_labels(:, nrdms_standard + 1:nrdms_standard + nrdms_transition) = states_for_transition_rdm
             else if (nreplicas == 2) then
                 do irdm = 2, nrdms_transition, 2
                     ! In this case, there are two transition RDMs sampled for
                     ! each one the user requested, because there are two
                     ! combinations of replicas which can be used.
-                    rdm_defs%state_labels(:,nrdms_standard+irdm-1) = states_for_transition_rdm(:,irdm/2)
-                    rdm_defs%state_labels(:,nrdms_standard+irdm)   = states_for_transition_rdm(:,irdm/2)
+                    rdm_defs%state_labels(:, nrdms_standard + irdm - 1) = states_for_transition_rdm(:, irdm / 2)
+                    rdm_defs%state_labels(:, nrdms_standard + irdm) = states_for_transition_rdm(:, irdm / 2)
                 end do
             end if
         end if
@@ -215,7 +217,7 @@ contains
             rdm_defs%repeat_label(irdm) = 1
         end do
         do irdm = 1, nrdms_transition
-            rdm_defs%repeat_label(irdm+nrdms_standard) = nreplicas - mod(irdm,nreplicas)
+            rdm_defs%repeat_label(irdm + nrdms_standard) = nreplicas - mod(irdm, nreplicas)
         end do
 
         ! sim_labels(:,j) will store the labels of the *FCIQMC* wave functions
@@ -224,11 +226,11 @@ contains
         allocate(rdm_defs%sim_labels(2, nrdms))
         do irdm = 1, nrdms
             if (nreplicas == 1) then
-                rdm_defs%sim_labels(1,irdm) = rdm_defs%state_labels(1,irdm)
-                rdm_defs%sim_labels(2,irdm) = rdm_defs%state_labels(2,irdm)
+                rdm_defs%sim_labels(1, irdm) = rdm_defs%state_labels(1, irdm)
+                rdm_defs%sim_labels(2, irdm) = rdm_defs%state_labels(2, irdm)
             else if (nreplicas == 2) then
-                rdm_defs%sim_labels(1,irdm) = rdm_defs%state_labels(1,irdm)*nreplicas-mod(rdm_defs%repeat_label(irdm),2)
-                rdm_defs%sim_labels(2,irdm) = rdm_defs%state_labels(2,irdm)*nreplicas-mod(rdm_defs%repeat_label(irdm)+1,2)
+                rdm_defs%sim_labels(1, irdm) = rdm_defs%state_labels(1, irdm) * nreplicas - mod(rdm_defs%repeat_label(irdm), 2)
+                rdm_defs%sim_labels(2, irdm) = rdm_defs%state_labels(2, irdm) * nreplicas - mod(rdm_defs%repeat_label(irdm) + 1, 2)
             end if
         end do
 
@@ -241,31 +243,31 @@ contains
         do irdm = 1, nrdms
             ! Count the number of times each replica label is contributing to
             ! an RDM.
-            rdm_defs%nrdms_per_sim(rdm_defs%sim_labels(2,irdm))  = rdm_defs%nrdms_per_sim(rdm_defs%sim_labels(2,irdm)) + 1
+            rdm_defs%nrdms_per_sim(rdm_defs%sim_labels(2, irdm)) = rdm_defs%nrdms_per_sim(rdm_defs%sim_labels(2, irdm)) + 1
             ! The number of RDMs which we have currently counted, for this replica.
-            counter = rdm_defs%nrdms_per_sim(rdm_defs%sim_labels(2,irdm))
+            counter = rdm_defs%nrdms_per_sim(rdm_defs%sim_labels(2, irdm))
             ! Store which replica is paired with this, for this particular RDM
             ! sampling.
-            rdm_defs%sim_pairs(counter, rdm_defs%sim_labels(2,irdm)) = rdm_defs%sim_labels(1,irdm)
+            rdm_defs%sim_pairs(counter, rdm_defs%sim_labels(2, irdm)) = rdm_defs%sim_labels(1, irdm)
             ! Store which RDM this pair of signs contributes to.
-            rdm_defs%rdm_labels(counter, rdm_defs%sim_labels(2,irdm)) = irdm
+            rdm_defs%rdm_labels(counter, rdm_defs%sim_labels(2, irdm)) = irdm
 
             ! Do the same as above, but now for cases when spawning from the
             ! 'second' replica in the pair, *but only if it is different*.
-            if (rdm_defs%sim_labels(1,irdm) /= rdm_defs%sim_labels(2,irdm)) then
-                rdm_defs%nrdms_per_sim(rdm_defs%sim_labels(1,irdm))  = &
-                    rdm_defs%nrdms_per_sim(rdm_defs%sim_labels(1,irdm)) + 1
-                counter = rdm_defs%nrdms_per_sim(rdm_defs%sim_labels(1,irdm))
-                rdm_defs%sim_pairs(counter, rdm_defs%sim_labels(1,irdm)) = rdm_defs%sim_labels(2,irdm)
-                rdm_defs%rdm_labels(counter, rdm_defs%sim_labels(1,irdm)) = irdm
+            if (rdm_defs%sim_labels(1, irdm) /= rdm_defs%sim_labels(2, irdm)) then
+                rdm_defs%nrdms_per_sim(rdm_defs%sim_labels(1, irdm)) = &
+                    rdm_defs%nrdms_per_sim(rdm_defs%sim_labels(1, irdm)) + 1
+                counter = rdm_defs%nrdms_per_sim(rdm_defs%sim_labels(1, irdm))
+                rdm_defs%sim_pairs(counter, rdm_defs%sim_labels(1, irdm)) = rdm_defs%sim_labels(2, irdm)
+                rdm_defs%rdm_labels(counter, rdm_defs%sim_labels(1, irdm)) = irdm
             end if
         end do
 
-        if(present(filename)) then
-           rdm_defs%output_file_prefix = filename
+        if (present(filename)) then
+            rdm_defs%output_file_prefix = filename
         else
-           rdm_defs%output_file_prefix = 'TwoRDM'
-        endif
+            rdm_defs%output_file_prefix = 'TwoRDM'
+        end if
 
     end subroutine init_rdm_definitions_t
 
@@ -285,7 +287,7 @@ contains
 
         call clear_hash_table(rdm%hash_table)
         deallocate(rdm%hash_table, stat=ierr)
-        nullify(rdm%hash_table)
+        nullify (rdm%hash_table)
 
     end subroutine dealloc_rdm_list_t
 
@@ -324,7 +326,7 @@ contains
 
         call clear_hash_table(en_pert%hash_table)
         deallocate(en_pert%hash_table, stat=ierr)
-        nullify(en_pert%hash_table)
+        nullify (en_pert%hash_table)
 
     end subroutine dealloc_en_pert_t
 
@@ -427,9 +429,9 @@ contains
         ! maybe I need a change for the GUGA implementation, since
         ! we only need spatial orbitals here..
         ! todo
-        ij = (i-1)*nbasis + j
-        kl = (k-1)*nbasis + l
-        ijkl = (ij-1)*(int(nbasis, int_rdm)**2) + kl
+        ij = (i - 1) * nbasis + j
+        kl = (k - 1) * nbasis + l
+        ijkl = (ij - 1) * (int(nbasis, int_rdm)**2) + kl
 
         if (present(ij_out) .and. present(kl_out)) then
             ij_out = ij
@@ -451,11 +453,11 @@ contains
         kl = int(mod(ijkl - 1, int(nbasis, int_rdm)**2)) + 1
         ij = int((ijkl - int(kl, int_rdm)) / int(nbasis, int_rdm)**2) + 1
 
-        j = mod(ij-1, nbasis) + 1
-        i = (ij - j)/nbasis + 1
+        j = mod(ij - 1, nbasis) + 1
+        i = (ij - j) / nbasis + 1
 
-        l = mod(kl-1, nbasis) + 1
-        k = (kl - l)/nbasis + 1
+        l = mod(kl - 1, nbasis) + 1
+        k = (kl - l) / nbasis + 1
 
     end subroutine calc_separate_rdm_labels
 
@@ -467,8 +469,8 @@ contains
         ! real(dp) form.
 
         integer(int_rdm), intent(in) :: rdm_entry(0:)
-        real(dp), intent(out) :: real_sign(size(rdm_entry)-1)
-        integer(int_rdm) :: int_sign(size(rdm_entry)-1)
+        real(dp), intent(out) :: real_sign(size(rdm_entry) - 1)
+        integer(int_rdm) :: int_sign(size(rdm_entry) - 1)
 
         int_sign = rdm_entry(1:size(int_sign))
         real_sign = transfer(int_sign, real_sign)
@@ -483,8 +485,8 @@ contains
         ! contains the encoded spin orbital labels).
 
         integer(int_rdm), intent(inout) :: rdm_entry(0:)
-        real(dp), intent(in) :: real_sign(1:size(rdm_entry)-1)
-        integer(int_rdm) :: int_sign(1:size(rdm_entry)-1)
+        real(dp), intent(in) :: real_sign(1:size(rdm_entry) - 1)
+        integer(int_rdm) :: int_sign(1:size(rdm_entry) - 1)
 
         int_sign = transfer(real_sign, int_sign)
         rdm_entry(1:size(int_sign)) = int_sign
@@ -498,7 +500,7 @@ contains
         real(dp), intent(out) :: real_sign(sign_length)
         integer(n_int) :: sign(sign_length)
 
-        sign = ilut(NIfDBO+1:NIfDBO+sign_length)
+        sign = ilut(IlutBits%ind_pop:IlutBits%ind_pop + sign_length - 1)
         real_sign = transfer(sign, real_sign)
 
     end subroutine extract_sign_EN
@@ -511,7 +513,7 @@ contains
         integer(n_int) :: sign(sign_length)
 
         sign = transfer(real_sign, sign)
-        ilut(NIfDBO+1:NIfDBO+sign_length) = sign
+        ilut(IlutBits%ind_pop:IlutBits%ind_pop + sign_length - 1) = sign
 
     end subroutine encode_sign_EN
 
@@ -534,7 +536,7 @@ contains
         logical, intent(inout), optional :: nearly_full
 
         integer(int_rdm) :: ijkl
-        integer :: ij_compressed, proc, ind, hash_val, slots_left
+        integer :: ij_compressed, proc, ind, hash_val, slots_left, kl_compressed
         real(dp) :: real_sign_old(spawn%rdm_send%sign_length), real_sign_new(spawn%rdm_send%sign_length)
         logical :: tSuccess
         character(*), parameter :: t_r = 'add_to_rdm_spawn_t'
@@ -544,48 +546,48 @@ contains
             ! Calculate combined RDM labels. A different ordering is used for
             ! outputting RDMs with and without spin. The following definitions
             ! will aid ordering via a sort operation later.
-            if (.not. spinfree) then
-                call calc_combined_rdm_label(i, j, k, l, ijkl)
+            if (tGUGA) then
+                ijkl = contract_2_rdm_ind(i, j, k, l)
             else
-                if (tGUGA) then
-                    call calc_combined_rdm_label(j, l, i, k, ijkl)
-                else
+                if (spinfree) then
                     call calc_combined_rdm_label(k, l, j, i, ijkl)
+                else
+                    call calc_combined_rdm_label(i, j, k, l, ijkl)
                 end if
             end if
 
             ! Search to see if this RDM element is already in the RDM array.
             ! If it, tSuccess will be true and ind will hold the position of the
             ! entry in rdm%elements.
-            call hash_table_lookup((/i,j,k,l/), (/ijkl/), 0, rdm%hash_table, rdm%elements, ind, hash_val, tSuccess)
+            call hash_table_lookup((/i, j, k, l/), (/ijkl/), 0, rdm%hash_table, rdm%elements, ind, hash_val, tSuccess)
 
             if (tSuccess) then
                 ! Extract the existing sign.
-                call extract_sign_rdm(rdm%elements(:,ind), real_sign_old)
+                call extract_sign_rdm(rdm%elements(:, ind), real_sign_old)
                 ! Update the total sign.
                 real_sign_new = real_sign_old + contrib_sign
                 ! Encode the new sign.
-                call encode_sign_rdm(rdm%elements(:,ind), real_sign_new)
+                call encode_sign_rdm(rdm%elements(:, ind), real_sign_new)
             else
                 ! Determine the process label.
-                if (.not. spinfree) then
+                if (spinfree .or. tGUGA) then
+                    ! For spin-free case, we halve the number of labels. Also,
+                    ! the last two labels are dominant in the ordering, so use
+                    ! these instead, to allow writing out in the correct order.
+                    kl_compressed = int(contract_1_rdm_ind(k, l))
+                    proc = (kl_compressed - 1) * nProcessors / (nbasis**2 / 4)
+                else
                     ! The following maps (p,q), with p<q, to single integers
                     ! with no gaps. It is benefical to have no gaps here, for
                     ! good load balancing. The final integers are ordered so
                     ! that p is dominant over q.
-                    ij_compressed = nbasis*(i-1) - i*(i-1)/2 + j - i
+                    ij_compressed = nbasis * (i - 1) - i * (i - 1) / 2 + j - i
                     ! Calculate the process for the element.
-                    proc = (ij_compressed-1)*nProcessors/spawn%nrows
-                else
-                    ! For spin-free case, we halve the number of labels. Also,
-                    ! the last two labels are dominant in the ordering, so use
-                    ! these instead, to allow writing out in the correct order.
-                    ij_compressed = (nbasis/2)*(k-1) + l
-                    proc = (ij_compressed-1)*nProcessors/(nbasis**2/4)
+                    proc = (ij_compressed - 1) * nProcessors / spawn%nrows
                 end if
 
                 ! Check that there is enough memory for the new spawned RDM entry.
-                slots_left = spawn%init_free_slots(proc+1) - spawn%free_slots(proc)
+                slots_left = spawn%init_free_slots(proc + 1) - spawn%free_slots(proc)
 
                 if (slots_left <= 0) call try_rdm_spawn_realloc(spawn, proc, spinfree)
 
@@ -625,17 +627,17 @@ contains
         type(rdm_list_t), intent(inout) :: rdm_recv
 
         integer :: iproc, nelements_old, new_nelements, ierr, i
-        integer(MPIArg) :: send_sizes(0:nProcessors-1), recv_sizes(0:nProcessors-1)
-        integer(MPIArg) :: send_displs(0:nProcessors-1), recv_displs(0:nProcessors-1)
+        integer(MPIArg) :: send_sizes(0:nProcessors - 1), recv_sizes(0:nProcessors - 1)
+        integer(MPIArg) :: send_displs(0:nProcessors - 1), recv_displs(0:nProcessors - 1)
 
         nelements_old = rdm_recv%nelements
 
         ! How many rows of data to send to each processor.
-        do iproc = 0, nProcessors-1
+        do iproc = 0, nProcessors - 1
             send_sizes(iproc) = int(spawn%free_slots(iproc) - spawn%init_free_slots(iproc), MPIArg)
             ! The displacement of the beginning of each processor's section of the
             ! free_slots array, relative to the first element of this array.
-            send_displs(iproc) = int(spawn%init_free_slots(iproc)-1,MPIArg)
+            send_displs(iproc) = int(spawn%init_free_slots(iproc) - 1, MPIArg)
         end do
 
         ! this does not work with some compilers
@@ -644,8 +646,8 @@ contains
         call MPIAlltoAll(send_sizes, 1, recv_sizes, 1, ierr)
 
         recv_displs(0) = 0
-        do iproc = 1, nProcessors-1
-            recv_displs(iproc) = recv_displs(iproc-1) + recv_sizes(iproc-1)
+        do iproc = 1, nProcessors - 1
+            recv_displs(iproc) = recv_displs(iproc - 1) + recv_sizes(iproc - 1)
         end do
 
         ! The total number of RDM elements in the list after the receive.
@@ -660,20 +662,20 @@ contains
         ! Update the number of valid RDM elements in the received list.
         rdm_recv%nelements = new_nelements
 
-        send_sizes = send_sizes*size(spawn%rdm_send%elements,1)
-        recv_sizes = recv_sizes*size(spawn%rdm_send%elements,1)
-        send_displs = send_displs*size(spawn%rdm_send%elements,1)
-        recv_displs = recv_displs*size(spawn%rdm_send%elements,1)
+        send_sizes = send_sizes * size(spawn%rdm_send%elements, 1)
+        recv_sizes = recv_sizes * size(spawn%rdm_send%elements, 1)
+        send_displs = send_displs * size(spawn%rdm_send%elements, 1)
+        recv_displs = recv_displs * size(spawn%rdm_send%elements, 1)
 
-        rdm_recv%elements(:,nelements_old+1:) = 0
+        rdm_recv%elements(:, nelements_old + 1:) = 0
         ! Perform the communication.
         call MPIAlltoAllv(spawn%rdm_send%elements, send_sizes, send_displs, &
-                          rdm_recv%elements(:,nelements_old+1:), &
+                          rdm_recv%elements(:, nelements_old + 1:), &
                           recv_sizes, recv_displs, ierr)
 
         ! Now we can reset the free_slots array and reset the hash table.
         do iproc = 0, nProcessors - 1
-           spawn%free_slots(iproc) = spawn%init_free_slots(iproc)
+            spawn%free_slots(iproc) = spawn%init_free_slots(iproc)
         end do
         call clear_hash_table(spawn%rdm_send%hash_table)
 
@@ -725,28 +727,28 @@ contains
         logical, intent(in) :: recv_list
 
         integer :: old_nelements, memory_old, memory_new, ierr
-        integer(int_rdm), allocatable :: temp_elements(:,:)
+        integer(int_rdm), allocatable :: temp_elements(:, :)
         character(*), parameter :: t_r = 'try_rdm_list_realloc'
 
         ! The number of elements currently filled in the RDM array.
         old_nelements = rdm_recv%nelements
 
         if (recv_list) then
-            write(6,'("WARNING: There is not enough space in the current RDM array to receive all of the &
+            write (6, '("WARNING: There is not enough space in the current RDM array to receive all of the &
                       &communicated RDM elements. We will now try and reallocate this array to be large &
                       &enough. If there is not sufficient memory then the program may crash.")'); call neci_flush(6)
         else
-            write(6,'("WARNING: There is not enough space in the current RDM array to add the received &
+            write (6, '("WARNING: There is not enough space in the current RDM array to add the received &
                       &RDM elements to the main RDM array. We will now try and reallocate this array to be 1.5 &
                       &times larger. If there is not sufficient memory then the program may crash.")'); call neci_flush(6)
         end if
 
         ! Memory of the old and new arrays, in bytes.
-        memory_old = rdm_recv%max_nelements*(rdm_recv%sign_length+1)*size_int_rdm
-        memory_new = new_nelements*(rdm_recv%sign_length+1)*size_int_rdm
+        memory_old = rdm_recv%max_nelements * (rdm_recv%sign_length + 1) * size_int_rdm
+        memory_new = new_nelements * (rdm_recv%sign_length + 1) * size_int_rdm
 
-        write(6,'("Old RDM array had the following size (MB):", f14.6)') real(memory_old,dp)/1048576.0_dp
-        write(6,'("Required new RDM array must have the following size (MB):", f14.6)') real(memory_new,dp)/1048576.0_dp
+        write(6, '("Old RDM array had the following size (MB):", f14.6)') real(memory_old, dp) / 1048576.0_dp
+        write(6, '("Required new RDM array must have the following size (MB):", f14.6)') real(memory_new, dp) / 1048576.0_dp
 
         if (old_nelements > 0) then
             ! Allocate a temporary array to copy the old RDM list to, while we
@@ -754,7 +756,7 @@ contains
             allocate(temp_elements(0:rdm_recv%sign_length, old_nelements), stat=ierr)
             if (ierr /= 0) call stop_all(t_r, "Error while allocating temporary array to hold existing &
                                               &RDM receive array.")
-            temp_elements = rdm_recv%elements(:,1:old_nelements)
+            temp_elements = rdm_recv%elements(:, 1:old_nelements)
         end if
 
         deallocate(rdm_recv%elements, stat=ierr)
@@ -768,7 +770,7 @@ contains
 
         if (old_nelements > 0) then
             ! Copy the existing elements back, and deallocate the temorary array.
-            rdm_recv%elements(:,1:old_nelements) = temp_elements
+            rdm_recv%elements(:, 1:old_nelements) = temp_elements
 
             deallocate(temp_elements, stat=ierr)
             if (ierr /= 0) call stop_all(t_r, "Error while deallocating temporary RDM array.")
@@ -789,89 +791,96 @@ contains
         integer :: memory_old, memory_new, pos_diff, iproc, ierr
         integer :: new_init_slots(0:nProcessors)
         integer :: i, j, k, l, ij, kl, idet, hash_val
-        integer(int_rdm), allocatable :: temp_elements(:,:), ijkl
+        integer(int_rdm), allocatable :: temp_elements(:, :), ijkl
         character(*), parameter :: t_r = 'try_rdm_spawn_realloc'
 
         associate(rdm => spawn%rdm_send)
 
-        old_max_length = rdm%max_nelements
-        new_max_length = 2*rdm%max_nelements
+            old_max_length = rdm%max_nelements
+            new_max_length = 2 * rdm%max_nelements
 
-        slots_per_proc_new = real(new_max_length, dp)/real(nProcessors, dp)
+            slots_per_proc_new = real(new_max_length, dp) / real(nProcessors, dp)
 
-        ! Create new init_free_slots array.
-        do iproc = 0, nProcessors-1
-            new_init_slots(iproc) = nint(slots_per_proc_new*iproc)+1
-        end do
-        new_init_slots(nProcessors) = new_max_length + 1
+            ! Create new init_free_slots array.
+            do iproc = 0, nProcessors - 1
+                new_init_slots(iproc) = nint(slots_per_proc_new * iproc) + 1
+            end do
+            new_init_slots(nProcessors) = new_max_length + 1
 
-        write(6,'("WARNING: There is not enough space in the current RDM spawning array to store the &
-                  &RDM elements to be sent to process",'//int_fmt(proc,1)//',". We will now try and &
-                  &reallocate the entire RDM spawning array to be twice its current size. If there is &
-                  &not sufficient memory then the program may crash. This also requires recreating the &
-                  &hash table to some of this object, which may take some time.")') proc; call neci_flush(6)
+            write (6, '("WARNING: There is not enough space in the current RDM spawning array to store the &
+                      &RDM elements to be sent to process",'//int_fmt(proc, 1)//',". We will now try and &
+                      &reallocate the entire RDM spawning array to be twice its current size. If there is &
+                      &not sufficient memory then the program may crash. This also requires recreating the &
+                      &hash table to some of this object, which may take some time.")') proc; call neci_flush(6)
 
-        ! Memory of the old and new arrays, in bytes.
-        memory_old = old_max_length*(rdm%sign_length+1)*size_int_rdm
-        memory_new = new_max_length*(rdm%sign_length+1)*size_int_rdm
+            ! Memory of the old and new arrays, in bytes.
+            memory_old = old_max_length * (rdm%sign_length + 1) * size_int_rdm
+            memory_new = new_max_length * (rdm%sign_length + 1) * size_int_rdm
 
-        write(6,'("Old RDM spawning array had the following size (MB):", f14.6)') real(memory_old,dp)/1048576.0_dp
-        write(6,'("Required new array must have the following size (MB):", f14.6)') real(memory_new,dp)/1048576.0_dp
+            write(6, '("Old RDM spawning array had the following size (MB):", f14.6)') real(memory_old, dp) / 1048576.0_dp
+            write(6, '("Required new array must have the following size (MB):", f14.6)') real(memory_new, dp) / 1048576.0_dp
 
-        ! Allocate a temporary array to copy the old RDM list to, while we
-        ! reallocate that array.
-        allocate(temp_elements(0:rdm%sign_length, old_max_length), stat=ierr)
+            ! Allocate a temporary array to copy the old RDM list to, while we
+            ! reallocate that array.
+            allocate(temp_elements(0:rdm%sign_length, old_max_length), stat=ierr)
 
-        if (ierr /= 0) call stop_all(t_r, "Error while allocating temporary array to hold existing &
-                                          &RDM spawning array.")
-        temp_elements(:, 1:old_max_length) = rdm%elements
+            if (ierr /= 0) call stop_all(t_r, "Error while allocating temporary array to hold existing &
+                                              &RDM spawning array.")
+            temp_elements(:, 1:old_max_length) = rdm%elements
 
-        deallocate(rdm%elements, stat=ierr)
-        if (ierr /= 0) call stop_all(t_r, "Error while deallocating existing RDM spawning array.")
+            deallocate(rdm%elements, stat=ierr)
+            if (ierr /= 0) call stop_all(t_r, "Error while deallocating existing RDM spawning array.")
 
-        allocate(rdm%elements(0:rdm%sign_length, new_max_length), stat=ierr)
-        if (ierr /= 0) call stop_all(t_r, "Error while allocating RDM spawning array to the new larger size.")
-        ! Update the maximum number of elements for the spawning array.
-        rdm%max_nelements = new_max_length
+            allocate(rdm%elements(0:rdm%sign_length, new_max_length), stat=ierr)
+            if (ierr /= 0) call stop_all(t_r, "Error while allocating RDM spawning array to the new larger size.")
+            ! Update the maximum number of elements for the spawning array.
+            rdm%max_nelements = new_max_length
 
-        ! Loop over all processes, copy RDM spawns into the new list in the
-        ! correct new positons, and update the hash table as necessary.
-        do iproc = 0, nProcessors-1
-            ! The number of RDM elements actually filled in in this processor's
-            ! section of the spawning array.
-            nstored = spawn%free_slots(iproc) - spawn%init_free_slots(iproc)
+            ! Loop over all processes, copy RDM spawns into the new list in the
+            ! correct new positons, and update the hash table as necessary.
+            do iproc = 0, nProcessors - 1
+                ! The number of RDM elements actually filled in in this processor's
+                ! section of the spawning array.
+                nstored = spawn%free_slots(iproc) - spawn%init_free_slots(iproc)
 
-            ! Copy RDM elements back across from the temporary array.
-            rdm%elements(:, new_init_slots(iproc):new_init_slots(iproc)+nstored-1) = &
-                temp_elements(:, spawn%init_free_slots(iproc):spawn%init_free_slots(iproc)+nstored-1)
+                ! Copy RDM elements back across from the temporary array.
+                rdm%elements(:, new_init_slots(iproc):new_init_slots(iproc) + nstored - 1) = &
+                    temp_elements(:, spawn%init_free_slots(iproc):spawn%init_free_slots(iproc) + nstored - 1)
 
-            ! Update the free_slots array as necessary.
-            spawn%free_slots(iproc) = new_init_slots(iproc) + nstored
+                ! Update the free_slots array as necessary.
+                spawn%free_slots(iproc) = new_init_slots(iproc) + nstored
 
-            ! How much the beginning of the sections for this processor have changed,
-            pos_diff = new_init_slots(iproc) - spawn%init_free_slots(iproc)
+                ! How much the beginning of the sections for this processor have changed,
+                pos_diff = new_init_slots(iproc) - spawn%init_free_slots(iproc)
 
-            ! Update hash table. Don't need to update proc 1 section, since this
-            ! does not get moved.
-            if (iproc > 0) then
-                if (spinfree) then
-                    do idet = new_init_slots(iproc), new_init_slots(iproc)+nstored-1
-                        call calc_separate_rdm_labels(rdm%elements(0,idet), ij, kl, k, l, j, i)
-                        call update_hash_table_ind(rdm%hash_table, (/i,j,k,l/), idet-pos_diff, idet)
-                    end do
-                else
-                    do idet = new_init_slots(iproc), new_init_slots(iproc)+nstored-1
-                        call calc_separate_rdm_labels(rdm%elements(0,idet), ij, kl, i, j, k, l)
-                        call update_hash_table_ind(rdm%hash_table, (/i,j,k,l/), idet-pos_diff, idet)
-                    end do
+                ! Update hash table. Don't need to update proc 1 section, since this
+                ! does not get moved.
+                if (iproc > 0) then
+                    if (tGUGA) then
+                        do idet = new_init_slots(iproc), new_init_slots(iproc) + nstored - 1
+                            call extract_2_rdm_ind(rdm%elements(0, idet), i, j, k, l)
+                            call update_hash_table_ind(rdm%hash_table, (/i, j, k, l/), idet - pos_diff, idet)
+                        end do
+                    else
+                        if (spinfree) then
+                            do idet = new_init_slots(iproc), new_init_slots(iproc) + nstored - 1
+                                call calc_separate_rdm_labels(rdm%elements(0, idet), ij, kl, k, l, j, i)
+                                call update_hash_table_ind(rdm%hash_table, (/i, j, k, l/), idet - pos_diff, idet)
+                            end do
+                        else
+                            do idet = new_init_slots(iproc), new_init_slots(iproc) + nstored - 1
+                                call calc_separate_rdm_labels(rdm%elements(0, idet), ij, kl, i, j, k, l)
+                                call update_hash_table_ind(rdm%hash_table, (/i, j, k, l/), idet - pos_diff, idet)
+                            end do
+                        end if
+                    end if
                 end if
-            end if
-        end do
+            end do
 
-        spawn%init_free_slots = new_init_slots
+            spawn%init_free_slots = new_init_slots
 
-        deallocate(temp_elements, stat=ierr)
-        if (ierr /= 0) call stop_all(t_r, "Error while deallocating temporary array.")
+            deallocate(temp_elements, stat=ierr)
+            if (ierr /= 0) call stop_all(t_r, "Error while deallocating temporary array.")
 
         end associate
 
@@ -880,7 +889,7 @@ contains
     subroutine add_rdm_1_to_rdm_2(rdm_1, rdm_2, scale_factor)
 
         ! Take the RDM elements in the rdm_1 object, and add them to the rdm_2
-        ! object. The has table for rdm_2 will also be updated. This literally
+        ! object. The hash table for rdm_2 will also be updated. This literally
         ! performs the numerical addition of the two RDM objects.
         use SystemData, only: nel, nBasis
         use hash, only: hash_table_lookup, add_hash_table_entry
@@ -898,49 +907,55 @@ contains
         real(dp) :: spawn_sign(rdm_2%sign_length)
         real(dp) :: internal_scale_factor(rdm_1%sign_length), rdm_trace(rdm_1%sign_length)
         logical :: tSuccess
-        character(*), parameter :: t_r = 'add_rdm_1_to_rdm_2'
+        character(*), parameter :: this_routine = 'add_rdm_1_to_rdm_2'
 
-        if(present(scale_factor)) then
-           ! normalize and rescale the rdm_1 if requested here
-           call calc_rdm_trace(rdm_1, rdm_trace)
-           call MPISumAll(rdm_trace, internal_scale_factor)
-           internal_scale_factor = scale_factor*(nel*(nel-1))/(2*internal_scale_factor)
+        if (present(scale_factor)) then
+            if (tGUGA) then
+                call stop_all(this_routine, "check scale factor and trace for GUGA!")
+            end if
+            ! normalize and rescale the rdm_1 if requested here
+            call calc_rdm_trace(rdm_1, rdm_trace)
+            call MPISumAll(rdm_trace, internal_scale_factor)
+            internal_scale_factor = scale_factor * (nel * (nel - 1)) / (2 * internal_scale_factor)
         else
-           internal_scale_factor = 1.0_dp
-        endif
+            internal_scale_factor = 1.0_dp
+        end if
 
-        if(rdm_1%sign_length .ne. rdm_2%sign_length) call stop_all(t_r,"nrdms mismatch")
+        if (rdm_1%sign_length /= rdm_2%sign_length) &
+            call stop_all(this_routine, "nrdms mismatch")
 
         do ielem = 1, rdm_1%nelements
             ! Decode the compressed RDM labels.
-            ijkl = rdm_1%elements(0,ielem)
-            call calc_separate_rdm_labels(ijkl, ij, kl, i, j, k, l)
+            ijkl = rdm_1%elements(0, ielem)
+            if (tGUGA) then
+                call extract_2_rdm_ind(ijkl, i, j, k, l)
+            else
+                call calc_separate_rdm_labels(ijkl, ij, kl, i, j, k, l)
+            end if
 
             ! Extract the spawned sign.
-            call extract_sign_rdm(rdm_1%elements(:,ielem), spawn_sign)
+            call extract_sign_rdm(rdm_1%elements(:, ielem), spawn_sign)
 
             ! Search to see if this RDM element is already in the RDM 2.
             ! If it, tSuccess will be true and ind will hold the position of the
             ! element in rdm.
-            if(any((/i,j,k,l/)<=0) .or. any((/i,j,k,l/)>nBasis)) then
-               write(iout,*) "Invalid rdm element", i,j,k,l,ijkl, ielem, rdm_1%nelements
-               call stop_all(t_r,"Erroneous indices")
-            endif
-            call hash_table_lookup((/i,j,k,l/), (/ijkl/), 0, rdm_2%hash_table, rdm_2%elements, ind, hash_val, tSuccess)
+            ASSERT(all([i, j, k, l] > 0) .and. all([i, j, k, l] <= nBasis))
+
+            call hash_table_lookup((/i, j, k, l/), (/ijkl/), 0, rdm_2%hash_table, rdm_2%elements, ind, hash_val, tSuccess)
 
             if (tSuccess) then
                 ! Extract the existing sign.
-                call extract_sign_rdm(rdm_2%elements(:,ind), real_sign_old)
+                call extract_sign_rdm(rdm_2%elements(:, ind), real_sign_old)
 
                 ! Update the total sign.
-                real_sign_new = real_sign_old + spawn_sign*internal_scale_factor
+                real_sign_new = real_sign_old + spawn_sign * internal_scale_factor
                 ! Encode the new sign.
-                call encode_sign_rdm(rdm_2%elements(:,ind), real_sign_new)
+                call encode_sign_rdm(rdm_2%elements(:, ind), real_sign_new)
             else
                 ! If we don't have enough memory in rdm_2, try increasing its
                 ! size to be 1.5 times bigger.
-                if (rdm_2%nelements+1 > rdm_2%max_nelements) then
-                    call try_rdm_list_realloc(rdm_2, int(1.5*rdm_2%max_nelements), .false.)
+                if (rdm_2%nelements + 1 > rdm_2%max_nelements) then
+                    call try_rdm_list_realloc(rdm_2, int(1.5 * rdm_2%max_nelements), .false.)
                 end if
 
                 ! Update the rdm array, and its hash table, and the number of
@@ -955,21 +970,21 @@ contains
     end subroutine add_rdm_1_to_rdm_2
 
     subroutine scale_rdm(rdm, scale_factor)
-      ! rescale all entries of one rdm by a scale factor
-      ! required in the adaptive shift correction, where a weighted sum
-      ! of two rdms is taken
-      implicit none
-      type(rdm_list_t), intent(inout) :: rdm
-      real(dp) :: scale_factor(rdm%sign_length)
+        ! rescale all entries of one rdm by a scale factor
+        ! required in the adaptive shift correction, where a weighted sum
+        ! of two rdms is taken
+        implicit none
+        type(rdm_list_t), intent(inout) :: rdm
+        real(dp) :: scale_factor(rdm%sign_length)
 
-      integer :: i, j
-      real(dp) :: tmp_sign(rdm%sign_length)
+        integer :: i, j
+        real(dp) :: tmp_sign(rdm%sign_length)
 
-      do i = 1, rdm%nelements
-         call extract_sign_rdm(rdm%elements(:,i), tmp_sign)
-         tmp_sign = tmp_sign * scale_factor
-         call encode_sign_rdm(rdm%elements(:,i), tmp_sign)
-      end do
+        do i = 1, rdm%nelements
+            call extract_sign_rdm(rdm%elements(:, i), tmp_sign)
+            tmp_sign = tmp_sign * scale_factor
+            call encode_sign_rdm(rdm%elements(:, i), tmp_sign)
+        end do
     end subroutine scale_rdm
 
     subroutine annihilate_rdm_list(rdm)
@@ -987,23 +1002,23 @@ contains
         real(dp) :: rdm_sign(rdm%sign_length), summed_rdm_sign(rdm%sign_length)
 
         if (rdm%nelements > 0) then
-            call sort(rdm%elements(:,1:rdm%nelements))
+            call sort(rdm%elements(:, 1:rdm%nelements))
 
             summed_rdm_sign = 0.0_dp
             counter = 0
 
-            do ielem = 1, rdm%nelements-1
-                call extract_sign_rdm(rdm%elements(:,ielem), rdm_sign)
+            do ielem = 1, rdm%nelements - 1
+                call extract_sign_rdm(rdm%elements(:, ielem), rdm_sign)
                 summed_rdm_sign = summed_rdm_sign + rdm_sign
 
                 ! Is the next RDM element the same as this one? If so then
                 ! don't keep this element yet, but wait until all signs on
                 ! this RDM element have been summed (annihilated).
-                if (.not. (rdm%elements(0,ielem) == rdm%elements(0, ielem+1))) then
+                if (.not. (rdm%elements(0, ielem) == rdm%elements(0, ielem + 1))) then
                     ! If this element is zero for all RDMs, then don't keep it.
                     if (any(abs(summed_rdm_sign) > 1.0e-12_dp)) then
                         counter = counter + 1
-                        rdm%elements(0, counter) = rdm%elements(0,ielem)
+                        rdm%elements(0, counter) = rdm%elements(0, ielem)
                         call encode_sign_rdm(rdm%elements(:, counter), summed_rdm_sign)
                     end if
                     summed_rdm_sign = 0.0_dp
@@ -1011,11 +1026,11 @@ contains
             end do
 
             ! Account for the final element separately.
-            call extract_sign_rdm(rdm%elements(:,rdm%nelements), rdm_sign)
+            call extract_sign_rdm(rdm%elements(:, rdm%nelements), rdm_sign)
             summed_rdm_sign = summed_rdm_sign + rdm_sign
-            if (any(abs(summed_rdm_sign) > 1.0-12_dp)) then
+            if (any(abs(summed_rdm_sign) > 1.0 - 12_dp)) then
                 counter = counter + 1
-                rdm%elements(0, counter) = rdm%elements(0,rdm%nelements)
+                rdm%elements(0, counter) = rdm%elements(0, rdm%nelements)
                 call encode_sign_rdm(rdm%elements(:, counter), summed_rdm_sign)
             end if
 
@@ -1047,15 +1062,15 @@ contains
         ! Search to see if this determinant is already in the dets array.
         ! If it, tSuccess will be true and ind will hold the position of the
         ! entry in en_pert%dets.
-        call hash_table_lookup(nI, ilut, NIfDBO, en_pert%hash_table, en_pert%dets, ind, hash_val, tSuccess)
+        call hash_table_lookup(nI, ilut, nifd, en_pert%hash_table, en_pert%dets, ind, hash_val, tSuccess)
 
         if (tSuccess) then
             ! Extract the existing sign.
-            call extract_sign_EN(en_pert%sign_length, en_pert%dets(:,ind), real_sign_old)
+            call extract_sign_EN(en_pert%sign_length, en_pert%dets(:, ind), real_sign_old)
             ! Update the total sign.
             real_sign_new = real_sign_old + contrib_sign
             ! Encode the new sign.
-            call encode_sign_EN(en_pert%sign_length, en_pert%dets(:,ind), real_sign_new)
+            call encode_sign_EN(en_pert%sign_length, en_pert%dets(:, ind), real_sign_new)
         else
             en_pert%ndets = en_pert%ndets + 1
 
@@ -1063,15 +1078,15 @@ contains
             slots_left = en_pert%max_ndets - en_pert%ndets
 
             if (slots_left < 0) then
-                write(6,'("ERROR: No space left in the EN2 array. Aborting to prevent incorrect results...")')
+                write(6, '("ERROR: No space left in the EN2 array. Aborting to prevent incorrect results...")')
                 call neci_flush(6)
                 call stop_all(t_r, 'No space left in the EN2 array. Please increase memoryfacspawn.')
             else if (slots_left < 20) then
-                write(6,'("WARNING: Less than 20 slots left in EN2 array. The program will abort &
+                write (6, '("WARNING: Less than 20 slots left in EN2 array. The program will abort &
                            &when there are no slots remaining.")'); call neci_flush(6)
             end if
 
-            en_pert%dets(0:NIfDBO, en_pert%ndets) = ilut(0:NIfDBO)
+            en_pert%dets(0:nifd, en_pert%ndets) = ilut(0:nifd)
             call encode_sign_EN(en_pert%sign_length, en_pert%dets(:, en_pert%ndets), contrib_sign)
 
             call add_hash_table_entry(en_pert%hash_table, en_pert%ndets, hash_val)
@@ -1099,20 +1114,30 @@ contains
         integer(int_rdm) :: ijkl
         integer :: ielem
         integer :: ij, kl, i, j, k, l ! spin orbitals
+        integer(int_rdm) :: ij_, kl_
         real(dp) :: rdm_sign(rdm%sign_length)
 
         rdm_trace = 0.0_dp
 
         ! Loop over all RDM elements.
         do ielem = 1, rdm%nelements
-            ijkl = rdm%elements(0,ielem)
+            ijkl = rdm%elements(0, ielem)
 
-            call calc_separate_rdm_labels(ijkl, ij, kl, i, j, k, l)
+            if (tGUGA) then
+                call extract_2_rdm_ind(ijkl, i, j, k, l)
 
-            ! If this is a diagonal element, add the element to the trace.
-            if (ij == kl) then
-                call extract_sign_rdm(rdm%elements(:,ielem), rdm_sign)
-                rdm_trace = rdm_trace + rdm_sign
+                if ((i == j .and. k == l)) then! .or. (i == l .and. j == k)) then
+                    call extract_sign_rdm(rdm%elements(:, ielem), rdm_sign)
+                    rdm_trace = rdm_trace + rdm_sign
+                end if
+            else
+                call calc_separate_rdm_labels(ijkl, ij, kl, i, j, k, l)
+
+                ! If this is a diagonal element, add the element to the trace.
+                if (ij == kl) then
+                    call extract_sign_rdm(rdm%elements(:, ielem), rdm_sign)
+                    rdm_trace = rdm_trace + rdm_sign
+                end if
             end if
         end do
 

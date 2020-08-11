@@ -32,10 +32,10 @@ module davidson_semistoch
         integer(MPIArg), allocatable :: displs(:)
         ! All algorithms for solving large eigenproblems involve a unitary rotation of the
         ! Hamiltonian into a smaller basis. basis_vectors(:,i) is the ith such unit vector
-        HElement_t(dp), allocatable, dimension(:,:) :: basis_vectors
+        HElement_t(dp), allocatable, dimension(:, :) :: basis_vectors
         ! This array stores the basis vectors multiplied by H in its columns, i.e.
         ! multiplied_basis_vectors(:,1) = H*basis_vector(:,1).
-        real(dp), allocatable :: multiplied_basis_vectors(:,:)
+        real(dp), allocatable :: multiplied_basis_vectors(:, :)
         ! By diagonalising the projected Hamiltonian we get an estimate at the ground state in
         ! the basis of those basis vectors stored in the basis_vectors array. davidson_eigenvector
         ! stores this same state, but in the *original* basis set. It therefore has a dimension
@@ -54,9 +54,9 @@ module davidson_semistoch
         real(dp) :: residual_norm
         real(dp) :: davidson_eigenvalue
         ! the hamiltonian projected into basis_vectors
-        real(dp), allocatable :: projected_hamil(:,:)
+        real(dp), allocatable :: projected_hamil(:, :)
         ! we'll usually need some working space for diagonalisation of H in the small basis
-        real(dp), allocatable :: projected_hamil_work(:,:)
+        real(dp), allocatable :: projected_hamil_work(:, :)
         ! Temporary space vector which has the same dimension as the *entire* space, rather
         ! than just the space belonging to this process.
         real(dp), allocatable :: full_vector(:)
@@ -69,7 +69,7 @@ module davidson_semistoch
         module procedure mult_ham_vector_real_ss
     end interface
 
-    contains
+contains
 
     subroutine perform_davidson_ss(this, print_info_in, run)
 
@@ -85,7 +85,7 @@ module davidson_semistoch
 
         call init_davidson_ss(this, print_info, run)
 
-        if (print_info) write(6,'(1X,"Iteration",4X,"Residual norm",12X,"Energy",7X,"Time")'); call neci_flush(6)
+        if (print_info) write(6, '(1X,"Iteration",4X,"Residual norm",12X,"Energy",7X,"Time")'); call neci_flush(6)
 
         do i = 2, min(max_num_davidson_iters, this%space_size)
 
@@ -103,14 +103,14 @@ module davidson_semistoch
 
             end_time = MPI_WTIME()
 
-            if (print_info) write(6,'(8X,i2,3X,f14.9,2x,f16.10,2x,f9.3)') i-1, this%residual_norm, &
-                this%davidson_eigenvalue, end_time-start_time; call neci_flush(6)
+            if (print_info) write(6, '(8X,i2,3X,f14.9,2x,f16.10,2x,f9.3)') i - 1, this%residual_norm, &
+                this%davidson_eigenvalue, end_time - start_time; call neci_flush(6)
 
             if (this%residual_norm < residual_norm_target) exit
 
         end do
 
-        if (print_info) write(6,'(/,1x,"Final calculated energy:",1X,f16.10)') this%davidson_eigenvalue
+        if (print_info) write(6, '(/,1x,"Final calculated energy:",1X,f16.10)') this%davidson_eigenvalue
 
         call free_davidson_ss(this)
 
@@ -130,144 +130,144 @@ module davidson_semistoch
         logical, intent(in) :: print_info
         integer, intent(in) :: run
         integer :: i, hfindex, hf_proc, mem_reqd, mem_reqd_full, ierr
-        real(dp) :: hf_elem, hf_elem_this_proc, hf_elem_all_procs(0:nProcessors-1)
-        logical :: skip_calc, skip_calc_all(0:nProcessors-1)
+        real(dp) :: hf_elem, hf_elem_this_proc, hf_elem_all_procs(0:nProcessors - 1)
+        logical :: skip_calc, skip_calc_all(0:nProcessors - 1)
         integer(MPIArg) :: mpi_temp
-        character (len=*), parameter :: t_r = "init_davidson_ss"
+        character(len=*), parameter :: t_r = "init_davidson_ss"
 
         this%run = run
-        associate( &
+        associate ( &
             davidson_eigenvalue => this%davidson_eigenvalue, &
             space_size => this%space_size, &
             space_size_this_proc => this%space_size_this_proc, &
             rep => cs_replicas(this%run) &
-        )
+            )
 
-        space_size_this_proc = size(rep%core_ham_diag)
+            space_size_this_proc = size(rep%core_ham_diag)
 
-        allocate(this%displs(0:nProcessors-1))
-        allocate(this%sizes(0:nProcessors-1))
+            allocate(this%displs(0:nProcessors - 1))
+            allocate(this%sizes(0:nProcessors - 1))
 
-        mpi_temp = int(space_size_this_proc, MPIArg)
-        call MPIAllGather(mpi_temp, this%sizes, ierr)
-        ! The total space size across all processors.
-        space_size = int(sum(this%sizes), sizeof_int)
+            mpi_temp = int(space_size_this_proc, MPIArg)
+            call MPIAllGather(mpi_temp, this%sizes, ierr)
+            ! The total space size across all processors.
+            space_size = int(sum(this%sizes), sizeof_int)
 
-        this%displs(0) = 0
-        do i = 1, nProcessors-1
-            !this%displs(i) = sum(this%displs(:i-1))
-            this%displs(i) = this%displs(i-1) + this%sizes(i-1)
-        end do
+            this%displs(0) = 0
+            do i = 1, nProcessors - 1
+                !this%displs(i) = sum(this%displs(:i-1))
+                this%displs(i) = this%displs(i - 1) + this%sizes(i - 1)
+            end do
 
-        ! if a davidson calculation has already been performed, this array might still be
-        ! allocated, so check!
-        if (allocated(this%davidson_eigenvector)) then
-            deallocate(this%davidson_eigenvector, stat=ierr)
-        end if
-        safe_calloc_e(this%davidson_eigenvector, (space_size_this_proc), 0.0_dp, ierr)
+            ! if a davidson calculation has already been performed, this array might still be
+            ! allocated, so check!
+            if (allocated(this%davidson_eigenvector)) then
+                deallocate(this%davidson_eigenvector, stat=ierr)
+            end if
+            safe_calloc_e(this%davidson_eigenvector, (space_size_this_proc), 0.0_dp, ierr)
 
-        ! if there is only one state in the space being diagonalised:
-        !if (space_size == 1) then
-        !    this%davidson_eigenvector(1) = 1.0_dp
-        !    if (iprocindex == root) davidson_eigenvalue = hamil_diag_temp(1)
-        !    call mpibcast(davidson_eigenvalue)
-        !    skip_calc = .true.
-        !    return
-        !end if
+            ! if there is only one state in the space being diagonalised:
+            !if (space_size == 1) then
+            !    this%davidson_eigenvector(1) = 1.0_dp
+            !    if (iprocindex == root) davidson_eigenvalue = hamil_diag_temp(1)
+            !    call mpibcast(davidson_eigenvalue)
+            !    skip_calc = .true.
+            !    return
+            !end if
 
-        ! the memory required to allocate each of basis_vectors and
-        ! multipied_basis_vectors, in mb.
-        mem_reqd = (max_num_davidson_iters*space_size_this_proc*8)/1000000
-        ! the memory required to allocate residual.
-        mem_reqd_full = space_size*8/1000000
+            ! the memory required to allocate each of basis_vectors and
+            ! multipied_basis_vectors, in mb.
+            mem_reqd = (max_num_davidson_iters * space_size_this_proc * 8) / 1000000
+            ! the memory required to allocate residual.
+            mem_reqd_full = space_size * 8 / 1000000
 
-        if (print_info) then
-            write(6,'(1x,"allocating array to hold subspace vectors (",'//int_fmt(mem_reqd,0)//',1x,"mb).")') mem_reqd
-            call neci_flush(6)
-        endif
+            if (print_info) then
+                write(6, '(1x,"allocating array to hold subspace vectors (",'//int_fmt(mem_reqd, 0)//',1x,"mb).")') mem_reqd
+                call neci_flush(6)
+            end if
 
-        if (print_info) then
-            write(6,'(1x,"allocating array to hold multiplied krylov vectors (",'&
-            //int_fmt(mem_reqd,0)//',1x,"mb).")') mem_reqd
-            call neci_flush(6)
-        end if
+            if (print_info) then
+                write (6, '(1x,"allocating array to hold multiplied krylov vectors (",' &
+                       //int_fmt(mem_reqd, 0)//',1x,"mb).")') mem_reqd
+                call neci_flush(6)
+            end if
 
-        if (print_info) then
-            write(6,'(1x,"allocating temporary vector (",'&
-            //int_fmt(mem_reqd_full,0)//',1x,"mb).",/)') mem_reqd_full
-            call neci_flush(6)
-        end if
+            if (print_info) then
+                write (6, '(1x,"allocating temporary vector (",' &
+                       //int_fmt(mem_reqd_full, 0)//',1x,"mb).",/)') mem_reqd_full
+                call neci_flush(6)
+            end if
 
-        safe_calloc(this%projected_hamil, (max_num_davidson_iters, max_num_davidson_iters), 0.0_dp)
-        safe_calloc(this%projected_hamil_work, (max_num_davidson_iters, max_num_davidson_iters), 0.0_dp)
+            safe_calloc(this%projected_hamil, (max_num_davidson_iters, max_num_davidson_iters), 0.0_dp)
+            safe_calloc(this%projected_hamil_work, (max_num_davidson_iters, max_num_davidson_iters), 0.0_dp)
 
-        hf_elem_this_proc = maxval(-rep%core_ham_diag)
-        call MPIAllGather(hf_elem_this_proc, hf_elem_all_procs, ierr)
+            hf_elem_this_proc = maxval(-rep%core_ham_diag)
+            call MPIAllGather(hf_elem_this_proc, hf_elem_all_procs, ierr)
 
-        ! Find the processor on which the HF determinant lives:
-        hf_proc = maxloc((hf_elem_all_procs),1) - 1
+            ! Find the processor on which the HF determinant lives:
+            hf_proc = maxloc((hf_elem_all_procs), 1) - 1
 
-        ! The Hartree--Fock element itself
-        hf_elem = -maxval(hf_elem_all_procs)
+            ! The Hartree--Fock element itself
+            hf_elem = -maxval(hf_elem_all_procs)
 
-        ! allocate the necessary arrays:
-        safe_calloc(this%basis_vectors, (space_size_this_proc, max_num_davidson_iters), 0.0_dp)
-        safe_calloc(this%multiplied_basis_vectors, (space_size_this_proc, max_num_davidson_iters), 0.0_dp)
-        safe_calloc(this%residual, (space_size_this_proc), 0.0_dp)
-        safe_calloc(this%eigenvector_proj, (max_num_davidson_iters), 0.0_dp)
-        safe_calloc(this%full_vector, (space_size), 0.0_dp)
+            ! allocate the necessary arrays:
+            safe_calloc(this%basis_vectors, (space_size_this_proc, max_num_davidson_iters), 0.0_dp)
+            safe_calloc(this%multiplied_basis_vectors, (space_size_this_proc, max_num_davidson_iters), 0.0_dp)
+            safe_calloc(this%residual, (space_size_this_proc), 0.0_dp)
+            safe_calloc(this%eigenvector_proj, (max_num_davidson_iters), 0.0_dp)
+            safe_calloc(this%full_vector, (space_size), 0.0_dp)
 
-        ! If the HF determinant is on this process:
-        if (hf_proc == iProcIndex) then
-            hfindex = maxloc((-rep%core_ham_diag),1)
+            ! If the HF determinant is on this process:
+            if (hf_proc == iProcIndex) then
+                hfindex = maxloc((-rep%core_ham_diag), 1)
 
-            ! for the initial basis vector, choose the hartree-fock state:
-            !this%super%basis_vectors(hfindex, 1) = 1.0_dp
-            this%basis_vectors(hfindex, 1) = 1.0_dp
-            ! choose the hartree-fock state as the initial guess at the ground state, too.
-            this%davidson_eigenvector(hfindex) = 1.0_dp
-        end if
+                ! for the initial basis vector, choose the hartree-fock state:
+                !this%super%basis_vectors(hfindex, 1) = 1.0_dp
+                this%basis_vectors(hfindex, 1) = 1.0_dp
+                ! choose the hartree-fock state as the initial guess at the ground state, too.
+                this%davidson_eigenvector(hfindex) = 1.0_dp
+            end if
 
-        ! Set the initial eigenvector in the Davidson basis - there's only one
-        ! Davidson vector to start with, so this is trivial.
-        this%eigenvector_proj(1) = 1.0_dp
+            ! Set the initial eigenvector in the Davidson basis - there's only one
+            ! Davidson vector to start with, so this is trivial.
+            this%eigenvector_proj(1) = 1.0_dp
 
-        ! fill in the projected hamiltonian so far.
-        this%projected_hamil(1,1) = hf_elem
-        ! take the initial eigenvalue to be the hartree-fock energy minus some small
-        ! amount. this value cannot be exactly the hartree-fock energy, as this will
-        ! result in dividing by zero in the subspace expansion step.
-        davidson_eigenvalue = hf_elem - 0.001_dp
+            ! fill in the projected hamiltonian so far.
+            this%projected_hamil(1, 1) = hf_elem
+            ! take the initial eigenvalue to be the hartree-fock energy minus some small
+            ! amount. this value cannot be exactly the hartree-fock energy, as this will
+            ! result in dividing by zero in the subspace expansion step.
+            davidson_eigenvalue = hf_elem - 0.001_dp
 
-        if (print_info) write(6,'(1x,"calculating the initial residual vector...")',advance='no'); call neci_flush(6)
+            if (print_info) write(6, '(1x,"calculating the initial residual vector...")', advance='no'); call neci_flush(6)
 
-        ! check that multiplying the initial vector by the hamiltonian doesn't give back
-        ! the same vector. if it does then the initial vector (the hf determinant) is
-        ! the ground state, so just keep that and exit the calculation.
-        ! also, the result of the multiplied basis vector is used to calculate the
-        ! initial residual vector, if the above condition is not true.
-        skip_calc = .false.
+            ! check that multiplying the initial vector by the hamiltonian doesn't give back
+            ! the same vector. if it does then the initial vector (the hf determinant) is
+            ! the ground state, so just keep that and exit the calculation.
+            ! also, the result of the multiplied basis vector is used to calculate the
+            ! initial residual vector, if the above condition is not true.
+            skip_calc = .false.
 
-        call multiply_hamil_and_vector_ss(this%davidson_eigenvector, this%multiplied_basis_vectors(:,1), &
-            this%full_vector, this%sizes, this%displs, &
-            this%run)
+            call multiply_hamil_and_vector_ss(this%davidson_eigenvector, this%multiplied_basis_vectors(:, 1), &
+                                              this%full_vector, this%sizes, this%displs, &
+                                              this%run)
 
-        if (space_size_this_proc > 0) then
-            if (all(abs(this%multiplied_basis_vectors(:,1)-hf_elem*this%davidson_eigenvector) < 1.0e-12_dp)) then
+            if (space_size_this_proc > 0) then
+                if (all(abs(this%multiplied_basis_vectors(:, 1) - hf_elem * this%davidson_eigenvector) < 1.0e-12_dp)) then
+                    skip_calc = .true.
+                end if
+            else
                 skip_calc = .true.
             end if
-        else
-            skip_calc = .true.
-        end if
 
-        call MPIAllGather(skip_calc, skip_calc_all, ierr)
-        if (all(skip_calc_all)) return
+            call MPIAllGather(skip_calc, skip_calc_all, ierr)
+            if (all(skip_calc_all)) return
 
-        ! calculate the intial residual vector.
-        call calculate_residual_ss(this, 1)
-        call calculate_residual_norm_ss(this)
+            ! calculate the intial residual vector.
+            call calculate_residual_ss(this, 1)
+            call calculate_residual_norm_ss(this)
 
-        if (print_info) write(6,'(1x,"done.",/)'); call neci_flush(6)
+            if (print_info) write(6, '(1x,"done.",/)'); call neci_flush(6)
 
         end associate
 
@@ -286,7 +286,7 @@ module davidson_semistoch
         ! calculated, I is the identity matrix and r is the residual.
 
         do i = 1, this%space_size_this_proc
-            this%basis_vectors(i, basis_index) = this%residual(i)/(cs_replicas(this%run)%core_ham_diag(i) - this%davidson_eigenvalue)
+            this%basis_vectors(i, basis_index) = this%residual(i) / (cs_replicas(this%run)%core_ham_diag(i) - this%davidson_eigenvalue)
         end do
 
         ! This step then maskes the new basis vector orthogonal to all other basis vectors, by doing
@@ -294,7 +294,7 @@ module davidson_semistoch
         ! for each basis vector v, where (t,v) denotes the dot product.
         do i = 1, basis_index - 1
             if (this%space_size_this_proc > 0) then
-                dot_prod = dot_product(this%basis_vectors(:,basis_index), this%basis_vectors(:,i))
+                dot_prod = dot_product(this%basis_vectors(:, basis_index), this%basis_vectors(:, i))
             else
                 dot_prod = 0.0_dp
             end if
@@ -302,14 +302,14 @@ module davidson_semistoch
             call MPISumAll(dot_prod, dot_prod_tot)
 
             if (this%space_size_this_proc > 0) then
-                this%basis_vectors(:, basis_index) = this%basis_vectors(:, basis_index) - dot_prod_tot*this%basis_vectors(:,i)
+                this%basis_vectors(:, basis_index) = this%basis_vectors(:, basis_index) - dot_prod_tot * this%basis_vectors(:, i)
             end if
         end do
 
         if (this%space_size_this_proc > 0) then
             ! Finally we calculate the norm of the new basis vector and then normalise it to have a norm of 1.
             ! The new basis vector is stored in the next available column in the basis_vectors array.
-            norm = dot_product(this%basis_vectors(:,basis_index), this%basis_vectors(:,basis_index))
+            norm = dot_product(this%basis_vectors(:, basis_index), this%basis_vectors(:, basis_index))
         else
             norm = 0.0_dp
         end if
@@ -318,7 +318,7 @@ module davidson_semistoch
         norm = sqrt(norm_tot)
 
         if (this%space_size_this_proc > 0) then
-            this%basis_vectors(:,basis_index) = this%basis_vectors(:,basis_index)/norm
+            this%basis_vectors(:, basis_index) = this%basis_vectors(:, basis_index) / norm
         end if
 
     end subroutine subspace_expansion_ss
@@ -332,67 +332,67 @@ module davidson_semistoch
         real(dp) :: eigenvalue_list(basis_index)
         ! these are not stack-allocated since they are not always used
         real(dp), allocatable :: eigenvalue_list_imag(:)
-        real(dp), allocatable :: left_eigenvectors(:,:)
-        real(dp), allocatable :: right_eigenvectors(:,:)
+        real(dp), allocatable :: left_eigenvectors(:, :)
+        real(dp), allocatable :: right_eigenvectors(:, :)
         integer :: minInd, tmp(1)
 
-        if(t_non_hermitian) then
+        if (t_non_hermitian) then
 
-           lwork = max(1,4*basis_index)
-           allocate(work(lwork))
-           allocate(eigenvalue_list_imag(basis_index))
-           ! we are only interested in the right eigenvectors, so left are not referenced
-           allocate(left_eigenvectors(1,basis_index))
-           allocate(right_eigenvectors(basis_index,basis_index))
-           ! call the general lapack routine
-           call dgeev(&
-                'N',&
-                'V',&
-                basis_index,&
-                this%projected_hamil_work(1:basis_index,1:basis_index),&
-                basis_index,&
-                eigenvalue_list,&
-                eigenvalue_list_imag,&
-                left_eigenvectors,&
-                1,&
-                right_eigenvectors,&
-                basis_index,&
-                work,&
-                lwork,&
-                info&
+            lwork = max(1, 4 * basis_index)
+            allocate(work(lwork))
+            allocate(eigenvalue_list_imag(basis_index))
+            ! we are only interested in the right eigenvectors, so left are not referenced
+            allocate(left_eigenvectors(1, basis_index))
+            allocate(right_eigenvectors(basis_index, basis_index))
+            ! call the general lapack routine
+            call dgeev( &
+                'N', &
+                'V', &
+                basis_index, &
+                this%projected_hamil_work(1:basis_index, 1:basis_index), &
+                basis_index, &
+                eigenvalue_list, &
+                eigenvalue_list_imag, &
+                left_eigenvectors, &
+                1, &
+                right_eigenvectors, &
+                basis_index, &
+                work, &
+                lwork, &
+                info &
                 )
 
-           ! the eigenvalues do not come out sorted the way we would like, so get the
-           ! target's index
-           minInd = sum(minloc(eigenvalue_list))
+            ! the eigenvalues do not come out sorted the way we would like, so get the
+            ! target's index
+            minInd = sum(minloc(eigenvalue_list))
 
-           ! store the davidson vector
-           this%davidson_eigenvalue = eigenvalue_list(minInd)
-           this%eigenvector_proj(1:basis_index) = right_eigenvectors(1:basis_index,minInd)
+            ! store the davidson vector
+            this%davidson_eigenvalue = eigenvalue_list(minInd)
+            this%eigenvector_proj(1:basis_index) = right_eigenvectors(1:basis_index, minInd)
 
-           deallocate(left_eigenvectors)
-           deallocate(eigenvalue_list_imag)
-           deallocate(right_eigenvectors)
+            deallocate(left_eigenvectors)
+            deallocate(eigenvalue_list_imag)
+            deallocate(right_eigenvectors)
         else
-           ! Scrap space for the diagonaliser.
-           lwork = max(1,3*basis_index-1)
-           allocate(work(lwork))
+            ! Scrap space for the diagonaliser.
+            lwork = max(1, 3 * basis_index - 1)
+            allocate(work(lwork))
 
-           ! This routine diagonalises a symmetric matrix, A.
-           ! V tells the routine to calculate eigenvalues *and* eigenvectors.
-           ! U tells the routine to get the upper half of A (it is symmetric).
-           ! basis_index is the number of rows and columns in A.
-           ! A = projected_hamil_work. This matrix stores the eigenvectors in its columns on output.
-           ! basis_index is the leading dimension of A.
-           ! eigenvalue_list stores the eigenvalues on output.
-           ! work is scrap space.
-           ! lwork is the length of the work array.
-           ! info = 0 on output is diagonalisation is successful.
-           call dsyev(&
+            ! This routine diagonalises a symmetric matrix, A.
+            ! V tells the routine to calculate eigenvalues *and* eigenvectors.
+            ! U tells the routine to get the upper half of A (it is symmetric).
+            ! basis_index is the number of rows and columns in A.
+            ! A = projected_hamil_work. This matrix stores the eigenvectors in its columns on output.
+            ! basis_index is the leading dimension of A.
+            ! eigenvalue_list stores the eigenvalues on output.
+            ! work is scrap space.
+            ! lwork is the length of the work array.
+            ! info = 0 on output is diagonalisation is successful.
+            call dsyev( &
                 'V', &
                 'U', &
                 basis_index, &
-                this%projected_hamil_work(1:basis_index,1:basis_index), &
+                this%projected_hamil_work(1:basis_index, 1:basis_index), &
                 basis_index, &
                 eigenvalue_list, &
                 work, &
@@ -400,10 +400,10 @@ module davidson_semistoch
                 info &
                 )
 
-           this%davidson_eigenvalue = eigenvalue_list(1)
-           ! The first column stores the ground state.
-           this%eigenvector_proj(1:basis_index) = this%projected_hamil_work(1:basis_index,1)
-        endif
+            this%davidson_eigenvalue = eigenvalue_list(1)
+            ! The first column stores the ground state.
+            this%eigenvector_proj(1:basis_index) = this%projected_hamil_work(1:basis_index, 1)
+        end if
         deallocate(work)
 
         ! eigenvector_proj stores the eigenstate in the basis of vectors stored in the array
@@ -427,7 +427,7 @@ module davidson_semistoch
                        this%space_size_this_proc, &
                        basis_index, &
                        1.0_dp, &
-                       this%basis_vectors(:,1:basis_index), &
+                       this%basis_vectors(:, 1:basis_index), &
                        this%space_size_this_proc, &
                        this%eigenvector_proj(1:basis_index), &
                        1, &
@@ -448,8 +448,8 @@ module davidson_semistoch
 
         ! Multiply the new basis_vector by the hamiltonian and store the result in
         ! multiplied_basis_vectors.
-        call multiply_hamil_and_vector_ss(real(this%basis_vectors(:,basis_index), dp), &
-            this%multiplied_basis_vectors(:,basis_index), this%full_vector, this%sizes, this%displs, this%run)
+        call multiply_hamil_and_vector_ss(real(this%basis_vectors(:, basis_index), dp), &
+                                         this%multiplied_basis_vectors(:, basis_index), this%full_vector, this%sizes, this%displs, this%run)
 
         ! Now multiply U^T by (H U) to find projected_hamil. The projected Hamiltonian will
         ! only differ in the new final column and row. Also, projected_hamil is symmetric.
@@ -457,7 +457,7 @@ module davidson_semistoch
         ! row also.
         do i = 1, basis_index
             if (this%space_size_this_proc > 0) then
-                dot_prod = dot_product(this%basis_vectors(:, i), this%multiplied_basis_vectors(:,basis_index))
+                dot_prod = dot_product(this%basis_vectors(:, i), this%multiplied_basis_vectors(:, basis_index))
             else
                 dot_prod = 0.0_dp
             end if
@@ -489,12 +489,12 @@ module davidson_semistoch
         call MPIAllGatherV(input_vector, full_vector, sizes, displs)
 
         output_vector = 0.0_dp
-        associate( rep => cs_replicas(run))
-          do i = 1, sizes(iProcIndex)
-              do j = 1, rep%sparse_core_ham(i)%num_elements
-                  output_vector(i) = output_vector(i) + rep%sparse_core_ham(i)%elements(j)*full_vector(rep%sparse_core_ham(i)%positions(j))
-              end do
-          end do
+        associate(rep => cs_replicas(run))
+            do i = 1, sizes(iProcIndex)
+                do j = 1, rep%sparse_core_ham(i)%num_elements
+                 output_vector(i) = output_vector(i) + rep%sparse_core_ham(i)%elements(j) * full_vector(rep%sparse_core_ham(i)%positions(j))
+                end do
+            end do
         end associate
     end subroutine mult_ham_vector_real_ss
 
@@ -514,8 +514,8 @@ module davidson_semistoch
             ! Note that, here, eigenvector_proj holds the components of v in the Krylov basis,
             ! and multiplied_basis_vectors holds the Krylov vectors multiplied by H, hence
             ! the matmul below does indeed retturn Hv.
-            this%residual = matmul(this%multiplied_basis_vectors(:,1:basis_index), this%eigenvector_proj(1:basis_index))
-            this%residual = this%residual - this%davidson_eigenvalue*this%davidson_eigenvector
+            this%residual = matmul(this%multiplied_basis_vectors(:, 1:basis_index), this%eigenvector_proj(1:basis_index))
+            this%residual = this%residual - this%davidson_eigenvalue * this%davidson_eigenvector
         end if
 
     end subroutine calculate_residual_ss

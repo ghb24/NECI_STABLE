@@ -13,10 +13,6 @@ C ===================================================================
 !Only do this for each spatial orbital.
          DO I=1,NBASIS/2
             UMAT(UMatInd(I,I,I,I))=h_cast(UHUB)
-!            UMAT(UMatInd(I,I+1,I,I+1))=UHUB
-!            UMAT(UMatInd(I+1,I,I+1,I))=UHUB
-!            UMAT(I,I+1,I,I+1)=UHUB
-!            UMAT(I+1,I,I+1,I)=UHUB
             WRITE(10,*) I,I,I,I,UHUB, UMatInd(I,I,I,I)
          ENDDO
          CLOSE(10)
@@ -31,7 +27,6 @@ C..lengths (LX,LY,LZ) PBC.
 C..Returned in sum
       use constants, only: Pi, Pi2, THIRD,dp
       use SystemData, only: twisted_bc, nn_bhub
-!      IMPLICIT real(dp) (A-H,O-Z)
       IMPLICIT NONE
       INTEGER nBasisMax(5,*),AX,AY
       INTEGER LX,LY,LZ,K,J,I

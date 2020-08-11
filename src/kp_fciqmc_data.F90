@@ -52,7 +52,7 @@ module kp_fciqmc_data_mod
     real(dp) :: memory_factor_kp
     ! The current number of different determinants held in krylov_vecs.
     integer :: TotWalkersKP
-    integer(n_int), allocatable :: krylov_vecs(:,:)
+    integer(n_int), allocatable :: krylov_vecs(:, :)
     ! The diagonal Hamiltonian elements of the vectors in krylov_vecs, in the
     ! same order.
     real(dp), allocatable :: krylov_helems(:)
@@ -65,8 +65,8 @@ module kp_fciqmc_data_mod
     ! the same purpose as partial_determ_vecs and full_determ_vecs, except they
     ! are allocated to hold more vectors (all Krylov vectors), as is necessary
     ! if tExcitedStateKP = .false.
-    real(dp), allocatable, dimension(:,:) :: partial_determ_vecs_kp
-    real(dp), allocatable, dimension(:,:) :: full_determ_vecs_kp
+    real(dp), allocatable, dimension(:, :) :: partial_determ_vecs_kp
+    real(dp), allocatable, dimension(:, :) :: full_determ_vecs_kp
 
     ! The number of elements in krylov_vecs which are used to store amplitudes.
     integer(int64) :: nkrylov_amp_elems_tot
@@ -167,7 +167,7 @@ module kp_fciqmc_data_mod
     type(perturbation), allocatable :: overlap_pert(:)
     ! The result of overlap_pert applied to the wave function read in from
     ! a popsfile.
-    integer(n_int), allocatable :: perturbed_ground(:,:)
+    integer(n_int), allocatable :: perturbed_ground(:, :)
     ! The overlaps of perturbed_ground with the various Krylov vectors.
     real(dp), allocatable :: pert_overlaps(:)
     ! The sum of pert_overlaps across all processes, calculated after all
@@ -179,10 +179,10 @@ module kp_fciqmc_data_mod
     ! arrays will hold the means and standard errors of the projected
     ! Hamiltonian and overlap matrices (unless only one sample was obtained,
     ! in which case the standard errors will be zero).
-    real(dp), allocatable :: kp_hamil_mean(:,:)
-    real(dp), allocatable :: kp_overlap_mean(:,:)
-    real(dp), allocatable :: kp_hamil_se(:,:)
-    real(dp), allocatable :: kp_overlap_se(:,:)
+    real(dp), allocatable :: kp_hamil_mean(:, :)
+    real(dp), allocatable :: kp_overlap_mean(:, :)
+    real(dp), allocatable :: kp_hamil_se(:, :)
+    real(dp), allocatable :: kp_overlap_se(:, :)
 
     ! These are used in the calculation of the final eigenvalues.
     ! Allocate these arrays once during initialisation and reuse them,
@@ -193,18 +193,18 @@ module kp_fciqmc_data_mod
     ! (the first Krylov vector).
     real(dp), allocatable :: kp_init_overlaps(:)
     ! The eigenvectors of the overlap matrix.
-    real(dp), allocatable :: kp_overlap_eigenvecs(:,:)
+    real(dp), allocatable :: kp_overlap_eigenvecs(:, :)
     ! The matrix used to transform the Krylov vectors to a orthonormal basis.
-    real(dp), allocatable :: kp_transform_matrix(:,:)
+    real(dp), allocatable :: kp_transform_matrix(:, :)
     ! Matrix used as temporary space during the transformation of the
     ! projected matrices into an orthonormal basis, in the Lowdin approach.
-    real(dp), allocatable :: kp_inter_matrix(:,:)
+    real(dp), allocatable :: kp_inter_matrix(:, :)
     ! The final eigenvectors, but in the basis of Krylov vectors.
     ! This is used in the Lowdin approach: diagonalising kp_final_hamil
     ! will give the final eigenvectors in the orthonormal basis, then
     ! we do the inverse of the transformation procedure to get back to
     ! the Krylov basis.
-    real(dp), allocatable :: kp_eigenvecs_krylov(:,:)
+    real(dp), allocatable :: kp_eigenvecs_krylov(:, :)
 
     ! If true then use an estimate of an excited state (or linear
     ! combination of excited states) to form the initial wave function.

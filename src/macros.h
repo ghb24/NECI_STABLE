@@ -1,6 +1,10 @@
 #ifndef MACROS_INCLUDEGUARD_
 #define MACROS_INCLUDEGUARD_
 
+#define DELEGATED_STR(x) #x
+#define STR(x) DELEGATED_STR(x)
+#define AT __FILE__//":"//STR(__LINE__)
+
 #define LogAlloc(ERR,NAME,LEN,SIZE,TAG) CALL LogMemAlloc(NAME,LEN,SIZE,this_routine,TAG)
 #define LogDealloc(TAG) CALL LogMemDealloc(this_routine,TAG)
 #define log_dealloc(tag) LogDealloc(tag)
@@ -86,14 +90,18 @@
 #define set_three(ilut,spat) set_orb(ilut, 2*spat);  set_orb(ilut, 2*spat-1)
 
 ! Useful for fixing things. Requires this_routine to be defined
+! It would be nice print __FILE__ and __LINE__ in the ASSERT macro,
+! especially it would be nice to print the failed condition with `#x`.
+! Unfortunately this is not possible (without substantial work).
+! https://stackoverflow.com/questions/31649691/stringify-macro-with-gnu-gfortran
 #ifdef DEBUG_
 #define ASSERT(x) \
 if (.not. (x)) then; \
- call stop_all (this_routine, "Assert fail: "//"x"); \
+ call stop_all (this_routine, "Assert fail in "//__FILE__); \
 endif
 #define ASSERTROOT(x) \
 if ((iProcIndex.eq.Root).and.(.not. (x))) then; \
- call stop_all (this_routine, "Assert fail: "//"x"); \
+ call stop_all (this_routine, "Assert fail in "//__FILE__); \
 endif
 ! Do some debugging if X>=Y
 #define IFDEBUG(PrintLevel,ThisLevel) if (PrintLevel>=ThisLevel)
@@ -101,6 +109,8 @@ endif
 #define IFDEBUGEQTHEN(PrintLevel,ThisLevel) if (PrintLevel==ThisLevel) then
 #define IFDEBUGTHEN(PrintLevel,ThisLevel) if (PrintLevel>=ThisLevel) then
 #define ENDIFDEBUG endif
+! Use ASSERT in otherwise pure procedures.
+#define DEBUG_IMPURE
 #else
 #define ASSERT(x)
 #define ASSERTROOT(x)
@@ -109,6 +119,7 @@ endif
 #define IFDEBUGEQTHEN(PrintLevel,ThisLevel) if(.false.) then
 #define IFDEBUGTHEN(PrintLevel,ThisLevel) if(.false.) then
 #define ENDIFDEBUG endif
+#define DEBUG_IMPURE
 #endif
 
 ! define a precompiler setup for the warning workaround
@@ -262,3 +273,9 @@ endif
 #endif
 
 #define check_abort_excit(pgen,x) if (near_zero(pgen)) then; x = 0_n_int; return; endif
+
+#ifdef DEBUG_
+#define debug_function_name(name) character(*), parameter :: this_routine = name
+#else
+#define debug_function_name(name)
+#endif

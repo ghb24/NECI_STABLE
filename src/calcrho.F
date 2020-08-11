@@ -2,11 +2,6 @@
          IMPLICIT NONE
          INTEGER NEL,I
          INTEGER D1(1:NEL),D2(1:NEL),ICMPCSFS
-         LOGICAL iscsf_old
-         IF(iscsf_old(D1,NEL).OR.iscsf_old(D2,NEL)) THEN
-            ICMPDETS=ICMPCSFS(D1,D2,NEL)
-            RETURN
-         ENDIF
          DO I=1,NEL
             IF(D1(I).LT.D2(I)) THEN
                ICMPDETS=-1
@@ -23,12 +18,6 @@
       INTEGER FUNCTION IGETEXCITLEVEL(NI,NJ,NEL)
          IMPLICIT NONE
          INTEGER I,J,NEL,NI(NEL),NJ(NEL),IC
-         LOGICAL iscsf_old
-         IF(iscsf_old(NI,NEL).OR.iscsf_old(NJ,NEL)) THEN
-            CALL GETCSFEXCITLEVEL(NI,NJ,NEL,IGETEXCITLEVEL)
-C            IGETEXCITLEVEL=2
-            RETURN
-         ENDIF
          IC=0
          DO I=1,NEL
             DO J=1,NEL
@@ -53,12 +42,7 @@ C            IGETEXCITLEVEL=2
         IMPLICIT NONE
         INTEGER :: NEL,NI(NEl),NJ(NEl),MaxExcit,I,IC,j,MaxIC
         LOGICAL :: CommonOrb
-        LOGICAL :: iscsf_old
 
-        IF(iscsf_old(NI,NEL).OR.iscsf_old(NJ,NEL)) THEN
-            CALL GETCSFEXCITLEVEL(NI,NJ,NEL,IGETEXCITLEVEL_2)
-            RETURN
-        ENDIF
         IF(MaxExcit.ge.NEl) THEN
             MaxIC=NEl-1
         ELSE

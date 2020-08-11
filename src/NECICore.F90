@@ -5,7 +5,6 @@
 ! You get it, with an ``#include "NECICore.h"``.
 ! One can't use modules because of required compiler independence.
 
-
 Subroutine NECICore(iCacheFlag, tCPMD, tVASP, tMolpro_local, call_as_lib, &
                     int_name, filename_in, MemSize)
     != NECICore is the main outline of the NECI Program.
@@ -25,8 +24,8 @@ Subroutine NECICore(iCacheFlag, tCPMD, tVASP, tMolpro_local, call_as_lib, &
     !=    filename: is the name of the input file to read in if necessary
     !=    MemSize: Memory limit in MB
 
-    use ReadInput_neci, only : ReadInputMain
-    use SystemData, only : tMolpro,tMolproMimic,MolproID,called_as_lib
+    use ReadInput_neci, only: ReadInputMain
+    use SystemData, only: tMolpro, tMolproMimic, MolproID, called_as_lib
     use MemoryManager
 
     ! main-level modules.
@@ -34,7 +33,7 @@ Subroutine NECICore(iCacheFlag, tCPMD, tVASP, tMolpro_local, call_as_lib, &
     use CalcData, only: tUseProcsAsNodes
     use kp_fciqmc_procs, only: kp_fciqmc_data
     use Parallel_neci, only: MPINodes, iProcIndex, &
-        neci_MPIInit_called, neci_MPINodes_called
+                             neci_MPIInit_called, neci_MPINodes_called
     use read_fci, only: FCIDUMP_name
 
     use ParallelHelper
@@ -67,7 +66,6 @@ Subroutine NECICore(iCacheFlag, tCPMD, tVASP, tMolpro_local, call_as_lib, &
         end subroutine
     end interface
 
-
     def_default(iCacheFlag_, iCacheFlag, 0)
     def_default(tCPMD_, tCPMD, .false.)
     def_default(tVASP_, tVASP, .false.)
@@ -75,7 +73,6 @@ Subroutine NECICore(iCacheFlag, tCPMD, tVASP, tMolpro_local, call_as_lib, &
     def_default(called_as_lib, call_as_lib, .false.)
     def_default(FCIDUMP_name, int_name, 'FCIDUMP')
     def_default(filename, filename_in, '')
-
 
 #ifdef SX
     call stop_all(this_routine, 'The NEC compiler does not produce a working &
@@ -88,46 +85,46 @@ Subroutine NECICore(iCacheFlag, tCPMD, tVASP, tMolpro_local, call_as_lib, &
     ! Do the program initialisation.
     call NECICodeInit(tCPMD_, tVASP_, called_as_lib, MemSize)
 
-    proc_timer%timer_name='NECICUBE  '
+    proc_timer%timer_name = 'NECICUBE  '
     call set_timer(proc_timer)
 
 !   See ReadInputMain.  Causes the command line arguments to be checked for the input filename.
-    toverride_input=.false.
+    toverride_input = .false.
 
-    if(tMolpro) then
-      IF (molpro_plugin) THEN
-        FCIDUMP_name = TRIM(molpro_plugin_fcidumpname)
-       ELSE
-        FCIDUMP_name = adjustl(int_name)
-       END IF
-        inquire(file="FCIQMC_input_override",exist=toverride_input)
-        if(toverride_input) then
-            Filename="FCIQMC_input_override"
+    if (tMolpro) then
+        IF (molpro_plugin) THEN
+            FCIDUMP_name = TRIM(molpro_plugin_fcidumpname)
+        ELSE
+            FCIDUMP_name = adjustl(int_name)
+        END IF
+        inquire (file="FCIQMC_input_override", exist=toverride_input)
+        if (toverride_input) then
+            Filename = "FCIQMC_input_override"
         else
-          IF (molpro_plugin) THEN
-            filename=TRIM(molpro_plugin_datafilename)
-          ELSE
-            filename=filename_in
-          ENDIF
+            IF (molpro_plugin) THEN
+                filename = TRIM(molpro_plugin_datafilename)
+            ELSE
+                filename = filename_in
+            end if
             MolproID = ''
-            if(iProcIndex.eq.Root) then
-            !Now, extract the unique identifier for the input file that is read in.
+            if (iProcIndex == Root) then
+                !Now, extract the unique identifier for the input file that is read in.
 #ifdef old_and_buggy
-                i=14
-                j=1
-                do while(filename(i:i).ne.' ')
+                i = 14
+                j = 1
+                do while (filename(i:i) /= ' ')
                     MolproID(j:j) = filename(i:i)
-                    i=i+1
-                    j=j+1
-                enddo
+                    i = i + 1
+                    j = j + 1
+                end do
 #else
-                i=INDEX(filename,'/',.TRUE.)+1
-                j=INDEX(filename(i:),'NECI'); IF (j.NE.0) i=i+j-1
-                MolproID=filename(i:MIN(i+LEN(MolproID)-1,LEN(filename)))
+                i = INDEX(filename, '/', .TRUE.) + 1
+                j = INDEX(filename(i:), 'NECI'); IF (j /= 0) i = i + j - 1
+                MolproID = filename(i:MIN(i + LEN(MolproID) - 1, LEN(filename)))
 #endif
-                write(iout,"(A,A)") "Molpro unique filename suffix: ",MolproID
-            endif
-        endif
+                write(iout, "(A,A)") "Molpro unique filename suffix: ", MolproID
+            end if
+        end if
     end if
 
     ios = 0
@@ -135,9 +132,9 @@ Subroutine NECICore(iCacheFlag, tCPMD, tVASP, tMolpro_local, call_as_lib, &
         ! CPMD and VASP calculations call the input parser *before* they call
         ! NECICore.  This is to allow the NECI input filename(s) to be specified
         ! easily from within the CPMD/VASP input files.
-        call ReadInputMain(Filename,ios,toverride_input,kp)
-        If (ios.ne.0) call stop_all(this_routine, 'Error in Read')
-    endif
+        call ReadInputMain(Filename, ios, toverride_input, kp)
+        If (ios /= 0) call stop_all(this_routine, 'Error in Read')
+    end if
 
     call MPINodes(tUseProcsAsNodes)  ! Setup MPI Node information - this is dependent upon knowing the job type configurations.
 
@@ -151,27 +148,25 @@ Subroutine NECICore(iCacheFlag, tCPMD, tVASP, tMolpro_local, call_as_lib, &
 
     call halt_timer(proc_timer)
 
-    if(tMolpro.and.(.not.toverride_input).and.(.not.tMolproMimic)) then
+    if (tMolpro .and. (.not. toverride_input) .and. (.not. tMolproMimic)) then
         !Delete the FCIDUMP unless we are overriding the input, or mimicing molpro run-time behaviour
-        if(iProcIndex.eq.0) then
-            inquire(file='FCIDUMP',exist=tFCIDUMP_exist)
-            if(tFCIDUMP_exist) then
+        if (iProcIndex == 0) then
+            inquire (file='FCIDUMP', exist=tFCIDUMP_exist)
+            if (tFCIDUMP_exist) then
                 iunit = get_free_unit()
-                open(iunit,file=FCIDUMP_name,status='old',form='formatted')
+                open(iunit, file=FCIDUMP_name, status='old', form='formatted')
                 close(iunit)
                 !close(iunit,status='delete')
-            endif
-        endif
-    endif
-    call NECICodeEnd(tCPMD_,tVASP_)
+            end if
+        end if
+    end if
+    call NECICodeEnd(tCPMD_, tVASP_)
 
     return
 End Subroutine NECICore
 
-
-
 subroutine NECICodeInit(tCPMD, tVASP, call_as_lib, MemSize)
- use MolproPlugin
+    use MolproPlugin
     != Initialise the NECI code.  This contains all the initialisation
     != procedures for the code (as opposed to the system in general): e.g. for
     != the memory handling scheme, the timing routines, any parallel routines etc.
@@ -183,7 +178,7 @@ subroutine NECICodeInit(tCPMD, tVASP, call_as_lib, MemSize)
     use MemoryManager, only: InitMemoryManager
     use timing_neci, only: time_at_all, init_timing
     use Parallel_neci, only: MPIInit
-    use SystemData, only : tMolpro
+    use SystemData, only: tMolpro
     use CalcData, only: s_global_start
     use constants, only: dp, int64
     use util_mod, only: neci_etime
@@ -197,7 +192,7 @@ subroutine NECICodeInit(tCPMD, tVASP, call_as_lib, MemSize)
 
     ! MPIInit contains dummy initialisation for serial jobs, e.g. so we
     ! can refer to the processor index being 0 for the parent processor.
-    Call MPIInit(tCPMD.or.tVASP.or.tMolpro.or.call_as_lib) ! CPMD and VASP have their own MPI initialisation and termination routines.
+    Call MPIInit(tCPMD .or. tVASP .or. tMolpro .or. call_as_lib) ! CPMD and VASP have their own MPI initialisation and termination routines.
 
     ! Measure when NECICore is called. We need to do this here, as molcas
     ! and molpro can call NECI part way through a run, so it is no use to time
@@ -218,9 +213,7 @@ subroutine NECICodeInit(tCPMD, tVASP, call_as_lib, MemSize)
 
 end subroutine NECICodeInit
 
-
-
-subroutine NECICodeEnd(tCPMD,tVASP)
+subroutine NECICodeEnd(tCPMD, tVASP)
     != End the NECI code.  This contains all the termination
     != procedures for the code (as opposed to the system in general): e.g. for
     != the memory handling scheme, the timing routines, any parallel routines etc.
@@ -230,7 +223,7 @@ subroutine NECICodeEnd(tCPMD,tVASP)
 
     ! Utility modules
     use MemoryManager, only: LeaveMemoryManager
-    use timing_neci, only: end_timing,print_timing_report
+    use timing_neci, only: end_timing, print_timing_report
     use SystemData, only: tMolpro, tMolproMimic, called_as_lib, arr, brr, g1, &
                           tagArr, tagBrr, tagG1
     use Determinants, only: FDet, tagFDet
@@ -240,7 +233,7 @@ subroutine NECICodeEnd(tCPMD,tVASP)
 #endif
 
     implicit none
-    logical, intent(in) :: tCPMD,tVASP
+    logical, intent(in) :: tCPMD, tVASP
     INTEGER :: rank, ierr
 
 !    CALL N_MEMORY_CHECK
@@ -248,8 +241,7 @@ subroutine NECICodeEnd(tCPMD,tVASP)
     ! Cleanup any memory that hasn't been deallocated elsewhere, and isn't
     ! immediately obvious where to deallocate it...
 
-
-    if (.not.tCPMD .and. .not.called_as_lib) call LeaveMemoryManager()
+    if (.not. tCPMD .and. .not. called_as_lib) call LeaveMemoryManager()
     call end_timing()
     call print_timing_report()
 
@@ -257,12 +249,10 @@ subroutine NECICodeEnd(tCPMD,tVASP)
 ! Tell Molpro plugin server that we have finished
     CALL MolproPluginTerm(0)
 ! CPMD and VASP have their own MPI initialisation and termination routines.
-    call MPIEnd(molpro_plugin.or.(tMolpro.and.(.not.tMolproMimic)).or.tCPMD.or.tVASP.or.called_as_lib)
+    call MPIEnd(molpro_plugin .or. (tMolpro .and. (.not. tMolproMimic)) .or. tCPMD .or. tVASP .or. called_as_lib)
 #endif
 
 end subroutine NECICodeEnd
-
-
 
 subroutine NECICalcInit(iCacheFlag)
     != Calculation specific initialisation: just a wrapper for the individual
@@ -275,22 +265,22 @@ subroutine NECICalcInit(iCacheFlag)
     !=                                calculation from within the same CPMD/VASP
     !=                                calculation.
 
-    use System, only : SysInit
-    use SystemData, only : tRotateOrbs,tFindCINatOrbs, tGUGA, tUEG, &
-                         t_ueg_transcorr,t_ueg_dump,tContact, t_mol_3_body
-    use Integrals_neci, only : IntInit,IntFreeze,tPostFreezeHF,DumpFCIDUMP
-    use IntegralsData, only : tDumpFCIDUMP
-    use DetCalc, only : DetCalcInit,DoDetCalc
-    use Determinants, only : DetPreFreezeInit,DetInit, DetPreFreezeInit_old
-    use Calc, only : CalcInit
+    use System, only: SysInit
+    use SystemData, only: tRotateOrbs, tFindCINatOrbs, tGUGA, tUEG, &
+                          t_ueg_transcorr, t_ueg_dump, tContact, t_mol_3_body
+    use Integrals_neci, only: IntInit, IntFreeze, tPostFreezeHF, DumpFCIDUMP
+    use IntegralsData, only: tDumpFCIDUMP
+    use DetCalc, only: DetCalcInit, DoDetCalc
+    use Determinants, only: DetPreFreezeInit, DetInit, DetPreFreezeInit_old
+    use Calc, only: CalcInit
     use HFCalc, only: HFDoCalc
-    use RotateOrbsMod, only : RotateOrbs
+    use RotateOrbsMod, only: RotateOrbs
     use replica_data, only: init_replica_arrays
-    use gen_coul_ueg_mod, only: GEN_Umat_TC,prep_ueg_dump, GEN_Umat_TC_Contact
+    use gen_coul_ueg_mod, only: GEN_Umat_TC, prep_ueg_dump, GEN_Umat_TC_Contact
     use LMat_mod, only: readLMat
     use guga_init, only: init_guga
     implicit none
-    integer,intent(in) :: iCacheFlag
+    integer, intent(in) :: iCacheFlag
 
     ! Initialise the global data arrays, whose size depends on global values
     ! that used to be constant.
@@ -320,31 +310,34 @@ subroutine NECICalcInit(iCacheFlag)
     end if
 
     !! we prepare the contribution of the 2 body transcorrelated operator
-    If(tUEG.and.t_ueg_transcorr)then
-        !                  CALL GetUMatSize(nBasis,nEl,UMATINT)
-        !                  call shared_allocate ("umat_TC3", umat_TC3, (/UMatInt/))
-        !                  !Allocate(UMat(UMatInt), stat=ierr)
-        !                  LogAlloc(ierr, 'UMat_TC3', int(UMatInt),HElement_t_SizeB, tagUMat)
-        !                  UMat_TC3 = 0.0_dp
-        !                  WRITE(6,*) "Size of UMat_TC3 is: ",UMATINT
 
-        write(6,*) 'prepare the convolution part of the 2 body transcorrelated operator'
+    If (tUEG .and. t_ueg_transcorr) then
+!                  CALL GetUMatSize(nBasis,nEl,UMATINT)
+!                  call shared_allocate("umat_TC3", umat_TC3, (/UMatInt/))
+!                  !allocate(UMat(UMatInt), stat=ierr)
+!                  LogAlloc(ierr, 'UMat_TC3', int(UMatInt),HElement_t_SizeB, tagUMat)
+!                  UMat_TC3 = 0.0_dp
+!                  write(6,*) "Size of UMat_TC3 is: ",UMATINT
 
-        If(tContact) then
+        write(6, *) 'prepare the convolution part of the 2 body transcorrelated operator'
+
+        If (tContact) then
             call GEN_Umat_TC_contact
         else
             call GEN_Umat_TC
-        endif
-        write(6,*) "The infinite sums for the transcorrelated approach is determined."
+        end if
+        write(6, *) "The infinite sums for the transcorrelated approach is determined."
 
-        if(t_ueg_dump) call prep_ueg_dump
+        if (t_ueg_dump) call prep_ueg_dump
 
+    !!$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
     end if
-    
-    if (.not.tPostFreezeHF) then
+
+    if (.not. tPostFreezeHF) then
         if(t_mol_3_body) call readLMat()
         call HFDoCalc()
-    endif
+    end if
+
     call IntFreeze()
     if(t_mol_3_body .and. tPostFreezeHF) call readLMat()
     ! can i initialize the GUGA stuff here? after freezing? or otherwise
@@ -354,10 +347,10 @@ subroutine NECICalcInit(iCacheFlag)
 
     if (tPostFreezeHF) call HFDoCalc()
 
-    if(tDumpFCIDUMP) then
+    if (tDumpFCIDUMP) then
         !If wanted, write out a new FCIDUMP file (with the core frozen if necessary)
         call DumpFCIDUMP()
-    endif
+    end if
 
     call DetInit()
 
@@ -373,13 +366,11 @@ subroutine NECICalcInit(iCacheFlag)
 
     call CalcInit()
 
-    IF(tRotateOrbs.and.(.not.tFindCINatOrbs)) THEN
+    IF (tRotateOrbs .and. (.not. tFindCINatOrbs)) THEN
         CALL RotateOrbs()
-    ENDIF
+    end if
 
 end subroutine NECICalcInit
-
-
 
 subroutine NECICalcEnd(iCacheFlag)
     != Calculation specific termination: just a wrapper for the individual
@@ -404,11 +395,11 @@ subroutine NECICalcEnd(iCacheFlag)
     use SystemData, only: arr, brr, g1, tagArr, tagBrr, tagG1
     use Determinants, only: FDet, tagFDet
     use MemoryManager
-    use FciMCData, only:ValidSpawnedList,InitialSpawnedSlots
+    use FciMCData, only: ValidSpawnedList, InitialSpawnedSlots
     use LoggingData, only: tCalcPropEst
 
     implicit none
-    integer,intent(in) :: iCacheFlag
+    integer, intent(in) :: iCacheFlag
 
 !   Tidy up:
     call CalcCleanup()
@@ -416,30 +407,30 @@ subroutine NECICalcEnd(iCacheFlag)
     call IntCleanup(iCacheFlag)
     call DestroyTMAT(.true.)
     call DestroyTMAT(.false.)
-    if(tCalcPropEst) call DestroyPropInts
+    if (tCalcPropEst) call DestroyPropInts
     call SysCleanup()
     call clean_replica_arrays()
     call clean_parallel()
 
-    if(allocated(SpinOrbSymLabel)) deallocate(SpinOrbSymLabel)
-    if(allocated(SymInvLabel)) deallocate(SymInvLabel)
-    if(allocated(ValidSpawnedList)) deallocate(ValidSpawnedList)
-    if(allocated(InitialSpawnedSlots)) deallocate(InitialSpawnedSlots)
+    if (allocated(SpinOrbSymLabel)) deallocate(SpinOrbSymLabel)
+    if (allocated(SymInvLabel)) deallocate(SymInvLabel)
+    if (allocated(ValidSpawnedList)) deallocate(ValidSpawnedList)
+    if (allocated(InitialSpawnedSlots)) deallocate(InitialSpawnedSlots)
     if (associated(arr)) then
         deallocate(Arr)
-        call LogMemDealloc('NECICore',tagArr)
+        call LogMemDealloc('NECICore', tagArr)
     end if
     if (associated(brr)) then
         deallocate(Brr)
-        call LogMemDealloc('NECICore',tagBrr)
+        call LogMemDealloc('NECICore', tagBrr)
     end if
     if (associated(G1)) then
         deallocate(G1)
-        call LogMemDealloc('NECICore',tagG1)
+        call LogMemDealloc('NECICore', tagG1)
     end if
     if (associated(FDet)) then
         deallocate(FDet)
-        call LogMemDealloc('NECICore',tagFDet)
+        call LogMemDealloc('NECICore', tagFDet)
     end if
 
     return

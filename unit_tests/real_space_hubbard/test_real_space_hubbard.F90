@@ -21,13 +21,18 @@ program test_real_space_hubbard
                           t_trans_corr_new, t_uniform_excits, tHPHF, &
                           length_x, length_y
 
+    use bit_reps, only: niftot
+
     use lattice_mod, only: lat, init_dispersion_rel_cache
 
     use sort_mod, only: sort
 
     use util_mod, only: get_free_unit
 
-    use unit_test_helpers
+    use unit_test_helpers, only: create_spin_dependent_hopping, create_hamiltonian, &
+        similarity_transform, run_excit_gen_tester, setup_arr_brr
+
+    use matrix_util, only: norm, calc_eigenvalues, linspace, matrix_exponential, print_matrix, eig
 
     use dsfmt_interface, only: dsfmt_init
 
@@ -2179,7 +2184,7 @@ contains
     end subroutine get_offdiag_helement_rs_hub_test
 
     subroutine get_helement_test
-        use SystemData, only: nel, tCSF, bhub, uhub, nbasis, G1
+        use SystemData, only: nel, bhub, uhub, nbasis, G1
         use bit_rep_data, only: nifd, niftot
         use Determinants, only: get_helement
         use constants, only: dp, n_int
@@ -2392,15 +2397,6 @@ contains
 
         print *, ""
         print *, "testing get_umat_el_hub"
-!
-        ! for the mateles then..
-!         ecore = 0.0
-!         tcsf = .false.
-!         texch = .false.
-!         treltvy = .false.
-!         niftot = 0
-!         ! bits_n_int ..
-!         ! n_int ..
 
         uhub = 1.0
         nbasis = 8

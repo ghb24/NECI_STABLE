@@ -30,19 +30,19 @@ contains
         character(20) :: filename
         character(len=*), parameter :: t_r = 'read_1rdm'
 
-        write(6,'(1X,"Reading in the 1-RDMs...")')
+        write(6, '(1X,"Reading in the 1-RDMs...")')
 
         associate(state_labels => rdm_defs%state_labels, repeat_label => rdm_defs%repeat_label)
-            if (state_labels(1,irdm) == state_labels(2,irdm)) then
-                write(filename, '("OneRDM_POPS.",'//int_fmt(state_labels(1,irdm),0)//')') irdm
+            if (state_labels(1, irdm) == state_labels(2, irdm)) then
+                write(filename, '("OneRDM_POPS.",'//int_fmt(state_labels(1, irdm), 0)//')') irdm
             else
-                write(filename, '("OneRDM_POPS.",'//int_fmt(state_labels(1,irdm),0)//',"_",'&
-                                                  //int_fmt(state_labels(2,irdm),0)//',".",i1)') &
-                                    state_labels(1,irdm), state_labels(2,irdm), repeat_label(irdm)
+                write(filename, '("OneRDM_POPS.",'//int_fmt(state_labels(1, irdm), 0)//',"_",' &
+                       //int_fmt(state_labels(2, irdm), 0)//',".",i1)') &
+                    state_labels(1, irdm), state_labels(2, irdm), repeat_label(irdm)
             end if
         end associate
 
-        inquire(file=trim(filename), exist=file_exists)
+        inquire (file=trim(filename), exist=file_exists)
 
         if (.not. file_exists) then
             call stop_all(t_r, "Attempting to read in the 1-RDM from "//trim(filename)//", but this file does not exist.")
@@ -88,14 +88,14 @@ contains
         logical :: file_exists, nearly_full, finished, all_finished
         character(len=*), parameter :: t_r = 'read_2rdm_popsfile'
 
-        write(6,'(1X,"Reading in the 2-RDMs...")')
+        write(6, '(1X,"Reading in the 2-RDMs...")')
 
         ! If we're about to fill up the spawn list, perform a communication.
         nearly_full = .false.
         ! Have we finished adding RDM elements to the spawned list?
         finished = .false.
 
-        inquire(file='RDM_POPSFILE', exist=file_exists)
+        inquire (file='RDM_POPSFILE', exist=file_exists)
 
         if (.not. file_exists) then
             call stop_all(t_r, "Attempting to read in the 2-RDM from RDM_POPSFILE, but this file does not exist.")
@@ -150,13 +150,13 @@ contains
         ! Fill in the hash table to the RDM. Clear it first, just in case.
         call clear_hash_table(rdm%hash_table)
         do ielem = 1, rdm%nelements
-            call calc_separate_rdm_labels(rdm%elements(0,ielem), ij, kl, i, j, k, l)
-            hash_val = FindWalkerHash((/i,j,k,l/), size(rdm%hash_table))
+            call calc_separate_rdm_labels(rdm%elements(0, ielem), ij, kl, i, j, k, l)
+            hash_val = FindWalkerHash((/i, j, k, l/), size(rdm%hash_table))
             call add_hash_table_entry(rdm%hash_table, ielem, hash_val)
         end do
 
         ! Clear the spawn object.
-        spawn%free_slots = spawn%init_free_slots(0:nProcessors-1)
+        spawn%free_slots = spawn%init_free_slots(0:nProcessors - 1)
         call clear_hash_table(spawn%rdm_send%hash_table)
 
     end subroutine read_2rdm_popsfile
@@ -193,7 +193,7 @@ contains
         character(30) :: rdm_filename(rdm%sign_length)
         character(len=*), parameter :: t_r = 'read_2rdm_popsfile'
 
-        write(6,'(1X,"Reading in the spinfree 2-RDMs...")')
+        write(6, '(1X,"Reading in the spinfree 2-RDMs...")')
 
         ! If we're about to fill up the spawn list, perform a communication.
         nearly_full = .false.
@@ -204,14 +204,14 @@ contains
 
         associate(state_labels => rdm_defs%state_labels, repeat_label => rdm_defs%repeat_label)
             do irdm = 1, rdm%sign_length
-                if (state_labels(1,irdm) == state_labels(2,irdm)) then
-                    write(rdm_filename(irdm), '("spinfree_TwoRDM.",'//int_fmt(state_labels(1,irdm),0)//')') irdm
+                if (state_labels(1, irdm) == state_labels(2, irdm)) then
+                    write(rdm_filename(irdm), '("spinfree_TwoRDM.",'//int_fmt(state_labels(1, irdm), 0)//')') irdm
                 else
-                    write(rdm_filename(irdm), '("spinfree_TwoRDM.",'//int_fmt(state_labels(1,irdm),0)//',"_",'&
-                                                                    //int_fmt(state_labels(2,irdm),0)//',".",i1)') &
-                                        state_labels(1,irdm), state_labels(2,irdm), repeat_label(irdm)
+                    write(rdm_filename(irdm), '("spinfree_TwoRDM.",'//int_fmt(state_labels(1, irdm), 0)//',"_",' &
+                           //int_fmt(state_labels(2, irdm), 0)//',".",i1)') &
+                        state_labels(1, irdm), state_labels(2, irdm), repeat_label(irdm)
                 end if
-                inquire(file=trim(rdm_filename(irdm)), exist=file_exists)
+                inquire (file=trim(rdm_filename(irdm)), exist=file_exists)
 
                 if (.not. file_exists) then
                     call stop_all(t_r, "Attempting to read in a spinfree 2-RDM from "//trim(rdm_filename(irdm))//", &
@@ -269,13 +269,13 @@ contains
         ! Fill in the hash table to the RDM. Clear it first, just in case.
         call clear_hash_table(rdm%hash_table)
         do ielem = 1, rdm%nelements
-            call calc_separate_rdm_labels(rdm%elements(0,ielem), ij, kl, i, j, k, l)
-            hash_val = FindWalkerHash((/i,j,k,l/), size(rdm%hash_table))
+            call calc_separate_rdm_labels(rdm%elements(0, ielem), ij, kl, i, j, k, l)
+            hash_val = FindWalkerHash((/i, j, k, l/), size(rdm%hash_table))
             call add_hash_table_entry(rdm%hash_table, ielem, hash_val)
         end do
 
         ! Clear the spawn object.
-        spawn%free_slots = spawn%init_free_slots(0:nProcessors-1)
+        spawn%free_slots = spawn%init_free_slots(0:nProcessors - 1)
         call clear_hash_table(spawn%rdm_send%hash_table)
 
     end subroutine read_spinfree_2rdm_files
@@ -323,11 +323,11 @@ contains
         ! we need to finalise the 1rdms
         call finalise_1e_rdm(rdm_defs, one_rdms, norm_1rdm)
 
-        if(iProcIndex==0) then
-           do irdm = 1, size(one_rdms)
-              call write_1rdm(rdm_defs, one_rdms(irdm)%matrix, irdm, norm_1rdm(irdm), .true.)
-           end do
-        endif
+        if (iProcIndex == 0) then
+            do irdm = 1, size(one_rdms)
+                call write_1rdm(rdm_defs, one_rdms(irdm)%matrix, irdm, norm_1rdm(irdm), .true.)
+            end do
+        end if
 
     end subroutine print_1rdms_from_2rdms_wrapper
 

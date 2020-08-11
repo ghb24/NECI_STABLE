@@ -27,7 +27,7 @@ module ras_data
         ! If you input the number of electrons in RAS1 as the first index
         ! and the number of electrons in RAS3 as the second index then
         ! this array will give you the label of corresponding class.
-        integer, allocatable, dimension(:,:) :: class_label
+        integer, allocatable, dimension(:, :) :: class_label
     end type
 
     ! A RAS class refers to a collection of strings with an fixed number
@@ -39,7 +39,7 @@ module ras_data
         ! The total number of strings in this class.
         integer :: class_size
         ! The vertex weights used in the addressing scheme.
-        integer, allocatable, dimension(:,:) :: vertex_weights
+        integer, allocatable, dimension(:, :) :: vertex_weights
         ! The number of classes which can be combined with this one in
         ! a full determinant to give the correct overall RAS parameters.
         integer :: num_comb
@@ -57,7 +57,7 @@ module ras_data
 
     type ras_vector
         ! The elements of a single block of a vector.
-        real(dp), allocatable, dimension(:,:) :: elements
+        real(dp), allocatable, dimension(:, :) :: elements
     end type
 
     type ras_factors
@@ -71,7 +71,7 @@ module ras_data
         ! The corresponding parities for the excitations.
         integer, allocatable, dimension(:) :: par
         ! orb(1:2,i) holds the orbitals involved in excitation i.
-        integer, allocatable, dimension(:,:) :: orbs
+        integer, allocatable, dimension(:, :) :: orbs
         ! The total number of excitations.
         integer :: nexcit
     end type direct_ci_excit

@@ -1,6 +1,6 @@
 module gnd_work_type
 
-use SystemData, only: BasisFn, BasisFNSize
+    use SystemData, only: BasisFn, BasisFNSize
 
 ! Formerly gndwork.inc.
 ! Probably only Alex knows what it's for...
@@ -9,17 +9,17 @@ use SystemData, only: BasisFn, BasisFNSize
 ! Structure holding working data passed recursively into GenNextDet_.  All rather complicated I'm afraid.
 !  AJWT 20110121
 
-type GNDWork
-    integer        NSWORK(4)
-    type(BasisFN)  IMax(2)
-    type(BasisFN)  ISym
-    integer        nElec
-    integer        niWork(1)
-    ! (nEl)
-    ! INTEGER        nIndJ(nEl)
-    ! nIndJ is niWork(1+nEl)
-end type
+    type GNDWork
+        integer NSWORK(4)
+        type(BasisFN) IMax(2)
+        type(BasisFN) ISym
+        integer nElec
+        integer niWork(1)
+        ! (nEl)
+        ! INTEGER        nIndJ(nEl)
+        ! nIndJ is niWork(1+nEl)
+    end type
 
-integer, parameter :: GNDWorkSize=6+3*BasisFNSize
+    integer, parameter :: GNDWorkSize = 6 + 3 * BasisFNSize
 
 end module gnd_work_type

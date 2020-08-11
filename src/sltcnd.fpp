@@ -32,11 +32,11 @@ module sltcnd_mod
     use IntegralsData, only: UMAT
     use OneEInts, only: GetTMatEl, TMat2D
     use procedure_pointers, only: get_umat_el
-    use excitation_types, only: excitation_t, NoExc_t, SingleExc_t, DoubleExc_t, &
-        TripleExc_t, FurtherExc_t, &
-        UNKNOWN, get_excitation, get_bit_excitation, create_excitation
+    use excitation_types, only: Excitation_t, NoExc_t, SingleExc_t, DoubleExc_t, &
+                                TripleExc_t, FurtherExc_t, &
+                                UNKNOWN, get_excitation, get_bit_excitation, create_excitation
+    use orb_idx_mod, only: SpinOrbIdx_t
     use DetBitOps, only: count_open_orbs, FindBitExcitLevel
-    use csf_data, only: csf_sort_det_block
     use timing_neci
     use bit_reps, only: NIfTot
     use LMat_mod, only: get_lmat_el, get_lmat_el_ua
@@ -79,9 +79,28 @@ module sltcnd_mod
 !>
 !>  @param[in] exc, An excitation of a subtype of excitation_t.
     interface sltcnd_excit
-    #:for excitation_t in excitations
-        module procedure sltcnd_excit_${excitation_t}$
+    #:for Excitation_t in excitations
+        module procedure sltcnd_excit_${Excitation_t}$
     #:endfor
+        module procedure sltcnd_excit_SpinOrbIdx_t_SingleExc_t
+        module procedure sltcnd_excit_SpinOrbIdx_t_DoubleExc_t
+    end interface
+
+!>  @brief
+!>      Evaluate Matrix Element for different excitations
+!>      using the Slater-Condon rules.
+!>
+!>  @details
+!>  This generic function uses run time dispatch.
+!>  This means that exc can be any subtype of class(excitation_t).
+!>  For performance reason it is advised to use sltcnd_excit,
+!>  if the actual type is known at compile time.
+!>
+!>  @param[in] ref, The reference determinant as array of occupied orbital indices.
+!>  @param[in] exc, An excitation of type excitation_t.
+!>  @param[in] tParity, The parity of the excitation.
+    interface dyn_sltcnd_excit
+        module procedure dyn_sltcnd_excit_integer, dyn_sltcnd_excit_SpinOrbIdx_t
     end interface
 
     abstract interface
@@ -108,7 +127,7 @@ module sltcnd_mod
             HElement_t(dp) :: hel
         end function sltcnd_2_t
 
-        function sltcnd_3_t(ex,tSign) result(hel)
+        function sltcnd_3_t(ex, tSign) result(hel)
             import :: dp, nel
             integer, intent(in) :: ex(2, 3)
             logical, intent(in) :: tSign
@@ -157,45 +176,43 @@ contains
                 sltcnd_3 => sltcnd_3_base
             end if
 
-        endif
+        end if
     end subroutine initSltCndPtr
 
-
-!>  @brief
-!>      Evaluate Matrix Element for different excitations
-!>      using the Slater-Condon rules.
-!>
-!>  @details
-!>  This generic function uses run time dispatch.
-!>  This means that exc can be any subtype of class(excitation_t).
-!>  For performance reason it is advised to use sltcnd_excit,
-!>  if the actual type is known at compile time.
-!>
-!>  @param[in] ref, The reference determinant as array of occupied orbital indices.
-!>  @param[in] exc, An excitation of type excitation_t.
-!>  @param[in] tParity, The parity of the excitation.
-    function dyn_sltcnd_excit(ref, exc, tParity) result(hel)
+    function dyn_sltcnd_excit_integer(ref, exc, tParity) result(hel)
         integer, intent(in) :: ref(nel)
-        class(excitation_t), intent(in) :: exc
-        logical, intent(in) :: tParity
+        class(Excitation_t), intent(in) :: exc
+        logical, intent(in), optional :: tParity
+        logical :: tParity_
         HElement_t(dp) :: hel
         character(*), parameter :: this_routine = 'dyn_sltcnd_excit'
 
+        @:def_default(tParity_, tParity, .false.)
+
         ! The compiler has to statically know, of what type exc is.
-        select type(exc)
+        select type (exc)
         type is (NoExc_t)
             hel = sltcnd_excit(ref, exc)
         type is (SingleExc_t)
-            hel = sltcnd_excit(ref, exc, tParity)
+            hel = sltcnd_excit(ref, exc, tParity_)
         type is (DoubleExc_t)
-            hel = sltcnd_excit(ref, exc, tParity)
+            hel = sltcnd_excit(ref, exc, tParity_)
         type is (TripleExc_t)
-            hel = sltcnd_excit(exc, tParity)
+            hel = sltcnd_excit(exc, tParity_)
         type is (FurtherExc_t)
             hel = sltcnd_excit(exc)
         class default
             call stop_all(this_routine, "Error in downcast.")
         end select
+    end function
+
+    function dyn_sltcnd_excit_SpinOrbIdx_t(ref, exc, tParity) result(hel)
+        type(SpinOrbIdx_t), intent(in) :: ref
+        class(Excitation_t), intent(in) :: exc
+        logical, intent(in), optional :: tParity
+        HElement_t(dp) :: hel
+        character(*), parameter :: this_routine = 'dyn_sltcnd_excit'
+        hel = dyn_sltcnd_excit(ref%idx, exc, tParity)
     end function
 
     function dyn_sltcnd_excit_old(nI, IC, ex, tParity) result(hel)
@@ -215,7 +232,7 @@ contains
         HElement_t(dp) :: hel
         character(*), parameter :: this_routine = 'sltcnd_excit_old'
 
-        class(excitation_t), allocatable :: exc
+        class(Excitation_t), allocatable :: exc
 
         if (IC /= 0 .and. .not. (present(ex) .and. present(tParity))) &
             call stop_all(this_routine, "ex and tParity must be provided to &
@@ -224,12 +241,11 @@ contains
         hel = dyn_sltcnd_excit(nI, exc, tParity)
     end function
 
-
     function sltcnd_compat(nI, nJ, IC) result(hel)
         integer, intent(in) :: nI(nel), nJ(nel), IC
         HElement_t(dp) :: hel
 
-        class(excitation_t), allocatable :: exc
+        class(Excitation_t), allocatable :: exc
         logical :: tParity
 
         call get_excitation(nI, nJ, IC, exc, tParity)
@@ -253,7 +269,7 @@ contains
 
         HElement_t(dp) :: hel
 
-        class(excitation_t), allocatable :: exc
+        class(Excitation_t), allocatable :: exc
         logical :: tParity
 
         call get_bit_excitation(ilutI, ilutJ, IC, exc, tParity)
@@ -309,7 +325,7 @@ contains
         do j = 1, nel
             idN = idHF(j)
             hel = hel + get_umat_el(idOrb, idN, idOrb, idN)
-        enddo
+        end do
 
         ! Exchange contribution only considered if tExch set.
         ! This is only separated from the above loop to keep "if (tExch)" out
@@ -319,8 +335,8 @@ contains
             if (tReltvy .or. (G1(Orb)%Ms == G1(HFDet(j))%Ms)) then
                 idN = idHF(j)
                 hel = hel - get_umat_el(idOrb, idN, idN, idOrb)
-            endif
-        enddo
+            end if
+        end do
         hel = hel + hel_sing
 
     end function CalcFockOrbEnergy
@@ -355,8 +371,8 @@ contains
                 idX = id(i)
                 idN = idHF(j)
                 hel_doub = hel_doub + get_umat_el(idX, idN, idX, idN)
-            enddo
-        enddo
+            end do
+        end do
 
         ! Exchange contribution only considered if tExch set.
         ! This is only separated from the above loop to keep "if (tExch)" out
@@ -369,10 +385,10 @@ contains
                         idX = id(i)
                         idN = idHF(j)
                         hel_tmp = hel_tmp - get_umat_el(idX, idN, idN, idX)
-                    endif
-                enddo
-            enddo
-        endif
+                    end if
+                end do
+            end do
+        end if
         hel = hel_doub + hel_tmp + hel_sing
 
     end function SumFock
@@ -399,8 +415,8 @@ contains
         do i = 1, nel - 1
             do j = i + 1, nel
                 hel_doub = hel_doub + get_umat_el(id(i), id(j), id(i), id(j))
-            enddo
-        enddo
+            end do
+        end do
 
         ! Exchange contribution only considered if tExch set.
         ! This is only separated from the above loop to keep "if (tExch)" out
@@ -411,10 +427,10 @@ contains
                     ! Exchange contribution is zero if I,J are alpha/beta
                     if ((G1(nI(i))%Ms == G1(nI(j))%Ms) .or. tReltvy) then
                         hel_tmp = hel_tmp - get_umat_el(id(i), id(j), id(j), id(i))
-                    endif
-                enddo
-            enddo
-        endif
+                    end if
+                end do
+            end do
+        end if
         hel = hel_doub + hel_tmp + hel_sing
 
     end function sltcnd_0_base
@@ -450,9 +466,9 @@ contains
                 if (ex%val(1) /= nI(i)) then
                     id = gtID(nI(i))
                     hel = hel + get_umat_el(id_ex(1), id, id_ex(2), id)
-                endif
-            enddo
-        endif
+                end if
+            end do
+        end if
         ! Exchange contribution is only considered if tExch set.
         ! This is only separated from the above loop to keep "if (tExch)" out
         ! of the tight loop for efficiency.
@@ -462,10 +478,10 @@ contains
                     if (tReltvy .or. (G1(ex%val(1))%Ms == G1(nI(i))%Ms)) then
                         id = gtID(nI(i))
                         hel = hel - get_umat_el(id_ex(1), id, id, id_ex(2))
-                    endif
-                endif
-            enddo
-        endif
+                    end if
+                end if
+            end do
+        end if
         ! consider the non-diagonal part of the kinetic energy -
         ! <psi_a|T|psi_a'> where a, a' are the only basis fns that differ in
         ! nI, nJ
@@ -501,11 +517,11 @@ contains
             hel = get_umat_el(id(1, 1), id(1, 2), id(2, 1), id(2, 2))
         else
             hel = (0)
-        endif
+        end if
         if (tReltvy .or. ((G1(ex(1, 1))%Ms == G1(ex(2, 2))%Ms) .and. &
                           (G1(ex(1, 2))%Ms == G1(Ex(2, 1))%Ms))) then
             hel = hel - get_umat_el(id(1, 1), id(1, 2), id(2, 2), id(2, 1))
-        endif
+        end if
 
     end function sltcnd_2_kernel
 
@@ -526,7 +542,7 @@ contains
         do i = 1, nel - 2
             do j = i + 1, nel - 1
                 do k = j + 1, nel
-               hel = hel + get_lmat_el(nI(i), nI(j), nI(k), nI(i), nI(j), nI(k))
+                    hel = hel + get_lmat_el(nI(i), nI(j), nI(k), nI(i), nI(j), nI(k))
                 end do
             end do
         end do
@@ -567,11 +583,11 @@ contains
         hel = sltcnd_2_kernel(exc)
         ! and the 3-body term
         associate(src1 => exc%val(1, 1), tgt1 => exc%val(2, 1), &
-                  src2 => exc%val(1, 2), tgt2 => exc%val(2, 2))
+                   src2 => exc%val(1, 2), tgt2 => exc%val(2, 2))
             do i = 1, nel
                 if (src1 /= nI(i) .and. src2 /= nI(i)) then
-                    hel = hel + get_lmat_el(&
-                        src1, src2, nI(i), tgt1, tgt2, nI(i))
+                    hel = hel + get_lmat_el( &
+                          src1, src2, nI(i), tgt1, tgt2, nI(i))
                 end if
             end do
         end associate
@@ -587,7 +603,7 @@ contains
         HElement_t(dp) :: hel
 
         ! this is directly the fully symmetrized entry of the L-matrix
-   hel = get_lmat_el(ex(1, 1), ex(1, 2), ex(1, 3), ex(2, 1), ex(2, 2), ex(2, 3))
+        hel = get_lmat_el(ex(1, 1), ex(1, 2), ex(1, 3), ex(2, 1), ex(2, 2), ex(2, 3))
         ! take fermi sign into account
         if (tSign) hel = -hel
     end function sltcnd_3_tc
@@ -634,8 +650,8 @@ contains
                 idX = max(id(i), id(j))
                 idN = min(id(i), id(j))
                 hel_doub = hel_doub + get_umat_el(idN, idX, idN, idX)
-            enddo
-        enddo
+            end do
+        end do
 
         ! Exchange contribution only considered if tExch set.
         ! This is only separated from the above loop to keep "if (tExch)" out
@@ -648,10 +664,10 @@ contains
                         idX = max(id(i), id(j))
                         idN = min(id(i), id(j))
                         hel_tmp = hel_tmp - get_umat_el(idN, idX, idX, idN)
-                    endif
-                enddo
-            enddo
-        endif
+                    end if
+                end do
+            end do
+        end if
         hel = hel_doub + hel_tmp + hel_sing
 
     end function sltcnd_0_base_ua
@@ -687,9 +703,9 @@ contains
                 if (exc%val(1) /= nI(i)) then
                     id = nI(i)
                     hel = hel + get_umat_el(id_ex(1), id, id_ex(2), id)
-                endif
-            enddo
-        endif
+                end if
+            end do
+        end if
         ! Exchange contribution is only considered if tExch set.
         ! This is only separated from the above loop to keep "if (tExch)" out
         ! of the tight loop for efficiency.
@@ -699,10 +715,10 @@ contains
                     if (tReltvy .or. (G1(exc%val(1))%Ms == G1(nI(i))%Ms)) then
                         id = nI(i)
                         hel = hel - get_umat_el(id_ex(1), id, id, id_ex(2))
-                    endif
-                endif
-            enddo
-        endif
+                    end if
+                end if
+            end do
+        end if
         ! consider the non-diagonal part of the kinetic energy -
         ! <psi_a|T|psi_a'> where a, a' are the only basis fns that differ in
         ! nI, nJ
@@ -735,18 +751,18 @@ contains
         id = ex%val
 
         associate(src1 => ex%val(1, 1), tgt1 => ex%val(2, 1), &
-                  src2 => ex%val(1, 2), tgt2 => ex%val(2, 2))
+                   src2 => ex%val(1, 2), tgt2 => ex%val(2, 2))
 
             if (tReltvy .or. ((G1(src1)%Ms == G1(tgt1)%Ms) .and. &
                               (G1(src2)%Ms == G1(tgt2)%Ms))) then
                 hel = get_umat_el(id(1, 1), id(1, 2), id(2, 1), id(2, 2))
             else
                 hel = (0)
-            endif
+            end if
             if (tReltvy .or. ((G1(src1)%Ms == G1(tgt2)%Ms) .and. &
                               (G1(src2)%Ms == G1(tgt1)%Ms))) then
                 hel = hel - get_umat_el(id(1, 1), id(1, 2), id(2, 2), id(2, 1))
-            endif
+            end if
         end associate
     end function sltcnd_2_kernel_ua
 
@@ -764,9 +780,9 @@ contains
         if (G1(ex(1, 1))%Ms == G1(ex(1, 2))%Ms) then
             if (tReltvy .or. ((G1(ex(2, 1))%Ms == G1(ex(2, 2))%Ms) .and. &
                               (G1(ex(1, 1))%Ms == G1(ex(2, 2))%Ms))) then
-     hel = get_contact_umat_el_3b_sp(id(1, 1), id(1, 2), id(2, 1), id(2, 2)) - &
-               get_contact_umat_el_3b_sp(id(1, 1), id(1, 2), id(2, 2), id(2, 1))
-            endif
+                hel = get_contact_umat_el_3b_sp(id(1, 1), id(1, 2), id(2, 1), id(2, 2)) - &
+                      get_contact_umat_el_3b_sp(id(1, 1), id(1, 2), id(2, 2), id(2, 1))
+            end if
         else
             ! We have an additional sign factor due to the exchange of the creation
             ! operators:
@@ -774,13 +790,13 @@ contains
             !a_(p-k)^+ a_(s+k)^+ a_q^+ a_q a_s a_p -> -a_(p-k)^+ a_q^+ a_(s+k)^+ a_q a_s a_p
             if (tReltvy .or. ((G1(ex(1, 1))%Ms == G1(ex(2, 1))%Ms) .and. &
                               (G1(ex(1, 2))%Ms == G1(ex(2, 2))%Ms))) then
-   hel = -get_contact_umat_el_3b_sap(id(1, 1), id(1, 2), id(2, 1), id(2, 2), nI)
-            endif
+                hel = -get_contact_umat_el_3b_sap(id(1, 1), id(1, 2), id(2, 1), id(2, 2), nI)
+            end if
             if (tReltvy .or. ((G1(ex(1, 1))%Ms == G1(ex(2, 2))%Ms) .and. &
                               (G1(ex(1, 2))%Ms == G1(Ex(2, 1))%Ms))) then
-           hel = hel + get_contact_umat_el_3b_sap (id(1,1), id(1,2), id(2,2), id(2,1), nI)
-            endif
-        endif
+                hel = hel + get_contact_umat_el_3b_sap(id(1, 1), id(1, 2), id(2, 2), id(2, 1), nI)
+            end if
+        end if
 
     end function sltcnd_2_kernel_ua_3b
 
@@ -797,7 +813,7 @@ contains
         do i = 1, nel - 2
             do j = i + 1, nel - 1
                 do k = j + 1, nel
-            hel = hel + get_lmat_el_ua(nI(i), nI(j), nI(k), nI(i), nI(j), nI(k))
+                    hel = hel + get_lmat_el_ua(nI(i), nI(j), nI(k), nI(i), nI(j), nI(k))
                 end do
             end do
         end do
@@ -818,8 +834,8 @@ contains
         do i = 1, nel - 1
             do j = i + 1, nel
                 if (exc%val(1) /= nI(i) .and. exc%val(1) /= nI(j)) then
-            hel = hel + get_lmat_el_ua(exc%val(1), nI(i), nI(j), exc%val(2), nI(i), nI(j))
-                endif
+                    hel = hel + get_lmat_el_ua(exc%val(1), nI(i), nI(j), exc%val(2), nI(i), nI(j))
+                end if
             end do
         end do
 
@@ -879,8 +895,21 @@ contains
         type(SingleExc_t), intent(in) :: exc
         logical, intent(in) :: tParity
 
-
         sltcnd_excit_SingleExc_t = sltcnd_1(ref, exc, tParity)
+    end function
+
+!>  @brief
+!>      Evaluate Matrix Element for SingleExc_t.
+!>
+!>  @param[in] ref, The occupied spin orbitals of the reference.
+!>  @param[in] exc, An excitation of type SingleExc_t.
+!>  @param[in] tParity, The parity of the excitation.
+    HElement_t(dp) function sltcnd_excit_SpinOrbIdx_t_SingleExc_t(ref, exc, tParity)
+        type(SpinOrbIdx_t), intent(in) :: ref
+        type(SingleExc_t), intent(in) :: exc
+        logical, intent(in) :: tParity
+
+        sltcnd_excit_SpinOrbIdx_t_SingleExc_t = sltcnd_1(ref%idx, exc, tParity)
     end function
 
 !>  @brief
@@ -895,6 +924,20 @@ contains
         logical, intent(in) :: tParity
 
         sltcnd_excit_DoubleExc_t = sltcnd_2(ref, exc, tParity)
+    end function
+
+!>  @brief
+!>      Evaluate Matrix Element for DoubleExc_t.
+!>
+!>  @param[in] ref, The occupied spin orbitals of the reference.
+!>  @param[in] exc, An excitation of type DoubleExc_t.
+!>  @param[in] tParity, The parity of the excitation.
+    HElement_t(dp) function sltcnd_excit_SpinOrbIdx_t_DoubleExc_t(ref, exc, tParity)
+        type(SpinOrbIdx_t), intent(in) :: ref
+        type(DoubleExc_t), intent(in) :: exc
+        logical, intent(in) :: tParity
+
+        sltcnd_excit_SpinOrbIdx_t_DoubleExc_t = sltcnd_2(ref%idx, exc, tParity)
     end function
 
 !>  @brief

@@ -11,7 +11,7 @@ module guga_matrixElements
     use guga_bitRepOps, only: isDouble, calcB_vector_nI, isProperCSF_nI
     use util_mod, only: binary_search, operator(.isclose.)
     use guga_data, only: projE_replica
-    use bit_rep_data, only: nifdbo, niftot, nifd
+    use bit_rep_data, only: niftot, nifd
     use ParallelHelper, only: iprocindex
 
     ! variable declarations:
@@ -49,8 +49,8 @@ contains
 
         nExcit = projE_replica(ind)%num_entries
 
-        pos = binary_search(projE_replica(ind)%projE_ilut_list(0:nifd,1:nExcit), &
-            ilut(0:nifd))
+        pos = binary_search(projE_replica(ind)%projE_ilut_list(0:nifd, 1:nExcit), &
+                            ilut(0:nifd))
 
         if (pos > 0) then
             ! if found output the matrix element
@@ -67,6 +67,10 @@ contains
                 exlevel = -1
             end if
         end if
+
+#ifdef CMPLX_
+        hel = conjg(hel)
+#endif
 
     end function calc_off_diag_guga_ref_list
 
@@ -87,65 +91,64 @@ contains
         iOrb = 1
         ! loop over nI spin orbital entries: good thing is unoccupied orbitals
         ! do not  contribute to the single matrix element part.
-        do while (iOrb .le. nEl)
+        do while (iOrb <= nEl)
             ! spatial orbital index needed for get_umat_el access
-            sOrb = (nI(iOrb) + 1)/2
-           ! have to check if orbital is singly or doubly occupied.
-           if (isDouble(nI,iOrb)) then ! double has two part. int. contribution
-               nOcc1 = 2.0_dp
-               hel_ret = hel_ret + nOcc1 * GetTMatEl(nI(iOrb), nI(iOrb)) + &
-                   get_umat_el(sOrb, sOrb, sOrb, sOrb)
+            sOrb = (nI(iOrb) + 1) / 2
+            ! have to check if orbital is singly or doubly occupied.
+            if (isDouble(nI, iOrb)) then ! double has two part. int. contribution
+                nOcc1 = 2.0_dp
+                hel_ret = hel_ret + nOcc1 * GetTMatEl(nI(iOrb), nI(iOrb)) + &
+                          get_umat_el(sOrb, sOrb, sOrb, sOrb)
 
+                ! correctly count through spin orbitals if its a double occ.
+                inc1 = 2
 
-               ! correctly count through spin orbitals if its a double occ.
-               inc1 = 2
+            else ! single occupation
+                nOcc1 = 1.0_dp
+                hel_ret = hel_ret + nOcc1 * GetTMatEl(nI(iOrb), nI(iOrb))
+                inc1 = 1
 
-           else ! single occupation
-               nOcc1 = 1.0_dp
-               hel_ret = hel_ret + nOcc1 * GetTMatEl(nI(iOrb), nI(iOrb))
-               inc1 = 1
+            end if
 
-           end if
+            ! second loop:
+            jOrb = iOrb + inc1
+            do while (jOrb <= nEl)
+                pOrb = (nI(jOrb) + 1) / 2
+                ! again check for double occupancies
+                if (isDouble(nI, jOrb)) then
+                    nOcc2 = 2.0_dp
+                    inc2 = 2
 
-           ! second loop:
-           jOrb = iOrb + inc1
-           do while (jOrb .le. nEl)
-               pOrb = (nI(jOrb) + 1)/2
-               ! again check for double occupancies
-               if (isDouble(nI,jOrb)) then
-                   nOcc2 = 2.0_dp
-                   inc2 = 2
+                else
+                    nOcc2 = 1.0_dp
+                    inc2 = 1
 
-               else
-                   nOcc2 = 1.0_dp
-                   inc2 = 1
+                end if
+                ! standard two particle contribution
+                if (.not. (t_tJ_model .or. t_heisenberg_model)) then
+                    hel_ret = hel_ret + nOcc1 * nOcc2 * ( &
+                              get_umat_el(sOrb, pOrb, sOrb, pOrb) - &
+                              get_umat_el(sOrb, pOrb, pOrb, sOrb) / 2.0_dp)
+                end if
 
-               end if
-               ! standard two particle contribution
-               if (.not. (t_tJ_model .or. t_heisenberg_model)) then
-                   hel_ret = hel_ret + nOcc1 * nOcc2 *( &
-                       get_umat_el(sOrb,pOrb,sOrb,pOrb) - &
-                       get_umat_el(sOrb,pOrb,pOrb,sOrb)/2.0_dp)
-               end if
+                ! calculate exchange integral part, involving Shavitt
+                ! rules for matrix elements, only contributes if both
+                ! stepvectors are 1 or 2, still to be implemented..
+                if ((nOcc1.isclose.1.0_dp) .and. (nOcc2.isclose.1.0_dp)) then
+                    hel_ret = hel_ret - get_umat_el(sOrb, pOrb, pOrb, sOrb) * &
+                              calcDiagExchangeGUGA_nI(iOrb, jOrb, nI) / 2.0_dp
 
-               ! calculate exchange integral part, involving Shavitt
-               ! rules for matrix elements, only contributes if both
-               ! stepvectors are 1 or 2, still to be implemented..
-               if ((nOcc1 .isclose. 1.0_dp) .and. (nOcc2 .isclose. 1.0_dp)) then
-                   hel_ret = hel_ret - get_umat_el(sOrb,pOrb,pOrb,sOrb) * &
-                       calcDiagExchangeGUGA_nI(iOrb, jOrb, nI)/2.0_dp
+                    if (t_tJ_model) then
+                        hel_ret = hel_ret + get_umat_el(sOrb, pOrb, pOrb, sOrb) / 2.0
+                    end if
+                end if
 
-                   if (t_tJ_model) then
-                       hel_ret = hel_ret + get_umat_el(sOrb,pOrb,pOrb,sOrb)/2.0
-                   end if
-               end if
+                ! increment the counters
+                jOrb = jOrb + inc2
 
-               ! increment the counters
-               jOrb = jOrb + inc2
-
-           end do
-           iOrb = iOrb + inc1
-       end do
+            end do
+            iOrb = iOrb + inc1
+        end do
 
     end function calcDiagMatEleGUGA_nI
 
@@ -180,18 +183,17 @@ contains
         ! diagonal matrix elements not only the current determinant in the
         ! fciqmc loop
 
-
         exchange = 1.0_dp
         ! then i need the exchange product term between orbitals s and p
         do i = iOrb + 1, jOrb - 1
-            if (.not. isDouble(nI,i)) then
+            if (.not. isDouble(nI, i)) then
                 if (is_beta(nI(i))) then
-                    exchange = exchange * functionA(bVector(i), 2.0_dp, 0.0_dp)&
-                        * functionA(bVector(i), -1.0_dp, 1.0_dp)
+                    exchange = exchange * functionA(bVector(i), 2.0_dp, 0.0_dp) &
+                               * functionA(bVector(i), -1.0_dp, 1.0_dp)
 
                 else
                     exchange = exchange * functionA(bVector(i), 0.0_dp, 2.0_dp) * &
-                        functionA(bVector(i), 3.0_dp, 1.0_dp)
+                               functionA(bVector(i), 3.0_dp, 1.0_dp)
 
                 end if
             end if
@@ -228,10 +230,10 @@ contains
         real(dp) :: r
         character(*), parameter :: this_routine = "functionA"
 
-        ASSERT( bValue + y > 0.0_dp)
-        ASSERT( bValue + x >= 0.0_dp)
+        ASSERT(bValue + y > 0.0_dp)
+        ASSERT(bValue + x >= 0.0_dp)
 
-        r = sqrt((bValue + x)/(bValue + y))
+        r = sqrt((bValue + x) / (bValue + y))
 
     end function functionA
 
