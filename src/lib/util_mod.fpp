@@ -323,7 +323,41 @@ contains
 
         arr(ind) = elem
 
-      end subroutine addToIntArray
+    end subroutine addToIntArray
+
+    !------------------------------------------------------------------------------------------!
+
+    !> Custom implementation of the findloc intrinsic (with somewhat reduced functionality)
+    !! as it requires fortran2008 support and is thus not available for some relevant compilers
+    pure function custom_findloc(arr, val, back) result(loc)
+        logical, intent(in) :: arr(:)
+        logical, intent(in) :: val
+        logical, intent(in), optional :: back        
+        integer :: loc
+
+        integer :: i, first, last, step
+        logical :: back_
+
+        def_default(back_,back,.false.)
+        
+        if(back_) then
+            first = size(arr)
+            last = 1
+            step = -1
+        else
+            first = 1
+            last = size(arr)
+            step = 1
+        end if
+        
+        loc = 0
+        do i = first, last, step
+            if(arr(i) == val) then
+                loc = i
+                return
+            endif
+        end do
+    end function custom_findloc
 
 !--- Indexing utilities
 

@@ -4,7 +4,7 @@ module LMat_freeze
     use IntegralsData, only: nFrozen, UMat
     use UMatCache, only: numBasisIndices, UMatInd
     use constants
-    use util_mod, only: operator(.div.)
+    use util_mod, only: operator(.div.), custom_findloc
     use OneEInts, only: TMat2D
     use SystemData, only: ECore
     implicit none
@@ -163,8 +163,8 @@ contains
 
         ! Check the permutation and possible factor of two due to spin
         ! First, get the two frozen orbitals
-        f_one = findloc(unfrozen, .false., dim = 1, back = .false.)
-        f_two = findloc(unfrozen, .false., dim = 1, back = .true.)
+        f_one = custom_findloc(unfrozen, .false., back = .false.)
+        f_two = custom_findloc(unfrozen, .false., back = .true.)
 
         ! If an odd number of steps is required to end up with a direct excitation, 
         ! a factor of -1 is added
@@ -239,8 +239,8 @@ contains
         ! Again, two things to check: The number of direct orbitals and the permutation
 
         ! Get the posisitons of the unfrozen orbs
-        uf_one = findloc(unfrozen, .true., dim = 1, back = .false.)
-        uf_two = findloc(unfrozen, .true., dim = 1, back = .true.)
+        uf_one = custom_findloc(unfrozen, .true., back = .false.)
+        uf_two = custom_findloc(unfrozen, .true., back = .true.)
 
         ! At this point, there is no unpaired frozen orbital, so there are two options:
         ! a) there are two different orbs
