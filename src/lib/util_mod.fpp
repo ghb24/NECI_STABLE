@@ -352,7 +352,7 @@ contains
         
         loc = 0
         do i = first, last, step
-            if(arr(i) == val) then
+            if(arr(i) .eqv. val) then
                 loc = i
                 return
             endif

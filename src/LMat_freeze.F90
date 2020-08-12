@@ -232,9 +232,9 @@ contains
 
         orbs = 0
         unfrozen = indices > 0
-        f_orbs = pack(indices, .not. unfrozen)
+        f_orbs = int(pack(indices, .not. unfrozen))
         ! For the single entry, there are only two unfrozen orbs, find these and return them
-        orbs = pack(indices, unfrozen)
+        orbs = int(pack(indices, unfrozen))
 
         ! Again, two things to check: The number of direct orbitals and the permutation
 
