@@ -334,12 +334,11 @@ subroutine NECICalcInit(iCacheFlag)
     end if
 
     if (.not. tPostFreezeHF) then
-        if(t_mol_3_body) call readLMat()
         call HFDoCalc()
     end if
 
     call IntFreeze()
-    if(t_mol_3_body .and. tPostFreezeHF) call readLMat()
+    if(t_mol_3_body) call readLMat()
     ! can i initialize the GUGA stuff here? after freezing? or otherwise
     ! it is incorrectly setup..
     ! try to init guga here..

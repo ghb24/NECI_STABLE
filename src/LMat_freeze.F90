@@ -4,7 +4,7 @@ module LMat_freeze
     use IntegralsData, only: nFrozen, UMat
     use UMatCache, only: numBasisIndices, UMatInd
     use constants
-    use util_mod, only: operator(.div.), custom_findloc
+    use util_mod, only: operator(.div.), custom_findloc, intswap
     use OneEInts, only: TMat2D
     use SystemData, only: ECore
     implicit none
@@ -14,7 +14,7 @@ module LMat_freeze
 
     !> Parameter for number of double excitations a single LMat entry can contribute to
     !! (counting permutations)
-    integer, parameter :: num_ex = 8
+    integer, parameter :: num_ex = 4
     integer, parameter :: num_inds = 6
     ! Step corresponding to conjugation of an index
     integer, parameter :: step = (num_inds / 2)
@@ -68,14 +68,14 @@ contains
 
         integer :: counts
         integer(int64) :: idx(num_ex), ct
-        real(dp) :: prefactor(num_ex)
+        real(dp) :: prefactor
 
         if(t_freeze(indices)) then
             ! Count the number of different indices appearing
             counts = count_frozen_inds(indices)
             ! How many pairs of frozen orbitals do we have
             ! 1 => double excitation
-            if(counts == 1) then 
+            if(counts == 1) then
                 idx = frozen_double_entry(indices, prefactor)
                 ! There are up to eight potential double excitations with four given indices
                 ! to which the LMat entry contributes - this is because LMat is hermitian
@@ -85,12 +85,12 @@ contains
                     if(idx(ct) > 0) then
                         ! Absorb the matrix element into UMat (with the corresponding prefactor
                         ! +/- 1/2 according to permutation and number of possible spin terms
-                        UMat(idx(ct)) = UMat(idx(ct)) + prefactor(ct)*matel
+                        UMat(idx(ct)) = UMat(idx(ct)) + prefactor*matel
                     endif
                 end do
                 ! 2 => single excitation
             elseif(counts == 2) then
-                idx(1:2) = frozen_single_entry(indices, prefactor(1))
+                idx(1:2) = frozen_single_entry(indices, prefactor)
                 
                 if(idx(1) > 0) then
                     ! Absorbt the matrix element into TMat
@@ -100,8 +100,8 @@ contains
                 endif
                 ! 3 => diagonal element
             elseif(counts == 3) then
-                call frozen_diagonal_entry(indices, prefactor(1))
-                ECore = ECore + prefactor(1) * matel
+                call frozen_diagonal_entry(indices, prefactor)
+                ECore = ECore + prefactor * matel
             endif
             ! Zero the matrix element for further usage (i.e. will not turn up anymore)
             matel = 0.0_dp
@@ -112,7 +112,7 @@ contains
         subroutine add_to_tmat(ind1, ind2)
             integer(int64), intent(in) :: ind1, ind2
             
-            TMat2D(ind1,ind2) = TMat2D(ind1,ind2) + prefactor(1) * matel
+            TMat2D(ind1,ind2) = TMat2D(ind1,ind2) + prefactor * matel
         end subroutine add_to_tmat
 
     end subroutine add_core_en
@@ -149,47 +149,67 @@ contains
     !> @return index  index of the UMat entry to add the LMat entry to, 0 if entry is not frozen
     function frozen_double_entry(indices, prefactor) result(idx)
         integer(int64), intent(in) :: indices(num_inds)
-        real(dp), intent(out) :: prefactor(num_ex)
+        real(dp), intent(out) :: prefactor
         integer(int64) :: idx(num_ex)
-        integer :: f_one, f_two
-        logical :: unfrozen(num_inds), t_per
+        integer :: f_one, f_two, ct, counts
+        logical :: unfrozen(num_inds), t_exch
         integer(int64) :: uf_idx(4)
 
         idx = 0        
         unfrozen = indices > 0
-        ! The indices of the UMat entries are given by the non-frozen indices
-        uf_idx = pack(indices,unfrozen)
-        idx = permute_umat_inds(int(uf_idx(1)),int(uf_idx(2)),int(uf_idx(3)),int(uf_idx(4)),prefactor)
 
+        ! Identify the direct unfrozen pair
+        uf_idx = int(pack(indices,unfrozen))
+        ! Order them such that the direct pair stays direct
+        ! This requires correction if the direct pair is broken, i.e. if there is no pair of .true. in
+        ! unfrozen which is step-1 apart and has exactly one .false. between
+        t_exch = .true.
+        do ct = 1, step
+            if(unfrozen(ct) .and. unfrozen(ct + step) .and. count(unfrozen(ct+1:ct+step-1)) == 1) &
+                t_exch = .false.
+        end do        
+        if(t_exch) call intswap(uf_idx(3), uf_idx(4))
+
+        ! Now, get the required UMat indices, including all transposed index pairs
+        idx = permute_umat_inds(int(uf_idx(1)),int(uf_idx(2)),int(uf_idx(3)),int(uf_idx(4)))
         ! Check the permutation and possible factor of two due to spin
         ! First, get the two frozen orbitals
         f_one = custom_findloc(unfrozen, .false., back = .false.)
         f_two = custom_findloc(unfrozen, .false., back = .true.)
-
-        ! If an odd number of steps is required to end up with a direct excitation, 
-        ! a factor of -1 is added
-        t_per = .false.
-        ! This is the case if a) both indices are src/tgt and have an odd distance
-        if(f_one > step .or. f_two <= step) then
-            if(modulo(f_two - f_one,2) == 1) t_per = .true.
-        ! Or there is one upper and one lower index with an even distance
-        elseif(modulo(f_two - f_one,2) == 0) then
-            t_per = .true.
-        endif
         
-        if(t_per) prefactor = -1.0_dp * prefactor
         ! There are two spin configurations in a close-shell frozen scenario for terms
-        ! with a direct frozen orbital (i.e. no permutation required)        
-        if(is_direct(f_one,f_two)) prefactor = 2.0_dp * prefactor
-
+        ! with a direct frozen orbital (i.e. no permutation required)
+        ! All others enter with a prefactor of -1
+        if(is_direct(f_one,f_two)) then
+            prefactor = 2.0_dp
+        else
+            prefactor = -1.0_dp
+            ! If this is a diagonal term (only three different indices), permutational symmetry
+            ! gives an extra factor of 2 for the exchange term. If only two different
+            ! indices appear, also the direct term gets this prefactor
+            counts = 1
+            ! Count the number of different indices
+            do ct = 2, num_inds
+                if(.not. any(indices(ct) == indices(1:ct-1))) counts = counts + 1
+            end do
+            if(counts == 2) then
+                prefactor = 2.0_dp * prefactor
+            elseif(counts == 3) then
+                ! If there are three different indices, only add the extra factor if there is no direct pair
+                do ct = 1, step
+                    if(is_direct_pair(indices,ct)) return
+                end do
+                prefactor = 2.0_dp * prefactor
+            end if
+        end if
+        
     end function frozen_double_entry
 
     !------------------------------------------------------------------------------------------!    
 
     !> Returns the UMatInd values of all possible permutations of the input indices
-    function permute_umat_inds(a,b,c,d,prefactor) result(inds)
+    function permute_umat_inds(a,b,c,d) result(inds)
         integer, intent(in) :: a,b,c,d
-        real(dp), intent(out) :: prefactor(num_ex)
         integer(int64) :: inds(num_ex)
 
         integer :: ct
@@ -200,14 +220,6 @@ contains
         inds(2) = UMatInd(c,b,a,d)
         inds(3) = UMatInd(a,d,c,b)
         inds(4) = UMatInd(c,d,a,b)
-        ! They have a prefactor of +1
-        prefactor(1:4) = 1.0_dp
-        ! These are the exchange terms, they stem from the LMat exchange terms and enter with -1
-        inds(5) = UMatInd(a,b,d,c)
-        inds(6) = UMatInd(d,b,a,c)
-        inds(7) = UMatInd(a,c,d,b)
-        inds(8) = UMatInd(d,c,a,b)
-        prefactor(5:8) = -1.0_dp
 
         ! All terms are only counted if they are different from a previously occuring index
         ! This approach might be less performant than competing ways of doing this check,
@@ -227,7 +239,7 @@ contains
 
         integer :: orbs(2)
         integer :: f_orbs(num_inds-2), ct
-        integer :: uf_one, uf_two
+        integer :: uf_one, uf_two, directs
         logical :: unfrozen(num_inds)
 
         orbs = 0
@@ -237,10 +249,6 @@ contains
         orbs = int(pack(indices, unfrozen))
 
         ! Again, two things to check: The number of direct orbitals and the permutation
-
-        ! Get the posisitons of the unfrozen orbs
-        uf_one = custom_findloc(unfrozen, .true., back = .false.)
-        uf_two = custom_findloc(unfrozen, .true., back = .true.)
 
         ! At this point, there is no unpaired frozen orbital, so there are two options:
         ! a) there are two different orbs
@@ -254,23 +262,37 @@ contains
             ! (then, one permutation is required to fix the two non-direct excits, else,
             ! (either zero or two are needed)
             ! -> count every direct excitation with a factor -1
+            directs = 0
+            ! Count the number of direct excitations
             do ct = 1, step
                 ! Each direct repeated orbital doubles the number of spin configs
                 ! (the case of four identical orbs is excluded)                
-                if(is_direct_pair(indices,ct) .and. .not. unfrozen(ct)) then
-                    prefactor = -2.0_dp * prefactor
-                    ! Only do this once, the second occurence coincides with a direct
-                    ! unfrozen orbital excitation and is thus covered below
-                    exit
+                if(is_direct_pair(indices,ct)) then
+                    directs = directs + 1
                 endif
             end do
-            ! If the single excitation is direct, its spin does not relate to the
-            ! spin of the frozen orbitals -> both configs contribute
-            if(is_direct(uf_one,uf_two)) prefactor = -2.0_dp * prefactor
+            select case(directs)
+                ! If there are none, there is no freedom for spin choice, but the LMat entry
+                ! appears twice in the matrix element evaluation due to symmetry 
+            case(0)
+                prefactor = 2.0_dp
+                ! If there is one, two possible spin configs contribute, and we have odd parity
+            case(1)
+                prefactor = -2.0_dp
+            case(3)
+                ! If there are three (just two is not possible), there are two spin degrees of
+                ! freedom -> factor of 4
+                prefactor = 4.0_dp
+            end select
         else
         ! b) All frozen orbs are the same -> only one spin config is allowed, only parity of
         ! the permutation counts
             ! Here, only a direct exctiation has even parity (same rule as above)
+
+            ! Get the posisitons of the unfrozen orbs
+            uf_one = custom_findloc(unfrozen, .true., back = .false.)
+            uf_two = custom_findloc(unfrozen, .true., back = .true.)
+            
             if(.not. is_direct(uf_one, uf_two)) prefactor = -1.0_dp * prefactor
         end if
         
@@ -293,6 +315,7 @@ contains
 
         ! If there are five or more repeated indices, the LMat entry does not contribute
         ! (it would require three same-spin electrons
+        t_quad = .false.
         do ct = 1,3
             if(count(indices(ct) == indices) > 4) then
                 prefactor = 0.0_dp
@@ -319,9 +342,12 @@ contains
             ! In the other case, there are three relevant cases:
             ! a) All excitations are direct => prefactor 8 = 2**3 (all spins are free)
             ! b) One excitation is direct => prefactor -4 (from the spin freedom of the direct orb + overall spin)
-            ! c) No excitation is direct => prefactor 2 (overall spin)
+            ! c) No excitation is direct => prefactor 4
+            !    the factor of 4 comes from two sources: a factor of 2 from the overall spin
+            !    and another factor of two from permutational symmetry: both indirect terms
+            !    are identical in this case, so this entry has to be counted as both
             if(directs == 0) then
-                prefactor = 2.0_dp
+                prefactor = 4.0_dp
             elseif(directs == 1) then
                 prefactor = -4.0_dp
             else ! directs == 3
