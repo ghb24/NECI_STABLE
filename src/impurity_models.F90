@@ -246,7 +246,6 @@ end subroutine constructConnections
     unused_var(exFlag)
 
     HElGen = HEl_zero
-    pSingles = 1.0_dp
 
     ! first, determine if a single or a double is created
     ! if there are enoguh holes and electrons in the impurity, pick randomly
@@ -319,7 +318,7 @@ end subroutine constructConnections
       endif
       ! then pick the second electron randomly from the remaining ones
       j = pick_random_occ_impurity(nI,nOccImp)
-      if(i .ne. j) then
+      if(i == j) then
           call invalidate()
           return
       endif
@@ -329,8 +328,17 @@ end subroutine constructConnections
       ! we now have two electrons from the impurity
       ! so get two holes weighted with the matrix elements
       k = pick_random_unocc_impurity(nI,G1(i)%Ms,pgen)
-      j = pick_random_unocc_impurity(nI,G1(j)%Ms,pgen)
-      ! Since the spin is fixed, the holes cannot be picked in any order
+      l = pick_random_unocc_impurity(nI,G1(j)%Ms,pgen)
+      ! Since the spin is fixed, the holes cannot be picked in any order if they have
+      ! different spin, only if it is the same
+      if(G1(i)%Ms == G1(j)%Ms) then
+          if(k == l) then 
+              call invalidate()
+              return
+          end if
+          ! Now they could have been chosen in any order
+          pgen = pgen * 2.0_dp
+      end if
       ! and write the resulting det to output
       call make_double(nI,nJ,i,j,k,l,ex,tparity)
       call assign_output_ilut(ilut,ilutnJ,i,k,j,l)
