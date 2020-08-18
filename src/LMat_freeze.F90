@@ -1,16 +1,18 @@
 #include "macros.h"
 
 module LMat_freeze
-    use IntegralsData, only: nFrozen, UMat
+    use IntegralsData, only: nFrozen, UMat, umat_win
     use UMatCache, only: numBasisIndices, UMatInd
     use constants
-    use util_mod, only: operator(.div.), custom_findloc, intswap
+    use util_mod, only: operator(.div.), custom_findloc
     use OneEInts, only: TMat2D
     use SystemData, only: ECore
+    use Parallel_neci
+    use ParallelHelper
     implicit none
 
     private
-    public :: freeze_lmat, t_freeze, map_indices
+    public :: freeze_lmat, t_freeze, map_indices, init_freeze_buffers, finalize_freeze_buffers
 
     !> Parameter for number of double excitations a single LMat entry can contribute to
     !! (counting permutations)
@@ -19,9 +21,57 @@ module LMat_freeze
     ! Step corresponding to conjugation of an index
     integer, parameter :: step = (num_inds / 2)
 
+    ! Local storage for ECore and TMat
+    real(dp) :: ECore_local, ECore_tot
+    HElement_t(dp), allocatable :: TMat_local(:,:), TMat_total(:,:)
+
     ! Direct orbital excitation = pair of indices in an index array which is apart by step
         
 contains
+
+    subroutine init_freeze_buffers()
+        ! Setup the buffers for accumulating the correction per processor
+
+        if(nFrozen > 0) then
+            ECore_local = 0.0_dp
+            if(allocated(TMat_local)) deallocate(TMat_local)
+            allocate(TMat_local(size(TMat2D,dim=1), size(TMat2D,dim=2)), source = 0.0_dp)
+            if(allocated(TMat_total)) deallocate(TMat_total)        
+            allocate(TMat_total(size(TMat2D,dim=1), size(TMat2D,dim=2)), source = 0.0_dp)
+
+        end if
+    end subroutine init_freeze_buffers
+
+    !------------------------------------------------------------------------------------------!
+
+    subroutine finalize_freeze_buffers()
+        integer(MPIArg) :: tmat_size
+        integer(MPIArg) :: ierr
+
+        if(nFrozen > 0) then
+
+            if(.not. allocated(TMat_local) .or. .not. allocated(TMat_total)) &
+                call stop_all("finalize_freeze_buffers", &
+                "Buffers for freezing three-body interaction not allocated")
+
+            ! Sum the core energy from each proc on this node
+            call MPI_Allreduce(ECore_local, ECore_tot, 1, MPI_DOUBLE_PRECISION, MPI_SUM, &
+                mpi_comm_intra, ierr)
+            ECore = ECore + ECore_tot
+
+            tmat_size = size(TMat_local)
+            ! Sum the 1-body terms from each proc on this node
+            call MPI_Allreduce(TMat_local, TMat_total, tmat_size, MPI_DOUBLE_PRECISION, MPI_SUM, &
+                mpi_comm_intra, ierr)        
+            TMat2D = TMat2D + TMat_total
+
+            ! Deallocate the temporary for the 1-body integrals
+            deallocate(TMat_local)
+            deallocate(TMat_total)
+
+            ! The 2-body terms are shared memory, no operation is required at this point
+        end if
+    end subroutine finalize_freeze_buffers
 
     !------------------------------------------------------------------------------------------!
 
@@ -68,7 +118,8 @@ contains
 
         integer :: counts
         integer(int64) :: idx(num_ex), ct
-        real(dp) :: prefactor
+        real(dp) :: prefactor, delta
+        integer(MPIArg) :: ierr
 
         if(t_freeze(indices)) then
             ! Count the number of different indices appearing
@@ -84,8 +135,12 @@ contains
                     ! If the index is assigned, there is a duplicate frozen orb
                     if(idx(ct) > 0) then
                         ! Absorb the matrix element into UMat (with the corresponding prefactor
-                        ! +/- 1/2 according to permutation and number of possible spin terms
-                        UMat(idx(ct)) = UMat(idx(ct)) + prefactor*matel
+                        ! according to permutation and number of possible spin terms
+                        ! UMat(idx(ct)) = UMat(idx(ct)) + prefactor*matel
+                        delta = prefactor * matel
+                        ! Use a remote update of UMat
+                        call MPI_Accumulate(delta,1,MPI_DOUBLE_PRECISION,0,&
+                            idx(ct)-1,1,MPI_DOUBLE_PRECISION,MPI_SUM,umat_win,ierr)
                     endif
                 end do
                 ! 2 => single excitation
@@ -93,7 +148,7 @@ contains
                 idx(1:2) = frozen_single_entry(indices, prefactor)
                 
                 if(idx(1) > 0) then
-                    ! Absorbt the matrix element into TMat
+                    ! Absorb the matrix element into TMat
                     ! TMat2D is indexed with spin orbs
                     call add_to_tmat(spatToSpinAlpha(idx(1)),spatToSpinAlpha(idx(2)))
                     call add_to_tmat(spatToSpinBeta(idx(1)),spatToSpinBeta(idx(2)))
@@ -101,7 +156,7 @@ contains
                 ! 3 => diagonal element
             elseif(counts == 3) then
                 call frozen_diagonal_entry(indices, prefactor)
-                ECore = ECore + prefactor * matel
+                ECore_local = ECore_local + prefactor * matel
             endif
             ! Zero the matrix element for further usage (i.e. will not turn up anymore)
             matel = 0.0_dp
@@ -112,7 +167,7 @@ contains
         subroutine add_to_tmat(ind1, ind2)
             integer(int64), intent(in) :: ind1, ind2
             
-            TMat2D(ind1,ind2) = TMat2D(ind1,ind2) + prefactor * matel
+            TMat_local(ind1,ind2) = TMat_local(ind1,ind2) + prefactor * matel
         end subroutine add_to_tmat
 
     end subroutine add_core_en
@@ -151,24 +206,36 @@ contains
         integer(int64), intent(in) :: indices(num_inds)
         real(dp), intent(out) :: prefactor
         integer(int64) :: idx(num_ex)
-        integer :: f_one, f_two, ct, counts
-        logical :: unfrozen(num_inds), t_exch
+        integer :: f_one, f_two, ct, counts, i, rs, marks(3)
+        logical :: unfrozen(num_inds)
         integer(int64) :: uf_idx(4)
 
         idx = 0        
         unfrozen = indices > 0
+        ! Mark where the unfrozen indices are
+        marks = 0
 
         ! Identify the direct unfrozen pair
-        uf_idx = int(pack(indices,unfrozen))
-        ! Order them such that the direct pair stays direct
-        ! This requires correction if the direct pair is broken, i.e. if there is no pair of .true. in
-        ! unfrozen which is step-1 apart and has exactly one .false. between
-        t_exch = .true.
+        ! Look for the direct pair of unfrozen indices (these shall stay direct)
         do ct = 1, step
-            if(unfrozen(ct) .and. unfrozen(ct + step) .and. count(unfrozen(ct+1:ct+step-1)) == 1) &
-                t_exch = .false.
-        end do        
-        if(t_exch) call intswap(uf_idx(3), uf_idx(4))
+            if(unfrozen(ct) .and. unfrozen(ct + step)) then
+                uf_idx(1) = indices(ct)
+                uf_idx(3) = indices(ct + step)
+                ! Mark the extracted indices so they are not taken again
+                marks(1) = ct
+                marks(2) = ct + step
+                exit
+            end if
+        end do
+        ! Now, find the other two (direct or exchange) unfrozen indices
+        rs = 2
+        do ct = 1, num_inds
+            if(unfrozen(ct) .and. .not. any(ct == marks)) then
+                uf_idx(rs) = indices(ct)
+                marks(3) = ct
+                rs = rs + 2
+            endif
+        end do
 
         ! Now, get the required UMat indices, including all transposed index pairs
         idx = permute_umat_inds(int(uf_idx(1)),int(uf_idx(2)),int(uf_idx(3)),int(uf_idx(4)))
@@ -195,9 +262,9 @@ contains
             if(counts == 2) then
                 prefactor = 2.0_dp * prefactor
             elseif(counts == 3) then
-                ! If there are three different indices, only add the extra factor if there is no direct pair
+                ! If there are three different indices, only add the extra factor if there is no direct unfrozen pair
                 do ct = 1, step
-                    if(is_direct_pair(indices,ct)) return
+                    if(is_direct_pair(indices,ct) .and. unfrozen(ct)) return
                 end do
                 prefactor = 2.0_dp * prefactor
             end if

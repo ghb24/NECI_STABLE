@@ -10,12 +10,13 @@ module LMat_class
     use constants
     use index_rhash, only: index_rhash_t
     use mpi
-    use util_mod, only: get_free_unit, operator(.div.)
+    use util_mod, only: get_free_unit, operator(.div.), near_zero
     use tc_three_body_data, only: lMatEps, tHDF5LMat
     use HElem, only: HElement_t_sizeB
     use LoggingData, only: tHistLMat
     use UMatCache, only: numBasisIndices
-    use LMat_freeze, only: freeze_lmat, t_freeze, map_indices
+    use LMat_freeze, only: freeze_lmat, t_freeze, map_indices, &
+        init_freeze_buffers, finalize_freeze_buffers
 #ifdef USE_HDF_
     use hdf5
     use hdf5_util
@@ -222,7 +223,10 @@ contains
         class(lMat_t), intent(inout) :: this
         character(*), intent(in) :: filename
 
+        ! Setup the temporaries used for freezing orbitals
+        call init_freeze_buffers()
         call this%read_kernel(filename)
+        call finalize_freeze_buffers()
 
         if (tHistLMat) call this%histogram_lMat()
 
@@ -320,7 +324,8 @@ contains
                         call freeze_lmat(matel,indices)
                         ! else assign the matrix element
                         
-                        if(abs(matel) > LMatEps) then                        
+                        if(abs(matel) > LMatEps) then
+                            counter = counter + 1
                             index = this%indexFunc(&
                                 indices(1),indices(2),indices(3),indices(4),indices(5), indices(6))
                             if(index > this%lMat_size()) then
@@ -332,8 +337,6 @@ contains
                     endif
 
                 end do
-
-                counter = counter / 12
 
                 write(iout, *) "Sparsity of LMat", real(counter) / real(this%lMat_size())
                 write(iout, *) "Nonzero elements in LMat", counter
@@ -750,7 +753,7 @@ contains
         rVal = 0.0_dp
 
         ! reserve max. 128MB buffer size for dumpfile I/O
-        blocksize = 2_hsize_t**27.div. (7 * sizeof(0_int64))
+        blocksize = (2_hsize_t**27) .div. (7 * sizeof(0_int64))
         blockstart = this%offsets(iProcIndex_intra)
 
         blockend = min(blockstart + blocksize - 1, this%countsEnd)
@@ -781,8 +784,12 @@ contains
                 [0_hsize_t, 0_hsize_t])
 
             ! Do something with the read-in values
-            ! This has to be threadsafe !!!
+            ! If umat is updated, it has to be done using MPI RMA calls, so synchronization is
+            ! required
+            call umat_fence()
+            ! This has to be threadsafe !!!            
             call lMat%read_op_hdf5(indices, entries)
+            call umat_fence()
 
             ! the read_op is allowed to deallocate if memory has to be made available
             if (allocated(entries)) deallocate(entries)
@@ -798,6 +805,14 @@ contains
             ! once all procs on this node are done reading, we can exit
             call MPI_ALLREDUCE(running, any_running, 1, MPI_LOGICAL, MPI_LOR, mpi_comm_intra, ierr)
         end do
+
+    contains
+
+        subroutine umat_fence()
+            use IntegralsData, only: umat_win, nFrozen
+            
+            if(nFrozen > 0) call MPI_Win_fence(0,umat_win,ierr)
+        end subroutine umat_fence
 
     end subroutine loop_file
 

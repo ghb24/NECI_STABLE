@@ -112,6 +112,7 @@ contains
         strideInner = fuseIndex(nBI, nBI)
         strideOuter = strideInner**2
 
+        if(allocated(lMat)) deallocate(lMat)
         if (tSparseLMat) then
             allocate(sparse_lMat_t :: lMat)
         else
