@@ -341,6 +341,7 @@ contains
                 write(iout, *) "Sparsity of LMat", real(counter) / real(this%lMat_size())
                 write(iout, *) "Nonzero elements in LMat", counter
                 write(iout, *) "Allocated size of LMat", this%lMat_size()
+                close(iunit)
             end if
             call MPIBcast(counter)
         end if

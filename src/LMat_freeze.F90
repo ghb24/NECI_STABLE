@@ -29,6 +29,8 @@ module LMat_freeze
         
 contains
 
+    !> Initialize the local storage for the diagonal and one-electron terms (two-electron
+    !! terms are shared memory). This is called before reading in the 6-index integrals
     subroutine init_freeze_buffers()
         ! Setup the buffers for accumulating the correction per processor
 
@@ -44,6 +46,9 @@ contains
 
     !------------------------------------------------------------------------------------------!
 
+    !> Sum the locally accumulated corrections to the diagonal and one-body terms up and
+    !! add them to the global terms, then deallocate temporaries. This is called
+    !! after reading in the 6-index integrals
     subroutine finalize_freeze_buffers()
         integer(MPIArg) :: tmat_size
         integer(MPIArg) :: ierr
@@ -168,12 +173,24 @@ contains
             integer(int64), intent(in) :: ind1, ind2
             
             TMat_local(ind1,ind2) = TMat_local(ind1,ind2) + prefactor * matel
+            ! TMat is hermitian, as is the 3-body term
+            if(ind1 /= ind2) &
+                TMat_local(ind2,ind1) = TMat_local(ind2,ind1) + prefactor * matel                
         end subroutine add_to_tmat
 
     end subroutine add_core_en
 
     !------------------------------------------------------------------------------------------!    
 
+    !> Count how many frozen indices there are, determine if the entry has to be added
+    !! to a lower-order term and if yes, which one.
+    !> @param[in] indices  array of size 6 with the orbital indices of the entry
+    !> @return level  indicates to which lower order term this entry has to be added
+    !!                and therefore, which subroutine has to be called in the following
+    !!                0 - none
+    !!                1 - one frozen index pair -> two-body term
+    !!                2 - two frozen index pairs -> one-body term
+    !!                3 - three frozen index pairs -> diagonal term
     pure function count_frozen_inds(indices) result(level)
         integer(int64), intent(in) :: indices(num_inds)
         integer :: level
@@ -264,7 +281,7 @@ contains
             elseif(counts == 3) then
                 ! If there are three different indices, only add the extra factor if there is no direct unfrozen pair
                 do ct = 1, step
-                    if(is_direct_pair(indices,ct) .and. unfrozen(ct)) return
+                    if(is_repeated_pair(indices,ct) .and. unfrozen(ct)) return
                 end do
                 prefactor = 2.0_dp * prefactor
             end if
@@ -275,6 +292,10 @@ contains
     !------------------------------------------------------------------------------------------!    
 
     !> Returns the UMatInd values of all possible permutations of the input indices
+    !> @param[in] a,b,c,d  orbital indices of a two-body element
+    !> @return inds  array of size 4 containing the indices of UMat corresponding to these
+    !!               four orbitals (in this order) and their hermitian conjugates
+    !!               entries of 0 indicate that no position in UMat has to be addressed
     function permute_umat_inds(a,b,c,d) result(inds)
         integer, intent(in) :: a,b,c,d
         integer(int64) :: inds(num_ex)
@@ -300,6 +321,14 @@ contains
 
     !------------------------------------------------------------------------------------------!
 
+    !> For a given set of 6 orbital indices with two pairs of frozen orbitals,
+    !! returns the orbital indices of the corresponding single excitation and the prefactor
+    !! for the matrix element due to spin
+    !> @param[in] indices  array of size 6 with orbital indices, four of which have to be
+    !!                     repeated frozen indices
+    !> @param[out] prefactor  on return, the prefactor of the matrix element when added to
+    !!                        the one-body terms
+    !> @return orbs  the two non-frozen orbitals
     function frozen_single_entry(indices, prefactor) result(orbs)
         integer(int64), intent(in) :: indices(num_inds)
         real(dp), intent(out) :: prefactor
@@ -334,15 +363,16 @@ contains
             do ct = 1, step
                 ! Each direct repeated orbital doubles the number of spin configs
                 ! (the case of four identical orbs is excluded)                
-                if(is_direct_pair(indices,ct)) then
+                if(is_repeated_pair(indices,ct) .or. (unfrozen(ct) .and. unfrozen(ct+step))) then
                     directs = directs + 1
                 endif
             end do
             select case(directs)
                 ! If there are none, there is no freedom for spin choice, but the LMat entry
-                ! appears twice in the matrix element evaluation due to symmetry 
+                ! appears twice in the matrix element evaluation due to symmetry if the
+                ! unfrozen entry is repeated
             case(0)
-                prefactor = 2.0_dp
+                if(orbs(1) == orbs(2)) prefactor = 2.0_dp
                 ! If there is one, two possible spin configs contribute, and we have odd parity
             case(1)
                 prefactor = -2.0_dp
@@ -394,7 +424,7 @@ contains
         ! Both relate to the number of different direct excits, so count these
         directs = 0
         do ct = 1, step
-            if(is_direct_pair(indices, ct)) directs = directs + 1
+            if(is_repeated_pair(indices, ct)) directs = directs + 1
         end do
         
         ! If there is a quadruple index, the spin of it is fixed (both have to be occupied), then,
@@ -426,6 +456,10 @@ contains
 
     !------------------------------------------------------------------------------------------!
 
+    !> For two positions of indices in a 6-index set, return if these are a direct pair
+    !> @param[in] one, two  integers between 1 and 6
+    !> @return t_dir  true if the two integers correspond to positions that are direct, i.e.
+    !!                for which the LMat entry is symmetric under exchange of the values
     pure function is_direct(one, two) result(t_dir)
         integer, intent(in) :: one, two
         logical :: t_dir
@@ -435,13 +469,18 @@ contains
 
     !------------------------------------------------------------------------------------------!
 
-    pure function is_direct_pair(indices,ct) result(t_dir)
+    !> For a set of 6 orbital indices, return whether the pair at a given position is repeated
+    !> @param[in] indices  array of size 6 containing a set of indices indexing an LMat entry
+    !> @param[in] ct  integer between 1 and 3 labeling a position in the index set
+    !> @return t_dir  true if the two indices at the position ct (i.e. ct and ct+step in indices)
+    !!                are the same
+    pure function is_repeated_pair(indices,ct) result(t_dir)
         integer(int64), intent(in) :: indices(num_inds)
         integer, intent(in) :: ct
         logical :: t_dir
 
         t_dir = (indices(ct) == indices(ct + step) )
-    end function is_direct_pair
+    end function is_repeated_pair
 
     !------------------------------------------------------------------------------------------!    
     

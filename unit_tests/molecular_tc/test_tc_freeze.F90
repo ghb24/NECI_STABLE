@@ -14,7 +14,9 @@ program test_tc_freeze
 
   implicit none
   integer, parameter :: n_con = 10
+  integer, parameter :: n_f = 4
   integer, parameter :: nI_ref(n_con) = (/1,2,3,4,5,6,7,8,9,10/)
+  integer, parameter :: nI_ref_frozen(n_con-n_f) = nI_ref(1:n_con-n_f)
 
   call MPIInit(.false.)
   call init_fruit()
@@ -28,12 +30,16 @@ contains
     subroutine tc_freeze_test_driver()
         type(NoExc_t) :: exc_0
         type(SingleExc_t) :: exc_1
+        type(DoubleExc_t) :: exc_2
+        integer, parameter :: ex(2,2) = (/5,7,21,23/)
         
         ! Initialize the matrix element calculation
         call init_excitgen_test(&
             n_el=n_con, fcidump_writer=FciDumpWriter_t(random_fcidump, 'FCIDUMP'))
         t_mol_3_body = .true.
         call initSltCndPtr()
+
+        write(iout, *) "Checking diagonal matrix elements"
 
         ! Test the diagonal elements
         call test_freeze((/1,1,2,2,1,1/), exc_0)
@@ -54,21 +60,42 @@ contains
         call test_freeze((/3,3,4,1,1,4/), exc_0)
         call test_freeze((/1,3,3,4,1,4/), exc_0)
 
+        write(iout,*) "Checking single excitaion matrix elements"
+
         ! Test the single excitation matrix elements
-        exc_1 = SingleExc_t((/3,11/))
+        exc_1 = SingleExc_t((/5,21/))
         call test_freeze((/1,1,3,1,1,11/), exc_1)
         call test_freeze((/1,2,3,1,2,11/), exc_1)
         call test_freeze((/1,2,3,2,1,11/), exc_1)
         call test_freeze((/1,2,3,1,11,2/), exc_1)
         call test_freeze((/1,2,3,11,1,2/), exc_1)
         call test_freeze((/1,1,3,11,2,2/), exc_1)
-        call test_freeze((/11,2,3,1,1,2/), exc_1)          
+        call test_freeze((/11,2,3,1,1,2/), exc_1)
+        call test_freeze((/1,2,11,3,1,2/), exc_1)
+        call test_freeze((/1,2,11,1,2,3/), exc_1)
+
+        write(iout,*) "Checking double excitaion matrix elements"        
+
+        ! Test the double excitation matrix elements
+        exc_2 = DoubleExc_t(ex)
+        call test_freeze((/1,3,4,1,11,12/), exc_2)
+        call test_freeze((/1,11,4,1,3,12/), exc_2)
+        call test_freeze((/1,3,4,12,1,11/), exc_2)
+        call test_freeze((/12,3,4,1,1,11/), exc_2)
+        call test_freeze((/1,3,4,1,12,11/), exc_2)
+        call test_freeze((/1,3,4,11,1,12/), exc_2)
+        call test_freeze((/11,3,4,1,1,12/), exc_2)
+        call test_freeze((/1,3,11,1,12,4/), exc_2)
+        call test_freeze((/11,1,4,1,3,12/), exc_2)
+        call test_freeze((/12,3,11,1,1,4/), exc_2)                        
         
     end subroutine tc_freeze_test_driver
 
     subroutine test_freeze(inds, exc)
+        use excitation_types
         integer, intent(in) :: inds(6)
         class(Excitation_t), intent(in) :: exc
+        class(Excitation_t), allocatable :: exc_frozen
         logical :: t_par
         real(dp) :: e_ref, e_freeze
 
@@ -80,7 +107,20 @@ contains
         call freeLMat()
         nFrozen = 4
         call readLMat()
-        e_freeze = dyn_sltcnd_excit(nI_ref, exc, t_par) + ECore
+        nel = nel - nFrozen
+        select type(exc)
+        type is (SingleExc_t)
+            allocate( SingleExc_t :: exc_frozen)
+            exc_frozen = SingleExc_t(exc%val(1)-nFrozen, exc%val(2)-nFrozen)
+        type is (DoubleExc_t)
+            allocate( DoubleExc_t :: exc_frozen)            
+            exc_frozen = DoubleExc_t(exc%val(1,1)-nFrozen, exc%val(2,1)-nFrozen, &
+                exc%val(1,2)-nFrozen,exc%val(2,2)-nFrozen)
+        class default
+            exc_frozen = exc
+        end select
+        e_freeze = dyn_sltcnd_excit(nI_ref_frozen, exc_frozen, t_par) + ECore
+        nel = nel + nFrozen
         call freeLMat()
 
         call assert_true(e_freeze .isclose. e_ref)
