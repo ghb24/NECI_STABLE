@@ -37,9 +37,11 @@ contains
         if(nFrozen > 0) then
             ECore_local = 0.0_dp
             if(allocated(TMat_local)) deallocate(TMat_local)
-            allocate(TMat_local(size(TMat2D,dim=1), size(TMat2D,dim=2)), source = 0.0_dp)
+            allocate(TMat_local(size(TMat2D,dim=1), size(TMat2D,dim=2)))
             if(allocated(TMat_total)) deallocate(TMat_total)        
-            allocate(TMat_total(size(TMat2D,dim=1), size(TMat2D,dim=2)), source = 0.0_dp)
+            allocate(TMat_total(size(TMat2D,dim=1), size(TMat2D,dim=2)))
+            TMat_local = 0.0_dp
+            TMat_total = 0.0_dp
 
         end if
     end subroutine init_freeze_buffers

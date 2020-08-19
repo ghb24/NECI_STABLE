@@ -116,6 +116,7 @@ contains
         logical :: t_par
         real(dp) :: e_ref, e_freeze
 
+        t_par = .false.
         call reset_ints()
         call write_single_tcdump(inds)
         nFrozen = 0
