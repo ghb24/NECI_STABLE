@@ -31,7 +31,7 @@ contains
         type(NoExc_t) :: exc_0
         type(SingleExc_t) :: exc_1
         type(DoubleExc_t) :: exc_2
-        integer, parameter :: ex(2,2) = (/5,7,21,23/)
+        integer :: ex(2,2)
         
         ! Initialize the matrix element calculation
         call init_excitgen_test(&
@@ -65,6 +65,11 @@ contains
         ! Test the single excitation matrix elements
         exc_1 = SingleExc_t((/5,21/))
         call test_freeze((/1,1,3,1,1,11/), exc_1)
+        call test_freeze((/1,1,3,11,1,1/), exc_1)
+        call test_freeze((/11,1,3,1,1,1/), exc_1)
+        call test_freeze((/3,1,11,1,1,1/), exc_1)
+        call test_freeze((/1,1,1,11,1,3/), exc_1)
+        
         call test_freeze((/1,2,3,1,2,11/), exc_1)
         call test_freeze((/1,2,3,2,1,11/), exc_1)
         call test_freeze((/1,2,3,1,11,2/), exc_1)
@@ -73,10 +78,13 @@ contains
         call test_freeze((/11,2,3,1,1,2/), exc_1)
         call test_freeze((/1,2,11,3,1,2/), exc_1)
         call test_freeze((/1,2,11,1,2,3/), exc_1)
+        call test_freeze((/11,2,2,1,1,3/), exc_1)
 
         write(iout,*) "Checking double excitaion matrix elements"        
 
         ! Test the double excitation matrix elements
+        ex(:,1) = (/5,7/)
+        ex(:,2) = (/21,23/)
         exc_2 = DoubleExc_t(ex)
         call test_freeze((/1,3,4,1,11,12/), exc_2)
         call test_freeze((/1,11,4,1,3,12/), exc_2)
@@ -87,7 +95,16 @@ contains
         call test_freeze((/11,3,4,1,1,12/), exc_2)
         call test_freeze((/1,3,11,1,12,4/), exc_2)
         call test_freeze((/11,1,4,1,3,12/), exc_2)
-        call test_freeze((/12,3,11,1,1,4/), exc_2)                        
+        call test_freeze((/12,3,11,1,1,4/), exc_2)
+        ex(:,1) = (/5,6/)
+        ex(:,2) = (/11,12/)
+        exc_2 = DoubleExc_t(ex)
+        call test_freeze((/1,3,3,1,11,11/), exc_2)
+        call test_freeze((/1,3,3,11,1,11/), exc_2)
+        call test_freeze((/1,3,11,1,11,3/), exc_2)
+        call test_freeze((/1,3,3,11,11,1/), exc_2)
+        call test_freeze((/11,3,3,1,1,11/), exc_2)
+        call test_freeze((/11,1,3,1,3,11/), exc_2)
         
     end subroutine tc_freeze_test_driver
 
