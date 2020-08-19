@@ -527,8 +527,17 @@ contains
         allocate(combined_inds(block_size))
         ! Transfer the 6 orbitals to one contiguous index
         do i = 1, block_size
+            ! Take care of freezing orbitals here
+            call map_indices(indices(:,i))
+            ! Only freeze once, when filling in the values (this read_op can be called
+            ! multiple times for the same block)
+            if(this%htable%known_conflicts()) call add_core_en(entries(1,i),indices(:,i))
+            
             combined_inds(i) = this%indexFunc(indices(1, i), indices(2, i), indices(3, i), &
-                                              indices(4, i), indices(5, i), indices(6, i))
+                indices(4, i), indices(5, i), indices(6, i))
+
+            ! If the entry is frozen, do not count it
+            if(t_freeze(indices)) combined_inds(i) = 0            
         end do
         ! We might need this memory - all these operations can be memory critical
         deallocate(indices)
@@ -561,7 +570,7 @@ contains
         if (iProcIndex_intra == 0) then
             do i = 1, total_size
                 ! count_index is not threadsafe => only do it on node-root
-                call this%htable%count_index(tmp(i))
+                if(tmp(i) > 0) call this%htable%count_index(tmp(i))
             end do
         end if
         deallocate(tmp)
@@ -588,7 +597,8 @@ contains
         ! Then write there
         if (iProcIndex_intra == 0) then
             do i = 1, total_size
-                call this%set_elem(tmp_inds(i), 3.0_dp * transfer(tmp_entries(i), rVal))
+                if(tmp_inds(i) > 0) &
+                    call this%set_elem(tmp_inds(i), 3.0_dp * transfer(tmp_entries(i), rVal))
             end do
         end if
         deallocate(tmp_inds)
