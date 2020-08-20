@@ -16,7 +16,7 @@ module LMat_class
     use LoggingData, only: tHistLMat
     use UMatCache, only: numBasisIndices
     use LMat_freeze, only: freeze_lmat, t_freeze, map_indices, &
-        init_freeze_buffers, finalize_freeze_buffers
+        init_freeze_buffers, finalize_freeze_buffers, add_core_en
 #ifdef USE_HDF_
     use hdf5
     use hdf5_util
@@ -516,6 +516,7 @@ contains
     !> @param[in,out] indices  chunk of indices read in from the file
     !> @param[in,out] entries  chunk of corresponding values
     subroutine read_op_sparse(this, indices, entries)
+        use IntegralsData, only: nFrozen
         class(sparse_lMat_t), intent(inout) :: this
         ! We allow deallocation of indices/entries
         integer(int64), allocatable, intent(inout) :: indices(:, :), entries(:, :)
@@ -523,15 +524,22 @@ contains
         integer(int64) :: block_size, i
         integer(int64), allocatable :: combined_inds(:)        
         integer(int64) :: dummy
+        HElement_t(dp) :: rVal
         block_size = size(indices, dim=2)
         allocate(combined_inds(block_size))
         ! Transfer the 6 orbitals to one contiguous index
         do i = 1, block_size
-            ! Take care of freezing orbitals here
-            call map_indices(indices(:,i))
-            ! Only freeze once, when filling in the values (this read_op can be called
-            ! multiple times for the same block)
-            if(this%htable%known_conflicts()) call add_core_en(entries(1,i),indices(:,i))
+            if(nFrozen > 0) then
+                ! Take care of freezing orbitals here
+                call map_indices(indices(:,i))
+                ! Only freeze once, when filling in the values (this read_op can be called
+                ! multiple times for the same block)
+                if(this%htable%known_conflicts()) then
+                    rVal = transfer(entries(1,i),rVal)                
+                    call add_core_en(rVal,indices(:,i))
+                    entries(1,i) = transfer(rVal,entries(1,i))
+                end if
+            end if
             
             combined_inds(i) = this%indexFunc(indices(1, i), indices(2, i), indices(3, i), &
                 indices(4, i), indices(5, i), indices(6, i))

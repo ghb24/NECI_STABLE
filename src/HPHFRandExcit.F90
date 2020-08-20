@@ -26,13 +26,11 @@ MODULE HPHFRandExcitMod
 
     use GenRandSymExcitNUMod, only: gen_rand_excit, calc_pgen_symrandexcit2, &
                                     ScratchSize, CalcPGenLattice, construct_class_counts
-    use tc_three_body_excitgen, only: calc_pgen_mol_tc, gen_excit_mol_tc
-
     use excit_gens_int_weighted, only: gen_excit_4ind_weighted, &
                                        gen_excit_4ind_reverse, &
                                        calc_pgen_4ind_weighted, &
                                        calc_pgen_4ind_reverse
-    use tc_three_body_excitgen, only: gen_excit_mol_tc
+    use tc_three_body_excitgen, only: gen_excit_mol_tc, calc_pgen_triple
     use DetBitOps, only: DetBitLT, DetBitEQ, FindExcitBitDet, &
                          FindBitExcitLevel, MaskAlpha, MaskBeta, &
                          TestClosedShellDet, CalcOpenOrbs, IsAllowedHPHF, &
@@ -116,7 +114,7 @@ contains
                 tSameFunc = .true.
                 return
             end if
-            if (ic <= 2) then
+            if (ic <= maxExcit) then
                 call CalcNonUniPGen(nI, ilutnI, ex, ic, ClassCount, ClassCountUnocc, pDoubles, pGen)
             end if
         else
@@ -131,8 +129,7 @@ contains
                 tSameFunc = .true.
                 return
             end if
-            ASSERT(.not. t_3_body_excits)
-            if (ic <= 2) then
+            if (ic <= maxExcit) then
                 if (.not. tSwapped) then
                     !ex is correct for this excitation
                     call CalcNonUnipGen(nI, ilutnI, ex, ic, ClassCount, ClassCountUnocc, pDoubles, pGen)
@@ -149,7 +146,7 @@ contains
                 tSameFunc = .true.
                 return
             end if
-            if (ic <= 2) then
+            if (ic <= maxExcit) then
                 if (tSwapped) then
                     !ex is correct for this excitation
                     call CalcNonUnipGen(nI, ilutnI, ex, ic, ClassCount, ClassCountUnocc, pDoubles, pGen2)
@@ -354,9 +351,7 @@ contains
                 ExcitLevel = FindBitExcitLevel(iLutnI, iLutnJ2, 2)
             end if
 
-            IF ((ExcitLevel == 2) .or. (ExcitLevel == 1)) THEN     !This is if we have all determinants in the two HPHFs connected...
-                ! todo 3-body!
-                ASSERT(.not. t_3_body_excits)
+            IF (ExcitLevel <= maxExcit .and. ExcitLevel > 0) THEN     !This is if we have all determinants in the two HPHFs connected...
 
                 Ex2(1, 1) = ExcitLevel
 
@@ -791,8 +786,8 @@ contains
         ! do i need to  check if it is actually a non-initiator?
         ! i guess i do.. or i go the unnecessary way of checking again in
         ! the called back-spawn functions
-        if (t_mol_3_body .or. t_ueg_3_body) then
-            pgen = calc_pgen_mol_tc(nI, ex, ic, ClassCount2, ClassCountUnocc2, pDoub)
+        if(ic == 3) then
+            pgen = calc_pgen_triple(nI, ex)
         else if ((t_back_spawn .or. t_back_spawn_flex) .and. &
                  (.not. DetBitEq(ilutI, ilutRef(:, temp_part_type), nifd)) .and. &
                  (.not. test_flag(ilutI, get_initiator_flag(temp_part_type)))) then

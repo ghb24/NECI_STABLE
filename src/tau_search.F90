@@ -774,8 +774,7 @@ contains
                         !Have to recalculate the excitation matrix.
                         ic = FindBitExcitLevel(iLutnJ, iLutRef(:, 1), 2)
                         ex(:, :) = 0
-                        ASSERT(.not. t_3_body_excits)
-                        if (ic <= 2) then
+                        if (ic <= maxExcit) then
                             ex(1, 1) = ic
                             call GetBitExcitation(iLutRef(:, 1), iLutnJ, Ex, tParity)
                         end if

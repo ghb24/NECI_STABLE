@@ -12,7 +12,8 @@ module LMat_freeze
     implicit none
 
     private
-    public :: freeze_lmat, t_freeze, map_indices, init_freeze_buffers, finalize_freeze_buffers
+    public :: freeze_lmat, t_freeze, map_indices, init_freeze_buffers, &
+        finalize_freeze_buffers, add_core_en
 
     !> Parameter for number of double excitations a single LMat entry can contribute to
     !! (counting permutations)

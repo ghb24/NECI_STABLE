@@ -58,30 +58,6 @@ contains
 
 !------------------------------------------------------------------------------------------!
 
-    function calc_pgen_mol_tc(nI, ex, ic, ClassCount, &
-                              ClassCountUnocc, pDoub) result(pgen)
-        integer, intent(in) :: nI(nel), ex(2, ic), ic
-        integer, intent(in) :: ClassCount(ScratchSize)
-        integer, intent(in) :: ClassCountUnocc(ScratchSize)
-        real(dp), intent(in) :: pDoub
-        real(dp) :: pgen
-
-        character(*), parameter :: t_r = "calc_pgen_mol_tc"
-
-        pgen = 0.0_dp
-        if (ic < 3) then
-            ! for singles/doubles, delegate the calculation to the existing routines
-            call calc_pgen_symrandexcit2(nI, ex, ic, ClassCount, ClassCountUnocc, pDoub, pgen)
-            ! and take into account the bias for triples
-        else if (ic == 3) then
-            ! else, use the local routine
-            pgen = calc_pgen_triple(nI, ex)
-        end if
-
-    end function calc_pgen_mol_tc
-
-!------------------------------------------------------------------------------------------!
-
     function calc_pgen_triple(nI, ex) result(pgen)
         ! get the probability to get excitation `ex` from a determinant `nI`
         integer, intent(in) :: nI(nel)

@@ -152,7 +152,8 @@ contains
         iunit = get_free_unit()
         open(iunit, file = "TCDUMP", status = 'replace')
 
-        write(iunit, *), 1.0, inds
+        write(iunit, *) 1.0, inds
+        close(iunit)
     end subroutine write_single_tcdump
 
     subroutine random_fcidump(iunit)
