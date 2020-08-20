@@ -9,7 +9,7 @@ module gasci_discarding
 
     use pchb_excitgen, only: init_pchb_excitgen, finalize_pchb_excitgen, gen_rand_excit_pchb
     use gasci, only: GAS_specification, GASSpec_t
-    use FciMCData, only: excit_gen_store_type
+    use FciMCData, only: excit_gen_store_type, projEDet
     implicit none
 
     private
@@ -59,8 +59,9 @@ contains
         end if
     end subroutine gen_GASCI_discarding
 
-    subroutine init_GASCI_discarding()
-        call init_pchb_excitgen()
+    subroutine init_GASCI_discarding(projEDet)
+        integer, intent(in) :: projEDet(:)
+        call init_pchb_excitgen(projEDet(:))
     end subroutine
 
     subroutine finalize_GASCI_discarding()

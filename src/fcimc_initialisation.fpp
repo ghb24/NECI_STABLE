@@ -1403,7 +1403,7 @@ contains
             if (GAS_exc_gen == possible_GAS_exc_gen%DISCONNECTED) then
                 call init_disconnected_GAS(GAS_specification)
             else if (GAS_exc_gen == possible_GAS_exc_gen%DISCARDING) then
-                call init_GASCI_discarding()
+                call init_GASCI_discarding(projEDet(:, 1))
             end if
         end if
     END SUBROUTINE SetupParameters
@@ -1731,7 +1731,7 @@ contains
 
         ! initialize excitation generator
         if (t_pcpp_excitgen) call init_pcpp_excitgen()
-        if (t_pchb_excitgen) call init_pchb_excitgen()
+        if (t_pchb_excitgen) call init_pchb_excitgen(projEDet(:, 1))
         ! [W.D.] I guess I want to initialize that before the tau-search,
         ! or otherwise some pgens get calculated incorrectly
         if (t_back_spawn .or. t_back_spawn_flex) then

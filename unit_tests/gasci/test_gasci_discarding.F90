@@ -46,7 +46,7 @@ contains
         global_GAS_spec = GAS_spec
 
         call init_excitgen_test(size(det_I), FciDumpWriter_t(random_fcidump, 'FCIDUMP'))
-        call init_GASCI_discarding()
+        call init_GASCI_discarding(det_I)
         call run_excit_gen_tester( &
             gen_GASCI_discarding, 'discarding GASCI implementation, random fcidump', &
             opt_nI=det_I, opt_n_iters=n_iters, &
