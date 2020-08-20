@@ -1,4 +1,4 @@
-module test_gasci_disconnected_mod
+module test_gasci_discarding_mod
     use fruit
     use constants, only: dp, n_int
     use util_mod, only: operator(.div.), operator(.isclose.), near_zero
@@ -79,14 +79,14 @@ contains
         end function
 
     end subroutine test_pgen
-end module test_gasci_disconnected_mod
+end module test_gasci_discarding_mod
 
 program test_gasci_program
 
     use mpi
     use fruit
     use Parallel_neci, only: MPIInit, MPIEnd
-    use test_gasci_disconnected_mod, only: test_pgen
+    use test_gasci_discarding_mod, only: test_pgen
 
 
     implicit none

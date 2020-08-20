@@ -62,33 +62,27 @@ contains
     !>  It is possible to delete additional particles with the
     !>  optional argument `add_holes` before checking the
     !>  validity of particle creation.
-    !>  It is assumed, that they are occupied in det_I!
-    !>  Checks are only performed in DEBUG compilation mode and
-    !>  the return value is undefined, if this is not the case!
+    !>  On the other hand it is possible to create particles before
+    !>  checking the validity of particle creation.
     !>
     !>  If more than one particle should be created, the optional argument
-    !>  n_particles (default 1) should be used.
-    !>  Note, that this function returns possible spaces where the
-    !>  first of the n_particles can be created.
-    !>  After modifying `det_I`, or `add_holes` the function
-    !>  has to be called again with `n_particles - 1`.
+    !>  n_total (default 1) should be used.
     !>
     !>  If no creation is allowed by the GAS constraints,
     !>  the bounds will be returned as integer constant EMPTY_BOUNDS.
     !>
     !>  @param[in] GAS_spec, Specification of GAS spaces (GASSpec_t).
-    !>  @param[in] det_I, An index of occupied spatial
-    !>      or spin orbitals (SpinOrbIdx_t, SpatOrbIdx_t).
+    !>  @param[in] particles_per_GAS, The particles per GAS space.
     !>  @param[in] add_holes, optional, An index of orbitals
-    !>      where particles should be deleted.
-    !>      It is assumed, that they are occupied in det_I.
-    !>      (SpinOrbIdx_t, SpatOrbIdx_t).
-    !>  @param[in] n_particles, optional, The total number of particles
+    !>      where particles should be deleted before creating the new particle.
+    !>  @param[in] add_particles, optional, An index of orbitals
+    !>      where particles should be created before creating the new particle.
+    !>  @param[in] n_total, optional, The total number of particles
     !>      that will be created. Defaults to one (integer).
-    function get_possible_spaces(GAS_spec, size_per_GAS, add_holes, add_particles, n_total) result(spaces)
+    function get_possible_spaces(GAS_spec, particles_per_GAS, add_holes, add_particles, n_total) result(spaces)
         type(GASSpec_t), intent(in) :: GAS_spec
         integer, intent(in) :: &
-            size_per_GAS(GAS_spec%nGAS())
+            particles_per_GAS(GAS_spec%nGAS())
         integer, intent(in), optional :: add_holes(:), add_particles(:)
         integer, intent(in), optional :: n_total
         character(*), parameter :: this_routine = 'get_possible_spaces'
@@ -120,7 +114,7 @@ contains
             else
                 C = 0
             end if
-            cum_n_particle = cumsum(size_per_GAS - B + C)
+            cum_n_particle = cumsum(particles_per_GAS - B + C)
         end block
 
         deficit = GAS_spec%cn_min(:) - cum_n_particle(:)
