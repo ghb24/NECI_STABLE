@@ -130,7 +130,10 @@ contains
     subroutine init_disconnected_GAS(GAS_spec)
         type(GASSpec_t), intent(in) :: GAS_spec
 
-        call init_GAS(GAS_spec%GAS_table(::2) )
+        integer :: i, beta_orbs(nBasis .div. 2)
+
+        beta_orbs = [(i, i = 1, nBasis, 2)]
+        call init_GAS(GAS_spec%get_iGAS(beta_orbs))
     end subroutine
 
 !----------------------------------------------------------------------------!

@@ -61,8 +61,12 @@ contains
 
         subroutine random_fcidump(iunit)
             integer, intent(in) :: iunit
+            integer :: n_spat_orb, iGAS
+
+            n_spat_orb = sum([(GAS_spec%GAS_size(iGAS), iGAS = 1, GAS_spec%nGAS())]) .div. 2
+
             call generate_random_integrals(&
-                iunit, n_el=size(det_I), n_spat_orb=sum(GAS_spec%GAS_sizes) .div. 2, &
+                iunit, n_el=size(det_I), n_spat_orb=n_spat_orb, &
                 sparse=1.0_dp, sparseT=1.0_dp, total_ms=sum(calc_spin_raw(det_I)))
         end subroutine
 

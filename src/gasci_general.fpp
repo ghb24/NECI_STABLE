@@ -88,7 +88,7 @@ contains
     function get_possible_spaces(GAS_spec, size_per_GAS, add_holes, add_particles, n_total) result(spaces)
         type(GASSpec_t), intent(in) :: GAS_spec
         integer, intent(in) :: &
-            size_per_GAS(GAS_spec%nGAS)
+            size_per_GAS(GAS_spec%nGAS())
         integer, intent(in), optional :: add_holes(:), add_particles(:)
         integer, intent(in), optional :: n_total
         character(*), parameter :: this_routine = 'get_possible_spaces'
@@ -100,16 +100,16 @@ contains
 
         integer :: &
         !> Cumulated number of particles per iGAS
-            cum_n_particle(GAS_spec%nGAS), &
+            cum_n_particle(GAS_spec%nGAS()), &
         !> Cumulated deficit per iGAS
-            deficit(GAS_spec%nGAS), &
+            deficit(GAS_spec%nGAS()), &
         !> Cumulated vacant orbitals per iGAS
-            vacant(GAS_spec%nGAS)
+            vacant(GAS_spec%nGAS())
 
         @:def_default(n_total_, n_total, 1)
 
         block
-            integer :: B(GAS_spec%nGAS), C(GAS_spec%nGAS)
+            integer :: B(GAS_spec%nGAS()), C(GAS_spec%nGAS())
             if (present(add_holes)) then
                 B = GAS_spec%count_per_GAS(add_holes)
             else
@@ -132,7 +132,7 @@ contains
         end if
 
         ! Find the first index, where a particle has to be created.
-        do iGAS = 1, GAS_spec%nGAS
+        do iGAS = 1, GAS_spec%nGAS()
             if (deficit(iGAS) == n_total_) exit
         end do
         upper_bound = iGAS
@@ -142,12 +142,12 @@ contains
         ! Search from behind the first occurence where it is not possible
         ! anymore to create a particle.
         ! The lower bound is one GAS index above.
-        do iGAS = GAS_spec%nGAS, 1, -1
+        do iGAS = GAS_spec%nGAS(), 1, -1
             if (vacant(iGAS) <= 0) exit
         end do
         lower_bound = iGAS + 1
 
-        if (lower_bound > upper_bound .or. lower_bound > GAS_spec%nGAS) then
+        if (lower_bound > upper_bound .or. lower_bound > GAS_spec%nGAS()) then
             spaces = 0
         else
             spaces = [lower_bound, upper_bound]
@@ -167,8 +167,8 @@ contains
         integer, allocatable :: possible_holes(:)
 
         integer :: &
-            splitted(GAS_spec%max_GAS_size, GAS_spec%nGAS), &
-            splitted_sizes(GAS_spec%nGAS)
+            splitted(GAS_spec%max_GAS_size(), GAS_spec%nGAS()), &
+            splitted_sizes(GAS_spec%nGAS())
 
         integer :: spaces(2)
         integer :: n_total_
@@ -204,7 +204,7 @@ contains
             end if
 
 
-            L = GAS_spec%GAS_sizes(spaces(1) : spaces(2))
+            L = GAS_spec%GAS_size([(i, i = spaces(1), spaces(2))])
             if (m_s == beta) then
                 allocate(possible_values(sum(L) .div. 2))
                 counter = 1
@@ -225,9 +225,9 @@ contains
             do while (any(counter <= L))
                 curr_value = huge(curr_value)
                 do iGAS = spaces(1), spaces(2)
-                    if (counter(iGAS) <= GAS_spec%GAS_sizes(iGAS)) then
-                        if (GAS_spec%splitted_orbitals(counter(iGAS), iGAS) < curr_value) then
-                            curr_value = GAS_spec%splitted_orbitals(counter(iGAS), iGAS)
+                    if (counter(iGAS) <= GAS_spec%GAS_size(iGAS)) then
+                        if (GAS_spec%get_orb_idx(counter(iGAS), iGAS) < curr_value) then
+                            curr_value = GAS_spec%get_orb_idx(counter(iGAS), iGAS)
                             iGAS_min_val = iGAS
                         end if
                     end if

@@ -37,17 +37,17 @@ module gasci
     !> Speficies the GAS spaces.
     type :: GASSpec_t
         !> The indices are:
-        !>  cn_min(1 : nGAS), cn_max(1 : nGAS), GAS_table(1 : nBasis)
+        !>  cn_min(1 : nGAS), cn_max(1 : nGAS)
         !> cn_min(iGAS) specifies the **cumulated** minimum particle number per GAS space.
         !> cn_max(iGAS) specifies the **cumulated** maximum particle number per GAS space.
+        private
+        integer, public, allocatable :: cn_min(:), cn_max(:)
         !> GAS_table(i) returns the GAS space for the i-th spin orbital
-        integer, allocatable :: cn_min(:), cn_max(:), GAS_table(:)
-        !> The number of GAS spaces
-        integer :: nGAS
+        integer, allocatable :: GAS_table(:)
         !> The number of spin orbitals per GAS space
         integer, allocatable  :: GAS_sizes(:)
         !> maxval(GAS_sizes)
-        integer :: max_GAS_size
+        integer :: largest_GAS_size
         !> splitted_orbitals orbitals is the preimage of GAS_specification%GAS_table.
         !> An array that contains the spin orbitals per GAS space.
         !> splitted_orbitals(1 : maxval(GAS_sizes), 1 : nGAS)
@@ -58,6 +58,11 @@ module gasci
         procedure :: contains => contains_det
         procedure :: is_connected
         procedure :: is_valid
+        procedure :: nGAS => get_nGAS
+        procedure :: max_GAS_size => get_max_GAS_size
+        procedure :: GAS_size => get_GAS_size
+        procedure :: get_iGAS
+        procedure :: get_orb_idx
         procedure :: split_per_GAS
         procedure :: count_per_GAS
     end type
@@ -80,6 +85,52 @@ contains
     logical pure function neq_GAS_exc_gen_t(lhs, rhs)
         type(GAS_exc_gen_t), intent(in) :: lhs, rhs
         neq_GAS_exc_gen_t = lhs%val /= rhs%val
+    end function
+
+    !> @brief
+    !> Returns the total number of GAS spaces.
+    integer pure function get_nGAS(self)
+        class(GASSpec_t), intent(in) :: self
+        get_nGAS = size(self%GAS_sizes)
+    end function
+
+    !> @brief
+    !> Returns the size of the largest GAS space.
+    integer pure function get_max_GAS_size(self)
+        class(GASSpec_t), intent(in) :: self
+        get_max_GAS_size = self%largest_GAS_size
+    end function
+
+    !> @brief
+    !>  Returns the size of the i-th GAS space.
+    integer elemental function get_GAS_size(self, iGAS)
+        class(GASSpec_t), intent(in) :: self
+        integer, intent(in) :: iGAS
+        get_GAS_size = self%GAS_sizes(iGAS)
+    end function
+
+    !> @brief
+    !> Returns the GAS space for a given spin orbital index.
+    integer elemental function get_iGAS(self, spin_orb_idx)
+        class(GASSpec_t), intent(in) :: self
+        integer, intent(in) :: spin_orb_idx
+        get_iGAS = self%GAS_table(spin_orb_idx)
+    end function
+
+    !> @brief
+    !> Returns the i-th spin orbital in the iGAS GAS space.
+    !>
+    !> @details
+    !>  Can be seen as the preimage of get_iGAS (which is usually not injective).
+    integer impure elemental function get_orb_idx(self, i, iGAS)
+        class(GASSpec_t), intent(in) :: self
+        integer, intent(in) :: i, iGAS
+        character(*), parameter :: this_routine = 'get_orb_idx'
+
+        @:ASSERT(1 <= i .and. i <= self%GAS_size(iGAS))
+        @:ASSERT(1 <= iGAS .and. iGAS <= self%nGAS())
+
+        get_orb_idx = self%splitted_orbitals(i, iGAS)
     end function
 
 
@@ -127,7 +178,7 @@ contains
         end block
 
         GAS_spec = GASSpec_t(&
-                n_min, n_max, GAS_table, nGAS, &
+                n_min, n_max, GAS_table, &
                 GAS_sizes, max_GAS_size, splitted_orbitals)
         @:ASSERT(GAS_spec%is_valid())
 
@@ -150,9 +201,9 @@ contains
     !>      Query if there are connected GAS spaces under the GAS specification.
     !>
     !>  @param[in] GAS_spec, Specification of GAS spaces (GASSpec_t).
-    logical pure function is_connected(GAS_spec)
-        class(GASSpec_t), intent(in) :: GAS_spec
-        is_connected = any(GAS_spec%cn_min(:) /= GAS_spec%cn_max(:))
+    logical pure function is_connected(self)
+        class(GASSpec_t), intent(in) :: self
+        is_connected = any(self%cn_min(:) /= self%cn_max(:))
     end function
 
 
@@ -166,44 +217,47 @@ contains
     !>
     !>  @param[in] GAS_spec, Specification of GAS spaces (GASSpec_t).
     !>  @param[in] occupied, An index of occupied spin orbitals.
-    function contains_det(GAS_spec, occupied) result(res)
-        class(GASSpec_t), intent(in) :: GAS_spec
+    function contains_det(self, occupied) result(res)
+        class(GASSpec_t), intent(in) :: self
         integer, intent(in) :: occupied(:)
 
         logical :: res
 
         !> Cumulated number of particles per iGAS
-        integer :: cum_n_particle(GAS_spec%nGAS), i
+        integer :: cum_n_particle(self%nGAS()), i
 
-        cum_n_particle = cumsum(GAS_spec%count_per_GAS(occupied))
+        cum_n_particle = cumsum(self%count_per_GAS(occupied))
 
-        res = all(GAS_spec%cn_min(:) <= cum_n_particle(:) &
-            .and. cum_n_particle(:) <= GAS_spec%cn_max(:))
+        res = all(self%cn_min(:) <= cum_n_particle(:) &
+            .and. cum_n_particle(:) <= self%cn_max(:))
     end function
 
 
-    logical pure function is_valid(GAS_spec, n_particles, n_basis)
-        class(GASSpec_t), intent(in) :: GAS_spec
+    !>  @brief
+    !>      Check if the GAS specification is valid
+    !>
+    !>  @details
+    !>   If the number of particles or the number of spin orbitals
+    !>   is provided, then the consistency with these numbers
+    !>   is checked as well.
+    !>
+    !>  @param[in] GAS_spec, Specification of GAS spaces (GASSpec_t).
+    !>  @param[in] n_particles, Optional.
+    !>  @param[in] n_basis, Optional. The number of spin orbitals.
+    logical pure function is_valid(self, n_particles, n_basis)
+        class(GASSpec_t), intent(in) :: self
         integer, intent(in), optional :: n_particles, n_basis
 
         logical :: shapes_match, nEl_correct, pauli_principle, monotonic, &
             n_orbs_correct
-        integer :: nGAS, iGAS, i
+        integer :: iGAS, i
 
-        associate(GAS_sizes => GAS_spec%GAS_sizes, n_min => GAS_spec%cn_min, &
-                  n_max => GAS_spec%cn_max)
-
-            nGAS = GAS_spec%nGAS
+        associate(GAS_sizes => self%GAS_sizes, n_min => self%cn_min, &
+                  n_max => self%cn_max, nGAS => self%nGAS())
 
             shapes_match = &
                 all([size(GAS_sizes), size(n_min), size(n_max)] == nGAS) &
-                .and. maxval(GAS_spec%GAS_table) == nGAS
-
-            if (present(n_particles)) then
-                nEl_correct = all([n_min(nGAS), n_max(nGAS)] == n_particles)
-            else
-                nEl_correct = n_min(nGAS) == n_max(nGAS)
-            end if
+                .and. maxval(self%GAS_table) == nGAS
 
             pauli_principle = all(n_min(:) <= cumsum(GAS_sizes))
 
@@ -212,6 +266,12 @@ contains
                                  all(n_min(2:) >= n_min(: nGAS - 1))])
             else
                 monotonic = .true.
+            end if
+
+            if (present(n_particles)) then
+                nEl_correct = all([n_min(nGAS), n_max(nGAS)] == n_particles)
+            else
+                nEl_correct = n_min(nGAS) == n_max(nGAS)
             end if
 
             if (present(n_basis)) then
@@ -226,34 +286,34 @@ contains
     end function
 
 
-    subroutine split_per_GAS(GAS_spec, occupied, splitted, splitted_sizes)
-        class(GASSpec_t), intent(in) :: GAS_spec
+    subroutine split_per_GAS(self, occupied, splitted, splitted_sizes)
+        class(GASSpec_t), intent(in) :: self
         integer, intent(in) :: occupied(:)
         integer, intent(out) :: &
-            splitted(GAS_spec%max_GAS_size, GAS_spec%nGAS), &
-            splitted_sizes(GAS_spec%nGAS)
+            splitted(get_max_GAS_size(self), get_nGAS(self)), &
+            splitted_sizes(get_nGAS(self))
 
         integer :: iel, iGAS
 
         splitted_sizes = 0
         do iel = 1, size(occupied)
-            iGAS = GAS_spec%GAS_table(occupied(iel))
+            iGAS = self%get_iGAS(occupied(iel))
             splitted_sizes(iGAS) = splitted_sizes(iGAS) + 1
             splitted(splitted_sizes(iGAS), iGAS) = occupied(iel)
         end do
     end subroutine
 
-    function count_per_GAS(GAS_spec, occupied) result(splitted_sizes)
-        class(GASSpec_t), intent(in) :: GAS_spec
+    function count_per_GAS(self, occupied) result(splitted_sizes)
+        class(GASSpec_t), intent(in) :: self
         integer, intent(in) :: occupied(:)
 
-        integer :: splitted_sizes(GAS_spec%nGAS)
+        integer :: splitted_sizes(get_nGAS(self))
 
         integer :: iel, iGAS
 
         splitted_sizes = 0
         do iel = 1, size(occupied)
-            iGAS = GAS_spec%GAS_table(occupied(iel))
+            iGAS = self%get_iGAS(occupied(iel))
             splitted_sizes(iGAS) = splitted_sizes(iGAS) + 1
         end do
     end function

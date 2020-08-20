@@ -34,10 +34,10 @@ contains
         GAS_spec = GASSpec_t(n_min=[2, 4],  n_max=[2, 4], spat_GAS_orbs=[1, 1, 2, 2])
 
         call assert_equals([1, 1, 1, 1, 2, 2, 2, 2], &
-                           GAS_spec%GAS_table([1, 2, 3, 4, 5, 6, 7, 8]), 8)
+                           GAS_spec%get_iGAS([1, 2, 3, 4, 5, 6, 7, 8]), 8)
 
         call assert_equals([1, 1, 2, 2], &
-                           GAS_spec%GAS_table([1, 4, 6, 7]), 4)
+                           GAS_spec%get_iGAS([1, 4, 6, 7]), 4)
     end subroutine
 
 
@@ -119,7 +119,8 @@ contains
         integer :: i, iGAS
         integer, allocatable :: splitted(:, :), splitted_sizes(:)
         GAS_spec = GASSpec_t(n_min=[2, 4], n_max=[2, 4], spat_GAS_orbs=[1, 1, 2, 2])
-        allocate(splitted(GAS_spec%max_GAS_size, GAS_spec%nGAS), splitted_sizes(GAS_spec%nGAS))
+        allocate(splitted(GAS_spec%max_GAS_size(), GAS_spec%nGAS()), &
+                 splitted_sizes(GAS_spec%nGAS()))
 
         call GAS_spec%split_per_GAS([1, 2, 5, 6], splitted, splitted_sizes)
         call assert_equals(splitted_sizes, [2, 2], 2)
@@ -137,7 +138,8 @@ contains
 
         GAS_spec = GASSpec_t(n_min=[2, 4, 6], n_max=[2, 4, 6], spat_GAS_orbs=[1, 1, 2, 2, 3, 3])
         deallocate(splitted, splitted_sizes)
-        allocate(splitted(GAS_spec%max_GAS_size, GAS_spec%nGAS), splitted_sizes(GAS_spec%nGAS))
+        allocate(splitted(GAS_spec%max_GAS_size(), GAS_spec%nGAS()), &
+                 splitted_sizes(GAS_spec%nGAS()))
 
         call GAS_spec%split_per_GAS([1, 2, 5, 6, 9, 10], splitted, splitted_sizes)
         call assert_equals(splitted_sizes, [2, 2, 2], 3)
