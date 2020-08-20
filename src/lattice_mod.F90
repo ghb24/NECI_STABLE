@@ -387,6 +387,8 @@ module lattice_mod
     contains
         private
 
+        procedure :: init_basis_vecs_rect_base
+
         procedure, public :: get_length => get_length_rect
         procedure, public :: is_periodic => is_periodic_rect
         procedure, public :: dispersion_rel => dispersion_rel_rect
@@ -446,8 +448,8 @@ module lattice_mod
 !
         procedure :: calc_nsites => calc_nsites_tilted
         procedure :: initialize_sites => init_sites_tilted
+        procedure :: init_basis_vecs => init_basis_vecs_tilted        
         procedure, public :: dot_prod => dot_prod_tilted
-
     end type tilted
 
     type, extends(rectangle) :: ole
@@ -1182,18 +1184,34 @@ contains
     subroutine init_basis_vecs_rect(this)
         class(rectangle) :: this
 
-        integer :: i, j, k, l
-
-        if (allocated(this%basis_vecs)) deallocate(this%basis_vecs)
+        integer :: l
 
         if (t_trans_corr_2body) then
             l = 2
-            allocate(this%basis_vecs(25, 3))
         else
             l = 1
-            allocate(this%basis_vecs(9, 3))
         end if
 
+        call this%init_basis_vecs_rect_base(l)
+    end subroutine init_basis_vecs_rect
+
+    subroutine init_basis_vecs_tilted(this)
+        class(tilted) :: this
+
+        ! Tilted lattices require more basis vectors stored (up to triple application of basis vector)
+        call this%init_basis_vecs_rect_base(3)
+    end subroutine init_basis_vecs_tilted
+
+    !> Base function for setting up a the basis vector array for rectangular lattices (extracted from the previous init_basis_vecs_rect)
+    !> @param[in] l  Maximal number of unit vectors to be combined into a basis vector
+    subroutine init_basis_vecs_rect_base(this,l)
+        class(rectangle), intent(inout) :: this
+        integer, intent(in) :: l
+
+        integer :: i,j,k
+
+        if (allocated(this%basis_vecs)) deallocate(this%basis_vecs)        
+        allocate(this%basis_vecs((2*l+1)**2,3))
         this%basis_vecs = 0
 
         k = 0
@@ -1204,7 +1222,7 @@ contains
             end do
         end do
 
-    end subroutine init_basis_vecs_rect
+    end subroutine init_basis_vecs_rect_base
 
     function apply_basis_vector(this, k_in, ind) result(k_out)
         ! i have to specifically write this for every lattice type..
@@ -3587,55 +3605,30 @@ contains
         integer :: k, b, kk(sdim), kb(sdim)
 
         nsites = this%get_nsites()
-        ! for the 2-body transcorrelation we need to consider 5 involved momenta
-        if (t_trans_corr_2body) then
-            do i = 1, nsites
-                ki = this%get_k_vec(i)
-                do j = 1, nsites
-                    kj = this%get_k_vec(j)
-                    do k = 1, nsites
-                        kk = this%get_k_vec(k)
-                        do a = 1, nsites
-                            ka = this%get_k_vec(a)
-                            do b = 1, nsites
-                                kb = this%get_k_vec(b)
+        !U.Ebling:  
+        !The older loop took a very long to finish for any lattice that is not super tiny.
+        !I tried a 21x5x1 rectangle and it did not finish after 2 days
+        !It over-counts a lot. 
+        !Below is my optimized version, which loops directly over momenta instead of orbitals
+        !There is no need to distinguish the 1-body and 2-body transcorrelation terms, because it
+        !uses the result of the subroutine get_lu_table_size 
+        do i=this%kmin(1),this%kmax(1)
+            do j=this%kmin(2),this%kmax(2)
+                do k=this%kmin(3),this%kmax(3)
+                    k_sum(1)=i
+                    k_sum(2)=j
+                    k_sum(3)=k
+                    k_check=this%map_k_vec(k_sum)
+                    do m=1,nsites
+                        if(all(k_check == this%get_k_vec(m))) then
+                            this%lu_table(k_sum(1),k_sum(2),k_sum(3)) = m
+                            exit
+                        end if
+                    end do
+                end do
+            end do
+        end do
 
-                                k_sum = ki + kj + kk - ka - kb
-                                k_check = this%map_k_vec(k_sum)
-                                do m = 1, nsites
-                                    if (all(k_check == this%get_k_vec(m))) then
-                                        ! the entry k is the site-index of the state with momentum k
-                                        this%lu_table(k_sum(1), k_sum(2), k_sum(3)) = m
-                                        exit
-                                    end if
-                                end do
-                            end do
-                        end do
-                    end do
-                end do
-            end do
-        else
-            do i = 1, nsites
-                ki = this%get_k_vec(i)
-                do j = 1, nsites
-                    kj = this%get_k_vec(j)
-                    do a = 1, nsites
-                        ! again, we want every possible combination ki+kj-ka
-                        ! the construction costs O(nsites^4), but I think this is no problem
-                        ka = this%get_k_vec(a)
-                        k_sum = ki + kj - ka
-                        k_check = this%map_k_vec(k_sum)
-                        do m = 1, nsites
-                            if (all(k_check == this%get_k_vec(m))) then
-                                ! the entry k is the site-index of the state with momentum k
-                                this%lu_table(k_sum(1), k_sum(2), k_sum(3)) = m
-                                exit
-                            end if
-                        end do
-                    end do
-                end do
-            end do
-        end if
     end subroutine fill_lu_table
 
     subroutine fill_bz_table(this)
