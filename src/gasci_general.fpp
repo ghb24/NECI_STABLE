@@ -23,6 +23,7 @@ module gasci_general
         excite, ilut_excite
     use orb_idx_mod, only: SpinProj_t, calc_spin_raw, alpha, beta, &
         operator(-), operator(==), operator(/=), sum
+    use growing_buffers, only: buffer_int_2D_t
 
     use sltcnd_mod, only: sltcnd_excit, dyn_sltcnd_excit
 
@@ -560,12 +561,15 @@ contains
 
         integer, allocatable :: possible_holes(:)
         integer, allocatable :: tmp_buffer(:, :)
-        integer :: i, j, i_buffer, src1, tgt1
+        integer :: i, j, src1, tgt1
         type(SpinProj_t) :: m_s_1
+        type(buffer_int_2D_t) :: buffer
+
 
         @:ASSERT(GAS_spec%contains(det_I))
 
-        i_buffer = 0
+        call buffer%init(size(det_I), 1000_int64)
+
         do i = 1, size(det_I)
             src1 = det_I(i)
             m_s_1 = calc_spin_raw(src1)
@@ -574,12 +578,10 @@ contains
                         excess=-m_s_1)
             do j = 1, size(possible_holes)
                 tgt1 = possible_holes(j)
-                i_buffer = i_buffer + 1
-                call grow_assign(tmp_buffer, i_buffer, &
-                                 excite(det_I, SingleExc_t(src1, tgt1)))
+                call buffer%add_val(excite(det_I, SingleExc_t(src1, tgt1)))
             end do
         end do
-        singles_exc_list = tmp_buffer(:, :i_buffer)
+        call buffer%dump(singles_exc_list)
 
         @:sort(integer, singles_exc_list, rank=2, along=2, comp=lex_leq)
     end function
@@ -591,13 +593,14 @@ contains
         character(*), parameter :: this_routine = 'get_available_doubles'
 
         integer, allocatable :: first_pick_possible_holes(:), second_pick_possible_holes(:), deleted(:)
-        integer, allocatable :: tmp_buffer(:, :)
-        integer :: i, j, k, l, i_buffer, src1, src2, tgt1, tgt2
+        integer :: i, j, k, l, src1, src2, tgt1, tgt2
         type(SpinProj_t) :: m_s_1
+        type(buffer_int_2D_t) :: buffer
 
         @:ASSERT(GAS_spec%contains(det_I))
 
-        i_buffer = 0
+        call buffer%init(size(det_I), 1000_int64)
+
         do i = 1, size(det_I)
             do j = i + 1, size(det_I)
                 src1 = det_I(i)
@@ -622,50 +625,30 @@ contains
 
                     do l = 1, size(second_pick_possible_holes)
                         tgt2 = second_pick_possible_holes(l)
-                        i_buffer = i_buffer + 1
-                        call grow_assign(&
-                            tmp_buffer, i_buffer, &
-                            excite(det_I, DoubleExc_t(src1, tgt1, src2, tgt2)))
+                        call buffer%add_val(excite(det_I, DoubleExc_t(src1, tgt1, src2, tgt2)))
                     end do
                 end do
             end do
         end do
 
-        doubles_exc_list = tmp_buffer(:, :i_buffer)
+        call buffer%dump(doubles_exc_list)
 
         @:sort(integer, doubles_exc_list, rank=2, along=2, comp=lex_leq)
 
-        ! Remove double appearances
-        j = 1
-        tmp_buffer(:, j) = doubles_exc_list(:, 1)
-        do i = 2, size(doubles_exc_list, 2)
-            if (any(doubles_exc_list(:, i - 1) /= doubles_exc_list(:, i))) then
-                j = j + 1
-                tmp_buffer(:, j) = doubles_exc_list(:, i)
-            end if
-        end do
-        doubles_exc_list = tmp_buffer(:, : j)
+        remove_double_appearances : block
+            integer, allocatable :: tmp_buffer(:, :)
+            allocate(tmp_buffer, mold=doubles_exc_list)
+            j = 1
+            tmp_buffer(:, j) = doubles_exc_list(:, 1)
+            do i = 2, size(doubles_exc_list, 2)
+                if (any(doubles_exc_list(:, i - 1) /= doubles_exc_list(:, i))) then
+                    j = j + 1
+                    tmp_buffer(:, j) = doubles_exc_list(:, i)
+                end if
+            end do
+            doubles_exc_list = tmp_buffer(:, : j)
+        end block remove_double_appearances
     end function
-
-    subroutine grow_assign(lhs, i, rhs)
-        integer, intent(inout), allocatable :: lhs(:, :)
-        integer, intent(in) :: i, rhs(:)
-
-        integer, allocatable :: buffer(:, :)
-        integer :: n
-        real(dp), parameter :: grow_factor = 2.0_dp
-        integer, parameter :: start_n = 10
-
-        if (.not. allocated(lhs)) allocate(lhs(size(rhs), start_n))
-
-        if (i > size(lhs, 2)) then
-            buffer = lhs(:, :)
-            deallocate(lhs)
-            allocate(lhs(size(rhs), int(i * grow_factor)))
-            lhs(:, : size(buffer, 2)) = buffer
-        end if
-        lhs(:, i) = rhs
-    end subroutine
 
     subroutine gen_all_excits(nI, n_excits, det_list)
         integer, intent(in) :: nI(nel)

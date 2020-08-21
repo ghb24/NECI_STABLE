@@ -21,7 +21,8 @@ module fast_determ_hamil
     use shared_array
     use shared_memory_mpi
     use shared_rhash, only: shared_rhash_t, initialise_shared_rht, shared_rht_lookup
-    use buffer_1d, only: buffer_hel_t, buffer_int32_t
+    use growing_buffers, only: buffer_hel_t => buffer_hel_1D_t, &
+        buffer_int32_t => buffer_int32_1D_t
     use core_space_util, only: core_space_t, sparse_matrix_real, sparse_matrix_int
     implicit none
 
@@ -1429,7 +1430,9 @@ contains
             rep%sparse_core_ham(i)%num_elements = int(hamil_row%num_elements())
             ! Dumping the buffer transfers its content and reset the buffer
             call hamil_row%dump(rep%sparse_core_ham(i)%elements)
+            call hamil_row%init(int(rep%determ_sizes(iProcIndex), int64))
             call hamil_pos%dump(rep%sparse_core_ham(i)%positions)
+            call hamil_pos%init(int(rep%determ_sizes(iProcIndex), int64))
 
             ! Fill the array of diagonal elements
             rep%core_ham_diag(i) = hel

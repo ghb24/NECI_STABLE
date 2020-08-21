@@ -233,7 +233,7 @@ set( SRC_FILES
 )
 
 set( FYPP_SRC_FILES
-    buffer_1d.fpp
+    growing_buffers.fpp
     fcimc_initialisation.fpp
     HPHFIntegrals.fpp
     sltcnd.fpp
