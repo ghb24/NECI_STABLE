@@ -16,7 +16,7 @@ MODULE HPHFRandExcitMod
                           t_tJ_model, t_heisenberg_model, t_lattice_model, &
                           t_k_space_hubbard, t_3_body_excits, t_uniform_excits, &
                           t_trans_corr_hop, t_spin_dependent_transcorr, &
-                          t_pchb_excitgen, t_mol_3_body, t_ueg_3_body
+                          t_pchb_excitgen, t_mol_3_body, t_ueg_3_body, max_ex_level
 
     use IntegralsData, only: UMat, fck, nMax
 
@@ -106,7 +106,7 @@ contains
 #endif
         tSameFunc = .false.
         pGen = 0.0_dp
-
+        
         IF (TestClosedShellDet(iLutnJ)) THEN
             !nJ is CS, therefore, only one way of generating it.
             ic = FindBitExcitLevel(iLutnI, iLutnJ, 2)
@@ -114,7 +114,7 @@ contains
                 tSameFunc = .true.
                 return
             end if
-            if (ic <= maxExcit) then
+            if (ic <= max_ex_level) then
                 call CalcNonUniPGen(nI, ilutnI, ex, ic, ClassCount, ClassCountUnocc, pDoubles, pGen)
             end if
         else
@@ -129,7 +129,7 @@ contains
                 tSameFunc = .true.
                 return
             end if
-            if (ic <= maxExcit) then
+            if (ic <= max_ex_level) then
                 if (.not. tSwapped) then
                     !ex is correct for this excitation
                     call CalcNonUnipGen(nI, ilutnI, ex, ic, ClassCount, ClassCountUnocc, pDoubles, pGen)
@@ -146,7 +146,7 @@ contains
                 tSameFunc = .true.
                 return
             end if
-            if (ic <= maxExcit) then
+            if (ic <= max_ex_level) then
                 if (tSwapped) then
                     !ex is correct for this excitation
                     call CalcNonUnipGen(nI, ilutnI, ex, ic, ClassCount, ClassCountUnocc, pDoubles, pGen2)
@@ -350,8 +350,8 @@ contains
             ELSE
                 ExcitLevel = FindBitExcitLevel(iLutnI, iLutnJ2, 2)
             end if
-
-            IF (ExcitLevel <= maxExcit .and. ExcitLevel > 0) THEN     !This is if we have all determinants in the two HPHFs connected...
+            
+            IF (ExcitLevel <= max_ex_level .and. ExcitLevel > 0) THEN     !This is if we have all determinants in the two HPHFs connected...
 
                 Ex2(1, 1) = ExcitLevel
 
@@ -787,7 +787,7 @@ contains
         ! i guess i do.. or i go the unnecessary way of checking again in
         ! the called back-spawn functions
         if(ic == 3) then
-            pgen = calc_pgen_triple(nI, ex)
+                pgen = calc_pgen_triple(nI, ex)
         else if ((t_back_spawn .or. t_back_spawn_flex) .and. &
                  (.not. DetBitEq(ilutI, ilutRef(:, temp_part_type), nifd)) .and. &
                  (.not. test_flag(ilutI, get_initiator_flag(temp_part_type)))) then

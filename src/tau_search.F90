@@ -8,7 +8,7 @@ module tau_search
                           nOccAlpha, nOccBeta, tUEG, tGen_4ind_2, tReltvy, &
                           t_3_body_excits, t_k_space_hubbard, t_trans_corr_2body, &
                           t_uniform_excits, t_new_real_space_hubbard, &
-                          tGUGA, t_mixed_hubbard, t_olle_hubbard, &
+                          tGUGA, t_mixed_hubbard, t_olle_hubbard, max_ex_level, &
                           t_trans_corr, tHub, t_trans_corr_hop, tNoSinglesPossible, &
                           t_exclude_3_body_excits, t_mol_3_body, t_ueg_3_body, t_pchb_excitgen
 
@@ -774,7 +774,7 @@ contains
                         !Have to recalculate the excitation matrix.
                         ic = FindBitExcitLevel(iLutnJ, iLutRef(:, 1), 2)
                         ex(:, :) = 0
-                        if (ic <= maxExcit) then
+                        if (ic <= max_ex_level) then
                             ex(1, 1) = ic
                             call GetBitExcitation(iLutRef(:, 1), iLutnJ, Ex, tParity)
                         end if
@@ -809,8 +809,7 @@ contains
             if (tHPHF) then
                 ic = FindBitExcitLevel(iLutnJ, iLutRef(:, 1), 2)
                 ex2(:, :) = 0
-                ASSERT(.not. t_3_body_excits)
-                if (ic <= 2) then
+                if (ic <= max_ex_level) then
                     ex2(1, 1) = ic
 
                     call GetBitExcitation(iLutnJ, iLutRef(:, 1), Ex2, tSign)
