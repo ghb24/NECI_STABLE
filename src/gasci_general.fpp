@@ -33,6 +33,7 @@ module gasci_general
     private
 
     public :: gen_GASCI_general, gen_all_excits
+
     public :: get_possible_spaces, get_possible_holes, &
         get_available_singles, get_available_doubles
 
@@ -266,6 +267,8 @@ contains
 
 
 
+    !>  @brief
+    !>  The actual general GAS excitation generator.
     subroutine gen_GASCI_general(nI, ilutI, nJ, ilutJ, exFlag, ic, &
                                         ex_mat, tParity, pGen, hel, store, part_type)
         integer, intent(in) :: nI(nel), exFlag
@@ -302,6 +305,8 @@ contains
     end subroutine gen_GASCI_general
 
 
+    !>  @brief
+    !>  Generate a single excitation under GAS constraints.
     subroutine gen_exc_single(GAS_spec, det_I, ilutI, nJ, ilutJ, ex_mat, par, pgen)
         type(GASSpec_t), intent(in) :: GAS_spec
         integer, intent(in) :: det_I(:)
@@ -356,6 +361,8 @@ contains
         @:ASSERT(all(nJ == 0) .neqv. 0.0_dp < pgen .and. pgen <= 1.0_dp)
     end subroutine
 
+    !>  @brief
+    !>  Generate a double excitation under GAS constraints.
     subroutine gen_exc_double(GAS_spec, det_I, ilutI, nJ, ilutJ, ex_mat, par, pgen)
         type(GASSpec_t), intent(in) :: GAS_spec
         integer, intent(in) :: det_I(:)
@@ -514,6 +521,8 @@ contains
             end subroutine zeroResult
     end subroutine gen_exc_double
 
+    !>  @brief
+    !>  Draw from a cumulative list.
     DEBUG_IMPURE subroutine draw_from_cum_list(c_sum, idx, pgen)
         real(dp), intent(in) :: c_sum(:)
         integer, intent(out) :: idx
@@ -543,6 +552,16 @@ contains
     end subroutine
 
 #:for excitation_t in ExcitationTypes
+    !>  @brief
+    !>  Build up a cumulative list of matrix elements.
+    !>
+    !>  @details
+    !>  Calculate the matrix elements for the possible excitations from det_I
+    !>  to the possible holes using the incomplete defined excitation.
+    !>
+    !>  @param[in] det_I, Reference determinant in "nI-format".
+    !>  @param[in] incomplete_exc, An excitation where the last target is unknown.
+    !>  @param[in] possible_holes, Possible holes for the last target.
     function get_cumulative_list_${excitation_t}$(det_I, incomplete_exc, possible_holes) result(cSum)
         integer, intent(in) :: det_I(:)
         type(${excitation_t}$), intent(in) :: incomplete_exc
@@ -576,6 +595,8 @@ contains
 
 
 
+    !>  @brief
+    !>  Get all single excitated determinants from det_I that are allowed under GAS constraints.
     DEBUG_IMPURE function get_available_singles(GAS_spec, det_I) result(singles_exc_list)
         type(GASSpec_t), intent(in) :: GAS_spec
         integer, intent(in) :: det_I(:)
@@ -609,6 +630,8 @@ contains
         @:sort(integer, singles_exc_list, rank=2, along=2, comp=lex_leq)
     end function
 
+    !>  @brief
+    !>  Get all double excitated determinants from det_I that are allowed under GAS constraints.
     DEBUG_IMPURE function get_available_doubles(GAS_spec, det_I) result(doubles_exc_list)
         type(GASSpec_t), intent(in) :: GAS_spec
         integer, intent(in) :: det_I(:)
@@ -673,6 +696,8 @@ contains
         end block remove_double_appearances
     end function
 
+    !>  @brief
+    !>  Get all excitated determinants from det_I that are allowed under GAS constraints.
     subroutine gen_all_excits(nI, n_excits, det_list)
         integer, intent(in) :: nI(nel)
         integer, intent(out) :: n_excits
