@@ -22,7 +22,7 @@ module fast_determ_hamil
     use shared_memory_mpi
     use shared_rhash, only: shared_rhash_t, initialise_shared_rht, shared_rht_lookup
     use growing_buffers, only: buffer_hel_t => buffer_hel_1D_t, &
-        buffer_int32_t => buffer_int32_1D_t
+        buffer_int_t => buffer_int_1D_t
     use core_space_util, only: core_space_t, sparse_matrix_real, sparse_matrix_int
     implicit none
 
