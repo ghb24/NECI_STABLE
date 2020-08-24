@@ -25,6 +25,7 @@ module pchb_excitgen
     ! 1 - same-spin case
     ! 2 - opp spin case without exchange
     ! 3 - opp spin case with exchange
+    integer, parameter :: SAME_SPIN = 1, OPP_SPIN_NO_EXCH = 2, OPP_SPIN_EXCH = 3
     type(aliasSamplerArray_t) :: pchb_samplers(3)
     real(dp), allocatable :: pExch(:)
     integer, allocatable :: tgtOrbs(:, :)
@@ -106,19 +107,19 @@ contains
         ! the spin of the electrons: 0 - alpha, 1 - beta
         spin = getSpinIndex(src)
         ! determine type of spin-excitation: same-spin, opp spin w exchange, opp spin w/o exchange
-        if (is_beta(src(1)) .eqv. is_beta(src(2))) then
+        if (spin(1) == spin(2)) then
             ! same spin
-            samplerIndex = 1
+            samplerIndex = SAME_SPIN
         else
             ! else, pick exchange with...some ij-spin bias
             if (genrand_real2_dSFMT() < pExch(ij)) then
-                samplerIndex = 3
+                samplerIndex = OPP_SPIN_EXCH
                 ! adjust pgen
                 pGen = pGen * pExch(ij)
                 ! the spins of the target are the opposite of the source spins
                 call intswap(spin(1), spin(2))
             else
-                samplerIndex = 2
+                samplerIndex = OPP_SPIN_NO_EXCH
                 ! adjust pgen
                 pGen = pGen * (1.0_dp - pExch(ij))
             end if
@@ -212,17 +213,17 @@ contains
         if (is_beta(ex(1, 1)) .eqv. is_beta(ex(1, 2))) then
             pgen = pParallel / par_elec_pairs
             ! same-spin case
-            samplerIndex = 1
+            samplerIndex = SAME_SPIN
         else
             pgen = (1.0_dp - pParallel) / AB_elec_pairs
             ! excitations without spin-exchange OR to the same spatial orb
             if ((is_beta(ex(1, 1)) .eqv. is_beta(ex(2, 1))) .or. (nex(2, 1) == nex(2, 2))) then
                 ! opp spin case without exchange
-                samplerIndex = 2
+                samplerIndex = OPP_SPIN_NO_EXCH
                 pgen = pgen * (1 - pExch(ij))
             else
                 ! opp spin case with exchange
-                samplerIndex = 3
+                samplerIndex = OPP_SPIN_EXCH
                 pgen = pgen * pExch(ij)
             end if
         end if
@@ -290,17 +291,13 @@ contains
             integer :: ex(2, 2)
             real(dp), allocatable :: w(:)
             real(dp), allocatable :: pNoExch(:)
-            logical, allocatable :: mask(:)
             ! number of possible source orbital pairs
             ijMax = fuseIndex(nBI, nBI)
             ! allocate the bias for picking an exchange excitation
-            allocate(pExch(ijMax), stat=aerr)
-            pExch = 0.0_dp
-            ! the mask to filter nonzero entries of the bias
-            allocate(mask(ijMax), stat=aerr)
+            allocate(pExch(ijMax), stat=aerr, source=0.0_dp)
             ! temporary storage for the unnormalized prob of not picking an exchange excitation
-            allocate(pNoExch(ijMax), stat=aerr)
-            pNoExch = 1.0_dp
+            allocate(pNoExch(ijMax), stat=aerr, source=1.0_dp)
+
             memCost = memCost + abMax * ijMax * 24 * 3
             write(iout, *) "Excitation generator requires", real(memCost, dp) / 2.0_dp**30, "GB of memory"
             write(iout, *) "Generating samplers for PCHB excitation generator"
@@ -315,7 +312,7 @@ contains
                     ex(1, 1) = 2 * i
                     ! as we order a,b, we can assume j <= i
                     do j = 1, i
-                        w = 0.0_dp
+                        w(:) = 0.0_dp
                         ! for samplerIndex == 1, j is alpha, else, j is beta
                         ex(1, 2) = map_orb(j, (/1/))
                         ! for each (i,j), get all matrix elements <ij|H|ab> and use them as
@@ -325,7 +322,7 @@ contains
                             ex(2, 2) = map_orb(a, (/1, 2/))
                             do b = 1, a
                                 ! exception: for sampler 3, a!=b
-                                if (samplerIndex == 3 .and. a == b) cycle
+                                if (samplerIndex == OPP_SPIN_EXCH .and. a == b) cycle
                                 ab = fuseIndex(a, b)
                                 ! ex(2,:) is in ascending order
                                 ! b is alpha for sampe-spin (1) and opp spin w exchange (3)
@@ -336,18 +333,16 @@ contains
                         end do
                         ij = fuseIndex(i, j)
                         call pchb_samplers(samplerIndex)%setupEntry(ij, w)
-                        if (samplerIndex == 3) pExch(ij) = sum(w)
-                        if (samplerIndex == 2) pNoExch(ij) = sum(w)
+                        if (samplerIndex == OPP_SPIN_EXCH) pExch(ij) = sum(w)
+                        if (samplerIndex == OPP_SPIN_NO_EXCH) pNoExch(ij) = sum(w)
                     end do
                 end do
             end do
 
             ! normalize the exchange bias (where normalizable)
-            mask = .not. near_zero(pExch + pNoExch)
-            where (mask) pExch = pExch / (pExch + pNoExch)
+            where (.not. near_zero(pExch + pNoExch)) pExch = pExch / (pExch + pNoExch)
 
             deallocate(w)
-            deallocate(mask)
             deallocate(pNoExch)
         end subroutine setup_pchb_sampler
 
