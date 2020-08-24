@@ -21,6 +21,17 @@ module pchb_excitgen
     use sym_general_mod, only: IsSymAllowedExcitMat
     implicit none
 
+    private
+
+    public :: calc_pgen_pchb, init_pchb_excitgen, finalize_pchb_excitgen, gen_rand_excit_pchb
+
+    abstract interface
+        logical pure function is_allowed_excitation_t(exc)
+            import :: DoubleExc_t
+            type(DoubleExc_t), intent(in) :: exc
+        end function
+    end interface
+
     ! there are three pchb_samplers:
     ! 1 - same-spin case
     ! 2 - opp spin case without exchange
@@ -240,9 +251,10 @@ contains
     !! this does two things:
     !! 1. setup the lookup table for the mapping ab -> (a,b)
     !! 2. setup the alias table for picking ab given ij with probability ~<ij|H|ab>
-    subroutine init_pchb_excitgen(projEDet)
+    subroutine init_pchb_excitgen(projEDet, is_allowed_excitation)
         implicit none
         integer, intent(in) :: projEDet(:)
+        procedure(is_allowed_excitation_t), optional :: is_allowed_excitation
         integer :: ab, a, b, abMax
         integer :: aerr, nBI
         integer(int64) :: memCost
@@ -328,7 +340,15 @@ contains
                                 ! b is alpha for sampe-spin (1) and opp spin w exchange (3)
                                 ex(2, 1) = map_orb(b, (/1, 3/))
                                 ! use the actual matrix elements as weights
-                                w(ab) = abs(sltcnd_excit(projEDet, DoubleExc_t(ex), .false.))
+                                if (present(is_allowed_excitation)) then
+                                    if (is_allowed_excitation(DoubleExc_t(ex))) then
+                                        w(ab) = abs(sltcnd_excit(projEDet, DoubleExc_t(ex), .false.))
+                                    else
+                                        w(ab) = 0._dp
+                                    end if
+                                else
+                                    w(ab) = abs(sltcnd_excit(projEDet, DoubleExc_t(ex), .false.))
+                                end if
                             end do
                         end do
                         ij = fuseIndex(i, j)

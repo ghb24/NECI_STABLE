@@ -18,7 +18,8 @@ module gasci
         type(GAS_exc_gen_t) :: &
             DISCONNECTED = GAS_exc_gen_t(1), &
             GENERAL = GAS_exc_gen_t(2), &
-            DISCARDING = GAS_exc_gen_t(3)
+            DISCARDING = GAS_exc_gen_t(3), &
+            DISCONNECTED_PCHB = GAS_exc_gen_t(4)
     end type
 
     type(possible_GAS_exc_gen_t), parameter :: possible_GAS_exc_gen = possible_GAS_exc_gen_t()
@@ -77,12 +78,12 @@ module gasci
 
 contains
 
-    logical pure function eq_GAS_exc_gen_t(lhs, rhs)
+    logical elemental function eq_GAS_exc_gen_t(lhs, rhs)
         type(GAS_exc_gen_t), intent(in) :: lhs, rhs
         eq_GAS_exc_gen_t = lhs%val == rhs%val
     end function
 
-    logical pure function neq_GAS_exc_gen_t(lhs, rhs)
+    logical elemental function neq_GAS_exc_gen_t(lhs, rhs)
         type(GAS_exc_gen_t), intent(in) :: lhs, rhs
         neq_GAS_exc_gen_t = lhs%val /= rhs%val
     end function

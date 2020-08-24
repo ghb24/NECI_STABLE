@@ -237,6 +237,7 @@ module fcimc_initialisation
     use gasci_disconnected, only: gen_GASCI_disconnected, init_disconnected_GAS, clearGAS
     use gasci_general, only: gen_GASCI_general, gen_all_excits_GAS => gen_all_excits
     use gasci_discarding, only: gen_GASCI_discarding, init_GASCI_discarding, finalize_GASCI_discarding
+    use gasci_disconnected_pchb, only: gen_GASCI_pchb, init_GASCI_pchb, finalize_GASCI_pchb
 
     use cepa_shifts, only: t_cepa_shift, init_cepa_shifts
 
@@ -1404,6 +1405,8 @@ contains
                 call init_disconnected_GAS(GAS_specification)
             else if (GAS_exc_gen == possible_GAS_exc_gen%DISCARDING) then
                 call init_GASCI_discarding(projEDet(:, 1))
+            else if (GAS_exc_gen == possible_GAS_exc_gen%DISCONNECTED_PCHB) then
+                call init_GASCI_pchb(projEDet(:, 1))
             end if
         end if
     END SUBROUTINE SetupParameters
@@ -1955,6 +1958,8 @@ contains
                 generate_excitation => gen_GASCI_disconnected
             else if (GAS_exc_gen == possible_GAS_exc_gen%DISCARDING) then
                 generate_excitation => gen_GASCI_discarding
+            else if (GAS_exc_gen == possible_GAS_exc_gen%DISCONNECTED_PCHB) then
+                generate_excitation => gen_GASCI_pchb
             else
                 call stop_all(t_r, 'Invalid GAS excitation generator')
             end if
@@ -2308,6 +2313,8 @@ contains
                 call clearGAS()
             else if (GAS_exc_gen == possible_GAS_exc_gen%DISCARDING) then
                 call finalize_GASCI_discarding()
+            else if (GAS_exc_gen == possible_GAS_exc_gen%DISCONNECTED_PCHB) then
+                call finalize_GASCI_pchb()
             end if
         end if
 

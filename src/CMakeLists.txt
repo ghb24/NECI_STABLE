@@ -241,6 +241,7 @@ set( FYPP_SRC_FILES
     gasci_disconnected.fpp
     gasci_general.fpp
     gasci_discarding.fpp
+    gasci_disconnected_pchb.fpp
     orb_idx.fpp
     excitation_types.fpp
 	shared_array.fpp
