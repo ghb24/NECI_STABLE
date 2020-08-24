@@ -150,6 +150,29 @@ contains
     end function
 
 
+    !>  @brief
+    !>  Return the possible holes where a particle can be created under GAS constraints.
+    !>
+    !>  @details
+    !>  This function uses `get_possible_spaces` to find possible GAS spaces
+    !>  where a particle can be created and returns only unoccupied
+    !>  sites of correct spin.
+    !>
+    !>  "Trivial" excitations are avoided. That means, that a site is only counted
+    !>  as unoccupied if it was unoccupied in nI from the beginning on.
+    !>  (A double excitation where a particle is deleted, but immediately
+    !>  recreated would be such a trivial excitations.)
+    !>
+    !>  @param[in] GAS_spec, Specification of GAS spaces (GASSpec_t).
+    !>  @param[in] particles_per_GAS, The particles per GAS space.
+    !>  @param[in] add_holes, optional, An index of orbitals
+    !>      where particles should be deleted before creating the new particle.
+    !>  @param[in] add_particles, optional, An index of orbitals
+    !>      where particles should be created before creating the new particle.
+    !>  @param[in] n_total, optional, The total number of particles
+    !>      that will be created. Defaults to one (integer).
+    !>  @param[in] excess, optional, The current excess of spin projections.
+    !>      If a beta electron was deleted, the excess is 1 * alpha.
     function get_possible_holes(GAS_spec, det_I, add_holes, add_particles, n_total, excess) result(possible_holes)
         type(GASSpec_t), intent(in) :: GAS_spec
         integer, intent(in) :: det_I(:)
