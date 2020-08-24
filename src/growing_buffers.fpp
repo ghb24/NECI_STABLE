@@ -25,26 +25,38 @@ module growing_buffers
 #:set type, kind = type_spec
     public :: buffer_${_get_name(data_name, rank)}$_t
 
-    !> Re-sizeable array type that can be filled elementwise to build up a contiguous data chunk
-    !! that can then be dumped to an allocatable
+    !>  @brief
+    !>  Re-sizeable array type that can be filled elementwise to build up a contiguous data chunk
+    !>  that can then be dumped to an allocatable
+    !>
+    !>  @details
+    !>  For multidimensional buffers only the last dimension can grow.
+    !>  (i.e. it is only possible to add columns.)
+    !>
+    !>  The buffer has to be initiliazed before first use.
+    !>  After dumping (`dump_reset`) it is automatically resetted.
     type :: buffer_${_get_name(data_name, rank)}$_t
         private
 
         @{get_decl(${type}$, ${kind}$, ${rank}$, allocatable=True)}@ :: buf
         ! Internal position of the buffer
         integer(int64) :: pos
-        ! Blocksize
-        integer(int64) :: block_size
-        ! Buffer size
-        integer(int64) :: buf_size
+        real(dp) :: grow_factor = 1.5_dp
+        integer(int64) :: start_size = 100_int64
+
     contains
 
         procedure :: init => init_${_get_name(data_name, rank)}$
         procedure :: finalize => finalize_${_get_name(data_name, rank)}$
+        procedure, private :: reset => reset_${_get_name(data_name, rank)}$
 
-        procedure :: add_val => add_val_${_get_name(data_name, rank)}$
-        procedure :: dump => dump_${_get_name(data_name, rank)}$
-        procedure :: num_elements => num_elements_${_get_name(data_name, rank)}$
+        procedure :: size => get_size_${_get_name(data_name, rank)}$
+        procedure :: capacity => get_capacity_${_get_name(data_name, rank)}$
+
+        procedure :: push_back => add_val_${_get_name(data_name, rank)}$
+
+        procedure, private :: dump => dump_${_get_name(data_name, rank)}$
+        procedure :: dump_reset => dump_reset_${_get_name(data_name, rank)}$
     end type buffer_${_get_name(data_name, rank)}$_t
 #:endfor
 #:endfor
@@ -53,47 +65,80 @@ contains
 #:for type_spec, data_name in DATA_TYPES.items()
 #:set type, kind = type_spec
 
-    !> Set up the re-sizeable array (buffer) with a fixed blocksize
-    !> @param[in] block_size_  size of the blocks in which the buffer is allocated. Also the
-    !!                         initial size
 #:set rank = 1
-    subroutine init_${_get_name(data_name, rank)}$ (this, block_size_)
+    !>  @brief
+    !>  Set up the re-sizeable array (buffer) with a given start size and grow_factor.
+    !>
+    !>  @details
+    !>  Has to be called before first use and can be called any time.
+    !>
+    !> @param[in] start_size Initial size of the buffer.
+    !> @param[in] grow_factor Factor about which to grow the buffer, if the capacity is not sufficient.
+    subroutine init_${_get_name(data_name, rank)}$ (this, grow_factor, start_size)
         class(buffer_${_get_name(data_name, rank)}$_t), intent(inout) :: this
-        integer(int64) :: block_size_
+        real(dp), optional, intent(in) :: grow_factor
+        integer(int64), optional, intent(in) :: start_size
 
-        ! Set the initial buffersize to be one block
-        this%block_size = block_size_
-        this%buf_size = this%block_size
-        ! allocate one block
-        allocate(this%buf(this%buf_size))
-        this%pos = 0
+        if (present(grow_factor)) this%grow_factor = grow_factor
+        if (present(start_size)) this%start_size = start_size
 
-    end subroutine init_${_get_name(data_name, rank)}$
+        if (.not. allocated(this%buf)) allocate(this%buf(this%start_size))
+        this%pos = 0_int64
+    end subroutine
+
+    !>  @brief
+    !>  Reset an already initiliazed buffer.
+    subroutine reset_${_get_name(data_name, rank)}$ (this)
+        class(buffer_${_get_name(data_name, rank)}$_t), intent(inout) :: this
+
+        deallocate(this%buf)
+        allocate(this%buf(this%start_size))
+        this%pos = 0_int64
+    end subroutine
 
 #:set rank = 2
-    !> Set up the re-sizeable array (buffer) with a fixed blocksize
-    !> @param[in] block_size_  size of the blocks in which the buffer is allocated. Also the
-    !!                         initial size
-    subroutine init_${_get_name(data_name, rank)}$ (this, rows, block_size_)
+    !>  @brief
+    !>  Set up the re-sizeable array (buffer) with a given start size and grow_factor.
+    !>
+    !>  @details
+    !>  Has to be called before first use and can be called any time.
+    !>
+    !> @param[in] rows Number of rows in the first dimension.
+    !> @param[in] start_size Initial size of the buffer along the last dimension.
+    !> @param[in] grow_factor Factor about which to grow the buffer along the last dimension,
+    !>              if the capacity is not sufficient.
+    subroutine init_${_get_name(data_name, rank)}$ (this, rows, grow_factor, start_size)
         class(buffer_${_get_name(data_name, rank)}$_t), intent(inout) :: this
         integer, intent(in) :: rows
-        integer(int64), intent(in) :: block_size_
+        real, optional, intent(in) :: grow_factor
+        integer, optional, intent(in) :: start_size
 
-        ! Set the initial buffersize to be one block
-        this%block_size = block_size_
-        this%buf_size = this%block_size
-        ! allocate one block
-        allocate(this%buf(rows, this%buf_size))
-        this%pos = 0
+        if (present(grow_factor)) this%grow_factor = grow_factor
+        if (present(start_size)) this%start_size = start_size
 
+        allocate(this%buf(rows, this%start_size))
+        this%pos = 0_int64
     end subroutine init_${_get_name(data_name, rank)}$
+
+    !>  @brief
+    !>  Reset an already initiliazed buffer.
+    subroutine reset_${_get_name(data_name, rank)}$ (this)
+        class(buffer_${_get_name(data_name, rank)}$_t), intent(inout) :: this
+
+        integer(int64) :: rows
+
+        rows = size(this%buf, 1)
+        deallocate(this%buf)
+        allocate(this%buf(rows, this%start_size))
+        this%pos = 0_int64
+    end subroutine
 
     !------------------------------------------------------------------------------------------!
 
 #:for rank in RANKS
     #:set select = functools.partial(_select, rank, rank)
-    !> Deallocate the resource. This is automatically called when dumping the buffer, with a
-    !! following re-initialization
+    !>  @brief
+    !>  Deallocate the resource.
     subroutine finalize_${_get_name(data_name, rank)}$ (this)
         class(buffer_${_get_name(data_name, rank)}$_t), intent(inout) :: this
 
@@ -102,68 +147,92 @@ contains
 
     !------------------------------------------------------------------------------------------!
 
-    !> Append a value to the buffer, expanding it by a block when necessary
-    !> @param[in] val  Value to be added
+    !>  @brief
+    !>  Returns the number of already stored elements in the buffer along the last dimension.
+    !>
+    !>  @return n_els Number of elements already added to the buffer.
+    pure function get_size_${_get_name(data_name, rank)}$ (this) result(n_els)
+        class(buffer_${_get_name(data_name, rank)}$_t), intent(in) :: this
+        integer(int64) :: n_els
+
+        n_els = this%pos
+    end function
+
+    !------------------------------------------------------------------------------------------!
+
+    !>  @brief
+    !>  Returns the capacity of the buffer along the last dimension.
+    !>
+    !>  @return n_els Number of elements already added to the buffer.
+    pure function get_capacity_${_get_name(data_name, rank)}$ (this) result(capacity)
+        class(buffer_${_get_name(data_name, rank)}$_t), intent(in) :: this
+        integer(int64) :: capacity
+
+        capacity = size(this%buf, ${rank}$)
+    end function
+
+    !------------------------------------------------------------------------------------------!
+
+    !>  @brief
+    !>  Append a value to the buffer, expanding the capacity if necessary.
+    !>
+    !>  @param[in] val Value to be added
     subroutine add_val_${_get_name(data_name, rank)}$ (this, val)
         class(buffer_${_get_name(data_name, rank)}$_t), intent(inout) :: this
         @{get_decl(${type}$, ${kind}$, ${int(rank) - 1}$)}@, intent(in) :: val
 
+
         ! If the buffer still has room, add the entry
-        if (this%pos < this%buf_size) then
-            this%pos = this%pos + 1
+        if (this%pos < size(this%buf, ${rank}$)) then
+            this%pos = this%pos + 1_int64
             @{select(this%buf, this%pos)}@ = val
         else
             ! else, expand the buffer by another block
             block
+
                 @{get_decl(${type}$, ${kind}$, ${rank}$, allocatable=True)}@ :: tmp
                 integer(int64) :: new_buf_size
                 ! Fortran 2003 automatic allocation/assignment
                 tmp = this%buf
 
                 deallocate(this%buf)
-                new_buf_size = this%buf_size + this%block_size
+                new_buf_size = int(real(size(this%buf, ${rank}$), kind=dp) * this%grow_factor, kind=int64)
                 allocate(this%buf(@{shape_like_except_along(${rank}$, ${rank}$, tmp, new_buf_size)}@))
 
-                @{select(this%buf, 1 : this%buf_size)}@ = @{select(tmp, 1 : this%buf_size)}@
+                @{select(this%buf, : size(tmp, ${rank}$))}@ = tmp
 
-                this%buf_size = new_buf_size
-
-                this%pos = this%pos + 1
+                this%pos = this%pos + 1_int64
                 @{select(this%buf, this%pos)}@ = val
             end block
         end if
     end subroutine add_val_${_get_name(data_name, rank)}$
 
-    !------------------------------------------------------------------------------------------!
-
-    !> Returns the number of already stored elements in the buffer
-    !> @return n_els  number of elements already added to the buffer
-    function num_elements_${_get_name(data_name, rank)}$ (this) result(n_els)
-        class(buffer_${_get_name(data_name, rank)}$_t), intent(in) :: this
-        integer(int64) :: n_els
-
-        n_els = this%pos
-    end function num_elements_${_get_name(data_name, rank)}$
 
     !------------------------------------------------------------------------------------------!
 
-    !> Dump the buffer to an allocatable array, deleting it afterwards
-    !> @param[out] tgt  Allocatable array (reset upon entry), contains the stored elements of
-    !!                  the buffer on return. The buffer has to be reinitialized if used again.
+    !>  @brief
+    !>  Dump the buffer to an allocatable array.
+    !>
+    !>  @param[out] tgt Allocatable array (reset upon entry), contains the stored elements of
+    !>                   the buffer on return. The buffer has to be reinitialized if used again.
     subroutine dump_${_get_name(data_name, rank)}$ (this, tgt)
         class(buffer_${_get_name(data_name, rank)}$_t), intent(inout) :: this
         @{get_decl(${type}$, ${kind}$, ${rank}$, allocatable=True)}@, intent(out) :: tgt
 
-        integer(int64) :: n_els
+        tgt = @{select(this%buf, : this%size())}@
+    end subroutine
 
-        ! Transfer the buffer's content to an external allocatable
-        n_els = this%num_elements()
-        allocate(tgt(@{shape_like_except_along(${rank}$, ${rank}$, this%buf, n_els)}@))
+    !>  Dump the buffer to an allocatable array and reset the buffer.
+    !>
+    !>  @param[out] tgt Allocatable array (reset upon entry), contains the stored elements of
+    !>                   the buffer on return. The buffer is writable afterwards.
+    subroutine dump_reset_${_get_name(data_name, rank)}$ (this, tgt)
+        class(buffer_${_get_name(data_name, rank)}$_t), intent(inout) :: this
+        @{get_decl(${type}$, ${kind}$, ${rank}$, allocatable=True)}@, intent(out) :: tgt
 
-        @{select(tgt, : n_els)}@ = @{select(this%buf, : n_els)}@
-
-        call this%finalize()
-    end subroutine dump_${_get_name(data_name, rank)}$
+        call this%dump(tgt)
+        call this%reset()
+    end subroutine
 #:endfor
 #:endfor
 

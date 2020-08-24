@@ -568,7 +568,7 @@ contains
 
         @:ASSERT(GAS_spec%contains(det_I))
 
-        call buffer%init(size(det_I), 1000_int64)
+        call buffer%init(size(det_I))
 
         do i = 1, size(det_I)
             src1 = det_I(i)
@@ -578,10 +578,10 @@ contains
                         excess=-m_s_1)
             do j = 1, size(possible_holes)
                 tgt1 = possible_holes(j)
-                call buffer%add_val(excite(det_I, SingleExc_t(src1, tgt1)))
+                call buffer%push_back(excite(det_I, SingleExc_t(src1, tgt1)))
             end do
         end do
-        call buffer%dump(singles_exc_list)
+        call buffer%dump_reset(singles_exc_list)
 
         @:sort(integer, singles_exc_list, rank=2, along=2, comp=lex_leq)
     end function
@@ -599,7 +599,7 @@ contains
 
         @:ASSERT(GAS_spec%contains(det_I))
 
-        call buffer%init(size(det_I), 1000_int64)
+        call buffer%init(size(det_I))
 
         do i = 1, size(det_I)
             do j = i + 1, size(det_I)
@@ -625,13 +625,13 @@ contains
 
                     do l = 1, size(second_pick_possible_holes)
                         tgt2 = second_pick_possible_holes(l)
-                        call buffer%add_val(excite(det_I, DoubleExc_t(src1, tgt1, src2, tgt2)))
+                        call buffer%push_back(excite(det_I, DoubleExc_t(src1, tgt1, src2, tgt2)))
                     end do
                 end do
             end do
         end do
 
-        call buffer%dump(doubles_exc_list)
+        call buffer%dump_reset(doubles_exc_list)
 
         @:sort(integer, doubles_exc_list, rank=2, along=2, comp=lex_leq)
 
