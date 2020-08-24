@@ -100,7 +100,7 @@ contains
         type(shared_ragged_array_t) :: alpha_alpha, beta_beta
         type(shared_ragged_array_t) :: beta_with_alpha
         type(buffer_hel_t) :: hamil_row
-        type(buffer_int32_t) :: hamil_pos
+        type(buffer_int_t) :: hamil_pos
         ! End shared resources
 
         character(len=*), parameter :: t_r = "calc_determ_hamil_opt_hphf"
