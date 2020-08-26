@@ -4,7 +4,7 @@ SYSTEM READ NOORDER
 ELECTRONS   10
 NOBRILLOUINTHEOREM
 molecular-transcorr 3-body
-nonuniformrandexcits pcpp
+nonuniformrandexcits pchb
 hphf 0
 ENDSYS
  
@@ -12,7 +12,7 @@ CALC
 METHODS
 METHOD VERTEX FCIMC
 ENDMETHODS
-nmcyc 2000
+nmcyc 1000
 SEED        -7
 TOTALWALKERS       10000
 DIAGSHIFT       1.5000000000
