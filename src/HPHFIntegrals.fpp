@@ -5,7 +5,7 @@ module hphf_integrals
     use constants, only: dp, n_int, sizeof_int, maxExcit
     use SystemData, only: NEl, nBasisMax, G1, nBasis, Brr, tHub, ECore, &
                           ALat, NMSH, tOddS_HPHF, modk_offdiag, t_lattice_model, &
-                          t_3_body_excits
+                          t_3_body_excits, max_ex_level
     use IntegralsData, only: UMat, FCK, NMAX
     use HPHFRandExcitMod, only: FindDetSpinSym, FindExcitBitDetSym
     use DetBitOps, only: DetBitEQ, FindExcitBitDet, FindBitExcitLevel, &
@@ -122,7 +122,7 @@ contains
                 call FindExcitBitDetSym(iLutnI, iLutnI2)
                 ExcitLevel = FindBitExcitLevel(iLutnI2, ilutnJ, 2)
 
-                if (ExcitLevel <= 3) then
+                if (ExcitLevel <= max_ex_level) then
                     ! We need to find out whether the nJ HPHF wavefunction is
                     ! symmetric or antisymmetric. This is dependant on the
                     ! number of open shell orbitals and total spin of the wavefunction.
@@ -184,13 +184,13 @@ contains
 
         integer :: nI2(nel)
         integer(n_int) :: iLutnI2(0:NIfTot)
-        integer :: ExcitLevel, OpenOrbsI, OpenOrbsJ, Ex(2, 2)
+        integer :: ExcitLevel, OpenOrbsI, OpenOrbsJ, Ex(2, maxExcit)
         HElement_t(dp) :: MatEl2
         logical :: tSign
 
         hel = 0.0_dp
 
-        if (IC <= 2) hel = sltcnd_knowIC(nI, iLutnI, iLutnJ, IC)
+        if (IC <= max_ex_level) hel = sltcnd_knowIC(nI, iLutnI, iLutnJ, IC)
 
         if (CS_I) then
             if (tOddS_HPHF) then
@@ -220,7 +220,7 @@ contains
                 call FindExcitBitDetSym(iLutnI, iLutnI2)
                 ExcitLevel = FindBitExcitLevel(iLutnI2, ilutnJ, 2)
 
-                if (ExcitLevel <= 2) then
+                if (ExcitLevel <= max_ex_level) then
                     ! We need to find out whether the nJ HPHF wavefunction is
                     ! symmetric or antisymmetric. This is dependant on the
                     ! number of open shell orbitals and total spin of the wavefunction.
@@ -283,7 +283,7 @@ contains
         integer, intent(in) :: ExcitLevel, OpenOrbsI
         HElement_t(dp) :: hel
 
-        integer :: OpenOrbsJ, Ex(2, 2)
+        integer :: OpenOrbsJ, Ex(2, maxExcit)
         HElement_t(dp) :: MatEl2
         logical :: tSign
 
@@ -356,7 +356,7 @@ contains
             ! See if there is a cross-term
             call FindExcitBitDetSym(iLutnI, iLutnI2)
             ExcitLevel = FindBitExcitLevel(iLutnI, iLutnI2, 2)
-            if (ExcitLevel <= 2) then
+            if (ExcitLevel <= max_ex_level) then
                 call CalcOpenOrbs(iLutnI, OpenOrbs)
                 if (t_lattice_model) then
                     call decode_bit_det(nJ, iLutnI2)
