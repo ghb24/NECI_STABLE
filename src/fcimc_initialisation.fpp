@@ -233,9 +233,10 @@ module fcimc_initialisation
 
     use back_spawn_excit_gen, only: gen_excit_back_spawn, gen_excit_back_spawn_ueg, &
                                     gen_excit_back_spawn_hubbard, gen_excit_back_spawn_ueg_new
-    use gasci, only: gen_general_GASCI => generate_nGAS_excitation, GAS_exc_gen, possible_GAS_exc_gen, &
-                     operator(==), gen_all_excits_GAS => gen_all_excits, GAS_specification
-    use disconnected_gasci, only: gen_disconnected_GASCI => generate_nGAS_excitation, clearGAS
+    use gasci, only: GAS_exc_gen, possible_GAS_exc_gen, operator(==), GAS_specification
+    use gasci_disconnected, only: gen_GASCI_disconnected, init_disconnected_GAS, clearGAS
+    use gasci_general, only: gen_GASCI_general, gen_all_excits_GAS => gen_all_excits
+    use gasci_discarding, only: gen_GASCI_discarding, init_GASCI_discarding, finalize_GASCI_discarding
 
     use cepa_shifts, only: t_cepa_shift, init_cepa_shifts
 
@@ -1398,6 +1399,13 @@ contains
         ! and can hence be precomputed
         if (t_mol_3_body .or. t_ueg_3_body) call setup_mol_tc_excitgen()
 
+        if (tGAS) then
+            if (GAS_exc_gen == possible_GAS_exc_gen%DISCONNECTED) then
+                call init_disconnected_GAS(GAS_specification)
+            else if (GAS_exc_gen == possible_GAS_exc_gen%DISCARDING) then
+                call init_GASCI_discarding(projEDet(:, 1))
+            end if
+        end if
     END SUBROUTINE SetupParameters
 
     ! This initialises the calculation, by allocating memory, setting up the
@@ -1723,7 +1731,7 @@ contains
 
         ! initialize excitation generator
         if (t_pcpp_excitgen) call init_pcpp_excitgen()
-        if (t_pchb_excitgen) call init_pchb_excitgen()
+        if (t_pchb_excitgen) call init_pchb_excitgen(projEDet(:, 1))
         ! [W.D.] I guess I want to initialize that before the tau-search,
         ! or otherwise some pgens get calculated incorrectly
         if (t_back_spawn .or. t_back_spawn_flex) then
@@ -1942,9 +1950,11 @@ contains
             generate_excitation => gen_hphf_excit
         else if (tGAS) then
             if (GAS_exc_gen == possible_GAS_exc_gen%GENERAL) then
-                generate_excitation => gen_general_GASCI
+                generate_excitation => gen_GASCI_general
             else if (GAS_exc_gen == possible_GAS_exc_gen%DISCONNECTED) then
-                generate_excitation => gen_disconnected_GASCI
+                generate_excitation => gen_GASCI_disconnected
+            else if (GAS_exc_gen == possible_GAS_exc_gen%DISCARDING) then
+                generate_excitation => gen_GASCI_discarding
             else
                 call stop_all(t_r, 'Invalid GAS excitation generator')
             end if
@@ -2296,9 +2306,14 @@ contains
         ! Cleanup adi caches
         call clean_adi()
 
-        call clearGAS()
 
-        call GAS_specification%destroy()
+        if (tGAS) then
+            if (GAS_exc_gen == possible_GAS_exc_gen%DISCONNECTED) then
+                call clearGAS()
+            else if (GAS_exc_gen == possible_GAS_exc_gen%DISCARDING) then
+                call finalize_GASCI_discarding()
+            end if
+        end if
 
         ! Cleanup excitation generator
         if (t_pcpp_excitgen) call finalize_pcpp_excitgen()

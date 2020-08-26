@@ -3,7 +3,7 @@
 
 #:set ExcitationTypes = ['SingleExc_t', 'DoubleExc_t']
 
-module disconnected_gasci
+module gasci_disconnected
     use SystemData, only: tGAS, tGASSpinRecoupling, nBasis, nel
     use constants
     use util_mod, only: get_free_unit, binary_search_first_ge, operator(.div.), &
@@ -20,12 +20,13 @@ module disconnected_gasci
                                 get_last_tgt, set_last_tgt, defined, dyn_defined, UNKNOWN
     use sltcnd_mod, only: sltcnd_excit, dyn_sltcnd_excit
     use orb_idx_mod, only: SpinOrbIdx_t, calc_spin_raw, SpinProj_t, operator(==), operator(/=)
-    use gasci, only: GASSpec_t, get_nGAS
+    use gasci, only: GASSpec_t
     implicit none
 
     private
-    public :: isValidExcit, init_disconnected_GAS, generate_nGAS_excitation, &
-              clearGAS, oddBits, calc_pgen, dyn_calc_pgen
+    public :: init_disconnected_GAS, gen_GASCI_disconnected, &
+        clearGAS, oddBits, calc_pgen, dyn_calc_pgen
+
 
     #:for function_name in ['get_cumulative_list', 'get_mat_element', 'pick_weighted_hole', 'calc_pgen']
     interface ${function_name}$
@@ -68,54 +69,49 @@ module disconnected_gasci
 
 contains
 
-    subroutine init_GAS(iGAS_per_spatorb)
-        integer, intent(in) :: iGAS_per_spatorb(:)
+    subroutine init_GAS(spat_GAS)
+        !> GAS space for the i-th **spatial** orbital
+        integer, intent(in) :: spat_GAS(:)
 
         integer :: nOrbs, iOrb, iGAS
 
-        associate(GAS => iGAS_per_spatorb)
+        nOrbs = size(spat_GAS)
+        nGAS = maxval(spat_GAS)
 
-            nOrbs = size(GAS)
-            nGAS = maxval(GAS)
+        allocate(GAS_orbs(0:NIfD, nGAS))
+        GAS_orbs(:, :) = 0_n_int
+        do iOrb = 1, nOrbs
+            ! now write the orbitals read in to the current GAS
+            ! set both the alpha- and the beta-spin orbital
+            call setorb(GAS_orbs(:, spat_GAS(iOrb)), 2 * iOrb)
+            call setorb(GAS_orbs(:, spat_GAS(iOrb)), 2 * iOrb - 1)
+        end do
 
-            allocate(GAS_orbs(0:NIfD, nGAS))
-            GAS_orbs(:, :) = 0_n_int
-            do iOrb = 1, nOrbs
-                ! now write the orbitals read in to the current GAS
-                ! set both the alpha- and the beta-spin orbital
-                call setorb(GAS_orbs(:, GAS(iOrb)), 2 * iOrb)
-                call setorb(GAS_orbs(:, GAS(iOrb)), 2 * iOrb - 1)
-            end do
+        ! now set up the auxiliary gas lookup tables
+        allocate(GAS_spin_orbs(0:NIfD, nGAS, 2))
+        ! GAS_spin_orbs is the same as GAS_orbs, but spin resolved.
+        ! The order is beta, alpha, beta, alpha ...
+        GAS_spin_orbs(:, :, idx_alpha) = iand(GAS_orbs, ishft(oddBits, 1))
+        GAS_spin_orbs(:, :, idx_beta) = iand(GAS_orbs, oddBits)
 
-            ! now set up the auxiliary gas lookup tables
-            allocate(GAS_spin_orbs(0:NIfD, nGAS, 2))
-            ! GAS_spin_orbs is the same as GAS_orbs, but spin resolved.
-            ! The order is beta, alpha, beta, alpha ...
-            GAS_spin_orbs(:, :, idx_alpha) = iand(GAS_orbs, ishft(oddBits, 1))
-            GAS_spin_orbs(:, :, idx_beta) = iand(GAS_orbs, oddBits)
+        allocate(GAS_table(nBasis))
+        ! gasTable contains the active space index for each spin orbital
+        ! it is the same as GAS for spin orbitals
+        GAS_table(1::2) = spat_GAS(:)
+        GAS_table(2::2) = spat_GAS(:)
 
-            allocate(GAS_table(nBasis))
-            ! gasTable contains the active space index for each spin orbital
-            ! it is the same as GAS for spin orbitals
-            GAS_table(1::2) = GAS(:)
-            GAS_table(2::2) = GAS(:)
+        allocate(GAS_spin_orb_list(nBasis, nGAS, 2))
+        allocate(GAS_size(nGAS), source=0)
+        do iOrb = 1, nOrbs
+            GAS_size(spat_GAS(iOrb)) = GAS_size(spat_GAS(iOrb)) + 1
+            GAS_spin_orb_list(GAS_size(spat_GAS(iOrb)), spat_GAS(iOrb), idx_alpha) = 2 * iOrb
+            GAS_spin_orb_list(GAS_size(spat_GAS(iOrb)), spat_GAS(iOrb), idx_beta) = 2 * iOrb - 1
+        end do
 
-            allocate(GAS_spin_orb_list(nBasis, nGAS, 2))
-            allocate(GAS_size(nGAS), source=0)
-            associate(M => GAS_spin_orb_list)
-                do iOrb = 1, nOrbs
-                    GAS_size(GAS(iOrb)) = GAS_size(GAS(iOrb)) + 1
-                    M(GAS_size(GAS(iOrb)), GAS(iOrb), idx_alpha) = 2 * iOrb
-                    M(GAS_size(GAS(iOrb)), GAS(iOrb), idx_beta) = 2 * iOrb - 1
-                end do
-            end associate
-
-            do iGAS = 1, nGAS
-                write(iout, *) "Number of orbs in GAS", iGAS, "is", &
-                    & sum(popCnt(GAS_orbs(:, iGAS)))
-            end do
-
-        end associate
+        do iGAS = 1, nGAS
+            write(iout, *) "Number of orbs in GAS", iGAS, "is", &
+                & sum(popCnt(GAS_orbs(:, iGAS)))
+        end do
 
     contains
 
@@ -131,30 +127,13 @@ contains
         end subroutine setOrb
     end subroutine
 
-    subroutine init_from_file()
-        integer :: GAS_unit, nOrbs, GAS(nBasis.div.2)
-
-        nOrbs = nBasis.div.2
-        GAS_unit = get_free_unit()
-        open(GAS_unit, file="GASOrbs", status='old')
-        read(GAS_unit, *) GAS(1:nOrbs)
-        close(GAS_unit)
-
-        call init_GAS(GAS)
-    end subroutine init_from_file
-
     subroutine init_disconnected_GAS(GAS_spec)
         type(GASSpec_t), intent(in) :: GAS_spec
 
-        integer :: iGAS, a, GAS(nBasis.div.2)
+        integer :: i, beta_orbs(nBasis .div. 2)
 
-        a = 1
-        do iGAS = 1, get_nGAS(GAS_spec)
-            GAS(a:GAS_spec%n_orbs(iGAS)) = iGAS
-            a = GAS_spec%n_orbs(iGAS) + 1
-        end do
-
-        call init_GAS(GAS)
+        beta_orbs = [(i, i = 1, nBasis, 2)]
+        call init_GAS(GAS_spec%get_iGAS(beta_orbs))
     end subroutine
 
 !----------------------------------------------------------------------------!
@@ -169,48 +148,8 @@ contains
 
 !----------------------------------------------------------------------------!
 
-    pure function isValidExcit(ilut_i, ilut_j) result(valid)
-        ! check if the excitation from ilut_i to ilut_j is valid within the GAS
-        integer(n_int), intent(in) :: ilut_i(0:NIfTot), ilut_j(0:NIfTot)
-        integer(n_int) :: GAS_ilut_i(0:NIfD), GAS_ilut_j(0:NIfD)
-        logical :: valid
 
-        integer :: iGAS
-
-        valid = .true.
-        ! safety check: do the GAS_orbs exist
-        if (.not. allocated(GAS_orbs)) return
-        do iGAS = 1, nGAS
-            GAS_ilut_i = GAS_Component(ilut_i, iGAS)
-            GAS_ilut_j = GAS_Component(ilut_j, iGAS)
-            ! check if ilut_i and ilut_j have the same number of electrons in GAS-i
-            valid = sum(popCnt(GAS_ilut_i)) == sum(popCnt(GAS_ilut_j))
-            if (valid .and. .not. tGASSpinRecoupling) then
-                ! check if the number of odd bits set
-                ! (=number of beta electrons) is the
-                ! same in both determinants.
-                valid = sum(popCnt(iand(GAS_ilut_i, oddBits))) &
-                        &== sum(popCnt(iand(GAS_ilut_j, oddBits)))
-            end if
-        end do
-
-    contains
-
-        pure function GAS_Component(ilut, i) result(GAS_Ilut)
-            integer(n_int), intent(in) :: ilut(0:NIfTot)
-            integer, intent(in) :: i
-
-            integer(n_int) :: GAS_Ilut(0:NIfD)
-
-            GAS_Ilut = iand(ilut(0:NIfD), GAS_orbs(0:NIfD, i))
-
-        end function GAS_Component
-
-    end function isValidExcit
-
-!----------------------------------------------------------------------------!
-
-    subroutine generate_nGAS_excitation(nI, ilutI, nJ, ilutJ, exFlag, ic, &
+    subroutine gen_GASCI_disconnected(nI, ilutI, nJ, ilutJ, exFlag, ic, &
                                         ex, tParity, pGen, hel, store, part_type)
         ! particle number conserving GAS excitation generator:
         ! we create only excitations, that preserver the number of electrons within
@@ -248,7 +187,7 @@ contains
             ic = 1
         end if
 
-    end subroutine generate_nGAS_excitation
+    end subroutine gen_GASCI_disconnected
 
 !----------------------------------------------------------------------------!
 
@@ -399,28 +338,26 @@ contains
 
         real(dp) :: pgenVal
 
+        integer :: src1, tgt1, src2, tgt2
+        real(dp) :: cSum(GAS_size(GAS_table(exc%val(2, 2))))
+        integer :: gasList(GAS_size(GAS_table(exc%val(2, 2)))), nOrbs
+        integer :: gasInd2
+
         @:ASSERT(defined(exc))
+        src1 = exc%val(1, 1); tgt1 = exc%val(2, 1)
+        src2 = exc%val(1, 2); tgt2 = exc%val(2, 2)
 
-        associate(src1 => exc%val(1, 1), tgt1 => exc%val(2, 1), &
-                   src2 => exc%val(1, 2), tgt2 => exc%val(2, 2))
-            block
-                real(dp) :: cSum(GAS_size(GAS_table(tgt2)))
-                integer :: gasList(GAS_size(GAS_table(tgt2))), nOrbs
-                integer :: gasInd2
+        nOrbs = GAS_size(GAS_table(tgt2))
+        gasList = GAS_spin_orb_list(1:nOrbs, GAS_table(tgt2), get_spin(tgt2))
 
-                nOrbs = GAS_size(GAS_table(tgt2))
-                gasList = GAS_spin_orb_list(1:nOrbs, GAS_table(tgt2), get_spin(tgt2))
-
-                cSum = get_cumulative_list(gasList, nI, DoubleExc_t(src1, tgt1, src2))
-                ! we know gasList contains tgt2, so we can look up its index with binary search
-                gasInd2 = binary_search_first_ge(gasList, tgt2)
-                if (gasInd2 == 1) then
-                    pgenVal = cSum(1)
-                else
-                    pgenVal = (cSum(gasInd2) - cSum(gasInd2 - 1))
-                end if
-            end block
-        end associate
+        cSum = get_cumulative_list(gasList, nI, DoubleExc_t(src1, tgt1, src2))
+        ! we know gasList contains tgt2, so we can look up its index with binary search
+        gasInd2 = binary_search_first_ge(gasList, tgt2)
+        if (gasInd2 == 1) then
+            pgenVal = cSum(1)
+        else
+            pgenVal = (cSum(gasInd2) - cSum(gasInd2 - 1))
+        end if
     end function get_pgen_pick_weighted_hole
 
 !----------------------------------------------------------------------------!
@@ -483,13 +420,11 @@ contains
         type(SingleExc_t), intent(in) :: exc
         real(dp) :: res
 
-        associate(tgt => exc%val(2))
-            if (all(nI /= tgt)) then
-                res = abs(sltcnd_excit(nI, exc, .false.))
-            else
-                res = 0.0_dp
-            end if
-        end associate
+        if (all(nI /= exc%val(2))) then
+            res = abs(sltcnd_excit(nI, exc, .false.))
+        else
+            res = 0.0_dp
+        end if
     end function get_mat_element_SingleExc_t
 
     function get_mat_element_DoubleExc_t(nI, exc) result(res)
@@ -497,14 +432,12 @@ contains
         type(DoubleExc_t), intent(in) :: exc
         real(dp) :: res
 
-        associate(src1 => exc%val(1, 1), tgt1 => exc%val(2, 1), &
-                   src2 => exc%val(1, 2), tgt2 => exc%val(2, 2))
-            if (tgt1 /= tgt2 .and. all(tgt1 /= nI) .and. all(tgt2 /= nI)) then
-                res = abs(sltcnd_excit(nI, exc, .false.))
-            else
-                res = 0.0_dp
-            end if
-        end associate
+        if (exc%val(2, 1) /= exc%val(2, 2) &
+            .and. all(exc%val(2, 1) /= nI) .and. all(exc%val(2, 2) /= nI)) then
+            res = abs(sltcnd_excit(nI, exc, .false.))
+        else
+            res = 0.0_dp
+        end if
 
     end function get_mat_element_DoubleExc_t
 
@@ -620,26 +553,24 @@ contains
 
         pgen_pick_elec = 1.0_dp / nel
 
-        associate(src1 => exc%val(1), tgt1 => exc%val(2))
-            block
-                real(dp) :: cSum(GAS_size(GAS_table(tgt1)))
-                integer :: gasList(GAS_size(GAS_table(tgt1))), nOrbs
-                integer :: j
+        block
+            real(dp) :: cSum(GAS_size(GAS_table(exc%val(2))))
+            integer :: gasList(GAS_size(GAS_table(exc%val(2)))), nOrbs
+            integer :: j
 
-                nOrbs = GAS_size(GAS_table(tgt1))
-                gasList = GAS_spin_orb_list(1:nOrbs, GAS_table(tgt1), get_spin(tgt1))
-                ! We know, that gasList contains tgt1
-                j = binary_search_first_ge(gasList, tgt1)
+            nOrbs = GAS_size(GAS_table(exc%val(2)))
+            gasList = GAS_spin_orb_list(1:nOrbs, GAS_table(exc%val(2)), get_spin(exc%val(2)))
+            ! We know, that gasList contains the target
+            j = binary_search_first_ge(gasList, exc%val(2))
 
-                cSum = get_cumulative_list(gasList, det_I%idx, SingleExc_t(src1))
+            cSum = get_cumulative_list(gasList, det_I%idx, SingleExc_t(exc%val(1)))
 
-                if (j == 1) then
-                    pgen_pick_weighted_hole = cSum(1)
-                else
-                    pgen_pick_weighted_hole = (cSum(j) - cSum(j - 1))
-                end if
-            end block
-        end associate
+            if (j == 1) then
+                pgen_pick_weighted_hole = cSum(1)
+            else
+                pgen_pick_weighted_hole = (cSum(j) - cSum(j - 1))
+            end if
+        end block
 
         pgen = pSingles * pgen_pick_elec * pgen_pick_weighted_hole
     end function
@@ -659,51 +590,49 @@ contains
                     ! pgen_first_pick == [p(A), p(B)]
                     ! pgen_second_pick == [p(B | A), p(A | B)]
                     pgen_first_pick(2), pgen_second_pick(2)
+        real(dp) :: cSum(GAS_size(GAS_table(exc%val(1, 1))))
+        integer :: gasList(GAS_size(GAS_table(exc%val(1, 1)))), nOrbs
+        integer :: j, iGAS, nEmpty, iOrb
+        logical :: parallel_spin, tExchange
+        integer :: src1, tgt1, src2, tgt2
+
+        src1 = exc%val(1, 1); tgt1 = exc%val(2, 1)
+        src2 = exc%val(1, 2); tgt2 = exc%val(2, 2)
 
         @:ASSERT(defined(exc))
 
-        associate(src1 => exc%val(1, 1), tgt1 => exc%val(2, 1), &
-                   src2 => exc%val(1, 2), tgt2 => exc%val(2, 2))
-            block
-                real(dp) :: cSum(GAS_size(GAS_table(tgt1)))
-                integer :: gasList(GAS_size(GAS_table(tgt1))), nOrbs
-                integer :: j, iGAS, nEmpty, iOrb
-                logical :: parallel_spin, tExchange
+        parallel_spin = calc_spin_raw(src1) == calc_spin_raw(src2)
+        if (parallel_spin) then
+            pgen_pick_elec = pParallel / real(par_elec_pairs, dp)
+        else
+            pgen_pick_elec = (1.0_dp - pParallel) / real(AB_elec_pairs, dp)
+        end if
 
-                parallel_spin = calc_spin_raw(src1) == calc_spin_raw(src2)
-                if (parallel_spin) then
-                    pgen_pick_elec = pParallel / real(par_elec_pairs, dp)
-                else
-                    pgen_pick_elec = (1.0_dp - pParallel) / real(AB_elec_pairs, dp)
-                end if
+        tExchange = .not. parallel_spin &
+                    .and. (tGASSpinRecoupling .or. GAS_table(src1) == GAS_table(src2))
 
-                tExchange = .not. parallel_spin &
-                            .and. (tGASSpinRecoupling .or. GAS_table(src1) == GAS_table(src2))
+        iGAS = GAS_table(tgt1)
+        nEmpty = GAS_size(iGAS) &
+                 - sum(popCnt(iand(ilutI(0:NIfD), GAS_spin_orbs(0:NIfD, iGAS, get_spin(tgt1)))))
+        if (nEmpty == 0) then
+            pgen_first_pick(1) = 1.0_dp
+        else
+            ! adjust pgen
+            pgen_first_pick(1) = 1.0_dp / real(nEmpty, dp)
+        end if
 
-                iGAS = GAS_table(tgt1)
-                nEmpty = GAS_size(iGAS) &
-                         - sum(popCnt(iand(ilutI(0:NIfD), GAS_spin_orbs(0:NIfD, iGAS, get_spin(tgt1)))))
-                if (nEmpty == 0) then
-                    pgen_first_pick(1) = 1.0_dp
-                else
-                    ! adjust pgen
-                    pgen_first_pick(1) = 1.0_dp / real(nEmpty, dp)
-                end if
-
-                pgen_second_pick(1) = get_pgen_pick_weighted_hole( &
-                                      det_I%idx, DoubleExc_t(src1, tgt1, src2, tgt2))
-                if (GAS_table(src1) == GAS_table(src2)) then
-                    pgen_first_pick(2) = get_pgen_pick_hole_from_active_space( &
-                                         ilutI, GAS_table(src2), get_spin(tgt2))
-                    pgen_second_pick(2) = get_pgen_pick_weighted_hole( &
-                                          det_I%idx, DoubleExc_t(src1, tgt2, src2, tgt1))
-                else
-                    pgen_first_pick(2) = 0.0_dp
-                    pgen_second_pick(2) = 0.0_dp
-                end if
-                pgen_first_pick = merge(0.5_dp, 1.0_dp, tExchange) * pgen_first_pick
-            end block
-        end associate
+        pgen_second_pick(1) = get_pgen_pick_weighted_hole( &
+                              det_I%idx, DoubleExc_t(src1, tgt1, src2, tgt2))
+        if (GAS_table(src1) == GAS_table(src2)) then
+            pgen_first_pick(2) = get_pgen_pick_hole_from_active_space( &
+                                 ilutI, GAS_table(src2), get_spin(tgt2))
+            pgen_second_pick(2) = get_pgen_pick_weighted_hole( &
+                                  det_I%idx, DoubleExc_t(src1, tgt2, src2, tgt1))
+        else
+            pgen_first_pick(2) = 0.0_dp
+            pgen_second_pick(2) = 0.0_dp
+        end if
+        pgen_first_pick = merge(0.5_dp, 1.0_dp, tExchange) * pgen_first_pick
 
         pgen = pDoubles * pgen_pick_elec * sum(pgen_first_pick * pgen_second_pick)
     end function
@@ -726,4 +655,4 @@ contains
         end select
     end function
 
-end module disconnected_gasci
+end module gasci_disconnected

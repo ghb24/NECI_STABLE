@@ -722,22 +722,23 @@ the \texttt{endsys} keyword.
       from the first GAS space, then all from the second GAS space...
     The specification is first the number of GAS spaces $n_\text{GAS}$
       and then $3 \times n_\text{GAS}$ the specification for each GAS space
-      as cumulative number of spatial orbitals and minimum and maximum
+      as number of spatial orbitals and cumulated minimum and maximum
       number of particles
-      $n_i^\text{cmltve}, N_i^\text{min, cmltve}, N_i^\text{max, cmltve}$.
+      $n_i, N_i^\text{min, cmltve}, N_i^\text{max, cmltve}$.
+    Finally an integer array denotes for each spatial orbital to which GAS space it belongs.
     It is advantageous to use the line continuation (\texttt{+++})
       for human-readable formatting as table.
     Two benzenes with single inter-space excitation would be e.g. denoted as:
-    \begin{table}[htbp]
-    \centering
-    \begin{tabular}{rrrr}
-     2 & +++ \\
-     6 & 5 & 7 & +++ \\
-    12 &12 &12 & \\
-    \end{tabular}
-    \end{table}
+
+    \begin{lstlisting}[gobble=4]
+    GAS-SPEC  2 +++
+         6  5  7  +++
+         6 12 12  +++
+         1  1  1  1  1  1  2  2  2  2  2  2
+    \end{lstlisting}
 
   \codeitem{GAS-CI}
+    \emph{Optional keyword.}
     Specify the actual implementation for GAS.
     If it is ommitted, it will be deduced from \texttt{GAS-SPEC}.
     \begin{description}
@@ -747,6 +748,10 @@ the \texttt{endsys} keyword.
       \codeitem{DISCONNECTED}
         Use the disconnected GAS implementations, which assumes disconnected
           spaces and performs there a bit better than the general implementation.
+      \codeitem{DISCARDING}
+        Use a Full CI excitation generator and just discard excitations which
+          are not contained in the GAS space.
+        Currently PCHB is used for Full CI.
     \end{description}
 \end{description}
 

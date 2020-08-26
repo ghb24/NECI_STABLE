@@ -10,6 +10,7 @@ module orb_idx_mod
     use bit_rep_data, only: nIfTot, nIfD
     use bit_reps, only: decode_bit_det
     use DetBitOps, only: EncodeBitDet
+    use util_mod, only: ilex_leq => lex_leq, ilex_geq => lex_geq
     implicit none
     private
     public :: OrbIdx_t, SpinOrbIdx_t, SpatOrbIdx_t, size, &
@@ -226,18 +227,7 @@ contains
         character(*), parameter :: this_routine = 'lex_lt_${type}$'
 
         @:ASSERT(size(lhs) == size(rhs))
-
-        res = .true.
-        do i = 1, size(lhs)
-            if (lhs%idx(i) == rhs%idx(i)) then
-                cycle
-            else if (lhs%idx(i) < rhs%idx(i)) then
-                return
-            else if (lhs%idx(i) > rhs%idx(i)) then
-                res = .false.
-                return
-            end if
-        end do
+        res = ilex_leq(lhs%idx, rhs%idx)
     end function
 
     DEBUG_IMPURE function lex_geq_${type}$ (lhs, rhs) result(res)
@@ -247,18 +237,7 @@ contains
         character(*), parameter :: this_routine = 'lex_gt_${type}$'
 
         @:ASSERT(size(lhs) == size(rhs))
-
-        res = .true.
-        do i = 1, size(lhs)
-            if (lhs%idx(i) == rhs%idx(i)) then
-                cycle
-            else if (lhs%idx(i) > rhs%idx(i)) then
-                return
-            else if (lhs%idx(i) < rhs%idx(i)) then
-                res = .false.
-                return
-            end if
-        end do
+        res = ilex_geq(lhs%idx, rhs%idx)
     end function
 #:endfor
 

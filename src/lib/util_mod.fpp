@@ -47,6 +47,14 @@ module util_mod
 !     public :: pDoubles, pSingles
 !     public :: set_timer, halt_timer
 
+
+    interface
+        subroutine stop_all(sub_name, error_msg)
+            character(*), intent(in) :: sub_name, error_msg
+        end subroutine
+    end interface
+
+
     interface
         pure function strlen_wrap(str) result(len) bind(c)
             use iso_c_hack
@@ -1179,6 +1187,44 @@ contains
     end function
     #:endfor
     #:endfor
+
+    DEBUG_IMPURE function lex_leq(lhs, rhs) result(res)
+        integer, intent(in) :: lhs(:), rhs(size(lhs))
+        logical :: res
+        character(*), parameter :: this_routine = 'lex_leq'
+        integer :: i
+
+        res = .true.
+        do i = 1, size(lhs)
+            if (lhs(i) == rhs(i)) then
+                cycle
+            else if (lhs(i) < rhs(i)) then
+                return
+            else if (lhs(i) > rhs(i)) then
+                res = .false.
+                return
+            end if
+        end do
+    end function
+
+    DEBUG_IMPURE function lex_geq(lhs, rhs) result(res)
+        integer, intent(in) :: lhs(:), rhs(size(lhs))
+        logical :: res
+        character(*), parameter :: this_routine = 'lex_geq'
+        integer :: i
+
+        res = .true.
+        do i = 1, size(lhs)
+            if (lhs(i) == rhs(i)) then
+                cycle
+            else if (lhs(i) > rhs(i)) then
+                return
+            else if (lhs(i) < rhs(i)) then
+                res = .false.
+                return
+            end if
+        end do
+    end function
 
 end module
 
