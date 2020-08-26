@@ -263,7 +263,7 @@ contains
 
         if (t_input_J) then
             print *, "input J:"
-            read(*,*), J
+            read(*,*) J
         else if (t_J_vec) then
             J_vec = linspace(-2.0,2.0,200)
 !               J_vec = [0.5]
@@ -273,16 +273,16 @@ contains
 
         if (t_input_l) then
             print *, "input norm"
-            read(*,*), l_norm
+            read(*,*) l_norm
         else
             l_norm = 2
         end if
 
         if (t_input_twist) then
             print *, "input x-twist:"
-            read(*,*), twisted_bc(1)
+            read(*,*) twisted_bc(1)
             print *, "input y-twist: "
-            read(*,*), twisted_bc(2)
+            read(*,*) twisted_bc(2)
             if (all(twisted_bc == 0)) then
                 t_twisted_bc = .false.
             else

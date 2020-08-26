@@ -233,12 +233,14 @@ set( SRC_FILES
 )
 
 set( FYPP_SRC_FILES
-    buffer_1d.fpp
+    growing_buffers.fpp
     fcimc_initialisation.fpp
     HPHFIntegrals.fpp
     sltcnd.fpp
-    disconnected_gasci.fpp
     gasci.fpp
+    gasci_disconnected.fpp
+    gasci_general.fpp
+    gasci_discarding.fpp
     orb_idx.fpp
     excitation_types.fpp
 	shared_array.fpp

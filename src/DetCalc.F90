@@ -1,11 +1,9 @@
 #include "macros.h"
 MODULE DetCalc
-    use constants, only: dp, n_int
-    use SystemData, only: BasisFN, BasisFNSize, BasisFNSizeB, tStoreSpinOrbs, &
-                          tGAS, t_non_hermitian
-    use disconnected_gasci, only: init_disconnected_GAS
-    use gasci, only: GAS_specification, GAS_exc_gen, possible_GAS_exc_gen, operator(==)
-    use sort_mod
+        use constants, only: dp,n_int
+        use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB, tStoreSpinOrbs, &
+             t_non_hermitian
+        use sort_mod
 
     use DetCalcData
 
@@ -280,12 +278,6 @@ CONTAINS
 !C..
             IF (TREAD) THEN
                 CALL READ_PSI(BOX, BOA, COA, NDET, NEVAL, NBASISMAX, NEL, CK, W)
-            end if
-        end if
-
-        if (tGAS) then
-            if (GAS_exc_gen == possible_GAS_exc_gen%DISCONNECTED) then
-                call init_disconnected_GAS(GAS_specification)
             end if
         end if
 

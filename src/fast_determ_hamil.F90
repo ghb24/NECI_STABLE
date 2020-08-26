@@ -21,7 +21,8 @@ module fast_determ_hamil
     use shared_array
     use shared_memory_mpi
     use shared_rhash, only: shared_rhash_t, initialise_shared_rht, shared_rht_lookup
-    use buffer_1d, only: buffer_hel_t, buffer_int32_t
+    use growing_buffers, only: buffer_hel_t => buffer_hel_1D_t, &
+        buffer_int_t => buffer_int_1D_t
     use core_space_util, only: core_space_t, sparse_matrix_real, sparse_matrix_int
     implicit none
 
@@ -99,7 +100,7 @@ contains
         type(shared_ragged_array_t) :: alpha_alpha, beta_beta
         type(shared_ragged_array_t) :: beta_with_alpha
         type(buffer_hel_t) :: hamil_row
-        type(buffer_int32_t) :: hamil_pos
+        type(buffer_int_t) :: hamil_pos
         ! End shared resources
 
         character(len=*), parameter :: t_r = "calc_determ_hamil_opt_hphf"
@@ -579,8 +580,8 @@ contains
 
         allocate(intersec_inds(nbeta), stat=ierr)
 
-        call hamil_row%init(int(rep%determ_sizes(iProcIndex), int64))
-        call hamil_pos%init(int(rep%determ_sizes(iProcIndex), int64))
+        call hamil_row%init(start_size=int(rep%determ_sizes(iProcIndex), int64))
+        call hamil_pos%init(start_size=int(rep%determ_sizes(iProcIndex), int64))
 
         allocate(rep%sparse_core_ham(rep%determ_sizes(iProcIndex)), stat=ierr)
         allocate(rep%core_ham_diag(rep%determ_sizes(iProcIndex)), stat=ierr)
@@ -623,8 +624,8 @@ contains
                                                      rep%core_space(:, ind_j), IC, CS_I, CS_J)
 
                     if (abs(hel) > 0.0_dp) then
-                        call hamil_pos%add_val(ind_j)
-                        call hamil_row%add_val(hel)
+                        call hamil_pos%push_back(ind_j)
+                        call hamil_row%push_back(hel)
                     end if
                 end if
             end do
@@ -664,8 +665,8 @@ contains
                         if (IC <= 2) then
                             hel = hphf_off_diag_special_case(nI_paired, ilut_paired, rep%core_space(:, ind_j), IC, OpenOrbsI)
                             if (abs(hel) > 0.0_dp) then
-                                call hamil_pos%add_val(ind_j)
-                                call hamil_row%add_val(hel)
+                                call hamil_pos%push_back(ind_j)
+                                call hamil_row%push_back(hel)
                             end if
                         end if
 
@@ -689,8 +690,8 @@ contains
                     hel = hphf_off_diag_helement_opt(nI, rep%core_space(:, i_full), &
                                                      rep%core_space(:, ind_j), IC, CS_I, CS_J)
                     if (abs(hel) > 0.0_dp) then
-                        call hamil_pos%add_val(ind_j)
-                        call hamil_row%add_val(hel)
+                        call hamil_pos%push_back(ind_j)
+                        call hamil_row%push_back(hel)
                     end if
                 end if
 
@@ -731,8 +732,8 @@ contains
                         if (IC <= 2) then
                             hel = hphf_off_diag_special_case(nI_paired, ilut_paired, rep%core_space(:, ind_j), IC, OpenOrbsI)
                             if (abs(hel) > 0.0_dp) then
-                                call hamil_pos%add_val(ind_j)
-                                call hamil_row%add_val(hel)
+                                call hamil_pos%push_back(ind_j)
+                                call hamil_row%push_back(hel)
                             end if
                         end if
 
@@ -755,8 +756,8 @@ contains
 
                     hel = hphf_off_diag_helement_opt(nI, rep%core_space(:, i_full), rep%core_space(:, ind_k), 2, CS_I, CS_K)
                     if (abs(hel) > 0.0_dp) then
-                        call hamil_pos%add_val(ind_k)
-                        call hamil_row%add_val(hel)
+                        call hamil_pos%push_back(ind_k)
+                        call hamil_row%push_back(hel)
                     end if
                 end do
             end do
@@ -788,8 +789,8 @@ contains
 
                         hel = hphf_off_diag_special_case(nI_paired, ilut_paired, rep%core_space(:, ind_k), 2, OpenOrbsI)
                         if (abs(hel) > 0.0_dp) then
-                            call hamil_pos%add_val(ind_k)
-                            call hamil_row%add_val(hel)
+                            call hamil_pos%push_back(ind_k)
+                            call hamil_row%push_back(hel)
                         end if
 
                     end do
@@ -799,17 +800,17 @@ contains
 
             ! Calculate and add the diagonal element
             hel = hphf_diag_helement(nI, rep%core_space(:, i_full)) - Hii
-            call hamil_pos%add_val(i_full)
-            call hamil_row%add_val(hel)
+            call hamil_pos%push_back(i_full)
+            call hamil_row%push_back(hel)
 
             ! Now finally allocate and fill in the actual deterministic
             ! Hamiltonian row for this determinant
             ! Now finally allocate and fill in the actual deterministic
             ! Hamiltonian row for this determinant
-            rep%sparse_core_ham(i)%num_elements = int(hamil_row%num_elements())
+            rep%sparse_core_ham(i)%num_elements = int(hamil_row%size())
             ! Dumping the buffer transfers its content and reset the buffer
-            call hamil_row%dump(rep%sparse_core_ham(i)%elements)
-            call hamil_pos%dump(rep%sparse_core_ham(i)%positions)
+            call hamil_row%dump_reset(rep%sparse_core_ham(i)%elements)
+            call hamil_pos%dump_reset(rep%sparse_core_ham(i)%positions)
 
             ! Fill the array of diagonal elements
             rep%core_ham_diag(i) = hel
@@ -916,7 +917,7 @@ contains
         type(shared_ragged_array_t) :: beta_with_alpha
 
         type(buffer_hel_t) :: hamil_row
-        type(buffer_int32_t) :: hamil_pos
+        type(buffer_int_t) :: hamil_pos
         ! End shared resources
 
         character(len=*), parameter :: t_r = "calc_determ_hamil_opt"
@@ -1339,8 +1340,8 @@ contains
 
         allocate(intersec_inds(nbeta), stat=ierr)
 
-        call hamil_row%init(int(rep%determ_sizes(iProcIndex), int64))
-        call hamil_pos%init(int(rep%determ_sizes(iProcIndex), int64))
+        call hamil_row%init(start_size=int(rep%determ_sizes(iProcIndex), int64))
+        call hamil_pos%init(start_size=int(rep%determ_sizes(iProcIndex), int64))
 
         allocate(rep%sparse_core_ham(rep%determ_sizes(iProcIndex)), stat=ierr)
         allocate(rep%core_ham_diag(rep%determ_sizes(iProcIndex)), stat=ierr)
@@ -1373,8 +1374,8 @@ contains
                     call decode_bit_det(nJ, rep%core_space(:, ind_j))
                     hel = get_helement(nI, nJ, IC, rep%core_space(:, i_full), rep%core_space(:, ind_j))
                     if (abs(hel) > 0.0_dp) then
-                        call hamil_pos%add_val(ind_j)
-                        call hamil_row%add_val(hel)
+                        call hamil_pos%push_back(ind_j)
+                        call hamil_row%push_back(hel)
                     end if
                 end if
             end do
@@ -1393,8 +1394,8 @@ contains
                     call decode_bit_det(nJ, rep%core_space(:, ind_j))
                     hel = get_helement(nI, nJ, IC, rep%core_space(:, i_full), rep%core_space(:, ind_j))
                     if (abs(hel) > 0.0_dp) then
-                        call hamil_pos%add_val(ind_j)
-                        call hamil_row%add_val(hel)
+                        call hamil_pos%push_back(ind_j)
+                        call hamil_row%push_back(hel)
                     end if
                 end if
             end do
@@ -1413,23 +1414,23 @@ contains
                     call decode_bit_det(nK, rep%core_space(:, ind_k))
                     hel = get_helement(nI, nK, rep%core_space(:, i_full), rep%core_space(:, ind_k))
                     if (abs(hel) > 0.0_dp) then
-                        call hamil_pos%add_val(ind_k)
-                        call hamil_row%add_val(hel)
+                        call hamil_pos%push_back(ind_k)
+                        call hamil_row%push_back(hel)
                     end if
                 end do
             end do
 
             ! Calculate and add the diagonal element
             hel = get_helement(nI, nI, 0) - Hii
-            call hamil_pos%add_val(i_full)
-            call hamil_row%add_val(hel)
+            call hamil_pos%push_back(i_full)
+            call hamil_row%push_back(hel)
 
             ! Now finally allocate and fill in the actual deterministic
             ! Hamiltonian row for this determinant
-            rep%sparse_core_ham(i)%num_elements = int(hamil_row%num_elements())
+            rep%sparse_core_ham(i)%num_elements = int(hamil_row%size())
             ! Dumping the buffer transfers its content and reset the buffer
-            call hamil_row%dump(rep%sparse_core_ham(i)%elements)
-            call hamil_pos%dump(rep%sparse_core_ham(i)%positions)
+            call hamil_row%dump_reset(rep%sparse_core_ham(i)%elements)
+            call hamil_pos%dump_reset(rep%sparse_core_ham(i)%positions)
 
             ! Fill the array of diagonal elements
             rep%core_ham_diag(i) = hel
