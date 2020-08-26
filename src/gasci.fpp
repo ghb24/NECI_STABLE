@@ -72,9 +72,7 @@ module gasci
         module procedure construct_GASSpec_t
     end interface
 
-
     type(GASSpec_t) :: GAS_specification
-
 
 contains
 
