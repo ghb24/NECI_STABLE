@@ -7,9 +7,10 @@ module gasci_discarding
     use bit_rep_data, only: NIfTot
     use sort_mod, only: sort
 
-    use pchb_excitgen, only: init_pchb_excitgen, finalize_pchb_excitgen, gen_rand_excit_pchb
+!     use pchb_excitgen, only: init_pchb_excitgen, finalize_pchb_excitgen, gen_rand_excit_pchb
+    use pchb_excitgen, only: PCHB_FCI
     use gasci, only: GAS_specification, GASSpec_t
-    use FciMCData, only: excit_gen_store_type, projEDet
+    use FciMCData, only: excit_gen_store_type
     implicit none
 
     private
@@ -44,8 +45,7 @@ contains
 #endif
         @:ASSERT(GAS_specification%contains(nI))
 
-        call gen_rand_excit_pchb(nI, ilutI, nJ, ilutJ, exFlag, ic, &
-                                      ex_mat, tParity, pGen, hel, store, part_type)
+        call PCHB_FCI%gen_excit(nI, ilutI, nJ, ilutJ, ic, ex_mat, tParity, pgen, hel, store)
 
         if (nJ(1) /= 0) then
             if (.not. GAS_specification%contains(nJ)) then
@@ -59,13 +59,12 @@ contains
         end if
     end subroutine gen_GASCI_discarding
 
-    subroutine init_GASCI_discarding(projEDet)
-        integer, intent(in) :: projEDet(:)
-        call init_pchb_excitgen(projEDet(:))
+    subroutine init_GASCI_discarding()
+        call PCHB_FCI%init()
     end subroutine
 
     subroutine finalize_GASCI_discarding()
-        call finalize_pchb_excitgen()
+        call PCHB_FCI%finalize()
     end subroutine
 
 end module gasci_discarding

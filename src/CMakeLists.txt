@@ -111,6 +111,7 @@ set( SRC_FILES
     Parallel_Calc.F90
     ParallelHelper.F90
     parallel_workarounds.F90
+    pchb_factory.F90
     pchb_excitgen.F90
     perturbations.F90
     Popsfile.F90

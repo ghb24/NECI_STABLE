@@ -48,7 +48,7 @@ contains
         call init_excitgen_test(size(det_I), FciDumpWriter_t(random_fcidump, 'FCIDUMP'))
         call init_disconnected_GAS(GAS_spec)
         call run_excit_gen_tester( &
-            gen_GASCI_disconnected, 'only disconnected implementation, disconnected, Li2', &
+            gen_GASCI_disconnected, 'only disconnected implementation, random_fcidump', &
             opt_nI=det_I, opt_n_iters=n_iters, &
             gen_all_excits=gen_all_excits, &
             problem_filter=is_problematic,&
