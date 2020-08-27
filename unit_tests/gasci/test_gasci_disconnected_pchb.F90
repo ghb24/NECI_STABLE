@@ -31,7 +31,7 @@ contains
         integer, parameter :: det_I(6) = [1, 2, 3, 7, 8, 10]
 
         logical :: successful
-        integer, parameter :: n_iters=10**5
+        integer, parameter :: n_iters=2 * 10**6
 
         pParallel = 0.05_dp
         pSingles = 0.3_dp
