@@ -16,7 +16,7 @@ module LMat_class
     use LoggingData, only: tHistLMat
     use UMatCache, only: numBasisIndices
     use LMat_freeze, only: freeze_lmat, t_freeze, map_indices, &
-        init_freeze_buffers, finalize_freeze_buffers, add_core_en
+        init_freeze_buffers, flush_freeze_buffers, add_core_en
 #ifdef USE_HDF_
     use hdf5
     use hdf5_util
@@ -226,7 +226,7 @@ contains
         ! Setup the temporaries used for freezing orbitals
         call init_freeze_buffers()
         call this%read_kernel(filename)
-        call finalize_freeze_buffers()
+        call flush_freeze_buffers()
 
         if (tHistLMat) call this%histogram_lMat()
 

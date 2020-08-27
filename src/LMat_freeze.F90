@@ -13,7 +13,7 @@ module LMat_freeze
 
     private
     public :: freeze_lmat, t_freeze, map_indices, init_freeze_buffers, &
-              finalize_freeze_buffers, add_core_en
+              flush_freeze_buffers, add_core_en
 
     !> Parameter for number of double excitations a single LMat entry can contribute to
     !! (counting permutations)
@@ -52,14 +52,14 @@ contains
     !> Sum the locally accumulated corrections to the diagonal and one-body terms up and
     !! add them to the global terms, then deallocate temporaries. This is called
     !! after reading in the 6-index integrals
-    subroutine finalize_freeze_buffers()
+    subroutine flush_freeze_buffers()
         integer(MPIArg) :: tmat_size
         integer(MPIArg) :: ierr
 
         if(nFrozen > 0) then
 
             if(.not. allocated(TMat_local) .or. .not. allocated(TMat_total)) &
-                call stop_all("finalize_freeze_buffers", &
+                call stop_all("flush_freeze_buffers", &
                               "Buffers for freezing three-body interaction not allocated")
 
             ! Sum the core energy from each proc on this node
@@ -79,14 +79,14 @@ contains
 
             ! The 2-body terms are shared memory, no operation is required at this point
         end if
-    end subroutine finalize_freeze_buffers
+    end subroutine flush_freeze_buffers
 
     !------------------------------------------------------------------------------------------!
 
     !> Checks if an entry is zeroed due to frozen orbitals being included
     !> @param[in] indices  array of size 6 containing the indices of the entry in question in the frozen orbital numbering
     !> @return t_freeze  true if the entry is zeroed
-    function t_freeze(indices)
+    pure function t_freeze(indices)
         integer(int64), intent(in) :: indices(num_inds)
         logical :: t_freeze
 
@@ -133,8 +133,9 @@ contains
             ! Count the number of different indices appearing
             counts = count_frozen_inds(indices)
             ! How many pairs of frozen orbitals do we have
+            select case(counts)
             ! 1 => double excitation
-            if(counts == 1) then
+            case(1)
                 idx = frozen_double_entry(indices, prefactor)
                 ! There are up to eight potential double excitations with four given indices
                 ! to which the LMat entry contributes - this is because LMat is hermitian
@@ -152,7 +153,7 @@ contains
                     endif
                 end do
                 ! 2 => single excitation
-            elseif(counts == 2) then
+            case(2)
                 idx(1:2) = frozen_single_entry(indices, prefactor)
 
                 if(idx(1) > 0) then
@@ -162,10 +163,10 @@ contains
                     call add_to_tmat(spatToSpinBeta(idx(1)), spatToSpinBeta(idx(2)))
                 endif
                 ! 3 => diagonal element
-            elseif(counts == 3) then
+            case(3)
                 call frozen_diagonal_entry(indices, prefactor)
                 ECore_local = ECore_local + prefactor * matel
-            endif
+            end select
             ! Zero the matrix element for further usage (i.e. will not turn up anymore)
             matel = 0.0_dp
         endif
@@ -433,11 +434,10 @@ contains
         ! If there is a quadruple index, the spin of it is fixed (both have to be occupied), then,
         ! the prefactor is always +/- 2, depending on if there is more than one direct pair
         if(t_quad) then
-            prefactor = 2.0_dp
             ! The only options with a quadruple index are
             ! a) one direct excitation => -2
-            ! b) three direct exctiations => +2
-            if(directs == 1) prefactor = -1.0_dp * prefactor
+            ! b) three direct exctiations => +2            
+            prefactor = merge(-1.0_dp, 2.0_dp, directs == 1)
         else
             ! In the other case, there are three relevant cases:
             ! a) All excitations are direct => prefactor 8 = 2**3 (all spins are free)
