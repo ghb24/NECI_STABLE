@@ -9,7 +9,7 @@ module pchb_excitgen
     use excit_gens_int_weighted, only: pick_biased_elecs, weighted_single_excit_wrapper, &
                                        pgen_single_4ind
     use FciMCData, only: pSingles, excit_gen_store_type, nInvalidExcits, nValidExcits, &
-                         projEDet, pParallel, pDoubles
+                         pParallel, pDoubles
     use excitation_types, only: DoubleExc_t
     use sltcnd_mod, only: sltcnd_excit
     use procedure_pointers, only: generate_single_excit
@@ -239,8 +239,9 @@ contains
     !! this does two things:
     !! 1. setup the lookup table for the mapping ab -> (a,b)
     !! 2. setup the alias table for picking ab given ij with probability ~<ij|H|ab>
-    subroutine init_pchb_excitgen()
+    subroutine init_pchb_excitgen(projEDet)
         implicit none
+        integer, intent(in) :: projEDet(:)
         integer :: ab, a, b, abMax
         integer :: aerr, nBI
         integer(int64) :: memCost
@@ -266,7 +267,7 @@ contains
         tgtOrbs(:, 0) = 0
 
         ! setup the alias table
-        call setup_pchb_sampler()
+        call setup_pchb_sampler(projEDet)
 
         write(iout, *) "Finished excitation generator initialization"
         ! this is some bias used internally by CreateSingleExcit - not used here
@@ -281,8 +282,9 @@ contains
 
     contains
 
-        subroutine setup_pchb_sampler()
+        subroutine setup_pchb_sampler(projEDet)
             implicit none
+            integer, intent(in) :: projEDet(:)
             integer :: i, j, iSampler
             integer :: ij, ijMax
             integer :: ex(2, 2)
@@ -329,7 +331,7 @@ contains
                                 ! b is alpha for sampe-spin (1) and opp spin w exchange (3)
                                 ex(2, 1) = map_orb(b, (/1, 3/))
                                 ! use the actual matrix elements as weights
-                                w(ab) = abs(sltcnd_excit(projEDet(:, 1), DoubleExc_t(ex), .false.))
+                                w(ab) = abs(sltcnd_excit(projEDet, DoubleExc_t(ex), .false.))
                             end do
                         end do
                         ij = fuseIndex(i, j)
