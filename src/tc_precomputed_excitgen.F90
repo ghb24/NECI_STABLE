@@ -12,7 +12,7 @@ module pcpp_excitgen
     use UMatCache, only: gtID
     use excitation_types, only: SingleExc_t, DoubleExc_t
     use sltcnd_mod, only: sltcnd_excit
-    use util_mod, only: binary_search_first_ge, getSpinIndex, intswap
+    use util_mod, only: binary_search_first_ge, getSpinIndex, intswap, custom_findloc
     use get_excit, only: make_double, make_single
     implicit none
 
@@ -192,7 +192,7 @@ contains
         elec1 = binary_search_first_ge(nI, src1)
         elec2 = binary_search_first_ge(nI, src2)
         call make_double(nI, nJ, elec1, elec2, tgt1, tgt2, ExcitMat, tParity)
-
+       
     contains
 
         function getTgtSym(tgt) result(sym)
@@ -279,6 +279,9 @@ contains
         end function abort_excit
     end subroutine generate_double_pcpp
 
+    !------------------------------------------------------------------------------------------!
+   
+    
     !------------------------------------------------------------------------------------------!
 
     subroutine generate_single_pcpp(nI, elec_map, ilut, nJ, excitMat, tParity, pGen)
@@ -372,6 +375,111 @@ contains
         end do
 
     end function create_elec_map
+
+    !------------------------------------------------------------------------------------------!
+    ! Support routines for HPHF & testing
+    !------------------------------------------------------------------------------------------!
+
+    function calc_pgen_pcpp(ilutI, ex, ic) result(pgen)
+        integer(n_int), intent(in) :: ilutI(0:NIfTot)
+        integer, intent(in) :: ex(2,maxExcit), ic
+        real(dp) :: pgen
+
+        if(ic == 1) then
+            pgen = calc_pgen_singles_pcpp(ilutI,ex(:,1))
+            pgen = pgen * pSingles
+        else
+            pgen = calc_pgen_doubles_pcpp(ilutI,ex(:,1:2))
+            pgen = pgen * (1.0_dp - pSingles)
+        endif
+
+    contains        
+    end function calc_pgen_pcpp
+
+    !------------------------------------------------------------------------------------------!
+
+    !> Returns the probability of generating a single excitation using the pcpp excitation generator
+    !> @param[in] ilutI  starting determinant of the excitation in the ilut format
+    !> @param[in] ex  excitation as a 1-D integer array of size 2
+    !> @return pgen  probability of picking ex as an excitation from ilutI with pcpp mode
+    !!               (does not account for pSingles)
+    function calc_pgen_singles_pcpp(ilutI,ex) result(pgen)
+        integer(n_int), intent(in) :: ilutI(0:NIfTot)
+        integer, intent(in) :: ex(2)
+        
+        real(dp) :: pgen
+
+        integer :: src
+        integer :: elec_map(nel)
+
+        ! First, get the probability to draw the target orbital given the source orbital
+        pgen = single_hole_sampler(ex(1))%getProb(ex(2))
+        ! Now, trace back what the originally drawn source orbital has been
+        elec_map = create_elec_map(ilutI)
+        src = custom_findloc(elec_map, ex(1))
+        ! And then add the probability of drawing that one
+        pgen = pgen * single_elec_sampler%getProb(src)
+        
+    end function calc_pgen_singles_pcpp
+    
+    !------------------------------------------------------------------------------------------!
+
+    !> Returns the probability of generating a double excitation using the pcpp excitation generator
+    !> @param[in] ilutI  starting determinant of the excitation in the ilut format
+    !> @param[in] ex  excitation as a 2-D integer array of size 2x2
+    !> @return pgen  probability of picking ex as an excitation from ilutI with pcpp mode
+    !!               (does not account for 1.0-pSingles)    
+    function calc_pgen_doubles_pcpp(ilutI,ex) result(pgen)
+        integer(n_int), intent(in) :: ilutI(0:NIfTot)
+        integer, intent(in) :: ex(2,2)
+        
+        real(dp) :: pgen
+        real(dp) :: pHoles, pElecs
+        integer :: umElec1, umElec2
+        integer :: elec_map(nel)
+
+        elec_map = create_elec_map(ilutI)
+        associate(tgt1 => ex(2,1), tgt2 => ex(2,2), src1 => ex(1,1), src2 => ex(1,2))
+          ! Get the probability of drawing the two holes (in either order)
+          pHoles = pgen_holes(tgt1, tgt2) + pgen_holes(tgt2, tgt1)
+
+          ! Recover the originally drawn electrons by inverting the map
+          umElec1 = custom_findloc(elec_map, src1)
+          umElec2 = custom_findloc(elec_map, src2)
+
+          ! Get the probability of drawing the two electrons (again, in either order)
+          pElecs = pgen_elecs(umElec1, umElec2, src1) &
+              + pgen_elecs(umElec2, umElec1, elec_map(umElec2))
+          
+          pgen = pHoles * pElecs
+          ! If the spins are different, both combinations could have been chosen,
+          ! so pgen is halved
+          if(G1(tgt2)%Ms == G1(tgt1)%Ms) pgen = pgen * 0.5
+        end associate
+        
+    contains
+
+        function pgen_holes(t1, t2) result(pH)
+            integer, intent(in) :: t1, t2
+            real(dp) :: pH
+            real(dp):: pTGen1, pTGen2
+            
+            pTGen2 = double_hole_two_sampler(ex(1,2), G1(t2)%sym%s, G1(t2)%Ms)%getProb(t2)
+            pTGen1 = double_hole_one_sampler(ex(1,1), G1(t1)%Ms)%getProb(t1)
+            pH = pTGen1*pTGen2            
+        end function pgen_holes
+
+        function pgen_elecs(s1, s2, sI) result(pE)
+            integer, intent(in) :: s1, s2, sI
+            real(dp) :: pE
+            real(dp) :: pSGen1, pSGen2
+
+            pSGen1 = double_elec_one_sampler%getProb(s1)
+            pSGen2 = double_elec_two_sampler(sI)%getProb(s2)
+            pE = pSGen1*pSGen2
+        end function pgen_elecs
+        
+    end function calc_pgen_doubles_pcpp
 
     !------------------------------------------------------------------------------------------!
     ! Initialization routines for the pcpp excitation generator

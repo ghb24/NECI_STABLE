@@ -1,6 +1,10 @@
 #include "macros.h"
+#:include "../algorithms.fpph"
 
 #:set primitive_types = {'integer': {'int32', 'int64'}, 'real': {'sp', 'dp'}, 'complex': {'sp', 'dp'}}
+#:set log_entry = {'logical':{''}}
+#:set extended_types = dict(primitive_types, **log_entry)
+#:set ops = {'integer': '==', 'real': '.isclose.', 'complex': '.isclose.', 'logical': '.eqv.'}
 
 module util_mod
     use util_mod_comparisons
@@ -102,6 +106,14 @@ module util_mod
         module procedure intSwap_int64
         module procedure intSwap_int32
     end interface intSwap
+
+    interface custom_findloc
+        #:for type, kinds in extended_types.items()
+        #:for kind in kinds
+        module procedure custom_findloc_${type}$_${kind}$
+        #:endfor
+        #:endfor
+    end interface custom_findloc
 
     interface cumsum
         #:for type, kinds in primitive_types.items()
@@ -335,9 +347,12 @@ contains
 
     !> Custom implementation of the findloc intrinsic (with somewhat reduced functionality)
     !! as it requires fortran2008 support and is thus not available for some relevant compilers
-    pure function custom_findloc(arr, val, back) result(loc)
-        logical, intent(in) :: arr(:)
-        logical, intent(in) :: val
+    #:for type, kinds in extended_types.items()
+    #:for kind in kinds
+    #:set this_op = ops[type]
+    pure function custom_findloc_${type}$_${kind}$(arr, val, back) result(loc)
+        @{get_decl(${type}$, ${kind}$,0)}@, intent(in) :: arr(:)
+        @{get_decl(${type}$, ${kind}$,0)}@, intent(in) :: val
         logical, intent(in), optional :: back
         integer :: loc
 
@@ -358,12 +373,14 @@ contains
 
         loc = 0
         do i = first, last, step
-            if(arr(i) .eqv. val) then
+            if(arr(i) ${this_op}$ val) then
                 loc = i
                 return
             endif
         end do
-    end function custom_findloc
+    end function custom_findloc_${type}$_${kind}$
+    #:endfor
+    #:endfor
 
 !--- Indexing utilities
 
