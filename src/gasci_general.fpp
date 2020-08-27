@@ -119,8 +119,10 @@ contains
             cum_n_particle = cumsum(particles_per_GAS - B + C)
         end block
 
-        deficit = GAS_spec%cn_min(:) - cum_n_particle(:)
-        vacant = GAS_spec%cn_max(:) - cum_n_particle(:)
+        do iGAS = 1, GAS_spec%nGAS()
+            deficit(iGAS) = GAS_spec%cumulated_min(iGAS) - cum_n_particle(iGAS)
+            vacant(iGAS) = GAS_spec%cumulated_max(iGAS) - cum_n_particle(iGAS)
+        end do
 
         if (any(n_total_ < deficit) .or. all(vacant < n_total_)) then
             spaces = 0

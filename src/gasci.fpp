@@ -35,6 +35,10 @@ module gasci
         module procedure neq_GAS_exc_gen_t
     end interface
 
+    ! NOTE: At the current state of implementation `GASSpec_t` is a completely immutable
+    ! datastructure to outside code after the constructor has been called.
+    ! If possible keep it like this!
+
     !> Speficies the GAS spaces.
     type :: GASSpec_t
         !> The indices are:
@@ -42,7 +46,7 @@ module gasci
         !> cn_min(iGAS) specifies the **cumulated** minimum particle number per GAS space.
         !> cn_max(iGAS) specifies the **cumulated** maximum particle number per GAS space.
         private
-        integer, public, allocatable :: cn_min(:), cn_max(:)
+        integer, allocatable :: cn_min(:), cn_max(:)
         !> GAS_table(i) returns the GAS space for the i-th spin orbital
         integer, allocatable :: GAS_table(:)
         !> The number of spin orbitals per GAS space
@@ -64,6 +68,8 @@ module gasci
         procedure :: GAS_size => get_GAS_size
         procedure :: get_iGAS
         procedure :: get_orb_idx
+        procedure :: cumulated_min
+        procedure :: cumulated_max
         procedure :: split_per_GAS
         procedure :: count_per_GAS
     end type
@@ -114,6 +120,22 @@ contains
         class(GASSpec_t), intent(in) :: self
         integer, intent(in) :: spin_orb_idx
         get_iGAS = self%GAS_table(spin_orb_idx)
+    end function
+
+    !> @brief
+    !> Returns the cumulated minimum particle number for a given GAS space.
+    integer elemental function cumulated_min(self, iGAS)
+        class(GASSpec_t), intent(in) :: self
+        integer, intent(in) :: iGAS
+        cumulated_min = self%cn_min(iGAS)
+    end function
+
+    !> @brief
+    !> Returns the cumulated maximum particle number for a given GAS space.
+    integer elemental function cumulated_max(self, iGAS)
+        class(GASSpec_t), intent(in) :: self
+        integer, intent(in) :: iGAS
+        cumulated_max = self%cn_max(iGAS)
     end function
 
     !> @brief
