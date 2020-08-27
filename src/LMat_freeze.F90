@@ -437,7 +437,7 @@ contains
             ! The only options with a quadruple index are
             ! a) one direct excitation => -2
             ! b) three direct exctiations => +2            
-            prefactor = merge(-1.0_dp, 2.0_dp, directs == 1)
+            prefactor = merge(-2.0_dp, 2.0_dp, directs == 1)
         else
             ! In the other case, there are three relevant cases:
             ! a) All excitations are direct => prefactor 8 = 2**3 (all spins are free)
