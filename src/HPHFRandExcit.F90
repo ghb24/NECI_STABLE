@@ -15,7 +15,7 @@ MODULE HPHFRandExcitMod
                           tUEG, tUEGNewGenerator, t_new_real_space_hubbard, &
                           t_tJ_model, t_heisenberg_model, t_lattice_model, &
                           t_k_space_hubbard, t_3_body_excits, t_uniform_excits, &
-                          t_trans_corr_hop, t_spin_dependent_transcorr, &
+                          t_trans_corr_hop, t_spin_dependent_transcorr, t_pcpp_excitgen, &
                           t_pchb_excitgen, t_mol_3_body, t_ueg_3_body, max_ex_level
 
     use IntegralsData, only: UMat, fck, nMax
@@ -49,6 +49,8 @@ MODULE HPHFRandExcitMod
     use excit_gen_5, only: calc_pgen_4ind_weighted2, gen_excit_4ind_weighted2
 
     use pchb_excitgen, only: calc_pgen_pchb, gen_rand_excit_pchb
+
+    use pcpp_excitgen, only: calc_pgen_pcpp, gen_rand_excit_pcpp, create_elec_map
 
     use sort_mod
 
@@ -272,6 +274,9 @@ contains
             call gen_excit_4ind_weighted2(nI, ilutnI, nJ, ilutnJ, exFlag, ic, &
                                           ExcitMat, tSignOrig, pGen, Hel, &
                                           store)
+        else if(t_pcpp_excitgen) then
+            call gen_rand_excit_pcpp(nI, ilutnI, nJ, iLutnJ, exFlag, IC, ExcitMat, &
+                                     tSignOrig, pGen, HEl, store)
         else if(t_pchb_excitgen) then
             call gen_rand_excit_pchb(nI, ilutnI, nJ, iLutnJ, exFlag, IC, ExcitMat, &
                                      tSignOrig, pGen, HEl, store)
@@ -364,7 +369,8 @@ contains
                 ! set
                 if(.not. store%tFilled) then
                     CALL construct_class_counts(nI, store%ClassCountOcc, &
-                                                store%ClassCountUnocc)
+                        store%ClassCountUnocc)
+                    if(t_pcpp_excitgen) store%elec_map = create_elec_map(ilutnI)
                     store%tFilled = .true.
                 end if
 
@@ -857,6 +863,8 @@ contains
                 else
                     pgen = calc_pgen_k_space_hubbard(nI, ilutI, ex, ic)
                 end if
+            else if(t_pcpp_excitgen) then
+                pgen = calc_pgen_pcpp(ilutI, ex, ic)
             else if(t_pchb_excitgen) then
                 pgen = calc_pgen_pchb(nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2)
             else

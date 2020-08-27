@@ -720,7 +720,7 @@ contains
         store%tFilled = .false.
         store2%tFilled = .false.
         CALL construct_class_counts(ProjEDet(:, 1), store%ClassCountOcc, &
-                                    store%ClassCountUnocc)
+            store%ClassCountUnocc)
         store%tFilled = .true.
         if (tKPntSym) then
             !TODO: It REALLY needs to be fixed so that we don't need to do this!!

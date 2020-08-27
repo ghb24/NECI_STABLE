@@ -382,7 +382,7 @@ contains
 
     function calc_pgen_pcpp(ilutI, ex, ic) result(pgen)
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
-        integer, intent(in) :: ex(2,maxExcit), ic
+        integer, intent(in) :: ex(2,2), ic
         real(dp) :: pgen
 
         if(ic == 1) then
@@ -454,7 +454,7 @@ contains
           pgen = pHoles * pElecs
           ! If the spins are different, both combinations could have been chosen,
           ! so pgen is halved
-          if(G1(tgt2)%Ms == G1(tgt1)%Ms) pgen = pgen * 0.5
+          if(G1(tgt2)%Ms /= G1(tgt1)%Ms) pgen = pgen * 0.5
         end associate
         
     contains
@@ -464,8 +464,8 @@ contains
             real(dp) :: pH
             real(dp):: pTGen1, pTGen2
             
-            pTGen2 = double_hole_two_sampler(ex(1,2), G1(t2)%sym%s, G1(t2)%Ms)%getProb(t2)
-            pTGen1 = double_hole_one_sampler(ex(1,1), G1(t1)%Ms)%getProb(t1)
+            pTGen2 = double_hole_two_sampler(ex(1,2), G1(t2)%sym%s, getSpinIndex(t2))%getProb(t2)
+            pTGen1 = double_hole_one_sampler(ex(1,1), getSpinIndex(t1))%getProb(t1)
             pH = pTGen1*pTGen2            
         end function pgen_holes
 
