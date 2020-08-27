@@ -507,7 +507,7 @@ contains
             write(6,*) 'Opp', itype
             write(6,*) 'ierr', ierr
             call mpi_error_class(ierr, errorclass, jerr)
-            call mpi_error_string(errorclass,string, length, jerr)            
+            call mpi_error_string(errorclass,string, length, jerr)
             call stop_all (t_r, string)
         end if
 #else
@@ -1945,30 +1945,29 @@ contains
 
 
 
-    subroutine MPIStopAll(error_str)
+    subroutine MPIStopAll(error_code)
     use MolproPlugin, only : MolproPluginTerm
 
         !  Abort all processors.
         !
         !  In:
-        !     error_str: parameter string containing error used as argument
-        !                to STOP.
+        !     error_code: Error code to return.
 
-        character(3) :: error_str
-        integer(MPIArg) :: error_code, ierr
+        integer, intent(in) :: error_code
+        integer(MPIArg) :: ierr, error_code_for_MPI
 
-        error_code=0
+        error_code_for_MPI = int(error_code, kind=MPIArg)
+
 #ifdef PARALLEL
         CALL MolproPluginTerm(-1)
 
         ! errorcode: Error returned to invoking environment.
         ! ierror: error status (of abort: was abort successful?)
         ! Currently neither are analysed.
-        call MPI_Abort (CommGlobal, error_code, ierr)
+        call MPI_Abort (CommGlobal, error_code_for_MPI, ierr)
 #endif
 
-        write(6,*) error_str
-        CALL neci_flush(6)
+        CALL neci_flush(iout)
         stop
 
     end subroutine
