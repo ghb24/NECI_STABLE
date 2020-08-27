@@ -304,6 +304,9 @@ contains
         call DetPreFreezeInit()
 
         call CalcInit()
+
+        call set_ref()
+
         t_pcpp_excitgen = .true.
         call init_excit_gen_store(fcimc_excit_gen_store)
     end subroutine init_excitgen_test
@@ -415,10 +418,9 @@ contains
     ! set the reference to the determinant with the first nel orbitals occupied
     subroutine set_ref()
         integer :: i
-        allocate(projEDet(nel, 1))
-        do i = 1, nel
-            projEDet(i, 1) = i + 2
-        end do
+        projEDet = reshape([(i + 2, i = 1, nel)], [nel, 1])
+
+        if (allocated(ilutRef)) deallocate(ilutRef)
         allocate(ilutRef(0:NifTot, 1))
         call encodeBitDet(projEDet(:, 1), ilutRef(:, 1))
     end subroutine set_ref

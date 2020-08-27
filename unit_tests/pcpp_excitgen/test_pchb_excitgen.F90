@@ -2,7 +2,7 @@ program test_pcpp_excitgen
   use constants
   use fruit
   use Parallel_neci, only: MPIInit, MPIEnd
-  use pchb_excitgen
+  use pchb_excitgen, only: gen_rand_excit_pchb, PCHB_FCI
   use unit_test_helper_excitgen
   use orb_idx_mod, only: beta
   use procedure_pointers, only: generate_excitation
@@ -34,7 +34,7 @@ contains
 
     ! prepare the pchb excitgen: set the weights/map-table
     call set_ref()
-    call init_pchb_excitgen()
+    call PCHB_FCI%init()
 
     ! test the excitation generator
     call test_excitation_generator(nSamples,pTot,pNull,numEx,nFound,.true.)
@@ -45,8 +45,24 @@ contains
 
     ! free memory
     call free_ref()
-    call finalize_excitgen_test()
+    call PCHB_FCI%finalize()
   end subroutine pchb_test_driver
+
+  function calc_pgen_pchb(nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2) result(pgen)
+      use constants
+      use SymExcitDataMod, only: scratchSize
+      use bit_rep_data, only: NIfTot
+      use SystemData, only: nel
+      implicit none
+      integer, intent(in) :: nI(nel)
+      integer(n_int), intent(in) :: ilutI(0:NIfTot)
+      integer, intent(in) :: ex(2, 2), ic
+      integer, intent(in) :: ClassCount2(ScratchSize), ClassCountUnocc2(ScratchSize)
+
+      real(dp) :: pgen
+
+      pgen = PCHB_FCI%calc_pgen(nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2)
+  end function
 
   subroutine random_fcidump(iunit)
     integer, intent(in) :: iunit
