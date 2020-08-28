@@ -1493,15 +1493,6 @@ contains
                                         read_tau, PopBlockingIter, PopRandomHash, read_psingles, &
                                         read_pparallel, read_ptriples, read_nnodes, read_walkers_on_nodes, &
                                         PopBalanceBlocks)
-                    ! Use the random hash from the Popsfile. This is so that,
-                    ! if we are using the same number of processors as the job
-                    ! which produced the Popsfile, we can send the determinants
-                    ! to the correct processor directly (see read_pops_nnodes).
-                    ! This won't work if a different random number seed has
-                    ! been used, so we copy the random hash across for safety.
-                    ! This will overwrite current value of RandomHash.
-                    !RandomHash = PopRandomHash(1:nBasis)
-                    !call MPIBcast(RandomHash)
                 else
                     call stop_all(this_routine, "Popsfile version invalid")
                 end if
