@@ -50,7 +50,6 @@ MODULE HPHFRandExcitMod
 
     use excit_gen_5, only: calc_pgen_4ind_weighted2, gen_excit_4ind_weighted2
 
-!     use pchb_excitgen, only: calc_pgen_pchb, gen_rand_excit_pchb
     use pchb_excitgen, only: PCHB_FCI
 
     use sort_mod
