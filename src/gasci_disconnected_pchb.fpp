@@ -31,7 +31,7 @@ module gasci_disconnected_pchb
 
         procedure :: init_GAS_pchb_excitgen
 
-        procedure, nopass :: is_allowed => GAS_allowed
+        procedure, nopass, public :: is_allowed => GAS_allowed
     end type
 
     !>  @brief
