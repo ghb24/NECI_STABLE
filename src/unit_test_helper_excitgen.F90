@@ -132,9 +132,12 @@ contains
             numEx = numEx + 1
             allEx(0:nifd, numEx) = ilutJ(0:nifd)
         end do
+        call sort(nI)
 
         write(iout, *) "In total", numEx, "excits, (", nSingles, nDoubles, ")"
         write(iout, *) "Exciting from", nI
+
+        call EncodeBitDet(nI, ilut)
 
         ! set the biases for excitation generation
         pParallel = 0.5_dp
@@ -250,6 +253,8 @@ contains
         integer(int64) :: umatsize
         real(dp) :: ecore
         character(*), parameter :: this_routine = 'init_excitgen_test'
+        integer, parameter :: seed = 25
+
         umatsize = 0
         nel = n_el
 
@@ -267,7 +272,7 @@ contains
         tTransGTID = .false.
         tReadFreeFormat = .true.
 
-        call dSFMT_init(25)
+        call dSFMT_init(seed)
 
         call SetCalcDefaults()
         call SetSysDefaults()
@@ -376,7 +381,7 @@ contains
 
         iunit = get_free_unit()
 
-        open(iunit, file="FCIDUMP")
+        open (iunit, file="FCIDUMP")
         write(iunit, *) "&FCI NORB=", nSpatOrbs, ",NELEC=", nel, "MS2=", lms, ","
         write(iunit, "(A)", advance="no") "ORBSYM="
         do i = 1, nSpatOrbs
@@ -403,7 +408,7 @@ contains
 
         write(iunit, *) h_cast(0.0_dp), 0, 0, 0, 0
 
-        close(iunit)
+        close (iunit)
 
     end subroutine generate_uniform_integrals
 
@@ -430,8 +435,8 @@ contains
         integer :: file_id
 
         file_id = get_free_unit()
-        open(file_id, file=path, status='old')
-        close(file_id, status='delete')
+        open (file_id, file=path, status='old')
+        close (file_id, status='delete')
     end subroutine
 
     subroutine write_file(writer)
@@ -439,8 +444,8 @@ contains
         integer :: file_id
 
         file_id = get_free_unit()
-        open(file_id, file=writer%filepath)
+        open (file_id, file=writer%filepath)
         call writer%write(file_id)
-        close(file_id)
+        close (file_id)
     end subroutine
 end module unit_test_helper_excitgen

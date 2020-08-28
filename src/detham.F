@@ -12,9 +12,7 @@
       use hphf_integrals, only: hphf_off_diag_helement
       use DetBitOps, only: EncodeBitDet
       use orb_idx_mod, only: SpinOrbIdx_t
-      use gasci, only: GAS_spec=>GAS_specification,operator(.contains.),
-     &  GAS_exc_gen, possible_GAS_exc_gen, operator(==)
-      use disconnected_gasci, only: isValidExcit
+      use gasci, only: GAS_spec=>GAS_specification
 
       use guga_matrixElements, only: calcDiagMatEleGuga_nI
       use guga_excitations, only: calc_guga_matrix_element
@@ -122,19 +120,10 @@ C..   Now we need to match up any two determinants
 C            CALL SLTCND(NEL,NBASISMAX,NHG,
 C     &     FCK,NMAX,ALAT,UMAT,TOTSUM)
             if(tGAS) then
-              if (GAS_exc_gen == possible_GAS_exc_gen%DISCONNECTED) then
-                if(.not. isValidExcit(ilutI,ilutJ)) then
-                    totsum = 0.0_dp
-                end if
-              else if (GAS_exc_gen == possible_GAS_exc_gen%GENERAL) then
-                associate(det_I => SpinOrbIdx_t(NMRKS(:, KI)),
-     &                    det_J => SpinOrbIdx_t(NMRKS(:, KJ)))
-                    if (.not. ((GAS_spec .contains. det_I)
-     &                         .and. (GAS_spec .contains. det_J))) then
+                if (.not. GAS_spec%contains(NMRKS(:, KI))
+     &              .or. .not. GAS_spec%contains(NMRKS(:, KJ))) then
                         totsum = 0.0_dp
-                    end if
-                end associate
-              end if
+                end if
             end if
             IF(ABS(TOTSUM).LT.1.0e-10_dp) TOTSUM=0.0_dp
             IF(.not. near_zero(TOTSUM) .OR. KI == KJ) THEN
