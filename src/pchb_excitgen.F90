@@ -10,7 +10,7 @@ module pchb_excitgen
     use pchb_factory, only: PCHB_excitation_generator_t
     use GenRandSymExcitNUMod, only: calc_pgen_symrandexcit2
     use excitation_types, only: DoubleExc_t
-    implicit none(type, external)
+    implicit none
 
     private
 
