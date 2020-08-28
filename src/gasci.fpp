@@ -60,6 +60,7 @@ module gasci
         !> is defined.
         integer, allocatable :: splitted_orbitals(:, :)
     contains
+        ! All member functions should be public.
         procedure :: contains => contains_det
         procedure :: is_connected
         procedure :: is_valid

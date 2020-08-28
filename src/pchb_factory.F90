@@ -1,32 +1,29 @@
 #include "macros.h"
 module pchb_factory
     use constants
-    use SystemData, only: nel, nBasis, G1, tStoreSpinOrbs, AB_elec_pairs, par_elec_pairs, &
-                          t_pchb_weighted_singles
+    use SystemData, only: nel, nBasis, AB_elec_pairs, par_elec_pairs
     use bit_rep_data, only: NIfTot
     use dSFMT_interface, only: genrand_real2_dSFMT
     use get_excit, only: make_double, exciteIlut
-    use excit_gens_int_weighted, only: pick_biased_elecs, weighted_single_excit_wrapper, &
-                                       pgen_single_4ind
+    use excit_gens_int_weighted, only: pick_biased_elecs
     use FciMCData, only: pSingles, excit_gen_store_type, nInvalidExcits, nValidExcits, &
-                         pParallel, pDoubles, projEDet
+                         pParallel, projEDet
     use excitation_types, only: DoubleExc_t
     use sltcnd_mod, only: sltcnd_excit
     use procedure_pointers, only: generate_single_excit_t
     use UMatCache, only: gtID, numBasisIndices
     use aliasSampling, only: aliasSamplerArray_t
-    use util_mod, only: fuseIndex, linearIndex, intswap, getSpinIndex, near_zero
-    use GenRandSymExcitNUMod, only: uniform_single_excit_wrapper, calc_pgen_symrandexcit2
-    use SymExcitDataMod, only: pDoubNew, scratchSize
-    use sym_general_mod, only: IsSymAllowedExcitMat
+    use util_mod, only: fuseIndex, intswap, getSpinIndex, near_zero
+    use SymExcitDataMod, only: pDoubNew, ScratchSize
     implicit none
 
     private
 
-!     public :: calc_pgen_pchb, init_pchb_excitgen, finalize_pchb_excitgen, gen_rand_excit_pchb
     public :: PCHB_excitation_generator_t
 
     abstract interface
+        !> @brief
+        !> Check if a double excitation is allowed.
         logical pure function is_allowed_excitation_t(exc)
             import :: DoubleExc_t
             type(DoubleExc_t), intent(in) :: exc
@@ -57,23 +54,37 @@ module pchb_factory
         procedure(calc_pgen_t), pointer, nopass :: calc_pgen_single => null()
 
     contains
+        private
         procedure ::  init_pchb_excitgen
         generic, public :: init => init_pchb_excitgen
         procedure, public :: finalize
         procedure, public :: gen_excit
 
         procedure, public :: calc_pgen => calc_pgen_pchb
+
         procedure :: generate_double
         procedure :: calc_double_pgen_pchb
 
-        procedure(is_allowed_excitation_t), deferred, nopass :: is_allowed
+        ! Should be protected in C++ language, but there is only private or public :-(.
+        procedure(is_allowed_excitation_t), deferred, nopass, public :: is_allowed
     end type
 
 
 contains
 
-    ! this is the interface routine: for singles, use the uniform excitgen
-    ! for doubles, the precomputed heat-bath weights
+    !>  @brief
+    !>  The excitation generator subroutine for PCHB.
+    !>
+    !>  @details
+    !>  This is a wrapper to match the function pointer interface.
+    !>  The interface is common to all excitation generators, see proc_ptrs.F90
+    !>
+    !>  For doubles, the precomputed heat-bath weights are used.
+    !>  In order to work the child classes have to override `is_allowed`
+    !>  and supply a single excitation generator as function pointer in the init method.
+    !>
+    !>  If possible one can supply also a calc_pgen routine for single excitations.
+    !>  Then it is possible to calculate the pgens for arbitrary connected configurations.
     subroutine gen_excit(this, nI, ilutI, nJ, ilutJ, ic, ex, tpar, &
                          pgen, helgen, store)
         class(PCHB_excitation_generator_t), intent(in) :: this
@@ -109,8 +120,10 @@ contains
 
     !------------------------------------------------------------------------------------------!
 
-    !> given the initial determinant (both as nI and ilut), create a random double
-    !! excitation using the hamiltonian matrix elements as weights
+    !>  @brief
+    !>  Given the initial determinant (both as nI and ilut), create a random double
+    !>  excitation using the hamiltonian matrix elements as weights
+    !>
     !> @param[in] nI  determinant to excite from
     !> @param[in] elec_map  map to translate electron picks to orbitals
     !> @param[in] ilut  determinant to excite from in ilut format
@@ -201,13 +214,16 @@ contains
 
     !------------------------------------------------------------------------------------------!
 
-    !> Calculate the probability of generating a given excitation with the pchb excitgen
-    !> @param[in] nI  determinant to start from
-    !> @param[in] ex  2x2 excitation matrix
-    !> @param[in] ic  excitation level
-    !> @param[in] ClassCount2  symmetry information of the determinant
-    !> @param[in] ClassCountUnocc2  symmetry information of the virtual orbitals
-    !> @return pGen  probability of drawing this excitation with the pchb excitgen
+    !>  @brief
+    !>  Calculate the probability of generating a given excitation with the pchb excitgen
+    !>
+    !>  @param[in] nI  determinant to start from
+    !>  @param[in] ex  2x2 excitation matrix
+    !>  @param[in] ic  excitation level
+    !>  @param[in] ClassCount2  symmetry information of the determinant
+    !>  @param[in] ClassCountUnocc2  symmetry information of the virtual orbitals
+    !>
+    !>  @return pGen  probability of drawing this excitation with the pchb excitgen
     function calc_pgen_pchb(this, nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2) result(pgen)
         class(PCHB_excitation_generator_t), intent(in) :: this
         integer, intent(in) :: nI(nel)
@@ -228,9 +244,12 @@ contains
 
     !------------------------------------------------------------------------------------------!
 
-    !> Calculate the probability of drawing a given double excitation ex
-    !> @param[in] ex  2x2 excitation matrix
-    !> @return pgen  probability of generating this double with the pchb double excitgen
+    !>  @brief
+    !>  Calculate the probability of drawing a given double excitation ex
+    !>
+    !>  @param[in] ex  2x2 excitation matrix
+    !>
+    !>  @return pgen  probability of generating this double with the pchb double excitgen
     function calc_double_pgen_pchb(this, ex) result(pgen)
         class(PCHB_excitation_generator_t), intent(in) :: this
         integer, intent(in) :: ex(2, 2)
@@ -268,10 +287,13 @@ contains
 
     !------------------------------------------------------------------------------------------!
 
-    !> initialize the pchb excitation generator
-    !! this does two things:
-    !! 1. setup the lookup table for the mapping ab -> (a,b)
-    !! 2. setup the alias table for picking ab given ij with probability ~<ij|H|ab>
+    !>  @brief
+    !>  Initialize the pchb excitation generator
+    !>
+    !>  @details
+    !>  This does two things:
+    !>  1. setup the lookup table for the mapping ab -> (a,b)
+    !>  2. setup the alias table for picking ab given ij with probability ~<ij|H|ab>
     subroutine init_pchb_excitgen(this, generate_single, calc_pgen_single)
         class(PCHB_excitation_generator_t), intent(inout) :: this
         procedure(generate_single_excit_t) :: generate_single
@@ -404,7 +426,8 @@ contains
         end function map_orb
     end subroutine init_pchb_excitgen
 
-
+    !> @brief
+    !> Placeholder function that should fail at runtime.
     real(dp) function calc_pgen_single_todo(nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2)
         integer, intent(in) :: nI(nel)
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
@@ -422,7 +445,8 @@ contains
 
     !------------------------------------------------------------------------------------------!
 
-    !> deallocate the sampler and the mapping ab -> (a,b)
+    !>  @brief
+    !>  Deallocate the sampler and the mapping ab -> (a,b)
     subroutine finalize(this)
         class(PCHB_excitation_generator_t), intent(inout) :: this
         integer :: samplerIndex
@@ -433,5 +457,4 @@ contains
         deallocate(this%tgtOrbs)
         deallocate(this%pExch)
     end subroutine
-
 end module pchb_factory

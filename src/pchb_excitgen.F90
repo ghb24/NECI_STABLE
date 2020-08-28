@@ -6,7 +6,7 @@ module pchb_excitgen
     use GenRandSymExcitNUMod, only: uniform_single_excit_wrapper
     use excit_gens_int_weighted, only: gen_single_4ind_ex, pgen_single_4ind
     use FciMCData, only: pSingles, excit_gen_store_type, pDoubles
-    use SymExcitDataMod, only: scratchSize
+    use SymExcitDataMod, only: ScratchSize
     use pchb_factory, only: PCHB_excitation_generator_t
     use GenRandSymExcitNUMod, only: calc_pgen_symrandexcit2
     use excitation_types, only: DoubleExc_t
@@ -14,16 +14,16 @@ module pchb_excitgen
 
     private
 
-!     public :: calc_pgen_pchb, init_pchb_excitgen, finalize_pchb_excitgen, gen_rand_excit_pchb
     public :: gen_rand_excit_pchb, PCHB_FCI
 
     type, extends(PCHB_excitation_generator_t) :: PCHB_FCI_excit_generator_t
         private
     contains
+        private
         procedure :: init_FCI_pchb_excitgen
         generic, public :: init => init_FCI_pchb_excitgen
 
-        procedure, nopass :: is_allowed => all_allowed
+        procedure, nopass, public :: is_allowed => all_allowed
     end type
 
     type(PCHB_FCI_excit_generator_t) :: PCHB_FCI
@@ -35,8 +35,15 @@ contains
         all_allowed = .true.
     end function
 
-    ! this is the interface routine: for singles, use the uniform excitgen
-    ! for doubles, the precomputed heat-bath weights
+
+    !>  @brief
+    !>  The excitation generator subroutine for Full CI PCHB.
+    !>
+    !>  @details
+    !>  This is a wrapper to match the function pointer interface.
+    !>  The interface is common to all excitation generators, see proc_ptrs.F90
+    !>
+    !>  For singles, use the uniform or weighted excitgen.
     subroutine gen_rand_excit_pchb(nI, ilutI, nJ, ilutJ, exFlag, ic, ex, tpar, &
                                    pgen, helgen, store, part_type)
         ! The interface is common to all excitation generators, see proc_ptrs.F90
@@ -59,12 +66,14 @@ contains
     subroutine init_FCI_pchb_excitgen(this)
         class(PCHB_FCI_excit_generator_t), intent(inout) :: this
 
+        ! It is not possible to define the wrapper functions as
+        ! internal procedure, because the lifetime of internal procedures
+        ! ends with the scope of the defining procedure.
         if (t_pchb_weighted_singles) then
             call this%init(weighted_single_excit_wrapper, calc_pgen_weighted_single)
         else
             call this%init(gen_uniform_single, calc_pgen_uniform_single)
         end if
-
     end subroutine
 
     !> Wrapper function to create a weighted single excitation
@@ -82,6 +91,7 @@ contains
         call gen_single_4ind_ex(nI, ilutI, nJ, ilutJ, ex, tpar, pgen)
     end subroutine weighted_single_excit_wrapper
 
+    !> Wrapper function to calculate pgen for weighted single excitation
     function calc_pgen_weighted_single(nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2) result(pgen)
         integer, intent(in) :: nI(nel)
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
@@ -106,6 +116,7 @@ contains
         pgen = pgen / pSingles
     end subroutine
 
+    !> Wrapper function to calculate pgen for uniform single excitation
     function calc_pgen_uniform_single(nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2) result(pgen)
         integer, intent(in) :: nI(nel)
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
