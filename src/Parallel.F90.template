@@ -1946,7 +1946,8 @@ contains
 
 
     subroutine MPIStopAll(error_code)
-    use MolproPlugin, only : MolproPluginTerm
+        use MolproPlugin, only : MolproPluginTerm
+        use fortran_strings, only: str
 
         !  Abort all processors.
         !
@@ -1954,9 +1955,7 @@ contains
         !     error_code: Error code to return.
 
         integer, intent(in) :: error_code
-        integer(MPIArg) :: ierr, error_code_for_MPI
-
-        error_code_for_MPI = int(error_code, kind=MPIArg)
+        integer(MPIArg) :: ierr
 
 #ifdef PARALLEL
         CALL MolproPluginTerm(-1)
@@ -1964,12 +1963,11 @@ contains
         ! errorcode: Error returned to invoking environment.
         ! ierror: error status (of abort: was abort successful?)
         ! Currently neither are analysed.
-        call MPI_Abort (CommGlobal, error_code_for_MPI, ierr)
+        call MPI_Abort(CommGlobal, int(error_code, kind=MPIArg), ierr)
 #endif
 
         CALL neci_flush(iout)
         stop
-
     end subroutine
 
 
