@@ -5,7 +5,7 @@ System read
     nobrillouintheorem
     freeformat
     spin-restrict 0
-    GAS-CI only_disconnected
+    GAS-CI disconnected
     GAS-SPEC +++
     3 +++
     2 2 2 +++
