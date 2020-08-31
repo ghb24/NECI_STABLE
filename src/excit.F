@@ -37,7 +37,7 @@
 #ifdef DEBUG_
          character(*), parameter :: this_routine = "FindExcitDet"
 #endif
-         integer :: i,j,k, pos_moved
+         integer :: i,j,k, pos_moved, tmp(ic)
          integer :: src(ic), sort_orbs(ic), sort_elecs(ic)
 
          ! adapt this for double excitations now..
@@ -55,8 +55,9 @@
 
         sort_elecs = ExcitMat(1,:)
 
-        !Return Excitmat with orbitals, rather than indices being specified.
-        ExcitMat(1,:) = nI(ExcitMat(1,:))
+        ! Return Excitmat with orbitals, rather than indices being specified.
+        tmp = ExcitMat(1,:)
+        ExcitMat(1,:) = nI(tmp)
 
         ! this is the same functionality as in make_double.. but much more
         ! involved here.. so just take the core from make double and others..
