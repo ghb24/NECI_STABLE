@@ -1,0 +1,43 @@
+TITLE
+ 
+SYSTEM READ NOORDER
+ELECTRONS   10
+NOBRILLOUINTHEOREM
+molecular-transcorr 3-body
+nonuniformrandexcits pchb
+hphf 0
+ENDSYS
+ 
+CALC
+METHODS
+METHOD VERTEX FCIMC
+ENDMETHODS
+nmcyc 1000
+SEED        -7
+TOTALWALKERS       10000
+DIAGSHIFT       1.5000000000
+SHIFTDAMP       0.1000000000
+STEPSSHIFT      10
+tau 0.001
+max-tau 0.001
+hist-tau-search 0.99999 20000 20000
+MEMORYFACPART         1.500000000000000
+MEMORYFACSPAWN         5.
+TRUNCINITIATOR
+ADDTOINITIATOR        2
+allrealcoeff
+realspawncutoff 1.
+AVGROWTHRATE
+startsinglepart 40
+definedet 1 2 3 4 5 6 7 8 9 10
+load-balance-interval 1000
+ENDCALC
+
+integral
+hdf5-integrals
+endint
+ 
+LOGGING
+popsfile -1
+ENDLOG
+END

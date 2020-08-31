@@ -131,10 +131,6 @@ module ParallelHelper
     integer(MPIArg), parameter :: MpiDetInt = MPI_INTEGER4
 #endif
 
-! SDS: We just no longer use MPI logical variables, and work around with
-!      integers instead
-!! This is a hack to work around disagreement between compilers on what
-!! datatype is acceptable for logical variables in MPI routines.
 #else
     ! In serial, set this to a nonsense value
     integer(MPIArg), parameter :: MpiDetInt = -1
