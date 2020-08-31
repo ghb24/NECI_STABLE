@@ -89,7 +89,7 @@ module fcimc_helper
     use guga_bitrepops, only: write_det_guga, calc_csf_info, &
                               transfer_stochastic_rdm_info
 
-    use real_time_data, only: t_complex_ints, runge_kutta_step, tVerletSweep, &
+    use real_time_data, only: runge_kutta_step, tVerletSweep, &
                               t_rotated_time, t_real_time_fciqmc
 
     use back_spawn, only: setup_virtual_mask

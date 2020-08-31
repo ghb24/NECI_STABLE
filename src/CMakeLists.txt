@@ -71,6 +71,7 @@ set( SRC_FILES
     hist_data.F90
     HPHFRandExcit.F90
     hubbard.F
+	impurity_models.F90
 	index_rhash.F90
     init_coul2D.F
     init_coul.F

@@ -5,11 +5,11 @@
 module real_time_init
 
     use real_time_data, only: t_real_time_fciqmc, gf_type, real_time_info, &
-                              t_complex_ints, gf_overlap, temp_det_list, dyn_norm_red, &
+                              gf_overlap, temp_det_list, dyn_norm_red, &
                               temp_det_pointer, temp_det_hash, temp_freeslot, tOverpopulate, &
                               pert_norm, second_spawn_iter_data, DiagParts, stepsAlpha, &
                               DiagVec, normsize, valid_diag_spawns, tStabilizerShift, &
-                              spawnBuf, &
+                              spawnBuf,&
                               tDynamicAlpha, &
                               gf_count, &
                               allPopSnapshot, &
@@ -51,7 +51,7 @@ module real_time_init
                          SpawnedParts, core_run
     use core_space_util, only: cs_replicas
     use SystemData, only: lms, G1, nBasisMax, tHub, nel, tComplexWalkers_RealInts, &
-                          nBasis, tReal, t_k_space_hubbard
+         nBasis, tReal, t_k_space_hubbard, t_complex_ints
     use k_space_hubbard, only: init_k_space_hubbard
     use SymExcitDataMod, only: kTotal
     use sym_mod, only: MomPbcSym
@@ -513,6 +513,9 @@ contains
         corespace_log_interval = 300
         ! Get the full Green's function, not only in the corespace
         tGZero = .false.
+
+        ! Do not use additional damping quadratic in energy
+        real_time_info%quad_damp_fac = 0.0_dp
     end subroutine set_real_time_defaults
 
     ! need a specific popsfile read function for the real-time calculation
@@ -662,6 +665,7 @@ contains
         use FciMCData, only: AllSumNoatHF
         use bit_rep_data, only: extract_sign
         use bit_reps, only: encode_sign
+        use util_mod, only: near_zero
         implicit none
 
         integer :: signs(lenof_sign), iGf
@@ -669,15 +673,17 @@ contains
         real(dp) :: tmp_sgn(lenof_sign)
 
         signs = 1
-        if (AllSumNoatHF(1) > 0) then
-        do i = 1, lenof_sign
-            if (AllSumNoatHF(i) / AllSumNoatHF(1) < 0) then
-                signs(i) = -1
-            else
-                signs(i) = 1
-            end if
-        end do
+
+        if(.not. near_zero(AllSumNoatHF(1))) then
+            do i = 1, lenof_sign
+                if (AllSumNoatHF(i) / AllSumNoatHF(1) < 0) then
+                    signs(i) = -1
+                else
+                    signs(i) = 1
+                end if
+            end do
         end if
+
         if (any(signs < 0)) then
             do i = 1, TotWalkers
                 call extract_sign(CurrentDets(:, i), tmp_sgn)

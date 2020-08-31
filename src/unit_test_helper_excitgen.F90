@@ -2,7 +2,7 @@
 
 module unit_test_helper_excitgen
     use constants
-    use bit_reps, only: IlutBits
+    use bit_reps, only: IlutBits, init_bit_rep
     use read_fci, only: readfciint, initfromfcid, fcidump_name
     use shared_memory_mpi, only: shared_allocate_mpi, shared_deallocate_mpi
     use IntegralsData, only: UMat, umat_win
@@ -249,7 +249,7 @@ contains
         ! This requires setup of the basis, the symmetries and the integrals
         integer, intent(in) :: n_el
         type(FciDumpWriter_t), intent(in) :: fcidump_writer
-        integer :: nBasisMax(n_el, 3), lms
+        integer :: nBasisMax(5, 3), lms
         integer(int64) :: umatsize
         real(dp) :: ecore
         character(*), parameter :: this_routine = 'init_excitgen_test'
@@ -306,6 +306,8 @@ contains
         call CalcInit()
         t_pcpp_excitgen = .true.
         call init_excit_gen_store(fcimc_excit_gen_store)
+
+        call init_bit_rep()
     end subroutine init_excitgen_test
 
     !------------------------------------------------------------------------------------------!
