@@ -1937,7 +1937,7 @@ contains
         character(*), parameter :: t_r = 'init_fcimc_fn_pointers'
 
         ! Select the excitation generator.
-        if (tHPHF) then
+        if (tHPHF .and. .not. (t_mol_3_body .or. t_ueg_3_body)) then
             generate_excitation => gen_hphf_excit
         else if (tGAS) then
             if (GAS_exc_gen == possible_GAS_exc_gen%GENERAL) then
@@ -1955,7 +1955,7 @@ contains
             else
                 generate_excitation => gen_excit_k_space_hub_transcorr
             end if
-        else if (tHPHF) then
+        else if (tHPHF .and. .not. (t_mol_3_body .or. t_ueg_3_body)) then
             generate_excitation => gen_hphf_excit
         else if (t_ueg_3_body) then
             if (tTrcorrExgen) then
@@ -2014,7 +2014,11 @@ contains
         if (t_mol_3_body) then
             ! yes, fortran pointers work this way
             generate_two_body_excitation => generate_excitation
-            generate_excitation => gen_excit_mol_tc
+            if(tHPHF) then
+                generate_excitation => gen_hphf_excit
+            else
+                generate_excitation => gen_excit_mol_tc
+            end if
         end if
 
         ! In the main loop, we only need to find out if a determinant is

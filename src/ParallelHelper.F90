@@ -141,7 +141,7 @@ module ParallelHelper
 !      integers instead
 !! This is a hack to work around disagreement between compilers on what
 !! datatype is acceptable for logical variables in MPI routines.
-!#ifdef __MPILOGTYPE
+!#ifdef MPILOGTYPE_
 !    integer(MPIArg), parameter :: MPI_LOGTYPE4 = MPI_LOGICAL4
 !    integer(MPIArg), parameter :: MPI_LOGTYPE8 = MPI_LOGICAL8
 !#else

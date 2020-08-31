@@ -76,7 +76,6 @@ contains
         tISKFuncs = .false.       !This is for kpoint symmetry with inversion so that determinants can be combined.
         tKPntSym = .false.        !This is for k-point symmetry with the symrandexcit2 excitation generators.
         tNoSinglesPossible = .false.
-        t_mol_3_body = .false.
         tMCSizeSpace = .false.
         t_impurity_system = .false.
         CalcDetPrint = 1000
