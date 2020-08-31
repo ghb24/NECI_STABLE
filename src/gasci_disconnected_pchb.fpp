@@ -108,13 +108,18 @@ contains
         src_spaces = GAS_specification%get_iGAS(exc%val(1, :))
         tgt_spaces = GAS_specification%get_iGAS(exc%val(2, :))
 
-        if (tGASSpinRecoupling) then
+        if (all(src_spaces == tgt_spaces) .and. src_spaces(1) == src_spaces(2)) then
+            ! All electrons come from the same space and there are no restrictions
+            ! regarding recoupling.
+            GAS_allowed = .true.
+        else if (tGASSpinRecoupling) then
+            ! Ensure that the number of particles per GAS space stays constant.
             if (src_spaces(1) > src_spaces(2)) call intswap(src_spaces(1), src_spaces(2))
             if (tgt_spaces(1) > tgt_spaces(2)) call intswap(tgt_spaces(1), tgt_spaces(2))
             GAS_allowed = all(src_spaces == tgt_spaces)
         else
-            ! If Spin recoupling is forbidden, the spin projection per GAS space
-            ! has to stay the same.
+            ! Ensure that the number of particles and the spin projection
+            ! per GAS space stays constant.
             block
                 type(SpinProj_t) :: src_spins(2), tgt_spins(2)
                 #:set spin_swap = functools.partial(swap, 'SpinProj_t', "", 0)
