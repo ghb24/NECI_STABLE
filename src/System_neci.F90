@@ -1814,10 +1814,12 @@ contains
                     select case (w)
                     case ('GENERAL')
                         user_input_GAS_exc_gen = possible_GAS_exc_gen%GENERAL
-                    case ('ONLY_DISCONNECTED')
+                    case ('DISCONNECTED')
                         user_input_GAS_exc_gen = possible_GAS_exc_gen%DISCONNECTED
                     case ('DISCARDING')
                         user_input_GAS_exc_gen = possible_GAS_exc_gen%DISCARDING
+                    case ('DISCONNECTED_PCHB')
+                        user_input_GAS_exc_gen = possible_GAS_exc_gen%DISCONNECTED_PCHB
                     case default
                         call Stop_All("ReadSysInp", trim(w)//" not a valid keyword")
                     end select

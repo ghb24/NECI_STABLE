@@ -25,7 +25,9 @@ module gasci_disconnected
 
     private
     public :: init_disconnected_GAS, gen_GASCI_disconnected, &
-        clearGAS, oddBits, calc_pgen, dyn_calc_pgen
+        clearGAS, calc_pgen, dyn_calc_pgen
+
+    public :: generate_nGAS_single
 
 
     #:for function_name in ['get_cumulative_list', 'get_mat_element', 'pick_weighted_hole', 'calc_pgen']

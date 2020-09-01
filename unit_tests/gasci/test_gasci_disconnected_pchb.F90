@@ -1,4 +1,4 @@
-module test_gasci_discarding_mod
+module test_gasci_disconnected_pchb_mod
     use fruit
     use constants, only: dp, n_int
     use util_mod, only: operator(.div.), operator(.isclose.), near_zero
@@ -6,7 +6,7 @@ module test_gasci_discarding_mod
     use excitation_types, only: Excitation_t
 
     use gasci, only: GASSpec_t
-    use gasci_discarding, only: gen_GASCI_discarding, init_GASCI_discarding, finalize_GASCI_discarding
+    use gasci_disconnected_pchb, only: gen_GASCI_pchb, disconnected_GAS_PCHB
     use gasci_general, only: gen_all_excits
 
     use sltcnd_mod, only: dyn_sltcnd_excit
@@ -31,7 +31,7 @@ contains
         integer, parameter :: det_I(6) = [1, 2, 3, 7, 8, 10]
 
         logical :: successful
-        integer, parameter :: n_iters=5 * 10**6
+        integer, parameter :: n_iters=2 * 10**6
 
         pParallel = 0.05_dp
         pSingles = 0.3_dp
@@ -46,15 +46,15 @@ contains
         global_GAS_spec = GAS_spec
 
         call init_excitgen_test(size(det_I), FciDumpWriter_t(random_fcidump, 'FCIDUMP'))
-        call init_GASCI_discarding()
+        call disconnected_GAS_PCHB%init()
         call run_excit_gen_tester( &
-            gen_GASCI_discarding, 'discarding GASCI implementation, random fcidump', &
+            gen_GASCI_pchb, 'Disconnected PCHB GASCI implementation, random fcidump', &
             opt_nI=det_I, opt_n_iters=n_iters, &
             gen_all_excits=gen_all_excits, &
             problem_filter=is_problematic,&
             successful=successful)
         call assert_true(successful)
-        call finalize_GASCI_discarding()
+        call disconnected_GAS_PCHB%finalize()
         call finalize_excitgen_test()
 
     contains
@@ -79,14 +79,14 @@ contains
         end function
 
     end subroutine test_pgen
-end module test_gasci_discarding_mod
+end module test_gasci_disconnected_pchb_mod
 
 program test_gasci_program
 
     use mpi
     use fruit
     use Parallel_neci, only: MPIInit, MPIEnd
-    use test_gasci_discarding_mod, only: test_pgen
+    use test_gasci_disconnected_pchb_mod, only: test_pgen
 
 
     implicit none

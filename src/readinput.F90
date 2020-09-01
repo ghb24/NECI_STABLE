@@ -199,7 +199,11 @@ contains
             else
                 ! at the moment the discarding GAS is unfortunately the fastest
                 ! (even for disconnected spaces).
-                GAS_exc_gen = possible_GAS_exc_gen%DISCARDING
+                if (GAS_specification%is_connected()) then
+                    GAS_exc_gen = possible_GAS_exc_gen%DISCARDING
+                else
+                    GAS_exc_gen = possible_GAS_exc_gen%DISCONNECTED_PCHB
+                end if
             end if
         end if
 
@@ -259,7 +263,7 @@ contains
         use hist_data, only: tHistSpawn
         use Parallel_neci, only: nNodes, nProcessors
         use UMatCache, only: tDeferred_Umat2d
-        use gasci, only: GAS_specification, GAS_exc_gen, possible_GAS_exc_gen, operator(==)
+        use gasci, only: GAS_specification, GAS_exc_gen, possible_GAS_exc_gen, operator(==), operator(/=)
 
         use guga_init, only: checkInputGUGA
         implicit none
@@ -626,11 +630,14 @@ contains
             if (.not. GAS_specification%is_valid()) then
                 call stop_all(t_r, "GAS specification not valid.")
             end if
-            if (GAS_specification%is_connected() .and. .not. tGASSpinRecoupling) then
-                call stop_all(t_r, "Running GAS without spin-recoupling requires disconnected spaces.")
+            if (.not. tGASSpinRecoupling .and. all(GAS_exc_gen /= [possible_GAS_exc_gen%DISCONNECTED, possible_GAS_exc_gen%DISCONNECTED_PCHB])) then
+                call stop_all(t_r, "Running GAS without spin-recoupling requires disconnected implementations.")
             end if
             if (GAS_exc_gen == possible_GAS_exc_gen%DISCONNECTED .and.  GAS_specification%is_connected()) then
-                call stop_all(t_r, "Running GAS-CI = ONLY_DISCONNECTED requires disconnected spaces.")
+                call stop_all(t_r, "Running GAS-CI = DISCONNECTED requires disconnected spaces.")
+            end if
+            if (GAS_exc_gen == possible_GAS_exc_gen%DISCONNECTED_PCHB .and.  GAS_specification%is_connected()) then
+                call stop_all(t_r, "Running GAS-CI = DISCONNECTED_PCHB requires disconnected spaces.")
             end if
         end if
 
