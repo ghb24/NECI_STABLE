@@ -12,8 +12,6 @@ import operator
 import optparse
 import re
 import sys
-import matplotlib
-matplotlib.use('TkAgg')
 # import pylab
 import matplotlib.pyplot as plt
 import numpy

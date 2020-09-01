@@ -128,13 +128,11 @@ module real_time_data
         ! the Schroedinger equation id/dt y(t) = (H-E0-ie)y(t)
         real(dp) :: damping = 0.0_dp
         real(dp) :: time_angle = 0.0_dp
+        real(dp) :: quad_damp_fac = 0.0_dp
 
     end type real_time_type
 
     type(real_time_type) :: real_time_info
-
-    ! info if the FCIDUMP integrals are complex
-    logical :: t_complex_ints = .true.
 
     ! for hubbard model: Info if the perturbation operators are in k-space
     logical :: t_kspace_operators

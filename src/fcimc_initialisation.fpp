@@ -18,8 +18,8 @@ module fcimc_initialisation
                           t_lattice_model, t_tJ_model, t_heisenberg_model, &
                           t_k_space_hubbard, t_3_body_excits, breathingCont, &
                           momIndexTable, t_trans_corr_2body, t_non_hermitian, &
-                          tgen_guga_crude, &
-                          t_uniform_excits, t_mol_3_body, t_ueg_transcorr, t_ueg_3_body, tLatticeGens, &
+                          tgen_guga_crude, t_impurity_excitgen, &
+                          t_uniform_excits, t_mol_3_body,t_ueg_transcorr,t_ueg_3_body,tLatticeGens, &
                           irrepOrbOffset, nIrreps, &
                           tTrcorrExgen, nClosedOrbs, irrepOrbOffset, nIrreps, &
                           nOccOrbs, tNoSinglesPossible, t_pcpp_excitgen, &
@@ -252,6 +252,8 @@ module fcimc_initialisation
     use lattice_models_utils, only: gen_all_excits_k_space_hubbard, gen_all_excits_r_space_hubbard
 
     use pchb_excitgen, only: gen_rand_excit_pchb, PCHB_FCI
+
+    use impurity_models, only: setupImpurityExcitgen, clearImpurityExcitgen, gen_excit_impurity_model
 
     use symexcit3, only: gen_all_excits_default => gen_all_excits
     implicit none
@@ -1726,6 +1728,7 @@ contains
         ! initialize excitation generator
         if (t_pcpp_excitgen) call init_pcpp_excitgen()
         if (t_pchb_excitgen) call PCHB_FCI%init()
+        if(t_impurity_excitgen) call setupImpurityExcitgen()
         ! [W.D.] I guess I want to initialize that before the tau-search,
         ! or otherwise some pgens get calculated incorrectly
         if (t_back_spawn .or. t_back_spawn_flex) then
@@ -1940,7 +1943,7 @@ contains
         character(*), parameter :: t_r = 'init_fcimc_fn_pointers'
 
         ! Select the excitation generator.
-        if (tHPHF) then
+        if (tHPHF .and. .not. (t_mol_3_body .or. t_ueg_3_body)) then
             generate_excitation => gen_hphf_excit
         else if (tGAS) then
             if (GAS_exc_gen == possible_GAS_exc_gen%GENERAL) then
@@ -1960,16 +1963,18 @@ contains
             else
                 generate_excitation => gen_excit_k_space_hub_transcorr
             end if
-        else if (tHPHF) then
+        else if (tHPHF .and. .not. (t_mol_3_body .or. t_ueg_3_body)) then
             generate_excitation => gen_hphf_excit
         else if (t_ueg_3_body) then
             if (tTrcorrExgen) then
                 generate_two_body_excitation => gen_ueg_excit
             else if (TLatticeGens) then
                 generate_two_body_excitation => gen_rand_excit
-            end if
+            endif
             generate_excitation => gen_excit_mol_tc
-        else if ((t_back_spawn_option .or. t_back_spawn_flex_option)) then
+        elseif(t_impurity_excitgen) then
+            generate_excitation => gen_excit_impurity_model
+        elseif ((t_back_spawn_option .or. t_back_spawn_flex_option)) then
             if (tHUB .and. tLatticeGens) then
                 ! for now the hubbard + back-spawn still uses the old
                 ! genrand excit gen
@@ -2019,7 +2024,11 @@ contains
         if (t_mol_3_body) then
             ! yes, fortran pointers work this way
             generate_two_body_excitation => generate_excitation
-            generate_excitation => gen_excit_mol_tc
+            if(tHPHF) then
+                generate_excitation => gen_hphf_excit
+            else
+                generate_excitation => gen_excit_mol_tc
+            end if
         end if
 
         ! In the main loop, we only need to find out if a determinant is
@@ -2312,6 +2321,7 @@ contains
         ! Cleanup excitation generator
         if (t_pcpp_excitgen) call finalize_pcpp_excitgen()
         if (t_pchb_excitgen) call PCHB_FCI%finalize()
+        if(t_impurity_excitgen) call clearImpurityExcitgen()
 
         if (tSemiStochastic) call end_semistoch()
 
