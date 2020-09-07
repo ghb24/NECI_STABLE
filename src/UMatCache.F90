@@ -1388,7 +1388,7 @@ Contains
         nBI = numBasisIndices(nBasis)
         ! allocate the storage
         if(.not. associated(UMat2D)) then
-            allocate(UMat2D(nBI, nBI))
+            allocate(UMat2D(nBI, nBI), stat = ierr)
             call LogMemAlloc('UMat2D', nBI**2, 8 * HElement_t_size, t_r, tagUMat2D, ierr)
         end if
 
