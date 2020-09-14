@@ -1,15 +1,15 @@
 module real_time_read_input_module
-    use real_time_data
-    use real_time_init, only: set_real_time_defaults, benchmarkenergy
-    use FciMCData, only: alloc_popsfile_dets, pops_pert
-    use CalcData, only: tAddToInitiator, tTruncInitiator, tWalkContGrow, tStartSinglePart, &
-                        tWritePopsNorm, tReadPops, ss_space_in, tSemiStochastic
-    use perturbations, only: init_perturbation_creation, init_perturbation_annihilation
-    use kp_fciqmc_data_mod, only: tOverlapPert, overlap_pert, tScalePopulation
-    use SystemData, only: nel, tComplexWalkers_RealInts
-    use constants
+  use real_time_data
+  use real_time_init, only: set_real_time_defaults, benchmarkenergy
+  use FciMCData, only: alloc_popsfile_dets, pops_pert
+  use CalcData, only: tAddToInitiator, tTruncInitiator, tWalkContGrow, tStartSinglePart, &
+       tWritePopsNorm, tReadPops, ss_space_in, tSemiStochastic
+  use perturbations, only: init_perturbation_creation, init_perturbation_annihilation
+  use kp_fciqmc_data_mod, only: tOverlapPert, overlap_pert, tScalePopulation
+  use SystemData, only: nel, tComplexWalkers_RealInts, t_complex_ints
+  use constants
 
-contains
+  contains
 
     ! need a real-time calc read_input routine to seperate that as much
     ! from the rest of the code as possible!
@@ -448,6 +448,14 @@ contains
                 ! This prints out the complex time trajectory in the form of alpha(iter)
                 ! and tau(iter)
                 tLogTrajectory = .true.
+
+             case("QUAD-DAMP")
+                ! Additional energy-dependent damping (quadratic in H)
+                if (item < nitems) then
+                    call readf(real_time_info%quad_damp_fac)
+                else
+                    real_time_info%quad_damp_fac = 0.5d0
+                end if
 
             case ("GENERATE-CORESPACE")
                 ! Now, we write out the most important determinants along the contour

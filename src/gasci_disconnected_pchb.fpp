@@ -108,7 +108,7 @@ contains
         src_spaces = GAS_specification%get_iGAS(exc%val(1, :))
         tgt_spaces = GAS_specification%get_iGAS(exc%val(2, :))
 
-        if (src_spaces == tgt_spaces .and. src_spaces(1) == src_spaces(2)) then
+        if (all(src_spaces == tgt_spaces) .and. src_spaces(1) == src_spaces(2)) then
             ! All electrons come from the same space and there are no restrictions
             ! regarding recoupling.
             GAS_allowed = .true.

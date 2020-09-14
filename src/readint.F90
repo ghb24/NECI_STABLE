@@ -205,7 +205,8 @@ contains
     SUBROUTINE GETFCIBASIS(NBASISMAX, ARR, BRR, G1, LEN, TBIN)
         use SystemData, only: BasisFN, BasisFNSize, Symmetry, NullBasisFn, tMolpro, tUHF
         use SystemData, only: tCacheFCIDUMPInts, tROHF, tFixLz, iMaxLz, tRotatedOrbsReal
-        use SystemData, only: tReadFreeFormat, SYMMAX, tReltvy, irrepOrbOffset, nIrreps, t_non_hermitian
+        use SystemData, only: tReadFreeFormat, SYMMAX, tReltvy, irrepOrbOffset, &
+            nIrreps, t_non_hermitian, t_complex_ints
         use UMatCache, only: nSlotsInit, CalcNSlotsInit
         use UMatCache, only: GetCacheIndexStates, GTID
         use SymData, only: nProp, PropBitLen, TwoCycleSymGens
@@ -414,7 +415,12 @@ contains
                 ! This means it won't work with more than 999 basis
                 ! functions...
 #ifdef CMPLX_
-1               read(iunit, *, END=99) Z, I, J, K, L
+1               if (t_complex_ints) then
+                    read(iunit, *, END=99) Z, I, J, K, L
+                else
+                    read(iunit, *, END=99) real_time_Z, I, J, K, L
+                    Z = dcmplx(real_time_Z, 0.0_dp)
+                end if
 #else
 1               CONTINUE
                 !It is possible that the FCIDUMP can be written out in complex notation, but still only
@@ -603,7 +609,7 @@ contains
         use SystemData, only: BasisFN, BasisFNSize, BasisFNSizeB, tMolpro
         use SystemData, only: UMatEps, tCacheFCIDUMPInts, tUHF, t_non_hermitian
         use SystemData, only: tRIIntegrals, nBasisMax, tROHF, tRotatedOrbsReal
-        use SystemData, only: tReadFreeFormat, G1, tFixLz, tReltvy, nIrreps
+        use SystemData, only: tReadFreeFormat, G1, tFixLz, tReltvy, nIrreps, t_complex_ints
         USE UMatCache, only: UMatInd, UMatConj, UMAT2D, TUMAT2D, nPairs, CacheFCIDUMP
         USE UMatCache, only: FillUpCache, GTID, nStates, nSlots, nTypes
         USE UMatCache, only: UMatCacheData, UMatLabels, GetUMatSize
@@ -612,7 +618,6 @@ contains
         use Parallel_neci
         use shared_memory_mpi
         use SymData, only: nProp, PropBitLen, TwoCycleSymGens
-        use real_time_data, only: t_complex_ints
         use util_mod, only: get_free_unit, near_zero
         IMPLICIT NONE
         integer, intent(in) :: NBASIS

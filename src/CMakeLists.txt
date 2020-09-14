@@ -71,6 +71,7 @@ set( SRC_FILES
     hist_data.F90
     HPHFRandExcit.F90
     hubbard.F
+	impurity_models.F90
 	index_rhash.F90
     init_coul2D.F
     init_coul.F
@@ -91,6 +92,7 @@ set( SRC_FILES
     lineup.F
     LMat_calc.F90
 	LMat_class.F90
+	LMat_freeze.F90
     LMat_indexing.F90
     LMat_mod.F90
     load_balance_calcnodes.F90

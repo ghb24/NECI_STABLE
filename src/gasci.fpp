@@ -307,7 +307,6 @@ contains
                         monotonic, n_orbs_correct])
     end function
 
-
     subroutine split_per_GAS(self, occupied, splitted, splitted_sizes)
         class(GASSpec_t), intent(in) :: self
         integer, intent(in) :: occupied(:)

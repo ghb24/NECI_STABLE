@@ -76,9 +76,8 @@ contains
         tISKFuncs = .false.       !This is for kpoint symmetry with inversion so that determinants can be combined.
         tKPntSym = .false.        !This is for k-point symmetry with the symrandexcit2 excitation generators.
         tNoSinglesPossible = .false.
-        t_mol_3_body = .false.
         tMCSizeSpace = .false.
-        t_impurity_system = .false.
+        t_impurity_excitgen = .false.
         CalcDetPrint = 1000
         CalcDetCycles = 10000
         tFixLz = .false.
@@ -1714,7 +1713,8 @@ contains
             case ("KPOINTS")
                 tKPntSym = .true.
             case ("IMPURITY-EXCITGEN")
-                t_impurity_system = .true.
+                ! Use the impurity model excitation generator (star geometry)
+                t_impurity_excitgen = .true.
             case ("MOLPROMIMIC")
                 !Mimic the run-time behaviour of molpros NECI implementation
                 tMolpro = .true.
@@ -1732,6 +1732,7 @@ contains
                 ! In case complex walkers shall be used but not complex basis functions,
                 ! such that the integrals are real and have full symmetry
                 tComplexWalkers_RealInts = .true.
+                t_complex_ints = .false.
 
             case ("SYSTEM-REPLICAS")
                 ! How many copies of the simulation do we want to run in parallel?
