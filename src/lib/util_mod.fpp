@@ -1,5 +1,6 @@
 #include "macros.h"
 #:include "../algorithms.fpph"
+#:include "../macros.fpph"
 
 #:set primitive_types = {'integer': {'int32', 'int64'}, 'real': {'sp', 'dp'}, 'complex': {'sp', 'dp'}}
 #:set log_entry = {'logical':{''}}
@@ -53,9 +54,31 @@ module util_mod
 
 
     interface
-        subroutine stop_all(sub_name, error_msg)
+        ! NOTE: A stop all is of course state-changing, but even
+        !   the Fortran standard allows an `error stop`.
+        pure subroutine stop_all(sub_name, error_msg)
             character(*), intent(in) :: sub_name, error_msg
         end subroutine
+    end interface
+
+    ! This function uses the Gamma function and is probably faster, than calculating
+    ! with faculty and integers, **but** it might be off by +-1.
+    interface fast_choose
+    #:for kind in primitive_types['integer']
+        module procedure fast_choose_${kind}$
+    #:endfor
+    end interface
+
+    interface choose
+    #:for kind in primitive_types['integer']
+        module procedure choose_${kind}$
+    #:endfor
+    end interface
+
+    interface factrl
+    #:for kind in primitive_types['integer']
+        module procedure factrl_${kind}$
+    #:endfor
     end interface
 
 
@@ -508,46 +531,81 @@ contains
 #endif
     end function
 
-    elemental real(dp) function factrl(n)
+#:for kind in primitive_types['integer']
+    !> @brief
+    !> A faster binomial function using the Gamma function.
+    elemental function fast_choose_${kind}$(n, k) result(res)
+        integer(${kind}$), intent(in) :: n, k
+        integer(${kind}$) :: res
+#ifdef DEBUG_
+        character(*), parameter :: this_routine = "fast_choose"
+#endif
+        @:pure_ASSERT(n >= 0_${kind}$)
+        @:pure_ASSERT(k >= 0_${kind}$)
 
-        ! Return the factorial on n, i.e. n!
-        ! This is not done in the most efficient way possible (i.e. use with
-        ! care if N is large, or if called many times!).
-        ! If a more efficient procedure is required, refer to:
-        ! http://www.luschny.de/math/factorial/FastFactorialFunctions.htm.
+        if (k > n) then
+            res = 0_${kind}$
+        else
+            res = nint(gamma(real(n + 1_${kind}$, dp)) &
+                        / (gamma(real(n - k + 1_${kind}$, dp)) * gamma(real(k + 1_${kind}$, dp))), ${kind}$)
+        end if
+    end function
 
-        integer, intent(in) :: n
-        integer :: i
 
-        factrl = 1
-        do i = 2, n
-            factrl = factrl * i
-        enddo
-    end function factrl
+    !> @brief
+    !> Return the factorial on n, i.e. n!
+    !>
+    !> @details
+    !> This is not done in the most efficient way possible (i.e. use with
+    !> care if N is large, or if called many times!).
+    !> If a more efficient procedure is required, refer to:
+    !> http://www.luschny.de/math/factorial/FastFactorialFunctions.htm.
+    elemental function factrl_${kind}$(n) result(res)
+        integer(${kind}$), intent(in) :: n
+        integer(${kind}$) :: res
+#ifdef DEBUG_
+        character(*), parameter :: this_routine = "factrl_${kind}$"
+#endif
+        integer(${kind}$) :: i
 
-    elemental real(dp) function choose(n, r)
+        @:pure_ASSERT(n >= 0_${kind}$)
 
-        ! Return the binomail coefficient nCr
+        res = 1_${kind}$
+        do i = 2_${kind}$, n
+            res = res * i
+        end do
+    end function
 
-        integer, intent(in) :: n, r
-        integer :: i, k
+
+    !> @brief
+    !> Return the binomail coefficient nCr
+    elemental function choose_${kind}$(n, r) result(res)
+        integer(${kind}$), intent(in) :: n, r
+        integer(${kind}$) :: res
+        integer(${kind}$) :: i, k
+#ifdef DEBUG_
+        character(*), parameter :: this_routine = "choose"
+#endif
+        @:pure_ASSERT(n >= 0_${kind}$)
+        @:pure_ASSERT(r >= 0_${kind}$)
 
         if(r > n) then
-            choose = 0
+            res = 0_${kind}$
         else
             ! Always use the smaller possibility
-            if(r > (n / 2)) then
+            if(r > (n / 2_${kind}$)) then
                 k = n - r
             else
                 k = r
             endif
 
-            choose = 1
-            do i = 0, k - 1
-                choose = (choose * (n - i)) / (i + 1)
+            res = 1_${kind}$
+            do i = 0_${kind}$, k - 1_${kind}$
+                res = (res * (n - i)) / (i + 1_${kind}$)
             enddo
         endif
-    end function choose
+    end function
+#:endfor
 
     elemental integer(int32) function div_int32(a, b)
         integer(int32), intent(in) :: a, b
@@ -1205,7 +1263,7 @@ contains
     #:endfor
     #:endfor
 
-    DEBUG_IMPURE function lex_leq(lhs, rhs) result(res)
+    pure function lex_leq(lhs, rhs) result(res)
         integer, intent(in) :: lhs(:), rhs(size(lhs))
         logical :: res
         character(*), parameter :: this_routine = 'lex_leq'
@@ -1224,7 +1282,7 @@ contains
         end do
     end function
 
-    DEBUG_IMPURE function lex_geq(lhs, rhs) result(res)
+    pure function lex_geq(lhs, rhs) result(res)
         integer, intent(in) :: lhs(:), rhs(size(lhs))
         logical :: res
         character(*), parameter :: this_routine = 'lex_geq'
@@ -1243,6 +1301,38 @@ contains
         end do
     end function
 
+    !> @brief
+    !> Create all possible permutations of [1, ..., n]
+    pure function get_permutations(n) result(res)
+        integer, intent(in) :: n
+        integer :: res(n, factrl(n))
+
+        integer :: tmp(n), i, j, k, f
+
+        tmp = [(i, i = 1, n)]
+
+        res(:, 1) = tmp
+        do f = 2, size(res, 2)
+            i = 2
+            do while (tmp(i - 1) > tmp(i))
+                i = i + 1
+            end do
+            j = 1
+            do while (tmp(j) > tmp(i))
+                j = j + 1
+            end do
+            call intswap(tmp(i), tmp(j))
+
+            i = i - 1
+            j = 1
+            do while (j < i)
+                call intswap(tmp(i), tmp(j))
+                i = i - 1
+                j = j + 1
+            end do
+            res(:, f) = tmp
+        end do
+    end function
 end module
 
 !Hacks for compiler specific system calls.

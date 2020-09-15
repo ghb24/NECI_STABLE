@@ -36,3 +36,10 @@ endif
         call stop_all (this_routine, "Assert fail: ${cond}$")
     end if
 #:enddef
+
+
+#:def pure_ASSERT(cond, *args)
+    if (.not. (${cond}$)) then
+        call stop_all (this_routine, "Assert fail: ${cond}$")
+    end if
+#:enddef

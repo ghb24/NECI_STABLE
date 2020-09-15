@@ -3,7 +3,7 @@
 
 module gasci
     use SystemData, only: nBasis
-    use util_mod, only: cumsum
+    use util_mod, only: cumsum, stop_all
     implicit none
 
     private
@@ -19,7 +19,8 @@ module gasci
             DISCONNECTED = GAS_exc_gen_t(1), &
             GENERAL = GAS_exc_gen_t(2), &
             DISCARDING = GAS_exc_gen_t(3), &
-            DISCONNECTED_PCHB = GAS_exc_gen_t(4)
+            DISCONNECTED_PCHB = GAS_exc_gen_t(4), &
+            GENERAL_PCHB = GAS_exc_gen_t(5)
     end type
 
     type(possible_GAS_exc_gen_t), parameter :: possible_GAS_exc_gen = possible_GAS_exc_gen_t()
@@ -144,13 +145,13 @@ contains
     !>
     !> @details
     !>  Can be seen as the preimage of get_iGAS (which is usually not injective).
-    integer impure elemental function get_orb_idx(self, i, iGAS)
+    integer elemental function get_orb_idx(self, i, iGAS)
         class(GASSpec_t), intent(in) :: self
         integer, intent(in) :: i, iGAS
         character(*), parameter :: this_routine = 'get_orb_idx'
 
-        @:ASSERT(1 <= i .and. i <= self%GAS_size(iGAS))
-        @:ASSERT(1 <= iGAS .and. iGAS <= self%nGAS())
+        @:pure_ASSERT(1 <= i .and. i <= self%GAS_size(iGAS))
+        @:pure_ASSERT(1 <= iGAS .and. iGAS <= self%nGAS())
 
         get_orb_idx = self%splitted_orbitals(i, iGAS)
     end function
@@ -206,11 +207,11 @@ contains
 
         contains
 
-        DEBUG_IMPURE function frequency(N) result(res)
+        pure function frequency(N) result(res)
             integer, intent(in) :: N(:)
             integer, allocatable :: res(:)
             integer :: i
-            @:ASSERT(minval(N) == 1, N)
+            @:pure_ASSERT(minval(N) == 1, N)
             allocate(res(maxval(N)), source=0)
             do i = 1, size(N)
                 res(N(i)) = res(N(i)) + 1
@@ -239,7 +240,7 @@ contains
     !>
     !>  @param[in] GAS_spec, Specification of GAS spaces (GASSpec_t).
     !>  @param[in] occupied, An index of occupied spin orbitals.
-    function contains_det(self, occupied) result(res)
+    pure function contains_det(self, occupied) result(res)
         class(GASSpec_t), intent(in) :: self
         integer, intent(in) :: occupied(:)
 
@@ -307,7 +308,7 @@ contains
                         monotonic, n_orbs_correct])
     end function
 
-    subroutine split_per_GAS(self, occupied, splitted, splitted_sizes)
+    pure subroutine split_per_GAS(self, occupied, splitted, splitted_sizes)
         class(GASSpec_t), intent(in) :: self
         integer, intent(in) :: occupied(:)
         integer, intent(out) :: &
@@ -324,7 +325,7 @@ contains
         end do
     end subroutine
 
-    function count_per_GAS(self, occupied) result(splitted_sizes)
+    pure function count_per_GAS(self, occupied) result(splitted_sizes)
         class(GASSpec_t), intent(in) :: self
         integer, intent(in) :: occupied(:)
 

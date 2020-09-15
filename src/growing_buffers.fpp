@@ -74,7 +74,7 @@ contains
     !>
     !> @param[in] start_size Initial size of the buffer.
     !> @param[in] grow_factor Factor about which to grow the buffer, if the capacity is not sufficient.
-    subroutine init_${_get_name(data_name, rank)}$ (this, grow_factor, start_size)
+    pure subroutine init_${_get_name(data_name, rank)}$ (this, grow_factor, start_size)
         class(buffer_${_get_name(data_name, rank)}$_t), intent(inout) :: this
         real(dp), optional, intent(in) :: grow_factor
         integer(int64), optional, intent(in) :: start_size
@@ -88,7 +88,7 @@ contains
 
     !>  @brief
     !>  Reset an already initiliazed buffer.
-    subroutine reset_${_get_name(data_name, rank)}$ (this)
+    pure subroutine reset_${_get_name(data_name, rank)}$ (this)
         class(buffer_${_get_name(data_name, rank)}$_t), intent(inout) :: this
 
         deallocate(this%buf)
@@ -107,7 +107,7 @@ contains
     !> @param[in] start_size Initial size of the buffer along the last dimension.
     !> @param[in] grow_factor Factor about which to grow the buffer along the last dimension,
     !>              if the capacity is not sufficient.
-    subroutine init_${_get_name(data_name, rank)}$ (this, rows, grow_factor, start_size)
+    pure subroutine init_${_get_name(data_name, rank)}$ (this, rows, grow_factor, start_size)
         class(buffer_${_get_name(data_name, rank)}$_t), intent(inout) :: this
         integer, intent(in) :: rows
         real, optional, intent(in) :: grow_factor
@@ -122,7 +122,7 @@ contains
 
     !>  @brief
     !>  Reset an already initiliazed buffer.
-    subroutine reset_${_get_name(data_name, rank)}$ (this)
+    pure subroutine reset_${_get_name(data_name, rank)}$ (this)
         class(buffer_${_get_name(data_name, rank)}$_t), intent(inout) :: this
 
         integer(int64) :: rows
@@ -139,7 +139,7 @@ contains
     #:set select = functools.partial(_select, rank, rank)
     !>  @brief
     !>  Deallocate the resource.
-    subroutine finalize_${_get_name(data_name, rank)}$ (this)
+    pure subroutine finalize_${_get_name(data_name, rank)}$ (this)
         class(buffer_${_get_name(data_name, rank)}$_t), intent(inout) :: this
 
         if (allocated(this%buf)) deallocate(this%buf)
@@ -177,7 +177,7 @@ contains
     !>  Append a value to the buffer, expanding the capacity if necessary.
     !>
     !>  @param[in] val Value to be added
-    subroutine add_val_${_get_name(data_name, rank)}$ (this, val)
+    pure subroutine add_val_${_get_name(data_name, rank)}$ (this, val)
         class(buffer_${_get_name(data_name, rank)}$_t), intent(inout) :: this
         @{get_decl(${type}$, ${kind}$, ${int(rank) - 1}$)}@, intent(in) :: val
 
@@ -215,7 +215,7 @@ contains
     !>
     !>  @param[out] tgt Allocatable array (reset upon entry), contains the stored elements of
     !>                   the buffer on return. The buffer has to be reinitialized if used again.
-    subroutine dump_${_get_name(data_name, rank)}$ (this, tgt)
+    pure subroutine dump_${_get_name(data_name, rank)}$ (this, tgt)
         class(buffer_${_get_name(data_name, rank)}$_t), intent(inout) :: this
         @{get_decl(${type}$, ${kind}$, ${rank}$, allocatable=True)}@, intent(out) :: tgt
 
@@ -226,7 +226,7 @@ contains
     !>
     !>  @param[out] tgt Allocatable array (reset upon entry), contains the stored elements of
     !>                   the buffer on return. The buffer is writable afterwards.
-    subroutine dump_reset_${_get_name(data_name, rank)}$ (this, tgt)
+    pure subroutine dump_reset_${_get_name(data_name, rank)}$ (this, tgt)
         class(buffer_${_get_name(data_name, rank)}$_t), intent(inout) :: this
         @{get_decl(${type}$, ${kind}$, ${rank}$, allocatable=True)}@, intent(out) :: tgt
 

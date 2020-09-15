@@ -24,6 +24,7 @@
 module excitation_types
     use constants, only: dp, n_int, bits_n_int
     use bit_rep_data, only: nIfTot
+    use util_mod, only: stop_all
     use SystemData, only: nEl
     use orb_idx_mod, only: SpinOrbIdx_t
     use sets_mod, only: disjoint, subset, is_sorted, special_union_complement
@@ -394,23 +395,23 @@ contains
         res = det_I
     end function
 
-    DEBUG_IMPURE function excite_nI_SingleExc_t(det_I, exc) result(res)
+    pure function excite_nI_SingleExc_t(det_I, exc) result(res)
         integer, intent(in) :: det_I(:)
         type(SingleExc_t), intent(in) :: exc
         integer :: res(size(det_I))
         character(*), parameter :: this_routine = 'excite_SingleExc_t'
 
-        @:ASSERT(defined(exc), exc%val)
+        @:pure_ASSERT(defined(exc), exc%val)
         associate(src => exc%val(1), tgt => exc%val(2))
-            @:ASSERT(src /= tgt)
-            @:ASSERT(disjoint([tgt], det_I))
-            @:ASSERT(subset([src], det_I))
+            @:pure_ASSERT(src /= tgt)
+            @:pure_ASSERT(disjoint([tgt], det_I))
+            @:pure_ASSERT(subset([src], det_I))
             res = special_union_complement(det_I, [tgt], [src])
         end associate
     end function
 
 
-    DEBUG_IMPURE function excite_nI_DoubleExc_t(det_I, exc) result(res)
+    pure function excite_nI_DoubleExc_t(det_I, exc) result(res)
         integer, intent(in) :: det_I(:)
         type(DoubleExc_t), intent(in) :: exc
         integer :: res(size(det_I))
@@ -418,16 +419,16 @@ contains
 
         integer :: src(2), tgt(2), i
 
-        @:ASSERT(defined(exc), exc%val)
+        @:pure_ASSERT(defined(exc), exc%val)
         src = exc%val(1, :)
         tgt = exc%val(2, :)
         if (src(1) > src(2)) call swap(src(1), src(2))
         if (tgt(1) > tgt(2)) call swap(tgt(1), tgt(2))
-        @:ASSERT(is_sorted(src))
-        @:ASSERT(is_sorted(tgt))
-        @:ASSERT(disjoint(src, tgt))
-        @:ASSERT(disjoint(tgt, det_I))
-        @:ASSERT(subset(src, det_I))
+        @:pure_ASSERT(is_sorted(src))
+        @:pure_ASSERT(is_sorted(tgt))
+        @:pure_ASSERT(disjoint(src, tgt))
+        @:pure_ASSERT(disjoint(tgt, det_I))
+        @:pure_ASSERT(subset(src, det_I))
 
         res = special_union_complement(det_I, tgt, src)
 
@@ -450,7 +451,7 @@ contains
         res%idx = excite(det_I%idx, exc)
     end function
 
-    DEBUG_IMPURE function excite_SpinOrbIdx_t_SingleExc_t(det_I, exc) result(res)
+    pure function excite_SpinOrbIdx_t_SingleExc_t(det_I, exc) result(res)
         type(SpinOrbIdx_t), intent(in) :: det_I
         type(SingleExc_t), intent(in) :: exc
         type(SpinOrbIdx_t) :: res
@@ -459,7 +460,7 @@ contains
     end function
 
 
-    DEBUG_IMPURE function excite_SpinOrbIdx_t_DoubleExc_t(det_I, exc) result(res)
+    pure function excite_SpinOrbIdx_t_DoubleExc_t(det_I, exc) result(res)
         type(SpinOrbIdx_t), intent(in) :: det_I
         type(DoubleExc_t), intent(in) :: exc
         type(SpinOrbIdx_t) :: res
@@ -476,22 +477,22 @@ contains
         res = ilut_I
     end function
 
-    DEBUG_IMPURE function excite_Ilut_t_SingleExc_t(ilut_I, exc) result(res)
+    pure function excite_Ilut_t_SingleExc_t(ilut_I, exc) result(res)
         integer(n_int), intent(in) :: ilut_I(:)
         type(SingleExc_t), intent(in) :: exc
         integer(n_int) :: res(0:size(ilut_I) - 1)
         character(*), parameter :: this_routine = 'excite_SingleExc_t'
 
         associate(src => exc%val(1), tgt => exc%val(2))
-            @:ASSERT(defined(exc), exc%val)
-            @:ASSERT(src /= tgt, src, tgt)
+            @:pure_ASSERT(defined(exc), exc%val)
+            @:pure_ASSERT(src /= tgt, src, tgt)
             res = ilut_I
             clr_orb(res, src)
             set_orb(res, tgt)
         end associate
     end function
 
-    DEBUG_IMPURE function excite_Ilut_t_DoubleExc_t(ilut_I, exc) result(res)
+    pure function excite_Ilut_t_DoubleExc_t(ilut_I, exc) result(res)
         integer(n_int), intent(in) :: ilut_I(:)
         type(DoubleExc_t), intent(in) :: exc
         integer(n_int) :: res(0:size(ilut_I) - 1)
@@ -501,9 +502,9 @@ contains
 
         src = exc%val(1, :)
         tgt = exc%val(2, :)
-        @:ASSERT(defined(exc), exc%val)
+        @:pure_ASSERT(defined(exc), exc%val)
         do i = 1, 2
-            @:ASSERT(all(src(i) /= tgt), src(i), tgt)
+            @:pure_ASSERT(all(src(i) /= tgt), src(i), tgt)
         end do
         res = ilut_I
         clr_orb(res, src(1))
@@ -512,7 +513,7 @@ contains
         set_orb(res, tgt(2))
     end function
 
-    DEBUG_IMPURE function dyn_excite(det_I, exc) result(res)
+    pure function dyn_excite(det_I, exc) result(res)
         type(SpinOrbIdx_t), intent(in) :: det_I
         class(Excitation_t), intent(in) :: exc
         character(*), parameter :: this_routine = 'dyn_excite'

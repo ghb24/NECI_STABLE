@@ -10,7 +10,7 @@ module orb_idx_mod
     use bit_rep_data, only: nIfTot, nIfD
     use bit_reps, only: decode_bit_det
     use DetBitOps, only: EncodeBitDet
-    use util_mod, only: ilex_leq => lex_leq, ilex_geq => lex_geq
+    use util_mod, only: ilex_leq => lex_leq, ilex_geq => lex_geq, stop_all
     implicit none
     private
     public :: OrbIdx_t, SpinOrbIdx_t, SpatOrbIdx_t, size, &
@@ -93,7 +93,7 @@ module orb_idx_mod
 
 contains
 
-    DEBUG_IMPURE function construction_from_array_SpinOrbIdx_t(idx, m_s) result(res)
+    pure function construction_from_array_SpinOrbIdx_t(idx, m_s) result(res)
         integer, intent(in) :: idx(:)
         type(SpinProj_t), intent(in), optional :: m_s
         type(SpinOrbIdx_t) :: res
@@ -101,7 +101,7 @@ contains
         character(*), parameter :: this_routine = 'construction_from_array_SpinOrbIdx_t'
 
         if (present(m_s)) then
-            @:ASSERT(any(m_s == [alpha, beta]))
+            @:pure_ASSERT(any(m_s == [alpha, beta]))
             spins = calc_spin_raw(idx)
             res%idx = pack(idx, spins == m_s)
         else
@@ -133,7 +133,7 @@ contains
     end function
 #:endfor
 
-    DEBUG_IMPURE function SpinOrbIdx_t_from_SpatOrbIdx_t(spat_orbs, m_s) result(res)
+    pure function SpinOrbIdx_t_from_SpatOrbIdx_t(spat_orbs, m_s) result(res)
         type(SpatOrbIdx_t), intent(in) :: spat_orbs
         type(SpinProj_t), intent(in), optional :: m_s
         type(SpinOrbIdx_t) :: res
@@ -141,7 +141,7 @@ contains
         character(*), parameter :: this_routine = 'SpinOrbIdx_t_from_SpatOrbIdx_t'
 
         if (present(m_s)) then
-            @:ASSERT(any(m_s == [alpha, beta]))
+            @:pure_ASSERT(any(m_s == [alpha, beta]))
             res%idx = f(spat_orbs%idx(:), m_s)
         else
             allocate(res%idx(2 * size(spat_orbs)))
@@ -220,23 +220,23 @@ contains
     end function
 
 #:for type in OrbIdxTypes
-    DEBUG_IMPURE function lex_leq_${type}$ (lhs, rhs) result(res)
+    pure function lex_leq_${type}$ (lhs, rhs) result(res)
         type(${type}$), intent(in) :: lhs, rhs
         integer :: i
         logical :: res
         character(*), parameter :: this_routine = 'lex_lt_${type}$'
 
-        @:ASSERT(size(lhs) == size(rhs))
+        @:pure_ASSERT(size(lhs) == size(rhs))
         res = ilex_leq(lhs%idx, rhs%idx)
     end function
 
-    DEBUG_IMPURE function lex_geq_${type}$ (lhs, rhs) result(res)
+    pure function lex_geq_${type}$ (lhs, rhs) result(res)
         type(${type}$), intent(in) :: lhs, rhs
         integer :: i
         logical :: res
         character(*), parameter :: this_routine = 'lex_gt_${type}$'
 
-        @:ASSERT(size(lhs) == size(rhs))
+        @:pure_ASSERT(size(lhs) == size(rhs))
         res = ilex_geq(lhs%idx, rhs%idx)
     end function
 #:endfor
