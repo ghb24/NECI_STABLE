@@ -17,7 +17,7 @@ module test_gasci_general_pchb
     use unit_test_helpers, only: run_excit_gen_tester
     implicit none
     private
-    public :: test_pgen, test_partition_vectors
+    public :: test_pgen, test_partition_vectors, test_get_partition_index
 
 
 
@@ -79,42 +79,38 @@ contains
 
     end subroutine test_pgen
 
+    subroutine test_get_partition_index()
+        integer(int64), allocatable :: partitions(:, :)
+
+        integer :: i
+
+        partitions = get_partitions(1, 1)
+        do i = 1, size(partitions, 2)
+            call assert_true(i == get_partition_index(partitions(:, i)))
+        end do
+
+        partitions = get_partitions(2, 2)
+        do i = 1, size(partitions, 2)
+            call assert_true(i == get_partition_index(partitions(:, i)))
+        end do
+
+        partitions = get_partitions(3, 3)
+        do i = 1, size(partitions, 2)
+            call assert_true(i == get_partition_index(partitions(:, i)))
+        end do
+
+        partitions = get_partitions(4, 4)
+        do i = 1, size(partitions, 2)
+            call assert_true(i == get_partition_index(partitions(:, i)))
+        end do
+    end subroutine
+
     subroutine test_partition_vectors()
         integer(int64), allocatable :: partitions(:, :)
 
         integer, allocatable :: expected(:, :)
         integer :: i
 
-        partitions = get_partitions(4, 3)
-
-        do i = 1, size(partitions, 2)
-            write(*, *) i, partitions(:, i)
-        end do
-
-        associate(test => [3, 0, 0, 0])
-            i = get_partition_index(test)
-            write(*, *) i, test
-        end associate
-        associate(test => [2, 1, 0, 0])
-            i = get_partition_index(test)
-            write(*, *) i, test
-        end associate
-        associate(test => [1, 2, 0, 0])
-            i = get_partition_index(test)
-            write(*, *) i, test
-        end associate
-        associate(test => [0, 3, 0, 0])
-            i = get_partition_index(test)
-            write(*, *) i, test
-        end associate
-        associate(test => [0, 2, 1, 0])
-            i = get_partition_index(test)
-            write(*, *) i, test
-        end associate
-        associate(test => [0, 0, 0, 3])
-            i = get_partition_index(test)
-            write(*, *) i, test
-        end associate
     end subroutine
 end module test_gasci_general_pchb
 
@@ -123,7 +119,7 @@ program test_gasci_program
     use mpi
     use fruit
     use Parallel_neci, only: MPIInit, MPIEnd
-    use test_gasci_general_pchb, only: test_pgen, test_partition_vectors
+    use test_gasci_general_pchb, only: test_pgen, test_partition_vectors, test_get_partition_index
 
 
     implicit none
@@ -152,5 +148,6 @@ contains
     subroutine test_gasci_driver()
 !         call run_test_case(test_pgen, "test_pgen")
         call run_test_case(test_partition_vectors, "test_partition_vectors")
+        call run_test_case(test_get_partition_index, "test_partition_vectors")
     end subroutine
 end program test_gasci_program

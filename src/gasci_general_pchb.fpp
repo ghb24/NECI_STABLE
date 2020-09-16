@@ -59,24 +59,24 @@ contains
 
     end subroutine gen_general_GASCI_pchb
 
-    recursive function get_partition_index(partition) result(idx)
-        integer, intent(in) :: partition(:)
-        integer :: idx
+    pure function get_partition_index(partition) result(idx)
+        integer(int64), intent(in) :: partition(:)
+        integer(int64) :: idx
+        character(*), parameter :: this_routine = 'get_partition_index'
 
-        integer :: k, n
-        integer :: i, j
+        integer :: reminder
+        integer :: i_summand, leading_term
 
-        n = sum(partition)
-        k = size(partition)
-        idx = 0
-
-        i = 1
-        if (k /= 0) then
-            do j = n, partition(i) + 1, -1
-                idx = idx + n_partitions(k - i, n - j)
+        idx = 1_int64
+        i_summand = 1_int64
+        reminder = sum(partition)
+        do while (reminder /= 0_int64)
+            do leading_term = reminder, partition(i_summand) + 1_int64, -1_int64
+                idx = idx + n_partitions(size(partition) - i_summand, reminder - leading_term)
             end do
-            idx = idx + get_partition_index(partition(2 :))
-        end if
+            reminder = reminder - partition(i_summand)
+            i_summand = i_summand + 1_int64
+        end do
     end function
 
     !> @brief
@@ -90,10 +90,10 @@ contains
     !> \f[ 0 + 1 = 1 \f].
     !> The German wikipedia has a nice article
     !> https://de.wikipedia.org/wiki/Partitionsfunktion#Geordnete_Zahlpartitionen
-    pure function get_partitions(k, n) result(res)
+    function get_partitions(k, n) result(res)
         integer, intent(in) :: k, n
         integer(int64) :: res(k, n_partitions(k, n))
-        integer :: idx_part, j
+        integer :: idx_part, j, i
 
         idx_part = 1
         res(:, idx_part) = 0_int64
@@ -103,7 +103,7 @@ contains
             res(:, idx_part) = res(:, idx_part - 1)
 
             do j = size(res, 1), 2, -1
-                if (res(j - 1, idx_part) >= res(j, idx_part) .and. res(j - 1, idx_part) > 0) exit
+                if (res(j - 1, idx_part) > 0) exit
             end do
 
             ! Transfer 1 from left neighbour and everything from all right neighbours to res(j)
