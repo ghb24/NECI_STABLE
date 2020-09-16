@@ -17,6 +17,21 @@ module gasci_general_pchb
 
     public :: gen_general_GASCI_pchb, get_partitions
 
+    public :: get_partition_index
+
+!     type :: SuperGroupIndexer_t
+!         private
+!         type(GASSpec_t) :: GAS_spec
+!         integer :: n_el
+!
+!         integer, allocatable :: partitions(:, :)
+!         integer :: n_supergroups, start_supergroups
+!     contains
+!         private
+!         procedure :: get_partition_index
+!         procedure :: idx => get_supergroup_index
+!     end type
+
 contains
 
     !>  @brief
@@ -43,6 +58,26 @@ contains
         @:ASSERT(GAS_specification%contains(nI))
 
     end subroutine gen_general_GASCI_pchb
+
+    recursive function get_partition_index(partition) result(idx)
+        integer, intent(in) :: partition(:)
+        integer :: idx
+
+        integer :: k, n
+        integer :: i, j
+
+        n = sum(partition)
+        k = size(partition)
+        idx = 0
+
+        i = 1
+        if (k /= 0) then
+            do j = n, partition(i) + 1, -1
+                idx = idx + n_partitions(k - i, n - j)
+            end do
+            idx = idx + get_partition_index(partition(2 :))
+        end if
+    end function
 
     !> @brief
     !> Get the ordered partitions of n into k summands.
@@ -71,7 +106,7 @@ contains
                 if (res(j - 1, idx_part) >= res(j, idx_part) .and. res(j - 1, idx_part) > 0) exit
             end do
 
-            ! Transfer 1 from left and everything from right to res(j)
+            ! Transfer 1 from left neighbour and everything from all right neighbours to res(j)
             res(j, idx_part) = res(j, idx_part) + 1_int64 + sum(res(j + 1 :, idx_part))
             res(j + 1 :, idx_part) = 0_int64
             res(j - 1, idx_part) = res(j - 1, idx_part) - 1_int64

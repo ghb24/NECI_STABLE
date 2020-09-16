@@ -85,12 +85,36 @@ contains
         integer, allocatable :: expected(:, :)
         integer :: i
 
-        partitions = get_partitions(5, 3)
+        partitions = get_partitions(4, 3)
 
         do i = 1, size(partitions, 2)
-            write(*, *) partitions(:, i)
+            write(*, *) i, partitions(:, i)
         end do
-        contains
+
+        associate(test => [3, 0, 0, 0])
+            i = get_partition_index(test)
+            write(*, *) i, test
+        end associate
+        associate(test => [2, 1, 0, 0])
+            i = get_partition_index(test)
+            write(*, *) i, test
+        end associate
+        associate(test => [1, 2, 0, 0])
+            i = get_partition_index(test)
+            write(*, *) i, test
+        end associate
+        associate(test => [0, 3, 0, 0])
+            i = get_partition_index(test)
+            write(*, *) i, test
+        end associate
+        associate(test => [0, 2, 1, 0])
+            i = get_partition_index(test)
+            write(*, *) i, test
+        end associate
+        associate(test => [0, 0, 0, 3])
+            i = get_partition_index(test)
+            write(*, *) i, test
+        end associate
     end subroutine
 end module test_gasci_general_pchb
 
