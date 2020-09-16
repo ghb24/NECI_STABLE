@@ -12,7 +12,7 @@ module fcimc_output
                            iWriteHistEvery, tDiagAllSpaceEver, OffDiagMax, &
                            OffDiagBinRange, tCalcVariationalEnergy, &
                            iHighPopWrite, tLogEXLEVELStats, StepsPrint, &
-                           maxInitExLvlWrite, AllInitsPerExLvl
+                           maxInitExLvlWrite, AllInitsPerExLvl, t_force_replica_output
 
     use hist_data, only: Histogram, AllHistogram, InstHist, AllInstHist, &
                          BeforeNormHist, iNoBins, BinRange, HistogramEnergy, &
@@ -1512,7 +1512,8 @@ contains
         allocate(GlobalLargestWalkers(0:NIfTot,iHighPopWrite), source=0_n_int)
         allocate(GlobalProc(iHighPopWrite), source=0)
 
-        t_replica_resolved_output = tOrthogonaliseReplicas
+        ! Decide if each replica shall have its own output 
+        t_replica_resolved_output = tOrthogonaliseReplicas .or. t_force_replica_output
         if(t_replica_resolved_output) then
             lenof_out = rep_size
         else
@@ -1524,17 +1525,20 @@ contains
         allocate(init_string(lenof_out))        
 
         do run = 1, inum_runs
+            ! If t_replica_resolved_output is set:
             ! Execute this once per run with run instead of GLOBAL_RUN -> prints the highest
             ! determinants for each replica
-            write(iout,*) "============================================================="
-            write(iout,*) "Reference and leading determinants for replica",run
-            write(iout,*) "============================================================="
+            if(t_replica_resolved_output) then
+                write(iout,*) "============================================================="
+                write(iout,*) "Reference and leading determinants for replica",run
+                write(iout,*) "============================================================="
+            end if
             if(t_replica_resolved_output) then
                 this_run = run
-                offset = rep_size * (run - 1)                
+                offset = rep_size * (run - 1)   
             else
                 this_run = GLOBAL_RUN
-                offset = 0                
+                offset = 0
             end if
             call global_most_populated_states(iHighPopWrite, this_run, GlobalLargestWalkers, &
                 norm, rank_of_largest=GlobalProc)
