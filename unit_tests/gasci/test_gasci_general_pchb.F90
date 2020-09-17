@@ -17,7 +17,7 @@ module test_gasci_general_pchb
     use unit_test_helpers, only: run_excit_gen_tester
     implicit none
     private
-    public :: test_pgen, test_partition_vectors, test_get_partition_index
+    public :: test_pgen, test_partitioning, test_supergroup_offsets
 
 
 
@@ -79,37 +79,101 @@ contains
 
     end subroutine test_pgen
 
-    subroutine test_get_partition_index()
-        integer(int64), allocatable :: partitions(:, :)
+    subroutine test_partitioning()
+        integer(int64), allocatable :: partitions(:, :), cn_min(:), cn_max(:)
 
-        integer :: i
+        integer :: i, n, k
+        logical :: correct
 
-        partitions = get_partitions(1, 1)
-        do i = 1, size(partitions, 2)
-            call assert_true(i == get_partition_index(partitions(:, i)))
+        do n = 1, 10
+            do k = 1, 10
+                partitions = get_partitions(k, n)
+                correct = .true.
+                do i = 1, size(partitions, 2)
+                    if (i /= get_partition_index(partitions(:, i))) then
+                        correct = .false.
+                        exit
+                    end if
+                end do
+                call assert_true(correct)
+            end do
         end do
 
-        partitions = get_partitions(2, 2)
-        do i = 1, size(partitions, 2)
-            call assert_true(i == get_partition_index(partitions(:, i)))
-        end do
+!         block
+!             logical :: problem
+!
+!             write(*, *)
+!             partitions = get_partitions(3, 3)
+!             cn_min = [0, 1, 3]
+!             cn_max = [2, 2, 3]
+!             do i = 1, size(partitions, 2)
+!                 problem = .not. (all(cn_min <= cumsum(partitions(:, i))) .and. all(cumsum(partitions(:, i)) <= cn_max))
+!                 write(*, *) '*', partitions(:, i), merge('!!!', '   ', problem)
+!                 write(*, *) '>', cumsum(partitions(:, i)), merge('!!!', '   ', problem)
+!             end do
+!         end block
 
-        partitions = get_partitions(3, 3)
-        do i = 1, size(partitions, 2)
-            call assert_true(i == get_partition_index(partitions(:, i)))
-        end do
+        block
+            write(*, *)
+            partitions = get_partitions(2, 2)
 
-        partitions = get_partitions(4, 4)
-        do i = 1, size(partitions, 2)
-            call assert_true(i == get_partition_index(partitions(:, i)))
-        end do
+            do i = 1, size(partitions, 2)
+                write(*, *) partitions(:, i)
+            end do
+        end block
+
+
+        block
+            logical :: correct
+
+            write(*, *)
+            partitions = get_partitions(3, 3)
+            cn_min = [0, 1, 3]
+            cn_max = [2, 2, 3]
+
+            write(*, *) new_get_n_partitions(3, 3, int(cn_min), int(cn_max))
+
+            do i = 1, size(partitions, 2)
+                correct = all(cn_min <= cumsum(partitions(:, i))) .and. all(cumsum(partitions(:, i)) <= cn_max)
+
+                if (correct) then
+                    write(*, *) partitions(:, i)
+!                     write(*, *) new_get_partition_index(int(partitions(:, i)), int(cn_min), int(cn_max)), partitions(:, i)
+!                     write(*, *) '>', cumsum(partitions(:, i))
+                end if
+            end do
+        end block
+
+
+!         block
+!             logical :: correct
+!
+!             write(*, *)
+!             partitions = get_partitions(5, 30)
+!             cn_min = [5, 11, 17, 23, 30]
+!             cn_max = [7, 13, 19, 25, 30]
+!
+!             do i = 1, size(partitions, 2)
+!                 correct = all(cn_min <= cumsum(partitions(:, i))) .and. all(cumsum(partitions(:, i)) <= cn_max)
+!
+!                 if (correct) then
+!                     write(*, *) '*', partitions(:, i)
+!                     write(*, *) '>', cumsum(partitions(:, i))
+!                 end if
+!             end do
+!         end block
     end subroutine
 
-    subroutine test_partition_vectors()
-        integer(int64), allocatable :: partitions(:, :)
 
-        integer, allocatable :: expected(:, :)
-        integer :: i
+    subroutine test_supergroup_offsets()
+        type(GASSpec_t) :: GAS_spec
+        integer, parameter :: nEl = 6
+
+        GAS_spec = GASSpec_t(n_min=[2, nEl], n_max=[4, nEl], &
+                             spat_GAS_orbs=[1, 1, 1, 2, 2, 2])
+        call assert_true(GAS_spec%is_valid())
+
+
 
     end subroutine
 end module test_gasci_general_pchb
@@ -119,7 +183,7 @@ program test_gasci_program
     use mpi
     use fruit
     use Parallel_neci, only: MPIInit, MPIEnd
-    use test_gasci_general_pchb, only: test_pgen, test_partition_vectors, test_get_partition_index
+    use test_gasci_general_pchb, only: test_pgen, test_partitioning, test_supergroup_offsets
 
 
     implicit none
@@ -147,7 +211,7 @@ contains
 
     subroutine test_gasci_driver()
 !         call run_test_case(test_pgen, "test_pgen")
-        call run_test_case(test_partition_vectors, "test_partition_vectors")
-        call run_test_case(test_get_partition_index, "test_partition_vectors")
+        call run_test_case(test_partitioning, "test_partition_vectors")
+        call run_test_case(test_supergroup_offsets, "test_supergroup_offsets")
     end subroutine
 end program test_gasci_program

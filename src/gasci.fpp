@@ -66,6 +66,7 @@ module gasci
         procedure :: is_connected
         procedure :: is_valid
         procedure :: nGAS => get_nGAS
+        procedure :: nEl => get_nEl
         procedure :: max_GAS_size => get_max_GAS_size
         procedure :: GAS_size => get_GAS_size
         procedure :: get_iGAS
@@ -138,6 +139,11 @@ contains
         class(GASSpec_t), intent(in) :: self
         integer, intent(in) :: iGAS
         cumulated_max = self%cn_max(iGAS)
+    end function
+
+    integer elemental function get_nEl(self)
+        class(GASSpec_t), intent(in) :: self
+        get_nEl = self%cn_min(size(self%cn_min))
     end function
 
     !> @brief
