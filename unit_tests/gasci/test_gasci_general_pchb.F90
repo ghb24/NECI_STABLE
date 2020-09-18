@@ -100,29 +100,30 @@ contains
         end do
 
         block
-            logical :: correct
-            integer :: idx
-
-            write(*, *)
             cn_min = [0, 1, 3]
             cn_max = [2, 2, 3]
-
-!             write(*, *) new_get_n_partitions(3, 3, cn_min, cn_max)
             partitions = new_get_partitions(3, 3, cn_min, cn_max)
-
-            write(*, *)
             do i = 1, size(partitions, 2)
-                idx = new_get_partition_index(partitions(:, i), cn_min, cn_max)
-                write(*, *) idx, partitions(:, i)
+                call assert_true(i == new_get_partition_index(partitions(:, i), cn_min, cn_max))
             end do
-            write(*, *)
-!
+        end block
 
-!             do i = 1, size(partitions, 2)
-!
-!                 idx = new_get_partition_index(partitions(:, i), cn_min, cn_max)
-!                 write(*, *) idx, partitions(:, i)
-!             end do
+        block
+            cn_min = [5, 11, 17, 23, 30]
+            cn_max = [7, 13, 19, 25, 30]
+            partitions = new_get_partitions(5, 30, cn_min, cn_max)
+            do i = 1, size(partitions, 2)
+                call assert_true(i == new_get_partition_index(partitions(:, i), cn_min, cn_max))
+            end do
+        end block
+
+        block
+            cn_min = [3, 9, 15, 21, 30]
+            cn_max = [9, 15, 21, 27, 30]
+            partitions = new_get_partitions(5, 30, cn_min, cn_max)
+            do i = 1, size(partitions, 2)
+                call assert_true(i == new_get_partition_index(partitions(:, i), cn_min, cn_max))
+            end do
         end block
     end subroutine
 
@@ -174,53 +175,6 @@ contains
     subroutine test_gasci_driver()
 !         call run_test_case(test_pgen, "test_pgen")
         call run_test_case(test_partitioning, "test_partition_vectors")
-        call run_test_case(test_supergroup_offsets, "test_supergroup_offsets")
+!         call run_test_case(test_supergroup_offsets, "test_supergroup_offsets")
     end subroutine
 end program test_gasci_program
-
-
-
-
-!         block
-!             logical :: problem
-!
-!             write(*, *)
-!             partitions = get_partitions(3, 3)
-!             cn_min = [0, 1, 3]
-!             cn_max = [2, 2, 3]
-!             do i = 1, size(partitions, 2)
-!                 problem = .not. (all(cn_min <= cumsum(partitions(:, i))) .and. all(cumsum(partitions(:, i)) <= cn_max))
-!                 write(*, *) '*', partitions(:, i), merge('!!!', '   ', problem)
-!                 write(*, *) '>', cumsum(partitions(:, i)), merge('!!!', '   ', problem)
-!             end do
-!         end block
-!
-!         block
-!             write(*, *)
-!             partitions = get_partitions(2, 2)
-!
-!             do i = 1, size(partitions, 2)
-!                 write(*, *) partitions(:, i)
-!             end do
-!         end block
-
-
-
-
-!         block
-!             logical :: correct
-!
-!             write(*, *)
-!             partitions = get_partitions(5, 30)
-!             cn_min = [5, 11, 17, 23, 30]
-!             cn_max = [7, 13, 19, 25, 30]
-!
-!             do i = 1, size(partitions, 2)
-!                 correct = all(cn_min <= cumsum(partitions(:, i))) .and. all(cumsum(partitions(:, i)) <= cn_max)
-!
-!                 if (correct) then
-!                     write(*, *) '*', partitions(:, i)
-!                     write(*, *) '>', cumsum(partitions(:, i))
-!                 end if
-!             end do
-!         end block
