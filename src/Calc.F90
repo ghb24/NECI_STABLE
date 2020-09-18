@@ -208,6 +208,7 @@ contains
           Tau=0.0_dp
           InitWalkers=3000.0_dp
           NMCyc = -1
+          eq_cyc = -1
           HApp=1
           TMCStar=.false.
           THDiag=.false.
@@ -1210,6 +1211,9 @@ contains
             case("NMCYC")
 !For FCIMC, this is the number of MC cycles to perform
                 call geti(NMCyc)
+            case("EQ-CYC")
+                ! This is the number of MC cycles to perform after equilibration
+                call geti(eq_cyc)
             case("DIAGSHIFT")
 !For FCIMC, this is the amount extra the diagonal elements will be shifted. This is proportional to the deathrate of
 !walkers on the determinant
