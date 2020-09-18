@@ -80,7 +80,7 @@ contains
     end subroutine test_pgen
 
     subroutine test_partitioning()
-        integer(int64), allocatable :: partitions(:, :), cn_min(:), cn_max(:)
+        integer, allocatable :: partitions(:, :), cn_min(:), cn_max(:)
 
         integer :: i, n, k
         logical :: correct
@@ -99,69 +99,31 @@ contains
             end do
         end do
 
-!         block
-!             logical :: problem
-!
-!             write(*, *)
-!             partitions = get_partitions(3, 3)
-!             cn_min = [0, 1, 3]
-!             cn_max = [2, 2, 3]
-!             do i = 1, size(partitions, 2)
-!                 problem = .not. (all(cn_min <= cumsum(partitions(:, i))) .and. all(cumsum(partitions(:, i)) <= cn_max))
-!                 write(*, *) '*', partitions(:, i), merge('!!!', '   ', problem)
-!                 write(*, *) '>', cumsum(partitions(:, i)), merge('!!!', '   ', problem)
-!             end do
-!         end block
-
-        block
-            write(*, *)
-            partitions = get_partitions(2, 2)
-
-            do i = 1, size(partitions, 2)
-                write(*, *) partitions(:, i)
-            end do
-        end block
-
-
         block
             logical :: correct
+            integer :: idx
 
             write(*, *)
-            partitions = get_partitions(3, 3)
             cn_min = [0, 1, 3]
             cn_max = [2, 2, 3]
 
-            write(*, *) new_get_n_partitions(3, 3, int(cn_min), int(cn_max))
+!             write(*, *) new_get_n_partitions(3, 3, cn_min, cn_max)
+            partitions = new_get_partitions(3, 3, cn_min, cn_max)
 
+            write(*, *)
             do i = 1, size(partitions, 2)
-                correct = all(cn_min <= cumsum(partitions(:, i))) .and. all(cumsum(partitions(:, i)) <= cn_max)
-
-                if (correct) then
-                    write(*, *) partitions(:, i)
-!                     write(*, *) new_get_partition_index(int(partitions(:, i)), int(cn_min), int(cn_max)), partitions(:, i)
-!                     write(*, *) '>', cumsum(partitions(:, i))
-                end if
+                idx = new_get_partition_index(partitions(:, i), cn_min, cn_max)
+                write(*, *) idx, partitions(:, i)
             end do
-        end block
-
-
-!         block
-!             logical :: correct
+            write(*, *)
 !
-!             write(*, *)
-!             partitions = get_partitions(5, 30)
-!             cn_min = [5, 11, 17, 23, 30]
-!             cn_max = [7, 13, 19, 25, 30]
-!
+
 !             do i = 1, size(partitions, 2)
-!                 correct = all(cn_min <= cumsum(partitions(:, i))) .and. all(cumsum(partitions(:, i)) <= cn_max)
 !
-!                 if (correct) then
-!                     write(*, *) '*', partitions(:, i)
-!                     write(*, *) '>', cumsum(partitions(:, i))
-!                 end if
+!                 idx = new_get_partition_index(partitions(:, i), cn_min, cn_max)
+!                 write(*, *) idx, partitions(:, i)
 !             end do
-!         end block
+        end block
     end subroutine
 
 
@@ -215,3 +177,50 @@ contains
         call run_test_case(test_supergroup_offsets, "test_supergroup_offsets")
     end subroutine
 end program test_gasci_program
+
+
+
+
+!         block
+!             logical :: problem
+!
+!             write(*, *)
+!             partitions = get_partitions(3, 3)
+!             cn_min = [0, 1, 3]
+!             cn_max = [2, 2, 3]
+!             do i = 1, size(partitions, 2)
+!                 problem = .not. (all(cn_min <= cumsum(partitions(:, i))) .and. all(cumsum(partitions(:, i)) <= cn_max))
+!                 write(*, *) '*', partitions(:, i), merge('!!!', '   ', problem)
+!                 write(*, *) '>', cumsum(partitions(:, i)), merge('!!!', '   ', problem)
+!             end do
+!         end block
+!
+!         block
+!             write(*, *)
+!             partitions = get_partitions(2, 2)
+!
+!             do i = 1, size(partitions, 2)
+!                 write(*, *) partitions(:, i)
+!             end do
+!         end block
+
+
+
+
+!         block
+!             logical :: correct
+!
+!             write(*, *)
+!             partitions = get_partitions(5, 30)
+!             cn_min = [5, 11, 17, 23, 30]
+!             cn_max = [7, 13, 19, 25, 30]
+!
+!             do i = 1, size(partitions, 2)
+!                 correct = all(cn_min <= cumsum(partitions(:, i))) .and. all(cumsum(partitions(:, i)) <= cn_max)
+!
+!                 if (correct) then
+!                     write(*, *) '*', partitions(:, i)
+!                     write(*, *) '>', cumsum(partitions(:, i))
+!                 end if
+!             end do
+!         end block

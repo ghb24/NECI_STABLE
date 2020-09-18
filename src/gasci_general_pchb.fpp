@@ -4,7 +4,7 @@
 
 module gasci_general_pchb
     use constants, only: n_int, dp, int64, maxExcit
-    use util_mod, only: choose, factrl, stop_all
+    use util_mod, only: choose, factrl, stop_all, cumsum
     use FciMCData, only: excit_gen_store_type
     use SystemData, only: nEl
     use bit_rep_data, only: NIfTot
@@ -17,7 +17,7 @@ module gasci_general_pchb
 
     public :: gen_general_GASCI_pchb, get_partitions
 
-    public :: get_partition_index, new_get_n_partitions, new_get_partition_index
+    public :: get_partition_index, new_get_n_partitions, new_get_partition_index, new_get_partitions, pure_new_get_n_partitions
 
 !     type :: SuperGroupIndexer_t
 !         private
@@ -57,25 +57,28 @@ contains
         @:unused_var(exFlag, part_type, store)
         @:ASSERT(GAS_specification%contains(nI))
 
+
+        @:unused_var(nI, ilutI, nJ, ilutJ, exFlag, ic, ex_mat, tParity, pGen, hel, store, part_type)
+
     end subroutine gen_general_GASCI_pchb
 
     pure function get_partition_index(partition) result(idx)
-        integer(int64), intent(in) :: partition(:)
-        integer(int64) :: idx
+        integer, intent(in) :: partition(:)
+        integer :: idx
         character(*), parameter :: this_routine = 'get_partition_index'
 
         integer :: reminder
         integer :: i_summand, leading_term
 
-        idx = 1_int64
-        i_summand = 1_int64
+        idx = 1
+        i_summand = 1
         reminder = sum(partition)
-        do while (reminder /= 0_int64)
-            do leading_term = reminder, partition(i_summand) + 1_int64, -1_int64
+        do while (reminder /= 0)
+            do leading_term = reminder, partition(i_summand) + 1, -1
                 idx = idx + n_partitions(size(partition) - i_summand, reminder - leading_term)
             end do
             reminder = reminder - partition(i_summand)
-            i_summand = i_summand + 1_int64
+            i_summand = i_summand + 1
         end do
     end function
 
@@ -92,11 +95,11 @@ contains
     !> https://de.wikipedia.org/wiki/Partitionsfunktion#Geordnete_Zahlpartitionen
     pure function get_partitions(k, n) result(res)
         integer, intent(in) :: k, n
-        integer(int64) :: res(k, n_partitions(k, n))
+        integer :: res(k, n_partitions(k, n))
         integer :: idx_part, j, i
 
         idx_part = 1
-        res(:, idx_part) = 0_int64
+        res(:, idx_part) = 0
         res(1, idx_part) = n
 
         if (k == 1) return
@@ -109,13 +112,37 @@ contains
             end do
 
             ! Transfer 1 from left neighbour and everything from all right neighbours to res(j)
-            res(j, idx_part) = res(j, idx_part) + 1_int64 + sum(res(j + 1 :, idx_part))
-            res(j + 1 :, idx_part) = 0_int64
-            res(j - 1, idx_part) = res(j - 1, idx_part) - 1_int64
+            res(j, idx_part) = res(j, idx_part) + 1 + sum(res(j + 1 :, idx_part))
+            res(j + 1 :, idx_part) = 0
+            res(j - 1, idx_part) = res(j - 1, idx_part) - 1
         end do
 
-        res(:, idx_part) = 0_int64
+        res(:, idx_part) = 0
         res(size(res, 1), idx_part) = n
+    end function
+
+
+    !> @brief
+    !> Get the ordered partitions of n into k summands
+    !>  constrained by cumulative minima and maxima.
+    !>
+    !> @details
+    pure function new_get_partitions(k, n, cn_min, cn_max) result(res)
+        integer, intent(in) :: k, n, cn_min(:), cn_max(:)
+        integer :: res(k, pure_new_get_n_partitions(k, n, cn_min, cn_max))
+
+        integer :: i, j, all_partitions(k, n_partitions(k, n))
+
+        all_partitions(:, :) = get_partitions(k, n)
+
+        j = 1
+        do i = 1, size(res, 2)
+            do while (any(cn_min > cumsum(all_partitions(:, j)) .or. cumsum(all_partitions(:, j)) > cn_max))
+                j = j + 1
+            end do
+            res(:, i) = all_partitions(:, j)
+            j = j + 1
+        end do
     end function
 
     elemental function n_partitions(k, n) result(res)
@@ -124,33 +151,44 @@ contains
         res = choose(n + k - 1, k - 1)
     end function
 
-    pure function new_get_partition_index(partition, cn_min, cn_max) result(idx)
-        integer, intent(in) :: partition(:), cn_min(:), cn_max(:)
+    function new_get_partition_index(partition, in_cn_min, in_cn_max) result(idx)
+        integer, intent(in) :: partition(:), in_cn_min(:), in_cn_max(:)
         integer :: idx
-        character(*), parameter :: this_routine = 'get_partition_index'
+        character(*), parameter :: this_routine = 'new_get_partition_index'
 
-        integer :: reminder
+        integer :: reminder, rhs
         integer :: i_summand, leading_term
+        integer :: cn_min(size(in_cn_min)), cn_max(size(in_cn_max))
+
+        @:pure_ASSERT(all(in_cn_min <= cumsum(partition) .and. cumsum(partition) <= in_cn_max))
+
+        cn_min = in_cn_min; cn_max = in_cn_max
 
         idx = 1
         i_summand = 1
         reminder = sum(partition)
+
         do while (reminder /= 0)
-            do leading_term = reminder, partition(i_summand) + 1, -1
-                idx = idx + new_get_n_partitions(size(partition) - i_summand, reminder - leading_term, cn_min(2:) - leading_term, cn_max(2:) - leading_term)
+            do leading_term = min(reminder, cn_max(i_summand)), partition(i_summand) + 1, -1
+                idx = idx + new_get_n_partitions(size(partition) - i_summand, reminder - leading_term, cn_min(i_summand + 1 : ) - leading_term, cn_max( i_summand + 1 :) - leading_term)
             end do
+
             reminder = reminder - partition(i_summand)
+            cn_min = cn_min - partition(i_summand)
+            cn_max = cn_max - partition(i_summand)
             i_summand = i_summand + 1
         end do
     end function
 
-    recursive pure function new_get_n_partitions(k, n, cn_min, cn_max) result(n_part)
+    recursive function new_get_n_partitions(k, n, cn_min, cn_max) result(n_part)
         integer, intent(in) :: k, n
         integer, intent(in) :: cn_min(:), cn_max(:)
         integer :: n_part
         integer :: i
-        character(*), parameter :: this_routine = 'new_get_partition_index'
-        @:pure_ASSERT(k == size(cn_min) .and. k == size(cn_max))
+        character(*), parameter :: this_routine = 'new_get_n_partitions'
+
+        @:ASSERT(k == size(cn_min) .and. k == size(cn_max), k, size(cn_min), size(cn_max))
+
         if (k == 1) then
             n_part = merge(1, 0, cn_min(1) <= n .and. n <= cn_max(1))
             return
@@ -158,6 +196,30 @@ contains
             n_part = 0
             do i = max(0, cn_min(1)), min(n, cn_max(1))
                 n_part = n_part + new_get_n_partitions(k - 1, n - i, cn_min(2:) - i, cn_max(2:) - i)
+            end do
+            return
+        end if
+    end function
+
+
+    recursive pure function pure_new_get_n_partitions(k, n, cn_min, cn_max) result(n_part)
+        integer, intent(in) :: k, n
+        integer, intent(in) :: cn_min(:), cn_max(:)
+        integer :: n_part
+        integer :: i
+        character(*), parameter :: this_routine = 'pure_new_get_n_partitions'
+
+        @:pure_ASSERT(k == size(cn_min) .and. k == size(cn_max), k, size(cn_min), size(cn_max))
+
+        if (k == 0) then
+            n_part = 0
+        else if (k == 1) then
+            n_part = merge(1, 0, cn_min(1) <= n .and. n <= cn_max(1))
+            return
+        else
+            n_part = 0
+            do i = max(0, cn_min(1)), min(n, cn_max(1))
+                n_part = n_part + pure_new_get_n_partitions(k - 1, n - i, cn_min(2:) - i, cn_max(2:) - i)
             end do
             return
         end if
