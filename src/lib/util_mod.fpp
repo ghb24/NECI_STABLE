@@ -537,9 +537,8 @@ contains
     elemental function fast_choose_${kind}$(n, k) result(res)
         integer(${kind}$), intent(in) :: n, k
         integer(${kind}$) :: res
-#ifdef DEBUG_
         character(*), parameter :: this_routine = "fast_choose"
-#endif
+
         @:pure_ASSERT(n >= 0_${kind}$)
         @:pure_ASSERT(k >= 0_${kind}$)
 
@@ -563,9 +562,8 @@ contains
     elemental function factrl_${kind}$(n) result(res)
         integer(${kind}$), intent(in) :: n
         integer(${kind}$) :: res
-#ifdef DEBUG_
         character(*), parameter :: this_routine = "factrl_${kind}$"
-#endif
+
         integer(${kind}$) :: i
 
         @:pure_ASSERT(n >= 0_${kind}$)
@@ -583,9 +581,8 @@ contains
         integer(${kind}$), intent(in) :: n, r
         integer(${kind}$) :: res
         integer(${kind}$) :: i, k
-#ifdef DEBUG_
         character(*), parameter :: this_routine = "choose"
-#endif
+
         @:pure_ASSERT(n >= 0_${kind}$)
         @:pure_ASSERT(r >= 0_${kind}$)
 
@@ -604,6 +601,17 @@ contains
                 res = (res * (n - i)) / (i + 1_${kind}$)
             enddo
         endif
+
+http://blog.moertel.com/posts/2013-05-14-recursive-to-iterative-2.html
+def binomial(n, k):
+    """Compute binomial coefficient C(n, k) = n! / (k! * (n-k)!)."""
+    if k > n - k:
+        k = n - k   # 'pute C(n, n-k) instead if it's easier
+    t = k
+    (n, previous_x) = (n - k + 1, 1)
+    for k in xrange(1, t + 1):
+        (n, previous_x) = (n + 1, n * previous_x // k)
+    return previous_x  # = x_t
     end function
 #:endfor
 

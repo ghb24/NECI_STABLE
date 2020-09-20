@@ -102,7 +102,7 @@ contains
         block
             cn_min = [0, 1, 3]
             cn_max = [2, 2, 3]
-            partitions = new_get_partitions(3, 3, cn_min, cn_max)
+            partitions = new_get_partitions(cn_min, cn_max)
             do i = 1, size(partitions, 2)
                 call assert_true(i == new_get_partition_index(partitions(:, i), cn_min, cn_max))
             end do
@@ -111,7 +111,7 @@ contains
         block
             cn_min = [5, 11, 17, 23, 30]
             cn_max = [7, 13, 19, 25, 30]
-            partitions = new_get_partitions(5, 30, cn_min, cn_max)
+            partitions = new_get_partitions(cn_min, cn_max)
             do i = 1, size(partitions, 2)
                 call assert_true(i == new_get_partition_index(partitions(:, i), cn_min, cn_max))
             end do
@@ -120,10 +120,40 @@ contains
         block
             cn_min = [3, 9, 15, 21, 30]
             cn_max = [9, 15, 21, 27, 30]
-            partitions = new_get_partitions(5, 30, cn_min, cn_max)
+            partitions = new_get_partitions(cn_min, cn_max)
             do i = 1, size(partitions, 2)
                 call assert_true(i == new_get_partition_index(partitions(:, i), cn_min, cn_max))
             end do
+        end block
+
+
+        block
+            integer(kind=int64) :: start, finish, rate
+            integer :: idx, j
+            integer, parameter :: n_iter = 10
+
+            cn_min = [3, 9, 15, 21, 31, 34, 40]
+            cn_max = [9, 15, 21, 27, 31, 35, 40]
+            write(*, *) 'hello'
+            partitions = new_get_partitions(cn_min, cn_max)
+
+            call system_clock(count_rate=rate)
+
+            write(*, *) rate
+
+            call system_clock(start)
+            do j = 1, n_iter
+                do i = 1, size(partitions, 2)
+                    idx = idx + new_get_partition_index(partitions(:, i), cn_min, cn_max)
+                end do
+            end do
+            call system_clock(finish)
+            write(*, *) idx
+
+            write(6, *) 'Elapsed Time in seconds:', real(finish - start, kind=dp) / real(rate, kind=dp)
+            write(6, *) 'Elapsed Time per index:', real(finish - start, kind=dp) / real(rate * n_iter * size(partitions, 2), kind=dp)
+
+            ! TODO(@Oskar): Time how much the lookup in a precomputed table takes.
         end block
     end subroutine
 

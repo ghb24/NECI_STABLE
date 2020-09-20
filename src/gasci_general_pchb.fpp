@@ -136,13 +136,18 @@ contains
     !>  constrained by cumulative minima and maxima.
     !>
     !> @details
-    pure function new_get_partitions(k, n, cn_min, cn_max) result(res)
-        integer, intent(in) :: k, n, cn_min(:), cn_max(:)
-        integer :: res(k, new_get_n_partitions(k, n, cn_min, cn_max))
+    pure function new_get_partitions(cn_min, cn_max) result(res)
+        integer, intent(in) :: cn_min(:), cn_max(:)
+        integer :: res(size(cn_min), new_get_n_partitions(cn_min, cn_max))
+        integer :: k, n
 
-        integer :: i, j, all_partitions(k, n_partitions(k, n))
+        integer :: i, j
+        integer, allocatable :: all_partitions(:, :)
 
-        all_partitions(:, :) = get_partitions(k, n)
+        k = size(cn_min)
+        n = cn_min(k)
+
+        all_partitions = get_partitions(k, n)
 
         j = 1
         do i = 1, size(res, 2)
@@ -173,7 +178,7 @@ contains
 
         do while (reminder /= 0)
             do leading_term = min(reminder, cn_max(i_summand)), partition(i_summand) + 1, -1
-                idx = idx + new_get_n_partitions(size(partition) - i_summand, reminder - leading_term, cn_min(i_summand + 1 : ) - leading_term, cn_max( i_summand + 1 :) - leading_term)
+                idx = idx + new_get_n_partitions(cn_min(i_summand + 1 : ) - leading_term, cn_max( i_summand + 1 :) - leading_term)
             end do
 
             reminder = reminder - partition(i_summand)
@@ -183,21 +188,26 @@ contains
         end do
     end function
 
-    recursive pure function new_get_n_partitions(k, n, cn_min, cn_max) result(n_part)
-        integer, intent(in) :: k, n
+    recursive pure function new_get_n_partitions(cn_min, cn_max) result(n_part)
         integer, intent(in) :: cn_min(:), cn_max(:)
         integer :: n_part
-        integer :: i
+
+        integer :: k, n, i
         character(*), parameter :: this_routine = 'new_get_n_partitions'
 
-        @:pure_ASSERT(k == size(cn_min) .and. k == size(cn_max), k, size(cn_min), size(cn_max))
+
+        @:pure_ASSERT(size(cn_min) == size(cn_max))
+        k = size(cn_min)
+        @:pure_ASSERT(0 <= cn_max(1) .and. cn_min(k) == cn_max(k))
+        n = cn_min(k)
+        @:pure_ASSERT(all(cn_min(2:) >= cn_min(: k - 1)) .and. all(cn_max(2:) >= cn_max(: k - 1)))
 
         if (k == 1 .or. n == 0) then
             n_part = merge(1, 0, cn_min(1) <= n .and. n <= cn_max(1))
         else
             n_part = 0
             do i = max(0, cn_min(1)), min(n, cn_max(1))
-                n_part = n_part + new_get_n_partitions(k - 1, n - i, cn_min(2:) - i, cn_max(2:) - i)
+                n_part = n_part + new_get_n_partitions(cn_min(2:) - i, cn_max(2:) - i)
             end do
         end if
     end function
