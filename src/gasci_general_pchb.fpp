@@ -4,7 +4,7 @@
 
 module gasci_general_pchb
     use constants, only: n_int, dp, int64, maxExcit
-    use util_mod, only: choose, factrl, stop_all, cumsum
+    use util_mod, only: choose, stop_all, cumsum, binary_search_first_ge
     use FciMCData, only: excit_gen_store_type
     use SystemData, only: nEl
     use bit_rep_data, only: NIfTot
@@ -15,22 +15,20 @@ module gasci_general_pchb
 
     private
 
-    public :: gen_general_GASCI_pchb, get_partitions
+    public :: gen_general_GASCI_pchb
 
-    public :: get_partition_index, new_get_n_partitions, new_get_partition_index, new_get_partitions
+    public :: n_partitions, get_partitions, partition_index
+    public :: n_supergroups, get_supergroups, supergroup_index
 
-!     type :: SuperGroupIndexer_t
-!         private
-!         type(GASSpec_t) :: GAS_spec
-!         integer :: n_el
-!
-!         integer, allocatable :: partitions(:, :)
-!         integer :: n_supergroups, start_supergroups
-!     contains
-!         private
-!         procedure :: get_partition_index
-!         procedure :: idx => get_supergroup_index
-!     end type
+    public :: supergroup_index_precomputed, get_supergroup_indices
+
+    type :: SuperGroupIndexer_t
+        private
+        integer(int64), allocatable :: supergroup_index(:)
+    contains
+        private
+        procedure :: idx => get_supergroup_index
+    end type
 
 contains
 
@@ -65,7 +63,7 @@ contains
 
     elemental function n_partitions(k, n) result(res)
         integer, intent(in) :: k, n
-        integer :: res
+        integer(int64) :: res
         res = choose(n + k - 1, k - 1)
     end function
 
@@ -109,15 +107,14 @@ contains
         res(size(res, 1), idx_part) = n
     end function
 
-    pure function get_partition_index(partition) result(idx)
+    pure function partition_index(partition) result(idx)
         integer, intent(in) :: partition(:)
-        integer :: idx
+        integer(int64) :: idx
         character(*), parameter :: this_routine = 'get_partition_index'
 
-        integer :: reminder
-        integer :: i_summand, leading_term
+        integer :: reminder, i_summand, leading_term
 
-        idx = 1
+        idx = 1_int64
         i_summand = 1
         reminder = sum(partition)
         do while (reminder /= 0)
@@ -131,14 +128,16 @@ contains
 
 
 
+
     !> @brief
     !> Get the ordered partitions of n into k summands
     !>  constrained by cumulative minima and maxima.
     !>
     !> @details
-    pure function new_get_partitions(cn_min, cn_max) result(res)
+    !> GAS allowed partitions are called supergroups.
+    pure function get_supergroups(cn_min, cn_max) result(res)
         integer, intent(in) :: cn_min(:), cn_max(:)
-        integer :: res(size(cn_min), new_get_n_partitions(cn_min, cn_max))
+        integer :: res(size(cn_min), n_supergroups(cn_min, cn_max))
         integer :: k, n
 
         integer :: i, j
@@ -159,10 +158,16 @@ contains
         end do
     end function
 
-    pure function new_get_partition_index(partition, in_cn_min, in_cn_max) result(idx)
+    !> @brief
+    !> Get the index of a given supergroup.
+    !>
+    !> @details
+    !> GAS allowed partitions are called supergroups.
+    !> Assume lexical decreasing sortedness.
+    pure function supergroup_index(partition, in_cn_min, in_cn_max) result(idx)
         integer, intent(in) :: partition(:), in_cn_min(:), in_cn_max(:)
         integer :: idx
-        character(*), parameter :: this_routine = 'new_get_partition_index'
+        character(*), parameter :: this_routine = 'supergroup_index'
 
         integer :: reminder, rhs
         integer :: i_summand, leading_term
@@ -178,7 +183,7 @@ contains
 
         do while (reminder /= 0)
             do leading_term = min(reminder, cn_max(i_summand)), partition(i_summand) + 1, -1
-                idx = idx + new_get_n_partitions(cn_min(i_summand + 1 : ) - leading_term, cn_max( i_summand + 1 :) - leading_term)
+                idx = idx + n_supergroups(cn_min(i_summand + 1 : ) - leading_term, cn_max( i_summand + 1 :) - leading_term)
             end do
 
             reminder = reminder - partition(i_summand)
@@ -188,12 +193,57 @@ contains
         end do
     end function
 
-    recursive pure function new_get_n_partitions(cn_min, cn_max) result(n_part)
+    pure function supergroup_index_precomputed(partition, supergroup_indices) result(idx)
+        integer, intent(in) :: partition(:)
+        integer(int64), intent(in) :: supergroup_indices(:)
+        integer :: idx
+
+        idx = binary_search_first_ge(supergroup_indices, partition_index(partition))
+    end function
+
+    pure function get_supergroup_index(self, partition) result(idx)
+        class(SuperGroupIndexer_t), intent(in) :: self
+        integer, intent(in) :: partition(:)
+        integer(int64) :: idx
+        character(*), parameter :: this_routine = 'get_supergroup_index'
+
+        idx = binary_search_first_ge(self%supergroup_index, partition_index(partition))
+        @:pure_ASSERT(idx /= -1)
+    end function
+
+    pure function Construct_SuperGroupIndexer_t(GASspec) result(indexer)
+        type(GASSpec_t), intent(in) :: GASspec
+        type(SuperGroupIndexer_t) :: indexer
+
+        integer :: i
+
+        GASspec%get_cni[(i, i = 1, GASspec%nEl())]
+    end function
+
+    pure function get_supergroup_indices(cn_min, cn_max) result(res)
         integer, intent(in) :: cn_min(:), cn_max(:)
-        integer :: n_part
+
+        integer(int64) :: res(n_supergroups(cn_min, cn_max))
+        integer :: supergroups(size(cn_min), size(res))
+        integer :: i
+
+        supergroups = get_supergroups(cn_min, cn_max)
+        do i = 1, size(res)
+            res(i) = partition_index(supergroups(:, i))
+        end do
+    end function
+
+    !> @brief
+    !> Get the number of possible supergroups.
+    !>
+    !> @details
+    !> GAS allowed partitions are called supergroups.
+    recursive pure function n_supergroups(cn_min, cn_max) result(n_part)
+        integer, intent(in) :: cn_min(:), cn_max(:)
+        integer(int64) :: n_part
 
         integer :: k, n, i
-        character(*), parameter :: this_routine = 'new_get_n_partitions'
+        character(*), parameter :: this_routine = 'n_supergroups'
 
 
         @:pure_ASSERT(size(cn_min) == size(cn_max))
@@ -203,12 +253,13 @@ contains
         @:pure_ASSERT(all(cn_min(2:) >= cn_min(: k - 1)) .and. all(cn_max(2:) >= cn_max(: k - 1)))
 
         if (k == 1 .or. n == 0) then
-            n_part = merge(1, 0, cn_min(1) <= n .and. n <= cn_max(1))
+            n_part = merge(1_int64, 0_int64, cn_min(1) <= n .and. n <= cn_max(1))
         else
-            n_part = 0
+            n_part = 0_int64
             do i = max(0, cn_min(1)), min(n, cn_max(1))
-                n_part = n_part + new_get_n_partitions(cn_min(2:) - i, cn_max(2:) - i)
+                n_part = n_part + n_supergroups(cn_min(2:) - i, cn_max(2:) - i)
             end do
         end if
     end function
+
 end module gasci_general_pchb

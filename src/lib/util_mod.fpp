@@ -13,6 +13,7 @@ module util_mod
     use util_mod_byte_size
     use util_mod_cpts
     use util_mod_epsilon_close
+    use binomial_lookup, only: factrl => factorial, binomial_lookup_table
     use fmt_utils
     use dSFMT_interface, only: genrand_real2_dSFMT
     use constants
@@ -61,23 +62,9 @@ module util_mod
         end subroutine
     end interface
 
-    ! This function uses the Gamma function and is probably faster, than calculating
-    ! with faculty and integers, **but** it might be off by +-1.
-    interface fast_choose
-    #:for kind in primitive_types['integer']
-        module procedure fast_choose_${kind}$
-    #:endfor
-    end interface
-
     interface choose
     #:for kind in primitive_types['integer']
         module procedure choose_${kind}$
-    #:endfor
-    end interface
-
-    interface factrl
-    #:for kind in primitive_types['integer']
-        module procedure factrl_${kind}$
     #:endfor
     end interface
 
@@ -533,85 +520,54 @@ contains
 
 #:for kind in primitive_types['integer']
     !> @brief
-    !> A faster binomial function using the Gamma function.
-    elemental function fast_choose_${kind}$(n, k) result(res)
-        integer(${kind}$), intent(in) :: n, k
-        integer(${kind}$) :: res
-        character(*), parameter :: this_routine = "fast_choose"
-
-        @:pure_ASSERT(n >= 0_${kind}$)
-        @:pure_ASSERT(k >= 0_${kind}$)
-
-        if (k > n) then
-            res = 0_${kind}$
-        else
-            res = nint(gamma(real(n + 1_${kind}$, dp)) &
-                        / (gamma(real(n - k + 1_${kind}$, dp)) * gamma(real(k + 1_${kind}$, dp))), ${kind}$)
-        end if
-    end function
-
-
-    !> @brief
-    !> Return the factorial on n, i.e. n!
-    !>
-    !> @details
-    !> This is not done in the most efficient way possible (i.e. use with
-    !> care if N is large, or if called many times!).
-    !> If a more efficient procedure is required, refer to:
-    !> http://www.luschny.de/math/factorial/FastFactorialFunctions.htm.
-    elemental function factrl_${kind}$(n) result(res)
-        integer(${kind}$), intent(in) :: n
-        integer(${kind}$) :: res
-        character(*), parameter :: this_routine = "factrl_${kind}$"
-
-        integer(${kind}$) :: i
-
-        @:pure_ASSERT(n >= 0_${kind}$)
-
-        res = 1_${kind}$
-        do i = 2_${kind}$, n
-            res = res * i
-        end do
-    end function
-
-
-    !> @brief
     !> Return the binomail coefficient nCr
     elemental function choose_${kind}$(n, r) result(res)
         integer(${kind}$), intent(in) :: n, r
-        integer(${kind}$) :: res
-        integer(${kind}$) :: i, k
+        integer(int64) :: res
+        integer(int64) :: i, k
         character(*), parameter :: this_routine = "choose"
+
+        ! NOTE: This is highly optimized. If you change something, please time it!
 
         @:pure_ASSERT(n >= 0_${kind}$)
         @:pure_ASSERT(r >= 0_${kind}$)
 
         if(r > n) then
-            res = 0_${kind}$
-        else
-            ! Always use the smaller possibility
-            if(r > (n / 2_${kind}$)) then
-                k = n - r
-            else
-                k = r
-            endif
+            res = 0_int64
+            return
+        end if
 
+        k = int(merge(r, n - r, r <= n - r), int64)
+
+        if (k == 0) then
+            res = 1_int64
+        else if (k == 1) then
+            res = int(n, int64)
+        else if (n <= 66) then
+            ! use lookup table
+            res = binomial_lookup_table(get_index(int(n, int64), k))
+        else
+            ! Will overflow in most cases. Perhaps throw an error?
             res = 1_${kind}$
             do i = 0_${kind}$, k - 1_${kind}$
                 res = (res * (n - i)) / (i + 1_${kind}$)
             enddo
-        endif
+        end if
 
-http://blog.moertel.com/posts/2013-05-14-recursive-to-iterative-2.html
-def binomial(n, k):
-    """Compute binomial coefficient C(n, k) = n! / (k! * (n-k)!)."""
-    if k > n - k:
-        k = n - k   # 'pute C(n, n-k) instead if it's easier
-    t = k
-    (n, previous_x) = (n - k + 1, 1)
-    for k in xrange(1, t + 1):
-        (n, previous_x) = (n + 1, n * previous_x // k)
-    return previous_x  # = x_t
+    contains
+        !> @brief
+        !> Calculate 1 + ... + n
+        integer elemental function gauss_sum(n)
+            integer(int64), intent(in) :: n
+            gauss_sum = (n * (n + 1_int64)) .div. 2_int64
+        end function
+
+        !> @brief
+        !> Get the index in the binomial_lookup_table
+        integer elemental function get_index(n, k)
+            integer(int64), intent(in) :: n, k
+            get_index = gauss_sum((n - 3_int64) .div. 2_int64) + gauss_sum((n - 4_int64) .div. 2_int64) + k - 1_int64
+        end function
     end function
 #:endfor
 
@@ -796,7 +752,7 @@ def binomial(n, k):
 
     end function binary_search
 
-    function binary_search_int(arr, val) result(pos)
+    pure function binary_search_int(arr, val) result(pos)
         ! W.D.: also write a binary search for "normal" lists of ints
         integer, intent(in) :: arr(:)
         integer, intent(in) :: val

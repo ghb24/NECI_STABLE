@@ -16,8 +16,8 @@ module test_gasci_general_pchb
         FciDumpWriter_t
     use unit_test_helpers, only: run_excit_gen_tester
     implicit none
-    private
-    public :: test_pgen, test_partitioning, test_supergroup_offsets
+!     private
+!     public :: test_pgen, test_partitioning, test_supergroup_offsets
 
 
 
@@ -80,83 +80,94 @@ contains
     end subroutine test_pgen
 
     subroutine test_partitioning()
-        integer, allocatable :: partitions(:, :), cn_min(:), cn_max(:)
-
+        integer, allocatable :: partitions(:, :)
         integer :: i, n, k
         logical :: correct
 
+        correct = .true.
         do n = 1, 10
             do k = 1, 10
                 partitions = get_partitions(k, n)
-                correct = .true.
                 do i = 1, size(partitions, 2)
-                    if (i /= get_partition_index(partitions(:, i))) then
-                        correct = .false.
-                        exit
-                    end if
+                    if (i /= partition_index(partitions(:, i))) correct = .false.
                 end do
-                call assert_true(correct)
             end do
         end do
+        call assert_true(correct)
+    end subroutine
+
+    subroutine test_supergroup_partitioning()
+        integer :: i, j, n, k
 
         block
+            integer, allocatable :: supergroups(:, :), cn_min(:), cn_max(:)
+            logical :: correct
+
+
             cn_min = [0, 1, 3]
             cn_max = [2, 2, 3]
-            partitions = new_get_partitions(cn_min, cn_max)
-            do i = 1, size(partitions, 2)
-                call assert_true(i == new_get_partition_index(partitions(:, i), cn_min, cn_max))
+
+            supergroups = get_supergroups(cn_min, cn_max)
+            correct = .true.
+            do i = 1, size(supergroups, 2)
+                if (i /= supergroup_index(supergroups(:, i), cn_min, cn_max)) correct = .false.
             end do
+            call assert_true(correct)
         end block
 
         block
+            integer, allocatable :: supergroups(:, :), cn_min(:), cn_max(:)
+            integer(kind=int64) :: start, finish, rate
+            integer, parameter :: n_iter = 2
+            logical :: correct
+
             cn_min = [5, 11, 17, 23, 30]
             cn_max = [7, 13, 19, 25, 30]
-            partitions = new_get_partitions(cn_min, cn_max)
-            do i = 1, size(partitions, 2)
-                call assert_true(i == new_get_partition_index(partitions(:, i), cn_min, cn_max))
-            end do
-        end block
 
-        block
-            cn_min = [3, 9, 15, 21, 30]
-            cn_max = [9, 15, 21, 27, 30]
-            partitions = new_get_partitions(cn_min, cn_max)
-            do i = 1, size(partitions, 2)
-                call assert_true(i == new_get_partition_index(partitions(:, i), cn_min, cn_max))
-            end do
-        end block
-
-
-        block
-            integer(kind=int64) :: start, finish, rate
-            integer :: idx, j
-            integer, parameter :: n_iter = 10
-
-            cn_min = [3, 9, 15, 21, 31, 34, 40]
-            cn_max = [9, 15, 21, 27, 31, 35, 40]
-            write(*, *) 'hello'
-            partitions = new_get_partitions(cn_min, cn_max)
-
+            supergroups = get_supergroups(cn_min, cn_max)
+            correct = .true.
             call system_clock(count_rate=rate)
-
-            write(*, *) rate
-
             call system_clock(start)
             do j = 1, n_iter
-                do i = 1, size(partitions, 2)
-                    idx = idx + new_get_partition_index(partitions(:, i), cn_min, cn_max)
+                do i = 1, size(supergroups, 2)
+                    if (i /= supergroup_index(supergroups(:, i), cn_min, cn_max)) correct = .false.
                 end do
             end do
             call system_clock(finish)
-            write(*, *) idx
+            call assert_true(correct)
 
             write(6, *) 'Elapsed Time in seconds:', real(finish - start, kind=dp) / real(rate, kind=dp)
-            write(6, *) 'Elapsed Time per index:', real(finish - start, kind=dp) / real(rate * n_iter * size(partitions, 2), kind=dp)
+            write(6, *) 'Elapsed Time per index:', real(finish - start, kind=dp) / real(rate * n_iter * size(supergroups, 2), kind=dp)
+        end block
 
-            ! TODO(@Oskar): Time how much the lookup in a precomputed table takes.
+        block
+            integer, allocatable :: supergroups(:, :), cn_min(:), cn_max(:)
+            integer(int64), allocatable :: supergroup_indices(:)
+            integer(kind=int64) :: start, finish, rate
+            integer, parameter :: n_iter = 20
+            logical :: correct
+
+            cn_min = [5, 11, 17, 23, 30]
+            cn_max = [7, 13, 19, 25, 30]
+
+            supergroups = get_supergroups(cn_min, cn_max)
+            supergroup_indices = get_supergroup_indices(cn_min, cn_max)
+
+            correct = .true.
+            call system_clock(count_rate=rate)
+            call system_clock(start)
+            do j = 1, n_iter
+                do i = 1, size(supergroups, 2)
+                    if (i /= supergroup_index_precomputed(supergroups(:, i), supergroup_indices)) correct = .false.
+                end do
+            end do
+            call system_clock(finish)
+            call assert_true(correct)
+
+            write(6, *) 'Elapsed Time in seconds:', real(finish - start, kind=dp) / real(rate, kind=dp)
+            write(6, *) 'Elapsed Time per index:', real(finish - start, kind=dp) / real(rate * n_iter * size(supergroups, 2), kind=dp)
         end block
     end subroutine
-
 
     subroutine test_supergroup_offsets()
         type(GASSpec_t) :: GAS_spec
@@ -166,17 +177,17 @@ contains
                              spat_GAS_orbs=[1, 1, 1, 2, 2, 2])
         call assert_true(GAS_spec%is_valid())
 
-
-
     end subroutine
-end module test_gasci_general_pchb
+
+end module
+
 
 program test_gasci_program
 
     use mpi
     use fruit
     use Parallel_neci, only: MPIInit, MPIEnd
-    use test_gasci_general_pchb, only: test_pgen, test_partitioning, test_supergroup_offsets
+    use test_gasci_general_pchb, only: test_pgen, test_partitioning, test_supergroup_partitioning
 
 
     implicit none
@@ -204,7 +215,8 @@ contains
 
     subroutine test_gasci_driver()
 !         call run_test_case(test_pgen, "test_pgen")
-        call run_test_case(test_partitioning, "test_partition_vectors")
+        call run_test_case(test_partitioning, "test_partitioning")
+        call run_test_case(test_supergroup_partitioning, "test_supergroup_partitioning")
 !         call run_test_case(test_supergroup_offsets, "test_supergroup_offsets")
     end subroutine
 end program test_gasci_program

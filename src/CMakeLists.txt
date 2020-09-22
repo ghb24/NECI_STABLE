@@ -233,6 +233,7 @@ set( SRC_FILES
     lib/fortran_strings.f90
     lib/matrix_util.F90
     lib/display_matrices.F90
+    lib/binomial_lookup.F90
 )
 
 set( FYPP_SRC_FILES
