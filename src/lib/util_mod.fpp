@@ -545,7 +545,7 @@ contains
             res = int(n, int64)
         else if (n <= 66) then
             ! use lookup table
-            res = binomial_lookup_table(get_index(int(n, int64), k))
+            res = binomial_lookup_table(get_index(int(n), int(k)))
         else
             ! Will overflow in most cases. Perhaps throw an error?
             res = 1_${kind}$
@@ -558,15 +558,15 @@ contains
         !> @brief
         !> Calculate 1 + ... + n
         integer elemental function gauss_sum(n)
-            integer(int64), intent(in) :: n
-            gauss_sum = (n * (n + 1_int64)) .div. 2_int64
+            integer, intent(in) :: n
+            gauss_sum = (n * (n + 1)) .div. 2
         end function
 
         !> @brief
         !> Get the index in the binomial_lookup_table
         integer elemental function get_index(n, k)
-            integer(int64), intent(in) :: n, k
-            get_index = gauss_sum((n - 3_int64) .div. 2_int64) + gauss_sum((n - 4_int64) .div. 2_int64) + k - 1_int64
+            integer, intent(in) :: n, k
+            get_index = gauss_sum((n - 3) .div. 2) + gauss_sum((n - 4) .div. 2) + k - 1
         end function
     end function
 #:endfor

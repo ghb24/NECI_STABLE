@@ -117,8 +117,6 @@ contains
 
         block
             integer, allocatable :: supergroups(:, :), cn_min(:), cn_max(:)
-            integer(kind=int64) :: start, finish, rate
-            integer, parameter :: n_iter = 2
             logical :: correct
 
             cn_min = [5, 11, 17, 23, 30]
@@ -126,25 +124,16 @@ contains
 
             supergroups = get_supergroups(cn_min, cn_max)
             correct = .true.
-            call system_clock(count_rate=rate)
-            call system_clock(start)
-            do j = 1, n_iter
-                do i = 1, size(supergroups, 2)
-                    if (i /= supergroup_index(supergroups(:, i), cn_min, cn_max)) correct = .false.
-                end do
+            do i = 1, size(supergroups, 2)
+                if (i /= supergroup_index(supergroups(:, i), cn_min, cn_max)) correct = .false.
             end do
-            call system_clock(finish)
             call assert_true(correct)
-
-            write(6, *) 'Elapsed Time in seconds:', real(finish - start, kind=dp) / real(rate, kind=dp)
-            write(6, *) 'Elapsed Time per index:', real(finish - start, kind=dp) / real(rate * n_iter * size(supergroups, 2), kind=dp)
         end block
+
 
         block
             integer, allocatable :: supergroups(:, :), cn_min(:), cn_max(:)
             integer(int64), allocatable :: supergroup_indices(:)
-            integer(kind=int64) :: start, finish, rate
-            integer, parameter :: n_iter = 20
             logical :: correct
 
             cn_min = [5, 11, 17, 23, 30]
@@ -154,18 +143,69 @@ contains
             supergroup_indices = get_supergroup_indices(cn_min, cn_max)
 
             correct = .true.
-            call system_clock(count_rate=rate)
-            call system_clock(start)
-            do j = 1, n_iter
-                do i = 1, size(supergroups, 2)
-                    if (i /= supergroup_index_precomputed(supergroups(:, i), supergroup_indices)) correct = .false.
-                end do
+            do i = 1, size(supergroups, 2)
+                if (i /= supergroup_index_precomputed(supergroups(:, i), supergroup_indices)) correct = .false.
             end do
-            call system_clock(finish)
             call assert_true(correct)
+        end block
+    end subroutine
 
-            write(6, *) 'Elapsed Time in seconds:', real(finish - start, kind=dp) / real(rate, kind=dp)
-            write(6, *) 'Elapsed Time per index:', real(finish - start, kind=dp) / real(rate * n_iter * size(supergroups, 2), kind=dp)
+    subroutine test_supergroup_indexer_class()
+        block
+            type(GASSpec_t) :: GAS_spec
+            type(SuperGroupIndexer_t) :: indexer
+            integer :: i, j
+            integer, allocatable :: supergroups(:, :)
+            logical :: correct
+
+            GAS_spec = GASSpec_t(&
+                n_min=[5, 11, 17, 23, 30], &
+                n_max=[7, 13, 19, 25, 30], &
+                spat_GAS_orbs = [([(j, i = 1, 6)], j = 1, 5)])
+            call assert_true(GAS_spec%is_valid())
+
+            indexer = SuperGroupIndexer_t(GAS_spec)
+            supergroups = get_supergroups(&
+                    GAS_spec%cumulated_min([(i, i = 1, GAS_spec%nGAS())]) , &
+                    GAS_spec%cumulated_max([(i, i = 1, GAS_spec%nGAS())]))
+
+            correct = .true.
+            do i = 1, size(supergroups, 2)
+                if (i /= indexer%idx_supergroup(supergroups(:, i))) correct = .false.
+            end do
+            call assert_true(correct)
+        end block
+
+        block
+            type(GASSpec_t) :: GAS_spec
+            type(SuperGroupIndexer_t) :: indexer
+            integer :: i, j
+            integer, allocatable :: supergroups(:, :), det_I(:)
+            logical :: correct
+
+            GAS_spec = GASSpec_t(&
+                n_min=[0, 1, 3], &
+                n_max=[2, 2, 3], &
+                spat_GAS_orbs = [1, 1, 2, 2, 3, 3])
+            call assert_true(GAS_spec%is_valid())
+
+            indexer = SuperGroupIndexer_t(GAS_spec)
+
+            call assert_true(1 == indexer%idx_nI([1, 2, 9]))
+            call assert_true(1 == indexer%idx_nI([1, 3, 9]))
+            call assert_true(1 == indexer%idx_nI([1, 3, 10]))
+
+            call assert_true(2 == indexer%idx_nI([1, 5, 10]))
+            call assert_true(2 == indexer%idx_nI([1, 7, 10]))
+            call assert_true(2 == indexer%idx_nI([1, 5, 10]))
+
+            call assert_true(3 == indexer%idx_nI([1, 10, 11]))
+            call assert_true(3 == indexer%idx_nI([3, 10, 11]))
+
+            call assert_true(4 == indexer%idx_nI([5, 7, 11]))
+            call assert_true(4 == indexer%idx_nI([6, 7, 11]))
+
+            call assert_true(5 == indexer%idx_nI([7, 10, 11]))
         end block
     end subroutine
 
@@ -187,7 +227,8 @@ program test_gasci_program
     use mpi
     use fruit
     use Parallel_neci, only: MPIInit, MPIEnd
-    use test_gasci_general_pchb, only: test_pgen, test_partitioning, test_supergroup_partitioning
+    use test_gasci_general_pchb, only: test_pgen, test_partitioning, &
+        test_supergroup_partitioning, test_supergroup_indexer_class
 
 
     implicit none
@@ -217,6 +258,7 @@ contains
 !         call run_test_case(test_pgen, "test_pgen")
         call run_test_case(test_partitioning, "test_partitioning")
         call run_test_case(test_supergroup_partitioning, "test_supergroup_partitioning")
+        call run_test_case(test_supergroup_indexer_class, "test_supergroup_indexer_class")
 !         call run_test_case(test_supergroup_offsets, "test_supergroup_offsets")
     end subroutine
 end program test_gasci_program

@@ -21,6 +21,7 @@ module gasci_general_pchb
     public :: n_supergroups, get_supergroups, supergroup_index
 
     public :: supergroup_index_precomputed, get_supergroup_indices
+    public :: SuperGroupIndexer_t
 
     type :: SuperGroupIndexer_t
         private
@@ -31,6 +32,10 @@ module gasci_general_pchb
         procedure, public :: idx_supergroup => get_supergroup_index
         procedure, public :: idx_nI => get_supergroup_index_det
     end type
+
+    interface SuperGroupIndexer_t
+        module procedure construct_SuperGroupIndexer_t
+    end interface
 
 contains
 
@@ -78,6 +83,7 @@ contains
         integer(int64) :: idx
         character(*), parameter :: this_routine = 'get_supergroup_index_det'
 
+        @:pure_ASSERT(self%GASspec%contains(nI))
 
         idx = binary_search_first_ge(&
                     self%supergroup_index, &
@@ -94,8 +100,8 @@ contains
         indexer%GASspec = GASspec
 
         indexer%supergroup_index = get_supergroup_indices(&
-                GASspec%cumulated_min([(i, i = 1, GASspec%nEl())]) , &
-                GASspec%cumulated_max([(i, i = 1, GASspec%nEl())]))
+                GASspec%cumulated_min([(i, i = 1, GASspec%nGAS())]) , &
+                GASspec%cumulated_max([(i, i = 1, GASspec%nGAS())]))
     end function
 
     elemental function n_partitions(k, n) result(res)
@@ -202,7 +208,7 @@ contains
     !> Assume lexical decreasing sortedness.
     pure function supergroup_index(partition, in_cn_min, in_cn_max) result(idx)
         integer, intent(in) :: partition(:), in_cn_min(:), in_cn_max(:)
-        integer :: idx
+        integer(int64) :: idx
         character(*), parameter :: this_routine = 'supergroup_index'
 
         integer :: reminder, rhs
@@ -213,7 +219,7 @@ contains
 
         cn_min = in_cn_min; cn_max = in_cn_max
 
-        idx = 1
+        idx = 1_int64
         i_summand = 1
         reminder = sum(partition)
 

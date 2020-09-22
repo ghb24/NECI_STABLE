@@ -2193,7 +2193,7 @@ contains
 !         n_single_excits = n_elecs * (n_orbs - n_elecs)
 
         ! with binomial it is just:
-        n_single_excits = binomial(n_elecs, 1) * binomial(n_orbs - n_elecs, 1)
+        n_single_excits = int(binomial(n_elecs, 1) * binomial(n_orbs - n_elecs, 1))
 
     end function calc_n_single_excits
 
@@ -2204,7 +2204,7 @@ contains
         integer, intent(in) :: n_elecs, n_orbs, ic
         integer :: n_parallel
 
-        n_parallel = binomial(n_elecs, ic) * binomial(n_orbs - n_elecs, ic)
+        n_parallel = int(binomial(n_elecs, ic) * binomial(n_orbs - n_elecs, ic))
 
     end function calc_n_parallel_excitations
 end module cc_amplitudes
