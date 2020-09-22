@@ -24,10 +24,12 @@ module gasci_general_pchb
 
     type :: SuperGroupIndexer_t
         private
+        type(GASSpec_t) :: GASspec
         integer(int64), allocatable :: supergroup_index(:)
     contains
         private
-        procedure :: idx => get_supergroup_index
+        procedure, public :: idx_supergroup => get_supergroup_index
+        procedure, public :: idx_nI => get_supergroup_index_det
     end type
 
 contains
@@ -60,13 +62,47 @@ contains
 
     end subroutine gen_general_GASCI_pchb
 
+    pure function get_supergroup_index(self, supergroup) result(idx)
+        class(SuperGroupIndexer_t), intent(in) :: self
+        integer, intent(in) :: supergroup(:)
+        integer(int64) :: idx
+        character(*), parameter :: this_routine = 'get_supergroup_index'
+
+        idx = binary_search_first_ge(self%supergroup_index, partition_index(supergroup))
+        @:pure_ASSERT(idx /= -1)
+    end function
+
+    pure function get_supergroup_index_det(self, nI) result(idx)
+        class(SuperGroupIndexer_t), intent(in) :: self
+        integer, intent(in) :: nI(:)
+        integer(int64) :: idx
+        character(*), parameter :: this_routine = 'get_supergroup_index_det'
+
+
+        idx = binary_search_first_ge(&
+                    self%supergroup_index, &
+                    partition_index(self%GASspec%count_per_GAS(nI)))
+        @:pure_ASSERT(idx /= -1)
+    end function
+
+    pure function construct_SuperGroupIndexer_t(GASspec) result(indexer)
+        type(GASSpec_t), intent(in) :: GASspec
+        type(SuperGroupIndexer_t) :: indexer
+
+        integer :: i
+
+        indexer%GASspec = GASspec
+
+        indexer%supergroup_index = get_supergroup_indices(&
+                GASspec%cumulated_min([(i, i = 1, GASspec%nEl())]) , &
+                GASspec%cumulated_max([(i, i = 1, GASspec%nEl())]))
+    end function
 
     elemental function n_partitions(k, n) result(res)
         integer, intent(in) :: k, n
         integer(int64) :: res
         res = choose(n + k - 1, k - 1)
     end function
-
 
     !> @brief
     !> Get the ordered partitions of n into k summands.
@@ -199,25 +235,6 @@ contains
         integer :: idx
 
         idx = binary_search_first_ge(supergroup_indices, partition_index(partition))
-    end function
-
-    pure function get_supergroup_index(self, partition) result(idx)
-        class(SuperGroupIndexer_t), intent(in) :: self
-        integer, intent(in) :: partition(:)
-        integer(int64) :: idx
-        character(*), parameter :: this_routine = 'get_supergroup_index'
-
-        idx = binary_search_first_ge(self%supergroup_index, partition_index(partition))
-        @:pure_ASSERT(idx /= -1)
-    end function
-
-    pure function Construct_SuperGroupIndexer_t(GASspec) result(indexer)
-        type(GASSpec_t), intent(in) :: GASspec
-        type(SuperGroupIndexer_t) :: indexer
-
-        integer :: i
-
-        GASspec%get_cni[(i, i = 1, GASspec%nEl())]
     end function
 
     pure function get_supergroup_indices(cn_min, cn_max) result(res)
