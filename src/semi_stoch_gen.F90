@@ -2,7 +2,7 @@
 
 module semi_stoch_gen
 
-    use SystemData, only: tGUGA
+    use SystemData, only: tGUGA, t_mol_3_body
     use bit_rep_data, only: NIfD, NIfTot
     use bit_reps, only: decode_bit_det, nifguga
     use CalcData
@@ -175,7 +175,7 @@ contains
 
                 write(6, '("Generating the Hamiltonian in the deterministic space...")'); call neci_flush(6)
                 if (tAllSymSectors .or. tReltvy .or. nOccAlpha <= 1 .or. nOccBeta <= 1 &
-                    .or. tGUGA) then
+                    .or. tGUGA .or. t_mol_3_body) then
                     ! In the above cases the faster generation is not implemented, so
                     ! use the original algorithm.
                     call set_timer(SemiStoch_Hamil_Time)
