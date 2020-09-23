@@ -23,23 +23,30 @@ endif
 #:enddef
 
 #:def ASSERT(cond, *args)
-    if (.not. (${cond}$)) then
-        write(6, *) ""
-        write(6, *) "Assertion ${cond}$"
-        write(6, *) "failed in ${_FILE_}$:${_LINE_}$"
+    block
+        use util_mod, only: stop_all
+        use constants, only: iout
+        if (.not. (${cond}$)) then
+            write(iout, *) ""
+            write(iout, *) "Assertion ${cond}$"
+            write(iout, *) "failed in ${_FILE_}$:${_LINE_}$"
 #:if args
-        write(6, *) "Values leading to this error:"
+            write(iout, *) "Values leading to this error:"
 #:for value in args
-        write(6, *) "${value}$ = ", ${value}$
+            write(iout, *) "${value}$ = ", ${value}$
 #:endfor
 #:endif
-        call stop_all (this_routine, "Assert fail: ${cond}$")
+            call stop_all (this_routine, "Assert fail: ${cond}$")
+        end if
     end if
 #:enddef
 
 
 #:def pure_ASSERT(cond, *args)
-    if (.not. (${cond}$)) then
-        call stop_all (this_routine, "Assert fail: ${cond}$")
-    end if
+    block
+        use util_mod, only: stop_all
+        if (.not. (${cond}$)) then
+            call stop_all (this_routine, "Assert fail: ${cond}$")
+        end if
+    end block
 #:enddef
