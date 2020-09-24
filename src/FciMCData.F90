@@ -665,4 +665,8 @@ MODULE FciMCData
 
     logical :: t_global_core_space = .true.
 
+    ! Potentially evolve some replicas with the adjoint hamiltonian (only makes
+    ! sense for non-hermitian operator)
+    logical :: t_adjoint_replicas = .false.
+
 end module FciMCData

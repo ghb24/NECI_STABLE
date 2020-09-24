@@ -2750,4 +2750,14 @@ contains
                 if (tChildIsDeterm) call set_flag(ilut_child, flag_deterministic(run))
             end if
         end function check_semistoch_flags
+
+        function t_evolve_adjoint(run) result(transp)
+            use FciMCData, only: t_adjoint_replicas
+            implicit none
+            integer, intent(in) :: run
+
+            logical :: transp
+
+            transp = t_adjoint_replicas .and. ( mod(run,2)==0 )
+        end function t_evolve_adjoint
     end module

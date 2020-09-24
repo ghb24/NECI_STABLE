@@ -23,7 +23,7 @@ module fcimc_pointed_fns
                         tPrecond, AAS_Const, EAS_Scale, ShiftOffset, tAS_Offset
     use DetCalcData, only: FciDetIndex, det
     use procedure_pointers, only: get_spawn_helement, shiftFactorFunction
-    use fcimc_helper, only: CheckAllowedTruncSpawn
+    use fcimc_helper, only: CheckAllowedTruncSpawn, t_evolve_adjoint
 
     use DetBitOps, only: FindBitExcitLevel, EncodeBitDet, count_open_orbs
 
@@ -227,10 +227,20 @@ contains
         temp_ex(1, :) = ex(2, :)
         temp_ex(2, :) = ex(1, :)
 
-        ! We actually want to calculate Hji - take the complex conjugate,
-        ! rather than swap around DetCurr and nJ.
-        rh_used = get_spawn_helement(nJ, DetCurr, ilutnJ, iLutCurr, ic, temp_ex, &
-                                     tParity, HElGen)
+        ! Compile-time optimization: Transposing H for specific replicas only
+        ! makes sense if having more than one replica
+#ifdef PROG_NUMRUNS_ || DOUBLERUN_
+        if(t_evolve_adjoint(part_type_to_run(part_type))) then
+            rh_used = get_spawn_helement(nJ, DetCurr, ilutnJ, iLutCurr, ic, temp_ex, &
+                tParity, HElGen)
+        else
+
+#endif
+            rh_used = get_spawn_helement(nJ, DetCurr, ilutnJ, iLutCurr, ic, temp_ex, &
+                tParity, HElGen)
+#ifdef PROG_NUMRUNS_ || DOUBLERUN_
+        endif
+#endif
 
         ! assign the matrix element
         HElGen = abs(rh_used)
