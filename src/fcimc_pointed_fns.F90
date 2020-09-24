@@ -231,7 +231,7 @@ contains
         ! makes sense if having more than one replica
 #ifdef PROG_NUMRUNS_ || DOUBLERUN_
         if(t_evolve_adjoint(part_type_to_run(part_type))) then
-            rh_used = get_spawn_helement(nJ, DetCurr, ilutnJ, iLutCurr, ic, temp_ex, &
+            rh_used = get_spawn_helement(DetCurr, nJ, ilutCurr, ilutnJ, ic, ex, &
                 tParity, HElGen)
         else
 
