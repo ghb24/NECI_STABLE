@@ -268,8 +268,6 @@ endif
 ! Shortcut for optional variables
 #define def_default(Var_, Var, Val) if(present(Var))then;Var_=Var;else;Var_=Val;endif
 
-#endif
-
 #define check_abort_excit(pgen,x) if (near_zero(pgen)) then; x = 0_n_int; return; endif
 
 #ifdef DEBUG_
@@ -277,3 +275,9 @@ endif
 #else
 #define debug_function_name(name)
 #endif
+
+
+
+! This should be the last end if
+#endif
+
