@@ -1768,7 +1768,7 @@ contains
             case("ADJOINT-REPLICAS")
                 ! some replicas will be evolved according to the adjoint H,
                 ! useful to get the left eigenvector in ST-FCIQMC
-                t_evolve_adjoint = .true.
+                t_adjoint_replicas = .true.
 #endif
 
             case ("HEISENBERG")
