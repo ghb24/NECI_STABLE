@@ -109,7 +109,7 @@ contains
     function pos_1d(this, i) result(pt)
         class(shared_ragged_array_t), intent(inout) :: this
         integer, intent(in) :: i
-        integer, pointer :: pt(:)
+        integer(int32), pointer :: pt(:)
 
         pt => this%ptr(i)%res
     end function pos_1d
