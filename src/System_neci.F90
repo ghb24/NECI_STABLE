@@ -1764,7 +1764,7 @@ contains
                 end if
 #endif
                 
-#ifdef PROG_NUMRUNS_ || DOUBLERUN_
+#if defined PROG_NUMRUNS_ || defined DOUBLERUN_
             case("ADJOINT-REPLICAS")
                 ! some replicas will be evolved according to the adjoint H,
                 ! useful to get the left eigenvector in ST-FCIQMC
