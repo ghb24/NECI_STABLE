@@ -1,3 +1,4 @@
+#:include "macros.fpph"
 #:include "algorithms.fpph"
 
 ! fpp types
@@ -78,10 +79,12 @@ contains
         class(buffer_${_get_name(data_name, rank)}$_t), intent(inout) :: this
         real(dp), optional, intent(in) :: grow_factor
         integer(int64), optional, intent(in) :: start_size
+        character(*), parameter :: this_routine = 'buffer::init'
 
         if (present(grow_factor)) this%grow_factor = grow_factor
         if (present(start_size)) this%start_size = start_size
-        @:ASSERT(this%start_size >= 1)
+        @:ASSERT(this%grow_factor > 1.0_dp)
+        @:ASSERT(this%start_size > 0_int64)
         
         if (.not. allocated(this%buf)) allocate(this%buf(this%start_size))
         this%pos = 0_int64
@@ -113,9 +116,12 @@ contains
         integer, intent(in) :: rows
         real, optional, intent(in) :: grow_factor
         integer, optional, intent(in) :: start_size
+        character(*), parameter :: this_routine = 'buffer::init'
 
         if (present(grow_factor)) this%grow_factor = grow_factor
         if (present(start_size)) this%start_size = start_size
+        @:ASSERT(this%grow_factor > 1.0_dp)
+        @:ASSERT(this%start_size > 0_int64)
 
         allocate(this%buf(rows, this%start_size))
         this%pos = 0_int64
