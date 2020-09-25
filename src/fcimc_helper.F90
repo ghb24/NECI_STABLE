@@ -525,7 +525,7 @@ contains
         integer, intent(in), optional :: ind
 
         integer :: i, ExcitLevel_local, ExcitLevelSpinCoup
-        integer :: run, tmp_exlevel
+        integer :: run, tmp_exlevel, step
         HElement_t(dp) :: HOffDiag(inum_runs), tmp_off_diag(inum_runs), tmp_diff(inum_runs)
         character(*), parameter :: this_routine = 'SumEContrib'
 
@@ -695,14 +695,13 @@ contains
                 (ExcitLevel_local == 1 .and. tNoBrillouin) .or. (ExcitLevel_local == 3 .and. &
                      (t_3_body_excits .or. t_ueg_3_body .or. t_mol_3_body))) then
                 ! Obtain off-diagonal element
-                if (tHPHF) then
-                    HOffDiag(1:inum_runs) = &
-                        hphf_off_diag_helement(ProjEDet(:, 1), nI, iLutRef(:, 1), ilut)
-
+                if(t_adjoint_replicas) then
+                    step = 2
+                    HOffDiag(2:inum_runs:step) = assigned_matrix_element(nI, ProjEDet(:, 1), ilut, iLutRef(:, 1))
                 else
-                    HOffDiag(1:inum_runs) = &
-                        get_helement(ProjEDet(:, 1), nI, ExcitLevel, ilutRef(:, 1), ilut)
-                end if
+                    step = 1
+                endif
+                HOffDiag(1:inum_runs:step) = assigned_matrix_element(ProjEDet(:, 1), nI, iLutRef(:, 1), ilut)
             end if
         end if ! GUGA
 
@@ -802,6 +801,17 @@ contains
 
             dE = (HOffDiag(run) * ARR_RE_OR_CPLX(RealwSign, run)) / dProbFin
         end function enum_contrib
+
+        function assigned_matrix_element(nA, nB, ilutA, ilutB) result(matel)
+            integer, intent(in) :: nA(nel), nB(nel)
+            integer(n_int), intent(in) :: ilutA(0:NIfTot), ilutB(0:NIfTot)
+            HElement_t(dp) :: matel
+            if(tHPHF) then
+                matel = hphf_off_diag_helement(nA, nB, ilutA, ilutB)
+            else
+                matel = get_helement(nA, nB, ExcitLevel, ilutA, ilutB)
+            endif
+        end function assigned_matrix_element
     end subroutine SumEContrib
 
     subroutine SumEContrib_different_refs(nI, sgn, ilut, dProbFin, tPairedReplicas, ind)
