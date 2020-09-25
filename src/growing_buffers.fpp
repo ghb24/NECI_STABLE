@@ -196,7 +196,7 @@ contains
                 tmp = this%buf
 
                 deallocate(this%buf)
-                new_buf_size = int(real(size(this%buf, ${rank}$), kind=dp) * this%grow_factor, kind=int64)
+                new_buf_size = ceiling(real(size(this%buf, ${rank}$), kind=dp) * this%grow_factor, kind=int64)
                 allocate(this%buf(@{shape_like_except_along(${rank}$, ${rank}$, tmp, new_buf_size)}@))
 
                 @{select(this%buf, : size(tmp, ${rank}$))}@ = tmp
