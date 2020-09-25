@@ -42,10 +42,12 @@ contains
         use SystemData, only: nOccAlpha, nOccBeta
         type(core_space_t), intent(inout) :: rep
         integer :: i, j, k, ierr
+        integer(MPIArg) :: MPIerr
         integer :: IC, IC_beta
         integer :: ind_i, ind_j, ind_k, i_full
         integer :: ind, hash_val, hash_size_1, hash_size_2, hash_size_3
-        integer :: ind_beta, ind_alpha, hash_val_beta, hash_val_alpha, ind_alpha_conn
+        integer :: ind_beta, ind_alpha, hash_val_beta, hash_val_alpha
+        integer(int32) :: ind_alpha_conn
         integer :: ind_alpha_paired, ind_beta_paired
         logical :: tSuccess, tSuccess_a_paired, tSuccess_b_paired
         integer(n_int) :: tmp(0:NIfD)
@@ -60,8 +62,8 @@ contains
         ! in the HPHFs
         integer :: nbeta_unpaired, nalpha_unpaired
 
-        integer :: nintersec
-        integer, allocatable :: intersec_inds(:)
+        integer(int32) :: nintersec
+        integer(int32), allocatable :: intersec_inds(:)
 
         type(ll_node), pointer :: beta_ht(:)
         type(ll_node), pointer :: alpha_ht(:)
@@ -302,10 +304,10 @@ contains
         ! Now allocate the shared auxiliary arrays
         ! Continue the allocation of auxiliary arrays, these are shared now
         ! Internally broadcast the size of the arrays
-        call MPI_Bcast(nbeta_unpaired, 1, MPI_INTEGER4, 0, mpi_comm_intra, ierr)
-        call MPI_Bcast(nalpha_unpaired, 1, MPI_INTEGER4, 0, mpi_comm_intra, ierr)
-        call MPI_Bcast(nbeta, 1, MPI_INTEGER4, 0, mpi_comm_intra, ierr)
-        call MPI_Bcast(nalpha, 1, MPI_INTEGER4, 0, mpi_comm_intra, ierr)
+        call MPI_Bcast(nbeta_unpaired, 1, MPI_INTEGER4, 0, mpi_comm_intra, MPIerr)
+        call MPI_Bcast(nalpha_unpaired, 1, MPI_INTEGER4, 0, mpi_comm_intra, MPIerr)
+        call MPI_Bcast(nbeta, 1, MPI_INTEGER4, 0, mpi_comm_intra, MPIerr)
+        call MPI_Bcast(nalpha, 1, MPI_INTEGER4, 0, mpi_comm_intra, MPIerr)
 
         ! Sync nbeta_dets / nalpha_dets / cs
         call nbeta_dets%sync()
@@ -317,8 +319,8 @@ contains
         call alpha_dets%shared_alloc(nalpha_dets%ptr(1:nalpha_unpaired))
         call beta_with_alpha%shared_alloc(nalpha_dets%ptr(1:nalpha_unpaired))
 
-        call nbeta_beta%shared_alloc(int(nbeta, int64))
-        call nalpha_alpha%shared_alloc(int(nalpha, int64))
+        call nbeta_beta%shared_alloc(nbeta)
+        call nalpha_alpha%shared_alloc(nalpha)
 
         if (iProcIndex_intra == 0) then
             ! --- Now fill the auxiliary arrays ----------------
@@ -349,13 +351,13 @@ contains
                     ! Now add this determinant to the list of determinants with this
                     ! beta string.
                     nbeta_dets%ptr(ind_beta) = nbeta_dets%ptr(ind_beta) + 1
-                    call beta_dets%set_val(ind_beta, nbeta_dets%ptr(ind_beta), i)
+                    call beta_dets%set_val(int(ind_beta, int32), nbeta_dets%ptr(ind_beta), int(i, int32))
 
                     ! Now add this determinant to the list of determinants with this
                     ! alpha string.
                     nalpha_dets%ptr(ind_alpha) = nalpha_dets%ptr(ind_alpha) + 1
-                    call alpha_dets%set_val(ind_alpha, nalpha_dets%ptr(ind_alpha), i)
-                    call beta_with_alpha%set_val(ind_alpha, nalpha_dets%ptr(ind_alpha), ind_beta)
+                    call alpha_dets%set_val(int(ind_alpha, int32), nalpha_dets%ptr(ind_alpha), int(i, int32))
+                    call beta_with_alpha%set_val(int(ind_alpha, int32), nalpha_dets%ptr(ind_alpha), int(ind_beta, int32))
                 end do
             end do
 
@@ -439,7 +441,7 @@ contains
         call nbeta_beta%sync()
         call beta_beta%shared_alloc(nbeta_beta%ptr(1:nbeta))
         ! Wait until allocation is complete before overwriting nbeta_beta
-        call MPI_Barrier(mpi_comm_intra, ierr)
+        call MPI_Barrier(mpi_comm_intra, MPIerr)
 
         if (iProcIndex_intra == 0) then
             ! Rezero this so that we can use it as a counter for the following
@@ -453,7 +455,7 @@ contains
                         ! Don't need to consider beta values that aren't in the unpaired detereminants
                         if (beta_m1_contribs(i)%pos(k) > nbeta_unpaired) cycle
                         nbeta_beta%ptr(beta_m1_contribs(i)%pos(j)) = nbeta_beta%ptr(beta_m1_contribs(i)%pos(j)) + 1
-                  call beta_beta%set_val(beta_m1_contribs(i)%pos(j), nbeta_beta%ptr(beta_m1_contribs(i)%pos(j)), beta_m1_contribs(i)%pos(k))
+                  call beta_beta%set_val(int(beta_m1_contribs(i)%pos(j), int32), int(nbeta_beta%ptr(beta_m1_contribs(i)%pos(j)), int32), int(beta_m1_contribs(i)%pos(k), int32))
                     end do
                 end do
             end do
@@ -476,7 +478,7 @@ contains
         call nalpha_alpha%sync()
         call alpha_alpha%shared_alloc(nalpha_alpha%ptr(1:nalpha))
         ! Wait until allocation is complete before overwriting nalpha_alpha
-        call MPI_Barrier(mpi_comm_intra, ierr)
+        call MPI_Barrier(mpi_comm_intra, MPIerr)
 
         if (iProcIndex_intra == 0) then
             ! Rezero this so that we can use it as a counter for the following
@@ -490,7 +492,9 @@ contains
                         ! Don't need to consider alpha values that aren't in the unpaired detereminants
                         if (alpha_m1_contribs(i)%pos(k) > nalpha_unpaired) cycle
                         nalpha_alpha%ptr(alpha_m1_contribs(i)%pos(j)) = nalpha_alpha%ptr(alpha_m1_contribs(i)%pos(j)) + 1
-           call alpha_alpha%set_val(alpha_m1_contribs(i)%pos(j), nalpha_alpha%ptr(alpha_m1_contribs(i)%pos(j)), alpha_m1_contribs(i)%pos(k))
+           call alpha_alpha%set_val(int(alpha_m1_contribs(i)%pos(j), int32), &
+                                    int(nalpha_alpha%ptr(alpha_m1_contribs(i)%pos(j)), int32), &
+                                    int(alpha_m1_contribs(i)%pos(k), int32))
 
                     end do
                 end do
@@ -504,7 +508,7 @@ contains
             call set_timer(sort_aux_time)
 
             block
-                integer, pointer :: aux(:), sec_aux(:)
+                integer(int32), pointer :: aux(:), sec_aux(:)
 
                 do i = 1, nalpha_unpaired
                     aux => beta_with_alpha%sub(i)
@@ -529,7 +533,7 @@ contains
 
         ! On procs which are not node-root, we need to reassign the internal pointers
         ! after sorting
-        call MPI_Barrier(mpi_comm_intra, ierr)
+        call MPI_Barrier(mpi_comm_intra, MPIerr)
         call beta_beta%reassign_pointers()
         call alpha_alpha%reassign_pointers()
         call beta_with_alpha%reassign_pointers()
@@ -568,9 +572,9 @@ contains
         end if
 
         ! Sync the ilut lists
-        call MPI_Win_Sync(beta_list_win, ierr)
-        call MPI_Win_Sync(alpha_list_win, ierr)
-        call MPI_Barrier(mpi_comm_intra, ierr)
+        call MPI_Win_Sync(beta_list_win, MPIerr)
+        call MPI_Win_Sync(alpha_list_win, MPIerr)
+        call MPI_Barrier(mpi_comm_intra, MPIerr)
         ! Create the node shared read-only hashtables
         call initialise_shared_rht(beta_list, nbeta, beta_rht, nOccBeta, hash_size_1)
         call initialise_shared_rht(alpha_list, nalpha, alpha_rht, nOccAlpha, hash_size_1)
@@ -866,6 +870,7 @@ contains
         use SystemData, only: nOccAlpha, nOccBeta
         type(core_space_t), intent(inout) :: rep
         integer :: i, j, k, ierr
+        integer(MPIArg) :: MPIerr
         integer :: IC, IC_beta
         integer :: ind_i, ind_j, ind_k, i_full
         integer :: ind, hash_val, hash_size_1, hash_size_2, hash_size_3
@@ -880,8 +885,8 @@ contains
         integer :: nI_alpha(nOccAlpha), nI_alpha_m1(nOccAlpha - 1), nI_beta(nOccBeta), nI_beta_m1(nOccBeta - 1)
         integer :: nbeta, nalpha, nbeta_m1, nalpha_m1
 
-        integer :: nintersec
-        integer, allocatable :: intersec_inds(:)
+        integer(int32) :: nintersec
+        integer(int32), allocatable :: intersec_inds(:)
 
         type(ll_node), pointer :: beta_ht(:)
         type(ll_node), pointer :: alpha_ht(:)
@@ -1089,8 +1094,8 @@ contains
         end if
         ! Continue the allocation of auxiliary arrays, these are shared now
         ! Internally broadcast the size of the arrays
-        call MPI_Bcast(nbeta, 1, MPI_INTEGER4, 0, mpi_comm_intra, ierr)
-        call MPI_Bcast(nalpha, 1, MPI_INTEGER4, 0, mpi_comm_intra, ierr)
+        call MPI_Bcast(nbeta, 1, MPI_INTEGER4, 0, mpi_comm_intra, MPIerr)
+        call MPI_Bcast(nalpha, 1, MPI_INTEGER4, 0, mpi_comm_intra, MPIerr)
 
         call nbeta_dets%sync()
         call nalpha_dets%sync()
@@ -1100,8 +1105,8 @@ contains
         call alpha_dets%shared_alloc(nalpha_dets%ptr(1:nalpha))
         call beta_with_alpha%shared_alloc(nalpha_dets%ptr(1:nalpha))
 
-        call nbeta_beta%shared_alloc(int(nbeta, int64))
-        call nalpha_alpha%shared_alloc(int(nalpha, int64))
+        call nbeta_beta%shared_alloc(nbeta)
+        call nalpha_alpha%shared_alloc(nalpha)
 
         if (iProcIndex_intra == 0) then
             ! --- Now fill the auxiliary arrays ----------------
@@ -1124,13 +1129,13 @@ contains
                 ! Now add this determinant to the list of determinants with this
                 ! beta string.
                 nbeta_dets%ptr(ind_beta) = nbeta_dets%ptr(ind_beta) + 1
-                call beta_dets%set_val(ind_beta, nbeta_dets%ptr(ind_beta), i)
+                call beta_dets%set_val(int(ind_beta, int32), nbeta_dets%ptr(ind_beta), int(i, int32))
 
                 ! Now add this determinant to the list of determinants with this
                 ! alpha string.
                 nalpha_dets%ptr(ind_alpha) = nalpha_dets%ptr(ind_alpha) + 1
-                call alpha_dets%set_val(ind_alpha, nalpha_dets%ptr(ind_alpha), i)
-                call beta_with_alpha%set_val(ind_alpha, nalpha_dets%ptr(ind_alpha), ind_beta)
+                call alpha_dets%set_val(int(ind_alpha, int32), nalpha_dets%ptr(ind_alpha), int(i, int32))
+                call beta_with_alpha%set_val(int(ind_alpha, int32), nalpha_dets%ptr(ind_alpha), int(ind_beta, int32))
             end do
 
             do i = 1, nbeta
@@ -1208,7 +1213,7 @@ contains
         call nbeta_beta%sync()
         call beta_beta%shared_alloc(nbeta_beta%ptr(1:nbeta))
         ! Wait unti all tasks allocated before overwriting nbeta_beta
-        call MPI_Barrier(mpi_comm_intra, ierr)
+        call MPI_Barrier(mpi_comm_intra, MPIerr)
 
         if (iProcIndex_intra == 0) then
             ! Rezero this so that we can use it as a counter for the following
@@ -1219,10 +1224,14 @@ contains
                 do j = 1, nbeta_m1_contribs(i)
                     do k = j + 1, nbeta_m1_contribs(i)
                         nbeta_beta%ptr(beta_m1_contribs(i)%pos(j)) = nbeta_beta%ptr(beta_m1_contribs(i)%pos(j)) + 1
-                  call beta_beta%set_val(beta_m1_contribs(i)%pos(j), nbeta_beta%ptr(beta_m1_contribs(i)%pos(j)), beta_m1_contribs(i)%pos(k))
+                  call beta_beta%set_val(int(beta_m1_contribs(i)%pos(j), int32), &
+                                         int(nbeta_beta%ptr(beta_m1_contribs(i)%pos(j)), int32), &
+                                         int(beta_m1_contribs(i)%pos(k), int32))
 
                         nbeta_beta%ptr(beta_m1_contribs(i)%pos(k)) = nbeta_beta%ptr(beta_m1_contribs(i)%pos(k)) + 1
-                  call beta_beta%set_val(beta_m1_contribs(i)%pos(k), nbeta_beta%ptr(beta_m1_contribs(i)%pos(k)), beta_m1_contribs(i)%pos(j))
+                  call beta_beta%set_val(int(beta_m1_contribs(i)%pos(k), int32), &
+                                         int(nbeta_beta%ptr(beta_m1_contribs(i)%pos(k)), int32), &
+                                         int(beta_m1_contribs(i)%pos(j), int32))
                     end do
                 end do
             end do
@@ -1239,7 +1248,7 @@ contains
         call nalpha_alpha%sync()
         call alpha_alpha%shared_alloc(nalpha_alpha%ptr(1:nalpha))
         ! Wait unti all tasks allocated before overwriting nalpha_alpha
-        call MPI_Barrier(mpi_comm_intra, ierr)
+        call MPI_Barrier(mpi_comm_intra, MPIerr)
 
         if (iProcIndex_intra == 0) then
             ! Rezero this so that we can use it as a counter for the following
@@ -1250,10 +1259,14 @@ contains
                 do j = 1, nalpha_m1_contribs(i)
                     do k = j + 1, nalpha_m1_contribs(i)
                         nalpha_alpha%ptr(alpha_m1_contribs(i)%pos(j)) = nalpha_alpha%ptr(alpha_m1_contribs(i)%pos(j)) + 1
-           call alpha_alpha%set_val(alpha_m1_contribs(i)%pos(j), nalpha_alpha%ptr(alpha_m1_contribs(i)%pos(j)), alpha_m1_contribs(i)%pos(k))
+           call alpha_alpha%set_val(int(alpha_m1_contribs(i)%pos(j), int32), &
+                                    int(nalpha_alpha%ptr(alpha_m1_contribs(i)%pos(j)), int32), &
+                                    int(alpha_m1_contribs(i)%pos(k), int32))
 
                         nalpha_alpha%ptr(alpha_m1_contribs(i)%pos(k)) = nalpha_alpha%ptr(alpha_m1_contribs(i)%pos(k)) + 1
-           call alpha_alpha%set_val(alpha_m1_contribs(i)%pos(k), nalpha_alpha%ptr(alpha_m1_contribs(i)%pos(k)), alpha_m1_contribs(i)%pos(j))
+           call alpha_alpha%set_val(int(alpha_m1_contribs(i)%pos(k), int32), &
+                                    int(nalpha_alpha%ptr(alpha_m1_contribs(i)%pos(k)), int32), &
+                                    int(alpha_m1_contribs(i)%pos(j), int32))
                     end do
                 end do
             end do
@@ -1266,7 +1279,7 @@ contains
 
             ! We cannot directly feed the subarray pointers to sort, use an auxiliary pointer
             block
-                integer, pointer :: aux(:), sec_aux(:)
+                integer(int32), pointer :: aux(:), sec_aux(:)
 
                 do i = 1, nbeta
                     aux => beta_beta%sub(i)
@@ -1291,7 +1304,7 @@ contains
 
         ! On procs which are not node-root, we need to reassign the internal pointers
         ! after sorting (ofc, wait for root here)
-        call MPI_Barrier(mpi_comm_intra, ierr)
+        call MPI_Barrier(mpi_comm_intra, MPIerr)
         call beta_beta%reassign_pointers()
         call alpha_alpha%reassign_pointers()
         call beta_with_alpha%reassign_pointers()
@@ -1328,9 +1341,9 @@ contains
             nullify (alpha_ht)
         end if
         ! Sync the ilut lists
-        call MPI_Win_Sync(beta_list_win, ierr)
-        call MPI_Win_Sync(alpha_list_win, ierr)
-        call MPI_Barrier(mpi_comm_intra, ierr)
+        call MPI_Win_Sync(beta_list_win, MPIerr)
+        call MPI_Win_Sync(alpha_list_win, MPIerr)
+        call MPI_Barrier(mpi_comm_intra, MPIerr)
         ! Create the node shared read-only hashtables
         call initialise_shared_rht(beta_list, nbeta, beta_rht, nOccBeta, hash_size_1)
         call initialise_shared_rht(alpha_list, nalpha, alpha_rht, nOccAlpha, hash_size_1)
@@ -1410,7 +1423,7 @@ contains
                                    intersec_inds, nintersec)
 
                 do k = 1, nintersec
-                    ind_k = alpha_dets%sub(ind_alpha_conn, intersec_inds(k))
+                    ind_k = alpha_dets%sub(int(ind_alpha_conn, int32), intersec_inds(k))
                     call decode_bit_det(nK, rep%core_space(:, ind_k))
                     hel = get_helement(nI, nK, rep%core_space(:, i_full), rep%core_space(:, ind_k))
                     if (abs(hel) > 0.0_dp) then
@@ -1475,10 +1488,10 @@ contains
 
     pure subroutine find_intersec(nelem_in_1, nelem_in_2, arr_1, arr_2, intersec, nelem_out)
 
-        integer, intent(in) :: nelem_in_1, nelem_in_2
-        integer, intent(in) :: arr_1(1:), arr_2(1:)
-        integer, intent(inout) :: intersec(1:)
-        integer, intent(out) :: nelem_out
+        integer(int32), intent(in) :: nelem_in_1, nelem_in_2
+        integer(int32), intent(in) :: arr_1(1:), arr_2(1:)
+        integer(int32), intent(inout) :: intersec(1:)
+        integer(int32), intent(out) :: nelem_out
 
         integer :: i, j
 

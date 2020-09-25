@@ -23,7 +23,9 @@ module shared_ragged_array
         procedure :: reassign_pointers
         procedure :: pos_1d
         procedure :: pos_2d
-        generic :: sub => pos_1d, pos_2d
+        procedure :: pos_1d_int64
+        procedure :: pos_2d_int64
+        generic :: sub => pos_1d, pos_2d, pos_1d_int64, pos_2d_int64
         procedure :: set_val
     end type shared_ragged_array_t
 
@@ -31,7 +33,7 @@ contains
 
     subroutine shared_alloc(this, sizes)
         class(shared_ragged_array_t), intent(inout) :: this
-        integer, intent(in) :: sizes(:)
+        integer(int32), intent(in) :: sizes(:)
 
         integer :: n_entries, i
 
@@ -80,8 +82,8 @@ contains
 
     subroutine set_val(this, i, j, val)
         class(shared_ragged_array_t), intent(inout) :: this
-        integer, intent(in) :: i, j
-        integer, intent(in) :: val
+        integer(int32), intent(in) :: i, j
+        integer(int32), intent(in) :: val
 
         this%ptr(i)%res(j) = val
     end subroutine set_val
@@ -98,8 +100,8 @@ contains
 
     function pos_2d(this, i, j) result(val)
         class(shared_ragged_array_t), intent(inout) :: this
-        integer, intent(in) :: i, j
-        integer :: val
+        integer(int32), intent(in) :: i, j
+        integer(int32) :: val
 
         val = this%ptr(i)%res(j)
     end function pos_2d
@@ -108,10 +110,30 @@ contains
 
     function pos_1d(this, i) result(pt)
         class(shared_ragged_array_t), intent(inout) :: this
-        integer, intent(in) :: i
+        integer(int32), intent(in) :: i
         integer(int32), pointer :: pt(:)
 
         pt => this%ptr(i)%res
     end function pos_1d
+
+    !------------------------------------------------------------------------------------------!
+
+    function pos_2d_int64(this, i, j) result(val)
+        class(shared_ragged_array_t), intent(inout) :: this
+        integer(int64), intent(in) :: i, j
+        integer(int32) :: val
+
+        val = this%ptr(i)%res(j)
+    end function pos_2d_int64
+
+    !------------------------------------------------------------------------------------------!
+
+    function pos_1d_int64(this, i) result(pt)
+        class(shared_ragged_array_t), intent(inout) :: this
+        integer(int64), intent(in) :: i
+        integer(int32), pointer :: pt(:)
+
+        pt => this%ptr(i)%res
+    end function pos_1d_int64
 
 end module shared_ragged_array
