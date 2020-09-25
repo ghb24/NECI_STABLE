@@ -81,7 +81,8 @@ contains
 
         if (present(grow_factor)) this%grow_factor = grow_factor
         if (present(start_size)) this%start_size = start_size
-
+        @:ASSERT(this%start_size >= 1)
+        
         if (.not. allocated(this%buf)) allocate(this%buf(this%start_size))
         this%pos = 0_int64
     end subroutine
