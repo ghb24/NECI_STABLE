@@ -319,8 +319,8 @@ contains
         call alpha_dets%shared_alloc(nalpha_dets%ptr(1:nalpha_unpaired))
         call beta_with_alpha%shared_alloc(nalpha_dets%ptr(1:nalpha_unpaired))
 
-        call nbeta_beta%shared_alloc(nbeta)
-        call nalpha_alpha%shared_alloc(nalpha)
+        call nbeta_beta%shared_alloc(int(nbeta, int64))
+        call nalpha_alpha%shared_alloc(int(nalpha, int64))
 
         if (iProcIndex_intra == 0) then
             ! --- Now fill the auxiliary arrays ----------------
@@ -1105,8 +1105,8 @@ contains
         call alpha_dets%shared_alloc(nalpha_dets%ptr(1:nalpha))
         call beta_with_alpha%shared_alloc(nalpha_dets%ptr(1:nalpha))
 
-        call nbeta_beta%shared_alloc(nbeta)
-        call nalpha_alpha%shared_alloc(nalpha)
+        call nbeta_beta%shared_alloc(int(nbeta, int64))
+        call nalpha_alpha%shared_alloc(int(nalpha, int64))
 
         if (iProcIndex_intra == 0) then
             ! --- Now fill the auxiliary arrays ----------------
