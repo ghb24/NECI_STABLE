@@ -229,7 +229,7 @@ contains
 
         ! Compile-time optimization: Transposing H for specific replicas only
         ! makes sense if having more than one replica
-#ifdef PROG_NUMRUNS_ || DOUBLERUN_
+#if defined(PROG_NUMRUNS_) || defined(DOUBLERUN_)
         if(t_evolve_adjoint(part_type_to_run(part_type))) then
             rh_used = get_spawn_helement(DetCurr, nJ, ilutCurr, ilutnJ, ic, ex, &
                 tParity, HElGen)
@@ -238,7 +238,7 @@ contains
 #endif
             rh_used = get_spawn_helement(nJ, DetCurr, ilutnJ, iLutCurr, ic, temp_ex, &
                 tParity, HElGen)
-#ifdef PROG_NUMRUNS_ || DOUBLERUN_
+#if defined(PROG_NUMRUNS_) || defined(DOUBLERUN_)
         endif
 #endif
 

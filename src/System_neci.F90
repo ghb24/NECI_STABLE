@@ -1763,12 +1763,12 @@ contains
                                        &with multiple simultaneous replicas")
                 end if
 #endif
-                
-#ifdef PROG_NUMRUNS_ || DOUBLERUN_
+
+#if defined(PROG_NUMRUNS_) || defined(DOUBLERUN_)
             case("ADJOINT-REPLICAS")
                 ! some replicas will be evolved according to the adjoint H,
                 ! useful to get the left eigenvector in ST-FCIQMC
-                t_evolve_adjoint = .true.
+                t_adjoint_replicas = .true.
 #endif
 
             case ("HEISENBERG")

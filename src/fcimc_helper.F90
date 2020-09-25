@@ -700,9 +700,21 @@ contains
                         hphf_off_diag_helement(ProjEDet(:, 1), nI, iLutRef(:, 1), ilut)
 
                 else
-                    HOffDiag(1:inum_runs) = &
-                        get_helement(ProjEDet(:, 1), nI, ExcitLevel, ilutRef(:, 1), ilut)
-                end if
+                    if (t_adjoint_replicas) then
+                        do run = 1, inum_runs
+                            if(t_evolve_adjoint(part_type_to_run(run))) then
+                                HOffDiag(run) = &
+                                    get_helement(nI, ProjEDet(:,1), ExcitLevel, ilut,  ilutRef(:, 1))
+                            else
+                                HOffDiag(run) = &
+                                    get_helement(ProjEDet(:, 1), nI, ExcitLevel, ilutRef(:, 1), ilut)
+                            end if
+                        end do
+                    else
+                        HOffDiag(1:inum_runs) = &
+                            get_helement(ProjEDet(:, 1), nI, ExcitLevel, ilutRef(:, 1), ilut)
+                    end if
+                endif
             end if
         end if ! GUGA
 
