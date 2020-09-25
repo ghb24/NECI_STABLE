@@ -1763,7 +1763,6 @@ contains
                                        &with multiple simultaneous replicas")
                 end if
 #endif
-
 #if defined(PROG_NUMRUNS_) || defined(DOUBLERUN_)
             case("ADJOINT-REPLICAS")
                 ! some replicas will be evolved according to the adjoint H,

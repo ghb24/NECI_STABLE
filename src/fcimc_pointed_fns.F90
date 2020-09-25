@@ -23,7 +23,8 @@ module fcimc_pointed_fns
                         tPrecond, AAS_Const, EAS_Scale, ShiftOffset, tAS_Offset
     use DetCalcData, only: FciDetIndex, det
     use procedure_pointers, only: get_spawn_helement, shiftFactorFunction
-    use fcimc_helper, only: CheckAllowedTruncSpawn, t_evolve_adjoint
+    use fcimc_helper, only: CheckAllowedTruncSpawn
+    use sparse_arrays, only: t_evolve_adjoint
 
     use DetBitOps, only: FindBitExcitLevel, EncodeBitDet, count_open_orbs
 
