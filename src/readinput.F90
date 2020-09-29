@@ -624,7 +624,7 @@ contains
             if (.not. tDefineDet) then
                 call stop_all(t_r, "Running GAS requires a user-defined reference via definedet.")
             endif
-            if (.not. GAS_specification%contains(DefDet)) then
+            if (.not. GAS_specification%contains_det(DefDet)) then
                 call stop_all(t_r, "Reference determinant has to be contained in GAS space.")
             endif
             if (.not. GAS_specification%is_valid()) then

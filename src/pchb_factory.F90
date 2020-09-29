@@ -19,7 +19,7 @@ module pchb_factory
 
     private
 
-    public :: PCHB_excitation_generator_t
+    public :: PCHB_excitation_generator_t, calc_pgen_single_todo
 
     abstract interface
         !> @brief
@@ -369,19 +369,19 @@ contains
                     do j = 1, i
                         w(:) = 0.0_dp
                         ! for samplerIndex == 1, j is alpha, else, j is beta
-                        ex(1, 2) = map_orb(j, (/1/))
+                        ex(1, 2) = map_orb(j, [SAME_SPIN])
                         ! for each (i,j), get all matrix elements <ij|H|ab> and use them as
                         ! weights to prepare the sampler
                         do a = 1, nBI
                             ! a is alpha for same-spin (1) and opp spin w/o exchange (2)
-                            ex(2, 2) = map_orb(a, (/1, 2/))
+                            ex(2, 2) = map_orb(a, [SAME_SPIN, OPP_SPIN_NO_EXCH])
                             do b = 1, a
                                 ! exception: for sampler 3, a!=b
                                 if (samplerIndex == OPP_SPIN_EXCH .and. a == b) cycle
                                 ab = fuseIndex(a, b)
                                 ! ex(2,:) is in ascending order
                                 ! b is alpha for sampe-spin (1) and opp spin w exchange (3)
-                                ex(2, 1) = map_orb(b, (/1, 3/))
+                                ex(2, 1) = map_orb(b, [SAME_SPIN, OPP_SPIN_EXCH])
                                 ! use the actual matrix elements as weights
                                 if (this%is_allowed(DoubleExc_t(ex))) then
                                     w(ab) = abs(sltcnd_excit(projEDet(:, 1), DoubleExc_t(ex), .false.))

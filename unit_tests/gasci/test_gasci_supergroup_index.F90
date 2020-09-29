@@ -102,9 +102,7 @@ contains
             call assert_true(GAS_spec%is_valid())
 
             indexer = SuperGroupIndexer_t(GAS_spec)
-            supergroups = get_supergroups(&
-                    GAS_spec%cumulated_min([(i, i = 1, GAS_spec%nGAS())]) , &
-                    GAS_spec%cumulated_max([(i, i = 1, GAS_spec%nGAS())]))
+            supergroups = indexer%get_supergroups()
 
             correct = .true.
             do i = 1, size(supergroups, 2)
@@ -127,6 +125,8 @@ contains
             call assert_true(GAS_spec%is_valid())
 
             indexer = SuperGroupIndexer_t(GAS_spec)
+
+            call assert_true(5 == indexer%n_supergroups())
 
             call assert_true(1 == indexer%idx_nI([1, 2, 9]))
             call assert_true(1 == indexer%idx_nI([1, 3, 9]))

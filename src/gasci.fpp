@@ -62,7 +62,8 @@ module gasci
         integer, allocatable :: splitted_orbitals(:, :)
     contains
         ! All member functions should be public.
-        procedure :: contains => contains_det
+        procedure :: contains_det
+        procedure :: contains_supergroup
         procedure :: is_connected
         procedure :: is_valid
         procedure :: nGAS => get_nGAS
@@ -252,10 +253,24 @@ contains
 
         logical :: res
 
-        !> Cumulated number of particles per iGAS
-        integer :: cum_n_particle(self%nGAS()), i
+        res = self%contains_supergroup(self%count_per_GAS(occupied))
+    end function
 
-        cum_n_particle = cumsum(self%count_per_GAS(occupied))
+    !>  @brief
+    !>      Query wether a supergroup is contained in the GAS space.
+    !>
+    !>  @param[in] GAS_spec, Specification of GAS spaces (GASSpec_t).
+    !>  @param[in] supergroup, A supergroup.
+    pure function contains_supergroup(self, supergroup) result(res)
+        class(GASSpec_t), intent(in) :: self
+        integer, intent(in) :: supergroup(:)
+
+        logical :: res
+
+        !> Cumulated number of particles per iGAS
+        integer :: cum_n_particle(self%nGAS())
+
+        cum_n_particle = cumsum(supergroup)
 
         res = all(self%cn_min(:) <= cum_n_particle(:) &
             .and. cum_n_particle(:) <= self%cn_max(:))

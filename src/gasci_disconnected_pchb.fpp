@@ -65,7 +65,7 @@ contains
         character(*), parameter :: this_routine = 'gen_GASCI_pchb'
 
         @:unused_var(exFlag, part_type, store)
-        @:ASSERT(GAS_specification%contains(nI))
+        @:ASSERT(GAS_specification%contains_det(nI))
 
         call disconnected_GAS_PCHB%gen_excit(nI, ilutI, nJ, ilutJ, ic, ex_mat, tParity, pgen, hel, store)
     end subroutine gen_GASCI_pchb

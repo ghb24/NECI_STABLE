@@ -612,7 +612,7 @@ contains
         type(buffer_int_2D_t) :: buffer
 
 
-        @:pure_ASSERT(GAS_spec%contains(det_I))
+        @:pure_ASSERT(GAS_spec%contains_det(det_I))
 
         call buffer%init(size(det_I))
 
@@ -645,7 +645,7 @@ contains
         type(SpinProj_t) :: m_s_1
         type(buffer_int_2D_t) :: buffer
 
-        @:pure_ASSERT(GAS_spec%contains(det_I))
+        @:pure_ASSERT(GAS_spec%contains_det(det_I))
 
         call buffer%init(size(det_I))
 

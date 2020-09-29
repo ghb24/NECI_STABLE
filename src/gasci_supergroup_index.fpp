@@ -25,6 +25,8 @@ module gasci_supergroup_index
         private
         procedure, public :: idx_supergroup => get_supergroup_idx
         procedure, public :: idx_nI => get_supergroup_idx_det
+        procedure, public :: n_supergroups => indexer_n_supergroups
+        procedure, public :: get_supergroups => indexer_get_supergroups
     end type
 
     interface SuperGroupIndexer_t
@@ -49,7 +51,7 @@ contains
         integer(int64) :: idx
         character(*), parameter :: this_routine = 'get_supergroup_idx_det'
 
-        @:pure_ASSERT(self%GASspec%contains(nI))
+        @:pure_ASSERT(self%GASspec%contains_det(nI))
 
         idx = binary_search_first_ge(&
                     self%supergroup_idx, &
@@ -249,6 +251,39 @@ contains
                 n_part = n_part + n_supergroups(cn_min(2:) - i, cn_max(2:) - i)
             end do
         end if
+    end function
+
+    !> @brief
+    !> Get the number of possible supergroups.
+    !>
+    !> @details
+    !> GAS allowed partitions are called supergroups.
+    pure function indexer_n_supergroups(self) result(n_part)
+        class(SuperGroupIndexer_t), intent(in) :: self
+        integer(int64) :: n_part
+
+        integer :: i, idx(self%GASspec%nGAS())
+        idx = [(i, i = 1, size(idx))]
+        n_part = n_supergroups(self%GASspec%cumulated_min(idx), &
+                               self%GASspec%cumulated_max(idx))
+    end function
+
+
+    !> @brief
+    !> Get the ordered partitions of n into k summands
+    !>  constrained by cumulative minima and maxima.
+    !>
+    !> @details
+    !> GAS allowed partitions are called supergroups.
+    pure function indexer_get_supergroups(self) result(res)
+        class(SuperGroupIndexer_t), intent(in) :: self
+        integer :: res(self%GASspec%nGAS(), self%n_supergroups())
+
+        integer :: i, idx(self%GASspec%nGAS())
+        idx = [(i, i = 1, size(idx))]
+
+        res = get_supergroups(self%GASspec%cumulated_min(idx), &
+                              self%GASspec%cumulated_max(idx))
     end function
 
 end module gasci_supergroup_index

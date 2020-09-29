@@ -43,12 +43,12 @@ contains
 #ifdef WARNING_WORKAROUND_
         hel = 0.0_dp
 #endif
-        @:ASSERT(GAS_specification%contains(nI))
+        @:ASSERT(GAS_specification%contains_det(nI))
 
         call PCHB_FCI%gen_excit(nI, ilutI, nJ, ilutJ, ic, ex_mat, tParity, pgen, hel, store)
 
         if (nJ(1) /= 0) then
-            if (.not. GAS_specification%contains(nJ)) then
+            if (.not. GAS_specification%contains_det(nJ)) then
                 src_copy(:ic) = ex_mat(1, :ic)
                 call sort(src_copy)
                 ex_mat(1, :ic) = src_copy(:ic)
