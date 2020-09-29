@@ -529,8 +529,8 @@ contains
 
         ! NOTE: This is highly optimized. If you change something, please time it!
 
-        @:pure_ASSERT(n >= 0_${kind}$)
-        @:pure_ASSERT(r >= 0_${kind}$)
+        @:pure_ASSERT(n >= 0_${kind}$, import_stop_all=False)
+        @:pure_ASSERT(r >= 0_${kind}$, import_stop_all=False)
 
         if(r > n) then
             res = 0_int64

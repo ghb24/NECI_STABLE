@@ -1,4 +1,5 @@
 #:mute
+
 #:set PRIMITIVE_TYPES = {'real', 'integer', 'logical' , 'complex', 'character', 'helement_t'}
 
 #:def get_decl(type, kind, rank, allocatable=False)
@@ -166,4 +167,5 @@ $:  var+'('+', '.join(idx if i == int(along) else ':' for i in range(1, int(rank
             end associate
         end block
 #:enddef
+
 #:endmute
