@@ -479,6 +479,9 @@ contains
                     nJ = nI
                     ilutI_tmp = ilutJ
                     ilutJ = ilutI
+                else
+                    nI_tmp = nI
+                    ilutI_tmp = ilutI
                 end if
 !                 nJ = temp_store_nI(:,j)
 

@@ -42,7 +42,7 @@ module fcimc_helper
                            HistInitPopsIter, tHistInitPops, iterRDMOnFly, &
                            FciMCDebug, tLogEXLEVELStats, maxInitExLvlWrite, &
                            initsPerExLvl, tAccumPopsActive
-
+    use sparse_arrays, only: t_evolve_adjoint
     use CalcData, only: NEquilSteps, tFCIMC, tTruncCAS, &
                         InitiatorWalkNo, t_core_inits, &
                         tTruncInitiator, tTruncNopen, trunc_nopen_max, &
@@ -693,16 +693,23 @@ contains
         else
             if (ExcitLevel_local == 2 .or. &
                 (ExcitLevel_local == 1 .and. tNoBrillouin) .or. (ExcitLevel_local == 3 .and. &
-                     (t_3_body_excits .or. t_ueg_3_body .or. t_mol_3_body))) then
+                (t_3_body_excits .or. t_ueg_3_body .or. t_mol_3_body))) then
                 ! Obtain off-diagonal element
-                if(t_adjoint_replicas) then
-                    step = 2
-                    HOffDiag(2:inum_runs:step) = assigned_matrix_element(nI, ProjEDet(:, 1), ilut, iLutRef(:, 1))
+                if (t_adjoint_replicas) then
+                    do run = 1, inum_runs
+                        if(t_evolve_adjoint(part_type_to_run(run))) then
+                            HOffDiag(run) = &
+                                get_helement(nI, ProjEDet(:,1), ExcitLevel, ilut,  ilutRef(:, 1))
+                        else
+                            HOffDiag(run) = &
+                                get_helement(ProjEDet(:, 1), nI, ExcitLevel, ilutRef(:, 1), ilut)
+                        end if
+                    end do
                 else
-                    step = 1
-                endif
-                HOffDiag(1:inum_runs:step) = assigned_matrix_element(ProjEDet(:, 1), nI, iLutRef(:, 1), ilut)
-            end if
+                    HOffDiag(1:inum_runs) = &
+                        get_helement(ProjEDet(:, 1), nI, ExcitLevel, ilutRef(:, 1), ilut)
+                end if
+            endif
         end if ! GUGA
 
         ! For the real-space Hubbard model, determinants are only
