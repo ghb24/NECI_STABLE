@@ -401,7 +401,7 @@ contains
         integer :: res(size(det_I))
         character(*), parameter :: this_routine = 'excite_SingleExc_t'
 
-        @:pure_ASSERT(defined(exc), exc%val)
+        @:pure_ASSERT(defined(exc))
         associate(src => exc%val(1), tgt => exc%val(2))
             @:pure_ASSERT(src /= tgt)
             @:pure_ASSERT(disjoint([tgt], det_I))
@@ -419,7 +419,7 @@ contains
 
         integer :: src(2), tgt(2), i
 
-        @:pure_ASSERT(defined(exc), exc%val)
+        @:pure_ASSERT(defined(exc))
         src = exc%val(1, :)
         tgt = exc%val(2, :)
         if (src(1) > src(2)) call swap(src(1), src(2))
@@ -484,8 +484,8 @@ contains
         character(*), parameter :: this_routine = 'excite_SingleExc_t'
 
         associate(src => exc%val(1), tgt => exc%val(2))
-            @:pure_ASSERT(defined(exc), exc%val)
-            @:pure_ASSERT(src /= tgt, src, tgt)
+            @:pure_ASSERT(defined(exc))
+            @:pure_ASSERT(src /= tgt)
             res = ilut_I
             clr_orb(res, src)
             set_orb(res, tgt)
@@ -502,9 +502,9 @@ contains
 
         src = exc%val(1, :)
         tgt = exc%val(2, :)
-        @:pure_ASSERT(defined(exc), exc%val)
+        @:pure_ASSERT(defined(exc))
         do i = 1, 2
-            @:pure_ASSERT(all(src(i) /= tgt), src(i), tgt)
+            @:pure_ASSERT(all(src(i) /= tgt))
         end do
         res = ilut_I
         clr_orb(res, src(1))

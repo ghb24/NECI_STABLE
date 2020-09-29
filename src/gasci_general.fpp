@@ -197,7 +197,7 @@ contains
         @:def_default(n_total_, n_total, 1)
         @:pure_ASSERT(1 <= n_total_)
         if (present(excess)) then
-            @:pure_ASSERT(abs(excess%val) <= n_total_, excess, n_total_)
+            @:pure_ASSERT(abs(excess%val) <= n_total_)
         end if
 
         call GAS_spec%split_per_GAS(det_I, splitted, splitted_sizes)

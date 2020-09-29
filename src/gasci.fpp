@@ -217,7 +217,7 @@ contains
             integer, intent(in) :: N(:)
             integer, allocatable :: res(:)
             integer :: i
-            @:pure_ASSERT(minval(N) == 1, N)
+            @:pure_ASSERT(minval(N) == 1)
             allocate(res(maxval(N)), source=0)
             do i = 1, size(N)
                 res(N(i)) = res(N(i)) + 1
