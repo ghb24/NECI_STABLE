@@ -136,7 +136,7 @@ contains
         call MPISumAll(mapping_test, mapping_test_all)
         if (.not. all(mapping_test_all == 1 .or. mapping_test_all == 0)) then
             call stop_all(this_routine, "Multi-processor mapping not &
-                         &correctly determined")
+                &correctly determined")
         end if
 
         ! And do a load balancing before anything else happens
@@ -153,7 +153,7 @@ contains
             log_dealloc(lb_tag)
         end if
 
-    end subroutine
+    end subroutine clean_load_balance
 
     subroutine adjust_load_balance(iter_data)
 
@@ -208,87 +208,87 @@ contains
             ! computational cost...
             call decode_bit_det(det, CurrentDets(:,j))
             block = get_det_block(nel, det, 0)
-            block_parts(block) = block_parts(block) + sum(ceiling(abs(sgn)))
-        end do
+              block_parts(block) = block_parts(block) + sum(ceiling(abs(sgn)))
+          end do
 
-        ! Accumulate the data from all of the processors (on root)
-        call MPISum(block_parts, block_parts_all)
+          ! Accumulate the data from all of the processors (on root)
+          call MPISum(block_parts, block_parts_all)
 
-        iBlockMoves = 0
+          iBlockMoves = 0
 
-        allocate(movelist(3,balance_blocks))
-        
-        !determine changes required to achieve a balanced layout
-        ! n.b. the required data is only available on the root node.
-        if (iProcIndex == root) then
-           do while (.true.)
-              ! How many particles are on each processor?
-              proc_parts = 0
-              do block = 1, balance_blocks
-                 proc = LoadBalanceMapping(block)
-                 proc_parts(proc) = proc_parts(proc) + block_parts_all(block)
+          allocate(movelist(3,balance_blocks))
+
+          !determine changes required to achieve a balanced layout
+          ! n.b. the required data is only available on the root node.
+          if (iProcIndex == root) then
+              do while (.true.)
+                  ! How many particles are on each processor?
+                  proc_parts = 0
+                  do block = 1, balance_blocks
+                      proc = LoadBalanceMapping(block)
+                      proc_parts(proc) = proc_parts(proc) + block_parts_all(block)
+                  end do
+
+                  ! Where are the minimal and maximal values found?
+                  ! n.b. min/maxloc treat all arrays as starting at index 1. sigh
+                  avg_parts = real(sum(proc_parts), dp) / real(nProcessors, dp)
+                  min_proc = minloc(proc_parts, dim=1) - 1
+                  min_parts = int(proc_parts(min_proc))
+                  max_proc = maxloc(proc_parts, dim=1) - 1
+                  max_parts = int(proc_parts(max_proc))
+                  ASSERT(max_proc <= ubound(proc_parts, 1))
+                  ASSERT(min_proc <= ubound(proc_parts, 1))
+                  ASSERT(min_proc >= 0)
+                  ASSERT(max_proc >= 0)
+
+                  if (min_proc > nProcessors-1 .or. max_proc > nProcessors-1)&
+                      call stop_all(this_routine, 'invalid value')
+
+                  ! Create a list of the blocks associated with the most
+                  ! heavily utilised processor in increasing size order.
+                  smallest_block = 0
+                  smallest_size = -1
+                  do block = 1, balance_blocks
+                      if (LoadBalanceMapping(block) == max_proc) then
+                          if (block_parts_all(block) > 0 .and. &
+                              (block_parts_all(block) < smallest_size .or. &
+                              smallest_size == -1)) then
+                              smallest_block = block
+                              smallest_size = block_parts_all(block)
+                          end if
+                      end if
+                  end do
+
+                  ! If moving a block of the smallest size between the largest
+                  ! and the smallest is a helpful thing to do, then move it!
+                  if (smallest_block /= 0) then
+                      if ((abs(min_parts + smallest_size - avg_parts) < abs(min_parts - avg_parts)) .and. &
+                          (abs(max_parts - smallest_size - avg_parts) < abs(max_parts - avg_parts))) then
+                          unbalanced = .true.
+                      else
+                          unbalanced = .false.
+                      end if
+                  else
+                      unbalanced = .false.
+                  endif
+
+                  ! If this is sufficiently balanced, then we make no (further)
+                  ! changes.
+                  if (.not. unbalanced) then
+                      exit
+                  else
+                      iBlockMoves = iBlockMoves + 1
+                  endif
+
+                  ! register the parameters for the change!
+                  movelist(1,iBlockMoves)=smallest_block
+                  movelist(2,iBlockMoves)=LoadBalanceMapping(smallest_block)
+                  movelist(3,iBlockMoves)=min_proc
+
+                  ! mapping after this change
+                  LoadBalanceMapping(smallest_block) = min_proc
               end do
-              
-              ! Where are the minimal and maximal values found?
-              ! n.b. min/maxloc treat all arrays as starting at index 1. sigh
-              avg_parts = real(sum(proc_parts), dp) / real(nProcessors, dp)
-              min_proc = minloc(proc_parts, dim=1) - 1
-              min_parts = int(proc_parts(min_proc))
-              max_proc = maxloc(proc_parts, dim=1) - 1
-              max_parts = int(proc_parts(max_proc))
-              ASSERT(max_proc <= ubound(proc_parts, 1))
-              ASSERT(min_proc <= ubound(proc_parts, 1))
-              ASSERT(min_proc >= 0)
-              ASSERT(max_proc >= 0)
-              
-              if (min_proc > nProcessors-1 .or. max_proc > nProcessors-1)&
-                   call stop_all(this_routine, 'invalid value')
-              
-              ! Create a list of the blocks associated with the most
-              ! heavily utilised processor in increasing size order.
-              smallest_block = 0
-              smallest_size = -1
-              do block = 1, balance_blocks
-                 if (LoadBalanceMapping(block) == max_proc) then
-                    if (block_parts_all(block) > 0 .and. &
-                         (block_parts_all(block) < smallest_size .or. &
-                         smallest_size == -1)) then
-                       smallest_block = block
-                       smallest_size = block_parts_all(block)
-                    end if
-                 end if
-              end do
-              
-              ! If moving a block of the smallest size between the largest
-              ! and the smallest is a helpful thing to do, then move it!
-              if (smallest_block /= 0) then
-                 if ((abs(min_parts + smallest_size - avg_parts) < abs(min_parts - avg_parts)) .and. &
-                      (abs(max_parts - smallest_size - avg_parts) < abs(max_parts - avg_parts))) then
-                    unbalanced = .true.
-                 else
-                    unbalanced = .false.
-                 end if
-              else
-                 unbalanced = .false.
-              endif
-              
-              ! If this is sufficiently balanced, then we make no (further)
-              ! changes.
-              if (.not. unbalanced) then
-                 exit
-              else
-                 iBlockMoves = iBlockMoves + 1
-              endif
-              
-              ! register the parameters for the change!
-              movelist(1,iBlockMoves)=smallest_block
-              movelist(2,iBlockMoves)=LoadBalanceMapping(smallest_block)
-	      movelist(3,iBlockMoves)=min_proc
-
-	      ! mapping after this change
-	      LoadBalanceMapping(smallest_block) = min_proc
-           end do
-        end if
+          end if
         call MPIBarrier(ierr)
 
 	! Broadcast movelist
@@ -301,8 +301,8 @@ contains
         end do
         deallocate(movelist)
 
-	! Broadcast the new LoadBalanceMapping to all procs	
-	call MPIBcast(LoadBalanceMapping)
+        ! Broadcast the new LoadBalanceMapping to all procs	
+        call MPIBcast(LoadBalanceMapping)
 
         if (iProcIndex == root .and. tOutputLoadDistribution) then
             write(6, '("Load balancing distribution:")')
