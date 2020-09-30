@@ -1720,9 +1720,9 @@ contains
                 tMolpro = .true.
                 tMolproMimic = .true.
             case ("READ_ROFCIDUMP")
-                ! Overwrite current FCIDUMP name, and instead look for a file
-                ! called "ROFCIDUMP".
-                FCIDUMP_name = 'ROFCIDUMP'
+                call stop_all(t_r, 'Deprecated function. Use FCIDUMP-NAME ROFCIDUMP instead.')
+            case ("FCIDUMP-NAME")
+                call reada(FCIDUMP_name)
             case ("COMPLEXORBS_REALINTS")
                 !We have complex orbitals, but real integrals. This means that we only have 4x permutational symmetry,
                 !so we need to check the (momentum) symmetry before we look up any integrals
