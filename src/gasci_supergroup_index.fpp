@@ -147,7 +147,7 @@ contains
     !> GAS allowed partitions are called supergroups.
     pure function get_supergroups(cn_min, cn_max) result(res)
         integer, intent(in) :: cn_min(:), cn_max(:)
-        integer :: res(size(cn_min), n_supergroups(cn_min, cn_max))
+        integer, allocatable :: res(:, :)
         integer :: k, n
 
         integer :: i, j
@@ -158,6 +158,8 @@ contains
 
         all_partitions = get_partitions(k, n)
 
+
+        allocate(res(size(cn_min), n_supergroups(cn_min, cn_max)))
         j = 1
         do i = 1, size(res, 2)
             do while (any(cn_min > cumsum(all_partitions(:, j)) .or. cumsum(all_partitions(:, j)) > cn_max))
@@ -214,12 +216,13 @@ contains
     pure function get_supergroup_indices(cn_min, cn_max) result(res)
         integer, intent(in) :: cn_min(:), cn_max(:)
 
-        integer(int64) :: res(n_supergroups(cn_min, cn_max))
-        integer :: supergroups(size(cn_min), size(res))
+        integer(int64), allocatable :: res(:)
+        integer, allocatable :: supergroups(:, :)
         integer :: i
 
         supergroups = get_supergroups(cn_min, cn_max)
-        do i = 1, size(res)
+        allocate(res(size(supergroups, 2)))
+        do i = 1, size(supergroups, 2)
             res(i) = partition_idx(supergroups(:, i))
         end do
     end function

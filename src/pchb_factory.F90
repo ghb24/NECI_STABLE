@@ -76,9 +76,6 @@ contains
     !>  The excitation generator subroutine for PCHB.
     !>
     !>  @details
-    !>  This is a wrapper to match the function pointer interface.
-    !>  The interface is common to all excitation generators, see proc_ptrs.F90
-    !>
     !>  For doubles, the precomputed heat-bath weights are used.
     !>  In order to work the child classes have to override `is_allowed`
     !>  and supply a single excitation generator as function pointer in the init method.
@@ -349,9 +346,9 @@ contains
             ! number of possible source orbital pairs
             ijMax = fuseIndex(nBI, nBI)
             ! allocate the bias for picking an exchange excitation
-            allocate(this%pExch(ijMax), stat=aerr, source=0.0_dp)
+            allocate(this%pExch(ijMax), source=0.0_dp)
             ! temporary storage for the unnormalized prob of not picking an exchange excitation
-            allocate(pNoExch(ijMax), stat=aerr, source=1.0_dp)
+            pNoExch = 1.0_dp - this%pExch
 
             memCost = memCost + abMax * ijMax * 24 * 3
             write(iout, *) "Excitation generator requires", real(memCost, dp) / 2.0_dp**30, "GB of memory"

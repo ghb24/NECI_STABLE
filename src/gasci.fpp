@@ -68,6 +68,7 @@ module gasci
         procedure :: is_valid
         procedure :: nGAS => get_nGAS
         procedure :: nEl => get_nEl
+        procedure :: n_spin_orbs => get_nOrbs
         procedure :: max_GAS_size => get_max_GAS_size
         procedure :: GAS_size => get_GAS_size
         procedure :: get_iGAS
@@ -145,6 +146,11 @@ contains
     integer elemental function get_nEl(self)
         class(GASSpec_t), intent(in) :: self
         get_nEl = self%cn_min(size(self%cn_min))
+    end function
+
+    integer elemental function get_nOrbs(self)
+        class(GASSpec_t), intent(in) :: self
+        get_nOrbs = size(self%GAS_table)
     end function
 
     !> @brief
@@ -268,12 +274,12 @@ contains
         logical :: res
 
         !> Cumulated number of particles per iGAS
-        integer :: cum_n_particle(self%nGAS())
+        integer :: cn_particle(size(supergroup))
 
-        cum_n_particle = cumsum(supergroup)
+        cn_particle = cumsum(supergroup)
 
-        res = all(self%cn_min(:) <= cum_n_particle(:) &
-            .and. cum_n_particle(:) <= self%cn_max(:))
+        res = all(self%cn_min(:) <= cn_particle(:) &
+            .and. cn_particle(:) <= self%cn_max(:))
     end function
 
 

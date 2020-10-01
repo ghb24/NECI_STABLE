@@ -96,10 +96,12 @@ contains
         logical :: exDoneSingle(0:nBasis, 0:nBasis)
         integer :: ic, part, nullExcits
         integer :: ClassCountOcc(scratchSize), ClassCountUnocc(scratchSize)
+        integer(int64) :: start, finish, rate
         character(*), parameter :: t_r = "test_excitation_generator"
         HElement_t(dp) :: HEl
         exDoneDouble = .false.
         exDoneSingle = .false.
+        call system_clock(count_rate=rate)
 
         ! some starting det - do NOT use the reference for the pcpp test, that would
         ! defeat the purpose
@@ -145,6 +147,7 @@ contains
         pDoubles = 0.9_dp
         pNull = 0.0_dp
         nullExcits = 0
+        call system_clock(start)
         do i = 1, sampleSize
             fcimc_excit_gen_store%tFilled = .false.
             call generate_excitation(nI, ilut, nJ, ilutJ, exFlag, ic, ex, tPar, pgen, HEl, fcimc_excit_gen_store, part)
@@ -184,6 +187,7 @@ contains
                 end if
             end if
         end do
+        call system_clock(finish)
 
         ! check that all excits have been generated and all pGens are right
         ! probability normalization
@@ -238,6 +242,8 @@ contains
         write(iout, *) "In total", numEx, "excitations"
         write(iout, *) "With", nSingles, "single excitation"
         write(iout, *) "Found", nFound, "excitations"
+        write(iout, *) 'Elapsed Time in seconds:', dble(finish - start) / dble(rate)
+        write(iout, *) 'Elapsed Time in micro seconds per excitation:', dble(finish - start) * 1e6_dp / dble(sampleSize* rate)
 
     end subroutine test_excitation_generator
 

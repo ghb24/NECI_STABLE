@@ -19,20 +19,21 @@ module test_gasci_general_pchb
 !     private
 !     public :: test_pgen, test_partitioning, test_supergroup_offsets
 
-
-
 contains
 
 
     subroutine test_pgen()
         use gasci, only: global_GAS_spec => GAS_specification
+
+
+        use gasci_general_pchb, only: GAS_PCHB_exc_generator
         use SystemData, only: tGASSpinRecoupling
         use FciMCData, only: pSingles, pDoubles, pParallel
         type(GASSpec_t) :: GAS_spec
         integer, parameter :: det_I(6) = [1, 2, 3, 7, 8, 10]
 
         logical :: successful
-        integer, parameter :: n_iters=5 * 10**6
+        integer, parameter :: n_iters=5 * 10**7
 
         pParallel = 0.05_dp
         pSingles = 0.3_dp
@@ -40,13 +41,36 @@ contains
 
         call assert_true(tGASSpinRecoupling)
 
+!         GAS_spec = GASSpec_t(n_min=[3, size(det_I)], n_max=[3, size(det_I)], &
+!                              spat_GAS_orbs=[1, 1, 1, 2, 2, 2])
+!         global_GAS_spec = GAS_spec
+!         call assert_true(GAS_spec%is_valid())
+!         call assert_true(GAS_spec%contains_det(det_I))
+!
+!         call init_excitgen_test(size(det_I), FciDumpWriter_t(random_fcidump, 'FCIDUMP'))
+!
+!         call GAS_PCHB_exc_generator%init(GAS_spec)
+!
+!         call run_excit_gen_tester( &
+!             gen_general_GASCI_pchb, 'discarding GASCI implementation, random fcidump', &
+!             opt_nI=det_I, opt_n_iters=n_iters, &
+!             gen_all_excits=gen_all_excits, &
+!             problem_filter=is_problematic,&
+!             successful=successful)
+!         call assert_true(successful)
+!         call finalize_excitgen_test()
+
+
         GAS_spec = GASSpec_t(n_min=[2, size(det_I)], n_max=[4, size(det_I)], &
                              spat_GAS_orbs=[1, 1, 1, 2, 2, 2])
-        call assert_true(GAS_spec%is_valid())
-        call assert_true(GAS_spec%contains(det_I))
         global_GAS_spec = GAS_spec
+        call assert_true(GAS_spec%is_valid())
+        call assert_true(GAS_spec%contains_det(det_I))
 
         call init_excitgen_test(size(det_I), FciDumpWriter_t(random_fcidump, 'FCIDUMP'))
+
+        call GAS_PCHB_exc_generator%init(GAS_spec)
+
         call run_excit_gen_tester( &
             gen_general_GASCI_pchb, 'discarding GASCI implementation, random fcidump', &
             opt_nI=det_I, opt_n_iters=n_iters, &

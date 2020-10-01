@@ -37,6 +37,8 @@ module gasci_general
     public :: get_possible_spaces, get_possible_holes, &
         get_available_singles, get_available_doubles
 
+    public :: gen_exc_single
+
 
     interface get_cumulative_list
         #:for Excitation_t in ExcitationTypes

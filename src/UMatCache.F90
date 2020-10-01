@@ -9,7 +9,7 @@ MODULE UMatCache
 
     use SystemData, only: tRIIntegrals, tCacheFCIDUMPInts, t_non_hermitian
 
-    use util_mod, only: swap, get_free_unit, NECI_ICOPY, near_zero
+    use util_mod, only: swap, get_free_unit, NECI_ICOPY, near_zero, operator(.div.)
 
     use sort_mod
 
@@ -1371,7 +1371,7 @@ Contains
         if(tStoreSpinOrbs) then
             nBI = nBasis
         else
-            nBI = nBasis / 2
+            nBI = nBasis .div. 2
         end if
 
     end function numBasisIndices
