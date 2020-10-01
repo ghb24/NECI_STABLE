@@ -84,8 +84,8 @@ contains
         if (present(grow_factor)) this%grow_factor = grow_factor
         if (present(start_size)) this%start_size = start_size
         @:ASSERT(this%grow_factor > 1.0_dp)
-        @:ASSERT(this%start_size > 0_int64)
-        
+        @:ASSERT(this%start_size >= 0_int64)
+
         if (.not. allocated(this%buf)) allocate(this%buf(this%start_size))
         this%pos = 0_int64
     end subroutine
@@ -203,7 +203,9 @@ contains
                 tmp = this%buf
 
                 deallocate(this%buf)
-                new_buf_size = ceiling(real(size(this%buf, ${rank}$), kind=dp) * this%grow_factor, kind=int64)
+                ! We add a constant offset if start_size was chosen to be zero.
+                ! The grow_factor then takes over for larger numbers and prevents the O(n^2) scaling.
+                new_buf_size = ceiling(real(size(this%buf, ${rank}$), kind=dp) * this%grow_factor, kind=int64) + 10_int64
                 allocate(this%buf(@{shape_like_except_along(${rank}$, ${rank}$, tmp, new_buf_size)}@))
 
                 @{select(this%buf, : size(tmp, ${rank}$))}@ = tmp
