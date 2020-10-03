@@ -80,7 +80,7 @@ contains
     subroutine sync_${data_name}$ (this)
         implicit none
         class(shared_array_${data_name}$_t) :: this
-        integer :: ierr
+        integer(MPIArg) :: ierr
 
         call MPI_Win_Sync(this%win, ierr)
         call MPI_Barrier(mpi_comm_intra, ierr)
