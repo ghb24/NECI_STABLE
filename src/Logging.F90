@@ -1237,6 +1237,13 @@ contains
                 ! print core info, like energy, and maybe also the gs vector
                 t_print_core_info = .true.
 
+            case ("PRINT-CORE-HAMIL")
+                t_print_core_info = .true.
+                t_print_core_hamil = .true.
+
+            case ("PRINT-CORE-VEC")
+                t_print_core_vec = .true.
+
             case ("WRITE-MOST-POP-CORE-END")
                 ! At the end of a calculation, find the write_end_core_size most
                 ! populated determinants and write them to a CORESPACE file.

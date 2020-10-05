@@ -721,8 +721,8 @@ contains
         real(dp) :: full_sign(spawn%rdm_send%sign_length)
 
         call calc_guga_matrix_element(ilutI, ilutJ, excitInfo, mat_ele, &
-                                      t_hamil=.false., calc_type=calc_type, rdm_ind=rdm_ind, &
-                                      rdm_mat=rdm_mat)
+                                      t_hamil=.false., calc_type=calc_type, &
+                                      rdm_ind=rdm_ind, rdm_mat=rdm_mat)
 
         ! i assume sign_i and sign_j are not 0 if we end up here..
         do n = 1, size(rdm_ind)
@@ -733,7 +733,8 @@ contains
                                                   rdm_mat(n), rdm_ind(n))
                     else
                         call fill_sings_2rdm_guga(spawn, ilutI, &
-                                                  ilutJ, sign_i, sign_j, rdm_mat(n), rdm_ind(n))
+                                                  ilutJ, sign_i, sign_j, &
+                                                  rdm_mat(n), rdm_ind(n))
                     end if
                 else if (excitInfo%excitLvl == 2 .and. RDMExcitLevel /= 1) then
                     call extract_2_rdm_ind(rdm_ind(n), p, q, r, s)
@@ -746,7 +747,6 @@ contains
                     ! give us information about the hermiticity error!
                     call add_to_rdm_spawn_t(spawn, p, q, r, s, &
                                             full_sign, .true.)
-
                     if (.not. &
                         (excitInfo%typ == excit_type%fullstart_stop_alike)) then
                         call add_to_rdm_spawn_t(spawn, r, s, p, q, &

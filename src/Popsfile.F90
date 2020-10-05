@@ -67,6 +67,8 @@ MODULE PopsfileMod
     use real_time_data, only: t_real_time_fciqmc, phase_factors, t_kspace_operators, &
                               TotWalkers_orig
 
+    use guga_bitrepops, only: init_csf_information
+
     implicit none
 
     logical :: tRealPOPSfile
@@ -2312,6 +2314,7 @@ r_loop: do while(.not.tStoreDet)
 
                   if (tGUGA) then
                       ASSERT(.not. t_non_hermitian)
+                      call init_csf_information(det(0:nifd))
                       hf_helemt = calc_off_diag_guga_ref(det, 1, ex_level)
                   else
                       ex_level = FindBitExcitLevel(ilutRef(:,1), det, nel, .true.)

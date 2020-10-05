@@ -50,7 +50,7 @@ module FciMCParMod
                            tHDF5TruncPopsWrite, iHDF5TruncPopsEx, tAccumPops, &
                            tAccumPopsActive, iAccumPopsIter, iAccumPopsExpireIters, &
                            tPopsProjE, iHDF5TruncPopsIter, iAccumPopsCounter, &
-                           AccumPopsExpirePercent, num_local_spin_orbs
+                           AccumPopsExpirePercent, num_local_spin_orbs, t_print_core_vec
 
     use rdm_data, only: print_2rdm_est, ThisRDMIter, inits_one_rdms, two_rdm_inits_spawn, &
                         two_rdm_inits, rdm_inits_defs, RDMCorrectionFactor, inits_estimates, tSetupInitsEst, &
@@ -66,7 +66,8 @@ module FciMCParMod
                               refresh_semistochastic_space
     use semi_stoch_procs, only: is_core_state, check_determ_flag, &
                                 determ_projection, average_determ_vector, &
-                                determ_projection_no_death, core_space_pos
+                                determ_projection_no_death, core_space_pos, &
+                                print_determ_vec_av, print_determ_vec
     use trial_wf_gen, only: update_compare_trial_file, init_trial_wf, refresh_trial_wf
     use hist, only: write_zero_hist_excit_tofrom
     use orthogonalise, only: orthogonalise_replicas, calc_replica_overlaps, &
@@ -868,9 +869,6 @@ contains
             call deallocate_histograms()
         end if
 
-        if (tGUGA) then
-            if (.not. t_direct_guga_ref) call deallocate_projE_list()
-        end if
 
         if (t_cc_amplitudes .and. t_plot_cc_amplitudes) then
             call print_cc_amplitudes()
@@ -909,6 +907,10 @@ contains
                 if (tAccumPopsActive) &
                     write(6, *) 'Accumulated projected energy of popsfile:', AccumE + Hii
             end if
+        end if
+
+        if (tGUGA) then
+            if (.not. t_direct_guga_ref) call deallocate_projE_list()
         end if
 
         IF (tCalcFCIMCPsi) THEN
@@ -973,6 +975,11 @@ contains
         end if
 
         call PrintHighPops()
+
+        if (t_print_core_vec) then
+            call print_determ_vec_av()
+            call print_determ_vec()
+        end if
 
         if (t_symmetry_analysis) then
             call analyze_wavefunction_symmetry()
@@ -1891,7 +1898,7 @@ contains
                 end if
             end if
 
-            end subroutine PerformFCIMCycPar
+    end subroutine PerformFCIMCycPar
 
-        END MODULE FciMCParMod
+END MODULE FciMCParMod
 

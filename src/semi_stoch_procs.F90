@@ -75,6 +75,10 @@ module semi_stoch_procs
 
     use guga_bitrepops, only: init_csf_information
 
+    use util_mod, only: get_free_unit
+
+    use DeterminantData, only: write_det
+
     implicit none
 
     ! Distinguishing value for 'use all runs'
@@ -457,6 +461,38 @@ contains
         end do
 
     end subroutine average_determ_vector
+
+    subroutine print_determ_vec_av(run)
+        integer, intent(in), optional :: run
+
+        integer :: run_, iunit, i
+        def_default(run_, run, 1)
+
+        iunit = get_free_unit()
+        open(iunit, file = 'determ_vecs_av', status = 'replace')
+        associate ( rep => cs_replicas(run_))
+            do i = 1, rep%determ_space_size
+                write(iunit, *) rep%full_determ_vecs_av(1, i)
+            end do
+        end associate
+        close(iunit)
+    end subroutine print_determ_vec_av
+
+    subroutine print_determ_vec(run)
+        integer, intent(in), optional :: run
+
+        integer :: run_, iunit, i
+        def_default(run_, run, 1)
+
+        iunit = get_free_unit()
+        open(iunit, file = 'determ_vecs', status = 'replace')
+        associate ( rep => cs_replicas(run_))
+            do i = 1, rep%determ_space_size
+                write(iunit, *) rep%full_determ_vecs(1, i)
+            end do
+        end associate
+        close(iunit)
+    end subroutine print_determ_vec
 
     !> Check whether an ilut belongs to the core space
     !> @param[in] ilut  ilut we want to check
@@ -953,7 +989,6 @@ contains
     subroutine write_core_space(rep)
 
         use Parallel_neci, only: MPIBarrier
-        use util_mod, only: get_free_unit
         type(core_space_t), intent(in) :: rep
         integer :: i, k, iunit, ierr
 
@@ -1829,6 +1864,36 @@ contains
 
     end subroutine diagonalize_core_non_hermitian
 
+    subroutine print_basis(rep)
+        type(core_space_t), intent(in) :: rep
+
+        integer :: iunit, i, nI(nel)
+
+        iunit = get_free_unit()
+        open(iunit, file = 'semistoch-basis', status = 'replace')
+
+        do i = 1, rep%determ_space_size
+            call decode_bit_det(nI, rep%core_space(:, i))
+            call write_det(iunit, nI, .true.)
+        end do
+        close(iunit)
+
+    end subroutine print_basis
+
+    subroutine print_hamiltonian(rep)
+        type(core_space_t), intent(in) :: rep
+
+        HElement_t(dp), allocatable :: full_H(:, :)
+        integer :: iunit
+
+        call calc_determin_hamil_full(full_H, rep)
+        iunit = get_free_unit()
+        open(iunit, file = 'semistoch-hamil', status = 'replace')
+        call print_matrix(full_H, iunit)
+        close(iunit)
+
+    end subroutine print_hamiltonian
+
     subroutine calc_determin_hamil_full(hamil, rep)
         use guga_data, only: ExcitationInformation_t
         use guga_excitations, only: calc_guga_matrix_element
@@ -1844,7 +1909,6 @@ contains
 
         do i = 1, rep%determ_space_size
             call decode_bit_det(nI, rep%core_space(:, i))
-
             call init_csf_information(rep%core_space(0:nifd, i))
 
             if (tHPHF) then
