@@ -12,7 +12,7 @@ module fcimc_output
                            iWriteHistEvery, tDiagAllSpaceEver, OffDiagMax, &
                            OffDiagBinRange, tCalcVariationalEnergy, &
                            iHighPopWrite, tLogEXLEVELStats, StepsPrint, &
-                           maxInitExLvlWrite, AllInitsPerExLvl
+                           maxInitExLvlWrite, AllInitsPerExLvl, t_force_replica_output
 
     use hist_data, only: Histogram, AllHistogram, InstHist, AllInstHist, &
                          BeforeNormHist, iNoBins, BinRange, HistogramEnergy, &
@@ -39,7 +39,7 @@ module fcimc_output
 
     use bit_reps, only: decode_bit_det, test_flag, extract_sign, get_initiator_flag
 
-    use semi_stoch_procs, only: global_most_populated_states, GLOBAL_RUN
+    use semi_stoch_procs, only: global_most_populated_states, GLOBAL_RUN, core_space_weight
 
     use bit_rep_data, only: niftot, nifd, flag_initiator
 
@@ -1504,50 +1504,75 @@ contains
         character(13), allocatable :: amplitude_string(:)
         character(9), allocatable :: init_string(:)
 
+        integer :: lenof_out, this_run, offset
+        logical :: t_replica_resolved_output
+
+        real(dp), parameter :: eps_high = 1.0e-7_dp
+
         allocate(GlobalLargestWalkers(0:NIfTot,iHighPopWrite), source=0_n_int)
         allocate(GlobalProc(iHighPopWrite), source=0)
 
-        call global_most_populated_states(iHighPopWrite, GLOBAL_RUN, GlobalLargestWalkers, &
-                                          norm, rank_of_largest=GlobalProc)
+        ! Decide if each replica shall have its own output 
+        t_replica_resolved_output = tOrthogonaliseReplicas .or. t_force_replica_output
+        if(t_replica_resolved_output) then
+            lenof_out = rep_size
+        else
+            lenof_out = lenof_sign            
+        end if
 
-        ! This has to be done by all procs
-        if(tAdiActive) call update_ref_signs()
+        ! Walkers(replica) Amplitude(replica) Init?(replica)
+        allocate(walker_string(lenof_out))
+        allocate(init_string(lenof_out))        
+
+        do run = 1, inum_runs
+            ! If t_replica_resolved_output is set:
+            ! Execute this once per run with run instead of GLOBAL_RUN -> prints the highest
+            ! determinants for each replica
+            if(t_replica_resolved_output) then
+                write(iout,*) "============================================================="
+                write(iout,*) "Reference and leading determinants for replica",run
+                write(iout,*) "============================================================="
+            end if
+            if(t_replica_resolved_output) then
+                this_run = run
+                offset = rep_size * (run - 1)   
+            else
+                this_run = GLOBAL_RUN
+                offset = 0
+            end if
+            call global_most_populated_states(iHighPopWrite, this_run, GlobalLargestWalkers, &
+                norm, rank_of_largest=GlobalProc)
+
+            ! This has to be done by all procs
+            if(tAdiActive) call update_ref_signs()
+
+            if(iProcIndex.eq.Root) then
+                !Now print out the info contained in GlobalLargestWalkers and GlobalProc
+
+                counter=0
+                do i=1,iHighPopWrite
+                    !How many non-zero determinants do we actually have?
+                    call extract_sign(GlobalLargestWalkers(:,i),SignCurr)
+                    HighSign = core_space_weight(SignCurr,this_run)
+                    if (HighSign > eps_high) counter = counter + 1
+                end do
 
 
-        if(iProcIndex.eq.Root) then
-            !Now print out the info contained in GlobalLargestWalkers and GlobalProc
-
-            counter=0
-            do i=1,iHighPopWrite
-                !How many non-zero determinants do we actually have?
-                call extract_sign(GlobalLargestWalkers(:,i),SignCurr)
-#ifdef CMPLX_
-                HighSign = sqrt(sum(abs(SignCurr(1::2)))**2 + sum(abs(SignCurr(2::2)))**2)
-#else
-                HighSign=sum(real(abs(SignCurr),dp))
-#endif
-                if (HighSign > 1.0e-7_dp) counter = counter + 1
-            end do
-
-
-            write(iout,*) ""
-            if (tReplicaReferencesDiffer) then
-                write(iout,'(A)') "Current references: "
-                do run = 1, inum_runs
+                write(iout,*) ""
+                if (tReplicaReferencesDiffer) then
+                    write(iout,'(A)') "Current references: "
                     call write_det(iout, ProjEDet(:,run), .true.)
                     call writeDetBit(iout, ilutRef(:, run), .true.)
-                end do
-            else
-                write(iout,'(A)') "Current reference: "
-                call write_det (iout, ProjEDet(:,1), .true.)
-                if(tSetupSIs) call print_reference_notification(&
-                     1,nRefs,"Used Superinitiator",.true.)
-                write(iout,*) "Number of superinitiators", nRefs
-            end if
+                else
+                    write(iout,'(A)') "Current reference: "
+                    call write_det (iout, ProjEDet(:,1), .true.)
+                    if(tSetupSIs) call print_reference_notification(&
+                        1,nRefs,"Used Superinitiator",.true.)
+                    write(iout,*) "Number of superinitiators", nRefs
+                end if
 
-            write(iout,*)
-            write(iout,'("Input DEFINEDET line (includes frozen orbs):")')
-            do run = 1, inum_runs
+                write(iout,*)
+                write(iout,'("Input DEFINEDET line (includes frozen orbs):")')
                 write(6,'("definedet ")', advance='no')
                 if (allocated(frozen_orb_list)) then
                     allocate(tmp_ni(nel_pre_freezing))
@@ -1556,15 +1581,15 @@ contains
                         tmp_ni(nel+1:nel_pre_freezing) = frozen_orb_list
                     call sort(tmp_ni)
                     call writeDefDet(tmp_ni, nel_pre_freezing)
-!                    do i = 1, nel_pre_freezing
-!                        write(6, '(i3," ")', advance='no') tmp_ni(i)
-!                    end do
+                    !                    do i = 1, nel_pre_freezing
+                    !                        write(6, '(i3," ")', advance='no') tmp_ni(i)
+                    !                    end do
                     deallocate(tmp_ni)
                 else
-                   call writeDefDet(ProjEDet(:,run), nel)
-!                    do i = 1, nel
-!                        write(6, '(i3," ")', advance='no') ProjEDet(i, run)
-!                    end do
+                    call writeDefDet(ProjEDet(:,run), nel)
+                    !                    do i = 1, nel
+                    !                        write(6, '(i3," ")', advance='no') ProjEDet(i, run)
+                    !                    end do
                 end if
                 do i = 1, nel
                     full_orb = ProjEDet(i, run)
@@ -1573,103 +1598,98 @@ contains
                 end do
                 write(iout,*)
 
-                if (.not. tReplicaReferencesDiffer) exit
-            end do
-
-            write(iout,*) ""
-            write(iout,"(A,I10,A)") "Most occupied ",counter," determinants as excitations from reference: "
-            write(iout,*)
-            if(lenof_sign.eq.1) then
-                if(tHPHF) then
-                    write(iout,"(A)") " Excitation   ExcitLevel   Seniority    Walkers    Amplitude    Init?   Proc  Spin-Coup?"
-                else
-                    write(iout,"(A)") " Excitation   ExcitLevel   Seniority    Walkers    Amplitude    Init?   Proc"
-                end if
-            else
-#ifdef CMPLX_
-                if(tHPHF) then
-                    write(iout,"(A)") " Excitation   ExcitLevel Seniority  Walkers(Re)   Walkers(Im)  Weight   &
-                                        &Init?(Re)   Init?(Im)   Proc  Spin-Coup?"
-                else
-                    write(iout,"(A)") " Excitation   ExcitLevel Seniority   Walkers(Re)   Walkers(Im)  Weight   &
-                                        &Init?(Re)   Init?(Im)   Proc"
-                end if
-#else
-                ! output the weight of every replica, and do not only assume
-                ! it is a complex run
-                write(format_string, '(a,i0,a,a,i0,a)') &
-                    '(3a11,', lenof_sign, 'a11,', 'a13,', lenof_sign,'a9,a)'
-                ! Walkers(replica) Amplitude(replica) Init?(replica)
-                allocate(walker_string(lenof_sign))
-!                 allocate(amplitude_string(lenof_sign))
-                allocate(init_string(lenof_sign))
-
-                do i = 1, lenof_sign
-                    write(walker_string(i), '(a,i0,a)') "Walkers(", i, ")"
-!                     write(amplitude_string(i), '(a,i0,a)') "Amplitude(", i, ")"
-                    write(init_string(i), '(a,i0,a)') "Init?(", i, ")"
-                end do
-
-                write(header, format_string) "Excitation ", "ExcitLevel ", "Seniority ", &
-                    walker_string, "Amplitude ", init_string, "Proc "
-
-                if (tHPHF) then
-                    header = trim(header) // " Spin-Coup?"
-                end if
-
-                write(iout, '(a)') trim(header)
-
-#endif
-            end if
-            do i=1,counter
-!                call WriteBitEx(iout,iLutRef,GlobalLargestWalkers(:,i),.false.)
-                call WriteDetBit(iout,GlobalLargestWalkers(:,i),.false.)
-                Excitlev=FindBitExcitLevel(iLutRef(:,1),GlobalLargestWalkers(:,i),nEl,.true.)
-                write(iout,"(I5)",advance='no') Excitlev
-                nopen=count_open_orbs(GlobalLargestWalkers(:,i))
-                write(iout,"(I5)",advance='no') nopen
-                call extract_sign(GlobalLargestWalkers(:,i),SignCurr)
-                do j=1,lenof_sign
-                    write(iout,"(G16.7)",advance='no') SignCurr(j)
-                end do
-#ifdef CMPLX_
-                HighSign = sqrt(sum(abs(SignCurr(1::2)))**2 + sum(abs(SignCurr(2::2)))**2)
-#else
-                HighSign=sum(real(abs(SignCurr),dp))
-#endif
-                if(tHPHF.and.(.not.TestClosedShellDet(GlobalLargestWalkers(:,i)))) then
-                    !Weight is proportional to (nw/sqrt(2))**2
-                    write(iout,"(F9.5)",advance='no') ((HighSign/sqrt(2.0_dp))/norm )
-                else
-                    write(iout,"(F9.5)",advance='no') (HighSign/norm)
-                end if
-                do j=1,lenof_sign
-                    if(.not.tTruncInitiator) then
-                        write(iout,"(A3)",advance='no') 'Y'
+                write(iout,*) ""
+                write(iout,"(A,I10,A)") "Most occupied ",counter," determinants as excitations from reference: "
+                write(iout,*)
+                if(lenof_sign.eq.1) then
+                    if(tHPHF) then
+                        write(iout,"(A)") " Excitation   ExcitLevel   Seniority    Walkers    Amplitude    Init?   Proc  Spin-Coup?"
                     else
-                        if(test_flag(GlobalLargestWalkers(:,i),get_initiator_flag(j))) then
+                        write(iout,"(A)") " Excitation   ExcitLevel   Seniority    Walkers    Amplitude    Init?   Proc"
+                    end if
+                else
+#ifdef CMPLX_
+                    if(tHPHF) then
+                        write(iout,"(A)") " Excitation   ExcitLevel Seniority  Walkers(Re)   Walkers(Im)  Weight   &
+                            &Init?(Re)   Init?(Im)   Proc  Spin-Coup?"
+                    else
+                        write(iout,"(A)") " Excitation   ExcitLevel Seniority   Walkers(Re)   Walkers(Im)  Weight   &
+                            &Init?(Re)   Init?(Im)   Proc"
+                    end if
+#else
+                    ! output the weight of every replica, and do not only assume
+                    ! it is a complex run
+                    write(format_string, '(a,i0,a,a,i0,a)') &
+                        '(3a11,', lenof_out, 'a11,', 'a13,', lenof_out,'a9,a)'
+
+                    do i = 1, lenof_out
+                        write(walker_string(i), '(a,i0,a)') "Walkers(", i, ")"
+                        !                     write(amplitude_string(i), '(a,i0,a)') "Amplitude(", i, ")"
+                        write(init_string(i), '(a,i0,a)') "Init?(", i, ")"
+                    end do
+
+                    write(header, format_string) "Excitation ", "ExcitLevel ", "Seniority ", &
+                        walker_string, "Amplitude ", init_string, "Proc "
+
+                    if (tHPHF) then
+                        header = trim(header) // " Spin-Coup?"
+                    end if
+
+                    write(iout, '(a)') trim(header)
+
+#endif
+                end if
+                do i=1,iHighPopWrite
+                    !                call WriteBitEx(iout,iLutRef,GlobalLargestWalkers(:,i),.false.)
+                    call extract_sign(GlobalLargestWalkers(:,i),SignCurr)                    
+                    HighSign = core_space_weight(SignCurr,this_run)
+                    if(HighSign < eps_high) cycle
+                    call WriteDetBit(iout,GlobalLargestWalkers(:,i),.false.)
+                    Excitlev=FindBitExcitLevel(iLutRef(:,1),GlobalLargestWalkers(:,i),nEl,.true.)
+                    write(iout,"(I5)",advance='no') Excitlev
+                    nopen=count_open_orbs(GlobalLargestWalkers(:,i))
+                    write(iout,"(I5)",advance='no') nopen
+                    do j=1,lenof_out
+                        write(iout,"(G16.7)",advance='no') SignCurr(j+offset)
+                    end do
+                    if(tHPHF.and.(.not.TestClosedShellDet(GlobalLargestWalkers(:,i)))) then
+                        !Weight is proportional to (nw/sqrt(2))**2
+                        write(iout,"(F9.5)",advance='no') ((HighSign/sqrt(2.0_dp))/norm )
+                    else
+                        write(iout,"(F9.5)",advance='no') (HighSign/norm)
+                    end if
+                    do j=1,lenof_out
+                        if(.not.tTruncInitiator) then
                             write(iout,"(A3)",advance='no') 'Y'
                         else
-                            write(iout,"(A3)",advance='no') 'N'
+                            if(test_flag(GlobalLargestWalkers(:,i),get_initiator_flag(j+offset))) then
+                                write(iout,"(A3)",advance='no') 'Y'
+                            else
+                                write(iout,"(A3)",advance='no') 'N'
+                            end if
                         end if
+                    end do
+                    if(tHPHF.and.(.not.TestClosedShellDet(GlobalLargestWalkers(:,i)))) then
+                        write(iout,"(I7)",advance='no') GlobalProc(i)
+                        write(iout,"(A3)") "*"
+                    else
+                        write(iout,"(I7)") GlobalProc(i)
                     end if
                 end do
-                if(tHPHF.and.(.not.TestClosedShellDet(GlobalLargestWalkers(:,i)))) then
-                    write(iout,"(I7)",advance='no') GlobalProc(i)
-                    write(iout,"(A3)") "*"
-                else
-                    write(iout,"(I7)") GlobalProc(i)
+
+                if(tHPHF) then
+                    write(iout,"(A)") " * = Spin-coupled function implicitly has time-reversed determinant with same weight."
                 end if
-            end do
 
-            if(tHPHF) then
-                write(iout,"(A)") " * = Spin-coupled function implicitly has time-reversed determinant with same weight."
+                write(iout,*) ""
             end if
+            ! Only continue if printing the replica-resolved output
+            if(.not. t_replica_resolved_output) exit
+        end do
 
-            deallocate(GlobalLargestWalkers,GlobalProc)
-            write(iout,*) ""
-        end if
-
+        deallocate(GlobalLargestWalkers,GlobalProc)
+        deallocate(walker_string, init_string)
+                
         contains
 
           subroutine writeDefDet(defdet, numEls)
@@ -1713,7 +1733,7 @@ contains
                end if
             end do
 
-          end subroutine writeDefDet
+        end subroutine writeDefDet
 
     END SUBROUTINE PrintHighPops
 

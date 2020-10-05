@@ -1431,7 +1431,7 @@ contains
         if (tSignedRepAv) then
             sign_curr_real = real(abs(sum(sign_curr)), dp)
         else
-            if (t_global_core_space .or. run == GLOBAL_RUN) then
+            if (run == GLOBAL_RUN) then
                 sign_curr_real = real(sum(abs(sign_curr)), dp)
             else
                 sign_curr_real = mag_of_run(sign_curr, run)
