@@ -906,36 +906,37 @@ contains
 
                                 counts = guga_pchb_sampler(1)%get_count(ij,ab)
                                 invalids = guga_pchb_sampler(1)%get_invalid(ij,ab)
-                                sums = guga_pchb_sampler(1)%get_sum(ij,ab)
-                                worst_orb = guga_pchb_sampler(1)%get_worst_orb(ij,ab)
-                                pgen_sum = guga_pchb_sampler(1)%get_pgen(ij,ab)
-                                high_pgen = guga_pchb_sampler(1)%get_high_pgen(ij,ab)
-                                low_pgen = guga_pchb_sampler(1)%get_low_pgen(ij,ab)
-                                dist = excitInfo%fullEnd - excitInfo%fullstart
-                                overlap = excitInfo%firstEnd - excitInfo%secondStart
-                                ijkl = contract_2_rdm_ind(excitInfo%i, &
-                                    excitInfo%j, excitInfo%k, excitInfo%l)
+                                if (counts > 0 .or. invalids > 0) then
+                                    sums = guga_pchb_sampler(1)%get_sum(ij,ab)
+                                    worst_orb = guga_pchb_sampler(1)%get_worst_orb(ij,ab)
+                                    pgen_sum = guga_pchb_sampler(1)%get_pgen(ij,ab)
+                                    high_pgen = guga_pchb_sampler(1)%get_high_pgen(ij,ab)
+                                    low_pgen = guga_pchb_sampler(1)%get_low_pgen(ij,ab)
+                                    dist = excitInfo%fullEnd - excitInfo%fullstart
+                                    overlap = excitInfo%firstEnd - excitInfo%secondStart
+                                    ijkl = contract_2_rdm_ind(excitInfo%i, &
+                                        excitInfo%j, excitInfo%k, excitInfo%l)
 
 
-                                if (counts > 0_int64) then
-                                    ratio_orb = sums / (real(counts,dp) * weight)
-                                else
-                                    ratio_orb = 0.0_dp
+                                    if (counts > 0_int64) then
+                                        ratio_orb = sums / (real(counts,dp) * weight)
+                                    else
+                                        ratio_orb = 0.0_dp
+                                    end if
+
+                                    if (.not. near_zero(pgen_sum)) then
+                                        ratio_pgen = sums / pgen_sum
+                                    else
+                                        ratio_pgen = 0.0_dp
+                                    end if
+
+                                    write(iunit, '(4I3,I12,2I4,E15.8,I12,7E15.8,I3,I12)') &
+                                        excitInfo%i, excitInfo%j, &
+                                        excitInfo%k, excitInfo%l, ijkl, dist, overlap, weight, counts, &
+                                        sums, worst_orb, ratio_orb, pgen_sum, &
+                                        high_pgen, low_pgen, ratio_pgen, excitInfo%typ, &
+                                        invalids
                                 end if
-
-                                if (.not. near_zero(pgen_sum)) then
-                                    ratio_pgen = sums / pgen_sum
-                                else
-                                    ratio_pgen = 0.0_dp
-                                end if
-
-                                write(iunit, '(4I3,I12,2I4,E15.8,I12,7E15.8,I3,I12)') &
-                                    excitInfo%i, excitInfo%j, &
-                                    excitInfo%k, excitInfo%l, ijkl, dist, overlap, weight, counts, &
-                                    sums, worst_orb, ratio_orb, pgen_sum, &
-                                    high_pgen, low_pgen, ratio_pgen, excitInfo%typ, &
-                                    invalids
-
                             end if
                         end do
                     end do
