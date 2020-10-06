@@ -341,7 +341,7 @@ contains
 
 
         if (size(possible_holes) == 0) then
-            exc%val(2) = 0
+            call zero_result()
             return
         end if
 
@@ -355,12 +355,18 @@ contains
             call make_single(det_I, nJ, elec, exc%val(2), ex_mat, par)
             ilutJ = ilut_excite(ilutI, exc)
         else
-            nJ = 0
-            ilutJ = 0
+            call zero_result()
         end if
 
         pgen = pgen_particle * pgen_hole
-        @:ASSERT(all(nJ == 0) .neqv. 0.0_dp < pgen .and. pgen <= 1.0_dp)
+        @:ASSERT(nJ(1) == 0 .neqv. 0.0_dp < pgen .and. pgen <= 1.0_dp)
+        contains
+
+            subroutine zero_result()
+                ex_mat(:, 1) = exc%val(:)
+                nJ(1) = 0
+                ilutJ = 0_n_int
+            end subroutine zero_result
     end subroutine
 
     !>  @brief
