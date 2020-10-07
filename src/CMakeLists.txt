@@ -142,7 +142,6 @@ set( SRC_FILES
     searching.F90
     semi_stoch_gen.F90
     semi_stoch_procs.F90
-	shared_ragged_array.F90
 	shared_rhash.F90
     sparse_arrays.F90
     spectral_data.F90
@@ -248,6 +247,7 @@ set( FYPP_SRC_FILES
     hist.fpp
     lib/util_mod.fpp
     sets_mod.fpp
+	shared_ragged_array.fpp
 )
 
 set( TEMPLATED_SRC_FILES

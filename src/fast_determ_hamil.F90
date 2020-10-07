@@ -17,7 +17,7 @@ module fast_determ_hamil
     use SystemData, only: tHPHF, nel
     use timing_neci
     use util_mod, only: get_free_unit
-    use shared_ragged_array, only: shared_ragged_array_t
+    use shared_ragged_array, only: shared_ragged_array_int32_t
     use shared_array
     use shared_memory_mpi
     use shared_rhash, only: shared_rhash_t, initialise_shared_rht, shared_rht_lookup
@@ -92,12 +92,12 @@ contains
         type(shared_array_bool_t) :: cs
         type(shared_rhash_t) :: beta_rht, alpha_rht
 
-        type(shared_ragged_array_t) :: beta_dets
-        type(shared_ragged_array_t) :: alpha_dets
+        type(shared_ragged_array_int32_t) :: beta_dets
+        type(shared_ragged_array_int32_t) :: alpha_dets
 
         type(shared_array_int32_t) :: nalpha_alpha, nbeta_beta
-        type(shared_ragged_array_t) :: alpha_alpha, beta_beta
-        type(shared_ragged_array_t) :: beta_with_alpha
+        type(shared_ragged_array_int32_t) :: alpha_alpha, beta_beta
+        type(shared_ragged_array_int32_t) :: beta_with_alpha
         type(buffer_hel_t) :: hamil_row
         type(buffer_int32_t) :: hamil_pos
         ! End shared resources
@@ -503,7 +503,7 @@ contains
             call set_timer(sort_aux_time)
 
             block
-                integer, pointer :: aux(:), sec_aux(:)
+                integer(int32), pointer :: aux(:), sec_aux(:)
 
                 do i = 1, nalpha_unpaired
                     aux => beta_with_alpha%sub(i)
@@ -908,12 +908,12 @@ contains
         type(shared_array_int32_t) :: nbeta_dets, nalpha_dets
         type(shared_rhash_t) :: beta_rht, alpha_rht
 
-        type(shared_ragged_array_t) :: beta_dets
-        type(shared_ragged_array_t) :: alpha_dets
+        type(shared_ragged_array_int32_t) :: beta_dets
+        type(shared_ragged_array_int32_t) :: alpha_dets
 
         type(shared_array_int32_t) :: nalpha_alpha, nbeta_beta
-        type(shared_ragged_array_t) :: alpha_alpha, beta_beta
-        type(shared_ragged_array_t) :: beta_with_alpha
+        type(shared_ragged_array_int32_t) :: alpha_alpha, beta_beta
+        type(shared_ragged_array_int32_t) :: beta_with_alpha
 
         type(buffer_hel_t) :: hamil_row
         type(buffer_int32_t) :: hamil_pos
@@ -1265,7 +1265,7 @@ contains
 
             ! We cannot directly feed the subarray pointers to sort, use an auxiliary pointer
             block
-                integer, pointer :: aux(:), sec_aux(:)
+                integer(int32), pointer :: aux(:), sec_aux(:)
 
                 do i = 1, nbeta
                     aux => beta_beta%sub(i)
