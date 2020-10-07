@@ -584,7 +584,7 @@ contains
             real(dp), intent(in) :: pgen_diagnostic
             default_predicate = &
                 (pgen_diagnostic <= 0.95_dp .or. 1.05_dp <= pgen_diagnostic) &
-                .and. .not. near_zero(dyn_sltcnd_excit(det_I, exc))
+                .and. .not. near_zero(dyn_sltcnd_excit(det_I%idx, exc, .true.))
         end function
 
     end subroutine run_excit_gen_tester

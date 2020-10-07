@@ -1,5 +1,6 @@
 cmake_minimum_required(VERSION 2.8.4 FATAL_ERROR)
 
+
 if (POLICY CMP0074)
     cmake_policy(SET CMP0074 NEW)
 endif ()
@@ -24,7 +25,8 @@ if (CMAKE_VERSION VERSION_LESS "3.1")
   endif()
   set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 else ()
-  set (CMAKE_CXX_STANDARD 11)
+#  set (CMAKE_CXX_STANDARD 11)
+   set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 endif ()
 
 # We require at least ifort17, previous versions do not support all required options

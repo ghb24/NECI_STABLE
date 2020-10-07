@@ -18,8 +18,8 @@ module fcimc_initialisation
                           t_lattice_model, t_tJ_model, t_heisenberg_model, &
                           t_k_space_hubbard, t_3_body_excits, breathingCont, &
                           momIndexTable, t_trans_corr_2body, t_non_hermitian, &
-                          tgen_guga_crude, &
-                          t_uniform_excits, t_mol_3_body, t_ueg_transcorr, t_ueg_3_body, tLatticeGens, &
+                          tgen_guga_crude, t_impurity_excitgen, &
+                          t_uniform_excits, t_mol_3_body,t_ueg_transcorr,t_ueg_3_body,tLatticeGens, &
                           irrepOrbOffset, nIrreps, &
                           tTrcorrExgen, nClosedOrbs, irrepOrbOffset, nIrreps, &
                           nOccOrbs, tNoSinglesPossible, t_pcpp_excitgen, &
@@ -233,9 +233,11 @@ module fcimc_initialisation
 
     use back_spawn_excit_gen, only: gen_excit_back_spawn, gen_excit_back_spawn_ueg, &
                                     gen_excit_back_spawn_hubbard, gen_excit_back_spawn_ueg_new
-    use gasci, only: gen_general_GASCI => generate_nGAS_excitation, GAS_exc_gen, possible_GAS_exc_gen, &
-                     operator(==), gen_all_excits_GAS => gen_all_excits, GAS_specification
-    use disconnected_gasci, only: gen_disconnected_GASCI => generate_nGAS_excitation, clearGAS
+    use gasci, only: GAS_exc_gen, possible_GAS_exc_gen, operator(==), GAS_specification
+    use gasci_disconnected, only: gen_GASCI_disconnected, init_disconnected_GAS, clearGAS
+    use gasci_general, only: gen_GASCI_general, gen_all_excits_GAS => gen_all_excits
+    use gasci_discarding, only: gen_GASCI_discarding, init_GASCI_discarding, finalize_GASCI_discarding
+    use gasci_disconnected_pchb, only: gen_GASCI_pchb, disconnected_GAS_PCHB
 
     use cepa_shifts, only: t_cepa_shift, init_cepa_shifts
 
@@ -249,7 +251,9 @@ module fcimc_initialisation
 
     use lattice_models_utils, only: gen_all_excits_k_space_hubbard, gen_all_excits_r_space_hubbard
 
-    use pchb_excitgen, only: gen_rand_excit_pchb, init_pchb_excitgen, finalize_pchb_excitgen
+    use pchb_excitgen, only: gen_rand_excit_pchb, PCHB_FCI
+
+    use impurity_models, only: setupImpurityExcitgen, clearImpurityExcitgen, gen_excit_impurity_model
 
     use symexcit3, only: gen_all_excits_default => gen_all_excits
     implicit none
@@ -1398,6 +1402,15 @@ contains
         ! and can hence be precomputed
         if (t_mol_3_body .or. t_ueg_3_body) call setup_mol_tc_excitgen()
 
+        if (tGAS) then
+            if (GAS_exc_gen == possible_GAS_exc_gen%DISCONNECTED) then
+                call init_disconnected_GAS(GAS_specification)
+            else if (GAS_exc_gen == possible_GAS_exc_gen%DISCARDING) then
+                call init_GASCI_discarding()
+            else if (GAS_exc_gen == possible_GAS_exc_gen%DISCONNECTED_PCHB) then
+                call disconnected_GAS_PCHB%init()
+            end if
+        end if
     END SUBROUTINE SetupParameters
 
     ! This initialises the calculation, by allocating memory, setting up the
@@ -1483,15 +1496,6 @@ contains
                                         read_tau, PopBlockingIter, PopRandomHash, read_psingles, &
                                         read_pparallel, read_ptriples, read_nnodes, read_walkers_on_nodes, &
                                         PopBalanceBlocks)
-                    ! Use the random hash from the Popsfile. This is so that,
-                    ! if we are using the same number of processors as the job
-                    ! which produced the Popsfile, we can send the determinants
-                    ! to the correct processor directly (see read_pops_nnodes).
-                    ! This won't work if a different random number seed has
-                    ! been used, so we copy the random hash across for safety.
-                    ! This will overwrite current value of RandomHash.
-                    !RandomHash = PopRandomHash(1:nBasis)
-                    !call MPIBcast(RandomHash)
                 else
                     call stop_all(this_routine, "Popsfile version invalid")
                 end if
@@ -1723,7 +1727,8 @@ contains
 
         ! initialize excitation generator
         if (t_pcpp_excitgen) call init_pcpp_excitgen()
-        if (t_pchb_excitgen) call init_pchb_excitgen()
+        if (t_pchb_excitgen) call PCHB_FCI%init()
+        if(t_impurity_excitgen) call setupImpurityExcitgen()
         ! [W.D.] I guess I want to initialize that before the tau-search,
         ! or otherwise some pgens get calculated incorrectly
         if (t_back_spawn .or. t_back_spawn_flex) then
@@ -1938,13 +1943,17 @@ contains
         character(*), parameter :: t_r = 'init_fcimc_fn_pointers'
 
         ! Select the excitation generator.
-        if (tHPHF) then
+        if (tHPHF .and. .not. (t_mol_3_body .or. t_ueg_3_body)) then
             generate_excitation => gen_hphf_excit
         else if (tGAS) then
             if (GAS_exc_gen == possible_GAS_exc_gen%GENERAL) then
-                generate_excitation => gen_general_GASCI
+                generate_excitation => gen_GASCI_general
             else if (GAS_exc_gen == possible_GAS_exc_gen%DISCONNECTED) then
-                generate_excitation => gen_disconnected_GASCI
+                generate_excitation => gen_GASCI_disconnected
+            else if (GAS_exc_gen == possible_GAS_exc_gen%DISCARDING) then
+                generate_excitation => gen_GASCI_discarding
+            else if (GAS_exc_gen == possible_GAS_exc_gen%DISCONNECTED_PCHB) then
+                generate_excitation => gen_GASCI_pchb
             else
                 call stop_all(t_r, 'Invalid GAS excitation generator')
             end if
@@ -1954,16 +1963,18 @@ contains
             else
                 generate_excitation => gen_excit_k_space_hub_transcorr
             end if
-        else if (tHPHF) then
+        else if (tHPHF .and. .not. (t_mol_3_body .or. t_ueg_3_body)) then
             generate_excitation => gen_hphf_excit
         else if (t_ueg_3_body) then
             if (tTrcorrExgen) then
                 generate_two_body_excitation => gen_ueg_excit
             else if (TLatticeGens) then
                 generate_two_body_excitation => gen_rand_excit
-            end if
+            endif
             generate_excitation => gen_excit_mol_tc
-        else if ((t_back_spawn_option .or. t_back_spawn_flex_option)) then
+        elseif(t_impurity_excitgen) then
+            generate_excitation => gen_excit_impurity_model
+        elseif ((t_back_spawn_option .or. t_back_spawn_flex_option)) then
             if (tHUB .and. tLatticeGens) then
                 ! for now the hubbard + back-spawn still uses the old
                 ! genrand excit gen
@@ -2013,7 +2024,11 @@ contains
         if (t_mol_3_body) then
             ! yes, fortran pointers work this way
             generate_two_body_excitation => generate_excitation
-            generate_excitation => gen_excit_mol_tc
+            if(tHPHF) then
+                generate_excitation => gen_hphf_excit
+            else
+                generate_excitation => gen_excit_mol_tc
+            end if
         end if
 
         ! In the main loop, we only need to find out if a determinant is
@@ -2292,13 +2307,21 @@ contains
         ! Cleanup adi caches
         call clean_adi()
 
-        call clearGAS()
 
-        call GAS_specification%destroy()
+        if (tGAS) then
+            if (GAS_exc_gen == possible_GAS_exc_gen%DISCONNECTED) then
+                call clearGAS()
+            else if (GAS_exc_gen == possible_GAS_exc_gen%DISCARDING) then
+                call finalize_GASCI_discarding()
+            else if (GAS_exc_gen == possible_GAS_exc_gen%DISCONNECTED_PCHB) then
+                call disconnected_GAS_PCHB%clear()
+            end if
+        end if
 
         ! Cleanup excitation generator
         if (t_pcpp_excitgen) call finalize_pcpp_excitgen()
-        if (t_pchb_excitgen) call finalize_pchb_excitgen()
+        if (t_pchb_excitgen) call PCHB_FCI%finalize()
+        if(t_impurity_excitgen) call clearImpurityExcitgen()
 
         if (tSemiStochastic) call end_semistoch()
 

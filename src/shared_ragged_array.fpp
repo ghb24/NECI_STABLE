@@ -1,5 +1,10 @@
 
+! Two-dimensional contiguous array class with non-uniform second dimension stored in shared memory. It is implemented this way to
+! yield maximal memory efficiency
+
+! Templated for these types
 #:set data_types = [['real(dp)', 'real'], ['integer(int64)', 'int64'], ['integer(int32)','int32'], ['complex(dp)','cmplx'], ['logical','bool']]
+! And these integer kinds can be used for indexing and allocation
 #:set index_types = ['int32','int64']
 module shared_ragged_array
     use constants
@@ -11,28 +16,45 @@ module shared_ragged_array
 #:for data_type, data_name in data_types
     public :: shared_ragged_array_${data_name}$_t
 
+    ! This type only serves the purpose to create an addressing array for quasi-2D-access -> allows to directly get pointers to
+    ! sub-arrays
     type :: auxiliary_${data_name}$_t
         ${data_type}$, pointer :: res(:)
     end type auxiliary_${data_name}$_t
 
+    !> Shared memory 2-D array template with non-uniform 2nd dimension ("ragged") of type ${data_name}$
     type :: shared_ragged_array_${data_name}$_t
-!        private
+        private
 
+        ! Actual shared resource
         type(shared_array_${data_name}$_t) :: data_array
+        ! Indexing array to hold pointers to the sub-arrays
         type(auxiliary_${data_name}$_t), allocatable :: ptr(:)
+        ! Sizes of the sub-arrays
         integer, allocatable :: store_sizes(:)
     contains
+
+        ! These functions work with different integer kinds as index values (index_types)
 #:for index_type in index_types
+
+        ! Generic interfaces
+        ! 
         generic :: shared_alloc => shared_alloc_${data_name}$_${index_type}$
+        ! sub returns a pointer to a 1d subarray (sub1d) or a specific entry (sub2d)
+        generic :: sub => pos_1d_${data_name}$_${index_type}$, pos_2d_${data_name}$_${index_type}$
+        ! Set val sets a specific value of the array
+        generic :: set_val => set_val_${data_name}$_${index_type}$
+
+        ! Index kind-specific implementations
         procedure :: shared_alloc_${data_name}$_${index_type}$
         procedure :: pos_1d_${data_name}$_${index_type}$
         procedure :: pos_2d_${data_name}$_${index_type}$
-        generic :: sub => pos_1d_${data_name}$_${index_type}$, pos_2d_${data_name}$_${index_type}$
-        generic :: set_val => set_val_${data_name}$_${index_type}$
         procedure :: set_val_${data_name}$_${index_type}$
 #:endfor
-        procedure :: shared_dealloc_${data_name}$        
+        procedure :: shared_dealloc => shared_dealloc_${data_name}$
+        ! Sync synchronizes the content of the array within the inter-node communicator
         procedure :: sync => sync_${data_name}$
+        ! For setting up the subarray pointers
         procedure :: reassign_pointers => reassign_pointers_${data_name}$
     end type shared_ragged_array_${data_name}$_t
 #:endfor

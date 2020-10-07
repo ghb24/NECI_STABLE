@@ -173,10 +173,12 @@ contains
 
         type(rdm_definitions_t), intent(out) :: rdm_defs
         integer, intent(in) :: nrdms_standard, nrdms_transition
-        integer, intent(in) :: states_for_transition_rdm(:, :) ! (2, nrdms_transition/nreplicas)
+        integer, allocatable, intent(in) :: states_for_transition_rdm(:, :) ! (2, nrdms_transition/nreplicas)
         character(*), intent(in), optional :: filename
 
         integer :: nrdms, irdm, counter
+
+        character(*), parameter :: t_r = "init_rdm_definitions_t"
 
         nrdms = nrdms_standard + nrdms_transition
         rdm_defs%nrdms = nrdms
@@ -196,17 +198,21 @@ contains
         ! states_for_transition_rdm, which in practice is read in from the
         ! input and then passed to this routine.
         if (nrdms_transition > 0) then
-            if (nreplicas == 1) then
-                rdm_defs%state_labels(:, nrdms_standard + 1:nrdms_standard + nrdms_transition) = states_for_transition_rdm
-            else if (nreplicas == 2) then
-                do irdm = 2, nrdms_transition, 2
-                    ! In this case, there are two transition RDMs sampled for
-                    ! each one the user requested, because there are two
-                    ! combinations of replicas which can be used.
-                    rdm_defs%state_labels(:, nrdms_standard + irdm - 1) = states_for_transition_rdm(:, irdm / 2)
-                    rdm_defs%state_labels(:, nrdms_standard + irdm) = states_for_transition_rdm(:, irdm / 2)
-                end do
-            end if
+            if(allocated(states_for_transition_rdm)) then
+                if (nreplicas == 1) then
+                    rdm_defs%state_labels(:, nrdms_standard + 1:nrdms_standard + nrdms_transition) = states_for_transition_rdm
+                else if (nreplicas == 2) then
+                    do irdm = 2, nrdms_transition, 2
+                        ! In this case, there are two transition RDMs sampled for
+                        ! each one the user requested, because there are two
+                        ! combinations of replicas which can be used.
+                        rdm_defs%state_labels(:, nrdms_standard + irdm - 1) = states_for_transition_rdm(:, irdm / 2)
+                        rdm_defs%state_labels(:, nrdms_standard + irdm) = states_for_transition_rdm(:, irdm / 2)
+                    end do
+                end if
+            else
+                call stop_all(t_r, "Attempting to access unallocated array states_for_transition_rdm")
+            endif
         end if
 
         ! For transition RDMs, with 2 replicas for each state, there will be 2

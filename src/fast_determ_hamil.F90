@@ -21,7 +21,8 @@ module fast_determ_hamil
     use shared_array
     use shared_memory_mpi
     use shared_rhash, only: shared_rhash_t, initialise_shared_rht, shared_rht_lookup
-    use buffer_1d, only: buffer_hel_t, buffer_int32_t
+    use growing_buffers, only: buffer_hel_t => buffer_hel_1D_t, &
+        buffer_int_t => buffer_int_1D_t
     use core_space_util, only: core_space_t, sparse_matrix_real, sparse_matrix_int
     implicit none
 
@@ -41,10 +42,12 @@ contains
         use SystemData, only: nOccAlpha, nOccBeta
         type(core_space_t), intent(inout) :: rep
         integer :: i, j, k, ierr
+        integer(MPIArg) :: MPIerr
         integer :: IC, IC_beta
         integer :: ind_i, ind_j, ind_k, i_full
         integer :: ind, hash_val, hash_size_1, hash_size_2, hash_size_3
-        integer :: ind_beta, ind_alpha, hash_val_beta, hash_val_alpha, ind_alpha_conn
+        integer :: ind_beta, ind_alpha, hash_val_beta, hash_val_alpha
+        integer(int32) :: ind_alpha_conn
         integer :: ind_alpha_paired, ind_beta_paired
         logical :: tSuccess, tSuccess_a_paired, tSuccess_b_paired
         integer(n_int) :: tmp(0:NIfD)
@@ -59,8 +62,8 @@ contains
         ! in the HPHFs
         integer :: nbeta_unpaired, nalpha_unpaired
 
-        integer :: nintersec
-        integer, allocatable :: intersec_inds(:)
+        integer(int32) :: nintersec
+        integer(int32), allocatable :: intersec_inds(:)
 
         type(ll_node), pointer :: beta_ht(:)
         type(ll_node), pointer :: alpha_ht(:)
@@ -99,7 +102,7 @@ contains
         type(shared_ragged_array_int32_t) :: alpha_alpha, beta_beta
         type(shared_ragged_array_int32_t) :: beta_with_alpha
         type(buffer_hel_t) :: hamil_row
-        type(buffer_int32_t) :: hamil_pos
+        type(buffer_int_t) :: hamil_pos
         ! End shared resources
 
         character(len=*), parameter :: t_r = "calc_determ_hamil_opt_hphf"
@@ -301,10 +304,10 @@ contains
         ! Now allocate the shared auxiliary arrays
         ! Continue the allocation of auxiliary arrays, these are shared now
         ! Internally broadcast the size of the arrays
-        call MPI_Bcast(nbeta_unpaired, 1, MPI_INTEGER4, 0, mpi_comm_intra, ierr)
-        call MPI_Bcast(nalpha_unpaired, 1, MPI_INTEGER4, 0, mpi_comm_intra, ierr)
-        call MPI_Bcast(nbeta, 1, MPI_INTEGER4, 0, mpi_comm_intra, ierr)
-        call MPI_Bcast(nalpha, 1, MPI_INTEGER4, 0, mpi_comm_intra, ierr)
+        call MPI_Bcast(nbeta_unpaired, 1, MPI_INTEGER4, 0, mpi_comm_intra, MPIerr)
+        call MPI_Bcast(nalpha_unpaired, 1, MPI_INTEGER4, 0, mpi_comm_intra, MPIerr)
+        call MPI_Bcast(nbeta, 1, MPI_INTEGER4, 0, mpi_comm_intra, MPIerr)
+        call MPI_Bcast(nalpha, 1, MPI_INTEGER4, 0, mpi_comm_intra, MPIerr)
 
         ! Sync nbeta_dets / nalpha_dets / cs
         call nbeta_dets%sync()
@@ -348,13 +351,13 @@ contains
                     ! Now add this determinant to the list of determinants with this
                     ! beta string.
                     nbeta_dets%ptr(ind_beta) = nbeta_dets%ptr(ind_beta) + 1
-                    call beta_dets%set_val(ind_beta, nbeta_dets%ptr(ind_beta), i)
+                    call beta_dets%set_val(int(ind_beta, int32), nbeta_dets%ptr(ind_beta), int(i, int32))
 
                     ! Now add this determinant to the list of determinants with this
                     ! alpha string.
                     nalpha_dets%ptr(ind_alpha) = nalpha_dets%ptr(ind_alpha) + 1
-                    call alpha_dets%set_val(ind_alpha, nalpha_dets%ptr(ind_alpha), i)
-                    call beta_with_alpha%set_val(ind_alpha, nalpha_dets%ptr(ind_alpha), ind_beta)
+                    call alpha_dets%set_val(int(ind_alpha, int32), nalpha_dets%ptr(ind_alpha), int(i, int32))
+                    call beta_with_alpha%set_val(int(ind_alpha, int32), nalpha_dets%ptr(ind_alpha), int(ind_beta, int32))
                 end do
             end do
 
@@ -438,7 +441,7 @@ contains
         call nbeta_beta%sync()
         call beta_beta%shared_alloc(nbeta_beta%ptr(1:nbeta))
         ! Wait until allocation is complete before overwriting nbeta_beta
-        call MPI_Barrier(mpi_comm_intra, ierr)
+        call MPI_Barrier(mpi_comm_intra, MPIerr)
 
         if (iProcIndex_intra == 0) then
             ! Rezero this so that we can use it as a counter for the following
@@ -452,7 +455,7 @@ contains
                         ! Don't need to consider beta values that aren't in the unpaired detereminants
                         if (beta_m1_contribs(i)%pos(k) > nbeta_unpaired) cycle
                         nbeta_beta%ptr(beta_m1_contribs(i)%pos(j)) = nbeta_beta%ptr(beta_m1_contribs(i)%pos(j)) + 1
-                  call beta_beta%set_val(beta_m1_contribs(i)%pos(j), nbeta_beta%ptr(beta_m1_contribs(i)%pos(j)), beta_m1_contribs(i)%pos(k))
+                  call beta_beta%set_val(int(beta_m1_contribs(i)%pos(j), int32), int(nbeta_beta%ptr(beta_m1_contribs(i)%pos(j)), int32), int(beta_m1_contribs(i)%pos(k), int32))
                     end do
                 end do
             end do
@@ -475,7 +478,7 @@ contains
         call nalpha_alpha%sync()
         call alpha_alpha%shared_alloc(nalpha_alpha%ptr(1:nalpha))
         ! Wait until allocation is complete before overwriting nalpha_alpha
-        call MPI_Barrier(mpi_comm_intra, ierr)
+        call MPI_Barrier(mpi_comm_intra, MPIerr)
 
         if (iProcIndex_intra == 0) then
             ! Rezero this so that we can use it as a counter for the following
@@ -489,7 +492,9 @@ contains
                         ! Don't need to consider alpha values that aren't in the unpaired detereminants
                         if (alpha_m1_contribs(i)%pos(k) > nalpha_unpaired) cycle
                         nalpha_alpha%ptr(alpha_m1_contribs(i)%pos(j)) = nalpha_alpha%ptr(alpha_m1_contribs(i)%pos(j)) + 1
-           call alpha_alpha%set_val(alpha_m1_contribs(i)%pos(j), nalpha_alpha%ptr(alpha_m1_contribs(i)%pos(j)), alpha_m1_contribs(i)%pos(k))
+           call alpha_alpha%set_val(int(alpha_m1_contribs(i)%pos(j), int32), &
+                                    int(nalpha_alpha%ptr(alpha_m1_contribs(i)%pos(j)), int32), &
+                                    int(alpha_m1_contribs(i)%pos(k), int32))
 
                     end do
                 end do
@@ -528,7 +533,7 @@ contains
 
         ! On procs which are not node-root, we need to reassign the internal pointers
         ! after sorting
-        call MPI_Barrier(mpi_comm_intra, ierr)
+        call MPI_Barrier(mpi_comm_intra, MPIerr)
         call beta_beta%reassign_pointers()
         call alpha_alpha%reassign_pointers()
         call beta_with_alpha%reassign_pointers()
@@ -567,9 +572,9 @@ contains
         end if
 
         ! Sync the ilut lists
-        call MPI_Win_Sync(beta_list_win, ierr)
-        call MPI_Win_Sync(alpha_list_win, ierr)
-        call MPI_Barrier(mpi_comm_intra, ierr)
+        call MPI_Win_Sync(beta_list_win, MPIerr)
+        call MPI_Win_Sync(alpha_list_win, MPIerr)
+        call MPI_Barrier(mpi_comm_intra, MPIerr)
         ! Create the node shared read-only hashtables
         call initialise_shared_rht(beta_list, nbeta, beta_rht, nOccBeta, hash_size_1)
         call initialise_shared_rht(alpha_list, nalpha, alpha_rht, nOccAlpha, hash_size_1)
@@ -579,8 +584,8 @@ contains
 
         allocate(intersec_inds(nbeta), stat=ierr)
 
-        call hamil_row%init(int(rep%determ_sizes(iProcIndex), int64))
-        call hamil_pos%init(int(rep%determ_sizes(iProcIndex), int64))
+        call hamil_row%init(start_size=int(rep%determ_sizes(iProcIndex), int64))
+        call hamil_pos%init(start_size=int(rep%determ_sizes(iProcIndex), int64))
 
         allocate(rep%sparse_core_ham(rep%determ_sizes(iProcIndex)), stat=ierr)
         allocate(rep%core_ham_diag(rep%determ_sizes(iProcIndex)), stat=ierr)
@@ -623,8 +628,8 @@ contains
                                                      rep%core_space(:, ind_j), IC, CS_I, CS_J)
 
                     if (abs(hel) > 0.0_dp) then
-                        call hamil_pos%add_val(ind_j)
-                        call hamil_row%add_val(hel)
+                        call hamil_pos%push_back(ind_j)
+                        call hamil_row%push_back(hel)
                     end if
                 end if
             end do
@@ -664,8 +669,8 @@ contains
                         if (IC <= 2) then
                             hel = hphf_off_diag_special_case(nI_paired, ilut_paired, rep%core_space(:, ind_j), IC, OpenOrbsI)
                             if (abs(hel) > 0.0_dp) then
-                                call hamil_pos%add_val(ind_j)
-                                call hamil_row%add_val(hel)
+                                call hamil_pos%push_back(ind_j)
+                                call hamil_row%push_back(hel)
                             end if
                         end if
 
@@ -689,8 +694,8 @@ contains
                     hel = hphf_off_diag_helement_opt(nI, rep%core_space(:, i_full), &
                                                      rep%core_space(:, ind_j), IC, CS_I, CS_J)
                     if (abs(hel) > 0.0_dp) then
-                        call hamil_pos%add_val(ind_j)
-                        call hamil_row%add_val(hel)
+                        call hamil_pos%push_back(ind_j)
+                        call hamil_row%push_back(hel)
                     end if
                 end if
 
@@ -731,8 +736,8 @@ contains
                         if (IC <= 2) then
                             hel = hphf_off_diag_special_case(nI_paired, ilut_paired, rep%core_space(:, ind_j), IC, OpenOrbsI)
                             if (abs(hel) > 0.0_dp) then
-                                call hamil_pos%add_val(ind_j)
-                                call hamil_row%add_val(hel)
+                                call hamil_pos%push_back(ind_j)
+                                call hamil_row%push_back(hel)
                             end if
                         end if
 
@@ -755,8 +760,8 @@ contains
 
                     hel = hphf_off_diag_helement_opt(nI, rep%core_space(:, i_full), rep%core_space(:, ind_k), 2, CS_I, CS_K)
                     if (abs(hel) > 0.0_dp) then
-                        call hamil_pos%add_val(ind_k)
-                        call hamil_row%add_val(hel)
+                        call hamil_pos%push_back(ind_k)
+                        call hamil_row%push_back(hel)
                     end if
                 end do
             end do
@@ -788,8 +793,8 @@ contains
 
                         hel = hphf_off_diag_special_case(nI_paired, ilut_paired, rep%core_space(:, ind_k), 2, OpenOrbsI)
                         if (abs(hel) > 0.0_dp) then
-                            call hamil_pos%add_val(ind_k)
-                            call hamil_row%add_val(hel)
+                            call hamil_pos%push_back(ind_k)
+                            call hamil_row%push_back(hel)
                         end if
 
                     end do
@@ -799,17 +804,17 @@ contains
 
             ! Calculate and add the diagonal element
             hel = hphf_diag_helement(nI, rep%core_space(:, i_full)) - Hii
-            call hamil_pos%add_val(i_full)
-            call hamil_row%add_val(hel)
+            call hamil_pos%push_back(i_full)
+            call hamil_row%push_back(hel)
 
             ! Now finally allocate and fill in the actual deterministic
             ! Hamiltonian row for this determinant
             ! Now finally allocate and fill in the actual deterministic
             ! Hamiltonian row for this determinant
-            rep%sparse_core_ham(i)%num_elements = int(hamil_row%num_elements())
+            rep%sparse_core_ham(i)%num_elements = int(hamil_row%size())
             ! Dumping the buffer transfers its content and reset the buffer
-            call hamil_row%dump(rep%sparse_core_ham(i)%elements)
-            call hamil_pos%dump(rep%sparse_core_ham(i)%positions)
+            call hamil_row%dump_reset(rep%sparse_core_ham(i)%elements)
+            call hamil_pos%dump_reset(rep%sparse_core_ham(i)%positions)
 
             ! Fill the array of diagonal elements
             rep%core_ham_diag(i) = hel
@@ -865,6 +870,7 @@ contains
         use SystemData, only: nOccAlpha, nOccBeta
         type(core_space_t), intent(inout) :: rep
         integer :: i, j, k, ierr
+        integer(MPIArg) :: MPIerr
         integer :: IC, IC_beta
         integer :: ind_i, ind_j, ind_k, i_full
         integer :: ind, hash_val, hash_size_1, hash_size_2, hash_size_3
@@ -879,8 +885,8 @@ contains
         integer :: nI_alpha(nOccAlpha), nI_alpha_m1(nOccAlpha - 1), nI_beta(nOccBeta), nI_beta_m1(nOccBeta - 1)
         integer :: nbeta, nalpha, nbeta_m1, nalpha_m1
 
-        integer :: nintersec
-        integer, allocatable :: intersec_inds(:)
+        integer(int32) :: nintersec
+        integer(int32), allocatable :: intersec_inds(:)
 
         type(ll_node), pointer :: beta_ht(:)
         type(ll_node), pointer :: alpha_ht(:)
@@ -916,7 +922,7 @@ contains
         type(shared_ragged_array_int32_t) :: beta_with_alpha
 
         type(buffer_hel_t) :: hamil_row
-        type(buffer_int32_t) :: hamil_pos
+        type(buffer_int_t) :: hamil_pos
         ! End shared resources
 
         character(len=*), parameter :: t_r = "calc_determ_hamil_opt"
@@ -1088,8 +1094,8 @@ contains
         end if
         ! Continue the allocation of auxiliary arrays, these are shared now
         ! Internally broadcast the size of the arrays
-        call MPI_Bcast(nbeta, 1, MPI_INTEGER4, 0, mpi_comm_intra, ierr)
-        call MPI_Bcast(nalpha, 1, MPI_INTEGER4, 0, mpi_comm_intra, ierr)
+        call MPI_Bcast(nbeta, 1, MPI_INTEGER4, 0, mpi_comm_intra, MPIerr)
+        call MPI_Bcast(nalpha, 1, MPI_INTEGER4, 0, mpi_comm_intra, MPIerr)
 
         call nbeta_dets%sync()
         call nalpha_dets%sync()
@@ -1123,13 +1129,13 @@ contains
                 ! Now add this determinant to the list of determinants with this
                 ! beta string.
                 nbeta_dets%ptr(ind_beta) = nbeta_dets%ptr(ind_beta) + 1
-                call beta_dets%set_val(ind_beta, nbeta_dets%ptr(ind_beta), i)
+                call beta_dets%set_val(int(ind_beta, int32), nbeta_dets%ptr(ind_beta), int(i, int32))
 
                 ! Now add this determinant to the list of determinants with this
                 ! alpha string.
                 nalpha_dets%ptr(ind_alpha) = nalpha_dets%ptr(ind_alpha) + 1
-                call alpha_dets%set_val(ind_alpha, nalpha_dets%ptr(ind_alpha), i)
-                call beta_with_alpha%set_val(ind_alpha, nalpha_dets%ptr(ind_alpha), ind_beta)
+                call alpha_dets%set_val(int(ind_alpha, int32), nalpha_dets%ptr(ind_alpha), int(i, int32))
+                call beta_with_alpha%set_val(int(ind_alpha, int32), nalpha_dets%ptr(ind_alpha), int(ind_beta, int32))
             end do
 
             do i = 1, nbeta
@@ -1207,7 +1213,7 @@ contains
         call nbeta_beta%sync()
         call beta_beta%shared_alloc(nbeta_beta%ptr(1:nbeta))
         ! Wait unti all tasks allocated before overwriting nbeta_beta
-        call MPI_Barrier(mpi_comm_intra, ierr)
+        call MPI_Barrier(mpi_comm_intra, MPIerr)
 
         if (iProcIndex_intra == 0) then
             ! Rezero this so that we can use it as a counter for the following
@@ -1218,10 +1224,14 @@ contains
                 do j = 1, nbeta_m1_contribs(i)
                     do k = j + 1, nbeta_m1_contribs(i)
                         nbeta_beta%ptr(beta_m1_contribs(i)%pos(j)) = nbeta_beta%ptr(beta_m1_contribs(i)%pos(j)) + 1
-                  call beta_beta%set_val(beta_m1_contribs(i)%pos(j), nbeta_beta%ptr(beta_m1_contribs(i)%pos(j)), beta_m1_contribs(i)%pos(k))
+                  call beta_beta%set_val(int(beta_m1_contribs(i)%pos(j), int32), &
+                                         int(nbeta_beta%ptr(beta_m1_contribs(i)%pos(j)), int32), &
+                                         int(beta_m1_contribs(i)%pos(k), int32))
 
                         nbeta_beta%ptr(beta_m1_contribs(i)%pos(k)) = nbeta_beta%ptr(beta_m1_contribs(i)%pos(k)) + 1
-                  call beta_beta%set_val(beta_m1_contribs(i)%pos(k), nbeta_beta%ptr(beta_m1_contribs(i)%pos(k)), beta_m1_contribs(i)%pos(j))
+                  call beta_beta%set_val(int(beta_m1_contribs(i)%pos(k), int32), &
+                                         int(nbeta_beta%ptr(beta_m1_contribs(i)%pos(k)), int32), &
+                                         int(beta_m1_contribs(i)%pos(j), int32))
                     end do
                 end do
             end do
@@ -1238,7 +1248,7 @@ contains
         call nalpha_alpha%sync()
         call alpha_alpha%shared_alloc(nalpha_alpha%ptr(1:nalpha))
         ! Wait unti all tasks allocated before overwriting nalpha_alpha
-        call MPI_Barrier(mpi_comm_intra, ierr)
+        call MPI_Barrier(mpi_comm_intra, MPIerr)
 
         if (iProcIndex_intra == 0) then
             ! Rezero this so that we can use it as a counter for the following
@@ -1249,10 +1259,14 @@ contains
                 do j = 1, nalpha_m1_contribs(i)
                     do k = j + 1, nalpha_m1_contribs(i)
                         nalpha_alpha%ptr(alpha_m1_contribs(i)%pos(j)) = nalpha_alpha%ptr(alpha_m1_contribs(i)%pos(j)) + 1
-           call alpha_alpha%set_val(alpha_m1_contribs(i)%pos(j), nalpha_alpha%ptr(alpha_m1_contribs(i)%pos(j)), alpha_m1_contribs(i)%pos(k))
+           call alpha_alpha%set_val(int(alpha_m1_contribs(i)%pos(j), int32), &
+                                    int(nalpha_alpha%ptr(alpha_m1_contribs(i)%pos(j)), int32), &
+                                    int(alpha_m1_contribs(i)%pos(k), int32))
 
                         nalpha_alpha%ptr(alpha_m1_contribs(i)%pos(k)) = nalpha_alpha%ptr(alpha_m1_contribs(i)%pos(k)) + 1
-           call alpha_alpha%set_val(alpha_m1_contribs(i)%pos(k), nalpha_alpha%ptr(alpha_m1_contribs(i)%pos(k)), alpha_m1_contribs(i)%pos(j))
+           call alpha_alpha%set_val(int(alpha_m1_contribs(i)%pos(k), int32), &
+                                    int(nalpha_alpha%ptr(alpha_m1_contribs(i)%pos(k)), int32), &
+                                    int(alpha_m1_contribs(i)%pos(j), int32))
                     end do
                 end do
             end do
@@ -1290,7 +1304,7 @@ contains
 
         ! On procs which are not node-root, we need to reassign the internal pointers
         ! after sorting (ofc, wait for root here)
-        call MPI_Barrier(mpi_comm_intra, ierr)
+        call MPI_Barrier(mpi_comm_intra, MPIerr)
         call beta_beta%reassign_pointers()
         call alpha_alpha%reassign_pointers()
         call beta_with_alpha%reassign_pointers()
@@ -1327,9 +1341,9 @@ contains
             nullify (alpha_ht)
         end if
         ! Sync the ilut lists
-        call MPI_Win_Sync(beta_list_win, ierr)
-        call MPI_Win_Sync(alpha_list_win, ierr)
-        call MPI_Barrier(mpi_comm_intra, ierr)
+        call MPI_Win_Sync(beta_list_win, MPIerr)
+        call MPI_Win_Sync(alpha_list_win, MPIerr)
+        call MPI_Barrier(mpi_comm_intra, MPIerr)
         ! Create the node shared read-only hashtables
         call initialise_shared_rht(beta_list, nbeta, beta_rht, nOccBeta, hash_size_1)
         call initialise_shared_rht(alpha_list, nalpha, alpha_rht, nOccAlpha, hash_size_1)
@@ -1339,8 +1353,8 @@ contains
 
         allocate(intersec_inds(nbeta), stat=ierr)
 
-        call hamil_row%init(int(rep%determ_sizes(iProcIndex), int64))
-        call hamil_pos%init(int(rep%determ_sizes(iProcIndex), int64))
+        call hamil_row%init(start_size=int(rep%determ_sizes(iProcIndex), int64))
+        call hamil_pos%init(start_size=int(rep%determ_sizes(iProcIndex), int64))
 
         allocate(rep%sparse_core_ham(rep%determ_sizes(iProcIndex)), stat=ierr)
         allocate(rep%core_ham_diag(rep%determ_sizes(iProcIndex)), stat=ierr)
@@ -1373,8 +1387,8 @@ contains
                     call decode_bit_det(nJ, rep%core_space(:, ind_j))
                     hel = get_helement(nI, nJ, IC, rep%core_space(:, i_full), rep%core_space(:, ind_j))
                     if (abs(hel) > 0.0_dp) then
-                        call hamil_pos%add_val(ind_j)
-                        call hamil_row%add_val(hel)
+                        call hamil_pos%push_back(ind_j)
+                        call hamil_row%push_back(hel)
                     end if
                 end if
             end do
@@ -1393,8 +1407,8 @@ contains
                     call decode_bit_det(nJ, rep%core_space(:, ind_j))
                     hel = get_helement(nI, nJ, IC, rep%core_space(:, i_full), rep%core_space(:, ind_j))
                     if (abs(hel) > 0.0_dp) then
-                        call hamil_pos%add_val(ind_j)
-                        call hamil_row%add_val(hel)
+                        call hamil_pos%push_back(ind_j)
+                        call hamil_row%push_back(hel)
                     end if
                 end if
             end do
@@ -1409,27 +1423,27 @@ contains
                                    intersec_inds, nintersec)
 
                 do k = 1, nintersec
-                    ind_k = alpha_dets%sub(ind_alpha_conn, intersec_inds(k))
+                    ind_k = alpha_dets%sub(int(ind_alpha_conn, int32), intersec_inds(k))
                     call decode_bit_det(nK, rep%core_space(:, ind_k))
                     hel = get_helement(nI, nK, rep%core_space(:, i_full), rep%core_space(:, ind_k))
                     if (abs(hel) > 0.0_dp) then
-                        call hamil_pos%add_val(ind_k)
-                        call hamil_row%add_val(hel)
+                        call hamil_pos%push_back(ind_k)
+                        call hamil_row%push_back(hel)
                     end if
                 end do
             end do
 
             ! Calculate and add the diagonal element
             hel = get_helement(nI, nI, 0) - Hii
-            call hamil_pos%add_val(i_full)
-            call hamil_row%add_val(hel)
+            call hamil_pos%push_back(i_full)
+            call hamil_row%push_back(hel)
 
             ! Now finally allocate and fill in the actual deterministic
             ! Hamiltonian row for this determinant
-            rep%sparse_core_ham(i)%num_elements = int(hamil_row%num_elements())
+            rep%sparse_core_ham(i)%num_elements = int(hamil_row%size())
             ! Dumping the buffer transfers its content and reset the buffer
-            call hamil_row%dump(rep%sparse_core_ham(i)%elements)
-            call hamil_pos%dump(rep%sparse_core_ham(i)%positions)
+            call hamil_row%dump_reset(rep%sparse_core_ham(i)%elements)
+            call hamil_pos%dump_reset(rep%sparse_core_ham(i)%positions)
 
             ! Fill the array of diagonal elements
             rep%core_ham_diag(i) = hel
@@ -1474,10 +1488,10 @@ contains
 
     pure subroutine find_intersec(nelem_in_1, nelem_in_2, arr_1, arr_2, intersec, nelem_out)
 
-        integer, intent(in) :: nelem_in_1, nelem_in_2
-        integer, intent(in) :: arr_1(1:), arr_2(1:)
-        integer, intent(inout) :: intersec(1:)
-        integer, intent(out) :: nelem_out
+        integer(int32), intent(in) :: nelem_in_1, nelem_in_2
+        integer(int32), intent(in) :: arr_1(1:), arr_2(1:)
+        integer(int32), intent(inout) :: intersec(1:)
+        integer(int32), intent(out) :: nelem_out
 
         integer :: i, j
 
