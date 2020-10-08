@@ -57,10 +57,10 @@ contains
         integer(n_int), allocatable :: alpha_m1_list(:, :), beta_m1_list(:, :)
         integer :: nI_alpha(nOccAlpha), nI_alpha_m1(nOccAlpha - 1), nI_beta(nOccBeta), nI_beta_m1(nOccBeta - 1)
         integer :: nI(nel), nI_paired(nel)
-        integer :: nbeta, nalpha, nbeta_m1, nalpha_m1
+        integer(int32) :: nbeta, nalpha, nbeta_m1, nalpha_m1
         ! The number of beta and alpha strings in the 'unpaired' determinants
         ! in the HPHFs
-        integer :: nbeta_unpaired, nalpha_unpaired
+        integer(int32) :: nbeta_unpaired, nalpha_unpaired
 
         integer(int32) :: nintersec
         integer(int32), allocatable :: intersec_inds(:)
@@ -576,8 +576,8 @@ contains
         call MPI_Win_Sync(alpha_list_win, MPIerr)
         call MPI_Barrier(mpi_comm_intra, MPIerr)
         ! Create the node shared read-only hashtables
-        call initialise_shared_rht(beta_list, nbeta, beta_rht, nOccBeta, hash_size_1)
-        call initialise_shared_rht(alpha_list, nalpha, alpha_rht, nOccAlpha, hash_size_1)
+        call initialise_shared_rht(beta_list, int(nbeta,int64), beta_rht, nOccBeta, hash_size_1)
+        call initialise_shared_rht(alpha_list, int(nalpha,int64), alpha_rht, nOccAlpha, hash_size_1)
 
         ! Actually create the Hamiltonian
         call set_timer(ham_time)
@@ -883,7 +883,7 @@ contains
         integer(n_int), allocatable :: alpha_m1_list(:, :), beta_m1_list(:, :)
 
         integer :: nI_alpha(nOccAlpha), nI_alpha_m1(nOccAlpha - 1), nI_beta(nOccBeta), nI_beta_m1(nOccBeta - 1)
-        integer :: nbeta, nalpha, nbeta_m1, nalpha_m1
+        integer(int32) :: nbeta, nalpha, nbeta_m1, nalpha_m1
 
         integer(int32) :: nintersec
         integer(int32), allocatable :: intersec_inds(:)
@@ -1345,8 +1345,8 @@ contains
         call MPI_Win_Sync(alpha_list_win, MPIerr)
         call MPI_Barrier(mpi_comm_intra, MPIerr)
         ! Create the node shared read-only hashtables
-        call initialise_shared_rht(beta_list, nbeta, beta_rht, nOccBeta, hash_size_1)
-        call initialise_shared_rht(alpha_list, nalpha, alpha_rht, nOccAlpha, hash_size_1)
+        call initialise_shared_rht(beta_list, int(nbeta,int64), beta_rht, nOccBeta, hash_size_1)
+        call initialise_shared_rht(alpha_list, int(nalpha,int64), alpha_rht, nOccAlpha, hash_size_1)
 
         ! Actually create the Hamiltonian
         call set_timer(ham_time)
