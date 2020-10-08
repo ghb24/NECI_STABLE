@@ -638,38 +638,6 @@ contains
 
     end function generator_sign
 
-    ! maybe sometimes:
-    ! subroutine create_hf_rdm_connections_guga(connections, ref_det, run)
-    !     type(RdmContribList_t), allocatable, intent(out) :: connections(:)
-    !     integer, intent(in), optional :: ref_det(nel)
-    !     integer, intent(in), optional :: run
-    !     character(*), parameter :: this_routine = "create_hf_rdm_connections_guga"
-    !     integer(n_int) :: ilutG(0:GugaBits%len_tot)
-    !     integer :: nI(nel), ind, n_singles, n_doubles, n_tot
-    !     integer(n_int), pointer :: singles(:,:), doubles(:,:), total(:,:)
-    !
-    !     def_default(ind, run, 1)
-    !     def_default(nI, ref_det, projEDet(:,ind))
-    !
-    !     call EncodeBitDet_guga(nI, ilutG)
-    !     ! create singles
-    !     call calc_explicit_1_rdm_guga(ilutG, n_singles, singles)
-    !
-    !     ! create doubles
-    !     call calc_explicit_2_rdm_guga(ilutG, n_doubles, doubles)
-    !
-    !     ! allocate..
-    !     allocate(total(0:GugaBits%len_tot, n_singles + n_doubles), &
-    !         source = 0_n_int)
-    !
-    !     n_tot = 0
-    !     call add_guga_lists_rdm(n_tot, n_singles, total, singles)
-    !     call add_guga_lists_rdm(n_tot, n_doubles, total, doubles)
-    !
-    !     call sort(total(:,1:n_tot), ilut_lt, ilut_gt)
-    !
-    ! end subroutine create_hf_rdm_connections_guga
-
     subroutine Add_RDM_HFConnections_GUGA(spawn, one_rdms, ilutJ, av_sign_j, &
                                           av_sign_hf, excit_lvl, iter_rdm)
         type(rdm_spawn_t), intent(inout) :: spawn
@@ -2146,6 +2114,7 @@ contains
             if (step_i(iO) == 3 .or. ((occ_i(iO) .isclose.1.0_dp) .and. b_i(iO) == 0)) then
                 ! then it is easy:
                 ! just figure out correct indices
+
                 call add_to_rdm_spawn_t(spawn, i, iO, iO, a, &
                                         -occ_i(iO) / 2.0 * sign_i * sign_j * mat_ele, .true.)
                 call add_to_rdm_spawn_t(spawn, iO, a, i, iO, &

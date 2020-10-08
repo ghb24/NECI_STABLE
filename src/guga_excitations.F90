@@ -1764,6 +1764,7 @@ contains
 
             if (near_zero(temp_x0) .and. near_zero(temp_x1)) return
 
+
             ! then do the double overlap range
 
             do i = st + 1, se
@@ -1787,6 +1788,7 @@ contains
 
             if (.not. near_zero(temp_x0)) return
 
+
             guga_mat = temp_x1
             ! do single range
 
@@ -1802,6 +1804,7 @@ contains
                 if (near_zero(guga_mat)) return
 
             end do
+
 
             ! then also reuse the stochastic routines to get the integral contribs
 
@@ -11033,6 +11036,7 @@ contains
 
         sw = findFirstSwitch(ilut, t, st, se)
 
+
         if (rdm_flag) then
             max_num_rdm = sw
             allocate(tmp_rdm_ind(max_num_rdm), source=0_int_rdm)
@@ -11127,6 +11131,7 @@ contains
         ! loop from start backwards so i can abort at a d=1 & b=1 stepvalue
         ! also consider if bot_cont < EPS to avoid unnecarry calculations
         if (.not. near_zero(bot_cont)) then
+
 
             mat_ele = 1.0_dp
             below_flag = .false.
@@ -11248,7 +11253,16 @@ contains
         ! keep tempWweight as the running matrix element which gets updated
         ! every iteration
 
+        ! for rdms (in this current setup) I need to make a dummy
+        ! output if sw == st)
+        if (rdm_flag .and. sw == st) then
+            rdm_count = rdm_count + 1
+            tmp_rdm_ind(rdm_count) = contract_2_rdm_ind(sw, elecInd, holeInd, sw)
+            tmp_rdm_mat(rdm_count) = 1.0_dp
+        end if
+
         if (.not. near_zero(abs(mat_ele))) then
+
 
             mat_ele = 1.0_dp / mat_ele
 
@@ -11331,14 +11345,6 @@ contains
                 end if
 
             end do
-
-            ! for rdms (in this current setup) I need to make a dummy
-            ! output if sw == st)
-            if (rdm_flag .and. sw == st) then
-                rdm_count = rdm_count + 1
-                tmp_rdm_ind(rdm_count) = contract_2_rdm_ind(sw, elecInd, holeInd, sw)
-                tmp_rdm_mat(rdm_count) = 1.0_dp
-            end if
 
             ! handle switch seperately (but only if switch > start)
             if (sw > st) then
