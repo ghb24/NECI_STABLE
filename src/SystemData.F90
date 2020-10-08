@@ -420,6 +420,8 @@ logical :: t_impurity_excitgen = .false.
 ! flag for anti-periodic BCs in the real-space Hubbard implementation
     logical :: t_anti_periodic(2) = .false.
 
+    logical :: t_bipartite_order = .false.
+
 ! Operators for type(symmetry)
     interface assignment(=)
         module procedure SymAssign
