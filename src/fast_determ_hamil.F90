@@ -27,7 +27,7 @@ module fast_determ_hamil
     implicit none
 
     type auxiliary_array
-        integer, pointer :: pos(:)
+        integer, pointer :: pos(:) => null()
     end type auxiliary_array
 
 contains

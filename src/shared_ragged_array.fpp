@@ -12,14 +12,14 @@ module shared_ragged_array
     implicit none
 
     private
-    
+
 #:for data_type, data_name in data_types
     public :: shared_ragged_array_${data_name}$_t
 
     ! This type only serves the purpose to create an addressing array for quasi-2D-access -> allows to directly get pointers to
     ! sub-arrays
     type :: auxiliary_${data_name}$_t
-        ${data_type}$, pointer :: res(:)
+        ${data_type}$, pointer :: res(:) => null()
     end type auxiliary_${data_name}$_t
 
     !> Shared memory 2-D array template with non-uniform 2nd dimension ("ragged") of type ${data_name}$
@@ -38,7 +38,7 @@ module shared_ragged_array
 #:for index_type in index_types
 
         ! Generic interfaces
-        ! 
+        !
         generic :: shared_alloc => shared_alloc_${data_name}$_${index_type}$
         ! sub returns a pointer to a 1d subarray (sub1d) or a specific entry (sub2d)
         generic :: sub => pos_1d_${data_name}$_${index_type}$, pos_2d_${data_name}$_${index_type}$
