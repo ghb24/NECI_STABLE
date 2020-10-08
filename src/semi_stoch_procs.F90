@@ -661,8 +661,8 @@ contains
         if (iProcIndex_intra == 0) rep%core_space = 0_n_int
 
         ! Write the core-space on this node into core_space
-        call MPI_AllGather(rep%determ_sizes(iProcIndex), 1, MPI_INTEGER4, &
-                           sizes_this_node, 1, MPI_INTEGER4, mpi_comm_intra, MPIerr)
+        call MPI_AllGather(rep%determ_sizes(iProcIndex), 1, MPI_INTEGER, &
+                           sizes_this_node, 1, MPI_INTEGER, mpi_comm_intra, MPIerr)
 
         ! Get the intra-node offset
         proc_offset = 0
@@ -673,7 +673,7 @@ contains
         ! Sum the size on this node
         total_size_this_node = sum(sizes_this_node)
 
-        call MPI_AllGather(total_size_this_node, 1, MPI_INTEGER4, sizes_per_node, 1, MPI_INTEGER4, &
+        call MPI_AllGather(total_size_this_node, 1, MPI_INTEGER, sizes_per_node, 1, MPI_INTEGER, &
                            mpi_comm_inter, MPIerr)
 
         ! Get the inter-node offset
