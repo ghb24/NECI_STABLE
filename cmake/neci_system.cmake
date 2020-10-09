@@ -39,11 +39,10 @@ include(CMakeParseArguments)
 include(FeatureSummary)
 
 # Enable testing
-include(CTest)
 # Don't do NECI tests if NECI is added to other project.
 # BUILD_TESTING option comes from `include(CTest)`
-if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME AND BUILD_TESTING)
-    enable_testing()
+if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
+    include(CTest)
 endif()
 
 # Our local macros

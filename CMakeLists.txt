@@ -137,7 +137,12 @@ include_directories( ${PROJECT_SOURCE_DIR}/src )
 # Include source directory
 
 add_subdirectory(src)
-add_subdirectory(unit_tests)
+
+# Don't do NECI tests if NECI is added to other project.
+# BUILD_TESTING option comes from `include(CTest)`
+if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME AND BUILD_TESTING)
+    add_subdirectory(unit_tests)
+endif()
 
 # And we are done
 
