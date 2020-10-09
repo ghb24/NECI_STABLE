@@ -197,10 +197,8 @@ contains
             if (allocated(user_input_GAS_exc_gen)) then
                 GAS_exc_gen = user_input_GAS_exc_gen
             else
-                ! at the moment the discarding GAS is unfortunately the fastest
-                ! (even for disconnected spaces).
                 if (GAS_specification%is_connected()) then
-                    GAS_exc_gen = possible_GAS_exc_gen%DISCARDING
+                    GAS_exc_gen = possible_GAS_exc_gen%GENERAL_PCHB
                 else
                     GAS_exc_gen = possible_GAS_exc_gen%DISCONNECTED_PCHB
                 end if
