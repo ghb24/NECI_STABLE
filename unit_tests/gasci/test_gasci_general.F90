@@ -40,7 +40,7 @@ contains
         det_I = [1, 2, 5, 6]
 
         call assert_true(GAS_spec%is_valid())
-        call assert_true(GAS_spec%contains(det_I))
+        call assert_true(GAS_spec%contains_det(det_I))
 
         expect_singles = reshape(&
                                 [[1, 2, 5, 8], [1, 2, 6, 7], &
@@ -69,7 +69,7 @@ contains
         GAS_spec = GASSpec_t(n_min=[0, 4], n_max=[4, 4], spat_GAS_orbs = [1, 1, 2, 2])
         det_I = [1, 2, 5, 6]
         call assert_true(GAS_spec%is_valid())
-        call assert_true(GAS_spec%contains(det_I))
+        call assert_true(GAS_spec%contains_det(det_I))
 
         expect_singles = reshape(&
                             [[1, 2, 3, 6], [1, 2, 4, 5], &
@@ -109,7 +109,7 @@ contains
         det_I = [1, 2, 3, 4, 5, 6, 13, 14, 15, 16, 17, 18]
 
         call assert_true(GAS_spec%is_valid())
-        call assert_true(GAS_spec%contains(det_I))
+        call assert_true(GAS_spec%contains_det(det_I))
 
         expect_singles = reshape( &
                         [[1, 2, 3, 4, 5, 6, 13, 14, 15, 16, 17, 20], &
@@ -867,7 +867,7 @@ contains
         GAS_spec = GASSpec_t(n_min=[3, size(det_I)], n_max=[3, size(det_I)], &
                              spat_GAS_orbs=[1, 1, 1, 2, 2, 2])
         call assert_true(GAS_spec%is_valid())
-        call assert_true(GAS_spec%contains(det_I))
+        call assert_true(GAS_spec%contains_det(det_I))
         global_GAS_spec = GAS_spec
 
         call init_excitgen_test(size(det_I), FciDumpWriter_t(random_fcidump, 'FCIDUMP'))

@@ -42,7 +42,7 @@ contains
         GAS_spec = GASSpec_t(n_min=[3, size(det_I)], n_max=[3, size(det_I)], &
                              spat_GAS_orbs=[1, 1, 1, 2, 2, 2])
         call assert_true(GAS_spec%is_valid())
-        call assert_true(GAS_spec%contains(det_I))
+        call assert_true(GAS_spec%contains_det(det_I))
         global_GAS_spec = GAS_spec
 
         call init_excitgen_test(size(det_I), FciDumpWriter_t(random_fcidump, 'FCIDUMP'))
