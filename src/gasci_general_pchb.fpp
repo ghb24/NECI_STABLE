@@ -28,7 +28,7 @@ module gasci_general_pchb
 
     private
 
-    public :: gen_general_GASCI_pchb, GAS_PCHB_exc_generator
+    public :: gen_GASCI_general_pchb, general_GAS_PCHB
 
     ! there are three pchb_samplers for each supergroup:
     ! 1 - same-spin case
@@ -56,7 +56,7 @@ module gasci_general_pchb
         procedure :: is_allowed
     end type
 
-    type(GAS_PCHB_excit_gen_t) :: GAS_PCHB_exc_generator
+    type(GAS_PCHB_excit_gen_t) :: general_GAS_PCHB
 
 contains
 
@@ -67,7 +67,7 @@ contains
     !>  This is a wrapper around `disconnected_GAS_PCHB%gen_excit`
     !>  to match the function pointer interface.
     !>  The interface is common to all excitation generators, see proc_ptrs.F90
-    subroutine gen_general_GASCI_pchb(nI, ilutI, nJ, ilutJ, exFlag, ic, &
+    subroutine gen_GASCI_general_pchb(nI, ilutI, nJ, ilutJ, exFlag, ic, &
                                         ex_mat, tParity, pGen, hel, store, part_type)
         integer, intent(in) :: nI(nel), exFlag
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
@@ -84,8 +84,8 @@ contains
         @:ASSERT(GAS_specification%contains_det(nI))
 
         hel = h_cast(0.0_dp)
-        call GAS_PCHB_exc_generator%gen_excit(nI, ilutI, nJ, ilutJ, ic, ex_mat, tParity, pgen)
-    end subroutine gen_general_GASCI_pchb
+        call general_GAS_PCHB%gen_excit(nI, ilutI, nJ, ilutJ, ic, ex_mat, tParity, pgen)
+    end subroutine gen_GASCI_general_pchb
 
     !> @brief
     !> Check if a double excitation is allowed.
