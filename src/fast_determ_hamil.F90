@@ -27,7 +27,7 @@ module fast_determ_hamil
     implicit none
 
     type auxiliary_array
-        integer, pointer :: pos(:)
+        integer, pointer :: pos(:) => null()
     end type auxiliary_array
 
 contains
@@ -57,10 +57,10 @@ contains
         integer(n_int), allocatable :: alpha_m1_list(:, :), beta_m1_list(:, :)
         integer :: nI_alpha(nOccAlpha), nI_alpha_m1(nOccAlpha - 1), nI_beta(nOccBeta), nI_beta_m1(nOccBeta - 1)
         integer :: nI(nel), nI_paired(nel)
-        integer :: nbeta, nalpha, nbeta_m1, nalpha_m1
+        integer(int32) :: nbeta, nalpha, nbeta_m1, nalpha_m1
         ! The number of beta and alpha strings in the 'unpaired' determinants
         ! in the HPHFs
-        integer :: nbeta_unpaired, nalpha_unpaired
+        integer(int32) :: nbeta_unpaired, nalpha_unpaired
 
         integer(int32) :: nintersec
         integer(int32), allocatable :: intersec_inds(:)
@@ -94,7 +94,8 @@ contains
         type(shared_array_int32_t) :: nbeta_dets, nalpha_dets
         type(shared_array_bool_t) :: cs
         type(shared_rhash_t) :: beta_rht, alpha_rht
-
+        ! int32 is sufficient for counting core-space determinants, these resources scale with the core-space size, so keep it memory efficient
+        ! to enable bigger core-spaces
         type(shared_ragged_array_int32_t) :: beta_dets
         type(shared_ragged_array_int32_t) :: alpha_dets
 
@@ -576,8 +577,8 @@ contains
         call MPI_Win_Sync(alpha_list_win, MPIerr)
         call MPI_Barrier(mpi_comm_intra, MPIerr)
         ! Create the node shared read-only hashtables
-        call initialise_shared_rht(beta_list, nbeta, beta_rht, nOccBeta, hash_size_1)
-        call initialise_shared_rht(alpha_list, nalpha, alpha_rht, nOccAlpha, hash_size_1)
+        call initialise_shared_rht(beta_list, int(nbeta), beta_rht, nOccBeta, hash_size_1)
+        call initialise_shared_rht(alpha_list, int(nalpha), alpha_rht, nOccAlpha, hash_size_1)
 
         ! Actually create the Hamiltonian
         call set_timer(ham_time)
@@ -883,7 +884,7 @@ contains
         integer(n_int), allocatable :: alpha_m1_list(:, :), beta_m1_list(:, :)
 
         integer :: nI_alpha(nOccAlpha), nI_alpha_m1(nOccAlpha - 1), nI_beta(nOccBeta), nI_beta_m1(nOccBeta - 1)
-        integer :: nbeta, nalpha, nbeta_m1, nalpha_m1
+        integer(int32) :: nbeta, nalpha, nbeta_m1, nalpha_m1
 
         integer(int32) :: nintersec
         integer(int32), allocatable :: intersec_inds(:)
@@ -913,7 +914,8 @@ contains
 
         type(shared_array_int32_t) :: nbeta_dets, nalpha_dets
         type(shared_rhash_t) :: beta_rht, alpha_rht
-
+        ! int32 is sufficient for counting core-space determinants, these resources scale with the core-space size, so keep it memory efficient
+        ! to enable bigger core-spaces
         type(shared_ragged_array_int32_t) :: beta_dets
         type(shared_ragged_array_int32_t) :: alpha_dets
 
@@ -1345,8 +1347,8 @@ contains
         call MPI_Win_Sync(alpha_list_win, MPIerr)
         call MPI_Barrier(mpi_comm_intra, MPIerr)
         ! Create the node shared read-only hashtables
-        call initialise_shared_rht(beta_list, nbeta, beta_rht, nOccBeta, hash_size_1)
-        call initialise_shared_rht(alpha_list, nalpha, alpha_rht, nOccAlpha, hash_size_1)
+        call initialise_shared_rht(beta_list, int(nbeta), beta_rht, nOccBeta, hash_size_1)
+        call initialise_shared_rht(alpha_list, int(nalpha), alpha_rht, nOccAlpha, hash_size_1)
 
         ! Actually create the Hamiltonian
         call set_timer(ham_time)

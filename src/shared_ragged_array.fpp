@@ -12,14 +12,14 @@ module shared_ragged_array
     implicit none
 
     private
-    
+
 #:for data_type, data_name in data_types
     public :: shared_ragged_array_${data_name}$_t
 
     ! This type only serves the purpose to create an addressing array for quasi-2D-access -> allows to directly get pointers to
     ! sub-arrays
     type :: auxiliary_${data_name}$_t
-        ${data_type}$, pointer :: res(:)
+        ${data_type}$, pointer :: res(:) => null()
     end type auxiliary_${data_name}$_t
 
     !> Shared memory 2-D array template with non-uniform 2nd dimension ("ragged") of type ${data_name}$
@@ -31,14 +31,14 @@ module shared_ragged_array
         ! Indexing array to hold pointers to the sub-arrays
         type(auxiliary_${data_name}$_t), allocatable :: ptr(:)
         ! Sizes of the sub-arrays
-        integer, allocatable :: store_sizes(:)
+        integer(int64), allocatable :: store_sizes(:)
     contains
 
         ! These functions work with different integer kinds as index values (index_types)
 #:for index_type in index_types
 
         ! Generic interfaces
-        ! 
+        !
         generic :: shared_alloc => shared_alloc_${data_name}$_${index_type}$
         ! sub returns a pointer to a 1d subarray (sub1d) or a specific entry (sub2d)
         generic :: sub => pos_1d_${data_name}$_${index_type}$, pos_2d_${data_name}$_${index_type}$
@@ -67,7 +67,7 @@ contains
         class(shared_ragged_array_${data_name}$_t), intent(inout) :: this
         integer(${index_type}$), intent(in) :: sizes(:)
 
-        integer :: n_entries
+        integer(int64) :: n_entries
 
         ! Allocate the shared resource
         call this%data_array%shared_alloc(int(sum(sizes), int64))
@@ -78,7 +78,7 @@ contains
 
         ! Keep a local copy of sizes (fortran 2003 automatic allocation)
         allocate(this%store_sizes(n_entries))
-        this%store_sizes(1:n_entries) = sizes(1:n_entries)
+        this%store_sizes(1:n_entries) = int(sizes(1:n_entries), int64)
 
         ! Set the internal pointers
         call this%reassign_pointers()
@@ -99,8 +99,8 @@ contains
 
     subroutine reassign_pointers_${data_name}$(this)
         class(shared_ragged_array_${data_name}$_t), intent(inout) :: this
-        integer :: n_entries
-        integer :: i, win_start, win_end
+        integer(int64) :: n_entries
+        integer(int64) :: i, win_start, win_end
 
         n_entries = size(this%store_sizes)
         win_start = 1
