@@ -366,5 +366,4 @@ contains
             splitted_sizes(iGAS) = splitted_sizes(iGAS) + 1
         end do
     end function
-
 end module gasci
