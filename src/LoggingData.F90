@@ -57,6 +57,8 @@ module LoggingData
     logical :: tCalcInstantS2, tCalcInstSCpts, tCalcInstantS2Init
     integer :: instant_s2_multiplier, instant_s2_multiplier_init
     integer :: iHighPopWrite
+    ! Flag to determine procedure regarding multi-replica output
+    logical :: t_force_replica_output = .false.
 
     !Just do a blocking analysis on previous data
     logical :: tJustBlocking

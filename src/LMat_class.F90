@@ -10,19 +10,22 @@ module LMat_class
     use constants
     use index_rhash, only: index_rhash_t
     use mpi
-    use util_mod, only: get_free_unit, operator(.div.)
+    use util_mod, only: get_free_unit, operator(.div.), near_zero
     use tc_three_body_data, only: lMatEps, tHDF5LMat
     use HElem, only: HElement_t_sizeB
-    use UMatCache, only: numBasisIndices
     use LoggingData, only: tHistLMat
+    use UMatCache, only: numBasisIndices
+    use LMat_freeze, only: freeze_lmat, t_freeze, map_indices, &
+        init_freeze_buffers, flush_freeze_buffers, add_core_en
 #ifdef USE_HDF_
     use hdf5
     use hdf5_util
 #endif
     implicit none
+
     private
     public :: lMat_t, sparse_lMat_t, dense_lMat_t
-
+    
     !> Abstract base class for lMat_t objects (6-index integrals)
     type, abstract :: lMat_t
         private
@@ -220,7 +223,10 @@ contains
         class(lMat_t), intent(inout) :: this
         character(*), intent(in) :: filename
 
+        ! Setup the temporaries used for freezing orbitals
+        call init_freeze_buffers()
         call this%read_kernel(filename)
+        call flush_freeze_buffers()
 
         if (tHistLMat) call this%histogram_lMat()
 
@@ -286,10 +292,10 @@ contains
         class(dense_lMat_t), intent(inout) :: this
         character(*), intent(in) :: filename
         integer :: iunit, ierr
-        integer(int64) :: a, b, c, i, j, k
+        integer(int64) :: indices(6)
         HElement_t(dp) :: matel
         character(*), parameter :: t_r = "readLMat"
-        integer(int64) :: counter
+        integer(int64) :: counter, index
 
         call this%alloc(this%lMat_size())
 
@@ -305,7 +311,7 @@ contains
                 open(iunit, file=filename, status='old')
                 counter = 0
                 do
-                    read(iunit, *, iostat=ierr) matel, a, b, c, i, j, k
+                    read(iunit,*, iostat = ierr) matel, indices
                     ! end of file reached?
                     if (ierr < 0) then
                         exit
@@ -313,23 +319,29 @@ contains
                         ! error while reading?
                         call stop_all(t_r, "Error reading TCDUMP file")
                     else
+                        ! permutational factor of 3 (not accounted for in integral calculation)
+                        matel = 3.0_dp * matel
+                        call freeze_lmat(matel,indices)
                         ! else assign the matrix element
-                        if (this%indexFunc(a, b, c, i, j, k) > this%lMat_size()) then
-                            counter = this%indexFunc(a, b, c, i, j, k)
-                            write(iout, *) "Warning, exceeding size"
-                        end if
-                        if (abs(3.0_dp * matel) > LMatEps) &
-                            this%lMat_vals%ptr(this%indexFunc(a, b, c, i, j, k)) = 3.0_dp * matel
-                        if (abs(matel) > 0.0_dp) counter = counter + 1
-                    end if
+                        
+                        if(abs(matel) > LMatEps) then
+                            counter = counter + 1
+                            index = this%indexFunc(&
+                                indices(1),indices(2),indices(3),indices(4),indices(5), indices(6))
+                            if(index > this%lMat_size()) then
+                                counter = index
+                                write(iout, *) "Warning, exceeding size"
+                            endif
+                            this%lMat_vals%ptr(index) = matel
+                        endif
+                    endif
 
                 end do
-
-                counter = counter / 12
 
                 write(iout, *) "Sparsity of LMat", real(counter) / real(this%lMat_size())
                 write(iout, *) "Nonzero elements in LMat", counter
                 write(iout, *) "Allocated size of LMat", this%lMat_size()
+                close(iunit)
             end if
             call MPIBcast(counter)
         end if
@@ -378,13 +390,14 @@ contains
 
         do i = 1, this_blocksize
             ! truncate down to lMatEps
-            rVal = 3.0_dp * transfer(entries(1, i), rVal)
-            if (abs(rVal) > lMatEps) then
-                call this%set_elem(this%indexFunc(int(indices(1, i), int64), int(indices(2, i), int64), &
-                                                  int(indices(3, i), int64), &
-                                                  int(indices(4, i), int64), int(indices(5, i), int64), int(indices(6, i), int64)) &
-                                   , rVal)
-            end if
+            rVal = 3.0_dp * transfer(entries(1,i),rVal)
+            call freeze_lmat(rVal, indices(:,i))
+            if(abs(rVal)>lMatEps) then
+                call this%set_elem(this%indexFunc(int(indices(1,i),int64),int(indices(2,i),int64),&
+                    int(indices(3,i),int64),&
+                    int(indices(4,i),int64),int(indices(5,i),int64),int(indices(6,i),int64)) &
+                    , rVal)
+            endif
         end do
     end subroutine read_op_dense_hdf5
 
@@ -503,19 +516,36 @@ contains
     !> @param[in,out] indices  chunk of indices read in from the file
     !> @param[in,out] entries  chunk of corresponding values
     subroutine read_op_sparse(this, indices, entries)
+        use IntegralsData, only: nFrozen
         class(sparse_lMat_t), intent(inout) :: this
         ! We allow deallocation of indices/entries
         integer(int64), allocatable, intent(inout) :: indices(:, :), entries(:, :)
 
         integer(int64) :: block_size, i
-        integer(int64), allocatable :: combined_inds(:)
-
+        integer(int64), allocatable :: combined_inds(:)        
+        integer(int64) :: dummy
+        HElement_t(dp) :: rVal
         block_size = size(indices, dim=2)
         allocate(combined_inds(block_size))
         ! Transfer the 6 orbitals to one contiguous index
         do i = 1, block_size
+            if(nFrozen > 0) then
+                ! Take care of freezing orbitals here
+                call map_indices(indices(:,i))
+                ! Only freeze once, when filling in the values (this read_op can be called
+                ! multiple times for the same block)
+                if(this%htable%known_conflicts()) then
+                    rVal = transfer(entries(1,i),rVal)                
+                    call add_core_en(rVal,indices(:,i))
+                    entries(1,i) = transfer(rVal,entries(1,i))
+                end if
+            end if
+            
             combined_inds(i) = this%indexFunc(indices(1, i), indices(2, i), indices(3, i), &
-                                              indices(4, i), indices(5, i), indices(6, i))
+                indices(4, i), indices(5, i), indices(6, i))
+
+            ! If the entry is frozen, do not count it
+            if(t_freeze(indices)) combined_inds(i) = 0            
         end do
         ! We might need this memory - all these operations can be memory critical
         deallocate(indices)
@@ -548,7 +578,7 @@ contains
         if (iProcIndex_intra == 0) then
             do i = 1, total_size
                 ! count_index is not threadsafe => only do it on node-root
-                call this%htable%count_index(tmp(i))
+                if(tmp(i) > 0) call this%htable%count_index(tmp(i))
             end do
         end if
         deallocate(tmp)
@@ -575,7 +605,8 @@ contains
         ! Then write there
         if (iProcIndex_intra == 0) then
             do i = 1, total_size
-                call this%set_elem(tmp_inds(i), 3.0_dp * transfer(tmp_entries(i), rVal))
+                if(tmp_inds(i) > 0) &
+                    call this%set_elem(tmp_inds(i), 3.0_dp * transfer(tmp_entries(i), rVal))
             end do
         end if
         deallocate(tmp_inds)
@@ -741,7 +772,7 @@ contains
         rVal = 0.0_dp
 
         ! reserve max. 128MB buffer size for dumpfile I/O
-        blocksize = 2_hsize_t**27.div. (7 * sizeof(0_int64))
+        blocksize = (2_hsize_t**27) .div. (7 * sizeof(0_int64))
         blockstart = this%offsets(iProcIndex_intra)
 
         blockend = min(blockstart + blocksize - 1, this%countsEnd)
@@ -772,8 +803,12 @@ contains
                 [0_hsize_t, 0_hsize_t])
 
             ! Do something with the read-in values
-            ! This has to be threadsafe !!!
+            ! If umat is updated, it has to be done using MPI RMA calls, so synchronization is
+            ! required
+            call umat_fence()
+            ! This has to be threadsafe !!!            
             call lMat%read_op_hdf5(indices, entries)
+            call umat_fence()
 
             ! the read_op is allowed to deallocate if memory has to be made available
             if (allocated(entries)) deallocate(entries)
@@ -789,6 +824,14 @@ contains
             ! once all procs on this node are done reading, we can exit
             call MPI_ALLREDUCE(running, any_running, 1, MPI_LOGICAL, MPI_LOR, mpi_comm_intra, ierr)
         end do
+
+    contains
+
+        subroutine umat_fence()
+            use IntegralsData, only: umat_win, nFrozen
+            
+            if(nFrozen > 0) call MPI_Win_fence(0,umat_win,ierr)
+        end subroutine umat_fence
 
     end subroutine loop_file
 

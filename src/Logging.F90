@@ -64,6 +64,7 @@ contains
         iBlockEquilProjE = 0
         ErrorDebug = 0
         iHighPopWrite = 15    !How many highest weighted determinants to write out at the end of an FCIQMC calc.
+        t_force_replica_output = .false.
         tDiagWalkerSubspace = .false.
         iDiagSubspaceIter = 1
         PopsfileTimer = 0.0_dp
@@ -268,6 +269,10 @@ contains
             case ("HIGHLYPOPWRITE")
                 !At the end of an FCIMC calculation, how many highly populated determinants should we write out?
                 call readi(iHighPopWrite)
+            case("REPLICAS-POPWRITE")
+                ! Print out the highest populated determinants from all replicas
+                t_force_replica_output = .true.
+                if( item < nitems) call readi(iHighPopWrite)
             case ("DIAGWALKERSUBSPACE")
                 !Diagonalise walker subspaces every iDiagSubspaceIter iterations
                 tDiagWalkerSubspace = .true.

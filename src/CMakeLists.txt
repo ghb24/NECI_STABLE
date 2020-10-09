@@ -71,6 +71,7 @@ set( SRC_FILES
     hist_data.F90
     HPHFRandExcit.F90
     hubbard.F
+	impurity_models.F90
 	index_rhash.F90
     init_coul2D.F
     init_coul.F
@@ -91,6 +92,7 @@ set( SRC_FILES
     lineup.F
     LMat_calc.F90
 	LMat_class.F90
+	LMat_freeze.F90
     LMat_indexing.F90
     LMat_mod.F90
     load_balance_calcnodes.F90
@@ -111,6 +113,7 @@ set( SRC_FILES
     Parallel_Calc.F90
     ParallelHelper.F90
     parallel_workarounds.F90
+    pchb_factory.F90
     pchb_excitgen.F90
     perturbations.F90
     Popsfile.F90
@@ -142,7 +145,6 @@ set( SRC_FILES
     searching.F90
     semi_stoch_gen.F90
     semi_stoch_procs.F90
-	shared_ragged_array.F90
 	shared_rhash.F90
     sparse_arrays.F90
     spectral_data.F90
@@ -234,12 +236,15 @@ set( SRC_FILES
 )
 
 set( FYPP_SRC_FILES
-    buffer_1d.fpp
+    growing_buffers.fpp
     fcimc_initialisation.fpp
     HPHFIntegrals.fpp
     sltcnd.fpp
-    disconnected_gasci.fpp
     gasci.fpp
+    gasci_disconnected.fpp
+    gasci_general.fpp
+    gasci_discarding.fpp
+    gasci_disconnected_pchb.fpp
     orb_idx.fpp
     excitation_types.fpp
 	shared_array.fpp
@@ -249,6 +254,7 @@ set( FYPP_SRC_FILES
     hist.fpp
     lib/util_mod.fpp
     sets_mod.fpp
+	shared_ragged_array.fpp
 )
 
 set( TEMPLATED_SRC_FILES

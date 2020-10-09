@@ -267,7 +267,7 @@ subroutine NECICalcInit(iCacheFlag)
 
     use System, only: SysInit
     use SystemData, only: tRotateOrbs, tFindCINatOrbs, tGUGA, tUEG, &
-                          t_ueg_transcorr, t_ueg_dump, tContact
+                          t_ueg_transcorr, t_ueg_dump, tContact, t_mol_3_body
     use Integrals_neci, only: IntInit, IntFreeze, tPostFreezeHF, DumpFCIDUMP
     use IntegralsData, only: tDumpFCIDUMP
     use DetCalc, only: DetCalcInit, DoDetCalc
@@ -277,7 +277,7 @@ subroutine NECICalcInit(iCacheFlag)
     use RotateOrbsMod, only: RotateOrbs
     use replica_data, only: init_replica_arrays
     use gen_coul_ueg_mod, only: GEN_Umat_TC, prep_ueg_dump, GEN_Umat_TC_Contact
-
+    use LMat_mod, only: readLMat
     use guga_init, only: init_guga
     implicit none
     integer, intent(in) :: iCacheFlag
@@ -309,8 +309,8 @@ subroutine NECICalcInit(iCacheFlag)
         call DetPreFreezeInit()
     end if
 
-    !!$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
     !! we prepare the contribution of the 2 body transcorrelated operator
+
     If (tUEG .and. t_ueg_transcorr) then
 !                  CALL GetUMatSize(nBasis,nEl,UMATINT)
 !                  call shared_allocate("umat_TC3", umat_TC3, (/UMatInt/))
@@ -333,8 +333,12 @@ subroutine NECICalcInit(iCacheFlag)
     !!$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
     end if
 
-    if (.not. tPostFreezeHF) call HFDoCalc()
+    if (.not. tPostFreezeHF) then
+        call HFDoCalc()
+    end if
+
     call IntFreeze()
+    if(t_mol_3_body) call readLMat()
     ! can i initialize the GUGA stuff here? after freezing? or otherwise
     ! it is incorrectly setup..
     ! try to init guga here..

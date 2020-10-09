@@ -5,7 +5,7 @@ module hphf_integrals
     use constants, only: dp, n_int, sizeof_int, maxExcit
     use SystemData, only: NEl, nBasisMax, G1, nBasis, Brr, tHub, ECore, &
                           ALat, NMSH, tOddS_HPHF, modk_offdiag, t_lattice_model, &
-                          t_3_body_excits
+                          t_3_body_excits, max_ex_level
     use IntegralsData, only: UMat, FCK, NMAX
     use HPHFRandExcitMod, only: FindDetSpinSym, FindExcitBitDetSym
     use DetBitOps, only: DetBitEQ, FindExcitBitDet, FindBitExcitLevel, &
@@ -50,7 +50,7 @@ contains
 
         hel = hphf_off_diag_helement_norm(nI, nJ, iLutI, iLutJ)
 
-        if (IC /= 0 .and. modk_offdiag) &
+        if(IC /= 0 .and. modk_offdiag) &
             hel = -abs(hel)
 
     end function
@@ -77,7 +77,7 @@ contains
 
         unused_var(nJ)
 
-        if (DetBitEQ(iLutnI, iLutnJ, nifd)) then
+        if(DetBitEQ(iLutnI, iLutnJ, nifd)) then
             ! Do not allow a 'diagonal' matrix element. The problem is
             ! that the HPHF excitation generator can generate the same HPHF
             ! function. We do not want to allow spawns here.
@@ -86,7 +86,7 @@ contains
         end if
 
         ! i need to catch if it is a lattice model here..
-        if (t_lattice_model) then
+        if(t_lattice_model) then
             ! here we do not deal with hermiticity but in the call to this
             ! function!
             hel = get_helement_lattice(nI, nJ)
@@ -94,11 +94,11 @@ contains
             hel = sltcnd(nI, iLutnI, iLutnJ)
         end if
 
-        if (TestClosedShellDet(iLutnI)) then
-            if (tOddS_HPHF) then
+        if(TestClosedShellDet(iLutnI)) then
+            if(tOddS_HPHF) then
                 !For odd S states, all matrix elements to CS determinants should be 0
                 hel = 0.0_dp
-            else if (.not. TestClosedShellDet(iLutnJ)) then
+            else if(.not. TestClosedShellDet(iLutnJ)) then
                 ! Closed shell --> Open shell, <X|H|Y> = 1/sqrt(2) [Hia + Hib]
                 ! or with minus if iLutnJ has an odd number of spin orbitals.
                 ! OTHERWISE Closed shell -> closed shell. Both the alpha and
@@ -107,8 +107,8 @@ contains
                 hel = hel * (sqrt(2.0_dp))
             end if
         else
-            if (TestClosedShellDet(iLutnJ)) then
-                if (tOddS_HPHF) then
+            if(TestClosedShellDet(iLutnJ)) then
+                if(tOddS_HPHF) then
                     !For odd S states, all matrix elements to CS determinants should be 0
                     hel = 0.0_dp
                 else
@@ -122,7 +122,7 @@ contains
                 call FindExcitBitDetSym(iLutnI, iLutnI2)
                 ExcitLevel = FindBitExcitLevel(iLutnI2, ilutnJ, 2)
 
-                if (ExcitLevel <= 3) then
+                if(ExcitLevel <= max_ex_level) then
                     ! We need to find out whether the nJ HPHF wavefunction is
                     ! symmetric or antisymmetric. This is dependant on the
                     ! number of open shell orbitals and total spin of the wavefunction.
@@ -137,8 +137,8 @@ contains
                     Ex(1, 1) = ExcitLevel
                     call GetBitExcitation(iLutnI2, iLutnJ, Ex, tSign)
 
-                    if (t_lattice_model) then
-                        if (t_3_body_excits) call stop_all("hphf_off_diag", "todo 3 body")
+                    if(t_lattice_model) then
+                        if(t_3_body_excits) call stop_all("hphf_off_diag", "todo 3 body")
                         ! is this the correct call here? compare to the
                         ! orginal call below!
                         MatEl2 = get_helement_lattice(nI2, ExcitLevel, Ex, tSign)
@@ -146,18 +146,18 @@ contains
                         MatEl2 = dyn_sltcnd_excit_old(nI2, ExcitLevel, Ex, tSign)
                     end if
 
-                    if (tOddS_HPHF) then
-                        if (((mod(OpenOrbsI, 2) == 1) .and. (mod(OpenOrbsJ, 2) == 1)) &
-                            .or. ((mod(OpenOrbsI, 2) == 1) .and. &
-                                  (mod(OpenOrbsJ, 2) == 0))) then
+                    if(tOddS_HPHF) then
+                        if(((mod(OpenOrbsI, 2) == 1) .and. (mod(OpenOrbsJ, 2) == 1)) &
+                           .or. ((mod(OpenOrbsI, 2) == 1) .and. &
+                                 (mod(OpenOrbsJ, 2) == 0))) then
                             hel = hel + MatEl2
                         else
                             hel = hel - MatEl2
                         end if
                     else
-                        if (((mod(OpenOrbsI, 2) == 0) .and. (mod(OpenOrbsJ, 2) == 0)) &
-                            .or. ((mod(OpenOrbsI, 2) == 0) .and. &
-                                  (mod(OpenOrbsJ, 2) == 1))) then
+                        if(((mod(OpenOrbsI, 2) == 0) .and. (mod(OpenOrbsJ, 2) == 0)) &
+                           .or. ((mod(OpenOrbsI, 2) == 0) .and. &
+                                 (mod(OpenOrbsJ, 2) == 1))) then
                             hel = hel + MatEl2
                         else
                             hel = hel - MatEl2
@@ -184,19 +184,19 @@ contains
 
         integer :: nI2(nel)
         integer(n_int) :: iLutnI2(0:NIfTot)
-        integer :: ExcitLevel, OpenOrbsI, OpenOrbsJ, Ex(2, 2)
+        integer :: ExcitLevel, OpenOrbsI, OpenOrbsJ, Ex(2, maxExcit)
         HElement_t(dp) :: MatEl2
         logical :: tSign
 
         hel = 0.0_dp
 
-        if (IC <= 2) hel = sltcnd_knowIC(nI, iLutnI, iLutnJ, IC)
+        if(IC <= max_ex_level) hel = sltcnd_knowIC(nI, iLutnI, iLutnJ, IC)
 
-        if (CS_I) then
-            if (tOddS_HPHF) then
+        if(CS_I) then
+            if(tOddS_HPHF) then
                 !For odd S states, all matrix elements to CS determinants should be 0
                 hel = 0.0_dp
-            else if (.not. CS_J) then
+            else if(.not. CS_J) then
                 ! Closed shell --> Open shell, <X|H|Y> = 1/sqrt(2) [Hia + Hib]
                 ! or with minus if iLutnJ has an odd number of spin orbitals.
                 ! OTHERWISE Closed shell -> closed shell. Both the alpha and
@@ -205,8 +205,8 @@ contains
                 hel = hel * (sqrt(2.0_dp))
             end if
         else
-            if (CS_J) then
-                if (tOddS_HPHF) then
+            if(CS_J) then
+                if(tOddS_HPHF) then
                     !For odd S states, all matrix elements to CS determinants should be 0
                     hel = 0.0_dp
                 else
@@ -220,7 +220,7 @@ contains
                 call FindExcitBitDetSym(iLutnI, iLutnI2)
                 ExcitLevel = FindBitExcitLevel(iLutnI2, ilutnJ, 2)
 
-                if (ExcitLevel <= 2) then
+                if(ExcitLevel <= max_ex_level) then
                     ! We need to find out whether the nJ HPHF wavefunction is
                     ! symmetric or antisymmetric. This is dependant on the
                     ! number of open shell orbitals and total spin of the wavefunction.
@@ -237,18 +237,18 @@ contains
 
                     MatEl2 = dyn_sltcnd_excit_old(nI2, ExcitLevel, Ex, tSign)
 
-                    if (tOddS_HPHF) then
-                        if (((mod(OpenOrbsI, 2) == 1) .and. (mod(OpenOrbsJ, 2) == 1)) &
-                            .or. ((mod(OpenOrbsI, 2) == 1) .and. &
-                                  (mod(OpenOrbsJ, 2) == 0))) then
+                    if(tOddS_HPHF) then
+                        if(((mod(OpenOrbsI, 2) == 1) .and. (mod(OpenOrbsJ, 2) == 1)) &
+                           .or. ((mod(OpenOrbsI, 2) == 1) .and. &
+                                 (mod(OpenOrbsJ, 2) == 0))) then
                             hel = hel + MatEl2
                         else
                             hel = hel - MatEl2
                         end if
                     else
-                        if (((mod(OpenOrbsI, 2) == 0) .and. (mod(OpenOrbsJ, 2) == 0)) &
-                            .or. ((mod(OpenOrbsI, 2) == 0) .and. &
-                                  (mod(OpenOrbsJ, 2) == 1))) then
+                        if(((mod(OpenOrbsI, 2) == 0) .and. (mod(OpenOrbsJ, 2) == 0)) &
+                           .or. ((mod(OpenOrbsI, 2) == 0) .and. &
+                                 (mod(OpenOrbsJ, 2) == 1))) then
                             hel = hel + MatEl2
                         else
                             hel = hel - MatEl2
@@ -283,7 +283,7 @@ contains
         integer, intent(in) :: ExcitLevel, OpenOrbsI
         HElement_t(dp) :: hel
 
-        integer :: OpenOrbsJ, Ex(2, 2)
+        integer :: OpenOrbsJ, Ex(2, maxExcit)
         HElement_t(dp) :: MatEl2
         logical :: tSign
 
@@ -303,18 +303,18 @@ contains
 
         MatEl2 = dyn_sltcnd_excit_old(nI2, ExcitLevel, Ex, tSign)
 
-        if (tOddS_HPHF) then
-            if (((mod(OpenOrbsI, 2) == 1) .and. (mod(OpenOrbsJ, 2) == 1)) &
-                .or. ((mod(OpenOrbsI, 2) == 1) .and. &
-                      (mod(OpenOrbsJ, 2) == 0))) then
+        if(tOddS_HPHF) then
+            if(((mod(OpenOrbsI, 2) == 1) .and. (mod(OpenOrbsJ, 2) == 1)) &
+               .or. ((mod(OpenOrbsI, 2) == 1) .and. &
+                     (mod(OpenOrbsJ, 2) == 0))) then
                 hel = MatEl2
             else
                 hel = -MatEl2
             end if
         else
-            if (((mod(OpenOrbsI, 2) == 0) .and. (mod(OpenOrbsJ, 2) == 0)) &
-                .or. ((mod(OpenOrbsI, 2) == 0) .and. &
-                      (mod(OpenOrbsJ, 2) == 1))) then
+            if(((mod(OpenOrbsI, 2) == 0) .and. (mod(OpenOrbsJ, 2) == 0)) &
+               .or. ((mod(OpenOrbsI, 2) == 0) .and. &
+                     (mod(OpenOrbsJ, 2) == 1))) then
                 hel = MatEl2
             else
                 hel = -MatEl2
@@ -341,13 +341,13 @@ contains
         HElement_t(dp) :: MatEl2
         integer :: nJ(nel)
 
-        if (t_lattice_model) then
+        if(t_lattice_model) then
             hel = get_helement_lattice(nI, nI)
         else
             hel = sltcnd_excit(nI, NoExc_t())
         end if
 
-        if (.not. TestClosedShellDet(iLutnI)) then
+        if(.not. TestClosedShellDet(iLutnI)) then
             ! <i|H|i> = <j|H|j>, so no need to calculate both.
             ! <X|H|X> = 1/2 [ <i|H|i> + <j|H|j> ] + <i|H|j> where i and j are
             ! the two spin-coupled dets which make up X. In the case of the
@@ -356,9 +356,9 @@ contains
             ! See if there is a cross-term
             call FindExcitBitDetSym(iLutnI, iLutnI2)
             ExcitLevel = FindBitExcitLevel(iLutnI, iLutnI2, 2)
-            if (ExcitLevel <= 2) then
+            if(ExcitLevel <= max_ex_level) then
                 call CalcOpenOrbs(iLutnI, OpenOrbs)
-                if (t_lattice_model) then
+                if(t_lattice_model) then
                     call decode_bit_det(nJ, iLutnI2)
                     ! here i am really not sure about hermiticity..
                     MatEl2 = get_helement_lattice(nI, nJ)
@@ -367,15 +367,15 @@ contains
                     MatEl2 = sltcnd(nI, iLutnI, iLutnI2)
                 end if
 
-                if (tOddS_HPHF) then
-                    if (mod(OpenOrbs, 2) == 1) then
+                if(tOddS_HPHF) then
+                    if(mod(OpenOrbs, 2) == 1) then
                         ! Subtract cross terms if determinant is antisymmetric.
                         hel = hel + MatEl2
                     else
                         hel = hel - MatEl2
                     end if
                 else
-                    if (mod(OpenOrbs, 2) == 1) then
+                    if(mod(OpenOrbs, 2) == 1) then
                         ! Subtract cross terms if determinant is antisymmetric.
                         hel = hel - MatEl2
                     else
@@ -398,7 +398,7 @@ contains
 
         call CalcOpenOrbs(ilut, open_orbs)
 
-        if ((mod(open_orbs, 2) == 0) .neqv. tOddS_HPHF) then
+        if((mod(open_orbs, 2) == 0) .neqv. tOddS_HPHF) then
             sgn = 1
         else
             sgn = -1

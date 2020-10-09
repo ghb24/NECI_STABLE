@@ -89,7 +89,7 @@ module fcimc_helper
     use guga_bitrepops, only: write_det_guga, calc_csf_info, &
                               transfer_stochastic_rdm_info
 
-    use real_time_data, only: t_complex_ints, runge_kutta_step, tVerletSweep, &
+    use real_time_data, only: runge_kutta_step, tVerletSweep, &
                               t_rotated_time, t_real_time_fciqmc
 
     use back_spawn, only: setup_virtual_mask
@@ -692,7 +692,8 @@ contains
             end if
         else
             if (ExcitLevel_local == 2 .or. &
-                (ExcitLevel_local == 1 .and. tNoBrillouin)) then
+                (ExcitLevel_local == 1 .and. tNoBrillouin) .or. (ExcitLevel_local == 3 .and. &
+                     (t_3_body_excits .or. t_ueg_3_body .or. t_mol_3_body))) then
                 ! Obtain off-diagonal element
                 if (tHPHF) then
                     HOffDiag(1:inum_runs) = &
@@ -702,14 +703,7 @@ contains
                     HOffDiag(1:inum_runs) = &
                         get_helement(ProjEDet(:, 1), nI, ExcitLevel, ilutRef(:, 1), ilut)
                 end if
-
-            else if (ExcitLevel_local == 3 .and. &
-                     (t_3_body_excits .or. t_ueg_3_body .or. t_mol_3_body)) then
-                ! the new 3-body terms in the transcorrelated momentum space hubbard
-                ! hphf not yet implemented!
-                ASSERT(.not. tHPHF)
-                HOffDiag(1:inum_runs) = get_helement(ProjEDet(:, 1), nI, ilutRef(:, 1), ilut)
-            end if ! ExcitLevel_local == 1, 2, 3
+            end if
         end if ! GUGA
 
         ! For the real-space Hubbard model, determinants are only
@@ -979,7 +973,6 @@ contains
 
                 else if (exlevel == 3 .and. &
                          (t_3_body_excits .or. t_ueg_3_body .or. t_mol_3_body)) then
-                    ASSERT(.not. tHPHF)
                     hoffdiag = get_helement(ProjEDet(:, run), nI, exlevel, &
                                             iLutRef(:, run), ilut)
                 end if

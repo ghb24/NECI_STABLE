@@ -6,10 +6,10 @@
 module real_time_procs
     use hash, only: hash_table_lookup, init_hash_table, clear_hash_table, &
                     add_hash_table_entry, fill_in_hash_table
-    use SystemData, only: nel, nBasis, tHPHF
+    use SystemData, only: nel, nBasis, tHPHF, t_complex_ints
     use real_time_data, only: gf_overlap, TotWalkers_orig, overlap_states, tInfInit, &
-                              t_complex_ints, real_time_info, temp_freeslot, dyn_norm_red, &
-                              temp_det_list, temp_det_pointer, temp_iendfreeslot, &
+                              real_time_info, temp_freeslot, dyn_norm_red, &
+                              temp_det_list, temp_det_pointer,  temp_iendfreeslot, &
                               temp_det_hash, temp_totWalkers, pert_norm, allGfs, &
                               valid_diag_spawns, DiagParts, n_diag_spawned, tOverpopulate, &
                               gf_count, tVerletSweep, t_real_time_fciqmc, &
