@@ -83,8 +83,8 @@ contains
 
         if (present(grow_factor)) this%grow_factor = grow_factor
         if (present(start_size)) this%start_size = start_size
-        @:ASSERT(this%grow_factor > 1.0_dp)
-        @:ASSERT(this%start_size >= 0_int64)
+        @:pure_ASSERT(this%grow_factor > 1.0_dp)
+        @:pure_ASSERT(this%start_size >= 0_int64)
 
         if (.not. allocated(this%buf)) allocate(this%buf(this%start_size))
         this%pos = 0_int64
@@ -120,8 +120,8 @@ contains
 
         if (present(grow_factor)) this%grow_factor = grow_factor
         if (present(start_size)) this%start_size = start_size
-        @:ASSERT(this%grow_factor > 1.0_dp)
-        @:ASSERT(this%start_size >= 0_int64)
+        @:pure_ASSERT(this%grow_factor > 1.0_dp)
+        @:pure_ASSERT(this%start_size >= 0_int64)
 
         allocate(this%buf(rows, this%start_size))
         this%pos = 0_int64
