@@ -27,7 +27,7 @@ if( ${CMAKE_VERSION} VERSION_LESS ${NECI_CMAKE_MINIMUM} )
     message(FATAL_ERROR "${PROJECT_NAME} requires at least CMake ${NECI_CMAKE_MINIMUM} -- you are using ${CMAKE_COMMAND} [${CMAKE_VERSION}]\n Please, get a newer version of CMake @ www.cmake.org" )
 endif()
 
-# Include our further macros 
+# Include our further macros
 # ============================================================
 
 # Add extra macros from the contrib/ directory (externally sourced finders)
@@ -40,7 +40,11 @@ include(FeatureSummary)
 
 # Enable testing
 include(CTest)
-enable_testing()
+# Don't do NECI tests if NECI is added to other project.
+# BUILD_TESTING option comes from `include(CTest)`
+if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME AND BUILD_TESTING)
+    enable_testing()
+endif()
 
 # Our local macros
 
