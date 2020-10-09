@@ -3,12 +3,12 @@
 
 module gasci
     use SystemData, only: nBasis
-    use util_mod, only: cumsum, stop_all
+    use util_mod, only: cumsum, stop_all, operator(.div.)
     implicit none
 
     private
     public :: operator(==), operator(/=), possible_GAS_exc_gen, &
-        GAS_exc_gen, GAS_specification, GASSpec_t, user_input_GAS_exc_gen
+        GAS_exc_gen, GAS_specification, GASSpec_t, user_input_GAS_exc_gen, get_name
 
     type :: GAS_exc_gen_t
         integer :: val
@@ -77,6 +77,7 @@ module gasci
         procedure :: cumulated_max
         procedure :: split_per_GAS
         procedure :: count_per_GAS
+        procedure :: write_to
     end type
 
     interface GASSpec_t
@@ -366,4 +367,43 @@ contains
             splitted_sizes(iGAS) = splitted_sizes(iGAS) + 1
         end do
     end function
+
+    pure function get_name(impl) result(res)
+        type(GAS_exc_gen_t), intent(in) :: impl
+        character(len=:), allocatable :: res
+        if (impl == possible_GAS_exc_gen%DISCONNECTED) then
+            res = 'Heat-bath on-the-fly GAS implementation for disconnected spaces'
+        else if (impl == possible_GAS_exc_gen%GENERAL) then
+            res = 'Heat-bath on-the-fly GAS implementation'
+        else if (impl == possible_GAS_exc_gen%DISCARDING) then
+            res = 'Discarding GAS implementation'
+        else if (impl == possible_GAS_exc_gen%DISCONNECTED_PCHB) then
+            res = 'PCHB GAS implementation for disconnected spaces'
+        else if (impl == possible_GAS_exc_gen%GENERAL_PCHB) then
+            res = 'PCHB GAS implementation'
+        end if
+    end function
+
+    !> @brief
+    !> Write a string representation of this GAS specification to iunit
+    subroutine write_to(self, iunit)
+        class(GASSpec_t), intent(in) :: self
+        integer, intent(in) :: iunit
+        integer :: iGAS, iorb
+
+        write(iunit, '(A)') 'n_i: number of spatial orbitals per i-th GAS space'
+        write(iunit, '(A)') 'cn_min_i: cumulative minimum number of particles per i-th GAS space'
+        write(iunit, '(A)') 'cn_max_i: cumulative maximum number of particles per i-th GAS space'
+        write(iunit, '(A10, 1x, A10, 1x, A10)') 'n_i', 'cn_min_i', 'cn_max_i'
+        write(iunit, '(A)') '--------------------------------'
+        do iGAS = 1, self%nGAS()
+            write(iunit, '(I10, 1x, I10, 1x, I10)') self%GAS_size(iGAS) .div. 2, self%cumulated_min(iGAS), self%cumulated_max(iGAS)
+        end do
+        write(iunit, '(A)') '--------------------------------'
+        write(iunit, '(A)') 'The distribution of spatial orbitals to GAS spaces is given by:'
+        do iorb = 1, self%n_spin_orbs(), 2
+            write(iunit, '(I0, 1x)', advance='no') self%get_iGAS(iorb)
+        end do
+        write(iunit, *)
+    end subroutine
 end module gasci
