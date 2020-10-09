@@ -23,7 +23,7 @@ module fcimc_initialisation
                           irrepOrbOffset, nIrreps, &
                           tTrcorrExgen, nClosedOrbs, irrepOrbOffset, nIrreps, &
                           nOccOrbs, tNoSinglesPossible, t_pcpp_excitgen, &
-                          t_pchb_excitgen, tGAS
+                          t_pchb_excitgen, tGAS, tGASSpinRecoupling
     use tc_three_body_data, only: ptriples
     use SymExcitDataMod, only: tBuildOccVirtList, tBuildSpinSepLists
     use core_space_util, only: cs_replicas
@@ -1418,6 +1418,9 @@ contains
             write(iout, '(A" is activated")') get_name(GAS_exc_gen)
             write(iout, '(A)') 'The following GAS specification was used: '
             call GAS_specification%write_to(iout)
+            if (.not. tGASSpinRecoupling) then
+                write(iout, '(A)') 'Double excitations with exchange are forbidden.'
+            end if
             write(iout, *)
         end if
     END SUBROUTINE SetupParameters
