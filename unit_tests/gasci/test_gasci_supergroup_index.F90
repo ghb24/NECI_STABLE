@@ -1,4 +1,4 @@
-module test_gasci_general_pchb
+module test_gasci_supergroup_index_mod
     use fruit
     use constants, only: dp, int64, n_int
     use util_mod, only: operator(.div.), operator(.isclose.), near_zero, choose
@@ -164,7 +164,7 @@ program test_gasci_program
     use mpi
     use fruit
     use Parallel_neci, only: MPIInit, MPIEnd
-    use test_gasci_general_pchb, only: test_partitioning, &
+    use test_gasci_supergroup_index_mod, only: test_partitioning, &
         test_supergroup_partitioning, test_supergroup_indexer_class
 
 
