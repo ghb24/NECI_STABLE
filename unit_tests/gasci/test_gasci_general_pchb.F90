@@ -17,7 +17,7 @@ module test_gasci_general_pchb
     use unit_test_helpers, only: run_excit_gen_tester
     implicit none
     private
-    public :: test_pgen, test_partitioning, test_supergroup_offsets
+    public :: test_pgen
 
 contains
 
@@ -91,7 +91,7 @@ program test_gasci_program
     use mpi
     use fruit
     use Parallel_neci, only: MPIInit, MPIEnd
-    use test_gasci_general_pchb, only: test_pgen, test_partitioning
+    use test_gasci_general_pchb, only: test_pgen
 
 
     implicit none
