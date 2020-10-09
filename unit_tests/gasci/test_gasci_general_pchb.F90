@@ -26,7 +26,7 @@ contains
         use gasci, only: global_GAS_spec => GAS_specification
 
 
-        use gasci_general_pchb, only: GAS_PCHB_exc_generator
+        use gasci_general_pchb, only: general_GAS_PCHB
         use SystemData, only: tGASSpinRecoupling
         use FciMCData, only: pSingles, pDoubles, pParallel
         type(GASSpec_t) :: GAS_spec
@@ -49,10 +49,10 @@ contains
 
         call init_excitgen_test(size(det_I), FciDumpWriter_t(random_fcidump, 'FCIDUMP'))
 
-        call GAS_PCHB_exc_generator%init(GAS_spec)
+        call general_GAS_PCHB%init(GAS_spec)
 
         call run_excit_gen_tester( &
-            gen_general_GASCI_pchb, 'General GAS PCHB implementation, random fcidump', &
+            gen_GASCI_general_pchb, 'General GAS PCHB implementation, random fcidump', &
             opt_nI=det_I, opt_n_iters=n_iters, &
             gen_all_excits=gen_all_excits, &
             problem_filter=is_problematic,&

@@ -23,7 +23,7 @@ module fcimc_initialisation
                           irrepOrbOffset, nIrreps, &
                           tTrcorrExgen, nClosedOrbs, irrepOrbOffset, nIrreps, &
                           nOccOrbs, tNoSinglesPossible, t_pcpp_excitgen, &
-                          t_pchb_excitgen, tGAS
+                          t_pchb_excitgen, tGAS, tGASSpinRecoupling
     use tc_three_body_data, only: ptriples
     use SymExcitDataMod, only: tBuildOccVirtList, tBuildSpinSepLists
     use core_space_util, only: cs_replicas
@@ -238,6 +238,7 @@ module fcimc_initialisation
     use gasci_general, only: gen_GASCI_general, gen_all_excits_GAS => gen_all_excits
     use gasci_discarding, only: gen_GASCI_discarding, init_GASCI_discarding, finalize_GASCI_discarding
     use gasci_disconnected_pchb, only: gen_GASCI_disconnected_pchb => gen_GASCI_pchb, disconnected_GAS_PCHB
+    use gasci_general_pchb, only: gen_GASCI_general_pchb, general_GAS_PCHB
 
     use cepa_shifts, only: t_cepa_shift, init_cepa_shifts
 
@@ -1409,12 +1410,17 @@ contains
                 call init_GASCI_discarding()
             else if (GAS_exc_gen == possible_GAS_exc_gen%DISCONNECTED_PCHB) then
                 call disconnected_GAS_PCHB%init()
+            else if (GAS_exc_gen == possible_GAS_exc_gen%GENERAL_PCHB) then
+                call general_GAS_PCHB%init(GAS_specification)
             end if
 
             write(iout, *)
             write(iout, '(A" is activated")') get_name(GAS_exc_gen)
             write(iout, '(A)') 'The following GAS specification was used: '
             call GAS_specification%write_to(iout)
+            if (.not. tGASSpinRecoupling) then
+                write(iout, '(A)') 'Double excitations with exchange are forbidden.'
+            end if
             write(iout, *)
         end if
     END SUBROUTINE SetupParameters
@@ -1960,6 +1966,8 @@ contains
                 generate_excitation => gen_GASCI_discarding
             else if (GAS_exc_gen == possible_GAS_exc_gen%DISCONNECTED_PCHB) then
                 generate_excitation => gen_GASCI_disconnected_pchb
+            else if (GAS_exc_gen == possible_GAS_exc_gen%GENERAL_PCHB) then
+                generate_excitation => gen_GASCI_general_pchb
             else
                 call stop_all(t_r, 'Invalid GAS excitation generator')
             end if
