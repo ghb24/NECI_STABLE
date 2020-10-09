@@ -234,6 +234,7 @@ contains
                         call fill_diag_1rdm_guga(one_rdms, nI, av_sign)
                     else
                         full_sign = IterRDM_new*av_sign(1::2)*av_sign(2::2)
+                        call applyRDMCorrection()
                         call fill_spawn_rdm_diag_guga(spawn, nI, full_sign)
                     end if
                 end if

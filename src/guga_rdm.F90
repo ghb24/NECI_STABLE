@@ -372,12 +372,6 @@ contains
 
     end function molcas_sign
 
-    ! function get_rdm_hash_entry()
-    !     ! make a function to easily extract the rdm element stored in the
-    !     ! hash table
-    !
-    ! end function get_rdm_hash_entry
-
     subroutine print_rdm_ind(rdm_ind, typ, t_newline)
         integer(int_rdm), intent(in) :: rdm_ind
         integer, intent(in) :: typ
@@ -655,8 +649,11 @@ contains
         ! there should be a clever way to do this..
         ! nah.. not for now.. otherwise i have to check everywhere also
         ! if i sampled this already.. for leave it at that and be done with
-        ! it!
-        if (excit_lvl == 1 .or. excit_lvl == 2) then
+
+
+        ! excit-lvl information is not really correct for GUGA..
+        ! so avoid using it..
+!         if (excit_lvl == 1 .or. excit_lvl == 2) then
             ! for HF -> nJ we do not have csf info intialized so use calc_type = 2
             call add_rdm_from_ij_pair_guga_exact(spawn, one_rdms, iLutHF_True, &
                                                  ilutJ, av_sign_hf(2::2), iter_rdm*av_sign_j(1::2), calc_type=2)
@@ -664,7 +661,7 @@ contains
             ! for nJ we have the csf info initialized (or maybe not..)
             call add_rdm_from_ij_pair_guga_exact(spawn, one_rdms, ilutJ, &
                                                  iLutHF_True, av_sign_j(2::2), iter_rdm*av_sign_hf(1::2), calc_type=2)
-        end if
+!         end if
 
     end subroutine Add_RDM_HFConnections_GUGA
 
@@ -691,6 +688,7 @@ contains
         call calc_guga_matrix_element(ilutI, ilutJ, excitInfo, mat_ele, &
                                       t_hamil=.false., calc_type=calc_type, &
                                       rdm_ind=rdm_ind, rdm_mat=rdm_mat)
+
 
         ! i assume sign_i and sign_j are not 0 if we end up here..
         do n = 1, size(rdm_ind)
