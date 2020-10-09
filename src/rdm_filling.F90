@@ -234,6 +234,7 @@ contains
                         call fill_diag_1rdm_guga(one_rdms, nI, av_sign)
                     else
                         full_sign = IterRDM_new*av_sign(1::2)*av_sign(2::2)
+                        call applyRDMCorrection()
                         call fill_spawn_rdm_diag_guga(spawn, nI, full_sign)
                     end if
                 end if
@@ -1018,7 +1019,8 @@ contains
                     if (DetBitEq(iLutJ, iLutHF_True, nifd)) cycle
 
                     do irdm = 1, rdm_defs%nrdms
-                        AvSignJ(irdm) = rep%full_determ_vecs_av(rdm_defs%sim_labels(1, irdm), rep%core_connections(i)%positions(j))
+                        AvSignJ(irdm) = rep%full_determ_vecs_av(rdm_defs%sim_labels(1, irdm), &
+                                            rep%core_connections(i)%positions(j))
                     end do
 
                     connect_elem = rep%core_connections(i)%elements(j)
@@ -1040,8 +1042,9 @@ contains
                     else if (tGUGA) then
 
                         call add_rdm_from_ij_pair_guga_exact(spawn, one_rdms, &
-                                                             ilutI, ilutJ, AvSignI * IterRDM, AvSignJ, calc_type=1)
-
+                                                             ilutI, ilutJ, &
+                                                             AvSignI * IterRDM, &
+                                                             AvSignJ, calc_type=1)
                     else
                         if (IC == 1) then
                             ! Single excitation - contributes to 1- and 2-RDM

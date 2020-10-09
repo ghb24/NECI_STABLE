@@ -227,7 +227,10 @@ contains
         type is (real(dp))
             if (present(iunit)) then
                 do i = lbound(matrix,1),ubound(matrix,1)
-                    write(iunit,*) matrix(i,:)
+                    do j = lbound(matrix,2), ubound(matrix,2) - 1
+                        write(iunit,'(G25.17)', advance = 'no') matrix(i,j)
+                    end do
+                    write(iunit,'(G25.17)', advance = 'yes') matrix(i,j)
                 end do
             else
                 do i = lbound(matrix,1),ubound(matrix,1)

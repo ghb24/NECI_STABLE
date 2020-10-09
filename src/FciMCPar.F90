@@ -50,7 +50,7 @@ module FciMCParMod
                            tHDF5TruncPopsWrite, iHDF5TruncPopsEx, tAccumPops, &
                            tAccumPopsActive, iAccumPopsIter, iAccumPopsExpireIters, &
                            tPopsProjE, iHDF5TruncPopsIter, iAccumPopsCounter, &
-                           AccumPopsExpirePercent
+                           AccumPopsExpirePercent, num_local_spin_orbs, t_print_core_vec
 
     use rdm_data, only: print_2rdm_est, ThisRDMIter, inits_one_rdms, two_rdm_inits_spawn, &
                         two_rdm_inits, rdm_inits_defs, RDMCorrectionFactor, inits_estimates, tSetupInitsEst, &
@@ -66,7 +66,8 @@ module FciMCParMod
                               refresh_semistochastic_space
     use semi_stoch_procs, only: is_core_state, check_determ_flag, &
                                 determ_projection, average_determ_vector, &
-                                determ_projection_no_death, core_space_pos
+                                determ_projection_no_death, core_space_pos, &
+                                print_determ_vec_av, print_determ_vec
     use trial_wf_gen, only: update_compare_trial_file, init_trial_wf, refresh_trial_wf
     use hist, only: write_zero_hist_excit_tofrom
     use orthogonalise, only: orthogonalise_replicas, calc_replica_overlaps, &
@@ -151,6 +152,7 @@ module FciMCParMod
 
     use sltcnd_mod, only: sltcnd_excit
     use hdf5_popsfile, only: write_popsfile_hdf5
+    use local_spin, only: measure_local_spin, write_local_spin_stats
 
     implicit none
 
@@ -344,6 +346,10 @@ contains
             call WriteFCIMCStats()
         end if
 
+        if (t_measure_local_spin) then
+            call write_local_spin_stats(initial = .true.)
+            call write_local_spin_stats()
+        end if
         ! double occupancy:
         if (t_calc_double_occ) then
             call write_double_occ_stats(initial=.true.)
@@ -632,6 +638,9 @@ contains
                                                                       tPairedReplicas, t_comm_req=.false.)
                 call halt_timer(Stats_Comms_Time)
 
+                if (t_measure_local_spin) then
+                    call write_local_spin_stats()
+                end if
                 ! in calculate_new_shift_wrapper output is plotted too!
                 ! so for now do it here for double occupancy
                 if (t_calc_double_occ) then
@@ -860,9 +869,6 @@ contains
             call deallocate_histograms()
         end if
 
-        if (tGUGA) then
-            if (.not. t_direct_guga_ref) call deallocate_projE_list()
-        end if
 
         if (t_cc_amplitudes .and. t_plot_cc_amplitudes) then
             call print_cc_amplitudes()
@@ -903,6 +909,10 @@ contains
             end if
         end if
 
+        if (tGUGA) then
+            if (.not. t_direct_guga_ref) call deallocate_projE_list()
+        end if
+
         IF (tCalcFCIMCPsi) THEN
 !This routine will actually only print the matrix if tPrintFCIMCPsi is on
             CALL PrintFCIMCPsi()
@@ -926,6 +936,15 @@ contains
 
         IF (tPrintOrbOcc) THEN
             CALL PrintOrbOccs(OrbOccs)
+        end if
+
+        if (t_measure_local_spin) then
+            if (iProcIndex == root) then
+                print *, " ===== "
+                print *, " Local spin measurement up to orbital ", num_local_spin_orbs
+                print *, sum_local_spin / (sum_norm_psi_squared * real(StepsSft, dp))
+                print *, " ===== "
+            end if
         end if
 
         if (t_calc_double_occ) then
@@ -956,6 +975,11 @@ contains
         end if
 
         call PrintHighPops()
+
+        if (t_print_core_vec) then
+            call print_determ_vec_av()
+            call print_determ_vec()
+        end if
 
         if (t_symmetry_analysis) then
             call analyze_wavefunction_symmetry()
@@ -1451,6 +1475,10 @@ contains
                                   get_double_occupancy(CurrentDets(:, j), SignCurr)
             end if
 
+            if (t_measure_local_spin) then
+                call measure_local_spin(CurrentDets(:, j), DetCurr, SignCurr)
+            end if
+
             if (t_spin_measurements) then
                 call measure_double_occ_and_spin_diff(CurrentDets(:, j), &
                                                       DetCurr, SignCurr)
@@ -1870,7 +1898,7 @@ contains
                 end if
             end if
 
-            end subroutine PerformFCIMCycPar
+    end subroutine PerformFCIMCycPar
 
-        END MODULE FciMCParMod
+END MODULE FciMCParMod
 
