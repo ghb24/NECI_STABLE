@@ -593,6 +593,8 @@ the \texttt{endsys} keyword.
   \begin{description}
     \codeitem{read}
     Read in the integrals from a FCIDUMP file, used for ab-initio calculations.
+    \codeitem{FCIDUMP-name}
+    Specify the name of the FCIDUMP file. Defaults to FCIDUMP.
     \codeitem{hubbard}
     Uses the Hubbard model Hamiltonian.
     \begin{description}
@@ -606,7 +608,7 @@ the \texttt{endsys} keyword.
   Terminates the SYSTEM block.
   \codeitem{\textcolor{mred}{electrons $n$, nel $n$}}
   Sets the number of electrons to $n$
-  \codeitem{spin-restrict $m$}
+  \codeitem{spin-restrict [$m$]}
   Sets the total $S_z$ quantum number to $\frac{m}{2}$. The argument $m$ is
   optional and defaults to 0.
   \codeitem{hphf $s$}
@@ -757,7 +759,7 @@ the \texttt{endsys} keyword.
 
   \subsubsection{Hubbard model and UEG options}
   \begin{description}
-    \codeitem{lattice $type$ $l_x$ $l_y$ $l_Z$}
+    \codeitem{lattice $type$ $l_x$ $l_y$ [$l_Z$]}
     Defines the basis in terms of a lattice of type $type$ with extent $l_x
     \times l_y \times l_z$. $l_x$ and $l_y$ are mandatory, $l_z$ is
     optional. $type$ can be any of \texttt{chain}, \texttt{star},
@@ -767,12 +769,12 @@ the \texttt{endsys} keyword.
     Sets the Hubbard interaction strengh to $U$. Defaults to 4.
     \codeitem{B $t$}
     Sets the Hubbard hopping strengh to $t$. Defaults to -1.
-    \codeitem{twisted-bc $t_1$ $t_2$}
+    \codeitem{twisted-bc $t_1$ [$t_2$]}
     Use twisted boundary conditions with a phase of $t_1 \, \frac{2\Pi}{x}$
     applied along x-direction, where $x$ is the lattice size. $t_2$ is
     optional and the additional phase along y-direction, in multiples of
     $\frac{2\Pi}{y}$.
-    \codeitem{open-bc $direction$}
+    \codeitem{open-bc [$direction$]}
     Set the boundary condition in $direction$ to open, i.e. no hopping across
     the cell boundary is possible. $direction$ is optional and can be one of
     \texttt{X}, \texttt{Y} or $\texttt{XY}$, for open boundary conditions in
@@ -798,11 +800,11 @@ the \texttt{endsys} keyword.
     gas. This implies the non-hermiticity of the Hamiltonian as well as the
     presence of 3-body interactions. $mode$ can be one of \texttt{3-body},
     \texttt{trcorr-excitgen} or \texttt{rand-excitgen}.
-    \codeitem{transcorr $J$}
+    \codeitem{transcorr [$J$]}
     Enable the usage of a transcorrelated Hamiltonian for the real-space
     hubbard mode. This implies the non-hermiticity of the Hamiltonian. The
     optional parameter $J$ is the transcorrelation parameter and defaults to 1.0.
-    \codeitem{2-body-transcorr $J$.}
+    \codeitem{2-body-transcorr [$J$]}
     Enable the usage of a transcorrelated Hamiltonian for the momentum space
     hubbard model. This implies the non-hermiticity of the Hamiltonian as well as the
     presence of 3-body interactions. The optional argument $J$ is the
@@ -836,7 +838,7 @@ the \texttt{endsys} keyword.
     \codeitem{rdmSamplingIters $n$}
     Set the maximum number of iterations used for sampling the RDMs to
     $n$. After $n$ iterations of sampling RDMs, the calculation will end.
-    \codeitem{load-balance-blocks OFF}
+    \codeitem{load-balance-blocks [OFF]}
     Distribute the determinants blockwise in a dynamic fashion to maintain
     equal load for all processors. This is enabled by default and has one
     optional argument OFF. If given, the load-balancing is disabled.
@@ -878,7 +880,7 @@ the \texttt{endsys} keyword.
     When the number of walkers in the calculation exceeds $walk$, the shift is
     iteratively adjusted to maintain a fixed grow rate $grow$ until reaching
     the requested number of total walkers.
-    \codeitem{jump-shift OFF}
+    \codeitem{jump-shift [OFF]}
     When entering the variable shift mode, the shift will be set to the
     current projected energy. This is enabled by default. There is an optional
     argument OFF that disables this behaviour.
@@ -889,7 +891,7 @@ the \texttt{endsys} keyword.
     \codeitem{trunc-nopen $n$}
     Restrict the Hilbert space of the calculation to those determinants with
     at most $n$ unpaired electrons.
-    \codeitem{avGrowthRate OFF}
+    \codeitem{avGrowthRate [OFF]}
     Average the change in walker number used to calculate the shift. This is
     enabled by default and has one optional argument OFF, which, when given,
     turns the option off.
@@ -919,7 +921,7 @@ the \texttt{endsys} keyword.
     will be stochastically rounded up to x or down to zero such that
     the average weight is unchanged. Defaults to $1$, which should only be
     changed with good reason.
-    \codeitem{energy-scaled-walkers $mode$ $\alpha$ $\beta$}
+    \codeitem{energy-scaled-walkers [$mode$ $\alpha$ $\beta$]}
     Scales the occupied threshold with the energy of a
     determinant. Has three optional arguments and requires
     \texttt{allRealCoeff}. The argument $mode$ can be one of EXPONENTIAL,
@@ -929,11 +931,11 @@ the \texttt{endsys} keyword.
 
   \subsubsection{Time-step options}
   \begin{description}
-    \codeitem{\textcolor{mred}{tau $\tau$} SEARCH}
+    \codeitem{\textcolor{mred}{tau $\tau$} [SEARCH]}
     Sets the timestep per iteration to $\tau$. Has one optional argument
     SEARCH. If given, the time-step will be iteratively updated to keep the
     calculation stable.
-    \codeitem{\textcolor{oblue}{hist-tau-search $c$ $nbins$ $bound$}}
+    \codeitem{\textcolor{oblue}{hist-tau-search [$c$ $nbins$ $bound$]}}
     Update the time-step based on histogramming of the ratio
     $\frac{H_{ij}}{p(i|j)}$. Not compatible with the tau $\tau$ SEARCH
     option. The three arguments $c$, $nbins$ and $bound$ are
@@ -944,14 +946,14 @@ the \texttt{endsys} keyword.
     \codeitem{\textcolor{oblue}{max-tau $\tau_\text{max}$}}
     Sets the maximal value of the time-step to $\tau_\text{max}$. Defaults to
     $1$.
-    \codeitem{min-tau $\tau_\text{min}$}
+    \codeitem{min-tau [$\tau_\text{min}$]}
     Sets the minimal value of the time-step to $\tau_\text{min}$ and enables
     the iterative update of the time-step. Defaults to
     $10^{-7}$. The argument $\tau_\text{min}$ is optional.
     \codeitem{keepTauFixed}
     Do never update $\tau$ and the related parameter $p_\text{singles}$,
     $p_\text{doubles}$ or $p_\text{parallel}$.
-    \codeitem{truncate-spawns $n$ UNOCC}
+    \codeitem{truncate-spawns [$n$ UNOCC]}
     Truncate spawns which are larger than a threshold value $n$. Both
     arguments are optional, $n$ defaults to $3$. If UNOCC is given the
     truncation is restricted to spawns onto unoccupied. Useful in combination
@@ -990,10 +992,10 @@ the \texttt{endsys} keyword.
     \codeitem{readpops-changeref}
     Allow the reference determinant to be updated after reading in a
     wave function.
-    \codeitem{startSinglePart $n$}
+    \codeitem{startSinglePart [$n$]}
     Initialise the wave function with $n$ walkers on the reference only unless
     specified differently. The argument $n$ is optional and defaults to $1$.
-    \codeitem{proje-changeRef $frac$ $min$}
+    \codeitem{proje-changeRef [$frac$ $min$]}
     Allow the reference to change if a determinant obtains $frac$ times the
     population of the current reference and the latter has a population of at
     least $min$. Both arguments are optional and default to $1.2$ and $50$,
@@ -1010,14 +1012,14 @@ the \texttt{endsys} keyword.
     \codeitem{\textcolor{oblue}{addToInitiator $x$}}
     Sets the initiator threshold to $x$, so any determinant with more than $x$
     walkers will be an initiator.
-    \codeitem{senior-initiators $age$}
+    \codeitem{senior-initiators [$age$]}
     Makes any determinant that has a half-time of at least $age$ iterations an
     initiator. $age$ is optional and defaults to $1$.
-    \codeitem{superInitiator $n$}
+    \codeitem{superInitiator [$n$]}
     Create a list of $n$ superinitiators, from which all connected
     determinants are set to be initiators. The superinitiators are chosen
     according to population. $n$ is optional and defaults to $1$.
-    \codeitem{coherent-superInitiators $mode$}
+    \codeitem{coherent-superInitiators [$mode$]}
     Apply a restriction on the sign-coherence between a determinant and any
     connected superinitiator to determine whether it becomes an initiator due
     to connection. The optional argument $mode$ can be chosen from STRICT,
@@ -1082,21 +1084,21 @@ the \texttt{endsys} keyword.
 
   \subsubsection{Adaptive shift options}
   \begin{description}
-    \codeitem{auto-adpative-shift $t$ $\alpha$ $c$}
+    \codeitem{auto-adpative-shift [$t$ $\alpha$ $c$]}
     Scale the shift per determinant based on the acceptance rate on a
     determinant. Has three optional arguments. The first is the threshold value $t$ which
     is the minimal number of spawning attempts from a determinant over the full calculation
     required before the shift is scaled, with a default of $10$. The second is
     the scaling exponent $\alpha$ with a default of $1$ and the last is the
     minimal scaling factor, which uses $\frac{1}{\text{HF conn.}}$ as default.
-    \codeitem{linear-adaptive-shift $\sigma$ $f_1$ $f_2$}
+    \codeitem{linear-adaptive-shift [$\sigma$ $f_1$ $f_2$]}
     Scale the shift per determinant linearly with the population of a determinant. All arguments are optional
     and define the function used for scaling. $\sigma$ gives the minimal
     walker number required to have a shift and defaults to $1$, $f_1$ the
     shift fraction to be applied at $\sigma$ with a default of $0$ and $f_2$
     is the shift fraction to be applied at the initiator threshold, defaults
     to $1$. Every initiator is applied the full shift.
-    \codeitem{exp-adaptive-shift $\alpha$}
+    \codeitem{exp-adaptive-shift [$\alpha$]}
     Scales the shift expoentially with the population of a determinant. The
     optional argument $\alpha$ is the exponent of scaling, the default is $2$.
     \codeitem{core-adaptive-shift}
@@ -1177,7 +1179,7 @@ the \texttt{endsys} keyword.
 
   \subsubsection{Trial wave function options}
   \begin{description}
-    \codeitem{\textcolor{oblue}{trial-wavefunction $n$}}
+    \codeitem{\textcolor{oblue}{trial-wavefunction [$n$]}}
     Use a trial wave function to obtain an estimate for the energy, as
     described in \ref{sec:trial}. The argument $n$ is optional, when given,
     the trial wave function will be initialised $n$ iterations after the
@@ -1438,7 +1440,7 @@ the \texttt{endsys} keyword.
     first line provides the orbital labels for the first term in the sum, the
     second line for the second term, etc...
 
-    \subsubsection{REALTIME Block}
+    \subsection{REALTIME Block}
     The REALTIME block enables the calculation of the real-time evolution of a
     given state and is only required for real-time calculations. Real-time
     evolution strictly requires \texttt{kneci} or \texttt{kmneci} and using
@@ -1466,7 +1468,7 @@ the \texttt{endsys} keyword.
       \codeitem{rotate-time $\alpha$}
       Calculates the evolution along a trajectory $e^{i\alpha}t$ instead of
       pure real-time trajectory.
-      \codeitem{dynamic-rotation $\eta$}
+      \codeitem{dynamic-rotation [$\eta$]}
       Determine a time-dependent $\alpha$ on the fly for
       \texttt{rotate-time}. $\eta$ is optional and a damping parameter,
       defaults to 0.05. $\alpha$ is then chosen such that the walker number
@@ -1490,7 +1492,7 @@ the \texttt{endsys} keyword.
       \codeitem{noshift}
       Do not apply a shift during the real-time evolution. Strongly
       recommended.
-      \codeitem{stabilize-walkers $S$}
+      \codeitem{stabilize-walkers [$S$]}
       Use the shift to stabilize the walker number if it drops below 80\% of
       the peak value. $S$ Is optional and is an asymptotic value used to fix
       the shift.
@@ -1539,6 +1541,11 @@ the \texttt{endsys} keyword.
       \codeitem{highlyPopWrite $n$}
       Print out the $n$ most populated determinants at the end of the
       calculation. Is enabled by default with $n=15$.
+      \codeitem{replicas-popwrite [$n$]}
+      Have each replica print out its own highly populated determinants in a
+      separate block instead of one collective output of the on average most
+      important determinants. Optionally, $n$ is the numbers of determinants
+      to print, this is the same $n$ as in \code{highlypopwrite}.
       \codeitem{inits-exlvl-write $n$}
       Sets the excitation level up to which the number of initiators is logged
       to $n$. Defaults to $n=8$.

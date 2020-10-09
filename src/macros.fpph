@@ -25,6 +25,7 @@ endif
 #:enddef
 
 #:def ASSERT(cond, *args)
+#ifdef DEBUG_
     block
         use util_mod, only: stop_all
         use constants, only: iout
@@ -41,11 +42,13 @@ endif
             call stop_all (this_routine, "Assert fail: ${cond}$")
         end if
     end block
+#endif
 #:enddef
 
 
 #:def pure_ASSERT(cond, import_stop_all='True')
 #:set import_stop_all = import_stop_all == 'True'
+#ifdef DEBUG_
     block
 #! This is there to use pure_ASSERT in the util_mod as well.
 #! Would cause circular imports otherwise.
@@ -56,6 +59,7 @@ endif
             call stop_all (this_routine, "Assert fail: ${cond}$")
         end if
     end block
+#endif
 #:enddef
 
 #:endmute

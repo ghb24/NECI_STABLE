@@ -284,12 +284,17 @@ contains
         character(len=*), parameter :: t_r = "generate_space"
 
         space_size = 0
-
+        if(t_global_core_space) then
+            c_run = GLOBAL_RUN
+        else
+            c_run = run
+        end if
+        
         ! Call the requested generating routines.
         if (core_in%tHF) call add_state_to_space(ilutHF, SpawnedParts, space_size)
         if (core_in%tPops) call generate_space_most_populated(core_in%npops, &
                                                               core_in%tApproxSpace, core_in%nApproxSpace, &
-                                                              SpawnedParts, space_size, run, t_opt_fast_core=t_fast_pops_core)
+                                                              SpawnedParts, space_size, c_run, t_opt_fast_core=t_fast_pops_core)
         if (core_in%tRead) call generate_space_from_file(core_in%read_filename, SpawnedParts, space_size)
         if (.not. (tGUGACore)) then
             if (core_in%tDoubles) call generate_sing_doub_determinants(SpawnedParts, space_size, core_in%tHFConn)
@@ -1122,7 +1127,7 @@ contains
             call MPIAllGather(min_sign, min_vals, ierr)
             call MPIAllGather(max_sign, max_vals, ierr)
 
-            call return_proc_share(n_pops_keep, min_vals, max_vals, lengths, &
+            call return_proc_share(n_pops_keep, min_vals, max_vals, int(lengths), &
                                    amps_this_proc, n_states_this_proc)
         else
 
