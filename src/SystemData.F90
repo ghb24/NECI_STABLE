@@ -421,6 +421,8 @@ logical :: t_impurity_excitgen = .false.
     logical :: t_anti_periodic(2) = .false.
 
     logical :: t_bipartite_order = .false.
+    logical :: t_input_order = .false.
+    integer, allocatable :: orbital_order(:)
 
 ! Operators for type(symmetry)
     interface assignment(=)

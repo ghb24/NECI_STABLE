@@ -276,6 +276,7 @@ contains
         integer :: ras_size_1, ras_size_2, ras_size_3, ras_min_1, ras_max_3, itmp
         character(*), parameter :: t_r = 'SysReadInput'
         character(*), parameter :: this_routine = 'SysReadInput'
+        integer :: temp_n_orbs
 
         ! The system block is specified with at least one keyword on the same
         ! line, giving the system type being used.
@@ -986,11 +987,24 @@ contains
 
 
             case ("BIPARTITE", "BIPARTITE-ORDER")
-                if (.not. t_new_real_space_hubbard) then
-                    call stop_all(this_routine, &
-                        "bipartite order ONLY implmented for 'new' real-space implementation")
-                end if
+!                 if (.not. (t_new_real_space_hubbard .or. &
+!                     t_tJ_model .or. t_heisenberg_model)) then
+!                     call stop_all(this_routine, &
+!                         "bipartite order ONLY implmented for 'new' real-space implementation")
+!                 end if
                 t_bipartite_order = .true.
+
+                if (item < nitems) then
+                    t_input_order = .true.
+                    call geti(temp_n_orbs)
+
+                    allocate(orbital_order(temp_n_orbs), source = 0)
+
+                    call read_line(eof)
+                    do i = 1, temp_n_orbs
+                        call geti(orbital_order(i))
+                    end do
+                end if
 
             case ("LATTICE")
                 ! new hubbard implementation

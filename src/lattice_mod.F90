@@ -12,7 +12,7 @@ module lattice_mod
     ! the sym_mod!
     use constants, only: dp, pi, EPS
     use SystemData, only: twisted_bc, nbasis, basisfn, t_trans_corr_2body, &
-                          symmetry, brr
+                          symmetry, brr, t_input_order, orbital_order
 
     implicit none
     private
@@ -1677,7 +1677,7 @@ contains
     subroutine init_sites_chain(this)
         class(chain) :: this
 
-        integer :: i, vec(3), j
+        integer :: i, vec(3), j, n
         ! ok what exactly do i do here??
         ! and i think i want to write a constructor for the sites.. to do
         ! nice initialization for AIM sites etc.
@@ -1702,51 +1702,86 @@ contains
 
         if (this%t_bipartite_order) then
 
-            if (this%is_periodic()) then
+            if (t_input_order) then
+                n = this%get_nsites()
+                if (this%is_periodic()) then
+                    vec = [-(this%length + 1) / 2 + 1, 0, 0]
+                    this%sites(1) = site(orbital_order(1), 2, &
+                        [orbital_order(n), orbital_order(2)], vec, vec)
 
-                ! use more concise site contructors!
-                ! also encode k- and real-space vectors.. i have to get this right!
-                vec = [-(this%length + 1) / 2 + 1, 0, 0]
+                    vec = [this%length / 2, 0, 0]
+                    this%sites(n) = site(orbital_order(n), 2, &
+                        [orbital_order(n-1), orbital_order(1)], vec, vec)
 
-                this%sites(1) = site(1, 2, &
-                    [this%get_nsites(), this%get_nsites()/2 + 1], vec, vec)
 
-                vec = [this%length / 2, 0, 0]
-                this%sites(this%get_nsites()) = site(this%get_nsites(), 2, &
-                                                     [this%get_nsites()/2, 1], vec, vec)
+                else
+                    vec = [-(this%length + 1) / 2 + 1, 0, 0]
+                    this%sites(1) = site(orbital_order(1), 1, &
+                        [orbital_order(2)], vec, vec)
+
+                    vec = [this%length / 2, 0, 0]
+                    this%sites(n) = site(orbital_order(this%get_nsites()), 2, &
+                        [orbital_order(this%get_nsites()-1)], vec, vec)
+
+                end if
+
+                ! and do the rest inbetween which is always the same
+                do i = 2, this%get_nsites() - 1
+
+                    vec = [-(this%length + 1) / 2 + i, 0, 0]
+                    ! if periodic and first or last: already dealt with above
+                    this%sites(i) = site(orbital_order(i), &
+                        N_CONNECT_MAX_CHAIN, [orbital_order(i-1),orbital_order(i + 1)], vec, vec)
+
+                end do
+
 
             else
-                ! open boundary conditions:
-                ! first site:
-                this%sites(1) = site(1, 1, [this%get_nsites()/2 + 1], &
-                                     [-(this%length + 1) / 2 + 1, 0, 0])
+                if (this%is_periodic()) then
 
-                ! last site:
-                this%sites(this%get_nsites()) = site(this%get_nsites(), 1, &
-                                                     [this%get_nsites()/2], [this%length / 2, 0, 0])
+                    ! use more concise site contructors!
+                    ! also encode k- and real-space vectors.. i have to get this right!
+                    vec = [-(this%length + 1) / 2 + 1, 0, 0]
 
+                    this%sites(1) = site(1, 2, &
+                        [this%get_nsites(), this%get_nsites()/2 + 1], vec, vec)
+
+                    vec = [this%length / 2, 0, 0]
+                    this%sites(this%get_nsites()) = site(this%get_nsites(), 2, &
+                                                         [this%get_nsites()/2, 1], vec, vec)
+
+                else
+                    ! open boundary conditions:
+                    ! first site:
+                    this%sites(1) = site(1, 1, [this%get_nsites()/2 + 1], &
+                                         [-(this%length + 1) / 2 + 1, 0, 0])
+
+                    ! last site:
+                    this%sites(this%get_nsites()) = site(this%get_nsites(), 1, &
+                                                         [this%get_nsites()/2], [this%length / 2, 0, 0])
+
+                end if
+
+                ! and do the rest inbetween which is always the same
+                do i = 2, this%get_nsites()/2
+
+                    vec = [-(this%length + 1) / 2 + 2 * i - 1, 0, 0]
+                    ! if periodic and first or last: already dealt with above
+                    this%sites(i) = site(i, N_CONNECT_MAX_CHAIN, &
+                        [this%get_nsites()/2 + i - 1, this%get_nsites()/2 + i], vec, vec)
+
+                end do
+
+                j = 1
+                do i = this%get_nsites()/2 + 1, this%get_nsites() - 1
+                    vec = [-(this%length + 1) / 2 + 2*j , 0, 0]
+                    ! if periodic and first or last: already dealt with above
+                    this%sites(i) = site(i, N_CONNECT_MAX_CHAIN, &
+                        [j, j + 1], vec, vec)
+
+                    j = j + 1
+                end do
             end if
-
-            ! and do the rest inbetween which is always the same
-            do i = 2, this%get_nsites()/2
-
-                vec = [-(this%length + 1) / 2 + 2 * i - 1, 0, 0]
-                ! if periodic and first or last: already dealt with above
-                this%sites(i) = site(i, N_CONNECT_MAX_CHAIN, &
-                    [this%get_nsites()/2 + i - 1, this%get_nsites()/2 + i], vec, vec)
-
-            end do
-
-            j = 1
-            do i = this%get_nsites()/2 + 1, this%get_nsites() - 1
-                vec = [-(this%length + 1) / 2 + 2*j , 0, 0]
-                ! if periodic and first or last: already dealt with above
-                this%sites(i) = site(i, N_CONNECT_MAX_CHAIN, &
-                    [j, j + 1], vec, vec)
-
-                j = j + 1
-            end do
-
         else
             if (this%get_nsites() == 1) then
                 this%sites(1) = site(ind=1, n_neighbors=0, neighbors=[integer ::], &
@@ -2090,16 +2125,58 @@ contains
         ! use cshift intrinsic of fortran..
         ! how do i efficiently set that up?
         if (this%t_bipartite_order) then
-            if (this%get_nsites() /= 16) then
-                call stop_all(this_routine, &
-                    "bipartite order for now only implemented for 4x4!")
-            end if
-            allocate(order(16), source = 0)
-            order = [ 1,  9,  2, 10, &
-                     11,  3, 12,  4, &
-                      5, 13,  6, 14, &
-                     15,  7, 16,  8]
+            if (this%length(1) /= this%length(2)) then
+                if (this%length(2) /= 2) then
+                    call stop_all(this_routine, &
+                        "ladder bipartite ordering is implemented with Ly == 2)")
+                end if
+                if (mod(this%length(1),2) /= 0) then
+                    call stop_all(this_routine, &
+                        "Lx must be even for ladder bipartite ordering!")
+                end if
 
+                allocate(order(this%get_nsites()), source = 0)
+                if (t_input_order) then
+                    order = orbital_order
+                else
+                    do i = 1, this%length(1)/2
+                        order(2*i-1) = i
+                        order(2*i) = this%length(1) + i
+                    end do
+                    do i = this%length(1)/2 + 1, this%length(1)
+                        order(2*i-1) = this%length(1) + i
+                        order(2*i) = i
+                    end do
+                end if
+            else
+                if (this%get_nsites() == 16) then
+                    allocate(order(16), source = 0)
+                    if (t_input_order) then
+                        order = orbital_order
+                    else
+                        order = [ 1,  9,  2, 10, &
+                                 11,  3, 12,  4, &
+                                  5, 13,  6, 14, &
+                                 15,  7, 16,  8]
+                    end if
+                else if (this%get_nsites() == 36) then
+
+                    allocate(order(36), source = 0)
+                    if (t_input_order) then
+                        order = orbital_order
+                    else
+                        order = [ 1, 19,  2, 20,  3, 21, &
+                                 22,  4, 23,  5, 24,  6, &
+                                  7, 25,  8, 26,  9, 27, &
+                                 28, 10, 29, 11, 30, 12, &
+                                 13, 31, 14, 32, 15, 33, &
+                                 34, 16, 35, 17, 36, 18]
+                    end if
+                else
+                    call stop_all(this_routine, &
+                        "bipartite order for square only implemented for 4x4! and 5x6 for now!")
+                end if
+            end if
         else
             allocate(order(this%get_nsites()), source = [(i, i = 1, this%get_nsites())])
         end if
@@ -2579,7 +2656,15 @@ contains
                     "bipartite order for now only implemented for 3x3 tilted!")
             end if
             allocate(order(18), source = 0)
-            order = [ 1, 2, 10, 3, 4, 11, 5, 12, 6, 13, 7, 14, 8, 15, 16, 9, 17, 18]
+
+            if (t_input_order) then
+                call stop_all(this_routine, &
+                    "input order not finished for tilted")
+
+                order = orbital_order
+            else
+                order = [ 1, 2, 10, 3, 4, 11, 5, 12, 6, 13, 7, 14, 8, 15, 16, 9, 17, 18]
+            end if
         else
             allocate(order(this%get_nsites()), source = [(i, i = 1, this%get_nsites())])
         end if
