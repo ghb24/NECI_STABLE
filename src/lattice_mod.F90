@@ -1706,21 +1706,21 @@ contains
                 n = this%get_nsites()
                 if (this%is_periodic()) then
                     vec = [-(this%length + 1) / 2 + 1, 0, 0]
-                    this%sites(1) = site(orbital_order(1), 2, &
+                    this%sites(orbital_order(1)) = site(orbital_order(1), 2, &
                         [orbital_order(n), orbital_order(2)], vec, vec)
 
                     vec = [this%length / 2, 0, 0]
-                    this%sites(n) = site(orbital_order(n), 2, &
+                    this%sites(orbital_order(n)) = site(orbital_order(n), 2, &
                         [orbital_order(n-1), orbital_order(1)], vec, vec)
 
 
                 else
                     vec = [-(this%length + 1) / 2 + 1, 0, 0]
-                    this%sites(1) = site(orbital_order(1), 1, &
+                    this%sites(orbital_order(1)) = site(orbital_order(1), 1, &
                         [orbital_order(2)], vec, vec)
 
                     vec = [this%length / 2, 0, 0]
-                    this%sites(n) = site(orbital_order(this%get_nsites()), 2, &
+                    this%sites(orbital_order(n)) = site(orbital_order(this%get_nsites()), 2, &
                         [orbital_order(this%get_nsites()-1)], vec, vec)
 
                 end if
@@ -1730,7 +1730,7 @@ contains
 
                     vec = [-(this%length + 1) / 2 + i, 0, 0]
                     ! if periodic and first or last: already dealt with above
-                    this%sites(i) = site(orbital_order(i), &
+                    this%sites(orbital_order(i)) = site(orbital_order(i), &
                         N_CONNECT_MAX_CHAIN, [orbital_order(i-1),orbital_order(i + 1)], vec, vec)
 
                 end do
@@ -2201,7 +2201,7 @@ contains
 
                 k_vec = [x - (this%length(1) + 1) / 2, y - (this%length(2) + 1) / 2, 0]
                 r_vec = [x - (this%length(1) + 1) / 2, y - (this%length(2) + 1) / 2, 0]
-                this%sites(i) = site(order(i), size(neigh), neigh, k_vec, r_vec)
+                this%sites(order(i)) = site(order(i), size(neigh), neigh, k_vec, r_vec)
 
                 deallocate(neigh)
 
@@ -2233,7 +2233,7 @@ contains
                 k_vec = [x - (this%length(1) + 1) / 2, y - (this%length(2) + 1) / 2, 0]
                 r_vec = [x - (this%length(1) + 1) / 2, y - (this%length(2) + 1) / 2, 0]
 
-                this%sites(i) = site(order(i), size(neigh), neigh, k_vec, r_vec)
+                this%sites(order(i)) = site(order(i), size(neigh), neigh, k_vec, r_vec)
 
                 deallocate(neigh)
             end do
@@ -2264,7 +2264,7 @@ contains
                 k_vec = [x - (this%length(1) + 1) / 2, y - (this%length(2) + 1) / 2, 0]
                 r_vec = [x - (this%length(1) + 1) / 2, y - (this%length(2) + 1) / 2, 0]
 
-                this%sites(i) = site(order(i), size(neigh), neigh, k_vec, r_vec)
+                this%sites(order(i)) = site(order(i), size(neigh), neigh, k_vec, r_vec)
 
                 deallocate(neigh)
             end do
@@ -2312,7 +2312,7 @@ contains
                 k_vec = [x - (this%length(1) + 1) / 2, y - (this%length(2) + 1) / 2, 0]
                 r_vec = [x - (this%length(1) + 1) / 2, y - (this%length(2) + 1) / 2, 0]
 
-                this%sites(i) = site(order(i), size(neigh), neigh, k_vec, r_vec)
+                this%sites(order(i)) = site(order(i), size(neigh), neigh, k_vec, r_vec)
 
                 deallocate(neigh)
             end do

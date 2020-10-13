@@ -987,11 +987,6 @@ contains
 
 
             case ("BIPARTITE", "BIPARTITE-ORDER")
-!                 if (.not. (t_new_real_space_hubbard .or. &
-!                     t_tJ_model .or. t_heisenberg_model)) then
-!                     call stop_all(this_routine, &
-!                         "bipartite order ONLY implmented for 'new' real-space implementation")
-!                 end if
                 t_bipartite_order = .true.
 
                 if (item < nitems) then
@@ -1041,17 +1036,13 @@ contains
                     lat => lattice(lattice_type, length_x, length_y, length_z, &
                                    .not. t_open_bc_x,.not. t_open_bc_y,.not. t_open_bc_z, 'k-space')
                 else if (t_new_real_space_hubbard) then
-                    if (t_bipartite_order) then
-                        lat => lattice(lattice_type, length_x, length_y, length_z, &
-                                   .not. t_open_bc_x,.not. t_open_bc_y, &
-                                   .not. t_open_bc_z, 'real-space', .true.)
-                    else
-                        lat => lattice(lattice_type, length_x, length_y, length_z, &
-                                   .not. t_open_bc_x,.not. t_open_bc_y,.not. t_open_bc_z, 'real-space')
-                    end if
+                    lat => lattice(lattice_type, length_x, length_y, length_z, &
+                               .not. t_open_bc_x,.not. t_open_bc_y, &
+                                   .not. t_open_bc_z, 'real-space', t_bipartite_order = t_bipartite_order)
                 else
                     lat => lattice(lattice_type, length_x, length_y, length_z, &
-                                   .not. t_open_bc_x,.not. t_open_bc_y,.not. t_open_bc_z)
+                                   .not. t_open_bc_x,.not. t_open_bc_y,.not. t_open_bc_z, &
+                                   t_bipartite_order = t_bipartite_order)
 
                 end if
 

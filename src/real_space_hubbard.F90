@@ -165,14 +165,8 @@ contains
             lat => lattice(lattice_type, length_x, length_y, length_z,.not. t_open_bc_x, &
                            .not. t_open_bc_y,.not. t_open_bc_z)
         else
-            ! otherwise i have to do it the other way around
-            if (t_bipartite_order) then
-                lat => lattice(lattice_type, length_x, length_y, length_z,.not. t_open_bc_x, &
-                           .not. t_open_bc_y,.not. t_open_bc_z, 'real-space', .true.)
-            else
-                lat => lattice(lattice_type, length_x, length_y, length_z,.not. t_open_bc_x, &
-                       .not. t_open_bc_y,.not. t_open_bc_z)
-            end if
+            lat => lattice(lattice_type, length_x, length_y, length_z,.not. t_open_bc_x, &
+                       .not. t_open_bc_y,.not. t_open_bc_z, 'real-space', t_bipartite_order = t_bipartite_order)
 
             ! if nbaiss was not yet provided:
             if (nbasis <= 0) then
@@ -836,7 +830,7 @@ contains
 
                     r_i = lat%get_r_vec(i)
 
-                    associate(next => lat%get_neighbors(i))
+                    associate(next => lat%get_neighbors(ind))
 
                         do j = 1, size(next)
 
@@ -924,9 +918,9 @@ contains
                             tmat2d(2 * ind, 2 * next(j)) = mat_el
 
                             if (t_print_tmat) then
-                                write(iunit, *) 2 * i - 1, 2 * next(j) - 1, mat_el
-                                write(iunit, *) 2 * i, 2 * next(j), mat_el
-                                write(iunit2,*) i, next(j), mat_el
+                                write(iunit, *) 2 * ind - 1, 2 * next(j) - 1, mat_el
+                                write(iunit, *) 2 * ind, 2 * next(j), mat_el
+                                write(iunit2,*) ind, next(j), mat_el
                             end if
 
                         end do
@@ -953,7 +947,7 @@ contains
 
                     r_i = lat%get_r_vec(i)
 
-                    associate(next => lat%get_neighbors(i))
+                    associate(next => lat%get_neighbors(ind))
 
                         do j = 1, size(next)
 
@@ -1004,9 +998,9 @@ contains
                             tmat2d(2 * ind, 2 * next(j)) = mat_el
 
                             if (t_print_tmat) then
-                                write(iunit, *) 2 * i - 1, 2 * next(j) - 1, mat_el
-                                write(iunit, *) 2 * i, 2 * next(j), mat_el
-                                write(iunit2,*) i, next(j), mat_el
+                                write(iunit, *) 2 * ind - 1, 2 * next(j) - 1, mat_el
+                                write(iunit, *) 2 * ind, 2 * next(j), mat_el
+                                write(iunit2,*) ind, next(j), mat_el
                             end if
 
                         end do
@@ -1030,7 +1024,7 @@ contains
                 do i = 1, lat%get_nsites()
                     ind = lat%get_site_index(i)
 
-                    associate(next => lat%get_neighbors(i))
+                    associate(next => lat%get_neighbors(ind))
                         ! beta orbitals:
                         tmat2d(2 * ind - 1, 2 * next - 1) = bhub
                         ! alpha:
@@ -1084,7 +1078,7 @@ contains
                 ASSERT(ind > 0)
                 ASSERT(ind <= nBasis / 2)
 
-                associate(next => lat%get_neighbors(i))
+                associate(next => lat%get_neighbors(ind))
 
                     ASSERT(all(next > 0))
                     ASSERT(all(next <= nBasis / 2))
