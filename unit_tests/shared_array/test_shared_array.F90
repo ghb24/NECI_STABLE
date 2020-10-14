@@ -12,7 +12,7 @@ contains
     subroutine first_test()
         integer(int64), parameter :: val = 1_int64
         ! The maximum number of real64 floats that fit in an array, that is
-        ! indexed with int32
+        ! indexed with uint32_t (32bit system)
         integer(int64), parameter :: max_size = 2_int64**32 / sizeof(val)
         integer(int64) :: i
         integer(MPIArg) :: ierr
@@ -31,7 +31,7 @@ contains
             logical :: correct, all_correct
             correct = .true.
             do i = 1_int64, size(shared_arr%ptr, kind=int64)
-                if (shared_arr%ptr(i) /= 2) then
+                if (shared_arr%ptr(i) /= i) then
                     correct = .false.
                     exit
                 end if
