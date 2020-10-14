@@ -6,19 +6,19 @@ module test_shared_array_mod
     use fruit
     implicit none
     private
-    public :: first_test
+    public :: test_large_array
 
 contains
-    subroutine first_test()
-        integer(int64), parameter :: val = 1_int64
-        ! The maximum number of real64 floats that fit in an array, that is
-        ! indexed with uint32_t (32bit system)
-        integer(int64), parameter :: max_size = 2_int64**32 / sizeof(val)
+    !> This test should test if MPI can allocate shared arrays larger than 4Gb.
+    subroutine test_large_array()
+        ! The maximum number of int64 that fit in an array,
+        ! that is indexed with uint32_t (32bit system). (4Gb limit)
+        integer(int64), parameter :: max_size = 2_int64**32 / sizeof(1_int64)
         integer(int64) :: i
         integer(MPIArg) :: ierr
         type(shared_array_int64_t) :: shared_arr
 
-        call shared_arr%shared_alloc(max_size + 100)
+        call shared_arr%shared_alloc(max_size + 100_int64)
 
         if (iProcIndex_intra == 0) then
             do i = 1_int64, size(shared_arr%ptr, kind=int64)
@@ -28,19 +28,19 @@ contains
         call shared_arr%sync()
 
         block
-            logical :: correct, all_correct
-            correct = .true.
+            logical :: correct(1), all_correct(1)
+            correct(1) = .true.
             do i = 1_int64, size(shared_arr%ptr, kind=int64)
                 if (shared_arr%ptr(i) /= i) then
-                    correct = .false.
+                    correct(1) = .false.
                     exit
                 end if
             end do
-            call MPI_Allreduce(correct, all_correct, 1, MPI_LOGICAL, MPI_LAND, mpi_comm_intra, ierr)
-            call assert_true(all_correct)
+            call MPI_Allreduce(correct, all_correct, 1_MPIArg, MPI_LOGICAL, MPI_LAND, mpi_comm_intra, ierr)
+            call assert_true(all_correct(1))
         end block
         call shared_arr%shared_dealloc()
-    end subroutine first_test
+    end subroutine test_large_array
 
 end module
 
@@ -79,10 +79,9 @@ contains
 
     subroutine shared_array_test_driver()
 
-        call run_test_case(first_test, "first_test")
+        call run_test_case(test_large_array, "first_test")
 
     end subroutine shared_array_test_driver
 
 
 end program test_shared_array
-
