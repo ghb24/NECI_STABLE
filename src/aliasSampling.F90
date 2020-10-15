@@ -514,7 +514,7 @@ contains
     !> @param[in] arr  data to be loaded by that entry
     subroutine setupEntry_3D(this, i, j, k, arr)
         class(AliasSampler_3D_t), intent(inout) :: this
-        integer(int64), intent(in) :: i, j, k
+        integer, intent(in) :: i, j, k
         real(dp), intent(in) :: arr(:)
 
         call this%samplerArray(i, j, k)%initSampler(arr)
