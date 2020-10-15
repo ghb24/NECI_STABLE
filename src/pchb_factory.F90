@@ -12,7 +12,7 @@ module pchb_factory
     use sltcnd_mod, only: sltcnd_excit
     use procedure_pointers, only: generate_single_excit_t
     use UMatCache, only: gtID, numBasisIndices
-    use aliasSampling, only: aliasSamplerArray_t
+    use aliasSampling, only: AliasSampler_1D_t
     use util_mod, only: fuseIndex, intswap, getSpinIndex, near_zero
     use SymExcitDataMod, only: pDoubNew, ScratchSize
     implicit none
@@ -46,7 +46,7 @@ module pchb_factory
 
     type, abstract :: PCHB_excitation_generator_t
         private
-        type(aliasSamplerArray_t) :: pchb_samplers(3)
+        type(AliasSampler_1D_t) :: pchb_samplers(3)
         real(dp), allocatable :: pExch(:)
         integer, allocatable :: tgtOrbs(:, :)
 

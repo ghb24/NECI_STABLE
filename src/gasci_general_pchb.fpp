@@ -12,7 +12,7 @@ module gasci_general_pchb
     use excitation_types, only: SingleExc_t, DoubleExc_t
     use sltcnd_mod, only: sltcnd_excit
     use pchb_factory, only: calc_pgen_single_todo
-    use aliasSampling, only: aliasSamplerArray_t
+    use aliasSampling, only: AliasSampler_1D_t
     use UMatCache, only: gtID, numBasisIndices
     use FciMCData, only: pSingles, excit_gen_store_type, nInvalidExcits, nValidExcits, &
                          pParallel, projEDet
@@ -39,7 +39,7 @@ module gasci_general_pchb
     type :: GAS_PCHB_excit_gen_t
         private
         !> The shape is (3, n_supergroup)
-        type(aliasSamplerArray_t), allocatable :: pchb_samplers(:, :)
+        type(AliasSampler_1D_t), allocatable :: pchb_samplers(:, :)
         type(SuperGroupIndexer_t) :: indexer
         type(GASSpec_t) :: GASSpec
         real(dp), allocatable :: pExch(:, :)
