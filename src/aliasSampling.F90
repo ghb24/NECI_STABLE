@@ -66,28 +66,6 @@ module aliasSampling
     ! is bounded by the number of communicators which cannot exceed 16381 on most
     ! implementations. https://community.intel.com/t5/Intel-oneAPI-HPC-Toolkit/INTEL-MPI-5-0-Bug-in-MPI-3-shared-memory-allocation-MPI-WIN/td-p/1016993
     !------------------------------------------------------------------------------------------!
-
-    type AliasSampler_1D_t
-        private
-        ! this is an array of aliasSamplers, in the end
-        type(aliasSampler_t), allocatable :: samplerArray(:)
-
-        ! shared resources of the array entries
-        type(shared_array_real_t) :: allProbs
-        type(shared_array_real_t) :: allBiasTable
-        type(shared_array_int32_t) :: allAliasTable
-    contains
-        ! constructor
-        procedure :: setupSamplerArray
-        procedure :: setupEntry
-        ! destructor
-        procedure :: samplerArrayDestructor
-        ! get a random element and the generation probability from one of the samplers
-        procedure :: aSample
-        procedure :: aGetProb
-    end type AliasSampler_1D_t
-
-
     type AliasSampler_3D_t
         private
         ! this is an array of aliasSamplers, in the end
@@ -107,6 +85,23 @@ module aliasSampling
         procedure :: sample => aSample_3D
         procedure :: get_prob => aGetProb_3D
     end type AliasSampler_3D_t
+
+
+    type AliasSampler_1D_t
+        private
+        type(AliasSampler_3D_t) :: alias_sampler
+    contains
+        ! constructor
+        procedure :: setupSamplerArray => setupSamplerArray_1D
+        procedure :: setupEntry => setupEntry_1d
+        ! destructor
+        procedure :: samplerArrayDestructor => samplerArrayDestructor_1D
+        ! get a random element and the generation probability from one of the samplers
+        procedure :: aSample => aSample_1D
+        procedure :: aGetProb => aGetProb_1D
+    end type AliasSampler_1D_t
+
+
 
 contains
 
@@ -401,72 +396,31 @@ contains
     !! with one of them each). This only does the allocation.
     !> @param[in] nEntries  number of samplers to initialise
     !> @param[in] entrySize  number of values per sampler
-    subroutine setupSamplerArray(this, nEntries, entrySize)
+    subroutine setupSamplerArray_1D(this, nEntries, entrySize)
         class(AliasSampler_1D_t) :: this
         integer(int64), intent(in) :: nEntries, entrySize
-        integer(int64) :: totalSize
-        integer(int64) :: iEntry, windowStart, windowEnd
-        real(dp), pointer :: probPtr(:)
-        real(dp), pointer :: biasPtr(:)
-        integer, pointer :: aliasPtr(:)
-
-        allocate(this%samplerArray(nEntries))
-
-        ! all entries in the array use the same shared memory window, just different
-        ! portions of it
-        totalSize = nEntries * entrySize
-        call this%allProbs%shared_alloc(totalSize)
-        call this%allBiasTable%shared_alloc(totalSize)
-        call this%allAliasTable%shared_alloc(totalSize)
-
-        do iEntry = 1, nEntries
-            ! from where to where this entry has memory access in the shared resources
-            windowStart = (iEntry - 1) * entrySize + 1
-            windowEnd = windowStart + entrySize - 1
-
-            ! set this entry's pointers
-            this%samplerArray(iEntry)%probs%ptr => this%allProbs%ptr(windowStart:windowEnd)
-            this%samplerArray(iEntry)%table%aliasTable%ptr => this%allAliasTable%ptr(windowStart:windowEnd)
-            this%samplerArray(iEntry)%table%biasTable%ptr => this%allBiasTable%ptr(windowStart:windowEnd)
-        end do
-
-    end subroutine setupSamplerArray
+        call this%alias_sampler%create_array(entrySize, [nEntries, 1_int64, 1_int64])
+    end subroutine setupSamplerArray_1D
 
     !------------------------------------------------------------------------------------------!
 
     !> Initialise one sampler of an array
     !> @param[in] iEntry  index of the entry to initialize
     !> @param[in] arr  data to be loaded by that entry
-    subroutine setupEntry(this, iEntry, arr)
-        class(AliasSampler_1D_t) :: this
+    subroutine setupEntry_1D(this, iEntry, arr)
+        class(AliasSampler_1D_t), intent(inout) :: this
         integer, intent(in) :: iEntry
         real(dp), intent(in) :: arr(:)
-
-        call this%samplerArray(iEntry)%initSampler(arr)
-
-        ! Sync the shared resources
-        call this%allBiasTable%sync()
-        call this%allAliasTable%sync()
-        call this%allProbs%sync()
-    end subroutine setupEntry
+        call this%alias_sampler%setup_entry(iEntry, 1, 1, arr)
+    end subroutine setupEntry_1D
 
     !------------------------------------------------------------------------------------------!
 
     !> Deallocate an array of samplers
-    subroutine samplerArrayDestructor(this)
+    subroutine samplerArrayDestructor_1D(this)
         class(AliasSampler_1D_t), intent(inout) :: this
-
-        ! free the collective resources
-        call this%allAliasTable%shared_dealloc()
-        call this%allProbs%shared_dealloc()
-        call this%allBiasTable%shared_dealloc()
-
-        this%allBiasTable%ptr => null()
-        this%allProbs%ptr => null()
-        this%allAliasTable%ptr => null()
-
-        if (allocated(this%samplerArray)) deallocate(this%samplerArray)
-    end subroutine samplerArrayDestructor
+        call this%alias_sampler%finalize()
+    end subroutine samplerArrayDestructor_1D
 
     !------------------------------------------------------------------------------------------!
     ! Array access functions
@@ -476,27 +430,25 @@ contains
     !> @param[in] iEntry  index of the sampler to use
     !> @param[out] tgt  on return, this is a random number in the sampling range of entrySize
     !> @param[out] prob  on return, the probability of picking tgt
-    subroutine aSample(this, iEntry, tgt, prob)
+    subroutine aSample_1D(this, iEntry, tgt, prob)
         class(AliasSampler_1D_t), intent(in) :: this
         integer, intent(in) :: iEntry
         integer, intent(out) :: tgt
         real(dp), intent(out) :: prob
-
-        call this%samplerArray(iEntry)%sample(tgt, prob)
-    end subroutine aSample
+        call this%alias_sampler%sample(iEntry, 1, 1, tgt, prob)
+    end subroutine aSample_1D
 
     !> Returns the probability to draw tgt from the sampler with index iEntry
     !> @param[in] iEntry  index of the sampler to use
     !> @param[in] tgt  the number for which we request the probability of sampling
     !> @return prob  the probability of drawing tgt with the sample routine
-    pure function aGetProb(this, iEntry, tgt) result(prob)
+    pure function aGetProb_1D(this, iEntry, tgt) result(prob)
         class(AliasSampler_1D_t), intent(in) :: this
         integer, intent(in) :: iEntry
         integer, intent(in) :: tgt
         real(dp) :: prob
-
-        prob = this%samplerArray(iEntry)%getProb(tgt)
-    end function aGetProb
+        prob = this%alias_sampler%get_prob(iEntry, 1, 1, tgt)
+    end function aGetProb_1D
 
     !------------------------------------------------------------------------------------------!
     ! Public non-member function to deallocate 1d-arrays of samplers (common task)
@@ -583,10 +535,6 @@ contains
         call this%allAliasTable%shared_dealloc()
         call this%allProbs%shared_dealloc()
         call this%allBiasTable%shared_dealloc()
-
-        this%allBiasTable%ptr => null()
-        this%allProbs%ptr => null()
-        this%allAliasTable%ptr => null()
 
         if (allocated(this%samplerArray)) deallocate(this%samplerArray)
     end subroutine
