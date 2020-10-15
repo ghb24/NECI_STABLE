@@ -9,7 +9,7 @@ module aliasSampling
     implicit none
 
     private
-    public :: aliasSampler_t, aliasSamplerArray_t, clear_sampler_array, aliasTable_t
+    public :: aliasSampler_t, AliasSampler_1D_t, clear_sampler_array, aliasTable_t
 
     ! type for tables: contains everything you need to get a random number
     ! with given biases
@@ -22,14 +22,15 @@ module aliasSampling
         type(shared_array_int32_t) :: aliasTable
 
     contains
+        private
         ! constructor
-        procedure :: setupTable
+        procedure, public:: setupTable
         ! only load the data, without allocation
         procedure :: initTable
         ! destructor - final would be suited better, but is not supported by all compilers
-        procedure :: tableDestructor
+        procedure, public :: tableDestructor
         ! get a random value from the alias table
-        procedure :: getRand
+        procedure, public :: getRand
     end type aliasTable_t
 
     !------------------------------------------------------------------------------------------!
@@ -61,10 +62,12 @@ module aliasSampling
 
     !------------------------------------------------------------------------------------------!
     ! sampler array class - required for technical reasons: we need multiple samplers to share
-    ! the same shared memory windows
+    ! the same shared memory windows, because the number of shared memory windows
+    ! is bounded by the number of communicators which cannot exceed 16381 on most
+    ! implementations. https://community.intel.com/t5/Intel-oneAPI-HPC-Toolkit/INTEL-MPI-5-0-Bug-in-MPI-3-shared-memory-allocation-MPI-WIN/td-p/1016993
     !------------------------------------------------------------------------------------------!
 
-    type aliasSamplerArray_t
+    type AliasSampler_1D_t
         private
         ! this is an array of aliasSamplers, in the end
         type(aliasSampler_t), allocatable :: samplerArray(:)
@@ -82,7 +85,28 @@ module aliasSampling
         ! get a random element and the generation probability from one of the samplers
         procedure :: aSample
         procedure :: aGetProb
-    end type aliasSamplerArray_t
+    end type AliasSampler_1D_t
+
+
+    type AliasSampler_3D_t
+        private
+        ! this is an array of aliasSamplers, in the end
+        type(aliasSampler_t), allocatable :: samplerArray(:, :, :)
+
+        ! shared resources of the array entries
+        type(shared_array_real_t) :: allProbs
+        type(shared_array_real_t) :: allBiasTable
+        type(shared_array_int32_t) :: allAliasTable
+    contains
+        ! constructor
+        procedure :: create_array => setupSamplerArray_3D
+        procedure :: setup_entry => setupEntry_3D
+        ! destructor
+        procedure :: finalize => samplerArrayDestructor_3D
+        ! get a random element and the generation probability from one of the samplers
+        procedure :: sample => aSample_3D
+        procedure :: get_prob => aGetProb_3D
+    end type AliasSampler_3D_t
 
 contains
 
@@ -389,7 +413,7 @@ contains
     !> @param[in] entrySize  number of values per sampler
     subroutine setupSamplerArray(this, nEntries, entrySize)
         implicit none
-        class(aliasSamplerArray_t) :: this
+        class(AliasSampler_1D_t) :: this
         integer(int64), intent(in) :: nEntries, entrySize
         integer(int64) :: totalSize
         integer(int64) :: iEntry, windowStart, windowEnd
@@ -426,7 +450,7 @@ contains
     !> @param[in] arr  data to be loaded by that entry
     subroutine setupEntry(this, iEntry, arr)
         implicit none
-        class(aliasSamplerArray_t) :: this
+        class(AliasSampler_1D_t) :: this
         integer, intent(in) :: iEntry
         real(dp), intent(in) :: arr(:)
 
@@ -443,7 +467,7 @@ contains
     !> Deallocate an array of samplers
     subroutine samplerArrayDestructor(this)
         implicit none
-        class(aliasSamplerArray_t) :: this
+        class(AliasSampler_1D_t) :: this
 
         ! free the collective resources
         call this%allAliasTable%shared_dealloc()
@@ -467,7 +491,7 @@ contains
     !> @param[out] prob  on return, the probability of picking tgt
     subroutine aSample(this, iEntry, tgt, prob)
         implicit none
-        class(aliasSamplerArray_t), intent(in) :: this
+        class(AliasSampler_1D_t), intent(in) :: this
         integer, intent(in) :: iEntry
         integer, intent(out) :: tgt
         real(dp), intent(out) :: prob
@@ -481,7 +505,7 @@ contains
     !> @return prob  the probability of drawing tgt with the sample routine
     pure function aGetProb(this, iEntry, tgt) result(prob)
         implicit none
-        class(aliasSamplerArray_t), intent(in) :: this
+        class(AliasSampler_1D_t), intent(in) :: this
         integer, intent(in) :: iEntry
         integer, intent(in) :: tgt
         real(dp) :: prob
@@ -506,5 +530,115 @@ contains
         end do
         deallocate(arr)
     end subroutine clear_sampler_array
+
+
+    !> Setup an array of samplers using a single shared resource (split into parts associated
+    !! with one of them each). This only does the allocation.
+    !> @param[in] entrySize  number of values per sampler
+    !> @param[in] dims Dimension of the three-dimensional array of samplers.
+    subroutine setupSamplerArray_3D(this, entry_size, dims)
+        class(AliasSampler_3D_t), intent(inout) :: this
+        integer(int64), intent(in) :: dims(3), entry_size
+
+        integer(int64) :: i, j, k, window_start, window_end, total_size
+
+        allocate(this%samplerArray(dims(1), dims(2), dims(3)))
+
+        ! all entries in the array use the same shared memory window, just different
+        ! portions of it
+        total_size = entry_size * product(dims)
+        call this%allProbs%shared_alloc(total_size)
+        call this%allBiasTable%shared_alloc(total_size)
+        call this%allAliasTable%shared_alloc(total_size)
+
+        window_start = 1
+        do k = 1, dims(3)
+            do j = 1, dims(2)
+                do i = 1, dims(1)
+                    ! from where to where this entry has memory access in the shared resources
+                    window_end = window_start + entry_size - 1
+
+                    ! set this entry's pointers
+                    this%samplerArray(i, j, k)%probs%ptr => this%allProbs%ptr(window_start:window_end)
+                    this%samplerArray(i, j, k)%table%aliasTable%ptr => this%allAliasTable%ptr(window_start:window_end)
+                    this%samplerArray(i, j, k)%table%biasTable%ptr => this%allBiasTable%ptr(window_start:window_end)
+                    window_start = window_end + 1
+                end do
+            end do
+        end do
+    end subroutine
+
+    !> @brief
+    !> Initialise one sampler of an array
+    !>
+    !> @param[in] i Index of the entry to initialize
+    !> @param[in] j Index of the entry to initialize
+    !> @param[in] k Index of the entry to initialize
+    !> @param[in] arr  data to be loaded by that entry
+    subroutine setupEntry_3D(this, i, j, k, arr)
+        class(AliasSampler_3D_t), intent(inout) :: this
+        integer(int64), intent(in) :: i, j, k
+        real(dp), intent(in) :: arr(:)
+
+        call this%samplerArray(i, j, k)%initSampler(arr)
+
+        ! Sync the shared resources
+        call this%allBiasTable%sync()
+        call this%allAliasTable%sync()
+        call this%allProbs%sync()
+    end subroutine
+
+
+    !> @brief
+    !> Deallocate an array of samplers
+    subroutine samplerArrayDestructor_3D(this)
+        class(AliasSampler_3D_t) :: this
+
+        ! free the collective resources
+        call this%allAliasTable%shared_dealloc()
+        call this%allProbs%shared_dealloc()
+        call this%allBiasTable%shared_dealloc()
+
+        this%allBiasTable%ptr => null()
+        this%allProbs%ptr => null()
+        this%allAliasTable%ptr => null()
+
+        if (allocated(this%samplerArray)) deallocate(this%samplerArray)
+    end subroutine
+
+
+    !------------------------------------------------------------------------------------------!
+    ! Array access functions
+    !------------------------------------------------------------------------------------------!
+
+    !> draw a random element from 1:entrySize with the probabilities listed in this entry's prob
+    !> @param[in] i Index of the sampler to use
+    !> @param[in] j Index of the sampler to use
+    !> @param[in] k Index of the sampler to use
+    !> @param[out] tgt  on return, this is a random number in the sampling range of entrySize
+    !> @param[out] prob  on return, the probability of picking tgt
+    subroutine aSample_3D(this, i, j, k, tgt, prob)
+        class(AliasSampler_3D_t), intent(in) :: this
+        integer, intent(in) :: i, j, k
+        integer, intent(out) :: tgt
+        real(dp), intent(out) :: prob
+
+        call this%samplerArray(i, j, k)%sample(tgt, prob)
+    end subroutine
+
+    !> Returns the probability to draw tgt from the sampler with index iEntry
+    !> @param[in] i Index of the sampler to use
+    !> @param[in] j Index of the sampler to use
+    !> @param[in] k Index of the sampler to use
+    !> @param[in] tgt  the number for which we request the probability of sampling
+    !> @return prob  the probability of drawing tgt with the sample routine
+    pure function aGetProb_3D(this, i, j, k, tgt) result(prob)
+        class(AliasSampler_3D_t), intent(in) :: this
+        integer, intent(in) :: i, j, k
+        integer, intent(in) :: tgt
+        real(dp) :: prob
+
+        prob = this%samplerArray(i, j, k)%getProb(tgt)
+    end function
 
 end module aliasSampling
