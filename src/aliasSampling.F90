@@ -118,8 +118,7 @@ contains
     !> @param[in] arr  array containing the (not necessarily normalized) probabilities we
     !!              want to use for sampling
     subroutine setupTable(this, arr)
-        implicit none
-        class(aliasTable_t) :: this
+        class(aliasTable_t), intent(inout) :: this
         real(dp), intent(in) :: arr(:)
 
         character(*), parameter :: t_r = "setupTable"
@@ -147,8 +146,7 @@ contains
     !> @param[in] arr - array containing the (not necessarily normalized) probabilities we
     !>              want to use for sampling
     subroutine initTable(this, arr)
-        implicit none
-        class(aliasTable_t) :: this
+        class(aliasTable_t), intent(inout) :: this
         real(dp), intent(in) :: arr(:)
 
         integer :: i, j, cV, cU
@@ -235,8 +233,7 @@ contains
 
     !> clear the memory used by the alias table
     subroutine tableDestructor(this)
-        implicit none
-        class(aliasTable_t) :: this
+        class(aliasTable_t), intent(inout) :: this
 
         call this%aliasTable%shared_dealloc()
         call this%biasTable%shared_dealloc()
@@ -250,8 +247,7 @@ contains
     !> @return ind  random number between 1 and the size of the array used to create the
     !!               aliasTable object
     function getRand(this) result(ind)
-        implicit none
-        class(aliasTable_t) :: this
+        class(aliasTable_t), intent(in) :: this
         integer :: ind
         real(dp) :: r, bias
         integer :: sizeArr, pos
@@ -282,8 +278,7 @@ contains
     !> @param[in] arr  array containing the (not necessarily normalized) probabilities we
     !!              want to use for sampling
     subroutine setupSampler(this, arr)
-        implicit none
-        class(aliasSampler_t) :: this
+        class(aliasSampler_t), intent(inout) :: this
         real(dp), intent(in) :: arr(:)
 
         integer(int64) :: arrSize
@@ -313,8 +308,7 @@ contains
     !> @param[in] arr  array containing the (not necessarily normalized) probabilities we
     !!              want to use for sampling
     subroutine initSampler(this, arr)
-        implicit none
-        class(aliasSampler_t) :: this
+        class(aliasSampler_t), intent(inout) :: this
         real(dp), intent(in) :: arr(:)
 
         ! if all weights are 0, throw an error
@@ -335,8 +329,7 @@ contains
     !> @param[in] arr  array containing the (not necessarily normalized) probabilities we
     !!              want to use for sampling
     subroutine initProbs(this, arr)
-        implicit none
-        class(aliasSampler_t) :: this
+        class(aliasSampler_t), intent(inout) :: this
         real(dp), intent(in) :: arr(:)
 
         ! the array is shared memory, so only node-root has to do this
@@ -349,8 +342,7 @@ contains
     !------------------------------------------------------------------------------------------!
 
     subroutine samplerDestructor(this)
-        implicit none
-        class(aliasSampler_t) :: this
+        class(aliasSampler_t), intent(inout) :: this
 
         ! free the stored probabilities
         call this%probs%shared_dealloc()
@@ -364,7 +356,6 @@ contains
     !> @param[in] tgt  on return, this is a random number in the sampling range of this
     !> @param[out] prob  on return, the probability of picking tgt
     subroutine sample(this, tgt, prob)
-        implicit none
         class(aliasSampler_t), intent(in) :: this
         integer, intent(out) :: tgt
         real(dp), intent(out) :: prob
@@ -387,7 +378,6 @@ contains
     !> @param[in] tgt  the number for which we request the probability of sampling
     !> @param[out] prob  the probability of drawing tgt with the sample routine
     pure function getProb(this, tgt) result(prob)
-        implicit none
         class(aliasSampler_t), intent(in) :: this
         integer, intent(in) :: tgt
         real(dp) :: prob
@@ -412,7 +402,6 @@ contains
     !> @param[in] nEntries  number of samplers to initialise
     !> @param[in] entrySize  number of values per sampler
     subroutine setupSamplerArray(this, nEntries, entrySize)
-        implicit none
         class(AliasSampler_1D_t) :: this
         integer(int64), intent(in) :: nEntries, entrySize
         integer(int64) :: totalSize
@@ -449,7 +438,6 @@ contains
     !> @param[in] iEntry  index of the entry to initialize
     !> @param[in] arr  data to be loaded by that entry
     subroutine setupEntry(this, iEntry, arr)
-        implicit none
         class(AliasSampler_1D_t) :: this
         integer, intent(in) :: iEntry
         real(dp), intent(in) :: arr(:)
@@ -466,8 +454,7 @@ contains
 
     !> Deallocate an array of samplers
     subroutine samplerArrayDestructor(this)
-        implicit none
-        class(AliasSampler_1D_t) :: this
+        class(AliasSampler_1D_t), intent(inout) :: this
 
         ! free the collective resources
         call this%allAliasTable%shared_dealloc()
@@ -490,7 +477,6 @@ contains
     !> @param[out] tgt  on return, this is a random number in the sampling range of entrySize
     !> @param[out] prob  on return, the probability of picking tgt
     subroutine aSample(this, iEntry, tgt, prob)
-        implicit none
         class(AliasSampler_1D_t), intent(in) :: this
         integer, intent(in) :: iEntry
         integer, intent(out) :: tgt
@@ -504,7 +490,6 @@ contains
     !> @param[in] tgt  the number for which we request the probability of sampling
     !> @return prob  the probability of drawing tgt with the sample routine
     pure function aGetProb(this, iEntry, tgt) result(prob)
-        implicit none
         class(AliasSampler_1D_t), intent(in) :: this
         integer, intent(in) :: iEntry
         integer, intent(in) :: tgt
@@ -521,7 +506,7 @@ contains
     !! intrinsic arrays, the sampler array class has its own deallocate routine.
     !> @param[in, out] arr  array to deallocate
     subroutine clear_sampler_array(arr)
-        type(aliasSampler_t), allocatable :: arr(:)
+        type(aliasSampler_t), allocatable, intent(inout) :: arr(:)
 
         integer :: i
 
@@ -592,7 +577,7 @@ contains
     !> @brief
     !> Deallocate an array of samplers
     subroutine samplerArrayDestructor_3D(this)
-        class(AliasSampler_3D_t) :: this
+        class(AliasSampler_3D_t), intent(inout) :: this
 
         ! free the collective resources
         call this%allAliasTable%shared_dealloc()
