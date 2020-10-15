@@ -69,7 +69,6 @@ contains
 
         ! assume that if ptr is associated, it points to mpi shared memory
         if (associated(this%ptr)) call shared_deallocate_mpi(this%win, this%ptr)
-        this%ptr => null()
         ! First, check if we have to log the deallocation
         if (this%tag /= 0) call LogMemDealloc(t_r, this%tag)
     end subroutine safe_shared_memory_dealloc_${data_name}$
