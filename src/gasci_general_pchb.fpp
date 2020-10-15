@@ -12,7 +12,7 @@ module gasci_general_pchb
     use excitation_types, only: SingleExc_t, DoubleExc_t
     use sltcnd_mod, only: sltcnd_excit
     use pchb_factory, only: calc_pgen_single_todo
-    use aliasSampling, only: AliasSampler_1D_t
+    use aliasSampling, only: AliasSampler_3D_t
     use UMatCache, only: gtID, numBasisIndices
     use FciMCData, only: pSingles, excit_gen_store_type, nInvalidExcits, nValidExcits, &
                          pParallel, projEDet
@@ -38,8 +38,8 @@ module gasci_general_pchb
 !
     type :: GAS_PCHB_excit_gen_t
         private
-        !> The shape is (3, n_supergroup)
-        type(AliasSampler_1D_t), allocatable :: pchb_samplers(:, :)
+        !> The shape is (fused_number_of_double_excitations, 3, n_supergroup)
+        type(AliasSampler_3D_t) :: pchb_samplers
         type(SuperGroupIndexer_t) :: indexer
         type(GASSpec_t) :: GASSpec
         real(dp), allocatable :: pExch(:, :)
@@ -179,7 +179,11 @@ contains
             ! temporary storage for the unnormalized prob of not picking an exchange excitation
 
             memCost = size(supergroups, 2) * (memCost + abMax * ijMax * 24 * 3)
-            allocate(this%pchb_samplers(3, size(supergroups, 2)))
+            block
+                integer(int64) :: dims(3)
+                dims = [int(ijMax, int64), 3_int64, size(supergroups, dim=2, kind=int64)]
+                call this%pchb_samplers%create_array(dims, int(abMax, int64))
+            end block
             write(iout, *) "Excitation generator requires", real(memCost, dp) / 2.0_dp**30, "GB of memory"
             write(iout, *) "Generating samplers for PCHB excitation generator"
             ! weights per pair
@@ -189,7 +193,6 @@ contains
                 pNoExch = 1.0_dp - this%pExch(:, i_sg)
                 do samplerIndex = 1, 3
                     ! allocate: all samplers have the same size
-                    call this%pchb_samplers(samplerIndex, i_sg)%setupSamplerArray(int(ijMax, int64), int(abMax, int64))
                     do i = 1, nBI
                         ! map i to alpha spin (arbitrary choice)
                         ex(1, 1) = 2 * i
@@ -219,7 +222,7 @@ contains
                                 end do
                             end do
                             ij = fuseIndex(i, j)
-                            call this%pchb_samplers(samplerIndex, i_sg)%setupEntry(ij, w)
+                            call this%pchb_samplers%setup_entry(ij, samplerIndex, i_sg, w)
                             if (samplerIndex == OPP_SPIN_EXCH) this%pExch(ij, i_sg) = sum(w)
                             if (samplerIndex == OPP_SPIN_NO_EXCH) pNoExch(ij) = sum(w)
                         end do
@@ -314,7 +317,7 @@ contains
             end if
         end if
         ! get a pair of orbitals using the precomputed weights
-        call this%pchb_samplers(samplerIndex, i_sg)%aSample(ij, ab, pGenHoles)
+        call this%pchb_samplers%sample(ij, samplerIndex, int(i_sg), ab, pGenHoles)
         ! split the index ab (using a table containing mapping ab -> (a,b))
         orbs = this%tgtOrbs(:, ab)
         ! convert orbs to spin-orbs with the same spin
@@ -407,11 +410,7 @@ contains
         integer :: samplerIndex
         integer(int64) :: i_sg
 
-        do i_sg = 1_int64, this%indexer%n_supergroups()
-            do samplerIndex = 1, 3
-                call this%pchb_samplers(samplerIndex, i_sg)%samplerArrayDestructor()
-            end do
-        end do
+        call this%pchb_samplers%finalize()
         deallocate(this%tgtOrbs)
         deallocate(this%pExch)
     end subroutine
