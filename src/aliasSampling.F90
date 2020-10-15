@@ -399,7 +399,7 @@ contains
     subroutine setupSamplerArray_1D(this, nEntries, entrySize)
         class(AliasSampler_1D_t) :: this
         integer(int64), intent(in) :: nEntries, entrySize
-        call this%alias_sampler%create_array(entrySize, [nEntries, 1_int64, 1_int64])
+        call this%alias_sampler%create_array([nEntries, 1_int64, 1_int64], entrySize)
     end subroutine setupSamplerArray_1D
 
     !------------------------------------------------------------------------------------------!
@@ -471,9 +471,9 @@ contains
 
     !> Setup an array of samplers using a single shared resource (split into parts associated
     !! with one of them each). This only does the allocation.
-    !> @param[in] entrySize  number of values per sampler
     !> @param[in] dims Dimension of the three-dimensional array of samplers.
-    subroutine setupSamplerArray_3D(this, entry_size, dims)
+    !> @param[in] entry_size number of values per sampler
+    subroutine setupSamplerArray_3D(this, dims, entry_size)
         class(AliasSampler_3D_t), intent(inout) :: this
         integer(int64), intent(in) :: dims(3), entry_size
 
