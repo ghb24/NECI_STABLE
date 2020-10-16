@@ -77,7 +77,7 @@ module aliasSampling
         type(shared_array_int32_t) :: allAliasTable
     contains
         ! constructor
-        procedure :: create_array => setupSamplerArray_3D
+        procedure :: shared_alloc => setupSamplerArray_3D
         procedure :: setup_entry => setupEntry_3D
         ! destructor
         procedure :: finalize => samplerArrayDestructor_3D
@@ -92,13 +92,13 @@ module aliasSampling
         type(AliasSampler_3D_t) :: alias_sampler
     contains
         ! constructor
-        procedure :: setupSamplerArray => setupSamplerArray_1D
-        procedure :: setupEntry => setupEntry_1d
+        procedure :: shared_alloc => setupSamplerArray_1D
+        procedure :: setup_entry => setupEntry_1d
         ! destructor
-        procedure :: samplerArrayDestructor => samplerArrayDestructor_1D
+        procedure :: finalize => samplerArrayDestructor_1D
         ! get a random element and the generation probability from one of the samplers
-        procedure :: aSample => aSample_1D
-        procedure :: aGetProb => aGetProb_1D
+        procedure :: sample => aSample_1D
+        procedure :: get_prob => aGetProb_1D
     end type AliasSampler_1D_t
 
 
@@ -399,7 +399,7 @@ contains
     subroutine setupSamplerArray_1D(this, nEntries, entrySize)
         class(AliasSampler_1D_t) :: this
         integer, intent(in) :: nEntries, entrySize
-        call this%alias_sampler%create_array([nEntries, 1, 1], entrySize)
+        call this%alias_sampler%shared_alloc([nEntries, 1, 1], entrySize)
     end subroutine setupSamplerArray_1D
 
     !------------------------------------------------------------------------------------------!

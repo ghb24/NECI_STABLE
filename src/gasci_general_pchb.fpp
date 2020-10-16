@@ -180,7 +180,7 @@ contains
 
             memCost = size(supergroups, 2) * (memCost + abMax * ijMax * 24 * 3)
 
-            call this%pchb_samplers%create_array([ijMax, 3, size(supergroups, 2)], abMax)
+            call this%pchb_samplers%shared_alloc([ijMax, 3, size(supergroups, 2)], abMax)
             write(iout, *) "Excitation generator requires", real(memCost, dp) / 2.0_dp**30, "GB of memory"
             write(iout, *) "Generating samplers for PCHB excitation generator"
             ! weights per pair

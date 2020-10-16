@@ -172,7 +172,7 @@ contains
             end if
         end if
         ! get a pair of orbitals using the precomputed weights
-        call this%pchb_samplers(samplerIndex)%aSample(ij, ab, pGenHoles)
+        call this%pchb_samplers(samplerIndex)%sample(ij, ab, pGenHoles)
         ! split the index ab (using a table containing mapping ab -> (a,b))
         orbs = this%tgtOrbs(:, ab)
         ! convert orbs to spin-orbs with the same spin
@@ -278,7 +278,7 @@ contains
 
         ! look up the probability for this excitation in the sampler
         ab = fuseIndex(nex(2, 1), nex(2, 2))
-        pgen = pgen * this%pchb_samplers(samplerIndex)%aGetProb(ij, ab)
+        pgen = pgen * this%pchb_samplers(samplerIndex)%get_prob(ij, ab)
 
     end function calc_double_pgen_pchb
 
@@ -358,7 +358,7 @@ contains
             ! initialize the three samplers
             do samplerIndex = 1, 3
                 ! allocate: all samplers have the same size
-                call this%pchb_samplers(samplerIndex)%setupSamplerArray(ijMax, abMax)
+                call this%pchb_samplers(samplerIndex)%shared_alloc(ijMax, abMax)
                 do i = 1, nBI
                     ! map i to alpha spin (arbitrary choice)
                     ex(1, 1) = 2 * i
@@ -388,7 +388,7 @@ contains
                             end do
                         end do
                         ij = fuseIndex(i, j)
-                        call this%pchb_samplers(samplerIndex)%setupEntry(ij, w)
+                        call this%pchb_samplers(samplerIndex)%setup_entry(ij, w)
                         if (samplerIndex == OPP_SPIN_EXCH) this%pExch(ij) = sum(w)
                         if (samplerIndex == OPP_SPIN_NO_EXCH) pNoExch(ij) = sum(w)
                     end do
@@ -449,7 +449,7 @@ contains
         integer :: samplerIndex
 
         do samplerIndex = 1, 3
-            call this%pchb_samplers(samplerIndex)%samplerArrayDestructor()
+            call this%pchb_samplers(samplerIndex)%finalize()
         end do
         deallocate(this%tgtOrbs)
         deallocate(this%pExch)
