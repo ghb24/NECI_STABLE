@@ -122,7 +122,7 @@ contains
                                           "Trying to setup empty alias table")
 
         ! allocate the shared memory segment for the alias table
-        arrSize = size(arr)
+        arrSize = size(arr, kind=int64)
 
         call this%biasTable%shared_alloc(arrSize)
         call this%aliasTable%shared_alloc(arrSize)
@@ -148,7 +148,7 @@ contains
         integer(int64) :: arrSize
         integer, allocatable :: overfull(:), underfull(:)
 
-        arrSize = size(arr)
+        arrSize = size(arr, kind=int64)
 
         ! as this is shared memory, only node-root has to do this
         if (iProcIndex_intra == 0) then
@@ -285,7 +285,7 @@ contains
 
         ! initialize the alias table
         call this%table%setupTable(arr)
-        arrSize = size(arr)
+        arrSize = size(arr, kind=int64)
 
         ! allocate the probabilities
         call this%probs%shared_alloc(arrSize)
@@ -398,8 +398,8 @@ contains
     !> @param[in] entrySize  number of values per sampler
     subroutine setupSamplerArray_1D(this, nEntries, entrySize)
         class(AliasSampler_1D_t) :: this
-        integer(int64), intent(in) :: nEntries, entrySize
-        call this%alias_sampler%create_array([nEntries, 1_int64, 1_int64], entrySize)
+        integer, intent(in) :: nEntries, entrySize
+        call this%alias_sampler%create_array([nEntries, 1, 1], entrySize)
     end subroutine setupSamplerArray_1D
 
     !------------------------------------------------------------------------------------------!
@@ -475,9 +475,10 @@ contains
     !> @param[in] entry_size number of values per sampler
     subroutine setupSamplerArray_3D(this, dims, entry_size)
         class(AliasSampler_3D_t), intent(inout) :: this
-        integer(int64), intent(in) :: dims(3), entry_size
+        integer, intent(in) :: dims(3), entry_size
 
-        integer(int64) :: i, j, k, window_start, window_end, total_size
+        integer :: i, j, k
+        integer(int64) :: window_start, window_end, total_size
 
         allocate(this%samplerArray(dims(1), dims(2), dims(3)))
 

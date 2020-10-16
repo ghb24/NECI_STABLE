@@ -5,7 +5,7 @@
 module gasci_general_pchb
     use constants, only: n_int, dp, int64, maxExcit, iout
     use gasci_general, only: gen_exc_single
-    use util_mod, only: fuseIndex, getSpinIndex, near_zero, intswap
+    use util_mod, only: fuseIndex, getSpinIndex, near_zero, intswap, operator(.div.)
     use dSFMT_interface, only: genrand_real2_dSFMT
     use get_excit, only: make_double, exciteIlut
     use SymExcitDataMod, only: pDoubNew, ScratchSize
@@ -179,17 +179,15 @@ contains
             ! temporary storage for the unnormalized prob of not picking an exchange excitation
 
             memCost = size(supergroups, 2) * (memCost + abMax * ijMax * 24 * 3)
-            block
-                integer(int64) :: dims(3)
-                dims = [int(ijMax, int64), 3_int64, size(supergroups, dim=2, kind=int64)]
-                call this%pchb_samplers%create_array(dims, int(abMax, int64))
-            end block
+
+            call this%pchb_samplers%create_array([ijMax, 3, size(supergroups, 2)], abMax)
             write(iout, *) "Excitation generator requires", real(memCost, dp) / 2.0_dp**30, "GB of memory"
             write(iout, *) "Generating samplers for PCHB excitation generator"
             ! weights per pair
             allocate(w(abMax))
             ! initialize the three samplers
             do i_sg = 1, size(supergroups, 2)
+                if (mod(i_sg, 100) == 0) write(iout, *) 'Still generating the samplers'
                 pNoExch = 1.0_dp - this%pExch(:, i_sg)
                 do samplerIndex = 1, 3
                     ! allocate: all samplers have the same size
@@ -228,7 +226,6 @@ contains
                         end do
                     end do
                 end do
-
                 ! normalize the exchange bias (where normalizable)
                 where (near_zero(this%pExch(:, i_sg) + pNoExch))
                     this%pExch(:, i_sg) = 0._dp
@@ -236,6 +233,7 @@ contains
                     this%pExch(:, i_sg) = this%pExch(:, i_sg) / (this%pExch(:, i_sg) + pNoExch)
                 end where
             end do
+
         end subroutine setup_pchb_sampler
 
         function map_orb(orb, alphaSamplers) result(sorb)

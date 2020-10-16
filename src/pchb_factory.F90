@@ -358,7 +358,7 @@ contains
             ! initialize the three samplers
             do samplerIndex = 1, 3
                 ! allocate: all samplers have the same size
-                call this%pchb_samplers(samplerIndex)%setupSamplerArray(int(ijMax, int64), int(abMax, int64))
+                call this%pchb_samplers(samplerIndex)%setupSamplerArray(ijMax, abMax)
                 do i = 1, nBI
                     ! map i to alpha spin (arbitrary choice)
                     ex(1, 1) = 2 * i
