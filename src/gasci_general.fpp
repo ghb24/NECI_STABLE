@@ -693,7 +693,7 @@ contains
 
         remove_double_appearances : block
             integer, allocatable :: tmp_buffer(:, :)
-            allocate(tmp_buffer, mold=doubles_exc_list)
+            allocate(tmp_buffer(size(doubles_exc_list, 1), size(doubles_exc_list, 2)))
             j = 1
             tmp_buffer(:, j) = doubles_exc_list(:, 1)
             do i = 2, size(doubles_exc_list, 2)
