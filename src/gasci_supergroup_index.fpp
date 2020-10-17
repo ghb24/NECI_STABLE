@@ -20,7 +20,7 @@ module gasci_supergroup_index
     type :: SuperGroupIndexer_t
         private
         type(GASSpec_t) :: GASspec
-        integer(int64), allocatable :: supergroup_idx(:)
+        integer(int64), allocatable :: supergroup_indices(:)
     contains
         private
         procedure, public :: idx_supergroup => get_supergroup_idx
@@ -41,7 +41,11 @@ contains
         integer(int64) :: idx
         character(*), parameter :: this_routine = 'get_supergroup_idx'
 
-        idx = binary_search_first_ge(self%supergroup_idx, partition_idx(supergroup))
+        if (self%GASspec%is_connected()) then
+            idx = binary_search_first_ge(self%supergroup_indices, partition_idx(supergroup))
+        else
+            idx = 1
+        end if
         @:pure_ASSERT(idx /= -1)
     end function
 
@@ -52,10 +56,11 @@ contains
         character(*), parameter :: this_routine = 'get_supergroup_idx_det'
 
         @:pure_ASSERT(self%GASspec%contains_det(nI))
-
-        idx = binary_search_first_ge(&
-                    self%supergroup_idx, &
-                    partition_idx(self%GASspec%count_per_GAS(nI)))
+        if (self%GASspec%is_connected()) then
+            idx = self%idx_supergroup(self%GASspec%count_per_GAS(nI))
+        else
+            idx = 1
+        end if
         @:pure_ASSERT(idx /= -1)
     end function
 
@@ -67,7 +72,7 @@ contains
 
         idxer%GASspec = GASspec
 
-        idxer%supergroup_idx = get_supergroup_indices(&
+        idxer%supergroup_indices = get_supergroup_indices(&
                 GASspec%cumulated_min([(i, i = 1, GASspec%nGAS())]) , &
                 GASspec%cumulated_max([(i, i = 1, GASspec%nGAS())]))
     end function

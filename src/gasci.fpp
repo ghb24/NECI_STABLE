@@ -60,11 +60,14 @@ module gasci
         !> only splitted_orbitals(i, j), 1 <= i <= GAS_sizes(j)
         !> is defined.
         integer, allocatable :: splitted_orbitals(:, :)
+        !> These lookup variables stay valid, because the data structure is
+        !>  immutable
+        logical :: lookup_is_connected
     contains
         ! All member functions should be public.
         procedure :: contains_det
         procedure :: contains_supergroup
-        procedure :: is_connected
+        procedure :: is_connected => get_is_connected
         procedure :: is_valid
         procedure :: nGAS => get_nGAS
         procedure :: nEl => get_nEl
@@ -216,7 +219,9 @@ contains
 
         GAS_spec = GASSpec_t(&
                 n_min, n_max, GAS_table, &
-                GAS_sizes, max_GAS_size, splitted_orbitals)
+                GAS_sizes, max_GAS_size, splitted_orbitals, &
+                any(n_min(:) /= n_max(:)))
+
         @:ASSERT(GAS_spec%is_valid())
 
         contains
@@ -238,9 +243,9 @@ contains
     !>      Query if there are connected GAS spaces under the GAS specification.
     !>
     !>  @param[in] GAS_spec, Specification of GAS spaces (GASSpec_t).
-    logical pure function is_connected(self)
+    logical pure function get_is_connected(self)
         class(GASSpec_t), intent(in) :: self
-        is_connected = any(self%cn_min(:) /= self%cn_max(:))
+        get_is_connected = self%lookup_is_connected
     end function
 
 
