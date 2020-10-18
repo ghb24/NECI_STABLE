@@ -4,6 +4,7 @@
 
 module gasci_general_pchb
     use constants, only: n_int, dp, int64, maxExcit, iout
+    use gasci, only: GAS_specification
     use gasci_general, only: gen_exc_single
     use util_mod, only: fuseIndex, getSpinIndex, near_zero, intswap, operator(.div.)
     use dSFMT_interface, only: genrand_real2_dSFMT
@@ -11,14 +12,14 @@ module gasci_general_pchb
     use SymExcitDataMod, only: pDoubNew, ScratchSize
     use excitation_types, only: SingleExc_t, DoubleExc_t
     use sltcnd_mod, only: sltcnd_excit
-    use pchb_factory, only: calc_pgen_single_todo
+    use procedure_pointers, only: generate_single_excit_t
     use aliasSampling, only: AliasSampler_3D_t
     use UMatCache, only: gtID, numBasisIndices
     use FciMCData, only: pSingles, excit_gen_store_type, nInvalidExcits, nValidExcits, &
                          pParallel, projEDet
     use excit_gens_int_weighted, only: pick_biased_elecs
 
-    use SystemData, only: nEl
+    use SystemData, only: nEl, AB_elec_pairs, par_elec_pairs
     use bit_rep_data, only: NIfTot
 
     use gasci, only: GAS_specification, GASSpec_t
@@ -27,8 +28,17 @@ module gasci_general_pchb
     implicit none
 
     private
-
     public :: gen_GASCI_general_pchb, general_GAS_PCHB
+
+    abstract interface
+        real(dp) function calc_pgen_t(nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2)
+            import :: n_int, dp, NIfTot, nEl, ScratchSize
+            integer, intent(in) :: nI(nel)
+            integer(n_int), intent(in) :: ilutI(0:NIfTot)
+            integer, intent(in) :: ex(2, 2), ic
+            integer, intent(in) :: ClassCount2(ScratchSize), ClassCountUnocc2(ScratchSize)
+        end function
+    end interface
 
     ! there are three pchb_samplers for each supergroup:
     ! 1 - same-spin case
@@ -45,14 +55,18 @@ module gasci_general_pchb
         real(dp), allocatable :: pExch(:, :)
         integer, allocatable :: tgtOrbs(:, :)
 
+        procedure(generate_single_excit_t), pointer, nopass :: generate_single => generate_single_GAS
+        procedure(calc_pgen_t), pointer, nopass :: calc_pgen_single => calc_pgen_single_todo
+
     contains
         private
         procedure, public :: init => init_pchb_excitgen
         procedure, public :: finalize
         procedure, public :: gen_excit
+        procedure, public :: calc_pgen => calc_pgen_pchb
 
+        procedure :: calc_double_pgen_pchb
         procedure :: generate_double
-        procedure :: generate_single
         procedure :: is_allowed
     end type
 
@@ -84,7 +98,7 @@ contains
         @:ASSERT(GAS_specification%contains_det(nI))
 
         hel = h_cast(0.0_dp)
-        call general_GAS_PCHB%gen_excit(nI, ilutI, nJ, ilutJ, ic, ex_mat, tParity, pgen)
+        call general_GAS_PCHB%gen_excit(nI, ilutI, nJ, ilutJ, ic, ex_mat, tParity, store, pgen)
     end subroutine gen_GASCI_general_pchb
 
     !> @brief
@@ -122,9 +136,11 @@ contains
     !>  This does two things:
     !>  1. setup the lookup table for the mapping ab -> (a,b)
     !>  2. setup the alias table for picking ab given ij with probability ~<ij|H|ab>
-    subroutine init_pchb_excitgen(this, GASSpec)
+    subroutine init_pchb_excitgen(this, GASSpec, generate_single, calc_pgen_single)
         class(GAS_PCHB_excit_gen_t), intent(out) :: this
         type(GASSpec_t), intent(in) :: GASSpec
+        procedure(generate_single_excit_t), optional :: generate_single
+        procedure(calc_pgen_t), optional :: calc_pgen_single
 
         integer :: ab, a, b, abMax
         integer :: aerr, nBI
@@ -159,6 +175,9 @@ contains
         write(iout, *) "Finished excitation generator initialization"
         ! this is some bias used internally by CreateSingleExcit - not used here
         pDoubNew = 0.0
+
+        if (present(generate_single)) this%generate_single => generate_single
+        if (present(calc_pgen_single)) this%calc_pgen_single => calc_pgen_single
 
     contains
 
@@ -351,17 +370,19 @@ contains
         end if
     end subroutine generate_double
 
-    subroutine generate_single(this, nI, ilutI, nJ, ilutJ, ex_mat, tpar, pgen)
-        class(GAS_PCHB_excit_gen_t), intent(in) :: this
+
+    subroutine generate_single_GAS(nI, ilutI, nJ, ilutJ, ex_mat, tpar, store, pgen)
         integer, intent(in) :: nI(nel)
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
         integer, intent(out) :: nJ(nel)
         integer(n_int), intent(out) :: ilutJ(0:NIfTot)
         integer, intent(out) :: ex_mat(2, maxExcit)
         logical, intent(out) :: tpar
+        type(excit_gen_store_type), intent(inout), target :: store
         real(dp), intent(out) :: pGen
-        call gen_exc_single(this%GASSpec, nI, ilutI, nJ, ilutJ, ex_mat, tpar, pgen)
-    end subroutine generate_single
+        @:unused_var(store)
+        call gen_exc_single(GAS_specification, nI, ilutI, nJ, ilutJ, ex_mat, tpar, pgen)
+    end subroutine
 
     !>  @brief
     !>  The excitation generator subroutine for PCHB.
@@ -373,19 +394,20 @@ contains
     !>
     !>  If possible one can supply also a calc_pgen routine for single excitations.
     !>  Then it is possible to calculate the pgens for arbitrary connected configurations.
-    subroutine gen_excit(this, nI, ilutI, nJ, ilutJ, ic, ex, tpar, pgen)
+    subroutine gen_excit(this, nI, ilutI, nJ, ilutJ, ic, ex, tpar, store, pgen)
         class(GAS_PCHB_excit_gen_t), intent(in) :: this
         integer, intent(in) :: nI(nel)
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
         integer, intent(out) :: nJ(nel), ic, ex(2, maxExcit)
         integer(n_int), intent(out) :: ilutJ(0:NIfTot)
         logical, intent(out) :: tpar
+        type(excit_gen_store_type), intent(inout), target :: store
         real(dp), intent(out) :: pGen
 
         if (genrand_real2_dSFMT() < pSingles) then
             ic = 1
             ! defaults to uniform singles, but can be set to other excitgens
-            call this%generate_single(nI, ilutI, nJ, ilutJ, ex, tpar, pgen)
+            call this%generate_single(nI, ilutI, nJ, ilutJ, ex, tpar, store, pgen)
             pgen = pgen * pSingles
         else
             ic = 2
@@ -412,4 +434,92 @@ contains
         deallocate(this%tgtOrbs)
         deallocate(this%pExch)
     end subroutine
+
+    !> @brief
+    !> Placeholder function that should fail at runtime.
+    real(dp) function calc_pgen_single_todo(nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2)
+        integer, intent(in) :: nI(nel)
+        integer(n_int), intent(in) :: ilutI(0:NIfTot)
+        integer, intent(in) :: ex(2, 2), ic
+        integer, intent(in) :: ClassCount2(ScratchSize), ClassCountUnocc2(ScratchSize)
+        character(*), parameter :: this_routine = 'calc_pgen_single_todo'
+
+        unused_var(nI); unused_var(ilutI); unused_var(ex); unused_var(ic);
+        unused_var(ClassCount2); unused_var(ClassCountUnocc2)
+        calc_pgen_single_todo = 0._dp
+
+        call stop_all(this_routine, 'calc_pgen_single has to be implemented.')
+    end function
+
+    !>  @brief
+    !>  Calculate the probability of generating a given excitation with the pchb excitgen
+    !>
+    !>  @param[in] nI  determinant to start from
+    !>  @param[in] ex  2x2 excitation matrix
+    !>  @param[in] ic  excitation level
+    !>  @param[in] ClassCount2  symmetry information of the determinant
+    !>  @param[in] ClassCountUnocc2  symmetry information of the virtual orbitals
+    !>
+    !>  @return pGen  probability of drawing this excitation with the pchb excitgen
+    function calc_pgen_pchb(this, nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2) result(pgen)
+        class(GAS_PCHB_excit_gen_t), intent(in) :: this
+        integer, intent(in) :: nI(nel)
+        integer(n_int), intent(in) :: ilutI(0:NIfTot)
+        integer, intent(in) :: ex(2, 2), ic
+        integer, intent(in) :: ClassCount2(ScratchSize), ClassCountUnocc2(ScratchSize)
+        real(dp) :: pgen
+
+        if (ic == 1) then
+            pgen = pSingles * this%calc_pgen_single(nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2)
+        else if (ic == 2) then
+            pGen = (1.0 - pSingles) * this%calc_double_pgen_pchb(nI, ex)
+        else
+            pgen = 0.0_dp
+        end if
+    end function calc_pgen_pchb
+
+
+    !>  @brief
+    !>  Calculate the probability of drawing a given double excitation ex
+    !>
+    !>  @param[in] ex  2x2 excitation matrix
+    !>
+    !>  @return pgen  probability of generating this double with the pchb double excitgen
+    function calc_double_pgen_pchb(this, nI, ex) result(pgen)
+        class(GAS_PCHB_excit_gen_t), intent(in) :: this
+        integer, intent(in) :: nI(nEl)
+        integer, intent(in) :: ex(2, 2)
+        real(dp) :: pgen
+        integer :: ab, ij, nex(2, 2), samplerIndex, i_sg
+
+        i_sg = this%indexer%idx_nI(nI)
+        ! spatial orbitals of the excitation
+        nex = gtID(ex)
+        ij = fuseIndex(nex(1, 1), nex(1, 2))
+        ! the probability of picking the two electrons: they are chosen uniformly
+        ! check which sampler was used
+        if (is_beta(ex(1, 1)) .eqv. is_beta(ex(1, 2))) then
+            pgen = pParallel / par_elec_pairs
+            ! same-spin case
+            samplerIndex = SAME_SPIN
+        else
+            pgen = (1.0_dp - pParallel) / AB_elec_pairs
+            ! excitations without spin-exchange OR to the same spatial orb
+            if ((is_beta(ex(1, 1)) .eqv. is_beta(ex(2, 1))) .or. (nex(2, 1) == nex(2, 2))) then
+                ! opp spin case without exchange
+                samplerIndex = OPP_SPIN_NO_EXCH
+                pgen = pgen * (1 - this%pExch(ij, i_sg))
+            else
+                ! opp spin case with exchange
+                samplerIndex = OPP_SPIN_EXCH
+                pgen = pgen * this%pExch(ij, i_sg)
+            end if
+        end if
+
+        ! look up the probability for this excitation in the sampler
+        ab = fuseIndex(nex(2, 1), nex(2, 2))
+        pgen = pgen * this%pchb_samplers%get_prob(ij, samplerIndex, i_sg, ab)
+
+    end function calc_double_pgen_pchb
+
 end module gasci_general_pchb

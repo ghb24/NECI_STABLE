@@ -38,11 +38,11 @@ contains
     pure function get_supergroup_idx(self, supergroup) result(idx)
         class(SuperGroupIndexer_t), intent(in) :: self
         integer, intent(in) :: supergroup(:)
-        integer(int64) :: idx
+        integer :: idx
         character(*), parameter :: this_routine = 'get_supergroup_idx'
 
         if (self%GASspec%is_connected()) then
-            idx = binary_search_first_ge(self%supergroup_indices, partition_idx(supergroup))
+            idx = int(binary_search_first_ge(self%supergroup_indices, partition_idx(supergroup)))
         else
             idx = 1
         end if
@@ -52,7 +52,7 @@ contains
     pure function get_supergroup_idx_det(self, nI) result(idx)
         class(SuperGroupIndexer_t), intent(in) :: self
         integer, intent(in) :: nI(:)
-        integer(int64) :: idx
+        integer :: idx
         character(*), parameter :: this_routine = 'get_supergroup_idx_det'
 
         @:pure_ASSERT(self%GASspec%contains_det(nI))
