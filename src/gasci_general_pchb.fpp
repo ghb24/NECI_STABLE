@@ -28,7 +28,7 @@ module gasci_general_pchb
     implicit none
 
     private
-    public :: gen_GASCI_general_pchb, general_GAS_PCHB
+    public :: gen_GASCI_general_pchb, general_GAS_PCHB, GAS_PCHB_excit_gen_t
 
     abstract interface
         real(dp) function calc_pgen_t(nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2)

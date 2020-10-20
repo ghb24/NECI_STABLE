@@ -45,7 +45,7 @@ contains
 #endif
         @:ASSERT(GAS_specification%contains_det(nI))
 
-        call PCHB_FCI%gen_excit(nI, ilutI, nJ, ilutJ, ic, ex_mat, tParity, pgen, hel, store)
+        call PCHB_FCI%gen_excit(nI, ilutI, nJ, ilutJ, ic, ex_mat, tParity, store, pgen)
 
         if (nJ(1) /= 0) then
             if (.not. GAS_specification%contains_det(nJ)) then
