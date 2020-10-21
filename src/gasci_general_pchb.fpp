@@ -4,7 +4,6 @@
 
 module gasci_general_pchb
     use constants, only: n_int, dp, int64, maxExcit, iout
-    use gasci, only: GAS_specification
     use gasci_general, only: gen_exc_single
     use util_mod, only: fuseIndex, getSpinIndex, near_zero, intswap, operator(.div.)
     use dSFMT_interface, only: genrand_real2_dSFMT
@@ -22,7 +21,7 @@ module gasci_general_pchb
     use SystemData, only: nEl, AB_elec_pairs, par_elec_pairs
     use bit_rep_data, only: NIfTot
 
-    use gasci, only: GAS_specification, GASSpec_t
+    use gasci, only: GASSpec_t
     use gasci_supergroup_index, only: SuperGroupIndexer_t
 
     implicit none
@@ -95,7 +94,7 @@ contains
         character(*), parameter :: this_routine = 'gen_GASCI_pchb'
 
         @:unused_var(exFlag, part_type, store)
-        @:ASSERT(GAS_specification%contains_det(nI))
+        @:ASSERT(general_GAS_PCHB%GASSpec%contains_det(nI))
 
         hel = h_cast(0.0_dp)
         call general_GAS_PCHB%gen_excit(nI, ilutI, nJ, ilutJ, ic, ex_mat, tParity, store, pgen)
@@ -111,8 +110,8 @@ contains
         integer :: excited_supergroup(size(supergroup))
         integer :: src_spaces(2), tgt_spaces(2), i
 
-        src_spaces = GAS_specification%get_iGAS(exc%val(1, :))
-        tgt_spaces = GAS_specification%get_iGAS(exc%val(2, :))
+        src_spaces = self%GASSpec%get_iGAS(exc%val(1, :))
+        tgt_spaces = self%GASSpec%get_iGAS(exc%val(2, :))
 
         if (all(src_spaces == tgt_spaces) .and. src_spaces(1) == src_spaces(2)) then
             ! All electrons come from the same space and there are no restrictions
@@ -381,7 +380,7 @@ contains
         type(excit_gen_store_type), intent(inout), target :: store
         real(dp), intent(out) :: pGen
         @:unused_var(store)
-        call gen_exc_single(GAS_specification, nI, ilutI, nJ, ilutJ, ex_mat, tpar, pgen)
+        call gen_exc_single(general_GAS_PCHB%GASSpec, nI, ilutI, nJ, ilutJ, ex_mat, tpar, pgen)
     end subroutine
 
     !>  @brief
