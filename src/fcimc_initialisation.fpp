@@ -237,7 +237,6 @@ module fcimc_initialisation
     use gasci_disconnected, only: gen_GASCI_disconnected, init_disconnected_GAS, clearGAS
     use gasci_general, only: gen_GASCI_general, gen_all_excits_GAS => gen_all_excits
     use gasci_discarding, only: gen_GASCI_discarding, init_GASCI_discarding, finalize_GASCI_discarding
-    use gasci_disconnected_pchb, only: gen_GASCI_disconnected_pchb => gen_GASCI_pchb, disconnected_GAS_PCHB
     use gasci_general_pchb, only: gen_GASCI_general_pchb, general_GAS_PCHB
 
     use cepa_shifts, only: t_cepa_shift, init_cepa_shifts
@@ -1408,8 +1407,6 @@ contains
                 call init_disconnected_GAS(GAS_specification)
             else if (GAS_exc_gen == possible_GAS_exc_gen%DISCARDING) then
                 call init_GASCI_discarding()
-            else if (GAS_exc_gen == possible_GAS_exc_gen%DISCONNECTED_PCHB) then
-                call disconnected_GAS_PCHB%init()
             else if (GAS_exc_gen == possible_GAS_exc_gen%GENERAL_PCHB) then
                 call general_GAS_PCHB%init(GAS_specification)
             end if
@@ -1964,8 +1961,6 @@ contains
                 generate_excitation => gen_GASCI_disconnected
             else if (GAS_exc_gen == possible_GAS_exc_gen%DISCARDING) then
                 generate_excitation => gen_GASCI_discarding
-            else if (GAS_exc_gen == possible_GAS_exc_gen%DISCONNECTED_PCHB) then
-                generate_excitation => gen_GASCI_disconnected_pchb
             else if (GAS_exc_gen == possible_GAS_exc_gen%GENERAL_PCHB) then
                 generate_excitation => gen_GASCI_general_pchb
             else
@@ -2327,8 +2322,6 @@ contains
                 call clearGAS()
             else if (GAS_exc_gen == possible_GAS_exc_gen%DISCARDING) then
                 call finalize_GASCI_discarding()
-            else if (GAS_exc_gen == possible_GAS_exc_gen%DISCONNECTED_PCHB) then
-                call disconnected_GAS_PCHB%clear()
             end if
         end if
 

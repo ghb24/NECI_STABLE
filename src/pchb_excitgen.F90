@@ -8,7 +8,6 @@ module pchb_excitgen
     use excit_gens_int_weighted, only: gen_single_4ind_ex, pgen_single_4ind
     use FciMCData, only: pSingles, excit_gen_store_type, pDoubles
     use SymExcitDataMod, only: ScratchSize
-    use pchb_factory, only: PCHB_excitation_generator_t
     use GenRandSymExcitNUMod, only: calc_pgen_symrandexcit2
     use excitation_types, only: DoubleExc_t
 

@@ -113,7 +113,6 @@ set( SRC_FILES
     Parallel_Calc.F90
     ParallelHelper.F90
     parallel_workarounds.F90
-    pchb_factory.F90
     pchb_excitgen.F90
     perturbations.F90
     Popsfile.F90
@@ -244,7 +243,6 @@ set( FYPP_SRC_FILES
     gasci_disconnected.fpp
     gasci_general.fpp
     gasci_discarding.fpp
-    gasci_disconnected_pchb.fpp
     gasci_general_pchb.fpp
     gasci_supergroup_index.fpp
     orb_idx.fpp
