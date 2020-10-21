@@ -7,7 +7,6 @@ module gasci_discarding
     use bit_rep_data, only: NIfTot
     use sort_mod, only: sort
 
-!     use pchb_excitgen, only: init_pchb_excitgen, finalize_pchb_excitgen, gen_rand_excit_pchb
     use pchb_excitgen, only: PCHB_FCI
     use gasci, only: GAS_specification, GASSpec_t
     use FciMCData, only: excit_gen_store_type
@@ -36,16 +35,12 @@ contains
 
         integer :: src_copy(maxExcit)
 
-
-
         @:unused_var(exFlag, part_type, store)
 
-#ifdef WARNING_WORKAROUND_
-        hel = 0.0_dp
-#endif
+        hel = h_cast(0.0_dp)
         @:ASSERT(GAS_specification%contains_det(nI))
 
-        call PCHB_FCI%gen_excit(nI, ilutI, nJ, ilutJ, ic, ex_mat, tParity, pgen, hel, store)
+        call PCHB_FCI%gen_excit(nI, ilutI, nJ, ilutJ, ic, ex_mat, tParity, store, pgen)
 
         if (nJ(1) /= 0) then
             if (.not. GAS_specification%contains_det(nJ)) then
