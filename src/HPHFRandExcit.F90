@@ -276,7 +276,7 @@ contains
                                           store)
         else if (t_pchb_excitgen) then
             call PCHB_FCI%gen_excit(nI, ilutnI, nJ, iLutnJ, IC, ExcitMat, &
-                                     tSignOrig, store, pgen)
+                                     tSignOrig, pGen, HEl, store)
         else if(t_pcpp_excitgen) then
             call gen_rand_excit_pcpp(nI, ilutnI, nJ, iLutnJ, exFlag, IC, ExcitMat, &
                                      tSignOrig, pGen, HEl, store)

@@ -182,7 +182,7 @@ contains
     !>  @param[in] n_min, Cumulative minimum particle number.
     !>  @param[in] n_max, Cumulative maximum particle number
     !>  @param[in] spat_GAS_orbs, GAS space for the i-th **spatial** orbital.
-    pure function construct_GASSpec_t(n_min, n_max, spat_GAS_orbs) result(GAS_spec)
+    function construct_GASSpec_t(n_min, n_max, spat_GAS_orbs) result(GAS_spec)
         integer, intent(in) :: n_min(:), n_max(:)
         integer, intent(in) :: spat_GAS_orbs(:)
 
@@ -214,7 +214,7 @@ contains
                 splitted_sizes(iGAS) = splitted_sizes(iGAS) + 1
                 splitted_orbitals(splitted_sizes(iGAS), iGAS) = all_orbs(iel)
             end do
-            @:pure_ASSERT(all(GAS_sizes == splitted_sizes))
+            @:ASSERT(all(GAS_sizes == splitted_sizes))
         end block
 
         GAS_spec = GASSpec_t(&
@@ -222,7 +222,7 @@ contains
                 GAS_sizes, max_GAS_size, splitted_orbitals, &
                 any(n_min(:) /= n_max(:)))
 
-        @:pure_ASSERT(GAS_spec%is_valid())
+        @:ASSERT(GAS_spec%is_valid())
 
         contains
 
