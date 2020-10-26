@@ -54,8 +54,14 @@ module gasci_general_pchb
         real(dp), allocatable :: pExch(:, :)
         integer, allocatable :: tgtOrbs(:, :)
 
-        procedure(generate_single_excit_t), pointer, nopass :: generate_single => generate_single_GAS
-        procedure(calc_pgen_t), pointer, nopass :: calc_pgen_single => calc_pgen_single_todo
+        ! I would prefer to initialize directly as
+        !       generate_single => generate_single_GAS
+        ! and use
+        !       if (present(generate_single)) this%generate_single => generate_single
+        ! in the init routines.
+        ! Unfortunately this causes a **compile time** segfault in ifort <= 18.x.x
+        procedure(generate_single_excit_t), pointer, nopass :: generate_single => null()
+        procedure(calc_pgen_t), pointer, nopass :: calc_pgen_single => null()
 
     contains
         private
@@ -175,9 +181,16 @@ contains
         ! this is some bias used internally by CreateSingleExcit - not used here
         pDoubNew = 0.0
 
-        if (present(generate_single)) this%generate_single => generate_single
-        if (present(calc_pgen_single)) this%calc_pgen_single => calc_pgen_single
-
+        if (present(generate_single)) then
+            this%generate_single => generate_single
+        else
+            this%generate_single => generate_single_GAS
+        end if
+        if (present(calc_pgen_single)) then
+            this%calc_pgen_single => calc_pgen_single
+        else
+            this%calc_pgen_single => calc_pgen_single_todo
+        end if
     contains
 
         subroutine setup_pchb_sampler()
