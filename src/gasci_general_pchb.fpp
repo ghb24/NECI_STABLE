@@ -43,8 +43,10 @@ module gasci_general_pchb
     ! 1 - same-spin case
     ! 2 - opp spin case without exchange
     ! 3 - opp spin case with exchange
-    integer, parameter :: SAME_SPIN = 1, OPP_SPIN_NO_EXCH = 2, OPP_SPIN_EXCH = 3
-!
+    enum, bind(C)
+        enumerator :: SAME_SPIN, OPP_SPIN_NO_EXCH, OPP_SPIN_EXCH
+    end enum
+
     type :: GAS_PCHB_excit_gen_t
         private
         !> The shape is (fused_number_of_double_excitations, 3, n_supergroup)

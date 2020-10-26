@@ -13,7 +13,6 @@ module gasci_supergroup_index
 
     public :: n_partitions, get_partitions, partition_idx
     public :: n_supergroups, get_supergroups, supergroup_idx
-
     public :: supergroup_idx_precomputed, get_supergroup_indices
     public :: SuperGroupIndexer_t
 
@@ -49,6 +48,7 @@ contains
         @:pure_ASSERT(idx /= -1)
     end function
 
+
     pure function get_supergroup_idx_det(self, nI) result(idx)
         class(SuperGroupIndexer_t), intent(in) :: self
         integer, intent(in) :: nI(:)
@@ -64,6 +64,7 @@ contains
         @:pure_ASSERT(idx /= -1)
     end function
 
+
     pure function construct_SuperGroupIndexer_t(GASspec) result(idxer)
         type(GASSpec_t), intent(in) :: GASspec
         type(SuperGroupIndexer_t) :: idxer
@@ -71,17 +72,19 @@ contains
         integer :: i
 
         idxer%GASspec = GASspec
-
         idxer%supergroup_indices = get_supergroup_indices(&
                 GASspec%cumulated_min([(i, i = 1, GASspec%nGAS())]) , &
                 GASspec%cumulated_max([(i, i = 1, GASspec%nGAS())]))
     end function
 
+
     elemental function n_partitions(k, n) result(res)
         integer, intent(in) :: k, n
         integer(int64) :: res
+
         res = choose(n + k - 1, k - 1)
     end function
+
 
     !> @brief
     !> Get the ordered partitions of n into k summands.
@@ -122,6 +125,7 @@ contains
         res(size(res, 1), idx_part) = n
     end function
 
+
     pure function partition_idx(partition) result(idx)
         integer, intent(in) :: partition(:)
         integer(int64) :: idx
@@ -142,8 +146,6 @@ contains
     end function
 
 
-
-
     !> @brief
     !> Get the ordered partitions of n into k summands
     !>  constrained by cumulative minima and maxima.
@@ -153,9 +155,8 @@ contains
     pure function get_supergroups(cn_min, cn_max) result(res)
         integer, intent(in) :: cn_min(:), cn_max(:)
         integer, allocatable :: res(:, :)
-        integer :: k, n
 
-        integer :: i, j
+        integer :: i, j, k, n
         integer, allocatable :: all_partitions(:, :)
 
         k = size(cn_min)
@@ -174,6 +175,7 @@ contains
             j = j + 1
         end do
     end function
+
 
     !> @brief
     !> Get the idx of a given supergroup.
@@ -210,6 +212,7 @@ contains
         end do
     end function
 
+
     pure function supergroup_idx_precomputed(partition, supergroup_indices) result(idx)
         integer, intent(in) :: partition(:)
         integer(int64), intent(in) :: supergroup_indices(:)
@@ -217,6 +220,7 @@ contains
 
         idx = binary_search_first_ge(supergroup_indices, partition_idx(partition))
     end function
+
 
     pure function get_supergroup_indices(cn_min, cn_max) result(res)
         integer, intent(in) :: cn_min(:), cn_max(:)
@@ -232,6 +236,7 @@ contains
         end do
     end function
 
+
     !> @brief
     !> Get the number of possible supergroups.
     !>
@@ -243,7 +248,6 @@ contains
 
         integer :: k, n, i
         character(*), parameter :: this_routine = 'n_supergroups'
-
 
         @:pure_ASSERT(size(cn_min) == size(cn_max))
         k = size(cn_min)
@@ -260,6 +264,7 @@ contains
             end do
         end if
     end function
+
 
     !> @brief
     !> Get the number of possible supergroups.
@@ -288,8 +293,8 @@ contains
         integer :: res(self%GASspec%nGAS(), self%n_supergroups())
 
         integer :: i, idx(self%GASspec%nGAS())
-        idx = [(i, i = 1, size(idx))]
 
+        idx = [(i, i = 1, size(idx))]
         res = get_supergroups(self%GASspec%cumulated_min(idx), &
                               self%GASspec%cumulated_max(idx))
     end function
