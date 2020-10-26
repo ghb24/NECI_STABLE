@@ -624,8 +624,8 @@ contains
             if (.not. GAS_specification%is_valid()) then
                 call stop_all(t_r, "GAS specification not valid.")
             end if
-            if (.not. tGASSpinRecoupling .and. all(GAS_exc_gen /= [possible_GAS_exc_gen%DISCONNECTED])) then
-                call stop_all(t_r, "Running GAS without spin-recoupling requires disconnected implementations.")
+            if (.not. tGASSpinRecoupling .and. all(GAS_exc_gen /= [possible_GAS_exc_gen%DISCONNECTED, possible_GAS_exc_gen%GENERAL_PCHB])) then
+                call stop_all(t_r, "Running GAS without spin-recoupling requires {DISCONNECTED, GENERAL_PCHB} implementations.")
             end if
             if (GAS_exc_gen == possible_GAS_exc_gen%DISCONNECTED .and.  GAS_specification%is_connected()) then
                 call stop_all(t_r, "Running GAS-CI = DISCONNECTED requires disconnected spaces.")

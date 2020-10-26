@@ -2,9 +2,32 @@
 #:include "macros.fpph"
 #:include "algorithms.fpph"
 
+! The main idea of the precomputed Heat bath sampling (PCHB) is taken from
+!    J. Li, M. Otten, A. A. Holmes, S. Sharma, and C. J. Umrigar, J. Comput. Phys. 149, 214110 (2018).
+! and described there.
+! The main "ingredient" are precomputed probability distributions p(ab | ij) to draw a, b holes
+! when i, j electrons were chosen.
+! This requires #{i, j | i < j} probability distributions.
+!
+! The improved version to use spatial orbital indices to save memory is described in
+!    Guther K. et al., J. Chem. Phys. 153, 034107 (2020);
+! and described there.
+! The main "ingredient" are precomputed probability distributions p(ab | ij, s_idx) to draw a, b holes
+! when i, j electrons were chosen for three distinc spin cases given by s_idx.
+! This gives #{i, j | i < j} * 3 probability distributions.
+!
+! The generalization to GAS spaces is not yet published.
+! The main "ingredient" are precomputed probability distributions p(ab | ij, s_idx, i_sg) to draw a, b holes
+! when i, j electrons were chosen for three distinc spin cases given by s_idx and a supergroup index i_sg
+! This gives #{i, j | i < j} * 3 * n_supergroup probability distributions.
+! Depending on the supergroup and GAS constraints certain excitations can be forbidden by setting p to zero.
+!
+! The details of calculating i_sg can be found in gasci_supergroup_index.f90
+
 module gasci_general_pchb
     use constants, only: n_int, dp, int64, maxExcit, iout
     use gasci_general, only: gen_exc_single
+    use orb_idx_mod, only: SpinProj_t, calc_spin_raw, operator(==), operator(==)
     use util_mod, only: fuseIndex, getSpinIndex, near_zero, intswap, operator(.div.)
     use dSFMT_interface, only: genrand_real2_dSFMT
     use get_excit, only: make_double, exciteIlut
@@ -18,7 +41,7 @@ module gasci_general_pchb
                          pParallel, projEDet
     use excit_gens_int_weighted, only: pick_biased_elecs
 
-    use SystemData, only: nEl, AB_elec_pairs, par_elec_pairs
+    use SystemData, only: nEl, AB_elec_pairs, par_elec_pairs, tGASSpinRecoupling
     use bit_rep_data, only: NIfTot
 
     use gasci, only: GASSpec_t
@@ -43,9 +66,7 @@ module gasci_general_pchb
     ! 1 - same-spin case
     ! 2 - opp spin case without exchange
     ! 3 - opp spin case with exchange
-    enum, bind(C)
-        enumerator :: SAME_SPIN, OPP_SPIN_NO_EXCH, OPP_SPIN_EXCH
-    end enum
+    integer, parameter :: SAME_SPIN = 1, OPP_SPIN_NO_EXCH = 2, OPP_SPIN_EXCH = 3
 
     type :: GAS_PCHB_excit_gen_t
         private
@@ -110,6 +131,9 @@ contains
 
     !> @brief
     !> Check if a double excitation is allowed.
+    !>
+    !> @details
+    !> Is called once at initialization, so it does not have to be super fast.
     logical pure function is_allowed(self, exc, supergroup)
         class(GAS_PCHB_excit_gen_t), intent(in) :: self
         type(DoubleExc_t), intent(in) :: exc
@@ -123,7 +147,7 @@ contains
 
         if (all(src_spaces == tgt_spaces) .and. src_spaces(1) == src_spaces(2)) then
             ! All electrons come from the same space and there are no restrictions
-            ! regarding recoupling.
+            ! regarding recoupling or GAS.
             is_allowed = .true.
         else
             ! Ensure that GAS specifications contain supergroup **after** excitation.
@@ -132,8 +156,30 @@ contains
             excited_supergroup(tgt_spaces) = excited_supergroup(tgt_spaces) + 1
 
             is_allowed = self%GASSpec%contains_supergroup(excited_supergroup)
+
+            if (is_allowed .and. .not. tGASSpinRecoupling) then
+                block
+                    type(SpinProj_t) :: src_spins(2), tgt_spins(2)
+                    #:set spin_swap = functools.partial(swap, 'SpinProj_t', "", 0)
+
+                    src_spins = calc_spin_raw(exc%val(1, :))
+                    tgt_spins = calc_spin_raw(exc%val(2, :))
+
+                    if (src_spaces(1) > src_spaces(2)) then
+                        @:spin_swap(src_spins(1), src_spins(2))
+                    end if
+
+                    if (tgt_spaces(1) > tgt_spaces(2)) then
+                        @:spin_swap(tgt_spins(1), tgt_spins(2))
+                    end if
+
+                    is_allowed = all(src_spins == tgt_spins)
+                end block
+            end if
         end if
     end function
+
+
 
 !
     !>  @brief

@@ -9,31 +9,29 @@ module test_gasci_supergroup_index_mod
     use gasci_supergroup_index
 
     implicit none
-!     private
-!     public :: test_pgen, test_partitioning, test_supergroup_offsets
-
-
+    private
+    public :: test_compositioning, test_supergroup_compositioning, test_supergroup_indexer_class
 
 contains
 
-    subroutine test_partitioning()
-        integer, allocatable :: partitions(:, :)
+    subroutine test_compositioning()
+        integer, allocatable :: compositions(:, :)
         integer :: i, n, k
         logical :: correct
 
         correct = .true.
         do n = 1, 10
             do k = 1, 10
-                partitions = get_partitions(k, n)
-                do i = 1, size(partitions, 2)
-                    if (i /= partition_idx(partitions(:, i))) correct = .false.
+                compositions = get_compositions(k, n)
+                do i = 1, size(compositions, 2)
+                    if (i /= composition_idx(compositions(:, i))) correct = .false.
                 end do
             end do
         end do
         call assert_true(correct)
     end subroutine
 
-    subroutine test_supergroup_partitioning()
+    subroutine test_supergroup_compositioning()
         integer :: i, j, n, k
 
         block
@@ -70,18 +68,18 @@ contains
 
         block
             integer, allocatable :: supergroups(:, :), cn_min(:), cn_max(:)
-            integer(int64), allocatable :: supergroup_indices(:)
+            integer(int64), allocatable :: allowed_composition_indices(:)
             logical :: correct
 
             cn_min = [5, 11, 17, 23, 30]
             cn_max = [7, 13, 19, 25, 30]
 
             supergroups = get_supergroups(cn_min, cn_max)
-            supergroup_indices = get_supergroup_indices(cn_min, cn_max)
+            allowed_composition_indices = get_allowed_composition_indices(cn_min, cn_max)
 
             correct = .true.
             do i = 1, size(supergroups, 2)
-                if (i /= supergroup_idx_precomputed(supergroups(:, i), supergroup_indices)) correct = .false.
+                if (i /= supergroup_idx_precomputed(supergroups(:, i), allowed_composition_indices)) correct = .false.
             end do
             call assert_true(correct)
         end block
@@ -164,8 +162,8 @@ program test_gasci_program
     use mpi
     use fruit
     use Parallel_neci, only: MPIInit, MPIEnd
-    use test_gasci_supergroup_index_mod, only: test_partitioning, &
-        test_supergroup_partitioning, test_supergroup_indexer_class
+    use test_gasci_supergroup_index_mod, only: test_compositioning, &
+        test_supergroup_compositioning, test_supergroup_indexer_class
 
 
     implicit none
@@ -192,8 +190,8 @@ program test_gasci_program
 contains
 
     subroutine test_gasci_driver()
-        call run_test_case(test_partitioning, "test_partitioning")
-        call run_test_case(test_supergroup_partitioning, "test_supergroup_partitioning")
+        call run_test_case(test_compositioning, "test_compositioning")
+        call run_test_case(test_supergroup_compositioning, "test_supergroup_compositioning")
         call run_test_case(test_supergroup_indexer_class, "test_supergroup_indexer_class")
     end subroutine
 end program test_gasci_program
