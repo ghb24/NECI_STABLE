@@ -56,7 +56,7 @@ contains
 
         unused_var(exFlag); unused_var(part_type); unused_var(store)
 #ifdef WARNING_WORKAROUND_
-        helgen = hcast(0.0_dp)
+        helgen = h_cast(0.0_dp)
 #endif
 
         call PCHB_FCI%gen_excit(nI, ilutI, nJ, ilutJ, ic, ex, tpar, store, pgen)
