@@ -470,7 +470,7 @@ module lattice_mod
 !        procedure :: init_basis_vecs_rect_base
 
 !        procedure, public :: get_length => get_length_rect
-!        procedure, public :: is_periodic => is_periodic_rect
+!        procedure, public :: is_periodic => is_periodic_ext
 !        procedure, public :: dispersion_rel => dispersion_rel_rect
 
 !        procedure :: set_length => set_length_rect
@@ -2146,22 +2146,31 @@ contains
     end subroutine init_sites_rect
 
     subroutine read_sites(this)
+
         class(ext_input):: this
+
         character(*), parameter :: this_routine = "read_sites"
+
         integer:: iunit, ios, i, n_site, n_neighbors, neigh
         integer, allocatable :: neighs(:)
 
         logical :: exists, leof
+
         CHARACTER(len=3) :: fmat
         CHARACTER(LEN=100) w
 
         fmat = 'NO'
+
         iunit = get_free_unit()
+
         INQUIRE (FILE="lattice.inp", EXIST=exists, FORMATTED=fmat)
+
         IF (.not. exists) THEN
                 CALL Stop_All('lattice.inp', 'lattice.inp file does not exist')
         end if
+
         open(iunit, File="lattice.inp",Status='OLD', FORM="FORMATTED", iostat=ios)
+
         readsites: do
                 call read_line(leof,iunit)
                 if (leof) then
@@ -2191,8 +2200,11 @@ contains
                         this%sites(n_site) = site(n_site, n_neighbors, neighs)
                 end select
         end do readsites
+
         close(iunit)
+
         Call input_options(echo_lines=.false., skip_blank_lines=.true.)
+
     end subroutine read_sites
 
     subroutine init_sites_sujun(this)
@@ -4748,8 +4760,10 @@ contains
 
             print *, " number of dimensions: ", this%get_ndim()
             print *, " max-number of neighbors: ", this%get_nconnect_max()
-            print *, " number of sites of chain: ", this%get_nsites()
-            print *, " is the chain periodic: ", this%is_periodic()
+            print *, " number of sites in the lattice: ", this%get_nsites()
+            if (this%is_periodic()) then
+                print *, " is the lattice periodic: True" 
+            end if
             print *, "primitive lattice vectors: (", this%lat_vec(1:2, 1), "), (", this%lat_vec(1:2, 2), ")"
 
         class is (ole)
@@ -4759,6 +4773,15 @@ contains
             print *, "number of sites: ", this%get_nsites()
             print *, "primitive lattice vectors: (", this%lat_vec(1:2, 1), "), (", this%lat_vec(1:2, 2), ")"
             print *, "TODO: more and better output! "
+
+        class is (ext_input)
+            print *, "Lattice read from lattice.inp file "
+            print *, "Lattice type is :",this%get_name()
+            print *, "number of sites in the lattice: ", this%get_nsites()
+            print *, "max-number of neigbors: ", this%get_nconnect_max()
+            if (this%is_periodic()) then
+                print *, " is the lattice periodic: True" 
+            end if
 
         end select
 
@@ -4845,28 +4868,36 @@ contains
     end function determine_optimal_time_step
 
     function read_lattice_n_sites(this, length_x, length_y, length_z) result(n_sites)
-        class(ext_input):: this
-        integer :: iunit, ios
-        logical :: exists, leof
-        CHARACTER(len=3) :: fmat
-        CHARACTER(LEN=100) w
 
+        class(ext_input):: this
+
+        integer :: iunit, ios
         integer, intent(in) :: length_x, length_y
         integer, intent(in), optional :: length_z
         integer :: n_sites
+
+        logical :: exists, leof
+
+        CHARACTER(len=3) :: fmat
+        CHARACTER(LEN=100) w
         character(*), parameter :: this_routine = "calc_nsites_gen"
+
         unused_var(this)
         unused_var(length_x)
         unused_var(length_y)
+
         if (present(length_z)) then
             unused_var(length_z)
         end if
-        fmat = 'NO'
+
         iunit = get_free_unit()
+        fmat = 'NO'
+
         INQUIRE (FILE="lattice.inp", EXIST=exists, FORMATTED=fmat)
         IF (.not. exists) THEN
                 CALL Stop_All('lattice.inp', 'lattice.inp file does not exist')
         end if
+
         open(iunit, File="lattice.inp",Status='OLD', FORM="FORMATTED", iostat=ios)
 
         lat: do
@@ -4883,31 +4914,43 @@ contains
                         end if
                 end select
         end do lat
+
         close(iunit)
+
         Call input_options(echo_lines=.false., skip_blank_lines=.true.)
+
     end function read_lattice_n_sites
 
 
     subroutine read_lattice_struct(this)
+
         class(ext_input):: this
+
         integer :: iunit, lat_dim, x1,y1, x2,y2, z1,z2, length_x, length_y, n_sites, ios
+
         logical :: exists, leof
+
         CHARACTER(len=3) :: fmat
         CHARACTER(LEN=100) w
+        CHARACTER(LEN=100) lat_typ
 
 
-        fmat = 'NO'
         iunit = get_free_unit()
+        fmat = 'NO'
+
         INQUIRE (FILE="lattice.inp", EXIST=exists, FORMATTED=fmat)
         IF (.not. exists) THEN
                 CALL Stop_All('lattice.inp', 'lattice.inp file does not exist')
         end if
+
         open(iunit, File="lattice.inp",Status='OLD', FORM="FORMATTED", iostat=ios)
+
         lat: do
                 call read_line(leof,iunit)
                 if (leof) then
                         exit
                 end if
+
                 call readu(w)
                 select case (w)
 
@@ -4916,6 +4959,12 @@ contains
                                 call geti(lat_dim)
                         end if
                         call this%set_ndim(lat_dim)
+
+                case('LATTICE_TYPE')
+                        if (item < nitems) then
+                                call readu(lat_typ)
+                        end if
+                        this%name = lat_typ
 
                 case('LATTICE_PARAM')
                         if (item < nitems) then
@@ -4932,12 +4981,25 @@ contains
                         end if
                         this%lat_vec(1:2, 1) = [x1,y1]
                         this%lat_vec(1:2, 2) = [x2,y2]
+
+!                case('PBC')
+!                        if (item < nitems) then
+!                        end if
+
+                case('N_CONNECT_MAX')
+                        if (item < nitems) then
+                                call geti(this%n_connect_max)
+                        end if
                 end select
         end do lat
+
         close(iunit)
+
         call this%set_length(1,3)
-        call this%set_nconnect_max(4)
+        !call this%set_nconnect_max(4)
+
         Call input_options(echo_lines=.false., skip_blank_lines=.true.)
+
     end subroutine read_lattice_struct
 
 
