@@ -2374,7 +2374,12 @@ contains
 
                                 end if
                             end if
-                            IF (THUB) write(6, '(A)') '  *** HUBBARD MODEL ***  '
+
+                            IF (t_heisenberg_model) then
+                                    write(6, '(A)') '  *** HEISENBERG MODEL ***  '
+                            ELSE IF (THUB) then 
+                                    write(6, '(A)') '  *** HUBBARD MODEL ***  '
+                            END IF
 !C..
                             IF (.NOT. THUB .AND. .NOT. TUEG) THEN
                                 ! Just have even/odd symmetry so it's a two cycle symmetry
@@ -2410,12 +2415,13 @@ contains
 !C..
 
                             ! W.D: are those variable ever used actually?
+                            ! V.M.K: So I just remove them from the print out (?)
                             NMAX = MAX(NMAXX, NMAXY, NMAXZ)
                             NNR = NMSH * NMSH * NMSH
-                            write(6, '(A,I5)') '  NMAXX : ', NMAXX
-                            write(6, '(A,I5)') '  NMAXY : ', NMAXY
-                            write(6, '(A,I5)') '  NMAXZ : ', NMAXZ
-                            write(6, '(A,I5)') '  NMSH : ', NMSH
+                            !write(6, '(A,I5)') '  NMAXX : ', NMAXX
+                            !write(6, '(A,I5)') '  NMAXY : ', NMAXY
+                            !write(6, '(A,I5)') '  NMAXZ : ', NMAXZ
+                            !write(6, '(A,I5)') '  NMSH : ', NMSH
 !C.. 2D check
                             IF (NMAXZ == 0) THEN
                                 write(6, '(A)') ' NMAXZ=0.  2D calculation using C/A=1/A  '
@@ -2423,7 +2429,9 @@ contains
                             end if
 
 !C..
-                            IF (THUB) THEN
+                            IF (t_heisenberg_model) THEN
+                                write(6, '(1X,A,F19.5)') '  Heisenberg J : ', exchange_j
+                            ELSE IF (THUB) THEN
                                 write(6, '(1X,A,F19.5)') '  HUBBARD T : ', BHUB
                                 write(6, '(1X,A,F19.5)') '  HUBBARD U : ', UHUB
                                 if (abs(nn_bhub) > EPS) then
@@ -2435,7 +2443,6 @@ contains
                                 if (t_new_hubbard) then
                                     if (iprocindex == root) then
                                         print *, "New Hubbard Implementation! "
-                                        print *, "lattice used: "
                                         call lat%print_lat()
                                     end if
                                 end if
@@ -2458,18 +2465,17 @@ contains
                                 if (t_new_hubbard) then
                                     omega = real(lat%get_nsites(), dp)
                                     if (iprocindex == root) then
-                                        print *, " periodic boundary conditions: ", lat%is_periodic()
+                                        !print *, " periodic boundary conditions: ", lat%is_periodic()
                                         print *, "Real space basis: ", t_new_real_space_hubbard
                                     end if
 
                                 else if (t_heisenberg_model .or. t_tJ_model) then
                                     root_print "New tJ/Heisenberg Implementation! "
-                                    root_print "lattice used: "
                                     if (iprocindex == root) then
                                         call lat%print_lat()
                                     end if
-                                    omega = real(lat%get_nsites(), dp)
-                                    root_print " periodic boundary conditions: ", lat%is_periodic()
+                            omega = real(lat%get_nsites(), dp)
+                            !root_print " periodic boundary conditions: ", lat%is_periodic()
                                     rs = 1.0_dp
 
                                 else
