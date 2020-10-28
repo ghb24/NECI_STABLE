@@ -33,10 +33,10 @@ contains
         integer, parameter :: det_I(6) = [1, 2, 3, 7, 8, 10]
 
         logical :: successful
-        integer, parameter :: n_iters=5 * 10**7
+        integer, parameter :: n_iters=1 * 10**7
 
-        pParallel = 0.05_dp
-        pSingles = 0.3_dp
+        pParallel = 0.10_dp
+        pSingles = 0.05_dp
         pDoubles = 1.0_dp - pSingles
 
         call assert_true(tGASSpinRecoupling)
