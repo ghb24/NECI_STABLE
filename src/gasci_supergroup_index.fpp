@@ -27,8 +27,8 @@
 ! For example the index of [1, 0, 2] is given by "jumping"
 !    over all terms with a leading 3 ([3, ?, ?]) and 2 ([2, ?, ?]) and then applying the same logic to the next index.
 ! There are p(k - 1, n - leading term) compositions to jump over.
-!                  [3, ?, ?]     [2, ?, ?]   [1, 2, ?]    [1, 1, ?]   [1, 0, ?]
-! idx([1, 0, 2]) = p(2, 0)    +    p(2, 1) +   p(1, 0) +    p(1, 1) +   p(1, 2)
+!                  [3, ?, ?]     [2, ?, ?]   [1, 2, ?]    [1, 1, ?]
+! idx([1, 0, 2]) = p(2, 0)    +    p(2, 1) +   p(1, 0) +    p(1, 1) +         1
 !                =      1     +         2  +        1  +          1 +         1
 !                = 6
 !
