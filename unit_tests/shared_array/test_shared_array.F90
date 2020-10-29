@@ -1,6 +1,6 @@
 module test_shared_array_mod
     use mpi
-    use constants, only: int64, MPIArg
+    use constants, only: int64, MPIArg, iout
     use shared_array, only: shared_array_int64_t
     use Parallel_neci, only: mpi_comm_intra, iProcIndex_intra
     use fruit
@@ -18,7 +18,11 @@ contains
         integer(MPIArg) :: ierr
         type(shared_array_int64_t) :: shared_arr
 
-        call shared_arr%shared_alloc(max_size + 100_int64)
+        write(iout, *) 'modify the source of test_shared_array.F90 '
+        write(iout, *) 'if you want to test if MPI supports 64bit indexed shared arrays.'
+        write(iout, *) 'We had to switch the test off, otherwise the unit tests take too long.'
+!         call shared_arr%shared_alloc(max_size + 100_int64)
+        call shared_arr%shared_alloc(5)
 
         if (iProcIndex_intra == 0) then
             do i = 1_int64, size(shared_arr%ptr, kind=int64)
