@@ -22,7 +22,7 @@ contains
         write(iout, *) 'if you want to test if MPI supports 64bit indexed shared arrays.'
         write(iout, *) 'We had to switch the test off, otherwise the unit tests take too long.'
 !         call shared_arr%shared_alloc(max_size + 100_int64)
-        call shared_arr%shared_alloc(5)
+        call shared_arr%shared_alloc(5_int64)
 
         if (iProcIndex_intra == 0) then
             do i = 1_int64, size(shared_arr%ptr, kind=int64)
