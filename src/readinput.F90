@@ -197,13 +197,7 @@ contains
             if (allocated(user_input_GAS_exc_gen)) then
                 GAS_exc_gen = user_input_GAS_exc_gen
             else
-                ! at the moment the discarding GAS is unfortunately the fastest
-                ! (even for disconnected spaces).
-                if (GAS_specification%is_connected()) then
-                    GAS_exc_gen = possible_GAS_exc_gen%DISCARDING
-                else
-                    GAS_exc_gen = possible_GAS_exc_gen%DISCONNECTED_PCHB
-                end if
+                GAS_exc_gen = possible_GAS_exc_gen%GENERAL_PCHB
             end if
         end if
 
@@ -624,20 +618,17 @@ contains
             if (.not. tDefineDet) then
                 call stop_all(t_r, "Running GAS requires a user-defined reference via definedet.")
             endif
-            if (.not. GAS_specification%contains(DefDet)) then
+            if (.not. GAS_specification%contains_det(DefDet)) then
                 call stop_all(t_r, "Reference determinant has to be contained in GAS space.")
             endif
             if (.not. GAS_specification%is_valid()) then
                 call stop_all(t_r, "GAS specification not valid.")
             end if
-            if (.not. tGASSpinRecoupling .and. all(GAS_exc_gen /= [possible_GAS_exc_gen%DISCONNECTED, possible_GAS_exc_gen%DISCONNECTED_PCHB])) then
-                call stop_all(t_r, "Running GAS without spin-recoupling requires disconnected implementations.")
+            if (.not. tGASSpinRecoupling .and. all(GAS_exc_gen /= [possible_GAS_exc_gen%DISCONNECTED, possible_GAS_exc_gen%GENERAL_PCHB])) then
+                call stop_all(t_r, "Running GAS without spin-recoupling requires {DISCONNECTED, GENERAL_PCHB} implementations.")
             end if
             if (GAS_exc_gen == possible_GAS_exc_gen%DISCONNECTED .and.  GAS_specification%is_connected()) then
                 call stop_all(t_r, "Running GAS-CI = DISCONNECTED requires disconnected spaces.")
-            end if
-            if (GAS_exc_gen == possible_GAS_exc_gen%DISCONNECTED_PCHB .and.  GAS_specification%is_connected()) then
-                call stop_all(t_r, "Running GAS-CI = DISCONNECTED_PCHB requires disconnected spaces.")
             end if
         end if
 

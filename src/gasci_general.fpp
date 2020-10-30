@@ -37,6 +37,8 @@ module gasci_general
     public :: get_possible_spaces, get_possible_holes, &
         get_available_singles, get_available_doubles
 
+    public :: gen_exc_single
+
 
     interface get_cumulative_list
         #:for Excitation_t in ExcitationTypes
@@ -81,7 +83,7 @@ contains
     !>      where particles should be created before creating the new particle.
     !>  @param[in] n_total, optional, The total number of particles
     !>      that will be created. Defaults to one (integer).
-    function get_possible_spaces(GAS_spec, particles_per_GAS, add_holes, add_particles, n_total) result(spaces)
+    pure function get_possible_spaces(GAS_spec, particles_per_GAS, add_holes, add_particles, n_total) result(spaces)
         type(GASSpec_t), intent(in) :: GAS_spec
         integer, intent(in) :: &
             particles_per_GAS(GAS_spec%nGAS())
@@ -176,7 +178,7 @@ contains
     !>      that will be created. Defaults to one (integer).
     !>  @param[in] excess, optional, The current excess of spin projections.
     !>      If a beta electron was deleted, the excess is 1 * alpha.
-    function get_possible_holes(GAS_spec, det_I, add_holes, add_particles, n_total, excess) result(possible_holes)
+    pure function get_possible_holes(GAS_spec, det_I, add_holes, add_particles, n_total, excess) result(possible_holes)
         type(GASSpec_t), intent(in) :: GAS_spec
         integer, intent(in) :: det_I(:)
         integer, intent(in), optional :: add_holes(:)
@@ -195,9 +197,9 @@ contains
         integer :: n_total_
 
         @:def_default(n_total_, n_total, 1)
-        @:ASSERT(1 <= n_total_)
+        @:pure_ASSERT(1 <= n_total_)
         if (present(excess)) then
-            @:ASSERT(abs(excess%val) <= n_total_, excess, n_total_)
+            @:pure_ASSERT(abs(excess%val) <= n_total_)
         end if
 
         call GAS_spec%split_per_GAS(det_I, splitted, splitted_sizes)
@@ -531,21 +533,21 @@ contains
 
     !>  @brief
     !>  Draw from a cumulative list.
-    DEBUG_IMPURE subroutine draw_from_cum_list(c_sum, idx, pgen)
+    subroutine draw_from_cum_list(c_sum, idx, pgen)
         real(dp), intent(in) :: c_sum(:)
         integer, intent(out) :: idx
         real(dp), intent(out) :: pgen
         character(*), parameter :: this_routine = 'draw_from_cum_list'
 
-        @:ASSERT((c_sum(size(c_sum)) .isclose. 0.0_dp) &
+        @:pure_ASSERT((c_sum(size(c_sum)) .isclose. 0.0_dp) &
             .or. (c_sum(size(c_sum)) .isclose. 1.0_dp))
-        @:ASSERT(is_sorted(c_sum))
+        @:pure_ASSERT(is_sorted(c_sum))
 
         ! there might not be such an excitation
         if (c_sum(size(c_sum)) > 0) then
             ! find the index of the target hole in the cumulative list
             idx = binary_search_first_ge(c_sum, genrand_real2_dSFMT())
-            @:ASSERT(1 <= idx .and. idx <= size(c_sum))
+            @:pure_ASSERT(1 <= idx .and. idx <= size(c_sum))
 
             ! adjust pgen with the probability for picking tgt from the cumulative list
             if (idx == 1) then
@@ -605,7 +607,7 @@ contains
 
     !>  @brief
     !>  Get all single excitated determinants from det_I that are allowed under GAS constraints.
-    DEBUG_IMPURE function get_available_singles(GAS_spec, det_I) result(singles_exc_list)
+    pure function get_available_singles(GAS_spec, det_I) result(singles_exc_list)
         type(GASSpec_t), intent(in) :: GAS_spec
         integer, intent(in) :: det_I(:)
         integer, allocatable :: singles_exc_list(:, :)
@@ -618,7 +620,7 @@ contains
         type(buffer_int_2D_t) :: buffer
 
 
-        @:ASSERT(GAS_spec%contains(det_I))
+        @:pure_ASSERT(GAS_spec%contains_det(det_I))
 
         call buffer%init(size(det_I))
 
@@ -640,7 +642,7 @@ contains
 
     !>  @brief
     !>  Get all double excitated determinants from det_I that are allowed under GAS constraints.
-    DEBUG_IMPURE function get_available_doubles(GAS_spec, det_I) result(doubles_exc_list)
+    pure function get_available_doubles(GAS_spec, det_I) result(doubles_exc_list)
         type(GASSpec_t), intent(in) :: GAS_spec
         integer, intent(in) :: det_I(:)
         integer, allocatable :: doubles_exc_list(:, :)
@@ -651,7 +653,7 @@ contains
         type(SpinProj_t) :: m_s_1
         type(buffer_int_2D_t) :: buffer
 
-        @:ASSERT(GAS_spec%contains(det_I))
+        @:pure_ASSERT(GAS_spec%contains_det(det_I))
 
         call buffer%init(size(det_I))
 
@@ -663,19 +665,19 @@ contains
                 first_pick_possible_holes = get_possible_holes(GAS_spec, det_I, &
                                         add_holes=deleted, excess=-sum(calc_spin_raw(deleted)), &
                                         n_total=2)
-                @:ASSERT(disjoint(first_pick_possible_holes, det_I))
+                @:pure_ASSERT(disjoint(first_pick_possible_holes, det_I))
                 do k = 1, size(first_pick_possible_holes)
                     tgt1 = first_pick_possible_holes(k)
                     m_s_1 = calc_spin_raw(tgt1)
-                    @:ASSERT(any(m_s_1 == [alpha, beta]))
+                    @:pure_ASSERT(any(m_s_1 == [alpha, beta]))
 
                     second_pick_possible_holes = get_possible_holes(&
                             GAS_spec, det_I, add_holes=deleted, &
                             add_particles=[tgt1], &
                             n_total=1, excess=m_s_1 - sum(calc_spin_raw(deleted)))
 
-                    @:ASSERT(disjoint(second_pick_possible_holes, [tgt1]))
-                    @:ASSERT(disjoint(second_pick_possible_holes, det_I))
+                    @:pure_ASSERT(disjoint(second_pick_possible_holes, [tgt1]))
+                    @:pure_ASSERT(disjoint(second_pick_possible_holes, det_I))
 
                     do l = 1, size(second_pick_possible_holes)
                         tgt2 = second_pick_possible_holes(l)
@@ -691,7 +693,7 @@ contains
 
         remove_double_appearances : block
             integer, allocatable :: tmp_buffer(:, :)
-            allocate(tmp_buffer, mold=doubles_exc_list)
+            allocate(tmp_buffer(size(doubles_exc_list, 1), size(doubles_exc_list, 2)))
             j = 1
             tmp_buffer(:, j) = doubles_exc_list(:, 1)
             do i = 2, size(doubles_exc_list, 2)

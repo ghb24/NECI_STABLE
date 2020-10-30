@@ -1,3 +1,5 @@
+#:mute
+
 #:def unused_var(*args)
 #ifdef WARNING_WORKAROUND_
     #:for arg in args
@@ -24,17 +26,40 @@ endif
 
 #:def ASSERT(cond, *args)
 #ifdef DEBUG_
-    if (.not. (${cond}$)) then
-        write(6, *) ""
-        write(6, *) "Assertion ${cond}$"
-        write(6, *) "failed in ${_FILE_}$:${_LINE_}$"
+    block
+        use util_mod, only: stop_all
+        use constants, only: iout
+        if (.not. (${cond}$)) then
+            write(iout, *) ""
+            write(iout, *) "Assertion ${cond}$"
+            write(iout, *) "failed in ${_FILE_}$:${_LINE_}$"
 #:if args
-        write(6, *) "Values leading to this error:"
+            write(iout, *) "Values leading to this error:"
 #:for value in args
-        write(6, *) "${value}$ = ", ${value}$
+            write(iout, *) "${value}$ = ", ${value}$
 #:endfor
 #:endif
-        call stop_all (this_routine, "Assert fail: ${cond}$")
-    end if
+            call stop_all (this_routine, "Assert fail: ${cond}$")
+        end if
+    end block
 #endif
 #:enddef
+
+
+#:def pure_ASSERT(cond, import_stop_all='True')
+#:set import_stop_all = import_stop_all == 'True'
+#ifdef DEBUG_
+    block
+#! This is there to use pure_ASSERT in the util_mod as well.
+#! Would cause circular imports otherwise.
+#:if import_stop_all
+        use util_mod, only: stop_all
+#:endif
+        if (.not. (${cond}$)) then
+            call stop_all (this_routine, "Assert fail: ${cond}$")
+        end if
+    end block
+#endif
+#:enddef
+
+#:endmute

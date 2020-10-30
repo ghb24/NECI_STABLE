@@ -1,12 +1,13 @@
-module test_gasci_disconnected_pchb_mod
+module test_gasci_general_pchb
     use fruit
-    use constants, only: dp, n_int
-    use util_mod, only: operator(.div.), operator(.isclose.), near_zero
+    use constants, only: dp, int64, n_int
+    use util_mod, only: operator(.div.), operator(.isclose.), near_zero, choose
+    use util_mod, only: factrl, intswap, cumsum
     use orb_idx_mod, only: calc_spin_raw, sum, SpinOrbIdx_t
     use excitation_types, only: Excitation_t
 
     use gasci, only: GASSpec_t
-    use gasci_disconnected_pchb, only: gen_GASCI_pchb, disconnected_GAS_PCHB
+    use gasci_general_pchb
     use gasci_general, only: gen_all_excits
 
     use sltcnd_mod, only: dyn_sltcnd_excit
@@ -18,43 +19,45 @@ module test_gasci_disconnected_pchb_mod
     private
     public :: test_pgen
 
-
-
 contains
 
 
     subroutine test_pgen()
         use gasci, only: global_GAS_spec => GAS_specification
+
+
+        use gasci_general_pchb, only: general_GAS_PCHB
         use SystemData, only: tGASSpinRecoupling
         use FciMCData, only: pSingles, pDoubles, pParallel
         type(GASSpec_t) :: GAS_spec
         integer, parameter :: det_I(6) = [1, 2, 3, 7, 8, 10]
 
         logical :: successful
-        integer, parameter :: n_iters=2 * 10**6
+        integer, parameter :: n_iters=1 * 10**7
 
-        pParallel = 0.05_dp
-        pSingles = 0.3_dp
+        pParallel = 0.10_dp
+        pSingles = 0.05_dp
         pDoubles = 1.0_dp - pSingles
 
         call assert_true(tGASSpinRecoupling)
 
-        GAS_spec = GASSpec_t(n_min=[3, size(det_I)], n_max=[3, size(det_I)], &
+        GAS_spec = GASSpec_t(n_min=[2, size(det_I)], n_max=[4, size(det_I)], &
                              spat_GAS_orbs=[1, 1, 1, 2, 2, 2])
-        call assert_true(GAS_spec%is_valid())
-        call assert_true(GAS_spec%contains(det_I))
         global_GAS_spec = GAS_spec
+        call assert_true(GAS_spec%is_valid())
+        call assert_true(GAS_spec%contains_det(det_I))
 
         call init_excitgen_test(size(det_I), FciDumpWriter_t(random_fcidump, 'FCIDUMP'))
-        call disconnected_GAS_PCHB%init()
+
+        call general_GAS_PCHB%init(GAS_spec)
+
         call run_excit_gen_tester( &
-            gen_GASCI_pchb, 'Disconnected PCHB GASCI implementation, random fcidump', &
+            gen_GASCI_general_pchb, 'General GAS PCHB implementation, random fcidump', &
             opt_nI=det_I, opt_n_iters=n_iters, &
             gen_all_excits=gen_all_excits, &
             problem_filter=is_problematic,&
             successful=successful)
         call assert_true(successful)
-        call disconnected_GAS_PCHB%finalize()
         call finalize_excitgen_test()
 
     contains
@@ -79,14 +82,16 @@ contains
         end function
 
     end subroutine test_pgen
-end module test_gasci_disconnected_pchb_mod
+
+end module
+
 
 program test_gasci_program
 
     use mpi
     use fruit
     use Parallel_neci, only: MPIInit, MPIEnd
-    use test_gasci_disconnected_pchb_mod, only: test_pgen
+    use test_gasci_general_pchb, only: test_pgen
 
 
     implicit none

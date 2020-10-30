@@ -1382,7 +1382,7 @@ contains
                     if (tReadPops) then
                         ! if the perturbation is to be created from the read-in population
                         ! explicitly
-                        perturbed_buf = 0.0_dp
+                        perturbed_buf = 0_n_int
                         call apply_perturbation(overlap_pert(i), tmp_totwalkers, popsfile_dets, &
                                                 perturbed_buf)
 
@@ -1400,7 +1400,7 @@ contains
                     if (gf_count > 1) call stop_all("create_perturbed_ground", &
                                                     "Unable to use momentum operators for multiple correlation functions")
                     if (tReadPops) then
-                        perturbed_buf = 0.0_dp
+                        perturbed_buf = 0_n_int
                         call apply_perturbation_array(overlap_pert, tmp_totwalkers, popsfile_dets, &
                                                       perturbed_buf, phase_factors)
                     else
