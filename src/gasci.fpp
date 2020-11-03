@@ -410,5 +410,12 @@ contains
             write(iunit, '(I0, 1x)', advance='no') self%get_iGAS(iorb)
         end do
         write(iunit, *)
+
+        if (any(self%GAS_sizes < (self%cn_max - eoshift(self%cn_min, -1)))) then
+            write(iunit, '(A)') 'Note: The Pauli principle is a tighter bound'
+            write(iunit, '(A)') '   to the particle number than the given maximum by the'
+            write(iunit, '(A)') '   GAS constraint in some spaces.'
+        end if
     end subroutine
+
 end module gasci
