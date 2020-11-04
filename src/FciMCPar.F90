@@ -1225,7 +1225,7 @@ contains
                 ! the last RDMEnergyIter iterations.
                 tFill_RDM = .true.
                 IterLastRDMFill = RDMEnergyIter
-            elseif(Iter == NMCyc .or. Iter - maxval(VaryShiftIter) == eq_cyc) then
+            else if(Iter == NMCyc .or. Iter - maxval(VaryShiftIter) == eq_cyc) then
                 ! Last iteration, calculate the diagonal element for the iterations
                 ! since the last time they were included.
                 tFill_RDM = .true.
