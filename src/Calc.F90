@@ -1573,6 +1573,7 @@ contains
             case("POPS-CORE")
                 ss_space_in%tPops = .true.
                 call geti(ss_space_in%npops)
+                t_fast_pops_core = .false.
                 if (int(ss_space_in%npops,int64) * int(nProcessors,int64) > 1000000_int64 &
                         .and. .not. tForceFullPops) then
                     ss_space_in%tApproxSpace = .true.
