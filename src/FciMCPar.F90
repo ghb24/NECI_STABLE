@@ -27,7 +27,7 @@ module FciMCParMod
                         DiagSft, tDynamicTrial, trialSpaceUpdateCycle, semistochStartIter, &
                         tSkipRef, tTrialShift, tSpinProject, t_activate_decay, &
                         t_direct_guga_ref, t_trunc_guga_pgen_noninits, &
-                        tLogAverageSpawns, tActivateLAS, &
+                        tLogAverageSpawns, tActivateLAS, eq_cyc, &
                         t_guga_back_spawn, tEN2Init, tEN2Rigorous, tDeathBeforeComms, &
                         tDetermProjApproxHamil, tCoreAdaptiveShift, &
                         tScaleBlooms, max_allowed_spawn
@@ -1225,7 +1225,7 @@ contains
                 ! the last RDMEnergyIter iterations.
                 tFill_RDM = .true.
                 IterLastRDMFill = RDMEnergyIter
-            else if (Iter == NMCyc) then
+            elseif(Iter == NMCyc .or. Iter - maxval(VaryShiftIter) == eq_cyc) then
                 ! Last iteration, calculate the diagonal element for the iterations
                 ! since the last time they were included.
                 tFill_RDM = .true.

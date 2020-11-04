@@ -136,7 +136,7 @@ contains
         call MPISumAll(mapping_test, mapping_test_all)
         if (.not. all(mapping_test_all == 1 .or. mapping_test_all == 0)) then
             call stop_all(this_routine, "Multi-processor mapping not &
-                         &correctly determined")
+                &correctly determined")
         end if
 
         ! And do a load balancing before anything else happens
@@ -153,7 +153,7 @@ contains
             log_dealloc(lb_tag)
         end if
 
-    end subroutine
+    end subroutine clean_load_balance
 
     subroutine adjust_load_balance(iter_data)
 
@@ -164,9 +164,10 @@ contains
         integer(int64) :: smallest_size
         integer :: j, proc, det(nel), block, TotWalkersTmp
         integer :: min_parts, max_parts, min_proc, max_proc
-        integer :: smallest_block, iBlockMoves
+        integer :: smallest_block, iBlockMoves, iblock, ierr
         real(dp) :: sgn(lenof_sign), avg_parts
         logical :: unbalanced
+        integer, allocatable:: movelist(:, :)
         character(*), parameter :: this_routine = 'adjust_load_balance'
 
         ! TODO: Need to ensure we don't move around the semi-stochastic sites,
@@ -210,15 +211,17 @@ contains
             block_parts(block) = block_parts(block) + sum(ceiling(abs(sgn)))
         end do
 
-        ! Accumulate the data from all of the processors (on root)
+          ! Accumulate the data from all of the processors (on root)
         call MPISum(block_parts, block_parts_all)
 
         iBlockMoves = 0
-        do while (.true.)
 
-            ! n.b. the required data is only available on the root node.
-            if (iProcIndex == root) then
+        allocate(movelist(3, balance_blocks))
 
+          !determine changes required to achieve a balanced layout
+          ! n.b. the required data is only available on the root node.
+        if (iProcIndex == root) then
+            do while (.true.)
                 ! How many particles are on each processor?
                 proc_parts = 0
                 do block = 1, balance_blocks
@@ -238,8 +241,9 @@ contains
                 ASSERT(min_proc >= 0)
                 ASSERT(max_proc >= 0)
 
-                if (min_proc > nProcessors - 1 .or. max_proc > nProcessors - 1) &
+                if (min_proc > nProcessors - 1 .or. max_proc > nProcessors - 1) then
                     call stop_all(this_routine, 'invalid value')
+                end if
 
                 ! Create a list of the blocks associated with the most
                 ! heavily utilised processor in increasing size order.
@@ -247,9 +251,9 @@ contains
                 smallest_size = -1
                 do block = 1, balance_blocks
                     if (LoadBalanceMapping(block) == max_proc) then
-                        if (block_parts_all(block) > 0 .and. &
-                            (block_parts_all(block) < smallest_size .or. &
-                             smallest_size == -1)) then
+                        if (block_parts_all(block) > 0  &
+                                .and.  (block_parts_all(block) < smallest_size &
+                                        .or.  smallest_size == -1)) then
                             smallest_block = block
                             smallest_size = block_parts_all(block)
                         end if
@@ -258,37 +262,41 @@ contains
 
                 ! If moving a block of the smallest size between the largest
                 ! and the smallest is a helpful thing to do, then move it!
-                if (smallest_block /= 0) then
-                    if ((abs(min_parts + smallest_size - avg_parts) < abs(min_parts - avg_parts)) .and. &
-                        (abs(max_parts - smallest_size - avg_parts) < abs(max_parts - avg_parts))) then
-                        unbalanced = .true.
-                    else
-                        unbalanced = .false.
-                    end if
+                unbalanced = smallest_block /= 0 &
+                             .and. abs(min_parts + smallest_size - avg_parts) < abs(min_parts - avg_parts) &
+                             .and. abs(max_parts - smallest_size - avg_parts) < abs(max_parts - avg_parts)
+
+                ! If this is sufficiently balanced, then we make no (further)
+                ! changes.
+                if (.not. unbalanced) then
+                    exit
                 else
-                    unbalanced = .false.
-                end if
-            end if
-            call MPIBcast(unbalanced)
+                    iBlockMoves = iBlockMoves + 1
+                endif
 
-            ! If this is sufficiently balanced, then we make no (further)
-            ! changes.
-            if (.not. unbalanced) then
-                exit
-            else
-                iBlockMoves = iBlockMoves + 1
-            end if
+                ! register the parameters for the change!
+                movelist(1, iBlockMoves) = smallest_block
+                movelist(2, iBlockMoves) = LoadBalanceMapping(smallest_block)
+                movelist(3, iBlockMoves) = min_proc
 
-            ! Broadcast the parameters for the change!
-            call MPIBCast(min_proc)
-            call MPIBCast(max_proc)
-            call MPIBcast(smallest_block)
+                ! mapping after this change
+                LoadBalanceMapping(smallest_block) = min_proc
+            end do
+        end if
+        call MPIBarrier(ierr)
 
-            ! Move the block from where it is to the currently least worked
-            ! processor
-            call move_block(smallest_block, min_proc)
+        ! Broadcast movelist
+        call MPIBcast(iBlockMoves)
+        call MPIBcast(movelist, 3 * iBlockMoves)
 
+        ! Actually move the blocks identified above
+        do iblock=1, iBlockMoves
+           call move_block(movelist(:, iblock))
         end do
+        deallocate(movelist)
+
+        ! Broadcast the new LoadBalanceMapping to all procs
+        call MPIBcast(LoadBalanceMapping)
 
         if (iProcIndex == root .and. tOutputLoadDistribution) then
             write(6, '("Load balancing distribution:")')
@@ -322,11 +330,12 @@ contains
 
     end subroutine
 
-    subroutine move_block(block, tgt_proc)
+    subroutine move_block(exchangedata)
         implicit none
-        integer, intent(in) :: block, tgt_proc
+        integer, intent(in) :: exchangedata(3)
 
-        integer :: src_proc, ierr, nsend, nelem, j, k, det_block, hash_val, PartInd
+        integer :: src_proc, tgt_proc, block
+        integer :: ierr, nsend, nelem, j, k, det_block, hash_val, PartInd
         integer :: det(nel), TotWalkersTmp, nconsend, clashes, ntrial, ncon, err
         integer(n_int) :: con_state(0:NConEntry)
         real(dp) :: sgn(lenof_sign)
@@ -341,7 +350,9 @@ contains
         integer, parameter :: mpi_tag_trial = 223461
         integer, parameter :: mpi_tag_glob = 223462
 
-        src_proc = LoadBalanceMapping(block)
+        block =  exchangedata(1)
+        src_proc = exchangedata(2)
+        tgt_proc = exchangedata(3)
 
         ! Provide some feedback to the user.
         if (iProcIndex == root) then
@@ -475,14 +486,7 @@ contains
                                               trial_ht, trial_space_size)
                 end if
             end if
-
         end if
-
-        ! Adjust the load balancing mapping
-        LoadBalanceMapping(block) = tgt_proc
-
-        ! And synchronise when everything is done
-        call MPIBarrier(ierr)
 
     end subroutine
 

@@ -201,7 +201,7 @@ module CalcData
     integer, allocatable :: user_input_seed
     INTEGER :: IMCSTEPS, IEQSTEPS, MDK(5), Iters, NDets, iDetGroup
     INTEGER :: CUR_VERT, NHISTBOXES, I_P, LinePoints, iMaxExcitLevel
-    INTEGER :: NMCyc, StepsSft, CLMax
+    INTEGER :: NMCyc, StepsSft, CLMax, eq_cyc
     INTEGER :: NEquilSteps, iSampleRDMIters
     real(dp) :: InitialPart
     real(dp), allocatable :: InitialPartVec(:)

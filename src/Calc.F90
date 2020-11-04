@@ -179,6 +179,7 @@ contains
         AAS_Const = 0.0
         tAS_TrialOffset = .false.
         tAS_Offset = .false.
+        ShiftOffset = 0.0_dp
         tInitsRDMRef = .false.
         tInitsRDM = .false.
         tApplyLC = .true.
@@ -204,6 +205,7 @@ contains
         Tau = 0.0_dp
         InitWalkers = 3000.0_dp
         NMCyc = -1
+        eq_cyc = -1
         HApp = 1
         TMCStar = .false.
         THDiag = .false.
@@ -1186,6 +1188,9 @@ contains
             case("NMCYC")
 !For FCIMC, this is the number of MC cycles to perform
                 call geti(NMCyc)
+            case("EQ-CYC")
+                ! This is the number of MC cycles to perform after equilibration
+                call geti(eq_cyc)
             case("DIAGSHIFT")
 !For FCIMC, this is the amount extra the diagonal elements will be shifted. This is proportional to the deathrate of
 !walkers on the determinant
@@ -1568,12 +1573,10 @@ contains
             case("POPS-CORE")
                 ss_space_in%tPops = .true.
                 call geti(ss_space_in%npops)
-                t_fast_pops_core = .false.
-                if(ss_space_in%npops * nProcessors > 1000000) then
-                    if(.not. tForceFullPops) then
-                        ss_space_in%tApproxSpace = .true.
-                        t_fast_pops_core = .true.
-                    end if
+                if (int(ss_space_in%npops,int64) * int(nProcessors,int64) > 1000000_int64 &
+                        .and. .not. tForceFullPops) then
+                    ss_space_in%tApproxSpace = .true.
+                    t_fast_pops_core = .true.
                 end if
             case("POPS-CORE-AUTO")
                 ! this keyword will force intialisation of core space after
