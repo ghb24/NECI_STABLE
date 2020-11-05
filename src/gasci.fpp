@@ -410,5 +410,12 @@ contains
             write(iunit, '(I0, 1x)', advance='no') self%get_iGAS(iorb)
         end do
         write(iunit, *)
+
+        if (any(self%GAS_sizes < (self%cn_max - eoshift(self%cn_min, -1)))) then
+            write(iunit, '(A)') 'In at least one GAS space, the maximum allowed particle number by GAS constraints'
+            write(iunit, '(A)') '   is larger than the particle number allowed by the Pauli principle.'
+            write(iunit, '(A)') '   Was this intended when preparing your input?'
+        end if
     end subroutine
+
 end module gasci
