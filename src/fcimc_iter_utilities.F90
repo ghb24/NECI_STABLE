@@ -8,14 +8,14 @@ module fcimc_iter_utils
                         tTruncInitiator, tJumpShift, TargetGrowRate, &
                         tLetInitialPopDie, InitWalkers, tCheckHighestPop, &
                         HFPopThresh, DiagSft, tShiftOnHFPop, iRestartWalkNum, &
-                        FracLargerDet, tKP_FCIQMC, MaxNoatHF, SftDamp, &
+                        FracLargerDet, tKP_FCIQMC, MaxNoatHF, SftDamp, SftDamp2, &
                         nShiftEquilSteps, TargetGrowRateWalk, tContTimeFCIMC, &
                         tContTimeFull, pop_change_min, tPositiveHFSign, &
                         qmc_trial_wf, nEquilSteps, t_hist_tau_search, &
                         t_hist_tau_search_option, tSkipRef, N0_Target, &
                         tSpinProject, &
                         tFixedN0, tEN2, tTrialShift, tFixTrial, TrialTarget, &
-                        tDynamicAvMCEx, AvMCExcits
+                        tDynamicAvMCEx, AvMCExcits, tTargetShiftdamp
 
     use cont_time_rates, only: cont_spawn_success, cont_spawn_attempts
     use LoggingData, only: tPrintDataTables, tLogEXLEVELStats, t_spin_measurements
@@ -874,12 +874,13 @@ contains
         integer(int64) :: tot_walkers
         logical, dimension(inum_runs) :: tReZeroShift
         real(dp), dimension(inum_runs) :: AllGrowRateRe, AllGrowRateIm
-        real(dp), dimension(inum_runs)  :: AllHFGrowRate
+        real(dp), dimension(inum_runs)  :: AllHFGrowRate, AllWalkers
         real(dp), dimension(lenof_sign) :: denominator, all_denominator
         real(dp), dimension(inum_runs) :: rel_tot_trial_numerator
         integer :: error, i, proc, pos, run, lb, ub
         logical, dimension(inum_runs) :: defer_update
         logical :: start_varying_shift
+        character(*), parameter :: this_routine = 'update_shift'
 
         ! Normally we allow the shift to vary depending on the conditions
         ! tested. Sometimes we want to defer this to the next cycle...
@@ -892,6 +893,7 @@ contains
                 ! use the L2 norm to determine the growrate
                 do run = 1, inum_runs
                     AllGrowRate(run) = norm_psi(run) / old_norm_psi(run)
+                    AllWalkers(run) = norm_psi(run)
                 end do
 
             else if (tInstGrowthRate) then
@@ -904,6 +906,8 @@ contains
                     AllGrowRate(run) = (sum(iter_data%update_growth_tot(lb:ub) &
                                             + iter_data%tot_parts_old(lb:ub))) &
                                        / real(sum(iter_data%tot_parts_old(lb:ub)), dp)
+                    AllWalkers(run) = (sum(iter_data%update_growth_tot(lb:ub) &
+                                            + iter_data%tot_parts_old(lb:ub)))
                 end do
 
             else
@@ -913,6 +917,7 @@ contains
                 do run = 1, inum_runs
                     AllGrowRate(run) = AllSumWalkersCyc(run) / real(StepsSft, dp) &
                                        / OldAllAvWalkersCyc(run)
+                    AllWalkers(run) = AllSumWalkersCyc(run) / real(StepsSft, dp)
                 end do
 
             end if
@@ -1007,8 +1012,8 @@ contains
                     end if
 
                 else !not Fixed-N0 and not Trial-Shift
+                    tot_walkers = int(InitWalkers, int64) * int(nNodes, int64)
                     if (TSinglePartPhase(run)) then
-                        tot_walkers = int(InitWalkers, int64) * int(nNodes, int64)
 
 #ifdef CMPLX_
                         if ((sum(AllTotParts(lb:ub)) > tot_walkers) .or. &
@@ -1041,6 +1046,8 @@ contains
                         start_varying_shift = .false.
                         if (tLetInitialPopDie) then
                             if (AllTotParts(run) < tot_walkers) start_varying_shift = .true.
+                        else if (tTargetShiftdamp) then
+                            start_varying_shift = .true.
                         else
                             if ((AllTotParts(run) > tot_walkers) .or. &
                                 (abs(AllNoatHF(run)) > MaxNoatHF)) start_varying_shift = .true.
@@ -1072,70 +1079,75 @@ contains
 #ifdef CMPLX_
                         if (abs_sign(AllNoatHF(lb:ub)) < MaxNoatHF - HFPopThresh) then
 #else
-                            if (abs(AllNoatHF(run)) < MaxNoatHF - HFPopThresh) then
+                        if (abs(AllNoatHF(run)) < MaxNoatHF - HFPopThresh) then
 #endif
-                                write(iout, '(a,i13,a)') 'No at HF has fallen too low - reentering the &
-                                             &single particle growth phase on iteration', iter + PreviousCycles, ' - particle number &
-                                             &may grow again.'
-                                tSinglePartPhase(run) = .true.
-                                tReZeroShift(run) = .true.
-                            end if
+                            write(iout, '(a,i13,a)') 'No at HF has fallen too low - reentering the &
+                                         &single particle growth phase on iteration', iter + PreviousCycles, ' - particle number &
+                                         &may grow again.'
+                            tSinglePartPhase(run) = .true.
+                            tReZeroShift(run) = .true.
+                        end if
 
-                        end if ! tSinglePartPhase(run) or not
+                    end if ! tSinglePartPhase(run) or not
 
                         ! How should the shift change for the entire ensemble of walkers
                         ! over all processors.
-                        if (.not. (tSinglePartPhase(run) &
-                                   .and. near_zero(TargetGrowRate(run)) &
-                                   .or. defer_update(run))) then
+                    if (.not. (tSinglePartPhase(run) &
+                               .and. near_zero(TargetGrowRate(run)) &
+                               .or. defer_update(run))) then
 
-                            !In case we want to continue growing, TargetGrowRate > 0.0_dp
-                            ! New shift value
-                            !                     if(TargetGrowRate(run).ne.0.0_dp) then
-                            ! [W.D. 15.5.2017]
-                            if (abs(TargetGrowRate(run)) > EPS) then
+                        !In case we want to continue growing, TargetGrowRate > 0.0_dp
+                        ! New shift value
+                        !                     if(TargetGrowRate(run).ne.0.0_dp) then
+                        ! [W.D. 15.5.2017]
+                        if (abs(TargetGrowRate(run)) > EPS) then
 #ifdef CMPLX_
-                                if (sum(AllTotParts(lb:ub)) > TargetGrowRateWalk(run)) then
+                            if (sum(AllTotParts(lb:ub)) > TargetGrowRateWalk(run)) then
 #else
-                                    if (AllTotParts(run) > TargetGrowRateWalk(run)) then
+                            if (AllTotParts(run) > TargetGrowRateWalk(run)) then
 #endif
-                                        !Only allow targetgrowrate to kick in once we have > TargetGrowRateWalk walkers.
-                                        DiagSft(run) = DiagSft(run) - (log(AllGrowRate(run) - TargetGrowRate(run)) * SftDamp) / &
-                                                       (Tau * StepsSft)
-                                        ! Same for the info shifts for complex walkers
-#ifdef CMPLX_
-                                        DiagSftRe(run) = DiagSftRe(run) - (log(AllGrowRateRe(run) - TargetGrowRate(run)) * SftDamp) / &
-                                                         (Tau * StepsSft)
-                                        DiagSftIm(run) = DiagSftIm(run) - (log(AllGrowRateIm(run) - TargetGrowRate(run)) * SftDamp) / &
-                                                         (Tau * StepsSft)
-#endif
-                                    end if
-                                else
-                                    if (tShiftonHFPop) then
-                                        !Calculate the shift required to keep the HF population constant
-
-                                        AllHFGrowRate(run) = abs(AllHFCyc(run) / real(StepsSft, dp)) / abs(OldAllHFCyc(run))
-
-                                        DiagSft(run) = DiagSft(run) - (log(AllHFGrowRate(run)) * SftDamp) / &
-                                                       (Tau * StepsSft)
-                                    else
-                                        !"write(6,*) "AllGrowRate, TargetGrowRate", AllGrowRate, TargetGrowRate
-                                        DiagSft(run) = DiagSft(run) - (log(AllGrowRate(run)) * SftDamp) / &
-                                                       (Tau * StepsSft)
-                                    end if
+                                if (tTargetShiftdamp) then
+                                    call stop_all(this_routine, & 
+                                        "Target-shiftdamp not compatible with targetgrowrate!")
                                 end if
+                                !Only allow targetgrowrate to kick in once we have > TargetGrowRateWalk walkers.
+                                DiagSft(run) = DiagSft(run) - (log(AllGrowRate(run) - TargetGrowRate(run)) * SftDamp) / &
+                                               (Tau * StepsSft)
+                                ! Same for the info shifts for complex walkers
+#ifdef CMPLX_
+                                DiagSftRe(run) = DiagSftRe(run) - (log(AllGrowRateRe(run) - TargetGrowRate(run)) * SftDamp) / &
+                                                 (Tau * StepsSft)
+                                DiagSftIm(run) = DiagSftIm(run) - (log(AllGrowRateIm(run) - TargetGrowRate(run)) * SftDamp) / &
+                                                 (Tau * StepsSft)
+#endif
+                            end if
+                        else
+                            if (tShiftonHFPop) then
+                                    !Calculate the shift required to keep the HF population constant
+
+                                AllHFGrowRate(run) = abs(AllHFCyc(run) / real(StepsSft, dp)) / abs(OldAllHFCyc(run))
+
+                                DiagSft(run) = DiagSft(run) - (log(AllHFGrowRate(run)) * SftDamp) / &
+                                                   (Tau * StepsSft)
+                            else
+                                !"write(6,*) "AllGrowRate, TargetGrowRate", AllGrowRate, TargetGrowRate
+                                DiagSft(run) = DiagSft(run) - (log(AllGrowRate(run)) * SftDamp + &
+                                                   log(AllWalkers(run)/tot_walkers) * SftDamp2) / &
+                                                   (Tau * StepsSft)
+                            end if
+                        end if
 
                                 ! Update the shift averages
-                                if ((iter - VaryShiftIter(run)) >= nShiftEquilSteps) then
-                                    if ((iter - VaryShiftIter(run) - nShiftEquilSteps) < StepsSft) &
-                                        write(iout, '(a,i14)') 'Beginning to average shift value on iteration: ', iter + PreviousCycles
-                                    VaryShiftCycles(run) = VaryShiftCycles(run) + 1
-                                    SumDiagSft(run) = SumDiagSft(run) + DiagSft(run)
-                                    AvDiagSft(run) = SumDiagSft(run) / real(VaryShiftCycles(run), dp)
-                                end if
+                        if ((iter - VaryShiftIter(run)) >= nShiftEquilSteps) then
+                            if ((iter - VaryShiftIter(run) - nShiftEquilSteps) < StepsSft) &
+                                write(iout, '(a,i14)') 'Beginning to average shift value on iteration: ', iter + PreviousCycles
+                                VaryShiftCycles(run) = VaryShiftCycles(run) + 1
+                                SumDiagSft(run) = SumDiagSft(run) + DiagSft(run)
+                                AvDiagSft(run) = SumDiagSft(run) / real(VaryShiftCycles(run), dp)
+                        end if
 
-                            end if
-                        end if !tFixedN0 or not
+                    end if
+                end if !tFixedN0 or not
                         ! only update the shift this way if possible
                         if (abs_sign(AllNoatHF(lb:ub)) > EPS) then
 #ifdef CMPLX_

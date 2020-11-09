@@ -226,7 +226,7 @@ module CalcData
     real(dp) :: g_MultiWeight(0:10), G_VMC_PI, G_VMC_FAC, BETAEQ
     real(dp) :: G_VMC_EXCITWEIGHT(10), G_VMC_EXCITWEIGHTS(6, 10)
     real(dp) :: BETAP, RHOEPSILON, DBETA, STARCONV, GraphBias
-    real(dp) :: GrowGraphsExpo, Tau, SftDamp, ScaleWalkers
+    real(dp) :: GrowGraphsExpo, Tau, SftDamp, SftDamp2, ScaleWalkers
     real(dp) :: PRet, FracLargerDet, pop_change_min
     real(dp) :: MemoryFacPart
     real(dp) :: MemoryFacSpawn, SinglesBias, TauFactor, StepsSftImag
@@ -675,4 +675,7 @@ module CalcData
 ! already exist in CurrentDets.
     logical :: tAllowSpawnEmpty
 
+!Use additional second shift damping factor for improved walker population
+!control.
+    logical :: tTargetShiftdamp = .false.
 end module CalcData

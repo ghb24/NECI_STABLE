@@ -1481,9 +1481,21 @@ contains
                 ! default the maximum spaw to MaxWalkerBloom
                 max_allowed_spawn = MaxWalkerBloom
             case("SHIFTDAMP")
-!For FCIMC, this is the damping parameter with respect to the update in the DiagSft value for a given number of MC cycles.
+                !For FCIMC, this is the damping parameter with respect to the update in the DiagSft value for a given number of MC cycles.
                 call getf(SftDamp)
-
+            case("TARGET-SHIFTDAMP")
+                !Introduces a second term in the shift update procedure
+                !depending on the target population with
+                !a second shift damping parameter SftDamp2 to avoid overshooting the
+                !target population.
+                tTargetShiftdamp = .true.
+                if (item < nitems) then 
+                    call getf(SftDamp2)
+                else
+                    !If no value for SftDamp2 is chosen, it is automatically set
+                    !to a value that leads to a critically damped shift.
+                    SftDamp2 = SftDamp**2./4.
+                end if
             case("LINSCALEFCIMCALGO")
                 ! Use the linear scaling FCIMC algorithm
                 ! This option is now deprecated, as it is default.
