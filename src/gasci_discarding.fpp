@@ -4,12 +4,12 @@
 module gasci_discarding
     use constants, only: n_int, dp, maxExcit
     use SystemData, only: nel
+    use FciMCData, only: excit_gen_store_type, nInvalidExcits, nValidExcits
     use bit_rep_data, only: NIfTot
     use sort_mod, only: sort
 
     use pchb_excitgen, only: PCHB_FCI
     use gasci, only: GAS_specification, GASSpec_t
-    use FciMCData, only: excit_gen_store_type
     implicit none
 
     private
@@ -50,6 +50,9 @@ contains
                 ex_mat(2, :ic) = ex_mat(2, :ic)
                 nJ(1) = 0
                 ilutJ = 0_n_int
+
+                nInvalidExcits = nInvalidExcits + 1
+                nValidExcits = nValidExcits - 1
             end if
         end if
     end subroutine gen_GASCI_discarding
