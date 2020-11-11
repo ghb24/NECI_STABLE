@@ -1116,9 +1116,9 @@ contains
                                 ! Same for the info shifts for complex walkers
 #ifdef CMPLX_
                                 DiagSftRe(run) = DiagSftRe(run) - (log(AllGrowRateRe(run) - TargetGrowRate(run)) * SftDamp) / &
-                                                 (Tau * StepsSft)
+                                                     (Tau * StepsSft)
                                 DiagSftIm(run) = DiagSftIm(run) - (log(AllGrowRateIm(run) - TargetGrowRate(run)) * SftDamp) / &
-                                                 (Tau * StepsSft)
+                                                     (Tau * StepsSft)
 #endif
                             end if
                         else
@@ -1131,9 +1131,13 @@ contains
                                                    (Tau * StepsSft)
                             else
                                 !"write(6,*) "AllGrowRate, TargetGrowRate", AllGrowRate, TargetGrowRate
-                                DiagSft(run) = DiagSft(run) - (log(AllGrowRate(run)) * SftDamp + &
-                                                   log(AllWalkers(run)/tot_walkers) * SftDamp2) / &
+                                DiagSft(run) = DiagSft(run) - log(AllGrowRate(run)) * SftDamp / &
                                                    (Tau * StepsSft)
+                                if (tTargetShiftdamp) then
+                                    DiagSft(run) = DiagSft(run) - (log(AllGrowRate(run)) * SftDamp + &
+                                                       log(AllWalkers(run)/tot_walkers) * SftDamp2) / &
+                                                       (Tau * StepsSft)
+                                end if
                             end if
                         end if
 
