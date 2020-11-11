@@ -1009,7 +1009,7 @@ contains
 
             CALL MPIReduce(sum(abs(TotParts)), MPI_MAX, max_n_walkers)
             CALL MPIReduce(sum(abs(TotParts)), MPI_MIN, min_n_walkers)
-            CALL MPIReduce(sum(abs(TotParts)), MPI_SUM, min_n_walkers)
+            CALL MPIReduce(sum(abs(TotParts)), MPI_SUM, total_n_walkers)
             if (iProcIndex == Root) then
                 write(iout, '(/,1X,a55)') 'Load balancing information based on the last iteration:'
                 write(iout, '(1X,a35,1X,f18.10)') 'Mean number of walkers/process:', &
