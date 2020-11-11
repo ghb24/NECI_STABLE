@@ -60,3 +60,5 @@ add_subdirectory( test_loop )
 add_subdirectory( orb_idx_and_exc_types )
 
 add_subdirectory( sets_mod )
+
+add_subdirectory( shared_array )

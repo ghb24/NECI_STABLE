@@ -437,12 +437,14 @@ contains
         real(dp), allocatable :: contrib_list(:)
         logical, allocatable :: generated_list(:)
         integer :: n_generated, pos
+        integer(int64) :: start, finish, rate
 
         procedure(problem_filter_t), pointer :: problem_filter_
 
         ! and also nbasis and stuff..
         ASSERT(nbasis > 0)
         ASSERT(nel <= nbasis)
+        call system_clock(count_rate=rate)
 
         if (present(i_unit)) then
             i_unit_ = i_unit
@@ -506,6 +508,7 @@ contains
 
             n_generated = 0
             contrib = 0.0_dp
+            call system_clock(start)
             do i = 1, int(n_iters, kind=int64)
                 if (mod(i, L) == 0_int64) then
                     write(i_unit_, '(A)', advance='no') '#'
@@ -530,6 +533,7 @@ contains
                     pgen_list(pos) = pgen
                 end if
             end do
+            call system_clock(finish)
             write(i_unit_, *) ! linebreak
         end block
 
@@ -572,6 +576,8 @@ contains
             end do
             write(i_unit_, *) "=================================="
             write(i_unit_, *) ! linebreak
+            write(i_unit_, *) 'Elapsed Time in seconds:', dble(finish - start) / dble(rate)
+            write(i_unit_, *) 'Elapsed Time in micro seconds per excitation:', dble(finish - start) * 1e6_dp / dble(n_iters * rate)
         end block
 
         call clean_excit_gen_store(store)

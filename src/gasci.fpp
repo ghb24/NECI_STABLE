@@ -3,12 +3,15 @@
 
 module gasci
     use SystemData, only: nBasis
-    use util_mod, only: cumsum
+    use util_mod, only: cumsum, stop_all, operator(.div.)
     implicit none
 
     private
     public :: operator(==), operator(/=), possible_GAS_exc_gen, &
-        GAS_exc_gen, GAS_specification, GASSpec_t, user_input_GAS_exc_gen
+        GAS_exc_gen, GAS_specification, GASSpec_t, &
+        user_input_GAS_exc_gen, get_name, construct_GASSpec_t
+
+
 
     type :: GAS_exc_gen_t
         integer :: val
@@ -19,7 +22,7 @@ module gasci
             DISCONNECTED = GAS_exc_gen_t(1), &
             GENERAL = GAS_exc_gen_t(2), &
             DISCARDING = GAS_exc_gen_t(3), &
-            DISCONNECTED_PCHB = GAS_exc_gen_t(4)
+            GENERAL_PCHB = GAS_exc_gen_t(4)
     end type
 
     type(possible_GAS_exc_gen_t), parameter :: possible_GAS_exc_gen = possible_GAS_exc_gen_t()
@@ -59,12 +62,18 @@ module gasci
         !> only splitted_orbitals(i, j), 1 <= i <= GAS_sizes(j)
         !> is defined.
         integer, allocatable :: splitted_orbitals(:, :)
+        !> These lookup variables stay valid, because the data structure is
+        !>  immutable
+        logical :: lookup_is_connected
     contains
         ! All member functions should be public.
-        procedure :: contains => contains_det
-        procedure :: is_connected
+        procedure :: contains_det
+        procedure :: contains_supergroup
+        procedure :: is_connected => get_is_connected
         procedure :: is_valid
         procedure :: nGAS => get_nGAS
+        procedure :: nEl => get_nEl
+        procedure :: n_spin_orbs => get_nOrbs
         procedure :: max_GAS_size => get_max_GAS_size
         procedure :: GAS_size => get_GAS_size
         procedure :: get_iGAS
@@ -73,13 +82,14 @@ module gasci
         procedure :: cumulated_max
         procedure :: split_per_GAS
         procedure :: count_per_GAS
+        procedure :: write_to
     end type
 
     interface GASSpec_t
         module procedure construct_GASSpec_t
     end interface
 
-    type(GASSpec_t) :: GAS_specification
+    type(GASSpec_t), allocatable :: GAS_specification
 
 contains
 
@@ -139,18 +149,28 @@ contains
         cumulated_max = self%cn_max(iGAS)
     end function
 
+    integer elemental function get_nEl(self)
+        class(GASSpec_t), intent(in) :: self
+        get_nEl = self%cn_min(size(self%cn_min))
+    end function
+
+    integer elemental function get_nOrbs(self)
+        class(GASSpec_t), intent(in) :: self
+        get_nOrbs = size(self%GAS_table)
+    end function
+
     !> @brief
     !> Returns the i-th spin orbital in the iGAS GAS space.
     !>
     !> @details
     !>  Can be seen as the preimage of get_iGAS (which is usually not injective).
-    integer impure elemental function get_orb_idx(self, i, iGAS)
+    integer elemental function get_orb_idx(self, i, iGAS)
         class(GASSpec_t), intent(in) :: self
         integer, intent(in) :: i, iGAS
         character(*), parameter :: this_routine = 'get_orb_idx'
 
-        @:ASSERT(1 <= i .and. i <= self%GAS_size(iGAS))
-        @:ASSERT(1 <= iGAS .and. iGAS <= self%nGAS())
+        @:pure_ASSERT(1 <= i .and. i <= self%GAS_size(iGAS))
+        @:pure_ASSERT(1 <= iGAS .and. iGAS <= self%nGAS())
 
         get_orb_idx = self%splitted_orbitals(i, iGAS)
     end function
@@ -164,7 +184,7 @@ contains
     !>  @param[in] n_min, Cumulative minimum particle number.
     !>  @param[in] n_max, Cumulative maximum particle number
     !>  @param[in] spat_GAS_orbs, GAS space for the i-th **spatial** orbital.
-    function construct_GASSpec_t(n_min, n_max, spat_GAS_orbs) result(GAS_spec)
+    pure function construct_GASSpec_t(n_min, n_max, spat_GAS_orbs) result(GAS_spec)
         integer, intent(in) :: n_min(:), n_max(:)
         integer, intent(in) :: spat_GAS_orbs(:)
 
@@ -196,21 +216,23 @@ contains
                 splitted_sizes(iGAS) = splitted_sizes(iGAS) + 1
                 splitted_orbitals(splitted_sizes(iGAS), iGAS) = all_orbs(iel)
             end do
-            @:ASSERT(all(GAS_sizes == splitted_sizes))
+            @:pure_ASSERT(all(GAS_sizes == splitted_sizes))
         end block
 
         GAS_spec = GASSpec_t(&
                 n_min, n_max, GAS_table, &
-                GAS_sizes, max_GAS_size, splitted_orbitals)
-        @:ASSERT(GAS_spec%is_valid())
+                GAS_sizes, max_GAS_size, splitted_orbitals, &
+                any(n_min(:) /= n_max(:)))
+
+        @:pure_ASSERT(GAS_spec%is_valid())
 
         contains
 
-        DEBUG_IMPURE function frequency(N) result(res)
+        pure function frequency(N) result(res)
             integer, intent(in) :: N(:)
             integer, allocatable :: res(:)
             integer :: i
-            @:ASSERT(minval(N) == 1, N)
+            @:pure_ASSERT(minval(N) == 1)
             allocate(res(maxval(N)), source=0)
             do i = 1, size(N)
                 res(N(i)) = res(N(i)) + 1
@@ -223,9 +245,9 @@ contains
     !>      Query if there are connected GAS spaces under the GAS specification.
     !>
     !>  @param[in] GAS_spec, Specification of GAS spaces (GASSpec_t).
-    logical pure function is_connected(self)
+    logical pure function get_is_connected(self)
         class(GASSpec_t), intent(in) :: self
-        is_connected = any(self%cn_min(:) /= self%cn_max(:))
+        get_is_connected = self%lookup_is_connected
     end function
 
 
@@ -239,19 +261,33 @@ contains
     !>
     !>  @param[in] GAS_spec, Specification of GAS spaces (GASSpec_t).
     !>  @param[in] occupied, An index of occupied spin orbitals.
-    function contains_det(self, occupied) result(res)
+    pure function contains_det(self, occupied) result(res)
         class(GASSpec_t), intent(in) :: self
         integer, intent(in) :: occupied(:)
 
         logical :: res
 
+        res = self%contains_supergroup(self%count_per_GAS(occupied))
+    end function
+
+    !>  @brief
+    !>      Query wether a supergroup is contained in the GAS space.
+    !>
+    !>  @param[in] GAS_spec, Specification of GAS spaces (GASSpec_t).
+    !>  @param[in] supergroup, A supergroup.
+    pure function contains_supergroup(self, supergroup) result(res)
+        class(GASSpec_t), intent(in) :: self
+        integer, intent(in) :: supergroup(:)
+
+        logical :: res
+
         !> Cumulated number of particles per iGAS
-        integer :: cum_n_particle(self%nGAS()), i
+        integer :: cn_particle(size(supergroup))
 
-        cum_n_particle = cumsum(self%count_per_GAS(occupied))
+        cn_particle = cumsum(supergroup)
 
-        res = all(self%cn_min(:) <= cum_n_particle(:) &
-            .and. cum_n_particle(:) <= self%cn_max(:))
+        res = all(self%cn_min(:) <= cn_particle(:) &
+            .and. cn_particle(:) <= self%cn_max(:))
     end function
 
 
@@ -307,7 +343,7 @@ contains
                         monotonic, n_orbs_correct])
     end function
 
-    subroutine split_per_GAS(self, occupied, splitted, splitted_sizes)
+    pure subroutine split_per_GAS(self, occupied, splitted, splitted_sizes)
         class(GASSpec_t), intent(in) :: self
         integer, intent(in) :: occupied(:)
         integer, intent(out) :: &
@@ -324,7 +360,7 @@ contains
         end do
     end subroutine
 
-    function count_per_GAS(self, occupied) result(splitted_sizes)
+    pure function count_per_GAS(self, occupied) result(splitted_sizes)
         class(GASSpec_t), intent(in) :: self
         integer, intent(in) :: occupied(:)
 
@@ -338,4 +374,48 @@ contains
             splitted_sizes(iGAS) = splitted_sizes(iGAS) + 1
         end do
     end function
+
+    pure function get_name(impl) result(res)
+        type(GAS_exc_gen_t), intent(in) :: impl
+        character(len=:), allocatable :: res
+        if (impl == possible_GAS_exc_gen%DISCONNECTED) then
+            res = 'Heat-bath on-the-fly GAS implementation for disconnected spaces'
+        else if (impl == possible_GAS_exc_gen%GENERAL) then
+            res = 'Heat-bath on-the-fly GAS implementation'
+        else if (impl == possible_GAS_exc_gen%DISCARDING) then
+            res = 'Discarding GAS implementation'
+        else if (impl == possible_GAS_exc_gen%GENERAL_PCHB) then
+            res = 'PCHB GAS implementation'
+        end if
+    end function
+
+    !> @brief
+    !> Write a string representation of this GAS specification to iunit
+    subroutine write_to(self, iunit)
+        class(GASSpec_t), intent(in) :: self
+        integer, intent(in) :: iunit
+        integer :: iGAS, iorb
+
+        write(iunit, '(A)') 'n_i: number of spatial orbitals per i-th GAS space'
+        write(iunit, '(A)') 'cn_min_i: cumulative minimum number of particles per i-th GAS space'
+        write(iunit, '(A)') 'cn_max_i: cumulative maximum number of particles per i-th GAS space'
+        write(iunit, '(A10, 1x, A10, 1x, A10)') 'n_i', 'cn_min_i', 'cn_max_i'
+        write(iunit, '(A)') '--------------------------------'
+        do iGAS = 1, self%nGAS()
+            write(iunit, '(I10, 1x, I10, 1x, I10)') self%GAS_size(iGAS) .div. 2, self%cumulated_min(iGAS), self%cumulated_max(iGAS)
+        end do
+        write(iunit, '(A)') '--------------------------------'
+        write(iunit, '(A)') 'The distribution of spatial orbitals to GAS spaces is given by:'
+        do iorb = 1, self%n_spin_orbs(), 2
+            write(iunit, '(I0, 1x)', advance='no') self%get_iGAS(iorb)
+        end do
+        write(iunit, *)
+
+        if (any(self%GAS_sizes < (self%cn_max - eoshift(self%cn_min, -1)))) then
+            write(iunit, '(A)') 'In at least one GAS space, the maximum allowed particle number by GAS constraints'
+            write(iunit, '(A)') '   is larger than the particle number allowed by the Pauli principle.'
+            write(iunit, '(A)') '   Was this intended when preparing your input?'
+        end if
+    end subroutine
+
 end module gasci

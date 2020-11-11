@@ -110,11 +110,6 @@ contains
             GAS_spin_orb_list(GAS_size(spat_GAS(iOrb)), spat_GAS(iOrb), idx_beta) = 2 * iOrb - 1
         end do
 
-        do iGAS = 1, nGAS
-            write(iout, *) "Number of orbs in GAS", iGAS, "is", &
-                & sum(popCnt(GAS_orbs(:, iGAS)))
-        end do
-
     contains
 
         ! One cannot use the macro here because of Fortran syntax rules.
