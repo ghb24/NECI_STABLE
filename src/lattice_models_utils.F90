@@ -961,7 +961,7 @@ contains
         end do
 
         ! make sure that the sum of basis states is the whole hilber space
-        ASSERT(real(sum(n_double), dp) .isclose.choose(n_orbs, n_alpha) * choose(n_orbs, n_beta))
+        ASSERT(sum(n_double) == choose(n_orbs, n_alpha) * choose(n_orbs, n_beta))
 
     end function calc_n_double
 

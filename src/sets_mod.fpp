@@ -5,7 +5,7 @@
 
 module sets_mod
     use constants, only: int32, int64, sp, dp
-    use util_mod, only: binary_search_first_ge
+    use util_mod, only: binary_search_first_ge, stop_all
     implicit none
     private
     public :: subset, is_sorted, special_union_complement, disjoint, &
@@ -91,7 +91,7 @@ contains
 
     #:for T, kinds in primitive_types.items()
     #:for kind in kinds
-    DEBUG_IMPURE function is_sorted_${T}$_${kind}$ (V, ascending) result(res)
+    pure function is_sorted_${T}$_${kind}$ (V, ascending) result(res)
         ${T}$ (${kind}$), intent(in) :: V(:)
         logical, intent(in), optional :: ascending
         logical :: ascending_
@@ -124,15 +124,15 @@ contains
     ! check if A and B are disjoint
     #:for T, kinds in countable_types.items()
     #:for kind in kinds
-    DEBUG_IMPURE function disjoint_${T}$_${kind}$ (A, B) result(res)
+    pure function disjoint_${T}$_${kind}$ (A, B) result(res)
         ${T}$ (${kind}$), intent(in) :: A(:), B(:)
         logical :: res
         character(*), parameter :: this_routine = "disjoint_${T}$_${kind}$"
 
         integer :: i, j
 
-            @:ASSERT(is_sorted(A))
-            @:ASSERT(is_sorted(B))
+            @:pure_ASSERT(is_sorted(A))
+            @:pure_ASSERT(is_sorted(B))
 
         res = .true.
         i = 1; j = 1
@@ -153,15 +153,15 @@ contains
     !> Check if A is a subset of B
     #:for T, kinds in countable_types.items()
     #:for kind in kinds
-    DEBUG_IMPURE function subset_${T}$_${kind}$ (A, B) result(res)
+    pure function subset_${T}$_${kind}$ (A, B) result(res)
         ${T}$ (${kind}$), intent(in) :: A(:), B(:)
         logical :: res
         character(*), parameter :: this_routine = "subset_${T}$_${kind}$"
 
         integer :: i, j
 
-            @:ASSERT(is_sorted(A))
-            @:ASSERT(is_sorted(B))
+            @:pure_ASSERT(is_sorted(A))
+            @:pure_ASSERT(is_sorted(B))
 
         if (size(A) == 0) then
             res = .true.
@@ -195,19 +195,19 @@ contains
 
     #:for T, kinds in countable_types.items()
     #:for kind in kinds
-    DEBUG_IMPURE function special_union_complement_${T}$_${kind}$ (A, B, C) result(D)
+    pure function special_union_complement_${T}$_${kind}$ (A, B, C) result(D)
         ${T}$ (${kind}$), intent(in) :: A(:), B(:), C(:)
         ${T}$ (${kind}$) :: D(size(A) + size(B) - size(C))
         character(*), parameter :: this_routine = 'union_complement'
 
         integer :: i, j, k, l
 
-        @:ASSERT(is_sorted(A))
-        @:ASSERT(is_sorted(B))
-        @:ASSERT(is_sorted(C))
-        @:ASSERT(disjoint(A, B))
-        @:ASSERT(disjoint(B, C))
-        @:ASSERT(subset(C, A))
+        @:pure_ASSERT(is_sorted(A))
+        @:pure_ASSERT(is_sorted(B))
+        @:pure_ASSERT(is_sorted(C))
+        @:pure_ASSERT(disjoint(A, B))
+        @:pure_ASSERT(disjoint(B, C))
+        @:pure_ASSERT(subset(C, A))
 
         i = 1; j = 1; k = 1; l = 1
         do while (l <= size(D))
@@ -279,7 +279,7 @@ contains
     !> The result will be sorted.
     #:for T, kinds in countable_types.items()
     #:for kind in kinds
-    DEBUG_IMPURE function union_${T}$_${kind}$ (A, B) result(D)
+    pure function union_${T}$_${kind}$ (A, B) result(D)
         ${T}$ (${kind}$), intent(in) :: A(:), B(:)
         ${T}$ (${kind}$), allocatable :: D(:)
         character(*), parameter :: this_routine = 'union_complement'
@@ -287,8 +287,8 @@ contains
         ${T}$ (${kind}$), allocatable :: tmp(:)
         integer :: i, j, l
 
-        @:ASSERT(is_sorted(A))
-        @:ASSERT(is_sorted(B))
+        @:pure_ASSERT(is_sorted(A))
+        @:pure_ASSERT(is_sorted(B))
 
         allocate(tmp(size(A) + size(B)))
 
@@ -323,7 +323,7 @@ contains
         associate(final_size => l - 1)
             D = tmp(:final_size)
         end associate
-        @:ASSERT(is_sorted(D))
+        @:pure_ASSERT(is_sorted(D))
     end function union_${T}$_${kind}$
     #:endfor
     #:endfor
@@ -334,7 +334,7 @@ contains
     !> The result will be sorted.
     #:for T, kinds in countable_types.items()
     #:for kind in kinds
-    DEBUG_IMPURE function intersect_${T}$_${kind}$ (A, B) result(D)
+    pure function intersect_${T}$_${kind}$ (A, B) result(D)
         ${T}$ (${kind}$), intent(in) :: A(:), B(:)
         ${T}$ (${kind}$), allocatable :: D(:)
         character(*), parameter :: this_routine = 'union_complement'
@@ -342,8 +342,8 @@ contains
         ${T}$ (${kind}$), allocatable :: tmp(:)
         integer :: i, j, l
 
-        @:ASSERT(is_sorted(A))
-        @:ASSERT(is_sorted(B))
+        @:pure_ASSERT(is_sorted(A))
+        @:pure_ASSERT(is_sorted(B))
 
         allocate(tmp(min(size(A), size(B))))
 
@@ -366,7 +366,7 @@ contains
         associate(final_size => l - 1)
             D = tmp(:final_size)
         end associate
-        @:ASSERT(is_sorted(D))
+        @:pure_ASSERT(is_sorted(D))
     end function intersect_${T}$_${kind}$
     #:endfor
     #:endfor
@@ -377,7 +377,7 @@ contains
     !> The result will be sorted.
     #:for T, kinds in countable_types.items()
     #:for kind in kinds
-    DEBUG_IMPURE function complement_${T}$_${kind}$ (A, B) result(D)
+    pure function complement_${T}$_${kind}$ (A, B) result(D)
         ${T}$ (${kind}$), intent(in) :: A(:), B(:)
         ${T}$ (${kind}$), allocatable :: D(:)
         character(*), parameter :: this_routine = 'union_complement'
@@ -385,8 +385,8 @@ contains
         ${T}$ (${kind}$), allocatable :: tmp(:)
         integer :: i, j, l
 
-        @:ASSERT(is_sorted(A))
-        @:ASSERT(is_sorted(B))
+        @:pure_ASSERT(is_sorted(A))
+        @:pure_ASSERT(is_sorted(B))
 
         allocate(tmp(size(A)))
 
@@ -413,18 +413,18 @@ contains
         associate(final_size => l - 1)
             D = tmp(:final_size)
         end associate
-        @:ASSERT(is_sorted(D))
+        @:pure_ASSERT(is_sorted(D))
     end function complement_${T}$_${kind}$
     #:endfor
     #:endfor
 
     #:for T, kinds in countable_types.items()
     #:for kind in kinds
-    DEBUG_IMPURE function test_in_${T}$_${kind}$ (element, set) result(res)
+    pure function test_in_${T}$_${kind}$ (element, set) result(res)
         ${T}$ (${kind}$), intent(in) :: element, set(:)
         character(*), parameter :: this_routine = 'test_in_${T}$_${kind}$'
         logical :: res
-        @:ASSERT(is_sorted(set))
+        @:pure_ASSERT(is_sorted(set))
         res = binary_search_first_ge(set, element) /= -1
     end function
     #:endfor
