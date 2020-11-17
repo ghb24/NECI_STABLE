@@ -22,7 +22,7 @@ end subroutine pp_stop_all
 
 subroutine stop_all(sub_name, error_msg)
 
-    ! Stop calculation due to an error. Exit with code 999?
+    ! Stop calculation due to an error. Exit with code 222?
     !
     ! In: sub_name    - Calling routine
     !     error_msg   - Error message
@@ -39,9 +39,8 @@ subroutine stop_all(sub_name, error_msg)
 
     character(*), intent(in) :: sub_name, error_msg
 
-    ! It seems that giving STOP a string is far more portable.
-    ! MPI_Abort requires an integer though.
-    character(3), parameter :: error_str='999'
+    ! I found problems when the error code is larger 2^8 - 1 == 255
+    integer, parameter :: error_code = 222
 
     write (6,'(/a7)') 'ERROR.'
     write (6,'(a27,a)') 'NECI stops in subroutine: ',adjustl(sub_name)
@@ -67,9 +66,9 @@ subroutine stop_all(sub_name, error_msg)
     call print_backtrace_neci()
 
 #ifdef PARALLEL
-    call MPIStopAll(error_str)
+    call MPIStopAll(error_code)
 #else
-    stop
+    stop error_code
 #endif
 
 end subroutine stop_all
@@ -119,7 +118,7 @@ subroutine quiet_stop(msg)
     end if
 
 #ifdef PARALLEL
-    call MPIStopAll(msg)
+    call MPIStopAll(0)
 #else
     stop
 #endif

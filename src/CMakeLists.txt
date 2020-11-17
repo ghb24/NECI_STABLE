@@ -68,6 +68,7 @@ set( SRC_FILES
     hist_data.F90
     HPHFRandExcit.F90
     hubbard.F
+	impurity_models.F90
 	index_rhash.F90
     init_coul2D.F
     init_coul.F
@@ -88,6 +89,7 @@ set( SRC_FILES
     lineup.F
     LMat_calc.F90
 	LMat_class.F90
+	LMat_freeze.F90
     LMat_indexing.F90
     LMat_mod.F90
     load_balance_calcnodes.F90
@@ -139,7 +141,6 @@ set( SRC_FILES
     searching.F90
     semi_stoch_gen.F90
     semi_stoch_procs.F90
-	shared_ragged_array.F90
 	shared_rhash.F90
     sparse_arrays.F90
     spectral_data.F90
@@ -223,24 +224,34 @@ set( SRC_FILES
     lib/signals_helper.cpp
     lib/soft_exit.F90
     lib/timing.F90
-    lib/util_mod.F90
     lib/util_mod_fmt.F90
     lib/fortran_strings.f90
+    lib/matrix_util.F90
     lib/display_matrices.F90
+    lib/binomial_lookup.F90
 )
 
 set( FYPP_SRC_FILES
-    buffer_1d.fpp
+    growing_buffers.fpp
     fcimc_initialisation.fpp
     HPHFIntegrals.fpp
     sltcnd.fpp
     gasci.fpp
+    gasci_disconnected.fpp
+    gasci_general.fpp
+    gasci_discarding.fpp
+    gasci_general_pchb.fpp
+    gasci_supergroup_index.fpp
+    orb_idx.fpp
     excitation_types.fpp
 	shared_array.fpp
     load_balancer.fpp
     global_det_data.fpp
     rdm_general.fpp
     hist.fpp
+    lib/util_mod.fpp
+    sets_mod.fpp
+	shared_ragged_array.fpp
 )
 
 set( TEMPLATED_SRC_FILES

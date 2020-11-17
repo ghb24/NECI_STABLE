@@ -1714,7 +1714,6 @@ contains
             & encode_excit_info_type(), extract_excit_info_obj(), &
             & extract_excit_info_scalar() and extract_excit_info_vec")
 
-        call stop_all("here", "now")
 
         print *, ""
         print *, "guga_bitRepOps tests passed!"

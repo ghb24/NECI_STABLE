@@ -50,7 +50,12 @@ program test_k_space_hubbard
 
     use lanczos_wrapper, only: frsblk_wrapper
 
-    use unit_test_helpers
+    use unit_test_helpers, only: run_excit_gen_tester, setup_arr_brr, create_hamiltonian, &
+        create_hamiltonian, similarity_transform, create_all_spin_flips, get_tranformation_matrix, &
+        create_hamiltonian_old, create_hilbert_space
+
+    use matrix_util, only: check_symmetric, calc_eigenvalues, matrix_exponential, linspace, &
+        norm, det, eig, print_matrix, find_degeneracies, eig_sym
 
     use lattice_models_utils, only: gen_all_excits_k_space_hubbard, &
                                     gen_all_triples_k_space, create_hilbert_space_kspace, &
@@ -258,7 +263,7 @@ contains
 
         if (t_input_J) then
             print *, "input J:"
-            read(*,*), J
+            read(*,*) J
         else if (t_J_vec) then
             J_vec = linspace(-2.0,2.0,200)
 !               J_vec = [0.5]
@@ -268,16 +273,16 @@ contains
 
         if (t_input_l) then
             print *, "input norm"
-            read(*,*), l_norm
+            read(*,*) l_norm
         else
             l_norm = 2
         end if
 
         if (t_input_twist) then
             print *, "input x-twist:"
-            read(*,*), twisted_bc(1)
+            read(*,*) twisted_bc(1)
             print *, "input y-twist: "
-            read(*,*), twisted_bc(2)
+            read(*,*) twisted_bc(2)
             if (all(twisted_bc == 0)) then
                 t_twisted_bc = .false.
             else

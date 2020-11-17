@@ -480,7 +480,7 @@ and a range of other guidelines.
 
     The NECI codebase already contains the correct configuration files,
     so it is sufficient to just call \code{fprettify} on a file in
-    \code{src/} or \code{src/lib}.    
+    \code{src/} or \code{src/lib}.
 
     \headitem{Operator Layout}
     The following guidelines are recommendations for formatting of code and
@@ -643,7 +643,7 @@ and a range of other guidelines.
         extract recurrent parts of a subroutine/function without
         exposing them to module scope.
 
-        A contained procedure cannot make use of the \code{contains} statement.               
+        A contained procedure cannot make use of the \code{contains} statement.
 
 	\headitem{Modules and interfaces}
         It is an aim to make the dependency between different code parts
@@ -750,6 +750,30 @@ and a range of other guidelines.
             end module
 		\end{lstlisting}
 
+    \headitem{Error handling}
+
+        It is very important to always be in a well defined state and
+            to be deterministic up to the stochastic noise of the Monte-Carlo simulation.
+        For this reason, errors that cannot be handled inside a procedure and
+            are not handled by calling code should crash the program.
+        This philosophy follows the convention of the fortran intrinsic \lstinline{allocate}
+            or the \lstinline{mpi_f08} subroutines.
+        The error code should be optional and calling code should only pass it,
+            if they handle all possible error cases.
+        The called function should not abort the calculation, if an error code is present
+            and should abort the calculation if this is not the case.
+
+        Calling code should only ask for the error code if the return value is handled
+            as early as possible.
+        Do not write
+        \begin{lstlisting}
+            allocate(A, stat=ierr)
+            allocate(B, stat=ierr)
+            allocate(C, stat=ierr)
+            if (ierr /= 0) call stop_all(...)
+        \end{lstlisting}
+        but either check after each allocation (to know which array failed) or just ommit \lstinline{stat=ierr}.
+        The intrinsic allocations stops the program if it cannot allocate.
 
 
 \end{description}
@@ -949,6 +973,7 @@ This file can similarly be generated using \code{gen_emacs_tags.sh}, then you ca
 		linker and templating system to implement function pointers without
 		language support, but this was deprecated once compiler support
 		for procedure pointers was reasonably widespread.
+
 
 \section{Let the compiler help you}
     If real NECI is compiled in debug mode,

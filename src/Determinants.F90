@@ -11,9 +11,10 @@ MODULE Determinants
 
     use IntegralsData, only: UMat, FCK, NMAX
 
-    use excitation_types, only: excitation_t, DoubleExc_t, get_excitation
+    use excitation_types, only: Excitation_t, DoubleExc_t, get_excitation
     use sltcnd_mod, only: sltcnd, dyn_sltcnd_excit_old, sltcnd_compat, &
                           sltcnd_excit, sltcnd_knowIC, SumFock, CalcFockOrbEnergy
+
     use global_utilities
     use sort_mod
     use DetBitOps, only: EncodeBitDet, count_open_orbs, spatial_bit_det
@@ -77,13 +78,13 @@ contains
     logical :: tGenFDet
     HElement_t(dp) :: OrbE
     character(25), parameter :: this_routine='DetPreFreezeInit_old'
-    Allocate(FDet(nEl), stat=ierr)
+    allocate(FDet(nEl), stat=ierr)
     LogAlloc(ierr, 'FDet', nEl, 4, tagFDet)
     IF(tDefineDet) THEN
-       WRITE(6,*) 'Defining FDet according to input'
+       write(6,*) 'Defining FDet according to input'
        do i=1,NEl
           FDet(i)=DefDet(i)
-       enddo
+       end do
        call assignOccOrbs()
 
        ! A quick check that we have defined a reasonable det.
@@ -129,7 +130,7 @@ contains
                    flagAlpha = 0
                 else
                    flagAlpha = 1
-                endif
+                end if
                 FDet(iEl) = irrepOrbOffset(i) + 2*j - flagAlpha
                 iEl = iEl + 1
                 msTmp = msTmp + (1-2*flagAlpha)
@@ -140,21 +141,21 @@ contains
           CALL GENFDET(FDET)
           call assignOccOrbs()
           IF(tUEGSpecifyMomentum) THEN
-             WRITE(6,*) 'Defining FDet according to a momentum input'
+             write(6,*) 'Defining FDet according to a momentum input'
              CALL ModifyMomentum(FDET)
-          ENDIF
+          end if
           tRef_Not_HF = .false.
-       endif
-    ENDIF
-    WRITE(6,"(A)",advance='no') " Fermi det (D0):"
+       end if
+    end if
+    write(6,"(A)",advance='no') " Fermi det (D0):"
     call write_det (6, FDET, .true.)
     Call GetSym(FDet,nEl,G1,nBasisMax,s)
-    WRITE(6,"(A)",advance='no') " Symmetry: "
+    write(6,"(A)",advance='no') " Symmetry: "
     Call WriteSym(6,s%Sym,.true.)
     IF(tFixLz) THEN
        Call GetLz(FDet,nEl,Lz)
-       WRITE(6,"(A,I5)") "Lz of Fermi det:",Lz
-    ENDIF
+       write(6,"(A,I5)") "Lz of Fermi det:",Lz
+    end if
     CALL NECI_ICOPY(NEL,FDET,1,NUHFDET,1)
     if(tMolpro) then
        !Orbitals are ordered by occupation number from MOLPRO, and not reordered in NECI
@@ -166,24 +167,24 @@ contains
           !We have defined our own reference determinant, but still use the first orbitals for the calculation
           !of 'orbital energies'
           CALL GENFDET(FDETTEMP)
-       endif
+       end if
        write(6,"(A)") "Calculating orbital energies..."
        do i=1,nBasis
           OrbE=CalcFockOrbEnergy(i,FDetTemp)
           Arr(i,1)=real(OrbE,dp)
           Brr(i)=i
-       enddo
+       end do
        write(6,"(A)") "Reordering basis by orbital energies..."
        OrbOrder(:,:)=0
        call ORDERBASIS(NBASIS,Arr,Brr,OrbOrder,nBasisMax,G1)
        !However, we reorder them here
        call writebasis(6,G1,nBasis,Arr,Brr)
-    endif
+    end if
     E0HFDET=ECORE
     DO I=1,NEL
        E0HFDET=E0HFDET+ARR(NUHFDET(i),2)
-    ENDDO
-    WRITE(6,*) "Fock operator energy:",E0HFDET
+    end do
+    write(6,*) "Fock operator energy:",E0HFDET
 
     ! Store the value of Ms for use in other areas
     calculated_ms = sum(get_spin_pn(fdet(1:nel)))
@@ -207,7 +208,7 @@ contains
                ! for further usage)
                nClosedOrbs(1) = nClosedOrbs(1) + 1
                cycle
-            endif
+            end if
          end if
          nOccOrbs(1) = nOccOrbs(1) + 1
       end do
@@ -229,13 +230,13 @@ contains
         logical :: tGenFDet
         HElement_t(dp) :: OrbE
         character(25), parameter :: this_routine='DetPreFreezeInit'
-        Allocate(FDet(nEl), stat=ierr)
+        allocate(FDet(nEl), stat=ierr)
         LogAlloc(ierr, 'FDet', nEl, 4, tagFDet)
         IF(tDefineDet) THEN
-            WRITE(6,*) 'Defining FDet according to input'
+            write(6,*) 'Defining FDet according to input'
             do i=1,NEl
                 FDet(i)=DefDet(i)
-            enddo
+            end do
 
             ! A quick check that we have defined a reasonable det.
             ms = sum(get_spin_pn(fdet(1:nel)))
@@ -250,7 +251,7 @@ contains
                  flagAlpha = 0
               else
                  flagAlpha = 1
-              endif
+              end if
               iEl = 1
               do i = 1, nIrreps
                  ! nClosedOrbs is the number of alpha/beta orbs (the ones with minority spin)
@@ -265,25 +266,25 @@ contains
                  end do
               end do
               call sort(FDet)
-           endif
+           end if
            if(tGenFDet) then
               CALL GENFDET(FDET)
               IF(tUEGSpecifyMomentum) THEN
-                 WRITE(6,*) 'Defining FDet according to a momentum input'
+                 write(6,*) 'Defining FDet according to a momentum input'
                  CALL ModifyMomentum(FDET)
-              ENDIF
+              end if
               tRef_Not_HF = .false.
-           endif
-        ENDIF
-      WRITE(6,"(A)",advance='no') " Fermi det (D0):"
+           end if
+        end if
+      write(6,"(A)",advance='no') " Fermi det (D0):"
       call write_det (6, FDET, .true.)
       Call GetSym(FDet,nEl,G1,nBasisMax,s)
-      WRITE(6,"(A)",advance='no') " Symmetry: "
+      write(6,"(A)",advance='no') " Symmetry: "
       Call WriteSym(6,s%Sym,.true.)
       IF(tFixLz) THEN
          Call GetLz(FDet,nEl,Lz)
-         WRITE(6,"(A,I5)") "Lz of Fermi det:",Lz
-      ENDIF
+         write(6,"(A,I5)") "Lz of Fermi det:",Lz
+      end if
       CALL NECI_ICOPY(NEL,FDET,1,NUHFDET,1)
       if(tMolpro) then
           !Orbitals are ordered by occupation number from MOLPRO, and not reordered in NECI
@@ -295,24 +296,24 @@ contains
               !We have defined our own reference determinant, but still use the first orbitals for the calculation
               !of 'orbital energies'
               CALL GENFDET(FDETTEMP)
-          endif
+          end if
           write(6,"(A)") "Calculating orbital energies..."
           do i=1,nBasis
                OrbE=CalcFockOrbEnergy(i,FDetTemp)
                Arr(i,1)=real(OrbE,dp)
                Brr(i)=i
-          enddo
+          end do
           write(6,"(A)") "Reordering basis by orbital energies..."
           OrbOrder(:,:)=0
           call ORDERBASIS(NBASIS,Arr,Brr,OrbOrder,nBasisMax,G1)
           !However, we reorder them here
           call writebasis(6,G1,nBasis,Arr,Brr)
-      endif
+      end if
       E0HFDET=ECORE
       DO I=1,NEL
          E0HFDET=E0HFDET+ARR(NUHFDET(i),2)
-      ENDDO
-      WRITE(6,*) "Fock operator energy:",E0HFDET
+      end do
+      write(6,*) "Fock operator energy:",E0HFDET
 
       ! Store the value of Ms for use in other areas
       calculated_ms = sum(get_spin_pn(fdet(1:nel)))
@@ -327,7 +328,7 @@ contains
       LOGICAL :: tSuccess,tFoundOrbs(nBasis)
       integer :: ncsf
 
-      WRITE(6,*) "SYMMETRY MULTIPLICATION TABLE"
+      write(6,*) "SYMMETRY MULTIPLICATION TABLE"
       CALL WRITESYMTABLE(6)
 
       CALL GENSymStatePairs(NBASIS/2,.false.)
@@ -337,16 +338,16 @@ contains
       IF(iActiveBasis.eq.-2) then
 !  PATHS ACTIVE SETS
          Call GenActiveBasis(ARR,nBasis,nEl,nActiveBasis,nActiveSpace(1),nActiveSpace(2))
-      elseif(iActiveBasis.eq.-3) then
+      else if(iActiveBasis.eq.-3) then
 !  PATHS ACTIVE ORBITALS
          nActiveBasis(1)=nEl+1-nActiveSpace(1)
          nActiveBasis(2)=nEl+nActiveSpace(2)
-         WRITE(6,*) "Active space:", nActiveBasis(1)," TO ", nActiveBasis(2)," (ordered labels)."
-         WRITE(6,*) "Active space electrons:",nEl-nActiveBasis(1)+1
+         write(6,*) "Active space:", nActiveBasis(1)," TO ", nActiveBasis(2)," (ordered labels)."
+         write(6,*) "Active space electrons:",nEl-nActiveBasis(1)+1
       else
          nActiveBasis(1)=1
          nActiveBasis(2)=nBasis
-      endif
+      end if
 !C.. Work out a preliminary Fermi det
 !      IF(FDET(1).EQ.0) THEN
 
@@ -354,10 +355,10 @@ contains
 
 !C.. Check if we're blocking the hamiltonian
 !C      IF(THFBASIS.AND.TBLOCK) THEN
-!C         WRITE(6,*) "THFBASIS set and NBLK=0.  ",
+!C         write(6,*) "THFBASIS set and NBLK=0.  ",
 !C     &         "Cannot block diagonalize in HF Basis."
 !C         STOP
-!C      ENDIF
+!C      end if
 !C      CALL SYMGENEXCITS(FDET,NEL,NBASIS)
 !C      CALL LeaveMemoryManager
 !C      STOP
@@ -375,14 +376,14 @@ contains
          DO I=0,NEL-1
             NDET=(NDET*(nBasis-I))/(I+1)
             DNDET=(DNDET*real(nBasis-I,dp))/real(I+1,dp)
-         ENDDO
+         end do
 
         IF (abs(real(NDET) - dndet) > 1.0e-6) THEN
-!         WRITE(6,*) ' NUMBER OF DETERMINANTS : ' , DNDET
+!         write(6,*) ' NUMBER OF DETERMINANTS : ' , DNDET
          NDET=-1
         ELSE
-!         WRITE(6,*) ' NUMBER OF DETERMINANTS : ' , NDET
-        ENDIF
+!         write(6,*) ' NUMBER OF DETERMINANTS : ' , NDET
+        end if
 
 !C      CALL TC(I_HMAX,I_P,NWHTAY)
 
@@ -405,29 +406,29 @@ contains
                         tFoundOrbs(Beta)=.true.
                     ELSE
                         CALL Stop_All("SetupParameters","Orbital specified twice")
-                    ENDIF
+                    end if
                     IF(.not.tFoundOrbs(Alpha)) THEN
                         tFoundOrbs(Alpha)=.true.
                     ELSE
                         CALL Stop_All("SetupParameters","Orbital specified twice")
-                    ENDIF
+                    end if
 
                     IF(G1(Beta)%Ms.ne.-1) THEN
                         tSuccess=.false.
-                    ELSEIF(G1(Alpha)%Ms.ne.1) THEN
+                    else if(G1(Alpha)%Ms.ne.1) THEN
                         tSuccess=.false.
-                    ELSEIF((SymAlpha.ne.(i-1)).or.(SymBeta.ne.(i-1))) THEN
+                    else if((SymAlpha.ne.(i-1)).or.(SymBeta.ne.(i-1))) THEN
                         tSuccess=.false.
-                    ENDIF
-                enddo
-            enddo
+                    end if
+                end do
+            end do
             do i=1,nBasis
                 IF(.not.tFoundOrbs(i)) THEN
-                    WRITE(6,*) "Orbital: ",i, " not found."
+                    write(6,*) "Orbital: ",i, " not found."
                     CALL Stop_All("SetupParameters","Orbital not found")
-                ENDIF
-            enddo
-        ENDIF
+                end if
+            end do
+        end if
         ! SpinOrbSymSetup currently sets up the symmetry arrays for use with
         ! symrandexcit2 excitation routines. These are not currently
         ! compatible with non-abelian symmetry groups, which CPMD jobs
@@ -436,28 +437,28 @@ contains
         ! generators won't work.
         IF(.not.tCPMD) THEN
             IF(.not.tSuccess) THEN
-                WRITE(6,*) "************************************************"
-                WRITE(6,*) "**                 WARNING!!!                 **"
-                WRITE(6,*) "************************************************"
-                WRITE(6,*) "Symmetry information not set up correctly in NECI initialisation"
-                WRITE(6,*) "Will attempt to set up the symmetry again, but now in terms of spin orbitals"
-                WRITE(6,*) "Old excitation generators will not work"
-                WRITE(6,*) "I strongly suggest you check that the reference energy is correct."
+                write(6,*) "************************************************"
+                write(6,*) "**                 WARNING!!!                 **"
+                write(6,*) "************************************************"
+                write(6,*) "Symmetry information not set up correctly in NECI initialisation"
+                write(6,*) "Will attempt to set up the symmetry again, but now in terms of spin orbitals"
+                write(6,*) "Old excitation generators will not work"
+                write(6,*) "I strongly suggest you check that the reference energy is correct."
                 !CALL SpinOrbSymSetup() !.true.)
             ELSE
-                WRITE(6,*) "Symmetry and spin of orbitals correctly set up for excitation generators."
-                WRITE(6,*) "Simply transferring this into a spin orbital representation."
+                write(6,*) "Symmetry and spin of orbitals correctly set up for excitation generators."
+                write(6,*) "Simply transferring this into a spin orbital representation."
                 !CALL SpinOrbSymSetup() !.false.)
-            ENDIF
+            end if
 
             if (tPickVirtUniform) then
                 call virt_uniform_sym_setup ()
             else
                 ! Includes normal & HPHF
                 call SpinOrbSymSetup ()
-            endif
+            end if
 
-        ENDIF
+        end if
 ! From now on, the orbitals are also contained in symlabellist2 and symlabelcounts2.
 ! These are stored using spin orbitals.
 
@@ -513,7 +514,7 @@ contains
             hel = sltcnd_knowIC (nI, iLutI, iLutJ, IC)
         else
             hel = sltcnd_compat (nI, nJ, IC)
-        endif
+        end if
 
         ! Add in ECore if for a diagonal element
         if (IC == 0) then
@@ -575,7 +576,7 @@ contains
             ex(1,:) = nJ(4:5)
             ex(2,:) = nJ(6:7)
             hel = sltcnd_excit(nI, DoubleExc_t(ex), .false.)
-        endif
+        end if
 
         if (present(iLutJ)) then
             hel = sltcnd (nI, iLutI, iLutJ, IC)
@@ -584,7 +585,7 @@ contains
             call EncodeBitdet (nJ, iLut(:,2))
             ! TODO: This is not an ideal place to end up...
             hel = sltcnd (nI, iLut(:,1), ilut(:,2), IC)
-        endif
+        end if
 
         ! Add in ECore for a diagonal element
         if (IC == 0) then
@@ -596,7 +597,7 @@ contains
         ! If requested, return IC
         if (present(ICret)) then
             ICret = IC
-        endif
+        end if
 
     end function get_helement_normal
 
@@ -752,7 +753,7 @@ contains
        do i=1,lenof_sign
           write(iUnit, "(f16.7)", advance='no') sgn(i)
           if (i /= lenof_sign) write(iUnit, "(A)", advance='no') ","
-       enddo
+       end do
        write(iUnit,"(A,I5)", advance='no') ") ",flags
        if(lTerm) write(iUnit,*)
     end subroutine write_bit_rep
@@ -794,10 +795,10 @@ contains
                         store%open_orbs(nfound) = i
                     !    nhoce%open_indices(nfound) = nelec
                         if (nfound == store%nopen) exit
-                    endif
-                endif
-            enddo
-        endif
+                    end if
+                end if
+            end do
+        end if
 
         ! Generate the next term in the sequence
         call get_lexicographic (store%dorder, store%nopen, store%nup)
@@ -819,15 +820,15 @@ contains
                         orb = get_alpha(store%open_orbs(i))
                     else
                         orb = get_beta(store%open_orbs(i))
-                    endif
+                    end if
                     set_orb(ilut_gen, orb)
                     clro=ab_pair(orb)
                     clr_orb(ilut_gen, clro)
-                enddo
-            endif
+                end do
+            end if
 
             !if (present(det)) ...
-        endif
+        end if
 
     end subroutine
 
@@ -859,16 +860,16 @@ END MODULE Determinants
             hEl=0.0_dp
             do i=4,nI(2)+4-1
                hEl=hEl-(Arr(nI(i),2))
-            enddo
+            end do
             do i=i,i+nI(2)-1
                hEl=hEl+(Arr(nI(i),2))
-            enddo
+            end do
          else
             hEl=ECore
             do i=1,nEl
                hEl=hEl+(Arr(nI(i),2))
-            enddo
-         endif
+            end do
+         end if
 !         call writedet(77,nI,nel,.false.)
 !         write(77,*) "H0",hEl
 !         call neci_flush(77)
@@ -896,15 +897,15 @@ END MODULE Determinants
                   FDET(I)=nBasis+1
                ELSE
                   J=J+1
-               ENDIF
-            ENDDO
+               end if
+            end do
             call sort(fdet)
             IF(J.NE.NEL-NFROZEN-NFROZENIN) THEN
-               WRITE(6,*) "Failed Freezing Det:"
+               write(6,*) "Failed Freezing Det:"
                call write_det (6, FDET, .true.)
                call stop_all(this_routine, "After Freezing, FDET has wrong number of electrons")
-            ENDIF
-         ENDIF
+            end if
+         end if
          IF(nUHFDet(1).NE.0) THEN
             J=0
             DO I=1,NEL
@@ -914,24 +915,24 @@ END MODULE Determinants
                   nUHFDET(I)=nBasis+1
                ELSE
                   J=J+1
-               ENDIF
-            ENDDO
+               end if
+            end do
             call sort (nUHFDet(1:nel))
             IF(J.NE.NEL-NFROZEN-NFROZENIN) THEN
-               WRITE(6,*) "Failed Freezing Det:"
+               write(6,*) "Failed Freezing Det:"
                call write_det (6, nUHFDET, .true.)
                call stop_all(this_routine, "After Freezing, UHFDET has wrong number of electrons")
-            ENDIF
-         ENDIF
-         WRITE(6,"(A)",advance='no') " Post-Freeze Fermi det (D0):"
+            end if
+         end if
+         write(6,"(A)",advance='no') " Post-Freeze Fermi det (D0):"
          call write_det_len (6, fDet, nel-nfrozen-nfrozenin, .true.)
-         WRITE(6,"(A)",advance='no') " Symmetry: "
+         write(6,"(A)",advance='no') " Symmetry: "
          Call GetSym(FDet,nEl-nFrozen-nFrozenIn,G1,nBasisMax,s)
          Call WriteSym(6,s%Sym,.true.)
          IF(tFixLz) THEN
              Call GetLz(FDet,nEl-nFrozen-nFrozenIn,Lz)
-             WRITE(6,"(A,I5)") " Lz of Fermi det:",Lz
-         ENDIF
+             write(6,"(A,I5)") " Lz of Fermi det:",Lz
+         end if
 
       end subroutine
 
@@ -945,14 +946,14 @@ END MODULE Determinants
          IF(.NOT.TUSEBRILLOUIN) THEN
              ISUHFDET=.FALSE.
              RETURN
-         ENDIF
+         end if
          ISUHFDET=.TRUE.
          DO I=NEL,1,-1
             IF(NI(I).NE.NUHFDET(I)) THEN
                 ISUHFDET=.FALSE.
                 EXIT
-            ENDIF
-         ENDDO
+            end if
+         end do
 !         ISUHFDET=.FALSE.
          RETURN
       END Function
@@ -974,25 +975,25 @@ END MODULE Determinants
          INTEGER I,nDown,nUp,nLeft
          I=nEl+1
          nLeft=1+nUp
-         IF(nDown.NE.0.AND.nUp.NE.0) WRITE(6,*) "Including ",-nDown,",",nUp," extra degenerate sets in active space."
+         IF(nDown.NE.0.AND.nUp.NE.0) write(6,*) "Including ",-nDown,",",nUp," extra degenerate sets in active space."
          DO WHILE (nLeft.GT.0.AND.I.LT.nBasis)
             DO WHILE (I.LT.nBasis.AND.ABS(ARR(I)-ARR(I-1)).LT.1.0e-5_dp)
                I=I+1
-            ENDDO
+            end do
             nLeft=nLeft-1
-            IF(nLeft.EQ.nUp.AND.I.NE.nEl+1) WRITE(6,*) "Fermi determinant degenerate.  "
+            IF(nLeft.EQ.nUp.AND.I.NE.nEl+1) write(6,*) "Fermi determinant degenerate.  "
             IF(nLeft.ne.0) I=I+2
-         ENDDO
+         end do
          IF(I.EQ.nEl+1.and.nDown.eq.0) THEN
 !We have no degeneracies at the Fermi Energy
-            WRITE(6,*) "Fermi determinant non-degenerate.  "
+            write(6,*) "Fermi determinant non-degenerate.  "
             IF(nDown.eq.0) THEN
-               WRITE(6,*) "Active space empty."
+               write(6,*) "Active space empty."
                nActiveBasis(1)=nEl+1
                nActiveBasis(2)=nEl
                RETURN
-            ENDIF
-         ENDIF
+            end if
+         end if
          nActiveBasis(2)=I-1
          I=nEl-1
          nLeft=nDown
@@ -1000,12 +1001,12 @@ END MODULE Determinants
 
             DO WHILE (I.GT.0.AND.ABS(ARR(I)-ARR(I+1)).LT.1.0e-5_dp)
                I=I-1
-            ENDDO
+            end do
             nLeft=nLeft-1
-         ENDDO
+         end do
          nActiveBasis(1)=I+1
-         WRITE(6,*) "Active space:", nActiveBasis(1)," TO ",nActiveBasis(2)," (ordered labels)."
-         WRITE(6,*) "Active space electrons:",nEl-nActiveBasis(1)+1
+         write(6,*) "Active space:", nActiveBasis(1)," TO ",nActiveBasis(2)," (ordered labels)."
+         write(6,*) "Active space electrons:",nEl-nActiveBasis(1)+1
          RETURN
       END
 
@@ -1025,10 +1026,10 @@ END MODULE Determinants
                EL=INT(RAN2(SEED)*NBASIS+1)
                DO J=1,I-1
                   IF(MCDET(J).EQ.EL) BR=.TRUE.
-               ENDDO
-            ENDDO
+               end do
+            end do
             MCDET(I)=EL
-         ENDDO
+         end do
          call sort (mcDet)
          RETURN
       END
@@ -1046,7 +1047,7 @@ END MODULE Determinants
          CALCT=0.0_dp
          DO I=1,NEL
             CALCT=CALCT+GetTMATEl(NI(I),NI(I))
-         ENDDO
+         end do
          RETURN
       END
 
@@ -1081,21 +1082,21 @@ END MODULE Determinants
                  write(nUnit,"(A1)",advance='no') "1"
              else
                  write(nUnit,"(A1)",advance='no') "0"
-             endif
-         enddo
+             end if
+         end do
          if(IsOcc(iLutnI,nBasis)) then
              if(lTerm) then
                  write(nUnit,"(A1)") "1"
              else
                  write(nUnit,"(A1)",advance='no') "1"
-             endif
+             end if
          else
              if(lTerm) then
                  write(nUnit,"(A1)") "0"
              else
                  write(nUnit,"(A1)",advance='no') "0"
-             endif
-         endif
+             end if
+         end if
 
       END SUBROUTINE WriteDetBit
 
@@ -1113,26 +1114,26 @@ END MODULE Determinants
          INTEGER iEl,I
          EX(1,1)=nEl  !Indicate the length of EX
          CALL GetBitExcitation(iLutRef,iLutnI,Ex,tSign)
-         WRITE(NUNIT,"(A)",advance='no') "("
+         write(NUNIT,"(A)",advance='no') "("
 ! First the excit from
          DO I=1,NEL
             IEL=EX(1,I)
             if(iEl.eq.0) EXIT
-            WRITE(NUNIT,"(I5,A)",advance='no') IEL,","
-         ENDDO
+            write(NUNIT,"(I5,A)",advance='no') IEL,","
+         end do
          IF(tSign) THEN
-            WRITE(NUNIT,"(A)",advance='no') ")->-("
+            write(NUNIT,"(A)",advance='no') ")->-("
          ELSE
-            WRITE(NUNIT,"(A)",advance='no') ")->+("
-         ENDIF
+            write(NUNIT,"(A)",advance='no') ")->+("
+         end if
 !Now the excit to
          DO I=1,NEL
             IEL=EX(2,I)
             if(iEl.eq.0) EXIT
-            WRITE(NUNIT,"(I5,A)",advance='no') IEL,","
-         ENDDO
-         WRITE(NUNIT,"(A)",advance='no') ")"
-         IF(LTERM) WRITE(NUNIT,*)
+            write(NUNIT,"(I5,A)",advance='no') IEL,","
+         end do
+         write(NUNIT,"(A)",advance='no') ")"
+         IF(LTERM) write(NUNIT,*)
          RETURN
       END
 
@@ -1163,7 +1164,7 @@ END MODULE Determinants
             k_total(1)=k_total(1)+G1(FDet(j))%k(1)
             k_total(2)=k_total(2)+G1(FDet(j))%k(2)
             k_total(3)=k_total(3)+G1(FDet(j))%k(3)
-        enddo
+        end do
         delta_k=k_momentum-k_total
 
         if (delta_k(1).eq.0.and.delta_k(2).eq.0.and.delta_k(3).eq.0) write(6,*) "WARNING: specified momentum is ground state"
@@ -1182,12 +1183,12 @@ END MODULE Determinants
             IF(G1(i)%k(2).lt.kminY) kminY=G1(i)%k(2)
             IF(G1(i)%k(3).gt.kmaxZ) kmaxZ=G1(i)%k(3)
             IF(G1(i)%k(3).lt.kminZ) kminZ=G1(i)%k(3)
-        enddo
+        end do
         allocate(kPointToBasisFn(kminX:kmaxX,kminY:kmaxY,kminZ:kmaxZ,2))
         do i=1,nBasis
             iSpinIndex=(G1(i)%Ms+1)/2+1 ! iSpinIndex equals 1 for a beta spin (ms=-1), and 2 for an alpha spin (ms=1)
             kPointToBasisFn(G1(i)%k(1),G1(i)%k(2),G1(i)%k(3),iSpinIndex)=i
-        enddo
+        end do
 
         ! For each of the three dimensions, nudge electrons one at a time by one momentum unit until delta_k is reached
         det_sorted=FDet
@@ -1202,10 +1203,10 @@ END MODULE Determinants
                     e_store=det_sorted(i)
                     det_sorted(i)=det_sorted(j)
                     det_sorted(j)=e_store
-                endif
-            enddo
+                end if
+            end do
             if (sorted) exit
-        enddo
+        end do
 
         ! Nudge momenta one at a time
         if (delta_k(1).gt.0) then
@@ -1213,32 +1214,32 @@ END MODULE Determinants
                 wrapped_index=mod(i,NEl)        ! Take the modulus to know which electron to nudge
                 if (wrapped_index.eq.0) then    ! Deal with the i=NEl case
                     wrapped_index=NEl
-                endif
+                end if
                 j=wrapped_index                 ! For convenience asign this to j
                 k_new=G1(det_sorted(j))%k(1)+1  ! Find the new momentum of this electron
                 if (k_new.gt.kmaxX) then        ! Check that this momentum isn't outside the cell
                     call stop_all("ModifyMomentum", "Electron moved outside of the cell limits")
-                endif
+                end if
                 iSpinIndex=(G1(j)%Ms+1)/2+1     ! Spin of the new orbital is the same as the old
 ! Finds basis number for the new momentum
                 det_sorted(j)=kPointToBasisFn(k_new,G1(det_sorted(j))%k(2),G1(det_sorted(j))%k(3),iSpinIndex)
-            enddo
+            end do
         else if (delta_k(1).lt.0) then ! For the negative case, i must run through negative numbers
             do i=-1,delta_k(1),-1
                 wrapped_index=mod(i,NEl)
                 if (wrapped_index.eq.0) then
                     wrapped_index=-NEl
-                endif
+                end if
                 j=NEl+wrapped_index+1 ! Now this goes through the list backward (wrapped_index is negative)
                 k_new=G1(det_sorted(j))%k(1)-1 ! Find the new momentum of this electron, this time in the opposite direction
                 if (k_new.lt.kminX) then ! Check the limits of the cell again
                     call stop_all("ModifyMomentum", "Electron moved outside of the cell limits")
-                endif
+                end if
                 iSpinIndex=(G1(j)%Ms+1)/2+1 ! Spin of the new orbital is the same as the old
 ! Finds basis number for the new momentum
                 det_sorted(j)=kPointToBasisFn(k_new,G1(det_sorted(j))%k(2),G1(det_sorted(j))%k(3),iSpinIndex)
-            enddo
-        endif
+            end do
+        end if
 
         FDet=det_sorted
 
@@ -1252,10 +1253,10 @@ END MODULE Determinants
                     e_store=det_sorted(i)
                     det_sorted(i)=det_sorted(j)
                     det_sorted(j)=e_store
-                endif
-            enddo
+                end if
+            end do
             if (sorted) exit
-        enddo
+        end do
 
         ! Nudge momenta one at a time
         if (delta_k(2).gt.0) then
@@ -1263,32 +1264,32 @@ END MODULE Determinants
                 wrapped_index=mod(i,NEl)        ! Take the modulus to know which electron to nudge
                 if (wrapped_index.eq.0) then    ! Deal with the i=NEl case
                     wrapped_index=NEl
-                endif
+                end if
                 j=wrapped_index                 ! For convenience asign this to j
                 k_new=G1(det_sorted(j))%k(2)+1  ! Find the new momentum of this electron
                 if (k_new.gt.kmaxY) then        ! Check that this momentum isn't outside the cell
                     call stop_all("ModifyMomentum", "Electron moved outside of the cell limits")
-                endif
+                end if
                 iSpinIndex=(G1(j)%Ms+1)/2+1     ! Spin of the new orbital is the same as the old
 ! Finds basis number for the new momentum
                 det_sorted(j)=kPointToBasisFn(G1(det_sorted(j))%k(1),k_new,G1(det_sorted(j))%k(3),iSpinIndex)
-            enddo
+            end do
         else if (delta_k(2).lt.0) then ! For the negative case, i must run through negative numbers
             do i=-1,delta_k(2),-1
                 wrapped_index=mod(i,NEl)
                 if (wrapped_index.eq.0) then
                     wrapped_index=-NEl
-                endif
+                end if
                 j=NEl+wrapped_index+1 ! Now this goes through the list backward (wrapped_index is negative)
                 k_new=G1(det_sorted(j))%k(2)-1 ! Find the new momentum of this electron, this time in the opposite direction
                 if (k_new.lt.kminY) then ! Check the limits of the cell again
                     call stop_all("ModifyMomentum", "Electron moved outside of the cell limits")
-                endif
+                end if
                 iSpinIndex=(G1(j)%Ms+1)/2+1 ! Spin of the new orbital is the same as the old
 ! Finds basis number for the new momentum
                 det_sorted(j)=kPointToBasisFn(G1(det_sorted(j))%k(1),k_new,G1(det_sorted(j))%k(3),iSpinIndex)
-            enddo
-        endif
+            end do
+        end if
 
         FDet=det_sorted
 
@@ -1302,10 +1303,10 @@ END MODULE Determinants
                     e_store=det_sorted(i)
                     det_sorted(i)=det_sorted(j)
                     det_sorted(j)=e_store
-                endif
-            enddo
+                end if
+            end do
             if (sorted) exit
-        enddo
+        end do
 
         ! Nudge momenta one at a time
         if (delta_k(3).gt.0) then
@@ -1313,32 +1314,32 @@ END MODULE Determinants
                 wrapped_index=mod(i,NEl)        ! Take the modulus to know which electron to nudge
                 if (wrapped_index.eq.0) then    ! Deal with the i=NEl case
                     wrapped_index=NEl
-                endif
+                end if
                 j=wrapped_index                 ! For convenience asign this to j
                 k_new=G1(det_sorted(j))%k(3)+1  ! Find the new momentum of this electron
                 if (k_new.gt.kmaxZ) then        ! Check that this momentum isn't outside the cell
                     call stop_all("ModifyMomentum", "Electron moved outside of the cell limits")
-                endif
+                end if
                 iSpinIndex=(G1(j)%Ms+1)/2+1     ! Spin of the new orbital is the same as the old
 ! Finds basis number for the new momentum
                 det_sorted(j)=kPointToBasisFn(G1(det_sorted(j))%k(1),G1(det_sorted(j))%k(2),k_new,iSpinIndex)
-            enddo
+            end do
         else if (delta_k(3).lt.0) then ! For the negative case, i must run through negative numbers
             do i=-1,delta_k(3),-1
                 wrapped_index=mod(i,NEl)
                 if (wrapped_index.eq.0) then
                     wrapped_index=-NEl
-                endif
+                end if
                 j=NEl+wrapped_index+1 ! Now this goes through the list backward (wrapped_index is negative)
                 k_new=G1(det_sorted(j))%k(3)-1 ! Find the new momentum of this electron, this time in the opposite direction
                 if (k_new.lt.kminZ) then ! Check the limits of the cell again
                     call stop_all("ModifyMomentum", "Electron moved outside of the cell limits")
-                endif
+                end if
                 iSpinIndex=(G1(j)%Ms+1)/2+1 ! Spin of the new orbital is the same as the old
                 ! Finds basis number for the new momentum
                 det_sorted(j)=kPointToBasisFn(G1(det_sorted(j))%k(1),G1(det_sorted(j))%k(2),k_new,iSpinIndex)
-            enddo
-        endif
+            end do
+        end if
 
         FDet=det_sorted
 
@@ -1352,10 +1353,10 @@ END MODULE Determinants
                     e_store=FDet(i)
                     FDet(i)=FDet(j)
                     FDet(j)=e_store
-                endif
-            enddo
+                end if
+            end do
             if (sorted) exit
-        enddo
+        end do
 
         write(6,*) "Total momentum set to", k_momentum
 

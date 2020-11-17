@@ -4,7 +4,7 @@
 module guga_init
     ! module use statements
     use SystemData, only: tSPN, tHPHF, lNoSymmetry, STOT, nEl, &
-        nBasis, tGUGA, tNoBrillouin, tExactSizeSpace, tUHF, tUEGNewGenerator, &
+                          nBasis, tGUGA, tNoBrillouin, tExactSizeSpace, tUHF, tUEGNewGenerator, &
                           tPickVirtUniform, tGenHelWeighted, tGen_4ind_2, tGen_4ind_weighted, &
                           tGen_4ind_reverse, tGen_sym_guga_ueg, tGen_sym_guga_mol, &
                           tGen_nosym_guga, nSpatOrbs, t_consider_diff_bias, &
@@ -204,18 +204,18 @@ contains
         integer :: i, ierr
         ! main initialization routine
 
-   ! this routine is called in SysInit() of System_neci.F90
-        write(6,*) ' ************ Using the GUGA-CSF implementation **********'
-        write(6,*) ' Restricting the total spin of the system, tGUGA : ', tGUGA
-        write(6,'(A,I5)') '  Restricting total spin S in units of h/2 to ', STOT
-        write(6,*) ' So eg. S = 1 corresponds to one unpaired electron '
-        write(6,*) ' not quite sure yet how to deal with extensively used m_s quantum number..'
-        write(6,*) ' NOTE: for now, although SPIN-RESTRICT is set off, internally m_s(LMS) '
-        write(6,*) ' is set to STOT, to make use of reference determinant creations already implemented'
-        write(6,*) ' Since NECI always seems to take the beta orbitals first for open shell or '
-        write(6,*) ' spin restricted systems, associate those to positively coupled +h/2 orbitals '
-        write(6,*) ' to always ensure a S >= 0 value!'
-        write(6,*) ' *********************************************************'
+        ! this routine is called in SysInit() of System_neci.F90
+        write(6, *) ' ************ Using the GUGA-CSF implementation **********'
+        write(6, *) ' Restricting the total spin of the system, tGUGA : ', tGUGA
+        write(6, '(A,I5)') '  Restricting total spin S in units of h/2 to ', STOT
+        write(6, *) ' So eg. S = 1 corresponds to one unpaired electron '
+        write(6, *) ' not quite sure yet how to deal with extensively used m_s quantum number..'
+        write(6, *) ' NOTE: for now, although SPIN-RESTRICT is set off, internally m_s(LMS) '
+        write(6, *) ' is set to STOT, to make use of reference determinant creations already implemented'
+        write(6, *) ' Since NECI always seems to take the beta orbitals first for open shell or '
+        write(6, *) ' spin restricted systems, associate those to positively coupled +h/2 orbitals '
+        write(6, *) ' to always ensure a S >= 0 value!'
+        write(6, *) ' *********************************************************'
 
         ! initialize the procedure pointer arrays, needed in the matrix
         ! element calculation
@@ -224,7 +224,6 @@ contains
         ! initialize and point the excitation generator functions to the
         ! correct ones
         call init_guga_orbital_pickers()
-
 
         ! also have to set tRealCoeffs true to use it in excitation creation
         ! dont actually need realCoeffs anymore since i changed the accessing
@@ -244,35 +243,34 @@ contains
 
         if (allocated(orbitalIndex)) deallocate(orbitalIndex)
         ! but also have to set up the global orbitalIndex list
-        allocate(orbitalIndex(nSpatOrbs), stat = ierr)
-        orbitalIndex = [ (i, i = 1, nSpatOrbs)]
+        allocate(orbitalIndex(nSpatOrbs), stat=ierr)
+        orbitalIndex = [(i, i=1, nSpatOrbs)]
 
         ! maybe more to come...
         ! also allocate the currrent_ quantities
         if (allocated(current_stepvector)) deallocate(current_stepvector)
-        if (allocated(currentB_ilut))      deallocate(currentB_ilut)
-        if (allocated(currentOcc_ilut))    deallocate(currentOcc_ilut)
-        if (allocated(currentB_int))       deallocate(currentB_int)
-        if (allocated(currentOcc_int))     deallocate(currentOcc_int)
+        if (allocated(currentB_ilut)) deallocate(currentB_ilut)
+        if (allocated(currentOcc_ilut)) deallocate(currentOcc_ilut)
+        if (allocated(currentB_int)) deallocate(currentB_int)
+        if (allocated(currentOcc_int)) deallocate(currentOcc_int)
 
-        allocate(current_stepvector(nSpatOrbs), stat = ierr)
-        allocate(currentB_ilut(nSpatOrbs), stat = ierr)
-        allocate(currentOcc_ilut(nSpatOrbs), stat = ierr)
-        allocate(currentB_int(nSpatOrbs), stat = ierr)
-        allocate(currentOcc_int(nSpatOrbs), stat = ierr)
+        allocate(current_stepvector(nSpatOrbs), stat=ierr)
+        allocate(currentB_ilut(nSpatOrbs), stat=ierr)
+        allocate(currentOcc_ilut(nSpatOrbs), stat=ierr)
+        allocate(currentB_int(nSpatOrbs), stat=ierr)
+        allocate(currentOcc_int(nSpatOrbs), stat=ierr)
 
         if (allocated(current_cum_list)) deallocate(current_cum_list)
 
-        allocate(current_cum_list(nSpatOrbs), stat = ierr)
-
+        allocate(current_cum_list(nSpatOrbs), stat=ierr)
 
         ! also allocate the temporary variables used in the matrix element
         ! calculation and also the similar variables for the reference
         ! determinant!
-        if (allocated(temp_step_i))   deallocate(temp_step_i)
-        if (allocated(temp_step_j))   deallocate(temp_step_j)
-        if (allocated(temp_delta_b))  deallocate(temp_delta_b)
-        if (allocated(temp_occ_i))    deallocate(temp_occ_i)
+        if (allocated(temp_step_i)) deallocate(temp_step_i)
+        if (allocated(temp_step_j)) deallocate(temp_step_j)
+        if (allocated(temp_delta_b)) deallocate(temp_delta_b)
+        if (allocated(temp_occ_i)) deallocate(temp_occ_i)
         if (allocated(temp_b_real_i)) deallocate(temp_b_real_i)
 
         allocate(temp_step_i(nSpatOrbs))
@@ -281,10 +279,10 @@ contains
         allocate(temp_occ_i(nSpatOrbs))
         allocate(temp_b_real_i(nSpatOrbs))
 
-        if (allocated(ref_stepvector))    deallocate(ref_stepvector)
-        if (allocated(ref_b_vector_int))  deallocate(ref_b_vector_int)
+        if (allocated(ref_stepvector)) deallocate(ref_stepvector)
+        if (allocated(ref_b_vector_int)) deallocate(ref_b_vector_int)
         if (allocated(ref_b_vector_real)) deallocate(ref_b_vector_real)
-        if (allocated(ref_occ_vector))    deallocate(ref_occ_vector)
+        if (allocated(ref_occ_vector)) deallocate(ref_occ_vector)
 
         allocate(ref_stepvector(nSpatOrbs))
         allocate(ref_b_vector_int(nSpatOrbs))
@@ -343,7 +341,6 @@ contains
     subroutine check_rdm_guga_setup
         character(*), parameter :: this_routine = "check_rdm_guga_setup"
 
-
         ! check if the integer types fit for out setup
         if (bit_size(0_n_int) /= bit_size(0_int_rdm)) then
             call stop_all(this_routine, "n_int and int_rdm have different size!")
@@ -351,12 +348,11 @@ contains
 
         ! we use some bits in the rdm_ind for other information..
         ! check if we still have enough space for all the indices..
-        if (nSpatOrbs ** 4 > 2 ** (bit_size(int_rdm) - n_excit_info_bits - 1) - 1) then
+        if (nSpatOrbs**4 > 2**(bit_size(int_rdm) - n_excit_info_bits - 1) - 1) then
             call stop_all(this_routine, "cannot store enough indices in rdm_ind!")
         end if
 
     end subroutine check_rdm_guga_setup
-
 
     subroutine checkInputGUGA()
         ! routine to check if all the input parameters given are consistent
@@ -364,20 +360,19 @@ contains
         ! is called inf checkinput() in file readinput.F90
         character(*), parameter :: this_routine = 'checkInputGUGA'
 
-
         if (tSPN) then
             call stop_all(this_routine, &
-                "GUGA not yet implemented with spin restriction SPIN-RESTRICT!")
+                          "GUGA not yet implemented with spin restriction SPIN-RESTRICT!")
         end if
 
         if (tHPHF) then
             call stop_all(this_routine, &
-                "GUGA not compatible with HPHF option!")
+                          "GUGA not compatible with HPHF option!")
         end if
 
         if (tSpinProject) then
             call stop_all(this_routine, &
-                "GUGA not compatible with tSpinProject!")
+                          "GUGA not compatible with tSpinProject!")
         end if
 
         ! with the new UEG/Hubbard implementation of the excitation generator
@@ -386,7 +381,7 @@ contains
         ! provided
         if (tGen_sym_guga_ueg .and. lNoSymmetry .and. .not. treal) then
             call stop_all(this_routine, &
-                "UEG/Hubbard implementation of GUGA excitation generator needs symmetry but NOSYMMETRY set! abort!")
+                          "UEG/Hubbard implementation of GUGA excitation generator needs symmetry but NOSYMMETRY set! abort!")
         end if
 
         ! in the real-space do not reorder the orbitals!
@@ -394,54 +389,54 @@ contains
 
         if (tExactSizeSpace) then
             call stop_all(this_routine, &
-                "calculation of exact Hilbert space size not yet implemented with GUGA!")
+                          "calculation of exact Hilbert space size not yet implemented with GUGA!")
         end if
 
         if (tUEGNewGenerator) then
             call stop_all(this_routine, &
-                "wrong input: ueg excitation generator chosen! abort!")
+                          "wrong input: ueg excitation generator chosen! abort!")
         end if
 
         if (tPickVirtUniform) then
             call stop_all(this_routine, &
-                "wrong input: tPickVirtUniform excitation generator chosen! abort!")
+                          "wrong input: tPickVirtUniform excitation generator chosen! abort!")
         end if
 
         if (tGenHelWeighted) then
             call stop_all(this_routine, &
-                "wrong input: tGenHelWeighted excitation generator chosen with GUGA! abort!")
+                          "wrong input: tGenHelWeighted excitation generator chosen with GUGA! abort!")
         end if
 
         if (tGen_4ind_2) then
             call stop_all(this_routine, &
-                "wrong input: tGen_4ind_2 excitation generator chosen with GUGA! abort!")
+                          "wrong input: tGen_4ind_2 excitation generator chosen with GUGA! abort!")
         end if
 
         if (tGen_4ind_weighted) then
             call stop_all(this_routine, &
-                "wrong input: tGen_4ind_weighted excitation generator chosen with GUGA! abort!")
+                          "wrong input: tGen_4ind_weighted excitation generator chosen with GUGA! abort!")
         end if
 
         if (tGen_4ind_reverse) then
             call stop_all(this_routine, &
-                "wrong input: tGen_4ind_reverse excitation generator chosen with GUGA! abort!")
+                          "wrong input: tGen_4ind_reverse excitation generator chosen with GUGA! abort!")
         end if
 
         if (.not. tNoBrillouin) then
             call stop_all(this_routine, &
-                "Brillouin theorem not valid for GUGA approach!(I think atleast...)")
+                          "Brillouin theorem not valid for GUGA approach!(I think atleast...)")
         end if
 
         ! also check if provided input values match:
         ! CONVENTION: STOT in units of h/2!
-        if (STOT .gt. nEl) then
+        if (STOT > nEl) then
             call stop_all(this_routine, &
-                "total spin S in units of h/2 cannot be higher than number of electrons!")
+                          "total spin S in units of h/2 cannot be higher than number of electrons!")
         end if
 
-        if (mod(STOT,2) /= mod(nEl,2)) then
+        if (mod(STOT, 2) /= mod(nEl, 2)) then
             call stop_all(this_routine, &
-                "number of electrons nEl and total spin S in units of h/2 must have same parity!")
+                          "number of electrons nEl and total spin S in units of h/2 must have same parity!")
         end if
 
         ! maybe more to come...
@@ -449,34 +444,32 @@ contains
         ! i am not yet implementing it in such a way so it can work
         if (tUHF) then
             call stop_all(this_routine, &
-                "GUGA approach and UHF basis not yet (or never?) compatible!")
+                          "GUGA approach and UHF basis not yet (or never?) compatible!")
         end if
 
         if (tRealCoeffByExcitLevel) then
             if (RealCoeffExcitThresh > 2) then
                 call stop_all(this_routine, &
-                    "can only determine up to excit level 2 in GUGA for now!")
+                              "can only determine up to excit level 2 in GUGA for now!")
             end if
         end if
 
         ! avoid using both the old and the new tau search functionality
         if (tSearchTau .and. t_hist_tau_search) then
             call stop_all(this_routine, &
-                "can't use both the old and the new tau search option at the same time!")
+                          "can't use both the old and the new tau search option at the same time!")
         end if
-
 
         if (tReplicaEstimates) then
             call stop_all(this_routine, &
-                "'replica-estimates' not yet implemented with GUGA")
+                          "'replica-estimates' not yet implemented with GUGA")
         end if
 
         if (tPreCond) then
             call stop_all(this_routine, &
-                "'precond' not yet implemented with GUGA. mostly because of communication")
+                          "'precond' not yet implemented with GUGA. mostly because of communication")
         end if
 
     end subroutine checkInputGUGA
-
 
 end module guga_init

@@ -37,93 +37,93 @@ contains
         real(dp) :: tot_var_e_num, tot_var_e_denom, tot_e_num, tot_e_denom
         character(*), parameter :: this_routine = 'perform_determ_proj'
 
-        associate( rep => cs_replicas(core_run))
+        associate(rep => cs_replicas(core_run))
 
-        if ((.not. tSemiStochastic) .or. (.not. allocated(rep%sparse_core_ham))) &
-            call stop_all(this_routine, "You must use the semi-stochastic &
-                &option and define a core space to use the determ-proj option.")
-        
-          allocate(wavefunction(rep%determ_sizes(iProcIndex)))
-          allocate(wavefunction_old(rep%determ_sizes(iProcIndex)))
-          allocate(ham_times_hf(rep%determ_sizes(iProcIndex)))
-          allocate(ham_times_wf(rep%determ_sizes(iProcIndex)))
+            if ((.not. tSemiStochastic) .or. (.not. allocated(rep%sparse_core_ham))) &
+                call stop_all(this_routine, "You must use the semi-stochastic &
+                    &option and define a core space to use the determ-proj option.")
 
-          write(6,'()')
-          write(6,'(a83)') "Performing a deterministic projection using the defined &
-              &semi-stochastic core space."
-          write(6,'()')
+            allocate(wavefunction(rep%determ_sizes(iProcIndex)))
+            allocate(wavefunction_old(rep%determ_sizes(iProcIndex)))
+            allocate(ham_times_hf(rep%determ_sizes(iProcIndex)))
+            allocate(ham_times_wf(rep%determ_sizes(iProcIndex)))
 
-          iter = 1
-          energy_denom = 0.0_dp
+            write(6, '()')
+            write(6, '(a83)') "Performing a deterministic projection using the defined &
+                &semi-stochastic core space."
+            write(6, '()')
 
-          ! Find the index of the HF state in the vectors of the HF processor.
-          ASSERT(.not. tOrthogonaliseReplicas)
-          if (iProcIndex == iRefProc(1)) then
-              counter = 0
-              do i = 1, TotWalkers
-                  if (test_flag(CurrentDets(:,i),flag_deterministic(core_run))) then
-                      counter = counter + 1
-                      comp = DetBitLT(CurrentDets(:,i), ilutHF, NIfD)
-                      if (comp == 0) hf_index = counter
-                  end if
-              end do
-          end if
+            iter = 1
+            energy_denom = 0.0_dp
 
-          wavefunction = 0.0_dp
-          ASSERT(.not. tOrthogonaliseReplicas)
-          if (iProcIndex == iRefProc(1)) wavefunction(hf_index) = 1.0_dp
+            ! Find the index of the HF state in the vectors of the HF processor.
+            ASSERT(.not. tOrthogonaliseReplicas)
+            if (iProcIndex == iRefProc(1)) then
+                counter = 0
+                do i = 1, TotWalkers
+                    if (test_flag(CurrentDets(:, i), flag_deterministic(core_run))) then
+                        counter = counter + 1
+                        comp = DetBitLT(CurrentDets(:, i), ilutHF, NIfD)
+                        if (comp == 0) hf_index = counter
+                    end if
+                end do
+            end if
 
-          call MPIAllGatherV(wavefunction, rep%full_determ_vecs(1,:), rep%determ_sizes, &
-              rep%determ_displs)
+            wavefunction = 0.0_dp
+            ASSERT(.not. tOrthogonaliseReplicas)
+            if (iProcIndex == iRefProc(1)) wavefunction(hf_index) = 1.0_dp
 
-          rep%partial_determ_vecs = 0.0_dp
-          ham_times_hf = 0.0_dp
+            call MPIAllGatherV(wavefunction, rep%full_determ_vecs(1, :), rep%determ_sizes, &
+                               rep%determ_displs)
 
-          do i = 1, rep%determ_sizes(iProcIndex)
-              do j = 1, rep%sparse_core_ham(i)%num_elements
-                  ham_times_hf(i) = ham_times_hf(i) + &
-                      rep%sparse_core_ham(i)%elements(j)*rep%full_determ_vecs(1,rep%sparse_core_ham(i)%positions(j))
-              end do
-          end do
+            rep%partial_determ_vecs = 0.0_dp
+            ham_times_hf = 0.0_dp
 
-          write(6,'(a11,7X,a12,7X,a11)') "# Iteration", "Proj. Energy", "Var. Energy"
-          call neci_flush(6)
+            do i = 1, rep%determ_sizes(iProcIndex)
+                do j = 1, rep%sparse_core_ham(i)%num_elements
+                    ham_times_hf(i) = ham_times_hf(i) + &
+                                      rep%sparse_core_ham(i)%elements(j) * rep%full_determ_vecs(1, rep%sparse_core_ham(i)%positions(j))
+                end do
+            end do
 
-          do while(iter <= NMCyc .or. NMCyc == -1)
+            write(6, '(a11,7X,a12,7X,a11)') "# Iteration", "Proj. Energy", "Var. Energy"
+            call neci_flush(6)
 
-              wavefunction_old = wavefunction
+            do while (iter <= NMCyc .or. NMCyc == -1)
 
-              rep%partial_determ_vecs(1,:) = wavefunction
+                wavefunction_old = wavefunction
 
-              call determ_projection()
+                rep%partial_determ_vecs(1, :) = wavefunction
 
-              ham_times_wf = -rep%partial_determ_vecs(1,:) / tau + (DiagSft(1) * wavefunction)
+                call determ_projection()
 
-              wavefunction = wavefunction + rep%partial_determ_vecs(1,:)
+                ham_times_wf = -rep%partial_determ_vecs(1, :) / tau + (DiagSft(1) * wavefunction)
 
-              energy_num = dot_product(ham_times_hf, wavefunction)
-              ASSERT(.not. tOrthogonaliseReplicas)
-              if (iProcIndex == iRefProc(1)) energy_denom = wavefunction(hf_index)
+                wavefunction = wavefunction + rep%partial_determ_vecs(1, :)
 
-              var_e_num = dot_product(ham_times_wf, wavefunction_old)
-              var_e_denom = dot_product(wavefunction_old, wavefunction_old)
+                energy_num = dot_product(ham_times_hf, wavefunction)
+                ASSERT(.not. tOrthogonaliseReplicas)
+                if (iProcIndex == iRefProc(1)) energy_denom = wavefunction(hf_index)
 
-              call MPISum(var_e_num, tot_var_e_num)
-              call MPISum(var_e_denom, tot_var_e_denom)
-              call MPISum(energy_num, tot_e_num)
-              call MPISum(energy_denom, tot_e_denom)
+                var_e_num = dot_product(ham_times_wf, wavefunction_old)
+                var_e_denom = dot_product(wavefunction_old, wavefunction_old)
 
-              write(6,'(i9,7X,f13.10,7X,f13.10)') iter, tot_e_num/tot_e_denom, tot_var_e_num/tot_var_e_denom
-              call neci_flush(6)
+                call MPISum(var_e_num, tot_var_e_num)
+                call MPISum(var_e_denom, tot_var_e_denom)
+                call MPISum(energy_num, tot_e_num)
+                call MPISum(energy_denom, tot_e_denom)
 
-              iter = iter + 1
+                write(6, '(i9,7X,f13.10,7X,f13.10)') iter, tot_e_num / tot_e_denom, tot_var_e_num / tot_var_e_denom
+                call neci_flush(6)
 
-          end do
+                iter = iter + 1
 
-          deallocate(wavefunction)
-          deallocate(ham_times_hf)
-          deallocate(ham_times_wf)
-      end associate
+            end do
+
+            deallocate(wavefunction)
+            deallocate(ham_times_hf)
+            deallocate(ham_times_wf)
+        end associate
 
     end subroutine perform_determ_proj
 
@@ -139,103 +139,102 @@ contains
         real(dp) :: tot_var_e_num, tot_var_e_denom, tot_e_num, tot_e_denom
         character(*), parameter :: this_routine = 'perform_determ_proj'
 
+        associate(rep => cs_replicas(core_run))
 
-        associate( rep => cs_replicas(core_run))
+            if ((.not. tSemiStochastic) .or. (.not. allocated(rep%sparse_core_ham))) &
+                call stop_all(this_routine, "You must use the semi-stochastic &
+                    &option and define a core space to use the determ-proj option.")
 
-        if ((.not. tSemiStochastic) .or. (.not. allocated(rep%sparse_core_ham))) &
-            call stop_all(this_routine, "You must use the semi-stochastic &
-                &option and define a core space to use the determ-proj option.")
-          
-        allocate(wavefunction(rep%determ_sizes(iProcIndex)))
-        allocate(wavefunction_old(rep%determ_sizes(iProcIndex)))
-        allocate(ham_times_hf(rep%determ_sizes(iProcIndex)))
-        allocate(ham_times_wf(rep%determ_sizes(iProcIndex)))
+            allocate(wavefunction(rep%determ_sizes(iProcIndex)))
+            allocate(wavefunction_old(rep%determ_sizes(iProcIndex)))
+            allocate(ham_times_hf(rep%determ_sizes(iProcIndex)))
+            allocate(ham_times_wf(rep%determ_sizes(iProcIndex)))
 
-        write(6,'()')
-        write(6,'(a83)') "Performing a deterministic projection using the defined &
-                         &semi-stochastic core space."
-        write(6,'()')
+            write(6, '()')
+            write(6, '(a83)') "Performing a deterministic projection using the defined &
+                             &semi-stochastic core space."
+            write(6, '()')
 
-        iter = 1
-        energy_denom = 0.0_dp
+            iter = 1
+            energy_denom = 0.0_dp
 
-        ! Find the index of the HF state in the vectors of the HF processor.
-        ASSERT(.not. tOrthogonaliseReplicas)
-        if (iProcIndex == iRefProc(1)) then
-            counter = 0
-            do i = 1, TotWalkers
-                if (test_flag(CurrentDets(:,i),flag_deterministic(core_run))) then
-                    counter = counter + 1
-                    comp = DetBitLT(CurrentDets(:,i), ilutHF, NIfD)
-                    if (comp == 0) hf_index = counter
-                end if
-            end do
-        end if
-
-        wavefunction = 0.0_dp
-        ASSERT(.not. tOrthogonaliseReplicas)
-        if (iProcIndex == iRefProc(1)) wavefunction(hf_index) = 1.0_dp
-
-        call MPIAllGatherV(wavefunction, rep%full_determ_vecs(1,:), rep%determ_sizes, &
-                            rep%determ_displs)
-
-        rep%partial_determ_vecs = 0.0_dp
-        ham_times_hf = 0.0_dp
-
-        do i = 1, rep%determ_sizes(iProcIndex)
-            do j = 1, rep%sparse_core_ham(i)%num_elements
-                ham_times_hf(i) = ham_times_hf(i) + &
-                    rep%sparse_core_ham(i)%elements(j)*rep%full_determ_vecs(1,rep%sparse_core_ham(i)%positions(j))
-            end do
-        end do
-
-        write(6,'(a11,7X,a12,7X,a11)') "# Iteration", "Proj. Energy", "Var. Energy"
-        call neci_flush(6)
-
-        do while(iter <= NMCyc .or. NMCyc == -1)
-
-            ! First, use the full Hamiltonian to get energy estimates
-
-            wavefunction_old = wavefunction
-            rep%partial_determ_vecs(1,:) = wavefunction
-
-            call determ_projection()
-            ham_times_wf = -rep%partial_determ_vecs(1,:) / tau + (DiagSft(1) * wavefunction)
-
-            wavefunction = wavefunction + rep%partial_determ_vecs(1,:)
-
-            energy_num = dot_product(ham_times_hf, wavefunction)
+            ! Find the index of the HF state in the vectors of the HF processor.
             ASSERT(.not. tOrthogonaliseReplicas)
-            if (iProcIndex == iRefProc(1)) energy_denom = wavefunction(hf_index)
+            if (iProcIndex == iRefProc(1)) then
+                counter = 0
+                do i = 1, TotWalkers
+                    if (test_flag(CurrentDets(:, i), flag_deterministic(core_run))) then
+                        counter = counter + 1
+                        comp = DetBitLT(CurrentDets(:, i), ilutHF, NIfD)
+                        if (comp == 0) hf_index = counter
+                    end if
+                end do
+            end if
 
-            var_e_num = dot_product(ham_times_wf, wavefunction_old)
-            var_e_denom = dot_product(wavefunction_old, wavefunction_old)
+            wavefunction = 0.0_dp
+            ASSERT(.not. tOrthogonaliseReplicas)
+            if (iProcIndex == iRefProc(1)) wavefunction(hf_index) = 1.0_dp
 
-            call MPISum(var_e_num, tot_var_e_num)
-            call MPISum(var_e_denom, tot_var_e_denom)
-            call MPISum(energy_num, tot_e_num)
-            call MPISum(energy_denom, tot_e_denom)
+            call MPIAllGatherV(wavefunction, rep%full_determ_vecs(1, :), rep%determ_sizes, &
+                               rep%determ_displs)
 
-            write(6,'(i9,7X,f13.10,7X,f13.10)') iter, tot_e_num/tot_e_denom, tot_var_e_num/tot_var_e_denom
+            rep%partial_determ_vecs = 0.0_dp
+            ham_times_hf = 0.0_dp
+
+            do i = 1, rep%determ_sizes(iProcIndex)
+                do j = 1, rep%sparse_core_ham(i)%num_elements
+                    ham_times_hf(i) = ham_times_hf(i) + &
+                                      rep%sparse_core_ham(i)%elements(j) * rep%full_determ_vecs(1, rep%sparse_core_ham(i)%positions(j))
+                end do
+            end do
+
+            write(6, '(a11,7X,a12,7X,a11)') "# Iteration", "Proj. Energy", "Var. Energy"
             call neci_flush(6)
 
-            ! Perform the actual projection used, with the approximate Hamiltonian
+            do while (iter <= NMCyc .or. NMCyc == -1)
 
-            wavefunction = wavefunction_old
-            rep%partial_determ_vecs(1,:) = wavefunction
+                ! First, use the full Hamiltonian to get energy estimates
 
-            call determ_proj_approx()
+                wavefunction_old = wavefunction
+                rep%partial_determ_vecs(1, :) = wavefunction
 
-            wavefunction = wavefunction + rep%partial_determ_vecs(1,:)
+                call determ_projection()
+                ham_times_wf = -rep%partial_determ_vecs(1, :) / tau + (DiagSft(1) * wavefunction)
 
-            iter = iter + 1
+                wavefunction = wavefunction + rep%partial_determ_vecs(1, :)
 
-        end do
+                energy_num = dot_product(ham_times_hf, wavefunction)
+                ASSERT(.not. tOrthogonaliseReplicas)
+                if (iProcIndex == iRefProc(1)) energy_denom = wavefunction(hf_index)
 
-        deallocate(wavefunction)
-        deallocate(ham_times_hf)
-        deallocate(ham_times_wf)
-      end associate
+                var_e_num = dot_product(ham_times_wf, wavefunction_old)
+                var_e_denom = dot_product(wavefunction_old, wavefunction_old)
+
+                call MPISum(var_e_num, tot_var_e_num)
+                call MPISum(var_e_denom, tot_var_e_denom)
+                call MPISum(energy_num, tot_e_num)
+                call MPISum(energy_denom, tot_e_denom)
+
+                write(6, '(i9,7X,f13.10,7X,f13.10)') iter, tot_e_num / tot_e_denom, tot_var_e_num / tot_var_e_denom
+                call neci_flush(6)
+
+                ! Perform the actual projection used, with the approximate Hamiltonian
+
+                wavefunction = wavefunction_old
+                rep%partial_determ_vecs(1, :) = wavefunction
+
+                call determ_proj_approx()
+
+                wavefunction = wavefunction + rep%partial_determ_vecs(1, :)
+
+                iter = iter + 1
+
+            end do
+
+            deallocate(wavefunction)
+            deallocate(ham_times_hf)
+            deallocate(ham_times_wf)
+        end associate
 
     end subroutine perform_determ_proj_approx_ham
 

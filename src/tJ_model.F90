@@ -12,7 +12,7 @@ module tJ_model
 
     use constants, only: dp, n_int, EPS, bits_n_int, maxExcit
 
-    use real_space_hubbard, only: lat_tau_factor, t_start_neel_state,  &
+    use real_space_hubbard, only: lat_tau_factor, t_start_neel_state, &
                                   check_real_space_hubbard_input, init_tmat, &
                                   init_spin_free_tmat
 
@@ -32,7 +32,7 @@ module tJ_model
     use OneEInts, only: GetTMatEl, tmat2d
 
     use lattice_mod, only: lattice, lat, determine_optimal_time_step, &
-            get_helement_lattice_ex_mat, get_helement_lattice_general
+                           get_helement_lattice_ex_mat, get_helement_lattice_general
 
     use DetBitOps, only: FindBitExcitLevel, EncodeBitDet
 
@@ -61,8 +61,8 @@ module tJ_model
 
     implicit none
 
-    real(dp), allocatable :: exchange_matrix(:,:)
-    real(dp), allocatable :: spin_free_exchange(:,:)
+    real(dp), allocatable :: exchange_matrix(:, :)
+    real(dp), allocatable :: spin_free_exchange(:, :)
 
     interface get_helement_tJ
         module procedure get_helement_tJ_ex_mat
@@ -83,7 +83,7 @@ contains
         real(dp) :: tau_opt
 
         root_print "initializing the spin-free t-J model, with parameter: "
-        root_print "t:",  bhub
+        root_print "t:", bhub
         root_print "J:", exchange_j
 
 !         call init_guga()
@@ -94,7 +94,7 @@ contains
 
         call check_real_space_hubbard_input()
 
-        nSpatOrbs = nBasis/2
+        nSpatOrbs = nBasis / 2
 
         pSingles = 0.1_dp
         pDoubles = 1.0_dp - pSingles
@@ -105,12 +105,12 @@ contains
             ! then i have to construct tmat first
             call stop_all(this_routine, "starting from fcidump not yet implemented!")
             ! and then construct the lattice
-            lat => lattice(lattice_type, length_x, length_y, length_z, .not. t_open_bc_x, &
-                .not. t_open_bc_y, .not. t_open_bc_z)
+            lat => lattice(lattice_type, length_x, length_y, length_z,.not. t_open_bc_x, &
+                           .not. t_open_bc_y,.not. t_open_bc_z)
         else
             ! otherwise i have to do it the other way around
-            lat => lattice(lattice_type, length_x, length_y, length_z, .not. t_open_bc_x, &
-                .not. t_open_bc_y, .not. t_open_bc_z)
+            lat => lattice(lattice_type, length_x, length_y, length_z,.not. t_open_bc_x, &
+                           .not. t_open_bc_y,.not. t_open_bc_z)
 
             ! if nbasis was not yet provided:
             if (nbasis <= 0) then
@@ -124,21 +124,21 @@ contains
 
         end if
 
-        if (nel >= nbasis/2) then
+        if (nel >= nbasis / 2) then
             call stop_all(this_routine, &
-                " too many electrons for the tJ model! nel >= nbasis/2")
+                          " too many electrons for the tJ model! nel >= nbasis/2")
         end if
 
         ! and also check the double occupancy in the starting det,
         ! no double occupancy allowed!
         if (count_double_orbs(ilutRef) > 0) then
             call stop_all(this_routine, &
-                "incorrect starting state for tJ model: there is an doubly occupied site!")
+                          "incorrect starting state for tJ model: there is an doubly occupied site!")
         end if
 
         ! i guess i have to setup G1 also.. argh.. i hate this!
         allocate(G1(nbasis))
-        G1(1:nbasis-1:2)%ms = -1
+        G1(1:nbasis - 1:2)%ms = -1
         G1(2:nbasis:2)%ms = 1
 
         ! Ecore should default to 0, but be sure anyway!
@@ -183,12 +183,12 @@ contains
             ! then i have to construct tmat first
             call stop_all(this_routine, "starting from fcidump not yet implemented!")
             ! and then construct the lattice
-            lat => lattice(lattice_type, length_x, length_y, length_z, .not. t_open_bc_x, &
-                .not. t_open_bc_y, .not. t_open_bc_z)
+            lat => lattice(lattice_type, length_x, length_y, length_z,.not. t_open_bc_x, &
+                           .not. t_open_bc_y,.not. t_open_bc_z)
         else
             ! otherwise i have to do it the other way around
-            lat => lattice(lattice_type, length_x, length_y, length_z, .not. t_open_bc_x, &
-                .not. t_open_bc_y, .not. t_open_bc_z)
+            lat => lattice(lattice_type, length_x, length_y, length_z,.not. t_open_bc_x, &
+                           .not. t_open_bc_y,.not. t_open_bc_z)
 
             ! if nbasis was not yet provided:
             if (nbasis <= 0) then
@@ -200,21 +200,21 @@ contains
 
         end if
 
-        if (nel >= nbasis/2) then
+        if (nel >= nbasis / 2) then
             call stop_all(this_routine, &
-                " too many electrons for the tJ model! nel >= nbasis/2")
+                          " too many electrons for the tJ model! nel >= nbasis/2")
         end if
 
         ! and also check the double occupancy in the starting det,
         ! no double occupancy allowed!
         if (count_double_orbs(ilutRef) > 0) then
             call stop_all(this_routine, &
-                "incorrect starting state for tJ model: there is an doubly occupied site!")
+                          "incorrect starting state for tJ model: there is an doubly occupied site!")
         end if
 
         ! i guess i have to setup G1 also.. argh.. i hate this!
         allocate(G1(nbasis))
-        G1(1:nbasis-1:2)%ms = -1
+        G1(1:nbasis - 1:2)%ms = -1
         G1(2:nbasis:2)%ms = 1
 
         ! Ecore should default to 0, but be sure anyway!
@@ -247,15 +247,13 @@ contains
 
         if (t_start_neel_state) then
             root_print "starting from the Neel state: "
-            if (nel > nbasis/2) then
+            if (nel > nbasis / 2) then
                 call stop_all(this_routine, &
-                    "more than half-filling! does neel state make sense?")
+                              "more than half-filling! does neel state make sense?")
             end if
         end if
 
-
     end subroutine init_tJ_model
-
 
     subroutine init_guga_heisenberg_model()
         character(*), parameter :: this_routine = "init_guga_heisenberg_model"
@@ -278,19 +276,19 @@ contains
         get_umat_el => get_umat_heisenberg_spin_free
 
         if (associated(tmat2d)) deallocate(tmat2d)
-        allocate(tmat2d(nbasis,nbasis), source = h_cast(0.0_dp))
+        allocate(tmat2d(nbasis, nbasis), source=h_cast(0.0_dp))
 
         if (trim(adjustl(lattice_type)) == 'read') then
             ! then i have to construct tmat first
             ! no need for tmat in the heisenberg model
             call stop_all(this_routine, "starting from fcidump not yet implemented!")
             ! and then construct the lattice
-            lat => lattice(lattice_type, length_x, length_y, length_z, .not. t_open_bc_x, &
-                .not. t_open_bc_y, .not. t_open_bc_z)
+            lat => lattice(lattice_type, length_x, length_y, length_z,.not. t_open_bc_x, &
+                           .not. t_open_bc_y,.not. t_open_bc_z)
         else
             ! otherwise i have to do it the other way around
-            lat => lattice(lattice_type, length_x, length_y, length_z, .not. t_open_bc_x, &
-                .not. t_open_bc_y, .not. t_open_bc_z)
+            lat => lattice(lattice_type, length_x, length_y, length_z,.not. t_open_bc_x, &
+                           .not. t_open_bc_y,.not. t_open_bc_z)
 
             ! if nbasis was not yet provided:
             if (nbasis <= 0) then
@@ -302,24 +300,23 @@ contains
 
         end if
 
-        if (nel /= nbasis/2) then
+        if (nel /= nbasis / 2) then
             call stop_all(this_routine, &
-                "heisenberg model need half filling nel == nbasis/2")
+                          "heisenberg model need half filling nel == nbasis/2")
         end if
 
         if (count_double_orbs(ilutref) > 0) then
             call stop_all(this_routine, &
-                " no double occupancies allowed in the heisenberg model")
+                          " no double occupancies allowed in the heisenberg model")
         end if
 
         ! i guess i have to setup G1 also.. argh.. i hate this!
         allocate(G1(nbasis))
-        G1(1:nbasis-1:2)%ms = -1
+        G1(1:nbasis - 1:2)%ms = -1
         G1(2:nbasis:2)%ms = 1
 
         ! Ecore should default to 0, but be sure anyway!
         ecore = 0.0_dp
-
 
         ! TODO: maybe I need the tau-search for the GUGA..
         tau_opt = determine_optimal_time_step()
@@ -360,7 +357,7 @@ contains
         if (t_trans_corr_2body) then
             if (t_trans_corr) then
                 call stop_all(this_routine, &
-                    "1-body transcorrelation not allowed in the heisenberg model!")
+                              "1-body transcorrelation not allowed in the heisenberg model!")
             end if
         end if
 
@@ -373,12 +370,12 @@ contains
 !             call init_tmat()
 !             call setup_exchange_matrix()
             ! and then construct the lattice
-            lat => lattice(lattice_type, length_x, length_y, length_z, .not. t_open_bc_x, &
-                .not. t_open_bc_y, .not. t_open_bc_z)
+            lat => lattice(lattice_type, length_x, length_y, length_z,.not. t_open_bc_x, &
+                           .not. t_open_bc_y,.not. t_open_bc_z)
         else
             ! otherwise i have to do it the other way around
-            lat => lattice(lattice_type, length_x, length_y, length_z, .not. t_open_bc_x, &
-                .not. t_open_bc_y, .not. t_open_bc_z)
+            lat => lattice(lattice_type, length_x, length_y, length_z,.not. t_open_bc_x, &
+                           .not. t_open_bc_y,.not. t_open_bc_z)
 
             ! if nbasis was not yet provided:
             if (nbasis <= 0) then
@@ -390,19 +387,19 @@ contains
 
         end if
 
-        if (nel /= nbasis/2) then
+        if (nel /= nbasis / 2) then
             call stop_all(this_routine, &
-                "heisenberg model need half filling nel == nbasis/2")
+                          "heisenberg model need half filling nel == nbasis/2")
         end if
 
         if (count_double_orbs(ilutref) > 0) then
             call stop_all(this_routine, &
-                " no double occupancies allowed in the heisenberg model")
+                          " no double occupancies allowed in the heisenberg model")
         end if
 
         ! i guess i have to setup G1 also.. argh.. i hate this!
         allocate(G1(nbasis))
-        G1(1:nbasis-1:2)%ms = -1
+        G1(1:nbasis - 1:2)%ms = -1
         G1(2:nbasis:2)%ms = 1
 
         ! Ecore should default to 0, but be sure anyway!
@@ -437,9 +434,9 @@ contains
 !             neel_state_ni = create_neel_state(ilut_neel)
 
             root_print "starting from the Neel state: "
-            if (nel > nbasis/2) then
+            if (nel > nbasis / 2) then
                 call stop_all(this_routine, &
-                    "more than half-filling! does neel state make sense?")
+                              "more than half-filling! does neel state make sense?")
             end if
 
         end if
@@ -460,7 +457,7 @@ contains
     subroutine init_get_helement_heisenberg_guga
 
         if (associated(tmat2d)) deallocate(tmat2d)
-        allocate(tmat2d(nbasis,nbasis), source = h_cast(0.0_dp))
+        allocate(tmat2d(nbasis, nbasis), source=h_cast(0.0_dp))
 
         call setup_exchange_matrix(lat)
         call setup_spin_free_exchange(lat)
@@ -482,15 +479,15 @@ contains
         call setup_exchange_matrix(lat)
     end subroutine init_get_helement_heisenberg
 
-    subroutine gen_excit_heisenberg_model (nI, ilutI, nJ, ilutJ, exFlag, ic, &
-                                      ex, tParity, pGen, hel, store, run)
+    subroutine gen_excit_heisenberg_model(nI, ilutI, nJ, ilutJ, exFlag, ic, &
+                                          ex, tParity, pGen, hel, store, run)
         ! the heisenberg excitation generator is only a small modification of
         ! the t-J excitation generator without single excitation hoppings,
         ! due to half-filling
 
         integer, intent(in) :: nI(nel), exFlag
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
-        integer, intent(out) :: nJ(nel), ic, ex(2,maxExcit)
+        integer, intent(out) :: nJ(nel), ic, ex(2, maxExcit)
         integer(n_int), intent(out) :: ilutJ(0:NifTot)
         real(dp), intent(out) :: pGen
         logical, intent(out) :: tParity
@@ -514,7 +511,7 @@ contains
         hel = h_cast(0.0_dp)
 
         ASSERT(associated(lat))
-        ASSERT(nel == nbasis/2)
+        ASSERT(nel == nbasis / 2)
 
         ic = 2
 
@@ -547,7 +544,7 @@ contains
         if (ind == 1) then
             p_orb = cum_arr(1) / cum_sum
         else
-            p_orb = (cum_arr(ind) - cum_arr(ind-1)) / cum_sum
+            p_orb = (cum_arr(ind) - cum_arr(ind - 1)) / cum_sum
         end if
 
         ! and then i have to check for the opposite order generation prob
@@ -559,11 +556,11 @@ contains
             tgt_opp = src - 1
         end if
 
-        ASSERT(IsOcc(ilutI,src_opp))
+        ASSERT(IsOcc(ilutI, src_opp))
         ASSERT(IsNotOcc(ilutI, tgt_opp))
 
         call create_cum_list_heisenberg(ilutI, src_opp, lat%get_spinorb_neighbors(src_opp), &
-            cum_arr, cum_sum, tgt_opp, cpt_opp)
+                                        cum_arr, cum_sum, tgt_opp, cpt_opp)
 
         pgen = p_elec * (p_orb + cpt_opp)
 
@@ -575,12 +572,12 @@ contains
 
     end subroutine gen_excit_heisenberg_model
 
-    subroutine gen_excit_tJ_model (nI, ilutI, nJ, ilutJ, exFlag, ic, &
-                                      ex, tParity, pGen, hel, store, run)
+    subroutine gen_excit_tJ_model(nI, ilutI, nJ, ilutJ, exFlag, ic, &
+                                  ex, tParity, pGen, hel, store, run)
 
         integer, intent(in) :: nI(nel), exFlag
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
-        integer, intent(out) :: nJ(nel), ic, ex(2,maxExcit)
+        integer, intent(out) :: nJ(nel), ic, ex(2, maxExcit)
         integer(n_int), intent(out) :: ilutJ(0:NifTot)
         real(dp), intent(out) :: pGen
         logical, intent(out) :: tParity
@@ -612,9 +609,9 @@ contains
         ASSERT(associated(lat))
 #ifdef WARNING_WORKAROUND_
         hel = 0.0_dp
-        if(present(run)) then
+        if (present(run)) then
             unused_var(run)
-        endif
+        end if
 #endif
         unused_var(store)
         unused_var(exflag)
@@ -629,7 +626,7 @@ contains
         neighbors = lat%get_neighbors(id)
 
         call create_cum_list_tJ_model(ilutI, src, neighbors, cum_arr, cum_sum, &
-            ic_list)
+                                      ic_list)
 
         if (cum_sum < EPS) then
             nJ(1) = 0
@@ -652,7 +649,7 @@ contains
         if (ind == 1) then
             p_orb = cum_arr(1) / cum_sum
         else
-            p_orb = (cum_arr(ind) - cum_arr(ind-1)) / cum_sum
+            p_orb = (cum_arr(ind) - cum_arr(ind - 1)) / cum_sum
         end if
 
         if (ic == 1) then
@@ -664,7 +661,7 @@ contains
 
             call make_single(nI, nJ, elec, tgt_1, ex, tParity)
 
-            ilutJ =  make_ilutJ(ilutI, ex, 1)
+            ilutJ = make_ilutJ(ilutI, ex, 1)
 
         else if (ic == 2) then
             ! here i have to recalc the contribution if i would have picked
@@ -675,14 +672,14 @@ contains
             if (is_beta(src)) then
                 ! need to the the index of electron 2 in nI
                 ! the second electron must be alpha
-                elec_2 = find_elec_in_ni(nI, 2*neighbors(ind))
+                elec_2 = find_elec_in_ni(nI, 2 * neighbors(ind))
                 ! we need the orbital alpha of src
                 ! and the beta of the second orbital
                 tgt_1 = get_alpha(src)
                 tgt_2 = 2 * neighbors(ind) - 1
             else
                 ! v.v here
-                elec_2 = find_elec_in_ni(nI, 2*neighbors(ind) - 1)
+                elec_2 = find_elec_in_ni(nI, 2 * neighbors(ind) - 1)
 
                 tgt_1 = get_beta(src)
                 tgt_2 = 2 * neighbors(ind)
@@ -692,8 +689,8 @@ contains
             ! the idea is to target the spin-orbital of the other electron!
             ! (the first in this case!
             call create_cum_list_tJ_model(ilutI, nI(elec_2), &
-                lat%get_neighbors(gtid(nI(elec_2))), cum_arr_opp, cum_sum_opp, &
-                tmp_ic_list, src, cpt_opp)
+                                          lat%get_neighbors(gtid(nI(elec_2))), cum_arr_opp, cum_sum_opp, &
+                                          tmp_ic_list, src, cpt_opp)
 
             p_orb = p_orb + cpt_opp
 
@@ -704,7 +701,7 @@ contains
         else
             ! something went wrong..
             call stop_all(this_routine, &
-                "something went wrong ic > 2!")
+                          "something went wrong ic > 2!")
         end if
 
         pgen = p_elec * p_orb
@@ -712,7 +709,7 @@ contains
     end subroutine gen_excit_tJ_model
 
     subroutine create_cum_list_tJ_model(ilutI, src, neighbors, cum_arr, cum_sum, &
-            ic_list, tgt, cpt)
+                                        ic_list, tgt, cpt)
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
         integer, intent(in) :: src, neighbors(:)
         real(dp), intent(out), allocatable :: cum_arr(:)
@@ -723,13 +720,13 @@ contains
 #ifdef DEBUG_
         character(*), parameter :: this_routine = "create_cum_list_tJ_model"
 #endif
-        integer :: i, nI(nel), temp_ex(2,maxExcit)
+        integer :: i, nI(nel), temp_ex(2, maxExcit)
         integer, allocatable :: single_excits(:)
         integer, allocatable :: spin_flips(:)
         real(dp) :: elem
         logical :: t_single, t_flip, t_single_possible, t_flip_possible
 
-        ASSERT(IsOcc(ilutI,src))
+        ASSERT(IsOcc(ilutI, src))
         ASSERT(allocated(exchange_matrix))
 
         allocate(cum_arr(size(neighbors)))
@@ -742,19 +739,19 @@ contains
 
         call decode_bit_det(nI, ilutI)
 
-        temp_ex(1,1) = src
+        temp_ex(1, 1) = src
 
         if (is_beta(src)) then
-            single_excits = 2*neighbors - 1
+            single_excits = 2 * neighbors - 1
             spin_flips = 2 * neighbors
             ! fill in the corresponding alpha orbital
-            temp_ex(2,1) = src + 1
+            temp_ex(2, 1) = src + 1
         else
             single_excits = 2 * neighbors
             spin_flips = 2 * neighbors - 1
 
             ! fill in the beta orbital
-            temp_ex(2,1) = src - 1
+            temp_ex(2, 1) = src - 1
         end if
 
         if (present(tgt)) then
@@ -772,7 +769,7 @@ contains
             ASSERT(present(cpt))
             cpt = 0.0_dp
 
-            do i = 1, ubound(neighbors,1)
+            do i = 1, ubound(neighbors, 1)
                 elem = 0.0_dp
                 t_single_possible = .false.
                 t_flip_possible = .false.
@@ -781,38 +778,38 @@ contains
                     IsNotOcc(ilutI, spin_flips(i))) then
                     ! just to be sure use the tmat, so both orbitals are
                     ! definetly connected
-                    elem = abs(get_offdiag_helement_tJ(nI, [src,single_excits(i)],.false.))
+                    elem = abs(get_offdiag_helement_tJ(nI, [src, single_excits(i)], .false.))
 !                     elem = abs(GetTMatEl(src, single_excits(i)))
                     t_single_possible = .true.
 
                 else if (IsOcc(ilutI, spin_flips(i)) .and. &
                          IsNotOcc(ilutI, single_excits(i))) then
 
-                     temp_ex(1,2) = spin_flips(i)
-                     temp_ex(2,2) = single_excits(i)
-                     elem = abs(get_offdiag_helement_heisenberg(nI, temp_ex, .false.))
+                    temp_ex(1, 2) = spin_flips(i)
+                    temp_ex(2, 2) = single_excits(i)
+                    elem = abs(get_offdiag_helement_heisenberg(nI, temp_ex, .false.))
 !                      elem = abs(get_heisenberg_exchange(src, spin_flips(i)))
-                     t_flip_possible  = .true.
+                    t_flip_possible = .true.
 
-                 end if
-                 cum_sum = cum_sum + elem
+                end if
+                cum_sum = cum_sum + elem
 
-                 if (t_single .and. t_single_possible .and. tgt == single_excits(i)) then
-                     cpt = elem
-                 else if (t_flip .and.t_flip_possible .and.  tgt == spin_flips(i)) then
-                     cpt = elem
-                 end if
-             end do
-             if (cum_sum < EPS) then
-                 cpt = 0.0_dp
-             else
-                 cpt = cpt / cum_sum
-             end if
+                if (t_single .and. t_single_possible .and. tgt == single_excits(i)) then
+                    cpt = elem
+                else if (t_flip .and. t_flip_possible .and. tgt == spin_flips(i)) then
+                    cpt = elem
+                end if
+            end do
+            if (cum_sum < EPS) then
+                cpt = 0.0_dp
+            else
+                cpt = cpt / cum_sum
+            end if
         else
             ! create the list depending on the possible excitations
-            do i = 1, ubound(neighbors,1)
+            do i = 1, ubound(neighbors, 1)
                 elem = 0.0_dp
-                if (IsNotOcc(ilutI,single_excits(i)) .and. &
+                if (IsNotOcc(ilutI, single_excits(i)) .and. &
                     IsNotOcc(ilutI, spin_flips(i))) then
                     ! then the orbital is empty an we can do a hopping
                     ! reuse the hubbard matrix elements..
@@ -821,35 +818,35 @@ contains
                     ! it would be better to just use -t .. anyway.. keep it
                     ! general
 
-                    elem = abs(get_offdiag_helement_tJ(nI, [src,single_excits(i)],.false.))
+                    elem = abs(get_offdiag_helement_tJ(nI, [src, single_excits(i)], .false.))
 !                     elem = abs(GetTMatEl(src, single_excits(i)))
                     ic_list(i) = 1
 
-                else if (IsOcc(IlutI,spin_flips(i)) .and. &
-                         IsNotOcc(IlutI,single_excits(i))) then
-                     ! then we can do a spin flip
-                     temp_ex(1,2) = spin_flips(i)
-                     temp_ex(2,2) = single_excits(i)
-                     elem = abs(get_offdiag_helement_heisenberg(nI, temp_ex, .false.))
+                else if (IsOcc(IlutI, spin_flips(i)) .and. &
+                         IsNotOcc(IlutI, single_excits(i))) then
+                    ! then we can do a spin flip
+                    temp_ex(1, 2) = spin_flips(i)
+                    temp_ex(2, 2) = single_excits(i)
+                    elem = abs(get_offdiag_helement_heisenberg(nI, temp_ex, .false.))
 !                      elem = abs(get_heisenberg_exchange(src, spin_flips(i)))
-                     ic_list(i) = 2
+                    ic_list(i) = 2
 
-                 else
-                     ! if the spin-parallel is occupied, no exciation
-                     ! possible, and also prohibit double occupancies
-                     elem = 0.0_dp
-                 end if
+                else
+                    ! if the spin-parallel is occupied, no exciation
+                    ! possible, and also prohibit double occupancies
+                    elem = 0.0_dp
+                end if
 
-                    cum_sum = cum_sum + elem
-                    cum_arr(i) = cum_sum
-             end do
-         end if
+                cum_sum = cum_sum + elem
+                cum_arr(i) = cum_sum
+            end do
+        end if
 
     end subroutine create_cum_list_tJ_model
 
     function calc_pgen_tJ_model(ilutI, ex, ic) result(pgen)
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
-        integer, intent(in) :: ex(2,2), ic
+        integer, intent(in) :: ex(2, 2), ic
         real(dp) :: pgen
 #ifdef DEBUG_
         character(*), parameter :: this_routine = "calc_pgen_tJ_model"
@@ -860,7 +857,7 @@ contains
         real(dp), allocatable :: cum_arr(:)
         integer, allocatable :: tmp_list(:)
 
-        ASSERT(ic >= 0 )
+        ASSERT(ic >= 0)
 
         if (ic == 0 .or. ic > 2) then
             pgen = 0.0_dp
@@ -879,10 +876,10 @@ contains
             ASSERT(is_beta(src(1)) .eqv. is_beta(tgt(1)))
             ASSERT(any(tgt(1) == lat%get_spinorb_neighbors(src(1))))
             ASSERT(IsOcc(ilutI, src(1)))
-            ASSERT(IsNotOcc(ilutI,tgt(1)))
+            ASSERT(IsNotOcc(ilutI, tgt(1)))
 
             call create_cum_list_tJ_model(ilutI, src(1), lat%get_neighbors(gtid(src(1))), &
-                cum_arr, cum_sum, tmp_list, tgt(1), p_orb)
+                                          cum_arr, cum_sum, tmp_list, tgt(1), p_orb)
 
         else if (ic == 2) then
             ! here we have to find the correct orbital..
@@ -890,23 +887,23 @@ contains
             ! of having picked the orbitals in a different order..
             ! for HPHF reasons i have to return here if the orbitals are
             ! not "correct"
-            if (same_spin(src(1),src(2)) .or. same_spin(tgt(1),tgt(2))) then
+            if (same_spin(src(1), src(2)) .or. same_spin(tgt(1), tgt(2))) then
                 pgen = 0.0_dp
                 return
             end if
-            if (.not.(is_in_pair(src(1),tgt(1)) .or. is_in_pair(src(1),tgt(2)))) then
+            if (.not. (is_in_pair(src(1), tgt(1)) .or. is_in_pair(src(1), tgt(2)))) then
                 pgen = 0.0_dp
                 return
             end if
-            if (.not.(is_in_pair(src(2),tgt(1)) .or. is_in_pair(src(2),tgt(2)))) then
+            if (.not. (is_in_pair(src(2), tgt(1)) .or. is_in_pair(src(2), tgt(2)))) then
                 pgen = 0.0_dp
                 return
             end if
 
             call create_cum_list_tJ_model(ilutI, src(1), lat%get_neighbors(gtid(src(1))), &
-                cum_arr, cum_sum, tmp_list, src(2), cpt_1)
+                                          cum_arr, cum_sum, tmp_list, src(2), cpt_1)
             call create_cum_list_tJ_model(ilutI, src(2), lat%get_neighbors(gtid(src(2))), &
-                cum_arr, cum_sum, tmp_list, src(1), cpt_2)
+                                          cum_arr, cum_sum, tmp_list, src(1), cpt_2)
 
             p_orb = cpt_1 + cpt_2
 
@@ -999,7 +996,7 @@ contains
 
         neighbors = lat%get_neighbors(id)
 
-        allocate(cum_arr(size(neighbors)), source = 0.0_dp)
+        allocate(cum_arr(size(neighbors)), source=0.0_dp)
 
         cum_sum = 0.0_dp
         tmp = 0.0_dp
@@ -1061,7 +1058,6 @@ contains
 
         call gen_guga_heisenberg_cum_list(ilut, id, cum_arr)
 
-
         cum_sum = cum_arr(size(neighbors))
 
         if (cum_sum < EPS) then
@@ -1078,7 +1074,7 @@ contains
         if (ind == 1) then
             p_orb = cum_arr(1) / cum_sum
         else
-            p_orb = (cum_arr(ind) - cum_arr(ind-1))/cum_sum
+            p_orb = (cum_arr(ind) - cum_arr(ind - 1)) / cum_sum
         end if
 
         ! and now we have to to the GUGA excitation:
@@ -1088,15 +1084,15 @@ contains
         start = min(id, tgt)
         ende = max(id, tgt)
 
-        excitInfo =  assign_excitInfo_values_double(excit_type%fullstart_stop_mixed, &
-            gen_type%L, gen_type%R, gen_type%R, gen_type%R, gen_type%R, &
-            start, ende, ende, start, start, start, ende, ende, 0, 2, 1.0_dp, 1.0_dp)
+        excitInfo = assign_excitInfo_values_double(excit_type%fullstart_stop_mixed, &
+                                                   gen_type%L, gen_type%R, gen_type%R, gen_type%R, gen_type%R, &
+                                                   start, ende, ende, start, start, start, ende, ende, 0, 2, 1.0_dp, 1.0_dp)
 
         orb_pgen = p_elec * p_orb
 
     end subroutine pick_orbitals_guga_heisenberg
 
-    subroutine gen_guga_heisenberg_cum_list(ilut, id,  cum_arr, tgt, tgt_pgen)
+    subroutine gen_guga_heisenberg_cum_list(ilut, id, cum_arr, tgt, tgt_pgen)
         ! make a routine for this, for easy pgen recalculation
         integer(n_int), intent(in) :: ilut(0:nifguga)
         integer, intent(in) :: id
@@ -1112,7 +1108,7 @@ contains
         neighbors = lat%get_neighbors(id)
 
         ! then check if the neighbors are available for exchange
-        allocate(cum_arr(size(neighbors)), source = 0.0_dp)
+        allocate(cum_arr(size(neighbors)), source=0.0_dp)
 
         cum_sum = 0.0_dp
         tmp = 0.0_dp
@@ -1130,15 +1126,15 @@ contains
                     cycle
 
                 else if (current_stepvector(n) == step) then
-                    if (abs(id -n) == 1) then
+                    if (abs(id - n) == 1) then
                         cycle
                     else
 
                         if (step == 1 .and. &
-                            count_alpha_orbs_ij(ilut(0:nifd), min(id,n),max(id,n)) == 0) cycle
+                            count_alpha_orbs_ij(ilut(0:nifd), min(id, n), max(id, n)) == 0) cycle
 
                         if (step == 2 .and. &
-                            count_beta_orbs_ij(ilut(0:nifd), min(id,n),max(id,n)) == 0) cycle
+                            count_beta_orbs_ij(ilut(0:nifd), min(id, n), max(id, n)) == 0) cycle
 
                         tmp = 1.0_dp
 
@@ -1148,7 +1144,7 @@ contains
                     end if
 
                 else if (current_stepvector(n) /= 0 .and. &
-                    current_stepvector(n) /= step) then
+                         current_stepvector(n) /= step) then
 
                     if (id - n == -1 .and. current_stepvector(id) == 1 .and. &
                         currentB_int(id) == 1) cycle
@@ -1182,13 +1178,13 @@ contains
                         cycle
                     else
                         if (step == 1 .and. &
-                           count_alpha_orbs_ij(ilut(0:nifd), min(id,n), max(id,n)) == 0) then
-                           cum_arr(i) = cum_sum
-                           cycle
-                       end if
+                            count_alpha_orbs_ij(ilut(0:nifd), min(id, n), max(id, n)) == 0) then
+                            cum_arr(i) = cum_sum
+                            cycle
+                        end if
 
                         if (step == 2 .and. &
-                            count_beta_orbs_ij(ilut(0:nifd), min(id,n),max(id,n)) == 0) then
+                            count_beta_orbs_ij(ilut(0:nifd), min(id, n), max(id, n)) == 0) then
                             cum_arr(i) = cum_sum
                             cycle
                         end if
@@ -1198,7 +1194,7 @@ contains
                     end if
 
                 else if (current_stepvector(n) /= 0 .and. &
-                    current_stepvector(n) /= step) then
+                         current_stepvector(n) /= step) then
 
                     if (id - n == -1 .and. current_stepvector(id) == 1 .and. &
                         currentB_int(id) == 1) then
@@ -1234,7 +1230,7 @@ contains
 
         ! here I have to somehow recalculate the probability of
         ! picking a pair (i,j)
-        p_elec = 1.0_dp/real(nel,dp)
+        p_elec = 1.0_dp / real(nel, dp)
 
         ! i could have taken both of the orbitals in any order.. so I have
         ! to take this into account
@@ -1245,10 +1241,10 @@ contains
         sp_orbs = gtID(occ_orbs)
 
         call gen_guga_heisenberg_cum_list(ilut, minval(sp_orbs), cum_arr, &
-            maxval(sp_orbs), below_cpt)
+                                          maxval(sp_orbs), below_cpt)
 
         call gen_guga_heisenberg_cum_list(ilut, maxval(sp_orbs), cum_arr, &
-            minval(sp_orbs), above_cpt)
+                                          minval(sp_orbs), above_cpt)
 
         above_cpt = above_cpt * p_elec
         below_cpt = below_cpt * p_elec
@@ -1256,7 +1252,7 @@ contains
     end subroutine calc_orbital_pgen_contr_heisenberg
 
     subroutine create_cum_list_heisenberg(ilutI, src, neighbors, cum_arr, cum_sum, &
-            tgt, cpt)
+                                          tgt, cpt)
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
         integer, intent(in) :: src, neighbors(:)
         real(dp), intent(out), allocatable :: cum_arr(:)
@@ -1266,10 +1262,10 @@ contains
 #ifdef DEBUG_
         character(*), parameter :: this_routine = "create_cum_list_heisenberg"
 #endif
-        integer :: flip, i, temp_ex(2,maxExcit), nI(nel)
+        integer :: flip, i, temp_ex(2, maxExcit), nI(nel)
         real(dp) :: elem
 
-        ASSERT(IsOcc(ilutI,src))
+        ASSERT(IsOcc(ilutI, src))
 
         allocate(cum_arr(size(neighbors)))
         cum_arr = 0.0_dp
@@ -1284,7 +1280,7 @@ contains
 
         ! also use an excitation matrix array to effectively calculate the
         ! transcorrelation factor everywhere needed!
-        temp_ex(1,1) = src
+        temp_ex(1, 1) = src
 
         call decode_bit_det(nI, ilutI)
 
@@ -1295,17 +1291,17 @@ contains
         end if
 
         ! add the spinflipped
-        temp_ex(2,1) = src + flip
+        temp_ex(2, 1) = src + flip
 
         if (present(tgt)) then
             ASSERT(present(cpt))
             cpt = 0.0_dp
 
-            do i = 1, ubound(neighbors,1)
+            do i = 1, ubound(neighbors, 1)
                 elem = 0.0_dp
-                if (IsNotOcc(ilutI,neighbors(i))) then
-                    temp_ex(1,2) = neighbors(i)+flip
-                    temp_ex(2,2) = neighbors(i)
+                if (IsNotOcc(ilutI, neighbors(i))) then
+                    temp_ex(1, 2) = neighbors(i) + flip
+                    temp_ex(2, 2) = neighbors(i)
                     elem = abs(get_offdiag_helement_heisenberg(nI, temp_ex, .false.))
 !                     elem = abs(get_heisenberg_exchange(src, neighbors(i)+flip))
                 end if
@@ -1321,14 +1317,14 @@ contains
             end if
 
         else
-            do i = 1, ubound(neighbors,1)
+            do i = 1, ubound(neighbors, 1)
                 elem = 0.0_dp
-                if (IsNotOcc(ilutI,neighbors(i))) then
+                if (IsNotOcc(ilutI, neighbors(i))) then
                     ! this is a valid orbital to choose from
                     ! but for the matrix element calculation, we need to
                     ! have the opposite spin of the neighboring orbital!
-                    temp_ex(1,2) = neighbors(i)+flip
-                    temp_ex(2,2) = neighbors(i)
+                    temp_ex(1, 2) = neighbors(i) + flip
+                    temp_ex(2, 2) = neighbors(i)
                     elem = abs(get_offdiag_helement_heisenberg(nI, temp_ex, .false.))
 !                     elem = abs(get_heisenberg_exchange(src, neighbors(i)+flip))
                 end if
@@ -1341,7 +1337,7 @@ contains
 
     function calc_pgen_heisenberg_model(ilutI, ex, ic) result(pgen)
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
-        integer, intent(in) :: ex(2,ic), ic
+        integer, intent(in) :: ex(2, ic), ic
         real(dp) :: pgen
 #ifdef DEBUG_
         character(*), parameter :: this_routine = "calc_pgen_heisenberg_model"
@@ -1360,29 +1356,29 @@ contains
         src = get_src(ex)
         tgt = get_tgt(ex)
 
-        ASSERT(.not. same_spin(src(1),src(2)))
-        ASSERT(.not. same_spin(tgt(1),tgt(2)))
+        ASSERT(.not. same_spin(src(1), src(2)))
+        ASSERT(.not. same_spin(tgt(1), tgt(2)))
 
         p_elec = 1.0_dp / real(nel, dp)
 
         if (is_beta(src(1)) .eqv. is_beta(tgt(1))) then
-            ASSERT(is_in_pair(src(1),tgt(2)))
-            ASSERT(is_in_pair(src(2),tgt(1)))
-            ASSERT(same_spin(src(2),tgt(2)))
+            ASSERT(is_in_pair(src(1), tgt(2)))
+            ASSERT(is_in_pair(src(2), tgt(1)))
+            ASSERT(same_spin(src(2), tgt(2)))
 
             call create_cum_list_heisenberg(ilutI, src(1), lat%get_spinorb_neighbors(src(1)), &
-                cum_arr, cum_sum, tgt(1), cpt_1)
+                                            cum_arr, cum_sum, tgt(1), cpt_1)
             call create_cum_list_heisenberg(ilutI, src(2), lat%get_spinorb_neighbors(src(2)), &
-                cum_arr, cum_sum, tgt(2), cpt_2)
+                                            cum_arr, cum_sum, tgt(2), cpt_2)
 
         else if (is_beta(src(1)) .eqv. is_beta(tgt(2))) then
-            ASSERT(is_in_pair(src(1),tgt(1)))
-            ASSERT(is_in_pair(src(2),tgt(2)))
-            ASSERT(same_spin(src(2),tgt(1)))
+            ASSERT(is_in_pair(src(1), tgt(1)))
+            ASSERT(is_in_pair(src(2), tgt(2)))
+            ASSERT(same_spin(src(2), tgt(1)))
             call create_cum_list_heisenberg(ilutI, src(1), lat%get_spinorb_neighbors(src(1)), &
-                cum_arr, cum_sum, tgt(2), cpt_1)
+                                            cum_arr, cum_sum, tgt(2), cpt_1)
             call create_cum_list_heisenberg(ilutI, src(2), lat%get_spinorb_neighbors(src(2)), &
-                cum_arr, cum_sum, tgt(1), cpt_2)
+                                            cum_arr, cum_sum, tgt(1), cpt_2)
 #ifdef DEBUG_
         else
             call stop_all(this_routine, "something went wrong!")
@@ -1429,22 +1425,22 @@ contains
         ASSERT(associated(in_lat))
 
         if (allocated(spin_free_exchange)) deallocate(spin_free_exchange)
-        allocate(spin_free_exchange(nBasis/2, nBasis/2), source = 0.0_dp)
+        allocate(spin_free_exchange(nBasis / 2, nBasis / 2), source=0.0_dp)
 
-        ASSERT(in_lat%get_nsites() == nBasis/2)
+        ASSERT(in_lat%get_nsites() == nBasis / 2)
 
         do i = 1, in_lat%get_nsites()
             ind = in_lat%get_site_index(i)
 
             ASSERT(ind > 0)
-            ASSERT(ind <= nBasis/2)
+            ASSERT(ind <= nBasis / 2)
 
             associate(next => in_lat%get_neighbors(i))
                 ASSERT(all(next > 0))
-                ASSERT(all(next <= nBasis/2))
+                ASSERT(all(next <= nBasis / 2))
 
                 ! in the spin-free form I have to divide by one 1/2 more!
-                spin_free_exchange(ind, next) = -exchange_j/2.0_dp
+                spin_free_exchange(ind, next) = -exchange_j / 2.0_dp
 
             end associate
 
@@ -1462,25 +1458,25 @@ contains
 
         ASSERT(associated(in_lat))
 !         if (present(in_lat)) then
-            ! create the exchange matrix from the given lattice
-            ! connections
-            if (allocated(exchange_matrix)) deallocate(exchange_matrix)
-            allocate(exchange_matrix(nbasis,nbasis))
-            exchange_matrix = 0.0_dp
+        ! create the exchange matrix from the given lattice
+        ! connections
+        if (allocated(exchange_matrix)) deallocate(exchange_matrix)
+        allocate(exchange_matrix(nbasis, nbasis))
+        exchange_matrix = 0.0_dp
 
-            ASSERT(in_lat%get_nsites() == nbasis/2)
-            do i = 1, in_lat%get_nsites()
-                ind = in_lat%get_site_index(i)
-                associate(next => in_lat%get_neighbors(i))
-                    exchange_matrix(2*ind - 1, 2*next) = exchange_j/2.0_dp
-                    exchange_matrix(2*ind, 2*next - 1) = exchange_j/2.0_dp
+        ASSERT(in_lat%get_nsites() == nbasis / 2)
+        do i = 1, in_lat%get_nsites()
+            ind = in_lat%get_site_index(i)
+            associate(next => in_lat%get_neighbors(i))
+                exchange_matrix(2 * ind - 1, 2 * next) = exchange_j / 2.0_dp
+                exchange_matrix(2 * ind, 2 * next - 1) = exchange_j / 2.0_dp
 
-                    ASSERT(all(next > 0))
-                    ASSERT(all(next <= nbasis/2))
-                end associate
-                ASSERT(ind > 0)
-                ASSERT(ind <= nbasis/2)
-            end do
+                ASSERT(all(next > 0))
+                ASSERT(all(next <= nbasis / 2))
+            end associate
+            ASSERT(ind > 0)
+            ASSERT(ind <= nbasis / 2)
+        end do
 
 !         else
 !             call stop_all(this_routine, "start from a fcidump not yet implemented!")
@@ -1489,7 +1485,7 @@ contains
     end subroutine setup_exchange_matrix
 
     function get_helement_tJ_ex_mat(nI, ic, ex, tpar) result(hel)
-        integer, intent(in) :: nI(nel), ic, ex(2,ic)
+        integer, intent(in) :: nI(nel), ic, ex(2, ic)
         logical, intent(in) :: tpar
         HElement_t(dp) :: hel
 
@@ -1500,7 +1496,7 @@ contains
 
         else if (ic == 1) then
             ! the single excitation is the same as in the hubbard model
-            hel = get_offdiag_helement_tJ(nI, ex(:,1), tpar)
+            hel = get_offdiag_helement_tJ(nI, ex(:, 1), tpar)
 
         else if (ic == 2) then
             hel = get_offdiag_helement_heisenberg(nI, ex, tpar)
@@ -1516,7 +1512,7 @@ contains
         integer, intent(inout), optional :: ic_ret
         HElement_t(dp) :: hel
 
-        integer :: ic, ex(2,maxExcit)
+        integer :: ic, ex(2, maxExcit)
         logical :: tpar
         integer(n_int) :: ilutI(0:NIfTot), ilutJ(0:NIfTot)
 
@@ -1525,12 +1521,12 @@ contains
                 hel = get_diag_helement_heisenberg(nI)
 
             else if (ic_ret == 1) then
-                ex(1,1) = 1
+                ex(1, 1) = 1
                 call GetExcitation(nI, nJ, nel, ex, tpar)
-                hel = get_offdiag_helement_tJ(nI, ex(:,1), tpar)
+                hel = get_offdiag_helement_tJ(nI, ex(:, 1), tpar)
 
             else if (ic_ret == 2) then
-                ex(1,1) = 2
+                ex(1, 1) = 2
                 call GetExcitation(nI, nJ, nel, ex, tpar)
                 hel = get_offdiag_helement_heisenberg(nI, ex, tpar)
 
@@ -1538,18 +1534,18 @@ contains
                 call EncodeBitDet(nI, ilutI)
                 call EncodeBitDet(nJ, ilutJ)
 
-                ic_ret = FindBitExcitLevel(ilutI,ilutJ)
+                ic_ret = FindBitExcitLevel(ilutI, ilutJ)
 
                 if (ic_ret == 0) then
                     hel = get_diag_helement_heisenberg(nI)
 
                 else if (ic_ret == 1) then
-                    ex(1,1) = 1
-                    call GetBitExcitation(ilutI,ilutJ,ex,tpar)
-                    hel = get_offdiag_helement_tJ(nI, ex(:,1), tpar)
+                    ex(1, 1) = 1
+                    call GetBitExcitation(ilutI, ilutJ, ex, tpar)
+                    hel = get_offdiag_helement_tJ(nI, ex(:, 1), tpar)
 
                 else if (ic_ret == 2) then
-                    ex(1,1) = 2
+                    ex(1, 1) = 2
                     hel = get_offdiag_helement_heisenberg(nI, ex, tpar)
 
                 else
@@ -1562,18 +1558,18 @@ contains
             call EncodeBitDet(nI, ilutI)
             call EncodeBitDet(nJ, ilutJ)
 
-            ic = FindBitExcitLevel(ilutI,ilutJ)
+            ic = FindBitExcitLevel(ilutI, ilutJ)
 
             if (ic == 0) then
                 hel = get_diag_helement_heisenberg(nI)
             else if (ic == 1) then
-                ex(1,1) = 1
-                call GetBitExcitation(ilutI,ilutJ,ex,tpar)
-                hel = get_offdiag_helement_tJ(nI,ex(:,1),tPar)
+                ex(1, 1) = 1
+                call GetBitExcitation(ilutI, ilutJ, ex, tpar)
+                hel = get_offdiag_helement_tJ(nI, ex(:, 1), tPar)
             else if (ic == 2) then
-                ex(1,1) = 2
-                call GetBitExcitation(ilutI,ilutJ,ex,tpar)
-                hel = get_offdiag_helement_heisenberg(nI,ex,tpar)
+                ex(1, 1) = 2
+                call GetBitExcitation(ilutI, ilutJ, ex, tpar)
+                hel = get_offdiag_helement_heisenberg(nI, ex, tpar)
             else
                 hel = h_cast(0.0_dp)
             end if
@@ -1582,7 +1578,7 @@ contains
     end function get_helement_tJ_general
 
     function get_helement_heisenberg_ex_mat(nI, ic, ex, tpar) result(hel)
-        integer, intent(in) :: nI(nel), ic, ex(2,ic)
+        integer, intent(in) :: nI(nel), ic, ex(2, ic)
         logical, intent(in) :: tpar
         HElement_t(dp) :: hel
 
@@ -1604,7 +1600,7 @@ contains
         integer, intent(inout), optional :: ic_ret
         HElement_t(dp) :: hel
 
-        integer :: ic, ex(2,maxExcit)
+        integer :: ic, ex(2, maxExcit)
         logical :: tpar
         integer(n_int) :: ilutI(0:NIfTot), ilutJ(0:NIfTot)
 
@@ -1613,7 +1609,7 @@ contains
                 hel = get_diag_helement_heisenberg(nI)
 
             else if (ic_ret == 2) then
-                ex(1,1) = 2
+                ex(1, 1) = 2
                 call GetExcitation(nI, nJ, nel, ex, tpar)
                 hel = get_offdiag_helement_heisenberg(nI, ex, tpar)
 
@@ -1621,14 +1617,14 @@ contains
                 call EncodeBitDet(nI, ilutI)
                 call EncodeBitDet(nJ, ilutJ)
 
-                ic_ret = FindBitExcitLevel(ilutI,ilutJ)
+                ic_ret = FindBitExcitLevel(ilutI, ilutJ)
 
                 if (ic_ret == 0) then
                     hel = get_diag_helement_heisenberg(nI)
 
                 else if (ic_ret == 2) then
-                    ex(1,1) = 2
-                    call GetBitExcitation(ilutI,ilutJ,ex,tpar)
+                    ex(1, 1) = 2
+                    call GetBitExcitation(ilutI, ilutJ, ex, tpar)
 
                     hel = get_offdiag_helement_heisenberg(nI, ex, tpar)
 
@@ -1642,14 +1638,14 @@ contains
             call EncodeBitDet(nI, ilutI)
             call EncodeBitDet(nJ, ilutJ)
 
-            ic = FindBitExcitLevel(ilutI,ilutJ)
+            ic = FindBitExcitLevel(ilutI, ilutJ)
 
             if (ic == 0) then
                 hel = get_diag_helement_heisenberg(nI)
 
             else if (ic == 2) then
-                ex(1,1) = 2
-                call GetBitExcitation(ilutI,ilutJ,ex,tpar)
+                ex(1, 1) = 2
+                call GetBitExcitation(ilutI, ilutJ, ex, tpar)
                 hel = get_offdiag_helement_heisenberg(nI, ex, tpar)
 
             else
@@ -1702,13 +1698,13 @@ contains
                     ! occupancy into account
                     ! and in the tJ model this cancels for parallel spin
                     if (t_heisenberg_model) then
-                        hel = hel + h_cast(exchange_j/4.0_dp)
+                        hel = hel + h_cast(exchange_j / 4.0_dp)
                     end if
-                else if (IsOcc(ilut, spin_neighbors(j)+flip)) then
+                else if (IsOcc(ilut, spin_neighbors(j) + flip)) then
                     if (t_heisenberg_model) then
-                        hel = hel - h_cast(exchange_j/4.0_dp)
+                        hel = hel - h_cast(exchange_j / 4.0_dp)
                     else
-                        hel = hel - h_cast(exchange_j/2.0_dp)
+                        hel = hel - h_cast(exchange_j / 2.0_dp)
                     end if
                     ! it can be empty too, then there is no contribution
                 end if
@@ -1723,7 +1719,7 @@ contains
     end function get_diag_helement_heisenberg
 
     function get_offdiag_helement_heisenberg(nI, ex, tpar) result(hel)
-        integer, intent(in) :: nI(nel), ex(2,2)
+        integer, intent(in) :: nI(nel), ex(2, 2)
         logical, intent(in) :: tpar
         HElement_t(dp) :: hel
 #ifdef DEBUG_
@@ -1744,24 +1740,24 @@ contains
 
         ASSERT(IsOcc(ilutI, src(1)))
         ASSERT(IsOcc(ilutI, src(2)))
-        ASSERT(IsNotOcc(ilutI,tgt(1)))
+        ASSERT(IsNotOcc(ilutI, tgt(1)))
         ASSERT(IsNotOcc(ilutI, tgt(2)))
 
         ! should i assert the same "same-spinness" here or just return
         ! zero is spins and orbitals do not fit?? i guess that would be
         ! better
-        if (same_spin(src(1),src(2))) then
+        if (same_spin(src(1), src(2))) then
             hel = h_cast(0.0_dp)
         else
             ! i have to check if the orbitals fit.. ex is sorted here or?
             ! can i be sure about that?? check that!
 
-            if (.not. (is_in_pair(src(1),tgt(1)) .and. is_in_pair(src(2),tgt(2)))) then
+            if (.not. (is_in_pair(src(1), tgt(1)) .and. is_in_pair(src(2), tgt(2)))) then
                 hel = h_cast(0.0_dp)
 
             else
                 ! this matrix access checks if the orbitals are connected
-                hel = get_heisenberg_exchange(src(1),src(2))
+                hel = get_heisenberg_exchange(src(1), src(2))
 
             end if
         end if
@@ -1778,7 +1774,6 @@ contains
             else
                 spin_fac = nj_z - ni_z
             end if
-
 
             hel = hel * exp(2.0_dp * trans_corr_param_2body * (spin_fac - 1.0_dp))
 
@@ -1799,15 +1794,13 @@ contains
 
         p_hole = 1.0_dp / real(lat%get_nconnect_max(), dp)
 
-        mat_ele = real(abs(exchange_j),dp)
+        mat_ele = real(abs(exchange_j), dp)
 
         time_step = p_elec * p_hole / mat_ele
 
-
     end function determine_optimal_time_step_heisenberg
 
-
-    function get_umat_heisenberg_spin_free(i,j,k,l) result(hel)
+    function get_umat_heisenberg_spin_free(i, j, k, l) result(hel)
         ! for the spin-free form, I do not need information about
         ! the spin-orbitals
         integer, intent(in) :: i, j, k, l
@@ -1832,8 +1825,8 @@ contains
 
     end function get_umat_heisenberg_spin_free
 
-    function get_umat_el_heisenberg(i,j,k,l) result(hel)
-        integer, intent(in) :: i,j,k,l
+    function get_umat_el_heisenberg(i, j, k, l) result(hel)
+        integer, intent(in) :: i, j, k, l
         HElement_t(dp) :: hel
 #ifdef DEBUG_
         character(*), parameter :: this_routine = "get_umat_el_heisenberg"
@@ -1850,9 +1843,9 @@ contains
             hel = h_cast(0.0_dp)
         else
             if (i == k .and. j == l) then
-                hel = h_cast(exchange_matrix(2*i, 2*j-1))
+                hel = h_cast(exchange_matrix(2 * i, 2 * j - 1))
             else if (i == l .and. j == k) then
-                hel = h_cast(exchange_matrix(2*i, 2*j-1))
+                hel = h_cast(exchange_matrix(2 * i, 2 * j - 1))
             else
                 hel = h_cast(0.0_dp)
             end if
@@ -1880,18 +1873,17 @@ contains
 
             ! i am not yet sure about the order here.. to have it
             ! "hermitian"
-            hel = hel * exp(trans_corr_param)*exp(trans_corr_param * &
-                (get_occ_neighbors(ilut,gtid(ex(1))) - get_occ_neighbors(ilut,gtid(ex(2)))))
+            hel = hel * exp(trans_corr_param) * exp(trans_corr_param * &
+                                                    (get_occ_neighbors(ilut, gtid(ex(1))) - get_occ_neighbors(ilut, gtid(ex(2)))))
 
         end if
 
         if (t_trans_corr_2body) then
             call EncodeBitDet(nI, ilut)
-            hel = hel * exp(trans_corr_param_2body * (&
-                get_spin_opp_neighbors(ilut,ex(1)) - get_spin_opp_neighbors(ilut,ex(2))))
+            hel = hel * exp(trans_corr_param_2body * ( &
+                            get_spin_opp_neighbors(ilut, ex(1)) - get_spin_opp_neighbors(ilut, ex(2))))
         end if
 
     end function get_offdiag_helement_tJ
-
 
 end module tJ_model

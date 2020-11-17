@@ -1,5 +1,6 @@
 cmake_minimum_required(VERSION 2.8.4 FATAL_ERROR)
 
+
 if (POLICY CMP0074)
     cmake_policy(SET CMP0074 NEW)
 endif ()
@@ -24,9 +25,16 @@ if (CMAKE_VERSION VERSION_LESS "3.1")
   endif()
   set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 else ()
-  set (CMAKE_CXX_STANDARD 11)
+#  set (CMAKE_CXX_STANDARD 11)
+   set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 endif ()
 
+# We require at least ifort17, previous versions do not support all required options
+if(${CMAKE_Fortran_COMPILER_ID} STREQUAL "Intel")
+    if(${CMAKE_Fortran_COMPILER_VERSION} LESS 17)
+	    message(FATAL_ERROR "ifort 17 or newer required")
+    endif()
+endif()
 
 include(neci_system)
 
@@ -129,7 +137,12 @@ include_directories( ${PROJECT_SOURCE_DIR}/src )
 # Include source directory
 
 add_subdirectory(src)
-add_subdirectory(unit_tests)
+
+# Don't do NECI tests if NECI is added to other project.
+# BUILD_TESTING option comes from `include(CTest)`
+if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME AND BUILD_TESTING)
+    add_subdirectory(unit_tests)
+endif()
 
 # And we are done
 

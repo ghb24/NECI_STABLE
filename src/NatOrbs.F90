@@ -32,7 +32,7 @@ module NatOrbsMod
     implicit none
 
     integer(TagIntType) :: NoSpinCyc, SymOrbs_rotTempTag
-    real(dp), allocatable :: NatOrbMat(:,:), Evalues(:)
+    real(dp), allocatable :: NatOrbMat(:, :), Evalues(:)
     integer, allocatable :: SymOrbs_rotTemp(:)
     integer(TagIntType) :: NatOrbMatTag, EvaluesTag
 
@@ -53,14 +53,14 @@ contains
         integer :: ierr
         character(len=*), parameter :: t_r = 'FindNatOrbs'
 
-        allocate(NatOrbMat(NoOrbs, NoOrbs),stat=ierr)
-        call LogMemAlloc('NatOrbMat', NoOrbs**2,8,t_r, NatOrbMatTag,ierr)
-        if (ierr /= 0) call stop_all(t_r,"Mem allocation for NatOrbMat failed.")
-        NatOrbMat(:,:) = 0.0_dp
+        allocate(NatOrbMat(NoOrbs, NoOrbs), stat=ierr)
+        call LogMemAlloc('NatOrbMat', NoOrbs**2, 8, t_r, NatOrbMatTag, ierr)
+        if (ierr /= 0) call stop_all(t_r, "Mem allocation for NatOrbMat failed.")
+        NatOrbMat(:, :) = 0.0_dp
 
-        allocate(Evalues(NoOrbs),stat=ierr)
-        call LogMemAlloc('Evalues', NoOrbs,8,t_r,EvaluesTag,ierr)
-        if (ierr /= 0) call stop_all(t_r,"Mem allocation for Evalues failed.")
+        allocate(Evalues(NoOrbs), stat=ierr)
+        call LogMemAlloc('Evalues', NoOrbs, 8, t_r, EvaluesTag, ierr)
+        if (ierr /= 0) call stop_all(t_r, "Mem allocation for Evalues failed.")
         Evalues(:) = 0.0_dp
 
         ! First need to fill the relevant matrix for calculating the type of
@@ -104,7 +104,7 @@ contains
         ! The earlier test should pick this up, if it crashes here, will want
         ! to put in an earlier test so that we don't get all the way to this
         ! stage.
-        if ((LMS /= 0) .and. (.not.tStoreSpinOrbs)) then
+        if ((LMS /= 0) .and. (.not. tStoreSpinOrbs)) then
             call stop_all("FindNatOrbs", "Open shell system, and UMAT is not being stored as spin orbitals.")
         end if
 
@@ -121,14 +121,14 @@ contains
         end if
 
         do x = 1, NoSpinCyc
-            if (.not.tSeparateOccVirt) then
-                NoOcc =  0
+            if (.not. tSeparateOccVirt) then
+                NoOcc = 0
             else
                 if (x == 1) then
                     if (tStoreSpinOrbs) then
                         NoOcc = nOccBeta
                     else
-                        NoOcc = NEl/2
+                        NoOcc = NEl / 2
                     end if
                 end if
                 if (x == 2) NoOcc = nOccAlpha
@@ -145,12 +145,12 @@ contains
                 SymOccOrbs(:) = 0
             end if
 
-            allocate(LabVirtOrbs(SpatOrbs-NoOcc), stat=ierr)
-            call LogMemAlloc('LabVirtOrbs', (SpatOrbs-NoOcc), 4, t_r, LabVirtOrbsTag, ierr)
+            allocate(LabVirtOrbs(SpatOrbs - NoOcc), stat=ierr)
+            call LogMemAlloc('LabVirtOrbs', (SpatOrbs - NoOcc), 4, t_r, LabVirtOrbsTag, ierr)
             if (ierr /= 0) call stop_all(t_r, "Mem allocation for LabVirtOrbs failed.")
             LabVirtOrbs(:) = 0
-            allocate(SymVirtOrbs(SpatOrbs-NoOcc), stat=ierr)
-            call LogMemAlloc('SymVirtOrbs', (SpatOrbs-NoOcc), 4, t_r, SymVirtOrbsTag, ierr)
+            allocate(SymVirtOrbs(SpatOrbs - NoOcc), stat=ierr)
+            call LogMemAlloc('SymVirtOrbs', (SpatOrbs - NoOcc), 4, t_r, SymVirtOrbsTag, ierr)
             if (ierr /= 0) call stop_all(t_r, "Mem allocation for SymVirtOrbs failed.")
             SymVirtOrbs(:) = 0
 
@@ -165,15 +165,15 @@ contains
             do i = 1, NoOcc
                 if (x == 1) then
                     if (tStoreSpinOrbs) then
-                        LabOccOrbs(i) = BRR(2*i)-1
-                        SymOccOrbs(i) = int(G1(LabOccOrbs(i))%sym%S,4)
+                        LabOccOrbs(i) = BRR(2 * i) - 1
+                        SymOccOrbs(i) = int(G1(LabOccOrbs(i))%sym%S, 4)
                     else
-                        LabOccOrbs(i) = BRR(2*i)/2
-                        SymOccOrbs(i) = int(G1(LabOccOrbs(i)*2)%sym%S,4)
+                        LabOccOrbs(i) = BRR(2 * i) / 2
+                        SymOccOrbs(i) = int(G1(LabOccOrbs(i) * 2)%sym%S, 4)
                     end if
                 else if (x == 2) then
-                    LabOccOrbs(i) = BRR(2*i)
-                    SymOccOrbs(i) = int(G1(LabOccOrbs(i))%sym%S,4)
+                    LabOccOrbs(i) = BRR(2 * i)
+                    SymOccOrbs(i) = int(G1(LabOccOrbs(i))%sym%S, 4)
                 end if
             end do
 
@@ -182,32 +182,32 @@ contains
             if (tSeparateOccVirt) call sort(SymOccOrbs, LabOccOrbs)
 
             ! Same for the virtual.
-            do i = 1, SpatOrbs-NoOcc
+            do i = 1, SpatOrbs - NoOcc
                 if (x == 1) then
                     if (tStoreSpinOrbs) then
                         if (tSeparateOccVirt) then
-                            LabVirtOrbs(i) = BRR((2*i)+(NoOcc*2))-1
-                            SymVirtOrbs(i) = int(G1(LabVirtOrbs(i))%sym%S,4)
+                            LabVirtOrbs(i) = BRR((2 * i) + (NoOcc * 2)) - 1
+                            SymVirtOrbs(i) = int(G1(LabVirtOrbs(i))%sym%S, 4)
                         else
-                            LabVirtOrbs(i) = BRR((2*i))-1
-                            SymVirtOrbs(i) = int(G1(LabVirtOrbs(i))%sym%S,4)
+                            LabVirtOrbs(i) = BRR((2 * i)) - 1
+                            SymVirtOrbs(i) = int(G1(LabVirtOrbs(i))%sym%S, 4)
                         end if
                     else
                         if (tSeparateOccVirt) then
-                            LabVirtOrbs(i) = BRR((2*i)+(NoOcc*2))/2
-                            SymVirtOrbs(i) = int(G1(LabVirtOrbs(i)*2)%sym%S,4)
+                            LabVirtOrbs(i) = BRR((2 * i) + (NoOcc * 2)) / 2
+                            SymVirtOrbs(i) = int(G1(LabVirtOrbs(i) * 2)%sym%S, 4)
                         else
-                            LabVirtOrbs(i) = BRR((2*i))/2
-                            SymVirtOrbs(i) = int(G1(LabVirtOrbs(i)*2)%sym%S,4)
+                            LabVirtOrbs(i) = BRR((2 * i)) / 2
+                            SymVirtOrbs(i) = int(G1(LabVirtOrbs(i) * 2)%sym%S, 4)
                         end if
                     end if
                 else if (x == 2) then
                     if (tSeparateOccVirt) then
-                        LabVirtOrbs(i) = BRR((2*i)+(NoOcc*2))
-                        SymVirtOrbs(i) = int(G1(LabVirtOrbs(i))%sym%S,4)
+                        LabVirtOrbs(i) = BRR((2 * i) + (NoOcc * 2))
+                        SymVirtOrbs(i) = int(G1(LabVirtOrbs(i))%sym%S, 4)
                     else
-                        LabVirtOrbs(i) = BRR((2*i))
-                        SymVirtOrbs(i) = int(G1(LabVirtOrbs(i))%sym%S,4)
+                        LabVirtOrbs(i) = BRR((2 * i))
+                        SymVirtOrbs(i) = int(G1(LabVirtOrbs(i))%sym%S, 4)
                     end if
                 end if
             end do
@@ -220,24 +220,24 @@ contains
             ! occupied then virtual arrays for each spin.
             if (x == 1) then
                 StartFill01 = 1
-                StartFill02 = NoOcc+1
+                StartFill02 = NoOcc + 1
                 EndFill01 = NoOcc
                 EndFill02 = SpatOrbs
             else if (x == 2) then
-                StartFill01 = SpatOrbs+1
-                StartFill02 = SpatOrbs+NoOcc+1
-                EndFill01 = SpatOrbs+NoOcc
+                StartFill01 = SpatOrbs + 1
+                StartFill02 = SpatOrbs + NoOcc + 1
+                EndFill01 = SpatOrbs + NoOcc
                 EndFill02 = NoOrbs
             end if
 
             j = 0
-            do i = StartFill01,EndFill01
-                j = j+1
+            do i = StartFill01, EndFill01
+                j = j + 1
                 SymLabelList2_rot(i) = LabOccOrbs(j)
             end do
             j = 0
             do i = StartFill02, EndFill02
-                j = j+1
+                j = j + 1
                 SymLabelList2_rot(i) = LabVirtOrbs(j)
             end do
 
@@ -250,15 +250,15 @@ contains
                 ! If we are ignoring symmetry, all orbitals essentially have
                 ! symmetry 0.
                 if (x == 1) then
-                    SymLabelCounts2_rot(1,1) = 1
-                    SymLabelCounts2_rot(1,9) = NoOcc+1
-                    SymLabelCounts2_rot(2,1) = NoOcc
-                    SymLabelCounts2_rot(2,9) = SpatOrbs-NoOcc
+                    SymLabelCounts2_rot(1, 1) = 1
+                    SymLabelCounts2_rot(1, 9) = NoOcc + 1
+                    SymLabelCounts2_rot(2, 1) = NoOcc
+                    SymLabelCounts2_rot(2, 9) = SpatOrbs - NoOcc
                 else if (x == 2) then
-                    SymLabelCounts2_rot(1,17) = 1
-                    SymLabelCounts2_rot(1,25) = NoOcc+1
-                    SymLabelCounts2_rot(2,17) = NoOcc
-                    SymLabelCounts2_rot(2,25) = SpatOrbs-NoOcc
+                    SymLabelCounts2_rot(1, 17) = 1
+                    SymLabelCounts2_rot(1, 25) = NoOcc + 1
+                    SymLabelCounts2_rot(2, 17) = NoOcc
+                    SymLabelCounts2_rot(2, 25) = SpatOrbs - NoOcc
                 end if
 
             else
@@ -275,31 +275,31 @@ contains
                     Prev = SpatOrbs
                 end if
                 SymCurr = 0
-                SymLabelCounts2_rot(1, StartFill01) = 1+Prev
+                SymLabelCounts2_rot(1, StartFill01) = 1 + Prev
                 do i = 1, NoOcc
                     if (tStoreSpinOrbs) then
-                        Symi = int(G1(SymLabelList2_rot(i+Prev))%sym%S,4)
+                        Symi = int(G1(SymLabelList2_rot(i + Prev))%sym%S, 4)
                     else
-                        Symi = int(G1((SymLabelList2_rot(i+Prev)*2))%sym%S,4)
+                        Symi = int(G1((SymLabelList2_rot(i + Prev) * 2))%sym%S, 4)
                     end if
-                    SymLabelCounts2_rot(2,(Symi+StartFill01)) = SymLabelCounts2_rot(2,(Symi+StartFill01))+1
+                    SymLabelCounts2_rot(2, (Symi + StartFill01)) = SymLabelCounts2_rot(2, (Symi + StartFill01)) + 1
                     if (Symi /= SymCurr) then
-                        SymLabelCounts2_rot(1,(Symi+StartFill01)) = i+Prev
-                        SymCurr= Symi
+                        SymLabelCounts2_rot(1, (Symi + StartFill01)) = i + Prev
+                        SymCurr = Symi
                     end if
                 end do
                 ! The same is then done for the virtuals.
                 SymCurr = 0
-                SymLabelCounts2_rot(1, StartFill02) = NoOcc+1+Prev
-                do i = NoOcc+1, SpatOrbs
+                SymLabelCounts2_rot(1, StartFill02) = NoOcc + 1 + Prev
+                do i = NoOcc + 1, SpatOrbs
                     if (tStoreSpinOrbs) then
-                        Symi = int(G1(SymLabelList2_rot(i+Prev))%sym%S,4)
+                        Symi = int(G1(SymLabelList2_rot(i + Prev))%sym%S, 4)
                     else
-                        Symi = int(G1((SymLabelList2_rot(i+Prev)*2))%sym%S,4)
+                        Symi = int(G1((SymLabelList2_rot(i + Prev) * 2))%sym%S, 4)
                     end if
-                    SymLabelCounts2_rot(2,(Symi+StartFill02)) = SymLabelCounts2_rot(2,(Symi+StartFill02))+1
+                    SymLabelCounts2_rot(2, (Symi + StartFill02)) = SymLabelCounts2_rot(2, (Symi + StartFill02)) + 1
                     if (Symi /= SymCurr) then
-                        SymLabelCounts2_rot(1,(Symi+StartFill02)) = i+Prev
+                        SymLabelCounts2_rot(1, (Symi + StartFill02)) = i + Prev
                         SymCurr = Symi
                     end if
                 end do
@@ -309,18 +309,18 @@ contains
             ! are ordered lowest to highest.
             if (x == 1) then
                 do i = 1, 16
-                    if (SymLabelCounts2_rot(2,i) /= 0) then
+                    if (SymLabelCounts2_rot(2, i) /= 0) then
                         lo = SymLabelCounts2_rot(1, i)
                         hi = lo + SymLabelCounts2_rot(2, i) - 1
-                        call sort(SymLabelList2_rot (lo:hi))
+                        call sort(SymLabelList2_rot(lo:hi))
                     end if
                 end do
             else if (x == 2) then
                 do i = 17, 32
-                    if (SymLabelCounts2_rot(2,i) /= 0) then
+                    if (SymLabelCounts2_rot(2, i) /= 0) then
                         lo = SymLabelCounts2_rot(1, i)
                         hi = lo + SymLabelCounts2_rot(2, i) - 1
-                        call sort(SymLabelList2_rot (lo:hi))
+                        call sort(SymLabelList2_rot(lo:hi))
                     end if
                 end do
             end if
@@ -331,14 +331,14 @@ contains
                 call LogMemDealloc(t_r, SymOccOrbsTag)
 
                 deallocate(LabOccOrbs)
-                call LogMemDealloc(t_r,LabOccOrbsTag)
+                call LogMemDealloc(t_r, LabOccOrbsTag)
             end if
 
             deallocate(SymVirtOrbs)
             call LogMemDealloc(t_r, SymVirtOrbsTag)
 
             deallocate(LabVirtOrbs)
-            call LogMemDealloc(t_r,LabVirtOrbsTag)
+            call LogMemDealloc(t_r, LabVirtOrbsTag)
 
         end do
 
@@ -350,7 +350,7 @@ contains
             SymLabelList3_rot(i) = SymLabelList2_rot(i)
         end do
 
-        if (.not.tSeparateOccVirt) then
+        if (.not. tSeparateOccVirt) then
             ! Basically we treat all the orbitals as virtuals and set NoOcc
             ! to zero in each routine.
             tRotateVirtOnly = .true.
@@ -376,13 +376,13 @@ contains
         ! to each determinant in the system. AllHistogram contains the final
         ! (normalised) amplitude of the determinant - with sign.
 
-        use DetCalcData, only: Det,FCIDets,FCIDetIndex,ICILevel
+        use DetCalcData, only: Det, FCIDets, FCIDetIndex, ICILevel
         use DetBitOps, only: FindBitExcitLevel
         use bit_reps, only: decode_bit_det
         use hist_data, only: AllHistogram
 
         integer :: excit, i, j
-        integer :: Starti, Endi, Startj, Endj, ExcitLevel, Ex(2,1)
+        integer :: Starti, Endi, Startj, Endj, ExcitLevel, Ex(2, 1)
         integer :: Orbi, Orbj, nJ(NEl), Orbk, k, nI(NEl), MaxExcit
         integer :: Spins
         logical :: tSign
@@ -417,9 +417,9 @@ contains
         FillOneRDM_Time%timer_name = 'FillOneRDM'
         call set_timer(FillOneRDM_Time, 30)
 
-        write(6,*) '*** The weight of the HF determinant is : ', AllHistogram(1,1)
+        write(6, *) '*** The weight of the HF determinant is : ', AllHistogram(1, 1)
 
-        write(6,*) 'Beginning to fill the one-electron reduced density matrix.'
+        write(6, *) 'Beginning to fill the one-electron reduced density matrix.'
 
         if (ICILevel == 0) then
             MaxExcit = NEl
@@ -443,28 +443,28 @@ contains
                 Starti = 1
                 Endi = 1
                 Startj = 1
-                Endj = min((FCIDetIndex(2)-1), Det) ! If i is the HF det, just run over singly excited j.
+                Endj = min((FCIDetIndex(2) - 1), Det) ! If i is the HF det, just run over singly excited j.
             else if (excit == MaxExcit) then
                 Starti = FCIDetIndex(excit)
                 Endi = Det
-                Startj = FCIDetIndex(excit-1)
+                Startj = FCIDetIndex(excit - 1)
                 Endj = Det
             else
                 Starti = FCIDetIndex(excit)
-                Endi = FCIDetIndex(excit+1)-1
+                Endi = FCIDetIndex(excit + 1) - 1
                 if (excit == 1) then
                     Startj = 1
                     if (NEl < 3) then
                         Endj = Det
                     else
-                        Endj = FCIDetIndex(3)-1
+                        Endj = FCIDetIndex(3) - 1
                     end if
-                else if (excit == (MaxExcit-1)) then
-                    Startj = FCIDetIndex(excit-1)
+                else if (excit == (MaxExcit - 1)) then
+                    Startj = FCIDetIndex(excit - 1)
                     Endj = Det
                 else
-                    Startj = FCIDetIndex(excit-1)
-                    Endj = FCIDetIndex(excit+2)-1
+                    Startj = FCIDetIndex(excit - 1)
+                    Endj = FCIDetIndex(excit + 2) - 1
                 end if
             end if
 
@@ -479,29 +479,29 @@ contains
                         call stop_all('FillOneRDM', 'Running through i or j larger than the number of determinants.')
                     end if
 
-                    ExcitLevel = FindBitExcitLevel(FCIDets(:,i), FCIDets(:,j),2)
+                    ExcitLevel = FindBitExcitLevel(FCIDets(:, i), FCIDets(:, j), 2)
 
                     ! Need to find the excitation level between D_i and D_j.
                     ! If this is 1 - go on to add their contributions to the
                     ! OneRDM.
                     if (ExcitLevel == 1) then
-                        Ex(:,:) = 0
-                        Ex(1,1) = ExcitLevel
+                        Ex(:, :) = 0
+                        Ex(1, 1) = ExcitLevel
 
                         ASSERT(.not. t_3_body_excits)
-                        call GetBitExcitation(FCIDets(:,i), FCIDets(:,j), Ex, tSign)
+                        call GetBitExcitation(FCIDets(:, i), FCIDets(:, j), Ex, tSign)
                         ! Gives the orbitals involved in the excitation Ex(1,1)
                         ! in i -> Ex(2,1) in j (in spin orbitals).
 
                         if (tStoreSpinOrbs) then
                             ! OneRDM will be in spin orbitals - simply add the
                             ! orbitals involved.
-                            Orbi = SymLabelListInv_rot(Ex(1,1))
-                            Orbj = SymLabelListInv_rot(Ex(2,1))
+                            Orbi = SymLabelListInv_rot(Ex(1, 1))
+                            Orbj = SymLabelListInv_rot(Ex(2, 1))
                             Spins = 1
                         else
-                            Orbi = SymLabelListInv_rot(ceiling(real(Ex(1,1),dp)/2.0_dp))
-                            Orbj = SymLabelListInv_rot(ceiling(real(Ex(2,1),dp)/2.0_dp))
+                            Orbi = SymLabelListInv_rot(ceiling(real(Ex(1, 1), dp) / 2.0_dp))
+                            Orbj = SymLabelListInv_rot(ceiling(real(Ex(2, 1), dp) / 2.0_dp))
                             Spins = 2
                         end if
 
@@ -511,37 +511,37 @@ contains
                             SignDet = 1.0_dp
                         end if
 
-                        NatOrbMat(Orbi,Orbj) = NatOrbMat(Orbi,Orbj) + (SignDet*AllHistogram(1,i)*AllHistogram(1,j))
-                        NatOrbMat(Orbj,Orbi) = NatOrbMat(Orbj,Orbi) + (SignDet*AllHistogram(1,i)*AllHistogram(1,j))
+                        NatOrbMat(Orbi, Orbj) = NatOrbMat(Orbi, Orbj) + (SignDet * AllHistogram(1, i) * AllHistogram(1, j))
+                        NatOrbMat(Orbj, Orbi) = NatOrbMat(Orbj, Orbi) + (SignDet * AllHistogram(1, i) * AllHistogram(1, j))
 
-                        if (( abs(AllHistogram(1,i)*AllHistogram(1,j)) > 1.0e-12_dp) .and. &
-                         (int(G1(SymLabelList2_rot(Orbi)*Spins)%sym%S,4) /= &
-                         int(G1(SymLabelList2_rot(Orbj)*Spins)%sym%S,4))) then
-                            write(6,*) 'ERROR in symmetries'
-                            write(6,*) 'Ex,', Ex(1,1), Ex(2,1)
-                            write(6,*) ceiling(real(Ex(1,1)/2.0_dp,dp)), ceiling(real(Ex(2,1)/2.0_dp,dp))
-                            write(6,*) 'Orbi,', Orbi, 'Orbj,', Orbj
-                            write(6,*) 'Sym(Orbi)', int(G1(SymLabelList2_rot(Orbi)*Spins)%sym%S,4),'Sym(Orbj)', &
-                                int(G1(SymLabelList2_rot(Orbj)*Spins)%sym%S,4)
-                            call decode_bit_det(nI, FCIDets(0:NIfTot,i))
-                            write(6,*) 'i', nI
-                            call decode_bit_det (nJ, FCIDets(0:NIfTot,j))
-                            write(6,*) 'j', nJ
-                            write(6,*) 'AllHistogram(1,i)', AllHistogram(1,i)
-                            write(6,*) 'AllHistogram(1,j)', AllHistogram(1,j)
+                        if ((abs(AllHistogram(1, i) * AllHistogram(1, j)) > 1.0e-12_dp) .and. &
+                            (int(G1(SymLabelList2_rot(Orbi) * Spins)%sym%S, 4) /= &
+                             int(G1(SymLabelList2_rot(Orbj) * Spins)%sym%S, 4))) then
+                            write(6, *) 'ERROR in symmetries'
+                            write(6, *) 'Ex,', Ex(1, 1), Ex(2, 1)
+                            write(6, *) ceiling(real(Ex(1, 1) / 2.0_dp, dp)), ceiling(real(Ex(2, 1) / 2.0_dp, dp))
+                            write(6, *) 'Orbi,', Orbi, 'Orbj,', Orbj
+                            write(6, *) 'Sym(Orbi)', int(G1(SymLabelList2_rot(Orbi) * Spins)%sym%S, 4), 'Sym(Orbj)', &
+                                int(G1(SymLabelList2_rot(Orbj) * Spins)%sym%S, 4)
+                            call decode_bit_det(nI, FCIDets(0:NIfTot, i))
+                            write(6, *) 'i', nI
+                            call decode_bit_det(nJ, FCIDets(0:NIfTot, j))
+                            write(6, *) 'j', nJ
+                            write(6, *) 'AllHistogram(1,i)', AllHistogram(1, i)
+                            write(6, *) 'AllHistogram(1,j)', AllHistogram(1, j)
                             call neci_flush(6)
-                            call stop_all('FillOneRDM','Non-zero element between different symmetries.')
+                            call stop_all('FillOneRDM', 'Non-zero element between different symmetries.')
                         end if
 
                     else if (ExcitLevel == 0) then
-                        call Decode_Bit_Det(nJ,FCIDets(0:NIfTot,j))
+                        call Decode_Bit_Det(nJ, FCIDets(0:NIfTot, j))
                         do k = 1, NEl
                             if (tStoreSpinOrbs) then
                                 Orbk = SymLabelListInv_rot(nJ(k))
                             else
-                                Orbk = SymLabelListInv_rot(ceiling(real(nJ(k),dp)/2.0_dp))
+                                Orbk = SymLabelListInv_rot(ceiling(real(nJ(k), dp) / 2.0_dp))
                             end if
-                            NatOrbMat(Orbk,Orbk) = NatOrbMat(Orbk,Orbk)+(AllHistogram(1,j)**2)
+                            NatOrbMat(Orbk, Orbk) = NatOrbMat(Orbk, Orbk) + (AllHistogram(1, j)**2)
                             ! 0.5 x because this will be added twice since we
                             ! are not currently restricting i<k or anything.
                         end do
@@ -552,7 +552,7 @@ contains
             end do
         end do
 
-        write(6,*) 'Filled OneRDM'
+        write(6, *) 'Filled OneRDM'
 
         call halt_timer(FillOneRDM_Time)
 
@@ -575,10 +575,10 @@ contains
         integer :: Startab, Endab, NoOcc, NoOccC, Startc, Endc, Starti, Endi, Startj, Endj
         real(dp) :: MP2VDMSum
         character(len=*), parameter :: t_r = 'FillMP2VDM'
-        HElement_t(dp) :: HEl01,HEl02
+        HElement_t(dp) :: HEl01, HEl02
 
 #ifdef CMPLX_
-         call stop_all('FillMP2VDM', 'Natural Orbitals not implemented for complex orbitals.')
+        call stop_all('FillMP2VDM', 'Natural Orbitals not implemented for complex orbitals.')
 #endif
         ! Calculating the MP2VDM (D2_ab) matrix whose eigenvectors become the
         ! transformation matrix. This goes in the natural orbital matrix of
@@ -596,32 +596,32 @@ contains
         ! which is which when the evectors are reordered and maintain spin
         ! symmetry.
 
-        write(6,*) 'Filling MP2VDM nat orb matrix'
+        write(6, *) 'Filling MP2VDM nat orb matrix'
         call neci_flush(6)
 
         FillMP2VDM_Time%timer_name = 'FillMP2VDM'
-        call set_timer(FillMP2VDM_Time,30)
+        call set_timer(FillMP2VDM_Time, 30)
 
         do x = 1, NoSpinCyc
             if (x == 1) then
                 if (tStoreSpinOrbs) then
                     NoOcc = nOccBeta
                 else
-                    NoOcc = NEl/2
+                    NoOcc = NEl / 2
                 end if
-                Startab = NoOcc+1
+                Startab = NoOcc + 1
                 Endab = SpatOrbs
             else if (x == 2) then
                 NoOcc = nOccAlpha
-                Startab = SpatOrbs+NoOcc+1
+                Startab = SpatOrbs + NoOcc + 1
                 Endab = NoOrbs
             end if
 
             ! a and b must be of the same spin to mix, so only need to run over
             ! both beta then both alpha.
-            do a2 = Startab,Endab
+            do a2 = Startab, Endab
                 a = SymLabelList2_rot(a2)
-                do b2 = Startab,a2
+                do b2 = Startab, a2
 
                     b = SymLabelList2_rot(b2)
 
@@ -636,18 +636,17 @@ contains
                             if (tStoreSpinOrbs) then
                                 NoOccC = nOccBeta
                             else
-                                NoOccC = NEl/2
+                                NoOccC = NEl / 2
                             end if
-                            Startc = NoOccC+1
+                            Startc = NoOccC + 1
                             Endc = SpatOrbs
                         else if (y == 2) then
                             NoOccC = nOccAlpha
-                            Startc = SpatOrbs+NoOccC+1
+                            Startc = SpatOrbs + NoOccC + 1
                             Endc = NoOrbs
                         end if
 
-
-                        do c2 = Startc,Endc
+                        do c2 = Startc, Endc
                             c = SymLabelList2_rot(c2)
 
                             do z = 1, NoSpinCyc
@@ -656,14 +655,14 @@ contains
                                     if (tStoreSpinOrbs) then
                                         Endi = nOccBeta
                                     else
-                                        Endi = NEl/2
+                                        Endi = NEl / 2
                                     end if
                                 else if (z == 2) then
-                                    Starti = 1+SpatOrbs
-                                    Endi = SpatOrbs+nOccAlpha
+                                    Starti = 1 + SpatOrbs
+                                    Endi = SpatOrbs + nOccAlpha
                                 end if
 
-                                do i2 = Starti,Endi
+                                do i2 = Starti, Endi
                                     i = SymLabelList2_rot(i2)
 
                                     do w = 1, NoSpinCyc
@@ -672,13 +671,12 @@ contains
                                             if (tStoreSpinOrbs) then
                                                 Endj = nOccBeta
                                             else
-                                                Endj = NEl/2
+                                                Endj = NEl / 2
                                             end if
                                         else if (w == 2) then
-                                            Startj = 1+SpatOrbs
-                                            Endj = SpatOrbs+nOccAlpha
+                                            Startj = 1 + SpatOrbs
+                                            Endj = SpatOrbs + nOccAlpha
                                         end if
-
 
                                         do j2 = Startj, Endj
                                             j = SymLabelList2_rot(j2)
@@ -687,44 +685,44 @@ contains
                                                 HEl01 = get_umat_el(a, c, i, j)
                                                 HEl02 = get_umat_el(b, c, i, j)
                                                 MP2VDMSum = MP2VDMSum + &
-                                                    &(( (real(HEl01,dp)) * (2.0_dp*(real(HEl02,dp))) )/&
-                                                    &( (ARR(2*i,2)+ARR(2*j,2)-ARR(2*a,2)-ARR(2*c,2)) &
-                                                    &* (ARR(2*i,2)+ARR(2*j,2)-ARR(2*b,2)-ARR(2*c,2)) ) )
+                                                    &(((real(HEl01, dp)) * (2.0_dp * (real(HEl02, dp)))) /&
+                                                    &((ARR(2 * i, 2) + ARR(2 * j, 2) - ARR(2 * a, 2) - ARR(2 * c, 2)) &
+                                                    &* (ARR(2 * i, 2) + ARR(2 * j, 2) - ARR(2 * b, 2) - ARR(2 * c, 2))))
 
                                                 HEl02 = get_umat_el(c, b, i, j)
                                                 MP2VDMSum = MP2VDMSum - &
-                                                    &(( (real(HEl01,dp)) * (real(HEl02,dp)) )/&
-                                                    &( (ARR(2*i,2)+ARR(2*j,2)-ARR(2*a,2)-ARR(2*c,2)) * &
-                                                    &(ARR(2*i,2)+ARR(2*j,2)-ARR(2*c,2)-ARR(2*b,2)) ) )
+                                                    &(((real(HEl01, dp)) * (real(HEl02, dp))) /&
+                                                    &((ARR(2 * i, 2) + ARR(2 * j, 2) - ARR(2 * a, 2) - ARR(2 * c, 2)) * &
+                                                    &(ARR(2 * i, 2) + ARR(2 * j, 2) - ARR(2 * c, 2) - ARR(2 * b, 2))))
 
                                             else if (tStoreSpinOrbs) then
-                                                if (abs(ARR(i,2)+ARR(j,2)-ARR(a,2)-ARR(c,2)) < 1.0e-12_dp) then
-                                                    if (abs(real(UMAT(UMatInd(a,c,i,j)),dp)) > 1.0e-12_dp) then
-                                                        write(6,*) i, j, a, c, real(UMAT(UMatInd(a, c, i, j)), dp)
+                                                if (abs(ARR(i, 2) + ARR(j, 2) - ARR(a, 2) - ARR(c, 2)) < 1.0e-12_dp) then
+                                                    if (abs(real(UMAT(UMatInd(a, c, i, j)), dp)) > 1.0e-12_dp) then
+                                                        write(6, *) i, j, a, c, real(UMAT(UMatInd(a, c, i, j)), dp)
                                                         call stop_all(t_r, "Dividing a non-zero by zero.")
                                                     end if
                                                 end if
                                                 MP2VDMSum = MP2VDMSum + &
-                                                   (((real(UMAT(UMatInd(a, c, i, j)),dp)) &
-                                                   * (2.0_dp*(real(UMAT(UMatInd(b, c, i, j)),dp))))/&
-                                                   ( (ARR(i,2)+ARR(j,2)-ARR(a,2)-ARR(c,2)) &
-                                                   * (ARR(i,2)+ARR(j,2)-ARR(b,2)-ARR(c,2)) ) )
-                                                MP2VDMSum=MP2VDMSum-&
-                                                    (( (real(UMAT(UMatInd(a, c, i, j)),dp)) &
-                                                    * (real(UMAT(UMatInd(c, b, i, j)),dp)) )/ &
-                                                    ( (ARR(i,2)+ARR(j,2)-ARR(a,2)-ARR(c,2)) &
-                                                    * (ARR(i,2)+ARR(j,2)-ARR(c,2)-ARR(b,2)) ) )
+                                                            (((real(UMAT(UMatInd(a, c, i, j)), dp)) &
+                                                              * (2.0_dp * (real(UMAT(UMatInd(b, c, i, j)), dp)))) / &
+                                                             ((ARR(i, 2) + ARR(j, 2) - ARR(a, 2) - ARR(c, 2)) &
+                                                              * (ARR(i, 2) + ARR(j, 2) - ARR(b, 2) - ARR(c, 2))))
+                                                MP2VDMSum = MP2VDMSum - &
+                                                            (((real(UMAT(UMatInd(a, c, i, j)), dp)) &
+                                                              * (real(UMAT(UMatInd(c, b, i, j)), dp))) / &
+                                                             ((ARR(i, 2) + ARR(j, 2) - ARR(a, 2) - ARR(c, 2)) &
+                                                              * (ARR(i, 2) + ARR(j, 2) - ARR(c, 2) - ARR(b, 2))))
                                             else
                                                 MP2VDMSum = MP2VDMSum + &
-                                                    (( (real(UMAT(UMatInd(a, c, i, j)),dp)) &
-                                                    * (2.0_dp*(real(UMAT(UMatInd(b, c, i, j)),dp))) )/&
-                                                    ((ARR(2*i,2)+ARR(2*j,2)-ARR(2*a,2)-ARR(2*c,2)) &
-                                                    * (ARR(2*i,2)+ARR(2*j,2)-ARR(2*b,2)-ARR(2*c,2))))
-                                               MP2VDMSum = MP2VDMSum - &
-                                                    (( (real(UMAT(UMatInd(a, c, i, j)),dp)) &
-                                                    * (real(UMAT(UMatInd(c, b, i, j)),dp)) )/&
-                                                    ( (ARR(2*i,2)+ARR(2*j,2)-ARR(2*a,2)-ARR(2*c,2)) &
-                                                    * (ARR(2*i,2)+ARR(2*j,2)-ARR(2*c,2)-ARR(2*b,2))))
+                                                            (((real(UMAT(UMatInd(a, c, i, j)), dp)) &
+                                                              * (2.0_dp * (real(UMAT(UMatInd(b, c, i, j)), dp)))) / &
+                                                             ((ARR(2 * i, 2) + ARR(2 * j, 2) - ARR(2 * a, 2) - ARR(2 * c, 2)) &
+                                                              * (ARR(2 * i, 2) + ARR(2 * j, 2) - ARR(2 * b, 2) - ARR(2 * c, 2))))
+                                                MP2VDMSum = MP2VDMSum - &
+                                                            (((real(UMAT(UMatInd(a, c, i, j)), dp)) &
+                                                              * (real(UMAT(UMatInd(c, b, i, j)), dp))) / &
+                                                             ((ARR(2 * i, 2) + ARR(2 * j, 2) - ARR(2 * a, 2) - ARR(2 * c, 2)) &
+                                                              * (ARR(2 * i, 2) + ARR(2 * j, 2) - ARR(2 * c, 2) - ARR(2 * b, 2))))
                                             end if
 
                                         end do
@@ -733,13 +731,13 @@ contains
                             end do
                         end do
                     end do
-                    NatOrbMat(a2,b2) = MP2VDMSum
-                    NatOrbMat(b2,a2) = MP2VDMSum
+                    NatOrbMat(a2, b2) = MP2VDMSum
+                    NatOrbMat(b2, a2) = MP2VDMSum
                 end do
             end do
         end do
 
-        write(6,*) 'Finished filling MP2VDM'
+        write(6, *) 'Finished filling MP2VDM'
 
         call halt_timer(FillMP2VDM_Time)
 
@@ -760,7 +758,7 @@ contains
         use MemoryManager, only: TagIntType
 
         real(dp) :: SumTrace, SumDiagTrace
-        real(dp), allocatable :: WORK2(:), EvaluesSym(:), NOMSym(:,:)
+        real(dp), allocatable :: WORK2(:), EvaluesSym(:), NOMSym(:, :)
         integer :: ierr, i, j, x, z, Sym, LWORK2
         integer :: SymStartInd, NoSymBlock, PrevSym, StartOccVirt, EndOccVirt, Prev, NoOcc
         integer(TagIntType) :: EvaluesSymTag, NOMSymTag, WORK2Tag
@@ -775,7 +773,7 @@ contains
                     if (tStoreSpinOrbs) then
                         NoOcc = nOccBeta
                     else
-                        NoOcc = NEl/2
+                        NoOcc = NEl / 2
                     end if
                     Prev = 0
                 else if (x == 2) then
@@ -788,26 +786,26 @@ contains
             if (tRotateVirtOnly) then
                 do i = 1, NoOcc
                     do j = 1, SpatOrbs
-                        NatOrbMat(i+Prev,j+Prev) = 0.0_dp
-                        NatOrbMat(j+Prev,i+Prev) = 0.0_dp
-                        if (i == j) NatOrbMat(i+Prev, j+Prev) = 1.0_dp
+                        NatOrbMat(i + Prev, j + Prev) = 0.0_dp
+                        NatOrbMat(j + Prev, i + Prev) = 0.0_dp
+                        if (i == j) NatOrbMat(i + Prev, j + Prev) = 1.0_dp
                     end do
-                    Evalues(i+Prev) = 1.0_dp
+                    Evalues(i + Prev) = 1.0_dp
                 end do
             else if (tRotateOccOnly) then
-                do i = NoOcc+1, SpatOrbs
+                do i = NoOcc + 1, SpatOrbs
                     do j = 1, SpatOrbs
-                        NatOrbMat(i+Prev, j+Prev) = 0.0_dp
-                        NatOrbMat(j+Prev, i+Prev) = 0.0_dp
-                        if (i == j) NatOrbMat(i+Prev, j+Prev) = 1.0_dp
+                        NatOrbMat(i + Prev, j + Prev) = 0.0_dp
+                        NatOrbMat(j + Prev, i + Prev) = 0.0_dp
+                        if (i == j) NatOrbMat(i + Prev, j + Prev) = 1.0_dp
                     end do
-                    Evalues(i+Prev) = 1.0_dp
+                    Evalues(i + Prev) = 1.0_dp
                 end do
             else if (tSeparateOccVirt) then
                 do i = 1, NoOcc
-                    do j = NoOcc+1, SpatOrbs
-                        NatOrbMat(i+Prev, j+Prev) = 0.0_dp
-                        NatOrbMat(j+Prev, i+Prev) = 0.0_dp
+                    do j = NoOcc + 1, SpatOrbs
+                        NatOrbMat(i + Prev, j + Prev) = 0.0_dp
+                        NatOrbMat(j + Prev, i + Prev) = 0.0_dp
                     end do
                 end do
             end if
@@ -817,39 +815,39 @@ contains
         do i = 1, NoOrbs
             do j = 1, NoOrbs
                 if (tStoreSpinOrbs) then
-                    if ((int(G1(SymLabelList2_rot(i))%sym%S,4) /= int(G1(SymLabelList2_rot(j))%sym%S,4))) then
-                        if (abs(NatOrbMat(i,j)) >= 1.0e-15_dp) then
-                            write(6,'(6A8,A20)') 'i', 'j', 'Label i', 'Label j', 'Sym i', 'Sym j', 'Matrix value'
-                            write(6,'(6I3,F40.20)') i, j, SymLabelList2_rot(i), SymLabelList2_rot(j), &
-                                int(G1(SymLabelList2_rot(i))%sym%S,4), &
-                                int(G1(SymLabelList2_rot(j))%sym%S,4), NatOrbMat(i,j)
+                    if ((int(G1(SymLabelList2_rot(i))%sym%S, 4) /= int(G1(SymLabelList2_rot(j))%sym%S, 4))) then
+                        if (abs(NatOrbMat(i, j)) >= 1.0e-15_dp) then
+                            write(6, '(6A8,A20)') 'i', 'j', 'Label i', 'Label j', 'Sym i', 'Sym j', 'Matrix value'
+                            write(6, '(6I3,F40.20)') i, j, SymLabelList2_rot(i), SymLabelList2_rot(j), &
+                                int(G1(SymLabelList2_rot(i))%sym%S, 4), &
+                                int(G1(SymLabelList2_rot(j))%sym%S, 4), NatOrbMat(i, j)
                             if (tUseMP2VarDenMat) then
-                                write(6,*) '**WARNING** - There is a non-zero NatOrbMat value between " &
+                                write(6, *) '**WARNING** - There is a non-zero NatOrbMat value between " &
                                  & //"orbitals of different symmetry.'
-                                write(6,*) 'These elements will be ignored, and the symmetry maintained " &
+                                write(6, *) 'These elements will be ignored, and the symmetry maintained " &
                                  & //"in the final transformation matrix.'
                             else
                                 call stop_all(t_r, 'Non-zero NatOrbMat value between different symmetries.')
                             end if
                         end if
-                        NatOrbMat(i,j) = 0.0_dp
+                        NatOrbMat(i, j) = 0.0_dp
                     end if
                 else
-                    if ((int(G1(SymLabelList2_rot(i)*2)%sym%S,4) /= int(G1(SymLabelList2_rot(j)*2)%sym%S,4))) then
-                        if (abs(NatOrbMat(i,j)) >= 1.0e-15_dp) then
-                            write(6,'(6A8,A20)') 'i', 'j', 'Label i', 'Label j', 'Sym i', 'Sym j', 'Matrix value'
-                            write(6,'(6I3,F40.20)') i, j, SymLabelList2_rot(i), SymLabelList2_rot(j), &
-                             int(G1(SymLabelList2_rot(i)*2)%sym%S,4), int(G1(SymLabelList2_rot(j)*2)%sym%S, 4), NatOrbMat(i,j)
+                    if ((int(G1(SymLabelList2_rot(i) * 2)%sym%S, 4) /= int(G1(SymLabelList2_rot(j) * 2)%sym%S, 4))) then
+                        if (abs(NatOrbMat(i, j)) >= 1.0e-15_dp) then
+                            write(6, '(6A8,A20)') 'i', 'j', 'Label i', 'Label j', 'Sym i', 'Sym j', 'Matrix value'
+                            write(6, '(6I3,F40.20)') i, j, SymLabelList2_rot(i), SymLabelList2_rot(j), &
+                                int(G1(SymLabelList2_rot(i) * 2)%sym%S, 4), int(G1(SymLabelList2_rot(j) * 2)%sym%S, 4), NatOrbMat(i, j)
                             if (tUseMP2VarDenMat) then
-                                write(6,*) '**WARNING** - There is a non-zero NatOrbMat value between orbitals of " &
+                                write(6, *) '**WARNING** - There is a non-zero NatOrbMat value between orbitals of " &
                                 & //"different symmetry.'
-                                write(6,*) 'These elements will be ignored, and the symmetry maintained in the " &
+                                write(6, *) 'These elements will be ignored, and the symmetry maintained in the " &
                                 & //"final transformation matrix.'
                             else
                                 call stop_all(t_r, 'Non-zero NatOrbMat value between different symmetries.')
                             end if
                         end if
-                        NatOrbMat(i,j) = 0.0_dp
+                        NatOrbMat(i, j) = 0.0_dp
                     end if
                 end if
             end do
@@ -857,10 +855,10 @@ contains
 
         SumTrace = 0.0_dp
         do i = 1, NoOrbs
-            SumTrace= SumTrace+NatOrbMat(i,i)
+            SumTrace = SumTrace + NatOrbMat(i, i)
         end do
 
-        write(6,*) 'Calculating eigenvectors and eigenvalues of NatOrbMat'
+        write(6, *) 'Calculating eigenvectors and eigenvalues of NatOrbMat'
         call neci_flush(6)
 
         ! If we are using spin orbitals, need to feed in the alpha and beta
@@ -895,12 +893,12 @@ contains
 
                 do while (Sym <= 7)
 
-                    NoSymBlock = SymLabelCounts2_rot(2, Sym+PrevSym)
+                    NoSymBlock = SymLabelCounts2_rot(2, Sym + PrevSym)
 
                     ! This is one less than the index that the symmetry starts,
                     ! so that when we run through i = 1,...,  we can start at
                     ! SymStartInd+i.
-                    SymStartInd = SymLabelCounts2_rot(1, Sym+PrevSym)-1
+                    SymStartInd = SymLabelCounts2_rot(1, Sym + PrevSym) - 1
 
                     if (NoSymBlock > 1) then
 
@@ -911,41 +909,41 @@ contains
                         call LogMemAlloc('EvaluesSym', NoSymBlock, 8, t_r, EvaluesSymTag, ierr)
                         if (ierr /= 0) call stop_all(t_r, "Problem allocating EvaluesSym.")
 
-                        LWORK2 = 3*NoSymBlock + 1
+                        LWORK2 = 3 * NoSymBlock + 1
                         allocate(WORK2(LWORK2), stat=ierr)
                         call LogMemAlloc('WORK2', LWORK2, 8, t_r, WORK2Tag, ierr)
                         if (ierr /= 0) call stop_all(t_r, "Problem allocating WORK2.")
 
                         do j = 1, NoSymBlock
                             do i = 1, NoSymBlock
-                                NOMSym(i,j) = NatOrbMat(SymStartInd+i, SymStartInd+j)
+                                NOMSym(i, j) = NatOrbMat(SymStartInd + i, SymStartInd + j)
                             end do
                         end do
 
-                        write(6,*) '*****'
-                        write(6,*) 'Symmetry ', Sym, 'with x ',x,' and z ',z,' has ', NoSymBlock,' orbitals.'
-                        write(6,*) 'The NatOrbMat for this symmetry block is '
+                        write(6, *) '*****'
+                        write(6, *) 'Symmetry ', Sym, 'with x ', x, ' and z ', z, ' has ', NoSymBlock, ' orbitals.'
+                        write(6, *) 'The NatOrbMat for this symmetry block is '
                         do i = 1, NoSymBlock
                             do j = 1, NoSymBlock
-                                write(6,'(F20.10)',advance='no') NOMSym(j,i)
+                                write(6, '(F20.10)', advance='no') NOMSym(j, i)
                             end do
-                            write(6,*) ''
+                            write(6, *) ''
                         end do
 
                         ! NOMSym goes in as the original NOMSym, comes out as
                         ! the eigenvectors (Coefficients). EvaluesSym comes out
                         ! as the eigenvalues in ascending order.
-                        call dsyev('V','L', NoSymBlock, NOMSym, NoSymBlock, EvaluesSym, WORK2, LWORK2, ierr)
+                        call dsyev('V', 'L', NoSymBlock, NOMSym, NoSymBlock, EvaluesSym, WORK2, LWORK2, ierr)
 
-                        write(6,*) 'After diagonalization, the e-vectors (diagonal elements) of this matrix are,'
+                        write(6, *) 'After diagonalization, the e-vectors (diagonal elements) of this matrix are,'
                         do i = 1, NoSymBlock
-                            write(6,'(F20.10)',advance='no') EvaluesSym(i)
+                            write(6, '(F20.10)', advance='no') EvaluesSym(i)
                         end do
-                        write(6,*) ''
-                        write(6,*) 'These go from orbital,', SymStartInd+1,' to ', SymStartInd+NoSymBlock
+                        write(6, *) ''
+                        write(6, *) 'These go from orbital,', SymStartInd + 1, ' to ', SymStartInd + NoSymBlock
 
                         do i = 1, NoSymBlock
-                            Evalues(SymStartInd+i) = EvaluesSym(i)
+                            Evalues(SymStartInd + i) = EvaluesSym(i)
                         end do
 
                         ! CAREFUL if eigenvalues are put in ascending order,
@@ -954,58 +952,58 @@ contains
                         ! TMAT2DRot in transform2elints. A check that comes out
                         ! as diagonal is a check of this routine anyway.
 
-                        write(6,*) 'The eigenvectors (coefficients) for symmetry block ', Sym
+                        write(6, *) 'The eigenvectors (coefficients) for symmetry block ', Sym
                         do i = 1, NoSymBlock
                             do j = 1, NoSymBlock
-                                write(6,'(F20.10)',advance='no') NOMSym(j,i)
+                                write(6, '(F20.10)', advance='no') NOMSym(j, i)
                             end do
-                            write(6,*) ''
+                            write(6, *) ''
                         end do
 
                         ! Directly fill the coefficient matrix with the
                         ! eigenvectors from the diagonalization.
                         do j = 1, NoSymBlock
                             do i = 1, NoSymBlock
-                                NatOrbMat(SymStartInd+i, SymStartInd+j) = NOMSym(i,j)
+                                NatOrbMat(SymStartInd + i, SymStartInd + j) = NOMSym(i, j)
                             end do
                         end do
 
                         deallocate(WORK2)
-                        call LogMemDealloc(t_r,WORK2Tag)
+                        call LogMemDealloc(t_r, WORK2Tag)
 
                         deallocate(NOMSym)
                         call LogMemDealloc(t_r, NOMSymTag)
 
                         deallocate(EvaluesSym)
-                        call LogMemDealloc(t_r,EvaluesSymTag)
+                        call LogMemDealloc(t_r, EvaluesSymTag)
 
                     else if (NoSymBlock == 1) then
                         ! The eigenvalue is the lone value, while the
                         ! eigenvector is 1.
 
-                        Evalues(SymStartInd+1) = NatOrbMat(SymStartInd+1, SymStartInd+1)
-                        NatOrbMat(SymStartInd+1, SymStartInd+1) =1.0_dp
-                        write(6,*) '*****'
-                        write(6,*) 'Symmetry ', Sym,' has only one orbital.'
-                        write(6,*) 'Copying diagonal element,', SymStartInd+1,'to NatOrbMat'
+                        Evalues(SymStartInd + 1) = NatOrbMat(SymStartInd + 1, SymStartInd + 1)
+                        NatOrbMat(SymStartInd + 1, SymStartInd + 1) = 1.0_dp
+                        write(6, *) '*****'
+                        write(6, *) 'Symmetry ', Sym, ' has only one orbital.'
+                        write(6, *) 'Copying diagonal element,', SymStartInd + 1, 'to NatOrbMat'
                     end if
 
-                    Sym= Sym+1
+                    Sym = Sym + 1
                 end do
             end do
         end do
 
-        write(6,*) 'Matrix diagonalised'
+        write(6, *) 'Matrix diagonalised'
         call neci_flush(6)
 
-        SumDiagTrace= 0.0_dp
+        SumDiagTrace = 0.0_dp
         do i = 1, NoOrbs
-            SumDiagTrace= SumDiagTrace+Evalues(i)
+            SumDiagTrace = SumDiagTrace + Evalues(i)
         end do
-        if ((abs(SumDiagTrace-SumTrace)) > 10.0_dp) then
-            write(6,*) 'Sum of diagonal NatOrbMat elements : ', SumTrace
-            write(6,*) 'Sum of eigenvalues : ', SumDiagTrace
-            write(6,*) 'WARNING, The trace of the 1RDM matrix before diagonalisation is not equal to that after.'
+        if ((abs(SumDiagTrace - SumTrace)) > 10.0_dp) then
+            write(6, *) 'Sum of diagonal NatOrbMat elements : ', SumTrace
+            write(6, *) 'Sum of eigenvalues : ', SumDiagTrace
+            write(6, *) 'WARNING, The trace of the 1RDM matrix before diagonalisation is not equal to that after.'
         end if
 
         call halt_timer(DiagNatOrbMat_Time)
@@ -1045,7 +1043,7 @@ contains
                 end do
             else
                 do i = 1, NoOrbs
-                    SymOrbs_rotTemp(i) = int(G1(SymLabelList2_rot(i)*2)%sym%S, 4)
+                    SymOrbs_rotTemp(i) = int(G1(SymLabelList2_rot(i) * 2)%sym%S, 4)
                 end do
             end if
 
@@ -1056,7 +1054,7 @@ contains
                         if (tStoreSpinOrbs) then
                             NoOcc = nOccBeta
                         else
-                            NoOcc = NEl/2
+                            NoOcc = NEl / 2
                         end if
                     else
                         NoOcc = 0
@@ -1077,8 +1075,8 @@ contains
                     if (tRotateOccOnly) EndSort = NoOcc + SpatOrbs
                 end if
 
-                call sort (Evalues(startSort:endSort), natOrbMat(startSort:endSort, startSort:endSort), &
-                           SymOrbs_rotTemp(startSort:endSort))
+                call sort(Evalues(startSort:endSort), natOrbMat(startSort:endSort, startSort:endSort), &
+                          SymOrbs_rotTemp(startSort:endSort))
 
             end do
 
@@ -1095,7 +1093,7 @@ contains
                         if (tStoreSpinOrbs) then
                             NoOcc = nOccBeta
                         else
-                            NoOcc = NEl/2
+                            NoOcc = NEl / 2
                         end if
                     else
                         NoOcc = 0
@@ -1109,7 +1107,7 @@ contains
                     if (tSeparateOccVirt) then
                         NoOcc = nOccAlpha
                     else
-                        NoOcc =  0
+                        NoOcc = 0
                     end if
                     StartSort = SpatOrbs + 1
                     EndSort = NoOrbs
@@ -1117,17 +1115,17 @@ contains
                     if (tRotateVirtOnly) StartSort = SpatOrbs + NoOcc + 1
                 end if
 
-                call sort (EValues(startSort:endSort), NatOrbMat(startSort:endSort, startSort:endSort), &
-                           SymLabelList3_rot(startSort:endSort))
+                call sort(EValues(startSort:endSort), NatOrbMat(startSort:endSort, startSort:endSort), &
+                          SymLabelList3_rot(startSort:endSort))
             end do
 
         end if
 
         call halt_timer(OrderCoeff_Time)
 
-        write(6,*) 'Eigen-values: '
+        write(6, *) 'Eigen-values: '
         do i = 1, NoOrbs
-            write(6,*) Evalues(i)
+            write(6, *) Evalues(i)
         end do
 
     end subroutine OrderCoeffT1
@@ -1135,7 +1133,7 @@ contains
     subroutine FillCoeffT1
 
         use RotateOrbsData, only: CoeffT1, SymLabelList3_rot, SymOrbs_rot, SymOrbs_rotTag, &
-                                    TruncEval, NoRotOrbs, EvaluesTrunc, EvaluesTruncTag
+                                  TruncEval, NoRotOrbs, EvaluesTrunc, EvaluesTruncTag
         use LoggingData, only: tTruncRODump, tTruncDumpbyVal
 
         integer :: l, k, i, j, NoRotAlphBet, io1, io2, ierr
@@ -1147,12 +1145,12 @@ contains
         FillCoeff_Time%timer_name = 'FillCoeff'
         call set_timer(FillCoeff_Time, 30)
 
-        write(6,*) 'NatOrbMat'
+        write(6, *) 'NatOrbMat'
         do i = 1, nBasis
             do j = 1, nBasis
-                write(6,'(F10.6)', advance='no') NatOrbMat(j,i)
+                write(6, '(F10.6)', advance='no') NatOrbMat(j, i)
             end do
-            write(6,*) ''
+            write(6, *) ''
         end do
 
         if (tTruncRODump) then
@@ -1162,16 +1160,16 @@ contains
                 if (tStoreSpinOrbs) then
                     do i = SpatOrbs, 1, -1
                         if (Evalues(i) > TruncEval) exit
-                        if (Evalues(i+SpatOrbs) > TruncEval) exit
+                        if (Evalues(i + SpatOrbs) > TruncEval) exit
                         NoFrozenVirt = NoFrozenVirt + 2
                     end do
-                    if (NoFrozenVirt >= (NoOrbs-NEl)) call stop_all(t_r, 'Freezing all virtual orbitals.')
+                    if (NoFrozenVirt >= (NoOrbs - NEl)) call stop_all(t_r, 'Freezing all virtual orbitals.')
                 else
                     do i = SpatOrbs, 1, -1
                         if (Evalues(i) > TruncEval) exit
                         NoFrozenVirt = NoFrozenVirt + 1
                     end do
-                    if (NoFrozenVirt >= (SpatOrbs-(NEl/2))) call stop_all(t_r, 'Freezing all virtual orbitals.')
+                    if (NoFrozenVirt >= (SpatOrbs - (NEl / 2))) call stop_all(t_r, 'Freezing all virtual orbitals.')
                 end if
                 NoRotOrbs = NoOrbs - NoFrozenVirt
             end if
@@ -1180,16 +1178,15 @@ contains
             call LogMemAlloc('SymOrbs_rot', NoOrbs, 4, t_r, SymOrbs_rotTag, ierr)
             SymOrbs_rot(:) = 0
 
-            allocate(EvaluesTrunc(NoOrbs-NoFrozenVirt), stat=ierr)
-            call LogMemAlloc('EvaluesTrunc', NoOrbs-NoFrozenVirt, 4, t_r, EvaluesTruncTag, ierr)
+            allocate(EvaluesTrunc(NoOrbs - NoFrozenVirt), stat=ierr)
+            call LogMemAlloc('EvaluesTrunc', NoOrbs - NoFrozenVirt, 4, t_r, EvaluesTruncTag, ierr)
             EvaluesTrunc(:) = 0.0_dp
 
             if (tStoreSpinOrbs) then
-                NoRotAlphBet = SpatOrbs - (NoFrozenVirt/2)
+                NoRotAlphBet = SpatOrbs - (NoFrozenVirt / 2)
             else
                 NoRotAlphBet = NoOrbs - NoFrozenVirt
             end if
-
 
             if (tStoreSpinOrbs) then
                 ! As we reorder these so that they are truncated, we also need
@@ -1198,49 +1195,49 @@ contains
                 call CalcOccEnergies(OccEnergies)
 
                 ! First nOccBeta, then nOccAlpha.
-                do i = 1,(2*nOccBeta),2
+                do i = 1, (2 * nOccBeta), 2
                     k = 1
-                    do while(abs(OccEnergies(k)) < 1.0e-10_dp)
-                        k = k+2
+                    do while (abs(OccEnergies(k)) < 1.0e-10_dp)
+                        k = k + 2
                     end do
-                    do j = 1,(2*nOccBeta),2
+                    do j = 1, (2 * nOccBeta), 2
                         if ((OccEnergies(j) < OccEnergies(k)) .and. (abs(OccEnergies(j)) > 1.0e-10_dp)) k = j
                     end do
-                    l = ceiling(real(k,dp)/2.0_dp)
-                    CoeffT1(:,i) = NatOrbMat(:,l)
+                    l = ceiling(real(k, dp) / 2.0_dp)
+                    CoeffT1(:, i) = NatOrbMat(:, l)
                     EvaluesTrunc(i) = Evalues(l)
                     SymOrbs_rot(i) = SymOrbs_rotTemp(l)
                     OccEnergies(k) = 0.0_dp
                 end do
-                do i = 2, (2*nOccAlpha), 2
+                do i = 2, (2 * nOccAlpha), 2
                     k = 2
-                    do while(abs(OccEnergies(k)) < 1.0e-10_dp)
-                        k = k+2
+                    do while (abs(OccEnergies(k)) < 1.0e-10_dp)
+                        k = k + 2
                     end do
-                    do j =2,(2*nOccAlpha),2
-                        if ((OccEnergies(j) < OccEnergies(k)).and.(abs(OccEnergies(j)) > 1.0e-10_dp)) k = j
+                    do j = 2, (2 * nOccAlpha), 2
+                        if ((OccEnergies(j) < OccEnergies(k)) .and. (abs(OccEnergies(j)) > 1.0e-10_dp)) k = j
                     end do
-                    l= (k/2)+SpatOrbs
-                    CoeffT1(:,i) = NatOrbMat(:,l)
+                    l = (k / 2) + SpatOrbs
+                    CoeffT1(:, i) = NatOrbMat(:, l)
                     EvaluesTrunc(i) = Evalues(l)
                     SymOrbs_rot(i) = SymOrbs_rotTemp(l)
                     OccEnergies(k) = 0.0_dp
                 end do
 
                 ! Need to fill coeffT1 so that it goes alpha beta alpha beta.
-                k = (2*nOccBeta)+1
-                do i = nOccBeta+1, NoRotAlphBet
-                    CoeffT1(:,k) = NatOrbMat(:,i)
+                k = (2 * nOccBeta) + 1
+                do i = nOccBeta + 1, NoRotAlphBet
+                    CoeffT1(:, k) = NatOrbMat(:, i)
                     EvaluesTrunc(k) = Evalues(i)
                     SymOrbs_rot(k) = SymOrbs_rotTemp(i)
-                    k = k+2
+                    k = k + 2
                 end do
-                k = (2*nOccAlpha)+2
-                do i = SpatOrbs+nOccAlpha+1, SpatOrbs+NoRotAlphBet
-                    CoeffT1(:,k) = NatOrbMat(:,i)
+                k = (2 * nOccAlpha) + 2
+                do i = SpatOrbs + nOccAlpha + 1, SpatOrbs + NoRotAlphBet
+                    CoeffT1(:, k) = NatOrbMat(:, i)
                     SymOrbs_rot(k) = SymOrbs_rotTemp(i)
                     EvaluesTrunc(k) = Evalues(i)
-                    k = k+2
+                    k = k + 2
                 end do
 
             else
@@ -1253,22 +1250,22 @@ contains
                 ! currently - need to put NatOrbMat into CoeffT1 so that this
                 ! goes from lowest energy to highest.
 
-                do i = 1, NEl/2
+                do i = 1, NEl / 2
                     k = 1
-                    do while(abs(OccEnergies(k)) < 1.0e-10_dp)
-                        k = k+1
+                    do while (abs(OccEnergies(k)) < 1.0e-10_dp)
+                        k = k + 1
                     end do
-                    do j = 1, NEl/2
-                        if ((OccEnergies(j) < OccEnergies(k)) .and. (abs(OccEnergies(j)) >  1.0e-10_dp)) k = j
+                    do j = 1, NEl / 2
+                        if ((OccEnergies(j) < OccEnergies(k)) .and. (abs(OccEnergies(j)) > 1.0e-10_dp)) k = j
                     end do
-                    CoeffT1(:,i) = NatOrbMat(:,k)
+                    CoeffT1(:, i) = NatOrbMat(:, k)
                     EvaluesTrunc(i) = Evalues(k)
                     SymOrbs_rot(i) = SymOrbs_rotTemp(k)
                     OccEnergies(k) = 0.0_dp
                 end do
 
-                do i = (NEl/2)+1, NoRotAlphBet
-                    CoeffT1(:,i) = NatOrbMat(:,i)
+                do i = (NEl / 2) + 1, NoRotAlphBet
+                    CoeffT1(:, i) = NatOrbMat(:, i)
                     EvaluesTrunc(i) = Evalues(i)
                     SymOrbs_rot(i) = SymOrbs_rotTemp(i)
                 end do
@@ -1277,7 +1274,7 @@ contains
         else
 
             do i = 1, NoOrbs
-                CoeffT1(:,i) = NatOrbMat(:,i)
+                CoeffT1(:, i) = NatOrbMat(:, i)
             end do
 
         end if
@@ -1286,44 +1283,44 @@ contains
 
             Label = ''
             LabelFull = ''
-            write(Label,'(I5)') NoFrozenVirt
+            write(Label, '(I5)') NoFrozenVirt
             LabelFull = 'EVALUES-TRUNC-'//adjustl(Label)
 
             io1 = get_free_unit()
             open(io1, file=LabelFull, status='unknown')
             if (tStoreSpinOrbs) then
-                write(io1,*) NoOrbs-NoFrozenVirt
-                do i = 1, NoOrbs-NoFrozenVirt,2
+                write(io1, *) NoOrbs - NoFrozenVirt
+                do i = 1, NoOrbs - NoFrozenVirt, 2
                     write(io1, '(I5,ES20.10,I5,A5,I5,ES20.10,I5)') i, EvaluesTrunc(i), SymOrbs_rot(i), &
-                        '  *  ', i+1, EvaluesTrunc(i+1), SymOrbs_rot(i+1)
+                        '  *  ', i + 1, EvaluesTrunc(i + 1), SymOrbs_rot(i + 1)
                 end do
             else
-                write(io1,*) NoOrbs-NoFrozenVirt
-                do i = 1, NoOrbs-NoFrozenVirt
-                    write(io1,'(ES20.10,I5)') EvaluesTrunc(i), SymOrbs_rot(i)
+                write(io1, *) NoOrbs - NoFrozenVirt
+                do i = 1, NoOrbs - NoFrozenVirt
+                    write(io1, '(ES20.10,I5)') EvaluesTrunc(i), SymOrbs_rot(i)
                 end do
             end if
             close(io1)
         else
             io2 = get_free_unit()
             open(io2, file='EVALUES', status='unknown')
-            write(io2,*) NoOrbs
+            write(io2, *) NoOrbs
             if (tStoreSpinOrbs) then
                 k = 0
                 do i = 1, NoOrbs, 2
-                    k = k+1
+                    k = k + 1
                     if (tTruncRODump) then
-                        write(io2,'(2I5,ES20.10,I5,A5,I5,ES20.10,I5)') (NoOrbs-i+1), i, Evalues(k), SymOrbs_rot(i), &
-                            '  *  ', i+1, Evalues(k+SpatOrbs), SymOrbs_rot(i+1)
+                        write(io2, '(2I5,ES20.10,I5,A5,I5,ES20.10,I5)') (NoOrbs - i + 1), i, Evalues(k), SymOrbs_rot(i), &
+                            '  *  ', i + 1, Evalues(k + SpatOrbs), SymOrbs_rot(i + 1)
                     else
-                        write(io2,'(2I5,ES20.10,I5,A5,I5,ES20.10,I5)') (NoOrbs-i+1), i, Evalues(k), &
-                                int(G1(SymLabelList3_rot(k))%Sym%S,4), '  *  ', &
-                             i+1, Evalues(k+SpatOrbs), int(G1(SymLabelList3_rot(k+SpatOrbs))%Sym%S,4)
+                        write(io2, '(2I5,ES20.10,I5,A5,I5,ES20.10,I5)') (NoOrbs - i + 1), i, Evalues(k), &
+                            int(G1(SymLabelList3_rot(k))%Sym%S, 4), '  *  ', &
+                            i + 1, Evalues(k + SpatOrbs), int(G1(SymLabelList3_rot(k + SpatOrbs))%Sym%S, 4)
                     end if
                 end do
             else
                 do i = 1, SpatOrbs
-                    write(io2,'(3I5,ES20.10)') i, NoOrbs-i+1, (NoOrbs-i+1)*2, Evalues(i)
+                    write(io2, '(3I5,ES20.10)') i, NoOrbs - i + 1, (NoOrbs - i + 1) * 2, Evalues(i)
                 end do
             end if
             close(io2)
@@ -1345,33 +1342,33 @@ contains
         real(dp) :: SumEvalues
 
         io1 = get_free_unit()
-        NoOcc = NEl/2 ! Is this correct in all cases?!
+        NoOcc = NEl / 2 ! Is this correct in all cases?!
 
         open(io1, file='EVALUES-PLOTRAT', status='unknown')
         if (tStoreSpinOrbs) then
             k = 0
             do i = 1, SpatOrbs
-                k = k+2
-                write(io1,'(F20.10,ES20.10)') real(k-1,dp)/real(NoOrbs,dp), Evalues(i)
-                write(io1,'(F20.10,ES20.10)') real(k,dp)/real(NoOrbs,dp), Evalues(SpatOrbs+i)
+                k = k + 2
+                write(io1, '(F20.10,ES20.10)') real(k - 1, dp) / real(NoOrbs, dp), Evalues(i)
+                write(io1, '(F20.10,ES20.10)') real(k, dp) / real(NoOrbs, dp), Evalues(SpatOrbs + i)
             end do
         else if (tRotateOccOnly) then
             k = 0
             do i = 1, NoOcc
-                k = k+1
-                write(io1,'(F20.10,ES20.10)') real(k,dp)/real(NoOcc,dp), Evalues(i)
+                k = k + 1
+                write(io1, '(F20.10,ES20.10)') real(k, dp) / real(NoOcc, dp), Evalues(i)
             end do
         else if (tRotateVirtOnly) then
             k = NoOcc
-            do i = NoOcc+1, NoOrbs
-                k = k+1
-                write(io1,'(F20.10,ES20.10)') real(k-NoOcc,dp)/real(NoOrbs-NoOcc,dp), Evalues(i)
+            do i = NoOcc + 1, NoOrbs
+                k = k + 1
+                write(io1, '(F20.10,ES20.10)') real(k - NoOcc, dp) / real(NoOrbs - NoOcc, dp), Evalues(i)
             end do
         else
             k = 0
             do i = 1, SpatOrbs
-                k = k+1
-                write(io1,'(F20.10,ES20.10)') real(k,dp)/real(NoOrbs,dp), Evalues(i)
+                k = k + 1
+                write(io1, '(F20.10,ES20.10)') real(k, dp) / real(NoOrbs, dp), Evalues(i)
             end do
         end if
         close(io1)
@@ -1388,7 +1385,7 @@ contains
             if (tStoreSpinOrbs) then
                 SumEvalues = SumEvalues + Evalues(i)
             else
-                SumEvalues = SumEvalues + (2*Evalues(i))
+                SumEvalues = SumEvalues + (2 * Evalues(i))
             end if
 
             if (tTruncRODump) then
@@ -1399,11 +1396,11 @@ contains
 
             ! We are only interested in the diagonal elements.
             do a = 1, NoOrbs
-                b= SymLabelList2_rot(a)
+                b = SymLabelList2_rot(a)
                 if (tStoreSpinOrbs) then
-                    OrbEnergies(i) = OrbEnergies(i) + (CoeffT1(a,i)*ARR(b,2)*CoeffT1(a,i))
+                    OrbEnergies(i) = OrbEnergies(i) + (CoeffT1(a, i) * ARR(b, 2) * CoeffT1(a, i))
                 else
-                    OrbEnergies(i) = OrbEnergies(i) + (CoeffT1(a,i)*ARR(2*b,2)*CoeffT1(a,i))
+                    OrbEnergies(i) = OrbEnergies(i) + (CoeffT1(a, i) * ARR(2 * b, 2) * CoeffT1(a, i))
                 end if
             end do
         end do
@@ -1411,15 +1408,15 @@ contains
         ! ARR(:,1) - ordered by energy, ARR(:,2) - ordered by spin-orbital
         ! index.
 
-        call sort (orbEnergies(1:noOrbs), EvalueEnergies(1:noOrbs))
+        call sort(orbEnergies(1:noOrbs), EvalueEnergies(1:noOrbs))
 
         io2 = get_free_unit()
         open(io2, file='EVALUES-ENERGY', status='unknown')
         do i = 1, NoOrbs
-            write(io2,*) OrbEnergies(NoOrbs-i+1), EvalueEnergies(NoOrbs-i+1)
+            write(io2, *) OrbEnergies(NoOrbs - i + 1), EvalueEnergies(NoOrbs - i + 1)
         end do
-        write(io2,*) 'The sum of the occupation numbers (eigenvalues) = ', SumEvalues
-        write(io2,*) 'The number of electrons = ', NEl
+        write(io2, *) 'The sum of the occupation numbers (eigenvalues) = ', SumEvalues
+        write(io2, *) 'The number of electrons = ', NEl
         call neci_flush(io2)
         close(io2)
         call neci_flush(6)
@@ -1444,25 +1441,25 @@ contains
                     k = 1
                 else
                     NoOcc = nOccAlpha
-                    Prev= SpatOrbs
+                    Prev = SpatOrbs
                     k = 2
                 end if
-                do i = 1+Prev, NoOcc+Prev
+                do i = 1 + Prev, NoOcc + Prev
                     ! We are only interested in the diagonal elements.
                     do a = 1, NoOrbs
-                        b= SymLabelList2_rot(a)
-                        OccEnergies(k) = OccEnergies(k) + (NatOrbMat(a,i)*ARR(b,2)*NatOrbMat(a,i))
+                        b = SymLabelList2_rot(a)
+                        OccEnergies(k) = OccEnergies(k) + (NatOrbMat(a, i) * ARR(b, 2) * NatOrbMat(a, i))
                     end do
-                    k = k+2
+                    k = k + 2
                 end do
             end do
         else
-            NoOcc = NEl/2
+            NoOcc = NEl / 2
             do i = 1, NoOcc
                 ! We are only interested in the diagonal elements.
                 do a = 1, NoOrbs
                     b = SymLabelList2_rot(a)
-                    OccEnergies(i) = OccEnergies(i) + (NatOrbMat(a,i)*ARR(2*b,2)*NatOrbMat(a,i))
+                    OccEnergies(i) = OccEnergies(i) + (NatOrbMat(a, i) * ARR(2 * b, 2) * NatOrbMat(a, i))
                 end do
             end do
         end if
@@ -1481,40 +1478,40 @@ contains
         open(io2, file='OccupationTable', status='unknown')
         x = 1
         do while (x <= NoOrbs)
-            write(io2,'(A16,A5)', advance='no') 'HF Orb En    ','Sym'
-            if (.not.tUseHFOrbs) then
-                do i = x, x+9
+            write(io2, '(A16,A5)', advance='no') 'HF Orb En    ', 'Sym'
+            if (.not. tUseHFOrbs) then
+                do i = x, x + 9
                     if (i > NoOrbs) then
-                        write(io2,*) ''
+                        write(io2, *) ''
                         exit
                     end if
                     if (tTruncRODump) then
-                        write(io2,'(ES16.6)',advance='no') EvaluesTrunc(i)
+                        write(io2, '(ES16.6)', advance='no') EvaluesTrunc(i)
                     else
-                        write(io2,'(ES16.6)',advance='no') Evalues(i)
+                        write(io2, '(ES16.6)', advance='no') Evalues(i)
                     end if
                 end do
             end if
-            write(io2,*) ''
+            write(io2, *) ''
 
             do a = 1, NoOrbs
                 b = SymLabelListInv_rot(a)
                 if (tStoreSpinOrbs) then
-                    write(io2,'(F16.10,I5)',advance='no') ARR(a,1), int(G1(a)%sym%S,4)
+                    write(io2, '(F16.10,I5)', advance='no') ARR(a, 1), int(G1(a)%sym%S, 4)
                 else
-                    write(io2,'(F16.10,I5)',advance='no') ARR(2*a,1), int(G1(2*a)%sym%S,4)
+                    write(io2, '(F16.10,I5)', advance='no') ARR(2 * a, 1), int(G1(2 * a)%sym%S, 4)
                 end if
-                do i = x, x+9
+                do i = x, x + 9
                     if (i > NoOrbs) then
-                        write(io2,*) ''
+                        write(io2, *) ''
                         exit
                     end if
-                    write(io2,'(F16.10)',advance='no') CoeffT1(b,i)
+                    write(io2, '(F16.10)', advance='no') CoeffT1(b, i)
                 end do
-                write(io2,*) ''
+                write(io2, *) ''
             end do
-            write(io2,*) ''
-            x = x+10
+            write(io2, *) ''
+            x = x + 10
         end do
         call neci_flush(io2)
         close(io2)
@@ -1532,37 +1529,37 @@ contains
         ! < Psi | a_p+ a_p | Psi > - the diagonal terms of the one electron
         ! reduced density matrix.
 
-        real(dp) :: Norm,OrbOccs(nBasis),AllOrbOccs(nBasis)
+        real(dp) :: Norm, OrbOccs(nBasis), AllOrbOccs(nBasis)
         integer :: i, iunit
         logical :: tWarning
 
         AllOrbOccs = 0.0_dp
 
-        call MPIReduce(OrbOccs,MPI_SUM,AllOrbOccs)
+        call MPIReduce(OrbOccs, MPI_SUM, AllOrbOccs)
 
         ! Want to normalise the orbital contributions for convenience.
         tWarning = .false.
         if (iProcIndex == 0) then
             Norm = 0.0_dp
-            do i = 1,nBasis
+            do i = 1, nBasis
                 Norm = Norm + AllOrbOccs(i)
                 if ((AllOrbOccs(i) < 0) .or. (Norm < 0)) then
-                    write(6,*) 'WARNING: Integer overflow when calculating the orbital occupations.'
+                    write(6, *) 'WARNING: Integer overflow when calculating the orbital occupations.'
                     tWarning = .true.
                 end if
             end do
             if (Norm > 1.0e-8_dp) then
-                do i = 1,nBasis
-                    AllOrbOccs(i) = AllOrbOccs(i)/Norm
+                do i = 1, nBasis
+                    AllOrbOccs(i) = AllOrbOccs(i) / Norm
                 end do
             end if
 
             iunit = get_free_unit()
-            open(iunit, file = 'ORBOCCUPATIONS', status='UNKNOWN')
-            write(iunit, '(A15,A30)') '# Orbital no.','Normalised occupation'
-            if (tWarning) write(iunit,*) 'WARNING: integer OVERFLOW OCCURRED WHEN CALCULATING THESE OCCUPATIONS'
-            do i = 1,nBasis
-                write(iunit,'(I15,F30.10)') i, AllOrbOccs(i)
+            open(iunit, file='ORBOCCUPATIONS', status='UNKNOWN')
+            write(iunit, '(A15,A30)') '# Orbital no.', 'Normalised occupation'
+            if (tWarning) write(iunit, *) 'WARNING: integer OVERFLOW OCCURRED WHEN CALCULATING THESE OCCUPATIONS'
+            do i = 1, nBasis
+                write(iunit, '(I15,F30.10)') i, AllOrbOccs(i)
             end do
             close(iunit)
         end if

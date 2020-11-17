@@ -54,19 +54,19 @@ contains
         integer(kind=int32), intent(in) :: Sym
         integer :: ind
 
-        if(tFixLz) then
+        if (tFixLz) then
             ind = 2 * nSymLabels * (Mom + iMaxLz) + (2 * Sym + Spin)
         else
             ind = 2 * Sym + Spin
-        endif
+        end if
 
-        if(tNoSymGenRandExcits) then
-            if(Spin == 1) then
+        if (tNoSymGenRandExcits) then
+            if (Spin == 1) then
                 ind = 1
             else
                 ind = 2
-            endif
-        endif
+            end if
+        end if
 
     end function
 
@@ -85,23 +85,23 @@ contains
         integer(kind=int64), intent(in) :: Sym
         integer :: ind
 
-        if(tFixLz) then
-            ind = int(2 * nSymLabels * (Mom + iMaxLz) + (2 * Sym + Spin),sizeof_int)
+        if (tFixLz) then
+            ind = int(2 * nSymLabels * (Mom + iMaxLz) + (2 * Sym + Spin), sizeof_int)
         else
-            ind = int(2 * Sym + Spin,sizeof_int)
-        endif
+            ind = int(2 * Sym + Spin, sizeof_int)
+        end if
 
-        if(tNoSymGenRandExcits) then
-            if(Spin == 1) then
+        if (tNoSymGenRandExcits) then
+            if (Spin == 1) then
                 ind = 1
             else
                 ind = 2
-            endif
-        endif
+            end if
+        end if
 
     end function
 
-    elemental function ClassCountInd_orb (orb) result(ind)
+    elemental function ClassCountInd_orb(orb) result(ind)
 
         ! The same as ClassCountInd_full, only the values required are
         ! obtained for the spin orbital orb.
@@ -116,7 +116,7 @@ contains
             spin = 1
         else
             spin = 2
-        endif
+        end if
 
         ! This is a HACK to work around a bug in Cray Fortran v8.1.2
         if (spin == 2) spin = 2
@@ -128,29 +128,29 @@ contains
         if (spin == 2) spin = 2
 
         ! Calculate index as usual
-        ind = ClassCountInd (spin, sym, mom)
+        ind = ClassCountInd(spin, sym, mom)
 
     end function
 
     ! ClassCountIndex for the spatial arrays
-    pure function CCIndS_32 (sym, mom) result(ind)
+    pure function CCIndS_32(sym, mom) result(ind)
         integer(kind=int32), intent(in) :: sym
         integer, intent(in) :: mom
         integer :: ind
 
-        ind =  ((ClassCountInd(1,sym,mom)-1)/2) + 1
+        ind = ((ClassCountInd(1, sym, mom) - 1) / 2) + 1
     end function
 
     ! ClassCountIndex for the spatial arrays
-    pure function CCIndS_64 (sym, mom) result(ind)
+    pure function CCIndS_64(sym, mom) result(ind)
         integer(kind=int64), intent(in) :: sym
         integer, intent(in) :: mom
         integer :: ind
 
-        ind =  ((ClassCountInd(1,sym,mom)-1)/2) + 1
+        ind = ((ClassCountInd(1, sym, mom) - 1) / 2) + 1
     end function
 
-    elemental function class_count_spin (cc_ind) result(spn)
+    elemental function class_count_spin(cc_ind) result(spn)
 
         ! Given a class count index, return the spin of the relevant orbitals.
         ! alpha = 1, beta = 2
@@ -162,7 +162,7 @@ contains
 
     end function
 
-    elemental function class_count_ms (cc_ind) result(ms)
+    elemental function class_count_ms(cc_ind) result(ms)
 
         ! Given a class count index, return 2*ms for the relevant orbiatls.
 
@@ -173,7 +173,7 @@ contains
 
     end function
 
-    elemental function class_count_ml (cc_ind) result(ml)
+    elemental function class_count_ml(cc_ind) result(ml)
 
         ! Given a class count index, return ml for the relevant orbitals
 
@@ -185,13 +185,13 @@ contains
             ml = 0
         else
             spn = 2 - mod(cc_ind, 2)
-            sym2 = (mod(cc_ind-1, 2*nSymLabels) + 1 - spn) / 2
-            ml = ((cc_ind - 2*sym2 - spn) / (2 * nSymLabels)) - iMaxLz
+            sym2 = (mod(cc_ind - 1, 2 * nSymLabels) + 1 - spn) / 2
+            ml = ((cc_ind - 2 * sym2 - spn) / (2 * nSymLabels)) - iMaxLz
         end if
 
     end function
 
-    elemental subroutine ClassCountInv_32 (ind, sym, spin, mom)
+    elemental subroutine ClassCountInv_32(ind, sym, spin, mom)
 
         ! Given a Class Count Index, return the symmetry, spin and momentum
         ! of the relevant orbitals
@@ -210,16 +210,16 @@ contains
             mom = 0
             sym = 0
         else if (tFixLz) then
-            sym = int((mod(ind-1, 2*nSymLabels)+1 - spin) / 2,int32)
-            mom = int(((ind - 2 * sym - spin) / (2 * nSymLabels)) - iMaxLz,int32)
+            sym = int((mod(ind - 1, 2 * nSymLabels) + 1 - spin) / 2, int32)
+            mom = int(((ind - 2 * sym - spin) / (2 * nSymLabels)) - iMaxLz, int32)
         else
-            sym = int((ind - spin) / 2,int32)
+            sym = int((ind - spin) / 2, int32)
             mom = 0
         end if
 
     end subroutine
 
-    elemental subroutine ClassCountInv_64 (ind, sym, spin, mom)
+    elemental subroutine ClassCountInv_64(ind, sym, spin, mom)
 
         ! Given a Class Count Index, return the symmetry, spin and momentum
         ! of the relevant orbitals
@@ -238,7 +238,7 @@ contains
             mom = 0
             sym = 0
         else if (tFixLz) then
-            sym = (mod(ind-1, 2*nSymLabels)+1 - spin) / 2
+            sym = (mod(ind - 1, 2 * nSymLabels) + 1 - spin) / 2
             mom = int(((ind - 2 * sym - spin) / (2 * nSymLabels)) - iMaxLz)
         else
             sym = (ind - spin) / 2
@@ -300,7 +300,7 @@ contains
             end if
         else
             !todo: maybe i also have to exclude the k-space hubbard case here!
-            if (.not. (t_new_real_space_hubbard .or.t_tJ_model .or. t_heisenberg_model)) then
+            if (.not. (t_new_real_space_hubbard .or. t_tJ_model .or. t_heisenberg_model)) then
                 if (allocated(SymInvLabel)) then
                     do i = 1, nel
                         sym_prod_i = RandExcitSymLabelProd(SymInvLabel(SpinOrbSymLabel(nI(i))), sym_prod_i)
@@ -315,10 +315,10 @@ contains
             if (present(err_msg)) err_msg = 'symmetry not conserved'
         end if
 
-        if (.not. (t_new_real_space_hubbard .or.t_tJ_model .or. t_heisenberg_model)) then
+        if (.not. (t_new_real_space_hubbard .or. t_tJ_model .or. t_heisenberg_model)) then
             ! Check the symmetry properties of the excitation matrix
-           if (.not. tNoSymGenRandExcits .and. .not. tKPntSym) then
-              bValid = bValid .and. IsSymAllowedExcitMat(ex,ic)
+            if (.not. tNoSymGenRandExcits .and. .not. tKPntSym) then
+                bValid = bValid .and. IsSymAllowedExcitMat(ex, ic)
             end if
         end if
         ! should i do extra tests for heisenberg and tJ? i think so
@@ -336,14 +336,14 @@ contains
         end if
 
         if (t_tJ_model) then
-            if (nel >= nbasis/2) then
+            if (nel >= nbasis / 2) then
                 bValid = .false.
                 if (present(err_msg)) err_msg = 'more than half-filling for t-J'
             end if
 
             call Encodebitdet(nJ, ilut)
             ! check if we have doubly occupied orbitals:
-            if ((nel - count_open_orbs(ilut(0:nifd)))/2 > 0) then
+            if ((nel - count_open_orbs(ilut(0:nifd))) / 2 > 0) then
                 bValid = .false.
                 if (present(err_msg)) err_msg = 'double occupancy in tJ model'
             end if
@@ -355,11 +355,11 @@ contains
                 if (present(err_msg)) err_msg = 'other than double exc. for heisenberg'
             end if
             call Encodebitdet(nJ, ilut)
-            if (count_open_orbs(ilut) /= nbasis/2) then
+            if (count_open_orbs(ilut) /= nbasis / 2) then
                 bValid = .false.
                 if (present(err_msg)) err_msg = 'double occupancy in heisenberg'
             end if
-            if ((nel - count_open_orbs(ilut(0:nifd)))/2 > 0) then
+            if ((nel - count_open_orbs(ilut(0:nifd))) / 2 > 0) then
                 bValid = .false.
                 if (present(err_msg)) err_msg = 'off half-filling for heisenberg'
             end if
@@ -375,10 +375,10 @@ contains
             end if
         end if
 
-      end function SymAllowedExcit
+    end function SymAllowedExcit
 
-      function IsSymAllowedExcitMat(ex,ic) result(bValid)
-        integer, intent(in) :: ex(2,ic), ic
+    function IsSymAllowedExcitMat(ex, ic) result(bValid)
+        integer, intent(in) :: ex(2, ic), ic
         logical :: bValid
 
         type(symmetry) :: sym_prod1, sym_prod2
@@ -386,18 +386,18 @@ contains
         bValid = .true.
 
         ! Check the symmetry properties of the excitation matrix
-        sym_prod1 = G1(ex(1,1))%Sym
-        sym_prod2 = G1(ex(2,1))%Sym
-        ms1 = G1(ex(1,1))%ms
-        ms2 = G1(ex(2,1))%ms
+        sym_prod1 = G1(ex(1, 1))%Sym
+        sym_prod2 = G1(ex(2, 1))%Sym
+        ms1 = G1(ex(1, 1))%ms
+        ms2 = G1(ex(2, 1))%ms
         do i = 2, ic
-           sym_prod1 = SYMPROD(sym_prod1, G1(ex(1,i))%Sym)
-           sym_prod2 = SYMPROD(sym_prod2, G1(ex(2,i))%Sym)
-           ms1 = ms1 + G1(ex(1,i))%ms
-           ms2 = ms2 + G1(ex(2,i))%ms
+            sym_prod1 = SYMPROD(sym_prod1, G1(ex(1, i))%Sym)
+            sym_prod2 = SYMPROD(sym_prod2, G1(ex(2, i))%Sym)
+            ms1 = ms1 + G1(ex(1, i))%ms
+            ms2 = ms2 + G1(ex(2, i))%ms
         end do
         if (.not. SYMEQ(sym_prod1, sym_prod2)) bValid = .false.
-        if (ms1 /= ms2 .and.(.not.tReltvy)) bValid = .false.
-      end function IsSymAllowedExcitMat
+        if (ms1 /= ms2 .and. (.not. tReltvy)) bValid = .false.
+    end function IsSymAllowedExcitMat
 
 end module

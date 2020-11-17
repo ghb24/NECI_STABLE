@@ -1,7 +1,7 @@
 #include "macros.h"
 module guga_pchb_excitgen
 
-    use aliasSampling, only: aliasSamplerArray_t
+    use aliasSampling, only: AliasSampler_1D_t
     use constants, only: n_int, dp, maxExcit, int64, iout, int_rdm
     use bit_rep_data, only: IlutBits, GugaBits
     use SystemData, only: nel, G1, current_stepvector, t_pchb_weighted_singles, &
@@ -49,7 +49,7 @@ module guga_pchb_excitgen
 
     type :: GugaAliasSampler_t
 
-        type(aliasSamplerArray_t) :: alias_sampler
+        type(AliasSampler_1D_t) :: alias_sampler
 
         ! i don't need to make two, but lets keep it similar to Kais
         ! implementation
@@ -298,7 +298,7 @@ contains
                     call guga_pchb_sampler(1)%setup_entry_count_scalar(ij,ab)
                     call guga_pchb_sampler(1)%setup_entry_sum_scalar(ij,ab,abs(h_element))
                     call guga_pchb_sampler(1)%setup_entry_worst_orb_scalar(ij,ab, &
-                        abs(h_element) / guga_pchb_sampler(1)%alias_sampler%aGetProb(ij,ab))
+                        abs(h_element) / guga_pchb_sampler(1)%alias_sampler%get_prob(ij,ab))
                     call guga_pchb_sampler(1)%setup_entry_pgen_scalar(ij,ab,pgen)
                     call guga_pchb_sampler(1)%setup_entry_pgen_high_scalar(ij,ab, &
                         abs(h_element) / pgen)
@@ -898,7 +898,7 @@ contains
                         do b = a, nSpatOrbs
                             ab = fuseIndex(a,b)
 
-                            weight = guga_pchb_sampler(1)%alias_sampler%aGetProb(ij,ab)
+                            weight = guga_pchb_sampler(1)%alias_sampler%get_prob(ij,ab)
 
                             if (.not. near_zero(weight)) then
                                 call extract_excit_info(guga_pchb_sampler(1)%get_info(ij, ab), &
@@ -1091,8 +1091,7 @@ contains
         allocate(excit_info(abMax), stat = aerr)
 
         ! allocate: all samplers have the same size
-        call guga_pchb_sampler(1)%alias_sampler%setupSamplerArray(int(ijMax,int64), &
-            int(abMax,int64))
+        call guga_pchb_sampler(1)%alias_sampler%shared_alloc(ijMax, abMax)
         ! todo: do the same for the excit_info array!
         call guga_pchb_sampler(1)%setup_info_table(int(ijMax,int64), &
             int(abMax, int64))
@@ -1355,7 +1354,7 @@ contains
                         end if
                     end do
                 end do
-                call guga_pchb_sampler(1)%alias_sampler%setupEntry(ij,w)
+                call guga_pchb_sampler(1)%alias_sampler%setup_entry(ij,w)
                 call guga_pchb_sampler(1)%setup_entry_info(ij,excit_info)
 
                 if (t_analyze_pchb) then
@@ -1389,7 +1388,7 @@ contains
             call guga_pchb_sampler(1)%pgen_table_destructor()
         end if
 
-        call guga_pchb_sampler(1)%alias_sampler%samplerArrayDestructor()
+        call guga_pchb_sampler(1)%alias_sampler%finalize()
         call guga_pchb_sampler(1)%info_table_destructor()
         deallocate(tgtOrbs)
 
@@ -1427,7 +1426,7 @@ contains
         ij = fuseIndex(i, j)
 
         ! get a pair of orbitals using the precomputed weights
-        call guga_pchb_sampler(1)%alias_sampler%aSample(ij,ab,pgen_orbs)
+        call guga_pchb_sampler(1)%alias_sampler%sample(ij,ab,pgen_orbs)
 
         ! unfortunately, there is a super-rare case when, due to floating point error,
         ! an excitation with pGen=0 is created. Those are invalid, too
@@ -1700,7 +1699,7 @@ contains
         p_elec = 1.0_dp / real(ElecPairs, dp)
 
         ab = fuseIndex(nex(2,1), nex(2,2))
-        pgen = p_elec * guga_pchb_sampler(1)%alias_sampler%aGetProb(ij, ab)
+        pgen = p_elec * guga_pchb_sampler(1)%alias_sampler%get_prob(ij, ab)
 
     end function calc_orb_pgen_guga_pchb_double_exmat
 
@@ -1719,7 +1718,7 @@ contains
         p_elec = 1.0_dp / real(ElecPairs, dp)
 
         ab = fuseIndex(excitInfo%i, excitInfo%k)
-        pgen = p_elec * guga_pchb_sampler(1)%alias_sampler%aGetProb(ij, ab)
+        pgen = p_elec * guga_pchb_sampler(1)%alias_sampler%get_prob(ij, ab)
 
     end function calc_orb_pgen_guga_pchb_double_excitInfo
 
@@ -1744,7 +1743,7 @@ contains
         ij = fuseIndex(gtID(occ_orbs(1)), gtID(occ_orbs(2)))
 
         ! and both I and J are electron and hole indices here
-        cpt_a = guga_pchb_sampler(1)%alias_sampler%aGetProb(ij, ij) / 2.0_dp
+        cpt_a = guga_pchb_sampler(1)%alias_sampler%get_prob(ij, ij) / 2.0_dp
         ! but since they will get added in later routines i actually have
         ! do divide by 2 here..
 
@@ -1773,7 +1772,7 @@ contains
         ij = fuseIndex(i, j)
         ab = fuseIndex(i, a)
 
-        orb_pgen = guga_pchb_sampler(1)%alias_sampler%aGetProb(ij, ab)
+        orb_pgen = guga_pchb_sampler(1)%alias_sampler%get_prob(ij, ab)
 
     end subroutine calc_orbital_pgen_contr_start_pchb
 
@@ -1797,7 +1796,7 @@ contains
 
         ab = fuseIndex(a,j)
 
-        orb_pgen = guga_pchb_sampler(1)%alias_sampler%aGetProb(ij,ab)
+        orb_pgen = guga_pchb_sampler(1)%alias_sampler%get_prob(ij,ab)
 
     end subroutine calc_orbital_pgen_contr_end_pchb
 

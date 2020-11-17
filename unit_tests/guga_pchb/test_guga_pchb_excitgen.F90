@@ -163,8 +163,8 @@ contains
         associate(sampler => guga_pchb_sampler(1), &
                   a_sampler => guga_pchb_sampler(1)%alias_sampler)
 
-            call assert_equals(0_int64, sampler%get_info(1,i), AT_)
-            call assert_equals(0.0_dp, a_sampler%aGetProb(1,i))
+            call assert_equals(0_int64, sampler%get_info(1,1))
+            call assert_equals(0.0_dp, a_sampler%get_prob(1,1))
 
         end associate
 
@@ -173,7 +173,7 @@ contains
         do i = 1, ijMax
             do j = 1, ijMax
                 print *, guga_pchb_sampler(1)%get_info(i,j), &
-                    guga_pchb_sampler(1)%alias_sampler%aGetProb(i,j)
+                    guga_pchb_sampler(1)%alias_sampler%get_prob(i,j)
             end do
         end do
 
@@ -195,40 +195,40 @@ contains
         ex(2,1) = 2
 
         pgen = calc_orb_pgen_uniform_singles(ex)
-        call assert_equals(0.0_dp, pgen, AT_)
+        call assert_equals(0.0_dp, pgen)
 
         excitInfo%j = 1
         excitInfo%i = 1
         pgen = calc_orb_pgen_uniform_singles(excitInfo)
-        call assert_equals(0.0_dp, pgen, AT_)
+        call assert_equals(0.0_dp, pgen)
 
         ex(2,1) = 3
         pgen = calc_orb_pgen_uniform_singles(ex)
-        call assert_equals(0.0_dp, pgen, AT_)
+        call assert_equals(0.0_dp, pgen)
 
         ex(2,1) = 4
         pgen = calc_orb_pgen_uniform_singles(ex)
-        call assert_equals(0.0_dp, pgen, AT_)
+        call assert_equals(0.0_dp, pgen)
 
         excitInfo%i = 2
         pgen = calc_orb_pgen_uniform_singles(excitInfo)
-        call assert_equals(0.0_dp, pgen, AT_)
+        call assert_equals(0.0_dp, pgen)
 
         ex(2,1) = 5
         pgen = calc_orb_pgen_uniform_singles(ex)
-        call assert_equals(1.0_dp/4.0_dp, pgen, AT_)
+        call assert_equals(1.0_dp/4.0_dp, pgen)
 
         excitInfo%i = 3
         pgen = calc_orb_pgen_uniform_singles(excitInfo)
-        call assert_equals(1.0_dp/4.0_dp, pgen, AT_)
+        call assert_equals(1.0_dp/4.0_dp, pgen)
 
         ex(2,1) = 8
         pgen = calc_orb_pgen_uniform_singles(ex)
-        call assert_equals(1.0_dp/4.0_dp, pgen, AT_)
+        call assert_equals(1.0_dp/4.0_dp, pgen)
 
         excitInfo%i = 4
         pgen = calc_orb_pgen_uniform_singles(excitInfo)
-        call assert_equals(1.0_dp/4.0_dp, pgen, AT_)
+        call assert_equals(1.0_dp/4.0_dp, pgen)
 
         nI = [1,2,3,8]
         call EncodeBitDet_guga(nI, ilut)
@@ -236,21 +236,21 @@ contains
 
         ex(2,1) = 8
         pgen = calc_orb_pgen_uniform_singles(ex)
-        call assert_equals(1.0_dp/9.0_dp, pgen, AT_)
+        call assert_equals(1.0_dp/9.0_dp, pgen)
 
         excitInfo%i = 4
         pgen = calc_orb_pgen_uniform_singles(excitInfo)
-        call assert_equals(1.0_dp/9.0_dp, pgen, AT_)
+        call assert_equals(1.0_dp/9.0_dp, pgen)
 
         ex(1,1) = 3
         ex(2,1) = 8
         pgen = calc_orb_pgen_uniform_singles(ex)
-        call assert_equals(1.0_dp/6.0_dp, pgen, AT_)
+        call assert_equals(1.0_dp/6.0_dp, pgen)
 
         excitInfo%j = 2
         excitInfo%i = 4
         pgen = calc_orb_pgen_uniform_singles(excitInfo)
-        call assert_equals(1.0_dp/6.0_dp, pgen, AT_)
+        call assert_equals(1.0_dp/6.0_dp, pgen)
 
         nI = [1,4,5,8]
         call EncodeBitDet_guga(nI, ilut)
@@ -259,12 +259,12 @@ contains
         ex(1,1) = 8
         ex(2,1) = 3
         pgen = calc_orb_pgen_uniform_singles(ex)
-        call assert_equals(1.0_dp/12.0_dp, pgen, AT_)
+        call assert_equals(1.0_dp/12.0_dp, pgen)
 
         excitInfo%j = 4
         excitInfo%i = 2
         pgen = calc_orb_pgen_uniform_singles(excitInfo)
-        call assert_equals(1.0_dp/12.0_dp, pgen, AT_)
+        call assert_equals(1.0_dp/12.0_dp, pgen)
 
     end subroutine calc_orb_pgen_uniform_singles_test
 
@@ -281,11 +281,11 @@ contains
 
         call pick_orbitals_pure_uniform_singles(ilut, nI, excitInfo, pgen)
 
-        call assert_equals(excitInfo%typ, excit_type%single, AT_)
-        call assert_equals(gen_type%L, excitInfo%gen1, AT_)
-        call assert_true(excitInfo%j == 1 .or. excitInfo%j == 2, AT_)
-        call assert_true(excitInfo%i == 3 .or. excitInfo%i == 4, AT_)
-        call assert_equals(0.25_dp, pgen, AT_)
+        call assert_equals(excitInfo%typ, excit_type%single)
+        call assert_equals(gen_type%L, excitInfo%gen1)
+        call assert_true(excitInfo%j == 1 .or. excitInfo%j == 2)
+        call assert_true(excitInfo%i == 3 .or. excitInfo%i == 4)
+        call assert_equals(0.25_dp, pgen)
 
 
         nI = [1,4,5,8]
@@ -294,11 +294,11 @@ contains
 
         call pick_orbitals_pure_uniform_singles(ilut, nI, excitInfo, pgen)
 
-        call assert_equals(excitInfo%typ, excit_type%single, AT_)
-        call assert_true(any(excitInfo%j == [1,2,3,4]), AT_)
-        call assert_true(any(excitInfo%i == [1,2,3,4]), AT_)
-        call assert_true(excitInfo%i /= excitInfo%j, AT_)
-        call assert_equals(1.0_dp/12.0_dp, pgen, AT_)
+        call assert_equals(excitInfo%typ, excit_type%single)
+        call assert_true(any(excitInfo%j == [1,2,3,4]))
+        call assert_true(any(excitInfo%i == [1,2,3,4]))
+        call assert_true(excitInfo%i /= excitInfo%j)
+        call assert_equals(1.0_dp/12.0_dp, pgen)
 
     end subroutine pick_orbitals_pure_uniform_singles_test
 
@@ -316,15 +316,15 @@ contains
 
         elec = 1
         call pick_uniform_spatial_hole(nI, elec, s_orb, pgen)
-        call assert_true(pgen > 0.0_dp, AT_)
-        call assert_true(s_orb == 3 .or. s_orb == 4, AT_)
-        call assert_equals(0.5_dp, pgen, AT_)
+        call assert_true(pgen > 0.0_dp)
+        call assert_true(s_orb == 3 .or. s_orb == 4)
+        call assert_equals(0.5_dp, pgen)
 
         elec = 2
         call pick_uniform_spatial_hole(nI, elec, s_orb, pgen)
-        call assert_true(pgen > 0.0_dp, AT_)
-        call assert_true(s_orb == 3 .or. s_orb == 4, AT_)
-        call assert_equals(0.5_dp, pgen, AT_)
+        call assert_true(pgen > 0.0_dp)
+        call assert_true(s_orb == 3 .or. s_orb == 4)
+        call assert_equals(0.5_dp, pgen)
 
         nI = [1,2,3,8]
         call EncodeBitDet_guga(nI, ilut)
@@ -332,15 +332,15 @@ contains
 
         elec = 1
         call pick_uniform_spatial_hole(nI, elec, s_orb, pgen)
-        call assert_true(pgen > 0.0_dp, AT_)
-        call assert_true(s_orb == 3 .or. s_orb == 4 .or. s_orb == 2, AT_)
-        call assert_equals(1.0_dp/3.0_dp, pgen, AT_)
+        call assert_true(pgen > 0.0_dp)
+        call assert_true(s_orb == 3 .or. s_orb == 4 .or. s_orb == 2)
+        call assert_equals(1.0_dp/3.0_dp, pgen)
 
         elec = 2
         call pick_uniform_spatial_hole(nI, elec, s_orb, pgen)
-        call assert_true(pgen > 0.0_dp, AT_)
-        call assert_true(s_orb == 3 .or. s_orb == 4, AT_)
-        call assert_equals(1.0_dp/2.0_dp, pgen, AT_)
+        call assert_true(pgen > 0.0_dp)
+        call assert_true(s_orb == 3 .or. s_orb == 4)
+        call assert_equals(1.0_dp/2.0_dp, pgen)
 
         nI = [1,4,5,8]
         call EncodeBitDet_guga(nI, ilut)
@@ -348,9 +348,9 @@ contains
 
         elec = 1
         call pick_uniform_spatial_hole(nI, elec, s_orb, pgen)
-        call assert_true(pgen > 0.0_dp, AT_)
-        call assert_true(s_orb == 3 .or. s_orb == 4 .or. s_orb == 2, AT_)
-        call assert_equals(1.0_dp/3.0_dp, pgen, AT_)
+        call assert_true(pgen > 0.0_dp)
+        call assert_true(s_orb == 3 .or. s_orb == 4 .or. s_orb == 2)
+        call assert_equals(1.0_dp/3.0_dp, pgen)
 
 
 

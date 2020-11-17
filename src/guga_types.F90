@@ -24,6 +24,6 @@ module guga_types
         ! of a full double excitation will be contained in the pointer weight
         ! object as another pointer
         type(WeightObj_t), pointer :: ptr => null()
-    end type  WeightObj_t
+    end type WeightObj_t
 
 end module

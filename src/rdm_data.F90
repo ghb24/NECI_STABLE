@@ -97,13 +97,13 @@ module rdm_data
 
     type one_rdm_t
         ! The 1-RDM object itself.
-        real(dp), allocatable :: matrix(:,:)
+        real(dp), allocatable :: matrix(:, :)
 
         ! Eigenvalues of the 1-RDM.
         real(dp), allocatable :: evalues(:)
         ! Arrays to hold the diagonal of the 1-RDM, and the Lagrangian.
         real(dp), allocatable :: rho_ii(:)
-        real(dp), allocatable :: lagrangian(:,:)
+        real(dp), allocatable :: lagrangian(:, :)
 
         integer :: rho_ii_tag, matrix_tag, evalues_tag
 
@@ -126,7 +126,7 @@ module rdm_data
         ! RDM entry in the elements array.
         integer :: sign_length = 0
         ! Array which holds the RDM elements.
-        integer(int_rdm), allocatable :: elements(:,:)
+        integer(int_rdm), allocatable :: elements(:, :)
         ! Hash table to the rdm array.
         type(ll_node), pointer :: hash_table(:)
         ! The allocated size of the elements array.
@@ -165,7 +165,7 @@ module rdm_data
         ! RDM entry in the elements array.
         integer :: sign_length = 0
         ! Array which holds the RDM elements.
-        integer(n_int), allocatable :: dets(:,:)
+        integer(n_int), allocatable :: dets(:, :)
         ! Hash table to the rdm array.
         type(ll_node), pointer :: hash_table(:)
         ! The allocated size of the elements array.
@@ -203,7 +203,7 @@ module rdm_data
         real(dp), allocatable :: energy_2_num(:)
         real(dp), allocatable :: energy_num(:)
         real(dp), allocatable :: spin_num(:)
-        real(dp), allocatable :: property(:,:)
+        real(dp), allocatable :: property(:, :)
         real(dp), allocatable :: energy_pert(:)
         real(dp), allocatable :: energy_pert_hf(:)
 
@@ -215,7 +215,7 @@ module rdm_data
         real(dp), allocatable :: energy_2_num_inst(:)
         real(dp), allocatable :: energy_num_inst(:)
         real(dp), allocatable :: spin_num_inst(:)
-        real(dp), allocatable :: property_inst(:,:)
+        real(dp), allocatable :: property_inst(:, :)
         real(dp), allocatable :: energy_pert_inst(:)
         real(dp), allocatable :: energy_pert_hf_inst(:)
 
@@ -244,11 +244,11 @@ module rdm_data
 
         ! state_labels(:,j) will store the labels of the *actual* wave functions
         ! (i.e., usually which excited state it is) contributing to the j'th RDM.
-        integer, allocatable :: state_labels(:,:) ! (2, nrdms)
+        integer, allocatable :: state_labels(:, :) ! (2, nrdms)
         ! sim_labels(:,j) will store the labels of the *FCIQMC* simulations
         ! (i.e. the 'replica' labels) which will be used to sample the j'th RDM
         ! being calculated.
-        integer, allocatable :: sim_labels(:,:) ! (2, nrdms)
+        integer, allocatable :: sim_labels(:, :) ! (2, nrdms)
 
         ! For transition RDMs, with 2 replicas for each state, there will be 2
         ! copies of each transition RDM. This array simply specifies which of
@@ -261,11 +261,11 @@ module rdm_data
         ! which are paired with simulation j in contributing to RDMs.
         ! Elements which are not needed (due to a simulation not
         ! contributing to all RDMs) are set to 0.
-        integer, allocatable :: sim_pairs(:,:) ! (nrdms, lenof_sign)
+        integer, allocatable :: sim_pairs(:, :) ! (nrdms, lenof_sign)
         ! rdm_labels(:,j) holds the list of RDM labels which simulation j
         ! contributes to. Elements which are not needed (due a simulation not
         ! contributing to all RDMs) are set to 0.
-        integer, allocatable :: rdm_labels(:,:) ! (nrdms, lenof_sign)
+        integer, allocatable :: rdm_labels(:, :) ! (nrdms, lenof_sign)
         ! prefix for the names of the files to output to
         character(255) :: output_file_prefix
     end type rdm_definitions_t
@@ -318,7 +318,7 @@ module rdm_data
     ! This is the same as for state_labels in rdm_definition_t, but *only*
     ! deals with transition RDMs specifically. This array is used to hold the
     ! states specified by the user at input.
-    integer, allocatable :: states_for_transition_rdm(:,:) ! (2, nrdms_transition_input)
+    integer, allocatable :: states_for_transition_rdm(:, :) ! (2, nrdms_transition_input)
 
     ! If true, then 2-RDM quantities will be output to a RDMEstimates file.
     logical :: print_2rdm_est
@@ -348,8 +348,8 @@ module rdm_data
     ! relevant routines in that case.
     integer, allocatable :: Sing_InitExcSlots(:), Sing_ExcList(:)
     integer, allocatable :: Doub_InitExcSlots(:), Doub_ExcList(:)
-    integer(n_int), allocatable :: Sing_ExcDjs(:,:), Sing_ExcDjs2(:,:)
-    integer(n_int), allocatable :: Doub_ExcDjs(:,:), Doub_ExcDjs2(:,:)
+    integer(n_int), allocatable :: Sing_ExcDjs(:, :), Sing_ExcDjs2(:, :)
+    integer(n_int), allocatable :: Doub_ExcDjs(:, :), Doub_ExcDjs2(:, :)
 
     ! Tags for explicitly-filled RDMs.
     integer :: Sing_ExcDjsTag, Sing_ExcDjs2Tag

@@ -46,7 +46,6 @@ module lattice_models_utils
 
 contains
 
-
     subroutine swap_excitations_higher(nI, ex, nJ, ex2)
         ! routine to quickly, without make_double and make_triple
         ! create the excited determinant nJ and ex2 to go from nJ -> nI
@@ -54,31 +53,31 @@ contains
         ! transcorrelated approach. due to non-hermiticity
         ! <i|H|j> /= <j|H|i>
         ! also make this work for triple excitations!
-        integer, intent(in) :: nI(nel), ex(:,:)
+        integer, intent(in) :: nI(nel), ex(:, :)
         integer, intent(out) :: nJ(nel)
-        integer, intent(out), allocatable :: ex2(:,:)
+        integer, intent(out), allocatable :: ex2(:, :)
 #ifdef DEBUG_
         character(*), parameter :: this_routine = "swap_excitations"
 #endif
 
-        ASSERT(size(ex,1) == 2)
-        ASSERT(size(ex,2) == 2 .or. size(ex,2) == 3)
+        ASSERT(size(ex, 1) == 2)
+        ASSERT(size(ex, 2) == 2 .or. size(ex, 2) == 3)
 
-        allocate(ex2(size(ex,1),size(ex,2)), source = ex)
+        allocate(ex2(size(ex, 1), size(ex, 2)), source=ex)
 
         nJ = nI
-        where (nJ == ex(1,1)) nJ = ex(2,1)
-        where (nJ == ex(1,2)) nJ = ex(2,2)
-        if (size(ex,2) == 3) then
-            where (nJ == ex(1,3)) nJ = ex(2,3)
+        where (nJ == ex(1, 1)) nJ = ex(2, 1)
+        where (nJ == ex(1, 2)) nJ = ex(2, 2)
+        if (size(ex, 2) == 3) then
+            where (nJ == ex(1, 3)) nJ = ex(2, 3)
         end if
 
         call sort(nJ)
         ex2 = ex
-        call swap(ex2(1,1),ex2(2,1))
-        call swap(ex2(1,2),ex2(2,2))
-        if (size(ex,2) == 3) then
-            call swap(ex2(1,3),ex2(2,3))
+        call swap(ex2(1, 1), ex2(2, 1))
+        call swap(ex2(1, 2), ex2(2, 2))
+        if (size(ex, 2) == 3) then
+            call swap(ex2(1, 3), ex2(2, 3))
         end if
 
     end subroutine swap_excitations_higher
@@ -95,7 +94,7 @@ contains
 
         ex2 = ex
 
-        call swap(ex2(1),ex2(2))
+        call swap(ex2(1), ex2(2))
 
     end subroutine swap_excitations_singles
 
@@ -121,7 +120,7 @@ contains
         end do
 
         ! output in ordered form
-        elecs = [minval(elecs),maxval(elecs)]
+        elecs = [minval(elecs), maxval(elecs)]
 
         ! actually the probability is twice that or?
         ! or doesnt that matter, since it is the same
@@ -149,7 +148,7 @@ contains
         ind = binary_search_first_ge(cum_arr, r)
 
         if (ind == 1) then
-            pgen = cum_arr(1)/cum_sum
+            pgen = cum_arr(1) / cum_sum
         else
             pgen = (cum_arr(ind) - cum_arr(ind - 1)) / cum_sum
         end if
@@ -164,11 +163,11 @@ contains
         ! before!
         integer, intent(in) :: nI(nel)
         integer, intent(out) :: n_excits
-        integer(n_int), intent(out), allocatable :: det_list(:,:)
+        integer(n_int), intent(out), allocatable :: det_list(:, :)
         character(*), parameter :: this_routine = "gen_all_excits_r_space_hubbard"
 
         integer :: save_excits, n_doubles, i
-        integer(n_int), allocatable :: double_dets(:,:), temp_dets(:,:)
+        integer(n_int), allocatable :: double_dets(:, :), temp_dets(:, :)
 
         call gen_all_singles_rs_hub(nI, n_excits, det_list)
 
@@ -182,15 +181,15 @@ contains
 
             n_excits = n_excits + n_doubles
 
-            allocate(temp_dets(0:niftot, save_excits), source = det_list(:,1:save_excits))
+            allocate(temp_dets(0:niftot, save_excits), source=det_list(:, 1:save_excits))
 
             deallocate(det_list)
 
-            allocate(det_list(0:niftot,n_excits))
+            allocate(det_list(0:niftot, n_excits))
 
-            det_list(:,1:save_excits) = temp_dets
+            det_list(:, 1:save_excits) = temp_dets
 
-            det_list(:,save_excits+1:n_excits) = double_dets
+            det_list(:, save_excits + 1:n_excits) = double_dets
 
         end if
 
@@ -203,7 +202,7 @@ contains
 
             if (allocated(temp_dets)) deallocate(temp_dets)
 
-            allocate(temp_dets(0:NIfTot, size(det_list,2)), source = det_list)
+            allocate(temp_dets(0:NIfTot, size(det_list, 2)), source=det_list)
 
             call spin_purify(save_excits, temp_dets, n_excits, det_list)
 
@@ -215,42 +214,42 @@ contains
         ! routine to remove determinants, belonging to the same
         ! coupled HPHF function
         integer, intent(in) :: n_excits_in
-        integer(n_int), intent(in) :: det_list_in(0:NIfTot,n_excits_in)
+        integer(n_int), intent(in) :: det_list_in(0:NIfTot, n_excits_in)
         integer, intent(out) :: n_excits_out
-        integer(n_int), intent(out), allocatable :: det_list_out(:,:)
+        integer(n_int), intent(out), allocatable :: det_list_out(:, :)
 #ifdef DEBUG_
         character(*), parameter :: this_routine = "spin_purify"
 #endif
         integer :: nI(nel), nJ(nel), i, pos, cnt
         integer(n_int) :: ilut(0:NIfTot), ilut_sym(0:NIfTot)
         logical :: t_swapped
-        integer(n_int), allocatable :: temp_dets(:,:)
+        integer(n_int), allocatable :: temp_dets(:, :)
 
-        allocate(temp_dets(0:NIfTot,n_excits_in))
+        allocate(temp_dets(0:NIfTot, n_excits_in))
         temp_dets = 0_n_int
 
         cnt = 0
 
         do i = 1, n_excits_in
 
-            ilut = det_list_in(:,i)
+            ilut = det_list_in(:, i)
 
             ! ilut will always be the one, which should be stored in the
             ! det-list, if i undertand the function below correctly
             ilut_sym = return_hphf_sym_det(ilut)
 
-            pos = binary_search(temp_dets(:,1:cnt), ilut, nifd + 1)
+            pos = binary_search(temp_dets(:, 1:cnt), ilut, nifd + 1)
 
             if (pos < 0) then
                 ! then we have to store it
                 cnt = cnt + 1
-                temp_dets(:,cnt) = ilut_sym
-                call sort(temp_dets(:,1:cnt), ilut_lt, ilut_gt)
+                temp_dets(:, cnt) = ilut_sym
+                call sort(temp_dets(:, 1:cnt), ilut_lt, ilut_gt)
             end if
         end do
 
         n_excits_out = cnt
-        allocate(det_list_out(0:NIfTot,n_excits_out), source = temp_dets(:,1:n_excits_out))
+        allocate(det_list_out(0:NIfTot, n_excits_out), source=temp_dets(:, 1:n_excits_out))
 
         call sort(det_list_out, ilut_lt, ilut_gt)
 
@@ -259,13 +258,13 @@ contains
     subroutine gen_all_doubles_rs_hub_hop_transcorr(nI, n_excits, det_list)
         integer, intent(in) :: nI(nel)
         integer, intent(out) :: n_excits
-        integer(n_int), intent(out), allocatable :: det_list(:,:)
+        integer(n_int), intent(out), allocatable :: det_list(:, :)
 #ifdef DEBUG_
         character(*), parameter :: this_routine = "gen_all_doubles_rs_hub_hop_transcorr"
 #endif
         integer(n_int) :: ilut(0:NIfTot), ilutJ(0:NIfTot)
-        integer :: n_bound, i, src(2), j, neigh, ex(2,2), pos, a, b
-        integer(n_int), allocatable :: temp_list(:,:)
+        integer :: n_bound, i, src(2), j, neigh, ex(2, 2), pos, a, b
+        integer(n_int), allocatable :: temp_list(:, :)
         integer, allocatable :: neighbors(:)
         real(dp) :: elem
 
@@ -273,28 +272,28 @@ contains
 
         n_excits = 1
 
-        n_bound = nel*(nel-1)*(nbasis-nel)*(nbasis-nel-1)
+        n_bound = nel * (nel - 1) * (nbasis - nel) * (nbasis - nel - 1)
 
-        allocate(temp_list(0:NIfTot,n_bound))
+        allocate(temp_list(0:NIfTot, n_bound))
         temp_list = 0_n_int
 
         ! we just have opposite spin doubles!
         do i = 1, nel - 1
             do j = i + 1, nel
 
-                src = nI([i,j])
+                src = nI([i, j])
 
-                if (same_spin(src(1),src(2))) cycle
+                if (same_spin(src(1), src(2))) cycle
 
-                ex(1,:) = src
+                ex(1, :) = src
                 ! and now loop over all possible empty spin opposite
                 ! orbitals in a unique way..
                 do a = 1, nbasis - 1
-                    if (IsOcc(ilut,a)) cycle
+                    if (IsOcc(ilut, a)) cycle
                     do b = a + 1, nbasis
-                        if (IsOcc(ilut,b) .or. same_spin(a,b)) cycle
+                        if (IsOcc(ilut, b) .or. same_spin(a, b)) cycle
 
-                        ex(2,:) = [a,b]
+                        ex(2, :) = [a, b]
 
                         elem = abs(get_helement_lattice(nI, 2, ex, .false.))
                         if (elem > EPS) then
@@ -303,12 +302,12 @@ contains
                             ! actually a search is not really necessary.. since
                             ! all the single excitations are unique.. but
                             ! just to be sure
-                            pos = binary_search(temp_list(:,1:n_excits), ilutJ, nifd+1)
+                            pos = binary_search(temp_list(:, 1:n_excits), ilutJ, nifd + 1)
 
                             if (pos < 0) then
 
-                                temp_list(:,n_excits) = ilutJ
-                                call sort(temp_list(:,1:n_excits),ilut_lt,ilut_gt)
+                                temp_list(:, n_excits) = ilutJ
+                                call sort(temp_list(:, 1:n_excits), ilut_lt, ilut_gt)
                                 n_excits = n_excits + 1
                                 ! damn.. i have to sort everytime i guess..
                             end if
@@ -319,7 +318,7 @@ contains
         end do
 
         n_excits = n_excits - 1
-        allocate(det_list(0:NIfTot,n_excits), source = temp_list(:,1:n_excits))
+        allocate(det_list(0:NIfTot, n_excits), source=temp_list(:, 1:n_excits))
 
         call sort(det_list, ilut_lt, ilut_gt)
 
@@ -330,7 +329,7 @@ contains
         ! without hopping transcorrelation this is quite easy..
         integer, intent(in) :: nI(nel)
         integer, intent(out) :: n_excits
-        integer(n_int), intent(out), allocatable :: det_list(:,:)
+        integer(n_int), intent(out), allocatable :: det_list(:, :)
         character(*), parameter :: this_routine = "gen_all_singles_rs_hub"
 
         if (t_trans_corr_hop) then
@@ -344,13 +343,13 @@ contains
     subroutine gen_all_singles_rs_hub_hop_transcorr(nI, n_excits, det_list)
         integer, intent(in) :: nI(nel)
         integer, intent(out) :: n_excits
-        integer(n_int), intent(out), allocatable :: det_list(:,:)
+        integer(n_int), intent(out), allocatable :: det_list(:, :)
 #ifdef DEBUG_
         character(*), parameter :: this_routine = "gen_all_singles_rs_hub_hop_transcorr"
 #endif
         integer(n_int) :: ilut(0:NIfTot), ilutJ(0:NIfTot)
-        integer :: n_bound, i, src, j, neigh, ex(2,2), pos, a
-        integer(n_int), allocatable :: temp_list(:,:)
+        integer :: n_bound, i, src, j, neigh, ex(2, 2), pos, a
+        integer(n_int), allocatable :: temp_list(:, :)
         integer, allocatable :: neighbors(:)
         real(dp) :: elem
 
@@ -359,7 +358,7 @@ contains
         n_excits = 1
 
         n_bound = nel * (nbasis - nel)
-        allocate(temp_list(0:NIfTot,n_bound))
+        allocate(temp_list(0:NIfTot, n_bound))
         temp_list = 0_n_int
         ex = 0
 
@@ -367,13 +366,13 @@ contains
         do i = 1, nel
             ! but now loop over all orbitals
             src = nI(i)
-            ex(1,1) = src
+            ex(1, 1) = src
 
             do a = 1, nbasis
 
                 ! only same-spin excitations possible
-                if (same_spin(src,a) .and. IsNotOcc(ilut,a)) then
-                    ex(2,1) = a
+                if (same_spin(src, a) .and. IsNotOcc(ilut, a)) then
+                    ex(2, 1) = a
                     elem = abs(get_helement_lattice(nI, 1, ex, .false.))
 
                     if (elem > EPS) then
@@ -383,12 +382,12 @@ contains
                         ! actually a search is not really necessary.. since
                         ! all the single excitations are unique.. but
                         ! just to be sure
-                        pos = binary_search(temp_list(:,1:n_excits), ilutJ, nifd+1)
+                        pos = binary_search(temp_list(:, 1:n_excits), ilutJ, nifd + 1)
 
                         if (pos < 0) then
 
-                            temp_list(:,n_excits) = ilutJ
-                            call sort(temp_list(:,1:n_excits),ilut_lt,ilut_gt)
+                            temp_list(:, n_excits) = ilutJ
+                            call sort(temp_list(:, 1:n_excits), ilut_lt, ilut_gt)
                             n_excits = n_excits + 1
                             ! damn.. i have to sort everytime i guess..
                         end if
@@ -398,7 +397,7 @@ contains
         end do
 
         n_excits = n_excits - 1
-        allocate(det_list(0:NIfTot,n_excits), source = temp_list(:,1:n_excits))
+        allocate(det_list(0:NIfTot, n_excits), source=temp_list(:, 1:n_excits))
 
         call sort(det_list, ilut_lt, ilut_gt)
 
@@ -407,14 +406,14 @@ contains
     subroutine gen_all_singles_rs_hub_default(nI, n_excits, det_list, sign_list)
         integer, intent(in) :: nI(nel)
         integer, intent(out) :: n_excits
-        integer(n_int), intent(out), allocatable :: det_list(:,:)
+        integer(n_int), intent(out), allocatable :: det_list(:, :)
         real(dp), intent(out), allocatable, optional :: sign_list(:)
 #ifdef DEBUG_
         character(*), parameter :: this_routine = "gen_all_singles_rs_hub_default"
 #endif
         integer(n_int) :: ilut(0:NIfTot), ilutJ(0:NIfTot)
-        integer :: n_bound, i, src, j, neigh, ex(2,2), pos, nJ(nel)
-        integer(n_int), allocatable :: temp_list(:,:)
+        integer :: n_bound, i, src, j, neigh, ex(2, 2), pos, nJ(nel)
+        integer(n_int), allocatable :: temp_list(:, :)
         integer, allocatable :: neighbors(:)
         real(dp) :: elem
         real(dp), allocatable :: temp_sign(:)
@@ -427,12 +426,12 @@ contains
         n_excits = 1
 
         n_bound = nel * (nbasis - nel)
-        allocate(temp_list(0:NIfTot,n_bound))
+        allocate(temp_list(0:NIfTot, n_bound))
         temp_list = 0_n_int
 
         if (present(sign_list)) then
             t_sign = .true.
-            allocate(temp_sign(n_bound), source = 0.0_dp)
+            allocate(temp_sign(n_bound), source=0.0_dp)
         else
             t_sign = .false.
         end if
@@ -442,7 +441,7 @@ contains
         do i = 1, nel
             src = nI(i)
 
-            ex(1,1) = src
+            ex(1, 1) = src
             neighbors = lat%get_spinorb_neighbors(src)
 
             ! and loop over the neighboring sites of this electron
@@ -450,17 +449,17 @@ contains
 
                 neigh = neighbors(j)
 
-                ex(2,1) = neigh
+                ex(2, 1) = neigh
 
-                ASSERT(same_spin(src,neigh))
+                ASSERT(same_spin(src, neigh))
 
                 ! if it is not occupied it should be a possible excitation
-                if (IsNotOcc(ilut,neighbors(j))) then
+                if (IsNotOcc(ilut, neighbors(j))) then
                     ! but to be sure, check the matrix element:
                     ! but use the lattice get_helement_lattice to
                     ! avoid circular dependencies
-                    call make_single(nI, nJ, i, neighbors(j),ex, tpar)
-                    elem = get_helement_lattice(nI,nJ)
+                    call make_single(nI, nJ, i, neighbors(j), ex, tpar)
+                    elem = get_helement_lattice(nI, nJ)
 
                     if (abs(elem) > EPS) then
 
@@ -469,17 +468,17 @@ contains
                         ! actually a search is not really necessary.. since
                         ! all the single excitations are unique.. but
                         ! just to be sure
-                        pos = binary_search(temp_list(:,1:n_excits), ilutJ, nifd+1)
+                        pos = binary_search(temp_list(:, 1:n_excits), ilutJ, nifd + 1)
 
                         if (pos < 0) then
 
-                            temp_list(:,n_excits) = ilutJ
+                            temp_list(:, n_excits) = ilutJ
 
                             if (t_sign) then
                                 temp_sign(n_excits) = sign(1.0_dp, elem)
-                                call sort(temp_list(:,1:n_excits),temp_sign(1:n_excits))
+                                call sort(temp_list(:, 1:n_excits), temp_sign(1:n_excits))
                             else
-                                call sort(temp_list(:,1:n_excits),ilut_lt,ilut_gt)
+                                call sort(temp_list(:, 1:n_excits), ilut_lt, ilut_gt)
                             end if
                             n_excits = n_excits + 1
                             ! damn.. i have to sort everytime i guess..
@@ -490,10 +489,10 @@ contains
         end do
 
         n_excits = n_excits - 1
-        allocate(det_list(0:NIfTot,n_excits), source = temp_list(:,1:n_excits))
+        allocate(det_list(0:NIfTot, n_excits), source=temp_list(:, 1:n_excits))
 
         if (t_sign) then
-            allocate(sign_list(n_excits), source = temp_sign(1:n_excits))
+            allocate(sign_list(n_excits), source=temp_sign(1:n_excits))
 
             call sort(det_list, sign_list)
         else
@@ -539,7 +538,7 @@ contains
         do i = 1, size(alpha_basis)
             do j = 1, size(beta_basis)
                 n_states = n_states + 1
-                all_dets(n_states) = general_product(alpha_basis(i),beta_basis(j),n_orbs)
+                all_dets(n_states) = general_product(alpha_basis(i), beta_basis(j), n_orbs)
             end do
         end do
 
@@ -550,38 +549,38 @@ contains
     end function create_all_dets
 
     subroutine create_hilbert_space_realspace(n_orbs, n_alpha, n_beta, &
-            n_states, state_list_ni, state_list_ilut)
+                                              n_states, state_list_ni, state_list_ilut)
         integer, intent(in) :: n_orbs, n_alpha, n_beta
         integer, intent(out) :: n_states
-        integer, intent(out), allocatable :: state_list_ni(:,:)
-        integer(n_int), intent(out), allocatable :: state_list_ilut(:,:)
+        integer, intent(out), allocatable :: state_list_ni(:, :)
+        integer(n_int), intent(out), allocatable :: state_list_ilut(:, :)
 
         integer(n_int), allocatable :: all_dets(:)
         integer(n_int) :: temp_ilut(0:niftot)
         integer :: nJ(nel), i
-        integer(n_int), allocatable :: temp_dets(:,:)
+        integer(n_int), allocatable :: temp_dets(:, :)
         integer :: save_states
 
         all_dets = create_all_dets(n_orbs, n_alpha, n_beta)
 
         n_states = size(all_dets)
 
-        allocate(state_list_ni(nel,n_states))
-        allocate(state_list_ilut(0:niftot,n_states))
+        allocate(state_list_ni(nel, n_states))
+        allocate(state_list_ilut(0:niftot, n_states))
 
         do i = 1, size(all_dets)
             temp_ilut = all_dets(i)
             call decode_bit_det(nJ, temp_ilut)
 
-            state_list_ni(:,i) = nJ
-            state_list_ilut(:,i) = temp_ilut
+            state_list_ni(:, i) = nJ
+            state_list_ilut(:, i) = temp_ilut
 
         end do
 
         if (tHPHF) then
             ! for hphfs we need to purify the hilbert space!
             save_states = n_states
-            allocate(temp_dets(0:NIfTot,n_states), source = state_list_ilut)
+            allocate(temp_dets(0:NIfTot, n_states), source=state_list_ilut)
 
             call spin_purify(save_states, temp_dets, n_states, state_list_ilut)
 
@@ -622,12 +621,12 @@ contains
         ! first create the spin-basis with more electrons:
         max_basis = create_one_spin_basis(n_orbs, n_max)
 
-        open_shells = combine_spin_basis(n_orbs, n_max, n_min, n_dets(1),  max_basis, .true.)
+        open_shells = combine_spin_basis(n_orbs, n_max, n_min, n_dets(1), max_basis, .true.)
 
     end function create_all_open_shell_dets
 
     function combine_spin_basis(n_orbs, n_first, n_second, n_total, first_basis, &
-            t_sort, n_doubles) result(spin_basis)
+                                t_sort, n_doubles) result(spin_basis)
         ! function to combine a already given spin-basis with the second one
         ! with the additional option to specify the number of doubly occupied
         ! determinants..
@@ -659,7 +658,7 @@ contains
         ! provided
         n_dets = calc_n_double(n_orbs, n_first, n_second)
         if (present(n_doubles)) then
-            ASSERT(n_dets(n_doubles+1) == n_total)
+            ASSERT(n_dets(n_doubles + 1) == n_total)
         else
             ! n_doubles = 0 is the default
             ASSERT(n_dets(1) == n_total)
@@ -685,9 +684,9 @@ contains
                 ! 0011 -> 00 00 01 01 eg.
                 do i = 1, n_total
                     ! do have it ordered -> first set the beta spins on the left
-                    spin_basis(i) = set_alpha_beta_spins(first_basis(i), n_orbs,.false.)
+                    spin_basis(i) = set_alpha_beta_spins(first_basis(i), n_orbs, .false.)
                     ! and combine it with the alpha spins..
-                    spin_basis(i) = ieor(spin_basis(i),set_alpha_beta_spins(not(first_basis(i)), n_orbs,.true.))
+                    spin_basis(i) = ieor(spin_basis(i), set_alpha_beta_spins(not(first_basis(i)), n_orbs, .true.))
                 end do
             else
                 ! we have to distribute the n_second remaining spins
@@ -704,7 +703,7 @@ contains
                 n = 1
                 do i = 1, size(first_basis)
                     do j = 1, size(second_basis)
-                        spin_basis(n) = open_shell_product(first_basis(i),second_basis(j),n_orbs)
+                        spin_basis(n) = open_shell_product(first_basis(i), second_basis(j), n_orbs)
                         n = n + 1
                     end do
                 end do
@@ -731,7 +730,6 @@ contains
         if (t_sort) then
             call sort(spin_basis)
         end if
-
 
     end function combine_spin_basis
 
@@ -768,7 +766,7 @@ contains
         basis = set_alpha_beta_spins(alpha, n_orbs, .false.)
 
         ! i need the zeros, but just in the n_orbs range
-        mask_zeros = iand(not(alpha), int(maskr(n_orbs),n_int))
+        mask_zeros = iand(not(alpha), int(maskr(n_orbs), n_int))
 
         allocate(nZeros(popcnt(mask_zeros)))
 
@@ -780,9 +778,9 @@ contains
 
         ! and i have to set all beta-spins indicated by nZeros(nOnes)
         ! so we need beta spin!
-        nZeros = 2*nZeros - 1
+        nZeros = 2 * nZeros - 1
         do i = 1, size(nOnes)
-            basis = ibset(basis, nZeros(nOnes(i))-1)
+            basis = ibset(basis, nZeros(nOnes(i)) - 1)
         end do
 
     end function open_shell_product
@@ -798,21 +796,21 @@ contains
         integer, allocatable :: nOnes(:)
         integer :: i
 
-        allocate(nOnes(popcnt(iand(beta_mask, int(maskr(n_orbs),n_int)))))
+        allocate(nOnes(popcnt(iand(beta_mask, int(maskr(n_orbs), n_int)))))
 
         call decode_bit_det(nOnes, [beta_mask])
 
         if (t_beta) then
             ! then we want to set beta spins:
-            nOnes = 2*nOnes - 1
+            nOnes = 2 * nOnes - 1
         else
             ! otherwise we want to set alpha spins
-            nOnes = 2*nOnes
+            nOnes = 2 * nOnes
         end if
 
         beta_spins = 0_n_int
         do i = 1, size(nOnes)
-            beta_spins = ibset(beta_spins, nOnes(i)-1)
+            beta_spins = ibset(beta_spins, nOnes(i) - 1)
         end do
 
     end function set_alpha_beta_spins
@@ -841,7 +839,7 @@ contains
         do i = 2, n_max_states
 
             ! copy last state:
-            one_spin_basis(i) = one_spin_basis(i-1)
+            one_spin_basis(i) = one_spin_basis(i - 1)
 
             ! find the right-most zero with atleast one 1 right of it
             right_zero = right_most_zero(one_spin_basis(i), n_orbs)
@@ -853,18 +851,18 @@ contains
             ! i need to count the number of 1 right of this zero
             ! so i want a mask where every bit right of right_zero is set
             ! to one
-            count_mask = maskr(right_zero-1)
-            n_set_zero = popcnt(iand(one_spin_basis(i),count_mask))
+            count_mask = maskr(right_zero - 1)
+            n_set_zero = popcnt(iand(one_spin_basis(i), count_mask))
 
             ! now i want to set the right_most zero to one
-            one_spin_basis(i) = ibset(one_spin_basis(i), right_zero-1)
+            one_spin_basis(i) = ibset(one_spin_basis(i), right_zero - 1)
 
             ! and everything to 0 right of it for now
             one_spin_basis(i) = iand(one_spin_basis(i), not(count_mask))
 
             ! and then we want to set n_set_zero bits to the very right of
             ! our bit-string
-            one_spin_basis(i) = merge_bits(one_spin_basis(i), maskr(n_set_zero-1,n_int), not(maskr(n_set_zero-1,n_int)))
+            one_spin_basis(i) = merge_bits(one_spin_basis(i), maskr(n_set_zero - 1, n_int), not(maskr(n_set_zero - 1, n_int)))
 
         end do
 
@@ -884,7 +882,7 @@ contains
 
         ! first truncate the integer to be save..
         ! set all the ones left of n_orbs to 0
-        j = iand(i, int(maskr(n_orbs),n_int))
+        j = iand(i, int(maskr(n_orbs), n_int))
 
         ! be sure to avoid the edge case:
         if (j == 0_n_int) then
@@ -955,15 +953,15 @@ contains
 
         n_first = choose(n_orbs, n_max)
 
-        allocate(n_double(n_min+1))
+        allocate(n_double(n_min + 1))
 
         do i = 0, n_min
-            n_double(i+1) = int(n_first * choose(n_max, i) * &
-                choose(n_orbs - n_max, n_min - i))
+            n_double(i + 1) = int(n_first * choose(n_max, i) * &
+                                  choose(n_orbs - n_max, n_min - i))
         end do
 
         ! make sure that the sum of basis states is the whole hilber space
-        ASSERT(real(sum(n_double),dp) .isclose. choose(n_orbs, n_alpha)*choose(n_orbs,n_beta))
+        ASSERT(sum(n_double) == choose(n_orbs, n_alpha) * choose(n_orbs, n_beta))
 
     end function calc_n_double
 
@@ -986,24 +984,24 @@ contains
         do while (cnt < max_trials)
             orbs(1) = 1 + int(genrand_real2_dsfmt() * nBasis)
 
-            if (IsOcc(ilutI,orbs(1))) cycle
+            if (IsOcc(ilutI, orbs(1))) cycle
 
             do
                 orbs(2) = 1 + int(genrand_real2_dsfmt() * nBasis)
 
-                if (IsOcc(ilutI,orbs(2))) cycle
+                if (IsOcc(ilutI, orbs(2))) cycle
 
                 if (orbs(1) /= orbs(2)) exit
 
             end do
 
-            if (.not. same_spin(orbs(1),orbs(2))) exit
+            if (.not. same_spin(orbs(1), orbs(2))) exit
 
         end do
 
-        orbs = [minval(orbs),maxval(orbs)]
+        orbs = [minval(orbs), maxval(orbs)]
 
-        p_orb = 1.0_dp / real((nBasis/2 - nOccAlpha)*(nBasis/2 - nOccBeta),dp)
+        p_orb = 1.0_dp / real((nBasis / 2 - nOccAlpha) * (nBasis / 2 - nOccBeta), dp)
 
     end subroutine pick_spin_opp_holes
 
@@ -1033,14 +1031,14 @@ contains
 
             do while (cnt < max_trials)
                 ! create a random spin-orbital of parallel spin
-                i = 2*(1 + int(genrand_real2_dsfmt() * nBasis/2)) - spin
+                i = 2 * (1 + int(genrand_real2_dsfmt() * nBasis / 2)) - spin
 
-                if (IsNotOcc(ilutI,i)) then
+                if (IsNotOcc(ilutI, i)) then
                     orb = i
                     if (spin == 0) then
-                        p_orb = 1.0_dp / real(nBasis/2 - nOccAlpha,dp)
+                        p_orb = 1.0_dp / real(nBasis / 2 - nOccAlpha, dp)
                     else if (spin == 1) then
-                        p_orb = 1.0_dp / real(nBasis/2 - nOccBeta,dp)
+                        p_orb = 1.0_dp / real(nBasis / 2 - nOccBeta, dp)
                     end if
                     return
                 end if
@@ -1072,7 +1070,7 @@ contains
         if (is_beta(spin_orb)) then
             if (IsOcc(ilut, spin_orb + 1)) opp_spin = 1.0_dp
         else
-            if (IsOcc(ilut, spin_orb -1 )) opp_spin = 1.0_dp
+            if (IsOcc(ilut, spin_orb - 1)) opp_spin = 1.0_dp
         end if
 
     end function get_opp_spin
@@ -1091,7 +1089,6 @@ contains
         ASSERT(associated(lat))
 
         spin_opp_neighbors = 0.0_dp
-
 
         ! get the spin-opposite neigbhors
         if (is_beta(spin_orb)) then
@@ -1117,7 +1114,6 @@ contains
         integer(n_int) :: tmp_ilut(0:niftot)
         integer :: i, j, k, l, spin, ind
 
-
         ! make this independent of the lattice mod, to call it as early
         ! as possible in the initialization
 
@@ -1138,7 +1134,7 @@ contains
         case ('chain')
             neel_state = create_neel_state_chain()
 
-        case ('square','rectangle','triangle','triangular','hexagonal','kagome')
+        case ('square', 'rectangle', 'triangle', 'triangular', 'hexagonal', 'kagome')
             ! check if length_x is mod 2
             if (mod(length_x, 2) == 0) then
 
@@ -1147,10 +1143,10 @@ contains
                 ! and flip the spins in every other column
                 do i = 1, length_y, 2
                     ! loop over every second column
-                    if (i*length_x >= nel) exit
+                    if (i * length_x >= nel) exit
                     do j = 1, length_x
                         ! whats the total index?
-                        ind = i*length_x + j
+                        ind = i * length_x + j
                         if (ind > nel) exit
 
                         ! flip the spins.. this should be way easier..
@@ -1172,13 +1168,13 @@ contains
             ! not yet implemented
             ASSERT(.false.)
 
-        case ('tilted','tilted-square','square-tilted')
+        case ('tilted', 'tilted-square', 'square-tilted')
             ! do is similar to the actual construction of the lattice
             ! but way nicer as this stuff below..
             k = 0
             l = 1
             spin = 1
-            do i = -length_x+1, 0
+            do i = -length_x + 1, 0
                 do j = -k, k
 
                     neel_state(l) = spin
@@ -1249,7 +1245,7 @@ contains
 
         integer :: i
 
-        neel_state = [(i, i = 1, 2*nel-1,2)]
+        neel_state = [(i, i=1, 2 * nel - 1, 2)]
         neel_state(2:nel:2) = neel_state(2:nel:2) + 1
 
     end function create_neel_state_chain
@@ -1258,10 +1254,10 @@ contains
 
         integer, intent(in) :: nI(nel)
         integer, intent(out) :: n_excits
-        integer(n_int), intent(out), allocatable :: det_list(:,:)
+        integer(n_int), intent(out), allocatable :: det_list(:, :)
         character(*), parameter :: this_routine = "gen_all_excits_k_space_hubbard"
 
-        integer(n_int), allocatable :: triple_dets(:,:), temp_dets(:,:)
+        integer(n_int), allocatable :: triple_dets(:, :), temp_dets(:, :)
         integer :: n_triples, save_excits
         real(dp), allocatable :: sign_list(:)
 
@@ -1274,15 +1270,15 @@ contains
 
             n_excits = n_excits + n_triples
 
-            allocate(temp_dets(0:niftot, save_excits), source = det_list(:,1:save_excits))
+            allocate(temp_dets(0:niftot, save_excits), source=det_list(:, 1:save_excits))
 
             deallocate(det_list)
 
-            allocate(det_list(0:niftot,n_excits))
+            allocate(det_list(0:niftot, n_excits))
 
-            det_list(:,1:save_excits) = temp_dets
+            det_list(:, 1:save_excits) = temp_dets
 
-            det_list(:,save_excits+1:n_excits) = triple_dets
+            det_list(:, save_excits + 1:n_excits) = triple_dets
 
         end if
 
@@ -1295,7 +1291,7 @@ contains
 
             if (allocated(temp_dets)) deallocate(temp_dets)
 
-            allocate(temp_dets(0:NIfTot, n_excits), source = det_list)
+            allocate(temp_dets(0:NIfTot, n_excits), source=det_list)
 
             call spin_purify(save_excits, temp_dets, n_excits, det_list)
 
@@ -1304,22 +1300,22 @@ contains
     end subroutine gen_all_excits_k_space_hubbard
 
     subroutine create_hilbert_space_kspace(n_alpha, n_beta, n_orbs, nI, &
-            n_states, state_list_ni, state_list_ilut)
+                                           n_states, state_list_ni, state_list_ilut)
         ! new functionality to create all states of the hilber space in the
         ! k-space hubbard model. reuse stuff from the real-space and apply
         ! the momentum conservation criteria!
         integer, intent(in) :: n_alpha, n_beta, n_orbs, nI(nel)
         integer, intent(out) :: n_states
-        integer, intent(out), allocatable :: state_list_ni(:,:)
-        integer(n_int), intent(out), allocatable :: state_list_ilut(:,:)
+        integer, intent(out), allocatable :: state_list_ni(:, :)
+        integer(n_int), intent(out), allocatable :: state_list_ilut(:, :)
 #ifdef DEBUG_
         character(*), parameter :: this_routine = "create_hilbert_space_kspace"
 #endif
 
-        integer(n_int), allocatable :: all_dets(:), temp_list_ilut(:,:)
+        integer(n_int), allocatable :: all_dets(:), temp_list_ilut(:, :)
         integer :: i, j, nJ(nel), n_allowed, k_vec_in(3), k_vec(3)
         type(Symmetry) :: sym_prod, sym_in
-        integer, allocatable :: temp_list_ni(:,:)
+        integer, allocatable :: temp_list_ni(:, :)
         integer(n_int) :: temp_ilut(0:niftot)
         integer :: save_states
 
@@ -1368,8 +1364,8 @@ contains
                 ! if the symmetry fits:
                 ASSERT(all(k_vec == k_vec_in))
                 n_allowed = n_allowed + 1
-                temp_list_ilut(:,n_allowed) = temp_ilut
-                temp_list_ni(:,n_allowed) = nJ
+                temp_list_ilut(:, n_allowed) = temp_ilut
+                temp_list_ni(:, n_allowed) = nJ
             else
                 ASSERT(.not. all(k_vec == k_vec_in))
             end if
@@ -1377,15 +1373,15 @@ contains
 
         n_states = n_allowed
 
-        allocate(state_list_ni(nel,n_allowed), source = temp_list_ni(:,1:n_allowed))
-        allocate(state_list_ilut(0:niftot,n_allowed), source = temp_list_ilut(:,1:n_allowed))
+        allocate(state_list_ni(nel, n_allowed), source=temp_list_ni(:, 1:n_allowed))
+        allocate(state_list_ilut(0:niftot, n_allowed), source=temp_list_ilut(:, 1:n_allowed))
 
         if (tHPHF) then
             ! for hphfs we need to purify the hilbert space!
             save_states = n_states
             if (allocated(temp_list_ilut)) deallocate(temp_list_ilut)
 
-            allocate(temp_list_ilut(0:NIfTot,n_states), source = state_list_ilut)
+            allocate(temp_list_ilut(0:NIfTot, n_states), source=state_list_ilut)
 
             call spin_purify(save_states, temp_list_ilut, n_states, state_list_ilut)
 
@@ -1418,9 +1414,9 @@ contains
         ! and setup a symmetry table and inverse symmetry list like in the
         ! sym mod
         kc_sym = SymTable(G1(src(1))%sym%s, SymTable(G1(src(2))%sym%s, G1(src(3))%sym%s)%s)
-        kc_sym = SymTable(kc_sym%s, SymConjTab(SymTable(G1(orb_a)%sym%s,G1(orb_b)%sym%s)%s))
+        kc_sym = SymTable(kc_sym%s, SymConjTab(SymTable(G1(orb_a)%sym%s, G1(orb_b)%sym%s)%s))
 
-        kc = lat%sym_to_k(kc_sym%s,:)
+        kc = lat%sym_to_k(kc_sym%s, :)
 
         !do it over the mult table now!!
 
@@ -1447,7 +1443,7 @@ contains
             spin_c = 2
 
         else
-            spin_ab = get_ispn([orb_a,orb_b])
+            spin_ab = get_ispn([orb_a, orb_b])
 
             ! we know we are not totally parallel so if:
             if (spin_ab == 1) then
@@ -1470,7 +1466,7 @@ contains
         if (t_k_space_hubbard) then
             orb_c = lat%get_orb_from_k_vec(kc, spin_c)
         else
-            orb_c = KPointToBasisFn(kc(1),kc(2),kc(3),spin_c)
+            orb_c = KPointToBasisFn(kc(1), kc(2), kc(3), spin_c)
         end if
 
     end function get_orb_from_kpoints_three
@@ -1502,7 +1498,7 @@ contains
                     elecs(3) = 1 + int(genrand_real2_dsfmt() * nel)
 
                     if (elecs(1) /= elecs(3) .and. elecs(2) /= elecs(3) .and. &
-                        .not. same_spin(nI(elecs(1)),nI(elecs(3)))) then
+                        .not. same_spin(nI(elecs(1)), nI(elecs(3)))) then
                         exit first
                     end if
                 end do
@@ -1541,12 +1537,12 @@ contains
         ASSERT(sum_ms == 1 .or. sum_ms == -1)
         if (sum_ms == 1) then
             ! then we have 2 alpha and 2 beta electrons
-            p_elec = 2.0_dp/real(nel*(nel-1),dp) * &
-                (1.0_dp/real(nOccBeta,dp) + 2.0_dp/real(nel-2,dp))
+            p_elec = 2.0_dp / real(nel * (nel - 1), dp) * &
+                     (1.0_dp / real(nOccBeta, dp) + 2.0_dp / real(nel - 2, dp))
         else if (sum_ms == -1) then
             ! then we have 2 beta electrons and 1 alpha
-            p_elec = 2.0_dp/real(nel*(nel-1),dp) * &
-                (1.0_dp/real(nOccAlpha,dp) + 2.0_dp/real(nel-2,dp))
+            p_elec = 2.0_dp / real(nel * (nel - 1), dp) * &
+                     (1.0_dp / real(nOccAlpha, dp) + 2.0_dp / real(nel - 2, dp))
         end if
 
         ! adjust the edge cases
@@ -1583,13 +1579,13 @@ contains
         ASSERT(ispn == 1 .or. ispn == 3)
 
         ! and always output an ordered form
-        elecs = [minval(elecs),maxval(elecs)]
+        elecs = [minval(elecs), maxval(elecs)]
 
         ! i have to rework the probability here..
         if (ispn == 1) then
-            p_elec = 1.0_dp / real(nOccBeta*(nOccBeta-1),dp)
+            p_elec = 1.0_dp / real(nOccBeta * (nOccBeta - 1), dp)
         else if (ispn == 3) then
-            p_elec = 1.0_dp / real(nOccAlpha*(nOccAlpha-1),dp)
+            p_elec = 1.0_dp / real(nOccAlpha * (nOccAlpha - 1), dp)
         end if
 
         ! in the special case of all spin-parallel:
@@ -1631,12 +1627,12 @@ contains
     subroutine gen_all_triples_k_space(nI, n_excits, det_list)
         integer, intent(in) :: nI(nel)
         integer, intent(out) :: n_excits
-        integer(n_int), intent(out), allocatable :: det_list(:,:)
+        integer(n_int), intent(out), allocatable :: det_list(:, :)
         character(*), parameter :: this_routine = "gen_all_triples_k_space"
 
-        integer :: i,j,k,a,b,c,spin,ind,src(3),ex(2,3),n_bound,pos
+        integer :: i, j, k, a, b, c, spin, ind, src(3), ex(2, 3), n_bound, pos
         integer(n_int) :: ilut(0:niftot), ilutJ(0:NIfTot)
-        integer(n_int), allocatable :: temp_list(:,:)
+        integer(n_int), allocatable :: temp_list(:, :)
         real(dp) :: elem
 
         ! write a routine to create all the triple excitations for the
@@ -1653,24 +1649,24 @@ contains
         ! this gets too high for big lattices..
 
         ! i think a more correct estimat is:
-        n_bound = int(nel*(nel-1)*(nel-2) * (nbasis - nel)*(nbasis - nel - 1)/8)
+        n_bound = int(nel * (nel - 1) * (nel - 2) * (nbasis - nel) * (nbasis - nel - 1) / 8)
 
-        allocate(temp_list(0:niftot,n_bound))
+        allocate(temp_list(0:niftot, n_bound))
         temp_list = 0_n_int
 
         do i = 1, nel - 2
             do j = i + 1, nel - 1
                 do k = j + 1, nel
                     ! assert that the they are not all spin-parallel:
-                    src = nI([i,j,k])
+                    src = nI([i, j, k])
                     spin = sum(get_spin_pn(src))
-                    ex(1,:) = src
+                    ex(1, :) = src
 
                     if (spin == -1 .or. spin == 1) then
                         do a = 1, nbasis - 1
-                            if (IsNotOcc(ilut,a)) then
+                            if (IsNotOcc(ilut, a)) then
                                 do b = a + 1, nbasis
-                                    if (IsNotOcc(ilut,b)) then
+                                    if (IsNotOcc(ilut, b)) then
 
                                         ! this gives me the correct spin already
                                         ! to have the same as the electrons!
@@ -1678,23 +1674,23 @@ contains
 
                                         ! i also have to check if no orbital is
                                         ! picked twice
-                                        if (IsNotOcc(ilut, c) .and. c/= a .and. c /=b) then
+                                        if (IsNotOcc(ilut, c) .and. c /= a .and. c /= b) then
                                             ! this should be a valid excitation or?
 
-                                            ex(2,:) = [a,b,c]
+                                            ex(2, :) = [a, b, c]
                                             ! should i check the matrix element too?
                                             ! and also be sure that the momentum fits
                                             elem = abs(get_helement_lattice(nI, 3, ex, .false.))
                                             if (elem > EPS) then
-                                                ilutJ = make_ilutJ(ilut, ex,3)
+                                                ilutJ = make_ilutJ(ilut, ex, 3)
 
                                                 ! and to be save, search if we have
                                                 ! this excitation already..
-                                                pos = binary_search(temp_list(:,1:n_excits), ilutJ, nifd+1)
+                                                pos = binary_search(temp_list(:, 1:n_excits), ilutJ, nifd + 1)
 
                                                 if (pos < 0) then
                                                     ! new excitation
-                                                    temp_list(:,n_excits) = ilutJ
+                                                    temp_list(:, n_excits) = ilutJ
                                                     n_excits = n_excits + 1
                                                 end if
                                             end if
@@ -1709,20 +1705,20 @@ contains
         end do
 
         n_excits = n_excits - 1
-        allocate(det_list(0:NIfTot,n_excits), source=temp_list(:,1:n_excits))
+        allocate(det_list(0:NIfTot, n_excits), source=temp_list(:, 1:n_excits))
 
     end subroutine gen_all_triples_k_space
 
     subroutine gen_all_doubles_k_space(nI, n_excits, det_list, sign_list)
         integer, intent(in) :: ni(nel)
         integer, intent(out) :: n_excits
-        integer(n_int), intent(out), allocatable :: det_list(:,:)
+        integer(n_int), intent(out), allocatable :: det_list(:, :)
         real(dp), intent(out), allocatable, optional :: sign_list(:)
         character(*), parameter :: this_routine = "gen_all_doubles_k_space"
 
         integer(n_int) :: ilutJ(0:niftot), ilut(0:niftot)
-        integer :: n_bound, i, j, a, b, src(2), ex(2,2), pos, n_par, n_opp, nj(nel)
-        integer(n_int), allocatable :: temp_list(:,:)
+        integer :: n_bound, i, j, a, b, src(2), ex(2, 2), pos, n_par, n_opp, nj(nel)
+        integer(n_int), allocatable :: temp_list(:, :)
         real(dp) :: elem
         logical :: t_sign, tpar
         real(dp), allocatable :: temp_sign(:)
@@ -1734,9 +1730,9 @@ contains
         n_excits = 1
 
         ! i think a more correct estimat is:
-        n_bound = max(int(nel*(nel-1)*(nBasis - nel)/4), 10)
+        n_bound = max(int(nel * (nel - 1) * (nBasis - nel) / 4), 10)
 
-        allocate(temp_list(0:niftot,n_bound))
+        allocate(temp_list(0:niftot, n_bound))
 
         n_par = 0
         n_opp = 0
@@ -1745,50 +1741,50 @@ contains
 
         if (present(sign_list)) then
             t_sign = .true.
-            allocate(temp_sign(n_bound), source = 0.0_dp)
+            allocate(temp_sign(n_bound), source=0.0_dp)
         else
             t_sign = .false.
         end if
 
-        do i = 1, nel -1
+        do i = 1, nel - 1
             do j = i + 1, nel
-                src = nI([i,j])
+                src = nI([i, j])
 
-                ex(1,:) = src
+                ex(1, :) = src
 
                 ! if we do not have transcorrelation cyclce for same spins
-                if (same_spin(src(1),src(2)) .and. .not. t_trans_corr_2body) cycle
+                if (same_spin(src(1), src(2)) .and. .not. t_trans_corr_2body) cycle
 
                 do a = 1, nbasis
-                    if (IsNotOcc(ilut,a)) then
-                        b = get_orb_from_kpoints(src(1),src(2), a)
+                    if (IsNotOcc(ilut, a)) then
+                        b = get_orb_from_kpoints(src(1), src(2), a)
 
-                        if (IsNotOcc(ilut,b) .and. a /= b) then
+                        if (IsNotOcc(ilut, b) .and. a /= b) then
 
                             ! do i need to sort ex?? try..
-                            ex(2,:) = [a,b]
+                            ex(2, :) = [a, b]
 
 !                             if (abs(get_offdiag_helement_k_sp_hub(nI, ex, .false.)) > EPS) then
                             ! use the get_helement_lattice to avoid circular
                             ! dependencies
-                            call make_double(nI,nJ,i,j,a,b,ex,tpar)
-                            elem = get_helement_lattice(nI,nJ)
+                            call make_double(nI, nJ, i, j, a, b, ex, tpar)
+                            elem = get_helement_lattice(nI, nJ)
                             !elem = get_helement_lattice(nI, 2, ex, .false.)
                             if (abs(elem) > EPS) then
 
                                 ilutJ = make_ilutJ(ilut, ex, 2)
 
-                                pos = binary_search(temp_list(:,1:n_excits), ilutJ,nifd+1)
+                                pos = binary_search(temp_list(:, 1:n_excits), ilutJ, nifd + 1)
 
                                 if (pos < 0) then
 
-                                    temp_list(:,n_excits) = ilutJ
+                                    temp_list(:, n_excits) = ilutJ
 
                                     if (t_sign) then
-                                         temp_sign(n_excits) = sign(1.0_dp, elem)
-                                        call sort(temp_list(:,1:n_excits),temp_sign(1:n_excits))
+                                        temp_sign(n_excits) = sign(1.0_dp, elem)
+                                        call sort(temp_list(:, 1:n_excits), temp_sign(1:n_excits))
                                     else
-                                        call sort(temp_list(:,1:n_excits),ilut_lt,ilut_gt)
+                                        call sort(temp_list(:, 1:n_excits), ilut_lt, ilut_gt)
                                     end if
 
                                     n_excits = n_excits + 1
@@ -1796,12 +1792,12 @@ contains
 
                                     ! to be sure also count seperately if it is
                                     ! a parallel or opposite excitation
-                                    if (same_spin(src(1),src(2))) then
-                                        ASSERT(same_spin(src(1),a))
-                                        ASSERT(same_spin(a,b))
+                                    if (same_spin(src(1), src(2))) then
+                                        ASSERT(same_spin(src(1), a))
+                                        ASSERT(same_spin(a, b))
                                         n_par = n_par + 1
                                     else
-                                        ASSERT(.not. same_spin(a,b))
+                                        ASSERT(.not. same_spin(a, b))
                                         n_opp = n_opp + 1
                                     end if
                                 end if
@@ -1813,10 +1809,10 @@ contains
         end do
 
         n_excits = n_excits - 1
-        allocate(det_list(0:NIfTot,n_excits), source = temp_list(:,1:n_excits))
+        allocate(det_list(0:NIfTot, n_excits), source=temp_list(:, 1:n_excits))
 
         if (t_sign) then
-            allocate(sign_list(n_excits), source = temp_sign(1:n_excits))
+            allocate(sign_list(n_excits), source=temp_sign(1:n_excits))
             call sort(det_list, sign_list)!, ilut_lt, ilut_gt)
         else
             call sort(det_list, ilut_lt, ilut_gt)
@@ -1833,7 +1829,6 @@ contains
 
         integer :: ki(3), kj(3), ka(3), kb(3), ispn, spnb
 
-
         ki = G1(orbi)%k
         kj = G1(orbj)%k
 
@@ -1841,24 +1836,24 @@ contains
         ka = G1(orba)%k
         kb = ki + kj - ka
 
-        ispn = get_ispn([orbi,orbj])
+        ispn = get_ispn([orbi, orbj])
 
         if (iSpn == 1) then
             spnb = 1
-        elseif (iSpn == 2) then
+        else if (iSpn == 2) then
             ! w.d: bug found by peter jeszenski and confirmed by
             ! simon!
             ! i do not think this is so much more efficient than an
             ! additional if-statement which is way more clear!
             ! messed up alpa and beta spin here..
 !             spnb = (-G1(orba)%Ms + 1)/2 + 1
-    !       spnb = (G1(orba)%Ms)/2 + 1
+            !       spnb = (G1(orba)%Ms)/2 + 1
             if (is_beta(orba)) then
                 spnb = 2
             else
                 spnb = 1
             end if
-        elseif(iSpn == 3) then
+        else if (iSpn == 3) then
             spnb = 2
         end if
 
@@ -1902,7 +1897,7 @@ contains
         ! accompaning ilut form.
         integer(n_int), intent(in) :: ilutI(0:niftot)
         integer, intent(in) :: ic
-        integer, intent(in) :: ex(2,ic)
+        integer, intent(in) :: ex(2, ic)
         integer(n_int) :: ilutJ(0:niftot)
 
 #ifdef DEBUG_
@@ -1915,10 +1910,10 @@ contains
         ASSERT(ic == 1 .or. ic == 2 .or. ic == 3)
         ! should this every be called with 0 orbitals.. i guess no..
         do i = 1, ic
-            ASSERT(ex(1,ic) > 0)
-            ASSERT(ex(2,ic) > 0)
-            ASSERT(ex(1,ic) <= nbasis)
-            ASSERT(ex(2,ic) <= nbasis)
+            ASSERT(ex(1, ic) > 0)
+            ASSERT(ex(2, ic) > 0)
+            ASSERT(ex(1, ic) <= nbasis)
+            ASSERT(ex(2, ic) <= nbasis)
         end do
 #endif
 
@@ -1978,8 +1973,8 @@ contains
         occ_neighbors = 0.0_dp
         do i = 1, size(neighbors)
             ! check both spinorbitals
-            if (IsOcc(ilut, 2*neighbors(i)))   occ_neighbors = occ_neighbors + 1.0_dp
-            if (IsOcc(ilut, 2*neighbors(i)-1)) occ_neighbors = occ_neighbors + 1.0_dp
+            if (IsOcc(ilut, 2 * neighbors(i))) occ_neighbors = occ_neighbors + 1.0_dp
+            if (IsOcc(ilut, 2 * neighbors(i) - 1)) occ_neighbors = occ_neighbors + 1.0_dp
         end do
 
     end function get_occ_neighbors
@@ -2005,13 +2000,12 @@ contains
         do i = 1, size(neighbors)
             ! what do we degine as up spin?? have to be sure here
             ! lets take alpha
-            if (IsOcc(ilut,2*neighbors(i)-1)) spin_dens_neighbors = spin_dens_neighbors - 1.0_dp
-            if (IsOcc(ilut,2*neighbors(i)))   spin_dens_neighbors = spin_dens_neighbors + 1.0_dp
+            if (IsOcc(ilut, 2 * neighbors(i) - 1)) spin_dens_neighbors = spin_dens_neighbors - 1.0_dp
+            if (IsOcc(ilut, 2 * neighbors(i))) spin_dens_neighbors = spin_dens_neighbors + 1.0_dp
         end do
 
         spin_dens_neighbors = spin_dens_neighbors / 2.0_dp
 
     end function get_spin_density_neighbors
-
 
 end module lattice_models_utils

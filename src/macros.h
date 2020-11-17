@@ -38,8 +38,8 @@
 ! could write that with already provided isOcc functions too, but would have to translate between spin and spatial orbs..
 
 ! Convert spatial orbital indices to spin orbital indices
-#define spatToSpinBeta(sOrb) 2*(sOrb-1)
-#define spatToSpinAlpha(sOrb) 2*sOrb
+#define spatToSpinBeta(sOrb) (2*(sOrb)-1)
+#define spatToSpinAlpha(sOrb) 2*(sOrb)
 ! Do the two orbitals have the same spin?
 #define same_spin(orb1, orb2) (mod(orb1,2) == mod(orb2,2))
 
@@ -91,14 +91,18 @@
 #define AT_ "at: " // __FILE__ // ":" // tostring(__LINE__)
 
 ! Useful for fixing things. Requires this_routine to be defined
+! It would be nice print __FILE__ and __LINE__ in the ASSERT macro,
+! especially it would be nice to print the failed condition with `#x`.
+! Unfortunately this is not possible (without substantial work).
+! https://stackoverflow.com/questions/31649691/stringify-macro-with-gnu-gfortran
 #ifdef DEBUG_
 #define ASSERT(x) \
 if (.not. (x)) then; \
- call pp_stop_all (this_routine, "Assert fail: " // tostring(x), __FILE__, __LINE__); \
+ call stop_all (this_routine, "Assert fail in "//__FILE__); \
 endif
 #define ASSERTROOT(x) \
 if ((iProcIndex.eq.Root).and.(.not. (x))) then; \
- call pp_stop_all (this_routine, "Assert fail: "// tostring(x), __FILE__, __LINE__); \
+ call stop_all (this_routine, "Assert fail in "//__FILE__); \
 endif
 ! Do some debugging if X>=Y
 #define IFDEBUG(PrintLevel,ThisLevel) if (PrintLevel>=ThisLevel)
@@ -106,6 +110,7 @@ endif
 #define IFDEBUGEQTHEN(PrintLevel,ThisLevel) if (PrintLevel==ThisLevel) then
 #define IFDEBUGTHEN(PrintLevel,ThisLevel) if (PrintLevel>=ThisLevel) then
 #define ENDIFDEBUG endif
+! Use ASSERT in otherwise pure procedures.
 #else
 #define ASSERT(x)
 #define ASSERTROOT(x)
@@ -264,8 +269,6 @@ endif
 ! Shortcut for optional variables
 #define def_default(Var_, Var, Val) if(present(Var))then;Var_=Var;else;Var_=Val;endif
 
-#endif
-
 #define check_abort_excit(pgen,x) if (near_zero(pgen)) then; x = 0_n_int; return; endif
 
 #ifdef DEBUG_
@@ -276,3 +279,8 @@ endif
 
 #define routine_name(name) character(*), parameter :: this_routine = name
 #define test_name(name) character(*), parameter :: test_name = name
+
+
+! This should be the last end if
+#endif
+

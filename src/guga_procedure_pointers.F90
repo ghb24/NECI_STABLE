@@ -54,7 +54,7 @@ module guga_procedure_pointers
         end subroutine calc_mixed_contr_t
 
         subroutine calc_mixed_start_contr_t(ilut, t, excitInfo, branch_pgen, pgen, &
-                integral, rdm_ind, rdm_mat)
+                                            integral, rdm_ind, rdm_mat)
             use constants, only: dp, n_int, int_rdm
             use bit_reps, only: nifguga
             use guga_data, only: ExcitationInformation_t
@@ -81,7 +81,7 @@ module guga_procedure_pointers
 
         ! for zero function:
         function general_weight_zero(negSwitches, posSwitches, bVal, dat) &
-                result(weight)
+            result(weight)
             use guga_data, only: WeightData_t
             use constants, only: dp
             implicit none
