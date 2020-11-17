@@ -34,6 +34,7 @@ contains
         integer(n_int), intent(in) :: ilut(0:IlutBits%len_tot)
         integer, intent(in) :: nI(nel)
         real(dp), intent(in) :: real_sgn(lenof_sign)
+        character(*), parameter :: this_routine = "measure_local_spin"
 
         real(dp) :: coeff, loc_spin
 
