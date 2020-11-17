@@ -67,6 +67,8 @@ MODULE PopsfileMod
     use real_time_data, only: t_real_time_fciqmc, phase_factors, t_kspace_operators, &
                               TotWalkers_orig
 
+    use guga_bitrepops, only: init_csf_information
+
     implicit none
 
     logical :: tRealPOPSfile

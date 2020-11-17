@@ -366,12 +366,6 @@ contains
 
     end function molcas_sign
 
-    ! function get_rdm_hash_entry()
-    !     ! make a function to easily extract the rdm element stored in the
-    !     ! hash table
-    !
-    ! end function get_rdm_hash_entry
-
     subroutine print_rdm_ind(rdm_ind, typ, t_newline)
         integer(int_rdm), intent(in) :: rdm_ind
         integer, intent(in) :: typ
@@ -632,38 +626,6 @@ contains
 
     end function generator_sign
 
-    ! maybe sometimes:
-    ! subroutine create_hf_rdm_connections_guga(connections, ref_det, run)
-    !     type(RdmContribList_t), allocatable, intent(out) :: connections(:)
-    !     integer, intent(in), optional :: ref_det(nel)
-    !     integer, intent(in), optional :: run
-    !     character(*), parameter :: this_routine = "create_hf_rdm_connections_guga"
-    !     integer(n_int) :: ilutG(0:GugaBits%len_tot)
-    !     integer :: nI(nel), ind, n_singles, n_doubles, n_tot
-    !     integer(n_int), pointer :: singles(:,:), doubles(:,:), total(:,:)
-    !
-    !     def_default(ind, run, 1)
-    !     def_default(nI, ref_det, projEDet(:,ind))
-    !
-    !     call EncodeBitDet_guga(nI, ilutG)
-    !     ! create singles
-    !     call calc_explicit_1_rdm_guga(ilutG, n_singles, singles)
-    !
-    !     ! create doubles
-    !     call calc_explicit_2_rdm_guga(ilutG, n_doubles, doubles)
-    !
-    !     ! allocate..
-    !     allocate(total(0:GugaBits%len_tot, n_singles + n_doubles), &
-    !         source = 0_n_int)
-    !
-    !     n_tot = 0
-    !     call add_guga_lists_rdm(n_tot, n_singles, total, singles)
-    !     call add_guga_lists_rdm(n_tot, n_doubles, total, doubles)
-    !
-    !     call sort(total(:,1:n_tot), ilut_lt, ilut_gt)
-    !
-    ! end subroutine create_hf_rdm_connections_guga
-
     subroutine Add_RDM_HFConnections_GUGA(spawn, one_rdms, ilutJ, av_sign_j, &
                                           av_sign_hf, excit_lvl, iter_rdm)
         type(rdm_spawn_t), intent(inout) :: spawn
@@ -681,8 +643,11 @@ contains
         ! there should be a clever way to do this..
         ! nah.. not for now.. otherwise i have to check everywhere also
         ! if i sampled this already.. for leave it at that and be done with
-        ! it!
-        if (excit_lvl == 1 .or. excit_lvl == 2) then
+
+
+        ! excit-lvl information is not really correct for GUGA..
+        ! so avoid using it..
+!         if (excit_lvl == 1 .or. excit_lvl == 2) then
             ! for HF -> nJ we do not have csf info intialized so use calc_type = 2
             call add_rdm_from_ij_pair_guga_exact(spawn, one_rdms, iLutHF_True, &
                                                  ilutJ, av_sign_hf(2::2), iter_rdm*av_sign_j(1::2), calc_type=2)
@@ -690,7 +655,7 @@ contains
             ! for nJ we have the csf info initialized (or maybe not..)
             call add_rdm_from_ij_pair_guga_exact(spawn, one_rdms, ilutJ, &
                                                  iLutHF_True, av_sign_j(2::2), iter_rdm*av_sign_hf(1::2), calc_type=2)
-        end if
+!         end if
 
     end subroutine Add_RDM_HFConnections_GUGA
 
@@ -715,8 +680,9 @@ contains
         real(dp) :: full_sign(spawn%rdm_send%sign_length)
 
         call calc_guga_matrix_element(ilutI, ilutJ, excitInfo, mat_ele, &
-                                      t_hamil=.false., calc_type=calc_type, rdm_ind=rdm_ind, &
-                                      rdm_mat=rdm_mat)
+                                      t_hamil=.false., calc_type=calc_type, &
+                                      rdm_ind=rdm_ind, rdm_mat=rdm_mat)
+
 
         ! i assume sign_i and sign_j are not 0 if we end up here..
         do n = 1, size(rdm_ind)
@@ -727,7 +693,8 @@ contains
                                                   rdm_mat(n), rdm_ind(n))
                     else
                         call fill_sings_2rdm_guga(spawn, ilutI, &
-                                                  ilutJ, sign_i, sign_j, rdm_mat(n), rdm_ind(n))
+                                                  ilutJ, sign_i, sign_j, &
+                                                  rdm_mat(n), rdm_ind(n))
                     end if
                 else if (excitInfo%excitLvl == 2 .and. RDMExcitLevel /= 1) then
                     call extract_2_rdm_ind(rdm_ind(n), p, q, r, s)
@@ -740,7 +707,6 @@ contains
                     ! give us information about the hermiticity error!
                     call add_to_rdm_spawn_t(spawn, p, q, r, s, &
                                             full_sign, .true.)
-
                     if (.not. &
                         (excitInfo%typ == excit_type%fullstart_stop_alike)) then
                         call add_to_rdm_spawn_t(spawn, r, s, p, q, &
@@ -2140,6 +2106,7 @@ contains
             if (step_i(iO) == 3 .or. ((occ_i(iO) .isclose.1.0_dp) .and. b_i(iO) == 0)) then
                 ! then it is easy:
                 ! just figure out correct indices
+
                 call add_to_rdm_spawn_t(spawn, i, iO, iO, a, &
                                         -occ_i(iO) / 2.0 * sign_i * sign_j * mat_ele, .true.)
                 call add_to_rdm_spawn_t(spawn, iO, a, i, iO, &

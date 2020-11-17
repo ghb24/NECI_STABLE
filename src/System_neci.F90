@@ -275,6 +275,8 @@ contains
         INTEGER I, Odd_EvenHPHF, Odd_EvenMI
         integer :: ras_size_1, ras_size_2, ras_size_3, ras_min_1, ras_max_3, itmp
         character(*), parameter :: t_r = 'SysReadInput'
+        character(*), parameter :: this_routine = 'SysReadInput'
+        integer :: temp_n_orbs
 
         ! The system block is specified with at least one keyword on the same
         ! line, giving the system type being used.
@@ -603,18 +605,10 @@ contains
                 end select
             case ("COULOMB")
                 call report("Coulomb feature removed", .true.)
-!            call getf(FCOUL)
+
             case ("COULOMB-DAMPING")
                 call report("Coulomb damping feature removed", .true.)
-!            call readu(w)
-!            select case(w)
-!            case("ENERGY")
-!               call getf(FCOULDAMPMU)
-!               call getf(FCOULDAMPBETA)
-!            case("ORBITAL")
-!               call geti(COULDAMPORB)
-!               call getf(FCOULDAMPBETA)
-!            end select
+
             case ("ENERGY-CUTOFF")
                 tOrbECutoff = .true.
                 call getf(OrbECutoff)
@@ -648,12 +642,6 @@ contains
                 call geti(NMAXY)
                 call geti(NMAXZ)
 
-                ! misuse the cell keyword to set this up to also have the
-                ! hubbard setup already provided..
-!             if (t_new_real_space_hubbard) then
-!                length_x = NMAXX
-!                length_y = NMAXY
-!            end if
 
             case ('SPIN-TRANSCORR')
                 ! make a spin-dependent transcorrelation factor
@@ -715,15 +703,8 @@ contains
                     case ("RAND-EXCITGEN")
                         tTrCorrRandExgen = .true.
 
-!              case default
-!                 t_ueg_3_body = .false.
-!                 tTrcorrExgen = .true.
-!                 tTrCorrRandExgen = .false.
-
                     end select
-!               write(6,*) tTrcorrExgen, tTrCorrRandExgen, t_ueg_3_body
                 end do
-!               call stop_all('debug stop')
 
             case ('UEG-DUMP')
                 t_ueg_dump = .true.
@@ -1004,27 +985,35 @@ contains
                     t_open_bc_y = .true.
                 end if
 
+
+            case ("BIPARTITE", "BIPARTITE-ORDER")
+                t_bipartite_order = .true.
+
+                if (item < nitems) then
+                    t_input_order = .true.
+                    call geti(temp_n_orbs)
+
+                    allocate(orbital_order(temp_n_orbs), source = 0)
+
+                    call read_line(eof)
+                    do i = 1, temp_n_orbs
+                        call geti(orbital_order(i))
+                    end do
+                end if
+
             case ("LATTICE")
                 ! new hubbard implementation
                 ! but maybe think of a better way to init that..
                 ! the input has to be like:
                 ! lattice [type] [len_1] [*len_2]
                 ! where length to is optional if it is necessary to input it.
-!             tHub = .false.
-!             treal = .false.
-!             lNoSymmetry = .true.
-                ! this treal is not true.. now we also have k-space hubbard lattice
                 ! support
-!             treal = .true.
-!             t_new_real_space_hubbard = .true.
 
                 ! set some defaults:
                 lattice_type = "read"
 
                 length_x = -1
                 length_y = -1
-
-!             tPBC = .false.
 
                 if (item < nitems) then
                     ! use only new hubbard flags in this case
@@ -1048,10 +1037,12 @@ contains
                                    .not. t_open_bc_x,.not. t_open_bc_y,.not. t_open_bc_z, 'k-space')
                 else if (t_new_real_space_hubbard) then
                     lat => lattice(lattice_type, length_x, length_y, length_z, &
-                                   .not. t_open_bc_x,.not. t_open_bc_y,.not. t_open_bc_z, 'real-space')
+                               .not. t_open_bc_x,.not. t_open_bc_y, &
+                                   .not. t_open_bc_z, 'real-space', t_bipartite_order = t_bipartite_order)
                 else
                     lat => lattice(lattice_type, length_x, length_y, length_z, &
-                                   .not. t_open_bc_x,.not. t_open_bc_y,.not. t_open_bc_z)
+                                   .not. t_open_bc_x,.not. t_open_bc_y,.not. t_open_bc_z, &
+                                   t_bipartite_order = t_bipartite_order)
 
                 end if
 

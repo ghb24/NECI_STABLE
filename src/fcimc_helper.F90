@@ -2388,9 +2388,9 @@ contains
         ! Null particle not kept if antiparticles aborted.
         ! When are the null particles removed?
 
-        end subroutine walker_death
+    end subroutine walker_death
 
-        subroutine check_start_rdm()
+    subroutine check_start_rdm()
 
             ! This routine checks if we should start filling the RDMs -
             ! and does so if we should.

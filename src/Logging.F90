@@ -5,7 +5,7 @@ MODULE Logging
     use constants, only: dp, int64, nreplicas
     use input_neci
     use MemoryManager, only: LogMemAlloc, LogMemDealloc, TagIntType
-    use SystemData, only: nel, LMS, nbasis
+    use SystemData, only: nel, LMS, nbasis, tGUGA
     use CalcData, only: tCheckHighestPop, semistoch_shift_iter, trial_shift_iter, &
                         tPairedReplicas, tReplicaEstimates, iSampleRDMIters, tMoveGlobalDetData
     use constants, only: n_int, size_n_int, bits_n_int
@@ -233,6 +233,7 @@ contains
         character(100) :: w
         character(100) :: PertFile(3)
         character(*), parameter :: t_r = 'LogReadInput'
+        character(*), parameter :: this_routine = 'LogReadInput'
 
         tUseOnlySingleReplicas = .false.
 
@@ -1241,6 +1242,13 @@ contains
                 ! print core info, like energy, and maybe also the gs vector
                 t_print_core_info = .true.
 
+            case ("PRINT-CORE-HAMIL")
+                t_print_core_info = .true.
+                t_print_core_hamil = .true.
+
+            case ("PRINT-CORE-VEC")
+                t_print_core_vec = .true.
+
             case ("WRITE-MOST-POP-CORE-END")
                 ! At the end of a calculation, find the write_end_core_size most
                 ! populated determinants and write them to a CORESPACE file.
@@ -1325,6 +1333,17 @@ contains
                 if (item < nitems) then
                     t_calc_double_occ_av = .false.
                     call geti(equi_iter_double_occ)
+                end if
+
+            case ("LOCAL-SPIN")
+                t_measure_local_spin = .true.
+                t_measure_local_spin_av = .true.
+
+                call geti(num_local_spin_orbs)
+
+                if (.not. tGUGA) then
+                    call stop_all(this_routine, &
+                        "Guga required for local spin measurement!")
                 end if
 
             case ("PRINT-SPIN-RESOLVED-RDMS")

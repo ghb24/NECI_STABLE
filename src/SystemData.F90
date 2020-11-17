@@ -422,9 +422,14 @@ logical :: t_impurity_excitgen = .false.
 
 
 ! test-flags for guga-pchb testing
-logical :: t_old_pchb = .false.
-logical :: t_exchange_pchb = .false.
-logical :: t_analyze_pchb = .false.
+    logical :: t_old_pchb = .false.
+    logical :: t_exchange_pchb = .false.
+    logical :: t_analyze_pchb = .false.
+
+
+    logical :: t_bipartite_order = .false.
+    logical :: t_input_order = .false.
+    integer, allocatable :: orbital_order(:)
 
 ! Operators for type(symmetry)
     interface assignment(=)

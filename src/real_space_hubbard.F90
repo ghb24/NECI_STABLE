@@ -24,7 +24,7 @@ module real_space_hubbard
                           tNoBrillouin, tUseBrillouin, &
                           t_trans_corr_hop, t_uniform_excits, t_hole_focus_excits, &
                           pholefocus, t_twisted_bc, twisted_bc, lnosymmetry, &
-                          t_anti_periodic
+                          t_anti_periodic, t_bipartite_order
 
     use lattice_mod, only: lattice, determine_optimal_time_step, lat, &
                            get_helement_lattice, get_helement_lattice_ex_mat, &
@@ -165,9 +165,8 @@ contains
             lat => lattice(lattice_type, length_x, length_y, length_z,.not. t_open_bc_x, &
                            .not. t_open_bc_y,.not. t_open_bc_z)
         else
-            ! otherwise i have to do it the other way around
             lat => lattice(lattice_type, length_x, length_y, length_z,.not. t_open_bc_x, &
-                           .not. t_open_bc_y,.not. t_open_bc_z)
+                       .not. t_open_bc_y,.not. t_open_bc_z, 'real-space', t_bipartite_order = t_bipartite_order)
 
             ! if nbaiss was not yet provided:
             if (nbasis <= 0) then
@@ -798,7 +797,7 @@ contains
         ! this also depends on the boundary conditions
         character(*), parameter :: this_routine = "init_tmat"
 
-        integer :: i, ind, iunit, r_i(3), r_j(3), diff(3), j
+        integer :: i, ind, iunit, r_i(3), r_j(3), diff(3), j, iunit2
         HElement_t(dp) :: mat_el
         complex(dp) :: imag
         real(dp) :: hop
@@ -815,6 +814,8 @@ contains
             if (t_print_tmat) then
                 iunit = get_free_unit()
                 open(iunit, file='TMAT')
+                iunit2 = get_free_unit()
+                open(iunit2, file = 'spatial-tmat', status = 'replace')
             end if
 
             if (t_twisted_bc) then
@@ -829,7 +830,7 @@ contains
 
                     r_i = lat%get_r_vec(i)
 
-                    associate(next => lat%get_neighbors(i))
+                    associate(next => lat%get_neighbors(ind))
 
                         do j = 1, size(next)
 
@@ -917,8 +918,9 @@ contains
                             tmat2d(2 * ind, 2 * next(j)) = mat_el
 
                             if (t_print_tmat) then
-                                write(iunit, *) 2 * i - 1, 2 * next(j) - 1, mat_el
-                                write(iunit, *) 2 * i, 2 * next(j), mat_el
+                                write(iunit, *) 2 * ind - 1, 2 * next(j) - 1, mat_el
+                                write(iunit, *) 2 * ind, 2 * next(j), mat_el
+                                write(iunit2,*) ind, next(j), mat_el
                             end if
 
                         end do
@@ -945,7 +947,7 @@ contains
 
                     r_i = lat%get_r_vec(i)
 
-                    associate(next => lat%get_neighbors(i))
+                    associate(next => lat%get_neighbors(ind))
 
                         do j = 1, size(next)
 
@@ -996,8 +998,9 @@ contains
                             tmat2d(2 * ind, 2 * next(j)) = mat_el
 
                             if (t_print_tmat) then
-                                write(iunit, *) 2 * i - 1, 2 * next(j) - 1, mat_el
-                                write(iunit, *) 2 * i, 2 * next(j), mat_el
+                                write(iunit, *) 2 * ind - 1, 2 * next(j) - 1, mat_el
+                                write(iunit, *) 2 * ind, 2 * next(j), mat_el
+                                write(iunit2,*) ind, next(j), mat_el
                             end if
 
                         end do
@@ -1020,7 +1023,8 @@ contains
 
                 do i = 1, lat%get_nsites()
                     ind = lat%get_site_index(i)
-                    associate(next => lat%get_neighbors(i))
+
+                    associate(next => lat%get_neighbors(ind))
                         ! beta orbitals:
                         tmat2d(2 * ind - 1, 2 * next - 1) = bhub
                         ! alpha:
@@ -1031,8 +1035,9 @@ contains
 
                         if (t_print_tmat) then
                             do j = 1, size(next)
-                                write(iunit, *) 2 * i - 1, 2 * next(j) - 1, bhub
-                                write(iunit, *) 2 * i, 2 * next(j), bhub
+                                write(iunit, *) 2 * ind - 1, 2 * next(j) - 1, bhub
+                                write(iunit, *) 2 * ind, 2 * next(j), bhub
+                                write(iunit2,*) ind, next(j), bhub
                             end do
                         end if
                     end associate
@@ -1048,7 +1053,10 @@ contains
             ! and the lattice is set up afterwards!
         end if
 
-        if (t_print_tmat) close(iunit)
+        if (t_print_tmat) then
+            close(iunit)
+            close(iunit2)
+        end if
 
     end subroutine init_tmat
 
@@ -1070,7 +1078,7 @@ contains
                 ASSERT(ind > 0)
                 ASSERT(ind <= nBasis / 2)
 
-                associate(next => lat%get_neighbors(i))
+                associate(next => lat%get_neighbors(ind))
 
                     ASSERT(all(next > 0))
                     ASSERT(all(next <= nBasis / 2))
