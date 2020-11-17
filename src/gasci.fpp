@@ -417,5 +417,4 @@ contains
             write(iunit, '(A)') '   Was this intended when preparing your input?'
         end if
     end subroutine
-
 end module gasci
