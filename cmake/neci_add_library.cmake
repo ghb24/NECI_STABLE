@@ -120,11 +120,16 @@ macro( neci_add_library )
         if (NOT EXISTS ${_fypp})
             message(WARNING "fypp preprocessor missing.")
             message(STATUS "Submodule update")
-            execute_process(COMMAND ${GIT_EXECUTABLE} submodule update --init --recursive
-                            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-                            RESULT_VARIABLE GIT_SUBMOD_RESULT)
-            if(NOT GIT_SUBMOD_RESULT EQUAL "0")
-                message(FATAL_ERROR "git submodule update --init failed with ${GIT_SUBMOD_RESULT}, please checkout submodules.")
+            find_package(Git QUIET)
+            if(GIT_FOUND)
+                execute_process(COMMAND ${GIT_EXECUTABLE} submodule update --init --recursive
+                                WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+                                RESULT_VARIABLE GIT_SUBMOD_RESULT)
+                if(NOT GIT_SUBMOD_RESULT EQUAL "0")
+                    message(FATAL_ERROR "git submodule update --init failed with ${GIT_SUBMOD_RESULT}, please checkout submodules.")
+                endif()
+            else()
+                message(FATAL_ERROR "Git not found")
             endif()
         endif()
         set( _fypp_dir ${CMAKE_BINARY_DIR}/fypp/${_p_TARGET} )
