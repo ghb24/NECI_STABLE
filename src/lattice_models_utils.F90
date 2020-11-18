@@ -588,6 +588,18 @@ contains
 
     end subroutine create_hilbert_space_realspace
 
+    function csf_purify(sd_hilbert_space, total_spin, n_orbs, n_el) result(csfs)
+        ! function to filter out all spin-allowed states from a
+        ! SD Hilbert space
+        integer(n_int), intent(in) :: sd_hilbert_space(:)
+        integer, intent(in) :: total_spin, n_orbs, n_el
+
+        integer(n_int), allocatable :: csfs(:)
+
+        !TODO
+
+    end function csf_purify
+
     function create_all_open_shell_dets(n_orbs, n_alpha, n_beta) result(open_shells)
         integer, intent(in) :: n_orbs, n_alpha, n_beta
         ! Alis idea for the use of the ADI option for the real-space hubbard

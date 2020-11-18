@@ -7,15 +7,19 @@ program test_tJ_model
     use fruit
     use lattice_mod, only: lat
     use constants, only: maxExcit
+    use lattice_models_utils, only : csf_purify
 
     implicit none
 
     integer :: failed_count
+    logical :: t_exact_study
 
+    t_exact_study = .true.
     t_tJ_model = .true.
     t_lattice_model = .true.
 
     call init_fruit()
+!     if (t_exact_study) call exact_study()
     call tJ_model_test_driver()
     call fruit_summary()
     call fruit_finalize()
@@ -47,7 +51,85 @@ contains
 
     end subroutine tJ_model_test_driver
 
+!     subroutine exact_study
+!
+!         t_input_perm = .true.
+!
+!         lattice_type = 'chain'
+!         length_x = 8
+!         length_y = 1
+!
+!         lat => lattice(lattice_type, length_x, length_y, 1, .true., .true.,.true.)
+!
+!         n_alpha = 4
+!         n_beta = 4
+!         nel = 8
+!         n_orbs = 8
+!
+!         heisenberg_sds = create_all_open_shell_dets(n_orbs, n_alpha, n_beta)
+!         heisenberg_csfs = csf_purify(heisenberg_sds, tot_spin, n_orbs, nel)
+!
+!         iunit = get_free_unit()
+!         open(iunit, file = 'permutations', status = 'read')
+!
+!         ! and then I need to loop over the permutations
+!         do i = 1, n_perms
+!             n_perms = factorial(n_orbs - 1)
+!
+!             read(iunit,*) orbital_order
+!
+!             lat => lattice(lattice_type, length_x, length_y, 1, .true., .true.,.true.)
+!
+!
+!             hamil = create_hamiltonian(heisenberg_csfs)
+!
+!             call eig(hamil, e_orig, e_vecs)
+!
+!             ! n_orbs - 1 because I do not consider cycles
+!
+!             allocate(hf_coeffs(n_perms), source = 0.0_dp)
+!             allocate(off_diag_sum(n_perms), source = 0.0_dp)
+!             allocate(abs_off_diag_sum(n_perms), source = 0.0_dp)
+!
+!             ! then I need to sort by the eigenvalues to get the GS
+!             ! and store the largest coeff. from the GS
+!             call store_gs_hf_coeff(e_orig, e_vecs, hf_coeffs(i), hf_ind)
+!
+!             ! then I could also look the other quantities.. sum of
+!             ! off-diagonal Hamiltonian entries?
+!             call store_off_diag_h_sum(hamil, off_diag_sum(i))
+!
+!             ! and maybe also store the sum of absolute values?
+!             call store_off_diag_h_sum(abs(hamil), abs_off_diag_sum(i))
+!
+!             ! and maybe also store the difference in number of negative and
+!             ! positive off-diagonal entries
+!             call store_n_diff_sign(hamil, n_diff_sign(i))
+!
+!             ! and also store 'just' the sum of negative and positive ones
+!             call store_pos_and_neg(hamil, sum_pos(i), sum_neg(i))
+!
+!             ! and store 'sign flux' to the reference!
+!             ! https://stackoverflow.com/questions/16436165/detecting-cycles-in-an-adjacency-matrix/16437341#16437341
+!             ! to get the coefficient of all n cycles which lead again to the
+!             ! starting state I need the diagonal entry of the reference of
+!             ! A ^ n
+!             ! count all 3-cycles as they are the "closest" and most
+!             ! important and also the sum of all cycles > 2 which go
+!             ! back to the original
+!             call store_cycles(hamil, hf_ind, 3, sum_3_cycle(i))
+!             call store_cycles(hamil, hf_ind, size(hamil,i), sum_n_cycles(i))
+!
+!
+!         end do
+!
+!         ! then print out everything, which also closes all files..
+!         call print_all_info()
+!
+!     end subroutine exact_study
+
     subroutine init_tJ_model_test
+
         use SystemData, only: lattice_type, length_x, length_y, nbasis, nel, nbasis
         use OneEInts, only: tmat2d
         use FciMCData, only: tsearchtau, tsearchtauoption, ilutref
