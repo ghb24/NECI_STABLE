@@ -830,6 +830,11 @@ the \texttt{endsys} keyword.
     \codeitem{\textcolor{oblue}{nmcyc $n$}}
     Set the maximum number of iterations the calculation is allowed to
     do. After $n$ iterations, the calculation will end.
+    \codeitem{eq-cyc $n$}
+    Set the number of iterations to perform after reaching variable shift
+    mode. $n$ Iterations after entering the variable shift mode, the
+    calculation will end. If both \code{eq-cyc} and \code{nmcyc} are given,
+    the calculation ends when either of the iteration limits is reached.
     \codeitem{seed $s$}
     Sets the seed of the random number generator to $s$. This can be used to
     specifically probe for stochastic effects, but is generally not required.

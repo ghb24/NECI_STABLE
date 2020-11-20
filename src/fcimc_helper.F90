@@ -44,7 +44,7 @@ module fcimc_helper
                            initsPerExLvl, tAccumPopsActive
 
     use CalcData, only: NEquilSteps, tFCIMC, tTruncCAS, &
-                        InitiatorWalkNo, t_core_inits, &
+                        InitiatorWalkNo, t_core_inits, eq_cyc, &
                         tTruncInitiator, tTruncNopen, trunc_nopen_max, &
                         tRealCoeffByExcitLevel, tGlobalInitFlag, tInitsRDM, &
                         tSemiStochastic, tTrialWavefunction, DiagSft, &
@@ -121,13 +121,18 @@ contains
         integer, intent(in) :: Iter, RDMSamplingIter
         logical :: ExitCriterion
 
-        ExitCriterion = .false.
         if ((Iter > NMCyc) .and. (NMCyc /= -1)) then
-            write(6, "(A)") "Total iteration number limit reached. Finishing FCIQMC loop..."
+            write(iout, "(A)") "Total iteration number limit reached. Finishing FCIQMC loop..."
             ExitCriterion = .true.
         else if ((RDMSamplingIter > iSampleRDMIters) .and. (iSampleRDMIters /= -1)) then
-            write(6, "(A)") "RDM Sampling iteration number limit reached. Finishing FCIQMC loop..."
+            write(iout, "(A)") "RDM Sampling iteration number limit reached. Finishing FCIQMC loop..."
             ExitCriterion = .true.
+        else if (Iter - maxval(VaryShiftIter) >= eq_cyc .and. eq_cyc > -1 &
+                 .and. all(.not. tSinglePartPhase)) then
+            write(iout, "(A)") "Equilibrated iteration number limit reached. Finishing FCIQMC loop..."
+            ExitCriterion = .true.
+        else
+            ExitCriterion = .false.
         end if
 
     end function TestMCExit

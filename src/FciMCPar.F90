@@ -27,7 +27,7 @@ module FciMCParMod
                         DiagSft, tDynamicTrial, trialSpaceUpdateCycle, semistochStartIter, &
                         tSkipRef, tTrialShift, tSpinProject, t_activate_decay, &
                         t_direct_guga_ref, t_trunc_guga_pgen_noninits, &
-                        tLogAverageSpawns, tActivateLAS, &
+                        tLogAverageSpawns, tActivateLAS, eq_cyc, &
                         t_guga_back_spawn, tEN2Init, tEN2Rigorous, tDeathBeforeComms, &
                         tDetermProjApproxHamil, tCoreAdaptiveShift, &
                         tScaleBlooms, max_allowed_spawn
@@ -177,8 +177,7 @@ contains
         LOGICAL :: TIncrement, tWritePopsFound, tSingBiasChange, tPrintWarn
         REAL(dp) :: s_start, s_end, tstart(2), tend(2), totaltime
         real(dp) :: TotalTime8
-        INTEGER(int64) :: MaxWalkers, MinWalkers
-        real(dp) :: AllTotWalkers, MeanWalkers, Inpair(2), Outpair(2)
+        real(dp) :: Inpair(2), Outpair(2)
         integer, dimension(lenof_sign) :: tmp_sgn
         integer :: tmp_int(lenof_sign), i, istart, iRDMSamplingIter
         real(dp) :: grow_rate, EnergyDiff, Norm_2RDM
@@ -984,16 +983,43 @@ contains
         end if
 
         ! Print out some load balancing stats nicely to end.
-        CALL MPIReduce(TotWalkers, MPI_MAX, MaxWalkers)
-        CALL MPIReduce(TotWalkers, MPI_MIN, MinWalkers)
-        CALL MPIAllReduce(Real(TotWalkers, dp), MPI_SUM, AllTotWalkers)
+        ! n.B. TotWalkers is the number of determinants. (Horrible naming indeed).
+        !       TotParts is the number of walkers.
+        if (iProcIndex == Root) write(iout, *) ! linebreak
         if (iProcIndex == Root) then
-            MeanWalkers = AllTotWalkers / nNodes
             write(iout, '(/,1X,a55)') 'Load balancing information based on the last iteration:'
-            write(iout, '(1X,a35,1X,f18.10)') 'Mean number of determinants/process:', MeanWalkers
-            write(iout, '(1X,a34,1X,i18)') 'Min number of determinants/process:', MinWalkers
-            write(iout, '(1X,a34,1X,i18,/)') 'Max number of determinants/process:', MaxWalkers
         end if
+        if (iProcIndex == Root) write(iout, *) ! linebreak
+        block
+            INTEGER(int64) :: MaxWalkers, MinWalkers
+
+            CALL MPIReduce(TotWalkers, MPI_MAX, MaxWalkers)
+            CALL MPIReduce(TotWalkers, MPI_MIN, MinWalkers)
+            CALL MPIAllReduce(TotWalkers, MPI_SUM, AllTotWalkers)
+            if (iProcIndex == Root) then
+                write(iout, '(1X,a35,1X,f18.10)') 'Mean number of determinants/process:', &
+                        real(AllTotWalkers, dp) / real(nNodes, dp)
+                write(iout, '(1X,a34,1X,i18)') 'Min number of determinants/process:', MinWalkers
+                write(iout, '(1X,a34,1X,i18,/)') 'Max number of determinants/process:', MaxWalkers
+            end if
+        end block
+        if (iProcIndex == Root) write(iout, *) ! linebreak
+        block
+            real(dp) :: total_n_walkers, min_n_walkers, max_n_walkers
+
+            CALL MPIReduce(sum(abs(TotParts)), MPI_MAX, max_n_walkers)
+            CALL MPIReduce(sum(abs(TotParts)), MPI_MIN, min_n_walkers)
+            CALL MPIReduce(sum(abs(TotParts)), MPI_SUM, total_n_walkers)
+            if (iProcIndex == Root) then
+                write(iout, '(/,1X,a55)') 'Load balancing information based on the last iteration:'
+                write(iout, '(1X,a35,1X,f18.10)') 'Mean number of walkers/process:', &
+                        total_n_walkers / real(nNodes, dp)
+                write(iout, '(1X,a34,1X,f18.5)') 'Min number of walkers/process:', min_n_walkers
+                write(iout, '(1X,a34,1X,f18.5,/)') 'Max number of walkers/process:', max_n_walkers
+            end if
+        end block
+        if (iProcIndex == Root) write(iout, *) ! linebreak
+
 
         ! Automatic error analysis.
         call error_analysis(tSinglePartPhase(1), iBlockingIter(1), mean_ProjE_re, ProjE_Err_re, &
@@ -1225,7 +1251,7 @@ contains
                 ! the last RDMEnergyIter iterations.
                 tFill_RDM = .true.
                 IterLastRDMFill = RDMEnergyIter
-            else if (Iter == NMCyc) then
+            else if(Iter == NMCyc .or. Iter - maxval(VaryShiftIter) == eq_cyc) then
                 ! Last iteration, calculate the diagonal element for the iterations
                 ! since the last time they were included.
                 tFill_RDM = .true.

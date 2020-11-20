@@ -1776,7 +1776,6 @@ contains
 
             case ("GAS-SPEC")
                 tGAS = .true.
-                tGASSpinRecoupling = .true.
 
                 block
                     integer :: nGAS, iGAS
