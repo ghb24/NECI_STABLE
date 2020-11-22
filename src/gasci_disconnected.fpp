@@ -75,7 +75,7 @@ contains
         !> GAS space for the i-th **spatial** orbital
         integer, intent(in) :: spat_GAS(:)
 
-        integer :: nOrbs, iOrb, iGAS
+        integer :: nOrbs, iOrb
 
         nOrbs = size(spat_GAS)
         nGAS = maxval(spat_GAS)
@@ -237,7 +237,7 @@ contains
 
         integer :: elecs(2), src(2), sym_product, ispn, sum_ml, tgt(2)
         integer :: srcGAS(2)
-        integer :: ms, nJBase(nel)
+        integer :: ms
         real(dp) :: r, pgen_pick1, pgen_pick2
         logical :: tExchange
         character(*), parameter :: this_routine = 'generate_nGAS_double'
@@ -587,9 +587,7 @@ contains
                     ! pgen_first_pick == [p(A), p(B)]
                     ! pgen_second_pick == [p(B | A), p(A | B)]
                     pgen_first_pick(2), pgen_second_pick(2)
-        real(dp) :: cSum(GAS_size(GAS_table(exc%val(1, 1))))
-        integer :: gasList(GAS_size(GAS_table(exc%val(1, 1)))), nOrbs
-        integer :: j, iGAS, nEmpty, iOrb
+        integer :: iGAS, nEmpty
         logical :: parallel_spin, tExchange
         integer :: src1, tgt1, src2, tgt2
 

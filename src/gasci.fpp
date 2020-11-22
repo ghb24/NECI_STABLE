@@ -207,8 +207,7 @@ contains
 
         allocate(splitted_orbitals(max_GAS_size, nGAS))
         block
-            integer :: counter(nGAS), all_orbs(n_spin_orbs)
-            integer :: splitted_sizes(nGAS)
+            integer :: all_orbs(n_spin_orbs), splitted_sizes(nGAS)
             all_orbs = [(i, i = 1, n_spin_orbs)]
             splitted_sizes = 0
             do iel = 1, size(all_orbs)
@@ -308,7 +307,6 @@ contains
 
         logical :: shapes_match, nEl_correct, pauli_principle, monotonic, &
             n_orbs_correct
-        integer :: iGAS, i
 
         associate(GAS_sizes => self%GAS_sizes, n_min => self%cn_min, &
                   n_max => self%cn_max, nGAS => self%nGAS())

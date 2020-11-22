@@ -140,7 +140,7 @@ contains
         integer, intent(in) :: supergroup(:)
 
         integer :: excited_supergroup(size(supergroup))
-        integer :: src_spaces(2), tgt_spaces(2), i
+        integer :: src_spaces(2), tgt_spaces(2)
 
         src_spaces = self%GASSpec%get_iGAS(exc%val(1, :))
         tgt_spaces = self%GASSpec%get_iGAS(exc%val(2, :))
@@ -196,7 +196,7 @@ contains
         procedure(calc_pgen_t), optional :: calc_pgen_single
 
         integer :: ab, a, b, abMax
-        integer :: aerr, nBI
+        integer :: nBI
         integer(int64) :: memCost
         integer :: samplerIndex
 
@@ -242,7 +242,7 @@ contains
     contains
 
         subroutine setup_pchb_sampler()
-            integer :: i, j, iSampler
+            integer :: i, j
             integer :: ij, ijMax
             integer :: ex(2, 2)
             real(dp), allocatable :: w(:)
@@ -360,8 +360,7 @@ contains
         real(dp) :: pGenHoles
         logical :: invalid
         integer :: spin(2), samplerIndex
-        integer(int64) :: i_sg
-        debug_function_name("generate_double")
+        integer :: i_sg
 
 
         ! first, pick two random elecs
@@ -487,8 +486,6 @@ contains
     !>  Deallocate the sampler and the mapping ab -> (a,b)
     subroutine finalize(this)
         class(GAS_PCHB_excit_gen_t), intent(inout) :: this
-        integer :: samplerIndex
-        integer(int64) :: i_sg
 
         call this%pchb_samplers%finalize()
         deallocate(this%tgtOrbs)

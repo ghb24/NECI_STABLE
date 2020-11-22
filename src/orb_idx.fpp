@@ -222,7 +222,6 @@ contains
 #:for type in OrbIdxTypes
     pure function lex_leq_${type}$ (lhs, rhs) result(res)
         type(${type}$), intent(in) :: lhs, rhs
-        integer :: i
         logical :: res
         character(*), parameter :: this_routine = 'lex_lt_${type}$'
 
@@ -232,7 +231,6 @@ contains
 
     pure function lex_geq_${type}$ (lhs, rhs) result(res)
         type(${type}$), intent(in) :: lhs, rhs
-        integer :: i
         logical :: res
         character(*), parameter :: this_routine = 'lex_gt_${type}$'
 

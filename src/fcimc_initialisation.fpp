@@ -1949,7 +1949,6 @@ contains
 
     subroutine init_fcimc_fn_pointers()
         character(*), parameter :: this_routine = "init_fcimc_fn_pointers"
-        character(*), parameter :: t_r = 'init_fcimc_fn_pointers'
 
         ! Select the excitation generator.
         if (tHPHF .and. .not. (t_mol_3_body .or. t_ueg_3_body)) then
@@ -1964,7 +1963,7 @@ contains
             else if (GAS_exc_gen == possible_GAS_exc_gen%GENERAL_PCHB) then
                 generate_excitation => gen_GASCI_general_pchb
             else
-                call stop_all(t_r, 'Invalid GAS excitation generator')
+                call stop_all(this_routine, 'Invalid GAS excitation generator')
             end if
         else if (t_3_body_excits .and. .not. (t_mol_3_body .or. t_ueg_3_body)) then
             if (t_uniform_excits) then
@@ -2002,7 +2001,7 @@ contains
             if (tReltvy) then
                 generate_excitation => gen_rand_excit_Ex_Mag
             else
-                call stop_all(t_r, "Excitation generator has not been set!")
+                call stop_all(this_routine, "Excitation generator has not been set!")
             end if
         else if (tGenHelWeighted) then
             generate_excitation => gen_excit_hel_weighted
@@ -2139,7 +2138,7 @@ contains
         case (3)
             scaleFunction => expCOScaleFunction
         case default
-            call stop_all(t_r, "Invalid scale function specified")
+            call stop_all(this_routine, "Invalid scale function specified")
         end select
 
         if (tExpAdaptiveShift) then
@@ -2919,9 +2918,6 @@ contains
         integer(int32) :: proc_highest
         integer(n_int) :: ilut(0:NIfTot)
         integer(int32) :: int_tmp(2)
-#ifdef DEBUG_
-        character(*), parameter :: this_routine = 'set_initial_run_references'
-#endif
 
         do run = 1, inum_runs
 
@@ -4463,7 +4459,6 @@ contains
 
         integer :: ierr
         character(*), parameter :: this_routine = 'init_cont_time'
-        character(*), parameter :: t_r = this_routine
 
         call clean_cont_time()
 
@@ -4493,8 +4488,7 @@ contains
         ! We initialize the flags for the adi feature
         use adi_data, only: tSetDelayAllDoubsInits, tDelayAllDoubsInits, &
                             tAllDoubsInitiators, tDelayGetRefs, &
-                            NoTypeN, tReadRefs, maxNRefs, SIUpdateOffset
-        use CalcData, only: InitiatorWalkNo
+                            tReadRefs, maxNRefs, SIUpdateOffset
         use adi_references, only: enable_adi, reallocate_ilutRefAdi, &
                                   reset_coherence_counter
         implicit none

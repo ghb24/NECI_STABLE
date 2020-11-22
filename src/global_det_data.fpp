@@ -1148,7 +1148,6 @@ contains
 
     subroutine write_max_ratio_as_int(ms_vals, pos)
         use hdf5, only: hsize_t
-        use FciMCData, only: CurrentDets, iLutHF
         use bit_rep_data, only: extract_sign
         use DetBitOps, only: FindBitExcitLevel
         ! Write the values of the maximum ratios Hij/pgen for all determinants to ms_vals

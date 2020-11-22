@@ -89,12 +89,11 @@ contains
             particles_per_GAS(GAS_spec%nGAS())
         integer, intent(in), optional :: add_holes(:), add_particles(:)
         integer, intent(in), optional :: n_total
-        character(*), parameter :: this_routine = 'get_possible_spaces'
         integer :: spaces(2)
 
         !> Lower and upper bound for spaces where a particle can be created.
         !> If no particle can be created, then spaces == 0 .
-        integer :: n_total_, i, iGAS, lower_bound, upper_bound
+        integer :: n_total_, iGAS, lower_bound, upper_bound
 
         integer :: &
         !> Cumulated number of particles per iGAS
@@ -216,7 +215,7 @@ contains
         end if
 
         block
-            integer :: i, k, iGAS, incr, curr_value, iGAS_min_val
+            integer :: i, iGAS, incr, curr_value, iGAS_min_val
             integer :: L(spaces(1) : spaces(2)), counter(spaces(1) : spaces(2))
             integer, allocatable :: possible_values(:)
             type(SpinProj_t) :: m_s
@@ -387,7 +386,7 @@ contains
         integer, allocatable :: possible_holes(:)
         integer :: deleted(2)
         ! Spin of second electron
-        type(SpinProj_t) :: m_s_1, m_s_2
+        type(SpinProj_t) :: m_s_1
         real(dp) :: pgen_particles, &
             ! These are arrays, because the pgen might be different if we
             ! pick AB or BA. Let i, j denote the particles and a, b the holes.
@@ -399,11 +398,9 @@ contains
             pgen_first_pick, pgen_second_pick(2)
         real(dp) :: r
         real(dp), allocatable :: c_sum(:)
-        integer :: i, elec
+        integer :: i
 
-        integer :: elecs(2), sym_product, ispn, sum_ml, tgt(2)
-        integer :: ms, nJBase(nel)
-        logical :: tExchange
+        integer :: elecs(2), sym_product, ispn, sum_ml
 
         call pick_biased_elecs(det_I, elecs, exc%val(1, :), &
                                sym_product, ispn, sum_ml, pgen_particles)
@@ -614,7 +611,6 @@ contains
         character(*), parameter :: this_routine = 'get_available_singles'
 
         integer, allocatable :: possible_holes(:)
-        integer, allocatable :: tmp_buffer(:, :)
         integer :: i, j, src1, tgt1
         type(SpinProj_t) :: m_s_1
         type(buffer_int_2D_t) :: buffer
@@ -714,7 +710,7 @@ contains
         integer(n_int), intent(out), allocatable :: det_list(:,:)
 
         integer, allocatable :: singles(:, :), doubles(:, :)
-        integer :: i, j, k
+        integer :: i, j
 
         singles = get_available_singles(GAS_specification, nI)
         doubles = get_available_doubles(GAS_specification, nI)
