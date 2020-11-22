@@ -2373,7 +2373,7 @@ contains
     end function isProperCSF_sys
 
     function calcB_vector_nI(nI) result(bVector)
-        ! function to calculate the bVector from a CSF given in nI
+        ! calculate the bVector from a CSF given in nI
         ! representation. Gives b vector also of length nEl.
         ! not yet quite sure if i should output b as integers or real
         integer, intent(in) :: nI(nEl)
@@ -2408,610 +2408,606 @@ contains
 
             iOrb = iOrb + inc
 
-            end do
-
-            end function calcB_vector_nI
-
-            function isDouble(nI, iOrb) result(flag)
-                ! returns a logical .true. if spinorbital iOrb is doubly occupied
-                ! and .false. elsewise.
-                integer, intent(in) :: nI(nEl), iOrb
-                logical :: flag
-
-                integer :: pair
-
-                flag = .false.
-                pair = ab_pair(nI(iOrb))
-
-                ! ask simon about the ordering in nI. If its not always ordered I
-                ! have to to a quicksearch for pair in nI. If its ordered I can
-                ! just check adjacent entries in nI
-
-                ! assume ordered for now!
-                if (iOrb == 1) then
-                    ! special conditions if iOrb is 1
-                    flag = (nI(2) == pair)
-                else if (iOrb == nEl) then
-                    flag = (nI(nEl - 1) == pair)
-                else
-                    flag = ((nI(iOrb - 1) == pair) .or. (nI(iOrb + 1) == pair))
-                end if
-
-            end function isDouble
-
-            function calcStepvector(ilut) result(stepVector)
-                ! function to calculate stepvector of length nReps, corresponding
-                ! to the ilut bit-representation, if each stepvalue is needed
-                ! often within a function.
-                ! there is probably a very efficient way of programming that!
-                !TODO ask simon for improvements.
-                integer(n_int), intent(in) :: ilut(0:GugaBits%len_orb)
-                integer :: stepVector(nSpatOrbs)
-                integer :: iOrb
-
-                do iOrb = 1, nSpatOrbs
-                    stepVector(iOrb) = getStepvalue(ilut, iOrb)
-                end do
-
-            end function calcStepvector
-
-            function calcOcc_vector_ilut(ilut) result(occVector)
-                ! probably more efficiently implemented by simon already...
-                ! but for now do it in this stupid way todo -> ask simon
-                integer(n_int), intent(in) :: ilut(0:GugaBits%len_orb)
-                real(dp) :: occVector(nSpatOrbs)
-
-                integer :: iOrb
-
-                do iOrb = 1, nSpatOrbs
-                    occVector(iOrb) = getSpatialOccupation(ilut, iOrb)
-                end do
-
-            end function calcOcc_vector_ilut
-
-            function calcOcc_vector_int(ilut) result(occVector)
-                ! function which gives the occupation vector in integer form
-                integer(n_int), intent(in) :: ilut(0:GugaBits%len_orb)
-                integer :: occVector(nSpatOrbs)
-
-                integer :: i
-
-                do i = 1, nSpatOrbs
-                    occVector(i) = int(getSpatialOccupation(ilut, i))
-                end do
+        end do
+
+    end function calcB_vector_nI
+
+    function isDouble(nI, iOrb) result(flag)
+        ! returns a logical .true. if spinorbital iOrb is doubly occupied
+        ! and .false. elsewise.
+        integer, intent(in) :: nI(nEl), iOrb
+        logical :: flag
+
+        integer :: pair
+
+        flag = .false.
+        pair = ab_pair(nI(iOrb))
+
+        ! ask simon about the ordering in nI. If its not always ordered I
+        ! have to to a quicksearch for pair in nI. If its ordered I can
+        ! just check adjacent entries in nI
+
+        ! assume ordered for now!
+        if (iOrb == 1) then
+            ! special conditions if iOrb is 1
+            flag = (nI(2) == pair)
+        else if (iOrb == nEl) then
+            flag = (nI(nEl - 1) == pair)
+        else
+            flag = ((nI(iOrb - 1) == pair) .or. (nI(iOrb + 1) == pair))
+        end if
+
+    end function isDouble
+
+    function calcStepvector(ilut) result(stepVector)
+        ! function to calculate stepvector of length nReps, corresponding
+        ! to the ilut bit-representation, if each stepvalue is needed
+        ! often within a function.
+        ! there is probably a very efficient way of programming that!
+        !TODO ask simon for improvements.
+        integer(n_int), intent(in) :: ilut(0:GugaBits%len_orb)
+        integer :: stepVector(nSpatOrbs)
+        integer :: iOrb
+
+        do iOrb = 1, nSpatOrbs
+            stepVector(iOrb) = getStepvalue(ilut, iOrb)
+        end do
+
+    end function calcStepvector
+
+    function calcOcc_vector_ilut(ilut) result(occVector)
+        ! probably more efficiently implemented by simon already...
+        ! but for now do it in this stupid way todo -> ask simon
+        integer(n_int), intent(in) :: ilut(0:GugaBits%len_orb)
+        real(dp) :: occVector(nSpatOrbs)
+
+        integer :: iOrb
+
+        do iOrb = 1, nSpatOrbs
+            occVector(iOrb) = getSpatialOccupation(ilut, iOrb)
+        end do
+
+    end function calcOcc_vector_ilut
+
+    function calcOcc_vector_int(ilut) result(occVector)
+        ! function which gives the occupation vector in integer form
+        integer(n_int), intent(in) :: ilut(0:GugaBits%len_orb)
+        integer :: occVector(nSpatOrbs)
+
+        integer :: i
+
+        do i = 1, nSpatOrbs
+            occVector(i) = int(getSpatialOccupation(ilut, i))
+        end do
+
+    end function calcOcc_vector_int
+
+    function calcB_vector_ilut(ilut) result(bVector)
+        ! function to calculate bVector of length (nBasis) for a given
+        ! CSF bitRep ilut of length (2*nBasis), save this b-vector
+        ! in the nI array, normally used to store occupied orbitals
+        ! update: changed convention to not use nI for bVector but also for
+        ! occupied orbitals as in normal NECI implementation
+        ! but nethertheless need a b-vector of lenght of spatial orbitals
+        ! for excitaiton and matrix element calculation
+        ! UPDATE: change b vector calculation to update b vector directly on
+        ! the spot of the corresponding stepvector, eg:
+        ! d = 0 1 2 3
+        ! b = 0 1 0 0
+        ! because otherwise i actually only needed the bvector of one orbital
+        ! ahead. and never the first entry otherwise. and that would cause
+        ! problems when accessing b vector at the end of an excitaiton if
+        ! that is the last orbital..
+        integer(n_int), intent(in) :: ilut(0:GugaBits%len_orb)
+        real(dp) :: bVector(nSpatOrbs)        ! b-vector stored in bVector
+        integer :: i
+        real(dp) :: bValue
 
-            end function calcOcc_vector_int
-
-            function calcB_vector_ilut(ilut) result(bVector)
-                ! function to calculate bVector of length (nBasis) for a given
-                ! CSF bitRep ilut of length (2*nBasis), save this b-vector
-                ! in the nI array, normally used to store occupied orbitals
-                ! update: changed convention to not use nI for bVector but also for
-                ! occupied orbitals as in normal NECI implementation
-                ! but nethertheless need a b-vector of lenght of spatial orbitals
-                ! for excitaiton and matrix element calculation
-                ! UPDATE: change b vector calculation to update b vector directly on
-                ! the spot of the corresponding stepvector, eg:
-                ! d = 0 1 2 3
-                ! b = 0 1 0 0
-                ! because otherwise i actually only needed the bvector of one orbital
-                ! ahead. and never the first entry otherwise. and that would cause
-                ! problems when accessing b vector at the end of an excitaiton if
-                ! that is the last orbital..
-                integer(n_int), intent(in) :: ilut(0:GugaBits%len_orb)
-                real(dp) :: bVector(nSpatOrbs)        ! b-vector stored in bVector
-                integer :: i
-                real(dp) :: bValue
+        ! loop over CSF entries and increment, decrement bValue
+        ! accordingly, have to correctly access ilut entries and
+        ! check if they are 0,1,2 or 3... -> how to for multiple
+        ! integers?
+        bVector = 0.0_dp
+        bValue = 0.0_dp
 
-                ! loop over CSF entries and increment, decrement bValue
-                ! accordingly, have to correctly access ilut entries and
-                ! check if they are 0,1,2 or 3... -> how to for multiple
-                ! integers?
-                bVector = 0.0_dp
-                bValue = 0.0_dp
+        do i = 1, nSpatOrbs
 
-                do i = 1, nSpatOrbs
+            if (isOne(ilut, i)) then
+                bValue = bValue + 1.0_dp
+            else if (isTwo(ilut, i)) then
+                bValue = bValue - 1.0_dp
+            end if
+            ! define bvalue to always only get updated for the next
+            ! UPDATE: changed definition to update on the spot.
+            bVector(i) = bValue
+        end do
 
-                    if (isOne(ilut, i)) then
-                        bValue = bValue + 1.0_dp
-                    else if (isTwo(ilut, i)) then
-                        bValue = bValue - 1.0_dp
-                    end if
-                    ! define bvalue to always only get updated for the next
-                    ! UPDATE: changed definition to update on the spot.
-                    bVector(i) = bValue
-                end do
+    end function calcB_vector_ilut
 
-            end function calcB_vector_ilut
+    function calcB_vector_int(ilut) result(bVector)
+        ! function to calculate the bvector in integer form
+        integer(n_int), intent(in) :: ilut(0:GugaBits%len_orb)
+        integer :: bVector(nSpatOrbs)
 
-            function calcB_vector_int(ilut) result(bVector)
-                ! function to calculate the bvector in integer form
-                integer(n_int), intent(in) :: ilut(0:GugaBits%len_orb)
-                integer :: bVector(nSpatOrbs)
+        integer :: i, bValue
 
-                integer :: i, bValue
+        bVector = 0
+        bValue = 0
 
-                bVector = 0
-                bValue = 0
+        do i = 1, nSpatOrbs
 
-                do i = 1, nSpatOrbs
+            if (isOne(ilut, i)) then
+                bValue = bValue + 1
 
-                    if (isOne(ilut, i)) then
-                        bValue = bValue + 1
+            else if (isTwo(ilut, i)) then
+                bValue = bValue - 1
 
-                    else if (isTwo(ilut, i)) then
-                        bValue = bValue - 1
+            end if
 
-                    end if
+            bVector(i) = bValue
 
-                    bVector(i) = bValue
+        end do
 
-                end do
+    end function calcB_vector_int
 
-            end function calcB_vector_int
+    pure subroutine EncodeBitDet_guga(nI, ilut)
+        ! special function to encode bit dets for the use in the guga
+        ! excitation generation
+        integer, intent(in) :: nI(nEl)
+        integer(n_int), intent(out) :: ilut(0:GugaBits%len_tot)
 
-            pure subroutine EncodeBitDet_guga(nI, ilut)
-                ! special function to encode bit dets for the use in the guga
-                ! excitation generation
-                integer, intent(in) :: nI(nEl)
-                integer(n_int), intent(out) :: ilut(0:GugaBits%len_tot)
+        integer :: i, pos
 
-                integer :: i, pos
+        ilut = 0_n_int
 
-                ilut = 0_n_int
+        do i = 1, nEl
+            pos = (nI(i) - 1) / bits_n_int
+            ilut(pos) = ibset(ilut(pos), mod(nI(i) - 1, bits_n_int))
+        end do
 
-                do i = 1, nEl
-                    pos = (nI(i) - 1) / bits_n_int
-                    ilut(pos) = ibset(ilut(pos), mod(nI(i) - 1, bits_n_int))
-                end do
+    end subroutine EncodeBitDet_guga
 
-            end subroutine EncodeBitDet_guga
+    function getSpatialOccupation(iLut, s) result(nOcc)
+        integer(n_int), intent(in) :: ilut(0:GugaBits%len_orb)
+        integer, intent(in) :: s
+        real(dp) :: nOcc
 
-            function getSpatialOccupation(iLut, s) result(nOcc)
+        if (isZero(ilut, s)) then
+            nOcc = 0.0_dp
 
-                integer(n_int), intent(in) :: ilut(0:GugaBits%len_orb)
-                integer, intent(in) :: s
-                real(dp) :: nOcc
+        else if (isThree(ilut, s)) then
+            nOcc = 2.0_dp
 
-                if (isZero(ilut, s)) then
-                    nOcc = 0.0_dp
+        else
+            nOcc = 1.0_dp
+        end if
 
-                else if (isThree(ilut, s)) then
-                    nOcc = 2.0_dp
+    end function getSpatialOccupation
 
-                else
-                    nOcc = 1.0_dp
-                end if
+    function convert_guga_to_ni(csf, siz) result(nI)
+        ! function to make it easier for me to input a csf in my used notation
+        ! to a nI NECI array..
+        integer, intent(in) :: siz
+        integer, intent(in) :: csf(siz)
+        integer :: nI(nel)
 
-            end function getSpatialOccupation
+        integer :: i, cnt_orbs, cnt_ind
 
-            function convert_guga_to_ni(csf, siz) result(nI)
-                ! function to make it easier for me to input a csf in my used notation
-                ! to a nI NECI array..
-                integer, intent(in) :: siz
-                integer, intent(in) :: csf(siz)
-                integer :: nI(nel)
+        cnt_orbs = 0
+        cnt_ind = 0
 
-                integer :: i, cnt_orbs, cnt_ind
+        do i = 1, siz
 
-                cnt_orbs = 0
-                cnt_ind = 0
+            select case (csf(i))
 
-                do i = 1, siz
+            case (0)
+                ! nothing to do actually except update the
 
-                    select case (csf(i))
+            case (1)
+                ! beta orbital
+                cnt_ind = cnt_ind + 1
 
-                    case (0)
-                        ! nothing to do actually except update the
+                nI(cnt_ind) = cnt_orbs + 1
 
-                    case (1)
-                        ! beta orbital
-                        cnt_ind = cnt_ind + 1
+            case (2)
+                ! alpha orbs
 
-                        nI(cnt_ind) = cnt_orbs + 1
+                cnt_ind = cnt_ind + 1
 
-                    case (2)
-                        ! alpha orbs
+                nI(cnt_ind) = cnt_orbs + 2
 
-                        cnt_ind = cnt_ind + 1
+            case (3)
+                ! doubly occupied
+                cnt_ind = cnt_ind + 1
+                nI(cnt_ind) = cnt_orbs + 1
+                cnt_ind = cnt_ind + 1
+                nI(cnt_ind) = cnt_orbs + 2
+            end select
 
-                        nI(cnt_ind) = cnt_orbs + 2
+            ! update orbitals for every csf entry
+            cnt_orbs = cnt_orbs + 2
 
-                    case (3)
-                        ! doubly occupied
-                        cnt_ind = cnt_ind + 1
-                        nI(cnt_ind) = cnt_orbs + 1
-                        cnt_ind = cnt_ind + 1
-                        nI(cnt_ind) = cnt_orbs + 2
+        end do
 
-                    end select
+    end function convert_guga_to_ni
 
-                    ! update orbitals for every csf entry
-                    cnt_orbs = cnt_orbs + 2
+    subroutine calc_csf_info(ilut, step_vector, b_vector, occ_vector)
+        ! routine to calculate the csf information for specific outputted
+        ! information
+        integer(n_int), intent(in) :: ilut(0:niftot)
+        integer, intent(out) :: step_vector(nSpatOrbs), b_vector(nSpatOrbs)
+        real(dp), intent(out) :: occ_vector(nSpatOrbs)
 
-                end do
+        integer :: b_int, i, step
+        ! copy the stuff from below.. when do i want to allocate the objects?
+        ! hm..
+        step_vector = 0
+        b_vector = 0
+        occ_vector = 0.0_dp
 
-            end function convert_guga_to_ni
+        b_int = 0
 
-            subroutine calc_csf_info(ilut, step_vector, b_vector, occ_vector)
-                ! routine to calculate the csf information for specific outputted
-                ! information
-                integer(n_int), intent(in) :: ilut(0:niftot)
-                integer, intent(out) :: step_vector(nSpatOrbs), b_vector(nSpatOrbs)
-                real(dp), intent(out) :: occ_vector(nSpatOrbs)
+        do i = 1, nSpatOrbs
 
-                integer :: b_int, i, step
-                ! copy the stuff from below.. when do i want to allocate the objects?
-                ! hm..
-                step_vector = 0
-                b_vector = 0
-                occ_vector = 0.0_dp
+            step = getStepvalue(ilut, i)
 
-                b_int = 0
+            step_vector(i) = step
 
-                do i = 1, nSpatOrbs
+            select case (step)
 
-                    step = getStepvalue(ilut, i)
+            case (1)
 
-                    step_vector(i) = step
+                occ_vector(i) = 1.0_dp
 
-                    select case (step)
+                b_int = b_int + 1
 
-                    case (1)
+            case (2)
 
-                        occ_vector(i) = 1.0_dp
+                occ_vector(i) = 1.0_dp
 
-                        b_int = b_int + 1
+                b_int = b_int - 1
 
-                    case (2)
+            case (3)
 
-                        occ_vector(i) = 1.0_dp
+                occ_vector(i) = 2.0_dp
 
-                        b_int = b_int - 1
+            end select
 
-                    case (3)
+            b_vector(i) = b_int
 
-                        occ_vector(i) = 2.0_dp
+        end do
 
-                    end select
+    end subroutine calc_csf_info
 
-                    b_vector(i) = b_int
+    subroutine init_csf_information(ilut)
+        ! routine which sets up all the additional csf information, like
+        ! stepvector, b vector, occupation etc. in various formats in one
+        ! place
+        ! and combine all the necessary calcs. into one loop instead of
+        ! the seperate ones..
+        integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
+        character(*), parameter :: this_routine = "init_csf_information"
 
-                end do
+        integer :: i, step, b_int
+        real(dp) :: b_real, cum_sum
 
-            end subroutine calc_csf_info
+        ASSERT(isProperCSF_ilut(ilut))
+        ASSERT(allocated(current_stepvector))
+        ASSERT(allocated(currentB_ilut))
+        ASSERT(allocated(currentOcc_ilut))
+        ASSERT(allocated(currentB_int))
+        ASSERT(allocated(currentOcc_int))
 
-            subroutine init_csf_information(ilut)
-                ! routine which sets up all the additional csf information, like
-                ! stepvector, b vector, occupation etc. in various formats in one
-                ! place
-                ! and combine all the necessary calcs. into one loop instead of
-                ! the seperate ones..
-                integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
-                character(*), parameter :: this_routine = "init_csf_information"
+        ! remove allocs and deallocs, since the size of these quantities
+        ! never change.. do the allocation in guga_init
+        ! and maybe think about other improvements of this code...
+        ! what would be a neat way to calc all those quantities faster??
 
-                integer :: i, step, b_int
-                real(dp) :: b_real, cum_sum
+        current_stepvector = 0
+        currentB_ilut = 0.0_dp
+        currentOcc_ilut = 0.0_dp
+        currentB_int = 0
+        currentOcc_int = 0
 
-                ASSERT(isProperCSF_ilut(ilut))
-                ASSERT(allocated(current_stepvector))
-                ASSERT(allocated(currentB_ilut))
-                ASSERT(allocated(currentOcc_ilut))
-                ASSERT(allocated(currentB_int))
-                ASSERT(allocated(currentOcc_int))
+        b_real = 0.0_dp
+        b_int = 0
 
-                ! remove allocs and deallocs, since the size of these quantities
-                ! never change.. do the allocation in guga_init
-                ! and maybe think about other improvements of this code...
-                ! what would be a neat way to calc all those quantities faster??
+        ! also create a fake cum-list of the non-doubly occupied orbitals
+        current_cum_list = 0.0_dp
+        cum_sum = 0.0_dp
 
-                current_stepvector = 0
-                currentB_ilut = 0.0_dp
-                currentOcc_ilut = 0.0_dp
-                currentB_int = 0
-                currentOcc_int = 0
+        do i = 1, nSpatOrbs
 
-                b_real = 0.0_dp
-                b_int = 0
+            step = getStepvalue(ilut, i)
 
-                ! also create a fake cum-list of the non-doubly occupied orbitals
-                current_cum_list = 0.0_dp
-                cum_sum = 0.0_dp
+            current_stepvector(i) = step
 
-                do i = 1, nSpatOrbs
+            select case (step)
 
-                    step = getStepvalue(ilut, i)
+            case (0)
 
-                    current_stepvector(i) = step
+                currentOcc_ilut(i) = 0.0_dp
+                currentOcc_int(i) = 0
 
-                    select case (step)
+                cum_sum = cum_sum + 1.0_dp
 
-                    case (0)
+            case (1)
 
-                        currentOcc_ilut(i) = 0.0_dp
-                        currentOcc_int(i) = 0
+                currentOcc_ilut(i) = 1.0_dp
+                currentOcc_int(i) = 1
 
-                        cum_sum = cum_sum + 1.0_dp
+                b_real = b_real + 1.0_dp
+                b_int = b_int + 1
 
-                    case (1)
+                cum_sum = cum_sum + 1.0_dp
 
-                        currentOcc_ilut(i) = 1.0_dp
-                        currentOcc_int(i) = 1
+            case (2)
 
-                        b_real = b_real + 1.0_dp
-                        b_int = b_int + 1
+                currentOcc_ilut(i) = 1.0_dp
+                currentOcc_int(i) = 1
 
-                        cum_sum = cum_sum + 1.0_dp
+                b_real = b_real - 1.0_dp
+                b_int = b_int - 1
 
-                    case (2)
+                cum_sum = cum_sum + 1.0_dp
 
-                        currentOcc_ilut(i) = 1.0_dp
-                        currentOcc_int(i) = 1
+            case (3)
 
-                        b_real = b_real - 1.0_dp
-                        b_int = b_int - 1
+                currentOcc_ilut(i) = 2.0_dp
+                currentOcc_int(i) = 2
 
-                        cum_sum = cum_sum + 1.0_dp
+            end select
 
-                    case (3)
+            currentB_ilut(i) = b_real
+            currentB_int(i) = b_int
 
-                        currentOcc_ilut(i) = 2.0_dp
-                        currentOcc_int(i) = 2
+            current_cum_list(i) = cum_sum
 
-                    end select
+        end do
 
-                    currentB_ilut(i) = b_real
-                    currentB_int(i) = b_int
+    end subroutine init_csf_information
 
-                    current_cum_list(i) = cum_sum
+    pure subroutine encode_stochastic_rdm_info(BitIndex, ilut, rdm_ind, x0, x1)
+        ! make these function general by also providing the
+        ! bit-rep index data-structure!
+        type(BitRep_t), intent(in) :: BitIndex
+        integer(n_int), intent(inout) :: ilut(0:BitIndex%len_tot)
+        integer(int_rdm), intent(in) :: rdm_ind
+        real(dp), intent(in) :: x0, x1
 
-                end do
+        ! i need to be sure that int_rdm and n_int are of the same
+        ! size otherwise this breaks..
+        call encode_stochastic_rdm_ind(BitIndex, ilut, rdm_ind)
+        call encode_stochastic_rdm_x0(BitIndex, ilut, x0)
+        call encode_stochastic_rdm_x1(BitIndex, ilut, x1)
 
-            end subroutine init_csf_information
+    end subroutine encode_stochastic_rdm_info
 
-            pure subroutine encode_stochastic_rdm_info(BitIndex, ilut, rdm_ind, x0, x1)
-                ! make these function general by also providing the
-                ! bit-rep index data-structure!
-                type(BitRep_t), intent(in) :: BitIndex
-                integer(n_int), intent(inout) :: ilut(0:BitIndex%len_tot)
-                integer(int_rdm), intent(in) :: rdm_ind
-                real(dp), intent(in) :: x0, x1
+    pure subroutine extract_stochastic_rdm_info(BitIndex, ilut, rdm_ind, x0, x1)
+        type(BitRep_t), intent(in) :: BitIndex
+        integer(n_int), intent(in) :: ilut(0:BitIndex%len_tot)
+        integer(int_rdm), intent(out) :: rdm_ind
+        real(dp), intent(out) :: x0, x1
 
-                ! i need to be sure that int_rdm and n_int are of the same
-                ! size otherwise this breaks..
-                call encode_stochastic_rdm_ind(BitIndex, ilut, rdm_ind)
-                call encode_stochastic_rdm_x0(BitIndex, ilut, x0)
-                call encode_stochastic_rdm_x1(BitIndex, ilut, x1)
+        rdm_ind = extract_stochastic_rdm_ind(BitIndex, ilut)
+        x0 = extract_stochastic_rdm_x0(BitIndex, ilut)
+        x1 = extract_stochastic_rdm_x1(BitIndex, ilut)
 
-            end subroutine encode_stochastic_rdm_info
+    end subroutine extract_stochastic_rdm_info
 
-            pure subroutine extract_stochastic_rdm_info(BitIndex, ilut, rdm_ind, x0, x1)
-                type(BitRep_t), intent(in) :: BitIndex
-                integer(n_int), intent(in) :: ilut(0:BitIndex%len_tot)
-                integer(int_rdm), intent(out) :: rdm_ind
-                real(dp), intent(out) :: x0, x1
+    pure subroutine encode_stochastic_rdm_ind(BitIndex, ilut, rdm_ind)
+        type(BitRep_t), intent(in) :: BitIndex
+        integer(n_int), intent(inout) :: ilut(0:BitIndex%len_tot)
+        integer(int_rdm), intent(in) :: rdm_ind
 
-                rdm_ind = extract_stochastic_rdm_ind(BitIndex, ilut)
-                x0 = extract_stochastic_rdm_x0(BitIndex, ilut)
-                x1 = extract_stochastic_rdm_x1(BitIndex, ilut)
+        ilut(BitIndex%ind_rdm_ind) = rdm_ind
 
-            end subroutine extract_stochastic_rdm_info
+    end subroutine encode_stochastic_rdm_ind
 
-            pure subroutine encode_stochastic_rdm_ind(BitIndex, ilut, rdm_ind)
-                type(BitRep_t), intent(in) :: BitIndex
-                integer(n_int), intent(inout) :: ilut(0:BitIndex%len_tot)
-                integer(int_rdm), intent(in) :: rdm_ind
+    pure function extract_stochastic_rdm_ind(BitIndex, ilut) result(rdm_ind)
+        type(BitRep_t), intent(in) :: BitIndex
+        integer(n_int), intent(in) :: ilut(0:BitIndex%len_tot)
+        integer(int_rdm) :: rdm_ind
 
-                ilut(BitIndex%ind_rdm_ind) = rdm_ind
+        rdm_ind = ilut(BitIndex%ind_rdm_ind)
 
-            end subroutine encode_stochastic_rdm_ind
+    end function extract_stochastic_rdm_ind
 
-            pure function extract_stochastic_rdm_ind(BitIndex, ilut) result(rdm_ind)
-                type(BitRep_t), intent(in) :: BitIndex
-                integer(n_int), intent(in) :: ilut(0:BitIndex%len_tot)
-                integer(int_rdm) :: rdm_ind
+    pure subroutine encode_stochastic_rdm_x0(BitIndex, ilut, x0)
+        type(BitRep_t), intent(in) :: BitIndex
+        integer(n_int), intent(inout) :: ilut(0:BitIndex%len_tot)
+        real(dp), intent(in) :: x0
 
-                rdm_ind = ilut(BitIndex%ind_rdm_ind)
+        integer(n_int) :: x0_int
 
-            end function extract_stochastic_rdm_ind
+        x0_int = transfer(x0, x0_int)
 
-            pure subroutine encode_stochastic_rdm_x0(BitIndex, ilut, x0)
-                type(BitRep_t), intent(in) :: BitIndex
-                integer(n_int), intent(inout) :: ilut(0:BitIndex%len_tot)
-                real(dp), intent(in) :: x0
+        ilut(BitIndex%ind_rdm_x0) = x0_int
 
-                integer(n_int) :: x0_int
+    end subroutine encode_stochastic_rdm_x0
 
-                x0_int = transfer(x0, x0_int)
+    pure function extract_stochastic_rdm_x0(BitIndex, ilut) result(x0)
+        type(BitRep_t), intent(in) :: BitIndex
+        integer(n_int), intent(in) :: ilut(0:BitIndex%len_tot)
+        real(dp) :: x0
 
-                ilut(BitIndex%ind_rdm_x0) = x0_int
+        x0 = transfer(ilut(BitIndex%ind_rdm_x0), x0)
 
-            end subroutine encode_stochastic_rdm_x0
+    end function extract_stochastic_rdm_x0
 
-            pure function extract_stochastic_rdm_x0(BitIndex, ilut) result(x0)
-                type(BitRep_t), intent(in) :: BitIndex
-                integer(n_int), intent(in) :: ilut(0:BitIndex%len_tot)
-                real(dp) :: x0
+    pure subroutine encode_stochastic_rdm_x1(BitIndex, ilut, x1)
+        type(BitRep_t), intent(in) :: BitIndex
+        integer(n_int), intent(inout) :: ilut(0:BitIndex%len_tot)
+        real(dp), intent(in) :: x1
 
-                x0 = transfer(ilut(BitIndex%ind_rdm_x0), x0)
+        integer(n_int) :: x1_int
 
-            end function extract_stochastic_rdm_x0
+        x1_int = transfer(x1, x1_int)
 
-            pure subroutine encode_stochastic_rdm_x1(BitIndex, ilut, x1)
-                type(BitRep_t), intent(in) :: BitIndex
-                integer(n_int), intent(inout) :: ilut(0:BitIndex%len_tot)
-                real(dp), intent(in) :: x1
+        ilut(BitIndex%ind_rdm_x1) = x1_int
+    end subroutine encode_stochastic_rdm_x1
 
-                integer(n_int) :: x1_int
+    pure function extract_stochastic_rdm_x1(BitIndex, ilut) result(x1)
+        type(BitRep_t), intent(in) :: BitIndex
+        integer(n_int), intent(in) :: ilut(0:BitIndex%len_tot)
+        real(dp) :: x1
 
-                x1_int = transfer(x1, x1_int)
+        x1 = transfer(ilut(BitIndex%ind_rdm_x1), x1)
 
-                ilut(BitIndex%ind_rdm_x1) = x1_int
+    end function extract_stochastic_rdm_x1
 
-            end subroutine encode_stochastic_rdm_x1
+    pure subroutine extract_1_rdm_ind(rdm_ind, i, a, excit_lvl, excit_typ)
+        ! the converstion routine between the combined and explicit rdm
+        ! indices for the 1-RDM
+        integer(int_rdm), intent(in) :: rdm_ind
+        integer, intent(out) :: i, a
+        integer, intent(out), optional :: excit_lvl, excit_typ
 
-            pure function extract_stochastic_rdm_x1(BitIndex, ilut) result(x1)
-                type(BitRep_t), intent(in) :: BitIndex
-                integer(n_int), intent(in) :: ilut(0:BitIndex%len_tot)
-                real(dp) :: x1
+        integer(int_rdm) :: rdm_ind_
 
-                x1 = transfer(ilut(BitIndex%ind_rdm_x1), x1)
+        ! if we also want to use the top 7 bits of rdm_ind for information
+        ! of the excit-lvl and type we have to 0 them out before
+        ! extracting the indices
 
-            end function extract_stochastic_rdm_x1
+        rdm_ind_ = iand(rdm_ind, rdm_ind_bitmask)
 
-            pure subroutine extract_1_rdm_ind(rdm_ind, i, a, excit_lvl, excit_typ)
-                ! the converstion routine between the combined and explicit rdm
-                ! indices for the 1-RDM
-                integer(int_rdm), intent(in) :: rdm_ind
-                integer, intent(out) :: i, a
-                integer, intent(out), optional :: excit_lvl, excit_typ
+        a = int(mod(rdm_ind_ - 1, nSpatOrbs) + 1)
+        i = int((rdm_ind_ - 1) / nSpatOrbs + 1)
 
-                integer(int_rdm) :: rdm_ind_
+        if (present(excit_lvl)) then
+            excit_lvl = extract_excit_lvl_rdm(rdm_ind)
+        end if
 
-                ! if we also want to use the top 7 bits of rdm_ind for information
-                ! of the excit-lvl and type we have to 0 them out before
-                ! extracting the indices
+        if (present(excit_typ)) then
+            excit_typ = extract_excit_type_rdm(rdm_ind)
+        end if
 
-                rdm_ind_ = iand(rdm_ind, rdm_ind_bitmask)
+    end subroutine extract_1_rdm_ind
 
-                a = int(mod(rdm_ind_ - 1, nSpatOrbs) + 1)
-                i = int((rdm_ind_ - 1) / nSpatOrbs + 1)
+    pure function contract_1_rdm_ind(i, a, excit_lvl, excit_typ) result(rdm_ind)
+        ! the inverse function of the routine above, to give the combined
+        ! rdm index of two explicit ones
+        integer, intent(in) :: i, a
+        integer, intent(in), optional :: excit_lvl, excit_typ
+        integer(int_rdm) :: rdm_ind
 
-                if (present(excit_lvl)) then
-                    excit_lvl = extract_excit_lvl_rdm(rdm_ind)
-                end if
+        rdm_ind = nSpatOrbs * (i - 1) + a
 
-                if (present(excit_typ)) then
-                    excit_typ = extract_excit_type_rdm(rdm_ind)
-                end if
+        if (present(excit_lvl)) then
+            call encode_excit_lvl_rdm(rdm_ind, excit_lvl)
+        end if
 
-            end subroutine extract_1_rdm_ind
+        if (present(excit_typ)) then
+            call encode_excit_typ_rdm(rdm_ind, excit_typ)
+        end if
 
-            pure function contract_1_rdm_ind(i, a, excit_lvl, excit_typ) result(rdm_ind)
-                ! the inverse function of the routine above, to give the combined
-                ! rdm index of two explicit ones
-                integer, intent(in) :: i, a
-                integer, intent(in), optional :: excit_lvl, excit_typ
-                integer(int_rdm) :: rdm_ind
+    end function contract_1_rdm_ind
 
-                rdm_ind = nSpatOrbs * (i - 1) + a
+    pure function extract_excit_type_rdm(rdm_ind) result(excit_typ)
+        integer(int_rdm), intent(in) :: rdm_ind
+        integer :: excit_typ
 
-                if (present(excit_lvl)) then
-                    call encode_excit_lvl_rdm(rdm_ind, excit_lvl)
-                end if
+        excit_typ = int(ibits(rdm_ind, pos_excit_type_bits, n_excit_type_bits))
 
-                if (present(excit_typ)) then
-                    call encode_excit_typ_rdm(rdm_ind, excit_typ)
-                end if
+    end function extract_excit_type_rdm
 
-            end function contract_1_rdm_ind
+    pure function extract_excit_lvl_rdm(rdm_ind) result(excit_lvl)
+        integer(int_rdm), intent(in) :: rdm_ind
+        integer :: excit_lvl
 
-            pure function extract_excit_type_rdm(rdm_ind) result(excit_typ)
-                integer(int_rdm), intent(in) :: rdm_ind
-                integer :: excit_typ
+        excit_lvl = int(ibits(rdm_ind, pos_excit_lvl_bits, n_excit_lvl_bits))
 
-                excit_typ = int(ibits(rdm_ind, pos_excit_type_bits, n_excit_type_bits))
+    end function extract_excit_lvl_rdm
 
-            end function extract_excit_type_rdm
+    pure subroutine encode_excit_typ_rdm(rdm_ind, excit_typ)
+        integer(int_rdm), intent(inout) :: rdm_ind
+        integer, intent(in) :: excit_typ
 
-            pure function extract_excit_lvl_rdm(rdm_ind) result(excit_lvl)
-                integer(int_rdm), intent(in) :: rdm_ind
-                integer :: excit_lvl
+        call mvbits(int(excit_typ, int_rdm), 0, n_excit_type_bits, &
+                    rdm_ind, pos_excit_type_bits)
+    end subroutine encode_excit_typ_rdm
 
-                excit_lvl = int(ibits(rdm_ind, pos_excit_lvl_bits, n_excit_lvl_bits))
+    pure subroutine encode_excit_lvl_rdm(rdm_ind, excit_lvl)
+        integer(int_rdm), intent(inout) :: rdm_ind
+        integer, intent(in) :: excit_lvl
 
-            end function extract_excit_lvl_rdm
+        ! i need to mv the bit-rep of excit_lvl to the corresponding
+        ! position in rdm_ind
+        call mvbits(int(excit_lvl, int_rdm), 0, n_excit_lvl_bits, &
+                    rdm_ind, pos_excit_lvl_bits)
 
-            pure subroutine encode_excit_typ_rdm(rdm_ind, excit_typ)
-                integer(int_rdm), intent(inout) :: rdm_ind
-                integer, intent(in) :: excit_typ
+    end subroutine encode_excit_lvl_rdm
 
-                call mvbits(int(excit_typ, int_rdm), 0, n_excit_type_bits, &
-                            rdm_ind, pos_excit_type_bits)
+    pure function contract_2_rdm_ind(i, j, k, l, excit_lvl, excit_typ) result(ijkl)
+        ! since I only ever have spatial orbitals in the GUGA-RDM make
+        ! the definition of the RDM-index combination differently
+        integer, intent(in) :: i, j, k, l
+        integer, intent(in), optional :: excit_lvl, excit_typ
+        integer(int_rdm) :: ijkl
 
-            end subroutine encode_excit_typ_rdm
+        integer(int_rdm) :: ij, kl
 
-            pure subroutine encode_excit_lvl_rdm(rdm_ind, excit_lvl)
-                integer(int_rdm), intent(inout) :: rdm_ind
-                integer, intent(in) :: excit_lvl
+        ij = contract_1_rdm_ind(i, j)
+        kl = contract_1_rdm_ind(k, l)
 
-                ! i need to mv the bit-rep of excit_lvl to the corresponding
-                ! position in rdm_ind
-                call mvbits(int(excit_lvl, int_rdm), 0, n_excit_lvl_bits, &
-                            rdm_ind, pos_excit_lvl_bits)
+        ijkl = (ij - 1) * (nSpatOrbs**2) + kl
 
-            end subroutine encode_excit_lvl_rdm
+        if (present(excit_lvl)) then
+            call encode_excit_lvl_rdm(ijkl, excit_lvl)
+        end if
 
-            pure function contract_2_rdm_ind(i, j, k, l, excit_lvl, excit_typ) result(ijkl)
-                ! since I only ever have spatial orbitals in the GUGA-RDM make
-                ! the definition of the RDM-index combination differently
-                integer, intent(in) :: i, j, k, l
-                integer, intent(in), optional :: excit_lvl, excit_typ
-                integer(int_rdm) :: ijkl
+        if (present(excit_typ)) then
+            call encode_excit_typ_rdm(ijkl, excit_typ)
+        end if
 
-                integer(int_rdm) :: ij, kl
+    end function contract_2_rdm_ind
 
-                ij = contract_1_rdm_ind(i, j)
-                kl = contract_1_rdm_ind(k, l)
+    pure subroutine extract_2_rdm_ind(ijkl, i, j, k, l, &
+                                      ij_out, kl_out, excit_lvl, excit_typ)
+        ! the inverse routine of the function above.
+        ! it is actually practical to have ij and kl also available at
+        ! times, since it can identify diagonal entries of the two-RDM
+        integer(int_rdm), intent(in) :: ijkl
+        integer, intent(out) :: i, j, k, l
+        integer(int_rdm), intent(out), optional :: ij_out, kl_out
+        integer, intent(out), optional :: excit_lvl, excit_typ
+        integer(int_rdm) :: ij, kl
 
-                ijkl = (ij - 1) * (nSpatOrbs**2) + kl
+        integer(int_rdm) :: ijkl_
 
-                if (present(excit_lvl)) then
-                    call encode_excit_lvl_rdm(ijkl, excit_lvl)
-                end if
+        ijkl_ = iand(ijkl, rdm_ind_bitmask)
 
-                if (present(excit_typ)) then
-                    call encode_excit_typ_rdm(ijkl, excit_typ)
-                end if
+        kl = mod(ijkl_ - 1, int(nSpatOrbs, int_rdm)**2) + 1
+        ij = (ijkl_ - kl) / (nSpatOrbs**2) + 1
 
-            end function contract_2_rdm_ind
+        call extract_1_rdm_ind(ij, i, j)
+        call extract_1_rdm_ind(kl, k, l)
 
-            pure subroutine extract_2_rdm_ind(ijkl, i, j, k, l, &
-                                              ij_out, kl_out, excit_lvl, excit_typ)
-                ! the inverse routine of the function above.
-                ! it is actually practical to have ij and kl also available at
-                ! times, since it can identify diagonal entries of the two-RDM
-                integer(int_rdm), intent(in) :: ijkl
-                integer, intent(out) :: i, j, k, l
-                integer(int_rdm), intent(out), optional :: ij_out, kl_out
-                integer, intent(out), optional :: excit_lvl, excit_typ
-                integer(int_rdm) :: ij, kl
+        if (present(ij_out)) ij_out = ij
+        if (present(kl_out)) kl_out = kl
 
-                integer(int_rdm) :: ijkl_
+        if (present(excit_lvl)) then
+            excit_lvl = extract_excit_lvl_rdm(ijkl)
+        end if
+        if (present(excit_typ)) then
+            excit_typ = extract_excit_type_rdm(ijkl)
+        end if
 
-                ijkl_ = iand(ijkl, rdm_ind_bitmask)
+    end subroutine extract_2_rdm_ind
 
-                kl = mod(ijkl_ - 1, int(nSpatOrbs, int_rdm)**2) + 1
-                ij = (ijkl_ - kl) / (nSpatOrbs**2) + 1
+    pure function extract_rdm_ind(ilutG) result(rdm_ind)
+        integer(n_int), intent(in) :: ilutG(0:GugaBits%len_tot)
+        integer(int_rdm) :: rdm_ind
 
-                call extract_1_rdm_ind(ij, i, j)
-                call extract_1_rdm_ind(kl, k, l)
+        rdm_ind = ilutG(GugaBits%ind_rdm_ind)
 
-                if (present(ij_out)) ij_out = ij
-                if (present(kl_out)) kl_out = kl
+    end function extract_rdm_ind
 
-                if (present(excit_lvl)) then
-                    excit_lvl = extract_excit_lvl_rdm(ijkl)
-                end if
-                if (present(excit_typ)) then
-                    excit_typ = extract_excit_type_rdm(ijkl)
-                end if
+    pure subroutine encode_rdm_ind(ilutG, rdm_ind)
+        integer(n_int), intent(inout) :: ilutG(0:GugaBits%len_tot)
+        integer(int_rdm), intent(in) :: rdm_ind
 
-            end subroutine extract_2_rdm_ind
+        ilutG(GugaBits%ind_rdm_ind) = rdm_ind
 
-            pure function extract_rdm_ind(ilutG) result(rdm_ind)
-                integer(n_int), intent(in) :: ilutG(0:GugaBits%len_tot)
-                integer(int_rdm) :: rdm_ind
-
-                rdm_ind = ilutG(GugaBits%ind_rdm_ind)
-
-            end function extract_rdm_ind
-
-            pure subroutine encode_rdm_ind(ilutG, rdm_ind)
-                integer(n_int), intent(inout) :: ilutG(0:GugaBits%len_tot)
-                integer(int_rdm), intent(in) :: rdm_ind
-
-                ilutG(GugaBits%ind_rdm_ind) = rdm_ind
-
-            end subroutine encode_rdm_ind
-        end module guga_bitRepOps
+    end subroutine encode_rdm_ind
+end module guga_bitRepOps
