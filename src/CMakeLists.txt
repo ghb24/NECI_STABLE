@@ -437,8 +437,6 @@ set( RELAX_WARNINGS_SRCS
     real_time_read_input.F90
     verlet_aux.F90
 
-    lib/soft_exit.F90
-
 )
 
 set( FYPP_SRC_FILES
