@@ -3223,7 +3223,7 @@ contains
                 call stop_all(this_routine, &
                               "HDIAG_neci is not set up for non-hermitian Hamiltonians!")
             end if
-            call HDIAG_neci(nCASDet, Hamil, Lab, nRow, CK, W, Work2, Work, nBlockStarts, nBlocks)
+            call HDIAG_neci(nCASDet, Hamil, Lab, nRow, CK, W, Work2, Work(1), nBlockStarts, nBlocks)
             deallocate(Work)
             call LogMemDealloc(this_routine, WorkTag)
         end if

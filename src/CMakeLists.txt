@@ -328,7 +328,7 @@ set( RELAX_WARNINGS_SRCS
     modifiedHub.F90
     molcas_interface.F90
     MolproPlugin.F90
-    PluginGuest.cpp
+#     PluginGuest.cpp
     NatOrbs.F90
     NECICore.F90
     neci_intfce.F90
