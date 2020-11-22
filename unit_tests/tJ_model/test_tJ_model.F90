@@ -8,6 +8,9 @@ program test_tJ_model
     use lattice_mod, only: lat
     use constants, only: maxExcit
     use lattice_models_utils, only : csf_purify
+    use fcimcdata, only: ilutref
+    use Detbitops, only: encodebitdet
+    use matrix_util, only: eig, print_matrix
 
     implicit none
 
@@ -19,7 +22,7 @@ program test_tJ_model
     t_lattice_model = .true.
 
     call init_fruit()
-!     if (t_exact_study) call exact_study()
+    if (t_exact_study) call exact_study()
     call tJ_model_test_driver()
     call fruit_summary()
     call fruit_finalize()
@@ -51,86 +54,522 @@ contains
 
     end subroutine tJ_model_test_driver
 
-!     subroutine exact_study
-!
-!         t_input_perm = .true.
-!
-!         lattice_type = 'chain'
-!         length_x = 8
-!         length_y = 1
-!
-!         lat => lattice(lattice_type, length_x, length_y, 1, .true., .true.,.true.)
-!
-!         n_alpha = 4
-!         n_beta = 4
-!         nel = 8
-!         n_orbs = 8
-!
-!         heisenberg_sds = create_all_open_shell_dets(n_orbs, n_alpha, n_beta)
-!         heisenberg_csfs = csf_purify(heisenberg_sds, tot_spin, n_orbs, nel)
-!
-!         iunit = get_free_unit()
-!         open(iunit, file = 'permutations', status = 'read')
-!
-!         ! and then I need to loop over the permutations
-!         do i = 1, n_perms
-!             n_perms = factorial(n_orbs - 1)
-!
-!             read(iunit,*) orbital_order
-!
-!             lat => lattice(lattice_type, length_x, length_y, 1, .true., .true.,.true.)
-!
-!
-!             hamil = create_hamiltonian(heisenberg_csfs)
-!
-!             call eig(hamil, e_orig, e_vecs)
-!
-!             ! n_orbs - 1 because I do not consider cycles
-!
-!             allocate(hf_coeffs(n_perms), source = 0.0_dp)
-!             allocate(off_diag_sum(n_perms), source = 0.0_dp)
-!             allocate(abs_off_diag_sum(n_perms), source = 0.0_dp)
-!
-!             ! then I need to sort by the eigenvalues to get the GS
-!             ! and store the largest coeff. from the GS
-!             call store_gs_hf_coeff(e_orig, e_vecs, hf_coeffs(i), hf_ind)
-!
-!             ! then I could also look the other quantities.. sum of
-!             ! off-diagonal Hamiltonian entries?
-!             call store_off_diag_h_sum(hamil, off_diag_sum(i))
-!
-!             ! and maybe also store the sum of absolute values?
-!             call store_off_diag_h_sum(abs(hamil), abs_off_diag_sum(i))
-!
-!             ! and maybe also store the difference in number of negative and
-!             ! positive off-diagonal entries
-!             call store_n_diff_sign(hamil, n_diff_sign(i))
-!
-!             ! and also store 'just' the sum of negative and positive ones
-!             call store_pos_and_neg(hamil, sum_pos(i), sum_neg(i))
-!
-!             ! and store 'sign flux' to the reference!
-!             ! https://stackoverflow.com/questions/16436165/detecting-cycles-in-an-adjacency-matrix/16437341#16437341
-!             ! to get the coefficient of all n cycles which lead again to the
-!             ! starting state I need the diagonal entry of the reference of
-!             ! A ^ n
-!             ! count all 3-cycles as they are the "closest" and most
-!             ! important and also the sum of all cycles > 2 which go
-!             ! back to the original
-!             call store_cycles(hamil, hf_ind, 3, sum_3_cycle(i))
-!             call store_cycles(hamil, hf_ind, size(hamil,i), sum_n_cycles(i))
-!
-!
-!         end do
-!
-!         ! then print out everything, which also closes all files..
-!         call print_all_info()
-!
-!     end subroutine exact_study
+    subroutine exact_study
+
+        use SystemData, only: lattice_type, length_x, length_y, nel, orbital_order, &
+                              tGUGA, t_input_order, t_open_bc_x, t_open_bc_y, &
+                              t_open_bc_z
+        use util_mod, only: get_free_unit
+        use lattice_models_utils, only: create_all_open_shell_dets
+        use binomial_lookup, only: factorial
+        use unit_test_helpers, only: create_lattice_hamil_ilut
+        use guga_init, only: init_guga
+        use bit_reps, only: init_bit_rep
+        use guga_excitations, only: create_hamiltonian_guga
+
+        HElement_t(dp), allocatable :: hamil(:,:)
+        integer(n_int), allocatable :: hilbert_space(:,:)
+        real(dp), allocatable :: hf_coeffs(:), off_diag_sum(:), abs_off_diag_sum(:), &
+                                 n_diff_sign(:), sum_pos(:), sum_neg(:), &
+                                 sum_3_cycle(:), sum_n_cycle(:), e_vecs(:,:), &
+                                 e_values(:), sum_non_zeros(:), non_zeros_in_gs(:), &
+                                 sign_coherent_gs(:), gs_vec(:), gs_vec_bipart(:)
+        logical :: t_input_perm, t_periodic, t_input_lattice, t_input_bc
+        real(dp) :: hf_coeff, gs_orig, hf_orig, hf_bipart, gs_bipart
+        integer :: n_beta, n_alpha, n_orbs, n_perms, hf_ind, i, iunit_write, tot_spin
+        integer :: gs_ind, n_periodic, iunit_read
+        integer, allocatable :: nI(:)
+
+        t_input_perm = .true.
+        t_input_order = .true.
+        t_input_bc = .true.
+
+        t_input_lattice = .true.
+
+        if (t_input_lattice) then
+            print *, "input lattice type: (chain,square,rectangle,tilted)"
+            read(*,*) lattice_type
+            print *, "input x-dim: "
+            read(*,*) length_x
+            if (lattice_type == 'chain') then
+                length_y = 1
+            else
+                print *, "input y-dim: "
+                read(*,*) length_y
+            end if
+        else
+            lattice_type = 'chain'
+            length_x = 8
+            length_y = 1
+        end if
+
+        if (t_input_bc) then
+            if (lattice_type == 'chain') then
+                print *, "periodic (1..yes, 0..no)"
+                read(*,*) n_periodic
+
+                if (n_periodic == 1) then
+                    t_periodic = .true.
+                else
+                    t_periodic = .false.
+                end if
+                t_open_bc_x = .not. t_periodic
+                t_open_bc_y = .not. t_periodic
+                t_open_bc_z = .not. t_periodic
+            else
+                print *, "x periodic? (1..yes,0..no)"
+                read(*,*) n_periodic
+                if (n_periodic == 1) then
+                    t_open_bc_x = .false.
+                else
+                    t_open_bc_x = .true.
+                end if
+                print *, "y periodic? (1..yes,0..no)"
+                read(*,*) n_periodic
+                if (n_periodic == 1) then
+                    t_open_bc_y = .false.
+                else
+                    t_open_bc_y = .true.
+                end if
+            end if
+        end if
+
+        lat => lattice(lattice_type, length_x, length_y, 1, &
+            t_periodic_x = .not. t_open_bc_x, t_periodic_y = .not. t_open_bc_y,&
+            t_periodic_z = .true.)
+
+        n_orbs = lat%get_nsites()
+        nBasis = n_orbs * 2
+
+        nel = n_orbs
+        tGUGA = .true.
+        t_heisenberg_model = .true.
+        nifd = 0
+        exchange_j = 1.0_dp
+        allocate(nI(nel), source = [(2 * i - mod(i,2), i = 1, nel)])
+        print *, "nI: ", nI
+        allocate(ilutRef(0:0,1), source = 0_n_int)
+
+        call EncodeBitDet(nI, ilutRef)
+
+        allocate(orbital_order(n_orbs), source = [(i, i = 1, n_orbs)])
+        if (lattice_type == 'chain') then
+            orbital_order(1:n_orbs/2) = [(2 * i - 1, i = 1, n_orbs/2)]
+            orbital_order(n_orbs/2 + 1:n_orbs) = [(2 * i, i = 1, n_orbs/2)]
+        else if (lattice_type == 'rect' .or. lattice_type == 'rectangle') then
+            orbital_order = [1,5,2,6,7,3,8,4]
+        else if (lattice_type == 'tilted') then
+            orbital_order = [1,2,4,6,3,5,7,8]
+            orbital_order = [1,2,5,3,6,4,7,8]
+        end if
+
+        call init_bit_rep()
+
+        if (tGUGA) then
+            call init_guga()
+            call init_guga_heisenberg_model()
+            call init_get_helement_heisenberg_guga()
+        else
+            call init_heisenberg_model()
+            call init_get_helement_heisenberg()
+        end if
+
+
+        n_alpha = n_orbs / 2
+        n_beta = n_orbs / 2
+        tot_spin = 0
+
+        hilbert_space = create_all_open_shell_dets(n_orbs, n_alpha, n_beta)
+        ! and then I need to loop over the permutations
+        if (tGUGA) then
+            hilbert_space = csf_purify(hilbert_space, tot_spin, n_orbs, nel)
+            hamil = create_hamiltonian_guga(hilbert_space)
+        else
+            hamil = create_lattice_hamil_ilut(hilbert_space)
+        end if
+
+        iunit_read = get_free_unit()
+        open(iunit_read, file = 'permutations', status = 'old', action = 'read')
+
+        n_perms = factorial(n_orbs - 1)
+
+        allocate(e_values(size(hilbert_space,2)), source = 0.0_dp)
+        allocate(e_vecs(size(hilbert_space,2),size(hilbert_space,2)), source = 0.0_dp)
+        allocate(hf_coeffs(n_perms), source = 0.0_dp)
+        allocate(off_diag_sum(n_perms), source = 0.0_dp)
+        allocate(abs_off_diag_sum(n_perms), source = 0.0_dp)
+        allocate(n_diff_sign(n_perms), source = 0.0_dp)
+        allocate(sum_pos(n_perms), source = 0.0_dp)
+        allocate(sum_neg(n_perms), source = 0.0_dp)
+        allocate(sum_3_cycle(n_perms), source = 0.0_dp)
+        allocate(sum_n_cycle(n_perms), source = 0.0_dp)
+        allocate(sum_non_zeros(n_perms), source = 0.0_dp)
+        allocate(non_zeros_in_gs(n_perms), source = 0.0_dp)
+        allocate(sign_coherent_gs(n_perms), source = 0.0_dp)
+        allocate(gs_vec(n_perms), source = 0.0_dp)
+        allocate(gs_vec_bipart(n_perms), source = 0.0_dp)
+
+        call eig(hamil, e_values, e_vecs)
+        call store_gs_hf_coeff(e_values, e_vecs, hf_orig, hf_ind, gs_ind)
+
+        gs_orig = e_values(gs_ind)
+        gs_vec = e_vecs(:,gs_ind)
+
+        iunit_write = get_free_unit()
+        open(iunit_write, file = 'orig-and-bipartite-data', status = 'replace', action = 'write')
+        write(iunit_write, *) "# hf-coeff     off-diag-sum    abs-off-diag-sum    &
+            &n-diff-sign    sum-pos     sum-neg     sum-3-cycle     sum-n-cycle &
+            &   sum-non-zeros   non-zeros-in-gs     sign-coherent-gs"
+        write(iunit_write, '(G25.17)', advance = 'no') hf_orig
+        write(iunit_write, '(G25.17)', advance = 'no') sum_off_diag(hamil)
+        write(iunit_write, '(G25.17)', advance = 'no') sum_off_diag(abs(hamil))
+        write(iunit_write, '(G25.17)', advance = 'no') num_diff_sign(hamil)
+        write(iunit_write, '(G25.17)', advance = 'no') sum_signed_off_diag(hamil, 1.0_dp)
+        write(iunit_write, '(G25.17)', advance = 'no') sum_signed_off_diag(hamil, -1.0_dp)
+        write(iunit_write, '(G25.17)', advance = 'no') cycle_flow(hamil, hf_ind, 3)
+        write(iunit_write, '(G25.17)', advance = 'no') cycle_flow(hamil, hf_ind, size(hamil,1))
+        write(iunit_write, '(G25.17)', advance = 'no') sum_non_zero_off_diag(hamil)
+        write(iunit_write, '(G25.17)', advance = 'no') get_num_non_zeros(gs_vec)
+        write(iunit_write, '(G25.17)', advance = 'yes') log2real(is_vec_sign_coherent(gs_vec))
+
+        lat => lattice(lattice_type, length_x, length_y, 1, &
+            t_periodic_x = .not. t_open_bc_x, t_periodic_y = .not. t_open_bc_y, &
+            t_periodic_z = .true., t_bipartite_order = .true.)
+
+        if (tGUGA) then
+            ! call init_guga_heisenberg_model()
+            call init_get_helement_heisenberg_guga()
+            hamil = create_hamiltonian_guga(hilbert_space)
+        else
+            call init_get_helement_heisenberg()
+            hamil = create_lattice_hamil_ilut(hilbert_space)
+        end if
+
+        call eig(hamil, e_values, e_vecs)
+
+        call store_gs_hf_coeff(e_values, e_vecs, hf_bipart, hf_ind, gs_ind)
+
+        gs_bipart = e_values(gs_ind)
+        gs_vec_bipart = e_vecs(:,gs_ind)
+
+        write(iunit_write, '(G25.17)', advance = 'no')  hf_bipart
+        write(iunit_write, '(G25.17)', advance = 'no')  sum_off_diag(hamil)
+        write(iunit_write, '(G25.17)', advance = 'no')  sum_off_diag(abs(hamil))
+        write(iunit_write, '(G25.17)', advance = 'no')  num_diff_sign(hamil)
+        write(iunit_write, '(G25.17)', advance = 'no')  sum_signed_off_diag(hamil, 1.0_dp)
+        write(iunit_write, '(G25.17)', advance = 'no')  sum_signed_off_diag(hamil, -1.0_dp)
+        write(iunit_write, '(G25.17)', advance = 'no')  cycle_flow(hamil, hf_ind, 3)
+        write(iunit_write, '(G25.17)', advance = 'no')  cycle_flow(hamil, hf_ind, size(hamil,1))
+        write(iunit_write, '(G25.17)', advance = 'no')  sum_non_zero_off_diag(hamil)
+        write(iunit_write, '(G25.17)', advance = 'no')  get_num_non_zeros(gs_vec_bipart)
+        write(iunit_write, '(G25.17)', advance = 'yes') log2real(is_vec_sign_coherent(gs_vec_bipart))
+
+        close(iunit_write)
+
+        print *, "size(hilbert_space): ", shape(hilbert_space)
+        print *, "n_perms: ", n_perms
+        print *, "original gs energy: ", gs_orig
+        print *, "original HF coeff: ", hf_orig
+        print *, "original gs vec non-zeros: ", get_num_non_zeros(gs_vec)
+        print *, "original gs vec sign coherent?:", is_vec_sign_coherent(gs_vec)
+
+        print *, "bipartite gs energy:", gs_bipart
+        print *, "bipartite hf coeff: ", hf_bipart
+        print *, "original gs vec non-zeros: ", get_num_non_zeros(gs_vec_bipart)
+        print *, "original gs vec sign coherent?:", is_vec_sign_coherent(gs_vec_bipart)
+
+        call stop_all("here", "now")
+        do i = 1, n_perms
+
+            read(iunit_read,*) orbital_order
+            lat => lattice(lattice_type, length_x, length_y, 1, &
+                t_periodic_x = .not. t_open_bc_x, t_periodic_y = .not. t_open_bc_y, &
+                t_periodic_z = .true., t_bipartite_order = .true.)
+
+            if (tGUGA) then
+                ! call init_guga_heisenberg_model()
+                call init_get_helement_heisenberg_guga()
+                hamil = create_hamiltonian_guga(hilbert_space)
+            else
+                call init_get_helement_heisenberg()
+                hamil = create_lattice_hamil_ilut(hilbert_space)
+            end if
+
+            call eig(hamil, e_values, e_vecs)
+
+            ! n_orbs - 1 because I do not consider cycles
+
+            ! then I need to sort by the eigenvalues to get the GS
+            ! and store the largest coeff. from the GS
+            call store_gs_hf_coeff(e_values, e_vecs, hf_coeff, hf_ind, gs_ind)
+            gs_vec = e_vecs(:, gs_ind)
+
+            if (abs(gs_orig - e_values(gs_ind)) > 1.e-12_dp) then
+                print *, "energies diffier: "
+                print *, "orig E: ", gs_orig
+                print *, "new E: ", e_values(gs_ind)
+            end if
+
+            hf_coeffs(i) = hf_coeff
+            ! then I could also look the other quantities.. sum of
+            ! off-diagonal Hamiltonian entries?
+            off_diag_sum(i) = sum_off_diag(hamil)
+
+            ! and maybe also store the sum of absolute values?
+            abs_off_diag_sum(i) = sum_off_diag(abs(hamil))
+
+            ! and maybe also store the difference in number of negative and
+            ! positive off-diagonal entries
+            n_diff_sign(i) = num_diff_sign(hamil)
+
+            ! and also store 'just' the sum of negative and positive ones
+            sum_pos(i) = sum_signed_off_diag(hamil, 1.0_dp)
+            sum_neg(i) = sum_signed_off_diag(hamil, -1.0_dp)
+
+            ! and store 'sign flux' to the reference!
+            ! https://stackoverflow.com/questions/16436165/detecting-cycles-in-an-adjacency-matrix/16437341#16437341
+            ! to get the coefficient of all n cycles which lead again to the
+            ! starting state I need the diagonal entry of the reference of
+            ! A ^ n
+            ! count all 3-cycles as they are the "closest" and most
+            ! important and also the sum of all cycles > 2 which go
+            ! back to the original
+            sum_3_cycle(i) = cycle_flow(hamil, hf_ind, 3)
+            sum_n_cycle(i) = cycle_flow(hamil, hf_ind, size(hamil,1))
+
+            sum_non_zeros(i) = sum_non_zero_off_diag(hamil)
+            non_zeros_in_gs(i) = get_num_non_zeros(gs_vec)
+            sign_coherent_gs(i) = log2real(is_vec_sign_coherent(gs_vec))
+
+        end do
+
+        close(iunit_read)
+
+        ! then print out everything, which also closes all files..
+        call print_vec(hf_coeffs, "hf-coeffs")
+        call print_vec(off_diag_sum, "off-diag-sum")
+        call print_vec(abs_off_diag_sum, "abs-off-diag-sum")
+        call print_vec(n_diff_sign, "n-diff-sign")
+        call print_vec(sum_pos, "sum-pos")
+        call print_vec(sum_neg, "sum-neg")
+        call print_vec(sum_3_cycle, "sum-3-cycle")
+        call print_vec(sum_n_cycle, "sum-n-cycle")
+        call print_vec(sum_non_zeros, "sum-non-zeros")
+        call print_vec(non_zeros_in_gs, "non-zeros-in-gs")
+        call print_vec(sign_coherent_gs, "sign-coherent-gs")
+
+        iunit_write = get_free_unit()
+        open(iunit_write, file = 'all-data', status = 'replace', action = 'write')
+        write(iunit_write, *) "# hf-coeff     off-diag-sum    abs-off-diag-sum    &
+            &n-diff-sign    sum-pos     sum-neg     sum-3-cycle     sum-n-cycle &
+            &   sum-non-zeros   non-zeros-in-gs     sign-coherent-gs"
+        do i = 1, n_perms
+            write(iunit_write, '(G25.17)',advance = 'no') hf_coeffs(i)
+            write(iunit_write, '(G25.17)',advance = 'no') off_diag_sum(i)
+            write(iunit_write, '(G25.17)',advance = 'no') abs_off_diag_sum(i)
+            write(iunit_write, '(G25.17)',advance = 'no') n_diff_sign(i)
+            write(iunit_write, '(G25.17)',advance = 'no') sum_pos(i)
+            write(iunit_write, '(G25.17)',advance = 'no') sum_neg(i)
+            write(iunit_write, '(G25.17)',advance = 'no') sum_3_cycle(i)
+            write(iunit_write, '(G25.17)',advance = 'no') sum_n_cycle(i)
+            write(iunit_write, '(G25.17)',advance = 'no') sum_non_zeros(i)
+            write(iunit_write, '(G25.17)',advance = 'no') non_zeros_in_gs(i)
+            write(iunit_write, '(G25.17)',advance = 'yes') sign_coherent_gs(i)
+        end do
+        close(iunit_write)
+        call stop_all("here", "for now")
+
+    end subroutine exact_study
+
+    elemental pure real(dp) function log2real(a)
+        logical, intent(in) :: a
+
+        if (a) then
+            log2real = 1.0_dp
+        else
+            log2real = 0.0_dp
+        end if
+
+    end function log2real
+
+    real(dp) function get_num_non_zeros(vector)
+        real(dp), intent(in) :: vector(:)
+
+        real(dp) :: copy(size(vector,1))
+
+        copy = vector
+
+        where (abs(copy) <= EPS) copy = 0.0_dp
+        where (abs(copy) > EPS) copy = 1.0_dp
+
+        get_num_non_zeros = sum(copy)
+
+    end function get_num_non_zeros
+
+    pure logical function is_vec_sign_coherent(vector)
+        real(dp), intent(in) :: vector(:)
+
+        real(dp) :: copy(size(vector,1))
+
+        copy = vector
+
+        where (abs(copy) <= EPS) copy = 0.0_dp
+        where (copy < 0.0_dp) copy = -1.0_dp
+        where (copy > 0.0_dp) copy = 1.0_dp
+
+
+        if (abs(sum(copy)) == sum(abs(copy))) then
+            is_vec_sign_coherent = .true.
+        else
+            is_vec_sign_coherent = .false.
+        end if
+
+    end function is_vec_sign_coherent
+
+
+    subroutine print_vec(vec, filename)
+        real(dp), intent(in) :: vec(:)
+        character(*), intent(in), optional :: filename
+
+        integer :: iunit, i
+
+        if (present(filename)) then
+            iunit = get_free_unit()
+            open(iunit, file = filename, status = 'replace', action = 'write')
+
+            do i = 1, size(vec,1)
+                write(iunit, *) vec(i)
+            end do
+
+            close(iunit)
+        else
+            do i = 1, size(vec,1)
+                print *, vec(i)
+            end do
+        end if
+
+    end subroutine print_vec
+
+    real(dp) function sum_non_zero_off_diag(matrix)
+        real(dp), intent(in) :: matrix(:,:)
+
+        integer :: i
+        real(dp) :: copy(size(matrix,1),size(matrix,2))
+
+        copy = matrix
+
+        forall(i = 1:size(copy,1)) copy(i,i) = 0.0_dp
+
+        where (abs(copy) > EPS) copy = 1.0_dp
+        where (abs(copy) <= EPS) copy = 0.0_dp
+
+        sum_non_zero_off_diag = sum(copy)
+
+
+    end function sum_non_zero_off_diag
+
+    subroutine store_gs_hf_coeff(e_values, e_vecs, hf_coeff, hf_ind, gs_ind)
+        real(dp), intent(in) :: e_values(:), e_vecs(:,:)
+        real(dp), intent(out) :: hf_coeff
+        integer, intent(out) :: hf_ind, gs_ind
+
+        real(dp) :: gs_vec(size(e_values))
+
+        gs_ind = minloc(e_values,1)
+
+        gs_vec = abs(e_vecs(:,gs_ind))
+
+        hf_ind = maxloc(gs_vec,1)
+        hf_coeff = gs_vec(hf_ind)
+
+    end subroutine store_gs_hf_coeff
+
+    subroutine set_diag(matrix, val)
+        real(dp), intent(inout) :: matrix(:,:)
+        real(dp), intent(in) :: val
+
+        integer :: i
+
+        forall (i = 1:size(matrix,1)) matrix(i,i) = val
+
+    end subroutine set_diag
+
+    real(dp) function sum_off_diag(matrix)
+        real(dp), intent(in) :: matrix(:,:)
+
+        integer :: i
+        real(dp) :: copy(size(matrix,1),size(matrix,2))
+
+        copy = matrix
+
+        forall (i = 1:size(copy,1)) copy(i,i) = 0.0_dp
+
+
+        sum_off_diag = sum(copy)
+
+    end function sum_off_diag
+
+    real(dp) function num_diff_sign(matrix)
+        real(dp), intent(in) :: matrix(:,:)
+
+        integer :: i
+        real(dp) :: copy(size(matrix,1),size(matrix,2))
+
+
+        copy = matrix
+
+        forall (i = 1:size(copy,1)) copy(i,i) = 0.0_dp
+
+        where (copy < 0.0_dp) copy = -1.0_dp
+        where (copy > 0.0_dp) copy =  1.0_dp
+
+        num_diff_sign = sum(copy)
+
+    end function num_diff_sign
+
+    real(dp) function sum_signed_off_diag(matrix, sgn)
+        real(dp), intent(in) :: matrix(:,:), sgn
+
+        integer :: i
+        real(dp) :: copy(size(matrix,1),size(matrix,2))
+
+        copy = matrix
+
+        forall (i = 1:size(copy,1)) copy(i,i) = 0.0_dp
+
+        where (sgn * matrix < 0.0_dp) copy = 0.0_dp
+
+        sum_signed_off_diag = sum(copy)
+
+    end function sum_signed_off_diag
+
+    real(dp) function cycle_flow(matrix, ind, order)
+        real(dp), intent(in) :: matrix(:,:)
+        integer, intent(in) :: ind, order
+
+        integer :: i
+        real(dp) :: copy(size(matrix,1),size(matrix,2)), &
+                    prod(size(matrix,1),size(matrix,2))
+
+        copy = matrix
+
+        forall(i = 1:size(copy,1)) copy(i,i) = 0.0_dp
+
+        prod = matmul(copy, copy)
+
+        do i = 1, order - 2
+            prod = matmul(prod, copy)
+        end do
+
+        cycle_flow = prod(ind,ind)
+
+    end function cycle_flow
+
 
     subroutine init_tJ_model_test
 
-        use SystemData, only: lattice_type, length_x, length_y, nbasis, nel, nbasis
+        use SystemData, only: lattice_type, length_x, length_y, nbasis, nel, &
+                              nbasis
         use OneEInts, only: tmat2d
         use FciMCData, only: tsearchtau, tsearchtauoption, ilutref
         use CalcData, only: tau
@@ -260,7 +699,6 @@ contains
         use lattice_mod, only: lattice, lattice_deconstructor
         use SystemData, only: nel, bhub, exchange_j, nbasis
         use bit_rep_data, only: niftot, nifd
-        use Detbitops, only: encodebitdet
         use constants, only: n_int, dp
         use fcimcdata, only: excit_gen_store_type
 

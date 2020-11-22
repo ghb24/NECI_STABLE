@@ -30,7 +30,6 @@ module local_spin
 contains
 
     subroutine measure_local_spin(ilut, nI, real_sgn)
-        debug_function_name("measure_local_spin")
         integer(n_int), intent(in) :: ilut(0:IlutBits%len_tot)
         integer, intent(in) :: nI(nel)
         real(dp), intent(in) :: real_sgn(lenof_sign)

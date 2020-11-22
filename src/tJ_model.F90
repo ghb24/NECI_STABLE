@@ -88,8 +88,6 @@ contains
         root_print "t:", bhub
         root_print "J:", exchange_j
 
-!         call init_guga()
-
         tHub = .false.
         treal = .false.
         t_new_real_space_hubbard = .true.

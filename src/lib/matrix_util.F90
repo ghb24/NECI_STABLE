@@ -59,10 +59,7 @@ contains
             left = 'V'
             right = 'V'
 
-!             call print_matrix(tmp_matrix)
 
-!             print *, "bounds left_ev: ", lbound(left_ev,1),ubound(left_ev,1), &
-            !                 lbound(left_ev,2),ubound(left_ev,2)
 #ifdef CMPLX_
             allocate(rwork(max(1,3*n-2)))
             call zheev(&
@@ -98,20 +95,6 @@ contains
             sort_ind = [(n, n = 1, size(matrix,1))]
 
             call sort(e_values, sort_ind)
-
-!             print *, "bounds left_ev: ", lbound(left_ev,1),ubound(left_ev,1), &
-!                 lbound(left_ev,2),ubound(left_ev,2)
-
-!             print *, "Re(eval):", e_values
-!             print *, "Im(eval):", dummy_eval(sort_ind)
-
-!             print *, "left evectors: "
-!             call print_matrix(left_ev(:,sort_ind))
-!             print *, "right evectors: "
-!             call print_matrix(right_ev(:,sort_ind))
-
-!             print *, "tmp matrix:"
-!             call print_matrix(tmp_matrix)
 
             if (present(t_left_ev)) then
                 if (t_left_ev) then

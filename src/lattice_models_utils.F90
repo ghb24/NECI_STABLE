@@ -591,12 +591,28 @@ contains
     function csf_purify(sd_hilbert_space, total_spin, n_orbs, n_el) result(csfs)
         ! function to filter out all spin-allowed states from a
         ! SD Hilbert space
-        integer(n_int), intent(in) :: sd_hilbert_space(:)
+        use guga_bitRepOps, only: isProperCSF_flexible
+        integer(n_int), intent(in) :: sd_hilbert_space(:,:)
         integer, intent(in) :: total_spin, n_orbs, n_el
 
-        integer(n_int), allocatable :: csfs(:)
+        integer(n_int), allocatable :: csfs(:,:)
+        integer :: i, cnt
+        integer(n_int), allocatable :: temp_csfs(:,:)
 
-        !TODO
+        ! we have definitely <= sds
+        allocate(temp_csfs(size(sd_hilbert_space,1),size(sd_hilbert_space,2)), &
+            source = 0_n_int)
+
+        cnt = 0
+
+        do i = 1, size(sd_hilbert_space,2)
+            if (isProperCSF_flexible(sd_hilbert_space(:,i), total_spin, n_el)) then
+                cnt = cnt + 1
+                temp_csfs(:,cnt) = sd_hilbert_space(:,i)
+            end if
+        end do
+
+        allocate(csfs(size(sd_hilbert_space,1), cnt), source = temp_csfs(:,1:cnt))
 
     end function csf_purify
 
@@ -609,7 +625,7 @@ contains
         character(*), parameter :: this_routine = "create_all_open_shell_dets"
 
         integer, allocatable :: n_dets(:)
-        integer(n_int), allocatable :: open_shells(:), max_basis(:)
+        integer(n_int), allocatable :: open_shells(:,:), max_basis(:)
         integer :: n_max, n_min
 
         n_dets = calc_n_double(n_orbs, n_alpha, n_beta)
@@ -653,7 +669,7 @@ contains
         integer(n_int), intent(in) :: first_basis(:)
         logical, intent(in) :: t_sort
         integer, intent(in), optional :: n_doubles
-        integer(n_int) :: spin_basis(n_total)
+        integer(n_int) :: spin_basis(0:0,n_total)
         character(*), parameter :: this_routine = "combine_spin_basis"
 #ifdef DEBUG_
         integer, allocatable :: n_dets(:)
@@ -696,9 +712,9 @@ contains
                 ! 0011 -> 00 00 01 01 eg.
                 do i = 1, n_total
                     ! do have it ordered -> first set the beta spins on the left
-                    spin_basis(i) = set_alpha_beta_spins(first_basis(i), n_orbs, .false.)
+                    spin_basis(:,i) = set_alpha_beta_spins(first_basis(i), n_orbs, .false.)
                     ! and combine it with the alpha spins..
-                    spin_basis(i) = ieor(spin_basis(i), set_alpha_beta_spins(not(first_basis(i)), n_orbs, .true.))
+                    spin_basis(:,i) = ieor(spin_basis(:,i), set_alpha_beta_spins(not(first_basis(i)), n_orbs, .true.))
                 end do
             else
                 ! we have to distribute the n_second remaining spins
@@ -715,7 +731,7 @@ contains
                 n = 1
                 do i = 1, size(first_basis)
                     do j = 1, size(second_basis)
-                        spin_basis(n) = open_shell_product(first_basis(i), second_basis(j), n_orbs)
+                        spin_basis(:,n) = open_shell_product(first_basis(i), second_basis(j), n_orbs)
                         n = n + 1
                     end do
                 end do

@@ -57,7 +57,7 @@ module guga_bitRepOps
             extract_excit_lvl_rdm, extract_excit_type_rdm, &
             encode_excit_info, encode_excit_info_type, extract_excit_info_type, &
             encode_excit_info_indices, extract_excit_info_indices, &
-            extract_excit_info
+            extract_excit_info, isProperCSF_flexible
 
     ! interfaces
     interface isProperCSF_ilut
@@ -2362,6 +2362,18 @@ contains
 
     end function isProperCSF_b
 
+    pure function isProperCSF_flexible(ilut, spin, num_el) result(flag)
+        integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
+        integer, intent(in) :: spin, num_el
+        logical :: flag
+
+        flag = .true.
+        if (any(calcB_vector_int(ilut(0:GugaBits%len_orb)) < 0)) flag = .false.
+        if (abs(return_ms(ilut)) /= spin) flag = .false.
+        if (int(sum(calcOcc_vector_ilut(ilut(0:GugaBits%len_orb)))) /= num_el) flag = .false.
+
+    end function isProperCSF_flexible
+
     function isProperCSF_sys(ilut, sysFlag, t_print_in) result(flag)
         ! function to check if provided CSF in ilut format is a proper CSF
         ! checks b vector positivity and is total S is correct
@@ -2370,7 +2382,6 @@ contains
         logical, intent(in), optional :: t_print_in
         logical :: flag
 
-        integer(n_int) :: tmp_ilut(0:niftot)
         logical :: t_print
 
         if (present(t_print_in)) then
@@ -2384,25 +2395,15 @@ contains
         ! check if b value drops below zero
         if (any(calcB_vector_int(ilut(0:GugaBits%len_orb)) < 0)) flag = .false.
 
-        ! check if total spin is same as input, cant avoid loop here i think..
-        !calcS = 0
-        !do iOrb = 1, nBasis/2
-        !    if (isOne(ilut,iOrb)) calcS = calcS + 1
-        !    if (isTwo(ilut,iOrb)) calcS = calcS - 1
-        !end do
-
-        tmp_ilut = 0_n_int
-        tmp_ilut(0:GugaBits%len_orb) = ilut(0:GugaBits%len_orb)
-
         ! if system flag is also given as input also check if the CSF fits
         ! concerning total S and the number of electrons
         if (sysFlag) then
-            if (abs(return_ms(tmp_ilut)) /= STOT) then
+            if (abs(return_ms(ilut)) /= STOT) then
                 if (t_print) then
                     print *, "CSF does not have correct total spin!:"
                     call write_det_guga(6, ilut)
                     print *, "System S: ", STOT
-                    print *, "CSF S: ", abs(return_ms(tmp_ilut))
+                    print *, "CSF S: ", abs(return_ms(ilut))
                 end if
                 flag = .false.
             end if
@@ -2488,7 +2489,7 @@ contains
 
     end function isDouble
 
-    function calcStepvector(ilut) result(stepVector)
+    pure function calcStepvector(ilut) result(stepVector)
         ! function to calculate stepvector of length nReps, corresponding
         ! to the ilut bit-representation, if each stepvalue is needed
         ! often within a function.
@@ -2504,7 +2505,7 @@ contains
 
     end function calcStepvector
 
-    function calcOcc_vector_ilut(ilut) result(occVector)
+    pure function calcOcc_vector_ilut(ilut) result(occVector)
         ! probably more efficiently implemented by simon already...
         ! but for now do it in this stupid way todo -> ask simon
         integer(n_int), intent(in) :: ilut(0:GugaBits%len_orb)
@@ -2518,7 +2519,7 @@ contains
 
     end function calcOcc_vector_ilut
 
-    function calcOcc_vector_int(ilut) result(occVector)
+    pure function calcOcc_vector_int(ilut) result(occVector)
         ! function which gives the occupation vector in integer form
         integer(n_int), intent(in) :: ilut(0:GugaBits%len_orb)
         integer :: occVector(nSpatOrbs)
@@ -2531,7 +2532,7 @@ contains
 
     end function calcOcc_vector_int
 
-    function calcB_vector_ilut(ilut) result(bVector)
+    pure function calcB_vector_ilut(ilut) result(bVector)
         ! function to calculate bVector of length (nBasis) for a given
         ! CSF bitRep ilut of length (2*nBasis), save this b-vector
         ! in the nI array, normally used to store occupied orbitals
@@ -2573,7 +2574,7 @@ contains
 
     end function calcB_vector_ilut
 
-    function calcB_vector_int(ilut) result(bVector)
+    pure function calcB_vector_int(ilut) result(bVector)
         ! function to calculate the bvector in integer form
         integer(n_int), intent(in) :: ilut(0:GugaBits%len_orb)
         integer :: bVector(nSpatOrbs)
@@ -2599,7 +2600,7 @@ contains
 
     end function calcB_vector_int
 
-    function getStepvalueExp(ilut, sOrb) result(stepValue)
+    pure function getStepvalueExp(ilut, sOrb) result(stepValue)
         ! function to get stepvector value of a given spatial orbital
         ! sOrb -> has to later be included in "macros.h" for efficiency
 
@@ -2652,7 +2653,7 @@ contains
 
     end subroutine EncodeBitDet_guga
 
-    function getSpatialOccupation(iLut, s) result(nOcc)
+    pure function getSpatialOccupation(iLut, s) result(nOcc)
 
         integer(n_int), intent(in) :: ilut(0:GugaBits%len_orb)
         integer, intent(in) :: s
@@ -2670,7 +2671,7 @@ contains
 
     end function getSpatialOccupation
 
-    function convert_guga_to_ni(csf, siz) result(nI)
+    pure function convert_guga_to_ni(csf, siz) result(nI)
         ! function to make it easier for me to input a csf in my used notation
         ! to a nI NECI array..
         integer, intent(in) :: siz
@@ -2719,7 +2720,7 @@ contains
 
     end function convert_guga_to_ni
 
-    subroutine calc_csf_info(ilut, step_vector, b_vector, occ_vector)
+    pure subroutine calc_csf_info(ilut, step_vector, b_vector, occ_vector)
         ! routine to calculate the csf information for specific outputted
         ! information
         integer(n_int), intent(in) :: ilut(0:niftot)

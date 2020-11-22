@@ -159,7 +159,7 @@ module guga_excitations
               pick_elec_pair_uniform_guga, get_guga_integral_contrib, &
               calc_pgen_mol_guga_single, get_excit_level_from_excitInfo, &
               get_guga_integral_contrib_spat, calc_orbital_pgen_contrib_start_def, &
-              calc_orbital_pgen_contrib_end_def
+              calc_orbital_pgen_contrib_end_def, create_hamiltonian_guga
 
     ! use a "global" bVector variable here so that a b vector only has to be
     ! initialized once, for a given CSF when calculating all or only one
@@ -262,6 +262,32 @@ contains
         end if
 
     end function calc_off_diag_guga_ref_direct
+
+    function calc_guga_mat_wrapper(ilutI, ilutJ) result(mat_ele)
+        integer(n_int), intent(in) :: ilutI(0:niftot), ilutJ(0:niftot)
+        HElement_t(dp) :: mat_ele
+
+        type(ExcitationInformation_t) :: excitInfo
+
+        call calc_guga_matrix_element(ilutI, ilutJ, excitInfo, mat_ele, &
+            t_hamil = .true., calc_type = 2)
+
+    end function calc_guga_mat_wrapper
+
+    function create_hamiltonian_guga(ilut_list) result(hamil)
+        integer(n_int), intent(in) :: ilut_list(:,:)
+        HElement_t(dp) :: hamil(size(ilut_list,2), size(ilut_list,2))
+
+        integer :: i, j
+
+        do i = 1, size(ilut_list,2)
+            do j = 1, size(ilut_list,2)
+                hamil(i,j) = calc_guga_mat_wrapper(ilut_list(:,j),ilut_list(:,i))
+            end do
+        end do
+
+    end function create_hamiltonian_guga
+
 
     subroutine calc_guga_matrix_element(ilutI, ilutJ, excitInfo, mat_ele, t_hamil, &
                                         calc_type, rdm_ind, rdm_mat)

@@ -1673,7 +1673,7 @@ contains
                         [orbital_order(2)], vec, vec)
 
                     vec = [this%length / 2, 0, 0]
-                    this%sites(orbital_order(n)) = site(orbital_order(this%get_nsites()), 2, &
+                    this%sites(orbital_order(n)) = site(orbital_order(this%get_nsites()), 1, &
                         [orbital_order(this%get_nsites()-1)], vec, vec)
 
                 end if
@@ -1743,7 +1743,6 @@ contains
             end if
 
             if (this%is_periodic()) then
-
                 ! use more concise site contructors!
                 ! also encode k- and real-space vectors.. i have to get this right!
                 vec = [-(this%length + 1) / 2 + 1, 0, 0]
@@ -2604,19 +2603,20 @@ contains
         ! set up the lattice indices, via the use of "k-vectors"
         temp_array(:, :) = 0
         if (this%t_bipartite_order) then
-            if (this%get_nsites() /= 18) then
+            if ( .not. (this%get_nsites() == 18 .or. this%get_nsites() == 8)) then
                 call stop_all(this_routine, &
-                    "bipartite order for now only implemented for 3x3 tilted!")
+                    "bipartite only for 8 or 18 tilted sites for now")
             end if
-            allocate(order(18), source = 0)
+            allocate(order(this%get_nsites()), source = 0)
 
             if (t_input_order) then
-                call stop_all(this_routine, &
-                    "input order not finished for tilted")
-
                 order = orbital_order
             else
-                order = [ 1, 2, 10, 3, 4, 11, 5, 12, 6, 13, 7, 14, 8, 15, 16, 9, 17, 18]
+                if (this%get_nsites() == 18) then
+                    order = [ 1, 2, 10, 3, 4, 11, 5, 12, 6, 13, 7, 14, 8, 15, 16, 9, 17, 18]
+                else if (this%get_nsites() == 8) then
+                    order = [1,2,4,6,3,5,7,8]
+                end if
             end if
         else
             allocate(order(this%get_nsites()), source = [(i, i = 1, this%get_nsites())])
@@ -3701,8 +3701,8 @@ contains
                                 , this%kmin(3):this%kmax(3)))
         allocate(this%bz_table(this%kmin(1):this%kmax(1), this%kmin(2):this%kmax(2), &
                                 this%kmin(3):this%kmax(3)))
-        write(6, *) "Lookup table size is ", 2 * (this%kmax(1) - this%kmin(1) + 1) &
-            * (this%kmax(2) - this%kmin(2) + 1) * 8 / 1024, " kB"
+        ! write(6, *) "Lookup table size is ", 2 * (this%kmax(1) - this%kmin(1) + 1) &
+            ! * (this%kmax(2) - this%kmin(2) + 1) * 8 / 1024, " kB"
         ! and fill thee lookup table with the bz vectors
         call this%fill_bz_table()
         ! now, fill the lookup table with the indices of the states
@@ -3894,7 +3894,7 @@ contains
 
             allocate(rectangle :: this)
 
-        case ('rectangle')
+        case ('rectangle', 'rect')
 
             allocate(rectangle :: this)
 
