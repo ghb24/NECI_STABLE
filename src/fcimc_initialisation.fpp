@@ -2982,7 +2982,8 @@ contains
         integer(n_int) :: iLutnJ(0:NIfTot)
         logical :: tMC, tHPHF_temp, tHPHFInts_temp
         HElement_t(dp) :: HDiagTemp
-        real(dp), allocatable :: CK(:, :), W(:), CKN(:, :), Hamil(:), A_Arr(:, :), V(:), BM(:), T(:), WT(:)
+        HElement_t(dp), allocatable :: Hamil(:)
+        real(dp), allocatable :: CK(:, :), W(:), CKN(:, :), A_Arr(:, :), V(:), BM(:), T(:), WT(:)
         real(dp), allocatable :: SCR(:), WH(:), Work2(:), V2(:, :), AM(:)
         real(dp), allocatable :: Work(:)
         integer(TagIntType) :: ATag = 0, VTag = 0, BMTag = 0, TTag = 0, WTTag = 0, SCRTag = 0, WHTag = 0, Work2Tag = 0, V2Tag = 0

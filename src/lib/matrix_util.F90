@@ -63,19 +63,22 @@ contains
 !             print *, "bounds left_ev: ", lbound(left_ev,1),ubound(left_ev,1), &
             !                 lbound(left_ev,2),ubound(left_ev,2)
 #ifdef CMPLX_
-            allocate(rwork(max(1,3*n-2)))
-            call zheev(&
-                 left, &
-                 right, &
-                 n, &
-                 tmp_matrix, &
-                 n, &
-                 e_values, &
-                 work, &
-                 4*n, &
-                 rwork,&
-                 info)
-            deallocate(rwork)
+            block
+                HElement_t(dp), allocatable :: rwork(:)
+                allocate(rwork(max(1,3*n-2)))
+                call zheev(&
+                     left, &
+                     right, &
+                     n, &
+                     tmp_matrix, &
+                     n, &
+                     e_values, &
+                     work, &
+                     4*n, &
+                     rwork,&
+                     info)
+                deallocate(rwork)
+            end block
 #else
             call dgeev(&
                 left, &
@@ -141,9 +144,12 @@ contains
 
         tmp_matrix = matrix
 #ifdef CMPLX_
-        allocate(rwork(max(1,3*n-2)))
-        call zheev('N','N', n, tmp_matrix, n, e_values, work, 3*n, rwork)
-        deallocate(rwork)
+        block
+            HElement_t(dp), allocatable :: rwork(:)
+            allocate(rwork(max(1,3*n-2)))
+            call zheev('N','N', n, tmp_matrix, n, e_values, work, 3*n, rwork)
+            deallocate(rwork)
+        end block
 #else
         call dgeev('N','N', n, tmp_matrix, n, e_values, &
             dummy_val, dummy_vec_1,1,dummy_vec_2,1,work,3*n,info)
@@ -371,9 +377,12 @@ contains
         ! eigenvectors
         vectors = matrix
 #ifdef CMPLX_
-        allocate(rwork(max(1,3*n-2)))
-        call zheev('V', 'U', n, vectors, n, values, work, 3*n-1, rwork, info)
-        deallocate(rwork)
+        block
+            HElement_t(dp), allocatable :: rwork(:)
+            allocate(rwork(max(1,3*n-2)))
+            call zheev('V', 'U', n, vectors, n, values, work, 3*n-1, rwork, info)
+            deallocate(rwork)
+        end block
 #else
         call dsyev('V', 'U', n, vectors, n, values, work, 3*n-1,info)
 #endif
