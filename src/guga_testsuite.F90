@@ -2100,7 +2100,6 @@ contains
     end subroutine run_test_excit_gen_guga_nOrb_6_nEl_7_S_1
 
     subroutine run_test_excit_gen_guga_nOrb_6_nEl_5_S_3
-        character(*), parameter :: this_routine = "run_test_excit_gen_guga_nOrb_6_nEl_5_S_3"
         integer(n_int) :: ilut(0:niftot)
         integer :: nI(5)
 
@@ -2175,7 +2174,6 @@ contains
     end subroutine run_test_excit_gen_guga_nOrb_6_nEl_5_S_3
 
     subroutine run_test_excit_gen_guga_nOrb_6_nEl_5_S_1
-        character(*), parameter :: this_routine = "run_test_excit_gen_guga_nOrb_6_nEl_5_S_1"
         integer(n_int) :: ilut(0:niftot)
         integer :: nI(5)
 
@@ -2251,7 +2249,6 @@ contains
     end subroutine run_test_excit_gen_guga_nOrb_6_nEl_5_S_1
 
     subroutine run_test_excit_gen_guga_nOrb_6_nEl_4_S_0
-        character(*), parameter :: this_routine = "run_test_excit_gen_guga_nOrb_6_nEl_4_S_0"
         integer(n_int) :: ilut(0:niftot)
         integer :: nI(4)
 
@@ -2316,7 +2313,6 @@ contains
     end subroutine run_test_excit_gen_guga_nOrb_6_nEl_4_S_0
 
     subroutine run_test_excit_gen_guga_nOrb_6_nEl_6_S_0
-        character(*), parameter :: this_routine = "run_test_excit_gen_guga_nOrb_6_nEl_6_S_0"
         integer(n_int) :: ilut(0:niftot)
         integer :: nI(6)
 
@@ -2458,7 +2454,6 @@ contains
     end subroutine run_test_excit_gen_guga_nOrb_6_nEl_6_S_0
 
     subroutine run_test_excit_gen_guga_nEl_6_S_0
-        character(*), parameter :: this_routine = "run_test_excit_gen_guga_nEl_6_S_0"
         integer(n_int) :: ilut(0:niftot)
         integer :: nI(6)
 
@@ -2517,7 +2512,6 @@ contains
     end subroutine run_test_excit_gen_guga_nEl_6_S_0
 
     subroutine run_test_excit_gen_guga_nEl_5_S_1
-        character(*), parameter :: this_routine = "run_test_excit_gen_guga_nEl_5_S_1"
         integer(n_int) :: ilut(0:niftot)
         integer :: nI(5)
 
@@ -2627,7 +2621,6 @@ contains
     end subroutine run_test_excit_gen_guga_nEl_5_S_1
 
     subroutine run_test_excit_gen_guga_nEl_2_S_0
-        character(*), parameter :: this_routine = "run_test_excit_gen_guga_nEl_2_S_0"
         integer(n_int):: ilut(0:niftot)
         integer :: nI(2)
 
@@ -2691,7 +2684,6 @@ contains
         ! also check for the S = 2 system...
         ! and probably write this function generally for all sorts of
         ! excitations
-        character(*), parameter :: this_routine = "run_test_excit_gen_guga_S2"
         integer(n_int) :: ilut(0:niftot)
         integer :: nI(4)
 
@@ -2778,7 +2770,6 @@ contains
 
     subroutine run_test_excit_gen_guga_S0
         ! write a similar testing routine as Simons
-        character(*), parameter :: this_routine = "run_test_excit_gen_guga_S0"
         integer(n_int) :: ilut(0:niftot)
         integer :: nI(4)
 
@@ -6027,7 +6018,6 @@ contains
         integer(n_int) :: ilut(0:nifguga), t(0:nifguga)
         real(dp) :: pgen
         integer :: nI(nel), pos, nex
-        HElement_t(dp) :: HElGen
         integer(n_int), pointer :: ex(:, :)
 
         nI = [1, 2, 3, 4]
@@ -6248,7 +6238,6 @@ contains
         integer(n_int) :: ilut(0:nifguga)
         type(ExcitationInformation_t) :: excitInfo
         integer(n_int), pointer :: ex(:, :)
-        integer :: num
         real(dp) :: posSwitch(4), negSwitch(4)
 
         call EncodeBitDet_guga([3, 4, 7, 8], ilut)
@@ -7341,7 +7330,6 @@ contains
     end subroutine test_excitationIdentifier_single
 
     subroutine test_getDoubleMatrixElement
-        character(*), parameter :: this_routine = "test_getDoubleMatrixElement"
         real(dp) :: x0, x1
 
         print *, "testing: getDoubleMatrixElement:"
@@ -7512,7 +7500,6 @@ contains
 
     subroutine test_set_get_DeltaB
         integer(n_int) :: ilut(0:nifguga)
-        integer :: deltaB
         character(*), parameter :: this_routine = "test_set_get_DeltaB"
 
         call EncodeBitDet_guga([1, 2, 3, 4], ilut)
@@ -7777,7 +7764,6 @@ contains
         real(dp) :: neg(nBasis / 2), pos(nBasis / 2)
         integer :: det(nEl)
         integer(n_int) :: ilut(0:nifguga)
-        integer :: b
         character(*), parameter :: this_routine = "test_calcRemainingSwitches"
 
         det = [1, 2, 3, 6] ! 3 1 2 0
