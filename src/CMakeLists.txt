@@ -236,11 +236,7 @@ set( SRC_FILES
 
 set( RELAX_WARNINGS_SRCS
 
-    adi_initiators.F90
-    adi_data.F90
-    aliasSampling.F90
     Annihilation.F90
-    bit_rep_data.F90
     BitReps.F90
     CalcData.F90
     Calc.F90
@@ -441,26 +437,8 @@ set( RELAX_WARNINGS_SRCS
     real_time_read_input.F90
     verlet_aux.F90
 
-    lib/backtrace.cpp
-    lib/cons_neci.F90
-    lib/dSFMT.cpp
-    lib/dSFMT_interface.F90
-    lib/environment_report.F90
-    lib/error_handling_neci.F90
-    lib/hdf5_util.F90
-    lib/iso_c_hack.F90
-    lib/MemoryManagement.F90
-    lib/parallel_helper.cpp
-    lib/ranlux.F
-    lib/signals.F90
-    lib/signals_helper.cpp
     lib/soft_exit.F90
-    lib/timing.F90
-    lib/util_mod_fmt.F90
-    lib/fortran_strings.f90
-    lib/matrix_util.F90
-    lib/display_matrices.F90
-    lib/binomial_lookup.F90
+
 )
 
 set( FYPP_SRC_FILES

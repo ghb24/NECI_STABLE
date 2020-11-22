@@ -6,7 +6,7 @@ module matrix_util
     implicit none
     private
     public :: eig, print_matrix, matrix_exponential, det, blas_matmul, linspace, norm, &
-        calc_eigenvalues, check_symmetric, find_degeneracies, eig_sym
+        calc_eigenvalues, check_symmetric, find_degeneracies, eig_sym, matrix_inverse
 
 
     interface linspace
@@ -29,7 +29,6 @@ contains
         integer :: n, info
         HElement_t(dp) :: work(4*size(matrix,1)), tmp_matrix(size(matrix,1),size(matrix,2))
         HElement_t(dp) :: left_ev(size(matrix,1),size(matrix,1)), dummy_eval(size(matrix,1))
-        real(dp), allocatable :: rwork(:)
         real(dp) :: right_ev(size(matrix,1),size(matrix,1))
         integer :: sort_ind(size(matrix,1))
         character :: left, right
@@ -137,7 +136,6 @@ contains
         HElement_t(dp) :: work(3*size(matrix,1))
         real(dp) :: tmp_matrix(size(matrix,1),size(matrix,2)),dummy_val(size(matrix,1))
         real(dp) :: dummy_vec_1(1,size(matrix,1)), dummy_vec_2(1,size(matrix,1))
-        real(dp), allocatable :: rwork(:)
 
         n = size(matrix,1)
 
@@ -366,7 +364,6 @@ contains
         HElement_t(dp) :: inverse(size(matrix,1),size(matrix,2))
         HElement_t(dp) :: exp_diag(size(matrix,1),size(matrix,2))
         integer :: info, n
-        real(dp), allocatable :: rwork(:)
 
         n = size(matrix,1)
 
@@ -436,9 +433,6 @@ contains
         ! if p_in = -1 this indicates the p_inf norm
         real(dp), intent(in) :: vec(:)
         integer, intent(in), optional :: p_in
-#ifdef DEBUG_
-        character(*), parameter :: this_routine = "norm"
-#endif
         integer :: p, i
 
         if (present(p_in)) then
