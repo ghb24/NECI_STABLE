@@ -2014,12 +2014,19 @@ contains
         integer :: lu(this%length(1), this%length(2))
         integer :: rd(this%length(1), this%length(2))
         integer :: i, temp_neigh(6), x, y
-        integer, allocatable :: neigh(:)
+        integer, allocatable :: neigh(:), order(:)
         character(*), parameter :: this_routine = "init_sites_triangular"
 
         ASSERT(this%get_nsites() >= 4)
 
-        temp_array = reshape([(i, i=1, this%get_nsites())], this%length)
+        allocate(order(this%get_nsites()), source = 0)
+        if (t_input_order) then
+            order = orbital_order
+        else
+            order = [(i, i = 1, this%get_nsites())]
+        end if
+
+        temp_array = reshape([(order(i), i=1, this%get_nsites())], this%length)
 
         up = cshift(temp_array, -1, 1)
         down = cshift(temp_array, 1, 1)
@@ -2038,7 +2045,7 @@ contains
 
                 neigh = sort_unique(temp_neigh)
 
-                this%sites(i) = site(i, size(neigh), neigh)
+                this%sites(order(i)) = site(order(i), size(neigh), neigh)
 
                 deallocate(neigh)
 
@@ -2615,17 +2622,13 @@ contains
                 if (this%get_nsites() == 18) then
                     order = [ 1, 2, 10, 3, 4, 11, 5, 12, 6, 13, 7, 14, 8, 15, 16, 9, 17, 18]
                 else if (this%get_nsites() == 8) then
-                    order = [1,2,4,6,3,5,7,8]
+                    order = [1,2,5,3,6,4,7,8]
                 end if
             end if
         else
             allocate(order(this%get_nsites()), source = [(i, i = 1, this%get_nsites())])
         end if
 
-
-        print *, "temp-array bounds:"
-        print *, lbound(temp_array,1), ubound(temp_array,1)
-        print *, lbound(temp_array,2), ubound(temp_array,2)
 
         k = 0
         l = 1
@@ -2635,26 +2638,26 @@ contains
             ! this k-loop changes if i have a rectangular tilted lattice..
             ! but how? but i think when i have figured this out i have it..
             ! the first loop is fine..
-            if (this%t_bipartite_order) then
-
-                do j = -k, k, 2
-
-                    temp_array(j, i) = l
-
-                    l = l + 1
-                end do
-                do j = -k + 1, k - 1, 2
-                    temp_array(j, i) = m
-                    m = m + 1
-                end do
-            else
+            ! if (this%t_bipartite_order) then
+            !
+            !     do j = -k, k, 2
+            !
+            !         temp_array(j, i) = l
+            !
+            !         l = l + 1
+            !     end do
+            !     do j = -k + 1, k - 1, 2
+            !         temp_array(j, i) = m
+            !         m = m + 1
+            !     end do
+            ! else
                 do j = -k, k
 
-                    temp_array(j, i) = l
+                    temp_array(j, i) = order(l)
 
                     l = l + 1
                 end do
-            end if
+            ! end if
             k = k + 1
         end do
 
@@ -2696,27 +2699,27 @@ contains
         do i = offset + 1, this%length(2)
 
 
-            if (this%t_bipartite_order) then
-                do j = k_min, k_max, 2
-
-                    temp_array(j, i) = m
-
-                    m = m + 1
-
-                end do
-                do j = k_min + 1, k_max - 1, 2
-                    temp_array(j, i) = l
-                    l = l + 1
-                end do
-            else
+            ! if (this%t_bipartite_order) then
+            !     do j = k_min, k_max, 2
+            !
+            !         temp_array(j, i) = m
+            !
+            !         m = m + 1
+            !
+            !     end do
+            !     do j = k_min + 1, k_max - 1, 2
+            !         temp_array(j, i) = l
+            !         l = l + 1
+            !     end do
+            ! else
                 do j = k_min, k_max
 
-                    temp_array(j, i) = l
+                    temp_array(j, i) = order(l)
 
                     l = l + 1
 
                 end do
-            end if
+            ! end if
 
             ! k_min is negative
             k_min = k_min + 1
@@ -2806,7 +2809,7 @@ contains
                     ! have to be sure that i make it correct
                     k_vec = [i, j, 0]
                     r_vec = [j, i, 0]
-                    this%sites(l) = site(order(l), size(neigh), neigh, k_vec, r_vec)
+                    this%sites(order(l)) = site(order(l), size(neigh), neigh, k_vec, r_vec)
 
                     l = l + 1
 
@@ -2868,7 +2871,7 @@ contains
 
                     k_vec = [i, j, 0]
                     r_vec = [j, 1, 0]
-                    this%sites(l) = site(order(l), size(neigh), neigh, k_vec, r_vec)
+                    this%sites(order(l)) = site(order(l), size(neigh), neigh, k_vec, r_vec)
 
                     l = l + 1
 
@@ -2938,7 +2941,7 @@ contains
 
                     k_vec = [i, j, 0]
                     r_vec = [j, i, 0]
-                    this%sites(l) = site(order(l), size(neigh), neigh, k_vec, r_vec)
+                    this%sites(order(l)) = site(order(l), size(neigh), neigh, k_vec, r_vec)
 
                     l = l + 1
 
@@ -2963,7 +2966,7 @@ contains
 
                     neigh = sort_unique(pack(temp_neigh, temp_neigh > 0))
 
-                    this%sites(l) = site(order(l), size(neigh), neigh)
+                    this%sites(order(l)) = site(order(l), size(neigh), neigh)
 
                     l = l + 1
 
@@ -2985,7 +2988,7 @@ contains
 
                     neigh = sort_unique(pack(temp_neigh, temp_neigh > 0))
 
-                    this%sites(l) = site(l, size(neigh), neigh)
+                    this%sites(order(l)) = site(order(l), size(neigh), neigh)
 
                     l = l + 1
 
@@ -3008,7 +3011,7 @@ contains
 
                     neigh = sort_unique(pack(temp_neigh, temp_neigh > 0))
 
-                    this%sites(l) = site(order(l), size(neigh), neigh)
+                    this%sites(order(l)) = site(order(l), size(neigh), neigh)
 
                     l = l + 1
 
@@ -3030,7 +3033,7 @@ contains
 
                     neigh = sort_unique(pack(temp_neigh, temp_neigh > 0))
 
-                    this%sites(l) = site(order(l), size(neigh), neigh)
+                    this%sites(order(l)) = site(order(l), size(neigh), neigh)
 
                     l = l + 1
 
@@ -3048,7 +3051,7 @@ contains
 
                     neigh = sort_unique(pack(temp_neigh, temp_neigh > 0))
 
-                    this%sites(l) = site(l, size(neigh), neigh)
+                    this%sites(order(l)) = site(order(l), size(neigh), neigh)
 
                     l = l + 1
 
@@ -3066,7 +3069,7 @@ contains
 
                     neigh = sort_unique(pack(temp_neigh, temp_neigh > 0))
 
-                    this%sites(l) = site(order(l), size(neigh), neigh)
+                    this%sites(order(l)) = site(order(l), size(neigh), neigh)
 
                     l = l + 1
 
@@ -3913,7 +3916,7 @@ contains
 
             allocate(cube :: this)
 
-        case ('triangular', 'triangle')
+        case ('triangular', 'triangle', 'tri')
 
             if (any([length_x, length_y] < 2)) then
                 call stop_all(this_routine, &

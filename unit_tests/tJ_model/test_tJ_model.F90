@@ -11,6 +11,7 @@ program test_tJ_model
     use fcimcdata, only: ilutref
     use Detbitops, only: encodebitdet
     use matrix_util, only: eig, print_matrix
+    use guga_bitRepOps, only: write_guga_list, calcstepvector
 
     implicit none
 
@@ -67,18 +68,20 @@ contains
         use bit_reps, only: init_bit_rep
         use guga_excitations, only: create_hamiltonian_guga
 
-        HElement_t(dp), allocatable :: hamil(:,:)
+        HElement_t(dp), allocatable :: hamil(:,:), bosonic_hamil(:,:)
         integer(n_int), allocatable :: hilbert_space(:,:)
         real(dp), allocatable :: hf_coeffs(:), off_diag_sum(:), abs_off_diag_sum(:), &
                                  n_diff_sign(:), sum_pos(:), sum_neg(:), &
                                  sum_3_cycle(:), sum_n_cycle(:), e_vecs(:,:), &
                                  e_values(:), sum_non_zeros(:), non_zeros_in_gs(:), &
-                                 sign_coherent_gs(:), gs_vec(:), gs_vec_bipart(:)
+                                 sign_coherent_gs(:), gs_vec(:), gs_vec_bipart(:), &
+                                 bosonic_diff(:), bosonic_energy(:), bos_e_vecs(:,:)
         logical :: t_input_perm, t_periodic, t_input_lattice, t_input_bc
-        real(dp) :: hf_coeff, gs_orig, hf_orig, hf_bipart, gs_bipart
+        real(dp) :: hf_coeff, gs_orig, hf_orig, hf_bipart, gs_bipart, bos_diff
         integer :: n_beta, n_alpha, n_orbs, n_perms, hf_ind, i, iunit_write, tot_spin
-        integer :: gs_ind, n_periodic, iunit_read
-        integer, allocatable :: nI(:)
+        integer :: gs_ind, n_periodic, iunit_read, j
+        integer, allocatable :: nI(:), ref(:), ref_bipart(:), step(:)
+        integer(n_int), allocatable :: refs(:,:)
 
         t_input_perm = .true.
         t_input_order = .true.
@@ -147,6 +150,9 @@ contains
         nifd = 0
         exchange_j = 1.0_dp
         allocate(nI(nel), source = [(2 * i - mod(i,2), i = 1, nel)])
+        allocate(step(n_orbs), source = 0)
+        allocate(ref(nel), source = [(2 * i - mod(i,2), i = 1, nel)])
+        allocate(ref_bipart(nel), source = [(2 * i - mod(i,2), i = 1, nel)])
         print *, "nI: ", nI
         allocate(ilutRef(0:0,1), source = 0_n_int)
 
@@ -154,12 +160,11 @@ contains
 
         allocate(orbital_order(n_orbs), source = [(i, i = 1, n_orbs)])
         if (lattice_type == 'chain') then
-            orbital_order(1:n_orbs/2) = [(2 * i - 1, i = 1, n_orbs/2)]
-            orbital_order(n_orbs/2 + 1:n_orbs) = [(2 * i, i = 1, n_orbs/2)]
+            orbital_order(1:n_orbs-1:2) = [(i, i = 1, n_orbs/2)]
+            orbital_order(2:n_orbs:2) = [(i, i = n_orbs/2 + 1, n_orbs)]
         else if (lattice_type == 'rect' .or. lattice_type == 'rectangle') then
             orbital_order = [1,5,2,6,7,3,8,4]
         else if (lattice_type == 'tilted') then
-            orbital_order = [1,2,4,6,3,5,7,8]
             orbital_order = [1,2,5,3,6,4,7,8]
         end if
 
@@ -174,6 +179,8 @@ contains
             call init_get_helement_heisenberg()
         end if
 
+
+        print *, "orbital order: ", orbital_order
 
         n_alpha = n_orbs / 2
         n_beta = n_orbs / 2
@@ -208,18 +215,28 @@ contains
         allocate(sign_coherent_gs(n_perms), source = 0.0_dp)
         allocate(gs_vec(n_perms), source = 0.0_dp)
         allocate(gs_vec_bipart(n_perms), source = 0.0_dp)
+        allocate(refs(0:0,n_perms), source = 0_n_int)
+        allocate(bosonic_diff(n_perms), source = 0.0_dp)
+        allocate(bos_e_vecs(size(hilbert_space,2),size(hilbert_space,2)), source = 0.0_dp)
+        allocate(bosonic_energy(size(hilbert_space,2)), source = 0.0_dp)
 
         call eig(hamil, e_values, e_vecs)
         call store_gs_hf_coeff(e_values, e_vecs, hf_orig, hf_ind, gs_ind)
+        call decode_bit_det(ref, hilbert_space(:, hf_ind))
 
         gs_orig = e_values(gs_ind)
         gs_vec = e_vecs(:,gs_ind)
+
+        bosonic_hamil = create_bosonic_hamil(hamil)
+        call eig(bosonic_hamil, bosonic_energy, bos_e_vecs)
+
+        bos_diff = gs_orig - minval(bosonic_energy)
 
         iunit_write = get_free_unit()
         open(iunit_write, file = 'orig-and-bipartite-data', status = 'replace', action = 'write')
         write(iunit_write, *) "# hf-coeff     off-diag-sum    abs-off-diag-sum    &
             &n-diff-sign    sum-pos     sum-neg     sum-3-cycle     sum-n-cycle &
-            &   sum-non-zeros   non-zeros-in-gs     sign-coherent-gs"
+            &   sum-non-zeros   non-zeros-in-gs     bosonic-diff    sign-coherent-gs"
         write(iunit_write, '(G25.17)', advance = 'no') hf_orig
         write(iunit_write, '(G25.17)', advance = 'no') sum_off_diag(hamil)
         write(iunit_write, '(G25.17)', advance = 'no') sum_off_diag(abs(hamil))
@@ -230,6 +247,7 @@ contains
         write(iunit_write, '(G25.17)', advance = 'no') cycle_flow(hamil, hf_ind, size(hamil,1))
         write(iunit_write, '(G25.17)', advance = 'no') sum_non_zero_off_diag(hamil)
         write(iunit_write, '(G25.17)', advance = 'no') get_num_non_zeros(gs_vec)
+        write(iunit_write, '(G25.17)', advance = 'no') gs_orig - minval(bosonic_energy)
         write(iunit_write, '(G25.17)', advance = 'yes') log2real(is_vec_sign_coherent(gs_vec))
 
         lat => lattice(lattice_type, length_x, length_y, 1, &
@@ -251,6 +269,10 @@ contains
 
         gs_bipart = e_values(gs_ind)
         gs_vec_bipart = e_vecs(:,gs_ind)
+        call decode_bit_det(ref_bipart, hilbert_space(:, hf_ind))
+
+        bosonic_hamil = create_bosonic_hamil(hamil)
+        call eig(bosonic_hamil, bosonic_energy, bos_e_vecs)
 
         write(iunit_write, '(G25.17)', advance = 'no')  hf_bipart
         write(iunit_write, '(G25.17)', advance = 'no')  sum_off_diag(hamil)
@@ -262,6 +284,7 @@ contains
         write(iunit_write, '(G25.17)', advance = 'no')  cycle_flow(hamil, hf_ind, size(hamil,1))
         write(iunit_write, '(G25.17)', advance = 'no')  sum_non_zero_off_diag(hamil)
         write(iunit_write, '(G25.17)', advance = 'no')  get_num_non_zeros(gs_vec_bipart)
+        write(iunit_write, '(G25.17)', advance = 'no')  gs_bipart - minval(bosonic_energy)
         write(iunit_write, '(G25.17)', advance = 'yes') log2real(is_vec_sign_coherent(gs_vec_bipart))
 
         close(iunit_write)
@@ -272,13 +295,17 @@ contains
         print *, "original HF coeff: ", hf_orig
         print *, "original gs vec non-zeros: ", get_num_non_zeros(gs_vec)
         print *, "original gs vec sign coherent?:", is_vec_sign_coherent(gs_vec)
+        print *, "original reference: ", ref
+        print *, "original bosonic diff: ", bos_diff
 
         print *, "bipartite gs energy:", gs_bipart
         print *, "bipartite hf coeff: ", hf_bipart
-        print *, "original gs vec non-zeros: ", get_num_non_zeros(gs_vec_bipart)
-        print *, "original gs vec sign coherent?:", is_vec_sign_coherent(gs_vec_bipart)
+        print *, "bipartite gs vec non-zeros: ", get_num_non_zeros(gs_vec_bipart)
+        print *, "bipartite gs vec sign coherent?:", is_vec_sign_coherent(gs_vec_bipart)
+        print *, "bipartite reference: ", ref_bipart
+        print *, "bipartite bosonic diff: ", gs_bipart - minval(bosonic_energy)
 
-        call stop_all("here", "now")
+        ! call stop_all("here", "now")
         do i = 1, n_perms
 
             read(iunit_read,*) orbital_order
@@ -303,6 +330,13 @@ contains
             ! and store the largest coeff. from the GS
             call store_gs_hf_coeff(e_values, e_vecs, hf_coeff, hf_ind, gs_ind)
             gs_vec = e_vecs(:, gs_ind)
+
+            bosonic_hamil = create_bosonic_hamil(hamil)
+            call eig(bosonic_hamil, bosonic_energy, bos_e_vecs)
+
+            bosonic_diff(i) = e_values(gs_ind) - minval(bosonic_energy)
+
+            refs(:,i) = hilbert_space(:, hf_ind)
 
             if (abs(gs_orig - e_values(gs_ind)) > 1.e-12_dp) then
                 print *, "energies diffier: "
@@ -357,12 +391,24 @@ contains
         call print_vec(sum_non_zeros, "sum-non-zeros")
         call print_vec(non_zeros_in_gs, "non-zeros-in-gs")
         call print_vec(sign_coherent_gs, "sign-coherent-gs")
+        call print_vec(bosonic_diff, "bosonic-diff")
+
+        iunit_write = get_free_unit()
+        open(iunit_write, file = 'references', status = 'replace', action = 'write')
+        do i = 1, n_perms
+            step = calcstepvector(refs(:,i))
+            do j = 1, n_orbs - 1
+                write(iunit_write, '(i2)', advance = 'no') step(j)
+            end do
+            write(iunit_write, '(i2)', advance = 'yes') step(n_orbs)
+        end do
+        close(iunit_write)
 
         iunit_write = get_free_unit()
         open(iunit_write, file = 'all-data', status = 'replace', action = 'write')
         write(iunit_write, *) "# hf-coeff     off-diag-sum    abs-off-diag-sum    &
             &n-diff-sign    sum-pos     sum-neg     sum-3-cycle     sum-n-cycle &
-            &   sum-non-zeros   non-zeros-in-gs     sign-coherent-gs"
+            &   sum-non-zeros   non-zeros-in-gs     bosonic-diff    sign-coherent-gs"
         do i = 1, n_perms
             write(iunit_write, '(G25.17)',advance = 'no') hf_coeffs(i)
             write(iunit_write, '(G25.17)',advance = 'no') off_diag_sum(i)
@@ -374,12 +420,42 @@ contains
             write(iunit_write, '(G25.17)',advance = 'no') sum_n_cycle(i)
             write(iunit_write, '(G25.17)',advance = 'no') sum_non_zeros(i)
             write(iunit_write, '(G25.17)',advance = 'no') non_zeros_in_gs(i)
+            write(iunit_write, '(G25.17)',advance = 'no') bosonic_diff(i)
             write(iunit_write, '(G25.17)',advance = 'yes') sign_coherent_gs(i)
         end do
         close(iunit_write)
         call stop_all("here", "for now")
 
     end subroutine exact_study
+
+    pure function create_bosonic_hamil(hamil) result(bosonic)
+        HElement_t(dp), intent(in) :: hamil(:,:)
+        HElement_t(dp) :: bosonic(size(hamil,1), size(hamil,2))
+
+        HElement_t(dp) :: copy(size(hamil,1), size(hamil,2))
+        integer :: i
+
+        copy = hamil
+
+        forall(i = 1:size(copy,1)) copy(i,i) = 0.0_dp
+
+        bosonic = diag_matrix(hamil) - abs(copy)
+
+
+    end function create_bosonic_hamil
+
+    pure function diag_matrix(matrix) result(diag)
+        HElement_t(dp), intent(in) :: matrix(:,:)
+        HElement_t(dp) :: diag(size(matrix,1), size(matrix,2 ))
+
+        integer :: i
+
+        diag = 0.0_dp
+
+        forall(i = 1:size(matrix,1)) diag(i,i) = matrix(i,i)
+
+    end function diag_matrix
+
 
     elemental pure real(dp) function log2real(a)
         logical, intent(in) :: a
