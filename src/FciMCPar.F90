@@ -753,8 +753,10 @@ contains
                 end if
             end if
 
-            if (TPopsFile .and. tHDF5TruncPopsWrite .and. iHDF5TruncPopsIter > 0 .and. (mod(Iter, iHDF5TruncPopsIter) == 0)) then
-                call write_popsfile_hdf5(iHDF5TruncPopsEx, .true.)
+            if (TPopsFile .and. tHDF5TruncPopsWrite .and. iHDF5TruncPopsIter > 0) then
+                if (mod(Iter, iHDF5TruncPopsIter) == 0) then
+                    call write_popsfile_hdf5(iHDF5TruncPopsEx, .true.)
+                end if
             end if
             IF (tHistSpawn .and. (mod(Iter, iWriteHistEvery) == 0) .and. (.not. tRDMonFly)) THEN
                 CALL WriteHistogram()
