@@ -2990,6 +2990,7 @@ contains
         integer(TagIntType) :: ISCRTag = 0, IndexTag = 0, AMTag = 0
         integer(TagIntType) :: WorkTag = 0
         real(dp) :: CASRefEnergy, TotWeight, PartFac, amp, rat, r, GetHElement
+        external :: GetHElement
         real(dp), dimension(lenof_sign) :: temp_sign
         real(dp) :: energytmp(nel), max_wt
         integer  :: tmp_det(nel), det_max, run
