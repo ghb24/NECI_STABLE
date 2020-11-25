@@ -21,9 +21,6 @@ set( SRC_FILES
     CPMDData.F90
     cpmdinit.F
     cpmdstub.F
-    #csf_data.F90
-    #csf.F90
-    #csf_old.F
     davidson_neci.F90
     davidson_semistoch.F90
     default_sets.F90
@@ -328,7 +325,6 @@ set( RELAX_WARNINGS_SRCS
     modifiedHub.F90
     molcas_interface.F90
     MolproPlugin.F90
-#     PluginGuest.cpp
     NatOrbs.F90
     NECICore.F90
     neci_intfce.F90
