@@ -1337,9 +1337,6 @@ contains
 
             case ("LOCAL-SPIN")
                 t_measure_local_spin = .true.
-                t_measure_local_spin_av = .true.
-
-                call geti(num_local_spin_orbs)
 
                 if (.not. tGUGA) then
                     call stop_all(this_routine, &

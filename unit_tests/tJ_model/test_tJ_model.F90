@@ -2,7 +2,8 @@
 
 program test_tJ_model
 
-    use SystemData, only: t_tJ_model, t_heisenberg_model, exchange_j, t_lattice_model
+    use SystemData, only: t_tJ_model, t_heisenberg_model, exchange_j, t_lattice_model, &
+                          nSpatOrbs
     use tJ_model
     use fruit
     use lattice_mod, only: lat
@@ -11,7 +12,8 @@ program test_tJ_model
     use fcimcdata, only: ilutref
     use Detbitops, only: encodebitdet
     use matrix_util, only: eig, print_matrix
-    use guga_bitRepOps, only: write_guga_list, calcstepvector
+    use guga_bitRepOps, only: write_guga_list, calcstepvector, calcB_vector_ilut
+    use util_mod, only: near_zero
 
     implicit none
 
@@ -75,19 +77,28 @@ contains
                                  sum_3_cycle(:), sum_n_cycle(:), e_vecs(:,:), &
                                  e_values(:), sum_non_zeros(:), non_zeros_in_gs(:), &
                                  sign_coherent_gs(:), gs_vec(:), gs_vec_bipart(:), &
-                                 bosonic_diff(:), bosonic_energy(:), bos_e_vecs(:,:)
-        logical :: t_input_perm, t_periodic, t_input_lattice, t_input_bc
+                                 bosonic_diff(:), bosonic_energy(:), bos_e_vecs(:,:), &
+                                 localisation(:), ref_energies(:)
+        logical :: t_input_perm, t_periodic, t_input_lattice, t_input_bc, t_input_spin
+        logical :: t_input_state, t_input_j
         real(dp) :: hf_coeff, gs_orig, hf_orig, hf_bipart, gs_bipart, bos_diff
-        integer :: n_beta, n_alpha, n_orbs, n_perms, hf_ind, i, iunit_write, tot_spin
-        integer :: gs_ind, n_periodic, iunit_read, j
-        integer, allocatable :: nI(:), ref(:), ref_bipart(:), step(:)
+        integer :: n_beta, n_alpha, n_perms, hf_ind, i, iunit_write, tot_spin
+        integer :: gs_ind, n_periodic, iunit_read, j, target_state, most_important_ind
+        integer :: bosonic_error_ind
+        real(dp) :: high_ref
+        integer, allocatable :: nI(:), ref(:), ref_bipart(:), step(:), most_important_order(:)
+        integer, allocatable :: bos_err_order(:)
         integer(n_int), allocatable :: refs(:,:)
+        character(2) :: num
 
         t_input_perm = .true.
         t_input_order = .true.
         t_input_bc = .true.
+        t_input_spin = .false.
+        t_input_j = .false.
 
         t_input_lattice = .true.
+        t_input_state = .false.
 
         if (t_input_lattice) then
             print *, "input lattice type: (chain,square,rectangle,tilted)"
@@ -104,6 +115,13 @@ contains
             lattice_type = 'chain'
             length_x = 8
             length_y = 1
+        end if
+
+        if (t_input_j) then
+            print *, "input Heisenberg J (+ -> antiferro, - -> ferro)"
+            read(*,*) exchange_j
+        else
+            exchange_j = 1.0_dp
         end if
 
         if (t_input_bc) then
@@ -141,16 +159,41 @@ contains
             t_periodic_x = .not. t_open_bc_x, t_periodic_y = .not. t_open_bc_y,&
             t_periodic_z = .true.)
 
-        n_orbs = lat%get_nsites()
-        nBasis = n_orbs * 2
+        nSpatOrbs = lat%get_nsites()
 
-        nel = n_orbs
+        if (t_input_spin) then
+            print *, "input desired total spin"
+            read(*,*) tot_spin
+
+            if (mod(nSpatOrbs,2) /= mod(tot_spin,2) .or. tot_spin > nSpatOrbs/2) then
+                print *, "incorrect total spin for chosen nSpatOrbs"
+
+            end if
+        else
+            if (mod(nSpatOrbs,2) == 0) then
+                tot_spin = 0
+            else
+                tot_spin = 1
+            end if
+        end if
+
+        if (t_input_state) then
+            print *, "which state to target? (0..ground-state, 1..first excited state, and so on"
+            read(*,*) target_state
+            target_state = target_state + 1
+        else
+            target_state = 1
+        end if
+
+
+        nBasis = nSpatOrbs * 2
+
+        nel = nSpatOrbs
         tGUGA = .true.
         t_heisenberg_model = .true.
         nifd = 0
-        exchange_j = 1.0_dp
         allocate(nI(nel), source = [(2 * i - mod(i,2), i = 1, nel)])
-        allocate(step(n_orbs), source = 0)
+        allocate(step(nSpatOrbs), source = 0)
         allocate(ref(nel), source = [(2 * i - mod(i,2), i = 1, nel)])
         allocate(ref_bipart(nel), source = [(2 * i - mod(i,2), i = 1, nel)])
         print *, "nI: ", nI
@@ -158,12 +201,21 @@ contains
 
         call EncodeBitDet(nI, ilutRef)
 
-        allocate(orbital_order(n_orbs), source = [(i, i = 1, n_orbs)])
+        allocate(orbital_order(nSpatOrbs), source = [(i, i = 1, nSpatOrbs)])
+        allocate(most_important_order(nSpatOrbs), source = 0)
+        allocate(bos_err_order(nSpatOrbs), source = 0)
+
         if (lattice_type == 'chain') then
-            orbital_order(1:n_orbs-1:2) = [(i, i = 1, n_orbs/2)]
-            orbital_order(2:n_orbs:2) = [(i, i = n_orbs/2 + 1, n_orbs)]
+            orbital_order(1:nSpatOrbs-1:2) = [(i, i = 1, nSpatOrbs/2)]
+            orbital_order(2:nSpatOrbs:2) = [(i, i = nSpatOrbs/2 + 1, nSpatOrbs)]
         else if (lattice_type == 'rect' .or. lattice_type == 'rectangle') then
-            orbital_order = [1,5,2,6,7,3,8,4]
+            if (length_x == 4) then
+                orbital_order = [1,5,2,6,7,3,8,4]
+            else if (length_x == 5) then
+                orbital_order = [1,5,2,6,7,3,8,4,9,10]
+            else if (length_x == 3) then
+                orbital_order = [1,5,2,6,3,4]
+            end if
         else if (lattice_type == 'tilted') then
             orbital_order = [1,2,5,3,6,4,7,8]
         end if
@@ -181,24 +233,39 @@ contains
 
 
         print *, "orbital order: ", orbital_order
+        call print_vec(orbital_order, "bipartite-order")
 
-        n_alpha = n_orbs / 2
-        n_beta = n_orbs / 2
-        tot_spin = 0
+        n_beta = ceiling(nSpatOrbs / 2.) + tot_spin / 2
+        n_alpha = floor(nSpatOrbs / 2.) - tot_spin / 2
+        print *, "tot spin: ", tot_spin
+        print *, "n-beta: ", n_beta
+        print *, "n-alpha: ", n_alpha
 
-        hilbert_space = create_all_open_shell_dets(n_orbs, n_alpha, n_beta)
+        hilbert_space = create_all_open_shell_dets(nSpatOrbs, n_alpha, n_beta)
         ! and then I need to loop over the permutations
         if (tGUGA) then
-            hilbert_space = csf_purify(hilbert_space, tot_spin, n_orbs, nel)
+            hilbert_space = csf_purify(hilbert_space, tot_spin, nSpatOrbs, nel)
             hamil = create_hamiltonian_guga(hilbert_space)
         else
             hamil = create_lattice_hamil_ilut(hilbert_space)
         end if
 
+        call write_guga_list(6, hilbert_space)
+        iunit_write = get_free_unit()
+        open(iunit_write, file = 'hilbert-space', status = 'replace', action = 'write')
+        do i = 1, size(hilbert_space,2)
+            step = calcStepvector(hilbert_space(:,i))
+            do j = 1, nSpatOrbs - 1
+                write(iunit_write, '(i2)', advance = 'no') step(j)
+            end do
+            write(iunit_write, '(i2)', advance = 'yes') step(nSpatOrbs)
+        end do
+        close(iunit_write)
+
         iunit_read = get_free_unit()
         open(iunit_read, file = 'permutations', status = 'old', action = 'read')
 
-        n_perms = factorial(n_orbs - 1)
+        n_perms = factorial(nSpatOrbs - 1)
 
         allocate(e_values(size(hilbert_space,2)), source = 0.0_dp)
         allocate(e_vecs(size(hilbert_space,2),size(hilbert_space,2)), source = 0.0_dp)
@@ -213,30 +280,49 @@ contains
         allocate(sum_non_zeros(n_perms), source = 0.0_dp)
         allocate(non_zeros_in_gs(n_perms), source = 0.0_dp)
         allocate(sign_coherent_gs(n_perms), source = 0.0_dp)
-        allocate(gs_vec(n_perms), source = 0.0_dp)
-        allocate(gs_vec_bipart(n_perms), source = 0.0_dp)
+        allocate(gs_vec(size(hilbert_space,2)), source = 0.0_dp)
+        allocate(gs_vec_bipart(size(hilbert_space,2)), source = 0.0_dp)
         allocate(refs(0:0,n_perms), source = 0_n_int)
         allocate(bosonic_diff(n_perms), source = 0.0_dp)
         allocate(bos_e_vecs(size(hilbert_space,2),size(hilbert_space,2)), source = 0.0_dp)
         allocate(bosonic_energy(size(hilbert_space,2)), source = 0.0_dp)
+        allocate(localisation(n_perms), source = 0.0_dp)
+        allocate(ref_energies(n_perms), source = 0.0_dp)
 
         call eig(hamil, e_values, e_vecs)
-        call store_gs_hf_coeff(e_values, e_vecs, hf_orig, hf_ind, gs_ind)
+
+        call store_hf_coeff(e_values, e_vecs, target_state, hf_orig, hf_ind, gs_ind)
         call decode_bit_det(ref, hilbert_space(:, hf_ind))
 
         gs_orig = e_values(gs_ind)
         gs_vec = e_vecs(:,gs_ind)
 
+        call print_vec(local_spin(hilbert_space, gs_vec), "loc-spin-gs-orig", &
+            t_index = .true., t_zero = .true.)
+        call print_vec(spin_corr_chain_ordered(local_spin(hilbert_space, gs_vec)), &
+            "spin-corr-gs-orig", t_index = .true.)
+
+        call print_vec(spin_corr_chain_ordered(local_spin(hilbert_space(:,hf_ind:hf_ind+1), &
+            [1.0_dp,0.0_dp])),'test',t_index = .true.)
+
+        iunit_write = get_free_unit()
+        open(iunit_write, file = 'orig-hamil', status = 'replace', action = 'write')
+        call print_matrix(hamil, iunit_write)
+        close(iunit_write)
+
+        call print_vec(gs_vec, "gs-vec-orig")
+
         bosonic_hamil = create_bosonic_hamil(hamil)
         call eig(bosonic_hamil, bosonic_energy, bos_e_vecs)
 
-        bos_diff = gs_orig - minval(bosonic_energy)
+        bos_diff = gs_orig - my_minval(bosonic_energy, target_state)
 
         iunit_write = get_free_unit()
         open(iunit_write, file = 'orig-and-bipartite-data', status = 'replace', action = 'write')
         write(iunit_write, *) "# hf-coeff     off-diag-sum    abs-off-diag-sum    &
             &n-diff-sign    sum-pos     sum-neg     sum-3-cycle     sum-n-cycle &
-            &   sum-non-zeros   non-zeros-in-gs     bosonic-diff    sign-coherent-gs"
+            &   sum-non-zeros   non-zeros-in-gs     bosonic-diff    localisation &
+            &   ref-energies    sign-coherent-gs"
         write(iunit_write, '(G25.17)', advance = 'no') hf_orig
         write(iunit_write, '(G25.17)', advance = 'no') sum_off_diag(hamil)
         write(iunit_write, '(G25.17)', advance = 'no') sum_off_diag(abs(hamil))
@@ -247,7 +333,9 @@ contains
         write(iunit_write, '(G25.17)', advance = 'no') cycle_flow(hamil, hf_ind, size(hamil,1))
         write(iunit_write, '(G25.17)', advance = 'no') sum_non_zero_off_diag(hamil)
         write(iunit_write, '(G25.17)', advance = 'no') get_num_non_zeros(gs_vec)
-        write(iunit_write, '(G25.17)', advance = 'no') gs_orig - minval(bosonic_energy)
+        write(iunit_write, '(G25.17)', advance = 'no') gs_orig - my_minval(bosonic_energy, target_state)
+        write(iunit_write, '(G25.17)', advance = 'no') norm(gs_vec,4)
+        write(iunit_write, '(G25.17)', advance = 'no') hamil(hf_ind,hf_ind) - gs_orig
         write(iunit_write, '(G25.17)', advance = 'yes') log2real(is_vec_sign_coherent(gs_vec))
 
         lat => lattice(lattice_type, length_x, length_y, 1, &
@@ -265,11 +353,16 @@ contains
 
         call eig(hamil, e_values, e_vecs)
 
-        call store_gs_hf_coeff(e_values, e_vecs, hf_bipart, hf_ind, gs_ind)
+        call store_hf_coeff(e_values, e_vecs, target_state, hf_bipart, hf_ind, gs_ind)
 
         gs_bipart = e_values(gs_ind)
         gs_vec_bipart = e_vecs(:,gs_ind)
         call decode_bit_det(ref_bipart, hilbert_space(:, hf_ind))
+
+        call print_vec(local_spin(hilbert_space, gs_vec_bipart), "loc-spin-gs-bipart", &
+            t_index = .true., t_zero = .true.)
+        call print_vec(spin_corr_chain_ordered(local_spin(hilbert_space, gs_vec_bipart)), &
+            "spin-corr-gs-bipart", t_index = .true.)
 
         bosonic_hamil = create_bosonic_hamil(hamil)
         call eig(bosonic_hamil, bosonic_energy, bos_e_vecs)
@@ -284,10 +377,25 @@ contains
         write(iunit_write, '(G25.17)', advance = 'no')  cycle_flow(hamil, hf_ind, size(hamil,1))
         write(iunit_write, '(G25.17)', advance = 'no')  sum_non_zero_off_diag(hamil)
         write(iunit_write, '(G25.17)', advance = 'no')  get_num_non_zeros(gs_vec_bipart)
-        write(iunit_write, '(G25.17)', advance = 'no')  gs_bipart - minval(bosonic_energy)
+        write(iunit_write, '(G25.17)', advance = 'no')  gs_bipart - my_minval(bosonic_energy, target_state)
+        write(iunit_write, '(G25.17)', advance = 'no') norm(gs_vec_bipart,4)
+        write(iunit_write, '(G25.17)', advance = 'no') hamil(hf_ind,hf_ind) - gs_orig
         write(iunit_write, '(G25.17)', advance = 'yes') log2real(is_vec_sign_coherent(gs_vec_bipart))
 
         close(iunit_write)
+
+        iunit_write = get_free_unit()
+        open(iunit_write, file = 'bipartite-hamil', status = 'replace', action = 'write')
+        call print_matrix(hamil, iunit_write)
+        close(iunit_write)
+
+        call print_vec(gs_vec_bipart, "gs-vec-bipart")
+
+        iunit_write = get_free_unit()
+        open(iunit_write, file = 'gs-energy', status = 'replace', action = 'write')
+        write(iunit_write, '(G25.17)') gs_orig
+        close(iunit_write)
+
 
         print *, "size(hilbert_space): ", shape(hilbert_space)
         print *, "n_perms: ", n_perms
@@ -303,12 +411,20 @@ contains
         print *, "bipartite gs vec non-zeros: ", get_num_non_zeros(gs_vec_bipart)
         print *, "bipartite gs vec sign coherent?:", is_vec_sign_coherent(gs_vec_bipart)
         print *, "bipartite reference: ", ref_bipart
-        print *, "bipartite bosonic diff: ", gs_bipart - minval(bosonic_energy)
+        print *, "bipartite bosonic diff: ", gs_bipart - my_minval(bosonic_energy, target_state)
 
         ! call stop_all("here", "now")
+
+        most_important_ind = 0
+        bosonic_error_ind = 0
+
+        high_ref = 0.0_dp
+
+
         do i = 1, n_perms
 
             read(iunit_read,*) orbital_order
+
             lat => lattice(lattice_type, length_x, length_y, 1, &
                 t_periodic_x = .not. t_open_bc_x, t_periodic_y = .not. t_open_bc_y, &
                 t_periodic_z = .true., t_bipartite_order = .true.)
@@ -328,13 +444,26 @@ contains
 
             ! then I need to sort by the eigenvalues to get the GS
             ! and store the largest coeff. from the GS
-            call store_gs_hf_coeff(e_values, e_vecs, hf_coeff, hf_ind, gs_ind)
+            call store_hf_coeff(e_values, e_vecs, target_state, hf_coeff, hf_ind, gs_ind)
             gs_vec = e_vecs(:, gs_ind)
+
+            if (hf_coeff > high_ref) then
+                high_ref = hf_coeff
+                most_important_ind = i
+                most_important_order = orbital_order
+            end if
+
+            ref_energies(i) = hamil(hf_ind,hf_ind) - gs_orig
 
             bosonic_hamil = create_bosonic_hamil(hamil)
             call eig(bosonic_hamil, bosonic_energy, bos_e_vecs)
 
-            bosonic_diff(i) = e_values(gs_ind) - minval(bosonic_energy)
+            bosonic_diff(i) = e_values(gs_ind) - my_minval(bosonic_energy, target_state)
+
+            if (bosonic_diff(i) < 0.0_dp .and. (.not. near_zero(bosonic_diff(i)))) then
+                bosonic_error_ind = i
+                bos_err_order = orbital_order
+            end if
 
             refs(:,i) = hilbert_space(:, hf_ind)
 
@@ -374,6 +503,7 @@ contains
             sum_non_zeros(i) = sum_non_zero_off_diag(hamil)
             non_zeros_in_gs(i) = get_num_non_zeros(gs_vec)
             sign_coherent_gs(i) = log2real(is_vec_sign_coherent(gs_vec))
+            localisation(i) = norm(gs_vec,4)
 
         end do
 
@@ -392,15 +522,17 @@ contains
         call print_vec(non_zeros_in_gs, "non-zeros-in-gs")
         call print_vec(sign_coherent_gs, "sign-coherent-gs")
         call print_vec(bosonic_diff, "bosonic-diff")
+        call print_vec(localisation, "localisation")
+        call print_vec(ref_energies, "ref-energies")
 
         iunit_write = get_free_unit()
         open(iunit_write, file = 'references', status = 'replace', action = 'write')
         do i = 1, n_perms
             step = calcstepvector(refs(:,i))
-            do j = 1, n_orbs - 1
+            do j = 1, nSpatOrbs - 1
                 write(iunit_write, '(i2)', advance = 'no') step(j)
             end do
-            write(iunit_write, '(i2)', advance = 'yes') step(n_orbs)
+            write(iunit_write, '(i2)', advance = 'yes') step(nSpatOrbs)
         end do
         close(iunit_write)
 
@@ -408,7 +540,8 @@ contains
         open(iunit_write, file = 'all-data', status = 'replace', action = 'write')
         write(iunit_write, *) "# hf-coeff     off-diag-sum    abs-off-diag-sum    &
             &n-diff-sign    sum-pos     sum-neg     sum-3-cycle     sum-n-cycle &
-            &   sum-non-zeros   non-zeros-in-gs     bosonic-diff    sign-coherent-gs"
+            &   sum-non-zeros   non-zeros-in-gs     bosonic-diff    localisation &
+            &   ref-energies    sign-coherent-gs"
         do i = 1, n_perms
             write(iunit_write, '(G25.17)',advance = 'no') hf_coeffs(i)
             write(iunit_write, '(G25.17)',advance = 'no') off_diag_sum(i)
@@ -421,12 +554,115 @@ contains
             write(iunit_write, '(G25.17)',advance = 'no') sum_non_zeros(i)
             write(iunit_write, '(G25.17)',advance = 'no') non_zeros_in_gs(i)
             write(iunit_write, '(G25.17)',advance = 'no') bosonic_diff(i)
+            write(iunit_write, '(G25.17)',advance = 'no') localisation(i)
+            write(iunit_write, '(G25.17)',advance = 'no') ref_energies(i)
             write(iunit_write, '(G25.17)',advance = 'yes') sign_coherent_gs(i)
         end do
         close(iunit_write)
+
+
+        ! also print the vector and hamil of the most important state
+        print *, "print vector and hamil for most_important_order: ", most_important_order
+
+
+        call print_vec(most_important_order, "compact-order")
+
+        orbital_order = most_important_order
+
+        lat => lattice(lattice_type, length_x, length_y, 1, &
+            t_periodic_x = .not. t_open_bc_x, t_periodic_y = .not. t_open_bc_y, &
+            t_periodic_z = .true., t_bipartite_order = .true.)
+
+        if (tGUGA) then
+            ! call init_guga_heisenberg_model()
+            call init_get_helement_heisenberg_guga()
+            hamil = create_hamiltonian_guga(hilbert_space)
+        else
+            call init_get_helement_heisenberg()
+            hamil = create_lattice_hamil_ilut(hilbert_space)
+        end if
+
+        call eig(hamil, e_values, e_vecs)
+
+        ! n_orbs - 1 because I do not consider cycles
+
+        ! then I need to sort by the eigenvalues to get the GS
+        ! and store the largest coeff. from the GS
+        call store_hf_coeff(e_values, e_vecs, target_state, hf_coeff, hf_ind, gs_ind)
+        gs_vec = e_vecs(:, gs_ind)
+
+        call print_vec(local_spin(hilbert_space, gs_vec), "loc-spin-gs-compact", &
+            t_index = .true., t_zero = .true.)
+        call print_vec(spin_corr_chain_ordered(local_spin(hilbert_space, gs_vec)), &
+            "spin-corr-gs-compact", t_index = .true.)
+        call print_vec(spin_corr_chain_ordered(local_spin(hilbert_space(:,hf_ind:hf_ind+1), &
+            [1.0_dp,0.0_dp])),'test-2', t_index = .true.)
+
+        iunit_write = get_free_unit()
+        open(iunit_write, file = 'most-hamil', status = 'replace', action = 'write')
+        call print_matrix(hamil, iunit_write)
+        close(iunit_write)
+
+        iunit_write = get_free_unit()
+        call print_vec(gs_vec, "gs-vec-most")
+
+        ! and if we have a bosonic energy which is higher, also look at
+        ! hamiltonians..
+        if (bosonic_error_ind > 0) then
+            print *, "we do have a state with higher bosonic energy than fermionic!"
+
+            orbital_order = bos_err_order
+
+            lat => lattice(lattice_type, length_x, length_y, 1, &
+                t_periodic_x = .not. t_open_bc_x, t_periodic_y = .not. t_open_bc_y, &
+                t_periodic_z = .true., t_bipartite_order = .true.)
+
+            if (tGUGA) then
+                ! call init_guga_heisenberg_model()
+                call init_get_helement_heisenberg_guga()
+                hamil = create_hamiltonian_guga(hilbert_space)
+            else
+                call init_get_helement_heisenberg()
+                hamil = create_lattice_hamil_ilut(hilbert_space)
+            end if
+
+            call eig(hamil, e_values, e_vecs)
+
+            ! n_orbs - 1 because I do not consider cycles
+
+            ! then I need to sort by the eigenvalues to get the GS
+            ! and store the largest coeff. from the GS
+            call store_hf_coeff(e_values, e_vecs, target_state, hf_coeff, hf_ind, gs_ind)
+            gs_vec = e_vecs(:, gs_ind)
+
+            iunit_write = get_free_unit()
+            open(iunit_write, file = 'bos-error-hamil-ferm', status = 'replace', action = 'write')
+            call print_matrix(hamil, iunit_write)
+            close(iunit_write)
+
+            bosonic_hamil = create_bosonic_hamil(hamil)
+            call eig(bosonic_hamil, bosonic_energy, bos_e_vecs)
+
+            iunit_write = get_free_unit()
+            open(iunit_write, file = 'bos-error-hamil-bos', status = 'replace', action = 'write')
+            call print_matrix(bosonic_hamil, iunit_write)
+            close(iunit_write)
+
+        end if
+
         call stop_all("here", "for now")
 
     end subroutine exact_study
+
+    pure real(dp) function norm(vec, order)
+        real(dp), intent(in) :: vec(:)
+        integer, intent(in), optional :: order
+        integer order_
+        def_default(order_, order, 2)
+
+        norm = (sum(abs(vec)**order))**(real(1.0/real(order)))
+
+    end function norm
 
     pure function create_bosonic_hamil(hamil) result(bosonic)
         HElement_t(dp), intent(in) :: hamil(:,:)
@@ -443,6 +679,49 @@ contains
 
 
     end function create_bosonic_hamil
+
+    pure function local_spin(states, weights) result(loc_spin)
+        integer(n_int), intent(in) :: states(:,:)
+        real(dp), intent(in) :: weights(:)
+        real(dp) :: loc_spin(nSpatOrbs)
+
+        integer :: i
+        real(dp) :: spin(nSpatOrbs)
+
+        loc_spin = 0.0_dp
+
+        do i = 1, size(weights)
+
+            spin = calcB_vector_ilut(states(:,i)) / 2.0_dp
+
+            loc_spin = loc_spin + weights(i)**2 * spin * (spin + 1.0_dp)
+
+        end do
+
+    end function local_spin
+
+    pure function spin_corr_chain_ordered(loc_spin) result(spin_corr)
+        real(dp), intent(in) :: loc_spin(nSpatOrbs)
+        real(dp) :: spin_corr(nSpatOrbs)
+
+        integer :: i, j
+
+        spin_corr = 0.0_dp
+
+        ! first site -> same
+        spin_corr(1) = loc_spin(1)
+
+        ! check my notes for this derivation
+        do i = 2, nSpatOrbs
+            spin_corr(i) = (loc_spin(i) - i * loc_spin(1)) / 2.0_dp
+
+            do j = 2, i -1
+                spin_corr(i) = spin_corr(i) - (i - j + 1) * spin_corr(j)
+            end do
+        end do
+
+    end function spin_corr_chain_ordered
+
 
     pure function diag_matrix(matrix) result(diag)
         HElement_t(dp), intent(in) :: matrix(:,:)
@@ -503,26 +782,79 @@ contains
     end function is_vec_sign_coherent
 
 
-    subroutine print_vec(vec, filename)
-        real(dp), intent(in) :: vec(:)
+    subroutine print_vec(vec, filename, t_index, t_zero)
+        class(*), intent(in) :: vec(:)
         character(*), intent(in), optional :: filename
+        logical, intent(in), optional :: t_index, t_zero
 
+        logical :: t_index_, t_zero_
         integer :: iunit, i
+        def_default(t_index_, t_index, .false.)
+        def_default(t_zero_, t_zero, .false.)
 
-        if (present(filename)) then
-            iunit = get_free_unit()
-            open(iunit, file = filename, status = 'replace', action = 'write')
+        select type(vec)
+        type is (integer)
+            if (present(filename)) then
+                iunit = get_free_unit()
+                open(iunit, file = filename, status = 'replace', action = 'write')
 
-            do i = 1, size(vec,1)
-                write(iunit, *) vec(i)
-            end do
+                if (t_zero_) then
+                    if (t_index_) then
+                        write(iunit, *) 0, 0.0_dp
+                    else
+                        write(iunit, *) 0.0_dp
+                    end if
+                end if
 
-            close(iunit)
-        else
-            do i = 1, size(vec,1)
-                print *, vec(i)
-            end do
-        end if
+
+                if (t_index_) then
+                    do i = 1, size(vec,1)
+                        write(iunit, *) i, vec(i)
+                    end do
+                else
+                    do i = 1, size(vec,1)
+                        write(iunit, *) vec(i)
+                    end do
+                end if
+
+                close(iunit)
+            else
+                do i = 1, size(vec,1)
+                    print *, vec(i)
+                end do
+            end if
+        type is (real(dp))
+            if (present(filename)) then
+                iunit = get_free_unit()
+                open(iunit, file = filename, status = 'replace', action = 'write')
+
+                if (t_zero_) then
+                    if (t_index_) then
+                        write(iunit, *) 0, 0.0_dp
+                    else
+                        write(iunit, *) 0.0_dp
+                    end if
+                end if
+
+
+                if (t_index_) then
+                    do i = 1, size(vec,1)
+                        write(iunit, *) i, vec(i)
+                    end do
+                else
+                    do i = 1, size(vec,1)
+                        write(iunit, *) vec(i)
+                    end do
+                end if
+
+                close(iunit)
+            else
+                do i = 1, size(vec,1)
+                    print *, vec(i)
+                end do
+            end if
+
+        end select
 
     end subroutine print_vec
 
@@ -544,21 +876,57 @@ contains
 
     end function sum_non_zero_off_diag
 
-    subroutine store_gs_hf_coeff(e_values, e_vecs, hf_coeff, hf_ind, gs_ind)
+    subroutine store_hf_coeff(e_values, e_vecs, target_state, hf_coeff, hf_ind, gs_ind)
         real(dp), intent(in) :: e_values(:), e_vecs(:,:)
+        integer, intent(in), optional :: target_state
         real(dp), intent(out) :: hf_coeff
         integer, intent(out) :: hf_ind, gs_ind
 
         real(dp) :: gs_vec(size(e_values))
+        integer :: target_state_
+        def_default(target_state_,target_state,1)
 
-        gs_ind = minloc(e_values,1)
+        gs_ind = my_minloc(e_values, target_state)
 
         gs_vec = abs(e_vecs(:,gs_ind))
 
         hf_ind = maxloc(gs_vec,1)
         hf_coeff = gs_vec(hf_ind)
 
-    end subroutine store_gs_hf_coeff
+    end subroutine store_hf_coeff
+
+    pure real(dp) function my_minval(vec, target_state)
+        real(dp), intent(in) :: vec(:)
+        integer, intent(in), optional :: target_state
+
+        if (present(target_state)) then
+            my_minval = vec(my_minloc(vec,target_state))
+        else
+            my_minval = minval(vec)
+        end if
+
+    end function my_minval
+
+
+    pure integer function my_minloc(vec, target_state)
+        real(dp), intent(in) :: vec(:)
+        integer, intent(in), optional :: target_state
+
+        logical :: flag(size(vec))
+        integer :: i
+
+
+        if (present(target_state)) then
+            flag = .true.
+            do i = 1, target_state
+                my_minloc = minloc(vec, dim = 1, mask = flag)
+                flag(my_minloc) = .false.
+            end do
+        else
+            my_minloc = minloc(vec, 1)
+        end if
+
+    end function my_minloc
 
     subroutine set_diag(matrix, val)
         real(dp), intent(inout) :: matrix(:,:)

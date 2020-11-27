@@ -1838,7 +1838,18 @@ contains
         !
         ! see below how this is implemented specifically!
         class(kagome) :: this
+        integer, allocatable :: order(:)
+        integer :: i
         character(*), parameter :: this_routine = "init_sites_kagome"
+
+        allocate(order(this%get_nsites()), source = 0)
+
+        if (t_input_order .and. this%t_bipartite_order) then
+            order = orbital_order
+        else
+            order = [(i, i = 1, this%get_nsites())]
+        end if
+
 
         ! and i think i will for the 6-site, 1x2 and 2x1 12 site and 2x2 24-site
         ! hard encode the neighbors and stuff because this seems to be a pain
@@ -1847,12 +1858,12 @@ contains
         if (this%is_periodic()) then
             if (this%length(1) == 1 .and. this%length(2) == 1) then
                 ! the smallest cluster
-                this%sites(1) = site(1, 3, [2, 4, 6])
-                this%sites(2) = site(2, 4, [1, 3, 4, 5])
-                this%sites(3) = site(3, 3, [2, 5, 6])
-                this%sites(4) = site(4, 3, [1, 2, 6])
-                this%sites(5) = site(5, 3, [2, 3, 6])
-                this%sites(6) = site(6, 4, [1, 3, 4, 5])
+                this%sites(order(1)) = site(order(1), 2, order([2, 4, 6]))
+                this%sites(order(2)) = site(order(2), 4, order([1, 3, 4, 5]))
+                this%sites(order(3)) = site(order(3), 3, order([2, 5, 6]))
+                this%sites(order(4)) = site(order(4), 3, order([1, 2, 6]))
+                this%sites(order(5)) = site(order(5), 3, order([2, 3, 6]))
+                this%sites(order(6)) = site(order(6), 4, order([1, 3, 4, 5]))
 
             else if (this%length(1) == 1 .and. this%length(2) == 2) then
                 ! the 1x2 cluster with 12-sites:
@@ -1957,10 +1968,18 @@ contains
         integer :: left(4 * this%length(1), 2 * this%length(2))
 
         integer :: i, temp_neigh(3), x, y, special
-        integer, allocatable :: neigh(:)
+        integer, allocatable :: neigh(:), order(:)
         character(*), parameter :: this_routine = "init_sites_hexagonal"
 
-        temp_array = reshape([(i, i=1, this%get_nsites())], &
+        allocate(order(this%get_nsites()), source = 0)
+
+        if (t_input_order .and. this%t_bipartite_order) then
+            order = orbital_order
+        else
+            order = [(i, i = 1, this%get_nsites())]
+        end if
+
+        temp_array = reshape([(order(i), i=1, this%get_nsites())], &
                              [4 * this%length(1), 2 * this%length(2)])
 
         up = cshift(temp_array, -1, 1)
@@ -1994,7 +2013,7 @@ contains
 
                 neigh = sort_unique(temp_neigh)
 
-                this%sites(i) = site(i, size(neigh), neigh)
+                this%sites(order(i)) = site(order(i), size(neigh), neigh)
             end do
         else
             call stop_all(this_routine, &
@@ -2020,7 +2039,7 @@ contains
         ASSERT(this%get_nsites() >= 4)
 
         allocate(order(this%get_nsites()), source = 0)
-        if (t_input_order) then
+        if (t_input_order .and. this%t_bipartite_order) then
             order = orbital_order
         else
             order = [(i, i = 1, this%get_nsites())]
@@ -2088,10 +2107,6 @@ contains
                 if (this%length(2) /= 2) then
                     call stop_all(this_routine, &
                         "ladder bipartite ordering is implemented with Ly == 2)")
-                end if
-                if (mod(this%length(1),2) /= 0) then
-                    call stop_all(this_routine, &
-                        "Lx must be even for ladder bipartite ordering!")
                 end if
 
                 allocate(order(this%get_nsites()), source = 0)
@@ -3417,12 +3432,6 @@ contains
 
             this%t_bipartite_order = t_bipartite_order_
 
-            if (t_bipartite_order_) then
-                if (mod(length_x, 2) /= 0) then
-                    call stop_all(this_routine, &
-                        "odd length for bipartite ordering not possible!")
-                end if
-            end if
 
         class is (rectangle)
 
@@ -3453,12 +3462,6 @@ contains
 
             this%t_bipartite_order = t_bipartite_order_
 
-            if (t_bipartite_order_) then
-                if (mod(length_x, 2) /= 0) then
-                    call stop_all(this_routine, &
-                        "odd length for bipartite ordering not possible!")
-                end if
-            end if
 
         class is (tilted)
 
@@ -3527,10 +3530,6 @@ contains
 
             call this%set_nconnect_max(6)
 
-            if (t_bipartite_order_) then
-                call stop_all(this_routine, &
-                    "bipartite order not possible for triangular lattice")
-            end if
 
             ! todo: set lattice vector! and figure that out correctly!
             ! and write a more general routine to set the lattice
@@ -3541,20 +3540,10 @@ contains
             call this%set_length(length_x, length_y, length_z)
             call this%set_nconnect_max(3)
 
-            if (t_bipartite_order_) then
-                call stop_all(this_routine, &
-                    "bipartite order not possible for hexagonal lattice")
-            end if
-
         class is (kagome)
             call this%set_ndim(DIM_RECT)
             call this%set_length(length_x, length_y, length_z)
             call this%set_nconnect_max(4)
-
-            if (t_bipartite_order_) then
-                call stop_all(this_routine, &
-                    "bipartite order not possible for kagome lattice")
-            end if
 
         class is (star)
             call this%set_ndim(DIM_STAR)
@@ -3566,11 +3555,6 @@ contains
             if (t_periodic_x .or. t_periodic_y) then
                 call stop_all(this_routine, &
                               "incorrect initialization info: requested periodic 'star' geometry!")
-            end if
-
-            if (t_bipartite_order_) then
-                call stop_all(this_routine, &
-                    "bipartite order not possible for star lattice")
             end if
 
         class is (aim_chain)

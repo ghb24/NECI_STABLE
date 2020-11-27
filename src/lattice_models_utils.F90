@@ -643,13 +643,13 @@ contains
         ! i should work with the bit-representation, then i get to know the
         ! fortran intrinsic bit operations again..
 
-        n_max = max(n_alpha, n_beta)
-        n_min = min(n_alpha, n_beta)
+        ! n_max = max(n_alpha, n_beta)
+        ! n_min = min(n_alpha, n_beta)
 
         ! first create the spin-basis with more electrons:
-        max_basis = create_one_spin_basis(n_orbs, n_max)
+        max_basis = create_one_spin_basis(n_orbs, n_alpha)
 
-        open_shells = combine_spin_basis(n_orbs, n_max, n_min, n_dets(1), max_basis, .true.)
+        open_shells = combine_spin_basis(n_orbs, n_alpha, n_beta, n_dets(1), max_basis, .true.)
 
     end function create_all_open_shell_dets
 

@@ -51,7 +51,7 @@ module FciMCParMod
                            tHDF5TruncPopsWrite, iHDF5TruncPopsEx, tAccumPops, &
                            tAccumPopsActive, iAccumPopsIter, iAccumPopsExpireIters, &
                            tPopsProjE, iHDF5TruncPopsIter, iAccumPopsCounter, &
-                           AccumPopsExpirePercent, num_local_spin_orbs, t_print_core_vec
+                           AccumPopsExpirePercent, t_print_core_vec
 
     use rdm_data, only: print_2rdm_est, ThisRDMIter, inits_one_rdms, two_rdm_inits_spawn, &
                         two_rdm_inits, rdm_inits_defs, RDMCorrectionFactor, inits_estimates, tSetupInitsEst, &
@@ -154,7 +154,8 @@ module FciMCParMod
 
     use sltcnd_mod, only: sltcnd_excit
     use hdf5_popsfile, only: write_popsfile_hdf5
-    use local_spin, only: measure_local_spin, write_local_spin_stats
+    use local_spin, only: measure_local_spin, write_local_spin_stats, &
+                          finalize_local_spin_measurement
 
     use guga_pchb_excitgen, only: store_pchb_analysis
 
@@ -945,12 +946,7 @@ contains
         end if
 
         if (t_measure_local_spin) then
-            if (iProcIndex == root) then
-                print *, " ===== "
-                print *, " Local spin measurement up to orbital ", num_local_spin_orbs
-                print *, sum_local_spin / (sum_norm_psi_squared * real(StepsSft, dp))
-                print *, " ===== "
-            end if
+            call finalize_local_spin_measurement()
         end if
 
         if (t_calc_double_occ) then
@@ -966,6 +962,7 @@ contains
                 call finalize_double_occ_and_spin_diff()
             end if
         end if
+
 
         if (tFillingStochRDMonFly .or. tFillingExplicRDMonFly) then
             call finalise_rdms(rdm_definitions, one_rdms, two_rdm_main, two_rdm_recv, &

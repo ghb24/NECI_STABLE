@@ -88,7 +88,7 @@ module fcimc_initialisation
                            OffDiagBinRange, iDiagSubspaceIter, &
                            AllHistInitPopsTag, HistInitPopsTag, tHDF5PopsRead, &
                            tTransitionRDMs, tLogEXLEVELStats, t_no_append_stats, &
-                           t_spin_measurements, &
+                           t_spin_measurements,  t_measure_local_spin, &
                            maxInitExLvlWrite, initsPerExLvl, AllInitsPerExLvl
 
     use DetCalcData, only: NMRKS, tagNMRKS, FCIDets, NKRY, NBLK, B2L, nCycle, &
@@ -258,6 +258,8 @@ module fcimc_initialisation
     use guga_pchb_excitgen, only: init_guga_pchb_excitgen, finalize_pchb_excitgen_guga
 
     use symexcit3, only: gen_all_excits_default => gen_all_excits
+
+    use local_spin, only: init_local_spin_measure
     implicit none
 
 contains
@@ -1283,6 +1285,10 @@ contains
 
         if (t_spin_measurements) then
             call init_spin_measurements()
+        end if
+
+        if (t_measure_local_spin) then
+            call init_local_spin_measure()
         end if
 
         IF (abs(StepsSftImag) > 1.0e-12_dp) THEN

@@ -4,10 +4,9 @@ module local_spin
 
       use constants, only: dp, n_int, lenof_sign, write_state_t, inum_runs
       use bit_rep_data, only: IlutBits
-      use LoggingData, only: num_local_spin_orbs, tMCOutput, &
-                             t_measure_local_spin_av
+      use LoggingData, only: tMCOutput
       use Parallel_neci, only: MPIAllreduce, iProcIndex, MPISumAll, root
-      use SystemData, only: nel, currentB_ilut
+      use SystemData, only: nel, currentB_ilut, nSpatOrbs
       use CalcData, only: tReadPops, StepsSft
       use double_occ_mod, only: sum_norm_psi_squared
       use FciMCData, only: iter, PreviousCycles, norm_psi, totwalkers, &
@@ -19,12 +18,13 @@ module local_spin
 
       private
 
-      public :: inst_local_spin, all_local_spin, sum_local_spin, &
+      public :: inst_local_spin, all_local_spin, &
                 measure_local_spin, write_local_spin_stats, &
-                rezero_local_spin_stats
+                rezero_local_spin_stats, init_local_spin_measure, &
+                finalize_local_spin_measurement
 
-      real(dp) :: inst_local_spin = 0.0_dp, all_local_spin = 0.0_dp
-      real(dp) :: sum_local_spin = 0.0_dp, all_sum_local_spin = 0.0_dp
+      ! real(dp), allocatable :: inst_local_spin(:), all_local_spin(:)
+      real(dp), allocatable :: inst_local_spin(:), all_local_spin(:)
 
 
 contains
@@ -35,7 +35,8 @@ contains
         real(dp), intent(in) :: real_sgn(lenof_sign)
         character(*), parameter :: this_routine = "measure_local_spin"
 
-        real(dp) :: coeff, loc_spin
+        real(dp) :: coeff, loc_spin(nSpatOrbs)
+        integer :: i
 
 #if defined PROG_NUMRUNS_ || defined DOUBLERUN_
 #ifdef CMPLX_
@@ -48,9 +49,9 @@ contains
 #else
         coeff = abs(real_sgn(1))**2
 #endif
+
         ! the current b vector should be fine to get the total spin
-        loc_spin = currentB_ilut(num_local_spin_orbs) / 2.0_dp * &
-            (currentB_ilut(num_local_spin_orbs) / 2.0_dp + 1.0_dp)
+        loc_spin = currentB_ilut / 2.0_dp * (currentB_ilut / 2.0_dp + 1.0_dp)
 
         inst_local_spin = inst_local_spin + coeff * loc_spin
 
@@ -58,21 +59,20 @@ contains
 
     subroutine finalize_local_spin_measurement()
         debug_function_name("finalize_local_spin_measurement")
-
-        real(dp) :: final_local_spin
-
-        call MPISumAll(final_local_spin, all_local_spin)
-
-        if (iProcIndex == root) then
-            print *, "local spin up to orbital: ", num_local_spin_orbs
-
-        end if
-
+        if (allocated(inst_local_spin)) deallocate(inst_local_spin)
+        if (allocated(all_local_spin)) deallocate(all_local_spin)
     end subroutine finalize_local_spin_measurement
 
     subroutine rezero_local_spin_stats()
         inst_local_spin = 0.0_dp
     end subroutine rezero_local_spin_stats
+
+    subroutine init_local_spin_measure
+        if (allocated(inst_local_spin)) deallocate(inst_local_spin)
+        if (allocated(all_local_spin)) deallocate(all_local_spin)
+        allocate(inst_local_spin(nSpatOrbs), source = 0.0_dp)
+        allocate(all_local_spin(nSpatOrbs), source = 0.0_dp)
+    end subroutine init_local_spin_measure
 
     subroutine write_local_spin_stats(initial)
         debug_function_name("write_local_spin_stats")
@@ -80,6 +80,7 @@ contains
 
         type(write_state_t), save :: state
         logical, save :: inited = .false.
+        integer :: i
 
         if (present(initial)) then
             state%init = initial
@@ -107,19 +108,11 @@ contains
             state%mc_out = tMCOutput
 
             call stats_out(state, .false., iter + PreviousCycles, 'Iter.')
-            call stats_out(state, .false., all_local_spin / &
-                (real(StepsSft,dp) * sum(all_norm_psi_squared) / real(inum_runs, dp)), 'Local Spin')
+            do i = 1, nSpatOrbs
+                call stats_out(state, .false., all_local_spin(i) / &
+                    (real(StepsSft,dp) * sum(all_norm_psi_squared) / real(inum_runs, dp)), 'Local Spin')
+            end do
 
-            if (t_measure_local_spin_av) then
-                if (.not. near_zero(sum_norm_psi_squared)) then
-                    call stats_out(state, .false., sum_local_spin / &
-                        (real(StepsSft, dp) * sum_norm_psi_squared), 'Local Spin Av.')
-                else
-                    call stats_out(state, .false., 0.0_dp, 'Local Spin Av.')
-                end if
-            else
-                call stats_out(state, .false., 0.0_dp, 'Local Spin Av.')
-            end if
 
             write(state%funit, *)
             call neci_flush(state%funit)

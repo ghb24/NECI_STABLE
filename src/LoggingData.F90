@@ -243,8 +243,6 @@ module LoggingData
     logical :: t_print_molcas_rdms = .false.
 
     logical :: t_measure_local_spin = .false.
-    logical :: t_measure_local_spin_av = .false.
-    integer :: num_local_spin_orbs = -1
 
 
 end module LoggingData

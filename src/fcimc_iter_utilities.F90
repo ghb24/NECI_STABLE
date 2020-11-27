@@ -25,7 +25,7 @@ module fcimc_iter_utils
     use Determinants, only: get_helement
     use LoggingData, only: tFCIMCStats2, t_calc_double_occ, t_calc_double_occ_av, &
                            AllInitsPerExLvl, initsPerExLvl, tCoupleCycleOutput, &
-                           t_measure_local_spin, t_measure_local_spin_av
+                           t_measure_local_spin
     use tau_search, only: update_tau
     use rdm_data, only: en_pert_main, InstRDMCorrectionFactor
     use Parallel_neci
@@ -48,8 +48,7 @@ module fcimc_iter_utils
 
     use guga_tausearch, only: update_tau_guga_nosym
 
-    use local_spin, only: all_local_spin, sum_local_spin, inst_local_spin, &
-                          rezero_local_spin_stats
+    use local_spin, only: all_local_spin, inst_local_spin, rezero_local_spin_stats
 
 
     implicit none
@@ -511,7 +510,9 @@ contains
         sizes(36) = 1
         sizes(37) = 1
 
-        sizes(38) = 1 ! local spin
+        if (t_measure_local_spin) then
+            sizes(38) = nBasis / 2
+        end if
         ! en pert space size
         if (tEN2) sizes(39) = 1
         ! Output variable
@@ -588,7 +589,9 @@ contains
         low = upp + 1; upp = low + sizes(37) - 1; send_arr(low:upp) = nValidExcits;
 
         ! local spin
-        low = upp + 1; upp = low + sizes(38) - 1; send_arr(low:upp) = inst_local_spin;
+        if (t_measure_local_spin) then
+            low = upp + 1; upp = low + sizes(38) - 1; send_arr(low:upp) = inst_local_spin;
+        end if
 
         ! en pert space size
         if (tEN2) then
@@ -664,7 +667,9 @@ contains
         low = upp + 1; upp = low + sizes(37) - 1; allNValidExcits = nint(recv_arr(low), int64);
 
         ! local spin
-        low = upp + 1; upp = low + sizes(38) - 1; all_local_spin = recv_arr(low);
+        if (t_measure_local_spin) then
+            low = upp + 1; upp = low + sizes(38) - 1; all_local_spin = recv_arr(low:upp);
+        end if
 
         ! en_pert space size
         if (tEN2) then
@@ -828,17 +833,6 @@ contains
 
             ! and also sum up the double occupancy:
             sum_double_occ = sum_double_occ + all_inst_double_occ
-        end if
-
-        if (t_measure_local_spin_av) then
-
-            if (.not. t_calc_double_occ_av) then
-                sum_norm_psi_squared = sum_norm_psi_squared + &
-                                   sum(all_norm_psi_squared) / real(inum_runs, dp)
-            end if
-
-            sum_local_spin = sum_local_spin + all_local_spin
-
         end if
 
 #ifdef DEBUG_
