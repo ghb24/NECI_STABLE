@@ -8,14 +8,14 @@ module fcimc_iter_utils
                         tTruncInitiator, tJumpShift, TargetGrowRate, &
                         tLetInitialPopDie, InitWalkers, tCheckHighestPop, &
                         HFPopThresh, DiagSft, tShiftOnHFPop, iRestartWalkNum, &
-                        FracLargerDet, tKP_FCIQMC, MaxNoatHF, SftDamp, &
+                        FracLargerDet, tKP_FCIQMC, MaxNoatHF, SftDamp, SftDamp2, &
                         nShiftEquilSteps, TargetGrowRateWalk, tContTimeFCIMC, &
                         tContTimeFull, pop_change_min, tPositiveHFSign, &
                         qmc_trial_wf, nEquilSteps, t_hist_tau_search, &
                         t_hist_tau_search_option, tSkipRef, N0_Target, &
                         tSpinProject, &
                         tFixedN0, tEN2, tTrialShift, tFixTrial, TrialTarget, &
-                        tDynamicAvMCEx, AvMCExcits
+                        tDynamicAvMCEx, AvMCExcits, tTargetShiftdamp
 
     use cont_time_rates, only: cont_spawn_success, cont_spawn_attempts
     use LoggingData, only: tPrintDataTables, tLogEXLEVELStats, t_spin_measurements
@@ -874,12 +874,13 @@ contains
         integer(int64) :: tot_walkers
         logical, dimension(inum_runs) :: tReZeroShift
         real(dp), dimension(inum_runs) :: AllGrowRateRe, AllGrowRateIm
-        real(dp), dimension(inum_runs)  :: AllHFGrowRate
+        real(dp), dimension(inum_runs)  :: AllHFGrowRate, AllWalkers
         real(dp), dimension(lenof_sign) :: denominator, all_denominator
         real(dp), dimension(inum_runs) :: rel_tot_trial_numerator
         integer :: error, i, proc, pos, run, lb, ub
         logical, dimension(inum_runs) :: defer_update
         logical :: start_varying_shift
+        character(*), parameter :: this_routine = 'update_shift'
 
         ! Normally we allow the shift to vary depending on the conditions
         ! tested. Sometimes we want to defer this to the next cycle...
@@ -890,9 +891,8 @@ contains
 
             if (tL2GrowRate) then
                 ! use the L2 norm to determine the growrate
-                do run = 1, inum_runs
-                    AllGrowRate(run) = norm_psi(run) / old_norm_psi(run)
-                end do
+                AllGrowRate(:) = norm_psi(:) / old_norm_psi(:)
+                AllWalkers(:) = norm_psi(:)
 
             else if (tInstGrowthRate) then
 
@@ -904,16 +904,17 @@ contains
                     AllGrowRate(run) = (sum(iter_data%update_growth_tot(lb:ub) &
                                             + iter_data%tot_parts_old(lb:ub))) &
                                        / real(sum(iter_data%tot_parts_old(lb:ub)), dp)
+                    AllWalkers(run) = (sum(iter_data%update_growth_tot(lb:ub) &
+                                            + iter_data%tot_parts_old(lb:ub)))
                 end do
 
             else
 
                 ! Instead attempt to calculate the average growth over every
                 ! iteration over the update cycle
-                do run = 1, inum_runs
-                    AllGrowRate(run) = AllSumWalkersCyc(run) / real(StepsSft, dp) &
-                                       / OldAllAvWalkersCyc(run)
-                end do
+                AllGrowRate(:) = AllSumWalkersCyc(:) / real(StepsSft, dp) &
+                                       / OldAllAvWalkersCyc(:)
+                AllWalkers(:) = AllSumWalkersCyc(:) / real(StepsSft, dp)
 
             end if
             ! For complex case, obtain both Re and Im parts
@@ -1007,8 +1008,8 @@ contains
                     end if
 
                 else !not Fixed-N0 and not Trial-Shift
+                    tot_walkers = int(InitWalkers, int64) * int(nNodes, int64)
                     single_part_phase : if (TSinglePartPhase(run)) then
-                        tot_walkers = int(InitWalkers, int64) * int(nNodes, int64)
 
 #ifdef CMPLX_
                         if ((sum(AllTotParts(lb:ub)) > tot_walkers) .or. &
@@ -1038,6 +1039,8 @@ contains
                         start_varying_shift = .false.
                         if (tLetInitialPopDie) then
                             if (AllTotParts(run) < tot_walkers) start_varying_shift = .true.
+                        else if (tTargetShiftdamp) then
+                            start_varying_shift = .true.
                         else
                             if ((AllTotParts(run) > tot_walkers) .or. &
                                 (abs(AllNoatHF(run)) > MaxNoatHF)) start_varying_shift = .true.
@@ -1082,6 +1085,7 @@ contains
 
                     ! How should the shift change for the entire ensemble of walkers
                     ! over all processors.
+
                     if (.not. (tSinglePartPhase(run) &
                                .and. near_zero(TargetGrowRate(run)) &
                                .or. defer_update(run))) then
@@ -1096,6 +1100,10 @@ contains
 #else
                             if (AllTotParts(run) > TargetGrowRateWalk(run)) then
 #endif
+                                if (tTargetShiftdamp) then
+                                    call stop_all(this_routine, & 
+                                        "Target-shiftdamp not compatible with targetgrowrate!")
+                                end if
                                 !Only allow targetgrowrate to kick in once we have > TargetGrowRateWalk walkers.
                                 DiagSft(run) = DiagSft(run) - (log(AllGrowRate(run) - TargetGrowRate(run)) * SftDamp) / &
                                                (Tau * StepsSft)
@@ -1119,6 +1127,11 @@ contains
                                 !"write(6,*) "AllGrowRate, TargetGrowRate", AllGrowRate, TargetGrowRate
                                 DiagSft(run) = DiagSft(run) - (log(AllGrowRate(run)) * SftDamp) / &
                                                (Tau * StepsSft)
+                                if (tTargetShiftdamp) then
+                                    DiagSft(run) = DiagSft(run) - (log(AllGrowRate(run)) * SftDamp + &
+                                                       log(AllWalkers(run)/tot_walkers) * SftDamp2) / &
+                                                       (Tau * StepsSft)
+                                end if
                             end if
                         end if
 
