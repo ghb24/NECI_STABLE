@@ -145,7 +145,6 @@ set( SRC_FILES
     sparse_arrays.F90
     spectral_data.F90
     spectral_lanczos.F90
-    #spin_project.F90
     SymData.F90
     symexcit2.F90
     symexcit3.F90
@@ -161,7 +160,6 @@ set( SRC_FILES
     symrandexcit_Ex_Mag.F90
     symrandexcit4.F90
     symrandexcit5.F90
-    #symrandexcit_csf.F90
     symrandexcit.F
     symrandexcit_ueg.F90
     SystemData.F90
@@ -208,6 +206,7 @@ set( SRC_FILES
     real_time_procs.F90
     real_time_read_input.F90
     verlet_aux.F90
+    CAS_distribution_init.F90
 
     lib/backtrace.cpp
     lib/cons_neci.F90
@@ -369,7 +368,6 @@ set( RELAX_WARNINGS_SRCS
     sparse_arrays.F90
     spectral_data.F90
     spectral_lanczos.F90
-    #spin_project.F90
     SymData.F90
     symexcit2.F90
     symexcit3.F90
@@ -385,7 +383,6 @@ set( RELAX_WARNINGS_SRCS
     symrandexcit_Ex_Mag.F90
     symrandexcit4.F90
     symrandexcit5.F90
-    #symrandexcit_csf.F90
     symrandexcit.F
     symrandexcit_ueg.F90
     SystemData.F90
@@ -423,7 +420,7 @@ set( RELAX_WARNINGS_SRCS
     real_time_procs.F90
     real_time_read_input.F90
     verlet_aux.F90
-
+    CAS_distribution_init.F90
 )
 
 set( FYPP_SRC_FILES
