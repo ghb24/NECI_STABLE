@@ -399,7 +399,7 @@ contains
         integer, intent(in) :: det_I(:)
         type(SingleExc_t), intent(in) :: exc
         integer :: res(size(det_I))
-        character(*), parameter :: this_routine = 'excite_SingleExc_t'
+        character(*), parameter :: this_routine = 'excite_nI_SingleExc_t'
 
         @:pure_ASSERT(defined(exc))
         associate(src => exc%val(1), tgt => exc%val(2))
@@ -415,9 +415,9 @@ contains
         integer, intent(in) :: det_I(:)
         type(DoubleExc_t), intent(in) :: exc
         integer :: res(size(det_I))
-        character(*), parameter :: this_routine = 'excite_DoubleExc_t'
+        character(*), parameter :: this_routine = 'excite_nI_DoubleExc_t'
 
-        integer :: src(2), tgt(2), i
+        integer :: src(2), tgt(2)
 
         @:pure_ASSERT(defined(exc))
         src = exc%val(1, :)
@@ -447,7 +447,6 @@ contains
         type(SpinOrbIdx_t), intent(in) :: det_I
         type(NoExc_t), intent(in) :: exc
         type(SpinOrbIdx_t) :: res
-        character(*), parameter :: this_routine = 'excite_NoExc_t'
         res%idx = excite(det_I%idx, exc)
     end function
 
@@ -455,7 +454,6 @@ contains
         type(SpinOrbIdx_t), intent(in) :: det_I
         type(SingleExc_t), intent(in) :: exc
         type(SpinOrbIdx_t) :: res
-        character(*), parameter :: this_routine = 'excite_SingleExc_t'
         res%idx = excite(det_I%idx, exc)
     end function
 
@@ -464,7 +462,6 @@ contains
         type(SpinOrbIdx_t), intent(in) :: det_I
         type(DoubleExc_t), intent(in) :: exc
         type(SpinOrbIdx_t) :: res
-        character(*), parameter :: this_routine = 'excite_DoubleExc_t'
         res%idx = excite(det_I%idx, exc)
     end function
 
@@ -481,7 +478,7 @@ contains
         integer(n_int), intent(in) :: ilut_I(:)
         type(SingleExc_t), intent(in) :: exc
         integer(n_int) :: res(0:size(ilut_I) - 1)
-        character(*), parameter :: this_routine = 'excite_SingleExc_t'
+        character(*), parameter :: this_routine = 'excite_Ilut_t_SingleExc_t'
 
         associate(src => exc%val(1), tgt => exc%val(2))
             @:pure_ASSERT(defined(exc))
@@ -496,7 +493,7 @@ contains
         integer(n_int), intent(in) :: ilut_I(:)
         type(DoubleExc_t), intent(in) :: exc
         integer(n_int) :: res(0:size(ilut_I) - 1)
-        character(*), parameter :: this_routine = 'excite_DoubleExc_t'
+        character(*), parameter :: this_routine = 'excite_Ilut_t_DoubleExc_t'
 
         integer :: src(2), tgt(2), i
 
@@ -516,7 +513,6 @@ contains
     pure function dyn_excite(det_I, exc) result(res)
         type(SpinOrbIdx_t), intent(in) :: det_I
         class(Excitation_t), intent(in) :: exc
-        character(*), parameter :: this_routine = 'dyn_excite'
         type(SpinOrbIdx_t) :: res
 
         select type (exc)

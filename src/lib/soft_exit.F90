@@ -199,8 +199,7 @@ contains
                               fill_rdm_iter         = 35, &
                               diag_one_rdm          = 36, &
                               frequency_cutoff      = 37, & !for the histogram integration
-                              prepare_real_time     = 38, &
-                              time                  = 39
+                              time                  = 38
 
         integer, parameter :: last_item = time
         integer, parameter :: max_item_len = 30
@@ -233,7 +232,6 @@ contains
                                    "not_option                   ", &
                                    "not_option                   ", &
                                    "changeref                    ", &
-                                   "not_option                   ", &
                                    "not_option                   ", &
                                    "not_option                   ", &
                                    "not_option                   ", &
@@ -283,7 +281,6 @@ contains
                                    "fillrdmiter                  ", &
                                    "diagflyonerdm                ", &
                                    "frequency-cutoff             ", &
-                                   "prepare_real_time            ", &
                                    "time                         "/)
 
         ! Logical(4) datatypes for compilation with builds of openmpi that don't

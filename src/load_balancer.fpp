@@ -335,9 +335,8 @@ contains
         integer, intent(in) :: exchangedata(3)
 
         integer :: src_proc, tgt_proc, block
-        integer :: ierr, nsend, nelem, j, k, det_block, hash_val, PartInd
-        integer :: det(nel), TotWalkersTmp, nconsend, clashes, ntrial, ncon, err
-        integer(n_int) :: con_state(0:NConEntry)
+        integer :: ierr, nsend, nelem, j, det_block, hash_val, PartInd
+        integer :: det(nel), TotWalkersTmp, nconsend, err
         real(dp) :: sgn(lenof_sign)
         real(dp) :: HDiag
 
@@ -504,7 +503,6 @@ contains
         HElement_t(dp) :: trial_amps(ntrial_excits)
         logical :: tTrial, tCon
         real(dp), dimension(lenof_sign) :: SignCurr
-        character(len=*), parameter :: t_r = "AddNewHashDet"
 
         err = 0
         if (iStartFreeSlot <= iEndFreeSlot) then
@@ -640,7 +638,7 @@ contains
 
         use DetBitOps, only: FindBitExcitLevel
         use hphf_integrals, only: hphf_off_diag_helement
-        use FciMCData, only: ProjEDet, CurrentDets, n_prone_dets
+        use FciMCData, only: CurrentDets, n_prone_dets
         use LoggingData, only: FCIMCDebug
         use bit_rep_data, only: IlutBits
 
@@ -650,9 +648,9 @@ contains
         integer :: i, j, AnnihilatedDet, lbnd, ubnd, part_type
         real(dp) :: CurrentSign(lenof_sign)
         real(dp) :: pRemove, r
-        integer :: nI(nel), run, ic
+        integer :: nI(nel), run
         logical :: tIsStateDeterm
-        real(dp) :: hij, scaledOccupiedThresh
+        real(dp) :: scaledOccupiedThresh
         character(*), parameter :: t_r = 'CalcHashTableStats'
 
         if (.not. bNodeRoot) return
@@ -803,9 +801,10 @@ contains
         implicit none
         real(dp), intent(in) :: CurrentSign(lenof_sign)
         logical, intent(in) :: tIsStateDeterm
+
+#ifdef CMPLX_
         integer :: run
 
-#if defined(CMPLX_)
         do run = 1, inum_runs
             norm_psi_squared(run) = norm_psi_squared(run) + sum(CurrentSign(min_part_type(run):max_part_type(run))**2)
             if (tIsStateDeterm) then

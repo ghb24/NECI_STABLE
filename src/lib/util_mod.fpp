@@ -1230,7 +1230,6 @@ contains
     pure function lex_leq(lhs, rhs) result(res)
         integer, intent(in) :: lhs(:), rhs(size(lhs))
         logical :: res
-        character(*), parameter :: this_routine = 'lex_leq'
         integer :: i
 
         res = .true.
@@ -1249,7 +1248,6 @@ contains
     pure function lex_geq(lhs, rhs) result(res)
         integer, intent(in) :: lhs(:), rhs(size(lhs))
         logical :: res
-        character(*), parameter :: this_routine = 'lex_geq'
         integer :: i
 
         res = .true.
@@ -1271,7 +1269,7 @@ contains
         integer, intent(in) :: n
         integer :: res(n, factrl(n))
 
-        integer :: tmp(n), i, j, k, f
+        integer :: tmp(n), i, j, f
 
         tmp = [(i, i = 1, n)]
 

@@ -79,12 +79,11 @@ contains
         ! nI(nEl) form is provided and returns hElement of type hElement_t
         integer, intent(in) :: nI(nEl)
         HElement_t(dp) :: hel_ret
-        character(*), parameter :: this_routine = "calcDiagMatEleGUGA_nI"
 
         ! have to loop over the number of spatial orbitals i , and within
         ! loop again over orbitals j > i, s indicates spatial orbitals
-        integer :: iOrb, jOrb, ind, inc1, inc2, sOrb, pOrb
-        real(dp) :: exchange, nOcc1, nOcc2
+        integer :: iOrb, jOrb, inc1, inc2, sOrb, pOrb
+        real(dp) :: nOcc1, nOcc2
 
         hel_ret = ECore
 
@@ -171,7 +170,6 @@ contains
         ! this is the implementation if only nI is provided
         integer, intent(in) :: iOrb, jOrb, nI(nEl)
         real(dp) :: exchange
-        character(*), parameter :: this_routine = "calcDiagExchangeGUGA_nI"
 
         real(dp) :: bVector(nEl)
         integer :: i

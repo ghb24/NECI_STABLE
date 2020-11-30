@@ -150,7 +150,7 @@ contains
     pure function get_compositions(k, n) result(res)
         integer, intent(in) :: k, n
         integer :: res(k, n_compositions(k, n))
-        integer :: idx_part, j, i
+        integer :: idx_part, i
 
         idx_part = 1
         res(:, idx_part) = 0
@@ -161,14 +161,14 @@ contains
         do idx_part = 2, size(res, 2) - 1
             res(:, idx_part) = res(:, idx_part - 1)
 
-            do j = size(res, 1), 2, -1
-                if (res(j - 1, idx_part) > 0) exit
+            do i = size(res, 1), 2, -1
+                if (res(i - 1, idx_part) > 0) exit
             end do
 
             ! Transfer 1 from left neighbour and everything from all right neighbours to res(j)
-            res(j, idx_part) = res(j, idx_part) + 1 + sum(res(j + 1 :, idx_part))
-            res(j + 1 :, idx_part) = 0
-            res(j - 1, idx_part) = res(j - 1, idx_part) - 1
+            res(i, idx_part) = res(i, idx_part) + 1 + sum(res(i + 1 :, idx_part))
+            res(i + 1 :, idx_part) = 0
+            res(i - 1, idx_part) = res(i - 1, idx_part) - 1
         end do
 
         res(:, idx_part) = 0
@@ -179,7 +179,6 @@ contains
     pure function composition_idx(composition) result(idx)
         integer, intent(in) :: composition(:)
         integer(int64) :: idx
-        character(*), parameter :: this_routine = 'get_composition_idx'
 
         integer :: reminder, i_summand, leading_term
 
@@ -238,7 +237,7 @@ contains
         integer(int64) :: idx
         character(*), parameter :: this_routine = 'supergroup_idx'
 
-        integer :: reminder, rhs
+        integer :: reminder
         integer :: i_summand, leading_term
         integer :: cn_min(size(in_cn_min)), cn_max(size(in_cn_max))
 

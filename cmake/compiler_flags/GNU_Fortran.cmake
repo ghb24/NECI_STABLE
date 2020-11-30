@@ -11,7 +11,9 @@ set( ${PROJECT_NAME}_Fortran_LINKER_FLAGS_DEBUG "-rdynamic" )
 set( ${PROJECT_NAME}_Fortran_LINKER_FLAGS_CLUSTER "-flto" )
 
 # Warning flags ...
-set( ${PROJECT_NAME}_Fortran_WARNING_FLAGS "-Wall -Wextra -Wno-unused -Wno-zerotrip -Wno-maybe-uninitialized")
+set( ${PROJECT_NAME}_Fortran_WARNING_FLAGS "-Wall -Wextra -Wno-zerotrip -Wno-maybe-uninitialized")
+set( ${PROJECT_NAME}_Fortran_relaxed_WARNING_FLAGS "-Wno-unused")
+
 # Treat errors as warnings
 set( ${PROJECT_NAME}_Fortran_WARN_ERROR_FLAG "-Werror")
 
