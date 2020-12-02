@@ -5230,7 +5230,7 @@ contains
     ! write up all the specific stochastic excitation routines
 
     subroutine calcFullStartFullStopMixedStochastic(ilut, excitInfo, t, pgen, &
-                                                    posSwitches, negSwitches, opt_weight)
+                                                posSwitches, negSwitches, opt_weight)
         integer(n_int), intent(in) :: ilut(0:nifguga)
         type(ExcitationInformation_t), intent(inout) :: excitInfo
         integer(n_int), intent(out) :: t(0:nifguga)
@@ -5252,17 +5252,17 @@ contains
         if (present(opt_weight)) then
             weights = opt_weight
         else
-            if (t_approx_exchange .or. (t_approx_exchange_noninits .and. (.not. is_init_guga))) then
+            if (t_approx_exchange .or. (t_approx_exchange_noninits .and. &
+                    (.not. is_init_guga))) then
                 weights = init_forced_end_exchange_weight(ilut, excitInfo%fullEnd)
             else
                 weights = init_doubleWeight(ilut, excitInfo%fullEnd)
             end if
         end if
 
-        if (t_approx_exchange .or. (t_approx_exchange_noninits .and. (.not. is_init_guga))) then
-
+        if (t_approx_exchange .or. (t_approx_exchange_noninits .and. &
+                (.not. is_init_guga))) then
             call forced_mixed_start(ilut, excitInfo, t, branch_pgen)
-
         else
             call mixedFullStartStochastic(ilut, excitInfo, weights, posSwitches, &
                                           negSwitches, t, branch_pgen)
@@ -5347,9 +5347,8 @@ contains
         if (tFillingStochRDMOnFly) then
             if (.not. near_zero(p_orig)) then
                 call encode_stochastic_rdm_info(GugaBits, t, rdm_ind= &
-                                                contract_2_rdm_ind(i, j, k, l, excit_lvl=2, &
-                                                                   excit_typ=typ), x0=0.0_dp, &
-                                                x1=rdm_mat * pgen / p_orig)
+                           contract_2_rdm_ind(i, j, k, l, excit_lvl = 2, &
+                           excit_typ=typ), x0 = 0.0_dp, x1 = rdm_mat * pgen / p_orig)
             end if
         end if
 
@@ -6222,8 +6221,8 @@ contains
         end do
 
         if (rdm_flag) then
-            allocate(rdm_ind(rdm_count), source=tmp_rdm_ind(1:rdm_count))
-            allocate(rdm_mat(rdm_count), source=tmp_rdm_mat(1:rdm_count))
+            allocate(rdm_ind(rdm_count), source = tmp_rdm_ind(1:rdm_count))
+            allocate(rdm_mat(rdm_count), source = tmp_rdm_mat(1:rdm_count))
         end if
 
     end function calcMixedContribution
@@ -14520,7 +14519,8 @@ contains
 
     end function getPlus_overlapLowering
 
-    subroutine actHamiltonian(ilut, excitations, nTot, t_singles_only, t_print_time)
+    subroutine actHamiltonian(ilut, excitations, nTot, t_singles_only, &
+            t_print_time, t_full)
         ! subroutine to calculate the action of the full Hamiltonian on a
         ! a single CSF given in ilut bit representation and outputs a list
         ! of excitations also in ilut format, where the exact matrix element
@@ -14529,19 +14529,20 @@ contains
         integer(n_int), intent(in) :: ilut(0:nifguga)
         integer(n_int), intent(out), pointer :: excitations(:, :)
         integer, intent(out) :: nTot
-        logical, intent(in), optional :: t_singles_only, t_print_time
+        logical, intent(in), optional :: t_singles_only, t_print_time, t_full
         character(*), parameter :: this_routine = "actHamiltonian"
         type(timer), save :: proc_timer
 
         integer(n_int), pointer :: tmp_all_excits(:, :)
         integer :: i, j, k, l, nExcits, nMax, ierr
         integer(n_int), pointer :: tempExcits(:, :)
-        logical :: t_singles_only_, t_print_time_
+        logical :: t_singles_only_, t_print_time_, t_full_
         integer :: n
         real(dp) :: cmp
 
         def_default(t_singles_only_, t_singles_only, .false.)
         def_default(t_print_time_, t_print_time, .false.)
+        def_default(t_full_, t_full, .true.)
 
         if (.not. present(t_singles_only)) then
             t_singles_only_ = .false.
@@ -14605,7 +14606,7 @@ contains
                 ! have to think where and when to allocate excitations
                 ! or maybe call the routine below with a dummy variable.
                 ! and store calculated ones in a different variable here..
-                call calcAllExcitations(ilut, i, j, tempExcits, nExcits)
+                call calcAllExcitations(ilut, i, j, tempExcits, nExcits, t_full_)
 #ifdef DEBUG_
                 do n = 1, nExcits
                     ASSERT(isProperCSF_ilut(tempExcits(:, n), .true.))
@@ -14632,6 +14633,9 @@ contains
                     do l = 1, nSpatOrbs
                         if (i == j .and. k == l) cycle
 
+                        ! if (t_heisenberg_model) then
+                        !     if (.not. (i == l .and. j == k)) cycle
+                        ! end if
                         ! not only i=j and k=l index combinations can lead to
                         ! diagonal contributions but also i = l and k = j
                         ! mixed fullstart-> fullstop excitations can have a
@@ -14644,7 +14648,7 @@ contains
 
                         ! integral contributions
                         call calcAllExcitations(ilut, i, j, k, l, tempExcits, &
-                                                nExcits)
+                                                nExcits, t_full_)
 
 #ifdef DEBUG_
                         do n = 1, nExcits
@@ -14736,7 +14740,7 @@ contains
     end subroutine actHamiltonian
 
     subroutine calcAllExcitations_excitInfo_single(ilut, excitInfo, posSwitches, &
-                                                   negSwitches, tmatFlag, excitations, nExcits)
+               negSwitches, tmatFlag, excitations, nExcits)
         ! excitation calculation if excitInfo is already calculated
         integer(n_int), intent(in) :: ilut(0:nifguga)
         type(ExcitationInformation_t), intent(in) :: excitInfo
@@ -14793,7 +14797,7 @@ contains
 
     end subroutine calcAllExcitations_excitInfo_single
 
-    subroutine calcAllExcitations_single(ilut, i, j, excitations, nExcits)
+    subroutine calcAllExcitations_single(ilut, i, j, excitations, nExcits, t_full)
         ! function to calculate all possible single excitation for a CSF
         ! given in (ilut) format and indices (i,j). used to calculated
         ! H|D> to calculate the projected energy.
@@ -14801,6 +14805,7 @@ contains
         integer, intent(in) :: i, j
         integer(n_int), intent(out), pointer :: excitations(:, :)
         integer, intent(out) :: nExcits
+        logical, intent(in), optional :: t_full
         character(*), parameter :: this_routine = "calcAllExcitations_single_ilut"
 
         type(ExcitationInformation_t) :: excitInfo
@@ -14810,6 +14815,8 @@ contains
                     tempWeight, plusWeight, minusWeight
         HElement_t(dp) :: tmat
         type(WeightObj_t) :: weights
+        logical :: t_full_
+        def_default(t_full_, t_full, .true.)
 
         ASSERT(i > 0 .and. i <= nSpatOrbs)
         ASSERT(j > 0 .and. j <= nSpatOrbs)
@@ -14820,7 +14827,11 @@ contains
 
         ! first check the single particle matrix element, it it is zero leave
         ! have index it with spin orbitals: assume non-UHF basis
-        tmat = GetTMatEl(2 * i, 2 * j)
+        if (t_full_) then
+            tmat = GetTMatEl(2 * i, 2 * j)
+        else
+            tmat = h_cast(1.0_dp)
+        end if
 
         if (near_zero(tmat)) then
             allocate(excitations(0, 0), stat=ierr)
@@ -16126,7 +16137,8 @@ contains
 
     end function endLx
 
-    subroutine calcAllExcitations_double(ilut, i, j, k, l, excitations, nExcits)
+    subroutine calcAllExcitations_double(ilut, i, j, k, l, excitations, nExcits,&
+            t_full)
         ! function to calculate all possible double excitation for a CSF
         ! given in (ilut) format and indices (i,j,k,l).
         ! used to calculate the action of the Hamiltonian H|D> to calculate
@@ -16135,18 +16147,19 @@ contains
         integer, intent(in) :: i, j, k, l
         integer(n_int), intent(out), pointer :: excitations(:, :)
         integer, intent(out) :: nExcits
+        logical, intent(in), optional :: t_full
         character(*), parameter :: this_routine = "calcAllExcitations_double"
 
         real(dp) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
         HElement_t(dp) :: umat
         integer :: ierr, n, exlevel, cnt
         type(ExcitationInformation_t) :: excitInfo
-        logical :: compFlag
+        logical :: compFlag, t_full_
+        def_default(t_full_, t_full, .true.)
 
-        integer(n_int) :: tmp_ilut(0:niftot)
         ! if called with k = l = 0 -> call single version of function
         if (k == 0 .and. l == 0) then
-            call calcAllExcitations(ilut, i, j, excitations, nExcits)
+            call calcAllExcitations(ilut, i, j, excitations, nExcits, t_full_)
             return
         end if
 
@@ -16160,7 +16173,11 @@ contains
         nExcits = 0
 
         ! first check two-particle integral
-        umat = get_umat_el(i, k, j, l)
+        if (t_full_) then
+            umat = get_umat_el(i, k, j, l)
+        else
+            umat = h_cast(1.0_dp)
+        end if
 
         if (near_zero(umat)) then
             allocate(excitations(0, 0), stat=ierr)
@@ -16199,6 +16216,13 @@ contains
                 allocate(excitations(0, 0), stat=ierr)
                 return
             end select
+        end if
+
+        if (t_heisenberg_model) then
+            if (excitInfo%typ /= excit_type%fullstart_stop_mixed) then
+                allocate(excitations(0,0), stat = ierr)
+                return
+            end if
         end if
 
         select case (excitInfo%typ)
@@ -16366,7 +16390,11 @@ contains
         do n = 1, nExcits
 
             call encode_matrix_element(excitations(:, n), 0.0_dp, 2)
-            call update_matrix_element(excitations(:, n), umat / 2.0_dp, 1)
+            if (t_full_) then
+                call update_matrix_element(excitations(:, n), umat / 2.0_dp, 1)
+            else
+                call encode_matrix_element(excitations(:, n), 1.0_dp, 1)
+            end if
             ! and also use the deltaB value for finished excitations to
             ! indicate the level of excitation IC for the remaining NECI code
             call setDeltaB(exlevel, excitations(:, n))

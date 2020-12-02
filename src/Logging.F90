@@ -1407,7 +1407,7 @@ contains
                             symmertry_mirror_axis = 'x'
                         end if
 
-                    case ('inverstion')
+                    case ('inversion')
                         t_symmetry_inversion = .true.
 
                     case default

@@ -1486,8 +1486,10 @@ contains
 
     !Routine to print the highest populated determinants at the end of a run
     SUBROUTINE PrintHighPops()
-      use adi_references, only: update_ref_signs, print_reference_notification, nRefs
-      use adi_data, only: tSetupSIs
+        use adi_references, only: update_ref_signs, print_reference_notification, nRefs
+        use adi_data, only: tSetupSIs
+        use guga_data, only: ExcitationInformation_t
+        use guga_bitrepops, only: identify_excitation, write_guga_list
         real(dp), dimension(lenof_sign) :: SignCurr
         integer :: ierr,i,j,counter,ExcitLev,nopen
         integer :: full_orb, run
@@ -1509,20 +1511,22 @@ contains
 
         real(dp), parameter :: eps_high = 1.0e-7_dp
 
+        type(ExcitationInformation_t) :: excitInfo
+
         allocate(GlobalLargestWalkers(0:NIfTot,iHighPopWrite), source=0_n_int)
         allocate(GlobalProc(iHighPopWrite), source=0)
 
-        ! Decide if each replica shall have its own output 
+        ! Decide if each replica shall have its own output
         t_replica_resolved_output = tOrthogonaliseReplicas .or. t_force_replica_output
         if(t_replica_resolved_output) then
             lenof_out = rep_size
         else
-            lenof_out = lenof_sign            
+            lenof_out = lenof_sign
         end if
 
         ! Walkers(replica) Amplitude(replica) Init?(replica)
         allocate(walker_string(lenof_out))
-        allocate(init_string(lenof_out))        
+        allocate(init_string(lenof_out))
 
         do run = 1, inum_runs
             ! If t_replica_resolved_output is set:
@@ -1535,7 +1539,7 @@ contains
             end if
             if(t_replica_resolved_output) then
                 this_run = run
-                offset = rep_size * (run - 1)   
+                offset = rep_size * (run - 1)
             else
                 this_run = GLOBAL_RUN
                 offset = 0
@@ -1640,12 +1644,16 @@ contains
 #endif
                 end if
                 do i=1,iHighPopWrite
-                    !                call WriteBitEx(iout,iLutRef,GlobalLargestWalkers(:,i),.false.)
-                    call extract_sign(GlobalLargestWalkers(:,i),SignCurr)                    
+                    call extract_sign(GlobalLargestWalkers(:,i),SignCurr)
                     HighSign = core_space_weight(SignCurr,this_run)
                     if(HighSign < eps_high) cycle
                     call WriteDetBit(iout,GlobalLargestWalkers(:,i),.false.)
-                    Excitlev=FindBitExcitLevel(iLutRef(:,1),GlobalLargestWalkers(:,i),nEl,.true.)
+                    if (tGUGA) then
+                        excitInfo = identify_excitation(iLutRef(:,1), GlobalLargestWalkers(:,i))
+                        excitLev = excitInfo%excitLvl
+                    else
+                        Excitlev=FindBitExcitLevel(iLutRef(:,1),GlobalLargestWalkers(:,i),nEl,.true.)
+                    end if
                     write(iout,"(I5)",advance='no') Excitlev
                     nopen=count_open_orbs(GlobalLargestWalkers(:,i))
                     write(iout,"(I5)",advance='no') nopen
@@ -1676,6 +1684,9 @@ contains
                         write(iout,"(I7)") GlobalProc(i)
                     end if
                 end do
+                if (tGUGA) then
+                    call write_guga_list(6, GlobalLargestWalkers(:,1:counter))
+                end if
 
                 if(tHPHF) then
                     write(iout,"(A)") " * = Spin-coupled function implicitly has time-reversed determinant with same weight."
@@ -1689,7 +1700,7 @@ contains
 
         deallocate(GlobalLargestWalkers,GlobalProc)
         deallocate(walker_string, init_string)
-                
+
         contains
 
           subroutine writeDefDet(defdet, numEls)

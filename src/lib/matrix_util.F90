@@ -14,21 +14,111 @@ module matrix_util
         module procedure linspace_dp
     end interface linspace
 
+    interface eig
+        module procedure eig_cmplx
+        module procedure eig_real
+    end interface eig
+
+    interface calc_eigenvalues
+        module procedure calc_eigenvalues_real
+        module procedure calc_eigenvalues_cmplx
+    end interface calc_eigenvalues
+
 contains
 
-    subroutine eig(matrix, e_values, e_vectors, t_left_ev)
+    subroutine eig_real(matrix, e_values, e_vectors, t_left_ev)
         ! for very restricted matrices do a diag routine here!
-        HElement_t(dp), intent(in) :: matrix(:,:)
+        real(dp), intent(in) :: matrix(:,:)
         real(dp), intent(out) :: e_values(size(matrix,1))
-        HElement_t(dp), intent(out), optional :: e_vectors(size(matrix,1),size(matrix,1))
+        real(dp), intent(out), optional :: e_vectors(size(matrix,1),size(matrix,1))
         logical, intent(in), optional :: t_left_ev
 
         ! get the specifics for the eigenvectors still..
         ! i think i need a bigger work, and maybe also a flag for how many
         ! eigenvectors i want.. maybe also the number of eigenvalues..
         integer :: n, info
-        HElement_t(dp) :: work(4*size(matrix,1)), tmp_matrix(size(matrix,1),size(matrix,2))
-        HElement_t(dp) :: left_ev(size(matrix,1),size(matrix,1)), dummy_eval(size(matrix,1))
+        real(dp) :: work(4*size(matrix,1)), tmp_matrix(size(matrix,1),size(matrix,2))
+        real(dp) :: left_ev(size(matrix,1),size(matrix,1)), dummy_eval(size(matrix,1))
+        real(dp), allocatable :: rwork(:)
+        real(dp) :: right_ev(size(matrix,1),size(matrix,1))
+        integer :: sort_ind(size(matrix,1))
+        character :: left, right
+
+
+        ! and convention is: we only want the right eigenvectors!!
+        ! and always assume real-only eigenvalues
+        if (present(e_vectors)) then
+
+            if (present(t_left_ev)) then
+                if (t_left_ev) then
+                    left = 'V'
+                    right = 'N'
+                else
+                    left = 'N'
+                    right = 'V'
+                end if
+            else
+                left = 'N'
+                right = 'V'
+            end if
+
+            n = size(matrix,1)
+
+            tmp_matrix = matrix
+
+            left = 'V'
+            right = 'V'
+
+            call dgeev(&
+                left, &
+                right, &
+                n, &
+                tmp_matrix, &
+                n, &
+                e_values, &
+                dummy_eval, &
+                left_ev, &
+                n, &
+                right_ev, &
+                n, &
+                work, &
+                4*n, &
+                info)
+
+            sort_ind = [(n, n = 1, size(matrix,1))]
+
+            call sort(e_values, sort_ind)
+
+            if (present(t_left_ev)) then
+                if (t_left_ev) then
+                    e_vectors = left_ev(:,sort_ind)
+                else
+                    e_vectors = right_ev(:,sort_ind)
+                end if
+            else
+                e_vectors = right_ev(:,sort_ind)
+            end if
+
+        else
+            e_values = calc_eigenvalues(matrix)
+        end if
+
+    end subroutine eig_real
+
+
+    subroutine eig_cmplx(matrix, e_values, e_vectors, t_left_ev)
+        ! for very restricted matrices do a diag routine here!
+        complex(dp), intent(in) :: matrix(:,:)
+        real(dp), intent(out) :: e_values(size(matrix,1))
+        complex(dp), intent(out), optional :: e_vectors(size(matrix,1),size(matrix,1))
+        logical, intent(in), optional :: t_left_ev
+
+        ! get the specifics for the eigenvectors still..
+        ! i think i need a bigger work, and maybe also a flag for how many
+        ! eigenvectors i want.. maybe also the number of eigenvalues..
+        integer :: n, info
+        complex(dp) :: work(4*size(matrix,1)), tmp_matrix(size(matrix,1),size(matrix,2))
+        complex(dp) :: left_ev(size(matrix,1),size(matrix,1)), dummy_eval(size(matrix,1))
         real(dp), allocatable :: rwork(:)
         real(dp) :: right_ev(size(matrix,1),size(matrix,1))
         integer :: sort_ind(size(matrix,1))
@@ -60,7 +150,6 @@ contains
             right = 'V'
 
 
-#ifdef CMPLX_
             allocate(rwork(max(1,3*n-2)))
             call zheev(&
                  left, &
@@ -74,23 +163,6 @@ contains
                  rwork,&
                  info)
             deallocate(rwork)
-#else
-            call dgeev(&
-                left, &
-                right, &
-                n, &
-                tmp_matrix, &
-                n, &
-                e_values, &
-                dummy_eval, &
-                left_ev, &
-                n, &
-                right_ev, &
-                n, &
-                work, &
-                4*n, &
-                info)
-#endif
 
             sort_ind = [(n, n = 1, size(matrix,1))]
 
@@ -110,14 +182,14 @@ contains
             e_values = calc_eigenvalues(matrix)
         end if
 
-    end subroutine eig
+    end subroutine eig_cmplx
 
-    function calc_eigenvalues(matrix) result(e_values)
-        HElement_t(dp), intent(in) :: matrix(:,:)
+    function calc_eigenvalues_real(matrix) result(e_values)
+        real(dp), intent(in) :: matrix(:,:)
         real(dp) :: e_values(size(matrix,1))
 
         integer :: n, info
-        HElement_t(dp) :: work(3*size(matrix,1))
+        real(dp) :: work(3*size(matrix,1))
         real(dp) :: tmp_matrix(size(matrix,1),size(matrix,2)),dummy_val(size(matrix,1))
         real(dp) :: dummy_vec_1(1,size(matrix,1)), dummy_vec_2(1,size(matrix,1))
         real(dp), allocatable :: rwork(:)
@@ -125,17 +197,31 @@ contains
         n = size(matrix,1)
 
         tmp_matrix = matrix
-#ifdef CMPLX_
+        call dgeev('N','N', n, tmp_matrix, n, e_values, &
+            dummy_val, dummy_vec_1,1,dummy_vec_2,1,work,3*n,info)
+        call sort(e_values)
+
+    end function calc_eigenvalues_real
+
+    function calc_eigenvalues_cmplx(matrix) result(e_values)
+        complex(dp), intent(in) :: matrix(:,:)
+        real(dp) :: e_values(size(matrix,1))
+
+        integer :: n, info
+        complex(dp) :: work(3*size(matrix,1))
+        real(dp) :: tmp_matrix(size(matrix,1),size(matrix,2)),dummy_val(size(matrix,1))
+        real(dp) :: dummy_vec_1(1,size(matrix,1)), dummy_vec_2(1,size(matrix,1))
+        real(dp), allocatable :: rwork(:)
+
+        n = size(matrix,1)
+
+        tmp_matrix = matrix
         allocate(rwork(max(1,3*n-2)))
         call zheev('N','N', n, tmp_matrix, n, e_values, work, 3*n, rwork)
         deallocate(rwork)
-#else
-        call dgeev('N','N', n, tmp_matrix, n, e_values, &
-            dummy_val, dummy_vec_1,1,dummy_vec_2,1,work,3*n,info)
-#endif
         call sort(e_values)
 
-    end function calc_eigenvalues
+    end function calc_eigenvalues_cmplx
 
     subroutine eig_sym(matrix, e_values, e_vectors)
         real(dp), intent(in) :: matrix(:,:)

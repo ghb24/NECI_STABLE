@@ -186,6 +186,7 @@ contains
                    ind(4), pos, ind_2(2), ind_3(2), res_orbs
 
         logical :: spin_change_flag
+
         ! i figure, that when i convert all the stepvectors like:
         ! 0 -> 0
         ! 1 -> 1
@@ -288,10 +289,14 @@ contains
         ! so the first part is to create a mask of the singly occupied
         ! orbitals and the inversion
 
+        ! set the excit-level to some ridicolous high value for early returns
+        excitInfo%excitLvl = 100
+        excitInfo%valid = .false.
         ! some compilation problem again...
         ! first check if it is not the same ilut!
         if (DetBitEQ(ilutI, ilutJ)) then
             ! do diagonal element or return if i do not need the diagonals..
+            excitInfo%excitLvl = 0
             return
         else
 
@@ -603,6 +608,9 @@ contains
                         j = second_occ
                         k = third_occ
                         l = last_occ
+
+                        if (any(abs(calcB_vector_ilut(iLutI) - &
+                            calcB_vector_ilut(ilutJ))>2)) return
 
                         ! puh.. this below MUST be optimized!!
                         ! but how?
@@ -1109,6 +1117,9 @@ contains
                                         j = first_occ
                                         k = last_occ
 
+                                        if (any(abs(calcB_vector_ilut(iLutI) - &
+                                            calcB_vector_ilut(ilutJ))>2)) return
+
                                         if (isZero(ilutI, i)) then
                                             ! _RR_(i) -> ^RR(j) -> ^R(k)
                                             excitInfo = assign_excitInfo_values_exact( &
@@ -1167,6 +1178,9 @@ contains
                                         j = last_occ
                                         k = occ_double
 
+                                        if (any(abs(calcB_vector_ilut(iLutI) - &
+                                            calcB_vector_ilut(ilutJ))>2)) return
+
                                         if (isZero(ilutI, k)) then
                                             ! _L(i) -> _LL(j) -> ^LL^(k)
                                             excitInfo = assign_excitInfo_values_exact( &
@@ -1194,6 +1208,9 @@ contains
                                 i = first_occ
                                 j = occ_double
                                 k = last_occ
+
+                                if (any(abs(calcB_vector_ilut(iLutI) - &
+                                    calcB_vector_ilut(ilutJ))>2)) return
 
                                 if (isZero(ilutI, j)) then
                                     ! _L(i) > ^LR_(j) -> ^R(k)
@@ -1250,6 +1267,9 @@ contains
                             j = first_occ
                             k = last_occ
 
+                            if (any(abs(calcB_vector_ilut(iLutI) - &
+                                calcB_vector_ilut(ilutJ))>2)) return
+
                             if (isZero(ilutI, j)) then
                                 ! _RL_(i) -> ^LR(j) -> ^R(k)
                                 excitInfo = assign_excitInfo_values_exact( &
@@ -1292,6 +1312,9 @@ contains
                             i = first_occ
                             j = last_occ
                             k = last_spin
+
+                            if (any(abs(calcB_vector_ilut(iLutI) - &
+                                calcB_vector_ilut(ilutJ))>2)) return
 
                             if (isZero(ilutI, i)) then
                                 ! _R(i) -> _LR(j) -> ^RL^(k)
@@ -1348,6 +1371,9 @@ contains
                             ! to spatial orbitals: use beta orbs by definition
                             i = first_occ
                             j = last_occ
+
+                            if (any(abs(calcB_vector_ilut(iLutI) - &
+                                calcB_vector_ilut(ilutJ))>1)) return
 
                             ! but remember i need to calculate ALL the possible
                             ! double excitation influences which can lead
@@ -1429,6 +1455,9 @@ contains
                             i = first_occ
                             j = last_occ
 
+                            if (any(abs(calcB_vector_ilut(iLutI) - &
+                                calcB_vector_ilut(ilutJ))>2)) return
+
                             if (isZero(ilutI, i)) then
                                 ! _RR_(i) -> ^RR^(j)
                                 excitInfo = assign_excitInfo_values_exact( &
@@ -1463,6 +1492,10 @@ contains
                         ! check atleast the first and last spin-coupling changes..
                         i = first_spin
                         j = last_spin
+
+                        if (any(abs(calcB_vector_ilut(iLutI) - &
+                            calcB_vector_ilut(ilutJ))>2)) return
+
                         ! _RL_(i) -> ^RL^(j)
                         excitInfo = assign_excitInfo_values_exact( &
                                     excit_type%fullstart_stop_mixed, &
@@ -2422,7 +2455,7 @@ contains
 
     end function isProperCSF_sys
 
-    function calcB_vector_nI(nI) result(bVector)
+    pure function calcB_vector_nI(nI) result(bVector)
         ! function to calculate the bVector from a CSF given in nI
         ! representation. Gives b vector also of length nEl.
         ! not yet quite sure if i should output b as integers or real
@@ -2462,7 +2495,7 @@ contains
 
     end function calcB_vector_nI
 
-    function isDouble(nI, iOrb) result(flag)
+    pure function isDouble(nI, iOrb) result(flag)
         ! returns a logical .true. if spinorbital iOrb is doubly occupied
         ! and .false. elsewise.
         integer, intent(in) :: nI(nEl), iOrb

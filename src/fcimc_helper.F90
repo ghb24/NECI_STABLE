@@ -1668,12 +1668,15 @@ contains
         !      IC             - Excitation level relative to parent
         ! Ret: bAllowed       - .true. if excitation is allowed
 
+        use guga_data, only: ExcitationInformation_t
+        use guga_bitrepops, only: identify_excitation
         integer, intent(in) :: nJ(nel), WalkExcitLevel, IC
         integer(n_int), intent(in) :: ilutnJ(0:NIfTot)
         logical :: bAllowed
 
         integer :: NoInFrozenCore, MinVirt, ExcitLevel, i
         integer :: k(3)
+        type(ExcitationInformation_t) :: excitInfo
 #ifdef DEBUG_
         character(*), parameter :: this_routine = "CheckAllowedTruncSpawn"
 #endif
@@ -1687,7 +1690,13 @@ contains
             ! be disallowed. If HPHF, excit could be single or double,
             ! and IC not returned --> Always test.
             ! for 3-body excits we want to make this test more stringent
-            if (t_3_body_excits) then
+            if (tGUGA) then
+                ! for now it only works with icilevel = 2
+                ASSERT(icilevel == 2)
+                excitInfo = identify_excitation(iLutRef(:,1), ilutnJ)
+                if (excitInfo%excitLvl > icilevel) bAllowed = .false.
+
+            else if (t_3_body_excits) then
                 ExcitLevel = FindBitExcitLevel(iLutHF, ilutnJ, ICILevel, .true.)
 
                 if (ExcitLevel > ICILevel) bAllowed = .false.

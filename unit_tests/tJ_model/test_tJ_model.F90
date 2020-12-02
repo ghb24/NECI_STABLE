@@ -7,13 +7,14 @@ program test_tJ_model
     use tJ_model
     use fruit
     use lattice_mod, only: lat
-    use constants, only: maxExcit
+    use constants, only: maxExcit, pi
     use lattice_models_utils, only : csf_purify
     use fcimcdata, only: ilutref
     use Detbitops, only: encodebitdet
     use matrix_util, only: eig, print_matrix
     use guga_bitRepOps, only: write_guga_list, calcstepvector, calcB_vector_ilut
     use util_mod, only: near_zero
+    use guga_matrixElements, only: calcDiagExchangeGUGA_nI
 
     implicit none
 
@@ -70,7 +71,8 @@ contains
         use bit_reps, only: init_bit_rep
         use guga_excitations, only: create_hamiltonian_guga
 
-        HElement_t(dp), allocatable :: hamil(:,:), bosonic_hamil(:,:)
+        HElement_t(dp), allocatable :: hamil(:,:), bosonic_hamil(:,:), hamil_3(:,:)
+        complex(dp), allocatable :: hamil_2(:,:), e_vecs_cmplx(:,:)
         integer(n_int), allocatable :: hilbert_space(:,:)
         real(dp), allocatable :: hf_coeffs(:), off_diag_sum(:), abs_off_diag_sum(:), &
                                  n_diff_sign(:), sum_pos(:), sum_neg(:), &
@@ -78,9 +80,11 @@ contains
                                  e_values(:), sum_non_zeros(:), non_zeros_in_gs(:), &
                                  sign_coherent_gs(:), gs_vec(:), gs_vec_bipart(:), &
                                  bosonic_diff(:), bosonic_energy(:), bos_e_vecs(:,:), &
-                                 localisation(:), ref_energies(:)
+                                 localisation(:), ref_energies(:), all_weights(:,:), &
+                                 all_ref_e(:,:), bandwith(:), gap(:), exchange(:), &
+                                 translation_matrix(:,:)
         logical :: t_input_perm, t_periodic, t_input_lattice, t_input_bc, t_input_spin
-        logical :: t_input_state, t_input_j
+        logical :: t_input_state, t_input_j, t_translation
         real(dp) :: hf_coeff, gs_orig, hf_orig, hf_bipart, gs_bipart, bos_diff
         integer :: n_beta, n_alpha, n_perms, hf_ind, i, iunit_write, tot_spin
         integer :: gs_ind, n_periodic, iunit_read, j, target_state, most_important_ind
@@ -90,6 +94,7 @@ contains
         integer, allocatable :: bos_err_order(:)
         integer(n_int), allocatable :: refs(:,:)
         character(2) :: num
+        complex(dp) :: fac
 
         t_input_perm = .true.
         t_input_order = .true.
@@ -99,6 +104,7 @@ contains
 
         t_input_lattice = .true.
         t_input_state = .false.
+        t_translation = .false.
 
         if (t_input_lattice) then
             print *, "input lattice type: (chain,square,rectangle,tilted)"
@@ -250,6 +256,7 @@ contains
             hamil = create_lattice_hamil_ilut(hilbert_space)
         end if
 
+
         call write_guga_list(6, hilbert_space)
         iunit_write = get_free_unit()
         open(iunit_write, file = 'hilbert-space', status = 'replace', action = 'write')
@@ -288,6 +295,24 @@ contains
         allocate(bosonic_energy(size(hilbert_space,2)), source = 0.0_dp)
         allocate(localisation(n_perms), source = 0.0_dp)
         allocate(ref_energies(n_perms), source = 0.0_dp)
+        allocate(all_weights(size(hilbert_space,2),n_perms), source = 0.0_dp)
+        allocate(all_ref_e(size(hilbert_space,2), n_perms), source = 0.0_dp)
+        allocate(bandwith(n_perms), source = 0.0_dp)
+        allocate(gap(n_perms), source = 0.0_dp)
+        allocate(exchange(size(hilbert_space,2)), source = 0.0_dp)
+
+        do i = 1, size(hilbert_space,2)
+            ! exchange(i) = full_exchange(hilbert_space(:,i), nSpatOrbs)
+            iunit_write = get_free_unit()
+            write(num, '(i2)') i
+            open(iunit_write, file = 'exchange-matrix.' // trim(adjustl(num)), &
+                status = 'replace', action = 'write')
+            call print_matrix(guga_exchange_matrix(hilbert_space(:,i), nSpatOrbs), iunit_write)
+            close(iunit_write)
+        end do
+
+
+        call print_vec(exchange, "exchange")
 
         call eig(hamil, e_values, e_vecs)
 
@@ -322,7 +347,7 @@ contains
         write(iunit_write, *) "# hf-coeff     off-diag-sum    abs-off-diag-sum    &
             &n-diff-sign    sum-pos     sum-neg     sum-3-cycle     sum-n-cycle &
             &   sum-non-zeros   non-zeros-in-gs     bosonic-diff    localisation &
-            &   ref-energies    sign-coherent-gs"
+            &   ref-energies    gap     bandwith    sign-coherent-gs"
         write(iunit_write, '(G25.17)', advance = 'no') hf_orig
         write(iunit_write, '(G25.17)', advance = 'no') sum_off_diag(hamil)
         write(iunit_write, '(G25.17)', advance = 'no') sum_off_diag(abs(hamil))
@@ -336,6 +361,8 @@ contains
         write(iunit_write, '(G25.17)', advance = 'no') gs_orig - my_minval(bosonic_energy, target_state)
         write(iunit_write, '(G25.17)', advance = 'no') norm(gs_vec,4)
         write(iunit_write, '(G25.17)', advance = 'no') hamil(hf_ind,hf_ind) - gs_orig
+        write(iunit_write, '(G25.17)', advance = 'no') my_minval(diag(hamil),2) - minval(diag(hamil))
+        write(iunit_write, '(G25.17)', advance = 'no') maxval(diag(hamil)) - minval(diag(hamil))
         write(iunit_write, '(G25.17)', advance = 'yes') log2real(is_vec_sign_coherent(gs_vec))
 
         lat => lattice(lattice_type, length_x, length_y, 1, &
@@ -352,6 +379,9 @@ contains
         end if
 
         call eig(hamil, e_values, e_vecs)
+
+        print *, "original e-values: "
+        print *, e_values
 
         call store_hf_coeff(e_values, e_vecs, target_state, hf_bipart, hf_ind, gs_ind)
 
@@ -380,6 +410,8 @@ contains
         write(iunit_write, '(G25.17)', advance = 'no')  gs_bipart - my_minval(bosonic_energy, target_state)
         write(iunit_write, '(G25.17)', advance = 'no') norm(gs_vec_bipart,4)
         write(iunit_write, '(G25.17)', advance = 'no') hamil(hf_ind,hf_ind) - gs_orig
+        write(iunit_write, '(G25.17)', advance = 'no') my_minval(diag(hamil),2) - minval(diag(hamil))
+        write(iunit_write, '(G25.17)', advance = 'no') maxval(diag(hamil)) - minval(diag(hamil))
         write(iunit_write, '(G25.17)', advance = 'yes') log2real(is_vec_sign_coherent(gs_vec_bipart))
 
         close(iunit_write)
@@ -420,6 +452,48 @@ contains
 
         high_ref = 0.0_dp
 
+        if (t_translation) then
+
+            allocate(hamil_2(size(hamil,1),size(hamil,2)), source = cmplx(hamil,0.0_dp,kind=dp))
+            allocate(hamil_3(size(hamil,1),size(hamil,2)), source = 0.0_dp)
+            allocate(e_vecs_cmplx(size(hamil,1),size(hamil,2)), source = cmplx(0.0_dp,0.0_dp,kind=dp))
+
+            call print_matrix(real(hamil_2))
+            do i = 1, nSpatOrbs - 1
+                orbital_order = cshift(orbital_order, 1)
+
+                print *, "orbital_order: ", orbital_order
+                lat => lattice(lattice_type, length_x, length_y, 1, &
+                    t_periodic_x = .not. t_open_bc_x, t_periodic_y = .not. t_open_bc_y, &
+                    t_periodic_z = .true., t_bipartite_order = .true.)
+
+                if (tGUGA) then
+                    ! call init_guga_heisenberg_model()
+                    call init_get_helement_heisenberg_guga()
+                    hamil = create_hamiltonian_guga(hilbert_space)
+                else
+                    call init_get_helement_heisenberg()
+                    hamil = create_lattice_hamil_ilut(hilbert_space)
+                end if
+
+                ! call print_matrix(hamil)
+
+                ! fac = exp(2 * pi * cmplx(0.0,1.0_dp) / nSpatOrbs * i)
+
+                fac = 1.0_dp
+                hamil_2 = hamil_2 + fac * hamil
+
+            end do
+
+            hamil_2 = hamil_2 / nSpatOrbs
+            call print_matrix(real(hamil_2))
+
+            call eig(hamil_2, e_values, e_vecs_cmplx)
+
+            print *, "tranlated e-values: "
+            print *, e_values
+
+        end if
 
         do i = 1, n_perms
 
@@ -438,7 +512,11 @@ contains
                 hamil = create_lattice_hamil_ilut(hilbert_space)
             end if
 
+            gap(i) = my_minval(diag(hamil), 2) - minval(diag(hamil))
+            bandwith(i) = maxval(diag(hamil)) - minval(diag(hamil))
             call eig(hamil, e_values, e_vecs)
+
+            forall (j = 1:size(hilbert_space,2)) all_ref_e(j,i) = hamil(j,j)
 
             ! n_orbs - 1 because I do not consider cycles
 
@@ -446,6 +524,8 @@ contains
             ! and store the largest coeff. from the GS
             call store_hf_coeff(e_values, e_vecs, target_state, hf_coeff, hf_ind, gs_ind)
             gs_vec = e_vecs(:, gs_ind)
+
+            all_weights(:,i) = gs_vec
 
             if (hf_coeff > high_ref) then
                 high_ref = hf_coeff
@@ -524,6 +604,8 @@ contains
         call print_vec(bosonic_diff, "bosonic-diff")
         call print_vec(localisation, "localisation")
         call print_vec(ref_energies, "ref-energies")
+        call print_vec(gap, "gaps")
+        call print_vec(bandwith, "bandwith")
 
         iunit_write = get_free_unit()
         open(iunit_write, file = 'references', status = 'replace', action = 'write')
@@ -541,7 +623,7 @@ contains
         write(iunit_write, *) "# hf-coeff     off-diag-sum    abs-off-diag-sum    &
             &n-diff-sign    sum-pos     sum-neg     sum-3-cycle     sum-n-cycle &
             &   sum-non-zeros   non-zeros-in-gs     bosonic-diff    localisation &
-            &   ref-energies    sign-coherent-gs"
+            &   ref-energies    gap     bandwith    sign-coherent-gs"
         do i = 1, n_perms
             write(iunit_write, '(G25.17)',advance = 'no') hf_coeffs(i)
             write(iunit_write, '(G25.17)',advance = 'no') off_diag_sum(i)
@@ -556,11 +638,22 @@ contains
             write(iunit_write, '(G25.17)',advance = 'no') bosonic_diff(i)
             write(iunit_write, '(G25.17)',advance = 'no') localisation(i)
             write(iunit_write, '(G25.17)',advance = 'no') ref_energies(i)
+            write(iunit_write, '(G25.17)',advance = 'no') gap(i)
+            write(iunit_write, '(G25.17)',advance = 'no') bandwith(i)
             write(iunit_write, '(G25.17)',advance = 'yes') sign_coherent_gs(i)
         end do
         close(iunit_write)
 
 
+        do i = 1, size(hilbert_space,2)
+            iunit_write = get_free_unit()
+            write(num,'(i2)') i
+            open(iunit_write, file = 'weight_and_ref.' // trim(adjustl(num)), status = 'replace', action = 'write')
+            do j = 1, n_perms
+                write(iunit_write, *) j, all_weights(i,j), all_ref_e(i,j)
+            end do
+            close(iunit_write)
+        end do
         ! also print the vector and hamil of the most important state
         print *, "print vector and hamil for most_important_order: ", most_important_order
 
@@ -654,6 +747,61 @@ contains
 
     end subroutine exact_study
 
+    pure function translation_matrix(n_orb) result(matrix)
+        integer, intent(in) :: n_orb
+        real(dp) :: matrix(n_orb, n_orb)
+
+        integer :: i
+
+        matrix = 0.0_dp
+
+        do i = 1, n_orb - 1
+            matrix(i, i + 1) = 1.0_dp
+        end do
+
+        matrix(n_orb, 1) = 1.0_dp
+
+    end function translation_matrix
+
+    pure function guga_exchange_matrix(state, n_orb) result(exchange)
+        integer(n_int), intent(in) :: state(0:)
+        real(dp) :: exchange(n_orb, n_orb)
+        integer, intent(in) :: n_orb
+
+        integer :: i, j, nI(nel)
+
+        call decode_bit_det(nI, state)
+
+        exchange = 0.0_dp
+
+        do i = 1, n_orb - 1
+            do j =  i + 1, n_orb
+                exchange(i,j) = calcDiagExchangeGUGA_nI(i, j, nI)
+            end do
+        end do
+
+    end function guga_exchange_matrix
+
+
+    pure real(dp) function full_exchange(state, n_orb)
+        integer(n_int), intent(in) :: state(0:)
+        integer, intent(in) :: n_orb
+
+        integer :: i, j, nI(nel)
+
+        call decode_bit_det(nI, state)
+
+        full_exchange = 0.0_dp
+
+
+        do i = 1, n_orb - 1
+            do j = i + 1, n_orb
+                full_exchange = full_exchange + calcDiagExchangeGUGA_nI(i,j,nI)
+            end do
+        end do
+
+    end function full_exchange
+
     pure real(dp) function norm(vec, order)
         real(dp), intent(in) :: vec(:)
         integer, intent(in), optional :: order
@@ -735,6 +883,18 @@ contains
 
     end function diag_matrix
 
+
+    pure function diag(matrix) result(diag_entries)
+        real(dp), intent(in) :: matrix(:,:)
+        real(dp) :: diag_entries(size(matrix,1))
+
+        integer :: i
+
+        diag_entries = 0.0_dp
+
+        forall(i = 1:size(matrix,1)) diag_entries(i) = matrix(i,i)
+
+    end function diag
 
     elemental pure real(dp) function log2real(a)
         logical, intent(in) :: a
@@ -2288,7 +2448,7 @@ contains
         ! how do i really encode the exchange in the umat in terms of spatial
         ! orbitals?! i am not sure i do it right
         ! since i access the umat only depending on the electrons k,l usually
-        ! it should be fine if i always return the exhange j when the
+        ! it should be fine if i always return the exchange j when the
         ! orbitals fit
         call assert_equals(h_cast(1.0_dp), get_umat_el_heisenberg(1,2,1,2))
         call assert_equals(h_cast(1.0_dp), get_umat_el_heisenberg(1,2,2,1))

@@ -166,7 +166,7 @@ contains
 
     end function calcDiagMatEleGuga_ilut
 
-    function calcDiagExchangeGUGA_nI(iOrb, jOrb, nI) result(exchange)
+    pure function calcDiagExchangeGUGA_nI(iOrb, jOrb, nI) result(exchange)
         ! calculates the exchange contribution to the diagonal matrix elements
         ! this is the implementation if only nI is provided
         integer, intent(in) :: iOrb, jOrb, nI(nEl)
@@ -224,7 +224,7 @@ contains
 
     end function calcDiagExchangeGUGA_nI
 
-    function functionA(bValue, x, y) result(r)
+    pure function functionA(bValue, x, y) result(r)
         ! calculated the "A" function used for Shavitts matrix element calc.
         real(dp), intent(in) :: bValue, x, y
         real(dp) :: r

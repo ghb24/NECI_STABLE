@@ -569,7 +569,7 @@ contains
 
                 if (tGUGA) then
                     call extract_stochastic_rdm_info(IlutBitsParent, &
-                                                     Spawned_Parents(:, i), guga_rdm_ind, x0, x1)
+                             Spawned_Parents(:, i), guga_rdm_ind, x0, x1)
                 end if
 
                 if (spawning_from_ket_to_bra) then
@@ -580,8 +580,8 @@ contains
 
                     else if (tGUGA) then
                         call Add_RDM_From_IJ_Pair_GUGA(spawn, one_rdms, &
-                                                       nI, nJ, input_sign_i, input_sign_j, spawning_from_ket_to_bra, &
-                                                       rdm_ind_in=guga_rdm_ind, x0=x0, x1=x1)
+                           nI, nJ, input_sign_i, input_sign_j, spawning_from_ket_to_bra, &
+                           rdm_ind_in=guga_rdm_ind, x0=x0, x1=x1)
 
                     else
                         call Add_RDM_From_IJ_Pair(spawn, one_rdms, nI, nJ, &
@@ -597,8 +597,8 @@ contains
 
                     else if (tGUGA) then
                         call Add_RDM_From_IJ_Pair_GUGA(spawn, one_rdms, &
-                                                       nJ, nI, input_sign_j, input_sign_i, spawning_from_ket_to_bra, &
-                                                       rdm_ind_in=guga_rdm_ind, x0=x0, x1=x1)
+                           nJ, nI, input_sign_j, input_sign_i, spawning_from_ket_to_bra, &
+                           rdm_ind_in=guga_rdm_ind, x0=x0, x1=x1)
 
                     else
                         call Add_RDM_From_IJ_Pair(spawn, one_rdms, nJ, nI, &

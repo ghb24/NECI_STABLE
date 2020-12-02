@@ -293,7 +293,7 @@ contains
         else
             c_run = run
         end if
-        
+
         ! Call the requested generating routines.
         if (core_in%tHF) call add_state_to_space(ilutHF, SpawnedParts, space_size)
         if (core_in%tPops) call generate_space_most_populated(core_in%npops, &
@@ -389,6 +389,7 @@ contains
         ! routine to generate the singles and doubles core space from the
         ! HF (or current reference determinant) used in the semi-stochastic
         ! code when GUGA is in use
+        use guga_bitRepOps, only: write_guga_list
         integer(n_int), intent(inout) :: ilut_list(0:, :)
         integer, intent(inout) :: space_size
         logical, intent(in) :: only_keep_conn
@@ -410,7 +411,7 @@ contains
         ! to the exact guga excitation to the HF det
         call convert_ilut_toGUGA(ilutHF, ilutG)
 
-        call actHamiltonian(ilutG, excitations, nexcit)
+        call actHamiltonian(ilutG, excitations, nexcit, t_full = only_keep_conn)
 
         do i = 1, nexcit
             ! check if matrix element is zero if we only want to keep the
@@ -424,6 +425,10 @@ contains
 
             call add_state_to_space(temp_ilut, ilut_list, space_size, temp_nI)
         end do
+
+        if (t_print_core_info) then
+            call write_guga_list(6, ilut_list(:,1:space_size))
+        end if
 
     end subroutine generate_sing_doub_guga
 
