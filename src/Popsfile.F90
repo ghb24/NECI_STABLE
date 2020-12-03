@@ -2168,6 +2168,7 @@ r_loop: do while(.not.tStoreDet)
                       call calc_guga_matrix_element(det, iLutRef(:,1), &
                           excitInfo, hf_helemt, .true., 2)
                       ex_level = excitInfo%excitLvl
+                      if (ex_level == -1) ex_level = 0
                   else
                       ex_level = FindBitExcitLevel(ilutRef(:,1), det, nel, .true.)
                       if (ex_level <= 2 .or. (ex_level == 3 .and. t_3_body_excits)) then
