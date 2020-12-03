@@ -67,7 +67,7 @@ MODULE PopsfileMod
     use real_time_data, only: t_real_time_fciqmc, phase_factors, t_kspace_operators, &
                               TotWalkers_orig
 
-    use guga_bitrepops, only: init_csf_information
+    use guga_bitrepops, only: init_csf_information, getExcitation_guga
 
     implicit none
 
@@ -2167,6 +2167,7 @@ r_loop: do while(.not.tStoreDet)
                       ASSERT(.not. t_non_hermitian)
                       call calc_guga_matrix_element(det, iLutRef(:,1), &
                           excitInfo, hf_helemt, .true., 2)
+                      ex_level = excitInfo%excitLvl
                   else
                       ex_level = FindBitExcitLevel(ilutRef(:,1), det, nel, .true.)
                       if (ex_level <= 2 .or. (ex_level == 3 .and. t_3_body_excits)) then
@@ -2203,7 +2204,11 @@ r_loop: do while(.not.tStoreDet)
                   ! for GUGA this does not make really sense..
                   ex = 0
                   if (ex_level <= 2) then
-                      call get_bit_excitmat(ilutRef(:,1), det, ex, ex_level)
+                      if (tGUGA) then
+                          call getExcitation_guga(ProjEDet(:,1), nI, ex)
+                      else
+                          call get_bit_excitmat(ilutRef(:,1), det, ex, ex_level)
+                      end if
                   end if
 
                   if(tHPHF)then
