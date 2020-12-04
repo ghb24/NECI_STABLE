@@ -290,7 +290,7 @@ contains
         ! orbitals and the inversion
 
         ! set the excit-level to some ridicolous high value for early returns
-        excitInfo%excitLvl = 100
+        excitInfo%excitLvl = nel
         excitInfo%valid = .false.
         ! some compilation problem again...
         ! first check if it is not the same ilut!
