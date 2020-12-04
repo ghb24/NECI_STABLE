@@ -360,7 +360,7 @@ contains
         write(iunit_write, '(G25.17)', advance = 'no') get_num_non_zeros(gs_vec)
         write(iunit_write, '(G25.17)', advance = 'no') gs_orig - my_minval(bosonic_energy, target_state)
         write(iunit_write, '(G25.17)', advance = 'no') norm(gs_vec,4)
-        write(iunit_write, '(G25.17)', advance = 'no') hamil(hf_ind,hf_ind) - gs_orig
+        write(iunit_write, '(G25.17)', advance = 'no') hamil(hf_ind,hf_ind)
         write(iunit_write, '(G25.17)', advance = 'no') my_minval(diag(hamil),2) - minval(diag(hamil))
         write(iunit_write, '(G25.17)', advance = 'no') maxval(diag(hamil)) - minval(diag(hamil))
         write(iunit_write, '(G25.17)', advance = 'yes') log2real(is_vec_sign_coherent(gs_vec))
@@ -409,7 +409,7 @@ contains
         write(iunit_write, '(G25.17)', advance = 'no')  get_num_non_zeros(gs_vec_bipart)
         write(iunit_write, '(G25.17)', advance = 'no')  gs_bipart - my_minval(bosonic_energy, target_state)
         write(iunit_write, '(G25.17)', advance = 'no') norm(gs_vec_bipart,4)
-        write(iunit_write, '(G25.17)', advance = 'no') hamil(hf_ind,hf_ind) - gs_orig
+        write(iunit_write, '(G25.17)', advance = 'no') hamil(hf_ind,hf_ind)
         write(iunit_write, '(G25.17)', advance = 'no') my_minval(diag(hamil),2) - minval(diag(hamil))
         write(iunit_write, '(G25.17)', advance = 'no') maxval(diag(hamil)) - minval(diag(hamil))
         write(iunit_write, '(G25.17)', advance = 'yes') log2real(is_vec_sign_coherent(gs_vec_bipart))
@@ -533,7 +533,7 @@ contains
                 most_important_order = orbital_order
             end if
 
-            ref_energies(i) = hamil(hf_ind,hf_ind) - gs_orig
+            ref_energies(i) = hamil(hf_ind,hf_ind)
 
             bosonic_hamil = create_bosonic_hamil(hamil)
             call eig(bosonic_hamil, bosonic_energy, bos_e_vecs)

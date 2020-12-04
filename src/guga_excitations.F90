@@ -257,7 +257,7 @@ contains
                 end if
             else
                 ! non-valid > 3 excit
-                exlevel = -1
+                exlevel = 100
             end if
         end if
 

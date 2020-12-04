@@ -743,8 +743,8 @@ contains
                 w(1) = abs(RealwSign(run))
                 w(2) = RealwSign(run)**2
 #endif
-                EXLEVEL_WNorm(0:2, ExcitLevel, run) = &
-                    EXLEVEL_WNorm(0:2, ExcitLevel, run) + w(0:2)
+                EXLEVEL_WNorm(0:2, ExcitLevel_local, run) = &
+                    EXLEVEL_WNorm(0:2, ExcitLevel_local, run) + w(0:2)
             end do ! run
         end if ! tLogEXLEVELStats
 
