@@ -1,3 +1,6 @@
+[comp_single]
+type = complex(kind=sp)
+
 [comp]
 type = complex(kind=dp)
 

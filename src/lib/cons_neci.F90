@@ -24,7 +24,6 @@ real(dp), parameter ::  Root2 = 1.4142135623730950488016887242096980785696718753
 real(dp), parameter ::  OverR2 = 1.0_dp/Root2
 real(dp), parameter :: EPS = 0.0000000000001_dp
 real(dp), parameter :: INFINITY = huge(1.0_dp)
-!real(dp), parameter ::  Root2 = sqrt(2.0_dp)   !Removed since sun comiler didn't like this: bug 3853
 
 integer :: temp
 integer, parameter :: sizeof_int = kind(temp)   !Default integer size (not necessarily = no. bytes)
@@ -45,6 +44,12 @@ integer, parameter :: sizeof_sp = 4
 ! number of possible excitations per step
 integer, parameter :: maxExcit = 3
 
+#if defined(CMPLX_)
+! The ratio of lenof_sign / inum_runs
+integer, parameter :: rep_size = 2
+#else
+integer, parameter :: rep_size = 1
+#endif
 ! Give ourselves the option of lenof_sign/inum_runs being a runtime
 ! variable, rather than a compile-time constant
 #if defined(PROG_NUMRUNS_)
@@ -54,8 +59,8 @@ integer, parameter :: maxExcit = 3
     integer :: lenof_sign       !2 x inum_runs (2 for complex x number of seperate wavefuncs sampled)
     integer :: inum_runs        !nreplicas x nstates
     integer :: lenof_sign_kp
-    integer, parameter :: lenof_sign_max = 20
-    integer, parameter :: inum_runs_max = 20
+    integer, parameter :: lenof_sign_max = 16
+    integer, parameter :: inum_runs_max = 16
     integer, parameter :: sizeof_helement = 16
     HElement_t(dp), parameter :: HEl_zero = cmplx(0.0_dp, 0.0_dp, dp)
 #else
@@ -66,8 +71,8 @@ integer, parameter :: maxExcit = 3
     integer :: lenof_sign
     integer :: inum_runs
     integer :: lenof_sign_kp
-    integer, parameter :: lenof_sign_max = 20
-    integer, parameter :: inum_runs_max = 20
+    integer, parameter :: lenof_sign_max = 16
+    integer, parameter :: inum_runs_max = 16
     integer, parameter :: sizeof_helement = 16
     real(dp), parameter :: HEl_zero = 0.0_dp
 #endif
@@ -119,7 +124,7 @@ integer, parameter :: maxExcit = 3
     real(dp), parameter :: HEl_zero = 0.0_dp
 #endif
 #endif
-
+    
 real(dp), dimension(lenof_sign_max), parameter :: null_part = 0.0_dp
 
 !This is the integer type which is used in MPI call arguments

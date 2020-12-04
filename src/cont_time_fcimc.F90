@@ -8,7 +8,7 @@ module cont_time
                             create_particle, create_particle_with_hash_table, &
                             SumEContrib, end_iter_stats
     use cont_time_rates, only: spawn_rate_full, cont_time_gen_excit_full, &
-                               oversample_factors, cont_time_gen_excit, ostag,&
+                               oversample_factors, cont_time_gen_excit, ostag, &
                                secondary_gen_store
     use hash, only: remove_hash_table_entry, clear_hash_table
     use DetBitOps, only: FindBitExcitLevel, count_open_orbs
@@ -37,7 +37,7 @@ contains
     ! TODO: Set the initial spawning rate of the first particle (In set global
     !       data).
 
-    subroutine iterate_cont_time (iter_data)
+    subroutine iterate_cont_time(iter_data)
 
         type(fcimc_iter_data), intent(inout) :: iter_data
         character(*), parameter :: this_routine = 'iterate_cont_time'
@@ -84,7 +84,7 @@ contains
                     write(iout, "(f10.5)", advance='no') sgn(part_type)
                 end do
                 write(iout, '(a)', advance='no') '] '
-                call WriteBitDet(iout, CurrentDets(:,j), .true.)
+                call WriteBitDet(iout, CurrentDets(:, j), .true.)
                 call neci_flush(iout)
             end if
 
@@ -92,20 +92,21 @@ contains
             hdiag = det_diagH(j)
             if (tContTimeFull) then
                 rate = get_spawn_rate(j)
-                ASSERT(rate .isclose. spawn_rate_full(det, CurrentDets(:,j)))
+                ASSERT(rate.isclose.spawn_rate_full(det, CurrentDets(:, j)))
             end if
 
             ! Calculate the flags that ought to be carried through
-            if (tTruncInitiator) &
+            if (tTruncInitiator) then
                 call CalcParentFlag(j, iunused)
+            end if
 
             ! Sum in the energy terms, yeah!
-            ic_hf = FindBitExcitLevel(ilutRef(:,1), CurrentDets(:,j))
-            call SumEContrib(det, ic_hf, sgn, CurrentDets(:,j), hdiag, 1.0_dp,&
+            ic_hf = FindBitExcitLevel(ilutRef(:, 1), CurrentDets(:, j))
+            call SumEContrib(det, ic_hf, sgn, CurrentDets(:, j), hdiag, 1.0_dp, &
                              tPairedReplicas, j)
 
             ! Needed for calculating oversample factors
-            nopen = count_open_orbs(CurrentDets(:,j))
+            nopen = count_open_orbs(CurrentDets(:, j))
 
             ! Loop over determinants, and the particles on the determinant
             do part_type = 1, lenof_sign
@@ -115,16 +116,16 @@ contains
                 do p = 1, sgn_abs
 
                     survives = process_part_cont_time( &
-                                      CurrentDets(:,j), det, sgn(part_type), &
-                                      part_type, rate, totimagtime, &
-                                      totimagtime + tau, hdiag, iter_data, &
-                                      nopen, fcimc_excit_gen_store)
+                               CurrentDets(:, j), det, sgn(part_type), &
+                               part_type, rate, totimagtime, &
+                               totimagtime + tau, hdiag, iter_data, &
+                               nopen, fcimc_excit_gen_store)
 
                     if (.not. survives) then
                         iter_data%ndied = iter_data%ndied + 1
                         NoDied = NoDied + 1
                         sgn(part_type) = sgn(part_type) &
-                                       - sign(1.0_dp, sgn(part_type))
+                                         - sign(1.0_dp, sgn(part_type))
                     end if
                 end do
             end do
@@ -139,7 +140,7 @@ contains
                 FreeSlot(iEndFreeSlot) = j
                 call nullify_ilut(CurrentDets(:, j))
             else
-                call encode_sign(CurrentDets(:,j), sgn)
+                call encode_sign(CurrentDets(:, j), sgn)
             end if
 
         end do
@@ -163,19 +164,20 @@ contains
 
         ! If we are orthogonalising the replica wavefunctions, to generate
         ! excited states, then do that here.
-        if (tOrthogonaliseReplicas .and. iter > orthogonalise_iter) &
+        if (tOrthogonaliseReplicas .and. iter > orthogonalise_iter) then
             call orthogonalise_replicas(iter_data)
+        end if
 
         ! Update iteration counters
         call update_iter_data(iter_data)
 
     end subroutine
 
-    recursive function process_part_cont_time (ilut, det, sgn, part_type, &
-                                               rate, curr_time, annihil_time, &
-                                               hdiag, iter_data, nopen, &
-                                               store) &
-                                               result(survives)
+    recursive function process_part_cont_time(ilut, det, sgn, part_type, &
+                                              rate, curr_time, annihil_time, &
+                                              hdiag, iter_data, nopen, &
+                                              store) &
+        result(survives)
 
         integer(n_int), intent(in) :: ilut(0:NifTot)
         integer, intent(in) :: det(nel), part_type, nopen
@@ -209,23 +211,23 @@ contains
                 rate_adj = rate + abs(hdiag - DiagSft(part_type))
             else
                 rate_adj = sum(oversample_factors(:, nopen)) &
-                         + abs(hdiag - DiagSft(part_type))
+                           + abs(hdiag - DiagSft(part_type))
             end if
 
             ! Generate the next spawning event
-            dt = - 1.0_dp * log(genrand_real2_dSFMT()) / rate_adj
+            dt = -1.0_dp * log(genrand_real2_dSFMT()) / rate_adj
             time = time + dt
             if (time > annihil_time) exit
 
             if (tContTimeFull) then
                 nspawn = 1
-                call cont_time_gen_excit_full (det, ilut, rate_adj, hdiag, &
-                                               det_spwn, ilut_spwn, &
-                                               hoffdiag, ic, part_type)
+                call cont_time_gen_excit_full(det, ilut, rate_adj, hdiag, &
+                                              det_spwn, ilut_spwn, &
+                                              hoffdiag, ic, part_type)
             else
-                call cont_time_gen_excit (det, ilut, rate_adj, hdiag, &
-                                          det_spwn, ilut_spwn, hoffdiag, &
-                                          ic, part_type, nopen, nspawn, store)
+                call cont_time_gen_excit(det, ilut, rate_adj, hdiag, &
+                                         det_spwn, ilut_spwn, hoffdiag, &
+                                         ic, part_type, nopen, nspawn, store)
             end if
 
             if (.not. IsNullDet(det_spwn)) then
@@ -242,15 +244,16 @@ contains
                 ! We need the diagonal matrix element for calculating further
                 ! spawning rates
                 if (tHPHF) then
-                    htmp = hphf_diag_helement (det_spwn, ilut_spwn)
+                    htmp = hphf_diag_helement(det_spwn, ilut_spwn)
                 else
-                    htmp = get_helement (det_spwn, det_spwn, 0)
+                    htmp = get_helement(det_spwn, det_spwn, 0)
                 end if
                 hdiag_spwn = real(htmp, dp) - Hii
 
                 ! Calculate full rate if needed
-                if (tContTimeFull) &
+                if (tContTimeFull) then
                     rate_spwn = spawn_rate_full(det_spwn, ilut_spwn)
+                end if
 
                 ! Particle accountancy
                 iter_data%nborn = iter_data%nborn + nspawn
@@ -260,7 +263,7 @@ contains
                 ! spawn more than one particle whilst adjusting the overspawn
                 ! factors
 #ifndef CMPLX_
-                spwn_sgn = - sign(1.0_dp, sgn) * sign(real(nspawn,dp),hoffdiag)
+                spwn_sgn = -sign(1.0_dp, sgn) * sign(real(nspawn, dp), hoffdiag)
 #else
                 call stop_all(this_routine, "Not implemented")
 #endif
@@ -274,10 +277,10 @@ contains
                 do i = 1, nspawn
 
                     child_survives = process_part_cont_time( &
-                                        ilut_spwn, det_spwn, spwn_sgn, &
-                                        part_type, rate_spwn, time, &
-                                        annihil_time, hdiag_spwn, iter_data, &
-                                        nopen_spwn, secondary_gen_store)
+                                     ilut_spwn, det_spwn, spwn_sgn, &
+                                     part_type, rate_spwn, time, &
+                                     annihil_time, hdiag_spwn, iter_data, &
+                                     nopen_spwn, secondary_gen_store)
 
                     if (.not. child_survives) then
                         iter_data%ndied = iter_data%ndied + 1
@@ -306,9 +309,9 @@ contains
                     end if
 
                     if (use_spawn_hash_table) then
-                        call create_particle_with_hash_table(&
-                                         det_spwn, ilut_spwn, child, &
-                                         part_type, ilut, iter_data, err)
+                        call create_particle_with_hash_table( &
+                            det_spwn, ilut_spwn, child, &
+                            part_type, ilut, iter_data, err)
                     else
                         call create_particle(det_spwn, ilut_spwn, child, &
                                              part_type, hdiag_spawn, err, ilut)
@@ -318,7 +321,6 @@ contains
             end if ! Spawn not aborted
 
         end do ! Loop until annihil time
-
 
     end function
 

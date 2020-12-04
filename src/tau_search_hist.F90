@@ -498,7 +498,7 @@ contains
                   root_print "Updating time-step. New time-step = ", tau
                   root_print "******"
                end if
-            endif
+            end if
 
             ! Condition met --> no need to do this again next iteration
             tSearchTauDeath = .false.
@@ -515,7 +515,7 @@ contains
         if(t_mol_3_body) then
            call MPIAllLORLogical(enough_trip_hist, mpi_ltmp)
            enough_trip_hist = mpi_ltmp
-        endif
+        end if
 
         ! singles is always used..
         ! thats not quite right.. for the hubbard/UEG case it is not..
@@ -587,10 +587,10 @@ contains
                 if(ratio_triples < 0.0_dp) then
                    t_hist_tau_search = .false.
                    return
-                endif
+                end if
              else
                 ratio_triples = 0.0
-             endif
+             end if
 
             if (consider_par_bias) then
 
@@ -692,7 +692,7 @@ contains
                             pDoubles * (1.0_dp - pParallel) / max(EPS,ratio_anti))
                     else
                        tau_new = tau
-                    endif
+                    end if
 
                 end if
 
@@ -754,10 +754,10 @@ contains
 
                           if(abs(pTriples_new - pTriples) > 0.001_dp) then
                              root_print "Updating triples bias. pTriples = ", pTriples_new
-                          endif
+                          end if
                           pTriples = pTriples_new
-                       endif
-                    endif
+                       end if
+                    end if
 
 
                 else
@@ -767,7 +767,7 @@ contains
                             min(pSingles / max(EPS,ratio_singles), pDoubles / max(EPS,ratio_doubles))
                     else
                        tau_new = tau
-                    endif
+                    end if
                 end if
             end if
         end if
@@ -886,30 +886,6 @@ contains
         ! and in the rest of the code i have to abort these excitations really!
         ! talk to ali about that!
         if (mat_ele < matele_cutoff) then
-#ifdef DEBUG_
-            print *, "zero matele should not be here!"
-            print *, "mat_ele: ", mat_ele
-            print *, "pgen: ", pgen
-            print *, "ic: ", ic
-            print *, "parallel: ", t_parallel
-            print *, "ex-maxtrix: ", get_src(ex), " -> ", get_tgt(ex)
-            if (ic == 2) then
-                indi = gtid(ex(1,1))
-                indj = gtid(ex(1,2))
-                inda = gtid(ex(2,1))
-                indb = gtid(ex(2,2))
-                print *, "umat (ij|ab) ", get_umat_el(indi,indj,inda,indb)
-                print *, "umat (ij|ba) ", get_umat_el(indi,indj,indb,inda)
-                print *, "diff: ", abs(get_umat_el(indi,indj,inda,indb) - &
-                    get_umat_el(indi,indj,indb,inda))
-                print *, "(ia|ia): ", abs(get_umat_el(indi,inda,indi,inda))
-                print *, "(ja|ja): ", abs(get_umat_el(indj,inda,indj,inda))
-                print *, "(ib|ib): ", abs(get_umat_el(indi,indb,indi,indb))
-                print *, "(jb|jb): ", abs(get_umat_el(indj,indb,indj,indb))
-            endif
-            print *, "******************"
-
-#endif
             ! but i still should keep track of these events!
             select case (ic)
             case (1)
@@ -1279,7 +1255,7 @@ contains
             else
                ! the ratio is not within range, log this event
                above_max_triples = above_max_triples + 1
-            endif
+            end if
 
             ! update largest/smallest ratio for triples
             if(ratio > gamma_trip) gamma_trip = ratio
@@ -1481,7 +1457,7 @@ contains
                  call get_unique_filename('frequency_histogram_singles', .true., &
                       .true., 1, filename)
               end if
-           endif
+           end if
            exname = "singles"
            call output_histogram(exname, frequency_bins_singles, gamma_sing, &
                 min_sing, zero_singles, above_max_singles, below_thresh_singles)
@@ -1498,7 +1474,7 @@ contains
                    min_trip, zero_triples, above_max_triples, below_thresh_triples)
 
               all_frequency_bins_spec = 0
-            endif
+            end if
 
             ! do the cases where there is antiparallel or parallel
             if (t_consider_par_bias) then
@@ -1831,7 +1807,7 @@ contains
                     end do
                 end do
 
-                close (iunit)
+                close(iunit)
 
             end if
 
@@ -1865,7 +1841,7 @@ contains
                     end do
                 end do
 
-                close (iunit)
+                close(iunit)
             end if
 
             deallocate(ija_bins_anti)
@@ -1917,7 +1893,7 @@ contains
               end do
               close(iunit)
               write(iout,*) "Done!"
-           endif
+           end if
 
 
             tmp_int_64 = 0

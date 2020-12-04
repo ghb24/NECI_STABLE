@@ -14,7 +14,7 @@ module ftlm_neci
 
     implicit none
 
-    real(dp), allocatable :: ftlm_hamil(:,:), ftlm_vecs(:,:)
+    real(dp), allocatable :: ftlm_hamil(:, :), ftlm_vecs(:, :)
     real(dp), allocatable :: full_vec_ftlm(:)
 
     integer(MPIArg), allocatable :: ndets_ftlm(:), disps_ftlm(:)
@@ -37,7 +37,7 @@ contains
 
         do i = 1, n_init_vecs_ftlm
 
-            write(6,'(1x,a28,1x,i3)') "Starting from initial vector", i
+            write(6, '(1x,a28,1x,i3)') "Starting from initial vector", i
             call neci_flush(6)
 
             ftlm_vecs = 0.0_dp
@@ -45,15 +45,15 @@ contains
 
             call gen_init_vec_ftlm()
 
-            do j = 1, n_lanc_vecs_ftlm-1
+            do j = 1, n_lanc_vecs_ftlm - 1
                 call subspace_expansion_lanczos(j, ftlm_vecs, full_vec_ftlm, &
-                                                 ftlm_hamil, ndets_ftlm, disps_ftlm)
-                write(6,'(1x,a19,1x,i3)') "Iteration complete:", j
+                                                ftlm_hamil, ndets_ftlm, disps_ftlm)
+                write(6, '(1x,a19,1x,i3)') "Iteration complete:", j
                 call neci_flush(6)
             end do
 
             call calc_final_hamil_elem(ftlm_vecs, full_vec_ftlm, &
-                                        ftlm_hamil, ndets_ftlm, disps_ftlm)
+                                       ftlm_hamil, ndets_ftlm, disps_ftlm)
 
             h_sum = sum(ftlm_hamil)
 
@@ -61,12 +61,12 @@ contains
 
             call add_in_contribs_to_energy()
 
-            write(6,'(1x,a45,/)') "Calculation complete for this initial vector."
+            write(6, '(1x,a45,/)') "Calculation complete for this initial vector."
             call neci_flush(6)
 
         end do
 
-        write(6,'(1x,a48,/)') "FTLM calculation complete. Outputting results..."
+        write(6, '(1x,a48,/)') "FTLM calculation complete. Outputting results..."
         call neci_flush(6)
 
         call output_ftlm()
@@ -85,24 +85,24 @@ contains
 
         integer :: ndets_this_proc, ndets_tot, expected_ndets_tot
         integer(MPIArg) :: mpi_temp
-        integer(n_int), allocatable :: ilut_list(:,:)
+        integer(n_int), allocatable :: ilut_list(:, :)
         character(len=*), parameter :: t_r = 'init_ftlm'
         integer :: i, ierr
 
-        write(6,'(/,1x,a49,/)') "Beginning finite-temperature Lanczos calculation."
+        write(6, '(/,1x,a49,/)') "Beginning finite-temperature Lanczos calculation."
         call neci_flush(6)
 
         expected_ndets_tot = int(choose(nbasis, nel))
-        write(6,*) "Expected number:", expected_ndets_tot
+        write(6, *) "Expected number:", expected_ndets_tot
         call neci_flush(6)
 
         ftlm_unit = get_free_unit()
-        open(ftlm_unit, file='FTLM_EIGV',status='replace')
+        open(ftlm_unit, file='FTLM_EIGV', status='replace')
 
-        allocate(ndets_ftlm(0:nProcessors-1))
-        allocate(disps_ftlm(0:nProcessors-1))
+        allocate(ndets_ftlm(0:nProcessors - 1))
+        allocate(disps_ftlm(0:nProcessors - 1))
 
-        write(6,'(1x,a56)',advance='no') "Enumerating and storing all determinants in the space..."
+        write(6, '(1x,a56)', advance='no') "Enumerating and storing all determinants in the space..."
         call neci_flush(6)
 
         ! Generate and count all the determinants on this processor, but don't store them.
@@ -111,44 +111,44 @@ contains
         ! Now generate them again and store them this time.
         call gndts_all_sym_this_proc(ilut_list, .false., ndets_this_proc)
 
-        write(6,'(1x,a9)') "Complete."
+        write(6, '(1x,a9)') "Complete."
         call neci_flush(6)
 
         mpi_temp = int(ndets_this_proc, MPIArg)
         call MPIAllGather(mpi_temp, ndets_ftlm, ierr)
 
         disps_ftlm(0) = 0
-        do i = 1, nProcessors-1
-            disps_ftlm(i) = disps_ftlm(i-1) + ndets_ftlm(i-1)
+        do i = 1, nProcessors - 1
+            disps_ftlm(i) = disps_ftlm(i - 1) + ndets_ftlm(i - 1)
         end do
 
         ndets_tot = int(sum(ndets_ftlm), sizeof_int)
         expected_ndets_tot = int(choose(nbasis, nel))
         if (ndets_tot /= expected_ndets_tot) then
-            write(6,*) "ndets counted:", ndets_tot, "ndets expected:", expected_ndets_tot
+            write(6, *) "ndets counted:", ndets_tot, "ndets expected:", expected_ndets_tot
             call stop_all('t_r', 'The number of determinants generated is not &
                                     &consistent with the expected number.')
         end if
 
-        write(6,'(1x,a44)',advance='no') "Allocating arrays to hold Lanczos vectors..."
+        write(6, '(1x,a44)', advance='no') "Allocating arrays to hold Lanczos vectors..."
         call neci_flush(6)
         allocate(ftlm_vecs(ndets_this_proc, n_lanc_vecs_ftlm))
         allocate(full_vec_ftlm(ndets_tot))
-        write(6,'(1x,a9)') "Complete."
+        write(6, '(1x,a9)') "Complete."
         call neci_flush(6)
 
         allocate(ftlm_hamil(n_lanc_vecs_ftlm, n_lanc_vecs_ftlm))
-        allocate(ftlm_trace(nbeta_ftlm+1))
-        allocate(ftlm_e_num(nbeta_ftlm+1))
+        allocate(ftlm_trace(nbeta_ftlm + 1))
+        allocate(ftlm_e_num(nbeta_ftlm + 1))
         allocate(ftlm_h_eigv(n_lanc_vecs_ftlm))
         ftlm_trace = 0.0_dp
         ftlm_e_num = 0.0_dp
         ftlm_h_eigv = 0.0_dp
 
-        write(6,'(1x,a48)') "Allocating and calculating Hamiltonian matrix..."
+        write(6, '(1x,a48)') "Allocating and calculating Hamiltonian matrix..."
         call neci_flush(6)
         call calculate_sparse_ham_par(ndets_ftlm, ilut_list, .true.)
-        write(6,'(1x,a48,/)') "Hamiltonian allocation and calculation complete."
+        write(6, '(1x,a48,/)') "Hamiltonian allocation and calculation complete."
         call neci_flush(6)
 
         deallocate(ilut_list)
@@ -163,14 +163,14 @@ contains
         real(dp) :: r, amp
 
         ! The magnitude of the amplitude required to make the initial vector normalised to 1.0.
-        amp = 1/sqrt(real(sum(ndets_ftlm), dp))
+        amp = 1 / sqrt(real(sum(ndets_ftlm), dp))
 
         do i = 1, ndets_ftlm(iProcIndex)
             r = genrand_real2_dSFMT()
             if (r > 0.5_dp) then
-                ftlm_vecs(i,1) = amp
+                ftlm_vecs(i, 1) = amp
             else
-                ftlm_vecs(i,1) = -amp
+                ftlm_vecs(i, 1) = -amp
             end if
         end do
 
@@ -179,63 +179,63 @@ contains
     subroutine subspace_expansion_lanczos(ivec, lanc_vecs, full_vec, proj_hamil, counts, disps)
 
         integer, intent(in) :: ivec
-        real(dp), intent(inout) :: lanc_vecs(:,:)
+        real(dp), intent(inout) :: lanc_vecs(:, :)
         real(dp), intent(inout) :: full_vec(:)
-        real(dp), intent(inout) :: proj_hamil(:,:)
-        integer(MPIArg), intent(in) :: counts(0:nProcessors-1), disps(0:nProcessors-1)
+        real(dp), intent(inout) :: proj_hamil(:, :)
+        integer(MPIArg), intent(in) :: counts(0:nProcessors - 1), disps(0:nProcessors - 1)
         integer :: i, j
         real(dp) :: overlap, tot_overlap, last_norm, norm, tot_norm
-        call MPIAllGatherV(lanc_vecs(:,ivec), full_vec, counts, disps)
+        call MPIAllGatherV(lanc_vecs(:, ivec), full_vec, counts, disps)
 
         ! Multiply the last Lanczos vector by the Hamiltonian.
-        lanc_vecs(:,ivec+1) = 0.0_dp
+        lanc_vecs(:, ivec + 1) = 0.0_dp
         do i = 1, counts(iProcIndex)
             do j = 1, sparse_ham(i)%num_elements
-                lanc_vecs(i, ivec+1) = lanc_vecs(i, ivec+1) + &
-                    sparse_ham(i)%elements(j)*full_vec(sparse_ham(i)%positions(j))
+                lanc_vecs(i, ivec + 1) = lanc_vecs(i, ivec + 1) + &
+                                         sparse_ham(i)%elements(j) * full_vec(sparse_ham(i)%positions(j))
             end do
         end do
 
-        overlap = dot_product(lanc_vecs(:,ivec+1), lanc_vecs(:,ivec))
-        call MPISumAll(overlap,tot_overlap)
+        overlap = dot_product(lanc_vecs(:, ivec + 1), lanc_vecs(:, ivec))
+        call MPISumAll(overlap, tot_overlap)
 
         if (ivec == 1) then
-            lanc_vecs(:,ivec+1) = lanc_vecs(:,ivec+1) - tot_overlap*lanc_vecs(:,ivec)
+            lanc_vecs(:, ivec + 1) = lanc_vecs(:, ivec + 1) - tot_overlap * lanc_vecs(:, ivec)
         else
-            last_norm = proj_hamil(ivec, ivec-1)
-            lanc_vecs(:,ivec+1) = lanc_vecs(:,ivec+1) - tot_overlap*lanc_vecs(:,ivec) - last_norm*lanc_vecs(:,ivec-1)
+            last_norm = proj_hamil(ivec, ivec - 1)
+            lanc_vecs(:, ivec + 1) = lanc_vecs(:, ivec + 1) - tot_overlap * lanc_vecs(:, ivec) - last_norm * lanc_vecs(:, ivec - 1)
         end if
 
         norm = 0.0_dp
         do i = 1, counts(iProcIndex)
-            norm = norm + lanc_vecs(i,ivec+1)*lanc_vecs(i,ivec+1)
+            norm = norm + lanc_vecs(i, ivec + 1) * lanc_vecs(i, ivec + 1)
         end do
         call MPISumAll(norm, tot_norm)
         tot_norm = sqrt(tot_norm)
 
         ! The final new Lanczos vector.
-        lanc_vecs(:,ivec+1) = lanc_vecs(:,ivec+1)/tot_norm
+        lanc_vecs(:, ivec + 1) = lanc_vecs(:, ivec + 1) / tot_norm
 
         ! Update the subspace Hamiltonian. It can be shown that this has a tridiagonal form
         ! where the non-zero elements are equal to the following.
         proj_hamil(ivec, ivec) = tot_overlap
-        proj_hamil(ivec, ivec+1) = tot_norm
-        proj_hamil(ivec+1, ivec) = tot_norm
+        proj_hamil(ivec, ivec + 1) = tot_norm
+        proj_hamil(ivec + 1, ivec) = tot_norm
 
     end subroutine subspace_expansion_lanczos
 
     subroutine calc_final_hamil_elem(lanc_vecs, full_vec, proj_hamil, counts, disps)
 
-        real(dp), intent(inout) :: lanc_vecs(:,:)
+        real(dp), intent(inout) :: lanc_vecs(:, :)
         real(dp), intent(inout) :: full_vec(:)
-        real(dp), intent(inout) :: proj_hamil(:,:)
-        integer(MPIArg), intent(in) :: counts(0:nProcessors-1), disps(0:nProcessors-1)
+        real(dp), intent(inout) :: proj_hamil(:, :)
+        integer(MPIArg), intent(in) :: counts(0:nProcessors - 1), disps(0:nProcessors - 1)
         integer :: i, j, final_elem
         real(dp) :: temp, overlap, tot_overlap
 
-        final_elem = size(proj_hamil,1)
+        final_elem = size(proj_hamil, 1)
 
-        call MPIAllGatherV(lanc_vecs(:,final_elem), full_vec, counts, disps)
+        call MPIAllGatherV(lanc_vecs(:, final_elem), full_vec, counts, disps)
 
         overlap = 0.0_dp
         do i = 1, counts(iProcIndex)
@@ -244,9 +244,9 @@ contains
             ! the i'th basis vector, which we're currently on (where H is the Hamiltonian matrix).
             temp = 0.0_dp
             do j = 1, sparse_ham(i)%num_elements
-                temp = temp + sparse_ham(i)%elements(j)*full_vec(sparse_ham(i)%positions(j))
+                temp = temp + sparse_ham(i)%elements(j) * full_vec(sparse_ham(i)%positions(j))
             end do
-            overlap = overlap + temp*lanc_vecs(i,final_elem)
+            overlap = overlap + temp * lanc_vecs(i, final_elem)
         end do
         call MPISumAll(overlap, tot_overlap)
 
@@ -262,7 +262,7 @@ contains
         if (iProcIndex /= root) return
 
         ! Scrap space for the diagonaliser.
-        lwork = max(1,3*n_lanc_vecs_ftlm-1)
+        lwork = max(1, 3 * n_lanc_vecs_ftlm - 1)
         allocate(work(lwork))
 
         ! This routine diagonalises a symmetric matrix, A.
@@ -281,9 +281,9 @@ contains
 
         ! Output all of the eigenvalues.
         do i = 1, n_lanc_vecs_ftlm
-            write(ftlm_unit,'(1x,f15.10)',advance='no') ftlm_h_eigv(i)
+            write(ftlm_unit, '(1x,f15.10)', advance='no') ftlm_h_eigv(i)
         end do
-        write(ftlm_unit,'()')
+        write(ftlm_unit, '()')
 
     end subroutine subspace_extraction_ftlm
 
@@ -297,8 +297,8 @@ contains
         do i = 1, n_lanc_vecs_ftlm
             beta = 0.0_dp
             do j = 1, nbeta_ftlm + 1
-                ftlm_trace(j) = ftlm_trace(j) + (ftlm_hamil(1,i)**2)*exp(-beta*ftlm_h_eigv(i))
-                ftlm_e_num(j) = ftlm_e_num(j) + (ftlm_hamil(1,i)**2)*ftlm_h_eigv(i)*exp(-beta*ftlm_h_eigv(i))
+                ftlm_trace(j) = ftlm_trace(j) + (ftlm_hamil(1, i)**2) * exp(-beta * ftlm_h_eigv(i))
+                ftlm_e_num(j) = ftlm_e_num(j) + (ftlm_hamil(1, i)**2) * ftlm_h_eigv(i) * exp(-beta * ftlm_h_eigv(i))
                 beta = beta + delta_beta_ftlm
             end do
         end do
@@ -312,11 +312,11 @@ contains
 
         if (iProcIndex /= root) return
 
-        write(6,'(1x,a4,18X,a11,11x,a11)') "Beta", "E_numerator", "Denominator"
+        write(6, '(1x,a4,18X,a11,11x,a11)') "Beta", "E_numerator", "Denominator"
 
         beta = 0.0_dp
         do i = 1, nbeta_ftlm + 1
-            write(6,'(es17.10,5x,es17.10,5x,es17.10)') beta, ftlm_e_num(i), ftlm_trace(i)
+            write(6, '(es17.10,5x,es17.10,5x,es17.10)') beta, ftlm_e_num(i), ftlm_trace(i)
             beta = beta + delta_beta_ftlm
         end do
 
@@ -326,12 +326,12 @@ contains
 
         real(dp), intent(in) :: h_sum
 
-        write(6,'(/,1X,64("="))')
-        write(6,'(1X,"FTLM testsuite data:")')
-        write(6,'(1X,"Sum of H elements from the last Lanczos space:",2X,es20.13)') h_sum
-        write(6,'(1X,"FT energy at lowest beta value:",17X,es20.13)') ftlm_e_num(1)/ftlm_trace(1)
-        write(6,'(1X,"FT energy at highest beta value:",16X,es20.13)') ftlm_e_num(nbeta_ftlm+1)/ftlm_trace(nbeta_ftlm+1)
-        write(6,'(1X,64("="))')
+        write(6, '(/,1X,64("="))')
+        write(6, '(1X,"FTLM testsuite data:")')
+        write(6, '(1X,"Sum of H elements from the last Lanczos space:",2X,es20.13)') h_sum
+        write(6, '(1X,"FT energy at lowest beta value:",17X,es20.13)') ftlm_e_num(1) / ftlm_trace(1)
+        write(6, '(1X,"FT energy at highest beta value:",16X,es20.13)') ftlm_e_num(nbeta_ftlm + 1) / ftlm_trace(nbeta_ftlm + 1)
+        write(6, '(1X,64("="))')
 
     end subroutine write_ftlm_testsuite_data
 
@@ -348,7 +348,7 @@ contains
         deallocate(ndets_ftlm)
         deallocate(disps_ftlm)
 
-        write(6,'(/,1x,a18,/)') "Exiting FTLM code."
+        write(6, '(/,1x,a18,/)') "Exiting FTLM code."
 
     end subroutine end_ftlm
 

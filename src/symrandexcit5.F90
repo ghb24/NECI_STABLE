@@ -46,12 +46,12 @@ module excit_gen_5
 
 contains
 
-    subroutine gen_excit_4ind_weighted2 (nI, ilutI, nJ, ilutJ, exFlag, ic, &
-                                     ExcitMat, tParity, pGen, HelGen, store, part_type)
+    subroutine gen_excit_4ind_weighted2(nI, ilutI, nJ, ilutJ, exFlag, ic, &
+                                        ExcitMat, tParity, pGen, HelGen, store, part_type)
 
         integer, intent(in) :: nI(nel), exFlag
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
-        integer, intent(out) :: nJ(nel), IC, ExcitMat(2,maxExcit)
+        integer, intent(out) :: nJ(nel), IC, ExcitMat(2, maxExcit)
         logical, intent(out) :: tParity
         real(dp), intent(out) :: pGen
         HElement_t(dp), intent(out) :: HElGen
@@ -77,16 +77,16 @@ contains
         if (genrand_real2_dSFMT() < pSingles) then
 
             ic = 1
-            call gen_single_4ind_ex (nI, ilutI, nJ, ilutJ, ExcitMat, &
-                                     tParity, pGen)
+            call gen_single_4ind_ex(nI, ilutI, nJ, ilutJ, ExcitMat, &
+                                    tParity, pGen)
             pgen = pgen * pSingles
 
         else
 
             ! OK, we want to do a double excitation
             ic = 2
-            call gen_double_4ind_ex2 (nI, ilutI, nJ, ilutJ, ExcitMat, tParity, &
-                                      pGen)
+            call gen_double_4ind_ex2(nI, ilutI, nJ, ilutJ, ExcitMat, tParity, &
+                                     pGen)
             pgen = pgen * pDoubles
 
         end if
@@ -120,7 +120,7 @@ contains
 
             end if
 
-            call calc_guga_matrix_element(ilutI, ilutJ, excitInfo, HelGen, .true., 2)
+            call calc_guga_matrix_element(ilutI, ilutJ, excitInfo, HelGen, .true., 1)
 
             if (abs(HelGen) < EPS) then
                 nJ(1) = 0
@@ -135,22 +135,22 @@ contains
         ! And a careful check!
 #ifdef DEBUG_
         if (.not. IsNullDet(nJ)) then
-             pgen2 = calc_pgen_4ind_weighted2(nI, ilutI, ExcitMat, ic)
+            pgen2 = calc_pgen_4ind_weighted2(nI, ilutI, ExcitMat, ic)
             if (abs(pgen - pgen2) > 1.0e-6_dp) then
                 if (.not. tHPHF) then
                     temp_hel = get_helement(nI, nJ, ilutI, ilutJ)
                 end if
 
-                write(6,*) 'Calculated and actual pgens differ.'
-                write(6,*) 'This will break HPHF calculations'
+                write(6, *) 'Calculated and actual pgens differ.'
+                write(6, *) 'This will break HPHF calculations'
                 call write_det(6, nI, .false.)
                 write(6, '(" --> ")', advance='no')
                 call write_det(6, nJ, .true.)
-                write(6,*) 'Excitation matrix: ', ExcitMat(1,1:ic), '-->', &
-                           ExcitMat(2,1:ic)
-                write(6,*) 'Generated pGen:  ', pgen
-                write(6,*) 'Calculated pGen: ', pgen2
-                write(6,*) 'matrix element: ', temp_hel
+                write(6, *) 'Excitation matrix: ', ExcitMat(1, 1:ic), '-->', &
+                    ExcitMat(2, 1:ic)
+                write(6, *) 'Generated pGen:  ', pgen
+                write(6, *) 'Calculated pGen: ', pgen2
+                write(6, *) 'matrix element: ', temp_hel
                 call stop_all(this_routine, "Invalid pGen")
             end if
         end if
@@ -158,15 +158,14 @@ contains
 
     end subroutine
 
-
-    function calc_pgen_4ind_weighted2 (nI, ilutI, ex, ic) &
-            result(pgen)
+    function calc_pgen_4ind_weighted2(nI, ilutI, ex, ic) &
+        result(pgen)
 
         ! What is the probability of the excitation _from_ determinant nI
         ! described by the excitation matrix ex, and the excitation level ic,
         ! being generated according to the 4ind_weighted excitaiton generator?
 
-        integer, intent(in) :: nI(nel), ex(2,2), ic
+        integer, intent(in) :: nI(nel), ex(2, 2), ic
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
         real(dp) :: pgen, cum_arr(nbasis)
         character(*), parameter :: this_routine = 'calc_pgen_4ind_weighted2'
@@ -179,7 +178,7 @@ contains
 
             ! Singles are calculated in the same way for the _ex and the
             ! _reverse excitation generators
-            pgen = pSingles * pgen_single_4ind (nI, ilutI, ex(1,1), ex(2,1))
+            pgen = pSingles * pgen_single_4ind(nI, ilutI, ex(1, 1), ex(2, 1))
 
         else if (ic == 2) then
 
@@ -267,8 +266,7 @@ contains
 
     end function
 
-
-    subroutine gen_double_4ind_ex2 (nI, ilutI, nJ, ilutJ, ex, par, pgen)
+    subroutine gen_double_4ind_ex2(nI, ilutI, nJ, ilutJ, ex, par, pgen)
 
         use GenRandSymExcitNUMod, only: RandExcitSymLabelProd
         use SymExcitDataMod, only: SpinOrbSymLabel
@@ -276,7 +274,7 @@ contains
 
         integer, intent(in) :: nI(nel)
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
-        integer, intent(out) :: nJ(nel), ex(2,maxExcit)
+        integer, intent(out) :: nJ(nel), ex(2, maxExcit)
         integer(n_int), intent(out) :: ilutJ(0:NIfTot)
         logical, intent(out) :: par
         real(dp), intent(out) :: pgen
@@ -300,8 +298,8 @@ contains
             call pick_biased_elecs(nI, elecs, src, sym_product, ispn, sum_ml, pgen)
         else
             call pick_weighted_elecs(nI, elecs, src, sym_product, ispn, sum_ml, &
-                                 pgen)
-         end if
+                                     pgen)
+        end if
 
         ! then first pick (a) orbital:
         ! for opposite spin excitations (a) is restricted to be a beta orbital!
@@ -318,8 +316,8 @@ contains
 
             ! pick the last orbitals weighted with the exact matrix
             ! element
-            orbs(2) = select_orb (ilutI, src, cc_b, orbs(1), int_cpt(2), &
-                              cum_sum(2))
+            orbs(2) = select_orb(ilutI, src, cc_b, orbs(1), int_cpt(2), &
+                                 cum_sum(2))
         end if
 
         ! what does this assert do?  do i have to pick the electrons in a
@@ -335,8 +333,8 @@ contains
         ! can i exit right away if this happens??
         ! i am pretty sure this means
         if (any(cum_sum < EPS)) then
-           cum_sum = 1.0_dp
-           int_cpt = 0.0_dp
+            cum_sum = 1.0_dp
+            int_cpt = 0.0_dp
         end if
 
         ! Calculate the pgens. Note that all of these excitations can be
@@ -370,13 +368,13 @@ contains
                        product(cpt_pair) / product(sum_pair))
 
         ! And generate the actual excitation
-        call make_double (nI, nJ, elecs(1), elecs(2), orbs(1), orbs(2), &
-                          ex, par)
+        call make_double(nI, nJ, elecs(1), elecs(2), orbs(1), orbs(2), &
+                         ex, par)
         ilutJ = ilutI
-        clr_orb (ilutJ, src(1))
-        clr_orb (ilutJ, src(2))
-        set_orb (ilutJ, orbs(1))
-        set_orb (ilutJ, orbs(2))
+        clr_orb(ilutJ, src(1))
+        clr_orb(ilutJ, src(2))
+        set_orb(ilutJ, orbs(1))
+        set_orb(ilutJ, orbs(2))
 
     end subroutine gen_double_4ind_ex2
 
@@ -513,7 +511,6 @@ contains
         ! generate this array, or if it should be used to save computational
         ! cost.
 
-
         integer(n_int), intent(in) :: ilut(0:NIfTot)
         integer, intent(in) :: src(2), orb, iSpn
         real(dp), intent(out) :: cpt, cum_sum
@@ -530,7 +527,7 @@ contains
         ! If we are not using symmetric calculations, and this electron
         ! has the wrong spin, then the probability is (obviously) zero.
         if (iSpn == 2 .and. .not. tGen_4ind_2_symmetric .and. &
-                            .not. is_beta(orb)) then
+            .not. is_beta(orb)) then
             cpt = 0.0_dp
             cum_sum = 1.0_dp
             return
@@ -556,12 +553,12 @@ contains
         if (orb == 1) then
             cpt = cum_arr(1)
         else
-            cpt = cum_arr(orb) - cum_arr(orb-1)
+            cpt = cum_arr(orb) - cum_arr(orb - 1)
         end if
 
     end subroutine
 
-    subroutine test_excit_gen_take2 (ilut, iterations)
+    subroutine test_excit_gen_take2(ilut, iterations)
 
         use excit_gens_int_weighted, only: calc_all_excitations
 
@@ -569,11 +566,11 @@ contains
         integer, intent(in) :: iterations
         character(*), parameter :: this_routine = 'test_excit_gen_take2'
 
-        integer :: src_det(nel), det(nel), nsing, ndoub, nexcit, ndet, ex(2,maxExcit)
+        integer :: src_det(nel), det(nel), nsing, ndoub, nexcit, ndet, ex(2, maxExcit)
         integer :: flag, ngen, pos, iunit, i, ic
         type(excit_gen_store_type) :: store
         integer(n_int) :: tgt_ilut(0:NifTot)
-        integer(n_int), pointer :: det_list(:,:)
+        integer(n_int), pointer :: det_list(:, :)
         real(dp), allocatable :: contrib_list(:), pgen_list(:)
         HElement_t(dp), allocatable ::  matEle_list(:)
         logical, allocatable :: generated_list(:)
@@ -583,19 +580,19 @@ contains
         character(255) :: filename
 
         ! Decode the determiant
-        call decode_bit_det (src_det, ilut)
+        call decode_bit_det(src_det, ilut)
 
         ! Initialise
-        call init_excit_gen_store (store)
+        call init_excit_gen_store(store)
 
         call calc_all_excitations(ilut, det_list, nexcit)
 
 !         ! How many connected determinants are we expecting?
-        write(6,'("*****************************************")')
-        write(6,'("Enumerating excitations")')
-        write(6,'("Starting from: ")', advance='no')
-        call write_det (6, src_det, .true.)
-        write(6,*) 'Expecting ', nexcit, "excitations"
+        write(6, '("*****************************************")')
+        write(6, '("Enumerating excitations")')
+        write(6, '("Starting from: ")', advance='no')
+        call write_det(6, src_det, .true.)
+        write(6, *) 'Expecting ', nexcit, "excitations"
 
         ! Lists to keep track of things
         allocate(generated_list(nexcit))
@@ -614,22 +611,22 @@ contains
         contrib = 0.0_dp
         do i = 1, iterations
             if (mod(i, 10000) == 0) &
-                write(6,*) i, '/', iterations, ' - ', contrib / (real(nexcit,dp)*i)
+                write(6, *) i, '/', iterations, ' - ', contrib / (real(nexcit, dp) * i)
 
-            call gen_excit_4ind_weighted2 (src_det, ilut, det, tgt_ilut, 2, &
-                                           ic, ex, par, pgen, helgen, store)
+            call gen_excit_4ind_weighted2(src_det, ilut, det, tgt_ilut, 2, &
+                                          ic, ex, par, pgen, helgen, store)
             if (det(1) == 0) cycle
 
-            call EncodeBitDet (det, tgt_ilut)
+            call EncodeBitDet(det, tgt_ilut)
             helgen = get_helement(src_det, det, ic, ex, par)
 
             if (abs(helgen) < 1.0e-6_dp) cycle
 
-            pos = binary_search(det_list, tgt_ilut, NIfD+1)
+            pos = binary_search(det_list, tgt_ilut, NIfD + 1)
             if (pos < 0) then
-                write(6,*) det
-                write(6,'(b64)') tgt_ilut(0)
-                write(6,*) 'FAILED DET', tgt_ilut
+                write(6, *) det
+                write(6, '(b64)') tgt_ilut(0)
+                write(6, *) 'FAILED DET', tgt_ilut
                 call writebitdet(6, tgt_ilut, .true.)
                 call stop_all(this_routine, 'Unexpected determinant generated')
             else
@@ -644,35 +641,35 @@ contains
             end if
         end do
         ! How many of the iterations generated a good det?
-        write(6,*) ngen, " dets generated in ", iterations, " iterations."
-        write(6,*) 100_dp * (iterations - ngen) / real(iterations,dp), &
-                   '% abortion rate'
+        write(6, *) ngen, " dets generated in ", iterations, " iterations."
+        write(6, *) 100_dp * (iterations - ngen) / real(iterations, dp), &
+            '% abortion rate'
         ! Contribution averages
         write(6, '("Averaged contribution: ", f15.10)') &
-                contrib / (real(nexcit,dp) * iterations)
+            contrib / (real(nexcit, dp) * iterations)
 
         ! Output the determinant specific contributions
         iunit = get_free_unit()
         open(iunit, file="contribs_4ind", status='unknown')
         do i = 1, nexcit
-            call writebitdet(iunit, det_list(:,i), .false.)
+            call writebitdet(iunit, det_list(:, i), .false.)
             write(iunit, *) contrib_list(i) / real(iterations, dp)
         end do
         close(iunit)
 
         ! Check that all of the determinants were generated!!!
         if (.not. all(generated_list)) then
-            write(6,*) count(.not.generated_list), '/', size(generated_list), &
-                       'not generated'
+            write(6, *) count(.not. generated_list), '/', size(generated_list), &
+                'not generated'
             found_all = .true.
             do i = 1, nexcit
                 if (.not. generated_list(i)) then
-                    call decode_bit_det(det, det_list(:,i))
-                    hel = get_helement(src_det, det, ilut, det_list(:,i))
+                    call decode_bit_det(det, det_list(:, i))
+                    hel = get_helement(src_det, det, ilut, det_list(:, i))
                     if (abs(hel) > 1.0e-6) then
                         found_all = .false.
-                        call writebitdet(6, det_list(:,i), .false.)
-                        write(6,*) hel
+                        call writebitdet(6, det_list(:, i), .false.)
+                        write(6, *) hel
                     end if
                 end if
             end do
@@ -681,8 +678,8 @@ contains
         end if
         if (any(abs(contrib_list / iterations - 1.0_dp) > 0.01_dp)) then
             do i = 1, nexcit
-                call writebitdet(6, det_list(:,i), .false.)
-                write(6,*) contrib_list(i) / (iterations - 1.0_dp)
+                call writebitdet(6, det_list(:, i), .false.)
+                write(6, *) contrib_list(i) / (iterations - 1.0_dp)
             end do
 !             call stop_all(this_routine, "Insufficiently uniform generation")
         end if
@@ -691,14 +688,14 @@ contains
         sum_helement = sum(abs(matEle_list))
 
         iunit = get_free_unit()
-        call get_unique_filename("pgen_vs_matrixElements",.true.,.true.,1,filename)
-        open(iunit, file=filename,status='unknown')
-        write(iunit,*) "pgens and matrix elements for CSF:"
+        call get_unique_filename("pgen_vs_matrixElements", .true., .true., 1, filename)
+        open(iunit, file=filename, status='unknown')
+        write(iunit, *) "pgens and matrix elements for CSF:"
         call write_det(6, src_det, .true.)
         do i = 1, nExcit
-            write(iunit, "(f16.7)", advance = 'no') pgen_list(i) ! /sum_pgens
-            write(iunit, "(f16.7)", advance = 'no') matEle_list(i) ! /sum_helement
-            write(iunit, "(f16.7)") contrib_list(i) / real(iterations,dp)
+            write(iunit, "(f16.7)", advance='no') pgen_list(i) ! /sum_pgens
+            write(iunit, "(f16.7)", advance='no') matEle_list(i) ! /sum_helement
+            write(iunit, "(f16.7)") contrib_list(i) / real(iterations, dp)
         end do
         close(iunit)
 
@@ -710,6 +707,5 @@ contains
         deallocate(matEle_list)
 
     end subroutine
-
 
 end module

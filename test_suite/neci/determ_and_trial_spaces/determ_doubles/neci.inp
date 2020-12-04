@@ -21,6 +21,7 @@ realspawncutoff 0.01
 nmcyc 400
 semi-stochastic
 doubles-core
+core-inits
 truncinitiator
 addtoinitiator 2
 stochastic-hf-spawning

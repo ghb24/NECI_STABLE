@@ -44,8 +44,8 @@ module guga_procedure_pointers
         end subroutine calc_mixed_contr_t
 
         subroutine calc_mixed_start_contr_t(ilut, t, excitInfo, branch_pgen, pgen, &
-                integral)
-            use constants, only: dp, n_int
+                                            integral, rdm_ind, rdm_mat)
+            use constants, only: dp, n_int, int_rdm
             use bit_reps, only: nifguga
             use guga_data, only: ExcitationInformation_t
             implicit none
@@ -54,6 +54,8 @@ module guga_procedure_pointers
             type(ExcitationInformation_t), intent(inout) :: excitInfo
             real(dp), intent(out) :: pgen
             HElement_t(dp), intent(out) :: integral
+            integer(int_rdm), intent(out), allocatable, optional :: rdm_ind(:)
+            real(dp), intent(out), allocatable, optional :: rdm_mat(:)
         end subroutine calc_mixed_start_contr_t
 
         ! maybe scrap all the below and only to one general one.
@@ -69,7 +71,7 @@ module guga_procedure_pointers
 
         ! for zero function:
         function general_weight_zero(negSwitches, posSwitches, bVal, dat) &
-                result(weight)
+            result(weight)
             use guga_data, only: WeightData_t
             use constants, only: dp
             implicit none
@@ -114,6 +116,5 @@ module guga_procedure_pointers
     procedure(orb_pgen_contrib_type_t), pointer :: orb_pgen_contrib_type_2
 
     procedure(calc_off_diag_guga_t), pointer :: calc_off_diag_guga_ref
-
 
 end module

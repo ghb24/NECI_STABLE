@@ -28,6 +28,7 @@ shiftdamp 0.1
 nmcyc 7000
 semi-stochastic
 doubles-core
+core-inits
 stochastic-hf-spawning
 allrealcoeff
 realspawncutoff 0.5

@@ -3,7 +3,7 @@
       use global_utilities
       use constants, only: dp, n_int, eps
       Use Determinants, only: get_helement
-      use SystemData , only : BasisFN, tNConservingGAS, t_lattice_model
+      use SystemData , only : BasisFN, tGAS, t_lattice_model
       use SystemData, only: tGUGA
       use CalcData , only : TStar
       use bit_rep_data, only: NIfTot
@@ -11,12 +11,14 @@
       use hphf_integrals, only: hphf_diag_helement
       use hphf_integrals, only: hphf_off_diag_helement
       use DetBitOps, only: EncodeBitDet
+      use orb_idx_mod, only: SpinOrbIdx_t
+      use gasci, only: GAS_spec=>GAS_specification
+
       use guga_matrixElements, only: calcDiagMatEleGuga_nI
       use guga_excitations, only: calc_guga_matrix_element
       use guga_data, only: ExcitationInformation_t
       use guga_bitrepops, only: init_csf_information
 
-      use gasci, only: isValidExcit
       use lattice_mod, only: get_helement_lattice
 
       use util_mod, only: near_zero
@@ -94,9 +96,11 @@ C..   Now we need to match up any two determinants
               if (KI == KJ) then
                   totsum = calcDiagMatEleGuga_nI(NMRKS(:,KI))
               else
-!                   totsum = calc_off_diag_guga_gen(ilutI, ilutJ)
                   call calc_guga_matrix_element(ilutI,ilutJ,excitInfo,
      &              totsum, .true., 1)
+! #ifdef CMPLX_
+!                     totsum = conjg(totsum)
+! #endif
               end if
 
             else if (t_lattice_model) then
@@ -115,9 +119,12 @@ C..   Now we need to match up any two determinants
             end if
 C            CALL SLTCND(NEL,NBASISMAX,NHG,
 C     &     FCK,NMAX,ALAT,UMAT,TOTSUM)
-            if(tNConservingGAS) then
-               if(.not. isValidExcit(ilutI,ilutJ)) totsum = 0.0_dp
-            endif
+            if(tGAS) then
+                if (.not. GAS_spec%contains_det(NMRKS(:, KI))
+     &              .or. .not. GAS_spec%contains_det(NMRKS(:, KJ))) then
+                        totsum = 0.0_dp
+                end if
+            end if
             IF(ABS(TOTSUM).LT.1.0e-10_dp) TOTSUM=0.0_dp
             IF(.not. near_zero(TOTSUM) .OR. KI == KJ) THEN
                GC=GC+1

@@ -623,7 +623,7 @@ contains
       real(dp), allocatable, intent(inout) :: buf(:)
       real(dp), target, intent(inout) :: val(:)
 
-      integer dimsVal, dimsBuf, ierr
+      integer :: dimsVal, dimsBuf
 
       ! if buf is unallocated, this is not going anywhere
       if(.not. allocated(buf)) then

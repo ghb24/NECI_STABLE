@@ -30,24 +30,22 @@ contains
         use DetCalcData, only: nkry, nblk, b2l, ncycle
         use sort_mod, only: sort
         use SystemData, only: nel, tHPHF, tGUGA
-        use CalcData, only: t_guga_mat_eles
-        use guga_excitations, only: Detham_guga
 
-        integer, intent(in) :: det_list(:,:)
+        integer, intent(in) :: det_list(:, :)
         integer, intent(in) :: ndets
         integer, intent(in) :: nexcit
         real(dp), intent(out) :: evals(:)
-        real(dp), intent(out) :: evecs(:,:)
+        real(dp), intent(out) :: evecs(:, :)
 
         integer :: ierr, nkry1, nblock, len_scr, len_iscr, ICMax, LenHamil, i
         integer, allocatable :: nRow(:), Lab(:), iscr(:), ind(:)
-        real(dp), allocatable :: evecs_space(:,:), Hamil(:), A_Arr(:,:)
+        real(dp), allocatable :: evecs_space(:, :), Hamil(:), A_Arr(:, :)
         real(dp), allocatable :: V(:), BM(:), T(:), WT(:), scr(:), AM(:)
         logical :: tMC
         character(len=*), parameter :: t_r = 'frsblk_wrapper'
 
 #ifdef CMPLX_
-        call stop_all(t_r,'frsblk cannot work with complex wavefunctions currently')
+        call stop_all(t_r, 'frsblk cannot work with complex wavefunctions currently')
 #endif
 
         allocate(nRow(ndets), stat=ierr)
@@ -55,49 +53,35 @@ contains
         ICMax = 1
         tMC = .false.
 
-        ! for the guga implementation i need to that more efficiently..
-        ! as i already have a routinr which acts the hamiltonian on a state
-        ! and creates all the exciations from it..
-        ! this means i need a routine for the guga case which sets up the
-        ! hamiltonian in the same way as DetHam for determinants..
-        ! only use the "old" version when t_guga_mat_eles is not set!
-        if (tGUGA .and. (.not. t_guga_mat_eles)) then
-            ! preprocessor to fix compilation! since it is not excecuted anyway
-#ifndef CMPLX_
-            call Detham_guga(ndets, det_list, Hamil, Lab, nRow, LenHamil, ICMax)
-#endif
-        else
-            ! just to make sure we pass valid objects
-            allocate(Lab(1),stat=ierr)
-            allocate(Hamil(1),stat=ierr)
-            call Detham(ndets, nel, det_list, Hamil, Lab, nRow, .true., ICMax, LenHamil, tMC)
+        ! just to make sure we pass valid objects
+        allocate(Lab(1), stat=ierr)
+        allocate(Hamil(1), stat=ierr)
+        call Detham(ndets, nel, det_list, Hamil, Lab, nRow, .true., ICMax, LenHamil, tMC)
 
-            deallocate(Hamil, stat=ierr)
-            deallocate(Lab, stat=ierr)
+        deallocate(Hamil, stat=ierr)
+        deallocate(Lab, stat=ierr)
 
-            allocate(Hamil(LenHamil), stat=ierr)
-            if (ierr /= 0) call stop_all(t_r, "Error allocating Hamil.")
-            allocate(Lab(LenHamil), stat=ierr)
-            if (ierr /= 0) call stop_all(t_r, "Error allocating Lab.")
+        allocate(Hamil(LenHamil), stat=ierr)
+        if (ierr /= 0) call stop_all(t_r, "Error allocating Hamil.")
+        allocate(Lab(LenHamil), stat=ierr)
+        if (ierr /= 0) call stop_all(t_r, "Error allocating Lab.")
 
-            Hamil = 0.0_dp
-            Lab = 0
+        Hamil = 0.0_dp
+        Lab = 0
 
-            call Detham(ndets, NEl, det_list, Hamil, Lab, nRow, .false., ICMax, LenHamil, tMC)
+        call Detham(ndets, NEl, det_list, Hamil, Lab, nRow, .false., ICMax, LenHamil, tMC)
 
-        end if
-
-        nkry1 = nkry+1
+        nkry1 = nkry + 1
         nblock = min(nexcit, nblk)
-        len_scr = max(ndets*nexcit, 8*nblock*nkry)
-        len_iscr = 6*nblock*nkry
+        len_scr = max(ndets * nexcit, 8 * nblock * nkry)
+        len_iscr = 6 * nblock * nkry
 
         allocate(A_Arr(nexcit, nexcit), stat=ierr)
-        allocate(V(ndets*nblock*nkry1), stat=ierr)
-        allocate(AM(nblock*nblock*nkry1), stat=ierr)
-        allocate(BM(nblock*nblock*nkry), stat=ierr)
-        allocate(T(3*nblock*nkry*nblock*nkry), stat=ierr)
-        allocate(WT(nblock*nkry), stat=ierr)
+        allocate(V(ndets * nblock * nkry1), stat=ierr)
+        allocate(AM(nblock * nblock * nkry1), stat=ierr)
+        allocate(BM(nblock * nblock * nkry), stat=ierr)
+        allocate(T(3 * nblock * nkry * nblock * nkry), stat=ierr)
+        allocate(WT(nblock * nkry), stat=ierr)
         allocate(scr(len_scr), stat=ierr)
         allocate(iscr(len_iscr), stat=ierr)
         allocate(ind(nexcit), stat=ierr)
@@ -116,8 +100,8 @@ contains
 
         ! Perform Lanczos procedure.
         call neci_frsblkh(ndets, ICMax, nexcit, Hamil, Lab, evecs, evecs_space, nkry, nkry1, nblock, nrow, &
-                           len_scr, len_iscr, A_Arr, evals, V, AM, BM, T, WT, scr, iscr, ind, ncycle, b2l, &
-                           .false., .false., .false., .true.)
+                          len_scr, len_iscr, A_Arr, evals, V, AM, BM, T, WT, scr, iscr, ind, ncycle, b2l, &
+                          .false., .false., .false., .true.)
 
         ! The above routine returns *minus* the eigenvalues. Remove this factor:
         evals = -evals
@@ -128,19 +112,19 @@ contains
         ! so that different compilers are consistent.
         call sort(evals, evecs)
 
-        deallocate(evecs_space, &
-                   A_Arr, &
-                   V, &
-                   BM, &
-                   T, &
-                   WT, &
-                   scr, &
-                   iscr, &
-                   ind, &
-                   AM, &
-                   nrow, &
-                   Lab, &
-                   Hamil)
+        deallocate (evecs_space, &
+                    A_Arr, &
+                    V, &
+                    BM, &
+                    T, &
+                    WT, &
+                    scr, &
+                    iscr, &
+                    ind, &
+                    AM, &
+                    nrow, &
+                    Lab, &
+                    Hamil)
 
     end subroutine frsblk_wrapper
 

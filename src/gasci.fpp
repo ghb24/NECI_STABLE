@@ -1,576 +1,419 @@
 #include "macros.h"
 #:include "macros.fpph"
 
-#:set ExcitationTypes = ['SingleExc_t', 'DoubleExc_t']
-
 module gasci
-    use SystemData, only: tNConservingGAS, tSpinConservingGAS, nBasis, nel
-    use constants
-    use util_mod, only: get_free_unit, binary_search_first_ge, operator(.div.), &
-        near_zero
-    use sort_mod, only : sort
-    use bit_rep_data, only: NIfTot, NIfD
-    use dSFMT_interface, only: genrand_real2_dSFMT
-    use FciMCData, only: pDoubles
-    use get_excit, only: make_double, make_single
-    use Determinants, only: get_helement
-    use excit_gens_int_weighted, only: pick_biased_elecs, pgen_select_orb
-    use excitation_types, only: Excitation_t, SingleExc_t, DoubleExc_t, &
-        last_tgt_unknown, set_last_tgt
-    use sltcnd_mod, only: sltcnd_excit, dyn_sltcnd_excit
+    use SystemData, only: nBasis
+    use util_mod, only: cumsum, stop_all, operator(.div.)
     implicit none
 
     private
-    public :: isValidExcit, loadGAS, generate_nGAS_excitation, clearGAS
+    public :: operator(==), operator(/=), possible_GAS_exc_gen, &
+        GAS_exc_gen, GAS_specification, GASSpec_t, &
+        user_input_GAS_exc_gen, get_name, construct_GASSpec_t
 
 
-    #:for function_name in ['get_cumulative_list', 'get_mat_element', 'pick_weighted_hole']
-    interface ${function_name}$
-        #:for excitation_t in ExcitationTypes
-            module procedure ${function_name}$_${excitation_t}$
-        #:endfor
+
+    type :: GAS_exc_gen_t
+        integer :: val
+    end type
+
+    type :: possible_GAS_exc_gen_t
+        type(GAS_exc_gen_t) :: &
+            DISCONNECTED = GAS_exc_gen_t(1), &
+            GENERAL = GAS_exc_gen_t(2), &
+            DISCARDING = GAS_exc_gen_t(3), &
+            GENERAL_PCHB = GAS_exc_gen_t(4)
+    end type
+
+    type(possible_GAS_exc_gen_t), parameter :: possible_GAS_exc_gen = possible_GAS_exc_gen_t()
+
+    type(GAS_exc_gen_t) :: GAS_exc_gen = possible_GAS_exc_gen%GENERAL
+    type(GAS_exc_gen_t), allocatable :: user_input_GAS_exc_gen
+
+    interface operator(==)
+        module procedure eq_GAS_exc_gen_t
     end interface
-    #:endfor
 
-    integer :: nGAS
-    integer, parameter :: idx_alpha = 1, idx_beta = 2
-#ifdef INT64_
-    ! oddBits is the 2-base number: 101010101010....
-    ! This corresponds to beta orbitals if interpreted as bitmask
-    integer(n_int), parameter :: oddBits = 6148914691236517205_n_int
-#else
-    integer(n_int), parameter :: oddBits = 1431655765_n_int
-#endif
+    interface operator(/=)
+        module procedure neq_GAS_exc_gen_t
+    end interface
 
-    !> Bitmasks containing the active spaces
-    !> (stored in the same format as an ilut)
-    !> also have spin-resolved bitmasks
-    integer(n_int), allocatable :: &
-        !> The index of GAS_orbs is [0:NIfD, 1:nGAS]
-        GAS_orbs(:, :), &
-        !> Spin resolved version of GAS_orbs.
-        !> The index is [0:NIfD, 1:nGAS, {idx_alpha, idx_beta}]
-        GAS_spin_orbs(:, :, :)
-    integer, allocatable :: &
-        !> Integer list of spin-orbitals for each GAS space,
-        !> that contains in continous order the occupied orbitals.
-        !> The index is [i-th occupied orbital in given GAS space,
-        !>               1:nGAS, {idx_alpha, idx_beta}].
-        !> Note that a meaningful index is only [1:GAS_size(iGAS), iGAS, :]
-        GAS_spin_orb_list(:, :, :), &
-        !> Number of orbitals in each GAS space.
-        GAS_size(:), &
-        !> Lookup table containing the GAS space for each orbital.
-        GAS_table(:)
+    ! NOTE: At the current state of implementation `GASSpec_t` is a completely immutable
+    ! datastructure to outside code after the constructor has been called.
+    ! If possible keep it like this!
+
+    !> Speficies the GAS spaces.
+    type :: GASSpec_t
+        !> The indices are:
+        !>  cn_min(1 : nGAS), cn_max(1 : nGAS)
+        !> cn_min(iGAS) specifies the **cumulated** minimum particle number per GAS space.
+        !> cn_max(iGAS) specifies the **cumulated** maximum particle number per GAS space.
+        private
+        integer, allocatable :: cn_min(:), cn_max(:)
+        !> GAS_table(i) returns the GAS space for the i-th spin orbital
+        integer, allocatable :: GAS_table(:)
+        !> The number of spin orbitals per GAS space
+        integer, allocatable  :: GAS_sizes(:)
+        !> maxval(GAS_sizes)
+        integer :: largest_GAS_size
+        !> splitted_orbitals orbitals is the preimage of GAS_specification%GAS_table.
+        !> An array that contains the spin orbitals per GAS space.
+        !> splitted_orbitals(1 : maxval(GAS_sizes), 1 : nGAS)
+        !> only splitted_orbitals(i, j), 1 <= i <= GAS_sizes(j)
+        !> is defined.
+        integer, allocatable :: splitted_orbitals(:, :)
+        !> These lookup variables stay valid, because the data structure is
+        !>  immutable
+        logical :: lookup_is_connected
+    contains
+        ! All member functions should be public.
+        procedure :: contains_det
+        procedure :: contains_supergroup
+        procedure :: is_connected => get_is_connected
+        procedure :: is_valid
+        procedure :: nGAS => get_nGAS
+        procedure :: nEl => get_nEl
+        procedure :: n_spin_orbs => get_nOrbs
+        procedure :: max_GAS_size => get_max_GAS_size
+        procedure :: GAS_size => get_GAS_size
+        procedure :: get_iGAS
+        procedure :: get_orb_idx
+        procedure :: cumulated_min
+        procedure :: cumulated_max
+        procedure :: split_per_GAS
+        procedure :: count_per_GAS
+        procedure :: write_to
+    end type
+
+    interface GASSpec_t
+        module procedure construct_GASSpec_t
+    end interface
+
+    type(GASSpec_t), allocatable :: GAS_specification
 
 contains
 
-    subroutine loadGAS()
-        integer :: GAS_unit, iOrb, nOrbs, GAS(nBasis .div. 2), iGAS
+    logical elemental function eq_GAS_exc_gen_t(lhs, rhs)
+        type(GAS_exc_gen_t), intent(in) :: lhs, rhs
+        eq_GAS_exc_gen_t = lhs%val == rhs%val
+    end function
 
-        nOrbs = nBasis .div. 2
-        GAS_unit = get_free_unit()
-        open(GAS_unit, file="GASOrbs", status='old')
-            read(GAS_unit,  * ) GAS(1:nOrbs)
-        close(GAS_unit)
-        nGAS = maxval(GAS)
-        allocate(GAS_orbs(0:NIfD, nGAS))
-        GAS_orbs(:, :) = 0_n_int
-        do iOrb = 1, nOrbs
-            ! now write the orbitals read in to the current GAS
-            ! set both the alpha- and the beta-spin orbital
-            call setorb(GAS_orbs(:, GAS(iOrb)), 2 * iOrb)
-            call setorb(GAS_orbs(:, GAS(iOrb)), 2 * iOrb - 1)
-        end do
+    logical elemental function neq_GAS_exc_gen_t(lhs, rhs)
+        type(GAS_exc_gen_t), intent(in) :: lhs, rhs
+        neq_GAS_exc_gen_t = lhs%val /= rhs%val
+    end function
 
-        ! now set up the auxiliary gas lookup tables
-        allocate(GAS_spin_orbs(0:NIfD, nGAS, 2))
-        ! GAS_spin_orbs is the same as GAS_orbs, but spin resolved.
-        ! The order is beta, alpha, beta, alpha ...
-        GAS_spin_orbs(:, :, idx_alpha) = iand(GAS_orbs, ishft(oddBits, 1))
-        GAS_spin_orbs(:, :, idx_beta) = iand(GAS_orbs, oddBits)
+    !> @brief
+    !> Returns the total number of GAS spaces.
+    integer pure function get_nGAS(self)
+        class(GASSpec_t), intent(in) :: self
+        get_nGAS = size(self%GAS_sizes)
+    end function
 
-        allocate(GAS_table(nBasis))
-        ! gasTable contains the active space index for each spin orbital
-        ! it is the same as GAS for spin orbitals
-        GAS_table(1::2) = GAS(:)
-        GAS_table(2::2) = GAS(:)
+    !> @brief
+    !> Returns the size of the largest GAS space.
+    integer pure function get_max_GAS_size(self)
+        class(GASSpec_t), intent(in) :: self
+        get_max_GAS_size = self%largest_GAS_size
+    end function
 
-        allocate(GAS_spin_orb_list(nBasis, nGAS, 2))
-        allocate(GAS_size(nGAS), source=0)
-        associate (M => GAS_spin_orb_list)
-            do iOrb = 1, nOrbs
-                GAS_size(GAS(iOrb)) = GAS_size(GAS(iOrb)) + 1
-                M(GAS_size(GAS(iOrb)), GAS(iOrb), idx_alpha) = 2 * iOrb
-                M(GAS_size(GAS(iOrb)), GAS(iOrb), idx_beta) = 2 * iOrb - 1
-            end do
-        end associate
+    !> @brief
+    !>  Returns the size of the i-th GAS space.
+    integer elemental function get_GAS_size(self, iGAS)
+        class(GASSpec_t), intent(in) :: self
+        integer, intent(in) :: iGAS
+        get_GAS_size = self%GAS_sizes(iGAS)
+    end function
 
-        do iGAS = 1, nGAS
-            write (iout,  * ) "Number of orbs in GAS", iGAS, "is", &
-                & sum(popCnt(GAS_orbs(:, iGAS)))
-        end do
+    !> @brief
+    !> Returns the GAS space for a given spin orbital index.
+    integer elemental function get_iGAS(self, spin_orb_idx)
+        class(GASSpec_t), intent(in) :: self
+        integer, intent(in) :: spin_orb_idx
+        get_iGAS = self%GAS_table(spin_orb_idx)
+    end function
 
-    contains
+    !> @brief
+    !> Returns the cumulated minimum particle number for a given GAS space.
+    integer elemental function cumulated_min(self, iGAS)
+        class(GASSpec_t), intent(in) :: self
+        integer, intent(in) :: iGAS
+        cumulated_min = self%cn_min(iGAS)
+    end function
 
-        ! One cannot use the macro here because of Fortran syntax rules.
-        subroutine setOrb(ilut, orb)
-            integer(n_int), intent(inout) :: ilut(0:NIfD)
-            integer, intent(in) :: orb
+    !> @brief
+    !> Returns the cumulated maximum particle number for a given GAS space.
+    integer elemental function cumulated_max(self, iGAS)
+        class(GASSpec_t), intent(in) :: self
+        integer, intent(in) :: iGAS
+        cumulated_max = self%cn_max(iGAS)
+    end function
 
-            integer :: pos
-            ! Get the bit index of the integer containing this orbital
-            pos = (orb - 1) .div. bits_n_int
-            ilut(pos) = ibset(ilut(pos), mod(orb - 1, bits_n_int))
-        end subroutine setOrb
-    end subroutine loadGAS
+    integer elemental function get_nEl(self)
+        class(GASSpec_t), intent(in) :: self
+        get_nEl = self%cn_min(size(self%cn_min))
+    end function
 
-!----------------------------------------------------------------------------!
+    integer elemental function get_nOrbs(self)
+        class(GASSpec_t), intent(in) :: self
+        get_nOrbs = size(self%GAS_table)
+    end function
 
-    subroutine clearGAS()
-        if (allocated(GAS_size)) deallocate (GAS_size)
-        if (allocated(GAS_spin_orb_list)) deallocate (GAS_spin_orb_list)
-        if (allocated(GAS_table)) deallocate (GAS_table)
-        if (allocated(GAS_spin_orbs)) deallocate (GAS_spin_orbs)
-        if (allocated(GAS_orbs)) deallocate (GAS_orbs)
-    end subroutine clearGAS
+    !> @brief
+    !> Returns the i-th spin orbital in the iGAS GAS space.
+    !>
+    !> @details
+    !>  Can be seen as the preimage of get_iGAS (which is usually not injective).
+    integer elemental function get_orb_idx(self, i, iGAS)
+        class(GASSpec_t), intent(in) :: self
+        integer, intent(in) :: i, iGAS
+        character(*), parameter :: this_routine = 'get_orb_idx'
 
-!----------------------------------------------------------------------------!
+        @:pure_ASSERT(1 <= i .and. i <= self%GAS_size(iGAS))
+        @:pure_ASSERT(1 <= iGAS .and. iGAS <= self%nGAS())
 
-    pure function isValidExcit(ilut_i, ilut_j) result(valid)
-        ! check if the excitation from ilut_i to ilut_j is valid within the GAS
-        integer(n_int), intent(in) :: ilut_i(0:NIfTot), ilut_j(0:NIfTot)
-        integer(n_int) :: GAS_ilut_i(0:NIfD), GAS_ilut_j(0:NIfD)
-        logical :: valid
+        get_orb_idx = self%splitted_orbitals(i, iGAS)
+    end function
 
-        integer :: iGAS
 
-        valid = .true.
-        ! safety check: do the GAS_orbs exist
-        if (.not. allocated(GAS_orbs)) return
-        do iGAS = 1, nGAS
-            GAS_ilut_i = GAS_Component(ilut_i, iGAS)
-            GAS_ilut_j = GAS_Component(ilut_j, iGAS)
-            ! check if ilut_i and ilut_j have the same number of electrons in GAS-i
-            valid = sum(popCnt(GAS_ilut_i)) == sum(popCnt(GAS_ilut_j))
-            if (tSpinConservingGAS) then
-                ! check if the number of odd bits set
-                ! (=number of beta electrons) is the
-                ! same in both determinants.
-                valid = sum(popCnt(iand(GAS_ilut_i, oddBits))) &
-                        &== sum(popCnt(iand(GAS_ilut_j, oddBits)))
-            end if
-        end do
+    !>  @brief
+    !>      Constructor of GASSpec_t
+    !>
+    !>  @details
+    !>
+    !>  @param[in] n_min, Cumulative minimum particle number.
+    !>  @param[in] n_max, Cumulative maximum particle number
+    !>  @param[in] spat_GAS_orbs, GAS space for the i-th **spatial** orbital.
+    pure function construct_GASSpec_t(n_min, n_max, spat_GAS_orbs) result(GAS_spec)
+        integer, intent(in) :: n_min(:), n_max(:)
+        integer, intent(in) :: spat_GAS_orbs(:)
 
-    contains
+        type(GASSpec_t) :: GAS_spec
+        character(*), parameter :: this_routine = 'construct_GASSpec_t'
 
-        pure function GAS_Component(ilut, i) result(GAS_Ilut)
-            integer(n_int), intent(in) :: ilut(0:NIfTot)
-            integer, intent(in) :: i
+        integer :: n_spin_orbs, max_GAS_size
+        integer, allocatable :: splitted_orbitals(:, :), GAS_table(:), GAS_sizes(:)
+        integer :: i, iel, iGAS, nGAS
 
-            integer(n_int) :: GAS_Ilut(0:NIfD)
+        nGAS = maxval(spat_GAS_orbs)
+        GAS_sizes = 2 * frequency(spat_GAS_orbs)
 
-            GAS_Ilut = iand(ilut(0:NIfD), GAS_orbs(0:NIfD, i))
+        max_GAS_size = maxval(GAS_sizes)
+        n_spin_orbs = sum(GAS_sizes)
 
-        end function GAS_Component
+        allocate(GAS_table(n_spin_orbs))
+        GAS_table(1::2) = spat_GAS_orbs
+        GAS_table(2::2) = spat_GAS_orbs
 
-    end function isValidExcit
-
-!----------------------------------------------------------------------------!
-
-    subroutine generate_nGAS_excitation(nI, ilutI, nJ, ilutJ, exFlag, ic, &
-                                        ex, tParity, pGen, hel, store, part_type)
-        ! particle number conserving GAS excitation generator:
-        ! we create only excitations, that preserver the number of electrons within
-        ! each active space
-        use SystemData, only: nel
-        use FciMCData, only: excit_gen_store_type
-        use constants
-
-        integer, intent(in) :: nI(nel), exFlag
-        integer(n_int), intent(in) :: ilutI(0:NIfTot)
-        integer, intent(out) :: nJ(nel), ic, ex(2, maxExcit)
-        integer(n_int), intent(out) :: ilutJ(0:NifTot)
-        real(dp), intent(out) :: pGen
-        logical, intent(out) :: tParity
-        HElement_t(dp), intent(out) :: hel
-        type(excit_gen_store_type), intent(inout), target :: store
-        integer, intent(in), optional :: part_type
-
-        real(dp) :: r
-
-        @:unused_var(exFlag, part_type, store)
-#ifdef WARNING_WORKAROUND_
-        hel = 0.0_dp
-#endif
-        ! single or double excitation?
-        r = genrand_real2_dSFMT()
-        if (r < pDoubles) then
-            call generate_nGAS_double(nI, ilutI, nJ, ilutJ, ex, tParity, pgen)
-            pgen = pgen * pDoubles
-            ic = 2
-        else
-            call generate_nGAS_single(nI, ilutI, nJ, ilutJ, ex, tParity, pgen)
-            pgen = pgen * (1.0_dp - pDoubles)
-            ic = 1
-        end if
-
-    end subroutine generate_nGAS_excitation
-
-!----------------------------------------------------------------------------!
-
-    subroutine generate_nGAS_single(nI, ilutI, nJ, ilutJ, ex, par, pgen)
-        integer, intent(in) :: nI(nel)
-        integer(n_int), intent(in) :: ilutI(0:NIfTot)
-        integer, intent(out) :: nJ(nel), ex(2, 2)
-        integer(n_int), intent(out) :: ilutJ(0:NIfTot)
-        logical, intent(out) :: par
-        real(dp), intent(out) :: pgen
-
-        integer :: elec, tgt, src, spin_idx
-        real(dp) :: r
-
-        ! we assume that each active space has a possible single excitation
-        ! (this is very mild because active spaces without such are trivial)
-        ! -> pick any random electron
-        r = genrand_real2_dSFMT()
-        elec = int(r * nel) + 1
-        src = nI(elec)
-        ! adjust pgen
-        pgen = 1.0_dp / nel
-        ! from the same active space, get a hole
-        spin_idx = get_spin(src)
-        tgt = pick_weighted_hole( &
-            nI, SingleExc_t(src), spin_idx, GAS_table(src), pgen)
-
-        if (tgt == 0) then
-            nJ(1) = 0
-            ilutJ = 0_n_int
-            return
-        end if
-
-        call make_single(nI, nJ, elec, tgt, ex, par)
-        ilutJ = ilutI
-        clr_orb(ilutJ, src)
-        set_orb(ilutJ, tgt)
-
-    end subroutine generate_nGAS_single
-
-!----------------------------------------------------------------------------!
-
-    subroutine generate_nGAS_double(nI, ilutI, nJ, ilutJ, ex, par, pgen)
-        integer, intent(in) :: nI(nel)
-        integer(n_int), intent(in) :: ilutI(0:NIfTot)
-        integer, intent(out) :: nJ(nel), ex(2, 2)
-        integer(n_int), intent(out) :: ilutJ(0:NIfTot)
-        logical, intent(out) :: par
-        real(dp), intent(out) :: pgen
-
-        integer :: elecs(2), src(2), sym_product, ispn, sum_ml, tgt(2)
-        integer :: srcGAS(2)
-        integer :: ms, nJBase(nel)
-        real(dp) :: r, pgen_pick1, pgen_pick2
-        logical :: tExchange
-        ! assuming that there are possible excitations within each active space,
-        ! pick two random electrons (we would not include a full / empty space, so
-        ! the assumption is very mild)
-        call pick_biased_elecs(nI, elecs, src, sym_product, ispn, sum_ml, pgen)
-
-        ! active spaces we consider
-        srcGAS = GAS_table(src)
-
-        tExchange = (ispn == 2) &
-            .and. (.not. tSpinConservingGAS .or. srcGAS(1) == srcGAS(2))
-
-        ! pick an empty orb from each active space chosen
-        ! number of empty orbs in this active space
-        r = genrand_real2_dSFMT()
-        ! get the spin of the target orbital
-        if (tExchange) then
-            if (r > 0.5_dp) then
-                ms = 1
-                r = 2 * (r - 0.5_dp)
-            else
-                ms = 2
-                r = 2 * (0.5_dp - r)
-            end if
-            pgen = pgen * 0.5_dp
-        else
-            ms = get_spin(src(1))
-        end if
-        tgt = 0
-        ! the first hole is chosen randomly from the first active space
-        tgt(1) = pick_hole_from_active_space(ilutI, nI, srcGAS(1), ms, r, pgen_pick1)
-        if (tgt(1) == 0) then
-            call zeroResult()
-            return
-        end if
-
-        if (tExchange) then
-            ! we picked the first spin randomly, now the second elec has the opposite spin
-            ms = 3 - ms
-        else
-            ms = get_spin(src(2))
-        end if
-        ! the second hole is chosen in a weighted fashion
-        tgt(2) = pick_weighted_hole(nI, DoubleExc_t(src(1), tgt(1), src(2)), ms, srcGAS(2), pgen_pick1)
-        if (any(tgt == 0) .or. tgt(1) == tgt(2)) then
-            call zeroResult()
-            return
-        end if
-
-        ! if both excits are in the same GAS, we could also
-        ! have picked them the other way around
-        if (srcGAS(1) == srcGAS(2)) then
-            nJBase = nI
-            nJBase(elecs(1)) = tgt(2)
-            pgen_pick2 = get_pgen_pick_weighted_hole(&
-                                nI, DoubleExc_t(src(1), tgt(1), src(2), tgt(2))) &
-                         * get_pgen_pick_hole_from_active_space(&
-                                ilutI, srcGAS(2), get_spin(tgt(2)))
-            pgen = pgen * (pgen_pick1 + pgen_pick2)
-        else
-            pgen = pgen * pgen_pick1
-        end if
-
-        call make_double(nI, nJ, elecs(1), elecs(2), tgt(1), tgt(2), ex, par)
-        ilutJ = ilutI
-        clr_orb(ilutJ, src(1))
-        clr_orb(ilutJ, src(2))
-        set_orb(ilutJ, tgt(1))
-        set_orb(ilutJ, tgt(2))
-
-    contains
-
-        subroutine zeroResult()
-            integer :: src_copy(2)
-
-            pgen = pgen * pgen_pick1
-            src_copy(:) = src(:)
-            call sort(src_copy)
-            ex(1, :) = src_copy
-            ex(2, :) = tgt
-            nJ(1) = 0
-            ilutJ = 0_n_int
-        end subroutine zeroResult
-
-    end subroutine generate_nGAS_double
-
-!----------------------------------------------------------------------------!
-
-    function get_pgen_pick_weighted_hole(nI, exc) result(pgenVal)
-        integer, intent(in) :: nI(nel)
-        type(DoubleExc_t), intent(in) :: exc
-
-        real(dp) :: pgenVal
-
-        associate (src1 => exc%val(1, 1), tgt1 => exc%val(2, 1), &
-                   src2 => exc%val(1, 2), tgt2 => exc%val(2, 2))
+        allocate(splitted_orbitals(max_GAS_size, nGAS))
         block
-            real(dp) :: cSum(GAS_size(GAS_table(tgt2)))
-            integer :: gasList(GAS_size(GAS_table(tgt2))), nOrbs
-            integer :: gasInd2
-
-            nOrbs = GAS_size(GAS_table(tgt2))
-            gasList = GAS_spin_orb_list(1:nOrbs, GAS_table(tgt2), get_spin(tgt2))
-
-            cSum = get_cumulative_list(gasList, nI, DoubleExc_t(src1, tgt1, src2))
-            ! we know gasList contains tgt2, so we can look up its index with binary search
-            gasInd2 = binary_search_first_ge(gasList, tgt2)
-            if (gasInd2 == 1) then
-                pgenVal = cSum(1)
-            else
-                pgenVal = (cSum(gasInd2) - cSum(gasInd2 - 1))
-            end if
-        end block
-        end associate
-    end function get_pgen_pick_weighted_hole
-
-!----------------------------------------------------------------------------!
-
-    function get_pgen_pick_hole_from_active_space(ilut, srcGASInd, spin_idx) result(pgenVal)
-        integer(n_int), intent(in) :: ilut(0:NIfD)
-        integer, intent(in) :: srcGASInd, spin_idx
-
-        real(dp) :: pgenVal
-        integer :: nEmpty
-        nEmpty = GAS_size(srcGASInd) &
-                 - sum(popCnt(iand(ilut(0:NIfD), &
-                                   GAS_spin_orbs(0:NIfD, srcGASInd, spin_idx))))
-        ! if the excitation is not possible, pgen is void
-        if (nEmpty == 0) then
-            pgenVal = 1.0_dp
-        else
-            ! adjust pgen
-            pgenVal = 1.0_dp / real(nEmpty, dp)
-        end if
-    end function get_pgen_pick_hole_from_active_space
-
-!----------------------------------------------------------------------------!
-
-    #:for excitation_t in ExcitationTypes
-        function get_cumulative_list_${excitation_t}$(GAS_list, nI, incomplete_exc) result(cSum)
-            integer, intent(in) :: GAS_list(:), nI(nel)
-            type(${excitation_t}$), intent(in) :: incomplete_exc
-            real(dp) :: cSum(size(GAS_list))
-            character(*), parameter :: this_routine = 'get_cumulative_list_${excitation_t}$'
-
-            real(dp) :: previous
-            type(${excitation_t}$) :: exc
-            integer :: i, nOrbs
-
-            nOrbs = size(GAS_list)
-
-            exc = incomplete_exc
-            ASSERT(last_tgt_unknown(exc))
-
-            ! build the cumulative list of matrix elements <src|H|tgt>
-            previous = 0.0_dp
-            do i = 1, nOrbs
-                call set_last_tgt(exc, GAS_list(i))
-                cSum(i) = get_mat_element(nI, exc) + previous
-                previous = cSum(i)
+            integer :: all_orbs(n_spin_orbs), splitted_sizes(nGAS)
+            all_orbs = [(i, i = 1, n_spin_orbs)]
+            splitted_sizes = 0
+            do iel = 1, size(all_orbs)
+                iGAS = GAS_table(iel)
+                splitted_sizes(iGAS) = splitted_sizes(iGAS) + 1
+                splitted_orbitals(splitted_sizes(iGAS), iGAS) = all_orbs(iel)
             end do
+            @:pure_ASSERT(all(GAS_sizes == splitted_sizes))
+        end block
 
-            ! Normalize
-            if (near_zero(cSum(nOrbs))) then
-                cSum(:) = 0.0_dp
-            else
-                cSum(:) = cSum(:) / cSum(nOrbs)
-            end if
-        end function get_cumulative_list_${excitation_t}$
-    #:endfor
+        GAS_spec = GASSpec_t(&
+                n_min, n_max, GAS_table, &
+                GAS_sizes, max_GAS_size, splitted_orbitals, &
+                any(n_min(:) /= n_max(:)))
 
-    function get_mat_element_SingleExc_t(nI, exc) result(res)
-        integer, intent(in) :: nI(nEl)
-        type(SingleExc_t), intent(in) :: exc
-        real(dp) :: res
+        @:pure_ASSERT(GAS_spec%is_valid())
 
-        associate (tgt => exc%val(2))
-            if (all(nI /= tgt)) then
-                res = abs(sltcnd_excit(nI, exc, .false.))
-            else
-                res = 0.0_dp
-            end if
-        end associate
-    end function get_mat_element_SingleExc_t
+        contains
 
-    function get_mat_element_DoubleExc_t(nI, exc) result(res)
-        integer, intent(in) :: nI(nEl)
-        type(DoubleExc_t), intent(in) :: exc
-        real(dp) :: res
-
-        associate (src1 => exc%val(1, 1), tgt1 => exc%val(2, 1), &
-                   src2 => exc%val(1, 2), tgt2 => exc%val(2, 2))
-            if (tgt1 /= tgt2 .and. all(tgt2 /= nI)) then
-                res = abs(sltcnd_excit(nI, exc, .false.))
-            else
-                res = 0.0_dp
-            end if
-        end associate
-
-    end function get_mat_element_DoubleExc_t
-
-!----------------------------------------------------------------------------!
-    #:for excitation_t in ExcitationTypes
-        function pick_weighted_hole_${excitation_t}$(nI, exc, spin_idx, iGAS, pgen) result(tgt)
-            ! pick a hole of nI with spin ms from the active space with index
-            ! srcGASInd the random number is to be supplied as r
-            ! nI is the source determinant, nJBase the one from which we obtain
-            ! the ket of the matrix element by single excitation
-            integer, intent(in) :: nI(nel)
-            type(${excitation_t}$), intent(in) :: exc
-            integer, intent(in) :: spin_idx, iGAS
-            real(dp), intent(inout) :: pgen
-            character(*), parameter :: this_routine = 'pick_weighted_hole_${excitation_t}$'
-
-            integer :: tgt, nOrbs, GAS_list(GAS_size(iGAS))
-            real(dp) :: r, cSum(GAS_size(iGAS))
-
-            ASSERT(last_tgt_unknown(exc))
-
-            ! initialize auxiliary variables
-            nOrbs = GAS_size(iGAS)
-            GAS_list = GAS_spin_orb_list(1:nOrbs, iGAS, spin_idx)
-            ! build the cumulative list of matrix elements <src|H|tgt>
-            cSum = get_cumulative_list(GAS_list, nI, exc)
-
-            ! now, pick with the weight from the cumulative list
-            r = genrand_real2_dSFMT() * cSum(nOrbs)
-
-            ! there might not be such an excitation
-            if (cSum(nOrbs) > 0) then
-                ! find the index of the target orbital in the gasList
-                tgt = binary_search_first_ge(cSum, r)
-
-                ! adjust pgen with the probability for picking tgt from the cumulative list
-                if (tgt == 1) then
-                    pgen = pgen * cSum(1)
-                else
-                    pgen = pgen * (cSum(tgt) - cSum(tgt - 1))
-                end if
-
-                ! convert to global orbital index
-                tgt = GAS_list(tgt)
-            else
-                tgt = 0
-            end if
-
-        end function pick_weighted_hole_${excitation_t}$
-    #:endfor
-
-!----------------------------------------------------------------------------!
-
-
-    function pick_hole_from_active_space(ilutI, nI, iGAS, ms, r, pgen) result(tgt)
-        ! pick a hole of ilutI with spin ms from the active space with index srcGASInd
-        ! the random number is to be supplied as r
-        integer(n_int), intent(in) :: ilutI(0:NIfD)
-        integer, intent(in) :: nI(nel)
-        integer, intent(in) :: ms, iGAS
-        real(dp), intent(in) :: r
-        real(dp), intent(out) :: pgen
-        integer :: tgt
-        integer :: nEmpty, nOrb
-
-        ! this sum only converts an array of size 1 to a scalar
-        nEmpty = GAS_size(iGAS) - sum(popCnt(iand(ilutI(0:NIfD), GAS_spin_orbs(0:NIfD, iGAS, ms))))
-
-        ! if there are no empyty orbitals in this gas (can happen when allowing for
-        ! spin-exchange), the excitation is invalid
-        if (nEmpty == 0) then
-            tgt = 0
-            pGen = 1.0_dp
-            return
-        end if
-        ! adjust pgen
-        pgen = 1.0_dp / real(nEmpty, dp)
-        ! TODO: check if there are enough empty orbs
-        ! Re: We can safely assume there is always an empty orb in each active space
-
-        ! index of the target orb
-        nOrb = int(r * nEmpty) + 1
-
-        tgt = GAS_spin_orb_list(map_to_unoccupied(nOrb, iGAS, ms), iGAS, ms)
-
-    contains
-
-        !> Return the i-th unoccupied orbital in the iGAS space with spin ms.
-        function map_to_unoccupied(i, iGAS, ms) result(new_orb_idx)
-            integer, intent(in) :: i, iGAS, ms
-            integer :: new_orb_idx
-
-            integer :: j
-
-            new_orb_idx = i
-            do j = 1, nEl
-                if (nI(j) > GAS_spin_orb_list(new_orb_idx, iGAS, ms)) return
-                if (GAS_table(nI(j)) == iGAS .and. get_spin(nI(j)) == ms) then
-                    ! if yes, we skip this orbital, increase by 1
-                    new_orb_idx = new_orb_idx + 1
-                end if
+        pure function frequency(N) result(res)
+            integer, intent(in) :: N(:)
+            integer, allocatable :: res(:)
+            integer :: i
+            @:pure_ASSERT(minval(N) == 1)
+            allocate(res(maxval(N)), source=0)
+            do i = 1, size(N)
+                res(N(i)) = res(N(i)) + 1
             end do
         end function
-    end function pick_hole_from_active_space
+    end function
+
+
+    !>  @brief
+    !>      Query if there are connected GAS spaces under the GAS specification.
+    !>
+    !>  @param[in] GAS_spec, Specification of GAS spaces (GASSpec_t).
+    logical pure function get_is_connected(self)
+        class(GASSpec_t), intent(in) :: self
+        get_is_connected = self%lookup_is_connected
+    end function
+
+
+    !>  @brief
+    !>      Query wether a determinant is contained in the GAS space.
+    !>
+    !>  @details
+    !>  It is **assumed** that the determinant is contained in the
+    !>  Full CI space and obeys e.g. the Pauli principle.
+    !>  The return value is not defined, if that is not the case!
+    !>
+    !>  @param[in] GAS_spec, Specification of GAS spaces (GASSpec_t).
+    !>  @param[in] occupied, An index of occupied spin orbitals.
+    pure function contains_det(self, occupied) result(res)
+        class(GASSpec_t), intent(in) :: self
+        integer, intent(in) :: occupied(:)
+
+        logical :: res
+
+        res = self%contains_supergroup(self%count_per_GAS(occupied))
+    end function
+
+    !>  @brief
+    !>      Query wether a supergroup is contained in the GAS space.
+    !>
+    !>  @param[in] GAS_spec, Specification of GAS spaces (GASSpec_t).
+    !>  @param[in] supergroup, A supergroup.
+    pure function contains_supergroup(self, supergroup) result(res)
+        class(GASSpec_t), intent(in) :: self
+        integer, intent(in) :: supergroup(:)
+
+        logical :: res
+
+        !> Cumulated number of particles per iGAS
+        integer :: cn_particle(size(supergroup))
+
+        cn_particle = cumsum(supergroup)
+
+        res = all(self%cn_min(:) <= cn_particle(:) &
+            .and. cn_particle(:) <= self%cn_max(:))
+    end function
+
+
+    !>  @brief
+    !>      Check if the GAS specification is valid
+    !>
+    !>  @details
+    !>   If the number of particles or the number of spin orbitals
+    !>   is provided, then the consistency with these numbers
+    !>   is checked as well.
+    !>
+    !>  @param[in] GAS_spec, Specification of GAS spaces (GASSpec_t).
+    !>  @param[in] n_particles, Optional.
+    !>  @param[in] n_basis, Optional. The number of spin orbitals.
+    logical pure function is_valid(self, n_particles, n_basis)
+        class(GASSpec_t), intent(in) :: self
+        integer, intent(in), optional :: n_particles, n_basis
+
+        logical :: shapes_match, nEl_correct, pauli_principle, monotonic, &
+            n_orbs_correct
+
+        associate(GAS_sizes => self%GAS_sizes, n_min => self%cn_min, &
+                  n_max => self%cn_max, nGAS => self%nGAS())
+
+            shapes_match = &
+                all([size(GAS_sizes), size(n_min), size(n_max)] == nGAS) &
+                .and. maxval(self%GAS_table) == nGAS
+
+            pauli_principle = all(n_min(:) <= cumsum(GAS_sizes))
+
+            if (nGAS >= 2) then
+                monotonic = all([all(n_max(2:) >= n_max(: nGAS - 1)), &
+                                 all(n_min(2:) >= n_min(: nGAS - 1))])
+            else
+                monotonic = .true.
+            end if
+
+            if (present(n_particles)) then
+                nEl_correct = all([n_min(nGAS), n_max(nGAS)] == n_particles)
+            else
+                nEl_correct = n_min(nGAS) == n_max(nGAS)
+            end if
+
+            if (present(n_basis)) then
+                n_orbs_correct = sum(GAS_sizes) == n_basis
+            else
+                n_orbs_correct = .true.
+            end if
+        end associate
+
+        is_valid = all([shapes_match, nEl_correct, pauli_principle, &
+                        monotonic, n_orbs_correct])
+    end function
+
+    pure subroutine split_per_GAS(self, occupied, splitted, splitted_sizes)
+        class(GASSpec_t), intent(in) :: self
+        integer, intent(in) :: occupied(:)
+        integer, intent(out) :: &
+            splitted(get_max_GAS_size(self), get_nGAS(self)), &
+            splitted_sizes(get_nGAS(self))
+
+        integer :: iel, iGAS
+
+        splitted_sizes = 0
+        do iel = 1, size(occupied)
+            iGAS = self%get_iGAS(occupied(iel))
+            splitted_sizes(iGAS) = splitted_sizes(iGAS) + 1
+            splitted(splitted_sizes(iGAS), iGAS) = occupied(iel)
+        end do
+    end subroutine
+
+    pure function count_per_GAS(self, occupied) result(splitted_sizes)
+        class(GASSpec_t), intent(in) :: self
+        integer, intent(in) :: occupied(:)
+
+        integer :: splitted_sizes(get_nGAS(self))
+
+        integer :: iel, iGAS
+
+        splitted_sizes = 0
+        do iel = 1, size(occupied)
+            iGAS = self%get_iGAS(occupied(iel))
+            splitted_sizes(iGAS) = splitted_sizes(iGAS) + 1
+        end do
+    end function
+
+    pure function get_name(impl) result(res)
+        type(GAS_exc_gen_t), intent(in) :: impl
+        character(len=:), allocatable :: res
+        if (impl == possible_GAS_exc_gen%DISCONNECTED) then
+            res = 'Heat-bath on-the-fly GAS implementation for disconnected spaces'
+        else if (impl == possible_GAS_exc_gen%GENERAL) then
+            res = 'Heat-bath on-the-fly GAS implementation'
+        else if (impl == possible_GAS_exc_gen%DISCARDING) then
+            res = 'Discarding GAS implementation'
+        else if (impl == possible_GAS_exc_gen%GENERAL_PCHB) then
+            res = 'PCHB GAS implementation'
+        end if
+    end function
+
+    !> @brief
+    !> Write a string representation of this GAS specification to iunit
+    subroutine write_to(self, iunit)
+        class(GASSpec_t), intent(in) :: self
+        integer, intent(in) :: iunit
+        integer :: iGAS, iorb
+
+        write(iunit, '(A)') 'n_i: number of spatial orbitals per i-th GAS space'
+        write(iunit, '(A)') 'cn_min_i: cumulative minimum number of particles per i-th GAS space'
+        write(iunit, '(A)') 'cn_max_i: cumulative maximum number of particles per i-th GAS space'
+        write(iunit, '(A10, 1x, A10, 1x, A10)') 'n_i', 'cn_min_i', 'cn_max_i'
+        write(iunit, '(A)') '--------------------------------'
+        do iGAS = 1, self%nGAS()
+            write(iunit, '(I10, 1x, I10, 1x, I10)') self%GAS_size(iGAS) .div. 2, self%cumulated_min(iGAS), self%cumulated_max(iGAS)
+        end do
+        write(iunit, '(A)') '--------------------------------'
+        write(iunit, '(A)') 'The distribution of spatial orbitals to GAS spaces is given by:'
+        do iorb = 1, self%n_spin_orbs(), 2
+            write(iunit, '(I0, 1x)', advance='no') self%get_iGAS(iorb)
+        end do
+        write(iunit, *)
+
+        if (any(self%GAS_sizes < (self%cn_max - eoshift(self%cn_min, -1)))) then
+            write(iunit, '(A)') 'In at least one GAS space, the maximum allowed particle number by GAS constraints'
+            write(iunit, '(A)') '   is larger than the particle number allowed by the Pauli principle.'
+            write(iunit, '(A)') '   Was this intended when preparing your input?'
+        end if
+    end subroutine
 
 end module gasci

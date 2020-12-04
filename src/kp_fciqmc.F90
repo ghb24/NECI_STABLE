@@ -7,7 +7,7 @@ module kp_fciqmc
     use kp_fciqmc_procs
 
     use AnnihilationMod, only: DirectAnnihilation, communicate_and_merge_spawns
-    use bit_rep_data, only: NIfTot, NOffFlag, test_flag
+    use bit_rep_data, only: NIfTot, IlutBits, test_flag
     use bit_reps, only: flag_deterministic, flag_determ_parent, set_flag
     use bit_reps, only: extract_bit_rep
     use CalcData, only: AvMCExcits, tSemiStochastic, tTruncInitiator, StepsSft
@@ -18,8 +18,8 @@ module kp_fciqmc
     use FciMCData, only: fcimc_excit_gen_store, FreeSlot, iEndFreeSlot
     use FciMCData, only: TotWalkers, CurrentDets, iLutRef, max_calc_ex_level
     use FciMCData, only: iter_data_fciqmc, TotParts, exFlag, iter
-    use FciMCData, only: indices_of_determ_states, partial_determ_vecs
-    use FciMCData, only: full_determ_vecs, walker_time, annihil_time
+    use core_space_util, only: cs_replicas
+    use FciMCData, only: walker_time, annihil_time
     use FciMCData, only: Stats_Comms_Time, iLutHF_True
     use fcimc_initialisation, only: CalcApproxpDoubles
     use fcimc_helper, only: SumEContrib, end_iter_stats, create_particle_with_hash_table, &
@@ -53,24 +53,24 @@ contains
         integer :: iconfig, irepeat, ivec, nlowdin
         integer :: nspawn, parent_flags, unused_flags
         integer :: ex_level_to_ref, ex_level_to_hf
-        integer :: TotWalkersNew, determ_ind, ic, ex(2,maxExcit), ms_parent
+        integer :: TotWalkersNew, determ_ind, ic, ex(2, maxExcit), ms_parent
         integer :: nI_parent(nel), nI_child(nel), MaxIndex
         integer(n_int) :: ilut_child(0:NIfTot)
         integer(n_int), pointer :: ilut_parent(:)
         real(dp) :: prob, unused_rdm_real, parent_hdiag
         real(dp) :: child_sign(lenof_sign), parent_sign(lenof_sign)
         real(dp) :: unused_sign(lenof_sign), precond_fac
-        real(dp), allocatable :: lowdin_evals(:,:)
+        real(dp), allocatable :: lowdin_evals(:, :)
         logical :: tChildIsDeterm, tParentIsDeterm, tParentUnoccupied
         logical :: tParity, tSingBiasChange, tWritePopsFound
         HElement_t(dp) :: HElGen
 
         ! Stores of the overlap and projected Hamiltonian matrices.
-        real(dp), pointer :: overlap_matrices(:,:,:)
-        real(dp), pointer :: hamil_matrices(:,:,:)
+        real(dp), pointer :: overlap_matrices(:, :, :)
+        real(dp), pointer :: hamil_matrices(:, :, :)
         ! Pointers to the matrices for a given repeat only.
-        real(dp), pointer :: overlap_matrix(:,:)
-        real(dp), pointer :: hamil_matrix(:,:)
+        real(dp), pointer :: overlap_matrix(:, :)
+        real(dp), pointer :: hamil_matrix(:, :)
 
         ! Variables to hold information output for the test suite.
         real(dp) :: s_sum, h_sum
@@ -97,10 +97,10 @@ contains
 
                 ! Point to the regions of memory where the projected Hamiltonian
                 ! and overlap matrices for this repeat will be accumulated and stored.
-                overlap_matrix => overlap_matrices(:,:,irepeat)
-                hamil_matrix => hamil_matrices(:,:,irepeat)
-                overlap_matrix(:,:) = 0.0_dp
-                hamil_matrix(:,:) = 0.0_dp
+                overlap_matrix => overlap_matrices(:, :, irepeat)
+                hamil_matrix => hamil_matrices(:, :, irepeat)
+                overlap_matrix(:, :) = 0.0_dp
+                hamil_matrix(:, :) = 0.0_dp
 
                 call init_kp_fciqmc_repeat(iconfig, irepeat, kp%nrepeats, kp%nvecs, iter_data_fciqmc)
 
@@ -150,7 +150,7 @@ contains
                         do idet = 1, int(TotWalkers, sizeof_int)
 
                             ! The 'parent' determinant from which spawning is to be attempted.
-                            ilut_parent => CurrentDets(:,idet)
+                            ilut_parent => CurrentDets(:, idet)
                             parent_flags = 0_n_int
 
                             ! Indicate that the scratch storage used for excitation generation from the
@@ -159,26 +159,28 @@ contains
                             fcimc_excit_gen_store%tFilled = .false.
 
                             call extract_bit_rep(ilut_parent, nI_parent, parent_sign, unused_flags, &
-                                                  idet, fcimc_excit_gen_store)
+                                                 idet, fcimc_excit_gen_store)
 
-                            ex_level_to_ref = FindBitExcitLevel(iLutRef(:,1), ilut_parent, &
-                                 max_calc_ex_level)
-                            if(tRef_Not_HF) then
-                                ex_level_to_hf = FindBitExcitLevel (iLutHF_true, ilut_parent, max_calc_ex_level)
+                            ex_level_to_ref = FindBitExcitLevel(iLutRef(:, 1), ilut_parent, &
+                                                                max_calc_ex_level)
+                            if (tRef_Not_HF) then
+                                ex_level_to_hf = FindBitExcitLevel(iLutHF_true, ilut_parent, max_calc_ex_level)
                             else
                                 ex_level_to_hf = ex_level_to_ref
-                            endif
+                            end if
 
-                            tParentIsDeterm = check_determ_flag(ilut_parent)
+                            tParentIsDeterm = check_determ_flag(ilut_parent, core_run)
                             tParentUnoccupied = IsUnoccDet(parent_sign)
 
                             ! If this determinant is in the deterministic space then store the relevant
                             ! data in arrays for later use.
                             if (tParentIsDeterm) then
                                 ! Store the index of this state, for use in annihilation later.
-                                indices_of_determ_states(determ_ind) = idet
-                                ! Add the amplitude to the deterministic vector.
-                                partial_determ_vecs(:,determ_ind) = parent_sign
+                                associate(rep => cs_replicas(core_run))
+                                    rep%indices_of_determ_states(determ_ind) = idet
+                                    ! Add the amplitude to the deterministic vector.
+                                    rep%partial_determ_vecs(:, determ_ind) = parent_sign
+                                end associate
                                 determ_ind = determ_ind + 1
 
                                 ! The deterministic states are always kept in CurrentDets, even when
@@ -200,8 +202,8 @@ contains
 
                             if (tTruncInitiator) call CalcParentFlag(idet, parent_flags)
 
-                            call SumEContrib (nI_parent, ex_level_to_ref, parent_sign, ilut_parent, &
-                                               parent_hdiag, 1.0_dp, tPairedReplicas, idet)
+                            call SumEContrib(nI_parent, ex_level_to_ref, parent_sign, ilut_parent, &
+                                             parent_hdiag, 1.0_dp, tPairedReplicas, idet)
 
                             ! If we're on the Hartree-Fock, and all singles and
                             ! doubles are in the core space, then there will be
@@ -211,13 +213,13 @@ contains
 
                             if (tAllSymSectors) then
                                 ms_parent = return_ms(ilut_parent)
-                                nOccAlpha = (nel+ms_parent)/2
-                                nOccBeta = (nel-ms_parent)/2
+                                nOccAlpha = (nel + ms_parent) / 2
+                                nOccBeta = (nel - ms_parent) / 2
                             end if
 
                             ! If this condition is not met (if all electrons have spin up or all have spin down)
                             ! then there will be no determinants to spawn to, so don't attempt spawning.
-                            if (abs(ms_parent) /= nbasis/2) then
+                            if (abs(ms_parent) /= nbasis / 2) then
 
                                 do ireplica = 1, lenof_sign
 
@@ -228,15 +230,15 @@ contains
                                         ! Zero the bit representation, to ensure no extraneous data gets through.
                                         ilut_child = 0_n_int
 
-                                        call generate_excitation (nI_parent, ilut_parent, nI_child, &
-                                                            ilut_child, exFlag, ic, ex, tParity, prob, &
-                                                            HElGen, fcimc_excit_gen_store)
+                                        call generate_excitation(nI_parent, ilut_parent, nI_child, &
+                                                                 ilut_child, exFlag, ic, ex, tParity, prob, &
+                                                                 HElGen, fcimc_excit_gen_store)
 
                                         ! If a valid excitation.
                                         if (.not. IsNullDet(nI_child)) then
 
-                                            call encode_child (ilut_parent, ilut_child, ic, ex)
-                                            ilut_child(nOffFlag) = 0_n_int
+                                            call encode_child(ilut_parent, ilut_child, ic, ex)
+                                            ilut_child(IlutBits%ind_flag) = 0_n_int
 
                                             if (tSemiStochastic) then
                                                 tChildIsDeterm = is_core_state(ilut_child, nI_child)
@@ -247,14 +249,14 @@ contains
                                                     if (tChildIsDeterm) cycle
                                                     call set_flag(ilut_child, flag_determ_parent)
                                                 else
-                                                    if (tChildIsDeterm) call set_flag(ilut_child, flag_deterministic)
+                                                    if (tChildIsDeterm) call set_flag(ilut_child, flag_deterministic(core_run))
                                                 end if
                                             end if
 
-                                            child_sign = attempt_create (nI_parent, ilut_parent, parent_sign, &
-                                                                nI_child, ilut_child, prob, HElGen, ic, ex, tParity, &
-                                                                ex_level_to_ref, ireplica, unused_sign, &
-                                                                AvMCExcits, unused_rdm_real, precond_fac)
+                                            child_sign = attempt_create(nI_parent, ilut_parent, parent_sign, &
+                                                                        nI_child, ilut_child, prob, HElGen, ic, ex, tParity, &
+                                                                        ex_level_to_ref, ireplica, unused_sign, &
+                                                                        AvMCExcits, unused_rdm_real, precond_fac)
 
                                         else
                                             child_sign = 0.0_dp
@@ -263,12 +265,12 @@ contains
                                         ! If any (valid) children have been spawned.
                                         if (.not. (all(near_zero(child_sign) .or. ic == 0 .or. ic > 2))) then
 
-                                            call new_child_stats (iter_data_fciqmc, ilut_parent, &
-                                                                  nI_child, ilut_child, ic, ex_level_to_ref, &
-                                                                  child_sign, parent_flags, ireplica)
+                                            call new_child_stats(iter_data_fciqmc, ilut_parent, &
+                                                                 nI_child, ilut_child, ic, ex_level_to_ref, &
+                                                                 child_sign, parent_flags, ireplica)
 
-                                            call create_particle_with_hash_table (nI_child, ilut_child, child_sign, &
-                                                                                   ireplica, ilut_parent, iter_data_fciqmc, ierr)
+                                            call create_particle_with_hash_table(nI_child, ilut_child, child_sign, &
+                                                                                 ireplica, ilut_parent, iter_data_fciqmc, ierr)
 
                                         end if ! If a child was spawned.
 
@@ -281,8 +283,8 @@ contains
                             ! If this is a core-space determinant then the death step is done in
                             ! determ_projection.
                             if (.not. tParentIsDeterm) then
-                                call walker_death (iter_data_fciqmc, nI_parent, ilut_parent, parent_hdiag, &
-                                                    parent_sign, idet, ex_level_to_ref)
+                                call walker_death(iter_data_fciqmc, nI_parent, ilut_parent, parent_hdiag, &
+                                                  parent_sign, idet, ex_level_to_ref)
                             end if
 
                         end do ! Over all determinants.
@@ -299,7 +301,7 @@ contains
 
                         call communicate_and_merge_spawns(MaxIndex, iter_data_fciqmc, .false.)
 
-                        call DirectAnnihilation (TotWalkersNew, MaxIndex, iter_data_fciqmc, ierr)
+                        call DirectAnnihilation(TotWalkersNew, MaxIndex, iter_data_fciqmc, ierr)
 
                         TotWalkers = int(TotWalkersNew, int64)
 
@@ -331,10 +333,10 @@ contains
                 else
                     if (tSemiStochastic) then
                         call calc_projected_hamil(kp%nvecs, krylov_vecs, krylov_vecs_ht, TotWalkersKP, hamil_matrix, &
-                                                   partial_determ_vecs_kp, full_determ_vecs_kp, krylov_helems)
+                                                  partial_determ_vecs_kp, full_determ_vecs_kp, krylov_helems)
                     else
                         call calc_projected_hamil(kp%nvecs, krylov_vecs, krylov_vecs_ht, TotWalkersKP, hamil_matrix, &
-                                                   h_diag=krylov_helems)
+                                                  h_diag=krylov_helems)
                     end if
                 end if
 
@@ -363,7 +365,7 @@ contains
         deallocate(hamil_matrices)
         deallocate(lowdin_evals)
 
-        if (tPopsFile) call WriteToPopsfileParOneArr(CurrentDets,TotWalkers)
+        if (tPopsFile) call WriteToPopsfileParOneArr(CurrentDets, TotWalkers)
 
         if (iProcIndex == root) call write_kpfciqmc_testsuite_data(s_sum, h_sum)
 
@@ -382,26 +384,26 @@ contains
         integer :: iconfig, irepeat, ireport, nlowdin
         integer :: nspawn, parent_flags, unused_flags
         integer :: ex_level_to_ref, ex_level_to_hf
-        integer :: TotWalkersNew, determ_ind, ic, ex(2,maxExcit), MaxIndex
+        integer :: TotWalkersNew, determ_ind, ic, ex(2, maxExcit), MaxIndex
         integer :: nI_parent(nel), nI_child(nel), unused_vecslot
         integer(n_int) :: ilut_child(0:NIfTot)
         integer(n_int), pointer :: ilut_parent(:)
         real(dp) :: prob, unused_rdm_real, parent_hdiag
         real(dp) :: child_sign(lenof_sign), parent_sign(lenof_sign)
         real(dp) :: unused_sign(lenof_sign), precond_fac
-        real(dp), allocatable :: lowdin_evals(:,:), lowdin_spin(:,:)
+        real(dp), allocatable :: lowdin_evals(:, :), lowdin_spin(:, :)
         logical :: tChildIsDeterm, tParentIsDeterm, tParentUnoccupied
         logical :: tParity, tSingBiasChange, tWritePopsFound
         HElement_t(dp) :: HElGen
 
         ! Stores of the overlap, projected Hamiltonian and spin matrices.
-        real(dp), pointer :: overlap_matrices(:,:,:,:)
-        real(dp), pointer :: hamil_matrices(:,:,:,:)
-        real(dp), pointer :: spin_matrices(:,:,:,:)
+        real(dp), pointer :: overlap_matrices(:, :, :, :)
+        real(dp), pointer :: hamil_matrices(:, :, :, :)
+        real(dp), pointer :: spin_matrices(:, :, :, :)
         ! Pointers to the matrices for a given report and repeat only.
-        real(dp), pointer :: overlap_matrix(:,:)
-        real(dp), pointer :: hamil_matrix(:,:)
-        real(dp), pointer :: spin_matrix(:,:)
+        real(dp), pointer :: overlap_matrix(:, :)
+        real(dp), pointer :: hamil_matrix(:, :)
+        real(dp), pointer :: spin_matrix(:, :)
 
         type(ll_node), pointer :: temp_node
 
@@ -436,13 +438,13 @@ contains
 
                 ! Point to the regions of memory where the projected Hamiltonian
                 ! and overlap matrices for this repeat will be accumulated and stored.
-                overlap_matrix => overlap_matrices(:,:,irepeat,ireport)
-                hamil_matrix => hamil_matrices(:,:,irepeat,ireport)
-                overlap_matrix(:,:) = 0.0_dp
-                hamil_matrix(:,:) = 0.0_dp
+                overlap_matrix => overlap_matrices(:, :, irepeat, ireport)
+                hamil_matrix => hamil_matrices(:, :, irepeat, ireport)
+                overlap_matrix(:, :) = 0.0_dp
+                hamil_matrix(:, :) = 0.0_dp
                 if (tCalcSpin) then
-                    spin_matrix => spin_matrices(:,:,irepeat,ireport)
-                    spin_matrix(:,:) = 0.0_dp
+                    spin_matrix => spin_matrices(:, :, irepeat, ireport)
+                    spin_matrix(:, :) = 0.0_dp
                 end if
 
                 call calc_overlap_matrix(kp%nvecs, CurrentDets, int(TotWalkers, sizeof_int), overlap_matrix)
@@ -451,8 +453,10 @@ contains
                     call calc_hamil_exact(kp%nvecs, CurrentDets, int(TotWalkers, sizeof_int), hamil_matrix)
                 else
                     if (tSemiStochastic) then
-                        call calc_projected_hamil(kp%nvecs, CurrentDets, HashIndex, int(TotWalkers, sizeof_int), &
-                                                  hamil_matrix, partial_determ_vecs, full_determ_vecs)
+                        associate(rep => cs_replicas(core_run))
+                            call calc_projected_hamil(kp%nvecs, CurrentDets, HashIndex, int(TotWalkers, sizeof_int), &
+                                                      hamil_matrix, rep%partial_determ_vecs, rep%full_determ_vecs)
+                        end associate
                     else
                         call calc_projected_hamil(kp%nvecs, CurrentDets, HashIndex, int(TotWalkers, sizeof_int), &
                                                   hamil_matrix)
@@ -494,8 +498,8 @@ contains
                 end if
 
                 if (iProcIndex == root) then
-                    call output_kp_matrices_wrapper(iter, overlap_matrices(:,:,1:irepeat,ireport), &
-                                                            hamil_matrices(:,:,1:irepeat,ireport))
+                    call output_kp_matrices_wrapper(iter, overlap_matrices(:, :, 1:irepeat, ireport), &
+                                                    hamil_matrices(:, :, 1:irepeat, ireport))
                     if (tCalcSpin) then
                         call find_and_output_lowdin_eigv(iter, kp%nvecs, overlap_matrix, hamil_matrix, nlowdin, &
                                                          lowdin_evals, .false., spin_matrix, lowdin_spin)
@@ -518,7 +522,7 @@ contains
                     do idet = 1, int(TotWalkers, sizeof_int)
 
                         ! The 'parent' determinant from which spawning is to be attempted.
-                        ilut_parent => CurrentDets(:,idet)
+                        ilut_parent => CurrentDets(:, idet)
                         parent_flags = 0_n_int
 
                         ! Indicate that the scratch storage used for excitation generation from the
@@ -527,26 +531,28 @@ contains
                         fcimc_excit_gen_store%tFilled = .false.
 
                         call extract_bit_rep(ilut_parent, nI_parent, parent_sign, unused_flags, &
-                                              idet, fcimc_excit_gen_store)
+                                             idet, fcimc_excit_gen_store)
 
-                        ex_level_to_ref = FindBitExcitLevel(iLutRef(:,1), ilut_parent, &
-                             max_calc_ex_level)
-                        if(tRef_Not_HF) then
-                            ex_level_to_hf = FindBitExcitLevel (iLutHF_true, ilut_parent, max_calc_ex_level)
+                        ex_level_to_ref = FindBitExcitLevel(iLutRef(:, 1), ilut_parent, &
+                                                            max_calc_ex_level)
+                        if (tRef_Not_HF) then
+                            ex_level_to_hf = FindBitExcitLevel(iLutHF_true, ilut_parent, max_calc_ex_level)
                         else
                             ex_level_to_hf = ex_level_to_ref
-                        endif
+                        end if
 
-                        tParentIsDeterm = check_determ_flag(ilut_parent)
+                        tParentIsDeterm = check_determ_flag(ilut_parent, core_run)
                         tParentUnoccupied = IsUnoccDet(parent_sign)
 
                         ! If this determinant is in the deterministic space then store the relevant
                         ! data in arrays for later use.
                         if (tParentIsDeterm) then
                             ! Store the index of this state, for use in annihilation later.
-                            indices_of_determ_states(determ_ind) = idet
-                            ! Add the amplitude to the deterministic vector.
-                            partial_determ_vecs(:,determ_ind) = parent_sign
+                            associate(rep => cs_replicas(core_run))
+                                rep%indices_of_determ_states(determ_ind) = idet
+                                ! Add the amplitude to the deterministic vector.
+                                rep%partial_determ_vecs(:, determ_ind) = parent_sign
+                            end associate
                             determ_ind = determ_ind + 1
 
                             ! The deterministic states are always kept in CurrentDets, even when
@@ -568,8 +574,8 @@ contains
 
                         if (tTruncInitiator) call CalcParentFlag(idet, parent_flags)
 
-                        call SumEContrib (nI_parent, ex_level_to_ref, parent_sign, ilut_parent, &
-                                           parent_hdiag, 1.0_dp, tPairedReplicas, idet)
+                        call SumEContrib(nI_parent, ex_level_to_ref, parent_sign, ilut_parent, &
+                                         parent_hdiag, 1.0_dp, tPairedReplicas, idet)
 
                         ! If we're on the Hartree-Fock, and all singles and
                         ! doubles are in the core space, then there will be no
@@ -586,15 +592,15 @@ contains
                                 ! Zero the bit representation, to ensure no extraneous data gets through.
                                 ilut_child = 0_n_int
 
-                                call generate_excitation (nI_parent, ilut_parent, nI_child, &
-                                                    ilut_child, exFlag, ic, ex, tParity, prob, &
-                                                    HElGen, fcimc_excit_gen_store)
+                                call generate_excitation(nI_parent, ilut_parent, nI_child, &
+                                                         ilut_child, exFlag, ic, ex, tParity, prob, &
+                                                         HElGen, fcimc_excit_gen_store)
 
                                 ! If a valid excitation.
                                 if (.not. IsNullDet(nI_child)) then
 
                                     call encode_child(ilut_parent, ilut_child, ic, ex)
-                                    ilut_child(nOffFlag) = 0_n_int
+                                    ilut_child(IlutBits%ind_flag) = 0_n_int
 
                                     if (tSemiStochastic) then
                                         tChildIsDeterm = is_core_state(ilut_child, nI_child)
@@ -605,14 +611,14 @@ contains
                                             if (tChildIsDeterm) cycle
                                             call set_flag(ilut_child, flag_determ_parent)
                                         else
-                                            if (tChildIsDeterm) call set_flag(ilut_child, flag_deterministic)
+                                            if (tChildIsDeterm) call set_flag(ilut_child, flag_deterministic(core_run))
                                         end if
                                     end if
 
-                                    child_sign = attempt_create (nI_parent, ilut_parent, parent_sign, &
-                                                        nI_child, ilut_child, prob, HElGen, ic, ex, tParity, &
-                                                        ex_level_to_ref, ireplica, unused_sign, &
-                                                        AvMCExcits, unused_rdm_real, precond_fac)
+                                    child_sign = attempt_create(nI_parent, ilut_parent, parent_sign, &
+                                                                nI_child, ilut_child, prob, HElGen, ic, ex, tParity, &
+                                                                ex_level_to_ref, ireplica, unused_sign, &
+                                                                AvMCExcits, unused_rdm_real, precond_fac)
                                 else
                                     child_sign = 0.0_dp
                                 end if
@@ -620,13 +626,12 @@ contains
                                 ! If any (valid) children have been spawned.
                                 if (.not. (all(near_zero(child_sign) .or. ic == 0 .or. ic > 2))) then
 
-                                    call new_child_stats (iter_data_fciqmc, ilut_parent, &
-                                                          nI_child, ilut_child, ic, ex_level_to_ref,&
-                                                          child_sign, parent_flags, ireplica)
+                                    call new_child_stats(iter_data_fciqmc, ilut_parent, &
+                                                         nI_child, ilut_child, ic, ex_level_to_ref, &
+                                                         child_sign, parent_flags, ireplica)
 
-
-                                    call create_particle_with_hash_table (nI_child, ilut_child, child_sign, &
-                                                                           ireplica, ilut_parent, iter_data_fciqmc, ierr)
+                                    call create_particle_with_hash_table(nI_child, ilut_child, child_sign, &
+                                                                         ireplica, ilut_parent, iter_data_fciqmc, ierr)
 
                                 end if ! If a child was spawned.
 
@@ -637,8 +642,8 @@ contains
                         ! If this is a core-space determinant then the death step is done in
                         ! determ_projection.
                         if (.not. tParentIsDeterm) then
-                            call walker_death (iter_data_fciqmc, nI_parent, ilut_parent, parent_hdiag, &
-                                                parent_sign, idet, ex_level_to_ref)
+                            call walker_death(iter_data_fciqmc, nI_parent, ilut_parent, parent_hdiag, &
+                                              parent_sign, idet, ex_level_to_ref)
                         end if
 
                     end do ! Over all determinants.
@@ -655,7 +660,7 @@ contains
 
                     call communicate_and_merge_spawns(MaxIndex, iter_data_fciqmc, .false.)
 
-                    call DirectAnnihilation (TotWalkersNew, MaxIndex, iter_data_fciqmc, ierr)
+                    call DirectAnnihilation(TotWalkersNew, MaxIndex, iter_data_fciqmc, ierr)
 
                     TotWalkers = int(TotWalkersNew, int64)
 
@@ -690,8 +695,8 @@ contains
         if (iProcIndex == root) then
             iter = 0
             do ireport = 1, kp%nreports
-                call average_kp_matrices_wrapper(iter, kp%nrepeats, overlap_matrices(:,:,1:kp%nrepeats,ireport), &
-                                                 hamil_matrices(:,:,1:kp%nrepeats,ireport), kp_overlap_mean, &
+                call average_kp_matrices_wrapper(iter, kp%nrepeats, overlap_matrices(:, :, 1:kp%nrepeats, ireport), &
+                                                 hamil_matrices(:, :, 1:kp%nrepeats, ireport), kp_overlap_mean, &
                                                  kp_hamil_mean, kp_overlap_se, kp_hamil_se)
                 if (tCalcSpin) then
                     call find_and_output_lowdin_eigv(iter, kp%nvecs, kp_overlap_mean, kp_hamil_mean, nlowdin, &
@@ -713,7 +718,7 @@ contains
         deallocate(hamil_matrices)
         deallocate(lowdin_evals)
 
-        if (tPopsFile) call WriteToPopsfileParOneArr(CurrentDets,TotWalkers)
+        if (tPopsFile) call WriteToPopsfileParOneArr(CurrentDets, TotWalkers)
 
         call write_kpfciqmc_testsuite_data(s_sum, h_sum)
 

@@ -77,9 +77,9 @@ module global_det_data
     integer :: replica_est_len
 
     ! And somewhere to store the actual data.
-    real(dp), pointer :: global_determinant_data(:,:) => null()
-    integer, pointer :: global_determinants(:,:) => null()
-    real(dp), pointer :: global_determinant_data_tmp(:,:) => null()
+    real(dp), pointer :: global_determinant_data(:, :) => null()
+    integer, pointer :: global_determinants(:, :) => null()
+    real(dp), pointer :: global_determinant_data_tmp(:, :) => null()
 
     ! Routines for setting the properties of both standard and transition
     ! RDMs in a combined manner.
@@ -159,7 +159,7 @@ contains
 
         len_spawn_pop = lenof_sign
 
-        if(tSeniorInitiators)then
+        if (tSeniorInitiators) then
             len_tau_int = inum_runs
             len_shift_int = inum_runs
         else
@@ -167,7 +167,7 @@ contains
             len_shift_int = 0
         end if
 
-        if(tAutoAdaptiveShift)then
+        if (tAutoAdaptiveShift) then
             len_tot_spawns = inum_runs
             len_acc_spawns = inum_runs
         else
@@ -176,7 +176,7 @@ contains
         end if
         fvals_size = len_tot_spawns + len_acc_spawns
 
-        if(tAccumPops)then
+        if (tAccumPops) then
             len_pops_sum = lenof_sign
             len_pops_iter = 1
         else
@@ -188,22 +188,22 @@ contains
         ! If we are using calculating RDMs stochastically, need to include the
         ! average sign and the iteration on which it became occupied.
         if (tRDMonFly .and. .not. tExplicitAllRDM) then
-            len_av_sgn = 2*nrdms_standard
-            len_iter_occ = 2*nrdms_standard
+            len_av_sgn = 2 * nrdms_standard
+            len_iter_occ = 2 * nrdms_standard
             ! The total lengths, including both standard and transition RDMs.
-            len_av_sgn_tot = 2*nrdms_standard
-            len_iter_occ_tot = 2*nrdms_standard
+            len_av_sgn_tot = 2 * nrdms_standard
+            len_iter_occ_tot = 2 * nrdms_standard
             ! If we are calculating transition RDMs, then we also need to
             ! include sign averages over different sets of blocks,
             ! corresponding to the ground state combined with all other
             ! excited states.
             if (tTransitionRDMs) then
-                len_av_sgn_transition = 2*nrdms_transition
-                len_iter_occ_transition = 2*nrdms_transition
+                len_av_sgn_transition = 2 * nrdms_transition
+                len_iter_occ_transition = 2 * nrdms_transition
                 len_av_sgn_tot = len_av_sgn + len_av_sgn_transition
                 len_iter_occ_tot = len_iter_occ + len_iter_occ_transition
             end if
-            write(6, '(" The average current signs before death will be stored&
+            write (6, '(" The average current signs before death will be stored&
                        & for use in the RDMs.")')
         else
             len_av_sgn = 0
@@ -216,35 +216,35 @@ contains
             len_spawn_rate = 1
         end if
 
-        if(tStoredDets) then
-           len_det_orbs = nel
+        if (tStoredDets) then
+            len_det_orbs = nel
         else
-           len_det_orbs = 0
-        endif
+            len_det_orbs = 0
+        end if
 
-        if(tActivateLAS) then
-           len_pos_spawns = lenof_sign
-           len_neg_spawns = lenof_sign
+        if (tActivateLAS) then
+            len_pos_spawns = lenof_sign
+            len_neg_spawns = lenof_sign
         else
-           len_pos_spawns = 0
-           len_neg_spawns = 0
-        endif
+            len_pos_spawns = 0
+            len_neg_spawns = 0
+        end if
 
         max_ratio_size = 1
-        if(tScaleBlooms) then
-           len_max_ratio = max_ratio_size
+        if (tScaleBlooms) then
+            len_max_ratio = max_ratio_size
         else
-           len_max_ratio = 0
-        endif
+            len_max_ratio = 0
+        end if
 
         ! Get the starting positions
-        pos_spawn_pop = pos_hel+len_hel
-        pos_tau_int = pos_spawn_pop+len_spawn_pop
-        pos_shift_int = pos_tau_int+len_tau_int
-        pos_tot_spawns = pos_shift_int+len_shift_int
-        pos_acc_spawns = pos_tot_spawns+len_tot_spawns
-        pos_pops_sum = pos_acc_spawns+len_acc_spawns
-        pos_pops_iter = pos_pops_sum+len_pops_sum
+        pos_spawn_pop = pos_hel + len_hel
+        pos_tau_int = pos_spawn_pop + len_spawn_pop
+        pos_shift_int = pos_tau_int + len_tau_int
+        pos_tot_spawns = pos_shift_int + len_shift_int
+        pos_acc_spawns = pos_tot_spawns + len_tot_spawns
+        pos_pops_sum = pos_acc_spawns + len_acc_spawns
+        pos_pops_iter = pos_pops_sum + len_pops_sum
         pos_av_sgn = pos_pops_iter + len_pops_iter
         pos_av_sgn_transition = pos_av_sgn + len_av_sgn
         pos_iter_occ = pos_av_sgn_transition + len_av_sgn_transition
@@ -260,7 +260,7 @@ contains
                   len_pos_spawns + len_neg_spawns + len_max_ratio
 
         if (tPairedReplicas) then
-            replica_est_len = lenof_sign .div. 2
+            replica_est_len = lenof_sign.div.2
         else
             replica_est_len = lenof_sign
         end if
@@ -286,29 +286,28 @@ contains
         allocate(global_determinant_data(tot_len, MaxWalkersPart), stat=ierr)
         @:log_alloc(global_determinant_data, glob_tag, ierr)
 
-        if(tMoveGlobalDetData)then
+        if (tMoveGlobalDetData) then
             allocate(global_determinant_data_tmp(tot_len, MaxWalkersPart), stat=ierr)
             @:log_alloc(global_determinant_data_tmp, glob_tmp_tag, ierr)
-        endif
+        end if
 
-        if(tStoredDets) then
-           allocate(global_determinants(len_det_orbs, MaxWalkersPart), stat=ierr)
+        if (tStoredDets) then
+            allocate(global_determinants(len_det_orbs, MaxWalkersPart), stat=ierr)
            @:log_alloc(global_determinants, glob_det_tag, ierr)
-        endif
+        end if
 
-        write(6,'(a,f14.6,a)') &
+        write(6, '(a,f14.6,a)') &
             ' Determinant related persistent storage requires: ', &
-            (4.0_dp*real(len_det_orbs* MaxWalkersPart,dp) &
-            + 8.0_dp * real(tot_len * MaxWalkersPart,dp)) / 1048576_dp, &
+            (4.0_dp * real(len_det_orbs * MaxWalkersPart, dp) &
+             + 8.0_dp * real(tot_len * MaxWalkersPart, dp)) / 1048576_dp, &
             ' Mb / processor'
 
         ! As an added safety feature
         global_determinant_data = 0.0_dp
-        if(tStoredDets) global_determinants = 0
-        if(tMoveGlobalDetData) global_determinant_data_tmp = 0.0_dp
+        if (tStoredDets) global_determinants = 0
+        if (tMoveGlobalDetData) global_determinant_data_tmp = 0.0_dp
 
     end subroutine
-
 
     subroutine clean_global_det_data()
 
@@ -316,29 +315,28 @@ contains
 
         ! Cleanup the global storage for determinant specific data
 
-        if(associated(global_determinants)) then
-           deallocate(global_determinants)
-           log_dealloc(glob_det_tag)
-           glob_det_tag = 0
-           nullify(global_determinants)
-        endif
+        if (associated(global_determinants)) then
+            deallocate(global_determinants)
+            log_dealloc(glob_det_tag)
+            glob_det_tag = 0
+            nullify (global_determinants)
+        end if
 
         if (associated(global_determinant_data)) then
             deallocate(global_determinant_data)
             log_dealloc(glob_tag)
             glob_tag = 0
-            nullify(global_determinant_data)
+            nullify (global_determinant_data)
         end if
 
         if (associated(global_determinant_data_tmp)) then
             deallocate(global_determinant_data_tmp)
             log_dealloc(glob_tmp_tag)
             glob_tmp_tag = 0
-            nullify(global_determinant_data_tmp)
+            nullify (global_determinant_data_tmp)
         end if
 
     end subroutine
-
 
     ! These are accessor functions to currentH --> they are data access/setting
     !
@@ -364,13 +362,12 @@ contains
 
     end function
 
-
     subroutine set_spawn_pop(j, part, t)
 
         integer, intent(in) :: j, part
         real(dp), intent(in) :: t
 
-        global_determinant_data(pos_spawn_pop+part-1, j) = t
+        global_determinant_data(pos_spawn_pop + part - 1, j) = t
 
     end subroutine
 
@@ -379,7 +376,7 @@ contains
         integer, intent(in) :: j, part
         real(dp) :: t
 
-        t = global_determinant_data(pos_spawn_pop+part-1, j)
+        t = global_determinant_data(pos_spawn_pop + part - 1, j)
 
     end function
 
@@ -388,7 +385,7 @@ contains
         integer, intent(in) :: j
         real(dp), dimension(lenof_sign), intent(in) :: t
 
-        global_determinant_data(pos_spawn_pop:pos_spawn_pop+len_spawn_pop-1, j) = t(:)
+        global_determinant_data(pos_spawn_pop:pos_spawn_pop + len_spawn_pop - 1, j) = t(:)
 
     end subroutine
 
@@ -397,16 +394,15 @@ contains
         integer, intent(in) :: j
         real(dp), dimension(lenof_sign) :: t
 
-        t(:) = global_determinant_data(pos_spawn_pop:pos_spawn_pop+len_spawn_pop-1, j)
+        t(:) = global_determinant_data(pos_spawn_pop:pos_spawn_pop + len_spawn_pop - 1, j)
 
     end function
-
 
     subroutine reset_all_tau_ints(j)
 
         integer, intent(in) :: j
 
-        global_determinant_data(pos_tau_int:pos_tau_int+len_tau_int-1, j) = 0.0_dp
+        global_determinant_data(pos_tau_int:pos_tau_int + len_tau_int - 1, j) = 0.0_dp
 
     end subroutine
 
@@ -414,7 +410,7 @@ contains
 
         integer, intent(in) :: j, run
 
-        global_determinant_data(pos_tau_int+run-1, j) = 0.0_dp
+        global_determinant_data(pos_tau_int + run - 1, j) = 0.0_dp
 
     end subroutine
 
@@ -423,16 +419,16 @@ contains
         integer, intent(in) :: j, run
         real(dp), intent(in) :: t
 
-        global_determinant_data(pos_tau_int+run-1, j) = global_determinant_data(pos_tau_int+run-1, j) + t
+        global_determinant_data(pos_tau_int + run - 1, j) = global_determinant_data(pos_tau_int + run - 1, j) + t
 
     end subroutine
 
     function get_tau_int(j, run) result(t)
 
-        integer, intent(in) :: j,run
+        integer, intent(in) :: j, run
         real(dp) :: t
 
-        t = global_determinant_data(pos_tau_int+run-1, j)
+        t = global_determinant_data(pos_tau_int + run - 1, j)
 
     end function
 
@@ -440,7 +436,7 @@ contains
 
         integer, intent(in) :: j
 
-        global_determinant_data(pos_shift_int:pos_shift_int+len_shift_int-1, j) = 0.0_dp
+        global_determinant_data(pos_shift_int:pos_shift_int + len_shift_int - 1, j) = 0.0_dp
 
     end subroutine
 
@@ -448,7 +444,7 @@ contains
 
         integer, intent(in) :: j, run
 
-        global_determinant_data(pos_shift_int+run-1, j) = 0.0_dp
+        global_determinant_data(pos_shift_int + run - 1, j) = 0.0_dp
 
     end subroutine
 
@@ -457,7 +453,7 @@ contains
         integer, intent(in) :: j, run
         real(dp), intent(in) :: t
 
-        global_determinant_data(pos_shift_int+run-1, j) = global_determinant_data(pos_shift_int+run-1, j) + t
+        global_determinant_data(pos_shift_int + run - 1, j) = global_determinant_data(pos_shift_int + run - 1, j) + t
 
     end subroutine
 
@@ -466,7 +462,7 @@ contains
         integer, intent(in) :: j, run
         real(dp) :: t
 
-        t = global_determinant_data(pos_shift_int+run-1, j)
+        t = global_determinant_data(pos_shift_int + run - 1, j)
 
     end function
 
@@ -474,7 +470,7 @@ contains
 
         integer, intent(in) :: j
 
-        global_determinant_data(pos_tot_spawns:pos_tot_spawns+len_tot_spawns-1, j) = 0.0_dp
+        global_determinant_data(pos_tot_spawns:pos_tot_spawns + len_tot_spawns - 1, j) = 0.0_dp
 
     end subroutine
 
@@ -482,7 +478,7 @@ contains
 
         integer, intent(in) :: j, run
 
-        global_determinant_data(pos_tot_spawns+run-1, j) = 0.0_dp
+        global_determinant_data(pos_tot_spawns + run - 1, j) = 0.0_dp
 
     end subroutine
 
@@ -491,7 +487,7 @@ contains
         integer, intent(in) :: j, run
         real(dp), intent(in) :: t
 
-        global_determinant_data(pos_tot_spawns+run-1, j) = global_determinant_data(pos_tot_spawns+run-1, j) + t
+        global_determinant_data(pos_tot_spawns + run - 1, j) = global_determinant_data(pos_tot_spawns + run - 1, j) + t
 
     end subroutine
 
@@ -500,106 +496,105 @@ contains
         integer, intent(in) :: j, run
         real(dp) :: t
 
-        t = global_determinant_data(pos_tot_spawns+run-1, j)
+        t = global_determinant_data(pos_tot_spawns + run - 1, j)
 
     end function
 
     subroutine readFVals(fvals, ndets, initial)
-      implicit none
-      real(dp), intent(in) :: fvals(2*inum_runs, ndets)
-      integer, intent(in) :: ndets
-      integer, intent(in), optional :: initial
-      integer :: start
-      integer :: j
-      integer :: run
+        implicit none
+        real(dp), intent(in) :: fvals(2 * inum_runs, ndets)
+        integer, intent(in) :: ndets
+        integer, intent(in), optional :: initial
+        integer :: start
+        integer :: j
+        integer :: run
 
-      def_default(start,initial,1)
+        def_default(start, initial, 1)
 
-      ! set all values of tot/acc spawns using the read-in values from fvals
-      ! this is used in popsfile read-in to get the values from the previous calculation
-      do j = 1, ndets
-         do run=1, inum_runs
-            global_determinant_data(pos_acc_spawns+run-1,j + start - 1) = &
-                 fvals(run,j)
-            global_determinant_data(pos_tot_spawns+run-1,j + start - 1) = &
-                 fvals(inum_runs+run,j)
+        ! set all values of tot/acc spawns using the read-in values from fvals
+        ! this is used in popsfile read-in to get the values from the previous calculation
+        do j = 1, ndets
+            do run = 1, inum_runs
+                global_determinant_data(pos_acc_spawns + run - 1, j + start - 1) = &
+                    fvals(run, j)
+                global_determinant_data(pos_tot_spawns + run - 1, j + start - 1) = &
+                    fvals(inum_runs + run, j)
+            end do
         end do
-      end do
     end subroutine readFVals
 
     subroutine readFValsAsInt(fvals, j)
-      implicit none
-      integer(n_int), intent(in) :: fvals(:)
-      integer, intent(in) :: j
-      integer :: run
-      real(dp) :: realVal = 0.0_dp
+        implicit none
+        integer(n_int), intent(in) :: fvals(:)
+        integer, intent(in) :: j
+        integer :: run
+        real(dp) :: realVal = 0.0_dp
 
-      ! Read the acc. and tot. spawns from a contiguous integer array of size (2*inum_runs)
-      ! This is useful for HDF5 subroutines which currently only accept integer arrays
+        ! Read the acc. and tot. spawns from a contiguous integer array of size (2*inum_runs)
+        ! This is useful for HDF5 subroutines which currently only accept integer arrays
 
-      ! Check the input's size
-      if(size(fvals) >= (2*inum_runs)) then
-          do run = 1, inum_runs
-             global_determinant_data(pos_acc_spawns+run-1,j) = transfer(fvals(run),realVal)
-             global_determinant_data(pos_tot_spawns+run-1,j) = transfer(fvals(run+inum_runs),realVal)
-          end do
-      else
-          print *, "WARNING: Dimension mismatch in readFValsAsInt. Ignoring read data"
-      endif
+        ! Check the input's size
+        if (size(fvals) >= (2 * inum_runs)) then
+            do run = 1, inum_runs
+                global_determinant_data(pos_acc_spawns + run - 1, j) = transfer(fvals(run), realVal)
+                global_determinant_data(pos_tot_spawns + run - 1, j) = transfer(fvals(run + inum_runs), realVal)
+            end do
+        else
+            print *, "WARNING: Dimension mismatch in readFValsAsInt. Ignoring read data"
+        end if
     end subroutine readFValsAsInt
 
-
     subroutine writeFValsAsInt(fvals, j)
-      implicit none
-      integer(n_int), intent(inout) :: fvals(:)
-      integer, intent(in) :: j
-      integer :: k
+        implicit none
+        integer(n_int), intent(inout) :: fvals(:)
+        integer, intent(in) :: j
+        integer :: k
 
-      ! Write the acc. and tot. spawns in a contiguous integer array of size (2*inum_runs)
-      ! This is useful for HDF5 subroutines which currently only accept integer arrays
+        ! Write the acc. and tot. spawns in a contiguous integer array of size (2*inum_runs)
+        ! This is useful for HDF5 subroutines which currently only accept integer arrays
 
-      if(size(fvals) >= 2*inum_runs) then
-        do k = 1, inum_runs
-           fvals(k) = transfer(get_acc_spawns(j,k), fvals(k))
-        end do
-        do k = 1, inum_runs
-           fvals(k+inum_runs) = transfer(get_tot_spawns(j,k), fvals(k))
-        end do
-      else
-          ! the buffer has unsuitable size, print a warning
-          print *, "WARNING: Dimension mismatch in writeFValsAsInt. Writing 0"
-          fvals = 0
-      endif
+        if (size(fvals) >= 2 * inum_runs) then
+            do k = 1, inum_runs
+                fvals(k) = transfer(get_acc_spawns(j, k), fvals(k))
+            end do
+            do k = 1, inum_runs
+                fvals(k + inum_runs) = transfer(get_tot_spawns(j, k), fvals(k))
+            end do
+        else
+            ! the buffer has unsuitable size, print a warning
+            print *, "WARNING: Dimension mismatch in writeFValsAsInt. Writing 0"
+            fvals = 0
+        end if
     end subroutine writeFValsAsInt
 
     subroutine writeFVals(fvals, ndets, initial)
-      implicit none
-      real(dp), intent(inout) :: fvals(:,:)
-      integer, intent(in) :: ndets
-      integer, intent(in), optional :: initial
-      integer :: j, k, start
+        implicit none
+        real(dp), intent(inout) :: fvals(:, :)
+        integer, intent(in) :: ndets
+        integer, intent(in), optional :: initial
+        integer :: j, k, start
 
-      def_default(start, initial, 1)
+        def_default(start, initial, 1)
 
-      ! write the acc. and tot. spawns per determinant in a contiguous array
-      ! fvals(:,j) = (acc, tot) for determinant j (2*inum_runs in size)
-      do j = 1, nDets
-         do k = 1, inum_runs
-            fvals(k,j) = get_acc_spawns(j + start - 1,k)
-         end do
-         do k = 1, inum_runs
-            fvals(k+inum_runs,j) = get_tot_spawns(j + start - 1,k)
-         end do
-      end do
+        ! write the acc. and tot. spawns per determinant in a contiguous array
+        ! fvals(:,j) = (acc, tot) for determinant j (2*inum_runs in size)
+        do j = 1, nDets
+            do k = 1, inum_runs
+                fvals(k, j) = get_acc_spawns(j + start - 1, k)
+            end do
+            do k = 1, inum_runs
+                fvals(k + inum_runs, j) = get_tot_spawns(j + start - 1, k)
+            end do
+        end do
     end subroutine writeFVals
 
-  !------------------------------------------------------------------------------------------!
+    !------------------------------------------------------------------------------------------!
 
     subroutine reset_all_acc_spawns(j)
 
         integer, intent(in) :: j
 
-        global_determinant_data(pos_acc_spawns:pos_acc_spawns+len_acc_spawns-1, j) = 0.0_dp
+        global_determinant_data(pos_acc_spawns:pos_acc_spawns + len_acc_spawns - 1, j) = 0.0_dp
 
     end subroutine
 
@@ -607,7 +602,7 @@ contains
 
         integer, intent(in) :: j, run
 
-        global_determinant_data(pos_acc_spawns+run-1, j) = 0.0_dp
+        global_determinant_data(pos_acc_spawns + run - 1, j) = 0.0_dp
 
     end subroutine
 
@@ -616,7 +611,7 @@ contains
         integer, intent(in) :: j, run
         real(dp), intent(in) :: t
 
-        global_determinant_data(pos_acc_spawns+run-1, j) = global_determinant_data(pos_acc_spawns+run-1, j) + t
+        global_determinant_data(pos_acc_spawns + run - 1, j) = global_determinant_data(pos_acc_spawns + run - 1, j) + t
 
     end subroutine
 
@@ -625,17 +620,17 @@ contains
         integer, intent(in) :: j, run
         real(dp) :: t
 
-        t = global_determinant_data(pos_acc_spawns+run-1, j)
+        t = global_determinant_data(pos_acc_spawns + run - 1, j)
 
     end function
 
-  !------------------------------------------------------------------------------------------!
+    !------------------------------------------------------------------------------------------!
 
     subroutine reset_pops_sum(j)
 
         integer, intent(in) :: j
 
-        global_determinant_data(pos_pops_sum:pos_pops_sum+len_pops_sum-1, j) = 0.0_dp
+        global_determinant_data(pos_pops_sum:pos_pops_sum + len_pops_sum - 1, j) = 0.0_dp
         global_determinant_data(pos_pops_iter, j) = 0.0_dp
 
     end subroutine
@@ -650,19 +645,17 @@ contains
 
     end subroutine
 
-
     subroutine reset_pops_sum_all(ndets)
 
         integer(int64), intent(in) :: ndets
         integer :: j
 
-        do j=1,int(ndets)
-            global_determinant_data(pos_pops_sum:pos_pops_sum+len_pops_sum-1, j) = 0.0_dp
+        do j = 1, int(ndets)
+            global_determinant_data(pos_pops_sum:pos_pops_sum + len_pops_sum - 1, j) = 0.0_dp
             global_determinant_data(pos_pops_iter, j) = 0.0_dp
         end do
 
     end subroutine
-
 
     subroutine update_pops_sum_all(ndets, iter)
         use FciMCData, only: CurrentDets
@@ -672,13 +665,13 @@ contains
         real(dp) :: CurrentSign(lenof_sign)
         integer :: j
 
-        do j=1,int(ndets)
-             call extract_sign(CurrentDets(:,j),CurrentSign)
-             if(IsUnoccDet(CurrentSign)) cycle
+        do j = 1, int(ndets)
+            call extract_sign(CurrentDets(:, j), CurrentSign)
+            if (IsUnoccDet(CurrentSign)) cycle
 
-            global_determinant_data(pos_pops_sum:pos_pops_sum+len_pops_sum-1, j) = &
-              global_determinant_data(pos_pops_sum:pos_pops_sum+len_pops_sum-1, j) + &
-              CurrentSign(:)
+            global_determinant_data(pos_pops_sum:pos_pops_sum + len_pops_sum - 1, j) = &
+                global_determinant_data(pos_pops_sum:pos_pops_sum + len_pops_sum - 1, j) + &
+                CurrentSign(:)
 
             global_determinant_data(pos_pops_iter, j) = DBLE(iter)
         end do
@@ -690,10 +683,10 @@ contains
         real(dp), intent(in) :: CurrentSign(lenof_sign)
         integer, intent(in) :: iter
 
-        if(IsUnoccDet(CurrentSign)) return
-        global_determinant_data(pos_pops_sum:pos_pops_sum+len_pops_sum-1, j) = &
-          global_determinant_data(pos_pops_sum:pos_pops_sum+len_pops_sum-1, j) + &
-          CurrentSign(:)
+        if (IsUnoccDet(CurrentSign)) return
+        global_determinant_data(pos_pops_sum:pos_pops_sum + len_pops_sum - 1, j) = &
+            global_determinant_data(pos_pops_sum:pos_pops_sum + len_pops_sum - 1, j) + &
+            CurrentSign(:)
         global_determinant_data(pos_pops_iter, j) = DBLE(iter)
     end subroutine
 
@@ -702,7 +695,7 @@ contains
         integer, intent(in) :: j, part
         real(dp) :: AccSign
 
-        AccSign = global_determinant_data(pos_pops_sum+part-1, j)
+        AccSign = global_determinant_data(pos_pops_sum + part - 1, j)
     end function
 
     pure function get_pops_sum_full(j) result(AccSign)
@@ -710,7 +703,7 @@ contains
         integer, intent(in) :: j
         real(dp) :: AccSign(lenof_sign)
 
-        AccSign(:) = global_determinant_data(pos_pops_sum:pos_pops_sum+len_pops_sum-1, j)
+        AccSign(:) = global_determinant_data(pos_pops_sum:pos_pops_sum + len_pops_sum - 1, j)
     end function
 
     pure function get_pops_iter(j) result(iter)
@@ -723,92 +716,92 @@ contains
     end function
 
     subroutine writeAPValsAsInt(apvals, j)
-      implicit none
-      integer(n_int), intent(inout) :: apvals(:)
-      integer, intent(in) ::j
-      integer :: k
+        implicit none
+        integer(n_int), intent(inout) :: apvals(:)
+        integer, intent(in) ::j
+        integer :: k
 
-      ! Write the accumlated population values (pops_sum and pop_iter)
-      ! in a contiguous integer array of size (lenof_sing+1).
-      ! This is useful for HDF5 subroutines which currently only accept integer arrays
+        ! Write the accumlated population values (pops_sum and pop_iter)
+        ! in a contiguous integer array of size (lenof_sing+1).
+        ! This is useful for HDF5 subroutines which currently only accept integer arrays
 
-      if(size(apvals,dim=1) >= lenof_sign+1) then
-           do k = 1, lenof_sign
-               apvals(k) = transfer(get_pops_sum(j,k), apvals(k))
-           end do
-           apvals(lenof_sign+1) = transfer(get_pops_iter(j), apvals(k))
-      else
-          ! the buffer has unsuitable size, print a warning
-          print *, "WARNING: Dimension mismatch in writeAPValsAsInt. Writing 0"
-          apvals = 0
-      endif
+        if (size(apvals, dim=1) >= lenof_sign + 1) then
+            do k = 1, lenof_sign
+                apvals(k) = transfer(get_pops_sum(j, k), apvals(k))
+            end do
+            apvals(lenof_sign + 1) = transfer(get_pops_iter(j), apvals(k))
+        else
+            ! the buffer has unsuitable size, print a warning
+            print *, "WARNING: Dimension mismatch in writeAPValsAsInt. Writing 0"
+            apvals = 0
+        end if
 
     end subroutine writeAPValsAsInt
 
     subroutine readAPValsAsInt(apvals, j)
-      implicit none
-      integer(n_int), intent(in) :: apvals(:)
-      integer, intent(in) :: j
+        implicit none
+        integer(n_int), intent(in) :: apvals(:)
+        integer, intent(in) :: j
 
-      integer :: k
-      real(dp) :: realVal = 0.0_dp
+        integer :: k
+        real(dp) :: realVal = 0.0_dp
 
-      ! Read the accumlated population values (pops_sum and pop_iter)
-      ! in a contiguous integer array of size (lenof_sing+1).
-      ! This is useful for HDF5 subroutines which currently only accept integer arrays
+        ! Read the accumlated population values (pops_sum and pop_iter)
+        ! in a contiguous integer array of size (lenof_sing+1).
+        ! This is useful for HDF5 subroutines which currently only accept integer arrays
 
-      if(size(apvals,dim=1) >= lenof_sign+1) then
-          do k = 1, lenof_sign
-             global_determinant_data(pos_pops_sum+k-1,j) = transfer(apvals(k),realVal)
-          end do
-          global_determinant_data(pos_pops_iter,j) = transfer(apvals(lenof_sign+1),realVal)
-      else
-          print *, "WARNING: Dimension mismatch in readAPValsAsInt. Ignoring read data"
-      endif
+        if (size(apvals, dim=1) >= lenof_sign + 1) then
+            do k = 1, lenof_sign
+                global_determinant_data(pos_pops_sum + k - 1, j) = transfer(apvals(k), realVal)
+            end do
+            global_determinant_data(pos_pops_iter, j) = transfer(apvals(lenof_sign + 1), realVal)
+        else
+            print *, "WARNING: Dimension mismatch in readAPValsAsInt. Ignoring read data"
+        end if
 
     end subroutine readAPValsAsInt
 
     subroutine readAPVals(apvals, ndets, initial)
-      implicit none
-      integer, intent(in) :: ndets
-      real(dp), intent(in) :: apvals(lenof_sign+1, ndets)
-      integer, intent(in), optional :: initial
+        implicit none
+        integer, intent(in) :: ndets
+        real(dp), intent(in) :: apvals(lenof_sign + 1, ndets)
+        integer, intent(in), optional :: initial
 
-      integer :: j, k, start
+        integer :: j, k, start
 
-      ! set all values of pops sum/iter using the read-in values from apvals
-      ! this is used in popsfile read-in to get the values from the previous calculation
+        ! set all values of pops sum/iter using the read-in values from apvals
+        ! this is used in popsfile read-in to get the values from the previous calculation
 
-      def_default(start,initial,1)
+        def_default(start, initial, 1)
 
-      do j = 1, ndets
-          do k = 1, lenof_sign
-             global_determinant_data(pos_pops_sum+k-1,j) = apvals(k,j)
-          end do
-          global_determinant_data(pos_pops_iter,j) = apvals(lenof_sign+1,j)
-      end do
+        do j = 1, ndets
+            do k = 1, lenof_sign
+                global_determinant_data(pos_pops_sum + k - 1, j) = apvals(k, j)
+            end do
+            global_determinant_data(pos_pops_iter, j) = apvals(lenof_sign + 1, j)
+        end do
     end subroutine readAPVals
 
     subroutine writeAPVals(apvals, ndets, initial)
-      implicit none
-      real(dp), intent(inout) :: apvals(:,:)
-      integer, intent(in) :: ndets
-      integer, intent(in), optional :: initial
-      integer :: j, k, start
+        implicit none
+        real(dp), intent(inout) :: apvals(:, :)
+        integer, intent(in) :: ndets
+        integer, intent(in), optional :: initial
+        integer :: j, k, start
 
-      def_default(start, initial, 1)
+        def_default(start, initial, 1)
 
-      ! write the pops sum/iter per determinant in a contiguous array
-      ! apvals(:,j) = (sum, iter) for determinant j (lenof_sign+1 in size)
-      do j = 1, nDets
-         do k = 1, lenof_sign
-            apvals(k,j) = get_pops_sum(j + start - 1,k)
-         end do
-        apvals(lenof_sign+1,j) = get_pops_iter(j + start - 1)
-      end do
+        ! write the pops sum/iter per determinant in a contiguous array
+        ! apvals(:,j) = (sum, iter) for determinant j (lenof_sign+1 in size)
+        do j = 1, nDets
+            do k = 1, lenof_sign
+                apvals(k, j) = get_pops_sum(j + start - 1, k)
+            end do
+            apvals(lenof_sign + 1, j) = get_pops_iter(j + start - 1)
+        end do
     end subroutine writeAPVals
-  !------------------------------------------------------------------------------------------!
-    subroutine set_av_sgn_tot_sgl (j, part, av_sgn)
+    !------------------------------------------------------------------------------------------!
+    subroutine set_av_sgn_tot_sgl(j, part, av_sgn)
 
         integer, intent(in) :: j, part
         real(dp), intent(in) :: av_sgn
@@ -817,7 +810,7 @@ contains
 
     end subroutine
 
-    subroutine set_av_sgn_tot_all (j, av_sgn)
+    subroutine set_av_sgn_tot_all(j, av_sgn)
 
         integer, intent(in) :: j
         real(dp), intent(in) :: av_sgn(len_av_sgn_tot)
@@ -827,7 +820,7 @@ contains
 
     end subroutine
 
-    subroutine set_iter_occ_tot_sgl (j, part, iter_occ)
+    subroutine set_iter_occ_tot_sgl(j, part, iter_occ)
 
         ! It is unusual, but all the RDM code uses real(dp) values for the
         ! current iteration. As floats store integers exactly up to a
@@ -842,7 +835,7 @@ contains
 
     end subroutine
 
-    subroutine set_iter_occ_tot_all (j, iter_occ)
+    subroutine set_iter_occ_tot_all(j, iter_occ)
 
         ! It is unusual, but all the RDM code uses real(dp) values for the
         ! current iteration. As floats store integers exactly up to a
@@ -860,7 +853,7 @@ contains
 
     ! -----Routines for extracting the properties of standard RDMs------------
 
-    function get_av_sgn_standard_sgl (j, part) result(av_sgn)
+    function get_av_sgn_standard_sgl(j, part) result(av_sgn)
 
         integer, intent(in) :: j, part
         real(dp) :: av_sgn
@@ -869,17 +862,17 @@ contains
 
     end function
 
-    function get_av_sgn_standard_all (j) result(av_sgn)
+    function get_av_sgn_standard_all(j) result(av_sgn)
 
         integer, intent(in) :: j
         real(dp) :: av_sgn(len_av_sgn)
 
-        av_sgn = global_determinant_data(pos_av_sgn:&
-                                       pos_av_sgn + len_av_sgn - 1, j)
+        av_sgn = global_determinant_data(pos_av_sgn: &
+                                         pos_av_sgn + len_av_sgn - 1, j)
 
     end function
 
-    function get_iter_occ_standard_sgl (j, part) result(iter_occ)
+    function get_iter_occ_standard_sgl(j, part) result(iter_occ)
 
         integer, intent(in) :: j, part
         real(dp) :: iter_occ
@@ -888,19 +881,19 @@ contains
 
     end function
 
-    function get_iter_occ_standard_all (j) result(iter_occ)
+    function get_iter_occ_standard_all(j) result(iter_occ)
 
         integer, intent(in) :: j
         real(dp) :: iter_occ(len_iter_occ)
 
         iter_occ = global_determinant_data(pos_iter_occ: &
-                                   pos_iter_occ + len_iter_occ - 1, j)
+                                           pos_iter_occ + len_iter_occ - 1, j)
 
     end function
 
     ! -----Routines for extracting the properties of transition RDMs-----------
 
-    function get_av_sgn_transition_sgl (j, part) result(av_sgn)
+    function get_av_sgn_transition_sgl(j, part) result(av_sgn)
 
         integer, intent(in) :: j, part
         real(dp) :: av_sgn
@@ -909,17 +902,17 @@ contains
 
     end function
 
-    function get_av_sgn_transition_all (j) result(av_sgn)
+    function get_av_sgn_transition_all(j) result(av_sgn)
 
         integer, intent(in) :: j
         real(dp) :: av_sgn(len_av_sgn_transition)
 
-        av_sgn = global_determinant_data(pos_av_sgn_transition:&
-                                       pos_av_sgn_transition + len_av_sgn_transition - 1, j)
+        av_sgn = global_determinant_data(pos_av_sgn_transition: &
+                                         pos_av_sgn_transition + len_av_sgn_transition - 1, j)
 
     end function
 
-    function get_iter_occ_transition_sgl (j, part) result(iter_occ)
+    function get_iter_occ_transition_sgl(j, part) result(iter_occ)
 
         integer, intent(in) :: j, part
         real(dp) :: iter_occ
@@ -928,20 +921,20 @@ contains
 
     end function
 
-    function get_iter_occ_transition_all (j) result(iter_occ)
+    function get_iter_occ_transition_all(j) result(iter_occ)
 
         integer, intent(in) :: j
         real(dp) :: iter_occ(len_iter_occ)
 
         iter_occ = global_determinant_data(pos_iter_occ_transition: &
-                                   pos_iter_occ_transition + len_iter_occ_transition - 1, j)
+                                           pos_iter_occ_transition + len_iter_occ_transition - 1, j)
 
     end function
 
     ! -----Routines for extracting the properties of both standard and--------
     ! -----transition RDMs together-------------------------------------------
 
-    function get_av_sgn_tot_sgl (j, part) result(av_sgn)
+    function get_av_sgn_tot_sgl(j, part) result(av_sgn)
 
         integer, intent(in) :: j, part
         real(dp) :: av_sgn
@@ -950,17 +943,17 @@ contains
 
     end function
 
-    function get_av_sgn_tot_all (j) result(av_sgn)
+    function get_av_sgn_tot_all(j) result(av_sgn)
 
         integer, intent(in) :: j
         real(dp) :: av_sgn(len_av_sgn_tot)
 
-        av_sgn = global_determinant_data(pos_av_sgn:&
-                                       pos_av_sgn + len_av_sgn_tot - 1, j)
+        av_sgn = global_determinant_data(pos_av_sgn: &
+                                         pos_av_sgn + len_av_sgn_tot - 1, j)
 
     end function
 
-    function get_iter_occ_tot_sgl (j, part) result(iter_occ)
+    function get_iter_occ_tot_sgl(j, part) result(iter_occ)
 
         integer, intent(in) :: j, part
         real(dp) :: iter_occ
@@ -969,13 +962,13 @@ contains
 
     end function
 
-    function get_iter_occ_tot_all (j) result(iter_occ)
+    function get_iter_occ_tot_all(j) result(iter_occ)
 
         integer, intent(in) :: j
         real(dp) :: iter_occ(len_iter_occ_tot)
 
         iter_occ = global_determinant_data(pos_iter_occ: &
-                                   pos_iter_occ + len_iter_occ_tot - 1, j)
+                                           pos_iter_occ + len_iter_occ_tot - 1, j)
 
     end function
 
@@ -1005,59 +998,59 @@ contains
 
     end subroutine
 
-  !------------------------------------------------------------------------------------------!
-  ! functions for storing information on the history of spawns onto a determinant
-  !------------------------------------------------------------------------------------------!
+    !------------------------------------------------------------------------------------------!
+    ! functions for storing information on the history of spawns onto a determinant
+    !------------------------------------------------------------------------------------------!
 
     subroutine store_spawn(j, spawn_sgn)
-      implicit none
-      integer, intent(in) :: j
-      real(dp), intent(in) :: spawn_sgn(lenof_sign)
+        implicit none
+        integer, intent(in) :: j
+        real(dp), intent(in) :: spawn_sgn(lenof_sign)
 
-      integer :: part
+        integer :: part
 
-      do part = 1, lenof_sign
-         if(spawn_sgn(part) > eps) then
-            global_determinant_data(pos_pos_spawns+part-1,j) = &
-                 global_determinant_data(pos_pos_spawns+part-1,j) + abs(spawn_sgn(part))
-         else if(spawn_sgn(part) < -eps) then
-            global_determinant_data(pos_neg_spawns+part-1,j) = &
-                 global_determinant_data(pos_neg_spawns+part-1,j) + abs(spawn_sgn(part))
-         endif
-      end do
+        do part = 1, lenof_sign
+            if (spawn_sgn(part) > eps) then
+                global_determinant_data(pos_pos_spawns + part - 1, j) = &
+                    global_determinant_data(pos_pos_spawns + part - 1, j) + abs(spawn_sgn(part))
+            else if (spawn_sgn(part) < -eps) then
+                global_determinant_data(pos_neg_spawns + part - 1, j) = &
+                    global_determinant_data(pos_neg_spawns + part - 1, j) + abs(spawn_sgn(part))
+            end if
+        end do
     end subroutine store_spawn
 
-  !------------------------------------------------------------------------------------------!
+    !------------------------------------------------------------------------------------------!
 
     pure function get_pos_spawns(j) result(avSpawn)
-      implicit none
-      integer, intent(in) :: j
-      real(dp) :: avSpawn(lenof_sign)
+        implicit none
+        integer, intent(in) :: j
+        real(dp) :: avSpawn(lenof_sign)
 
-      avSpawn = global_determinant_data(pos_pos_spawns:(pos_pos_spawns + lenof_sign - 1),j)
+        avSpawn = global_determinant_data(pos_pos_spawns:(pos_pos_spawns + lenof_sign - 1), j)
     end function get_pos_spawns
 
-  !------------------------------------------------------------------------------------------!
+    !------------------------------------------------------------------------------------------!
 
     pure function get_neg_spawns(j) result(avSpawn)
-      implicit none
-      integer, intent(in) :: j
-      real(dp) :: avSpawn(lenof_sign)
+        implicit none
+        integer, intent(in) :: j
+        real(dp) :: avSpawn(lenof_sign)
 
-      avSpawn = global_determinant_data(pos_neg_spawns:(pos_neg_spawns + lenof_sign - 1),j)
+        avSpawn = global_determinant_data(pos_neg_spawns:(pos_neg_spawns + lenof_sign - 1), j)
     end function get_neg_spawns
 
-  !------------------------------------------------------------------------------------------!
+    !------------------------------------------------------------------------------------------!
 
     function get_max_ratio(j) result(maxSpawn)
-      ! Get the maximum ratio Hij/pgen for the determinant j so far
-      ! Input: j - index of the determinant
-      ! Output: maxSpawn - maximum Hij/pgen of spawning attempts from Determinant j so far
-      implicit none
-      integer, intent(in) :: j
-      real(dp) :: maxSpawn
+        ! Get the maximum ratio Hij/pgen for the determinant j so far
+        ! Input: j - index of the determinant
+        ! Output: maxSpawn - maximum Hij/pgen of spawning attempts from Determinant j so far
+        implicit none
+        integer, intent(in) :: j
+        real(dp) :: maxSpawn
 
-      maxSpawn = global_determinant_data(pos_max_ratio,j)
+        maxSpawn = global_determinant_data(pos_max_ratio, j)
     end function get_max_ratio
 
     !------------------------------------------------------------------------------------------!
@@ -1070,7 +1063,7 @@ contains
         real(dp), intent(in) :: spawn
         integer, intent(in) :: j
 
-        if(abs(spawn) > get_max_ratio(j)) &
+        if (abs(spawn) > get_max_ratio(j)) &
             call set_max_ratio(abs(spawn), j)
     end subroutine update_max_ratio
 
@@ -1084,7 +1077,7 @@ contains
         real(dp), intent(in) :: val
         integer, intent(in) :: j
 
-        global_determinant_data(pos_max_ratio,j) = val
+        global_determinant_data(pos_max_ratio, j) = val
     end subroutine set_max_ratio
 
     !------------------------------------------------------------------------------------------!
@@ -1098,7 +1091,7 @@ contains
         integer, intent(in) :: ndets
         ! use a 2-d array for compatibility - the caller does not need to know that the first
         ! dimension is of size 1
-        real(dp), intent(out) :: ms_vals(:,:)
+        real(dp), intent(out) :: ms_vals(:, :)
         integer, intent(in), optional :: initial
 
         integer :: j, start
@@ -1106,7 +1099,7 @@ contains
         def_default(start, initial, 1)
 
         do j = 1, ndets
-            ms_vals(1,j) = global_determinant_data(pos_max_ratio,j + start -1)
+            ms_vals(1, j) = global_determinant_data(pos_max_ratio, j + start - 1)
         end do
 
     end subroutine write_max_ratio
@@ -1119,7 +1112,7 @@ contains
         !        ndets - number of values to be read in
         !        initial - index of the first entry to fill (everything before will be unchanged
         implicit none
-        real(dp), intent(in) :: ms_vals(:,:)
+        real(dp), intent(in) :: ms_vals(:, :)
         integer, intent(in) :: ndets
         integer, intent(in), optional :: initial
 
@@ -1128,7 +1121,7 @@ contains
         def_default(start, initial, 1)
 
         do j = 1, ndets
-            call set_max_ratio(ms_vals(1,j), j + start - 1)
+            call set_max_ratio(ms_vals(1, j), j + start - 1)
         end do
 
     end subroutine set_all_max_ratios
@@ -1155,9 +1148,8 @@ contains
 
     subroutine write_max_ratio_as_int(ms_vals, pos)
         use hdf5, only: hsize_t
-      use FciMCData, only: CurrentDets, iLutHF
-      use bit_rep_data, only: extract_sign
-      use DetBitOps, only: FindBitExcitLevel
+        use bit_rep_data, only: extract_sign
+        use DetBitOps, only: FindBitExcitLevel
         ! Write the values of the maximum ratios Hij/pgen for all determinants to ms_vals
         ! Input: pos - position to get the data from
         !        ms_vals - On return, contains the maximum Hij/pgen ratios for all determinants
@@ -1167,7 +1159,7 @@ contains
         ! dimension is of size 1
         integer(hsize_t), intent(out) :: ms_vals(:)
 
-        ms_vals(1) = transfer(global_determinant_data(pos_max_ratio,pos), ms_vals(1))
+        ms_vals(1) = transfer(global_determinant_data(pos_max_ratio, pos), ms_vals(1))
 
     end subroutine write_max_ratio_as_int
 
@@ -1182,9 +1174,9 @@ contains
         implicit none
         integer, intent(in) :: j, nI(nel)
 
-        if(tStoredDets) then
-            global_determinants(:,j) = nI
-        endif
+        if (tStoredDets) then
+            global_determinants(:, j) = nI
+        end if
     end subroutine store_decoding
 
     function get_determinant(j) result(nI)
@@ -1192,11 +1184,11 @@ contains
         integer, intent(in) :: j
         integer :: nI(nel)
 
-        if(tStoredDets) then
-            nI = global_determinants(:,j)
+        if (tStoredDets) then
+            nI = global_determinants(:, j)
         else
             nI = 0
-        endif
+        end if
     end function get_determinant
 
 end module

@@ -2,7 +2,7 @@
 
 module LoggingData
 
-    use constants, only: dp,int64
+    use constants, only: dp, int64
     use MemoryManager, only: TagIntType
 
     implicit none
@@ -11,23 +11,23 @@ module LoggingData
 
     INTEGER :: iDiagSubspaceIter
     LOGICAL :: tDiagWalkerSubspace
-    INTEGER ILOGGING,ILOGGINGDef
-    INTEGER :: iGlobalTimerLevel=40
-    INTEGER nPrintTimer,G_VMC_LOGCOUNT
-    INTEGER HFLOGLEVEL,iWritePopsEvery,StartPrintOrbOcc
-    INTEGER PreVarLogging,WavevectorPrint,NoHistBins,HistInitPopsIter
-    real(dp) MaxHistE,OffDiagMax,OffDiagBinRange,PopsfileTimer
-    LOGICAL TDistrib,TPopsFile,TCalcWavevector,TDetPops,tROFciDump,tROHistOffDiag,tROHistDoubExc,tROHistOnePartOrbEn
+    INTEGER ILOGGING, ILOGGINGDef
+    INTEGER :: iGlobalTimerLevel = 40
+    INTEGER nPrintTimer, G_VMC_LOGCOUNT
+    INTEGER HFLOGLEVEL, iWritePopsEvery, StartPrintOrbOcc
+    INTEGER PreVarLogging, WavevectorPrint, NoHistBins, HistInitPopsIter
+    real(dp) MaxHistE, OffDiagMax, OffDiagBinRange, PopsfileTimer
+    LOGICAL TDistrib, TPopsFile, TCalcWavevector, TDetPops, tROFciDump, tROHistOffDiag, tROHistDoubExc, tROHistOnePartOrbEn
     LOGICAL tPrintPopsDefault
-    LOGICAL TZeroProjE,TWriteDetE,TAutoCorr,tBinPops,tIncrementPops,tROHistogramAll,tROHistER,tROHistSingExc
+    LOGICAL TZeroProjE, TWriteDetE, TAutoCorr, tBinPops, tIncrementPops, tROHistogramAll, tROHistER, tROHistSingExc
     LOGICAL tRoHistOneElInts
-    LOGICAL tROHistVirtCoulomb,tPrintInts,tHistEnergies,tTruncRODump,tRDMonFly,tDiagRDM,tDo_Not_Calc_2RDM_est
-    LOGICAL tPrintFCIMCPsi,tCalcFCIMCPsi,tPrintSpinCoupHEl,tIterStartBlock,tHFPopStartBlock,tInitShiftBlocking
+    LOGICAL tROHistVirtCoulomb, tPrintInts, tHistEnergies, tTruncRODump, tRDMonFly, tDiagRDM, tDo_Not_Calc_2RDM_est
+    LOGICAL tPrintFCIMCPsi, tCalcFCIMCPsi, tPrintSpinCoupHEl, tIterStartBlock, tHFPopStartBlock, tInitShiftBlocking
     LOGICAL tTruncDumpbyVal, tPrintRODump, tno_RDMs_to_read, tReadRDMs, tNoNewRDMContrib
-    LOGICAL tWriteTransMat,tPrintOrbOcc,tHistInitPops,tPrintOrbOccInit, tWriteMultRDMs
+    LOGICAL tWriteTransMat, tPrintOrbOcc, tHistInitPops, tPrintOrbOccInit, tWriteMultRDMs
     LOGICAL twrite_normalised_RDMs, tWriteSpinFreeRDM, twrite_RDMs_to_read
     LOGICAL tNoNOTransform, tPrint1RDM, tPrintInitiators
-    INTEGER NoACDets(2:4),iPopsPartEvery,iWriteHistEvery,NHistEquilSteps
+    INTEGER NoACDets(2:4), iPopsPartEvery, iWriteHistEvery, NHistEquilSteps
     INTEGER IterRDMonFly, RDMExcitLevel, RDMEnergyIter, IterWriteRDMs
     INTEGER FCIMCDebug !FciMC Debugging Level 0-6.  Default 0
 
@@ -38,11 +38,11 @@ module LoggingData
     integer :: PopAccumPopsCounter !The number of accumlated populations stored in popsfile
     LOGICAL tSaveBlocking !Do not overwrite blocking files
     INTEGER iWriteBlockingEvery !How often to write out blocking files
-    INTEGER IterStartBlocking,HFPopStartBlocking,NoDumpTruncs
-    INTEGER(TagIntType)  OrbOccsTag,HistInitPopsTag,AllHistInitPopsTag,NoTruncOrbsTag,TruncEvaluesTag
-    INTEGER , ALLOCATABLE :: NoTruncOrbs(:),HistInitPops(:,:),AllHistInitPops(:,:)
-    real(dp) , ALLOCATABLE :: TruncEvalues(:),OrbOccs(:),DoubsUEG(:,:,:,:),DoubsUEGLookup(:)
-    LOGICAL, ALLOCATABLE :: DoubsUEGStore(:,:,:)
+    INTEGER IterStartBlocking, HFPopStartBlocking, NoDumpTruncs
+    INTEGER(TagIntType) OrbOccsTag, HistInitPopsTag, AllHistInitPopsTag, NoTruncOrbsTag, TruncEvaluesTag
+    INTEGER, ALLOCATABLE :: NoTruncOrbs(:), HistInitPops(:, :), AllHistInitPops(:, :)
+    real(dp), ALLOCATABLE :: TruncEvalues(:), OrbOccs(:), DoubsUEG(:, :, :, :), DoubsUEGLookup(:)
+    LOGICAL, ALLOCATABLE :: DoubsUEGStore(:, :, :)
     LOGICAL :: tBlockEveryIteration
     LOGICAL tLogDets       ! Write out the DETS and SymDETS files.
     LOGICAL tLogComplexPops     ! Write out complex walker information
@@ -57,11 +57,13 @@ module LoggingData
     logical :: tCalcInstantS2, tCalcInstSCpts, tCalcInstantS2Init
     integer :: instant_s2_multiplier, instant_s2_multiplier_init
     integer :: iHighPopWrite
+    ! Flag to determine procedure regarding multi-replica output
+    logical :: t_force_replica_output = .false.
 
     !Just do a blocking analysis on previous data
     logical :: tJustBlocking
-    integer :: iBlockEquilShift,iBlockEquilProjE
-    logical :: tDiagAllSpaceEver,tCalcVariationalEnergy
+    integer :: iBlockEquilShift, iBlockEquilProjE
+    logical :: tDiagAllSpaceEver, tCalcVariationalEnergy
 
     ! Do we want to split the popsfile up into multiple bits?
     logical :: tSplitPops
@@ -98,9 +100,9 @@ module LoggingData
     !If we want to force the Cauchy--Schwarz inequality (e.g. if we know the 1RDM is undersampled)
     logical :: tForceCauchySchwarz
     ! If we'd like to rotate the NOs again so as to obtain broken symmetry NOs
-    logical :: tBrokenSymNOs,tBreakSymNOs
+    logical :: tBrokenSymNOs, tBreakSymNOs
     real(dp) :: occ_numb_diff
-    integer :: rottwo,rotthree,rotfour,local_cutoff
+    integer :: rottwo, rotthree, rotfour, local_cutoff
     integer, allocatable :: RotNOs(:)
     integer(TagIntType) :: tagRotNOs
 
@@ -127,7 +129,6 @@ module LoggingData
     integer :: iHDF5TruncPopsEx
     ! Number of iterations for the periodic writing of truncated popsfiles
     integer :: iHDF5TruncPopsIter
-
 
     ! Whether to calculate and print the projected energy of
     ! popsfile wavefunction - instantaneous and accumulated (if available)
@@ -207,12 +208,11 @@ module LoggingData
     ! do it seperately for singles and parallel and opposite spin excitations
     ! and also store the number of symmetry allowed orbitals! just to check
     integer, allocatable :: ija_bins_sing(:), all_ija_bins_sing(:), &
-                            ija_bins_para(:,:,:), all_ija_bins(:,:,:), &
-                            ija_bins_anti(:,:,:), &
+                            ija_bins_para(:, :, :), all_ija_bins(:, :, :), &
+                            ija_bins_anti(:, :, :), &
                             ija_orbs_sing(:), all_ija_orbs_sing(:), &
-                            ija_orbs_para(:,:,:), all_ija_orbs(:,:,:), &
-                            ija_orbs_anti(:,:,:)
-
+                            ija_orbs_para(:, :, :), all_ija_orbs(:, :, :), &
+                            ija_orbs_anti(:, :, :)
 
     ! also use a use defined threshold
     real(dp) :: ija_thresh = 1.0e-7_dp
@@ -237,4 +237,6 @@ module LoggingData
     ! histogram the matrix elements of the six-index operator
     logical :: tHistLMat
 
+    ! output RDMs also in Molcas format in the GUGA RDMs implementation
+    logical :: t_print_molcas_rdms = .false.
 end module LoggingData

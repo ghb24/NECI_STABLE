@@ -49,8 +49,16 @@ add_subdirectory( cepa_shifts )
 
 add_subdirectory( guga )
 
+add_subdirectory( impurity_excit_gen )
+
 add_subdirectory( pcpp_excitgen)
 
 add_subdirectory( gdata_io )
 
 add_subdirectory( test_loop )
+
+add_subdirectory( orb_idx_and_exc_types )
+
+add_subdirectory( sets_mod )
+
+add_subdirectory( shared_array )

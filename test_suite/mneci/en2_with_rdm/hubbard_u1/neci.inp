@@ -30,6 +30,7 @@ truncinitiator
 addtoinitiator 3
 semi-stochastic 1000
 pops-core 50
+core-inits
 nmcyc 10000
 tau 0.01
 en2-initiator
