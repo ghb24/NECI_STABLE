@@ -5317,7 +5317,10 @@ contains
             rdm_mat = extract_matrix_element(t, 2)
             call calc_orbital_pgen_contr(ilut, [2 * i, 2 * j], above_cpt, &
                                          below_cpt)
-            p_orig = (above_cpt + below_cpt) * branch_pgen / real(ElecPairs, dp)
+            p_orig = (above_cpt + below_cpt) * branch_pgen
+            if (.not. (t_heisenberg_model .or. t_tJ_model)) then
+                p_orig = p_orig / real(ElecPairs, dp)
+            end if
         end if
 
         global_excitInfo = excitInfo
@@ -5709,29 +5712,29 @@ contains
                     step1 = current_stepvector(first)
 
                     zeroWeight = weights%proc%zero(negSwitches(first), &
-                                                   posSwitches(first), currentB_ilut(first), weights%dat)
+                           posSwitches(first), currentB_ilut(first), weights%dat)
 
                     if (step1 == 1) then
                         ! i know that step2 = 2
                         call getDoubleMatrixElement(2, 1, 0, gen_type%L, gen_type%R, &
-                                                    currentB_ilut(first), 1.0_dp, x1_element=tempWeight_1)
+                                currentB_ilut(first), 1.0_dp, x1_element=tempWeight_1)
 
                         plusWeight = weights%proc%plus(posSwitches(first), &
                                                        currentB_ilut(first), weights%dat)
 
                         branch_weight = branch_weight * (1.0_dp - calcStayingProb( &
-                                                         zeroWeight, plusWeight, currentB_ilut(first)))
+                                         zeroWeight, plusWeight, currentB_ilut(first)))
 
                     else
                         ! i know that step2 = 1
-                        call getDoubleMatrixElement(1, 2, 0, gen_type%L, gen_type%R, currentB_ilut(first), &
-                                                    1.0_dp, x1_element=tempWeight_1)
+                        call getDoubleMatrixElement(1, 2, 0, gen_type%L, gen_type%R, &
+                            currentB_ilut(first), 1.0_dp, x1_element=tempWeight_1)
 
                         minusWeight = weights%proc%minus(negSwitches(first), &
-                                                         currentB_ilut(first), weights%dat)
+                                             currentB_ilut(first), weights%dat)
 
                         branch_weight = branch_weight * (1.0_dp - calcStayingProb( &
-                                                         zeroWeight, minusWeight, currentB_ilut(first)))
+                                         zeroWeight, minusWeight, currentB_ilut(first)))
 
                     end if
                     tempWeight = tempWeight * tempWeight_1
@@ -5748,7 +5751,7 @@ contains
                     if (currentOcc_int(k) /= 1) cycle
 
                     zeroWeight = weights%proc%zero(negSwitches(k), &
-                                                   posSwitches(k), currentB_ilut(k), weights%dat)
+                                       posSwitches(k), currentB_ilut(k), weights%dat)
 
                     select case (deltaB(k - 1) + current_stepvector(k))
 
@@ -5761,7 +5764,7 @@ contains
                                             zeroWeight, plusWeight, currentB_ilut(k))
                         else
                             branch_weight = branch_weight * (1.0_dp - calcStayingProb( &
-                                                             zeroWeight, plusWeight, currentB_ilut(k)))
+                                             zeroWeight, plusWeight, currentB_ilut(k)))
                         end if
 
                     case (2)
@@ -5774,36 +5777,36 @@ contains
                                             zeroWeight, minusWeight, currentB_ilut(k))
                         else
                             branch_weight = branch_weight * (1.0_dp - calcStayingProb( &
-                                                             zeroWeight, minusWeight, currentB_ilut(k)))
+                                                 zeroWeight, minusWeight, currentB_ilut(k)))
                         end if
 
                     case (-1)
                         ! d=1 + b=-2 : -1
                         minusWeight = weights%proc%minus(negSwitches(k), &
-                                                         currentB_ilut(k), weights%dat)
+                                                 currentB_ilut(k), weights%dat)
 
                         if (isOne(t, k)) then
                             branch_weight = branch_weight * calcStayingProb(minusWeight, &
-                                                                            zeroWeight, currentB_ilut(k))
+                                                            zeroWeight, currentB_ilut(k))
                         else
                             branch_weight = branch_weight * (1.0_dp - calcStayingProb( &
-                                                             minusWeight, zeroWeight, currentB_ilut(k)))
+                                             minusWeight, zeroWeight, currentB_ilut(k)))
                         end if
 
                     case (4)
                         ! d=2 + b=2 : 4
                         zeroWeight = weights%proc%zero(negSwitches(k), &
-                                                       posSwitches(k), currentB_ilut(k), weights%dat)
+                                           posSwitches(k), currentB_ilut(k), weights%dat)
 
                         plusWeight = weights%proc%plus(posSwitches(k), &
-                                                       currentB_ilut(k), weights%dat)
+                                                   currentB_ilut(k), weights%dat)
 
                         if (isTwo(t, k)) then
                             branch_weight = branch_weight * calcStayingProb(plusWeight, &
-                                                                            zeroWeight, currentB_ilut(k))
+                                                            zeroWeight, currentB_ilut(k))
                         else
                             branch_weight = branch_weight * (1.0_dp - calcStayingProb( &
-                                                             plusWeight, zeroWeight, currentB_ilut(k)))
+                                                 plusWeight, zeroWeight, currentB_ilut(k)))
                         end if
 
                     end select
@@ -5818,30 +5821,30 @@ contains
                     if (current_stepvector(last) == 1) then
                         ! then i know step2 = 2 & dB = -2!
                         call getDoubleMatrixElement(2, 1, -2, gen_type%L, gen_type%R, &
-                                                    currentB_ilut(last), 1.0_dp, x1_element=tempWeight_1)
+                                    currentB_ilut(last), 1.0_dp, x1_element=tempWeight_1)
 
                         zeroWeight = weights%proc%zero(negSwitches(last), &
-                                                       posSwitches(last), currentB_ilut(last), weights%dat)
+                                       posSwitches(last), currentB_ilut(last), weights%dat)
 
                         minusWeight = weights%proc%minus(negSwitches(last), &
-                                                         currentB_ilut(last), weights%dat)
+                                             currentB_ilut(last), weights%dat)
 
                         branch_weight = branch_weight * (1.0_dp - calcStayingProb( &
-                                                         minusWeight, zeroWeight, currentB_ilut(last)))
+                                             minusWeight, zeroWeight, currentB_ilut(last)))
 
                     else
                         ! i know step2 == 1 and dB = +2
                         call getDoubleMatrixElement(1, 2, +2, gen_type%L, gen_type%R, &
-                                                    currentB_ilut(last), 1.0_dp, x1_element=tempWeight_1)
+                                        currentB_ilut(last), 1.0_dp, x1_element=tempWeight_1)
 
                         zeroWeight = weights%proc%zero(negSwitches(last), &
-                                                       posSwitches(last), currentB_ilut(last), weights%dat)
+                                           posSwitches(last), currentB_ilut(last), weights%dat)
 
                         plusWeight = weights%proc%plus(posSwitches(last), &
-                                                       currentB_ilut(last), weights%dat)
+                                                   currentB_ilut(last), weights%dat)
 
                         branch_weight = branch_weight * (1.0_dp - calcStayingProb( &
-                                                         plusWeight, zeroWeight, currentB_ilut(last)))
+                                             plusWeight, zeroWeight, currentB_ilut(last)))
 
                     end if
 
@@ -5856,17 +5859,17 @@ contains
                     step1 = current_stepvector(k)
                     ! only 0 branch here
                     call getDoubleMatrixElement(step1, step1, 0, gen_type%L, gen_type%R, &
-                                                currentB_ilut(k), 1.0_dp, x1_element=tempWeight_1)
+                                    currentB_ilut(k), 1.0_dp, x1_element=tempWeight_1)
 
                     tempWeight = tempWeight * tempWeight_1
 
                     zeroWeight = weights%proc%zero(negSwitches(k), &
-                                                   posSwitches(k), currentB_ilut(k), weights%dat)
+                               posSwitches(k), currentB_ilut(k), weights%dat)
 
                     if (step1 == 1) then
                         ! i know step2 = 1 als
                         plusWeight = weights%proc%plus(posSwitches(k), &
-                                                       currentB_ilut(k), weights%dat)
+                                               currentB_ilut(k), weights%dat)
 
                         branch_weight = branch_weight * calcStayingProb( &
                                         zeroWeight, plusWeight, currentB_ilut(k))
@@ -6167,7 +6170,8 @@ contains
 
                 temp_int = (get_umat_el(i, j, j, i) + get_umat_el(j, i, i, j)) / 2.0_dp
 
-                if (near_zero(temp_int)) cycle
+
+                if ((.not. rdm_flag) .and. near_zero(temp_int)) cycle
 
                 ! get the starting matrix element
                 step1 = current_stepvector(i)
@@ -6322,10 +6326,10 @@ contains
         ! if we do RDMs also store the x0 and x1 coupling coeffs
         if (tFillingStochRDMOnFly) then
             call encode_stochastic_rdm_info(GugaBits, t, rdm_ind= &
-                                            contract_2_rdm_ind(excitInfo%i, excitInfo%j, excitInfo%k, excitInfo%l, &
-                                                               excit_lvl=2, excit_typ=excitInfo%typ), &
-                                            x0=extract_matrix_element(t, 1), &
-                                            x1=extract_matrix_element(t, 2))
+                contract_2_rdm_ind(excitInfo%i, excitInfo%j, excitInfo%k, excitInfo%l, &
+                                   excit_lvl=2, excit_typ=excitInfo%typ), &
+                                    x0=extract_matrix_element(t, 1), &
+                                    x1=extract_matrix_element(t, 2))
         end if
 
         ! for the additional contributing integrals:
@@ -6488,8 +6492,8 @@ contains
         ! if we do RDMs also store the x0 and x1 coupling coeffs
         if (tFillingStochRDMOnFly) then
             call encode_stochastic_rdm_info(GugaBits, t, rdm_ind= &
-                                            contract_2_rdm_ind(excitInfo%i, excitInfo%j, excitInfo%k, excitInfo%l, &
-                                                               excit_lvl=2, excit_typ=excitInfo%typ), &
+                    contract_2_rdm_ind(excitInfo%i, excitInfo%j, excitInfo%k, excitInfo%l, &
+                                           excit_lvl=2, excit_typ=excitInfo%typ), &
                                             x0=extract_matrix_element(t, 1), &
                                             x1=extract_matrix_element(t, 2))
         end if
@@ -6630,8 +6634,8 @@ contains
         ! if we do RDMs also store the x0 and x1 coupling coeffs
         if (tFillingStochRDMOnFly) then
             call encode_stochastic_rdm_info(GugaBits, t, rdm_ind= &
-                                            contract_2_rdm_ind(excitInfo%i, excitInfo%j, excitInfo%k, excitInfo%l, &
-                                                               excit_lvl=2, excit_typ=excitInfo%typ), &
+                contract_2_rdm_ind(excitInfo%i, excitInfo%j, excitInfo%k, excitInfo%l, &
+                                           excit_lvl=2, excit_typ=excitInfo%typ), &
                                             x0=extract_matrix_element(t, 1), &
                                             x1=extract_matrix_element(t, 2))
         end if
@@ -6796,8 +6800,8 @@ contains
         ! if we do RDMs also store the x0 and x1 coupling coeffs
         if (tFillingStochRDMOnFly) then
             call encode_stochastic_rdm_info(GugaBits, t, rdm_ind= &
-                                            contract_2_rdm_ind(excitInfo%i, excitInfo%j, excitInfo%k, excitInfo%l, &
-                                                               excit_lvl=2, excit_typ=excitInfo%typ), &
+                contract_2_rdm_ind(excitInfo%i, excitInfo%j, excitInfo%k, excitInfo%l, &
+                                       excit_lvl=2, excit_typ=excitInfo%typ), &
                                             x0=extract_matrix_element(t, 1), &
                                             x1=extract_matrix_element(t, 2))
         end if
@@ -6925,7 +6929,7 @@ contains
             ! if we do RDMs also store the x0 and x1 coupling coeffs
             if (tFillingStochRDMOnFly) then
                 call encode_stochastic_rdm_info(GugaBits, t, rdm_ind= &
-                                                contract_2_rdm_ind(i, j, k, l, excit_lvl=2, excit_typ=typ), &
+                        contract_2_rdm_ind(i, j, k, l, excit_lvl=2, excit_typ=typ), &
                                                 x0=extract_matrix_element(t, 1), &
                                                 x1=extract_matrix_element(t, 2))
             end if
@@ -7073,8 +7077,8 @@ contains
         ! if we do RDMs also store the x0 and x1 coupling coeffs
         if (tFillingStochRDMOnFly) then
             call encode_stochastic_rdm_info(GugaBits, t, rdm_ind= &
-                                            contract_2_rdm_ind(excitInfo%i, excitInfo%j, excitInfo%k, excitInfo%l, &
-                                                               excit_lvl=2, excit_typ=excitInfo%typ), &
+                contract_2_rdm_ind(excitInfo%i, excitInfo%j, excitInfo%k, excitInfo%l, &
+                                       excit_lvl=2, excit_typ=excitInfo%typ), &
                                             x0=extract_matrix_element(t, 1), &
                                             x1=extract_matrix_element(t, 2))
         end if
@@ -7257,8 +7261,8 @@ contains
         if (tFillingStochRDMOnFly) then
             if (.not. near_zero(p_orig)) then
                 call encode_stochastic_rdm_info(GugaBits, t, rdm_ind= &
-                                                contract_2_rdm_ind(i, j, k, l, excit_lvl=2, &
-                                                                   excit_typ=excitInfo%typ), x0=0.0_dp, &
+                        contract_2_rdm_ind(i, j, k, l, excit_lvl=2, &
+                                       excit_typ=excitInfo%typ), x0=0.0_dp, &
                                                 x1=rdm_mat * pgen / p_orig)
             end if
         end if
@@ -7912,8 +7916,8 @@ contains
         if (tFillingStochRDMOnFly) then
             if (.not. near_zero(p_orig)) then
                 call encode_stochastic_rdm_info(GugaBits, t, rdm_ind= &
-                                                contract_2_rdm_ind(i, j, k, l, excit_lvl=2, &
-                                                                   excit_typ=excitInfo%typ), x0=0.0_dp, &
+                        contract_2_rdm_ind(i, j, k, l, excit_lvl=2, &
+                                           excit_typ=excitInfo%typ), x0=0.0_dp, &
                                                 x1=rdm_mat * pgen / p_orig)
             end if
         end if
@@ -10086,8 +10090,8 @@ contains
         if (tFillingStochRDMOnFly) then
             if (.not. near_zero(p_orig)) then
                 call encode_stochastic_rdm_info(GugaBits, t, rdm_ind= &
-                                                contract_2_rdm_ind(i, j, k, l, excit_lvl=2, &
-                                                                   excit_typ=excitInfo%typ), x0=0.0_dp, &
+                                    contract_2_rdm_ind(i, j, k, l, excit_lvl=2, &
+                                       excit_typ=excitInfo%typ), x0=0.0_dp, &
                                                 x1=rdm_mat * pgen / p_orig)
             end if
         end if
@@ -10773,8 +10777,8 @@ contains
         if (tFillingStochRDMOnFly) then
             if (.not. near_zero(p_orig)) then
                 call encode_stochastic_rdm_info(GugaBits, t, rdm_ind= &
-                                                contract_2_rdm_ind(i, j, k, l, excit_lvl=2, &
-                                                                   excit_typ=excitInfo%typ), x0=0.0_dp, &
+                            contract_2_rdm_ind(i, j, k, l, excit_lvl=2, &
+                                       excit_typ=excitInfo%typ), x0=0.0_dp, &
                                                 x1=rdm_mat * pgen / p_orig)
             end if
         end if

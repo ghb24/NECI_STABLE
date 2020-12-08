@@ -454,13 +454,18 @@ contains
 
         if (t_translation) then
 
-            allocate(hamil_2(size(hamil,1),size(hamil,2)), source = cmplx(hamil,0.0_dp,kind=dp))
+            allocate(hamil_2(size(hamil,1),size(hamil,2)), source = cmplx(0.0_dp,0.0_dp,kind=dp))
             allocate(hamil_3(size(hamil,1),size(hamil,2)), source = 0.0_dp)
             allocate(e_vecs_cmplx(size(hamil,1),size(hamil,2)), source = cmplx(0.0_dp,0.0_dp,kind=dp))
 
-            call print_matrix(real(hamil_2))
-            do i = 1, nSpatOrbs - 1
-                orbital_order = cshift(orbital_order, 1)
+            print *, "orig hamil:"
+            call print_matrix(hamil)
+            do i = 1, 2
+                if (i == 1) orbital_order = [1,3,2,5,4,6]
+                if (i == 2) orbital_order = [2,3,1,5,4,6]
+                if (i == 3) orbital_order = [4,5,2,3,1,6]
+                if (i == 4) orbital_order = [4,5,1,3,2,6]
+                ! orbital_order = cshift(orbital_order, 1)
 
                 print *, "orbital_order: ", orbital_order
                 lat => lattice(lattice_type, length_x, length_y, 1, &
@@ -476,22 +481,36 @@ contains
                     hamil = create_lattice_hamil_ilut(hilbert_space)
                 end if
 
-                ! call print_matrix(hamil)
+                print *, "intermediate:"
+                call print_matrix(hamil)
+                print *, "eigenvalues:"
+                e_values = 0.0_dp
+                e_vecs = 0.0_dp
+                call eig(hamil, e_values, e_vecs)
+                print *, e_values
+                print *, "eigenvectors:"
+                call print_matrix(e_vecs)
 
                 ! fac = exp(2 * pi * cmplx(0.0,1.0_dp) / nSpatOrbs * i)
 
                 fac = 1.0_dp
-                hamil_2 = hamil_2 + fac * hamil
+                hamil_3 = hamil_3 + fac * hamil
 
             end do
 
-            hamil_2 = hamil_2 / nSpatOrbs
-            call print_matrix(real(hamil_2))
+            print *, "translated hamil:"
+            hamil_3 = hamil_3 / 2.
+            call print_matrix(hamil_3)
 
-            call eig(hamil_2, e_values, e_vecs_cmplx)
+            e_values = 0.0_dp
+            e_vecs = 0.0_dp
+            ! call eig(hamil_2, e_values, e_vecs_cmplx)
+            call eig(hamil_3, e_values, e_vecs)
 
             print *, "tranlated e-values: "
             print *, e_values
+            print *, "tranlated e-vectors: "
+            call print_matrix(e_vecs)
 
         end if
 

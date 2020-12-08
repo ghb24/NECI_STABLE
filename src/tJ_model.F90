@@ -1079,8 +1079,8 @@ contains
         ende = max(id, tgt)
 
         excitInfo = assign_excitInfo_values_double(excit_type%fullstart_stop_mixed, &
-                                                   gen_type%L, gen_type%R, gen_type%R, gen_type%R, gen_type%R, &
-                                                   start, ende, ende, start, start, start, ende, ende, 0, 2, 1.0_dp, 1.0_dp)
+               gen_type%L, gen_type%R, gen_type%R, gen_type%R, gen_type%R, &
+               start, ende, ende, start, start, start, ende, ende, 0, 2, 1.0_dp, 1.0_dp)
 
         orb_pgen = p_elec * p_orb
 
@@ -1428,7 +1428,7 @@ contains
         ASSERT(in_lat%get_nsites() == nBasis / 2)
 
         iunit = get_free_unit()
-        open(iunit, file = 'spatial-exachange', status = 'replace')
+        open(iunit, file = 'spatial-exchange', status = 'replace')
 
         do i = 1, in_lat%get_nsites()
             ind = in_lat%get_site_index(i)

@@ -699,7 +699,6 @@ contains
                 else if (excitInfo%excitLvl == 2 .and. RDMExcitLevel /= 1) then
                     call extract_2_rdm_ind(rdm_ind(n), p, q, r, s)
                     full_sign = sign_i * sign_j * rdm_mat(n)
-
                     ! here in the 'exact' filling (coming from HF or
                     ! within the semistochastic space I think it makes
                     ! sense to fill symmetrically.. since here no
