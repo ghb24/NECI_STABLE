@@ -230,9 +230,6 @@ contains
         real(dp) :: r
         character(*), parameter :: this_routine = "functionA"
 
-        ASSERT(bValue + y > 0.0_dp)
-        ASSERT(bValue + x >= 0.0_dp)
-
         r = sqrt((bValue + x) / (bValue + y))
 
     end function functionA

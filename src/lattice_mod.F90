@@ -13,6 +13,7 @@ module lattice_mod
     use constants, only: dp, pi, EPS
     use SystemData, only: twisted_bc, nbasis, basisfn, t_trans_corr_2body, &
                           symmetry, brr, t_input_order, orbital_order
+    use matrix_util, only: print_matrix
 
     implicit none
     private
@@ -2147,8 +2148,12 @@ contains
                                  34, 16, 35, 17, 36, 18]
                     end if
                 else
-                    call stop_all(this_routine, &
-                        "bipartite order for square only implemented for 4x4! and 5x6 for now!")
+                    if (t_input_order) then
+                        order = orbital_order
+                    else
+                        call stop_all(this_routine, &
+                            "bipartite order for square only implemented for 4x4! and 6x6 for now!")
+                    end if
                 end if
             end if
         else
@@ -2157,10 +2162,26 @@ contains
 
         temp_array = reshape( order, this%length)
 
+        ! print *, "order:"
+        ! call print_matrix(temp_array)
+        !
+        ! print *, "up:"
         up = cshift(temp_array, -1, 1)
+        ! call print_matrix(up)
+        ! print *, "down:"
         down = cshift(temp_array, 1, 1)
+        ! call print_matrix(down)
+        ! print *, "right:"
         right = cshift(temp_array, 1, 2)
+        ! call print_matrix(right)
+        ! print *, "left:"
         left = cshift(temp_array, -1, 2)
+        ! call print_matrix(left)
+        !
+        ! print *, "neighbors(1,2), up, down, right, left:"
+        ! print *, up(1,2), down(1,2), right(1,2), left(1,2)
+
+        ! call stop_all("here","for now")
 
         if (this%is_periodic()) then
 

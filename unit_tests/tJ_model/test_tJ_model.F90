@@ -15,6 +15,9 @@ program test_tJ_model
     use guga_bitRepOps, only: write_guga_list, calcstepvector, calcB_vector_ilut
     use util_mod, only: near_zero
     use guga_matrixElements, only: calcDiagExchangeGUGA_nI
+    use bit_rep_data, only: GugaBits, IlutBits
+    use dsfmt_interface, only: dsfmt_init, genrand_real2_dSFMT
+
 
     implicit none
 
@@ -73,7 +76,8 @@ contains
 
         HElement_t(dp), allocatable :: hamil(:,:), bosonic_hamil(:,:), hamil_3(:,:)
         complex(dp), allocatable :: hamil_2(:,:), e_vecs_cmplx(:,:)
-        integer(n_int), allocatable :: hilbert_space(:,:)
+        integer(n_int), allocatable :: hilbert_space(:,:), ilutBipart(:), &
+                                 ilutZigZag(:), ilutVolcano(:)
         real(dp), allocatable :: hf_coeffs(:), off_diag_sum(:), abs_off_diag_sum(:), &
                                  n_diff_sign(:), sum_pos(:), sum_neg(:), &
                                  sum_3_cycle(:), sum_n_cycle(:), e_vecs(:,:), &
@@ -82,29 +86,35 @@ contains
                                  bosonic_diff(:), bosonic_energy(:), bos_e_vecs(:,:), &
                                  localisation(:), ref_energies(:), all_weights(:,:), &
                                  all_ref_e(:,:), bandwith(:), gap(:), exchange(:), &
-                                 translation_matrix(:,:)
+                                 translation_matrix(:,:), single_csf_error(:), &
+                                 single_csf_spin_corr(:,:), exact_spin_corr(:), &
+                                 bipart_spin_corr(:), orig_spin_corr(:), &
+                                 final_energy(:), opt_energy(:), opt_spin_corr(:)
         logical :: t_input_perm, t_periodic, t_input_lattice, t_input_bc, t_input_spin
-        logical :: t_input_state, t_input_j, t_translation
+        logical :: t_input_state, t_input_j, t_translation, t_single_csf_rdm
+        logical :: t_annealing
         real(dp) :: hf_coeff, gs_orig, hf_orig, hf_bipart, gs_bipart, bos_diff
         integer :: n_beta, n_alpha, n_perms, hf_ind, i, iunit_write, tot_spin
         integer :: gs_ind, n_periodic, iunit_read, j, target_state, most_important_ind
         integer :: bosonic_error_ind
         real(dp) :: high_ref
         integer, allocatable :: nI(:), ref(:), ref_bipart(:), step(:), most_important_order(:)
-        integer, allocatable :: bos_err_order(:)
+        integer, allocatable :: bos_err_order(:), opt_order(:)
         integer(n_int), allocatable :: refs(:,:)
         character(2) :: num
         complex(dp) :: fac
 
         t_input_perm = .true.
         t_input_order = .true.
-        t_input_bc = .true.
+        t_input_bc = .false.
         t_input_spin = .false.
         t_input_j = .false.
 
         t_input_lattice = .true.
         t_input_state = .false.
         t_translation = .false.
+        t_single_csf_rdm = .true.
+        t_annealing = .true.
 
         if (t_input_lattice) then
             print *, "input lattice type: (chain,square,rectangle,tilted)"
@@ -161,6 +171,11 @@ contains
             end if
         end if
 
+        if (t_single_csf_rdm) then
+            t_bipartite_order = .false.
+            t_input_order = .false.
+        end if
+
         lat => lattice(lattice_type, length_x, length_y, 1, &
             t_periodic_x = .not. t_open_bc_x, t_periodic_y = .not. t_open_bc_y,&
             t_periodic_z = .true.)
@@ -201,9 +216,14 @@ contains
         allocate(nI(nel), source = [(2 * i - mod(i,2), i = 1, nel)])
         allocate(step(nSpatOrbs), source = 0)
         allocate(ref(nel), source = [(2 * i - mod(i,2), i = 1, nel)])
-        allocate(ref_bipart(nel), source = [(2 * i - mod(i,2), i = 1, nel)])
+        allocate(ref_bipart(nel), source = 0)
+        ref_bipart(1:ceiling(nSpatorbs/2.)) = [(2 * i - 1, i = 1, ceiling(nSpatorbs/2.))]
+        ref_bipart(ceiling(nSpatorbs/2.)+1:) = [(2 * i, i = ceiling(nSpatorbs/2.)+1,nSpatorbs)]
         print *, "nI: ", nI
+        print *, "ref-bipart:", ref_bipart
         allocate(ilutRef(0:0,1), source = 0_n_int)
+        allocate(ilutBipart(0:0), source = 0_n_int)
+        call EncodeBitDet(ref_bipart, ilutBipart)
 
         call EncodeBitDet(nI, ilutRef)
 
@@ -214,13 +234,18 @@ contains
         if (lattice_type == 'chain') then
             orbital_order(1:nSpatOrbs-1:2) = [(i, i = 1, nSpatOrbs/2)]
             orbital_order(2:nSpatOrbs:2) = [(i, i = nSpatOrbs/2 + 1, nSpatOrbs)]
-        else if (lattice_type == 'rect' .or. lattice_type == 'rectangle') then
+        else if (lattice_type == 'rect' .or. lattice_type == 'rectangle' .or. &
+            lattice_type == 'square') then
             if (length_x == 4) then
                 orbital_order = [1,5,2,6,7,3,8,4]
             else if (length_x == 5) then
                 orbital_order = [1,5,2,6,7,3,8,4,9,10]
             else if (length_x == 3) then
-                orbital_order = [1,5,2,6,3,4]
+                if (length_y == 3) then
+                    orbital_order = [1,6,2,8,3,7,4,9,5]
+                else
+                    orbital_order = [1,5,2,6,3,4]
+                end if
             end if
         else if (lattice_type == 'tilted') then
             orbital_order = [1,2,5,3,6,4,7,8]
@@ -257,7 +282,8 @@ contains
         end if
 
 
-        call write_guga_list(6, hilbert_space)
+        ! call write_guga_list(6, hilbert_space)
+
         iunit_write = get_free_unit()
         open(iunit_write, file = 'hilbert-space', status = 'replace', action = 'write')
         do i = 1, size(hilbert_space,2)
@@ -270,6 +296,94 @@ contains
         close(iunit_write)
 
         iunit_read = get_free_unit()
+
+
+        if (t_single_csf_rdm) then
+            nI = [1,3,6,7,10,11,14,15,18,19,22,23,26,27, 30, 32]
+            allocate(ilutZigZag(0:0), source = 0_n_int)
+            call EncodeBitDet(nI, ilutZigZag)
+
+            nI = [1,3,5,7,9,11,13,16,17, 20, 22, 24, 26, 28, 30, 32]
+            allocate(ilutVolcano(0:0), source = 0_n_int)
+            call EncodeBitDet(nI, ilutVolcano)
+            ! for every csf in the hilbert space I want to calculate the
+            ! spin-spin correlation function now.. (via the 2-rdm this
+            ! would be possible.. figure it out..
+            ! optimally i should do everything in here or?
+            ! and the exact spin-spin is given!
+            print *, "reading in 'exact-spin-corr'"
+            open(iunit_read, file = 'exact-spin-corr', status = 'old', action = 'read')
+            allocate(exact_spin_corr(nSpatOrbs), source = 0.0_dp)
+            allocate(bipart_spin_corr(nSpatorbs), source = 0.0_dp)
+            allocate(orig_spin_corr(nSpatorbs), source = 0.0_dp)
+
+            do i = 1, nSpatOrbs
+                read(iunit_read, *) exact_spin_corr(i)
+            end do
+            close(iunit_read)
+            print *, "done"
+
+            print *, "looping over all CSFs: ", size(hilbert_space,2)
+            print *, "to produce single CSF spin-correlation functions"
+            allocate(single_csf_spin_corr(size(hilbert_space,2), nSpatOrbs), source = 0.0_dp)
+            allocate(single_csf_error(size(hilbert_space,2)), source = 0.0_dp)
+            do i = 1, size(hilbert_space, 2)
+                single_csf_spin_corr(i,:) = &
+                    calc_single_csf_spin_corr(hilbert_space(:,i), start = 1)
+                single_csf_error(i) = &
+                    sqrt(sum((single_csf_spin_corr(i,:) - exact_spin_corr)**2))
+            end do
+
+            bipart_spin_corr = calc_single_csf_spin_corr(ilutBipart, start = 1)
+            orig_spin_corr = calc_single_csf_spin_corr(ilutRef(:,1), start = 1)
+            call print_vec(single_csf_error, 'single-csf-spin-corr-err')
+            call print_vec(bipart_spin_corr, 'bipart-spin-corr')
+            call print_vec(orig_spin_corr, 'orig_spin_corr')
+
+            i = minloc(single_csf_error,1)
+
+
+            print *, "csf with smallest spin-corr error:"
+            call write_det_guga(6, hilbert_space(:,i))
+            call print_vec(single_csf_spin_corr(i,:), 'single-csf-spin-corr')
+
+            ! print *, "20 'best' CSFs:"
+            ! do i = 2, 20
+            !     j = my_minloc(single_csf_error, i)
+            !     call write_det_guga(6, hilbert_space(:,j))
+            ! end do
+
+            print *, "exchange matrix corresponding to this CSF:"
+
+            iunit_write = get_free_unit()
+            open(iunit_write, file = 'exchange-matrix-opt', &
+                status = 'replace', action = 'write')
+            call print_matrix(guga_exchange_matrix(hilbert_space(:,i), nSpatOrbs), iunit_write)
+            close(iunit_write)
+
+            if (t_annealing) then
+                allocate(final_energy(size(hilbert_space,2)), source = 0.0_dp)
+                allocate(opt_energy(size(hilbert_space,2)), source = 0.0_dp)
+                allocate(opt_spin_corr(nSpatorbs), source = 0.0_dp)
+                ! do i = 1, size(hilbert_space,2)
+                    i = 1311
+                    print *, "i: ", i
+                    call write_det_guga(6, hilbert_space(:,1311))
+                    call simulated_annealing(guga_exchange_matrix(hilbert_space(:,i),&
+                        nSpatorbs), spin_free_exchange, opt_order, final_energy(i), &
+                        opt_energy(i))
+                ! end do
+                ! call print_vec(final_energy, "final-annealing-energies", t_index = .true.)
+                ! call print_vec(opt_energy, "optimal-annealing-energies", t_index = .true.)
+                nI = [1,14,2,5,10,7,8,3,9,13,6,11,16,12,15,5]
+                opt_spin_corr = calc_single_csf_spin_corr(hilbert_space(:,i), start = 1)
+                call print_vec(opt_spin_corr(nI), "opt-spin-corr")
+                print *, "spin-corr diff: ", sqrt(sum((exact_spin_corr - &
+                    opt_spin_corr(nI))**2))
+            end if
+
+            call stop_all("here", "for now")
+        end if
         open(iunit_read, file = 'permutations', status = 'old', action = 'read')
 
         n_perms = factorial(nSpatOrbs - 1)
@@ -765,6 +879,181 @@ contains
         call stop_all("here", "for now")
 
     end subroutine exact_study
+
+    subroutine simulated_annealing(cost_matrix, connect_matrix, order, final_energy, opt_energy)
+        real(dp), intent(in) :: cost_matrix(:,:), connect_matrix(:,:)
+        integer, intent(out), allocatable :: order(:)
+        real(dp), intent(out) :: final_energy, opt_energy
+
+        integer, allocatable :: old_order(:), new_order(:), all_orders(:,:)
+        integer :: i, n_dim, n_tot_cycle, n_update_temp, ind_i, ind_j, j, iunit
+        real(dp) :: old_energy, new_energy, diff_energy, temp, temp_change
+        real(dp) :: prob, r
+        real(dp), allocatable :: all_energies(:)
+        logical :: old_mask(size(connect_matrix,1), size(connect_matrix,2)), &
+                   new_mask(size(connect_matrix,1), size(connect_matrix,2))
+
+        ASSERT(size(cost_matrix,1) == size(cost_matrix,2))
+        ASSERT(size(connect_matrix,1) == size(connect_matrix,2))
+        ASSERT(size(cost_matrix,1) == size(connect_matrix,1))
+
+        call dsfmt_init(1)
+
+        n_dim = size(cost_matrix,1)
+        allocate(old_order(n_dim), source = [(i, i = 1, n_dim)])
+        allocate(new_order(n_dim), source = old_order)
+
+        old_mask = (.not.near_zero(connect_matrix))
+
+        ! print *, "original connectivity matrix:"
+        ! do i = 1, size(old_mask,1)
+        !     do j = 1, size(old_mask,2) - 1
+        !         write(6, '(l3)', advance = 'no') old_mask(i,j)
+        !     end do
+        !     write(6, '(l3)', advance = 'yes') old_mask(i,ubound(old_mask,2))
+        ! end do
+
+        old_energy = sum(cost_matrix, old_mask) / 4.0_dp
+
+        ! print *, "original energy: ", old_energy
+
+        temp = 10.0_dp
+        temp_change = 0.5
+        n_tot_cycle = 100000
+        n_update_temp = 10000
+        prob = 0.0_dp
+
+        allocate(all_energies(n_tot_cycle), source = 0.0_dp)
+        allocate(all_orders(n_tot_cycle, nSpatorbs), source = 0)
+
+        do i = 1, n_tot_cycle
+            ! lower the temperature
+            if (mod(i, n_update_temp) == 0) temp = temp * temp_change
+            ! if (mod(i, 100) == 0) print *, "i, energy, temp: ", &
+            !     i, old_energy, temp
+
+            old_energy = sum(cost_matrix, old_mask) / 4.0_dp
+            all_energies(i) = old_energy
+            all_orders(i,:) = old_order
+            ! draw two random numbers > 1 (i want to keep the order at 1 at the
+            ! beginning. this is fine, since this only excludes equivalent
+            ! cycles
+            call propose_swap(old_mask, old_order, new_mask, new_order)
+
+            new_energy = sum(cost_matrix, new_mask) / 4.0_dp
+
+
+            diff_energy = old_energy - new_energy
+            prob = min(1.0_dp, exp(diff_energy / temp))
+
+            if (genrand_real2_dSFMT() < prob) then
+                ! here we accept
+                old_mask = new_mask
+                old_order = new_order
+            end if
+        end do
+
+        call print_vec(all_energies, 'annealed-energies', t_index = .true.)
+        i = minloc(all_energies,1)
+
+        opt_energy = all_energies(i)
+        final_energy = old_energy
+        print *, "permutation with lowest energy:", all_orders(i,:)
+        call print_vec(all_orders(i,:), 'lowest-annealed-order')
+
+        print *, "final permutation:", all_orders(n_tot_cycle,:)
+        call print_vec(all_orders(n_tot_cycle,:), 'final-annealed-order')
+
+        iunit = get_free_unit()
+        open(iunit, file = 'final-connection-matrix', status = 'replace', action = 'write')
+        print *, "final connectivity matrix:"
+        do i = 1, size(old_mask,1)
+            write(iunit, '(i3)', advance = 'no') i
+            do j = 1, size(old_mask,2) - 1
+                write(6, '(l3)', advance = 'no') old_mask(i,j)
+                if (old_mask(i,j)) then
+                    write(iunit, '(i3)', advance = 'no') j
+                end if
+            end do
+            write(6, '(l3)', advance = 'yes') old_mask(i,ubound(old_mask,2))
+            if (old_mask(i,ubound(old_mask,2))) then
+                write(iunit, '(i3)', advance = 'yes') size(old_mask,2)
+            else
+                write(iunit,*)
+            end if
+        end do
+        close(iunit)
+        !
+
+
+    end subroutine simulated_annealing
+
+    subroutine propose_swap(old_mask, old_order, new_mask, new_order)
+        logical, intent(in) :: old_mask(:,:)
+        integer, intent(in) :: old_order(:)
+        logical, intent(out) :: new_mask(:,:)
+        integer, intent(out) :: new_order(:)
+
+        logical :: temp_mask(size(old_mask,1),size(old_mask,2))
+
+        integer :: ind_i, ind_j
+
+        ASSERT(size(old_mask,1) == size(old_mask,2))
+        ASSERT(size(new_mask,1) == size(new_mask,2))
+        ASSERT(size(old_mask,1) == size(new_mask,1))
+        ASSERT(size(old_order,1) == size(old_mask,1))
+        ASSERT(size(new_order,1) == size(old_mask,1))
+
+        new_order = old_order
+        temp_mask = old_mask
+
+        call draw_two_indices(size(old_mask,1), ind_i, ind_j)
+
+        temp_mask(:,ind_i) = old_mask(:,ind_j)
+        temp_mask(:,ind_j) = old_mask(:,ind_i)
+
+        new_mask = temp_mask
+
+        new_mask(ind_i,:) = temp_mask(ind_j,:)
+        new_mask(ind_j,:) = temp_mask(ind_i,:)
+
+        new_order(ind_i) = old_order(ind_j)
+        new_order(ind_j) = old_order(ind_i)
+
+    end subroutine propose_swap
+
+    subroutine draw_two_indices(n_dim, ind_i, ind_j)
+        integer, intent(in) :: n_dim
+        integer, intent(out) :: ind_i, ind_j
+
+        integer :: i
+
+        ASSERT(n_dim > 2)
+        ind_i = 2 + int(genrand_real2_dSFMT() * (n_dim - 1))
+
+        do while (i < 1000)
+            ind_j = 2 + int(genrand_real2_dSFMT() * (n_dim - 1))
+            if (ind_j /= ind_i) return
+        end do
+    end subroutine draw_two_indices
+
+    pure function calc_single_csf_spin_corr(ilut, start) result(vec)
+        integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
+        integer, intent(in) :: start
+        real(dp) :: vec(nSpatorbs)
+
+        integer :: nI(nel), j, start_, end_
+
+
+        call decode_bit_det(nI, ilut)
+
+        do j = 1, nSpatorbs
+            start_ = min(start, j)
+            end_ = max(start, j)
+            vec(j) = -0.5_dp - calcDiagExchangeGUGA_nI(start_, end_, nI) / 2.0_dp
+        end do
+
+    end function calc_single_csf_spin_corr
 
     pure function translation_matrix(n_orb) result(matrix)
         integer, intent(in) :: n_orb

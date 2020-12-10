@@ -680,7 +680,7 @@ contains
         ! the half-filled case is the most easy one.. should we treat it
         ! special? maybe..
 
-        ASSERT(n_first >= n_second)
+        ! ASSERT(n_first >= n_second)
 #ifdef DEBUG_
         ! be sure that the provided n_total fits with the n_doubles if
         ! provided

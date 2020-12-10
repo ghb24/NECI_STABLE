@@ -1470,6 +1470,7 @@ contains
         ASSERT(in_lat%get_nsites() == nbasis / 2)
         do i = 1, in_lat%get_nsites()
             ind = in_lat%get_site_index(i)
+            ! print *, "ind, next:", ind, in_lat%get_neighbors(ind)
             associate(next => in_lat%get_neighbors(ind))
                 exchange_matrix(2 * ind - 1, 2 * next) = exchange_j / 2.0_dp
                 exchange_matrix(2 * ind, 2 * next - 1) = exchange_j / 2.0_dp
