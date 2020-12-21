@@ -32,7 +32,7 @@ module guga_bitRepOps
     implicit none
 
     private
-    public :: isDouble, &
+    public :: isDouble, csf_purify, get_preceeding_opposites, &
             isProperCSF_nI, isProperCSF_ilut, getDeltaB, setDeltaB, &
             encode_matrix_element, update_matrix_element, &
             extract_matrix_element, write_det_guga, &
@@ -1936,40 +1936,88 @@ contains
     ! GUGA excitation integer lists, as i need an additional entry for the
     ! x1 matrix element
 
-    subroutine write_guga_list(nunit, ilut)
+    function csf_purify(sd_hilbert_space, total_spin, n_orbs, n_el) result(csfs)
+        ! function to filter out all spin-allowed states from a
+        ! SD Hilbert space
+        integer(n_int), intent(in) :: sd_hilbert_space(:,:)
+        integer, intent(in) :: total_spin, n_orbs, n_el
+
+        integer(n_int), allocatable :: csfs(:,:)
+        integer :: i, cnt
+        integer(n_int), allocatable :: temp_csfs(:,:)
+
+        ! we have definitely <= sds
+        allocate(temp_csfs(size(sd_hilbert_space,1),size(sd_hilbert_space,2)), &
+            source = 0_n_int)
+
+        cnt = 0
+
+        do i = 1, size(sd_hilbert_space,2)
+            if (isProperCSF_flexible(sd_hilbert_space(:,i), total_spin, n_el)) then
+                cnt = cnt + 1
+                temp_csfs(:,cnt) = sd_hilbert_space(:,i)
+            end if
+        end do
+
+        allocate(csfs(size(sd_hilbert_space,1), cnt), source = temp_csfs(:,1:cnt))
+
+    end function csf_purify
+
+    pure real(dp) function get_preceeding_opposites(nJ, orb)
+        integer, intent(in) :: nJ(nel), orb
+
+        integer :: i, tgt_spin
+
+        get_preceeding_opposites = 0.0_dp
+
+        tgt_spin = get_spin(nJ(orb))
+
+        do i = 1, orb - 1
+            if (get_spin(nJ(i)) /= tgt_spin) then
+                get_preceeding_opposites = get_preceeding_opposites + 1.0_dp
+            end if
+        end do
+
+    end function get_preceeding_opposites
+
+    subroutine write_guga_list(nunit, ilut, n_orbs)
         integer(n_int), intent(in) :: ilut(:, :)
         integer, intent(in) :: nunit
+        integer, intent(in), optional :: n_orbs
 
-        integer :: i
+        integer :: i, n_orbs_
+        def_default(n_orbs_, n_orbs, nSpatorbs)
 
         print *, " ilut list: "
         print *, " ==========="
         do i = 1, size(ilut, 2)
-            call write_det_guga(nunit, ilut(:, i))
+            call write_det_guga(nunit, ilut(:, i), n_orbs = n_orbs_)
         end do
         print *, " ==========="
 
     end subroutine write_guga_list
 
-    subroutine write_det_guga(nunit, ilut, flag)
+    subroutine write_det_guga(nunit, ilut, flag, n_orbs)
         ! subroutine which prints the stepvector representation of an ilut
         integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
         integer, intent(in) :: nunit
         logical, intent(in), optional :: flag
+        integer, intent(in), optional :: n_orbs
 
         integer :: step(nSpatOrbs), i
         logical :: flag_
         integer(int_rdm) :: rdm_ind
-
+        integer :: n_orbs_
+        def_default(n_orbs_, n_orbs, nSpatorbs)
         def_default(flag_, flag, .true.)
 
         step = calcStepvector(ilut(0:GugaBits%len_orb))
 
         write(nunit, '("(")', advance='no')
 
-        do i = 1, nSpatOrbs
+        do i = 1, n_orbs_
             write(nunit, '(i3)', advance='no') step(i)
-            if (i /= nSpatOrbs) write(nunit, '(",")', advance='no')
+            if (i /= n_orbs_) write(nunit, '(",")', advance='no')
         end do
         write(nunit, '(")")', advance='no')
 
@@ -2402,7 +2450,7 @@ contains
 
         flag = .true.
         if (any(calcB_vector_int(ilut(0:GugaBits%len_orb)) < 0)) flag = .false.
-        if (abs(return_ms(ilut)) /= spin) flag = .false.
+        if (abs(return_ms(ilut, num_el)) /= spin) flag = .false.
         if (int(sum(calcOcc_vector_ilut(ilut(0:GugaBits%len_orb)))) /= num_el) flag = .false.
 
     end function isProperCSF_flexible

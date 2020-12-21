@@ -863,7 +863,7 @@ contains
 
     end subroutine FindExcitBitDet
 
-    pure function return_ms(ilut) result(ms_local)
+    pure function return_ms(ilut, n_el) result(ms_local)
 
         ! Return the Ms value for the input ilut.
 
@@ -871,14 +871,18 @@ contains
         ! determinant (the number of set bits in ilut) is equal to nel.
 
         integer(n_int), intent(in) :: ilut(0:NIfTot)
+        integer, intent(in), optional :: n_el
+
         integer(n_int) :: ilut_alpha(0:NIfD)
         integer :: nup
         integer :: ms_local
+        integer :: n_el_
+        def_default(n_el_, n_el, nel)
 
         ilut_alpha = iand(ilut(0:NIfD), MaskAlpha)
         nup = sum(count_set_bits(ilut_alpha))
         ! *Assuming ndown = nel - nup*
-        ms_local = 2 * nup - nel
+        ms_local = 2 * nup - n_el_
 
     end function return_ms
 

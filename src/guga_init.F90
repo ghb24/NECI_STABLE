@@ -139,9 +139,6 @@ contains
             calc_mixed_end_r2l_contr => calc_mixed_end_contr_sym
             calc_mixed_contr => calc_mixed_contr_sym
 
-
-
-
         else if (tGen_nosym_guga) then
             pickOrbitals_single => pickOrbitals_nosym_single
             pickOrbitals_double => pickOrbitals_nosym_double

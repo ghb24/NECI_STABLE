@@ -944,7 +944,7 @@ contains
 
         id = gtID(nI(elec))
 
-        neighbors = lat%get_neighbors(id)
+        neighbors = lat%get_neighbors(lat%get_site_index(id))
 
         call gen_guga_tJ_cum_list(id, cum_arr)
 
@@ -1048,7 +1048,7 @@ contains
         ! spatial orbital:
         id = gtID(src)
 
-        neighbors = lat%get_neighbors(id)
+        neighbors = lat%get_neighbors(lat%get_site_index(id))
 
         call gen_guga_heisenberg_cum_list(ilut, id, cum_arr)
 
@@ -1099,10 +1099,10 @@ contains
         integer, allocatable :: neighbors(:)
         real(dp) :: cum_sum, tmp
 
-        neighbors = lat%get_neighbors(id)
+        neighbors = lat%get_neighbors(lat%get_site_index(id))
 
         ! then check if the neighbors are available for exchange
-        allocate(cum_arr(size(neighbors)), source=0.0_dp)
+        allocate(cum_arr(size(neighbors)), source = 0.0_dp)
 
         cum_sum = 0.0_dp
         tmp = 0.0_dp

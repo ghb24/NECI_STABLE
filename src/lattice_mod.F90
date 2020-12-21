@@ -1655,7 +1655,6 @@ contains
         ! explicit here ..
 
         if (this%t_bipartite_order) then
-
             if (t_input_order) then
                 n = this%get_nsites()
                 if (this%is_periodic()) then
@@ -1674,8 +1673,8 @@ contains
                         [orbital_order(2)], vec, vec)
 
                     vec = [this%length / 2, 0, 0]
-                    this%sites(orbital_order(n)) = site(orbital_order(this%get_nsites()), 1, &
-                        [orbital_order(this%get_nsites()-1)], vec, vec)
+                    this%sites(orbital_order(n)) = site(orbital_order(n), 1, &
+                        [orbital_order(n-1)], vec, vec)
 
                 end if
 
@@ -1702,7 +1701,7 @@ contains
 
                     vec = [this%length / 2, 0, 0]
                     this%sites(this%get_nsites()) = site(this%get_nsites(), 2, &
-                                                         [this%get_nsites()/2, 1], vec, vec)
+                                             [this%get_nsites()/2, 1], vec, vec)
 
                 else
                     ! open boundary conditions:
@@ -1712,7 +1711,7 @@ contains
 
                     ! last site:
                     this%sites(this%get_nsites()) = site(this%get_nsites(), 1, &
-                                                         [this%get_nsites()/2], [this%length / 2, 0, 0])
+                                         [this%get_nsites()/2], [this%length / 2, 0, 0])
 
                 end if
 
@@ -1752,7 +1751,7 @@ contains
 
                 vec = [this%length / 2, 0, 0]
                 this%sites(this%get_nsites()) = site(this%get_nsites(), 2, &
-                                                     [this%get_nsites() - 1, 1], vec, vec)
+                                         [this%get_nsites() - 1, 1], vec, vec)
 
             else
                 ! open boundary conditions:
@@ -1762,7 +1761,7 @@ contains
 
                 ! last site:
                 this%sites(this%get_nsites()) = site(this%get_nsites(), 1, &
-                                                     [this%get_nsites() - 1], [this%length / 2, 0, 0])
+                             [this%get_nsites() - 1], [this%length / 2, 0, 0])
 
             end if
 

@@ -21,7 +21,7 @@ module lattice_models_utils
 
     use symdata, only: symtable, SymConjTab
 
-    use bit_rep_data, only: niftot, nifd
+    use bit_rep_data, only: niftot, nifd, GugaBits
 
     use DetBitOps, only: ilut_lt, ilut_gt, EncodeBitDet, return_hphf_sym_det
 
@@ -36,6 +36,8 @@ module lattice_models_utils
     use Parallel_neci, only: iProcIndex, root
 
     use get_excit, only: make_double, make_single
+
+    use guga_bitRepOps, only: csf_purify
 
     implicit none
 
@@ -588,33 +590,58 @@ contains
 
     end subroutine create_hilbert_space_realspace
 
-    function csf_purify(sd_hilbert_space, total_spin, n_orbs, n_el) result(csfs)
-        ! function to filter out all spin-allowed states from a
-        ! SD Hilbert space
-        use guga_bitRepOps, only: isProperCSF_flexible
-        integer(n_int), intent(in) :: sd_hilbert_space(:,:)
-        integer, intent(in) :: total_spin, n_orbs, n_el
+    function create_heisenberg_fock_space_guga(n_orbs) result(heisenberg_fock)
+        integer, intent(in) :: n_orbs
+        integer(n_int), allocatable :: heisenberg_fock(:,:)
 
-        integer(n_int), allocatable :: csfs(:,:)
-        integer :: i, cnt
-        integer(n_int), allocatable :: temp_csfs(:,:)
+        integer :: i, n_up, n_down, j, s_tot
+        integer(n_int), allocatable :: hilbert_space(:,:), temp_fock(:,:)
 
-        ! we have definitely <= sds
-        allocate(temp_csfs(size(sd_hilbert_space,1),size(sd_hilbert_space,2)), &
-            source = 0_n_int)
+        allocate(temp_fock(0:0, 2**n_orbs), source = 0_n_int)
 
-        cnt = 0
+        j = 1
+        do i = 0, n_orbs / 2
 
-        do i = 1, size(sd_hilbert_space,2)
-            if (isProperCSF_flexible(sd_hilbert_space(:,i), total_spin, n_el)) then
-                cnt = cnt + 1
-                temp_csfs(:,cnt) = sd_hilbert_space(:,i)
-            end if
+            n_up = n_orbs - i
+            n_down = i
+
+            s_tot = n_up - n_down
+
+            hilbert_space = create_all_open_shell_dets(n_orbs, n_down, n_up)
+            hilbert_space = csf_purify(hilbert_space, s_tot, n_orbs, n_orbs)
+
+            temp_fock(:,j:j+size(hilbert_space,2)-1) = hilbert_space
+            j = j + size(hilbert_space, 2)
         end do
 
-        allocate(csfs(size(sd_hilbert_space,1), cnt), source = temp_csfs(:,1:cnt))
+        allocate(heisenberg_fock(0:0,j-1), source = temp_fock(:,1:j-1))
 
-    end function csf_purify
+    end function create_heisenberg_fock_space_guga
+
+    function create_heisenberg_fock_space(n_orbs) result(heisenberg_fock)
+        ! this routine creates the full heisenberg Fock space for a
+        ! given number of orbitals. this can be used in the
+        ! calculation of orbital reduced density matrices
+        integer, intent(in) :: n_orbs
+        integer(n_int), allocatable :: heisenberg_fock(:,:)
+
+        integer :: i, n_beta, n_alpha, j
+        integer(n_int), allocatable :: hilbert_space(:,:)
+
+        allocate(heisenberg_fock(0:0, 2**n_orbs), source = 0_n_int)
+
+        j = 1
+        do i = 0, n_orbs
+            n_beta = n_orbs - i
+            n_alpha = i
+
+            hilbert_space = create_all_open_shell_dets(n_orbs, n_beta, n_alpha)
+            heisenberg_fock(:,j:j+size(hilbert_space,2)-1) = hilbert_space
+
+            j = j + size(hilbert_space,2)
+        end do
+
+    end function create_heisenberg_fock_space
 
     function create_all_open_shell_dets(n_orbs, n_alpha, n_beta) result(open_shells)
         integer, intent(in) :: n_orbs, n_alpha, n_beta
@@ -627,6 +654,7 @@ contains
         integer, allocatable :: n_dets(:)
         integer(n_int), allocatable :: open_shells(:,:), max_basis(:)
         integer :: n_max, n_min
+        integer :: nI(nel)
 
         n_dets = calc_n_double(n_orbs, n_alpha, n_beta)
 
@@ -646,7 +674,6 @@ contains
         ! n_max = max(n_alpha, n_beta)
         ! n_min = min(n_alpha, n_beta)
 
-        ! first create the spin-basis with more electrons:
         max_basis = create_one_spin_basis(n_orbs, n_alpha)
 
         open_shells = combine_spin_basis(n_orbs, n_alpha, n_beta, n_dets(1), max_basis, .true.)
@@ -669,7 +696,7 @@ contains
         integer(n_int), intent(in) :: first_basis(:)
         logical, intent(in) :: t_sort
         integer, intent(in), optional :: n_doubles
-        integer(n_int) :: spin_basis(0:0,n_total)
+        integer(n_int) :: spin_basis(0:0, n_total)
         character(*), parameter :: this_routine = "combine_spin_basis"
 #ifdef DEBUG_
         integer, allocatable :: n_dets(:)
@@ -706,16 +733,20 @@ contains
         case (0)
 
             if (n_first + n_second == n_orbs) then
-                ! half-filled case: easiest
-                ! since ms is not important, just convert the already
-                ! calculated spin-basis to a spin-orbital basis:
-                ! 0011 -> 00 00 01 01 eg.
-                do i = 1, n_total
-                    ! do have it ordered -> first set the beta spins on the left
-                    spin_basis(:,i) = set_alpha_beta_spins(first_basis(i), n_orbs, .false.)
-                    ! and combine it with the alpha spins..
-                    spin_basis(:,i) = ieor(spin_basis(:,i), set_alpha_beta_spins(not(first_basis(i)), n_orbs, .true.))
-                end do
+                ! if (n_first == n_orbs) then
+                !
+                ! else
+                    ! half-filled case: easiest
+                    ! since ms is not important, just convert the already
+                    ! calculated spin-basis to a spin-orbital basis:
+                    ! 0011 -> 00 00 01 01 eg.
+                    do i = 1, n_total
+                        ! do have it ordered -> first set the beta spins on the left
+                        spin_basis(:,i) = set_alpha_beta_spins(first_basis(i), n_orbs, .false.)
+                        ! and combine it with the alpha spins..
+                        spin_basis(:,i) = ieor(spin_basis(:,i), set_alpha_beta_spins(not(first_basis(i)), n_orbs, .true.))
+                    end do
+                ! end if
             else
                 ! we have to distribute the n_second remaining spins
                 ! across the n_orbs - n_first orbitals, so there are:
@@ -826,20 +857,24 @@ contains
 
         allocate(nOnes(popcnt(iand(beta_mask, int(maskr(n_orbs), n_int)))))
 
-        call decode_bit_det(nOnes, [beta_mask])
-
-        if (t_beta) then
-            ! then we want to set beta spins:
-            nOnes = 2 * nOnes - 1
-        else
-            ! otherwise we want to set alpha spins
-            nOnes = 2 * nOnes
-        end if
-
         beta_spins = 0_n_int
-        do i = 1, size(nOnes)
-            beta_spins = ibset(beta_spins, nOnes(i) - 1)
-        end do
+        if (size(nOnes) == 0) then
+            return
+        else
+            call decode_bit_det(nOnes, [beta_mask])
+
+            if (t_beta) then
+                ! then we want to set beta spins:
+                nOnes = 2 * nOnes - 1
+            else
+                ! otherwise we want to set alpha spins
+                nOnes = 2 * nOnes
+            end if
+
+            do i = 1, size(nOnes)
+                beta_spins = ibset(beta_spins, nOnes(i) - 1)
+            end do
+        end if
 
     end function set_alpha_beta_spins
 

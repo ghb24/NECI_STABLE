@@ -29,7 +29,8 @@ module guga_excitations
 
     use bit_rep_data, only: GugaBits, niftot, nifguga, nifd
 
-    use DetBitOps, only: EncodeBitDet, count_open_orbs, ilut_lt, ilut_gt, DetBitEQ
+    use DetBitOps, only: EncodeBitDet, count_open_orbs, ilut_lt, ilut_gt, DetBitEQ, &
+                         return_ms
 
     use guga_data, only: ExcitationInformation_t, getSingleMatrixElement, &
                          getDoubleMatrixElement, getMixedFullStop, &
@@ -48,7 +49,8 @@ module guga_excitations
                               calcStepvector, find_switches, convert_ilut_toNECI, &
                               calcB_vector_int, calcOcc_vector_int, EncodeBitDet_guga, &
                               identify_excitation, init_csf_information, calc_csf_info, &
-                              extract_h_element, encode_stochastic_rdm_info
+                              extract_h_element, encode_stochastic_rdm_info, &
+                              get_preceeding_opposites
 
     use guga_matrixElements, only: calcDiagMatEleGUGA_ilut, calcDiagMatEleGuga_nI, &
                                    calc_off_diag_guga_ref_list
@@ -102,6 +104,8 @@ module guga_excitations
                           check_electron_location_spatial, check_orbital_location_spatial
 
     use guga_bitRepOps, only: contract_1_rdm_ind, contract_2_rdm_ind
+
+    use lattice_models_utils, only: create_all_open_shell_dets
 
     ! variables
     implicit none
@@ -159,7 +163,8 @@ module guga_excitations
               pick_elec_pair_uniform_guga, get_guga_integral_contrib, &
               calc_pgen_mol_guga_single, get_excit_level_from_excitInfo, &
               get_guga_integral_contrib_spat, calc_orbital_pgen_contrib_start_def, &
-              calc_orbital_pgen_contrib_end_def, create_hamiltonian_guga
+              calc_orbital_pgen_contrib_end_def, create_hamiltonian_guga, &
+              csf_to_sds_ilut, csf_vector_to_sds
 
     ! use a "global" bVector variable here so that a b vector only has to be
     ! initialized once, for a given CSF when calculating all or only one
@@ -223,6 +228,130 @@ module guga_excitations
     real(dp), allocatable, save :: temp_occ_i(:), temp_b_real_i(:)
 
 contains
+
+    subroutine csf_vector_to_sds(csfs, csf_coeffs, sds, sd_coeffs, ms)
+        integer(n_int), intent(in) :: csfs(:,:)
+        real(dp), intent(in) :: csf_coeffs(:)
+        integer, intent(in), optional :: ms
+        integer(n_int), intent(out), allocatable :: sds(:,:)
+        real(dp), intent(out), allocatable :: sd_coeffs(:)
+        character(*), parameter :: this_routine = "csf_vector_to_sds"
+
+        integer :: ms_, n_sds, spin, n_tot, i
+        integer(n_int), allocatable :: temp_all(:,:), temp_sds(:,:)
+        real(dp), allocatable :: temp_coeffs(:)
+
+
+        spin = abs(return_ms(csfs(:,1)))
+        def_default(ms_, ms, spin)
+
+        n_sds = 2 ** nSpatorbs
+        allocate(temp_all(0:GugaBits%len_tot,n_sds), source = 0_n_int)
+
+        n_tot = 0
+
+        do i = 1, size(csfs,2)
+            call csf_to_sds_ilut(csfs(:,i), temp_sds, temp_coeffs, ms_, csf_coeffs(i))
+            call add_guga_lists(n_tot, size(temp_sds,2), temp_all, temp_sds)
+        end do
+
+        allocate(sds(0:GugaBits%len_tot, n_tot), source = temp_all(:,1:n_tot))
+        allocate(sd_coeffs(n_tot), source = 0.0_dp)
+
+        do i = 1, n_tot
+            sd_coeffs(i) = extract_matrix_element(sds(:,i), 1)
+        end do
+
+    end subroutine csf_vector_to_sds
+
+    subroutine csf_to_sds_ilut(csf, sds, weights, ms, coeff)
+        integer(n_int), intent(in) :: csf(0:GugaBits%len_tot)
+        integer, intent(in), optional :: ms
+        real(dp), intent(in), optional :: coeff
+        integer(n_int), intent(out), allocatable :: sds(:,:)
+        real(dp), intent(out), allocatable :: weights(:)
+        character(*), parameter :: this_routine = "csf_to_sds_ilut"
+
+        integer :: ms_, spin, n_alpha, n_beta, i, j, step(nSpatorbs), delta_k
+        integer :: nI(nel)
+        real(dp) :: bVec(nSpatorbs), aVec(nSpatorbs), lambda_k, x, coeff_
+        integer(n_int), allocatable :: all_sds(:,:)
+        real(dp), allocatable :: all_weights(:)
+
+        def_default(coeff_, coeff, 1.0_dp)
+
+        ! only works for heisenberg model for now..
+        if (any(calcOcc_vector_int(csf) /= 1)) then
+            call stop_all(this_routine, "only implemented for heisenberg for now")
+        end if
+        spin = abs(return_ms(csf))
+
+        def_default(ms_, ms, spin/2)
+
+        ! construct SDs by attaching (N/2 + ms) up spins and (N/2 - ms) down spins
+        n_alpha = nSpatorbs / 2 + ms_
+        n_beta = nSpatorbs / 2 - ms_
+
+        all_sds = create_all_open_shell_dets(nSpatorbs, n_beta, n_alpha)
+
+        allocate(all_weights(size(all_sds,2)), source = 0.0_dp)
+
+        step = calcStepvector(csf(0:GugaBits%len_orb))
+        bVec = calcB_vector_ilut(csf(0:GugaBits%len_orb))
+        aVec = ([(i, i = 1,nSpatorbs)] - bVec) / 2.0
+
+        do i = 1, size(all_sds,2)
+            x = 1.0_dp
+
+            call decode_bit_det(nI, all_sds(:,i))
+
+            do j = 1, nSpatorbs
+                if (.not. near_zero(x)) then
+                    delta_k = mod(get_spin(nI(j)),2)
+                    lambda_k = get_preceeding_opposites(nI, j)
+
+                    select case (step(j))
+
+                    case (1)
+                        x = x * sqrt((aVec(j) + bVec(j) - lambda_k)/bVec(j))
+
+                    case (2)
+                        x = x * (-1.0_dp)**(bVec(j)+delta_k) * &
+                            sqrt((lambda_k - aVec(j) + 1.0_dp)/(bVec(j)+2.0_dp))
+
+                    case (3)
+
+                        x = x * (-1.0_dp)**bVec(j)
+
+                    end select
+
+                end if
+            end do
+
+            all_weights(i) = coeff_ * x
+
+        end do
+
+
+        j = 1
+        do i = 1, size(all_sds,2)
+            if (.not. near_zero(all_weights(i))) then
+                all_sds(:,j) = all_sds(:,i)
+                all_weights(j) = all_weights(i)
+                j = j + 1
+            end if
+        end do
+
+        allocate(sds(0:GugaBits%len_tot, j - 1), source = 0_n_int)
+        allocate(weights(j-1), source = all_weights(1:j-1))
+
+        do i = 1, j - 1
+            sds(0:0, i) = all_sds(:, i)
+            call encode_matrix_element(sds(:,i), all_weights(i), 1)
+        end do
+
+    end subroutine csf_to_sds_ilut
+
 
     function calc_off_diag_guga_ref_direct(ilut, run, exlevel) result(hel)
         integer(n_int), intent(in) :: ilut(0:niftot)

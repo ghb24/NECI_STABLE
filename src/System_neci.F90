@@ -985,7 +985,6 @@ contains
                     t_open_bc_y = .true.
                 end if
 
-
             case ("BIPARTITE", "BIPARTITE-ORDER")
                 t_bipartite_order = .true.
 

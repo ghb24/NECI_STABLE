@@ -8,7 +8,8 @@ program test_tJ_model
     use fruit
     use lattice_mod, only: lat
     use constants, only: maxExcit, pi
-    use lattice_models_utils, only : csf_purify
+    use lattice_models_utils, only : csf_purify, create_heisenberg_fock_space, &
+                                     create_heisenberg_fock_space_guga
     use fcimcdata, only: ilutref
     use Detbitops, only: encodebitdet
     use matrix_util, only: eig, print_matrix
@@ -17,6 +18,7 @@ program test_tJ_model
     use guga_matrixElements, only: calcDiagExchangeGUGA_nI
     use bit_rep_data, only: GugaBits, IlutBits
     use dsfmt_interface, only: dsfmt_init, genrand_real2_dSFMT
+    use guga_excitations, only: csf_to_sds_ilut, csf_vector_to_sds
 
 
     implicit none
@@ -77,7 +79,8 @@ contains
         HElement_t(dp), allocatable :: hamil(:,:), bosonic_hamil(:,:), hamil_3(:,:)
         complex(dp), allocatable :: hamil_2(:,:), e_vecs_cmplx(:,:)
         integer(n_int), allocatable :: hilbert_space(:,:), ilutBipart(:), &
-                                 ilutZigZag(:), ilutVolcano(:)
+                                 ilutZigZag(:), ilutVolcano(:), fock_space(:,:), &
+                                 sds(:,:)
         real(dp), allocatable :: hf_coeffs(:), off_diag_sum(:), abs_off_diag_sum(:), &
                                  n_diff_sign(:), sum_pos(:), sum_neg(:), &
                                  sum_3_cycle(:), sum_n_cycle(:), e_vecs(:,:), &
@@ -89,10 +92,13 @@ contains
                                  translation_matrix(:,:), single_csf_error(:), &
                                  single_csf_spin_corr(:,:), exact_spin_corr(:), &
                                  bipart_spin_corr(:), orig_spin_corr(:), &
-                                 final_energy(:), opt_energy(:), opt_spin_corr(:)
+                                 final_energy(:), opt_energy(:), opt_spin_corr(:), &
+                                 weights(:), one_orb_entanglement(:), &
+                                 two_orb_entanglement(:,:), mutual_entanglement(:,:), &
+                                 running_entanglement(:)
         logical :: t_input_perm, t_periodic, t_input_lattice, t_input_bc, t_input_spin
         logical :: t_input_state, t_input_j, t_translation, t_single_csf_rdm
-        logical :: t_annealing
+        logical :: t_annealing, t_entanglement
         real(dp) :: hf_coeff, gs_orig, hf_orig, hf_bipart, gs_bipart, bos_diff
         integer :: n_beta, n_alpha, n_perms, hf_ind, i, iunit_write, tot_spin
         integer :: gs_ind, n_periodic, iunit_read, j, target_state, most_important_ind
@@ -106,15 +112,16 @@ contains
 
         t_input_perm = .true.
         t_input_order = .true.
-        t_input_bc = .false.
+        t_input_bc = .true.
         t_input_spin = .false.
         t_input_j = .false.
 
         t_input_lattice = .true.
         t_input_state = .false.
         t_translation = .false.
-        t_single_csf_rdm = .true.
+        t_single_csf_rdm = .false.
         t_annealing = .true.
+        t_entanglement = .true.
 
         if (t_input_lattice) then
             print *, "input lattice type: (chain,square,rectangle,tilted)"
@@ -262,7 +269,6 @@ contains
             call init_get_helement_heisenberg()
         end if
 
-
         print *, "orbital order: ", orbital_order
         call print_vec(orbital_order, "bipartite-order")
 
@@ -281,9 +287,6 @@ contains
             hamil = create_lattice_hamil_ilut(hilbert_space)
         end if
 
-
-        ! call write_guga_list(6, hilbert_space)
-
         iunit_write = get_free_unit()
         open(iunit_write, file = 'hilbert-space', status = 'replace', action = 'write')
         do i = 1, size(hilbert_space,2)
@@ -296,7 +299,6 @@ contains
         close(iunit_write)
 
         iunit_read = get_free_unit()
-
 
         if (t_single_csf_rdm) then
             nI = [1,3,6,7,10,11,14,15,18,19,22,23,26,27, 30, 32]
@@ -435,6 +437,40 @@ contains
 
         gs_orig = e_values(gs_ind)
         gs_vec = e_vecs(:,gs_ind)
+
+        if (t_entanglement) then
+
+            ! fock_space = create_heisenberg_fock_space(nSpatorbs-1)
+            ! call write_guga_list(6, fock_space, nSpatorbs-1)
+            !
+            ! fock_space = create_heisenberg_fock_space_guga(nSpatorbs)
+            ! call write_guga_list(6, fock_space, nSpatorbs)
+
+            nI = [1,3,6,7,10,12]
+            call EncodeBitDet(nI, ilutBipart)
+            call write_det_guga(6, Ilutref(:,1), .true.)
+            call csf_to_sds_ilut(IlutBipart, sds, weights)
+            call write_guga_list(6, sds)
+
+            call csf_vector_to_sds(hilbert_space, gs_vec, sds, weights)
+
+            allocate(one_orb_entanglement(nSpatorbs), source = 0.0_dp)
+            allocate(two_orb_entanglement(nSpatorbs,nSpatorbs), source = 0.0_dp)
+            allocate(mutual_entanglement(nSpatorbs, nSpatorbs), source = 0.0_dp)
+            allocate(running_entanglement(nSpatorbs-1), source = 0.0_dp)
+
+            call get_entanglement_measures(hilbert_space, gs_vec, &
+                one_orb_entanglement, two_orb_entanglement, mutual_entanglement, &
+                running_entanglement)
+
+            print *, "one_orb_entanglement: ", one_orb_entanglement
+            print *, "two_orb_entanglement:"
+            call print_matrix(two_orb_entanglement)
+            print *, "mutual_entanglement: "
+            call print_matrix(mutual_entanglement)
+            print *, "running_entanglement: ", running_entanglement
+            call stop_all("for now", "here")
+        end if
 
         call print_vec(local_spin(hilbert_space, gs_vec), "loc-spin-gs-orig", &
             t_index = .true., t_zero = .true.)
@@ -880,6 +916,187 @@ contains
 
     end subroutine exact_study
 
+    subroutine get_entanglement_measures(hilbert_space, state_vec, &
+            one_orb_entanglement, two_orb_entanglement, mutual_entanglement, &
+            running_entanglement)
+        integer(n_int), intent(in) :: hilbert_space(:,:)
+        real(dp), intent(in) :: state_vec(:)
+        real(dp), intent(out) :: one_orb_entanglement(nSpatorbs), &
+                                 two_orb_entanglement(nSpatorbs, nSpatorbs), &
+                                 mutual_entanglement(nSpatorbs, nSpatorbs), &
+                                 running_entanglement(nSpatorbs-1)
+        integer :: i, j
+        integer, allocatable :: ind(:)
+        real(dp) :: test(nSpatorbs-1)
+
+
+        do i = 1, nSpatorbs
+            one_orb_entanglement(i) = get_orbital_entanglement(hilbert_space, &
+                state_vec, [i])
+        end do
+
+        do i = 1, nSpatorbs
+            do j = 1, nSpatorbs
+                two_orb_entanglement(i,j) = get_orbital_entanglement(hilbert_space, &
+                    state_vec, [i, j])
+            end do
+        end do
+
+        do i = 1, nSpatorbs
+            do j = 1, nSpatorbs
+                if (i /= j) then
+                    mutual_entanglement(i,j) = one_orb_entanglement(i) + &
+                        one_orb_entanglement(j) - two_orb_entanglement(i,j)
+                end if
+            end do
+        end do
+
+        do i = 1, nSpatorbs - 1
+            if (allocated(ind)) deallocate(ind)
+            allocate(ind(i), source = [(j, j = 1,i)])
+            print *, "ind: ", ind
+
+            running_entanglement(i) = get_orbital_entanglement(hilbert_space, &
+                state_vec, ind)
+        end do
+
+        do i = 1, nSpatorbs - 1
+            if (allocated(ind)) deallocate(ind)
+            allocate(ind(i), source = [(j, j = nSpatorbs - i + 1, nSpatorbs)])
+            print *, "ind: ", ind
+
+            test(i) = get_orbital_entanglement(hilbert_space, &
+                state_vec, ind)
+
+        end do
+
+        print *, "test: ", test
+
+    end subroutine get_entanglement_measures
+
+    real(dp) function get_orbital_entanglement(hilbert_space, state_vec, tgt_orbs)
+        integer(n_int), intent(in) :: hilbert_space(:,:)
+        real(dp), intent(in) :: state_vec(:)
+        integer, intent(in) :: tgt_orbs(:)
+        character(*), parameter :: this_routine = "get_orbital_entanglement"
+
+        real(dp), allocatable :: orbital_rdm(:,:), e_values(:), e_vecs(:,:)
+
+        get_orbital_entanglement = 0.0_dp
+
+        ! for now it only works in the Heisenberg case!
+        orbital_rdm = get_orbital_rdm(hilbert_space, state_vec, tgt_orbs)
+
+        ! need to diagonalize
+        allocate(e_values(size(orbital_rdm,2)), source = 0.0_dp)
+        allocate(e_vecs(size(orbital_rdm,1), size(orbital_rdm,2)), source = 0.0_dp)
+
+        call eig(orbital_rdm, e_values, e_vecs)
+
+        if (all(e_values > 0.0_dp)) then
+            get_orbital_entanglement = -sum(e_values*log(e_values))
+        end if
+
+        ! if (any(e_values > 1.0_dp)) then
+        !     print *, "e:values", e_values
+        !
+        ! end if
+        ! print *, "sum e-values: ", sum(e_values)
+
+        ! if (get_orbital_entanglement < 0.0_dp) then
+        !     print *, "rdm"
+        !     call print_matrix(orbital_rdm)
+        !     print *, "e-values: ", e_values
+        ! end if
+
+    end function get_orbital_entanglement
+
+    function get_orbital_rdm(hilbert_space, state_vec, tgt_orbs) &
+            result(orbital_rdm)
+        integer(n_int), intent(in) :: hilbert_space(:,:)
+        real(dp), intent(in) :: state_vec(:)
+        integer, intent(in) :: tgt_orbs(:)
+        real(dp), allocatable :: orbital_rdm(:,:)
+
+        integer(n_int), allocatable :: local_fock_space(:,:), &
+                                       bit_mask(:,:)
+        integer :: i, j
+
+        local_fock_space = create_heisenberg_fock_space(size(tgt_orbs))
+        bit_mask = create_fock_bit_masks(local_fock_space, tgt_orbs)
+
+        allocate(orbital_rdm(size(local_fock_space,2), size(local_fock_space,2)), &
+            source = 0.0_dp)
+
+        do i = 1, size(local_fock_space, 2)
+            do j = 1, size(local_fock_space, 2)
+                orbital_rdm(i,j) = get_orbital_rdm_entry(hilbert_space, &
+                    state_vec, bit_mask(:,i), bit_mask(:,j))
+            end do
+        end do
+
+    end function get_orbital_rdm
+
+    pure real(dp) function get_orbital_rdm_entry(hilbert_space, state_vec, &
+                                mask_i, mask_j)
+        integer(n_int), intent(in) :: hilbert_space(:,:), mask_i(:), mask_j(:)
+        real(dp), intent(in) :: state_vec(:)
+
+        integer :: i, j
+
+        get_orbital_rdm_entry = 0.0_dp
+
+        do i = 1, size(hilbert_space,2)
+            if (is_in(hilbert_space(1,i), mask_i(1))) then
+                do j = 1, size(hilbert_space, 2)
+                    if (is_in(hilbert_space(1,j), mask_j(1))) then
+                        if (is_complementary(hilbert_space(1,i), &
+                            hilbert_space(1,j), mask_i(1), mask_j(1))) then
+                            get_orbital_rdm_entry = &
+                                get_orbital_rdm_entry + state_vec(i) * state_vec(j)
+                        end if
+                    end if
+                end do
+            end if
+        end do
+
+    end function get_orbital_rdm_entry
+
+    pure logical function is_complementary(state_i, state_j, mask_i, mask_j)
+        integer(n_int), intent(in) :: state_i, state_j, mask_i, mask_j
+
+        is_complementary = .false.
+        if (ieor(state_i, mask_i) == ieor(state_j, mask_j)) is_complementary = .true.
+
+
+    end function is_complementary
+
+    pure logical function is_in(state, mask)
+        integer(n_int), intent(in) :: state, mask
+
+        is_in = .false.
+        if (popcnt(iand(state, mask)) == 1) is_in = .true.
+
+    end function is_in
+
+    pure function create_fock_bit_masks(fock_space, orbitals) result(bit_masks)
+        integer(n_int), intent(in) :: fock_space(:,:)
+        integer, intent(in) :: orbitals(:)
+        integer(n_int), allocatable :: bit_masks(:,:)
+
+        integer :: i, j, orb
+
+        allocate(bit_masks(0:0, size(fock_space,2)), source = 0_n_int)
+
+        do i = 1, size(fock_space,2)
+            do j = 1, size(orbitals)
+                orb = orbitals(j)
+                call mvbits(fock_space(:,i), 2 * (j - 1), 2, bit_masks(:,i), 2 * (orb - 1))
+            end do
+        end do
+
+    end function create_fock_bit_masks
+
     subroutine simulated_annealing(cost_matrix, connect_matrix, order, final_energy, opt_energy)
         real(dp), intent(in) :: cost_matrix(:,:), connect_matrix(:,:)
         integer, intent(out), allocatable :: order(:)
@@ -941,7 +1158,6 @@ contains
             call propose_swap(old_mask, old_order, new_mask, new_order)
 
             new_energy = sum(cost_matrix, new_mask) / 4.0_dp
-
 
             diff_energy = old_energy - new_energy
             prob = min(1.0_dp, exp(diff_energy / temp))
