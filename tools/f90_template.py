@@ -1,4 +1,4 @@
-#!/usr/bin/python -tt
+#!/usr/bin/python2 -tt
 """
 Produce a .f90 file from the given .F90.template file to simulate the
 effects of using templates/generic functions in a language such as c++
@@ -21,7 +21,7 @@ additional features.
 
 ************************
 
-The second section implements a module. Currently the script only supports 
+The second section implements a module. Currently the script only supports
 using one module. Any of the labels declared in the first section are
 available, and may be used as follows:
 
@@ -69,7 +69,7 @@ block around the configuration.
 
 Supermodule:
 Once multiple, subtly renamed, modules have been produced in the output file,
-they are then all included into an overall module, with the specified name, 
+they are then all included into an overall module, with the specified name,
 which can be used in the code.
 
 If there is anything to include in the module which does not need to be
