@@ -27,7 +27,7 @@ module FciMCParMod
                         DiagSft, tDynamicTrial, trialSpaceUpdateCycle, semistochStartIter, &
                         tSkipRef, tTrialShift, tSpinProject, t_activate_decay, &
                         t_direct_guga_ref, t_trunc_guga_pgen_noninits, &
-                        tLogAverageSpawns, tActivateLAS, &
+                        tLogAverageSpawns, tActivateLAS, eq_cyc, &
                         t_guga_back_spawn, tEN2Init, tEN2Rigorous, tDeathBeforeComms, &
                         tDetermProjApproxHamil, tCoreAdaptiveShift, &
                         tScaleBlooms, max_allowed_spawn
@@ -177,8 +177,7 @@ contains
         LOGICAL :: TIncrement, tWritePopsFound, tSingBiasChange, tPrintWarn
         REAL(dp) :: s_start, s_end, tstart(2), tend(2), totaltime
         real(dp) :: TotalTime8
-        INTEGER(int64) :: MaxWalkers, MinWalkers
-        real(dp) :: AllTotWalkers, MeanWalkers, Inpair(2), Outpair(2)
+        real(dp) :: Inpair(2), Outpair(2)
         integer, dimension(lenof_sign) :: tmp_sgn
         integer :: tmp_int(lenof_sign), i, istart, iRDMSamplingIter
         real(dp) :: grow_rate, EnergyDiff, Norm_2RDM
@@ -986,16 +985,43 @@ contains
         end if
 
         ! Print out some load balancing stats nicely to end.
-        CALL MPIReduce(TotWalkers, MPI_MAX, MaxWalkers)
-        CALL MPIReduce(TotWalkers, MPI_MIN, MinWalkers)
-        CALL MPIAllReduce(Real(TotWalkers, dp), MPI_SUM, AllTotWalkers)
+        ! n.B. TotWalkers is the number of determinants. (Horrible naming indeed).
+        !       TotParts is the number of walkers.
+        if (iProcIndex == Root) write(iout, *) ! linebreak
         if (iProcIndex == Root) then
-            MeanWalkers = AllTotWalkers / nNodes
             write(iout, '(/,1X,a55)') 'Load balancing information based on the last iteration:'
-            write(iout, '(1X,a35,1X,f18.10)') 'Mean number of determinants/process:', MeanWalkers
-            write(iout, '(1X,a34,1X,i18)') 'Min number of determinants/process:', MinWalkers
-            write(iout, '(1X,a34,1X,i18,/)') 'Max number of determinants/process:', MaxWalkers
         end if
+        if (iProcIndex == Root) write(iout, *) ! linebreak
+        block
+            INTEGER(int64) :: MaxWalkers, MinWalkers
+
+            CALL MPIReduce(TotWalkers, MPI_MAX, MaxWalkers)
+            CALL MPIReduce(TotWalkers, MPI_MIN, MinWalkers)
+            CALL MPIAllReduce(TotWalkers, MPI_SUM, AllTotWalkers)
+            if (iProcIndex == Root) then
+                write(iout, '(1X,a35,1X,f18.10)') 'Mean number of determinants/process:', &
+                        real(AllTotWalkers, dp) / real(nNodes, dp)
+                write(iout, '(1X,a34,1X,i18)') 'Min number of determinants/process:', MinWalkers
+                write(iout, '(1X,a34,1X,i18,/)') 'Max number of determinants/process:', MaxWalkers
+            end if
+        end block
+        if (iProcIndex == Root) write(iout, *) ! linebreak
+        block
+            real(dp) :: total_n_walkers, min_n_walkers, max_n_walkers
+
+            CALL MPIReduce(sum(abs(TotParts)), MPI_MAX, max_n_walkers)
+            CALL MPIReduce(sum(abs(TotParts)), MPI_MIN, min_n_walkers)
+            CALL MPIReduce(sum(abs(TotParts)), MPI_SUM, total_n_walkers)
+            if (iProcIndex == Root) then
+                write(iout, '(/,1X,a55)') 'Load balancing information based on the last iteration:'
+                write(iout, '(1X,a35,1X,f18.10)') 'Mean number of walkers/process:', &
+                        total_n_walkers / real(nNodes, dp)
+                write(iout, '(1X,a34,1X,f18.5)') 'Min number of walkers/process:', min_n_walkers
+                write(iout, '(1X,a34,1X,f18.5,/)') 'Max number of walkers/process:', max_n_walkers
+            end if
+        end block
+        if (iProcIndex == Root) write(iout, *) ! linebreak
+
 
         ! Automatic error analysis.
         call error_analysis(tSinglePartPhase(1), iBlockingIter(1), mean_ProjE_re, ProjE_Err_re, &
@@ -1198,19 +1224,19 @@ contains
         precond_fac = 1.0_dp
 
         IFDEBUGTHEN(FCIMCDebug, iout)
-        write(iout, "(A)") "Hash Table: "
-        write(iout, "(A)") "Position in hash table, Position in CurrentDets"
-        do j = 1, nWalkerHashes
-            TempNode => HashIndex(j)
-            if (TempNode%Ind /= 0) then
-                write(iout, '(i9)', advance='no') j
-                do while (associated(TempNode))
-                    write(iout, '(i9)', advance='no') TempNode%Ind
-                    TempNode => TempNode%Next
-                end do
-                write(iout, '()', advance='yes')
-            end if
-        end do
+            write(iout, "(A)") "Hash Table: "
+            write(iout, "(A)") "Position in hash table, Position in CurrentDets"
+            do j = 1, nWalkerHashes
+                TempNode => HashIndex(j)
+                if (TempNode%Ind /= 0) then
+                    write(iout, '(i9)', advance='no') j
+                    do while (associated(TempNode))
+                        write(iout, '(i9)', advance='no') TempNode%Ind
+                        TempNode => TempNode%Next
+                    end do
+                    write(iout, '()', advance='yes')
+                end if
+            end do
         ENDIFDEBUG
 
         IFDEBUG(FCIMCDebug, 3) write(iout, "(A,I12)") "Walker list length: ", TotWalkers
@@ -1227,7 +1253,7 @@ contains
                 ! the last RDMEnergyIter iterations.
                 tFill_RDM = .true.
                 IterLastRDMFill = RDMEnergyIter
-            else if (Iter == NMCyc) then
+            else if(Iter == NMCyc .or. Iter - maxval(VaryShiftIter) == eq_cyc) then
                 ! Last iteration, calculate the diagonal element for the iterations
                 ! since the last time they were included.
                 tFill_RDM = .true.
@@ -1527,7 +1553,7 @@ contains
                 is_init_guga = any_run_is_initiator(CurrentDets(:, j))
             end if
 
-            do part_type = 1, lenof_sign
+            loop_over_type : do part_type = 1, lenof_sign
 
                 run = part_type_to_run(part_type)
                 TempSpawnedPartsInd = 0
@@ -1558,7 +1584,7 @@ contains
                     end if
                 end if
                 call decide_num_to_spawn(SignCurr(part_type), AvMCExcitsLoc, WalkersToSpawn)
-                do p = 1, WalkersToSpawn
+                loop_over_particles : do p = 1, WalkersToSpawn
 
                     ! Zero the bit representation, to ensure no extraneous
                     ! data gets through.
@@ -1643,18 +1669,18 @@ contains
                     end if
 
                     IFDEBUG(FCIMCDebug, 3) then
-                    write(iout, '(a)', advance='no') 'SP: ['
-                    do y = 1, lenof_sign
-                        write(iout, '(f12.5)', advance='no') &
-                            child(y)
-                    end do
-                    write(iout, '("] ")', advance='no')
-                    call write_det(6, nJ, .true.)
-                    call neci_flush(iout)
+                        write(iout, '(a)', advance='no') 'SP: ['
+                        do y = 1, lenof_sign
+                            write(iout, '(f12.5)', advance='no') &
+                                child(y)
+                        end do
+                        write(iout, '("] ")', advance='no')
+                        call write_det(6, nJ, .true.)
+                        call neci_flush(iout)
                     end if
 
                     ! Children have been chosen to be spawned.
-                    if (.not. all(near_zero(child))) then
+                    is_child_created : if (.not. all(near_zero(child))) then
 
                         ! Encode child if not done already.
                         if (.not. tSemiStochastic) then
@@ -1694,11 +1720,11 @@ contains
                             exit
                         end if
 
-                    end if ! (child /= 0), Child created.
+                    end if is_child_created ! (child /= 0), Child created.
 
-                end do ! Cycling over mulitple particles on same determinant.
+                end do loop_over_particles ! Cycling over mulitple particles on same determinant.
 
-            end do   ! Cycling over 'type' of particle on a given determinant.
+            end do loop_over_type  ! Cycling over 'type' of particle on a given determinant.
 
             ! If we are performing a semi-stochastic simulation and this state
             ! is in the deterministic space, then the death step is performed
@@ -1711,168 +1737,169 @@ contains
                                   t_core_die_=.false.)
             end if
 
-            end do ! Loop over determinants.
+        end do ! Loop over determinants.
 
-            !loop timing for this iteration on this MPI rank
-            lt_arr(mod(Iter - 1, 100) + 1) = mpi_wtime() - lstart
+        !loop timing for this iteration on this MPI rank
+        lt_arr(mod(Iter - 1, 100) + 1) = mpi_wtime() - lstart
 
-            ! if any proc ran out of memory, terminate
-            call MPISumAll(err, allErr)
-            if (allErr /= 0) then
-                err = allErr
-                return
-            end if
+        ! if any proc ran out of memory, terminate
+        call MPISumAll(err, allErr)
+        if (allErr /= 0) then
+            err = allErr
+            return
+        end if
 
-            IFDEBUGTHEN(FCIMCDebug, 2)
-                write(iout, *) 'Finished loop over determinants'
-                write(iout, *) "Holes in list: ", iEndFreeSlot
-            ENDIFDEBUG
+        IFDEBUGTHEN(FCIMCDebug, 2)
+            write(iout, *) 'Finished loop over determinants'
+            write(iout, *) "Holes in list: ", iEndFreeSlot
+        ENDIFDEBUG
 
-            if (tSemiStochastic) then
-                ! For semi-stochastic calculations only: Gather together the parts
-                ! of the deterministic vector stored on each processor, and then
-                ! perform the multiplication of the exact projector on this vector.
-                if (tDeathBeforeComms) then
-                    call determ_projection()
-                else
-                    call determ_projection_no_death()
-                end if
-
-                if (tFillingStochRDMonFly) then
-                    ! For RDM calculations, add the current core amplitudes into the
-                    ! running average.
-                    call average_determ_vector()
-                    ! If this is an iteration where the RDM energy is printed then
-                    ! add the off-diagonal contributions from the core determinants
-                    ! (the diagonal contributions are done in the same place for
-                    ! all determinants, regardless of whether they are core or not,
-                    ! so are not added in here).
-                    if (tFill_RDM) then
-                        call fill_RDM_offdiag_deterministic(rdm_definitions, two_rdm_spawn, one_rdms)
-                        ! deterministic space is always only initiators, so it fully counts towards
-                        ! the initiator-only RDMs
-                        if (tInitsRDM) call fill_RDM_offdiag_deterministic(rdm_inits_defs, &
-                                                                           two_rdm_inits_spawn, inits_one_rdms)
-                    end if
-                end if
-            end if
-
-            ! With this algorithm, the determinants do not move, and therefore
-            ! TotWalkersNew is simply equal to TotWalkers
-            TotWalkersNew = int(TotWalkers, sizeof_int)
-
-            ! Update the statistics for the end of an iteration.
-            ! Why is this done here - before annihilation!
-            call end_iter_stats(TotWalkersNew)
-
-            ! Print bloom/memory warnings
-            call end_iteration_print_warn(totWalkersNew)
-            call halt_timer(walker_time)
-
-            ! For the direct annihilation algorithm. The newly spawned
-            ! walkers should be in a seperate array (SpawnedParts) and the other
-            ! list should be ordered.
-            call set_timer(annihil_time, 30)
-            !HolesInList is returned from direct annihilation with the number of unoccupied determinants in the list
-            !They have already been removed from the hash table though.
-
-            call communicate_and_merge_spawns(MaxIndex, iter_data, .false.)
-
-            if (tSimpleInit) then
-                call get_ests_from_spawns_simple(MaxIndex, proj_e_for_precond)
+        if (tSemiStochastic) then
+            ! For semi-stochastic calculations only: Gather together the parts
+            ! of the deterministic vector stored on each processor, and then
+            ! perform the multiplication of the exact projector on this vector.
+            if (tDeathBeforeComms) then
+                call determ_projection()
             else
-                call get_ests_from_spawns(MaxIndex, proj_e_for_precond)
-            end if
-
-            if (tSimpleInit) call rm_non_inits_from_spawnedparts(MaxIndex, iter_data)
-
-            ! If performing FCIQMC with preconditioning, then apply the
-            ! the preconditioner to the spawnings, and perform the death step.
-            if (tPreCond) then
-                call set_timer(rescale_time, 30)
-                call rescale_spawns(MaxIndex, proj_e_for_precond, iter_data)
-                call halt_timer(rescale_time)
-            end if
-
-            ! If we haven't performed the death step yet, then do it now.
-            if (.not. tDeathBeforeComms) then
-                call set_timer(death_time, 30)
-                call perform_death_all_walkers(iter_data)
-                call halt_timer(death_time)
-            end if
-
-            call DirectAnnihilation(TotWalkersNew, MaxIndex, iter_data, err)
-
-            ! if any proc ran out of memory, terminate
-            call MPISumAll(err, allErr)
-            if (allErr /= 0) then
-                err = allErr
-                return
-            end if
-            ! The growth in the size of the occupied part of CurrentDets
-            ! this is important for the purpose of prone_walkers
-            detGrowth = int(TotWalkersNew - TotWalkers)
-
-            ! This indicates the number of determinants in the list + the number
-            ! of holes that have been introduced due to annihilation.
-            TotWalkers = TotWalkersNew
-
-            ! if we still have plenty of empty slots in the list, deactivate the decay
-            if (t_activate_decay .and. TotWalkers < 0.95_dp * real(MaxWalkersPart, dp)) &
-                t_activate_decay = .false.
-
-            ! The superinitiators are now the same as they will be at the beginning of
-            ! the next cycle (this flag is reset if they change)
-            tReferenceChanged = .false.
-
-            CALL halt_timer(Annihil_Time)
-            IFDEBUG(FCIMCDebug, 2) write(iout, *) "Finished Annihilation step"
-
-            ! If we are orthogonalising the replica wavefunctions, to generate
-            ! excited states, then do that here.
-            if (tOrthogonaliseReplicas .and. iter > orthogonalise_iter) then
-                call orthogonalise_replicas(iter_data)
-            else if (tPrintReplicaOverlaps .and. inum_runs > 1) then
-                call calc_replica_overlaps()
+                call determ_projection_no_death()
             end if
 
             if (tFillingStochRDMonFly) then
-                ! if we use the initiator-only rdms as gamma_0, get them in their own entity
-                if (tInitsRDM) call fill_rdm_diag_wrapper(rdm_inits_defs, two_rdm_inits_spawn, &
-                                                          inits_one_rdms, CurrentDets, int(TotWalkers, sizeof_int), .false., .false.)
-                call fill_rdm_diag_wrapper(rdm_definitions, two_rdm_spawn, one_rdms, &
-                                           CurrentDets, int(TotWalkers, sizeof_int), .true., tApplyLC)
-            end if
-
-            if (tTrialWavefunction .and. tTrialShift) then
-                call fix_trial_overlap(iter_data)
-            end if
-            call update_iter_data(iter_data)
-
-            ! This routine will take the CurrentDets and search the array to find all single and double
-            ! connections - adding them into the RDM's.
-            ! This explicit way of doing this is very expensive, but o.k for very small systems.
-            if (tFillingExplicRDMonFly) then
-                if (tHistSpawn) THEN
-                    call Fill_Hist_ExplicitRDM_this_Iter()
-                else
-                    call Fill_ExplicitRDM_this_Iter(TotWalkers)
+                ! For RDM calculations, add the current core amplitudes into the
+                ! running average.
+                call average_determ_vector()
+                ! If this is an iteration where the RDM energy is printed then
+                ! add the off-diagonal contributions from the core determinants
+                ! (the diagonal contributions are done in the same place for
+                ! all determinants, regardless of whether they are core or not,
+                ! so are not added in here).
+                if (tFill_RDM) then
+                    call fill_RDM_offdiag_deterministic(rdm_definitions, two_rdm_spawn, one_rdms)
+                    ! deterministic space is always only initiators, so it fully counts towards
+                    ! the initiator-only RDMs
+                    if (tInitsRDM) call fill_RDM_offdiag_deterministic(rdm_inits_defs, &
+                                                                       two_rdm_inits_spawn, inits_one_rdms)
                 end if
             end if
+        end if
 
-            if (tFillingStochRDMonFly .or. tFillingExplicRDMonFly) then
-                ! Fill the receiving RDM list from the beginning.
-                two_rdm_recv%nelements = 0
-                call communicate_rdm_spawn_t(two_rdm_spawn, two_rdm_recv)
-                call add_rdm_1_to_rdm_2(two_rdm_recv, two_rdm_main)
-                two_rdm_recv%nelements = 0
-                if (tInitsRDM) then
-                    call communicate_rdm_spawn_t(two_rdm_inits_spawn, two_rdm_recv)
-                    call add_rdm_1_to_rdm_2(two_rdm_recv, two_rdm_inits)
-                end if
+        ! With this algorithm, the determinants do not move, and therefore
+        ! TotWalkersNew is simply equal to TotWalkers
+        TotWalkersNew = int(TotWalkers, sizeof_int)
+
+        ! Update the statistics for the end of an iteration.
+        ! Why is this done here - before annihilation!
+        call end_iter_stats(TotWalkersNew)
+
+        ! Print bloom/memory warnings
+        call end_iteration_print_warn(totWalkersNew)
+        call halt_timer(walker_time)
+
+        ! For the direct annihilation algorithm. The newly spawned
+        ! walkers should be in a seperate array (SpawnedParts) and the other
+        ! list should be ordered.
+        call set_timer(annihil_time, 30)
+        !HolesInList is returned from direct annihilation with the number of unoccupied determinants in the list
+        !They have already been removed from the hash table though.
+
+        call communicate_and_merge_spawns(MaxIndex, iter_data, .false.)
+
+        if (tSimpleInit) then
+            call get_ests_from_spawns_simple(MaxIndex, proj_e_for_precond)
+        else
+            call get_ests_from_spawns(MaxIndex, proj_e_for_precond)
+        end if
+
+        if (tSimpleInit) call rm_non_inits_from_spawnedparts(MaxIndex, iter_data)
+
+        ! If performing FCIQMC with preconditioning, then apply the
+        ! the preconditioner to the spawnings, and perform the death step.
+        if (tPreCond) then
+            call set_timer(rescale_time, 30)
+            call rescale_spawns(MaxIndex, proj_e_for_precond, iter_data)
+            call halt_timer(rescale_time)
+        end if
+
+        ! If we haven't performed the death step yet, then do it now.
+        if (.not. tDeathBeforeComms) then
+            call set_timer(death_time, 30)
+            call perform_death_all_walkers(iter_data)
+            call halt_timer(death_time)
+        end if
+
+        call DirectAnnihilation(TotWalkersNew, MaxIndex, iter_data, err)
+
+        ! if any proc ran out of memory, terminate
+        call MPISumAll(err, allErr)
+        if (allErr /= 0) then
+            err = allErr
+            return
+        end if
+        ! The growth in the size of the occupied part of CurrentDets
+        ! this is important for the purpose of prone_walkers
+        detGrowth = int(TotWalkersNew - TotWalkers)
+
+        ! This indicates the number of determinants in the list + the number
+        ! of holes that have been introduced due to annihilation.
+        TotWalkers = TotWalkersNew
+
+        ! if we still have plenty of empty slots in the list, deactivate the decay
+        if (t_activate_decay .and. TotWalkers < 0.95_dp * real(MaxWalkersPart, dp)) then
+            t_activate_decay = .false.
+        end if
+
+        ! The superinitiators are now the same as they will be at the beginning of
+        ! the next cycle (this flag is reset if they change)
+        tReferenceChanged = .false.
+
+        CALL halt_timer(Annihil_Time)
+        IFDEBUG(FCIMCDebug, 2) write(iout, *) "Finished Annihilation step"
+
+        ! If we are orthogonalising the replica wavefunctions, to generate
+        ! excited states, then do that here.
+        if (tOrthogonaliseReplicas .and. iter > orthogonalise_iter) then
+            call orthogonalise_replicas(iter_data)
+        else if (tPrintReplicaOverlaps .and. inum_runs > 1) then
+            call calc_replica_overlaps()
+        end if
+
+        if (tFillingStochRDMonFly) then
+            ! if we use the initiator-only rdms as gamma_0, get them in their own entity
+            if (tInitsRDM) call fill_rdm_diag_wrapper(rdm_inits_defs, two_rdm_inits_spawn, &
+                                                      inits_one_rdms, CurrentDets, int(TotWalkers, sizeof_int), .false., .false.)
+            call fill_rdm_diag_wrapper(rdm_definitions, two_rdm_spawn, one_rdms, &
+                                       CurrentDets, int(TotWalkers, sizeof_int), .true., tApplyLC)
+        end if
+
+        if (tTrialWavefunction .and. tTrialShift) then
+            call fix_trial_overlap(iter_data)
+        end if
+        call update_iter_data(iter_data)
+
+        ! This routine will take the CurrentDets and search the array to find all single and double
+        ! connections - adding them into the RDM's.
+        ! This explicit way of doing this is very expensive, but o.k for very small systems.
+        if (tFillingExplicRDMonFly) then
+            if (tHistSpawn) THEN
+                call Fill_Hist_ExplicitRDM_this_Iter()
+            else
+                call Fill_ExplicitRDM_this_Iter(TotWalkers)
             end if
+        end if
 
-            end subroutine PerformFCIMCycPar
+        if (tFillingStochRDMonFly .or. tFillingExplicRDMonFly) then
+            ! Fill the receiving RDM list from the beginning.
+            two_rdm_recv%nelements = 0
+            call communicate_rdm_spawn_t(two_rdm_spawn, two_rdm_recv)
+            call add_rdm_1_to_rdm_2(two_rdm_recv, two_rdm_main)
+            two_rdm_recv%nelements = 0
+            if (tInitsRDM) then
+                call communicate_rdm_spawn_t(two_rdm_inits_spawn, two_rdm_recv)
+                call add_rdm_1_to_rdm_2(two_rdm_recv, two_rdm_inits)
+            end if
+        end if
 
-        END MODULE FciMCParMod
+    end subroutine PerformFCIMCycPar
+
+END MODULE FciMCParMod
 

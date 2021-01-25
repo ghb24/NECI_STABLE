@@ -1,12 +1,13 @@
 #:mute
-#:set PRIMITIVE_TYPES = {'real', 'integer', 'logical' , 'complex', 'character'}
+
+#:set PRIMITIVE_TYPES = {'real', 'integer', 'logical' , 'complex', 'character', 'helement_t'}
 
 #:def get_decl(type, kind, rank, allocatable=False)
 $:  _type_fmt(type) + _kindsuffix(kind) + _ranksuffix(rank) + (', allocatable' if allocatable else '')
 #:enddef
 
 #:def _type_fmt(type)
-$:  type if type in PRIMITIVE_TYPES else 'type({})'.format(type)
+$:  type if type.lower() in PRIMITIVE_TYPES else 'type({})'.format(type)
 #:enddef
 
 #:def _kindsuffix(kind)
@@ -124,7 +125,7 @@ $:  var+'('+', '.join(idx if i == int(along) else ':' for i in range(1, int(rank
         ! merge_sort
         block
             @{get_decl(${type}$, ${kind}$, ${rank}$, True)}@ :: tmp
-            integer :: i, current_size, left, mid, right
+            integer :: current_size, left, mid, right
             integer, parameter :: along = ${along}$, &
                 bubblesort_size = 12
 
@@ -166,4 +167,5 @@ $:  var+'('+', '.join(idx if i == int(along) else ':' for i in range(1, int(rank
             end associate
         end block
 #:enddef
+
 #:endmute

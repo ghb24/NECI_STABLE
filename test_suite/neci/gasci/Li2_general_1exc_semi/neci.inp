@@ -1,0 +1,53 @@
+Title
+
+System read
+    electrons  6
+    nobrillouintheorem
+    freeformat
+    spin-restrict 0
+    GAS-CI general
+    GAS-SPEC +++
+    2 +++
+    5 2 4 +++
+    5 6 6 +++
+    1 1 1 1 1 2 2 2 2 2
+endsys
+
+calc
+    seed 7
+    load-balance-interval 1000
+
+    definedet 1 2 3 11 12 14
+
+
+    totalwalkers 10000
+    semi-stochastic 1000
+    pops-core 1000
+
+    methods
+        method vertex fcimc
+    endmethods
+
+    diagshift .00
+    shiftdamp .02
+    nmcyc 800
+    stepsshift 10
+    proje-changeref 1.20
+    truncinitiator
+    addtoinitiator  3
+    allrealcoeff
+    realspawncutoff .30
+    jump-shift
+    tau 0.01 search
+    max-tau .02
+    maxwalkerbloom 1
+    memoryfacspawn 10.00
+    memoryfacpart 5.00
+    time 200
+    startsinglepart 10
+endcalc
+
+logging
+    highlypopwrite 50
+endlog
+end

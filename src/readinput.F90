@@ -188,20 +188,21 @@ contains
     !>   Evaluate this dependency here.
     subroutine evaluate_depending_keywords()
         use SystemData, only: tGAS
-        use gasci, only: GAS_specification, is_connected, GAS_exc_gen, &
-                         possible_GAS_exc_gen, user_input_GAS_exc_gen
+        use gasci, only: GAS_specification, GAS_exc_gen, &
+            possible_GAS_exc_gen, user_input_GAS_exc_gen
+        use CalcData, only: user_input_seed, G_VMC_SEED
         character(*), parameter :: this_routine = 'evaluate_depending_keywords'
 
         if (tGAS) then
             if (allocated(user_input_GAS_exc_gen)) then
                 GAS_exc_gen = user_input_GAS_exc_gen
             else
-                if (is_connected(GAS_specification)) then
-                    GAS_exc_gen = possible_GAS_exc_gen%GENERAL
-                else
-                    GAS_exc_gen = possible_GAS_exc_gen%DISCONNECTED
-                end if
+                GAS_exc_gen = possible_GAS_exc_gen%GENERAL_PCHB
             end if
+        end if
+
+        if (allocated(user_input_seed)) then
+            G_VMC_SEED = user_input_seed
         end if
     end subroutine
 
@@ -230,9 +231,10 @@ contains
                             tOrthogonaliseReplicas, tReadPops, tStartMP1, &
                             tStartCAS, tUniqueHFNode, tContTimeFCIMC, &
                             tContTimeFull, tFCIMC, tPreCond, tOrthogonaliseReplicas, &
-                            tMultipleInitialStates, pgen_unit_test_spec
-        use Calc, only: RDMsamplingiters_in_inp
-        Use Determinants, only: SpecDet, tagSpecDet, tDefinedet
+                            tMultipleInitialStates, pgen_unit_test_spec, &
+                            user_input_seed
+        use Calc, only : RDMsamplingiters_in_inp
+        Use Determinants, only: SpecDet, tagSpecDet, tDefinedet, DefDet
         use IntegralsData, only: nFrozen, tDiscoNodes, tQuadValMax, &
                                  tQuadVecMax, tCalcExcitStar, tJustQuads, &
                                  tNoDoubs
@@ -255,8 +257,7 @@ contains
         use hist_data, only: tHistSpawn
         use Parallel_neci, only: nNodes, nProcessors
         use UMatCache, only: tDeferred_Umat2d
-        use gasci, only: GAS_specification, is_connected, is_valid, GAS_exc_gen, &
-                         possible_GAS_exc_gen, operator(==)
+        use gasci, only: GAS_specification, GAS_exc_gen, possible_GAS_exc_gen, operator(==), operator(/=)
 
         use guga_init, only: checkInputGUGA
         implicit none
@@ -616,23 +617,38 @@ contains
         if (tGAS) then
             if (.not. tDefineDet) then
                 call stop_all(t_r, "Running GAS requires a user-defined reference via definedet.")
-            end if
-            if (.not. is_valid(GAS_specification)) then
+            endif
+            if (.not. GAS_specification%contains_det(DefDet)) then
+                call stop_all(t_r, "Reference determinant has to be contained in GAS space.")
+            endif
+            if (.not. GAS_specification%is_valid()) then
                 call stop_all(t_r, "GAS specification not valid.")
             end if
-            if (is_connected(GAS_specification) .and. .not. tGASSpinRecoupling) then
-                call stop_all(t_r, "Running GAS without spin-recoupling requires disconnected spaces.")
+            if (.not. tGASSpinRecoupling .and. all(GAS_exc_gen /= [possible_GAS_exc_gen%DISCONNECTED, possible_GAS_exc_gen%GENERAL_PCHB])) then
+                call stop_all(t_r, "Running GAS without spin-recoupling requires {DISCONNECTED, GENERAL_PCHB} implementations.")
             end if
-            if (GAS_exc_gen == possible_GAS_exc_gen%DISCONNECTED .and. is_connected(GAS_specification)) then
-                call stop_all(t_r, "Running GAS-CI = ONLY_DISCONNECTED requires disconnected spaces.")
+            if (GAS_exc_gen == possible_GAS_exc_gen%DISCONNECTED .and.  GAS_specification%is_connected()) then
+                call stop_all(t_r, "Running GAS-CI = DISCONNECTED requires disconnected spaces.")
             end if
         end if
 
-        if (allocated(pgen_unit_test_spec)) then
-            if (.not. tReadPops) then
-                call stop_all(t_r, "UNIT-TEST-PGEN requires READPOPS.")
-            end if
+        if (allocated(pgen_unit_test_spec) .and. .not. tReadPops) then
+            call stop_all(t_r, "UNIT-TEST-PGEN requires READPOPS.")
         end if
+
+        block
+            use load_balance_calcnodes, only: &
+                tLoadBalanceBlocks, loadBalanceInterval
+            logical :: deterministic
+            if (allocated(user_input_seed)) then
+                deterministic = loadBalanceInterval /= 0
+                if (tLoadBalanceBlocks .and. .not. deterministic) then
+        write(iout, *) 'Seed was specified in input.'
+        write(iout, *) 'Please note that because of load-balancing the calculation is not fully deterministic (CPU load).'
+        write(iout, *) 'If a fully deterministic calculation is required use the `load-balance-interval` keyword.'
+                end if
+            end if
+        end block
     end subroutine checkinput
 
 end Module ReadInput_neci

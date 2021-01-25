@@ -42,8 +42,8 @@
 ! could write that with already provided isOcc functions too, but would have to translate between spin and spatial orbs..
 
 ! Convert spatial orbital indices to spin orbital indices
-#define spatToSpinBeta(sOrb) 2*(sOrb-1)
-#define spatToSpinAlpha(sOrb) 2*sOrb
+#define spatToSpinBeta(sOrb) (2*(sOrb)-1)
+#define spatToSpinAlpha(sOrb) 2*(sOrb)
 ! Do the two orbitals have the same spin?
 #define same_spin(orb1, orb2) (mod(orb1,2) == mod(orb2,2))
 
@@ -110,7 +110,6 @@ endif
 #define IFDEBUGTHEN(PrintLevel,ThisLevel) if (PrintLevel>=ThisLevel) then
 #define ENDIFDEBUG endif
 ! Use ASSERT in otherwise pure procedures.
-#define DEBUG_IMPURE
 #else
 #define ASSERT(x)
 #define ASSERTROOT(x)
@@ -119,7 +118,6 @@ endif
 #define IFDEBUGEQTHEN(PrintLevel,ThisLevel) if(.false.) then
 #define IFDEBUGTHEN(PrintLevel,ThisLevel) if(.false.) then
 #define ENDIFDEBUG endif
-#define DEBUG_IMPURE
 #endif
 
 ! define a precompiler setup for the warning workaround
@@ -270,8 +268,6 @@ endif
 ! Shortcut for optional variables
 #define def_default(Var_, Var, Val) if(present(Var))then;Var_=Var;else;Var_=Val;endif
 
-#endif
-
 #define check_abort_excit(pgen,x) if (near_zero(pgen)) then; x = 0_n_int; return; endif
 
 #ifdef DEBUG_
@@ -279,3 +275,9 @@ endif
 #else
 #define debug_function_name(name)
 #endif
+
+
+
+! This should be the last end if
+#endif
+

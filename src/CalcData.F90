@@ -198,9 +198,10 @@ module CalcData
 
     INTEGER :: NWHTAY(3, 10), NPATHS, NoMoveDets, NoMCExcits, NShiftEquilSteps
     INTEGER :: NDETWORK, I_HMAX, I_VMAX, G_VMC_SEED, HApp, iFullSpaceIter
+    integer, allocatable :: user_input_seed
     INTEGER :: IMCSTEPS, IEQSTEPS, MDK(5), Iters, NDets, iDetGroup
     INTEGER :: CUR_VERT, NHISTBOXES, I_P, LinePoints, iMaxExcitLevel
-    INTEGER :: NMCyc, StepsSft, CLMax
+    INTEGER :: NMCyc, StepsSft, CLMax, eq_cyc
     INTEGER :: NEquilSteps, iSampleRDMIters
     real(dp) :: InitialPart
     real(dp), allocatable :: InitialPartVec(:)
@@ -225,7 +226,7 @@ module CalcData
     real(dp) :: g_MultiWeight(0:10), G_VMC_PI, G_VMC_FAC, BETAEQ
     real(dp) :: G_VMC_EXCITWEIGHT(10), G_VMC_EXCITWEIGHTS(6, 10)
     real(dp) :: BETAP, RHOEPSILON, DBETA, STARCONV, GraphBias
-    real(dp) :: GrowGraphsExpo, Tau, SftDamp, ScaleWalkers
+    real(dp) :: GrowGraphsExpo, Tau, SftDamp, SftDamp2, ScaleWalkers
     real(dp) :: PRet, FracLargerDet, pop_change_min
     real(dp) :: MemoryFacPart
     real(dp) :: MemoryFacSpawn, SinglesBias, TauFactor, StepsSftImag
@@ -674,4 +675,7 @@ module CalcData
 ! already exist in CurrentDets.
     logical :: tAllowSpawnEmpty
 
+!Use additional second shift damping factor for improved walker population
+!control.
+    logical :: tTargetShiftdamp = .false.
 end module CalcData

@@ -69,7 +69,6 @@ contains
 
         ! assume that if ptr is associated, it points to mpi shared memory
         if (associated(this%ptr)) call shared_deallocate_mpi(this%win, this%ptr)
-        this%ptr => null()
         ! First, check if we have to log the deallocation
         if (this%tag /= 0) call LogMemDealloc(t_r, this%tag)
     end subroutine safe_shared_memory_dealloc_${data_name}$
@@ -80,7 +79,7 @@ contains
     subroutine sync_${data_name}$ (this)
         implicit none
         class(shared_array_${data_name}$_t) :: this
-        integer :: ierr
+        integer(MPIArg) :: ierr
 
         call MPI_Win_Sync(this%win, ierr)
         call MPI_Barrier(mpi_comm_intra, ierr)

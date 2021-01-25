@@ -2,7 +2,7 @@
 
 module unit_test_helper_excitgen
     use constants
-    use bit_reps, only: IlutBits
+    use bit_reps, only: IlutBits, init_bit_rep
     use read_fci, only: readfciint, initfromfcid, fcidump_name
     use shared_memory_mpi, only: shared_allocate_mpi, shared_deallocate_mpi
     use IntegralsData, only: UMat, umat_win
@@ -96,10 +96,12 @@ contains
         logical :: exDoneSingle(0:nBasis, 0:nBasis)
         integer :: ic, part, nullExcits
         integer :: ClassCountOcc(scratchSize), ClassCountUnocc(scratchSize)
+        integer(int64) :: start, finish, rate
         character(*), parameter :: t_r = "test_excitation_generator"
         HElement_t(dp) :: HEl
         exDoneDouble = .false.
         exDoneSingle = .false.
+        call system_clock(count_rate=rate)
 
         ! some starting det - do NOT use the reference for the pcpp test, that would
         ! defeat the purpose
@@ -132,9 +134,12 @@ contains
             numEx = numEx + 1
             allEx(0:nifd, numEx) = ilutJ(0:nifd)
         end do
+        call sort(nI)
 
         write(iout, *) "In total", numEx, "excits, (", nSingles, nDoubles, ")"
         write(iout, *) "Exciting from", nI
+
+        call EncodeBitDet(nI, ilut)
 
         ! set the biases for excitation generation
         pParallel = 0.5_dp
@@ -142,6 +147,7 @@ contains
         pDoubles = 0.9_dp
         pNull = 0.0_dp
         nullExcits = 0
+        call system_clock(start)
         do i = 1, sampleSize
             fcimc_excit_gen_store%tFilled = .false.
             call generate_excitation(nI, ilut, nJ, ilutJ, exFlag, ic, ex, tPar, pgen, HEl, fcimc_excit_gen_store, part)
@@ -181,6 +187,7 @@ contains
                 end if
             end if
         end do
+        call system_clock(finish)
 
         ! check that all excits have been generated and all pGens are right
         ! probability normalization
@@ -235,6 +242,8 @@ contains
         write(iout, *) "In total", numEx, "excitations"
         write(iout, *) "With", nSingles, "single excitation"
         write(iout, *) "Found", nFound, "excitations"
+        write(iout, *) 'Elapsed Time in seconds:', dble(finish - start) / dble(rate)
+        write(iout, *) 'Elapsed Time in micro seconds per excitation:', dble(finish - start) * 1e6_dp / dble(sampleSize* rate)
 
     end subroutine test_excitation_generator
 
@@ -246,10 +255,12 @@ contains
         ! This requires setup of the basis, the symmetries and the integrals
         integer, intent(in) :: n_el
         type(FciDumpWriter_t), intent(in) :: fcidump_writer
-        integer :: nBasisMax(n_el, 3), lms
+        integer :: nBasisMax(5, 3), lms
         integer(int64) :: umatsize
         real(dp) :: ecore
         character(*), parameter :: this_routine = 'init_excitgen_test'
+        integer, parameter :: seed = 25
+
         umatsize = 0
         nel = n_el
 
@@ -267,7 +278,7 @@ contains
         tTransGTID = .false.
         tReadFreeFormat = .true.
 
-        call dSFMT_init(25)
+        call dSFMT_init(seed)
 
         call SetCalcDefaults()
         call SetSysDefaults()
@@ -285,6 +296,7 @@ contains
 
         call shared_allocate_mpi(umat_win, umat, [umatsize])
 
+        UMat = h_cast(0._dp)
         call readfciint(UMat, umat_win, nBasis, ecore, .false.)
 
         ! init the umat2d storage
@@ -299,8 +311,13 @@ contains
         call DetPreFreezeInit()
 
         call CalcInit()
+
+        call set_ref()
+
         t_pcpp_excitgen = .true.
         call init_excit_gen_store(fcimc_excit_gen_store)
+
+        call init_bit_rep()
     end subroutine init_excitgen_test
 
     !------------------------------------------------------------------------------------------!
@@ -374,7 +391,7 @@ contains
 
         iunit = get_free_unit()
 
-        open(iunit, file="FCIDUMP")
+        open (iunit, file="FCIDUMP")
         write(iunit, *) "&FCI NORB=", nSpatOrbs, ",NELEC=", nel, "MS2=", lms, ","
         write(iunit, "(A)", advance="no") "ORBSYM="
         do i = 1, nSpatOrbs
@@ -401,7 +418,7 @@ contains
 
         write(iunit, *) h_cast(0.0_dp), 0, 0, 0, 0
 
-        close(iunit)
+        close (iunit)
 
     end subroutine generate_uniform_integrals
 
@@ -410,10 +427,9 @@ contains
     ! set the reference to the determinant with the first nel orbitals occupied
     subroutine set_ref()
         integer :: i
-        allocate(projEDet(nel, 1))
-        do i = 1, nel
-            projEDet(i, 1) = i + 2
-        end do
+        projEDet = reshape([(i + 2, i = 1, nel)], [nel, 1])
+
+        if (allocated(ilutRef)) deallocate(ilutRef)
         allocate(ilutRef(0:NifTot, 1))
         call encodeBitDet(projEDet(:, 1), ilutRef(:, 1))
     end subroutine set_ref
@@ -428,8 +444,8 @@ contains
         integer :: file_id
 
         file_id = get_free_unit()
-        open(file_id, file=path, status='old')
-        close(file_id, status='delete')
+        open (file_id, file=path, status='old')
+        close (file_id, status='delete')
     end subroutine
 
     subroutine write_file(writer)
@@ -437,8 +453,8 @@ contains
         integer :: file_id
 
         file_id = get_free_unit()
-        open(file_id, file=writer%filepath)
+        open (file_id, file=writer%filepath)
         call writer%write(file_id)
-        close(file_id)
+        close (file_id)
     end subroutine
 end module unit_test_helper_excitgen

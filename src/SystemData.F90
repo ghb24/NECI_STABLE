@@ -40,9 +40,6 @@ module SystemData
     !but kpoint symmetry can still be used.
     logical :: tReadFreeFormat, tReltvy
 
-! impurity system
-    logical :: t_impurity_system
-
     logical :: tRIIntegrals   ! Read in RI 2-e integrals from RIDUMP file
     logical :: tStoreSpinOrbs ! This is set when the orbitals are stored in
     ! spin-orbital notation
@@ -56,6 +53,7 @@ module SystemData
     logical :: tOddS_HPHF     !If this is true, and you are using HPHF, then it will converge onto an Odd S HPHF state.
     logical :: tAntisym_MI    !Antisymmetric MI functions.
     logical :: tComplexOrbs_RealInts    !We are using complex orbitals, but real integrals.
+    logical :: t_complex_ints = .true.
     !Therefore, check the mom sym before looking up integral,
     !since we only have 4x perm sym.
     logical :: tComplexWalkers_RealInts !We are using real orbitals, but complex walkers
@@ -77,6 +75,7 @@ module SystemData
     integer :: nEl             ! Number of (non-frozen) electrons in the system
     integer :: Stot            ! Restrict S to Stot when using CSFs
     integer :: LMS             ! Restrict determinants/CSFs to Ms == LMS
+
 
 ! Calculate size of FCI determinant space using MC
     logical :: tMCSizeSpace, tMCSizeTruncSpace
@@ -396,6 +395,9 @@ module SystemData
 ! flags for the pre-computed heat-bath excitation generator
     logical :: t_pchb_excitgen = .false.
     logical :: t_pchb_weighted_singles = .false.
+
+! flag for the impurity excitation generator
+logical :: t_impurity_excitgen = .false.
 
 ! also implement a next-nearest neighbor Hubbard model implementation:
 ! for k-space hubbard, this only affects the diagonal part!

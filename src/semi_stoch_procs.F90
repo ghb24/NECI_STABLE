@@ -93,7 +93,9 @@ contains
         use Parallel_neci, only: MPIBarrier, MPIAllGatherV
         use DetBitOps, only: DetBitEQ
         integer :: run
-        integer :: i, j, ierr, part_type, c_run
+        integer :: i, j, part_type, c_run
+        integer :: ierr
+        integer(MPIArg) :: MPIerr
         real(dp) :: scaledDiagSft(inum_runs)
 
         do run = 1, size(cs_replicas)
@@ -631,6 +633,7 @@ contains
         use Parallel_neci, only: MPIAllGatherV, iProcIndex_inter, iProcIndex_intra, &
                                  mpi_comm_inter, mpi_comm_intra, nNodes, NodeLengths, iNodeIndex, MPIAllGather
         type(core_space_t), intent(inout) :: rep
+        integer(MPIArg) :: MPIerr
         integer :: ierr
         character(len=*), parameter :: t_r = "store_whole_core_space"
         integer(MPIArg), allocatable :: sizes_this_node(:)
@@ -642,8 +645,8 @@ contains
         integer(MPIArg) :: node_size, num_nodes
         integer(MPIArg) :: global_offset
 
-        call mpi_comm_size(mpi_comm_intra, node_size, ierr)
-        call mpi_comm_size(mpi_comm_inter, num_nodes, ierr)
+        call mpi_comm_size(mpi_comm_intra, node_size, MPIerr)
+        call mpi_comm_size(mpi_comm_inter, num_nodes, MPIerr)
 
         allocate(sizes_this_node(0:node_size - 1))
         allocate(node_offsets(0:num_nodes - 1))
@@ -658,8 +661,8 @@ contains
         if (iProcIndex_intra == 0) rep%core_space = 0_n_int
 
         ! Write the core-space on this node into core_space
-        call MPI_AllGather(rep%determ_sizes(iProcIndex), 1, MPI_INTEGER4, &
-                           sizes_this_node, 1, MPI_INTEGER4, mpi_comm_intra, ierr)
+        call MPI_AllGather(rep%determ_sizes(iProcIndex), 1, MPI_INTEGER, &
+                           sizes_this_node, 1, MPI_INTEGER, mpi_comm_intra, MPIerr)
 
         ! Get the intra-node offset
         proc_offset = 0
@@ -670,8 +673,8 @@ contains
         ! Sum the size on this node
         total_size_this_node = sum(sizes_this_node)
 
-        call MPI_AllGather(total_size_this_node, 1, MPI_INTEGER4, sizes_per_node, 1, MPI_INTEGER4, &
-                           mpi_comm_inter, ierr)
+        call MPI_AllGather(total_size_this_node, 1, MPI_INTEGER, sizes_per_node, 1, MPI_INTEGER, &
+                           mpi_comm_inter, MPIerr)
 
         ! Get the inter-node offset
         node_offsets(0) = 0
@@ -681,14 +684,14 @@ contains
 
         global_offset = node_offsets(iProcIndex_inter) + proc_offset
 
-        call MPI_Win_Sync(rep%core_space_win, ierr)
-        call MPI_Barrier(mpi_comm_intra, ierr)
+        call MPI_Win_Sync(rep%core_space_win, MPIerr)
+        call MPI_Barrier(mpi_comm_intra, MPIerr)
         rep%core_space(0:NIfTot, (global_offset + 1): &
                        (global_offset + rep%determ_sizes(iProcIndex))) = &
             SpawnedParts(0:NIfTot, 1:rep%determ_sizes(iProcIndex))
-        call MPI_Win_Sync(rep%core_space_win, ierr)
-        call MPI_Barrier(mpi_comm_intra, ierr)
-        call MPI_Win_Sync(rep%core_space_win, ierr)
+        call MPI_Win_Sync(rep%core_space_win, MPIerr)
+        call MPI_Barrier(mpi_comm_intra, MPIerr)
+        call MPI_Win_Sync(rep%core_space_win, MPIerr)
 
         ! Multiply with message width (1+NIfTot)
         core_width = int(size(rep%core_space, dim=1), MPIArg)
@@ -699,11 +702,11 @@ contains
         ! Give explicit limits for SpawnedParts slice, as NIfTot is not nesc.
         ! equal to NIfBCast. (It may be longer)
         call MPI_AllGatherV(MPI_IN_PLACE, total_size_this_node, MPI_INTEGER8, rep%core_space, &
-                            sizes_per_node, node_offsets, MPI_INTEGER8, mpi_comm_inter, ierr)
+                            sizes_per_node, node_offsets, MPI_INTEGER8, mpi_comm_inter, MPIerr)
 
         ! And sync the shared window
-        call MPI_Win_Sync(rep%core_space_win, ierr)
-        call MPI_Barrier(mpi_comm_intra, ierr)
+        call MPI_Win_Sync(rep%core_space_win, MPIerr)
+        call MPI_Barrier(mpi_comm_intra, MPIerr)
         ! Communicate the indices in the full vector at which the various processors take over, relative
         ! to the first index position in the vector (i.e. the array displs in MPI routines).
         call MPIAllGather(global_offset, rep%determ_displs, ierr)
@@ -1428,7 +1431,7 @@ contains
         if (tSignedRepAv) then
             sign_curr_real = real(abs(sum(sign_curr)), dp)
         else
-            if (t_global_core_space .or. run == GLOBAL_RUN) then
+            if (run == GLOBAL_RUN) then
                 sign_curr_real = real(sum(abs(sign_curr)), dp)
             else
                 sign_curr_real = mag_of_run(sign_curr, run)
