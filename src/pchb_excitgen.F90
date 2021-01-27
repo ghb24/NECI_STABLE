@@ -6,7 +6,6 @@ module pchb_excitgen
     use bit_rep_data, only: NIfTot
     use FciMCData, only: pSingles, excit_gen_store_type, pDoubles
     use SymExcitDataMod, only: ScratchSize
-    use exc_gen_class_wrappers, only: UniformSingles_t, WeightedSingles_t
 
     use gasci, only: GASSpec_t
     use excitation_generators, only: ExcitationGenerator_t, SingleExcitationGenerator_t, get_pgen_sd, gen_exc_sd, gen_all_excits_sd
