@@ -207,6 +207,9 @@ set( SRC_FILES
     real_time_read_input.F90
     verlet_aux.F90
     CAS_distribution_init.F90
+    excitation_generators.F90
+    exc_gen_class_wrappers.F90
+    exc_gen_classes.F90
 
     lib/backtrace.cpp
     lib/cons_neci.F90
