@@ -1272,6 +1272,9 @@ contains
             ! excite from the first particle on a determinant).
             fcimc_excit_gen_store%tFilled = .false.
 
+            ! let the interested excitation generator know about the index in the CurrentDets array.
+            fcimc_excit_gen_store%idx_curr_dets = j
+
             ! Make sure that the parent flags from the last walker don't through.
             parent_flags = 0
 
