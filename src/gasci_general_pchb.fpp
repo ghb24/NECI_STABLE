@@ -25,42 +25,49 @@
 ! The details of calculating i_sg can be found in gasci_supergroup_index.f90
 
 module gasci_general_pchb
-    use constants, only: n_int, dp, int64, maxExcit, iout
-    use gasci_general, only: gen_exc_single
-    use orb_idx_mod, only: SpinProj_t, calc_spin_raw, operator(==), operator(==)
-    use util_mod, only: fuseIndex, getSpinIndex, near_zero, intswap, operator(.div.)
+    use constants, only: n_int, dp, int64, maxExcit, iout, bits_n_int, int32
+    use orb_idx_mod, only: SpinProj_t, calc_spin_raw, operator(==), operator(/=), alpha, beta
+    use util_mod, only: fuseIndex, getSpinIndex, near_zero, intswap, operator(.div.), operator(.implies.)
     use dSFMT_interface, only: genrand_real2_dSFMT
     use get_excit, only: make_double, exciteIlut
     use SymExcitDataMod, only: pDoubNew, ScratchSize
-    use excitation_types, only: SingleExc_t, DoubleExc_t
+    use excitation_types, only: SingleExc_t, DoubleExc_t, excite
     use sltcnd_mod, only: sltcnd_excit
     use procedure_pointers, only: generate_single_excit_t
     use aliasSampling, only: AliasSampler_3D_t
     use UMatCache, only: gtID, numBasisIndices
-    use FciMCData, only: pSingles, excit_gen_store_type, nInvalidExcits, nValidExcits, &
-                         pParallel, projEDet
+    use FciMCData, only: pSingles, excit_gen_store_type, pParallel, projEDet
     use excit_gens_int_weighted, only: pick_biased_elecs
+    use shared_ragged_array, only: shared_ragged_array_int32_t
+    use growing_buffers, only: buffer_int32_1D_t
+    use parallel_neci, only: iProcIndex_intra
+    use sets_mod, only: complement, operator(.complement.)
+    use get_excit, only: make_single
+    use growing_buffers, only: buffer_int_2D_t
+    use timing_neci, only: timer, set_timer, halt_timer
 
     use SystemData, only: nEl, AB_elec_pairs, par_elec_pairs, tGASSpinRecoupling
-    use bit_rep_data, only: NIfTot
+    use bit_rep_data, only: NIfTot, nIfD
+    use bit_reps, only: decode_bit_det
+    use sort_mod, only: sort
+    use DetBitOps, only: EncodeBitDet, ilut_lt, ilut_gt
 
     use gasci, only: GASSpec_t
-    use gasci_supergroup_index, only: SuperGroupIndexer_t
+    use gasci_util, only: get_available_singles, get_available_doubles
+    use gasci_supergroup_index, only: SuperGroupIndexer_t, lookup_supergroup_indexer
+    use exc_gen_class_wrappers, only: UniformSingles_t
 
+    use excitation_generators, only: &
+            ExcitationGenerator_t, SingleExcitationGenerator_t, &
+            DoubleExcitationGenerator_t, gen_exc_sd, get_pgen_sd, gen_all_excits_sd
     implicit none
 
     private
-    public :: gen_GASCI_general_pchb, general_GAS_PCHB, GAS_PCHB_excit_gen_t
+    public :: GAS_PCHB_ExcGenerator_t, use_supergroup_lookup, GAS_doubles_PCHB_ExcGenerator_t, &
+        tGAS_discarding_singles
 
-    abstract interface
-        real(dp) function calc_pgen_t(nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2)
-            import :: n_int, dp, NIfTot, nEl, ScratchSize
-            integer, intent(in) :: nI(nel)
-            integer(n_int), intent(in) :: ilutI(0:NIfTot)
-            integer, intent(in) :: ex(2, 2), ic
-            integer, intent(in) :: ClassCount2(ScratchSize), ClassCountUnocc2(ScratchSize)
-        end function
-    end interface
+    logical :: use_supergroup_lookup = .true.
+    logical :: tGAS_discarding_singles = .false.
 
     ! there are three pchb_samplers for each supergroup:
     ! 1 - same-spin case
@@ -68,120 +75,359 @@ module gasci_general_pchb
     ! 3 - opp spin case with exchange
     integer, parameter :: SAME_SPIN = 1, OPP_SPIN_NO_EXCH = 2, OPP_SPIN_EXCH = 3
 
-    type :: GAS_PCHB_excit_gen_t
+    !> The precomputed GAS uniform excitation generator
+    type, extends(SingleExcitationGenerator_t) :: GAS_singles_PC_uniform_ExcGenerator_t
         private
-        !> The shape is (fused_number_of_double_excitations, 3, n_supergroup)
-        type(AliasSampler_3D_t) :: pchb_samplers
-        type(SuperGroupIndexer_t) :: indexer
-        type(GASSpec_t) :: GASSpec
-        real(dp), allocatable :: pExch(:, :)
-        integer, allocatable :: tgtOrbs(:, :)
-
-        ! I would prefer to initialize directly as
-        !       generate_single => generate_single_GAS
-        ! and use
-        !       if (present(generate_single)) this%generate_single => generate_single
-        ! in the init routines.
-        ! Unfortunately this causes a **compile time** segfault in ifort <= 18.x.x
-        procedure(generate_single_excit_t), pointer, nopass :: generate_single => null()
-        procedure(calc_pgen_t), pointer, nopass :: calc_pgen_single => null()
-
+        ! allowed_holes(:, src, i_sg)
+        ! is a bitmask that returns for a given supergroup `i_sg` and `src`
+        ! the GAS allowed holes.
+        integer(n_int), allocatable :: allowed_holes(:, :, :)
+        type(GASSpec_t) :: GAS_spec
+        ! This is only a pointer because components cannot be targets
+        ! otherwise. :-(
+        type(SuperGroupIndexer_t), pointer :: indexer => null()
+        !> Use a lookup for the supergroup index in global_det_data.
+        logical, public :: use_lookup = .false.
+        !> Create **and** manage! the supergroup index lookup in global_det_data.
+        logical, public :: create_lookup = .false.
     contains
         private
-        procedure, public :: init => init_pchb_excitgen
-        procedure, public :: finalize
-        procedure, public :: gen_excit
-        procedure, public :: calc_pgen => calc_pgen_pchb
+        procedure, public :: init => GAS_singles_uniform_init
+        procedure, public :: finalize => GAS_singles_uniform_finalize
 
-        procedure :: calc_double_pgen_pchb
-        procedure :: generate_double
-        procedure :: is_allowed
+        !> Get the GAS allowed holes for a given determinant and a chosen particle.
+        procedure, public :: get_possible_holes => GAS_singles_uniform_possible_holes
+        procedure, public :: gen_exc => GAS_singles_uniform_gen_exc
+        procedure, public :: get_pgen => GAS_singles_uniform_get_pgen
+        procedure, public :: gen_all_excits => GAS_singles_uniform_gen_all_excits
     end type
 
-    type(GAS_PCHB_excit_gen_t) :: general_GAS_PCHB
+
+    type, extends(SingleExcitationGenerator_t) :: GAS_singles_DiscardingGenerator_t
+        private
+        type(UniformSingles_t) :: FCI_singles_generator
+        type(GASSpec_t) :: GAS_spec
+    contains
+        private
+        procedure, public :: finalize => GAS_discarding_singles_finalize
+        procedure, public :: gen_exc => GAS_discarding_singles_gen_exc
+        procedure, public :: get_pgen => GAS_discarding_singles_get_pgen
+        procedure, public :: gen_all_excits => GAS_discarding_singles_gen_all_excits
+    end type
+
+
+    !> The GAS PCHB excitation generator for doubleles
+    type, extends(DoubleExcitationGenerator_t) :: GAS_doubles_PCHB_ExcGenerator_t
+        private
+        !> Use a lookup for the supergroup index in global_det_data
+        logical, public :: use_lookup = .false.
+        !> Create **and** manage! the supergroup index lookup in global_det_data.
+        logical, public :: create_lookup = .false.
+
+        !> The shape is (fused_number_of_double_excitations, 3, n_supergroup)
+        type(AliasSampler_3D_t) :: pchb_samplers
+
+
+        type(SuperGroupIndexer_t), pointer :: indexer => null()
+        type(GASSpec_t) :: GAS_spec
+        real(dp), allocatable :: pExch(:, :)
+        integer, allocatable :: tgtOrbs(:, :)
+    contains
+        private
+        procedure, public :: init => GAS_doubles_PCHB_init
+        procedure, public :: finalize => GAS_doubles_PCHB_finalize
+        procedure, public :: gen_exc => GAS_doubles_PCHB_gen_exc
+        procedure, public :: get_pgen => GAS_doubles_PCHB_get_pgen
+        procedure, public :: gen_all_excits => GAS_doubles_PCHB_gen_all_excits
+
+        procedure :: compute_samplers => GAS_doubles_PCHB_compute_samplers
+    end type
+
+    type, extends(ExcitationGenerator_t) :: GAS_PCHB_ExcGenerator_t
+        private
+        type(GAS_doubles_PCHB_ExcGenerator_t) :: doubles_generator
+        ! NOTE: Change into class(SingleExcitationGenerator_t), allocatable
+        !   if you want to change singles_generators at runtime.
+        class(SingleExcitationGenerator_t), allocatable :: singles_generator
+    contains
+        private
+        procedure, public :: init => GAS_PCHB_init
+        procedure, public :: finalize => GAS_PCHB_finalize
+        procedure, public :: gen_exc => GAS_PCHB_gen_exc
+        procedure, public :: get_pgen => GAS_PCHB_get_pgen
+        procedure, public :: gen_all_excits => GAS_PCHB_gen_all_excits
+    end type
+
+    interface GAS_singles_DiscardingGenerator_t
+        module procedure construct_GAS_singles_DiscardingGenerator_t
+    end interface
 
 contains
 
-    !>  @brief
-    !>  The disconnected_GAS_PCHB excitation generator subroutine.
-    !>
-    !>  @details
-    !>  This is a wrapper around `disconnected_GAS_PCHB%gen_excit`
-    !>  to match the function pointer interface.
-    !>  The interface is common to all excitation generators, see proc_ptrs.F90
-    subroutine gen_GASCI_general_pchb(nI, ilutI, nJ, ilutJ, exFlag, ic, &
-                                        ex_mat, tParity, pGen, hel, store, part_type)
+    subroutine GAS_singles_uniform_init(this, GAS_spec, use_lookup, create_lookup)
+        class(GAS_singles_PC_uniform_ExcGenerator_t), intent(inout) :: this
+        type(GASSpec_t), intent(in) :: GAS_spec
+        logical, intent(in) :: use_lookup, create_lookup
+        integer, allocatable :: supergroups(:, :)
+        character(*), parameter :: this_routine = 'GAS_singles_uniform_init'
+
+        integer :: i_sg, src, tgt
+
+        this%GAS_spec = GAS_spec
+        allocate(this%indexer, source=SuperGroupIndexer_t(GAS_spec))
+        this%create_lookup = create_lookup
+        if (create_lookup) then
+            if (associated(lookup_supergroup_indexer)) then
+                call stop_all(this_routine, 'Someone else is already managing the supergroup lookup.')
+            else
+                write(iout, *) 'GAS singles is creating and managing the supergroup lookup'
+                lookup_supergroup_indexer => this%indexer
+            end if
+        end if
+        this%use_lookup = use_lookup
+        if (use_lookup) write(iout, *) 'GAS singles is using the supergroup lookup'
+        ! possible supergroups
+        supergroups = this%indexer%get_supergroups()
+
+        allocate(this%allowed_holes(0 : nIfD, this%GAS_spec%n_spin_orbs(), size(supergroups, 2)), source=0_n_int)
+
+        ! Find for each supergroup (i_sg)
+        ! the allowed holes `tgt` for a given `src`.
+        do i_sg = 1, size(supergroups, 2)
+            ! Note that the loop cannot take a symmetric shape.
+            ! It may be, that (1 -> 5) is allowed, but (5 -> 1) is not.
+            do src = 1, this%GAS_spec%n_spin_orbs()
+                do tgt = 1, this%GAS_spec%n_spin_orbs()
+                    if (src /= tgt &
+                            .and. calc_spin_raw(src) == calc_spin_raw(tgt) &
+                            .and. this%GAS_spec%is_allowed(SingleExc_t(src, tgt), supergroups(:, i_sg))) then
+                        call my_set_orb(this%allowed_holes(:, src, i_sg), tgt)
+                    end if
+                end do
+            end do
+        end do
+
+        contains
+
+            ! Ugly Fortran syntax rules forces us to not use the macro.
+            ! Even associate would not help here
+            ! https://stackoverflow.com/questions/65734764/non-one-indexed-array-from-associate
+            pure subroutine my_set_orb(ilut, orb)
+                integer(n_int), intent(inout) :: ilut(0 : nIfD)
+                integer, intent(in) :: orb
+                set_orb(ilut, orb)
+            end subroutine
+    end subroutine
+
+
+    subroutine GAS_singles_uniform_finalize(this)
+        class(GAS_singles_PC_uniform_ExcGenerator_t), intent(inout) :: this
+
+        deallocate(this%allowed_holes)
+        deallocate(this%indexer)
+
+        if (this%create_lookup) then
+            nullify(lookup_supergroup_indexer)
+        end if
+    end subroutine
+
+    !> @brief
+    !> For a determinant nI and a spin orbital src return
+    !>  the GAS allowed orbitals with the same spin as src which are not occupied in nI.
+    function GAS_singles_uniform_possible_holes(this, nI, ilutI, src, use_lookup, store) result(unoccupied)
+        class(GAS_singles_PC_uniform_ExcGenerator_t), intent(in) :: this
+        integer, intent(in) :: nI(nel), src
+        integer(n_int), intent(in) :: ilutI(0 : nIfD)
+        logical, intent(in) :: use_lookup
+        type(excit_gen_store_type), optional, intent(in) :: store
+        integer, allocatable :: unoccupied(:)
+        integer(n_int) :: ilut_unoccupied(0 : nIfD)
+        integer :: i_sg
+        character(*), parameter :: this_routine = 'GAS_PC_possible_holes'
+
+        @:ASSERT(use_lookup .implies. present(store))
+        if (use_lookup) then
+            i_sg = this%indexer%lookup_supergroup_idx(store%idx_curr_dets, nI)
+        else
+            i_sg = this%indexer%idx_nI(nI)
+        end if
+
+        ilut_unoccupied = iand(this%allowed_holes(:, src, i_sg), not(ilutI))
+        allocate(unoccupied(sum(popcnt(ilut_unoccupied))))
+        call decode_bit_det(unoccupied, ilut_unoccupied)
+    end function
+
+
+    !> @brief
+    !> This is the uniform singles excitation generator which uses precomputed indices
+    !> to generate only GAS allowed excitations.
+    subroutine GAS_singles_uniform_gen_exc(this, nI, ilutI, nJ, ilutJ, exFlag, ic, &
+                                     ex, tParity, pGen, hel, store, part_type)
+        class(GAS_singles_PC_uniform_ExcGenerator_t), intent(inout) :: this
         integer, intent(in) :: nI(nel), exFlag
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
-        integer, intent(out) :: nJ(nel), ic, ex_mat(2, maxExcit)
+        integer, intent(out) :: nJ(nel), ic, ex(2, maxExcit)
         integer(n_int), intent(out) :: ilutJ(0:NifTot)
         real(dp), intent(out) :: pGen
         logical, intent(out) :: tParity
         HElement_t(dp), intent(out) :: hel
         type(excit_gen_store_type), intent(inout), target :: store
         integer, intent(in), optional :: part_type
-        character(*), parameter :: this_routine = 'gen_GASCI_pchb'
 
-        @:unused_var(exFlag, part_type, store)
-        @:ASSERT(general_GAS_PCHB%GASSpec%contains_det(nI))
+        integer :: elec, src, tgt
+        integer, allocatable :: unoccupied(:)
 
-        hel = h_cast(0.0_dp)
-        call general_GAS_PCHB%gen_excit(nI, ilutI, nJ, ilutJ, ic, ex_mat, tParity, store, pgen)
-    end subroutine gen_GASCI_general_pchb
+        @:unused_var(exFlag, part_type)
+#ifdef WARNING_WORKAROUND_
+        hel = 0.0_dp
+#endif
+        ic = 1
 
-    !> @brief
-    !> Check if a double excitation is allowed.
-    !>
-    !> @details
-    !> Is called once at initialization, so it does not have to be super fast.
-    logical pure function is_allowed(self, exc, supergroup)
-        class(GAS_PCHB_excit_gen_t), intent(in) :: self
-        type(DoubleExc_t), intent(in) :: exc
-        integer, intent(in) :: supergroup(:)
+        elec = int(genrand_real2_dSFMT() * nel) + 1
+        src = nI(elec)
 
-        integer :: excited_supergroup(size(supergroup))
-        integer :: src_spaces(2), tgt_spaces(2)
+        unoccupied = this%get_possible_holes(nI, ilutI, src, this%use_lookup, store)
 
-        src_spaces = self%GASSpec%get_iGAS(exc%val(1, :))
-        tgt_spaces = self%GASSpec%get_iGAS(exc%val(2, :))
-
-        if (all(src_spaces == tgt_spaces) .and. src_spaces(1) == src_spaces(2)) then
-            ! All electrons come from the same space and there are no restrictions
-            ! regarding recoupling or GAS.
-            is_allowed = .true.
-        else
-            ! Ensure that GAS specifications contain supergroup **after** excitation.
-            excited_supergroup = supergroup
-            excited_supergroup(src_spaces) = excited_supergroup(src_spaces) - 1
-            excited_supergroup(tgt_spaces) = excited_supergroup(tgt_spaces) + 1
-
-            is_allowed = self%GASSpec%contains_supergroup(excited_supergroup)
-
-            if (is_allowed .and. .not. tGASSpinRecoupling) then
-                block
-                    type(SpinProj_t) :: src_spins(2), tgt_spins(2)
-                    #:set spin_swap = functools.partial(swap, 'SpinProj_t', "", 0)
-
-                    src_spins = calc_spin_raw(exc%val(1, :))
-                    tgt_spins = calc_spin_raw(exc%val(2, :))
-
-                    if (src_spaces(1) > src_spaces(2)) then
-                        @:spin_swap(src_spins(1), src_spins(2))
-                    end if
-
-                    if (tgt_spaces(1) > tgt_spaces(2)) then
-                        @:spin_swap(tgt_spins(1), tgt_spins(2))
-                    end if
-
-                    is_allowed = all(src_spins == tgt_spins)
-                end block
-            end if
+        ! NOTE: this is actually possible for some systems.
+        if (size(unoccupied) == 0) then
+            pgen = 1._dp / nEl
+            nJ(1) = 0
+            ilutJ = 0_n_int
+            return
         end if
+
+        ! NOTE: The `tgt` could be drawn from `unoccupied` with weights according
+        !  to the matrix elements < nI | H |  E_{src}^{tgt} nI >.
+        !  Probably not worth it and I am too lazy to implement it now.
+        tgt = unoccupied(int(genrand_real2_dSFMT() * size(unoccupied)) + 1)
+        pgen = 1._dp / (nEl * size(unoccupied))
+
+        call make_single(nI, nJ, elec, tgt, ex, tParity)
+        ilutJ = ilutI
+        clr_orb(ilutJ, src)
+        set_orb(ilutJ, tgt)
+    end subroutine
+
+
+    function GAS_singles_uniform_get_pgen(this, nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2) result(pgen)
+        class(GAS_singles_PC_uniform_ExcGenerator_t), intent(inout) :: this
+        integer, intent(in) :: nI(nel)
+        integer(n_int), intent(in) :: ilutI(0:NIfTot)
+        integer, intent(in) :: ex(2, maxExcit), ic
+        integer, intent(in) :: ClassCount2(ScratchSize), ClassCountUnocc2(ScratchSize)
+        real(dp) :: pgen
+        character(*), parameter :: this_routine = 'GAS_PC_get_pgen'
+
+        integer :: src
+        integer, allocatable :: unoccupied(:)
+
+        @:unused_var(ilutI, ClassCount2, ClassCountUnocc2)
+        @:ASSERT(ic == 1)
+        src = ex(1, 1)
+        unoccupied = this%get_possible_holes(nI, ilutI, src, use_lookup=.false.)
+        @:ASSERT(size(unoccupied) > 0)
+        pgen = 1._dp / (nEl * size(unoccupied))
     end function
 
 
+    subroutine GAS_singles_uniform_gen_all_excits(this, nI, n_excits, det_list)
+        class(GAS_singles_PC_uniform_ExcGenerator_t), intent(in) :: this
+        integer, intent(in) :: nI(nEl)
+        integer, intent(out) :: n_excits
+        integer(n_int), allocatable, intent(out) :: det_list(:,:)
 
-!
+        integer, allocatable :: singles(:, :)
+        integer :: i
+
+        singles = get_available_singles(this%GAS_spec, nI)
+
+        n_excits = size(singles, 2)
+        allocate(det_list(0:niftot, n_excits))
+        do i = 1, size(singles, 2)
+            call EncodeBitDet(singles(:, i), det_list(:, i))
+        end do
+
+        call sort(det_list, ilut_lt, ilut_gt)
+
+    end subroutine
+
+    pure function construct_GAS_singles_DiscardingGenerator_t(GAS_spec) result(res)
+        type(GASSpec_t), intent(in) :: GAS_spec
+        type(GAS_singles_DiscardingGenerator_t) :: res
+        res%GAS_spec = GAS_spec
+        res%FCI_singles_generator = UniformSingles_t()
+    end function
+
+    subroutine GAS_discarding_singles_finalize(this)
+        class(GAS_singles_DiscardingGenerator_t), intent(inout) :: this
+        call this%FCI_singles_generator%finalize()
+    end subroutine
+
+    subroutine GAS_discarding_singles_gen_exc(this, nI, ilutI, nJ, ilutJ, exFlag, ic, &
+                                     ex, tParity, pGen, hel, store, part_type)
+        class(GAS_singles_DiscardingGenerator_t), intent(inout) :: this
+        integer, intent(in) :: nI(nel), exFlag
+        integer(n_int), intent(in) :: ilutI(0:NIfTot)
+        integer, intent(out) :: nJ(nel), ic, ex(2, maxExcit)
+        integer(n_int), intent(out) :: ilutJ(0:NifTot)
+        real(dp), intent(out) :: pGen
+        logical, intent(out) :: tParity
+        HElement_t(dp), intent(out) :: hel
+        type(excit_gen_store_type), intent(inout), target :: store
+        integer, intent(in), optional :: part_type
+        character(*), parameter :: this_routine = 'GAS_discarding_singles_gen_exc'
+
+        integer :: src_copy(maxExcit)
+
+        ASSERT(this%GAS_spec%contains_det(nI))
+
+        call this%FCI_singles_generator%gen_exc(&
+                    nI, ilutI, nJ, ilutJ, exFlag, ic, &
+                    ex, tParity, pGen, hel, store, part_type)
+        if (nJ(1) /= 0) then
+            if (.not. this%GAS_spec%contains_det(nJ)) then
+                src_copy(:ic) = ex(1, :ic)
+                call sort(src_copy)
+                ex(1, :ic) = src_copy(:ic)
+                ex(2, :ic) = ex(2, :ic)
+                nJ(1) = 0
+                ilutJ = 0_n_int
+            end if
+        end if
+    end subroutine
+
+    function GAS_discarding_singles_get_pgen(this, nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2) result(pgen)
+        class(GAS_singles_DiscardingGenerator_t), intent(inout) :: this
+        integer, intent(in) :: nI(nel)
+        integer(n_int), intent(in) :: ilutI(0:NIfTot)
+        integer, intent(in) :: ex(2, maxExcit), ic
+        integer, intent(in) :: ClassCount2(ScratchSize), ClassCountUnocc2(ScratchSize)
+        real(dp) :: pgen
+        pgen = this%FCI_singles_generator%get_pgen(nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2)
+    end function
+
+
+    subroutine GAS_discarding_singles_gen_all_excits(this, nI, n_excits, det_list)
+        class(GAS_singles_DiscardingGenerator_t), intent(in) :: this
+        integer, intent(in) :: nI(nEl)
+        integer, intent(out) :: n_excits
+        integer(n_int), allocatable, intent(out) :: det_list(:,:)
+
+        integer, allocatable :: singles(:, :)
+        integer :: i
+
+        singles = get_available_singles(this%GAS_spec, nI)
+
+        n_excits = size(singles, 2)
+        allocate(det_list(0:niftot, n_excits))
+        do i = 1, size(singles, 2)
+            call EncodeBitDet(singles(:, i), det_list(:, i))
+        end do
+
+        call sort(det_list, ilut_lt, ilut_gt)
+    end subroutine
+
+
     !>  @brief
     !>  Initialize the pchb excitation generator
     !>
@@ -189,28 +435,36 @@ contains
     !>  This does two things:
     !>  1. setup the lookup table for the mapping ab -> (a,b)
     !>  2. setup the alias table for picking ab given ij with probability ~<ij|H|ab>
-    subroutine init_pchb_excitgen(this, GASSpec, generate_single, calc_pgen_single)
-        class(GAS_PCHB_excit_gen_t), intent(out) :: this
-        type(GASSpec_t), intent(in) :: GASSpec
-        procedure(generate_single_excit_t), optional :: generate_single
-        procedure(calc_pgen_t), optional :: calc_pgen_single
+    subroutine GAS_doubles_PCHB_init(this, GAS_spec, use_lookup, create_lookup, recoupling)
+        class(GAS_doubles_PCHB_ExcGenerator_t), intent(inout) :: this
+        type(GASSpec_t), intent(in) :: GAS_spec
+        logical, intent(in) :: use_lookup, create_lookup, recoupling
+        character(*), parameter :: this_routine = 'GAS_doubles_PCHB_init'
 
         integer :: ab, a, b, abMax
         integer :: nBI
-        integer(int64) :: memCost
-        integer :: samplerIndex
 
-        this%indexer = SuperGroupIndexer_t(GASSpec)
-        this%GASSpec = GASSpec
+        this%GAS_spec = GAS_spec
+        allocate(this%indexer, source=SuperGroupIndexer_t(GAS_spec) )
+        this%create_lookup = create_lookup
+        this%use_lookup = use_lookup
+
+        if (this%create_lookup) then
+            if (associated(lookup_supergroup_indexer)) then
+                call stop_all(this_routine, 'Someone else is already managing the supergroup lookup.')
+            else
+                write(iout, *) 'GAS PCHB doubles is creating and managing the supergroup lookup'
+                lookup_supergroup_indexer => this%indexer
+            end if
+        end if
+        if (this%use_lookup) write(iout, *) 'GAS PCHB doubles is using the supergroup lookup'
 
         write(iout, *) "Allocating PCHB excitation generator objects"
-        ! total memory cost
-        memCost = 0_int64
         ! number of spatial orbs
-        nBI = numBasisIndices(this%GASSpec%n_spin_orbs())
-        ! initialize the mapping ab -> (a,b)
+        nBI = numBasisIndices(this%GAS_spec%n_spin_orbs())
+        ! initialize the mapping ab -> (a, b)
         abMax = fuseIndex(nBI, nBI)
-        allocate(this%tgtOrbs(2, 0 : abMax))
+        allocate(this%tgtOrbs(2, 0 : abMax), source=0)
         do a = 1, nBI
             do b = 1, a
                 ab = fuseIndex(a, b)
@@ -219,120 +473,32 @@ contains
             end do
         end do
 
-        ! enable catching exceptions
-        this%tgtOrbs(:, 0) = 0
-
         ! setup the alias table
-        call setup_pchb_sampler()
+        call this%compute_samplers(nBI, recoupling)
 
         write(iout, *) "Finished excitation generator initialization"
+
         ! this is some bias used internally by CreateSingleExcit - not used here
         pDoubNew = 0.0
+    end subroutine GAS_doubles_PCHB_init
 
-        if (present(generate_single)) then
-            this%generate_single => generate_single
-        else
-            this%generate_single => generate_single_GAS
+
+    !>  @brief
+    !>  Deallocate the sampler and the mapping ab -> (a,b)
+    subroutine GAS_doubles_PCHB_finalize(this)
+        class(GAS_doubles_PCHB_ExcGenerator_t), intent(inout) :: this
+
+        call this%pchb_samplers%finalize()
+        deallocate(this%tgtOrbs)
+        deallocate(this%pExch)
+
+        deallocate(this%indexer)
+
+        if (this%create_lookup) then
+            nullify(lookup_supergroup_indexer)
         end if
-        if (present(calc_pgen_single)) then
-            this%calc_pgen_single => calc_pgen_single
-        else
-            this%calc_pgen_single => calc_pgen_single_todo
-        end if
-    contains
+    end subroutine
 
-        subroutine setup_pchb_sampler()
-            integer :: i, j
-            integer :: ij, ijMax
-            integer :: ex(2, 2)
-            real(dp), allocatable :: w(:)
-            real(dp), allocatable :: pNoExch(:)
-            integer, allocatable :: supergroups(:, :)
-            integer :: i_sg
-            ! possible supergroups
-            supergroups = this%indexer%get_supergroups()
-            ! number of possible source orbital pairs
-            ijMax = fuseIndex(nBI, nBI)
-            ! allocate the bias for picking an exchange excitation
-            allocate(this%pExch(ijMax, size(supergroups, 2)), source=0.0_dp)
-            ! temporary storage for the unnormalized prob of not picking an exchange excitation
-
-            memCost = size(supergroups, 2) * (memCost + abMax * ijMax * 24 * 3)
-
-            call this%pchb_samplers%shared_alloc([ijMax, 3, size(supergroups, 2)], abMax)
-            write(iout, *) "Excitation generator requires", real(memCost, dp) / 2.0_dp**30, "GB of memory"
-            write(iout, *) "Generating samplers for PCHB excitation generator"
-            ! weights per pair
-            allocate(w(abMax))
-            ! initialize the three samplers
-            do i_sg = 1, size(supergroups, 2)
-                if (mod(i_sg, 100) == 0) write(iout, *) 'Still generating the samplers'
-                pNoExch = 1.0_dp - this%pExch(:, i_sg)
-                do samplerIndex = 1, 3
-                    ! allocate: all samplers have the same size
-                    do i = 1, nBI
-                        ! map i to alpha spin (arbitrary choice)
-                        ex(1, 1) = 2 * i
-                        ! as we order a,b, we can assume j <= i
-                        do j = 1, i
-                            w(:) = 0.0_dp
-                            ! for samplerIndex == 1, j is alpha, else, j is beta
-                            ex(1, 2) = map_orb(j, [SAME_SPIN])
-                            ! for each (i,j), get all matrix elements <ij|H|ab> and use them as
-                            ! weights to prepare the sampler
-                            do a = 1, nBI
-                                ! a is alpha for same-spin (1) and opp spin w/o exchange (2)
-                                ex(2, 2) = map_orb(a, [SAME_SPIN, OPP_SPIN_NO_EXCH])
-                                do b = 1, a
-                                    ! exception: for sampler 3, a!=b
-                                    if (samplerIndex == OPP_SPIN_EXCH .and. a == b) cycle
-                                    ab = fuseIndex(a, b)
-                                    ! ex(2,:) is in ascending order
-                                    ! b is alpha for sampe-spin (1) and opp spin w exchange (3)
-                                    ex(2, 1) = map_orb(b, [SAME_SPIN, OPP_SPIN_EXCH])
-                                    ! use the actual matrix elements as weights
-                                    if (this%is_allowed(DoubleExc_t(ex), supergroups(:, i_sg))) then
-                                        w(ab) = abs(sltcnd_excit(projEDet(:, 1), DoubleExc_t(ex), .false.))
-                                    else
-                                        w(ab) = 0._dp
-                                    end if
-                                end do
-                            end do
-                            ij = fuseIndex(i, j)
-                            call this%pchb_samplers%setup_entry(ij, samplerIndex, i_sg, w)
-                            if (samplerIndex == OPP_SPIN_EXCH) this%pExch(ij, i_sg) = sum(w)
-                            if (samplerIndex == OPP_SPIN_NO_EXCH) pNoExch(ij) = sum(w)
-                        end do
-                    end do
-                end do
-                ! normalize the exchange bias (where normalizable)
-                where (near_zero(this%pExch(:, i_sg) + pNoExch))
-                    this%pExch(:, i_sg) = 0._dp
-                else where
-                    this%pExch(:, i_sg) = this%pExch(:, i_sg) / (this%pExch(:, i_sg) + pNoExch)
-                end where
-            end do
-
-        end subroutine setup_pchb_sampler
-
-        function map_orb(orb, alphaSamplers) result(sorb)
-            ! map spatial orbital to the spin orbital matching the current samplerIndex
-            ! Input: orb - spatial orbital to be mapped
-            !        alphaSamplers - list of samplerIndex values for which the mapping shall be to alpha
-            ! Output: sorb - corresponding spin orbital
-            integer, intent(in) :: orb
-            integer, intent(in) :: alphaSamplers(:)
-            integer :: sorb
-
-            if (any(samplerIndex == alphaSamplers)) then
-                sorb = 2 * orb
-            else
-                sorb = 2 * orb - 1
-            end if
-        end function map_orb
-    end subroutine init_pchb_excitgen
-
-    !------------------------------------------------------------------------------------------!
 
     !>  @brief
     !>  Given the initial determinant (both as nI and ilut), create a random double
@@ -345,15 +511,20 @@ contains
     !> @param[out] excitMat  on return, excitation matrix nI -> nJ
     !> @param[out] tParity  on return, the parity of the excitation nI -> nJ
     !> @param[out] pGen  on return, the probability of generating the excitation nI -> nJ
-    subroutine generate_double(this, nI, ilutI, nJ, ilutJ, ex, tpar, pgen)
-        class(GAS_PCHB_excit_gen_t), intent(in) :: this
-        integer, intent(in) :: nI(nel)
+    !> @param[in] idet Optional index of determinant in the CurrentDets array.
+    subroutine GAS_doubles_PCHB_gen_exc(&
+                    this, nI, ilutI, nJ, ilutJ, exFlag, ic, &
+                    ex, tParity, pGen, hel, store, part_type)
+        class(GAS_doubles_PCHB_ExcGenerator_t), intent(inout) :: this
+        integer, intent(in) :: nI(nel), exFlag
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
-        integer, intent(out) :: nJ(nel)
-        integer(n_int), intent(out) :: ilutJ(0:NIfTot)
-        integer, intent(out) :: ex(2, maxExcit)
+        integer, intent(out) :: nJ(nel), ic, ex(2, maxExcit)
+        integer(n_int), intent(out) :: ilutJ(0:NifTot)
         real(dp), intent(out) :: pGen
-        logical, intent(out) :: tpar
+        logical, intent(out) :: tParity
+        HElement_t(dp), intent(out) :: hel
+        type(excit_gen_store_type), intent(inout), target :: store
+        integer, intent(in), optional :: part_type
 
         integer :: elecs(2), src(2), sym_prod, ispn, sum_ml, ij
         integer :: orbs(2), ab
@@ -362,12 +533,21 @@ contains
         integer :: spin(2), samplerIndex
         integer :: i_sg
 
+        @:unused_var(exFlag, part_type)
+        ic = 2
+#ifdef WARNING_WORKAROUND_
+        hel = h_cast(0.0_dp)
+#endif
 
         ! first, pick two random elecs
         call pick_biased_elecs(nI, elecs, src, sym_prod, ispn, sum_ml, pGen)
         if (src(1) > src(2)) call intswap(src(1), src(2))
 
-        i_sg = this%indexer%idx_nI(nI)
+        if (this%use_lookup) then
+            i_sg = this%indexer%lookup_supergroup_idx(store%idx_curr_dets, nI)
+        else
+            i_sg = this%indexer%idx_nI(nI)
+        end if
 
         invalid = .false.
         ! use the sampler for this electron pair -> order of src electrons does not matter
@@ -418,122 +598,16 @@ contains
             ! -> return nulldet
             nJ = 0
             ilutJ = 0_n_int
-            ex(2, 1:2) = orbs
-            ex(1, 1:2) = src
+            ex(2, 1 : 2) = orbs
+            ex(1, 1 : 2) = src
         else
             ! else, construct the det from the chosen orbs/elecs
 
-            call make_double(nI, nJ, elecs(1), elecs(2), orbs(1), orbs(2), ex, tpar)
+            call make_double(nI, nJ, elecs(1), elecs(2), orbs(1), orbs(2), ex, tParity)
 
             ilutJ = exciteIlut(ilutI, src, orbs)
         end if
-    end subroutine generate_double
-
-
-    subroutine generate_single_GAS(nI, ilutI, nJ, ilutJ, ex_mat, tpar, store, pgen)
-        integer, intent(in) :: nI(nel)
-        integer(n_int), intent(in) :: ilutI(0:NIfTot)
-        integer, intent(out) :: nJ(nel)
-        integer(n_int), intent(out) :: ilutJ(0:NIfTot)
-        integer, intent(out) :: ex_mat(2, maxExcit)
-        logical, intent(out) :: tpar
-        type(excit_gen_store_type), intent(inout), target :: store
-        real(dp), intent(out) :: pGen
-        @:unused_var(store)
-        call gen_exc_single(general_GAS_PCHB%GASSpec, nI, ilutI, nJ, ilutJ, ex_mat, tpar, pgen)
     end subroutine
-
-    !>  @brief
-    !>  The excitation generator subroutine for PCHB.
-    !>
-    !>  @details
-    !>  For doubles, the precomputed heat-bath weights are used.
-    !>  In order to work the child classes have to override `is_allowed`
-    !>  and supply a single excitation generator as function pointer in the init method.
-    !>
-    !>  If possible one can supply also a calc_pgen routine for single excitations.
-    !>  Then it is possible to calculate the pgens for arbitrary connected configurations.
-    subroutine gen_excit(this, nI, ilutI, nJ, ilutJ, ic, ex, tpar, store, pgen)
-        class(GAS_PCHB_excit_gen_t), intent(in) :: this
-        integer, intent(in) :: nI(nel)
-        integer(n_int), intent(in) :: ilutI(0:NIfTot)
-        integer, intent(out) :: nJ(nel), ic, ex(2, maxExcit)
-        integer(n_int), intent(out) :: ilutJ(0:NIfTot)
-        logical, intent(out) :: tpar
-        type(excit_gen_store_type), intent(inout), target :: store
-        real(dp), intent(out) :: pGen
-
-        if (genrand_real2_dSFMT() < pSingles) then
-            ic = 1
-            ! defaults to uniform singles, but can be set to other excitgens
-            call this%generate_single(nI, ilutI, nJ, ilutJ, ex, tpar, store, pgen)
-            pgen = pgen * pSingles
-        else
-            ic = 2
-            ! use precomputed weights to generate doubles
-            call this%generate_double(nI, ilutI, nJ, ilutJ, ex, tpar, pgen)
-            pgen = pgen * (1.0 - pSingles)
-
-            if (IsNullDet(nJ)) then
-                nInvalidExcits = nInvalidExcits + 1
-            else
-                nValidExcits = nValidExcits + 1
-            end if
-        end if
-    end subroutine gen_excit
-
-    !>  @brief
-    !>  Deallocate the sampler and the mapping ab -> (a,b)
-    subroutine finalize(this)
-        class(GAS_PCHB_excit_gen_t), intent(inout) :: this
-
-        call this%pchb_samplers%finalize()
-        deallocate(this%tgtOrbs)
-        deallocate(this%pExch)
-    end subroutine
-
-    !> @brief
-    !> Placeholder function that should fail at runtime.
-    real(dp) function calc_pgen_single_todo(nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2)
-        integer, intent(in) :: nI(nel)
-        integer(n_int), intent(in) :: ilutI(0:NIfTot)
-        integer, intent(in) :: ex(2, 2), ic
-        integer, intent(in) :: ClassCount2(ScratchSize), ClassCountUnocc2(ScratchSize)
-        character(*), parameter :: this_routine = 'calc_pgen_single_todo'
-
-        unused_var(nI); unused_var(ilutI); unused_var(ex); unused_var(ic);
-        unused_var(ClassCount2); unused_var(ClassCountUnocc2)
-        calc_pgen_single_todo = 0._dp
-
-        call stop_all(this_routine, 'calc_pgen_single has to be implemented.')
-    end function
-
-    !>  @brief
-    !>  Calculate the probability of generating a given excitation with the pchb excitgen
-    !>
-    !>  @param[in] nI  determinant to start from
-    !>  @param[in] ex  2x2 excitation matrix
-    !>  @param[in] ic  excitation level
-    !>  @param[in] ClassCount2  symmetry information of the determinant
-    !>  @param[in] ClassCountUnocc2  symmetry information of the virtual orbitals
-    !>
-    !>  @return pGen  probability of drawing this excitation with the pchb excitgen
-    function calc_pgen_pchb(this, nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2) result(pgen)
-        class(GAS_PCHB_excit_gen_t), intent(in) :: this
-        integer, intent(in) :: nI(nel)
-        integer(n_int), intent(in) :: ilutI(0:NIfTot)
-        integer, intent(in) :: ex(2, 2), ic
-        integer, intent(in) :: ClassCount2(ScratchSize), ClassCountUnocc2(ScratchSize)
-        real(dp) :: pgen
-
-        if (ic == 1) then
-            pgen = pSingles * this%calc_pgen_single(nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2)
-        else if (ic == 2) then
-            pGen = (1.0 - pSingles) * this%calc_double_pgen_pchb(nI, ex)
-        else
-            pgen = 0.0_dp
-        end if
-    end function calc_pgen_pchb
 
 
     !>  @brief
@@ -542,16 +616,23 @@ contains
     !>  @param[in] ex  2x2 excitation matrix
     !>
     !>  @return pgen  probability of generating this double with the pchb double excitgen
-    function calc_double_pgen_pchb(this, nI, ex) result(pgen)
-        class(GAS_PCHB_excit_gen_t), intent(in) :: this
-        integer, intent(in) :: nI(nEl)
-        integer, intent(in) :: ex(2, 2)
+    function GAS_doubles_PCHB_get_pgen(this, nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2) result(pgen)
+        class(GAS_doubles_PCHB_ExcGenerator_t), intent(inout) :: this
+        integer, intent(in) :: nI(nel)
+        integer(n_int), intent(in) :: ilutI(0:NIfTot)
+        integer, intent(in) :: ex(2, maxExcit), ic
+        integer, intent(in) :: ClassCount2(ScratchSize), ClassCountUnocc2(ScratchSize)
         real(dp) :: pgen
+        character(*), parameter :: this_routine = 'GAS_doubles_PCHB_get_pgen'
+
         integer :: ab, ij, nex(2, 2), samplerIndex, i_sg
+
+        @:unused_var(ilutI, ClassCount2, ClassCountUnocc2)
+        @:ASSERT(ic == 2)
 
         i_sg = this%indexer%idx_nI(nI)
         ! spatial orbitals of the excitation
-        nex = gtID(ex)
+        nex = gtID(ex(:, : 2))
         ij = fuseIndex(nex(1, 1), nex(1, 2))
         ! the probability of picking the two electrons: they are chosen uniformly
         ! check which sampler was used
@@ -576,7 +657,204 @@ contains
         ! look up the probability for this excitation in the sampler
         ab = fuseIndex(nex(2, 1), nex(2, 2))
         pgen = pgen * this%pchb_samplers%get_prob(ij, samplerIndex, i_sg, ab)
+    end function
 
-    end function calc_double_pgen_pchb
 
+    subroutine GAS_doubles_PCHB_compute_samplers(this, nBI, recoupling)
+        class(GAS_doubles_PCHB_ExcGenerator_t), intent(inout) :: this
+        integer, intent(in) :: nBI
+        logical, intent(in) :: recoupling
+        integer :: i, j, ij, ijMax
+        integer :: a, b, ab, abMax
+        integer :: ex(2, 2)
+        integer(int64) :: memCost
+        real(dp), allocatable :: w(:), pNoExch(:)
+        integer, allocatable :: supergroups(:, :)
+        integer :: i_sg, i_exch
+        ! possible supergroups
+        supergroups = this%indexer%get_supergroups()
+
+        ! number of possible source orbital pairs
+        ijMax = fuseIndex(nBI, nBI)
+        abMax = ijMax
+        ! allocate the bias for picking an exchange excitation
+        allocate(this%pExch(ijMax, size(supergroups, 2)), source=0.0_dp)
+        ! temporary storage for the unnormalized prob of not picking an exchange excitation
+
+        !> n_supergroup * number_of_fused_indices * 3 * (bytes_per_sampler)
+        memCost = size(supergroups, 2) * ijMax * 3 * (abMax * 3 * 8)
+
+        call this%pchb_samplers%shared_alloc([ijMax, 3, size(supergroups, 2)], abMax)
+        write(iout, *) "Excitation generator requires", real(memCost, dp) / 2.0_dp**30, "GB of memory"
+        write(iout, *) "The number of supergroups is", size(supergroups, 2)
+        write(iout, *) "Generating samplers for PCHB excitation generator"
+        write(iout, *) "Depending on the number of supergroups this can take up to 10min."
+        ! weights per pair
+        allocate(w(abMax))
+        ! initialize the three samplers
+        do i_sg = 1, size(supergroups, 2)
+            if (mod(i_sg, 100) == 0) write(iout, *) 'Still generating the samplers'
+            pNoExch = 1.0_dp - this%pExch(:, i_sg)
+            do i_exch = 1, 3
+                ! allocate: all samplers have the same size
+                do i = 1, nBI
+                    ! map i to alpha spin (arbitrary choice)
+                    ex(1, 1) = 2 * i
+                    ! as we order a,b, we can assume j <= i
+                    do j = 1, i
+                        w(:) = 0.0_dp
+                        ! for samplerIndex == 1, j is alpha, else, j is beta
+                        ex(1, 2) = map_orb(j, [SAME_SPIN])
+                        ! for each (i,j), get all matrix elements <ij|H|ab> and use them as
+                        ! weights to prepare the sampler
+                        do a = 1, nBI
+                            ! a is alpha for same-spin (1) and opp spin w/o exchange (2)
+                            ex(2, 2) = map_orb(a, [SAME_SPIN, OPP_SPIN_NO_EXCH])
+                            do b = 1, a
+                                ! exception: for sampler 3, a!=b
+                                if (i_exch == OPP_SPIN_EXCH .and. a == b) cycle
+                                ab = fuseIndex(a, b)
+                                ! ex(2,:) is in ascending order
+                                ! b is alpha for sampe-spin (1) and opp spin w exchange (3)
+                                ex(2, 1) = map_orb(b, [SAME_SPIN, OPP_SPIN_EXCH])
+                                ! use the actual matrix elements as weights
+                                if (this%GAS_spec%is_allowed(DoubleExc_t(ex), supergroups(:, i_sg), recoupling)) then
+                                    w(ab) = abs(sltcnd_excit(projEDet(:, 1), DoubleExc_t(ex), .false.))
+                                else
+                                    w(ab) = 0._dp
+                                end if
+                            end do
+                        end do
+                        ij = fuseIndex(i, j)
+                        call this%pchb_samplers%setup_entry(ij, i_exch, i_sg, w)
+                        if (i_exch == OPP_SPIN_EXCH) this%pExch(ij, i_sg) = sum(w)
+                        if (i_exch == OPP_SPIN_NO_EXCH) pNoExch(ij) = sum(w)
+                    end do
+                end do
+            end do
+            ! normalize the exchange bias (where normalizable)
+            where (near_zero(this%pExch(:, i_sg) + pNoExch))
+                this%pExch(:, i_sg) = 0._dp
+            else where
+                this%pExch(:, i_sg) = this%pExch(:, i_sg) / (this%pExch(:, i_sg) + pNoExch)
+            end where
+        end do
+    contains
+        function map_orb(orb, alphaSamplers) result(sorb)
+            ! map spatial orbital to the spin orbital matching the current samplerIndex
+            ! Input: orb - spatial orbital to be mapped
+            !        alphaSamplers - list of samplerIndex values for which the mapping shall be to alpha
+            ! Output: sorb - corresponding spin orbital
+            integer, intent(in) :: orb
+            integer, intent(in) :: alphaSamplers(:)
+            integer :: sorb
+
+            if (any(i_exch == alphaSamplers)) then
+                sorb = 2 * orb
+            else
+                sorb = 2 * orb - 1
+            end if
+        end function map_orb
+    end subroutine
+
+
+    subroutine GAS_doubles_PCHB_gen_all_excits(this, nI, n_excits, det_list)
+        class(GAS_doubles_PCHB_ExcGenerator_t), intent(in) :: this
+        integer, intent(in) :: nI(nEl)
+        integer, intent(out) :: n_excits
+        integer(n_int), allocatable, intent(out) :: det_list(:,:)
+
+        integer, allocatable :: doubles(:, :)
+        integer :: i
+
+        doubles = get_available_doubles(this%GAS_spec, nI)
+        n_excits = size(doubles, 2)
+        allocate(det_list(0:niftot, n_excits))
+        do i = 1, size(doubles, 2)
+            call EncodeBitDet(doubles(:, i), det_list(:, i))
+        end do
+        call sort(det_list, ilut_lt, ilut_gt)
+    end subroutine
+
+
+    !> @brief
+    !> Initialize the PCHB excitation generator. The doubles generator is implemented
+    !>  and fixed. A singles generator is required.
+    !>
+    !>  @param[in] GAS_spec The GAS specifications for the excitation generator.
+    !>  @param[in] use_lookup Use a lookup for the supergroup indexing.
+    !>  @param[in] recoupling Allow double excitations that change the
+    !>                  spin projection per GAS space.
+    !>  @param[in] singles_generator A **fully** initialized singles_generator
+    !>                  whose cleanup happens outside. Has to be a target.
+    subroutine GAS_PCHB_init(this, GAS_spec, use_lookup, create_lookup, recoupling, discarding_singles)
+        class(GAS_PCHB_ExcGenerator_t), intent(inout) :: this
+        type(GASSpec_t), intent(in) :: GAS_spec
+        logical, intent(in) :: use_lookup, create_lookup, recoupling, discarding_singles
+        if (discarding_singles) then
+            write(iout, *) 'GAS discarding singles activated'
+            allocate(this%singles_generator, source=GAS_singles_DiscardingGenerator_t(GAS_spec))
+        else
+            write(iout, *) 'GAS precomputed singles activated'
+            allocate(GAS_singles_PC_uniform_ExcGenerator_t :: this%singles_generator)
+        end if
+        select type(generator => this%singles_generator)
+        type is(GAS_singles_PC_uniform_ExcGenerator_t)
+            ! NOTE: only one of the excitation generators should manage the
+            !   supergroup lookup!
+            call generator%init(GAS_spec, use_lookup, create_lookup=.false.)
+        end select
+
+        call this%doubles_generator%init(GAS_spec, use_lookup, create_lookup, recoupling)
+    end subroutine
+
+
+    subroutine GAS_PCHB_finalize(this)
+        class(GAS_PCHB_ExcGenerator_t), intent(inout) :: this
+        call this%doubles_generator%finalize()
+        call this%singles_generator%finalize()
+        deallocate(this%singles_generator)
+    end subroutine
+
+
+    subroutine GAS_PCHB_gen_exc(this, nI, ilutI, nJ, ilutJ, exFlag, ic, &
+                                ex, tParity, pGen, hel, store, part_type)
+        class(GAS_PCHB_ExcGenerator_t), intent(inout) :: this
+        integer, intent(in) :: nI(nel), exFlag
+        integer(n_int), intent(in) :: ilutI(0:NIfTot)
+        integer, intent(out) :: nJ(nel), ic, ex(2, maxExcit)
+        integer(n_int), intent(out) :: ilutJ(0:NifTot)
+        real(dp), intent(out) :: pGen
+        logical, intent(out) :: tParity
+        HElement_t(dp), intent(out) :: hel
+        type(excit_gen_store_type), intent(inout), target :: store
+        integer, intent(in), optional :: part_type
+
+        call gen_exc_sd(nI, ilutI, nJ, ilutJ, exFlag, ic, &
+                        ex, tParity, pGen, hel, store, part_type, &
+                        this%singles_generator, this%doubles_generator)
+    end subroutine
+
+
+    real(dp) function GAS_PCHB_get_pgen(&
+            this, nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2)
+        class(GAS_PCHB_ExcGenerator_t), intent(inout) :: this
+        integer, intent(in) :: nI(nel)
+        integer(n_int), intent(in) :: ilutI(0:NIfTot)
+        integer, intent(in) :: ex(2, maxExcit), ic
+        integer, intent(in) :: ClassCount2(ScratchSize), ClassCountUnocc2(ScratchSize)
+        GAS_PCHB_get_pgen = get_pgen_sd(&
+                        nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2, &
+                        this%singles_generator, this%doubles_generator)
+    end function
+
+
+    subroutine GAS_PCHB_gen_all_excits(this, nI, n_excits, det_list)
+        class(GAS_PCHB_ExcGenerator_t), intent(in) :: this
+        integer, intent(in) :: nI(nEl)
+        integer, intent(out) :: n_excits
+        integer(n_int), allocatable, intent(out) :: det_list(:,:)
+        call gen_all_excits_sd(nI, n_excits, det_list, &
+                               this%singles_generator, this%doubles_generator)
+    end subroutine
 end module gasci_general_pchb
