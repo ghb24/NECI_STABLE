@@ -158,7 +158,7 @@ module fcimc_initialisation
                                     set_trial_populations, set_trial_states, calc_trial_states_direct
     use global_det_data, only: global_determinant_data, set_det_diagH, &
                                clean_global_det_data, init_global_det_data, &
-                               set_spawn_rate, store_decoding
+                               set_spawn_rate, store_decoding, set_supergroup_idx
     use semi_stoch_gen, only: init_semi_stochastic, end_semistoch, &
                               enumerate_sing_doub_kpnt
     use semi_stoch_procs, only: return_mp1_amp_and_mp2_energy
@@ -239,6 +239,7 @@ module fcimc_initialisation
     use gasci_util, only: gen_all_excits_GAS => gen_all_excits_wrapper
     use gasci_discarding, only: gen_GASCI_discarding, init_GASCI_discarding, finalize_GASCI_discarding
     use gasci_general_pchb, only: gen_GASCI_general_pchb, general_GAS_PCHB
+    use gasci_supergroup_index, only: lookup_supergroup_indexer
 
     use cepa_shifts, only: t_cepa_shift, init_cepa_shifts
 
@@ -2678,6 +2679,10 @@ contains
 
             call store_decoding(1, HFDet)
 
+            if (associated(lookup_supergroup_indexer)) then
+                call set_supergroup_idx(1, lookup_supergroup_indexer%idx_nI(HFDet))
+            end if
+
             if (tContTimeFCIMC .and. tContTimeFull) &
                 call set_spawn_rate(1, spawn_rate_full(HFDet, ilutHF))
 
@@ -2817,6 +2822,10 @@ contains
                     hdiag = get_helement(ProjEDet(:, run), ProjEDet(:, run), 0)
                 end if
                 call set_det_diagH(site, real(hdiag, dp) - Hii)
+
+                if (associated(lookup_supergroup_indexer)) then
+                    call set_supergroup_idx(site, lookup_supergroup_indexer%idx_nI(ProjEDet(:, run)))
+                end if
 
                 ! store the determinant
                 call store_decoding(site, ProjEDet(:, run))
@@ -3138,6 +3147,11 @@ contains
                         HDiagTemp = get_helement(nJ, nJ, 0)
                     end if
                     call set_det_diagH(DetIndex, real(HDiagtemp, dp) - Hii)
+
+                    if (associated(lookup_supergroup_indexer)) then
+                        call set_supergroup_idx(DetIndex, lookup_supergroup_indexer%idx_nI(nJ))
+                    end if
+
                     ! store the determinant
                     call store_decoding(DetIndex, nJ)
 
