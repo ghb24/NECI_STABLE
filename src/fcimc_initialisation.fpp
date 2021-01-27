@@ -235,7 +235,8 @@ module fcimc_initialisation
                                     gen_excit_back_spawn_hubbard, gen_excit_back_spawn_ueg_new
     use gasci, only: GAS_exc_gen, possible_GAS_exc_gen, operator(==), GAS_specification, get_name
     use gasci_disconnected, only: gen_GASCI_disconnected, init_disconnected_GAS, clearGAS
-    use gasci_general, only: gen_GASCI_general, gen_all_excits_GAS => gen_all_excits
+    use gasci_general, only: gen_GASCI_general
+    use gasci_util, only: gen_all_excits_GAS => gen_all_excits_wrapper
     use gasci_discarding, only: gen_GASCI_discarding, init_GASCI_discarding, finalize_GASCI_discarding
     use gasci_general_pchb, only: gen_GASCI_general_pchb, general_GAS_PCHB
 
