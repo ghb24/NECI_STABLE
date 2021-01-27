@@ -26,6 +26,12 @@ module global_det_data
     integer :: SeniorsNum, AllSeniorsNum
     integer, parameter :: pos_hel = 1, len_hel = 1
 
+    ! The supergroup_idx is always an int64 and should have the same length
+    ! as real64
+    private :: pos_sg_idx, len_sg_idx
+    integer :: pos_sg_idx
+    integer, parameter :: len_sg_idx = 1
+
     !The initial population of a determinant at spawning time.
     integer :: pos_spawn_pop, len_spawn_pop
 
@@ -253,11 +259,12 @@ contains
         pos_pos_spawns = pos_spawn_rate + len_spawn_rate
         pos_neg_spawns = pos_pos_spawns + len_pos_spawns
         pos_max_ratio = pos_neg_spawns + len_neg_spawns
+        pos_sg_idx = pos_max_ratio + len_max_ratio
 
         tot_len = len_hel + len_spawn_pop + len_tau_int + len_shift_int + &
                   len_tot_spawns + len_acc_spawns + len_pops_sum + &
                   len_pops_iter + len_av_sgn_tot + len_iter_occ_tot + &
-                  len_pos_spawns + len_neg_spawns + len_max_ratio
+                  len_pos_spawns + len_neg_spawns + len_max_ratio + len_sg_idx
 
         if (tPairedReplicas) then
             replica_est_len = lenof_sign.div.2
@@ -360,6 +367,27 @@ contains
 
         hel_r = global_determinant_data(pos_hel, j)
 
+    end function
+
+    ! Store the supergroup index for a given determinant.
+    subroutine set_supergroup_idx(j, sg_idx)
+
+        integer, intent(in) :: j
+        integer, intent(in) :: sg_idx
+
+        global_determinant_data(pos_sg_idx, j) = transfer(int(sg_idx, int64), mold=global_determinant_data(pos_sg_idx, j))
+
+    end subroutine
+
+    pure function get_supergroup_idx(j) result(sg_idx)
+
+        integer, intent(in) :: j
+        integer :: sg_idx
+
+        integer(int64) :: sg_idx_tmp
+
+        sg_idx_tmp = transfer(global_determinant_data(pos_sg_idx, j), mold=sg_idx_tmp)
+        sg_idx = int(sg_idx_tmp)
     end function
 
     subroutine set_spawn_pop(j, part, t)
