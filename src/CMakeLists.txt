@@ -442,6 +442,7 @@ set( FYPP_SRC_FILES
     rdm_general.fpp
     hist.fpp
     lib/util_mod.fpp
+    lib/util_mod_epsilon_close.fpp
     sets_mod.fpp
 	shared_ragged_array.fpp
 )
@@ -457,7 +458,6 @@ set( TEMPLATED_SRC_FILES
     lib/util_mod_comparisons.F90.template
     lib/util_mod_cpts.F90.template
     lib/util_mod_numerical.F90.template
-    lib/util_mod_epsilon_close.F90.template
 )
 
 
