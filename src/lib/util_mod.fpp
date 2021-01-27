@@ -62,6 +62,10 @@ module util_mod
         end subroutine
     end interface
 
+    interface operator(.implies.)
+        module procedure implies
+    end interface
+
     interface choose
     #:for kind in primitive_types['integer']
         module procedure choose_${kind}$
@@ -1294,6 +1298,21 @@ contains
             end do
             res(:, f) = tmp
         end do
+    end function
+
+    !> @brief
+    !> The logical operator P => Q
+    !>
+    !> @details
+    !>    P  |  Q   |  P => Q   | ¬ P ∨ Q
+    !>    -------------------------------
+    !>    T  |  T   |     T     |     T
+    !>    T  |  F   |     F     |     F
+    !>    F  |  T   |     T     |     T
+    !>    F  |  F   |     T     |     T
+    logical elemental function implies(P, Q)
+        logical, intent(in) :: P, Q
+        implies = .not. P .or. Q
     end function
 end module
 
