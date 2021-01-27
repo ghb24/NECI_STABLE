@@ -60,8 +60,6 @@ module FciMCParMod
     use rdm_general, only: init_rdms, SumCorrectionContrib, UpdateRDMCorrectionTerm
     use rdm_filling, only: fill_rdm_offdiag_deterministic, fill_rdm_diag_wrapper
     use rdm_explicit, only: fill_explicitrdm_this_iter, fill_hist_explicitrdm_this_iter
-    use procedure_pointers, only: attempt_die_t, generate_excitation_t, &
-                                  get_spawn_helement_t
     use semi_stoch_gen, only: write_most_pop_core_at_end, init_semi_stochastic, &
                               refresh_semistochastic_space
     use semi_stoch_procs, only: is_core_state, check_determ_flag, &
@@ -203,11 +201,6 @@ contains
 
         logical :: t_comm_done, tScheduledLoadBalance
         integer :: run
-
-        ! Procedure pointer temporaries
-        procedure(generate_excitation_t), pointer :: ge_tmp
-        procedure(get_spawn_helement_t), pointer :: gs_tmp
-        procedure(attempt_die_t), pointer :: ad_tmp
 
         character(*), parameter :: this_routine = 'FciMCPar'
         character(6), parameter :: excit_descriptor(0:3) = &
