@@ -10,16 +10,8 @@ module test_gasci_mod
     use orb_idx_mod, only: SpinOrbIdx_t, SpatOrbIdx_t, SpinProj_t, &
         size, operator(==), alpha, beta, sum, calc_spin, calc_spin_raw, &
         operator(-), to_ilut, write_det, operator(/=)
-    use excitation_types, only: Excitation_t, SingleExc_t, DoubleExc_t, excite, dyn_excite
-    use util_mod, only: cumsum
 
     use gasci, only: GASSpec_t
-
-    use unit_test_helper_excitgen, only: test_excitation_generator, &
-        init_excitgen_test, finalize_excitgen_test, generate_random_integrals, &
-        FciDumpWriter_t
-    use unit_test_helpers, only: run_excit_gen_tester
-    use DetBitOps, only: ilut_lt, ilut_gt
     implicit none
     private
     public :: test_igas, test_contains_det, test_particles_per_GAS, &
@@ -54,7 +46,6 @@ contains
                   calculated => GAS_spec%count_per_GAS([1, 5, 6, 7]))
             call assert_equals(expected, calculated, size(expected))
         end associate
-
     end subroutine
 
     subroutine test_contains_det()
@@ -81,22 +72,6 @@ contains
         call assert_true(GAS_spec%is_valid(n_particles=4))
         GAS_spec = GASSpec_t(n_min=[1, 4], n_max=[3, 4], spat_GAS_orbs=[1, 1, 2, 2])
         call assert_true(GAS_spec%is_valid(n_particles=4, n_basis=8))
-
-
-!         GAS_spec = GASSpec_t(n_min=[3, 4], n_max=[3, 4], spat_GAS_orbs=[1, 2, 2, 2])
-!         call assert_false(GAS_spec%is_valid())
-!         GAS_spec = GASSpec_t(n_min=[3, 3], n_max=[3, 4], spat_GAS_orbs=[1, 1, 2, 2])
-!         call assert_false(GAS_spec%is_valid())
-!         GAS_spec = GASSpec_t(n_min=[3, 5], n_max=[3, 5], spat_GAS_orbs=[1, 2])
-!         call assert_false(GAS_spec%is_valid())
-!         GAS_spec = GASSpec_t(n_min=[3, 5], n_max=[3, 5], spat_GAS_orbs=[1, 2])
-!         call assert_false(GAS_spec%is_valid())
-!         GAS_spec = GASSpec_t(n_min=[1, 4], n_max=[3, 4], spat_GAS_orbs=[1, 1, 2, 2])
-!         call assert_false(GAS_spec%is_valid(n_particles=5))
-!         GAS_spec = GASSpec_t(n_min=[1, 4], n_max=[3, 4], spat_GAS_orbs=[1, 1, 2, 2])
-!         call assert_false(GAS_spec%is_valid(n_particles=4, n_basis=5))
-!         GAS_spec = GASSpec_t(n_min=[1, 4], n_max=[3, 4], spat_GAS_orbs=[1, 1, 2, 2])
-!         call assert_false(GAS_spec%is_valid(n_particles=5, n_basis=5))
     end subroutine
 
 
@@ -116,7 +91,6 @@ contains
 
     subroutine test_split_per_GAS
         type(GASSpec_t) :: GAS_spec
-        integer :: i, iGAS
         integer, allocatable :: splitted(:, :), splitted_sizes(:)
         GAS_spec = GASSpec_t(n_min=[2, 4], n_max=[2, 4], spat_GAS_orbs=[1, 1, 2, 2])
         allocate(splitted(GAS_spec%max_GAS_size(), GAS_spec%nGAS()), &
@@ -159,9 +133,7 @@ program test_gasci_program
         test_contains_det, test_particles_per_GAS, test_split_per_GAS
 
     implicit none
-    integer :: failed_count, err
-
-    integer :: n
+    integer :: failed_count
     block
 
         call MPIInit(.false.)

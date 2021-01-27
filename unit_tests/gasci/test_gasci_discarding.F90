@@ -1,18 +1,16 @@
 module test_gasci_discarding_mod
     use fruit
     use constants, only: dp, n_int
+    use SystemData, only: nEl
     use util_mod, only: operator(.div.), operator(.isclose.), near_zero
     use orb_idx_mod, only: calc_spin_raw, sum, SpinOrbIdx_t
     use excitation_types, only: Excitation_t
 
     use gasci, only: GASSpec_t
-    use gasci_discarding, only: gen_GASCI_discarding, init_GASCI_discarding, finalize_GASCI_discarding
-    use gasci_general, only: gen_all_excits
+    use gasci_discarding, only: GAS_DiscardingGenerator_t
 
     use sltcnd_mod, only: dyn_sltcnd_excit
-    use unit_test_helper_excitgen, only: test_excitation_generator, &
-        init_excitgen_test, finalize_excitgen_test, generate_random_integrals, &
-        FciDumpWriter_t
+    use unit_test_helper_excitgen, only: test_excitation_generator, init_excitgen_test, finalize_excitgen_test, generate_random_integrals, FciDumpWriter_t
     use unit_test_helpers, only: run_excit_gen_tester
     implicit none
     private
@@ -22,40 +20,41 @@ module test_gasci_discarding_mod
 
 contains
 
-
     subroutine test_pgen()
-        use gasci, only: global_GAS_spec => GAS_specification
         use SystemData, only: tGASSpinRecoupling
         use FciMCData, only: pSingles, pDoubles, pParallel
+        type(GAS_DiscardingGenerator_t) :: exc_generator
         type(GASSpec_t) :: GAS_spec
         integer, parameter :: det_I(6) = [1, 2, 3, 7, 8, 10]
 
         logical :: successful
+        integer :: n_interspace_exc
         integer, parameter :: n_iters=5 * 10**6
 
         pParallel = 0.05_dp
-        pSingles = 0.3_dp
+        pSingles = 0.2_dp
         pDoubles = 1.0_dp - pSingles
 
         call assert_true(tGASSpinRecoupling)
 
-        GAS_spec = GASSpec_t(n_min=[3, size(det_I)], n_max=[3, size(det_I)], &
-                             spat_GAS_orbs=[1, 1, 1, 2, 2, 2])
-        call assert_true(GAS_spec%is_valid())
-        call assert_true(GAS_spec%contains_det(det_I))
-        global_GAS_spec = GAS_spec
+        do n_interspace_exc = 0, 1
+            GAS_spec = GASSpec_t(n_min=[3 - n_interspace_exc, size(det_I)], n_max=[3 + n_interspace_exc, size(det_I)], &
+                                 spat_GAS_orbs=[1, 1, 1, 2, 2, 2])
+            call assert_true(GAS_spec%is_valid())
+            call assert_true(GAS_spec%contains_det(det_I))
 
-        call init_excitgen_test(size(det_I), FciDumpWriter_t(random_fcidump, 'FCIDUMP'))
-        call init_GASCI_discarding()
-        call run_excit_gen_tester( &
-            gen_GASCI_discarding, 'discarding GASCI implementation, random fcidump', &
-            opt_nI=det_I, opt_n_iters=n_iters, &
-            gen_all_excits=gen_all_excits, &
-            problem_filter=is_problematic,&
-            successful=successful)
-        call assert_true(successful)
-        call finalize_GASCI_discarding()
-        call finalize_excitgen_test()
+            call init_excitgen_test(det_I, FciDumpWriter_t(random_fcidump, 'FCIDUMP'))
+            call exc_generator%init(GAS_spec)
+            call run_excit_gen_tester( &
+                exc_generator, 'general implementation, Li2 like system', &
+                opt_nI=det_I, &
+                opt_n_iters=n_iters, &
+                problem_filter=is_problematic,&
+                successful=successful)
+            call exc_generator%finalize()
+            call assert_true(successful)
+            call finalize_excitgen_test()
+        end do
 
     contains
 
@@ -77,7 +76,6 @@ contains
             is_problematic = (abs(1.0_dp - pgen_diagnostic) >= 0.15_dp) &
                               .and. .not. near_zero(dyn_sltcnd_excit(det_I%idx, exc, .true.))
         end function
-
     end subroutine test_pgen
 end module test_gasci_discarding_mod
 
@@ -90,9 +88,7 @@ program test_gasci_program
 
 
     implicit none
-    integer :: failed_count, err
-
-    integer :: n
+    integer :: failed_count
     block
 
         call MPIInit(.false.)

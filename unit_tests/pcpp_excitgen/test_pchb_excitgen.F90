@@ -2,11 +2,13 @@ program test_pcpp_excitgen
   use constants
   use fruit
   use Parallel_neci, only: MPIInit, MPIEnd
-  use pchb_excitgen, only: gen_rand_excit_pchb, PCHB_FCI
+  use pchb_excitgen, only: PCHB_FCI_excit_generator_t
   use unit_test_helper_excitgen
   use orb_idx_mod, only: beta
   use procedure_pointers, only: generate_excitation
   implicit none
+
+  type(PCHB_FCI_excit_generator_t) :: PCHB_FCI
 
   call MPIInit(.false.)
   call init_fruit()
@@ -20,7 +22,7 @@ contains
   subroutine pchb_test_driver()
     implicit none
     real(dp) :: pTot, pNull
-    integer :: numEx, nFound
+    integer :: numEx, nFound, i
     ! There can be some excitations with really low matrix elements -> we need a lot
     ! of samples to hit all
     integer, parameter :: nSamples = 1000000
@@ -30,7 +32,7 @@ contains
     calc_pgen => calc_pgen_pchb
 
     ! prepare an excitation generator test
-    call init_excitgen_test(n_el=5, fcidump_writer=FciDumpWriter_t(random_fcidump, 'FCIDUMP'))
+    call init_excitgen_test([(i, i = 1, 5)], fcidump_writer=FciDumpWriter_t(random_fcidump, 'FCIDUMP'))
 
     ! prepare the pchb excitgen: set the weights/map-table
     call set_ref()
@@ -39,9 +41,9 @@ contains
     ! test the excitation generator
     call test_excitation_generator(nSamples,pTot,pNull,numEx,nFound,.true.)
     ! make sure all excits have been found
-    call assert_equals(numEx,nFound)
+    call assert_equals(numEx, nFound)
     ! and the total prob is 1.0
-    call assert_true(abs(1.0-pTot) < 0.05)
+    call assert_true(abs(1.0 - pTot) < 0.05)
 
     ! free memory
     call free_ref()
@@ -58,11 +60,27 @@ contains
       integer(n_int), intent(in) :: ilutI(0:NIfTot)
       integer, intent(in) :: ex(2, 2), ic
       integer, intent(in) :: ClassCount2(ScratchSize), ClassCountUnocc2(ScratchSize)
-
       real(dp) :: pgen
-
-      pgen = PCHB_FCI%calc_pgen(nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2)
+      integer :: ex_(2, maxExcit)
+      ex_(:, :2) = ex
+      pgen = PCHB_FCI%get_pgen(nI, ilutI, ex_, ic, ClassCount2, ClassCountUnocc2)
   end function
+
+    subroutine gen_rand_excit_pchb(nI, ilutI, nJ, ilutJ, exFlag, ic, &
+                       ex, tParity, pGen, hel, store, part_type)
+        integer, intent(in) :: nI(nel), exFlag
+        integer(n_int), intent(in) :: ilutI(0:NIfTot)
+        integer, intent(out) :: nJ(nel), ic, ex(2, maxExcit)
+        integer(n_int), intent(out) :: ilutJ(0:NifTot)
+        real(dp), intent(out) :: pGen
+        logical, intent(out) :: tParity
+        HElement_t(dp), intent(out) :: hel
+        type(excit_gen_store_type), intent(inout), target :: store
+        integer, intent(in), optional :: part_type
+
+        call PCHB_FCI%gen_exc(nI, ilutI, nJ, ilutJ, exFlag, ic, ex, &
+                              tParity, pGen, hel, store, part_type)
+    end subroutine
 
   subroutine random_fcidump(iunit)
     integer, intent(in) :: iunit

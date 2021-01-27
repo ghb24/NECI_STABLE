@@ -7,58 +7,54 @@ module test_gasci_general_pchb
     use excitation_types, only: Excitation_t
 
     use gasci, only: GASSpec_t
-    use gasci_general_pchb
-    use gasci_general, only: gen_all_excits
+    use gasci_general_pchb, only: GAS_PCHB_ExcGenerator_t
+    use excitation_generators, only: ExcitationGenerator_t
 
     use sltcnd_mod, only: dyn_sltcnd_excit
     use unit_test_helper_excitgen, only: test_excitation_generator, &
         init_excitgen_test, finalize_excitgen_test, generate_random_integrals, &
         FciDumpWriter_t
     use unit_test_helpers, only: run_excit_gen_tester
+
+    use SystemData, only: nEl
     implicit none
     private
     public :: test_pgen
 
 contains
 
-
     subroutine test_pgen()
-        use gasci, only: global_GAS_spec => GAS_specification
-
-
-        use gasci_general_pchb, only: general_GAS_PCHB
-        use SystemData, only: tGASSpinRecoupling
         use FciMCData, only: pSingles, pDoubles, pParallel
+        type(GAS_PCHB_ExcGenerator_t) :: exc_generator
         type(GASSpec_t) :: GAS_spec
         integer, parameter :: det_I(6) = [1, 2, 3, 7, 8, 10]
 
         logical :: successful
-        integer, parameter :: n_iters=1 * 10**7
+        integer :: n_interspace_exc
+        integer, parameter :: n_iters=10**7
 
-        pParallel = 0.10_dp
-        pSingles = 0.05_dp
+        pParallel = 0.05_dp
+        pSingles = 0.2_dp
         pDoubles = 1.0_dp - pSingles
 
-        call assert_true(tGASSpinRecoupling)
+        do n_interspace_exc = 0, 1
+            GAS_spec = GASSpec_t(n_min=[3 - n_interspace_exc, size(det_I)], n_max=[3 + n_interspace_exc, size(det_I)], &
+                                 spat_GAS_orbs=[1, 1, 1, 2, 2, 2])
+            call assert_true(GAS_spec%is_valid())
+            call assert_true(GAS_spec%contains_det(det_I))
 
-        GAS_spec = GASSpec_t(n_min=[2, size(det_I)], n_max=[4, size(det_I)], &
-                             spat_GAS_orbs=[1, 1, 1, 2, 2, 2])
-        global_GAS_spec = GAS_spec
-        call assert_true(GAS_spec%is_valid())
-        call assert_true(GAS_spec%contains_det(det_I))
-
-        call init_excitgen_test(size(det_I), FciDumpWriter_t(random_fcidump, 'FCIDUMP'))
-
-        call general_GAS_PCHB%init(GAS_spec)
-
-        call run_excit_gen_tester( &
-            gen_GASCI_general_pchb, 'General GAS PCHB implementation, random fcidump', &
-            opt_nI=det_I, opt_n_iters=n_iters, &
-            gen_all_excits=gen_all_excits, &
-            problem_filter=is_problematic,&
-            successful=successful)
-        call assert_true(successful)
-        call finalize_excitgen_test()
+            call init_excitgen_test(det_I, FciDumpWriter_t(random_fcidump, 'FCIDUMP'))
+            call exc_generator%init(GAS_spec, use_lookup=.false., create_lookup=.false., recoupling=.true., discarding_singles=.false.)
+            call run_excit_gen_tester( &
+                exc_generator, 'general implementation, Li2 like system', &
+                opt_nI=det_I, &
+                opt_n_iters=n_iters, &
+                problem_filter=is_problematic,&
+                successful=successful)
+            call exc_generator%finalize()
+            call assert_true(successful)
+            call finalize_excitgen_test()
+        end do
 
     contains
 
@@ -80,7 +76,6 @@ contains
             is_problematic = (abs(1.0_dp - pgen_diagnostic) >= 0.15_dp) &
                               .and. .not. near_zero(dyn_sltcnd_excit(det_I%idx, exc, .true.))
         end function
-
     end subroutine test_pgen
 
 end module
@@ -95,9 +90,8 @@ program test_gasci_program
 
 
     implicit none
-    integer :: failed_count, err
+    integer :: failed_count
 
-    integer :: n
     block
 
         call MPIInit(.false.)
