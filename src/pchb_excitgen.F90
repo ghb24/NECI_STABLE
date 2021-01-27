@@ -4,49 +4,106 @@ module pchb_excitgen
     use SystemData, only: nel, nBasis, t_pchb_weighted_singles
     use util_mod, only: operator(.div.)
     use bit_rep_data, only: NIfTot
+    use GenRandSymExcitNUMod, only: uniform_single_excit_wrapper
+    use excit_gens_int_weighted, only: gen_single_4ind_ex, pgen_single_4ind
     use FciMCData, only: pSingles, excit_gen_store_type, pDoubles
     use SymExcitDataMod, only: ScratchSize
+    use GenRandSymExcitNUMod, only: calc_pgen_symrandexcit2
+    use excitation_types, only: DoubleExc_t
 
     use gasci, only: GASSpec_t
-    use excitation_generators, only: ExcitationGenerator_t, SingleExcitationGenerator_t, get_pgen_sd, gen_exc_sd, gen_all_excits_sd
-    use exc_gen_class_wrappers, only: UniformSingles_t, WeightedSingles_t
-    use gasci_general_pchb, only: GAS_PCHB_ExcGenerator_t, GAS_doubles_PCHB_ExcGenerator_t
+    use gasci_general_pchb, only: GAS_PCHB_excit_gen_t
     implicit none
 
     private
 
-    public :: PCHB_FCI_excit_generator_t
+    public :: gen_rand_excit_pchb, PCHB_FCI
 
-    type, extends(ExcitationGenerator_t) :: PCHB_FCI_excit_generator_t
+    type :: PCHB_FCI_excit_generator_t
         private
-        type(GAS_doubles_PCHB_ExcGenerator_t) :: doubles_generator
-        class(SingleExcitationGenerator_t), allocatable :: singles_generator
+        type(GAS_PCHB_excit_gen_t) :: GAS_PCHB
     contains
         private
-        procedure, public :: init
+        procedure, public :: init => init_FCI_pchb_excitgen
         procedure, public :: finalize
-        procedure, public :: gen_exc
-        procedure, public :: get_pgen
-        procedure, public :: gen_all_excits
+        procedure, public :: gen_excit
+        procedure, public :: calc_pgen
     end type
 
+    type(PCHB_FCI_excit_generator_t) :: PCHB_FCI
 contains
 
-    subroutine init(this)
-        class(PCHB_FCI_excit_generator_t), intent(inout) :: this
-        ! CAS is implemented as a special case of GAS with only one GAS space.
-        ! Since a GAS specification with one GAS space is trivially disconnected, there
-        ! is no point to use the lookup.
-        call this%doubles_generator%init(&
-                CAS_spec(n_el=nEl, n_spat_orbs=nBasis .div. 2), &
-                use_lookup=.false., create_lookup=.false., recoupling=.true.)
+    !>  @brief
+    !>  The excitation generator subroutine for Full CI PCHB.
+    !>
+    !>  @details
+    !>  This is a wrapper to match the function pointer interface.
+    !>  The interface is common to all excitation generators, see proc_ptrs.F90
+    !>
+    !>  For singles, use the uniform or weighted excitgen.
+    subroutine gen_rand_excit_pchb(nI, ilutI, nJ, ilutJ, exFlag, ic, ex, tpar, &
+                                   pgen, helgen, store, part_type)
+        ! The interface is common to all excitation generators, see proc_ptrs.F90
+        integer, intent(in) :: nI(nel), exFlag
+        integer(n_int), intent(in) :: ilutI(0:NIfTot)
+        integer, intent(out) :: nJ(nel), ic, ex(2, maxExcit)
+        integer(n_int), intent(out) :: ilutJ(0:NIfTot)
+        logical, intent(out) :: tpar
+        real(dp), intent(out) :: pGen
+        HElement_t(dp), intent(out) :: HElGen
+        type(excit_gen_store_type), intent(inout), target :: store
+        integer, intent(in), optional :: part_type
 
-        ! luckily the singles generators don't require initialization.
+        unused_var(exFlag); unused_var(part_type); unused_var(store)
+#ifdef WARNING_WORKAROUND_
+        helgen = h_cast(0.0_dp)
+#endif
+
+        call PCHB_FCI%gen_excit(nI, ilutI, nJ, ilutJ, ic, ex, tpar, store, pgen)
+    end subroutine gen_rand_excit_pchb
+
+    subroutine finalize(this)
+        class(PCHB_FCI_excit_generator_t), intent(inout) :: this
+        call this%GAS_PCHB%finalize()
+    end subroutine
+
+    function calc_pgen(this, nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2) result(pgen)
+        class(PCHB_FCI_excit_generator_t), intent(in) :: this
+        integer, intent(in) :: nI(nel)
+        integer(n_int), intent(in) :: ilutI(0:NIfTot)
+        integer, intent(in) :: ex(2, 2), ic
+        integer, intent(in) :: ClassCount2(ScratchSize), ClassCountUnocc2(ScratchSize)
+        real(dp) :: pgen
+        pgen = this%GAS_PCHB%calc_pgen(nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2)
+    end function
+
+    subroutine gen_excit(this, nI, ilutI, nJ, ilutJ, ic, ex, tpar, store, pgen)
+        class(PCHB_FCI_excit_generator_t), intent(in) :: this
+        integer, intent(in) :: nI(nel)
+        integer(n_int), intent(in) :: ilutI(0:NIfTot)
+        integer, intent(out) :: nJ(nel), ic, ex(2, maxExcit)
+        integer(n_int), intent(out) :: ilutJ(0:NIfTot)
+        logical, intent(out) :: tpar
+        type(excit_gen_store_type), intent(inout), target :: store
+        real(dp), intent(out) :: pGen
+        call this%GAS_PCHB%gen_excit(nI, ilutI, nJ, ilutJ, ic, ex, tpar, store, pgen)
+    end subroutine
+
+
+    subroutine init_FCI_pchb_excitgen(this)
+        class(PCHB_FCI_excit_generator_t), intent(inout) :: this
+
+        ! It is not possible to define the wrapper functions as
+        ! internal procedure, because the lifetime of internal procedures
+        ! ends with the scope of the defining procedure.
         if (t_pchb_weighted_singles) then
-            allocate(UniformSingles_t :: this%singles_generator)
+            call this%GAS_PCHB%init(CAS_spec(n_el=nEl, n_spat_orbs=nBasis .div. 2), &
+                                    weighted_single_excit_wrapper, calc_pgen_weighted_single)
         else
-            allocate(WeightedSingles_t :: this%singles_generator)
+            call this%GAS_PCHB%init(CAS_spec(n_el=nEl, n_spat_orbs=nBasis .div. 2), &
+                                    gen_uniform_single, calc_pgen_uniform_single)
         end if
+
     contains
 
         type(GASSpec_t) pure function CAS_spec(n_el, n_spat_orbs)
@@ -56,49 +113,55 @@ contains
         end function
     end subroutine
 
-
-    subroutine finalize(this)
-        class(PCHB_FCI_excit_generator_t), intent(inout) :: this
-        call this%singles_generator%finalize()
-        deallocate(this%singles_generator)
-        call this%doubles_generator%finalize()
-    end subroutine
-
-    function get_pgen(this, nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2) result(pgen)
-        class(PCHB_FCI_excit_generator_t), intent(inout) :: this
+    !> Wrapper function to create a weighted single excitation
+    subroutine weighted_single_excit_wrapper(nI, ilutI, nJ, ilutJ, ex, tpar, store, pgen)
         integer, intent(in) :: nI(nel)
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
-        integer, intent(in) :: ex(2, maxExcit), ic
+        integer, intent(out) :: nJ(nel), ex(2, maxExcit)
+        integer(n_int), intent(out) :: ilutJ(0:NIfTot)
+        logical, intent(out) :: tpar
+        real(dp), intent(out) :: pGen
+        type(excit_gen_store_type), intent(inout), target :: store
+
+        unused_var(store)
+        ! Call the 4ind-weighted single excitation generation
+        call gen_single_4ind_ex(nI, ilutI, nJ, ilutJ, ex, tpar, pgen)
+    end subroutine weighted_single_excit_wrapper
+
+    !> Wrapper function to calculate pgen for weighted single excitation
+    function calc_pgen_weighted_single(nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2) result(pgen)
+        integer, intent(in) :: nI(nel)
+        integer(n_int), intent(in) :: ilutI(0:NIfTot)
+        integer, intent(in) :: ex(2, 2), ic
         integer, intent(in) :: ClassCount2(ScratchSize), ClassCountUnocc2(ScratchSize)
         real(dp) :: pgen
-        pgen = get_pgen_sd(nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2, &
-                           this%singles_generator, this%doubles_generator)
+        unused_var(ClassCount2); unused_var(ClassCountUnocc2); unused_var(ic)
+        pgen = pgen_single_4ind(nI, ilutI, ex(1, 1), ex(2, 1))
     end function
 
-    subroutine gen_exc(this, nI, ilutI, nJ, ilutJ, exFlag, ic, &
-                                     ex, tParity, pGen, hel, store, part_type)
-        class(PCHB_FCI_excit_generator_t), intent(inout) :: this
-        integer, intent(in) :: nI(nel), exFlag
+    !> Wrapper function for creating a uniform single excitation
+    subroutine gen_uniform_single(nI, ilutI, nJ, ilutJ, ex, tpar, store, pgen)
+        integer, intent(in) :: nI(nel)
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
-        integer, intent(out) :: nJ(nel), ic, ex(2, maxExcit)
-        integer(n_int), intent(out) :: ilutJ(0:NifTot)
+        integer, intent(out) :: nJ(nel), ex(2, maxExcit)
+        integer(n_int), intent(out) :: ilutJ(0:NIfTot)
+        logical, intent(out) :: tpar
         real(dp), intent(out) :: pGen
-        logical, intent(out) :: tParity
-        HElement_t(dp), intent(out) :: hel
         type(excit_gen_store_type), intent(inout), target :: store
-        integer, intent(in), optional :: part_type
-        call gen_exc_sd(nI, ilutI, nJ, ilutJ, exFlag, ic, &
-                        ex, tParity, pGen, hel, store, part_type, &
-                        this%singles_generator, this%doubles_generator)
+
+        call uniform_single_excit_wrapper(nI, ilutI, nJ, ilutJ, ex, tpar, store, pgen)
+        pgen = pgen / pSingles
     end subroutine
 
-    subroutine gen_all_excits(this, nI, n_excits, det_list)
-        class(PCHB_FCI_excit_generator_t), intent(in) :: this
-        integer, intent(in) :: nI(nEl)
-        integer, intent(out) :: n_excits
-        integer(n_int), allocatable, intent(out) :: det_list(:,:)
-        call gen_all_excits_sd(nI, n_excits, det_list, &
-                               this%singles_generator, this%doubles_generator)
-    end subroutine
-
+    !> Wrapper function to calculate pgen for uniform single excitation
+    function calc_pgen_uniform_single(nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2) result(pgen)
+        integer, intent(in) :: nI(nel)
+        integer(n_int), intent(in) :: ilutI(0:NIfTot)
+        integer, intent(in) :: ex(2, 2), ic
+        integer, intent(in) :: ClassCount2(ScratchSize), ClassCountUnocc2(ScratchSize)
+        real(dp) :: pgen
+        unused_var(ilutI)
+        call calc_pgen_symrandexcit2(nI, ex, ic, ClassCount2, ClassCountUnocc2, pDoubles, pGen)
+        pgen = pgen / pSingles
+    end function
 end module pchb_excitgen

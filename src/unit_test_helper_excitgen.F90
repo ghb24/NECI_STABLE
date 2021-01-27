@@ -25,7 +25,7 @@ module unit_test_helper_excitgen
     use GenRandSymExcitNUMod, only: init_excit_gen_store, construct_class_counts
     use Calc, only: CalcInit, CalcCleanup, SetCalcDefaults
     use dSFMT_interface, only: dSFMT_init, genrand_real2_dSFMT
-    use Determinants, only: DetInit, DetPreFreezeInit, get_helement, DefDet, tDefineDet
+    use Determinants, only: DetInit, DetPreFreezeInit, get_helement
     use util_mod, only: get_free_unit
     use orb_idx_mod, only: SpinProj_t
     implicit none
@@ -249,11 +249,11 @@ contains
 
     !------------------------------------------------------------------------------------------!
 
-    subroutine init_excitgen_test(ref_det, fcidump_writer)
+    subroutine init_excitgen_test(n_el, fcidump_writer)
         ! mimick the initialization of an FCIQMC calculation to the point where we can generate
         ! excitations with a weighted excitgen
         ! This requires setup of the basis, the symmetries and the integrals
-        integer, intent(in) :: ref_det(:)
+        integer, intent(in) :: n_el
         type(FciDumpWriter_t), intent(in) :: fcidump_writer
         integer :: nBasisMax(5, 3), lms
         integer(int64) :: umatsize
@@ -262,7 +262,7 @@ contains
         integer, parameter :: seed = 25
 
         umatsize = 0
-        nel = size(ref_det)
+        nel = n_el
 
         IlutBits%len_orb = 0
         IlutBits%ind_pop = 1
@@ -308,8 +308,6 @@ contains
         call DetInit()
         ! call SpinOrbSymSetup()
 
-        tDefineDet = .true.
-        DefDet = ref_det
         call DetPreFreezeInit()
 
         call CalcInit()
@@ -429,12 +427,12 @@ contains
     ! set the reference to the determinant with the first nel orbitals occupied
     subroutine set_ref()
         integer :: i
-
         projEDet = reshape([(i + 2, i = 1, nel)], [nel, 1])
+
         if (allocated(ilutRef)) deallocate(ilutRef)
         allocate(ilutRef(0:NifTot, 1))
         call encodeBitDet(projEDet(:, 1), ilutRef(:, 1))
-    end subroutine
+    end subroutine set_ref
 
     subroutine free_ref()
         deallocate(ilutRef)

@@ -437,7 +437,6 @@ set( FYPP_SRC_FILES
     gasci_discarding.fpp
     gasci_general_pchb.fpp
     gasci_supergroup_index.fpp
-    gasci_util.fpp
     orb_idx.fpp
     excitation_types.fpp
 	shared_array.fpp

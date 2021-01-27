@@ -11,7 +11,7 @@ program test_impurity_excit_gen
     integer, parameter :: nel_ = 3
     integer, parameter :: ms_ = 1
 
-    call MPIInit(.false.)
+    call MPIInit(.false.)    
     call init_fruit()
     ! this is where the tests go
     call impurity_excit_gen_test_driver
@@ -25,8 +25,8 @@ contains
         implicit none
         integer, parameter :: nSamples = 1000
         real(dp) :: pTot, pNull
-        integer :: nFound, numEx, i
-        call init_excitgen_test([(i, i = 1, nel_)], FciDumpWriter_t(impurity_fcidump, 'FCIDUMP'))
+        integer :: nFound, numEx
+        call init_excitgen_test(nel_, FciDumpWriter_t(impurity_fcidump, 'FCIDUMP'))
         call init_impurity_tests
         call test_excitation_generator(nSamples, pTot, pNull, numEx, nFound, .false.)
         call assert_equals(numEx,nFound)
@@ -38,7 +38,7 @@ contains
     subroutine impurity_fcidump(iunit)
         use OneEInts, only: tmat2d, tCPMDSymTMat, tOneElecDiag
         use SystemData, only: nBasis, nel, t_complex_ints
-        use bit_rep_data, only: niftot, nifd
+        use bit_rep_data, only: niftot, nifd        
         integer, intent(in) :: iunit
         integer :: i
         real(dp) :: e
@@ -78,10 +78,10 @@ contains
 
     subroutine init_impurity_tests
       implicit none
-
-      generate_excitation => gen_excit_impurity_model
+      
+      generate_excitation => gen_excit_impurity_model      
       call setupImpurityExcitgen()
-
+      
     end subroutine init_impurity_tests
 
     subroutine generate_test_ilut(ilut,nI)

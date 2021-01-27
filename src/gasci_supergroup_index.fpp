@@ -52,17 +52,15 @@
 ! and search the corresponding supergroup index in a precomputed list of composition indices
 ! for all allowed super groups.
 module gasci_supergroup_index
-    use constants, only: int64, n_int
+    use constants, only: int64
     use util_mod, only: choose, cumsum, binary_search_first_ge
-    use bit_rep_data, only: nIfD
     use gasci, only: GASSpec_t
-    use hash, only: hash_table_lookup
 
     implicit none
 
     private
 
-    public :: SuperGroupIndexer_t, lookup_supergroup_indexer
+    public :: SuperGroupIndexer_t
 
     public :: n_compositions, get_compositions, composition_idx
     public :: n_supergroups, get_supergroups, supergroup_idx
@@ -76,7 +74,6 @@ module gasci_supergroup_index
         private
         procedure, public :: idx_supergroup => get_supergroup_idx
         procedure, public :: idx_nI => get_supergroup_idx_det
-        procedure, public :: lookup_supergroup_idx
         procedure, public :: n_supergroups => indexer_n_supergroups
         procedure, public :: get_supergroups => indexer_get_supergroups
     end type
@@ -84,8 +81,6 @@ module gasci_supergroup_index
     interface SuperGroupIndexer_t
         module procedure construct_SuperGroupIndexer_t
     end interface
-
-    type(SuperGroupIndexer_t), pointer :: lookup_supergroup_indexer => null()
 
 contains
 
@@ -104,10 +99,6 @@ contains
     end function
 
 
-    !>  @brief
-    !>  Calculate the supergroup index for a determinant nI
-    !>
-    !>  @param[in] nI The determinant for which the supergroup index should be calculated.
     pure function get_supergroup_idx_det(self, nI) result(idx)
         class(SuperGroupIndexer_t), intent(in) :: self
         integer, intent(in) :: nI(:)
@@ -124,35 +115,7 @@ contains
     end function
 
 
-    !>  @brief
-    !>  Use a precomputed supergroup index from global_det_data.
-    !>
-    !>  @details
-    !>  This function heavily relies on correctly initialized global data
-    !>  outside the control of this class.
-    !>  Carefully make sure, that global_det_data is correctly initialized.
-    !>
-    !>  @param[in] idet The index of nI in the FciMCData::CurrentDets array.
-    !>  @param[in] nI The determinant for which the supergroup index should be calculated.
-    function lookup_supergroup_idx(self, idet, nI) result(idx)
-        use global_det_data, only: global_lookup => get_supergroup_idx
-        class(SuperGroupIndexer_t), intent(in) :: self
-        integer, intent(in) :: idet
-        integer, intent(in) :: nI(:)
-        integer :: idx
-        debug_function_name('lookup_supergroup_idx')
-
-        if (self%GASspec%is_connected()) then
-            idx = global_lookup(idet)
-            ! Assert that looked up and computed index agree.
-            @:pure_ASSERT(idx == self%idx_nI(nI))
-        else
-            idx = 1
-        end if
-    end function
-
-
-    function construct_SuperGroupIndexer_t(GASspec) result(idxer)
+    pure function construct_SuperGroupIndexer_t(GASspec) result(idxer)
         type(GASSpec_t), intent(in) :: GASspec
         type(SuperGroupIndexer_t) :: idxer
 
