@@ -234,7 +234,6 @@ module fcimc_initialisation
     use back_spawn_excit_gen, only: gen_excit_back_spawn, gen_excit_back_spawn_ueg, &
                                     gen_excit_back_spawn_hubbard, gen_excit_back_spawn_ueg_new
     use gasci, only: GAS_exc_gen, possible_GAS_exc_gen, operator(==), GAS_specification, get_name
-    use gasci_disconnected, only: gen_GASCI_disconnected, init_disconnected_GAS, clearGAS
     use gasci_general, only: gen_GASCI_general
     use gasci_util, only: gen_all_excits_GAS => gen_all_excits_wrapper
     use gasci_discarding, only: gen_GASCI_discarding, init_GASCI_discarding, finalize_GASCI_discarding
@@ -260,6 +259,8 @@ module fcimc_initialisation
     use symexcit3, only: gen_all_excits_default => gen_all_excits
 
     use CAS_distribution_init, only: InitFCIMC_CAS
+
+    use exc_gen_classes, only: init_exc_gen_class, finalize_exz_gen_class, class_managed
     implicit none
 
 contains
@@ -1406,10 +1407,9 @@ contains
         ! and can hence be precomputed
         if (t_mol_3_body .or. t_ueg_3_body) call setup_mol_tc_excitgen()
 
+        call init_exc_gen_class()
         if (tGAS) then
-            if (GAS_exc_gen == possible_GAS_exc_gen%DISCONNECTED) then
-                call init_disconnected_GAS(GAS_specification)
-            else if (GAS_exc_gen == possible_GAS_exc_gen%DISCARDING) then
+            if (GAS_exc_gen == possible_GAS_exc_gen%DISCARDING) then
                 call init_GASCI_discarding()
             else if (GAS_exc_gen == possible_GAS_exc_gen%GENERAL_PCHB) then
                 call general_GAS_PCHB%init(GAS_specification)
@@ -1961,7 +1961,7 @@ contains
             if (GAS_exc_gen == possible_GAS_exc_gen%GENERAL) then
                 generate_excitation => gen_GASCI_general
             else if (GAS_exc_gen == possible_GAS_exc_gen%DISCONNECTED) then
-                generate_excitation => gen_GASCI_disconnected
+                call class_managed(generate_excitation, gen_all_excits)
             else if (GAS_exc_gen == possible_GAS_exc_gen%DISCARDING) then
                 generate_excitation => gen_GASCI_discarding
             else if (GAS_exc_gen == possible_GAS_exc_gen%GENERAL_PCHB) then
@@ -2321,9 +2321,7 @@ contains
 
 
         if (tGAS) then
-            if (GAS_exc_gen == possible_GAS_exc_gen%DISCONNECTED) then
-                call clearGAS()
-            else if (GAS_exc_gen == possible_GAS_exc_gen%DISCARDING) then
+            if (GAS_exc_gen == possible_GAS_exc_gen%DISCARDING) then
                 call finalize_GASCI_discarding()
             end if
         end if
@@ -2336,6 +2334,8 @@ contains
         if (tSemiStochastic) call end_semistoch()
 
         if (tTrialWavefunction) call end_trial_wf()
+
+        call finalize_exz_gen_class()
 
 !There seems to be some problems freeing the derived mpi type.
 !        IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) THEN

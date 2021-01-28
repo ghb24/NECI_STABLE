@@ -7,11 +7,11 @@ module exc_gen_classes
     use bit_rep_data, only: NIfTot
     use SystemData, only: nel, tGAS, tGASSpinRecoupling
 
-!     use gasci, only: GAS_exc_gen, operator(==), GAS_specification, possible_GAS_exc_gen, get_name
+    use gasci, only: GAS_exc_gen, operator(==), GAS_specification, possible_GAS_exc_gen, get_name
 !     use gasci_discarding, only: GAS_DiscardingGenerator_t
 !     use gasci_general_pchb, only: GAS_PCHB_ExcGenerator_t, use_supergroup_lookup, tGAS_discarding_singles
 !     use gasci_general, only: GAS_heat_bath_ExcGenerator_t
-!     use gasci_disconnected, only: GAS_disc_ExcGenerator_t
+    use gasci_disconnected, only: GAS_disc_ExcGenerator_t
 
     implicit none
     private
@@ -50,10 +50,10 @@ contains
     subroutine init_exc_gen_class()
 !         use SystemData, only: t_pchb_excitgen
 !         use pchb_excitgen, only: PCHB_FCI_excit_generator_t
-!
-!
-!         block
-!             if (tGAS) then
+
+
+        block
+            if (tGAS) then
 !                 if (GAS_exc_gen == possible_GAS_exc_gen%DISCARDING) then
 !                     allocate(GAS_DiscardingGenerator_t :: current_exc_generator)
 !                     select type(current_exc_generator)
@@ -69,20 +69,20 @@ contains
 !                     end select
 !                 else if (GAS_exc_gen == possible_GAS_exc_gen%GENERAL) then
 !                     current_exc_generator = GAS_heat_bath_ExcGenerator_t(GAS_specification)
-!                 else if (GAS_exc_gen == possible_GAS_exc_gen%disconnected) then
-!                     current_exc_generator = GAS_disc_ExcGenerator_t(GAS_specification)
-!                 end if
-!                 write(iout, *)
-!                 write(iout, '(A" is activated")') get_name(GAS_exc_gen)
-!                 write(iout, '(A)') 'The following GAS specification was used: '
-!                 call GAS_specification%write_to(iout)
-!                 if (.not. tGASSpinRecoupling) then
-!                     write(iout, '(A)') 'Double excitations with exchange are forbidden.'
-!                 end if
-!                 write(iout, *)
-!                 end if
-!         end block
-!
+                if (GAS_exc_gen == possible_GAS_exc_gen%disconnected) then
+                    current_exc_generator = GAS_disc_ExcGenerator_t(GAS_specification)
+                end if
+                write(iout, *)
+                write(iout, '(A" is activated")') get_name(GAS_exc_gen)
+                write(iout, '(A)') 'The following GAS specification was used: '
+                call GAS_specification%write_to(iout)
+                if (.not. tGASSpinRecoupling) then
+                    write(iout, '(A)') 'Double excitations with exchange are forbidden.'
+                end if
+                write(iout, *)
+                end if
+        end block
+
 !         block
 !             if (t_pchb_excitgen) then
 !                 allocate(PCHB_FCI_excit_generator_t :: current_exc_generator)
