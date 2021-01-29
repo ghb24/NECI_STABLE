@@ -50,8 +50,8 @@ program test_k_space_hubbard
 
     use lanczos_wrapper, only: frsblk_wrapper
 
-    use unit_test_helpers, only: run_excit_gen_tester, setup_arr_brr, create_hamiltonian, &
-        create_hamiltonian, similarity_transform, create_all_spin_flips, get_tranformation_matrix, &
+    use unit_test_helpers, only: run_excit_gen_tester, setup_arr_brr, create_lattice_hamil_nI, &
+        similarity_transform, create_all_spin_flips, get_tranformation_matrix, &
         create_hamiltonian_old, create_hilbert_space
 
     use matrix_util, only: check_symmetric, calc_eigenvalues, matrix_exponential, linspace, &
@@ -83,18 +83,19 @@ program test_k_space_hubbard
     call fruit_summary()
     call fruit_finalize()
 
-    ! change flag to run excit-gen tester:
-    t_test_excit_gen = .false.
-    if (t_test_excit_gen) call test_excit_gen_k_space()
-
-    ! change flag to run explicit test-cases
-    t_run_explicit = .false.
-    if (t_run_explicit) call run_explicit_test_cases
     ! change flag to misuse the unit tests do an exact study..
-    t_exact_study = .false.
+    t_exact_study = .true.
 #ifndef CMPLX_
     if (t_exact_study) call exact_study()
 #endif
+
+
+    ! change flag to run excit-gen tester:
+    t_test_excit_gen = .false.
+    if (t_test_excit_gen) call test_excit_gen_k_space()
+    ! change flag to run explicit test-cases
+    t_run_explicit = .false.
+    if (t_run_explicit) call run_explicit_test_cases
     call get_failed_count(failed_count)
     if (failed_count /= 0) stop -1
 
@@ -233,8 +234,8 @@ contains
 
         t_do_exact_transcorr = .true.
         t_input_l = .false.
-        t_optimize_j = .false.
-        t_do_diags = .true.
+        t_optimize_j = .true.
+        t_do_diags = .false.
         t_do_doubles = .true.
         t_do_subspace_study = .false.
         t_input_U = .true.
@@ -685,7 +686,7 @@ contains
 
                             call setup_system(lat, nI, J, U)
 
-                            hamil = create_hamiltonian(hilbert_space)
+                            hamil = create_lattice_hamil_nI(hilbert_space)
 
                             t_sym = check_symmetric(hamil)
                             if (t_sym) then
@@ -816,7 +817,7 @@ contains
 
                 call setup_system(lat, nI, J, U)
 
-                hamil = create_hamiltonian(hilbert_space)
+                hamil = create_lattice_hamil_nI(hilbert_space)
 
                 call eig(hamil, e_values, e_vecs)
 
@@ -937,7 +938,7 @@ contains
         if (t_neci) t_normalize = .false.
 
         ! prepare the Hamiltonian:
-        hamil = create_hamiltonian(hilbert_space)
+        hamil = create_lattice_hamil_nI(hilbert_space)
         size_hilbert = size(hamil,1)
         allocate(e_values(size_hilbert)); e_values = 0.0_dp
         allocate(e_vec(size_hilbert,size_hilbert)); e_vec = 0.0_dp
@@ -1481,7 +1482,7 @@ contains
         t_trans_corr_2body = .false.
         print *, "un-transcorrelated Hamiltonian: "
 
-        hamil = create_hamiltonian(hilbert_nI)
+        hamil = create_lattice_hamil_nI(hilbert_nI)
 
         call print_matrix(hamil)
 
@@ -1495,7 +1496,7 @@ contains
         print *, "transcorrelated Hamiltonian: "
         t_trans_corr_2body = .true.
 
-        hamil_trancorr = create_hamiltonian(hilbert_nI)
+        hamil_trancorr = create_lattice_hamil_nI(hilbert_nI)
 
         call print_matrix(hamil_trancorr)
 
@@ -1529,7 +1530,7 @@ contains
         ! first create the non-transcorrelated Hamiltonian
         t_trans_corr_2body = .false.
         print *, "un-transcorrelated Hamiltonian: "
-        hamil = create_hamiltonian(hilbert_nI)
+        hamil = create_lattice_hamil_nI(hilbert_nI)
 
         call print_matrix(hamil)
 
@@ -1538,7 +1539,7 @@ contains
 
         print *, "transcorrelated Hamiltonian: "
         t_trans_corr_2body = .true.
-        hamil_trancorr = create_hamiltonian(hilbert_nI)
+        hamil_trancorr = create_lattice_hamil_nI(hilbert_nI)
 
         call print_matrix(hamil_trancorr)
 
@@ -1577,7 +1578,7 @@ contains
 
         t_trans_corr_2body = .false.
 
-        hamil = create_hamiltonian(hilbert_nI)
+        hamil = create_lattice_hamil_nI(hilbert_nI)
 
         t_mat = get_tranformation_matrix(hamil,4)
 
@@ -1585,7 +1586,7 @@ contains
 
         t_trans_corr_2body = .true.
 
-        hamil_trancorr = create_hamiltonian(hilbert_nI)
+        hamil_trancorr = create_lattice_hamil_nI(hilbert_nI)
 
         print *, "un-correlated hamiltonian: "
         call print_matrix(hamil)
@@ -1628,7 +1629,7 @@ contains
         t_trans_corr_2body = .false.
         print *, "un-transcorrelated Hamiltonian: "
 
-        hamil = create_hamiltonian(hilbert_nI)
+        hamil = create_lattice_hamil_nI(hilbert_nI)
         call print_matrix(hamil)
 
         ! use the lapack routines to solve these quickly..
@@ -1637,7 +1638,7 @@ contains
         print *, "transcorrelated Hamiltonian: "
         t_trans_corr_2body = .true.
 
-        hamil_trancorr = create_hamiltonian(hilbert_nI)
+        hamil_trancorr = create_lattice_hamil_nI(hilbert_nI)
         call print_matrix(hamil_trancorr)
 
         print *, "eigen-values: ", calc_eigenvalues(hamil_trancorr)
@@ -1753,7 +1754,7 @@ contains
         print *, "total number of states: ", n_states
         print *, "creating original hamiltonian: "
         t_trans_corr_2body = .false.
-        hamil = create_hamiltonian(hilbert_space)
+        hamil = create_lattice_hamil_nI(hilbert_space)
 
         print *, "diagonalizing original hamiltonian: "
         allocate(e_values(n_states));        e_values = 0.0_dp
@@ -1873,14 +1874,14 @@ contains
 
             print *, "(and for testing purposes also create the neci-transcorrelated hamiltonian)"
             t_trans_corr_2body = .true.
-            hamil_neci = create_hamiltonian(hilbert_space)
+            hamil_neci = create_lattice_hamil_nI(hilbert_space)
             t_trans_corr_2body = .false.
 
             print *, "also test the the neighbor correlated neci hamiltonian"
 
             t_trans_corr = .true.
             trans_corr_param = J(i)*2.0
-            hamil_neci_next = create_hamiltonian(hilbert_space)
+            hamil_neci_next = create_lattice_hamil_nI(hilbert_space)
             t_trans_corr = .false.
 
             neci_eval = calc_eigenvalues(hamil_neci)
@@ -2199,7 +2200,7 @@ contains
         print *, "n_states: ", n_states
 
         t_trans_corr_2body = .false.
-        hamil = create_hamiltonian(hilbert_nI)
+        hamil = create_lattice_hamil_nI(hilbert_nI)
 
         hamil_old = create_hamiltonian_old(hilbert_nI)
 
@@ -2215,7 +2216,7 @@ contains
 
 
         t_trans_corr_2body = .true.
-        hamil_trancorr = create_hamiltonian(hilbert_nI)
+        hamil_trancorr = create_lattice_hamil_nI(hilbert_nI)
 
         eval_neci = calc_eigenvalues(hamil_trancorr)
         call sort(eval_neci)
@@ -2288,7 +2289,7 @@ contains
         print *, "n_states: ", n_states
 
         t_trans_corr_2body = .false.
-        hamil = create_hamiltonian(hilbert_nI)
+        hamil = create_lattice_hamil_nI(hilbert_nI)
 
         allocate(eval(n_states))
 
@@ -2299,7 +2300,7 @@ contains
 
 
         t_trans_corr_2body = .true.
-        hamil_trancorr = create_hamiltonian(hilbert_nI)
+        hamil_trancorr = create_lattice_hamil_nI(hilbert_nI)
 
         eval = calc_eigenvalues(hamil_trancorr)
         call sort(eval)
@@ -2349,7 +2350,7 @@ contains
         t_trans_corr_2body = .false.
         print *, "un-transcorrelated Hamiltonian: "
 
-        hamil = create_hamiltonian(hilbert_nI)
+        hamil = create_lattice_hamil_nI(hilbert_nI)
         call print_matrix(hamil)
 
         ! the originial hamiltonian also gives me the transformation matrix
@@ -2362,7 +2363,7 @@ contains
         print *, "transcorrelated Hamiltonian: "
         t_trans_corr_2body = .true.
 
-        hamil_trancorr = create_hamiltonian(hilbert_nI)
+        hamil_trancorr = create_lattice_hamil_nI(hilbert_nI)
         call print_matrix(hamil_trancorr)
 
         print *, "eigen-values: ", calc_eigenvalues(hamil_trancorr)

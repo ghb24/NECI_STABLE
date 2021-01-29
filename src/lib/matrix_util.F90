@@ -6,7 +6,7 @@ module matrix_util
     implicit none
     private
     public :: eig, print_matrix, matrix_exponential, det, blas_matmul, linspace, norm, &
-        calc_eigenvalues, check_symmetric, find_degeneracies, eig_sym
+        calc_eigenvalues, check_symmetric, find_degeneracies, eig_sym, norm_cmplx
 
 
     interface linspace
@@ -533,6 +533,37 @@ contains
         end if
 
     end function norm
+
+    real(dp) function norm_cmplx(vec,p_in)
+        ! function to calculate the Lp norm of a given vector
+        ! if p_in = -1 this indicates the p_inf norm
+        complex(dp), intent(in) :: vec(:)
+        integer, intent(in), optional :: p_in
+#ifdef DEBUG_
+        character(*), parameter :: this_routine = "norm"
+#endif
+        integer :: p, i
+
+        if (present(p_in)) then
+!             ASSERT(p_in == -1 .or. p_in >= 0)
+            p = p_in
+        else
+            ! default is the L2 norm
+            p = 2
+        end if
+
+        if (p == -1) then
+            norm_cmplx = maxval(abs(vec))
+        else
+            norm_cmplx = 0.0_dp
+            do i = 1, size(vec)
+                norm_cmplx = norm_cmplx + abs(vec(i))**p
+            end do
+
+            norm_cmplx = norm_cmplx**(1.0_dp/real(p,dp))
+        end if
+
+    end function norm_cmplx
 
 
     subroutine find_degeneracies(e_values, ind, pairs)

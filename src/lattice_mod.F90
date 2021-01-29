@@ -780,13 +780,24 @@ contains
         ! dispersion relation of the lattice and make them accessible
         ! through the symmetry label associated with the k-vectors!
         character(*), parameter :: this_routine = "init_dispersion_rel_cache"
-        integer :: i
+        integer :: i, sym_min, sym_max, sym
 
         ASSERT(associated(lat))
 
         if (allocated(dispersion_rel_cached)) deallocate(dispersion_rel_cached)
 
-        allocate(dispersion_rel_cached(lat%get_nsites()))
+        sym_min = 0
+        sym_max = 0
+        do i = 1, lat%get_nsites()
+            sym = lat%get_sym(i)
+
+            if (sym < sym_min) sym_min = sym
+            if (sym > sym_max) sym_max = sym
+        end do
+
+
+
+        allocate(dispersion_rel_cached(sym_min:sym_max), source = 0.0_dp)
         dispersion_rel_cached = h_cast(0.0_dp)
 
         do i = 1, lat%get_nsites()
