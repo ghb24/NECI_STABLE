@@ -4,7 +4,7 @@ module excitation_generators
     use constants
     use SystemData, only: nel, nBasis
     use bit_rep_data, only: NIfTot
-    use FciMCData, only: excit_gen_store_type, pSingles
+    use FciMCData, only: excit_gen_store_type, pSingles, pDoubles
     use dSFMT_interface, only: genrand_real2_dSFMT
     use procedure_pointers, only: generate_excitation_t
     use excitation_types, only: SingleExc_t, DoubleExc_t, excite
@@ -99,7 +99,9 @@ contains
         class(SingleExcitationGenerator_t), intent(inout) :: singles_generator
         class(DoubleExcitationGenerator_t), intent(inout) :: doubles_generator
 
-        if (genrand_real2_dSFMT() < pSingles) then
+        ASSERT(pSingles + pDoubles .isclose. 1.0_dp)
+
+        if (genrand_real2_dSFMT() >= pDoubles) then
             ic = 1
             call singles_generator%gen_exc(nI, ilutI, nJ, ilutJ, exFlag, ic, &
                                                 ex, tParity, pGen, hel, store, part_type)
@@ -108,7 +110,7 @@ contains
             ic = 2
             call doubles_generator%gen_exc(nI, ilutI, nJ, ilutJ, exFlag, ic, &
                                                 ex, tParity, pGen, hel, store, part_type)
-            pgen = pgen * (1.0 - pSingles)
+            pgen = pgen * pDoubles
         end if
     end subroutine
 

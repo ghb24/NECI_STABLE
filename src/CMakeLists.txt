@@ -436,6 +436,7 @@ set( FYPP_SRC_FILES
     gasci_general.fpp
     gasci_discarding.fpp
     gasci_general_pchb.fpp
+    gasci_class_general.fpp
     gasci_supergroup_index.fpp
     gasci_util.fpp
     orb_idx.fpp

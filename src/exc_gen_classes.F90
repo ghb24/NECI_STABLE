@@ -10,7 +10,7 @@ module exc_gen_classes
     use gasci, only: GAS_exc_gen, operator(==), GAS_specification, possible_GAS_exc_gen, get_name
 !     use gasci_discarding, only: GAS_DiscardingGenerator_t
 !     use gasci_general_pchb, only: GAS_PCHB_ExcGenerator_t, use_supergroup_lookup, tGAS_discarding_singles
-!     use gasci_general, only: GAS_heat_bath_ExcGenerator_t
+    use gasci_class_general, only: GAS_heat_bath_ExcGenerator_t
     use gasci_disconnected, only: GAS_disc_ExcGenerator_t
 
     implicit none
@@ -67,9 +67,9 @@ contains
 !                         call current_exc_generator%init(GAS_specification, use_supergroup_lookup, &
 !                                                         use_supergroup_lookup, tGASSpinRecoupling, tGAS_discarding_singles)
 !                     end select
-!                 else if (GAS_exc_gen == possible_GAS_exc_gen%GENERAL) then
-!                     current_exc_generator = GAS_heat_bath_ExcGenerator_t(GAS_specification)
-                if (GAS_exc_gen == possible_GAS_exc_gen%disconnected) then
+                if (GAS_exc_gen == possible_GAS_exc_gen%GENERAL) then
+                    current_exc_generator = GAS_heat_bath_ExcGenerator_t(GAS_specification)
+                else if (GAS_exc_gen == possible_GAS_exc_gen%disconnected) then
                     current_exc_generator = GAS_disc_ExcGenerator_t(GAS_specification)
                 end if
                 write(iout, *)
