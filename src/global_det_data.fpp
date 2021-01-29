@@ -12,23 +12,46 @@ module global_det_data
     use util_mod
     implicit none
 
+    private
+    public :: writeFVals, readFVals, write_max_ratio, set_all_max_ratios, &
+        writeAPVals, readAPVals, writeFValsAsInt, &
+        readFValsAsInt, &
+        writeAPValsAsInt, readAPValsAsInt, len_av_sgn_tot, len_iter_occ_tot, &
+        get_determinant, set_det_diagH, det_diagH, max_ratio_size, &
+        fvals_size, apvals_size, &
+        global_determinant_data, global_determinant_data_tmp, &
+        set_spawn_rate, set_all_spawn_pops, reset_all_tau_ints, &
+        reset_all_shift_ints, store_decoding, &
+        reset_all_tot_spawns, reset_all_acc_spawns, &
+        get_iter_occ_tot, get_av_sgn_tot, &
+        set_av_sgn_tot, get_spawn_pop, get_tau_int, get_shift_int, &
+        get_neg_spawns, get_pos_spawns, set_iter_occ_tot, get_pops_sum_full, &
+        clean_global_det_data, init_global_det_data, store_spawn, &
+        update_acc_spawns, update_tot_spawns, get_tot_spawns, get_acc_spawns, &
+        replica_est_len, get_spawn_rate, reset_tau_int, get_all_spawn_pops, &
+        reset_shift_int, update_shift_int, update_tau_int, set_spawn_pop, &
+        update_pops_sum_all, get_pops_iter, get_max_ratio, update_max_ratio, &
+        set_supergroup_idx, get_supergroup_idx
+#ifdef USE_HDF_
+    public :: set_max_ratio_hdf5Int, write_max_ratio_as_int
+#endif
+
+    ! for unit tests
+    public :: pos_acc_spawns, pos_tot_spawns, set_max_ratio
+
+
     ! This is the tag for allocation/deallocation.
-    private :: glob_tag, glob_det_tag, glob_tmp_tag
+    integer :: glob_tag = 0, glob_det_tag = 0, glob_tmp_tag = 0
+
     ! This is the data used to find the elements inside the storage array.
-    private :: pos_hel, len_hel
-    integer :: glob_tag = 0
-    integer :: glob_det_tag = 0
-    integer :: glob_tmp_tag = 0
 
     ! The diagonal matrix element is always stored. As it is a real value it
     ! always has a length of 1 (never cplx). Therefore, encode these values
     ! as parameters to assist optimisation.
-    integer :: SeniorsNum, AllSeniorsNum
     integer, parameter :: pos_hel = 1, len_hel = 1
 
     ! The supergroup_idx is always an int64 and should have the same length
     ! as real64
-    private :: pos_sg_idx, len_sg_idx
     integer :: pos_sg_idx
     integer, parameter :: len_sg_idx = 1
 
@@ -54,13 +77,10 @@ module global_det_data
     integer :: apvals_size
 
     ! Average sign and first occupation of iteration.
-    private :: pos_av_sgn, len_av_sgn, pos_iter_occ, len_iter_occ
     integer :: pos_av_sgn, len_av_sgn
     integer :: pos_iter_occ, len_iter_occ
 
     ! Average sign and first occupation of iteration, for transition RDMs.
-    private :: pos_av_sgn_transition, len_av_sgn_transition
-    private :: pos_iter_occ_transition, len_iter_occ_transition
     integer :: pos_av_sgn_transition, len_av_sgn_transition
     integer :: pos_iter_occ_transition, len_iter_occ_transition
 
@@ -76,7 +96,7 @@ module global_det_data
     integer :: pos_pos_spawns, pos_neg_spawns
 
     ! lenght of the determinant and its position
-    integer :: pos_det_orbs, len_det_orbs
+    integer :: len_det_orbs
     ! position + length of the maximum Hij/pgen ration per determinant
     integer :: pos_max_ratio, len_max_ratio, max_ratio_size
     ! Legth of arrays storing estimates to be written to the replica_est file
@@ -97,28 +117,6 @@ module global_det_data
     interface set_iter_occ_tot
         module procedure set_iter_occ_tot_sgl
         module procedure set_iter_occ_tot_all
-    end interface
-
-    ! Routines for extracting the properties for standard RDMs.
-    interface get_av_sgn_standard
-        module procedure get_av_sgn_standard_sgl
-        module procedure get_av_sgn_standard_all
-    end interface
-
-    interface get_iter_occ_standard
-        module procedure get_iter_occ_standard_sgl
-        module procedure get_iter_occ_standard_all
-    end interface
-
-    ! Routines for extracting the properties for transition RDMs.
-    interface get_av_sgn_transition
-        module procedure get_av_sgn_transition_sgl
-        module procedure get_av_sgn_transition_all
-    end interface
-
-    interface get_iter_occ_transition
-        module procedure get_iter_occ_transition_sgl
-        module procedure get_iter_occ_transition_all
     end interface
 
     ! Routines for extracting the properties of both standard and transition RDMs.
@@ -273,20 +271,20 @@ contains
         end if
 
         if (tReplicaEstimates) then
-            allocate(var_e_num(replica_est_len), stat=ierr)
-            allocate(rep_est_overlap(replica_est_len), stat=ierr)
-            allocate(var_e_num_all(replica_est_len), stat=ierr)
-            allocate(rep_est_overlap_all(replica_est_len), stat=ierr)
-            allocate(e_squared_num(replica_est_len), stat=ierr)
-            allocate(e_squared_num_all(replica_est_len), stat=ierr)
-            allocate(en2_pert(replica_est_len), stat=ierr)
-            allocate(en2_pert_all(replica_est_len), stat=ierr)
-            allocate(en2_new(replica_est_len), stat=ierr)
-            allocate(en2_new_all(replica_est_len), stat=ierr)
-            allocate(precond_e_num(replica_est_len), stat=ierr)
-            allocate(precond_denom(replica_est_len), stat=ierr)
-            allocate(precond_e_num_all(replica_est_len), stat=ierr)
-            allocate(precond_denom_all(replica_est_len), stat=ierr)
+            allocate(var_e_num(replica_est_len))
+            allocate(rep_est_overlap(replica_est_len))
+            allocate(var_e_num_all(replica_est_len))
+            allocate(rep_est_overlap_all(replica_est_len))
+            allocate(e_squared_num(replica_est_len))
+            allocate(e_squared_num_all(replica_est_len))
+            allocate(en2_pert(replica_est_len))
+            allocate(en2_pert_all(replica_est_len))
+            allocate(en2_new(replica_est_len))
+            allocate(en2_new_all(replica_est_len))
+            allocate(precond_e_num(replica_est_len))
+            allocate(precond_denom(replica_est_len))
+            allocate(precond_e_num_all(replica_est_len))
+            allocate(precond_denom_all(replica_est_len))
         end if
 
         ! Allocate and log the required memory (globally)
@@ -502,14 +500,6 @@ contains
 
     end subroutine
 
-    subroutine reset_tot_spawns(j, run)
-
-        integer, intent(in) :: j, run
-
-        global_determinant_data(pos_tot_spawns + run - 1, j) = 0.0_dp
-
-    end subroutine
-
     subroutine update_tot_spawns(j, run, t)
 
         integer, intent(in) :: j, run
@@ -626,14 +616,6 @@ contains
 
     end subroutine
 
-    subroutine reset_acc_spawns(j, run)
-
-        integer, intent(in) :: j, run
-
-        global_determinant_data(pos_acc_spawns + run - 1, j) = 0.0_dp
-
-    end subroutine
-
     subroutine update_acc_spawns(j, run, t)
 
         integer, intent(in) :: j, run
@@ -654,37 +636,6 @@ contains
 
     !------------------------------------------------------------------------------------------!
 
-    subroutine reset_pops_sum(j)
-
-        integer, intent(in) :: j
-
-        global_determinant_data(pos_pops_sum:pos_pops_sum + len_pops_sum - 1, j) = 0.0_dp
-        global_determinant_data(pos_pops_iter, j) = 0.0_dp
-
-    end subroutine
-
-    subroutine set_pops_iter(j, iter)
-
-        integer, intent(in) :: j, iter
-
-        ! Although iteration is an integer, we store it here as double.
-        ! Double can represent integers up to 2^52 without lose in precesion, so it is fine.
-        global_determinant_data(pos_pops_iter, j) = DBLE(iter)
-
-    end subroutine
-
-    subroutine reset_pops_sum_all(ndets)
-
-        integer(int64), intent(in) :: ndets
-        integer :: j
-
-        do j = 1, int(ndets)
-            global_determinant_data(pos_pops_sum:pos_pops_sum + len_pops_sum - 1, j) = 0.0_dp
-            global_determinant_data(pos_pops_iter, j) = 0.0_dp
-        end do
-
-    end subroutine
-
     subroutine update_pops_sum_all(ndets, iter)
         use FciMCData, only: CurrentDets
         use bit_rep_data, only: extract_sign
@@ -697,25 +648,12 @@ contains
             call extract_sign(CurrentDets(:, j), CurrentSign)
             if (IsUnoccDet(CurrentSign)) cycle
 
-            global_determinant_data(pos_pops_sum:pos_pops_sum + len_pops_sum - 1, j) = &
-                global_determinant_data(pos_pops_sum:pos_pops_sum + len_pops_sum - 1, j) + &
-                CurrentSign(:)
+            global_determinant_data(pos_pops_sum:pos_pops_sum + len_pops_sum - 1, j) &
+                = global_determinant_data(pos_pops_sum:pos_pops_sum + len_pops_sum - 1, j) &
+                  + CurrentSign(:)
 
             global_determinant_data(pos_pops_iter, j) = DBLE(iter)
         end do
-    end subroutine
-
-    subroutine update_pops_sum(j, CurrentSign, iter)
-
-        integer, intent(in) :: j
-        real(dp), intent(in) :: CurrentSign(lenof_sign)
-        integer, intent(in) :: iter
-
-        if (IsUnoccDet(CurrentSign)) return
-        global_determinant_data(pos_pops_sum:pos_pops_sum + len_pops_sum - 1, j) = &
-            global_determinant_data(pos_pops_sum:pos_pops_sum + len_pops_sum - 1, j) + &
-            CurrentSign(:)
-        global_determinant_data(pos_pops_iter, j) = DBLE(iter)
     end subroutine
 
     pure function get_pops_sum(j, part) result(AccSign)
@@ -879,85 +817,6 @@ contains
 
     end subroutine
 
-    ! -----Routines for extracting the properties of standard RDMs------------
-
-    function get_av_sgn_standard_sgl(j, part) result(av_sgn)
-
-        integer, intent(in) :: j, part
-        real(dp) :: av_sgn
-
-        av_sgn = global_determinant_data(pos_av_sgn + part - 1, j)
-
-    end function
-
-    function get_av_sgn_standard_all(j) result(av_sgn)
-
-        integer, intent(in) :: j
-        real(dp) :: av_sgn(len_av_sgn)
-
-        av_sgn = global_determinant_data(pos_av_sgn: &
-                                         pos_av_sgn + len_av_sgn - 1, j)
-
-    end function
-
-    function get_iter_occ_standard_sgl(j, part) result(iter_occ)
-
-        integer, intent(in) :: j, part
-        real(dp) :: iter_occ
-
-        iter_occ = global_determinant_data(pos_iter_occ + part - 1, j)
-
-    end function
-
-    function get_iter_occ_standard_all(j) result(iter_occ)
-
-        integer, intent(in) :: j
-        real(dp) :: iter_occ(len_iter_occ)
-
-        iter_occ = global_determinant_data(pos_iter_occ: &
-                                           pos_iter_occ + len_iter_occ - 1, j)
-
-    end function
-
-    ! -----Routines for extracting the properties of transition RDMs-----------
-
-    function get_av_sgn_transition_sgl(j, part) result(av_sgn)
-
-        integer, intent(in) :: j, part
-        real(dp) :: av_sgn
-
-        av_sgn = global_determinant_data(pos_av_sgn_transition + part - 1, j)
-
-    end function
-
-    function get_av_sgn_transition_all(j) result(av_sgn)
-
-        integer, intent(in) :: j
-        real(dp) :: av_sgn(len_av_sgn_transition)
-
-        av_sgn = global_determinant_data(pos_av_sgn_transition: &
-                                         pos_av_sgn_transition + len_av_sgn_transition - 1, j)
-
-    end function
-
-    function get_iter_occ_transition_sgl(j, part) result(iter_occ)
-
-        integer, intent(in) :: j, part
-        real(dp) :: iter_occ
-
-        iter_occ = global_determinant_data(pos_iter_occ_transition + part - 1, j)
-
-    end function
-
-    function get_iter_occ_transition_all(j) result(iter_occ)
-
-        integer, intent(in) :: j
-        real(dp) :: iter_occ(len_iter_occ)
-
-        iter_occ = global_determinant_data(pos_iter_occ_transition: &
-                                           pos_iter_occ_transition + len_iter_occ_transition - 1, j)
-
-    end function
 
     ! -----Routines for extracting the properties of both standard and--------
     ! -----transition RDMs together-------------------------------------------
