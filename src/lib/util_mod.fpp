@@ -147,6 +147,17 @@ module util_mod
 !    public :: factrl, choose, int_fmt, binary_search
 !    public :: append_ext, get_unique_filename, get_nan, isnan_neci
 
+    type, abstract :: EnumBase_t
+        integer :: val
+    contains
+        private
+        procedure :: eq_EnumBase_t
+        procedure :: neq_EnumBase_t
+        generic, public :: operator(==) => eq_EnumBase_t
+        generic, public :: operator(/=) => neq_EnumBase_t
+    end type
+
+
 contains
 
     function stochastic_round(r) result(i)
@@ -1314,6 +1325,20 @@ contains
         logical, intent(in) :: P, Q
         implies = .not. P .or. Q
     end function
+
+    logical elemental function eq_EnumBase_t(this, other)
+        class(EnumBase_t), intent(in) :: this, other
+        if (.not. SAME_TYPE_AS(this, other)) error stop 'Can only compare objects of same type'
+        eq_EnumBase_t = this%val == other%val
+    end function
+
+    logical elemental function neq_EnumBase_t(this, other)
+        class(EnumBase_t), intent(in) :: this, other
+        if (.not. SAME_TYPE_AS(this, other)) error stop 'Can only compare objects of same type'
+        neq_EnumBase_t = this%val /= other%val
+    end function
+
+
 end module
 
 !Hacks for compiler specific system calls.
