@@ -20,7 +20,7 @@ contains
   subroutine pchb_test_driver()
     implicit none
     real(dp) :: pTot, pNull
-    integer :: numEx, nFound
+    integer :: numEx, nFound, i
     ! There can be some excitations with really low matrix elements -> we need a lot
     ! of samples to hit all
     integer, parameter :: nSamples = 1000000
@@ -30,7 +30,7 @@ contains
     calc_pgen => calc_pgen_pchb
 
     ! prepare an excitation generator test
-    call init_excitgen_test(n_el=5, fcidump_writer=FciDumpWriter_t(random_fcidump, 'FCIDUMP'))
+    call init_excitgen_test(ref_det=[(i, i = 1, 5)], fcidump_writer=FciDumpWriter_t(random_fcidump, 'FCIDUMP'))
 
     ! prepare the pchb excitgen: set the weights/map-table
     call set_ref()

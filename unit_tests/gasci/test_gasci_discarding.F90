@@ -7,7 +7,7 @@ module test_gasci_discarding_mod
 
     use gasci, only: GASSpec_t
     use gasci_discarding, only: gen_GASCI_discarding, init_GASCI_discarding, finalize_GASCI_discarding
-    use gasci_general, only: gen_all_excits
+    use gasci_util, only: gen_all_excits
 
     use sltcnd_mod, only: dyn_sltcnd_excit
     use unit_test_helper_excitgen, only: test_excitation_generator, &
@@ -45,11 +45,11 @@ contains
         call assert_true(GAS_spec%contains_det(det_I))
         global_GAS_spec = GAS_spec
 
-        call init_excitgen_test(size(det_I), FciDumpWriter_t(random_fcidump, 'FCIDUMP'))
+        call init_excitgen_test(det_I, FciDumpWriter_t(random_fcidump, 'FCIDUMP'))
         call init_GASCI_discarding()
         call run_excit_gen_tester( &
             gen_GASCI_discarding, 'discarding GASCI implementation, random fcidump', &
-            opt_nI=det_I, opt_n_iters=n_iters, &
+            opt_nI=det_I, opt_n_dets=n_iters, &
             gen_all_excits=gen_all_excits, &
             problem_filter=is_problematic,&
             successful=successful)
