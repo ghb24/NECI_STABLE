@@ -1,24 +1,39 @@
 #:include "macros.fpph"
 #:include "algorithms.fpph"
+
+
+#:set ExcitationTypes = ['SingleExc_t', 'DoubleExc_t']
+
 !> This module contains functions for GAS that are not bound
 !>  to a specific GAS excitation generator.
 module gasci_util
-    use constants, only: n_int
+    use constants, only: n_int, dp
     use SystemData, only: nEl
     use gasci, only: GASSpec_t, GAS_specification
     use orb_idx_mod, only: SpinProj_t, calc_spin_raw, operator(==), operator(/=), operator(-), sum, &
         alpha, beta
     use sort_mod, only: sort
-    use excitation_types, only: SingleExc_t, DoubleExc_t, excite
-    use util_mod, only: lex_leq, cumsum, operator(.div.)
+    use excitation_types, only: SingleExc_t, DoubleExc_t, excite, get_last_tgt, set_last_tgt, UNKNOWN
+    use util_mod, only: lex_leq, cumsum, operator(.div.), near_zero, binary_search_first_ge, &
+        operator(.isclose.)
+    use dSFMT_interface, only: genrand_real2_dSFMT
     use DetBitOps, only: ilut_lt, ilut_gt, EncodeBitDet
     use bit_rep_data, only: NIfTot, NIfD
-    use sets_mod, only: disjoint, union, complement
+    use sltcnd_mod, only: sltcnd_excit
+    use sets_mod, only: disjoint, union, complement, is_sorted
     use growing_buffers, only: buffer_int_2D_t
     implicit none
     private
     public :: get_available_singles, get_available_doubles, &
         get_possible_spaces, get_possible_holes, gen_all_excits, gen_all_excits_wrapper
+
+    public :: get_cumulative_list, draw_from_cum_list
+
+    interface get_cumulative_list
+        #:for Excitation_t in ExcitationTypes
+            module procedure get_cumulative_list_${Excitation_t}$
+        #:endfor
+    end interface
 
 contains
 
@@ -380,5 +395,78 @@ contains
         call gen_all_excits(GAS_specification, nI, n_excits, det_list)
     end subroutine gen_all_excits_wrapper
 
+
+#:for excitation_t in ExcitationTypes
+    !>  @brief
+    !>  Build up a cumulative list of matrix elements.
+    !>
+    !>  @details
+    !>  Calculate the matrix elements for the possible excitations from det_I
+    !>  to the possible holes using the incomplete defined excitation.
+    !>
+    !>  @param[in] det_I, Reference determinant in "nI-format".
+    !>  @param[in] incomplete_exc, An excitation where the last target is unknown.
+    !>  @param[in] possible_holes, Possible holes for the last target.
+    function get_cumulative_list_${excitation_t}$(det_I, incomplete_exc, possible_holes) result(cSum)
+        integer, intent(in) :: det_I(:)
+        type(${excitation_t}$), intent(in) :: incomplete_exc
+        integer, intent(in) :: possible_holes(:)
+        real(dp) :: cSum(size(possible_holes))
+        character(*), parameter :: this_routine = 'get_cumulative_list_${excitation_t}$'
+
+        real(dp) :: previous
+        type(${excitation_t}$) :: exc
+        integer :: i
+
+        @:ASSERT(get_last_tgt(exc) == UNKNOWN)
+        exc = incomplete_exc
+
+        ! build the cumulative list of matrix elements <src|H|tgt>
+        previous = 0.0_dp
+        do i = 1, size(possible_holes)
+            call set_last_tgt(exc, possible_holes(i))
+            cSum(i) = abs(sltcnd_excit(det_I, exc, .false.)) + previous
+            previous = cSum(i)
+        end do
+
+        ! Normalize
+        if (near_zero(cSum(size(cSum)))) then
+            cSum(:) = 0.0_dp
+        else
+            cSum(:) = cSum(:) / cSum(size(cSum))
+        end if
+    end function get_cumulative_list_${excitation_t}$
+#:endfor
+
+
+    !>  @brief
+    !>  Draw from a cumulative list.
+    subroutine draw_from_cum_list(c_sum, idx, pgen)
+        real(dp), intent(in) :: c_sum(:)
+        integer, intent(out) :: idx
+        real(dp), intent(out) :: pgen
+        character(*), parameter :: this_routine = 'draw_from_cum_list'
+
+        @:pure_ASSERT((c_sum(size(c_sum)) .isclose. 0.0_dp) &
+            .or. (c_sum(size(c_sum)) .isclose. 1.0_dp))
+        @:pure_ASSERT(is_sorted(c_sum))
+
+        ! there might not be such an excitation
+        if (c_sum(size(c_sum)) > 0) then
+            ! find the index of the target hole in the cumulative list
+            idx = binary_search_first_ge(c_sum, genrand_real2_dSFMT())
+            @:pure_ASSERT(1 <= idx .and. idx <= size(c_sum))
+
+            ! adjust pgen with the probability for picking tgt from the cumulative list
+            if (idx == 1) then
+                pgen = c_sum(1)
+            else
+                pgen = c_sum(idx) - c_sum(idx - 1)
+            end if
+        else
+            idx = 0
+            pgen = 0.0_dp
+        end if
+    end subroutine
 
 end module
