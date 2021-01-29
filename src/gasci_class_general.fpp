@@ -38,10 +38,13 @@ module gasci_class_general
     implicit none
 
     private
-    public :: GAS_heat_bath_ExcGenerator_t, gen_exc_single
+    public :: GAS_heat_bath_ExcGenerator_t, GAS_singles_heat_bath_ExcGen_t
+
+    ! TODO(@Oskar): Delete ASAP
+    public :: gen_exc_single
 
     !> The heath bath GAS on-the-fly excitation generator
-    type, extends(SingleExcitationGenerator_t) :: GAS_singles_heat_bath_ExcGenerator_t
+    type, extends(SingleExcitationGenerator_t) :: GAS_singles_heat_bath_ExcGen_t
         private
         type(GASSpec_t) :: GAS_spec
     contains
@@ -72,7 +75,7 @@ module gasci_class_general
 
     type, extends(ExcitationGenerator_t) :: GAS_heat_bath_ExcGenerator_t
         private
-        type(GAS_singles_heat_bath_ExcGenerator_t) :: singles_generator
+        type(GAS_singles_heat_bath_ExcGen_t) :: singles_generator
         type(GAS_doubles_heat_bath_ExcGenerator_t) :: doubles_generator
     contains
         procedure, public :: finalize => GAS_heat_bath_finalize
@@ -86,23 +89,34 @@ module gasci_class_general
         module procedure construct_GAS_heat_bath_ExcGenerator_t
     end interface
 
+
+    interface GAS_singles_heat_bath_ExcGen_t
+        module procedure construct_GAS_singles_heat_bath_ExcGen_t
+    end interface
+
 contains
 
     pure function construct_GAS_heat_bath_ExcGenerator_t(GAS_spec) result(res)
         type(GASSpec_t), intent(in) :: GAS_spec
         type(GAS_heat_bath_ExcGenerator_t) :: res
-        res%singles_generator = GAS_singles_heat_bath_ExcGenerator_t(GAS_spec)
+        res%singles_generator = GAS_singles_heat_bath_ExcGen_t(GAS_spec)
         res%doubles_generator = GAS_doubles_heat_bath_ExcGenerator_t(GAS_spec)
     end function
 
+    pure function construct_GAS_singles_heat_bath_ExcGen_t(GAS_spec) result(res)
+        type(GASSpec_t), intent(in) :: GAS_spec
+        type(GAS_singles_heat_bath_ExcGen_t) :: res
+        res%GAS_spec = GAS_spec
+    end function
+
     subroutine GAS_singles_do_nothing(this)
-        class(GAS_singles_heat_bath_ExcGenerator_t), intent(inout) :: this
+        class(GAS_singles_heat_bath_ExcGen_t), intent(inout) :: this
         ! no Initialization => no Finalization
         @:unused_var(this)
     end subroutine
 
     pure function GAS_singles_possible_holes(this, nI, src) result(unoccupied)
-        class(GAS_singles_heat_bath_ExcGenerator_t), intent(in) :: this
+        class(GAS_singles_heat_bath_ExcGen_t), intent(in) :: this
         integer, intent(in) :: nI(:), src
         integer, allocatable :: unoccupied(:)
         unoccupied = get_possible_holes(this%GAS_spec, nI, add_holes=[src], &
@@ -111,73 +125,9 @@ contains
 
     !>  @brief
     !>  Generate a single excitation under GAS constraints.
-    subroutine gen_exc_single(GAS_spec, det_I, ilutI, nJ, ilutJ, ex_mat, par, pgen)
-        type(GASSpec_t), intent(in) :: GAS_spec
-        integer, intent(in) :: det_I(:)
-        integer(n_int), intent(in) :: ilutI(0:NIfTot)
-        integer, intent(out) :: nJ(nel), ex_mat(2, maxExcit)
-        integer(n_int), intent(out) :: ilutJ(0:NifTot)
-        logical, intent(out) :: par
-        real(dp), intent(out) :: pgen
-        character(*), parameter :: this_routine = 'gen_exc_single'
-
-        type(SingleExc_t) :: exc
-        integer, allocatable :: possible_holes(:)
-        real(dp) :: pgen_particle, pgen_hole
-        real(dp), allocatable :: c_sum(:)
-        integer :: i, elec
-
-        ASSERT(this%GAS_spec%contains_det(nI))
-
-        ! Pick any random electron
-        elec = int(genrand_real2_dSFMT() * nEl) + 1
-        exc%val(1) = det_I(elec)
-        pgen_particle = 1.0_dp / real(nEl, kind=dp)
-
-        ! Get a hole with the same spin projection
-        ! while fullfilling GAS-constraints.
-        block
-            integer :: deleted(1)
-            deleted(1) = exc%val(1)
-            possible_holes = get_possible_holes(&
-                GAS_spec, det_I, add_holes=deleted, excess=-calc_spin_raw(exc%val(1)))
-        end block
-
-
-        if (size(possible_holes) == 0) then
-            call zero_result()
-            return
-        end if
-
-        ! build the cumulative list of matrix elements <src|H|tgt>
-        ! with tgt \in possible_holes
-        c_sum = get_cumulative_list(det_I, exc, possible_holes)
-        call draw_from_cum_list(c_sum, i, pgen_hole)
-        @:ASSERT(i == 0 .neqv. (0.0_dp < pgen_hole .and. pgen_hole <= 1.0_dp))
-        if (i /= 0) then
-            exc%val(2) = possible_holes(i)
-            call make_single(det_I, nJ, elec, exc%val(2), ex_mat, par)
-            ilutJ = ilut_excite(ilutI, exc)
-        else
-            call zero_result()
-        end if
-
-        pgen = pgen_particle * pgen_hole
-        @:ASSERT(nJ(1) == 0 .neqv. 0.0_dp < pgen .and. pgen <= 1.0_dp)
-        contains
-
-            subroutine zero_result()
-                ex_mat(:, 1) = exc%val(:)
-                nJ(1) = 0
-                ilutJ = 0_n_int
-            end subroutine zero_result
-    end subroutine
-
-    !>  @brief
-    !>  Generate a single excitation under GAS constraints.
     subroutine GAS_singles_gen_exc(this, nI, ilutI, nJ, ilutJ, exFlag, ic, &
                                    ex, tParity, pGen, hel, store, part_type)
-        class(GAS_singles_heat_bath_ExcGenerator_t), intent(inout) :: this
+        class(GAS_singles_heat_bath_ExcGen_t), intent(inout) :: this
         integer, intent(in) :: nI(nEl), exFlag
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
         integer, intent(out) :: nJ(nEl), ic, ex(2, maxExcit)
@@ -200,11 +150,46 @@ contains
 #ifdef WARNING_WORKAROUND_
         hel = h_cast(0.0_dp)
 #endif
-        call gen_exc_single(this%GAS_spec, nI, ilutI, nJ, ilutJ, ex, tParity, pgen)
+        ! Pick any random electron
+        elec = int(genrand_real2_dSFMT() * nEl) + 1
+        exc%val(1) = nI(elec)
+        pgen_particle = 1.0_dp / real(nEl, kind=dp)
+
+        ! Get a hole with the same spin projection
+        ! while fullfilling GAS-constraints.
+        possible_holes = this%get_possible_holes(nI, exc%val(1))
+
+        if (size(possible_holes) == 0) then
+            call zero_result()
+            return
+        end if
+
+        ! build the cumulative list of matrix elements <src|H|tgt>
+        ! with tgt \in possible_holes
+        c_sum = get_cumulative_list(nI, exc, possible_holes)
+        call draw_from_cum_list(c_sum, i, pgen_hole)
+        @:ASSERT(i == 0 .neqv. (0.0_dp < pgen_hole .and. pgen_hole <= 1.0_dp))
+        if (i /= 0) then
+            exc%val(2) = possible_holes(i)
+            call make_single(nI, nJ, elec, exc%val(2), ex, tParity)
+            ilutJ = ilut_excite(ilutI, exc)
+        else
+            call zero_result()
+        end if
+
+        pgen = pgen_particle * pgen_hole
+        @:ASSERT(nJ(1) == 0 .neqv. 0.0_dp < pgen .and. pgen <= 1.0_dp)
+        contains
+
+            subroutine zero_result()
+                ex(:, 1) = exc%val(:)
+                nJ(1) = 0
+                ilutJ = 0_n_int
+            end subroutine zero_result
     end subroutine
 
     function GAS_singles_get_pgen(this, nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2) result(pgen)
-        class(GAS_singles_heat_bath_ExcGenerator_t), intent(inout) :: this
+        class(GAS_singles_heat_bath_ExcGen_t), intent(inout) :: this
         integer, intent(in) :: nI(nEl)
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
         integer, intent(in) :: ex(2, maxExcit), ic
@@ -225,7 +210,7 @@ contains
         idx = custom_findloc(possible_holes, ex(2, 1))
         ! build the cumulative list of matrix elements <src|H|tgt>
         ! with tgt \in possible_holes
-        c_sum = get_cumulative_list(nI, SingleExc_t(src=ex(2, 1)), possible_holes)
+        c_sum = get_cumulative_list(nI, SingleExc_t(src=ex(1, 1)), possible_holes)
         if (idx == 1) then
             pgen_hole = c_sum(1)
         else
@@ -235,7 +220,7 @@ contains
     end function
 
     subroutine GAS_singles_gen_all_excits(this, nI, n_excits, det_list)
-        class(GAS_singles_heat_bath_ExcGenerator_t), intent(in) :: this
+        class(GAS_singles_heat_bath_ExcGen_t), intent(in) :: this
         integer, intent(in) :: nI(nEl)
         integer, intent(out) :: n_excits
         integer(n_int), allocatable, intent(out) :: det_list(:,:)
@@ -544,6 +529,72 @@ contains
         integer(n_int), allocatable, intent(out) :: det_list(:,:)
         call gen_all_excits_sd(nI, n_excits, det_list, &
                                this%singles_generator, this%doubles_generator)
+    end subroutine
+
+
+    !TODO(@Oskar): Delete ASAP
+    !>  @brief
+    !>  Generate a single excitation under GAS constraints.
+    subroutine gen_exc_single(GAS_spec, det_I, ilutI, nJ, ilutJ, ex_mat, par, pgen)
+        type(GASSpec_t), intent(in) :: GAS_spec
+        integer, intent(in) :: det_I(:)
+        integer(n_int), intent(in) :: ilutI(0:NIfTot)
+        integer, intent(out) :: nJ(nel), ex_mat(2, maxExcit)
+        integer(n_int), intent(out) :: ilutJ(0:NifTot)
+        logical, intent(out) :: par
+        real(dp), intent(out) :: pgen
+        character(*), parameter :: this_routine = 'gen_exc_single'
+
+        type(SingleExc_t) :: exc
+        integer, allocatable :: possible_holes(:)
+        real(dp) :: pgen_particle, pgen_hole
+        real(dp), allocatable :: c_sum(:)
+        integer :: i, elec
+
+        ASSERT(this%GAS_spec%contains_det(nI))
+
+        ! Pick any random electron
+        elec = int(genrand_real2_dSFMT() * nEl) + 1
+        exc%val(1) = det_I(elec)
+        pgen_particle = 1.0_dp / real(nEl, kind=dp)
+
+        ! Get a hole with the same spin projection
+        ! while fullfilling GAS-constraints.
+        block
+            integer :: deleted(1)
+            deleted(1) = exc%val(1)
+            possible_holes = get_possible_holes(&
+                GAS_spec, det_I, add_holes=deleted, excess=-calc_spin_raw(exc%val(1)))
+        end block
+
+
+        if (size(possible_holes) == 0) then
+            call zero_result()
+            return
+        end if
+
+        ! build the cumulative list of matrix elements <src|H|tgt>
+        ! with tgt \in possible_holes
+        c_sum = get_cumulative_list(det_I, exc, possible_holes)
+        call draw_from_cum_list(c_sum, i, pgen_hole)
+        @:ASSERT(i == 0 .neqv. (0.0_dp < pgen_hole .and. pgen_hole <= 1.0_dp))
+        if (i /= 0) then
+            exc%val(2) = possible_holes(i)
+            call make_single(det_I, nJ, elec, exc%val(2), ex_mat, par)
+            ilutJ = ilut_excite(ilutI, exc)
+        else
+            call zero_result()
+        end if
+
+        pgen = pgen_particle * pgen_hole
+        @:ASSERT(nJ(1) == 0 .neqv. 0.0_dp < pgen .and. pgen <= 1.0_dp)
+        contains
+
+            subroutine zero_result()
+                ex_mat(:, 1) = exc%val(:)
+                nJ(1) = 0
+                ilutJ = 0_n_int
+            end subroutine zero_result
     end subroutine
 
 

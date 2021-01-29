@@ -53,7 +53,7 @@ module gasci_class_pchb
     use DetBitOps, only: EncodeBitDet, ilut_lt, ilut_gt
 
     use gasci, only: GASSpec_t
-    use gasci_class_general, only: gen_exc_single
+    use gasci_class_general, only: GAS_singles_heat_bath_ExcGen_t
     use gasci_util, only: get_available_singles, get_available_doubles
     use gasci_supergroup_index, only: SuperGroupIndexer_t, lookup_supergroup_indexer
     use exc_gen_class_wrappers, only: UniformSingles_t
@@ -115,17 +115,6 @@ module gasci_class_pchb
         procedure, public :: gen_all_excits => GAS_discarding_singles_gen_all_excits
     end type
 
-
-    type, extends(SingleExcitationGenerator_t) :: GAS_singles_heat_bath_ExcGen_t
-        private
-        type(GASSpec_t) :: GAS_spec
-    contains
-        private
-        procedure, public :: finalize => GAS_heat_bath_singles_do_nothing
-        procedure, public :: gen_exc => GAS_heat_bath_singles_gen_exc
-        procedure, public :: get_pgen => GAS_heat_bath_singles_get_pgen
-        procedure, public :: gen_all_excits => GAS_heat_bath_singles_gen_all_excits
-    end type
 
     type, extends(EnumBase_t) :: GAS_used_singles_t
     end type
@@ -434,70 +423,6 @@ contains
 
     subroutine GAS_discarding_singles_gen_all_excits(this, nI, n_excits, det_list)
         class(GAS_singles_DiscardingGenerator_t), intent(in) :: this
-        integer, intent(in) :: nI(nEl)
-        integer, intent(out) :: n_excits
-        integer(n_int), allocatable, intent(out) :: det_list(:,:)
-
-        integer, allocatable :: singles(:, :)
-        integer :: i
-
-        singles = get_available_singles(this%GAS_spec, nI)
-
-        n_excits = size(singles, 2)
-        allocate(det_list(0:niftot, n_excits))
-        do i = 1, size(singles, 2)
-            call EncodeBitDet(singles(:, i), det_list(:, i))
-        end do
-
-        call sort(det_list, ilut_lt, ilut_gt)
-    end subroutine
-
-
-    subroutine GAS_heat_bath_singles_do_nothing(this)
-        class(GAS_singles_heat_bath_ExcGen_t), intent(inout) :: this
-        @:unused_var(this)
-    end subroutine
-
-    subroutine GAS_heat_bath_singles_gen_exc(this, nI, ilutI, nJ, ilutJ, exFlag, ic, &
-                                     ex, tParity, pGen, hel, store, part_type)
-        class(GAS_singles_heat_bath_ExcGen_t), intent(inout) :: this
-        integer, intent(in) :: nI(nel), exFlag
-        integer(n_int), intent(in) :: ilutI(0:NIfTot)
-        integer, intent(out) :: nJ(nel), ic, ex(2, maxExcit)
-        integer(n_int), intent(out) :: ilutJ(0:NifTot)
-        real(dp), intent(out) :: pGen
-        logical, intent(out) :: tParity
-        HElement_t(dp), intent(out) :: hel
-        type(excit_gen_store_type), intent(inout), target :: store
-        integer, intent(in), optional :: part_type
-        character(*), parameter :: this_routine = 'GAS_heat_bath_singles_gen_exc'
-
-        integer :: src_copy(maxExcit)
-
-        @:unused_var(exFlag, part_type)
-        ic = 1
-#ifdef WARNING_WORKAROUND_
-        hel = h_cast(0.0_dp)
-#endif
-        ASSERT(this%GAS_spec%contains_det(nI))
-        call gen_exc_single(this%GAS_spec, nI, ilutI, nJ, ilutJ, ex, tParity, pgen)
-    end subroutine
-
-    function GAS_heat_bath_singles_get_pgen(this, nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2) result(pgen)
-        class(GAS_singles_heat_bath_ExcGen_t), intent(inout) :: this
-        integer, intent(in) :: nI(nel)
-        integer(n_int), intent(in) :: ilutI(0:NIfTot)
-        integer, intent(in) :: ex(2, maxExcit), ic
-        integer, intent(in) :: ClassCount2(ScratchSize), ClassCountUnocc2(ScratchSize)
-        real(dp) :: pgen
-        character(*), parameter :: this_routine = 'GAS_heat_bath_singles_get_pgen'
-        pgen = 1.0_dp
-        call stop_all(this_routine, 'Not yet implemented')
-    end function
-
-
-    subroutine GAS_heat_bath_singles_gen_all_excits(this, nI, n_excits, det_list)
-        class(GAS_singles_heat_bath_ExcGen_t), intent(in) :: this
         integer, intent(in) :: nI(nEl)
         integer, intent(out) :: n_excits
         integer(n_int), allocatable, intent(out) :: det_list(:,:)
