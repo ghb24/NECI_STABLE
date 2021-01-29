@@ -237,7 +237,8 @@ module fcimc_initialisation
     use gasci_class_general, only: GAS_heat_bath_ExcGenerator_t
     use gasci_util, only: gen_all_excits_GAS => gen_all_excits_wrapper
     use gasci_discarding, only: gen_GASCI_discarding, init_GASCI_discarding, finalize_GASCI_discarding
-    use gasci_general_pchb, only: gen_GASCI_general_pchb, general_GAS_PCHB
+!     use gasci_general_pchb, only: gen_GASCI_general_pchb, general_GAS_PCHB
+    use gasci_class_pchb, only: GAS_PCHB_ExcGenerator_t
     use gasci_supergroup_index, only: lookup_supergroup_indexer
 
     use cepa_shifts, only: t_cepa_shift, init_cepa_shifts
@@ -1411,8 +1412,6 @@ contains
         if (tGAS) then
             if (GAS_exc_gen == possible_GAS_exc_gen%DISCARDING) then
                 call init_GASCI_discarding()
-            else if (GAS_exc_gen == possible_GAS_exc_gen%GENERAL_PCHB) then
-                call general_GAS_PCHB%init(GAS_specification)
             end if
 
             write(iout, *)
@@ -1965,7 +1964,7 @@ contains
             else if (GAS_exc_gen == possible_GAS_exc_gen%DISCARDING) then
                 generate_excitation => gen_GASCI_discarding
             else if (GAS_exc_gen == possible_GAS_exc_gen%GENERAL_PCHB) then
-                generate_excitation => gen_GASCI_general_pchb
+                call class_managed(generate_excitation, gen_all_excits)
             else
                 call stop_all(this_routine, 'Invalid GAS excitation generator')
             end if

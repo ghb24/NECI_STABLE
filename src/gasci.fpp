@@ -7,17 +7,15 @@ module gasci
     use util_mod, only: cumsum, stop_all, operator(.div.)
     use excitation_types, only: SingleExc_t, DoubleExc_t
     use orb_idx_mod, only: SpinProj_t, calc_spin_raw, operator(==)
+    use util_mod, only: EnumBase_t
     implicit none
 
     private
-    public :: operator(==), operator(/=), possible_GAS_exc_gen, &
+    public :: possible_GAS_exc_gen, &
         GAS_exc_gen, GAS_specification, GASSpec_t, &
         user_input_GAS_exc_gen, get_name, construct_GASSpec_t
 
-
-
-    type :: GAS_exc_gen_t
-        integer :: val
+    type, extends(EnumBase_t) :: GAS_exc_gen_t
     end type
 
     type :: possible_GAS_exc_gen_t
@@ -32,14 +30,6 @@ module gasci
 
     type(GAS_exc_gen_t) :: GAS_exc_gen = possible_GAS_exc_gen%GENERAL
     type(GAS_exc_gen_t), allocatable :: user_input_GAS_exc_gen
-
-    interface operator(==)
-        module procedure eq_GAS_exc_gen_t
-    end interface
-
-    interface operator(/=)
-        module procedure neq_GAS_exc_gen_t
-    end interface
 
     ! NOTE: At the current state of implementation `GASSpec_t` is a completely immutable
     ! datastructure to outside code after the constructor has been called.
@@ -100,16 +90,6 @@ module gasci
     type(GASSpec_t), allocatable :: GAS_specification
 
 contains
-
-    logical elemental function eq_GAS_exc_gen_t(lhs, rhs)
-        type(GAS_exc_gen_t), intent(in) :: lhs, rhs
-        eq_GAS_exc_gen_t = lhs%val == rhs%val
-    end function
-
-    logical elemental function neq_GAS_exc_gen_t(lhs, rhs)
-        type(GAS_exc_gen_t), intent(in) :: lhs, rhs
-        neq_GAS_exc_gen_t = lhs%val /= rhs%val
-    end function
 
     !> @brief
     !> Returns the total number of GAS spaces.
