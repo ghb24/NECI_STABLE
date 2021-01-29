@@ -7,8 +7,8 @@ module exc_gen_classes
     use bit_rep_data, only: NIfTot
     use SystemData, only: nel, tGAS, tGASSpinRecoupling
 
-    use gasci, only: GAS_exc_gen, GAS_specification, possible_GAS_exc_gen, get_name
-!     use gasci_discarding, only: GAS_DiscardingGenerator_t
+    use gasci, only: GAS_exc_gen, operator(==), GAS_specification, possible_GAS_exc_gen, get_name
+    use gasci_discarding, only: GAS_DiscardingGenerator_t
     use gasci_class_pchb, only: GAS_PCHB_ExcGenerator_t, use_supergroup_lookup, GAS_PCHB_singles_generator
     use gasci_class_general, only: GAS_heat_bath_ExcGenerator_t
     use gasci_disconnected, only: GAS_disc_ExcGenerator_t
@@ -48,19 +48,19 @@ contains
     end subroutine
 
     subroutine init_exc_gen_class()
-!         use SystemData, only: t_pchb_excitgen
-!         use pchb_excitgen, only: PCHB_FCI_excit_generator_t
+        use SystemData, only: t_pchb_excitgen
+        use pchb_excitgen, only: PCHB_FCI_excit_generator_t
 
 
         block
             if (tGAS) then
-!                 if (GAS_exc_gen == possible_GAS_exc_gen%DISCARDING) then
-!                     allocate(GAS_DiscardingGenerator_t :: current_exc_generator)
-!                     select type(current_exc_generator)
-!                     type is (GAS_DiscardingGenerator_t)
-!                         call current_exc_generator%init(GAS_specification)
-!                     end select
-                if (GAS_exc_gen == possible_GAS_exc_gen%GENERAL_PCHB) then
+                if (GAS_exc_gen == possible_GAS_exc_gen%DISCARDING) then
+                    allocate(GAS_DiscardingGenerator_t :: current_exc_generator)
+                    select type(current_exc_generator)
+                    type is (GAS_DiscardingGenerator_t)
+                        call current_exc_generator%init(GAS_specification)
+                    end select
+                else if (GAS_exc_gen == possible_GAS_exc_gen%GENERAL_PCHB) then
                     allocate(GAS_PCHB_ExcGenerator_t :: current_exc_generator)
                     select type(current_exc_generator)
                     type is (GAS_PCHB_ExcGenerator_t)
@@ -83,15 +83,15 @@ contains
                 end if
         end block
 
-!         block
-!             if (t_pchb_excitgen) then
-!                 allocate(PCHB_FCI_excit_generator_t :: current_exc_generator)
-!                 select type(current_exc_generator)
-!                 type is (PCHB_FCI_excit_generator_t)
-!                     call current_exc_generator%init()
-!                 end select
-!             end if
-!         end block
+        block
+            if (t_pchb_excitgen) then
+                allocate(PCHB_FCI_excit_generator_t :: current_exc_generator)
+                select type(current_exc_generator)
+                type is (PCHB_FCI_excit_generator_t)
+                    call current_exc_generator%init()
+                end select
+            end if
+        end block
     end subroutine
 
     subroutine class_managed(generate_excitation, gen_all_excits)

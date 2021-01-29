@@ -233,12 +233,8 @@ module fcimc_initialisation
 
     use back_spawn_excit_gen, only: gen_excit_back_spawn, gen_excit_back_spawn_ueg, &
                                     gen_excit_back_spawn_hubbard, gen_excit_back_spawn_ueg_new
-    use gasci, only: GAS_exc_gen, possible_GAS_exc_gen, operator(==), GAS_specification, get_name
-    use gasci_class_general, only: GAS_heat_bath_ExcGenerator_t
+    use gasci, only: GAS_exc_gen, possible_GAS_exc_gen, GAS_specification, get_name
     use gasci_util, only: gen_all_excits_GAS => gen_all_excits_wrapper
-    use gasci_discarding, only: gen_GASCI_discarding, init_GASCI_discarding, finalize_GASCI_discarding
-!     use gasci_general_pchb, only: gen_GASCI_general_pchb, general_GAS_PCHB
-    use gasci_class_pchb, only: GAS_PCHB_ExcGenerator_t
     use gasci_supergroup_index, only: lookup_supergroup_indexer
 
     use cepa_shifts, only: t_cepa_shift, init_cepa_shifts
@@ -252,8 +248,6 @@ module fcimc_initialisation
     use OneEInts, only: tmat2d
 
     use lattice_models_utils, only: gen_all_excits_k_space_hubbard, gen_all_excits_r_space_hubbard
-
-    use pchb_excitgen, only: gen_rand_excit_pchb, PCHB_FCI
 
     use impurity_models, only: setupImpurityExcitgen, clearImpurityExcitgen, gen_excit_impurity_model
 
@@ -1410,10 +1404,6 @@ contains
 
         call init_exc_gen_class()
         if (tGAS) then
-            if (GAS_exc_gen == possible_GAS_exc_gen%DISCARDING) then
-                call init_GASCI_discarding()
-            end if
-
             write(iout, *)
             write(iout, '(A" is activated")') get_name(GAS_exc_gen)
             write(iout, '(A)') 'The following GAS specification was used: '
@@ -1739,7 +1729,6 @@ contains
 
         ! initialize excitation generator
         if (t_pcpp_excitgen) call init_pcpp_excitgen()
-        if (t_pchb_excitgen) call PCHB_FCI%init()
         if(t_impurity_excitgen) call setupImpurityExcitgen()
         ! [W.D.] I guess I want to initialize that before the tau-search,
         ! or otherwise some pgens get calculated incorrectly
@@ -1957,17 +1946,7 @@ contains
         if (tHPHF .and. .not. (t_mol_3_body .or. t_ueg_3_body)) then
             generate_excitation => gen_hphf_excit
         else if (tGAS) then
-            if (GAS_exc_gen == possible_GAS_exc_gen%GENERAL) then
-                call class_managed(generate_excitation, gen_all_excits)
-            else if (GAS_exc_gen == possible_GAS_exc_gen%DISCONNECTED) then
-                call class_managed(generate_excitation, gen_all_excits)
-            else if (GAS_exc_gen == possible_GAS_exc_gen%DISCARDING) then
-                generate_excitation => gen_GASCI_discarding
-            else if (GAS_exc_gen == possible_GAS_exc_gen%GENERAL_PCHB) then
-                call class_managed(generate_excitation, gen_all_excits)
-            else
-                call stop_all(this_routine, 'Invalid GAS excitation generator')
-            end if
+            call class_managed(generate_excitation, gen_all_excits)
         else if (t_3_body_excits .and. .not. (t_mol_3_body .or. t_ueg_3_body)) then
             if (t_uniform_excits) then
                 generate_excitation => gen_excit_uniform_k_space_hub_transcorr
@@ -2025,7 +2004,7 @@ contains
         else if (t_pcpp_excitgen) then
             generate_excitation => gen_rand_excit_pcpp
         else if (t_pchb_excitgen) then
-            generate_excitation => gen_rand_excit_pchb
+            call class_managed(generate_excitation, gen_all_excits)
         else
             generate_excitation => gen_rand_excit
         end if
@@ -2319,15 +2298,8 @@ contains
         call clean_adi()
 
 
-        if (tGAS) then
-            if (GAS_exc_gen == possible_GAS_exc_gen%DISCARDING) then
-                call finalize_GASCI_discarding()
-            end if
-        end if
-
         ! Cleanup excitation generator
         if (t_pcpp_excitgen) call finalize_pcpp_excitgen()
-        if (t_pchb_excitgen) call PCHB_FCI%finalize()
         if(t_impurity_excitgen) call clearImpurityExcitgen()
 
         if (tSemiStochastic) call end_semistoch()

@@ -48,7 +48,7 @@ MODULE HPHFRandExcitMod
 
     use excit_gen_5, only: calc_pgen_4ind_weighted2, gen_excit_4ind_weighted2
 
-    use pchb_excitgen, only: PCHB_FCI
+!     use pchb_excitgen, only: PCHB_FCI
 
     use pcpp_excitgen, only: calc_pgen_pcpp, gen_rand_excit_pcpp, create_elec_map
 
@@ -275,8 +275,7 @@ contains
                                           ExcitMat, tSignOrig, pGen, Hel, &
                                           store)
         else if (t_pchb_excitgen) then
-            call PCHB_FCI%gen_excit(nI, ilutnI, nJ, iLutnJ, IC, ExcitMat, &
-                                     tSignOrig, store, pgen)
+            call stop_all(this_routine, 'Not yet implemented')
         else if(t_pcpp_excitgen) then
             call gen_rand_excit_pcpp(nI, ilutnI, nJ, iLutnJ, exFlag, IC, ExcitMat, &
                                      tSignOrig, pGen, HEl, store)
@@ -864,7 +863,7 @@ contains
                     pgen = calc_pgen_k_space_hubbard(nI, ilutI, ex, ic)
                 end if
             else if (t_pchb_excitgen) then
-                pgen = PCHB_FCI%calc_pgen(nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2)
+                call stop_all(this_routine, 'Not yet implemented')
             else if(t_pcpp_excitgen) then
                 pgen = calc_pgen_pcpp(ilutI, ex, ic)
             else
