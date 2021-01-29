@@ -33,6 +33,8 @@ MODULE System
 
     use gasci, only: GAS_specification, GAS_exc_gen, possible_GAS_exc_gen, GASSpec_t, user_input_GAS_exc_gen
 
+    use gasci_class_pchb, only: possible_GAS_singles, GAS_PCHB_singles_generator
+
     use ParallelHelper, only: iprocindex, root
 
     use fcimcdata, only: pParallel
@@ -1808,7 +1810,7 @@ contains
                 end block
 
             case ("GAS-CI")
-                do while (item < nitems)
+                if (item < nitems) then
                     call readu(w)
                     select case (w)
                     case ('GENERAL')
@@ -1817,12 +1819,31 @@ contains
                         user_input_GAS_exc_gen = possible_GAS_exc_gen%DISCONNECTED
                     case ('DISCARDING')
                         user_input_GAS_exc_gen = possible_GAS_exc_gen%DISCARDING
-                    case ('GENERAL_PCHB')
+                    case ('GENERAL_PCHB', 'GENERAL-PCHB')
                         user_input_GAS_exc_gen = possible_GAS_exc_gen%GENERAL_PCHB
+
+                        if (item < nitems) then
+                            call readu(w)
+                            if (w == 'SINGLES') then
+                                call readu(w)
+                                select case (w)
+                                case('DISCARDING-UNIFORM')
+                                    GAS_PCHB_singles_generator = possible_GAS_singles%DISCARDING_UNIFORM
+                                case('PC-UNIFORM')
+                                    GAS_PCHB_singles_generator = possible_GAS_singles%PC_UNIFORM
+                                case('ON-FLY-HEAT-BATH')
+                                    GAS_PCHB_singles_generator = possible_GAS_singles%ON_FLY_HEAT_BATH
+                                case default
+                                    call Stop_All(t_r, trim(w)//" not a valid keyword")
+                                end select
+                            else
+                                call Stop_All(t_r, "Only SINGLES allowed as optional next keyword after GENERAL-PCHB")
+                            end if
+                        end if
                     case default
-                        call Stop_All("ReadSysInp", trim(w)//" not a valid keyword")
+                        call Stop_All(t_r, trim(w)//" not a valid keyword")
                     end select
-                end do
+                end if
 
             case ("GAS-NO-SPIN-RECOUPLING")
                 tGASSpinRecoupling = .false.

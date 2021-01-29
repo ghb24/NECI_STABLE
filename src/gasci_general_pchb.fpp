@@ -26,7 +26,7 @@
 
 module gasci_general_pchb
     use constants, only: n_int, dp, int64, maxExcit, iout
-    use gasci_general, only: gen_exc_single
+    use gasci_class_general, only: gen_exc_single
     use orb_idx_mod, only: SpinProj_t, calc_spin_raw, operator(==), operator(==)
     use util_mod, only: fuseIndex, getSpinIndex, near_zero, intswap, operator(.div.)
     use dSFMT_interface, only: genrand_real2_dSFMT

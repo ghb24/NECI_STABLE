@@ -53,7 +53,7 @@ module gasci_class_pchb
     use DetBitOps, only: EncodeBitDet, ilut_lt, ilut_gt
 
     use gasci, only: GASSpec_t
-    use gasci_general, only: gen_exc_single
+    use gasci_class_general, only: gen_exc_single
     use gasci_util, only: get_available_singles, get_available_doubles
     use gasci_supergroup_index, only: SuperGroupIndexer_t, lookup_supergroup_indexer
     use exc_gen_class_wrappers, only: UniformSingles_t
