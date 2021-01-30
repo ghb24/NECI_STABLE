@@ -551,7 +551,7 @@ contains
         real(dp), allocatable :: c_sum(:)
         integer :: i, elec
 
-        ASSERT(this%GAS_spec%contains_det(nI))
+        @:ASSERT(GAS_spec%contains_det(det_I))
 
         ! Pick any random electron
         elec = int(genrand_real2_dSFMT() * nEl) + 1

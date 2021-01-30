@@ -2,11 +2,13 @@ program test_pcpp_excitgen
   use constants
   use fruit
   use Parallel_neci, only: MPIInit, MPIEnd
-  use pchb_excitgen, only: gen_rand_excit_pchb, PCHB_FCI
+  use pchb_excitgen, only: PCHB_FCI_excit_generator_t
   use unit_test_helper_excitgen
   use orb_idx_mod, only: beta
   use procedure_pointers, only: generate_excitation
   implicit none
+
+  type(PCHB_FCI_excit_generator_t) :: PCHB_FCI
 
   call MPIInit(.false.)
   call init_fruit()
@@ -60,9 +62,35 @@ contains
       integer, intent(in) :: ClassCount2(ScratchSize), ClassCountUnocc2(ScratchSize)
 
       real(dp) :: pgen
+      integer :: help_ex(2, maxExcit)
+      help_ex(:, : 2) = ex
 
-      pgen = PCHB_FCI%calc_pgen(nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2)
+      pgen = PCHB_FCI%get_pgen(nI, ilutI, help_ex, ic, ClassCount2, ClassCountUnocc2)
   end function
+
+
+    subroutine gen_rand_excit_pchb(nI, ilutI, nJ, ilutJ, exFlag, ic, &
+                                     ex, tParity, pGen, hel, store, part_type)
+
+        use SystemData, only: nel
+        use bit_rep_data, only: NIfTot
+        use FciMCData, only: excit_gen_store_type
+        use constants
+        implicit none
+
+        integer, intent(in) :: nI(nel), exFlag
+        integer(n_int), intent(in) :: ilutI(0:NIfTot)
+        integer, intent(out) :: nJ(nel), ic, ex(2, maxExcit)
+        integer(n_int), intent(out) :: ilutJ(0:NifTot)
+        real(dp), intent(out) :: pGen
+        logical, intent(out) :: tParity
+        HElement_t(dp), intent(out) :: hel
+        type(excit_gen_store_type), intent(inout), target :: store
+        integer, intent(in), optional :: part_type
+
+        call PCHB_FCI%gen_exc(nI, ilutI, nJ, ilutJ, exFlag, ic, &
+                              ex, tParity, pGen, hel, store, part_type)
+    end subroutine
 
   subroutine random_fcidump(iunit)
     integer, intent(in) :: iunit
