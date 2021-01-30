@@ -11,7 +11,7 @@ module pchb_excitgen
     use gasci, only: GASSpec_t
     use excitation_generators, only: ExcitationGenerator_t, SingleExcitationGenerator_t, get_pgen_sd, gen_exc_sd, gen_all_excits_sd
     use exc_gen_class_wrappers, only: UniformSingles_t, WeightedSingles_t
-    use gasci_class_pchb, only: GAS_doubles_PCHB_ExcGenerator_t
+    use gasci_pchb, only: GAS_doubles_PCHB_ExcGenerator_t
     implicit none
 
     private

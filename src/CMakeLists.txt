@@ -433,11 +433,9 @@ set( FYPP_SRC_FILES
     sltcnd.fpp
     gasci.fpp
     gasci_disconnected.fpp
-#     gasci_general.fpp
     gasci_discarding.fpp
-    gasci_general_pchb.fpp
-    gasci_class_general.fpp
-    gasci_class_pchb.fpp
+    gasci_general.fpp
+    gasci_pchb.fpp
     gasci_supergroup_index.fpp
     gasci_util.fpp
     orb_idx.fpp

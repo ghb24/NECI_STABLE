@@ -9,8 +9,8 @@ module exc_gen_classes
 
     use gasci, only: GAS_exc_gen, GAS_specification, possible_GAS_exc_gen, get_name
     use gasci_discarding, only: GAS_DiscardingGenerator_t
-    use gasci_class_pchb, only: GAS_PCHB_ExcGenerator_t, use_supergroup_lookup, GAS_PCHB_singles_generator
-    use gasci_class_general, only: GAS_heat_bath_ExcGenerator_t
+    use gasci_pchb, only: GAS_PCHB_ExcGenerator_t, use_supergroup_lookup, GAS_PCHB_singles_generator
+    use gasci_general, only: GAS_heat_bath_ExcGenerator_t
     use gasci_disconnected, only: GAS_disc_ExcGenerator_t
 
     implicit none

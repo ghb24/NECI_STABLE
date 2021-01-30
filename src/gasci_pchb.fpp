@@ -24,7 +24,7 @@
 !
 ! The details of calculating i_sg can be found in gasci_supergroup_index.f90
 
-module gasci_class_pchb
+module gasci_pchb
     use constants, only: n_int, dp, int64, maxExcit, iout, bits_n_int, int32
     use orb_idx_mod, only: SpinProj_t, calc_spin_raw, operator(==), operator(/=), alpha, beta
     use util_mod, only: fuseIndex, getSpinIndex, near_zero, intswap, operator(.div.), operator(.implies.), EnumBase_t
@@ -53,7 +53,7 @@ module gasci_class_pchb
     use DetBitOps, only: EncodeBitDet, ilut_lt, ilut_gt
 
     use gasci, only: GASSpec_t
-    use gasci_class_general, only: GAS_singles_heat_bath_ExcGen_t
+    use gasci_general, only: GAS_singles_heat_bath_ExcGen_t
     use gasci_util, only: get_available_singles, get_available_doubles
     use gasci_supergroup_index, only: SuperGroupIndexer_t, lookup_supergroup_indexer
     use exc_gen_class_wrappers, only: UniformSingles_t
@@ -876,4 +876,4 @@ contains
         call gen_all_excits_sd(nI, n_excits, det_list, &
                                this%singles_generator, this%doubles_generator)
     end subroutine
-end module gasci_class_pchb
+end module gasci_pchb

@@ -33,7 +33,7 @@ MODULE System
 
     use gasci, only: GAS_specification, GAS_exc_gen, possible_GAS_exc_gen, GASSpec_t, user_input_GAS_exc_gen
 
-    use gasci_class_pchb, only: possible_GAS_singles, GAS_PCHB_singles_generator
+    use gasci_pchb, only: possible_GAS_singles, GAS_PCHB_singles_generator
 
     use ParallelHelper, only: iprocindex, root
 
