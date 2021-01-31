@@ -89,6 +89,8 @@ find_package( LAPACK_NECI REQUIRED )
 # Build-type configuration
 
 set(${PROJECT_NAME}_CONFIGURATIONS neci kneci dneci mneci kdneci kmneci)
+add_custom_target(programs)
+add_dependencies(programs ${${PROJECT_NAME}_CONFIGURATIONS})
 set(${PROJECT_NAME}_neci_DEFINITIONS HElement_t=real)
 
 set(${PROJECT_NAME}_kneci_DEFINITIONS HElement_t=complex CMPLX_)
