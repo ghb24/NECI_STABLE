@@ -584,11 +584,21 @@ contains
 
             successful = .true.
             do i = 1, n_excits
+            block
+                logical :: pgens_differ
                 pgen_diagnostic = contrib_list(i) / real(n_iter, dp)
                 ic = findbitexcitlevel(ilut, det_list(:, i))
                 call decode_bit_det(nJ, det_list(:, i))
                 call get_excitation(nI, nJ, ic, exc, tParity)
 
+                if (present(calc_pgen)) then
+                    pgens_differ = .not. (calc_pgen(SpinOrbIdx_t(nI), ilut, exc) .isclose. pgen_list(i))
+                else
+                    pgens_differ = .false.
+                end if
+
+                ! TODO(@Oskar)
+!                 if (problem_filter_(SpinOrbIdx_t(nI), exc, pgen_diagnostic) .or. pgens_differ) then
                 if (problem_filter_(SpinOrbIdx_t(nI), exc, pgen_diagnostic)) then
                     successful = .false.
                     call write_det(i_unit_, nJ, .false.)
@@ -600,6 +610,7 @@ contains
                     end if
                     write(i_unit_, *)
                 end if
+            end block
             end do
         end block
 
