@@ -6,7 +6,7 @@ module test_gasci_general_mod
     use excitation_types, only: Excitation_t
 
     use gasci, only: GASSpec_t
-    use gasci_class_general, only: GAS_heat_bath_ExcGenerator_t
+    use gasci_general, only: GAS_heat_bath_ExcGenerator_t
 
     use sltcnd_mod, only: dyn_sltcnd_excit
     use unit_test_helper_excitgen, only: &
