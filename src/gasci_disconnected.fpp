@@ -16,7 +16,7 @@ module gasci_disconnected
     use FciMCData, only: pDoubles, pSingles
     use get_excit, only: make_double, make_single
     use Determinants, only: get_helement
-    use excit_gens_int_weighted, only: pick_biased_elecs, pgen_select_orb
+    use excit_gens_int_weighted, only: pick_biased_elecs, pgen_select_orb, get_pgen_pick_biased_elecs
     use excitation_types, only: Excitation_t, SingleExc_t, DoubleExc_t, &
                                 get_last_tgt, set_last_tgt, defined, dyn_defined, UNKNOWN
     use sltcnd_mod, only: sltcnd_excit, dyn_sltcnd_excit
@@ -651,11 +651,8 @@ contains
         @:ASSERT(defined(exc))
 
         parallel_spin = calc_spin_raw(src1) == calc_spin_raw(src2)
-        if (parallel_spin) then
-            pgen_pick_elec = pParallel / real(par_elec_pairs, dp)
-        else
-            pgen_pick_elec = (1.0_dp - pParallel) / real(AB_elec_pairs, dp)
-        end if
+
+        pgen_pick_elec = get_pgen_pick_biased_elecs(parallel_spin, pParallel, par_elec_pairs, AB_elec_pairs)
 
         tExchange = .not. parallel_spin &
                     .and. (tGASSpinRecoupling .or. this%GAS_table(src1) == this%GAS_table(src2))
@@ -685,23 +682,5 @@ contains
 
         pgen = pgen_pick_elec * sum(pgen_first_pick * pgen_second_pick)
     end function
-
-!     function dyn_calc_pgen(det_I, ilutI, exc) result(pgen)
-!         type(SpinOrbIdx_t), intent(in) :: det_I
-!         integer(n_int), intent(in) :: ilutI(0:NIfTot)
-!         class(Excitation_t), intent(in) :: exc
-!         character(*), parameter :: this_routine = 'dyn_calc_pgen'
-!
-!         real(dp) :: pgen
-!
-!         @:ASSERT(dyn_defined(exc))
-!
-!         select type (exc)
-!         type is (SingleExc_t)
-!             pgen = calc_pgen(det_I, ilutI, exc)
-!         type is (DoubleExc_t)
-!             pgen = calc_pgen(det_I, ilutI, exc)
-!         end select
-!     end function
 
 end module gasci_disconnected

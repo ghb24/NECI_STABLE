@@ -5,7 +5,7 @@
 #:set ExcitationTypes = ['SingleExc_t', 'DoubleExc_t']
 
 module gasci_general
-    use SystemData, only: nEl
+    use SystemData, only: nEl, AB_elec_pairs, par_elec_pairs
     use constants, only: dp, n_int, maxExcit
     use util_mod, only: binary_search_first_ge, &
         near_zero, operator(.isclose.), custom_findloc
@@ -14,10 +14,10 @@ module gasci_general
     use sets_mod, only: is_sorted, disjoint
     use bit_rep_data, only: NIfTot
     use dSFMT_interface, only: genrand_real2_dSFMT
-    use FciMCData, only: excit_gen_store_type
+    use FciMCData, only: excit_gen_store_type, pParallel
     use get_excit, only: make_double, make_single
     use SymExcitDataMod, only: ScratchSize
-    use excit_gens_int_weighted, only: pick_biased_elecs, pgen_select_orb
+    use excit_gens_int_weighted, only: pick_biased_elecs, get_pgen_pick_biased_elecs
     use excitation_types, only: Excitation_t, SingleExc_t, DoubleExc_t, &
         get_last_tgt, set_last_tgt, defined, UNKNOWN, &
         excite, ilut_excite
@@ -432,8 +432,9 @@ contains
 
         exc = DoubleExc_t(ex)
 
-        ! TODO(@Oskar): insert correct code
-        pgen_particles = 1.0
+        pgen_particles = get_pgen_pick_biased_elecs(&
+                calc_spin_raw(exc%val(1, 1)) == calc_spin_raw(exc%val(1, 2)), &
+                pParallel, par_elec_pairs, AB_elec_pairs)
 
         possible_holes = this%get_possible_holes(nI, exc%val(1, :))
         pgen_first_pick = 1.0_dp / real(size(possible_holes), dp)
