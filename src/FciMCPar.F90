@@ -1626,7 +1626,10 @@ contains
                     end if
 
                     ! If a valid excitation, see if we should spawn children.
-                    if (.not. IsNullDet(nJ)) then
+                    if (IsNullDet(nJ)) then
+                        nInvalidExcits = nInvalidExcits + 1
+                    else
+                        nValidExcits = nValidExcits + 1
 
                         if (tSemiStochastic) then
                             call encode_child(CurrentDets(:, j), iLutnJ, ic, ex)
