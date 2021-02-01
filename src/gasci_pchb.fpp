@@ -128,7 +128,7 @@ module gasci_pchb
 
     type(possible_GAS_singles_t), parameter :: possible_GAS_singles = possible_GAS_singles_t()
 
-    type(GAS_used_singles_t) :: GAS_PCHB_singles_generator = possible_GAS_singles%ON_FLY_HEAT_BATH
+    type(GAS_used_singles_t) :: GAS_PCHB_singles_generator = possible_GAS_singles%PC_UNIFORM
 
     !> The GAS PCHB excitation generator for doubleles
     type, extends(DoubleExcitationGenerator_t) :: GAS_doubles_PCHB_ExcGenerator_t
