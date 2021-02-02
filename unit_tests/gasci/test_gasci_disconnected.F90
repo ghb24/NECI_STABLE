@@ -49,7 +49,7 @@ contains
         exc_generator = GAS_disc_ExcGenerator_t(GAS_spec)
         call run_excit_gen_tester( &
             exc_generator, 'only disconnected implementation, random_fcidump', &
-            opt_nI=det_I, opt_n_iters=n_iters, &
+            opt_nI=det_I, opt_n_dets=n_iters, &
             problem_filter=is_problematic,&
             successful=successful)
         call assert_true(successful)

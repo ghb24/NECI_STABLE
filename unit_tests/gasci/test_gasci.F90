@@ -18,7 +18,6 @@ module test_gasci_mod
     use unit_test_helper_excitgen, only: test_excitation_generator, &
         init_excitgen_test, finalize_excitgen_test, generate_random_integrals, &
         FciDumpWriter_t
-    use unit_test_helpers, only: run_excit_gen_tester
     use DetBitOps, only: ilut_lt, ilut_gt
     implicit none
     private

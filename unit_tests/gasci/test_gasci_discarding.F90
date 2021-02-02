@@ -6,7 +6,7 @@ module test_gasci_discarding_mod
     use excitation_types, only: Excitation_t
 
     use gasci, only: GASSpec_t
-    use gasci_discarding, only: gen_GASCI_discarding, init_GASCI_discarding, finalize_GASCI_discarding
+    use gasci_discarding, only: GAS_DiscardingGenerator_t
     use gasci_util, only: gen_all_excits
 
     use sltcnd_mod, only: dyn_sltcnd_excit
@@ -24,10 +24,10 @@ contains
 
 
     subroutine test_pgen()
-        use gasci, only: global_GAS_spec => GAS_specification
         use SystemData, only: tGASSpinRecoupling
         use FciMCData, only: pSingles, pDoubles, pParallel
         type(GASSpec_t) :: GAS_spec
+        type(GAS_DiscardingGenerator_t) :: exc_generator
         integer, parameter :: det_I(6) = [1, 2, 3, 7, 8, 10]
 
         logical :: successful
@@ -43,18 +43,16 @@ contains
                              spat_GAS_orbs=[1, 1, 1, 2, 2, 2])
         call assert_true(GAS_spec%is_valid())
         call assert_true(GAS_spec%contains_det(det_I))
-        global_GAS_spec = GAS_spec
 
         call init_excitgen_test(det_I, FciDumpWriter_t(random_fcidump, 'FCIDUMP'))
-        call init_GASCI_discarding()
+        call exc_generator%init(GAS_spec)
         call run_excit_gen_tester( &
-            gen_GASCI_discarding, 'discarding GASCI implementation, random fcidump', &
+            exc_generator, 'discarding GASCI implementation, random fcidump', &
             opt_nI=det_I, opt_n_dets=n_iters, &
-            gen_all_excits=gen_all_excits, &
             problem_filter=is_problematic,&
             successful=successful)
         call assert_true(successful)
-        call finalize_GASCI_discarding()
+        call exc_generator%finalize()
         call finalize_excitgen_test()
 
     contains

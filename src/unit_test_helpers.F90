@@ -630,17 +630,17 @@ contains
     end subroutine run_excit_gen_tester_function
 
     subroutine run_excit_gen_tester_class(&
-            exc_generator, excit_gen_name, opt_nI, opt_n_iters, &
+            exc_generator, excit_gen_name, opt_nI, opt_n_dets, &
             problem_filter, i_unit, successful)
         class(ExcitationGenerator_t), intent(inout) :: exc_generator
         character(*), intent(in) :: excit_gen_name
-        integer, intent(in), optional :: opt_nI(nel), opt_n_iters
+        integer, intent(in), optional :: opt_nI(nel), opt_n_dets
         procedure(problem_filter_t), optional :: problem_filter
         integer, intent(in), optional :: i_unit
         logical, intent(out), optional :: successful
 
         call run_excit_gen_tester_function(&
-                        gen_exc, excit_gen_name, opt_nI, opt_n_iters, &
+                        gen_exc, excit_gen_name, opt_nI, opt_n_dets, &
                         gen_all_excits, get_pgen, problem_filter, i_unit, successful)
 
         contains
