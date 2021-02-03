@@ -95,17 +95,18 @@ contains
                                  final_energy(:), opt_energy(:), opt_spin_corr(:), &
                                  weights(:), one_orb_entanglement(:), &
                                  two_orb_entanglement(:,:), mutual_entanglement(:,:), &
-                                 running_entanglement(:)
+                                 running_entanglement(:), spin_corr_from_gs(:), &
+                                 density_density(:), spin_corr_from_gs_gij(:)
         logical :: t_input_perm, t_periodic, t_input_lattice, t_input_bc, t_input_spin
         logical :: t_input_state, t_input_j, t_translation, t_single_csf_rdm
-        logical :: t_annealing, t_entanglement
+        logical :: t_annealing, t_entanglement, t_input_guga, t_perms
         real(dp) :: hf_coeff, gs_orig, hf_orig, hf_bipart, gs_bipart, bos_diff
         integer :: n_beta, n_alpha, n_perms, hf_ind, i, iunit_write, tot_spin
         integer :: gs_ind, n_periodic, iunit_read, j, target_state, most_important_ind
-        integer :: bosonic_error_ind
+        integer :: bosonic_error_ind, n_guga
         real(dp) :: high_ref
         integer, allocatable :: nI(:), ref(:), ref_bipart(:), step(:), most_important_order(:)
-        integer, allocatable :: bos_err_order(:), opt_order(:), ref_compact(:)
+        integer, allocatable :: bos_err_order(:), opt_order(:), ref_compact(:), nJ(:)
         integer(n_int), allocatable :: refs(:,:)
         character(2) :: num
         complex(dp) :: fac
@@ -113,15 +114,19 @@ contains
         t_input_perm = .true.
         t_input_order = .true.
         t_input_bc = .true.
-        t_input_spin = .false.
+        t_input_spin = .true.
         t_input_j = .false.
 
         t_input_lattice = .true.
-        t_input_state = .false.
+        t_input_state = .true.
         t_translation = .false.
         t_single_csf_rdm = .false.
         t_annealing = .false.
         t_entanglement = .false.
+
+        t_input_guga = .true.
+
+        t_perms = .false.
 
         if (t_input_lattice) then
             print *, "input lattice type: (chain,square,rectangle,tilted)"
@@ -189,6 +194,18 @@ contains
 
         nSpatOrbs = lat%get_nsites()
 
+        if (t_input_guga) then
+            print *, "use guga (1) or not (0)?"
+            read(*,*) n_guga
+
+            if (n_guga == 1) then
+                tGUGA = .true.
+            else
+                tGUGA = .false.
+            end if
+        end if
+
+
         if (t_input_spin) then
             print *, "input desired total spin"
             read(*,*) tot_spin
@@ -213,14 +230,13 @@ contains
             target_state = 1
         end if
 
-
         nBasis = nSpatOrbs * 2
 
         nel = nSpatOrbs
-        tGUGA = .true.
         t_heisenberg_model = .true.
         nifd = 0
         allocate(nI(nel), source = [(2 * i - mod(i,2), i = 1, nel)])
+        allocate(nJ(nel), source = 0)
         allocate(step(nSpatOrbs), source = 0)
         allocate(ref(nel), source = [(2 * i - mod(i,2), i = 1, nel)])
         allocate(ref_bipart(nel), source = 0)
@@ -297,13 +313,23 @@ contains
 
         iunit_write = get_free_unit()
         open(iunit_write, file = 'hilbert-space', status = 'replace', action = 'write')
-        do i = 1, size(hilbert_space,2)
-            step = calcStepvector(hilbert_space(:,i))
-            do j = 1, nSpatOrbs - 1
-                write(iunit_write, '(i2)', advance = 'no') step(j)
+        if (tGUGA) then
+            do i = 1, size(hilbert_space,2)
+                step = calcStepvector(hilbert_space(:,i))
+                do j = 1, nSpatOrbs - 1
+                    write(iunit_write, '(i2)', advance = 'no') step(j)
+                end do
+                write(iunit_write, '(i2)', advance = 'yes') step(nSpatOrbs)
             end do
-            write(iunit_write, '(i2)', advance = 'yes') step(nSpatOrbs)
-        end do
+        else
+            do i = 1, size(hilbert_space,2)
+                call decode_bit_det(nJ, hilbert_space(:,i))
+                do j = 1, nel - 1
+                    write(iunit_write, '(i2)', advance = 'no') nJ(j)
+                end do
+                write(iunit_write, '(i2)', advance = 'yes') nJ(nel)
+            end do
+        end if
         close(iunit_write)
 
         iunit_read = get_free_unit()
@@ -394,9 +420,12 @@ contains
 
             call stop_all("here", "for now")
         end if
-        open(iunit_read, file = 'permutations', status = 'old', action = 'read')
-
-        n_perms = factorial(nSpatOrbs - 1)
+        if (t_perms) then
+            open(iunit_read, file = 'permutations', status = 'old', action = 'read')
+            n_perms = factorial(nSpatOrbs - 1)
+        else
+            n_perms = 1
+        end if
 
         allocate(e_values(size(hilbert_space,2)), source = 0.0_dp)
         allocate(e_vecs(size(hilbert_space,2),size(hilbert_space,2)), source = 0.0_dp)
@@ -425,18 +454,18 @@ contains
         allocate(gap(n_perms), source = 0.0_dp)
         allocate(exchange(size(hilbert_space,2)), source = 0.0_dp)
 
-        do i = 1, size(hilbert_space,2)
-            ! exchange(i) = full_exchange(hilbert_space(:,i), nSpatOrbs)
-            iunit_write = get_free_unit()
-            write(num, '(i2)') i
-            open(iunit_write, file = 'exchange-matrix.' // trim(adjustl(num)), &
-                status = 'replace', action = 'write')
-            call print_matrix(guga_exchange_matrix(hilbert_space(:,i), nSpatOrbs), iunit_write)
-            close(iunit_write)
-        end do
+        if (tGUGA) then
+            do i = 1, size(hilbert_space,2)
+                ! exchange(i) = full_exchange(hilbert_space(:,i), nSpatOrbs)
+                iunit_write = get_free_unit()
+                write(num, '(i2)') i
+                open(iunit_write, file = 'exchange-matrix.' // trim(adjustl(num)), &
+                    status = 'replace', action = 'write')
+                call print_matrix(guga_exchange_matrix(hilbert_space(:,i), nSpatOrbs), iunit_write)
+                close(iunit_write)
+            end do
+        end if
 
-
-        call print_vec(exchange, "exchange")
         call eig(hamil, e_values, e_vecs)
 
         print *, "CSF eigenvalues: ", e_values
@@ -448,6 +477,34 @@ contains
 
         print *, "original Hamiltonian (CSFs)"
         call print_matrix(hamil)
+
+
+        allocate(spin_corr_from_gs(nel), source = 0.0_dp)
+        allocate(spin_corr_from_gs_gij(nel), source = 0.0_dp)
+        if (tGUGA) then
+            spin_corr_from_gs = spin_corr_chain_ordered(local_spin(hilbert_space, gs_vec))
+        else
+            spin_corr_from_gs = spin_corr_sds(gs_vec, hilbert_space)
+            spin_corr_from_gs_gij = spin_corr_sds_gij(gs_vec, hilbert_space)
+            density_density = density_corr_sds(gs_vec, hilbert_space)
+        end if
+
+        call print_vec(spin_corr_from_gs, 'spin-corr-from-gs', &
+            t_index = .true.)
+        if (.not.tGUGA) then
+            call print_vec(density_density, 'density-density', &
+                t_index = .true.)
+            call print_vec(spin_corr_from_gs_gij, 'normalized-spin-corr', &
+                t_index = .true.)
+            iunit_write = get_free_unit()
+            open(iunit_write, file = 'spin-corr-and-dens', status = 'replace', action = 'write')
+            write(iunit_write, *) "#  orb   |   <S_1 S_i>   |   <S_1 S_i> - <S_1><S_i> | ni\s n_j\s"
+            do i = 1, size(density_density)
+                write(iunit_write, '(i3,3G25.17)') i, spin_corr_from_gs(i), &
+                    spin_corr_from_gs_gij(i), density_density(i)
+            end do
+            close(iunit_write)
+        end if
 
         print *, "original GS vec (CSFs): "
         do i = 1, size(hilbert_space,2)
@@ -541,8 +598,8 @@ contains
         call print_vec(spin_corr_chain_ordered(local_spin(hilbert_space, gs_vec)), &
             "spin-corr-gs-orig", t_index = .true.)
 
-        call print_vec(spin_corr_chain_ordered(local_spin(hilbert_space(:,hf_ind:hf_ind+1), &
-            [1.0_dp,0.0_dp])),'test',t_index = .true.)
+        ! call print_vec(spin_corr_chain_ordered(local_spin(hilbert_space(:,hf_ind:hf_ind+1), &
+            ! [1.0_dp,0.0_dp])),'test',t_index = .true.)
 
         iunit_write = get_free_unit()
         open(iunit_write, file = 'orig-hamil', status = 'replace', action = 'write')
@@ -728,6 +785,9 @@ contains
 
         end if
 
+        if (.not. t_perms) then
+            call stop_all("here", "now")
+        end if
         do i = 1, n_perms
 
             read(iunit_read,*) orbital_order
@@ -1472,6 +1532,141 @@ contains
 
     end function spin_corr_chain_ordered
 
+    pure function local_sz_vec(vec, hilbert_space) result(loc_sz)
+        real(dp), intent(in) :: vec(:)
+        integer(n_int), intent(in) :: hilbert_space(:,:)
+        real(dp), allocatable :: loc_sz(:)
+
+        integer :: i
+
+        allocate(loc_sz(nel), source = 0.0_dp)
+
+        do i = 1, nel
+            loc_sz(i) = local_sz(vec, hilbert_space, i)
+        end do
+
+    end function local_sz_vec
+
+    real(dp) pure function local_sz(vec, hilbert_space, orb)
+        real(dp), intent(in) :: vec(:)
+        integer(n_int), intent(in) :: hilbert_space(:,:)
+        integer, intent(in) :: orb
+
+        integer :: i, nI(nel)
+
+        local_sz = 0.0_dp
+
+        do i = 1, size(vec)
+            call decode_bit_det(nI, hilbert_space(:,i))
+
+            if (is_beta(nI(orb))) then
+                local_sz = local_sz + vec(i)**2 * 0.5_dp
+            else
+                local_sz = local_sz - vec(i)**2 * 0.5_dp
+            end if
+        end do
+
+    end function local_sz
+
+    pure function spin_corr_sds_gij(vec, hilbert_space) result(spin_corr)
+        real(dp), intent(in) :: vec(:)
+        integer(n_int), intent(in) :: hilbert_space(:,:)
+        real(dp), allocatable :: spin_corr(:)
+
+        integer :: i, j, nJ(nel), ms_0, ms_j
+        real(dp) :: loc_spin(nel), loc_0
+
+        allocate(spin_corr(nel), source = 0.0_dp)
+
+
+        loc_spin = local_sz_vec(vec, hilbert_space)
+
+        spin_corr(1) = 0.25_dp - loc_spin(1)**2
+
+        do i = 2, nel
+            do j = 1, size(hilbert_space,2)
+                call decode_bit_det(nJ, hilbert_space(:,j))
+
+                ms_0 = get_spin_pn(nJ(1))
+
+                ms_j = get_spin_pn(nJ(i))
+
+                spin_corr(i) = spin_corr(i) + &
+                    vec(j)**2 * ms_0 * ms_j / 4.0_dp
+
+            end do
+
+            spin_corr(i) = spin_corr(i) - loc_spin(1) * loc_spin(i)
+        end do
+
+    end function spin_corr_sds_gij
+
+
+
+    pure function spin_corr_sds(vec, hilbert_space) result(spin_corr)
+        real(dp), intent(in) :: vec(:)
+        integer(n_int), intent(in) :: hilbert_space(:,:)
+        real(dp), allocatable :: spin_corr(:)
+
+        integer :: i, j, nJ(nel), ms_0, ms_j
+
+        allocate(spin_corr(nel), source = 0.0_dp)
+
+        spin_corr(1) = 0.25_dp
+
+        do i = 2, nel
+            do j = 1, size(hilbert_space,2)
+                call decode_bit_det(nJ, hilbert_space(:,j))
+
+                ms_0 = get_spin_pn(nJ(1))
+
+                ms_j = get_spin_pn(nJ(i))
+
+                spin_corr(i) = spin_corr(i) + vec(j)**2 * ms_0 * ms_j / 4.0_dp
+
+            end do
+        end do
+
+    end function spin_corr_sds
+
+    pure function density_corr_sds(vec, hilbert_space) result(dens)
+        integer(n_int), intent(in) :: hilbert_space(:,:)
+        real(dp), intent(in) :: vec(:)
+        real(dp), allocatable :: dens(:)
+
+        integer :: i, j, nJ(nel)
+        real(dp) :: n_up_0, n_do_0, n_up_i, n_do_i
+        allocate(dens(nel), source = 0.0_dp)
+
+        dens(1) = 1.0_dp
+
+        do j = 1, size(hilbert_space,2)
+            call decode_bit_det(nJ, hilbert_space(:,j))
+
+            if (is_beta(nJ(1))) then
+                n_up_0 = 1.0_dp
+                n_do_0 = 0.0_dp
+            else
+                n_up_0 = 0.0_dp
+                n_do_0 = 1.0_dp
+            end if
+
+            do i = 2, nel
+
+                if (is_beta(nJ(i))) then
+                    n_up_i = 1.0_dp
+                    n_do_i = 0.0_dp
+                else
+                    n_up_i = 0.0_dp
+                    n_do_i = 1.0_dp
+                end if
+
+                dens(i) = dens(i) + vec(j)**2 * (n_up_0 * n_up_i + n_do_0 * n_do_i)
+
+            end do
+        end do
+
+    end function density_corr_sds
 
     pure function diag_matrix(matrix) result(diag)
         HElement_t(dp), intent(in) :: matrix(:,:)

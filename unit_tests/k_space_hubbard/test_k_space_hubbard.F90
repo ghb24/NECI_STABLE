@@ -297,9 +297,9 @@ contains
         call init_k_space_unit_tests()
 
         ! i have to define the lattice here..
-        lat => lattice('tilted', 5, 5, 1,.true.,.true.,.true.,'k-space')
+        lat => lattice('chain', 2, 1, 1,.true.,.true.,.true.,'k-space')
 
-        nel = 18
+        nel = 2
         allocate(nI(nel))
         allocate(nJ(nel))
         nj = 0
@@ -307,7 +307,8 @@ contains
         nbasis = 2*lat%get_nsites()
 
         ! 18 in 50
-        nI = [23,24,25,26,27,28,39,40,41,42,43,44,57,58,59,60,61,62]
+        ! nI = [23,24,25,26,27,28,39,40,41,42,43,44,57,58,59,60,61,62]
+        nI = [1,2]
 
         ! setup lanczos:
         nblk = 4
