@@ -1,6 +1,6 @@
 module test_gasci_disconnected_mod
     use fruit
-    use constants, only: dp, n_int
+    use constants, only: dp, n_int, maxExcit
     use SystemData, only: nEl
     use util_mod, only: operator(.div.), operator(.isclose.), near_zero
     use orb_idx_mod, only: calc_spin_raw, sum, SpinOrbIdx_t
@@ -10,7 +10,7 @@ module test_gasci_disconnected_mod
     use gasci, only: GASSpec_t
     use gasci_disconnected, only: GAS_disc_ExcGenerator_t
 
-    use sltcnd_mod, only: dyn_sltcnd_excit
+    use sltcnd_mod, only: dyn_sltcnd_excit_old
     use unit_test_helper_excitgen, only: test_excitation_generator, &
         init_excitgen_test, finalize_excitgen_test, generate_random_integrals, &
         FciDumpWriter_t
@@ -68,12 +68,12 @@ contains
                 sparse=1.0_dp, sparseT=1.0_dp, total_ms=sum(calc_spin_raw(det_I)))
         end subroutine
 
-        logical function is_problematic(det_I, exc, pgen_diagnostic)
-            type(SpinOrbIdx_t), intent(in) :: det_I
-            class(Excitation_t), intent(in) :: exc
+        logical function is_problematic(nI, exc, ic, pgen_diagnostic)
+            integer, intent(in) :: nI(nEl), exc(2, maxExcit), ic
             real(dp), intent(in) :: pgen_diagnostic
-            is_problematic = (abs(1.0_dp - pgen_diagnostic) >= 0.15_dp) &
-                              .and. .not. near_zero(dyn_sltcnd_excit(det_I%idx, exc, .true.))
+            is_problematic = &
+                (abs(1._dp - pgen_diagnostic) >= 0.15_dp) &
+                .and. .not. near_zero(dyn_sltcnd_excit_old(nI, ic, exc, .true.))
         end function
     end subroutine test_pgen
 end module test_gasci_disconnected_mod
