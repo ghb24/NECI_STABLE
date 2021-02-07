@@ -232,18 +232,19 @@ contains
     subroutine csf_vector_to_sds(csfs, csf_coeffs, sds, sd_coeffs, ms)
         integer(n_int), intent(in) :: csfs(:,:)
         real(dp), intent(in) :: csf_coeffs(:)
-        integer, intent(in), optional :: ms
+        real(dp), intent(in), optional :: ms
         integer(n_int), intent(out), allocatable :: sds(:,:)
         real(dp), intent(out), allocatable :: sd_coeffs(:)
         character(*), parameter :: this_routine = "csf_vector_to_sds"
 
-        integer :: ms_, n_sds, spin, n_tot, i
+        real(dp) :: ms_
+        integer :: n_sds, spin, n_tot, i
         integer(n_int), allocatable :: temp_all(:,:), temp_sds(:,:)
         real(dp), allocatable :: temp_coeffs(:)
 
 
         spin = abs(return_ms(csfs(:,1)))
-        def_default(ms_, ms, spin)
+        def_default(ms_, ms, spin/2.)
 
         n_sds = 2 ** nSpatorbs
         allocate(temp_all(0:GugaBits%len_tot,n_sds), source = 0_n_int)
@@ -266,13 +267,15 @@ contains
 
     subroutine csf_to_sds_ilut(csf, sds, weights, ms, coeff)
         integer(n_int), intent(in) :: csf(0:GugaBits%len_tot)
-        integer, intent(in), optional :: ms
+        real(dp), intent(in), optional :: ms
         real(dp), intent(in), optional :: coeff
         integer(n_int), intent(out), allocatable :: sds(:,:)
         real(dp), intent(out), allocatable :: weights(:)
         character(*), parameter :: this_routine = "csf_to_sds_ilut"
 
-        integer :: ms_, spin, n_alpha, n_beta, i, j, step(nSpatorbs), delta_k
+        real(dp) :: ms_
+        integer :: spin, n_alpha, n_beta
+        integer :: i, j, step(nSpatorbs), delta_k
         integer :: nI(nel)
         real(dp) :: bVec(nSpatorbs), aVec(nSpatorbs), lambda_k, x, coeff_
         integer(n_int), allocatable :: all_sds(:,:)
@@ -280,17 +283,24 @@ contains
 
         def_default(coeff_, coeff, 1.0_dp)
 
+
         ! only works for heisenberg model for now..
         if (any(calcOcc_vector_int(csf) /= 1)) then
             call stop_all(this_routine, "only implemented for heisenberg for now")
         end if
+        if (near_zero(coeff_)) then
+            allocate(sds(0:GugaBits%len_tot, 0))
+            allocate(weights(0))
+            return
+        end if
         spin = abs(return_ms(csf))
 
-        def_default(ms_, ms, spin/2)
+        def_default(ms_, ms, spin/2.)
 
         ! construct SDs by attaching (N/2 + ms) up spins and (N/2 - ms) down spins
-        n_alpha = nSpatorbs / 2 + ms_
-        n_beta = nSpatorbs / 2 - ms_
+        n_alpha = int(nSpatorbs / 2. + ms_)
+        n_beta = int(nSpatorbs / 2. - ms_)
+
 
         all_sds = create_all_open_shell_dets(nSpatorbs, n_beta, n_alpha)
 
@@ -328,7 +338,7 @@ contains
                 end if
             end do
 
-            all_weights(i) = coeff_ * x
+            all_weights(i) =  x
 
         end do
 
@@ -341,6 +351,9 @@ contains
                 j = j + 1
             end if
         end do
+
+        ! i might have to normalize
+        all_weights(1:j-1) = coeff_ * all_weights(1:j-1) / sqrt(sum(all_weights(1:j-1)**2))
 
         allocate(sds(0:GugaBits%len_tot, j - 1), source = 0_n_int)
         allocate(weights(j-1), source = all_weights(1:j-1))

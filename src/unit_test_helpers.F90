@@ -101,13 +101,13 @@ contains
 
     function create_lattice_hamil_ilut(list_ilut) result(hamil)
         integer(n_int), intent(in) :: list_ilut(:,:)
-        HElement_t(dp) :: hamil(size(list_ilut),size(list_ilut))
+        HElement_t(dp) :: hamil(size(list_ilut,2),size(list_ilut,2))
 
         integer :: i, j, nI(nel), nJ(nel)
         hamil = h_cast(0.0_dp)
 
-        do i = 1, size(list_ilut)
-            do j = 1, size(list_ilut)
+        do i = 1, size(list_ilut,2)
+            do j = 1, size(list_ilut,2)
                 call decode_bit_det(nI, list_ilut(:,i))
                 call decode_bit_det(nJ, list_ilut(:,j))
                 hamil(i,j) = get_helement_lattice(nJ, nI)

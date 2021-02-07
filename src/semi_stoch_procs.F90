@@ -627,6 +627,8 @@ contains
             allocate(rep%core_connections(i)%positions(rep%sparse_core_ham(i)%num_elements - 1))
 
             ! The total number of non-zero elements in row i.
+            ! thats a problem for the RDM sampling! I need not only
+            ! connected states by the Hamiltonian.. because RDMs are more general...
             rep%core_connections(i)%num_elements = rep%sparse_core_ham(i)%num_elements - 1
 
             counter = 0
@@ -642,9 +644,10 @@ contains
                     ! for the GUGA implementation this has to be changed in the
                     ! future. but since this routine is only called if we calc.
                     ! RDMs on the fly, i can postpone that until then.. todo
-                    ic = FindBitExcitLevel(SpawnedParts(:, i), temp_store(:, rep%sparse_core_ham(i)%positions(j)))
+                    ic = FindBitExcitLevel(SpawnedParts(:, i), &
+                        temp_store(:, rep%sparse_core_ham(i)%positions(j)))
                     call GetBitExcitation(SpawnedParts(0:NIfD, i), temp_store(0:NIfD, &
-                                                                              rep%sparse_core_ham(i)%positions(j)), Ex, tSign)
+                                        rep%sparse_core_ham(i)%positions(j)), Ex, tSign)
                     if (tSign) then
                         ! Odd number of permutations. Minus the excitation level.
                         rep%core_connections(i)%elements(counter) = -ic
@@ -667,7 +670,8 @@ contains
         use FciMCData, only: CoreSpaceTag
         use MemoryManager, only: LogMemAlloc
         use Parallel_neci, only: MPIAllGatherV, iProcIndex_inter, iProcIndex_intra, &
-                                 mpi_comm_inter, mpi_comm_intra, nNodes, NodeLengths, iNodeIndex, MPIAllGather
+                                 mpi_comm_inter, mpi_comm_intra, nNodes, NodeLengths, &
+                                 iNodeIndex, MPIAllGather
         type(core_space_t), intent(inout) :: rep
         integer(MPIArg) :: MPIerr
         integer :: ierr

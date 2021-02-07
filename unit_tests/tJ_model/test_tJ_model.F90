@@ -12,7 +12,7 @@ program test_tJ_model
                                      create_heisenberg_fock_space_guga
     use fcimcdata, only: ilutref
     use Detbitops, only: encodebitdet
-    use matrix_util, only: eig, print_matrix
+    use matrix_util, only: eig, print_matrix, store_hf_coeff, my_minloc, my_minval
     use guga_bitRepOps, only: write_guga_list, calcstepvector, calcB_vector_ilut
     use util_mod, only: near_zero
     use guga_matrixElements, only: calcDiagExchangeGUGA_nI
@@ -80,7 +80,7 @@ contains
         complex(dp), allocatable :: hamil_2(:,:), e_vecs_cmplx(:,:)
         integer(n_int), allocatable :: hilbert_space(:,:), ilutBipart(:), &
                                  ilutZigZag(:), ilutVolcano(:), fock_space(:,:), &
-                                 sds(:,:)
+                                 sds(:,:), ilutCompact(:)
         real(dp), allocatable :: hf_coeffs(:), off_diag_sum(:), abs_off_diag_sum(:), &
                                  n_diff_sign(:), sum_pos(:), sum_neg(:), &
                                  sum_3_cycle(:), sum_n_cycle(:), e_vecs(:,:), &
@@ -95,17 +95,18 @@ contains
                                  final_energy(:), opt_energy(:), opt_spin_corr(:), &
                                  weights(:), one_orb_entanglement(:), &
                                  two_orb_entanglement(:,:), mutual_entanglement(:,:), &
-                                 running_entanglement(:)
+                                 running_entanglement(:), spin_corr_from_gs(:), &
+                                 density_density(:), spin_corr_from_gs_gij(:)
         logical :: t_input_perm, t_periodic, t_input_lattice, t_input_bc, t_input_spin
         logical :: t_input_state, t_input_j, t_translation, t_single_csf_rdm
-        logical :: t_annealing, t_entanglement
+        logical :: t_annealing, t_entanglement, t_input_guga, t_perms
         real(dp) :: hf_coeff, gs_orig, hf_orig, hf_bipart, gs_bipart, bos_diff
         integer :: n_beta, n_alpha, n_perms, hf_ind, i, iunit_write, tot_spin
         integer :: gs_ind, n_periodic, iunit_read, j, target_state, most_important_ind
-        integer :: bosonic_error_ind
+        integer :: bosonic_error_ind, n_guga
         real(dp) :: high_ref
         integer, allocatable :: nI(:), ref(:), ref_bipart(:), step(:), most_important_order(:)
-        integer, allocatable :: bos_err_order(:), opt_order(:)
+        integer, allocatable :: bos_err_order(:), opt_order(:), ref_compact(:), nJ(:)
         integer(n_int), allocatable :: refs(:,:)
         character(2) :: num
         complex(dp) :: fac
@@ -113,15 +114,19 @@ contains
         t_input_perm = .true.
         t_input_order = .true.
         t_input_bc = .true.
-        t_input_spin = .false.
+        t_input_spin = .true.
         t_input_j = .false.
 
         t_input_lattice = .true.
-        t_input_state = .false.
+        t_input_state = .true.
         t_translation = .false.
         t_single_csf_rdm = .false.
-        t_annealing = .true.
-        t_entanglement = .true.
+        t_annealing = .false.
+        t_entanglement = .false.
+
+        t_input_guga = .true.
+
+        t_perms = .false.
 
         if (t_input_lattice) then
             print *, "input lattice type: (chain,square,rectangle,tilted)"
@@ -189,6 +194,18 @@ contains
 
         nSpatOrbs = lat%get_nsites()
 
+        if (t_input_guga) then
+            print *, "use guga (1) or not (0)?"
+            read(*,*) n_guga
+
+            if (n_guga == 1) then
+                tGUGA = .true.
+            else
+                tGUGA = .false.
+            end if
+        end if
+
+
         if (t_input_spin) then
             print *, "input desired total spin"
             read(*,*) tot_spin
@@ -213,24 +230,31 @@ contains
             target_state = 1
         end if
 
-
         nBasis = nSpatOrbs * 2
 
         nel = nSpatOrbs
-        tGUGA = .true.
         t_heisenberg_model = .true.
         nifd = 0
         allocate(nI(nel), source = [(2 * i - mod(i,2), i = 1, nel)])
+        allocate(nJ(nel), source = 0)
         allocate(step(nSpatOrbs), source = 0)
         allocate(ref(nel), source = [(2 * i - mod(i,2), i = 1, nel)])
         allocate(ref_bipart(nel), source = 0)
         ref_bipart(1:ceiling(nSpatorbs/2.)) = [(2 * i - 1, i = 1, ceiling(nSpatorbs/2.))]
         ref_bipart(ceiling(nSpatorbs/2.)+1:) = [(2 * i, i = ceiling(nSpatorbs/2.)+1,nSpatorbs)]
+        allocate(ref_compact(nel), source = 0)
+        ref_compact(1) = 1
+        ref_compact(2:nel-1) = [(2 * i -1 + mod(i,2), i = 2, nel-1)]
+        ref_compact(nel) = 2 * nel
         print *, "nI: ", nI
         print *, "ref-bipart:", ref_bipart
+        print *, "ref-Compact: ", ref_compact
         allocate(ilutRef(0:0,1), source = 0_n_int)
         allocate(ilutBipart(0:0), source = 0_n_int)
+        allocate(ilutCompact(0:0), source  = 0_n_int)
         call EncodeBitDet(ref_bipart, ilutBipart)
+        call EncodeBitDet(ref_compact, ilutCompact)
+
 
         call EncodeBitDet(nI, ilutRef)
 
@@ -289,13 +313,23 @@ contains
 
         iunit_write = get_free_unit()
         open(iunit_write, file = 'hilbert-space', status = 'replace', action = 'write')
-        do i = 1, size(hilbert_space,2)
-            step = calcStepvector(hilbert_space(:,i))
-            do j = 1, nSpatOrbs - 1
-                write(iunit_write, '(i2)', advance = 'no') step(j)
+        if (tGUGA) then
+            do i = 1, size(hilbert_space,2)
+                step = calcStepvector(hilbert_space(:,i))
+                do j = 1, nSpatOrbs - 1
+                    write(iunit_write, '(i2)', advance = 'no') step(j)
+                end do
+                write(iunit_write, '(i2)', advance = 'yes') step(nSpatOrbs)
             end do
-            write(iunit_write, '(i2)', advance = 'yes') step(nSpatOrbs)
-        end do
+        else
+            do i = 1, size(hilbert_space,2)
+                call decode_bit_det(nJ, hilbert_space(:,i))
+                do j = 1, nel - 1
+                    write(iunit_write, '(i2)', advance = 'no') nJ(j)
+                end do
+                write(iunit_write, '(i2)', advance = 'yes') nJ(nel)
+            end do
+        end if
         close(iunit_write)
 
         iunit_read = get_free_unit()
@@ -386,9 +420,12 @@ contains
 
             call stop_all("here", "for now")
         end if
-        open(iunit_read, file = 'permutations', status = 'old', action = 'read')
-
-        n_perms = factorial(nSpatOrbs - 1)
+        if (t_perms) then
+            open(iunit_read, file = 'permutations', status = 'old', action = 'read')
+            n_perms = factorial(nSpatOrbs - 1)
+        else
+            n_perms = 1
+        end if
 
         allocate(e_values(size(hilbert_space,2)), source = 0.0_dp)
         allocate(e_vecs(size(hilbert_space,2),size(hilbert_space,2)), source = 0.0_dp)
@@ -417,40 +454,90 @@ contains
         allocate(gap(n_perms), source = 0.0_dp)
         allocate(exchange(size(hilbert_space,2)), source = 0.0_dp)
 
-        do i = 1, size(hilbert_space,2)
-            ! exchange(i) = full_exchange(hilbert_space(:,i), nSpatOrbs)
-            iunit_write = get_free_unit()
-            write(num, '(i2)') i
-            open(iunit_write, file = 'exchange-matrix.' // trim(adjustl(num)), &
-                status = 'replace', action = 'write')
-            call print_matrix(guga_exchange_matrix(hilbert_space(:,i), nSpatOrbs), iunit_write)
-            close(iunit_write)
-        end do
-
-
-        call print_vec(exchange, "exchange")
+        if (tGUGA) then
+            do i = 1, size(hilbert_space,2)
+                ! exchange(i) = full_exchange(hilbert_space(:,i), nSpatOrbs)
+                iunit_write = get_free_unit()
+                write(num, '(i2)') i
+                open(iunit_write, file = 'exchange-matrix.' // trim(adjustl(num)), &
+                    status = 'replace', action = 'write')
+                call print_matrix(guga_exchange_matrix(hilbert_space(:,i), nSpatOrbs), iunit_write)
+                close(iunit_write)
+            end do
+        end if
 
         call eig(hamil, e_values, e_vecs)
 
+        print *, "CSF eigenvalues: ", e_values
         call store_hf_coeff(e_values, e_vecs, target_state, hf_orig, hf_ind, gs_ind)
         call decode_bit_det(ref, hilbert_space(:, hf_ind))
 
         gs_orig = e_values(gs_ind)
         gs_vec = e_vecs(:,gs_ind)
 
+        print *, "original Hamiltonian (CSFs)"
+        call print_matrix(hamil)
+
+
+        allocate(spin_corr_from_gs(nel), source = 0.0_dp)
+        allocate(spin_corr_from_gs_gij(nel), source = 0.0_dp)
+        if (tGUGA) then
+            spin_corr_from_gs = spin_corr_chain_ordered(local_spin(hilbert_space, gs_vec))
+        else
+            spin_corr_from_gs = spin_corr_sds(gs_vec, hilbert_space)
+            spin_corr_from_gs_gij = spin_corr_sds_gij(gs_vec, hilbert_space)
+            density_density = density_corr_sds(gs_vec, hilbert_space)
+        end if
+
+        call print_vec(spin_corr_from_gs, 'spin-corr-from-gs', &
+            t_index = .true.)
+        if (.not.tGUGA) then
+            call print_vec(density_density, 'density-density', &
+                t_index = .true.)
+            call print_vec(spin_corr_from_gs_gij, 'normalized-spin-corr', &
+                t_index = .true.)
+            iunit_write = get_free_unit()
+            open(iunit_write, file = 'spin-corr-and-dens', status = 'replace', action = 'write')
+            write(iunit_write, *) "#  orb   |   <S_1 S_i>   |   <S_1 S_i> - <S_1><S_i> | ni\s n_j\s"
+            do i = 1, size(density_density)
+                write(iunit_write, '(i3,3G25.17)') i, spin_corr_from_gs(i), &
+                    spin_corr_from_gs_gij(i), density_density(i)
+            end do
+            close(iunit_write)
+        end if
+
+        print *, "original GS vec (CSFs): "
+        do i = 1, size(hilbert_space,2)
+            call write_det_guga(6, hilbert_space(:,i), .false.)
+            print *, gs_vec(i)
+        end do
+
+        print *, "original GS vec (SDs):"
+        call csf_vector_to_sds(hilbert_space, gs_vec, sds, weights)
+        call write_guga_list(6, sds)
+
+        ! call init_get_helement_heisenberg()
+        ! hamil = create_lattice_hamil_ilut(sds)
+        !
+        ! print *, "orig Hamiltonian (SDs)"
+        ! call print_matrix(hamil)
+        !
+        ! if (allocated(e_values)) deallocate(e_values)
+        ! if (allocated(e_vecs)) deallocate(e_vecs)
+        ! allocate(e_values(size(hamil,1)), source = 0.0_dp)
+        ! allocate(e_vecs(size(hamil,1), size(hamil,2)), source = 0.0_dp)
+        !
+        ! call eig(hamil, e_values, e_vecs)
+        ! if (t_open_bc_x) then
+        !     print *, "SD eigenvalues: ", e_values - (nSpatorbs-1)/4.
+        ! else
+        !     print *, "SD eigenvalues: ", e_values - (nSpatorbs)/4.
+        ! end if
+        !
+        ! call print_matrix(e_vecs)
+        ! call write_guga_list(6, sds)
+        !
         if (t_entanglement) then
-
-            ! fock_space = create_heisenberg_fock_space(nSpatorbs-1)
-            ! call write_guga_list(6, fock_space, nSpatorbs-1)
-            !
-            ! fock_space = create_heisenberg_fock_space_guga(nSpatorbs)
-            ! call write_guga_list(6, fock_space, nSpatorbs)
-
-            nI = [1,3,6,7,10,12]
-            call EncodeBitDet(nI, ilutBipart)
-            call write_det_guga(6, Ilutref(:,1), .true.)
-            call csf_to_sds_ilut(IlutBipart, sds, weights)
-            call write_guga_list(6, sds)
 
             call csf_vector_to_sds(hilbert_space, gs_vec, sds, weights)
 
@@ -459,16 +546,50 @@ contains
             allocate(mutual_entanglement(nSpatorbs, nSpatorbs), source = 0.0_dp)
             allocate(running_entanglement(nSpatorbs-1), source = 0.0_dp)
 
-            call get_entanglement_measures(hilbert_space, gs_vec, &
+            call get_entanglement_measures(sds, weights, &
                 one_orb_entanglement, two_orb_entanglement, mutual_entanglement, &
                 running_entanglement)
 
+            print *, "============= Ground state: ==============="
             print *, "one_orb_entanglement: ", one_orb_entanglement
             print *, "two_orb_entanglement:"
             call print_matrix(two_orb_entanglement)
             print *, "mutual_entanglement: "
             call print_matrix(mutual_entanglement)
             print *, "running_entanglement: ", running_entanglement
+
+            ! call csf_to_sds_ilut(IlutRef(:,1), sds, weights)
+            !
+            ! call get_entanglement_measures(sds, weights, &
+            !     one_orb_entanglement, two_orb_entanglement, mutual_entanglement, &
+            !     running_entanglement)
+            !
+            ! print *, "============= Orig state: ==============="
+            ! call print_entanglement(one_orb_entanglement, two_orb_entanglement, &
+            !     mutual_entanglement, running_entanglement)
+            !
+            !
+            ! call csf_to_sds_ilut(IlutBipart, sds, weights)
+            !
+            ! call get_entanglement_measures(sds, weights, &
+            !     one_orb_entanglement, two_orb_entanglement, mutual_entanglement, &
+            !     running_entanglement)
+            !
+            ! print *, "============= Bipart state: ==============="
+            ! call print_entanglement(one_orb_entanglement, two_orb_entanglement, &
+            !     mutual_entanglement, running_entanglement)
+
+            call csf_to_sds_ilut(ilutCompact, sds, weights)
+
+            call get_entanglement_measures(sds, weights, &
+                one_orb_entanglement, two_orb_entanglement, mutual_entanglement, &
+                running_entanglement)
+
+            print *, "============= Compact state: ==============="
+            call print_entanglement(one_orb_entanglement, two_orb_entanglement, &
+                mutual_entanglement, running_entanglement)
+
+
             call stop_all("for now", "here")
         end if
 
@@ -477,8 +598,8 @@ contains
         call print_vec(spin_corr_chain_ordered(local_spin(hilbert_space, gs_vec)), &
             "spin-corr-gs-orig", t_index = .true.)
 
-        call print_vec(spin_corr_chain_ordered(local_spin(hilbert_space(:,hf_ind:hf_ind+1), &
-            [1.0_dp,0.0_dp])),'test',t_index = .true.)
+        ! call print_vec(spin_corr_chain_ordered(local_spin(hilbert_space(:,hf_ind:hf_ind+1), &
+            ! [1.0_dp,0.0_dp])),'test',t_index = .true.)
 
         iunit_write = get_free_unit()
         open(iunit_write, file = 'orig-hamil', status = 'replace', action = 'write')
@@ -664,6 +785,9 @@ contains
 
         end if
 
+        if (.not. t_perms) then
+            call stop_all("here", "now")
+        end if
         do i = 1, n_perms
 
             read(iunit_read,*) orbital_order
@@ -853,12 +977,24 @@ contains
         call store_hf_coeff(e_values, e_vecs, target_state, hf_coeff, hf_ind, gs_ind)
         gs_vec = e_vecs(:, gs_ind)
 
+        print *, "compact Hamiltonian (CSFs)"
+        call print_matrix(hamil)
+
+        print *, "compact GS vec (CSFs): "
+        do i = 1, size(hilbert_space,2)
+            call write_det_guga(6, hilbert_space(:,i), .false.)
+            print *, gs_vec(i)
+        end do
+
+        print *, "compact GS vec (SDs):"
+        call csf_vector_to_sds(hilbert_space, gs_vec, sds, weights)
+        ! call csf_to_sds_ilut(hilbert_space(:,2), sds, weights)
+        call write_guga_list(6, sds)
+
         call print_vec(local_spin(hilbert_space, gs_vec), "loc-spin-gs-compact", &
             t_index = .true., t_zero = .true.)
         call print_vec(spin_corr_chain_ordered(local_spin(hilbert_space, gs_vec)), &
             "spin-corr-gs-compact", t_index = .true.)
-        call print_vec(spin_corr_chain_ordered(local_spin(hilbert_space(:,hf_ind:hf_ind+1), &
-            [1.0_dp,0.0_dp])),'test-2', t_index = .true.)
 
         iunit_write = get_free_unit()
         open(iunit_write, file = 'most-hamil', status = 'replace', action = 'write')
@@ -916,6 +1052,21 @@ contains
 
     end subroutine exact_study
 
+
+    subroutine print_entanglement(one_orb_entanglement, two_orb_entanglement, &
+            mutual_entanglement, running_entanglement)
+        real(dp), intent(in) :: one_orb_entanglement(:), two_orb_entanglement(:,:), &
+                                mutual_entanglement(:,:), running_entanglement(:)
+
+        print *, "one_orb_entanglement: ", one_orb_entanglement
+        print *, "two_orb_entanglement:"
+        call print_matrix(two_orb_entanglement)
+        print *, "mutual_entanglement: "
+        call print_matrix(mutual_entanglement)
+        print *, "running_entanglement: ", running_entanglement
+
+    end subroutine print_entanglement
+
     subroutine get_entanglement_measures(hilbert_space, state_vec, &
             one_orb_entanglement, two_orb_entanglement, mutual_entanglement, &
             running_entanglement)
@@ -954,23 +1105,22 @@ contains
         do i = 1, nSpatorbs - 1
             if (allocated(ind)) deallocate(ind)
             allocate(ind(i), source = [(j, j = 1,i)])
-            print *, "ind: ", ind
 
             running_entanglement(i) = get_orbital_entanglement(hilbert_space, &
                 state_vec, ind)
         end do
 
-        do i = 1, nSpatorbs - 1
-            if (allocated(ind)) deallocate(ind)
-            allocate(ind(i), source = [(j, j = nSpatorbs - i + 1, nSpatorbs)])
-            print *, "ind: ", ind
-
-            test(i) = get_orbital_entanglement(hilbert_space, &
-                state_vec, ind)
-
-        end do
-
-        print *, "test: ", test
+        ! do i = 1, nSpatorbs - 1
+        !     if (allocated(ind)) deallocate(ind)
+        !     allocate(ind(i), source = [(j, j = nSpatorbs - i + 1, nSpatorbs)])
+        !     print *, "ind: ", ind
+        !
+        !     test(i) = get_orbital_entanglement(hilbert_space, &
+        !         state_vec, ind)
+        !
+        ! end do
+        !
+        ! print *, "test: ", test
 
     end subroutine get_entanglement_measures
 
@@ -981,6 +1131,7 @@ contains
         character(*), parameter :: this_routine = "get_orbital_entanglement"
 
         real(dp), allocatable :: orbital_rdm(:,:), e_values(:), e_vecs(:,:)
+        integer :: i
 
         get_orbital_entanglement = 0.0_dp
 
@@ -993,21 +1144,8 @@ contains
 
         call eig(orbital_rdm, e_values, e_vecs)
 
-        if (all(e_values > 0.0_dp)) then
-            get_orbital_entanglement = -sum(e_values*log(e_values))
-        end if
-
-        ! if (any(e_values > 1.0_dp)) then
-        !     print *, "e:values", e_values
-        !
-        ! end if
-        ! print *, "sum e-values: ", sum(e_values)
-
-        ! if (get_orbital_entanglement < 0.0_dp) then
-        !     print *, "rdm"
-        !     call print_matrix(orbital_rdm)
-        !     print *, "e-values: ", e_values
-        ! end if
+        get_orbital_entanglement = -sum(e_values*log(e_values), &
+            .not. near_zero(e_values))
 
     end function get_orbital_entanglement
 
@@ -1075,7 +1213,7 @@ contains
         integer(n_int), intent(in) :: state, mask
 
         is_in = .false.
-        if (popcnt(iand(state, mask)) == 1) is_in = .true.
+        if (popcnt(iand(state, mask)) == popcnt(mask)) is_in = .true.
 
     end function is_in
 
@@ -1394,6 +1532,141 @@ contains
 
     end function spin_corr_chain_ordered
 
+    pure function local_sz_vec(vec, hilbert_space) result(loc_sz)
+        real(dp), intent(in) :: vec(:)
+        integer(n_int), intent(in) :: hilbert_space(:,:)
+        real(dp), allocatable :: loc_sz(:)
+
+        integer :: i
+
+        allocate(loc_sz(nel), source = 0.0_dp)
+
+        do i = 1, nel
+            loc_sz(i) = local_sz(vec, hilbert_space, i)
+        end do
+
+    end function local_sz_vec
+
+    real(dp) pure function local_sz(vec, hilbert_space, orb)
+        real(dp), intent(in) :: vec(:)
+        integer(n_int), intent(in) :: hilbert_space(:,:)
+        integer, intent(in) :: orb
+
+        integer :: i, nI(nel)
+
+        local_sz = 0.0_dp
+
+        do i = 1, size(vec)
+            call decode_bit_det(nI, hilbert_space(:,i))
+
+            if (is_beta(nI(orb))) then
+                local_sz = local_sz + vec(i)**2 * 0.5_dp
+            else
+                local_sz = local_sz - vec(i)**2 * 0.5_dp
+            end if
+        end do
+
+    end function local_sz
+
+    pure function spin_corr_sds_gij(vec, hilbert_space) result(spin_corr)
+        real(dp), intent(in) :: vec(:)
+        integer(n_int), intent(in) :: hilbert_space(:,:)
+        real(dp), allocatable :: spin_corr(:)
+
+        integer :: i, j, nJ(nel), ms_0, ms_j
+        real(dp) :: loc_spin(nel), loc_0
+
+        allocate(spin_corr(nel), source = 0.0_dp)
+
+
+        loc_spin = local_sz_vec(vec, hilbert_space)
+
+        spin_corr(1) = 0.25_dp - loc_spin(1)**2
+
+        do i = 2, nel
+            do j = 1, size(hilbert_space,2)
+                call decode_bit_det(nJ, hilbert_space(:,j))
+
+                ms_0 = get_spin_pn(nJ(1))
+
+                ms_j = get_spin_pn(nJ(i))
+
+                spin_corr(i) = spin_corr(i) + &
+                    vec(j)**2 * ms_0 * ms_j / 4.0_dp
+
+            end do
+
+            spin_corr(i) = spin_corr(i) - loc_spin(1) * loc_spin(i)
+        end do
+
+    end function spin_corr_sds_gij
+
+
+
+    pure function spin_corr_sds(vec, hilbert_space) result(spin_corr)
+        real(dp), intent(in) :: vec(:)
+        integer(n_int), intent(in) :: hilbert_space(:,:)
+        real(dp), allocatable :: spin_corr(:)
+
+        integer :: i, j, nJ(nel), ms_0, ms_j
+
+        allocate(spin_corr(nel), source = 0.0_dp)
+
+        spin_corr(1) = 0.25_dp
+
+        do i = 2, nel
+            do j = 1, size(hilbert_space,2)
+                call decode_bit_det(nJ, hilbert_space(:,j))
+
+                ms_0 = get_spin_pn(nJ(1))
+
+                ms_j = get_spin_pn(nJ(i))
+
+                spin_corr(i) = spin_corr(i) + vec(j)**2 * ms_0 * ms_j / 4.0_dp
+
+            end do
+        end do
+
+    end function spin_corr_sds
+
+    pure function density_corr_sds(vec, hilbert_space) result(dens)
+        integer(n_int), intent(in) :: hilbert_space(:,:)
+        real(dp), intent(in) :: vec(:)
+        real(dp), allocatable :: dens(:)
+
+        integer :: i, j, nJ(nel)
+        real(dp) :: n_up_0, n_do_0, n_up_i, n_do_i
+        allocate(dens(nel), source = 0.0_dp)
+
+        dens(1) = 1.0_dp
+
+        do j = 1, size(hilbert_space,2)
+            call decode_bit_det(nJ, hilbert_space(:,j))
+
+            if (is_beta(nJ(1))) then
+                n_up_0 = 1.0_dp
+                n_do_0 = 0.0_dp
+            else
+                n_up_0 = 0.0_dp
+                n_do_0 = 1.0_dp
+            end if
+
+            do i = 2, nel
+
+                if (is_beta(nJ(i))) then
+                    n_up_i = 1.0_dp
+                    n_do_i = 0.0_dp
+                else
+                    n_up_i = 0.0_dp
+                    n_do_i = 1.0_dp
+                end if
+
+                dens(i) = dens(i) + vec(j)**2 * (n_up_0 * n_up_i + n_do_0 * n_do_i)
+
+            end do
+        end do
+
+    end function density_corr_sds
 
     pure function diag_matrix(matrix) result(diag)
         HElement_t(dp), intent(in) :: matrix(:,:)
@@ -1559,58 +1832,6 @@ contains
 
 
     end function sum_non_zero_off_diag
-
-    subroutine store_hf_coeff(e_values, e_vecs, target_state, hf_coeff, hf_ind, gs_ind)
-        real(dp), intent(in) :: e_values(:), e_vecs(:,:)
-        integer, intent(in), optional :: target_state
-        real(dp), intent(out) :: hf_coeff
-        integer, intent(out) :: hf_ind, gs_ind
-
-        real(dp) :: gs_vec(size(e_values))
-        integer :: target_state_
-        def_default(target_state_,target_state,1)
-
-        gs_ind = my_minloc(e_values, target_state)
-
-        gs_vec = abs(e_vecs(:,gs_ind))
-
-        hf_ind = maxloc(gs_vec,1)
-        hf_coeff = gs_vec(hf_ind)
-
-    end subroutine store_hf_coeff
-
-    pure real(dp) function my_minval(vec, target_state)
-        real(dp), intent(in) :: vec(:)
-        integer, intent(in), optional :: target_state
-
-        if (present(target_state)) then
-            my_minval = vec(my_minloc(vec,target_state))
-        else
-            my_minval = minval(vec)
-        end if
-
-    end function my_minval
-
-
-    pure integer function my_minloc(vec, target_state)
-        real(dp), intent(in) :: vec(:)
-        integer, intent(in), optional :: target_state
-
-        logical :: flag(size(vec))
-        integer :: i
-
-
-        if (present(target_state)) then
-            flag = .true.
-            do i = 1, target_state
-                my_minloc = minloc(vec, dim = 1, mask = flag)
-                flag(my_minloc) = .false.
-            end do
-        else
-            my_minloc = minloc(vec, 1)
-        end if
-
-    end function my_minloc
 
     subroutine set_diag(matrix, val)
         real(dp), intent(inout) :: matrix(:,:)

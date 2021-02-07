@@ -327,9 +327,11 @@ contains
             ! tested. RDMExcitLevel is passed through, if this is 1, only
             ! singles are generated, if it is 2 only doubles are found.
             if (tReltvy) then
-                call GenExcitations4(session, nI, nJ, exFlag, ExcitMat3(:, :), tParity, tAllExcitFound, .true.)
+                call GenExcitations4(session, nI, nJ, exFlag, ExcitMat3(:, :), &
+                    tParity, tAllExcitFound, .true.)
             else
-                call GenExcitations3(nI, iLutnI, nJ, exflag, ExcitMat3(:, :), tParity, tAllExcitFound, .true.)
+                call GenExcitations3(nI, iLutnI, nJ, exflag, ExcitMat3(:, :), &
+                    tParity, tAllExcitFound, .true.)
             end if
 
             if (tAllExcitFound) exit
@@ -371,10 +373,12 @@ contains
                 ! it will be tested. RDMExcitLevel is passed through, if this
                 ! is 1, only singles are generated, if it is 2 only doubles are
                 if (tReltvy) then
-                    call GenExcitations4(session, nI, nJ, exFlag, ExcitMat3(:, :), tParity, tAllExcitFound, .true.)
+                    call GenExcitations4(session, nI, nJ, exFlag, ExcitMat3(:, :), &
+                        tParity, tAllExcitFound, .true.)
                 else
                     ! found.
-                    call GenExcitations3(nI, iLutnI, nJ, exflag, ExcitMat3(:, :), tParity, tAllExcitFound, .true.)
+                    call GenExcitations3(nI, iLutnI, nJ, exflag, ExcitMat3(:, :), &
+                        tParity, tAllExcitFound, .true.)
                 end if
 
                 if (tAllExcitFound) exit
@@ -399,7 +403,6 @@ contains
                 end if
             end do
         end if
-!         end if
 
     end subroutine GenExcDjs
 
@@ -919,9 +922,11 @@ contains
                             full_sign = SignDi(1) * SignDj(lenof_sign)
                         end if
 
-                        call add_to_rdm_spawn_t(two_rdm_spawn, Ex(2, 1), Ex(2, 2), Ex(1, 1), Ex(1, 2), full_sign, .false.)
+                        call add_to_rdm_spawn_t(two_rdm_spawn, Ex(2, 1), Ex(2, 2), &
+                            Ex(1, 1), Ex(1, 2), full_sign, .false.)
                         ! Add in symmetric contribution.
-                        call add_to_rdm_spawn_t(two_rdm_spawn, Ex(1, 1), Ex(1, 2), Ex(2, 1), Ex(2, 2), full_sign, .false.)
+                        call add_to_rdm_spawn_t(two_rdm_spawn, Ex(1, 1), Ex(1, 2), &
+                            Ex(2, 1), Ex(2, 2), full_sign, .false.)
                     end if
                 end do
             end if
