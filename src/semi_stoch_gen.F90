@@ -426,9 +426,6 @@ contains
             call add_state_to_space(temp_ilut, ilut_list, space_size, temp_nI)
         end do
 
-        if (t_print_core_info) then
-            call write_guga_list(6, ilut_list(:,1:space_size))
-        end if
 
     end subroutine generate_sing_doub_guga
 
