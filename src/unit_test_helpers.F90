@@ -597,9 +597,7 @@ contains
                     pgens_differ = .false.
                 end if
 
-                ! TODO(@Oskar)
-!                 if (problem_filter_(SpinOrbIdx_t(nI), exc, pgen_diagnostic) .or. pgens_differ) then
-                if (problem_filter_(SpinOrbIdx_t(nI), exc, pgen_diagnostic)) then
+                if (problem_filter_(SpinOrbIdx_t(nI), exc, pgen_diagnostic) .or. pgens_differ) then
                     successful = .false.
                     call write_det(i_unit_, nJ, .false.)
                     write(i_unit_, '("|"F10.5"|"I2"|"F10.5"|"F15.10"|")', advance='no') &
@@ -679,10 +677,10 @@ contains
                 select type(exc)
                 type is(SingleExc_t)
                     ex(:, 1) = exc%val
-                    pgen = pSingles * exc_generator%get_pgen(det_I%idx, ilutI, ex, 1, classcount2, classcountunocc2)
+                    pgen = exc_generator%get_pgen(det_I%idx, ilutI, ex, 1, classcount2, classcountunocc2)
                 type is(DoubleExc_t)
                     ex(:, :2) = exc%val
-                    pgen = pDoubles * exc_generator%get_pgen(det_I%idx, ilutI, ex, 2, classcount2, classcountunocc2)
+                    pgen = exc_generator%get_pgen(det_I%idx, ilutI, ex, 2, classcount2, classcountunocc2)
                 end select
             end function
     end subroutine
