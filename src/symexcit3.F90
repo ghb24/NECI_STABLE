@@ -155,37 +155,26 @@ CONTAINS
         LOGICAL, intent(in) :: ti_lt_a_only
 
         IF (exflag == 2) THEN
-! Just generate doubles
-
+            ! Just generate doubles
             CALL GenDoubleExcit(nI, iLut, nJ, ExcitMat3, tParity, tAllExcitFound, ti_lt_a_only)
 
         ELSE
-! Generate singles, returning Orbi and Orba as non-zero, but keeping the others 0.
-
+            ! Generate singles, returning Orbi and Orba as non-zero, but keeping the others 0.
             CALL GenSingleExcit(nI, iLut, nJ, exflag, ExcitMat3, tParity, tAllExcitFound, ti_lt_a_only)
 
             ! When the last single is input, providing exflag is not 1, the first double is then found
             ! and from then on GenDoubleExcit is called.
-!            if(exflag.eq.2) write(6,*) "All singles generated"
 
         end if
-
-!        IF(ExcitMat3(2,2).eq.0) THEN
-!            write(6,"(A,I3,A,I3,L)") "GENERATED SINGLE EXCITATION: ",
-!ExcitMat3(1,1)," -> ",ExcitMat3(2,1),tAllExcitFound
-!        ELSE
-!            write(6,"(A,2I3,A,2I3,L)") "GENERATED DOUBLE EXCITATION: ",
-!ExcitMat3(1,1),ExcitMat3(1,2)," -> ",ExcitMat3(2,1),ExcitMat3(2,2),tAllExcitFound
-!        end if
 
     ENDSUBROUTINE GenExcitations3
 
     SUBROUTINE GenSingleExcit(nI, iLut, nJ, exflag, ExcitMat3, tParity, tAllExcitFound, ti_lt_a_only)
-! Despite being fed four indices, this routine finds single excitations.  Orbi -> Orba. (Orbj and Orbb remain 0).
-! Feeding in 0 indices indicates it is the first excitation that needs to be found.
-! The single excitation goes from orbital i to a, from determinant nI to nJ.
-! When the last single is found it then finds the first double excitation, unless exflag=1 in which tAllExcitFound
-! becomes true and no more excitations are generated.
+        ! Despite being fed four indices, this routine finds single excitations.  Orbi -> Orba. (Orbj and Orbb remain 0).
+        ! Feeding in 0 indices indicates it is the first excitation that needs to be found.
+        ! The single excitation goes from orbital i to a, from determinant nI to nJ.
+        ! When the last single is found it then finds the first double excitation, unless exflag=1 in which tAllExcitFound
+        ! becomes true and no more excitations are generated.
         use SystemData, only: tFixLz
         use constants, only: bits_n_int
         INTEGER :: nI(NEl), Orbi, Orba, Symi, nJ(NEl)
@@ -194,13 +183,9 @@ CONTAINS
         LOGICAL :: tInitOrbsFound, tParity, tAllExcitFound, tEndaOrbs, ti_lt_a_only, tAux
         INTEGER, SAVE :: OrbiIndex, OrbaIndex, Spini, NewSym, Mli
 
-!        write(6,*) 'Original Determinant',nI
-!        write(6,*) "SymLabelList2(:)",SymLabelList2(:)
-
         tInitOrbsFound = .false.
         Orbi = ExcitMat3(1, 1)
         Orba = ExcitMat3(2, 1)
-!        write(6,*) "Getting single",OrbiIndex,OrbaIndex,Orbi,Orba
 
         IF ((Orbi == 0) .or. (Orba == 0)) THEN           ! Want to find the first excitation.
 
@@ -215,7 +200,6 @@ CONTAINS
             ELSE
                 Mli = 0
             end if
-!            write(6,*) "***",Spini,Symi,Mli
             OrbaIndex = SymLabelCounts2(1, ClassCountInd(Spini, Symi, Mli))  ! Start considering a at the first allowed symmetry.
 
         ELSE
@@ -224,7 +208,6 @@ CONTAINS
 
 ! At this stage, OrbaIndex is the a from the previous excitation.
             SymInd = ClassCountInd(Spini, SpinOrbSymLabel(Orbi), Mli)
-!            write(6,*) "symind = ", symind
 
             IF (OrbaIndex == (SymLabelCounts2(1, SymInd) + SymLabelCounts2(2, SymInd) - 1)) THEN
                 !Orba was the last in the symmetry block. Do not allow OrbaIndex+1
@@ -243,7 +226,6 @@ CONTAINS
                     ELSE
                         Mli = 0
                     end if
-!                    write(6,*) "*****", ClassCountInd(Spini,Symi,Mli),Spini,Symi,Mli
                     OrbaIndex = SymLabelCounts2(1, ClassCountInd(Spini, Symi, Mli))
                 ELSE
                     IF (exflag /= 1) THEN
@@ -343,14 +325,15 @@ CONTAINS
                     ELSE
                         Mli = 0
                     end if
-!                    write(6,*) "Symind3 = ",ClassCountInd(Spini,Symi,Mli)
                     OrbaIndex = SymLabelCounts2(1, ClassCountInd(Spini, Symi, Mli))
                 end if
             end if
 
         end do
 
-        IF ((ExcitMat3(1, 2) == 0) .and. (.not. tAllExcitFound)) CALL FindNewSingDet(nI, nJ, OrbiIndex, OrbA, ExcitMat3, tParity)
+        IF ((ExcitMat3(1, 2) == 0) .and. (.not. tAllExcitFound)) then
+            CALL FindNewSingDet(nI, nJ, OrbiIndex, OrbA, ExcitMat3, tParity)
+        end if
 
     ENDSUBROUTINE GenSingleExcit
 
@@ -369,9 +352,6 @@ CONTAINS
         LOGICAL :: tDoubleExcitFound, tFirsta, tFirstb, tNewij, tNewa, tAllExcitFound, tParity, tij_lt_ab_only
         INTEGER :: Mla, Mlb, Indij
 
-!        write(6,*) "SymLabelCounts2: ",SymLabelCounts2(1,:)
-!        write(6,*) "SymLabelCounts2: ",SymLabelCounts2(2,:)
-!        write(6,*) "Entering routine",nI
         tDoubleExcitFound = .false.
         tFirsta = .false.
         tFirstb = .false.
@@ -380,7 +360,6 @@ CONTAINS
         Orbj = ExcitMat3(1, 2)
         Orba = ExcitMat3(2, 1)
         Orbb = ExcitMat3(2, 2)
-!        write(6,*) 'Orbi,Orbj,Orba,Orbb',Orbi,Orbj,Orba,Orbb
 
         IF (Orbi == 0) THEN
             ijInd = 1
@@ -601,18 +580,8 @@ CONTAINS
         if (tDoubleExcitFound .and. (.not. tAllExcitFound)) then
             call make_double(nI, nJ, elec1ind, elec2ind, orbA, orbB, &
                              ExcitMat3, tParity)
-!        else
-!            write(6,*) "Exiting loop with all excitations found: ",tAllExcitFound
         end if
 
-!        write(6,*) 'From',ExcitMat3(1,:),'To',ExcitMat3(2,:)
-!
-!        write(6,*) 'Excitation from : ',ExcitMat3(1,1),ExcitMat3(1,2),' to ',Orba,Orbb
-!        write(6,*) 'These have symmetries : ',INT(G1(ExcitMat3(1,1))%Sym%S,4),
-!INT(G1(ExcitMat3(1,2))%Sym%S,4),' to ',INT(G1(Orba)%Sym%S,4),INT(G1(Orbb)%Sym%S,4)
-!        write(6,*) 'These have symmetries : ',G1(ExcitMat3(1,1))%Ml,G1(ExcitMat3(1,2))%Ml,' to ',G1(Orba)%Ml,G1(Orbb)%Ml
-!        write(6,*) 'The new determinant is : ',nJ(:)
-!        CALL neci_flush(6)
 
     ENDSUBROUTINE GenDoubleExcit
 

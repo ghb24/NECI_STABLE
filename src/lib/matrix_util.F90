@@ -1,3 +1,4 @@
+#include "macros.h"
 
 module matrix_util
     use constants, only: sp, dp, EPS
@@ -6,8 +7,8 @@ module matrix_util
     implicit none
     private
     public :: eig, print_matrix, matrix_exponential, det, blas_matmul, linspace, norm, &
-        calc_eigenvalues, check_symmetric, find_degeneracies, eig_sym, norm_cmplx
-
+        calc_eigenvalues, check_symmetric, find_degeneracies, eig_sym, norm_cmplx, &
+        store_hf_coeff, my_minloc, my_minval
 
     interface linspace
         module procedure linspace_sp
@@ -533,6 +534,58 @@ contains
         end if
 
     end function norm
+
+    subroutine store_hf_coeff(e_values, e_vecs, target_state, hf_coeff, hf_ind, gs_ind)
+        real(dp), intent(in) :: e_values(:), e_vecs(:,:)
+        integer, intent(in), optional :: target_state
+        real(dp), intent(out) :: hf_coeff
+        integer, intent(out) :: hf_ind, gs_ind
+
+        real(dp) :: gs_vec(size(e_values))
+        integer :: target_state_
+        def_default(target_state_,target_state,1)
+
+        gs_ind = my_minloc(e_values, target_state)
+
+        gs_vec = abs(e_vecs(:,gs_ind))
+
+        hf_ind = maxloc(gs_vec,1)
+        hf_coeff = gs_vec(hf_ind)
+
+    end subroutine store_hf_coeff
+
+    pure real(dp) function my_minval(vec, target_state)
+        real(dp), intent(in) :: vec(:)
+        integer, intent(in), optional :: target_state
+
+        if (present(target_state)) then
+            my_minval = vec(my_minloc(vec,target_state))
+        else
+            my_minval = minval(vec)
+        end if
+
+    end function my_minval
+
+
+    pure integer function my_minloc(vec, target_state)
+        real(dp), intent(in) :: vec(:)
+        integer, intent(in), optional :: target_state
+
+        logical :: flag(size(vec))
+        integer :: i
+
+
+        if (present(target_state)) then
+            flag = .true.
+            do i = 1, target_state
+                my_minloc = minloc(vec, dim = 1, mask = flag)
+                flag(my_minloc) = .false.
+            end do
+        else
+            my_minloc = minloc(vec, 1)
+        end if
+
+    end function my_minloc
 
     real(dp) function norm_cmplx(vec,p_in)
         ! function to calculate the Lp norm of a given vector

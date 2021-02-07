@@ -21,7 +21,8 @@ program test_k_space_hubbard
                           t_trans_corr, t_trans_corr_2body, trans_corr_param, &
                           thub, tpbc, treal, ttilt, TSPINPOLAR, &
                           tCPMD, tVASP, tExch, tHphf, tNoSymGenRandExcits, tKPntSym, &
-                          t_twisted_bc, twisted_bc, arr, brr, lms
+                          t_twisted_bc, twisted_bc, arr, brr, lms, lattice_type, &
+                          length_x, length_y
 
     use bit_rep_data, only: niftot, nifd
 
@@ -55,7 +56,8 @@ program test_k_space_hubbard
         create_hamiltonian_old, create_hilbert_space
 
     use matrix_util, only: check_symmetric, calc_eigenvalues, matrix_exponential, linspace, &
-        norm, det, eig, print_matrix, find_degeneracies, eig_sym
+        norm, det, eig, print_matrix, find_degeneracies, eig_sym, store_hf_coeff, &
+        my_minloc, my_minval
 
     use lattice_models_utils, only: gen_all_excits_k_space_hubbard, &
                                     gen_all_triples_k_space, create_hilbert_space_kspace, &
@@ -200,7 +202,7 @@ contains
         integer, allocatable :: trunc(:), add(:,:)
         integer :: l_norm, n_excited_states
         logical :: t_exact_propagation, t_optimize_j, t_do_exact_transcorr
-        logical :: t_input_l
+        logical :: t_input_l, t_input_lattice, t_input_ref, t_input_nel
         real(dp) :: timestep, j_opt, tmp_hel
         real(dp), allocatable :: sign_list(:)
 
@@ -232,9 +234,11 @@ contains
 
         irrep_names = ['  x','A1g','A2g','B1g','B2g',' Eg','A1u','A2u','B1u','B2u',' Eu']
 
+        t_input_nel = .false.
+        t_input_lattice = .true.
         t_do_exact_transcorr = .true.
         t_input_l = .false.
-        t_optimize_j = .true.
+        t_optimize_j = .false.
         t_do_diags = .false.
         t_do_doubles = .true.
         t_do_subspace_study = .false.
@@ -248,9 +252,29 @@ contains
         t_analyse_gap = .false.
         t_ignore_k = .false.
         t_do_ed = .false.
-        t_exact_propagation = .true.
+        t_exact_propagation = .false.
         n_excited_states = 10
         timestep = 0.01_dp
+        t_input_ref = .true.
+
+        if (t_input_lattice) then
+            print *, "input lattice type: (chain,square,rectangle,tilted)"
+            read(*,*) lattice_type
+            print *, "input x-dim: "
+            read(*,*) length_x
+
+            if (lattice_type == 'chain') then
+                length_y = 1
+            else
+                print *, "input y-dim: "
+                read(*,*) length_y
+            end if
+        else
+            lattice_type = 'chain'
+            length_x = 4
+            length_y = 1
+        end if
+
 
         if (t_input_U) then
             print *, "input U: "
@@ -297,9 +321,16 @@ contains
         call init_k_space_unit_tests()
 
         ! i have to define the lattice here..
-        lat => lattice('chain', 2, 1, 1,.true.,.true.,.true.,'k-space')
+        lat => lattice(lattice_type, length_x, length_y, 1,.true.,.true.,.true., &
+            'k-space')
 
-        nel = 2
+        if (t_input_nel) then
+            print *, "input number of electrons: "
+            read(*,*) nel
+        else
+            nel = lat%get_nsites()
+        end if
+
         allocate(nI(nel))
         allocate(nJ(nel))
         nj = 0
@@ -308,7 +339,14 @@ contains
 
         ! 18 in 50
         ! nI = [23,24,25,26,27,28,39,40,41,42,43,44,57,58,59,60,61,62]
-        nI = [1,2]
+        if (t_input_ref) then
+            print *, "input ref state pls"
+            do i = 1, nel
+                read(*,*) nI(i)
+            end do
+        else
+            nI = [1,3,4,6]
+        end if
 
         ! setup lanczos:
         nblk = 4
@@ -1718,6 +1756,7 @@ contains
         real(dp), allocatable :: e_vec_left(:,:)
         real(dp), allocatable :: e_vec_trans_left(:,:), e_vec_next_left(:,:)
         real(dp) :: gs_energy, gs_energy_orig, hf_coeff_onsite(size(J))
+        real(dp), allocatable :: ref_coeff_all_onsite(:,:)
         real(dp) :: hf_coeff_next(size(J)), hf_coeff_orig
         real(dp), allocatable :: neci_eval(:), pca_eval(:), pca_evec(:,:)
         integer, allocatable :: hilbert_space(:,:)
@@ -1731,7 +1770,7 @@ contains
         integer, allocatable :: sort_ind(:)
         real(dp), allocatable :: hf_det(:), doubles(:), j_opt(:)
 
-        t_norm_inside = .true.
+        t_norm_inside = .false.
         t_pca = .false.
         ic_inside = 2
         t_check_orthogonality = .false.
@@ -1849,6 +1888,8 @@ contains
 
         allocate(e_vec_next_left(n_states,size(J)))
         e_vec_next_left = 0.0_dp
+
+        allocate(ref_coeff_all_onsite(n_states, size(J)), source = 0.0_dp)
 
         hf_coeff_onsite = 0.0_dp
         hf_coeff_next = 0.0_dp
@@ -1983,6 +2024,7 @@ contains
 
             e_vec_trans(:,i) = gs_vec
 
+            ref_coeff_all_onsite(:,i) = maxval(abs(e_vec),1)
             ! also obtain the left GS eigenvector:
             call eig(hamil_trans, e_values, e_vec, .true.)
             ! find the ground-state
@@ -2106,6 +2148,18 @@ contains
             write(iunit, *) J(i), hf_coeff_onsite(i)
         end do
         close(iunit)
+
+        iunit = get_free_unit()
+        open(iunit, file = "ev_ref_coeff_onsite")
+        do i = 1, size(J)
+            write(iunit, '(G25.17)', advance = 'no') J(i)
+            do k = 1, n_states - 1
+                write(iunit, '(G25.17)', advance = 'no') ref_coeff_all_onsite(k,i)
+            end do
+            write(iunit, '(G25.17)', advance = 'yes') ref_coeff_all_onsite(n_states,i)
+        end do
+        close(iunit)
+
 
         iunit = get_free_unit()
         open(iunit, file = "hf_coeff_next")

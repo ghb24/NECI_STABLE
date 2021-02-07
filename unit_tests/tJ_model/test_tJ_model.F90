@@ -12,7 +12,7 @@ program test_tJ_model
                                      create_heisenberg_fock_space_guga
     use fcimcdata, only: ilutref
     use Detbitops, only: encodebitdet
-    use matrix_util, only: eig, print_matrix
+    use matrix_util, only: eig, print_matrix, store_hf_coeff, my_minloc, my_minval
     use guga_bitRepOps, only: write_guga_list, calcstepvector, calcB_vector_ilut
     use util_mod, only: near_zero
     use guga_matrixElements, only: calcDiagExchangeGUGA_nI
@@ -1832,58 +1832,6 @@ contains
 
 
     end function sum_non_zero_off_diag
-
-    subroutine store_hf_coeff(e_values, e_vecs, target_state, hf_coeff, hf_ind, gs_ind)
-        real(dp), intent(in) :: e_values(:), e_vecs(:,:)
-        integer, intent(in), optional :: target_state
-        real(dp), intent(out) :: hf_coeff
-        integer, intent(out) :: hf_ind, gs_ind
-
-        real(dp) :: gs_vec(size(e_values))
-        integer :: target_state_
-        def_default(target_state_,target_state,1)
-
-        gs_ind = my_minloc(e_values, target_state)
-
-        gs_vec = abs(e_vecs(:,gs_ind))
-
-        hf_ind = maxloc(gs_vec,1)
-        hf_coeff = gs_vec(hf_ind)
-
-    end subroutine store_hf_coeff
-
-    pure real(dp) function my_minval(vec, target_state)
-        real(dp), intent(in) :: vec(:)
-        integer, intent(in), optional :: target_state
-
-        if (present(target_state)) then
-            my_minval = vec(my_minloc(vec,target_state))
-        else
-            my_minval = minval(vec)
-        end if
-
-    end function my_minval
-
-
-    pure integer function my_minloc(vec, target_state)
-        real(dp), intent(in) :: vec(:)
-        integer, intent(in), optional :: target_state
-
-        logical :: flag(size(vec))
-        integer :: i
-
-
-        if (present(target_state)) then
-            flag = .true.
-            do i = 1, target_state
-                my_minloc = minloc(vec, dim = 1, mask = flag)
-                flag(my_minloc) = .false.
-            end do
-        else
-            my_minloc = minloc(vec, 1)
-        end if
-
-    end function my_minloc
 
     subroutine set_diag(matrix, val)
         real(dp), intent(inout) :: matrix(:,:)
