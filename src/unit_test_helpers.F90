@@ -19,7 +19,7 @@ module unit_test_helpers
 
     use util_mod, only: binary_search, choose, operator(.div.), operator(.isclose.), near_zero
 
-    use sltcnd_mod, only: dyn_sltcnd_excit
+    use sltcnd_mod, only: dyn_sltcnd_excit_old
 
     use bit_reps, only: decode_bit_det, extract_sign, get_weight
 
@@ -62,20 +62,22 @@ module unit_test_helpers
               create_hilbert_space
 
     abstract interface
-        real(dp) function calc_pgen_t(det_I, ilutI, exc)
-            import :: dp, SpinOrbIdx_t, Excitation_t, n_int, NifTot
-            type(SpinOrbIdx_t), intent(in) :: det_I
+        real(dp) function calc_pgen_t(nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2)
+            import :: ExcitationGenerator_t, n_int, dp, ScratchSize, maxExcit, NifTot, nEl
+            implicit none
+            integer, intent(in) :: nI(nel)
             integer(n_int), intent(in) :: ilutI(0:NIfTot)
-            class(Excitation_t), intent(in) :: exc
-        end function calc_pgen_t
+            integer, intent(in) :: ex(2, maxExcit), ic
+            integer, intent(in) :: ClassCount2(ScratchSize), ClassCountUnocc2(ScratchSize)
+        end function
 
         !> Return true, if an excitation exc from determinant det_I
         !> and a given pgen_diagnostic (sum 1/pgen) is considered
         !> to be problematic.
-        logical function problem_filter_t(det_I, exc, pgen_diagnostic)
-            import :: dp, SpinOrbIdx_t, Excitation_t
-            type(SpinOrbIdx_t), intent(in) :: det_I
-            class(Excitation_t), intent(in) :: exc
+        logical function problem_filter_t(nI, exc, ic, pgen_diagnostic)
+            import :: dp, nEl, maxExcit
+            implicit none
+            integer, intent(in) :: nI(nEl), exc(2, maxExcit), ic
             real(dp), intent(in) :: pgen_diagnostic
         end function
     end interface
@@ -569,10 +571,8 @@ contains
         end block
 
         block
-            type(SpinOrbIdx_t) :: det_I
             real(dp) :: pgen_diagnostic
-            class(Excitation_t), allocatable :: exc
-            integer :: nJ(nEl)
+            integer :: nJ(nEl), exc(2, maxExcit)
             logical :: tParity
 
             write(i_unit_, *) "=================================="
@@ -592,19 +592,19 @@ contains
                 call get_excitation(nI, nJ, ic, exc, tParity)
 
                 if (present(calc_pgen)) then
-                    pgens_differ = .not. (calc_pgen(SpinOrbIdx_t(nI), ilut, exc) .isclose. pgen_list(i))
+                    pgens_differ = .not. (calc_pgen(nI, ilut, exc, ic, store%ClassCountOcc, store%ClassCountUnocc) .isclose. pgen_list(i))
                 else
                     pgens_differ = .false.
                 end if
 
-                if (problem_filter_(SpinOrbIdx_t(nI), exc, pgen_diagnostic) .or. pgens_differ) then
+                if (problem_filter_(nI, exc, ic, pgen_diagnostic) .or. pgens_differ) then
                     successful = .false.
                     call write_det(i_unit_, nJ, .false.)
                     write(i_unit_, '("|"F10.5"|"I2"|"F10.5"|"F15.10"|")', advance='no') &
                         pgen_diagnostic, ic, get_helement(nI, nJ), pgen_list(i)
                     if (present(calc_pgen)) then
                         write(i_unit_, '(F15.10"|")', advance='no') &
-                            calc_pgen(SpinOrbIdx_t(nI), det_list(:, i), exc)
+                            calc_pgen(nI, det_list(:, i), exc, ic, store%ClassCountOcc, store%ClassCountUnocc)
                     end if
                     write(i_unit_, *)
                 end if
@@ -616,13 +616,12 @@ contains
 
     contains
 
-        logical function default_predicate(det_I, exc, pgen_diagnostic)
-            type(SpinOrbIdx_t), intent(in) :: det_I
-            class(Excitation_t), intent(in) :: exc
+        logical function default_predicate(nI, exc, ic, pgen_diagnostic)
+            integer, intent(in) :: nI(nEl), exc(2, maxExcit), ic
             real(dp), intent(in) :: pgen_diagnostic
             default_predicate = &
-                (pgen_diagnostic <= 0.95_dp .or. 1.05_dp <= pgen_diagnostic) &
-                .and. .not. near_zero(dyn_sltcnd_excit(det_I%idx, exc, .true.))
+                (abs(1._dp - pgen_diagnostic) >= 0.05_dp) &
+                .and. .not. near_zero(dyn_sltcnd_excit_old(nI, ic, exc, .true.))
         end function
 
     end subroutine run_excit_gen_tester_function
@@ -665,23 +664,12 @@ contains
                 call exc_generator%gen_all_excits(nI, n_excits, det_list)
             end subroutine
 
-            function get_pgen(det_I, ilutI, exc) result(pgen)
-                type(SpinOrbIdx_t), intent(in) :: det_I
+            real(dp) function get_pgen(nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2)
+                integer, intent(in) :: nI(nel)
                 integer(n_int), intent(in) :: ilutI(0:NIfTot)
-                class(Excitation_t), intent(in) :: exc
-                real(dp) :: pgen
-                ! Let's hope they are not used
-                integer :: ex(2, maxExcit)
-                integer, dimension(ScratchSize) :: classcount2, classcountunocc2
-
-                select type(exc)
-                type is(SingleExc_t)
-                    ex(:, 1) = exc%val
-                    pgen = exc_generator%get_pgen(det_I%idx, ilutI, ex, 1, classcount2, classcountunocc2)
-                type is(DoubleExc_t)
-                    ex(:, :2) = exc%val
-                    pgen = exc_generator%get_pgen(det_I%idx, ilutI, ex, 2, classcount2, classcountunocc2)
-                end select
+                integer, intent(in) :: ex(2, maxExcit), ic
+                integer, intent(in) :: ClassCount2(ScratchSize), ClassCountUnocc2(ScratchSize)
+                get_pgen = exc_generator%get_pgen(nI, ilutI, ex, ic, classcount2, classcountunocc2)
             end function
     end subroutine
 
