@@ -48,8 +48,6 @@ MODULE HPHFRandExcitMod
 
     use excit_gen_5, only: calc_pgen_4ind_weighted2, gen_excit_4ind_weighted2
 
-    use exc_gen_classes, only: current_exc_generator
-
     use pcpp_excitgen, only: calc_pgen_pcpp, gen_rand_excit_pcpp, create_elec_map
 
     use sort_mod
@@ -79,9 +77,12 @@ MODULE HPHFRandExcitMod
     use k_space_hubbard, only: gen_excit_k_space_hub, calc_pgen_k_space_hubbard, &
                                gen_excit_uniform_k_space_hub
 
+    use exc_gen_classes, only: current_exc_generator
+    use procedure_pointers, only: generate_excitation_t
+
     IMPLICIT NONE
-!    SAVE
-!    INTEGER :: Count=0
+
+    procedure(generate_excitation_t), pointer :: exc_generator_for_HPHF => null()
 
 contains
 
@@ -200,99 +201,21 @@ contains
         logical :: tSwapped
         integer :: temp_ex(2, maxExcit)
 
-        ! Avoid warnings
+#ifdef WARNING_WORKAROUND_
         tParity = .false.
+#endif
 
-        ! [W.D] this whole hphf should be optimized.. and cleaned up
-        ! because it is a mess really..
-        ! Generate a normal excitation.
-        if(t_mol_3_body .or. t_ueg_3_body) then
-            call gen_excit_mol_tc(nI, ilutnI, nJ, ilutnJ, exFlag, ic, ExcitMat, &
-                                  tSignOrig, pgen, Hel, store, part_type)
-        else if(t_back_spawn .or. t_back_spawn_flex) then
-            if(tUEGNewGenerator .and. tLatticeGens) then
-                call gen_excit_back_spawn_ueg_new(nI, ilutnI, nJ, ilutnJ, exFlag, ic, &
-                                                  ExcitMat, tSignOrig, pgen, Hel, store, part_type)
-            else if(tUEG .and. tLatticeGens) then
-                call gen_excit_back_spawn_ueg(nI, ilutnI, nJ, ilutnJ, exFlag, ic, &
-                                              ExcitMat, tSignOrig, pgen, Hel, store, part_type)
-            else if(tHUB .and. tLatticeGens) then
-                call gen_excit_back_spawn_hubbard(nI, iLutnI, nJ, iLutnJ, exFlag, IC, ExcitMat, &
-                                                  tSignOrig, pGen, HEl, store, part_type)
-            else
-                call gen_excit_back_spawn(nI, ilutnI, nJ, ilutnJ, exFlag, ic, &
-                                          ExcitMat, tSignOrig, pgen, Hel, store, part_type)
-            end if
-
-        else if(t_new_real_space_hubbard) then
-            if(t_trans_corr_hop) then
-                if(t_uniform_excits) then
-                    call gen_excit_rs_hubbard_transcorr_uniform(nI, ilutnI, nJ, ilutnJ, exFlag, ic, &
-                                                                ExcitMat, tSignOrig, pgen, Hel, store, part_type)
-
-                else
-                    call gen_excit_rs_hubbard_transcorr(nI, ilutnI, nJ, ilutnJ, exFlag, ic, &
-                                                        ExcitMat, tSignOrig, pgen, Hel, store, part_type)
-                end if
-            else if(t_spin_dependent_transcorr) then
-                call gen_excit_rs_hubbard_spin_dependent_transcorr(nI, ilutnI, nJ, ilutnJ, exFlag, ic, &
-                                                                   ExcitMat, tSignOrig, pgen, Hel, store, part_type)
-
-            else
-                call gen_excit_rs_hubbard(nI, ilutnI, nJ, ilutnJ, exFlag, ic, &
-                                          ExcitMat, tSignOrig, pgen, Hel, store, part_type)
-            end if
-
-        else if(t_tJ_model) then
-            call gen_excit_tj_model(nI, ilutnI, nJ, ilutnJ, exFlag, ic, &
-                                    ExcitMat, tSignOrig, pgen, Hel, store, part_type)
-
-        else if(t_heisenberg_model) then
-            call gen_excit_heisenberg_model(nI, ilutnI, nJ, ilutnJ, exFlag, ic, &
-                                            ExcitMat, tSignOrig, pgen, Hel, store, part_type)
-
-        else if(t_k_space_hubbard) then
-            ! for Kais unifrom excitation generator i have to make it compatible
-            ! with HPHF
-            if(t_uniform_excits) then
-                call gen_excit_uniform_k_space_hub(nI, ilutnI, nJ, ilutnJ, exFlag, ic, &
-                                                   ExcitMat, tSignOrig, pgen, Hel, store, part_type)
-            else
-                call gen_excit_k_space_hub(nI, ilutnI, nJ, ilutnJ, exFlag, ic, &
-                                           ExcitMat, tSignOrig, pgen, Hel, store, part_type)
-            end if
-
-        else if(tGen_4ind_weighted) then
-            call gen_excit_4ind_weighted(nI, ilutnI, nJ, ilutnJ, exFlag, ic, &
-                                         ExcitMat, tSignOrig, pGen, Hel, &
-                                         store)
-        else if(tGen_4ind_reverse) then
-            call gen_excit_4ind_reverse(nI, ilutnI, nJ, ilutnJ, exFlag, ic, &
-                                        ExcitMat, tSignOrig, pGen, Hel, &
-                                        store)
-        else if(tGen_4ind_2) then
-            call gen_excit_4ind_weighted2(nI, ilutnI, nJ, ilutnJ, exFlag, ic, &
-                                          ExcitMat, tSignOrig, pGen, Hel, &
-                                          store)
-        else if (allocated(current_exc_generator)) then
-            call current_exc_generator%gen_exc(nI, ilutnI, nJ, iLutnJ, exFlag, IC, ExcitMat, &
-                                     tSignOrig, pGen, HEl, store)
-        else if(t_pcpp_excitgen) then
-            call gen_rand_excit_pcpp(nI, ilutnI, nJ, iLutnJ, exFlag, IC, ExcitMat, &
-                                     tSignOrig, pGen, HEl, store)
-        else
-            call gen_rand_excit(nI, iLutnI, nJ, iLutnJ, exFlag, IC, ExcitMat, &
-                                tSignOrig, pGen, HEl, store)
-        end if
-
+        call exc_generator_for_HPHF(nI, iLutnI, nJ, iLutnJ, exFlag, IC, ExcitMat, &
+                                    tSignOrig, pGen, HEl, store)
         ! Create excitation of uniquely chosen determinant in this HPHF
         ! function.
         IF(IsNullDet(nJ)) RETURN
 
         ! Create bit representation of excitation - iLutnJ.
         ! n.b. 4ind_weighted does this already.
-        if(.not.(tGen_4ind_weighted .or. tGen_4ind_reverse .or. tGen_4ind_2)) &
+        if (.not. any([tGen_4ind_weighted, tGen_4ind_reverse, tGen_4ind_2])) then
             CALL FindExcitBitDet(iLutnI, iLutnJ, IC, ExcitMat)
+        end if
 
         IF(TestClosedShellDet(iLutnJ)) THEN
 !There is only one way which we could have generated the excitation nJ since it has
@@ -866,7 +789,7 @@ contains
             else if(t_pcpp_excitgen) then
                 pgen = calc_pgen_pcpp(ilutI, ex, ic)
             else if (allocated(current_exc_generator)) then
-                pgen = current_exc_generator%get_pgen(nI, ilutI, ex, ic, classcount2, classcountunocc2)
+                pgen = current_exc_generator%get_pgen(nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2)
             else
                 ! Here we assume that the normal excitation generators in
                 ! symrandexcit2.F90 are being used.

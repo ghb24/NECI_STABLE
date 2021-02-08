@@ -112,7 +112,7 @@ module fcimc_initialisation
     use PopsfileMod, only: FindPopsfileVersion, initfcimc_pops, &
                            ReadFromPopsfilePar, ReadPopsHeadv3, &
                            ReadPopsHeadv4, open_pops_head, checkpopsparams
-    use HPHFRandExcitMod, only: gen_hphf_excit, FindDetSpinSym
+    use HPHFRandExcitMod, only: gen_hphf_excit, FindDetSpinSym, exc_generator_for_HPHF
     use GenRandSymExcitNUMod, only: gen_rand_excit, init_excit_gen_store, &
                                     clean_excit_gen_store
     use replica_estimates, only: open_replica_est_file
@@ -233,8 +233,7 @@ module fcimc_initialisation
 
     use back_spawn_excit_gen, only: gen_excit_back_spawn, gen_excit_back_spawn_ueg, &
                                     gen_excit_back_spawn_hubbard, gen_excit_back_spawn_ueg_new
-    use gasci, only: GAS_exc_gen, possible_GAS_exc_gen, GAS_specification, get_name
-    use gasci_util, only: gen_all_excits_GAS => gen_all_excits_wrapper
+
     use gasci_supergroup_index, only: lookup_supergroup_indexer
 
     use cepa_shifts, only: t_cepa_shift, init_cepa_shifts
@@ -1402,17 +1401,8 @@ contains
         ! and can hence be precomputed
         if (t_mol_3_body .or. t_ueg_3_body) call setup_mol_tc_excitgen()
 
+
         call init_exc_gen_class()
-        if (tGAS) then
-            write(iout, *)
-            write(iout, '(A" is activated")') get_name(GAS_exc_gen)
-            write(iout, '(A)') 'The following GAS specification was used: '
-            call GAS_specification%write_to(iout)
-            if (.not. tGASSpinRecoupling) then
-                write(iout, '(A)') 'Double excitations with exchange are forbidden.'
-            end if
-            write(iout, *)
-        end if
     END SUBROUTINE SetupParameters
 
     ! This initialises the calculation, by allocating memory, setting up the
@@ -1942,10 +1932,11 @@ contains
     subroutine init_fcimc_fn_pointers()
         character(*), parameter :: this_routine = "init_fcimc_fn_pointers"
 
+        ! Almost all excitation generators in NECI are Full CI generators.
+        gen_all_excits => gen_all_excits_default
+
         ! Select the excitation generator.
-        if (tHPHF .and. .not. (t_mol_3_body .or. t_ueg_3_body)) then
-            generate_excitation => gen_hphf_excit
-        else if (tGAS) then
+        if (tGAS) then
             call class_managed(generate_excitation, gen_all_excits)
         else if (t_3_body_excits .and. .not. (t_mol_3_body .or. t_ueg_3_body)) then
             if (t_uniform_excits) then
@@ -1953,8 +1944,6 @@ contains
             else
                 generate_excitation => gen_excit_k_space_hub_transcorr
             end if
-        else if (tHPHF .and. .not. (t_mol_3_body .or. t_ueg_3_body)) then
-            generate_excitation => gen_hphf_excit
         else if (t_ueg_3_body) then
             if (tTrcorrExgen) then
                 generate_two_body_excitation => gen_ueg_excit
@@ -2009,16 +1998,30 @@ contains
             generate_excitation => gen_rand_excit
         end if
 
+
+        ! yes, fortran pointers work this way
+            ! Pointer assignment with =>
+                ! Fortran
+                !> ptr1 => ptr2
+                ! C
+                !> T *ptr1, *ptr2;
+                !> ptr1 = ptr2;
+            ! Copy/value assignment with =
+                ! Fortran
+                !> ptr1 = ptr2
+                ! C
+                !> *ptr1 = *ptr2;
+
         ! if we are using the 3-body excitation generator, embed the chosen excitgen
         ! in the three-body one
         if (t_mol_3_body) then
-            ! yes, fortran pointers work this way
             generate_two_body_excitation => generate_excitation
-            if(tHPHF) then
-                generate_excitation => gen_hphf_excit
-            else
-                generate_excitation => gen_excit_mol_tc
-            end if
+            generate_excitation => gen_excit_mol_tc
+        end if
+        ! Do the same for HPHF
+        if (tHPHF) then
+            exc_generator_for_HPHF => generate_excitation
+            generate_excitation => gen_hphf_excit
         end if
 
         ! In the main loop, we only need to find out if a determinant is
@@ -2134,14 +2137,10 @@ contains
         end if
 
         ! select the procedure that returns all connected determinants.
-        if (tGAS) then
-            gen_all_excits => gen_all_excits_GAS
-        else if (t_k_space_hubbard) then
+        if (t_k_space_hubbard) then
             gen_all_excits => gen_all_excits_k_space_hubbard
         else if (t_new_real_space_hubbard) then
             gen_all_excits => gen_all_excits_r_space_hubbard
-        else
-            gen_all_excits => gen_all_excits_default
         end if
 
     end subroutine init_fcimc_fn_pointers

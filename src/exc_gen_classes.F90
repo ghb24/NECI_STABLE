@@ -80,7 +80,7 @@ contains
                     write(iout, '(A)') 'Double excitations with exchange are forbidden.'
                 end if
                 write(iout, *)
-                end if
+            end if
         end block
 
         block
