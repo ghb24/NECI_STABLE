@@ -55,7 +55,7 @@ module fcimc_initialisation
                         t_trunc_nopen_diff, t_guga_back_spawn, tExpAdaptiveShift, &
                         t_back_spawn_option, t_back_spawn_flex_option, &
                         t_back_spawn_flex, back_spawn_delay, ScaleWalkers, tfixedN0, &
-                        tReplicaEstimates, tDeathBeforeComms, pSinglesIn, pParallelIn, &
+                        tReplicaEstimates, tDeathBeforeComms, pSinglesIn, pDoublesIn, pParallelIn, &
                         tSetInitFlagsBeforeDeath, tSetInitialRunRef, tEN2Init, &
                         tAutoAdaptiveShift, &
                         tInitializeCSF, S2Init, tWalkContgrow, tSkipRef, &
@@ -3458,14 +3458,20 @@ contains
             end if
         end if
 
-        if (pSinglesIn > 1.e-12_dp) then
+        if (allocated(pSinglesIn) .and. allocated(pDoublesIn)) then
+            call stop_all(this_routine, 'It is not possible to define pSingles and pDoubles')
+        else if (allocated(pSinglesIn)) then
             pSingles = pSinglesIn
-            pDoubles = 1.0_dp - pSinglesIn
+            pDoubles = 1.0_dp - pSingles
             write(iout, '(" Using the input value of pSingles:",1x, f14.6)') pSingles
-            write(iout, '(" Using the input value of pSingles:",1x, f14.6)') pDoubles
+        else if (allocated(pDoublesIn)) then
+            pDoubles = pDoublesIn
+            pSingles = 1.0_dp - pDoubles
+            write(iout, '(" Using the input value of pDoubles:",1x, f14.6)') pDoubles
         end if
-        if (pParallelIn > 1.e-12_dp) then
-            write(iout, '(" Using the input value of pSingles:",1x, f14.6)') pParallelIn
+
+        if (allocated(pParallelIn)) then
+            write(iout, '(" Using the input value of pParallel:",1x, f14.6)') pParallelIn
             pParallel = pParallelIn
         end if
 

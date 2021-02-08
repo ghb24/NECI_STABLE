@@ -41,7 +41,7 @@ module real_space_hubbard
                          excit_gen_store_type
 
     use CalcData, only: t_hist_tau_search, t_hist_tau_search_option, tau, &
-                        t_fill_frequency_hists, matele_cutoff, pSinglesIn
+                        t_fill_frequency_hists, matele_cutoff, pSinglesIn, pDoublesIn
 
     use dsfmt_interface, only: genrand_real2_dsfmt
 
@@ -188,9 +188,14 @@ contains
 
         if (t_trans_corr_hop) then
             ! we have double excitations with the hopping correlation!
-            if (.not. near_zero(pSinglesIn)) then
+            if (allocated(pSinglesIn)) then
                 pSingles = pSinglesIn
                 pDoubles = 1.0_dp - pSingles
+            else if (allocated(pDoublesIn)) then
+                pDoubles = pDoublesIn
+                pSingles = 1.0_dp - pDoubles
+
+            ! For consistency pParallelIn should be taken as well or error out
             else
                 pSingles = 0.8_dp
                 pDoubles = 1.0_dp - pSingles
