@@ -64,6 +64,9 @@ MODULE SymExcitDataMod
         integer, pointer :: dorder_j(:) => null()
         integer, pointer :: elec_map(:) => null()
         integer :: nopen
+
+        !> The current determinant in the CurrentDets(:, :) array.
+        integer :: idx_curr_dets = -1
     end type
 
 END MODULE SymExcitDataMod

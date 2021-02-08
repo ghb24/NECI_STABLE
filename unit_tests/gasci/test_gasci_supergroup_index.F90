@@ -5,7 +5,6 @@ module test_gasci_supergroup_index_mod
     use util_mod, only: factrl, intswap, cumsum
 
     use gasci, only: GASSpec_t
-    use gasci_general_pchb
     use gasci_supergroup_index
 
     implicit none

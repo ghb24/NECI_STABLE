@@ -855,6 +855,28 @@ contains
 
     end subroutine
 
+    !>  @brief
+    !>  Return the pgen for pick_biased_elecs
+    !>
+    !>  @param[in] same_spin Do both electrons have the same spin.
+    !>  @param[in] pParallel Probability to draw a parallel excitation.
+    !>  @param[in] par_elec_pairs Number of electron pairs with same spin.
+    !>  @param[in] opp_elec_pairs Number of electron pairs with opposite spin.
+    pure function get_pgen_pick_biased_elecs(&
+            same_spin, pParallel, par_elec_pairs, opp_elec_pairs) result(pgen)
+        logical, intent(in) :: same_spin
+        real(dp), intent(in) :: pParallel
+        integer, intent(in) :: par_elec_pairs, opp_elec_pairs
+        real(dp) :: pgen
+        if (same_spin) then
+            pgen = pParallel / real(par_elec_pairs, dp)
+        else
+            pgen = (1.0_dp - pParallel) / real(opp_elec_pairs, dp)
+        end if
+    end function
+
+
+
     subroutine pick_oppspin_elecs(nI, elecs, src, sym_prod, ispn, sum_ml, pgen)
 
         integer, intent(in) :: nI(nel)

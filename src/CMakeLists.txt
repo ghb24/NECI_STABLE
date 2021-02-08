@@ -207,6 +207,9 @@ set( SRC_FILES
     real_time_read_input.F90
     verlet_aux.F90
     CAS_distribution_init.F90
+    excitation_generators.F90
+    exc_gen_class_wrappers.F90
+    exc_gen_classes.F90
 
     lib/backtrace.cpp
     lib/cons_neci.F90
@@ -430,10 +433,11 @@ set( FYPP_SRC_FILES
     sltcnd.fpp
     gasci.fpp
     gasci_disconnected.fpp
-    gasci_general.fpp
     gasci_discarding.fpp
-    gasci_general_pchb.fpp
+    gasci_general.fpp
+    gasci_pchb.fpp
     gasci_supergroup_index.fpp
+    gasci_util.fpp
     orb_idx.fpp
     excitation_types.fpp
 	shared_array.fpp
@@ -442,6 +446,7 @@ set( FYPP_SRC_FILES
     rdm_general.fpp
     hist.fpp
     lib/util_mod.fpp
+    lib/util_mod_epsilon_close.fpp
     sets_mod.fpp
 	shared_ragged_array.fpp
 )
@@ -457,7 +462,6 @@ set( TEMPLATED_SRC_FILES
     lib/util_mod_comparisons.F90.template
     lib/util_mod_cpts.F90.template
     lib/util_mod_numerical.F90.template
-    lib/util_mod_epsilon_close.F90.template
 )
 
 

@@ -1,20 +1,21 @@
 #include "macros.h"
 #:include "macros.fpph"
+#:include "algorithms.fpph"
 
 module gasci
     use SystemData, only: nBasis
     use util_mod, only: cumsum, stop_all, operator(.div.)
+    use excitation_types, only: SingleExc_t, DoubleExc_t
+    use orb_idx_mod, only: SpinProj_t, calc_spin_raw, operator(==)
+    use util_mod, only: EnumBase_t
     implicit none
 
     private
-    public :: operator(==), operator(/=), possible_GAS_exc_gen, &
+    public :: possible_GAS_exc_gen, &
         GAS_exc_gen, GAS_specification, GASSpec_t, &
         user_input_GAS_exc_gen, get_name, construct_GASSpec_t
 
-
-
-    type :: GAS_exc_gen_t
-        integer :: val
+    type, extends(EnumBase_t) :: GAS_exc_gen_t
     end type
 
     type :: possible_GAS_exc_gen_t
@@ -29,14 +30,6 @@ module gasci
 
     type(GAS_exc_gen_t) :: GAS_exc_gen = possible_GAS_exc_gen%GENERAL
     type(GAS_exc_gen_t), allocatable :: user_input_GAS_exc_gen
-
-    interface operator(==)
-        module procedure eq_GAS_exc_gen_t
-    end interface
-
-    interface operator(/=)
-        module procedure neq_GAS_exc_gen_t
-    end interface
 
     ! NOTE: At the current state of implementation `GASSpec_t` is a completely immutable
     ! datastructure to outside code after the constructor has been called.
@@ -83,6 +76,11 @@ module gasci
         procedure :: split_per_GAS
         procedure :: count_per_GAS
         procedure :: write_to
+        generic :: is_allowed => is_allowed_single
+        generic :: is_allowed => is_allowed_double
+
+        procedure, private :: is_allowed_single
+        procedure, private :: is_allowed_double
     end type
 
     interface GASSpec_t
@@ -92,16 +90,6 @@ module gasci
     type(GASSpec_t), allocatable :: GAS_specification
 
 contains
-
-    logical elemental function eq_GAS_exc_gen_t(lhs, rhs)
-        type(GAS_exc_gen_t), intent(in) :: lhs, rhs
-        eq_GAS_exc_gen_t = lhs%val == rhs%val
-    end function
-
-    logical elemental function neq_GAS_exc_gen_t(lhs, rhs)
-        type(GAS_exc_gen_t), intent(in) :: lhs, rhs
-        neq_GAS_exc_gen_t = lhs%val /= rhs%val
-    end function
 
     !> @brief
     !> Returns the total number of GAS spaces.
@@ -416,4 +404,87 @@ contains
         end if
     end subroutine
 
+    !> @brief
+    !> Check if a single excitation is allowed.
+    !>
+    !> @details
+    !> Is called once at initialization, so it does not have to be super fast.
+    logical pure function is_allowed_single(this, exc, supergroup)
+        class(GASSpec_t), intent(in) :: this
+        type(SingleExc_t), intent(in) :: exc
+        integer, intent(in) :: supergroup(:)
+
+        integer :: excited_supergroup(size(supergroup))
+        integer :: src_space, tgt_space
+
+        src_space = this%get_iGAS(exc%val(1))
+        tgt_space = this%get_iGAS(exc%val(2))
+
+        if (src_space == tgt_space) then
+            ! All electrons come from the same space and there are no restrictions
+            ! regarding recoupling or GAS.
+            is_allowed_single = .true.
+        else
+            ! Ensure that GAS specifications contain supergroup **after** excitation.
+            excited_supergroup = supergroup
+            excited_supergroup(src_space) = excited_supergroup(src_space) - 1
+            excited_supergroup(tgt_space) = excited_supergroup(tgt_space) + 1
+
+            is_allowed_single = this%contains_supergroup(excited_supergroup)
+        end if
+    end function
+
+
+    !> @brief
+    !> Check if a double excitation is allowed.
+    !>
+    !> @details
+    !> Is called once at initialization, so it does not have to be super fast.
+    !> `recoupling` allows recoupling excitations that change the spin projection
+    !> of individual GAS spaces.
+    logical pure function is_allowed_double(this, exc, supergroup, recoupling)
+        class(GASSpec_t), intent(in) :: this
+        type(DoubleExc_t), intent(in) :: exc
+        integer, intent(in) :: supergroup(:)
+        logical, intent(in) :: recoupling
+
+        integer :: excited_supergroup(size(supergroup))
+        integer :: src_spaces(2), tgt_spaces(2)
+
+        src_spaces = this%get_iGAS(exc%val(1, :))
+        tgt_spaces = this%get_iGAS(exc%val(2, :))
+
+        if (all(src_spaces == tgt_spaces) .and. src_spaces(1) == src_spaces(2)) then
+            ! All electrons come from the same space and there are no restrictions
+            ! regarding recoupling or GAS.
+            is_allowed_double = .true.
+        else
+            ! Ensure that GAS specifications contain supergroup **after** excitation.
+            excited_supergroup = supergroup
+            excited_supergroup(src_spaces) = excited_supergroup(src_spaces) - 1
+            excited_supergroup(tgt_spaces) = excited_supergroup(tgt_spaces) + 1
+
+            is_allowed_double = this%contains_supergroup(excited_supergroup)
+
+            if (is_allowed_double .and. .not. recoupling) then
+                block
+                    type(SpinProj_t) :: src_spins(2), tgt_spins(2)
+                    #:set spin_swap = functools.partial(swap, 'SpinProj_t', "", 0)
+
+                    src_spins = calc_spin_raw(exc%val(1, :))
+                    tgt_spins = calc_spin_raw(exc%val(2, :))
+
+                    if (src_spaces(1) > src_spaces(2)) then
+                        @:spin_swap(src_spins(1), src_spins(2))
+                    end if
+
+                    if (tgt_spaces(1) > tgt_spaces(2)) then
+                        @:spin_swap(tgt_spins(1), tgt_spins(2))
+                    end if
+
+                    is_allowed_double = all(src_spins == tgt_spins)
+                end block
+            end if
+        end if
+    end function
 end module gasci
