@@ -991,7 +991,8 @@ contains
         Ex = 0
         associate(rep => cs_replicas(core_run))
             if (t_full_core_rdms) then
-                num_j = rep%determ_sizes(iProcIndex)
+                ! num_j = rep%determ_sizes(iProcIndex)
+                num_j = rep%determ_space_size
             end if
 
             ! Cycle over all core dets on this process.
@@ -1024,7 +1025,7 @@ contains
                     ! correct one, i.
 
                     if (t_full_core_rdms) then
-                        iLutJ = rep%core_space(:, rep%determ_displs(iProcIndex) + j)
+                        iLutJ = rep%core_space(:, j)
                     else
                         iLutJ = rep%core_space(:, rep%core_connections(i)%positions(j))
                     end if
@@ -1044,8 +1045,7 @@ contains
                         end if
 
                         do irdm = 1, rdm_defs%nrdms
-                            AvSignJ(irdm) = rep%full_determ_vecs_av(rdm_defs%sim_labels(2, irdm), &
-                                rep%determ_displs(iProcIndex) + j)
+                            AvSignJ(irdm) = rep%full_determ_vecs_av(rdm_defs%sim_labels(2, irdm), j)
                         end do
                     else
                         do irdm = 1, rdm_defs%nrdms
