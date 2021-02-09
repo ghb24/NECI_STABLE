@@ -1060,6 +1060,8 @@ contains
                         end if
                     end if
 
+                    if (ic > 2) cycle
+
                     if (tParity) then
                         full_sign = -AvSignI * AvSignJ * IterRDM
                     else
