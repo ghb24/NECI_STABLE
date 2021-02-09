@@ -992,12 +992,13 @@ contains
         associate(rep => cs_replicas(core_run))
             if (t_full_core_rdms) then
                 num_j = rep%determ_sizes(iProcIndex)
-            else
-                num_j = rep%sparse_core_ham(i)%num_elements - 1
             end if
 
             ! Cycle over all core dets on this process.
             do i = 1, rep%determ_sizes(iProcIndex)
+                if (.not. t_full_core_rdms) then
+                    num_j = rep%sparse_core_ham(i)%num_elements - 1
+                end if
                 iLutI = rep%core_space(:, rep%determ_displs(iProcIndex) + i)
 
                 ! Connections to the HF are added in elsewhere, so skip them here.
