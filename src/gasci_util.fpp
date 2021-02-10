@@ -15,13 +15,13 @@ module gasci_util
     use sort_mod, only: sort
     use excitation_types, only: SingleExc_t, DoubleExc_t, excite, get_last_tgt, set_last_tgt, UNKNOWN
     use util_mod, only: lex_leq, cumsum, operator(.div.), near_zero, binary_search_first_ge, &
-        operator(.isclose.)
+        operator(.isclose.), custom_findloc
     use dSFMT_interface, only: genrand_real2_dSFMT
     use DetBitOps, only: ilut_lt, ilut_gt, EncodeBitDet
     use bit_rep_data, only: NIfTot, NIfD
     use sltcnd_mod, only: sltcnd_excit
     use sets_mod, only: disjoint, union, complement, is_sorted
-    use growing_buffers, only: buffer_int_2D_t
+    use growing_buffers, only: buffer_int_2D_t, buffer_int_1D_t
     implicit none
     private
     public :: get_available_singles, get_available_doubles, &
@@ -176,19 +176,17 @@ contains
         type(GASSpec_t), intent(in) :: GAS_spec
         integer, intent(in) :: particles_per_GAS(GAS_spec%nGAS())
         integer, intent(in), optional :: add_holes(:), add_particles(:), n_total
-        integer :: spaces(2)
+        integer, allocatable :: spaces(:)
 
-        !> Lower and upper bound for spaces where a particle can be created.
-        !> If no particle can be created, then spaces == 0 .
-        integer :: n_total_, iGAS, lower_bound, upper_bound
-
+        integer :: n_total_, iGAS
         integer :: &
-        !> Cumulated number of particles per iGAS
-            cum_n_particle(GAS_spec%nGAS()), &
-        !> Cumulated deficit per iGAS
+        !> pumber of particles per iGAS
+            n_particle(GAS_spec%nGAS()), &
+        !> deficit per iGAS
             deficit(GAS_spec%nGAS()), &
-        !> Cumulated vacant orbitals per iGAS
+        !> vacant orbitals per iGAS
             vacant(GAS_spec%nGAS())
+        type(buffer_int_1D_t) :: space_buffer
 
         @:def_default(n_total_, n_total, 1)
 
@@ -204,39 +202,24 @@ contains
             else
                 C = 0
             end if
-            cum_n_particle = cumsum(particles_per_GAS - B + C)
+            n_particle = particles_per_GAS - B + C
         end block
 
-        do iGAS = 1, GAS_spec%nGAS()
-            deficit(iGAS) = GAS_spec%cumulated_min(iGAS) - cum_n_particle(iGAS)
-            vacant(iGAS) = GAS_spec%cumulated_max(iGAS) - cum_n_particle(iGAS)
-        end do
+        deficit(:) = GAS_spec%get_min() - n_particle(:)
+        vacant(:) = GAS_spec%get_max() - n_particle(:)
 
-        if (any(n_total_ < deficit) .or. all(vacant < n_total_)) then
-            spaces = 0
-            return
-        end if
-
-        ! Find the first index, where a particle has to be created.
-        do iGAS = 1, GAS_spec%nGAS()
-            if (deficit(iGAS) == n_total_) exit
-        end do
-        upper_bound = iGAS
-
-        ! We assume that it is possible to create a particle at least in
-        ! the last GAS space.
-        ! Search from behind the first occurence where it is not possible
-        ! anymore to create a particle.
-        ! The lower bound is one GAS index above.
-        do iGAS = GAS_spec%nGAS(), 1, -1
-            if (vacant(iGAS) <= 0) exit
-        end do
-        lower_bound = iGAS + 1
-
-        if (lower_bound > upper_bound .or. lower_bound > GAS_spec%nGAS()) then
-            spaces = 0
+        if (n_total_ < sum(deficit) .or. sum(vacant) < n_total_) then
+            spaces = [integer::]
+        else if (any(deficit == n_total_)) then
+            spaces = [custom_findloc(deficit == n_total_, val=.true.)]
         else
-            spaces = [lower_bound, upper_bound]
+            call space_buffer%init()
+            do iGAS = 1, GAS_spec%nGAS()
+                if (vacant(iGAS) > 0) then
+                    call space_buffer%push_back(iGAS)
+                end if
+            end do
+            call space_buffer%dump_reset(spaces)
         end if
     end function
 
@@ -279,7 +262,7 @@ contains
             splitted(GAS_spec%max_GAS_size(), GAS_spec%nGAS()), &
             splitted_sizes(GAS_spec%nGAS())
 
-        integer :: spaces(2)
+        integer, allocatable :: spaces(:)
         integer :: n_total_
 
         @:def_default(n_total_, n_total, 1)
@@ -296,14 +279,14 @@ contains
              GAS_spec, splitted_sizes, add_holes=add_holes, &
              add_particles=add_particles, n_total=n_total_)
 
-        if (all(spaces == 0)) then
+        if (size(spaces) == 0) then
             possible_holes = [integer::]
             return
         end if
 
         block
-            integer :: i, iGAS, incr, curr_value, iGAS_min_val
-            integer :: L(spaces(1) : spaces(2)), counter(spaces(1) : spaces(2))
+            integer :: i, iGAS, incr, curr_value, iGAS_min_val, idx_space
+            integer :: L(size(spaces)), counter(size(spaces))
             integer, allocatable :: possible_values(:)
             type(SpinProj_t) :: m_s
 
@@ -313,18 +296,18 @@ contains
             end if
 
 
-            L = GAS_spec%GAS_size([(i, i = spaces(1), spaces(2))])
+            L(:) = GAS_spec%GAS_size(spaces)
             if (m_s == beta) then
                 allocate(possible_values(sum(L) .div. 2))
-                counter = 1
+                counter(:) = 1
                 incr = 2
             else if (m_s == alpha) then
                 allocate(possible_values(sum(L) .div. 2))
-                counter = 2
+                counter(:) = 2
                 incr = 2
             else
                 allocate(possible_values(sum(L)))
-                counter = 1
+                counter(:) = 1
                 incr = 1
             end if
 
@@ -333,11 +316,13 @@ contains
             i = 1
             do while (any(counter <= L))
                 curr_value = huge(curr_value)
-                do iGAS = spaces(1), spaces(2)
-                    if (counter(iGAS) <= GAS_spec%GAS_size(iGAS)) then
+                ! foreach iGAS in spaces
+                do idx_space = 1, size(spaces)
+                    iGAS = spaces(idx_space)
+                    if (counter(idx_space) <= L(idx_space)) then
                         if (GAS_spec%get_orb_idx(counter(iGAS), iGAS) < curr_value) then
                             curr_value = GAS_spec%get_orb_idx(counter(iGAS), iGAS)
-                            iGAS_min_val = iGAS
+                            iGAS_min_val = idx_space
                         end if
                     end if
                 end do
@@ -361,7 +346,7 @@ contains
     !>  Get all excitated determinants from det_I that are allowed under GAS constraints.
     subroutine gen_all_excits(GAS_spec, nI, n_excits, det_list)
         type(GASSpec_t), intent(in) :: GAS_spec
-        integer, intent(in) :: nI(GAS_spec%nEl())
+        integer, intent(in) :: nI(:)
         integer, intent(out) :: n_excits
         integer(n_int), intent(out), allocatable :: det_list(:,:)
 

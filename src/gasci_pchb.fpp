@@ -188,7 +188,7 @@ contains
         integer :: i_sg, src, tgt
 
         this%GAS_spec = GAS_spec
-        allocate(this%indexer, source=SuperGroupIndexer_t(GAS_spec))
+        allocate(this%indexer, source=SuperGroupIndexer_t(GAS_spec, nEl))
         this%create_lookup = create_lookup
         if (create_lookup) then
             if (associated(lookup_supergroup_indexer)) then
@@ -459,7 +459,7 @@ contains
         integer :: nBI
 
         this%GAS_spec = GAS_spec
-        allocate(this%indexer, source=SuperGroupIndexer_t(GAS_spec) )
+        allocate(this%indexer, source=SuperGroupIndexer_t(GAS_spec, nEl))
         this%create_lookup = create_lookup
         this%use_lookup = use_lookup
 
