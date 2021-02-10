@@ -1797,9 +1797,26 @@ contains
 
                     n_spat_orbs = sum(n_orbs)
                     allocate(spat_GAS_orbs(n_spat_orbs))
-                    do i_orb = 1, n_spat_orbs
-                        call geti(spat_GAS_orbs(i_orb))
-                    end do
+                    block
+                        use fortran_strings, only: operator(.in.), Token_t, split
+                        integer :: times, iGAS
+                        type(Token_t), allocatable :: tokens(:)
+
+                        i_orb = 1
+                        do while (i_orb  <= n_spat_orbs)
+                            call readu(w)
+                            if ('*' .in. w) then
+                                tokens = split(w, '*')
+                                read(tokens(1)%str, *) times
+                                read(tokens(2)%str, *) iGAS
+                            else
+                                read(w, *) iGAS
+                                times = 1
+                            end if
+                            spat_GAS_orbs(i_orb : i_orb + times - 1) = iGAS
+                            i_orb = i_orb + times
+                        end do
+                    end block
 
                     GAS_specification = GASSpec_t(cn_min, cn_max, spat_GAS_orbs)
 
