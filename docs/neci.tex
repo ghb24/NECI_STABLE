@@ -719,15 +719,13 @@ the \texttt{endsys} keyword.
       the GAS spaces.
     It is possible to select the actual implementation with the
       \texttt{GAS-CI} keyword.
-    For the GAS specification it is assumed, that the orbitals
-      in each GAS space are contiguous, i.e. first all orbitals
-      from the first GAS space, then all from the second GAS space...
     The specification is first the number of GAS spaces $n_\text{GAS}$
       and then $3 \times n_\text{GAS}$ the specification for each GAS space
-      as number of spatial orbitals and cumulated minimum and maximum
-      number of particles
-      $n_i, N_i^\text{min, cmltve}, N_i^\text{max, cmltve}$.
+      as number of spatial orbitals and minimum and maximum
+      number of particles per GAS space
+      $n_i, N_i^\text{min}, N_i^\text{max}$.
     Finally an integer array denotes for each spatial orbital to which GAS space it belongs.
+    Instead of \texttt{1 1 1 1 1} one can write \texttt{5*1}.
     It is advantageous to use the line continuation (\texttt{+++})
       for human-readable formatting as table.
     Two benzenes with single inter-space excitation would be e.g. denoted as:
@@ -735,8 +733,15 @@ the \texttt{endsys} keyword.
     \begin{lstlisting}[gobble=4]
     GAS-SPEC  2 +++
          6  5  7  +++
-         6 12 12  +++
+         6  5  7  +++
          1  1  1  1  1  1  2  2  2  2  2  2
+    \end{lstlisting}
+    or
+    \begin{lstlisting}[gobble=4]
+    GAS-SPEC  2 +++
+         6  5  7  +++
+         6  5  7  +++
+         6*1 6*2
     \end{lstlisting}
 
   \codeitem{GAS-CI}
