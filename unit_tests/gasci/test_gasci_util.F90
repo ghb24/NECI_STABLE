@@ -911,7 +911,24 @@ contains
         call assert_equals(expected, calculated, size(expected))
 
 
+        GAS_spec = GASSpec_t(n_min=[2, 2, 2], n_max=[2, 2, 2], spat_GAS_orbs=[1, 2, 3, 1, 2, 3])
+        reference = [1, 2, 5, 6, 9, 10]
 
+        expected = [7]
+        calculated = get_possible_holes(GAS_spec, reference, add_holes=[1], excess=alpha)
+        call assert_equals(expected, calculated, size(expected))
+
+        expected = [8]
+        calculated = get_possible_holes(GAS_spec, reference, add_holes=[2], excess=beta)
+        call assert_equals(expected, calculated, size(expected))
+
+        expected = [11]
+        calculated = get_possible_holes(GAS_spec, reference, add_holes=[5], excess=alpha)
+        call assert_equals(expected, calculated, size(expected))
+
+        expected = [7, 8, 11, 12]
+        calculated = get_possible_holes(GAS_spec, reference, add_holes=[1, 6], n_total=2)
+        call assert_equals(expected, calculated, size(expected))
 
 
         GAS_spec = GASSpec_t(n_min=[1, 0, 1], n_max=[3, 4, 3], spat_GAS_orbs=[1, 1, 2, 2, 3, 3])
