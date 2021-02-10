@@ -39,7 +39,7 @@ contains
         pDoubles = 1.0_dp - pSingles
 
         do n_interspace_exc = 0, 1
-            GAS_spec = GASSpec_t(n_min=[3 - n_interspace_exc, size(det_I)], n_max=[3 + n_interspace_exc, size(det_I)], &
+            GAS_spec = GASSpec_t(n_min=[3, 3] - n_interspace_exc, n_max=[3, 3] + n_interspace_exc, &
                                  spat_GAS_orbs=[1, 1, 1, 2, 2, 2])
             call assert_true(GAS_spec%is_valid())
             call assert_true(GAS_spec%contains_det(det_I))

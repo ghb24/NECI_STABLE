@@ -320,8 +320,8 @@ contains
                 do idx_space = 1, size(spaces)
                     iGAS = spaces(idx_space)
                     if (counter(idx_space) <= L(idx_space)) then
-                        if (GAS_spec%get_orb_idx(counter(iGAS), iGAS) < curr_value) then
-                            curr_value = GAS_spec%get_orb_idx(counter(iGAS), iGAS)
+                        if (GAS_spec%get_orb_idx(counter(idx_space), iGAS) < curr_value) then
+                            curr_value = GAS_spec%get_orb_idx(counter(idx_space), iGAS)
                             iGAS_min_val = idx_space
                         end if
                     end if
