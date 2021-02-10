@@ -41,7 +41,7 @@ contains
     !>  Get all single excitated determinants from det_I that are allowed under GAS constraints.
     pure function get_available_singles(GAS_spec, det_I) result(singles_exc_list)
         type(GASSpec_t), intent(in) :: GAS_spec
-        integer, intent(in) :: det_I(GAS_spec%nEl())
+        integer, intent(in) :: det_I(:)
         integer, allocatable :: singles_exc_list(:, :)
         character(*), parameter :: this_routine = 'get_available_singles'
 
@@ -75,7 +75,7 @@ contains
     !>  Get all double excitated determinants from det_I that are allowed under GAS constraints.
     pure function get_available_doubles(GAS_spec, det_I) result(doubles_exc_list)
         type(GASSpec_t), intent(in) :: GAS_spec
-        integer, intent(in) :: det_I(GAS_spec%nEl())
+        integer, intent(in) :: det_I(:)
         integer, allocatable :: doubles_exc_list(:, :)
         character(*), parameter :: this_routine = 'get_available_doubles'
 

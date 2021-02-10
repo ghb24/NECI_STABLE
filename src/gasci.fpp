@@ -42,7 +42,7 @@ module gasci
         !> cn_min(iGAS) specifies the **cumulated** minimum particle number per GAS space.
         !> cn_max(iGAS) specifies the **cumulated** maximum particle number per GAS space.
         private
-        integer, allocatable :: cn_min(:), cn_max(:)
+        integer, allocatable :: min(:), max(:)
         !> GAS_table(i) returns the GAS space for the i-th spin orbital
         integer, allocatable :: GAS_table(:)
         !> The number of spin orbitals per GAS space
@@ -65,22 +65,26 @@ module gasci
         procedure :: is_connected => get_is_connected
         procedure :: is_valid
         procedure :: nGAS => get_nGAS
-        procedure :: nEl => get_nEl
         procedure :: n_spin_orbs => get_nOrbs
         procedure :: max_GAS_size => get_max_GAS_size
         procedure :: GAS_size => get_GAS_size
         procedure :: get_iGAS
         procedure :: get_orb_idx
-        procedure :: cumulated_min
-        procedure :: cumulated_max
         procedure :: split_per_GAS
         procedure :: count_per_GAS
         procedure :: write_to
         generic :: is_allowed => is_allowed_single
         generic :: is_allowed => is_allowed_double
-
         procedure, private :: is_allowed_single
         procedure, private :: is_allowed_double
+        generic :: get_min => get_min_i
+        generic :: get_min => get_min_all
+        procedure, private :: get_min_i
+        procedure, private :: get_min_all
+        generic :: get_max => get_max_i
+        generic :: get_max => get_max_all
+        procedure, private :: get_max_i
+        procedure, private :: get_max_all
     end type
 
     interface GASSpec_t
@@ -122,24 +126,35 @@ contains
     end function
 
     !> @brief
-    !> Returns the cumulated minimum particle number for a given GAS space.
-    integer elemental function cumulated_min(self, iGAS)
+    !> Returns the minimum particle number for a given GAS space.
+    integer elemental function get_min_i(self, iGAS)
         class(GASSpec_t), intent(in) :: self
         integer, intent(in) :: iGAS
-        cumulated_min = self%cn_min(iGAS)
+        get_min_i = self%min(iGAS)
     end function
 
     !> @brief
-    !> Returns the cumulated maximum particle number for a given GAS space.
-    integer elemental function cumulated_max(self, iGAS)
+    !> Returns the minimum particle number for a given GAS space.
+    pure function get_min_all(self) result(res)
         class(GASSpec_t), intent(in) :: self
-        integer, intent(in) :: iGAS
-        cumulated_max = self%cn_max(iGAS)
+        integer, allocatable :: res(:)
+        res = self%min(:)
     end function
 
-    integer elemental function get_nEl(self)
+    !> @brief
+    !> Returns the maximum particle number for a given GAS space.
+    integer elemental function get_max_i(self, iGAS)
         class(GASSpec_t), intent(in) :: self
-        get_nEl = self%cn_min(size(self%cn_min))
+        integer, intent(in) :: iGAS
+        get_max_i = self%max(iGAS)
+    end function
+
+    !> @brief
+    !> Returns the maximum particle number for a given GAS space.
+    pure function get_max_all(self) result(res)
+        class(GASSpec_t), intent(in) :: self
+        integer, allocatable :: res(:)
+        res = self%max(:)
     end function
 
     integer elemental function get_nOrbs(self)
@@ -265,16 +280,8 @@ contains
     pure function contains_supergroup(self, supergroup) result(res)
         class(GASSpec_t), intent(in) :: self
         integer, intent(in) :: supergroup(:)
-
         logical :: res
-
-        !> Cumulated number of particles per iGAS
-        integer :: cn_particle(size(supergroup))
-
-        cn_particle = cumsum(supergroup)
-
-        res = all(self%cn_min(:) <= cn_particle(:) &
-            .and. cn_particle(:) <= self%cn_max(:))
+        res = all(self%min(:) <= supergroup .and. supergroup <= self%max(:))
     end function
 
 
@@ -289,34 +296,20 @@ contains
     !>  @param[in] GAS_spec, Specification of GAS spaces (GASSpec_t).
     !>  @param[in] n_particles, Optional.
     !>  @param[in] n_basis, Optional. The number of spin orbitals.
-    logical pure function is_valid(self, n_particles, n_basis)
+    logical pure function is_valid(self, n_basis)
         class(GASSpec_t), intent(in) :: self
-        integer, intent(in), optional :: n_particles, n_basis
+        integer, intent(in), optional :: n_basis
 
-        logical :: shapes_match, nEl_correct, pauli_principle, monotonic, &
-            n_orbs_correct
+        logical :: shapes_match, pauli_principle, n_orbs_correct
 
-        associate(GAS_sizes => self%GAS_sizes, n_min => self%cn_min, &
-                  n_max => self%cn_max, nGAS => self%nGAS())
+        associate(GAS_sizes => self%GAS_sizes, n_min => self%min, &
+                  n_max => self%max, nGAS => self%nGAS())
 
             shapes_match = &
                 all([size(GAS_sizes), size(n_min), size(n_max)] == nGAS) &
                 .and. maxval(self%GAS_table) == nGAS
 
-            pauli_principle = all(n_min(:) <= cumsum(GAS_sizes))
-
-            if (nGAS >= 2) then
-                monotonic = all([all(n_max(2:) >= n_max(: nGAS - 1)), &
-                                 all(n_min(2:) >= n_min(: nGAS - 1))])
-            else
-                monotonic = .true.
-            end if
-
-            if (present(n_particles)) then
-                nEl_correct = all([n_min(nGAS), n_max(nGAS)] == n_particles)
-            else
-                nEl_correct = n_min(nGAS) == n_max(nGAS)
-            end if
+            pauli_principle = all(n_min(:) <= GAS_sizes)
 
             if (present(n_basis)) then
                 n_orbs_correct = sum(GAS_sizes) == n_basis
@@ -325,8 +318,7 @@ contains
             end if
         end associate
 
-        is_valid = all([shapes_match, nEl_correct, pauli_principle, &
-                        monotonic, n_orbs_correct])
+        is_valid = all([shapes_match, pauli_principle, n_orbs_correct])
     end function
 
     pure subroutine split_per_GAS(self, occupied, splitted, splitted_sizes)
@@ -383,12 +375,12 @@ contains
         integer :: iGAS, iorb
 
         write(iunit, '(A)') 'n_i: number of spatial orbitals per i-th GAS space'
-        write(iunit, '(A)') 'cn_min_i: cumulative minimum number of particles per i-th GAS space'
-        write(iunit, '(A)') 'cn_max_i: cumulative maximum number of particles per i-th GAS space'
+        write(iunit, '(A)') 'n_min_i: minimum number of particles per i-th GAS space'
+        write(iunit, '(A)') 'n_max_i: maximum number of particles per i-th GAS space'
         write(iunit, '(A10, 1x, A10, 1x, A10)') 'n_i', 'cn_min_i', 'cn_max_i'
         write(iunit, '(A)') '--------------------------------'
         do iGAS = 1, self%nGAS()
-            write(iunit, '(I10, 1x, I10, 1x, I10)') self%GAS_size(iGAS) .div. 2, self%cumulated_min(iGAS), self%cumulated_max(iGAS)
+            write(iunit, '(I10, 1x, I10, 1x, I10)') self%GAS_size(iGAS) .div. 2, self%get_min(iGAS), self%get_max(iGAS)
         end do
         write(iunit, '(A)') '--------------------------------'
         write(iunit, '(A)') 'The distribution of spatial orbitals to GAS spaces is given by:'
@@ -397,7 +389,7 @@ contains
         end do
         write(iunit, *)
 
-        if (any(self%GAS_sizes < (self%cn_max - eoshift(self%cn_min, -1)))) then
+        if (any(self%GAS_sizes < self%max)) then
             write(iunit, '(A)') 'In at least one GAS space, the maximum allowed particle number by GAS constraints'
             write(iunit, '(A)') '   is larger than the particle number allowed by the Pauli principle.'
             write(iunit, '(A)') '   Was this intended when preparing your input?'
