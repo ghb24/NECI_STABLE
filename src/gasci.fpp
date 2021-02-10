@@ -38,9 +38,9 @@ module gasci
     !> Speficies the GAS spaces.
     type :: GASSpec_t
         !> The indices are:
-        !>  cn_min(1 : nGAS), cn_max(1 : nGAS)
-        !> cn_min(iGAS) specifies the **cumulated** minimum particle number per GAS space.
-        !> cn_max(iGAS) specifies the **cumulated** maximum particle number per GAS space.
+        !>  min(1 : nGAS), max(1 : nGAS)
+        !> min(iGAS) specifies the minimum particle number per GAS space.
+        !> max(iGAS) specifies the maximum particle number per GAS space.
         private
         integer, allocatable :: min(:), max(:)
         !> GAS_table(i) returns the GAS space for the i-th spin orbital
@@ -377,7 +377,7 @@ contains
         write(iunit, '(A)') 'n_i: number of spatial orbitals per i-th GAS space'
         write(iunit, '(A)') 'n_min_i: minimum number of particles per i-th GAS space'
         write(iunit, '(A)') 'n_max_i: maximum number of particles per i-th GAS space'
-        write(iunit, '(A10, 1x, A10, 1x, A10)') 'n_i', 'cn_min_i', 'cn_max_i'
+        write(iunit, '(A10, 1x, A10, 1x, A10)') 'n_i', 'n_min_i', 'n_max_i'
         write(iunit, '(A)') '--------------------------------'
         do iGAS = 1, self%nGAS()
             write(iunit, '(I10, 1x, I10, 1x, I10)') self%GAS_size(iGAS) .div. 2, self%get_min(iGAS), self%get_max(iGAS)
