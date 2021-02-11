@@ -650,7 +650,7 @@ CONTAINS
         integer, intent(in) :: nI(nel)
         integer, intent(out) :: n_excits
         integer(n_int), intent(out), allocatable :: det_list(:, :)
-        integer, optional,intent(in) :: ex_flag
+        integer, optional, intent(in) :: ex_flag
         character(*), parameter :: this_routine = "gen_all_excits_default"
 
         integer :: n_singles, n_doubles, n_dets, ex(2, maxExcit), ex_flag_

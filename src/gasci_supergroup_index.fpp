@@ -66,12 +66,10 @@ module gasci_supergroup_index
     public :: SuperGroupIndexer_t, lookup_supergroup_indexer
 
     public :: n_compositions, get_compositions, composition_idx
-    public :: get_supergroups
-    public :: get_allowed_composition_indices
 
     type :: SuperGroupIndexer_t
         private
-        type(GASSpec_t) :: GASspec
+        class(GASSpec_t), allocatable :: GASspec
         integer(int64), allocatable :: allowed_composition_indices(:)
         !> The particle number.
         integer :: N
@@ -83,6 +81,7 @@ module gasci_supergroup_index
         procedure, public :: lookup_supergroup_idx
         procedure, public :: n_supergroups => get_n_supergroups
         procedure, public :: get_supergroups => indexer_get_supergroups
+        procedure :: get_allowed_composition_indices
     end type
 
     interface SuperGroupIndexer_t
@@ -94,14 +93,13 @@ module gasci_supergroup_index
 contains
 
     function construct_SuperGroupIndexer_t(GASspec, N) result(idxer)
-        type(GASSpec_t), intent(in) :: GASspec
+        class(GASSpec_t), intent(in) :: GASspec
         integer, intent(in) :: N
         type(SuperGroupIndexer_t) :: idxer
 
         idxer%GASspec = GASspec
-        idxer%allowed_composition_indices = &
-                get_allowed_composition_indices(GASspec%get_min(), GASspec%get_max(), N)
         idxer%N = N
+        idxer%allowed_composition_indices = idxer%get_allowed_composition_indices()
     end function
 
 
@@ -171,40 +169,14 @@ contains
     end function
 
 
-    !> @brief
-    !> Get the ordered compositions of n into k summands
-    !>  constrained by minima and maxima.
-    !>
-    !> @details
-    !> GAS allowed compositions are called supergroups.
-    pure function get_supergroups(N_min, N_max, N) result(res)
-        integer, intent(in) :: N_min(:), N_max(:), N
-        integer, allocatable :: res(:, :)
-        integer :: i
-        integer, allocatable :: compositions(:, :)
-        type(buffer_int_2D_t) :: supergroups
-        character(*), parameter :: this_routine = 'get_supergroups'
-
-        @:pure_ASSERT(size(N_min) == size(N_max))
-        compositions = get_compositions(size(N_min) , n)
-        call supergroups%init(rows=size(compositions, 1))
-        do i = 1, size(compositions, 2)
-            if (all(N_min <= compositions(:, i) .and. compositions(:, i) <= N_max)) then
-                call supergroups%push_back(compositions(:, i))
-            end if
-        end do
-        call supergroups%dump_reset(res)
-    end function
-
-
-    pure function get_allowed_composition_indices(N_min, N_max, N) result(res)
-        integer, intent(in) :: N_min(:), N_max(:), N
+    pure function get_allowed_composition_indices(self) result(res)
+        class(SuperGroupIndexer_t), intent(in) :: self
 
         integer(int64), allocatable :: res(:)
         integer, allocatable :: supergroups(:, :)
         integer :: i
 
-        supergroups = get_supergroups(N_min, N_max, N)
+        supergroups = self%get_supergroups()
         allocate(res(size(supergroups, 2)))
         do i = 1, size(supergroups, 2)
             res(i) = composition_idx(supergroups(:, i))
@@ -238,8 +210,19 @@ contains
     !> GAS allowed compositions are called supergroups.
     pure function indexer_get_supergroups(self) result(res)
         class(SuperGroupIndexer_t), intent(in) :: self
-        integer :: res(self%GASspec%nGAS(), self%n_supergroups())
-        res = get_supergroups(self%GASspec%get_min(), self%GASspec%get_max(), self%nEl())
+        integer, allocatable :: res(:, :)
+        integer :: i
+        integer, allocatable :: compositions(:, :)
+        type(buffer_int_2D_t) :: supergroups
+
+        compositions = get_compositions(self%GASspec%nGAS(), self%nEl())
+        call supergroups%init(rows=size(compositions, 1))
+        do i = 1, size(compositions, 2)
+            if (self%GASspec%contains_supergroup(compositions(:, i))) then
+                call supergroups%push_back(compositions(:, i))
+            end if
+        end do
+        call supergroups%dump_reset(res)
     end function
 
     pure function get_supergroup_idx(self, supergroup) result(idx)

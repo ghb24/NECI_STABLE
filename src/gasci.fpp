@@ -3,11 +3,15 @@
 #:include "algorithms.fpph"
 
 module gasci
+    use constants, only: n_int
     use SystemData, only: nBasis
     use util_mod, only: cumsum, stop_all, operator(.div.)
     use excitation_types, only: SingleExc_t, DoubleExc_t
     use orb_idx_mod, only: SpinProj_t, calc_spin_raw, operator(==)
     use util_mod, only: EnumBase_t
+    use bit_rep_data, only: nIfTot
+    use bit_reps, only: decode_bit_det
+
     implicit none
 
     private
@@ -59,14 +63,17 @@ module gasci
         procedure(is_valid_t), deferred :: is_valid
         procedure(write_to_t), deferred :: write_to
         procedure :: contains_det
+        procedure :: contains_ilut
         procedure :: is_connected => get_is_connected
         procedure :: nGAS => get_nGAS
         procedure :: n_spin_orbs => get_nOrbs
         procedure :: max_GAS_size => get_max_GAS_size
 
         generic :: GAS_size => get_GAS_size_i
+        generic :: GAS_size => get_GAS_size_idx
         generic :: GAS_size => get_GAS_size_all
         procedure, private :: get_GAS_size_i
+        procedure, private :: get_GAS_size_idx
         procedure, private :: get_GAS_size_all
 
         procedure :: get_iGAS
@@ -185,6 +192,15 @@ contains
 
     !> @brief
     !>  Returns the sizes for all GAS spaces.
+    pure function get_GAS_size_idx(self, idx) result(res)
+        class(GASSpec_t), intent(in) :: self
+        integer, intent(in) :: idx(:)
+        integer :: res(size(idx))
+        res(:) = self%GAS_sizes(idx)
+    end function
+
+    !> @brief
+    !>  Returns the sizes for all GAS spaces.
     pure function get_GAS_size_all(self) result(res)
         class(GASSpec_t), intent(in) :: self
         integer :: res(self%nGas())
@@ -241,13 +257,32 @@ contains
     !>
     !>  @param[in] GAS_spec, Specification of GAS spaces (GASSpec_t).
     !>  @param[in] occupied, An index of occupied spin orbitals.
-    pure function contains_det(self, occupied) result(res)
+    pure function contains_det(self, nI) result(res)
         class(GASSpec_t), intent(in) :: self
-        integer, intent(in) :: occupied(:)
-
+        integer, intent(in) :: nI(:)
         logical :: res
+        res = self%contains_supergroup(self%count_per_GAS(nI))
+    end function
 
-        res = self%contains_supergroup(self%count_per_GAS(occupied))
+    !>  @brief
+    !>  Query wether a determinant in bitmask format is contained in the GAS space.
+    !>
+    !>  @details
+    !>  The function in nI-format is faster!
+    !>
+    !>  It is **assumed** that the determinant is contained in the
+    !>  Full CI space and obeys e.g. the Pauli principle.
+    !>  The return value is not defined, if that is not the case!
+    !>
+    !>  @param[in] GAS_spec, Specification of GAS spaces (GASSpec_t).
+    !>  @param[in] ilut, An index of occupied spin orbitals.
+    pure function contains_ilut(self, ilut) result(res)
+        class(GASSpec_t), intent(in) :: self
+        integer(n_int), intent(in) :: ilut(0 : nIfTot)
+        logical :: res
+        integer :: nI(sum(popcnt(ilut)))
+        call decode_bit_det(nI, ilut)
+        res = self%contains_det(nI)
     end function
 
     pure subroutine split_per_GAS(self, occupied, splitted, splitted_sizes)
