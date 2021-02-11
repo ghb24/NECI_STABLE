@@ -22,6 +22,7 @@ module rdm_filling
                         add_rdm_from_ij_pair_guga_exact
     use util_mod, only: near_zero
     use guga_data, only: excit_type, ExcitationInformation_t
+    use LoggingData, only: t_full_core_rdms
 
     implicit none
 
@@ -972,7 +973,6 @@ contains
         integer(n_int) :: iLutI(0:niftot), iLutJ(0:niftot)
         integer :: nI(nel), nJ(nel), IC, n
         integer :: IterRDM, connect_elem, num_j
-        logical :: t_full_core_rdms = .true.
         type(ExcitationInformation_t) :: excitInfo
         character(*), parameter :: this_routine = "fill_rdm_offdiag_deterministic"
 
@@ -1045,7 +1045,7 @@ contains
                         end if
 
                         do irdm = 1, rdm_defs%nrdms
-                            AvSignJ(irdm) = rep%full_determ_vecs_av(rdm_defs%sim_labels(2, irdm), j)
+                            AvSignJ(irdm) = rep%full_determ_vecs_av(rdm_defs%sim_labels(1, irdm), j)
                         end do
                     else
                         do irdm = 1, rdm_defs%nrdms
@@ -1061,7 +1061,7 @@ contains
                         end if
                     end if
 
-                    if (ic > 2) cycle
+                    ! if (ic > 2) cycle
 
                     if (tParity) then
                         full_sign = -AvSignI * AvSignJ * IterRDM

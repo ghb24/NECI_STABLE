@@ -583,6 +583,11 @@ contains
                 nreplicas = 2
 #endif
 
+            case ("FULL-CORE-RDMS")
+                ! samples the rdms within the core space between ALL
+                ! states and not only the one connected by H
+                t_full_core_rdms = .true.
+
             case ("CALCRDMONFLY")
 !This keyword sets the calculation to calculate the reduced density matrix on the fly.
 !This starts at IterRDMonFly iterations after the shift changes.

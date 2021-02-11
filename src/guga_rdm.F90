@@ -683,37 +683,40 @@ contains
                                       t_hamil=.false., calc_type=calc_type, &
                                       rdm_ind=rdm_ind, rdm_mat=rdm_mat)
 
-
         ! i assume sign_i and sign_j are not 0 if we end up here..
-        do n = 1, size(rdm_ind)
-            if (.not. near_zero(rdm_mat(n))) then
-                if (excitInfo%excitLvl == 1) then
-                    if (RDMExcitLevel == 1) then
-                        call fill_sings_1rdm_guga(one_rdms, sign_i, sign_j, &
-                                                  rdm_mat(n), rdm_ind(n))
-                    else
-                        call fill_sings_2rdm_guga(spawn, ilutI, &
-                                                  ilutJ, sign_i, sign_j, &
-                                                  rdm_mat(n), rdm_ind(n))
-                    end if
-                else if (excitInfo%excitLvl == 2 .and. RDMExcitLevel /= 1) then
-                    call extract_2_rdm_ind(rdm_ind(n), p, q, r, s)
-                    full_sign = sign_i * sign_j * rdm_mat(n)
-                    ! here in the 'exact' filling (coming from HF or
-                    ! within the semistochastic space I think it makes
-                    ! sense to fill symmetrically.. since here no
-                    ! stochastic spawning is happening and this does not
-                    ! give us information about the hermiticity error!
-                    call add_to_rdm_spawn_t(spawn, p, q, r, s, &
-                                            full_sign, .true.)
-                    if (.not. &
-                        (excitInfo%typ == excit_type%fullstart_stop_alike)) then
-                        call add_to_rdm_spawn_t(spawn, r, s, p, q, &
+        if (allocated(rdm_ind)) then
+            ASSERT(allocated(rdm_mat))
+            ASSERT(size(rdm_ind) == size(rdm_mat))
+            do n = 1, size(rdm_ind)
+                if (.not. near_zero(rdm_mat(n))) then
+                    if (excitInfo%excitLvl == 1) then
+                        if (RDMExcitLevel == 1) then
+                            call fill_sings_1rdm_guga(one_rdms, sign_i, sign_j, &
+                                                      rdm_mat(n), rdm_ind(n))
+                        else
+                            call fill_sings_2rdm_guga(spawn, ilutI, &
+                                                      ilutJ, sign_i, sign_j, &
+                                                      rdm_mat(n), rdm_ind(n))
+                        end if
+                    else if (excitInfo%excitLvl == 2 .and. RDMExcitLevel /= 1) then
+                        call extract_2_rdm_ind(rdm_ind(n), p, q, r, s)
+                        full_sign = sign_i * sign_j * rdm_mat(n)
+                        ! here in the 'exact' filling (coming from HF or
+                        ! within the semistochastic space I think it makes
+                        ! sense to fill symmetrically.. since here no
+                        ! stochastic spawning is happening and this does not
+                        ! give us information about the hermiticity error!
+                        call add_to_rdm_spawn_t(spawn, p, q, r, s, &
                                                 full_sign, .true.)
+                        if (.not. &
+                            (excitInfo%typ == excit_type%fullstart_stop_alike)) then
+                            call add_to_rdm_spawn_t(spawn, r, s, p, q, &
+                                                    full_sign, .true.)
+                        end if
                     end if
                 end if
-            end if
-        end do
+            end do
+        end if
 
     end subroutine add_rdm_from_ij_pair_guga_exact
 

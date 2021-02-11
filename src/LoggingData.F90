@@ -244,5 +244,6 @@ module LoggingData
 
     logical :: t_measure_local_spin = .false.
 
+    logical :: t_full_core_rdms = .false.
 
 end module LoggingData
