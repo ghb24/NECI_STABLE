@@ -82,7 +82,7 @@ module gasci_pchb
         ! is a bitmask that returns for a given supergroup `i_sg` and `src`
         ! the GAS allowed holes.
         integer(n_int), allocatable :: allowed_holes(:, :, :)
-        type(GASSpec_t) :: GAS_spec
+        class(GASSpec_t), allocatable :: GAS_spec
         ! This is only a pointer because components cannot be targets
         ! otherwise. :-(
         type(SuperGroupIndexer_t), pointer :: indexer => null()
@@ -106,7 +106,7 @@ module gasci_pchb
     type, extends(SingleExcitationGenerator_t) :: GAS_singles_DiscardingGenerator_t
         private
         type(UniformSingles_t) :: FCI_singles_generator
-        type(GASSpec_t) :: GAS_spec
+        class(GASSpec_t), allocatable :: GAS_spec
     contains
         private
         procedure, public :: finalize => GAS_discarding_singles_finalize
@@ -143,7 +143,7 @@ module gasci_pchb
 
 
         type(SuperGroupIndexer_t), pointer :: indexer => null()
-        type(GASSpec_t) :: GAS_spec
+        class(GASSpec_t), allocatable :: GAS_spec
         real(dp), allocatable :: pExch(:, :)
         integer, allocatable :: tgtOrbs(:, :)
     contains
@@ -180,7 +180,7 @@ contains
 
     subroutine GAS_singles_uniform_init(this, GAS_spec, use_lookup, create_lookup)
         class(GAS_singles_PC_uniform_ExcGenerator_t), intent(inout) :: this
-        type(GASSpec_t), intent(in) :: GAS_spec
+        class(GASSpec_t), intent(in) :: GAS_spec
         logical, intent(in) :: use_lookup, create_lookup
         integer, allocatable :: supergroups(:, :)
         character(*), parameter :: this_routine = 'GAS_singles_uniform_init'
@@ -366,7 +366,7 @@ contains
     end subroutine
 
     pure function construct_GAS_singles_DiscardingGenerator_t(GAS_spec) result(res)
-        type(GASSpec_t), intent(in) :: GAS_spec
+        class(GASSpec_t), intent(in) :: GAS_spec
         type(GAS_singles_DiscardingGenerator_t) :: res
         res%GAS_spec = GAS_spec
         res%FCI_singles_generator = UniformSingles_t()
@@ -451,7 +451,7 @@ contains
     !>  2. setup the alias table for picking ab given ij with probability ~<ij|H|ab>
     subroutine GAS_doubles_PCHB_init(this, GAS_spec, use_lookup, create_lookup, recoupling)
         class(GAS_doubles_PCHB_ExcGenerator_t), intent(inout) :: this
-        type(GASSpec_t), intent(in) :: GAS_spec
+        class(GASSpec_t), intent(in) :: GAS_spec
         logical, intent(in) :: use_lookup, create_lookup, recoupling
         character(*), parameter :: this_routine = 'GAS_doubles_PCHB_init'
 
@@ -803,7 +803,7 @@ contains
     !>                  whose cleanup happens outside. Has to be a target.
     subroutine GAS_PCHB_init(this, GAS_spec, use_lookup, create_lookup, recoupling, used_singles_generator)
         class(GAS_PCHB_ExcGenerator_t), intent(inout) :: this
-        type(GASSpec_t), intent(in) :: GAS_spec
+        class(GASSpec_t), intent(in) :: GAS_spec
         logical, intent(in) :: use_lookup, create_lookup, recoupling
         type(GAS_used_singles_t), intent(in) :: used_singles_generator
 

@@ -23,10 +23,10 @@ module gasci_util
     use sets_mod, only: disjoint, union, complement, is_sorted
     use growing_buffers, only: buffer_int_2D_t, buffer_int_1D_t
     use symexcit3, only: FCI_gen_all_excits => gen_excits
+    use bit_reps, only: decode_bit_det
     implicit none
     private
-    public :: get_available_singles, get_available_doubles, &
-        get_possible_spaces, get_possible_holes, gen_all_excits, gen_all_excits_wrapper
+    public :: get_available_singles, get_available_doubles, gen_all_excits, gen_all_excits_wrapper
 
     public :: get_cumulative_list, draw_from_cum_list
 
@@ -54,7 +54,7 @@ contains
     !>          If ommited all excitations will be generated.
     subroutine gen_excits(GAS_spec, nI, det_list, ic)
         class(GASSpec_t), intent(in) :: GAS_spec
-        integer, intent(in) :: nI(nel)
+        integer, intent(in) :: nI(:)
         integer(n_int), intent(out), allocatable :: det_list(:, :)
         integer, optional, intent(in) :: ic
         character(*), parameter :: this_routine = "gen_excits"
@@ -64,6 +64,7 @@ contains
         integer(n_int), allocatable :: FCI_det_list(:, :), tmp_list(:, :)
         integer :: i
 
+        @:ASSERT(size(nI) == nEL)
         @:ASSERT(GAS_spec%contains_det(nI))
         call FCI_gen_all_excits(nI, FCI_n_excits, FCI_det_list, ic)
         allocate(tmp_list, mold=FCI_det_list)
@@ -92,7 +93,7 @@ contains
         integer(n_int), allocatable :: det_list(:, :)
         integer :: i
 
-        @:pure_ASSERT(GAS_spec%contains_det(det_I))
+        @:ASSERT(GAS_spec%contains_det(det_I))
         call gen_excits(GAS_spec, det_I, det_list, ic=1)
         allocate(singles_exc_list(sum(popcnt(det_list(:, 1))), size(det_list, 2)))
         do i = 1, size(det_list, 2)
@@ -160,210 +161,6 @@ contains
         call gen_all_excits(GAS_specification, nI, n_excits, det_list)
     end subroutine gen_all_excits_wrapper
 
-
-
-    !>  @brief
-    !>      Return the GAS spaces, where one particle can be created.
-    !>
-    !>  @details
-    !>  It can be proven, that the spaces where a particle can
-    !>  be created are contigous, so a two element integer array
-    !>  [lower_bound, upper_bound] is returned.
-    !>  As long as lower_bound <= iGAS <= upper_bound is true,
-    !>  the created particle will lead to a valid Slater-Determinant.
-    !>
-    !>  It is **assumed** that the input determinant is contained in the
-    !>  Full CI space and obeys e.g. the Pauli principle.
-    !>  Checks are only performed in DEBUG compilation mode and
-    !>  the return value is undefined, if this is not the case!
-    !>
-    !>  It is possible to delete additional particles with the
-    !>  optional argument `add_holes` before checking the
-    !>  validity of particle creation.
-    !>  On the other hand it is possible to create particles before
-    !>  checking the validity of particle creation.
-    !>
-    !>  If more than one particle should be created, the optional argument
-    !>  n_total (default 1) should be used.
-    !>
-    !>  If no creation is allowed by the GAS constraints,
-    !>  the bounds will be returned as integer constant EMPTY_BOUNDS.
-    !>
-    !>  @param[in] GAS_spec, Specification of GAS spaces (GASSpec_t).
-    !>  @param[in] particles_per_GAS, The particles per GAS space.
-    !>  @param[in] add_holes, optional, An index of orbitals
-    !>      where particles should be deleted before creating the new particle.
-    !>  @param[in] add_particles, optional, An index of orbitals
-    !>      where particles should be created before creating the new particle.
-    !>  @param[in] n_total, optional, The total number of particles
-    !>      that will be created. Defaults to one (integer).
-    pure function get_possible_spaces(GAS_spec, particles_per_GAS, add_holes, add_particles, n_total) result(spaces)
-        type(LocalGASSpec_t), intent(in) :: GAS_spec
-        integer, intent(in) :: particles_per_GAS(GAS_spec%nGAS())
-        integer, intent(in), optional :: add_holes(:), add_particles(:), n_total
-        integer, allocatable :: spaces(:)
-
-        integer :: n_total_, iGAS
-        integer :: &
-        !> pumber of particles per iGAS
-            n_particle(GAS_spec%nGAS()), &
-        !> deficit per iGAS
-            deficit(GAS_spec%nGAS()), &
-        !> vacant orbitals per iGAS
-            vacant(GAS_spec%nGAS())
-        type(buffer_int_1D_t) :: space_buffer
-
-        @:def_default(n_total_, n_total, 1)
-
-        block
-            integer :: B(GAS_spec%nGAS()), C(GAS_spec%nGAS())
-            if (present(add_holes)) then
-                B = GAS_spec%count_per_GAS(add_holes)
-            else
-                B = 0
-            end if
-            if (present(add_particles)) then
-                C = GAS_spec%count_per_GAS(add_particles)
-            else
-                C = 0
-            end if
-            n_particle = particles_per_GAS - B + C
-        end block
-
-        deficit(:) = GAS_spec%get_min() - n_particle(:)
-        vacant(:) = GAS_spec%get_max() - n_particle(:)
-
-        if (n_total_ < sum(deficit) .or. sum(vacant) < n_total_) then
-            spaces = [integer::]
-        else if (any(deficit == n_total_)) then
-            spaces = [custom_findloc(deficit == n_total_, val=.true.)]
-        else
-            call space_buffer%init()
-            do iGAS = 1, GAS_spec%nGAS()
-                if (vacant(iGAS) > 0) then
-                    call space_buffer%push_back(iGAS)
-                end if
-            end do
-            call space_buffer%dump_reset(spaces)
-        end if
-    end function
-
-
-    !>  @brief
-    !>  Return the possible holes where a particle can be created under GAS constraints.
-    !>
-    !>  @details
-    !>  This function uses `get_possible_spaces` to find possible GAS spaces
-    !>  where a particle can be created and returns only unoccupied
-    !>  sites of correct spin.
-    !>
-    !>  "Trivial" excitations are avoided. That means, that a site is only counted
-    !>  as unoccupied if it was unoccupied in nI from the beginning on.
-    !>  (A double excitation where a particle is deleted, but immediately
-    !>  recreated would be such a trivial excitations.)
-    !>
-    !>  @param[in] GAS_spec, Specification of GAS spaces (GASSpec_t).
-    !>  @param[in] particles_per_GAS, The particles per GAS space.
-    !>  @param[in] add_holes, optional, An index of orbitals
-    !>      where particles should be deleted before creating the new particle.
-    !>  @param[in] add_particles, optional, An index of orbitals
-    !>      where particles should be created before creating the new particle.
-    !>  @param[in] n_total, optional, The total number of particles
-    !>      that will be created. Defaults to one (integer).
-    !>  @param[in] excess, optional, The current excess of spin projections.
-    !>      If a beta electron was deleted, the excess is 1 * alpha.
-    pure function get_possible_holes(GAS_spec, det_I, add_holes, add_particles, n_total, excess) result(possible_holes)
-        type(LocalGASSpec_t), intent(in) :: GAS_spec
-        integer, intent(in) :: det_I(:)
-        integer, intent(in), optional :: add_holes(:)
-        integer, intent(in), optional :: add_particles(:)
-        integer, intent(in), optional :: n_total
-        type(SpinProj_t), intent(in), optional :: excess
-        character(*), parameter :: this_routine = 'get_possible_holes'
-
-        integer, allocatable :: possible_holes(:)
-
-        integer :: &
-            splitted(GAS_spec%max_GAS_size(), GAS_spec%nGAS()), &
-            splitted_sizes(GAS_spec%nGAS())
-
-        integer, allocatable :: spaces(:)
-        integer :: n_total_
-
-        @:def_default(n_total_, n_total, 1)
-        @:pure_ASSERT(1 <= n_total_)
-        if (present(excess)) then
-            @:pure_ASSERT(abs(excess%val) <= n_total_)
-        end if
-
-        call GAS_spec%split_per_GAS(det_I, splitted, splitted_sizes)
-
-        ! Note, that non-present optional arguments can be passed
-        ! into optional arguments without checking!
-        spaces = get_possible_spaces(&
-             GAS_spec, splitted_sizes, add_holes=add_holes, &
-             add_particles=add_particles, n_total=n_total_)
-
-        if (size(spaces) == 0) then
-            possible_holes = [integer::]
-            return
-        end if
-
-        block
-            integer :: i, iGAS, incr, curr_value, iGAS_min_val, idx_space
-            integer :: L(size(spaces)), counter(size(spaces))
-            integer, allocatable :: possible_values(:)
-            type(SpinProj_t) :: m_s
-
-            m_s = SpinProj_t(0)
-            if (present(excess)) then
-                if (abs(excess%val) == n_total_) m_s = -SpinProj_t(sign(1, excess%val))
-            end if
-
-
-            L(:) = GAS_spec%GAS_size(spaces)
-            if (m_s == beta) then
-                allocate(possible_values(sum(L) .div. 2))
-                counter(:) = 1
-                incr = 2
-            else if (m_s == alpha) then
-                allocate(possible_values(sum(L) .div. 2))
-                counter(:) = 2
-                incr = 2
-            else
-                allocate(possible_values(sum(L)))
-                counter(:) = 1
-                incr = 1
-            end if
-
-            ! Here we merge the values from splitted_orbitals sortedly into
-            ! possible_values
-            i = 1
-            do while (any(counter <= L))
-                curr_value = huge(curr_value)
-                ! foreach iGAS in spaces
-                do idx_space = 1, size(spaces)
-                    iGAS = spaces(idx_space)
-                    if (counter(idx_space) <= L(idx_space)) then
-                        if (GAS_spec%get_orb_idx(counter(idx_space), iGAS) < curr_value) then
-                            curr_value = GAS_spec%get_orb_idx(counter(idx_space), iGAS)
-                            iGAS_min_val = idx_space
-                        end if
-                    end if
-                end do
-
-                counter(iGAS_min_val) = counter(iGAS_min_val) + incr
-                possible_values(i) = curr_value
-                i = i + 1
-            end do
-
-            if (present(add_particles)) then
-                possible_holes = complement(possible_values, union(det_I, add_particles))
-            else
-                possible_holes = complement(possible_values, det_I)
-            end if
-        end block
-    end function
 
 
 #:for excitation_t in ExcitationTypes

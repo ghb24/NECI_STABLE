@@ -31,9 +31,9 @@ module gasci_general
 
     use sltcnd_mod, only: sltcnd_excit, dyn_sltcnd_excit
 
-    use gasci, only: GASSpec_t
+    use gasci, only: GASSpec_t, LocalGASSpec_t
     use gasci_util, only: &
-        get_possible_holes, get_available_singles, get_available_doubles, &
+        get_available_singles, get_available_doubles, &
         get_cumulative_list, draw_from_cum_list
     implicit none
 
@@ -43,7 +43,7 @@ module gasci_general
     !> The heath bath GAS on-the-fly excitation generator
     type, extends(SingleExcitationGenerator_t) :: GAS_singles_heat_bath_ExcGen_t
         private
-        type(GASSpec_t) :: GAS_spec
+        class(GASSpec_t), allocatable :: GAS_spec
     contains
         private
         procedure, public :: finalize => GAS_singles_do_nothing
@@ -58,7 +58,7 @@ module gasci_general
     !> The heath bath GAS on-the-fly excitation generator
     type, extends(DoubleExcitationGenerator_t) :: GAS_doubles_heat_bath_ExcGenerator_t
         private
-        type(GASSpec_t) :: GAS_spec
+        class(GASSpec_t), allocatable :: GAS_spec
     contains
         procedure, public :: finalize => GAS_doubles_do_nothing
 
@@ -94,14 +94,14 @@ module gasci_general
 contains
 
     pure function construct_GAS_heat_bath_ExcGenerator_t(GAS_spec) result(res)
-        type(GASSpec_t), intent(in) :: GAS_spec
+        class(GASSpec_t), intent(in) :: GAS_spec
         type(GAS_heat_bath_ExcGenerator_t) :: res
         res%singles_generator = GAS_singles_heat_bath_ExcGen_t(GAS_spec)
         res%doubles_generator = GAS_doubles_heat_bath_ExcGenerator_t(GAS_spec)
     end function
 
     pure function construct_GAS_singles_heat_bath_ExcGen_t(GAS_spec) result(res)
-        type(GASSpec_t), intent(in) :: GAS_spec
+        class(GASSpec_t), intent(in) :: GAS_spec
         type(GAS_singles_heat_bath_ExcGen_t) :: res
         res%GAS_spec = GAS_spec
     end function
@@ -116,8 +116,8 @@ contains
         class(GAS_singles_heat_bath_ExcGen_t), intent(in) :: this
         integer, intent(in) :: nI(:), src
         integer, allocatable :: unoccupied(:)
-        unoccupied = get_possible_holes(this%GAS_spec, nI, add_holes=[src], &
-                                        n_total=1, excess=-calc_spin_raw(src))
+        unoccupied = this%GAS_spec%get_possible_holes(&
+             nI, add_holes=[src], n_total=1, excess=-calc_spin_raw(src))
     end function
 
     !>  @brief
@@ -250,12 +250,11 @@ contains
 
         if (present(tgt)) then
             excess = calc_spin_raw(tgt) - sum(calc_spin_raw(src))
-            unoccupied = get_possible_holes(&
-                this%GAS_spec, nI, add_holes=src, add_particles=[tgt], &
-                n_total=1, excess=excess)
+            unoccupied = this%GAS_spec%get_possible_holes(&
+                nI, add_holes=src, add_particles=[tgt], n_total=1, excess=excess)
         else
-            unoccupied = get_possible_holes(&
-                this%GAS_spec, nI, add_holes=src, n_total=2, excess=-sum(calc_spin_raw(src)))
+            unoccupied = this%GAS_spec%get_possible_holes(&
+                nI, add_holes=src, n_total=2, excess=-sum(calc_spin_raw(src)))
         end if
         @:pure_ASSERT(disjoint(unoccupied, nI))
     end function

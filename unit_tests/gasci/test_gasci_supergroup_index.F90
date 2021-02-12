@@ -4,7 +4,7 @@ module test_gasci_supergroup_index_mod
     use util_mod, only: operator(.div.), operator(.isclose.), near_zero, choose
     use util_mod, only: factrl, intswap, cumsum
 
-    use gasci, only: GASSpec_t
+    use gasci, only: LocalGASSpec_t
     use gasci_supergroup_index, only: SuperGroupIndexer_t, composition_idx, get_compositions
 
     implicit none
@@ -32,13 +32,13 @@ contains
 
     subroutine test_supergroup_indexer_class()
         block
-            type(GASSpec_t) :: GAS_spec
+            type(LocalGASSpec_t) :: GAS_spec
             type(SuperGroupIndexer_t) :: indexer
             integer :: i, j
             integer, allocatable :: supergroups(:, :)
             logical :: correct
 
-            GAS_spec = GASSpec_t(&
+            GAS_spec = LocalGASSpec_t(&
                 n_min=[5,  4,  4,  4,  5], &
                 n_max=[7,  8,  8,  8,  7], &
                 spat_GAS_orbs = [([(j, i = 1, 6)], j = 1, 5)])
@@ -55,10 +55,10 @@ contains
         end block
 
         block
-            type(GASSpec_t) :: GAS_spec
+            type(LocalGASSpec_t) :: GAS_spec
             type(SuperGroupIndexer_t) :: indexer
 
-            GAS_spec = GASSpec_t(&
+            GAS_spec = LocalGASSpec_t(&
                 n_min=[0, 0, 1], &
                 n_max=[2, 2, 2], &
                 spat_GAS_orbs = [1, 1, 2, 2, 3, 3])

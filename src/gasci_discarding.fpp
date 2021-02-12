@@ -22,7 +22,7 @@ module gasci_discarding
     type, extends(ExcitationGenerator_t) :: GAS_DiscardingGenerator_t
         private
         type(PCHB_FCI_excit_generator_t) :: FCI_generator
-        type(GASSpec_t) :: GAS_spec
+        class(GASSpec_t), allocatable :: GAS_spec
     contains
         private
         procedure, public :: init
@@ -83,7 +83,7 @@ contains
 
     subroutine init(this, GAS_spec)
         class(GAS_DiscardingGenerator_t), intent(inout) :: this
-        type(GASSpec_t), intent(in) :: GAS_spec
+        class(GASSpec_t), intent(in) :: GAS_spec
         unused_var(this)
         this%GAS_spec = GAS_spec
         call this%FCI_generator%init()
