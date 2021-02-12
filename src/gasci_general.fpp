@@ -91,6 +91,10 @@ module gasci_general
         module procedure construct_GAS_singles_heat_bath_ExcGen_t
     end interface
 
+    interface GAS_doubles_heat_bath_ExcGenerator_t
+        module procedure construct_GAS_doubles_heat_bath_ExcGen_t
+    end interface
+
 contains
 
     pure function construct_GAS_heat_bath_ExcGenerator_t(GAS_spec) result(res)
@@ -103,6 +107,12 @@ contains
     pure function construct_GAS_singles_heat_bath_ExcGen_t(GAS_spec) result(res)
         class(GASSpec_t), intent(in) :: GAS_spec
         type(GAS_singles_heat_bath_ExcGen_t) :: res
+        res%GAS_spec = GAS_spec
+    end function
+
+    pure function construct_GAS_doubles_heat_bath_ExcGen_t(GAS_spec) result(res)
+        class(GASSpec_t), intent(in) :: GAS_spec
+        type(GAS_doubles_heat_bath_ExcGenerator_t) :: res
         res%GAS_spec = GAS_spec
     end function
 
