@@ -950,7 +950,8 @@ contains
 
         !> Lower and upper bound for spaces where a particle can be created.
         !> If no particle can be created, then spaces == 0 .
-        integer :: n_total_, iGAS, lower_bound, upper_bound, i
+        integer :: n_total_, iGAS, lower_bound, upper_bound
+        type(buffer_int_1D_t) :: space_buffer
 
         integer :: &
         !> Cumulated number of particles per iGAS
@@ -1004,7 +1005,26 @@ contains
         if (lower_bound > upper_bound .or. lower_bound > self%nGAS()) then
             spaces = [integer :: ]
         else
-            spaces = [(i, i = lower_bound, upper_bound)]
+        block
+            integer :: new_deficit(size(deficit)), new_vacant(size(vacant)), jGAS
+            logical :: allowed
+            call space_buffer%init()
+            do iGAS = lower_bound, upper_bound
+                new_deficit = deficit
+                new_deficit(iGAS :) = new_deficit(iGAS :) - 1
+                new_vacant = vacant
+                new_vacant(iGAS :) = new_vacant(iGAS :) - 1
+                allowed = .true.
+                do jGAS = 1, size(new_deficit) - 1
+                    if (any(new_deficit(jGAS) > new_vacant(jGAS + 1 : ))) then
+                        allowed = .false.
+                        exit
+                    end if
+                end do
+                if (allowed) call space_buffer%push_back(iGAS)
+            end do
+            call space_buffer%dump_reset(spaces)
+        end block
         end if
 
     end function

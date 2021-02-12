@@ -19,7 +19,7 @@ module test_gasci_general_mod
     implicit none
     private
     public :: Local_test_get_possible_spaces, Local_test_possible_holes, test_available, &
-        Cumul_test_possible_holes, narrow_down_bug, Cumul_test_get_possible_spaces
+        Cumul_test_possible_holes, Cumul_test_get_possible_spaces
 
 
 
@@ -874,6 +874,19 @@ contains
         call assert_equals([1], GAS_spec%get_possible_spaces(splitted_sizes, add_holes=[1, 2], n_total=2), 1)
 
         call assert_equals([2], GAS_spec%get_possible_spaces(splitted_sizes, add_holes=[5, 6], n_total=2), 1)
+
+        block
+
+            integer, allocatable :: expected(:), calculated(:)
+            integer, parameter :: reference(6) = [1, 2, 5, 6, 9, 10]
+            type(LocalGASSpec_t) :: GAS_spec
+
+            GAS_spec = LocalGASSpec_t(n_min=[2, 2, 2], n_max=[2, 2, 2], spat_GAS_orbs=[1, 2, 3, 1, 2, 3])
+
+            expected = [1, 3]
+            calculated = GAS_spec%get_possible_spaces(GAS_spec%count_per_GAS(reference), add_holes=[1, 6], n_total=2)
+            call assert_equals(expected, calculated, size(expected))
+        end block
     end subroutine
 
 
@@ -913,7 +926,7 @@ contains
 
             GAS_spec = CumulGASSpec_t(cn_min=[2, 4, 6], cn_max=[2, 4, 6], spat_GAS_orbs=[1, 2, 3, 1, 2, 3])
 
-            expected = [2, 3]
+            expected = [1, 3]
             calculated = GAS_spec%get_possible_spaces(GAS_spec%count_per_GAS(reference), add_holes=[1, 6], n_total=2)
             call assert_equals(expected, calculated, size(expected))
         end block
@@ -1089,39 +1102,6 @@ contains
         call assert_equals(expected, calculated, size(expected))
     end subroutine
 
-    subroutine narrow_down_bug
-        integer, allocatable :: expected(:), calculated(:), reference(:)
-
-        reference = [1, 2, 5, 6, 9, 10]
-        block
-            type(CumulGASSpec_t) :: GAS_spec
-
-            GAS_spec = CumulGASSpec_t(cn_min=[2, 4, 6], cn_max=[2, 4, 6], spat_GAS_orbs=[1, 2, 3, 1, 2, 3])
-
-            expected = [7, 8, 11, 12]
-            calculated = GAS_spec%get_possible_holes(reference, add_holes=[1, 6], n_total=2)
-            call assert_equals(expected, calculated, size(expected))
-        end block
-
-!         block
-!             type(LocalGASSpec_t) :: GAS_spec
-!
-!             GAS_spec = LocalGASSpec_t(n_min=[2, 2, 2], n_max=[2, 2, 2], spat_GAS_orbs=[1, 2, 3, 1, 2, 3])
-!
-!             expected = [7, 8, 11, 12]
-!             calculated = GAS_spec%get_possible_holes(reference, add_holes=[1, 6], n_total=2)
-!             block
-!                 integer, allocatable :: spaces(:)
-!                 write(*, *) 'Hello'
-!                     spaces = GAS_spec%get_possible_spaces(GAS_spec%count_per_GAS(reference), add_holes=[1, 6], n_total=2)
-!                 write(*, *) calculated
-!                 write(*, *) size(spaces)
-!                 write(*, *) 'Hello'
-!             end block
-!             call assert_equals(expected, calculated, size(expected))
-!         end block
-
-    end subroutine
 end module test_gasci_general_mod
 
 program test_gasci_program
@@ -1131,7 +1111,7 @@ program test_gasci_program
     use Parallel_neci, only: MPIInit, MPIEnd
     use test_gasci_general_mod, only: &
         Local_test_get_possible_spaces, Local_test_possible_holes, test_available, &
-        Cumul_test_possible_holes, Cumul_test_get_possible_spaces, narrow_down_bug
+        Cumul_test_possible_holes, Cumul_test_get_possible_spaces
 
 
     implicit none
@@ -1159,9 +1139,8 @@ contains
     subroutine test_gasci_driver()
         call run_test_case(Local_test_get_possible_spaces, "test_get_possible_spaces")
         call run_test_case(Cumul_test_get_possible_spaces, "test_get_possible_spaces")
-!         call run_test_case(Local_test_possible_holes, "test_possible_holes")
-!         call run_test_case(Cumul_test_possible_holes, "test_possible_holes")
-!         call run_test_case(narrow_down_bug, "test_possible_holes")
+        call run_test_case(Local_test_possible_holes, "test_possible_holes")
+        call run_test_case(Cumul_test_possible_holes, "test_possible_holes")
 !         call run_test_case(test_available, "test_available")
     end subroutine
 end program test_gasci_program
