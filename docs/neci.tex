@@ -719,9 +719,17 @@ the \texttt{endsys} keyword.
       the GAS spaces.
     It is possible to select the actual implementation with the
       \texttt{GAS-CI} keyword.
-    The specification is first the number of GAS spaces $n_\text{GAS}$
-      and then $3 \times n_\text{GAS}$ the specification for each GAS space
-      as number of spatial orbitals and minimum and maximum
+    It is possible to use \emph{local} or \emph{cumulative}
+      constraints on the particle number.
+    Local constraints define the minimum and maximum particle number per
+      GAS space.
+    Cumulative constraints define cumulative minima and maxima
+      of the cumulative particle number.
+    The specification is first \texttt{LOCAL} or \texttt{CUMULATIVE}
+      to define the kind of constraints
+      followed by the number of GAS spaces $n_\text{GAS}$.
+    The next items are $3 \times n_\text{GAS}$ numbers
+      which are the number of spatial orbitals and (cumulative) minimum and maximum
       number of particles per GAS space
       $n_i, N_i^\text{min}, N_i^\text{max}$.
     Finally an integer array denotes for each spatial orbital to which GAS space it belongs.
@@ -731,34 +739,63 @@ the \texttt{endsys} keyword.
     Two benzenes with single inter-space excitation would be e.g. denoted as:
 
     \begin{lstlisting}[gobble=4]
-    GAS-SPEC  2 +++
+    GAS-SPEC LOCAL 2 +++
          6  5  7  +++
          6  5  7  +++
          1  1  1  1  1  1  2  2  2  2  2  2
     \end{lstlisting}
     or
     \begin{lstlisting}[gobble=4]
-    GAS-SPEC  2 +++
+    GAS-SPEC LOCAL  2 +++
          6  5  7  +++
          6  5  7  +++
          6*1 6*2
     \end{lstlisting}
+    or
+    \begin{lstlisting}[gobble=4]
+    GAS-SPEC CUMULATIVE 2 +++
+         6  5  7  +++
+         6 12 12 +++
+         6*1 6*2
+    \end{lstlisting}
+    In the given example the local and cumulative constraints are equivalent,
+      but they are not always!
 
   \codeitem{GAS-CI}
     \emph{Optional keyword.}
     Specify the actual implementation for GAS.
     If it is ommitted, it will be deduced from \texttt{GAS-SPEC}.
     \begin{description}
-      \codeitem{GENERAL}
-        Use general GAS, which is applicable to any GAS specification,
-          but a bit slower than necessary for disconnected spaces.
-      \codeitem{DISCONNECTED}
-        Use the disconnected GAS implementations, which assumes disconnected
-          spaces and performs there a bit better than the general implementation.
+      \codeitem{GENERAL-PCHB}
+        This is the default and the fastest implementation, if sufficient memory is available.
+        The double excitations work similar to the FCI precomputed heat bath excitation
+          generator but automatically exclude GAS forbidden excitations.
+        If one follows the keyword, by \texttt{SINGLES}, one can
+          select the singles for which there are three possibilities:
+        \begin{description}
+          \codeitem{PC-UNIFORM}
+            This is the default. It chooses GAS allowed electrons uniformly.
+          \codeitem{DISCARDING-UNIFORM}
+            It chooses electrons uniformly as in FCI and discards.
+          \codeitem{ON-FLY-HEAT-BATH}
+            It chooses GAS allowed electrons weighted by their matrix element.
+        \end{description}
+        An example is
+          \begin{lstlisting}[gobble=4]
+            GAS-CI GENERAL-PCHB +++
+                SINGLES ON-FLY-HEAT-BATH
+          \end{lstlisting}
       \codeitem{DISCARDING}
         Use a Full CI excitation generator and just discard excitations which
           are not contained in the GAS space.
         Currently PCHB is used for Full CI.
+      \codeitem{GENERAL}
+        Use heat bath on the fly general GAS,
+          which is applicable to any GAS specification,
+          but a bit slower than necessary for disconnected spaces.
+      \codeitem{DISCONNECTED}
+        Use the disconnected GAS implementations, which assumes disconnected
+          spaces and performs there a bit better than the general implementation.
     \end{description}
 \end{description}
 
