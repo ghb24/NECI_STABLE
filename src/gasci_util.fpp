@@ -22,11 +22,11 @@ module gasci_util
     use sltcnd_mod, only: sltcnd_excit
     use sets_mod, only: disjoint, union, complement, is_sorted
     use growing_buffers, only: buffer_int_2D_t, buffer_int_1D_t
-    use symexcit3, only: FCI_gen_all_excits => gen_excits
     use bit_reps, only: decode_bit_det
     implicit none
     private
-    public :: get_available_singles, get_available_doubles, gen_all_excits, gen_all_excits_wrapper
+!     public :: get_available_singles, get_available_doubles, gen_all_excits
+    public :: gen_all_excits
 
     public :: get_cumulative_list, draw_from_cum_list
 
@@ -38,104 +38,149 @@ module gasci_util
 
 contains
 
-    !>   @brief
-    !>   Return all configurations that are connected to nI as
-    !>   array of iluts (det_list(0:niftot, n_excits)).
-    !>
-    !>  @details
-    !>  The routine is not efficient!
-    !>  Improve performance if used in tight code.
-    !>  Triple excitations are not supported.
-    !>
-    !>  @param[in] nI, The configuration from which to excite.
-    !>  @param[out] det_list, The connected configurations in ilut format.
-    !>                  (det_list(0:niftot, n_excits))
-    !>  @param[in] ex_flag, The requested excitations. (1 = singles, 2 = doubles)
-    !>          If ommited all excitations will be generated.
-    subroutine gen_excits(GAS_spec, nI, det_list, ic)
-        class(GASSpec_t), intent(in) :: GAS_spec
-        integer, intent(in) :: nI(:)
-        integer(n_int), intent(out), allocatable :: det_list(:, :)
-        integer, optional, intent(in) :: ic
-        character(*), parameter :: this_routine = "gen_excits"
-
-        integer :: N
-        integer :: FCI_n_excits
-        integer(n_int), allocatable :: FCI_det_list(:, :), tmp_list(:, :)
-        integer :: i
-
-        @:ASSERT(size(nI) == nEL)
-        @:ASSERT(GAS_spec%contains_det(nI))
-        call FCI_gen_all_excits(nI, FCI_n_excits, FCI_det_list, ic)
-        allocate(tmp_list, mold=FCI_det_list)
-
-        N = 0
-        do i = 1, FCI_n_excits
-            if (GAS_spec%contains_ilut(FCI_det_list(:, i))) then
-                N = N + 1
-                tmp_list(:, N) = FCI_det_list(:, i)
-            end if
-        end do
-
-        allocate(det_list(0 : nIfTot, N))
-        det_list(:, :) = tmp_list(:, : N)
-    end subroutine
+!     subroutine gen_excits(GAS_spec, nI, det_list, ic)
+!         class(GASSpec_t), intent(in) :: GAS_spec
+!         integer, intent(in) :: nI(:)
+!         integer(n_int), intent(out), allocatable :: det_list(:, :)
+!         integer, optional, intent(in) :: ic
+!         character(*), parameter :: this_routine = "gen_excits"
+!
 
 
     !>  @brief
     !>  Get all single excitated determinants from det_I that are allowed under GAS constraints.
-    function get_available_singles(GAS_spec, det_I) result(singles_exc_list)
+    pure function get_available_singles(GAS_spec, det_I) result(singles_exc_list)
         class(GASSpec_t), intent(in) :: GAS_spec
         integer, intent(in) :: det_I(:)
         integer, allocatable :: singles_exc_list(:, :)
         character(*), parameter :: this_routine = 'get_available_singles'
 
-        integer(n_int), allocatable :: det_list(:, :)
-        integer :: i
+        integer, allocatable :: possible_holes(:)
+        integer :: i, j, src1, tgt1
+        type(SpinProj_t) :: m_s_1
+        type(buffer_int_2D_t) :: buffer
 
-        @:ASSERT(GAS_spec%contains_det(det_I))
-        call gen_excits(GAS_spec, det_I, det_list, ic=1)
-        allocate(singles_exc_list(sum(popcnt(det_list(:, 1))), size(det_list, 2)))
-        do i = 1, size(det_list, 2)
-            call decode_bit_det(singles_exc_list(:, i), det_list(:, i))
+
+        @:pure_ASSERT(GAS_spec%contains_det(det_I))
+
+        call buffer%init(size(det_I))
+
+        do i = 1, size(det_I)
+            src1 = det_I(i)
+            m_s_1 = calc_spin_raw(src1)
+            possible_holes = GAS_spec%get_possible_holes(&
+                        det_I, add_holes=det_I(i:i), &
+                        excess=-m_s_1)
+            do j = 1, size(possible_holes)
+                tgt1 = possible_holes(j)
+                call buffer%push_back(excite(det_I, SingleExc_t(src1, tgt1)))
+            end do
         end do
+        call buffer%dump_reset(singles_exc_list)
+
         @:sort(integer, singles_exc_list, rank=2, along=2, comp=lex_leq)
     end function
 
     !>  @brief
     !>  Get all double excitated determinants from det_I that are allowed under GAS constraints.
-    function get_available_doubles(GAS_spec, det_I) result(doubles_exc_list)
+    pure function get_available_doubles(GAS_spec, det_I) result(doubles_exc_list)
         class(GASSpec_t), intent(in) :: GAS_spec
         integer, intent(in) :: det_I(:)
         integer, allocatable :: doubles_exc_list(:, :)
         character(*), parameter :: this_routine = 'get_available_doubles'
 
-        integer(n_int), allocatable :: det_list(:, :)
-        integer :: i
+        integer, allocatable :: first_pick_possible_holes(:), second_pick_possible_holes(:), deleted(:)
+        integer :: i, j, k, l, src1, src2, tgt1, tgt2
+        type(SpinProj_t) :: m_s_1
+        type(buffer_int_2D_t) :: buffer
 
         @:pure_ASSERT(GAS_spec%contains_det(det_I))
-        call gen_excits(GAS_spec, det_I, det_list, ic=2)
-        allocate(doubles_exc_list(sum(popcnt(det_list(:, 1))), size(det_list, 2)))
-        do i = 1, size(det_list, 2)
-            call decode_bit_det(doubles_exc_list(:, i), det_list(:, i))
+
+        call buffer%init(size(det_I))
+
+        do i = 1, size(det_I)
+            do j = i + 1, size(det_I)
+                src1 = det_I(i)
+                src2 = det_I(j)
+                deleted = det_I([i, j])
+                first_pick_possible_holes = GAS_spec%get_possible_holes(det_I, &
+                                        add_holes=deleted, excess=-sum(calc_spin_raw(deleted)), &
+                                        n_total=2)
+                @:pure_ASSERT(disjoint(first_pick_possible_holes, det_I))
+                do k = 1, size(first_pick_possible_holes)
+                    tgt1 = first_pick_possible_holes(k)
+                    m_s_1 = calc_spin_raw(tgt1)
+                    @:pure_ASSERT(any(m_s_1 == [alpha, beta]))
+
+                    second_pick_possible_holes = GAS_spec%get_possible_holes(&
+                            det_I, add_holes=deleted, &
+                            add_particles=[tgt1], &
+                            n_total=1, excess=m_s_1 - sum(calc_spin_raw(deleted)))
+
+                    @:pure_ASSERT(disjoint(second_pick_possible_holes, [tgt1]))
+                    @:pure_ASSERT(disjoint(second_pick_possible_holes, det_I))
+
+                    do l = 1, size(second_pick_possible_holes)
+                        tgt2 = second_pick_possible_holes(l)
+                        call buffer%push_back(excite(det_I, DoubleExc_t(src1, tgt1, src2, tgt2)))
+                    end do
+                end do
+            end do
         end do
+
+        call buffer%dump_reset(doubles_exc_list)
+
         @:sort(integer, doubles_exc_list, rank=2, along=2, comp=lex_leq)
+
+        remove_double_appearances : block
+            integer, allocatable :: tmp_buffer(:, :)
+            allocate(tmp_buffer(size(doubles_exc_list, 1), size(doubles_exc_list, 2)))
+            j = 1
+            tmp_buffer(:, j) = doubles_exc_list(:, 1)
+            do i = 2, size(doubles_exc_list, 2)
+                if (any(doubles_exc_list(:, i - 1) /= doubles_exc_list(:, i))) then
+                    j = j + 1
+                    tmp_buffer(:, j) = doubles_exc_list(:, i)
+                end if
+            end do
+            doubles_exc_list = tmp_buffer(:, : j)
+        end block remove_double_appearances
     end function
 
 
     !>  @brief
-    !>  Get all excitated determinants from det_I that are allowed under GAS constraints.
-    subroutine gen_all_excits(GAS_spec, nI, n_excits, det_list)
+    !>  Get all excitated determinants from
+    !>  det_I that are allowed under GAS constraints.
+    !>
+    !>  @param[in] GAS_spec GAS specification
+    !>  @param[in] nI Starting determinant
+    !>  @param[out] n_excits Number of determinants
+    !>  @param[out] det_list Allocatable array of determinants in ilut format
+    !>  @param[in] ic Optional input for excitation level (ic=1 => singles, ic=2 => doubles)
+    !>      If ommited generate all.
+    subroutine gen_all_excits(GAS_spec, nI, n_excits, det_list, ic)
         class(GASSpec_t), intent(in) :: GAS_spec
         integer, intent(in) :: nI(:)
         integer, intent(out) :: n_excits
         integer(n_int), intent(out), allocatable :: det_list(:,:)
+        integer, intent(in), optional :: ic
 
         integer, allocatable :: singles(:, :), doubles(:, :)
         integer :: i, j
 
-        singles = get_available_singles(GAS_spec, nI)
-        doubles = get_available_doubles(GAS_spec, nI)
+        if (present(ic)) then
+            select case(ic)
+            case(1)
+                singles = get_available_singles(GAS_spec, nI)
+                allocate(doubles(0, 0))
+            case(2)
+                allocate(singles(0, 0))
+                doubles = get_available_doubles(GAS_spec, nI)
+            end select
+        else
+            singles = get_available_singles(GAS_spec, nI)
+            doubles = get_available_doubles(GAS_spec, nI)
+        end if
 
         n_excits = size(singles, 2) + size(doubles, 2)
         allocate(det_list(0:niftot, n_excits))
@@ -152,14 +197,6 @@ contains
 
         call sort(det_list, ilut_lt, ilut_gt)
     end subroutine gen_all_excits
-
-    subroutine gen_all_excits_wrapper(nI, n_excits, det_list)
-        integer, intent(in) :: nI(nEl)
-        integer, intent(out) :: n_excits
-        integer(n_int), intent(out), allocatable :: det_list(:,:)
-
-        call gen_all_excits(GAS_specification, nI, n_excits, det_list)
-    end subroutine gen_all_excits_wrapper
 
 
 

@@ -1,4 +1,4 @@
-module test_gasci_general_mod
+module test_gasci_util_mod
     use fruit
     use constants, only: dp, n_int
     use util_mod, only: operator(.div.), operator(.isclose.), near_zero
@@ -30,7 +30,7 @@ contains
         type(LocalGASSpec_t) :: GAS_spec
         integer, allocatable :: det_I(:), expect_singles(:, :), expect_doubles(:, :)
         integer, allocatable :: singles_exc_list(:, :), doubles_exc_list(:, :)
-        integer :: i, j
+        integer :: i
 
 
         GAS_spec = LocalGASSpec_t(&
@@ -1102,14 +1102,14 @@ contains
         call assert_equals(expected, calculated, size(expected))
     end subroutine
 
-end module test_gasci_general_mod
+end module test_gasci_util_mod
 
-program test_gasci_program
+program test_gasci_util_program
 
     use mpi
     use fruit
     use Parallel_neci, only: MPIInit, MPIEnd
-    use test_gasci_general_mod, only: &
+    use test_gasci_util_mod, only: &
         Local_test_get_possible_spaces, Local_test_possible_holes, test_available, &
         Cumul_test_possible_holes, Cumul_test_get_possible_spaces
 
@@ -1141,6 +1141,6 @@ contains
         call run_test_case(Cumul_test_get_possible_spaces, "test_get_possible_spaces")
         call run_test_case(Local_test_possible_holes, "test_possible_holes")
         call run_test_case(Cumul_test_possible_holes, "test_possible_holes")
-!         call run_test_case(test_available, "test_available")
+        call run_test_case(test_available, "test_available")
     end subroutine
-end program test_gasci_program
+end program

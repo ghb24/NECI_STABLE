@@ -33,8 +33,7 @@ module gasci_general
 
     use gasci, only: GASSpec_t, LocalGASSpec_t
     use gasci_util, only: &
-        get_available_singles, get_available_doubles, &
-        get_cumulative_list, draw_from_cum_list
+        gen_all_excits, get_cumulative_list, draw_from_cum_list
     implicit none
 
     private
@@ -232,15 +231,7 @@ contains
         integer, intent(out) :: n_excits
         integer(n_int), allocatable, intent(out) :: det_list(:,:)
 
-        integer, allocatable :: singles(:, :)
-        integer :: i
-
-        singles = get_available_singles(this%GAS_spec, nI)
-        n_excits = size(singles, 2)
-        allocate(det_list(0:niftot, n_excits))
-        do i = 1, size(singles, 2)
-            call EncodeBitDet(singles(:, i), det_list(:, i))
-        end do
+        call gen_all_excits(this%GAS_spec, nI, n_excits, det_list, ic=1)
     end subroutine
 
 
@@ -478,15 +469,7 @@ contains
         integer, intent(out) :: n_excits
         integer(n_int), allocatable, intent(out) :: det_list(:,:)
 
-        integer, allocatable :: doubles(:, :)
-        integer :: i
-
-        doubles = get_available_doubles(this%GAS_spec, nI)
-        n_excits = size(doubles, 2)
-        allocate(det_list(0:niftot, n_excits))
-        do i = 1, size(doubles, 2)
-            call EncodeBitDet(doubles(:, i), det_list(:, i))
-        end do
+        call gen_all_excits(this%GAS_spec, nI, n_excits, det_list, ic=2)
     end subroutine
 
 

@@ -54,7 +54,7 @@ module gasci_pchb
 
     use gasci, only: GASSpec_t
     use gasci_general, only: GAS_singles_heat_bath_ExcGen_t
-    use gasci_util, only: get_available_singles, get_available_doubles
+    use gasci_util, only: gen_all_excits
     use gasci_supergroup_index, only: SuperGroupIndexer_t, lookup_supergroup_indexer
     use exc_gen_class_wrappers, only: UniformSingles_t
 
@@ -350,19 +350,7 @@ contains
         integer, intent(out) :: n_excits
         integer(n_int), allocatable, intent(out) :: det_list(:,:)
 
-        integer, allocatable :: singles(:, :)
-        integer :: i
-
-        singles = get_available_singles(this%GAS_spec, nI)
-
-        n_excits = size(singles, 2)
-        allocate(det_list(0:niftot, n_excits))
-        do i = 1, size(singles, 2)
-            call EncodeBitDet(singles(:, i), det_list(:, i))
-        end do
-
-        call sort(det_list, ilut_lt, ilut_gt)
-
+        call gen_all_excits(this%GAS_spec, nI, n_excits, det_list, ic=1)
     end subroutine
 
     pure function construct_GAS_singles_DiscardingGenerator_t(GAS_spec) result(res)
@@ -427,18 +415,7 @@ contains
         integer, intent(out) :: n_excits
         integer(n_int), allocatable, intent(out) :: det_list(:,:)
 
-        integer, allocatable :: singles(:, :)
-        integer :: i
-
-        singles = get_available_singles(this%GAS_spec, nI)
-
-        n_excits = size(singles, 2)
-        allocate(det_list(0:niftot, n_excits))
-        do i = 1, size(singles, 2)
-            call EncodeBitDet(singles(:, i), det_list(:, i))
-        end do
-
-        call sort(det_list, ilut_lt, ilut_gt)
+        call gen_all_excits(this%GAS_spec, nI, n_excits, det_list, ic=1)
     end subroutine
 
 
@@ -778,16 +755,7 @@ contains
         integer, intent(out) :: n_excits
         integer(n_int), allocatable, intent(out) :: det_list(:,:)
 
-        integer, allocatable :: doubles(:, :)
-        integer :: i
-
-        doubles = get_available_doubles(this%GAS_spec, nI)
-        n_excits = size(doubles, 2)
-        allocate(det_list(0:niftot, n_excits))
-        do i = 1, size(doubles, 2)
-            call EncodeBitDet(doubles(:, i), det_list(:, i))
-        end do
-        call sort(det_list, ilut_lt, ilut_gt)
+        call gen_all_excits(this%GAS_spec, nI, n_excits, det_list, ic=2)
     end subroutine
 
 
