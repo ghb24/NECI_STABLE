@@ -6,7 +6,7 @@ System read
     freeformat
     spin-restrict 0
     GAS-CI general
-    GAS-SPEC +++
+    GAS-SPEC LOCAL +++
     2 +++
     5 2 4 +++
     5 2 4 +++

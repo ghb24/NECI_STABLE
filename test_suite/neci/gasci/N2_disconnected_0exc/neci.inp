@@ -6,7 +6,7 @@ System read
     freeformat
     spin-restrict 0
     GAS-CI disconnected
-    GAS-SPEC +++
+    GAS-SPEC LOCAL +++
     3 +++
     2 2 2 +++
     2 2 2 +++
