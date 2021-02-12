@@ -59,7 +59,7 @@ contains
             def_default(rtol_, rtol, 1e-9_dp)
             def_default(atol_, atol, 0._dp)
 
-            res = abs(a - b) <= max(atol_, rtol_ * max(abs(a), abs(b)))
+            res = abs(a - b) <= max(atol_, rtol_ * min(abs(a), abs(b)))
         end function
 
     !> Operator functions may only have two arguments.
