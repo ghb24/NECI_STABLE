@@ -22,7 +22,7 @@ module test_gasci_mod
     implicit none
     private
     public :: test_igas, test_contains_det, test_particles_per_GAS, &
-        test_is_valid, test_is_connected, test_split_per_GAS
+        test_is_valid, test_is_connected, test_get_orb_idx
 
 
 
@@ -95,38 +95,14 @@ contains
         call assert_false(GAS_spec%is_connected())
     end subroutine
 
-    subroutine test_split_per_GAS
+    subroutine test_get_orb_idx
         type(LocalGASSpec_t) :: GAS_spec
         integer :: i, iGAS
         integer, allocatable :: splitted(:, :), splitted_sizes(:)
         GAS_spec = LocalGASSpec_t(n_min=[2, 2], n_max=[2, 2], spat_GAS_orbs=[1, 1, 2, 2])
-        allocate(splitted(GAS_spec%max_GAS_size(), GAS_spec%nGAS()), &
-                 splitted_sizes(GAS_spec%nGAS()))
 
-        call GAS_spec%split_per_GAS([1, 2, 5, 6], splitted, splitted_sizes)
-        call assert_equals(splitted_sizes, [2, 2], 2)
-        call assert_equals(splitted(:, 1), [1, 2], 2)
-        call assert_equals(splitted(:, 2), [5, 6], 2)
-
-        call GAS_spec%split_per_GAS([5, 6], splitted, splitted_sizes)
-        call assert_equals(splitted_sizes, [0, 2], 2)
-        call assert_equals(splitted(:, 2), [5, 6], 2)
-
-        call GAS_spec%split_per_GAS([1, 2, 3], splitted, splitted_sizes)
-        call assert_equals(splitted_sizes, [3, 0], 2)
-        call assert_equals(splitted(:, 1), [1, 2, 3], 3)
-
-
-        GAS_spec = LocalGASSpec_t(n_min=[2, 2, 2], n_max=[2, 2, 2], spat_GAS_orbs=[1, 1, 2, 2, 3, 3])
-        deallocate(splitted, splitted_sizes)
-        allocate(splitted(GAS_spec%max_GAS_size(), GAS_spec%nGAS()), &
-                 splitted_sizes(GAS_spec%nGAS()))
-
-        call GAS_spec%split_per_GAS([1, 2, 5, 6, 9, 10], splitted, splitted_sizes)
-        call assert_equals(splitted_sizes, [2, 2, 2], 3)
-        call assert_equals(splitted(:2, 1), [1, 2], 2)
-        call assert_equals(splitted(:2, 2), [5, 6], 2)
-        call assert_equals(splitted(:2, 3), [9, 10], 2)
+        call assert_equals(GAS_spec%get_orb_idx([1, 2], 1), [1, 2], 2)
+        call assert_equals(GAS_spec%get_orb_idx([1, 2], 2), [5, 6], 2)
     end subroutine
 
 end module test_gasci_mod
@@ -137,7 +113,7 @@ program test_gasci_program
     use fruit
     use Parallel_neci, only: MPIInit, MPIEnd
     use test_gasci_mod, only: test_igas, test_is_connected, test_is_valid, &
-        test_contains_det, test_particles_per_GAS, test_split_per_GAS
+        test_contains_det, test_particles_per_GAS, test_get_orb_idx
 
     implicit none
     integer :: failed_count, err
@@ -166,7 +142,7 @@ contains
         call run_test_case(test_is_valid, "test_is_valid")
         call run_test_case(test_is_connected, "test_is_connected")
         call run_test_case(test_igas, "test_igas")
-        call run_test_case(test_split_per_GAS, "test_split_per_GAS")
+        call run_test_case(test_get_orb_idx, "test_get_orb_idx")
         call run_test_case(test_contains_det, "test_contains_det")
         call run_test_case(test_particles_per_GAS, "test_particles_per_GAS")
     end subroutine

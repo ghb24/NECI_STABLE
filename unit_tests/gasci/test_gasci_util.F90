@@ -850,30 +850,26 @@ contains
 
     subroutine Local_test_get_possible_spaces()
         type(LocalGASSpec_t) :: GAS_spec
-        integer, allocatable :: splitted(:, :), splitted_sizes(:)
+        integer, allocatable :: supergrup(:)
         integer, parameter :: det_I(4) = [1, 2, 5, 6]
 
         GAS_spec = LocalGASSpec_t(n_min=[2, 2], n_max=[2, 2], spat_GAS_orbs=[1, 1, 2, 2])
 
-        allocate(splitted(GAS_spec%max_GAS_size(), GAS_spec%nGAS()), &
-                 splitted_sizes(GAS_spec%nGAS()))
+        supergrup = GAS_spec%count_per_GAS(det_I)
 
+        call assert_true(size(GAS_spec%get_possible_spaces(supergrup)) == 0)
 
-        call GAS_spec%split_per_GAS(det_I, splitted, splitted_sizes)
+        call assert_equals([1], GAS_spec%get_possible_spaces(supergrup, add_holes=[1]), 1)
 
-        call assert_true(size(GAS_spec%get_possible_spaces(splitted_sizes)) == 0)
+        call assert_equals([2], GAS_spec%get_possible_spaces(supergrup, add_holes=[5]), 1)
 
-        call assert_equals([1], GAS_spec%get_possible_spaces(splitted_sizes, add_holes=[1]), 1)
+        call assert_true(size(GAS_spec%get_possible_spaces(supergrup, add_holes=[1, 5], n_total=1)) == 0)
 
-        call assert_equals([2], GAS_spec%get_possible_spaces(splitted_sizes, add_holes=[5]), 1)
+        call assert_equals([1, 2], GAS_spec%get_possible_spaces(supergrup, add_holes=[1, 5], n_total=2), 2)
 
-        call assert_true(size(GAS_spec%get_possible_spaces(splitted_sizes, add_holes=[1, 5], n_total=1)) == 0)
+        call assert_equals([1], GAS_spec%get_possible_spaces(supergrup, add_holes=[1, 2], n_total=2), 1)
 
-        call assert_equals([1, 2], GAS_spec%get_possible_spaces(splitted_sizes, add_holes=[1, 5], n_total=2), 2)
-
-        call assert_equals([1], GAS_spec%get_possible_spaces(splitted_sizes, add_holes=[1, 2], n_total=2), 1)
-
-        call assert_equals([2], GAS_spec%get_possible_spaces(splitted_sizes, add_holes=[5, 6], n_total=2), 1)
+        call assert_equals([2], GAS_spec%get_possible_spaces(supergrup, add_holes=[5, 6], n_total=2), 1)
 
         block
 
@@ -893,30 +889,26 @@ contains
     subroutine Cumul_test_get_possible_spaces()
         block
             type(CumulGASSpec_t) :: GAS_spec
-            integer, allocatable :: splitted(:, :), splitted_sizes(:)
+            integer, allocatable :: supergroup(:)
             integer, parameter :: det_I(4) = [1, 2, 5, 6]
 
             GAS_spec = CumulGASSpec_t(cn_min=[2, 4], cn_max=[2, 4], spat_GAS_orbs=[1, 1, 2, 2])
 
-            allocate(splitted(GAS_spec%max_GAS_size(), GAS_spec%nGAS()), &
-                     splitted_sizes(GAS_spec%nGAS()))
+            supergroup = GAS_spec%count_per_GAS(det_I)
 
+            call assert_true(size(GAS_spec%get_possible_spaces(supergroup)) == 0)
 
-            call GAS_spec%split_per_GAS(det_I, splitted, splitted_sizes)
+            call assert_equals([1], GAS_spec%get_possible_spaces(supergroup, add_holes=[1]), 1)
 
-            call assert_true(size(GAS_spec%get_possible_spaces(splitted_sizes)) == 0)
+            call assert_equals([2], GAS_spec%get_possible_spaces(supergroup, add_holes=[5]), 1)
 
-            call assert_equals([1], GAS_spec%get_possible_spaces(splitted_sizes, add_holes=[1]), 1)
+            call assert_true(size(GAS_spec%get_possible_spaces(supergroup, add_holes=[1, 5], n_total=1)) == 0)
 
-            call assert_equals([2], GAS_spec%get_possible_spaces(splitted_sizes, add_holes=[5]), 1)
+            call assert_equals([1, 2], GAS_spec%get_possible_spaces(supergroup, add_holes=[1, 5], n_total=2), 2)
 
-            call assert_true(size(GAS_spec%get_possible_spaces(splitted_sizes, add_holes=[1, 5], n_total=1)) == 0)
+            call assert_equals([1], GAS_spec%get_possible_spaces(supergroup, add_holes=[1, 2], n_total=2), 1)
 
-            call assert_equals([1, 2], GAS_spec%get_possible_spaces(splitted_sizes, add_holes=[1, 5], n_total=2), 2)
-
-            call assert_equals([1], GAS_spec%get_possible_spaces(splitted_sizes, add_holes=[1, 2], n_total=2), 1)
-
-            call assert_equals([2], GAS_spec%get_possible_spaces(splitted_sizes, add_holes=[5, 6], n_total=2), 1)
+            call assert_equals([2], GAS_spec%get_possible_spaces(supergroup, add_holes=[5, 6], n_total=2), 1)
         end block
         block
 

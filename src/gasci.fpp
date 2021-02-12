@@ -90,7 +90,6 @@ module gasci
 
         procedure :: get_iGAS
         procedure :: get_orb_idx
-        procedure :: split_per_GAS
         procedure :: count_per_GAS
         generic :: is_allowed => is_allowed_single
         generic :: is_allowed => is_allowed_double
@@ -122,11 +121,26 @@ module gasci
             integer, intent(in) :: iunit
         end subroutine
 
-        pure function get_possible_spaces_t(self, particles_per_GAS, add_holes, add_particles, n_total) result(spaces)
+        !>  @brief
+        !>  Return the GAS spaces, where one particle can be created.
+        !>
+        !>  @details
+        !>  The returned array can be empty (allocated, but size == 0).
+        !>
+        !>  @param[in] GAS_spec, Specification of GAS spaces (GASSpec_t).
+        !>  @param[in] supergroup, The particles per GAS space.
+        !>  @param[in] add_holes, optional, An index of orbitals
+        !>      where particles should be deleted before creating the new particle.
+        !>  @param[in] add_particles, optional, Index of orbitals
+        !>      where particles should be created before creating the new particle.
+        !>  @param[in] n_total, optional, The total number of particles
+        !>      that will be created. Defaults to one (integer).
+        !>      (Relevant for double excitations)
+        pure function get_possible_spaces_t(self, supergroup, add_holes, add_particles, n_total) result(spaces)
             import :: GASSpec_t
             implicit none
             class(GASSpec_t), intent(in) :: self
-            integer, intent(in) :: particles_per_GAS(size(self%GAS_sizes))
+            integer, intent(in) :: supergroup(size(self%GAS_sizes))
             integer, intent(in), optional :: add_holes(:), add_particles(:), n_total
             integer, allocatable :: spaces(:)
         end function
@@ -308,37 +322,20 @@ contains
         res = self%contains_det(nI)
     end function
 
-    pure subroutine split_per_GAS(self, occupied, splitted, splitted_sizes)
-        class(GASSpec_t), intent(in) :: self
-        integer, intent(in) :: occupied(:)
-        integer, intent(out) :: &
-            splitted(get_max_GAS_size(self), get_nGAS(self)), &
-            splitted_sizes(get_nGAS(self))
-
-        integer :: iel, iGAS
-
-        splitted_sizes = 0
-        do iel = 1, size(occupied)
-            iGAS = self%get_iGAS(occupied(iel))
-            splitted_sizes(iGAS) = splitted_sizes(iGAS) + 1
-            splitted(splitted_sizes(iGAS), iGAS) = occupied(iel)
-        end do
-    end subroutine
-
     !> @brief
     !> Count the particles per GAS space. i.e. return the supergroup.
-    pure function count_per_GAS(self, occupied) result(splitted_sizes)
+    pure function count_per_GAS(self, occupied) result(supergroup)
         class(GASSpec_t), intent(in) :: self
         integer, intent(in) :: occupied(:)
 
-        integer :: splitted_sizes(get_nGAS(self))
+        integer :: supergroup(get_nGAS(self))
 
         integer :: iel, iGAS
 
-        splitted_sizes = 0
+        supergroup = 0
         do iel = 1, size(occupied)
             iGAS = self%get_iGAS(occupied(iel))
-            splitted_sizes(iGAS) = splitted_sizes(iGAS) + 1
+            supergroup(iGAS) = supergroup(iGAS) + 1
         end do
     end function
 
@@ -442,6 +439,29 @@ contains
         end if
     end function
 
+    !>  @brief
+    !>  Return the possible holes where a particle can be created under GAS constraints.
+    !>
+    !>  @details
+    !>  This function uses `get_possible_spaces` to find possible GAS spaces
+    !>  where a particle can be created and returns only unoccupied
+    !>  sites of correct spin.
+    !>
+    !>  "Trivial" excitations are avoided. That means, that a site is only counted
+    !>  as unoccupied if it was unoccupied in nI from the beginning on.
+    !>  (A double excitation where a particle is deleted, but immediately
+    !>  recreated would be such a trivial excitations.)
+    !>
+    !>  @param[in] GAS_spec, Specification of GAS spaces (GASSpec_t).
+    !>  @param[in] det_I, The starting determinant
+    !>  @param[in] add_holes, optional, An index of orbitals
+    !>      where particles should be deleted before creating the new particle.
+    !>  @param[in] add_particles, optional, An index of orbitals
+    !>      where particles should be created before creating the new particle.
+    !>  @param[in] n_total, optional, The total number of particles
+    !>      that will be created. Defaults to one (integer).
+    !>  @param[in] excess, optional, The current excess of spin projections.
+    !>      If a beta electron was deleted, the excess is 1 * alpha.
     pure function get_possible_holes(this, det_I, add_holes, add_particles, n_total, excess) result(possible_holes)
         class(GASSpec_t), intent(in) :: this
         integer, intent(in) :: det_I(:)
@@ -703,9 +723,9 @@ contains
         res = self%max(:)
     end function
 
-    pure function Local_get_possible_spaces(self, particles_per_GAS, add_holes, add_particles, n_total) result(spaces)
+    pure function Local_get_possible_spaces(self, supergroup, add_holes, add_particles, n_total) result(spaces)
         class(LocalGASSpec_t), intent(in) :: self
-        integer, intent(in) :: particles_per_GAS(size(self%GAS_sizes))
+        integer, intent(in) :: supergroup(size(self%GAS_sizes))
         integer, intent(in), optional :: add_holes(:), add_particles(:), n_total
         integer, allocatable :: spaces(:)
 
@@ -733,7 +753,7 @@ contains
             else
                 C = 0
             end if
-            n_particle = particles_per_GAS - B + C
+            n_particle = supergroup - B + C
         end block
 
         deficit(:) = self%get_min() - n_particle(:)
@@ -942,9 +962,9 @@ contains
         res = self%c_max(:)
     end function
 
-    pure function Cumul_get_possible_spaces(self, particles_per_GAS, add_holes, add_particles, n_total) result(spaces)
+    pure function Cumul_get_possible_spaces(self, supergroup, add_holes, add_particles, n_total) result(spaces)
         class(CumulGASSpec_t), intent(in) :: self
-        integer, intent(in) :: particles_per_GAS(size(self%GAS_sizes))
+        integer, intent(in) :: supergroup(size(self%GAS_sizes))
         integer, intent(in), optional :: add_holes(:), add_particles(:), n_total
         integer, allocatable :: spaces(:)
 
@@ -975,7 +995,7 @@ contains
             else
                 C = 0
             end if
-            cum_n_particle = cumsum(particles_per_GAS - B + C)
+            cum_n_particle = cumsum(supergroup - B + C)
         end block
 
         deficit(:) = self%get_cmin() - cum_n_particle(:)

@@ -25,8 +25,7 @@ module gasci_util
     use bit_reps, only: decode_bit_det
     implicit none
     private
-!     public :: get_available_singles, get_available_doubles, gen_all_excits
-    public :: gen_all_excits
+    public :: get_available_singles, get_available_doubles, gen_all_excits
 
     public :: get_cumulative_list, draw_from_cum_list
 
@@ -37,14 +36,6 @@ module gasci_util
     end interface
 
 contains
-
-!     subroutine gen_excits(GAS_spec, nI, det_list, ic)
-!         class(GASSpec_t), intent(in) :: GAS_spec
-!         integer, intent(in) :: nI(:)
-!         integer(n_int), intent(out), allocatable :: det_list(:, :)
-!         integer, optional, intent(in) :: ic
-!         character(*), parameter :: this_routine = "gen_excits"
-!
 
 
     !>  @brief
