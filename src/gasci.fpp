@@ -1046,6 +1046,6 @@ contains
             call space_buffer%dump_reset(spaces)
         end block
         end if
-
     end function
+
 end module gasci
