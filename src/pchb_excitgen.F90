@@ -53,6 +53,8 @@ contains
         type(LocalGASSpec_t) pure function CAS_spec(n_el, n_spat_orbs)
             integer, intent(in) :: n_el, n_spat_orbs
             integer :: i
+            ! It does not matter if we use local or cumulative GAS
+            ! constraints
             CAS_spec = LocalGASSpec_t(n_min=[n_el], n_max=[n_el], spat_GAS_orbs=[(1, i = 1, n_spat_orbs)])
         end function
     end subroutine

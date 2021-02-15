@@ -552,12 +552,12 @@ contains
 
 
     !>  @brief
-    !>      Constructor of GASSpec_t
+    !>      Constructor of LocalGASSpec_t
     !>
     !>  @details
     !>
-    !>  @param[in] n_min, Cumulative minimum particle number.
-    !>  @param[in] n_max, Cumulative maximum particle number
+    !>  @param[in] n_min, minimum particle number per GAS space.
+    !>  @param[in] n_max, maximum particle number per GAS space.
     !>  @param[in] spat_GAS_orbs, GAS space for the i-th **spatial** orbital.
     pure function construct_LocalGASSpec_t(n_min, n_max, spat_GAS_orbs) result(GAS_spec)
         integer, intent(in) :: n_min(:), n_max(:)
@@ -778,12 +778,12 @@ contains
 
 
     !>  @brief
-    !>      Constructor of GASSpec_t
+    !>  Constructor of CumulGASSpec_t
     !>
     !>  @details
     !>
-    !>  @param[in] n_min, Cumulative minimum particle number.
-    !>  @param[in] n_max, Cumulative maximum particle number
+    !>  @param[in] cn_min, Cumulative minimum particle number.
+    !>  @param[in] cn_max, Cumulative maximum particle number
     !>  @param[in] spat_GAS_orbs, GAS space for the i-th **spatial** orbital.
     pure function construct_CumulGASSpec_t(cn_min, cn_max, spat_GAS_orbs) result(GAS_spec)
         integer, intent(in) :: cn_min(:), cn_max(:)
