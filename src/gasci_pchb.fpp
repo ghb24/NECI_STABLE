@@ -673,7 +673,10 @@ contains
         ! temporary storage for the unnormalized prob of not picking an exchange excitation
 
         !> n_supergroup * number_of_fused_indices * 3 * (bytes_per_sampler)
-        memCost = size(supergroups, 2) * ijMax * 3 * (abMax * 3 * 8)
+        memCost = size(supergroups, 2, kind=int64) &
+                    * int(ijMax, int64) &
+                    * 3_int64 &
+                    * (int(abMax, int64) * 3_int64 * 8_int64)
 
         call this%pchb_samplers%shared_alloc([ijMax, 3, size(supergroups, 2)], abMax)
         write(iout, *) "Excitation generator requires", real(memCost, dp) / 2.0_dp**30, "GB of memory"
