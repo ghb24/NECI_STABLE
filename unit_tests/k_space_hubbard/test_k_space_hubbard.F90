@@ -234,7 +234,7 @@ contains
 
         irrep_names = ['  x','A1g','A2g','B1g','B2g',' Eg','A1u','A2u','B1u','B2u',' Eu']
 
-        t_input_nel = .false.
+        t_input_nel = .true.
         t_input_lattice = .true.
         t_do_exact_transcorr = .true.
         t_input_l = .false.
