@@ -849,27 +849,29 @@ contains
 
 
     subroutine Local_test_get_possible_spaces()
-        type(LocalGASSpec_t) :: GAS_spec
-        integer, allocatable :: supergrup(:)
-        integer, parameter :: det_I(4) = [1, 2, 5, 6]
+        block
+            type(LocalGASSpec_t) :: GAS_spec
+            integer, allocatable :: supergrup(:)
+            integer, parameter :: det_I(4) = [1, 2, 5, 6]
 
-        GAS_spec = LocalGASSpec_t(n_min=[2, 2], n_max=[2, 2], spat_GAS_orbs=[1, 1, 2, 2])
+            GAS_spec = LocalGASSpec_t(n_min=[2, 2], n_max=[2, 2], spat_GAS_orbs=[1, 1, 2, 2])
 
-        supergrup = GAS_spec%count_per_GAS(det_I)
+            supergrup = GAS_spec%count_per_GAS(det_I)
 
-        call assert_true(size(GAS_spec%get_possible_spaces(supergrup)) == 0)
+            call assert_true(size(GAS_spec%get_possible_spaces(supergrup)) == 0)
 
-        call assert_equals([1], GAS_spec%get_possible_spaces(supergrup, add_holes=[1]), 1)
+            call assert_equals([1], GAS_spec%get_possible_spaces(supergrup, add_holes=[1]), 1)
 
-        call assert_equals([2], GAS_spec%get_possible_spaces(supergrup, add_holes=[5]), 1)
+            call assert_equals([2], GAS_spec%get_possible_spaces(supergrup, add_holes=[5]), 1)
 
-        call assert_true(size(GAS_spec%get_possible_spaces(supergrup, add_holes=[1, 5], n_total=1)) == 0)
+            call assert_true(size(GAS_spec%get_possible_spaces(supergrup, add_holes=[1, 5], n_total=1)) == 0)
 
-        call assert_equals([1, 2], GAS_spec%get_possible_spaces(supergrup, add_holes=[1, 5], n_total=2), 2)
+            call assert_equals([1, 2], GAS_spec%get_possible_spaces(supergrup, add_holes=[1, 5], n_total=2), 2)
 
-        call assert_equals([1], GAS_spec%get_possible_spaces(supergrup, add_holes=[1, 2], n_total=2), 1)
+            call assert_equals([1], GAS_spec%get_possible_spaces(supergrup, add_holes=[1, 2], n_total=2), 1)
 
-        call assert_equals([2], GAS_spec%get_possible_spaces(supergrup, add_holes=[5, 6], n_total=2), 1)
+            call assert_equals([2], GAS_spec%get_possible_spaces(supergrup, add_holes=[5, 6], n_total=2), 1)
+        end block
 
         block
 
@@ -1107,10 +1109,9 @@ program test_gasci_util_program
 
 
     implicit none
-    integer :: failed_count
 
     block
-
+        integer :: failed_count
         call MPIInit(.false.)
 
         call init_fruit()
