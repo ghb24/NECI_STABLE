@@ -75,6 +75,12 @@ neci_add_option(
     DEFAULT OFF
     DESCRIPTION "Build using shared libraries, rather than static linking" )
 
+neci_add_option(
+	FEATURE TCHINT
+	DEFAULT off
+	DESCRIPTION "Use the TCHInt library for transcorrelated integrals and matrix elements"
+	REQUIRED_PACKAGES TCHINT_NECI )
+
 # Special option overrides
 
 if( HAVE_SHARED_MEMORY AND CMAKE_Fortran_COMPILER_ID STREQUAL "PGI" )

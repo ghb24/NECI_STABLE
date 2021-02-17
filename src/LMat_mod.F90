@@ -21,6 +21,10 @@ module LMat_mod
 #ifdef USE_HDF5_
     use hdf5
 #endif
+    use IntegralsData, only: t_use_tchint_lib
+#ifdef USE_TCHINT_
+    use tchint
+#endif
     implicit none
 
     ! actual objects storing the 6-index integrals
@@ -137,23 +141,36 @@ contains
     subroutine readLMat()
         use SystemData, only: nel
         character(255) :: tcdump_name
+        character(*), parameter :: t_r = "readLMat"
         ! we need at least three electrons to make use of the six-index integrals
         ! => for less electrons, this can be skipped
         if (nel <= 2) return
 
-        call initializeLMatPtrs()
-
-        if (tLMatCalc) then
-            call readLMatFactors()
+        if(t_use_tchint_lib) then
+#ifdef USE_TCHINT_
+          if(tHDF5LMat) then
+            call tchint_init("PC","HDF5")
+          else
+            call tchint_init("PC","ASCII")
+          endif
+#else
+          call stop_all(t_r, "Did not compile with TCHINT support")
+#endif
         else
+          call initializeLMatPtrs()
+
+          if (tLMatCalc) then
+            call readLMatFactors()
+          else
             ! now, read lmat from file
             if (tHDF5LMat) then
-                tcdump_name = "tcdump.h5"
+              tcdump_name = "tcdump.h5"
             else
-                tcdump_name = "TCDUMP"
+              tcdump_name = "TCDUMP"
             end if
             call lMat%read(trim(tcdump_name))
-        end if
+          end if
+        endif
 
     end subroutine readLMat
 
@@ -162,13 +179,38 @@ contains
     subroutine freeLMat()
         character(*), parameter :: t_r = "freeLMat"
 
+        if (t_use_tchint_lib) then
+#ifdef USE_TCHINT_
+          call tchint_finalize()
+#else
+          call stop_all(t_r, "Did not compile with TCHINT support")
+#endif
         if (tLMatCalc) then
             call freeLMatFactors()
         else
             ! These are always safe to call, regardless of allocation
             call LMat%dealloc()
-        end if
+          end if
+        endif
     end subroutine freeLMat
+
+    !------------------------------------------------------------------------------------------------!
+
+    function external_lMat_matel(nI, ex, par) result(matel)
+      integer, intent(in) :: nI(:)
+      integer, intent(in) :: ex(:,:)
+      logical, intent(in) :: par
+      HElement_t(dp) :: matel
+
+#ifdef USE_TCHINT_
+      matel = tc_matel(nI, ex, par)
+#else
+      character(*), parameter :: t_r = "external_lMat_matel"
+      call stop_all(t_r, "Did not compile with TCHINT support")
+#endif
+      
+    end function external_lMat_matel
+      
 
     !------------------------------------------------------------------------------------------------
     !functions for contact interaction

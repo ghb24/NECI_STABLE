@@ -368,6 +368,9 @@ contains
             case("POSTFREEZEHF")
                 tPostFreezeHF = .true.
 
+            case("TCHINT-LIB")
+                t_use_tchint_lib = .true.
+
             case("HDF5-INTEGRALS")
                 ! Read the 6-index integrals from an hdf5 file
                 tHDF5LMat = .true.
