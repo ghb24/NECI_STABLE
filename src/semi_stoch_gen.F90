@@ -2,7 +2,7 @@
 
 module semi_stoch_gen
 
-    use SystemData, only: tGUGA
+    use SystemData, only: tGUGA, nel
     use bit_rep_data, only: NIfD, NIfTot
     use bit_reps, only: decode_bit_det, nifguga
     use CalcData
@@ -381,7 +381,6 @@ contains
     end subroutine generate_space
 
     subroutine generate_sing_doub_guga(ilut_list, space_size, only_keep_conn)
-
         ! routine to generate the singles and doubles core space from the
         ! HF (or current reference determinant) used in the semi-stochastic
         ! code when GUGA is in use
