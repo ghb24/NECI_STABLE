@@ -126,7 +126,7 @@ contains
 
         t_input_guga = .true.
 
-        t_perms = .false.
+        t_perms = .true.
 
         if (t_input_lattice) then
             print *, "input lattice type: (chain,square,rectangle,tilted)"
@@ -418,7 +418,7 @@ contains
                     opt_spin_corr(nI))**2))
             end if
 
-            call stop_all("here", "for now")
+            ! call stop_all("here", "for now")
         end if
         if (t_perms) then
             open(iunit_read, file = 'permutations', status = 'old', action = 'read')
