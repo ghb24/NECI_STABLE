@@ -305,8 +305,8 @@ contains
         print *, "size hilbert: ", size(hilbert_space, 2)
         hamil = create_lattice_hamil_nI(hilbert_space)
 
-        print *, "hamil:"
-        call print_matrix(hamil)
+        ! print *, "hamil:"
+        ! call print_matrix(hamil)
 
 #ifndef CMPLX_
         call eig(hamil, e_orig, e_vecs)
@@ -333,11 +333,11 @@ contains
 
         call eig(hamil_onsite, e_values, e_vecs_right)
 
-        print *, "hamil on-site exact:"
-        call print_matrix(hamil_onsite)
-
-        print *, "hamil-hop exact:"
-        call print_matrix(hamil_hop)
+        ! print *, "hamil on-site exact:"
+        ! call print_matrix(hamil_onsite)
+        !
+        ! print *, "hamil-hop exact:"
+        ! call print_matrix(hamil_hop)
 
 
         print *, "onsite e_values correct?: "
@@ -842,7 +842,7 @@ contains
             write(J_str, *) J(i)
             filename = 'gs_vec_trans_J_' // trim(adjustl((J_str)))
 
-            hamil_hop = similarity_transform(hamil, J(i) * t_mat)
+            hamil_hop = similarity_transform(hamil, J(i) / 4.0 * t_mat)
 
             trans_corr_param = J(i)
 
@@ -896,8 +896,8 @@ contains
             gs_energy = e_values(ind)
             print *, "transformed ground-state energy: ", gs_energy
 
-            if (abs(gs_energy - gs_energy_orig) > 1.e-8) then
-                call stop_all("HERE!", "energy incorrect!")
+            if (abs(gs_energy - gs_energy_orig) > 1.e-6) then
+                call stop_all("HERE!", " hamil hop energy incorrect!")
             end if
             ! how do i need to access the vectors to get the energy?
             e_vec_hop(:,i) = e_vec(:,ind)
@@ -981,7 +981,7 @@ contains
             gs_energy_onsite = e_values(ind)
 
             if (abs(gs_energy_onsite - gs_energy_orig) > 1.e-8) then
-                call stop_all("HERE", "spin-transformed energy incorrect!")
+                call stop_all("HERE", "on-site energy incorrect!")
             end if
 
             gs_vec = abs(e_vec(:,ind))
@@ -1000,7 +1000,7 @@ contains
             hf_coeff_onsite(i) = gs_vec(1)
             e_vec_onsite(:,i) = e_vec(:,ind)
 
-            if (abs(gs_energy_orig - minval(neci_eval)) > 1.0e-8) then
+            if (abs(gs_energy_orig - minval(neci_eval)) > 1.0e-6) then
                 if (n_states < 20) then
                     print *, "hopping transformed NECI eigenvalue wrong"
                     print *, "basis: "
