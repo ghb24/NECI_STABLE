@@ -203,7 +203,7 @@ contains
       HElement_t(dp) :: matel
 
 #ifdef USE_TCHINT_
-      matel = tc_matel(nI, ex, par)
+      matel = tc_matel(nI, ex)
 #else
       character(*), parameter :: t_r = "external_lMat_matel"
       call stop_all(t_r, "Did not compile with TCHINT support")
