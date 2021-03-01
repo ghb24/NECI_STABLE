@@ -72,11 +72,11 @@ contains
         call h5screate_f(H5S_SCALAR_F, dataspace, err)
 
         ! Create the attribute with the correct type
-        call h5acreate_f(parent, nm, H5T_NATIVE_INTEGER_4, dataspace, &
+        call h5acreate_f(parent, nm, h5kind_to_type(int32, H5_INTEGER_KIND), dataspace, &
                          attribute, err)
 
         ! Write the data
-        call h5awrite_f(attribute, H5T_NATIVE_INTEGER_4, val, [1_hsize_t], err)
+        call h5awrite_f(attribute, h5kind_to_type(int32, H5_INTEGER_KIND), val, [1_hsize_t], err)
 
         ! Close the residual handles
         call h5aclose_f(attribute, err)
@@ -95,10 +95,10 @@ contains
         integer(int32), pointer :: ptr
 
         call h5screate_f(H5S_SCALAR_F, dataspace, err)
-        call h5acreate_f(parent, nm, H5T_NATIVE_INTEGER_8, dataspace, &
+        call h5acreate_f(parent, nm, h5kind_to_type(int64,H5_INTEGER_KIND), dataspace, &
                          attribute, err)
         call ptr_abuse_scalar(val, ptr)
-        call h5awrite_f(attribute, H5T_NATIVE_INTEGER_8, ptr, [1_hsize_t], err)
+        call h5awrite_f(attribute, h5kind_to_type(int64,H5_INTEGER_KIND), ptr, [1_hsize_t], err)
         call h5aclose_f(attribute, err)
         call h5sclose_f(dataspace, err)
 
@@ -126,7 +126,7 @@ contains
         if (exists_) then
             call h5aopen_f(parent, nm, attribute, err)
             call ptr_abuse_scalar(val, ptr)
-            call h5aread_f(attribute, H5T_NATIVE_INTEGER_8, ptr, &
+            call h5aread_f(attribute, h5kind_to_type(int64,H5_INTEGER_KIND), ptr, &
                            [1_hsize_t], err)
             call h5aclose_f(attribute, err)
         end if
@@ -178,9 +178,9 @@ contains
 
         dims = [size(val)]
         call h5screate_simple_f(1, dims, dataspace, err)
-        call h5acreate_f(parent, nm, H5T_NATIVE_REAL_8, dataspace, attribute, &
+        call h5acreate_f(parent, nm, h5kind_to_type(dp, H5_REAL_KIND), dataspace, attribute, &
                          err)
-        call h5awrite_f(attribute, H5T_NATIVE_REAL_8, val, dims, err)
+        call h5awrite_f(attribute, h5kind_to_type(dp, H5_REAL_KIND), val, dims, err)
         call h5aclose_f(attribute, err)
         call h5sclose_f(dataspace, err)
 
@@ -208,7 +208,7 @@ contains
             call h5aopen_f(parent, nm, attribute, err)
             dims = [size(val)]
             call check_attribute_params(attribute, nm, 8_hsize_t, H5T_FLOAT_F, dims)
-            call h5aread_f(attribute, H5T_NATIVE_REAL_8, val, dims, err)
+            call h5aread_f(attribute, h5kind_to_type(dp, H5_REAL_KIND), val, dims, err)
             call h5aclose_f(attribute, err)
         end if
 
@@ -234,9 +234,9 @@ contains
 
         ! Create a scalar dataspace, and dataset. Then write to it.
         call h5screate_f(H5S_SCALAR_F, dataspace, err)
-        call h5dcreate_f(parent, nm, H5T_NATIVE_REAL_8, dataspace, &
+        call h5dcreate_f(parent, nm, h5kind_to_type(dp, H5_REAL_KIND), dataspace, &
                          dataset, err)
-        if(iProcIndex.eq.0) call h5dwrite_f(dataset, H5T_NATIVE_REAL_8, val, [1_hsize_t], err)
+        if(iProcIndex.eq.0) call h5dwrite_f(dataset, h5kind_to_type(dp, H5_REAL_KIND), val, [1_hsize_t], err)
         call h5dclose_f(dataset, err)
         call h5sclose_f(dataspace, err)
 
@@ -260,7 +260,7 @@ contains
         call h5lexists_f(parent, nm, exists_, err)
         if (exists_) then
             call h5dopen_f(parent, nm, dataset, err)
-            call h5dread_f(dataset, H5T_NATIVE_REAL_8, val, [1_hsize_t], err)
+            call h5dread_f(dataset, h5kind_to_type(dp, H5_REAL_KIND), val, [1_hsize_t], err)
             if (err /= 0) &
                 call stop_all(t_r, 'Read error')
             call h5dclose_f(dataset, err)
@@ -298,9 +298,9 @@ contains
 
         ! Create a scalar dataspace, and dataset. Then write to it.
         call h5screate_f(H5S_SCALAR_F, dataspace, err)
-        call h5dcreate_f(parent, nm, H5T_NATIVE_INTEGER_4, dataspace, &
+        call h5dcreate_f(parent, nm, h5kind_to_type(int32, H5_INTEGER_KIND), dataspace, &
                          dataset, err)
-        if(iProcIndex.eq.0) call h5dwrite_f(dataset, H5T_NATIVE_INTEGER_4, tmp, [1_hsize_t], err)
+        if(iProcIndex.eq.0) call h5dwrite_f(dataset, h5kind_to_type(int32, H5_INTEGER_KIND), tmp, [1_hsize_t], err)
         call h5dclose_f(dataset, err)
         call h5sclose_f(dataspace, err)
 
@@ -339,7 +339,7 @@ contains
         call h5lexists_f(parent, nm, exists_, err)
         if (exists_) then
             call h5dopen_f(parent, nm, dataset, err)
-            call h5dread_f(dataset, H5T_NATIVE_INTEGER_4, tmp, [1_hsize_t], err)
+            call h5dread_f(dataset, h5kind_to_type(int32, H5_INTEGER_KIND), tmp, [1_hsize_t], err)
             if (err /= 0) &
                 call stop_all(t_r, 'Read error')
             if (tmp == 0) then
@@ -397,10 +397,10 @@ contains
 
         ! Create a scalar dataspace, and dataset. Then write to it.
         call h5screate_f(H5S_SCALAR_F, dataspace, err)
-        call h5dcreate_f(parent, nm, H5T_NATIVE_INTEGER_8, dataspace, &
+        call h5dcreate_f(parent, nm, h5kind_to_type(int64,H5_INTEGER_KIND), dataspace, &
                          dataset, err)
         call ptr_abuse_scalar(val, ptr)
-        if(iProcIndex.eq.0) call h5dwrite_f(dataset, H5T_NATIVE_INTEGER_8, ptr, [1_hsize_t], err)
+        if(iProcIndex.eq.0) call h5dwrite_f(dataset, h5kind_to_type(int64,H5_INTEGER_KIND), ptr, [1_hsize_t], err)
         call h5dclose_f(dataset, err)
         call h5sclose_f(dataspace, err)
 
@@ -436,7 +436,7 @@ contains
         if (exists_) then
             call h5dopen_f(parent, nm, dataset, err)
             call ptr_abuse_scalar(val, ptr)
-            call h5dread_f(dataset, H5T_NATIVE_INTEGER_8, ptr, [1_hsize_t], err)
+            call h5dread_f(dataset, h5kind_to_type(int64,H5_INTEGER_KIND), ptr, [1_hsize_t], err)
             if (err /= 0) &
                 call stop_all(t_r, 'Read error')
             call h5dclose_f(dataset, err)
@@ -493,12 +493,12 @@ contains
         call h5screate_simple_f(1, dims, dataspace, err)
 
         ! Create the dataset with the correct type
-        call h5dcreate_f(parent, nm, H5T_NATIVE_INTEGER_8, dataspace, &
+        call h5dcreate_f(parent, nm, h5kind_to_type(int64,H5_INTEGER_KIND), dataspace, &
                          dataset, err)
 
         ! write the data
         call ptr_abuse_1d(val, ptr)
-        if(iProcIndex.eq.0) call h5dwrite_f(dataset, H5T_NATIVE_INTEGER_8, ptr, dims, err)
+        if(iProcIndex.eq.0) call h5dwrite_f(dataset, h5kind_to_type(int64,H5_INTEGER_KIND), ptr, dims, err)
 
         ! Close the residual handles
         call h5dclose_f(dataset, err)
@@ -533,11 +533,11 @@ contains
         call h5screate_simple_f(1, dims, dataspace, err)
 
         ! Create the dataset with the correct type
-        call h5dcreate_f(parent, nm, H5T_NATIVE_REAL_8, dataspace, &
+        call h5dcreate_f(parent, nm, h5kind_to_type(dp, H5_REAL_KIND), dataspace, &
                          dataset, err)
 
         ! write the data
-        if(iProcIndex.eq.0) call h5dwrite_f(dataset, H5T_NATIVE_REAL_8, val, dims, err)
+        if(iProcIndex.eq.0) call h5dwrite_f(dataset, h5kind_to_type(dp, H5_REAL_KIND), val, dims, err)
 
         ! Close the residual handles
         call h5dclose_f(dataset, err)
@@ -660,9 +660,9 @@ contains
 
         ! Complex numbers are two 8-byte floating points long
         call h5tcreate_f(H5T_COMPOUND_F, 16_hsize_t, dtype, err)
-        call h5tinsert_f(dtype, "real", 0_hsize_t, H5T_NATIVE_REAL_8, err)
-        call h5tinsert_f(dtype, "real", 0_hsize_t, H5T_NATIVE_REAL_8, err)
-        call h5tinsert_f(dtype, "imag", 8_hsize_t, H5T_NATIVE_REAL_8, err)
+        call h5tinsert_f(dtype, "real", 0_hsize_t, h5kind_to_type(dp, H5_REAL_KIND), err)
+        call h5tinsert_f(dtype, "real", 0_hsize_t, h5kind_to_type(dp, H5_REAL_KIND), err)
+        call h5tinsert_f(dtype, "imag", 8_hsize_t, h5kind_to_type(dp, H5_REAL_KIND), err)
 
     end subroutine
 
@@ -904,7 +904,7 @@ contains
         call h5aexists_f(parent, nm, exists_, err)
         if (exists_) then
             call h5aopen_f(parent, nm, attribute, err)
-            call h5aread_f(attribute, H5T_NATIVE_INTEGER_4, val, &
+            call h5aread_f(attribute, h5kind_to_type(int32, H5_INTEGER_KIND), val, &
                            [1_hsize_t], err)
             call h5aclose_f(attribute, err)
         end if

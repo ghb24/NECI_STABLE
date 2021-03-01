@@ -712,7 +712,7 @@ contains
         integer(hsize_t), intent(out) :: nInts
 
         integer :: proc, i
-        integer(hid_t) :: err
+        integer :: err
         integer(hsize_t) :: rest
         integer(hsize_t), allocatable :: counts(:)
         integer(MPIArg) :: procs_per_node, ierr
@@ -791,13 +791,13 @@ contains
 
             ! read in the data
             call read_2d_multi_chunk( &
-                this%ds_vals, entries, H5T_NATIVE_REAL_8, &
+                this%ds_vals, entries, h5kind_to_type(dp,H5_REAL_KIND), &
                 [1_hsize_t, this_blocksize], &
                 [0_hsize_t, blockstart], &
                 [0_hsize_t, 0_hsize_t])
 
             call read_2d_multi_chunk( &
-                this%ds_inds, indices, H5T_NATIVE_INTEGER_8, &
+                this%ds_inds, indices, h5kind_to_type(int64,H5_INTEGER_KIND), &
                 [6_hsize_t, this_blocksize], &
                 [0_hsize_t, blockstart], &
                 [0_hsize_t, 0_hsize_t])
@@ -840,7 +840,7 @@ contains
     !> Close the currently opened hdf5 file - requires a previous call to open()
     subroutine close(this)
         class(lMat_hdf5_read_t) :: this
-        integer(hid_t) :: err
+        integer :: err
         call h5dclose_f(this%ds_vals, err)
         call h5dclose_f(this%ds_inds, err)
         ! close the file, finalize hdf5
