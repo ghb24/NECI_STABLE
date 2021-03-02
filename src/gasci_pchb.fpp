@@ -678,11 +678,11 @@ contains
                     * 3_int64 &
                     * (int(abMax, int64) * 3_int64 * 8_int64)
 
-        call this%pchb_samplers%shared_alloc([ijMax, 3, size(supergroups, 2)], abMax)
         write(iout, *) "Excitation generator requires", real(memCost, dp) / 2.0_dp**30, "GB of memory"
         write(iout, *) "The number of supergroups is", size(supergroups, 2)
         write(iout, *) "Generating samplers for PCHB excitation generator"
         write(iout, *) "Depending on the number of supergroups this can take up to 10min."
+        call this%pchb_samplers%shared_alloc([ijMax, 3, size(supergroups, 2)], abMax)
         ! weights per pair
         allocate(w(abMax))
         ! initialize the three samplers
