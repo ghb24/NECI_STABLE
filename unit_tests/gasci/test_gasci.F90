@@ -97,8 +97,6 @@ contains
 
     subroutine test_get_orb_idx
         type(LocalGASSpec_t) :: GAS_spec
-        integer :: i, iGAS
-        integer, allocatable :: splitted(:, :), splitted_sizes(:)
         GAS_spec = LocalGASSpec_t(n_min=[2, 2], n_max=[2, 2], spat_GAS_orbs=[1, 1, 2, 2])
 
         call assert_equals(GAS_spec%get_orb_idx([1, 2], 1), [1, 2], 2)
@@ -116,9 +114,7 @@ program test_gasci_program
         test_contains_det, test_particles_per_GAS, test_get_orb_idx
 
     implicit none
-    integer :: failed_count, err
-
-    integer :: n
+    integer :: failed_count
     block
 
         call MPIInit(.false.)

@@ -1006,21 +1006,14 @@ contains
             return
         end if
 
-        ! Find the first index, where a particle has to be created.
-        do iGAS = 1, self%nGAS()
-            if (deficit(iGAS) == n_total_) exit
-        end do
-        upper_bound = iGAS
-
         ! We assume that it is possible to create a particle at least in
         ! the last GAS space.
         ! Search from behind the first occurence where it is not possible
         ! anymore to create a particle.
         ! The lower bound is one GAS index above.
-        do iGAS = self%nGAS(), 1, -1
-            if (vacant(iGAS) <= 0) exit
-        end do
-        lower_bound = iGAS + 1
+        lower_bound = custom_findloc(vacant <= 0, .true., back=.true.) + 1
+        ! Find the first index, where a particle has to be created.
+        upper_bound = custom_findloc(deficit, n_total_)
 
         if (lower_bound > upper_bound .or. lower_bound > self%nGAS()) then
             spaces = [integer :: ]
