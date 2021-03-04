@@ -67,7 +67,7 @@ module gasci_pchb
     public :: GAS_PCHB_ExcGenerator_t, use_supergroup_lookup, GAS_doubles_PCHB_ExcGenerator_t, &
         possible_GAS_singles, GAS_PCHB_singles_generator
 
-    logical :: use_supergroup_lookup = .true.
+    logical, parameter :: use_supergroup_lookup = .true.
 
     ! there are three pchb_samplers for each supergroup:
     ! 1 - same-spin case
