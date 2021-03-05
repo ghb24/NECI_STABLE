@@ -138,40 +138,43 @@ contains
     ! Six-index integral I/O functions
     !------------------------------------------------------------------------------------------!
 
+    subroutine setup_tchint_ints()
+      character(*), parameter :: t_r = "setup_tchint_ints"
+      if(t_use_tchint_lib) then      
+#ifdef USE_TCHINT_
+        if(tHDF5LMat) then
+          call tchint_init("PC","HDF5")
+        else
+          call tchint_init("PC","ASCII")
+        endif
+#else
+        call stop_all(t_r, "Did not compile with TCHINT support")
+#endif
+      end if
+    end subroutine setup_tchint_ints
+
     subroutine readLMat()
         use SystemData, only: nel
         character(255) :: tcdump_name
-        character(*), parameter :: t_r = "readLMat"
         ! we need at least three electrons to make use of the six-index integrals
         ! => for less electrons, this can be skipped
         if (nel <= 2) return
 
-        if(t_use_tchint_lib) then
-#ifdef USE_TCHINT_
-          if(tHDF5LMat) then
-            call tchint_init("PC","HDF5")
-          else
-            call tchint_init("PC","ASCII")
-          endif
-#else
-          call stop_all(t_r, "Did not compile with TCHINT support")
-#endif
+        if(t_use_tchint_lib) return
+        
+        call initializeLMatPtrs()
+
+        if (tLMatCalc) then
+          call readLMatFactors()
         else
-          call initializeLMatPtrs()
-
-          if (tLMatCalc) then
-            call readLMatFactors()
+          ! now, read lmat from file
+          if (tHDF5LMat) then
+            tcdump_name = "tcdump.h5"
           else
-            ! now, read lmat from file
-            if (tHDF5LMat) then
-              tcdump_name = "tcdump.h5"
-            else
-              tcdump_name = "TCDUMP"
-            end if
-            call lMat%read(trim(tcdump_name))
+            tcdump_name = "TCDUMP"
           end if
-        endif
-
+          call lMat%read(trim(tcdump_name))
+        end if
     end subroutine readLMat
 
     !------------------------------------------------------------------------------------------!
@@ -196,10 +199,9 @@ contains
 
     !------------------------------------------------------------------------------------------------!
 
-    function external_lMat_matel(nI, ex, par) result(matel)
+    function external_lMat_matel(nI, ex) result(matel)
       integer, intent(in) :: nI(:)
       integer, intent(in) :: ex(:,:)
-      logical, intent(in) :: par
       HElement_t(dp) :: matel
 
 #ifdef USE_TCHINT_

@@ -1102,7 +1102,7 @@ contains
             end if
 
             call reorder_handler%init_gdata_io(tAutoAdaptiveShift, tScaleBlooms, tAccumPopsActive, &
-                                               2 * inum_runs, 1, lenof_sign + 1)
+              2 * inum_runs, 1, lenof_sign + 1)
             ! we need to reorder the adaptive shift data, too
             ! the maximally required buffer size is the current size of the
             ! determinant list plus the size of the semi-stochastic space (in case

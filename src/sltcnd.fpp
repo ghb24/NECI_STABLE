@@ -524,7 +524,7 @@ contains
         hel = sltcnd_0_base(nI, exc)
         ! then add the 3-body part
         if(t_use_tchint_lib) then
-          hel = hel + external_lMat_matel(nI, dummy, .false.)
+          hel = hel + external_lMat_matel(nI, dummy)
         else
           do i = 1, nel - 2
             do j = i + 1, nel - 1
@@ -548,7 +548,7 @@ contains
 
         ! then add the 3-body correction
         if(t_use_tchint_lib) then
-          hel = hel + external_lMat_matel(nI, reshape(ex%val,(/2,1/)), tSign)
+          hel = hel + external_lMat_matel(nI, reshape(ex%val,(/2,1/)))
         else          
           do i = 1, nel - 1
             do j = i + 1, nel
@@ -573,7 +573,7 @@ contains
         hel = sltcnd_2_kernel(exc)
 
         if(t_use_tchint_lib) then
-          hel = hel + external_lMat_matel(nI, exc%val, tSign)
+          hel = hel + external_lMat_matel(nI, exc%val)
         else
           ! and the 3-body term
           associate(src1 => exc%val(1, 1), tgt1 => exc%val(2, 1), &
@@ -599,7 +599,7 @@ contains
 
         ! this is directly the fully symmetrized entry of the L-matrix
         if(t_use_tchint_lib) then
-          hel = external_lMat_matel(dummy, ex, tSign)
+          hel = external_lMat_matel(dummy, ex)
         else
           hel = get_lmat_el(ex(1, 1), ex(1, 2), ex(1, 3), ex(2, 1), ex(2, 2), ex(2, 3))
         endif
