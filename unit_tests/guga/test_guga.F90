@@ -20,6 +20,7 @@ program test_guga
     use guga_types
     use guga_init
     use guga_procedure_pointers
+    use guga_plugin, only: init_guga_plugin
     use guga_rdm, only: calc_all_excits_guga_rdm_singles, calc_explicit_1_rdm_guga, &
                         calc_explicit_diag_2_rdm_guga, calc_explicit_2_rdm_guga, &
                         combine_x0_x1, &
@@ -39,20 +40,8 @@ program test_guga
     use util_mod, only: operator(.isclose.), near_zero, operator(.div.), &
                         binary_search
     use sort_mod, only: sort
-    use Integrals_neci, only: get_umat_el_normal
-    use procedure_pointers, only: get_umat_el
-    use read_fci, only: initfromfcid, fcidump_name, readfciint
-    use UMatCache, only: tTransGTID, GetUMatSize, tumat2d, umat2d, tdeferred_umat2d
-    use Parallel_neci, only: MPIInit
-    use Calc, only: SetCalcDefaults, CalcInit
-    use System, only: SetSysDefaults, SysInit
-    use OneEInts, only: TMat2d
-    use shared_memory_mpi, only: shared_allocate_mpi
-    use IntegralsData, only: umat_win, umat
-    use DetCalc, only: DetCalcInit
     use unit_test_helper_excitgen, only: generate_uniform_integrals
     use rdm_data_utils, only: calc_combined_rdm_label, calc_separate_rdm_labels
-    use LoggingData, only: tRDMonfly, tExplicitAllRDM
 
     implicit none
 
@@ -775,70 +764,12 @@ contains
 
     subroutine init_guga_testsuite
 
-        integer(int64) :: umatsize
         integer :: nBasisMax(5,3), lms, stot
         real(dp) :: ecore
 
-        umatsize = 0
-        nel = 4
-        nbasis = 8
-        nSpatOrbs = 4
-        stot = 0
-        lms = 0
-        tGUGA = .true.
-
-        tRDMonfly = .true.
-        tFillingStochRDMOnFly = .true.
-        call init_bit_rep()
+        call init_guga_plugin(t_testmode_ = .true., nel_ = 4, nbasis_ = 8, &
+          nSpatOrbs_ = 4)
         t_full_guga_tests = .true.
-
-        tGen_sym_guga_mol = .true.
-        tgen_guga_weighted = .true.
-        tdeferred_umat2d = .true.
-        tumat2d = .false.
-
-        ! set this to false before the init to setup all the ilut variables
-        tExplicitAllRDM = .false.
-
-        call init_guga()
-
-        fcidump_name = "FCIDUMP"
-        UMatEps = 1.0e-8
-        tStoreSpinOrbs = .false.
-        tTransGTID = .false.
-        tReadFreeFormat = .true.
-
-        call MPIInit(.false.)
-
-        call dSFMT_init(8)
-
-        call SetCalcDefaults()
-        call SetSysDefaults()
-        tReadInt = .true.
-
-        call generate_uniform_integrals()
-
-        get_umat_el => get_umat_el_normal
-
-        call initfromfcid(nel,nbasismax,nBasis,lms,.false.)
-
-        call GetUMatSize(nBasis, umatsize)
-
-        allocate(TMat2d(nBasis,nBasis))
-
-        call shared_allocate_mpi(umat_win, umat, (/umatsize/))
-
-        call readfciint(UMat,umat_win,nBasis,ecore,.false.)
-        call SysInit()
-        ! required: set up the spin info
-
-        call DetInit()
-        call DetCalcInit()
-        ! call SpinOrbSymSetup()
-
-        call DetPreFreezeInit()
-
-        call CalcInit()
 
     end subroutine init_guga_testsuite
 
