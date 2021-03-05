@@ -227,7 +227,7 @@ set( SRC_FILES
     lib/soft_exit.F90
     lib/timing.F90
     lib/util_mod_fmt.F90
-    lib/fortran_strings.f90
+    lib/fortran_strings.F90
     lib/matrix_util.F90
     lib/display_matrices.F90
     lib/binomial_lookup.F90
