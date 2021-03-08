@@ -212,6 +212,7 @@ contains
     integer, intent(inout), optional :: nCalls
 
     integer :: ObjectSizeBytes,ismallloc(1)
+    character(*), parameter :: this_routine = 'LogMemAlloc'
     external :: warning_neci
     if (present(nCalls)) nCalls=nCalls+1
 
@@ -232,8 +233,8 @@ contains
     end if
 
     if (present(err)) then
-        if (err.ne.0) then
-            call Warning_neci('LogMemAlloc','Possible failure to allocate array '//ObjectName//' in '//AllocRoutine)
+        if (err /= 0) then
+            call stop_all(this_routine, 'Failure to allocate array '//ObjectName//' in '//AllocRoutine)
         end if
     end if
 

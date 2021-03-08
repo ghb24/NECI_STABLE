@@ -95,9 +95,9 @@ contains
       call mpi_win_allocate_shared(wsize,int(%(sizeb)s,MPIArg),MPI_INFO_NULL,mpi_comm_intra,&
            cptr_shm,win_shm,ierr_)
 
+      if (present(ierr)) ierr = int(ierr_)
       if (ierr_ /= MPI_SUCCESS) then
          if (present(ierr)) then
-             ierr = int(ierr_)
              return
          else
              call mpi_error_class(ierr_, errorclass, jerr)
@@ -108,9 +108,9 @@ contains
 
       call mpi_win_shared_query(win_shm,0_MPIArg,wsize,disp_unit,cptr_shm,ierr_)
 
+      if (present(ierr)) ierr = int(ierr_)
       if (ierr_ /= MPI_SUCCESS) then
          if (present(ierr)) then
-             ierr = int(ierr_)
              return
          else
              call mpi_error_class(ierr_, errorclass, jerr)
@@ -125,9 +125,9 @@ contains
       !start read/write epoch for this window
       call mpi_win_lock_all(MPI_MODE_NOCHECK,win_shm,ierr_)
 
+      if (present(ierr)) ierr = int(ierr_)
       if (ierr_ /= MPI_SUCCESS) then
          if (present(ierr)) then
-             ierr = int(ierr_)
              return
          else
              call mpi_error_class(ierr_, errorclass, jerr)
@@ -152,9 +152,9 @@ contains
 #ifdef SHARED_MEM_
       nullify(p_shm)
       call mpi_win_unlock_all(win_shm, ierr_)
+      if (present(ierr)) ierr = int(ierr_)
       if (ierr_ /= MPI_SUCCESS) then
          if (present(ierr)) then
-             ierr = int(ierr_)
              return
          else
              call mpi_error_class(ierr_, errorclass, jerr)
@@ -163,9 +163,9 @@ contains
          end if
       endif
       call mpi_win_free(win_shm, ierr_)
+      if (present(ierr)) ierr = int(ierr_)
       if (ierr_ /= MPI_SUCCESS) then
          if (present(ierr)) then
-             ierr = int(ierr_)
              return
          else
              call mpi_error_class(ierr_, errorclass, jerr)
@@ -193,9 +193,9 @@ contains
       character(*), parameter :: this_routine = 'shared_sync_mpi'
 
       call mpi_win_sync(win_shm, ierr_)
+      if (present(ierr)) ierr = int(ierr_)
       if (ierr_ /= MPI_SUCCESS) then
          if (present(ierr)) then
-             ierr = int(ierr_)
              return
          else
              call mpi_error_class(ierr_, errorclass, jerr)
@@ -204,9 +204,9 @@ contains
          end if
       endif
       call mpi_barrier(mpi_comm_intra, ierr_)
+      if (present(ierr)) ierr = int(ierr_)
       if (ierr_ /= MPI_SUCCESS) then
          if (present(ierr)) then
-             ierr = int(ierr_)
              return
          else
              call mpi_error_class(ierr_, errorclass, jerr)

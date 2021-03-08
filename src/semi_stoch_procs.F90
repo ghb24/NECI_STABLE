@@ -655,11 +655,11 @@ contains
         allocate(sizes_per_node(0:num_nodes - 1))
 
         call shared_allocate_mpi(rep%core_space_win, rep%core_space_direct, &
-                                 (/int(1 + NIfTot, int64), int(rep%determ_space_size, int64)/), ierr)
+                                 [int(1 + NIfTot, int64), int(rep%determ_space_size, int64)], ierr)
         ! Convert from 1-based first dimension to 0-based first dimension as used in iluts
         rep%core_space(0:, 1:) => rep%core_space_direct(1:, 1:)
         call LogMemAlloc('core_space', maxval(rep%determ_sizes) * (NIfTot + 1), 8, t_r, &
-                         rep%CoreSpaceTag, ierr)
+                         rep%CoreSpaceTag, err=ierr)
         if (iProcIndex_intra == 0) rep%core_space = 0_n_int
 
         ! Write the core-space on this node into core_space
