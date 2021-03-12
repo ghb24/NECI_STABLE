@@ -324,22 +324,6 @@ contains
             end do
         end if
 
-        !Below is a mistake - since ISPINS is always two, it will be doubled up for us automatically for G1
-!         if(tMolpro.and.tUHF) then
-!             !Double up the arrays to take into account both spins
-!             do i=NORB*2,1,-1
-!                 if(mod(i,2).eq.0) then
-!                     ORBSYM(i)=ORBSYM(i/2)
-!                     SYML(i)=SYML(i/2)
-!                     SYMLZ(i)=SYMLZ(i/2)
-!                 else
-!                     ORBSYM(i)=ORBSYM((i+1)/2)
-!                     SYML(i)=SYML((i+1)/2)
-!                     SYMLZ(i)=SYMLZ((i+1)/2)
-!                 end if
-!             end do
-!         end if
-
         !For Molpro, ISPINS should always be 2, and therefore NORB is spatial, and len is spin orbtials
         IF (LEN /= ISPINS * NORB) call stop_all(t_r, 'LEN .NE. NORB in GETFCIBASIS')
         G1(1:LEN) = NullBasisFn
@@ -986,16 +970,8 @@ contains
             write(6, *) "Ordering cache..."
             CALL FillUpCache()
             DEallocate(CacheInd)
-!             CALL DumpUMatCache()
-!             do i=1,norb
-!                 write(iunit,*) UMAT2D(:,i)
-!             end do
         end if
-!.. If we've changed the eigenvalues, we write out the basis again
-!         IF(LWRITE) THEN
-!            write(6,*) "1-electron energies have been read in."
-!            CALL WRITEBASIS(6,G1,NBASIS,ARR,BRR)
-!         end if
+
         RETURN
     END SUBROUTINE READFCIINT
 
