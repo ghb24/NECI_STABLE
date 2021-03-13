@@ -517,9 +517,11 @@ contains
         mat_ele = h_cast(0.0_dp)
 
 #ifdef DEBUG_
-        if (present(rdm_ind) .or. present(rdm_mat)) then
-            ASSERT(present(rdm_ind))
+        if (present(rdm_ind)) then
             ASSERT(present(rdm_mat))
+        end if
+        if (present(rdm_mat)) then
+            ASSERT(present(rdm_ind))
         end if
 #endif
 
@@ -534,7 +536,8 @@ contains
 
             ! should not be here for RDMs or?
             ! otherwise I have to change smth here
-            ASSERT(.not. present(rdm_ind))
+            ! print *, "3"
+            ! ASSERT(.not. present(rdm_ind))
             return
         end if
 
@@ -548,22 +551,29 @@ contains
         ! excitation types which are definetly 0
         ! i could do that more efficiently if we identify it already
         ! earlier but for now do it here!
-        if (tHub .or. t_new_hubbard) then
-            if (treal .or. t_new_real_space_hubbard) then
-                ! only singles in the real-space hubbard!
-                if (excitInfo%typ /= excit_type%single) return
-            else
-                ! only double excitations in the momentum-space hubbard!
-                if (excitInfo%typ == excit_type%single) return
+        if (t_hamil) then
+            ! make this check only if we want the hamiltonian matrix
+            ! element. for general coupling coefficients (eg. for RDMs)
+            ! i do need this contributions anyway
+            if (tHub .or. t_new_hubbard) then
+                if (treal .or. t_new_real_space_hubbard) then
+                    ! only singles in the real-space hubbard!
+                    if (excitInfo%typ /= excit_type%single) return
+                else
+                    ! only double excitations in the momentum-space hubbard!
+                    if (excitInfo%typ == excit_type%single) return
+                end if
             end if
+
+            ! make the adjustment for the Heisenberg model
+            if (t_heisenberg_model &
+                .and. excitInfo%typ /= excit_type%fullstart_stop_mixed) return
+
+            if (t_tJ_model .and. &
+                (.not. (excitInfo%typ == excit_type%single &
+                 .or. excitInfo%typ == excit_type%fullstart_stop_mixed))) &
+                return
         end if
-
-        ! make the adjustment for the Heisenberg model
-        if (t_heisenberg_model .and. excitInfo%typ /= excit_type%fullstart_stop_mixed) return
-
-        if (t_tJ_model .and. (.not. (excitInfo%typ == excit_type%single &
-                                     .or. excitInfo%typ == excit_type%fullstart_stop_mixed))) &
-            return
 
         ! depending on the type of usage i have to init some csf information
         select case (calc_type)
