@@ -49,7 +49,7 @@ module sltcnd_mod
               ! dynamically known
               dyn_sltcnd_excit_old, dyn_sltcnd_excit, &
               sltcnd_compat, sltcnd, sltcnd_knowIC, &
-              CalcFockOrbEnergy, sumfock
+              CalcFockOrbEnergy, sumfock, sltcnd_0_base, sltcnd_0_tc
 
 !>  @brief
 !>      Evaluate Matrix Element for different excitations

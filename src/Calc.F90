@@ -10,7 +10,8 @@ MODULE Calc
                           nholes, UMATEPS, tHub, t_lattice_model, t_tJ_model, &
                           t_new_real_space_hubbard, t_heisenberg_model, &
                           t_k_space_hubbard, tHPHF, t_non_hermitian, &
-                          tGUGA, t_mixed_hubbard, t_olle_hubbard
+                          tGUGA, t_mixed_hubbard, t_olle_hubbard, &
+                          t_3_body_excits
     use Determinants, only: write_det
     use default_sets
     use Determinants, only: iActiveBasis, SpecDet, tSpecDet, nActiveSpace, &
@@ -1494,7 +1495,7 @@ contains
                 !a second shift damping parameter SftDamp2 to avoid overshooting the
                 !target population.
                 tTargetShiftdamp = .true.
-                if (item < nitems) then 
+                if (item < nitems) then
                     call getf(SftDamp2)
                 else
                     !If no value for SftDamp2 is chosen, it is automatically set
@@ -3516,12 +3517,14 @@ contains
         use hilbert_space_size, only: FindSymSizeofSpace, FindSymSizeofTruncSpace
         use hilbert_space_size, only: FindSymMCSizeofSpace, FindSymMCSizeExcitLevel
         use global_utilities
-        use sltcnd_mod, only: initSltCndPtr
+        use sltcnd_mod, only: initSltCndPtr, sltcnd_0_base, sltcnd_0_tc
+        use excitation_types, only: NoExc_t
         real(dp) CalcT, CalcT2, GetRhoEps
 
         INTEGER I, IC, J, norb
         INTEGER nList
         HElement_t(dp) HDiagTemp
+        type(NoExc_t) :: NoExc
         character(*), parameter :: this_routine = 'CalcInit'
 
         !Checking whether we have large enoguh basis for ultracold atoms and
@@ -3614,6 +3617,13 @@ contains
             HDiagTemp = get_helement(fDet, fDet, 0)
             write(6, *) '<D0|H|D0>=', real(HDiagTemp, dp)
             write(6, *) '<D0|T|D0>=', CALCT(FDET, NEL)
+            if (t_3_body_excits) then
+                write(6, *) "<D0|U|D0>", sltcnd_0_base(fdet, NoExc) - calct(fdet,nel)
+                write(6, *) "<D0|L|D0>", sltcnd_0_tc(fdet, NoExc) - sltcnd_0_base(fdet,NoExc)
+            else
+                write(6, *) "<D0|U|D0>", real(HDiagTemp,dp) - calct(fdet, nel)
+            end if
+
 
             IF(TUEG) THEN
 !  The actual KE rather than the one-electron part of the Hamiltonian
