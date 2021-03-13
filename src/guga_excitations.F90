@@ -8310,7 +8310,7 @@ contains
                     call getMixedFullStop(step, step, 0, currentB_ilut(i), &
                                           x1_element=end_mat)
 
-                    if (near_zero(orb_pgen)) then
+                    if (near_zero(orb_pgen) .and. (.not. rdm_flag)) then
                         ! still have to update the switches before cycling
                         ! update the switches
                         if (current_stepvector(i) == 1) then
@@ -8464,7 +8464,7 @@ contains
 
                 ! dont i still have to atleast update the matrix element
                 ! even if the orbital pgen is 0??
-                if (near_zero(orb_pgen)) cycle
+                if (near_zero(orb_pgen) .and. (.not. rdm_flag)) cycle
 
                 if (.not. near_zero(end_mat)) then
 
@@ -8536,7 +8536,7 @@ contains
             call calc_orbital_pgen_contrib_end([2 * elecInd, 2 * sw], holeInd, &
                                                orb_pgen)
 
-            if (.not. near_zero(orb_pgen)) then
+            if (.not. near_zero(orb_pgen) .or. rdm_flag) then
 
                 step = current_stepvector(sw)
 
@@ -11377,7 +11377,7 @@ contains
                                             1.0_dp, x1_element=stay_mat)
 
                 ! check if orb_pgen is non-zero
-                if (near_zero(orb_pgen)) then
+                if (near_zero(orb_pgen) .and. (.not. rdm_flag)) then
                     ! still have to update matrix element, even if 0 pgen
                     mat_ele = mat_ele * stay_mat
 
@@ -11503,7 +11503,7 @@ contains
                 ! still have to update matrix element in this case..
                 ! so do the cycle only afterwards..
 
-                if (near_zero(orb_pgen)) cycle
+                if (near_zero(orb_pgen) .and. (.not. rdm_flag)) cycle
 
                 ! and also get starting contribution
                 call getDoubleMatrixElement(step, step, -1, gen_type%L, gen_type%R, currentB_ilut(i), &
@@ -11565,7 +11565,7 @@ contains
                 call calc_orbital_pgen_contrib_start([2 * sw, 2 * elecInd], holeInd, &
                                                      orb_pgen)
 
-                if (.not. near_zero(orb_pgen)) then
+                if (.not. near_zero(orb_pgen) .or. rdm_flag) then
 
                     step = current_stepvector(sw)
 

@@ -107,6 +107,14 @@ contains
                 pickOrbitals_single => pickOrbs_real_hubbard_single
                 pickOrbitals_double => pickOrbs_real_hubbard_double
                 ! what about the contributions? do i need dummy functions?
+                ! i do need these for the exact RDM contributions...
+                ! atleast as dummies..
+                calc_mixed_start_l2r_contr => calc_mixed_start_contr_sym
+                calc_mixed_start_r2l_contr => calc_mixed_start_contr_sym
+                calc_mixed_end_l2r_contr => calc_mixed_end_contr_sym
+                calc_mixed_end_r2l_contr => calc_mixed_end_contr_sym
+                calc_mixed_contr => calc_mixed_contr_sym
+
             end if
 
         else if (tGen_sym_guga_mol) then
