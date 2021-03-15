@@ -543,34 +543,38 @@ contains
         write (iunit,*) ''
     end if
     write (iunit,*) 'Name              Allocated in       Deallocated in         Size'
-    write (iunit,*) '- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - '
+    write (iunit,*) '- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -'
     return
     end subroutine WriteMemLogHeader
 
 
 
-    subroutine WriteMemSize(iunit,MemSize)
-    ! Write out a human-readable amount of memory.  MemSize is in bytes.
-    implicit none
-    integer, intent(in) :: iunit
-    integer(int64), intent(in) :: MemSize
-    character(len=*), parameter :: fmt1='(f6.1,a2)'
-    character(len=*), parameter :: fmt2='(i7,a1)'
-    if (MemUnitsBytes) then
-        if (MemSize.gt.1024**2) then
-            ! output in MB.
-            write (iunit,fmt1) real(MemSize,dp)/1024**2,'MB'
-        else if (MemSize.gt.1024) then
-            ! output in KB.
-            write (iunit,fmt1) real(MemSize,dp)/1024,'KB'
+    subroutine WriteMemSize(iunit, MemSize)
+        ! Write out a human-readable amount of memory.  MemSize is in bytes.
+        implicit none
+        integer, intent(in) :: iunit
+        integer(int64), intent(in) :: MemSize
+        character(len=*), parameter :: fmt1='(f6.1, a2)'
+        character(len=*), parameter :: fmt2='(i7, a1)'
+        if (MemUnitsBytes) then
+            if (MemSize < 1024) then
+                ! output in KB.
+                write (iunit, fmt1) real(MemSize, dp) / 1024, 'KB'
+            else if (MemSize < 1024**2) then
+                ! output in MB.
+                write (iunit, fmt1) real(MemSize, dp) / 1024**2, 'MB'
+            else if (MemSize < 1024**3) then
+                ! output in GB.
+                write (iunit, fmt1) real(MemSize, dp) / 1024**3, 'GB'
+            else if (MemSize < 1024**4) then
+                ! output in GB.
+                write (iunit, fmt1) real(MemSize, dp) / 1024**4, 'TB'
+            else
+                write (iunit, '(A)') '> 1 PB'
+            end if
         else
-            ! output in bytes.
-            write (iunit,fmt2) MemSize,'B'
+            write (iunit, fmt2) MemSize / 8, 'W'
         end if
-    else
-        write (iunit,fmt2) MemSize/8,'W'
-    end if
-    return
     end subroutine WriteMemSize
 
 
