@@ -17,3 +17,14 @@ subroutine diag_matel(nel, nI, matel)
 
     matel = guga_matel(nI,nI)
 end subroutine diag_matel
+
+!> Run a full neci calculation with a given permuation of orbitals
+!! and return the reference weight
+subroutine run_neci(norb, perm, weight)
+    use FciMCData, only: fciqmc_run_ref_weight
+    integer, intent(in) :: norb, perm(norb)
+#include "NECICore.h"
+    
+    call NECICore(0, .false., .false., .true.)
+    weight = fciqmc_run_ref_weight    
+end subroutine run_neci

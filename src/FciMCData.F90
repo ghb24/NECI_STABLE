@@ -665,4 +665,7 @@ MODULE FciMCData
 
     logical :: t_global_core_space = .true.
 
+    ! Stores the reference weight of the last run
+    real(dp) :: fciqmc_run_ref_weight
+
 end module FciMCData
