@@ -63,7 +63,9 @@ module semi_stoch_procs
 
     use adi_data, only: tSignedRepAv
 
-    use global_det_data, only: readFVals, readAPVals
+    use global_det_data, only: set_supergroup_idx
+    
+    use gasci_supergroup_index, only: lookup_supergroup_indexer
 
     use LoggingData, only: tAccumPopsActive
 
@@ -1042,7 +1044,7 @@ contains
             end do
         end associate
         call sort(CurrentDets(:, 1:nwalkers), ilut_lt, ilut_gt)
-
+        
         TotWalkers = int(nwalkers, int64)
 
     end subroutine add_core_states_currentdets
@@ -1186,6 +1188,16 @@ contains
             ! Re-assign the reordered global det data cached in gdata_buf
             call reorder_handler%read_gdata(gdata_buf, nwalkers)
 
+            ! After reordering the dets, we have to reset all supergroup
+            ! idx in the global_det_data
+            if (associated(lookup_supergroup_indexer)) then
+                do i = 1, nwalkers
+                    call decode_bit_det(nI, CurrentDets(:, i))
+                    call set_supergroup_idx(&
+                        i, lookup_supergroup_indexer%idx_nI(nI))
+                end do
+            end if
+            
             call clear_hash_table(HashIndex)
 
             ! Finally, add the indices back into the hash index array.

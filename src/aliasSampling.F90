@@ -475,6 +475,7 @@ contains
     !> @param[in] entry_size number of values per sampler
     subroutine setupSamplerArray_3D(this, dims, entry_size)
         class(AliasSampler_3D_t), intent(inout) :: this
+        ! NOTE: We might have to change dims and entry_size to int64 in the near future... :-(
         integer, intent(in) :: dims(3), entry_size
 
         integer :: i, j, k
@@ -484,7 +485,7 @@ contains
 
         ! all entries in the array use the same shared memory window, just different
         ! portions of it
-        total_size = entry_size * product(dims)
+        total_size = entry_size * product(int(dims, kind=int64))
         call this%allProbs%shared_alloc(total_size)
         call this%allBiasTable%shared_alloc(total_size)
         call this%allAliasTable%shared_alloc(total_size)

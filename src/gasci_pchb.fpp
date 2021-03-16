@@ -54,7 +54,7 @@ module gasci_pchb
 
     use gasci, only: GASSpec_t
     use gasci_general, only: GAS_singles_heat_bath_ExcGen_t
-    use gasci_util, only: get_available_singles, get_available_doubles
+    use gasci_util, only: gen_all_excits
     use gasci_supergroup_index, only: SuperGroupIndexer_t, lookup_supergroup_indexer
     use exc_gen_class_wrappers, only: UniformSingles_t
 
@@ -67,7 +67,7 @@ module gasci_pchb
     public :: GAS_PCHB_ExcGenerator_t, use_supergroup_lookup, GAS_doubles_PCHB_ExcGenerator_t, &
         possible_GAS_singles, GAS_PCHB_singles_generator
 
-    logical :: use_supergroup_lookup = .true.
+    logical, parameter :: use_supergroup_lookup = .true.
 
     ! there are three pchb_samplers for each supergroup:
     ! 1 - same-spin case
@@ -82,7 +82,7 @@ module gasci_pchb
         ! is a bitmask that returns for a given supergroup `i_sg` and `src`
         ! the GAS allowed holes.
         integer(n_int), allocatable :: allowed_holes(:, :, :)
-        type(GASSpec_t) :: GAS_spec
+        class(GASSpec_t), allocatable :: GAS_spec
         ! This is only a pointer because components cannot be targets
         ! otherwise. :-(
         type(SuperGroupIndexer_t), pointer :: indexer => null()
@@ -106,7 +106,7 @@ module gasci_pchb
     type, extends(SingleExcitationGenerator_t) :: GAS_singles_DiscardingGenerator_t
         private
         type(UniformSingles_t) :: FCI_singles_generator
-        type(GASSpec_t) :: GAS_spec
+        class(GASSpec_t), allocatable :: GAS_spec
     contains
         private
         procedure, public :: finalize => GAS_discarding_singles_finalize
@@ -143,7 +143,7 @@ module gasci_pchb
 
 
         type(SuperGroupIndexer_t), pointer :: indexer => null()
-        type(GASSpec_t) :: GAS_spec
+        class(GASSpec_t), allocatable :: GAS_spec
         real(dp), allocatable :: pExch(:, :)
         integer, allocatable :: tgtOrbs(:, :)
     contains
@@ -180,7 +180,7 @@ contains
 
     subroutine GAS_singles_uniform_init(this, GAS_spec, use_lookup, create_lookup)
         class(GAS_singles_PC_uniform_ExcGenerator_t), intent(inout) :: this
-        type(GASSpec_t), intent(in) :: GAS_spec
+        class(GASSpec_t), intent(in) :: GAS_spec
         logical, intent(in) :: use_lookup, create_lookup
         integer, allocatable :: supergroups(:, :)
         character(*), parameter :: this_routine = 'GAS_singles_uniform_init'
@@ -188,7 +188,7 @@ contains
         integer :: i_sg, src, tgt
 
         this%GAS_spec = GAS_spec
-        allocate(this%indexer, source=SuperGroupIndexer_t(GAS_spec))
+        allocate(this%indexer, source=SuperGroupIndexer_t(GAS_spec, nEl))
         this%create_lookup = create_lookup
         if (create_lookup) then
             if (associated(lookup_supergroup_indexer)) then
@@ -350,23 +350,11 @@ contains
         integer, intent(out) :: n_excits
         integer(n_int), allocatable, intent(out) :: det_list(:,:)
 
-        integer, allocatable :: singles(:, :)
-        integer :: i
-
-        singles = get_available_singles(this%GAS_spec, nI)
-
-        n_excits = size(singles, 2)
-        allocate(det_list(0:niftot, n_excits))
-        do i = 1, size(singles, 2)
-            call EncodeBitDet(singles(:, i), det_list(:, i))
-        end do
-
-        call sort(det_list, ilut_lt, ilut_gt)
-
+        call gen_all_excits(this%GAS_spec, nI, n_excits, det_list, ic=1)
     end subroutine
 
     pure function construct_GAS_singles_DiscardingGenerator_t(GAS_spec) result(res)
-        type(GASSpec_t), intent(in) :: GAS_spec
+        class(GASSpec_t), intent(in) :: GAS_spec
         type(GAS_singles_DiscardingGenerator_t) :: res
         res%GAS_spec = GAS_spec
         res%FCI_singles_generator = UniformSingles_t()
@@ -427,18 +415,7 @@ contains
         integer, intent(out) :: n_excits
         integer(n_int), allocatable, intent(out) :: det_list(:,:)
 
-        integer, allocatable :: singles(:, :)
-        integer :: i
-
-        singles = get_available_singles(this%GAS_spec, nI)
-
-        n_excits = size(singles, 2)
-        allocate(det_list(0:niftot, n_excits))
-        do i = 1, size(singles, 2)
-            call EncodeBitDet(singles(:, i), det_list(:, i))
-        end do
-
-        call sort(det_list, ilut_lt, ilut_gt)
+        call gen_all_excits(this%GAS_spec, nI, n_excits, det_list, ic=1)
     end subroutine
 
 
@@ -451,7 +428,7 @@ contains
     !>  2. setup the alias table for picking ab given ij with probability ~<ij|H|ab>
     subroutine GAS_doubles_PCHB_init(this, GAS_spec, use_lookup, create_lookup, recoupling)
         class(GAS_doubles_PCHB_ExcGenerator_t), intent(inout) :: this
-        type(GASSpec_t), intent(in) :: GAS_spec
+        class(GASSpec_t), intent(in) :: GAS_spec
         logical, intent(in) :: use_lookup, create_lookup, recoupling
         character(*), parameter :: this_routine = 'GAS_doubles_PCHB_init'
 
@@ -459,7 +436,7 @@ contains
         integer :: nBI
 
         this%GAS_spec = GAS_spec
-        allocate(this%indexer, source=SuperGroupIndexer_t(GAS_spec) )
+        allocate(this%indexer, source=SuperGroupIndexer_t(GAS_spec, nEl))
         this%create_lookup = create_lookup
         this%use_lookup = use_lookup
 
@@ -696,13 +673,16 @@ contains
         ! temporary storage for the unnormalized prob of not picking an exchange excitation
 
         !> n_supergroup * number_of_fused_indices * 3 * (bytes_per_sampler)
-        memCost = size(supergroups, 2) * ijMax * 3 * (abMax * 3 * 8)
+        memCost = size(supergroups, 2, kind=int64) &
+                    * int(ijMax, int64) &
+                    * 3_int64 &
+                    * (int(abMax, int64) * 3_int64 * 8_int64)
 
-        call this%pchb_samplers%shared_alloc([ijMax, 3, size(supergroups, 2)], abMax)
         write(iout, *) "Excitation generator requires", real(memCost, dp) / 2.0_dp**30, "GB of memory"
         write(iout, *) "The number of supergroups is", size(supergroups, 2)
         write(iout, *) "Generating samplers for PCHB excitation generator"
         write(iout, *) "Depending on the number of supergroups this can take up to 10min."
+        call this%pchb_samplers%shared_alloc([ijMax, 3, size(supergroups, 2)], abMax)
         ! weights per pair
         allocate(w(abMax))
         ! initialize the three samplers
@@ -778,16 +758,7 @@ contains
         integer, intent(out) :: n_excits
         integer(n_int), allocatable, intent(out) :: det_list(:,:)
 
-        integer, allocatable :: doubles(:, :)
-        integer :: i
-
-        doubles = get_available_doubles(this%GAS_spec, nI)
-        n_excits = size(doubles, 2)
-        allocate(det_list(0:niftot, n_excits))
-        do i = 1, size(doubles, 2)
-            call EncodeBitDet(doubles(:, i), det_list(:, i))
-        end do
-        call sort(det_list, ilut_lt, ilut_gt)
+        call gen_all_excits(this%GAS_spec, nI, n_excits, det_list, ic=2)
     end subroutine
 
 
@@ -803,7 +774,7 @@ contains
     !>                  whose cleanup happens outside. Has to be a target.
     subroutine GAS_PCHB_init(this, GAS_spec, use_lookup, create_lookup, recoupling, used_singles_generator)
         class(GAS_PCHB_ExcGenerator_t), intent(inout) :: this
-        type(GASSpec_t), intent(in) :: GAS_spec
+        class(GASSpec_t), intent(in) :: GAS_spec
         logical, intent(in) :: use_lookup, create_lookup, recoupling
         type(GAS_used_singles_t), intent(in) :: used_singles_generator
 
