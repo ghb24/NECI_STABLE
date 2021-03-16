@@ -1,5 +1,6 @@
 #include "macros.h"
 module guga_plugin
+  use dSFMT_interface, only: dSFMT_init
   use constants
   use DetBitOps
   use SystemData
@@ -24,7 +25,9 @@ module guga_plugin
   use LoggingData, only: tRDMonfly, tExplicitAllRDM
   use Integrals_neci, only: get_umat_el_normal
   use procedure_pointers, only: get_umat_el
-  
+  use Determinants, only: DetPreFreezeInit, DetInit
+  use unit_test_helper_excitgen, only: generate_uniform_integrals
+  use bit_reps, only: init_bit_rep
   implicit none
   private
   public :: init_guga_plugin, guga_matel
