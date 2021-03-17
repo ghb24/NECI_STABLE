@@ -18,7 +18,7 @@ MODULE System
 
     use iso_c_hack
 
-    use read_fci, only: FCIDUMP_name
+    use read_fci, only: FCIDUMP_name, load_orb_perm
 
     use util_mod, only: error_function, error_function_c, &
                         near_zero, operator(.isclose.), get_free_unit, operator(.div.)
@@ -1735,7 +1735,7 @@ contains
                 ! In case complex walkers shall be used but not complex basis functions,
                 ! such that the integrals are real and have full symmetry
                 tComplexWalkers_RealInts = .true.
-                t_complex_ints = .false.
+                t_complex_ints = .false.              
 
             case ("SYSTEM-REPLICAS")
                 ! How many copies of the simulation do we want to run in parallel?
@@ -1768,6 +1768,22 @@ contains
 
             case ("HEISENBERG")
                 tHeisenberg = .true.
+               
+            case("PERMUTE-ORBS")
+                ! Apply a permutation of the orbital indices to the
+                ! ordering given in the FCIDUMP file - only has an
+                ! effect when reading an FCIDUMP file, has no effect for
+                ! hubbard/heisenberg/ueg systems etc
+                block
+                  integer :: buf(1000)
+                  integer :: n_orb
+                  n_orb = 0
+                  do while (item < nitems)
+                      n_orb = n_orb + 1
+                      call readi(buf(n_orb))
+                  end do
+                  call load_orb_perm(buf(1:n_orb))
+                end block
 
             case ("GIOVANNIS-BROKEN-INIT")
                 ! Giovanni's scheme for initialising determinants with the correct

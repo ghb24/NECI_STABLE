@@ -1,1 +1,1 @@
-f2py -m neci_guga -c @CMAKE_CURRENT_SOURCE_DIR@/neci_guga.F90 --f90exec=@f2py_compiler@ --f90flags='@CMAKE_Fortran_FLAGS@ -I@NECI_MODULE_DIR@' -L@NECI_LIB_DIR@ -lneci -llapack -lblas -lstdc++
+f2py -m neci_guga -c @CMAKE_CURRENT_SOURCE_DIR@/neci_guga.F90 --f90exec=@f2py_compiler@ --f90flags='@CMAKE_Fortran_FLAGS@ -I@NECI_MODULE_DIR@ -I@PROJECT_SOURCE_DIR@/src' -L@NECI_LIB_DIR@ -lneci -llapack -lblas -lstdc++

@@ -3870,7 +3870,7 @@ contains
         use global_utilities
         character(*), parameter :: this_routine = 'CalcCleanup'
 
-        deallocate(MCDet)
+        if(allocated(MCDet)) deallocate(MCDet)
         call LogMemDealloc(this_routine, tagMCDet)
 
         if (allocated(user_input_seed)) deallocate(user_input_seed)
