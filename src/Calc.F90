@@ -13,6 +13,7 @@ MODULE Calc
                           tGUGA, t_mixed_hubbard, t_olle_hubbard
     use Determinants, only: write_det
     use default_sets
+    use read_fci, only: reorder_orb_label
     use Determinants, only: iActiveBasis, SpecDet, tSpecDet, nActiveSpace, &
                             tDefineDet
     use DetCalc, only: iObs, jObs, kObs, DETINV, &
@@ -972,6 +973,12 @@ contains
                     end if
                 end do
                 if(i - 1 /= nel) call stop_all(t_r, "Insufficient orbitals given in DEFINEDET")
+
+                ! If applicable, permute the orbital indices
+                do i = 1, size(DefDet, dim = 1)
+                    call reorder_orb_label(DefDet(i))
+                end do
+                
                 ! there is something going wrong later in the init, so
                 ! do it actually here
                 if(tHPHF) then

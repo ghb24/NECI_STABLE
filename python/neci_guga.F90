@@ -40,6 +40,6 @@ subroutine run_neci(norb, perm, weight)
     !f2py intent(out) :: weight
 #include "NECICore.h"
     call load_orb_perm(perm)
-    call NECICore(0, .false., .false., .true.)
+    call NECICore(0, .false., .false., .true., filename_in = "neci.inp")
     weight = fciqmc_run_ref_weight    
 end subroutine run_neci

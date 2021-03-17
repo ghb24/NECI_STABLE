@@ -464,12 +464,10 @@ contains
                 end if
 #endif
                 ! If a permutation is loaded, apply it to the read indices
-                if(allocated(orbital_permutation)) then
-                    call reorder_orb_label(I)
-                    call reorder_orb_label(J)
-                    call reorder_orb_label(K)
-                    call reorder_orb_label(L)
-                end if
+                call reorder_orb_label(I)
+                call reorder_orb_label(J)
+                call reorder_orb_label(K)
+                call reorder_orb_label(L)
 
                 IF (tROHF .and. (.not. tMolpro)) THEN
 !The FCIDUMP file is in spin-orbitals - we need to transfer them to spatial orbitals (unless from molpro, where already spatial).
@@ -1229,11 +1227,11 @@ contains
             SYMLZ(1:NORB) = SYMLZ(orbital_permutation)
         end if
     end subroutine reorder_sym_labels
-
+            
     subroutine reorder_orb_label(label)
         integer, intent(inout) :: label
 
-        if (label > 0) then
+        if (allocated(orbital_permutation) .and. label > 0) then
             label = orbital_permutation(label)
         end if
     end subroutine reorder_orb_label
