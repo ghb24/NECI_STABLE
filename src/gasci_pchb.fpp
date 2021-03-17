@@ -682,7 +682,7 @@ contains
         write(iout, *) "The number of supergroups is", size(supergroups, 2)
         write(iout, *) "Generating samplers for PCHB excitation generator"
         write(iout, *) "Depending on the number of supergroups this can take up to 10min."
-        call this%pchb_samplers%shared_alloc([ijMax, 3, size(supergroups, 2)], abMax)
+        call this%pchb_samplers%shared_alloc([ijMax, 3, size(supergroups, 2)], abMax, 'PCHB')
         ! weights per pair
         allocate(w(abMax))
         ! initialize the three samplers
