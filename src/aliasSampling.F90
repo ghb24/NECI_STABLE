@@ -396,10 +396,11 @@ contains
     !! with one of them each). This only does the allocation.
     !> @param[in] nEntries  number of samplers to initialise
     !> @param[in] entrySize  number of values per sampler
-    subroutine setupSamplerArray_1D(this, nEntries, entrySize)
+    subroutine setupSamplerArray_1D(this, nEntries, entrySize, name)
         class(AliasSampler_1D_t) :: this
         integer, intent(in) :: nEntries, entrySize
-        call this%alias_sampler%shared_alloc([nEntries, 1, 1], entrySize)
+        character(*), intent(in) :: name
+        call this%alias_sampler%shared_alloc([nEntries, 1, 1], entrySize, name)
     end subroutine setupSamplerArray_1D
 
     !------------------------------------------------------------------------------------------!
@@ -473,10 +474,11 @@ contains
     !! with one of them each). This only does the allocation.
     !> @param[in] dims Dimension of the three-dimensional array of samplers.
     !> @param[in] entry_size number of values per sampler
-    subroutine setupSamplerArray_3D(this, dims, entry_size)
+    subroutine setupSamplerArray_3D(this, dims, entry_size, name)
         class(AliasSampler_3D_t), intent(inout) :: this
         ! NOTE: We might have to change dims and entry_size to int64 in the near future... :-(
         integer, intent(in) :: dims(3), entry_size
+        character(*), intent(in) :: name
 
         integer :: i, j, k
         integer(int64) :: window_start, window_end, total_size
@@ -486,9 +488,9 @@ contains
         ! all entries in the array use the same shared memory window, just different
         ! portions of it
         total_size = entry_size * product(int(dims, kind=int64))
-        call this%allProbs%shared_alloc(total_size)
-        call this%allBiasTable%shared_alloc(total_size)
-        call this%allAliasTable%shared_alloc(total_size)
+        call this%allProbs%shared_alloc(total_size, name//'_Probs')
+        call this%allBiasTable%shared_alloc(total_size, name//'_Bias')
+        call this%allAliasTable%shared_alloc(total_size, name//'_Alias')
 
         window_start = 1
         do k = 1, dims(3)
