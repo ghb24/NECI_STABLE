@@ -1233,7 +1233,9 @@ contains
     subroutine reorder_orb_label(label)
         integer, intent(inout) :: label
 
-        label = orbital_permutation(label)        
+        if (label > 0) then
+            label = orbital_permutation(label)
+        end if
     end subroutine reorder_orb_label
 
 end module read_fci
