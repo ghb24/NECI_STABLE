@@ -21,7 +21,7 @@ module LMat_mod
 #ifdef USE_HDF5_
     use hdf5
 #endif
-    use IntegralsData, only: t_use_tchint_lib
+    use IntegralsData, only: t_use_tchint_lib, tchint_mode
 #ifdef USE_TCHINT_
     use tchint
 #endif
@@ -143,9 +143,9 @@ contains
       if(t_use_tchint_lib) then      
 #ifdef USE_TCHINT_
         if(tHDF5LMat) then
-          call tchint_init("PC","HDF5")
+          call tchint_init(trim(tchint_mode),"HDF5")
         else
-          call tchint_init("PC","ASCII")
+          call tchint_init(trim(tchint_mode),"ASCII")
         endif
 #else
         call stop_all(t_r, "Did not compile with TCHINT support")
