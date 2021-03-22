@@ -18,6 +18,7 @@ module RotateOrbsMod
     use LoggingData, only: tROHistogramAll, tROFciDump, tROHistER, tROHistOffDiag, tROHistDoubExc, tPrintRODump
     use LoggingData, only: tROHistSingExc, tROHistOnePartOrbEn, tROHistOneElInts, tROHistVirtCoulomb
     use LoggingData, only: tPrintInts, tTruncRODump, NoTruncOrbs, NoDumpTruncs, tTruncDumpbyVal, TruncEvalues, tWriteTransMat
+    use dSFMT_interface, only: genrand_real2_dSFMT
     use OneEInts, only: TMAT2D
     use SymData, only: TwoCycleSymGens, SymLabelList, SymLabelCounts
     use Timing_neci, only: end_timing, print_timing_report
@@ -841,8 +842,7 @@ contains
         ! Sets up the initial arrays to be used in the orbital rotation.
 
         character(len=*), parameter :: this_routine = 'InitRotCalc'
-        real(dp) :: RAN2
-        integer :: i, j, Const, iseed = -8, MinRot, MaxRot
+        integer :: i, j, Const, MinRot, MaxRot
 
         call InitSymmArrays()
 ! Creates an indexing system for each of the cases with symmetry on/off, and mixing all orbitals or separating
@@ -899,7 +899,7 @@ contains
         if (lNoSymmetry) then
             do i = MinRot, MaxRot
                 do j = MinRot, MaxRot
-                    CoeffT1(j, i) = RAN2(iseed) * (1E-02_dp)
+                    CoeffT1(j, i) = genrand_real2_dSFMT() * (1E-02_dp)
                 end do
             end do
         end if

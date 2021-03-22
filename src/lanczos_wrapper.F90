@@ -101,7 +101,7 @@ contains
         ! Perform Lanczos procedure.
         call neci_frsblkh(ndets, ICMax, nexcit, Hamil, Lab, evecs, evecs_space, nkry, nkry1, nblock, nrow, &
                           len_scr, len_iscr, A_Arr, evals, V, AM, BM, T, WT, scr, iscr, ind, ncycle, b2l, &
-                          .false., .false., .false., .true.)
+                          .false., .false., .true.)
 
         ! The above routine returns *minus* the eigenvalues. Remove this factor:
         evals = -evals
