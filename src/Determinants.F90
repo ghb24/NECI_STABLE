@@ -1020,25 +1020,23 @@ END MODULE Determinants
       SUBROUTINE GENRANDOMDET(NEL,NBASIS,MCDET)
          use sort_mod
          use constants, only: dp
+         use dSFMT_interface, only: genrand_real2_dSFMT
          IMPLICIT NONE
          INTEGER NEL,NBASIS,MCDET(NEL)
-         INTEGER I,J,EL,SEED
+         INTEGER :: I,J,EL
          LOGICAL BR
-         real(dp) RAN2
-         SEED=-7
          DO I=1,NEL
             BR=.TRUE.
             DO WHILE (BR)
                BR=.FALSE.
-               EL=INT(RAN2(SEED)*NBASIS+1)
+               EL=INT(genrand_real2_dSFMT() * NBASIS + 1)
                DO J=1,I-1
-                  IF(MCDET(J).EQ.EL) BR=.TRUE.
+                  IF(MCDET(J) == EL) BR=.TRUE.
                end do
             end do
             MCDET(I)=EL
          end do
          call sort (mcDet)
-         RETURN
       END
 
 
