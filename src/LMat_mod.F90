@@ -184,16 +184,17 @@ contains
 
         if (t_use_tchint_lib) then
 #ifdef USE_TCHINT_
-          call tchint_finalize()
+            call tchint_finalize()
 #else
-          call stop_all(t_r, "Did not compile with TCHINT support")
+            call stop_all(t_r, "Did not compile with TCHINT support")
 #endif
-        if (tLMatCalc) then
-            call freeLMatFactors()
         else
-            ! These are always safe to call, regardless of allocation
-            call LMat%dealloc()
-          end if
+            if (tLMatCalc) then
+                call freeLMatFactors()
+            else
+                ! These are always safe to call, regardless of allocation
+                call LMat%dealloc()
+            end if
         endif
     end subroutine freeLMat
 
