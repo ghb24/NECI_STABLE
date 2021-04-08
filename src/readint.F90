@@ -776,6 +776,12 @@ contains
             end if
 #endif
 
+            ! If a permutation is loaded, apply it to the read indices
+            call reorder_orb_label(I)
+            call reorder_orb_label(J)
+            call reorder_orb_label(K)
+            call reorder_orb_label(L)
+            
             ! Remove integrals that are too small
             if (abs(Z) < UMatEps) then
                 if (ZeroedInt < 100) then
