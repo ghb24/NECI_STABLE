@@ -973,11 +973,6 @@ contains
                     end if
                 end do
                 if(i - 1 /= nel) call stop_all(t_r, "Insufficient orbitals given in DEFINEDET")
-
-                ! If applicable, permute the orbital indices
-                do i = 1, size(DefDet, dim = 1)
-                    call reorder_orb_label(DefDet(i))
-                end do
                 
                 ! there is something going wrong later in the init, so
                 ! do it actually here
