@@ -19,7 +19,7 @@ contains
         IMPLICIT NONE
         logical, intent(in) :: tbin
         integer, intent(out) :: nBasisMax(5, *), LEN, LMS
-        integer, intent(in) :: NEL
+        integer, intent(inout) :: NEL
         integer SYMLZ(1000)
         integer OCC(nIrreps), CLOSED(nIrreps), FROZEN(nIrreps)
         integer(int64) :: ORBSYM(1000)
@@ -153,9 +153,14 @@ contains
         end if
 
         IF (NELEC /= NEL) THEN
-            write(6, *)                                                 &
-    &      '*** WARNING: NEL in FCIDUMP differs from input file ***'
-            write(6, *) ' NUMBER OF ELECTRONS : ', NEL
+            if( NEL == NEL_UNINITIALIZED ) then
+                write(6,*) "No number of electrons given, using NEL in FCIDUMP"
+                NEL = NELEC
+            else
+                write(6, *)                                                 &
+                    &      '*** WARNING: NEL in FCIDUMP differs from input file ***'
+                write(6, *) ' NUMBER OF ELECTRONS : ', NEL
+            endif
         end if
 !         NEL=NELEC
         IF (LMS /= MS2) THEN

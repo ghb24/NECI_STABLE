@@ -184,4 +184,6 @@ integer, parameter :: end_int_rdm = bits_int_rdm - 1
 integer, parameter :: hdf_err = int32
 integer, parameter :: hdf_log = int32
 
+integer, parameter :: NEL_UNINITIALIZED = -1
+
 end module constants

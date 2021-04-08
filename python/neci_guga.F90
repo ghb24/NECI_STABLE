@@ -1,9 +1,11 @@
 !> Python interface for initializing the GUGA plugin
-subroutine init_guga(S)
+subroutine init_guga(S, nel)
     use guga_plugin, only: init_guga_plugin
     integer, intent(in) :: S
+    integer, intent(in) :: nel
     !f2py intent(in) :: S
-    call init_guga_plugin(stot_ = S)
+    !f2py integer :: nel = -1
+    call init_guga_plugin(stot_ = S, nel_ = nel)
 end subroutine init_guga
 
 !> Python interface for finalizing the GUGA plugin
