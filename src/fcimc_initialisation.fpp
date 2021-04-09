@@ -3458,16 +3458,16 @@ contains
                 ! It first decides upon triple excitation or something else and then about singles or doubles.
                 ! We have to convert the absolute probabilities into conditional ones.
                 if (.not. allocated(pTriplesIn)) then
-                    call stop_all("pTriples is required as input.")
+                    call stop_all(this_routine, "pTriples is required as input.")
                 else
                     pTriples = pTriplesIn
                     if (allocated(pSinglesIn)) then
-                        if (pTriples + pSinglesIn > 1.0_dp) call stop_all("pTriplesIn + pSinglesIn > 1.0_dp")
+                        if (pTriples + pSinglesIn > 1.0_dp) call stop_all(this_routine, "pTriplesIn + pSinglesIn > 1.0_dp")
                         pSingles = pSinglesIn / (1.0_dp - pTriplesIn)
                         pDoubles = 1.0_dp - pSingles
                         write(iout, '(" Using the input value of pSingles:",1x, f14.6)') pSinglesIn
                     else if (allocated(pDoublesIn)) then
-                        if (pTriples + pDoublesIn > 1.0_dp) call stop_all("pTriplesIn + pDoublesIn > 1.0_dp")
+                        if (pTriples + pDoublesIn > 1.0_dp) call stop_all(this_routine, "pTriplesIn + pDoublesIn > 1.0_dp")
                         pDoubles = pDoublesIn / (1.0_dp - pTriplesIn)
                         pSingles = 1.0_dp - pDoubles
                         write(iout, '(" Using the input value of pDoubles:",1x, f14.6)') pDoublesIn
@@ -3475,7 +3475,7 @@ contains
                 end if
             else
                 if (allocated(pTriplesIn)) then
-                    call stop_all("pTriples cannot be given.")
+                    call stop_all(this_routine, "pTriples can only be given if triple excitations are performed.")
                 else if (allocated(pSinglesIn)) then
                         pSingles = pSinglesIn
                         pDoubles = 1.0_dp - pSingles
