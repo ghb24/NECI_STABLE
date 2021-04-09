@@ -884,7 +884,7 @@ contains
         !complicated hyperslabs + collective buffering
         ! Write out the determinant bit-representations
         call write_2d_multi_arr_chunk_buff( &
-            wfn_grp_id, nm_ilut, H5T_NATIVE_INTEGER_8, &
+            wfn_grp_id, nm_ilut, h5kind_to_type(int64, H5_INTEGER_KIND), &
             PrintedDets, &
             [int(nifd + 1, hsize_t), int(printed_count, hsize_t)], & ! dims
             [0_hsize_t, 0_hsize_t], & ! offset
@@ -893,7 +893,7 @@ contains
             )
 
         call write_2d_multi_arr_chunk_buff( &
-            wfn_grp_id, nm_sgns, H5T_NATIVE_REAL_8, &
+            wfn_grp_id, nm_sgns, h5kind_to_type(dp, H5_REAL_KIND), &
             PrintedDets, &
             [int(lenof_sign, hsize_t), int(printed_count, hsize_t)], & ! dims
             [int(IlutBits%ind_pop, hsize_t), 0_hsize_t], & ! offset
@@ -905,7 +905,7 @@ contains
 
         if (gdata_size > 0) then
             call write_2d_multi_arr_chunk_buff( &
-                wfn_grp_id, nm_gdata, H5T_NATIVE_REAL_8, gdata_buf, &
+                wfn_grp_id, nm_gdata, h5kind_to_type(dp, H5_REAL_KIND), gdata_buf, &
                 [int(gdata_size, hsize_t), int(printed_count, hsize_t)], & ! dims
                 [0_hsize_t, 0_hsize_t], &
                 [int(gdata_size, hsize_t), all_count], &
@@ -1277,13 +1277,13 @@ contains
 #ifdef INT64_
 
         call read_2d_multi_chunk( &
-            ds_ilut, temp_ilut, H5T_NATIVE_INTEGER_8, &
+            ds_ilut, temp_ilut, h5kind_to_type(int64, H5_INTEGER_KIND), &
             [int(bit_rep_width, hsize_t), block_size], &
             [0_hsize_t, block_start], &
             [0_hsize_t, 0_hsize_t])
 
         call read_2d_multi_chunk( &
-            ds_sgns, temp_sgns, H5T_NATIVE_REAL_8, &
+            ds_sgns, temp_sgns, h5kind_to_type(dp, H5_REAL_KIND), &
             [int(tmp_lenof_sign, hsize_t), block_size], &
             [0_hsize_t, block_start], &
             [0_hsize_t, 0_hsize_t])
@@ -1291,7 +1291,7 @@ contains
         gdata_size = size(gdata_buf, dim=1)
         if (gdata_size > 0) then
             call read_2d_multi_chunk( &
-                ds_gdata, gdata_buf, H5T_NATIVE_REAL_8, &
+                ds_gdata, gdata_buf, h5kind_to_type(dp, H5_REAL_KIND), &
                 [int(gdata_size, hsize_t), block_size], &
                 [0_hsize_t, block_start], &
                 [0_hsize_t, 0_hsize_t])

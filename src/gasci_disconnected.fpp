@@ -50,7 +50,7 @@ module gasci_disconnected
 
     type, extends(ExcitationGenerator_t) :: GAS_disc_ExcGenerator_t
         private
-        type(GASSpec_t) :: GAS_spec
+        class(GASSpec_t), allocatable :: GAS_spec
         !> Bitmasks containing the active spaces
         !> (stored in the same format as an ilut)
         !> also have spin-resolved bitmasks
@@ -102,7 +102,7 @@ module gasci_disconnected
 contains
 
     pure function construct_GAS_disc_ExcGenerator_t(GAS_spec) result(res)
-        type(GASSpec_t), intent(in) :: GAS_spec
+        class(GASSpec_t), intent(in) :: GAS_spec
         type(GAS_disc_ExcGenerator_t) :: res
 
         !> GAS space for the i-th **spatial** orbital
