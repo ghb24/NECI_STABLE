@@ -3464,12 +3464,15 @@ contains
                 else if (pSinglesIn + pDoublesIn .isclose. 1.0_dp) then
                     root_print "WARNING: pSinglesIn + pDoublesIn == 1.0"
                     root_print " this means NO triple excitations! is this intended?"
+                    pSingles = pSinglesIn
+                    pDoubles = pDoublesIn
+                    ptriples = 0.0_dp
                 else
                     pSingles = pSinglesIn
                     pDoubles = pDoublesIn
                     ptriples = 1.0_dp - pSinglesIn - pDoublesIn
                 end if
-            if (    (allocated(pSinglesIn) .and. (.not. allocated(pDoublesIn))) &
+            else if (    (allocated(pSinglesIn) .and. (.not. allocated(pDoublesIn))) &
                 .or.(allocated(pDoublesIn) .and. (.not. allocated(pSinglesIn)))) then
                 call stop_all(this_routine, &
                     "with triple excitations, specify BOTH pSinglesIn and pDoublesIn")

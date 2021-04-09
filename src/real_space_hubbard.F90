@@ -189,7 +189,7 @@ contains
         if (t_trans_corr_hop) then
             ! we have double excitations with the hopping correlation
             ! but only anti-parallel excitations!
-            if (allocated(pSinglesIn) .and. allocated(pDoublesIn) then
+            if (allocated(pSinglesIn) .and. allocated(pDoublesIn)) then
                 if (.not. (pSinglesIn + pDoublesIn .isclose. 1.0_dp)) then
                     call stop_all(this_routine, "pSinglesIn + pDoublesIn /= 1.0!")
                 else
