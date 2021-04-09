@@ -1403,16 +1403,6 @@ contains
         if (t_mol_3_body .or. t_ueg_3_body) call setup_mol_tc_excitgen()
 
         call init_exc_gen_class()
-        if (tGAS) then
-            write(iout, *)
-            write(iout, '(A" is activated")') get_name(GAS_exc_gen)
-            write(iout, '(A)') 'The following GAS specification was used: '
-            call GAS_specification%write_to(iout)
-            if (.not. tGASSpinRecoupling) then
-                write(iout, '(A)') 'Double excitations with exchange are forbidden.'
-            end if
-            write(iout, *)
-        end if
     END SUBROUTINE SetupParameters
 
     ! This initialises the calculation, by allocating memory, setting up the
