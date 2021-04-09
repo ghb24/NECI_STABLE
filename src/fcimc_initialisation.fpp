@@ -234,7 +234,6 @@ module fcimc_initialisation
     use back_spawn_excit_gen, only: gen_excit_back_spawn, gen_excit_back_spawn_ueg, &
                                     gen_excit_back_spawn_hubbard, gen_excit_back_spawn_ueg_new
     use gasci, only: GAS_exc_gen, possible_GAS_exc_gen, GAS_specification, get_name
-    use gasci_util, only: gen_all_excits_GAS => gen_all_excits_wrapper
     use gasci_supergroup_index, only: lookup_supergroup_indexer
 
     use cepa_shifts, only: t_cepa_shift, init_cepa_shifts
@@ -2124,9 +2123,7 @@ contains
         end if
 
         ! select the procedure that returns all connected determinants.
-        if (tGAS) then
-            gen_all_excits => gen_all_excits_GAS
-        else if (t_k_space_hubbard) then
+        if (t_k_space_hubbard) then
             gen_all_excits => gen_all_excits_k_space_hubbard
         else if (t_new_real_space_hubbard) then
             gen_all_excits => gen_all_excits_r_space_hubbard
@@ -3448,18 +3445,41 @@ contains
             end if
         end if
 
-        if (allocated(pSinglesIn) .and. allocated(pDoublesIn)) then
-            call stop_all(this_routine, 'It is not possible to define pSingles and pDoubles')
-        else if (allocated(pSinglesIn)) then
-            pSingles = pSinglesIn
-            pDoubles = 1.0_dp - pSingles
-            write(iout, '(" Using the input value of pSingles:",1x, f14.6)') pSingles
-        else if (allocated(pDoublesIn)) then
-            pDoubles = pDoublesIn
-            pSingles = 1.0_dp - pDoubles
-            write(iout, '(" Using the input value of pDoubles:",1x, f14.6)') pDoubles
+        if (t_mol_3_body) then
+            ! for triple excitations both pSingles and pDoubles
+            ! can be assigned
+            if (allocated(pSinglesIn) .and. allocated(pDoublesIn)) then
+                if (pSinglesIn + pDoublesIn > 1.0_dp) then
+                    call stop_all(this_routine, "pSinglesIn + pDoublesIn > 1.0!")
+                else if (pSinglesIn + pDoublesIn .isclose. 1.0_dp) then
+                    root_print "WARNING: pSinglesIn + pDoublesIn == 1.0"
+                    root_print " this means NO triple excitations! is this intended?"
+                    pSingles = pSinglesIn
+                    pDoubles = pDoublesIn
+                    ptriples = 0.0_dp
+                else
+                    pSingles = pSinglesIn
+                    pDoubles = pDoublesIn
+                    ptriples = 1.0_dp - pSinglesIn - pDoublesIn
+                end if
+            else if (    (allocated(pSinglesIn) .and. (.not. allocated(pDoublesIn))) &
+                .or.(allocated(pDoublesIn) .and. (.not. allocated(pSinglesIn)))) then
+                call stop_all(this_routine, &
+                    "with triple excitations, specify BOTH pSinglesIn and pDoublesIn")
+            end if
+        else
+            if (allocated(pSinglesIn) .and. allocated(pDoublesIn)) then
+                call stop_all(this_routine, 'It is not possible to define pSingles and pDoubles')
+            else if (allocated(pSinglesIn)) then
+                pSingles = pSinglesIn
+                pDoubles = 1.0_dp - pSingles
+                write(iout, '(" Using the input value of pSingles:",1x, f14.6)') pSingles
+            else if (allocated(pDoublesIn)) then
+                pDoubles = pDoublesIn
+                pSingles = 1.0_dp - pDoubles
+                write(iout, '(" Using the input value of pDoubles:",1x, f14.6)') pDoubles
+            end if
         end if
-
         if (allocated(pParallelIn)) then
             write(iout, '(" Using the input value of pParallel:",1x, f14.6)') pParallelIn
             pParallel = pParallelIn
