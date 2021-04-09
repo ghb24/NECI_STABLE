@@ -97,6 +97,7 @@ macro( neci_add_library )
 
     set( ${_p_TARGET}_TEMPLATED_SOURCES )
     if ( _p_TEMPLATED_SOURCES )
+      find_package(Python3 REQUIRED)
 
       # Ensure that the templates get put somewhere unique for each target
       set( _template_dir ${CMAKE_BINARY_DIR}/templated/${_p_TARGET} )
@@ -110,7 +111,7 @@ macro( neci_add_library )
         set( _templated_target_file ${_template_dir}/${_templated_file_base}.F90 )
         list( APPEND ${_p_TARGET}_TEMPLATED_SOURCES ${_templated_target_file} )
         add_custom_command(
-            COMMAND ${_templater_tool} ${_templated_file_absolute} ${_templated_target_file}
+            COMMAND ${Python3_EXECUTABLE} ${_templater_tool} ${_templated_file_absolute} ${_templated_target_file}
             WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
             OUTPUT ${_templated_target_file}
             DEPENDS ${_templated_file_absolute} )
@@ -120,6 +121,7 @@ macro( neci_add_library )
 
     set( ${_p_TARGET}_FYPP_SOURCES )
     if (_p_FYPP_SOURCES )
+        find_package(Python3 REQUIRED)
         # This will also search in default locations e.g. $PATH, env ...
         find_program (_fypp fypp ${PROJECT_SOURCE_DIR}/External/fypp/bin/)
         if (NOT _fypp)
@@ -150,7 +152,7 @@ macro( neci_add_library )
             set( _fypp_target_file ${_fypp_dir}/${_fypp_file_base}.F90 )
             list( APPEND ${_p_TARGET}_FYPP_SOURCES ${_fypp_target_file} )
             add_custom_command(
-                COMMAND ${_fypp} ${_fypp_options} ${_fypp_file_absolute} ${_fypp_target_file}
+                COMMAND ${Python3_EXECUTABLE} ${_fypp} ${_fypp_options} ${_fypp_file_absolute} ${_fypp_target_file}
                 WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
                 OUTPUT ${_fypp_target_file}
                 DEPENDS ${_fypp_file_absolute})
