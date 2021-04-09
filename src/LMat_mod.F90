@@ -140,13 +140,10 @@ contains
 
     subroutine setup_tchint_ints()
       character(*), parameter :: t_r = "setup_tchint_ints"
-      if(t_use_tchint_lib) then      
+
+      if(t_use_tchint_lib) then
 #ifdef USE_TCHINT_
-        if(tHDF5LMat) then
-          call tchint_init(trim(tchint_mode),"HDF5")
-        else
-          call tchint_init(trim(tchint_mode),"ASCII")
-        endif
+        call tchint_init()
 #else
         call stop_all(t_r, "Did not compile with TCHINT support")
 #endif

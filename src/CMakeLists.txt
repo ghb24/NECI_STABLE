@@ -519,7 +519,6 @@ foreach(_config ${${PROJECT_NAME}_CONFIGURATIONS})
         PRIVATE_INCLUDES
             "${MPI_NECI_INCLUDE_PATH}"
             "${HDF5_NECI_INCLUDE_PATH}"
-						"${TCHINT_NECI_INCLUDE_PATH}"
 
         DEFINITIONS
             "${NECI_GLOBAL_DEFINES}"
