@@ -3458,18 +3458,38 @@ contains
             end if
         end if
 
-        if (allocated(pSinglesIn) .and. allocated(pDoublesIn)) then
-            call stop_all(this_routine, 'It is not possible to define pSingles and pDoubles')
-        else if (allocated(pSinglesIn)) then
-            pSingles = pSinglesIn
-            pDoubles = 1.0_dp - pSingles
-            write(iout, '(" Using the input value of pSingles:",1x, f14.6)') pSingles
-        else if (allocated(pDoublesIn)) then
-            pDoubles = pDoublesIn
-            pSingles = 1.0_dp - pDoubles
-            write(iout, '(" Using the input value of pDoubles:",1x, f14.6)') pDoubles
+        if (t_mol_3_body) then
+            ! for triple excitations both pSingles and pDoubles
+            ! can be assigned
+            if (allocated(pSinglesIn) .and. allocated(pDoublesIn)) then
+                if (pSinglesIn + pDoublesIn > 1.0_dp) then
+                    call stop_all(this_routine, "pSinglesIn + pDoublesIn > 1.0!")
+                else if (pSinglesIn + pDoublesIn .isclose. 1.0_dp) then
+                    root_print "WARNING: pSinglesIn + pDoublesIn == 1.0"
+                    root_print " this means NO triple excitations! is this intended?"
+                else
+                    pSingles = pSinglesIn
+                    pDoubles = pDoublesIn
+                    ptriples = 1.0_dp - pSinglesIn - pDoublesIn
+                end if
+            if (    (allocated(pSinglesIn) .and. (.not. allocated(pDoublesIn))) &
+                .or.(allocated(pDoublesIn) .and. (.not. allocated(pSinglesIn)))) then
+                call stop_all(this_routine, &
+                    "with triple excitations, specify BOTH pSinglesIn and pDoublesIn")
+            end if
+        else
+            if (allocated(pSinglesIn) .and. allocated(pDoublesIn)) then
+                call stop_all(this_routine, 'It is not possible to define pSingles and pDoubles')
+            else if (allocated(pSinglesIn)) then
+                pSingles = pSinglesIn
+                pDoubles = 1.0_dp - pSingles
+                write(iout, '(" Using the input value of pSingles:",1x, f14.6)') pSingles
+            else if (allocated(pDoublesIn)) then
+                pDoubles = pDoublesIn
+                pSingles = 1.0_dp - pDoubles
+                write(iout, '(" Using the input value of pDoubles:",1x, f14.6)') pDoubles
+            end if
         end if
-
         if (allocated(pParallelIn)) then
             write(iout, '(" Using the input value of pParallel:",1x, f14.6)') pParallelIn
             pParallel = pParallelIn

@@ -43,7 +43,8 @@ module k_space_hubbard
 
     use dsfmt_interface, only: genrand_real2_dsfmt
 
-    use util_mod, only: binary_search_first_ge, binary_search, near_zero
+    use util_mod, only: binary_search_first_ge, binary_search, near_zero, &
+                        operator(.isclose.)
 
     use get_excit, only: make_double
 
@@ -478,18 +479,26 @@ contains
             three_body_prefac = real(bhub, dp) * 2.0_dp * (cosh(trans_corr_param_2body) - 1.0_dp) / real(omega**2, dp)
             ! i also have to set some generation probability parameters..
 
-            ! @Werner: does this make sense?
-            if (allocated(pSinglesIn)) then
-                pSingles = pSinglesIn
-                pDoubles = 1.0_dp - pSingles
-            else if (allocated(pDoublesIn)) then
-                pDoubles = pDoublesIn
-                pSingles = 1.0_dp - pDoubles
-            end if
-
             ! use pSingles for triples!
             ! BE CAREFUL and dont get confused!
-            pSingles = 1.0_dp - pDoubles
+            ! @Werner: does this make sense?
+            if (allocated(pSinglesIn) .and. allocated(pDoublesIn)) then
+                if (.not. (pSinglesIn + pDoublesIn .isclose. 1.0_dp)) then
+                    call stop_all(this_routine, "pSinglesIn + pDoublesIn /= 1.0!")
+                else
+                    pSingles = pSinglesIn
+                    pDoubles = pDoublesIn
+                end if
+            else if (allocated(pSinglesIn) .and. (.not. allocated(pDoublesIn))) then
+                pSingles = pSinglesIn
+                pDoubles = 1.0_dp - pSingles
+            else if (allocated(pDoublesIn) .and. (.not. allocated(pSinglesIn))) then
+                pDoubles = pDoublesIn
+                pSingles = 1.0_dp - pDoubles
+            else
+                pDoubles = 0.8_dp
+                pSingles = 1.0_dp - pDoubles
+            end if
 
             if (allocated(pParallelIn)) then
                 pParallel = pParallelIn
