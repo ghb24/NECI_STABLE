@@ -3457,6 +3457,10 @@ contains
                 allocate(pDoublesIn)
                 call getf(pDoublesIn)
 
+            case("PTRIPLES")
+                allocate(pTriplesIn)
+                call getf(pTriplesIn)
+
             case("NO-INIT-REF-CHANGE")
                 tSetInitialRunRef = .false.
 

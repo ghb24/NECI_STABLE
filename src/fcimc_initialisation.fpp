@@ -55,7 +55,7 @@ module fcimc_initialisation
                         t_trunc_nopen_diff, t_guga_back_spawn, tExpAdaptiveShift, &
                         t_back_spawn_option, t_back_spawn_flex_option, &
                         t_back_spawn_flex, back_spawn_delay, ScaleWalkers, tfixedN0, &
-                        tReplicaEstimates, tDeathBeforeComms, pSinglesIn, pDoublesIn, pParallelIn, &
+                        tReplicaEstimates, tDeathBeforeComms, pSinglesIn, pDoublesIn, pTriplesIn, pParallelIn, &
                         tSetInitFlagsBeforeDeath, tSetInitialRunRef, tEN2Init, &
                         tAutoAdaptiveShift, &
                         tInitializeCSF, S2Init, tWalkContgrow, tSkipRef, &
@@ -3445,41 +3445,49 @@ contains
             end if
         end if
 
-        if (t_mol_3_body) then
-            ! for triple excitations both pSingles and pDoubles
-            ! can be assigned
+        if (allocated(pSinglesIn) .or. allocated(pDoublesIn) .or. allocated(pTriplesIn)) then
             if (allocated(pSinglesIn) .and. allocated(pDoublesIn)) then
-                if (pSinglesIn + pDoublesIn > 1.0_dp) then
-                    call stop_all(this_routine, "pSinglesIn + pDoublesIn > 1.0!")
-                else if (pSinglesIn + pDoublesIn .isclose. 1.0_dp) then
-                    root_print "WARNING: pSinglesIn + pDoublesIn == 1.0"
-                    root_print " this means NO triple excitations! is this intended?"
-                    pSingles = pSinglesIn
-                    pDoubles = pDoublesIn
-                    ptriples = 0.0_dp
-                else
-                    pSingles = pSinglesIn
-                    pDoubles = pDoublesIn
-                    ptriples = 1.0_dp - pSinglesIn - pDoublesIn
-                end if
-            else if (    (allocated(pSinglesIn) .and. (.not. allocated(pDoublesIn))) &
-                .or.(allocated(pDoublesIn) .and. (.not. allocated(pSinglesIn)))) then
-                call stop_all(this_routine, &
-                    "with triple excitations, specify BOTH pSinglesIn and pDoublesIn")
+                call stop_all(this_routine, 'It is not possible to define pSingles and pDoubles.')
+            else if (.not. (allocated(pSinglesIn) .or. allocated(pDoublesIn))) then
+                call stop_all(this_routine, 'One of pSingles or pDoubles is required.')
             end if
-        else
-            if (allocated(pSinglesIn) .and. allocated(pDoublesIn)) then
-                call stop_all(this_routine, 'It is not possible to define pSingles and pDoubles')
-            else if (allocated(pSinglesIn)) then
-                pSingles = pSinglesIn
-                pDoubles = 1.0_dp - pSingles
-                write(iout, '(" Using the input value of pSingles:",1x, f14.6)') pSingles
-            else if (allocated(pDoublesIn)) then
-                pDoubles = pDoublesIn
-                pSingles = 1.0_dp - pDoubles
-                write(iout, '(" Using the input value of pDoubles:",1x, f14.6)') pDoubles
+            if (t_mol_3_body) then
+                ! We allow the users to input absolute values for the probabilities.
+                ! Note that pSingles and pDoubles are internally conditional probabilities.
+                ! Even for triple we still have that `pSingles + pDoubles .isclose. 1.0`.
+                ! It first decides upon triple excitation or something else and then about singles or doubles.
+                ! We have to convert the absolute probabilities into conditional ones.
+                if (.not. allocated(pTriplesIn)) then
+                    call stop_all("pTriples is required as input.")
+                else
+                    pTriples = pTriplesIn
+                    if (allocated(pSinglesIn)) then
+                        if (pTriples + pSinglesIn > 1.0_dp) call stop_all("pTriplesIn + pSinglesIn > 1.0_dp")
+                        pSingles = pSinglesIn / (1.0_dp - pTriplesIn)
+                        pDoubles = 1.0_dp - pSingles
+                        write(iout, '(" Using the input value of pSingles:",1x, f14.6)') pSinglesIn
+                    else if (allocated(pDoublesIn)) then
+                        if (pTriples + pDoublesIn > 1.0_dp) call stop_all("pTriplesIn + pDoublesIn > 1.0_dp")
+                        pDoubles = pDoublesIn / (1.0_dp - pTriplesIn)
+                        pSingles = 1.0_dp - pDoubles
+                        write(iout, '(" Using the input value of pDoubles:",1x, f14.6)') pDoublesIn
+                    end if
+                end if
+            else
+                if (allocated(pTriplesIn)) then
+                    call stop_all("pTriples cannot be given.")
+                else if (allocated(pSinglesIn)) then
+                        pSingles = pSinglesIn
+                        pDoubles = 1.0_dp - pSingles
+                        write(iout, '(" Using the input value of pSingles:",1x, f14.6)') pSingles
+                else if (allocated(pDoublesIn)) then
+                    pDoubles = pDoublesIn
+                    pSingles = 1.0_dp - pDoubles
+                    write(iout, '(" Using the input value of pDoubles:",1x, f14.6)') pDoubles
+                end if
             end if
         end if
+
         if (allocated(pParallelIn)) then
             write(iout, '(" Using the input value of pParallel:",1x, f14.6)') pParallelIn
             pParallel = pParallelIn
