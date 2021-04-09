@@ -2959,7 +2959,7 @@ contains
         type(ll_node), pointer :: TempNode
         character(len=*), parameter :: this_routine = "InitFCIMC_MP1"
         integer(n_int) :: ilutG(0:nifguga)
-        integer(n_int), pointer :: excitations(:, :)
+        integer(n_int), allocatable :: excitations(:, :)
         integer :: i
 
 #ifdef CMPLX_
@@ -3838,7 +3838,7 @@ contains
         real(dp) :: energies(nel), hdiag
 
         ! for now guga only works with non-complex code
-        integer(n_int), pointer :: excitations(:, :)
+        integer(n_int), allocatable :: excitations(:, :)
         integer :: n_excits, ierr
         real(dp), allocatable :: diag_energies(:)
         logical, allocatable :: found_mask(:)
