@@ -7119,7 +7119,7 @@ contains
 
         call singleEnd(ilut, excitInfo, tmpEx, num, excits)
 
-        ASSERT(.not. associated(tmpEx))
+        ASSERT(.not. allocated(tmpEx))
         ASSERT(num == 1)
         ASSERT(abs(extract_matrix_element(excits(:, 1), 1) + 1.0_dp) < 1.0e-10_dp)
 
