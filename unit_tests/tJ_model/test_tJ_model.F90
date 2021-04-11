@@ -122,7 +122,7 @@ contains
         t_translation = .false.
         t_single_csf_rdm = .false.
         t_annealing = .false.
-        t_entanglement = .false.
+        t_entanglement = .true.
 
         t_input_guga = .true.
 
@@ -558,26 +558,26 @@ contains
             call print_matrix(mutual_entanglement)
             print *, "running_entanglement: ", running_entanglement
 
-            ! call csf_to_sds_ilut(IlutRef(:,1), sds, weights)
-            !
-            ! call get_entanglement_measures(sds, weights, &
-            !     one_orb_entanglement, two_orb_entanglement, mutual_entanglement, &
-            !     running_entanglement)
-            !
-            ! print *, "============= Orig state: ==============="
-            ! call print_entanglement(one_orb_entanglement, two_orb_entanglement, &
-            !     mutual_entanglement, running_entanglement)
-            !
-            !
-            ! call csf_to_sds_ilut(IlutBipart, sds, weights)
-            !
-            ! call get_entanglement_measures(sds, weights, &
-            !     one_orb_entanglement, two_orb_entanglement, mutual_entanglement, &
-            !     running_entanglement)
-            !
-            ! print *, "============= Bipart state: ==============="
-            ! call print_entanglement(one_orb_entanglement, two_orb_entanglement, &
-            !     mutual_entanglement, running_entanglement)
+            call csf_to_sds_ilut(IlutRef(:,1), sds, weights)
+
+            call get_entanglement_measures(sds, weights, &
+                one_orb_entanglement, two_orb_entanglement, mutual_entanglement, &
+                running_entanglement)
+
+            print *, "============= Orig state: ==============="
+            call print_entanglement(one_orb_entanglement, two_orb_entanglement, &
+                mutual_entanglement, running_entanglement)
+
+
+            call csf_to_sds_ilut(IlutBipart, sds, weights)
+
+            call get_entanglement_measures(sds, weights, &
+                one_orb_entanglement, two_orb_entanglement, mutual_entanglement, &
+                running_entanglement)
+
+            print *, "============= Bipart state: ==============="
+            call print_entanglement(one_orb_entanglement, two_orb_entanglement, &
+                mutual_entanglement, running_entanglement)
 
             call csf_to_sds_ilut(ilutCompact, sds, weights)
 

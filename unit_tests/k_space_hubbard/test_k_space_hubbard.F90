@@ -1774,7 +1774,7 @@ contains
         t_pca = .false.
         ic_inside = 2
         t_check_orthogonality = .false.
-        t_calc_doubles = .false.
+        t_calc_doubles = .true.
 
         write(U_str,*) U
 
