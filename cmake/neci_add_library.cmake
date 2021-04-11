@@ -39,6 +39,9 @@
 #   list of source files to be passed through fypp (note that this ensures that they are
 #   not redefined multiple times).
 #
+# RELAX_WARNINGS : optional
+#   list of old source files which require relaxed warning policies.
+#
 # TYPE : optional
 #   library type, one of:
 #
@@ -65,7 +68,7 @@ macro( neci_add_library )
 
     set( options )
     set( single_value_args TARGET TYPE OUTPUT_NAME LINKER_LANGUAGE WARNERR)
-    set( multi_value_args SOURCES DEFINITIONS TEMPLATED_SOURCES FYPP_SOURCES PRIVATE_INCLUDES LIBS )
+    set( multi_value_args SOURCES DEFINITIONS TEMPLATED_SOURCES FYPP_SOURCES RELAX_WARNINGS PRIVATE_INCLUDES LIBS )
 
     cmake_parse_arguments( _p "${options}" "${single_value_args}" "${multi_value_args}" ${_FIRST_ARG} ${ARGN} )
 
@@ -111,14 +114,28 @@ macro( neci_add_library )
             WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
             OUTPUT ${_templated_target_file}
             DEPENDS ${_templated_file_absolute} )
+        set_property(SOURCE ${_templated_target_file}  PROPERTY COMPILE_FLAGS ${${PROJECT_NAME}_Fortran_relaxed_WARNING_FLAGS})
       endforeach()
     endif()
 
     set( ${_p_TARGET}_FYPP_SOURCES )
     if (_p_FYPP_SOURCES )
-        get_filename_component( _fypp ${PROJECT_SOURCE_DIR}/External/fypp/bin/fypp ABSOLUTE )
-        if (NOT EXISTS ${_fypp})
-            message( FATAL_ERROR "fypp preprocessor missing. Please do `git submodule update --init` in the git repository.")
+        # This will also search in default locations e.g. $PATH, env ...
+        find_program (_fypp fypp ${PROJECT_SOURCE_DIR}/External/fypp/bin/)
+        if (NOT _fypp)
+            message(STATUS "Submodule update")
+            find_package(Git QUIET)
+            if(GIT_FOUND)
+                execute_process(COMMAND ${GIT_EXECUTABLE} submodule update --init --recursive
+                                WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+                                RESULT_VARIABLE GIT_SUBMOD_RESULT)
+                if(NOT GIT_SUBMOD_RESULT EQUAL "0")
+                    message(FATAL_ERROR "git submodule update --init failed with ${GIT_SUBMOD_RESULT}, please checkout submodules.")
+                endif()
+                find_program (_fypp fypp ${PROJECT_SOURCE_DIR}/External/fypp/bin/)
+            else()
+                message(FATAL_ERROR "Git not found")
+            endif()
         endif()
         set( _fypp_dir ${CMAKE_BINARY_DIR}/fypp/${_p_TARGET} )
         file( MAKE_DIRECTORY ${_fypp_dir} )
@@ -140,8 +157,10 @@ macro( neci_add_library )
         endforeach()
     endif()
 
+
     # Actually add the library to the cmake build
     add_library( ${_p_TARGET} ${_p_TYPE} ${_p_SOURCES} ${${_p_TARGET}_FYPP_SOURCES} ${${_p_TARGET}_TEMPLATED_SOURCES})
+
 
     # Add definitions to the compliation
     if (DEFINED _p_DEFINITIONS )
@@ -151,16 +170,26 @@ macro( neci_add_library )
         set_property( TARGET ${_p_TARGET} PROPERTY COMPILE_DEFINITIONS ${_target_defs} )
     endif()
 
+
     # set the warn-error flags
     if (DEFINED _p_WARNERR )
-	if( HAVE_WARNINGS )
-	foreach( _lang C CXX Fortran )
-	    if( CMAKE_${_lang}_COMPILER_LOADED AND DEFINED ${PROJECT_NAME}_${_lang}_WARN_ERROR_FLAG )
-	     	target_compile_options(${_p_TARGET} PRIVATE $<$<COMPILE_LANGUAGE:${_lang}>:${${PROJECT_NAME}_${_lang}_WARN_ERROR_FLAG}>)
-	    endif()
-	endforeach()
-	endif()
+        if( HAVE_WARNINGS )
+        foreach( _lang C CXX Fortran )
+            if( CMAKE_${_lang}_COMPILER_LOADED AND DEFINED ${PROJECT_NAME}_${_lang}_WARN_ERROR_FLAG )
+                target_compile_options(${_p_TARGET} PRIVATE $<$<COMPILE_LANGUAGE:${_lang}>:${${PROJECT_NAME}_${_lang}_WARN_ERROR_FLAG}>)
+            endif()
+        endforeach()
+        endif()
     endif()
+
+    if( HAVE_WARNINGS )
+#         set( ${_p_TARGET}_RELAX_WARNINGS )
+        if (_p_RELAX_WARNINGS )
+            set_property(SOURCE ${_p_RELAX_WARNINGS} PROPERTY COMPILE_FLAGS ${${PROJECT_NAME}_Fortran_relaxed_WARNING_FLAGS})
+        endif()
+    endif()
+
+
 
 
     # Add (private) includes

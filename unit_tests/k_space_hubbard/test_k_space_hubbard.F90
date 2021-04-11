@@ -86,7 +86,7 @@ program test_k_space_hubbard
     call fruit_finalize()
 
     ! change flag to misuse the unit tests do an exact study..
-    t_exact_study = .true.
+    t_exact_study = .false.
 #ifndef CMPLX_
     if (t_exact_study) call exact_study()
 #endif

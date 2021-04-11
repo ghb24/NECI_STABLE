@@ -52,7 +52,6 @@ contains
     ! in some general data module
 
     subroutine init_tau_search_guga_nosym
-        integer :: i
 
         ! guga version of the tau search routine for the old "nosym" and
         ! non-weighted excitation generator
@@ -493,16 +492,12 @@ contains
         ! excitation generator, which uses no symmetry
         ! but i have to update that depending if consider diff bias is used
         ! or not...
-        real(dp) :: pSingles_new, tau_new, mpi_tmp, tau_death, pParallel_new
+        real(dp) :: pSingles_new, tau_new, mpi_tmp, tau_death
         logical :: mpi_ltmp
         character(*), parameter :: this_routine = "update_tau_guga_nosym"
 
         real(dp) :: pExcit4_new, pExcit3_same_new, &
                     pExcit2_new, pExcit2_same_new, pBranch2, pBranch3
-        real(dp) :: ratio_singles, ratio_type2, ratio_type2_diff, &
-                    ratio_type3, ratio_type3_diff, ratio_type4
-        real(dp) :: tau_test, psingles_test, pExcit2_same_test, pexcit3_same_test, &
-                    pExcit2_test, pexcit4_test, ratio_doubles
         ! from the "old" routine
         ! This is an override. In case we need to adjust tau due to particle
         ! death rates, when it otherwise wouldn't be adjusted

@@ -71,7 +71,7 @@ program test_real_space_hubbard
     if (t_excit_gen) call test_excit_gen_realspace()
     ! run the test-driver
     ! change flag for the exact study:
-    t_exact_study = .true.
+    t_exact_study = .false.
     if (t_exact_study) call exact_test()
     call real_space_hubbard_test_driver()
     call fruit_summary()

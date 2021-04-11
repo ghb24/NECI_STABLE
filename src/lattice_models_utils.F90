@@ -608,7 +608,7 @@ contains
             s_tot = n_up - n_down
 
             hilbert_space = create_all_open_shell_dets(n_orbs, n_down, n_up)
-            hilbert_space = csf_purify(hilbert_space, s_tot, n_orbs, n_orbs)
+            hilbert_space = csf_purify(hilbert_space, s_tot, n_orbs)
 
             temp_fock(:,j:j+size(hilbert_space,2)-1) = hilbert_space
             j = j + size(hilbert_space, 2)

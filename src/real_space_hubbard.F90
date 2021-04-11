@@ -1416,7 +1416,9 @@ contains
                 ! 3)Select one of these pairs and construct exitation
                 n_spatial_hole = 0
                 do i = 1, nBasis / 2
-                    if (IsOcc(ilutI, 2 * i - 1) .or. IsOcc(ilutI, 2 * i)) cycle
+                    associate(j => 2 * i - 1, k => 2 * i)
+                    if (IsOcc(ilutI, j) .or. IsOcc(ilutI, k)) cycle
+                    end associate
                     n_spatial_hole = n_spatial_hole + 1
                     ind_spatial_hole(n_spatial_hole) = 2 * i - 1
                 end do

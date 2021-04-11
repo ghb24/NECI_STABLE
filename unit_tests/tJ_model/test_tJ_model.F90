@@ -26,7 +26,7 @@ program test_tJ_model
     integer :: failed_count
     logical :: t_exact_study
 
-    t_exact_study = .true.
+    t_exact_study = .false.
     t_tJ_model = .true.
     t_lattice_model = .true.
 
@@ -76,7 +76,7 @@ contains
         use bit_reps, only: init_bit_rep
         use guga_excitations, only: create_hamiltonian_guga
 
-        HElement_t(dp), allocatable :: hamil(:,:), bosonic_hamil(:,:), hamil_3(:,:)
+        real(dp), allocatable :: hamil(:,:), bosonic_hamil(:,:), hamil_3(:,:)
         complex(dp), allocatable :: hamil_2(:,:), e_vecs_cmplx(:,:)
         integer(n_int), allocatable :: hilbert_space(:,:), ilutBipart(:), &
                                  ilutZigZag(:), ilutVolcano(:), fock_space(:,:), &
@@ -305,7 +305,7 @@ contains
         hilbert_space = create_all_open_shell_dets(nSpatOrbs, n_alpha, n_beta)
         ! and then I need to loop over the permutations
         if (tGUGA) then
-            hilbert_space = csf_purify(hilbert_space, tot_spin, nSpatOrbs, nel)
+            hilbert_space = csf_purify(hilbert_space, tot_spin, nel)
             hamil = create_hamiltonian_guga(hilbert_space)
         else
             hamil = create_lattice_hamil_ilut(hilbert_space)
@@ -1475,10 +1475,10 @@ contains
     end function norm
 
     pure function create_bosonic_hamil(hamil) result(bosonic)
-        HElement_t(dp), intent(in) :: hamil(:,:)
-        HElement_t(dp) :: bosonic(size(hamil,1), size(hamil,2))
+        real(dp), intent(in) :: hamil(:,:)
+        real(dp) :: bosonic(size(hamil,1), size(hamil,2))
 
-        HElement_t(dp) :: copy(size(hamil,1), size(hamil,2))
+        real(dp) :: copy(size(hamil,1), size(hamil,2))
         integer :: i
 
         copy = hamil
@@ -1669,8 +1669,8 @@ contains
     end function density_corr_sds
 
     pure function diag_matrix(matrix) result(diag)
-        HElement_t(dp), intent(in) :: matrix(:,:)
-        HElement_t(dp) :: diag(size(matrix,1), size(matrix,2 ))
+        real(dp), intent(in) :: matrix(:,:)
+        real(dp) :: diag(size(matrix,1), size(matrix,2 ))
 
         integer :: i
 

@@ -457,14 +457,6 @@ module guga_data
     ! remake them in every random orbital picker!
     integer, allocatable :: orbitalIndex(:)
 
-    ! make a global RDM to HF Contribution list for faster calculation of
-    ! those contributions
-    type(RdmContribList_t), allocatable :: HF_rdm_contribs(:)
-
-    ! and if the reference is different than the 'true HF' maybe also make
-    ! a list for these contribs! if they are the same we can use the above
-    type(RdmContribList_t), allocatable :: ref_rdm_contribs(:)
-
     ! use a global flag to indicate a switch to a new determinant in the
     ! main routine to avoid recalculating b vector occupation and
     ! stepvector
@@ -588,32 +580,6 @@ contains
         doubleContribution(7)%ptr => minFunBplus1
 
     end subroutine init_guga_data_procPtrs
-
-    subroutine nullify_guga_data_procPtrs()
-
-        integer :: i
-
-        do i = 1, 15
-            nullify (singleMatElesGUGA(i)%ptr)
-        end do
-
-        do i = 1, 45
-            nullify (doubleMatEleX1GUGA(i)%ptr)
-        end do
-
-        do i = 1, 17
-            nullify (doubleMatEleX0GUGA(i)%ptr)
-        end do
-
-        do i = 1, 5
-            nullify (mixedGenFullStopMatEle(i)%ptr)
-        end do
-
-        do i = 1, 7
-            nullify (doubleContribution(i)%ptr)
-        end do
-
-    end subroutine nullify_guga_data_procPtrs
 
     ! wrapper functions to access matrix element terms
 
@@ -815,13 +781,6 @@ contains
     end function funBplus1
 
     ! =========== additional double excitation matrix elements ===============
-    function funMinusTwo(b) result(ret)
-        real(dp), intent(in) :: b
-        real(dp) :: ret
-        unused_var(b)
-        ret = -2.0_dp
-    end function funMinusTwo
-
     function funSqrt2(b) result(ret)
         real(dp), intent(in) :: b
         real(dp) :: ret

@@ -8,7 +8,7 @@ module matrix_util
     private
     public :: eig, print_matrix, matrix_exponential, det, blas_matmul, linspace, norm, &
         calc_eigenvalues, check_symmetric, find_degeneracies, eig_sym, norm_cmplx, &
-        store_hf_coeff, my_minloc, my_minval
+        store_hf_coeff, my_minloc, my_minval, matrix_inverse
 
     interface linspace
         module procedure linspace_sp
@@ -40,7 +40,6 @@ contains
         integer :: n, info
         real(dp) :: work(4*size(matrix,1)), tmp_matrix(size(matrix,1),size(matrix,2))
         real(dp) :: left_ev(size(matrix,1),size(matrix,1)), dummy_eval(size(matrix,1))
-        real(dp), allocatable :: rwork(:)
         real(dp) :: right_ev(size(matrix,1),size(matrix,1))
         integer :: sort_ind(size(matrix,1))
         character :: left, right
@@ -119,7 +118,7 @@ contains
         ! eigenvectors i want.. maybe also the number of eigenvalues..
         integer :: n, info
         complex(dp) :: work(4*size(matrix,1)), tmp_matrix(size(matrix,1),size(matrix,2))
-        complex(dp) :: left_ev(size(matrix,1),size(matrix,1)), dummy_eval(size(matrix,1))
+        complex(dp) :: left_ev(size(matrix,1),size(matrix,1))
         real(dp), allocatable :: rwork(:)
         real(dp) :: right_ev(size(matrix,1),size(matrix,1))
         integer :: sort_ind(size(matrix,1))
@@ -193,7 +192,6 @@ contains
         real(dp) :: work(3*size(matrix,1))
         real(dp) :: tmp_matrix(size(matrix,1),size(matrix,2)),dummy_val(size(matrix,1))
         real(dp) :: dummy_vec_1(1,size(matrix,1)), dummy_vec_2(1,size(matrix,1))
-        real(dp), allocatable :: rwork(:)
 
         n = size(matrix,1)
 
@@ -208,11 +206,10 @@ contains
         complex(dp), intent(in) :: matrix(:,:)
         real(dp) :: e_values(size(matrix,1))
 
-        integer :: n, info
+        integer :: n
         complex(dp) :: work(3*size(matrix,1))
-        real(dp) :: tmp_matrix(size(matrix,1),size(matrix,2)),dummy_val(size(matrix,1))
-        real(dp) :: dummy_vec_1(1,size(matrix,1)), dummy_vec_2(1,size(matrix,1))
-        real(dp), allocatable :: rwork(:)
+        complex(dp) :: tmp_matrix(size(matrix,1),size(matrix,2))
+        complex(dp), allocatable :: rwork(:)
 
         n = size(matrix,1)
 
@@ -371,7 +368,8 @@ contains
 
         n = size(A,1)
 #ifdef CMPLX_
-        call zgemm('N','N', n, n, n, cmplx(1.0_dp,0.0_dp), A, n, B, n, cmplx(1.0_dp,0.0_dp), C, n)
+        call zgemm('N','N', n, n, n, cmplx(1.0_dp,0.0_dp,kind=dp), A, n, B, n, &
+            cmplx(1.0_dp,0.0_dp,kind=dp), C, n)
 #else
         call dgemm('N', 'N', n, n, n, 1.0_dp, A, n, B, n, 0.0_dp, C, n)
 #endif
@@ -439,7 +437,6 @@ contains
         HElement_t(dp) :: inverse(size(matrix,1),size(matrix,2))
         HElement_t(dp) :: exp_diag(size(matrix,1),size(matrix,2))
         integer :: info, n
-        real(dp), allocatable :: rwork(:)
 
         n = size(matrix,1)
 
@@ -447,9 +444,12 @@ contains
         ! eigenvectors
         vectors = matrix
 #ifdef CMPLX_
-        allocate(rwork(max(1,3*n-2)))
-        call zheev('V', 'U', n, vectors, n, values, work, 3*n-1, rwork, info)
-        deallocate(rwork)
+        block
+            HElement_t(dp), allocatable :: rwork(:)
+            allocate(rwork(max(1,3*n-2)))
+            call zheev('V', 'U', n, vectors, n, values, work, 3*n-1, rwork, info)
+            deallocate(rwork)
+        end block
 #else
         call dsyev('V', 'U', n, vectors, n, values, work, 3*n-1,info)
 #endif
@@ -509,9 +509,6 @@ contains
         ! if p_in = -1 this indicates the p_inf norm
         real(dp), intent(in) :: vec(:)
         integer, intent(in), optional :: p_in
-#ifdef DEBUG_
-        character(*), parameter :: this_routine = "norm"
-#endif
         integer :: p, i
 
         if (present(p_in)) then
@@ -592,13 +589,9 @@ contains
         ! if p_in = -1 this indicates the p_inf norm
         complex(dp), intent(in) :: vec(:)
         integer, intent(in), optional :: p_in
-#ifdef DEBUG_
-        character(*), parameter :: this_routine = "norm"
-#endif
         integer :: p, i
 
         if (present(p_in)) then
-!             ASSERT(p_in == -1 .or. p_in >= 0)
             p = p_in
         else
             ! default is the L2 norm

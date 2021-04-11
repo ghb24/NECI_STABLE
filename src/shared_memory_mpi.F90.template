@@ -69,19 +69,21 @@ module shared_memory_mpi
 
 contains
 
-      subroutine shared_allocate_mpi (win_shm, p_shm, dims)
+      subroutine shared_allocate_mpi (win_shm, p_shm, dims, ierr)
       use HElem
 
       integer(MPIArg):: win_shm
+      integer, intent(out), optional :: ierr
 
       %(type1)s, dimension(%(dim)s), pointer :: p_shm
       integer(int64):: dims(%(rank)s)
 
       integer(MPIArg):: disp_unit
-      integer(MPIArg) :: ierr, jerr, errorclass, length
+      integer(MPIArg) :: ierr_, jerr, errorclass, length
       integer(kind=mpi_address_kind):: wsize
       character(255) :: string
       TYPE(C_PTR):: cptr_shm
+      character(*), parameter :: this_routine = 'shared_allocate_mpi'
 
 #ifdef SHARED_MEM_
 
@@ -92,21 +94,48 @@ contains
       end if
 
       call mpi_win_allocate_shared(wsize,int(%(sizeb)s,MPIArg),MPI_INFO_NULL,mpi_comm_intra,&
-           cptr_shm,win_shm,ierr)
+           cptr_shm,win_shm,ierr_)
 
-      if(ierr /= MPI_SUCCESS) then
-         call mpi_error_class(ierr, errorclass, jerr)
-         call mpi_error_string(errorclass,string, length, jerr)
-         call stop_all('shared_allocate_mpi',string)
+      if (present(ierr)) ierr = int(ierr_)
+      if (ierr_ /= MPI_SUCCESS) then
+         if (present(ierr)) then
+             return
+         else
+             call mpi_error_class(ierr_, errorclass, jerr)
+             call mpi_error_string(errorclass,string, length, jerr)
+             call stop_all(this_routine, string)
+         end if
       endif
 
-      call mpi_win_shared_query(win_shm,0_MPIArg,wsize,disp_unit,cptr_shm,ierr)
+      call mpi_win_shared_query(win_shm,0_MPIArg,wsize,disp_unit,cptr_shm,ierr_)
+
+      if (present(ierr)) ierr = int(ierr_)
+      if (ierr_ /= MPI_SUCCESS) then
+         if (present(ierr)) then
+             return
+         else
+             call mpi_error_class(ierr_, errorclass, jerr)
+             call mpi_error_string(errorclass,string, length, jerr)
+             call stop_all(this_routine, string)
+         end if
+      endif
 
       !map to Fortran array pointer
       call c_f_pointer(cptr_shm,p_shm,dims)
 
       !start read/write epoch for this window
-      call mpi_win_lock_all(MPI_MODE_NOCHECK,win_shm,ierr)
+      call mpi_win_lock_all(MPI_MODE_NOCHECK,win_shm,ierr_)
+
+      if (present(ierr)) ierr = int(ierr_)
+      if (ierr_ /= MPI_SUCCESS) then
+         if (present(ierr)) then
+             return
+         else
+             call mpi_error_class(ierr_, errorclass, jerr)
+             call mpi_error_string(errorclass,string, length, jerr)
+             call stop_all(this_routine, string)
+         end if
+      endif
 #else
       ! no shared memory features used
       call variadic_allocate(p_shm,dims)
@@ -114,14 +143,37 @@ contains
 
     end subroutine
 
-    subroutine shared_deallocate_mpi(win_shm,p_shm)
+    subroutine shared_deallocate_mpi(win_shm, p_shm, ierr)
       integer(MPIArg):: win_shm
       %(type1)s, dimension(%(dim)s), pointer :: p_shm
-      integer(MPIArg):: ierr
+      integer, intent(out), optional :: ierr
+      integer(MPIArg) :: ierr_, jerr, errorclass, length
+      character(len=255) :: string
+      character(*), parameter :: this_routine = 'shared_deallocate_mpi'
 #ifdef SHARED_MEM_
       nullify(p_shm)
-      call mpi_win_unlock_all(win_shm,ierr)
-      call mpi_win_free(win_shm,ierr)
+      call mpi_win_unlock_all(win_shm, ierr_)
+      if (present(ierr)) ierr = int(ierr_)
+      if (ierr_ /= MPI_SUCCESS) then
+         if (present(ierr)) then
+             return
+         else
+             call mpi_error_class(ierr_, errorclass, jerr)
+             call mpi_error_string(errorclass,string, length, jerr)
+             call stop_all(this_routine, string)
+         end if
+      endif
+      call mpi_win_free(win_shm, ierr_)
+      if (present(ierr)) ierr = int(ierr_)
+      if (ierr_ /= MPI_SUCCESS) then
+         if (present(ierr)) then
+             return
+         else
+             call mpi_error_class(ierr_, errorclass, jerr)
+             call mpi_error_string(errorclass,string, length, jerr)
+             call stop_all(this_routine, string)
+         end if
+      endif
 #else
       deallocate(p_shm)
 #endif
@@ -134,12 +186,35 @@ use scalar_shared_memory_mpi
 implicit none
 contains
 #ifdef SHARED_MEM_
-    subroutine shared_sync_mpi(win_shm)
+    subroutine shared_sync_mpi(win_shm, ierr)
       integer(MPIArg):: win_shm
-      integer(MPIArg):: ierr
+      integer, intent(out), optional :: ierr
+      integer(MPIArg) :: ierr_, jerr, errorclass, length
+      character(len=255) :: string
+      character(*), parameter :: this_routine = 'shared_sync_mpi'
 
-      call mpi_win_sync(win_shm,ierr)
-      call mpi_barrier(mpi_comm_intra,ierr)
+      call mpi_win_sync(win_shm, ierr_)
+      if (present(ierr)) ierr = int(ierr_)
+      if (ierr_ /= MPI_SUCCESS) then
+         if (present(ierr)) then
+             return
+         else
+             call mpi_error_class(ierr_, errorclass, jerr)
+             call mpi_error_string(errorclass,string, length, jerr)
+             call stop_all(this_routine, string)
+         end if
+      endif
+      call mpi_barrier(mpi_comm_intra, ierr_)
+      if (present(ierr)) ierr = int(ierr_)
+      if (ierr_ /= MPI_SUCCESS) then
+         if (present(ierr)) then
+             return
+         else
+             call mpi_error_class(ierr_, errorclass, jerr)
+             call mpi_error_string(errorclass,string, length, jerr)
+             call stop_all(this_routine, string)
+         end if
+      endif
     end subroutine shared_sync_mpi
 #else
     subroutine shared_sync_mpi(win_shm)

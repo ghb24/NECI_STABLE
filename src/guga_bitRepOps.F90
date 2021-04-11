@@ -22,7 +22,8 @@ module guga_bitRepOps
                             flag_deltaB_double, flag_deltaB_sign, niftot, &
                             nIfGUGA, nIfd, BitRep_t, GugaBits
     use util_mod, only: binary_search, binary_search_custom, operator(.div.), &
-                        near_zero
+                        near_zero, stop_all
+
     use sort_mod, only: sort
 
     use LoggingData, only: tRDMonfly
@@ -159,6 +160,38 @@ contains
 
     end subroutine init_guga_bitrep
 
+    pure integer function find_guga_excit_lvl_to_doubles(ilutI, ilutJ)
+        ! make an highly optimized excitation level finder for guga up
+        ! to doubles (for efficiency reasons)
+        ! maybe use this and the SD version to initialize a pointer
+        ! at startup to use the correct one and to be sure to have a
+        ! correct GUGA excit-lvl info at all necessary stages
+        integer(n_int), intent(in) :: ilutI(0:GugaBits%len_tot), ilutJ(0:GugaBits%len_tot)
+        ! integer, intent(in), optional :: max_ex
+        ! logical, intent(in), optional :: dummy_flag
+
+        ! unused_var(max_ex)
+        ! unused_var(dummy_flag)
+
+        find_guga_excit_lvl_to_doubles = nel
+
+        call stop_all("here", "todo")
+
+    end function find_guga_excit_lvl_to_doubles
+
+
+    pure integer function find_guga_excit_lvl(ilutI, ilutJ)
+        ! general excit-level finder
+        integer(n_int), intent(in) :: ilutI(0:GugaBits%len_tot), ilutJ(0:GugaBits%len_tot)
+
+        type(ExcitationInformation_t) :: excitInfo
+
+        excitInfo = identify_excitation(ilutI, ilutJ)
+
+        find_guga_excit_lvl = excitInfo%excitLvl
+
+    end function find_guga_excit_lvl
+
     ! finally with the, after all, usable trialz, popcnt, and leadz routines
     ! (except for the PGI and NAG compilers) i can write an efficient
     ! excitation identifier between two given CSFs
@@ -169,15 +202,14 @@ contains
     ! yet, which calculates the matrix element, if both CSFs are provided
     ! and probably also the whole excitation information can be provided
 
-    function identify_excitation(ilutI, ilutJ) result(excitInfo)
+    pure function identify_excitation(ilutI, ilutJ) result(excitInfo)
         integer(n_int), intent(in) :: ilutI(0:nifd), ilutJ(0:nifd)
         type(ExcitationInformation_t) :: excitInfo
-        character(*), parameter :: this_routine = "identify_excitation"
 
         integer(n_int) :: alpha_i(0:nifd), alpha_j(0:nifd), beta_i(0:nifd), &
                           beta_j(0:nifd), singles_i(0:nifd), singles_j(0:nifd), &
                           change_1(0:nifd), change_2(0:nifd), mask_singles(0:nifd), &
-                          mask_doubles(0:nifd), spin_change(0:nifd), overlap(0:nifd), &
+                          spin_change(0:nifd), overlap(0:nifd), &
                           mask_2(0:nifd), mask_3(0:nifd), mask_change_1(0:nifd), &
                           mask_change_2(0:nifd), mask_change_0(0:nifd)
 
@@ -1509,9 +1541,10 @@ contains
 
     end function identify_excitation
 
-    function assign_excitInfo_values_exact(typ, gen1, gen2, currentGen, firstGen, &
-                                           lastGen, i, j, k, l, fullStart, secondStart, firstEnd, fullEnd, &
-                                           weight, excitLvl, order, order1, overlap, spin_change) result(excitInfo)
+    pure function assign_excitInfo_values_exact(typ, gen1, gen2, currentGen, firstGen, &
+                lastGen, i, j, k, l, fullStart, secondStart, firstEnd, fullEnd, &
+                weight, excitLvl, order, order1, overlap, spin_change) &
+                result(excitInfo)
         ! version of the excitation information filler for the exact
         ! matrix element calculation between 2 given CSFs
         integer, intent(in) :: typ, gen1, gen2, currentGen, firstGen, lastGen, &
@@ -1556,7 +1589,7 @@ contains
 
     end function assign_excitInfo_values_exact
 
-    function assign_excitInfo_values_single_ex(gen, i, j, fullStart, fullEnd, typ) &
+    pure function assign_excitInfo_values_single_ex(gen, i, j, fullStart, fullEnd, typ) &
         result(excitInfo)
         integer, intent(in) :: gen, i, j, fullStart, fullEnd
         integer, intent(in), optional :: typ
@@ -1606,7 +1639,6 @@ contains
         ! format and calculating occupation vectors
         integer, intent(in) :: nI(nEl), nJ(nEl)
         integer, intent(out) :: ex(2, 2)
-        character(*), parameter :: this_routine = "getExcitation_guga"
 
         integer(n_int) :: ilutI(0:niftot), ilutJ(0:niftot)
         integer :: first, last, cnt_e, cnt_h, occ_diff(nSpatOrbs), i
@@ -1706,7 +1738,6 @@ contains
         integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
         integer, intent(in) :: ind
         integer, intent(out) :: lower, upper
-        character(*), parameter :: this_routine = "find_switches_ilut"
 
         integer :: i
         ! set defaults if no such switches are available
@@ -1789,12 +1820,8 @@ contains
         integer(n_int), intent(in) :: iI(0:GugaBits%len_tot), iJ(0:GugaBits%len_tot)
         integer, intent(in) :: start, semi
         integer :: orb, a, b
-        character(*), parameter :: this_routine = "findFirstSwitch"
 
-        integer :: i, ind_2(2), ind_3(2)
-        integer(n_int) :: alpha_i(0:nifd), alpha_j(0:nifd), beta_i(0:nifd), &
-                          beta_j(0:nifd), mask_singles(0:nifd), spin_change(0:nifd), &
-                          mask_2(0:nifd), mask_3(0:nifd)
+        integer :: i
         ! with the fortran 2008 intrinsic funcitons it would be easy...
         ! for now just do a loop over double overlap region and compare
         ! stepvalues
@@ -1833,13 +1860,10 @@ contains
         ! function to find last switch in a mixed fullstop excitation
         integer(n_int), intent(in) :: ilutI(0:GugaBits%len_tot), ilutJ(0:GugaBits%len_tot)
         integer, intent(in) :: ende, semi
-        integer :: orb, a, b
-        character(*), parameter :: this_routine = "findLastSwitch"
+        integer :: orb
 
-        integer :: iOrb, i, j, k, res_orbs, ind_2(2), ind_3(2)
-        integer(n_int) :: alpha_i(0:nifd), alpha_j(0:nifd), beta_i(0:nifd), &
-                          beta_j(0:nifd), mask_singles(0:nifd), spin_change(0:nifd), &
-                          mask_2(0:nifd), mask_3(0:nifd)
+        integer :: a, b, iOrb
+
 
         ! set it to impossible value, so contribution does not get
         ! calculated if no switch happened, (which shouldnt be reached anyway)
@@ -1872,10 +1896,8 @@ contains
         integer, intent(inout) :: nDets1
         integer, intent(in) :: nDets2
         integer(n_int), intent(inout) :: list1(0:, 1:), list2(0:, 1:)
-        character(*), parameter :: this_routine = "add_guga_lists"
 
         integer :: i, min_ind, pos, abs_pos, j
-        integer :: tmp_deb
         HElement_t(dp) :: tmp_mat
 
         ! first sort lists to use binary search
@@ -1936,11 +1958,11 @@ contains
     ! GUGA excitation integer lists, as i need an additional entry for the
     ! x1 matrix element
 
-    function csf_purify(sd_hilbert_space, total_spin, n_orbs, n_el) result(csfs)
+    function csf_purify(sd_hilbert_space, total_spin, n_el) result(csfs)
         ! function to filter out all spin-allowed states from a
         ! SD Hilbert space
         integer(n_int), intent(in) :: sd_hilbert_space(:,:)
-        integer, intent(in) :: total_spin, n_orbs, n_el
+        integer, intent(in) :: total_spin, n_el
 
         integer(n_int), allocatable :: csfs(:,:)
         integer :: i, cnt
@@ -2171,8 +2193,6 @@ contains
         integer :: nOpen
         character(*), parameter :: this_routine = "count_beta_orbs_ij"
 
-        integer(n_int) :: mask(0:GugaBits%len_orb), &
-                          beta(0:GugaBits%len_orb), alpha(0:GugaBits%len_orb)
         integer :: k
 
         ASSERT(i > 0 .and. i <= nSpatOrbs)
@@ -2199,8 +2219,6 @@ contains
         integer :: nOpen
         character(*), parameter :: this_routine = "count_alpha_orbs_ij"
 
-        integer(n_int) :: mask(0:GugaBits%len_orb), alpha(0:GugaBits%len_orb), &
-                          beta(0:GugaBits%len_orb)
         integer :: k
 
         ASSERT(i > 0 .and. i <= nSpatOrbs)
@@ -2227,7 +2245,6 @@ contains
         character(*), parameter :: this_routine = "count_open_orbs_ij"
 
         logical :: flag
-        integer(n_int) :: mask
         integer :: k
 
         ASSERT(i > 0 .and. i <= nSpatOrbs)
@@ -2286,7 +2303,7 @@ contains
 
     end function getExcitationRangeMask
 
-    subroutine setDeltaB(deltaB, ilut)
+    pure subroutine setDeltaB(deltaB, ilut)
         ! routine to encode the deltaB value in a given CSF in ilut bit
         ! representation, by using the newly defined flags:
         ! flag_deltaB_sign   ... 7
@@ -2295,7 +2312,6 @@ contains
         ! flag_deltaB_double ... 6
         integer, intent(in) :: deltaB
         integer(n_int), intent(inout) :: ilut(0:GugaBits%len_tot)
-        character(*), parameter :: this_routine = "setDeltaB"
 
         ! should no just be:
         ilut(GugaBits%ind_b) = deltaB
@@ -2306,7 +2322,6 @@ contains
         ! function to get the deltaB value encoded in the flag-byte in ilut
         integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
         integer :: deltaB
-        character(*), parameter :: this_routine = "getDeltaB"
 
         ! check if flags are correctly set
 
@@ -2333,8 +2348,6 @@ contains
         integer(n_int), intent(inout) :: ilutN(0:niftot)
         HElement_t(dp), intent(out), optional :: HElement
         character(*), parameter :: this_routine = "convert_ilut_toNECI"
-
-        real(dp) :: tmp_matele
 
         ASSERT(isProperCSF_ilut(ilutG))
 
@@ -2386,7 +2399,6 @@ contains
         integer(n_int), intent(out) :: ilutG(0:GugaBits%len_tot)
         HElement_t(dp), intent(in), optional :: HElement
         integer, intent(in), optional :: delta_b
-        character(*), parameter :: this_routine = "convert_ilut_toGUGA"
 
         ilutG = 0_n_int
 
@@ -2510,7 +2522,7 @@ contains
         integer, intent(in) :: nI(nEl)
         real(dp) :: bVector(nEl), bValue
 
-        integer :: iOrb, i, inc
+        integer :: iOrb, inc
 
         ! init
         iOrb = 1
@@ -2539,7 +2551,7 @@ contains
 
             iOrb = iOrb + inc
 
-            end do
+        end do
 
     end function calcB_vector_nI
 
@@ -2680,42 +2692,6 @@ contains
         end do
 
     end function calcB_vector_int
-
-    pure function getStepvalueExp(ilut, sOrb) result(stepValue)
-        ! function to get stepvector value of a given spatial orbital
-        ! sOrb -> has to later be included in "macros.h" for efficiency
-
-        integer(n_int), intent(in) :: ilut(0:GugaBits%len_orb)
-        integer, intent(in) :: sOrb     ! spatial orbital
-        integer :: stepValue            ! resulting stepvector value
-        ! if the number of orbitals is too large, multiple integers
-        ! in bit-representation are used to encode a single determinant
-        ! have to figure out this access to the iluts
-        ! determinants are stores as a list of integer in form of iluts
-        ! first have to figure out which integer to take:
-        integer :: indInt, offset
-        integer(n_int) :: mask
-
-        ! integer division to get the necessary ilut entry, remember
-        ! the occupation of the spatial orbitals are asked for
-        indInt = int((sOrb - 1) / (bits_n_int / 2))
-
-        ! now i have to pick out the spatial alpha-beta combination,
-        ! corresponding to the asked for sOrb, with a mask
-        ! the offset, where this mask has to be shifted to:
-        offset = int(2 * mod((sOrb - 1), bits_n_int / 2))
-
-        ! shift (11) = 3 mask left to corresponding spinorbitals
-        mask = ishft(3, offset)
-
-        ! now pick out corresponding spin orbitals with iand() and
-        ! shift back to the first postion to give integer
-        stepValue = int(ishft(iand(ilut(indInt), mask), -offset))
-
-        ! already have some function in macros.h
-
-    end function getStepvalueExp
-
     pure subroutine EncodeBitDet_guga(nI, ilut)
         ! special function to encode bit dets for the use in the guga
         ! excitation generation
@@ -2723,7 +2699,6 @@ contains
         integer(n_int), intent(out) :: ilut(0:GugaBits%len_tot)
 
         integer :: i, pos
-        integer(n_int) :: zero_int
 
         ilut = 0_n_int
 
@@ -2758,7 +2733,6 @@ contains
         integer, intent(in) :: siz
         integer, intent(in) :: csf(siz)
         integer :: nI(nel)
-        character(*), parameter :: this_routine = "convert_guga_to_ni"
 
         integer :: i, cnt_orbs, cnt_ind
 
@@ -2807,7 +2781,6 @@ contains
         integer(n_int), intent(in) :: ilut(0:niftot)
         integer, intent(out) :: step_vector(nSpatOrbs), b_vector(nSpatOrbs)
         real(dp), intent(out) :: occ_vector(nSpatOrbs)
-        character(*), parameter :: this_routine = "calc_csf_info"
 
         integer :: b_int, i, step
         ! copy the stuff from below.. when do i want to allocate the objects?
@@ -2857,9 +2830,9 @@ contains
         ! and combine all the necessary calcs. into one loop instead of
         ! the seperate ones..
         integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
-        character(*), parameter :: this_routine = "init_csf_information"
+        debug_function_name("init_csf_information")
 
-        integer :: i, ierr, step, b_int
+        integer :: i, step, b_int
         real(dp) :: b_real, cum_sum
 
         ASSERT(isProperCSF_ilut(ilut))
@@ -3034,7 +3007,6 @@ contains
         integer(int_rdm), intent(in) :: rdm_ind
         integer, intent(out) :: i, a
         integer, intent(out), optional :: excit_lvl, excit_typ
-        character(*), parameter :: this_routine = "extract_1_rdm_ind"
 
         integer(int_rdm) :: rdm_ind_
 
@@ -3063,7 +3035,6 @@ contains
         integer, intent(in) :: i, a
         integer, intent(in), optional :: excit_lvl, excit_typ
         integer(int_rdm) :: rdm_ind
-        character(*), parameter :: this_routine = "contract_1_rdm_ind"
 
         rdm_ind = nSpatOrbs * (i - 1) + a
 
@@ -3102,6 +3073,7 @@ contains
 
     end subroutine encode_excit_typ_rdm
 
+
     pure subroutine encode_excit_lvl_rdm(rdm_ind, excit_lvl)
         integer(int_rdm), intent(inout) :: rdm_ind
         integer, intent(in) :: excit_lvl
@@ -3119,7 +3091,6 @@ contains
         integer, intent(in) :: i, j, k, l
         integer, intent(in), optional :: excit_lvl, excit_typ
         integer(int_rdm) :: ijkl
-        character(*), parameter :: this_routine = "contract_2_rdm_ind"
 
         integer(int_rdm) :: ij, kl
 
@@ -3147,7 +3118,6 @@ contains
         integer, intent(out) :: i, j, k, l
         integer(int_rdm), intent(out), optional :: ij_out, kl_out
         integer, intent(out), optional :: excit_lvl, excit_typ
-        character(*), parameter :: this_routine = "extract_2_rdm_ind"
 
         integer(int_rdm) :: ij, kl
 
@@ -3188,18 +3158,6 @@ contains
         ilutG(GugaBits%ind_rdm_ind) = rdm_ind
 
     end subroutine encode_rdm_ind
-
-    subroutine deinit_csf_information
-        ! deallocate the currently stored csf information
-
-        if (allocated(current_stepvector)) deallocate(current_stepvector)
-        if (allocated(currentB_ilut)) deallocate(currentB_ilut)
-        if (allocated(currentOcc_ilut)) deallocate(currentOcc_ilut)
-        if (allocated(currentB_int)) deallocate(currentB_int)
-        if (allocated(currentOcc_int)) deallocate(currentOcc_int)
-
-    end subroutine deinit_csf_information
-
     function encode_excit_info_vec(typ, inds) result(excit_info_int)
         ! function to encode the minimal information of an excit-info
         ! object into a single 64bit integer. used in the PCHB excitation
@@ -3323,8 +3281,7 @@ contains
 
     end subroutine encode_excit_info_type
 
-    function extract_excit_info_type(excit_info_int) result(typ)
-        debug_function_name("extract_excit_info_type")
+    pure function extract_excit_info_type(excit_info_int) result(typ)
         integer(int64), intent(in) :: excit_info_int
         integer :: typ
 
@@ -3355,7 +3312,6 @@ contains
     end subroutine encode_excit_info_indices_vec
 
     subroutine encode_excit_info_indices_scalar(excit_info_int, a, i, b, j)
-        debug_function_name("encode_excit_info_indices_scalar")
         integer(int64), intent(inout) :: excit_info_int
         integer, intent(in) :: a, i, b, j
 
@@ -3364,7 +3320,6 @@ contains
     end subroutine encode_excit_info_indices_scalar
 
     subroutine extract_excit_info_indices_vec(excit_info_int, inds)
-        debug_function_name("extract_excit_info_indices_vec")
         integer(int64), intent(in) :: excit_info_int
         integer, intent(out) :: inds(4)
 
@@ -3378,7 +3333,6 @@ contains
     end subroutine extract_excit_info_indices_vec
 
     subroutine extract_excit_info_indices_scalar(excit_info_int, a, i, b, j)
-        debug_function_name("extract_excit_info_indices_scalar")
         integer(int64), intent(in) :: excit_info_int
         integer, intent(out) :: a, i, b, j
 
@@ -3403,7 +3357,6 @@ contains
     end function extract_excit_info_index
 
     subroutine extract_excit_info_scalar(excit_info_int, typ, a, i, b, j)
-        debug_function_name("extract_excit_info_scalar")
         integer(int64), intent(in) :: excit_info_int
         integer, intent(out) :: typ, a, i, b, j
 
@@ -3414,7 +3367,6 @@ contains
     end subroutine extract_excit_info_scalar
 
     subroutine extract_excit_info_vector(excit_info_int, typ, inds)
-        debug_function_name("extract_excit_info_vector")
         integer(int64), intent(in) :: excit_info_int
         integer, intent(out) :: typ, inds(4)
 
@@ -3425,9 +3377,8 @@ contains
     end subroutine extract_excit_info_vector
 
     subroutine extract_excit_info_obj(excit_info_int, excitInfo)
-        debug_function_name("extract_excit_info_obj")
         integer(int64), intent(in) :: excit_info_int
-        type(ExcitationInformation_t) :: excitInfo
+        type(ExcitationInformation_t), intent(out) :: excitInfo
 
         integer :: typ, a, i, b, j
 
@@ -3861,7 +3812,6 @@ contains
     end function calc_remaining_excit_info
 
     function encode_excit_info_obj(excitInfo) result(excit_info_int)
-        debug_function_name("encode_excit_info_obj")
         type(ExcitationInformation_t), intent(in) :: excitInfo
         integer(int64) :: excit_info_int
 

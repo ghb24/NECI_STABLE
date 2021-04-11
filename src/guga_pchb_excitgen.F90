@@ -144,25 +144,20 @@ module guga_pchb_excitgen
     end interface calc_orb_pgen_uniform_singles
 
     interface calc_orb_pgen_guga_pchb_double
-        module procedure calc_orb_pgen_guga_pchb_double_exmat
+        ! module procedure calc_orb_pgen_guga_pchb_double_exmat
         module procedure calc_orb_pgen_guga_pchb_double_excitInfo
     end interface calc_orb_pgen_guga_pchb_double
 
 contains
 
-    function get_pchb_integral_contrib(i, j, a, b, typ, flag) result(integral)
+    function get_pchb_integral_contrib(i, j, a, b, typ) result(integral)
         ! specialized function to obtain the guga-integral contrib for
         ! the pchb weights
         integer, intent(in) :: a, i, b, j, typ
-        logical, intent(in), optional :: flag
         real(dp) :: integral
         debug_function_name("get_pchb_integral_contrib")
         logical :: flag_
         real(dp) :: cpt1, cpt2, cpt3, cpt4
-
-        ! use a flag to maybe also intialize the anti-symmetric combination
-        ! def_default(flag_, flag, .false.)
-
 
         ASSERT(a > 0 .and. a <= nSpatOrbs)
         ASSERT(i > 0 .and. i <= nSpatOrbs)
@@ -259,7 +254,6 @@ contains
         real(dp), intent(in) :: h_element, pgen
         type(ExcitationInformation_t), intent(in) :: excitInfo
         logical, intent(in) :: not_valid
-        debug_function_name("store_pchb_analysis")
         integer :: ij, ab
 
 
@@ -316,12 +310,11 @@ contains
 ! **************** analysis functions (to be removed after optimization) ******
 
     subroutine setup_invalid_table(this, nEntries, entrySize)
-        debug_function_name("setup_invalid_table")
         class(GugaAliasSampler_t) :: this
         integer(int64), intent(in) :: nEntries, entrySize
 
         integer(int64) :: total_size
-        integer :: iEntry, windowStart, windowEnd
+        integer(int64) :: iEntry, windowStart, windowEnd
 
         allocate(this%invalid_tables(nEntries))
 
@@ -339,12 +332,11 @@ contains
     end subroutine setup_invalid_table
 
     subroutine setup_count_table(this, nEntries, entrySize)
-        debug_function_name("setup_count_table")
         class(GugaAliasSampler_t) :: this
         integer(int64), intent(in) :: nEntries, entrySize
 
         integer(int64) :: total_size
-        integer :: iEntry, windowStart, windowEnd
+        integer(int64) :: iEntry, windowStart, windowEnd
 
         allocate(this%count_tables(nEntries))
 
@@ -362,12 +354,11 @@ contains
     end subroutine setup_count_table
 
     subroutine setup_sum_table(this, nEntries, entrySize)
-        debug_function_name("setup_sum_table")
         class(GugaAliasSampler_t) :: this
         integer(int64), intent(in) :: nEntries, entrySize
 
         integer(int64) :: total_size
-        integer :: iEntry, windowStart, windowEnd
+        integer(int64) :: iEntry, windowStart, windowEnd
 
         allocate(this%sums_tables(nEntries))
 
@@ -385,12 +376,11 @@ contains
     end subroutine setup_sum_table
 
     subroutine setup_pgen_table(this, nEntries, entrySize)
-        debug_function_name("setup_pgen_table")
         class(GugaAliasSampler_t) :: this
         integer(int64), intent(in) :: nEntries, entrySize
 
         integer(int64) :: total_size
-        integer :: iEntry, windowStart, windowEnd
+        integer(int64) :: iEntry, windowStart, windowEnd
 
         allocate(this%pgen_table(nEntries))
 
@@ -409,12 +399,11 @@ contains
 
 
     subroutine setup_worst_orb_table(this, nEntries, entrySize)
-        debug_function_name("setup_worst_orb_table")
         class(GugaAliasSampler_t) :: this
         integer(int64), intent(in) :: nEntries, entrySize
 
         integer(int64) :: total_size
-        integer :: iEntry, windowStart, windowEnd
+        integer(int64) :: iEntry, windowStart, windowEnd
 
         allocate(this%worst_orb_table(nEntries))
 
@@ -432,12 +421,11 @@ contains
     end subroutine setup_worst_orb_table
 
     subroutine setup_high_pgen_table(this, nEntries, entrySize)
-        debug_function_name("setup_high_pgen_table")
         class(GugaAliasSampler_t) :: this
         integer(int64), intent(in) :: nEntries, entrySize
 
         integer(int64) :: total_size
-        integer :: iEntry, windowStart, windowEnd
+        integer(int64) :: iEntry, windowStart, windowEnd
 
         allocate(this%high_pgen_table(nEntries))
 
@@ -455,12 +443,11 @@ contains
     end subroutine setup_high_pgen_table
 
     subroutine setup_low_pgen_table(this, nEntries, entrySize)
-        debug_function_name("setup_low_pgen_table")
         class(GugaAliasSampler_t) :: this
         integer(int64), intent(in) :: nEntries, entrySize
 
         integer(int64) :: total_size
-        integer :: iEntry, windowStart, windowEnd
+        integer(int64) :: iEntry, windowStart, windowEnd
 
         allocate(this%low_pgen_table(nEntries))
 
@@ -951,12 +938,11 @@ contains
 ! *************END  analysis functions (to be removed after optimization) ******
 
     subroutine setup_info_table(this, nEntries, entrySize)
-        debug_function_name("setup_info_table")
         class(GugaAliasSampler_t) :: this
         integer(int64), intent(in) :: nEntries, entrySize
 
         integer(int64) :: total_size
-        integer :: iEntry, windowStart, windowEnd
+        integer(int64) :: iEntry, windowStart, windowEnd
 
         allocate(this%info_tables(nEntries))
 
@@ -1012,7 +998,6 @@ contains
     end subroutine setup_entry_info
 
     subroutine init_guga_pchb_excitgen
-        debug_function_name("init_guga_pchb_excitgen")
         integer :: ab, a, b, abMax, aerr, ijMax
         integer(int64) :: memCost
 
@@ -1075,7 +1060,6 @@ contains
     end subroutine init_guga_pchb_excitgen
 
     subroutine setup_pchb_sampler_conditional()
-        debug_function_name("setup_pchb_sampler_conditional")
         integer :: i, j, ij, ijMax, a, b, ab, abMax, aerr
         integer(int64), allocatable :: excit_info(:), counts(:)
         real(dp), allocatable :: w(:), x(:)
@@ -1091,7 +1075,7 @@ contains
         allocate(excit_info(abMax), stat = aerr)
 
         ! allocate: all samplers have the same size
-        call guga_pchb_sampler(1)%alias_sampler%shared_alloc(ijMax, abMax)
+        call guga_pchb_sampler(1)%alias_sampler%shared_alloc(ijMax, abMax, "GUGA-pchb")
         ! todo: do the same for the excit_info array!
         call guga_pchb_sampler(1)%setup_info_table(int(ijMax,int64), &
             int(abMax, int64))
@@ -1397,13 +1381,15 @@ contains
 
     subroutine pick_orbitals_double_pchb(ilut, nI, excitInfo, pgen)
         debug_function_name("pick_orbitals_double_pchb")
-        integer(n_int), intent(in) :: ilut(0:IlutBits%len_tot)
+        integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
         integer, intent(in) :: nI(nel)
         type(ExcitationInformation_t), intent(out) :: excitInfo
         real(dp), intent(out) :: pgen
 
         integer :: src(2), sym_prod, sum_ml, i, j, a, b, orbs(2), ij, ab
         real(dp) :: pgen_elec, pgen_orbs
+
+        unused_var(ilut)
 
         ! maybe I will also produce a weighted electron pickin in the
         ! GUGA formalism.. but for now pick them uniformly:
@@ -1472,8 +1458,6 @@ contains
 
         integer :: elec, orb, nOcc
         integer :: s_elec(nEl)
-        real(dp) :: r
-
 
         unused_var(ilut)
 
@@ -1497,7 +1481,7 @@ contains
         elec = s_elec(elec)
         nOcc = count(currentOcc_int /= 0)
 
-        call pick_uniform_spatial_hole(nI, elec, orb, pgen)
+        call pick_uniform_spatial_hole(elec, orb, pgen)
 
         if (near_zero(pgen) .or. orb == 0) then
             pgen = 0.0_dp
@@ -1519,15 +1503,12 @@ contains
 
     end subroutine pick_orbitals_pure_uniform_singles
 
-    subroutine pick_uniform_spatial_hole(nI, s_elec, s_orb, pgen)
-        debug_function_name("pick_uniform_spatial_hole")
-        integer, intent(in) :: nI(nel), s_elec
+    subroutine pick_uniform_spatial_hole(s_elec, s_orb, pgen)
+        integer, intent(in) :: s_elec
         integer, intent(out) :: s_orb
         real(dp), intent(out) :: pgen
 
-        integer :: so_elec, cc_i, nOrb, sym_index, attempts, orb, &
-                   tmp_orb, nValid
-        integer, parameter :: limit = 250
+        integer :: cc_i, nOrb, sym_index, orb, nValid
         integer, allocatable :: sym_orbs(:), valid_orbs(:)
         logical, allocatable :: mask(:)
 
@@ -1647,7 +1628,6 @@ contains
     end function calc_orb_pgen_uniform_singles_excitInfo
 
     function calc_pgen_guga_pchb(ilutI, ilutJ, excitInfo_in) result(pgen)
-        debug_function_name("calc_pgen_guga_pchb")
         integer(n_int), intent(in) :: ilutI(0:GugaBits%len_tot), ilutJ(GugaBits%len_tot)
         type(ExcitationInformation_t), intent(in), optional :: excitInfo_in
         type(ExcitationInformation_t) :: excitInfo
@@ -1685,26 +1665,25 @@ contains
 
     end function calc_pgen_guga_pchb
 
-    function calc_orb_pgen_guga_pchb_double_exmat(ex) result(pgen)
-        debug_function_name("calc_orb_pgen_guga_pchb_double_exmat")
-        integer, intent(in) :: ex(2,2)
-        real(dp) :: pgen
-        integer :: ij, ab, nex(2,2)
-        real(dp) :: p_elec
-
-        nex = gtID(ex)
-        ! in the access function for
-        ij = fuseIndex(nex(1,1), nex(1,2))
-
-        p_elec = 1.0_dp / real(ElecPairs, dp)
-
-        ab = fuseIndex(nex(2,1), nex(2,2))
-        pgen = p_elec * guga_pchb_sampler(1)%alias_sampler%get_prob(ij, ab)
-
-    end function calc_orb_pgen_guga_pchb_double_exmat
+    ! function calc_orb_pgen_guga_pchb_double_exmat(ex) result(pgen)
+    !     debug_function_name("calc_orb_pgen_guga_pchb_double_exmat")
+    !     integer, intent(in) :: ex(2,2)
+    !     real(dp) :: pgen
+    !     integer :: ij, ab, nex(2,2)
+    !     real(dp) :: p_elec
+    !
+    !     nex = gtID(ex)
+    !     ! in the access function for
+    !     ij = fuseIndex(nex(1,1), nex(1,2))
+    !
+    !     p_elec = 1.0_dp / real(ElecPairs, dp)
+    !
+    !     ab = fuseIndex(nex(2,1), nex(2,2))
+    !     pgen = p_elec * guga_pchb_sampler(1)%alias_sampler%get_prob(ij, ab)
+    !
+    ! end function calc_orb_pgen_guga_pchb_double_exmat
 
     function calc_orb_pgen_guga_pchb_double_excitInfo(excitInfo) result(pgen)
-        debug_function_name("calc_orb_pgen_guga_pchb_double_excitInfo")
         type(ExcitationInformation_t), intent(in) :: excitInfo
         real(dp) :: pgen
 
@@ -1725,12 +1704,11 @@ contains
     ! I need the pgen-recalculation routines for exchange type excitations
     ! also for the PCHB excit-gen
     subroutine calc_orbital_pgen_contr_pchb(ilut, occ_orbs, cpt_a, cpt_b)
-        debug_function_name("calc_orbital_pgen_contr_pchb")
         integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
         integer, intent(in) :: occ_orbs(2)
         real(dp), intent(out) :: cpt_a, cpt_b
 
-        integer :: i, j, ij
+        integer :: ij
         unused_var(ilut)
 
         ! this function can in theory be called with both i < j and i > j..

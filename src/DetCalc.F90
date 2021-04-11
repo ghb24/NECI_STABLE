@@ -1,9 +1,9 @@
 #include "macros.h"
 MODULE DetCalc
-        use constants, only: dp,n_int
-        use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB, tStoreSpinOrbs, &
-             t_non_hermitian
-        use sort_mod
+    use constants, only: dp,n_int
+    use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB, tStoreSpinOrbs, &
+         t_non_hermitian
+    use sort_mod
 
     use DetCalcData
 
@@ -335,7 +335,8 @@ CONTAINS
         INTEGER J, JR, iGetExcitLevel_2, ExcitLevel, iunit
         INTEGER LSCR, LISCR, MaxIndex
         LOGICAL tMC!,TestClosedShellDet,Found,tSign
-        real(dp) GetHElement, calct, calcmcen, calcdlwdb, norm, temp_hel
+        real(dp) :: GetHElement, calct, calcmcen, calcdlwdb, norm, temp_hel
+        external :: GetHElement
         integer:: ic, TempnI(NEl), MomSymDet(NEl), ICSym, ICConnect, PairedUnit, SelfInvUnit
         integer(n_int) :: iLutMomSym(0:NIfTot)
         logical :: tSuccess

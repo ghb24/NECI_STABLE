@@ -765,7 +765,7 @@ contains
         integer(n_int), intent(out), optional :: ilut_gen(0:NIfTot)
         !integer, intent(out), optional :: det(nel)
 
-        integer :: i, nfound, orb, clro
+        integer :: i, nfound, orb, clro, j
         integer(n_int) :: ilut_tmp(0:NIfTot)
 
         ! If we haven't initialised the generator, do that now.
@@ -787,7 +787,8 @@ contains
             ilut_tmp = spatial_bit_det(ilut_src)
             do i = 1, nbasis-1, 2
                 if (IsOcc(ilut_tmp, i)) then
-                    if (IsOcc(ilut_tmp, i+1)) then
+                    j = i + 1
+                    if (IsOcc(ilut_tmp, j)) then
                     !    nelec = nelec + 2
                     else
                         nfound = nfound + 1

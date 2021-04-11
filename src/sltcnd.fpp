@@ -384,7 +384,7 @@ contains
         integer, intent(in) :: nI(nel)
         type(NoExc_t), intent(in) :: exc
         HElement_t(dp) :: hel, hel_sing, hel_doub, hel_tmp
-        integer :: id(nel), i, j, idN, idX
+        integer :: id(nel), i, j
 
         @:unused_var(exc)
 
@@ -394,7 +394,7 @@ contains
         ! Obtain the spatial rather than spin indices if required
         id = gtID(nI)
 
-        ! Sum in the two electron contributions. 
+        ! Sum in the two electron contributions.
         hel_doub = (0)
         hel_tmp = (0)
         do i = 1, nel - 1
@@ -518,7 +518,6 @@ contains
         integer, intent(in) :: nI(nel)
         type(NoExc_t), intent(in) :: exc
         HElement_t(dp) :: hel
-        integer :: id(nel)
         integer :: i, j, k
 
         ! get the diagonal matrix element up to 2nd order
@@ -789,7 +788,6 @@ contains
         integer, intent(in) :: nI(nel)
         type(NoExc_t), intent(in) :: exc
         HElement_t(dp) :: hel
-        integer :: id(nel)
         integer :: i, j, k
 
         ! get the diagonal matrix element up to 2nd order
@@ -833,7 +831,6 @@ contains
         type(DoubleExc_t), intent(in) :: ex
         logical, intent(in) :: tSign
         HElement_t(dp) :: hel, heltc
-        integer :: i
 
         ! get the matrix element up to 2-body terms
         hel = sltcnd_2_kernel_ua(ex)

@@ -49,7 +49,7 @@ MODULE HPHFRandExcitMod
 
     use excit_gen_5, only: calc_pgen_4ind_weighted2, gen_excit_4ind_weighted2
 
-    use pchb_excitgen, only: PCHB_FCI
+    use exc_gen_classes, only: current_exc_generator
 
     use pcpp_excitgen, only: calc_pgen_pcpp, gen_rand_excit_pcpp, create_elec_map
 
@@ -277,9 +277,9 @@ contains
             call gen_excit_4ind_weighted2(nI, ilutnI, nJ, ilutnJ, exFlag, ic, &
                                           ExcitMat, tSignOrig, pGen, Hel, &
                                           store)
-        else if (t_pchb_excitgen) then
-            call PCHB_FCI%gen_excit(nI, ilutnI, nJ, iLutnJ, IC, ExcitMat, &
-                                     tSignOrig, store, pgen)
+        else if (allocated(current_exc_generator)) then
+            call current_exc_generator%gen_exc(nI, ilutnI, nJ, iLutnJ, exFlag, IC, ExcitMat, &
+                                     tSignOrig, pGen, HEl, store)
         else if(t_pcpp_excitgen) then
             call gen_rand_excit_pcpp(nI, ilutnI, nJ, iLutnJ, exFlag, IC, ExcitMat, &
                                      tSignOrig, pGen, HEl, store)
@@ -600,8 +600,19 @@ contains
         integer, intent(out) :: nJ(NEl)
         integer :: i
 
-        do i = 1, nel
 
+        ! for debug compilation treat first entry seperately
+        if (is_alpha(nI(1))) then
+            nJ(1) = nI(1) - 1
+        else
+            if (get_alpha(nI(1)) /= nI(2)) then
+                nJ(1) = nI(1) + 1
+            else
+                nJ(1) = nI(1)
+            end if
+        end if
+
+        do i = 2, nel
             ! If electron is an alpha electron, change it to a beta (unless
             ! it is part of a closed pair of electrons).
             if(is_alpha(nI(i))) then
@@ -867,14 +878,12 @@ contains
                 else
                     pgen = calc_pgen_k_space_hubbard(nI, ilutI, ex, ic)
                 end if
-            else if (t_pchb_excitgen) then
-                if (tGUGA) then
-                    pgen = calc_pgen_guga_pchb(ilutI, ilutJ)
-                else
-                    pgen = PCHB_FCI%calc_pgen(nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2)
-                end if
+            else if (tGUGA .and. t_pchb_excitgen) then
+                pgen = calc_pgen_guga_pchb(ilutI, ilutJ)
             else if(t_pcpp_excitgen) then
                 pgen = calc_pgen_pcpp(ilutI, ex, ic)
+            else if (allocated(current_exc_generator)) then
+                pgen = current_exc_generator%get_pgen(nI, ilutI, ex, ic, classcount2, classcountunocc2)
             else
                 ! Here we assume that the normal excitation generators in
                 ! symrandexcit2.F90 are being used.

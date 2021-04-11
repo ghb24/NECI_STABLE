@@ -257,7 +257,7 @@ contains
         use hist_data, only: tHistSpawn
         use Parallel_neci, only: nNodes, nProcessors
         use UMatCache, only: tDeferred_Umat2d
-        use gasci, only: GAS_specification, GAS_exc_gen, possible_GAS_exc_gen, operator(==), operator(/=)
+        use gasci, only: GAS_specification, GAS_exc_gen, possible_GAS_exc_gen
 
         use guga_init, only: checkInputGUGA
         implicit none
