@@ -379,7 +379,7 @@ contains
         use bit_reps, only: nifguga
         use SystemData, only: tGUGA
         integer :: nexcit, j
-        integer(n_int), pointer :: excitations(:, :)
+        integer(n_int), allocatable :: excitations(:, :)
         integer(n_int) :: ilutG(0:nifguga)
 
         integer, intent(in) :: original_space_size
@@ -555,7 +555,7 @@ contains
 
         integer :: nexcit, j
         integer(n_int) :: ilutG(0:nifguga)
-        integer(n_int), pointer :: excitations(:, :)
+        integer(n_int), allocatable :: excitations(:, :)
 
         integer, intent(in) :: original_space_size
         integer(n_int), intent(in) :: original_space(0:, :)
