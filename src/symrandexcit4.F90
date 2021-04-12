@@ -1878,7 +1878,7 @@ contains
         integer :: flag, ngen, pos, iunit, i, ic
         type(excit_gen_store_type) :: store
         integer(n_int) :: tgt_ilut(0:NifTot)
-        integer(n_int), pointer :: det_list(:, :)
+        integer(n_int), allocatable :: det_list(:, :)
         real(dp), allocatable :: contrib_list(:), pgen_list(:)
         HElement_t(dp), allocatable ::  matEle_list(:)
         logical, allocatable :: generated_list(:)
@@ -2256,7 +2256,7 @@ contains
         use sort_mod, only: sort
 
         integer(n_int), intent(in) :: ilut(0:niftot)
-        integer(n_int), intent(out), pointer :: non_zero_list(:, :)
+        integer(n_int), intent(out), allocatable :: non_zero_list(:, :)
         integer, intent(out) :: n_non_zero
         character(*), parameter :: this_routine = "calc_all_excitations"
 
@@ -2265,7 +2265,7 @@ contains
         type(excit_gen_store_type) :: store
         logical :: found_all, par
         HElement_t(dp), allocatable :: hel_list(:)
-        integer(n_int), pointer :: det_list(:, :)
+        integer(n_int), allocatable :: det_list(:, :)
         logical, allocatable :: t_non_zero(:)
 
         ! Decode the determiant

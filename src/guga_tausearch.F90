@@ -231,7 +231,7 @@ contains
 
         character(*), parameter :: this_routine = "find_max_tau_doubs_guga"
         integer(n_int) :: ilutG(0:nifguga)
-        integer(n_int), pointer :: excitations(:, :)
+        integer(n_int), allocatable :: excitations(:, :)
         integer :: i, n_ex
         integer :: nHF(nel), nJ(nel)
         integer(n_int) :: ilutJ(0:niftot)
