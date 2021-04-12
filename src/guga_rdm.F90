@@ -861,7 +861,7 @@ contains
         integer :: nI(nel), flags_I, n_singles, n_doubles
         real(dp) :: sign_i(lenof_sign), full_sign(1)
 
-        integer(n_int), pointer :: excits(:, :)
+        integer(n_int), allocatable :: excits(:, :)
         integer(n_int) :: ilutG(0:GugaBits%len_tot)
 
         call extract_bit_rep(ilutI, nI, sign_I, flags_I)
@@ -2233,7 +2233,7 @@ contains
 
     subroutine assign_excits_to_proc_guga(n_tot, excits, excit_lvl)
         integer, intent(in) :: n_tot, excit_lvl
-        integer(n_int), intent(in), pointer :: excits(:, :)
+        integer(n_int), intent(in), allocatable :: excits(:, :)
         character(*), parameter :: this_routine = "assign_excits_to_proc_guga"
 
         integer :: i, proc, nJ(nel)
@@ -2290,11 +2290,11 @@ contains
     subroutine calc_explicit_diag_2_rdm_guga(ilut, n_tot, excitations)
         integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
         integer, intent(out) :: n_tot
-        integer(n_int), intent(out), pointer :: excitations(:, :)
+        integer(n_int), intent(out), allocatable :: excitations(:, :)
         character(*), parameter :: this_routine = "calc_explicit_diag_2_rdm_guga"
 
         integer :: i, j, k, l, nMax, ierr, n, n_excits, jl, ik
-        integer(n_int), pointer :: temp_excits(:, :), tmp_all_excits(:, :)
+        integer(n_int), allocatable :: temp_excits(:, :), tmp_all_excits(:, :)
         integer(int_rdm) :: ijkl
 
         call init_csf_information(ilut)
@@ -2355,11 +2355,11 @@ contains
     subroutine calc_explicit_2_rdm_guga(ilut, n_tot, excitations)
         integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
         integer, intent(out) :: n_tot
-        integer(n_int), intent(out), pointer :: excitations(:, :)
+        integer(n_int), intent(out), allocatable :: excitations(:, :)
         character(*), parameter :: this_routine = "calc_explicit_2_rdm_guga"
 
         integer :: i, j, k, l, nMax, ierr, n, n_excits, jl, ik
-        integer(n_int), pointer :: temp_excits(:, :), tmp_all_excits(:, :)
+        integer(n_int), allocatable :: temp_excits(:, :), tmp_all_excits(:, :)
         integer(int_rdm) :: ijkl
 
         call init_csf_information(ilut)
@@ -2454,11 +2454,11 @@ contains
         ! to insert it there to calculate the GUGA RDMs in this case
         integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
         integer, intent(out) :: n_tot
-        integer(n_int), intent(out), pointer :: excitations(:, :)
+        integer(n_int), intent(out), allocatable :: excitations(:, :)
         character(*), parameter :: this_routine = "calc_explicit_1_rdm_guga"
 
         integer :: i, j, nMax, ierr, n, n_excits
-        integer(n_int), pointer :: temp_excits(:, :), tmp_all_excits(:, :)
+        integer(n_int), allocatable :: temp_excits(:, :), tmp_all_excits(:, :)
 
         call init_csf_information(ilut)
 
@@ -2518,7 +2518,7 @@ contains
     subroutine calc_all_excits_guga_rdm_doubles(ilut, i, j, k, l, excits, n_excits)
         integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
         integer, intent(in) :: i, j, k, l
-        integer(n_int), intent(out), pointer :: excits(:, :)
+        integer(n_int), intent(out), allocatable :: excits(:, :)
         integer, intent(out) :: n_excits
         character(*), parameter :: this_routine = "calc_all_excits_guga_rdm_doubles"
 
@@ -2770,7 +2770,7 @@ contains
     subroutine calc_all_excits_guga_rdm_singles(ilut, i, j, excits, n_excits)
         integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
         integer, intent(in) :: i, j
-        integer(n_int), intent(out), pointer :: excits(:, :)
+        integer(n_int), intent(out), allocatable :: excits(:, :)
         integer, intent(out) :: n_excits
         character(*), parameter :: this_routine = "calc_all_excits_guga_rdm_singles"
 
@@ -2778,7 +2778,7 @@ contains
         type(WeightObj_t) :: weights
         real(dp) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
         integer :: iEx, iOrb, ierr
-        integer(n_int), pointer :: tempExcits(:, :)
+        integer(n_int), allocatable :: tempExcits(:, :)
         real(dp) :: minusWeight, plusWeight
 
         ASSERT(i > 0 .and. i <= nSpatOrbs)

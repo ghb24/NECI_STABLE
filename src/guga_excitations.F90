@@ -2242,7 +2242,7 @@ contains
         character(*), parameter :: this_routine = "create_projE_list"
 
         integer(n_int) :: ilutG(0:nifguga)
-        integer(n_int), pointer :: excitations(:, :)
+        integer(n_int), allocatable :: excitations(:, :)
         integer :: nExcit, ierr, i
 
         ! convert ilut to guga format
@@ -2338,7 +2338,7 @@ contains
         character(*), parameter :: this_routine = 'test_excit_gen_guga'
 
         integer(n_int) :: ilutG(0:nifguga)
-        integer(n_int), pointer :: excitations(:, :)
+        integer(n_int), allocatable :: excitations(:, :)
 
         integer :: src_det(nel), det(nel), nexcit, ex(2, maxExcit)
         integer :: ngen, pos, iunit, i, ic
@@ -4455,7 +4455,7 @@ contains
         character(*), parameter :: this_routine = "createStochasticExcitation_double"
 
         type(ExcitationInformation_t) :: excitInfo
-        integer(n_int), pointer :: excitations(:, :)
+        integer(n_int), allocatable :: excitations(:, :)
         integer(n_int) :: ilutI(0:niftot), ilutJ(0:niftot)
         real(dp) :: orb_pgen, branch_pgen
         HElement_t(dp) :: mat_ele
@@ -14216,15 +14216,15 @@ contains
         ! is stored, where usually the signed walker weight of an occupied
         ! determinant is stored
         integer(n_int), intent(in) :: ilut(0:nifguga)
-        integer(n_int), intent(out), pointer :: excitations(:, :)
+        integer(n_int), intent(out), allocatable :: excitations(:, :)
         integer, intent(out) :: nTot
         logical, intent(in), optional :: t_singles_only, t_print_time, t_full
         character(*), parameter :: this_routine = "actHamiltonian"
         type(timer), save :: proc_timer
 
-        integer(n_int), pointer :: tmp_all_excits(:, :)
+        integer(n_int), allocatable :: tmp_all_excits(:, :)
         integer :: i, j, k, l, nExcits, nMax, ierr
-        integer(n_int), pointer :: tempExcits(:, :)
+        integer(n_int), allocatable :: tempExcits(:,:)
         logical :: t_singles_only_, t_print_time_, t_full_
         integer :: n
         real(dp) :: cmp
@@ -14435,13 +14435,13 @@ contains
         type(ExcitationInformation_t), intent(in) :: excitInfo
         logical, intent(in) :: tmatFlag
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
-        integer(n_int), intent(out), pointer :: excitations(:, :)
+        integer(n_int), intent(out), allocatable :: excitations(:, :)
         integer, intent(out) :: nExcits
 
         HElement_t(dp) :: tmat
         integer :: iOrb
         type(WeightObj_t) :: weights
-        integer(n_int), pointer :: tempExcits(:, :)
+        integer(n_int), allocatable :: tempExcits(:, :)
 
         ! to do combine (i,j) version and this version to one
 
@@ -14491,13 +14491,13 @@ contains
         ! H|D> to calculate the projected energy.
         integer(n_int), intent(in) :: ilut(0:nifguga)
         integer, intent(in) :: i, j
-        integer(n_int), intent(out), pointer :: excitations(:, :)
+        integer(n_int), intent(out), allocatable :: excitations(:, :)
         integer, intent(out) :: nExcits
         logical, intent(in), optional :: t_full
         character(*), parameter :: this_routine = "calcAllExcitations_single_ilut"
 
         type(ExcitationInformation_t) :: excitInfo
-        integer(n_int), pointer :: tempExcits(:, :)
+        integer(n_int), allocatable :: tempExcits(:, :)
         integer :: ierr, iOrb, iEx, st
         real(dp) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs), &
                     plusWeight, minusWeight
@@ -15413,10 +15413,10 @@ contains
         ! end function to calculate all single excitations of a given CSF
         ! ilut
         integer(n_int), intent(in) :: ilut(0:nifguga)
-        integer(n_int), intent(inout), pointer :: tempExcits(:, :)
+        integer(n_int), intent(inout), allocatable :: tempExcits(:, :)
         type(ExcitationInformation_t), intent(in) :: excitInfo
         integer, intent(inout) :: nExcits
-        integer(n_int), intent(out), pointer :: excitations(:, :)
+        integer(n_int), intent(out), allocatable :: excitations(:, :)
         character(*), parameter :: this_routine = "singleEnd"
         integer :: iEx, cnt, ende, ierr, gen, deltaB
         integer(n_int) :: t(0:nifguga)
@@ -15637,7 +15637,7 @@ contains
         type(ExcitationInformation_t), intent(in) :: excitInfo
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
         type(WeightObj_t), intent(in) :: weightObj
-        integer(n_int), intent(out), pointer :: tempExcits(:, :)
+        integer(n_int), intent(out), allocatable :: tempExcits(:, :)
         integer, intent(out) :: nExcits
         character(*), parameter :: this_routine = "createSingleStart"
         integer :: ierr, nmax, st, gen
@@ -15832,7 +15832,7 @@ contains
         ! the projected energy
         integer(n_int), intent(in) :: ilut(0:nifguga)
         integer, intent(in) :: i, j, k, l
-        integer(n_int), intent(out), pointer :: excitations(:, :)
+        integer(n_int), intent(out), allocatable :: excitations(:, :)
         integer, intent(out) :: nExcits
         logical, intent(in), optional :: t_full
         character(*), parameter :: this_routine = "calcAllExcitations_double"
@@ -16094,7 +16094,7 @@ contains
                              posSwitches, negSwitches)
         integer(n_int), intent(in) :: ilut(0:nifguga)
         type(ExcitationInformation_t), intent(inout) :: excitInfo
-        integer(n_int), intent(out), pointer :: excitations(:, :)
+        integer(n_int), intent(out), allocatable :: excitations(:, :)
         integer, intent(out) :: nExcits
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
         character(*), parameter :: this_routine = "calcDoubleR2L"
@@ -16102,7 +16102,7 @@ contains
         integer :: iOrb, start1, start2, ende1, ende2
         type(WeightObj_t) :: weights
         real(dp) :: plusWeight, minusWeight, zeroWeight
-        integer(n_int), pointer :: tempExcits(:, :)
+        integer(n_int), allocatable :: tempExcits(:, :)
         !todo asserts
 
         ASSERT(.not. isThree(ilut, excitInfo%fullStart))
@@ -16180,7 +16180,7 @@ contains
                              posSwitches, negSwitches)
         integer(n_int), intent(in) :: ilut(0:nifguga)
         type(ExcitationInformation_t), intent(inout) :: excitInfo
-        integer(n_int), intent(out), pointer :: excitations(:, :)
+        integer(n_int), intent(out), allocatable :: excitations(:, :)
         integer, intent(out) :: nExcits
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
         character(*), parameter :: this_routine = "calcDoubleL2R"
@@ -16188,7 +16188,7 @@ contains
         integer :: iOrb, start1, start2, ende1, ende2
         type(WeightObj_t) :: weights
         real(dp) :: plusWeight, minusWeight, zeroWeight
-        integer(n_int), pointer :: tempExcits(:, :)
+        integer(n_int), allocatable :: tempExcits(:, :)
         !todo asserts
 
         ASSERT(.not. isZero(ilut, excitInfo%fullStart))
@@ -16269,7 +16269,7 @@ contains
 
         integer(n_int), intent(in) :: ilut(0:nifguga)
         type(ExcitationInformation_t), intent(inout) :: excitInfo
-        integer(n_int), intent(out), pointer :: excitations(:, :)
+        integer(n_int), intent(out), allocatable :: excitations(:, :)
         integer, intent(out) :: nExcits
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
         character(*), parameter :: this_routine = "calcDoubleRaising"
@@ -16277,7 +16277,7 @@ contains
         integer :: iOrb, start2, ende1, ende2
         type(WeightObj_t) :: weights
         real(dp) :: plusWeight, minusWeight, zeroWeight
-        integer(n_int), pointer :: tempExcits(:, :)
+        integer(n_int), allocatable :: tempExcits(:, :)
         !todo asserts
 
 #ifdef DEBUG_
@@ -16365,7 +16365,7 @@ contains
         ! case, since the called functions are the same
         integer(n_int), intent(in) :: ilut(0:nifguga)
         type(ExcitationInformation_t), intent(inout) :: excitInfo
-        integer(n_int), intent(out), pointer :: excitations(:, :)
+        integer(n_int), intent(out), allocatable :: excitations(:, :)
         integer, intent(out) :: nExcits
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
         character(*), parameter :: this_routine = "calcDoubleLowering"
@@ -16373,7 +16373,7 @@ contains
         integer :: iOrb, start2, ende1, ende2
         type(WeightObj_t) :: weights
         real(dp) :: plusWeight, minusWeight, zeroWeight
-        integer(n_int), pointer :: tempExcits(:, :)
+        integer(n_int), allocatable :: tempExcits(:, :)
         !todo asserts
 
 #ifdef DEBUG_
@@ -16453,7 +16453,7 @@ contains
     subroutine calcFullStartFullStopAlike(ilut, excitInfo, excitations)
         integer(n_int), intent(in) :: ilut(0:nifguga)
         type(ExcitationInformation_t), intent(in) :: excitInfo
-        integer(n_int), intent(out), pointer :: excitations(:, :)
+        integer(n_int), intent(out), allocatable :: excitations(:, :)
         character(*), parameter :: this_routine = "calcFullStartFullStopAlike"
 
         integer :: ierr
@@ -16506,11 +16506,11 @@ contains
                                           posSwitches, negSwitches)
         integer(n_int), intent(in) :: ilut(0:nifguga)
         type(ExcitationInformation_t), intent(in) :: excitInfo
-        integer(n_int), intent(out), pointer :: excitations(:, :)
+        integer(n_int), intent(out), allocatable :: excitations(:, :)
         integer, intent(out) :: nExcits
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
 
-        integer(n_int), pointer :: tempExcits(:, :)
+        integer(n_int), allocatable :: tempExcits(:, :)
         real(dp) :: plusWeight, minusWeight, zeroWeight
         type(WeightObj_t) :: weights
         integer :: iOrb
@@ -16571,7 +16571,7 @@ contains
                                 posSwitches, negSwitches, t_no_singles_opt)
         integer(n_int), intent(in) :: ilut(0:nifguga)
         type(ExcitationInformation_t), intent(inout) :: excitInfo
-        integer(n_int), intent(out), pointer :: excitations(:, :)
+        integer(n_int), intent(out), allocatable :: excitations(:, :)
         integer, intent(out) :: nExcits
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
         logical, intent(in), optional :: t_no_singles_opt
@@ -16580,7 +16580,7 @@ contains
         integer :: ierr, iOrb, start, ende, semi, gen, start2
         type(WeightObj_t) :: weights
         real(dp) :: minusWeight, plusWeight, zeroWeight
-        integer(n_int), pointer :: tempExcits(:, :)
+        integer(n_int), allocatable :: tempExcits(:, :)
         logical :: t_no_singles
 
         ASSERT(.not. isZero(ilut, excitInfo%fullStart))
@@ -16669,7 +16669,7 @@ contains
                                 posSwitches, negSwitches, t_no_singles_opt)
         integer(n_int), intent(in) :: ilut(0:nifguga)
         type(ExcitationInformation_t), intent(inout) :: excitInfo
-        integer(n_int), intent(out), pointer :: excitations(:, :)
+        integer(n_int), intent(out), allocatable :: excitations(:, :)
         integer, intent(out) :: nExcits
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
         logical, intent(in), optional :: t_no_singles_opt
@@ -16678,7 +16678,7 @@ contains
         integer :: ierr, iOrb, start, ende, semi, gen
         real(dp) :: minusWeight, plusWeight, zeroWeight
         type(WeightObj_t) :: weights
-        integer(n_int), pointer :: tempExcits(:, :)
+        integer(n_int), allocatable :: tempExcits(:, :)
         logical :: t_no_singles
 
         ASSERT(.not. isZero(ilut, excitInfo%fullStart))
@@ -16766,7 +16766,7 @@ contains
                                    minusWeight, t_no_singles_opt)
         integer(n_int), intent(in) :: ilut(0:nifguga)
         type(ExcitationInformation_t) :: excitInfo
-        integer(n_int), intent(inout), pointer :: tempExcits(:, :)
+        integer(n_int), intent(inout), allocatable :: tempExcits(:, :)
         integer, intent(inout) :: nExcits
         real(dp), intent(in) :: plusWeight, minusWeight
         logical, intent(in), optional :: t_no_singles_opt
@@ -17281,7 +17281,7 @@ contains
                                     minusWeight, t_no_singles_opt)
         integer(n_int), intent(in) :: ilut(0:nifguga)
         type(ExcitationInformation_t) :: excitInfo
-        integer(n_int), intent(inout), pointer :: tempExcits(:, :)
+        integer(n_int), intent(inout), allocatable :: tempExcits(:, :)
         integer, intent(inout) :: nExcits
         real(dp), intent(in) :: plusWeight, minusWeight
         logical, intent(in), optional :: t_no_singles_opt
@@ -17795,7 +17795,7 @@ contains
         integer(n_int), intent(in) :: ilut(0:nifguga)
         type(ExcitationInformation_t), intent(in) :: excitInfo
         real(dp), intent(in) :: plusWeight, minusWeight, zeroWeight
-        integer(n_int), intent(out), pointer :: tempExcits(:, :)
+        integer(n_int), intent(out), allocatable :: tempExcits(:, :)
         integer, intent(out) :: nExcits
         character(*), parameter :: this_routine = "mixedFullStart"
 
@@ -17983,7 +17983,7 @@ contains
                                     posSwitches, negSwitches)
         integer(n_int), intent(in) :: ilut(0:nifguga)
         type(ExcitationInformation_t), intent(inout) :: excitInfo
-        integer(n_int), intent(out), pointer :: excitations(:, :)
+        integer(n_int), intent(out), allocatable :: excitations(:, :)
         integer, intent(out) :: nExcits
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
         character(*), parameter :: this_routine = "calcFullStartRaising"
@@ -17992,7 +17992,7 @@ contains
         integer(n_int) :: t(0:nifguga)
         real(dp) :: tempWeight, minusWeight, plusWeight, bVal, nOpen
         type(WeightObj_t) :: weights
-        integer(n_int), pointer :: tempExcits(:, :)
+        integer(n_int), allocatable :: tempExcits(:, :)
 
         ASSERT(isZero(ilut, excitInfo%fullStart))
         ASSERT(isProperCSF_ilut(ilut))
@@ -18168,7 +18168,7 @@ contains
                                      posSwitches, negSwitches)
         integer(n_int), intent(in) :: ilut(0:nifguga)
         type(ExcitationInformation_t), intent(inout) :: excitInfo
-        integer(n_int), intent(out), pointer :: excitations(:, :)
+        integer(n_int), intent(out), allocatable :: excitations(:, :)
         integer, intent(out) :: nExcits
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
         character(*), parameter :: this_routine = "calcFullStartLowering"
@@ -18177,7 +18177,7 @@ contains
         integer(n_int) :: t(0:nifguga)
         real(dp) :: tempWeight, minusWeight, plusWeight, bVal, nOpen
         type(WeightObj_t) :: weights
-        integer(n_int), pointer :: tempExcits(:, :)
+        integer(n_int), allocatable :: tempExcits(:, :)
 
         ASSERT(isThree(ilut, excitInfo%fullStart))
         ASSERT(isProperCSF_ilut(ilut))
@@ -18346,14 +18346,14 @@ contains
                                posSwitches, negSwitches, t_no_singles_opt)
         integer(n_int), intent(in) :: ilut(0:nifguga)
         type(ExcitationInformation_t), intent(inout) :: excitInfo
-        integer(n_int), intent(out), pointer :: excitations(:, :)
+        integer(n_int), intent(out), allocatable :: excitations(:, :)
         integer, intent(out) :: nExcits
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
         logical, intent(in), optional :: t_no_singles_opt
 
         ! not sure if single or double weight is necessary here...
         type(WeightObj_t) :: weights
-        integer(n_int), pointer :: tempExcits(:, :)
+        integer(n_int), allocatable :: tempExcits(:, :)
         integer(n_int) :: t(0:nifguga)
         integer :: iOrb, iEx, cnt, st, se, en, ierr
         real(dp) :: minusWeight, plusWeight, zeroWeight
@@ -18468,14 +18468,14 @@ contains
                                posSwitches, negSwitches, t_no_singles_opt)
         integer(n_int), intent(in) :: ilut(0:nifguga)
         type(ExcitationInformation_t), intent(inout) :: excitInfo
-        integer(n_int), intent(out), pointer :: excitations(:, :)
+        integer(n_int), intent(out), allocatable :: excitations(:, :)
         integer, intent(out) :: nExcits
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
         logical, intent(in), optional :: t_no_singles_opt
 
         ! not sure if single or double weight is necessary here...
         type(WeightObj_t) :: weights
-        integer(n_int), pointer :: tempExcits(:, :)
+        integer(n_int), allocatable :: tempExcits(:, :)
         integer(n_int) :: t(0:nifguga)
         integer :: iOrb, iEx, cnt, st, se, en, ierr
         real(dp) :: minusWeight, plusWeight, zeroWeight
@@ -18589,9 +18589,9 @@ contains
         ! full stop routine for mixed generators
         integer(n_int), intent(in) :: ilut(0:nifguga)
         type(ExcitationInformation_t), intent(in) :: excitInfo
-        integer(n_int), intent(inout), pointer :: tempExcits(:, :)
+        integer(n_int), intent(inout), allocatable :: tempExcits(:, :)
         integer, intent(inout) :: nExcits
-        integer(n_int), intent(out), pointer :: excitations(:, :)
+        integer(n_int), intent(out), allocatable :: excitations(:, :)
         logical, intent(in), optional :: t_no_singles_opt
         character(*), parameter :: this_routine = "mixedFullStop"
 
@@ -19728,14 +19728,14 @@ contains
                                     posSwitches, negSwitches)
         integer(n_int), intent(in) :: ilut(0:nifguga)
         type(ExcitationInformation_t), intent(inout) :: excitInfo
-        integer(n_int), intent(out), pointer :: excitations(:, :)
+        integer(n_int), intent(out), allocatable :: excitations(:, :)
         integer, intent(out) :: nExcits
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
         character(*), parameter :: this_routine = "calcFullstopLowering"
 
         ! not sure if single or double weight is necessary here...
         type(WeightObj_t) :: weights
-        integer(n_int), pointer :: tempExcits(:, :)
+        integer(n_int), allocatable :: tempExcits(:, :)
         integer(n_int) :: t(0:nifguga)
         integer :: iOrb, iEx, deltaB, cnt, ierr
         real(dp) :: tempWeight, sig, bVal
@@ -19891,14 +19891,14 @@ contains
                                    posSwitches, negSwitches)
         integer(n_int), intent(in) :: ilut(0:nifguga)
         type(ExcitationInformation_t), intent(inout) :: excitInfo
-        integer(n_int), intent(out), pointer :: excitations(:, :)
+        integer(n_int), intent(out), allocatable :: excitations(:, :)
         integer, intent(out) :: nExcits
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
         character(*), parameter :: this_routine = "calcFullstopRaising"
 
         ! not sure if single or double weight is necessary here...
         type(WeightObj_t) :: weights
-        integer(n_int), pointer :: tempExcits(:, :)
+        integer(n_int), allocatable :: tempExcits(:, :)
         integer(n_int) :: t(0:nifguga)
         integer :: iOrb, iEx, deltaB, cnt, ierr
         real(dp) :: tempWeight, sig, bVal
@@ -20049,12 +20049,12 @@ contains
                                          posSwitches, negSwitches)
         integer(n_int), intent(in) :: ilut(0:nifguga)
         type(ExcitationInformation_t), intent(inout) :: excitInfo
-        integer(n_int), intent(out), pointer :: excitations(:, :)
+        integer(n_int), intent(out), allocatable :: excitations(:, :)
         integer, intent(out) :: nExcits
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
         character(*), parameter :: this_routine = "calcSingleOverlapLowering"
 
-        integer(n_int), pointer :: tempExcits(:, :)
+        integer(n_int), allocatable :: tempExcits(:, :)
         integer(n_int) ::  t(0:nifguga)
         integer :: i, iEx, deltaB, ss
         type(WeightObj_t) :: weights
@@ -20142,12 +20142,12 @@ contains
         ! double excitations with only raising generators
         integer(n_int), intent(in) :: ilut(0:nifguga)
         type(ExcitationInformation_t), intent(inout) :: excitInfo
-        integer(n_int), intent(out), pointer :: excitations(:, :)
+        integer(n_int), intent(out), allocatable :: excitations(:, :)
         integer, intent(out) :: nExcits
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
         character(*), parameter :: this_routine = "calcSingleOverlapRaising"
 
-        integer(n_int), pointer :: tempExcits(:, :)
+        integer(n_int), allocatable :: tempExcits(:, :)
         integer(n_int) :: t(0:nifguga)
         integer :: i, iEx, deltaB, se, en
         type(WeightObj_t) :: weightObj
@@ -20308,7 +20308,7 @@ contains
         ! mixed generators
         integer(n_int), intent(in) :: ilut(0:nifguga)
         type(ExcitationInformation_t), intent(inout) :: excitInfo
-        integer(n_int), intent(out), pointer :: excitations(:, :)
+        integer(n_int), intent(out), allocatable :: excitations(:, :)
         integer, intent(out) :: nExcits
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
         character(*), parameter :: this_routine = "calcSingleOverlapMixed"
@@ -20316,7 +20316,7 @@ contains
         type(WeightObj_t) :: weights
         integer :: iOrb, iEx, deltaB
         integer(n_int) :: t(0:nifguga)
-        integer(n_int), pointer :: tempExcits(:, :)
+        integer(n_int), allocatable :: tempExcits(:, :)
         real(dp) :: tempWeight
 
         ! todo: create weight objects, here are the normal single excitation
@@ -20401,11 +20401,11 @@ contains
         ! specific subroutine to calculate the non overlap double excitations
         integer(n_int), intent(in) :: ilut(0:nifguga)
         type(ExcitationInformation_t), intent(in) :: excitInfo
-        integer(n_int), intent(out), pointer :: excitations(:, :)
+        integer(n_int), intent(out), allocatable :: excitations(:, :)
         integer, intent(out) :: nExcits
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
 
-        integer(n_int), pointer :: tempExcits(:, :), tempExcits2(:, :), tmp_excitations(:, :)
+        integer(n_int), allocatable :: tempExcits(:, :), tempExcits2(:, :), tmp_excitations(:, :)
         integer :: tmpNum, iEx, tmpNum2, nOpen1, nOpen2, ierr, iEx2, nMax, i, j
         type(ExcitationInformation_t) :: tmpInfo
 
@@ -20483,7 +20483,7 @@ contains
         ! generator, which is really similar so a normal single excitation
         integer(n_int), intent(in) :: ilut(0:nifguga)
         type(ExcitationInformation_t), intent(in) :: excitInfo
-        integer(n_int), intent(out), pointer :: excitations(:, :)
+        integer(n_int), intent(out), allocatable :: excitations(:, :)
         integer, intent(out) :: nExcits
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
 

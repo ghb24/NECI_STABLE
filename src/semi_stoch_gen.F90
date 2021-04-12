@@ -395,7 +395,7 @@ contains
         character(*), parameter :: this_routine = "generate_sing_doub_guga"
 
         integer(n_int) :: ilutG(0:nifguga)
-        integer(n_int), pointer :: excitations(:, :)
+        integer(n_int), allocatable :: excitations(:, :)
         integer :: nexcit, i
         integer(n_int) :: temp_ilut(0:niftot)
         HElement_t(dp) :: temp_hel
@@ -1279,7 +1279,7 @@ contains
         integer :: pos, i
         real(dp) :: amp, energy_contrib
         logical :: tAllExcitFound, tParity
-        integer(n_int), pointer :: excitations(:, :)
+        integer(n_int), allocatable :: excitations(:, :)
         integer(n_int) :: ilutG(0:nifguga)
 
         allocate(amp_list(target_ndets))
