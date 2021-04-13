@@ -1080,7 +1080,6 @@ contains
         call guga_pchb_sampler(1)%setup_info_table(int(ijMax,int64), &
             int(abMax, int64))
 
-
         if (t_analyze_pchb) then
             ! also for the analysis for now..
             call guga_pchb_sampler(1)%setup_count_table(int(ijMax,int64), &
@@ -1423,6 +1422,7 @@ contains
             print *, "WARNING: Generated excitation with probability of 0"
             return
         endif
+
 
         ! split the index ab (using a table containing mapping ab -> (a,b))
         orbs = tgtOrbs(:,ab)

@@ -239,6 +239,7 @@ contains
                     call report(trim(w)//" not valid HF method",          &
          &           .true.)
                 end select
+
             case("READ")
                 do while(item < nitems)
                     call readu(w)
@@ -252,7 +253,8 @@ contains
            &            //" option.", .true.)
                     end select
                 end do
-            case("FREEZE")
+
+            case ("FREEZE")
                 call readi(NFROZEN)
                 call readi(NTFROZEN)
                 if(mod(NFROZEN, 2) /= 0 .or.                             &
@@ -265,7 +267,8 @@ contains
                     call report("-ve NTFROZEN must be same parity  "      &
          &          //"as NEL", .true.)
                 end if
-            case("FREEZEINNER")
+
+            case ("FREEZEINNER")
 !This option allows us to freeze orbitals 'from the inside'.  This means that rather than freezing
 !the lowest energy occupied orbitals, the NFROZENIN occupied (spin) orbitals with the highest energy are
 !frozen, along with the NTFROZENIN lowest energy virtual (spin) orbitals.
@@ -279,7 +282,8 @@ contains
                     call report("NFROZENIN and NTFROZENIN must be"      &
          &          //"multiples of 2", .true.)
                 end if
-            case("PARTIALLYFREEZE")
+
+            case ("PARTIALLYFREEZE")
 !This option chooses a set of NPartFrozen SPIN orbitals as a core, and partially freezes the electrons
 !in these orbitals so that no more than NHolesFrozen holes may exist in this core at a time.
 !In practice, a walker attempts to spawn on a determinant - if this determinant has more than the
@@ -287,6 +291,7 @@ contains
                 tPartFreezeCore = .true.
                 call readi(NPartFrozen)
                 call readi(NHolesFrozen)
+
             case("PARTIALLYFREEZEVIRT")
 !This option works very similarly to the one above.  The integers following this keyword refer firstly to the number
 !of *spin* orbitals that are frozen from the highest energy virtual orbitals down.  The second integer refers to the
@@ -296,6 +301,7 @@ contains
                 tPartFreezeVirt = .true.
                 call readi(NVirtPartFrozen)
                 call readi(NElVirtFrozen)
+
             case("ORDER")
                 I = 1
                 do while(item < nitems)
