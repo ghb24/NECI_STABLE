@@ -1453,12 +1453,14 @@ contains
 
         call halt_timer(ham_time)
 
-        write(6, '("Time to create the Hamiltonian:", f9.3)') get_total_time(ham_time); call neci_flush(6)
-        ! Optional: sort the Hamiltonian? This could speed up subsequent
-        ! multiplications, as we don't jump about in memory so much
+        if (iProcIndex_intra == 0) then
+            write(6, '("Time to create the Hamiltonian:", f9.3)') get_total_time(ham_time); call neci_flush(6)
+            ! Optional: sort the Hamiltonian? This could speed up subsequent
+            ! multiplications, as we don't jump about in memory so much
 
-        total_time = get_total_time(aux_time) + get_total_time(sort_aux_time) + get_total_time(ham_time)
-        write(6, '("total_time:", f9.3)') total_time; call neci_flush(6)
+            total_time = get_total_time(aux_time) + get_total_time(sort_aux_time) + get_total_time(ham_time)
+            write(6, '("total_time:", f9.3)') total_time; call neci_flush(6)
+        end if
 
         ! --- Deallocate all auxiliary arrays -------------
 
