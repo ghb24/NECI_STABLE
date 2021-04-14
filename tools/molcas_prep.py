@@ -1,4 +1,4 @@
-#!/usr/bin/python -tt
+#!/usr/bin/env python3
 """
 Produce a directory of output files suitable for incorporation into molcas
 from the NECI source code
@@ -141,7 +141,7 @@ def file_direct_copy(dir, fn, tgt_dir, tmp_dir):
     src_file = os.path.join(dir, fn)
     tgt_file = os.path.join(tgt_dir, fn.lower())
     shutil.copyfile(src_file, tgt_file)
-    
+
     if fn == 'molcas_wrapper.h':
         append_git_version(tgt_file)
 

@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python3
 '''ftlm_analysis.py [options] file_1 file_2 ... file_N
 
 Calculate and output temperature-dependent energy results from a given set of
@@ -28,7 +28,7 @@ def extract_data(data_files, cutoff):
             have_data = True
 
     f.close()
-                
+
     return pairs
 
 def calc_energy_contrib(pairs, minval, maxval, delta_beta):
@@ -68,7 +68,7 @@ def parse_options(args):
                       help='The number of eigenvectors to keep in the Lowdin '
                       'orthogonalisation procedure.')
     (options, filenames) = parser.parse_args(args)
-    
+
     if len(filenames) == 0:
         parser.print_help()
         sys.exit(1)
