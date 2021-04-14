@@ -58,7 +58,7 @@ module guga_bitRepOps
             extract_excit_lvl_rdm, extract_excit_type_rdm, &
             encode_excit_info, encode_excit_info_type, extract_excit_info_type, &
             encode_excit_info_indices, extract_excit_info_indices, &
-            extract_excit_info, isProperCSF_flexible
+            extract_excit_info, isProperCSF_flexible, find_guga_excit_lvl
 
     ! interfaces
     interface isProperCSF_ilut

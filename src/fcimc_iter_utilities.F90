@@ -934,8 +934,10 @@ contains
 
                 ! Instead attempt to calculate the average growth over every
                 ! iteration over the update cycle
-                AllGrowRate(:) = AllSumWalkersCyc(:) / real(StepsSft, dp) &
+                if (all(.not. near_zero(OldAllAvWalkersCyc))) then
+                    AllGrowRate(:) = AllSumWalkersCyc(:) / real(StepsSft, dp) &
                                        / OldAllAvWalkersCyc(:)
+                end if
                 AllWalkers(:) = AllSumWalkersCyc(:) / real(StepsSft, dp)
 
             end if
