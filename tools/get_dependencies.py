@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/python
 '''
 Analyse Fortran source code and output (in the dot language) the dependencies on modules in the source code.
 
@@ -26,14 +26,14 @@ __author__='James Spencer'
 # Configuration.
 
 # List of utilities modules and data modules (splitting a string is more
-# convenient than actually specifying a list of strings).
+# convenient than actually specifying a list of strings).  
 # Determine whether a module is a utility or data module via regular
 # expressions.  Case is ignored.
 # A dependency (in either direction) that involves one of the modules
 # listed is placed in the graph of that category.
 # All other modules are put into the "main" category.
 utilities_modules='bookkeeper_pointers common_routines default_sets global_utilities helem input Logging memory_manager MemoryManager mpi parameters precision record_handler record_handler_arrays record_handler_pointers run_data timing'.split()
-data_modules='CalcData CPMDData IntegralsData SymData SystemData'.split()
+data_modules='CalcData CPMDData IntegralsData SymData SystemData'.split() 
 
 # Output directory for *.dot files containing dependencies. (Must exist.)
 output_dir='dependencies'
@@ -93,7 +93,7 @@ def main(file_list):
         for line in source_code:
             line_search=re.findall(module_regex,line)
             if line_search:
-                # We convert all module names to Title_Case to avoid
+                # We convert all module names to Title_Case to avoid 
                 # any issues with different cases being used.
                 module_name=line_search[0][1].title()
                 is_module=True

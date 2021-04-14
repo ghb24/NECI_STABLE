@@ -1,5 +1,4 @@
-#!/usr/bin/env python3
-
+#!/usr/bin/env python
 '''extract_eigv.py -l nlowdin file.*
 
 Extract the Hamiltonian eigenvalues from file.* files and move them to a
@@ -62,7 +61,7 @@ def parse_options(args):
                       help='The number of eigenvectors to keep in the Lowdin '
                       'orthogonalisation procedure.')
     (options, filenames) = parser.parse_args(args)
-
+    
     if len(filenames) == 0:
         parser.print_help()
         sys.exit(1)
@@ -86,7 +85,7 @@ if __name__ == '__main__':
     sys.stdout.write('# 1. Iteration')
     icolumn = 1
     for ivec in range(1,options.cutoff+1):
-        icolumn += 1
+        icolumn += 1 
         header = str(icolumn) + '. Energy ' + str(ivec)
         sys.stdout.write('%22s' % header)
     sys.stdout.write('\n')

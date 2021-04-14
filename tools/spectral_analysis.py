@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/python
 '''spectral_analysis.py [options] file
 
 Calculate and output a spectral function from a given set of eigenvalues and
@@ -45,7 +45,7 @@ def extract_data_lowdin(data_file, cutoff):
             have_norm = True
 
     f.close()
-
+                
     return triples, unperturbed_norm
 
 def extract_data_std(data_file):
@@ -60,7 +60,7 @@ def extract_data_std(data_file):
 
     for line in f:
         if not first_line:
-            values = line.split()
+            values = line.split() 
             triples.append( [float(values[1]), float(values[2]),
                              float(values[3])] )
         first_line = False
@@ -118,13 +118,13 @@ def parse_options(args):
     parser.add_option('-l', '--lowdin-cutoff', dest='cutoff', type='int',
                       default=5, help='The number of eigenvectors which were '
                       'kept in the Lowdin orthogonalisation procedure.')
-    parser.add_option('-r', '--ref-energy', dest='ref_energy', type='float',
+    parser.add_option('-r', '--ref-energy', dest='ref_energy', type='float', 
                       default=0.0, help='The ground-state energy of the '
                       'unperturbed system.')
     parser.add_option('--flip', action='store_true', dest='flip', default=False,
                       help='Flip the spectrum about zero on the x-axis.')
     (options, filenames) = parser.parse_args(args)
-
+    
     if len(filenames) == 0:
         parser.print_help()
         sys.exit(1)

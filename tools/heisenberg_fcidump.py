@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/python
 
 import sys
 
@@ -24,7 +24,7 @@ def extract_data(data_file):
         if first_line:
             nsites = int(values[0])
             J = float(values[1])
-            Ms = int(values[2])
+            Ms = int(values[2]) 
             first_line = False
 
     f.close()
