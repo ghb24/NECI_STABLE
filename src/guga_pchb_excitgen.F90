@@ -1051,11 +1051,9 @@ contains
             real(memCost,dp)/2.0_dp**30, "GB of memory"
         write(iout,*) "Generating samplers for PCHB excitation generator"
 
-
         call setup_pchb_sampler_conditional()
 
         write(iout,*) "Finished GUGA PCHB excitation generator initialization"
-
 
     end subroutine init_guga_pchb_excitgen
 

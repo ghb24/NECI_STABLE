@@ -23,7 +23,7 @@ module fcimc_initialisation
                           irrepOrbOffset, nIrreps, &
                           tTrcorrExgen, nClosedOrbs, irrepOrbOffset, nIrreps, &
                           nOccOrbs, tNoSinglesPossible, t_pcpp_excitgen, &
-                          t_pchb_excitgen, tGAS, tGASSpinRecoupling
+                          t_pchb_excitgen, tGAS, tGASSpinRecoupling, t_guga_pchb
     use tc_three_body_data, only: ptriples
     use SymExcitDataMod, only: tBuildOccVirtList, tBuildSpinSepLists
     use core_space_util, only: cs_replicas
@@ -1729,7 +1729,7 @@ contains
         call init_excit_gen_store(fcimc_excit_gen_store)
 
         ! initialize excitation generator
-        if(tGUGA .and. t_pchb_excitgen) then
+        if (t_guga_pchb)  then
             call init_guga_pchb_excitgen()
         end if
 
@@ -2303,7 +2303,7 @@ contains
 
 
         ! Cleanup excitation generator
-        if(tGUGA .and. t_pchb_excitgen) then
+        if (t_guga_pchb) then
             call finalize_pchb_excitgen_guga()
         end if
 

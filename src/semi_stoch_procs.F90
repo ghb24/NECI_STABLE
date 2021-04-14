@@ -1928,7 +1928,7 @@ contains
 
         do i = 1, rep%determ_space_size
             call decode_bit_det(nI, rep%core_space(:, i))
-            call init_csf_information(rep%core_space(0:nifd, i))
+            if (tGUGA) call init_csf_information(rep%core_space(0:nifd, i))
 
             if (tHPHF) then
                 hamil(i, i) = hphf_diag_helement(nI, rep%core_space(:, i))

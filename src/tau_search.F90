@@ -10,7 +10,8 @@ module tau_search
                           t_uniform_excits, t_new_real_space_hubbard, &
                           tGUGA, t_mixed_hubbard, t_olle_hubbard, max_ex_level, &
                           t_trans_corr, tHub, t_trans_corr_hop, tNoSinglesPossible, &
-                          t_exclude_3_body_excits, t_mol_3_body, t_ueg_3_body, t_pchb_excitgen, tGAS
+                          t_exclude_3_body_excits, t_mol_3_body, t_ueg_3_body, &
+                          t_pchb_excitgen, tGAS
 
     use CalcData
 

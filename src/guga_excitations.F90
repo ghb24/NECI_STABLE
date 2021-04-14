@@ -19,7 +19,7 @@ module guga_excitations
                           t_crude_exchange, t_crude_exchange_noninits, &
                           t_approx_exchange, t_approx_exchange_noninits, &
                           is_init_guga, t_heisenberg_model, t_tJ_model, t_mixed_hubbard, &
-                          t_pchb_excitgen
+                          t_guga_pchb
 
     use constants, only: dp, n_int, bits_n_int, lenof_sign, Root2, THIRD, HEl_zero, &
                          EPS, bni_, bn2_, iout, int64, inum_runs, maxExcit, int_rdm
@@ -548,7 +548,7 @@ contains
             ! make this check only if we want the hamiltonian matrix
             ! element. for general coupling coefficients (eg. for RDMs)
             ! i do need this contributions anyway
-            if (tHub .or. t_new_hubbard) then
+            if (t_new_hubbard) then
                 if (treal .or. t_new_real_space_hubbard) then
                     ! only singles in the real-space hubbard!
                     if (excitInfo%typ /= excit_type%single) return
@@ -560,7 +560,9 @@ contains
 
             ! make the adjustment for the Heisenberg model
             if (t_heisenberg_model &
-                .and. excitInfo%typ /= excit_type%fullstart_stop_mixed) return
+                .and. excitInfo%typ /= excit_type%fullstart_stop_mixed) then
+                return
+            end if
 
             if (t_tJ_model .and. &
                 (.not. (excitInfo%typ == excit_type%single &
@@ -4311,7 +4313,7 @@ contains
         ! and before i have to convert to GUGA iluts..
         call convert_ilut_toGUGA(ilutI, ilut)
 
-        ASSERT(isProperCSF_ilut(ilut))
+        ASSERT(isProperCSF_ilut(ilut, .true.))
 
         ! maybe i need to copy the flags of ilutI onto ilutJ
         ilutJ = ilutI
@@ -5861,6 +5863,7 @@ contains
 
         inter = 1.0_dp
         integral = h_cast(0.0_dp)
+
 
         do i = first + 1, last - 1
             if (currentOcc_int(i) /= 1) cycle
@@ -12774,7 +12777,7 @@ contains
             return
         end if
 
-        if (t_pchb_excitgen) then
+        if (t_guga_pchb) then
             call checkCompatibility_single(ilut, excitInfo, compFlag, &
                 posSwitches, negSwitches, weights)
 
@@ -12857,7 +12860,7 @@ contains
         integral = getTmatEl(2 * i, 2 * j)
 
         ! then calculate the remaing switche given indices
-        if (.not. t_pchb_excitgen) then
+        if (.not. t_guga_pchb) then
             call calcRemainingSwitches_excitInfo_single(excitInfo, posSwitches, negSwitches)
             ! intitialize the weights
             weights = init_singleWeight(ilut, excitInfo%fullEnd)
@@ -24703,7 +24706,7 @@ contains
 
             else
 
-                if (t_pchb_excitgen) then
+                if (t_guga_pchb) then
                     cpt = abs(get_umat_el(ind(1),ind(2),orb_a,orb_b)) +&
                           abs(get_umat_el(ind(1),ind(2),orb_b,orb_a))
 

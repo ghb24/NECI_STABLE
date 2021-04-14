@@ -1649,6 +1649,11 @@ contains
                     case ("PCHB")
                         ! the precomputed heat-bath excitation generator (uniform singles)
                         t_pchb_excitgen = .true.
+
+                    case ("GUGA-PCHB")
+                        ! use an explicit guga-pchb keyword and flag
+                        t_guga_pchb = .true.
+
                     case ("UEG")
                         ! Use the new UEG excitation generator.
                         ! TODO: This probably isn't the best way to do this

@@ -1813,7 +1813,7 @@ contains
 
     end subroutine find_switches_stepvector
 
-    function findFirstSwitch(iI, iJ, start, semi) result(orb)
+    pure function findFirstSwitch(iI, iJ, start, semi) result(orb)
         ! write a scratch implementation to find the first change in
         ! stepvector for two given CSFs. do it inefficiently for now
         ! improve later on
@@ -1834,7 +1834,7 @@ contains
         ! i need to find the first spin-change between start and semi-1
 
         if (start >= semi) then
-            orb = 0
+            orb = -1
             return
         end if
         ! make the spin_change bit-rep
@@ -1844,7 +1844,7 @@ contains
         ! before i wanted to check for any switches.. now i only want
         ! spin-changes.. to i ever need anything else then spin-changes?
         ! ok i really only need spin-changes.. so change the testsuite
-        orb = 0
+        orb = -1
         do i = start, semi - 1
             a = getStepvalue(iI, i)
             b = getStepvalue(iJ, i)
@@ -1856,7 +1856,7 @@ contains
 
     end function findFirstSwitch
 
-    function findLastSwitch(ilutI, ilutJ, semi, ende) result(orb)
+    pure function findLastSwitch(ilutI, ilutJ, semi, ende) result(orb)
         ! function to find last switch in a mixed fullstop excitation
         integer(n_int), intent(in) :: ilutI(0:GugaBits%len_tot), ilutJ(0:GugaBits%len_tot)
         integer, intent(in) :: ende, semi
@@ -1871,14 +1871,14 @@ contains
         ! in this routine i always want to include the inputted end index
         ! but only the +1 spatial orbital above semi!
         if (semi >= ende) then
-            orb = nSpatOrbs + 1
+            orb = nSpatOrbs + 2
             return
         end if
 
         ! also implement this with the new fortran 2008 routines!
         ! make the spin_change bit-rep
 
-        orb = nSpatOrbs + 1
+        orb = nSpatOrbs + 2
 
         do iOrb = ende, semi + 1, -1
             a = getStepvalue(ilutI, iOrb)
