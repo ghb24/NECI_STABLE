@@ -7,7 +7,7 @@ module test_gasci_disconnected_mod
     use excitation_types, only: Excitation_t
 
     use excitation_generators, only: ExcitationGenerator_t
-    use gasci, only: GASSpec_t
+    use gasci, only: LocalGASSpec_t
     use gasci_disconnected, only: GAS_disc_ExcGenerator_t
 
     use sltcnd_mod, only: dyn_sltcnd_excit_old
@@ -27,7 +27,7 @@ contains
     subroutine test_pgen()
         use SystemData, only: tGASSpinRecoupling
         use FciMCData, only: pSingles, pDoubles, pParallel
-        type(GASSpec_t) :: GAS_spec
+        type(LocalGASSpec_t) :: GAS_spec
         integer, parameter :: det_I(6) = [1, 2, 3, 7, 8, 10]
 
         logical :: successful
@@ -40,7 +40,7 @@ contains
 
         call assert_true(tGASSpinRecoupling)
 
-        GAS_spec = GASSpec_t(n_min=[3, size(det_I)], n_max=[3, size(det_I)], &
+        GAS_spec = LocalGASSpec_t(n_min=[3, 3], n_max=[3, 3], &
                              spat_GAS_orbs=[1, 1, 1, 2, 2, 2])
         call assert_true(GAS_spec%is_valid())
         call assert_true(GAS_spec%contains_det(det_I))

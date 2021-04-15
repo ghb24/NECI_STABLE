@@ -53,7 +53,7 @@ contains
 
         ! If a name is given, log the allocation
         if (associated(this%ptr) .and. present(name)) &
-            call LogMemAlloc(name, int(size), int(sizeof(this%ptr(1))), t_r, this%tag)
+            call LogMemAlloc(name, size, sizeof(this%ptr(1)), t_r, this%tag)
     end subroutine safe_shared_memory_alloc_${data_name}$
 
     !------------------------------------------------------------------------------------------!

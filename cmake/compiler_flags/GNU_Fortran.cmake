@@ -1,8 +1,8 @@
 # Special defines for gnu fortran compiler
 
-set( ${PROJECT_NAME}_Fortran_FLAGS "-ffree-line-length-none" )
-set( ${PROJECT_NAME}_Fortran_FLAGS_DEBUG "-g -O0 -fbounds-check -fcheck=all -fbacktrace -finit-real=nan -ffpe-trap=invalid,zero" )
-set( ${PROJECT_NAME}_Fortran_FLAGS_RELEASE "-O3 -g -march=native" )
+set( ${PROJECT_NAME}_Fortran_FLAGS "-g -ffree-line-length-none" )
+set( ${PROJECT_NAME}_Fortran_FLAGS_DEBUG "-O0 -fbounds-check -fcheck=all -fbacktrace -finit-real=nan -ffpe-trap=invalid,zero" )
+set( ${PROJECT_NAME}_Fortran_FLAGS_RELEASE "-O3 -march=native" )
 set( ${PROJECT_NAME}_Fortran_FLAGS_CLUSTER "-flto" )
 set( ${PROJECT_NAME}_Fortran_LINKER_FLAGS_DEBUG "-rdynamic" )
 
