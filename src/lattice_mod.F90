@@ -797,8 +797,7 @@ contains
 
 
 
-        allocate(dispersion_rel_cached(sym_min:sym_max), source = 0.0_dp)
-        dispersion_rel_cached = h_cast(0.0_dp)
+        allocate(dispersion_rel_cached(sym_min:sym_max), source = h_cast(0.0_dp))
 
         do i = 1, lat%get_nsites()
             dispersion_rel_cached(lat%get_sym(i)) = &
@@ -1869,7 +1868,7 @@ contains
         if (this%is_periodic()) then
             if (this%length(1) == 1 .and. this%length(2) == 1) then
                 ! the smallest cluster
-                this%sites(order(1)) = site(order(1), 2, order([2, 4, 6]))
+                this%sites(order(1)) = site(order(1), 3, order([2, 4, 6]))
                 this%sites(order(2)) = site(order(2), 4, order([1, 3, 4, 5]))
                 this%sites(order(3)) = site(order(3), 3, order([2, 5, 6]))
                 this%sites(order(4)) = site(order(4), 3, order([1, 2, 6]))

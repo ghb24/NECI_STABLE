@@ -396,8 +396,10 @@ module SystemData
     logical :: t_pchb_excitgen = .false.
     logical :: t_pchb_weighted_singles = .false.
 
-! flag for the impurity excitation generator
-logical :: t_impurity_excitgen = .false.
+    logical :: t_guga_pchb = .false.
+
+    ! flag for the impurity excitation generator
+    logical :: t_impurity_excitgen = .false.
 
 ! also implement a next-nearest neighbor Hubbard model implementation:
 ! for k-space hubbard, this only affects the diagonal part!

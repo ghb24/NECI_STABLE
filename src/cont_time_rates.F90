@@ -184,9 +184,9 @@ contains
         call generate_excitation(det, ilut, det_spwn, ilut_spwn, 3, ic, ex, &
                                  tParity, pgen, helgen, store)
         IFDEBUG(FCIMCDebug, 3) then
-        write(iout, '("SP att: ",f12.5)', advance='no') pgen
-        call write_det(iout, det_spwn, .true.)
-        call neci_flush(iout)
+            write(iout, '("SP att: ",f12.5)', advance='no') pgen
+            call write_det(iout, det_spwn, .true.)
+            call neci_flush(iout)
         end if
 
         if (.not. IsNullDet(det_spwn)) then
@@ -231,14 +231,15 @@ contains
             end if
 
             ! If this is going to survive, then encode it!
-            if (nspawn /= 0) &
+            if (nspawn /= 0) then
                 call encode_child(ilut, ilut_spwn, ic, ex)
+            end if
 
         end if
 
         ! Keep track of spawning successes
         cont_spawn_success = cont_spawn_success + nspawn
 
-        end subroutine
+    end subroutine
 
-    end module
+end module

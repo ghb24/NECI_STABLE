@@ -1684,9 +1684,6 @@ contains
                         write(iout,"(I7)") GlobalProc(i)
                     end if
                 end do
-                if (tGUGA) then
-                    call write_guga_list(6, GlobalLargestWalkers(:,1:counter))
-                end if
 
                 if(tHPHF) then
                     write(iout,"(A)") " * = Spin-coupled function implicitly has time-reversed determinant with same weight."

@@ -455,7 +455,7 @@ contains
         ! Loop over all deterministic states on this processor.
         do i = 1, rep%determ_sizes(iProcIndex)
 
-            ilutI = SpawnedParts(:, i)
+            ilutI = SpawnedParts(0:niftot, i)
             call decode_bit_det(nI, IlutI)
 
             row_size = 0

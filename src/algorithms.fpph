@@ -125,7 +125,7 @@ $:  var+'('+', '.join(idx if i == int(along) else ':' for i in range(1, int(rank
         ! merge_sort
         block
             @{get_decl(${type}$, ${kind}$, ${rank}$, True)}@ :: tmp
-            integer :: i, current_size, left, mid, right
+            integer :: current_size, left, mid, right
             integer, parameter :: along = ${along}$, &
                 bubblesort_size = 12
 

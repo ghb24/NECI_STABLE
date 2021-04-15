@@ -1,7 +1,7 @@
 # i have two more images, which mimick the office setting, prepared now:
 # TODO: build the newest open-suse leap image
 
-image: dobrautz/neci_base:opensuse-leap15.1
+image: dobrautz/neci_base:opensuse-leap-15.2
 
 options:
   docker: true

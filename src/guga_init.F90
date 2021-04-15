@@ -13,7 +13,7 @@ module guga_init
                           ref_stepvector, ref_b_vector_int, ref_occ_vector, &
                           ref_b_vector_real, treal, tHUB, t_guga_noreorder, tgen_guga_crude, &
                           t_new_real_space_hubbard, t_heisenberg_model, &
-                          t_tJ_model, t_pchb_excitgen, t_pchb_weighted_singles
+                          t_tJ_model, t_guga_pchb, t_pchb_weighted_singles
 
     use CalcData, only: tUseRealCoeffs, tRealCoeffByExcitLevel, RealCoeffExcitThresh, &
                         t_direct_guga_ref, t_hist_tau_search, tSpinProject, &
@@ -128,7 +128,7 @@ contains
             calc_mixed_end_r2l_contr => calc_mixed_end_contr_sym
             calc_mixed_contr => calc_mixed_contr_sym
 
-        else if (t_pchb_excitgen) then
+        else if (t_guga_pchb) then
 
             if (t_pchb_weighted_singles) then
                 pickOrbitals_single => pickOrbs_sym_uniform_mol_single

@@ -315,13 +315,13 @@ contains
         call init_csf_information(ilut)
 
         elec = 1
-        call pick_uniform_spatial_hole(nI, elec, s_orb, pgen)
+        call pick_uniform_spatial_hole(elec, s_orb, pgen)
         call assert_true(pgen > 0.0_dp)
         call assert_true(s_orb == 3 .or. s_orb == 4)
         call assert_equals(0.5_dp, pgen)
 
         elec = 2
-        call pick_uniform_spatial_hole(nI, elec, s_orb, pgen)
+        call pick_uniform_spatial_hole(elec, s_orb, pgen)
         call assert_true(pgen > 0.0_dp)
         call assert_true(s_orb == 3 .or. s_orb == 4)
         call assert_equals(0.5_dp, pgen)
@@ -331,13 +331,13 @@ contains
         call init_csf_information(ilut)
 
         elec = 1
-        call pick_uniform_spatial_hole(nI, elec, s_orb, pgen)
+        call pick_uniform_spatial_hole(elec, s_orb, pgen)
         call assert_true(pgen > 0.0_dp)
         call assert_true(s_orb == 3 .or. s_orb == 4 .or. s_orb == 2)
         call assert_equals(1.0_dp/3.0_dp, pgen)
 
         elec = 2
-        call pick_uniform_spatial_hole(nI, elec, s_orb, pgen)
+        call pick_uniform_spatial_hole(elec, s_orb, pgen)
         call assert_true(pgen > 0.0_dp)
         call assert_true(s_orb == 3 .or. s_orb == 4)
         call assert_equals(1.0_dp/2.0_dp, pgen)
@@ -347,7 +347,7 @@ contains
         call init_csf_information(ilut)
 
         elec = 1
-        call pick_uniform_spatial_hole(nI, elec, s_orb, pgen)
+        call pick_uniform_spatial_hole(elec, s_orb, pgen)
         call assert_true(pgen > 0.0_dp)
         call assert_true(s_orb == 3 .or. s_orb == 4 .or. s_orb == 2)
         call assert_equals(1.0_dp/3.0_dp, pgen)

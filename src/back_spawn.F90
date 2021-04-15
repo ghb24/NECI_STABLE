@@ -404,7 +404,9 @@ contains
         ! and the pgen is now:
         pgen = 1.0_dp / real(n_valid_pairs, dp)
 
-        if (present(calc_pgen) .and. calc_pgen) return
+        if (present(calc_pgen)) then
+            if (calc_pgen) return
+        end if
 
         ! and is it now enough to do is just like in the symrandexcit3 routine:
         ind = 1 + int(n_valid_pairs * genrand_real2_dSFMT())
@@ -475,7 +477,9 @@ contains
         ASSERT(n_valid > 0)
         pgen = 1.0_dp / real(n_valid, dp)
 
-        if (present(calc_pgen) .and. calc_pgen) return
+        if (present(calc_pgen)) then
+            if (calc_pgen) return
+        end if
 
         ! else pick uniformly from that available list..
         ind = 1 + int(genrand_real2_dSFMT() * n_valid)
@@ -531,7 +535,9 @@ contains
         ASSERT(n_valid > 0)
 
         pgen = 1.0_dp / real(n_valid, dp)
-        if (present(calc_pgen) .and. calc_pgen) return
+        if (present(calc_pgen)) then
+            if (calc_pgen) return
+        end if
 
         ind = 1 + int(n_valid * genrand_real2_dSFMT())
         orb = occ_orbs(ind)
@@ -613,7 +619,9 @@ contains
         cpt = 1.0_dp / real(n_valid, dp)
         cum_sum = 1.0_dp
 
-        if (present(calc_pgen) .and. calc_pgen) return
+        if (present(calc_pgen)) then
+            if (calc_pgen) return
+        end if
 
         ind = 1 + int(genrand_real2_dSFMT() * n_valid)
 
@@ -700,7 +708,9 @@ contains
         cpt = 1.0_dp / real(n_valid, dp)
         cum_sum = 1.0_dp
 
-        if (present(calc_pgen) .and. calc_pgen) return
+        if (present(calc_pgen)) then
+            if (calc_pgen) return
+        end if
 
         ind = 1 + int(genrand_real2_dSFMT() * n_valid)
         orb = occ_orbs(ind)
@@ -797,7 +807,9 @@ contains
         cpt = 1.0_dp / real(n_valid, dp)
         cum_sum = 1.0_dp
 
-        if (present(calc_pgen) .and. calc_pgen) return
+        if (present(calc_pgen)) then
+            if (calc_pgen) return
+        end if
 
         ind = 1 + int(genrand_real2_dSFMT() * n_valid)
 
@@ -867,7 +879,9 @@ contains
         ASSERT(n_valid > 1)
         pgen = 1.0_dp / real(n_alpha * n_beta, dp)
 
-        if (present(calc_pgen) .and. calc_pgen) return
+        if (present(calc_pgen)) then
+            if (calc_pgen) return
+        end if
 
         do i = 1, 1000
             ind_1 = 1 + int(n_valid * genrand_real2_dSFMT())
@@ -944,7 +958,9 @@ contains
 
         ! if i only want to calculate the pgens i dont want to call the
         ! random number generator
-        if (present(calc_pgen) .and. calc_pgen) return
+        if (present(calc_pgen)) then
+            if (calc_pgen) return
+        end if
 
         ! and now pick a random number:
         ind = 1 + floor(genrand_real2_dSFMT() * n_valid)
