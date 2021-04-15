@@ -1669,7 +1669,7 @@ contains
             if (t_input_order) then
                 n = this%get_nsites()
                 if (this%is_periodic()) then
-                    vec = [-(this%length + 1) / 2 + 1, 0, 0]
+                    vec = [-(this%length + 1) / 2 + orbital_order(1), 0, 0]
                     this%sites(orbital_order(1)) = site(orbital_order(1), 2, &
                         [orbital_order(n), orbital_order(2)], vec, vec)
 
@@ -1679,7 +1679,7 @@ contains
 
 
                 else
-                    vec = [-(this%length + 1) / 2 + 1, 0, 0]
+                    vec = [-(this%length + 1) / 2 + orbital_order(1), 0, 0]
                     this%sites(orbital_order(1)) = site(orbital_order(1), 1, &
                         [orbital_order(2)], vec, vec)
 
@@ -1692,7 +1692,7 @@ contains
                 ! and do the rest inbetween which is always the same
                 do i = 2, this%get_nsites() - 1
 
-                    vec = [-(this%length + 1) / 2 + i, 0, 0]
+                    vec = [-(this%length + 1) / 2 + orbital_order(i), 0, 0]
                     ! if periodic and first or last: already dealt with above
                     this%sites(orbital_order(i)) = site(orbital_order(i), &
                         N_CONNECT_MAX_CHAIN, [orbital_order(i-1),orbital_order(i + 1)], vec, vec)

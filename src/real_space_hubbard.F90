@@ -125,7 +125,7 @@ contains
         integer :: neel_state_ni(nel)
         integer(n_int) :: ilut_neel(0:NIfTot)
 
-        print *, "using new real-space hubbard implementation: "
+        root_print "using new real-space hubbard implementation: "
 
         ! i do not need exchange integrals in the real-space hubbard model
         if (.not. t_trans_corr_hop) then
@@ -232,13 +232,13 @@ contains
         ! the optimal time-step
         tau_opt = determine_optimal_time_step()
         if (tau < EPS) then
-            print *, "setting time-step to optimally determined time-step: ", tau_opt
-            print *, "times: ", lat_tau_factor
+            root_print "setting time-step to optimally determined time-step: ", tau_opt
+            root_print "times: ", lat_tau_factor
             tau = lat_tau_factor * tau_opt
 
         else
-            print *, "optimal time-step would be: ", tau_opt
-            print *, "but tau specified in input!"
+            root_print "optimal time-step would be: ", tau_opt
+            root_print "but tau specified in input!"
         end if
 
         ! re-enable tau-search if we have transcorrelation
@@ -257,7 +257,7 @@ contains
 
         if (t_start_neel_state) then
 
-            print *, "starting from the Neel state: "
+            root_print "starting from the Neel state: "
             if (nel > nbasis / 2) then
                 call stop_all(this_routine, &
                               "more than half-filling! does neel state make sense?")
