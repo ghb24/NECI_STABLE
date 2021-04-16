@@ -1739,9 +1739,10 @@ contains
 
         ! depending on type (R->L / L->R) a can be > j or < j, but always > i
         !
-        ASSERT( i < a )
         i = gtID(occ_orbs(1))
         j = gtID(occ_orbs(2))
+
+        ASSERT( i < a )
 
         ! here i is both electron and hole index!
 
