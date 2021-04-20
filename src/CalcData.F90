@@ -635,7 +635,7 @@ module CalcData
     logical :: tDeathBeforeComms
 
 ! Allow the user to input the following values for the excitation generator
-    real(dp) :: pSinglesIn, pParallelIn, pDoublesIn
+    real(dp), allocatable :: pSinglesIn, pDoublesIn, pTriplesIn, pParallelIn
 
 ! If true then allow set_initial_run_references to be called
     logical :: tSetInitialRunRef

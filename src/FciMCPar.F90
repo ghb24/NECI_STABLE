@@ -1272,6 +1272,9 @@ contains
             ! excite from the first particle on a determinant).
             fcimc_excit_gen_store%tFilled = .false.
 
+            ! let the interested excitation generator know about the index in the CurrentDets array.
+            fcimc_excit_gen_store%idx_curr_dets = j
+
             ! Make sure that the parent flags from the last walker don't through.
             parent_flags = 0
 
@@ -1623,7 +1626,10 @@ contains
                     end if
 
                     ! If a valid excitation, see if we should spawn children.
-                    if (.not. IsNullDet(nJ)) then
+                    if (IsNullDet(nJ)) then
+                        nInvalidExcits = nInvalidExcits + 1
+                    else
+                        nValidExcits = nValidExcits + 1
 
                         if (tSemiStochastic) then
                             call encode_child(CurrentDets(:, j), iLutnJ, ic, ex)

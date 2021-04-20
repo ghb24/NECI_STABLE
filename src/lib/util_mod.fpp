@@ -62,6 +62,10 @@ module util_mod
         end subroutine
     end interface
 
+    interface operator(.implies.)
+        module procedure implies
+    end interface
+
     interface choose
     #:for kind in primitive_types['integer']
         module procedure choose_${kind}$
@@ -142,6 +146,17 @@ module util_mod
 !    public :: swap, arr_lt, arr_gt, operator(.arrlt.), operator(.arrgt.)
 !    public :: factrl, choose, int_fmt, binary_search
 !    public :: append_ext, get_unique_filename, get_nan, isnan_neci
+
+    type, abstract :: EnumBase_t
+        integer :: val
+    contains
+        private
+        procedure :: eq_EnumBase_t
+        procedure :: neq_EnumBase_t
+        generic, public :: operator(==) => eq_EnumBase_t
+        generic, public :: operator(/=) => neq_EnumBase_t
+    end type
+
 
 contains
 
@@ -1295,6 +1310,35 @@ contains
             res(:, f) = tmp
         end do
     end function
+
+    !> @brief
+    !> The logical operator P => Q
+    !>
+    !> @details
+    !>    P  |  Q   |  P => Q   | ¬ P ∨ Q
+    !>    -------------------------------
+    !>    T  |  T   |     T     |     T
+    !>    T  |  F   |     F     |     F
+    !>    F  |  T   |     T     |     T
+    !>    F  |  F   |     T     |     T
+    logical elemental function implies(P, Q)
+        logical, intent(in) :: P, Q
+        implies = .not. P .or. Q
+    end function
+
+    logical elemental function eq_EnumBase_t(this, other)
+        class(EnumBase_t), intent(in) :: this, other
+        if (.not. SAME_TYPE_AS(this, other)) error stop 'Can only compare objects of same type'
+        eq_EnumBase_t = this%val == other%val
+    end function
+
+    logical elemental function neq_EnumBase_t(this, other)
+        class(EnumBase_t), intent(in) :: this, other
+        if (.not. SAME_TYPE_AS(this, other)) error stop 'Can only compare objects of same type'
+        neq_EnumBase_t = this%val /= other%val
+    end function
+
+
 end module
 
 !Hacks for compiler specific system calls.

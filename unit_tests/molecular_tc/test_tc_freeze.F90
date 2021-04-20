@@ -31,11 +31,11 @@ contains
         type(NoExc_t) :: exc_0
         type(SingleExc_t) :: exc_1
         type(DoubleExc_t) :: exc_2
-        integer :: ex(2,2)
-        
+        integer :: ex(2, 2), i
+
         ! Initialize the matrix element calculation
         call init_excitgen_test(&
-            n_el=n_con, fcidump_writer=FciDumpWriter_t(random_fcidump, 'FCIDUMP'))
+            ref_det=[(i, i = 1, n_con)], fcidump_writer=FciDumpWriter_t(random_fcidump, 'FCIDUMP'))
         t_mol_3_body = .true.
         call initSltCndPtr()
 
@@ -48,7 +48,7 @@ contains
         call test_freeze((/1,1,3,1,1,3/), exc_0)
         call test_freeze((/1,1,3,1,3,1/), exc_0)
         call test_freeze((/1,3,3,1,1,1/), exc_0)
-        call test_freeze((/1,1,1,1,3,3/), exc_0)                
+        call test_freeze((/1,1,1,1,3,3/), exc_0)
         call test_freeze((/1,2,3,1,2,3/), exc_0)
         call test_freeze((/1,2,3,1,2,3/), exc_0)
         call test_freeze((/1,2,3,2,1,3/), exc_0)
@@ -69,7 +69,7 @@ contains
         call test_freeze((/11,1,3,1,1,1/), exc_1)
         call test_freeze((/3,1,11,1,1,1/), exc_1)
         call test_freeze((/1,1,1,11,1,3/), exc_1)
-        
+
         call test_freeze((/1,2,3,1,2,11/), exc_1)
         call test_freeze((/1,2,3,2,1,11/), exc_1)
         call test_freeze((/1,2,3,1,11,2/), exc_1)
@@ -80,7 +80,7 @@ contains
         call test_freeze((/1,2,11,1,2,3/), exc_1)
         call test_freeze((/11,2,2,1,1,3/), exc_1)
 
-        write(iout,*) "Checking double excitaion matrix elements"        
+        write(iout,*) "Checking double excitaion matrix elements"
 
         ! Test the double excitation matrix elements
         ex(:,1) = (/5,7/)
@@ -105,7 +105,7 @@ contains
         call test_freeze((/1,3,3,11,11,1/), exc_2)
         call test_freeze((/11,3,3,1,1,11/), exc_2)
         call test_freeze((/11,1,3,1,3,11/), exc_2)
-        
+
     end subroutine tc_freeze_test_driver
 
     subroutine test_freeze(inds, exc)
@@ -131,7 +131,7 @@ contains
             allocate( SingleExc_t :: exc_frozen)
             exc_frozen = SingleExc_t(exc%val(1)-nFrozen, exc%val(2)-nFrozen)
         type is (DoubleExc_t)
-            allocate( DoubleExc_t :: exc_frozen)            
+            allocate( DoubleExc_t :: exc_frozen)
             exc_frozen = DoubleExc_t(exc%val(1,1)-nFrozen, exc%val(2,1)-nFrozen, &
                 exc%val(1,2)-nFrozen,exc%val(2,2)-nFrozen)
         class default
@@ -169,7 +169,7 @@ contains
         end if
         TMat2D = 0.0_dp
         ECore = 0.0_dp
-        
+
     end subroutine reset_ints
-  
+
 end program  test_tc_freeze
