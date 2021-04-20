@@ -5,6 +5,10 @@ if (POLICY CMP0074)
     cmake_policy(SET CMP0074 NEW)
 endif ()
 
+if (POLICY CMP0077)
+    cmake_policy(SET CMP0077 NEW)
+endif ()
+
 project(NECI Fortran CXX C)
 
 # Get access to custom cmake modules
