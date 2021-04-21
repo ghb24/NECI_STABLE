@@ -339,7 +339,6 @@ contains
         t_fast_pops_core = .false.
         ss_space_in%tApproxSpace = .false.
         trial_space_in%tApproxSpace = .false.
-        t_core_inits = .true.
 
     end subroutine init_guga
 
