@@ -1215,14 +1215,14 @@ contains
                         call stop_all(this_routine, 'Insufficient memory assigned')
                     end if
 
-                    SpawnedParts(0:NIfTot, i_non_core) = CurrentDets(:, i)
+                    SpawnedParts(0:NIfTot, i_non_core) = CurrentDets(0:NIfTot, i)
                     call reorder_handler%write_gdata(gdata_buf, 1, i, i_non_core)
                 end if
             end do
             ! Now copy all the core states in SpawnedParts into CurrentDets.
             ! Note that the amplitude in CurrentDets was copied across, so this is fine.
             do i = 1, nwalkers
-                CurrentDets(:, i) = SpawnedParts(0:NIfTot, i)
+                CurrentDets(0:NifTot, i) = SpawnedParts(0:NIfTot, i)
             end do
             ! Re-assign the reordered global det data cached in gdata_buf
             call reorder_handler%read_gdata(gdata_buf, nwalkers)
