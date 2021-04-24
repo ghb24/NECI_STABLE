@@ -46,7 +46,8 @@ MODULE PopsfileMod
     use FciMcData, only : pSingles, pDoubles, pSing_spindiff1, pDoub_spindiff1, pDoub_spindiff2, &
         t_initialized_roi
     use global_det_data, only: global_determinant_data, init_global_det_data, set_det_diagH, &
-        store_decoding, max_ratio_size, fvals_size, apvals_size
+        store_decoding, max_ratio_size, fvals_size, apvals_size, set_supergroup_idx
+    use gasci_supergroup_index, only: lookup_supergroup_indexer
     use tc_three_body_data, only: pTriples, tReadPTriples
     use fcimc_helper, only: update_run_reference, TestInitiator, calc_proje
     use replica_data, only: set_initial_global_data
@@ -957,6 +958,16 @@ r_loop: do while(.not.tStoreDet)
         end if
 
         call fill_in_diag_helements()
+        if (associated(lookup_supergroup_indexer)) then
+        block
+            integer :: i, nI(nel)
+            do i = 1, int(TotWalkers)
+                call decode_bit_det(nI, CurrentDets(:, i))
+                call set_supergroup_idx(&
+                    i, lookup_supergroup_indexer%idx_nI(nI))
+            end do
+        end block
+        end if
 
         call clear_hash_table(HashIndex)
         call fill_in_hash_table(HashIndex, nWalkerHashes, CurrentDets, int(TotWalkers, sizeof_int), .true.)

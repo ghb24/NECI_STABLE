@@ -55,7 +55,7 @@ module fcimc_initialisation
                         t_trunc_nopen_diff, t_guga_back_spawn, tExpAdaptiveShift, &
                         t_back_spawn_option, t_back_spawn_flex_option, &
                         t_back_spawn_flex, back_spawn_delay, ScaleWalkers, tfixedN0, &
-                        tReplicaEstimates, tDeathBeforeComms, pSinglesIn, pParallelIn, &
+                        tReplicaEstimates, tDeathBeforeComms, pSinglesIn, pDoublesIn, pTriplesIn, pParallelIn, &
                         tSetInitFlagsBeforeDeath, tSetInitialRunRef, tEN2Init, &
                         tAutoAdaptiveShift, &
                         tInitializeCSF, S2Init, tWalkContgrow, tSkipRef, &
@@ -158,7 +158,7 @@ module fcimc_initialisation
                                     set_trial_populations, set_trial_states, calc_trial_states_direct
     use global_det_data, only: global_determinant_data, set_det_diagH, &
                                clean_global_det_data, init_global_det_data, &
-                               set_spawn_rate, store_decoding
+                               set_spawn_rate, store_decoding, set_supergroup_idx
     use semi_stoch_gen, only: init_semi_stochastic, end_semistoch, &
                               enumerate_sing_doub_kpnt
     use semi_stoch_procs, only: return_mp1_amp_and_mp2_energy
@@ -233,11 +233,8 @@ module fcimc_initialisation
 
     use back_spawn_excit_gen, only: gen_excit_back_spawn, gen_excit_back_spawn_ueg, &
                                     gen_excit_back_spawn_hubbard, gen_excit_back_spawn_ueg_new
-    use gasci, only: GAS_exc_gen, possible_GAS_exc_gen, operator(==), GAS_specification, get_name
-    use gasci_disconnected, only: gen_GASCI_disconnected, init_disconnected_GAS, clearGAS
-    use gasci_general, only: gen_GASCI_general, gen_all_excits_GAS => gen_all_excits
-    use gasci_discarding, only: gen_GASCI_discarding, init_GASCI_discarding, finalize_GASCI_discarding
-    use gasci_general_pchb, only: gen_GASCI_general_pchb, general_GAS_PCHB
+    use gasci, only: GAS_exc_gen, possible_GAS_exc_gen, GAS_specification, get_name
+    use gasci_supergroup_index, only: lookup_supergroup_indexer
 
     use cepa_shifts, only: t_cepa_shift, init_cepa_shifts
 
@@ -251,13 +248,13 @@ module fcimc_initialisation
 
     use lattice_models_utils, only: gen_all_excits_k_space_hubbard, gen_all_excits_r_space_hubbard
 
-    use pchb_excitgen, only: gen_rand_excit_pchb, PCHB_FCI
-
     use impurity_models, only: setupImpurityExcitgen, clearImpurityExcitgen, gen_excit_impurity_model
 
     use symexcit3, only: gen_all_excits_default => gen_all_excits
 
     use CAS_distribution_init, only: InitFCIMC_CAS
+
+    use exc_gen_classes, only: init_exc_gen_class, finalize_exz_gen_class, class_managed
     implicit none
 
 contains
@@ -1404,24 +1401,7 @@ contains
         ! and can hence be precomputed
         if (t_mol_3_body .or. t_ueg_3_body) call setup_mol_tc_excitgen()
 
-        if (tGAS) then
-            if (GAS_exc_gen == possible_GAS_exc_gen%DISCONNECTED) then
-                call init_disconnected_GAS(GAS_specification)
-            else if (GAS_exc_gen == possible_GAS_exc_gen%DISCARDING) then
-                call init_GASCI_discarding()
-            else if (GAS_exc_gen == possible_GAS_exc_gen%GENERAL_PCHB) then
-                call general_GAS_PCHB%init(GAS_specification)
-            end if
-
-            write(iout, *)
-            write(iout, '(A" is activated")') get_name(GAS_exc_gen)
-            write(iout, '(A)') 'The following GAS specification was used: '
-            call GAS_specification%write_to(iout)
-            if (.not. tGASSpinRecoupling) then
-                write(iout, '(A)') 'Double excitations with exchange are forbidden.'
-            end if
-            write(iout, *)
-        end if
+        call init_exc_gen_class()
     END SUBROUTINE SetupParameters
 
     ! This initialises the calculation, by allocating memory, setting up the
@@ -1738,7 +1718,6 @@ contains
 
         ! initialize excitation generator
         if (t_pcpp_excitgen) call init_pcpp_excitgen()
-        if (t_pchb_excitgen) call PCHB_FCI%init()
         if(t_impurity_excitgen) call setupImpurityExcitgen()
         ! [W.D.] I guess I want to initialize that before the tau-search,
         ! or otherwise some pgens get calculated incorrectly
@@ -1956,17 +1935,7 @@ contains
         if (tHPHF .and. .not. (t_mol_3_body .or. t_ueg_3_body)) then
             generate_excitation => gen_hphf_excit
         else if (tGAS) then
-            if (GAS_exc_gen == possible_GAS_exc_gen%GENERAL) then
-                generate_excitation => gen_GASCI_general
-            else if (GAS_exc_gen == possible_GAS_exc_gen%DISCONNECTED) then
-                generate_excitation => gen_GASCI_disconnected
-            else if (GAS_exc_gen == possible_GAS_exc_gen%DISCARDING) then
-                generate_excitation => gen_GASCI_discarding
-            else if (GAS_exc_gen == possible_GAS_exc_gen%GENERAL_PCHB) then
-                generate_excitation => gen_GASCI_general_pchb
-            else
-                call stop_all(this_routine, 'Invalid GAS excitation generator')
-            end if
+            call class_managed(generate_excitation, gen_all_excits)
         else if (t_3_body_excits .and. .not. (t_mol_3_body .or. t_ueg_3_body)) then
             if (t_uniform_excits) then
                 generate_excitation => gen_excit_uniform_k_space_hub_transcorr
@@ -2024,7 +1993,7 @@ contains
         else if (t_pcpp_excitgen) then
             generate_excitation => gen_rand_excit_pcpp
         else if (t_pchb_excitgen) then
-            generate_excitation => gen_rand_excit_pchb
+            call class_managed(generate_excitation, gen_all_excits)
         else
             generate_excitation => gen_rand_excit
         end if
@@ -2154,9 +2123,7 @@ contains
         end if
 
         ! select the procedure that returns all connected determinants.
-        if (tGAS) then
-            gen_all_excits => gen_all_excits_GAS
-        else if (t_k_space_hubbard) then
+        if (t_k_space_hubbard) then
             gen_all_excits => gen_all_excits_k_space_hubbard
         else if (t_new_real_space_hubbard) then
             gen_all_excits => gen_all_excits_r_space_hubbard
@@ -2318,22 +2285,15 @@ contains
         call clean_adi()
 
 
-        if (tGAS) then
-            if (GAS_exc_gen == possible_GAS_exc_gen%DISCONNECTED) then
-                call clearGAS()
-            else if (GAS_exc_gen == possible_GAS_exc_gen%DISCARDING) then
-                call finalize_GASCI_discarding()
-            end if
-        end if
-
         ! Cleanup excitation generator
         if (t_pcpp_excitgen) call finalize_pcpp_excitgen()
-        if (t_pchb_excitgen) call PCHB_FCI%finalize()
         if(t_impurity_excitgen) call clearImpurityExcitgen()
 
         if (tSemiStochastic) call end_semistoch()
 
         if (tTrialWavefunction) call end_trial_wf()
+
+        call finalize_exz_gen_class()
 
 !There seems to be some problems freeing the derived mpi type.
 !        IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) THEN
@@ -2677,6 +2637,10 @@ contains
 
             call store_decoding(1, HFDet)
 
+            if (associated(lookup_supergroup_indexer)) then
+                call set_supergroup_idx(1, lookup_supergroup_indexer%idx_nI(HFDet))
+            end if
+
             if (tContTimeFCIMC .and. tContTimeFull) &
                 call set_spawn_rate(1, spawn_rate_full(HFDet, ilutHF))
 
@@ -2816,6 +2780,10 @@ contains
                     hdiag = get_helement(ProjEDet(:, run), ProjEDet(:, run), 0)
                 end if
                 call set_det_diagH(site, real(hdiag, dp) - Hii)
+
+                if (associated(lookup_supergroup_indexer)) then
+                    call set_supergroup_idx(site, lookup_supergroup_indexer%idx_nI(ProjEDet(:, run)))
+                end if
 
                 ! store the determinant
                 call store_decoding(site, ProjEDet(:, run))
@@ -2981,7 +2949,7 @@ contains
         type(ll_node), pointer :: TempNode
         character(len=*), parameter :: this_routine = "InitFCIMC_MP1"
         integer(n_int) :: ilutG(0:nifguga)
-        integer(n_int), pointer :: excitations(:, :)
+        integer(n_int), allocatable :: excitations(:, :)
         integer :: i
 
 #ifdef CMPLX_
@@ -3137,6 +3105,11 @@ contains
                         HDiagTemp = get_helement(nJ, nJ, 0)
                     end if
                     call set_det_diagH(DetIndex, real(HDiagtemp, dp) - Hii)
+
+                    if (associated(lookup_supergroup_indexer)) then
+                        call set_supergroup_idx(DetIndex, lookup_supergroup_indexer%idx_nI(nJ))
+                    end if
+
                     ! store the determinant
                     call store_decoding(DetIndex, nJ)
 
@@ -3472,14 +3445,51 @@ contains
             end if
         end if
 
-        if (pSinglesIn > 1.e-12_dp) then
-            pSingles = pSinglesIn
-            pDoubles = 1.0_dp - pSinglesIn
-            write(iout, '(" Using the input value of pSingles:",1x, f14.6)') pSingles
-            write(iout, '(" Using the input value of pSingles:",1x, f14.6)') pDoubles
+        if (allocated(pSinglesIn) .or. allocated(pDoublesIn) .or. allocated(pTriplesIn)) then
+            if (allocated(pSinglesIn) .and. allocated(pDoublesIn)) then
+                call stop_all(this_routine, 'It is not possible to define pSingles and pDoubles.')
+            else if (.not. (allocated(pSinglesIn) .or. allocated(pDoublesIn))) then
+                call stop_all(this_routine, 'One of pSingles or pDoubles is required.')
+            end if
+            if (t_mol_3_body) then
+                ! We allow the users to input absolute values for the probabilities.
+                ! Note that pSingles and pDoubles are internally conditional probabilities.
+                ! Even for triple we still have that `pSingles + pDoubles .isclose. 1.0`.
+                ! It first decides upon triple excitation or something else and then about singles or doubles.
+                ! We have to convert the absolute probabilities into conditional ones.
+                if (.not. allocated(pTriplesIn)) then
+                    call stop_all(this_routine, "pTriples is required as input.")
+                else
+                    pTriples = pTriplesIn
+                    if (allocated(pSinglesIn)) then
+                        if (pTriples + pSinglesIn > 1.0_dp) call stop_all(this_routine, "pTriplesIn + pSinglesIn > 1.0_dp")
+                        pSingles = pSinglesIn / (1.0_dp - pTriplesIn)
+                        pDoubles = 1.0_dp - pSingles
+                        write(iout, '(" Using the input value of pSingles:",1x, f14.6)') pSinglesIn
+                    else if (allocated(pDoublesIn)) then
+                        if (pTriples + pDoublesIn > 1.0_dp) call stop_all(this_routine, "pTriplesIn + pDoublesIn > 1.0_dp")
+                        pDoubles = pDoublesIn / (1.0_dp - pTriplesIn)
+                        pSingles = 1.0_dp - pDoubles
+                        write(iout, '(" Using the input value of pDoubles:",1x, f14.6)') pDoublesIn
+                    end if
+                end if
+            else
+                if (allocated(pTriplesIn)) then
+                    call stop_all(this_routine, "pTriples can only be given if triple excitations are performed.")
+                else if (allocated(pSinglesIn)) then
+                        pSingles = pSinglesIn
+                        pDoubles = 1.0_dp - pSingles
+                        write(iout, '(" Using the input value of pSingles:",1x, f14.6)') pSingles
+                else if (allocated(pDoublesIn)) then
+                    pDoubles = pDoublesIn
+                    pSingles = 1.0_dp - pDoubles
+                    write(iout, '(" Using the input value of pDoubles:",1x, f14.6)') pDoubles
+                end if
+            end if
         end if
-        if (pParallelIn > 1.e-12_dp) then
-            write(iout, '(" Using the input value of pSingles:",1x, f14.6)') pParallelIn
+
+        if (allocated(pParallelIn)) then
+            write(iout, '(" Using the input value of pParallel:",1x, f14.6)') pParallelIn
             pParallel = pParallelIn
         end if
 
@@ -3855,7 +3865,7 @@ contains
         real(dp) :: energies(nel), hdiag
 
         ! for now guga only works with non-complex code
-        integer(n_int), pointer :: excitations(:, :)
+        integer(n_int), allocatable :: excitations(:, :)
         integer :: n_excits, ierr
         real(dp), allocatable :: diag_energies(:)
         logical, allocatable :: found_mask(:)

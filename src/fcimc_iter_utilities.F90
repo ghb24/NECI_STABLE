@@ -61,6 +61,10 @@ contains
         ! previous update cycle.
         IterTime = IterTime / real(StepsPrint, sp)
 
+        ! Do the same averaging for allNValidExcits and allNInvalidExcits
+        allNValidExcits = nint(real(allNValidExcits, dp) / real(StepsPrint, dp), int64)
+        allNInvalidExcits = nint(real(allNInvalidExcits, dp) / real(StepsPrint, dp), int64)
+
         ! Calculate the acceptance ratio
         if (tContTimeFCIMC .and. .not. tContTimeFull) then
             if (.not. near_zero(real(cont_spawn_attempts))) then
@@ -1101,7 +1105,7 @@ contains
                             if (AllTotParts(run) > TargetGrowRateWalk(run)) then
 #endif
                                 if (tTargetShiftdamp) then
-                                    call stop_all(this_routine, & 
+                                    call stop_all(this_routine, &
                                         "Target-shiftdamp not compatible with targetgrowrate!")
                                 end if
                                 !Only allow targetgrowrate to kick in once we have > TargetGrowRateWalk walkers.

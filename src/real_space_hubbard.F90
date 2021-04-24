@@ -41,7 +41,7 @@ module real_space_hubbard
                          excit_gen_store_type
 
     use CalcData, only: t_hist_tau_search, t_hist_tau_search_option, tau, &
-                        t_fill_frequency_hists, matele_cutoff, pSinglesIn
+                        t_fill_frequency_hists, matele_cutoff, pSinglesIn, pDoublesIn
 
     use dsfmt_interface, only: genrand_real2_dsfmt
 
@@ -50,7 +50,7 @@ module real_space_hubbard
     use bit_rep_data, only: NIfTot, nifd, nifguga
 
     use util_mod, only: binary_search_first_ge, choose, swap, get_free_unit, &
-                        binary_search, near_zero
+                        binary_search, near_zero, operator(.isclose.)
 
     use bit_reps, only: decode_bit_det
 
@@ -187,10 +187,23 @@ contains
         ecore = 0.0_dp
 
         if (t_trans_corr_hop) then
-            ! we have double excitations with the hopping correlation!
-            if (.not. near_zero(pSinglesIn)) then
+            ! we have double excitations with the hopping correlation
+            ! but only anti-parallel excitations!
+            if (allocated(pSinglesIn) .and. allocated(pDoublesIn)) then
+                if (.not. (pSinglesIn + pDoublesIn .isclose. 1.0_dp)) then
+                    call stop_all(this_routine, "pSinglesIn + pDoublesIn /= 1.0!")
+                else
+                    pSingles = pSinglesIn
+                    pDoubles = pDoublesIn
+                end if
+            else if (allocated(pSinglesIn) .and. (.not. allocated(pDoublesIn))) then
                 pSingles = pSinglesIn
                 pDoubles = 1.0_dp - pSingles
+            else if (allocated(pDoublesIn) .and. (.not. allocated(pSinglesIn))) then
+                pDoubles = pDoublesIn
+                pSingles = 1.0_dp - pDoubles
+
+            ! For consistency pParallelIn should be taken as well or error out
             else
                 pSingles = 0.8_dp
                 pDoubles = 1.0_dp - pSingles

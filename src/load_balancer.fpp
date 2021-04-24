@@ -12,6 +12,7 @@ module load_balance
     use global_det_data, only: global_determinant_data, &
                                global_determinant_data_tmp, &
                                set_det_diagH, set_spawn_rate, &
+                               set_supergroup_idx, &
                                set_all_spawn_pops, reset_all_tau_ints, &
                                reset_all_shift_ints, det_diagH, store_decoding, &
                                reset_all_tot_spawns, reset_all_acc_spawns
@@ -24,6 +25,7 @@ module load_balance
                          con_space_size, NConEntry, con_send_buf, sFAlpha, sFBeta, &
                          n_prone_dets
     use core_space_util, only: cs_replicas
+    use gasci_supergroup_index, only: lookup_supergroup_indexer
     use SystemData, only: tHPHF
     use procedure_pointers, only: scaleFunction
     use searching, only: hash_search_trial, bin_search_trial
@@ -41,6 +43,7 @@ module load_balance
     use hash
 
     implicit none
+
 
     ! TODO:
     ! - Integrate with POPSFILES. Need to output the mapping for restarts.
@@ -594,6 +597,10 @@ contains
 
         !In case we are filling a hole, clear the removed flag
         call set_flag(CurrentDets(:, DetPosition), flag_removed, .false.)
+
+        if (associated(lookup_supergroup_indexer)) then
+            call set_supergroup_idx(DetPosition, lookup_supergroup_indexer%idx_nI(nJ))
+        end if
 
         ! Add the new determinant to the hash table.
         call add_hash_table_entry(HashIndex, DetPosition, DetHash)

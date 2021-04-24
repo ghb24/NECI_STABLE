@@ -1,3 +1,4 @@
+#include "macros.h"
 MODULE SymExcit3
 ! This module contains excitation generators able to enumerate all possible excitations given a starting determinant.
 ! Unlike symexcit.F90 however, these excitation generators are able to deal with cases where the alpha and beta orbitals
@@ -11,6 +12,7 @@ MODULE SymExcit3
     use SymExcitDataMod, only: SpinOrbSymLabel
     use get_excit, only: make_double
     use sort_mod, only: sort
+    use util_mod, only: operator(.implies.)
     use DetBitOps, only: ilut_lt, ilut_gt, EncodeBitDet
     IMPLICIT NONE
 
@@ -634,42 +636,58 @@ CONTAINS
     !> @brief
     !>   Return all configurations that are connected to nI as
     !>   array of iluts (det_list(0:niftot, n_excits)).
-    subroutine gen_all_excits(nI, n_excits, det_list)
+    !>
+    !> @details
+    !>  Triple excitations are not supported.
+    !>
+    !>  @param[in] nI, The configuration from which to excite.
+    !>  @param[out] n_excits, The number of connected configurations.
+    !>  @param[out] det_list, The connected configurations in ilut format.
+    !>                  (det_list(0:niftot, n_excits))
+    !>  @param[in] ex_flag, The requested excitations. (1 = singles, 2 = doubles)
+    !>          If ommited all excitations will be generated.
+    subroutine gen_excits(nI, n_excits, det_list, ex_flag)
         integer, intent(in) :: nI(nel)
         integer, intent(out) :: n_excits
         integer(n_int), intent(out), allocatable :: det_list(:, :)
+        integer, optional, intent(in) :: ex_flag
         character(*), parameter :: this_routine = "gen_all_excits_default"
 
-        integer :: n_singles, n_doubles, n_dets, ex(2, maxExcit), ex_flag
+        integer :: n_singles, n_doubles, n_dets, ex(2, maxExcit), ex_flag_
         integer :: nJ(nel)
         logical :: tpar, found_all
         integer(n_int) :: ilut(0:niftot)
+        integer, parameter :: arbitrary_number = 42 ! can be neither 1 or 2
 
         n_excits = -1
 
         call EncodeBitDet(nI, ilut)
 
+        if (present(ex_flag)) then
+            ASSERT(present(ex_flag) .implies. any(ex_flag == [1, 2]))
+        end if
+
+        ! If it is set to neither 1 nor 2, all excitations
+        ! are generated
+        def_default(ex_flag_, ex_flag, arbitrary_number)
+
         ! for reference in the "normal" case it looks like that:
-        call CountExcitations3(nI, 2, n_singles, n_doubles)
+        call CountExcitations3(nI, ex_flag_, n_singles, n_doubles)
 
         n_excits = n_singles + n_doubles
-
-        write(iout, *) "n_singles: ", n_singles
-        write(iout, *) "n_doubles: ", n_doubles
 
         allocate(det_list(0:niftot, n_excits))
         n_dets = 0
         found_all = .false.
         ex = 0
-        ex_flag = 2
-        call GenExcitations3(nI, ilut, nJ, ex_flag, ex, tpar, found_all, &
+        call GenExcitations3(nI, ilut, nJ, ex_flag_, ex, tpar, found_all, &
                              .false.)
 
         do while (.not. found_all)
             n_dets = n_dets + 1
             call EncodeBitDet(nJ, det_list(:, n_dets))
 
-            call GenExcitations3(nI, ilut, nJ, ex_flag, ex, tpar, &
+            call GenExcitations3(nI, ilut, nJ, ex_flag_, ex, tpar, &
                                  found_all, .false.)
         end do
 
@@ -682,7 +700,17 @@ CONTAINS
         ! Sort the dets, so they are easy to find by binary searching
         call sort(det_list, ilut_lt, ilut_gt)
 
+    end subroutine gen_excits
+
+    !> @brief
+    !>   Return all configurations that are connected to nI
+    !>   as array of iluts (det_list(0:niftot, n_excits)).
+    subroutine gen_all_excits(nI, n_excits, det_list)
+        integer, intent(in) :: nI(nel)
+        integer, intent(out) :: n_excits
+        integer(n_int), intent(out), allocatable :: det_list(:, :)
+
+        call gen_excits(nI, n_excits, det_list)
     end subroutine gen_all_excits
 
 END MODULE SymExcit3
-
