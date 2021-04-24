@@ -462,22 +462,11 @@ module lattice_mod
     type, extends(rectangle) :: ext_input
         private
 
-        ! how to encode the length?
-!        integer :: length(2) = -1
     contains
         private
 
-!        procedure :: init_basis_vecs_rect_base
-
-!        procedure, public :: get_length => get_length_rect
-!        procedure, public :: is_periodic => is_periodic_ext
-!        procedure, public :: dispersion_rel => dispersion_rel_rect
-
-!        procedure :: set_length => set_length_rect
-!        procedure :: calc_nsites => calc_nsites_rect
         procedure :: calc_nsites => read_lattice_n_sites
         procedure :: initialize_sites => read_sites
-!        procedure, public :: dot_prod => dot_prod_rect
 
     end type ext_input
 
@@ -2184,8 +2173,8 @@ contains
                         end if
                         if (item < nitems) then
                                 call geti(n_neighbors)
-                                if (allocated(neighs)) then 
-                                        deallocate(neighs) 
+                                if (allocated(neighs)) then
+                                        deallocate(neighs)
                                 end if
                                 allocate(neighs(n_neighbors))
                                 neighs(:) = 0
@@ -2211,10 +2200,10 @@ contains
         ! order of the lattice sites
         !   4 7 10
         !   3 6 9
-        ! 1 2 5 8 
+        ! 1 2 5 8
         !
         class(sujun) :: this
-        character(*), parameter :: this_routine = "init_sites_sujun" 
+        character(*), parameter :: this_routine = "init_sites_sujun"
         this%sites(1) = site(1, 4, [2,4,8,10])
         this%sites(2) = site(2, 4, [1,3,5,7])
         this%sites(3) = site(3, 4, [2,4,6,8])
@@ -4762,7 +4751,7 @@ contains
             print *, " max-number of neighbors: ", this%get_nconnect_max()
             print *, " number of sites in the lattice: ", this%get_nsites()
             if (this%is_periodic()) then
-                print *, " is the lattice periodic: True" 
+                print *, " is the lattice periodic: True"
             end if
             print *, "primitive lattice vectors: (", this%lat_vec(1:2, 1), "), (", this%lat_vec(1:2, 2), ")"
 
@@ -4780,7 +4769,7 @@ contains
             print *, "number of sites in the lattice: ", this%get_nsites()
             print *, "max-number of neigbors: ", this%get_nconnect_max()
             if (this%is_periodic()) then
-                print *, " is the lattice periodic: True" 
+                print *, " is the lattice periodic: True"
             end if
 
         end select
@@ -4932,7 +4921,7 @@ contains
 
         CHARACTER(len=3) :: fmat
         CHARACTER(LEN=100) w
-        CHARACTER(LEN=100) lat_typ
+        CHARACTER(LEN=NAME_LEN) lat_typ
 
 
         iunit = get_free_unit()
@@ -4981,10 +4970,6 @@ contains
                         end if
                         this%lat_vec(1:2, 1) = [x1,y1]
                         this%lat_vec(1:2, 2) = [x2,y2]
-
-!                case('PBC')
-!                        if (item < nitems) then
-!                        end if
 
                 case('N_CONNECT_MAX')
                         if (item < nitems) then
