@@ -196,8 +196,6 @@ macro( neci_add_library )
     endif()
 
 
-
-
     # Add (private) includes
 
     if( DEFINED _p_PRIVATE_INCLUDES )

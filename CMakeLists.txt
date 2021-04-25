@@ -51,7 +51,8 @@ include(neci_system)
 # toolchain on archer
 # PGI
 
-find_package( MPI_NECI REQUIRED )
+find_package( MPI REQUIRED )
+list(APPEND NECI_GLOBAL_DEFINES PARALLEL)
 
 # Declare options that this project uses
 # <Package>_NECI has a custom finder that does a bit more work than normal...
@@ -126,7 +127,6 @@ list(APPEND NECI_GLOBAL_DEFINES
     $<$<STREQUAL:${CMAKE_BUILD_TYPE},DEBUG>:DEBUG_>
 
     # Global defines that depend on options
-    $<$<BOOL:${HAVE_MPI}>:PARALLEL>
     $<$<BOOL:${HAVE_SHARED_MEMORY}>:SHARED_MEM_>
     $<$<NOT:$<BOOL:${HAVE_FFTW}>>:DISABLE_FFTW>
     $<$<BOOL:${HAVE_HDF5}>:USE_HDF_>

@@ -93,7 +93,7 @@ macro( neci_add_test )
     endif()
 
     # add MPI include dir
-	target_include_directories( ${_p_TARGET} PRIVATE ${MPI_NECI_INCLUDE_PATH} )
+    target_include_directories(${_p_TARGET} PRIVATE ${MPI_Fortran_INCLUDE_PATH})
 
     # Specify the linker language (and additional associated properties)
 

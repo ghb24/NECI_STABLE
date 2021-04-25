@@ -483,8 +483,8 @@ set( _library_link_libs
     "${LAPACK_NECI_LIBRARIES}"
     "${LIBRT_LIBRARIES}"
     "${_conditional_libraries}"
-    "${MPI_NECI_LIBRARIES}"
-    "${MPI_NECI_Fortran_LIBRARIES}")
+    "${MPI_LIBRARIES}"
+    "${MPI_Fortran_LIBRARIES}")
 
 if( HAVE_SHARED )
     set( _link_type SHARED )
@@ -514,7 +514,7 @@ foreach(_config ${${PROJECT_NAME}_CONFIGURATIONS})
         LINKER_LANGUAGE Fortran
 
         PRIVATE_INCLUDES
-            "${MPI_NECI_INCLUDE_PATH}"
+            "${MPI_Fortran_INCLUDE_PATH}"
             "${HDF5_NECI_INCLUDE_PATH}"
 
         DEFINITIONS
