@@ -52,7 +52,7 @@ include(neci_system)
 # PGI
 
 find_package( MPI REQUIRED )
-list(APPEND NECI_GLOBAL_DEFINES PARALLEL)
+list(APPEND NECI_GLOBAL_DEFINES USE_MPI)
 
 # Declare options that this project uses
 # <Package>_NECI has a custom finder that does a bit more work than normal...

@@ -227,7 +227,7 @@ subroutine NECICodeEnd(tCPMD, tVASP)
     use SystemData, only: tMolpro, tMolproMimic, called_as_lib, arr, brr, g1, &
                           tagArr, tagBrr, tagG1
     use Determinants, only: FDet, tagFDet
-#ifdef PARALLEL
+#ifdef USE_MPI
     use Parallel_neci, only: MPIEnd
     USE MolproPlugin
 #endif
@@ -245,7 +245,7 @@ subroutine NECICodeEnd(tCPMD, tVASP)
     call end_timing()
     call print_timing_report()
 
-#ifdef PARALLEL
+#ifdef USE_MPI
 ! Tell Molpro plugin server that we have finished
     CALL MolproPluginTerm(0)
 ! CPMD and VASP have their own MPI initialisation and termination routines.

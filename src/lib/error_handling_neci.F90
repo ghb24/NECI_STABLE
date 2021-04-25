@@ -24,7 +24,7 @@ subroutine stop_all (sub_name, error_msg)
     ! In: sub_name    - Calling routine
     !     error_msg   - Error message
 
-#ifdef PARALLEL
+#ifdef USE_MPI
     use Parallel_neci, only: iProcIndex, MPIStopAll
 #endif
     implicit none
@@ -43,7 +43,7 @@ subroutine stop_all (sub_name, error_msg)
     write (6,'(/a7)') 'ERROR.'
     write (6,'(a27,a)') 'NECI stops in subroutine: ',adjustl(sub_name)
     write (6,'(a9,18X,a)') 'Reason: ',adjustl(error_msg)
-#ifdef PARALLEL
+#ifdef USE_MPI
     write (6,'(a12,15X,i5)') 'Processor: ',iProcIndex
 #endif
     write (6,'(a11)') 'EXITING...'
@@ -52,7 +52,7 @@ subroutine stop_all (sub_name, error_msg)
     write (6,'(/a7)') 'ERROR.'
     write (6,'(a27,a)') 'NECI stops in subroutine: ',adjustl(sub_name)
     write (6,'(a9,18X,a)') 'Reason: ',adjustl(error_msg)
-#ifdef PARALLEL
+#ifdef USE_MPI
     write (6,'(a12,15X,i5)') 'Processor: ',iProcIndex
 #endif
     write (6,'(a11)') 'EXITING...'
@@ -63,14 +63,14 @@ subroutine stop_all (sub_name, error_msg)
     write (7,'(/a7)') 'ERROR.'
     write (7,'(a27,a)') 'NECI stops in subroutine: ',adjustl(sub_name)
     write (7,'(a9,18X,a)') 'Reason: ',adjustl(error_msg)
-#ifdef PARALLEL
+#ifdef USE_MPI
     write (7,'(a12,15X,i5)') 'Processor: ',iProcIndex
 #endif
     write (7,'(a11)') 'EXITING...'
 
     call print_backtrace_neci()
 
-#ifdef PARALLEL
+#ifdef USE_MPI
     call MPIStopAll(error_code)
 #else
     stop error_code
@@ -110,7 +110,7 @@ subroutine quiet_stop(msg)
 != or for use with the SOFTEXIT functionality).
 != In:
 !=    msg (optional) : Print msg before exiting if msg is present.
-#ifdef PARALLEL
+#ifdef USE_MPI
 use Parallel_neci, only: MPIStopAll
 #endif
 
@@ -122,7 +122,7 @@ if (present(msg)) then
     CALL neci_flush(6)
 end if
 
-#ifdef PARALLEL
+#ifdef USE_MPI
 call MPIStopAll(0)
 #else
 stop
