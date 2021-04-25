@@ -39,7 +39,7 @@
 # META_TARGET : optional
 #   add the test to the specified meta target (and create that target if required)
 #
-# DEFINITIONS : optional 
+# DEFINITIONS : optional
 #   list of definitions to add to preprocessor defines
 #	same as in neci_add_library, since unit-tests may also depend on build-target!
 #       but i cannot get it running yet with the preprocessor running across the file first..
@@ -93,12 +93,8 @@ macro( neci_add_test )
     endif()
 
     # add MPI include dir
-    if( "${CMAKE_VERSION}" VERSION_LESS "2.8.11" ) # PRIVATE functionality doesn't exist before 2.8.11
-        target_include_directories( ${_p_TARGET} PUBLIC ${MPI_NECI_INCLUDE_PATH} )
-    else()
 	target_include_directories( ${_p_TARGET} PRIVATE ${MPI_NECI_INCLUDE_PATH} )
-    endif()
-    
+
     # Specify the linker language (and additional associated properties)
 
     if( NOT DEFINED _p_LINKER_LANGUAGE OR NOT _p_LINKER_LANGUAGE MATCHES "(C|CXX|Fortran)" )
