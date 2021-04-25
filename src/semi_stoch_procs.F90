@@ -14,6 +14,8 @@ module semi_stoch_procs
 
     use constants
 
+    use util_mod, only: stop_all
+
     use orb_idx_mod, only: SpinOrbIdx_t
 
     use FciMCData, only: SpawnedParts, TotWalkers, CurrentDets, &
@@ -51,7 +53,9 @@ module semi_stoch_procs
 
     use Parallel_neci, only: MPIScatterV
 
-    use ParallelHelper, only: root
+    use MPI_wrapper, only: root, MPI_IN_PLACE, MPI_INTEGER, MPI_INTEGER8, &
+        MPI_COMM_SIZE, MPI_Win_Sync, MPI_Barrier, MPI_2DOUBLE_PRECISION, &
+        MPI_MAXLOC, MPI_ALLGATHER, MPI_ALLGATHERV
 
     use sparse_arrays, only: sparse_ham, hamil_diag, HDiagTag
 
@@ -563,7 +567,7 @@ contains
 
     subroutine generate_core_connections(rep)
 
-        use DetBitOps, only: FindBitExcitLevel
+        use DetBitOps, only: FindBitExcitLevel, GetBitExcitation
         use Parallel_neci, only: MPIAllGatherV
         type(core_space_t), intent(inout) :: rep
         integer :: i, j, ic, counter, ierr
@@ -1625,7 +1629,6 @@ contains
     subroutine start_walkers_from_core_ground(tPrintInfo, run)
         use davidson_semistoch, only: davidson_ss, perform_davidson_ss, destroy_davidson_ss
         use Parallel_neci, only: MPISumAll
-        implicit none
 
         logical, intent(in) :: tPrintInfo
         integer, intent(in) :: run
@@ -1685,7 +1688,6 @@ contains
 
     subroutine start_walkers_from_core_ground_nonhermit(tPrintInfo, run)
         use bit_reps, only: encode_sign
-        implicit none
 
         logical, intent(in) :: tPrintInfo
         integer, intent(in) :: run

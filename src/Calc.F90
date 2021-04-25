@@ -3,6 +3,7 @@
 MODULE Calc
 
     use CalcData
+    use MPI_wrapper, only: MPI_WTIME
     use SystemData, only: beta, nel, STOT, LMS, tSpn, AA_elec_pairs, &
                           BB_elec_pairs, par_elec_pairs, AB_elec_pairs, &
                           AA_hole_pairs, BB_hole_pairs, AB_hole_pairs, &

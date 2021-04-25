@@ -28,7 +28,7 @@ module unit_test_helpers
     use semi_stoch_procs, only: global_most_populated_states, GLOBAL_RUN
 
     use DetBitOps, only: ilut_lt, ilut_gt, EncodeBitDet, findbitexcitlevel, &
-                         count_open_orbs
+                         count_open_orbs, GetBitExcitation
 
     use orb_idx_mod, only: SpinOrbIdx_t, new_write_det => write_det, size
 

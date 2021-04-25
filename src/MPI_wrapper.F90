@@ -1,7 +1,11 @@
 #include "macros.h"
 
-module ParallelHelper
+module MPI_wrapper
     use constants
+!All use of mpi routines come from this module
+#if defined(USE_MPI) & ! defined(CBINDMPI)
+    use mpi
+#endif
     use iso_c_hack
     use timing_neci, only: timer, set_timer, halt_timer
     implicit none
@@ -429,7 +433,7 @@ contains
 end module
 
 subroutine mpibarrier_c(error) bind(c)
-    use ParallelHelper, only: MPIBarrier
+    use MPI_wrapper, only: MPIBarrier
     use constants
     use iso_c_hack
     implicit none

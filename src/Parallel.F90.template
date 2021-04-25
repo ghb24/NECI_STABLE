@@ -148,7 +148,7 @@ mpitype=MPI_INTEGER8
 
 
 module par_internal
-    use ParallelHelper
+    use MPI_wrapper
     use CalcData, only: iLogicalNodeSize
     use iso_c_hack
     use constants
@@ -1514,7 +1514,7 @@ supermodule par_internal
 !    GetProcElectrons
 
 
-    use ParallelHelper
+    use MPI_wrapper
     use constants
     implicit none
 

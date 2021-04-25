@@ -14,7 +14,7 @@ module cc_amplitudes
     use hash, only: hash_table_lookup, FindWalkerHash
     use util_mod, only: swap, binomial => choose
     use bit_rep_data, only: nifd
-    use ParallelHelper, only: iProcIndex, root
+    use MPI_wrapper, only: iProcIndex, root
     use Parallel_neci, only: MPISumAll, MPIReduce, MPI_SUM, MPI_LOR, MPIAllLorLogical
 
     implicit none

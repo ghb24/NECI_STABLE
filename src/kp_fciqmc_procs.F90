@@ -312,7 +312,7 @@ contains
         ! Add all the overlap and projected Hamiltonian matrices together, with
         ! the result being held only on the root node.
 
-        use ParallelHelper, only: root
+        use MPI_wrapper, only: root
 
         real(dp), intent(inout) :: overlap_matrix(:, :)
         real(dp), intent(inout) :: hamil_matrix(:, :)

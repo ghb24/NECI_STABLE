@@ -36,7 +36,7 @@ Subroutine NECICore(iCacheFlag, tCPMD, tVASP, tMolpro_local, call_as_lib, &
                              neci_MPIInit_called, neci_MPINodes_called
     use read_fci, only: FCIDUMP_name
 
-    use ParallelHelper
+    use MPI_wrapper
     use UMatCache, only: UMat2D, tagUMat2D
 
     ! Utility modules.

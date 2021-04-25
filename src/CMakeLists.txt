@@ -107,8 +107,8 @@ set( SRC_FILES
     OneEInts.F90
     orthogonalise.F90
     Orthonorm.F90
+    MPI_wrapper.F90
     Parallel_Calc.F90
-    ParallelHelper.F90
     parallel_workarounds.F90
     pchb_excitgen.F90
     perturbations.F90
@@ -333,8 +333,8 @@ set( RELAX_WARNINGS_SRCS
     OneEInts.F90
     orthogonalise.F90
     Orthonorm.F90
+    MPI_wrapper.F90
     Parallel_Calc.F90
-    ParallelHelper.F90
     parallel_workarounds.F90
     pchb_excitgen.F90
     perturbations.F90

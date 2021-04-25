@@ -63,7 +63,7 @@ module real_time_procs
     use dSFMT_interface, only: genrand_real2_dSFMT
     use load_balance_calcnodes, only: DetermineDetNode
     use Determinants, only: tDefineDet, DefDet
-    use ParallelHelper, only: nNodes, bNodeRoot, ProcNode, NodeRoots, MPIBarrier, &
+    use MPI_wrapper, only: nNodes, bNodeRoot, ProcNode, NodeRoots, MPIBarrier, &
                               iProcIndex, MPI_SUM, root
     use Parallel_neci
     use LoggingData, only: tNoNewRDMContrib

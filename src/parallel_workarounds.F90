@@ -16,7 +16,7 @@ module Parallel_neci
 
     ! n.b. be explicit about uses from Parallel, to avoid multiple
     !      imports of mpi_ functions which annoy ifort
-    use ParallelHelper
+    use MPI_wrapper
     use par_internal, only: MPIBCast, MPIAllReduce, MpiAllGather, &
                             MPIReduce, MPISum, MPISumAll, MPIScatter, MPIAllGather, &
                             MPIAllGatherV, MPIGather, MPIGatherV, MPIScatterV, &

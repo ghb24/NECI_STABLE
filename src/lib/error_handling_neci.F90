@@ -80,30 +80,6 @@ end subroutine stop_all
 
 
 
-subroutine warning_neci(sub_name,error_msg)
-!= Print a warning message in a (helpfully consistent) format.
-!= I was bored of typing the same formatting in different places. ;-)
-!=
-!= In:
-!=    sub_name:  calling subroutine name.
-!=    error_msg: error message.
-use, intrinsic :: iso_fortran_env, only: stderr => error_unit
-implicit none
-character(*), intent(in) :: sub_name,error_msg
-
-#ifdef DEBUG_
-write (stderr,'(/a)') 'WARNING.  Error in '//adjustl(sub_name)
-write (stderr,'(a/)') adjustl(error_msg)
-#else
-write (stderr,'(/a)') 'WARNING.  Error in '//adjustl(sub_name)
-write (stderr,'(a/)') adjustl(error_msg)
-#endif
-
-return
-end subroutine warning_neci
-
-
-
 subroutine quiet_stop(msg)
 != Exit without making any noise.  Useful for when there's no error, but you
 != still want to exit midway through a calculation (e.g. for testing purposes,

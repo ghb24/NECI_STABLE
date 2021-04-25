@@ -27,7 +27,7 @@ contains
         use FciMCData, only: CurrentDets
         use global_utilities, only: set_timer, halt_timer
         use Parallel_neci, only: iProcIndex, MPIAllReduceDataType
-        use ParallelHelper, only: MPI_MAXLOC, MPI_2integer
+        use MPI_wrapper, only: MPI_MAXLOC, MPI_2integer
         use rdm_data, only: nElRDM_Time
 
         integer(int64), intent(in) :: TotWalkers

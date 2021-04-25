@@ -71,7 +71,7 @@ module guga_rdm
     use rdm_data, only: rdm_list_t, rdm_definitions_t
     use util_mod, only: get_free_unit
     use dSFMT_interface, only: genrand_real2_dSFMT
-    use ParallelHelper, only: root
+    use MPI_wrapper, only: root
 
     implicit none
 
