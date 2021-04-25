@@ -103,7 +103,7 @@ contains
                 write(6,*) "S: ", STOT
                 write(6,*) "calculated S of inputted CSF: ", ms
                 call stop_all(this_routine, " Defined CSF has the &
-                    &wrong total spin quantum number! Change DEFINEDET or &
+                    &wrong total spin quantum number. Change DEFINEDET or &
                     &S quantum numnber!")
             end if
         end if
