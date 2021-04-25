@@ -55,7 +55,7 @@ module semi_stoch_procs
 
     use MPI_wrapper, only: root, MPI_IN_PLACE, MPI_INTEGER, MPI_INTEGER8, &
         MPI_COMM_SIZE, MPI_Win_Sync, MPI_Barrier, MPI_2DOUBLE_PRECISION, &
-        MPI_MAXLOC, MPI_ALLGATHER, MPI_ALLGATHERV
+        MPI_MAXLOC
 
     use sparse_arrays, only: sparse_ham, hamil_diag, HDiagTag
 
