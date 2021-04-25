@@ -71,6 +71,7 @@ module real_time_procs
     use load_balance, only: AddNewHashDet, CalcHashTableStats, get_diagonal_matel
     use semi_stoch_gen, only: generate_space_most_populated, reset_core_space
     use semi_stoch_procs, only: GLOBAL_RUN
+    use timing_neci, only: timer, set_timer, halt_timer
     implicit none
 
     type(timer) :: calc_gf_time

@@ -12,6 +12,9 @@ module MPI_wrapper
 
     type(timer), save :: Sync_Time
 
+    private :: timer, set_timer, halt_timer
+    public :: Sync_Time
+
     !
     ! If we are using C-bindings, certain things need to be defined
     !
