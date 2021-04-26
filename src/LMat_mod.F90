@@ -11,7 +11,7 @@ module LMat_mod
     use shared_memory_mpi
     use sort_mod
     use hash, only: add_hash_table_entry, clear_hash_table
-    use ParallelHelper, only: iProcIndex_intra
+    use MPI_wrapper, only: iProcIndex_intra
     use tc_three_body_data, only: lMatEps, tSparseLMat, tLMatCalc, tSymBrokenLMat, tHDF5LMat
     use UMatCache, only: numBasisIndices
     use LMat_indexing, only: lMatIndSym, lMatIndSymBroken, oldLMatInd, strideInner, strideOuter, &

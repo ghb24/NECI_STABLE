@@ -16,7 +16,7 @@ module Parallel_neci
 
     ! n.b. be explicit about uses from Parallel, to avoid multiple
     !      imports of mpi_ functions which annoy ifort
-    use ParallelHelper
+    use MPI_wrapper
     use par_internal, only: MPIBCast, MPIAllReduce, MpiAllGather, &
                             MPIReduce, MPISum, MPISumAll, MPIScatter, MPIAllGather, &
                             MPIAllGatherV, MPIGather, MPIGatherV, MPIScatterV, &
@@ -87,7 +87,7 @@ contains
         character(*), parameter :: t_r = 'MPIBcast_character'
         integer(MPIArg) :: length
 
-#ifdef PARALLEL
+#ifdef USE_MPI
 #ifdef CBINDMPI
 #ifdef GFORTRAN_
         type(c_ptr) :: g_loc
@@ -121,7 +121,7 @@ contains
         integer(MPIArg) :: comm
         integer :: v, ret, ierr
 
-#ifdef PARALLEL
+#ifdef USE_MPI
 
         call GetComm(Comm, Node)
 
@@ -151,7 +151,7 @@ contains
         integer(MPIArg) :: ierr, comm, rt
         logical(int32), target :: v
 
-#ifdef PARALLEL
+#ifdef USE_MPI
 #ifdef CBINDMPI
 #ifdef GFORTRAN_
         type(c_ptr) :: g_loc
@@ -183,7 +183,7 @@ contains
         character(*), parameter :: t_r = 'MPIBCastLogical_logic'
         logical(int32), target :: v
 
-#ifdef PARALLEL
+#ifdef USE_MPI
 #ifdef CBINDMPI
 #ifdef GFORTRAN_
         type(c_ptr) :: g_loc
@@ -221,7 +221,7 @@ contains
         integer(MPIArg) :: ierr, comm, rt, length
         logical(int32), target :: v(size(param_inout))
 
-#ifdef PARALLEL
+#ifdef USE_MPI
 #ifdef CBINDMPI
 #ifdef GFORTRAN_
         type(c_ptr) :: g_loc
@@ -255,7 +255,7 @@ contains
         character(*), parameter :: t_r = 'MPIBCastLogical'
         logical(int32), target :: v(size(param_inout))
 
-#ifdef PARALLEL
+#ifdef USE_MPI
 #ifdef CBINDMPI
 #ifdef GFORTRAN_
         type(c_ptr) :: g_loc
