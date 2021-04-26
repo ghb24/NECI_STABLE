@@ -76,7 +76,7 @@ module real_time
                             CalcHashTableStats
     use Parallel_neci
     use util_mod, only: neci_etime, near_zero
-    use ParallelHelper, only: MPI_SUM, iProcIndex, root
+    use MPI_wrapper, only: MPI_SUM, iProcIndex, root
     use adi_references, only: setup_reference_space
     use adi_data, only: allDoubsInitsDelay, nRefs, tDelayGetRefs
     use core_space_util, only: cs_replicas

@@ -55,7 +55,7 @@ module guga_init
 
     use constants, only: dp, int_rdm, n_int
 
-    use ParallelHelper, only: iProcIndex
+    use MPI_wrapper, only: iProcIndex
 
     use tj_model, only: pick_orbitals_guga_heisenberg, calc_orbital_pgen_contr_heisenberg, &
                         init_get_helement_tj_guga, init_get_helement_heisenberg_guga, &

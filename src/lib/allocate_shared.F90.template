@@ -194,7 +194,7 @@ module shared_alloc
     use iso_c_hack
     use constants
     use HElem
-    use ParallelHelper, only: iProcIndex
+    use MPI_wrapper, only: iProcIndex
     implicit none
 
 #ifndef PGI_

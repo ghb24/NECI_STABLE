@@ -148,7 +148,7 @@ mpitype=MPI_INTEGER8
 
 
 module par_internal
-    use ParallelHelper
+    use MPI_wrapper
     use CalcData, only: iLogicalNodeSize
     use iso_c_hack
     use constants
@@ -358,7 +358,7 @@ contains
         integer(MPIArg) :: Comm, rt, ierr
         character(*), parameter :: t_r = "MPIReduce"
 
-#ifdef PARALLEL
+#ifdef USE_MPI
 #ifdef CBINDMPI
 #ifdef GFORTRAN_
         type(c_ptr) :: g_loc
@@ -395,7 +395,7 @@ contains
         integer(MPIArg) ::  comm, rt, ierr
         character(*), parameter :: t_r = 'MPIReduce'
 
-#ifdef PARALLEL
+#ifdef USE_MPI
 #ifdef CBINDMPI
 #ifdef GFORTRAN_
         type(c_ptr) :: g_loc
@@ -441,7 +441,7 @@ contains
 !        vptr = loc_neci(v)
 !#endif
 !
-!#ifdef PARALLEL
+!#ifdef USE_MPI
 !        call GetComm (Comm, Node, rt)
 !
 !        if (iProcIndex == rt) then
@@ -484,7 +484,7 @@ contains
         ! Error handling vars
         character(255) :: string
         integer(MPIArg) :: length, jerr, errorclass
-#ifdef PARALLEL
+#ifdef USE_MPI
 #ifdef CBINDMPI
 #ifdef GFORTRAN_
         type(c_ptr) :: g_loc
@@ -532,7 +532,7 @@ contains
         character(LEN=MPI_MAX_ERROR_STRING) :: errmsg
         character(*), parameter :: t_r = 'MPIAllReduce'
 
-#ifdef PARALLEL
+#ifdef USE_MPI
 #ifdef CBINDMPI
 #ifdef GFORTRAN_
         type(c_ptr) :: g_loc
@@ -578,7 +578,7 @@ contains
 !        integer(MPIArg) :: comm, ierr
 !        character(*), parameter :: t_r = 'MPIAllReduce'
 !
-!#ifdef PARALLEL
+!#ifdef USE_MPI
 !#ifdef CBINDMPI
 !#ifdef GFORTRAN_
 !        type(c_ptr) :: g_loc
@@ -622,7 +622,7 @@ contains
         integer(MPIArg) :: ierr, comm
         character(*), parameter :: t_r = 'MPIAllReduce'
 
-#ifdef PARALLEL
+#ifdef USE_MPI
 #ifdef CBINDMPI
 #ifdef GFORTRAN_
         type(c_ptr) :: g_loc
@@ -766,7 +766,7 @@ contains
         integer(MPIArg) :: ierr
         character(*), parameter :: t_r = 'MPIBcast'
 
-#ifdef PARALLEL
+#ifdef USE_MPI
 #ifdef CBINDMPI
 #ifdef GFORTRAN_
         type(c_ptr) :: g_loc
@@ -801,7 +801,7 @@ contains
         type(CommI), intent(in), optional :: Node
         character(*), parameter :: t_r = 'MPIBcast'
 
-#ifdef PARALLEL
+#ifdef USE_MPI
 #ifdef CBINDMPI
 #ifdef GFORTRAN_
         type(c_ptr) :: g_loc
@@ -836,7 +836,7 @@ contains
         type(CommI), intent(in), optional :: Node
         character(*), parameter :: t_r = 'MPIBcast'
 
-#ifdef PARALLEL
+#ifdef USE_MPI
 #ifdef CBINDMPI
 #ifdef GFORTRAN_
         type(c_ptr) :: g_loc
@@ -873,7 +873,7 @@ contains
         type(CommI), intent(in), optional :: Node
         character(*), parameter :: t_r = 'MPIBCast'
 
-#ifdef PARALLEL
+#ifdef USE_MPI
 #ifdef CBINDMPI
 #ifdef GFORTRAN_
         type(c_ptr) :: g_loc
@@ -910,7 +910,7 @@ contains
         type(CommI), intent(in), optional :: Node
         integer(MPIArg) :: comm, err
 
-#ifdef PARALLEL
+#ifdef USE_MPI
 #ifdef CBINDMPI
 #ifdef GFORTRAN_
         type(c_ptr) :: g_loc
@@ -948,7 +948,7 @@ contains
         type(CommI), intent(in), optional :: Node
         integer(MPIArg) :: comm, err
 
-#ifdef PARALLEL
+#ifdef USE_MPI
 #ifdef CBINDMPI
 #ifdef GFORTRAN_
         type(c_ptr) :: g_loc
@@ -991,7 +991,7 @@ contains
         type(CommI), intent(in), optional :: Node
         integer(MPIArg) :: comm, err
 
-#ifdef PARALLEL
+#ifdef USE_MPI
 #ifdef CBINDMPI
 #ifdef GFORTRAN_
         type(c_ptr) :: g_loc
@@ -1027,7 +1027,7 @@ contains
         type(CommI), intent(in), optional :: Node
         integer(MPIArg) :: Comm, err
 
-#ifdef PARALLEL
+#ifdef USE_MPI
 #ifdef CBINDMPI
 #ifdef GFORTRAN_
         type(c_ptr) :: g_loc
@@ -1064,7 +1064,7 @@ contains
         type(CommI), intent(in), optional :: Node
         integer(MPIArg) :: Comm, err
 
-#ifdef PARALLEL
+#ifdef USE_MPI
 #ifdef CBINDMPI
 #ifdef GFORTRAN_
         type(c_ptr) :: g_loc
@@ -1106,7 +1106,7 @@ contains
         integer(MPIArg) :: lengthsN(ubound(Lengths,1)-lbound(Lengths,1)+1)
         integer(MPIArg) :: LengthIn
 
-#ifdef PARALLEL
+#ifdef USE_MPI
 #ifdef CBINDMPI
 #ifdef GFORTRAN_
         type(c_ptr) :: g_loc
@@ -1153,7 +1153,7 @@ contains
         type(CommI), intent(in), optional :: Node
         integer(MPIArg) :: Comm, rt, err
 
-#ifdef PARALLEL
+#ifdef USE_MPI
 #ifdef CBINDMPI
 #ifdef GFORTRAN_
         type(c_ptr) :: g_loc
@@ -1188,7 +1188,7 @@ contains
         type(CommI), intent(in), optional :: Node
         integer(MPIArg) :: Comm, rt, err
 
-#ifdef PARALLEL
+#ifdef USE_MPI
 #ifdef CBINDMPI
 #ifdef GFORTRAN_
         type(c_ptr) :: g_loc
@@ -1234,7 +1234,7 @@ contains
         integer(MPIArg) :: lengthsN(ubound(Lengths,1)-lbound(Lengths,1)+1)
         integer(MPIArg) :: LengthIn
 
-#ifdef PARALLEL
+#ifdef USE_MPI
 #ifdef CBINDMPI
 #ifdef GFORTRAN_
         type(c_ptr) :: g_loc
@@ -1282,7 +1282,7 @@ contains
         type(CommI), intent(in), optional :: Node
         integer(MPIArg) :: Comm, rt, err
 
-#ifdef PARALLEL
+#ifdef USE_MPI
 #ifdef CBINDMPI
 #ifdef GFORTRAN_
         type(c_ptr) :: g_loc
@@ -1320,7 +1320,7 @@ contains
         type(CommI), intent(in), optional :: Node
         integer(MPIArg) :: Comm, rt, err
 
-#ifdef PARALLEL
+#ifdef USE_MPI
 #ifdef CBINDMPI
 #ifdef GFORTRAN_
         type(c_ptr) :: g_loc
@@ -1356,7 +1356,7 @@ contains
         type(CommI), intent(in), optional :: Node
         integer(MPIArg) :: Comm, rt, err
 
-#ifdef PARALLEL
+#ifdef USE_MPI
 #ifdef CBINDMPI
 #ifdef GFORTRAN_
         type(c_ptr) :: g_loc
@@ -1390,7 +1390,7 @@ contains
         integer, intent(in) :: BuffSize, tag, source
         integer, intent(out) :: ierr
 
-#ifdef PARALLEL
+#ifdef USE_MPI
         integer(MPIArg) :: stat(MPI_STATUS_SIZE), err
 #ifdef CBINDMPI
 #ifdef GFORTRAN_
@@ -1419,7 +1419,7 @@ contains
         integer, intent(in) :: BuffSize, tag, dest
         integer, intent(out) :: ierr
 
-#ifdef PARALLEL
+#ifdef USE_MPI
         integer(MPIArg) :: err
 #ifdef CBINDMPI
 #ifdef GFORTRAN_
@@ -1459,7 +1459,7 @@ supermodule par_internal
 #endif
 
 ! MPI interface and helper routines for parallel work.
-! If compiled without the PARALLEL c pre-processing statement, then
+! If compiled without the USE_MPI c pre-processing statement, then
 ! contains dummy routines to enable the parallel calculation algorithms to
 ! be used in serial.  This is useful for testing, development and as (in some
 ! cases) the parallel algorithms are much more efficient that the serial
@@ -1514,7 +1514,7 @@ supermodule par_internal
 !    GetProcElectrons
 
 
-    use ParallelHelper
+    use MPI_wrapper
     use constants
     implicit none
 
@@ -1551,7 +1551,7 @@ contains
 
     if (neci_MPIInit_called) return
     neci_MPIInit_called = .true.
-#ifdef PARALLEL
+#ifdef USE_MPI
         nNodes = 0  !Indicate we haven't setup nodes yet
 
         call MPI_Initialized(initialised, ierr)
@@ -1764,7 +1764,7 @@ contains
         if(.not.allocated(Nodes)) allocate(Nodes(0:nProcessors-1))
         if(.not.allocated(ProcNode)) allocate(ProcNode(0:nProcessors-1))
         if(.not.allocated(NodeRoots)) allocate(NodeRoots(0:nProcessors-1))
-#ifdef PARALLEL
+#ifdef USE_MPI
         if(.not.allocated(NodeLengths)) allocate(NodeLengths(0:nProcessors)) !Temp allocate for now
         NodeLengths = 0
 
@@ -1915,7 +1915,7 @@ contains
         if(.not.allocated(CommNodes)) allocate(CommNodes(0:nNodes-1))
         if(.not.allocated(GroupNodes)) allocate(GroupNodes(0:nNodes-1))
         NodeLengths(0) = 1
-#endif /* def PARALLEL */
+#endif /* def USE_MPI */
         Roots%n = -1  !A communicator index between roots
     end subroutine
 
@@ -1931,7 +1931,7 @@ contains
        logical, intent(in) :: tExternal
        integer(MPIArg) :: ierr
 
-#ifdef PARALLEL
+#ifdef USE_MPI
 #ifdef SHARED_MEM_
         call mpi_comm_free(mpi_comm_intra,ierr)
         call mpi_comm_free(mpi_comm_inter,ierr)
@@ -1957,7 +1957,7 @@ contains
         integer, intent(in) :: error_code
         integer(MPIArg) :: ierr
 
-#ifdef PARALLEL
+#ifdef USE_MPI
         CALL MolproPluginTerm(-1)
 
         ! errorcode: Error returned to invoking environment.
@@ -1990,7 +1990,7 @@ contains
         integer iProcIndex,iMinElec,iMaxElec
         real(dp) nCur
 
-#ifdef PARALLEL
+#ifdef USE_MPI
         ! Invert X=n(n-1)/2
         nCur = ((nProcessors+1-iProcIndex)*nEl*(nEl-1.0_dp)/nProcessors)
 

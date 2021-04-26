@@ -1338,7 +1338,6 @@ contains
         neq_EnumBase_t = this%val /= other%val
     end function
 
-
 end module
 
 !Hacks for compiler specific system calls.
@@ -1413,27 +1412,6 @@ subroutine neci_getarg(i, str)
 
 end subroutine neci_getarg
 
-subroutine neci_flush(un)
-#ifdef NAGF95
-    USe f90_unix, only: flush
-    use constants, only: int32
-#endif
-    implicit none
-    integer, intent(in) :: un
-#ifdef NAGF95
-    integer(kind=int32) :: dummy
-#endif
-#ifdef BLUEGENE_HACKS
-    call flush_(un)
-#else
-#ifdef NAGF95
-    dummy = un
-    call flush(dummy)
-#else
-    call flush(un)
-#endif
-#endif
-end subroutine neci_flush
 
 integer function neci_system(str)
 #ifdef NAGF95
@@ -1493,3 +1471,38 @@ function g_loc(var) result(addr)
 
 end function
 #endif
+
+subroutine neci_flush(un)
+#ifdef NAGF95
+    use f90_unix, only: flush
+    use constants, only: int32
+#endif
+    integer, intent(in) :: un
+#ifdef NAGF95
+    integer(kind=int32) :: dummy
+#endif
+#ifdef BLUEGENE_HACKS
+    call flush_(un)
+#else
+#ifdef NAGF95
+    dummy = un
+    call flush(dummy)
+#else
+    call flush(un)
+#endif
+#endif
+end subroutine neci_flush
+
+subroutine warning_neci(sub_name,error_msg)
+    != Print a warning message in a (helpfully consistent) format.
+    !=
+    != In:
+    !=    sub_name:  calling subroutine name.
+    !=    error_msg: error message.
+    use, intrinsic :: iso_fortran_env, only: stderr => error_unit
+    character(*), intent(in) :: sub_name, error_msg
+
+    write (stderr,'(/a)') 'WARNING.  Error in '//adjustl(sub_name)
+    write (stderr,'(a/)') adjustl(error_msg)
+end subroutine warning_neci
+
