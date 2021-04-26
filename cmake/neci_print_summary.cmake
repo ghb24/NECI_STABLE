@@ -25,12 +25,7 @@ message(STATUS "Implicit Fortran linker flags: ${CMAKE_Fortran_IMPLICIT_LINK_LIB
 message(STATUS "Global C++ compile flags: ${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_${CMAKE_BUILD_TYPE}}")
 message(STATUS "Global Fortran compile flags: ${CMAKE_Fortran_FLAGS} ${CMAKE_Fortran_FLAGS_${CMAKE_BUILD_TYPE}}")
 
-if ( ${CMAKE_VERSION} VERSION_LESS "2.8.6" )
-    feature_summary( WHAT ALL )
-else()
-    feature_summary( WHAT ALL INCLUDE_QUIET_PACKAGES)
-endif()
-
+feature_summary( WHAT ALL INCLUDE_QUIET_PACKAGES)
 
 macro( box_side _content )
     string( LENGTH "${_content}" _len )

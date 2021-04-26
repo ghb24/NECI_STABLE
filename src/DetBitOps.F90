@@ -1205,133 +1205,134 @@ contains
 
     end function FindBitExcitLevel_hphf
 
-end module
+    pure subroutine GetBitExcitation(iLutnI, iLutnJ, Ex, tSign)
 
-pure subroutine GetBitExcitation(iLutnI, iLutnJ, Ex, tSign)
+        ! A port from hfq. The first of many...
+        ! JSS.
 
-    ! A port from hfq. The first of many...
-    ! JSS.
+        ! In:
+        !    iLutnI(basis_length): bit string representation of the Slater
+        !        determinant.
+        !    iLutnJ(basis_length): bit string representation of the Slater
+        !        determinant.
+        !    Ex(1,1): contains the maximum excitation level, max_excit, to be
+        !        considered.
+        ! Out:
+        !    Ex(2,max_excit): contains the excitation connected iLutnI to
+        !        iLutnJ.  Ex(1,i) is the i-th orbital excited from and Ex(2,i)
+        !        is the corresponding orbital excited to.
+        !    tSign:
+        !        True if an odd number of permutations is required to line up
+        !        the determinants.
 
-    ! In:
-    !    iLutnI(basis_length): bit string representation of the Slater
-    !        determinant.
-    !    iLutnJ(basis_length): bit string representation of the Slater
-    !        determinant.
-    !    Ex(1,1): contains the maximum excitation level, max_excit, to be
-    !        considered.
-    ! Out:
-    !    Ex(2,max_excit): contains the excitation connected iLutnI to
-    !        iLutnJ.  Ex(1,i) is the i-th orbital excited from and Ex(2,i)
-    !        is the corresponding orbital excited to.
-    !    tSign:
-    !        True if an odd number of permutations is required to line up
-    !        the determinants.
+        use bit_rep_data, only: NIfD
+!         use DetBitOps, only: count_set_bits
+        use constants, only: n_int, bits_n_int, end_n_int
+        implicit none
+        integer(kind=n_int), intent(in) :: iLutnI(0:NIfD), iLutnJ(0:NIfD)
+        integer, intent(inout) :: Ex(2, *)
+        logical, intent(out) :: tSign
+        integer :: i, j, iexcit1, iexcit2, perm, iel1, iel2, max_excit
+        integer :: set_bits
+        logical :: testI, testJ
 
-    use bit_rep_data, only: NIfD
-    use DetBitOps, only: count_set_bits
-    use constants, only: n_int, bits_n_int, end_n_int
-    implicit none
-    integer(kind=n_int), intent(in) :: iLutnI(0:NIfD), iLutnJ(0:NIfD)
-    integer, intent(inout) :: Ex(2, *)
-    logical, intent(out) :: tSign
-    integer :: i, j, iexcit1, iexcit2, perm, iel1, iel2, max_excit
-    integer :: set_bits
-    logical :: testI, testJ
+        tSign = .true.
+        max_excit = Ex(1, 1)
+        Ex(:, 1:max_excit) = 0
 
-    tSign = .true.
-    max_excit = Ex(1, 1)
-    Ex(:, 1:max_excit) = 0
+        if (max_excit > 0) then
 
-    if (max_excit > 0) then
+            iexcit1 = 0
+            iexcit2 = 0
+            iel1 = 0
+            iel2 = 0
+            perm = 0
 
-        iexcit1 = 0
-        iexcit2 = 0
-        iel1 = 0
-        iel2 = 0
-        perm = 0
+            ! Finding the permutation to align the determinants is non-trivial.
+            ! It turns out to be quite easy with bit operations.
+            ! The idea is to do a "dumb" permutation where the determinants are
+            ! expressed in two sections: orbitals not involved in the excitation
+            ! and those that are.  Each section is stored in ascending index
+            ! order.
+            ! To obtain such ordering requires (for each orbital that is
+            ! involved in the excitation) a total of
+            ! nel - iel - max_excit + iexcit
+            ! where nel is the number of electrons, iel is the position of the
+            ! orbital within the list of occupied states in the determinant,
+            ! max_excit is the total number of excitations and iexcit is the number
+            ! of the "current" orbital involved in excitations.
+            ! e.g. Consider (1, 2, 3, 4, 5) -> (1, 3, 5, 6, 7).
+            ! (1, 2, 3, 4) goes to (1, 3, 2, 4).
+            ! 2 is the first (iexcit=1) orbital found involved in the excitation
+            ! and so requires 5 - 2 - 2 + 1 = 2 permutation to shift it to the
+            ! first "slot" in the excitation "block" in the list of states.
+            ! 4 is the second orbital found and requires 5 - 4 - 2 + 2 = 1
+            ! permutation to shift it the end (last "slot" in the excitation
+            ! block).
+            ! Whilst the resultant number of permutations isn't necessarily the
+            ! minimal number for the determinants to align, this is irrelevant
+            ! as the Slater--Condon rules only care about whether the number of
+            ! permutations are odd or even.
 
-        ! Finding the permutation to align the determinants is non-trivial.
-        ! It turns out to be quite easy with bit operations.
-        ! The idea is to do a "dumb" permutation where the determinants are
-        ! expressed in two sections: orbitals not involved in the excitation
-        ! and those that are.  Each section is stored in ascending index
-        ! order.
-        ! To obtain such ordering requires (for each orbital that is
-        ! involved in the excitation) a total of
-        ! nel - iel - max_excit + iexcit
-        ! where nel is the number of electrons, iel is the position of the
-        ! orbital within the list of occupied states in the determinant,
-        ! max_excit is the total number of excitations and iexcit is the number
-        ! of the "current" orbital involved in excitations.
-        ! e.g. Consider (1, 2, 3, 4, 5) -> (1, 3, 5, 6, 7).
-        ! (1, 2, 3, 4) goes to (1, 3, 2, 4).
-        ! 2 is the first (iexcit=1) orbital found involved in the excitation
-        ! and so requires 5 - 2 - 2 + 1 = 2 permutation to shift it to the
-        ! first "slot" in the excitation "block" in the list of states.
-        ! 4 is the second orbital found and requires 5 - 4 - 2 + 2 = 1
-        ! permutation to shift it the end (last "slot" in the excitation
-        ! block).
-        ! Whilst the resultant number of permutations isn't necessarily the
-        ! minimal number for the determinants to align, this is irrelevant
-        ! as the Slater--Condon rules only care about whether the number of
-        ! permutations are odd or even.
+            ! n.b. We don't need to include shift or iexcit in the perm
+            !      calculation, as is it symmetric as iexcit reaches the same
+            !      maximum value for both src and target iluts
+            !shift = nel - max_excit
 
-        ! n.b. We don't need to include shift or iexcit in the perm
-        !      calculation, as is it symmetric as iexcit reaches the same
-        !      maximum value for both src and target iluts
-        !shift = nel - max_excit
-
-        do i = 0, NIfD
-            ! If this integer will make no difference to the overall counts,
-            ! then minimise effort...
-            if (ilutnI(i) == ilutnJ(i)) then
-                if (iexcit1 /= iexcit2) then
-                    set_bits = count_set_bits(ilutnI(i))
-                    iel1 = iel1 + set_bits
-                    iel2 = iel2 + set_bits
-                end if
-            end if
-            if (iLutnI(i) == iLutnJ(i)) cycle
-            do j = 0, end_n_int
-
-                testI = btest(iLutnI(i), j)
-                testJ = btest(iLutnJ(i), j)
-
-                if (testJ) iel2 = iel2 + 1
-
-                if (testI) then
-                    iel1 = iel1 + 1
-                    if (.not. testJ) then
-                        ! occupied in iLutnI but not in iLutnJ
-                        iexcit1 = iexcit1 + 1
-                        Ex(1, iexcit1) = i * bits_n_int + j + 1
-                        !perm = perm + (shift - iel1 + iexcit1)
-                        perm = perm + iel1
-                    end if
-                else
-                    if (testJ) then
-                        ! occupied in iLutnI but not in iLutnJ
-                        iexcit2 = iexcit2 + 1
-                        Ex(2, iexcit2) = i * bits_n_int + j + 1
-                        !perm = perm + (shift - iel2 + iexcit2)
-                        perm = perm + iel2
+            do i = 0, NIfD
+                ! If this integer will make no difference to the overall counts,
+                ! then minimise effort...
+                if (ilutnI(i) == ilutnJ(i)) then
+                    if (iexcit1 /= iexcit2) then
+                        set_bits = count_set_bits(ilutnI(i))
+                        iel1 = iel1 + set_bits
+                        iel2 = iel2 + set_bits
                     end if
                 end if
+                if (iLutnI(i) == iLutnJ(i)) cycle
+                do j = 0, end_n_int
+
+                    testI = btest(iLutnI(i), j)
+                    testJ = btest(iLutnJ(i), j)
+
+                    if (testJ) iel2 = iel2 + 1
+
+                    if (testI) then
+                        iel1 = iel1 + 1
+                        if (.not. testJ) then
+                            ! occupied in iLutnI but not in iLutnJ
+                            iexcit1 = iexcit1 + 1
+                            Ex(1, iexcit1) = i * bits_n_int + j + 1
+                            !perm = perm + (shift - iel1 + iexcit1)
+                            perm = perm + iel1
+                        end if
+                    else
+                        if (testJ) then
+                            ! occupied in iLutnI but not in iLutnJ
+                            iexcit2 = iexcit2 + 1
+                            Ex(2, iexcit2) = i * bits_n_int + j + 1
+                            !perm = perm + (shift - iel2 + iexcit2)
+                            perm = perm + iel2
+                        end if
+                    end if
+                    if (iexcit1 == max_excit .and. iexcit2 == max_excit) exit
+                end do
                 if (iexcit1 == max_excit .and. iexcit2 == max_excit) exit
             end do
-            if (iexcit1 == max_excit .and. iexcit2 == max_excit) exit
-        end do
 
-        ! It seems that this test is faster than btest(perm,0)!
-        tSign = mod(perm, 2) == 1
+            ! It seems that this test is faster than btest(perm,0)!
+            tSign = mod(perm, 2) == 1
 
-        if (iexcit1 < max_excit) then
-            Ex(:, iexcit1 + 1) = 0 ! Indicate we've ended the excitation.
+            if (iexcit1 < max_excit) then
+                Ex(:, iexcit1 + 1) = 0 ! Indicate we've ended the excitation.
+            end if
+
         end if
 
-    end if
+    end subroutine GetBitExcitation
 
-end subroutine GetBitExcitation
+
+end module
 
 !This routine will find the largest bit set in a bit-string (i.e. the highest value orbital)
 SUBROUTINE LargestBitSet(iLut, NIfD, LargestOrb)

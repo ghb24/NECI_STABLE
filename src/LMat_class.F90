@@ -4,7 +4,7 @@ module LMat_class
     use LMat_indexing, only: lMatIndSym
     use shared_array
     use SystemData, only: nBasis
-    use ParallelHelper
+    use MPI_wrapper
     use Parallel_neci
     use procedure_pointers, only: lMatInd_t
     use constants

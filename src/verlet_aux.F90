@@ -49,7 +49,7 @@ module verlet_aux
 
     use load_balance_calcnodes, only: DetermineDetNode
 
-    use ParallelHelper, only: iProcIndex
+    use MPI_wrapper, only: iProcIndex
 
     implicit none
 

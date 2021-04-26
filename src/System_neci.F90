@@ -36,7 +36,7 @@ MODULE System
 
     use gasci_pchb, only: possible_GAS_singles, GAS_PCHB_singles_generator
 
-    use ParallelHelper, only: iprocindex, root
+    use MPI_wrapper, only: iprocindex, root
 
     use fcimcdata, only: pParallel
 

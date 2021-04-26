@@ -30,7 +30,7 @@ contains
         use lanczos_wrapper, only: frsblk_wrapper
         use Parallel_neci, only: MPIScatterV, MPIGatherV, MPIBCast, MPIArg, iProcIndex
         use Parallel_neci, only: nProcessors
-        use ParallelHelper, only: root
+        use MPI_wrapper, only: root
         use semi_stoch_gen
         use sort_mod, only: sort
         use SystemData, only: nel, tAllSymSectors, tGUGA
@@ -241,7 +241,7 @@ contains
         use FciMCData, only: ilutHF, CurrentDets, TotWalkers
         use Parallel_neci, only: MPIScatterV, MPIGatherV, MPIBCast, MPIArg, iProcIndex
         use Parallel_neci, only: nProcessors
-        use ParallelHelper, only: root
+        use MPI_wrapper, only: root
         use semi_stoch_gen
         use sort_mod, only: sort
         use SystemData, only: nel, tAllSymSectors
