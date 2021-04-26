@@ -45,7 +45,8 @@ module real_space_hubbard
 
     use dsfmt_interface, only: genrand_real2_dsfmt
 
-    use DetBitOps, only: FindBitExcitLevel, EncodeBitDet, ilut_lt, ilut_gt
+    use DetBitOps, only: FindBitExcitLevel, EncodeBitDet, ilut_lt, ilut_gt, &
+        GetBitExcitation
 
     use bit_rep_data, only: NIfTot, nifd, nifguga
 
@@ -66,7 +67,7 @@ module real_space_hubbard
                                     get_spin_opp_neighbors, create_neel_state, &
                                     make_ilutJ, get_ispn
 
-    use ParallelHelper, only: iProcIndex
+    use MPI_wrapper, only: iProcIndex
 
     use guga_data, only: ExcitationInformation_t, ExcitationInformation_t, tNewDet
     use guga_excitations, only: calc_guga_matrix_element, generate_excitation_guga, &

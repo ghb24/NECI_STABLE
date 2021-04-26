@@ -29,7 +29,7 @@ module kp_fciqmc
     use global_det_data, only: det_diagH
     use LoggingData, only: tPopsFile
     use Parallel_neci, only: iProcIndex
-    use ParallelHelper, only: root
+    use MPI_wrapper, only: root
     use PopsFileMod, only: WriteToPopsFileParOneArr
     use procedure_pointers, only: generate_excitation, attempt_create, encode_child
     use procedure_pointers, only: new_child_stats, extract_bit_rep_avsign

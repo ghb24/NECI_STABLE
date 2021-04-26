@@ -34,7 +34,7 @@ module tJ_model
     use lattice_mod, only: lattice, lat, determine_optimal_time_step, &
                            get_helement_lattice_ex_mat, get_helement_lattice_general
 
-    use DetBitOps, only: FindBitExcitLevel, EncodeBitDet
+    use DetBitOps, only: FindBitExcitLevel, EncodeBitDet, GetBitExcitation
 
     use double_occ_mod, only: count_double_orbs
 
@@ -46,7 +46,7 @@ module tJ_model
                                     find_elec_in_ni, get_spin_density_neighbors, &
                                     get_occ_neighbors
 
-    use ParallelHelper, only: iProcIndex
+    use MPI_wrapper, only: iProcIndex
 
     use get_excit, only: make_single, make_double
 
