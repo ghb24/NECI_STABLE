@@ -28,6 +28,7 @@ module NatOrbsMod
     use MemoryManager, only: TagIntType
     use util_mod, only: get_free_unit
     use procedure_pointers, only: get_umat_el
+    use DetBitOps, only: GetBitExcitation
 
     implicit none
 
