@@ -12,7 +12,8 @@ program test_tJ_model
                                      create_heisenberg_fock_space_guga
     use fcimcdata, only: ilutref
     use Detbitops, only: encodebitdet
-    use matrix_util, only: eig, print_matrix, store_hf_coeff, my_minloc, my_minval
+    use matrix_util, only: eig, print_matrix, store_hf_coeff, my_minloc, my_minval, &
+                           print_vec
     use guga_bitRepOps, only: write_guga_list, calcstepvector, calcB_vector_ilut
     use util_mod, only: near_zero
     use guga_matrixElements, only: calcDiagExchangeGUGA_nI
@@ -1738,82 +1739,6 @@ contains
 
     end function is_vec_sign_coherent
 
-
-    subroutine print_vec(vec, filename, t_index, t_zero)
-        class(*), intent(in) :: vec(:)
-        character(*), intent(in), optional :: filename
-        logical, intent(in), optional :: t_index, t_zero
-
-        logical :: t_index_, t_zero_
-        integer :: iunit, i
-        def_default(t_index_, t_index, .false.)
-        def_default(t_zero_, t_zero, .false.)
-
-        select type(vec)
-        type is (integer)
-            if (present(filename)) then
-                iunit = get_free_unit()
-                open(iunit, file = filename, status = 'replace', action = 'write')
-
-                if (t_zero_) then
-                    if (t_index_) then
-                        write(iunit, *) 0, 0.0_dp
-                    else
-                        write(iunit, *) 0.0_dp
-                    end if
-                end if
-
-
-                if (t_index_) then
-                    do i = 1, size(vec,1)
-                        write(iunit, *) i, vec(i)
-                    end do
-                else
-                    do i = 1, size(vec,1)
-                        write(iunit, *) vec(i)
-                    end do
-                end if
-
-                close(iunit)
-            else
-                do i = 1, size(vec,1)
-                    print *, vec(i)
-                end do
-            end if
-        type is (real(dp))
-            if (present(filename)) then
-                iunit = get_free_unit()
-                open(iunit, file = filename, status = 'replace', action = 'write')
-
-                if (t_zero_) then
-                    if (t_index_) then
-                        write(iunit, *) 0, 0.0_dp
-                    else
-                        write(iunit, *) 0.0_dp
-                    end if
-                end if
-
-
-                if (t_index_) then
-                    do i = 1, size(vec,1)
-                        write(iunit, *) i, vec(i)
-                    end do
-                else
-                    do i = 1, size(vec,1)
-                        write(iunit, *) vec(i)
-                    end do
-                end if
-
-                close(iunit)
-            else
-                do i = 1, size(vec,1)
-                    print *, vec(i)
-                end do
-            end if
-
-        end select
-
-    end subroutine print_vec
 
     real(dp) function sum_non_zero_off_diag(matrix)
         real(dp), intent(in) :: matrix(:,:)

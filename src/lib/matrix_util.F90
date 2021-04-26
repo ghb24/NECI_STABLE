@@ -2,13 +2,13 @@
 
 module matrix_util
     use constants, only: sp, dp, EPS
-    use util_mod, only: near_zero
+    use util_mod, only: near_zero, get_free_unit
     use sort_mod, only: sort
     implicit none
     private
     public :: eig, print_matrix, matrix_exponential, det, blas_matmul, linspace, norm, &
         calc_eigenvalues, check_symmetric, find_degeneracies, eig_sym, norm_cmplx, &
-        store_hf_coeff, my_minloc, my_minval, matrix_inverse
+        store_hf_coeff, my_minloc, my_minval, matrix_inverse, print_vec
 
     interface linspace
         module procedure linspace_sp
@@ -26,6 +26,82 @@ module matrix_util
     end interface calc_eigenvalues
 
 contains
+
+    subroutine print_vec(vec, filename, t_index, t_zero)
+        class(*), intent(in) :: vec(:)
+        character(*), intent(in), optional :: filename
+        logical, intent(in), optional :: t_index, t_zero
+
+        logical :: t_index_, t_zero_
+        integer :: iunit, i
+        def_default(t_index_, t_index, .false.)
+        def_default(t_zero_, t_zero, .false.)
+
+        select type(vec)
+        type is (integer)
+            if (present(filename)) then
+                iunit = get_free_unit()
+                open(iunit, file = filename, status = 'replace', action = 'write')
+
+                if (t_zero_) then
+                    if (t_index_) then
+                        write(iunit, *) 0, 0.0_dp
+                    else
+                        write(iunit, *) 0.0_dp
+                    end if
+                end if
+
+
+                if (t_index_) then
+                    do i = 1, size(vec,1)
+                        write(iunit, *) i, vec(i)
+                    end do
+                else
+                    do i = 1, size(vec,1)
+                        write(iunit, *) vec(i)
+                    end do
+                end if
+
+                close(iunit)
+            else
+                do i = 1, size(vec,1)
+                    print *, vec(i)
+                end do
+            end if
+        type is (real(dp))
+            if (present(filename)) then
+                iunit = get_free_unit()
+                open(iunit, file = filename, status = 'replace', action = 'write')
+
+                if (t_zero_) then
+                    if (t_index_) then
+                        write(iunit, *) 0, 0.0_dp
+                    else
+                        write(iunit, *) 0.0_dp
+                    end if
+                end if
+
+
+                if (t_index_) then
+                    do i = 1, size(vec,1)
+                        write(iunit, *) i, vec(i)
+                    end do
+                else
+                    do i = 1, size(vec,1)
+                        write(iunit, *) vec(i)
+                    end do
+                end if
+
+                close(iunit)
+            else
+                do i = 1, size(vec,1)
+                    print *, vec(i)
+                end do
+            end if
+
+        end select
+
+    end subroutine print_vec
 
     subroutine eig_real(matrix, e_values, e_vectors, t_left_ev)
         ! for very restricted matrices do a diag routine here!
