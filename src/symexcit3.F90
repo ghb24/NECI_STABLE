@@ -156,6 +156,7 @@ CONTAINS
         LOGICAL, intent(out) :: tAllExcitFound, tParity
         LOGICAL, intent(in) :: ti_lt_a_only
 
+        tAllExcitFound = .false.
         IF (exflag == 2) THEN
             ! Just generate doubles
             CALL GenDoubleExcit(nI, iLut, nJ, ExcitMat3, tParity, tAllExcitFound, ti_lt_a_only)
