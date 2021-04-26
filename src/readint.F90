@@ -1,4 +1,5 @@
 module read_fci
+    implicit none
 
     character(len=1024) :: FCIDUMP_name
 
@@ -12,7 +13,6 @@ contains
         use SymData, only: nProp, PropBitLen, TwoCycleSymGens
         use Parallel_neci
         use util_mod, only: get_free_unit, near_zero
-        IMPLICIT NONE
         logical, intent(in) :: tbin
         integer, intent(out) :: nBasisMax(5, *), LEN, LMS
         integer, intent(in) :: NEL
@@ -213,7 +213,6 @@ contains
         use Parallel_neci
         use constants, only: dp, sizeof_int
         use util_mod, only: get_free_unit
-        IMPLICIT NONE
         integer, intent(in) :: LEN
         integer, intent(inout) :: nBasisMax(5, *)
         integer, intent(out) :: BRR(LEN)
@@ -619,7 +618,6 @@ contains
         use shared_memory_mpi
         use SymData, only: nProp, PropBitLen, TwoCycleSymGens
         use util_mod, only: get_free_unit, near_zero
-        IMPLICIT NONE
         integer, intent(in) :: NBASIS
         logical, intent(in) :: tReadFreezeInts
         real(dp), intent(out) :: ECORE
@@ -1006,7 +1004,6 @@ contains
         USE UMatCache, only: UMatInd, UMAT2D, TUMAT2D
         use OneEInts, only: TMatind, TMat2D, TMATSYM
         use util_mod, only: get_free_unit
-        IMPLICIT NONE
         real(dp), intent(out) :: ECORE
         HElement_t(dp), intent(out) :: UMAT(*)
         HElement_t(dp) Z
@@ -1084,7 +1081,6 @@ contains
         use SystemData, only: UMatEps, tROHF, tReltvy
         use Parallel_neci, only: iProcIndex, MPIBcast
 
-        implicit none
         integer, intent(in) :: nBasis
         HElement_t(dp) :: OneElInts(nBasis, nBasis)
         HElement_t(dp) z

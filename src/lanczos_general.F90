@@ -12,7 +12,7 @@ module lanczos_general
     use MemoryManager, only: TagIntType, LogMemAlloc, LogMemDealloc
     use Parallel_neci, only: iProcIndex, nProcessors, MPIArg, MPIBarrier
     use Parallel_neci, only: MPIBCast, MPIGatherV, MPIAllGather
-    use ParallelHelper, only: root
+    use MPI_wrapper, only: root
     use ras_data
     use sparse_arrays, only: sparse_ham, hamil_diag, HDiagTag
     use hamiltonian_linalg, only: &
