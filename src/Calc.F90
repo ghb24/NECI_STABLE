@@ -3,6 +3,7 @@
 MODULE Calc
 
     use CalcData
+    use MPI_wrapper, only: MPI_WTIME
     use SystemData, only: beta, nel, STOT, LMS, tSpn, AA_elec_pairs, &
                           BB_elec_pairs, par_elec_pairs, AB_elec_pairs, &
                           AA_hole_pairs, BB_hole_pairs, AB_hole_pairs, &
@@ -201,7 +202,7 @@ contains
         iPopsFileNoWrite = 0
         tWalkContGrow = .false.
         StepsSft = 100
-        SftDamp = 10.0_dp
+        SftDamp = 0.1_dp
         Tau = 0.0_dp
         InitWalkers = 3000.0_dp
         NMCyc = -1

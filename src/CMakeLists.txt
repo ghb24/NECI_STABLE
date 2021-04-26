@@ -107,8 +107,8 @@ set( SRC_FILES
     OneEInts.F90
     orthogonalise.F90
     Orthonorm.F90
+    MPI_wrapper.F90
     Parallel_Calc.F90
-    ParallelHelper.F90
     parallel_workarounds.F90
     pchb_excitgen.F90
     perturbations.F90
@@ -335,8 +335,8 @@ set( RELAX_WARNINGS_SRCS
     OneEInts.F90
     orthogonalise.F90
     Orthonorm.F90
+    MPI_wrapper.F90
     Parallel_Calc.F90
-    ParallelHelper.F90
     parallel_workarounds.F90
     pchb_excitgen.F90
     perturbations.F90
@@ -485,8 +485,8 @@ set( _library_link_libs
     "${LAPACK_NECI_LIBRARIES}"
     "${LIBRT_LIBRARIES}"
     "${_conditional_libraries}"
-    "${MPI_NECI_LIBRARIES}"
-    "${MPI_NECI_Fortran_LIBRARIES}")
+    "${MPI_LIBRARIES}"
+    "${MPI_Fortran_LIBRARIES}")
 
 if( HAVE_SHARED )
     set( _link_type SHARED )
@@ -516,7 +516,7 @@ foreach(_config ${${PROJECT_NAME}_CONFIGURATIONS})
         LINKER_LANGUAGE Fortran
 
         PRIVATE_INCLUDES
-            "${MPI_NECI_INCLUDE_PATH}"
+            "${MPI_Fortran_INCLUDE_PATH}"
             "${HDF5_NECI_INCLUDE_PATH}"
 
         DEFINITIONS

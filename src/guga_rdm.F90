@@ -71,7 +71,7 @@ module guga_rdm
     use rdm_data, only: rdm_list_t, rdm_definitions_t
     use util_mod, only: get_free_unit
     use dSFMT_interface, only: genrand_real2_dSFMT
-    use ParallelHelper, only: root
+    use MPI_wrapper, only: root
 
     implicit none
 
@@ -1134,7 +1134,7 @@ contains
                 sing_recvdisps(i) = sing_recvdisps(i) * (int(GugaBits%len_tot + 1, MPIArg))
             end do
 
-#ifdef PARALLEL
+#ifdef USE_MPI
             call MPIAlltoAllv(Sing_ExcDjs(:, 1:MaxSendIndex), sendcounts, disps, &
                               Sing_ExcDjs2, sing_recvcounts, sing_recvdisps, error)
 #else
@@ -1182,7 +1182,7 @@ contains
 
             ! This is the main send of all the single excitations to the
             ! corresponding processors.
-#ifdef PARALLEL
+#ifdef USE_MPI
             call MPIAlltoAllv(Doub_ExcDjs(:, 1:MaxSendIndex), sendcounts, disps, &
                               Doub_ExcDjs2, doub_recvcounts, doub_recvdisps, error)
 #else

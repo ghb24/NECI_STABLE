@@ -68,7 +68,7 @@ module hdf5_popsfile
     !     /ilut/             - The bit representations of the determinants
     !     /sgns/             - The occupation of the determinants
 
-    use ParallelHelper
+    use MPI_wrapper
     use Parallel_neci
     use constants
     use hdf5_util

@@ -27,7 +27,7 @@ subroutine stop_all(sub_name, error_msg)
     ! In: sub_name    - Calling routine
     !     error_msg   - Error message
 
-#ifdef PARALLEL
+#ifdef USE_MPI
     use Parallel_neci, only: iProcIndex, MPIStopAll
 #endif
     implicit none
@@ -45,12 +45,20 @@ subroutine stop_all(sub_name, error_msg)
     write (6,'(/a7)') 'ERROR.'
     write (6,'(a27,a)') 'NECI stops in subroutine: ',adjustl(sub_name)
     write (6,'(a9,18X,a)') 'Reason: ',adjustl(error_msg)
-#ifdef PARALLEL
+#ifdef USE_MPI
     write (6,'(a12,15X,i5)') 'Processor: ',iProcIndex
 #endif
     write (6,'(a11)') 'EXITING...'
 #ifdef DEBUG_
     call neci_flush (6)
+#else
+    write (6,'(/a7)') 'ERROR.'
+    write (6,'(a27,a)') 'NECI stops in subroutine: ',adjustl(sub_name)
+    write (6,'(a9,18X,a)') 'Reason: ',adjustl(error_msg)
+#ifdef USE_MPI
+    write (6,'(a12,15X,i5)') 'Processor: ',iProcIndex
+#endif
+    write (6,'(a11)') 'EXITING...'
 #endif
 
     ! Also push this to the stderr unit, so it hopefully ends up somewhere
@@ -58,14 +66,14 @@ subroutine stop_all(sub_name, error_msg)
     write (7,'(/a7)') 'ERROR.'
     write (7,'(a27,a)') 'NECI stops in subroutine: ',adjustl(sub_name)
     write (7,'(a9,18X,a)') 'Reason: ',adjustl(error_msg)
-#ifdef PARALLEL
+#ifdef USE_MPI
     write (7,'(a12,15X,i5)') 'Processor: ',iProcIndex
 #endif
     write (7,'(a11)') 'EXITING...'
 
     call print_backtrace_neci()
 
-#ifdef PARALLEL
+#ifdef USE_MPI
     call MPIStopAll(error_code)
 #else
     stop error_code
@@ -75,38 +83,14 @@ end subroutine stop_all
 
 
 
-subroutine warning_neci(sub_name,error_msg)
-    != Print a warning message in a (helpfully consistent) format.
-    != I was bored of typing the same formatting in different places. ;-)
-    !=
-    != In:
-    !=    sub_name:  calling subroutine name.
-    !=    error_msg: error message.
-    use, intrinsic :: iso_fortran_env, only: stderr => error_unit
-    implicit none
-    character(*), intent(in) :: sub_name,error_msg
-
-#ifdef DEBUG_
-    write (stderr,'(/a)') 'WARNING.  Error in '//adjustl(sub_name)
-    write (stderr,'(a/)') adjustl(error_msg)
-#else
-    write (stderr,'(/a)') 'WARNING.  Error in '//adjustl(sub_name)
-    write (stderr,'(a/)') adjustl(error_msg)
-#endif
-
-    return
-end subroutine warning_neci
-
-
-
 subroutine quiet_stop(msg)
-    != Exit without making any noise.  Useful for when there's no error, but you
-    != still want to exit midway through a calculation (e.g. for testing purposes,
-    != or for use with the SOFTEXIT functionality).
-    != In:
-    !=    msg (optional) : Print msg before exiting if msg is present.
-#ifdef PARALLEL
-    use Parallel_neci, only: MPIStopAll
+!= Exit without making any noise.  Useful for when there's no error, but you
+!= still want to exit midway through a calculation (e.g. for testing purposes,
+!= or for use with the SOFTEXIT functionality).
+!= In:
+!=    msg (optional) : Print msg before exiting if msg is present.
+#ifdef USE_MPI
+use Parallel_neci, only: MPIStopAll
 #endif
 
     implicit none
@@ -117,8 +101,8 @@ subroutine quiet_stop(msg)
         CALL neci_flush(6)
     end if
 
-#ifdef PARALLEL
-    call MPIStopAll(0)
+#ifdef USE_MPI
+call MPIStopAll(0)
 #else
     stop
 #endif

@@ -1,7 +1,11 @@
 #include "macros.h"
 
-module ParallelHelper
+module MPI_wrapper
     use constants
+!All use of mpi routines come from this module
+#if defined(USE_MPI) & ! defined(CBINDMPI)
+    use mpi
+#endif
     use iso_c_hack
     use timing_neci, only: timer, set_timer, halt_timer
     implicit none
@@ -122,7 +126,7 @@ module ParallelHelper
     end interface
 #endif
 
-#ifdef PARALLEL
+#ifdef USE_MPI
     ! MpiDetInt needs to be defined here, so that it can make use of the
     ! above
 #ifdef INT64_
@@ -136,7 +140,7 @@ module ParallelHelper
     integer(MPIArg), parameter :: MpiDetInt = -1
 #endif
 
-#ifndef PARALLEL
+#ifndef USE_MPI
     ! These don't exist in serial, so fudge them
     integer(MPIArg), parameter :: MPI_2INTEGER = 0
     integer(MPIArg), parameter :: MPI_2DOUBLE_PRECISION = 0
@@ -248,7 +252,7 @@ contains
     subroutine MPIErr(iunit, err)
         integer, intent(in) :: err, iunit
         integer(MPIArg) :: l, e
-#ifdef PARALLEL
+#ifdef USE_MPI
         character(len=MPI_MAX_ERROR_STRING) :: s
 
         l = 0
@@ -277,7 +281,7 @@ contains
 
         if (tTime) call set_timer(Sync_Time)
 
-#ifdef PARALLEL
+#ifdef USE_MPI
         call GetComm(comm, node)
 
         call MPI_Barrier(comm, ierr)
@@ -298,7 +302,7 @@ contains
         integer(MPIArg), intent(out) :: ogrp
         integer(MPIArg) :: err
 
-#ifdef PARALLEL
+#ifdef USE_MPI
         call MPI_Group_incl(int(grp, MPIArg), int(n, MPIArg), &
                             int(rnks, MPIArg), ogrp, err)
         ierr = err
@@ -317,7 +321,7 @@ contains
         integer, intent(out) :: ierr
         integer(MPIArg) :: err
 
-#ifdef PARALLEL
+#ifdef USE_MPI
         call MPI_Comm_create(int(comm, MPIArg), int(group, MPIArg), &
                              ncomm, err)
         ierr = err
@@ -335,7 +339,7 @@ contains
         integer, intent(out) :: ierr
         integer(MPIArg) :: err, gout
 
-#ifdef PARALLEL
+#ifdef USE_MPI
         call MPI_Comm_Group(comm, gout, err)
         ierr = err
         grp = gout
@@ -373,7 +377,7 @@ contains
         integer :: i, st, fn
 #endif
 
-#ifdef PARALLEL
+#ifdef USE_MPI
 #ifdef CBINDMPI
 #ifdef GFORTRAN_
         type(c_ptr) :: g_loc
@@ -399,7 +403,7 @@ contains
     subroutine MPIAllreduceRt(rt, nrt, comm, ierr)
         integer(MPIArg), intent(in) :: rt, comm
         integer(MPIArg), intent(out) :: nrt, ierr
-#ifdef PARALLEL
+#ifdef USE_MPI
 #ifdef CBINDMPI
         interface
             ! Put this here to avoid polluting the global namespace
@@ -429,14 +433,14 @@ contains
 end module
 
 subroutine mpibarrier_c(error) bind(c)
-    use ParallelHelper, only: MPIBarrier
+    use MPI_wrapper, only: MPIBarrier
     use constants
     use iso_c_hack
     implicit none
     integer(c_int), intent(inout) :: error
     integer :: ierr
 
-#ifdef PARALLEL
+#ifdef USE_MPI
     call MPIBarrier(ierr)
     error = int(ierr, kind=kind(error))
 #else

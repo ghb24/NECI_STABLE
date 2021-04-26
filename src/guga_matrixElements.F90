@@ -12,7 +12,7 @@ module guga_matrixElements
     use util_mod, only: binary_search, operator(.isclose.)
     use guga_data, only: projE_replica
     use bit_rep_data, only: niftot, nifd
-    use ParallelHelper, only: iprocindex
+    use MPI_wrapper, only: iprocindex
 
     ! variable declarations:
     implicit none

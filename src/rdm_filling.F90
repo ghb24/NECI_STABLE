@@ -15,7 +15,7 @@ module rdm_filling
     use CalcData, only: tAdaptiveShift, tNonInitsForRDMs, tInitsRDMRef, &
                         tNonVariationalRDMs
     use FciMCData, only: projEDet, ilutRef
-    use DetBitOps, only: DetBitEq
+    use DetBitOps, only: DetBitEq, GetBitExcitation
     use guga_rdm, only: Add_RDM_From_IJ_Pair_GUGA, fill_diag_1rdm_guga, &
                         fill_spawn_rdm_diag_guga, Add_RDM_HFConnections_GUGA, &
                         fill_sings_1rdm_guga, fill_sings_2rdm_guga, &

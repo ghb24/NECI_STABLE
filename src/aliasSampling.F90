@@ -3,7 +3,7 @@ module aliasSampling
     ! requiring to precompute biases but making the lookup O(1)
     use constants
     use shared_memory_mpi
-    use ParallelHelper, only: iProcIndex_intra
+    use MPI_wrapper, only: iProcIndex_intra
     use dSFMT_interface, only: genrand_real2_dSFMT
     use shared_array
     implicit none

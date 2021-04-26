@@ -17,7 +17,7 @@ MODULE Determinants
 
     use global_utilities
     use sort_mod
-    use DetBitOps, only: EncodeBitDet, count_open_orbs, spatial_bit_det
+    use DetBitOps, only: EncodeBitDet, count_open_orbs, spatial_bit_det, GetBitExcitation
     use DeterminantData
     use bit_reps
     use MemoryManager, only: TagIntType
@@ -1106,6 +1106,7 @@ END MODULE Determinants
          use SystemData, only : nEl
          use bit_reps, only: NIfTot
          use constants, only: n_int
+         use DetBitOps, only: GetBitExcitation
          implicit none
          integer nUnit
          integer(kind=n_int) :: iLutRef(0:nIfTot),iLutnI(0:nIfTot)
