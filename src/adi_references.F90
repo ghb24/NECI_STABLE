@@ -361,7 +361,7 @@ contains
 !------------------------------------------------------------------------------------------!
 
     subroutine output_reference_space(filename)
-        use ParallelHelper, only: root
+        use MPI_wrapper, only: root
         use util_mod, only: get_free_unit
         implicit none
         character(255), intent(in) :: filename

@@ -68,12 +68,12 @@ module hdf5_popsfile
     !     /ilut/             - The bit representations of the determinants
     !     /sgns/             - The occupation of the determinants
 
-    use ParallelHelper
+    use MPI_wrapper
     use Parallel_neci
     use constants
     use hdf5_util
     use util_mod
-    use CalcData, only: tAutoAdaptiveShift, tScaleBlooms
+    use CalcData, only: tAutoAdaptiveShift, tScaleBlooms, tSpecifiedTau, pSinglesIn, pDoublesIn
     use LoggingData, only: tPopAutoAdaptiveShift, tPopScaleBlooms, tAccumPops, tAccumPopsActive, &
                            iAccumPopsIter, iAccumPopsCounter, tReduceHDF5Pops, &
                            HDF5PopsMin, iHDF5PopsMinEx, tPopAccumPops
@@ -585,12 +585,8 @@ contains
         ! not use the read-in tau, but the one specified in the input!
         ! except the hist_tau was used the we want to use the
         ! one in the popsfile all the time
-!         if (tSearchTauOption) then
         call read_tau_opt(grp_id)
-!         else
-!             write(6,*) 'Skipping tau optimisation data as tau optimisation is &
-!                        &disabled'
-!         end if
+
         ! and also output some info:
         write(6, *) "read-in tau optimization data: "
         write(6, *) "time-step: ", tau
@@ -656,8 +652,12 @@ contains
         call read_int64_scalar(grp_id, nm_cnt_opp, cnt_opp)
         call read_int64_scalar(grp_id, nm_cnt_par, cnt_par)
 
-        call read_dp_scalar(grp_id, nm_psingles, psingles)
-        call read_dp_scalar(grp_id, nm_pdoubles, pdoubles)
+        if (allocated(pSinglesIn) .or. allocated(pDoublesIn)) then
+            write(6,*) "pSingles or pDoubles specified in input file, which take precedence"
+        else
+            call read_dp_scalar(grp_id, nm_psingles, psingles)
+            call read_dp_scalar(grp_id, nm_pdoubles, pdoubles)
+        end if
         call read_dp_scalar(grp_id, nm_ptriples, ptriples, exists=tReadPTriples, default=0.1_dp, &
                             required=.false.)
         call read_dp_scalar(grp_id, nm_pparallel, pparallel, exists=ppar_set)
@@ -670,35 +670,39 @@ contains
 
         call h5gclose_f(grp_id, err)
 
-        if (tSearchTauOption .and. tau_set) then
-            tau = temp_tau
-        end if
+        if (tSpecifiedTau) then
+            write(6, *) "time-step specified in input, which takes precedence!"
+        else
+            if (tSearchTauOption .and. tau_set) then
+                tau = temp_tau
+            end if
 
-        ! also set if previous hist-tau
-        if (hist_tau) then
-            tau = temp_tau
-            ! and turn off if i dont want to force restart!
-            if (.not. t_restart_hist_tau) then
-                t_previous_hist_tau = temp_previous
+            ! also set if previous hist-tau
+            if (hist_tau .and. tau_set) then
+                tau = temp_tau
+                ! and turn off if i dont want to force restart!
+                if (.not. t_restart_hist_tau) then
+                    t_previous_hist_tau = temp_previous
 
-                if (t_previous_hist_tau) then
-                    tSearchTau = .false.
-                    tSearchTauOption = .false.
+                    if (t_previous_hist_tau) then
+                        tSearchTau = .false.
+                        tSearchTauOption = .false.
 
-                    if (t_hist_tau_search) then
-                        call deallocate_histograms()
-                        t_hist_tau_search = .false.
-                        t_fill_frequency_hists = .false.
+                        if (t_hist_tau_search) then
+                            call deallocate_histograms()
+                            t_hist_tau_search = .false.
+                            t_fill_frequency_hists = .false.
 
-                        t_hist_tau_search_option = .true.
-                        t_print_frq_histograms = .false.
+                            t_hist_tau_search_option = .true.
+                            t_print_frq_histograms = .false.
+                        end if
                     end if
                 end if
             end if
         end if
 
         ! if tau is 0, because no input provided, use the one here too
-        if (tau < EPS .and. (.not. temp_tau < EPS)) then
+        if (near_zero(tau) .and. (.not. near_zero(temp_tau))) then
             tau = temp_tau
         end if
 

@@ -17,7 +17,7 @@ module unit_test_helper_excitgen
     use OneEInts, only: Tmat2D
     use bit_rep_data, only: NIfTot, nifd, extract_sign
     use bit_reps, only: encode_sign, decode_bit_det
-    use DetBitOps, only: EncodeBitDet, DetBitEq
+    use DetBitOps, only: EncodeBitDet, DetBitEq, GetBitExcitation
     use SymExcit3, only: countExcitations3, GenExcitations3
     use FciMCData, only: pSingles, pDoubles, pParallel, ilutRef, projEDet, &
                          fcimc_excit_gen_store
@@ -77,7 +77,6 @@ contains
         ! We thus make sure that
         !   a) all possible excitations are generated with some weight
         !   b) no invalid excitations are obtained
-        implicit none
         integer, intent(in) :: sampleSize
         real(dp), intent(out) :: pTot, pNull
         integer, intent(out) :: numEx, nFound

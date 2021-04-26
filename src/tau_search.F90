@@ -42,7 +42,7 @@ module tau_search
     use bit_reps, only: getExcitationType, decode_bit_det
 
     use DetBitOps, only: FindBitExcitLevel, TestClosedShellDet, &
-                         EncodeBitDet
+                         EncodeBitDet, GetBitExcitation
 
     use sym_general_mod, only: SymAllowedExcit
 

@@ -30,7 +30,7 @@ module guga_pchb_excitgen
                               contract_2_rdm_ind
     use bit_reps, only: decode_bit_det
     use shared_array, only: shared_array_int64_t, shared_array_real_t
-    use ParallelHelper, only: iProcIndex_intra, iprocindex
+    use MPI_wrapper, only: iProcIndex_intra, iprocindex
     use GenRandSymExcitNUMod, only: RandExcitSymLabelProd
     use procedure_pointers, only: get_umat_el
 

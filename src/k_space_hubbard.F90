@@ -31,7 +31,7 @@ module k_space_hubbard
 
     use bit_rep_data, only: NIfTot, nifd
 
-    use DetBitOps, only: FindBitExcitLevel, EncodeBitDet, ilut_lt, ilut_gt
+    use DetBitOps, only: FindBitExcitLevel, EncodeBitDet, ilut_lt, ilut_gt, GetBitExcitation
 
     use real_space_hubbard, only: lat_tau_factor
 
@@ -81,7 +81,7 @@ module k_space_hubbard
 
     use SymData, only: tagSymTable
 
-    use ParallelHelper, only: iProcIndex, root
+    use MPI_wrapper, only: iProcIndex, root
 
     use lattice_models_utils, only: make_ilutJ, get_ispn, get_orb_from_kpoints, &
                                     create_all_dets, find_minority_spin, &
