@@ -3047,8 +3047,8 @@ contains
         call EncodeBitDet_guga([1,2,3,4],ilutI)
         ilutJ = ilutI
 
-        call assert_true(findFirstSwitch(ilutI,ilutJ,1,4) == 0)
-        call assert_equals(5, findLastSwitch(ilutI,ilutJ,1,4))
+        call assert_true(findFirstSwitch(ilutI,ilutJ,1,4) == -1)
+        call assert_equals(6, findLastSwitch(ilutI,ilutJ,1,4))
 
         ! 1122
         call EncodeBitDet_guga([1,3,6,8],ilutJ)
@@ -3102,15 +3102,15 @@ contains
         ! 3030
         ! 3003
         call assert_true(findFirstSwitch(ilutI,ilutJ,1,4) == 3)
-        call assert_true(findFirstSwitch(ilutI,ilutJ,1,3) == 0)
+        call assert_true(findFirstSwitch(ilutI,ilutJ,1,3) == -1)
         call assert_true(findLastSwitch(ilutI,ilutJ,1,4) == 4)
-        call assert_equals(5, (findLastSwitch(ilutI,IlutJ,1,2)))
+        call assert_equals(6, (findLastSwitch(ilutI,IlutJ,1,2)))
 
         call EncodeBitDet_guga([3,4,7,8],ilutI)
 
         ! 0303
         ! 3003
-        call assert_equals(5, findLastSwitch(ilutI,ilutJ,2,4))
+        call assert_equals(6, findLastSwitch(ilutI,ilutJ,2,4))
 
 
         print *, ""
