@@ -57,7 +57,7 @@ program test_k_space_hubbard
 
     use matrix_util, only: check_symmetric, calc_eigenvalues, matrix_exponential, linspace, &
         norm, det, eig, print_matrix, find_degeneracies, eig_sym, store_hf_coeff, &
-        my_minloc, my_minval
+        my_minloc, my_minval, print_vec
 
     use lattice_models_utils, only: gen_all_excits_k_space_hubbard, &
                                     gen_all_triples_k_space, create_hilbert_space_kspace, &
@@ -243,16 +243,16 @@ contains
         t_do_doubles = .true.
         t_do_subspace_study = .false.
         t_input_U = .true.
-        t_input_J = .false.
+        t_input_J = .true.
         t_input_twist = .false.
         t_U_vec = .false.
-        t_J_vec = .true.
+        t_J_vec = .false.
         t_do_twisted_bc = .false.
         t_twisted_vec = .false.
         t_analyse_gap = .false.
         t_ignore_k = .false.
         t_do_ed = .false.
-        t_exact_propagation = .false.
+        t_exact_propagation = .true.
         n_excited_states = 10
         timestep = 0.01_dp
         t_input_ref = .true.
@@ -959,9 +959,9 @@ contains
                                  overlap_values(:), overlap_vecs(:,:), &
                                  overlap_val_neci(:), overlap_vecs_neci(:,:), &
                                  Psi_est(:,:), rotated_basis(:,:), rot_mat(:,:), &
-                                 gs_vec(:,:)
+                                 gs_vec(:,:), e0_prop(:), shift_e0_prop(:)
 
-        n_iters = 100000
+        n_iters = 10000
         shift_damp = 1.0_dp
         t_shoelace = .false.
         alpha = 1.0
@@ -974,9 +974,14 @@ contains
         ! the even more neci-like
         t_neci = .false.
 
+        t_output = .true.
+
         if (t_neci) t_normalize = .false.
 
         ! prepare the Hamiltonian:
+        trans_corr_param_2body = 0.0
+        t_trans_corr_2body = .false.
+
         hamil = create_lattice_hamil_nI(hilbert_space)
         size_hilbert = size(hamil,1)
         allocate(e_values(size_hilbert)); e_values = 0.0_dp
@@ -988,17 +993,24 @@ contains
         trans_corr_param_2body = J_param
         hamil = similarity_transform(hamil)
 
-        n_states = size_hilbert
+        n_states = 1
         ! prepare the initial states
         allocate(Psi_R(size_hilbert,n_states)); Psi_R = 0.0_dp
         allocate(Psi_L(size_hilbert,n_states)); Psi_L = 0.0_dp
 
-        do i = 1, n_states
-            ! just set 1 determinant to 1
-            Psi_R(i,i) = 1.0_dp
-            Psi_L(i,i) = 1.0_dp
-        end do
+        if (n_states == 1) then
+            Psi_R(:,1) = 1.0_dp / sqrt(real(size_hilbert, dp))
+            Psi_L(:,1) = 1.0_dp / sqrt(real(size_hilbert, dp))
+        else
+            do i = 1, n_states
+                ! just set 1 determinant to 1
+                Psi_R(i,i) = 1.0_dp
+                Psi_L(i,i) = 1.0_dp
+            end do
+        end if
 
+        allocate(e0_prop(n_iters), source = 0.0_dp)
+        allocate(shift_e0_prop(n_iters), source = 0.0_dp)
         ! also initialize the shift_R: maybe we need a better start value than 0..
         ! diagonal matrix elements maybe?
         allocate(shift_R(n_states)); shift_R = 0.0_dp
@@ -1196,6 +1208,10 @@ contains
                     write(iunit2,*) lp_norm_0_R
                 end if
             end if
+
+            shift_e0_prop(i) = shift_R(1)
+            e0_prop(i) = dot_product(Psi_L(:,1), matmul(hamil, Psi_R(:,1))) / &
+                            dot_product(Psi_L(:,1),Psi_R(:,1))
         end do
         if (t_output) then
             close(iunit)
@@ -1207,6 +1223,19 @@ contains
         do k = 1, n_states
             Psi_est(:,k) = Psi_R(:,k) - tau * matmul(hamil - shift_mat_R,Psi_R(:,k))
         end do
+
+        iunit = get_free_unit()
+        open(iunit, file = 'shift_vs_time')
+        do i = 1, n_iters
+            write(iunit, *) i * tau, shift_e0_prop(i)
+        end do
+        close(iunit)
+        iunit = get_free_unit()
+        open(iunit, file = 'energy_vs_time')
+        do i = 1, n_iters
+            write(iunit, *) i * tau, e0_prop(i)
+        end do
+        close(iunit)
 
         print *, "L1 norm: ", l1_norm_1_R(:)
         print *, "L2 norm: ", l2_norm_1_R(:)
@@ -1858,6 +1887,11 @@ contains
         ind = minloc(e_values,1)
         gs_energy_orig = e_values(ind)
 
+        call sort(e_values)
+        print * , "first 10 EVs:", e_values(1:10)
+
+        call print_vec(e_vec(:,ind), 'orig-gs', t_index = .true.)
+
         ! how do i need to access the vectors to get the energy?
         ! eigenvectors are stored in the columns!!
         gs_vec = abs(e_vec(:,ind))
@@ -2010,6 +2044,8 @@ contains
             ind = minloc(e_values,1)
             gs_energy = e_values(ind)
             print *, "transformed ground-state energy: ", gs_energy
+
+            call print_vec(e_vec(:,ind),'trans-gs-vec', t_index = .true.)
 
             if (abs(gs_energy - gs_energy_orig) > e_thresh) then
                 call stop_all("HERE!", "energy incorrect!")
