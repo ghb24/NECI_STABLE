@@ -12,7 +12,8 @@ module lattice_mod
     ! the sym_mod!
     use constants, only: dp, pi, EPS
     use SystemData, only: twisted_bc, nbasis, basisfn, t_trans_corr_2body, &
-                          symmetry, brr, t_k_space_hubbard
+                          symmetry, brr, t_k_space_hubbard, t_trans_corr_hop, &
+                          t_new_real_space_hubbard
 
     implicit none
     private
@@ -3482,7 +3483,7 @@ contains
         call this%initialize_sites()
 
         ! and fill the lookup table for the site index determination from k vectors
-        if (t_k_space_hubbard) then
+        if (t_k_space_hubbard .or. (t_trans_corr_hop .and. t_new_real_space_hubbard)) then
             call this%initialize_lu_table()
         end if
 
