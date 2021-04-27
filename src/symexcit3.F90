@@ -156,6 +156,8 @@ CONTAINS
         LOGICAL, intent(out) :: tAllExcitFound, tParity
         LOGICAL, intent(in) :: ti_lt_a_only
 
+        tAllExcitFound = .false.
+
         IF (exflag == 2) THEN
 ! Just generate doubles
 
