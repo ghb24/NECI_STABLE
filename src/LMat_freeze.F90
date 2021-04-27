@@ -8,7 +8,7 @@ module LMat_freeze
     use OneEInts, only: TMat2D
     use SystemData, only: ECore
     use Parallel_neci
-    use ParallelHelper
+    use MPI_wrapper
     implicit none
 
     private

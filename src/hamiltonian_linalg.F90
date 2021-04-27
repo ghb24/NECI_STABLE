@@ -11,7 +11,7 @@ module hamiltonian_linalg
     use sparse_arrays, only: sparse_ham, hamil_diag, HDiagTag
     use Parallel_neci, only: iProcIndex, nProcessors, MPIArg, MPIBarrier
     use Parallel_neci, only: MPIBCast, MPIGatherV, MPIAllGather
-    use ParallelHelper, only: root
+    use MPI_wrapper, only: root
     use MemoryManager, only: TagIntType, LogMemAlloc, LogMemDealloc
 
     implicit none

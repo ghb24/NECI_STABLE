@@ -15,7 +15,7 @@ module semi_stoch_gen
     use MemoryManager, only: TagIntType, LogMemAlloc, LogMemDealloc
     use Parallel_neci, only: iProcIndex, nProcessors, MPIArg, MPIAllGatherV, &
                              MPIAllGather, MPIScatter, MPIScatterV, MPIBarrier
-    use ParallelHelper, only: root
+    use MPI_wrapper, only: root
     use semi_stoch_procs
     use sparse_arrays
     use timing_neci

@@ -17,7 +17,7 @@ module hdf5_util
     use constants
     use util_mod
     use hdf5
-    use ParallelHelper
+    use MPI_wrapper
     implicit none
 
     interface read_int32_attribute

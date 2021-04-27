@@ -63,7 +63,7 @@ module real_time_procs
     use dSFMT_interface, only: genrand_real2_dSFMT
     use load_balance_calcnodes, only: DetermineDetNode
     use Determinants, only: tDefineDet, DefDet
-    use ParallelHelper, only: nNodes, bNodeRoot, ProcNode, NodeRoots, MPIBarrier, &
+    use MPI_wrapper, only: nNodes, bNodeRoot, ProcNode, NodeRoots, MPIBarrier, &
                               iProcIndex, MPI_SUM, root
     use Parallel_neci
     use LoggingData, only: tNoNewRDMContrib
@@ -71,6 +71,7 @@ module real_time_procs
     use load_balance, only: AddNewHashDet, CalcHashTableStats, get_diagonal_matel
     use semi_stoch_gen, only: generate_space_most_populated, reset_core_space
     use semi_stoch_procs, only: GLOBAL_RUN
+    use timing_neci, only: timer, set_timer, halt_timer
     implicit none
 
     type(timer) :: calc_gf_time

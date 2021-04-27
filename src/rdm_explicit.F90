@@ -27,7 +27,7 @@ contains
         use FciMCData, only: CurrentDets
         use global_utilities, only: set_timer, halt_timer
         use Parallel_neci, only: iProcIndex, MPIAllReduceDataType
-        use ParallelHelper, only: MPI_MAXLOC, MPI_2integer
+        use MPI_wrapper, only: MPI_MAXLOC, MPI_2integer
         use rdm_data, only: nElRDM_Time
 
         integer(int64), intent(in) :: TotWalkers
@@ -594,7 +594,7 @@ contains
             sing_recvdisps(i) = sing_recvdisps(i) * (int(NIfTot + 1, MPIArg))
         end do
 
-#ifdef PARALLEL
+#ifdef USE_MPI
         call MPIAlltoAllv(Sing_ExcDjs(:, 1:MaxSendIndex), sendcounts, disps, &
                           Sing_ExcDjs2, sing_recvcounts, sing_recvdisps, error)
 #else
@@ -639,7 +639,7 @@ contains
 
             ! This is the main send of all the single excitations to the
             ! corresponding processors.
-#ifdef PARALLEL
+#ifdef USE_MPI
             call MPIAlltoAllv(Doub_ExcDjs(:, 1:MaxSendIndex), sendcounts, disps, &
                               Doub_ExcDjs2, doub_recvcounts, doub_recvdisps, error)
 #else
@@ -704,7 +704,7 @@ contains
             sing_recvcounts(i) = sing_recvcounts(i) * (int(NIfTot + 1, MPIArg))
             sing_recvdisps(i) = sing_recvdisps(i) * (int(NIfTot + 1, MPIArg))
         end do
-#ifdef PARALLEL
+#ifdef USE_MPI
         call MPIAlltoAllv(Sing_ExcDjs(:, 1:MaxSendIndex), sendcounts, disps, Sing_ExcDjs2, sing_recvcounts, sing_recvdisps, error)
 #else
         Sing_ExcDjs2(0:NIfTot, 1:MaxIndex) = Sing_ExcDjs(0:NIfTot, 1:MaxSendIndex)
@@ -748,7 +748,7 @@ contains
 
             ! This is the main send of all the single excitations to the
             ! corresponding processors.
-#ifdef PARALLEL
+#ifdef USE_MPI
             call MPIAlltoAllv(Doub_ExcDjs(:, 1:MaxSendIndex), sendcounts, disps, &
                               Doub_ExcDjs2, doub_recvcounts, doub_recvdisps, error)
 #else

@@ -26,7 +26,7 @@ module tau_search_hist
     use Parallel_neci, only: MPIAllReduce, MPI_MAX, MPI_SUM, MPIAllLORLogical, &
                             MPISumAll, MPISUM, mpireduce, MPI_MIN
 
-    use ParallelHelper, only: iprocindex, root
+    use MPI_wrapper, only: iprocindex, root
 
     use constants, only: dp, EPS, iout, maxExcit, int64
 
@@ -1342,7 +1342,7 @@ contains
         ! try to write one general one and not multiple as in my GUGA branch
         use constants, only: int64
         use util_mod, only: get_free_unit, get_unique_filename
-        use ParallelHelper, only: root
+        use MPI_wrapper, only: root
 
         character(*), parameter :: this_routine = "print_frequency_histograms"
         character(255) :: filename, exname

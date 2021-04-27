@@ -1,11 +1,11 @@
 module constants
 
-!All use of mpi routines come from this module
-#ifdef PARALLEL
-#ifndef CBINDMPI
-use mpi
-#endif
-#endif
+! !All use of mpi routines come from this module
+! #ifdef USE_MPI
+! #ifndef CBINDMPI
+! use mpi
+! #endif
+! #endif
 implicit none
 
 ! Constant data.
@@ -124,7 +124,7 @@ integer, parameter :: rep_size = 1
     real(dp), parameter :: HEl_zero = 0.0_dp
 #endif
 #endif
-    
+
 real(dp), dimension(lenof_sign_max), parameter :: null_part = 0.0_dp
 
 !This is the integer type which is used in MPI call arguments
