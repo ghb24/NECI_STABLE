@@ -4,10 +4,6 @@ project_github: https://github.com/ghb24/NECI_STABLE/
 summary: for FCIQMC
 author: Alavi Group
 github: 
-predocmark_alt: >
-predocmark: <
-docmark_alt:
-docmark: !
 display: public
 graph: false
 search: false 
@@ -18,7 +14,18 @@ include: ./src
 parallel: 4
 dbg: true
 warn: true
-page_dir: pages
+page_dir: pages_quick
+md_extensions: markdown.extensions.toc
+               markdown.extensions.smarty
+---
+
+<!-- I had these in but they are all default -->
+<!-- predocmark_alt: >
+predocmark: #
+docmark_alt: *
+docmark: ! -->
+
+<!-- pandoc -s tmp_neci_dev.tex -o tmp_dev.md -f latex -t markdown_strict-tex_math_dollars+tex_math_single_backslash -->
 
 #Summary 
 
@@ -32,17 +39,13 @@ Note we can also have links to Github, Gitlab, a logo above.
 At present, I have found 2 issues with Ford: one is that it [does not support 
 multi-line strings with exclamation marks](https://github.com/Fortran-FOSS-Programmers/ford/issues/320) (this is just a bug), so I had to do 
 a workaround for this. Another issue is that it crashes for this project, though 
-I am not confident why. I have managed to fix it by some troubleshooting. In 
-order to build with Ford, first install as instructed then replace the file 
-`ford/templates/macros.html` with the `macros.html` founds in `docs`. 
-For reference, the few lines added are marked with the comment
-`<!-- NOTE this wasn't originally here (PHILIP)-->`
+I am not confident why. I have managed to fix it by some troubleshooting. I have made a fork of Ford that fixes this issue, you can find it [here](https://github.com/jphaupt/ford).
 @endnote
 
 In order to generate the docs, simply use `ford gen_docs.md`. The search index 
-is currently the bottleneck for document generation. If you want to be able to 
+is currently the bottleneck for document generation so it is disabled above. If you want to be able to 
 search the docs, simply replace `search: false` with `search: true` above (this
-will take a bit longer to generate, though).
+will take a bit longer to generate, but should be done if published).
 
 @note 
 As warnings are enabled, Ford will output many warnings at the moment. This is because we do not yet have all the code formatted in a way
