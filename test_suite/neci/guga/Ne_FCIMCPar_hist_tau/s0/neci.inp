@@ -14,9 +14,10 @@ seed -7
 load-balance-interval 1000
 nmcyc 1000
 totalwalkers 20000
-(tau 0.001 search
+tau  6.342713037945149E-003 search
 new-tau-search 0.9999
-max-tau 0.02
+max-tau  0.02
+
 startsinglepart
 truncinitiator
 addtoinitiator 3
