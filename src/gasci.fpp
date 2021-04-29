@@ -49,24 +49,24 @@ module gasci
     ! datastructure to outside code after the constructor has been called.
     ! If possible keep it like this!
 
-    !> Speficies the GAS spaces.
     type, abstract :: GASSpec_t
+        !! Speficies the GAS spaces.
         private
-        !> GAS_table(i) returns the GAS space for the i-th spin orbital
         integer, allocatable :: GAS_table(:)
-        !> The number of spin orbitals per GAS space
+            !! GAS_table(i) returns the GAS space for the i-th spin orbital
         integer, allocatable  :: GAS_sizes(:)
-        !> maxval(GAS_sizes)
+            !! The number of spin orbitals per GAS space
         integer :: largest_GAS_size
-        !> splitted_orbitals orbitals is the preimage of GAS_specification%GAS_table.
-        !> An array that contains the spin orbitals per GAS space.
-        !> splitted_orbitals(1 : maxval(GAS_sizes), 1 : nGAS)
-        !> only splitted_orbitals(i, j), 1 <= i <= GAS_sizes(j)
-        !> is defined.
+            !! maxval(GAS_sizes)
         integer, allocatable :: splitted_orbitals(:, :)
-        !> These lookup variables stay valid, because the data structure is
-        !>  immutable
+            !! splitted_orbitals orbitals is the preimage of GAS_specification%GAS_table.
+            !! An array that contains the spin orbitals per GAS space.
+            !! splitted_orbitals(1 : maxval(GAS_sizes), 1 : nGAS)
+            !! only splitted_orbitals(i, j), 1 <= i <= GAS_sizes(j)
+            !! is defined.
         logical :: lookup_is_connected
+            !! These lookup variables stay valid, because the data structure is
+            !!  immutable
     contains
         ! Nearly all member functions should be public.
         procedure(contains_supergroup_t), deferred :: contains_supergroup
@@ -274,12 +274,10 @@ contains
     end function
 
 
-    !>  @brief
-    !>      Query if there are connected GAS spaces under the GAS specification.
-    !>
-    !>  @param[in] GAS_spec, Specification of GAS spaces (GASSpec_t).
     logical pure function get_is_connected(self)
+        !! Query if there are connected GAS spaces under the GAS specification.
         class(GASSpec_t), intent(in) :: self
+            !!  Specification of GAS spaces.
         get_is_connected = self%lookup_is_connected
     end function
 
