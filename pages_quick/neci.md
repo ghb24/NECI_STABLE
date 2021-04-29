@@ -1,17 +1,19 @@
-title: Installation
+title: Using NECI 
 ---
+
 # Using NECI
 
 [TOC]
+
 ## Getting into the game
 
 ### Getting the code
 
 The NECI repository is stored on bitbucket. To gain access you need to
-be invited. Contact one of the repository administrators \[Simon Smart
+be invited. Contact one of the repository administrators [Simon Smart
 ([simondsmart@gmail.com](simondsmart@gmail.com)), George Booth
 ([george.booth24@gmail.com](george.booth24@gmail.com)) and Nick Blunt
-([nsb37@cam.ac.uk](nsb37@cam.ac.uk))\] who will invite you. If you
+([nsb37@cam.ac.uk](nsb37@cam.ac.uk))] who will invite you. If you
 already have a bitbucket account let the repository administrators know
 the email address associated with your account.
 
@@ -136,6 +138,7 @@ optimisations, all checking enabled), `Release` (optimisations enabled),
 or `Cluster` (inter-procedural optimisations enabled, with very long
 compile times).
 
+@note
 If there is an available HDF5 library, which is compiled with support
 for MPI and for the Fortran compiler in use, then CMake will happily
 make use of it. Otherwise support for HDF5 POPSFILES will be disabled by
@@ -144,6 +147,7 @@ default.
 The CMake configuration for NECI contains the functionality to download,
 compile and use HDF5. To do this run CMake with the
 `-DENABLE_BUILD_HDF5=ON`.
+@endnote
 
 The code is then built using the command
 
@@ -514,13 +518,13 @@ The first line of the input is always `title`, the last line is always
 `end`.
 
 Some keywords are mandatory, those are marked in <span
-style="color: mred">red</span> and are given at the beginning of the
+style="color: red">**red**</span> and are given at the beginning of the
 description of each paragraph. Then come recommended options, marked in
-<span style="color: oblue">blue</span>, followed by further options
+<span style="color: blue">**blue**</span>, followed by further options
 given in black.
 
 Keywords which are purely for debugging purposes and only interesting
-for developers are markes as <span style="color: mgreen">green</span>.
+for developers are markes as <span style="color: green">**green**</span>.
 
 ### SYSTEM Block
 
@@ -528,9 +532,9 @@ The SYSTEM block specifies the properties of the physical system that is
 considered. The block starts with the `system` keyword and ends with the
 `endsys` keyword.
 
--   **<span style="color: mred">system</span>**  
-    Starts the SYSTEM block. Has one mandatory additional argument to
-    specify the type of the system. The options are
+-   <span style="color: red">**system**</span>    
+    Starts the SYSTEM block. Has one mandatory additional
+    argument to specify the type of the system. The options are
 
     -   **read**  
         Read in the integrals from a FCIDUMP file, used for ab-initio
@@ -551,13 +555,13 @@ considered. The block starts with the `system` keyword and ends with the
     -   **ueg**  
         Uses the Hamiltonian of the uniform electron gas in a box.
 
--   **<span style="color: mred">endsys</span>**  
-    Terminates the SYSTEM block.
+-   <span style="color: red">**endsys**  
+    </span> Terminates the SYSTEM block.
 
--   **<span style="color: mred">electrons \(n\), nel \(n\)</span>**  
-    Sets the number of electrons to \(n\)
+-   <span style="color: red">**electrons \(n\), nel \(n\)**  
+    </span> Sets the number of electrons to \(n\)
 
--   **spin-restrict \[\(m\)\]**  
+-   **spin-restrict [\(m\)]**  
     Sets the total \(S_z\) quantum number to \(\frac{m}{2}\). The
     argument \(m\) is optional and defaults to 0.
 
@@ -647,17 +651,17 @@ considered. The block starts with the `system` keyword and ends with the
 
 #### Excitation generation options
 
--   **<span style="color: oblue">nonUniformRandExcits</span>**  
-    Use a non-uniform random excitation generator for picking the move
-    in the FCIQMC spawn step. This can significantly speed up the
-    calculation. Requires an additional argument, that can be chosen
+-   <span style="color: blue">**nonUniformRandExcits**  
+    </span> Use a non-uniform random excitation generator for picking
+    the move in the FCIQMC spawn step. This can significantly speed up
+    the calculation. Requires an additional argument, that can be chosen
     from the following
 
-    -   **<span style="color: oblue">pchb</span>**  
-        Generates excitations weighted directly with the matrix elements
-        using pre-computed alias tables. This excitation generator is
-        extremely fast, while maintaining high acceptance rates and is
-        generally recommended when memory is not an issue.
+    -   <span style="color: blue">**pchb**  
+        </span> Generates excitations weighted directly with the matrix
+        elements using pre-computed alias tables. This excitation
+        generator is extremely fast, while maintaining high acceptance
+        rates and is generally recommended when memory is not an issue.
 
     -   **nosymgen**  
         Generate all possible excitations, regardless of symmetry. Might
@@ -794,7 +798,7 @@ considered. The block starts with the `system` keyword and ends with the
 
 #### Hubbard model and UEG options
 
--   **lattice \(type\) \(l_x\) \(l_y\) \[\(l_Z\)\]**  
+-   **lattice \(type\) \(l_x\) \(l_y\) [\(l_Z\)]**  
     Defines the basis in terms of a lattice of type \(type\) with extent
     \(l_x
         \times l_y \times l_z\). \(l_x\) and \(l_y\) are mandatory,
@@ -808,13 +812,13 @@ considered. The block starts with the `system` keyword and ends with the
 -   **B \(t\)**  
     Sets the Hubbard hopping strengh to \(t\). Defaults to -1.
 
--   **twisted-bc \(t_1\) \[\(t_2\)\]**  
+-   **twisted-bc \(t_1\) [\(t_2\)]**  
     Use twisted boundary conditions with a phase of
     \(t_1 \, \frac{2\Pi}{x}\) applied along x-direction, where \(x\) is
     the lattice size. \(t_2\) is optional and the additional phase along
     y-direction, in multiples of \(\frac{2\Pi}{y}\).
 
--   **open-bc \[\(direction\)\]**  
+-   **open-bc [\(direction\)]**  
     Set the boundary condition in \(direction\) to open, i.e. no hopping
     across the cell boundary is possible. \(direction\) is optional and
     can be one of `X`, `Y` or \(\texttt{XY}\), for open boundary
@@ -842,13 +846,13 @@ considered. The block starts with the `system` keyword and ends with the
     well as the presence of 3-body interactions. \(mode\) can be one of
     `3-body`, `trcorr-excitgen` or `rand-excitgen`.
 
--   **transcorr \[\(J\)\]**  
+-   **transcorr [\(J\)]**  
     Enable the usage of a transcorrelated Hamiltonian for the real-space
     hubbard mode. This implies the non-hermiticity of the Hamiltonian.
     The optional parameter \(J\) is the transcorrelation parameter and
     defaults to 1.0.
 
--   **2-body-transcorr \[\(J\)\]**  
+-   **2-body-transcorr [\(J\)]**  
     Enable the usage of a transcorrelated Hamiltonian for the momentum
     space hubbard model. This implies the non-hermiticity of the
     Hamiltonian as well as the presence of 3-body interactions. The
@@ -865,19 +869,19 @@ The CALC block is used to set options concerning the simulation
 parameters and modes of FCIQMC. The block starts with the `calc` keyword
 and ends with the `endcalc` keyword.
 
--   **<span style="color: mred">calc</span>**  
-    Starts the CALC block
+-   <span style="color: red">**calc**  
+    </span> Starts the CALC block
 
--   **<span style="color: mred">endcalc</span>**  
-    Terminates the CALC block
+-   <span style="color: red">**endcalc**  
+    </span> Terminates the CALC block
 
--   **<span style="color: oblue">time \(t\)</span>**  
-    Set the maximum time \(t\) in minutes the calculation is allowed to
-    run. After \(t\) minutes, the calculation will end.
+-   <span style="color: blue">**time \(t\)**  
+    </span> Set the maximum time \(t\) in minutes the calculation is
+    allowed to run. After \(t\) minutes, the calculation will end.
 
--   **<span style="color: oblue">nmcyc \(n\)</span>**  
-    Set the maximum number of iterations the calculation is allowed to
-    do. After \(n\) iterations, the calculation will end.
+-   <span style="color: blue">**nmcyc \(n\)**  
+    </span> Set the maximum number of iterations the calculation is
+    allowed to do. After \(n\) iterations, the calculation will end.
 
 -   **eq-cyc \(n\)**  
     Set the number of iterations to perform after reaching variable
@@ -899,7 +903,7 @@ and ends with the `endcalc` keyword.
     \(n\). After \(n\) iterations of sampling RDMs, the calculation will
     end.
 
--   **load-balance-blocks \[OFF\]**  
+-   **load-balance-blocks [OFF]**  
     Distribute the determinants blockwise in a dynamic fashion to
     maintain equal load for all processors. This is enabled by default
     and has one optional argument OFF. If given, the load-balancing is
@@ -926,23 +930,23 @@ and ends with the `endcalc` keyword.
 
 #### Population control options
 
--   **<span style="color: mred">totalWalkers \(n\)</span>**  
-    Sets the targeted number of walkers to \(n\). This means, the shift
-    will be varied to keep the walker number constant once it reaches
-    \(n\).
+-   <span style="color: red">**totalWalkers \(n\)**  
+    </span> Sets the targeted number of walkers to \(n\). This means,
+    the shift will be varied to keep the walker number constant once it
+    reaches \(n\).
 
--   **<span style="color: oblue">diagShift \(S\)</span>**  
-    Set the initial value of the shift to \(S\). A value of \(S<0\) is
-    not recommended, as it will decrease the population from the
-    beginning.
+-   <span style="color: blue">**diagShift \(S\)**  
+    </span> Set the initial value of the shift to \(S\). A value of
+    \(S<0\) is not recommended, as it will decrease the population from
+    the beginning.
 
--   **<span style="color: oblue">shiftDamp \(\zeta\)</span>**  
-    Set the damping factor used in the shift update scheme to \(\zeta\).
-    Defaults to \(10\).
+-   <span style="color: blue">**shiftDamp \(\zeta\)**  
+    </span> Set the damping factor used in the shift update scheme to
+    \(\zeta\). Defaults to \(10\).
 
--   **<span style="color: oblue">stepsSft \(n\)</span>**  
-    Sets the number of steps per update cycle of the shift to \(n\).
-    Defaults to \(100\).
+-   <span style="color: blue">**stepsSft \(n\)**  
+    </span> Sets the number of steps per update cycle of the shift to
+    \(n\). Defaults to \(100\).
 
 -   **fixed-n0 \(n_0\)**  
     Instead of varying the shift to fix the total number of walkers,
@@ -955,7 +959,7 @@ and ends with the `endcalc` keyword.
     shift is iteratively adjusted to maintain a fixed grow rate \(grow\)
     until reaching the requested number of total walkers.
 
--   **jump-shift \[OFF\]**  
+-   **jump-shift [OFF]**  
     When entering the variable shift mode, the shift will be set to the
     current projected energy. This is enabled by default. There is an
     optional argument OFF that disables this behaviour.
@@ -969,24 +973,24 @@ and ends with the `endcalc` keyword.
     Restrict the Hilbert space of the calculation to those determinants
     with at most \(n\) unpaired electrons.
 
--   **avGrowthRate \[OFF\]**  
+-   **avGrowthRate [OFF]**  
     Average the change in walker number used to calculate the shift.
     This is enabled by default and has one optional argument OFF, which,
     when given, turns the option off.
 
 #### Real walker coefficient options
 
--   **<span style="color: oblue">allRealCoeff</span>**  
-    Allow determinants to have non-integer population. There is a
-    minimal population below which the population of a determinant will
-    be rounded stochastically. This defaults to \(1\).
+-   <span style="color: blue">**allRealCoeff**  
+    </span> Allow determinants to have non-integer population. There is
+    a minimal population below which the population of a determinant
+    will be rounded stochastically. This defaults to \(1\).
 
--   **<span style="color: oblue">realSpawnCutoff \(x\)</span>**  
-    Continuous real spawning will be performed, unless the spawn has
-    weight less than x. In this case, the weight of the spawning will be
-    stochastically rounded up to x or down to zero, such that the
-    average weight of the spawning does not change. This is a method of
-    removing very low weighted spawnings from the spawned list, which
+-   <span style="color: blue">**realSpawnCutoff \(x\)**  
+    </span> Continuous real spawning will be performed, unless the spawn
+    has weight less than x. In this case, the weight of the spawning
+    will be stochastically rounded up to x or down to zero, such that
+    the average weight of the spawning does not change. This is a method
+    of removing very low weighted spawnings from the spawned list, which
     require extra memory, processing and communication. A reasonable
     value for x is 0.01.
 
@@ -1002,7 +1006,7 @@ and ends with the `endcalc` keyword.
     weight is unchanged. Defaults to \(1\), which should only be changed
     with good reason.
 
--   **energy-scaled-walkers \[\(mode\) \(\alpha\) \(\beta\)\]**  
+-   **energy-scaled-walkers [\(mode\) \(\alpha\) \(\beta\)]**  
     Scales the occupied threshold with the energy of a determinant. Has
     three optional arguments and requires `allRealCoeff`. The argument
     \(mode\) can be one of EXPONENTIAL, POWER, EXP-BOUND or NEGATIVE and
@@ -1011,14 +1015,14 @@ and ends with the `endcalc` keyword.
 
 #### Time-step options
 
--   **<span style="color: mred">tau \(\tau\)</span> \[SEARCH\]**  
+-   **<span style="color: red">tau \(\tau\)</span> [SEARCH]**  
     Sets the timestep per iteration to \(\tau\). Has one optional
     argument SEARCH. If given, the time-step will be iteratively updated
     to keep the calculation stable.
 
--   **<span style="color: oblue">hist-tau-search \[\(c\) \(nbins\)
-    \(bound\)\]</span>**  
-    Update the time-step based on histogramming of the ratio
+-   <span style="color: blue">**hist-tau-search \[\(c\) \(nbins\)
+    \(bound\)\]**  
+    </span> Update the time-step based on histogramming of the ratio
     \(\frac{H_{ij}}{p(i|j)}\). Not compatible with the tau \(\tau\)
     SEARCH option. The three arguments \(c\), \(nbins\) and \(bound\)
     are optional. \(0<c<1\) is the fraction of the histogram used for
@@ -1029,11 +1033,11 @@ and ends with the `endcalc` keyword.
     recommended! Otherwise the time-step can become quite small in these
     simulations.
 
--   **<span style="color: oblue">max-tau \(\tau_\text{max}\)</span>**  
-    Sets the maximal value of the time-step to \(\tau_\text{max}\).
-    Defaults to \(1\).
+-   <span style="color: blue">**max-tau \(\tau_\text{max}\)**  
+    </span> Sets the maximal value of the time-step to
+    \(\tau_\text{max}\). Defaults to \(1\).
 
--   **min-tau \[\(\tau_\text{min}\)\]**  
+-   **min-tau [\(\tau_\text{min}\)]**  
     Sets the minimal value of the time-step to \(\tau_\text{min}\) and
     enables the iterative update of the time-step. Defaults to
     \(10^{-7}\). The argument \(\tau_\text{min}\) is optional.
@@ -1042,7 +1046,7 @@ and ends with the `endcalc` keyword.
     Do never update \(\tau\) and the related parameter
     \(p_\text{singles}\), \(p_\text{doubles}\) or \(p_\text{parallel}\).
 
--   **truncate-spawns \[\(n\) UNOCC\]**  
+-   **truncate-spawns [\(n\) UNOCC]**  
     Truncate spawns which are larger than a threshold value \(n\). Both
     arguments are optional, \(n\) defaults to \(3\). If UNOCC is given
     the truncation is restricted to spawns onto unoccupied. Useful in
@@ -1055,16 +1059,16 @@ and ends with the `endcalc` keyword.
 
 #### Wave function initialization options
 
--   **<span style="color: oblue">walkContGrow</span>**  
-    When reading in a wave function from a file, do not set the shift or
-    enter variable shift mode.
+-   <span style="color: blue">**walkContGrow**  
+    </span> When reading in a wave function from a file, do not set the
+    shift or enter variable shift mode.
 
--   **<span style="color: oblue">defineDet \(det\)</span>**  
-    Sets the reference determinant of the calculation to \(det\). If no
-    other initialisation is specified, this will also be the initial
-    wave function. The format can either be a comma-separated list of
-    spin orbitals, a range of spin orbitals (like 12-24) or a
-    combination of both.  
+-   <span style="color: blue">**defineDet \(det\)**  
+    </span> Sets the reference determinant of the calculation to
+    \(det\). If no other initialisation is specified, this will also be
+    the initial wave function. The format can either be a
+    comma-separated list of spin orbitals, a range of spin orbitals
+    (like 12-24) or a combination of both.  
     For spin-adapted calculations using the `GUGA` keyword defining a
     starting reference CSF manually is *highly* encouraged, as the
     automatic way often fails. It works in similar ways as for SDs,
@@ -1096,12 +1100,12 @@ and ends with the `endcalc` keyword.
     Allow the reference determinant to be updated after reading in a
     wave function.
 
--   **startSinglePart \[\(n\)\]**  
+-   **startSinglePart [\(n\)]**  
     Initialise the wave function with \(n\) walkers on the reference
     only unless specified differently. The argument \(n\) is optional
     and defaults to \(1\).
 
--   **proje-changeRef \[\(frac\) \(min\)\]**  
+-   **proje-changeRef [\(frac\) \(min\)]**  
     Allow the reference to change if a determinant obtains \(frac\)
     times the population of the current reference and the latter has a
     population of at least \(min\). Both arguments are optional and
@@ -1113,24 +1117,24 @@ and ends with the `endcalc` keyword.
 
 #### Initiator options
 
--   **<span style="color: oblue">truncInitiator</span>**  
-    Use the initiator method [3].
+-   <span style="color: blue">**truncInitiator**  
+    </span> Use the initiator method [3].
 
--   **<span style="color: oblue">addToInitiator \(x\)</span>**  
-    Sets the initiator threshold to \(x\), so any determinant with more
-    than \(x\) walkers will be an initiator.
+-   <span style="color: blue">**addToInitiator \(x\)**  
+    </span> Sets the initiator threshold to \(x\), so any determinant
+    with more than \(x\) walkers will be an initiator.
 
--   **senior-initiators \[\(age\)\]**  
+-   **senior-initiators [\(age\)]**  
     Makes any determinant that has a half-time of at least \(age\)
     iterations an initiator. \(age\) is optional and defaults to \(1\).
 
--   **superInitiator \[\(n\)\]**  
+-   **superInitiator [\(n\)]**  
     Create a list of \(n\) superinitiators, from which all connected
     determinants are set to be initiators. The superinitiators are
     chosen according to population. \(n\) is optional and defaults to
     \(1\).
 
--   **coherent-superInitiators \[\(mode\)\]**  
+-   **coherent-superInitiators [\(mode\)]**  
     Apply a restriction on the sign-coherence between a determinant and
     any connected superinitiator to determine whether it becomes an
     initiator due to connection. The optional argument \(mode\) can be
@@ -1210,7 +1214,7 @@ and ends with the `endcalc` keyword.
 
 #### Adaptive shift options
 
--   **auto-adpative-shift \[\(t\) \(\alpha\) \(c\)\]**  
+-   **auto-adpative-shift [\(t\) \(\alpha\) \(c\)]**  
     Scale the shift per determinant based on the acceptance rate on a
     determinant. Has three optional arguments. The first is the
     threshold value \(t\) which is the minimal number of spawning
@@ -1220,7 +1224,7 @@ and ends with the `endcalc` keyword.
     is the minimal scaling factor, which uses
     \(\frac{1}{\text{HF conn.}}\) as default.
 
--   **linear-adaptive-shift \[\(\sigma\) \(f_1\) \(f_2\)\]**  
+-   **linear-adaptive-shift [\(\sigma\) \(f_1\) \(f_2\)]**  
     Scale the shift per determinant linearly with the population of a
     determinant. All arguments are optional and define the function used
     for scaling. \(\sigma\) gives the minimal walker number required to
@@ -1229,7 +1233,7 @@ and ends with the `endcalc` keyword.
     shift fraction to be applied at the initiator threshold, defaults to
     \(1\). Every initiator is applied the full shift.
 
--   **exp-adaptive-shift \[\(\alpha\)\]**  
+-   **exp-adaptive-shift [\(\alpha\)]**  
     Scales the shift expoentially with the population of a determinant.
     The optional argument \(\alpha\) is the exponent of scaling, the
     default is \(2\).
@@ -1265,12 +1269,12 @@ and ends with the `endcalc` keyword.
 
 #### Semi-stochastic options
 
--   **<span style="color: oblue">semi-stochastic</span>**  
-    Turn on the semi-stochastic adaptation.
+-   <span style="color: blue">**semi-stochastic**  
+    </span> Turn on the semi-stochastic adaptation.
 
--   **<span style="color: oblue">pops-core \(n\)</span>**  
-    This option will use the \(n\) most populated determinants to form
-    the core space.
+-   <span style="color: blue">**pops-core \(n\)**  
+    </span> This option will use the \(n\) most populated determinants
+    to form the core space.
 
 -   **doubles-core**  
     Use the reference determinant and all single and double excitations
@@ -1326,19 +1330,19 @@ and ends with the `endcalc` keyword.
 
 #### Trial wave function options
 
--   **<span style="color: oblue">trial-wavefunction \[\(n\)\]</span>**  
-    Use a trial wave function to obtain an estimate for the energy, as
-    described in
+-   <span style="color: blue">**trial-wavefunction [\(n\)]**  
+    </span> Use a trial wave function to obtain an estimate for the
+    energy, as described in
     <a href="#sec:trial" data-reference-type="ref" data-reference="sec:trial">1.4</a>.
     The argument \(n\) is optional, when given, the trial wave function
     will be initialised \(n\) iterations after the variable shift mode
     started, else, at the start of the calculation. The trial wave
     function is defined through one of the following keywords
 
-    -   **<span style="color: oblue">pops-trial \(n\)</span>**  
-        When starting from a POPSFILE, this option will use the \(n\)
-        most populated determinants from the popsfile to form the trial
-        space.
+    -   <span style="color: blue">**pops-trial \(n\)**  
+        </span> When starting from a POPSFILE, this option will use the
+        \(n\) most populated determinants from the popsfile to form the
+        trial space.
 
     -   **doubles-trial**  
         Use the reference determinant and all single and double
@@ -1435,16 +1439,16 @@ CALC block. It sets the main algorithm to be used in the calculation.
 The subblock is started with the `methods` keyword and terminated with
 the `endmethods` keyword.
 
--   **<span style="color: mred">methods</span>**  
-    Starts the METHODS block
+-   <span style="color: red">**methods**  
+    </span> Starts the METHODS block
 
--   **<span style="color: mred">endmethods</span>**  
-    Terminates the METHODS block.
+-   <span style="color: red">**endmethods**  
+    </span> Terminates the METHODS block.
 
--   **<span style="color: mred">method \(mode\)</span>**  
-    Sets the algorithm to be executed. The relevant choice for \(mode\)
-    is VERTEX FCIMC to run an FCIQMC calculation. Alternative choices
-    are DETERM-PROJ to run a deterministic calculation and
+-   <span style="color: red">**method \(mode\)**  
+    </span> Sets the algorithm to be executed. The relevant choice for
+    \(mode\) is VERTEX FCIMC to run an FCIQMC calculation. Alternative
+    choices are DETERM-PROJ to run a deterministic calculation and
     SPECTRAL-LANCZOS to calculate a spectrum using the lanczos
     algorithm.
 
@@ -1493,7 +1497,7 @@ terminated with the `endint` keyword.
 
 ### Development keywords
 
--   **<span style="color: mgreen">UNIT-TEST-PGEN</span>**  
+-   **<span style="color: green">UNIT-TEST-PGEN</span>**  
     Test the pgens for the \(n(\text{most populated})\) configurations
     of an existing pops-file. Perform the tests \(n(\text{iterations})\)
     times for each configuration. The order of arguments is
@@ -1664,7 +1668,7 @@ and terminatd with the `endrealtime` keyword.
     Calculates the evolution along a trajectory \(e^{i\alpha}t\) instead
     of pure real-time trajectory.
 
--   **dynamic-rotation \[\(\eta\)\]**  
+-   **dynamic-rotation [\(\eta\)]**  
     Determine a time-dependent \(\alpha\) on the fly for `rotate-time`.
     \(\eta\) is optional and a damping parameter, defaults to 0.05.
     \(\alpha\) is then chosen such that the walker number remains
@@ -1696,7 +1700,7 @@ and terminatd with the `endrealtime` keyword.
     Do not apply a shift during the real-time evolution. Strongly
     recommended.
 
--   **stabilize-walkers \[\(S\)\]**  
+-   **stabilize-walkers [\(S\)]**  
     Use the shift to stabilize the walker number if it drops below 80%
     of the peak value. \(S\) Is optional and is an asymptotic value used
     to fix the shift.
@@ -1719,14 +1723,14 @@ status information of the calculation shall be collected. This block is
 started with the `logging` keyword and terminated with the `endlog`
 keyword.
 
--   **<span style="color: oblue">logging</span>**  
-    Starts the LOGGING block.
+-   <span style="color: blue">**logging**  
+    </span> Starts the LOGGING block.
 
--   **<span style="color: oblue">endlog</span>**  
-    Terminates the LOGGING block.
+-   <span style="color: blue">**endlog**  
+    </span> Terminates the LOGGING block.
 
--   **<span style="color: oblue">hdf5-popsfile</span>**  
-    Sets the format to read and write the wave function to HDF5.
+-   <span style="color: blue">**hdf5-popsfile**  
+    </span> Sets the format to read and write the wave function to HDF5.
     Requires building with the `ENABLE-HDF5` cmake option.
 
 -   **popsfile \(n\)**  
@@ -1752,7 +1756,7 @@ keyword.
     Print out the \(n\) most populated determinants at the end of the
     calculation. Is enabled by default with \(n=15\).
 
--   **replicas-popwrite \[\(n\)\]**  
+-   **replicas-popwrite [\(n\)]**  
     Have each replica print out its own highly populated determinants in
     a separate block instead of one collective output of the on average
     most important determinants. Optionally, \(n\) is the numbers of
@@ -1907,10 +1911,10 @@ KP-FCIQMC:
 By default, NECI uses a single reference determinant, \(|D_0\rangle\),
 in the projected energy estimator, or potentially a linear combination
 of two determinants if the the HPHF code is being used.
-\[E_0 = \frac{\braket{D_0 | \hat{H} | \Psi}}{\braket{D_0 | \Psi}}.\]
+\[E_0 = \frac{\langle D_0 | \hat{H} | \Psi\rangle}{\langle D_0 | \Psi}\rangle .\]
 This estimator can be improved by using a more accurate estimate of the
-true ground state, a trial wave function, \(\ket{\Psi^T}\),
-\[E_0 = \frac{\braket{\Psi^T | \hat{H} | \Psi}}{\braket{\Psi^T | \Psi}}.\]
+true ground state, a trial wave function, \(|\Psi^T\rangle\),
+\[E_0 = \frac{\langle{\Psi^T | \hat{H} | \Psi}\rangle}{\langle{\Psi^T | \Psi}\rangle}.\]
 Such a trial wave function can be used in NECI using by adding the
 `trial-wavefunction` option to the Calc block. You must also specify a
 trial space. The trial wave function used will be the ground state of
