@@ -212,20 +212,6 @@ endif
 #define loc_neci c_loc
 #endif
 
-! ***** HACK *****
-! gfortran was playing up using a parameter defined to equal C_NULL_PTR
-! --> use pre-processor defines instead!
-#ifdef CBINDMPI
-#if defined(__PATHSCALE__) || defined(ISO_C_HACK_) || defined(__OPEN64__)
-#ifdef POINTER8
-#define MPI_IN_PLACE (0_int64)
-#else
-#define MPI_IN_PLACE (0_int32)
-#endif
-#else
-#define MPI_IN_PLACE (C_NULL_PTR)
-#endif
-#endif
 
 ! To make sure conjugations of both real and complex realisations of HElement_t behave on all compilers:
 #ifdef CMPLX_

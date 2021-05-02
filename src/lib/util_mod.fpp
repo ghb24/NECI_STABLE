@@ -1344,18 +1344,8 @@ end module
 
 integer function neci_iargc()
     implicit none
-#if defined(CBINDMPI)
-    interface
-        function c_argc() result(ret) bind(c)
-            use iso_c_hack
-            integer(c_int) :: ret
-        end function
-    end interface
-    neci_iargc = c_argc()
-#else
     integer :: command_argument_count
     neci_iargc = command_argument_count()
-#endif
 end function
 
 subroutine neci_getarg(i, str)
@@ -1376,30 +1366,11 @@ subroutine neci_getarg(i, str)
     integer :: j
 #endif
 
-    ! Eliminate compiler warnings
+#ifdef WARNING_WORKAROUND_
     j = i
+#endif
 
-#if defined(CBINDMPI)
-    ! Define interfaces that we need
-    interface
-        pure function c_getarg_len(i) result(ret) bind(c)
-            use iso_c_hack
-            integer(c_int), intent(in), value :: i
-            integer(c_int) :: ret
-        end function
-        pure subroutine c_getarg(i, str) bind(c)
-            use iso_c_hack
-            integer(c_int), intent(in), value :: i
-            character(c_char), intent(out) :: str
-        end subroutine
-    end interface
-    character(len=c_getarg_len(int(i, c_int))) :: str2
-
-    call c_getarg(int(i, c_int), str2)
-
-    str = str2
-
-#elif defined NAGF95
+#if defined NAGF95
     call getarg(i, str)
 #elif defined(BLUEGENE_HACKS)
     call getarg(int(i, 4), str)

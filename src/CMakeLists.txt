@@ -220,7 +220,6 @@ set( SRC_FILES
     lib/hdf5_util.F90
     lib/iso_c_hack.F90
     lib/MemoryManagement.F90
-    lib/parallel_helper.cpp
     lib/ranlux.F
     lib/signals.F90
     lib/signals_helper.cpp
@@ -333,7 +332,6 @@ set( RELAX_WARNINGS_SRCS
     OneEInts.F90
     orthogonalise.F90
     Orthonorm.F90
-    MPI_wrapper.F90
     Parallel_Calc.F90
     parallel_workarounds.F90
     pchb_excitgen.F90

@@ -3,7 +3,7 @@
 module MPI_wrapper
     use constants
 !All use of mpi routines come from this module
-#if defined(USE_MPI) & ! defined(CBINDMPI)
+#if defined(USE_MPI)
     use mpi
 #endif
     use iso_c_hack
@@ -15,116 +15,6 @@ module MPI_wrapper
     !
     ! If we are using C-bindings, certain things need to be defined
     !
-#ifdef CBINDMPI
-
-    ! These are not defined, if using MPI in C
-    integer(MPIArg), parameter :: MPI_SUCCESS = 0
-    integer(MPIArg) :: MPI_COMM_WORLD
-    integer, parameter :: MPI_STATUS_SIZE = 1
-
-! ****** HACK ********
-! We would like to define these consts as here, but this breaks gfortran 4.5.1
-! --> See macros.h
-! ********************
-    ! Define values so our C-wrapper can work nicely
-    integer(MPIArg), parameter :: MPI_INTEGER4 = 0, &
-                                  MPI_INTEGER8 = 1, &
-                                  MPI_DOUBLE_PRECISION = 2, &
-                                  MPI_DOUBLE_COMPLEX = 3, &
-                                  MPI_2INTEGER = 4, &
-                                  MPI_INTEGER = 5, &
-                                  MPI_CHARACTER = 6, &
-                                  MPI_2DOUBLE_PRECISION = 7
-
-    ! Similarly for operations
-    integer(MPIArg), parameter :: MPI_SUM = 0, &
-                                  MPI_MAX = 1, &
-                                  MPI_MIN = 2, &
-                                  MPI_LOR = 3, &
-                                  MPI_MINLOC = 4, &
-                                  MPI_MAXLOC = 5
-
-    ! Useful lengths
-    integer, parameter :: MPI_MAX_ERROR_STRING = 500
-
-    interface
-        subroutine MPI_Error_string(err, s, l, ierr) &
-            bind(c, name='mpi_error_string_wrap')
-            use iso_c_hack
-            integer(c_int), intent(in), value :: err, l
-            integer(c_int), intent(out) :: ierr
-            character(c_char), intent(out) :: s(*)
-        end subroutine
-        subroutine MPI_Barrier(comm, ierr) bind(c, name='mpi_barrier_wrap')
-            use iso_c_hack
-            integer(c_int), intent(in), value :: comm
-            integer(c_int), intent(out) :: ierr
-        end subroutine
-        subroutine MPI_Init(ierr) bind(c, name='mpi_init_wrap')
-            use iso_c_hack
-            integer(c_int), intent(out) :: ierr
-        end subroutine
-        subroutine MPI_Initialized(flag, ierr) bind(c, name='mpi_initialized_wrap')
-            use iso_c_hack
-            integer(c_int), intent(out) :: flag, ierr
-        end subroutine
-        subroutine MPI_Finalize(ierr) bind(c, name='mpi_finalize_wrap')
-            use iso_c_hack
-            integer(c_int), intent(out) :: ierr
-        end subroutine
-        subroutine MPI_Abort(comm, err, ierr) bind(c, name='mpi_abort_wrap')
-            use iso_c_hack
-            integer(c_int), intent(in), value :: comm, err
-            integer(c_int), intent(out) :: ierr
-        end subroutine
-        subroutine MPI_Comm_rank(comm, rank, ierr) &
-            bind(c, name='mpi_comm_rank_wrap')
-            use iso_c_hack
-            integer(c_int), intent(in), value :: comm
-            integer(c_int), intent(out) :: rank, ierr
-        end subroutine
-        subroutine MPI_Comm_size(comm, sz, ierr) &
-            bind(c, name='mpi_comm_size_wrap')
-            use iso_c_hack
-            integer(c_int), intent(in), value :: comm
-            integer(c_int), intent(out) :: sz, ierr
-        end subroutine
-        subroutine MPI_Comm_create(comm, group, ncomm, ierr) &
-            bind(c, name='mpi_comm_create_wrap')
-            use iso_c_hack
-            integer(c_int), intent(in), value :: comm, group
-            integer(c_int), intent(out) :: ncomm, ierr
-        end subroutine
-        subroutine MPI_Group_incl(grp, n, rnks, ogrp, ierr) &
-            bind(c, name='mpi_group_incl_wrap')
-            use iso_c_hack
-            integer(c_int), intent(in), value :: grp, n
-            integer(c_int), intent(in) :: rnks(*)
-            integer(c_int), intent(out) :: ierr, ogrp
-        end subroutine
-        subroutine MPI_Comm_group(comm, group, ierr) &
-            bind(c, name='mpi_comm_group_wrap')
-            use iso_c_hack
-            integer(c_int), intent(in), value :: comm
-            integer(c_int), intent(out) :: group, ierr
-        end subroutine
-        subroutine MPI_Gather(sbuf, scnt, stype, rbuf, rcnt, rtype, &
-                              rt, comm, ierr) &
-            bind(c, name='mpi_gather_wrap')
-            use iso_c_hack
-            use constants
-            c_ptr_t, intent(in), value :: sbuf, rbuf
-            integer(c_int), intent(in), value :: scnt, stype, rcnt, rtype
-            integer(c_int), intent(in), value :: comm, rt
-            integer(c_int), intent(out) :: ierr
-        end subroutine
-        function mpicommworld_c2f() result(cw) &
-            bind(c, name='mpicommworld_c2f')
-            use constants
-            integer(MPIArg) :: cw
-        end function
-    end interface
-#endif
 
 #ifdef USE_MPI
     ! MpiDetInt needs to be defined here, so that it can make use of the
@@ -349,18 +239,6 @@ contains
 #endif
 
     end subroutine
-!
-! n.b HACK
-! We need to be able to do a bit of hackery when using C-based MPI
-!
-! --> We relabel things a bit...
-#ifdef CBINDMPI
-#define val_in vptr
-#define val_out rptr
-#else
-#define val_in v
-#define val_out Ret
-#endif
 
     subroutine MPIGather_hack(v, ret, nchar, nprocs, ierr, Node)
 
@@ -371,26 +249,11 @@ contains
         type(CommI), intent(in), optional :: Node
         integer(MPIArg) :: Comm, rt, err
 
-#ifdef CBINDMPI
-        character(c_char) :: in_tmp(nchar)
-        character(len=nchar*nprocs), target :: out_tmp
-        integer :: i, st, fn
-#endif
-
 #ifdef USE_MPI
-#ifdef CBINDMPI
-#ifdef GFORTRAN_
-        type(c_ptr) :: g_loc
-#endif
-        c_ptr_t :: vptr, rptr
-        vptr = loc_neci(v)
-        rptr = loc_neci(ret)
-#endif
-
         call GetComm(Comm, Node, rt)
 
-        call MPI_Gather(val_in, int(nchar, MPIArg), MPI_CHARACTER, &
-                        val_out, int(nchar, MPIArg), MPI_CHARACTER, &
+        call MPI_Gather(v, int(nchar, MPIArg), MPI_CHARACTER, &
+                        Ret, int(nchar, MPIArg), MPI_CHARACTER, &
                         rt, comm, err)
 
         ierr = err
@@ -404,27 +267,10 @@ contains
         integer(MPIArg), intent(in) :: rt, comm
         integer(MPIArg), intent(out) :: nrt, ierr
 #ifdef USE_MPI
-#ifdef CBINDMPI
-        interface
-            ! Put this here to avoid polluting the global namespace
-            subroutine MPI_Allreduce_rt(val, ret, cnt, dtype, op, comm, ierr) &
-                bind(c, name='mpi_allreduce_wrap')
-                use iso_c_hack
-                use constants
-                integer(MPIArg), intent(in) :: val
-                integer(MPIArg), intent(out) :: ret
-                integer(c_int), intent(in), value :: cnt, dtype, op, comm
-                integer(c_int), intent(out) :: ierr
-            end subroutine
-        end interface
-        call MPI_Allreduce_rt(rt, nrt, 1_MPIArg, MPI_INTEGER, MPI_MAX, &
-                              comm, ierr)
-#else
         call MPI_Allreduce(rt, nrt, 1_MPIArg, MPI_INTEGER, MPI_MAX, &
                            comm, ierr)
-#endif
 #else
-        ierr = 0  !Avoid compiler warnings
+        ierr = 0
         nrt = rt
 #endif
 
