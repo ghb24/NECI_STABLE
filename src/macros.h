@@ -197,7 +197,7 @@ endif
 
 ! Define types for C pointers to work between various compilers with
 ! differing levels of brokenness.
-#if defined(__PATHSCALE__) || defined(__ISO_C_HACK) || defined(__OPEN64__) || defined(NAGF95)
+#if defined(__PATHSCALE__) || defined(__OPEN64__) || defined(NAGF95)
 #define loc_neci loc
 #ifdef POINTER8
 #define c_ptr_t integer(int64)

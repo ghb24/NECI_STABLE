@@ -216,15 +216,7 @@ module shared_alloc
             use iso_c_hack
             use constants, only: int32, int64
             implicit none
-#if defined(__PATHSCALE__) || defined(__ISO_C_HACK)
-#ifdef POINTER8
-            integer(int64), value :: ptr
-#else
-            integer(int32), value :: ptr
-#endif
-#else
             type(c_ptr), value :: ptr
-#endif
         end subroutine
         subroutine shm_unlink_shared_worker (ptr) bind(c)
             use iso_c_hack
@@ -373,25 +365,13 @@ contains
         %(type)s, pointer :: pt1
 
         ! Sigh, a hack to get pathscale to work
-#if defined(__PATHSCALE__) || defined(__ISO_C_HACK)
-#ifdef POINTER8
-        integer(int64) :: tmp
-#else
-        integer(int32) :: tmp
-#endif
-#else
         type(c_ptr) :: tmp
-#endif
 
         ! Get a pointer to the first element. c_loc requries its argument to
         ! be a scalar variable.
         pt1 => ptr(lbound(ptr,1) %(elem1)s)
 
-#if defined(__PATHSCALE__) || defined(__ISO_C_HACK)
-        tmp = loc(ptr(:%(elem1)s))
-#else
         tmp = c_loc(pt1)
-#endif
         call dealloc_shared_worker (tmp)
 #else
         deallocate(ptr)
