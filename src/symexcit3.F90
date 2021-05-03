@@ -132,8 +132,6 @@ CONTAINS
 
         end if
 
-!        write(6,*) 'Number of doubles',nDoubleExcits
-
     ENDSUBROUTINE CountExcitations3
 
     SUBROUTINE GenExcitations3(nI, iLut, nJ, exflag, ExcitMat3, tParity, tAllExcitFound, ti_lt_a_only)
@@ -170,17 +168,8 @@ CONTAINS
 
             ! When the last single is input, providing exflag is not 1, the first double is then found
             ! and from then on GenDoubleExcit is called.
-!            if(exflag.eq.2) write(6,*) "All singles generated"
 
         end if
-
-!        IF(ExcitMat3(2,2).eq.0) THEN
-!            write(6,"(A,I3,A,I3,L)") "GENERATED SINGLE EXCITATION: ",
-!ExcitMat3(1,1)," -> ",ExcitMat3(2,1),tAllExcitFound
-!        ELSE
-!            write(6,"(A,2I3,A,2I3,L)") "GENERATED DOUBLE EXCITATION: ",
-!ExcitMat3(1,1),ExcitMat3(1,2)," -> ",ExcitMat3(2,1),ExcitMat3(2,2),tAllExcitFound
-!        end if
 
     ENDSUBROUTINE GenExcitations3
 
@@ -198,13 +187,9 @@ CONTAINS
         LOGICAL :: tInitOrbsFound, tParity, tAllExcitFound, tEndaOrbs, ti_lt_a_only, tAux
         INTEGER, SAVE :: OrbiIndex, OrbaIndex, Spini, NewSym, Mli
 
-!        write(6,*) 'Original Determinant',nI
-!        write(6,*) "SymLabelList2(:)",SymLabelList2(:)
-
         tInitOrbsFound = .false.
         Orbi = ExcitMat3(1, 1)
         Orba = ExcitMat3(2, 1)
-!        write(6,*) "Getting single",OrbiIndex,OrbaIndex,Orbi,Orba
 
         IF ((Orbi == 0) .or. (Orba == 0)) THEN           ! Want to find the first excitation.
 
@@ -219,7 +204,6 @@ CONTAINS
             ELSE
                 Mli = 0
             end if
-!            write(6,*) "***",Spini,Symi,Mli
             OrbaIndex = SymLabelCounts2(1, ClassCountInd(Spini, Symi, Mli))  ! Start considering a at the first allowed symmetry.
 
         ELSE
@@ -680,7 +664,6 @@ CONTAINS
 
         allocate(det_list(0:niftot, n_excits))
         n_dets = 0
-        found_all = .false.
         ex = 0
         call GenExcitations3(nI, ilut, nJ, ex_flag_, ex, tpar, found_all, &
                              .false.)
