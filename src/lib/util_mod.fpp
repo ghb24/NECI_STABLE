@@ -1081,43 +1081,22 @@ contains
     function error_function_c(argument) result(res)
 
         use constants, only: dp
-        use iso_c_hack
         implicit none
 
         real(dp), intent(in) :: argument
         real(dp) :: res
 
-        !interface
-        !    pure function erfc_lm(x) bind(c, name='erfc') result (ret)
-        !        use iso_c_hack
-        !        implicit none
-        !        real(c_double) :: ret
-        !            real(c_double), intent(in), value :: x
-        !    end function erfc_lm
-        !!end interface
-
-        !res = erfc_lm(real(argument, c_double))
         res = erfc_local(real(argument, c_double))
     end function error_function_c
 
     function error_function(argument) result(res)
 
         use constants, only: dp
-        use iso_c_hack
         implicit none
 
         real(dp), intent(in) :: argument
         real(dp) :: res
 
-!        interface
-!                pure function erf_lm(x) bind(c, name='erf') result(ret)
-!                use iso_c_hack
-!                implicit none
-!                real(c_double) :: ret
-!                real(c_double), intent(in), value :: x
-!            end function erf_lm
-!        end interface
-!        res = erf_lm(real(argument, c_double))
         res = erf_local(real(argument, c_double))
 
     end function error_function
@@ -1432,7 +1411,7 @@ end function
 #ifdef GFORTRAN_
 function g_loc(var) result(addr)
 
-    use iso_c_binding
+    use, intrinsic :: iso_c_binding, only: c_loc, c_ptr
 
     integer, target :: var
     type(c_ptr) :: addr

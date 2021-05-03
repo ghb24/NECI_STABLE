@@ -218,7 +218,6 @@ set( SRC_FILES
     lib/environment_report.F90
     lib/error_handling_neci.F90
     lib/hdf5_util.F90
-    lib/iso_c_hack.F90
     lib/MemoryManagement.F90
     lib/ranlux.F
     lib/signals.F90
