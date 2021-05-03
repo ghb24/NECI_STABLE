@@ -13,7 +13,6 @@ module hdf5_util
     ! build configurations, then it helps to be explicit.
 
 #ifdef USE_HDF_
-    use iso_c_hack
     use constants
     use util_mod
     use hdf5
