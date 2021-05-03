@@ -1654,6 +1654,9 @@ contains
             tFillingExplicRDMonFly = .false.
             !One of these becomes true when we have reached the relevant iteration to begin filling the RDM.
 
+            ! initialize excitation generator
+            if (t_guga_pchb) call init_guga_pchb_excitgen()
+
             ! If we have a popsfile, read the walkers in now.
             if (tReadPops .and. .not. tPopsAlreadyRead) then
                 call InitFCIMC_pops(iPopAllTotWalkers, PopNIfSgn, iPopNel, read_nnodes, &
@@ -1728,10 +1731,6 @@ contains
         ! Initialise excitation generation storage
         call init_excit_gen_store(fcimc_excit_gen_store)
 
-        ! initialize excitation generator
-        if (t_guga_pchb)  then
-            call init_guga_pchb_excitgen()
-        end if
 
         if (t_pcpp_excitgen) call init_pcpp_excitgen()
 
