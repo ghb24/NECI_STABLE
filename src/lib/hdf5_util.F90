@@ -14,6 +14,7 @@ module hdf5_util
 
 #ifdef USE_HDF_
     use constants
+    use, intrinsic :: iso_c_binding, only: c_ptr
     use util_mod
     use hdf5
     use MPI_wrapper
