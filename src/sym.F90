@@ -1240,9 +1240,9 @@ contains
 !   now work out which reps are degenerate and label them
         allocate(SymReps(2, nBasis))
         call LogMemAlloc('SymReps', 2 * nBasis, 4, this_routine, tagSymReps)
-        J = 0
         symreps(1,1) = 1
         symreps(2,1) = 1
+        J = 1
         DO I = 2, NBASIS
             ltmp = .false.
             if (abs(arr(i, 2) - arr(i - 1, 2)) < degentol .and. &

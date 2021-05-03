@@ -2152,13 +2152,13 @@ contains
 
         iunit = get_free_unit()
 
-        INQUIRE (FILE="lattice.inp", EXIST=exists, FORMATTED=fmat)
+        INQUIRE (FILE="lattice.file", EXIST=exists, FORMATTED=fmat)
 
         IF (.not. exists) THEN
-                CALL Stop_All('lattice.inp', 'lattice.inp file does not exist')
+                CALL Stop_All('lattice.file', 'lattice.file file does not exist')
         end if
 
-        open(iunit, File="lattice.inp",Status='OLD', FORM="FORMATTED", iostat=ios)
+        open(iunit, File="lattice.file",Status='OLD', FORM="FORMATTED", iostat=ios)
 
         readsites: do
                 call read_line(leof,iunit)
@@ -4764,7 +4764,7 @@ contains
             print *, "TODO: more and better output! "
 
         class is (ext_input)
-            print *, "Lattice read from lattice.inp file "
+            print *, "Lattice read from lattice.file file "
             print *, "Lattice type is :",this%get_name()
             print *, "number of sites in the lattice: ", this%get_nsites()
             print *, "max-number of neigbors: ", this%get_nconnect_max()
@@ -4882,12 +4882,12 @@ contains
         iunit = get_free_unit()
         fmat = 'NO'
 
-        INQUIRE (FILE="lattice.inp", EXIST=exists, FORMATTED=fmat)
+        INQUIRE (FILE="lattice.file", EXIST=exists, FORMATTED=fmat)
         IF (.not. exists) THEN
-                CALL Stop_All('lattice.inp', 'lattice.inp file does not exist')
+                CALL Stop_All('lattice.file', 'lattice.file file does not exist')
         end if
 
-        open(iunit, File="lattice.inp",Status='OLD', FORM="FORMATTED", iostat=ios)
+        open(iunit, File="lattice.file",Status='OLD', FORM="FORMATTED", iostat=ios)
 
         lat: do
                 call read_line(leof,iunit)
@@ -4927,12 +4927,12 @@ contains
         iunit = get_free_unit()
         fmat = 'NO'
 
-        INQUIRE (FILE="lattice.inp", EXIST=exists, FORMATTED=fmat)
+        INQUIRE (FILE="lattice.file", EXIST=exists, FORMATTED=fmat)
         IF (.not. exists) THEN
-                CALL Stop_All('lattice.inp', 'lattice.inp file does not exist')
+                CALL Stop_All('lattice.file', 'lattice.file file does not exist')
         end if
 
-        open(iunit, File="lattice.inp",Status='OLD', FORM="FORMATTED", iostat=ios)
+        open(iunit, File="lattice.file",Status='OLD', FORM="FORMATTED", iostat=ios)
 
         lat: do
                 call read_line(leof,iunit)
