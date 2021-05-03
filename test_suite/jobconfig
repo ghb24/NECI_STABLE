@@ -201,6 +201,13 @@ min_nprocs = 2
 max_nprocs = 2
 tolerance = (1e-9, None, 'final_energy_1'), (1e-9, None, 'final_energy_2')
 
+[hdf5/dneci/guga/s1/]
+program = dneci
+nprocs = 2
+min_nprocs = 2
+max_nprocs = 2
+tolerance = (1e-9, None, 'final_energy_1'), (2e-9, None, 'final_energy_2')
+
 [hdf5/neci/C2_*/]
 program = neci
 nprocs = 2

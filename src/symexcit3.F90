@@ -132,8 +132,6 @@ CONTAINS
 
         end if
 
-!        write(6,*) 'Number of doubles',nDoubleExcits
-
     ENDSUBROUTINE CountExcitations3
 
     SUBROUTINE GenExcitations3(nI, iLut, nJ, exflag, ExcitMat3, tParity, tAllExcitFound, ti_lt_a_only)
@@ -157,6 +155,7 @@ CONTAINS
         LOGICAL, intent(in) :: ti_lt_a_only
 
         tAllExcitFound = .false.
+
         IF (exflag == 2) THEN
             ! Just generate doubles
             CALL GenDoubleExcit(nI, iLut, nJ, ExcitMat3, tParity, tAllExcitFound, ti_lt_a_only)
@@ -648,7 +647,6 @@ CONTAINS
 
         allocate(det_list(0:niftot, n_excits))
         n_dets = 0
-        found_all = .false.
         ex = 0
         call GenExcitations3(nI, ilut, nJ, ex_flag_, ex, tpar, found_all, &
                              .false.)
