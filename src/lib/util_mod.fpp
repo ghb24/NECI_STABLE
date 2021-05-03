@@ -17,7 +17,7 @@ module util_mod
     use fmt_utils
     use dSFMT_interface, only: genrand_real2_dSFMT
     use constants
-    use iso_c_hack
+    use, intrinsic :: iso_c_binding, only: c_char, c_int, c_double
 
     ! We want to use the builtin etime intrinsic with ifort to
     ! work around some broken behaviour.
@@ -75,19 +75,19 @@ module util_mod
 
     interface
         pure function strlen_wrap(str) result(len) bind(c)
-            use iso_c_hack
+            import :: c_char, c_int
             implicit none
             character(c_char), intent(in) :: str(*)
             integer(c_int) :: len
         end function
         pure function erf_local(x) result(e) bind(c, name='erf')
-            use iso_c_hack
+            import :: c_double
             implicit none
             real(c_double), intent(in) :: x
             real(c_double) :: e
         end function
         pure function erfc_local(x) result(ec) bind(c, name='erfc')
-            use iso_c_hack
+            import :: c_double
             implicit none
             real(c_double), intent(in) :: x
             real(c_double) :: ec
@@ -1354,7 +1354,6 @@ subroutine neci_getarg(i, str)
     use f90_unix_env, only: getarg
 #endif
     use constants
-    use iso_c_hack
     use util_mod
     implicit none
     integer, intent(in) :: i

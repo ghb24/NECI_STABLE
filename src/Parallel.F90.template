@@ -136,7 +136,7 @@ mpitype=MPI_INTEGER8
 module par_internal
     use MPI_wrapper
     use CalcData, only: iLogicalNodeSize
-    use iso_c_hack
+    use, intrinsic :: iso_c_binding, only: c_size_t, c_char
     use constants
     use fmt_utils
     implicit none
@@ -1097,7 +1097,7 @@ supermodule par_internal
 
     interface
         subroutine gethostname(nm, sz) bind(c)
-            use iso_c_hack
+            import :: c_size_t, c_char
             implicit none
             integer(c_size_t), value :: sz
             character(kind=c_char), intent(out) :: nm

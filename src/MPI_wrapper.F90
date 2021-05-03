@@ -6,7 +6,6 @@ module MPI_wrapper
 #if defined(USE_MPI)
     use mpi
 #endif
-    use iso_c_hack
     use timing_neci, only: timer, set_timer, halt_timer
     implicit none
 
@@ -281,7 +280,7 @@ end module
 subroutine mpibarrier_c(error) bind(c)
     use MPI_wrapper, only: MPIBarrier
     use constants
-    use iso_c_hack
+    use, intrinsic :: iso_c_binding, only: c_int
     implicit none
     integer(c_int), intent(inout) :: error
     integer :: ierr
