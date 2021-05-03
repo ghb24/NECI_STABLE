@@ -316,8 +316,6 @@ contains
                     call generate_fci_core(SpawnedParts, space_size)
 
                 end if
-                !else if (core_in%tHeisenbergFCI) then
-                !    call generate_heisenberg_fci(SpawnedParts, space_size)
             end if
 
         else if (tGUGACore) then
@@ -410,7 +408,7 @@ contains
         ! to the exact guga excitation to the HF det
         call convert_ilut_toGUGA(ilutHF, ilutG)
 
-        call actHamiltonian(ilutG, excitations, nexcit, t_full = only_keep_conn)
+        call actHamiltonian(ilutG, excitations, nexcit)
 
         do i = 1, nexcit
             ! check if matrix element is zero if we only want to keep the
@@ -424,7 +422,6 @@ contains
 
             call add_state_to_space(temp_ilut, ilut_list, space_size, temp_nI)
         end do
-
 
     end subroutine generate_sing_doub_guga
 
