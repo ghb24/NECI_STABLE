@@ -1,4 +1,4 @@
-#!/usr/bin/python -tt
+#!/usr/bin/env/python3 -tt
 """
 Produce a .f90 file from the given .F90.template file to simulate the
 effects of using templates/generic functions in a language such as c++
@@ -21,7 +21,7 @@ additional features.
 
 ************************
 
-The second section implements a module. Currently the script only supports 
+The second section implements a module. Currently the script only supports
 using one module. Any of the labels declared in the first section are
 available, and may be used as follows:
 
@@ -69,7 +69,7 @@ block around the configuration.
 
 Supermodule:
 Once multiple, subtly renamed, modules have been produced in the output file,
-they are then all included into an overall module, with the specified name, 
+they are then all included into an overall module, with the specified name,
 which can be used in the code.
 
 If there is anything to include in the module which does not need to be
@@ -77,7 +77,7 @@ templated, then it can be included here. See allocate_shared.F90.template.
 """
 import os
 import sys
-import ConfigParser
+import configparser
 import re
 
 
@@ -102,7 +102,7 @@ def usage():
     """
     Prints the usage description for the program
     """
-    print __doc__
+    print(__doc__)
 
 
 def read_config(fin, silent):
@@ -115,7 +115,7 @@ def read_config(fin, silent):
     config_lines = file_like_list()
     sections = list()
 
-    # Read in the config data to a file like object, so that ConfigParser can
+    # Read in the config data to a file like object, so that configparser can
     # work on less than a whole file.
     re_section = re.compile('^\[(.*)\]$')
     while True:
@@ -133,12 +133,12 @@ def read_config(fin, silent):
 
     # Parse the first section of the config file for templated settings to
     # insert into the templated functions.
-    parser = ConfigParser.RawConfigParser()
+    parser = configparser.RawConfigParser()
 
     parser.readfp(config_lines)
 
     if not silent:
-        print 'Producing configurations: ',
+        print('Producing configurations: ')
     sprev = None
     for s in sections:
         config[s] = dict()
@@ -175,7 +175,7 @@ def super_module(template, config, silent):
         print("Did not find module string. Exiting")
         exit()
     if not silent:
-        print 'Generating super module: %s' % m.group(2)
+        print('Generating super module: %s' % m.group(2))
 
     # Change module in template to be a sub-module with associated name
     substr = "%s_%%(name)s\n" % m.group(1)
@@ -186,7 +186,7 @@ def super_module(template, config, silent):
     m_super = re_supermod.search(template)
     if m_super:
         if not silent:
-            print 'Found super module: %s.' % m.group(2)
+            print('Found super module: %s.' % m.group(2))
         template = template[:m_super.start()] + template[m_super.end()+1:]
 
     # Construct super module
@@ -391,7 +391,7 @@ def interface_procs(template, silent):
     """
 
     if not silent:
-        print "Interface generation"
+        print("Interface generation")
 
     # Do we have procedures in this template file?
     re_contains = re.compile('\n\s*contains\s*\n', flags=re.IGNORECASE)
@@ -410,7 +410,7 @@ def interface_procs(template, silent):
         proc = re_proc.search(template[offset:])
         while proc:
             if not silent:
-                print "Procedure: ",proc.group(5)
+                print("Procedure: ",proc.group(5))
             # For each procedure, append _%(name)s to all of the names.
             template = (template[0:offset + proc.start()] +
                        re_proc.sub("\\1\\5_%(name)s\\6", template[proc.start()+offset:], 1))
@@ -464,12 +464,12 @@ def process_file(fin, fout, silent=False, multifile=False):
 
         try:
             fmod.write(tmpl % cfg)
-        except ValueError, e:
-            print 'Value error: ', e
+        except ValueError as e:
+            print('Value error: ', e)
             fmod.write(tmpl)
-        except Exception, e:
-            print tmpl
-            print "Exception: ", e
+        except Exception as e:
+            print(tmpl)
+            print("Exception: ", e)
             raise
 
         # Ensure that we are a tidy citizen
@@ -498,8 +498,8 @@ if __name__ == '__main__':
         else:
             fout = open(sys.argv[2], 'w')
 
-        print 'Input file: %s' % (fin.name)
-        print 'Output file: %s' % (fout.name)
+        print('Input file: %s' % (fin.name))
+        print('Output file: %s' % (fout.name))
 
         process_file(fin, fout, silent=False)
 

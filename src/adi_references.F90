@@ -35,7 +35,7 @@ contains
         use LoggingData, only: ref_filename
         implicit none
         logical, intent(in) :: tPopPresent
-        integer :: nRead, nRCOld
+        integer :: nRead
         logical :: tGen
 
         if (tAdiActive) then
@@ -90,8 +90,7 @@ contains
         integer(MPIArg) :: mpi_refs_found
         integer :: ierr, i, all_refs_found, refs_found
         integer(MPIArg) :: refs_found_per_proc(0:nProcessors - 1), refs_displs(0:nProcessors - 1)
-        integer(n_int) :: ref_buf(0:NIfTot, maxNRefs), mpi_buf(0:NIfTot, nRefs)
-        character(*), parameter :: this_routine = "generate_ref_space"
+        integer(n_int) :: ref_buf(0:NIfTot, maxNRefs)
 
         ! we need to be sure ilutRefAdi has the right size
         call reallocate_ilutRefAdi(maxNRefs)
@@ -129,7 +128,6 @@ contains
 
     subroutine read_in_refs(filename, nRead)
         use util_mod, only: get_free_unit
-        use adi_data, only: tDelayGetRefs
         implicit none
         integer, intent(out) :: nRead
         character(255), intent(in) :: filename
@@ -179,11 +177,9 @@ contains
 
     subroutine generate_ref_space()
         use LoggingData, only: ref_filename, tWriteRefs
-        use FciMCData, only: CurrentDets, TotWalkers
         implicit none
         integer :: refs_found, all_refs_found
         integer(n_int) :: ref_buf(0:NIfTot, maxNRefs), si_buf(0:NIfTot, maxNRefs)
-        character(*), parameter :: this_routine = "generate_ref_space"
 
         if (NoTypeN > InitiatorWalkNo) then
             call get_threshold_based_SIs(ref_buf, refs_found)
@@ -365,7 +361,7 @@ contains
 !------------------------------------------------------------------------------------------!
 
     subroutine output_reference_space(filename)
-        use ParallelHelper, only: root
+        use MPI_wrapper, only: root
         use util_mod, only: get_free_unit
         implicit none
         character(255), intent(in) :: filename
@@ -603,7 +599,6 @@ contains
         real(dp) :: i_sgn(lenof_sign)
         integer :: run
         HElement_t(dp) :: h_el, tmp
-        character(*), parameter :: this_routine = "upadte_coherence_check"
         type(ExcitationInformation_t) :: excitInfo
 
         ! TODO: Only if ilutRefAdi(:,i) is a SI on this run

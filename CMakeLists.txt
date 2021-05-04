@@ -1,7 +1,12 @@
-cmake_minimum_required(VERSION 2.8.4 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.12 FATAL_ERROR)
+
 
 if (POLICY CMP0074)
     cmake_policy(SET CMP0074 NEW)
+endif ()
+
+if (POLICY CMP0077)
+    cmake_policy(SET CMP0077 NEW)
 endif ()
 
 project(NECI Fortran CXX C)
@@ -46,7 +51,8 @@ include(neci_system)
 # toolchain on archer
 # PGI
 
-find_package( MPI_NECI REQUIRED )
+find_package( MPI REQUIRED )
+list(APPEND NECI_GLOBAL_DEFINES USE_MPI)
 
 # Declare options that this project uses
 # <Package>_NECI has a custom finder that does a bit more work than normal...
@@ -88,6 +94,8 @@ find_package( LAPACK_NECI REQUIRED )
 # Build-type configuration
 
 set(${PROJECT_NAME}_CONFIGURATIONS neci kneci dneci mneci kdneci kmneci)
+add_custom_target(programs)
+add_dependencies(programs ${${PROJECT_NAME}_CONFIGURATIONS})
 set(${PROJECT_NAME}_neci_DEFINITIONS HElement_t=real)
 
 set(${PROJECT_NAME}_kneci_DEFINITIONS HElement_t=complex CMPLX_)
@@ -119,7 +127,6 @@ list(APPEND NECI_GLOBAL_DEFINES
     $<$<STREQUAL:${CMAKE_BUILD_TYPE},DEBUG>:DEBUG_>
 
     # Global defines that depend on options
-    $<$<BOOL:${HAVE_MPI}>:PARALLEL>
     $<$<BOOL:${HAVE_SHARED_MEMORY}>:SHARED_MEM_>
     $<$<NOT:$<BOOL:${HAVE_FFTW}>>:DISABLE_FFTW>
     $<$<BOOL:${HAVE_HDF5}>:USE_HDF_>
@@ -136,7 +143,12 @@ include_directories( ${PROJECT_SOURCE_DIR}/src )
 # Include source directory
 
 add_subdirectory(src)
-add_subdirectory(unit_tests)
+
+# Don't do NECI tests if NECI is added to other project.
+# BUILD_TESTING option comes from `include(CTest)`
+if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME AND BUILD_TESTING)
+    add_subdirectory(unit_tests)
+endif()
 
 # And we are done
 

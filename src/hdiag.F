@@ -26,8 +26,10 @@
          type(timer), save :: proc_timer
          real(dp) GSEN
          character(len=*), parameter :: t_r="HDIAG_neci"
-
+#ifndef CMPLX_
          unused_var(WORK)
+#endif
+
          proc_timer%timer_name='HDIAG     '
          call set_timer(proc_timer)
          GSEN=1.D100

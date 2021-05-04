@@ -31,9 +31,12 @@ MODULE System
 
     use tc_three_body_data, only: LMatEps, tSparseLMat
 
-    use gasci, only: GAS_specification, GAS_exc_gen, possible_GAS_exc_gen, GASSpec_t, user_input_GAS_exc_gen
+    use gasci, only: GAS_specification, GAS_exc_gen, possible_GAS_exc_gen, &
+        LocalGASSpec_t, CumulGASSpec_t, user_input_GAS_exc_gen
 
-    use ParallelHelper, only: iprocindex, root
+    use gasci_pchb, only: possible_GAS_singles, GAS_PCHB_singles_generator
+
+    use MPI_wrapper, only: iprocindex, root
 
     use fcimcdata, only: pParallel
 
@@ -1721,9 +1724,9 @@ contains
                 tMolpro = .true.
                 tMolproMimic = .true.
             case ("READ_ROFCIDUMP")
-                ! Overwrite current FCIDUMP name, and instead look for a file
-                ! called "ROFCIDUMP".
-                FCIDUMP_name = 'ROFCIDUMP'
+                call stop_all(t_r, 'Deprecated function. Use FCIDUMP-NAME ROFCIDUMP instead.')
+            case ("FCIDUMP-NAME")
+                call reada(FCIDUMP_name)
             case ("COMPLEXORBS_REALINTS")
                 !We have complex orbitals, but real integrals. This means that we only have 4x permutational symmetry,
                 !so we need to check the (momentum) symmetry before we look up any integrals
@@ -1782,16 +1785,24 @@ contains
                 tGiovannisBrokenInit = .true.
 
             case ("GAS-SPEC")
-                tGAS = .true.
-                tGASSpinRecoupling = .true.
 
+                tGAS = .true.
                 block
+                    logical :: cumulative_constraints
                     integer :: nGAS, iGAS
                     integer :: i_orb, n_spat_orbs
                     ! n_orbs are the number of spatial orbitals per GAS space
                     ! cn_min, cn_max are cumulated particle numbers per GAS space
                     integer, allocatable :: n_orbs(:), cn_min(:), cn_max(:), &
                                             spat_GAS_orbs(:), beta_orbs(:)
+                    call readu(w)
+                    if (w == 'LOCAL') then
+                        cumulative_constraints = .false.
+                    else if (w == 'CUMULATIVE') then
+                        cumulative_constraints = .true.
+                    else
+                        call stop_all(t_r, 'You may pass either LOCAL or CUMULATIVE constraints.')
+                    end if
 
                     call geti(nGAS)
                     allocate(n_orbs(nGAS), cn_min(nGAS), cn_max(nGAS), source=0)
@@ -1803,11 +1814,32 @@ contains
 
                     n_spat_orbs = sum(n_orbs)
                     allocate(spat_GAS_orbs(n_spat_orbs))
-                    do i_orb = 1, n_spat_orbs
-                        call geti(spat_GAS_orbs(i_orb))
-                    end do
+                    block
+                        use fortran_strings, only: operator(.in.), Token_t, split
+                        integer :: times, iGAS
+                        type(Token_t), allocatable :: tokens(:)
 
-                    GAS_specification = GASSpec_t(cn_min, cn_max, spat_GAS_orbs)
+                        i_orb = 1
+                        do while (i_orb  <= n_spat_orbs)
+                            call readu(w)
+                            if ('*' .in. w) then
+                                tokens = split(w, '*')
+                                read(tokens(1)%str, *) times
+                                read(tokens(2)%str, *) iGAS
+                            else
+                                read(w, *) iGAS
+                                times = 1
+                            end if
+                            spat_GAS_orbs(i_orb : i_orb + times - 1) = iGAS
+                            i_orb = i_orb + times
+                        end do
+                    end block
+
+                    if (cumulative_constraints) then
+                        GAS_specification = CumulGASSpec_t(cn_min, cn_max, spat_GAS_orbs)
+                    else
+                        GAS_specification = LocalGASSpec_t(cn_min, cn_max, spat_GAS_orbs)
+                    end if
 
                     beta_orbs = [(i, i=1, n_spat_orbs * 2, 2)]
                     if (.not. all(n_orbs == GAS_specification%count_per_GAS(beta_orbs))) then
@@ -1816,21 +1848,38 @@ contains
                 end block
 
             case ("GAS-CI")
-                do while (item < nitems)
-                    call readu(w)
-                    select case (w)
-                    case ('GENERAL')
-                        user_input_GAS_exc_gen = possible_GAS_exc_gen%GENERAL
-                    case ('DISCONNECTED')
-                        user_input_GAS_exc_gen = possible_GAS_exc_gen%DISCONNECTED
-                    case ('DISCARDING')
-                        user_input_GAS_exc_gen = possible_GAS_exc_gen%DISCARDING
-                    case ('DISCONNECTED_PCHB')
-                        user_input_GAS_exc_gen = possible_GAS_exc_gen%DISCONNECTED_PCHB
-                    case default
-                        call Stop_All("ReadSysInp", trim(w)//" not a valid keyword")
-                    end select
-                end do
+                call readu(w)
+                select case (w)
+                case ('GENERAL')
+                    user_input_GAS_exc_gen = possible_GAS_exc_gen%GENERAL
+                case ('DISCONNECTED')
+                    user_input_GAS_exc_gen = possible_GAS_exc_gen%DISCONNECTED
+                case ('DISCARDING')
+                    user_input_GAS_exc_gen = possible_GAS_exc_gen%DISCARDING
+                case ('GENERAL_PCHB', 'GENERAL-PCHB')
+                    user_input_GAS_exc_gen = possible_GAS_exc_gen%GENERAL_PCHB
+
+                    if (item < nitems) then
+                        call readu(w)
+                        if (w == 'SINGLES') then
+                            call readu(w)
+                            select case (w)
+                            case('DISCARDING-UNIFORM')
+                                GAS_PCHB_singles_generator = possible_GAS_singles%DISCARDING_UNIFORM
+                            case('PC-UNIFORM')
+                                GAS_PCHB_singles_generator = possible_GAS_singles%PC_UNIFORM
+                            case('ON-FLY-HEAT-BATH')
+                                GAS_PCHB_singles_generator = possible_GAS_singles%ON_FLY_HEAT_BATH
+                            case default
+                                call Stop_All(t_r, trim(w)//" not a valid keyword")
+                            end select
+                        else
+                            call Stop_All(t_r, "Only SINGLES allowed as optional next keyword after GENERAL-PCHB")
+                        end if
+                    end if
+                case default
+                    call Stop_All(t_r, trim(w)//" not a valid keyword")
+                end select
 
             case ("GAS-NO-SPIN-RECOUPLING")
                 tGASSpinRecoupling = .false.

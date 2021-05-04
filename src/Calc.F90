@@ -3,6 +3,7 @@
 MODULE Calc
 
     use CalcData
+    use MPI_wrapper, only: MPI_WTIME
     use SystemData, only: beta, nel, STOT, LMS, tSpn, AA_elec_pairs, &
                           BB_elec_pairs, par_elec_pairs, AB_elec_pairs, &
                           AA_hole_pairs, BB_hole_pairs, AB_hole_pairs, &
@@ -179,6 +180,7 @@ contains
         AAS_Const = 0.0
         tAS_TrialOffset = .false.
         tAS_Offset = .false.
+        ShiftOffset = 0.0_dp
         tInitsRDMRef = .false.
         tInitsRDM = .false.
         tApplyLC = .true.
@@ -200,10 +202,11 @@ contains
         iPopsFileNoWrite = 0
         tWalkContGrow = .false.
         StepsSft = 100
-        SftDamp = 10.0_dp
+        SftDamp = 0.1_dp
         Tau = 0.0_dp
         InitWalkers = 3000.0_dp
         NMCyc = -1
+        eq_cyc = -1
         HApp = 1
         TMCStar = .false.
         THDiag = .false.
@@ -454,10 +457,6 @@ contains
 
         tDeathBeforeComms = .false.
         tSetInitFlagsBeforeDeath = .false.
-
-        pSinglesIn = 0.0_dp
-        pDoublesIn = 0.0_dp
-        pParallelIn = 0.0_dp
 
         tSetInitialRunRef = .true.
 
@@ -1186,6 +1185,9 @@ contains
             case("NMCYC")
 !For FCIMC, this is the number of MC cycles to perform
                 call geti(NMCyc)
+            case("EQ-CYC")
+                ! This is the number of MC cycles to perform after equilibration
+                call geti(eq_cyc)
             case("DIAGSHIFT")
 !For FCIMC, this is the amount extra the diagonal elements will be shifted. This is proportional to the deathrate of
 !walkers on the determinant
@@ -1481,9 +1483,21 @@ contains
                 ! default the maximum spaw to MaxWalkerBloom
                 max_allowed_spawn = MaxWalkerBloom
             case("SHIFTDAMP")
-!For FCIMC, this is the damping parameter with respect to the update in the DiagSft value for a given number of MC cycles.
+                !For FCIMC, this is the damping parameter with respect to the update in the DiagSft value for a given number of MC cycles.
                 call getf(SftDamp)
-
+            case("TARGET-SHIFTDAMP")
+                !Introduces a second term in the shift update procedure
+                !depending on the target population with
+                !a second shift damping parameter SftDamp2 to avoid overshooting the
+                !target population.
+                tTargetShiftdamp = .true.
+                if (item < nitems) then
+                    call getf(SftDamp2)
+                else
+                    !If no value for SftDamp2 is chosen, it is automatically set
+                    !to a value that leads to a critically damped shift.
+                    SftDamp2 = SftDamp**2./4.
+                end if
             case("LINSCALEFCIMCALGO")
                 ! Use the linear scaling FCIMC algorithm
                 ! This option is now deprecated, as it is default.
@@ -1569,11 +1583,10 @@ contains
                 ss_space_in%tPops = .true.
                 call geti(ss_space_in%npops)
                 t_fast_pops_core = .false.
-                if(ss_space_in%npops * nProcessors > 1000000) then
-                    if(.not. tForceFullPops) then
-                        ss_space_in%tApproxSpace = .true.
-                        t_fast_pops_core = .true.
-                    end if
+                if (int(ss_space_in%npops,int64) * int(nProcessors,int64) > 1000000_int64 &
+                        .and. .not. tForceFullPops) then
+                    ss_space_in%tApproxSpace = .true.
+                    t_fast_pops_core = .true.
                 end if
             case("POPS-CORE-AUTO")
                 ! this keyword will force intialisation of core space after
@@ -3434,13 +3447,20 @@ contains
                 InitWalkers = nint(real(InitialPart, dp) / real(nProcessors, dp), int64)
 
             case("PSINGLES")
+                allocate(pSinglesIn)
                 call getf(pSinglesIn)
 
             case("PPARALLEL")
+                allocate(pParallelIn)
                 call getf(pParallelIn)
 
             case("PDOUBLES")
+                allocate(pDoublesIn)
                 call getf(pDoublesIn)
+
+            case("PTRIPLES")
+                allocate(pTriplesIn)
+                call getf(pTriplesIn)
 
             case("NO-INIT-REF-CHANGE")
                 tSetInitialRunRef = .false.

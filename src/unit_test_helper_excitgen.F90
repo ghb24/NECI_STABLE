@@ -17,7 +17,7 @@ module unit_test_helper_excitgen
     use OneEInts, only: Tmat2D
     use bit_rep_data, only: NIfTot, nifd, extract_sign
     use bit_reps, only: encode_sign, decode_bit_det
-    use DetBitOps, only: EncodeBitDet, DetBitEq
+    use DetBitOps, only: EncodeBitDet, DetBitEq, GetBitExcitation
     use SymExcit3, only: countExcitations3, GenExcitations3
     use FciMCData, only: pSingles, pDoubles, pParallel, ilutRef, projEDet, &
                          fcimc_excit_gen_store
@@ -25,7 +25,7 @@ module unit_test_helper_excitgen
     use GenRandSymExcitNUMod, only: init_excit_gen_store, construct_class_counts
     use Calc, only: CalcInit, CalcCleanup, SetCalcDefaults
     use dSFMT_interface, only: dSFMT_init, genrand_real2_dSFMT
-    use Determinants, only: DetInit, DetPreFreezeInit, get_helement
+    use Determinants, only: DetInit, DetPreFreezeInit, get_helement, DefDet, tDefineDet
     use util_mod, only: get_free_unit
     use orb_idx_mod, only: SpinProj_t
     implicit none
@@ -77,7 +77,6 @@ contains
         ! We thus make sure that
         !   a) all possible excitations are generated with some weight
         !   b) no invalid excitations are obtained
-        implicit none
         integer, intent(in) :: sampleSize
         real(dp), intent(out) :: pTot, pNull
         integer, intent(out) :: numEx, nFound
@@ -96,10 +95,12 @@ contains
         logical :: exDoneSingle(0:nBasis, 0:nBasis)
         integer :: ic, part, nullExcits
         integer :: ClassCountOcc(scratchSize), ClassCountUnocc(scratchSize)
+        integer(int64) :: start, finish, rate
         character(*), parameter :: t_r = "test_excitation_generator"
         HElement_t(dp) :: HEl
         exDoneDouble = .false.
         exDoneSingle = .false.
+        call system_clock(count_rate=rate)
 
         ! some starting det - do NOT use the reference for the pcpp test, that would
         ! defeat the purpose
@@ -145,6 +146,7 @@ contains
         pDoubles = 0.9_dp
         pNull = 0.0_dp
         nullExcits = 0
+        call system_clock(start)
         do i = 1, sampleSize
             fcimc_excit_gen_store%tFilled = .false.
             call generate_excitation(nI, ilut, nJ, ilutJ, exFlag, ic, ex, tPar, pgen, HEl, fcimc_excit_gen_store, part)
@@ -184,6 +186,7 @@ contains
                 end if
             end if
         end do
+        call system_clock(finish)
 
         ! check that all excits have been generated and all pGens are right
         ! probability normalization
@@ -238,16 +241,18 @@ contains
         write(iout, *) "In total", numEx, "excitations"
         write(iout, *) "With", nSingles, "single excitation"
         write(iout, *) "Found", nFound, "excitations"
+        write(iout, *) 'Elapsed Time in seconds:', dble(finish - start) / dble(rate)
+        write(iout, *) 'Elapsed Time in micro seconds per excitation:', dble(finish - start) * 1e6_dp / dble(sampleSize* rate)
 
     end subroutine test_excitation_generator
 
     !------------------------------------------------------------------------------------------!
 
-    subroutine init_excitgen_test(n_el, fcidump_writer)
+    subroutine init_excitgen_test(ref_det, fcidump_writer)
         ! mimick the initialization of an FCIQMC calculation to the point where we can generate
         ! excitations with a weighted excitgen
         ! This requires setup of the basis, the symmetries and the integrals
-        integer, intent(in) :: n_el
+        integer, intent(in) :: ref_det(:)
         type(FciDumpWriter_t), intent(in) :: fcidump_writer
         integer :: nBasisMax(5, 3), lms
         integer(int64) :: umatsize
@@ -256,7 +261,7 @@ contains
         integer, parameter :: seed = 25
 
         umatsize = 0
-        nel = n_el
+        nel = size(ref_det)
 
         IlutBits%len_orb = 0
         IlutBits%ind_pop = 1
@@ -290,6 +295,7 @@ contains
 
         call shared_allocate_mpi(umat_win, umat, [umatsize])
 
+        UMat = h_cast(0._dp)
         call readfciint(UMat, umat_win, nBasis, ecore, .false.)
 
         ! init the umat2d storage
@@ -301,6 +307,8 @@ contains
         call DetInit()
         ! call SpinOrbSymSetup()
 
+        tDefineDet = .true.
+        DefDet = ref_det
         call DetPreFreezeInit()
 
         call CalcInit()
@@ -420,12 +428,12 @@ contains
     ! set the reference to the determinant with the first nel orbitals occupied
     subroutine set_ref()
         integer :: i
-        projEDet = reshape([(i + 2, i = 1, nel)], [nel, 1])
 
+        projEDet = reshape([(i + 2, i = 1, nel)], [nel, 1])
         if (allocated(ilutRef)) deallocate(ilutRef)
         allocate(ilutRef(0:NifTot, 1))
         call encodeBitDet(projEDet(:, 1), ilutRef(:, 1))
-    end subroutine set_ref
+    end subroutine
 
     subroutine free_ref()
         deallocate(ilutRef)

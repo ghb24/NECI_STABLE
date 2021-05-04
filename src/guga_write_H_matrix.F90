@@ -49,7 +49,6 @@ contains
         integer(n_int), intent(in) :: ilutG(:, :)
         character(*), intent(in) :: path
 
-        HElement_t(dp), allocatable :: H_mat(:, :)
         integer :: file_id
 #ifdef DEBUG_
         character(*), parameter :: this_routine = "write_H_mat"

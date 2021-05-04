@@ -1,15 +1,16 @@
 module test_gasci_disconnected_mod
     use fruit
-    use constants, only: dp, n_int
+    use constants, only: dp, n_int, maxExcit
+    use SystemData, only: nEl
     use util_mod, only: operator(.div.), operator(.isclose.), near_zero
     use orb_idx_mod, only: calc_spin_raw, sum, SpinOrbIdx_t
     use excitation_types, only: Excitation_t
 
-    use gasci, only: GASSpec_t
-    use gasci_disconnected, only: gen_GASCI_disconnected, init_disconnected_GAS, clearGAS
-    use gasci_general, only: gen_all_excits
+    use excitation_generators, only: ExcitationGenerator_t
+    use gasci, only: LocalGASSpec_t
+    use gasci_disconnected, only: GAS_disc_ExcGenerator_t
 
-    use sltcnd_mod, only: dyn_sltcnd_excit
+    use sltcnd_mod, only: dyn_sltcnd_excit_old
     use unit_test_helper_excitgen, only: test_excitation_generator, &
         init_excitgen_test, finalize_excitgen_test, generate_random_integrals, &
         FciDumpWriter_t
@@ -24,37 +25,34 @@ contains
 
 
     subroutine test_pgen()
-        use gasci, only: global_GAS_spec => GAS_specification
         use SystemData, only: tGASSpinRecoupling
         use FciMCData, only: pSingles, pDoubles, pParallel
-        type(GASSpec_t) :: GAS_spec
+        type(LocalGASSpec_t) :: GAS_spec
         integer, parameter :: det_I(6) = [1, 2, 3, 7, 8, 10]
 
         logical :: successful
-        integer, parameter :: n_iters=10**5
+        class(ExcitationGenerator_t), allocatable :: exc_generator
+        integer, parameter :: n_iters=10 * 10**5
 
         pParallel = 0.05_dp
-        pSingles = 0.3_dp
+        pSingles = 0.6_dp
         pDoubles = 1.0_dp - pSingles
 
         call assert_true(tGASSpinRecoupling)
 
-        GAS_spec = GASSpec_t(n_min=[3, size(det_I)], n_max=[3, size(det_I)], &
+        GAS_spec = LocalGASSpec_t(n_min=[3, 3], n_max=[3, 3], &
                              spat_GAS_orbs=[1, 1, 1, 2, 2, 2])
         call assert_true(GAS_spec%is_valid())
-        call assert_true(GAS_spec%contains(det_I))
-        global_GAS_spec = GAS_spec
+        call assert_true(GAS_spec%contains_det(det_I))
 
-        call init_excitgen_test(size(det_I), FciDumpWriter_t(random_fcidump, 'FCIDUMP'))
-        call init_disconnected_GAS(GAS_spec)
+        call init_excitgen_test(det_I, FciDumpWriter_t(random_fcidump, 'FCIDUMP'))
+        exc_generator = GAS_disc_ExcGenerator_t(GAS_spec)
         call run_excit_gen_tester( &
-            gen_GASCI_disconnected, 'only disconnected implementation, random_fcidump', &
-            opt_nI=det_I, opt_n_iters=n_iters, &
-            gen_all_excits=gen_all_excits, &
+            exc_generator, 'only disconnected implementation, random_fcidump', &
+            opt_nI=det_I, opt_n_dets=n_iters, &
             problem_filter=is_problematic,&
             successful=successful)
         call assert_true(successful)
-        call clearGAS()
         call finalize_excitgen_test()
 
     contains
@@ -70,14 +68,13 @@ contains
                 sparse=1.0_dp, sparseT=1.0_dp, total_ms=sum(calc_spin_raw(det_I)))
         end subroutine
 
-        logical function is_problematic(det_I, exc, pgen_diagnostic)
-            type(SpinOrbIdx_t), intent(in) :: det_I
-            class(Excitation_t), intent(in) :: exc
+        logical function is_problematic(nI, exc, ic, pgen_diagnostic)
+            integer, intent(in) :: nI(nEl), exc(2, maxExcit), ic
             real(dp), intent(in) :: pgen_diagnostic
-            is_problematic = (abs(1.0_dp - pgen_diagnostic) >= 0.15_dp) &
-                              .and. .not. near_zero(dyn_sltcnd_excit(det_I%idx, exc, .true.))
+            is_problematic = &
+                (abs(1._dp - pgen_diagnostic) >= 0.15_dp) &
+                .and. .not. near_zero(dyn_sltcnd_excit_old(nI, ic, exc, .true.))
         end function
-
     end subroutine test_pgen
 end module test_gasci_disconnected_mod
 
@@ -90,9 +87,7 @@ program test_gasci_program
 
 
     implicit none
-    integer :: failed_count, err
-
-    integer :: n
+    integer :: failed_count
     block
 
         call MPIInit(.false.)

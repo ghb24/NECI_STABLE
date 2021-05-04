@@ -8,7 +8,8 @@ module tau_search_hist
                           tReal, t_k_space_hubbard, t_trans_corr_2body, &
                           t_trans_corr, t_new_real_space_hubbard, t_3_body_excits, &
                           t_trans_corr_hop, tGUGA, tgen_guga_crude, t_mixed_hubbard, &
-                          t_olle_hubbard, t_mol_3_body, t_exclude_3_body_excits
+                          t_olle_hubbard, t_mol_3_body, t_exclude_3_body_excits, &
+                          tGAS, t_pchb_excitgen
 
     use CalcData, only: tTruncInitiator, tReadPops, MaxWalkerBloom, tau, &
                         InitiatorWalkNo, tWalkContGrow, &
@@ -25,7 +26,7 @@ module tau_search_hist
     use Parallel_neci, only: MPIAllReduce, MPI_MAX, MPI_SUM, MPIAllLORLogical, &
                             MPISumAll, MPISUM, mpireduce, MPI_MIN
 
-    use ParallelHelper, only: iprocindex, root
+    use MPI_wrapper, only: iprocindex, root
 
     use constants, only: dp, EPS, iout, maxExcit, int64
 
@@ -256,6 +257,11 @@ contains
             ! for the 2-body transcorrelated k-space hubbard we also have
             ! possible parallel excitations now. and to make the tau-search
             ! working we need to set this to true ofc:
+            consider_par_bias = .true.
+        else if (t_pchb_excitgen) then
+            ! The default pchb excitgen also uses parallel biases
+            consider_par_bias = .true.
+        else if (tGAS) then
             consider_par_bias = .true.
         else
             consider_par_bias = .false.
@@ -1336,7 +1342,7 @@ contains
         ! try to write one general one and not multiple as in my GUGA branch
         use constants, only: int64
         use util_mod, only: get_free_unit, get_unique_filename
-        use ParallelHelper, only: root
+        use MPI_wrapper, only: root
 
         character(*), parameter :: this_routine = "print_frequency_histograms"
         character(255) :: filename, exname

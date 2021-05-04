@@ -12,9 +12,9 @@ module cc_amplitudes
     use replica_data, only: AllEXLEVEL_WNorm
     use back_spawn, only: setup_virtual_mask, mask_virt_ni
     use hash, only: hash_table_lookup, FindWalkerHash
-    use util_mod, only: swap
+    use util_mod, only: swap, binomial => choose
     use bit_rep_data, only: nifd
-    use ParallelHelper, only: iProcIndex, root
+    use MPI_wrapper, only: iProcIndex, root
     use Parallel_neci, only: MPISumAll, MPIReduce, MPI_SUM, MPI_LOR, MPIAllLorLogical
 
     implicit none
@@ -2193,7 +2193,7 @@ contains
 !         n_single_excits = n_elecs * (n_orbs - n_elecs)
 
         ! with binomial it is just:
-        n_single_excits = binomial(n_elecs, 1) * binomial(n_orbs - n_elecs, 1)
+        n_single_excits = int(binomial(n_elecs, 1) * binomial(n_orbs - n_elecs, 1))
 
     end function calc_n_single_excits
 
@@ -2204,27 +2204,7 @@ contains
         integer, intent(in) :: n_elecs, n_orbs, ic
         integer :: n_parallel
 
-        n_parallel = binomial(n_elecs, ic) * binomial(n_orbs - n_elecs, ic)
+        n_parallel = int(binomial(n_elecs, ic) * binomial(n_orbs - n_elecs, ic))
 
     end function calc_n_parallel_excitations
-
-    integer function binomial(n, k)
-        ! write a new binomial function using the fortran2008 standard
-        ! gamma function
-        integer, intent(in) :: n, k
-#ifdef DEBUG_
-        character(*), parameter :: this_routine = "binomial"
-#endif
-
-        ASSERT(n >= 0)
-        ASSERT(k >= 0)
-
-        if (k > n) then
-            binomial = 0
-        else
-            binomial = nint(gamma(real(n) + 1) / (gamma(real(n - k) + 1) * gamma(real(k) + 1)))
-        end if
-
-    end function binomial
-
 end module cc_amplitudes

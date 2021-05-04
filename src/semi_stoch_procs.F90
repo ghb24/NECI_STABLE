@@ -14,6 +14,8 @@ module semi_stoch_procs
 
     use constants
 
+    use util_mod, only: stop_all
+
     use orb_idx_mod, only: SpinOrbIdx_t
 
     use FciMCData, only: SpawnedParts, TotWalkers, CurrentDets, &
@@ -51,7 +53,9 @@ module semi_stoch_procs
 
     use Parallel_neci, only: MPIScatterV
 
-    use ParallelHelper, only: root
+    use MPI_wrapper, only: root, MPI_IN_PLACE, MPI_INTEGER, MPI_INTEGER8, &
+        MPI_COMM_SIZE, MPI_Win_Sync, MPI_Barrier, MPI_2DOUBLE_PRECISION, &
+        MPI_MAXLOC
 
     use sparse_arrays, only: sparse_ham, hamil_diag, HDiagTag
 
@@ -63,7 +67,9 @@ module semi_stoch_procs
 
     use adi_data, only: tSignedRepAv
 
-    use global_det_data, only: readFVals, readAPVals
+    use global_det_data, only: set_supergroup_idx
+
+    use gasci_supergroup_index, only: lookup_supergroup_indexer
 
     use LoggingData, only: tAccumPopsActive
 
@@ -93,7 +99,9 @@ contains
         use Parallel_neci, only: MPIBarrier, MPIAllGatherV
         use DetBitOps, only: DetBitEQ
         integer :: run
-        integer :: i, j, ierr, part_type, c_run
+        integer :: i, j, part_type, c_run
+        integer :: ierr
+        integer(MPIArg) :: MPIerr
         real(dp) :: scaledDiagSft(inum_runs)
 
         do run = 1, size(cs_replicas)
@@ -559,7 +567,7 @@ contains
 
     subroutine generate_core_connections(rep)
 
-        use DetBitOps, only: FindBitExcitLevel
+        use DetBitOps, only: FindBitExcitLevel, GetBitExcitation
         use Parallel_neci, only: MPIAllGatherV
         type(core_space_t), intent(inout) :: rep
         integer :: i, j, ic, counter, ierr
@@ -631,6 +639,7 @@ contains
         use Parallel_neci, only: MPIAllGatherV, iProcIndex_inter, iProcIndex_intra, &
                                  mpi_comm_inter, mpi_comm_intra, nNodes, NodeLengths, iNodeIndex, MPIAllGather
         type(core_space_t), intent(inout) :: rep
+        integer(MPIArg) :: MPIerr
         integer :: ierr
         character(len=*), parameter :: t_r = "store_whole_core_space"
         integer(MPIArg), allocatable :: sizes_this_node(:)
@@ -642,24 +651,24 @@ contains
         integer(MPIArg) :: node_size, num_nodes
         integer(MPIArg) :: global_offset
 
-        call mpi_comm_size(mpi_comm_intra, node_size, ierr)
-        call mpi_comm_size(mpi_comm_inter, num_nodes, ierr)
+        call mpi_comm_size(mpi_comm_intra, node_size, MPIerr)
+        call mpi_comm_size(mpi_comm_inter, num_nodes, MPIerr)
 
         allocate(sizes_this_node(0:node_size - 1))
         allocate(node_offsets(0:num_nodes - 1))
         allocate(sizes_per_node(0:num_nodes - 1))
 
         call shared_allocate_mpi(rep%core_space_win, rep%core_space_direct, &
-                                 (/int(1 + NIfTot, int64), int(rep%determ_space_size, int64)/))
+                                 [int(1 + NIfTot, int64), int(rep%determ_space_size, int64)], ierr)
         ! Convert from 1-based first dimension to 0-based first dimension as used in iluts
         rep%core_space(0:, 1:) => rep%core_space_direct(1:, 1:)
         call LogMemAlloc('core_space', maxval(rep%determ_sizes) * (NIfTot + 1), 8, t_r, &
-                         rep%CoreSpaceTag, ierr)
+                         rep%CoreSpaceTag, err=ierr)
         if (iProcIndex_intra == 0) rep%core_space = 0_n_int
 
         ! Write the core-space on this node into core_space
-        call MPI_AllGather(rep%determ_sizes(iProcIndex), 1, MPI_INTEGER4, &
-                           sizes_this_node, 1, MPI_INTEGER4, mpi_comm_intra, ierr)
+        call MPI_AllGather(rep%determ_sizes(iProcIndex), 1, MPI_INTEGER, &
+                           sizes_this_node, 1, MPI_INTEGER, mpi_comm_intra, MPIerr)
 
         ! Get the intra-node offset
         proc_offset = 0
@@ -670,8 +679,8 @@ contains
         ! Sum the size on this node
         total_size_this_node = sum(sizes_this_node)
 
-        call MPI_AllGather(total_size_this_node, 1, MPI_INTEGER4, sizes_per_node, 1, MPI_INTEGER4, &
-                           mpi_comm_inter, ierr)
+        call MPI_AllGather(total_size_this_node, 1, MPI_INTEGER, sizes_per_node, 1, MPI_INTEGER, &
+                           mpi_comm_inter, MPIerr)
 
         ! Get the inter-node offset
         node_offsets(0) = 0
@@ -681,14 +690,14 @@ contains
 
         global_offset = node_offsets(iProcIndex_inter) + proc_offset
 
-        call MPI_Win_Sync(rep%core_space_win, ierr)
-        call MPI_Barrier(mpi_comm_intra, ierr)
+        call MPI_Win_Sync(rep%core_space_win, MPIerr)
+        call MPI_Barrier(mpi_comm_intra, MPIerr)
         rep%core_space(0:NIfTot, (global_offset + 1): &
                        (global_offset + rep%determ_sizes(iProcIndex))) = &
             SpawnedParts(0:NIfTot, 1:rep%determ_sizes(iProcIndex))
-        call MPI_Win_Sync(rep%core_space_win, ierr)
-        call MPI_Barrier(mpi_comm_intra, ierr)
-        call MPI_Win_Sync(rep%core_space_win, ierr)
+        call MPI_Win_Sync(rep%core_space_win, MPIerr)
+        call MPI_Barrier(mpi_comm_intra, MPIerr)
+        call MPI_Win_Sync(rep%core_space_win, MPIerr)
 
         ! Multiply with message width (1+NIfTot)
         core_width = int(size(rep%core_space, dim=1), MPIArg)
@@ -699,11 +708,11 @@ contains
         ! Give explicit limits for SpawnedParts slice, as NIfTot is not nesc.
         ! equal to NIfBCast. (It may be longer)
         call MPI_AllGatherV(MPI_IN_PLACE, total_size_this_node, MPI_INTEGER8, rep%core_space, &
-                            sizes_per_node, node_offsets, MPI_INTEGER8, mpi_comm_inter, ierr)
+                            sizes_per_node, node_offsets, MPI_INTEGER8, mpi_comm_inter, MPIerr)
 
         ! And sync the shared window
-        call MPI_Win_Sync(rep%core_space_win, ierr)
-        call MPI_Barrier(mpi_comm_intra, ierr)
+        call MPI_Win_Sync(rep%core_space_win, MPIerr)
+        call MPI_Barrier(mpi_comm_intra, MPIerr)
         ! Communicate the indices in the full vector at which the various processors take over, relative
         ! to the first index position in the vector (i.e. the array displs in MPI routines).
         call MPIAllGather(global_offset, rep%determ_displs, ierr)
@@ -1183,6 +1192,16 @@ contains
             ! Re-assign the reordered global det data cached in gdata_buf
             call reorder_handler%read_gdata(gdata_buf, nwalkers)
 
+            ! After reordering the dets, we have to reset all supergroup
+            ! idx in the global_det_data
+            if (associated(lookup_supergroup_indexer)) then
+                do i = 1, nwalkers
+                    call decode_bit_det(nI, CurrentDets(:, i))
+                    call set_supergroup_idx(&
+                        i, lookup_supergroup_indexer%idx_nI(nI))
+                end do
+            end if
+
             call clear_hash_table(HashIndex)
 
             ! Finally, add the indices back into the hash index array.
@@ -1428,7 +1447,7 @@ contains
         if (tSignedRepAv) then
             sign_curr_real = real(abs(sum(sign_curr)), dp)
         else
-            if (t_global_core_space .or. run == GLOBAL_RUN) then
+            if (run == GLOBAL_RUN) then
                 sign_curr_real = real(sum(abs(sign_curr)), dp)
             else
                 sign_curr_real = mag_of_run(sign_curr, run)
@@ -1610,7 +1629,6 @@ contains
     subroutine start_walkers_from_core_ground(tPrintInfo, run)
         use davidson_semistoch, only: davidson_ss, perform_davidson_ss, destroy_davidson_ss
         use Parallel_neci, only: MPISumAll
-        implicit none
 
         logical, intent(in) :: tPrintInfo
         integer, intent(in) :: run
@@ -1670,7 +1688,6 @@ contains
 
     subroutine start_walkers_from_core_ground_nonhermit(tPrintInfo, run)
         use bit_reps, only: encode_sign
-        implicit none
 
         logical, intent(in) :: tPrintInfo
         integer, intent(in) :: run

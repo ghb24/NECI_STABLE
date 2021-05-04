@@ -232,7 +232,7 @@ contains
         real(dp) :: pgen, mat_ex
         integer :: nI(4), nex, pos, dummy(2), i, j, cnt
         HElement_t(dp) :: mat_ele
-        integer(n_int), pointer :: ex(:,:)
+        integer(n_int), allocatable :: ex(:,:)
         type(ExcitationInformation_t) :: excitInfo
         real(dp) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
         logical :: compFlag
@@ -597,7 +597,7 @@ contains
         integer, allocatable :: nI(:)
         integer(n_int) :: ilutI(0:nifguga), ilutJ(0:nifguga)
         integer :: n_tot, n, m, i, j, k, l, o
-        integer(n_int), pointer :: excits(:,:)
+        integer(n_int), allocatable :: excits(:,:)
         integer(int_rdm) :: rdm_ind_1
         real(dp) :: rdm_mat_1
         type(ExcitationInformation_t) :: excitInfo
@@ -938,7 +938,7 @@ contains
 
         integer(n_int) :: ilut(0:nifguga)
         integer :: n_tot, i, j, k, l, iEx
-        integer(n_int), pointer :: excits(:,:)
+        integer(n_int), allocatable :: excits(:,:)
         real(dp) :: rdm_mat
         integer(int_rdm) :: rdm_ind
         integer, allocatable :: nJ(:)
@@ -1146,7 +1146,7 @@ contains
     subroutine test_calc_explicit_2_rdm_guga
 
         integer :: n_tot
-        integer(n_int), pointer :: excits(:,:)
+        integer(n_int), allocatable :: excits(:,:)
         integer, allocatable :: nJ(:)
         real(dp) :: rdm_mat
         integer(int_rdm) :: rdm_ind
@@ -1271,7 +1271,7 @@ contains
 
         integer(n_int) :: ilut(0:nifguga)
         integer :: n_excits, i, j, k, l, iEx
-        integer(n_int), pointer :: excits(:,:)
+        integer(n_int), allocatable :: excits(:,:)
         integer, allocatable :: nJ(:)
         real(dp) :: rdm_mat
         integer(int_rdm) :: rdm_ind
@@ -1497,7 +1497,7 @@ contains
         real(dp) :: rdm_mat
         integer(int_rdm) :: rdm_ind
         integer(n_int) :: ilut(0:nifguga)
-        integer(n_int), pointer :: excits(:,:)
+        integer(n_int), allocatable :: excits(:,:)
         integer, allocatable :: nJ(:)
 
         print *, ""
@@ -1560,7 +1560,7 @@ contains
     subroutine test_calc_all_excits_guga_rdm_singles
 
             integer(n_int) :: ilut(0:nifguga)
-            integer(n_int), pointer :: excits(:,:)
+            integer(n_int), allocatable :: excits(:,:)
             integer :: n_excits, i, j
             integer, allocatable :: nJ(:)
             real(dp) :: rdm_mat
@@ -2258,7 +2258,7 @@ contains
         character(*), parameter :: this_routine = "test_identify_excitation_and_matrix_element"
         integer(n_int) :: ilutI(0:niftot), ilutJ(0:niftot), ilutG(0:nifguga)
         type(ExcitationInformation_t) :: excitInfo
-        integer(n_int), pointer :: ex(:,:), two_ex(:,:)
+        integer(n_int), allocatable :: ex(:,:), two_ex(:,:)
         integer :: nEx, i, nex_2, test_det(4), j, ind
         logical :: valid
         real(dp) :: pos(nSpatOrbs), neg(nSpatOrbs), diff
@@ -2761,7 +2761,7 @@ contains
     subroutine run_test_excit_gen_guga_general
         character(*), parameter :: this_routine = "run_test_excit_gen_guga_general"
         integer(n_int) :: ilut(0:niftot)
-        integer(n_int), pointer :: ex(:,:)
+        integer(n_int), allocatable :: ex(:,:)
         integer :: nEx, i
         integer :: nTest
         type(ExcitationInformation_t) :: excitInfo
@@ -2836,7 +2836,7 @@ contains
         character(*), parameter :: this_routine = "run_test_excit_gen_guga_multiple"
         integer(n_int) :: ilut(0:niftot)
         integer :: test_det(nEl), nEx, i, nTest
-        integer(n_int), pointer :: ex(:,:)
+        integer(n_int), allocatable :: ex(:,:)
 
 
         if (present(nI)) then
@@ -3103,7 +3103,7 @@ contains
         character(*), parameter :: this_routine = "test_calcfullStartFullStopMixed"
         integer(n_int) :: ilut(0:nifguga)
         type(ExcitationInformation_t) :: excitInfo
-        integer(n_int), pointer :: ex(:,:)
+        integer(n_int), allocatable :: ex(:,:)
         integer :: num
         real(dp) :: posSwitch(4), negSwitch(4)
         type(WeightObj_t) :: weights
@@ -5078,7 +5078,7 @@ contains
         real(dp) :: pgen
         HElement_t(dp) :: HElGen, mat_ele
         type(excit_gen_store_type), target :: store
-        integer(n_int), pointer :: ex(:,:)
+        integer(n_int), allocatable :: ex(:,:)
         integer(int_rdm) :: rdm_ind, rdm_ind_, rdm_ind_1
         real(dp) :: x0, x1, rdm_mat_ex, rdm_comb
         integer(int_rdm), allocatable :: rdm_ind_v(:)
@@ -6276,7 +6276,7 @@ contains
         real(dp) :: pgen
         HElement_t(dp) :: HElGen, mat_ele
         type(excit_gen_store_type), target :: store
-        integer(n_int), pointer :: ex(:,:)
+        integer(n_int), allocatable :: ex(:,:)
         integer(int_rdm) :: rdm_ind, rdm_ind_
         integer(int_rdm), allocatable :: rdm_ind_v(:)
         real(dp), allocatable :: rdm_mat(:)
@@ -9265,7 +9265,7 @@ contains
                           ilutJ(0:GugaBits%len_tot)
         real(dp) :: pgen
         integer :: dummy(2), nI(4), pos, nex, i
-        integer(n_int), pointer :: all_ex(:,:)
+        integer(n_int), allocatable :: all_ex(:,:)
         HElement_t(dp) :: helgen, mat_ele, mat_exact
         integer(int_rdm) :: rdm_ind, rdm_ind_, rdm_ind_1
         integer(int_rdm), allocatable :: rdm_ind_v(:)
@@ -9757,7 +9757,7 @@ contains
         real(dp) :: pgen
         integer :: nI(4), pos, nex
         HElement_t(dp) :: HElGen
-        integer(n_int), pointer :: ex(:,:)
+        integer(n_int), allocatable :: ex(:,:)
         integer(int_rdm) :: rdm_ind
         integer :: i, j
         HElement_t(dp) :: mat_ele
@@ -9823,7 +9823,7 @@ contains
     subroutine test_actHamiltonian
         character(*), parameter :: this_routine = "test_actHamiltonian"
         integer(n_int) :: ilut(0:nifguga)
-        integer(n_int), pointer :: ex(:,:)
+        integer(n_int), allocatable :: ex(:,:)
         integer :: nEx
 
 
@@ -9944,7 +9944,7 @@ contains
     subroutine test_calcAllExcitations_double
         character(*), parameter :: this_routine = "test_calcAllExcitations_double"
         integer(n_int) :: ilut(0:nifguga)
-        integer(n_int), pointer :: ex(:,:)
+        integer(n_int), allocatable :: ex(:,:)
         integer :: nExcits
 
         call EncodeBitDet_guga([1,4,5,8],ilut)
@@ -9977,7 +9977,7 @@ contains
         character(*), parameter :: this_routine = "test_calcFullStartFullStopAlike"
         integer(n_int) :: ilut(0:nifguga)
         type(ExcitationInformation_t) :: excitInfo
-        integer(n_int), pointer :: ex(:,:)
+        integer(n_int), allocatable :: ex(:,:)
         integer :: num
         real(dp) :: posSwitch(4), negSwitch(4)
 
@@ -10043,7 +10043,7 @@ contains
         character(*), parameter :: this_routine = "test_calcFullStartL2R"
         integer(n_int) :: ilut(0:nifguga)
         type(ExcitationInformation_t) :: excitInfo
-        integer(n_int), pointer :: ex(:,:)
+        integer(n_int), allocatable :: ex(:,:)
         integer :: num
         real(dp) :: posSwitch(4), negSwitch(4)
 
@@ -10087,7 +10087,7 @@ contains
         character(*), parameter :: this_routine = "test_calcFullStartR2L"
         integer(n_int) :: ilut(0:2)
         type(ExcitationInformation_t) :: excitInfo
-        integer(n_int), pointer :: ex(:,:)
+        integer(n_int), allocatable :: ex(:,:)
         integer :: num
         real(dp) :: posSwitch(4), negSwitch(4)
 
@@ -10130,7 +10130,7 @@ contains
         character(*), parameter :: this_routine = "test_calcFullStartRaising"
         integer(n_int) :: ilut(0:nifguga)
         type(ExcitationInformation_t) :: excitInfo
-        integer(n_int), pointer :: ex(:,:)
+        integer(n_int), allocatable :: ex(:,:)
         integer :: num
         real(dp) :: posSwitch(4), negSwitch(4)
 
@@ -10168,7 +10168,7 @@ contains
         character(*), parameter :: this_routine = "test_calcFullStartLowering"
         integer(n_int) :: ilut(0:nifguga)
         type(ExcitationInformation_t) :: excitInfo
-        integer(n_int), pointer :: ex(:,:)
+        integer(n_int), allocatable :: ex(:,:)
         integer :: num
         real(dp) :: posSwitch(4), negSwitch(4)
 
@@ -10206,7 +10206,7 @@ contains
         character(*), parameter :: this_routine = "test_calcFullStopR2L"
         integer(n_int) :: ilut(0:nifguga)
         type(ExcitationInformation_t) :: excitInfo
-        integer(n_int), pointer :: ex(:,:)
+        integer(n_int), allocatable :: ex(:,:)
         integer :: num
         real(dp) :: posSwitch(4), negSwitch(4)
 
@@ -10251,7 +10251,7 @@ contains
         character(*), parameter :: this_routine = "test_calcFullStopL2R"
         integer(n_int) :: ilut(0:nifguga)
         type(ExcitationInformation_t) :: excitInfo
-        integer(n_int), pointer :: ex(:,:)
+        integer(n_int), allocatable :: ex(:,:)
         integer :: num
         real(dp) :: posSwitch(4), negSwitch(4)
 
@@ -10297,7 +10297,7 @@ contains
         character(*), parameter :: this_routine = "test_calcFullStopRaising"
         integer(n_int) :: ilut(0:nifguga)
         type(ExcitationInformation_t) :: excitInfo
-        integer(n_int), pointer :: ex(:,:)
+        integer(n_int), allocatable :: ex(:,:)
         integer :: num
         real(dp) :: posSwitch(4), negSwitch(4)
 
@@ -10333,7 +10333,7 @@ contains
         character(*), parameter :: this_routine = "test_calcDoubleFullStopLowering"
         integer(n_int) :: ilut(0:nifguga)
         type(ExcitationInformation_t) :: excitInfo
-        integer(n_int), pointer :: ex(:,:)
+        integer(n_int), allocatable :: ex(:,:)
         integer :: num
         real(dp) :: posSwitch(4), negSwitch(4)
 
@@ -10369,7 +10369,7 @@ contains
         character(*), parameter :: this_routine = "test_calcDoubleR2L"
         integer(n_int) :: ilut(0:nifguga)
         type(ExcitationInformation_t) :: excitInfo
-        integer(n_int), pointer :: ex(:,:)
+        integer(n_int), allocatable :: ex(:,:)
         integer :: num
         real(dp) :: posSwitch(4), negSwitch(4)
 
@@ -10409,7 +10409,7 @@ contains
         character(*), parameter :: this_routine = "test_calcDoubleL2R"
         integer(n_int) :: ilut(0:nifguga)
         type(ExcitationInformation_t) :: excitInfo
-        integer(n_int), pointer :: ex(:,:)
+        integer(n_int), allocatable :: ex(:,:)
         integer :: num
         real(dp) :: posSwitch(4), negSwitch(4)
 
@@ -10446,7 +10446,7 @@ contains
         character(*), parameter :: this_routine = "test_calcDoubleRaising"
         integer(n_int) :: ilut(0:nifguga)
         type(ExcitationInformation_t) :: excitInfo
-        integer(n_int), pointer :: ex(:,:)
+        integer(n_int), allocatable :: ex(:,:)
         integer :: num
         real(dp) :: posSwitch(4), negSwitch(4)
 
@@ -10483,7 +10483,7 @@ contains
         character(*), parameter :: this_routine = "test_calcDoubleLowering"
         integer(n_int) :: ilut(0:nifguga)
         type(ExcitationInformation_t) :: excitInfo
-        integer(n_int), pointer :: ex(:,:)
+        integer(n_int), allocatable :: ex(:,:)
         integer :: num
         real(dp) :: posSwitch(4), negSwitch(4)
 
@@ -10521,7 +10521,7 @@ contains
         character(*), parameter :: this_routine = "test_singleOverlapRaising"
         integer(n_int) :: ilut(0:nifguga)
         type(ExcitationInformation_t) :: excitInfo
-        integer(n_int), pointer :: ex(:,:)
+        integer(n_int), allocatable :: ex(:,:)
         integer :: num
         real(dp) :: posSwitch(4), negSwitch(4)
 
@@ -10554,7 +10554,7 @@ contains
         character(*), parameter :: this_routine = "test_singleOverlapMixed"
         integer(n_int) :: ilut(0:nifguga)
         type(ExcitationInformation_t) :: excitInfo
-        integer(n_int), pointer :: ex(:,:)
+        integer(n_int), allocatable :: ex(:,:)
         integer :: num
         real(dp) :: posSwitch(4), negSwitch(4)
 
@@ -10587,7 +10587,7 @@ contains
         character(*), parameter :: this_routine = "test_singleOverlapLowering"
         integer(n_int) :: ilut(0:nifguga)
         type(ExcitationInformation_t) :: excitInfo
-        integer(n_int), pointer :: ex(:,:)
+        integer(n_int), allocatable :: ex(:,:)
         integer :: num
         real(dp) :: posSwitch(4), negSwitch(4)
 
@@ -10621,7 +10621,7 @@ contains
         character(*), parameter :: this_routine = "test_calcNonOverlapDouble"
         integer(n_int) :: ilut(0:nifguga)
         type(ExcitationInformation_t) :: excitInfo
-        integer(n_int), pointer :: ex(:,:)
+        integer(n_int), allocatable :: ex(:,:)
         integer :: num
         real(dp) :: posSwitch(4), negSwitch(4)
 
@@ -10659,7 +10659,7 @@ contains
         character(*), parameter :: this_routine = "test_calcDoubleExcitation_withWeight"
         integer(n_int) :: ilut(0:nifguga)
         type(ExcitationInformation_t) :: excitInfo
-        integer(n_int), pointer :: ex(:,:)
+        integer(n_int), allocatable :: ex(:,:)
         integer :: num
         real(dp) :: posSwitch(4), negSwitch(4)
         logical :: compFlag
@@ -10831,7 +10831,7 @@ contains
     subroutine test_calcAllExcitations_single
         character(*), parameter :: this_routine = "test_calcAllExcitations_single"
         integer(n_int) :: ilut(0:nifguga)
-        integer(n_int), pointer :: ex(:,:)
+        integer(n_int), allocatable :: ex(:,:)
         integer :: nEx
 
         ! 3300
@@ -10878,7 +10878,7 @@ contains
         integer(n_int) :: ilut(0:nifguga)
         type(ExcitationInformation_t) :: excitInfo
         real(dp) :: posSwitch(nBasis/2), negSwitch(nBasis/2)
-        integer(n_int), pointer :: excits(:,:), tmpEx(:,:)
+        integer(n_int), allocatable :: excits(:,:), tmpEx(:,:)
         integer :: num
         type(WeightObj_t) :: weights
 
@@ -10914,7 +10914,7 @@ contains
 
         call singleEnd(ilut, excitInfo, tmpEx, num, excits)
 
-        call assert_true(.not. associated(tmpEx))
+        call assert_true(.not. allocated(tmpEx))
         call assert_true( num == 1)
         call assert_true(abs(extract_matrix_element(excits(:,1),1) + 1.0_dp) < 1.0e-10_dp)
 
@@ -10927,7 +10927,7 @@ contains
         integer(n_int) :: ilut(0:nifguga)
         type(ExcitationInformation_t) :: excitInfo
         real(dp) :: posSwitch(nBasis/2), negSwitch(nBasis/2)
-        integer(n_int), pointer :: excits(:,:)
+        integer(n_int), allocatable :: excits(:,:)
         integer :: num
         type(WeightObj_t) :: weights
 
@@ -10975,7 +10975,7 @@ contains
         integer(n_int) :: ilut(0:nifguga)
         type(ExcitationInformation_t) :: excitInfo
         real(dp) :: posSwitch(nBasis/2), negSwitch(nBasis/2)
-        integer(n_int), pointer :: excits(:,:)
+        integer(n_int), allocatable :: excits(:,:)
         integer :: num
         type(WeightObj_t) :: weights
 

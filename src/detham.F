@@ -120,8 +120,8 @@ C..   Now we need to match up any two determinants
 C            CALL SLTCND(NEL,NBASISMAX,NHG,
 C     &     FCK,NMAX,ALAT,UMAT,TOTSUM)
             if(tGAS) then
-                if (.not. GAS_spec%contains(NMRKS(:, KI))
-     &              .or. .not. GAS_spec%contains(NMRKS(:, KJ))) then
+                if (.not. GAS_spec%contains_det(NMRKS(:, KI))
+     &              .or. .not. GAS_spec%contains_det(NMRKS(:, KJ))) then
                         totsum = 0.0_dp
                 end if
             end if

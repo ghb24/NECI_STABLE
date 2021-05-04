@@ -63,7 +63,7 @@ module real_time_procs
     use dSFMT_interface, only: genrand_real2_dSFMT
     use load_balance_calcnodes, only: DetermineDetNode
     use Determinants, only: tDefineDet, DefDet
-    use ParallelHelper, only: nNodes, bNodeRoot, ProcNode, NodeRoots, MPIBarrier, &
+    use MPI_wrapper, only: nNodes, bNodeRoot, ProcNode, NodeRoots, MPIBarrier, &
                               iProcIndex, MPI_SUM, root
     use Parallel_neci
     use LoggingData, only: tNoNewRDMContrib
@@ -71,6 +71,7 @@ module real_time_procs
     use load_balance, only: AddNewHashDet, CalcHashTableStats, get_diagonal_matel
     use semi_stoch_gen, only: generate_space_most_populated, reset_core_space
     use semi_stoch_procs, only: GLOBAL_RUN
+    use timing_neci, only: timer, set_timer, halt_timer
     implicit none
 
     type(timer) :: calc_gf_time
@@ -1382,7 +1383,7 @@ contains
                     if (tReadPops) then
                         ! if the perturbation is to be created from the read-in population
                         ! explicitly
-                        perturbed_buf = 0.0_dp
+                        perturbed_buf = 0_n_int
                         call apply_perturbation(overlap_pert(i), tmp_totwalkers, popsfile_dets, &
                                                 perturbed_buf)
 
@@ -1400,7 +1401,7 @@ contains
                     if (gf_count > 1) call stop_all("create_perturbed_ground", &
                                                     "Unable to use momentum operators for multiple correlation functions")
                     if (tReadPops) then
-                        perturbed_buf = 0.0_dp
+                        perturbed_buf = 0_n_int
                         call apply_perturbation_array(overlap_pert, tmp_totwalkers, popsfile_dets, &
                                                       perturbed_buf, phase_factors)
                     else

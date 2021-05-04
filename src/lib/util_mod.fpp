@@ -1,5 +1,6 @@
 #include "macros.h"
 #:include "../algorithms.fpph"
+#:include "../macros.fpph"
 
 #:set primitive_types = {'integer': {'int32', 'int64'}, 'real': {'sp', 'dp'}, 'complex': {'sp', 'dp'}}
 #:set log_entry = {'logical':{''}}
@@ -12,6 +13,7 @@ module util_mod
     use util_mod_byte_size
     use util_mod_cpts
     use util_mod_epsilon_close
+    use binomial_lookup, only: factrl => factorial, binomial_lookup_table
     use fmt_utils
     use dSFMT_interface, only: genrand_real2_dSFMT
     use constants
@@ -53,9 +55,21 @@ module util_mod
 
 
     interface
-        subroutine stop_all(sub_name, error_msg)
+        ! NOTE: A stop all is of course state-changing, but even
+        !   the Fortran standard allows an `error stop`.
+        pure subroutine stop_all(sub_name, error_msg)
             character(*), intent(in) :: sub_name, error_msg
         end subroutine
+    end interface
+
+    interface operator(.implies.)
+        module procedure implies
+    end interface
+
+    interface choose
+    #:for kind in primitive_types['integer']
+        module procedure choose_${kind}$
+    #:endfor
     end interface
 
 
@@ -132,6 +146,17 @@ module util_mod
 !    public :: swap, arr_lt, arr_gt, operator(.arrlt.), operator(.arrgt.)
 !    public :: factrl, choose, int_fmt, binary_search
 !    public :: append_ext, get_unique_filename, get_nan, isnan_neci
+
+    type, abstract :: EnumBase_t
+        integer :: val
+    contains
+        private
+        procedure :: eq_EnumBase_t
+        procedure :: neq_EnumBase_t
+        generic, public :: operator(==) => eq_EnumBase_t
+        generic, public :: operator(/=) => neq_EnumBase_t
+    end type
+
 
 contains
 
@@ -508,46 +533,58 @@ contains
 #endif
     end function
 
-    elemental real(dp) function factrl(n)
+#:for kind in primitive_types['integer']
+    !> @brief
+    !> Return the binomail coefficient nCr
+    elemental function choose_${kind}$(n, r) result(res)
+        integer(${kind}$), intent(in) :: n, r
+        integer(int64) :: res
+        integer(int64) :: i, k
+        character(*), parameter :: this_routine = "choose"
 
-        ! Return the factorial on n, i.e. n!
-        ! This is not done in the most efficient way possible (i.e. use with
-        ! care if N is large, or if called many times!).
-        ! If a more efficient procedure is required, refer to:
-        ! http://www.luschny.de/math/factorial/FastFactorialFunctions.htm.
+        ! NOTE: This is highly optimized. If you change something, please time it!
 
-        integer, intent(in) :: n
-        integer :: i
-
-        factrl = 1
-        do i = 2, n
-            factrl = factrl * i
-        enddo
-    end function factrl
-
-    elemental real(dp) function choose(n, r)
-
-        ! Return the binomail coefficient nCr
-
-        integer, intent(in) :: n, r
-        integer :: i, k
+        @:pure_ASSERT(n >= 0_${kind}$, import_stop_all=False)
+        @:pure_ASSERT(r >= 0_${kind}$, import_stop_all=False)
 
         if(r > n) then
-            choose = 0
-        else
-            ! Always use the smaller possibility
-            if(r > (n / 2)) then
-                k = n - r
-            else
-                k = r
-            endif
+            res = 0_int64
+            return
+        end if
 
-            choose = 1
-            do i = 0, k - 1
-                choose = (choose * (n - i)) / (i + 1)
+        k = int(merge(r, n - r, r <= n - r), int64)
+
+        if (k == 0) then
+            res = 1_int64
+        else if (k == 1) then
+            res = int(n, int64)
+        else if (n <= 66) then
+            ! use lookup table
+            res = binomial_lookup_table(get_index(int(n), int(k)))
+        else
+            ! Will overflow in most cases. Perhaps throw an error?
+            res = 1_${kind}$
+            do i = 0_${kind}$, k - 1_${kind}$
+                res = (res * (n - i)) / (i + 1_${kind}$)
             enddo
-        endif
-    end function choose
+        end if
+
+    contains
+        !> @brief
+        !> Calculate 1 + ... + n
+        integer elemental function gauss_sum(n)
+            integer, intent(in) :: n
+            gauss_sum = (n * (n + 1)) .div. 2
+        end function
+
+        !> @brief
+        !> Get the index in the binomial_lookup_table
+        integer elemental function get_index(n, k)
+            integer, intent(in) :: n, k
+            get_index = gauss_sum((n - 3) .div. 2) + gauss_sum((n - 4) .div. 2) + k - 1
+        end function
+    end function
+#:endfor
 
     elemental integer(int32) function div_int32(a, b)
         integer(int32), intent(in) :: a, b
@@ -730,7 +767,7 @@ contains
 
     end function binary_search
 
-    function binary_search_int(arr, val) result(pos)
+    pure function binary_search_int(arr, val) result(pos)
         ! W.D.: also write a binary search for "normal" lists of ints
         integer, intent(in) :: arr(:)
         integer, intent(in) :: val
@@ -1205,10 +1242,9 @@ contains
     #:endfor
     #:endfor
 
-    DEBUG_IMPURE function lex_leq(lhs, rhs) result(res)
+    pure function lex_leq(lhs, rhs) result(res)
         integer, intent(in) :: lhs(:), rhs(size(lhs))
         logical :: res
-        character(*), parameter :: this_routine = 'lex_leq'
         integer :: i
 
         res = .true.
@@ -1224,10 +1260,9 @@ contains
         end do
     end function
 
-    DEBUG_IMPURE function lex_geq(lhs, rhs) result(res)
+    pure function lex_geq(lhs, rhs) result(res)
         integer, intent(in) :: lhs(:), rhs(size(lhs))
         logical :: res
-        character(*), parameter :: this_routine = 'lex_geq'
         integer :: i
 
         res = .true.
@@ -1241,6 +1276,66 @@ contains
                 return
             end if
         end do
+    end function
+
+    !> @brief
+    !> Create all possible permutations of [1, ..., n]
+    pure function get_permutations(n) result(res)
+        integer, intent(in) :: n
+        integer :: res(n, factrl(n))
+
+        integer :: tmp(n), i, j, f
+
+        tmp = [(i, i = 1, n)]
+
+        res(:, 1) = tmp
+        do f = 2, size(res, 2)
+            i = 2
+            do while (tmp(i - 1) > tmp(i))
+                i = i + 1
+            end do
+            j = 1
+            do while (tmp(j) > tmp(i))
+                j = j + 1
+            end do
+            call intswap(tmp(i), tmp(j))
+
+            i = i - 1
+            j = 1
+            do while (j < i)
+                call intswap(tmp(i), tmp(j))
+                i = i - 1
+                j = j + 1
+            end do
+            res(:, f) = tmp
+        end do
+    end function
+
+    !> @brief
+    !> The logical operator P => Q
+    !>
+    !> @details
+    !>    P  |  Q   |  P => Q   | ¬ P ∨ Q
+    !>    -------------------------------
+    !>    T  |  T   |     T     |     T
+    !>    T  |  F   |     F     |     F
+    !>    F  |  T   |     T     |     T
+    !>    F  |  F   |     T     |     T
+    logical elemental function implies(P, Q)
+        logical, intent(in) :: P, Q
+        implies = .not. P .or. Q
+    end function
+
+    logical elemental function eq_EnumBase_t(this, other)
+        class(EnumBase_t), intent(in) :: this, other
+        if (.not. SAME_TYPE_AS(this, other)) error stop 'Can only compare objects of same type'
+        eq_EnumBase_t = this%val == other%val
+    end function
+
+    logical elemental function neq_EnumBase_t(this, other)
+        class(EnumBase_t), intent(in) :: this, other
+        if (.not. SAME_TYPE_AS(this, other)) error stop 'Can only compare objects of same type'
+        neq_EnumBase_t = this%val /= other%val
     end function
 
 end module
@@ -1317,27 +1412,6 @@ subroutine neci_getarg(i, str)
 
 end subroutine neci_getarg
 
-subroutine neci_flush(un)
-#ifdef NAGF95
-    USe f90_unix, only: flush
-    use constants, only: int32
-#endif
-    implicit none
-    integer, intent(in) :: un
-#ifdef NAGF95
-    integer(kind=int32) :: dummy
-#endif
-#ifdef BLUEGENE_HACKS
-    call flush_(un)
-#else
-#ifdef NAGF95
-    dummy = un
-    call flush(dummy)
-#else
-    call flush(un)
-#endif
-#endif
-end subroutine neci_flush
 
 integer function neci_system(str)
 #ifdef NAGF95
@@ -1397,3 +1471,38 @@ function g_loc(var) result(addr)
 
 end function
 #endif
+
+subroutine neci_flush(un)
+#ifdef NAGF95
+    use f90_unix, only: flush
+    use constants, only: int32
+#endif
+    integer, intent(in) :: un
+#ifdef NAGF95
+    integer(kind=int32) :: dummy
+#endif
+#ifdef BLUEGENE_HACKS
+    call flush_(un)
+#else
+#ifdef NAGF95
+    dummy = un
+    call flush(dummy)
+#else
+    call flush(un)
+#endif
+#endif
+end subroutine neci_flush
+
+subroutine warning_neci(sub_name,error_msg)
+    != Print a warning message in a (helpfully consistent) format.
+    !=
+    != In:
+    !=    sub_name:  calling subroutine name.
+    !=    error_msg: error message.
+    use, intrinsic :: iso_fortran_env, only: stderr => error_unit
+    character(*), intent(in) :: sub_name, error_msg
+
+    write (stderr,'(/a)') 'WARNING.  Error in '//adjustl(sub_name)
+    write (stderr,'(a/)') adjustl(error_msg)
+end subroutine warning_neci
+
