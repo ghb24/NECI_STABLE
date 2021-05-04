@@ -1415,9 +1415,11 @@ contains
 
         tNoSymGenRandExcits = .true.
 
+        t_k_space_hubbard = .true.
+        ! t_trans_corr_2body = .true.
+
         lat => lattice('chain', 4, 1, 1,.true.,.true.,.true.,'k-space')
 
-        t_k_space_hubbard = .true.
         t_lattice_model = .true.
 
         ! setup nBasisMax and also the same for nBasisMax
