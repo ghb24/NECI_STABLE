@@ -1214,7 +1214,7 @@ contains
                 write(6,*) "Processor ", iProcIndex+1, '/', nProcessors, &
                            ' on local output.'
 #else
-                open(6, file="/dev/null", recl=8192)
+                open(6, file="/dev/null")
 #endif
             endif
 
