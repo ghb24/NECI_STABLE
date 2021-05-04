@@ -7,6 +7,7 @@ module core_space_util
     use shared_memory_mpi
     use MemoryManager, only: TagIntType, LogMemAlloc, LogMemDealloc
     use MPI_wrapper
+    use fcimcdata, only: t_global_core_space, core_run
     implicit none
 
     private
