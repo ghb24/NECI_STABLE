@@ -1350,10 +1350,6 @@ contains
 !   (it is +/-CSF_NSBASIS)
         I = ISYM%MS + 0
         ISYM%Ms = I + SSYM
-!          if (t_new_hubbard) then
-        ! with the new lat%add_k_vec i should not need to map!
-!              isym%k = lat%map_k_vec(isym%k)
-!          end if
         RETURN
     END SUBROUTINE ADDELECSYM
 
@@ -1362,7 +1358,7 @@ contains
         TYPE(BasisFN) ISYM
         INTEGER nBasisMax(5, *)
         INTEGER I
-        if (t_new_hubbard) then
+        if (t_new_hubbard .and. t_k_space_hubbard) then
             ! deal differently with the new k-space hubbard
             ! use the lattice intrinsic function
             ! also do something in the real-space case!!
@@ -1388,11 +1384,6 @@ contains
 !ALEX PLEASE CHECK.
 
                 CALL MOMPBCSYM(ISYM%k, NBASISMAX)
-!            else if(NBASISMAX(1,3).EQ.2) THEN
-!   non-pbc mom space has parity symmetry
-!               DO I=1,3
-!                  ISYM(I)=MOD(ISYM(I),2)
-!               end do
             else if (NBASISMAX(1, 3) >= 2) THEN
 !   we're in real space so no sym
                 DO I = 1, 3

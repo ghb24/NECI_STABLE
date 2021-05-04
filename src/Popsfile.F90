@@ -2037,7 +2037,7 @@ r_loop: do while(.not.tStoreDet)
 
         write(iunit, '(a)') '# POPSFILE VERSION 4'
         write(iunit, '("&POPSHEAD Pop64Bit=",l1)') build_64bit
-        write(iunit, '(a,l1,a,l1,a,i2,a,i3,a)') &
+        write(iunit, '(a,l1,a,l1,a,i2,a,i4,a)') &
             'PopHPHF=', tHPHF, ',PopLz=', tFixLz, ',PopLensign=', &
             lenof_sign, ',PopNEl=', NEl, ','
         write(iunit, '(a,i15)') 'PopTotwalk=', num_walkers

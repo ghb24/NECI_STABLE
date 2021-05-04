@@ -25,7 +25,7 @@ module lattice_models_utils
 
     use DetBitOps, only: ilut_lt, ilut_gt, EncodeBitDet, return_hphf_sym_det
 
-    use bit_reps, only: decode_bit_det, extract_sign
+    use bit_reps, only: decode_bit_det, extract_sign, init_bit_rep
 
     use SymExcitDataMod, only: KPointToBasisFn
 
@@ -1174,7 +1174,7 @@ contains
         integer :: neel_state(nel)
         character(*), parameter :: this_routine = "create_neel_state"
 
-        integer(n_int) :: tmp_ilut(0:niftot)
+        integer(n_int), allocatable :: tmp_ilut(:)
         integer :: i, j, k, l, spin, ind
 
         ! make this independent of the lattice mod, to call it as early
@@ -1281,20 +1281,24 @@ contains
                 end do
                 k = k - 1
                 if (l > nel) exit
-
                 spin = spin + 1
-
             end do
 
         case default
+
             call stop_all(this_routine, "unknown lattice type!")
+
         end select
 
         if (tHPHF) then
             ! i have to get the relevant HPHF determinant
+            nbasis = 2 * lat%get_nsites()
+            call init_bit_rep()
+            allocate(tmp_ilut(0:niftot), source = 0_n_int)
             call EncodeBitDet(neel_state, tmp_ilut)
             tmp_ilut = return_hphf_sym_det(tmp_ilut)
             call decode_bit_det(neel_state, tmp_ilut)
+            deallocate(tmp_ilut)
         end if
 
         if (present(ilut_neel)) then
