@@ -157,7 +157,6 @@ tolerance = (5.01e-8, None, 'overlap_sum'), (3.01e-7, None, 'hamil_sum')
 program = mneci
 tolerance = (5e-7, None, 'overlap_sum'), (1e-6, None, 'hamil_sum')
 
-
 [mneci/cfqmc/hubbard_4_states/]
 program = mneci
 tolerance = (5e-7, None, 'overlap_sum'), (1e-6, None, 'hamil_sum')

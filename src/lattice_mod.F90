@@ -12,7 +12,8 @@ module lattice_mod
     ! the sym_mod!
     use constants, only: dp, pi, EPS
     use SystemData, only: twisted_bc, nbasis, basisfn, t_trans_corr_2body, &
-                          symmetry, brr
+                          symmetry, brr, t_k_space_hubbard, t_trans_corr_hop, &
+                          t_new_real_space_hubbard
     use input_neci
     use util_mod, only: get_free_unit
 
@@ -787,11 +788,20 @@ contains
         ! dispersion relation of the lattice and make them accessible
         ! through the symmetry label associated with the k-vectors!
         character(*), parameter :: this_routine = "init_dispersion_rel_cache"
-        integer :: i
+        integer :: i, sym_min, sym_max, sym
 
         ASSERT(associated(lat))
 
         if (allocated(dispersion_rel_cached)) deallocate(dispersion_rel_cached)
+
+        sym_min = 0
+        sym_max = 0
+        do i = 1, lat%get_nsites()
+            sym = lat%get_sym(i)
+
+            if (sym < sym_min) sym_min = sym
+            if (sym > sym_max) sym_max = sym
+        end do
 
         allocate(dispersion_rel_cached(lat%get_nsites()))
         dispersion_rel_cached = h_cast(0.0_dp)
@@ -3503,7 +3513,9 @@ contains
         call this%initialize_sites()
 
         ! and fill the lookup table for the site index determination from k vectors
-        call this%initialize_lu_table()
+        if (t_k_space_hubbard .or. (t_trans_corr_hop .and. t_new_real_space_hubbard)) then
+            call this%initialize_lu_table()
+        end if
 
     end subroutine init_lattice
 
@@ -3583,7 +3595,7 @@ contains
         ! the lu table shall contain all reachable momenta ki + kj - ka
         nsites = this%get_nsites()
         ! for 2-body transcorrelation we need 5 momenta in total
-        if (t_trans_corr_2body) then
+        if (t_trans_corr_2body .and. t_k_space_hubbard) then
             do i = 1, nsites
                 ki = this%get_k_vec(i)
                 do j = 1, nsites
@@ -3622,9 +3634,6 @@ contains
                 end do
             end do
         end if
-
-!       print *, "kmin: ", this%kmin
-!       print *, "kmax: ", this%kmax
 
     end subroutine get_lu_table_size
 
