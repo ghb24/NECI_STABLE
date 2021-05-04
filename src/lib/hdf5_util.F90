@@ -14,7 +14,7 @@ module hdf5_util
 
 #ifdef USE_HDF_
     use constants
-    use, intrinsic :: iso_c_binding, only: c_ptr
+    use, intrinsic :: iso_c_binding, only: c_ptr, c_f_pointer
     use util_mod
     use hdf5, only: hid_t, hsize_t, H5S_SCALAR_F, H5_INTEGER_KIND, &
         H5KIND_TO_TYPE, H5T_FORTRAN_S1, H5_REAL_KIND, H5T_FLOAT_F, &
