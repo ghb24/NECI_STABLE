@@ -37,7 +37,7 @@ module util_mod_cpts
     use helem
     use SystemData, only: Symmetry, assignment(=)
     use symdata, only: SymPairProd, assignment(=)
-    use iso_c_hack
+    use, intrinsic :: iso_c_binding, only: c_ptr, c_loc, c_int, c_f_pointer
     implicit none
 
     private
