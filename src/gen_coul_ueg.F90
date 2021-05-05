@@ -13,7 +13,6 @@ module gen_coul_ueg_mod
     use constants, only: sp, dp, pi, pi2, THIRD
     use Parallel_neci, only: iProcIndex, root
     use util_mod, only: near_zero
-    use iso_c_hack
     use breathing_Hub, only: bHubIndexFunction
     implicit none
 

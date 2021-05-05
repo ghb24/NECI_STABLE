@@ -13,10 +13,23 @@ module hdf5_util
     ! build configurations, then it helps to be explicit.
 
 #ifdef USE_HDF_
-    use iso_c_hack
     use constants
+    use, intrinsic :: iso_c_binding, only: c_ptr, c_f_pointer
     use util_mod
-    use hdf5
+    use hdf5, only: hid_t, hsize_t, H5S_SCALAR_F, H5_INTEGER_KIND, &
+        H5KIND_TO_TYPE, H5T_FORTRAN_S1, H5_REAL_KIND, H5T_FLOAT_F, &
+        H5T_COMPOUND_F, H5P_DATASET_XFER_F, H5FD_MPIO_INDEPENDENT_F, &
+        H5S_SELECT_SET_F, H5T_INTEGER_F
+    use hdf5, only: h5aget_type_f, h5tget_size_f, h5tget_class_f, h5tclose_f, &
+        h5aget_space_f, h5sget_simple_extent_ndims_f, h5sclose_f, &
+        h5acreate_f, h5awrite_f, h5aclose_f, h5sget_simple_extent_dims_f, &
+        h5dget_type_f, h5dget_space_f, h5lexists_f, h5dopen_f, &
+        h5dread_f, h5dclose_f, h5dclose_f, h5aopen_f, h5aread_f, h5aexists_f, &
+        h5aopen_f, h5pcreate_f, h5pset_dxpl_mpio_f, h5screate_simple_f, &
+        h5sselect_hyperslab_f, h5pclose_f, h5screate_simple_f, h5pcreate_f, &
+        h5pset_dxpl_mpio_f, h5dcreate_f, h5screate_simple_f, &
+        h5sselect_hyperslab_f, h5dwrite_f, h5tcreate_f, h5tinsert_f, &
+        h5dwrite_f, h5screate_f, h5screate_f, h5tcopy_f, h5tset_size_f, size_t
     use MPI_wrapper
     implicit none
 
@@ -598,7 +611,6 @@ contains
 
     subroutine setup_dp_1d_dataset_buffer(buf,val)
       ! allocate a buffer for reading dp_1d_datasets
-      implicit none
       real(dp), allocatable, intent(out) :: buf(:)
       real(dp), target, intent(in) :: val(:)
 
@@ -619,7 +631,6 @@ contains
     subroutine move_dp_1d_dataset_buffer(val,buf)
       ! moves the data from buf to val, eventually truncating/expanding it
       ! deallocates buf
-      implicit none
       real(dp), allocatable, intent(inout) :: buf(:)
       real(dp), target, intent(inout) :: val(:)
 

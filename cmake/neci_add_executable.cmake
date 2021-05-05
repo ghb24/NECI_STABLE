@@ -51,7 +51,7 @@ macro( neci_add_executable )
 
     # Actually create the executable
 
-    message(STATUS "Adding executable: ${_p_TARGET}")
+    message(DEBUG "Adding executable: ${_p_TARGET}")
     add_executable( ${_p_TARGET} ${_p_SOURCES} )
 
     # Add the link libraries
@@ -72,7 +72,7 @@ macro( neci_add_executable )
     set_property( TARGET ${_p_TARGET} PROPERTY RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin )
 
     # Molpro plugin requires c++11
-    
+
     set_property( TARGET ${_p_TARGET} PROPERTY CXX_STANDARD 11)
 
     # Global dependencies
@@ -88,22 +88,22 @@ macro( neci_add_executable )
     endif()
 
     set_property( TARGET ${_p_TARGET} PROPERTY LINKER_LANGUAGE ${_p_LINKER_LANGUAGE} )
-    message(STATUS "Executable ${_p_TARGET}: Setting linker language to ${_p_LINKER_LANGUAGE}" )
+    message(DEBUG "Executable ${_p_TARGET}: Setting linker language to ${_p_LINKER_LANGUAGE}" )
     if( DEFINED NECI_${_p_LINKER_LANGUAGE}_EXE_LINK_LIBRARIES )
       target_link_libraries( ${_p_TARGET} ${NECI_${_p_LINKER_LANGUAGE}_EXE_LINK_LIBRARIES} )
-      message(STATUS "Executable ${_p_TARGET}: Adding link libraries ${NECI_${_p_LINKER_LANGUAGE}_LINK_LIBRARIES}" )
+      message(DEBUG "Executable ${_p_TARGET}: Adding link libraries ${NECI_${_p_LINKER_LANGUAGE}_LINK_LIBRARIES}" )
     endif()
     if( DEFINED NECI_${_p_LINKER_LANGUAGE}_LINK_LIBRARIES )
       target_link_libraries( ${_p_TARGET} ${NECI_${_p_LINKER_LANGUAGE}_LINK_LIBRARIES} )
-      message(STATUS "Executable ${_p_TARGET}: Adding link libraries ${NECI_${_p_LINKER_LANGUAGE}_LINK_LIBRARIES}" )
+      message(DEBUG "Executable ${_p_TARGET}: Adding link libraries ${NECI_${_p_LINKER_LANGUAGE}_LINK_LIBRARIES}" )
     endif()
     if( DEFINED NECI_${_p_LINKER_LANGUAGE}_LINKER_FLAGS )
       target_link_libraries( ${_p_TARGET} ${NECI_${_p_LINKER_LANGUAGE}_LINKER_FLAGS} )
-      message(STATUS "Executable ${_p_TARGET}: Adding linker flags ${NECI_${_p_LINKER_LANGUAGE}_LINKER_FLAGS}" )
+      message(DEBUG "Executable ${_p_TARGET}: Adding linker flags ${NECI_${_p_LINKER_LANGUAGE}_LINKER_FLAGS}" )
     endif()
     if( DEFINED NECI_${_p_LINKER_LANGUAGE}_LINKER_FLAGS_${CMAKE_BUILD_TYPE} )
       target_link_libraries( ${_p_TARGET} ${NECI_${_p_LINKER_LANGUAGE}_LINKER_FLAGS_${CMAKE_BUILD_TYPE}} )
-      message(STATUS "Library ${_p_TARGET}: Adding linker flags ${NECI_${_p_LINKER_LANGUAGE}_LINKER_FLAGS_${CMAKE_BUILD_TYPE}}" )
+      message(DEBUG "Library ${_p_TARGET}: Adding linker flags ${NECI_${_p_LINKER_LANGUAGE}_LINKER_FLAGS_${CMAKE_BUILD_TYPE}}" )
     endif()
 
     # Add to the global list of libraries

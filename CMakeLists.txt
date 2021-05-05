@@ -89,7 +89,8 @@ endif()
 # REQUIRED packages
 # <Package>_NECI has a custom finder that does a bit more work than normal...
 
-find_package( LAPACK_NECI REQUIRED )
+find_package( BLAS REQUIRED )
+find_package( LAPACK REQUIRED )
 
 # Build-type configuration
 
