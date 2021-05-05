@@ -121,7 +121,7 @@ shorter names to control the line length.
 The fixed-format FORTRAN 77 code is restricted to 72 characters per
 line.
 
-On a 19m̈onitor at standard resolution, two columns of code vertically
+On a 19" monitor at standard resolution, two columns of code vertically
 split and side by side use 79 characters each. This is a convenient
 soft-limit to use - although it is not trivially achievable in all code,
 and overall readability should be prioritised.
@@ -1102,13 +1102,15 @@ search), such that
 If `type1` is a scalar value, this does a substitution exactly as would
 be expected:
 
+<!-- TODO should have ⇒ where TODO is -->
+
 <table>
 <tbody>
 <tr class="odd">
 <td style="text-align: left;"><div class="sourceCode" id="cb1" data-language="ini" data-gobble="8"><pre class="sourceCode ini"><code class="sourceCode ini"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">[int]</span></span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="dt">        type1</span><span class="ot">=</span><span class="st">integer(int32)</span></span></code></pre></div></td>
 <td style="text-align: center;"><span class="math inline">⇒</span></td>
-<td style="text-align: left;"><pre data-gobble="8"><code>subroutine example_int(arr, elem)
+<td style="text-align: left;"><pre data-gobble="8">TODO<code>subroutine example_int(arr, elem)
             integer(int32) :: arr(:)
             integer(int32) :: elem
             ...

@@ -15,14 +15,14 @@ display: private
          public
          protected
 source: true
-page_dir: pages
+page_dir: pages_quick
 md_extensions: markdown.extensions.toc
                markdown.extensions.smarty
 preprocess: true
 fpp_extensions: fpp
 preprocessor: fypp -m itertools -m functools
 search: false
-graph: true
+graph: false
 graph_maxnodes: 250
 graph_maxdepth: 5
 coloured_edges: true

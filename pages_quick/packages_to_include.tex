@@ -1,0 +1,29 @@
+\usepackage{physics} % TODO get rid of
+\usepackage{xcolor}
+% \usepackage{combofont}
+\directlua{luaotfload.add_fallback(
+    "myfallback",
+    {"NotoColorEmoji:mode=harf;"}
+  )}
+\setmainfont[RawFeature={fallback=myfallback}]{LatinModernRoman}
+\setmonofont[RawFeature={fallback=myfallback}]{LatinModernMono}
+
+% https://github.com/jgm/pandoc/issues/3145
+
+\newcommand\dummy[1]{#1}
+
+\let\Begin\begin
+\let\End\end
+
+\usepackage{tcolorbox}
+\newtcolorbox{myquote}{colback=red!5!white, colframe=red!75!black}
+\newtcolorbox{notebox}{colback=blue!5!white, colframe=blue!75!black}
+\newtcolorbox{warningbox}{colback=yellow!5!white, colframe=yellow!75!black}
+\newtcolorbox{todobox}{colback=green!5!white, colframe=green!75!black}
+\newtcolorbox{bugbox}{colback=red!5!white, colframe=red!75!black}
+\renewenvironment{quote}{\Begin{myquote}}{\End{myquote}}
+
+\newenvironment{note}{\Begin{notebox}\textbf{\underline{\textcolor{blue}{NOTE}}}}{\End{notebox}}
+\newenvironment{warning}{\Begin{warningbox}\textbf{\underline{\textcolor{blue}{WARNING}}}}{\End{warningbox}}
+\newenvironment{todo}{\Begin{todobox}\textbf{\underline{\textcolor{blue}{TODO}}}}{\End{todobox}}
+\newenvironment{bug}{\Begin{bugbox}\textbf{\underline{\textcolor{blue}{BUG}}}}{\End{bugbox}}
