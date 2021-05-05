@@ -6,7 +6,7 @@ module neci_signals
     ! The actual legwork is done in C/C++ as the relevant constants are only
     ! accessible in signal.h.
 
-    use iso_c_hack
+    use, intrinsic :: iso_c_binding, only: c_int
     implicit none
     private
 
@@ -15,6 +15,7 @@ module neci_signals
     interface
         subroutine init_signals_helper() bind(c)
         end subroutine
+
         subroutine clear_signals() bind(c)
         end subroutine
     end interface

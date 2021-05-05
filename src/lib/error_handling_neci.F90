@@ -1,5 +1,5 @@
 subroutine stop_all_c (sub_name, error_msg) bind(c)
-    use iso_c_hack
+    use, intrinsic :: iso_c_binding, only: c_char
     use util_mod, only: strlen_wrap
     implicit none
 
