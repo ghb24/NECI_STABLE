@@ -743,7 +743,6 @@ contains
 
     subroutine write_walkers(parent, MaxEx)
 
-        use iso_c_hack
         use bit_rep_data, only: NIfD, NIfTot, IlutBits, extract_sign
         use FciMCData, only: AllTotWalkers, CurrentDets, MaxWalkersPart, &
                              TotWalkers, iLutHF, Iter, PreviousCycles

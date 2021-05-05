@@ -61,10 +61,11 @@ sizeb=8
 ===================
 
 module shared_memory_mpi
-  use mpi
-  use Parallel_neci
-  use constants
-  use scalar_shared_memory_mpi
+    use mpi
+    use Parallel_neci
+    use, intrinsic :: iso_c_binding, only: c_ptr, c_f_pointer
+    use constants
+    use scalar_shared_memory_mpi
   implicit none
 
 contains

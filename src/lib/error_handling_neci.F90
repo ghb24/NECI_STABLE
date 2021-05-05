@@ -110,23 +110,23 @@ call MPIStopAll(0)
 end subroutine quiet_stop
 
 
-subroutine stop_all_c (sub_name, error_msg) bind(c)
-    use iso_c_hack
-    use util_mod, only: strlen_wrap
-    implicit none
-
-    character(c_char), target, intent(in) :: sub_name(*), error_msg(*)
-    character(len=strlen_wrap(sub_name)), target :: sub_name_tmp
-    character(len=strlen_wrap(error_msg)), target :: error_msg_tmp
-
-    ! Convert from C character to standard fortran character string.
-    ! Note that strlen does not include the null character at the end of the
-    ! C string.  This is the behaviour we want.
-    sub_name_tmp = transfer(sub_name(:strlen_wrap(sub_name)), sub_name_tmp)
-    error_msg_tmp = transfer(error_msg(:strlen_wrap(error_msg)), error_msg_tmp)
-
-    call stop_all (sub_name_tmp, error_msg_tmp)
-
-end subroutine
+! subroutine stop_all_c (sub_name, error_msg) bind(c)
+!     use iso_c_hack
+!     use util_mod, only: strlen_wrap
+!     implicit none
+!
+!     character(c_char), target, intent(in) :: sub_name(*), error_msg(*)
+!     character(len=strlen_wrap(sub_name)), target :: sub_name_tmp
+!     character(len=strlen_wrap(error_msg)), target :: error_msg_tmp
+!
+!     ! Convert from C character to standard fortran character string.
+!     ! Note that strlen does not include the null character at the end of the
+!     ! C string.  This is the behaviour we want.
+!     sub_name_tmp = transfer(sub_name(:strlen_wrap(sub_name)), sub_name_tmp)
+!     error_msg_tmp = transfer(error_msg(:strlen_wrap(error_msg)), error_msg_tmp)
+!
+!     call stop_all (sub_name_tmp, error_msg_tmp)
+!
+! end subroutine
 
 

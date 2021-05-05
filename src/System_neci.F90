@@ -16,8 +16,6 @@ MODULE System
 
     use constants
 
-    use iso_c_hack
-
     use read_fci, only: FCIDUMP_name
 
     use util_mod, only: error_function, error_function_c, &
