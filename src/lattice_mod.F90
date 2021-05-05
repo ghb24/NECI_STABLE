@@ -12,7 +12,8 @@ module lattice_mod
     ! the sym_mod!
     use constants, only: dp, pi, EPS
     use SystemData, only: twisted_bc, nbasis, basisfn, t_trans_corr_2body, &
-                          symmetry, brr
+                          symmetry, brr, t_k_space_hubbard, t_trans_corr_hop, &
+                          t_new_real_space_hubbard
 
     implicit none
     private
@@ -448,7 +449,7 @@ module lattice_mod
 !
         procedure :: calc_nsites => calc_nsites_tilted
         procedure :: initialize_sites => init_sites_tilted
-        procedure :: init_basis_vecs => init_basis_vecs_tilted        
+        procedure :: init_basis_vecs => init_basis_vecs_tilted
         procedure, public :: dot_prod => dot_prod_tilted
     end type tilted
 
@@ -777,11 +778,20 @@ contains
         ! dispersion relation of the lattice and make them accessible
         ! through the symmetry label associated with the k-vectors!
         character(*), parameter :: this_routine = "init_dispersion_rel_cache"
-        integer :: i
+        integer :: i, sym_min, sym_max, sym
 
         ASSERT(associated(lat))
 
         if (allocated(dispersion_rel_cached)) deallocate(dispersion_rel_cached)
+
+        sym_min = 0
+        sym_max = 0
+        do i = 1, lat%get_nsites()
+            sym = lat%get_sym(i)
+
+            if (sym < sym_min) sym_min = sym
+            if (sym > sym_max) sym_max = sym
+        end do
 
         allocate(dispersion_rel_cached(lat%get_nsites()))
         dispersion_rel_cached = h_cast(0.0_dp)
@@ -1210,7 +1220,7 @@ contains
 
         integer :: i,j,k
 
-        if (allocated(this%basis_vecs)) deallocate(this%basis_vecs)        
+        if (allocated(this%basis_vecs)) deallocate(this%basis_vecs)
         allocate(this%basis_vecs((2*l+1)**2,3))
         this%basis_vecs = 0
 
@@ -3473,7 +3483,9 @@ contains
         call this%initialize_sites()
 
         ! and fill the lookup table for the site index determination from k vectors
-        call this%initialize_lu_table()
+        if (t_k_space_hubbard .or. (t_trans_corr_hop .and. t_new_real_space_hubbard)) then
+            call this%initialize_lu_table()
+        end if
 
     end subroutine init_lattice
 
@@ -3553,7 +3565,7 @@ contains
         ! the lu table shall contain all reachable momenta ki + kj - ka
         nsites = this%get_nsites()
         ! for 2-body transcorrelation we need 5 momenta in total
-        if (t_trans_corr_2body) then
+        if (t_trans_corr_2body .and. t_k_space_hubbard) then
             do i = 1, nsites
                 ki = this%get_k_vec(i)
                 do j = 1, nsites
@@ -3593,9 +3605,6 @@ contains
             end do
         end if
 
-!       print *, "kmin: ", this%kmin
-!       print *, "kmax: ", this%kmax
-
     end subroutine get_lu_table_size
 
     subroutine fill_lu_table(this)
@@ -3605,13 +3614,13 @@ contains
         integer :: k, b, kk(sdim), kb(sdim)
 
         nsites = this%get_nsites()
-        !U.Ebling:  
+        !U.Ebling:
         !The older loop took a very long to finish for any lattice that is not super tiny.
         !I tried a 21x5x1 rectangle and it did not finish after 2 days
-        !It over-counts a lot. 
+        !It over-counts a lot.
         !Below is my optimized version, which loops directly over momenta instead of orbitals
         !There is no need to distinguish the 1-body and 2-body transcorrelation terms, because it
-        !uses the result of the subroutine get_lu_table_size 
+        !uses the result of the subroutine get_lu_table_size
         do i=this%kmin(1),this%kmax(1)
             do j=this%kmin(2),this%kmax(2)
                 do k=this%kmin(3),this%kmax(3)
