@@ -49,6 +49,6 @@ sed -i 's/<span style="color: \([^<]*\)">\([^<]*\)<\/span>/\\textcolor{\1}{\2}/g
 
 # this works so clearly something is wrong in how I separate a multiline command
 # TODO make this multiline...
-pandoc -V geometry:margin=3cm -V geometry:a4paper -V fontsize=18pt -V numbersections=true --toc --pdf-engine=lualatex --include-in-header packages_to_include.tex "$tmpfile" -o "$2" -f markdown-tex_math_dollars+tex_math_single_backslash -t pdf 
+pandoc -V geometry:margin=3cm -V geometry:a4paper -V fontsize=18pt -V numbersections=true --toc --pdf-engine=xelatex --include-in-header packages_to_include.tex "$tmpfile" -o "$2" -f markdown-tex_math_dollars+tex_math_single_backslash -t pdf 
 
 # rm $tmpfile

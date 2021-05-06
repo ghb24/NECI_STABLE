@@ -18,6 +18,8 @@ source: true
 page_dir: pages_quick
 md_extensions: markdown.extensions.toc
                markdown.extensions.smarty
+               markdown.extensions.tables
+               markdown.extensions.attr_list
 preprocess: true
 fpp_extensions: fpp
 preprocessor: fypp -m itertools -m functools
