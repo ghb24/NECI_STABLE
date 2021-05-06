@@ -1,5 +1,4 @@
 #include "macros.h"
-! replace _template by whatever one needs
 program test_guga_pchb_excitgen
 
     use constants
