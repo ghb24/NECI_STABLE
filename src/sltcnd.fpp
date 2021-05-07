@@ -49,7 +49,7 @@ module sltcnd_mod
               ! dynamically known
               dyn_sltcnd_excit_old, dyn_sltcnd_excit, &
               sltcnd_compat, sltcnd, sltcnd_knowIC, &
-              CalcFockOrbEnergy, sumfock
+              CalcFockOrbEnergy, sumfock, sltcnd_0_base, sltcnd_0_tc
 
 !>  @brief
 !>      Evaluate Matrix Element for different excitations
@@ -147,7 +147,7 @@ contains
         else
             ! six-index integrals are only used for three and more
             ! electrons
-            if (t_mol_3_body .or. t_ueg_3_body .and. nel > 2) then
+            if (t_mol_3_body .or. t_ueg_3_body .and. nel >= 2) then
                 sltcnd_0 => sltcnd_0_tc
                 sltcnd_1 => sltcnd_1_tc
                 sltcnd_2 => sltcnd_2_tc
@@ -549,7 +549,7 @@ contains
         ! then add the 3-body correction
         if(t_use_tchint_lib) then
           hel = hel + external_lMat_matel(nI, reshape(ex%val,(/2,1/)))
-        else          
+        else
           do i = 1, nel - 1
             do j = i + 1, nel
               if (ex%val(1) /= nI(i) .and. ex%val(1) /= nI(j)) then

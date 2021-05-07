@@ -227,7 +227,7 @@ set( SRC_FILES
     lib/soft_exit.F90
     lib/timing.F90
     lib/util_mod_fmt.F90
-    lib/fortran_strings.f90
+    lib/fortran_strings.F90
     lib/matrix_util.F90
     lib/display_matrices.F90
     lib/binomial_lookup.F90
@@ -519,13 +519,12 @@ foreach(_config ${${PROJECT_NAME}_CONFIGURATIONS})
         PRIVATE_INCLUDES
             "${MPI_NECI_INCLUDE_PATH}"
             "${HDF5_NECI_INCLUDE_PATH}"
-						"${TCHINT_NECI_INCLUDE_PATH}"
 
         DEFINITIONS
             "${NECI_GLOBAL_DEFINES}"
             "${${PROJECT_NAME}_${_config}_DEFINITIONS}"
             "${HDF5_NECI_DEFINITIONS}"
-						"${TCHINT_DEFINITIONS}"
+            "${TCHINT_NECI_DEFINITIONS}"
 
         LIBS "${_library_link_libs}"
 	WARNERR ${${PROJECT_NAME}_${_config}_WARNERR}

@@ -370,6 +370,13 @@ contains
 
             case("TCHINT-LIB")
                 t_use_tchint_lib = .true.
+                if(item < nitems) then
+                    call readu(w)
+                    tchint_mode = trim(w)
+                else
+                    tchint_mode = "PC"
+                end if
+                
 
             case("HDF5-INTEGRALS")
                 ! Read the 6-index integrals from an hdf5 file

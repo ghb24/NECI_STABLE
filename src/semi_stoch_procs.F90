@@ -63,7 +63,9 @@ module semi_stoch_procs
 
     use adi_data, only: tSignedRepAv
 
-    use global_det_data, only: readFVals, readAPVals
+    use global_det_data, only: set_supergroup_idx
+
+    use gasci_supergroup_index, only: lookup_supergroup_indexer
 
     use LoggingData, only: tAccumPopsActive
 
@@ -653,11 +655,11 @@ contains
         allocate(sizes_per_node(0:num_nodes - 1))
 
         call shared_allocate_mpi(rep%core_space_win, rep%core_space_direct, &
-                                 (/int(1 + NIfTot, int64), int(rep%determ_space_size, int64)/))
+                                 [int(1 + NIfTot, int64), int(rep%determ_space_size, int64)], ierr)
         ! Convert from 1-based first dimension to 0-based first dimension as used in iluts
         rep%core_space(0:, 1:) => rep%core_space_direct(1:, 1:)
         call LogMemAlloc('core_space', maxval(rep%determ_sizes) * (NIfTot + 1), 8, t_r, &
-                         rep%CoreSpaceTag, ierr)
+                         rep%CoreSpaceTag, err=ierr)
         if (iProcIndex_intra == 0) rep%core_space = 0_n_int
 
         ! Write the core-space on this node into core_space
@@ -1185,6 +1187,16 @@ contains
             end do
             ! Re-assign the reordered global det data cached in gdata_buf
             call reorder_handler%read_gdata(gdata_buf, nwalkers)
+
+            ! After reordering the dets, we have to reset all supergroup
+            ! idx in the global_det_data
+            if (associated(lookup_supergroup_indexer)) then
+                do i = 1, nwalkers
+                    call decode_bit_det(nI, CurrentDets(:, i))
+                    call set_supergroup_idx(&
+                        i, lookup_supergroup_indexer%idx_nI(nI))
+                end do
+            end if
 
             call clear_hash_table(HashIndex)
 

@@ -21,7 +21,7 @@ module LMat_mod
 #ifdef USE_HDF5_
     use hdf5
 #endif
-    use IntegralsData, only: t_use_tchint_lib
+    use IntegralsData, only: t_use_tchint_lib, tchint_mode
 #ifdef USE_TCHINT_
     use tchint
 #endif
@@ -140,13 +140,10 @@ contains
 
     subroutine setup_tchint_ints()
       character(*), parameter :: t_r = "setup_tchint_ints"
-      if(t_use_tchint_lib) then      
+
+      if(t_use_tchint_lib) then
 #ifdef USE_TCHINT_
-        if(tHDF5LMat) then
-          call tchint_init("PC","HDF5")
-        else
-          call tchint_init("PC","ASCII")
-        endif
+        call tchint_init()
 #else
         call stop_all(t_r, "Did not compile with TCHINT support")
 #endif
@@ -184,16 +181,17 @@ contains
 
         if (t_use_tchint_lib) then
 #ifdef USE_TCHINT_
-          call tchint_finalize()
+            call tchint_finalize()
 #else
-          call stop_all(t_r, "Did not compile with TCHINT support")
+            call stop_all(t_r, "Did not compile with TCHINT support")
 #endif
-        if (tLMatCalc) then
-            call freeLMatFactors()
         else
-            ! These are always safe to call, regardless of allocation
-            call LMat%dealloc()
-          end if
+            if (tLMatCalc) then
+                call freeLMatFactors()
+            else
+                ! These are always safe to call, regardless of allocation
+                call LMat%dealloc()
+            end if
         endif
     end subroutine freeLMat
 
