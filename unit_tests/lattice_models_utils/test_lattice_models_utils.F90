@@ -7,6 +7,7 @@ program test_lattice_models_utils
     use constants
     use lattice_mod, only: lat
     use dsfmt_interface, only: dsfmt_init
+    use SystemData, only: t_k_space_hubbard
 
     implicit none
 
@@ -408,6 +409,7 @@ contains
         nbasis = 8
         bhub = -1.0_dp
         nn_bhub = 0.0_dp
+        t_k_space_hubbard = .true.
         lat => lattice('chain', 4,1,1,.true.,.true.,.true.,'k-space')
 
         call setup_nbasismax(lat)
@@ -423,6 +425,8 @@ contains
         call assert_equals(7, get_orb_from_kpoints_three([1,2,3],7,8))
 
         call assert_equals(7, get_orb_from_kpoints_three([3,4,5],6,8))
+
+        t_k_space_hubbard = .false.
 
     end subroutine get_orb_from_kpoints_three_test
 
