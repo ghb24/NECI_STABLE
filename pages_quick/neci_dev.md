@@ -196,23 +196,25 @@ attribute to automatically map it elementwise onto arrays.
 The following toy function is pure, can be applied onto arrays and
 scalars alike. If the exponent is ommited, it defaults to squaring.
 
-    elemental function pow(x, n) result(res)
-            integer, intent(in) :: x
-            integer, intent(in), optional :: n
-            integer :: n_
+```Fortran
+elemental function pow(x, n) result(res)
+    integer, intent(in) :: x
+    integer, intent(in), optional :: n
+    integer :: n_
 
-            integer :: i
+    integer :: i
 
-            def_default(n_, n, 2)
+    def_default(n_, n, 2)
 
-            res = 1
-            do i = 1, n_
-                res = res * x
-            end do
-        end function
+    res = 1
+    do i = 1, n_
+        res = res * x
+    end do
+end function
 
-        pow([1, 3, 5]) -> [1, 9, 25]
-        pow([1, 3, 5], 3) -> [1, 27, 125]
+pow([1, 3, 5]) -> [1, 9, 25]
+pow([1, 3, 5], 3) -> [1, 27, 125]
+```
 
 **Data types**\
 With the exception of small integers being directly assigned to known
@@ -242,8 +244,10 @@ Fortran arrays can be declared in multiple ways. In particular, the
 dimensionality of an array can be declared on the variable itself, or as
 part of the type declaration;
 
-    integer, dimension(10, 20) :: arr1
-                integer :: arr2(10, 20)
+```Fortran
+integer, dimension(10, 20) :: arr1
+integer :: arr2(10, 20)
+```
 
 In general the latter declaration is preferred for two reasons:
 
@@ -260,9 +264,11 @@ arrays need to be varied.
 Where arrays are passed as arguments to a routine, they can be passed in
 three ways
 
-    integer, intent(inout) :: arr(*)
-                integer, intent(inout) :: arr(10)
-                integre, intent(inout) :: arr(:)
+```Fortran
+integer, intent(inout) :: arr(*)
+integer, intent(inout) :: arr(10)
+integer, intent(inout) :: arr(:)
+```
 
 The first form should be avoided wherever practical, as it prevents any
 knowledge of the array dimensions being carried into the code. This
@@ -307,18 +313,20 @@ constant named `this_routine`.
 An example assert statement, in a function that takes an array with the
 same number of elements as there are basis functions, would be:
 
-    subroutine foo(arr)
-                    integer, intent(inout) :: arr(:)
-                    character(*), parameter :: this_routine = 'foo'
-                    ASSERT(size(arr) == nBasis)
-                    ...
-                end subroutine
+```Fortran
+subroutine foo(arr)
+    integer, intent(inout) :: arr(:)
+    character(*), parameter :: this_routine = 'foo'
+    ASSERT(size(arr) == nBasis)
+    ...
+end subroutine
+```
 
-=
-
+@warning
 Be careful not to use tests with side effects in `ASSERT` statements. In
 the optimised build the tests will not be called, and this can introduce
 bugs that appear in only one of the optimised or debug builds.
+@endwarning
 
 **Floating point comparison and integer division**\
 
@@ -334,14 +342,12 @@ warns about it. For this reason one should use `5 .div. 3` to make it
 explicit that integer division is indeed wanted.
 
 **Tools for adhering to the style guide**\
-<span id="item:fprettify"
-label="item:fprettify">\[item:fprettify\]</span>
 
-=
-
+@warning
 It is better to write nice code from the beginning on instead of relying
 on automated tools. This section is meant for existing code, that has no
 consistent indentation and other flaws.
+@endwarning
 
 One recommended program to prettify Fortran free-format code is
 `fprettify`. It can be installed with `pip3 install fprettify` and is
@@ -365,67 +371,75 @@ the expression readable easily. Use your own judgment; however, never
 use more than one space, and always have the same amount of whitespace
 on both sides of a binary operator.
 
-            ! Recommended
-                i = i + 1
-                x = x*2 - 1
-                hypot2 = x*x + y*y
-                c = (a+b) * (a-b)
+```Fortran
+! Recommended
+    i = i + 1
+    x = x*2 - 1
+    hypot2 = x*x + y*y
+    c = (a+b) * (a-b)
 
-            ! Also possible
-                x = x * 2 - 1
-                hypot2 = x * x + y * y
-                c = (a + b) * (a - b)
+! Also possible
+    x = x * 2 - 1
+    hypot2 = x * x + y * y
+    c = (a + b) * (a - b)
 
-            ! Not recommended
-                i=i+1
+! Not recommended
+    i=i+1
+```
 
 Line breaks should happen before binary operators for easy association
 of operator and operand
 
-            ! Not recommended: operators sit far away from their operands
-                income = gross_wages + &
-                         taxable_interest + &
-                         (dividends - qualified_dividends) - &
-                         ira_deduction - &
-                         student_loan_interest
+```Fortran
 
-            ! Recommended: easy to match operators with operands
-                income = gross_wages &
-                         + taxable_interest &
-                         + (dividends - qualified_dividends) &
-                         - ira_deduction &
-                         - student_loan_interest
+! Not recommended: operators sit far away from their operands
+    income = gross_wages + &
+             taxable_interest + &
+             (dividends - qualified_dividends) - &
+             ira_deduction - &
+             student_loan_interest
+
+! Recommended: easy to match operators with operands
+    income = gross_wages &
+             + taxable_interest &
+             + (dividends - qualified_dividends) &
+             - ira_deduction &
+             - student_loan_interest
+```
 
 Please use the new C-style relational operators.
-
-            ! Recommended
-                  ==   /=   <    <=    >   >=
-            ! Not recommended
-                  .EQ. .NE. .LT. .LE. .GT. .GE.
+```Fortran
+! Recommended
+      ==   /=   <    <=    >   >=
+! Not recommended
+      .EQ. .NE. .LT. .LE. .GT. .GE.
+```
 
 **Whitespace in Expressions**\
 Avoid extraneous whitespace in the following situations.
+```Fortran
 
-        ! No whitespace immediately inside parentheses:
-            Yes: spam(ham(1), f(eggs, 2))
-            No:  spam( ham( 1 ), f( eggs, 2 ) )
-        ! No whitespace immediately before the open parenthesis that starts
-        ! the argument list of a function call or array indexing:
-            Yes: spam(1)
-            No:  spam (1)
+! No whitespace immediately inside parentheses:
+    Yes: spam(ham(1), f(eggs, 2))
+    No:  spam( ham( 1 ), f( eggs, 2 ) )
+! No whitespace immediately before the open parenthesis that starts
+! the argument list of a function call or array indexing:
+    Yes: spam(1)
+    No:  spam (1)
 
-        ! No whitespace immediately before a comma, semicolon, or colon:
-            Yes:
-                use module, only: cool_function
-                integer, allocatable :: A(:, :)
-                integer, allocatable :: A(:,:)
-            No:
-                use module , only : cool_function
-                integer , allocatable :: A(: , :)
-        ! No whitespace around the = sign when used to
-        ! call a function with a keyword argument.
-            Yes: pow(2, n=3)
-            No: pow(2, n = 3)
+! No whitespace immediately before a comma, semicolon, or colon:
+    Yes:
+        use module, only: cool_function
+        integer, allocatable :: A(:, :)
+        integer, allocatable :: A(:,:)
+    No:
+        use module , only : cool_function
+        integer , allocatable :: A(: , :)
+! No whitespace around the = sign when used to
+! call a function with a keyword argument.
+    Yes: pow(2, n=3)
+    No: pow(2, n = 3)
+```
 
 In a slice the colon acts like a binary operator, and should have equal
 amounts on either side (treating it as the operator with the lowest
@@ -433,18 +447,20 @@ priority). In an extended slice, both colons must have the same amount
 of spacing applied. Exception: when a slice parameter is omitted, the
 space is omitted.
 
-        ! Recommended
-            ham(1:9), ham(1:9:3), ham(:9:3), ham(1::3), ham(1:9:)
-            ham(lower:upper), ham(lower:upper:), ham(lower::step)
-            ham(lower+offset : upper+offset)
-            ham(: upper_fn(x) : step_fn(x)), ham(:: step_fn(x))
-            ham(lower + offset : upper + offset)
+```Fortran
+! Recommended
+    ham(1:9), ham(1:9:3), ham(:9:3), ham(1::3), ham(1:9:)
+    ham(lower:upper), ham(lower:upper:), ham(lower::step)
+    ham(lower+offset : upper+offset)
+    ham(: upper_fn(x) : step_fn(x)), ham(:: step_fn(x))
+    ham(lower + offset : upper + offset)
 
-        ! Not recommended
-            ham(lower + offset:upper + offset)
-            ham(1: 9), ham(1 :9), ham(1:9 :3)
-            ham(lower : : upper)
-            ham( : upper)
+! Not recommended
+    ham(lower + offset:upper + offset)
+    ham(1: 9), ham(1 :9), ham(1:9 :3)
+    ham(lower : : upper)
+    ham( : upper)
+```
 
 **Contained procedures**\
 From Fortran2003 onwards it is possible to define procedures inside
@@ -473,24 +489,26 @@ If one instead defines the wrapper function as internal procedure only
 where it is used there is no need for a wrapper function. This resembles
 the process of *currying* in functional languages.
 
-    function calculate_something(a) result(res)
-                    real, intent(in) :: a
-                    real :: res
+```Fortran
+function calculate_something(a) result(res)
+    real, intent(in) :: a
+    real :: res
 
-                    ! arg2 to arg10 are visible identifiers here
+    ! arg2 to arg10 are visible identifiers here
 
-                    res = exp(f(a)) + 3
+    res = exp(f(a)) + 3
 
-                contains
+contains
 
-                    function f(x) result(res)
-                        real, intent(in) :: x
-                        real :: res
+    function f(x) result(res)
+        real, intent(in) :: x
+        real :: res
 
-                        res = fancy_function(x, arg2, arg3, ..., arg10)
-                    end function
+        res = fancy_function(x, arg2, arg3, ..., arg10)
+    end function
 
-                end function
+end function
+```
 
 Another use case for contained procedures is to extract recurrent parts
 of a subroutine/function without exposing them to module scope.
@@ -537,62 +555,64 @@ If possible functions should be declared `pure` or `elemental`.
 **Example module layout**\
 A sample module layout is given below:
 
-    #include "macros.h" ! This enables use of our precompiler macros.
-                module module_name
+```Fortran
+#include "macros.h" ! This enables use of our precompiler macros.
+module module_name
 
-                    ! To the extent possible, include statements should be at the
-                    ! beginning of a module, and not elsewhere.
-                    ! If possible they should import only actually used identifiers.
-                    use SystemData, only: nel, tHPHF
-                    use module_data
-                    use constants
-                    implicit none
+    ! To the extent possible, include statements should be at the
+    ! beginning of a module, and not elsewhere.
+    ! If possible they should import only actually used identifiers.
+    use SystemData, only: nel, tHPHF
+    use module_data
+    use constants
+    implicit none
 
-                    ! To the extent possible, declare all identifiers of
-                    !   a module as private by default
-                    !   and export explicitly with the public keyword.
-                    private
-                    public :: sub_name, fn_name, calculated_energy
-                    ! Cannot be changed from the outside.
-                    protected :: calculated_energy
+    ! To the extent possible, declare all identifiers of
+    !   a module as private by default
+    !   and export explicitly with the public keyword.
+    private
+    public :: sub_name, fn_name, calculated_energy
+    ! Cannot be changed from the outside.
+    protected :: calculated_energy
 
-                    real(dp) :: calculated_energy
-
-
-                    ! Add an interface to an external (non-modularised) function
-                    interface external_fn
-                        function splat_it(in_val) result(ret_val) &
-                                                  bind(c, name='symbol_name')
-                            ! n.b. interface statements shield from modular includes
-                            import :: dp
-                            implicit none
-                            integer, intent(in) :: in_val
-                            real(dp) :: ret_val
-                        end function
-                    end interface
-
-                contains
-
-                    [pure|elemental] subroutine sub_name(in_val, out_val)
-
-                        ! This is a description of what the subroutine does
-
-                        integer, intent(in) :: in_val
-                        real(dp), intent(out) :: out_val
-
-                    end subroutine [sub_name]
+    real(dp) :: calculated_energy
 
 
-                    [pure|elemental] function fn_name(in_val) result(ret_val)
+    ! Add an interface to an external (non-modularised) function
+    interface external_fn
+        function splat_it(in_val) result(ret_val) &
+                                  bind(c, name='symbol_name')
+            ! n.b. interface statements shield from modular includes
+            import :: dp
+            implicit none
+            integer, intent(in) :: in_val
+            real(dp) :: ret_val
+        end function
+    end interface
 
-                        ! This is a description of what the function does
+contains
 
-                        integer, intent(in) :: in_val
-                        real(dp) :: ret_val
+    [pure|elemental] subroutine sub_name(in_val, out_val)
 
-                    end function [fn_name]
+        ! This is a description of what the subroutine does
 
-                end module
+        integer, intent(in) :: in_val
+        real(dp), intent(out) :: out_val
+
+    end subroutine [sub_name]
+
+
+    [pure|elemental] function fn_name(in_val) result(ret_val)
+
+        ! This is a description of what the function does
+
+        integer, intent(in) :: in_val
+        real(dp) :: ret_val
+
+    end function [fn_name]
+
+end module
+```
 
 **Error handling**\
 
@@ -609,10 +629,12 @@ present and should abort the calculation if this is not the case.
 Calling code should only ask for the error code if the return value is
 handled as early as possible. Do not write
 
-                allocate(A, stat=ierr)
-                allocate(B, stat=ierr)
-                allocate(C, stat=ierr)
-                if (ierr /= 0) call stop_all(...)
+```Fortran
+allocate(A, stat=ierr)
+allocate(B, stat=ierr)
+allocate(C, stat=ierr)
+if (ierr /= 0) call stop_all(...)
+```
 
 but either check after each allocation (to know which array failed) or
 just ommit `stat=ierr`. The intrinsic allocations stops the program if
@@ -681,8 +703,10 @@ Once you installed the correct version and made sure it is the default
 one, [1] go to the source directory of NECI and run the script
 `gen_vim_tags.sh` which is available in the tools directory
 
-    cd neci/src
-        ../tools/gen_vim_tags.sh
+```bash
+cd neci/src
+../tools/gen_vim_tags.sh
+```
 
 This script does some tricks using the preprocessor to solve issues with
 handling macros in NECI files. Without these, `ctags` would miss many
@@ -849,11 +873,11 @@ version of the code however, does not treat warnings as errors.
 Unfortunately the warnings for unused variables had to be deactivated,
 because there are too many incidents.
 
-=
-
+@warning
 There are too many conversion warnings in the complex NECI code that
 could not be cleaned up yet and probably lead to serious bugs. It is
 necessary to clean them first before complex NECI can be used reliably.
+@endwarning
 
 Sometimes a warning is a false-positive. To work around such problems
 there is a `__WARNING_WORKAROUND` compile flag that gets activated, if
@@ -867,12 +891,14 @@ exists. It is not necessary to put this macro behind the
 variables directly after declaration to make it explicit to the human
 reader.
 
-            #include "macros.h"
-            integer, intent(in) :: arr1(:), n
-            real(dp), inten(in) :: arr2(:, :)
-            integer :: ierr
+```Fortran
+#include "macros.h"
+integer, intent(in) :: arr1(:), n
+real(dp), inten(in) :: arr2(:, :)
+integer :: ierr
 
-            unused(arr2); unused(n)
+unused(arr2); unused(n)
+```
 
 ## Don’t optimise prematurely
 
@@ -916,10 +942,12 @@ This tag is an `integer`.
 Memory should always be allocated using error checking. That is, an
 allocate statement should always be passed an error value as follows
 
-            integer, allocatable :: arr1(:)
-            real(dp), allocatable :: arr2(:,:)
-            integer :: ierr
-            allocate(arr1(10), arr2(20, 30), stat=ierr)
+```Fortran
+integer, allocatable :: arr1(:)
+real(dp), allocatable :: arr2(:,:)
+integer :: ierr
+allocate(arr1(10), arr2(20, 30), stat=ierr)
+```
 
 This value will be zero if the allocation was successful, and non-zero
 otherwise. The memory logging routines check this value, and report an
@@ -930,7 +958,7 @@ Memory is logged using the functions `LogMemAlloc` and `LogMemDealloc`.
 ## Code templating
 
 NECI supports two ways of templating code, the python-based Fortran
-preprocessor `fypp` (, <https://github.com/aradi/fypp>) and the custom
+preprocessor `fypp` (<https://github.com/aradi/fypp>) and the custom
 script `tools/f90_template.py`. It is strongly suggested for new code to
 make use of `fypp`, which allows for handling preprocessor flags using
 python syntax, and provides an easy route to templating code with little
@@ -959,10 +987,12 @@ arising.
 Fortran permits multiple routines to be referenced by the same name
 through the use of interface blocks such as
 
-    interface sub_name
-                module procedure actual_name_1
-                module procedure actual_name_2
-            end interface
+```Fortran
+interface sub_name
+    module procedure actual_name_1
+    module procedure actual_name_2
+end interface
+```
 
 which allows either of the routines `actual_name_1` or `actual_name_2`
 to be called using the Fortran symbol `sub_name`. Note that these
@@ -991,45 +1021,46 @@ into a macroscopic module which can be used from elsewhere.
 
 A sample templated module structure is given here for reference. The
 different sections are explained below.
+```Fortran
+
+# This is the configuration block. Note that it has *.ini syntax,
+# and that comments are preceeded by hashes.
+[int]
+type1=integer(int32)
+
+[float]
+type1=real(dp)
+
+===================
+
+#include "macros.h"
+
+module module_name
+
+    ! This is the module which is templated to generate the ensemble
+    ! of routines with differing types
+    use constants
+    implicit none
+
+contains
+
+    elemental function test_fn(arg) result(ret)
+
+        %(type1)s, intent(in) :: arg
+        %(type2)s :: ret
+
+    end function
+
+end module
 
 
-            # This is the configuration block. Note that it has *.ini syntax,
-            # and that comments are preceeded by hashes.
-            [int]
-            type1=integer(int32)
-
-            [float]
-            type1=real(dp)
-
-            ===================
-
-    #include "macros.h"
-
-            module module_name
-
-                ! This is the module which is templated to generate the ensemble
-                ! of routines with differing types
-                use constants
-                implicit none
-
-            contains
-
-                elemental function test_fn(arg) result(ret)
-
-                    %(type1)s, intent(in) :: arg
-                    %(type2)s :: ret
-
-                end function
-
-            end module
-
-
-            supermodule module_name
-                !
-                ! Here we include code that should be included in the module but
-                ! does not need to be templated.
-                !
-            end supermodule
+supermodule module_name
+    !
+    ! Here we include code that should be included in the module but
+    ! does not need to be templated.
+    !
+end supermodule
+```
 
 ### Configuration names and substitution
 
@@ -1075,8 +1106,10 @@ the first character on a new line is a space, and then just continuing.
 Make sure you remember the Fortran line continuation characters, as in
 this example from the MPI wrapper code:
 
-    mpilen=((ubound(v,1)-lbound(v,1)+1)*(ubound(v,2)-lbound(v,2)+1)*&
-             (ubound(v,3)-lbound(v,3)+1))
+```Fortran
+mpilen=((ubound(v,1)-lbound(v,1)+1)*(ubound(v,2)-lbound(v,2)+1)*&
+         (ubound(v,3)-lbound(v,3)+1))
+```
 
 There is a special variable, which can be accessed using `%(name)s`.
 This contains the name of the current configuration.
@@ -1093,31 +1126,24 @@ As an example, take a routine which is passed an array, and a value that
 could be an element of that array (such as is necessary for a binary
 search), such that
 
-    subroutine example(arr, elem)
-                %(type1)s :: arr(:)
-                %(type1)s :: elem()
-                ...
-            end subroutine
+```Fortran
+subroutine example(arr, elem)
+    %(type1)s :: arr(:)
+    %(type1)s :: elem()
+    ...
+end subroutine
+```
 
 If `type1` is a scalar value, this does a substitution exactly as would
 be expected:
 
-<!-- TODO should have ⇒ where TODO is -->
-
-<table>
-<tbody>
-<tr class="odd">
-<td style="text-align: left;"><div class="sourceCode" id="cb1" data-language="ini" data-gobble="8"><pre class="sourceCode ini"><code class="sourceCode ini"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">[int]</span></span>
-<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="dt">        type1</span><span class="ot">=</span><span class="st">integer(int32)</span></span></code></pre></div></td>
-<td style="text-align: center;"><span class="math inline">⇒</span></td>
-<td style="text-align: left;"><pre data-gobble="8">TODO<code>subroutine example_int(arr, elem)
-            integer(int32) :: arr(:)
-            integer(int32) :: elem
-            ...
-        end subroutine</code></pre></td>
-</tr>
-</tbody>
-</table>
+```Fortran
+[int]                    =>   subroutine example_int(arr, elem)
+type1 = integer(int32)   =>       integer(int32) :: arr(:)
+                         =>       integer(int32) :: elem
+                         =>       ...
+                         =>   end subroutine
+```
 
 However, it may be necessary for the value which is being considered in
 the array to itself be an array. An example of this would be the bit
@@ -1127,20 +1153,13 @@ array, and any intermediate values would be arrays themselves.
 In this case, an array type should be specified using the `dimension`
 keyword, and the code will be automatically adjusted as follows:
 
-<table>
-<tbody>
-<tr class="odd">
-<td style="text-align: left;"><div class="sourceCode" id="cb1" data-language="ini" data-gobble="8"><pre class="sourceCode ini"><code class="sourceCode ini"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">[arr_int64]</span></span>
-<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="dt">        type1</span><span class="ot">=</span><span class="st">integer(int64), dimension(:)</span></span></code></pre></div></td>
-<td style="text-align: center;"><span class="math inline">⇒</span></td>
-<td style="text-align: left;"><pre data-gobble="8"><code>subroutine example_int(arr, elem)
-            integer(int64) :: arr(:,:)
-            integer(int64) :: elem()
-            ...
-        end subroutine</code></pre></td>
-</tr>
-</tbody>
-</table>
+```Fortran
+[arr_int64]                            =>   subroutine example_int(arr, elem)
+type1 = integer(int64), dimension(:)   =>       integer(int32) :: arr(:, :)
+                                       =>       integer(int32) :: elem(:)
+                                       =>       ...
+                                       =>   end subroutine
+```
 
 Essentially the number of `:` delimiters appearing in the variable
 definition is combined with the number of dimensions specified in the
@@ -1149,54 +1168,48 @@ type.
 As a special case, temporary variables can be created of an appropriate
 size which are either scalars, or have one dimension. For the definition
 
-            %(type1)s :: tmp(size(arr(1)))
+```Fortran
+%(type1)s :: arr(:)
+%(type1)s :: tmp(size(arr(1)))
+```
 
 then adjustment occurs as follows
 
-<table>
-<tbody>
-<tr class="odd">
-<td style="text-align: left;"><div class="sourceCode" id="cb1" data-language="ini" data-gobble="8"><pre class="sourceCode ini"><code class="sourceCode ini"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">[int]</span></span>
-<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="dt">        type1</span><span class="ot">=</span><span class="st">integer(int32)</span></span></code></pre></div></td>
-<td style="text-align: center;"><span class="math inline">⇒</span></td>
-<td style="text-align: left;"><pre data-gobble="8"><code>integer(int32) :: arr(:)
-        integer(int32) :: tmp</code></pre></td>
-</tr>
-<tr class="even">
-<td style="text-align: left;"><div class="sourceCode" id="cb3" data-language="ini" data-gobble="8"><pre class="sourceCode ini"><code class="sourceCode ini"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="kw">[arr_int64]</span></span>
-<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="dt">        type1</span><span class="ot">=</span><span class="st">integer(int64), dimension(:)</span></span></code></pre></div></td>
-<td style="text-align: center;"><span class="math inline">⇒</span></td>
-<td style="text-align: left;"><pre data-gobble="8"><code>integer(int64) :: arr(:,:)
-        integer(int64) :: tmp(size(arr(1)))</code></pre></td>
-</tr>
-</tbody>
-</table>
+```Fortran
+[int]                    =>     integer(int32) :: arr(:)
+type1 = integer(int32)   =>     integer(int32) :: elem
+                         =>     integer(int32) :: tmp
+```
+And
+
+```Fortran
+[arr_int64]                           =>   integer(int32) :: arr(:, :)
+type1 = integer(int64), dimension(:)  =>   integer(int32) :: elem(:)
+                                      =>   integer(int32) :: tmp(size(arr(1)))
+```
+
 
 In a similar way, the references made to these variables within the
 routines must be adjusted. This is to ensure that correct sized array
 slices are used at all times. For the original templated code
 
+```Fortran
     arr1(j) = arr2(i)
+```
 
 the following will result in the the templated output if the variable is
 of an adjustable type and declared at the top of the function:
 
-<table>
-<tbody>
-<tr class="odd">
-<td style="text-align: left;"><div class="sourceCode" id="cb1" data-language="ini" data-gobble="8"><pre class="sourceCode ini"><code class="sourceCode ini"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">[int]</span></span>
-<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="dt">        type1</span><span class="ot">=</span><span class="st">integer(int32)</span></span></code></pre></div></td>
-<td style="text-align: center;"><span class="math inline">⇒</span></td>
-<td style="text-align: left;"><pre data-gobble="8"><code>arr1(j) = arr2(i)</code></pre></td>
-</tr>
-<tr class="even">
-<td style="text-align: left;"><div class="sourceCode" id="cb3" data-language="ini" data-gobble="8"><pre class="sourceCode ini"><code class="sourceCode ini"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="kw">[arr_int64]</span></span>
-<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="dt">        type1</span><span class="ot">=</span><span class="st">integer(int64), dimension(:)</span></span></code></pre></div></td>
-<td style="text-align: center;"><span class="math inline">⇒</span></td>
-<td style="text-align: left;"><pre data-gobble="8"><code>arr1(:,j) = arr2(:,i)</code></pre></td>
-</tr>
-</tbody>
-</table>
+```Fortran
+[int]                      =>    arr1(j) = arr2(i)
+type1 = integer(int32)     =>
+```
+And
+
+```Fortran
+[arr_int64]                             =>     arr1(:, j) = arr2(:, i)
+type1 = integer(int64), dimension(:)    =>
+```
 
 ### The supermodule
 
@@ -1228,57 +1241,39 @@ two tricks are generally useful.
     is useful for adding additional functionality (and allows multiple
     templated routines to use the same `type` values). The templated
     subroutine definition
-
-        subroutine example(arg%(extra_args)s)
-
-    will generate the following code
-
-    <table>
-    <tbody>
-    <tr class="odd">
-    <td style="text-align: left;"><div class="sourceCode" id="cb1" data-language="ini" data-gobble="16"><pre class="sourceCode ini"><code class="sourceCode ini"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">[simple]</span></span>
-    <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="dt">                extra_args</span><span class="ot">=</span></span></code></pre></div></td>
-    <td style="text-align: center;"><span class="math inline">⇒</span></td>
-    <td style="text-align: left;"><pre data-gobble="16"><code>subroutine example(arg)</code></pre></td>
-    </tr>
-    <tr class="even">
-    <td style="text-align: left;"><div class="sourceCode" id="cb3" data-language="ini" data-gobble="16"><pre class="sourceCode ini"><code class="sourceCode ini"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="kw">[extended]</span></span>
-    <span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="dt">                extra_args</span><span class="ot">=</span><span class="st">, arg2, arg3</span></span></code></pre></div></td>
-    <td style="text-align: center;"><span class="math inline">⇒</span></td>
-    <td style="text-align: left;"><pre data-gobble="16"><code>subroutine example(arg, arg2, arg3)</code></pre></td>
-    </tr>
-    </tbody>
-    </table>
-
-    The next trick is useful for adding the type definitions of these
-    additional arguments, and enabling the code which uses them.
+```Fortran
+subroutine example(arg%(extra_args)s)
+```
+will generate the following code
+```Fortran
+[simple]                    =>
+extra_args =                =>     subroutine example(arg)
+                            =>
+[extended ]                 =>
+extra_args = , arg2, arg3   =>     subroutine example(arg, arg2, arg3)
+```
+The next trick is useful for adding the type definitions of these
+additional arguments, and enabling the code which uses them.
 
 -   **Switching off lines of code**\
     Lines of code in Fortran are trivially disabled when they are
     commented out. Prefixing lines with a switch-value allows it to be
     disabled. For example
+```Fortran
+%(use_type2)%(type2) :: val()
+```
+will allow an additional type to be used in a routine depending on
+the configuration:
 
-    will allow an additional type to be used in a routine depending on
-    the configuration:
-
-    <table>
-    <tbody>
-    <tr class="odd">
-    <td style="text-align: left;"><div class="sourceCode" id="cb1" data-language="ini" data-gobble="16"><pre class="sourceCode ini"><code class="sourceCode ini"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">[unused]</span></span>
-    <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="dt">                type2</span><span class="ot">=</span></span>
-    <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="dt">                use_type2</span><span class="ot">=</span><span class="st">!</span></span></code></pre></div></td>
-    <td style="text-align: center;"><span class="math inline">⇒</span></td>
-    <td style="text-align: left;"><pre data-gobble="16"><code>! :: val()</code></pre></td>
-    </tr>
-    <tr class="even">
-    <td style="text-align: left;"><div class="sourceCode" id="cb3" data-language="ini" data-gobble="16"><pre class="sourceCode ini"><code class="sourceCode ini"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="kw">[arr_real]</span></span>
-    <span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="dt">                type2</span><span class="ot">=</span><span class="st">real(dp), dimension(:)</span></span>
-    <span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="dt">                use_type2</span><span class="ot">=</span></span></code></pre></div></td>
-    <td style="text-align: center;"><span class="math inline">⇒</span></td>
-    <td style="text-align: left;"><pre data-gobble="16"><code>real(dp) :: val(:)</code></pre></td>
-    </tr>
-    </tbody>
-    </table>
+```Fortran
+[unused]                        =>
+type2 =                         =>
+use_type2 =!                    =>        ! :: val ()
+                                =>
+[arr_real]                      =>
+type2 = real(dp), dimension(:)  =>        real(dp) :: val(:)
+use_type2 =                     =>
+```
 
 ### Manual renaming of routines
 
@@ -1292,10 +1287,12 @@ various parameters, and automatic versions which take the lengths from
 the sizes of the arrays passed in. At the top of the templated module
 definiton lie interfaces blocks such as
 
-    interface MPIReduce
-                module procedure MPIReduce_len_%(name)s
-                module procedure MPIReduce_auto_%(name)s
-            end interface
+```Fortran
+interface MPIReduce
+    module procedure MPIReduce_len_%(name)s
+    module procedure MPIReduce_auto_%(name)s
+end interface
+```
 
 which makes use of the special `%(name)s` element to reference the
 generated routines after templating.
@@ -1327,7 +1324,9 @@ benchmarks, and let the user know the outcome of each test.
 
 You can clone testcode2 from github with the following command:
 
-    $ git clone https://github.com/jsspencer/testcode ~/testcode2}
+```bash
+$ git clone https://github.com/jsspencer/testcode ~/testcode2}
+```
 
 There are tests for each of the three executables: neci, mneci and
 kneci. These are stored in the three directories with the corresponding
@@ -1338,32 +1337,44 @@ these corresponding features of NECI.
 
 To run the entire test suite, just do
 
-    $ ~/testcode2/bin/testcode.py
+```bash
+$ ~/testcode2/bin/testcode.py
+```
 
 in the test\_suite directory (assuming you cloned testcode2 to your home
 directory). To run this, you will have to have all of neci, mneci and
 kneci compiled. However, you can also run a subset of tests. For
 example, to run all mneci tests do
 
-    $ ~/testcode2/bin/testcode.py -c mneci
+```bash
+$ ~/testcode2/bin/testcode.py -c mneci
+```
 
 or to run a particular single test do
 
-    $ ~/testcode2/bin/testcode.py -c mneci/rdm/HeHe_int
+```bash
+$ ~/testcode2/bin/testcode.py -c mneci/rdm/HeHe_int
+```
 
 or to run two particular tests do
 
-    $ ~/testcode2/bin/testcode.py -c mneci/rdm/HeHe_int -c mneci/rdm/HeHe_real
+```bash
+$ ~/testcode2/bin/testcode.py -c mneci/rdm/HeHe_int -c mneci/rdm/HeHe_real
+```
 
 By default, testcode will just tell you whether or not the test passed.
 If the test failed, you can get further information by increasing the
 verbosity of the output. For example,
 
-    $ ~/testcode2/bin/testcode.py -c mneci/rdm/HeHe_int -v
+```bash
+$ ~/testcode2/bin/testcode.py -c mneci/rdm/HeHe_int -v
+```
 
 or
 
-    $ ~/testcode2/bin/testcode.py -c mneci/rdm/HeHe_int -vv
+```bash
+$ ~/testcode2/bin/testcode.py -c mneci/rdm/HeHe_int -vv
+```
 
 which will tell you why the individual test did not pass. You can also
 use the verbosity flags when running the entire set of all tests.
@@ -1391,9 +1402,9 @@ create a new benchmark for *only* the new test then run, for example,
 
 This should run just the new test. You will be told that the test has
 failed, and asked if you would like to set the new benchmark. If you
-believe that the test has run correctly then do so with ’y’.
+believe that the test has run correctly then do so with `y`.
 
-’-i’ tells testcode to ’insert’ the new benchmark ID at the start of the
+`-i` tells testcode to ’insert’ the new benchmark ID at the start of the
 old list of benchmarks (located in ./userconfig). When testcode is run
 later, it will use the benchmark files with these IDs to compare
 against.
