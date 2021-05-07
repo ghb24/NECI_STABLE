@@ -5,21 +5,25 @@ tmpfile=tmp_reformat_$1
 cp $1 $tmpfile
 
 
-# replace html colour commands with latex colour commands
-
+# TODO(@Philip) What does this do?
 sed -i 's/\[TOC\]/\\newpage/g' $tmpfile
-sed -i 's/@endnote/\\dummy\{\\end\{note\}\}/g' $tmpfile
-sed -i 's/@note/\\dummy\{\\begin\{note\}\}/g' $tmpfile
-sed -i 's/@endwarning/\\dummy\{\\end\{warning\}\}/g' $tmpfile
-sed -i 's/@warning/\\dummy\{\\begin\{warning\}\}/g' $tmpfile
-sed -i 's/@endtodo/\\dummy\{\\end\{todo\}\}/g' $tmpfile
-sed -i 's/@todo/\\dummy\{\\begin\{todo\}\}/g' $tmpfile
-sed -i 's/@endbug/\\dummy\{\\end\{bug\}\}/g' $tmpfile
-sed -i 's/@bug/\\dummy\{\\begin\{bug\}\}/g' $tmpfile
+
+# replace @note ... @endnote with \begin{note}  \end{note}
+# The trick is that contents of LaTeX commands are not parsed by pandoc.
+# The verbatimLaTeX macro is just mirroring its output.
+sed -i 's/@endnote/\\verbatimLaTeX\{\\end\{note\}\}/g' $tmpfile
+sed -i 's/@note/\\verbatimLaTeX\{\\begin\{note\}\}/g' $tmpfile
+sed -i 's/@endwarning/\\verbatimLaTeX\{\\end\{warning\}\}/g' $tmpfile
+sed -i 's/@warning/\\verbatimLaTeX\{\\begin\{warning\}\}/g' $tmpfile
+sed -i 's/@endtodo/\\verbatimLaTeX\{\\end\{todo\}\}/g' $tmpfile
+sed -i 's/@todo/\\verbatimLaTeX\{\\begin\{todo\}\}/g' $tmpfile
+sed -i 's/@endbug/\\verbatimLaTeX\{\\end\{bug\}\}/g' $tmpfile
+sed -i 's/@bug/\\verbatimLaTeX\{\\begin\{bug\}\}/g' $tmpfile
+
+# replace html colour commands with latex colour commands
 sed -i 's/<span style="color: \([^<]*\)">\([^<]*\)<\/span>/\\textcolor{\1}{\2}/g' $tmpfile
 
 # CONVERT
-
 pandoc \
       -V geometry:margin=3cm \
       -V geometry:a4paper \
