@@ -1,0 +1,21 @@
+Large Technical:
+  - Replace `=` in text with appropiate @warning, etc. environments.  @Oskar
+  - Use backticks consistently for code. @Oskar
+  - replace table (inhouse templating examples) with two code boxes. @Oskar
+
+  - Break single file into pieces **AND** write script to automatically join. @Philip
+
+
+Large Content:
+  - Tutorial @Philip in User Doc
+  - How to document with Ford in Dev Doc @Oskar
+  - Reread Dev Doc @Oskar
+  - Reread User Doc @Philip
+
+
+
+
+Small:
+  - double space -> / (explicit)   @Oskar
+  - check if uppercase is really necessary   @Oskar
+  - check if conversion to Tex is more stable   @Oskar
