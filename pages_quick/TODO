@@ -16,6 +16,5 @@ Large Content:
 
 
 Small:
-  - double space -> / (explicit)   @Oskar
   - check if uppercase is really necessary   @Oskar
   - check if conversion to Tex is more stable   @Oskar
