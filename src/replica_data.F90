@@ -3,6 +3,7 @@
 module replica_data
 
     use constants
+    use MPI_wrapper
     use FciMCData
     use CalcData
     use util_mod

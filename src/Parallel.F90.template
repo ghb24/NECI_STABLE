@@ -130,27 +130,13 @@ mpitype=MPI_INTEGER8
 ! We need to be able to do a bit of hackery when using C-based MPI
 !
 ! --> We relabel things a bit...
-#ifdef CBINDMPI
-#define val_in vptr
-#define val_out rptr
-#else
 #define val_in v
 #define val_out Ret
-#endif
-
-!#ifdef CBINDMPI
-!#define cbind_loc loc_neci
-!#else
-!#define cbind_loc
-!#endif
-
-
-
 
 module par_internal
-    use ParallelHelper
+    use MPI_wrapper
     use CalcData, only: iLogicalNodeSize
-    use iso_c_hack
+    use, intrinsic :: iso_c_binding, only: c_size_t, c_char
     use constants
     use fmt_utils
     implicit none
@@ -212,132 +198,6 @@ module par_internal
     end interface
 
 
-#ifdef CBINDMPI
-    interface
-        subroutine MPI_Reduce (val, ret, cnt, dtype, op, rt, comm, ierr) &
-            bind(c, name='mpi_reduce_wrap')
-            use iso_c_hack
-            use constants
-            c_ptr_t, intent(in), value :: val, ret
-            integer(c_int), intent(in), value :: cnt, dtype, op, rt, comm
-            integer(c_int), intent(out) :: ierr
-        end subroutine
-        subroutine MPI_Allreduce (val, ret, cnt, dtype, op, comm, ierr) &
-            bind(c, name='mpi_allreduce_wrap')
-            use iso_c_hack
-            use constants
-            c_ptr_t, intent(in), value :: val, ret
-            integer(c_int), intent(in), value :: cnt, dtype, op, comm
-            integer(c_int), intent(out) :: ierr
-        end subroutine
-        subroutine MPI_Bcast (buf, cnt, dtype, rt, comm, ierr) &
-            bind(c, name='mpi_bcast_wrap')
-            use iso_c_hack
-            use constants
-            c_ptr_t, intent(in), value :: buf
-            integer(c_int), intent(in), value :: cnt, dtype, rt, comm
-            integer(c_int), intent(out) :: ierr
-        end subroutine
-        subroutine MPI_Alltoall (sbuf, scnt, stype, rbuf, rcnt, rtype, &
-                                 comm, ierr) bind(c, name='mpi_alltoall_wrap')
-            use iso_c_hack
-            use constants
-            c_ptr_t, intent(in), value :: sbuf, rbuf
-            integer(c_int), intent(in), value :: scnt, stype, rcnt
-            integer(c_int), intent(in), value :: rtype, comm
-            integer(c_int), intent(out) :: ierr
-        end subroutine
-        subroutine MPI_AlltoallV (sbuf, scnts, sdispl, stype, rbuf, rcnts, &
-                                  rdispl, rtype, comm, ierr) &
-                                  bind(c, name='mpi_alltoallv_wrap')
-            use iso_c_hack
-            use constants
-            c_ptr_t, intent(in), value :: sbuf, rbuf
-            integer(MPIArg), intent(in) :: scnts(*), sdispl(*)
-            integer(MPIArg), intent(in) :: rcnts(*), rdispl(*)
-!            c_ptr_t, intent(in), value :: scnts, sdispl, rcnts, rdispl
-            integer(c_int), intent(in), value :: stype, rtype, comm
-            integer(c_int), intent(out) :: ierr
-        end subroutine
-        subroutine MPI_GatherV (sbuf, scnt, stype, rbuf, rcnts, displs, &
-                                rtype, rt, comm, ierr) &
-                                bind(c, name='mpi_gatherv_wrap')
-            use iso_c_hack
-            use constants
-            c_ptr_t, intent(in), value :: sbuf, rbuf
-            integer(c_int), intent(in), value :: scnt, stype, rtype
-            integer(c_int), intent(in), value :: comm, rt
-            integer(MPIArg), intent(in) :: displs(*)
-            integer(MPIArg), intent(in) :: rcnts(*)
-!            c_ptr_t, intent(in), value :: displs, rcnts
-            integer(c_int), intent(out) :: ierr
-        end subroutine
-        subroutine MPI_Allgather (sbuf, scnt, stype, rbuf, rcnt, rtype, &
-                                  comm, ierr) &
-                               bind(c, name='mpi_allgather_wrap')
-            use iso_c_hack
-            use constants
-            c_ptr_t, intent(in), value :: sbuf, rbuf
-            integer(c_int), intent(in), value :: scnt, stype, rcnt, rtype
-            integer(c_int), intent(in), value :: comm
-            integer(c_int), intent(out) :: ierr
-        end subroutine
-        subroutine MPI_AllgatherV (sbuf, scnt, stype, rbuf, rcnt, displs, &
-                                  rtype, comm, ierr) &
-                               bind(c, name='mpi_allgatherv_wrap')
-            use iso_c_hack
-            use constants
-            c_ptr_t, intent(in), value :: sbuf, rbuf
-            integer(c_int), intent(in), value :: scnt, stype, rtype
-            integer(c_int), intent(in), value :: comm
-            integer(MPIArg), intent(in) :: rcnt(*)
-            integer(MPIArg), intent(in) :: displs(*)
-            integer(c_int), intent(out) :: ierr
-        end subroutine
-        subroutine MPI_ScatterV (sbuf, scnts, displs, stype, rbuf, rcnt, &
-                                 rtype, rt, comm, ierr) &
-                                 bind(c, name='mpi_scatterv_wrap')
-            use iso_c_hack
-            use constants
-            c_ptr_t, intent(in), value :: sbuf, rbuf
-            integer(c_int), intent(in), value :: stype, rcnt, rtype
-            integer(c_int), intent(in), value :: comm, rt
-            integer(MPIArg), intent(in) :: scnts(*)
-            integer(MPIArg), intent(in) :: displs(*)
-!            c_ptr_t, intent(in), value :: scnts, displs
-            integer(c_int), intent(out) :: ierr
-        end subroutine
-        subroutine MPI_Scatter (sbuf, scnt, stype, rbuf, rcnt, rtype, rt, &
-                                comm, ierr) bind(c, name='mpi_scatter_wrap')
-            use iso_c_hack
-            use constants
-            c_ptr_t, intent(in), value :: sbuf, rbuf
-            integer(c_int), intent(in), value :: scnt, stype, rcnt, rtype
-            integer(c_int), intent(in), value :: comm, rt
-            integer(c_int), intent(out) :: ierr
-        end subroutine
-        subroutine MPI_Recv (buf, cnt, dtype, src, tag, comm, stat, ierr) &
-            bind(c, name='mpi_recv_wrap')
-            use iso_c_hack
-            use constants
-            c_ptr_t, intent(in), value :: buf
-            integer(c_int), intent(in), value :: cnt, dtype, src, tag, comm
-            integer(c_int), intent(inout) :: stat(*)
-!            c_ptr_t, intent(in), value :: stat
-            integer(c_int), intent(out) :: ierr
-        end subroutine
-        subroutine MPI_Send (buf, cnt, dtype, src, tag, comm, ierr) &
-            bind(c, name='mpi_send_wrap')
-            use iso_c_hack
-            use constants
-            c_ptr_t, intent(in), value :: buf
-            integer(c_int), intent(in), value :: cnt, dtype, src, tag, comm
-            integer(c_int), intent(out) :: ierr
-        end subroutine
-    end interface
-#endif
-
-
 contains
 
     subroutine MPIReduce_len (v, iLen, iType, Ret, Node)
@@ -358,16 +218,7 @@ contains
         integer(MPIArg) :: Comm, rt, ierr
         character(*), parameter :: t_r = "MPIReduce"
 
-#ifdef PARALLEL
-#ifdef CBINDMPI
-#ifdef GFORTRAN_
-        type(c_ptr) :: g_loc
-#endif
-        c_ptr_t :: vptr, rptr
-        vptr = loc_neci(v)
-        rptr = loc_neci(ret)
-#endif
-
+#ifdef USE_MPI
         call GetComm (Comm, Node, rt)
 
         call MPI_Reduce(val_in, val_out, int(iLen, MPIArg), &
@@ -395,15 +246,7 @@ contains
         integer(MPIArg) ::  comm, rt, ierr
         character(*), parameter :: t_r = 'MPIReduce'
 
-#ifdef PARALLEL
-#ifdef CBINDMPI
-#ifdef GFORTRAN_
-        type(c_ptr) :: g_loc
-#endif
-        c_ptr_t :: vptr, rptr
-        vptr = loc_neci(v)
-        rptr = loc_neci(ret)
-#endif
+#ifdef USE_MPI
         call GetComm(Comm, Node, rt)
 
         call MPI_Reduce(val_in, val_out, &
@@ -418,49 +261,6 @@ contains
 #endif
 
     end subroutine
-
-
-
-!    subroutine MPIReduce_inplace (v, iType, Node)
-!
-!        ! The same as MPIReduce, but using the v array as the return
-!        ! array on the target node.
-!
-!        %%%%%%%%(type1)s, intent(inout), target :: v()
-!        integer(MPIArg), intent(in), target :: iType
-!        type(CommI), intent(in), optional :: node
-!        integer(MPIArg) :: comm, rt, ierr
-!        character(*), parameter :: t_r = 'MPIReduce'
-!
-!#ifdef CBINDMPI
-!#ifdef GFORTRAN_
-!        type(c_ptr) :: g_loc
-!#endif
-!        ! Spaces prevent template adjustment
-!        c_ptr_t :: vptr
-!        vptr = loc_neci(v)
-!#endif
-!
-!#ifdef PARALLEL
-!        call GetComm (Comm, Node, rt)
-!
-!        if (iProcIndex == rt) then
-!            call MPI_Reduce (MPI_IN_PLACE, val_in, &
-!                    int(%%%%%%%%(mpilen)s, MPIArg), &
-!                    %%%%%%%%(mpitype)s, iType, rt, &
-!                    comm, ierr)
-!        else
-!            call MPI_Reduce (val_in, MPI_IN_PLACE, &
-!                    int(%%%%%%%%(mpilen)s, MPIArg), &
-!                    %%%%%%%%(mpitype)s, iType, rt, &
-!                    comm, ierr)
-!        end if
-!
-!        if (ierr /= MPI_SUCCESS) &
-!            call stop_all (t_r, 'MPI Error. Terminating.')
-!#endif
-!
-!    end subroutine
 
 
 
@@ -484,15 +284,7 @@ contains
         ! Error handling vars
         character(255) :: string
         integer(MPIArg) :: length, jerr, errorclass
-#ifdef PARALLEL
-#ifdef CBINDMPI
-#ifdef GFORTRAN_
-        type(c_ptr) :: g_loc
-#endif
-        c_ptr_t :: vptr, rptr
-        vptr = loc_neci(v)
-        rptr = loc_neci(ret)
-#endif
+#ifdef USE_MPI
         call GetComm (Comm, Node)
 
         call MPI_Allreduce (val_in, val_out, int(ilen, MPIArg), &
@@ -532,16 +324,7 @@ contains
         character(LEN=MPI_MAX_ERROR_STRING) :: errmsg
         character(*), parameter :: t_r = 'MPIAllReduce'
 
-#ifdef PARALLEL
-#ifdef CBINDMPI
-#ifdef GFORTRAN_
-        type(c_ptr) :: g_loc
-#endif
-        c_ptr_t :: vptr, rptr
-        vptr = loc_neci(v)
-        rptr = loc_neci(ret)
-#endif
-
+#ifdef USE_MPI
         call GetComm (Comm, Node)
 
         call MPI_Allreduce (val_in, val_out, &
@@ -567,41 +350,6 @@ contains
 
 
 
-!    subroutine MPIAllReduce_inplace (v, iType, Node)
-!
-!        ! The same as MPIAllReduce_len, but the length of array Value (and
-!        ! thus Ret) is determinend automagically
-!
-!        %%%%%%%%(type1)s, intent(inout), target :: v()
-!        integer(MPIArg), intent(in), target :: iType
-!        type(CommI), intent(in), optional :: Node
-!        integer(MPIArg) :: comm, ierr
-!        character(*), parameter :: t_r = 'MPIAllReduce'
-!
-!#ifdef PARALLEL
-!#ifdef CBINDMPI
-!#ifdef GFORTRAN_
-!        type(c_ptr) :: g_loc
-!#endif
-!        ! Spaces prevent template adjustment
-!        c_ptr_t :: vptr
-!        vptr = loc_neci(v)
-!#endif
-!        call GetComm (Comm, Node)
-!
-!        call MPI_Allreduce (MPI_IN_PLACE, val_in, &
-!                int(%%%%%%%%(mpilen)s, MPIArg), &
-!                %%%%%%%%(mpitype)s, &
-!                iType, comm, ierr)
-!
-!        if (ierr /= MPI_SUCCESS) &
-!            call stop_all (t_r, 'MPI Error. Terminating.')
-!#endif
-!
-!    end subroutine
-
-
-
     Subroutine MPIAllReduceDatatype(v, iLen, iType, dtype, Ret, Node)
 
         ! Perform MPI_Allreduce, specifying the datatype in the call.
@@ -622,16 +370,7 @@ contains
         integer(MPIArg) :: ierr, comm
         character(*), parameter :: t_r = 'MPIAllReduce'
 
-#ifdef PARALLEL
-#ifdef CBINDMPI
-#ifdef GFORTRAN_
-        type(c_ptr) :: g_loc
-#endif
-        c_ptr_t :: vptr, rptr
-        vptr = loc_neci(v)
-        rptr = loc_neci(ret)
-#endif
-
+#ifdef USE_MPI
         call GetComm (Comm, Node)
 
         call MPI_Allreduce (val_in, val_out, int(iLen, MPIArg), dtype, itype, &
@@ -766,14 +505,7 @@ contains
         integer(MPIArg) :: ierr
         character(*), parameter :: t_r = 'MPIBcast'
 
-#ifdef PARALLEL
-#ifdef CBINDMPI
-#ifdef GFORTRAN_
-        type(c_ptr) :: g_loc
-#endif
-        c_ptr_t :: vptr
-        vptr = loc_neci(v)
-#endif
+#ifdef USE_MPI
         call MPI_Bcast (val_in, int(iLen, MPIArg), &
                 %(mpitype)s, &
                 int(rt, MPIArg), CommGlobal, ierr)
@@ -801,14 +533,7 @@ contains
         type(CommI), intent(in), optional :: Node
         character(*), parameter :: t_r = 'MPIBcast'
 
-#ifdef PARALLEL
-#ifdef CBINDMPI
-#ifdef GFORTRAN_
-        type(c_ptr) :: g_loc
-#endif
-        c_ptr_t :: vptr
-        vptr = loc_neci(v)
-#endif
+#ifdef USE_MPI
         call GetComm (Comm, Node, rt)
 
         call MPI_Bcast (val_in, int(ilen, MPIArg), &
@@ -836,15 +561,7 @@ contains
         type(CommI), intent(in), optional :: Node
         character(*), parameter :: t_r = 'MPIBcast'
 
-#ifdef PARALLEL
-#ifdef CBINDMPI
-#ifdef GFORTRAN_
-        type(c_ptr) :: g_loc
-#endif
-        c_ptr_t :: vptr
-        vptr = loc_neci(v)
-#endif
-
+#ifdef USE_MPI
         call GetComm (Comm, Node, rt)
 
         call MPI_Bcast (val_in, &
@@ -873,15 +590,7 @@ contains
         type(CommI), intent(in), optional :: Node
         character(*), parameter :: t_r = 'MPIBCast'
 
-#ifdef PARALLEL
-#ifdef CBINDMPI
-#ifdef GFORTRAN_
-        type(c_ptr) :: g_loc
-#endif
-        c_ptr_t :: vptr
-        vptr = loc_neci(v)
-#endif
-
+#ifdef USE_MPI
         call GetComm(Comm, Node, rt, tMe)
 
         ! Which processor is root?
@@ -910,16 +619,7 @@ contains
         type(CommI), intent(in), optional :: Node
         integer(MPIArg) :: comm, err
 
-#ifdef PARALLEL
-#ifdef CBINDMPI
-#ifdef GFORTRAN_
-        type(c_ptr) :: g_loc
-#endif
-        c_ptr_t :: vptr, rptr
-        vptr = loc_neci(v)
-        rptr = loc_neci(ret)
-#endif
-
+#ifdef USE_MPI
         call GetComm (Comm, Node)
 
         call MPI_Alltoall (val_in, int(SendSize, MPIArg), &
@@ -948,18 +648,8 @@ contains
         type(CommI), intent(in), optional :: Node
         integer(MPIArg) :: comm, err
 
-#ifdef PARALLEL
-#ifdef CBINDMPI
-#ifdef GFORTRAN_
-        type(c_ptr) :: g_loc
-#endif
-        c_ptr_t :: vptr, rptr
-        vptr = loc_neci(v)
-        rptr = loc_neci(ret)
-#endif
-
+#ifdef USE_MPI
         call GetComm (Comm, Node)
-!        call MPI_Alltoallv (val_in, cbind_loc(SendSizes), &
         call MPI_Alltoallv (val_in, SendSizes, &
                 SendOffsets, &
                 %(mpitype)s, &
@@ -991,16 +681,7 @@ contains
         type(CommI), intent(in), optional :: Node
         integer(MPIArg) :: comm, err
 
-#ifdef PARALLEL
-#ifdef CBINDMPI
-#ifdef GFORTRAN_
-        type(c_ptr) :: g_loc
-#endif
-        c_ptr_t :: vptr, rptr
-        vptr = loc_neci(v)
-        rptr = loc_neci(ret)
-#endif
-
+#ifdef USE_MPI
         call GetComm (Comm, Node)
 
         call MPI_AllGather (val_in, int(SendSize, MPIArg), &
@@ -1027,16 +708,7 @@ contains
         type(CommI), intent(in), optional :: Node
         integer(MPIArg) :: Comm, err
 
-#ifdef PARALLEL
-#ifdef CBINDMPI
-#ifdef GFORTRAN_
-        type(c_ptr) :: g_loc
-#endif
-        c_ptr_t :: vptr, rptr
-        vptr = loc_neci(v)
-        rptr = loc_neci(ret)
-#endif
-
+#ifdef USE_MPI
         call GetComm (Comm, Node)
 
         call MPI_Allgather (val_in, &
@@ -1064,16 +736,7 @@ contains
         type(CommI), intent(in), optional :: Node
         integer(MPIArg) :: Comm, err
 
-#ifdef PARALLEL
-#ifdef CBINDMPI
-#ifdef GFORTRAN_
-        type(c_ptr) :: g_loc
-#endif
-        c_ptr_t :: vptr, rptr
-        vptr = loc_neci(v)
-        rptr = loc_neci(ret)
-#endif
-
+#ifdef USE_MPI
         call GetComm (Comm, Node)
 
         call MPI_Allgather (val_in, &
@@ -1106,16 +769,7 @@ contains
         integer(MPIArg) :: lengthsN(ubound(Lengths,1)-lbound(Lengths,1)+1)
         integer(MPIArg) :: LengthIn
 
-#ifdef PARALLEL
-#ifdef CBINDMPI
-#ifdef GFORTRAN_
-        type(c_ptr) :: g_loc
-#endif
-        c_ptr_t :: vptr, rptr
-        vptr = loc_neci(v)
-        rptr = loc_neci(ret)
-#endif
-
+#ifdef USE_MPI
         DispsN = int(Disps &
          * %(mpilen)s,MPIArg)
         LengthsN = int(Lengths &
@@ -1153,16 +807,7 @@ contains
         type(CommI), intent(in), optional :: Node
         integer(MPIArg) :: Comm, rt, err
 
-#ifdef PARALLEL
-#ifdef CBINDMPI
-#ifdef GFORTRAN_
-        type(c_ptr) :: g_loc
-#endif
-        c_ptr_t :: vptr, rptr
-        vptr = loc_neci(v)
-        rptr = loc_neci(ret)
-#endif
-
+#ifdef USE_MPI
         call GetComm (Comm, Node, rt)
 
         call MPI_Gather (val_in, int(SendSize, MPIArg), &
@@ -1188,16 +833,7 @@ contains
         type(CommI), intent(in), optional :: Node
         integer(MPIArg) :: Comm, rt, err
 
-#ifdef PARALLEL
-#ifdef CBINDMPI
-#ifdef GFORTRAN_
-        type(c_ptr) :: g_loc
-#endif
-        c_ptr_t :: vptr, rptr
-        vptr = loc_neci(v)
-        rptr = loc_neci(ret)
-#endif
-
+#ifdef USE_MPI
         call GetComm (Comm, Node, rt)
 
         call MPI_Gather (val_in, &
@@ -1234,16 +870,7 @@ contains
         integer(MPIArg) :: lengthsN(ubound(Lengths,1)-lbound(Lengths,1)+1)
         integer(MPIArg) :: LengthIn
 
-#ifdef PARALLEL
-#ifdef CBINDMPI
-#ifdef GFORTRAN_
-        type(c_ptr) :: g_loc
-#endif
-        c_ptr_t :: vptr, rptr
-        vptr = loc_neci(v)
-        rptr = loc_neci(ret)
-#endif
-
+#ifdef USE_MPI
         DispsN = int(Disps &
          * %(mpilen)s,MPIArg)
         LengthsN = int(Lengths &
@@ -1282,16 +909,7 @@ contains
         type(CommI), intent(in), optional :: Node
         integer(MPIArg) :: Comm, rt, err
 
-#ifdef PARALLEL
-#ifdef CBINDMPI
-#ifdef GFORTRAN_
-        type(c_ptr) :: g_loc
-#endif
-        c_ptr_t :: vptr, rptr
-        vptr = loc_neci(v)
-        rptr = loc_neci(ret)
-#endif
-
+#ifdef USE_MPI
         call GetComm (Comm, Node, rt)
 
         call MPI_ScatterV (val_in, SendSizes, Disps, &
@@ -1320,16 +938,7 @@ contains
         type(CommI), intent(in), optional :: Node
         integer(MPIArg) :: Comm, rt, err
 
-#ifdef PARALLEL
-#ifdef CBINDMPI
-#ifdef GFORTRAN_
-        type(c_ptr) :: g_loc
-#endif
-        c_ptr_t :: vptr, rptr
-        vptr = loc_neci(v)
-        rptr = loc_neci(ret)
-#endif
-
+#ifdef USE_MPI
         call GetComm (Comm, Node, rt)
 
         call MPI_Scatter (val_in, int(SendSize, MPIArg), &
@@ -1356,15 +965,7 @@ contains
         type(CommI), intent(in), optional :: Node
         integer(MPIArg) :: Comm, rt, err
 
-#ifdef PARALLEL
-#ifdef CBINDMPI
-#ifdef GFORTRAN_
-        type(c_ptr) :: g_loc
-#endif
-        c_ptr_t :: vptr, rptr
-        vptr = loc_neci(v)
-        rptr = loc_neci(ret)
-#endif
+#ifdef USE_MPI
         call GetComm (Comm, Node, rt)
 
         ! TODO: Should the first of these be mpilen not mpilen2?
@@ -1390,16 +991,8 @@ contains
         integer, intent(in) :: BuffSize, tag, source
         integer, intent(out) :: ierr
 
-#ifdef PARALLEL
+#ifdef USE_MPI
         integer(MPIArg) :: stat(MPI_STATUS_SIZE), err
-#ifdef CBINDMPI
-#ifdef GFORTRAN_
-        type(c_ptr) :: g_loc
-#endif
-        c_ptr_t :: rptr
-        rptr = loc_neci(ret)
-#endif
-
         call MPI_Recv (val_out, int(BuffSize, MPIArg), &
                 %(mpitype)s, &
                 int(Source, MPIArg), int(Tag, MPIArg), CommGlobal, &
@@ -1419,16 +1012,8 @@ contains
         integer, intent(in) :: BuffSize, tag, dest
         integer, intent(out) :: ierr
 
-#ifdef PARALLEL
+#ifdef USE_MPI
         integer(MPIArg) :: err
-#ifdef CBINDMPI
-#ifdef GFORTRAN_
-        type(c_ptr) :: g_loc
-#endif
-        c_ptr_t :: vptr
-        vptr = loc_neci(v)
-#endif
-
         call MPI_Send (val_in, int(BuffSize, MPIArg), &
                 %(mpitype)s, &
                 int(Dest, MPIArg), int(Tag, MPIArg), CommGlobal, err)
@@ -1445,21 +1030,13 @@ end module
 
 
 supermodule par_internal
-!
 ! n.b HACK
-! We need to be able to do a bit of hackery when using C-based MPI
-!
 ! --> We relabel things a bit...
-#ifdef CBINDMPI
-#define val_in vptr
-#define val_out rptr
-#else
 #define val_in v
 #define val_out Ret
-#endif
 
 ! MPI interface and helper routines for parallel work.
-! If compiled without the PARALLEL c pre-processing statement, then
+! If compiled without the USE_MPI c pre-processing statement, then
 ! contains dummy routines to enable the parallel calculation algorithms to
 ! be used in serial.  This is useful for testing, development and as (in some
 ! cases) the parallel algorithms are much more efficient that the serial
@@ -1514,13 +1091,13 @@ supermodule par_internal
 !    GetProcElectrons
 
 
-    use ParallelHelper
+    use MPI_wrapper
     use constants
     implicit none
 
     interface
         subroutine gethostname(nm, sz) bind(c)
-            use iso_c_hack
+            import :: c_size_t, c_char
             implicit none
             integer(c_size_t), value :: sz
             character(kind=c_char), intent(out) :: nm
@@ -1551,7 +1128,7 @@ contains
 
     if (neci_MPIInit_called) return
     neci_MPIInit_called = .true.
-#ifdef PARALLEL
+#ifdef USE_MPI
         nNodes = 0  !Indicate we haven't setup nodes yet
 
         call MPI_Initialized(initialised, ierr)
@@ -1563,12 +1140,6 @@ contains
             if (ierr /= MPI_SUCCESS) &
                 call stop_all (t_r, 'MPI Error. Terminating.')
         end if
-
-#ifdef CBINDMPI
-        ! Extract the value of MPI_COMM_WORLD from the C-bindings.
-        ! It doesn't have to be zero (c.f. gfortran w/ openmpi).
-        MPI_COMM_WORLD = mpicommworld_c2f()
-#endif
 
         ! If we are using the C bindings, this just sets it to 0
         CommGlobal = MPI_COMM_WORLD
@@ -1643,7 +1214,7 @@ contains
                 write(6,*) "Processor ", iProcIndex+1, '/', nProcessors, &
                            ' on local output.'
 #else
-                open(6, file="/dev/null", recl=8192)
+                open(6, file="/dev/null")
 #endif
             endif
 
@@ -1655,12 +1226,9 @@ contains
             write(6,*) "Sum: ", g
         endif
 
-#ifndef CBINDMPI
         ! Don't bother with this if using c bindings (probably
         ! should though)
         call MPI_ERRHANDLER_SET(CommGlobal,MPI_ERRORS_RETURN,ierr)
-#endif
-
 #else
 
        ! Dummy set up for serial work.
@@ -1764,7 +1332,7 @@ contains
         if(.not.allocated(Nodes)) allocate(Nodes(0:nProcessors-1))
         if(.not.allocated(ProcNode)) allocate(ProcNode(0:nProcessors-1))
         if(.not.allocated(NodeRoots)) allocate(NodeRoots(0:nProcessors-1))
-#ifdef PARALLEL
+#ifdef USE_MPI
         if(.not.allocated(NodeLengths)) allocate(NodeLengths(0:nProcessors)) !Temp allocate for now
         NodeLengths = 0
 
@@ -1915,7 +1483,7 @@ contains
         if(.not.allocated(CommNodes)) allocate(CommNodes(0:nNodes-1))
         if(.not.allocated(GroupNodes)) allocate(GroupNodes(0:nNodes-1))
         NodeLengths(0) = 1
-#endif /* def PARALLEL */
+#endif /* def USE_MPI */
         Roots%n = -1  !A communicator index between roots
     end subroutine
 
@@ -1931,7 +1499,7 @@ contains
        logical, intent(in) :: tExternal
        integer(MPIArg) :: ierr
 
-#ifdef PARALLEL
+#ifdef USE_MPI
 #ifdef SHARED_MEM_
         call mpi_comm_free(mpi_comm_intra,ierr)
         call mpi_comm_free(mpi_comm_inter,ierr)
@@ -1957,7 +1525,7 @@ contains
         integer, intent(in) :: error_code
         integer(MPIArg) :: ierr
 
-#ifdef PARALLEL
+#ifdef USE_MPI
         CALL MolproPluginTerm(-1)
 
         ! errorcode: Error returned to invoking environment.
@@ -1990,7 +1558,7 @@ contains
         integer iProcIndex,iMinElec,iMaxElec
         real(dp) nCur
 
-#ifdef PARALLEL
+#ifdef USE_MPI
         ! Invert X=n(n-1)/2
         nCur = ((nProcessors+1-iProcIndex)*nEl*(nEl-1.0_dp)/nProcessors)
 

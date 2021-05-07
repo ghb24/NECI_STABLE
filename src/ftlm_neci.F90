@@ -9,7 +9,7 @@ module ftlm_neci
     use constants
     use Parallel_neci, only: iProcIndex, nProcessors, MPIAllGatherV, MPIAllGather, &
                              MPISumAll
-    use ParallelHelper, only: root
+    use MPI_wrapper, only: root
     use sparse_arrays, only: calculate_sparse_ham_par, sparse_ham
 
     implicit none

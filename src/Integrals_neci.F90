@@ -817,7 +817,6 @@ contains
 !At the end of IntFREEZEBASIS, NHG is reset to nBasis - the final number of active orbitals.
           CALL IntFREEZEBASIS(NHG, NBASIS, UMAT, UMAT2, ECORE, G1, NBASISMAX, ISPINSKIP, BRR, NFROZEN, NTFROZEN, NFROZENIN, NTFROZENIN, NEL)
             CALL neci_flush(6)
-!         CALL N_MEMORY_CHECK()
             write(6, *) "ECORE now", ECORE
             write(6, *) "Number of orbitals remaining: ", NBASIS
             nel_pre_freezing = nel
@@ -840,16 +839,11 @@ contains
             tagUMat = tagUMat2
             tagUMat2 = 0
             call setup_UMatInd()
-!         CALL N_MEMORY_CHECK()
-!         write(6,*) "Active basis functions:",NHG
             CALL WRITEBASIS(6, G1, NHG, ARR, BRR)
         end if
-!      CALL WRITETMAT(NBASIS)
-!      CALL WRITESYMCLASSES(NBASIS)
 
         ! Setup the umatel pointers as well
         call init_getumatel_fn_pointers()
-
         call init_bit_rep()
 
         IF(COULDAMPORB > 0) THEN

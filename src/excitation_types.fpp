@@ -28,6 +28,7 @@ module excitation_types
     use SystemData, only: nEl
     use orb_idx_mod, only: SpinOrbIdx_t
     use sets_mod, only: disjoint, subset, is_sorted, special_union_complement
+    use DetBitOps, only: GetBitExcitation
     implicit none
     private
     public :: Excitation_t, NoExc_t, SingleExc_t, DoubleExc_t, TripleExc_t, &

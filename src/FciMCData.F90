@@ -1,7 +1,6 @@
 #include "macros.h"
 
 MODULE FciMCData
-    use iso_c_hack
     use SystemData, only: BasisFN
     use constants
     use SymExcitDataMod, only: excit_gen_store_type

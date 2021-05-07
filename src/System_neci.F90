@@ -16,8 +16,6 @@ MODULE System
 
     use constants
 
-    use iso_c_hack
-
     use read_fci, only: FCIDUMP_name
 
     use util_mod, only: error_function, error_function_c, &
@@ -36,7 +34,7 @@ MODULE System
 
     use gasci_pchb, only: possible_GAS_singles, GAS_PCHB_singles_generator
 
-    use ParallelHelper, only: iprocindex, root
+    use MPI_wrapper, only: iprocindex, root
 
     use fcimcdata, only: pParallel
 

@@ -31,7 +31,7 @@ module k_space_hubbard
 
     use bit_rep_data, only: NIfTot, nifd
 
-    use DetBitOps, only: FindBitExcitLevel, EncodeBitDet, ilut_lt, ilut_gt
+    use DetBitOps, only: FindBitExcitLevel, EncodeBitDet, ilut_lt, ilut_gt, GetBitExcitation
 
     use real_space_hubbard, only: lat_tau_factor
 
@@ -81,7 +81,7 @@ module k_space_hubbard
 
     use SymData, only: tagSymTable
 
-    use ParallelHelper, only: iProcIndex, root
+    use MPI_wrapper, only: iProcIndex, root
 
     use lattice_models_utils, only: make_ilutJ, get_ispn, get_orb_from_kpoints, &
                                     create_all_dets, find_minority_spin, &
@@ -2530,6 +2530,8 @@ contains
 #endif
         ! change this routine to also use just the symmetry symbols
         type(symmetry) :: sym
+        logical :: t_sign_
+        def_default(t_sign_, t_sign, .false.)
 
         ! the spin input: -1 is beta, +1 is alpha, 0 is both!
         ! if spin is not present, default is both!
@@ -2538,7 +2540,7 @@ contains
         ! k_sym is actually always present..
         ! work on the newest, hopefully correct way to do this..
         ! i need -s k vector for the triples contribution to the doubles..
-        if (present(t_sign) .and. t_sign) then
+        if (t_sign_) then
             sgn = -1
         else
             sgn = 1
@@ -2595,6 +2597,8 @@ contains
         ! change this routine to also use just the symmetry symbols
         integer :: sym_shift
         type(symmetry) :: sym
+        logical :: t_sign_
+        def_default(t_sign_, t_sign, .false.)
 
         ! the spin input: -1 is beta, +1 is alpha, 0 is both!
         ! if spin is not present, default is both!
@@ -2603,7 +2607,7 @@ contains
         ! k_shift is actually always present..
         ! work on the newest, hopefully correct way to do this..
         ! i need -s k vector for the triples contribution to the doubles..
-        if (present(t_sign) .and. t_sign) then
+        if (t_sign_) then
             sgn = -1
         else
             sgn = 1
