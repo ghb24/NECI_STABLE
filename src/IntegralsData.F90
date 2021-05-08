@@ -1,6 +1,5 @@
 module IntegralsData
 
-    use iso_c_hack
     use constants, only: dp, MPIArg
     use MemoryManager, only: TagIntType
 

@@ -218,9 +218,7 @@ set( SRC_FILES
     lib/environment_report.F90
     lib/error_handling_neci.F90
     lib/hdf5_util.F90
-    lib/iso_c_hack.F90
     lib/MemoryManagement.F90
-    lib/parallel_helper.cpp
     lib/ranlux.F
     lib/signals.F90
     lib/signals_helper.cpp
@@ -333,7 +331,6 @@ set( RELAX_WARNINGS_SRCS
     OneEInts.F90
     orthogonalise.F90
     Orthonorm.F90
-    MPI_wrapper.F90
     Parallel_Calc.F90
     parallel_workarounds.F90
     pchb_excitgen.F90
@@ -480,7 +477,7 @@ endif()
 # ---------------------------------------------------------------------------------
 
 set( _library_link_libs
-    "${LAPACK_NECI_LIBRARIES}"
+    "${LAPACK_LIBRARIES}"
     "${LIBRT_LIBRARIES}"
     "${_conditional_libraries}"
     "${MPI_LIBRARIES}"
@@ -500,8 +497,8 @@ endif()
 
 foreach(_config ${${PROJECT_NAME}_CONFIGURATIONS})
 
-    message(STATUS "Adding library for configuration ${_config}")
-    message(STATUS "Library definitions: ${${PROJECT_NAME}_${_config}_DEFINITIONS}")
+    message(DEBUG "Adding library for configuration ${_config}")
+    message(DEBUG "Library definitions: ${${PROJECT_NAME}_${_config}_DEFINITIONS}")
     neci_add_library(
 
         TARGET lib${_config}
@@ -523,10 +520,10 @@ foreach(_config ${${PROJECT_NAME}_CONFIGURATIONS})
             "${HDF5_NECI_DEFINITIONS}"
 
         LIBS "${_library_link_libs}"
-	WARNERR ${${PROJECT_NAME}_${_config}_WARNERR}
+	    WARNERR ${${PROJECT_NAME}_${_config}_WARNERR}
     )
 
-    message(STATUS "Adding executable for configuration ${_config}")
+    message(DEBUG "Adding executable for configuration ${_config}")
     neci_add_executable(
         TARGET ${_config}
         SOURCES necimain.F90
