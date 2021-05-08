@@ -4,7 +4,6 @@
 #:set data_types = [['real(dp)', 'real'], ['integer(int64)', 'int64'], ['integer(int32)','int32'], ['complex(dp)','cmplx'], ['logical','bool']]
 module shared_array
     use constants
-    use ParallelHelper, only: mpi_comm_intra
     use shared_memory_mpi
     use MemoryManager, only: LogMemALloc, LogMemDealloc, TagIntType
     implicit none
