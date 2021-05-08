@@ -1,7 +1,6 @@
 Large Technical:
+  - Use nicer colours from original TeX document.
   - Replace `=` in text with appropiate @warning, etc. environments.  @Oskar
-  - Use backticks consistently for code. @Oskar
-  - replace table (inhouse templating examples) with two code boxes. @Oskar
 
   - Break single file into pieces **AND** write script to automatically join. @Philip
 

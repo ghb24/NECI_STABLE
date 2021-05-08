@@ -880,14 +880,14 @@ necessary to clean them first before complex NECI can be used reliably.
 @endwarning
 
 Sometimes a warning is a false-positive. To work around such problems
-there is a `__WARNING_WORKAROUND` compile flag that gets activated, if
+there is a `WARNING_WORKAROUND_` compile flag that gets activated, if
 warnings are activated.
 
 A common false-positive warning is an unused variable that has to stay
 in the code, because it is e.g. in the interface of a function that is
 the target of a function pointer. For this case the `unused` macro
 exists. It is not necessary to put this macro behind the
-`__WARNING_WORKAROUND` compile flag. It is recommended to mark unused
+`WARNING_WORKAROUND_` compile flag. It is recommended to mark unused
 variables directly after declaration to make it explicit to the human
 reader.
 
@@ -1388,7 +1388,9 @@ any necessary additional files, such as integral files or POPSFILEs.
 
 You should then add these files to git, for example:
 
-    $ git add neci/parallel/new_test
+```bash
+$ git add neci/parallel/new_test
+```
 
 If the test is added to a new subdirectory then you may need to add it
 to ./jobconfig. If you added it to an already-exisiting directory, such
@@ -1398,7 +1400,9 @@ using the globbing in jobconfig.
 You must then create a benchmark file by running the test suite. To
 create a new benchmark for *only* the new test then run, for example,
 
-    $ testcode2/bin/testcode.py make-benchmarks -ic neci/parallel/new_test
+```bash
+$ testcode2/bin/testcode.py make-benchmarks -ic neci/parallel/new_test
+```
 
 This should run just the new test. You will be told that the test has
 failed, and asked if you would like to set the new benchmark. If you
@@ -1413,22 +1417,30 @@ If you don’t include ’-i’ then testcode will remove all previous
 benchmarks. This is useful if you want to reset benchmarks for the whole
 test suite, which can be done with:
 
+```bash
     $ testcode2/bin/testcode.py make-benchmarks
+```
 
 Finally, once this is done you need to add the new benchmark file to
 git. If the new benchmark ID is, for example,
 
+```bash
 mneci-c3462e0.kneci-c3462e0.neci-c3462e0
+```
 
 then you can do:
 
-    $ git add neci/parallel/new_test/*dneci-c3462e0.kneci-c3462e0.neci-c3462e0*
+```bash
+$ git add neci/parallel/new_test/*dneci-c3462e0.kneci-c3462e0.neci-c3462e0*
+```
 
 You should then commit the newly added files. You might like to try
 running testcode on the new test, and making sure it runs and passes as
 expected, confirming the that the test was added correctly:
 
-    $ ~/testcode2/bin/testcode.py -c neci/parallel/new_test
+```bash
+$ ~/testcode2/bin/testcode.py -c neci/parallel/new_test
+```
 
 ### Unit tests
 
@@ -1479,7 +1491,9 @@ examples.
 
 Unit tests can be run using the command
 
-    ctest [-R <regex>]
+```bash
+ctest [-R <regex>]
+```
 
 which is a built in part of the CMake toolkit. By default this will
 execute all avaialable tests and print a report on successes and
@@ -1544,18 +1558,17 @@ All access to C routines in NECI must be through a declared interface.
 This should be declared only once, in a module. An example is given
 here:
 
-    interface
-        ! Note that we can define the name used in fortran code, and the C
-        ! symbol that is linked to independently.
-        subroutine fortran_symbol(arg1, arg2) bind(c, name="c_symbol")
-            ! The module iso_c_hack is a wrapper for iso_c_binding. This
-            ! contains some workaround for incomplete Fortran 2003 support
-            ! across compilers.
-            use iso_c_hack
-            integer(c_int), intent(inout) :: arg1      ! Passed by pointer
-            integer(c_bool), intent(in), value :: arg2 ! Passed by value
-        end subroutine
-    end interface
+```Fortran
+interface
+    ! Note that we can define the name used in fortran code, and the C
+    ! symbol that is linked to independently.
+    subroutine fortran_symbol(arg1, arg2) bind(c, name="c_symbol")
+        use, intrinsic :: iso_c_binding, only: c_int, c_bool
+        integer(c_int), intent(inout) :: arg1      ! Passed by pointer
+        integer(c_bool), intent(in), value :: arg2 ! Passed by value
+    end subroutine
+end interface
+```
 
 A good summary of the rules and procedures for using this
 interoperability are given in this Stack Overflow answer:
@@ -1769,17 +1782,24 @@ tries to clarify some of these.
 
     The data is of type `BasisFN`:
 
-        type symmetry
-                            sequence
-                            integer(ints64) :: S
-                        end type
-                        type BasisFn
-                            type(symmetry) :: sym ! Spatial symmetry
-                            integer :: k(3)       ! K-vector
-                            integer :: Ms         ! Spin of electron. Represented as +/- 1
-                            integer :: Ml         ! Magnetic quantum number (Lz)
-                            integer :: dummy      ! Padding for alignment
-                        end type
+    ```Fortran
+    type :: symmetry
+        sequence
+        integer(ints64) :: S
+    end type
+    type :: BasisFn
+        type(symmetry) :: sym
+            !! Spatial symmetry
+        integer :: k(3)
+            !! K-vector
+        integer :: Ms
+            !! Spin of electron. Represented as +/- 1
+        integer :: Ml
+            !! Magnetic quantum number (Lz)
+        integer :: dummy
+            !! Padding for alignment
+    end type
+    ```
 
     Not all of these values are required for all simulations. The `sym`
     element points at a padded 64-bit integer. This is done for memory
@@ -1827,26 +1847,26 @@ If the necessary MPI routine is not present in the `Parallel_neci`
 module it will be necessary to add it. This can be awkward as discussed
 below.
 
-=
-
+@warning
 The `inplace` MPI functionality is present (although disabled) in NECI.
 For the time being it should not be used due to serious bugs in the
 interaction between ifort and OpenMPI.
+@endwarning
 
-=
-
+@warning
 Different implementations of MPI are not interchangeable at runtime,
 even if they initially appear to be. For instance, code compiled using
 OpenMPI on the ifort compiler will run on MPICH built with the gnu
 toolset, but no communication will occur, and `nProcessors` independent
 (identical) simulations will run.
+@endwarning
 
-=
-
+@warning
 In keeping with the notion of failing early, and failing loudly, outside
 of the initialisation and cleanup code, most of the templated MPI
 routines do not quietly report errors in status variables, but will kill
 the entire simulation with a runtime error.
+@endwarning
 
 ### Important variables
 
@@ -1938,11 +1958,11 @@ The memory address of the array (strictly of its first element) is
 obtained using either the standardised `c_loc`, or the non-standard
 `loc` intrinsics.
 
-=
-
+@warning
 Due to a bug in some versions of gfortran an extra level of indirection
 is used which hides the type of the array being passed using a routine
 called `g_loc`. This code circumvents normal interfacing.
+@endwarning
 
 **Calls to MPI**\
 In the normal case (when the C-wrapper is not being used), the `MPI_*`
@@ -1986,7 +2006,9 @@ physical node will end up with pointers to the same block of memory.
 
 Memory is allocated with a call to
 
-            subroutine shared_allocate(name, ptr, dims)
+```Fortran
+subroutine shared_allocate(name, ptr, dims)
+```
 
 This is a templated routine, and so will work for a wide variety of data
 types and array dimensions. The `name` parameter specifies a unique name
@@ -1998,12 +2020,14 @@ the size of each dimension of the array to be allocated.
 
 As an example,
 
-            real(dp), pointer :: real_arr(:,:)
-            ...
-            call shared_allocate("example", real_arr, (/6, 13/))
+```Fortran
+real(dp), pointer :: real_arr(:,:)
+...
+call shared_allocate("example", real_arr, [6, 13])
+```
 
 will allocate a 2-dimensional array named “example” with the array
-bounds `(1:6, 1:13)`, equivalent to `allocate(real_arr(6,13))`.
+bounds `(1:6, 1:13)`, equivalent to `allocate(real_arr(6, 13))`.
 
 The read only data should now be written. In principle, the data only
 needs to be written from one of the processors per node — in practice it
@@ -2017,20 +2041,20 @@ After data initialisation, the processes must be synchronised with a
 call to `MPIBarrier`. This will ensure that the read-only data is in the
 same state in all of the threads.
 
-=
-
+@warning
 The POSIX memory model makes few guarantees about *when* memory that is
 shared between processes gets updated (as opposed to between threads).
 This shared memory ***must not*** be used for communicating between the
 MPI processes. That is what MPI is for.
+@endwarning
 
-=
-
+@warning
 There are no synchronisation primitives provided for use with these
 shared memory blocks. No assumptions can be made about the order of
 access between the processes. All actions that are carried out
 ***must*** be inherently thread-safe, or errors will eventually (and
 unexpectedly) occur.
+@endwarning
 
 The data should be deallocated using the routine `shared_deallocate`.
 
@@ -2183,14 +2207,16 @@ be executed for every required integral.
 As such, access to the integrals is through a procedure pointer, with
 the interface
 
-    abstract interface
-                function get_umat_el(i, j, k, l) result(hel)
-                    use constants
-                    implicit none
-                    integer, intent(in) :: i, j, k, l
-                    HElement_t :: hel
-                end function
-            end interface
+```Fortran
+abstract interface
+    function get_umat_el(i, j, k, l) result(hel)
+        use constants
+        implicit none
+        integer, intent(in) :: i, j, k, l
+        HElement_t :: hel
+    end function
+end interface
+```
 
 This function pointer can then be called from anywhere in the code
 (after it is initialised) and this will call the correct routine.
@@ -2467,25 +2493,27 @@ Excitation generation is accessed through a procedure pointer. As such,
 all excitation generators *must* have the same signature. It is
 described by
 
-    subroutine generate_excitation_t (nI, ilutI, nJ, ilutJ, exFlag, ic, &
-                                              ex, tParity, pGen, hel, store)
+```Fortran
+subroutine generate_excitation_t (nI, ilutI, nJ, ilutJ, exFlag, ic, &
+                                  ex, tParity, pGen, hel, store)
 
-                use SystemData, only: nel
-                use bit_rep_data, only: NIfTot
-                use FciMCData, only: excit_gen_store_type
-                use constants
-                implicit none
+    use SystemData, only: nel
+    use bit_rep_data, only: NIfTot
+    use FciMCData, only: excit_gen_store_type
+    use constants
+    implicit none
 
-                integer, intent(in) :: nI(nel), exFlag
-                integer(n_int), intent(in) :: ilutI(0:NIfTot)
-                integer, intent(out) :: nJ(nel), ic, ex(2,2)
-                integer(n_int), intent(out) :: ilutJ(0:NifTot)
-                real(dp), intent(out) :: pGen
-                logical, intent(out) :: tParity
-                HElement_t, intent(out) :: hel
-                type(excit_gen_store_type), intent(inout), target :: store
+    integer, intent(in) :: nI(nel), exFlag
+    integer(n_int), intent(in) :: ilutI(0:NIfTot)
+    integer, intent(out) :: nJ(nel), ic, ex(2,2)
+    integer(n_int), intent(out) :: ilutJ(0:NifTot)
+    real(dp), intent(out) :: pGen
+    logical, intent(out) :: tParity
+    HElement_t, intent(out) :: hel
+    type(excit_gen_store_type), intent(inout), target :: store
 
-            end subroutine
+end subroutine
+```
 
 `nI` and `ilutI` describe the natural integer and bit representations of
 the source determinant for the excitation. `nJ` and `ilutJ` will store
@@ -2512,20 +2540,20 @@ only really of interest for HPHF calculations, where it can be easier to
 calculate this matrix element in the excitation generator for technical
 reasons).
 
-=
-
+@warning
 Note that the determinant returned in `nJ` *must* be sorted in the same
 fashion as the source determinant `nI`. This normally means in order of
 ascending spin-orbital number. This can result in substantial
 reshuffling of the internal order of the detrminant.
+@endwarning
 
-=
-
+@warning
 It is possible that to implement a sensibly efficient excitation
 generator, the simulation may make choices which leave no possible
 excitations remaining. An excitation may be aborted by setting the first
 element of `nJ` to zero, so long as the calculated generation
 probabilites for successful excitations are correct.
+@endwarning
 
 ### Symmetry handling
 
@@ -2579,23 +2607,25 @@ class, with offsets given in `SymLabelCounts2`, such that all of the
 orbitals with the same symmetry as a given orbital, `orb`, may be found
 as follows
 
-    integer :: sym, spn, ml, norb, cc_ind, offset
+```Fortran
+integer :: sym, spn, ml, norb, cc_ind, offset
 
-            ! Obtain the symmetry labels associated with this orbital
-            sym = G1(orb)%Sym%s
-            spn = get_spin(orb)
-            Ml = G1(orb)%Ml
+! Obtain the symmetry labels associated with this orbital
+sym = G1(orb)%Sym%s
+spn = get_spin(orb)
+Ml = G1(orb)%Ml
 
-            ! Obtain the combined symmetry index
-            ! cc_ind = ClassCountInd(orb) ! ... alternatively
-            cc_ind = ClassCountInd(spn, sym, ml)
+! Obtain the combined symmetry index
+! cc_ind = ClassCountInd(orb) ! ... alternatively
+cc_ind = ClassCountInd(spn, sym, ml)
 
-            ! Get position and count of orbitals
-            norb = OrbClassCount(cc_ind)
-            offset = SymLabelCounts2(1, cc_ind)
+! Get position and count of orbitals
+norb = OrbClassCount(cc_ind)
+offset = SymLabelCounts2(1, cc_ind)
 
-            ! And this slice contains the appropriate orbitals (including orb)
-            SymLabelList2(offset:offset+norb-1)
+! And this slice contains the appropriate orbitals (including orb)
+SymLabelList2(offset : offset + norb - 1)
+```
 
 ### Manipulating determinants, and bit representations
 
@@ -2608,9 +2638,10 @@ scratch. As such there are two processes to consider.
     Orbitals can be cleared from the bit representation using the macro
     `clr_orb`, and set using the macro `set_orb`. For an excitation from
     orbital `a` to orbital `i` this would look like
-
-        clr_orb(ilut, a)
-                        set_orb(ilut, i)
+    ```Fortran
+    clr_orb(ilut, a)
+    set_orb(ilut, i)
+    ```
 
 -   `make_single and make_double`\
     Manipulating the natural integer representation of determinants is
@@ -2641,17 +2672,19 @@ makes sense to store this information and reuse it for each of the
 particles on the site. A data structure of type `excit_gen_store_type`
 is passed to the excitation generator that it can use for this purpose:
 
-    type excit_gen_store_type
-                integer, pointer :: ClassCountOcc(:) => null()
-                integer, pointer :: ClassCountUnocc(:) => null()
-                integer, pointer :: scratch3(:) => null()
-                integer, pointer :: occ_list(:,:) => null()
-                integer, pointer :: virt_list(:,:) => null()
-                logical :: tFilled
-                integer, pointer :: dorder_i (:) => null()
-                integer, pointer :: dorder_j (:) => null()
-                integer :: nopen
-            end type
+```Fortran
+type excit_gen_store_type
+    integer, pointer :: ClassCountOcc(:) => null()
+    integer, pointer :: ClassCountUnocc(:) => null()
+    integer, pointer :: scratch3(:) => null()
+    integer, pointer :: occ_list(:,:) => null()
+    integer, pointer :: virt_list(:,:) => null()
+    logical :: tFilled
+    integer, pointer :: dorder_i (:) => null()
+    integer, pointer :: dorder_j (:) => null()
+    integer :: nopen
+end type
+```
 
 The arrays that are required for the current excitation generator are
 allocated during calculation initialisation by the routine
@@ -2716,27 +2749,30 @@ partitioning them, and rescaling them as you move through the hierarchy
 of choices. A simple example demonstrates this, considering the
 macroscopic choice between single excitations and double excitations:
 
-    real(dp) :: r
-            r = genrand_real2_dSFMT()
-            if (r < pDoubles) then
-                ! Double excitation selected. Now rescale r
-                r = r / pDoubles
-                ...
-            else
-                ! Single excitation selected. Now rescale r
-                r = (r - pDoubles) / (1.0_dp - pDoubles)
-                ...
-            end if
+```Fortran
+real(dp) :: r
+r = genrand_real2_dSFMT()
+if (r < pDoubles) then
+    ! Double excitation selected. Now rescale r
+    r = r / pDoubles
+    ...
+else
+    ! Single excitation selected. Now rescale r
+    r = (r - pDoubles) / (1.0_dp - pDoubles)
+    ...
+end if
+```
+
 
 This is not always done in the current implementations of excitation
 generators, but should always be considered for efficiency.
 
-=
-
+@warning
 This technique should not be used where selections may need to be
 redrawn. Repeated repartitioning and scaling of the random number will
 rapidly deplete the available randomness if it is repeated a number of
 times due to redrawing.
+@endwarning
 
 ### Timestep selection and other control parameters
 
@@ -2848,14 +2884,14 @@ As a result, a routine must be provided to calculate the probability of
 generating \(\ket{D_j}\) from \(\ket{D_i}\) without actually generating
 an excitation.
 
-=
-
+@warning
 Once the excitation generator has been planned out, it makes sense to
 write this calculation function first (it tends to be simpler than the
 excitation generator). A call to it can then be included at the end of
 the excitation generator inside `#ifdef __DEBUG` flags, which provides a
 powerful correctness check, and catches any cases where these functions
 diverge.
+@endwarning
 
 ### The uniform selection excitation generator
 
@@ -3089,7 +3125,9 @@ formatted file, or an HDF5 file. When reading them from an ASCII file,
 the file has to be formatted in a general FCIDUMP fashion, containing
 all non-zero integrals \(L_{ijk}^{abc}\) in the format
 
-      <integral> i j k a b c
+```Fortran
+<integral> i j k a b c
+```
 
 where `i`, `j`, `k` are the indices of the orbitals to excite from and
 `a`, `b`, `c` those of the orbitals to excite to. No further information
