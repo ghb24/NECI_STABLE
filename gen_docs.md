@@ -13,7 +13,7 @@ display: private
          public
          protected
 source: true
-page_dir: pages_quick
+page_dir: docs
 md_extensions: markdown.extensions.toc
                markdown.extensions.smarty
                markdown.extensions.tables

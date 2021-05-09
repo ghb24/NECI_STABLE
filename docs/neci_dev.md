@@ -428,17 +428,19 @@ Avoid extraneous whitespace in the following situations.
     No:  spam (1)
 
 ! No whitespace immediately before a comma, semicolon, or colon:
-    Yes:
+    ! Yes:
         use module, only: cool_function
         integer, allocatable :: A(:, :)
         integer, allocatable :: A(:,:)
-    No:
+    ! No:
         use module , only : cool_function
         integer , allocatable :: A(: , :)
 ! No whitespace around the = sign when used to
 ! call a function with a keyword argument.
-    Yes: pow(2, n=3)
-    No: pow(2, n = 3)
+    ! Yes:
+        pow(2, n=3)
+    ! No:
+        pow(2, n = 3)
 ```
 
 In a slice the colon acts like a binary operator, and should have equal

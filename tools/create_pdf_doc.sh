@@ -1,8 +1,15 @@
 #!/bin/bash
 
+# Invoke with two arguments
+# First argument: Markdown input file
+# Second argument: PDF output file
+
+md_input=$1
+pdf_output=$2
+
 # TODO I'm not sure if there is a better way to do this without just copying it
-tmpfile=tmp_reformat_$1
-cp $1 $tmpfile
+tmpfile=/tmp/tmp_reformat_${md_input}
+cp ${md_input} $tmpfile
 
 
 # TODO(@Philip) What does this do?
@@ -31,9 +38,9 @@ pandoc \
       -V numbersections=true \
       --toc \
       --include-in-header packages_to_include.tex \
-      --pdf-engine=xelatex \
+      --listings \
       "$tmpfile" \
-      -o "$2" \
+      -o "${pdf_output}" \
       -f markdown-tex_math_dollars+tex_math_single_backslash
 
 rm $tmpfile
