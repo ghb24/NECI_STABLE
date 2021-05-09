@@ -1,16 +1,14 @@
 project: NECI
-output_dir: ./doc
+output_dir: ./ford_html
 project_github: https://github.com/ghb24/NECI_STABLE/
 summary: for FCIQMC
 author: Alavi Group
 github:
 include: ./src
          ./src/lib
-         ./utils
-         ./tools
 parallel: 4
-dbg: true
-warn: true
+dbg: false
+warn: false
 display: private
          public
          protected
