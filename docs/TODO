@@ -1,8 +1,9 @@
 Large Technical:
-  - Use nicer colours from original TeX document.
-  - Replace `=` in text with appropiate @warning, etc. environments.  @Oskar
-  - Find better way for new line character
+  - Correct title Dev doc @Oskar
+  - Find better way for new line character @Oskar
   - Embed into cmake @Oskar
+
+  - correkt backticks in user dev @Philip
 
   - Break single file into pieces **AND** write script to automatically join. @Philip
 
