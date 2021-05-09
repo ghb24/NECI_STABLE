@@ -1243,39 +1243,39 @@ two tricks are generally useful.
     is useful for adding additional functionality (and allows multiple
     templated routines to use the same `type` values). The templated
     subroutine definition
-```Fortran
-subroutine example(arg%(extra_args)s)
-```
-will generate the following code
-```Fortran
-[simple]                    =>
-extra_args =                =>     subroutine example(arg)
-                            =>
-[extended ]                 =>
-extra_args = , arg2, arg3   =>     subroutine example(arg, arg2, arg3)
-```
-The next trick is useful for adding the type definitions of these
-additional arguments, and enabling the code which uses them.
+    ```Fortran
+    subroutine example(arg%(extra_args)s)
+    ```
+    will generate the following code
+    ```Fortran
+    [simple]                    =>
+    extra_args =                =>     subroutine example(arg)
+                                =>
+    [extended ]                 =>
+    extra_args = , arg2, arg3   =>     subroutine example(arg, arg2, arg3)
+    ```
+    The next trick is useful for adding the type definitions of these
+    additional arguments, and enabling the code which uses them.
 
 -   **Switching off lines of code**\
     Lines of code in Fortran are trivially disabled when they are
     commented out. Prefixing lines with a switch-value allows it to be
     disabled. For example
-```Fortran
-%(use_type2)%(type2) :: val()
-```
-will allow an additional type to be used in a routine depending on
-the configuration:
+    ```Fortran
+    %(use_type2)%(type2) :: val()
+    ```
+    will allow an additional type to be used in a routine depending on
+    the configuration:
 
-```Fortran
-[unused]                        =>
-type2 =                         =>
-use_type2 =!                    =>        ! :: val ()
-                                =>
-[arr_real]                      =>
-type2 = real(dp), dimension(:)  =>        real(dp) :: val(:)
-use_type2 =                     =>
-```
+    ```Fortran
+    [unused]                        =>
+    type2 =                         =>
+    use_type2 =!                    =>        ! :: val ()
+                                    =>
+    [arr_real]                      =>
+    type2 = real(dp), dimension(:)  =>        real(dp) :: val(:)
+    use_type2 =                     =>
+    ```
 
 ### Manual renaming of routines
 
