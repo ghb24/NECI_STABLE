@@ -1213,7 +1213,7 @@ contains
         class(tilted) :: this
 
         ! Tilted lattices require more basis vectors stored (up to triple application of basis vector)
-        call this%init_basis_vecs_rect_base(3)
+        call this%init_basis_vecs_rect_base(4)
     end subroutine init_basis_vecs_tilted
 
     !> Base function for setting up a the basis vector array for rectangular lattices (extracted from the previous init_basis_vecs_rect)
@@ -1227,7 +1227,6 @@ contains
         if (allocated(this%basis_vecs)) deallocate(this%basis_vecs)
         allocate(this%basis_vecs((2*l+1)**2,3))
         this%basis_vecs = 0
-
         k = 0
         do i = -l, l
             do j = -l, l
@@ -2017,7 +2016,6 @@ contains
                 x = mod(i - 1, this%length(1)) + 1
                 y = (i - 1) / this%length(1) + 1
 
-!                 print *, "i, (x,y): ", i, x, y
                 temp_neigh = [up(x, y), down(x, y), left(x, y), right(x, y)]
 
                 neigh = sort_unique(temp_neigh)
@@ -2611,7 +2609,6 @@ contains
             ! k_min is negative
             k_min = k_min + 1
             k_max = k_max - 1
-!             k = k - 1
         end do
 
         up = cshift(temp_array, -1, 1)
