@@ -950,8 +950,8 @@ contains
             ! If any run uses the fixtrial option, we need to add the offset to the
             ! trial numerator
             if (tTrialWavefunction .and. tTrialShift) &
-                rel_tot_trial_numerator = relative_trial_numerator( &
-                                          tot_trial_numerator, tot_trial_denom, replica_pairs)
+                rel_tot_trial_numerator = real(relative_trial_numerator( &
+                          tot_trial_numerator, tot_trial_denom, replica_pairs), dp)
 
             ! Exit the single particle phase if the number of walkers exceeds
             ! the value in the input file. If particle no has fallen, re-enter
@@ -988,7 +988,8 @@ contains
                         !fluctuations of the projected energy.
 
                         !ToDo: Make DiafSft complex
-                        DiagSft(run) = (AllENumCyc(run)) / (AllHFCyc(run)) + proje_ref_energy_offsets(run)
+                        DiagSft(run) = real((AllENumCyc(run)) &
+                            / (AllHFCyc(run)) + proje_ref_energy_offsets(run), dp)
 
                         ! Update the shift averages
                         if ((iter - VaryShiftIter(run)) >= nShiftEquilSteps) then
@@ -1009,7 +1010,7 @@ contains
                     !fluctuations of the trial energy.
 
                     !ToDo: Make DiafSft complex
-                    DiagSft(run) = (rel_tot_trial_numerator(run) / tot_trial_denom(run)) - Hii
+                    DiagSft(run) = real((rel_tot_trial_numerator(run) / tot_trial_denom(run)) - Hii, dp)
 
                     ! Update the shift averages
                     if ((iter - VaryShiftIter(run)) >= nShiftEquilSteps) then
@@ -1449,6 +1450,7 @@ contains
         logical :: tIsStateDeterm
 
 #ifdef CMPLX_
+        unused_var(iter_data)
         call stop_all("fix_trial_overlap", "Complex wavefunction is not supported yet!")
 #else
 

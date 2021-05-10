@@ -167,7 +167,9 @@ contains
                     disps(i + 1) = int(InitialSpawnedSlots(ProcNode(i)) - 1, MPIArg)
                 else
                     sendcounts(i + 1) = 0
-                    disps(i + 1) = disps(i)
+                    associate(ind => i) ! -Werror workaround
+                    disps(ind + 1) = disps(ind)
+                    end associate
                 end if
             end do
         end if
@@ -1486,18 +1488,22 @@ contains
             do istate = 1, en_pert_main%sign_length
                 ! Was a non-zero contribution aborted on *both* replicas for
                 ! a given state?
-                if (abort(2 * istate - 1) .and. abort(2 * istate) .and. &
-                    abs(SpawnedSign(2 * istate - 1)) > 1.e-12_dp .and. &
-                    abs(SpawnedSign(2 * istate)) > 1.e-12_dp) &
-                    pert_contrib(istate) = .true.
+                associate(ind => istate) ! -Werror workaround
+                if (abort(2 * ind - 1) .and. abort(2 * ind) .and. &
+                    abs(SpawnedSign(2 * ind - 1)) > 1.e-12_dp .and. &
+                    abs(SpawnedSign(2 * ind)) > 1.e-12_dp) &
+                    pert_contrib(ind) = .true.
+                end associate
             end do
 
             if (any(pert_contrib)) then
                 contrib_sign = 0.0_dp
                 do istate = 1, en_pert_main%sign_length
-                    if (pert_contrib(istate)) then
-                        contrib_sign(istate) = SpawnedSign(2 * istate - 1) * SpawnedSign(2 * istate) / (tau**2)
+                    associate(ind => istate) ! -Werror workaround
+                    if (pert_contrib(ind)) then
+                        contrib_sign(ind) = SpawnedSign(2 * ind - 1) * SpawnedSign(2 * ind) / (tau**2)
                     end if
+                    end associate
                 end do
 
                 call add_to_en_pert_t(en_pert_main, nJ, SpawnedParts(:, ispawn), contrib_sign)
@@ -1530,18 +1536,22 @@ contains
             pert_contrib = .false.
 
             do istate = 1, en_pert_main%sign_length
-                if (abs(SpawnedSign(2 * istate - 1)) > 1.e-12_dp .and. &
-                    abs(SpawnedSign(2 * istate)) > 1.e-12_dp) then
+                associate(ind => istate) ! -Werror workaround
+                if (abs(SpawnedSign(2 * ind - 1)) > 1.e-12_dp .and. &
+                    abs(SpawnedSign(2 * ind)) > 1.e-12_dp) then
                     pert_contrib(istate) = .true.
                 end if
+                end associate
             end do
 
             if (any(pert_contrib)) then
                 contrib_sign = 0.0_dp
                 do istate = 1, en_pert_main%sign_length
+                    associate(ind => istate) ! -Werror workaround
                     if (pert_contrib(istate)) then
-                        contrib_sign(istate) = SpawnedSign(2 * istate - 1) * SpawnedSign(2 * istate) / (tau**2)
+                        contrib_sign(istate) = SpawnedSign(2 * ind - 1) * SpawnedSign(2 * ind) / (tau**2)
                     end if
+                    end associate
                 end do
 
                 call add_to_en_pert_t(en_pert_main, nJ, SpawnedParts(:, ispawn), contrib_sign)
@@ -1605,7 +1615,9 @@ contains
                     disps(i + 1) = int(InitialSpawnedSlots(ProcNode(i)) - 1, MPIArg)
                 else
                     sendcounts(i + 1) = 0
-                    disps(i + 1) = disps(i)
+                    associate(ind => i) ! -Werror workaround
+                    disps(ind + 1) = disps(ind)
+                    end associate
                 end if
             end do
         end if

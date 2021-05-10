@@ -49,6 +49,8 @@ module guga_pchb_excitgen
 
     type :: GugaAliasSampler_t
 
+        private
+
         type(AliasSampler_1D_t) :: alias_sampler
 
         ! i don't need to make two, but lets keep it similar to Kais
@@ -80,6 +82,8 @@ module guga_pchb_excitgen
         type(shared_array_real_t), allocatable :: low_pgen_table(:)
 
     contains
+
+        private
 
         procedure :: setup_info_table
         procedure :: setup_entry_info

@@ -309,7 +309,9 @@ contains
                     if (DetBitEq(con_ht(hash_val)%states(0:nifd, i), ilut)) then
                         do istate = 1, lenof_sign.div.2
                             amp(istate * 2 - 1) = transfer(con_ht(hash_val)%states(nifd + istate, i), amp(istate * 2 - 1))
-                            amp(istate * 2) = amp(istate * 2 - 1)
+                            associate(ind => istate) ! -Werror workaround
+                            amp(ind * 2) = amp(ind * 2 - 1)
+                            end associate
                         end do
                         return
                     end if

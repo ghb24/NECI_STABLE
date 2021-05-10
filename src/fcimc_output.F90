@@ -1699,48 +1699,50 @@ contains
 
         contains
 
-          subroutine writeDefDet(defdet, numEls)
-            implicit none
-            integer, intent(in) :: numEls
-            integer, intent(in) :: defdet(:)
-            logical :: nextInRange, previousInRange
+            subroutine writeDefDet(defdet, numEls)
+                implicit none
+                integer, intent(in) :: numEls
+                integer, intent(in) :: defdet(:)
+                logical :: nextInRange, previousInRange
 
-            do i = 1, numEls
-               ! if the previous orbital is in the same contiguous range
-               if(i.eq.1) then
-                  ! for the first one, there is no previous one
-                  previousInRange = .false.
-               else
-                  previousInRange = defdet(i).eq.defdet(i-1)+1
-               end if
+                do i = 1, numEls
+                    ! if the previous orbital is in the same contiguous range
+                    if(i.eq.1) then
+                        ! for the first one, there is no previous one
+                        previousInRange = .false.
+                    else
+                        associate(ind => i) ! -Werror workaround
+                        previousInRange = defdet(i).eq.defdet(ind-1)+1
+                        end associate
+                    end if
 
-               ! if the following orbital is in the same contiguous range
-               if(i.eq.numEls) then
-                  ! there is no following orbital
-                  nextInRange = .false.
-               else
-                  nextInRange = defdet(i).eq.defdet(i+1)-1
-               end if
-               ! there are three cases that need output:
+                    ! if the following orbital is in the same contiguous range
+                    if(i.eq.numEls) then
+                        ! there is no following orbital
+                        nextInRange = .false.
+                    else
+                        nextInRange = defdet(i).eq.defdet(i+1)-1
+                    end if
+                    ! there are three cases that need output:
 
-               ! the last orbital of a contigous range of orbs
-               if(previousInRange .and. .not.nextInRange) then
-                  write(bufEnd,'(i3)') defdet(i)
-                  lenEnd = len_trim(bufEnd)
-                  bufStart(lenStart+2:lenStart+lenEnd+1) = adjustl(trim(bufEnd))
-                  write(iout,'(A7)',advance='no') trim(adjustl(bufStart))
-               ! the first orbital of a contiguous range of orbs
-               else if(.not.previousInRange .and. nextInRange) then
-                  write(bufStart,'(i3)') defdet(i)
-                  lenStart = len_trim(bufStart)
-                  bufStart(lenStart+1:lenStart+1) = "-"
-               ! and an orbital not in any range
-               else if(.not.previousInRange .and. .not.nextInRange) then
-                  write(iout,'(i3," ")', advance='no') defdet(i)
-               end if
-            end do
+                    ! the last orbital of a contigous range of orbs
+                    if(previousInRange .and. .not.nextInRange) then
+                        write(bufEnd,'(i3)') defdet(i)
+                        lenEnd = len_trim(bufEnd)
+                        bufStart(lenStart+2:lenStart+lenEnd+1) = adjustl(trim(bufEnd))
+                        write(iout,'(A7)',advance='no') trim(adjustl(bufStart))
+                        ! the first orbital of a contiguous range of orbs
+                    else if(.not.previousInRange .and. nextInRange) then
+                        write(bufStart,'(i3)') defdet(i)
+                        lenStart = len_trim(bufStart)
+                        bufStart(lenStart+1:lenStart+1) = "-"
+                        ! and an orbital not in any range
+                    else if(.not.previousInRange .and. .not.nextInRange) then
+                        write(iout,'(i3," ")', advance='no') defdet(i)
+                    end if
+                end do
 
-        end subroutine writeDefDet
+            end subroutine writeDefDet
 
     END SUBROUTINE PrintHighPops
 

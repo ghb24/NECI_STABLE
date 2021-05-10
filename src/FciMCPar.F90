@@ -1500,7 +1500,7 @@ contains
             end if
 
             if (t_measure_local_spin) then
-                call measure_local_spin(CurrentDets(:, j), DetCurr, SignCurr)
+                call measure_local_spin(SignCurr)
             end if
 
             if (t_spin_measurements) then

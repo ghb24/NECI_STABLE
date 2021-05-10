@@ -28,14 +28,11 @@ module local_spin
 
 contains
 
-    subroutine measure_local_spin(ilut, nI, real_sgn)
-        integer(n_int), intent(in) :: ilut(0:IlutBits%len_tot)
-        integer, intent(in) :: nI(nel)
+    subroutine measure_local_spin(real_sgn)
         real(dp), intent(in) :: real_sgn(lenof_sign)
         character(*), parameter :: this_routine = "measure_local_spin"
 
         real(dp) :: coeff, loc_spin(nSpatOrbs)
-        integer :: i
 
 #if defined PROG_NUMRUNS_ || defined DOUBLERUN_
 #ifdef CMPLX_
@@ -57,7 +54,6 @@ contains
     end subroutine measure_local_spin
 
     subroutine finalize_local_spin_measurement()
-        debug_function_name("finalize_local_spin_measurement")
         if (allocated(inst_local_spin)) deallocate(inst_local_spin)
         if (allocated(all_local_spin)) deallocate(all_local_spin)
     end subroutine finalize_local_spin_measurement
@@ -74,7 +70,6 @@ contains
     end subroutine init_local_spin_measure
 
     subroutine write_local_spin_stats(initial)
-        debug_function_name("write_local_spin_stats")
         logical, intent(in), optional :: initial
 
         type(write_state_t), save :: state

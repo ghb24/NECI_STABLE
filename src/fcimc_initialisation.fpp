@@ -2567,7 +2567,7 @@ contains
 
         integer :: run, DetHash
         real(dp), dimension(lenof_sign) :: InitialSign
-        real(dp) :: h_temp
+        HElement_t(dp) :: h_temp
 
         if (tOrthogonaliseReplicas) then
             call InitFCIMC_HF_orthog()
@@ -2621,9 +2621,9 @@ contains
                 end if
             else
                 ! HF energy is equal to 0 (when used as reference energy)
-                h_temp = 0.0_dp
+                h_temp = h_cast(0.0_dp)
             end if
-            call set_det_diagH(1, h_temp)
+            call set_det_diagH(1, real(h_temp, dp))
             HFInd = 1
 
             call store_decoding(1, HFDet)
@@ -3603,8 +3603,8 @@ contains
         integer :: iSpn, FirstA, nJ(NEl), a_loc, Ex(2, maxExcit), kx, ky, kz, OrbB
         integer :: ki2, kj2
         logical :: tParity
-        real(dp) :: Ranger, mp2, mp2all, length
-        HElement_t(dp) :: hel, H0tmp
+        real(dp) :: Ranger, length
+        HElement_t(dp) :: hel, H0tmp, mp2, mp2all
 
         !Divvy up the ij pairs
         Ranger = real(ElecPairs, dp) / real(nProcessors, dp)
@@ -3712,7 +3712,6 @@ contains
                     if (OrbB >= a_loc) cycle
 
                     !Find det
-!                    write(iout,*) "OrbB: ",OrbB
                     call make_double(HFDet, nJ, elec1ind, elec2ind, a_loc, &
                                      orbB, ex, tParity)
                     !Sum in mp2 contrib
@@ -3724,13 +3723,11 @@ contains
                         H0tmp = H0tmp + 2.0_dp * Madelung
                     end if
                     mp2 = mp2 + (hel**2) / H0tmp
-!                    write(iout,*) (hel**2),H0tmp
                 end do
 
             else if (iSpn == 2) then
                 do a_loc = 1, nBasis
                     !Loop over all a_loc
-!                    write(iout,*) "a_loc: ",a_loc
 
                     !Reject if a is occupied
                     if (IsOcc(iLutHF, a_loc)) cycle
@@ -3765,7 +3762,6 @@ contains
                     if (IsOcc(iLutHF, OrbB)) cycle
                     if (OrbB >= a_loc) cycle
 
-!                    write(iout,*) "OrbB: ",OrbB
                     !Find det
                     call make_double(HFDet, nJ, elec1ind, elec2ind, a_loc, &
                                      orbB, ex, tParity)
@@ -3777,13 +3773,11 @@ contains
                         H0tmp = H0tmp + 2.0_dp * Madelung
                     end if
                     mp2 = mp2 + (hel**2) / H0tmp
-!                    write(iout,*) (hel**2),H0tmp
                 end do
             end if
 
         end do
 
-!        write(iout,*) "mp2: ",mp2
         mp2all = 0.0_dp
 
         !Sum contributions across nodes.
@@ -3921,8 +3915,7 @@ contains
                 found_mask = .true.
 
                 do i = 1, n_excits
-                    diag_energies(i) = &
-                        calcDiagMatEleGUGA_ilut(excitations(:, i))
+                    diag_energies(i) = real(calcDiagMatEleGUGA_ilut(excitations(:, i)), dp)
                 end do
 
                 ! can i sort the excitation list, according to energies?

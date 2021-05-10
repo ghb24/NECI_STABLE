@@ -637,6 +637,7 @@ contains
         character(*), parameter :: this_routine = "Add_RDM_HFConnections_GUGA"
 #endif
 
+        unused_var(excit_lvl)
         ! damn.. here we need to do the 'slow' implementation i guess..
         ! since NJ does not come from a spawning event but is
         ! done deterministically for the HF connections..
