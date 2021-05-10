@@ -12,7 +12,8 @@ tmpfile=/tmp/tmp_reformat_${md_input}
 cp ${md_input} $tmpfile
 
 
-# TODO(@Philip) What does this do?
+# replaces markdown [TOC] command with a latex page break command
+# (pandoc already creates a TOC and we prefer the TOC on its own page(s))
 sed -i 's/\[TOC\]/\\newpage/g' $tmpfile
 
 # replace @note ... @endnote with \begin{note}  \end{note}
