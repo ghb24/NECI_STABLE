@@ -698,7 +698,7 @@ contains
 
         use hash, only: clear_hash_table
         use Parallel_neci, only: MPIAllReduce, nProcessors
-        use ParallelHelper, only: MPI_SUM, MPI_MAX
+        use MPI_wrapper, only: MPI_SUM, MPI_MAX
         use rdm_data_utils, only: add_to_rdm_spawn_t, communicate_rdm_spawn_t_wrapper, annihilate_rdm_list
 
         type(rdm_list_t), intent(in) :: rdm

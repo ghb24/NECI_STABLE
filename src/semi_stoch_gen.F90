@@ -15,7 +15,7 @@ module semi_stoch_gen
     use MemoryManager, only: TagIntType, LogMemAlloc, LogMemDealloc
     use Parallel_neci, only: iProcIndex, nProcessors, MPIArg, MPIAllGatherV, &
                              MPIAllGather, MPIScatter, MPIScatterV, MPIBarrier
-    use ParallelHelper, only: root
+    use MPI_wrapper, only: root
     use semi_stoch_procs
     use sparse_arrays
     use timing_neci
@@ -289,7 +289,7 @@ contains
         else
             c_run = run
         end if
-        
+
         ! Call the requested generating routines.
         if (core_in%tHF) call add_state_to_space(ilutHF, SpawnedParts, space_size)
         if (core_in%tPops) call generate_space_most_populated(core_in%npops, &
@@ -390,7 +390,7 @@ contains
         character(*), parameter :: this_routine = "generate_sing_doub_guga"
 
         integer(n_int) :: ilutG(0:nifguga)
-        integer(n_int), pointer :: excitations(:, :)
+        integer(n_int), allocatable :: excitations(:, :)
         integer :: nexcit, i
         integer(n_int) :: temp_ilut(0:niftot)
         HElement_t(dp) :: temp_hel
@@ -1273,7 +1273,7 @@ contains
         integer :: pos, i
         real(dp) :: amp, energy_contrib
         logical :: tAllExcitFound, tParity
-        integer(n_int), pointer :: excitations(:, :)
+        integer(n_int), allocatable :: excitations(:, :)
         integer(n_int) :: ilutG(0:nifguga)
 
         allocate(amp_list(target_ndets))

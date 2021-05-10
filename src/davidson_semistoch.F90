@@ -12,7 +12,7 @@ module davidson_semistoch
     use Parallel_neci, only: iProcIndex, nProcessors, MPIArg, MPIBarrier
     use Parallel_neci, only: MPIBCast, MPIGatherV, MPIAllGather, MPISumAll
     use Parallel_neci, only: MPIAllGatherV
-    use ParallelHelper, only: root
+    use MPI_wrapper, only: root, MPI_WTIME
     use sparse_arrays, only: HDiagTag
     use core_space_util, only: cs_replicas
     implicit none

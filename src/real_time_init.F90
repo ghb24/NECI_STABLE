@@ -33,7 +33,7 @@ module real_time_init
     use verlet_aux, only: backup_initial_state, setup_delta_psi
     use constants, only: dp, n_int, int64, lenof_sign, inum_runs, iout
     use Parallel_neci
-    use ParallelHelper, only: iProcIndex, root, MPIbarrier, nNodes, MPI_SUM
+    use MPI_wrapper, only: iProcIndex, root, MPIbarrier, nNodes, MPI_SUM
     use util_mod, only: get_unique_filename, get_free_unit
     use Logging, only: tIncrementPops
     use MemoryManager, only: LogMemAlloc, LogMemDealloc

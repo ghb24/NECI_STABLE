@@ -566,9 +566,9 @@ contains
             else if (MemSize < 1024**3) then
                 ! output in GB.
                 write (iunit, fmt1) real(MemSize, dp) / 1024**3, 'GB'
-            else if (MemSize < 1024**4) then
+            else if (MemSize < 1024_int64**4) then
                 ! output in GB.
-                write (iunit, fmt1) real(MemSize, dp) / 1024**4, 'TB'
+                write (iunit, fmt1) real(MemSize, dp) / 1024_int64**4, 'TB'
             else
                 write (iunit, '(A)') '> 1 PB'
             end if

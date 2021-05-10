@@ -12,7 +12,8 @@ module lattice_mod
     ! the sym_mod!
     use constants, only: dp, pi, EPS
     use SystemData, only: twisted_bc, nbasis, basisfn, t_trans_corr_2body, &
-                          symmetry, brr
+                          symmetry, brr, t_k_space_hubbard, t_trans_corr_hop, &
+                          t_new_real_space_hubbard
 
     implicit none
     private
@@ -448,7 +449,7 @@ module lattice_mod
 !
         procedure :: calc_nsites => calc_nsites_tilted
         procedure :: initialize_sites => init_sites_tilted
-        procedure :: init_basis_vecs => init_basis_vecs_tilted        
+        procedure :: init_basis_vecs => init_basis_vecs_tilted
         procedure, public :: dot_prod => dot_prod_tilted
     end type tilted
 
@@ -463,7 +464,6 @@ module lattice_mod
         procedure :: find_periodic_neighbors => find_periodic_neighbors_ole
 
         procedure :: inside_bz => inside_bz_ole
-!         procedure :: apply_basis_vector => apply_basis_vector_ole
 
     end type ole
 
@@ -777,11 +777,20 @@ contains
         ! dispersion relation of the lattice and make them accessible
         ! through the symmetry label associated with the k-vectors!
         character(*), parameter :: this_routine = "init_dispersion_rel_cache"
-        integer :: i
+        integer :: i, sym_min, sym_max, sym
 
         ASSERT(associated(lat))
 
         if (allocated(dispersion_rel_cached)) deallocate(dispersion_rel_cached)
+
+        sym_min = 0
+        sym_max = 0
+        do i = 1, lat%get_nsites()
+            sym = lat%get_sym(i)
+
+            if (sym < sym_min) sym_min = sym
+            if (sym > sym_max) sym_max = sym
+        end do
 
         allocate(dispersion_rel_cached(lat%get_nsites()))
         dispersion_rel_cached = h_cast(0.0_dp)
@@ -972,12 +981,8 @@ contains
             i = 1
             k_out = k_in
             do while (.not. this%inside_bz(k_out))
-!                 k_out = k_in
-!                 print *, "k_out before: ", k_in
                 ! apply all possible basis vectors of the lattice
                 k_out = this%apply_basis_vector(k_in, i)
-!                 print *, "i: ", i
-!                 print *, "k_out after ", k_out
                 i = i + 1
             end do
         end if
@@ -990,7 +995,6 @@ contains
         character(*), parameter :: this_routine = "inside_bz"
 
         ! this function should also be deferred!
-!         call stop_all(this_routine, "this routine should always be deferred!")
 
         ! i think with Kais new BZ implementation we can write this function
         ! generally.
@@ -1000,7 +1004,6 @@ contains
         if (all(k_vec <= this%kmax) .and. all(k_vec >= this%kmin)) then
             inside_bz = this%bz_table(k_vec(1), k_vec(2), k_vec(3))
         else
-!          print *, "are we often here?"
             ! if not, do the explicit check
             inside_bz = this%inside_bz_explicit(k_vec)
         end if
@@ -1199,7 +1202,7 @@ contains
         class(tilted) :: this
 
         ! Tilted lattices require more basis vectors stored (up to triple application of basis vector)
-        call this%init_basis_vecs_rect_base(3)
+        call this%init_basis_vecs_rect_base(4)
     end subroutine init_basis_vecs_tilted
 
     !> Base function for setting up a the basis vector array for rectangular lattices (extracted from the previous init_basis_vecs_rect)
@@ -1210,10 +1213,9 @@ contains
 
         integer :: i,j,k
 
-        if (allocated(this%basis_vecs)) deallocate(this%basis_vecs)        
+        if (allocated(this%basis_vecs)) deallocate(this%basis_vecs)
         allocate(this%basis_vecs((2*l+1)**2,3))
         this%basis_vecs = 0
-
         k = 0
         do i = -l, l
             do j = -l, l
@@ -2052,7 +2054,6 @@ contains
                 x = mod(i - 1, this%length(1)) + 1
                 y = (i - 1) / this%length(1) + 1
 
-!                 print *, "i, (x,y): ", i, x, y
                 temp_neigh = [up(x, y), down(x, y), left(x, y), right(x, y)]
 
                 neigh = sort_unique(temp_neigh)
@@ -2222,7 +2223,6 @@ contains
             end do
         end do
 
-!         k_vec_prep(1,:) = [-2,2,0]
         k_vec_prep(1, :) = [1, -3, 0]
         k_vec_prep(2, :) = [-2, 1, 0]
         k_vec_prep(3, :) = [-2, 0, 0]
@@ -2286,7 +2286,6 @@ contains
             neigh = sort_unique([up, down, left, right])
 
             ! oh.. thats BS actually.. wtf.. what was i thinking:
-!             k_vec = [i,j,0]
             ! i have to get the matrix indiced again, with the correct
             ! sign..
             if (this%get_nsites() == 24) then
@@ -2294,8 +2293,6 @@ contains
             else
                 k_vec = [mat_ind(i, 2), -mat_ind(i, 1), 0]
             end if
-
-!             k_vec = [-mat_ind(i,1),mat_ind(i,2),0]
 
             this%sites(i) = site(i, size(neigh), neigh, k_vec)
 
@@ -2573,7 +2570,6 @@ contains
             ! k_min is negative
             k_min = k_min + 1
             k_max = k_max - 1
-!             k = k - 1
         end do
 
         up = cshift(temp_array, -1, 1)
@@ -2598,36 +2594,12 @@ contains
 
         ! do something like and do this generally maybe..
         call apply_pbc_tilted(up, pbc_1, pbc_2, up_ur, up_dr, up_ul, up_dl, up_rr, up_ll)
-!         up_ur = cshift(cshift(up, -pbc, 1), pbc, 2)
-!         up_dr = cshift(cshift(up, pbc, 1), pbc, 2)
-!         up_ul = cshift(cshift(up, -pbc, 1), -pbc, 2)
-!         up_dl = cshift(cshift(up, pbc, 1), -pbc, 2)
-!         up_rr = cshift(up, 2*pbc, 2)
-!         up_ll = cshift(up, -2*pbc, 2)
-!
+
         call apply_pbc_tilted(down, pbc_1, pbc_2, down_ur, down_dr, down_ul, down_dl, down_rr, down_ll)
-!         down_ur = cshift(cshift(down, -pbc, 1), pbc, 2)
-!         down_dr = cshift(cshift(down, pbc, 1), pbc, 2)
-!         down_ul = cshift(cshift(down, -pbc, 1), -pbc, 2)
-!         down_dl = cshift(cshift(down, pbc, 1), -pbc, 2)
-!         down_rr = cshift(down, 2*pbc, 2)
-!         down_ll = cshift(down, -2*pbc, 2)
 
         call apply_pbc_tilted(right, pbc_1, pbc_2, right_ur, right_dr, right_ul, right_dl, right_rr, right_ll)
-!         right_ur = cshift(cshift(right, -pbc, 1), pbc, 2)
-!         right_dr = cshift(cshift(right, pbc, 1), pbc, 2)
-!         right_ul = cshift(cshift(right, -pbc, 1), -pbc, 2)
-!         right_dl = cshift(cshift(right, pbc, 1), -pbc, 2)
-!         right_rr = cshift(right, 2*pbc, 2)
-!         right_ll = cshift(right, -2*pbc, 2)
 
         call apply_pbc_tilted(left, pbc_1, pbc_2, left_ur, left_dr, left_ul, left_dl, left_rr, left_ll)
-!         left_ur = cshift(cshift(left, -pbc, 1), pbc, 2)
-!         left_dr = cshift(cshift(left, pbc, 1), pbc, 2)
-!         left_ul = cshift(cshift(left, -pbc, 1), -pbc, 2)
-!         left_dl = cshift(cshift(left, pbc, 1), -pbc, 2)
-!         left_rr = cshift(left, 2*pbc, 2)
-!         left_ll = cshift(left, -2*pbc, 2)
 
         k = 0
         l = 1
@@ -2662,7 +2634,6 @@ contains
                                        right_dl(j, i)])
 
                     if (right_nn == 0) then
-!                         right_nn = maxval([right_rr(j,i), right_ll(j,i)])
                         right_nn = right_ll(j, i)
                         if (right_nn == 0) then
                             print *, "right: smth wrong!"
@@ -2673,7 +2644,6 @@ contains
                                       left_dl(j, i)])
 
                     if (left_nn == 0) then
-!                         left_nn = maxval([left_rr(j,i), left_ll(j,i)])
                         left_nn = left_rr(j, i)
                         if (left_nn == 0) then
                             print *, "left: smth wrong!"
@@ -2727,7 +2697,6 @@ contains
                                        right_dl(j, i)])
 
                     if (right_nn == 0) then
-!                         right_nn = maxval([right_rr(j,i), right_ll(j,i)])
                         right_nn = right_ll(j, i)
                         if (right_nn == 0) then
                             print *, "smth wrong!"
@@ -2738,7 +2707,6 @@ contains
                                       left_dl(j, i)])
 
                     if (left_nn == 0) then
-!                         left_nn = maxval([left_rr(j,i), left_ll(j,i)])
                         left_nn = left_rr(j, i)
                         if (left_nn == 0) then
                             print *, "smth wrong!"
@@ -2799,7 +2767,6 @@ contains
                                        right_dl(j, i)])
 
                     if (right_nn == 0) then
-!                         right_nn = maxval([right_rr(j,i), right_ll(j,i)])
                         right_nn = right_ll(j, i)
                         if (right_nn == 0) then
                             print *, "smth wrong!"
@@ -2810,7 +2777,6 @@ contains
                                       left_dl(j, i)])
 
                     if (left_nn == 0) then
-!                         left_nn = maxval([left_rr(j,i), left_ll(j,i)])
                         left_nn = left_rr(j, i)
                         if (left_nn == 0) then
                             print *, "smth wrong!"
@@ -2831,7 +2797,6 @@ contains
                 k_min = k_min + 1
                 k_max = k_max - 1
 
-!                 k = k -1
             end do
         else if (this%is_periodic(1)) then
             ! only apply (x,x) periodicity
@@ -3473,7 +3438,9 @@ contains
         call this%initialize_sites()
 
         ! and fill the lookup table for the site index determination from k vectors
-        call this%initialize_lu_table()
+        if (t_k_space_hubbard .or. (t_trans_corr_hop .and. t_new_real_space_hubbard)) then
+            call this%initialize_lu_table()
+        end if
 
     end subroutine init_lattice
 
@@ -3553,7 +3520,7 @@ contains
         ! the lu table shall contain all reachable momenta ki + kj - ka
         nsites = this%get_nsites()
         ! for 2-body transcorrelation we need 5 momenta in total
-        if (t_trans_corr_2body) then
+        if (t_trans_corr_2body .and. t_k_space_hubbard) then
             do i = 1, nsites
                 ki = this%get_k_vec(i)
                 do j = 1, nsites
@@ -3593,9 +3560,6 @@ contains
             end do
         end if
 
-!       print *, "kmin: ", this%kmin
-!       print *, "kmax: ", this%kmax
-
     end subroutine get_lu_table_size
 
     subroutine fill_lu_table(this)
@@ -3605,13 +3569,13 @@ contains
         integer :: k, b, kk(sdim), kb(sdim)
 
         nsites = this%get_nsites()
-        !U.Ebling:  
+        !U.Ebling:
         !The older loop took a very long to finish for any lattice that is not super tiny.
         !I tried a 21x5x1 rectangle and it did not finish after 2 days
-        !It over-counts a lot. 
+        !It over-counts a lot.
         !Below is my optimized version, which loops directly over momenta instead of orbitals
         !There is no need to distinguish the 1-body and 2-body transcorrelation terms, because it
-        !uses the result of the subroutine get_lu_table_size 
+        !uses the result of the subroutine get_lu_table_size
         do i=this%kmin(1),this%kmax(1)
             do j=this%kmin(2),this%kmax(2)
                 do k=this%kmin(3),this%kmax(3)

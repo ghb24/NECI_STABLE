@@ -88,7 +88,7 @@ macro( neci_add_library )
       if ( NOT _p_TYPE MATCHES "STATIC" AND NOT _p_TYPE MATCHES "SHARED" )
         message( FATAL_ERROR "Library ${_p_TARGET}: type must be one of [ STATIC | SHARED ]" )
       endif()
-      message( STATUS "Library ${_p_TARGET}: library type is ${_p_TYPE}" )
+      message(DEBUG "Library ${_p_TARGET}: library type is ${_p_TYPE}" )
     else()
       message( FATAL_ERROR "Library ${_p_TARGET}: Type not specified. Must be one of [ STATIC | SHARED ]" )
     endif()
@@ -97,6 +97,7 @@ macro( neci_add_library )
 
     set( ${_p_TARGET}_TEMPLATED_SOURCES )
     if ( _p_TEMPLATED_SOURCES )
+      find_package(Python3 REQUIRED)
 
       # Ensure that the templates get put somewhere unique for each target
       set( _template_dir ${CMAKE_BINARY_DIR}/templated/${_p_TARGET} )
@@ -110,7 +111,7 @@ macro( neci_add_library )
         set( _templated_target_file ${_template_dir}/${_templated_file_base}.F90 )
         list( APPEND ${_p_TARGET}_TEMPLATED_SOURCES ${_templated_target_file} )
         add_custom_command(
-            COMMAND ${_templater_tool} ${_templated_file_absolute} ${_templated_target_file}
+            COMMAND ${Python3_EXECUTABLE} ${_templater_tool} ${_templated_file_absolute} ${_templated_target_file}
             WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
             OUTPUT ${_templated_target_file}
             DEPENDS ${_templated_file_absolute} )
@@ -118,8 +119,13 @@ macro( neci_add_library )
       endforeach()
     endif()
 
+
+    # Add fypp templating.
+    # Check if it exists in $PATH, if not init the fypp git submodule
+    # Convert all templated files to f90 files.
     set( ${_p_TARGET}_FYPP_SOURCES )
     if (_p_FYPP_SOURCES )
+        find_package(Python3 REQUIRED)
         # This will also search in default locations e.g. $PATH, env ...
         find_program (_fypp fypp ${PROJECT_SOURCE_DIR}/External/fypp/bin/)
         if (NOT _fypp)
@@ -150,7 +156,7 @@ macro( neci_add_library )
             set( _fypp_target_file ${_fypp_dir}/${_fypp_file_base}.F90 )
             list( APPEND ${_p_TARGET}_FYPP_SOURCES ${_fypp_target_file} )
             add_custom_command(
-                COMMAND ${_fypp} ${_fypp_options} ${_fypp_file_absolute} ${_fypp_target_file}
+                COMMAND ${Python3_EXECUTABLE} ${_fypp} ${_fypp_options} ${_fypp_file_absolute} ${_fypp_target_file}
                 WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
                 OUTPUT ${_fypp_target_file}
                 DEPENDS ${_fypp_file_absolute})
@@ -166,7 +172,7 @@ macro( neci_add_library )
     if (DEFINED _p_DEFINITIONS )
         get_property( _target_defs TARGET ${_p_TARGET} PROPERTY COMPILE_DEFINITIONS )
         list( APPEND _target_defs ${_p_DEFINITIONS} )
-        message( STATUS "Library ${_p_TARGET} using definitions: ${_target_defs}" )
+        message(DEBUG "Library ${_p_TARGET} using definitions: ${_target_defs}" )
         set_property( TARGET ${_p_TARGET} PROPERTY COMPILE_DEFINITIONS ${_target_defs} )
     endif()
 
@@ -190,19 +196,13 @@ macro( neci_add_library )
     endif()
 
 
-
-
     # Add (private) includes
 
     if( DEFINED _p_PRIVATE_INCLUDES )
-      list( REMOVE_DUPLICATES _p_PRIVATE_INCLUDES )
-      foreach( include_path ${_p_PRIVATE_INCLUDES} )
-        if( "${CMAKE_VERSION}" VERSION_LESS "2.8.11" ) # PRIVATE functionality doesn't exist before 2.8.11
-          target_include_directories( ${_p_TARGET} PUBLIC ${include_path} )
-        else()
-          target_include_directories( ${_p_TARGET} PRIVATE ${include_path} )
-        endif()
-      endforeach()
+        list( REMOVE_DUPLICATES _p_PRIVATE_INCLUDES )
+        foreach( include_path ${_p_PRIVATE_INCLUDES} )
+            target_include_directories( ${_p_TARGET} PRIVATE ${include_path} )
+        endforeach()
     endif()
 
     # If we have special compilation flags for F77 files, then add them here
@@ -223,27 +223,23 @@ macro( neci_add_library )
     # Add the link libraries
 
     if ( _p_LIBS )
-	  list( REMOVE_DUPLICATES _p_LIBS )
-      foreach( _lib ${_p_LIBS} )
-        target_link_libraries( ${_p_TARGET} ${_lib} )
-      endforeach()
+	    list( REMOVE_DUPLICATES _p_LIBS )
+        foreach( _lib ${_p_LIBS} )
+            target_link_libraries( ${_p_TARGET} ${_lib} )
+        endforeach()
     endif()
 
     # Have we manually set an output name?
 
     if ( _p_OUTPUT_NAME )
-      message( STATUS "Library ${_p_TARGET}: Output name is ${_p_OUTPUT_NAME}" )
-      set_property( TARGET ${_p_TARGET} PROPERTY OUTPUT_NAME ${_p_OUTPUT_NAME} )
+        message(DEBUG "Library ${_p_TARGET}: Output name is ${_p_OUTPUT_NAME}" )
+        set_property( TARGET ${_p_TARGET} PROPERTY OUTPUT_NAME ${_p_OUTPUT_NAME} )
     endif()
 
     # Where do we put the Fortran modules?
 
     set_property( TARGET ${_p_TARGET} PROPERTY Fortran_MODULE_DIRECTORY ${CMAKE_BINARY_DIR}/modules/${_p_TARGET} )
-    if( "${CMAKE_VERSION}" VERSION_LESS "2.8.11" ) # PRIVATE functionality doesn't exist before 2.8.11
-        target_include_directories( ${_p_TARGET} PUBLIC ${CMAKE_BINARY_DIR}/modules/${_p_TARGET} )
-    else()
-        target_include_directories( ${_p_TARGET} PRIVATE ${CMAKE_BINARY_DIR}/modules/${_p_TARGET} )
-    endif()
+    target_include_directories( ${_p_TARGET} PRIVATE ${CMAKE_BINARY_DIR}/modules/${_p_TARGET} )
 
     # Where do the files get built to
 
@@ -259,26 +255,26 @@ macro( neci_add_library )
     # Specify the linker language manually
 
     if( NOT DEFINED _p_LINKER_LANGUAGE OR NOT _p_LINKER_LANGUAGE MATCHES "(C|CXX|Fortran)" )
-      message( FATAL_ERROR "LINKER_LANGUAGE not set for library: ${_p_TARGET}" )
+        message( FATAL_ERROR "LINKER_LANGUAGE not set for library: ${_p_TARGET}" )
     endif()
 
     set_property( TARGET ${_p_TARGET} PROPERTY LINKER_LANGUAGE ${_p_LINKER_LANGUAGE} )
-    message(STATUS "Library ${_p_TARGET}: Setting linker language to ${_p_LINKER_LANGUAGE}" )
+    message(DEBUG "Library ${_p_TARGET}: Setting linker language to ${_p_LINKER_LANGUAGE}" )
     if( DEFINED NECI_${_p_LINKER_LANGUAGE}_${_p_TYPE}_LINK_LIBRARIES )
-      target_link_libraries( ${_p_TARGET} ${NECI_${_p_LINKER_LANGUAGE}_${_p_TYPE}_LINK_LIBRARIES} )
-      message(STATUS "Library ${_p_TARGET}: Adding link libraries ${NECI_${_p_LINKER_LANGUAGE}_${_p_TYPE}_LINK_LIBRARIES}" )
+        target_link_libraries( ${_p_TARGET} ${NECI_${_p_LINKER_LANGUAGE}_${_p_TYPE}_LINK_LIBRARIES} )
+        message(DEBUG "Library ${_p_TARGET}: Adding link libraries ${NECI_${_p_LINKER_LANGUAGE}_${_p_TYPE}_LINK_LIBRARIES}" )
     endif()
     if( DEFINED NECI_${_p_LINKER_LANGUAGE}_LINK_LIBRARIES )
-      target_link_libraries( ${_p_TARGET} ${NECI_${_p_LINKER_LANGUAGE}_LINK_LIBRARIES} )
-      message(STATUS "Library ${_p_TARGET}: Adding link libraries ${NECI_${_p_LINKER_LANGUAGE}_LINK_LIBRARIES}" )
+        target_link_libraries( ${_p_TARGET} ${NECI_${_p_LINKER_LANGUAGE}_LINK_LIBRARIES} )
+        message(DEBUG "Library ${_p_TARGET}: Adding link libraries ${NECI_${_p_LINKER_LANGUAGE}_LINK_LIBRARIES}" )
     endif()
     if( DEFINED NECI_${_p_LINKER_LANGUAGE}_LINKER_FLAGS )
-      target_link_libraries( ${_p_TARGET} ${NECI_${_p_LINKER_LANGUAGE}_LINKER_FLAGS} )
-      message(STATUS "Library ${_p_TARGET}: Adding linker flags ${NECI_${_p_LINKER_LANGUAGE}_LINKER_FLAGS}" )
+        target_link_libraries( ${_p_TARGET} ${NECI_${_p_LINKER_LANGUAGE}_LINKER_FLAGS} )
+        message(DEBUG "Library ${_p_TARGET}: Adding linker flags ${NECI_${_p_LINKER_LANGUAGE}_LINKER_FLAGS}" )
     endif()
     if( DEFINED NECI_${_p_LINKER_LANGUAGE}_LINKER_FLAGS_${CMAKE_BUILD_TYPE} )
-      target_link_libraries( ${_p_TARGET} ${NECI_${_p_LINKER_LANGUAGE}_LINKER_FLAGS_${CMAKE_BUILD_TYPE}} )
-      message(STATUS "Library ${_p_TARGET}: Adding linker flags ${NECI_${_p_LINKER_LANGUAGE}_LINKER_FLAGS_${CMAKE_BUILD_TYPE}}" )
+        target_link_libraries( ${_p_TARGET} ${NECI_${_p_LINKER_LANGUAGE}_LINKER_FLAGS_${CMAKE_BUILD_TYPE}} )
+        message(DEBUG "Library ${_p_TARGET}: Adding linker flags ${NECI_${_p_LINKER_LANGUAGE}_LINKER_FLAGS_${CMAKE_BUILD_TYPE}}" )
     endif()
 
     # Add to the global list of libraries

@@ -7,7 +7,7 @@ module dSFMT_interface
 
 
     use constants
-    use iso_c_hack
+    use, intrinsic :: iso_c_binding, only: c_double, c_int32_t, c_int
     implicit none
 
     ! It is much faster to generate random numbers in blocks. genrand_real2
@@ -30,12 +30,12 @@ module dSFMT_interface
 
     interface
         subroutine init_gen_rand_fwrapper (sd) bind(c)
-            use iso_c_hack
+            import :: c_int32_t
             implicit none
             integer(c_int32_t), intent(in), value :: sd
         end subroutine
         subroutine fill_array_close_open_fwrapper(ar, sz) bind(c)
-            use iso_c_hack
+            import :: c_double, c_int
             implicit none
             real(c_double), intent(inout) :: ar(*)
             integer(c_int), intent(in), value :: sz

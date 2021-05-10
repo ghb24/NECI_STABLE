@@ -34,7 +34,7 @@ MODULE HPHFRandExcitMod
     use DetBitOps, only: DetBitLT, DetBitEQ, FindExcitBitDet, &
                          FindBitExcitLevel, MaskAlpha, MaskBeta, &
                          TestClosedShellDet, CalcOpenOrbs, IsAllowedHPHF, &
-                         DetBitEQ
+                         DetBitEQ, GetBitExcitation
 
     use FciMCData, only: pDoubles, ilutRef
 
