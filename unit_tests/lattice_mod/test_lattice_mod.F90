@@ -9,6 +9,7 @@ program test_lattice_mod
     use lattice_mod
     use fruit
     use sort_mod, only: sort
+    use SystemData, only: t_trans_corr_2body, t_k_space_hubbard
 
     implicit none
 
@@ -28,19 +29,14 @@ contains
     subroutine lattice_mod_test_driver
 
         call run_test_case(test_init_lattice_chain, "test_init_lattice_chain")
-!         call run_test_case(test_init_lattice_star, "test_init_lattice_star")
-!         call run_test_case(test_init_lattice_aim_chain, "test_init_lattice_aim_chain")
-!         call run_test_case(test_init_lattice_aim_star, "test_init_lattice_aim_star")
-!         call run_test_case(test_init_cluster_lattice_aim, "test_init_cluster_lattice_aim")
         call run_test_case(test_init_lattice_rect, "test_init_lattice_rect")
         call run_test_case(test_sort_unique, "test_sort_unique")
         call run_test_case(test_init_lattice_tilted, "test_init_lattice_tilted")
-!         call run_test_case(test_init_lattice_cube, "test_init_lattice_cube")
+        call run_test_case(test_init_lattice_tilted_transcorr, "test_init_lattice_tilted_transcorr")
         call run_test_case(test_init_lattice_triangular, "test_init_lattice_triangular")
         call run_test_case(test_init_lattice_hexagonal, "test_init_lattice_hexagonal")
         call run_test_case(test_init_lattice_kagome, "test_init_lattice_kagome")
         call run_test_case(inside_bz_2d_test, "inside_bz_2d_test")
-!         call run_test_case(init_lattice_ole_test, "init_lattice_ole_test")
         call run_test_case(on_line_2d_test, "on_line_2d_test")
         call run_test_case(apply_pbc_test, "apply_pbc_test")
         call run_test_case(apply_pbc_tilted_test, "apply_pbc_tilted_test")
@@ -511,6 +507,106 @@ contains
         end do
 
     end subroutine init_lattice_ole_test
+
+    subroutine test_init_lattice_tilted_transcorr
+        class(lattice), pointer :: ptr
+        integer :: i
+        real(dp) :: x(24)
+
+        print *, ""
+        print *, "initialize a 2x2 tilted square lattice with PBC with Gutwiller Transcorr"
+        t_trans_corr_2body = .true.
+        t_k_space_hubbard = .true.
+        ptr => lattice('tilted', 2, 2, 1, .true., .true., .true., 'k-space')
+
+        call assert_equals(2, ptr%get_ndim())
+        ! this would be nice: how do i implement that??
+        call assert_equals(2, ptr%get_length(1))
+        call assert_equals(2, ptr%get_length(2))
+        call assert_equals(8, ptr%get_nsites())
+        call assert_equals(4, ptr%get_nconnect_max())
+        call assert_true( ptr%is_periodic())
+        call assert_true( ptr%is_periodic(1))
+        call assert_true( ptr%is_periodic(2))
+
+        ! now check the connectivity
+        call assert_equals(1, ptr%get_site_index(1))
+        call assert_equals(2, ptr%get_site_index(2))
+        call assert_equals(3, ptr%get_site_index(3))
+        call assert_equals(8, ptr%get_site_index(8))
+        call assert_equals([3,5,7,8], ptr%get_neighbors(1),4)
+        call assert_equals([3,5,7,8], ptr%get_neighbors(2),4)
+        call assert_equals([1,2,4,6], ptr%get_neighbors(3),4)
+        call assert_equals([3,5,7,8], ptr%get_neighbors(4),4)
+        call assert_equals([1,2,4,6], ptr%get_neighbors(5),4)
+        call assert_equals([3,5,7,8], ptr%get_neighbors(6),4)
+        call assert_equals([1,2,4,6], ptr%get_neighbors(7),4)
+        call assert_equals([1,2,4,6], ptr%get_neighbors(8),4)
+
+        call assert_equals([1,3,7,11], ptr%get_spinorb_neighbors(15),4)
+
+        call assert_equals(4.0_dp, ptr%dispersion_rel([0,0,0]))
+        call assert_equals(-4.0_dp, ptr%dispersion_rel([2,0,0]))
+        call assert_equals(0.0_dp, ptr%dispersion_rel([1,1,0]),1.e-10)
+        call assert_equals(0.0_dp, ptr%dispersion_rel([-1,0,0]),1.e-10)
+
+        x(1:8) = [(-ptr%dispersion_rel_orb(i), i = 1, 8)]
+        call sort(x(1:8))
+
+        do i = 1, 8
+            print *, "e(k): ", x(i)
+        end do
+
+        call lattice_deconstructor(ptr)
+
+        print *, ""
+        print *, "initialize a 3x3 tilted square lattice with PBC"
+
+        ptr => lattice('tilted', 3, 3, 1, .true., .true., .true., 'k-space')
+        call assert_equals(2, ptr%get_ndim())
+        ! this would be nice: how do i implement that??
+        call assert_equals(3, ptr%get_length(1))
+        call assert_equals(3, ptr%get_length(2))
+        call assert_equals(18, ptr%get_nsites())
+        call assert_equals(4, ptr%get_nconnect_max())
+        call assert_true( ptr%is_periodic())
+        call assert_true( ptr%is_periodic(1))
+        call assert_true( ptr%is_periodic(2))
+
+        ! now check the connectivity
+        call assert_equals(1, ptr%get_site_index(1))
+        call assert_equals(2, ptr%get_site_index(2))
+        call assert_equals(3, ptr%get_site_index(3))
+        call assert_equals(8, ptr%get_site_index(8))
+        call assert_equals([3,10,14,18], ptr%get_neighbors(1),4)
+        call assert_equals([3,6,14,17], ptr%get_neighbors(2),4)
+        call assert_equals([1,2,4,7], ptr%get_neighbors(3),4)
+        call assert_equals([3,8,10,15], ptr%get_neighbors(4),4)
+        call assert_equals([6,10,17,18], ptr%get_neighbors(5),4)
+        call assert_equals([2,5,7,11], ptr%get_neighbors(6),4)
+        call assert_equals([3,6,8,12], ptr%get_neighbors(7),4)
+        call assert_equals([4,7,9,13], ptr%get_neighbors(8),4)
+        call assert_equals([1,5,9,16], ptr%get_neighbors(18),4)
+        call assert_equals([7,11,13,16], ptr%get_neighbors(12),4)
+
+        call assert_equals(4.0_dp, ptr%dispersion_rel([0,0,0]))
+        call assert_equals(2.0_dp, ptr%dispersion_rel([-1,0,0]),1.e-10)
+        call assert_equals(1.0_dp, ptr%dispersion_rel([-1,-1,0]),1.e-10)
+        call assert_equals(-1.0_dp, ptr%dispersion_rel([2,1,0]),1.e-10)
+        call assert_equals(-2.0_dp, ptr%dispersion_rel([0,2,0]),1.e-10)
+        call assert_equals(-4.0_dp, ptr%dispersion_rel([3,0,0]))
+
+        x(1:18) = [(-ptr%dispersion_rel_orb(i), i = 1,18)]
+        call sort(x(1:18))
+        do i = 1, 18
+            print *, "e(k): ", x(i)
+        end do
+
+
+        t_trans_corr_2body = .false.
+        t_k_space_hubbard = .false.
+
+    end subroutine test_init_lattice_tilted_transcorr
 
     subroutine test_init_lattice_tilted
         class(lattice), pointer :: ptr
