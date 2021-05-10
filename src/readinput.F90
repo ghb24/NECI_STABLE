@@ -541,7 +541,7 @@ contains
             write(iout, *)
             write(iout, *) 'If you think that there is a usecase for sampling RDMs'
             write(iout, *) 'with normal `neci` please contact the developers.'
-            call stop_all(this_routine, "Compiled version does not support RDM sampling.")
+            call stop_all(t_r, "Compiled version does not support RDM sampling.")
         end if
 #endif
 
