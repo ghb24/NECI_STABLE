@@ -390,10 +390,8 @@ contains
             end if
 #endif
 
-            if (tGUGA .and. t_precond_hub) then
-                if(abs(Eii_curr) > 10.0_dp) then
-                    nSpawn = nSpawn / (1.0_dp + dble(Eii_curr))
-                end if
+            if (tGUGA .and. t_precond_hub .and. abs(Eii_curr) > 10.0_dp) then
+                nSpawn = nSpawn / (1.0_dp + dble(Eii_curr))
             end if
 
             ! [Werner Dobrautz 4.4.2017:]

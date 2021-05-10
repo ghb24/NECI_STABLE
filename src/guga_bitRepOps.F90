@@ -167,11 +167,9 @@ contains
         ! at startup to use the correct one and to be sure to have a
         ! correct GUGA excit-lvl info at all necessary stages
         integer(n_int), intent(in) :: ilutI(0:GugaBits%len_tot), ilutJ(0:GugaBits%len_tot)
-        ! integer, intent(in), optional :: max_ex
-        ! logical, intent(in), optional :: dummy_flag
 
-        ! unused_var(max_ex)
-        ! unused_var(dummy_flag)
+        unused_var(ilutI)
+        unused_var(ilutJ)
 
         find_guga_excit_lvl_to_doubles = nel
 
@@ -2460,10 +2458,9 @@ contains
         integer, intent(in) :: spin, num_el
         logical :: flag
 
-        flag = .true.
-        if (any(calcB_vector_int(ilut(0:GugaBits%len_orb)) < 0)) flag = .false.
-        if (abs(return_ms(ilut, num_el)) /= spin) flag = .false.
-        if (int(sum(calcOcc_vector_ilut(ilut(0:GugaBits%len_orb)))) /= num_el) flag = .false.
+        flag = (all(calcB_vector_int(ilut(0:GugaBits%len_orb)) > 0) &
+            .and. (abs(return_ms(ilut, num_el)) == spin) &
+            .and. (int(sum(calcOcc_vector_ilut(ilut(0:GugaBits%len_orb)))) == num_el))
 
     end function isProperCSF_flexible
 

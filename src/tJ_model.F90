@@ -1102,7 +1102,7 @@ contains
         neighbors = lat%get_neighbors(lat%get_site_index(id))
 
         ! then check if the neighbors are available for exchange
-        allocate(cum_arr(size(neighbors)), source = 0.0_dp)
+        allocate(cum_arr(size(neighbors)), source=0.0_dp)
 
         cum_sum = 0.0_dp
         tmp = 0.0_dp

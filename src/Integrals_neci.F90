@@ -137,75 +137,75 @@ contains
             end if
             call readu(w)
             select case(w)
-            case("DUMPFCIDUMP")
+            case ("DUMPFCIDUMP")
                 tDumpFCIDUMP = .true.
-            case("LINROOTCHANGE")
+            case ("LINROOTCHANGE")
                 TLinRootChange = .true.
-            case("RMROOTEXCITSTARSROOTCHANGE")
+            case ("RMROOTEXCITSTARSROOTCHANGE")
                 TRmRootExcitStarsRootChange = .true.
-            case("EXCITSTARSROOTCHANGE")
+            case ("EXCITSTARSROOTCHANGE")
                 TExcitStarsRootChange = .true.
-            case("DIAGSTARSTARS")
+            case ("DIAGSTARSTARS")
                 TDiagStarStars = .true.
-            case("STARQUADEXCITS")
+            case ("STARQUADEXCITS")
                 TJustQuads = .true.
-            case("STARNODOUBS")
+            case ("STARNODOUBS")
                 TNoDoubs = .true.
-            case("CALCEXCITSTAR")
+            case ("CALCEXCITSTAR")
                 TCalcExcitStar = .true.
-            case("QUADVECMAX")
+            case ("QUADVECMAX")
                 TQuadVecMax = .true.
-            case("QUADVALMAX")
+            case ("QUADVALMAX")
                 TQuadValMax = .true.
-            case("NRCONV")
+            case ("NRCONV")
                 call readf(NRCONV)
-            case("RFCONV")
+            case ("RFCONV")
                 call readf(RFCONV)
-            case("NRSTEPSMAX")
+            case ("NRSTEPSMAX")
                 call readi(NRSTEPSMAX)
-            case("INCLUDEQUADRHO")
+            case ("INCLUDEQUADRHO")
                 TQUADRHO = .true.
-            case("EXPRHO")
+            case ("EXPRHO")
                 TEXPRHO = .true.
-            case("RHO-1STORDER")
+            case ("RHO-1STORDER")
                 NTAY(2) = 4
-            case("FOCK-PARTITION")
+            case ("FOCK-PARTITION")
                 NTAY(2) = 2
-            case("FOCK-PARTITION-LOWDIAG")
+            case ("FOCK-PARTITION-LOWDIAG")
                 NTAY(2) = 3
-            case("FOCK-PARTITION-DCCORRECT-LOWDIAG")
+            case ("FOCK-PARTITION-DCCORRECT-LOWDIAG")
                 NTAY(2) = 5
-            case("DIAG-PARTITION")
+            case ("DIAG-PARTITION")
                 NTAY(2) = 1
-            case("CALCREALPROD")
+            case ("CALCREALPROD")
                 TCALCREALPROD = .TRUE.
                 IF(.NOT. TUSEBRILLOUIN) THEN
                     call report(trim(w)//" will not work unless "           &
            &        //"USEBRILLOUINTHEOREM set", .true.)
                 end if
-            case("CALCRHOPROD")
+            case ("CALCRHOPROD")
                 TCALCRHOPROD = .TRUE.
-            case("SUMPRODII")
+            case ("SUMPRODII")
                 TSUMPROD = .TRUE.
-            case("DISCONNECTNODES")
+            case ("DISCONNECTNODES")
                 TDISCONODES = .TRUE.
-            case("HF")
+            case ("HF")
                 THFBASIS = .true.
-            case("CALCULATE")
+            case ("CALCULATE")
                 THFCALC = .true.
-            case("MAXITERATIONS")
+            case ("MAXITERATIONS")
                 call geti(NHFIT)
-            case("MIX")
+            case ("MIX")
                 call getf(HFMIX)
-            case("RAND")
+            case ("RAND")
                 call getf(HFRAND)
-            case("THRESHOLD")
+            case ("THRESHOLD")
                 do while(item < nitems)
                     call readu(w)
                     select case(w)
-                    case("ENERGY")
+                    case ("ENERGY")
                         call readf(HFEDELTA)
-                    case("ORBITAL")
+                    case ("ORBITAL")
                         call readf(HFCDELTA)
                     case default
                         call report(trim(w)//" not valid THRESHOLD"         &
@@ -213,40 +213,40 @@ contains
            &           //" threshold.", .true.)
                     end select
                 end do
-            case("RHF")
+            case ("RHF")
                 TRHF = .true.
-            case("UHF")
+            case ("UHF")
                 TRHF = .false.
-            case("HFMETHOD")
+            case ("HFMETHOD")
                 call readu(w)
                 select case(w)
-                case("DESCENT")
+                case ("DESCENT")
                     call readu(w)
                     select case(w)
-                    case("OTHER")
+                    case ("OTHER")
                         IHFMETHOD = 2
-                    case("SINGLES")
+                    case ("SINGLES")
                         IHFMETHOD = 1
                     case default
                         call report(trim(w)//" not valid DESCENT"         &
          &              //" option", .true.)
                     end select
-                case("STANDARD")
+                case ("STANDARD")
                     IHFMETHOD = 0
-                case("MODIFIED")
+                case ("MODIFIED")
                     IHFMETHOD = 3
                 case default
                     call report(trim(w)//" not valid HF method",          &
          &           .true.)
                 end select
 
-            case("READ")
+            case ("READ")
                 do while(item < nitems)
                     call readu(w)
                     select case(w)
-                    case("MATRIX")
+                    case ("MATRIX")
                         TREADTUMAT = .true.
-                    case("BASIS")
+                    case ("BASIS")
                         TREADHF = .true.
                     case default
                         call report(trim(w)//" is an invalid HF read"       &
@@ -292,7 +292,7 @@ contains
                 call readi(NPartFrozen)
                 call readi(NHolesFrozen)
 
-            case("PARTIALLYFREEZEVIRT")
+            case ("PARTIALLYFREEZEVIRT")
 !This option works very similarly to the one above.  The integers following this keyword refer firstly to the number
 !of *spin* orbitals that are frozen from the highest energy virtual orbitals down.  The second integer refers to the
 !number of electrons that are allowed to occupy these 'partially frozen' virtual orbitals.  I.e. NElVirtFrozen = 1,
@@ -302,7 +302,7 @@ contains
                 call readi(NVirtPartFrozen)
                 call readi(NElVirtFrozen)
 
-            case("ORDER")
+            case ("ORDER")
                 I = 1
                 do while(item < nitems)
                     call readf(ORBORDER2(I))
@@ -332,12 +332,12 @@ contains
            &                           0.000001_dp) * 1000) * 2
                     end if
                 end do
-            case("UMATCACHE")
+            case ("UMATCACHE")
                 call readu(w)
                 select case(w)
-                case("SLOTS")
+                case ("SLOTS")
                     call geti(NSLOTSINIT)
-                case("MB")
+                case ("MB")
                     call geti(NMEMINIT)
                     if(nMemInit == 0) then
                         ! Not using the cache...
@@ -345,53 +345,53 @@ contains
                     else
                         nSlotsInit = 1
                     end if
-                case("READ")
+                case ("READ")
                     tReadInCache = .true.
-                case("DUMP")
+                case ("DUMP")
                     if(iDumpCacheFlag == 0) iDumpCacheFlag = 1
-                case("FORCE")
+                case ("FORCE")
                     iDumpCacheFlag = 2
                 case default
                     call reread(-1)
                     call geti(NSLOTSINIT)
                 end select
-            case("NOUMATCACHE")
+            case ("NOUMATCACHE")
                 NSLOTSINIT = -1
-            case("DFMETHOD")
+            case ("DFMETHOD")
                 call readu(w)
                 select case(w)
-                case("DFOVERLAP")
+                case ("DFOVERLAP")
                     iDFMethod = 1
-                case("DFOVERLAP2NDORD")
+                case ("DFOVERLAP2NDORD")
                     iDFMethod = 2
-                case("DFOVERLAP2")
+                case ("DFOVERLAP2")
                     iDFMethod = 3
-                case("DFCOULOMB")
+                case ("DFCOULOMB")
                     iDFMethod = 4
                 case default
                     call report("keyword "//trim(w)//" not recognized in DFMETHOD block", .true.)
                 end select
-            case("POSTFREEZEHF")
+            case ("POSTFREEZEHF")
                 tPostFreezeHF = .true.
 
-            case("HDF5-INTEGRALS")
+            case ("HDF5-INTEGRALS")
                 ! Read the 6-index integrals from an hdf5 file
                 tHDF5LMat = .true.
-            case("SPARSE-LMAT")
+            case ("SPARSE-LMAT")
                 ! Allows for storing the 6-index integrals in a sparse format
                 tSparseLMat = .true.
-            case("SYM-BROKEN-LMAT")
+            case ("SYM-BROKEN-LMAT")
                 ! Can be used to disable the permuational symmetry of the 6-index integrals
                 tSymBrokenLMat = .true.
-            case("UNSYMMETRIC-INTEGRALS")
+            case ("UNSYMMETRIC-INTEGRALS")
                 ! the 6-index integrals are not symmetrized yet (has to be done
                 ! on the fly then)
                 tSymBrokenLMat = .true.
 
-            case("DMATEPSILON")
+            case ("DMATEPSILON")
                 call readf(DMatEpsilon)
 
-            case("LMATCALC")
+            case ("LMATCALC")
 
                 if(tSymBrokenLMat .or. t12FoldSym) then
                     call report("LMATCALC assumes 48-fold symmetry", .true.)
@@ -403,7 +403,7 @@ contains
                     call readf(lMatCalcHFactor)
                 end if
 
-            case("ENDINT")
+            case ("ENDINT")
                 exit integral
             case default
                 call report("keyword "//trim(w)//" not recognized in integral block", .true.)

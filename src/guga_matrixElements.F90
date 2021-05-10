@@ -23,57 +23,6 @@ module guga_matrixElements
 
 contains
 
-    function calc_off_diag_guga_ref_list(ilut, run, exlevel) result(hel)
-        ! calculated the off-diagonal element connected to the reference
-        ! determinant only.
-        integer(n_int), intent(in) :: ilut(0:niftot)
-        integer, intent(in), optional :: run
-        integer, intent(out), optional :: exlevel
-        HElement_t(dp) :: hel
-        character(*), parameter :: this_routine = "calc_off_diag_guga_ref"
-
-        integer :: pos, ind, nExcit
-        ! have the list of conncected dets to ilutRef stored persistently
-        ! so only need to search if ilut is in this list and return
-        ! the corresponing matrix element
-        ! for now change that to the first replica reference...
-        ! since this is done also in the fcimc_helper in the sumEcontrib...
-        ! im not quite sure why this is done in such a way in the main routine.
-        if (present(run)) then
-            ind = run
-        else
-            ind = 1
-        end if
-
-        ASSERT(allocated(projE_replica(ind)%projE_ilut_list))
-
-        nExcit = projE_replica(ind)%num_entries
-
-        pos = binary_search(projE_replica(ind)%projE_ilut_list(0:nifd, 1:nExcit), &
-                            ilut(0:nifd))
-
-        if (pos > 0) then
-            ! if found output the matrix element
-            hel = projE_replica(ind)%projE_hel_list(pos)
-            if (present(exlevel)) then
-                exlevel = projE_replica(ind)%exlevel(pos)
-            end if
-        else
-            ! otherwise its zero
-            hel = hel_zero
-            if (present(exlevel)) then
-                ! which value should i give exlevel in this case? 3,-1 ..
-                ! have to deal with it outside..
-                exlevel = -1
-            end if
-        end if
-
-#ifdef CMPLX_
-        hel = conjg(hel)
-#endif
-
-    end function calc_off_diag_guga_ref_list
-
     function calcDiagMatEleGuga_nI(nI) result(hel_ret)
         ! calculates the diagonal Hamiltonian matrix element when a CSF in
         ! nI(nEl) form is provided and returns hElement of type hElement_t

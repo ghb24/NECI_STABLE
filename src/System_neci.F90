@@ -1670,17 +1670,22 @@ contains
             case("ANALYZE-PCHB")
                 t_analyze_pchb = .true.
 
-            case("OLD-PCHB")
+            case("OLD-GUGA-PCHB")
+                ! original, rather unoptimized guga-pchb implementation
+                ! still testing planned for final verdict on best guga-pchb
+                ! implementation!
                 t_old_pchb = .true.
 
-            case("EXCHANGE-PCHB")
+            case("EXCHANGE-GUGA-PCHB")
+                ! additional guga-pchb implementation for exchange type
+                ! contributions. testing for final 'best' guga-pchb
+                ! version still needs to be done
                 t_exchange_pchb = .true.
 
             case("SPAWNLISTDETS")
 !This option will mean that a file called SpawnOnlyDets will be read in,
 ! and only these determinants will be allowed to be spawned at.
                 CALL Stop_All("ReadSysInp", "SPAWNLISTDETS option depreciated")
-!            tListDets=.true.
 
             case ("UMATEPSILON")
 

@@ -159,8 +159,8 @@ contains
             end do
         end do
         print *, "--"
-        associate(sampler => guga_pchb_sampler(1), &
-                  a_sampler => guga_pchb_sampler(1)%alias_sampler)
+        associate(sampler => guga_pchb_sampler, &
+                  a_sampler => guga_pchb_sampler%alias_sampler)
 
             call assert_equals(0_int64, sampler%get_info(1,1))
             call assert_equals(0.0_dp, a_sampler%get_prob(1,1))
@@ -171,8 +171,8 @@ contains
 
         do i = 1, ijMax
             do j = 1, ijMax
-                print *, guga_pchb_sampler(1)%get_info(i,j), &
-                    guga_pchb_sampler(1)%alias_sampler%get_prob(i,j)
+                print *, guga_pchb_sampler%get_info(i,j), &
+                    guga_pchb_sampler%alias_sampler%get_prob(i,j)
             end do
         end do
 
@@ -303,7 +303,7 @@ contains
 
     subroutine pick_uniform_spatial_hole_test
 
-        integer :: orb, nI(4), elec, s_orb
+        integer :: nI(4), elec, s_orb
         real(dp) :: pgen
         integer(n_int) :: ilut(0:GugaBits%len_tot)
 
