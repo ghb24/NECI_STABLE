@@ -1265,11 +1265,11 @@ contains
 
             case ("DIRECT-GUGA-REF")
                 ! obsolet since standard now!
-                t_direct_guga_ref = .true.
+                write(iout, *) "WARNING: direct-guga-ref is the default now and not necessary as input"
 
             case ("LIST-GUGA-REF")
                 ! option to calculate the reference energy via a pre-computed list
-                t_direct_guga_ref = .false.
+                call stop_all(this_routine, "'list-guga-ref' option deprecated")
 
             case('TRUNC-GUGA-PGEN')
                 ! truncate GUGA excitation with a pgen below a chosen

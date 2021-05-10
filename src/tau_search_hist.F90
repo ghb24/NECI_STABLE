@@ -4,7 +4,7 @@ module tau_search_hist
 
     use SystemData, only: tGen_4ind_weighted, AB_hole_pairs, par_hole_pairs,tHub, &
                           tGen_4ind_reverse, nOccAlpha, nOccBeta, tUEG, tGen_4ind_2, &
-                          nBasis, tGen_sym_guga_mol, tGen_nosym_guga, &
+                          nBasis, tGen_sym_guga_mol, &
                           tReal, t_k_space_hubbard, t_trans_corr_2body, &
                           t_trans_corr, t_new_real_space_hubbard, t_3_body_excits, &
                           t_trans_corr_hop, tGUGA, tgen_guga_crude, t_mixed_hubbard, &
@@ -42,8 +42,6 @@ module tau_search_hist
                             ija_orbs_sing, all_ija_orbs_sing, &
                             ija_orbs_para, all_ija_orbs, ija_orbs_anti
     use tc_three_body_data, only: pTriples, lMatEps
-
-    use guga_tausearch, only: find_max_tau_doubs_guga
 
     implicit none
     ! variables which i might have to define differently:
@@ -361,12 +359,6 @@ contains
             ! for now use only pSingles and pDoubles for GUGA implo
             allocate(frequency_bins_doubles(n_frequency_bins))
             frequency_bins_doubles = 0
-
-            ! actually the noysm tau search is in a different module..
-        else if (tGen_nosym_guga) then
-            call stop_all(this_routine, &
-                "should not end up here when nosym_guga, but in guga_tausearch!")
-
 
 
         else

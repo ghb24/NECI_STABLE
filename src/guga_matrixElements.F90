@@ -18,7 +18,7 @@ module guga_matrixElements
     implicit none
 
     private
-    public :: calcDiagMatEleGuga_nI, calcdiagmateleguga_ilut, calc_off_diag_guga_ref_list, &
+    public :: calcDiagMatEleGuga_nI, calcdiagmateleguga_ilut, &
               calcDiagExchangeGUGA_nI
 
 contains
@@ -222,7 +222,7 @@ contains
 
     end function calcDiagExchangeGUGA_nI
 
-    pure function functionA(bValue, x, y) result(r)
+    elemental function functionA(bValue, x, y) result(r)
         ! calculated the "A" function used for Shavitts matrix element calc.
         real(dp), intent(in) :: bValue, x, y
         real(dp) :: r

@@ -23,7 +23,6 @@ module local_spin
                 rezero_local_spin_stats, init_local_spin_measure, &
                 finalize_local_spin_measurement
 
-      ! real(dp), allocatable :: inst_local_spin(:), all_local_spin(:)
       real(dp), allocatable :: inst_local_spin(:), all_local_spin(:)
 
 

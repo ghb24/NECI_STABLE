@@ -8,7 +8,7 @@ module FciMCParMod
                           t_new_real_space_hubbard, t_tJ_model, t_heisenberg_model, &
                           t_k_space_hubbard, max_ex_level, t_uniform_excits, &
                           tGen_guga_mixed, t_guga_mixed_init, t_guga_mixed_semi, &
-                          tReal, t_mixed_excits, tgen_nosym_guga, &
+                          tReal, t_mixed_excits, &
                           t_crude_exchange_noninits, t_approx_exchange_noninits, &
                           is_init_guga, tGen_sym_guga_ueg, t_guga_unit_tests, &
                           t_analyze_pchb
@@ -27,7 +27,7 @@ module FciMCParMod
                         t_back_spawn_option, tDynamicCoreSpace, coreSpaceUpdateCycle, &
                         DiagSft, tDynamicTrial, trialSpaceUpdateCycle, semistochStartIter, &
                         tSkipRef, tTrialShift, tSpinProject, t_activate_decay, &
-                        t_direct_guga_ref, t_trunc_guga_pgen_noninits, &
+                        t_trunc_guga_pgen_noninits, &
                         tLogAverageSpawns, tActivateLAS, eq_cyc, &
                         t_guga_back_spawn, tEN2Init, tEN2Rigorous, tDeathBeforeComms, &
                         tDetermProjApproxHamil, tCoreAdaptiveShift, &
@@ -865,11 +865,7 @@ contains
         ! tau-search.. maybe change that later to be an option
         ! to be turned off
         if (t_print_frq_histograms .and. t_hist_tau_search_option) then
-            if (tgen_nosym_guga) then
-                call print_frequency_histogram_spec()
-            else
-                call print_frequency_histograms()
-            end if
+            call print_frequency_histograms()
 
             ! also deallocate here after no use of the histograms anymore
             call deallocate_histograms()
@@ -913,10 +909,6 @@ contains
                 if (tAccumPopsActive) &
                     write(6, *) 'Accumulated projected energy of popsfile:', AccumE + Hii
             end if
-        end if
-
-        if (tGUGA) then
-            if (.not. t_direct_guga_ref) call deallocate_projE_list()
         end if
 
         IF (tCalcFCIMCPsi) THEN

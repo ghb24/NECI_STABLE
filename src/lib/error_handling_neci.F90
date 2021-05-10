@@ -1,25 +1,3 @@
-subroutine pp_stop_all(sub_name, error_msg, file_name, line_number)
-    ! additional pre-processor info (pp) of file and line-number in
-    ! stop_all call
-    implicit none
-
-    character(*), intent(in) :: sub_name, error_msg, file_name
-    integer, intent(in) :: line_number
-
-
-    ! print to stdout
-    write (6,'(/a10,17X,a)')  ' In file: ', adjustl(file_name)
-    write (6,'(a10,17X,i6)') ' At line: ', line_number
-
-    ! print to stderr
-    write (7,'(/a10,17X,a)')  ' In file: ', adjustl(file_name)
-    write (7,'(a10,17X,i6)') ' At line: ', line_number
-
-    call stop_all(sub_name, error_msg)
-
-end subroutine pp_stop_all
-
-
 subroutine stop_all(sub_name, error_msg)
 
     ! Stop calculation due to an error. Exit with code 222?

@@ -12,7 +12,7 @@ module fcimc_initialisation
                           tRotatedOrbs, MolproID, nBasis, arr, brr, nel, &
                           tPickVirtUniform, tGen_4ind_reverse, &
                           tGenHelWeighted, tGen_4ind_weighted, tLatticeGens, &
-                          tGUGA, tGen_nosym_guga, ref_stepvector, ref_b_vector_int, &
+                          tGUGA, ref_stepvector, ref_b_vector_int, &
                           ref_occ_vector, ref_b_vector_real, tUEGNewGenerator, &
                           tGen_4ind_2, tReltvy, t_new_real_space_hubbard, &
                           t_lattice_model, t_tJ_model, t_heisenberg_model, &
@@ -50,7 +50,6 @@ module fcimc_initialisation
                         initial_refs, trial_init_reorder, tStartTrialLater, tTrialInit, &
                         ntrial_ex_calc, tPairedReplicas, tMultiRefShift, tPreCond, &
                         tMultipleInitialStates, initial_states, t_hist_tau_search, &
-                        t_direct_guga_ref, &
                         t_previous_hist_tau, t_fill_frequency_hists, t_back_spawn, &
                         t_trunc_nopen_diff, t_guga_back_spawn, tExpAdaptiveShift, &
                         t_back_spawn_option, t_back_spawn_flex_option, &
@@ -205,10 +204,8 @@ module fcimc_initialisation
 
     use constants
 
-    use guga_tausearch, only: init_tau_search_guga_nosym, log_spawn_magnitude_guga_nosym, &
-                              update_tau_guga_nosym, init_hist_tau_search_guga_nosym, &
-                              update_hist_tau_guga_nosym
-    use guga_data, only: bVectorRef_ilut, bVectorRef_nI, projE_replica
+    use guga_data, only: bVectorRef_ilut, bVectorRef_nI
+
     use guga_bitRepOps, only: calcB_vector_nI, calcB_vector_ilut, convert_ilut_toNECI, &
                               convert_ilut_toGUGA, getDeltaB, write_det_guga, write_guga_list, &
                               calc_csf_info
@@ -497,23 +494,7 @@ contains
 
             ref_b_vector_real = real(ref_b_vector_int, dp)
 
-            ! for multiple runs i have to initialize all the necessary
-            ! projected energy lists
-            ! have to first allocate the type proje_replica
-            allocate(projE_replica(inum_runs), stat=ierr)
 
-            ! only initialize that if we use the old way to calc the
-            ! reference energy!
-            ! for testing purposes initiaize both
-            if (.not. t_direct_guga_ref) then
-                root_print &
-                    "initialising the projected energy list H|ref>. &
-                   & This can take some time. Try using 'direct-guga-ref' in the&
-                   & Calc Block of the input if it takes too long"
-                do run = 1, inum_runs
-                    call create_projE_list(run)
-                end do
-            end if
         end if
 
         if (tHPHF) then
@@ -1764,25 +1745,14 @@ contains
         end if
 
         if (tSearchTau) then
-            if (tGen_nosym_guga) then
-                call init_tau_search_guga_nosym()
-            else
-                call init_tau_search()
-            end if
-            ! set!
-            ! [Werner Dobrautz 4.4.2017:]
+            call init_tau_search()
             if (t_hist_tau_search) then
-                ! some setup went wrong!
                 call Stop_All(t_r, &
-                              "Input error! both standard AND Histogram tau-search chosen!")
+                      "Input error! both standard AND Histogram tau-search chosen!")
             end if
 
         else if (t_hist_tau_search) then
-            if (tGen_nosym_guga) then
-                call init_hist_tau_search_guga_nosym()
-            else
-                call init_hist_tau_search()
-            end if
+            call init_hist_tau_search()
 
         else if (t_hist_tau_search) then
             call init_hist_tau_search()

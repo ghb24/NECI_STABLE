@@ -85,11 +85,6 @@
 #define set_zero(ilut, spat) clr_orb(ilut, 2*spat);  clr_orb(ilut, 2*spat-1)
 #define set_three(ilut,spat) set_orb(ilut, 2*spat);  set_orb(ilut, 2*spat-1)
 
-#define stringify(x) #x
-#define tostring(x) stringify(x)
-
-#define AT_ "at: " // __FILE__ // ":" // tostring(__LINE__)
-
 ! Useful for fixing things. Requires this_routine to be defined
 ! It would be nice print __FILE__ and __LINE__ in the ASSERT macro,
 ! especially it would be nice to print the failed condition with `#x`.

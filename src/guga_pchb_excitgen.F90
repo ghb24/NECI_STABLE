@@ -136,7 +136,7 @@ module guga_pchb_excitgen
 
 
     ! start with one sampler for now!
-    type(GugaAliasSampler_t) :: guga_pchb_sampler(1)
+    type(GugaAliasSampler_t) :: guga_pchb_sampler
     integer, allocatable :: tgtOrbs(:,:)
     interface calc_orb_pgen_uniform_singles
         module procedure calc_orb_pgen_uniform_singles_exmat
@@ -242,7 +242,7 @@ contains
 
 #ifdef DEBUG_
         case default
-            call pp_stop_all(this_routine, "wrong excit-type", __FILE__, __LINE__)
+            call stop_all(this_routine, "wrong excit-type")
 #endif
 
         end select
@@ -287,16 +287,16 @@ contains
                 ab = fuseIndex(a,b)
 
                 if (not_valid) then
-                    call guga_pchb_sampler(1)%setup_entry_invalid_scalar(ij,ab)
+                    call guga_pchb_sampler%setup_entry_invalid_scalar(ij,ab)
                 else
-                    call guga_pchb_sampler(1)%setup_entry_count_scalar(ij,ab)
-                    call guga_pchb_sampler(1)%setup_entry_sum_scalar(ij,ab,abs(h_element))
-                    call guga_pchb_sampler(1)%setup_entry_worst_orb_scalar(ij,ab, &
-                        abs(h_element) / guga_pchb_sampler(1)%alias_sampler%get_prob(ij,ab))
-                    call guga_pchb_sampler(1)%setup_entry_pgen_scalar(ij,ab,pgen)
-                    call guga_pchb_sampler(1)%setup_entry_pgen_high_scalar(ij,ab, &
+                    call guga_pchb_sampler%setup_entry_count_scalar(ij,ab)
+                    call guga_pchb_sampler%setup_entry_sum_scalar(ij,ab,abs(h_element))
+                    call guga_pchb_sampler%setup_entry_worst_orb_scalar(ij,ab, &
+                        abs(h_element) / guga_pchb_sampler%alias_sampler%get_prob(ij,ab))
+                    call guga_pchb_sampler%setup_entry_pgen_scalar(ij,ab,pgen)
+                    call guga_pchb_sampler%setup_entry_pgen_high_scalar(ij,ab, &
                         abs(h_element) / pgen)
-                    call guga_pchb_sampler(1)%setup_entry_pgen_low_scalar(ij,ab, &
+                    call guga_pchb_sampler%setup_entry_pgen_low_scalar(ij,ab, &
                         abs(h_element) / pgen)
                 end if
 
@@ -690,81 +690,53 @@ contains
 
 
     subroutine invalid_table_destructor(this)
-        class(GugaAliasSampler_t) :: this
+        class(GugaAliasSampler_t), intent(inout) :: this
 
         call this%all_invalids%shared_dealloc()
-        this%all_invalids%ptr => null()
-
-
-        if (allocated(this%invalid_tables)) deallocate(this%invalid_tables)
 
     end subroutine invalid_table_destructor
 
 
     subroutine count_table_destructor(this)
-        class(GugaAliasSampler_t) :: this
+        class(GugaAliasSampler_t), intent(inout) :: this
 
         call this%all_counts%shared_dealloc()
-        this%all_counts%ptr => null()
-
-
-        if (allocated(this%count_tables)) deallocate(this%count_tables)
 
     end subroutine count_table_destructor
 
     subroutine sum_table_destructor(this)
-        class(GugaAliasSampler_t) :: this
+        class(GugaAliasSampler_t), intent(inout) :: this
 
         call this%all_sums%shared_dealloc()
-        this%all_sums%ptr => null()
-
-
-        if (allocated(this%sums_tables)) deallocate(this%sums_tables)
 
     end subroutine sum_table_destructor
 
     subroutine pgen_table_destructor(this)
-        class(GugaAliasSampler_t) :: this
+        class(GugaAliasSampler_t), intent(inout) :: this
 
         call this%all_pgen%shared_dealloc()
-        this%all_pgen%ptr => null()
-
-
-        if (allocated(this%pgen_table)) deallocate(this%pgen_table)
 
     end subroutine pgen_table_destructor
 
 
     subroutine worst_orb_table_destructor(this)
-        class(GugaAliasSampler_t) :: this
+        class(GugaAliasSampler_t), intent(inout) :: this
 
         call this%all_worst_orb%shared_dealloc()
-        this%all_worst_orb%ptr => null()
-
-
-        if (allocated(this%worst_orb_table)) deallocate(this%worst_orb_table)
 
     end subroutine worst_orb_table_destructor
 
     subroutine high_pgen_table_destructor(this)
-        class(GugaAliasSampler_t) :: this
+        class(GugaAliasSampler_t), intent(inout) :: this
 
         call this%all_high_pgen%shared_dealloc()
-        this%all_high_pgen%ptr => null()
-
-
-        if (allocated(this%high_pgen_table)) deallocate(this%high_pgen_table)
 
     end subroutine high_pgen_table_destructor
 
     subroutine low_pgen_table_destructor(this)
-        class(GugaAliasSampler_t) :: this
+        class(GugaAliasSampler_t), intent(inout) :: this
 
         call this%all_low_pgen%shared_dealloc()
-        this%all_low_pgen%ptr => null()
-
-
-        if (allocated(this%low_pgen_table)) deallocate(this%low_pgen_table)
 
     end subroutine low_pgen_table_destructor
 
@@ -885,20 +857,20 @@ contains
                         do b = a, nSpatOrbs
                             ab = fuseIndex(a,b)
 
-                            weight = guga_pchb_sampler(1)%alias_sampler%get_prob(ij,ab)
+                            weight = guga_pchb_sampler%alias_sampler%get_prob(ij,ab)
 
                             if (.not. near_zero(weight)) then
-                                call extract_excit_info(guga_pchb_sampler(1)%get_info(ij, ab), &
+                                call extract_excit_info(guga_pchb_sampler%get_info(ij, ab), &
                                     excitInfo)
 
-                                counts = guga_pchb_sampler(1)%get_count(ij,ab)
-                                invalids = guga_pchb_sampler(1)%get_invalid(ij,ab)
+                                counts = guga_pchb_sampler%get_count(ij,ab)
+                                invalids = guga_pchb_sampler%get_invalid(ij,ab)
                                 if (counts > 0 .or. invalids > 0) then
-                                    sums = guga_pchb_sampler(1)%get_sum(ij,ab)
-                                    worst_orb = guga_pchb_sampler(1)%get_worst_orb(ij,ab)
-                                    pgen_sum = guga_pchb_sampler(1)%get_pgen(ij,ab)
-                                    high_pgen = guga_pchb_sampler(1)%get_high_pgen(ij,ab)
-                                    low_pgen = guga_pchb_sampler(1)%get_low_pgen(ij,ab)
+                                    sums = guga_pchb_sampler%get_sum(ij,ab)
+                                    worst_orb = guga_pchb_sampler%get_worst_orb(ij,ab)
+                                    pgen_sum = guga_pchb_sampler%get_pgen(ij,ab)
+                                    high_pgen = guga_pchb_sampler%get_high_pgen(ij,ab)
+                                    low_pgen = guga_pchb_sampler%get_low_pgen(ij,ab)
                                     dist = excitInfo%fullEnd - excitInfo%fullstart
                                     overlap = excitInfo%firstEnd - excitInfo%secondStart
                                     ijkl = contract_2_rdm_ind(excitInfo%i, &
@@ -972,13 +944,9 @@ contains
     end function get_info
 
     subroutine info_table_destructor(this)
-        class(GugaAliasSampler_t) :: this
+        class(GugaAliasSampler_t), intent(inout) :: this
 
         call this%all_info_table%shared_dealloc()
-        this%all_info_table%ptr => null()
-
-
-        if (allocated(this%info_tables)) deallocate(this%info_tables)
 
     end subroutine info_table_destructor
 
@@ -1035,11 +1003,11 @@ contains
         abMax = fuseIndex(nSpatOrbs,nSpatOrbs)
         allocate(tgtOrbs(2,0:abMax), stat = aerr)
         do a = 1, nSpatOrbs
-         do b = a, nSpatOrbs
-            ab = fuseIndex(a,b)
-            tgtOrbs(1,ab) = a
-            tgtOrbs(2,ab) = b
-         end do
+            do b = a, nSpatOrbs
+                ab = fuseIndex(a,b)
+                tgtOrbs(1,ab) = a
+                tgtOrbs(2,ab) = b
+            end do
         end do
 
         ! enable catching exceptions
@@ -1068,31 +1036,31 @@ contains
         ! necessary if statements, so i can check if my optimized
         ! sampler is correct (and if it is even faster..)
         ! weights per pair
-        allocate(w(abMax), stat = aerr)
+        allocate(w(abMax), source = 0.0_dp)
         ! excitation information per pair:
-        allocate(excit_info(abMax), stat = aerr)
+        allocate(excit_info(abMax))
 
         ! allocate: all samplers have the same size
-        call guga_pchb_sampler(1)%alias_sampler%shared_alloc(ijMax, abMax, "GUGA-pchb")
+        call guga_pchb_sampler%alias_sampler%shared_alloc(ijMax, abMax, "GUGA-pchb")
         ! todo: do the same for the excit_info array!
-        call guga_pchb_sampler(1)%setup_info_table(int(ijMax,int64), &
+        call guga_pchb_sampler%setup_info_table(int(ijMax,int64), &
             int(abMax, int64))
 
         if (t_analyze_pchb) then
             ! also for the analysis for now..
-            call guga_pchb_sampler(1)%setup_count_table(int(ijMax,int64), &
+            call guga_pchb_sampler%setup_count_table(int(ijMax,int64), &
                 int(abMax, int64))
-            call guga_pchb_sampler(1)%setup_invalid_table(int(ijMax,int64), &
+            call guga_pchb_sampler%setup_invalid_table(int(ijMax,int64), &
                 int(abMax, int64))
-            call guga_pchb_sampler(1)%setup_sum_table(int(ijMax,int64), &
+            call guga_pchb_sampler%setup_sum_table(int(ijMax,int64), &
                 int(abMax, int64))
-            call guga_pchb_sampler(1)%setup_worst_orb_table(int(ijMax,int64), &
+            call guga_pchb_sampler%setup_worst_orb_table(int(ijMax,int64), &
                 int(abMax, int64))
-            call guga_pchb_sampler(1)%setup_high_pgen_table(int(ijMax,int64), &
+            call guga_pchb_sampler%setup_high_pgen_table(int(ijMax,int64), &
                 int(abMax, int64))
-            call guga_pchb_sampler(1)%setup_low_pgen_table(int(ijMax,int64), &
+            call guga_pchb_sampler%setup_low_pgen_table(int(ijMax,int64), &
                 int(abMax, int64))
-            call guga_pchb_sampler(1)%setup_pgen_table(int(ijMax,int64), &
+            call guga_pchb_sampler%setup_pgen_table(int(ijMax,int64), &
                 int(abMax, int64))
 
             allocate(x(abMax), stat = aerr, source = 0.0_dp)
@@ -1335,18 +1303,18 @@ contains
                         end if
                     end do
                 end do
-                call guga_pchb_sampler(1)%alias_sampler%setup_entry(ij,w)
-                call guga_pchb_sampler(1)%setup_entry_info(ij,excit_info)
+                call guga_pchb_sampler%alias_sampler%setup_entry(ij,w)
+                call guga_pchb_sampler%setup_entry_info(ij,excit_info)
 
                 if (t_analyze_pchb) then
                     ! for analysis
-                    call guga_pchb_sampler(1)%setup_entry_sum_vec(ij,x)
-                    call guga_pchb_sampler(1)%setup_entry_count_vec(ij,counts)
-                    call guga_pchb_sampler(1)%setup_entry_invalid_vec(ij,counts)
-                    call guga_pchb_sampler(1)%setup_entry_pgen_vec(ij,x)
-                    call guga_pchb_sampler(1)%setup_entry_worst_orb_vec(ij,x)
-                    call guga_pchb_sampler(1)%setup_entry_pgen_high_vec(ij,x)
-                    call guga_pchb_sampler(1)%setup_entry_pgen_low_vec(ij,x)
+                    call guga_pchb_sampler%setup_entry_sum_vec(ij,x)
+                    call guga_pchb_sampler%setup_entry_count_vec(ij,counts)
+                    call guga_pchb_sampler%setup_entry_invalid_vec(ij,counts)
+                    call guga_pchb_sampler%setup_entry_pgen_vec(ij,x)
+                    call guga_pchb_sampler%setup_entry_worst_orb_vec(ij,x)
+                    call guga_pchb_sampler%setup_entry_pgen_high_vec(ij,x)
+                    call guga_pchb_sampler%setup_entry_pgen_low_vec(ij,x)
                 end if
 
                 ! todo: do the same for the excit_info array!
@@ -1360,17 +1328,17 @@ contains
         if (t_analyze_pchb) then
             ! for analysis:
             call print_pchb_statistics()
-            call guga_pchb_sampler(1)%count_table_destructor()
-            call guga_pchb_sampler(1)%invalid_table_destructor()
-            call guga_pchb_sampler(1)%sum_table_destructor()
-            call guga_pchb_sampler(1)%worst_orb_table_destructor()
-            call guga_pchb_sampler(1)%high_pgen_table_destructor()
-            call guga_pchb_sampler(1)%low_pgen_table_destructor()
-            call guga_pchb_sampler(1)%pgen_table_destructor()
+            call guga_pchb_sampler%count_table_destructor()
+            call guga_pchb_sampler%invalid_table_destructor()
+            call guga_pchb_sampler%sum_table_destructor()
+            call guga_pchb_sampler%worst_orb_table_destructor()
+            call guga_pchb_sampler%high_pgen_table_destructor()
+            call guga_pchb_sampler%low_pgen_table_destructor()
+            call guga_pchb_sampler%pgen_table_destructor()
         end if
 
-        call guga_pchb_sampler(1)%alias_sampler%finalize()
-        call guga_pchb_sampler(1)%info_table_destructor()
+        call guga_pchb_sampler%alias_sampler%finalize()
+        call guga_pchb_sampler%info_table_destructor()
         deallocate(tgtOrbs)
 
 
@@ -1409,7 +1377,7 @@ contains
         ij = fuseIndex(i, j)
 
         ! get a pair of orbitals using the precomputed weights
-        call guga_pchb_sampler(1)%alias_sampler%sample(ij,ab,pgen_orbs)
+        call guga_pchb_sampler%alias_sampler%sample(ij,ab,pgen_orbs)
 
         ! unfortunately, there is a super-rare case when, due to floating point error,
         ! an excitation with pGen=0 is created. Those are invalid, too
@@ -1441,7 +1409,7 @@ contains
         end if
 
         ! setup a getInfo functionality in the sampler!
-        call extract_excit_info(guga_pchb_sampler(1)%get_info(ij, ab), excitInfo)
+        call extract_excit_info(guga_pchb_sampler%get_info(ij, ab), excitInfo)
 
         pGen = pgen_elec * pgen_orbs
 
@@ -1663,24 +1631,6 @@ contains
 
     end function calc_pgen_guga_pchb
 
-    ! function calc_orb_pgen_guga_pchb_double_exmat(ex) result(pgen)
-    !     debug_function_name("calc_orb_pgen_guga_pchb_double_exmat")
-    !     integer, intent(in) :: ex(2,2)
-    !     real(dp) :: pgen
-    !     integer :: ij, ab, nex(2,2)
-    !     real(dp) :: p_elec
-    !
-    !     nex = gtID(ex)
-    !     ! in the access function for
-    !     ij = fuseIndex(nex(1,1), nex(1,2))
-    !
-    !     p_elec = 1.0_dp / real(ElecPairs, dp)
-    !
-    !     ab = fuseIndex(nex(2,1), nex(2,2))
-    !     pgen = p_elec * guga_pchb_sampler(1)%alias_sampler%get_prob(ij, ab)
-    !
-    ! end function calc_orb_pgen_guga_pchb_double_exmat
-
     function calc_orb_pgen_guga_pchb_double_excitInfo(excitInfo) result(pgen)
         type(ExcitationInformation_t), intent(in) :: excitInfo
         real(dp) :: pgen
@@ -1695,7 +1645,7 @@ contains
         p_elec = 1.0_dp / real(ElecPairs, dp)
 
         ab = fuseIndex(excitInfo%i, excitInfo%k)
-        pgen = p_elec * guga_pchb_sampler(1)%alias_sampler%get_prob(ij, ab)
+        pgen = p_elec * guga_pchb_sampler%alias_sampler%get_prob(ij, ab)
 
     end function calc_orb_pgen_guga_pchb_double_excitInfo
 
@@ -1719,7 +1669,7 @@ contains
         ij = fuseIndex(gtID(occ_orbs(1)), gtID(occ_orbs(2)))
 
         ! and both I and J are electron and hole indices here
-        cpt_a = guga_pchb_sampler(1)%alias_sampler%get_prob(ij, ij) / 2.0_dp
+        cpt_a = guga_pchb_sampler%alias_sampler%get_prob(ij, ij) / 2.0_dp
         ! but since they will get added in later routines i actually have
         ! do divide by 2 here..
 
@@ -1749,7 +1699,7 @@ contains
         ij = fuseIndex(i, j)
         ab = fuseIndex(i, a)
 
-        orb_pgen = guga_pchb_sampler(1)%alias_sampler%get_prob(ij, ab)
+        orb_pgen = guga_pchb_sampler%alias_sampler%get_prob(ij, ab)
 
     end subroutine calc_orbital_pgen_contr_start_pchb
 
@@ -1773,7 +1723,7 @@ contains
 
         ab = fuseIndex(a,j)
 
-        orb_pgen = guga_pchb_sampler(1)%alias_sampler%get_prob(ij,ab)
+        orb_pgen = guga_pchb_sampler%alias_sampler%get_prob(ij,ab)
 
     end subroutine calc_orbital_pgen_contr_end_pchb
 

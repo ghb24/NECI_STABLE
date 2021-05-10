@@ -3188,7 +3188,7 @@ contains
         case( excit_type%fullstart_stop_mixed)
         case default
             print *, "incorrect typ: ", excit_names(typ)
-            call pp_stop_all(this_routine, "see above", __FILE__, __LINE__)
+            call stop_all(this_routine, "see above")
         end select
 #endif
 
@@ -3231,7 +3231,7 @@ contains
         case( excit_type%fullstart_stop_mixed)
         case default
             print *, "incorrect typ: ", excit_names(typ)
-            call pp_stop_all(this_routine, "see above", __FILE__, __LINE__)
+            call stop_all(this_routine, "see above")
         end select
 #endif
 
@@ -3271,7 +3271,7 @@ contains
         case( excit_type%fullstart_stop_mixed)
         case default
             print *, "incorrect typ: ", excit_names(typ)
-            call pp_stop_all(this_routine, "see above", __FILE__, __LINE__)
+            call stop_all(this_routine, "see above")
         end select
 #endif
 
@@ -3424,7 +3424,7 @@ contains
         case( excit_type%fullstart_stop_mixed)
         case default
             print *, "incorrect typ: ", excit_names(typ)
-            call pp_stop_all(this_routine, "see above", __FILE__, __LINE__)
+            call stop_all(this_routine, "see above")
         end select
 #endif
 

@@ -670,10 +670,6 @@ contains
         ! afterwards..
         ! i should work with the bit-representation, then i get to know the
         ! fortran intrinsic bit operations again..
-
-        ! n_max = max(n_alpha, n_beta)
-        ! n_min = min(n_alpha, n_beta)
-
         max_basis = create_one_spin_basis(n_orbs, n_alpha)
 
         open_shells = combine_spin_basis(n_orbs, n_alpha, n_beta, n_dets(1), max_basis, .true.)

@@ -13,7 +13,7 @@ module guga_data
     implicit none
 
     private
-    public :: ExcitationInformation_t, projE_replica, WeightData_t, &
+    public :: ExcitationInformation_t, WeightData_t, projE_replica, &
               getSingleMatrixElement, getDoubleMatrixElement, getMixedFullStop, &
               orbitalIndex, funA_0_2overR2, minFunA_2_0_overR2, funA_m1_1_overR2, &
               funa_2_0_overr2, getdoublecontribution, tnewdet, tag_excitations, &

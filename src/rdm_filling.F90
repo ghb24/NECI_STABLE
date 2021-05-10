@@ -1036,10 +1036,6 @@ contains
 
 
                     if (t_full_core_rdms) then
-                        ! if (tGUGA) then
-                        !     excitInfo = identify_excitation(ilutI, ilutJ)
-                        !     ic = excitInfo%excitLvl
-                        ! else
                         if (.not. tGUGA) then
                             ic = FindBitExcitLevel(iLutI, ilutJ)
                             call GetBitExcitation(ilutI, ilutJ, ex, tParity)

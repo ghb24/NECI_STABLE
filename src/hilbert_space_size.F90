@@ -408,14 +408,6 @@ contains
         LOGICAL :: tNotAllowed, tAcc
         type(Symmetry) :: FDetKPntMom, KPntMom
 
-!         IF((.not.TwoCycleSymGens).and.(.not.tUEG).and.(.not.tHub)) THEN
-!             write(IUNIT,*) "Only for molecular abelian symmetry "      &
-!            //" calculations can the exact size of the determinant "    &
-!            //" space be calculated currently..."
-!             write(IUNIT,*) "Skipping size of space calculation..."
-!             RETURN
-!         end if
-
         write(IUNIT, *) "Calculating exact size of symmetry-allowed " &
             //"determinant space using MC..."
         write(IUNIT, *) CalcDetCycles, " MC cycles will be used, and " &

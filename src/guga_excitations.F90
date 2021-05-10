@@ -52,8 +52,7 @@ module guga_excitations
                               extract_h_element, encode_stochastic_rdm_info, &
                               get_preceeding_opposites
 
-    use guga_matrixElements, only: calcDiagMatEleGUGA_ilut, calcDiagMatEleGuga_nI, &
-                                   calc_off_diag_guga_ref_list
+    use guga_matrixElements, only: calcDiagMatEleGUGA_ilut, calcDiagMatEleGuga_nI
 
     use OneEInts, only: GetTMatEl
 
@@ -295,14 +294,13 @@ contains
         n_alpha = int(nSpatorbs / 2. + ms_)
         n_beta = int(nSpatorbs / 2. - ms_)
 
-
         all_sds = create_all_open_shell_dets(nSpatorbs, n_beta, n_alpha)
 
         allocate(all_weights(size(all_sds,2)), source = 0.0_dp)
 
         step = calcStepvector(csf(0:GugaBits%len_orb))
         bVec = calcB_vector_ilut(csf(0:GugaBits%len_orb))
-        aVec = ([(i, i = 1,nSpatorbs)] - bVec) / 2.0
+        aVec = real(([(i, i = 1,nSpatorbs)] - bVec),dp) / 2.0
 
         do i = 1, size(all_sds,2)
             x = 1.0_dp
@@ -20558,9 +20556,9 @@ contains
             mw = weights%proc%minus(negSwitches(st), currentB_ilut(st), weights%dat)
             pw = weights%proc%plus(posSwitches(st), currentB_ilut(st), weights%dat)
 
-            if ((near_zero(pw) .and. near_zero(mw)) .or. &
-                (current_stepvector(st) == 1 .and. near_zero(pw)) .or. &
-                (current_stepvector(st) == 2 .and. near_zero(mw))) then
+            if ((near_zero(pw) .and. near_zero(mw)) &
+                .or. (current_stepvector(st) == 1 .and. near_zero(pw)) &
+                .or. (current_stepvector(st) == 2 .and. near_zero(mw))) then
                 flag = .false.
                 return
             end if
@@ -20578,9 +20576,9 @@ contains
             pw = weights%proc%plus(posSwitches(st), currentB_ilut(st), weights%dat)
 
 
-            if ((current_stepvector(st) == 1 .and. near_zero(pw)) .or. &
-                (current_stepvector(st) == 2 .and. near_zero(mw)) .or. &
-                (near_zero(pw + mw))) then
+            if ((current_stepvector(st) == 1 .and. near_zero(pw)) &
+                .or. (current_stepvector(st) == 2 .and. near_zero(mw)) &
+                .or. (near_zero(pw + mw))) then
                 flag = .false.
                 return
             end if

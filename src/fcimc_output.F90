@@ -3,8 +3,7 @@ module fcimc_output
 
     use SystemData, only: nel, tHPHF, tFixLz, tMolpro, tMolproMimic, MolproID, &
                           tGen_4ind_weighted, tGen_4ind_2, tGUGA, tGen_sym_guga_mol, &
-                          tGen_nosym_guga, t_consider_diff_bias, tgen_guga_crude, &
-                          t_new_real_space_hubbard, t_no_ref_shift
+                          tgen_guga_crude, t_new_real_space_hubbard, t_no_ref_shift
 
     use LoggingData, only: tLogComplexPops, tMCOutput, tCalcInstantS2, &
                            tCalcInstantS2Init, instant_s2_multiplier_init, &
@@ -2269,7 +2268,6 @@ contains
                     write(iout,*) "Do no print it!"
 
                 end if
-!                 deallocate(all_frequency_bins)
             end if
 
         else if (tGen_sym_guga_mol .or. (tgen_guga_crude .and. .not. t_new_real_space_hubbard)) then
@@ -2293,12 +2291,9 @@ contains
                 end do
                 close(iunit)
 
-!                 deallocate(all_frequency_bounds)
-
                 ! and also do the add up from singles and doubles
                 max_size = max(size(all_frequency_bins_s), size(all_frequency_bins_d))
 
-!                 allocate(all_frequency_bins(max_size))
                 all_frequency_bins = 0
 
                 all_frequency_bins(1:size(all_frequency_bins_s)) = all_frequency_bins_s
@@ -2350,201 +2345,11 @@ contains
                     write(iout,*) "Do no print it!"
                 end if
 
-!                 deallocate(all_frequency_bins)
-
-            end if
-
-        else if (tGen_nosym_guga) then
-            ! here a lot of stuff has to be printed and also dependent on
-            ! t_consider_diff_bias..
-            ! singles are already printed
-            call comm_frequency_histogram_spec(size(frequency_bins_type2), &
-                frequency_bins_type2, all_frequency_bins_2)
-
-            if (iProcIndex == 0) then
-                max_size = size(all_frequency_bins_2)
-
-                iunit = get_free_unit()
-                call get_unique_filename("frequency_histogram_type2", .true., &
-                    .true., 1, filename)
-                open(iunit, file = filename, status = "unknown")
-
-                do i = 1, max_size
-                    if (all_frequency_bins_2(i) == 0) cycle
-                    write(iunit, "(f16.7)", advance = "no") frq_step_size * i
-                    write(iunit, "(i12)") all_frequency_bins_2(i)
-                end do
-                close(iunit)
-
-!                 deallocate(all_frequency_bounds)
-            end if
-
-            call comm_frequency_histogram_spec(size(frequency_bins_type3), &
-                frequency_bins_type3, all_frequency_bins_3)
-
-            if (iProcIndex == 0) then
-                max_size = size(all_frequency_bins_3)
-
-                iunit = get_free_unit()
-                call get_unique_filename("frequency_histogram_type3", .true., &
-                    .true., 1, filename)
-                open(iunit, file = filename, status = "unknown")
-
-                do i = 1, max_size
-                    if (all_frequency_bins_3(i) == 0) cycle
-                    write(iunit, "(f16.7)", advance = "no") frq_step_size * i
-                    write(iunit, "(i12)") all_frequency_bins_3(i)
-                end do
-                close(iunit)
-            end if
-
-            call comm_frequency_histogram_spec(size(frequency_bins_type4), &
-                frequency_bins_type4, all_frequency_bins_4)
-
-            if (iProcIndex == 0) then
-                max_size = size(all_frequency_bins_4)
-
-                iunit = get_free_unit()
-                call get_unique_filename("frequency_histogram_type4", .true., &
-                    .true., 1, filename)
-                open(iunit, file = filename, status = "unknown")
-
-                do i = 1, max_size
-                    if (all_frequency_bins_4(i) == 0) cycle
-                    write(iunit, "(f16.7)", advance = "no") frq_step_size * i
-                    write(iunit, "(i12)") all_frequency_bins_4(i)
-                end do
-                close(iunit)
-
-                ! determine the final max size for the summed up histogram
-                max_size = max(size(all_frequency_bins_s), size(all_frequency_bins_2), &
-                    size(all_frequency_bins_3), size(all_frequency_bins_4))
-
-            end if
-
-            if (t_consider_diff_bias) then
-                call comm_frequency_histogram_spec(size(frequency_bins_type2_diff), &
-                    frequency_bins_type2_diff, all_frequency_bins_2_d)
-
-                if (iProcIndex == 0) then
-                    max_size = size(all_frequency_bins_2_d)
-
-                    iunit = get_free_unit()
-                    call get_unique_filename("frequency_histogram_type2_diff", &
-                        .true., .true., 1, filename)
-                    open(iunit, file = filename, status = "unknown")
-
-                    do i = 1, max_size
-                        if (all_frequency_bins_2_d(i) == 0) cycle
-                        write(iunit, "(f16.7)", advance = "no") frq_step_size * i
-                        write(iunit, "(i12)") all_frequency_bins_2_d(i)
-                    end do
-                    close(iunit)
-
-                end if
-
-                call comm_frequency_histogram_spec(size(frequency_bins_type3_diff), &
-                    frequency_bins_type3_diff, all_frequency_bins_3_d)
-
-                if (iProcIndex == 0) then
-                    max_size = size(all_frequency_bins_3_d)
-
-                    iunit = get_free_unit()
-                    call get_unique_filename("frequency_histogram_type3_diff", &
-                        .true., .true., 1, filename)
-                    open(iunit, file = filename, status = "unknown")
-
-                    do i = 1, max_size
-                        if (all_frequency_bins_3_d(i) == 0) cycle
-                        write(iunit, "(f16.7)", advance = "no") frq_step_size * i
-                        write(iunit, "(i12)") all_frequency_bins_3_d(i)
-                    end do
-                    close(iunit)
-                end if
-
-                max_size = max(size(all_frequency_bins_s), size(all_frequency_bins_2), &
-                    size(all_frequency_bins_2_d), size(all_frequency_bins_3), &
-                    size(all_frequency_bins_3_d), size(all_frequency_bins_4))
-
-            end if
-
-            if (iProcIndex == 0) then
-!                 allocate(all_frequency_bins(max_size))
-                all_frequency_bins = 0
-
-                all_frequency_bins(1:size(all_frequency_bins_s)) = all_frequency_bins_s
-
-                all_frequency_bins(1:size(all_frequency_bins_2)) = &
-                    all_frequency_bins(1:size(all_frequency_bins_2)) + &
-                    all_frequency_bins_2
-
-                all_frequency_bins(1:size(all_frequency_bins_3)) = &
-                    all_frequency_bins(1:size(all_frequency_bins_3)) + &
-                    all_frequency_bins_3
-
-                all_frequency_bins(1:size(all_frequency_bins_4)) = &
-                    all_frequency_bins(1:size(all_frequency_bins_4)) + &
-                    all_frequency_bins_4
-
-                if (t_consider_diff_bias) then
-
-                    all_frequency_bins(1:size(all_frequency_bins_2_d)) = &
-                        all_frequency_bins(1:size(all_frequency_bins_2_d)) + &
-                        all_frequency_bins_2_d
-
-                    all_frequency_bins(1:size(all_frequency_bins_3_d)) = &
-                        all_frequency_bins(1:size(all_frequency_bins_3_d)) + &
-                        all_frequency_bins_3_d
-
-                end if
-
-                if (.not. any(all_frequency_bins < 0)) then
-                    iunit = get_free_unit()
-                    call get_unique_filename("frequency_histogram", .true., .true., &
-                        1, filename)
-                    open(iunit, file = filename, status = "unknown")
-
-                    do i = 1, max_size
-                        if (all_frequency_bins(i) == 0) cycle
-                        write(iunit, "(f16.7)") frq_step_size * i
-                        write(iunit, "(i12)", advance = "no") all_frequency_bins(i)
-                    end do
-                    close(iunit)
-                else
-                    write(iout,*) "Integer overflow in all_frequency_bins"
-                    write(iout,*) "Do not print it!"
-                end if
-
-                ! also print out a normed frequency histogram to better
-                ! compare runs with different length
-                sum_all = sum(all_frequency_bins)
-
-                if (.not. sum_all < 0) then
-                    norm = real(sum_all,dp)
-
-                    iunit = get_free_unit()
-                    call get_unique_filename("frequency_histogram_normed", .true., &
-                        .true., 1, filename)
-                    open(iunit, file = filename, status = "unknown")
-
-                    ! and change x and y axis finally
-                    do i = 1, max_size
-                        if (all_frequency_bins(i) == 0) cycle
-                        write(iunit, "(f16.7)", advance = "no") frq_step_size * i
-                        write(iunit, "(f16.7)") real(all_frequency_bins(i),dp) / norm
-                    end do
-                    close(iunit)
-                else
-                    write(iout,*) "Integer overflow in normed frequency histogram!"
-                    write(iout,*) "Do not print it!"
-                end if
-
-!                 deallocate(all_frequency_bins)
             end if
         end if
-!
+
     end subroutine print_frequency_histogram_spec
-!
+
     subroutine print_frequency_histogram
         ! routine to write a file with the H_ij/pgen ratio frequencies
         integer :: iunit, i, max_size, old_size

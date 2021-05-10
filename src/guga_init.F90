@@ -3,7 +3,7 @@
 ! a guga simulation
 module guga_init
     ! module use statements
-    use SystemData, only: tSPN, tHPHF, lNoSymmetry, STOT, nEl, &
+    use SystemData, only: tSPN, tHPHF, lNoSymmetry, STOT, nEl, t_pchb_excitgen, &
                           nBasis, tGUGA, tNoBrillouin, tExactSizeSpace, tUHF, tUEGNewGenerator, &
                           tPickVirtUniform, tGenHelWeighted, tGen_4ind_2, tGen_4ind_weighted, &
                           tGen_4ind_reverse, tGen_sym_guga_ueg, tGen_sym_guga_mol, &
@@ -16,7 +16,7 @@ module guga_init
                           t_tJ_model, t_guga_pchb, t_pchb_weighted_singles
 
     use CalcData, only: tUseRealCoeffs, tRealCoeffByExcitLevel, RealCoeffExcitThresh, &
-                        t_direct_guga_ref, t_hist_tau_search, tSpinProject, &
+                        t_hist_tau_search, tSpinProject, &
                         tReplicaEstimates, tPreCond, ss_space_in, trial_space_in, &
                         t_fast_pops_core, t_core_inits
 
@@ -51,8 +51,6 @@ module guga_init
                         pickOrbs_real_hubbard_single, pickOrbs_real_hubbard_double, &
                         calc_orbital_pgen_contrib_start_def, calc_orbital_pgen_contrib_end_def
 
-    use guga_matrixElements, only: calc_off_diag_guga_ref_list
-
     use FciMCData, only: pExcit2, pExcit4, pExcit2_same, pExcit3_same, tSearchTau
 
     use constants, only: dp, int_rdm, n_int
@@ -84,6 +82,7 @@ module guga_init
 contains
 
     subroutine init_guga_orbital_pickers()
+        character(*), parameter :: this_routine = "init_guga_orbital_pickers"
         ! this routine, depending on the input set the orbital pickers
         ! to differentiate between the different excitation generators
 
@@ -147,26 +146,6 @@ contains
             calc_mixed_end_r2l_contr => calc_mixed_end_contr_sym
             calc_mixed_contr => calc_mixed_contr_sym
 
-        else if (tGen_nosym_guga) then
-            pickOrbitals_single => pickOrbitals_nosym_single
-            pickOrbitals_double => pickOrbitals_nosym_double
-            calc_mixed_contr => calc_mixed_contr_nosym
-            calc_mixed_start_l2r_contr => calc_mixed_start_l2r_contr_nosym
-            calc_mixed_start_r2l_contr => calc_mixed_start_r2l_contr_nosym
-            calc_mixed_end_l2r_contr => calc_mixed_end_l2r_contr_nosym
-            calc_mixed_end_r2l_contr => calc_mixed_end_r2l_contr_nosym
-
-            ! for specific probability updates:
-            if (t_consider_diff_bias) then
-                pick_first_orbital => pick_first_orbital_nosym_guga_diff
-                orb_pgen_contrib_type_2 => orb_pgen_contrib_type_2_diff
-                orb_pgen_contrib_type_3 => orb_pgen_contrib_type_3_diff
-            else
-                pick_first_orbital => pick_first_orbital_nosym_guga_uniform
-                orb_pgen_contrib_type_2 => orb_pgen_contrib_type_2_uniform
-                orb_pgen_contrib_type_3 => orb_pgen_contrib_type_3_uniform
-            end if
-
         else if (t_heisenberg_model) then
             pickOrbitals_double => pick_orbitals_guga_heisenberg
             calc_orbital_pgen_contr => calc_orbital_pgen_contr_heisenberg
@@ -179,24 +158,13 @@ contains
             calc_orbital_pgen_contr => calc_orbital_pgen_contr_heisenberg
 
         else ! standardly also use nosymmetry version
-            pickOrbitals_single => pickOrbitals_nosym_single
-            pickOrbitals_double => pickOrbitals_nosym_double
-            calc_mixed_contr => calc_mixed_contr_nosym
-            calc_mixed_start_l2r_contr => calc_mixed_start_l2r_contr_nosym
-            calc_mixed_start_r2l_contr => calc_mixed_start_r2l_contr_nosym
-            calc_mixed_end_l2r_contr => calc_mixed_end_l2r_contr_nosym
-            calc_mixed_end_r2l_contr => calc_mixed_end_r2l_contr_nosym
-
-            ! for specific probability updates:
-            if (t_consider_diff_bias) then
-                pick_first_orbital => pick_first_orbital_nosym_guga_diff
-                orb_pgen_contrib_type_2 => orb_pgen_contrib_type_2_diff
-                orb_pgen_contrib_type_3 => orb_pgen_contrib_type_3_diff
-            else
-                pick_first_orbital => pick_first_orbital_nosym_guga_uniform
-                orb_pgen_contrib_type_2 => orb_pgen_contrib_type_2_uniform
-                orb_pgen_contrib_type_3 => orb_pgen_contrib_type_3_uniform
-            end if
+            root_print "please specify guga excitation generator explicitly!"
+            root_print "options are: "
+            root_print "'mol-guga-weighted' ... standard for molecular systems"
+            root_print "'ueg-guga' ... standard for UEG and Hubbard/Heisenberg/tJ models"
+            root_print "'guga-pchb' ... GUGA version of PCHB excit. gen. for molecular systems"
+            call Stop_All(this_routine, &
+                "please specify guga excitation generator explicitly!")
 
         end if
 
@@ -207,6 +175,7 @@ contains
     ! other modules using the guga_data module
     subroutine init_guga()
         integer :: i, ierr
+        character(*), parameter :: this_routine = "init_guga"
         ! main initialization routine
 
         ! this routine is called in SysInit() of System_neci.F90
@@ -221,6 +190,15 @@ contains
         write(6, *) ' spin restricted systems, associate those to positively coupled +h/2 orbitals '
         write(6, *) ' to always ensure a S >= 0 value!'
         write(6, *) ' *********************************************************'
+
+        if (tGen_nosym_guga) then
+            call Stop_All(this_routine, "'nosym-guga' option deprecated!")
+        end if
+
+        if (t_pchb_excitgen) then
+            call stop_all(this_routine, &
+                "please specify 'guga-pchb' as excitation generator to work with GUGA!")
+        end if
 
         ! initialize the procedure pointer arrays, needed in the matrix
         ! element calculation
@@ -294,38 +272,10 @@ contains
         allocate(ref_b_vector_real(nSpatOrbs))
         allocate(ref_occ_vector(nSpatOrbs))
 
-        ! also initiate the pExcit values here.. or otherwise they dont
-        ! get initialized without tau-search option on
-        if (tGen_nosym_guga) then
-            pExcit4 = (1.0_dp - 1.0_dp / real(nSpatOrbs, dp))
-            pExcit2 = 1.0_dp / real(nSpatOrbs - 1, dp)
-
-            root_print "initial pExcit4 set to: ", pExcit4
-            root_print "initial pExcit2 set to: ", pExcit2
-
-            if (t_consider_diff_bias) then
-                pExcit2_same = 0.9_dp
-                pExcit3_same = 0.9_dp
-            else
-                pExcit2_same = 1.0_dp
-                pExcit3_same = 1.0_dp
-            end if
-
-            root_print "initial pExcit2_same set to: ", pExcit2_same
-            root_print "initial pExcit3_same set to: ", pExcit3_same
-        end if
-
         ! for now (time/iteration comparison) reasons, decide which
         ! reference energy calculation method we use
-        if (t_direct_guga_ref) then
-            ! use the new "direct" calculation method
-            calc_off_diag_guga_ref => calc_off_diag_guga_ref_direct
-
-        else
-            ! use the "old" with the projected energy list
-            calc_off_diag_guga_ref => calc_off_diag_guga_ref_list
-
-        end if
+        ! use the new "direct" calculation method
+        calc_off_diag_guga_ref => calc_off_diag_guga_ref_direct
 
         ! make checks for the RDM calculation
         if (tRDMonfly) then

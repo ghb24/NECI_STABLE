@@ -46,8 +46,6 @@ module fcimc_iter_utils
 
     use tau_search_hist, only: update_tau_hist
 
-    use guga_tausearch, only: update_tau_guga_nosym
-
     use local_spin, only: all_local_spin, inst_local_spin, rezero_local_spin_stats
 
 
@@ -805,24 +803,15 @@ contains
 
         ! for now with the new tau-search also update tau in variable shift
         ! mode..
-        if (((tSearchTau .or. (tSearchTauOption .and. tSearchTauDeath)) .and. &
-             .not. tFillingStochRDMOnFly)) then
+        if (((tSearchTau .or. (tSearchTauOption .and. tSearchTauDeath)) &
+            .and. (.not. tFillingStochRDMOnFly))) then
 
-            if (tGen_nosym_guga) then
-                call update_tau_guga_nosym()
-            else
-                call update_tau()
-            end if
+            call update_tau()
 
             ! [Werner Dobrautz 4.4.2017:]
-        else if (((t_hist_tau_search .or. (t_hist_tau_search_option .and. tSearchTauDeath)) .and. &
-                  .not. tFillingStochRDMonFly)) then
-
-            if (tGen_nosym_guga) then
-                call update_hist_tau_guga_nosym()
-            else
-                call update_tau_hist()
-            end if
+        else if (((t_hist_tau_search .or. (t_hist_tau_search_option .and. tSearchTauDeath)) &
+            .and. (.not. tFillingStochRDMonFly))) then
+            call update_tau_hist()
         end if
 
         ! quick fix for the double occupancy:

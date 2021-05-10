@@ -1407,13 +1407,12 @@ contains
                     call readu(w)
                     select case (w)
                     case ("NOSYM_GUGA")
-                        tGen_nosym_guga = .true.
+                        call Stop_All(this_routine, "'nosym-guga' option deprecated!")
 
                     case ("NOSYM_GUGA_DIFF")
-                        tGen_nosym_guga = .true.
-                        t_consider_diff_bias = .true.
+                        call Stop_All(this_routine, "'nosym-guga-diff' option deprecated!")
 
-                    case ("UEG_GUGA")
+                    case ("UEG_GUGA", "UEG-GUGA")
                         tGen_sym_guga_ueg = .true.
 
                         if (item < nitems) then

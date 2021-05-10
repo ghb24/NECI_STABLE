@@ -1406,9 +1406,6 @@ contains
 
         is_impurity_site = this%sites(ind)%is_impurity()
 
-        ! just reuse is_bath_site function
-!         is_impurity_site = .not. this%is_bath_site(ind)
-
     end function is_impurity_site
 
     function get_bath(this) result(bath_sites)
@@ -2667,30 +2664,12 @@ contains
         l = 1
         m = this%get_nsites() / 2 + 1
         do i = -this%length(1) + 1, 0
+            do j = -k, k
 
-            ! this k-loop changes if i have a rectangular tilted lattice..
-            ! but how? but i think when i have figured this out i have it..
-            ! the first loop is fine..
-            ! if (this%t_bipartite_order) then
-            !
-            !     do j = -k, k, 2
-            !
-            !         temp_array(j, i) = l
-            !
-            !         l = l + 1
-            !     end do
-            !     do j = -k + 1, k - 1, 2
-            !         temp_array(j, i) = m
-            !         m = m + 1
-            !     end do
-            ! else
-                do j = -k, k
+                temp_array(j, i) = order(l)
+                l = l + 1
 
-                    temp_array(j, i) = order(l)
-
-                    l = l + 1
-                end do
-            ! end if
+            end do
             k = k + 1
         end do
 
