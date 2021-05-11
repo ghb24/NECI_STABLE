@@ -51,7 +51,7 @@ module guga_pchb_excitgen
 
         private
 
-        type(AliasSampler_1D_t) :: alias_sampler
+        type(AliasSampler_1D_t), public :: alias_sampler
 
         ! i don't need to make two, but lets keep it similar to Kais
         ! implementation
@@ -88,7 +88,7 @@ module guga_pchb_excitgen
         procedure :: setup_info_table
         procedure :: setup_entry_info
         procedure :: info_table_destructor
-        procedure :: get_info
+        procedure, public :: get_info
 
         ! for analysis (will be removed after optimization)
 
