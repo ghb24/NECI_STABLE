@@ -702,7 +702,7 @@ derivative `Universal Ctags` which you can be downloaded from here:
 <https://github.com/universal-ctags/ctags>.
 
 Once you installed the correct version and made sure it is the default
-one, [1] go to the source directory of NECI and run the script
+one, [^1] go to the source directory of NECI and run the script
 `gen_vim_tags.sh` which is available in the tools directory
 
 ```bash
@@ -2371,7 +2371,7 @@ that the excitation generator and the choice of Hamiltonian matrix
 element generation here are tightly coupled.
 
 Elsewhere in the code, the routine `get_helement` is used to obtain
-matrix elements.[2] This routine comes in a number of flavours. The
+matrix elements.[^2] This routine comes in a number of flavours. The
 available options are
 
 -   `nI, nJ`\
@@ -2403,7 +2403,7 @@ available options are
     as CSFs.
 
 For calculating diagonal Hamiltonian matrix elements, the routine
-`get_diag_helement` should be used[3]
+`get_diag_helement` should be used[^3]
 
 #### The cost of the parity
 
@@ -2411,7 +2411,7 @@ The overall sign of the returned Hamiltonian matrix element is modulated
 by the parity of the excitation — that is, the whether the number of
 pairwise swaps of orbitals required to maximimally align the two
 determinants according to the standard order of the first is odd or
-even.[4]
+even.[^4]
 
 The parity may be obtained by actively aligning the decoded
 representations, or by examination of the bit representations. The
@@ -3143,18 +3143,18 @@ non-zero 6-index integrals and their indices. The `indices` dataset has
 to be of 6 times the size than the `values` dataset, each group of 6
 indices is attributed to one value (in storage order).
 
-[1] Executing `ctags --version` should print either `Universal Ctags` or
+[^1]: Executing `ctags --version` should print either `Universal Ctags` or
 `Exuberant Ctags` but not `ctags (GNU Emacs)`
 
-[2] As an exception, some old code makes use of `gethelement` or
+[^2]: As an exception, some old code makes use of `gethelement` or
 `gethelement2`. These should not be used in new code. Some of the
 initialisation code also uses `gethelement` as the prerequisites for
 `get_helement` have not yet been met.
 
-[3] This general routine is not implemented at the time of writing, but
+[^3]: This general routine is not implemented at the time of writing, but
 will added shortly.
 
-[4] Note that for double excitations, in principle there are two
+[^4]: Note that for double excitations, in principle there are two
 alignments that work. The two new orbitals could be either way around
 and the parity of these versions are inverted relative to each other. A
 convention for the ordering of the new orbitals (in NECI they are
