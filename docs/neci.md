@@ -24,7 +24,9 @@ create a bitbucket account as prompted if necessary.
 To gain access to the NECI repository, an ssh key is required. This can
 be generated on any linux machine using the command[1]
 
-    ssh-keygen -t rsa -b 2048
+```bash
+ssh-keygen -t rsa -b 2048
+```
 
 This will create a private (`~/.ssh/id_rsa`) and a public key file
 (`~/.ssh/id_rsa.pub`).
