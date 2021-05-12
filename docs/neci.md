@@ -1,5 +1,5 @@
 ---
-title: Using NECI\
+title: Using NECI
 author: Simon Smart, Nick Blunt, Oskar Weser and George Booth
 ---
 
@@ -22,7 +22,7 @@ You will receive an invitation email. Please accept this invitation, and
 create a bitbucket account as prompted if necessary.
 
 To gain access to the NECI repository, an ssh key is required. This can
-be generated on any linux machine using the command[1]
+be generated on any linux machine using the command[^1]
 
 ```bash
 ssh-keygen -t rsa -b 2048
@@ -38,7 +38,9 @@ public key. This will give you access to the repository.
 
 You can now clone the code into a new directory using the command
 
-    git clone git@bitbucket.org:neci_developers/neci.git [target_dir]
+```bash
+git clone git@bitbucket.org:neci_developers/neci.git [target_dir]
+```
 
 ### Required libraries
 
@@ -80,7 +82,9 @@ Documentation for that command is available from the command
 `module help`. The most commonly used command is to load a module, using
 the command
 
-    module load <module_name>
+```bash
+module load <module_name>
+```
 
 Installing and configuring the module system on private machines is far
 beyond the scope of this document. Configuring your user account to use
@@ -123,7 +127,9 @@ should be used per configuration that is to be built. This module can be
 a subdirectory of the NECI directory, or otherwise. With the `build`
 directory as the current working directory, execute
 
-    cmake [-DCMAKE_BUILD_TYPE=<type>] <path_to_neci>
+```bash
+cmake [-DCMAKE_BUILD_TYPE=<type>] <path_to_neci>
+```
 
 pointing CMake at the root directory of the cloned NECI repository.
 
@@ -154,7 +160,9 @@ compile and use HDF5. To do this run CMake with the
 
 The code is then built using the command
 
-    make [-j [n]] [neci|kneci|dneci|mneci]
+```bash
+make [-j [n]] [neci|kneci|dneci|mneci]
+```
 
 The optional flag `-j` specifies that the build should be performed in
 parallel (with up to an optional number, `n`, threads).
@@ -170,7 +178,9 @@ Whilst every effort has been made to provide NECI with sensible default
 options, the user may wish to play around further. To (dis)able an
 option, the following should be passed as an argument to cmake:
 
-    -DENABLE_<option>=<(ON|OFF)>
+```bash
+-DENABLE_<option>=<(ON|OFF)>
+```
 
 The following options are available. Where an option is default "on", if
 the required libraries are not available, the option will be disabled
@@ -207,7 +217,9 @@ be the ones desired, or the build system may fail to find functionality
 that exists. The complier to use can be overridden by arguments passed
 to CMake:
 
-    cmake -DCMAKE_<lang>_COMPILER=XXX <neci_dir>
+```bash 
+cmake -DCMAKE_<lang>_COMPILER=XXX <neci_dir>
+```
 
 where `<lang>` may be `Fortran`, `CXX` or `C` as appropriate. This
 should specify the command to use which may be a compiler available in
@@ -234,7 +246,9 @@ reading the files in `cmake/compiler_flags`.
 If these defaults are insufficient, the compilation flags may also be
 overridden. Any arguments passed to cmake of the form
 
-    cmake -DFORCE_<lang>_FLAGS[_<type>]
+```bash
+cmake -DFORCE_<lang>_FLAGS[_<type>]
+```
 
 override the corresponding `NECI_<lang>_FLAGS[_<type>]` flags.
 Essentially any `NECI_*` flag may be overridden on the command line with
@@ -247,7 +261,9 @@ Overriding all of the CMake variables on the command line is cumbersome
 and error prone. Various sets of overrides can be combined into a
 toolchain file, which can be passed to CMake:
 
-    cmake -DCMAKE_TOOLCHAIN_FILE=<toolchain_file> <neci_dir>
+```bash
+cmake -DCMAKE_TOOLCHAIN_FILE=<toolchain_file> <neci_dir>
+```
 
 These toolchain files can specify the entire chain of compilers, flags
 and libraries if desired. For examples see the toolchains/ directory in
@@ -260,11 +276,13 @@ autodetection of compiler properties within CMake (per language), and
 will require all flags that are not in the `cmake/compiler_flags`
 directories to be specified manually. As an example:
 
-    include(CMakeForceCompiler)
+```cmake
+include(CMakeForceCompiler)
 
-            CMAKE_FORCE_C_COMPILER       ( gcc GNU )
-            CMAKE_FORCE_CXX_COMPILER     ( g++ GNU )
-            CMAKE_FORCE_Fortran_COMPILER ( mpif90 GNU )
+CMAKE_FORCE_C_COMPILER       ( gcc GNU )
+CMAKE_FORCE_CXX_COMPILER     ( g++ GNU )
+CMAKE_FORCE_Fortran_COMPILER ( mpif90 GNU )
+```
 
 This will force the use of the commands `gcc`, `g++`, and `mpif90`, and
 will set the `CMAKE_<lang>_COMPILER_ID` variable to `GNU` such that the
@@ -274,7 +292,9 @@ autodetect that the c++ standard library needs to be linked in to
 combine c++ and Fortran files. This will need to be corrected manually,
 using:
 
-    set( NECI_Fortran_STATIC_LINK_LIBRARIES stdc++ )
+```cmake
+set( NECI_Fortran_STATIC_LINK_LIBRARIES stdc++ )
+```
 
 Further internally required libraries may be required. In a normal
 build, these are output in the build summary under "Implicit C++ linker
@@ -289,7 +309,9 @@ Cray) to provide much of the functionality automatically, but this
 defeats the CMake auto-configuration system. To build on archer the
 cmake command
 
-    cmake -DCMAKE_TOOLCHAIN_FILE=<neci_dir>/toolchains/archer.cmake <neci_dir>
+```bash 
+cmake -DCMAKE_TOOLCHAIN_FILE=<neci_dir>/toolchains/archer.cmake <neci_dir>
+```
 
 (As we already know about Archer, we autodetect that you are running on
 it, and CMake will fail with a message containing these instructions).
@@ -299,17 +321,23 @@ used, then the build will fail.
 
 Begin by clearing out the build environment. At the terminal execute:
 
-    module purge
-            module load environments/addons/cmake-2.8.2
+```bash
+module purge
+module load environments/addons/cmake-2.8.2
+```
 
 Next, for GNU:
 
-    module load environments/programming/gcc-4.8.2
+```bash
+module load environments/programming/gcc-4.8.2
+```
 
 Or Intel:
 
-    module load compilers/intel/15.0.0.090
-            module load mpi/openmpi/1.8.2/intel15.0-threads
+```bash
+module load compilers/intel/15.0.0.090
+module load mpi/openmpi/1.8.2/intel15.0-threads
+```
 
 then run Cmake as normal.
 
@@ -359,7 +387,9 @@ and `HDF5_NECI` should be substituted for `<package>` above.
 A specific configuration for building NECI is initialised by using the
 command
 
-    ./tools/mkconfig.py config_name [-g]
+```bash
+./tools/mkconfig.py config_name [-g]
+```
 
 The configuration names correspond to the configuration files contained
 in the config directory. If the flag `-g` is used, then a debug
@@ -402,9 +432,11 @@ correct.
 
 In particular, the elements of the linker lines
 
-    -lacml
-    -lmkl_intel_ilp64 -lmkl_core -lmkl_sequential
-    -lblas -llapack
+```bash
+-lacml
+-lmkl_intel_ilp64 -lmkl_core -lmkl_sequential
+-lblas -llapack
+```
 
 are in principle interchangeable. On personal development machines it is
 easiest to install BLAS and LAPACK, but these are generally less
@@ -415,7 +447,9 @@ the generated `Makefile` before compilation.
 
 The code is built using the command
 
-    make [-j [n]] [neci.x|kneci.x|dneci.x|mneci.x|both|all]
+```bash
+make [-j [n]] [neci.x|kneci.x|dneci.x|mneci.x|both|all]
+```
 
 The optional flag `-j` specifies that the build should be performed in
 parallel (with up to an optional number, `n`, threads).
@@ -688,7 +722,7 @@ considered. The block starts with the `system` keyword and ends with the
         negligible memory cost.
 
     -   **pcpp**\
-        The pre-computed power-pitzer excitation generator [2]. Has low
+        The pre-computed power-pitzer excitation generator [^2]. Has low
         memory cost and scales only mildly with system size, and can
         thus be used for large systems.
 
@@ -1120,7 +1154,7 @@ and ends with the `endcalc` keyword.
 #### Initiator options
 
 -   **<span style="color: blue">truncInitiator</span>**\
- Use the initiator method [3].
+ Use the initiator method [^3].
 
 -   **<span style="color: blue">addToInitiator \(x\)</span>**\
  Sets the initiator threshold to \(x\), so any determinant
@@ -1507,7 +1541,7 @@ terminated with the `endint` keyword.
 
 ### KP-FCIQMC Block
 
-This block enables the Krylov-projected FCIQMC (KPFCIQMC) method [4]
+This block enables the Krylov-projected FCIQMC (KPFCIQMC) method [^4]
 which is fully implemented in NECI. It requires `dneci` or `mneci` to be
 run. When specifying the KP-FCIQMC block, the METHODS block should be
 omitted. This block is started with the `kp-fciqmc` keyword and
@@ -1981,7 +2015,10 @@ but is less efficient for CI spaces.
 
 To perform a davidson calculation, put
 
-    davidson ras1 ras2 ras3 ras4 ras5
+<!-- NOTE putting bash for NECI commands, at least for now -->
+```bash
+davidson ras1 ras2 ras3 ras4 ras5
+```
 
 in the Methods block, inside the Calc block. The parameters ras1-ras5
 define the RAS space that will be used. These are defined as follows.
@@ -2093,7 +2130,9 @@ numerator. Also, data is not taken from the optimal block size.
 A better approach for a more careful analysis is to use the blocking
 script in the utils directory, called blocking.py. The key command is
 
-    ./blocking.py -f start_iter -d24 -d23 -o/ FCIMCStats
+```bash
+./blocking.py -f start_iter -d24 -d23 -o/ FCIMCStats
+```
 
 This will perform a blocking analysis starting from iteration
 `start_iter`. The analysis should be started only once the energy
@@ -2135,16 +2174,16 @@ rightmost columns) from here.
 More information (including example plots, similar to those that
 `blocking.py` produces) is available at JCP 91, 461.
 
-[1] `ssh-keygen` can also generate DSA keys. Some ssh clients and
+[^1]: `ssh-keygen` can also generate DSA keys. Some ssh clients and
 servers will reject DSA keys longer than 1024 bits, and 1024 bits is
 currently on the margin of being crackable. As such 2048 bit RSA keys
 are preferred. Top secret this code is. Probably. Apart from the master
 branch which hosted for all on github. And in molpro. And anyone that
 wants it obviously.
 
-[2] V. Neufeld, A. Thom, J. Chem. Theory Comput.2019151127-140
+[^2]: V. Neufeld, A. Thom, J. Chem. Theory Comput.2019151127-140
 
-[3] D. Cleland, G.H. Booth, A. Alavi, J. Chem. Phys. 132, 041103 (2010)
+[^3]: D. Cleland, G.H. Booth, A. Alavi, J. Chem. Phys. 132, 041103 (2010)
 
-[4] N. S. Blunt, Ali Alavi, George H. Booth, Phys. Rev. Lett. 115,
+[^4]: N. S. Blunt, Ali Alavi, George H. Booth, Phys. Rev. Lett. 115,
 050603

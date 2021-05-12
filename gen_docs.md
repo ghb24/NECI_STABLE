@@ -16,8 +16,6 @@ source: true
 page_dir: docs
 md_extensions: markdown.extensions.toc
                markdown.extensions.smarty
-               markdown.extensions.tables
-               markdown.extensions.attr_list
 preprocess: true
 fpp_extensions: fpp
 preprocessor: fypp -m itertools -m functools
@@ -26,7 +24,6 @@ graph: false
 graph_maxnodes: 250
 graph_maxdepth: 5
 coloured_edges: true
-
 ---
 
 <!-- I had these in but they are all default -->
