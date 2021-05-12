@@ -903,7 +903,7 @@ SUBROUTINE CFF_CHCK(NDET, NEVAL, NM, NEL, G1, CG, TKE)
             DO I = 1, NDET
                 IF (abs(CG(I, J)) > 1.0e-15_dp) THEN
                     DO IEL = 1, NEL
-                        write(iunit, "(I3,I3,2I3,2X)", advance='no') (G1(NM(1, IEL))%K(L), L=1, 5)
+                        write(iunit, "(I3,I3,2I3,2X)", advance='no') (G1(NM(1, IEL))%K(L), L=1, 3)
                     end do
                     IF (HElement_t_size == 1) THEN
                         write(iunit, "(F19.9,1X,I7)") CG(I, J), I

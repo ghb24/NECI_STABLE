@@ -1711,9 +1711,7 @@ contains
                         ! for the first one, there is no previous one
                         previousInRange = .false.
                     else
-                        associate(ind => i) ! -Werror workaround
-                        previousInRange = defdet(i).eq.defdet(ind-1)+1
-                        end associate
+                        previousInRange = defdet(i).eq.defdet(i-1)+1
                     end if
 
                     ! if the following orbital is in the same contiguous range

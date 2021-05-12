@@ -1017,12 +1017,10 @@ contains
 
         if (replica_pairs) then
             ASSERT(nexcit_keep == int(inum_runs / 2.0))
-            associate(ind => i) ! -Werror workaround
             do i = 1, nexcit_keep
-                ShiftOffset(2 * ind - 1) = trial_energies(i)
-                ShiftOffset(2 * ind) = trial_energies(i)
+                ShiftOffset(2 * i - 1) = trial_energies(i)
+                ShiftOffset(2 * i) = trial_energies(i)
             end do
-            end associate
         else
             ASSERT(nexcit_keep == inum_runs)
             ShiftOffset(1:inum_runs) = trial_energies(1:inum_runs)

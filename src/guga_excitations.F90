@@ -291,8 +291,8 @@ contains
         def_default(ms_, ms, spin/2.)
 
         ! construct SDs by attaching (N/2 + ms) up spins and (N/2 - ms) down spins
-        n_alpha = int(nSpatorbs / 2. + ms_)
-        n_beta = int(nSpatorbs / 2. - ms_)
+        n_alpha = nint(nSpatorbs / 2. + ms_)
+        n_beta = nint(nSpatorbs / 2. - ms_)
 
         all_sds = create_all_open_shell_dets(nSpatorbs, n_beta, n_alpha)
 

@@ -30,7 +30,6 @@ contains
 
     subroutine measure_local_spin(real_sgn)
         real(dp), intent(in) :: real_sgn(lenof_sign)
-        character(*), parameter :: this_routine = "measure_local_spin"
 
         real(dp) :: coeff, loc_spin(nSpatOrbs)
 
