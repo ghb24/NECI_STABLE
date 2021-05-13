@@ -1728,7 +1728,7 @@ code:
     possible to view the problems in the normal output.
 
 -   **Defines \_\_DEBUG**<br>
-    Any blocks contained inside `#ifdef __DEBUG` sections are only
+    Any blocks contained inside `#ifdef DEBUG>` sections are only
     enabled in debug mode. Most of these contain either additional
     output specifically targetted to make debugging easier, or
     additional consistency checks.
@@ -2012,71 +2012,6 @@ Fortunately, the latter is much more straightforward than the former! A
 modified version of a currently implemented routine is likely to be the
 best approach.
 
-Much of the complication introduces is the requirement that NECI
-interoperate with MOLPRO, which uses C based MPI libraries. In order to
-function correctly in this environment, it is necessary to wrap the MPI
-routines in a C-wrapper, and interface this with our templated library.
-
-As such, the MPI wrapper implementation has a number of layers and
-non-obvious facets. This results in the behaviour being relatively
-opaque, and the code scattered with a large number of `#ifdef`
-statements.
-
-**C-wrapper initialisation**<br>
-The constants required for operation of the C MPI libraries are not
-necessarily of a form compatible with Fortran. The C wrapper code (in
-`lib/parallel_helper.cpp`) contains lookup tables of the values defined
-in the C MPI headers. The module `ParallelHelper`, which is included in
-`Parallel_neci` contains Fortran definitions of these values which are
-the indices to the lookup tables.
-
-The C types required for MPI communicatiors and groups `MPI_Comm` and
-`MPI_Group` are not Fortran compatible. Fortunately the MPI standard
-provides inbuilt converters to integer types (`MPI_comm_2cf`, etc.). The
-c wrapper code mimcs the normal Fortran MPI code, returing Fortran
-compatible values, but internally converting them to the required types.
-
-**Determination of parameter sizes**<br>
-The code to determine the lengths of the input (`v`) and output (`ret`)
-arrays is passed to the code a template parameters `mpilen` and
-`mpilen2`. These make use of the `lbound` and `ubound` intrinsics to
-determine the number of elements in each array.
-
-**Conversion to pointers**<br>
-Fortran, by default, passes values by pointer. In the case arrays, this
-passes a pointer to the array structure, rather than the data. This
-structure includes a pointer to the data and information about the data
-type and the array bounds.
-
-If the code is to be passed to the C wrapper, the actual data pointer
-needs to be extracted.
-
-When the C wrapper layer is being used, a value of type `c_ptr_t` is
-declared. If compiler support is present this is equal to `type(c_ptr)`,
-but otherwise is a raw 32 or 64 bit integer as appropriate.
-
-The memory address of the array (strictly of its first element) is
-obtained using either the standardised `c_loc`, or the non-standard
-`loc` intrinsics.
-
-@warning
-Due to a bug in some versions of gfortran an extra level of indirection
-is used which hides the type of the array being passed using a routine
-called `g_loc`. This code circumvents normal interfacing.
-@endwarning
-
-**Calls to MPI**<br>
-In the normal case (when the C-wrapper is not being used), the `MPI_*`
-routines are then called directly. After the return values are checked
-for errors, the routine returns the output data as normal.
-
-**C wrapper layer**<br>
-Interfaces to each of the C mpi wrappers are defined in the
-`ParallelHelper` module. These accept the pointers discussed earlier.
-The Fortran symbols for these wrappers are named so that they coincide
-with the normal `MPI_*` routines, so that no change to the calling code
-is required.
-
 ## Shared memory
 
 In principle, when using MPI all of the processes are entirely
@@ -2211,7 +2146,7 @@ The data should be deallocated using the routine `shared_deallocate`.
                 intel-64-architecture-processor- topology-enumeration).
 
 -   **Disabling shared memory**<br>
-    Shared memory is enabled by the pre-processor define `__SHARED_MEM`.
+    Shared memory is enabled by the pre-processor define `SHARED_MEM_`.
     This can be found in the config files for platforms that support it.
     If necessary, this can be removed from relevant config files and
     Makefiles, which will disable inter process memory sharing, and fall
@@ -2989,7 +2924,7 @@ an excitation.
 Once the excitation generator has been planned out, it makes sense to
 write this calculation function first (it tends to be simpler than the
 excitation generator). A call to it can then be included at the end of
-the excitation generator inside `#ifdef __DEBUG` flags, which provides a
+the excitation generator inside `#ifdef DEBUG_` flags, which provides a
 powerful correctness check, and catches any cases where these functions
 diverge.
 @endwarning
