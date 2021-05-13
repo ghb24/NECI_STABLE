@@ -13,7 +13,7 @@ display: private
          public
          protected
 source: true
-page_dir: .
+page_dir: ./docs
 md_extensions: markdown.extensions.toc
                markdown.extensions.smarty
 preprocess: true
