@@ -52,7 +52,7 @@ those sections which are old and generally unredemable from the rest of
 the code base. As such there are a number of restrictions we place on
 code in NECI, and a range of other guidelines.
 
-**Fortran standard**\
+**Fortran standard**<br>
 Due to the use of procedure pointers, a reasonably up to date compiler
 supporting (at least some of) the Fortran 2003 standard is *required* to
 compile NECI. The C-interoperability and procedure pointer features of
@@ -86,7 +86,7 @@ Regarding code layout the PEP8 guidelines of the python language lead to
 well readable code and are mostly applicable to Fortran as well.
 (<https://www.python.org/dev/peps/pep-0008/>)
 
-**CAPITAL letters**\
+**CAPITAL letters**<br>
 Fortran is a case insensitive programming language.
 
 For historical reasons a large proportion of FORTRAN 77 code was written
@@ -97,7 +97,7 @@ Humans generally read by recognising word shape. This is obliterated in
 fully capitalised text, making code much harder to read, and typos
 especially difficult to identify.
 
-**Indentation**\
+**Indentation**<br>
 Indentation of sections of code should use spaces (and not tabs). The
 Fortran 95 standard explicitly rejects the use of tabs, and tabs in
 source code will elicit warnings from the compiler.
@@ -108,7 +108,7 @@ Source code in .F files (old-style FORTRAN 77) has specific layout
 restrictions. In particular an initial indent of 7 spaces. This style
 should not be mimicked elsewhere.
 
-**Code line length**\
+**Code line length**<br>
 The Fortran 90/95 standard restricts line lengths to a (hard) maximum of
 132 characters. Code with lines longer than this *may* work on *some*
 compilers, but this limit should be avoided.
@@ -126,7 +126,7 @@ split and side by side use 79 characters each. This is a convenient
 soft-limit to use - although it is not trivially achievable in all code,
 and overall readability should be prioritised.
 
-**Variable name conventions**\
+**Variable name conventions**<br>
 There are a number of competing conventions for variable and function
 names within NECI. That said, there are a number of existing conventions
 that it is *useful* to be aware of and which new code should keep in
@@ -159,7 +159,7 @@ Fortran 95 restricts variable names to 31 characters. Although Fortran
 2003 extends this to 63, making use of this extension can cause problems
 with some compilers, and this should be avoided.
 
-**Subroutine decoration (especially intent statements)**\
+**Subroutine decoration (especially intent statements)**<br>
 Subroutine and function declarations should be decorated to the greatest
 extent feasible. This should restrict the variables to only their
 expected role in a function.
@@ -216,7 +216,7 @@ pow([1, 3, 5]) -> [1, 9, 25]
 pow([1, 3, 5], 3) -> [1, 27, 125]
 ```
 
-**Data types**\
+**Data types**<br>
 With the exception of small integers being directly assigned to known
 integer variables, or used in loop counters, all constants should have
 their types explicitly specified. The available types are described in
@@ -239,7 +239,7 @@ on build configuration) the custom (preprocessor defined) data type
 `HElement_t` should be used, which resolves to either `real(dp)` or
 `complex(dp)`.
 
-**Array declarations**\
+**Array declarations**<br>
 Fortran arrays can be declared in multiple ways. In particular, the
 dimensionality of an array can be declared on the variable itself, or as
 part of the type declaration;
@@ -283,7 +283,7 @@ as passed in by the calling routine. This maximises the extent to which
 the compiler and debugging tools can assist in finding errors in the
 code, and should be used wherever possible.
 
-**use statements**\
+**use statements**<br>
 Globally declared symbols can be shared between modules using `use`
 statements. Generally, specific symbols should be included rather than
 all symbols in a module using the notation
@@ -300,7 +300,7 @@ same thing is included in multiple places in a file, the compilers
 dependency resolution tree can become very large, and use a lot of time
 and memory to resolve unambiguously.
 
-**ASSERT statements**\
+**ASSERT statements**<br>
 `ASSERT` is a macro, defined in `macros.h`. In an optimised build these
 statements are entirely removed, and in a debug build they will cause
 execution to be aborted with an error message if the condition specified
@@ -328,7 +328,7 @@ the optimised build the tests will not be called, and this can introduce
 bugs that appear in only one of the optimised or debug builds.
 @endwarning
 
-**Floating point comparison and integer division**\
+**Floating point comparison and integer division**<br>
 
 It is usually a bad idea to test floating point numbers for
 (in-)equality using `==` or `/=`. Equality should rather be tested with
@@ -341,7 +341,7 @@ the nearest integer. Sometimes this is not wanted, and the compiler
 warns about it. For this reason one should use `5 .div. 3` to make it
 explicit that integer division is indeed wanted.
 
-**Tools for adhering to the style guide**\
+**Tools for adhering to the style guide**<br>
 
 @warning
 It is better to write nice code from the beginning on instead of relying
@@ -358,7 +358,7 @@ The NECI codebase already contains the correct configuration files, so
 it is sufficient to just call `fprettify` on a file in `src/` or
 `src/lib`.
 
-**Operator Layout**\
+**Operator Layout**<br>
 The following guidelines are recommendations for formatting of code and
 represent the configuration of the `fprettify` tool explained in the
 previous paragraph. These binary operators should be surrounded with a
@@ -415,7 +415,7 @@ Please use the new C-style relational operators.
       .EQ. .NE. .LT. .LE. .GT. .GE.
 ```
 
-**Whitespace in Expressions**\
+**Whitespace in Expressions**<br>
 Avoid extraneous whitespace in the following situations.
 ```Fortran
 
@@ -464,7 +464,7 @@ space is omitted.
     ham( : upper)
 ```
 
-**Contained procedures**\
+**Contained procedures**<br>
 From Fortran2003 onwards it is possible to define procedures inside
 procedures. The inner procedure has access to the local scope of the
 outher procedure. (Similar to closures in other languages.) These
@@ -517,7 +517,7 @@ of a subroutine/function without exposing them to module scope.
 
 A contained procedure cannot make use of the `contains` statement.
 
-**Modules and interfaces**\
+**Modules and interfaces**<br>
 It is an aim to make the dependency between different code parts as
 small, as unidirectional and as explicit as possible. Module are a great
 tool to achieve that goal.
@@ -554,7 +554,7 @@ module scope, but do not require `public` global variables.
 
 If possible functions should be declared `pure` or `elemental`.
 
-**Example module layout**\
+**Example module layout**<br>
 A sample module layout is given below:
 
 ```Fortran
@@ -616,7 +616,7 @@ contains
 end module
 ```
 
-**Error handling**\
+**Error handling**<br>
 
 It is very important to always be in a well defined state and to be
 deterministic up to the stochastic noise of the Monte-Carlo simulation.
@@ -759,7 +759,7 @@ Information is a very broad term. There are many types of duplication
 that can occur. A non exhaustive list of some types of duplication (and
 what can be done about them) follows.
 
--   **Algorithm duplication across data types**\
+-   **Algorithm duplication across data types**<br>
     There are many algorithms that are either the same, or similar,
     across many different data types. The logic involved in these should
     be written once.
@@ -774,7 +774,7 @@ what can be done about them) follows.
     in
     section <a href="#sect:templating" data-reference-type="ref" data-reference="sect:templating">1.7</a>.
 
--   **Logic duplication across source files**\
+-   **Logic duplication across source files**<br>
     If the same chain of decision making is recurring in different
     regions of the code, these should be abstracted into their own
     subroutine which is called from each location. This prevents the
@@ -782,7 +782,7 @@ what can be done about them) follows.
 
     Numerous bad examples of this still persist in NECI.
 
--   **Duplication of data**\
+-   **Duplication of data**<br>
     Compile time constants should only be specified in one place. A
     large proportion of these are found in the `lib/cons_neci.F90`
     source file. Other examples include the layout of the bit
@@ -794,7 +794,7 @@ what can be done about them) follows.
     constant \(6\) to specify output to stdout in statements such as
     `write(6,*)`, which doesn’t interact well with `molpro`.
 
--   **Duplication of representations in memory**\
+-   **Duplication of representations in memory**<br>
     It is important to have a well defined canonical representation of
     data in memory. The same data should not be allowed to become
     duplicated in multiple places.
@@ -1238,7 +1238,7 @@ The extent to which interesting features can be developed is limited
 only by the developers imagination in using the template substition. But
 two tricks are generally useful.
 
--   **Additional optional arguments**\
+-   **Additional optional arguments**<br>
     Subroutines can easily be given flexible numbers of arguments. This
     is useful for adding additional functionality (and allows multiple
     templated routines to use the same `type` values). The templated
@@ -1257,7 +1257,7 @@ two tricks are generally useful.
     The next trick is useful for adding the type definitions of these
     additional arguments, and enabling the code which uses them.
 
--   **Switching off lines of code**\
+-   **Switching off lines of code**<br>
     Lines of code in Fortran are trivially disabled when they are
     commented out. Prefixing lines with a switch-value allows it to be
     disabled. For example
@@ -1519,7 +1519,7 @@ particular that the linker will resolve dependencies with any symbol of
 the specified name. This is useful, but introduces a number of potential
 problems:
 
--   **Name clashes**\
+-   **Name clashes**<br>
     Different compilers follow different naming conventions. In
     particular Fortran compilers often (but not always) append or
     prepend one or two underscores to symbols in the object files. This
@@ -1531,19 +1531,19 @@ problems:
     files is fragile and unreliable. It also makes it difficult to call
     library routines written in C.
 
--   **No checking of parameters**\
+-   **No checking of parameters**<br>
     The linker is extremely stupid - it only matches by parameter name.
     If this method is used, absolutely no checking is done on the
     parameters passed to the C routine from Fortran. This is a recipe
     for disaster, and will generate only runtime errors.
 
--   **Calling**\
+-   **Calling**<br>
     By default C passes arguments by value, whereas Fortran passes them
     by pointer. This requires writing wrappers for almost any
     non-trivial C library routine to access it from Fortran. Some
     constructs simply cannot be emulated.
 
--   **Variable types**\
+-   **Variable types**<br>
     As an extension of the lack of checking of parameters, there is no
     checking of argument types across the Fortran/C interface. This
     relies on the Fortran and C code using the same types - in
@@ -1596,7 +1596,7 @@ As soon as you have a problem, build a debug rather than an optimised
 version of the code. This cause a large array of changes to the compiled
 code:
 
--   **Array bounds checking**\
+-   **Array bounds checking**<br>
     All Fortran arrays have well defined bounds on all of their
     dimensions. In debug mode the compiler will insert code to check
     that all memory accesses are within these bounds. If not, execution
@@ -1604,7 +1604,7 @@ code:
     file the error occurred. If running in a debugger (see later)
     execution will be interrupted at this point.
 
--   **Disable optimisations**\
+-   **Disable optimisations**<br>
     Hopefully this will not make the bug go away! If it does, you are
     almost certainly looking at either an uninitialised variable, or
     access beyond the end of an array.
@@ -1614,7 +1614,7 @@ code:
     results in any error messages, and the output of any tools, being
     easier to interpret.
 
--   **Adds debugging symbols**\
+-   **Adds debugging symbols**<br>
     When your code crashes it is really useful to know what routine was
     running, and what the stack trace (list of routines that have been
     called to get to this point in the code) is. Adding debugging
@@ -1622,13 +1622,13 @@ code:
     into files and lines of source code. This makes error messages
     useful.
 
--   **Enables the ASSERT macro**\
+-   **Enables the ASSERT macro**<br>
     There are many consistency checks internally in NECI that can be
     turned on in debug mode. Particularly for difficult-to-find bugs,
     these are likely to fail substantially earlier in a run than it is
     possible to view the problems in the normal output.
 
--   **Defines \_\_DEBUG**\
+-   **Defines \_\_DEBUG**<br>
     Any blocks contained inside `#ifdef __DEBUG` sections are only
     enabled in debug mode. Most of these contain either additional
     output specifically targetted to make debugging easier, or
@@ -1649,7 +1649,7 @@ code to catch similar errors in the future.
 Most of the programming tools in existence are for the purposes of
 debugging. Learn to use them! Practice using them. The really work.
 
--   **Debuggers**\
+-   **Debuggers**<br>
     The debugger is the most powerful tool you have. Essentially you run
     your code in a harness, with the debugger hooked into everything
     important. On most Linux systems, the most readily available
@@ -1671,14 +1671,14 @@ debugging. Learn to use them! Practice using them. The really work.
 
     The debugger is the swiss-army sledgehammer of tools.
 
--   **Valgrind**\
+-   **Valgrind**<br>
     Valgrind is a tool for memory debugging. In essence it replaces most
     of the memory manipulation primitives provided by the operating
     system with instrumented versions. It will track what happens to
     memory, where it is created, where it is destroyed, and what code
     (in)correctly accesses it.
 
--   **Intel Inspector XE**\
+-   **Intel Inspector XE**<br>
     If you have access to Intel tools, the Intel Inspector is an
     extremely powerful debugger, memory analysis tool, performance
     enhancement and problem tracking tool. An top of a good interface to
@@ -1750,7 +1750,7 @@ A number of the variable names in NECI are largely inexplicable, or
 confusing, outside of their origin in historical accident. This section
 tries to clarify some of these.
 
--   **ARR, BRR**\
+-   **ARR, BRR**<br>
     `ARR(:,1)` contains a list of spin orbital (Fock) energies in order
     of increasing energy.
 
@@ -1763,7 +1763,7 @@ tries to clarify some of these.
     symmetry are adjacent to each other, and within that ordered by
     \(m_s\) value.
 
--   **TotWalkers and TotParts**\
+-   **TotWalkers and TotParts**<br>
     `TotWalkers` refers to the number of determinants or sites that must
     be looped over in the main list. This may include a number of blank
     slots if the hashed storage is being used.
@@ -1772,11 +1772,11 @@ tries to clarify some of these.
     The total number of particles in the system (including all nodes) is
     stored in `AllTotParts`.
 
--   **InitWalkers**\
+-   **InitWalkers**<br>
     The number of particles *per processor* before a simulation will
     enter variable shift mode.
 
--   **G1**\
+-   **G1**<br>
     The variable name `G1` is a historical anachronism. It is an array
     containing symmetry information about given basis functions. In
     particular `G1(orb)` contains information about the one electron
@@ -1875,28 +1875,28 @@ the entire simulation with a runtime error.
 A number of important control variables are available for use within
 NECI.
 
--   `nProcessors`\
+-   `nProcessors`<br>
     The total number of processors initialised in the MPI calculation.
 
--   `iProcIndex`\
+-   `iProcIndex`<br>
     The (zero based) index of the current processor. This will be
     between 0 and `nProcessors-1`.
 
--   `root`\
+-   `root`<br>
     The (zero based) index of the root (head) processor. This should be
     tested in code using: `if (iProcIndex == root)`.
 
--   `nNodes`\
+-   `nNodes`<br>
     The number of nodes initialised in the MPI calculation. In most
     cases this will equal `nProcessors`. These values will only differ
     if the MPI space is being subdivided into smaller nodes.
 
--   `iNodeIndex`\
+-   `iNodeIndex`<br>
     This (zero based) index gives the position of the processor in the
     current node. For most calculations this will be zero on all
     processors.
 
--   `bNodeRoot`\
+-   `bNodeRoot`<br>
     This specifies if the current processor is the root processor of a
     node. I.e. that this processor is responsible for macroscopic
     communication. For most simulations this is `.true.` on all
@@ -1923,7 +1923,7 @@ non-obvious facets. This results in the behaviour being relatively
 opaque, and the code scattered with a large number of `#ifdef`
 statements.
 
-**C-wrapper initialisation**\
+**C-wrapper initialisation**<br>
 The constants required for operation of the C MPI libraries are not
 necessarily of a form compatible with Fortran. The C wrapper code (in
 `lib/parallel_helper.cpp`) contains lookup tables of the values defined
@@ -1937,13 +1937,13 @@ provides inbuilt converters to integer types (`MPI_comm_2cf`, etc.). The
 c wrapper code mimcs the normal Fortran MPI code, returing Fortran
 compatible values, but internally converting them to the required types.
 
-**Determination of parameter sizes**\
+**Determination of parameter sizes**<br>
 The code to determine the lengths of the input (`v`) and output (`ret`)
 arrays is passed to the code a template parameters `mpilen` and
 `mpilen2`. These make use of the `lbound` and `ubound` intrinsics to
 determine the number of elements in each array.
 
-**Conversion to pointers**\
+**Conversion to pointers**<br>
 Fortran, by default, passes values by pointer. In the case arrays, this
 passes a pointer to the array structure, rather than the data. This
 structure includes a pointer to the data and information about the data
@@ -1966,12 +1966,12 @@ is used which hides the type of the array being passed using a routine
 called `g_loc`. This code circumvents normal interfacing.
 @endwarning
 
-**Calls to MPI**\
+**Calls to MPI**<br>
 In the normal case (when the C-wrapper is not being used), the `MPI_*`
 routines are then called directly. After the return values are checked
 for errors, the routine returns the output data as normal.
 
-**C wrapper layer**\
+**C wrapper layer**<br>
 Interfaces to each of the C mpi wrappers are defined in the
 `ParallelHelper` module. These accept the pointers discussed earlier.
 The Fortran symbols for these wrappers are named so that they coincide
@@ -2062,7 +2062,7 @@ The data should be deallocated using the routine `shared_deallocate`.
 
 ### Quirks and limitations
 
--   **Customising data types**\
+-   **Customising data types**<br>
     The shared memory routines are templated so that they can be used
     with a wide variety of plain-old-data types and array sizes. For any
     data types outside of those already templated, new configuration
@@ -2080,13 +2080,13 @@ The data should be deallocated using the routine `shared_deallocate`.
     shared memory, as the size of these elements is highly variable
     between compilers.
 
--   **Storing bit representations**\
+-   **Storing bit representations**<br>
     There is a special allocate routine `shared_allocate_iluts` which
     can be used for storing bit representations — these differ in that
     the lower bound of the first array index must be \(0\), rather than
     \(1\).
 
--   **Non-uniform memory architectures**\
+-   **Non-uniform memory architectures**<br>
     Modern chip architectures (in particular the intel i3, i5 and i7
     series of processors) move the memory controller onto the processor.
     This dramatically improves memory access speeds.
@@ -2111,7 +2111,7 @@ The data should be deallocated using the routine `shared_deallocate`.
                 intel-64-architecture-processor- topology-enumeration](https://software.intel.com/en-us/articles/
                 intel-64-architecture-processor- topology-enumeration).
 
--   **Disabling shared memory**\
+-   **Disabling shared memory**<br>
     Shared memory is enabled by the pre-processor define `__SHARED_MEM`.
     This can be found in the config files for platforms that support it.
     If necessary, this can be removed from relevant config files and
@@ -2139,7 +2139,7 @@ knowledge of how the operating system intrinsics work.
 
 Beyond that, there are three main code paths:
 
--   **POSIX**\
+-   **POSIX**<br>
     A unique file name is created, based on the current working
     directory. The function call `shm_open` with the control parameter
     `O_CREAT` will open, or create, a POSIX shared memory object. As a
@@ -2159,7 +2159,7 @@ Beyond that, there are three main code paths:
 
     The memory can then be manually deallocated using `munmap`.
 
--   **System V**\
+-   **System V**<br>
     A unique file name is generated, based on the current working
     directory, and the file is created. A System V Inter Process
     Communication Key is created and obtained from this file using the
@@ -2175,7 +2175,7 @@ Beyond that, there are three main code paths:
 
     The memory can be manually deallocated using `shmdt`.
 
--   **Windows**\
+-   **Windows**<br>
     The memory mapped file provisions in Windows are used to generate a
     shared memory region. A unique file name is created, based on the
     current working directory, and then a non-filesystem backed file is
@@ -2240,47 +2240,47 @@ this should *always* be used.
 
 The FCIDUMP files can be briefly summarised by
 
--   **Header**\
+-   **Header**<br>
     The header is specified as a Fortran namelist, with the following
     possible elements:
 
-    -   `NORB`\
+    -   `NORB`<br>
         Specifies the number of spatial orbitals in the system if RHF,
         or the number of spin-orbitals if UHF.
 
-    -   `NELEC`\
+    -   `NELEC`<br>
         Specifies the number of electrons the Hartree–Fock determinant
         should have.
 
-    -   `MS2`\
+    -   `MS2`<br>
         Specifies twice the total projected spin of the system (such
         that it is always an integer)
 
-    -   `ORBSYM`\
+    -   `ORBSYM`<br>
         A list of spatial symmetries of the orbitals specified in (???
         Check name with Giovanni) format in orbital order. Note that the
         structure of the reference determinant will be visible here if
         the `MOLPROMIMIC` option is used, and the reference is to be
         determined by the order of the orbitals.
 
-    -   `ISYM`\
+    -   `ISYM`<br>
         The symmetry of the reference determinant specified in the same
         format.
 
-    -   `UHF`\
+    -   `UHF`<br>
         T if the file contains a UHF basis, otherwise F.
 
-    -   `SYML, SYMLZ`\
+    -   `SYML, SYMLZ`<br>
         The total and projected orbital angular momentum for systems
         with an axis of rotation. Currently FCIDUMP files which use this
         option can only be generated using QChem, and the resultant file
         must be pre-processed using the TransLz utility.
 
-    -   `PROPBITLEN, NPROP`\
+    -   `PROPBITLEN, NPROP`<br>
         These parameters are used to describe the behaviour of k-point
         symmetries. For more details contact George Booth.
 
--   **4-index integrals**\
+-   **4-index integrals**<br>
     Following the header, all of the integral and energy lines may
     follow in arbitrary order.
 
@@ -2289,11 +2289,11 @@ The FCIDUMP files can be briefly summarised by
     integers. All indices are one-based. Indices are in **chemical
     notation**!
 
--   **2-index integrals**\
+-   **2-index integrals**<br>
     The 2-index integrals are specified in the same way with the final
     two indices equal to zero.
 
--   **Fock energies**\
+-   **Fock energies**<br>
     The Fock energies are specified in the same way, with the final
     three indices equal to zero.
 
@@ -2303,7 +2303,7 @@ The FCIDUMP files can be briefly summarised by
     option is supplied then the order of the orbitals determines the
     reference determinant.
 
--   **Core energy**\
+-   **Core energy**<br>
     The core energy is specified in the same way, but with all four
     indices set to zero.
 
@@ -2374,27 +2374,27 @@ Elsewhere in the code, the routine `get_helement` is used to obtain
 matrix elements.[^2] This routine comes in a number of flavours. The
 available options are
 
--   `nI, nJ`\
+-   `nI, nJ`<br>
     This routine will return the matrix element between any two,
     arbitrary, decoded determinants.
 
--   `nI, nJ, ic`\
+-   `nI, nJ, ic`<br>
     This version is provided the excitation level of the determinant in
     addition.
 
--   `nI, nJ, ic, ilutI, ilutJ`\
+-   `nI, nJ, ic, ilutI, ilutJ`<br>
     The bit representations of the two determinants are provided, which
     greatly enhances calculating the parity if needed.
 
--   `nI, nJ, ilutI, ilutJ`\
+-   `nI, nJ, ilutI, ilutJ`<br>
     If both the bit representations and the decoded versions are present
     but no further information is known then this form should be used.
 
--   `nI, nJ, ilutI, ilutJ, ic_ret`\
+-   `nI, nJ, ilutI, ilutJ, ic_ret`<br>
     This version is the same as the above, but returns the excitation
     level of the pair of determinants in addition to the matrix element.
 
--   `nI, nJ, ic, excitMat, tParity`\
+-   `nI, nJ, ic, excitMat, tParity`<br>
     When everything about the relationship between the two determinants
     is fully known, this form should be used. It is used implicitly
     after excitation generation when the excitation level, matrix and
@@ -2636,7 +2636,7 @@ determinant. It is much more computationally efficient to copy and
 modify the source determinant and bit representation than to start from
 scratch. As such there are two processes to consider.
 
--   **Manipulating bit representations**\
+-   **Manipulating bit representations**<br>
     Orbitals can be cleared from the bit representation using the macro
     `clr_orb`, and set using the macro `set_orb`. For an excitation from
     orbital `a` to orbital `i` this would look like
@@ -2645,7 +2645,7 @@ scratch. As such there are two processes to consider.
     set_orb(ilut, i)
     ```
 
--   `make_single and make_double`\
+-   `make_single and make_double`<br>
     Manipulating the natural integer representation of determinants is
     substantially more complicated, as there is a *requirement* that
     they remain sorted by spin-orbital number. Although it would be
@@ -2831,14 +2831,14 @@ parameter, and runs the excitation generator a very large number of
 times on this determinant (for example, 10 million times). This test
 function should contain a number of tests:
 
--   **Are the correct determinants generated**\
+-   **Are the correct determinants generated**<br>
     A list of all single and double excitations of the correct symmetry
     should be enumerated in a brute force manner (see
     `GenExcitations3`). It should then be checked that *all* of the
     determinants in this list are generated by the excitation generator,
     and no determinants outside this list are generated.
 
--   **Normalisation of generation probabilities**\
+-   **Normalisation of generation probabilities**<br>
     An accumulator value should be kept for each possible determinant
     that can be generated. Each time the determinant is generated, the
     value \(p_\mathrm{gen}^{-1}\) should be added to that determinants
@@ -2859,7 +2859,7 @@ function should contain a number of tests:
     will sum in a very large term very rarely, and so their averaged
     value can jump around quite dramatically.
 
--   **Overall probability normalisation**\
+-   **Overall probability normalisation**<br>
     As an extension to the above, the sum of all of the accumulators
     should stocastically tend towards the number of connections
     multiplied by the number of spawning attempts.
@@ -3022,7 +3022,7 @@ Each of the components of the representation has a `nIf*` (Number of
 Integers For) and `nOff*` (offset of) value. These should not be used
 directly unless adding data to this representation.
 
--   **Orbital description**\
+-   **Orbital description**<br>
     Determinants are stored by a bit-representation of the choice of
     orbitals to construct their Slater Determinants from. This
     representation is of length \(2M\), i.e. the same as the number of
@@ -3040,10 +3040,10 @@ directly unless adding data to this representation.
     Equivalently, the `EncodeBitDet` generates the orbital bit
     representation from the natural integer version.
 
--   **CSF descriptors**\
+-   **CSF descriptors**<br>
     If CSF descriptor labels are required, they are stored here.
 
--   **Signed particle count**\
+-   **Signed particle count**<br>
     The representation of the coefficient, or “sign” of the determinant
     is the primary value which is evolved during an FCIQMC simulation.
 
@@ -3058,7 +3058,7 @@ directly unless adding data to this representation.
     particles are to be removed the routines `nullify_ilut` and
     `nullify_ilut_part` can be used.
 
--   **Flags**\
+-   **Flags**<br>
     Any number of flags may be associated with a particular site. A
     current full list may be found in the file `bit_rep_data.F90`. The
     most commonly used flags are the `flag_is_initiator` and

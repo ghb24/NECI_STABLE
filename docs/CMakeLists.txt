@@ -20,7 +20,7 @@ if (GIT_SUBMOD_RESULT EQUAL "0")
         OUTPUT
             ${HTML_DOCUMENTATIONS}/index.html
         DEPENDS
-            ../gen_docs.md neci_dev.md neci_user.md # TODO(@Oskar) Add fortran sources as dependencies
+            ../gen_docs.md 01_neci_user.md 02_neci_dev.md # TODO(@Oskar) Add fortran sources as dependencies
         COMMAND
             ${CMAKE_COMMAND} -E make_directory ${HTML_DOCUMENTATIONS} # Create output directory
         COMMAND
@@ -49,13 +49,13 @@ if (PANDOC)
             ${PDF_DOCUMENTATIONS}/neci_user.pdf
             ${PDF_DOCUMENTATIONS}/neci_dev.pdf
         DEPENDS
-            neci_dev.md neci_user.md packages_to_include.tex ${PROJECT_SOURCE_DIR}/tools/create_pdf_doc.sh
+           01_neci_user.md 02_neci_dev.md packages_to_include.tex ${PROJECT_SOURCE_DIR}/tools/create_pdf_doc.sh
         COMMAND
             ${CMAKE_COMMAND} -E make_directory ${PDF_DOCUMENTATIONS} # Create output directory
         COMMAND
-            ${PROJECT_SOURCE_DIR}/tools/create_pdf_doc.sh neci_user.md packages_to_include.tex ${PDF_DOCUMENTATIONS}/neci_user.pdf
+            ${PROJECT_SOURCE_DIR}/tools/create_pdf_doc.sh 01_neci_user.md packages_to_include.tex ${PDF_DOCUMENTATIONS}/neci_user.pdf
         COMMAND
-            ${PROJECT_SOURCE_DIR}/tools/create_pdf_doc.sh neci_dev.md packages_to_include.tex ${PDF_DOCUMENTATIONS}/neci_dev.pdf
+            ${PROJECT_SOURCE_DIR}/tools/create_pdf_doc.sh 02_neci_dev.md packages_to_include.tex ${PDF_DOCUMENTATIONS}/neci_dev.pdf
         WORKING_DIRECTORY
             ${PROJECT_SOURCE_DIR}/docs
         COMMENT
