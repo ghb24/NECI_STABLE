@@ -2,13 +2,15 @@
 
 # Invoke with two arguments
 # First argument: Markdown input file
-# Second argument: PDF output file
+# Second argument Latex Header
+# Third argument: PDF output file
 
 md_input=$1
-pdf_output=$2
+latex_header=$2
+pdf_output=$3
 
 # TODO I'm not sure if there is a better way to do this without just copying it
-tmpfile=/tmp/tmp_reformat_${md_input}
+tmpfile=/tmp/tmp_reformat_neci_doc.md
 cp ${md_input} $tmpfile
 
 
@@ -38,7 +40,7 @@ pandoc \
       -V fontsize=18pt \
       -V numbersections=true \
       --toc \
-      --include-in-header packages_to_include.tex \
+      --include-in-header ${latex_header} \
       --listings \
       "$tmpfile" \
       -o "${pdf_output}" \
