@@ -1,6 +1,6 @@
 ---
 title: Developer's guide to NECI
-author: - Simon Smart, Nick Blunt, Oskar Weser and George Booth
+author: Simon Smart, Nick Blunt, Oskar Weser and George Booth
 ---
 
 [TOC]
