@@ -16,8 +16,6 @@ MODULE System
 
     use constants
 
-    use iso_c_hack
-
     use read_fci, only: FCIDUMP_name, load_orb_perm
 
     use util_mod, only: error_function, error_function_c, &
@@ -36,7 +34,7 @@ MODULE System
 
     use gasci_pchb, only: possible_GAS_singles, GAS_PCHB_singles_generator
 
-    use ParallelHelper, only: iprocindex, root
+    use MPI_wrapper, only: iprocindex, root
 
     use fcimcdata, only: pParallel
 
@@ -1735,7 +1733,7 @@ contains
                 ! In case complex walkers shall be used but not complex basis functions,
                 ! such that the integrals are real and have full symmetry
                 tComplexWalkers_RealInts = .true.
-                t_complex_ints = .false.              
+                t_complex_ints = .false.
 
             case ("SYSTEM-REPLICAS")
                 ! How many copies of the simulation do we want to run in parallel?
@@ -1768,7 +1766,7 @@ contains
 
             case ("HEISENBERG")
                 tHeisenberg = .true.
-               
+
             case("PERMUTE-ORBS")
                 ! Apply a permutation of the orbital indices to the
                 ! ordering given in the FCIDUMP file - only has an

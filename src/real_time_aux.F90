@@ -8,7 +8,7 @@ module real_time_aux
                          CurrentDets, hashindex
     use SystemData, only: nel
     use constants, only: dp, lenof_sign, n_int, iout
-    use ParallelHelper, only: iProcIndex, nNodes, MPIBarrier
+    use MPI_wrapper, only: iProcIndex, nNodes, MPIBarrier
     use Parallel_neci
 
 contains

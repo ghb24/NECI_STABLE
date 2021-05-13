@@ -68,7 +68,7 @@ module hdf5_popsfile
     !     /ilut/             - The bit representations of the determinants
     !     /sgns/             - The occupation of the determinants
 
-    use ParallelHelper
+    use MPI_wrapper
     use Parallel_neci
     use constants
     use hdf5_util
@@ -739,7 +739,6 @@ contains
 
     subroutine write_walkers(parent, MaxEx)
 
-        use iso_c_hack
         use bit_rep_data, only: NIfD, NIfTot, IlutBits, extract_sign
         use FciMCData, only: AllTotWalkers, CurrentDets, MaxWalkersPart, &
                              TotWalkers, iLutHF, Iter, PreviousCycles

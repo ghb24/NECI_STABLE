@@ -1,6 +1,5 @@
 module adi_data
 
-    use iso_c_hack
     use constants
     use FciMCData, only: ll_node
     implicit none

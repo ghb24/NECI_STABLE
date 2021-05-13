@@ -14,6 +14,8 @@ module semi_stoch_procs
 
     use constants
 
+    use util_mod, only: stop_all
+
     use orb_idx_mod, only: SpinOrbIdx_t
 
     use FciMCData, only: SpawnedParts, TotWalkers, CurrentDets, &
@@ -51,7 +53,9 @@ module semi_stoch_procs
 
     use Parallel_neci, only: MPIScatterV
 
-    use ParallelHelper, only: root
+    use MPI_wrapper, only: root, MPI_IN_PLACE, MPI_INTEGER, MPI_INTEGER8, &
+        MPI_COMM_SIZE, MPI_Win_Sync, MPI_Barrier, MPI_2DOUBLE_PRECISION, &
+        MPI_MAXLOC
 
     use sparse_arrays, only: sparse_ham, hamil_diag, HDiagTag
 
@@ -64,7 +68,7 @@ module semi_stoch_procs
     use adi_data, only: tSignedRepAv
 
     use global_det_data, only: set_supergroup_idx
-    
+
     use gasci_supergroup_index, only: lookup_supergroup_indexer
 
     use LoggingData, only: tAccumPopsActive
@@ -563,7 +567,7 @@ contains
 
     subroutine generate_core_connections(rep)
 
-        use DetBitOps, only: FindBitExcitLevel
+        use DetBitOps, only: FindBitExcitLevel, GetBitExcitation
         use Parallel_neci, only: MPIAllGatherV
         type(core_space_t), intent(inout) :: rep
         integer :: i, j, ic, counter, ierr
@@ -655,11 +659,11 @@ contains
         allocate(sizes_per_node(0:num_nodes - 1))
 
         call shared_allocate_mpi(rep%core_space_win, rep%core_space_direct, &
-                                 (/int(1 + NIfTot, int64), int(rep%determ_space_size, int64)/))
+                                 [int(1 + NIfTot, int64), int(rep%determ_space_size, int64)], ierr)
         ! Convert from 1-based first dimension to 0-based first dimension as used in iluts
         rep%core_space(0:, 1:) => rep%core_space_direct(1:, 1:)
         call LogMemAlloc('core_space', maxval(rep%determ_sizes) * (NIfTot + 1), 8, t_r, &
-                         rep%CoreSpaceTag, ierr)
+                         rep%CoreSpaceTag, err=ierr)
         if (iProcIndex_intra == 0) rep%core_space = 0_n_int
 
         ! Write the core-space on this node into core_space
@@ -1044,7 +1048,7 @@ contains
             end do
         end associate
         call sort(CurrentDets(:, 1:nwalkers), ilut_lt, ilut_gt)
-        
+
         TotWalkers = int(nwalkers, int64)
 
     end subroutine add_core_states_currentdets
@@ -1197,7 +1201,7 @@ contains
                         i, lookup_supergroup_indexer%idx_nI(nI))
                 end do
             end if
-            
+
             call clear_hash_table(HashIndex)
 
             ! Finally, add the indices back into the hash index array.
@@ -1625,7 +1629,6 @@ contains
     subroutine start_walkers_from_core_ground(tPrintInfo, run)
         use davidson_semistoch, only: davidson_ss, perform_davidson_ss, destroy_davidson_ss
         use Parallel_neci, only: MPISumAll
-        implicit none
 
         logical, intent(in) :: tPrintInfo
         integer, intent(in) :: run
@@ -1685,7 +1688,6 @@ contains
 
     subroutine start_walkers_from_core_ground_nonhermit(tPrintInfo, run)
         use bit_reps, only: encode_sign
-        implicit none
 
         logical, intent(in) :: tPrintInfo
         integer, intent(in) :: run
