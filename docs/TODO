@@ -3,12 +3,11 @@ Large Technical:
   - Find better way for new line character @Oskar
   - Embed into cmake @Oskar
 
-  - correkt backticks in user dev @Philip
-
-  - citation to papers, if possible?
-  - cross references between docs, or even better between docs and code possible?
+  - citation to papers, if possible? BibTex Style   @Philip
 
   - Break single file into pieces **AND** write script to automatically join. @Philip
+
+  ( - cross references between docs, or even better between docs and code possible?)
 
 
 Large Content:
