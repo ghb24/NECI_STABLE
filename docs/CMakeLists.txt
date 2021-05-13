@@ -49,7 +49,7 @@ if (PANDOC)
             ${PDF_DOCUMENTATIONS}/neci_user.pdf
             ${PDF_DOCUMENTATIONS}/neci_dev.pdf
         DEPENDS
-            neci_dev.md neci_user.md packages_to_include.tex
+            neci_dev.md neci_user.md packages_to_include.tex ${PROJECT_SOURCE_DIR}/tools/create_pdf_doc.sh
         COMMAND
             ${CMAKE_COMMAND} -E make_directory ${PDF_DOCUMENTATIONS} # Create output directory
         COMMAND

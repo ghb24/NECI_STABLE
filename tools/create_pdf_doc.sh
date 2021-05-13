@@ -30,6 +30,9 @@ sed -i 's/@todo/\\verbatimLaTeX\{\\begin\{todo\}\}/g' $tmpfile
 sed -i 's/@endbug/\\verbatimLaTeX\{\\end\{bug\}\}/g' $tmpfile
 sed -i 's/@bug/\\verbatimLaTeX\{\\begin\{bug\}\}/g' $tmpfile
 
+# replace ford markdown newline with pandoc newline
+sed -i 's/<br>$/\\/g' $tmpfile
+
 # replace html colour commands with latex colour commands
 sed -i 's/<span style="color: \([^<]*\)">\([^<]*\)<\/span>/\\textcolor{\1}{\2}/g' $tmpfile
 

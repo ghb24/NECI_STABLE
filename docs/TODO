@@ -1,7 +1,7 @@
 Large Technical:
   - Correct title Dev doc @Oskar
-  - Find better way for new line character @Oskar
-  - Embed into cmake @Oskar
+
+  - move gen_docs to docs/
 
   - citation to papers, if possible? BibTex Style   @Philip
 
