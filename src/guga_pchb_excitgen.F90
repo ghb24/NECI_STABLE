@@ -311,7 +311,7 @@ contains
 
     end subroutine store_pchb_analysis
 
-! **************** analysis functions (to be removed after optimization) ******
+! **************** GUGA-pchb analysis functions ****************************
 
     subroutine setup_invalid_table(this, nEntries, entrySize)
         class(GugaAliasSampler_t) :: this

@@ -64,9 +64,7 @@ contains
         t_full_guga_tests = .true.
 
         t_pchb_weighted_singles = .false.
-        t_pchb_excitgen = .true.
-!         tGen_sym_guga_mol = .true.
-!         tgen_guga_weighted = .true.
+        t_guga_pchb = .true.
         tdeferred_umat2d = .true.
         tumat2d = .false.
 

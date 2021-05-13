@@ -13,7 +13,6 @@ module local_spin
                            all_norm_psi_squared
       use util_mod, only: get_free_unit, near_zero, stats_out
 
-
       implicit none
 
       private
@@ -25,16 +24,14 @@ module local_spin
 
       real(dp), allocatable :: inst_local_spin(:), all_local_spin(:)
 
-
 contains
 
     subroutine measure_local_spin(real_sgn)
         real(dp), intent(in) :: real_sgn(lenof_sign)
-
         real(dp) :: coeff, loc_spin(nSpatOrbs)
-
 #if defined PROG_NUMRUNS_ || defined DOUBLERUN_
 #ifdef CMPLX_
+        character(*), parameter :: this_routine = "measure_local_spin"
         ! i do not want to deal with complex runs for now..
         call stop_all(this_routine, &
                       "complex double occupancy measurement not yet implemented!")
