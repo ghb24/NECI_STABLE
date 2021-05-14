@@ -1683,7 +1683,10 @@ contains
                         write(iout,"(I7)") GlobalProc(i)
                     end if
                 end do
-
+                ! Keep the reference weight in a separate output variable
+                ! which can be accessed from the library wrappers
+                call extract_sign(GlobalLargestWalkers(:,1),SignCurr)
+                fciqmc_run_ref_weight = SignCurr(1)
                 if(tHPHF) then
                     write(iout,"(A)") " * = Spin-coupled function implicitly has time-reversed determinant with same weight."
                 end if
