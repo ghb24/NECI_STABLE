@@ -16,7 +16,7 @@ MODULE System
 
     use constants
 
-    use read_fci, only: FCIDUMP_name
+    use read_fci, only: FCIDUMP_name, load_orb_perm
 
     use util_mod, only: error_function, error_function_c, &
                         near_zero, operator(.isclose.), get_free_unit, operator(.div.)
@@ -1766,6 +1766,22 @@ contains
 
             case ("HEISENBERG")
                 tHeisenberg = .true.
+
+            case("PERMUTE-ORBS")
+                ! Apply a permutation of the orbital indices to the
+                ! ordering given in the FCIDUMP file - only has an
+                ! effect when reading an FCIDUMP file, has no effect for
+                ! hubbard/heisenberg/ueg systems etc
+                block
+                  integer :: buf(1000)
+                  integer :: n_orb
+                  n_orb = 0
+                  do while (item < nitems)
+                      n_orb = n_orb + 1
+                      call readi(buf(n_orb))
+                  end do
+                  call load_orb_perm(buf(1:n_orb))
+                end block
 
             case ("GIOVANNIS-BROKEN-INIT")
                 ! Giovanni's scheme for initialising determinants with the correct

@@ -1956,4 +1956,59 @@ calculation, which is one measure of the accuracy of the RDMs.  Also printed by 
 	More information (including example plots, similar to those that
 	\code{blocking.py} produces) is available at JCP 91, 461.
 
+\section{Using the NECI pylib}
+
+A python frontend is available in the \code{neci_guga} python library, which
+is based on the \code{neci} build target (i.e. plain neci, without complex
+or multi-replica support) and is built by executing
+\begin{lstlisting}[gobble=2]
+  make neci_guga_pylib
+\end{lstlisting}
+in the neci build directory. This will create a python3 library
+\code{neci_guga.<build-specifier>.so}, which is installed in the
+\code{python/} subdirectory of the neci build directory.
+
+To use it, load the \code{python} subdirectory of the neci build directory
+into the library path of python, either by
+\begin{lstlisting}[gobble=2]
+  export PYTHONPATH=<neci_build>/python:$PYTHONPATH
+\end{lstlisting}
+or by adding
+\begin{lstlisting}[gobble=2]
+  import sys
+  sys.path.append('<neci_build>/python')
+\end{lstlisting}
+to the calling python module or script.
+
+The \code{neci_guga} python module can then be loaded in calling python code
+with \code{import neci_guga} and provides the following functionality:
+
+\begin{description}
+  \codeitem{neci\_guga.init\_guga(S)}
+  Takes the desired total spin \code{S} and initializes the GUGA functionality
+  of neci by reading in an existing FCIDUMP file. 
+
+  \codeitem{neci\_guga.clear\_guga()}
+  Clears all memory and deletes all objects initialized by \code{init_guga},
+  returns 0 on success, 1 else.
+
+  \codeitem{neci\_guga.diag\_matel(D)}
+  Returns the diagonal matrix element of a CSF \code{D}, passed as an array
+  of the size of the number of electrons.
+
+  \codeitem{neci\_guga.run\_neci(perm)}
+  Reads a neci input file \code{neci.inp} and an FCIDUMP file in the current
+  directory, using an orbital permutation \code{perm} to re-order the orbitals
+  used for the calculation (with respect to the FCIDUMP file). Then, a neci
+  calculation with the specified input is run and the weight of the leading
+  CSF is returned.
+  The permutation is given by specifying the new position for each orbital,
+  i.e. a permutation
+  \begin{lstlisting}[gobble=4]
+    perm = [3,4,2,1]
+  \end{lstlisting}
+  would put orbital 1 in the third position, orbital 2 in the fourth position,
+  orbital 3 in the second position and orbital 4 in the first position.
+\end{description}
+
 \end{document}

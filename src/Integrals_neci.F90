@@ -47,7 +47,9 @@ module Integrals_neci
                                   init_hopping_transcorr
 
     use tc_three_body_data, only: tHDF5LMat, &
-                                  tSparseLMat, tLMatCalc, LMatCalcHFactor, tSymBrokenLMat
+        tSparseLMat, tLMatCalc, LMatCalcHFactor, tSymBrokenLMat
+
+    use read_fci, only: clear_orb_perm
     implicit none
 
 contains
@@ -879,6 +881,8 @@ contains
             LogDealloc(tagFrozenMap)
             deallocate(frozen_orb_reverse_map)
         end if
+
+        call clear_orb_perm()
 
     end subroutine
 

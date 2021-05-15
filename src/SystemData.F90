@@ -1,6 +1,6 @@
 module SystemData
 
-    use constants, only: n_int, int64, dp
+    use constants, only: n_int, int64, dp, NEL_UNINITIALIZED
     use MemoryManager, only: TagIntType
 
     implicit none
@@ -72,7 +72,7 @@ module SystemData
     integer :: AA_hole_pairs, BB_hole_pairs, par_hole_pairs, AB_hole_pairs
     integer :: hole_pairs, nholes_a, nholes_b, nholes
 
-    integer :: nEl             ! Number of (non-frozen) electrons in the system
+    integer :: nEl = NEL_UNINITIALIZED             ! Number of (non-frozen) electrons in the system
     integer :: Stot            ! Restrict S to Stot when using CSFs
     integer :: LMS             ! Restrict determinants/CSFs to Ms == LMS
 
