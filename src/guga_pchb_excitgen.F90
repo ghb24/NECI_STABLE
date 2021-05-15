@@ -88,6 +88,8 @@ module guga_pchb_excitgen
         procedure :: setup_info_table
         procedure :: setup_entry_info
         procedure :: info_table_destructor
+
+        ! made public for unit_tests:
         procedure, public :: get_info
 
         ! for analysis (will be removed after optimization)
