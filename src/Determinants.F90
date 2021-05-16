@@ -26,7 +26,7 @@ MODULE Determinants
     use guga_data, only: ExcitationInformation_t
 
     use lattice_mod, only: get_helement_lattice
-    use util_mod, only: NECI_ICOPY
+    use util_mod, only: NECI_ICOPY, operator(.div.)
     use SymData , only : nSymLabels,SymLabelList,SymLabelCounts,TwoCycleSymGens
     use sym_mod
 
@@ -765,14 +765,14 @@ contains
        if(lTerm) write(iUnit,*)
     end subroutine write_bit_rep
 
-    subroutine get_lexicographic_dets (ilut_src, store, ilut_gen) !, det)
+    subroutine get_lexicographic_dets (ilut_src, store, ilut_gen)
+
 
         integer(n_int), intent(in) :: ilut_src(0:NIfTot)
         type(lexicographic_store), intent(inout) :: store
         integer(n_int), intent(out), optional :: ilut_gen(0:NIfTot)
-        !integer, intent(out), optional :: det(nel)
 
-        integer :: i, nfound, orb, clro, j
+        integer :: i, nfound, orb, clro
         integer(n_int) :: ilut_tmp(0:NIfTot)
 
         ! If we haven't initialised the generator, do that now.
@@ -794,9 +794,7 @@ contains
             ilut_tmp = spatial_bit_det(ilut_src)
             do i = 1, nbasis-1, 2
                 if (IsOcc(ilut_tmp, i)) then
-                    ! debug werror workaround
-                    j = i + 1
-                    if (.not.(IsOcc(ilut_tmp, j))) then
+                    if (.not.(IsOcc(ilut_tmp, i))) then
                         nfound = nfound + 1
                         store%open_orbs(nfound) = i
                         if (nfound == store%nopen) exit
@@ -1076,6 +1074,7 @@ END MODULE Determinants
          use SystemData,only: nBasis
          use bit_reps, only: nIfTot
          use constants, only: n_int,bits_n_int
+         use util_mod, only: operator(.div.)
          implicit none
          integer, intent(in) :: nUnit
          integer(kind=n_int), intent(in) :: iLutnI(0:NIfTot)

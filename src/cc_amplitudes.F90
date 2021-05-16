@@ -12,7 +12,7 @@ module cc_amplitudes
     use replica_data, only: AllEXLEVEL_WNorm
     use back_spawn, only: setup_virtual_mask, mask_virt_ni
     use hash, only: hash_table_lookup, FindWalkerHash
-    use util_mod, only: swap, binomial => choose
+    use util_mod, only: swap, binomial => choose, operator(.div.)
     use bit_rep_data, only: nifd
     use MPI_wrapper, only: iProcIndex, root
     use Parallel_neci, only: MPISumAll, MPIReduce, MPI_SUM, MPI_LOR, MPIAllLorLogical

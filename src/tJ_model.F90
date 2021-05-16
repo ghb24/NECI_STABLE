@@ -27,7 +27,7 @@ module tJ_model
 
     use umatcache, only: gtid
 
-    use util_mod, only: binary_search_first_ge
+    use util_mod, only: binary_search_first_ge, operator(.div.)
 
     use OneEInts, only: GetTMatEl, tmat2d
 

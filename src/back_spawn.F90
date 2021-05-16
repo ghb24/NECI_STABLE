@@ -32,6 +32,8 @@ module back_spawn
 
     use lattice_models_utils, only: get_orb_from_kpoints, get_ispn
 
+    use util_mod, only: operator(.div.)
+
     implicit none
 
     ! i need a list to indicate the virtual orbitals in the reference

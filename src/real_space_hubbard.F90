@@ -51,7 +51,8 @@ module real_space_hubbard
     use bit_rep_data, only: NIfTot, nifd, nifguga
 
     use util_mod, only: binary_search_first_ge, choose, swap, get_free_unit, &
-                        binary_search, near_zero, operator(.isclose.)
+                        binary_search, near_zero, operator(.isclose.), &
+                        operator(.div.)
 
     use bit_reps, only: decode_bit_det
 
@@ -1423,9 +1424,7 @@ contains
                 n_spatial_hole = 0
                 do i = 1, nBasis / 2
                     ! gfortran debug -werror compilation workaround (integer-division)
-                    associate(j => 2 * i - 1, k => 2 * i)
-                    if (IsOcc(ilutI, j) .or. IsOcc(ilutI, k)) cycle
-                    end associate
+                    if (IsOcc(ilutI, 2 * i - 1) .or. IsOcc(ilutI, 2 * i)) cycle
                     n_spatial_hole = n_spatial_hole + 1
                     ind_spatial_hole(n_spatial_hole) = 2 * i - 1
                 end do

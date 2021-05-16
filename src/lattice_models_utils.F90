@@ -8,7 +8,7 @@ module lattice_models_utils
     use constants, only: dp, n_int, bits_n_int, eps, pi, lenof_sign
 
     use util_mod, only: binary_search, binary_search_first_ge, choose, swap, &
-                        operator(.isclose.)
+                        operator(.isclose.), operator(.div.)
 
     use sort_mod, only: sort
 
