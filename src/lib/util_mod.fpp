@@ -589,7 +589,7 @@ contains
     elemental integer(int32) function div_int32(a, b)
         integer(int32), intent(in) :: a, b
 #ifdef WARNING_WORKAROUND_
-        div_int32 = nint(real(a, kind=sp) / real(b, kind=sp), kind=int32)
+        div_int32 = int(real(a, kind=sp) / real(b, kind=sp), kind=int32)
 #else
         div_int32 = a / b
 #endif
@@ -598,7 +598,7 @@ contains
     elemental integer(int64) function div_int64(a, b)
         integer(int64), intent(in) :: a, b
 #ifdef WARNING_WORKAROUND_
-        div_int64 = nint(real(a, kind=dp) / real(b, kind=dp), kind=int64)
+        div_int64 = int(real(a, kind=dp) / real(b, kind=dp), kind=int64)
 #else
         div_int64 = a / b
 #endif
