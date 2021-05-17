@@ -1496,7 +1496,8 @@ contains
                 contrib_sign = 0.0_dp
                 do istate = 1, en_pert_main%sign_length
                     if (pert_contrib(istate)) then
-                        contrib_sign(istate) = SpawnedSign(2 * istate - 1) * SpawnedSign(2 * istate) / (tau**2)
+                        contrib_sign(istate) = SpawnedSign(2 * istate - 1) &
+                            * SpawnedSign(2 * istate) / (tau**2)
                     end if
                 end do
 

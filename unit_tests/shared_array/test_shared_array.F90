@@ -13,7 +13,6 @@ contains
     subroutine test_large_array()
         ! The maximum number of int64 that fit in an array,
         ! that is indexed with uint32_t (32bit system). (4Gb limit)
-        integer(int64), parameter :: max_size = 2_int64**32 / sizeof(1_int64)
         integer(int64) :: i
         integer(MPIArg) :: ierr
         type(shared_array_int64_t) :: shared_arr
@@ -21,7 +20,6 @@ contains
         write(iout, *) 'modify the source of test_shared_array.F90 '
         write(iout, *) 'if you want to test if MPI supports 64bit indexed shared arrays.'
         write(iout, *) 'We had to switch the test off, otherwise the unit tests take too long.'
-!         call shared_arr%shared_alloc(max_size + 100_int64)
         call shared_arr%shared_alloc(5_int64)
 
         if (iProcIndex_intra == 0) then

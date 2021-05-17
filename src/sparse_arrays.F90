@@ -422,7 +422,6 @@ contains
         integer :: i, j, row_size, counter, ierr
         integer :: nI(nel), nJ(nel)
         integer(n_int), allocatable, dimension(:, :) :: temp_store
-!         integer, allocatable :: temp_store_nI(:,:)
         integer(TagIntType) :: HRTag, TempStoreTag
         HElement_t(dp), allocatable, dimension(:) :: hamiltonian_row
 
@@ -445,7 +444,6 @@ contains
         allocate(rep%core_ham_diag(rep%determ_sizes(iProcIndex)), stat=ierr)
         allocate(temp_store(0:NIfTot, rep%determ_space_size), stat=ierr)
         call LogMemAlloc('temp_store', rep%determ_space_size * (NIfTot + 1), 8, this_routine, TempStoreTag, ierr)
-!         safe_realloc_e(temp_store_nI, (nel, rep%determ_space_size), ierr)
 
         ! Stick together the deterministic states from all processors, on
         ! all processors.
@@ -453,16 +451,12 @@ contains
         call MPIAllGatherV(SpawnedParts(0:NIfTot, 1:rep%determ_sizes(iProcIndex)), &
                            temp_store(0:niftot, 1:), rep%determ_sizes, rep%determ_displs)
 
-!         do i = 1, rep%determ_space_size
-!             call decode_bit_det(temp_store_nI(:,i), temp_store(:,i))
-!         end do
 
         ! Loop over all deterministic states on this processor.
         do i = 1, rep%determ_sizes(iProcIndex)
 
-            ilutI = SpawnedParts(:, i)
+            ilutI = SpawnedParts(0:niftot, i)
             call decode_bit_det(nI, IlutI)
-!             nI = temp_store_nI(:, i + rep%determ_displs(iProcIndex))
 
             row_size = 0
             hamiltonian_row = 0.0_dp
@@ -474,10 +468,8 @@ contains
 
                 ilutJ = temp_store(:, j)
                 call decode_bit_det(nJ, ilutJ)
-!                 nJ = temp_store_nI(:,j)
 
                 ! If on the diagonal of the Hamiltonian.
-!                 if (all(SpawnedParts(0:nifd, i) == temp_store(0:nifd, j) )) then
                 if (DetBitEq(IlutI, ilutJ, nifd)) then
                     if (tHPHF) then
                         hamiltonian_row(j) = hphf_diag_helement(nI, IlutI) - Hii

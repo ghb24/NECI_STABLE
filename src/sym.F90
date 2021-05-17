@@ -1240,8 +1240,10 @@ contains
 !   now work out which reps are degenerate and label them
         allocate(SymReps(2, nBasis))
         call LogMemAlloc('SymReps', 2 * nBasis, 4, this_routine, tagSymReps)
-        symreps(1,1) = 1
+
         symreps(2,1) = 1
+        symreps(1,1) = 1
+
         J = 1
         DO I = 2, NBASIS
             ltmp = .false.

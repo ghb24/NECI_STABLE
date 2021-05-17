@@ -1,10 +1,6 @@
 #ifndef MACROS_INCLUDEGUARD_
 #define MACROS_INCLUDEGUARD_
 
-#define DELEGATED_STR(x) #x
-#define STR(x) DELEGATED_STR(x)
-#define AT __FILE__//":"//STR(__LINE__)
-
 #define LogAlloc(ERR,NAME,LEN,SIZE,TAG) CALL LogMemAlloc(NAME,LEN,SIZE,this_routine,TAG)
 #define LogDealloc(TAG) CALL LogMemDealloc(this_routine,TAG)
 #define log_dealloc(tag) LogDealloc(tag)
@@ -262,6 +258,8 @@ endif
 #define debug_function_name(name)
 #endif
 
+#define routine_name(name) character(*), parameter :: this_routine = name
+#define test_name(name) character(*), parameter :: test_name = name
 
 
 ! This should be the last end if

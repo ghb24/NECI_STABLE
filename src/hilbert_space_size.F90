@@ -408,14 +408,6 @@ contains
         LOGICAL :: tNotAllowed, tAcc
         type(Symmetry) :: FDetKPntMom, KPntMom
 
-!         IF((.not.TwoCycleSymGens).and.(.not.tUEG).and.(.not.tHub)) THEN
-!             write(IUNIT,*) "Only for molecular abelian symmetry "      &
-!            //" calculations can the exact size of the determinant "    &
-!            //" space be calculated currently..."
-!             write(IUNIT,*) "Skipping size of space calculation..."
-!             RETURN
-!         end if
-
         write(IUNIT, *) "Calculating exact size of symmetry-allowed " &
             //"determinant space using MC..."
         write(IUNIT, *) CalcDetCycles, " MC cycles will be used, and " &
@@ -535,12 +527,6 @@ contains
                     ExcitLev = ExcitLev + 1
                 end if
 
-                !Test
-!                 IF((alpha.lt.2).or.(alpha.gt.nBasis)) THEN
-!                     CALL Stop_All("FindSymMCSizeofSpace","Error "      &
-!     &                   //"calculating whether determinant is allowed")
-!                 end if
-
             end do
 
             !Loop over beta electrons
@@ -574,12 +560,6 @@ contains
                     !orbital chosen is *not* in the reference determinant
                     ExcitLev = ExcitLev + 1
                 end if
-
-                !Test
-!                 IF((beta.lt.1).or.(beta.gt.(nBasis-1))) THEN
-!                     CALL Stop_All("FindSymMCSizeofSpace","Error "      &
-!     &                   //"calculating whether determinant is allowed")
-!                 end if
 
             end do
 
@@ -633,118 +613,6 @@ contains
             end if
 
             if (tAcc) Accept = Accept + 1
-
-!             tAcc=.false.
-!             IF(TotalSym.eq.FDetSym) THEN
-!             !Allow/disallow the determinant
-!                 IF(tHPHF) THEN
-!                     IF(IsAllowedHPHF(iLut)) THEN
-!                         IF(tFixLz) THEN
-!                             IF(TotalMom.eq.FDetMom) THEN
-!                                 IF(truncate_space) THEN
-!                                     IF(ExcitLev.le.ICILevel) THEN
-!                                         Accept=Accept+1
-!                                         tAcc=.true.
-!                                     end if
-!                                 ELSE
-!                                     Accept=Accept+1
-!                                     tAcc=.true.
-!                                 end if
-!                             end if
-!                         ELSE
-!                             IF(truncate_space) THEN
-!                                 IF(ExcitLev.le.ICILevel) THEN
-!                                     IF(tUEG.or.tHub) THEN
-!                                         IF((Momx.eq.0).and.(Momy.eq.0).and.(Momz.eq.0)) THEN
-!                                            Accept=Accept+1
-!                                            tAcc=.true.
-!                                         end if
-!                                     ELSE
-!                                         if(tKPntSym) then
-!                                             if(KPntMom%S.eq.FDetKPntMom%S) then
-!                                                 Accept=Accept+1
-!                                                 tAcc=.true.
-!                                             end if
-!                                         else
-!                                             Accept=Accept+1
-!                                             tAcc=.true.
-!                                         end if
-!                                     end if
-!                                 end if
-!                             ELSE
-!                                 IF(tUEG.or.tHub) THEN
-!                                     IF((Momx.eq.0).and.(Momy.eq.0).and.(Momz.eq.0)) THEN
-!                                        Accept=Accept+1
-!                                        tAcc=.true.
-!                                     end if
-!                                 ELSE
-!                                     if(tKPntSym) then
-!                                         if(KPntMom%S.eq.FDetKPntMom%S) then
-!                                             Accept=Accept+1
-!                                             tAcc=.true.
-!                                         end if
-!                                     else
-!                                         Accept=Accept+1
-!                                         tAcc=.true.
-!                                     end if
-!                                 end if
-!                             end if
-!                         end if
-!                     end if
-!                 ELSE
-!                     IF(tFixLz) THEN
-!                         IF(TotalMom.eq.FDetMom) THEN
-!                             IF(truncate_space) THEN
-!                                 IF(ExcitLev.le.ICILevel) THEN
-!                                     Accept=Accept+1
-!                                     tAcc=.true.
-!                                 end if
-!                             ELSE
-!                                 Accept=Accept+1
-!                                 tAcc=.true.
-!                             end if
-!                         end if
-!                     ELSE
-!                         IF(truncate_space) THEN
-!                             IF(ExcitLev.le.ICILevel) THEN
-!                                 IF(tUEG.or.tHub) THEN
-!                                     IF((Momx.eq.0).and.(Momy.eq.0).and.(Momz.eq.0)) THEN
-!                                        Accept=Accept+1
-!                                        tAcc=.true.
-!                                     end if
-!                                 ELSE
-!                                     if(tKPntSym) then
-!                                         if(KPntMom%S.eq.FDetKPntMom%S) then
-!                                             Accept=Accept+1
-!                                             tAcc=.true.
-!                                         end if
-!                                     else
-!                                         Accept=Accept+1
-!                                         tAcc=.true.
-!                                     end if
-!                                 end if
-!                             end if
-!                         ELSE
-!                             IF(tUEG.or.tHub) THEN
-!                                 IF((Momx.eq.0).and.(Momy.eq.0).and.(Momz.eq.0)) THEN
-!                                    Accept=Accept+1
-!                                    tAcc=.true.
-!                                 end if
-!                             ELSE
-!                                 if(tKPntSym) then
-!                                     if(KPntMom%S.eq.FDetKPntMom%S) then
-!                                         Accept=Accept+1
-!                                         tAcc=.true.
-!                                     end if
-!                                 else
-!                                     Accept=Accept+1
-!                                     tAcc=.true.
-!                                 end if
-!                             end if
-!                         end if
-!                     end if
-!                 end if
-!             end if
 
             IF (tAcc) THEN
 !Add to correct bin for the excitation level
@@ -827,14 +695,6 @@ contains
         real(dp) :: Space, SpaceGrow
         LOGICAL :: Sym(0:7)
 
-!         IF(.not.TwoCycleSymGens) THEN
-!             write(IUNIT,*) "Only for molecular abelian symmetry "      &
-!            //" calculations can the exact size of the determinant "    &
-!            //" space be calculated currently..."
-!             write(IUNIT,*) "Skipping size of space calculation..."
-!             RETURN
-!         end if
-
         write(IUNIT, *) "Calculating exact size of symmetry-allowed determinant space..."
         FDetSym = 0
         do i = 1, NEl
@@ -856,10 +716,8 @@ contains
         end do
         do i = 0, 7
             IF (mod((ClassCounts(1, i) + ClassCounts(2, i)), 2) /= 0) THEN
-!                 call stop_all(this_routine, 'Error counting determinants')
                 write(6, *) 'WARNING: Different number of symmetries between the alpha and beta orbitals.'
             end if
-!             ClassCounts(i)=ClassCounts(i)/2
         end do
 
         Lima(0) = min(nOccAlpha, ClassCounts(1, 0))
@@ -880,9 +738,6 @@ contains
         Limb(7) = min(nOccBeta, ClassCounts(2, 7))
         Space = 0.0_dp
 
-!         write(6,*) ClassCounts(:)
-!         write(6,*) "***"
-!         write(6,*) Lima(:),Limb(:)
 
 !Loop over each irrep twice, once for alpha electrons and once for beta.
         do a0 = 0, Lima(0)
@@ -1061,7 +916,6 @@ contains
         ClassCountsOcc(i) = FLOOR(REAL(ClassCountsOcc(i), dp) / 2.0_dp)
         ClassCountsVirt(i) = FLOOR(REAL(ClassCountsVirt(i), dp) / 2.0_dp)
 
-!         ClassCounts(i)=ClassCounts(i)/2
         end do
 
         IF (nOccAlpha > nOccBeta) THEN

@@ -396,8 +396,10 @@ module SystemData
     logical :: t_pchb_excitgen = .false.
     logical :: t_pchb_weighted_singles = .false.
 
-! flag for the impurity excitation generator
-logical :: t_impurity_excitgen = .false.
+    logical :: t_guga_pchb = .false.
+
+    ! flag for the impurity excitation generator
+    logical :: t_impurity_excitgen = .false.
 
 ! also implement a next-nearest neighbor Hubbard model implementation:
 ! for k-space hubbard, this only affects the diagonal part!
@@ -419,6 +421,17 @@ logical :: t_impurity_excitgen = .false.
 
 ! flag for anti-periodic BCs in the real-space Hubbard implementation
     logical :: t_anti_periodic(2) = .false.
+
+
+! test-flags for guga-pchb testing
+    logical :: t_old_pchb = .false.
+    logical :: t_exchange_pchb = .false.
+    logical :: t_analyze_pchb = .false.
+
+
+    logical :: t_bipartite_order = .false.
+    logical :: t_input_order = .false.
+    integer, allocatable :: orbital_order(:)
 
 ! Operators for type(symmetry)
     interface assignment(=)

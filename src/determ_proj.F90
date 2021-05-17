@@ -81,8 +81,9 @@ contains
 
             do i = 1, rep%determ_sizes(iProcIndex)
                 do j = 1, rep%sparse_core_ham(i)%num_elements
-                    ham_times_hf(i) = ham_times_hf(i) + &
-                                      rep%sparse_core_ham(i)%elements(j) * rep%full_determ_vecs(1, rep%sparse_core_ham(i)%positions(j))
+                    ham_times_hf(i) = ham_times_hf(i) &
+                        + real(rep%sparse_core_ham(i)%elements(j) &
+                         * rep%full_determ_vecs(1, rep%sparse_core_ham(i)%positions(j)), dp)
                 end do
             end do
 
@@ -183,8 +184,9 @@ contains
 
             do i = 1, rep%determ_sizes(iProcIndex)
                 do j = 1, rep%sparse_core_ham(i)%num_elements
-                    ham_times_hf(i) = ham_times_hf(i) + &
-                                      rep%sparse_core_ham(i)%elements(j) * rep%full_determ_vecs(1, rep%sparse_core_ham(i)%positions(j))
+                    ham_times_hf(i) = ham_times_hf(i) &
+                        + real(rep%sparse_core_ham(i)%elements(j) &
+                         * rep%full_determ_vecs(1, rep%sparse_core_ham(i)%positions(j)), dp)
                 end do
             end do
 

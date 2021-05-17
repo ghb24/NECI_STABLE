@@ -40,8 +40,8 @@ program test_guga
     use util_mod, only: operator(.isclose.), near_zero, operator(.div.), &
                         binary_search
     use sort_mod, only: sort
-    use unit_test_helper_excitgen, only: generate_uniform_integrals
     use rdm_data_utils, only: calc_combined_rdm_label, calc_separate_rdm_labels
+    use fruit_extensions, only: my_run_test_case
 
     implicit none
 
@@ -105,7 +105,7 @@ contains
         call assert_equals(1, i)
         call assert_equals(1, j)
 
-        ij = contract_1_rdm_ind(1,2)
+        ij = int(contract_1_rdm_ind(1,2))
         call extract_molcas_1_rdm_index(ij,i,j)
         call assert_equals(2,i)
         call assert_equals(1,j)
@@ -122,8 +122,7 @@ contains
 
     subroutine test_contract_extract_2_rdm_molcas
 
-        integer :: i, j, k, l, ij, kl, ij_, kl_, ijkl, ijkl_
-
+        integer :: i, j, k, l, ij, kl, ijkl
         print *, ""
         print *, "testing: contract/extract 2-RDM molcas style rdm index"
         ijkl = contract_molcas_2_rdm_index(1,1,1,1)
@@ -219,7 +218,7 @@ contains
         integer(n_int) :: ilut(0:GugaBits%len_tot), t(0:GugaBits%len_tot), &
                           ilutJ(0:GugaBits%len_tot)
         real(dp) :: pgen, mat_ex
-        integer :: nI(4), nex, pos, dummy(2), i, j, cnt
+        integer :: nI(4), nex, pos, i, j, cnt
         HElement_t(dp) :: mat_ele
         integer(n_int), allocatable :: ex(:,:)
         type(ExcitationInformation_t) :: excitInfo
@@ -291,7 +290,6 @@ contains
         call assert_true(excitInfo%typ == excit_type%double_L_to_R_to_L)
         call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
         call calcDoubleL2R2L_stochastic(ilut,excitInfo,t,pgen,posSwitches,negSwitches)
-        ! call createStochasticExcitation_double(ilut, nI, t, pgen, dummy)
         call assert_true(compFlag)
         call assert_true(all(calcStepVector(t) == [1,3,0,2]))
 
@@ -343,7 +341,7 @@ contains
     subroutine test_transfer_stochastic_rdm_info
         integer(n_int) :: ilutG(0:GugaBits%len_tot), ilutG2(0:GugaBits%len_tot)
         integer(n_int) :: ilutN(0:IlutBits%len_tot), ilutN2(0:IlutBits%len_tot)
-        integer(n_int) :: ilutP(0:IlutBitsParent%len_tot), ilutP2(0:IlutBitsParent%len_tot)
+        integer(n_int) :: ilutP(0:IlutBitsParent%len_tot)
         integer(int_rdm) :: rdm_ind
         real(dp) :: x0, x1
 
@@ -585,7 +583,7 @@ contains
 
         integer, allocatable :: nI(:)
         integer(n_int) :: ilutI(0:nifguga), ilutJ(0:nifguga)
-        integer :: n_tot, n, m, i, j, k, l, o
+        integer :: n_tot, n, m
         integer(n_int), allocatable :: excits(:,:)
         integer(int_rdm) :: rdm_ind_1
         real(dp) :: rdm_mat_1
@@ -868,11 +866,9 @@ contains
     subroutine test_calc_explicit_diag_2_rdm_guga
 
         integer(n_int) :: ilut(0:nifguga)
-        integer :: n_tot, i, j, k, l, iEx
+        integer :: n_tot, i, j, k, l
         integer(n_int), allocatable :: excits(:,:)
-        real(dp) :: rdm_mat
         integer(int_rdm) :: rdm_ind
-        integer, allocatable :: nJ(:)
 
         print *, ""
         print *, "testing: calc_explicit_diag_2_rdm_guga"
@@ -1078,8 +1074,6 @@ contains
 
         integer :: n_tot
         integer(n_int), allocatable :: excits(:,:)
-        integer, allocatable :: nJ(:)
-        real(dp) :: rdm_mat
         integer(int_rdm) :: rdm_ind
         integer :: i, j, k, l, cnt, n
         integer(n_int) :: ilut(0:nifguga)
@@ -1201,7 +1195,7 @@ contains
     subroutine test_calc_all_excits_guga_rdm_doubles
 
         integer(n_int) :: ilut(0:nifguga)
-        integer :: n_excits, i, j, k, l, iEx
+        integer :: n_excits, i, j, k, l
         integer(n_int), allocatable :: excits(:,:)
         integer, allocatable :: nJ(:)
         real(dp) :: rdm_mat
@@ -1586,7 +1580,6 @@ contains
     end subroutine test_calc_all_excits_guga_rdm_singles
 
     subroutine test_guga_bitRepOps
-        character(*), parameter :: this_routine = "test_guga_bitRepOps"
 
         print *, ""
         print *, "testing functions from module: guga_bitRepOps"
@@ -1627,14 +1620,183 @@ contains
         call run_test_case(test_contract_extract_2_rdm_molcas, &
             "test_contract_extract_2_rdm_molcas")
 
+        call my_run_test_case(encode_excit_info_type_test, &
+            "encode_excit_info_type_test", "encode_excit_info_type")
+
+        call my_run_test_case(extract_excit_info_type_test, &
+            "extract_excit_info_type_test", "extract_excit_info_type")
+
+        call my_run_test_case(encode_extract_excit_info_indices, &
+            "encode_extract_excit_info_indices", &
+            "encode_excit_info_indices() and extract_excit_info_indices")
+
+
+        call my_run_test_case(encode_and_extract_excit_info_test, &
+            "encode_and_extract_excit_info_test", &
+            "encode_excit_info_scalar(), encode_excit_info_vec(), &
+            & encode_excit_info_type(), extract_excit_info_obj(), &
+            & extract_excit_info_scalar() and extract_excit_info_vec")
+
+
         print *, ""
         print *, "guga_bitRepOps tests passed!"
         print *, ""
 
     end subroutine test_guga_bitRepOps
 
+    subroutine encode_extract_excit_info_indices
+        integer(int64) :: excit_info_int
+        integer :: a, i, b, j, vec(4)
+
+        call encode_excit_info_indices(excit_info_int, 1, 2, 3, 4)
+        call extract_excit_info_indices(excit_info_int, a, i, b, j)
+        call extract_excit_info_indices(excit_info_int, vec)
+        call assert_equals(1, a)
+        call assert_equals(2, i)
+        call assert_equals(3, b)
+        call assert_equals(4, j)
+        call assert_equals([1,2,3,4], vec, 4)
+
+        call encode_excit_info_indices(excit_info_int, [4,3,2,1])
+        call extract_excit_info_indices(excit_info_int, a, i, b, j)
+        call extract_excit_info_indices(excit_info_int, vec)
+        call assert_equals(4, a)
+        call assert_equals(3, i)
+        call assert_equals(2, b)
+        call assert_equals(1, j)
+        call assert_equals([4,3,2,1], vec, 4)
+
+
+    end subroutine encode_extract_excit_info_indices
+
+    subroutine encode_excit_info_type_test
+        integer(int64) :: excit_info_int
+
+        excit_info_int = 0_int64
+
+        call encode_excit_info_type(excit_info_int, excit_type%single_overlap_R_to_L)
+        call assert_equals(excit_type%single_overlap_R_to_L, int(excit_info_int))
+
+        call encode_excit_info_type(excit_info_int, excit_type%double_lowering)
+        call assert_equals(excit_type%double_lowering, int(excit_info_int))
+
+        call encode_excit_info_type(excit_info_int, excit_type%double_R_to_L)
+        call assert_equals(excit_type%double_R_to_L, int(excit_info_int))
+
+        call encode_excit_info_type(excit_info_int, excit_type%fullstop_R_to_L)
+        call assert_equals(excit_type%fullstop_R_to_L, int(excit_info_int))
+
+        call encode_excit_info_type(excit_info_int, excit_type%fullstart_R_to_L)
+        call assert_equals(excit_type%fullstart_R_to_L, int(excit_info_int))
+
+
+        call encode_excit_info_type(excit_info_int, excit_type%fullstop_raising)
+        call assert_equals(excit_type%fullstop_raising, int(excit_info_int))
+
+        call encode_excit_info_type(excit_info_int, excit_type%fullstart_stop_mixed)
+        call assert_equals(excit_type%fullstart_stop_mixed, int(excit_info_int))
+
+        call encode_excit_info_type(excit_info_int, excit_type%single_overlap_L_to_R)
+        call assert_equals(excit_type%single_overlap_L_to_R, int(excit_info_int))
+
+    end subroutine encode_excit_info_type_test
+
+    subroutine extract_excit_info_type_test
+        integer(int64) :: excit_info_int
+
+        excit_info_int = 0_int64
+        call encode_excit_info_type(excit_info_int, excit_type%single_overlap_R_to_L)
+        call assert_equals(excit_type%single_overlap_R_to_L, &
+            extract_excit_info_type(excit_info_int))
+
+        call encode_excit_info_type(excit_info_int, excit_type%fullstop_R_to_L)
+        call assert_equals(excit_type%fullstop_R_to_L, &
+            extract_excit_info_type(excit_info_int))
+
+        call encode_excit_info_type(excit_info_int, excit_type%fullstart_R_to_L)
+        call assert_equals(excit_type%fullstart_R_to_L, &
+            extract_excit_info_type(excit_info_int))
+
+        call encode_excit_info_type(excit_info_int, excit_type%double_lowering)
+        call assert_equals(excit_type%double_lowering, &
+            extract_excit_info_type(excit_info_int))
+
+        call encode_excit_info_type(excit_info_int, excit_type%double_R_to_L)
+        call assert_equals(excit_type%double_R_to_L, &
+            extract_excit_info_type(excit_info_int))
+
+        call encode_excit_info_type(excit_info_int, excit_type%fullstart_stop_alike)
+        call assert_equals(excit_type%fullstart_stop_alike, &
+            extract_excit_info_type(excit_info_int))
+
+    end subroutine extract_excit_info_type_test
+
+    subroutine encode_and_extract_excit_info_test
+        integer(int64) :: excit_info_int
+        integer :: typ, a, i, b, j, inds(4)
+        type(ExcitationInformation_t) :: excitInfo
+
+        excit_info_int = encode_excit_info(excit_type%double_R_to_L_to_R, &
+            1, 4, 3, 2)
+
+        call extract_excit_info(excit_info_int, typ, a, i, b, j)
+        call assert_equals(excit_type%double_R_to_L_to_R, typ)
+        call extract_excit_info(excit_info_int, typ, inds)
+        call assert_equals(excit_type%double_R_to_L_to_R, typ)
+        call extract_excit_info(excit_info_int, excitInfo)
+        call assert_equals(1, a)
+        call assert_equals(4, i)
+        call assert_equals(3, b)
+        call assert_equals(2, j)
+        call assert_equals([1,4,3,2], inds, 4)
+        call assert_equals(excit_type%double_R_to_L_to_R, excitInfo%typ)
+        call assert_equals(gen_type%R, excitInfo%gen1)
+        call assert_equals(gen_type%L, excitInfo%gen2)
+
+
+        excit_info_int = encode_excit_info(excit_type%double_L_to_R_to_L, &
+            [2,3,4,1])
+
+        call extract_excit_info(excit_info_int, typ, a, i, b, j)
+        call assert_equals(excit_type%double_L_to_R_to_L, typ)
+        call extract_excit_info(excit_info_int, typ, inds)
+        call assert_equals(excit_type%double_L_to_R_to_L, typ)
+        call extract_excit_info(excit_info_int, excitInfo)
+        call assert_equals(2, a)
+        call assert_equals(3, i)
+        call assert_equals(4, b)
+        call assert_equals(1, j)
+        call assert_equals([2,3,4,1], inds, 4)
+        call assert_equals(excit_type%double_L_to_R_to_L, excitInfo%typ)
+        call assert_equals(gen_type%R, excitInfo%gen1)
+        call assert_equals(gen_type%L, excitInfo%gen2)
+
+        excitInfo%typ = excit_type%fullstart_stop_mixed
+        excitInfo%i = 1
+        excitInfo%j = 4
+        excitInfo%k = 4
+        excitInfo%l = 1
+
+        excit_info_int = encode_excit_info(excitInfo)
+
+        call extract_excit_info(excit_info_int, typ, a, i, b, j)
+        call assert_equals(excit_type%fullstart_stop_mixed, typ)
+        call extract_excit_info(excit_info_int, typ, inds)
+        call assert_equals(excit_type%fullstart_stop_mixed, typ)
+        call extract_excit_info(excit_info_int, excitInfo)
+        call assert_equals(1, a)
+        call assert_equals(4, i)
+        call assert_equals(4, b)
+        call assert_equals(1, j)
+        call assert_equals([1,4,4,1], inds, 4)
+        call assert_equals(excit_type%fullstart_stop_mixed, excitInfo%typ)
+        call assert_equals(gen_type%R, excitInfo%gen1)
+        call assert_equals(gen_type%L, excitInfo%gen2)
+
+
+    end subroutine encode_and_extract_excit_info_test
+
     subroutine test_guga_excitations_stochastic
-        character(*), parameter :: this_routine = "test_guga_excitations_stochastic"
 
         print *, ""
         print *, "testing module: guga_excitations stochastic:"
@@ -1693,7 +1855,6 @@ contains
     end subroutine test_guga_excitations_stochastic
 
     subroutine test_guga_excitations_exact
-        character(*), parameter :: this_routine = "test_guga_excitations_exact"
 
 
         print *, ""
@@ -1801,7 +1962,6 @@ contains
         integer(int_rdm) :: ijkl
         integer :: i,j,k,l
         integer(int_rdm) :: ij, kl
-        character(*), parameter :: this_routine = "test_contract_extract_2_rdm"
 
         print *, ""
         print *, "testing: contract and extract 2 rdm index: "
@@ -1844,7 +2004,6 @@ contains
     subroutine test_contract_extract_1_rdm_with_excitInfo
         integer(int_rdm) :: rdm_ind
         integer :: i, j, excit_lvl, excit_typ
-        character(*), parameter :: this_routine = "test_contract_extract_1_rdm_with_excitInfo"
 
         print *, ""
         print *, "testing: contract and extract 1 rdm index with the additional excitInfo"
@@ -2035,7 +2194,6 @@ contains
     subroutine test_contract_extract_1_rdm
         integer(int_rdm) :: rdm_ind
         integer :: i, j
-        character(*), parameter :: this_routine = "test_contract_extract_1_rdm"
 
         print *, ""
         print *, " testing: contract and extract 1 rdm index"
@@ -2099,8 +2257,7 @@ contains
         integer(n_int) :: ilut(0:nifguga)
         integer :: det(4)
         integer :: i
-        character(*), parameter :: testFun = "bitChecks", &
-            this_routine = "test_bitChecks"
+        character(*), parameter :: testFun = "bitChecks"
 
         nel = 4
         det = [1,2,3,6]
@@ -2134,7 +2291,6 @@ contains
     end subroutine test_bitChecks
 
     subroutine test_identify_excitation
-        character(*), parameter :: this_routine = "test_identify_excitation"
         integer, allocatable :: nI(:), nJ(:)
         integer(n_int) :: ilutI(0:niftot), ilutJ(0:niftot)
         type(ExcitationInformation_t) :: excitInfo
@@ -2187,7 +2343,7 @@ contains
 
     subroutine test_identify_excitation_and_matrix_element
         character(*), parameter :: this_routine = "test_identify_excitation_and_matrix_element"
-        integer(n_int) :: ilutI(0:niftot), ilutJ(0:niftot), ilutG(0:nifguga)
+        integer(n_int) :: ilutI(0:niftot), ilutG(0:nifguga)
         type(ExcitationInformation_t) :: excitInfo
         integer(n_int), allocatable :: ex(:,:), two_ex(:,:)
         integer :: nEx, i, nex_2, test_det(4), j, ind
@@ -2333,7 +2489,6 @@ contains
         integer(int_rdm), allocatable :: rdm_ind(:)
         real(dp), allocatable :: rdm_mat(:)
         integer :: i, j, k, l
-        character(*), parameter :: this_routine = "test_coupling_coeffs"
 !
         print *, ""
         print *, " =============================================================="
@@ -2690,12 +2845,10 @@ contains
 
 
     subroutine run_test_excit_gen_guga_general
-        character(*), parameter :: this_routine = "run_test_excit_gen_guga_general"
         integer(n_int) :: ilut(0:niftot)
         integer(n_int), allocatable :: ex(:,:)
         integer :: nEx, i
         integer :: nTest
-        type(ExcitationInformation_t) :: excitInfo
 
         ! use fdet as first determinant and test on all excitations from this..!
         ! maybe a bit too much for bigger system?
@@ -2746,7 +2899,6 @@ contains
 
     subroutine run_test_excit_gen_guga_single(nI)
         integer, intent(in), optional :: nI(nEl)
-        character(*), parameter :: this_routine = "run_test_excit_gen_guga_single"
         integer(n_int) :: ilut(0:niftot)
         integer :: test_det(nEl)
 
@@ -2764,7 +2916,6 @@ contains
 
     subroutine run_test_excit_gen_guga_multiple(nI)
         integer, intent(in), optional :: nI(nEl)
-        character(*), parameter :: this_routine = "run_test_excit_gen_guga_multiple"
         integer(n_int) :: ilut(0:niftot)
         integer :: test_det(nEl), nEx, i, nTest
         integer(n_int), allocatable :: ex(:,:)
@@ -2797,7 +2948,6 @@ contains
 
 
     subroutine test_findSwitches
-        character(*), parameter :: this_routine = "test_findSwitches"
         integer(n_int) :: ilutI(0:nifguga), ilutJ(0:nifguga)
 
         print *, ""
@@ -2807,8 +2957,8 @@ contains
         call EncodeBitDet_guga([1,2,3,4],ilutI)
         ilutJ = ilutI
 
-        call assert_true(findFirstSwitch(ilutI,ilutJ,1,4) == 0)
-        call assert_equals(5, findLastSwitch(ilutI,ilutJ,1,4))
+        call assert_true(findFirstSwitch(ilutI,ilutJ,1,4) == -1)
+        call assert_equals(6, findLastSwitch(ilutI,ilutJ,1,4))
 
         ! 1122
         call EncodeBitDet_guga([1,3,6,8],ilutJ)
@@ -2862,15 +3012,15 @@ contains
         ! 3030
         ! 3003
         call assert_true(findFirstSwitch(ilutI,ilutJ,1,4) == 3)
-        call assert_true(findFirstSwitch(ilutI,ilutJ,1,3) == 0)
+        call assert_true(findFirstSwitch(ilutI,ilutJ,1,3) == -1)
         call assert_true(findLastSwitch(ilutI,ilutJ,1,4) == 4)
-        call assert_equals(5, (findLastSwitch(ilutI,IlutJ,1,2)))
+        call assert_equals(6, (findLastSwitch(ilutI,IlutJ,1,2)))
 
         call EncodeBitDet_guga([3,4,7,8],ilutI)
 
         ! 0303
         ! 3003
-        call assert_equals(5, findLastSwitch(ilutI,ilutJ,2,4))
+        call assert_equals(6, findLastSwitch(ilutI,ilutJ,2,4))
 
 
         print *, ""
@@ -2880,7 +3030,6 @@ contains
     end subroutine test_findSwitches
 
     subroutine test_count_beta_orbs_ij
-        character(*), parameter :: this_routine = "test_count_beta_orbs_ij"
         integer(n_int) :: ilut(0:nifguga)
 
         ! these routine now need the current_stepvector quantitiy!
@@ -2918,7 +3067,6 @@ contains
 
 
     subroutine test_count_alpha_orbs_ij
-        character(*), parameter :: this_routine = "test_count_alpha_orbs_ij"
         integer(n_int) :: ilut(0:nifguga)
 
         ! this routines now need the current_stepvector quantity!
@@ -2958,7 +3106,6 @@ contains
     end subroutine test_count_alpha_orbs_ij
 
     subroutine test_add_guga_lists
-        character(*), parameter :: this_routine = "test_add_guga_lists"
         integer(n_int) :: l1(0:nifguga,1), l2(0:nifguga,1), l3(0:nifguga,2)
         integer(n_int) :: l4(0:nifguga,3), l5(0:nifguga,4), l6(0:nifguga,5)
 
@@ -3012,7 +3159,6 @@ contains
     end subroutine test_add_guga_lists
 
     subroutine test_getSpatialOccupation
-        character(*), parameter :: this_routine = "test_getSpatialOccupation"
         integer(n_int) :: ilut(0:nifguga)
 
         call EncodeBitDet_guga([1,2,3,6], ilut)
@@ -3031,13 +3177,11 @@ contains
     end subroutine test_getSpatialOccupation
 
     subroutine test_calcFullStartFullStopMixed
-        character(*), parameter :: this_routine = "test_calcfullStartFullStopMixed"
         integer(n_int) :: ilut(0:nifguga)
         type(ExcitationInformation_t) :: excitInfo
         integer(n_int), allocatable :: ex(:,:)
         integer :: num
         real(dp) :: posSwitch(4), negSwitch(4)
-        type(WeightObj_t) :: weights
 
         call EncodeBitDet_guga([1,4,5,8],ilut)
 
@@ -3170,7 +3314,6 @@ contains
 
 !
     subroutine run_test_excit_gen_guga_nEl_3_S_1
-        character(*), parameter :: this_routine = "run_test_excit_gen_guga_nEl_3_S_1"
         integer(n_int):: ilut(0:niftot)
         integer :: nI(3)
 
@@ -3284,7 +3427,6 @@ contains
     end subroutine run_test_excit_gen_guga_nEl_3_S_1
 
     subroutine run_test_excit_gen_guga_nOrb_6_nEl_6_S_2
-        character(*), parameter :: this_routine = "run_test_excit_gen_guga_nOrb_6_nEl_6_S_2"
         integer(n_int) :: ilut(0:niftot)
         integer :: nI(6)
 
@@ -3373,7 +3515,6 @@ contains
 
 
     subroutine run_test_excit_gen_guga_nOrb_6_nEl_6_S_4
-        character(*), parameter :: this_routine = "run_test_excit_gen_guga_nOrb_6_nEl_6_S_4"
         integer(n_int) :: ilut(0:niftot)
         integer :: nI(6)
 
@@ -3446,7 +3587,6 @@ contains
 
 
     subroutine run_test_excit_gen_guga_nOrb_6_nEl_4_S_2
-        character(*), parameter :: this_routine = "run_test_excit_gen_guga_nOrb_6_nEl_4_S_2"
         integer(n_int) :: ilut(0:niftot)
         integer :: nI(4)
 
@@ -3509,7 +3649,6 @@ contains
 
 
     subroutine run_test_excit_gen_guga_nOrb_9_nEl_5_S_1
-        character(*), parameter :: this_routine = "run_test_excit_gen_guga_nOrb_9_nEl_5_S_1"
         integer(n_int) :: ilut(0:niftot)
         integer :: nI(5)
 
@@ -3587,8 +3726,6 @@ contains
     end subroutine run_test_excit_gen_guga_nOrb_18_nel_18_S_2
 
     subroutine run_test_excit_gen_guga_nOrb_18_nel_18_S_6
-        character(*), parameter :: this_routine =&
-        "run_test_excit_gen_guga_nOrb_18_nel_18_S_6"
         integer(n_int) :: ilut(0:niftot)
         integer :: nI(18)
 
@@ -3599,8 +3736,6 @@ contains
     end subroutine run_test_excit_gen_guga_nOrb_18_nel_18_S_6
 
     subroutine run_test_excit_gen_guga_nOrb_18_nel_18_S_0
-        character(*), parameter :: this_routine =&
-        "run_test_excit_gen_guga_nOrb_18_nel_18_S_0"
         integer(n_int) :: ilut(0:niftot)
         integer :: nI(18)
 
@@ -3618,8 +3753,6 @@ contains
     end subroutine run_test_excit_gen_guga_nOrb_18_nel_18_S_0
 
     subroutine run_test_excit_gen_guga_nOrb_9_nEl_9_S_1
-        character(*), parameter :: this_routine =&
-        "run_test_excit_gen_guga_nOrb_9_nEl_9_S_1"
         integer(n_int) :: ilut(0:niftot)
         integer :: nI(9)
 
@@ -3700,8 +3833,6 @@ contains
     end subroutine run_test_excit_gen_guga_nOrb_9_nEl_9_S_1
 
     subroutine run_test_excit_gen_guga_nOrb_9_nEl_9_S_3
-        character(*), parameter :: this_routine =&
-        "run_test_excit_gen_guga_nOrb_9_nEl_9_S_3"
         integer(n_int) :: ilut(0:niftot)
         integer :: nI(9)
 
@@ -3724,8 +3855,6 @@ contains
     end subroutine run_test_excit_gen_guga_nOrb_9_nEl_9_S_3
 
     subroutine run_test_excit_gen_guga_nOrb_9_nEl_10_S_2
-        character(*), parameter :: this_routine =&
-        "run_test_excit_gen_guga_nOrb_9_nEl_10_S_2"
         integer(n_int) :: ilut(0:niftot)
         integer :: nI(10)
 
@@ -3737,8 +3866,6 @@ contains
     end subroutine run_test_excit_gen_guga_nOrb_9_nEl_10_S_2
 
     subroutine run_test_excit_gen_guga_nOrb_9_nEl_10_S_4
-        character(*), parameter :: this_routine = &
-        "run_test_excit_gen_guga_nOrb_9_nEl_10_S_4"
         integer(n_int) :: ilut(0:niftot)
         integer :: nI(10)
 
@@ -3751,7 +3878,6 @@ contains
     end subroutine run_test_excit_gen_guga_nOrb_9_nEl_10_S_4
 
     subroutine run_test_excit_gen_guga_nOrb_9_nEl_10_S_6
-        character(*), parameter :: this_routine = "run_test_excit_gen_guga_nOrb_9_nEl_10_S_6"
         integer(n_int) :: ilut(0:niftot)
         integer :: nI(10)
 
@@ -3784,7 +3910,6 @@ contains
 
 
     subroutine run_test_excit_gen_guga_nOrb_9_nEl_10_S_0
-        character(*), parameter :: this_routine = "run_test_excit_gen_guga_nOrb_9_nEl_10_S_0"
         integer(n_int) :: ilut(0:niftot)
         integer :: nI(10)
 
@@ -3831,7 +3956,6 @@ contains
     end subroutine run_test_excit_gen_guga_nOrb_9_nEl_10_S_0
 
     subroutine run_test_excit_gen_guga_nOrb_9_nEl_5_S_3
-        character(*), parameter :: this_routine = "run_test_excit_gen_guga_nOrb_9_nEl_5_S_3"
         integer(n_int) :: ilut(0:niftot)
         integer :: nI(5)
 
@@ -3898,7 +4022,6 @@ contains
 
 
     subroutine run_test_excit_gen_guga_nOrb_9_nEl_7_S_3
-        character(*), parameter :: this_routine = "run_test_excit_gen_guga_nOrb_9_nEl_7_S_3"
         integer(n_int) :: ilut(0:niftot)
         integer :: nI(7)
 
@@ -3944,7 +4067,6 @@ contains
     end subroutine run_test_excit_gen_guga_nOrb_9_nEl_7_S_3
 
     subroutine run_test_excit_gen_guga_nOrb_9_nEl_7_S_1
-        character(*), parameter :: this_routine = "run_test_excit_gen_guga_nOrb_9_nEl_7_S_1"
         integer(n_int) :: ilut(0:niftot)
         integer :: nI(7)
 
@@ -3986,7 +4108,6 @@ contains
 
 
     subroutine run_test_excit_gen_guga_nOrb_6_nEl_7_S_3
-        character(*), parameter :: this_routine = "run_test_excit_gen_guga_nOrb_6_nEl_7_S_3"
         integer(n_int) :: ilut(0:niftot)
         integer :: nI(7)
 
@@ -4052,7 +4173,6 @@ contains
     end subroutine run_test_excit_gen_guga_nOrb_6_nEl_7_S_3
 
     subroutine run_test_excit_gen_guga_nOrb_6_nEl_7_S_1
-        character(*), parameter :: this_routine = "run_test_excit_gen_guga_nOrb_6_nEl_7_S_1"
         integer(n_int) :: ilut(0:niftot)
         integer :: nI(7)
 
@@ -4135,7 +4255,6 @@ contains
 
 
     subroutine run_test_excit_gen_guga_nOrb_6_nEl_5_S_3
-        character(*), parameter :: this_routine = "run_test_excit_gen_guga_nOrb_6_nEl_5_S_3"
         integer(n_int) :: ilut(0:niftot)
         integer :: nI(5)
 
@@ -4212,7 +4331,6 @@ contains
     end subroutine run_test_excit_gen_guga_nOrb_6_nEl_5_S_3
 
     subroutine run_test_excit_gen_guga_nOrb_6_nEl_5_S_1
-        character(*), parameter :: this_routine = "run_test_excit_gen_guga_nOrb_6_nEl_5_S_1"
         integer(n_int) :: ilut(0:niftot)
         integer :: nI(5)
 
@@ -4289,7 +4407,6 @@ contains
     end subroutine run_test_excit_gen_guga_nOrb_6_nEl_5_S_1
 
     subroutine run_test_excit_gen_guga_nOrb_6_nEl_4_S_0
-        character(*), parameter :: this_routine = "run_test_excit_gen_guga_nOrb_6_nEl_4_S_0"
         integer(n_int) :: ilut(0:niftot)
         integer :: nI(4)
 
@@ -4355,7 +4472,6 @@ contains
     end subroutine run_test_excit_gen_guga_nOrb_6_nEl_4_S_0
 
     subroutine run_test_excit_gen_guga_nOrb_6_nEl_6_S_0
-        character(*), parameter :: this_routine = "run_test_excit_gen_guga_nOrb_6_nEl_6_S_0"
         integer(n_int) :: ilut(0:niftot)
         integer :: nI(6)
 
@@ -4499,7 +4615,6 @@ contains
 
 
     subroutine run_test_excit_gen_guga_nEl_6_S_0
-        character(*), parameter :: this_routine = "run_test_excit_gen_guga_nEl_6_S_0"
         integer(n_int) :: ilut(0:niftot)
         integer :: nI(6)
 
@@ -4560,7 +4675,6 @@ contains
 
 
     subroutine run_test_excit_gen_guga_nEl_5_S_1
-        character(*), parameter :: this_routine = "run_test_excit_gen_guga_nEl_5_S_1"
         integer(n_int) :: ilut(0:niftot)
         integer :: nI(5)
 
@@ -4673,7 +4787,6 @@ contains
     end subroutine run_test_excit_gen_guga_nEl_5_S_1
 
     subroutine run_test_excit_gen_guga_nEl_2_S_0
-        character(*), parameter :: this_routine = "run_test_excit_gen_guga_nEl_2_S_0"
         integer(n_int):: ilut(0:niftot)
         integer :: nI(2)
 
@@ -4740,7 +4853,6 @@ contains
         ! also check for the S = 2 system...
         ! and probably write this function generally for all sorts of
         ! excitations
-        character(*), parameter :: this_routine = "run_test_excit_gen_guga_S2"
         integer(n_int) :: ilut(0:niftot)
         integer :: nI(4)
 
@@ -4830,7 +4942,6 @@ contains
 
     subroutine run_test_excit_gen_guga_S0
         ! write a similar testing routine as Simons
-        character(*), parameter :: this_routine = "run_test_excit_gen_guga_S0"
         integer(n_int) :: ilut(0:niftot)
         integer :: nI(4)
 
@@ -4966,7 +5077,6 @@ contains
     end subroutine run_test_excit_gen_guga_S0
 
     subroutine test_calcMixedContribution
-        character(*), parameter :: this_routine = "test_calcMixedContribution"
         integer(n_int) :: ilut(0:nifguga), t(0:nifguga)
 
         call EncodeBitDet_guga([1,4,5,8],ilut)
@@ -5001,7 +5111,6 @@ contains
     end subroutine test_calcMixedContribution
 
     subroutine test_generate_excitation_guga_double
-        character(*), parameter :: this_routine = "test_generate_excitation_guga_double"
         integer :: nI(4), nJ(4), IC, excitMat(2,maxExcit), exFlag, nEx, pos
         integer(n_int) :: ilutI(0:niftot), ilutJ(0:niftot)
         integer(n_int) :: ilutGi(0:nifguga), ilutGj(0:nifguga)
@@ -5015,7 +5124,7 @@ contains
         integer(int_rdm), allocatable :: rdm_ind_v(:)
         real(dp), allocatable :: rdm_mat(:)
         type(ExcitationInformation_t) :: excitInfo
-        integer :: i, j, k, l
+        integer :: i
 
         exFlag = 1
         ! make only double excitations:
@@ -6199,7 +6308,6 @@ contains
     end subroutine test_generate_excitation_guga_double
 
     subroutine test_generate_excitation_guga_single
-        character(*), parameter :: this_routine = "test_generate_excitation_guga_single"
         integer :: nI(4), nJ(4), IC, excitMat(2,maxExcit), exFlag, nEx, pos
         integer(n_int) :: ilutI(0:niftot), ilutJ(0:niftot), ilutGi(0:nifguga)
         integer(n_int) :: ilutGj(0:nifguga)
@@ -7114,7 +7222,6 @@ contains
     end subroutine test_generate_excitation_guga_single
 
     subroutine test_calcDoubleR2L_stochastic
-        character(*), parameter :: this_routine = "test_calcDoubleR2L_stochastic"
         integer(n_int) :: ilut(0:nifguga), ex(0:nifguga)
         type(ExcitationInformation_t) :: excitInfo
         real(dp) :: pgen
@@ -7234,7 +7341,6 @@ contains
     end subroutine test_calcDoubleR2L_stochastic
 
     subroutine test_calcDoubleL2R_stochastic
-        character(*), parameter :: this_routine = "test_calcDoubleL2R_stochastic"
         integer(n_int) :: ilut(0:nifguga), ex(0:nifguga)
         type(ExcitationInformation_t) :: excitInfo
         real(dp) :: pgen
@@ -7333,7 +7439,6 @@ contains
     end subroutine test_calcDoubleL2R_stochastic
 
     subroutine test_calcDoubleR2L2R_stochastic
-        character(*), parameter :: this_routine = "test_calcDoubleR2L2R_stochastic"
         integer(n_int) :: ilut(0:nifguga), ex(0:nifguga)
         type(ExcitationInformation_t) :: excitInfo
         real(dp) :: pgen
@@ -7432,7 +7537,6 @@ contains
     end subroutine test_calcDoubleR2L2R_stochastic
 
     subroutine test_calcDoubleL2R2L_stochastic
-        character(*), parameter :: this_routine = "test_calcDoubleL2R2L_stochastic"
         integer(n_int) :: ilut(0:nifguga), ex(0:nifguga)
         type(ExcitationInformation_t) :: excitInfo
         real(dp) :: pgen
@@ -7530,7 +7634,6 @@ contains
     end subroutine test_calcDoubleL2R2L_stochastic
 
     subroutine test_calcDoubleRaisingStochastic
-        character(*), parameter :: this_routine = "test_calcDoubleRaisingStochastic"
         integer(n_int) :: ilut(0:nifguga), ex(0:nifguga)
         type(ExcitationInformation_t) :: excitInfo
         real(dp) :: pgen
@@ -7669,7 +7772,6 @@ contains
     end subroutine test_calcDoubleRaisingStochastic
 
     subroutine test_calcDoubleLoweringStochastic
-        character(*), parameter :: this_routine = "test_calcDoubleLoweringStochastic"
         integer(n_int) :: ilut(0:nifguga), ex(0:nifguga)
         type(ExcitationInformation_t) :: excitInfo
         real(dp) :: pgen
@@ -7814,7 +7916,6 @@ contains
     end subroutine test_calcDoubleLoweringStochastic
 
     subroutine test_calcFullStopR2L_stochastic
-        character(*), parameter :: this_routine = "test_calcFullStopR2L_stochastic"
         integer(n_int) :: ilut(0:nifguga), ex(0:nifguga)
         type(ExcitationInformation_t) :: excitInfo
         real(dp) :: pgen
@@ -7923,7 +8024,6 @@ contains
     end subroutine test_calcFullStopR2L_stochastic
 
     subroutine test_calcFullStopL2R_stochastic
-        character(*), parameter :: this_routine = "test_calcFullStopL2R_stochastic"
         integer(n_int) :: ilut(0:nifguga), ex(0:nifguga)
         type(ExcitationInformation_t) :: excitInfo
         real(dp) :: pgen
@@ -8033,7 +8133,6 @@ contains
     end subroutine test_calcFullStopL2R_stochastic
 
     subroutine test_calcFullStartR2L_stochastic
-        character(*), parameter :: this_routine = "test_calcFullStartR2L_stochastic"
         integer(n_int) :: ilut(0:nifguga), ex(0:nifguga)
         type(ExcitationInformation_t) :: excitInfo
         real(dp) :: pgen
@@ -8137,7 +8236,6 @@ contains
     end subroutine test_calcFullStartR2L_stochastic
 
     subroutine test_calcFullStartL2R_stochastic
-        character(*), parameter :: this_routine = "test_calcFullStartL2R_stochastic"
         integer(n_int) :: ilut(0:nifguga), ex(0:nifguga)
         type(ExcitationInformation_t) :: excitInfo
         real(dp) :: pgen
@@ -8240,7 +8338,6 @@ contains
     end subroutine test_calcFullStartL2R_stochastic
 
     subroutine test_calcRaisingSemiStopStochastic
-        character(*), parameter :: this_routine = "test_calcRaisingSemiStopStochastic"
         integer(n_int) :: ilut(0:nifguga), ex(0:nifguga)
         type(ExcitationInformation_t) :: excitInfo
         type(WeightObj_t) :: weights
@@ -8332,7 +8429,6 @@ contains
     end subroutine test_calcRaisingSemiStopStochastic
 
     subroutine test_calcLoweringSemiStopStochastic
-        character(*), parameter :: this_routine = "test_calcLoweringSemiStopStochastic"
         integer(n_int) :: ilut(0:nifguga), ex(0:nifguga)
         type(ExcitationInformation_t) :: excitInfo
         type(WeightObj_t) :: weights
@@ -8422,7 +8518,6 @@ contains
 
 
     subroutine test_calcRaisingSemiStartStochastic
-        character(*), parameter :: this_routine = "test_calcRaisingSemiStartStochastic"
         integer(n_int) :: ilut(0:nifguga), ex(0:nifguga)
         type(ExcitationInformation_t) :: excitInfo
         type(WeightObj_t) :: weights
@@ -8482,7 +8577,6 @@ contains
 
 
     subroutine test_calcLoweringSemiStartStochastic
-        character(*), parameter :: this_routine = "test_calcLoweringSemiStartStochastic"
         integer(n_int) :: ilut(0:nifguga), ex(0:nifguga)
         type(ExcitationInformation_t) :: excitInfo
         type(WeightObj_t) :: weights
@@ -8534,7 +8628,6 @@ contains
     end subroutine test_calcLoweringSemiStartStochastic
 
     subroutine test_calcSingleOverlapMixedStochastic
-        character(*), parameter :: this_routine = "test_calcSingleOverlapMixedStochastic"
         integer(n_int) :: ilut(0:nifguga), ex(0:nifguga)
         type(ExcitationInformation_t) :: excitInfo
         real(dp) :: pgen
@@ -8632,7 +8725,6 @@ contains
 
 
     subroutine test_calcFullStopLoweringStochastic
-        character(*), parameter :: this_routine = "test_calcFullStopLoweringStochastic"
         integer(n_int) :: ilut(0:nifguga), ex(0:nifguga)
         type(ExcitationInformation_t) :: excitInfo
         real(dp) :: pgen
@@ -8687,7 +8779,6 @@ contains
     end subroutine test_calcFullStopLoweringStochastic
 
     subroutine test_calcFullStopRaisingStochastic
-        character(*), parameter :: this_routine = "test_calcFullStopRaisingStochastic"
         integer(n_int) :: ilut(0:nifguga), ex(0:nifguga)
         type(ExcitationInformation_t) :: excitInfo
         real(dp) :: pgen
@@ -8743,7 +8834,6 @@ contains
 
 
     subroutine test_calcFullStartLoweringStochastic
-        character(*), parameter :: this_routine = "test_calcFullStartLoweringStochastic"
         integer(n_int) :: ilut(0:nifguga), ex(0:nifguga)
         type(ExcitationInformation_t) :: excitInfo
         real(dp) :: pgen
@@ -8817,7 +8907,6 @@ contains
 
 
     subroutine test_calcFullStartRaisingStochastic
-        character(*), parameter :: this_routine = "test_calcFullStartRaisingStochastic"
         integer(n_int) :: ilut(0:nifguga), ex(0:nifguga)
         type(ExcitationInformation_t) :: excitInfo
         real(dp) :: pgen
@@ -8851,7 +8940,6 @@ contains
         call assert_true(compFlag)
         call assert_true(all(calcStepVector(ex) == [3,0,1,2]))
         call assert_true(pgen .isclose. 1.0_dp)
-        ! umat is also stored in there.. so i hope i get it right
         call assert_true(abs(extract_matrix_element(ex,2)) < EPS)
         call assert_true(abs(extract_matrix_element(ex,1) + Root2) < 1.0e-10_dp)
 
@@ -8878,7 +8966,6 @@ contains
         call assert_true(compFlag)
         call assert_true(all(calcStepVector(ex) == [0,3,1,2]))
         call assert_true(pgen .isclose. 1.0_dp)
-        ! umat is also stored in there.. so i hope i get it right
         call assert_true(abs(extract_matrix_element(ex,2)) < EPS)
         call assert_true(abs(extract_matrix_element(ex,1) + Root2) < 1.0e-10_dp)
 
@@ -8900,7 +8987,6 @@ contains
     end subroutine test_calcFullStartRaisingStochastic
 
     subroutine test_mixedFullStopStochastic
-        character(*), parameter :: this_routine = "test_mixedFullStopStochastic"
         integer(n_int) :: ilut(0:nifguga), ex(0:nifguga)
         type(ExcitationInformation_t) :: excitInfo
         type(WeightObj_t) :: weights
@@ -9026,14 +9112,11 @@ contains
     end subroutine test_doubleUpdateStochastic
 
     subroutine test_calcFullStartFullStopMixedStochastic
-        character(*), parameter :: this_routine = "test_calcFullStartFullStopMixedStochastic"
         integer(n_int) :: ilut(0:nifguga), ex(0:nifguga)
         type(ExcitationInformation_t) :: excitInfo
         real(dp) :: pgen
         logical :: compFlag
         real(dp) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
-        integer :: i, j, k, l, ex_lvl, ex_typ
-        integer(int_rdm) :: rdm_ind
 
 
         ! set up determinant and excitaiton information
@@ -9088,7 +9171,6 @@ contains
 
 
     subroutine test_pickOrbitals_double
-        character(*), parameter :: this_routine = "test_pickOrbitals_double"
         type(ExcitationInformation_t) :: excitInfo
         integer(n_int) :: ilut(0:nifguga)
         real(dp) :: pgen
@@ -9191,7 +9273,6 @@ contains
     end subroutine test_pickOrbitals_double
 
     subroutine test_createStochasticExcitation_double
-        character(*), parameter :: this_routine = "test_createStochasticExcitation_double"
         integer(n_int) :: ilut(0:GugaBits%len_tot), ex(0:GugaBits%len_tot), &
                           ilutJ(0:GugaBits%len_tot)
         real(dp) :: pgen
@@ -9272,7 +9353,6 @@ contains
     end subroutine test_createStochasticExcitation_double
 
     subroutine test_singleStochasticEnd
-        character(*), parameter :: this_routine = "test_singleStochasticEnd"
         integer(n_int) :: ilut(0:nifguga), ex(0:nifguga)
         type(ExcitationInformation_t) :: excitInfo
         type(WeightObj_t) :: weights
@@ -9320,7 +9400,6 @@ contains
 
 
     subroutine test_singleStochasticUpdate
-        character(*), parameter :: this_routine = "test_singleStochasticUpdate"
         integer(n_int) :: ilut(0:nifguga), ex(0:nifguga)
         type(ExcitationInformation_t) :: excitInfo
         type(WeightObj_t) :: weights
@@ -9381,7 +9460,6 @@ contains
     end subroutine test_singleStochasticUpdate
 
     subroutine test_pickRandomOrb
-        character(*), parameter :: this_routine = "test_pickRandomOrb"
         integer :: orb
         real(dp) :: pgen
         integer(n_int) :: ilut(0:nifguga)
@@ -9515,7 +9593,6 @@ contains
     end subroutine test_mixedFullStartStochastic
 
     subroutine test_createStochasticStart_single
-        character(*), parameter :: this_routine = "test_createStochasticStart_single"
         integer(n_int) :: ilut(0:nifguga)
         type(ExcitationInformation_t) :: excitInfo
         type(WeightObj_t) :: weights
@@ -9562,7 +9639,6 @@ contains
     end subroutine test_createStochasticStart_single
 
     subroutine test_pickOrbitals_single
-        character(*), parameter :: this_routine = "test_pickOrbitals_single"
         integer(n_int) :: ilut(0:nifguga)
         type(ExcitationInformation_t) :: excitInfo
         real(dp) :: pgen
@@ -9683,14 +9759,11 @@ contains
     end subroutine test_pickOrbitals_single
 
     subroutine test_createStochasticExcitation_single
-        character(*), parameter :: this_routine = "test_createStochasticExcitation_single"
         integer(n_int) :: ilut(0:nifguga), t(0:nifguga)
         real(dp) :: pgen
         integer :: nI(4), pos, nex
-        HElement_t(dp) :: HElGen
         integer(n_int), allocatable :: ex(:,:)
         integer(int_rdm) :: rdm_ind
-        integer :: i, j
         HElement_t(dp) :: mat_ele
         integer(int_rdm), allocatable :: rdm_ind_v(:)
         real(dp), allocatable :: rdm_mat(:)
@@ -9752,7 +9825,6 @@ contains
 
 
     subroutine test_actHamiltonian
-        character(*), parameter :: this_routine = "test_actHamiltonian"
         integer(n_int) :: ilut(0:nifguga)
         integer(n_int), allocatable :: ex(:,:)
         integer :: nEx
@@ -9873,7 +9945,6 @@ contains
 
 
     subroutine test_calcAllExcitations_double
-        character(*), parameter :: this_routine = "test_calcAllExcitations_double"
         integer(n_int) :: ilut(0:nifguga)
         integer(n_int), allocatable :: ex(:,:)
         integer :: nExcits
@@ -9905,11 +9976,9 @@ contains
 
 
     subroutine test_calcFullStartFullStopAlike
-        character(*), parameter :: this_routine = "test_calcFullStartFullStopAlike"
         integer(n_int) :: ilut(0:nifguga)
         type(ExcitationInformation_t) :: excitInfo
         integer(n_int), allocatable :: ex(:,:)
-        integer :: num
         real(dp) :: posSwitch(4), negSwitch(4)
 
         call EncodeBitDet_guga([3,4,7,8], ilut)
@@ -9971,7 +10040,6 @@ contains
     end subroutine test_calcFullStartFullStopAlike
 
     subroutine test_calcFullStartL2R
-        character(*), parameter :: this_routine = "test_calcFullStartL2R"
         integer(n_int) :: ilut(0:nifguga)
         type(ExcitationInformation_t) :: excitInfo
         integer(n_int), allocatable :: ex(:,:)
@@ -10015,7 +10083,6 @@ contains
 
 
     subroutine test_calcFullStartR2L
-        character(*), parameter :: this_routine = "test_calcFullStartR2L"
         integer(n_int) :: ilut(0:2)
         type(ExcitationInformation_t) :: excitInfo
         integer(n_int), allocatable :: ex(:,:)
@@ -10058,7 +10125,6 @@ contains
 
 
     subroutine test_calcFullStartRaising
-        character(*), parameter :: this_routine = "test_calcFullStartRaising"
         integer(n_int) :: ilut(0:nifguga)
         type(ExcitationInformation_t) :: excitInfo
         integer(n_int), allocatable :: ex(:,:)
@@ -10096,7 +10162,6 @@ contains
     end subroutine test_calcFullStartRaising
 
     subroutine test_calcFullStartLowering
-        character(*), parameter :: this_routine = "test_calcFullStartLowering"
         integer(n_int) :: ilut(0:nifguga)
         type(ExcitationInformation_t) :: excitInfo
         integer(n_int), allocatable :: ex(:,:)
@@ -10134,7 +10199,6 @@ contains
 
 
        subroutine test_calcFullStopR2L
-        character(*), parameter :: this_routine = "test_calcFullStopR2L"
         integer(n_int) :: ilut(0:nifguga)
         type(ExcitationInformation_t) :: excitInfo
         integer(n_int), allocatable :: ex(:,:)
@@ -10179,7 +10243,6 @@ contains
     end subroutine test_calcFullStopR2L
 
     subroutine test_calcFullStopL2R
-        character(*), parameter :: this_routine = "test_calcFullStopL2R"
         integer(n_int) :: ilut(0:nifguga)
         type(ExcitationInformation_t) :: excitInfo
         integer(n_int), allocatable :: ex(:,:)
@@ -10225,7 +10288,6 @@ contains
 
 
     subroutine test_calcFullStopRaising
-        character(*), parameter :: this_routine = "test_calcFullStopRaising"
         integer(n_int) :: ilut(0:nifguga)
         type(ExcitationInformation_t) :: excitInfo
         integer(n_int), allocatable :: ex(:,:)
@@ -10261,7 +10323,6 @@ contains
     end subroutine test_calcFullStopRaising
 
     subroutine test_calcFullStopLowering
-        character(*), parameter :: this_routine = "test_calcDoubleFullStopLowering"
         integer(n_int) :: ilut(0:nifguga)
         type(ExcitationInformation_t) :: excitInfo
         integer(n_int), allocatable :: ex(:,:)
@@ -10297,7 +10358,6 @@ contains
     end subroutine test_calcFullStopLowering
 
     subroutine test_calcDoubleR2L
-        character(*), parameter :: this_routine = "test_calcDoubleR2L"
         integer(n_int) :: ilut(0:nifguga)
         type(ExcitationInformation_t) :: excitInfo
         integer(n_int), allocatable :: ex(:,:)
@@ -10337,7 +10397,6 @@ contains
     end subroutine test_calcDoubleR2L
 
     subroutine test_calcDoubleL2R
-        character(*), parameter :: this_routine = "test_calcDoubleL2R"
         integer(n_int) :: ilut(0:nifguga)
         type(ExcitationInformation_t) :: excitInfo
         integer(n_int), allocatable :: ex(:,:)
@@ -10374,7 +10433,6 @@ contains
 
 
     subroutine test_calcDoubleRaising
-        character(*), parameter :: this_routine = "test_calcDoubleRaising"
         integer(n_int) :: ilut(0:nifguga)
         type(ExcitationInformation_t) :: excitInfo
         integer(n_int), allocatable :: ex(:,:)
@@ -10411,7 +10469,6 @@ contains
     end subroutine test_calcDoubleRaising
 
     subroutine test_calcDoubleLowering
-        character(*), parameter :: this_routine = "test_calcDoubleLowering"
         integer(n_int) :: ilut(0:nifguga)
         type(ExcitationInformation_t) :: excitInfo
         integer(n_int), allocatable :: ex(:,:)
@@ -10449,7 +10506,6 @@ contains
     end subroutine test_calcDoubleLowering
 
     subroutine test_calcSingleOverlapRaising
-        character(*), parameter :: this_routine = "test_singleOverlapRaising"
         integer(n_int) :: ilut(0:nifguga)
         type(ExcitationInformation_t) :: excitInfo
         integer(n_int), allocatable :: ex(:,:)
@@ -10482,7 +10538,6 @@ contains
     end subroutine test_calcSingleOverlapRaising
 
     subroutine test_calcSingleOverlapMixed
-        character(*), parameter :: this_routine = "test_singleOverlapMixed"
         integer(n_int) :: ilut(0:nifguga)
         type(ExcitationInformation_t) :: excitInfo
         integer(n_int), allocatable :: ex(:,:)
@@ -10515,7 +10570,6 @@ contains
     end subroutine test_calcSingleOverlapMixed
 
     subroutine test_calcSingleOverlapLowering
-        character(*), parameter :: this_routine = "test_singleOverlapLowering"
         integer(n_int) :: ilut(0:nifguga)
         type(ExcitationInformation_t) :: excitInfo
         integer(n_int), allocatable :: ex(:,:)
@@ -10549,7 +10603,6 @@ contains
     end subroutine test_calcSingleOverlapLowering
 
     subroutine test_calcNonOverlapDouble
-        character(*), parameter :: this_routine = "test_calcNonOverlapDouble"
         integer(n_int) :: ilut(0:nifguga)
         type(ExcitationInformation_t) :: excitInfo
         integer(n_int), allocatable :: ex(:,:)
@@ -10587,7 +10640,6 @@ contains
 
 
     subroutine test_calcDoubleExcitation_withWeight
-        character(*), parameter :: this_routine = "test_calcDoubleExcitation_withWeight"
         integer(n_int) :: ilut(0:nifguga)
         type(ExcitationInformation_t) :: excitInfo
         integer(n_int), allocatable :: ex(:,:)
@@ -10631,7 +10683,6 @@ contains
     end subroutine test_calcDoubleExcitation_withWeight
 
     subroutine test_checkCompatibility
-        character(*), parameter :: this_routine = "test_checkCompatibility"
         real(dp) :: posSwitch(4), negSwitch(4)
         integer(n_int) :: ilut(0:nifguga)
         logical :: flag
@@ -10680,7 +10731,6 @@ contains
 
 
     subroutine test_calcRemainingSwitches_double
-        character(*), parameter :: this_routine = "test_calcRemainingSwitches_double"
         real(dp) :: posSwitch(4), negSwitch(4)
         integer(n_int) :: ilut(0:nifguga)
 
@@ -10720,7 +10770,6 @@ contains
 
 
     subroutine test_excitationIdentifier_double
-        character(*), parameter :: this_routine = "test_excitationIdentifier_double"
         type(ExcitationInformation_t) :: excitInfo
 
 
@@ -10760,7 +10809,6 @@ contains
     end subroutine test_excitationIdentifier_double
 
     subroutine test_calcAllExcitations_single
-        character(*), parameter :: this_routine = "test_calcAllExcitations_single"
         integer(n_int) :: ilut(0:nifguga)
         integer(n_int), allocatable :: ex(:,:)
         integer :: nEx
@@ -10805,7 +10853,6 @@ contains
 
 
     subroutine test_singleEnd
-        character(*), parameter :: this_routine = "test_singleEnd"
         integer(n_int) :: ilut(0:nifguga)
         type(ExcitationInformation_t) :: excitInfo
         real(dp) :: posSwitch(nBasis/2), negSwitch(nBasis/2)
@@ -10854,7 +10901,6 @@ contains
     end subroutine test_singleEnd
 
     subroutine test_singleUpdate
-        character(*), parameter :: this_routine = "test_singleUpdate"
         integer(n_int) :: ilut(0:nifguga)
         type(ExcitationInformation_t) :: excitInfo
         real(dp) :: posSwitch(nBasis/2), negSwitch(nBasis/2)
@@ -10902,7 +10948,6 @@ contains
 
 
     subroutine test_createSingleStart
-        character(*), parameter :: this_routine = "test_createSingleStart"
         integer(n_int) :: ilut(0:nifguga)
         type(ExcitationInformation_t) :: excitInfo
         real(dp) :: posSwitch(nBasis/2), negSwitch(nBasis/2)
@@ -11011,7 +11056,6 @@ contains
     end subroutine test_createSingleStart
 
     subroutine test_excitationIdentifier_single
-        character(*), parameter :: this_routine = "test_excitationIdentifier_single"
         type(ExcitationInformation_t) :: excitInfo
 
         print *, "testing: excitationIdentifier_single:"
@@ -11061,7 +11105,6 @@ contains
 
 
     subroutine test_getDoubleMatrixElement
-        character(*), parameter :: this_routine = "test_getDoubleMatrixElement"
         real(dp) :: x0, x1
 
         print *, "testing: getDoubleMatrixElement:"
@@ -11073,7 +11116,6 @@ contains
     end subroutine test_getDoubleMatrixElement
 
     subroutine test_getMixedFullStop
-        character(*), parameter :: this_routine = "test_getMixedFullStop"
         real(dp) :: x0, x1
 
         print *, "testing: getMixedFullStop:"
@@ -11105,7 +11147,6 @@ contains
 
 
     subroutine test_getSingleMatrixElement
-        character(*), parameter :: this_routine = "test_getSingleMatrixElement"
 
         print *, "testing: getSingleMatrixElement(d1,d2,dB,gen,b):"
         call assert_true(abs(getSingleMatrixElement(0,0,-1,1,1.0_dp) - 1.0_dp) < tol)
@@ -11155,7 +11196,6 @@ contains
 
 
     subroutine test_matrix_element_ops
-        character(*), parameter :: this_routine ="test_encode_matrix_element"
         integer(n_int) :: ilut(0:nifguga)
 
         call EncodeBitDet_guga([1,2,3,4], ilut)
@@ -11180,7 +11220,6 @@ contains
     end subroutine test_matrix_element_ops
 
     subroutine test_calcOcc_vector_ilut
-        character(*), parameter :: this_routine = "test_calcOcc_vector_ilut"
         integer(n_int) :: ilut(0:nifguga)
 
         call EncodeBitDet_guga([1,2,3,4], ilut)
@@ -11198,7 +11237,6 @@ contains
     end subroutine test_calcOcc_vector_ilut
 
     subroutine test_calcStepVector
-        character(*), parameter :: this_routine = "test_calcStepVector"
         integer(n_int) :: ilut(0:nifguga)
 
         call EncodeBitDet_guga([1,2,3,4], ilut)
@@ -11213,7 +11251,6 @@ contains
     end subroutine test_calcStepVector
 
     subroutine test_isDouble
-        character(*), parameter :: this_routine = "test_isDouble"
 
         print *, "testing: isDouble(nI, sOrb)"
         call assert_true(isDouble([1,2,3,4],1))
@@ -11225,7 +11262,6 @@ contains
 
     subroutine test_isProperCSF_ilut
         integer(n_int) :: ilut(0:nifguga)
-        character(*), parameter :: this_routine = "test_isProperCSF_ilut"
 
         call EncodeBitDet_guga([1,2,3,4], ilut)
 
@@ -11239,8 +11275,6 @@ contains
 
     subroutine test_set_get_DeltaB
         integer(n_int) :: ilut(0:nifguga)
-        integer :: deltaB
-        character(*), parameter :: this_routine = "test_set_get_DeltaB"
 
         call EncodeBitDet_guga([1,2,3,4], ilut)
 
@@ -11276,7 +11310,6 @@ contains
     subroutine test_count_open_orbs_ij
         integer :: det(4)
         integer(n_int) :: ilut(0:nifguga)
-        character(*), parameter :: this_routine = "test_count_open_orbs_ij"
 
         det = [1,2,3,4]
 
@@ -11434,8 +11467,7 @@ contains
         integer(n_int) :: ilut(0:nifguga)
         integer :: det(4)
         real(dp) :: checkB_nI(4), checkB_ilut(nBasis/2)
-        character(*), parameter :: testFun = "calcB_vector", &
-            this_routine = "test_calcbvector"
+        character(*), parameter :: testFun = "calcB_vector"
 
         print *, " Testing ", testFun
         det = [1,2,3,4]
@@ -11464,8 +11496,6 @@ contains
         real(dp) :: neg(nBasis/2), pos(nBasis/2)
         integer :: det(4)
         integer(n_int) :: ilut(0:nifguga)
-        integer :: b
-        character(*), parameter :: this_routine = "test_calcRemainingSwitches"
 
         det = [1,2,3,6] ! 3 1 2 0
 

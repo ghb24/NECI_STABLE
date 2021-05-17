@@ -12,9 +12,10 @@ module lattice_mod
     ! the sym_mod!
     use constants, only: dp, pi, EPS
     use SystemData, only: twisted_bc, nbasis, basisfn, t_trans_corr_2body, &
-                          symmetry, brr, t_k_space_hubbard, t_trans_corr_hop, &
+                          symmetry, brr, t_input_order, orbital_order, &
+                          t_k_space_hubbard, t_trans_corr_hop, &
                           t_new_real_space_hubbard
-    use input_neci
+    use input_neci, only: item, nitems, input_options, readu, geti, read_line
     use util_mod, only: get_free_unit
 
     implicit none
@@ -155,6 +156,8 @@ module lattice_mod
         logical :: t_periodic_x = .true.
         logical :: t_periodic_y = .true.
         logical :: t_periodic(3) = .true.
+
+        logical :: t_bipartite_order = .false.
 
         ! i want to do a lattice type member also, do easier check, which
         ! lattice we are looking at.. but i need to make this nice
@@ -803,8 +806,7 @@ contains
             if (sym > sym_max) sym_max = sym
         end do
 
-        allocate(dispersion_rel_cached(lat%get_nsites()))
-        dispersion_rel_cached = h_cast(0.0_dp)
+        allocate(dispersion_rel_cached(sym_min:sym_max), source = h_cast(0.0_dp))
 
         do i = 1, lat%get_nsites()
             dispersion_rel_cached(lat%get_sym(i)) = &
@@ -1422,7 +1424,6 @@ contains
         character(*), parameter :: this_routine = "get_bath"
 
         integer :: i, j
-        ! do i store the bath seperately or do i just loop here??
 
         bath_sites = this%bath_sites
 
@@ -1639,7 +1640,7 @@ contains
     subroutine init_sites_chain(this)
         class(chain) :: this
 
-        integer :: i, vec(3)
+        integer :: i, vec(3), j, n
         ! ok what exactly do i do here??
         ! and i think i want to write a constructor for the sites.. to do
         ! nice initialization for AIM sites etc.
@@ -1662,44 +1663,126 @@ contains
         ! i could make a workaround with yet another type or do i more
         ! explicit here ..
 
-        if (this%get_nsites() == 1) then
-            this%sites(1) = site(ind=1, n_neighbors=0, neighbors=[integer ::], &
-                                 k_vec=[0, 0, 0], r_vec=[0, 0, 0])
-            return
-        end if
+        if (this%t_bipartite_order) then
+            if (t_input_order) then
+                n = this%get_nsites()
+                if (this%is_periodic()) then
+                    vec = [-(this%length + 1) / 2 + orbital_order(1), 0, 0]
+                    this%sites(orbital_order(1)) = site(orbital_order(1), 2, &
+                        [orbital_order(n), orbital_order(2)], vec, vec)
 
-        if (this%is_periodic()) then
+                    vec = [this%length / 2, 0, 0]
+                    this%sites(orbital_order(n)) = site(orbital_order(n), 2, &
+                        [orbital_order(n-1), orbital_order(1)], vec, vec)
 
-            ! use more concise site contructors!
-            ! also encode k- and real-space vectors.. i have to get this right!
-            vec = [-(this%length + 1) / 2 + 1, 0, 0]
 
-            this%sites(1) = site(1, 2, [this%get_nsites(), 2], vec, vec)
+                else
+                    vec = [-(this%length + 1) / 2 + orbital_order(1), 0, 0]
+                    this%sites(orbital_order(1)) = site(orbital_order(1), 1, &
+                        [orbital_order(2)], vec, vec)
 
-            vec = [this%length / 2, 0, 0]
-            this%sites(this%get_nsites()) = site(this%get_nsites(), 2, &
-                                                 [this%get_nsites() - 1, 1], vec, vec)
+                    vec = [this%length / 2, 0, 0]
+                    this%sites(orbital_order(n)) = site(orbital_order(n), 1, &
+                        [orbital_order(n-1)], vec, vec)
 
+                end if
+
+                ! and do the rest inbetween which is always the same
+                do i = 2, this%get_nsites() - 1
+
+                    vec = [-(this%length + 1) / 2 + orbital_order(i), 0, 0]
+                    ! if periodic and first or last: already dealt with above
+                    this%sites(orbital_order(i)) = site(orbital_order(i), &
+                        N_CONNECT_MAX_CHAIN, [orbital_order(i-1),orbital_order(i + 1)], vec, vec)
+
+                end do
+
+
+            else
+                if (this%is_periodic()) then
+
+                    ! use more concise site contructors!
+                    ! also encode k- and real-space vectors.. i have to get this right!
+                    vec = [-(this%length + 1) / 2 + 1, 0, 0]
+
+                    this%sites(1) = site(1, 2, &
+                        [this%get_nsites(), this%get_nsites()/2 + 1], vec, vec)
+
+                    vec = [this%length / 2, 0, 0]
+                    this%sites(this%get_nsites()) = site(this%get_nsites(), 2, &
+                                             [this%get_nsites()/2, 1], vec, vec)
+
+                else
+                    ! open boundary conditions:
+                    ! first site:
+                    this%sites(1) = site(1, 1, [this%get_nsites()/2 + 1], &
+                                         [-(this%length + 1) / 2 + 1, 0, 0])
+
+                    ! last site:
+                    this%sites(this%get_nsites()) = site(this%get_nsites(), 1, &
+                                         [this%get_nsites()/2], [this%length / 2, 0, 0])
+
+                end if
+
+                ! and do the rest inbetween which is always the same
+                do i = 2, this%get_nsites()/2
+
+                    vec = [-(this%length + 1) / 2 + 2 * i - 1, 0, 0]
+                    ! if periodic and first or last: already dealt with above
+                    this%sites(i) = site(i, N_CONNECT_MAX_CHAIN, &
+                        [this%get_nsites()/2 + i - 1, this%get_nsites()/2 + i], vec, vec)
+
+                end do
+
+                j = 1
+                do i = this%get_nsites()/2 + 1, this%get_nsites() - 1
+                    vec = [-(this%length + 1) / 2 + 2*j , 0, 0]
+                    ! if periodic and first or last: already dealt with above
+                    this%sites(i) = site(i, N_CONNECT_MAX_CHAIN, &
+                        [j, j + 1], vec, vec)
+
+                    j = j + 1
+                end do
+            end if
         else
-            ! open boundary conditions:
-            ! first site:
-            this%sites(1) = site(1, 1, [2], &
-                                 [-(this%length + 1) / 2 + 1, 0, 0])
+            if (this%get_nsites() == 1) then
+                this%sites(1) = site(ind=1, n_neighbors=0, neighbors=[integer ::], &
+                                     k_vec=[0, 0, 0], r_vec=[0, 0, 0])
+                return
+            end if
 
-            ! last site:
-            this%sites(this%get_nsites()) = site(this%get_nsites(), 1, &
-                                                 [this%get_nsites() - 1], [this%length / 2, 0, 0])
+            if (this%is_periodic()) then
+                ! use more concise site contructors!
+                ! also encode k- and real-space vectors.. i have to get this right!
+                vec = [-(this%length + 1) / 2 + 1, 0, 0]
 
+                this%sites(1) = site(1, 2, [this%get_nsites(), 2], vec, vec)
+
+                vec = [this%length / 2, 0, 0]
+                this%sites(this%get_nsites()) = site(this%get_nsites(), 2, &
+                                         [this%get_nsites() - 1, 1], vec, vec)
+
+            else
+                ! open boundary conditions:
+                ! first site:
+                this%sites(1) = site(1, 1, [2], &
+                                     [-(this%length + 1) / 2 + 1, 0, 0])
+
+                ! last site:
+                this%sites(this%get_nsites()) = site(this%get_nsites(), 1, &
+                             [this%get_nsites() - 1], [this%length / 2, 0, 0])
+
+            end if
+
+            ! and do the rest inbetween which is always the same
+            do i = 2, this%get_nsites() - 1
+
+                vec = [-(this%length + 1) / 2 + i, 0, 0]
+                ! if periodic and first or last: already dealt with above
+                this%sites(i) = site(i, N_CONNECT_MAX_CHAIN, [i - 1, i + 1], vec, vec)
+
+            end do
         end if
-
-        ! and do the rest inbetween which is always the same
-        do i = 2, this%get_nsites() - 1
-
-            vec = [-(this%length + 1) / 2 + i, 0, 0]
-            ! if periodic and first or last: already dealt with above
-            this%sites(i) = site(i, N_CONNECT_MAX_CHAIN, [i - 1, i + 1], vec, vec)
-
-        end do
 
     end subroutine init_sites_chain
 
@@ -1764,7 +1847,18 @@ contains
         !
         ! see below how this is implemented specifically!
         class(kagome) :: this
+        integer, allocatable :: order(:)
+        integer :: i
         character(*), parameter :: this_routine = "init_sites_kagome"
+
+        allocate(order(this%get_nsites()), source = 0)
+
+        if (t_input_order .and. this%t_bipartite_order) then
+            order = orbital_order
+        else
+            order = [(i, i = 1, this%get_nsites())]
+        end if
+
 
         ! and i think i will for the 6-site, 1x2 and 2x1 12 site and 2x2 24-site
         ! hard encode the neighbors and stuff because this seems to be a pain
@@ -1773,12 +1867,12 @@ contains
         if (this%is_periodic()) then
             if (this%length(1) == 1 .and. this%length(2) == 1) then
                 ! the smallest cluster
-                this%sites(1) = site(1, 3, [2, 4, 6])
-                this%sites(2) = site(2, 4, [1, 3, 4, 5])
-                this%sites(3) = site(3, 3, [2, 5, 6])
-                this%sites(4) = site(4, 3, [1, 2, 6])
-                this%sites(5) = site(5, 3, [2, 3, 6])
-                this%sites(6) = site(6, 4, [1, 3, 4, 5])
+                this%sites(order(1)) = site(order(1), 3, order([2, 4, 6]))
+                this%sites(order(2)) = site(order(2), 4, order([1, 3, 4, 5]))
+                this%sites(order(3)) = site(order(3), 3, order([2, 5, 6]))
+                this%sites(order(4)) = site(order(4), 3, order([1, 2, 6]))
+                this%sites(order(5)) = site(order(5), 3, order([2, 3, 6]))
+                this%sites(order(6)) = site(order(6), 4, order([1, 3, 4, 5]))
 
             else if (this%length(1) == 1 .and. this%length(2) == 2) then
                 ! the 1x2 cluster with 12-sites:
@@ -1883,10 +1977,18 @@ contains
         integer :: left(4 * this%length(1), 2 * this%length(2))
 
         integer :: i, temp_neigh(3), x, y, special
-        integer, allocatable :: neigh(:)
+        integer, allocatable :: neigh(:), order(:)
         character(*), parameter :: this_routine = "init_sites_hexagonal"
 
-        temp_array = reshape([(i, i=1, this%get_nsites())], &
+        allocate(order(this%get_nsites()), source = 0)
+
+        if (t_input_order .and. this%t_bipartite_order) then
+            order = orbital_order
+        else
+            order = [(i, i = 1, this%get_nsites())]
+        end if
+
+        temp_array = reshape([(order(i), i=1, this%get_nsites())], &
                              [4 * this%length(1), 2 * this%length(2)])
 
         up = cshift(temp_array, -1, 1)
@@ -1920,7 +2022,7 @@ contains
 
                 neigh = sort_unique(temp_neigh)
 
-                this%sites(i) = site(i, size(neigh), neigh)
+                this%sites(order(i)) = site(order(i), size(neigh), neigh)
             end do
         else
             call stop_all(this_routine, &
@@ -1940,12 +2042,19 @@ contains
         integer :: lu(this%length(1), this%length(2))
         integer :: rd(this%length(1), this%length(2))
         integer :: i, temp_neigh(6), x, y
-        integer, allocatable :: neigh(:)
+        integer, allocatable :: neigh(:), order(:)
         character(*), parameter :: this_routine = "init_sites_triangular"
 
         ASSERT(this%get_nsites() >= 4)
 
-        temp_array = reshape([(i, i=1, this%get_nsites())], this%length)
+        allocate(order(this%get_nsites()), source = 0)
+        if (t_input_order .and. this%t_bipartite_order) then
+            order = orbital_order
+        else
+            order = [(i, i = 1, this%get_nsites())]
+        end if
+
+        temp_array = reshape([(order(i), i=1, this%get_nsites())], this%length)
 
         up = cshift(temp_array, -1, 1)
         down = cshift(temp_array, 1, 1)
@@ -1964,7 +2073,7 @@ contains
 
                 neigh = sort_unique(temp_neigh)
 
-                this%sites(i) = site(i, size(neigh), neigh)
+                this%sites(order(i)) = site(order(i), size(neigh), neigh)
 
                 deallocate(neigh)
 
@@ -1990,6 +2099,7 @@ contains
         integer, allocatable :: neigh(:)
         integer :: sort_array_3(3), sort_array_2(2), sort_array(4)
         integer :: k_vec(3), r_vec(3)
+        integer, allocatable :: order(:)
 
         ! this is the important routine..
         ! store lattice like that:
@@ -2001,8 +2111,64 @@ contains
 
         ! use cshift intrinsic of fortran..
         ! how do i efficiently set that up?
-        temp_array = reshape([(i, i=1, this%get_nsites())], &
-                             this%length)
+        if (this%t_bipartite_order) then
+            if (this%length(1) /= this%length(2)) then
+                if (this%length(2) /= 2) then
+                    call stop_all(this_routine, &
+                        "ladder bipartite ordering is implemented with Ly == 2)")
+                end if
+
+                allocate(order(this%get_nsites()), source = 0)
+                if (t_input_order) then
+                    order = orbital_order
+                else
+                    do i = 1, this%length(1)/2
+                        order(2*i-1) = i
+                        order(2*i) = this%length(1) + i
+                    end do
+                    do i = this%length(1)/2 + 1, this%length(1)
+                        order(2*i-1) = this%length(1) + i
+                        order(2*i) = i
+                    end do
+                end if
+            else
+                if (this%get_nsites() == 16) then
+                    allocate(order(16), source = 0)
+                    if (t_input_order) then
+                        order = orbital_order
+                    else
+                        order = [ 1,  9,  2, 10, &
+                                 11,  3, 12,  4, &
+                                  5, 13,  6, 14, &
+                                 15,  7, 16,  8]
+                    end if
+                else if (this%get_nsites() == 36) then
+
+                    allocate(order(36), source = 0)
+                    if (t_input_order) then
+                        order = orbital_order
+                    else
+                        order = [ 1, 19,  2, 20,  3, 21, &
+                                 22,  4, 23,  5, 24,  6, &
+                                  7, 25,  8, 26,  9, 27, &
+                                 28, 10, 29, 11, 30, 12, &
+                                 13, 31, 14, 32, 15, 33, &
+                                 34, 16, 35, 17, 36, 18]
+                    end if
+                else
+                    if (t_input_order) then
+                        order = orbital_order
+                    else
+                        call stop_all(this_routine, &
+                            "bipartite order for square only implemented for 4x4! and 6x6 for now!")
+                    end if
+                end if
+            end if
+        else
+            allocate(order(this%get_nsites()), source = [(i, i = 1, this%get_nsites())])
+        end if
+
+        temp_array = reshape( order, this%length)
 
         up = cshift(temp_array, -1, 1)
         down = cshift(temp_array, 1, 1)
@@ -2022,7 +2188,7 @@ contains
 
                 k_vec = [x - (this%length(1) + 1) / 2, y - (this%length(2) + 1) / 2, 0]
                 r_vec = [x - (this%length(1) + 1) / 2, y - (this%length(2) + 1) / 2, 0]
-                this%sites(i) = site(i, size(neigh), neigh, k_vec, r_vec)
+                this%sites(order(i)) = site(order(i), size(neigh), neigh, k_vec, r_vec)
 
                 deallocate(neigh)
 
@@ -2054,7 +2220,7 @@ contains
                 k_vec = [x - (this%length(1) + 1) / 2, y - (this%length(2) + 1) / 2, 0]
                 r_vec = [x - (this%length(1) + 1) / 2, y - (this%length(2) + 1) / 2, 0]
 
-                this%sites(i) = site(i, size(neigh), neigh, k_vec, r_vec)
+                this%sites(order(i)) = site(order(i), size(neigh), neigh, k_vec, r_vec)
 
                 deallocate(neigh)
             end do
@@ -2085,7 +2251,7 @@ contains
                 k_vec = [x - (this%length(1) + 1) / 2, y - (this%length(2) + 1) / 2, 0]
                 r_vec = [x - (this%length(1) + 1) / 2, y - (this%length(2) + 1) / 2, 0]
 
-                this%sites(i) = site(i, size(neigh), neigh, k_vec, r_vec)
+                this%sites(order(i)) = site(order(i), size(neigh), neigh, k_vec, r_vec)
 
                 deallocate(neigh)
             end do
@@ -2133,7 +2299,7 @@ contains
                 k_vec = [x - (this%length(1) + 1) / 2, y - (this%length(2) + 1) / 2, 0]
                 r_vec = [x - (this%length(1) + 1) / 2, y - (this%length(2) + 1) / 2, 0]
 
-                this%sites(i) = site(i, size(neigh), neigh, k_vec, r_vec)
+                this%sites(order(i)) = site(order(i), size(neigh), neigh, k_vec, r_vec)
 
                 deallocate(neigh)
             end do
@@ -2519,9 +2685,10 @@ contains
                            -this%length(1):this%length(2) + 1)
         integer :: left_ll(-this%length(1):this%length(2), &
                            -this%length(1):this%length(2) + 1)
-        integer :: i, j, k, l, pbc, temp_neigh(4), k_min, k_max, offset, k_vec(3)
+        integer :: i, j, k, l, pbc, temp_neigh(4), k_min, k_max, offset, k_vec(3), m
         integer :: right_nn, left_nn, up_nn, down_nn, pbc_1(2), pbc_2(2), r_vec(3)
         integer, allocatable :: neigh(:)
+        integer, allocatable :: order(:)
         ! convention of lattice storage:
         !
         !   2 5
@@ -2544,19 +2711,36 @@ contains
 
         ! set up the lattice indices, via the use of "k-vectors"
         temp_array(:, :) = 0
+        if (this%t_bipartite_order) then
+            if ( .not. (this%get_nsites() == 18 .or. this%get_nsites() == 8)) then
+                call stop_all(this_routine, &
+                    "bipartite only for 8 or 18 tilted sites for now")
+            end if
+            allocate(order(this%get_nsites()), source = 0)
+
+            if (t_input_order) then
+                order = orbital_order
+            else
+                if (this%get_nsites() == 18) then
+                    order = [ 1, 2, 10, 3, 4, 11, 5, 12, 6, 13, 7, 14, 8, 15, 16, 9, 17, 18]
+                else if (this%get_nsites() == 8) then
+                    order = [1,2,5,3,6,4,7,8]
+                end if
+            end if
+        else
+            allocate(order(this%get_nsites()), source = [(i, i = 1, this%get_nsites())])
+        end if
+
 
         k = 0
         l = 1
+        m = this%get_nsites() / 2 + 1
         do i = -this%length(1) + 1, 0
-
-            ! this k-loop changes if i have a rectangular tilted lattice..
-            ! but how? but i think when i have figured this out i have it..
-            ! the first loop is fine..
             do j = -k, k
 
-                temp_array(j, i) = l
-
+                temp_array(j, i) = order(l)
                 l = l + 1
+
             end do
             k = k + 1
         end do
@@ -2598,13 +2782,28 @@ contains
 
         do i = offset + 1, this%length(2)
 
-            do j = k_min, k_max
 
-                temp_array(j, i) = l
+            ! if (this%t_bipartite_order) then
+            !     do j = k_min, k_max, 2
+            !
+            !         temp_array(j, i) = m
+            !
+            !         m = m + 1
+            !
+            !     end do
+            !     do j = k_min + 1, k_max - 1, 2
+            !         temp_array(j, i) = l
+            !         l = l + 1
+            !     end do
+            ! else
+                do j = k_min, k_max
 
-                l = l + 1
+                    temp_array(j, i) = order(l)
 
-            end do
+                    l = l + 1
+
+                end do
+            ! end if
 
             ! k_min is negative
             k_min = k_min + 1
@@ -2694,7 +2893,7 @@ contains
                     ! have to be sure that i make it correct
                     k_vec = [i, j, 0]
                     r_vec = [j, i, 0]
-                    this%sites(l) = site(l, size(neigh), neigh, k_vec, r_vec)
+                    this%sites(order(l)) = site(order(l), size(neigh), neigh, k_vec, r_vec)
 
                     l = l + 1
 
@@ -2756,7 +2955,7 @@ contains
 
                     k_vec = [i, j, 0]
                     r_vec = [j, 1, 0]
-                    this%sites(l) = site(l, size(neigh), neigh, k_vec, r_vec)
+                    this%sites(order(l)) = site(order(l), size(neigh), neigh, k_vec, r_vec)
 
                     l = l + 1
 
@@ -2826,7 +3025,7 @@ contains
 
                     k_vec = [i, j, 0]
                     r_vec = [j, i, 0]
-                    this%sites(l) = site(l, size(neigh), neigh, k_vec, r_vec)
+                    this%sites(order(l)) = site(order(l), size(neigh), neigh, k_vec, r_vec)
 
                     l = l + 1
 
@@ -2851,7 +3050,7 @@ contains
 
                     neigh = sort_unique(pack(temp_neigh, temp_neigh > 0))
 
-                    this%sites(l) = site(l, size(neigh), neigh)
+                    this%sites(order(l)) = site(order(l), size(neigh), neigh)
 
                     l = l + 1
 
@@ -2873,7 +3072,7 @@ contains
 
                     neigh = sort_unique(pack(temp_neigh, temp_neigh > 0))
 
-                    this%sites(l) = site(l, size(neigh), neigh)
+                    this%sites(order(l)) = site(order(l), size(neigh), neigh)
 
                     l = l + 1
 
@@ -2896,7 +3095,7 @@ contains
 
                     neigh = sort_unique(pack(temp_neigh, temp_neigh > 0))
 
-                    this%sites(l) = site(l, size(neigh), neigh)
+                    this%sites(order(l)) = site(order(l), size(neigh), neigh)
 
                     l = l + 1
 
@@ -2918,7 +3117,7 @@ contains
 
                     neigh = sort_unique(pack(temp_neigh, temp_neigh > 0))
 
-                    this%sites(l) = site(l, size(neigh), neigh)
+                    this%sites(order(l)) = site(order(l), size(neigh), neigh)
 
                     l = l + 1
 
@@ -2936,7 +3135,7 @@ contains
 
                     neigh = sort_unique(pack(temp_neigh, temp_neigh > 0))
 
-                    this%sites(l) = site(l, size(neigh), neigh)
+                    this%sites(order(l)) = site(order(l), size(neigh), neigh)
 
                     l = l + 1
 
@@ -2954,7 +3153,7 @@ contains
 
                     neigh = sort_unique(pack(temp_neigh, temp_neigh > 0))
 
-                    this%sites(l) = site(l, size(neigh), neigh)
+                    this%sites(order(l)) = site(order(l), size(neigh), neigh)
 
                     l = l + 1
 
@@ -3251,14 +3450,17 @@ contains
     end subroutine init_aim
 
     subroutine init_lattice(this, length_x, length_y, length_z, &
-                            t_periodic_x, t_periodic_y, t_periodic_z)
+                            t_periodic_x, t_periodic_y, t_periodic_z, t_bipartite_order)
         ! and write the first dummy initialize
         class(lattice) :: this
         integer, intent(in) :: length_x, length_y, length_z
         logical, intent(in) :: t_periodic_x, t_periodic_y, t_periodic_z
+        logical, intent(in), optional :: t_bipartite_order
         character(*), parameter :: this_routine = "init_lattice"
 
         integer :: n_sites, i
+        logical :: t_bipartite_order_
+        def_default(t_bipartite_order_, t_bipartite_order, .false.)
 
         n_sites = this%calc_nsites(length_x, length_y, length_z)
 
@@ -3297,6 +3499,9 @@ contains
             ! how should i define the lattice k_vectors..
             this%k_vec(1, 1) = length_x
 
+            this%t_bipartite_order = t_bipartite_order_
+
+
         class is (rectangle)
 
             call this%set_ndim(DIM_RECT)
@@ -3324,6 +3529,9 @@ contains
             this%k_vec(1, 1) = this%length(1)
             this%k_vec(2, 2) = this%length(2)
 
+            this%t_bipartite_order = t_bipartite_order_
+
+
         class is (tilted)
 
             call this%set_ndim(DIM_RECT)
@@ -3344,6 +3552,8 @@ contains
             this%k_vec(1:2, 1) = [this%length(1), this%length(1)]
             this%k_vec(1:2, 2) = [-this%length(2), this%length(2)]
 
+            this%t_bipartite_order = t_bipartite_order_
+
         class is (ole)
             call this%set_ndim(DIM_RECT)
 
@@ -3358,6 +3568,11 @@ contains
 
             this%k_vec(1:2, 1) = [this%length(1), this%length(1)]
             this%k_vec(1:2, 2) = [-this%length(1), this%length(2)]
+
+            if (t_bipartite_order_) then
+                call stop_all(this_routine, &
+                    "bipartite order not yet implemented for Ole lattice")
+            end if
 
         class is (sujun)
             call this%set_ndim(DIM_RECT)
@@ -3378,20 +3593,6 @@ contains
 
             call read_lattice_struct(this)
 
-!            call this%set_ndim(DIM_RECT)
-
-!            if (length_x /= 1 .or. length_y /= 3) then
-!                call stop_all(this_routine, "incorrect size for ext_input cluster")
-!            end if
-
-!            call this%set_length(1,3)
-!            call this%set_nconnect_max(4)
-
-!            this%lat_vec(1:2, 1) = [1,3]
-!            this%lat_vec(1:2, 2) = [-3,1]
-
-            ! k-vec todo..
-
         class is (cube)
             call this%set_ndim(DIM_CUBE)
             call this%set_length(length_x, length_y, length_z)
@@ -3405,12 +3606,18 @@ contains
             this%k_vec(2, 2) = this%length(2)
             this%k_vec(3, 3) = this%length(3)
 
+            if (t_bipartite_order_) then
+                call stop_all(this_routine, &
+                    "bipartite order not yet implemented for cubic lattice")
+            end if
+
         class is (triangular)
             call this%set_ndim(DIM_RECT)
             call this%set_length(length_x, length_y)
             ! for a filling with triangles the maximum connection is 6!
 
             call this%set_nconnect_max(6)
+
 
             ! todo: set lattice vector! and figure that out correctly!
             ! and write a more general routine to set the lattice
@@ -3571,8 +3778,8 @@ contains
                                 , this%kmin(3):this%kmax(3)))
         allocate(this%bz_table(this%kmin(1):this%kmax(1), this%kmin(2):this%kmax(2), &
                                 this%kmin(3):this%kmax(3)))
-        write(6, *) "Lookup table size is ", 2 * (this%kmax(1) - this%kmin(1) + 1) &
-            * (this%kmax(2) - this%kmin(2) + 1) * 8 / 1024, " kB"
+        ! write(6, *) "Lookup table size is ", 2 * (this%kmax(1) - this%kmin(1) + 1) &
+            ! * (this%kmax(2) - this%kmin(2) + 1) * 8 / 1024, " kB"
         ! and fill thee lookup table with the bz vectors
         call this%fill_bz_table()
         ! now, fill the lookup table with the indices of the states
@@ -3726,7 +3933,7 @@ contains
     end function aim_lattice_constructor
 
     function lattice_constructor(lattice_type, length_x, length_y, length_z, t_periodic_x, &
-                                 t_periodic_y, t_periodic_z, space) result(this)
+                                 t_periodic_y, t_periodic_z, space, t_bipartite_order) result(this)
         ! write a general public lattice_constructor for lattices
         ! the number of inputs are still undecided.. do we always have
         ! the same number or differing number of inputs?
@@ -3736,6 +3943,7 @@ contains
         integer, intent(in) :: length_x, length_y, length_z
         logical, intent(in) :: t_periodic_x, t_periodic_y, t_periodic_z
         character(*), intent(in), optional :: space
+        logical, intent(in), optional :: t_bipartite_order
         class(lattice), pointer :: this
         character(*), parameter :: this_routine = "lattice_constructor"
 
@@ -3760,7 +3968,7 @@ contains
 
             allocate(rectangle :: this)
 
-        case ('rectangle')
+        case ('rectangle', 'rect')
 
             allocate(rectangle :: this)
 
@@ -3779,7 +3987,7 @@ contains
 
             allocate(cube :: this)
 
-        case ('triangular', 'triangle')
+        case ('triangular', 'triangle', 'tri')
 
             if (any([length_x, length_y] < 2)) then
                 call stop_all(this_routine, &
@@ -3831,7 +4039,7 @@ contains
 
         ! the initializer deals with the different types then..
         call this%initialize(length_x, length_y, length_z, &
-                             t_periodic_x, t_periodic_y, t_periodic_z)
+                             t_periodic_x, t_periodic_y, t_periodic_z, t_bipartite_order)
 
     end function lattice_constructor
 
