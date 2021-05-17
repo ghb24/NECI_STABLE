@@ -28,6 +28,7 @@ module symrandexcit3
     use timing_neci
     use Parallel_neci
     use util_mod, only: binary_search_first_ge
+
     implicit none
 
 contains

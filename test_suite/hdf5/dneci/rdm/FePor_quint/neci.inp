@@ -1,5 +1,5 @@
 Title
- 
+
 System read
 electrons  14
 nonuniformrandexcits 4ind-weighted-2
@@ -7,14 +7,14 @@ nobrillouintheorem
 spin-restrict    4
 freeformat
 endsys
- 
+
 calc
 definedet    1    2    3    5   11   12   13   14   17   18   19   25   26   27
 
 methods
 method vertex fcimc
 endmethods
-seed -7 
+seed -7
 totalwalkers    1000000
 diagshift 0.00
 shiftdamp 0.02
@@ -25,7 +25,6 @@ addtoinitiator 3
 allrealcoeff
  realspawncutoff 0.30
 jump-shift
-tau 0.001 search
 max-tau 0.02
 maxwalkerbloom 1
 memoryfacspawn 10.0
@@ -40,7 +39,7 @@ trial-wavefunction
 pops-trial 100
 rdmsamplingiters 30
 endcalc
- 
+
 logging
 HDF5-POPS-read
 Highlypopwrite 50

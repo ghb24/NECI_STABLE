@@ -24,7 +24,8 @@ module fcimc_iter_utils
     use hphf_integrals, only: hphf_diag_helement
     use Determinants, only: get_helement
     use LoggingData, only: tFCIMCStats2, t_calc_double_occ, t_calc_double_occ_av, &
-                           AllInitsPerExLvl, initsPerExLvl, tCoupleCycleOutput
+                           AllInitsPerExLvl, initsPerExLvl, tCoupleCycleOutput, &
+                           t_measure_local_spin
     use tau_search, only: update_tau
     use rdm_data, only: en_pert_main, InstRDMCorrectionFactor
     use Parallel_neci
@@ -45,7 +46,8 @@ module fcimc_iter_utils
 
     use tau_search_hist, only: update_tau_hist
 
-    use guga_tausearch, only: update_tau_guga_nosym
+    use local_spin, only: all_local_spin, inst_local_spin, rezero_local_spin_stats
+
 
     implicit none
 
@@ -509,21 +511,24 @@ contains
         ! number of successful/invalid excits
         sizes(36) = 1
         sizes(37) = 1
+
+        if (t_measure_local_spin) then
+            sizes(38) = nBasis / 2
+        end if
         ! en pert space size
-        if (tEN2) sizes(38) = 1
+        if (tEN2) sizes(39) = 1
         ! Output variable
         if (t_output) then
-            sizes(39) = size(HFOut)
-            sizes(40) = size(Acceptances)
-            sizes(41) = size(SumWalkersOut)
-            sizes(42) = 1
+            sizes(40) = size(HFOut)
+            sizes(41) = size(Acceptances)
+            sizes(42) = size(SumWalkersOut)
+            sizes(43) = 1
         end if
-
         if (t_real_time_fciqmc) then
-            sizes(43) = size(popSnapShot)
-            NoArrs = 43
+            sizes(44) = size(popSnapShot)
+            NoArrs = 44
         else
-            NoArrs = 42
+            NoArrs = 43
         end if
 
         send_arr = 0.0_dp
@@ -584,18 +589,23 @@ contains
 
         low = upp + 1; upp = low + sizes(36) - 1; send_arr(low:upp) = nInvalidExcits;
         low = upp + 1; upp = low + sizes(37) - 1; send_arr(low:upp) = nValidExcits;
+        ! local spin
+        if (t_measure_local_spin) then
+            low = upp + 1; upp = low + sizes(38) - 1; send_arr(low:upp) = inst_local_spin;
+        end if
+
         ! en pert space size
         if (tEN2) then
-            low = upp + 1; upp = low + sizes(38) - 1; send_arr(low:upp) = en_pert_main%ndets;
+            low = upp + 1; upp = low + sizes(39) - 1; send_arr(low:upp) = en_pert_main%ndets;
         end if
 
         if (t_output) then
-            low = upp + 1; upp = low + sizes(39) - 1; send_arr(low:upp) = HFOut
-            low = upp + 1; upp = low + sizes(40) - 1; send_arr(low:upp) = Acceptances
-            low = upp + 1; upp = low + sizes(41) - 1; send_arr(low:upp) = SumWalkersOut
-            low = upp + 1; upp = low + sizes(42) - 1; send_arr(low:upp) = n_core_non_init
+            low = upp + 1; upp = low + sizes(40) - 1; send_arr(low:upp) = HFOut
+            low = upp + 1; upp = low + sizes(41) - 1; send_arr(low:upp) = Acceptances
+            low = upp + 1; upp = low + sizes(42) - 1; send_arr(low:upp) = SumWalkersOut
+            low = upp + 1; upp = low + sizes(43) - 1; send_arr(low:upp) = n_core_non_init
             if (t_real_time_fciqmc) then
-                low = upp + 1; upp = low + sizes(43) - 1; send_arr(low:upp) = popSnapShot;
+                low = upp + 1; upp = low + sizes(44) - 1; send_arr(low:upp) = popSnapShot;
             end if
         end if
 
@@ -656,18 +666,24 @@ contains
         ! excitation number trackers
         low = upp + 1; upp = low + sizes(36) - 1; allNInvalidExcits = nint(recv_arr(low), int64);
         low = upp + 1; upp = low + sizes(37) - 1; allNValidExcits = nint(recv_arr(low), int64);
+
+        ! local spin
+        if (t_measure_local_spin) then
+            low = upp + 1; upp = low + sizes(38) - 1; all_local_spin = recv_arr(low:upp);
+        end if
+
         ! en_pert space size
         if (tEN2) then
-            low = upp + 1; upp = low + sizes(38) - 1; en_pert_main%ndets_all = nint(recv_arr(low));
+            low = upp + 1; upp = low + sizes(39) - 1; en_pert_main%ndets_all = nint(recv_arr(low));
         end if
         ! Output variables
         if (t_output) then
-            low = upp + 1; upp = low + sizes(39) - 1; RealAllHFOut = recv_arr(low:upp)
-            low = upp + 1; upp = low + sizes(40) - 1; AllAcceptances = recv_arr(low:upp)
-            low = upp + 1; upp = low + sizes(41) - 1; AllSumWalkersOut = recv_arr(low:upp)
-            low = upp + 1; upp = low + sizes(42) - 1; all_n_core_non_init = nint(recv_arr(low))
+            low = upp + 1; upp = low + sizes(40) - 1; RealAllHFOut = recv_arr(low:upp)
+            low = upp + 1; upp = low + sizes(41) - 1; AllAcceptances = recv_arr(low:upp)
+            low = upp + 1; upp = low + sizes(42) - 1; AllSumWalkersOut = recv_arr(low:upp)
+            low = upp + 1; upp = low + sizes(43) - 1; all_n_core_non_init = nint(recv_arr(low))
             if (t_real_time_fciqmc) then
-                low = upp + 1; upp = low + sizes(43) - 1; allPopSnapShot = recv_arr(low:upp);
+                low = upp + 1; upp = low + sizes(44) - 1; allPopSnapShot = recv_arr(low:upp);
             end if
         end if
         ! Communicate HElement_t variables:
@@ -787,24 +803,15 @@ contains
 
         ! for now with the new tau-search also update tau in variable shift
         ! mode..
-        if (((tSearchTau .or. (tSearchTauOption .and. tSearchTauDeath)) .and. &
-             .not. tFillingStochRDMOnFly)) then
+        if (((tSearchTau .or. (tSearchTauOption .and. tSearchTauDeath)) &
+            .and. (.not. tFillingStochRDMOnFly))) then
 
-            if (tGen_nosym_guga) then
-                call update_tau_guga_nosym()
-            else
-                call update_tau()
-            end if
+            call update_tau()
 
             ! [Werner Dobrautz 4.4.2017:]
-        else if (((t_hist_tau_search .or. (t_hist_tau_search_option .and. tSearchTauDeath)) .and. &
-                  .not. tFillingStochRDMonFly)) then
-
-            if (tGen_nosym_guga) then
-                call update_hist_tau_guga_nosym()
-            else
-                call update_tau_hist()
-            end if
+        else if (((t_hist_tau_search .or. (t_hist_tau_search_option .and. tSearchTauDeath)) &
+            .and. (.not. tFillingStochRDMonFly))) then
+            call update_tau_hist()
         end if
 
         ! quick fix for the double occupancy:
@@ -916,8 +923,10 @@ contains
 
                 ! Instead attempt to calculate the average growth over every
                 ! iteration over the update cycle
-                AllGrowRate(:) = AllSumWalkersCyc(:) / real(StepsSft, dp) &
+                if (all(.not. near_zero(OldAllAvWalkersCyc))) then
+                    AllGrowRate(:) = AllSumWalkersCyc(:) / real(StepsSft, dp) &
                                        / OldAllAvWalkersCyc(:)
+                end if
                 AllWalkers(:) = AllSumWalkersCyc(:) / real(StepsSft, dp)
 
             end if
@@ -941,8 +950,8 @@ contains
             ! If any run uses the fixtrial option, we need to add the offset to the
             ! trial numerator
             if (tTrialWavefunction .and. tTrialShift) &
-                rel_tot_trial_numerator = relative_trial_numerator( &
-                                          tot_trial_numerator, tot_trial_denom, replica_pairs)
+                rel_tot_trial_numerator = real(relative_trial_numerator( &
+                          tot_trial_numerator, tot_trial_denom, replica_pairs), dp)
 
             ! Exit the single particle phase if the number of walkers exceeds
             ! the value in the input file. If particle no has fallen, re-enter
@@ -979,7 +988,8 @@ contains
                         !fluctuations of the projected energy.
 
                         !ToDo: Make DiafSft complex
-                        DiagSft(run) = (AllENumCyc(run)) / (AllHFCyc(run)) + proje_ref_energy_offsets(run)
+                        DiagSft(run) = real((AllENumCyc(run)) &
+                            / (AllHFCyc(run)) + proje_ref_energy_offsets(run), dp)
 
                         ! Update the shift averages
                         if ((iter - VaryShiftIter(run)) >= nShiftEquilSteps) then
@@ -1000,7 +1010,7 @@ contains
                     !fluctuations of the trial energy.
 
                     !ToDo: Make DiafSft complex
-                    DiagSft(run) = (rel_tot_trial_numerator(run) / tot_trial_denom(run)) - Hii
+                    DiagSft(run) = real((rel_tot_trial_numerator(run) / tot_trial_denom(run)) - Hii, dp)
 
                     ! Update the shift averages
                     if ((iter - VaryShiftIter(run)) >= nShiftEquilSteps) then
@@ -1226,7 +1236,6 @@ contains
         do run = 1, inum_runs
             if (.not. tSinglePartPhase(run)) then
                 TargetGrowRate(run) = 0.0_dp
-
                 if (tPreCond) then
                     if (iter > 80) tSearchTau = .false.
                 else
@@ -1324,6 +1333,11 @@ contains
                 call rezero_spin_diff()
             end if
         end if
+
+        if (t_measure_local_spin) then
+            call rezero_local_spin_stats()
+        end if
+
     end subroutine rezero_iter_stats_update_cycle
 
     subroutine iteration_output_wrapper(iter_data, tot_parts_new, &
@@ -1436,6 +1450,7 @@ contains
         logical :: tIsStateDeterm
 
 #ifdef CMPLX_
+        unused_var(iter_data)
         call stop_all("fix_trial_overlap", "Complex wavefunction is not supported yet!")
 #else
 

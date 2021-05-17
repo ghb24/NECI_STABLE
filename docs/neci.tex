@@ -104,7 +104,7 @@
 
 \begin{document}
 
-\author{Simon Smart, Nick Blunt, Kai Guther, Oskar Weser, Werner Dobrautz and George Booth}
+\author{Simon Smart, Nick Blunt, Kai Guther, Oskar Weser,\\ Werner Dobrautz and George Booth}
 \title{Unravelling the mysteries of NECI}
 \subtitle{The $n$-Electron Configuration Interaction solver}
 \maketitle
@@ -676,6 +676,16 @@ the \texttt{endsys} keyword.
     alias tables. This excitation generator is extremely fast, while
     maintaining high acceptance rates and is generally recommended when
     memory is not an issue.
+    
+    \codeitem{guga-pchb}
+    Uses the pre-computed alias tables for the spin-adapted GUGA implementation. 
+	Needs the \texttt{guga} keyword in the \texttt{System} block. 
+    If it is used in conjunction with the \texttt{hist-tau-search} option, which 
+    is recommended for GUGA calculations in general, it automatically sets 
+    more reasonable defaults than for the usual \texttt{mol-guga-weighted} 
+    excitation generation option.
+    
+    
     \codeitem{nosymgen}
     Generate all possible excitations, regardless of symmetry. Might have a
     low acceptance rate.
@@ -825,6 +835,19 @@ the \texttt{endsys} keyword.
     \codeitem{ueg-offset $k_x$ $k_y$ $k_z$}
     Offset $(k_x, k_y, k_z)$ for the momentum grid used in for the uniform
     electron gas.
+    
+    
+    \codeitem{bipartite-order [n]}
+    Enables a bipartite ordering of bipartite lattice (chain, square for now)
+    Has to be put \textbf{before!} the \texttt{lattice} keyword. 
+    If an additional parameter \texttt{n}, which has to equal to the number of lattice sites, is given an 
+    arbitrary orbital ordering can be given in the subsequent input line. 
+    (It has to be \texttt{n} unique numbers from, 1 to $n$.) An example:
+    \begin{lstlisting}[gobble=4]
+	bipartite 5
+	1 3 2 5 4
+    \end{lstlisting}
+    
   \end{description}
 
   \subsubsection{Transcorrelation options}
@@ -1614,6 +1637,12 @@ the \texttt{endsys} keyword.
       Create a histogram of the scaling factor used for the auto-adaptive shift
       over the population of a determinant. Only has an effect if
       \code{auto-adaptive-shift} is used.
+      
+      \codeitem{local-spin}
+      Activates the cumulative local spin, $\hat S_i^2$, measurement for spin-adapted GUGA calculations. 
+      An output file \texttt{local\_spin\_stats} is created, which keeps track of the local spin measurement up to every spatial orbital for each iteration is stored. Similar to diagonal RDM entries, this option needs two replicas for an unbiased measurement. Since this is a diagonal property for the GUGA, there is no additional cost.
+      
+      
     \end{description}
     \subsubsection{Semi-stochastic output options}
     \begin{description}
@@ -1628,6 +1657,15 @@ the \texttt{endsys} keyword.
       determinants to a file called CORESPACE. This can further be read
       in and used as the core space in subsequent calculations using the
       \texttt{read-core} option.
+      
+      \codeitem{print-core-hamil}
+      Prints the semi-stochastic Hamiltonian and the semistochastic basis states to the output file \texttt{semistoch-hamil} and \texttt{semistoch-basis}. 
+      Caution with the size of the semistochastic space!
+      
+      \codeitem{print-core-vec}
+      Prints the semi-stochastic ``eigenvector'' to the output files \texttt{determ\_vecs} and \texttt{determ\_vecs\_av}.
+      Caution with the size of the semistochastic space!
+      
     \end{description}
     \subsubsection{RDM output options}
     These options control how the RDMs are printed. For a description of how
@@ -1676,6 +1714,13 @@ the \texttt{endsys} keyword.
 
      \codeitem{print-molcas-rdms}
      	It is now possible to calculate stochastic spin-free RDMs with the GUGA implementation. This keyword is necessary if one intends to use this feature in conjunction with \texttt{Molcas} to perform a spin-free Stochastic-CASSCF. It produces the three files \texttt{DMAT, PAMAT} and \texttt{PSMAT}, which are read-in by \texttt{Molcas}.
+     	
+     \codeitem{full-core-rdms}
+     In the `normal' RDM sampling only entries, e.g. for the 1-RDM, $\rho_{ij}$, which are actually connected by 
+     some Hamiltonian matrix element. This has no negative effect on the energy calculation, but for properties, e.g. spin-spin correlation functions. 
+     This option activates a full sampling of RDMs, at least in the semi-stochastic space. 
+     This option does increase the cost though.  
+     
     \end{description}
 
 \section{Useful References Containing Technical Details}

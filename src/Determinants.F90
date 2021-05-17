@@ -394,16 +394,13 @@ contains
 
         IF((.not.tHub).and.(.not.tUEG).and.TwoCycleSymGens) THEN
             do i=1,nSymLabels
-!                write(6,*) "NSymLabels: ",NSymLabels,i-1
                 EndSymState=SymLabelCounts(1,i)+SymLabelCounts(2,i)-1
-!                write(6,*) "Number of states: ",SymLabelCounts(2,i)
                 do j=SymLabelCounts(1,i),EndSymState
 
                     Beta=(2*SymLabelList(j))-1
                     Alpha=(2*SymLabelList(j))
                     SymAlpha=INT((G1(Alpha)%Sym%S),4)
                     SymBeta=INT((G1(Beta)%Sym%S),4)
-!                    write(6,*) "***",Alpha,Beta
 
                     IF(.not.tFoundOrbs(Beta)) THEN
                         tFoundOrbs(Beta)=.true.
@@ -575,10 +572,6 @@ contains
         end if
 
         if (tStoreAsExcitations .and. nI(1) == -1 .and. nJ(1) == -1) then
-            ! TODO: how to express requirement for double?
-            !if (IC /= 2) &
-            !    call stop_all (this_routine, "tStoreAsExcitations in &
-            !                  &get_helement requires IC=2 (doubles)")
 
             ex(1,:) = nJ(4:5)
             ex(2,:) = nJ(6:7)
@@ -772,7 +765,7 @@ contains
         integer(n_int), intent(out), optional :: ilut_gen(0:NIfTot)
         !integer, intent(out), optional :: det(nel)
 
-        integer :: i, nfound, orb, clro
+        integer :: i, nfound, orb, clro, j
         integer(n_int) :: ilut_tmp(0:NIfTot)
 
         ! If we haven't initialised the generator, do that now.
@@ -794,7 +787,8 @@ contains
             ilut_tmp = spatial_bit_det(ilut_src)
             do i = 1, nbasis-1, 2
                 if (IsOcc(ilut_tmp, i)) then
-                    if (IsOcc(ilut_tmp, i+1)) then
+                    j = i + 1
+                    if (IsOcc(ilut_tmp, j)) then
                     !    nelec = nelec + 2
                     else
                         nfound = nfound + 1

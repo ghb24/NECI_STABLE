@@ -15,8 +15,9 @@ MODULE HPHFRandExcitMod
                           tUEG, tUEGNewGenerator, t_new_real_space_hubbard, &
                           t_tJ_model, t_heisenberg_model, t_lattice_model, &
                           t_k_space_hubbard, t_3_body_excits, t_uniform_excits, &
-                          t_trans_corr_hop, t_spin_dependent_transcorr, t_pcpp_excitgen, &
-                          t_pchb_excitgen, t_mol_3_body, t_ueg_3_body, max_ex_level
+                          t_trans_corr_hop, t_spin_dependent_transcorr, &
+                          t_pchb_excitgen, t_mol_3_body, t_ueg_3_body, tGUGA, &
+                          t_pcpp_excitgen, max_ex_level, t_guga_pchb
 
     use IntegralsData, only: UMat, fck, nMax
 
@@ -78,6 +79,8 @@ MODULE HPHFRandExcitMod
 
     use k_space_hubbard, only: gen_excit_k_space_hub, calc_pgen_k_space_hubbard, &
                                gen_excit_uniform_k_space_hub
+
+    use guga_pchb_excitgen, only: calc_pgen_guga_pchb
 
     IMPLICIT NONE
 !    SAVE
@@ -597,8 +600,19 @@ contains
         integer, intent(out) :: nJ(NEl)
         integer :: i
 
-        do i = 1, nel
 
+        ! for debug compilation treat first entry seperately
+        if (is_alpha(nI(1))) then
+            nJ(1) = nI(1) - 1
+        else
+            if (get_alpha(nI(1)) /= nI(2)) then
+                nJ(1) = nI(1) + 1
+            else
+                nJ(1) = nI(1)
+            end if
+        end if
+
+        do i = 2, nel
             ! If electron is an alpha electron, change it to a beta (unless
             ! it is part of a closed pair of electrons).
             if(is_alpha(nI(i))) then
@@ -763,7 +777,7 @@ contains
         ! nI is the determinant from which the excitation comes from.
 
         use bit_reps, only: get_initiator_flag
-        use bit_rep_data, only: test_flag
+        use bit_rep_data, only: test_flag, IlutBits
 
         integer, intent(in) :: nI(nel), ex(2, maxExcit), ic
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
@@ -775,6 +789,7 @@ contains
         character(*), parameter :: this_routine = 'CalcNonUniPGen'
 
         integer :: temp_part_type
+        integer(n_int) :: ilutJ(0:IlutBits%len_tot)
 
         ! We need to consider which of the excitation generators are in use,
         ! and call the correct routine in each case.
@@ -863,6 +878,8 @@ contains
                 else
                     pgen = calc_pgen_k_space_hubbard(nI, ilutI, ex, ic)
                 end if
+            else if (t_guga_pchb) then
+                pgen = calc_pgen_guga_pchb(ilutI, ilutJ)
             else if(t_pcpp_excitgen) then
                 pgen = calc_pgen_pcpp(ilutI, ex, ic)
             else if (allocated(current_exc_generator)) then

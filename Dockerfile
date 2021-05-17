@@ -37,5 +37,3 @@ RUN git clone https://github.com/jsspencer/testcode /testcode
 
 RUN export PYTHONPATH=/testcode/lib:${PYTHONPATH}
 
-# i also have to setup testcode.py and export the correct environment variables
-# can i build that from scratch or can i make a docker image or smth..
