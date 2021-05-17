@@ -24,7 +24,7 @@ module semi_stoch_gen
     use guga_excitations, only: actHamiltonian
     use guga_bitRepOps, only: convert_ilut_toGUGA, convert_ilut_toNECI
     use guga_data, only: tGUGACore
-    use util_mod, only: near_zero
+    use util_mod, only: near_zero, operator(.div.)
     use core_space_util, only: core_space_t, cs_replicas, deallocate_sparse_ham
 
     implicit none
