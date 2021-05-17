@@ -608,7 +608,6 @@ CONTAINS
                         CALL decode_bit_det(nI, davidson_ilut(:, i))
                         CALL GETSYM(nI, NEL, G1, NBASISMAX, ISYM)
                         !CALL GetLz(nI,NEL,Lz)
-                        !IF((ISym%Sym%S.eq.IHFSYM%Sym%S).and.(Lz.eq.LzTot)) THEN
                         IF (ISym%Sym%S == IHFSYM%Sym%S) THEN
                             Det = Det + 1
                             norm = norm + (davidsonCalc%davidson_eigenvector(i))**2
@@ -617,8 +616,6 @@ CONTAINS
                 else
                     do i = 1, NDET
                         CALL GETSYM(NMRKS(:, i), NEL, G1, NBASISMAX, ISYM)
-                        !CALL GetLz(NMRKS(:,i),NEL,Lz)
-                        !IF((ISym%Sym%S.eq.IHFSYM%Sym%S).and.(Lz.eq.LzTot)) THEN
                         IF (ISym%Sym%S == IHFSYM%Sym%S) THEN
                             Det = Det + 1
                             IF (tEnergy) THEN
@@ -668,12 +665,6 @@ CONTAINS
                 else
                     do i = 1, NDet
                         CALL GETSYM(NMRKS(:, i), NEL, G1, NBASISMAX, ISYM)
-                        !CALL GetLz(NMRKS(:,i),NEL,Lz)
-                        !                IF((NMRKS(1,i).eq.28).and.(NMRKS(2,i).eq.29).and.(NMRKS(3,i).eq.30).and.(NMRKS(4,i).eq.31)) THEN
-                        !                    write(6,*) "Found Det: ",NMRKS(:,i)
-                        !                    write(6,*) i,iSym%Sym%S,REAL(CK(i),8)
-                        !                end if
-                        !IF((ISym%Sym%S.eq.IHFSYM%Sym%S).and.(Lz.eq.LzTot)) THEN
                         IF (ISym%Sym%S == IHFSYM%Sym%S) THEN
                             Det = Det + 1
                             ExcitLevel = iGetExcitLevel_2(FDet, NMRKS(:, i), NEl, NEl)
@@ -709,8 +700,6 @@ CONTAINS
                     else
                         call sort(temp(1:Det), FCIDets(:, 1:Det), FCIGS(1:Det))
                     end if
-!                CALL Stop_All("DetCalc","Cannot do histogramming FCI without JUSTFINDDETS at the
-                    !moment (need new sorting - bug ghb24)")
                 end if
 
 !Test that HF determinant is the first determinant
@@ -722,7 +711,6 @@ CONTAINS
                 end do
 
 !Change it so that FCIDetIndex indexes the start of the block of that excitation level.
-!            FCIDetIndex(1)=2    !Singles start at index 2
                 FCIDetIndex(0) = 1
                 do i = 1, NEl + 1
                     FCIDetIndex(i) = FCIDetIndex(i - 1) + FCIDetIndex(i)
@@ -736,8 +724,6 @@ CONTAINS
 !We now need to sort within the excitation level by the "number" of the determinant
                 do i = 1, MaxIndex
                     IF (.not. tEnergy .and. .not. tFCIDavidson) THEN
-!                    write(6,*) i,FCIDetIndex(i),FCIDetIndex(i+1)-1
-!                    CALL neci_flush(6)
                         call sort(FCIDets(:, FCIDetIndex(i):FCIDetIndex(i + 1) - 1), &
                                   temp(FCIDetIndex(i):FCIDetIndex(i + 1) - 1))
                     ELSE
@@ -788,55 +774,6 @@ CONTAINS
                     end if
                 end if !tEnergy - for dumping compressed ordered GS wavefunction
                 DEallocate(Temp)
-!            do i=1,Det
-!                CALL DecodeBitDet(nK,iLut)
-!                CALL GETSYM(nK,NEL,G1,NBASISMAX,ISYM)
-!                IF((nK(1).eq.28).and.(nK(2).eq.29).and.(nK(3).eq.30).and.(nK(4).eq.31)) THEN
-!                    write(6,*) "Found Det: ",nK(:)
-!                    write(6,*) i,iSym%Sym%S,FCIGS(i)
-!                end if
-!            end do
-
-!             Det=0
-!             maxdet=0
-!             do i=1,nel
-!                 maxdet=maxdet+2**(nbasis-i)
-!             end do
-!             IF(.not.associated(NMRKS)) THEN
-!                 write(6,*) "NMRKS not allocated"
-!                 CALL neci_flush(6)
-!             end if
-!             norm=0.0_dp
-!             open(17,FILE='SymDETS',STATUS='UNKNOWN')
-!
-!             do i=1,MAXDET
-!                 Bits=0
-!                 do j=0,nbasis-1
-!                     IF(BTEST(i,j)) THEN
-!                         Bits=Bits+1
-!                     end if
-!                 end do
-!                 IF(Bits.eq.NEl) THEN
-!
-!                     DO j=1,NDET
-!                         CALL EncodeBitDet(NMRKS(:,j),iLut)
-!                         IF(iLut(0).eq.i) THEN
-!
-!                             CALL GETSYM(NMRKS(1,j),NEL,G1,NBASISMAX,ISYM)
-!                             IF(ISym%Sym%S.eq.0) THEN
-!                                 Det=Det+1
-!                                 write(17,"(2I12)",advance='no') Det,iLut(0)
-!                                 HEL=GetHElement3(NMRKS(:,j),NMRKS(:,j),0)
-!                                 norm=norm+(REAL(CK(j),8))**2
-!                                 write(17,"(3G25.16)") REAL(HEL,8),REAL(CK(j),8),norm
-!                             end if
-!                             EXIT
-!                         end if
-!                     end do
-!                 end if
-!
-!             end do
-!             close(17)
             end if !tCompressDets
         end if !tFindDets
 !C..
@@ -966,7 +903,7 @@ SUBROUTINE CFF_CHCK(NDET, NEVAL, NM, NEL, G1, CG, TKE)
             DO I = 1, NDET
                 IF (abs(CG(I, J)) > 1.0e-15_dp) THEN
                     DO IEL = 1, NEL
-                        write(iunit, "(I3,I3,2I3,2X)", advance='no') (G1(NM(1, IEL))%K(L), L=1, 5)
+                        write(iunit, "(I3,I3,2I3,2X)", advance='no') (G1(NM(1, IEL))%K(L), L=1, 3)
                     end do
                     IF (HElement_t_size == 1) THEN
                         write(iunit, "(F19.9,1X,I7)") CG(I, J), I

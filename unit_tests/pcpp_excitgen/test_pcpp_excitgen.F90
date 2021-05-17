@@ -1,3 +1,4 @@
+#include "macros.h"
 program test_pcpp_excitgen
     use constants
     use Parallel_neci, only: MPIInit, MPIEnd
@@ -96,6 +97,10 @@ contains
             integer, intent(in) :: ClassCount2(ScratchSize), ClassCountUnocc2(ScratchSize)
 
             real(dp) :: pgen
+
+            unused_var(nI)
+            unused_var(ClassCount2)
+            unused_var(ClassCountUnocc2)
 
             pgen = calc_pgen_pcpp(ilutI, ex, ic)
 

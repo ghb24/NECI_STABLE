@@ -207,8 +207,9 @@ contains
         precond_denom_all = 0.0_dp
 
         do i = 1, replica_est_len
-            mean_energy(i) = Hii + (proj_energy(2 * i - 1) + proje_ref_energy_offsets(2 * i - 1) + &
-                                    proj_energy(2 * i) + proje_ref_energy_offsets(2 * i)) / 2.0_dp
+            mean_energy(i) = Hii + (proj_energy(2 * i - 1) &
+                + proje_ref_energy_offsets(2 * i - 1) + proj_energy(2 * i) &
+                + proje_ref_energy_offsets(2 * i)) / 2.0_dp
         end do
 
         tCoreDet = .false.
@@ -222,9 +223,12 @@ contains
                 hdiag = det_diagH(i) + Hii
                 call extract_sign(CurrentDets(:, i), cursign)
                 do j = 1, replica_est_len
-                    rep_est_overlap(j) = rep_est_overlap(j) + cursign(2 * j - 1) * cursign(2 * j)
-                    var_e_num(j) = var_e_num(j) + hdiag * cursign(2 * j - 1) * cursign(2 * j)
-                    e_squared_num(j) = e_squared_num(j) + (hdiag**2) * cursign(2 * j - 1) * cursign(2 * j)
+                    rep_est_overlap(j) = rep_est_overlap(j) &
+                        + cursign(2 * j - 1) * cursign(2 * j)
+                    var_e_num(j) = var_e_num(j) &
+                        + hdiag * cursign(2 * j - 1) * cursign(2 * j)
+                    e_squared_num(j) = e_squared_num(j) &
+                        + (hdiag**2) * cursign(2 * j - 1) * cursign(2 * j)
                 end do
             end do
 
@@ -261,18 +265,23 @@ contains
                     end if
 
                     do j = 1, replica_est_len
-                        var_e_num(j) = var_e_num(j) - &
-                                       (spwnsign(2 * j - 1) * cursign(2 * j) + spwnsign(2 * j) * cursign(2 * j - 1)) / (2.0_dp * tau)
+                        var_e_num(j) = var_e_num(j) &
+                            - (spwnsign(2 * j - 1) * cursign(2 * j) &
+                            + spwnsign(2 * j) * cursign(2 * j - 1)) / (2.0_dp * tau)
 
-                        precond_e_num(j) = precond_e_num(j) - &
-                                           (spwnsign(2 * j - 1) * hdiag * cursign(2 * j) + spwnsign(2 * j) * hdiag * cursign(2 * j - 1)) / &
+                        precond_e_num(j) = precond_e_num(j) &
+                            - (spwnsign(2 * j - 1) * hdiag * cursign(2 * j) &
+                            + spwnsign(2 * j) * hdiag * cursign(2 * j - 1)) / &
                                            (2.0_dp * (mean_energy(j) - hdiag))
 
-                        precond_denom(j) = precond_denom(j) - &
-                         (spwnsign(2 * j - 1) * cursign(2 * j) + spwnsign(2 * j) * cursign(2 * j - 1)) / (2.0_dp * (mean_energy(j) - hdiag))
+                        precond_denom(j) = precond_denom(j) &
+                            - (spwnsign(2 * j - 1) * cursign(2 * j) &
+                            + spwnsign(2 * j) * cursign(2 * j - 1)) &
+                            / (2.0_dp * (mean_energy(j) - hdiag))
 
-                        e_squared_num(j) = e_squared_num(j) - &
-                                         (spwnsign(2 * j - 1) * hdiag * cursign(2 * j) + spwnsign(2 * j) * hdiag * cursign(2 * j - 1)) / tau
+                        e_squared_num(j) = e_squared_num(j) &
+                            - (spwnsign(2 * j - 1) * hdiag * cursign(2 * j) &
+                            + spwnsign(2 * j) * hdiag * cursign(2 * j - 1)) / tau
                     end do
                 end if
 
@@ -280,12 +289,14 @@ contains
                 ! elements of the Hamiltonian
                 do j = 1, replica_est_len
                     if (abs(spwnsign(2 * j - 1)) > 1.e-12_dp .and. abs(spwnsign(2 * j)) > 1.e-12_dp) then
-                        hdiag = extract_spawn_hdiag(SpawnedParts(:, i))
+                        hdiag = real(extract_spawn_hdiag(SpawnedParts(:, i)), dp)
 
-                        precond_e_num(j) = precond_e_num(j) + &
-                                           spwnsign(2 * j - 1) * spwnsign(2 * j) / (tau * (mean_energy(j) - hdiag))
+                        precond_e_num(j) = precond_e_num(j) &
+                            + spwnsign(2 * j - 1) * spwnsign(2 * j) &
+                            / (tau * (mean_energy(j) - hdiag))
 
-                        e_squared_num(j) = e_squared_num(j) + spwnsign(2 * j - 1) * spwnsign(2 * j) / (tau**2)
+                        e_squared_num(j) = e_squared_num(j) &
+                            + spwnsign(2 * j - 1) * spwnsign(2 * j) / (tau**2)
 
                         ! Only get EN2 contribution if we're due to cancel this
                         ! spawning on both replicas
@@ -294,11 +305,11 @@ contains
                             abort(2 * j) = test_abort_spawn(SpawnedParts(:, i), 2 * j)
 
                             if (abort(2 * j - 1) .and. abort(2 * j)) then
-                                en2_pert(j) = en2_pert(j) + &
-                                              spwnsign(2 * j - 1) * spwnsign(2 * j) / ((tau**2) * (mean_energy(j) - hdiag))
+                                en2_pert(j) = en2_pert(j) &
+                                    + spwnsign(2 * j - 1) * spwnsign(2 * j) &
+                                    / ((tau**2) * (mean_energy(j) - hdiag))
                             end if
                         end if
-
                     end if
                 end do
 
@@ -312,31 +323,40 @@ contains
 
                         do j = 1, replica_est_len
                             ! Variational energy terms
-                            var_e_num(j) = var_e_num(j) - &
-                                           (rep%partial_determ_vecs(2 * j - 1, i) * cursign(2 * j) + &
-                                            rep%partial_determ_vecs(2 * j, i) * cursign(2 * j - 1)) / (2.0_dp * tau)
+                            var_e_num(j) = var_e_num(j) &
+                                - (rep%partial_determ_vecs(2 * j - 1, i) * cursign(2 * j) &
+                                + rep%partial_determ_vecs(2 * j, i) &
+                                 * cursign(2 * j - 1)) / (2.0_dp * tau)
 
                             ! Preconditioned estimator
-                            precond_e_num(j) = precond_e_num(j) + &
-                                               rep%partial_determ_vecs(2 * j - 1, i) * rep%partial_determ_vecs(2 * j, i) / &
-                                               (tau * (mean_energy(j) - rep%core_ham_diag(i) - Hii))
+                            precond_e_num(j) = precond_e_num(j) &
+                                + rep%partial_determ_vecs(2 * j - 1, i) &
+                                 * rep%partial_determ_vecs(2 * j, i) &
+                                 / (tau * (mean_energy(j) - rep%core_ham_diag(i) - Hii))
 
-                            precond_e_num(j) = precond_e_num(j) - &
-                                               (rep%partial_determ_vecs(2 * j - 1, i) * (rep%core_ham_diag(i) + Hii) * cursign(2 * j) + &
-                                                rep%partial_determ_vecs(2 * j, i) * (rep%core_ham_diag(i) + Hii) * cursign(2 * j - 1)) / &
-                                               (2.0_dp * (mean_energy(j) - rep%core_ham_diag(i) - Hii))
+                            precond_e_num(j) = precond_e_num(j) &
+                                - (rep%partial_determ_vecs(2 * j - 1, i) &
+                                 * (rep%core_ham_diag(i) + Hii) * cursign(2 * j) &
+                                + rep%partial_determ_vecs(2 * j, i) &
+                                 * (rep%core_ham_diag(i) + Hii) * cursign(2 * j - 1)) &
+                                 / (2.0_dp * (mean_energy(j) - rep%core_ham_diag(i) - Hii))
 
-                            precond_denom(j) = precond_denom(j) - &
-                       (rep%partial_determ_vecs(2 * j - 1, i) * cursign(2 * j) + rep%partial_determ_vecs(2 * j, i) * cursign(2 * j - 1)) / &
-                                               (2.0_dp * (mean_energy(j) - rep%core_ham_diag(i) - Hii))
+                            precond_denom(j) = precond_denom(j) &
+                                - (rep%partial_determ_vecs(2 * j - 1, i) &
+                                 * cursign(2 * j) + rep%partial_determ_vecs(2 * j, i) &
+                                 * cursign(2 * j - 1)) / (2.0_dp * (mean_energy(j) &
+                                  - rep%core_ham_diag(i) - Hii))
 
                             ! E squared terms
-                            e_squared_num(j) = e_squared_num(j) + &
-                                               rep%partial_determ_vecs(2 * j - 1, i) * rep%partial_determ_vecs(2 * j, i) / (tau**2)
+                            e_squared_num(j) = e_squared_num(j) &
+                                + rep%partial_determ_vecs(2 * j - 1, i) &
+                                 * rep%partial_determ_vecs(2 * j, i) / (tau**2)
 
-                            e_squared_num(j) = e_squared_num(j) - &
-                                               (rep%partial_determ_vecs(2 * j - 1, i) * (rep%core_ham_diag(i) + Hii) * cursign(2 * j) + &
-                                                rep%partial_determ_vecs(2 * j, i) * (rep%core_ham_diag(i) + Hii) * cursign(2 * j - 1)) / tau
+                            e_squared_num(j) = e_squared_num(j) &
+                                - (rep%partial_determ_vecs(2 * j - 1, i) &
+                                 * (rep%core_ham_diag(i) + Hii) * cursign(2 * j) &
+                                + rep%partial_determ_vecs(2 * j, i) &
+                                 * (rep%core_ham_diag(i) + Hii) * cursign(2 * j - 1)) / tau
                         end do
 
                     end if
@@ -373,7 +393,8 @@ contains
                     hdiag = det_diagH(i) + Hii
                     call extract_sign(CurrentDets(:, i), cursign)
                     do j = 1, replica_est_len
-                        en2_new(j) = en2_new(j) + hdiag * cursign(2 * j - 1) * cursign(2 * j)
+                        en2_new(j) = en2_new(j) &
+                            + hdiag * cursign(2 * j - 1) * cursign(2 * j)
                     end do
                 end do
 
@@ -396,10 +417,11 @@ contains
 
                     do j = 1, replica_est_len
                         if (abs(spwnsign(2 * j - 1)) > 1.e-12_dp .and. abs(spwnsign(2 * j)) > 1.e-12_dp) then
-                            hdiag = extract_spawn_hdiag(SpawnedParts(:, i))
+                            hdiag = real(extract_spawn_hdiag(SpawnedParts(:, i)), dp)
 
-                            en2_new(j) = en2_new(j) + &
-                                         spwnsign(2 * j - 1) * spwnsign(2 * j) / ((tau**2) * (mean_energy(j) - hdiag))
+                            en2_new(j) = en2_new(j) &
+                                + spwnsign(2 * j - 1) * spwnsign(2 * j) &
+                                 / ((tau**2) * (mean_energy(j) - hdiag))
                         end if
                     end do
                 end do
@@ -409,9 +431,11 @@ contains
                         if (.not. tDetermSpawnedTo(i)) then
 
                             do j = 1, replica_est_len
-                                en2_new(j) = en2_new(j) + &
-                                             rep%partial_determ_vecs(2 * j - 1, i) * rep%partial_determ_vecs(2 * j, i) / &
-                                             ((tau)**2 * (mean_energy(j) - rep%core_ham_diag(i) - Hii))
+                                en2_new(j) = en2_new(j) &
+                                    + rep%partial_determ_vecs(2 * j - 1, i) &
+                                     * rep%partial_determ_vecs(2 * j, i) &
+                                     / ((tau)**2 * (mean_energy(j) &
+                                      - rep%core_ham_diag(i) - Hii))
                             end do
 
                         end if
@@ -486,8 +510,9 @@ contains
         precond_denom_all = 0.0_dp
 
         do i = 1, replica_est_len
-            mean_energy(i) = Hii + (proj_energy(2 * i - 1) + proje_ref_energy_offsets(2 * i - 1) + &
-                                    proj_energy(2 * i) + proje_ref_energy_offsets(2 * i)) / 2.0_dp
+            mean_energy(i) = Hii + (proj_energy(2 * i - 1) &
+                + proje_ref_energy_offsets(2 * i - 1) + proj_energy(2 * i) &
+                + proje_ref_energy_offsets(2 * i)) / 2.0_dp
         end do
 
         tCoreDet = .false.
@@ -556,41 +581,43 @@ contains
                     end if
 
                     do j = 1, replica_est_len
-                        var_e_num(j) = var_e_num(j) - &
-                                       (spwnsign(2 * j - 1) * cursign(2 * j) + spwnsign(2 * j) * cursign(2 * j - 1)) / (2.0_dp * tau)
+                        var_e_num(j) = var_e_num(j) &
+                            - (spwnsign(2 * j - 1) * cursign(2 * j) &
+                            + spwnsign(2 * j) * cursign(2 * j - 1)) / (2.0_dp * tau)
 
-                        precond_e_num(j) = precond_e_num(j) - &
-                                           (spwnsign(2 * j - 1) * hdiag * cursign(2 * j) + spwnsign(2 * j) * hdiag * cursign(2 * j - 1)) / &
+                        precond_e_num(j) = precond_e_num(j) &
+                            - (spwnsign(2 * j - 1) * hdiag * cursign(2 * j) &
+                            + spwnsign(2 * j) * hdiag * cursign(2 * j - 1)) / &
                                            (2.0_dp * (mean_energy(j) - hdiag))
 
-                        precond_denom(j) = precond_denom(j) - &
-                         (spwnsign(2 * j - 1) * cursign(2 * j) + spwnsign(2 * j) * cursign(2 * j - 1)) / (2.0_dp * (mean_energy(j) - hdiag))
+                        precond_denom(j) = precond_denom(j) &
+                            - (spwnsign(2 * j - 1) * cursign(2 * j) &
+                            + spwnsign(2 * j) * cursign(2 * j - 1)) &
+                            / (2.0_dp * (mean_energy(j) - hdiag))
 
-                        e_squared_num(j) = e_squared_num(j) - &
-                                         (spwnsign(2 * j - 1) * hdiag * cursign(2 * j) + spwnsign(2 * j) * hdiag * cursign(2 * j - 1)) / tau
-
-                        !if (tEN2Init) then
-                        !    en2_pert(j) = en2_pert(j) - &
-                        !      (spwnsign_non(2*j-1)*cursign(2*j) + spwnsign_non(2*j)*cursign(2*j-1)) / (2.0_dp*tau)
-                        !end if
+                        e_squared_num(j) = e_squared_num(j) &
+                            - (spwnsign(2 * j - 1) * hdiag * cursign(2 * j) &
+                            + spwnsign(2 * j) * hdiag * cursign(2 * j - 1)) / tau
                     end do
                 end if
 
                 ! Add in the contributions corresponding to off-diagonal
                 ! elements of the Hamiltonian
                 do j = 1, replica_est_len
-                    hdiag = extract_spawn_hdiag(SpawnedParts(:, i))
+                    hdiag = real(extract_spawn_hdiag(SpawnedParts(:, i)), dp)
 
-                    precond_e_num(j) = precond_e_num(j) + &
-                                       spwnsign(2 * j - 1) * spwnsign(2 * j) / (tau * (mean_energy(j) - hdiag))
+                    precond_e_num(j) = precond_e_num(j) &
+                        + spwnsign(2 * j - 1) * spwnsign(2 * j) / (tau * (mean_energy(j) - hdiag))
 
-                    e_squared_num(j) = e_squared_num(j) + spwnsign(2 * j - 1) * spwnsign(2 * j) / (tau**2)
+                    e_squared_num(j) = e_squared_num(j) &
+                        + spwnsign(2 * j - 1) * spwnsign(2 * j) / (tau**2)
 
                     ! Only get EN2 contribution if we're due to cancel this
                     ! spawning on both replicas
                     if (tEN2Init) then
-                        en2_pert(j) = en2_pert(j) + &
-                                      spwnsign_non(2 * j - 1) * spwnsign_non(2 * j) / ((tau**2) * (mean_energy(j) - hdiag))
+                        en2_pert(j) = en2_pert(j) &
+                            + spwnsign_non(2 * j - 1) * spwnsign_non(2 * j) &
+                            / ((tau**2) * (mean_energy(j) - hdiag))
                     end if
                 end do
 
@@ -607,31 +634,39 @@ contains
 
                         do j = 1, replica_est_len
                             ! Variational energy terms
-                            var_e_num(j) = var_e_num(j) - &
-                                           (rep%partial_determ_vecs(2 * j - 1, i) * cursign(2 * j) + &
-                                            rep%partial_determ_vecs(2 * j, i) * cursign(2 * j - 1)) / (2.0_dp * tau)
+                            var_e_num(j) = var_e_num(j) &
+                                - (rep%partial_determ_vecs(2 * j - 1, i) * cursign(2 * j) &
+                                + rep%partial_determ_vecs(2 * j, i) * cursign(2 * j - 1)) / (2.0_dp * tau)
 
                             ! Preconditioned estimator
-                            precond_e_num(j) = precond_e_num(j) + &
-                                               rep%partial_determ_vecs(2 * j - 1, i) * rep%partial_determ_vecs(2 * j, i) / &
-                                               (tau * (mean_energy(j) - rep%core_ham_diag(i) - Hii))
+                            precond_e_num(j) = precond_e_num(j) &
+                                + rep%partial_determ_vecs(2 * j - 1, i) &
+                                * rep%partial_determ_vecs(2 * j, i) &
+                                / (tau * (mean_energy(j) - rep%core_ham_diag(i) - Hii))
 
-                            precond_e_num(j) = precond_e_num(j) - &
-                                               (rep%partial_determ_vecs(2 * j - 1, i) * (rep%core_ham_diag(i) + Hii) * cursign(2 * j) + &
-                                                rep%partial_determ_vecs(2 * j, i) * (rep%core_ham_diag(i) + Hii) * cursign(2 * j - 1)) / &
-                                               (2.0_dp * (mean_energy(j) - rep%core_ham_diag(i) - Hii))
+                            precond_e_num(j) = precond_e_num(j) &
+                                - (rep%partial_determ_vecs(2 * j - 1, i) &
+                                * (rep%core_ham_diag(i) + Hii) * cursign(2 * j) &
+                                +  rep%partial_determ_vecs(2 * j, i) &
+                                * (rep%core_ham_diag(i) + Hii) * cursign(2 * j - 1)) &
+                                / (2.0_dp * (mean_energy(j) - rep%core_ham_diag(i) - Hii))
 
-                            precond_denom(j) = precond_denom(j) - &
-                       (rep%partial_determ_vecs(2 * j - 1, i) * cursign(2 * j) + rep%partial_determ_vecs(2 * j, i) * cursign(2 * j - 1)) / &
-                                               (2.0_dp * (mean_energy(j) - rep%core_ham_diag(i) - Hii))
+                            precond_denom(j) = precond_denom(j) &
+                                - (rep%partial_determ_vecs(2 * j - 1, i) &
+                                * cursign(2 * j) + rep%partial_determ_vecs(2 * j, i) &
+                                * cursign(2 * j - 1)) / (2.0_dp * (mean_energy(j) &
+                                - rep%core_ham_diag(i) - Hii))
 
                             ! E squared terms
-                            e_squared_num(j) = e_squared_num(j) + &
-                                               rep%partial_determ_vecs(2 * j - 1, i) * rep%partial_determ_vecs(2 * j, i) / (tau**2)
+                            e_squared_num(j) = e_squared_num(j) &
+                                + rep%partial_determ_vecs(2 * j - 1, i) &
+                                * rep%partial_determ_vecs(2 * j, i) / (tau**2)
 
-                            e_squared_num(j) = e_squared_num(j) - &
-                                               (rep%partial_determ_vecs(2 * j - 1, i) * (rep%core_ham_diag(i) + Hii) * cursign(2 * j) + &
-                                                rep%partial_determ_vecs(2 * j, i) * (rep%core_ham_diag(i) + Hii) * cursign(2 * j - 1)) / tau
+                            e_squared_num(j) = e_squared_num(j) &
+                                - (rep%partial_determ_vecs(2 * j - 1, i) &
+                                * (rep%core_ham_diag(i) + Hii) * cursign(2 * j) &
+                                + rep%partial_determ_vecs(2 * j, i) &
+                                * (rep%core_ham_diag(i) + Hii) * cursign(2 * j - 1)) / tau
                         end do
 
                     end if
@@ -728,16 +763,19 @@ contains
                         end if
 
                         do j = 1, replica_est_len
-                            b_term(j) = b_term(j) + &
-                   (spwnsign(2 * j - 1) * cursign(2 * j) + spwnsign(2 * j) * cursign(2 * j - 1)) / (2.0_dp * tau * (mean_energy(j) - hdiag))
+                            b_term(j) = b_term(j) &
+                                + (spwnsign(2 * j - 1) * cursign(2 * j) &
+                                + spwnsign(2 * j) * cursign(2 * j - 1)) &
+                                / (2.0_dp * tau * (mean_energy(j) - hdiag))
                         end do
                     end if
 
                     do j = 1, replica_est_len
-                        hdiag = extract_spawn_hdiag(SpawnedParts(:, i))
+                        hdiag = real(extract_spawn_hdiag(SpawnedParts(:, i)), dp)
 
-                        en2_new(j) = en2_new(j) + &
-                                     spwnsign(2 * j - 1) * spwnsign(2 * j) / ((tau**2) * (mean_energy(j) - hdiag))
+                        en2_new(j) = en2_new(j) &
+                            + spwnsign(2 * j - 1) * spwnsign(2 * j) &
+                            / ((tau**2) * (mean_energy(j) - hdiag))
                     end do
 
                     i = i + 1 + nrepeats
@@ -751,13 +789,15 @@ contains
                             call extract_sign(CurrentDets(:, rep%indices_of_determ_states(i)), cursign)
 
                             do j = 1, replica_est_len
-                                en2_new(j) = en2_new(j) + &
-                                             rep%partial_determ_vecs(2 * j - 1, i) * rep%partial_determ_vecs(2 * j, i) / &
-                                             ((tau)**2 * (mean_energy(j) - rep%core_ham_diag(i) - Hii))
+                                en2_new(j) = en2_new(j) &
+                                    + rep%partial_determ_vecs(2 * j - 1, i) &
+                                    * rep%partial_determ_vecs(2 * j, i) &
+                                    / ((tau)**2 * (mean_energy(j) - rep%core_ham_diag(i) - Hii))
 
-                                b_term(j) = b_term(j) + &
-                       (rep%partial_determ_vecs(2 * j - 1, i) * cursign(2 * j) + rep%partial_determ_vecs(2 * j, i) * cursign(2 * j - 1)) / &
-                                            (2.0_dp * tau * (mean_energy(j) - rep%core_ham_diag(i) - Hii))
+                                b_term(j) = b_term(j) &
+                                    + (rep%partial_determ_vecs(2 * j - 1, i) &
+                                    * cursign(2 * j) + rep%partial_determ_vecs(2 * j, i) * cursign(2 * j - 1)) &
+                                    / (2.0_dp * tau * (mean_energy(j) - rep%core_ham_diag(i) - Hii))
                             end do
 
                         end if

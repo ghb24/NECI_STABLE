@@ -55,7 +55,7 @@ module fcimc_helper
                         tSeniorInitiators, SeniorityAge, tInitCoherentRule, &
                         tLogAverageSpawns, &
                         spawnSgnThresh, minInitSpawns, &
-                        t_trunc_nopen_diff, trunc_nopen_diff, t_direct_guga_ref, &
+                        t_trunc_nopen_diff, trunc_nopen_diff, &
                         tAutoAdaptiveShift, tAAS_MatEle, tAAS_MatEle2, &
                         tAAS_MatEle3, tAAS_MatEle4, AAS_DenCut, &
                         tPrecond, &
@@ -748,8 +748,8 @@ contains
                 w(1) = abs(RealwSign(run))
                 w(2) = RealwSign(run)**2
 #endif
-                EXLEVEL_WNorm(0:2, ExcitLevel, run) = &
-                    EXLEVEL_WNorm(0:2, ExcitLevel, run) + w(0:2)
+                EXLEVEL_WNorm(0:2, ExcitLevel_local, run) = &
+                    EXLEVEL_WNorm(0:2, ExcitLevel_local, run) + w(0:2)
             end do ! run
         end if ! tLogEXLEVELStats
 
@@ -1673,12 +1673,15 @@ contains
         !      IC             - Excitation level relative to parent
         ! Ret: bAllowed       - .true. if excitation is allowed
 
+        use guga_data, only: ExcitationInformation_t
+        use guga_bitrepops, only: find_guga_excit_lvl
         integer, intent(in) :: nJ(nel), WalkExcitLevel, IC
         integer(n_int), intent(in) :: ilutnJ(0:NIfTot)
         logical :: bAllowed
 
         integer :: NoInFrozenCore, MinVirt, ExcitLevel, i
         integer :: k(3)
+        type(ExcitationInformation_t) :: excitInfo
 #ifdef DEBUG_
         character(*), parameter :: this_routine = "CheckAllowedTruncSpawn"
 #endif
@@ -1692,7 +1695,13 @@ contains
             ! be disallowed. If HPHF, excit could be single or double,
             ! and IC not returned --> Always test.
             ! for 3-body excits we want to make this test more stringent
-            if (t_3_body_excits) then
+            if (tGUGA) then
+                ! for now it only works with icilevel = 2
+                ASSERT(icilevel == 2)
+                ExcitLevel = find_guga_excit_lvl(ilutref(:,1), ilutnJ)
+                if (ExcitLevel > icilevel) bAllowed = .false.
+
+            else if (t_3_body_excits) then
                 ExcitLevel = FindBitExcitLevel(iLutHF, ilutnJ, ICILevel, .true.)
 
                 if (ExcitLevel > ICILevel) bAllowed = .false.
@@ -2500,8 +2509,6 @@ contains
 
             ref_b_vector_real = real(ref_b_vector_int, dp)
 
-            if (.not. t_direct_guga_ref) call create_projE_list(run)
-
         end if
 
         if (tHPHF) then
@@ -2755,4 +2762,5 @@ contains
             if (tChildIsDeterm) call set_flag(ilut_child, flag_deterministic(run))
         end if
     end function check_semistoch_flags
+
 end module

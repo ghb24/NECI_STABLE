@@ -483,7 +483,9 @@ contains
         block_address = 0
         do i = 1, ras%num_classes
             ! Address of the last string in the last class.
-            if (i > 1) block_address = block_address + classes(i - 1)%class_size
+            associate(ind => i)
+            if (i > 1) block_address = block_address + classes(ind - 1)%class_size
+            end associate
 
             do j = 0, 7
                 min_indices(i, j) = block_address + 1

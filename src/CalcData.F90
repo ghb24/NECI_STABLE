@@ -606,10 +606,6 @@ module CalcData
 ! determine what we should do with the spawning events above that ..
     real(dp) :: int_ratio_singles, int_ratio_para, int_ratio_anti, int_ratio_doubles
 
-! make a flag to decide to calculate the projected energy directly and not
-! by initialising a list of all connected states
-    logical :: t_direct_guga_ref = .false.
-
 ! introduce a flag to read the pSingles/pDoubles quantity even though the
 ! tau-search may be turned off
 ! do i want to change this to the default behavior? and indicate it
