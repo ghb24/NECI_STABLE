@@ -156,7 +156,7 @@ tolerance = (5e-7, None, 'overlap_sum'), (1e-6, None, 'hamil_sum')
 
 [mneci/excited_state/Ne_hphf_2_states_rdm_transition/]
 program = mneci
-tolerance = (5e-8, None, 'sum_error_rdm_2'), (5e-8, None, 'sum_diff_trdm_1_2(1)'), (5e-8, None, 'sum_diff_trdm_1_2(2)'), (1e-9, None, 'max_diff_trdm_1_2(2)')
+tolerance = (5e-8, None, 'sum_error_rdm_2'), (5e-8, None, 'sum_diff_trdm_1_2(1)'), (5e-8, None, 'sum_diff_trdm_1_2(2)'), (1e-8, None, 'max_diff_trdm_1_2(2)'), (1e-9, None, 'max_diff_trdm_1_2(1)'), (1e-9, None, 'energy_rdm_2'), (1e-9, None, 'max_error_rdm_2')
 
 [mneci/excited_state/BeH_3_states_rdm/]
 program = mneci
