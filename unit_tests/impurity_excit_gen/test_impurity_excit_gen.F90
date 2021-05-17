@@ -36,9 +36,8 @@ contains
     !------------------------------------------------------------------------------------------!
 
     subroutine impurity_fcidump(iunit)
-        use OneEInts, only: tmat2d, tCPMDSymTMat, tOneElecDiag
-        use SystemData, only: nBasis, nel, t_complex_ints
-        use bit_rep_data, only: niftot, nifd
+        use OneEInts, only: tCPMDSymTMat, tOneElecDiag
+        use SystemData, only: nBasis, t_complex_ints
         integer, intent(in) :: iunit
         integer :: i
         real(dp) :: e
@@ -84,20 +83,20 @@ contains
 
     end subroutine init_impurity_tests
 
-    subroutine generate_test_ilut(ilut,nI)
-        use bit_rep_data, only: niftot
-        use SystemData, only: nel
-
-        integer(n_int), intent(out) :: ilut(0:niftot)
-        integer,intent(out) :: nI(nel)
-        integer :: i
-
-        nI = (/ 1,3,6/)
-        ilut = 0
-        do i=1,nel
-            ilut(0) = ibset(ilut(0),nI(i)-1)
-        enddo
-    end subroutine generate_test_ilut
+    ! subroutine generate_test_ilut(ilut,nI)
+    !     use bit_rep_data, only: niftot
+    !     use SystemData, only: nel
+    !
+    !     integer(n_int), intent(out) :: ilut(0:niftot)
+    !     integer,intent(out) :: nI(nel)
+    !     integer :: i
+    !
+    !     nI = (/ 1,3,6/)
+    !     ilut = 0
+    !     do i=1,nel
+    !         ilut(0) = ibset(ilut(0),nI(i)-1)
+    !     enddo
+    ! end subroutine generate_test_ilut
 
 
 end program

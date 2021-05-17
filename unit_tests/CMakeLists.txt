@@ -57,6 +57,8 @@ add_subdirectory( gdata_io )
 
 add_subdirectory( test_loop )
 
+add_subdirectory( guga_pchb )
+
 add_subdirectory( orb_idx_and_exc_types )
 
 add_subdirectory( sets_mod )

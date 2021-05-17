@@ -1240,17 +1240,17 @@ contains
 !   now work out which reps are degenerate and label them
         allocate(SymReps(2, nBasis))
         call LogMemAlloc('SymReps', 2 * nBasis, 4, this_routine, tagSymReps)
-        J = 0
-        DO I = 1, NBASIS
-!            write(6,*) "SR2",I
+        symreps(2,1) = 1
+        symreps(1,1) = 1
+
+        J = 1
+        DO I = 2, NBASIS
             ltmp = .false.
-            if (i > 1) then
-                if (abs(arr(i, 2) - arr(i - 1, 2)) < degentol .and. &
-                    (tAbelian .or. symeq(G1(i)%sym, G1(i - 1)%sym))) then
-                    ! We have the same degenerate rep as the previous entry
-                    symreps(2, J) = symreps(2, J) + 1
-                    lTmp = .true.
-                end if
+            if (abs(arr(i, 2) - arr(i - 1, 2)) < degentol .and. &
+                (tAbelian .or. symeq(G1(i)%sym, G1(i - 1)%sym))) then
+                ! We have the same degenerate rep as the previous entry
+                symreps(2, J) = symreps(2, J) + 1
+                lTmp = .true.
             end if
             if (.not. lTmp) then
                 ! We have a new rep
@@ -1259,9 +1259,6 @@ contains
             end if
             SYMREPS(1, I) = J
         end do
-!         DO I=1,NBASIS
-!            write(6,*) "SR1",SYMREPS(1,I),SYMREPS(2,I)
-!         end do
     END SUBROUTINE GENSYMREPS
 
 !.  Irrep symmetries are specified in SYM(5).

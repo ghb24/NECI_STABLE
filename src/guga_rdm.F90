@@ -224,8 +224,6 @@ contains
             open(iunit_psmat, file='PSMAT', status='replace')
             do i = 1, size(psmat)
                 if (abs(psmat(i)) > 1e-12_dp) then
-                    !                 call extract_molcas_2_rdm_index(i, p, q, r, s, pq, rs)
-                    !                 write(iunit_psmat, '(I6,G25.17,4I6)') i, psmat(i), p, q, r, s
                     write(iunit_psmat, '(I6, G25.17)') i, psmat(i)
                 end if
             end do
@@ -234,8 +232,6 @@ contains
             open(iunit_pamat, file='PAMAT', status='replace')
             do i = 1, size(pamat)
                 if (abs(pamat(i)) > 1e-12_dp) then
-                    !                 call extract_molcas_2_rdm_index(i, p, q, r, s, pq, rs)
-                    !                 write(iunit_psmat, '(I6,G25.17,4I6)') i, pamat(i), p, q, r, s
                     write(iunit_pamat, '(I6, G25.17)') i, pamat(i)
                 end if
             end do
@@ -244,8 +240,6 @@ contains
             open(iunit_dmat, file='DMAT', status='replace')
             do i = 1, size(dmat)
                 if (abs(dmat(i)) > 1e-12_dp) then
-                    !                 call extract_molcas_1_rdm_index(i, p, q)
-                    !                 write(iunit_dmat, '(I6, G25.17,2I6)') i, dmat(i), p, q
                     write(iunit_dmat, '(I6, G25.17)') i, dmat(i)
                 end if
             end do
@@ -371,12 +365,6 @@ contains
         if (r < s) sgn = -sgn
 
     end function molcas_sign
-
-    ! function get_rdm_hash_entry()
-    !     ! make a function to easily extract the rdm element stored in the
-    !     ! hash table
-    !
-    ! end function get_rdm_hash_entry
 
     subroutine print_rdm_ind(rdm_ind, typ, t_newline)
         integer(int_rdm), intent(in) :: rdm_ind
@@ -649,14 +637,18 @@ contains
         character(*), parameter :: this_routine = "Add_RDM_HFConnections_GUGA"
 #endif
 
+        unused_var(excit_lvl)
         ! damn.. here we need to do the 'slow' implementation i guess..
         ! since NJ does not come from a spawning event but is
         ! done deterministically for the HF connections..
         ! there should be a clever way to do this..
         ! nah.. not for now.. otherwise i have to check everywhere also
         ! if i sampled this already.. for leave it at that and be done with
-        ! it!
-        if (excit_lvl == 1 .or. excit_lvl == 2) then
+
+
+        ! excit-lvl information is not really correct for GUGA..
+        ! so avoid using it..
+!         if (excit_lvl == 1 .or. excit_lvl == 2) then
             ! for HF -> nJ we do not have csf info intialized so use calc_type = 2
             call add_rdm_from_ij_pair_guga_exact(spawn, one_rdms, iLutHF_True, &
                                                  ilutJ, av_sign_hf(2::2), iter_rdm*av_sign_j(1::2), calc_type=2)
@@ -664,7 +656,7 @@ contains
             ! for nJ we have the csf info initialized (or maybe not..)
             call add_rdm_from_ij_pair_guga_exact(spawn, one_rdms, ilutJ, &
                                                  iLutHF_True, av_sign_j(2::2), iter_rdm*av_sign_hf(1::2), calc_type=2)
-        end if
+!         end if
 
     end subroutine Add_RDM_HFConnections_GUGA
 
@@ -689,40 +681,43 @@ contains
         real(dp) :: full_sign(spawn%rdm_send%sign_length)
 
         call calc_guga_matrix_element(ilutI, ilutJ, excitInfo, mat_ele, &
-                                      t_hamil=.false., calc_type=calc_type, rdm_ind=rdm_ind, &
-                                      rdm_mat=rdm_mat)
+                                      t_hamil=.false., calc_type=calc_type, &
+                                      rdm_ind=rdm_ind, rdm_mat=rdm_mat)
 
         ! i assume sign_i and sign_j are not 0 if we end up here..
-        do n = 1, size(rdm_ind)
-            if (.not. near_zero(rdm_mat(n))) then
-                if (excitInfo%excitLvl == 1) then
-                    if (RDMExcitLevel == 1) then
-                        call fill_sings_1rdm_guga(one_rdms, sign_i, sign_j, &
-                                                  rdm_mat(n), rdm_ind(n))
-                    else
-                        call fill_sings_2rdm_guga(spawn, ilutI, &
-                                                  ilutJ, sign_i, sign_j, rdm_mat(n), rdm_ind(n))
-                    end if
-                else if (excitInfo%excitLvl == 2 .and. RDMExcitLevel /= 1) then
-                    call extract_2_rdm_ind(rdm_ind(n), p, q, r, s)
-                    full_sign = sign_i * sign_j * rdm_mat(n)
-
-                    ! here in the 'exact' filling (coming from HF or
-                    ! within the semistochastic space I think it makes
-                    ! sense to fill symmetrically.. since here no
-                    ! stochastic spawning is happening and this does not
-                    ! give us information about the hermiticity error!
-                    call add_to_rdm_spawn_t(spawn, p, q, r, s, &
-                                            full_sign, .true.)
-
-                    if (.not. &
-                        (excitInfo%typ == excit_type%fullstart_stop_alike)) then
-                        call add_to_rdm_spawn_t(spawn, r, s, p, q, &
+        if (allocated(rdm_ind)) then
+            ASSERT(allocated(rdm_mat))
+            ASSERT(size(rdm_ind) == size(rdm_mat))
+            do n = 1, size(rdm_ind)
+                if (.not. near_zero(rdm_mat(n))) then
+                    if (excitInfo%excitLvl == 1) then
+                        if (RDMExcitLevel == 1) then
+                            call fill_sings_1rdm_guga(one_rdms, sign_i, sign_j, &
+                                                      rdm_mat(n), rdm_ind(n))
+                        else
+                            call fill_sings_2rdm_guga(spawn, ilutI, &
+                                                      ilutJ, sign_i, sign_j, &
+                                                      rdm_mat(n), rdm_ind(n))
+                        end if
+                    else if (excitInfo%excitLvl == 2 .and. RDMExcitLevel /= 1) then
+                        call extract_2_rdm_ind(rdm_ind(n), p, q, r, s)
+                        full_sign = sign_i * sign_j * rdm_mat(n)
+                        ! here in the 'exact' filling (coming from HF or
+                        ! within the semistochastic space I think it makes
+                        ! sense to fill symmetrically.. since here no
+                        ! stochastic spawning is happening and this does not
+                        ! give us information about the hermiticity error!
+                        call add_to_rdm_spawn_t(spawn, p, q, r, s, &
                                                 full_sign, .true.)
+                        if (.not. &
+                            (excitInfo%typ == excit_type%fullstart_stop_alike)) then
+                            call add_to_rdm_spawn_t(spawn, r, s, p, q, &
+                                                    full_sign, .true.)
+                        end if
                     end if
                 end if
-            end if
-        end do
+            end do
+        end if
 
     end subroutine add_rdm_from_ij_pair_guga_exact
 
@@ -2114,6 +2109,7 @@ contains
             if (step_i(iO) == 3 .or. ((occ_i(iO) .isclose.1.0_dp) .and. b_i(iO) == 0)) then
                 ! then it is easy:
                 ! just figure out correct indices
+
                 call add_to_rdm_spawn_t(spawn, i, iO, iO, a, &
                                         -occ_i(iO) / 2.0 * sign_i * sign_j * mat_ele, .true.)
                 call add_to_rdm_spawn_t(spawn, iO, a, i, iO, &

@@ -96,7 +96,6 @@ contains
         ! this shouldn't be too big of a problem..
         if (.not. tRestart .and. (.not. tReadPops) .and. tau < EPS) then
             call FindMaxTauDoubs()
-!             call find_max_tau_doubs_guga()
         end if
         write(6, *) "Using initial time-step: ", tau
         write(6, *) "NOTE: this is not yet correctly adapted for the GUGA implementation"
