@@ -31,7 +31,9 @@ module back_spawn_excit_gen
     use Determinants, only: write_det, get_helement
     use ueg_excit_gens, only: gen_double_ueg, create_ab_list_ueg, pick_uniform_elecs, &
                               calc_pgen_ueg
-    use util_mod, only: binary_search_first_ge, operator(.div.)
+    use util_mod, only: operator(.div.)
+
+    use util_mod_numerical, only: binary_search_first_ge
 
     use lattice_models_utils, only: make_ilutJ, get_orb_from_kpoints, get_ispn
 
