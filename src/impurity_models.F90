@@ -8,7 +8,7 @@ use OneEInts, only: getTMatEl
 use FciMCData, only: pSingles
 use dSFMT_interface, only: genrand_real2_dSFMT
 use constants, only: dp, n_int, eps, bits_n_int, HEl_zero, maxExcit
-use util_mod, only: abs_l1
+use util_mod, only: abs_l1, operator(.div.)
 use util_mod_numerical, only: binary_search_first_ge
 use get_excit, only: make_single, make_double
 use UMatCache, only: GtID

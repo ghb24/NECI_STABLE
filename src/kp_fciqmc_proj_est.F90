@@ -3,6 +3,7 @@
 module kp_fciqmc_proj_est
 
     use bit_rep_data, only: NIfTot, nifd, IlutBits
+    use util_mod, only: operator(.div.)
     use constants
     use kp_fciqmc_data_mod, only: lenof_all_signs, kp_ind_1, kp_ind_2
     use FciMCData, only: core_run

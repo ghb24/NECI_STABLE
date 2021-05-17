@@ -41,6 +41,7 @@ module direct_ci
     use OneEInts, only: GetTMatEl
     use ras
     use ras_data
+    use util_mod, only: operator(.div.)
 
     implicit none
 
@@ -578,7 +579,7 @@ contains
         integer :: string_k(tot_nelec)
 
         ! Map the local variables onto the store.
-        i => gen_store%i; 
+        i => gen_store%i;
         j => gen_store%j
 
         ! Initialise the generator.

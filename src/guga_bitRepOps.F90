@@ -2019,7 +2019,7 @@ contains
 
     subroutine write_det_guga(nunit, ilut, flag, n_orbs)
         ! subroutine which prints the stepvector representation of an ilut
-        integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
+        integer(n_int), intent(in) :: ilut(0:)
         integer, intent(in) :: nunit
         logical, intent(in), optional :: flag
         integer, intent(in), optional :: n_orbs
@@ -2048,27 +2048,35 @@ contains
         end do
 
         ! if we have more entries due to RDMs, print it here
-        if (tRDMonfly) then
-            rdm_ind = extract_rdm_ind(ilut)
-            write(nunit, "(A,i8)", advance='no') ") ", getDeltaB(ilut)
-            write(nunit, "(A,3i8,A)", advance='no') " | ( ", &
-                extract_excit_lvl_rdm(rdm_ind), &
-                extract_excit_type_rdm(rdm_ind), &
-                int(iand(rdm_ind, rdm_ind_bitmask)), ' ) '
-            write(nunit, "(f16.7)", advance='no') &
-                extract_stochastic_rdm_x0(GugaBits, ilut)
-            if (flag_) then
-                write(nunit, "(f16.7)", advance='yes') &
-                    extract_stochastic_rdm_x1(GugaBits, ilut)
-            else
+        if (ubound(ilut, dim = 1) == GugaBits%len_tot) then
+            if (tRDMonfly) then
+                rdm_ind = extract_rdm_ind(ilut)
+                write(nunit, "(A,i8)", advance='no') ") ", getDeltaB(ilut)
+                write(nunit, "(A,3i8,A)", advance='no') " | ( ", &
+                    extract_excit_lvl_rdm(rdm_ind), &
+                    extract_excit_type_rdm(rdm_ind), &
+                    int(iand(rdm_ind, rdm_ind_bitmask)), ' ) '
                 write(nunit, "(f16.7)", advance='no') &
-                    extract_stochastic_rdm_x1(GugaBits, ilut)
+                    extract_stochastic_rdm_x0(GugaBits, ilut)
+                if (flag_) then
+                    write(nunit, "(f16.7)", advance='yes') &
+                        extract_stochastic_rdm_x1(GugaBits, ilut)
+                else
+                    write(nunit, "(f16.7)", advance='no') &
+                        extract_stochastic_rdm_x1(GugaBits, ilut)
+                end if
+            else
+                if (flag_) then
+                    write(nunit, "(A,i8)", advance='yes') ") ", getDeltaB(ilut)
+                else
+                    write(nunit, "(A,i8)", advance='no') ") ", getDeltaB(ilut)
+                end if
             end if
         else
             if (flag_) then
                 write(nunit, "(A,i8)", advance = 'yes') ") ", getDeltaB(ilut)
             else
-                write(nunit, "(A,i8)", advance='no') ") ", getDeltaB(ilut)
+                write(nunit, "(A)", advance='no') ") "
             end if
         end if
 
