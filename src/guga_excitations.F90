@@ -1261,20 +1261,26 @@ contains
                 ! wait a minute.. i have to do that at the end apparently..
                 ! since i need to know the x0 and x1 matrix element contributions
                 mat_ele = (temp_x0 * (get_umat_el(ende1, ende2, start1, start2) + &
-                                      get_umat_el(ende2, ende1, start2, start1) + get_umat_el(ende2, ende1, start1, start2) + &
-                                      get_umat_el(ende1, ende2, start2, start1)) + order * order1 * &
-                           temp_x1 * ( &
-                           get_umat_el(ende1, ende2, start1, start2) + get_umat_el(ende2, ende1, start2, start1) - &
-                           get_umat_el(ende2, ende1, start1, start2) - get_umat_el(ende1, ende2, start2, start1))) / 2.0_dp
+                                      get_umat_el(ende2, ende1, start2, start1) + &
+                                      get_umat_el(ende2, ende1, start1, start2) + &
+                                      get_umat_el(ende1, ende2, start2, start1)) + &
+                           order * order1 *  temp_x1 * ( &
+                                      get_umat_el(ende1, ende2, start1, start2) + &
+                                      get_umat_el(ende2, ende1, start2, start1) - &
+                                      get_umat_el(ende2, ende1, start1, start2) - &
+                                      get_umat_el(ende1, ende2, start2, start1))) / 2.0_dp
 
             case (excit_type%double_raising)
                 ! double raising
                 mat_ele = (temp_x0 * (get_umat_el(start1, start2, ende1, ende2) + &
-                                      get_umat_el(start2, start1, ende2, ende1) + get_umat_el(start1, start2, ende2, ende1) + &
-                                      get_umat_el(start2, start1, ende1, ende2)) + order * order1 * &
-                           temp_x1 * ( &
-                           get_umat_el(start1, start2, ende1, ende2) + get_umat_el(start2, start1, ende2, ende1) - &
-                           get_umat_el(start1, start2, ende2, ende1) - get_umat_el(start2, start1, ende1, ende2))) / 2.0_dp
+                                      get_umat_el(start2, start1, ende2, ende1) + &
+                                      get_umat_el(start1, start2, ende2, ende1) + &
+                                      get_umat_el(start2, start1, ende1, ende2)) + &
+                           order * order1 * temp_x1 * ( &
+                                      get_umat_el(start1, start2, ende1, ende2) + &
+                                      get_umat_el(start2, start1, ende2, ende1) - &
+                                      get_umat_el(start1, start2, ende2, ende1) - &
+                                      get_umat_el(start2, start1, ende1, ende2))) / 2.0_dp
 
             case (excit_type%double_L_to_R_to_L)
                 ! L -> R -> L
@@ -1285,9 +1291,9 @@ contains
 
                 else
                     mat_ele = (-temp_x0 * (get_umat_el(start2, ende2, start1, ende1) + &
-                                           get_umat_el(ende2, start2, ende1, start1)) * 2.0_dp + (temp_x0 + &
-                                                                                   temp_x1) * (get_umat_el(ende2, start2, start1, ende1) + &
-                                                                                        get_umat_el(start2, ende2, ende1, start1))) / 2.0_dp
+                                           get_umat_el(ende2, start2, ende1, start1)) * 2.0_dp + &
+                              (temp_x0 + temp_x1) * (get_umat_el(ende2, start2, start1, ende1) + &
+                                                     get_umat_el(start2, ende2, ende1, start1))) / 2.0_dp
 
                 end if
 
@@ -1299,9 +1305,9 @@ contains
 
                 else
                     mat_ele = (-temp_x0 * (get_umat_el(start1, ende1, start2, ende2) + &
-                                           get_umat_el(ende1, start1, ende2, start2)) * 2.0_dp + (temp_x0 + &
-                                                                                   temp_x1) * (get_umat_el(start1, ende1, ende2, start2) + &
-                                                                                        get_umat_el(ende1, start1, start2, ende2))) / 2.0_dp
+                                           get_umat_el(ende1, start1, ende2, start2)) * 2.0_dp + &
+                              (temp_x0 + temp_x1) * (get_umat_el(start1, ende1, ende2, start2) + &
+                                                     get_umat_el(ende1, start1, start2, ende2))) / 2.0_dp
 
                 end if
 
@@ -1313,9 +1319,9 @@ contains
 
                 else
                     mat_ele = (-temp_x0 * (get_umat_el(start2, ende1, start1, ende2) + &
-                                           get_umat_el(ende1, start2, ende2, start1)) * 2.0_dp + (temp_x0 + &
-                                                                                   temp_x1) * (get_umat_el(ende1, start2, start1, ende2) + &
-                                                                                        get_umat_el(start2, ende1, ende2, start1))) / 2.0_dp
+                                           get_umat_el(ende1, start2, ende2, start1)) * 2.0_dp + &
+                              (temp_x0 + temp_x1) * (get_umat_el(ende1, start2, start1, ende2) + &
+                                                     get_umat_el(start2, ende1, ende2, start1))) / 2.0_dp
                 end if
 
             case (excit_type%double_R_to_L)
@@ -1325,9 +1331,9 @@ contains
                                          get_umat_el(ende2, start1, start2, ende1)) / 2.0_dp
                 else
                     mat_ele = (-temp_x0 * (get_umat_el(start1, ende2, start2, ende1) + &
-                                           get_umat_el(ende2, start1, ende1, start2)) * 2.0_dp + (temp_x0 + &
-                                                                                   temp_x1) * (get_umat_el(start1, ende2, ende1, start2) + &
-                                                                                        get_umat_el(ende2, start1, start2, ende1))) / 2.0_dp
+                                           get_umat_el(ende2, start1, ende1, start2)) * 2.0_dp + &
+                              (temp_x0 + temp_x1) * (get_umat_el(start1, ende2, ende1, start2) + &
+                                                     get_umat_el(ende2, start1, start2, ende1))) / 2.0_dp
                 end if
                 ! combine the "normal" double RR/LL also in here, since the rest
                 ! of the routine is totally the same!

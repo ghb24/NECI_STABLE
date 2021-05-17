@@ -15,7 +15,8 @@ module lattice_mod
                           symmetry, brr, t_input_order, orbital_order, &
                           t_k_space_hubbard, t_trans_corr_hop, &
                           t_new_real_space_hubbard
-    use matrix_util, only: print_matrix
+    use input_neci, only: item, nitems, input_options, readu, geti, read_line
+    use util_mod, only: get_free_unit
 
     implicit none
     private
@@ -110,7 +111,6 @@ module lattice_mod
         ! deallocating everything..
         ! i need atleast gcc4.9.. which i am to lazy to update now..
         ! but will in the future!
-!         final :: finalize_site
 
     end type site
 
@@ -224,9 +224,6 @@ module lattice_mod
         ! pointers into the game.. but will be removed soon
         procedure(test), pointer :: a
 
-        ! i just want to test if i can easily setup a lattice name
-        ! no.. not yet supported in gcc4.8.. but in newer versions probably
-!         character(*), allocatable :: lattice_name
     contains
         private
 
@@ -450,12 +447,32 @@ module lattice_mod
         private
 
         procedure, public :: dispersion_rel => dispersion_rel_tilted
-!
         procedure :: calc_nsites => calc_nsites_tilted
         procedure :: initialize_sites => init_sites_tilted
         procedure :: init_basis_vecs => init_basis_vecs_tilted
         procedure, public :: dot_prod => dot_prod_tilted
     end type tilted
+
+    type, extends(rectangle) :: sujun
+        private
+
+    contains
+        private
+        procedure :: calc_nsites => calc_nsites_sujun
+        procedure :: initialize_sites => init_sites_sujun
+
+    end type sujun
+
+    type, extends(rectangle) :: ext_input
+        private
+
+    contains
+        private
+
+        procedure :: calc_nsites => read_lattice_n_sites
+        procedure :: initialize_sites => read_sites
+
+    end type ext_input
 
     type, extends(rectangle) :: ole
         private
@@ -531,13 +548,6 @@ module lattice_mod
     ! and a tilted square? is it a special case of tilted or square?
     ! but this is not of concern now.. actually i should finally
     ! implement the rest of this code to actually work in neci!
-!     type, extends(lattice) :: rectangle
-!         private
-!         integer :: length_x, length_y
-!
-!     contains
-!
-!     end type rectangle
 
     ! create the abstract interfaces for the deferred function in the base
     ! abstract type: lattice
@@ -2160,26 +2170,10 @@ contains
 
         temp_array = reshape( order, this%length)
 
-        ! print *, "order:"
-        ! call print_matrix(temp_array)
-        !
-        ! print *, "up:"
         up = cshift(temp_array, -1, 1)
-        ! call print_matrix(up)
-        ! print *, "down:"
         down = cshift(temp_array, 1, 1)
-        ! call print_matrix(down)
-        ! print *, "right:"
         right = cshift(temp_array, 1, 2)
-        ! call print_matrix(right)
-        ! print *, "left:"
         left = cshift(temp_array, -1, 2)
-        ! call print_matrix(left)
-        !
-        ! print *, "neighbors(1,2), up, down, right, left:"
-        ! print *, up(1,2), down(1,2), right(1,2), left(1,2)
-
-        ! call stop_all("here","for now")
 
         if (this%is_periodic()) then
 
@@ -2314,6 +2308,89 @@ contains
 
     end subroutine init_sites_rect
 
+    subroutine read_sites(this)
+
+        class(ext_input):: this
+
+        character(*), parameter :: this_routine = "read_sites"
+
+        integer:: iunit, ios, i, n_site, n_neighbors, neigh
+        integer, allocatable :: neighs(:)
+
+        logical :: exists, leof
+
+        CHARACTER(len=3) :: fmat
+        CHARACTER(LEN=100) w
+
+        fmat = 'NO'
+
+        iunit = get_free_unit()
+
+        INQUIRE (FILE="lattice.file", EXIST=exists, FORMATTED=fmat)
+
+        IF (.not. exists) THEN
+                CALL Stop_All('lattice.file', 'lattice.file file does not exist')
+        end if
+
+        open(iunit, File="lattice.file",Status='OLD', FORM="FORMATTED", iostat=ios)
+
+        readsites: do
+                call read_line(leof,iunit)
+                if (leof) then
+                        exit
+                end if
+                call readu(w)
+                select case (w)
+                case('SITE')
+                        if (item < nitems) then
+                                call geti(n_site)
+                        end if
+                        if (item < nitems) then
+                                call geti(n_neighbors)
+                                if (allocated(neighs)) then
+                                        deallocate(neighs)
+                                end if
+                                allocate(neighs(n_neighbors))
+                                neighs(:) = 0
+                        end if
+
+                        i = 1
+                        do while (item < nitems)
+                                call geti(neigh)
+                                neighs(i) = neigh
+                                i = i+1
+                        end do
+                        this%sites(n_site) = site(n_site, n_neighbors, neighs)
+                end select
+        end do readsites
+
+        close(iunit)
+
+        Call input_options(echo_lines=.false., skip_blank_lines=.true.)
+
+    end subroutine read_sites
+
+    subroutine init_sites_sujun(this)
+        ! order of the lattice sites
+        !   4 7 10
+        !   3 6 9
+        ! 1 2 5 8
+        !
+        class(sujun) :: this
+        character(*), parameter :: this_routine = "init_sites_sujun"
+        this%sites(1) = site(1, 4, [2,4,8,10])
+        this%sites(2) = site(2, 4, [1,3,5,7])
+        this%sites(3) = site(3, 4, [2,4,6,8])
+        this%sites(4) = site(4, 4, [1,3,7,9])
+        this%sites(5) = site(5, 4, [2,6,8,10])
+        this%sites(6) = site(6, 4, [3,5,7,9])
+        this%sites(7) = site(7, 4, [2,4,6,10])
+        this%sites(8) = site(8, 4, [1,3,5,9])
+        this%sites(9) = site(9, 4, [4,6,8,10])
+        this%sites(10) = site(10,4, [1,5,7,9])
+
+    end subroutine init_sites_sujun
+
     subroutine init_sites_ole(this)
         class(ole) :: this
         character(*), parameter :: this_routine = "init_sites_ole"
@@ -2419,7 +2496,6 @@ contains
 
             neigh = sort_unique([up, down, left, right])
 
-            ! oh.. thats BS actually.. wtf.. what was i thinking:
             ! i have to get the matrix indiced again, with the correct
             ! sign..
             if (this%get_nsites() == 24) then
@@ -2482,10 +2558,6 @@ contains
                     return
                 end if
             end do
-
-!             call apply_pbc_tilted(A, r1, r2, ur, dr, ul, dl, rr, ll)
-
-!             unique  = maxval([ur(x,y),dr(x,y),ul(x,y),dl(x,y),rr(x,y),ll(x,y)])
 
         end associate
 
@@ -2760,12 +2832,12 @@ contains
 
         ! do something like and do this generally maybe..
         call apply_pbc_tilted(up, pbc_1, pbc_2, up_ur, up_dr, up_ul, up_dl, up_rr, up_ll)
-
-        call apply_pbc_tilted(down, pbc_1, pbc_2, down_ur, down_dr, down_ul, down_dl, down_rr, down_ll)
-
-        call apply_pbc_tilted(right, pbc_1, pbc_2, right_ur, right_dr, right_ul, right_dl, right_rr, right_ll)
-
-        call apply_pbc_tilted(left, pbc_1, pbc_2, left_ur, left_dr, left_ul, left_dl, left_rr, left_ll)
+        call apply_pbc_tilted(down, pbc_1, pbc_2, down_ur, down_dr, down_ul, &
+            down_dl, down_rr, down_ll)
+        call apply_pbc_tilted(right, pbc_1, pbc_2, right_ur, right_dr, right_ul, &
+            right_dl, right_rr, right_ll)
+        call apply_pbc_tilted(left, pbc_1, pbc_2, left_ur, left_dr, left_ul, &
+            left_dl, left_rr, left_ll)
 
         k = 0
         l = 1
@@ -2785,8 +2857,8 @@ contains
                         end if
                     end if
 
-                    down_nn = maxval([down(j, i), down_ur(j, i), down_dr(j, i), down_ul(j, i), &
-                                      down_dl(j, i)])
+                    down_nn = maxval([down(j, i), down_ur(j, i), down_dr(j, i), &
+                        down_ul(j, i), down_dl(j, i)])
 
                     if (down_nn == 0) then
                         down_nn = maxval([down_rr(j, i), down_ll(j, i)])
@@ -2796,8 +2868,8 @@ contains
                         end if
                     end if
 
-                    right_nn = maxval([right(j, i), right_ur(j, i), right_dr(j, i), right_ul(j, i), &
-                                       right_dl(j, i)])
+                    right_nn = maxval([right(j, i), right_ur(j, i), right_dr(j, i), &
+                        right_ul(j, i), right_dl(j, i)])
 
                     if (right_nn == 0) then
                         right_nn = right_ll(j, i)
@@ -2806,8 +2878,8 @@ contains
                         end if
                     end if
 
-                    left_nn = maxval([left(j, i), left_ur(j, i), left_dr(j, i), left_ul(j, i), &
-                                      left_dl(j, i)])
+                    left_nn = maxval([left(j, i), left_ur(j, i), left_dr(j, i), &
+                        left_ul(j, i), left_dl(j, i)])
 
                     if (left_nn == 0) then
                         left_nn = left_rr(j, i)
@@ -2848,8 +2920,8 @@ contains
                         end if
                     end if
 
-                    down_nn = maxval([down(j, i), down_ur(j, i), down_dr(j, i), down_ul(j, i), &
-                                      down_dl(j, i)])
+                    down_nn = maxval([down(j, i), down_ur(j, i), down_dr(j, i), &
+                        down_ul(j, i), down_dl(j, i)])
 
                     if (down_nn == 0) then
                         down_nn = maxval([down_rr(j, i), down_ll(j, i)])
@@ -2859,8 +2931,8 @@ contains
                         end if
                     end if
 
-                    right_nn = maxval([right(j, i), right_ur(j, i), right_dr(j, i), right_ul(j, i), &
-                                       right_dl(j, i)])
+                    right_nn = maxval([right(j, i), right_ur(j, i), right_dr(j, i),&
+                        right_ul(j, i), right_dl(j, i)])
 
                     if (right_nn == 0) then
                         right_nn = right_ll(j, i)
@@ -2869,8 +2941,8 @@ contains
                         end if
                     end if
 
-                    left_nn = maxval([left(j, i), left_ur(j, i), left_dr(j, i), left_ul(j, i), &
-                                      left_dl(j, i)])
+                    left_nn = maxval([left(j, i), left_ur(j, i), left_dr(j, i), &
+                        left_ul(j, i), left_dl(j, i)])
 
                     if (left_nn == 0) then
                         left_nn = left_rr(j, i)
@@ -2918,8 +2990,8 @@ contains
                         end if
                     end if
 
-                    down_nn = maxval([down(j, i), down_ur(j, i), down_dr(j, i), down_ul(j, i), &
-                                      down_dl(j, i)])
+                    down_nn = maxval([down(j, i), down_ur(j, i), down_dr(j, i), &
+                        down_ul(j, i), down_dl(j, i)])
 
                     if (down_nn == 0) then
                         down_nn = maxval([down_rr(j, i), down_ll(j, i)])
@@ -2929,8 +3001,8 @@ contains
                         end if
                     end if
 
-                    right_nn = maxval([right(j, i), right_ur(j, i), right_dr(j, i), right_ul(j, i), &
-                                       right_dl(j, i)])
+                    right_nn = maxval([right(j, i), right_ur(j, i), right_dr(j, i), &
+                        right_ul(j, i), right_dl(j, i)])
 
                     if (right_nn == 0) then
                         right_nn = right_ll(j, i)
@@ -2939,8 +3011,8 @@ contains
                         end if
                     end if
 
-                    left_nn = maxval([left(j, i), left_ur(j, i), left_dr(j, i), left_ul(j, i), &
-                                      left_dl(j, i)])
+                    left_nn = maxval([left(j, i), left_ur(j, i), left_dr(j, i), &
+                        left_ul(j, i), left_dl(j, i)])
 
                     if (left_nn == 0) then
                         left_nn = left_rr(j, i)
@@ -3502,6 +3574,25 @@ contains
                     "bipartite order not yet implemented for Ole lattice")
             end if
 
+        class is (sujun)
+            call this%set_ndim(DIM_RECT)
+
+            if (length_x /= 1 .or. length_y /= 3) then
+                call stop_all(this_routine, "incorrect size for Sujun cluster")
+            end if
+
+            call this%set_length(1,3)
+            call this%set_nconnect_max(4)
+
+            this%lat_vec(1:2, 1) = [1,3]
+            this%lat_vec(1:2, 2) = [-3,1]
+
+            ! k-vec todo..
+
+        class is (ext_input)
+
+            call read_lattice_struct(this)
+
         class is (cube)
             call this%set_ndim(DIM_CUBE)
             call this%set_length(length_x, length_y, length_z)
@@ -3914,6 +4005,12 @@ contains
 
         case ('ole')
             allocate(ole :: this)
+
+        case ('sujun')
+            allocate(sujun :: this)
+
+        case ('ext_input')
+            allocate(ext_input :: this)
 
         case default
             ! stop here because a incorrect lattice type was given
@@ -4445,6 +4542,23 @@ contains
 
     end function calc_nsites_tilted
 
+    function calc_nsites_sujun(this, length_x, length_y, length_z) result(n_sites)
+        class(sujun) :: this
+        integer, intent(in) :: length_x, length_y
+        integer, intent(in), optional :: length_z
+        integer :: n_sites
+        character(*), parameter :: this_routine = "calc_nsites_sujun"
+        unused_var(this)
+        unused_var(length_x)
+        unused_var(length_y)
+        if (present(length_z)) then
+            unused_var(length_z)
+        end if
+
+        n_sites = 10
+
+    end function calc_nsites_sujun
+
     function calc_nsites_ole(this, length_x, length_y, length_z) result(n_sites)
         class(ole) :: this
         integer, intent(in) :: length_x, length_y
@@ -4849,8 +4963,10 @@ contains
 
             print *, " number of dimensions: ", this%get_ndim()
             print *, " max-number of neighbors: ", this%get_nconnect_max()
-            print *, " number of sites of chain: ", this%get_nsites()
-            print *, " is the chain periodic: ", this%is_periodic()
+            print *, " number of sites in the lattice: ", this%get_nsites()
+            if (this%is_periodic()) then
+                print *, " is the lattice periodic: True"
+            end if
             print *, "primitive lattice vectors: (", this%lat_vec(1:2, 1), "), (", this%lat_vec(1:2, 2), ")"
 
         class is (ole)
@@ -4860,6 +4976,15 @@ contains
             print *, "number of sites: ", this%get_nsites()
             print *, "primitive lattice vectors: (", this%lat_vec(1:2, 1), "), (", this%lat_vec(1:2, 2), ")"
             print *, "TODO: more and better output! "
+
+        class is (ext_input)
+            print *, "Lattice read from lattice.file file "
+            print *, "Lattice type is :",this%get_name()
+            print *, "number of sites in the lattice: ", this%get_nsites()
+            print *, "max-number of neigbors: ", this%get_nconnect_max()
+            if (this%is_periodic()) then
+                print *, " is the lattice periodic: True"
+            end if
 
         end select
 
@@ -4944,5 +5069,137 @@ contains
         end if
 
     end function determine_optimal_time_step
+
+    function read_lattice_n_sites(this, length_x, length_y, length_z) result(n_sites)
+
+        class(ext_input):: this
+
+        integer :: iunit, ios
+        integer, intent(in) :: length_x, length_y
+        integer, intent(in), optional :: length_z
+        integer :: n_sites
+
+        logical :: exists, leof
+
+        CHARACTER(len=3) :: fmat
+        CHARACTER(LEN=100) w
+        character(*), parameter :: this_routine = "calc_nsites_gen"
+
+        unused_var(this)
+        unused_var(length_x)
+        unused_var(length_y)
+
+        if (present(length_z)) then
+            unused_var(length_z)
+        end if
+
+        iunit = get_free_unit()
+        fmat = 'NO'
+
+        INQUIRE (FILE="lattice.file", EXIST=exists, FORMATTED=fmat)
+        IF (.not. exists) THEN
+                CALL Stop_All('lattice.file', 'lattice.file file does not exist')
+        end if
+
+        open(iunit, File="lattice.file",Status='OLD', FORM="FORMATTED", iostat=ios)
+
+        lat: do
+                call read_line(leof,iunit)
+                if (leof) then
+                        exit
+                end if
+                call readu(w)
+                select case (w)
+
+                case('N_SITES')
+                        if (item < nitems) then
+                                call geti(n_sites)
+                        end if
+                end select
+        end do lat
+
+        close(iunit)
+
+        Call input_options(echo_lines=.false., skip_blank_lines=.true.)
+
+    end function read_lattice_n_sites
+
+
+    subroutine read_lattice_struct(this)
+
+        class(ext_input):: this
+
+        integer :: iunit, lat_dim, x1,y1, x2,y2, z1,z2, length_x, length_y, n_sites, ios
+
+        logical :: exists, leof
+
+        CHARACTER(len=3) :: fmat
+        CHARACTER(LEN=100) w
+        CHARACTER(LEN=NAME_LEN) lat_typ
+
+
+        iunit = get_free_unit()
+        fmat = 'NO'
+
+        INQUIRE (FILE="lattice.file", EXIST=exists, FORMATTED=fmat)
+        IF (.not. exists) THEN
+                CALL Stop_All('lattice.file', 'lattice.file file does not exist')
+        end if
+
+        open(iunit, File="lattice.file",Status='OLD', FORM="FORMATTED", iostat=ios)
+
+        lat: do
+                call read_line(leof,iunit)
+                if (leof) then
+                        exit
+                end if
+
+                call readu(w)
+                select case (w)
+
+                case('DIM')
+                        if (item < nitems) then
+                                call geti(lat_dim)
+                        end if
+                        call this%set_ndim(lat_dim)
+
+                case('LATTICE_TYPE')
+                        if (item < nitems) then
+                                call readu(lat_typ)
+                        end if
+                        this%name = lat_typ
+
+                case('LATTICE_PARAM')
+                        if (item < nitems) then
+                                call geti(x1)
+                        end if
+                        if (item < nitems) then
+                                call geti(y1)
+                        end if
+                        if (item < nitems) then
+                                call geti(x2)
+                        end if
+                        if (item < nitems) then
+                                call geti(y2)
+                        end if
+                        this%lat_vec(1:2, 1) = [x1,y1]
+                        this%lat_vec(1:2, 2) = [x2,y2]
+
+                case('N_CONNECT_MAX')
+                        if (item < nitems) then
+                                call geti(this%n_connect_max)
+                        end if
+                end select
+        end do lat
+
+        close(iunit)
+
+        call this%set_length(1,3)
+        !call this%set_nconnect_max(4)
+
+        Call input_options(echo_lines=.false., skip_blank_lines=.true.)
+
+    end subroutine read_lattice_struct
+
 
 end module lattice_mod

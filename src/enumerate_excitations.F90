@@ -4,6 +4,8 @@ module enumerate_excitations
 
     use SystemData, only: tReltvy, t_k_space_hubbard, t_new_real_space_hubbard
 
+    use util_mod, only: operator(.div.)
+
     use bit_rep_data, only: NIfD, NIfTot
 
     use bit_reps, only: decode_bit_det

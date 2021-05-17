@@ -51,7 +51,8 @@ module real_space_hubbard
     use bit_rep_data, only: NIfTot, nifd, nifguga
 
     use util_mod, only: binary_search_first_ge, choose, swap, get_free_unit, &
-                        binary_search, near_zero, operator(.isclose.)
+                        binary_search, near_zero, operator(.isclose.), &
+                        operator(.div.)
 
     use bit_reps, only: decode_bit_det
 
@@ -1214,13 +1215,13 @@ contains
 #ifdef DEBUG_
         temp_pgen = calc_pgen_rs_hubbard_transcorr_uniform(ex, ic)
         if (abs(pgen - temp_pgen) > EPS) then
-            print *, "calculated pgen differ for exitation: "
-            print *, "nI: ", nI
-            print *, "ex: ", ex
-            print *, "ic: ", ic
-            print *, "pgen: ", pgen
-            print *, "calc. pgen: ", temp_pgen
-            print *, "H_ij: ", get_helement_lattice(nI, nJ, ic)
+            root_print "calculated pgen differ for exitation: "
+            root_print "nI: ", nI
+            root_print "ex: ", ex
+            root_print "ic: ", ic
+            root_print "pgen: ", pgen
+            root_print "calc. pgen: ", temp_pgen
+            root_print "H_ij: ", get_helement_lattice(nI, nJ, ic)
         end if
 #endif
 
@@ -1358,13 +1359,13 @@ contains
 #ifdef DEBUG_
         temp_pgen = calc_pgen_rs_hubbard_transcorr(nI, ilutI, ex, ic)
         if (abs(pgen - temp_pgen) > EPS) then
-            print *, "calculated pgen differ for exitation: "
-            print *, "nI: ", nI
-            print *, "ex: ", ex
-            print *, "ic: ", ic
-            print *, "pgen: ", pgen
-            print *, "calc. pgen: ", temp_pgen
-            print *, "H_ij: ", get_helement_lattice(nI, nJ, ic)
+            root_print  "calculated pgen differ for exitation: "
+            root_print  "nI: ", nI
+            root_print  "ex: ", ex
+            root_print  "ic: ", ic
+            root_print  "pgen: ", pgen
+            root_print  "calc. pgen: ", temp_pgen
+            root_print  "H_ij: ", get_helement_lattice(nI, nJ, ic)
         end if
 #endif
 
@@ -1430,9 +1431,7 @@ contains
                 ! 3)Select one of these pairs and construct exitation
                 n_spatial_hole = 0
                 do i = 1, nBasis / 2
-                    associate(j => 2 * i - 1, k => 2 * i)
-                    if (IsOcc(ilutI, j) .or. IsOcc(ilutI, k)) cycle
-                    end associate
+                    if (IsOcc(ilutI, 2 * i - 1) .or. IsOcc(ilutI, 2 * i)) cycle
                     n_spatial_hole = n_spatial_hole + 1
                     ind_spatial_hole(n_spatial_hole) = 2 * i - 1
                 end do
@@ -1534,13 +1533,13 @@ contains
 #ifdef DEBUG_
         temp_pgen = calc_pgen_rs_hubbard_transcorr(nI, ilutI, ex, ic)
         if (abs(pgen - temp_pgen) > EPS) then
-            print *, "calculated pgen differ for exitation: "
-            print *, "nI: ", nI
-            print *, "ex: ", ex
-            print *, "ic: ", ic
-            print *, "pgen: ", pgen
-            print *, "calc. pgen: ", temp_pgen
-            print *, "H_ij: ", get_helement_lattice(nI, nJ, ic)
+            root_print "calculated pgen differ for exitation: "
+            root_print "nI: ", nI
+            root_print "ex: ", ex
+            root_print "ic: ", ic
+            root_print "pgen: ", pgen
+            root_print "calc. pgen: ", temp_pgen
+            root_print "H_ij: ", get_helement_lattice(nI, nJ, ic)
         end if
 #endif
 
