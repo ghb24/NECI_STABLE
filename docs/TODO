@@ -1,14 +1,14 @@
 Large Technical:
-  - move gen_docs to docs/
-
-  - citation to papers, if possible? BibTex Style   @Philip
-
-  - Break single file into pieces **AND** write script to automatically join. @Philip
-
-  ( - cross references between docs, or even better between docs and code possible?)
-
+  - Manual preprocessing. @Oskar
+  - Break single file into pieces **AND** write script to automatically join. @Oskar
+  - Spurious footnotes in files. 
+  - Spurious line breaks at footnotes. 
 
 Large Content:
   - Tutorial @Philip in User Doc
-  - FCIMCStats column documentation
+  - FCIMCStats column documentation @Oskar
   - Reread User Doc @Philip
+
+Back-burner: 
+  - citation to papers, if possible? BibTex Style   @Philip
+  - cross references between docs, or even better between docs and code possible?
