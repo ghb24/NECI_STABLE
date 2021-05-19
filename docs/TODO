@@ -6,6 +6,7 @@ Large Technical:
   - correkt backticks in user dev @Philip
 
   - citation to papers, if possible?
+  - fix citations line break. @Philip
   - cross references between docs, or even better between docs and code possible?
 
   - Break single file into pieces **AND** write script to automatically join. @Philip

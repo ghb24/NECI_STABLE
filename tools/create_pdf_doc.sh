@@ -28,20 +28,24 @@ sed -i 's/@todo/\\verbatimLaTeX\{\\begin\{todo\}\}/g' $tmpfile
 sed -i 's/@endbug/\\verbatimLaTeX\{\\end\{bug\}\}/g' $tmpfile
 sed -i 's/@bug/\\verbatimLaTeX\{\\begin\{bug\}\}/g' $tmpfile
 
+# replace with literature.md file contents (ford command)
+# couldn't figure out the general command, but hard-coding literature.md is fine
+sed -i "s/{!literature.md!}/$(awk 1 ORS='\\n' literature.md)/g" $tmpfile 
+
 # replace html colour commands with latex colour commands
 sed -i 's/<span style="color: \([^<]*\)">\([^<]*\)<\/span>/\\textcolor{\1}{\2}/g' $tmpfile
 
 # CONVERT
-pandoc \
-      -V geometry:margin=3cm \
-      -V geometry:a4paper \
-      -V fontsize=18pt \
-      -V numbersections=true \
-      --toc \
-      --include-in-header packages_to_include.tex \
-      --listings \
-      "$tmpfile" \
-      -o "${pdf_output}" \
-      -f markdown-tex_math_dollars+tex_math_single_backslash
+# pandoc \
+#       -V geometry:margin=3cm \
+#       -V geometry:a4paper \
+#       -V fontsize=18pt \
+#       -V numbersections=true \
+#       --toc \
+#       --include-in-header packages_to_include.tex \
+#       --listings \
+#       "$tmpfile" \
+#       -o "${pdf_output}" \
+#       -f markdown-tex_math_dollars+tex_math_single_backslash
 
-rm $tmpfile
+# rm $tmpfile
