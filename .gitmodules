@@ -1,3 +1,6 @@
 [submodule "External/fypp"]
 	path = External/fypp
 	url = https://github.com/aradi/fypp.git
+[submodule "External/ford"]
+	path = External/ford
+	url = https://github.com/jphaupt/ford.git

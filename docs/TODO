@@ -1,23 +1,14 @@
 Large Technical:
-  - Correct title Dev doc @Oskar
-  - Find better way for new line character @Oskar
-  - Embed into cmake @Oskar
+  - move gen_docs to docs/
 
-  - correkt backticks in user dev @Philip
-
-  - citation to papers, if possible?
-  - fix citations line break. @Philip
-  - cross references between docs, or even better between docs and code possible?
+  - citation to papers, if possible? BibTex Style   @Philip
 
   - Break single file into pieces **AND** write script to automatically join. @Philip
+
+  ( - cross references between docs, or even better between docs and code possible?)
 
 
 Large Content:
   - Tutorial @Philip in User Doc
+  - FCIMCStats column documentation
   - Reread User Doc @Philip
-
-
-  - How to document with Ford in Dev Doc @Oskar
-  - Update compile flags @Oskar
-  - Reread Dev Doc @Oskar
-

@@ -2,13 +2,15 @@
 
 # Invoke with two arguments
 # First argument: Markdown input file
-# Second argument: PDF output file
+# Second argument Latex Header
+# Third argument: PDF output file
 
 md_input=$1
-pdf_output=$2
+latex_header=$2
+pdf_output=$3
 
 # TODO I'm not sure if there is a better way to do this without just copying it
-tmpfile=/tmp/tmp_reformat_${md_input}
+tmpfile=/tmp/tmp_reformat_neci_doc.md
 cp ${md_input} $tmpfile
 
 
@@ -31,21 +33,23 @@ sed -i 's/@bug/\\verbatimLaTeX\{\\begin\{bug\}\}/g' $tmpfile
 # replace with literature.md file contents (ford command)
 # couldn't figure out the general command, but hard-coding literature.md is fine
 sed -i "s/{!literature.md!}/$(awk 1 ORS='\\n' literature.md)/g" $tmpfile 
+# replace ford markdown newline with pandoc newline
+sed -i 's/<br>$/\\/g' $tmpfile
 
 # replace html colour commands with latex colour commands
 sed -i 's/<span style="color: \([^<]*\)">\([^<]*\)<\/span>/\\textcolor{\1}{\2}/g' $tmpfile
 
 # CONVERT
-# pandoc \
-#       -V geometry:margin=3cm \
-#       -V geometry:a4paper \
-#       -V fontsize=18pt \
-#       -V numbersections=true \
-#       --toc \
-#       --include-in-header packages_to_include.tex \
-#       --listings \
-#       "$tmpfile" \
-#       -o "${pdf_output}" \
-#       -f markdown-tex_math_dollars+tex_math_single_backslash
+pandoc \
+      -V geometry:margin=3cm \
+      -V geometry:a4paper \
+      -V fontsize=18pt \
+      -V numbersections=true \
+      --toc \
+      --include-in-header ${latex_header} \
+      --listings \
+      "$tmpfile" \
+      -o "${pdf_output}" \
+      -f markdown-tex_math_dollars+tex_math_single_backslash
 
-# rm $tmpfile
+rm $tmpfile

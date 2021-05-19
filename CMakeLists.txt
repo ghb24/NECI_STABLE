@@ -151,6 +151,8 @@ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME AND BUILD_TESTING)
     add_subdirectory(unit_tests)
 endif()
 
+add_subdirectory(docs)
+
 # And we are done
 
 neci_print_summary()
