@@ -1,22 +1,24 @@
 project: NECI
-output_dir: ./ford_html
+output_dir: ../ford_html
 project_github: https://github.com/ghb24/NECI_STABLE/
 summary: for FCIQMC
 author: Alavi Group
 github:
-include: ./src
-         ./src/lib
+src_dir: ../src
+include: ../src
+         ../src/lib
 parallel: 4
+media_dir: media
 dbg: false
 warn: false
 display: private
          public
          protected
 source: true
-page_dir: ./docs
+page_dir: pages
 md_extensions: markdown.extensions.toc
                markdown.extensions.smarty
-preprocess: true
+preprocess: true 
 fpp_extensions: fpp
                 F90
 preprocessor: fypp -m itertools -m functools
@@ -26,7 +28,7 @@ graph_maxnodes: 250
 graph_maxdepth: 5
 coloured_edges: true
 ---
-
+<!-- TODO not sure if the include dir is right -->
 <!-- I had these in but they are all default -->
 <!-- predocmark_alt: >
 predocmark: #
