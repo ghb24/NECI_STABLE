@@ -125,6 +125,7 @@ echo SOFTEXIT > CHANGEVARS
 @endwarning
 
 This calculation should produce a few other files in the directory, namely:
+
 - `popsfile.h5` (or `POPSFILE` if you did not include `hdf5-pops`)
 - `INITATORStats`
 - `FCIMCStats`
@@ -135,31 +136,97 @@ The popsfile will be very useful in case we wish to continue running the simulat
 
 The file `FCIMCStats` has several useful columns which you will want to plot to ensure convergence. To do this in one line, [there is a convenience script here](plot_fcimcstats.plt), which is run with gnuplot via `gnuplot plot_fcimcstats.plt` and will output plots of the most useful columns to a new `plots/` directory. Your results should look something like this:
 
-@todo
-these plots are not showing up -- maybe need media_dir keyword
-@endtodo
+1. ![](|media|/plots1/check_totE.png)
+2. ![](|media|/plots1/check_totWalkers.png)
+3. ![](|media|/plots1/check_refPop.png)
+4. ![](|media|/plots1/check_shift_energy.png)
+5. ![](|media|/plots1/check_numerator.png)
+6. ![](|media|/plots1/check_denominator.png)
 
-![](|media|/plots1/check_totE.png)
+Plot (1) is the most immediately useful plot, as it gives you a quick estimate of the total energy from the calculation (namely, you can see we have around 108.98 Hartree). For all of these, we expect variable behaviour until the total walkers (plot (2)) reaches the target total walkers (as per out input file, 50000 in this case). Then, we want all six of these plots to roughly plateau, as they all do above. Furthermore, FCIQMC has a built-in consistency check whereby the energy can be calculated in two independent ways: namely, by the shift (which is only updated once the target number of walkers is reached) and the projected energy. These are plotted on top of each other in plot (4). As we see, they agree once we have run for a long enough time.
 
-<!-- ![](plots1/check_totE.png)
-![](plots1/check_totWalkers.png)
-![](plots1/check_denominator.png)
-![](plots1/check_numerator.png)
-![](plots1/check_refPop.png)
-![](plots1/check_shift_energy.png) -->
-
-
+Once we are confident that all these plots exhibit plateaus for sufficiently large step numbers, we proceed with an error analysis. However, since FCIQMC calculations generally have correlated data, we cannot use standard error analysis, and here we use blocking analysis.[^blocking] A script to do blocking analysis is included in the NECI repository: `path/to/neci/utils/blocking.py`.
 
 @todo
-![](plots1/blocking.png)
+The blocking script is still written in Python2, and IMO should be updated to Python3 (which should be easy to do with `2to3`).
 @endtodo
 
-@todo
-mention dynamically changing stuff and soft exit with CHANGEVARS.
-mention checking input by running _without_ mpirun.
-mention restarts
-spend time on convergence analysis
-@endtodo
+Running the blocking analysis as
+```bash
+path/to/neci/utils/blocking.py -p 'plots/blocking.png' -f <numiter> -d24 -d23 -o/ > stats
+```
+will output a blocking plot to the plots subdirectory, starting after `<numiter>` iterations, which should be chosen at a point where the plateaus in plots (5) and (6) (i.e. the numerator and denominator for the error estimate) are both stable. In this example, we might choose `<numiter>` to be 9000. Running this, we get the following plot.
+
+![](|media|/plots1/blocking.png)
+
+Consisting of only three points, and having no plateau, this indicates that *we have not yet converged our FCIQMC calculation reliably.* That is, if all the above 6 plots indicate convergence but the blocking analysis has no plateau (as in this example), it is most likely that you must continue the calculation to get more data.
+
+## Continuing a NECI Calculation
+
+In order to continue a NECI calculation (for example, if like in this example you have done a calculation only to find you do not have enough data), simply take the same NECI input as above, but add into the calc the `readPops` command, which indicates that NECI must read the popsfile previously created. You may also wish to increase the number of iterations `nmcyc`, e.g.
+```text
+title
+...
+calc
+readPops
+nmcyc 70000
+...
+end
+```
+This will add data into the previous FCIMCStats. After you have run this the same way as described above, repeat the blocking analysis. The plots will all still have well-defined plateaus, but the blocking analysis will result in something like this:
+
+![](|media|/plots2/blocking.png)
+
+This time we see a clear plateau. The last point in this example indicates an excessively large blocking length (resulting in the estimate of the standard having too much noise). This is expected behaviour (but only in the blocking analysis; not in the other plots); what is important is that we see a plateau before the onset of this noise. Now, we may be more confident in our FCIQMC calculation. Above, we captured the output of the blocking script into a file called `stats`. In this example, the contents of that file is below:
+```text
+# of blocks mean (X_24)    std.err. (X_24) std.err.err. (X_24)  mean (X_23)    std.err. (X_23) std.err.err. (X_23)  cov(X_23,X_24) mean (X_24/X_23) std.err. (X_24/X_23)
+722         -670.049359811 1.99777332e-01  5.26094278e-03       37244.1867452  9.82441101e+00  2.58716360e-01       -1.32220e+03   -0.017990709917  1.946944746518e-06
+361         -670.049359811 2.68876787e-01  1.00204462e-02       37244.1867452  1.36690165e+01  5.09414168e-01       -1.28123e+03   -0.017990709917  1.911297631965e-06
+180         -670.055219406 3.59855874e-01  1.90189739e-02       37244.4116806  1.86756159e+01  9.87036972e-01       -1.18406e+03   -0.017990758591  2.026001990428e-06
+90          -670.055219406 4.67644101e-01  3.50514073e-02       37244.4116806  2.45252068e+01  1.83824197e+00       -1.01830e+03   -0.017990758591  2.124344681041e-06
+45          -670.055219406 5.83345340e-01  6.21848221e-02       37244.4116806  3.08250668e+01  3.28596316e+00       -8.00932e+02   -0.017990758591  2.312712518500e-06
+22          -670.085373646 7.34544351e-01  1.13342654e-01       37245.7631108  3.89686474e+01  6.01299283e+00       -6.25139e+02   -0.017990915414  2.494555852939e-06
+11          -670.085373646 7.12029706e-01  1.59214682e-01       37245.7631108  3.79742226e+01  8.49129431e+00       -2.96473e+02   -0.017990915414  1.687704717679e-06
+5           -669.988620008 6.61525494e-01  2.33884581e-01       37240.7990625  3.68826395e+01  1.30399822e+01       -1.21293e+02   -0.017990715475  1.907691051811e-06
+2           -670.428455433 7.74026533e-02  5.47319410e-02       37267.1565039  9.84779297e+00  6.96344119e+00       -1.52449e+00   -0.017989793650  2.676810345979e-06
+```
+
+We wish to take the energy from the **first** row here in the second-to-last column and its corresponding uncertainty in the last column, i.e.:
+```
+-0.017990709917 +/- 1.946944746518e-06
+```
+
+This is then our estimate for the correlation energy. To get the *total* energy, we must also add the reference energy, which can be found in the standard output of NECI (we called it `n2_neci.out`):
+```
+Reference Energy set to:      -108.9606713172
+```
+(search for "Reference Energy"). You'll also find estimates for the correlation energy in the output file. However, this is not as trustworthy as doing a full blocking analysis.
+
+## Final Steps
+
+To be completely sure of our FCIQMC calculation, we must again continue from the popsfile with the `readPops` keyword, but change the number of walkers. The goal here is to verify that we have a sufficient number of walkers, and that we are converged with respect to the total number of walkers. Thus, to be really sure of our energy calculation, we must repeat the FCIQMC calculation but varying the number of walkers. The easiest way to do this is to restart from the previous popsfile and increase the total number of walkers. However, since the previous total number of walkers has already been reached, NECI is in variable-shift (or constant-walker-number) mode, and hence we need to tell NECI vary the number of walkers again.
+
+To do this, we keep the `readPops` keyword and add the keyword and add the `walkContGrow` keyword into the `calc` block. We will, of course, also want to increase the total number of walkers (say, to 100000), and from our previous experience above we know we need more data so we can also increase the number of iterations, i.e.
+```text
+title
+...
+calc
+# continue on from previous calculation
+readPops
+# allow growth from previous calc
+walkContGrow
+
+nmcyc 100000
+...
+end
+```
+
+Repeat this as above, do the same convergence analysis as above. Note, however, that since the number of iterations from which to start the blocking analysis (`<numiter>`) will be higher, as you will see by checking the plots (this is just because NECI needs some time to increase the walker number to the new target number and then stabilise).
+
+Once you have done that, you may be much more confident about your calculated correlation energy.
+
+Congratulations!
 
 [^fciqmc]: Booth, G. H., Thom, A. J. W. & Alavi, A. Fermion monte carlo without fixed nodes: A game of life, death, and annihilation in Slater determinant space. J. Chem. Phys. 131, 054106 (2009).
 [^initiator]: D. Cleland, G.H. Booth, A. Alavi, J. Chem. Phys. 132, 041103 (2010)
+[^blocking]: H. Flyvbjerg and H. G. Petersen, “Error estimates on averages of correlated data,” J. Chem. Phys. 91, 461–466 (1989).
