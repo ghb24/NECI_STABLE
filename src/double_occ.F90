@@ -7,7 +7,7 @@ module double_occ_mod
     use SystemData, only: nel, nbasis
     use bit_rep_data, only: nifd, niftot
     use constants, only: n_int, lenof_sign, write_state_t, dp, int_rdm, inum_runs
-    use ParallelHelper, only: iProcIndex, root
+    use MPI_wrapper, only: iProcIndex, root, MPI_SUM
     use CalcData, only: tReadPops, StepsSft
     use LoggingData, only: tMCOutput, t_calc_double_occ_av, t_spin_measurements
     use util_mod

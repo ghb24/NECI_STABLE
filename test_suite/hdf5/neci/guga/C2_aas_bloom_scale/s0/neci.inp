@@ -17,7 +17,6 @@ nmcyc 100
 totalwalkers 10000
 memoryfacspawn 10
 definedet 1 2 3 4 5 6 9 10
-tau 0.003 search
 shiftdamp 0.2
 stepsshift 1
 startsinglepart 10

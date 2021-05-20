@@ -6,7 +6,7 @@ module core_space_util
     use shared_rhash, only: shared_rhash_t
     use shared_memory_mpi
     use MemoryManager, only: TagIntType, LogMemAlloc, LogMemDealloc
-    use ParallelHelper
+    use MPI_wrapper
     implicit none
 
     private

@@ -16,9 +16,7 @@ MODULE System
 
     use constants
 
-    use iso_c_hack
-
-    use read_fci, only: FCIDUMP_name
+    use read_fci, only: FCIDUMP_name, load_orb_perm
 
     use util_mod, only: error_function, error_function_c, &
                         near_zero, operator(.isclose.), get_free_unit, operator(.div.)
@@ -31,9 +29,12 @@ MODULE System
 
     use tc_three_body_data, only: LMatEps, tSparseLMat
 
-    use gasci, only: GAS_specification, GAS_exc_gen, possible_GAS_exc_gen, GASSpec_t, user_input_GAS_exc_gen
+    use gasci, only: GAS_specification, GAS_exc_gen, possible_GAS_exc_gen, &
+        LocalGASSpec_t, CumulGASSpec_t, user_input_GAS_exc_gen
 
-    use ParallelHelper, only: iprocindex, root
+    use gasci_pchb, only: possible_GAS_singles, GAS_PCHB_singles_generator
+
+    use MPI_wrapper, only: iprocindex, root
 
     use fcimcdata, only: pParallel
 
@@ -275,6 +276,8 @@ contains
         INTEGER I, Odd_EvenHPHF, Odd_EvenMI
         integer :: ras_size_1, ras_size_2, ras_size_3, ras_min_1, ras_max_3, itmp
         character(*), parameter :: t_r = 'SysReadInput'
+        character(*), parameter :: this_routine = 'SysReadInput'
+        integer :: temp_n_orbs
 
         ! The system block is specified with at least one keyword on the same
         ! line, giving the system type being used.
@@ -603,18 +606,10 @@ contains
                 end select
             case ("COULOMB")
                 call report("Coulomb feature removed", .true.)
-!            call getf(FCOUL)
+
             case ("COULOMB-DAMPING")
                 call report("Coulomb damping feature removed", .true.)
-!            call readu(w)
-!            select case(w)
-!            case("ENERGY")
-!               call getf(FCOULDAMPMU)
-!               call getf(FCOULDAMPBETA)
-!            case("ORBITAL")
-!               call geti(COULDAMPORB)
-!               call getf(FCOULDAMPBETA)
-!            end select
+
             case ("ENERGY-CUTOFF")
                 tOrbECutoff = .true.
                 call getf(OrbECutoff)
@@ -648,12 +643,6 @@ contains
                 call geti(NMAXY)
                 call geti(NMAXZ)
 
-                ! misuse the cell keyword to set this up to also have the
-                ! hubbard setup already provided..
-!             if (t_new_real_space_hubbard) then
-!                length_x = NMAXX
-!                length_y = NMAXY
-!            end if
 
             case ('SPIN-TRANSCORR')
                 ! make a spin-dependent transcorrelation factor
@@ -715,15 +704,8 @@ contains
                     case ("RAND-EXCITGEN")
                         tTrCorrRandExgen = .true.
 
-!              case default
-!                 t_ueg_3_body = .false.
-!                 tTrcorrExgen = .true.
-!                 tTrCorrRandExgen = .false.
-
                     end select
-!               write(6,*) tTrcorrExgen, tTrCorrRandExgen, t_ueg_3_body
                 end do
-!               call stop_all('debug stop')
 
             case ('UEG-DUMP')
                 t_ueg_dump = .true.
@@ -1004,27 +986,34 @@ contains
                     t_open_bc_y = .true.
                 end if
 
+            case ("BIPARTITE", "BIPARTITE-ORDER")
+                t_bipartite_order = .true.
+
+                if (item < nitems) then
+                    t_input_order = .true.
+                    call geti(temp_n_orbs)
+
+                    allocate(orbital_order(temp_n_orbs), source = 0)
+
+                    call read_line(eof)
+                    do i = 1, temp_n_orbs
+                        call geti(orbital_order(i))
+                    end do
+                end if
+
             case ("LATTICE")
                 ! new hubbard implementation
                 ! but maybe think of a better way to init that..
                 ! the input has to be like:
                 ! lattice [type] [len_1] [*len_2]
                 ! where length to is optional if it is necessary to input it.
-!             tHub = .false.
-!             treal = .false.
-!             lNoSymmetry = .true.
-                ! this treal is not true.. now we also have k-space hubbard lattice
                 ! support
-!             treal = .true.
-!             t_new_real_space_hubbard = .true.
 
                 ! set some defaults:
                 lattice_type = "read"
 
                 length_x = -1
                 length_y = -1
-
-!             tPBC = .false.
 
                 if (item < nitems) then
                     ! use only new hubbard flags in this case
@@ -1048,10 +1037,12 @@ contains
                                    .not. t_open_bc_x,.not. t_open_bc_y,.not. t_open_bc_z, 'k-space')
                 else if (t_new_real_space_hubbard) then
                     lat => lattice(lattice_type, length_x, length_y, length_z, &
-                                   .not. t_open_bc_x,.not. t_open_bc_y,.not. t_open_bc_z, 'real-space')
+                               .not. t_open_bc_x,.not. t_open_bc_y, &
+                                   .not. t_open_bc_z, 'real-space', t_bipartite_order = t_bipartite_order)
                 else
                     lat => lattice(lattice_type, length_x, length_y, length_z, &
-                                   .not. t_open_bc_x,.not. t_open_bc_y,.not. t_open_bc_z)
+                                   .not. t_open_bc_x,.not. t_open_bc_y,.not. t_open_bc_z, &
+                                   t_bipartite_order = t_bipartite_order)
 
                 end if
 
@@ -1416,13 +1407,12 @@ contains
                     call readu(w)
                     select case (w)
                     case ("NOSYM_GUGA")
-                        tGen_nosym_guga = .true.
+                        call Stop_All(this_routine, "'nosym-guga' option deprecated!")
 
                     case ("NOSYM_GUGA_DIFF")
-                        tGen_nosym_guga = .true.
-                        t_consider_diff_bias = .true.
+                        call Stop_All(this_routine, "'nosym-guga-diff' option deprecated!")
 
-                    case ("UEG_GUGA")
+                    case ("UEG_GUGA", "UEG-GUGA")
                         tGen_sym_guga_ueg = .true.
 
                         if (item < nitems) then
@@ -1656,6 +1646,11 @@ contains
                     case ("PCHB")
                         ! the precomputed heat-bath excitation generator (uniform singles)
                         t_pchb_excitgen = .true.
+
+                    case ("GUGA-PCHB")
+                        ! use an explicit guga-pchb keyword and flag
+                        t_guga_pchb = .true.
+
                     case ("UEG")
                         ! Use the new UEG excitation generator.
                         ! TODO: This probably isn't the best way to do this
@@ -1671,11 +1666,26 @@ contains
                 ! Enable using weighted single excitations with the pchb excitation generator
                 t_pchb_weighted_singles = .true.
 
-            case ("SPAWNLISTDETS")
+            ! enable intermediately some pchb+guga testing
+            case("ANALYZE-PCHB")
+                t_analyze_pchb = .true.
+
+            case("OLD-GUGA-PCHB")
+                ! original, rather unoptimized guga-pchb implementation
+                ! still testing planned for final verdict on best guga-pchb
+                ! implementation!
+                t_old_pchb = .true.
+
+            case("EXCHANGE-GUGA-PCHB")
+                ! additional guga-pchb implementation for exchange type
+                ! contributions. testing for final 'best' guga-pchb
+                ! version still needs to be done
+                t_exchange_pchb = .true.
+
+            case("SPAWNLISTDETS")
 !This option will mean that a file called SpawnOnlyDets will be read in,
 ! and only these determinants will be allowed to be spawned at.
                 CALL Stop_All("ReadSysInp", "SPAWNLISTDETS option depreciated")
-!            tListDets=.true.
 
             case ("UMATEPSILON")
 
@@ -1766,6 +1776,22 @@ contains
             case ("HEISENBERG")
                 tHeisenberg = .true.
 
+            case("PERMUTE-ORBS")
+                ! Apply a permutation of the orbital indices to the
+                ! ordering given in the FCIDUMP file - only has an
+                ! effect when reading an FCIDUMP file, has no effect for
+                ! hubbard/heisenberg/ueg systems etc
+                block
+                  integer :: buf(1000)
+                  integer :: n_orb
+                  n_orb = 0
+                  do while (item < nitems)
+                      n_orb = n_orb + 1
+                      call readi(buf(n_orb))
+                  end do
+                  call load_orb_perm(buf(1:n_orb))
+                end block
+
             case ("GIOVANNIS-BROKEN-INIT")
                 ! Giovanni's scheme for initialising determinants with the correct
                 ! spin an symmetry properties in a wider range of cases than
@@ -1775,15 +1801,24 @@ contains
                 tGiovannisBrokenInit = .true.
 
             case ("GAS-SPEC")
-                tGAS = .true.
 
+                tGAS = .true.
                 block
+                    logical :: cumulative_constraints
                     integer :: nGAS, iGAS
                     integer :: i_orb, n_spat_orbs
                     ! n_orbs are the number of spatial orbitals per GAS space
                     ! cn_min, cn_max are cumulated particle numbers per GAS space
                     integer, allocatable :: n_orbs(:), cn_min(:), cn_max(:), &
                                             spat_GAS_orbs(:), beta_orbs(:)
+                    call readu(w)
+                    if (w == 'LOCAL') then
+                        cumulative_constraints = .false.
+                    else if (w == 'CUMULATIVE') then
+                        cumulative_constraints = .true.
+                    else
+                        call stop_all(t_r, 'You may pass either LOCAL or CUMULATIVE constraints.')
+                    end if
 
                     call geti(nGAS)
                     allocate(n_orbs(nGAS), cn_min(nGAS), cn_max(nGAS), source=0)
@@ -1795,11 +1830,32 @@ contains
 
                     n_spat_orbs = sum(n_orbs)
                     allocate(spat_GAS_orbs(n_spat_orbs))
-                    do i_orb = 1, n_spat_orbs
-                        call geti(spat_GAS_orbs(i_orb))
-                    end do
+                    block
+                        use fortran_strings, only: operator(.in.), Token_t, split
+                        integer :: times, iGAS
+                        type(Token_t), allocatable :: tokens(:)
 
-                    GAS_specification = GASSpec_t(cn_min, cn_max, spat_GAS_orbs)
+                        i_orb = 1
+                        do while (i_orb  <= n_spat_orbs)
+                            call readu(w)
+                            if ('*' .in. w) then
+                                tokens = split(w, '*')
+                                read(tokens(1)%str, *) times
+                                read(tokens(2)%str, *) iGAS
+                            else
+                                read(w, *) iGAS
+                                times = 1
+                            end if
+                            spat_GAS_orbs(i_orb : i_orb + times - 1) = iGAS
+                            i_orb = i_orb + times
+                        end do
+                    end block
+
+                    if (cumulative_constraints) then
+                        GAS_specification = CumulGASSpec_t(cn_min, cn_max, spat_GAS_orbs)
+                    else
+                        GAS_specification = LocalGASSpec_t(cn_min, cn_max, spat_GAS_orbs)
+                    end if
 
                     beta_orbs = [(i, i=1, n_spat_orbs * 2, 2)]
                     if (.not. all(n_orbs == GAS_specification%count_per_GAS(beta_orbs))) then
@@ -1808,21 +1864,38 @@ contains
                 end block
 
             case ("GAS-CI")
-                do while (item < nitems)
-                    call readu(w)
-                    select case (w)
-                    case ('GENERAL')
-                        user_input_GAS_exc_gen = possible_GAS_exc_gen%GENERAL
-                    case ('DISCONNECTED')
-                        user_input_GAS_exc_gen = possible_GAS_exc_gen%DISCONNECTED
-                    case ('DISCARDING')
-                        user_input_GAS_exc_gen = possible_GAS_exc_gen%DISCARDING
-                    case ('GENERAL_PCHB')
-                        user_input_GAS_exc_gen = possible_GAS_exc_gen%GENERAL_PCHB
-                    case default
-                        call Stop_All("ReadSysInp", trim(w)//" not a valid keyword")
-                    end select
-                end do
+                call readu(w)
+                select case (w)
+                case ('GENERAL')
+                    user_input_GAS_exc_gen = possible_GAS_exc_gen%GENERAL
+                case ('DISCONNECTED')
+                    user_input_GAS_exc_gen = possible_GAS_exc_gen%DISCONNECTED
+                case ('DISCARDING')
+                    user_input_GAS_exc_gen = possible_GAS_exc_gen%DISCARDING
+                case ('GENERAL_PCHB', 'GENERAL-PCHB')
+                    user_input_GAS_exc_gen = possible_GAS_exc_gen%GENERAL_PCHB
+
+                    if (item < nitems) then
+                        call readu(w)
+                        if (w == 'SINGLES') then
+                            call readu(w)
+                            select case (w)
+                            case('DISCARDING-UNIFORM')
+                                GAS_PCHB_singles_generator = possible_GAS_singles%DISCARDING_UNIFORM
+                            case('PC-UNIFORM')
+                                GAS_PCHB_singles_generator = possible_GAS_singles%PC_UNIFORM
+                            case('ON-FLY-HEAT-BATH')
+                                GAS_PCHB_singles_generator = possible_GAS_singles%ON_FLY_HEAT_BATH
+                            case default
+                                call Stop_All(t_r, trim(w)//" not a valid keyword")
+                            end select
+                        else
+                            call Stop_All(t_r, "Only SINGLES allowed as optional next keyword after GENERAL-PCHB")
+                        end if
+                    end if
+                case default
+                    call Stop_All(t_r, trim(w)//" not a valid keyword")
+                end select
 
             case ("GAS-NO-SPIN-RECOUPLING")
                 tGASSpinRecoupling = .false.

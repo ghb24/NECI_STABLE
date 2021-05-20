@@ -13,8 +13,9 @@ MODULE PopsfileMod
                         MemoryFacSpawn, tSemiStochastic, tTrialWavefunction, &
                         pops_norm, tWritePopsNorm, t_keep_tau_fixed, t_hist_tau_search, &
                         t_restart_hist_tau, t_fill_frequency_hists, t_previous_hist_tau, &
-                        t_read_probs, tScaleBlooms, &
-                        t_hist_tau_search_option, hdf5_diagsft, tAutoAdaptiveShift
+                        t_read_probs, tScaleBlooms, pSinglesIn, pDoublesIn, pTriplesIn, &
+                        t_hist_tau_search_option, hdf5_diagsft, tAutoAdaptiveShift, &
+                        pParallelIn
 
     use DetBitOps, only: DetBitLT, FindBitExcitLevel, DetBitEQ, EncodeBitDet, &
                          ilut_lt, ilut_gt, get_bit_excitmat
@@ -46,7 +47,8 @@ MODULE PopsfileMod
     use FciMcData, only : pSingles, pDoubles, pSing_spindiff1, pDoub_spindiff1, pDoub_spindiff2, &
         t_initialized_roi
     use global_det_data, only: global_determinant_data, init_global_det_data, set_det_diagH, &
-        store_decoding, max_ratio_size, fvals_size, apvals_size
+        store_decoding, max_ratio_size, fvals_size, apvals_size, set_supergroup_idx
+    use gasci_supergroup_index, only: lookup_supergroup_indexer
     use tc_three_body_data, only: pTriples, tReadPTriples
     use fcimc_helper, only: update_run_reference, TestInitiator, calc_proje
     use replica_data, only: set_initial_global_data
@@ -62,10 +64,13 @@ MODULE PopsfileMod
 
     use SystemData, only: tGUGA
     use guga_data, only: ExcitationInformation_t
-    use guga_procedure_pointers, only: calc_off_diag_guga_ref
+    use guga_excitations, only: calc_guga_matrix_element
 
+    use guga_bitrepops, only: init_csf_information
     use real_time_data, only: t_real_time_fciqmc, phase_factors, t_kspace_operators, &
                               TotWalkers_orig
+
+    use guga_bitrepops, only: init_csf_information, getExcitation_guga
 
     implicit none
 
@@ -955,6 +960,16 @@ r_loop: do while(.not.tStoreDet)
         end if
 
         call fill_in_diag_helements()
+        if (associated(lookup_supergroup_indexer)) then
+        block
+            integer :: i, nI(nel)
+            do i = 1, int(TotWalkers)
+                call decode_bit_det(nI, CurrentDets(:, i))
+                call set_supergroup_idx(&
+                    i, lookup_supergroup_indexer%idx_nI(nI))
+            end do
+        end block
+        end if
 
         call clear_hash_table(HashIndex)
         call fill_in_hash_table(HashIndex, nWalkerHashes, CurrentDets, int(TotWalkers, sizeof_int), .true.)
@@ -1168,52 +1183,76 @@ r_loop: do while(.not.tStoreDet)
                     if((.not.tSinglePartPhase(1)).or.(.not.tSinglePartPhase(inum_runs))) then
                         tSearchTau=.false.
                     endif
-                    Tau=read_tau
-                    write(6,"(A)") "Using timestep specified in POPSFILE!"
+                    if (tSpecifiedTau) then
+                        write(6, *) "time-step specified in input file!"
+                    else
+                        Tau=read_tau
+                        write(6,"(A)") "Using timestep specified in POPSFILE!"
+                    end if
                     if (tSearchTau .or. t_hist_tau_search) then
                         write(6,"(A)") "But continuing to dynamically adjust to optimise this"
                     end if
-                    write(iout,"(A,F12.8)") " read-in time-step: ", tau
+                    write(iout,"(A,F12.8)") " used time-step: ", tau
 
                     ! If we have been searching for tau, we may have been searching
                     ! for psingles (it is done at the same time).
-                    if (abs(read_psingles) > 1.0e-12_dp) then
-                        pSingles = read_psingles
-                        if (.not. tReltvy) &
-                            pDoubles = 1.0_dp - pSingles
+                    if (allocated(pSinglesIn) .or. allocated(pDoublesIn)) then
+                        write(6, *) "using pSingles/pDoubles specified in input file!"
+                    else
+                        if (.not. near_zero(read_psingles)) then
+                            pSingles = read_psingles
+                            if (.not. tReltvy) then
+                                pDoubles = 1.0_dp - pSingles
+                            end if
 
-                        write(iout,"(A)") "Using pSingles and pDoubles from POPSFILE: "
-                        write(iout,"(A,F12.8)") " pSingles: ", pSingles
-                        write(iout,"(A,F12.8)") " pDoubles: ", pDoubles
+                            write(iout,"(A)") "Using pSingles and pDoubles from POPSFILE: "
+                            write(iout,"(A,F12.8)") " pSingles: ", pSingles
+                            write(iout,"(A,F12.8)") " pDoubles: ", pDoubles
 
+                        end if
                     end if
 
-                    if (abs(read_pparallel) > 1.0e-12_dp) then
-                        pParallel = read_pparallel
-                        write(iout,"(A)") "Using pParallel from POPSFILE: "
-                        write(iout,"(A,F12.8)") " pParallel: ", pParallel
+                    if (allocated(pParallelIn)) then
+                        write(iout,"(A)") "Using pParallel specified in input file!"
+                    else
+                        if (.not. near_zero(read_pparallel)) then
+                            pParallel = read_pparallel
+                            write(iout,"(A)") "Using pParallel from POPSFILE: "
+                            write(iout,"(A,F12.8)") " pParallel: ", pParallel
+                        end if
                     end if
 
                 else if (t_keep_tau_fixed) then
-                    write(6,"(A)") "Using timestep specified in POPSFILE, without continuing to dynammically adjust it!"
-                    write(6,*) "Timestep is tau=", tau
-                    tau = read_tau
+                    if (tSpecifiedTau) then
+                        write(6, *) "time-step specified in input file!"
+                    else
+                        write(6,"(A)") "Using timestep specified in POPSFILE, without continuing to dynammically adjust it!"
+                        write(6,*) "Timestep is tau=", tau
+                        tau = read_tau
+                    end if
+                    if (allocated(pSinglesIn) .or. allocated(pDoublesIn)) then
+                        write(6, *) "using pSingles/pDoubles specified in input file!"
+                    else
+                        if (abs(read_psingles) > 1.0e-12_dp) then
+                            pSingles = read_psingles
+                            if (.not. tReltvy) then
+                                pDoubles = 1.0_dp - pSingles
+                            end if
+                            write(iout,"(A)") "Using pSingles and pDoubles from POPSFILE: "
+                            write(iout,"(A,F12.8)") " pSingles: ", pSingles
+                            write(iout,"(A,F12.8)") " pDoubles: ", pDoubles
 
-                    if (abs(read_psingles) > 1.0e-12_dp) then
-                        pSingles = read_psingles
-                        if (.not. tReltvy) then
-                            pDoubles = 1.0_dp - pSingles
                         end if
-                        write(iout,"(A)") "Using pSingles and pDoubles from POPSFILE: "
-                        write(iout,"(A,F12.8)") " pSingles: ", pSingles
-                        write(iout,"(A,F12.8)") " pDoubles: ", pDoubles
-
                     end if
 
-                    if (abs(read_pparallel) > 1.0e-12_dp) then
-                        pParallel = read_pparallel
-                        write(iout,"(A)") "Using pParallel from POPSFILE: "
-                        write(iout,"(A,F12.8)") " pParallel: ", pParallel
+                    if (allocated(pParallelIn)) then
+                        write(iout,"(A)") "Using pParallel specified in input file!"
+                    else
+                        if (.not. near_zero(read_pparallel)) then
+                            pParallel = read_pparallel
+                            write(iout,"(A)") "Using pParallel from POPSFILE: "
+                            write(iout,"(A,F12.8)") " pParallel: ", pParallel
+                        end if
                     end if
                 else
                     !Tau specified. if it is different, write this here.
@@ -1225,17 +1264,26 @@ r_loop: do while(.not.tStoreDet)
 
                     endif
                 endif
-                if (abs(read_psingles) > 1.0e-12_dp) then
-                    pSingles = read_psingles
-                    if (.not. tReltvy) &
-                        pDoubles = 1.0_dp - pSingles
-                    write(6,*) "Using read-in pSingles=", pSingles
-                    write(6,*) "Using read-in pDoubles=", pDoubles
+                if (allocated(pSinglesIn) .or. allocated(pDoublesIn)) then
+                    write(6, *) "using pSingles/pDoubles specified in input file!"
+                else
+                    if (.not. near_zero(read_psingles)) then
+                        pSingles = read_psingles
+                        if (.not. tReltvy) then
+                            pDoubles = 1.0_dp - pSingles
+                        end if
+                        write(6,*) "Using read-in pSingles=", pSingles
+                        write(6,*) "Using read-in pDoubles=", pDoubles
+                    end if
                 end if
                 tReadPTriples = .false.
-                if(abs(read_pTriples) > eps) then
-                    pTriples = read_pTriples
-                    tReadPTriples = .true.
+                if (allocated(pTriplesIn)) then
+                    write(iout,"(A)") "Using pTriples specified in input file!"
+                else
+                    if(.not. near_zero(read_pTriples)) then
+                        pTriples = read_pTriples
+                        tReadPTriples = .true.
+                    end if
                 end if
             endif
             iBlockingIter = PopBlockingIter
@@ -1990,7 +2038,7 @@ r_loop: do while(.not.tStoreDet)
 
         write(iunit, '(a)') '# POPSFILE VERSION 4'
         write(iunit, '("&POPSHEAD Pop64Bit=",l1)') build_64bit
-        write(iunit, '(a,l1,a,l1,a,i2,a,i3,a)') &
+        write(iunit, '(a,l1,a,l1,a,i2,a,i4,a)') &
             'PopHPHF=', tHPHF, ',PopLz=', tFixLz, ',PopLensign=', &
             lenof_sign, ',PopNEl=', NEl, ','
         write(iunit, '(a,i15)') 'PopTotwalk=', num_walkers
@@ -2105,6 +2153,7 @@ r_loop: do while(.not.tStoreDet)
         integer :: gdata_size
         character(12) :: format_string
         character(*), parameter :: this_routine = "write_pops_det"
+        type(ExcitationInformation_t) :: excitInfo
 
         bWritten = .false.
 
@@ -2162,7 +2211,10 @@ r_loop: do while(.not.tStoreDet)
 
                   if (tGUGA) then
                       ASSERT(.not. t_non_hermitian)
-                      hf_helemt = calc_off_diag_guga_ref(det, 1, ex_level)
+                      call calc_guga_matrix_element(det, iLutRef(:,1), &
+                          excitInfo, hf_helemt, .true., 2)
+                      ex_level = excitInfo%excitLvl
+                      if (ex_level == -1) ex_level = 0
                   else
                       ex_level = FindBitExcitLevel(ilutRef(:,1), det, nel, .true.)
                       if (ex_level <= 2 .or. (ex_level == 3 .and. t_3_body_excits)) then
@@ -2199,7 +2251,11 @@ r_loop: do while(.not.tStoreDet)
                   ! for GUGA this does not make really sense..
                   ex = 0
                   if (ex_level <= 2) then
-                      call get_bit_excitmat(ilutRef(:,1), det, ex, ex_level)
+                      if (tGUGA) then
+                          call getExcitation_guga(ProjEDet(:,1), nI, ex)
+                      else
+                          call get_bit_excitmat(ilutRef(:,1), det, ex, ex_level)
+                      end if
                   end if
 
                   if(tHPHF)then

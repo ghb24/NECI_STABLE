@@ -18,7 +18,8 @@ module guga_excitations
                           tgen_guga_mixed, t_new_hubbard, t_new_real_space_hubbard, &
                           t_crude_exchange, t_crude_exchange_noninits, &
                           t_approx_exchange, t_approx_exchange_noninits, &
-                          is_init_guga, t_heisenberg_model, t_tJ_model, t_mixed_hubbard
+                          is_init_guga, t_heisenberg_model, t_tJ_model, t_mixed_hubbard, &
+                          t_guga_pchb
 
     use constants, only: dp, n_int, bits_n_int, lenof_sign, Root2, THIRD, HEl_zero, &
                          EPS, bni_, bn2_, iout, int64, inum_runs, maxExcit, int_rdm
@@ -28,7 +29,8 @@ module guga_excitations
 
     use bit_rep_data, only: GugaBits, niftot, nifguga, nifd
 
-    use DetBitOps, only: EncodeBitDet, count_open_orbs, ilut_lt, ilut_gt, DetBitEQ
+    use DetBitOps, only: EncodeBitDet, count_open_orbs, ilut_lt, ilut_gt, DetBitEQ, &
+                         return_ms
 
     use guga_data, only: ExcitationInformation_t, getSingleMatrixElement, &
                          getDoubleMatrixElement, getMixedFullStop, &
@@ -47,10 +49,10 @@ module guga_excitations
                               calcStepvector, find_switches, convert_ilut_toNECI, &
                               calcB_vector_int, calcOcc_vector_int, EncodeBitDet_guga, &
                               identify_excitation, init_csf_information, calc_csf_info, &
-                              extract_h_element, encode_stochastic_rdm_info
+                              extract_h_element, encode_stochastic_rdm_info, &
+                              get_preceeding_opposites
 
-    use guga_matrixElements, only: calcDiagMatEleGUGA_ilut, calcDiagMatEleGuga_nI, &
-                                   calc_off_diag_guga_ref_list
+    use guga_matrixElements, only: calcDiagMatEleGUGA_ilut, calcDiagMatEleGuga_nI
 
     use OneEInts, only: GetTMatEl
 
@@ -60,7 +62,7 @@ module guga_excitations
 
     use FciMCData, only: excit_gen_store_type, pSingles, pDoubles, ilutRef, &
                          pExcit4, pExcit2, pExcit2_same, pExcit3_same, ilutHF, &
-                         tFillingStochRDMOnFly
+                         tFillingStochRDMOnFly, nValidExcits, nInvalidExcits
 
     use util_mod, only: get_free_unit, binary_search, get_unique_filename, &
                         binary_search_first_ge, abs_l1, operator(.isclose.), &
@@ -82,9 +84,10 @@ module guga_excitations
     use umatcache, only: gtID
 
     use guga_procedure_pointers, only: pickOrbitals_single, pickOrbitals_double, &
-                                       calc_orbital_pgen_contr, calc_mixed_contr, calc_mixed_start_r2l_contr, &
-                                       calc_mixed_start_l2r_contr, calc_mixed_end_l2r_contr, calc_mixed_end_r2l_contr, &
-                                       pick_first_orbital, orb_pgen_contrib_type_3, orb_pgen_contrib_type_2
+                calc_orbital_pgen_contr, calc_mixed_contr, calc_mixed_start_r2l_contr, &
+                calc_mixed_start_l2r_contr, calc_mixed_end_l2r_contr, calc_mixed_end_r2l_contr, &
+                pick_first_orbital, orb_pgen_contrib_type_3, orb_pgen_contrib_type_2, &
+                calc_orbital_pgen_contrib_start, calc_orbital_pgen_contrib_end
 
     use Umatcache, only: UMat2D
 
@@ -100,6 +103,8 @@ module guga_excitations
                           check_electron_location_spatial, check_orbital_location_spatial
 
     use guga_bitRepOps, only: contract_1_rdm_ind, contract_2_rdm_ind
+
+    use lattice_models_utils, only: create_all_open_shell_dets
 
     ! variables
     implicit none
@@ -153,7 +158,12 @@ module guga_excitations
               calcfullstopr2l_stochastic, calcdoubleloweringstochastic, &
               calcdoubleraisingstochastic, calcdoublel2r2l_stochastic, &
               calcdoubler2l2r_stochastic, calcdoublel2r_stochastic, &
-              calcdoubler2l_stochastic, test_excit_gen_guga, calcallexcitations
+              calcdoubler2l_stochastic, test_excit_gen_guga, calcallexcitations, &
+              pick_elec_pair_uniform_guga, get_guga_integral_contrib, &
+              calc_pgen_mol_guga_single, get_excit_level_from_excitInfo, &
+              get_guga_integral_contrib_spat, calc_orbital_pgen_contrib_start_def, &
+              calc_orbital_pgen_contrib_end_def, create_hamiltonian_guga, &
+              csf_to_sds_ilut, csf_vector_to_sds
 
     ! use a "global" bVector variable here so that a b vector only has to be
     ! initialized once, for a given CSF when calculating all or only one
@@ -213,6 +223,141 @@ module guga_excitations
 
 contains
 
+    subroutine csf_vector_to_sds(csfs, csf_coeffs, sds, sd_coeffs, ms)
+        integer(n_int), intent(in) :: csfs(:,:)
+        real(dp), intent(in) :: csf_coeffs(:)
+        real(dp), intent(in), optional :: ms
+        integer(n_int), intent(out), allocatable :: sds(:,:)
+        real(dp), intent(out), allocatable :: sd_coeffs(:)
+
+        real(dp) :: ms_
+        integer :: n_sds, spin, n_tot, i
+        integer(n_int), allocatable :: temp_all(:,:), temp_sds(:,:)
+        real(dp), allocatable :: temp_coeffs(:)
+
+
+        spin = abs(return_ms(csfs(:,1)))
+        def_default(ms_, ms, spin/2.)
+
+        n_sds = 2 ** nSpatorbs
+        allocate(temp_all(0:GugaBits%len_tot,n_sds), source = 0_n_int)
+
+        n_tot = 0
+
+        do i = 1, size(csfs,2)
+            call csf_to_sds_ilut(csfs(:,i), temp_sds, temp_coeffs, ms_, csf_coeffs(i))
+            call add_guga_lists(n_tot, size(temp_sds,2), temp_all, temp_sds)
+        end do
+
+        allocate(sds(0:GugaBits%len_tot, n_tot), source = temp_all(:,1:n_tot))
+        allocate(sd_coeffs(n_tot), source = 0.0_dp)
+
+        do i = 1, n_tot
+            sd_coeffs(i) = extract_matrix_element(sds(:,i), 1)
+        end do
+
+    end subroutine csf_vector_to_sds
+
+    subroutine csf_to_sds_ilut(csf, sds, weights, ms, coeff)
+        integer(n_int), intent(in) :: csf(0:GugaBits%len_tot)
+        real(dp), intent(in), optional :: ms
+        real(dp), intent(in), optional :: coeff
+        integer(n_int), intent(out), allocatable :: sds(:,:)
+        real(dp), intent(out), allocatable :: weights(:)
+        character(*), parameter :: this_routine = "csf_to_sds_ilut"
+
+        real(dp) :: ms_
+        integer :: spin, n_alpha, n_beta
+        integer :: i, j, step(nSpatorbs), delta_k
+        integer :: nI(nel)
+        real(dp) :: bVec(nSpatorbs), aVec(nSpatorbs), lambda_k, x, coeff_
+        integer(n_int), allocatable :: all_sds(:,:)
+        real(dp), allocatable :: all_weights(:)
+
+        def_default(coeff_, coeff, 1.0_dp)
+
+
+        ! only works for heisenberg model for now..
+        if (any(calcOcc_vector_int(csf) /= 1)) then
+            call stop_all(this_routine, "only implemented for heisenberg for now")
+        end if
+        if (near_zero(coeff_)) then
+            allocate(sds(0:GugaBits%len_tot, 0))
+            allocate(weights(0))
+            return
+        end if
+        spin = abs(return_ms(csf))
+
+        def_default(ms_, ms, spin/2.)
+
+        ! construct SDs by attaching (N/2 + ms) up spins and (N/2 - ms) down spins
+        n_alpha = nint(nSpatorbs / 2. + ms_)
+        n_beta = nint(nSpatorbs / 2. - ms_)
+
+        all_sds = create_all_open_shell_dets(nSpatorbs, n_beta, n_alpha)
+
+        allocate(all_weights(size(all_sds,2)), source = 0.0_dp)
+
+        step = calcStepvector(csf(0:GugaBits%len_orb))
+        bVec = calcB_vector_ilut(csf(0:GugaBits%len_orb))
+        aVec = real(([(i, i = 1,nSpatorbs)] - bVec),dp) / 2.0
+
+        do i = 1, size(all_sds,2)
+            x = 1.0_dp
+
+            call decode_bit_det(nI, all_sds(:,i))
+
+            do j = 1, nSpatorbs
+                if (.not. near_zero(x)) then
+                    delta_k = mod(get_spin(nI(j)),2)
+                    lambda_k = get_preceeding_opposites(nI, j)
+
+                    select case (step(j))
+
+                    case (1)
+                        x = x * sqrt((aVec(j) + bVec(j) - lambda_k)/bVec(j))
+
+                    case (2)
+                        x = x * (-1.0_dp)**(bVec(j)+delta_k) * &
+                            sqrt((lambda_k - aVec(j) + 1.0_dp)/(bVec(j)+2.0_dp))
+
+                    case (3)
+
+                        x = x * (-1.0_dp)**bVec(j)
+
+                    end select
+
+                end if
+            end do
+
+            all_weights(i) =  x
+
+        end do
+
+
+        j = 1
+        do i = 1, size(all_sds,2)
+            if (.not. near_zero(all_weights(i))) then
+                all_sds(:,j) = all_sds(:,i)
+                all_weights(j) = all_weights(i)
+                j = j + 1
+            end if
+        end do
+
+        ! i might have to normalize
+        all_weights(1:j-1) = coeff_ * all_weights(1:j-1) / sqrt(sum(all_weights(1:j-1)**2))
+
+        allocate(sds(0:GugaBits%len_tot, j - 1), source = 0_n_int)
+        allocate(weights(j-1), source = all_weights(1:j-1))
+
+        do i = 1, j - 1
+            sds(0:0, i) = all_sds(:, i)
+            call encode_matrix_element(sds(:,i), all_weights(i), 1)
+        end do
+
+    end subroutine csf_to_sds_ilut
+
+
     function calc_off_diag_guga_ref_direct(ilut, run, exlevel) result(hel)
         integer(n_int), intent(in) :: ilut(0:niftot)
         integer, intent(in), optional :: run
@@ -228,11 +373,16 @@ contains
         ! setup and working properly!
         if (present(run)) then
             tmp_ilut = ilutRef(0:niftot, run)
+            if (run > 1) then
+                call calc_guga_matrix_element(ilut, tmp_ilut, excitInfo, hel, .true.,  1)
+            else
+                call calc_guga_matrix_element(ilut, tmp_ilut, excitInfo, hel, .true.,  0)
+            end if
         else
             tmp_ilut = ilutRef(0:niftot, 1)
+            call calc_guga_matrix_element(ilut, tmp_ilut, excitInfo, hel, .true.,  0)
         end if
 
-        call calc_guga_matrix_element(ilut, tmp_ilut, excitInfo, hel, .true., 1)
 
         if (present(exlevel)) then
             if (excitInfo%valid) then
@@ -245,11 +395,37 @@ contains
                 end if
             else
                 ! non-valid > 3 excit
-                exlevel = -1
+                exlevel = nel
             end if
         end if
 
     end function calc_off_diag_guga_ref_direct
+
+    function calc_guga_mat_wrapper(ilutI, ilutJ) result(mat_ele)
+        integer(n_int), intent(in) :: ilutI(0:niftot), ilutJ(0:niftot)
+        HElement_t(dp) :: mat_ele
+
+        type(ExcitationInformation_t) :: excitInfo
+
+        call calc_guga_matrix_element(ilutI, ilutJ, excitInfo, mat_ele, &
+            t_hamil = .true., calc_type = 2)
+
+    end function calc_guga_mat_wrapper
+
+    function create_hamiltonian_guga(ilut_list) result(hamil)
+        integer(n_int), intent(in) :: ilut_list(:,:)
+        HElement_t(dp) :: hamil(size(ilut_list,2), size(ilut_list,2))
+
+        integer :: i, j
+
+        do i = 1, size(ilut_list,2)
+            do j = 1, size(ilut_list,2)
+                hamil(i,j) = calc_guga_mat_wrapper(ilut_list(:,j),ilut_list(:,i))
+            end do
+        end do
+
+    end function create_hamiltonian_guga
+
 
     subroutine calc_guga_matrix_element(ilutI, ilutJ, excitInfo, mat_ele, t_hamil, &
                                         calc_type, rdm_ind, rdm_mat)
@@ -337,9 +513,11 @@ contains
         mat_ele = h_cast(0.0_dp)
 
 #ifdef DEBUG_
-        if (present(rdm_ind) .or. present(rdm_mat)) then
-            ASSERT(present(rdm_ind))
+        if (present(rdm_ind)) then
             ASSERT(present(rdm_mat))
+        end if
+        if (present(rdm_mat)) then
+            ASSERT(present(rdm_ind))
         end if
 #endif
 
@@ -354,7 +532,8 @@ contains
 
             ! should not be here for RDMs or?
             ! otherwise I have to change smth here
-            ASSERT(.not. present(rdm_ind))
+            ! print *, "3"
+            ! ASSERT(.not. present(rdm_ind))
             return
         end if
 
@@ -368,22 +547,31 @@ contains
         ! excitation types which are definetly 0
         ! i could do that more efficiently if we identify it already
         ! earlier but for now do it here!
-        if (tHub .or. t_new_hubbard) then
-            if (treal .or. t_new_real_space_hubbard) then
-                ! only singles in the real-space hubbard!
-                if (excitInfo%typ /= excit_type%single) return
-            else
-                ! only double excitations in the momentum-space hubbard!
-                if (excitInfo%typ == excit_type%single) return
+        if (t_hamil) then
+            ! make this check only if we want the hamiltonian matrix
+            ! element. for general coupling coefficients (eg. for RDMs)
+            ! i do need this contributions anyway
+            if (t_new_hubbard) then
+                if (treal .or. t_new_real_space_hubbard) then
+                    ! only singles in the real-space hubbard!
+                    if (excitInfo%typ /= excit_type%single) return
+                else
+                    ! only double excitations in the momentum-space hubbard!
+                    if (excitInfo%typ == excit_type%single) return
+                end if
             end if
+
+            ! make the adjustment for the Heisenberg model
+            if (t_heisenberg_model &
+                .and. excitInfo%typ /= excit_type%fullstart_stop_mixed) then
+                return
+            end if
+
+            if (t_tJ_model .and. &
+                (.not. (excitInfo%typ == excit_type%single &
+                 .or. excitInfo%typ == excit_type%fullstart_stop_mixed))) &
+                return
         end if
-
-        ! make the adjustment for the Heisenberg model
-        if (t_heisenberg_model .and. excitInfo%typ /= excit_type%fullstart_stop_mixed) return
-
-        if (t_tJ_model .and. (.not. (excitInfo%typ == excit_type%single &
-                                     .or. excitInfo%typ == excit_type%fullstart_stop_mixed))) &
-            return
 
         ! depending on the type of usage i have to init some csf information
         select case (calc_type)
@@ -393,13 +581,13 @@ contains
             ! intermediate variables here to be able to write the below
             ! function generally
 
-            temp_step_i = ref_stepvector
-            temp_b_real_i = ref_b_vector_real
-            temp_occ_i = ref_occ_vector
+            temp_step_i = current_stepvector
+            temp_b_real_i = currentB_ilut
+            temp_occ_i = currentOcc_ilut
 
-            temp_step_j = current_stepvector
+            temp_step_j = ref_stepvector
 
-            temp_delta_b = ref_b_vector_int - currentB_int
+            temp_delta_b = currentB_int - ref_b_vector_int
 
         case (1)
             ! this used in the initialization of semi-stochastic and
@@ -1073,20 +1261,26 @@ contains
                 ! wait a minute.. i have to do that at the end apparently..
                 ! since i need to know the x0 and x1 matrix element contributions
                 mat_ele = (temp_x0 * (get_umat_el(ende1, ende2, start1, start2) + &
-                                      get_umat_el(ende2, ende1, start2, start1) + get_umat_el(ende2, ende1, start1, start2) + &
-                                      get_umat_el(ende1, ende2, start2, start1)) + order * order1 * &
-                           temp_x1 * ( &
-                           get_umat_el(ende1, ende2, start1, start2) + get_umat_el(ende2, ende1, start2, start1) - &
-                           get_umat_el(ende2, ende1, start1, start2) - get_umat_el(ende1, ende2, start2, start1))) / 2.0_dp
+                                      get_umat_el(ende2, ende1, start2, start1) + &
+                                      get_umat_el(ende2, ende1, start1, start2) + &
+                                      get_umat_el(ende1, ende2, start2, start1)) + &
+                           order * order1 *  temp_x1 * ( &
+                                      get_umat_el(ende1, ende2, start1, start2) + &
+                                      get_umat_el(ende2, ende1, start2, start1) - &
+                                      get_umat_el(ende2, ende1, start1, start2) - &
+                                      get_umat_el(ende1, ende2, start2, start1))) / 2.0_dp
 
             case (excit_type%double_raising)
                 ! double raising
                 mat_ele = (temp_x0 * (get_umat_el(start1, start2, ende1, ende2) + &
-                                      get_umat_el(start2, start1, ende2, ende1) + get_umat_el(start1, start2, ende2, ende1) + &
-                                      get_umat_el(start2, start1, ende1, ende2)) + order * order1 * &
-                           temp_x1 * ( &
-                           get_umat_el(start1, start2, ende1, ende2) + get_umat_el(start2, start1, ende2, ende1) - &
-                           get_umat_el(start1, start2, ende2, ende1) - get_umat_el(start2, start1, ende1, ende2))) / 2.0_dp
+                                      get_umat_el(start2, start1, ende2, ende1) + &
+                                      get_umat_el(start1, start2, ende2, ende1) + &
+                                      get_umat_el(start2, start1, ende1, ende2)) + &
+                           order * order1 * temp_x1 * ( &
+                                      get_umat_el(start1, start2, ende1, ende2) + &
+                                      get_umat_el(start2, start1, ende2, ende1) - &
+                                      get_umat_el(start1, start2, ende2, ende1) - &
+                                      get_umat_el(start2, start1, ende1, ende2))) / 2.0_dp
 
             case (excit_type%double_L_to_R_to_L)
                 ! L -> R -> L
@@ -1097,9 +1291,9 @@ contains
 
                 else
                     mat_ele = (-temp_x0 * (get_umat_el(start2, ende2, start1, ende1) + &
-                                           get_umat_el(ende2, start2, ende1, start1)) * 2.0_dp + (temp_x0 + &
-                                                                                   temp_x1) * (get_umat_el(ende2, start2, start1, ende1) + &
-                                                                                        get_umat_el(start2, ende2, ende1, start1))) / 2.0_dp
+                                           get_umat_el(ende2, start2, ende1, start1)) * 2.0_dp + &
+                              (temp_x0 + temp_x1) * (get_umat_el(ende2, start2, start1, ende1) + &
+                                                     get_umat_el(start2, ende2, ende1, start1))) / 2.0_dp
 
                 end if
 
@@ -1111,9 +1305,9 @@ contains
 
                 else
                     mat_ele = (-temp_x0 * (get_umat_el(start1, ende1, start2, ende2) + &
-                                           get_umat_el(ende1, start1, ende2, start2)) * 2.0_dp + (temp_x0 + &
-                                                                                   temp_x1) * (get_umat_el(start1, ende1, ende2, start2) + &
-                                                                                        get_umat_el(ende1, start1, start2, ende2))) / 2.0_dp
+                                           get_umat_el(ende1, start1, ende2, start2)) * 2.0_dp + &
+                              (temp_x0 + temp_x1) * (get_umat_el(start1, ende1, ende2, start2) + &
+                                                     get_umat_el(ende1, start1, start2, ende2))) / 2.0_dp
 
                 end if
 
@@ -1125,9 +1319,9 @@ contains
 
                 else
                     mat_ele = (-temp_x0 * (get_umat_el(start2, ende1, start1, ende2) + &
-                                           get_umat_el(ende1, start2, ende2, start1)) * 2.0_dp + (temp_x0 + &
-                                                                                   temp_x1) * (get_umat_el(ende1, start2, start1, ende2) + &
-                                                                                        get_umat_el(start2, ende1, ende2, start1))) / 2.0_dp
+                                           get_umat_el(ende1, start2, ende2, start1)) * 2.0_dp + &
+                              (temp_x0 + temp_x1) * (get_umat_el(ende1, start2, start1, ende2) + &
+                                                     get_umat_el(start2, ende1, ende2, start1))) / 2.0_dp
                 end if
 
             case (excit_type%double_R_to_L)
@@ -1137,9 +1331,9 @@ contains
                                          get_umat_el(ende2, start1, start2, ende1)) / 2.0_dp
                 else
                     mat_ele = (-temp_x0 * (get_umat_el(start1, ende2, start2, ende1) + &
-                                           get_umat_el(ende2, start1, ende1, start2)) * 2.0_dp + (temp_x0 + &
-                                                                                   temp_x1) * (get_umat_el(start1, ende2, ende1, start2) + &
-                                                                                        get_umat_el(ende2, start1, start2, ende1))) / 2.0_dp
+                                           get_umat_el(ende2, start1, ende1, start2)) * 2.0_dp + &
+                              (temp_x0 + temp_x1) * (get_umat_el(start1, ende2, ende1, start2) + &
+                                                     get_umat_el(ende2, start1, start2, ende1))) / 2.0_dp
                 end if
                 ! combine the "normal" double RR/LL also in here, since the rest
                 ! of the routine is totally the same!
@@ -1624,6 +1818,7 @@ contains
 
             if (near_zero(temp_x0) .and. near_zero(temp_x1)) return
 
+
             ! then do the double overlap range
 
             do i = st + 1, se
@@ -1647,6 +1842,7 @@ contains
 
             if (.not. near_zero(temp_x0)) return
 
+
             guga_mat = temp_x1
             ! do single range
 
@@ -1662,6 +1858,7 @@ contains
                 if (near_zero(guga_mat)) return
 
             end do
+
 
             ! then also reuse the stochastic routines to get the integral contribs
 
@@ -2056,7 +2253,7 @@ contains
         character(*), parameter :: this_routine = "create_projE_list"
 
         integer(n_int) :: ilutG(0:nifguga)
-        integer(n_int), pointer :: excitations(:, :)
+        integer(n_int), allocatable :: excitations(:, :)
         integer :: nExcit, ierr, i
 
         ! convert ilut to guga format
@@ -2152,7 +2349,7 @@ contains
         character(*), parameter :: this_routine = 'test_excit_gen_guga'
 
         integer(n_int) :: ilutG(0:nifguga)
-        integer(n_int), pointer :: excitations(:, :)
+        integer(n_int), allocatable :: excitations(:, :)
 
         integer :: src_det(nel), det(nel), nexcit, ex(2, maxExcit)
         integer :: ngen, pos, iunit, i, ic
@@ -4125,7 +4322,7 @@ contains
         ! and before i have to convert to GUGA iluts..
         call convert_ilut_toGUGA(ilutI, ilut)
 
-        ASSERT(isProperCSF_ilut(ilut))
+        ASSERT(isProperCSF_ilut(ilut, .true.))
 
         ! maybe i need to copy the flags of ilutI onto ilutJ
         ilutJ = ilutI
@@ -4162,6 +4359,12 @@ contains
             IC = 2
             call createStochasticExcitation_double(ilut, nI, excitation, pgen, excit_typ)
             pgen = pgen * pDoubles
+
+            if (near_zero(pgen)) then
+                nInvalidExcits = nInvalidExcits + 1
+            else
+                nValidExcits = nValidExcits + 1
+            end if
 
         end if
 
@@ -4263,7 +4466,7 @@ contains
         character(*), parameter :: this_routine = "createStochasticExcitation_double"
 
         type(ExcitationInformation_t) :: excitInfo
-        integer(n_int), pointer :: excitations(:, :)
+        integer(n_int), allocatable :: excitations(:, :)
         integer(n_int) :: ilutI(0:niftot), ilutJ(0:niftot)
         real(dp) :: orb_pgen, branch_pgen
         HElement_t(dp) :: mat_ele
@@ -4281,8 +4484,8 @@ contains
         call pickOrbitals_double(ilut, nI, excitInfo, orb_pgen)
 
         ! check if orbitals were correctly picked
-        if (.not. excitInfo%valid) then
-            excitation = 0
+        if ( .not. excitInfo%valid ) then
+            excitation = 0_n_int
             pgen = 0.0_dp
             return
         end if
@@ -4727,19 +4930,38 @@ contains
                 excit_typ(2) = 0
 
             case default
+                call print_excitInfo(excitInfo)
                 call stop_all(this_routine, "wrong excit level info!")
 
             end select
         end if
 
-        global_excitInfo = excitInfo
+        select case(excitInfo%typ)
+        case (excit_type%single_overlap_L_to_R, &
+              excit_type%single_overlap_R_to_L, &
+              excit_type%double_lowering, &
+              excit_type%double_raising, &
+              excit_type%double_L_to_R_to_L, &
+              excit_type%double_R_to_L_to_R, &
+              excit_type%double_L_to_R, &
+              excit_type%double_R_to_L, &
+              excit_type%fullstop_raising, &
+              excit_type%fullstop_lowering, &
+              excit_type%fullstart_lowering, &
+              excit_type%fullstart_raising, &
+              excit_type%fullstart_stop_alike)
+
+            ! in the other cases global_excitInfo gets assigned before it
+            ! gets changed
+            global_excitInfo = excitInfo
+        end select
 
     end subroutine createStochasticExcitation_double
 
     ! write up all the specific stochastic excitation routines
 
     subroutine calcFullStartFullStopMixedStochastic(ilut, excitInfo, t, pgen, &
-                                                    posSwitches, negSwitches, opt_weight)
+                                                posSwitches, negSwitches, opt_weight)
         integer(n_int), intent(in) :: ilut(0:nifguga)
         type(ExcitationInformation_t), intent(inout) :: excitInfo
         integer(n_int), intent(out) :: t(0:nifguga)
@@ -4761,17 +4983,17 @@ contains
         if (present(opt_weight)) then
             weights = opt_weight
         else
-            if (t_approx_exchange .or. (t_approx_exchange_noninits .and. (.not. is_init_guga))) then
+            if (t_approx_exchange .or. (t_approx_exchange_noninits .and. &
+                    (.not. is_init_guga))) then
                 weights = init_forced_end_exchange_weight(ilut, excitInfo%fullEnd)
             else
                 weights = init_doubleWeight(ilut, excitInfo%fullEnd)
             end if
         end if
 
-        if (t_approx_exchange .or. (t_approx_exchange_noninits .and. (.not. is_init_guga))) then
-
+        if (t_approx_exchange .or. (t_approx_exchange_noninits .and. &
+                (.not. is_init_guga))) then
             call forced_mixed_start(ilut, excitInfo, t, branch_pgen)
-
         else
             call mixedFullStartStochastic(ilut, excitInfo, weights, posSwitches, &
                                           negSwitches, t, branch_pgen)
@@ -4826,8 +5048,13 @@ contains
             rdm_mat = extract_matrix_element(t, 2)
             call calc_orbital_pgen_contr(ilut, [2 * i, 2 * j], above_cpt, &
                                          below_cpt)
-            p_orig = (above_cpt + below_cpt) * branch_pgen / real(ElecPairs, dp)
+            p_orig = (above_cpt + below_cpt) * branch_pgen
+            if (.not. (t_heisenberg_model .or. t_tJ_model)) then
+                p_orig = p_orig / real(ElecPairs, dp)
+            end if
         end if
+
+        global_excitInfo = excitInfo
 
         if (t_approx_exchange .or. (t_approx_exchange_noninits .and. (.not. is_init_guga))) then
 
@@ -4854,9 +5081,8 @@ contains
         if (tFillingStochRDMOnFly) then
             if (.not. near_zero(p_orig)) then
                 call encode_stochastic_rdm_info(GugaBits, t, rdm_ind= &
-                                                contract_2_rdm_ind(i, j, k, l, excit_lvl=2, &
-                                                                   excit_typ=typ), x0=0.0_dp, &
-                                                x1=rdm_mat * pgen / p_orig)
+                           contract_2_rdm_ind(i, j, k, l, excit_lvl = 2, &
+                           excit_typ=typ), x0 = 0.0_dp, x1 = rdm_mat * pgen / p_orig)
             end if
         end if
 
@@ -5212,29 +5438,29 @@ contains
                     step1 = current_stepvector(first)
 
                     zeroWeight = weights%proc%zero(negSwitches(first), &
-                                                   posSwitches(first), currentB_ilut(first), weights%dat)
+                           posSwitches(first), currentB_ilut(first), weights%dat)
 
                     if (step1 == 1) then
                         ! i know that step2 = 2
                         call getDoubleMatrixElement(2, 1, 0, gen_type%L, gen_type%R, &
-                                                    currentB_ilut(first), 1.0_dp, x1_element=tempWeight_1)
+                                currentB_ilut(first), 1.0_dp, x1_element=tempWeight_1)
 
                         plusWeight = weights%proc%plus(posSwitches(first), &
                                                        currentB_ilut(first), weights%dat)
 
                         branch_weight = branch_weight * (1.0_dp - calcStayingProb( &
-                                                         zeroWeight, plusWeight, currentB_ilut(first)))
+                                         zeroWeight, plusWeight, currentB_ilut(first)))
 
                     else
                         ! i know that step2 = 1
-                        call getDoubleMatrixElement(1, 2, 0, gen_type%L, gen_type%R, currentB_ilut(first), &
-                                                    1.0_dp, x1_element=tempWeight_1)
+                        call getDoubleMatrixElement(1, 2, 0, gen_type%L, gen_type%R, &
+                            currentB_ilut(first), 1.0_dp, x1_element=tempWeight_1)
 
                         minusWeight = weights%proc%minus(negSwitches(first), &
-                                                         currentB_ilut(first), weights%dat)
+                                             currentB_ilut(first), weights%dat)
 
                         branch_weight = branch_weight * (1.0_dp - calcStayingProb( &
-                                                         zeroWeight, minusWeight, currentB_ilut(first)))
+                                         zeroWeight, minusWeight, currentB_ilut(first)))
 
                     end if
                     tempWeight = tempWeight * tempWeight_1
@@ -5251,7 +5477,7 @@ contains
                     if (currentOcc_int(k) /= 1) cycle
 
                     zeroWeight = weights%proc%zero(negSwitches(k), &
-                                                   posSwitches(k), currentB_ilut(k), weights%dat)
+                                       posSwitches(k), currentB_ilut(k), weights%dat)
 
                     select case (deltaB(k - 1) + current_stepvector(k))
 
@@ -5264,7 +5490,7 @@ contains
                                             zeroWeight, plusWeight, currentB_ilut(k))
                         else
                             branch_weight = branch_weight * (1.0_dp - calcStayingProb( &
-                                                             zeroWeight, plusWeight, currentB_ilut(k)))
+                                             zeroWeight, plusWeight, currentB_ilut(k)))
                         end if
 
                     case (2)
@@ -5277,36 +5503,36 @@ contains
                                             zeroWeight, minusWeight, currentB_ilut(k))
                         else
                             branch_weight = branch_weight * (1.0_dp - calcStayingProb( &
-                                                             zeroWeight, minusWeight, currentB_ilut(k)))
+                                                 zeroWeight, minusWeight, currentB_ilut(k)))
                         end if
 
                     case (-1)
                         ! d=1 + b=-2 : -1
                         minusWeight = weights%proc%minus(negSwitches(k), &
-                                                         currentB_ilut(k), weights%dat)
+                                                 currentB_ilut(k), weights%dat)
 
                         if (isOne(t, k)) then
                             branch_weight = branch_weight * calcStayingProb(minusWeight, &
-                                                                            zeroWeight, currentB_ilut(k))
+                                                            zeroWeight, currentB_ilut(k))
                         else
                             branch_weight = branch_weight * (1.0_dp - calcStayingProb( &
-                                                             minusWeight, zeroWeight, currentB_ilut(k)))
+                                             minusWeight, zeroWeight, currentB_ilut(k)))
                         end if
 
                     case (4)
                         ! d=2 + b=2 : 4
                         zeroWeight = weights%proc%zero(negSwitches(k), &
-                                                       posSwitches(k), currentB_ilut(k), weights%dat)
+                                           posSwitches(k), currentB_ilut(k), weights%dat)
 
                         plusWeight = weights%proc%plus(posSwitches(k), &
-                                                       currentB_ilut(k), weights%dat)
+                                                   currentB_ilut(k), weights%dat)
 
                         if (isTwo(t, k)) then
                             branch_weight = branch_weight * calcStayingProb(plusWeight, &
-                                                                            zeroWeight, currentB_ilut(k))
+                                                            zeroWeight, currentB_ilut(k))
                         else
                             branch_weight = branch_weight * (1.0_dp - calcStayingProb( &
-                                                             plusWeight, zeroWeight, currentB_ilut(k)))
+                                                 plusWeight, zeroWeight, currentB_ilut(k)))
                         end if
 
                     end select
@@ -5321,30 +5547,30 @@ contains
                     if (current_stepvector(last) == 1) then
                         ! then i know step2 = 2 & dB = -2!
                         call getDoubleMatrixElement(2, 1, -2, gen_type%L, gen_type%R, &
-                                                    currentB_ilut(last), 1.0_dp, x1_element=tempWeight_1)
+                                    currentB_ilut(last), 1.0_dp, x1_element=tempWeight_1)
 
                         zeroWeight = weights%proc%zero(negSwitches(last), &
-                                                       posSwitches(last), currentB_ilut(last), weights%dat)
+                                       posSwitches(last), currentB_ilut(last), weights%dat)
 
                         minusWeight = weights%proc%minus(negSwitches(last), &
-                                                         currentB_ilut(last), weights%dat)
+                                             currentB_ilut(last), weights%dat)
 
                         branch_weight = branch_weight * (1.0_dp - calcStayingProb( &
-                                                         minusWeight, zeroWeight, currentB_ilut(last)))
+                                             minusWeight, zeroWeight, currentB_ilut(last)))
 
                     else
                         ! i know step2 == 1 and dB = +2
                         call getDoubleMatrixElement(1, 2, +2, gen_type%L, gen_type%R, &
-                                                    currentB_ilut(last), 1.0_dp, x1_element=tempWeight_1)
+                                        currentB_ilut(last), 1.0_dp, x1_element=tempWeight_1)
 
                         zeroWeight = weights%proc%zero(negSwitches(last), &
-                                                       posSwitches(last), currentB_ilut(last), weights%dat)
+                                           posSwitches(last), currentB_ilut(last), weights%dat)
 
                         plusWeight = weights%proc%plus(posSwitches(last), &
-                                                       currentB_ilut(last), weights%dat)
+                                                   currentB_ilut(last), weights%dat)
 
                         branch_weight = branch_weight * (1.0_dp - calcStayingProb( &
-                                                         plusWeight, zeroWeight, currentB_ilut(last)))
+                                             plusWeight, zeroWeight, currentB_ilut(last)))
 
                     end if
 
@@ -5359,17 +5585,17 @@ contains
                     step1 = current_stepvector(k)
                     ! only 0 branch here
                     call getDoubleMatrixElement(step1, step1, 0, gen_type%L, gen_type%R, &
-                                                currentB_ilut(k), 1.0_dp, x1_element=tempWeight_1)
+                                    currentB_ilut(k), 1.0_dp, x1_element=tempWeight_1)
 
                     tempWeight = tempWeight * tempWeight_1
 
                     zeroWeight = weights%proc%zero(negSwitches(k), &
-                                                   posSwitches(k), currentB_ilut(k), weights%dat)
+                               posSwitches(k), currentB_ilut(k), weights%dat)
 
                     if (step1 == 1) then
                         ! i know step2 = 1 als
                         plusWeight = weights%proc%plus(posSwitches(k), &
-                                                       currentB_ilut(k), weights%dat)
+                                               currentB_ilut(k), weights%dat)
 
                         branch_weight = branch_weight * calcStayingProb( &
                                         zeroWeight, plusWeight, currentB_ilut(k))
@@ -5647,6 +5873,7 @@ contains
         inter = 1.0_dp
         integral = h_cast(0.0_dp)
 
+
         do i = first + 1, last - 1
             if (currentOcc_int(i) /= 1) cycle
 
@@ -5668,7 +5895,8 @@ contains
 
                 temp_int = (get_umat_el(i, j, j, i) + get_umat_el(j, i, i, j)) / 2.0_dp
 
-                if (near_zero(temp_int)) cycle
+
+                if ((.not. rdm_flag) .and. near_zero(temp_int)) cycle
 
                 ! get the starting matrix element
                 step1 = current_stepvector(i)
@@ -5722,8 +5950,8 @@ contains
         end do
 
         if (rdm_flag) then
-            allocate(rdm_ind(rdm_count), source=tmp_rdm_ind(1:rdm_count))
-            allocate(rdm_mat(rdm_count), source=tmp_rdm_mat(1:rdm_count))
+            allocate(rdm_ind(rdm_count), source = tmp_rdm_ind(1:rdm_count))
+            allocate(rdm_mat(rdm_count), source = tmp_rdm_mat(1:rdm_count))
         end if
 
     end function calcMixedContribution
@@ -5823,10 +6051,10 @@ contains
         ! if we do RDMs also store the x0 and x1 coupling coeffs
         if (tFillingStochRDMOnFly) then
             call encode_stochastic_rdm_info(GugaBits, t, rdm_ind= &
-                                            contract_2_rdm_ind(excitInfo%i, excitInfo%j, excitInfo%k, excitInfo%l, &
-                                                               excit_lvl=2, excit_typ=excitInfo%typ), &
-                                            x0=extract_matrix_element(t, 1), &
-                                            x1=extract_matrix_element(t, 2))
+                contract_2_rdm_ind(excitInfo%i, excitInfo%j, excitInfo%k, excitInfo%l, &
+                                   excit_lvl=2, excit_typ=excitInfo%typ), &
+                                    x0=extract_matrix_element(t, 1), &
+                                    x1=extract_matrix_element(t, 2))
         end if
 
         ! for the additional contributing integrals:
@@ -5989,8 +6217,8 @@ contains
         ! if we do RDMs also store the x0 and x1 coupling coeffs
         if (tFillingStochRDMOnFly) then
             call encode_stochastic_rdm_info(GugaBits, t, rdm_ind= &
-                                            contract_2_rdm_ind(excitInfo%i, excitInfo%j, excitInfo%k, excitInfo%l, &
-                                                               excit_lvl=2, excit_typ=excitInfo%typ), &
+                    contract_2_rdm_ind(excitInfo%i, excitInfo%j, excitInfo%k, excitInfo%l, &
+                                           excit_lvl=2, excit_typ=excitInfo%typ), &
                                             x0=extract_matrix_element(t, 1), &
                                             x1=extract_matrix_element(t, 2))
         end if
@@ -6131,8 +6359,8 @@ contains
         ! if we do RDMs also store the x0 and x1 coupling coeffs
         if (tFillingStochRDMOnFly) then
             call encode_stochastic_rdm_info(GugaBits, t, rdm_ind= &
-                                            contract_2_rdm_ind(excitInfo%i, excitInfo%j, excitInfo%k, excitInfo%l, &
-                                                               excit_lvl=2, excit_typ=excitInfo%typ), &
+                contract_2_rdm_ind(excitInfo%i, excitInfo%j, excitInfo%k, excitInfo%l, &
+                                           excit_lvl=2, excit_typ=excitInfo%typ), &
                                             x0=extract_matrix_element(t, 1), &
                                             x1=extract_matrix_element(t, 2))
         end if
@@ -6297,8 +6525,8 @@ contains
         ! if we do RDMs also store the x0 and x1 coupling coeffs
         if (tFillingStochRDMOnFly) then
             call encode_stochastic_rdm_info(GugaBits, t, rdm_ind= &
-                                            contract_2_rdm_ind(excitInfo%i, excitInfo%j, excitInfo%k, excitInfo%l, &
-                                                               excit_lvl=2, excit_typ=excitInfo%typ), &
+                contract_2_rdm_ind(excitInfo%i, excitInfo%j, excitInfo%k, excitInfo%l, &
+                                       excit_lvl=2, excit_typ=excitInfo%typ), &
                                             x0=extract_matrix_element(t, 1), &
                                             x1=extract_matrix_element(t, 2))
         end if
@@ -6426,7 +6654,7 @@ contains
             ! if we do RDMs also store the x0 and x1 coupling coeffs
             if (tFillingStochRDMOnFly) then
                 call encode_stochastic_rdm_info(GugaBits, t, rdm_ind= &
-                                                contract_2_rdm_ind(i, j, k, l, excit_lvl=2, excit_typ=typ), &
+                        contract_2_rdm_ind(i, j, k, l, excit_lvl=2, excit_typ=typ), &
                                                 x0=extract_matrix_element(t, 1), &
                                                 x1=extract_matrix_element(t, 2))
             end if
@@ -6573,8 +6801,8 @@ contains
         ! if we do RDMs also store the x0 and x1 coupling coeffs
         if (tFillingStochRDMOnFly) then
             call encode_stochastic_rdm_info(GugaBits, t, rdm_ind= &
-                                            contract_2_rdm_ind(excitInfo%i, excitInfo%j, excitInfo%k, excitInfo%l, &
-                                                               excit_lvl=2, excit_typ=excitInfo%typ), &
+                contract_2_rdm_ind(excitInfo%i, excitInfo%j, excitInfo%k, excitInfo%l, &
+                                       excit_lvl=2, excit_typ=excitInfo%typ), &
                                             x0=extract_matrix_element(t, 1), &
                                             x1=extract_matrix_element(t, 2))
         end if
@@ -6740,6 +6968,8 @@ contains
         ! point to a new function, which only calculates the
         ! matrix element contribution
 
+        global_excitInfo = excitInfo
+
         if (t_approx_exchange .or. (t_approx_exchange_noninits .and. (.not. is_init_guga))) then
             call calc_mixed_end_contr_approx(t, excitInfo, integral)
             pgen = branch_pgen
@@ -6752,8 +6982,8 @@ contains
         if (tFillingStochRDMOnFly) then
             if (.not. near_zero(p_orig)) then
                 call encode_stochastic_rdm_info(GugaBits, t, rdm_ind= &
-                                                contract_2_rdm_ind(i, j, k, l, excit_lvl=2, &
-                                                                   excit_typ=excitInfo%typ), x0=0.0_dp, &
+                        contract_2_rdm_ind(i, j, k, l, excit_lvl=2, &
+                                       excit_typ=excitInfo%typ), x0=0.0_dp, &
                                                 x1=rdm_mat * pgen / p_orig)
             end if
         end if
@@ -7389,6 +7619,8 @@ contains
         ! move it to the first elemen
         call encode_matrix_element(t, extract_matrix_element(t, 2), 1)
 
+        global_excitInfo = excitInfo
+
         if (t_approx_exchange .or. (t_approx_exchange_noninits .and. (.not. is_init_guga))) then
 
             call calc_mixed_end_contr_approx(t, excitInfo, integral)
@@ -7401,8 +7633,8 @@ contains
         if (tFillingStochRDMOnFly) then
             if (.not. near_zero(p_orig)) then
                 call encode_stochastic_rdm_info(GugaBits, t, rdm_ind= &
-                                                contract_2_rdm_ind(i, j, k, l, excit_lvl=2, &
-                                                                   excit_typ=excitInfo%typ), x0=0.0_dp, &
+                        contract_2_rdm_ind(i, j, k, l, excit_lvl=2, &
+                                           excit_typ=excitInfo%typ), x0=0.0_dp, &
                                                 x1=rdm_mat * pgen / p_orig)
             end if
         end if
@@ -7651,7 +7883,7 @@ contains
                     call getMixedFullStop(step, step, 0, currentB_ilut(i), &
                                           x1_element=end_mat)
 
-                    if (near_zero(orb_pgen)) then
+                    if (near_zero(orb_pgen) .and. (.not. rdm_flag)) then
                         ! still have to update the switches before cycling
                         ! update the switches
                         if (current_stepvector(i) == 1) then
@@ -7805,7 +8037,7 @@ contains
 
                 ! dont i still have to atleast update the matrix element
                 ! even if the orbital pgen is 0??
-                if (near_zero(orb_pgen)) cycle
+                if (near_zero(orb_pgen) .and. (.not. rdm_flag)) cycle
 
                 if (.not. near_zero(end_mat)) then
 
@@ -7877,7 +8109,7 @@ contains
             call calc_orbital_pgen_contrib_end([2 * elecInd, 2 * sw], holeInd, &
                                                orb_pgen)
 
-            if (.not. near_zero(orb_pgen)) then
+            if (.not. near_zero(orb_pgen) .or. rdm_flag) then
 
                 step = current_stepvector(sw)
 
@@ -9556,6 +9788,8 @@ contains
             return
         end if
 
+        global_excitInfo = excitInfo
+
         if (t_approx_exchange .or. (t_approx_exchange_noninits .and. (.not. is_init_guga))) then
             call calc_mixed_start_contr_approx(t, excitInfo, integral)
             pgen = branch_pgen
@@ -9568,8 +9802,8 @@ contains
         if (tFillingStochRDMOnFly) then
             if (.not. near_zero(p_orig)) then
                 call encode_stochastic_rdm_info(GugaBits, t, rdm_ind= &
-                                                contract_2_rdm_ind(i, j, k, l, excit_lvl=2, &
-                                                                   excit_typ=excitInfo%typ), x0=0.0_dp, &
+                                    contract_2_rdm_ind(i, j, k, l, excit_lvl=2, &
+                                       excit_typ=excitInfo%typ), x0=0.0_dp, &
                                                 x1=rdm_mat * pgen / p_orig)
             end if
         end if
@@ -10234,6 +10468,8 @@ contains
             return
         end if
 
+        global_excitInfo = excitInfo
+
         if (t_approx_exchange .or. (t_approx_exchange_noninits .and. (.not. is_init_guga))) then
             call calc_mixed_start_contr_approx(t, excitInfo, integral)
             pgen = branch_pgen
@@ -10244,8 +10480,8 @@ contains
         if (tFillingStochRDMOnFly) then
             if (.not. near_zero(p_orig)) then
                 call encode_stochastic_rdm_info(GugaBits, t, rdm_ind= &
-                                                contract_2_rdm_ind(i, j, k, l, excit_lvl=2, &
-                                                                   excit_typ=excitInfo%typ), x0=0.0_dp, &
+                            contract_2_rdm_ind(i, j, k, l, excit_lvl=2, &
+                                       excit_typ=excitInfo%typ), x0=0.0_dp, &
                                                 x1=rdm_mat * pgen / p_orig)
             end if
         end if
@@ -10572,6 +10808,7 @@ contains
 
         sw = findFirstSwitch(ilut, t, st, se)
 
+
         if (rdm_flag) then
             max_num_rdm = sw
             allocate(tmp_rdm_ind(max_num_rdm), source=0_int_rdm)
@@ -10667,6 +10904,7 @@ contains
         ! also consider if bot_cont < EPS to avoid unnecarry calculations
         if (.not. near_zero(bot_cont)) then
 
+
             mat_ele = 1.0_dp
             below_flag = .false.
 
@@ -10699,7 +10937,7 @@ contains
                                             1.0_dp, x1_element=stay_mat)
 
                 ! check if orb_pgen is non-zero
-                if (near_zero(orb_pgen)) then
+                if (near_zero(orb_pgen) .and. (.not. rdm_flag)) then
                     ! still have to update matrix element, even if 0 pgen
                     mat_ele = mat_ele * stay_mat
 
@@ -10787,7 +11025,16 @@ contains
         ! keep tempWweight as the running matrix element which gets updated
         ! every iteration
 
+        ! for rdms (in this current setup) I need to make a dummy
+        ! output if sw == st)
+        if (rdm_flag .and. sw == st) then
+            rdm_count = rdm_count + 1
+            tmp_rdm_ind(rdm_count) = contract_2_rdm_ind(sw, elecInd, holeInd, sw)
+            tmp_rdm_mat(rdm_count) = 1.0_dp
+        end if
+
         if (.not. near_zero(abs(mat_ele))) then
+
 
             mat_ele = 1.0_dp / mat_ele
 
@@ -10816,7 +11063,7 @@ contains
                 ! still have to update matrix element in this case..
                 ! so do the cycle only afterwards..
 
-                if (near_zero(orb_pgen)) cycle
+                if (near_zero(orb_pgen) .and. (.not. rdm_flag)) cycle
 
                 ! and also get starting contribution
                 call getDoubleMatrixElement(step, step, -1, gen_type%L, gen_type%R, currentB_ilut(i), &
@@ -10871,14 +11118,6 @@ contains
 
             end do
 
-            ! for rdms (in this current setup) I need to make a dummy
-            ! output if sw == st)
-            if (rdm_flag .and. sw == st) then
-                rdm_count = rdm_count + 1
-                tmp_rdm_ind(rdm_count) = contract_2_rdm_ind(sw, elecInd, holeInd, sw)
-                tmp_rdm_mat(rdm_count) = 1.0_dp
-            end if
-
             ! handle switch seperately (but only if switch > start)
             if (sw > st) then
 
@@ -10886,7 +11125,7 @@ contains
                 call calc_orbital_pgen_contrib_start([2 * sw, 2 * elecInd], holeInd, &
                                                      orb_pgen)
 
-                if (.not. near_zero(orb_pgen)) then
+                if (.not. near_zero(orb_pgen) .or. rdm_flag) then
 
                     step = current_stepvector(sw)
 
@@ -10969,7 +11208,7 @@ contains
 
     end subroutine calc_mixed_start_contr_sym
 
-    subroutine calc_orbital_pgen_contrib_end(occ_orbs, orb_a, orb_pgen)
+    subroutine calc_orbital_pgen_contrib_end_def(occ_orbs, orb_a, orb_pgen)
         ! write a combined function for both r2l and l2r since its only
         ! one difference -> only one if condition to adjust for both!
         integer, intent(in) :: occ_orbs(2), orb_a
@@ -11052,9 +11291,9 @@ contains
             orb_pgen = cpt_a + cpt_b
         end if
 
-    end subroutine calc_orbital_pgen_contrib_end
+    end subroutine calc_orbital_pgen_contrib_end_def
 
-    subroutine calc_orbital_pgen_contrib_start(occ_orbs, orb_a, orb_pgen)
+    subroutine calc_orbital_pgen_contrib_start_def(occ_orbs, orb_a, orb_pgen)
         ! write a combined function for both r2l and l2r since its only
         ! one difference -> only one if condition to adjust for both!
         integer, intent(in) :: occ_orbs(2), orb_a
@@ -11143,7 +11382,7 @@ contains
             orb_pgen = cpt_a + cpt_b
         end if
 
-    end subroutine calc_orbital_pgen_contrib_start
+    end subroutine calc_orbital_pgen_contrib_start_def
 
     subroutine calc_mixed_start_l2r_contr_nosym(ilut, t, excitInfo, branch_pgen, &
                                                 pgen, integral, rdm_ind, rdm_mat)
@@ -12523,6 +12762,7 @@ contains
         type(WeightObj_t) :: weights
         integer :: iO, st, en, step, i, j, gen, deltaB, step2
         integer(n_int) :: ilutI(0:niftot), ilutJ(0:niftot)
+        logical :: compFlag
 
         ASSERT(isProperCSF_ilut(ilut))
 
@@ -12541,10 +12781,22 @@ contains
 
         if (.not. excitInfo%valid) then
             ! if no valid indices were picked, return 0 excitation and return
-            exc = 0
+            exc = 0_n_int
             pgen = 0.0_dp
             return
         end if
+
+        if (t_guga_pchb) then
+            call checkCompatibility_single(ilut, excitInfo, compFlag, &
+                posSwitches, negSwitches, weights)
+
+            if (.not.compFlag) then
+                exc = 0_n_int
+                pgen = 0.0_dp
+                return
+            end if
+        end if
+
 
         if (t_guga_back_spawn) then
             ! do smth like this:
@@ -12617,10 +12869,11 @@ contains
         integral = getTmatEl(2 * i, 2 * j)
 
         ! then calculate the remaing switche given indices
-        call calcRemainingSwitches_excitInfo_single(excitInfo, posSwitches, negSwitches)
-
-        ! intitialize the weights
-        weights = init_singleWeight(ilut, excitInfo%fullEnd)
+        if (.not. t_guga_pchb) then
+            call calcRemainingSwitches_excitInfo_single(excitInfo, posSwitches, negSwitches)
+            ! intitialize the weights
+            weights = init_singleWeight(ilut, excitInfo%fullEnd)
+        end if
 
         ! create the start randomly(if multiple possibilities)
         ! create the start in such a way to use it for double excitations too
@@ -13967,28 +14220,30 @@ contains
 
     end function getPlus_overlapLowering
 
-    subroutine actHamiltonian(ilut, excitations, nTot, t_singles_only, t_print_time)
+    subroutine actHamiltonian(ilut, excitations, nTot, t_singles_only, &
+            t_print_time, t_full)
         ! subroutine to calculate the action of the full Hamiltonian on a
         ! a single CSF given in ilut bit representation and outputs a list
         ! of excitations also in ilut format, where the exact matrix element
         ! is stored, where usually the signed walker weight of an occupied
         ! determinant is stored
         integer(n_int), intent(in) :: ilut(0:nifguga)
-        integer(n_int), intent(out), pointer :: excitations(:, :)
+        integer(n_int), intent(out), allocatable :: excitations(:, :)
         integer, intent(out) :: nTot
-        logical, intent(in), optional :: t_singles_only, t_print_time
+        logical, intent(in), optional :: t_singles_only, t_print_time, t_full
         character(*), parameter :: this_routine = "actHamiltonian"
         type(timer), save :: proc_timer
 
-        integer(n_int), pointer :: tmp_all_excits(:, :)
+        integer(n_int), allocatable :: tmp_all_excits(:, :)
         integer :: i, j, k, l, nExcits, nMax, ierr
-        integer(n_int), pointer :: tempExcits(:, :)
-        logical :: t_singles_only_, t_print_time_
+        integer(n_int), allocatable :: tempExcits(:,:)
+        logical :: t_singles_only_, t_print_time_, t_full_
         integer :: n
         real(dp) :: cmp
 
         def_default(t_singles_only_, t_singles_only, .false.)
         def_default(t_print_time_, t_print_time, .false.)
+        def_default(t_full_, t_full, .true.)
 
         if (.not. present(t_singles_only)) then
             t_singles_only_ = .false.
@@ -14052,7 +14307,7 @@ contains
                 ! have to think where and when to allocate excitations
                 ! or maybe call the routine below with a dummy variable.
                 ! and store calculated ones in a different variable here..
-                call calcAllExcitations(ilut, i, j, tempExcits, nExcits)
+                call calcAllExcitations(ilut, i, j, tempExcits, nExcits, t_full_)
 #ifdef DEBUG_
                 do n = 1, nExcits
                     ASSERT(isProperCSF_ilut(tempExcits(:, n), .true.))
@@ -14079,6 +14334,9 @@ contains
                     do l = 1, nSpatOrbs
                         if (i == j .and. k == l) cycle
 
+                        ! if (t_heisenberg_model) then
+                        !     if (.not. (i == l .and. j == k)) cycle
+                        ! end if
                         ! not only i=j and k=l index combinations can lead to
                         ! diagonal contributions but also i = l and k = j
                         ! mixed fullstart-> fullstop excitations can have a
@@ -14091,7 +14349,7 @@ contains
 
                         ! integral contributions
                         call calcAllExcitations(ilut, i, j, k, l, tempExcits, &
-                                                nExcits)
+                                                nExcits, t_full_)
 
 #ifdef DEBUG_
                         do n = 1, nExcits
@@ -14183,19 +14441,19 @@ contains
     end subroutine actHamiltonian
 
     subroutine calcAllExcitations_excitInfo_single(ilut, excitInfo, posSwitches, &
-                                                   negSwitches, tmatFlag, excitations, nExcits)
+               negSwitches, tmatFlag, excitations, nExcits)
         ! excitation calculation if excitInfo is already calculated
         integer(n_int), intent(in) :: ilut(0:nifguga)
         type(ExcitationInformation_t), intent(in) :: excitInfo
         logical, intent(in) :: tmatFlag
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
-        integer(n_int), intent(out), pointer :: excitations(:, :)
+        integer(n_int), intent(out), allocatable :: excitations(:, :)
         integer, intent(out) :: nExcits
 
         HElement_t(dp) :: tmat
         integer :: iOrb
         type(WeightObj_t) :: weights
-        integer(n_int), pointer :: tempExcits(:, :)
+        integer(n_int), allocatable :: tempExcits(:, :)
 
         ! to do combine (i,j) version and this version to one
 
@@ -14239,23 +14497,26 @@ contains
 
     end subroutine calcAllExcitations_excitInfo_single
 
-    subroutine calcAllExcitations_single(ilut, i, j, excitations, nExcits)
+    subroutine calcAllExcitations_single(ilut, i, j, excitations, nExcits, t_full)
         ! function to calculate all possible single excitation for a CSF
         ! given in (ilut) format and indices (i,j). used to calculated
         ! H|D> to calculate the projected energy.
         integer(n_int), intent(in) :: ilut(0:nifguga)
         integer, intent(in) :: i, j
-        integer(n_int), intent(out), pointer :: excitations(:, :)
+        integer(n_int), intent(out), allocatable :: excitations(:, :)
         integer, intent(out) :: nExcits
+        logical, intent(in), optional :: t_full
         character(*), parameter :: this_routine = "calcAllExcitations_single_ilut"
 
         type(ExcitationInformation_t) :: excitInfo
-        integer(n_int), pointer :: tempExcits(:, :)
+        integer(n_int), allocatable :: tempExcits(:, :)
         integer :: ierr, iOrb, iEx, st
         real(dp) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs), &
                     plusWeight, minusWeight
         HElement_t(dp) :: tmat
         type(WeightObj_t) :: weights
+        logical :: t_full_
+        def_default(t_full_, t_full, .true.)
 
         ASSERT(i > 0 .and. i <= nSpatOrbs)
         ASSERT(j > 0 .and. j <= nSpatOrbs)
@@ -14266,7 +14527,11 @@ contains
 
         ! first check the single particle matrix element, it it is zero leave
         ! have index it with spin orbitals: assume non-UHF basis
-        tmat = GetTMatEl(2 * i, 2 * j)
+        if (t_full_) then
+            tmat = GetTMatEl(2 * i, 2 * j)
+        else
+            tmat = h_cast(1.0_dp)
+        end if
 
         if (near_zero(tmat)) then
             allocate(excitations(0, 0), stat=ierr)
@@ -15160,10 +15425,10 @@ contains
         ! end function to calculate all single excitations of a given CSF
         ! ilut
         integer(n_int), intent(in) :: ilut(0:nifguga)
-        integer(n_int), intent(inout), pointer :: tempExcits(:, :)
+        integer(n_int), intent(inout), allocatable :: tempExcits(:, :)
         type(ExcitationInformation_t), intent(in) :: excitInfo
         integer, intent(inout) :: nExcits
-        integer(n_int), intent(out), pointer :: excitations(:, :)
+        integer(n_int), intent(out), allocatable :: excitations(:, :)
         character(*), parameter :: this_routine = "singleEnd"
         integer :: iEx, cnt, ende, ierr, gen, deltaB
         integer(n_int) :: t(0:nifguga)
@@ -15384,7 +15649,7 @@ contains
         type(ExcitationInformation_t), intent(in) :: excitInfo
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
         type(WeightObj_t), intent(in) :: weightObj
-        integer(n_int), intent(out), pointer :: tempExcits(:, :)
+        integer(n_int), intent(out), allocatable :: tempExcits(:, :)
         integer, intent(out) :: nExcits
         character(*), parameter :: this_routine = "createSingleStart"
         integer :: ierr, nmax, st, gen
@@ -15571,26 +15836,29 @@ contains
 
     end function endLx
 
-    subroutine calcAllExcitations_double(ilut, i, j, k, l, excitations, nExcits)
+    subroutine calcAllExcitations_double(ilut, i, j, k, l, excitations, nExcits,&
+            t_full)
         ! function to calculate all possible double excitation for a CSF
         ! given in (ilut) format and indices (i,j,k,l).
         ! used to calculate the action of the Hamiltonian H|D> to calculate
         ! the projected energy
         integer(n_int), intent(in) :: ilut(0:nifguga)
         integer, intent(in) :: i, j, k, l
-        integer(n_int), intent(out), pointer :: excitations(:, :)
+        integer(n_int), intent(out), allocatable :: excitations(:, :)
         integer, intent(out) :: nExcits
+        logical, intent(in), optional :: t_full
         character(*), parameter :: this_routine = "calcAllExcitations_double"
 
         real(dp) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
         HElement_t(dp) :: umat
         integer :: ierr, n, exlevel
         type(ExcitationInformation_t) :: excitInfo
-        logical :: compFlag
+        logical :: compFlag, t_full_
+        def_default(t_full_, t_full, .true.)
 
         ! if called with k = l = 0 -> call single version of function
         if (k == 0 .and. l == 0) then
-            call calcAllExcitations(ilut, i, j, excitations, nExcits)
+            call calcAllExcitations(ilut, i, j, excitations, nExcits, t_full_)
             return
         end if
 
@@ -15604,7 +15872,11 @@ contains
         nExcits = 0
 
         ! first check two-particle integral
-        umat = get_umat_el(i, k, j, l)
+        if (t_full_) then
+            umat = get_umat_el(i, k, j, l)
+        else
+            umat = h_cast(1.0_dp)
+        end if
 
         if (near_zero(umat)) then
             allocate(excitations(0, 0), stat=ierr)
@@ -15643,6 +15915,13 @@ contains
                 allocate(excitations(0, 0), stat=ierr)
                 return
             end select
+        end if
+
+        if (t_heisenberg_model) then
+            if (excitInfo%typ /= excit_type%fullstart_stop_mixed) then
+                allocate(excitations(0,0), stat = ierr)
+                return
+            end if
         end if
 
         select case (excitInfo%typ)
@@ -15810,7 +16089,11 @@ contains
         do n = 1, nExcits
 
             call encode_matrix_element(excitations(:, n), 0.0_dp, 2)
-            call update_matrix_element(excitations(:, n), umat / 2.0_dp, 1)
+            if (t_full_) then
+                call update_matrix_element(excitations(:, n), umat / 2.0_dp, 1)
+            else
+                call encode_matrix_element(excitations(:, n), 1.0_dp, 1)
+            end if
             ! and also use the deltaB value for finished excitations to
             ! indicate the level of excitation IC for the remaining NECI code
             call setDeltaB(exlevel, excitations(:, n))
@@ -15823,7 +16106,7 @@ contains
                              posSwitches, negSwitches)
         integer(n_int), intent(in) :: ilut(0:nifguga)
         type(ExcitationInformation_t), intent(inout) :: excitInfo
-        integer(n_int), intent(out), pointer :: excitations(:, :)
+        integer(n_int), intent(out), allocatable :: excitations(:, :)
         integer, intent(out) :: nExcits
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
         character(*), parameter :: this_routine = "calcDoubleR2L"
@@ -15831,7 +16114,7 @@ contains
         integer :: iOrb, start1, start2, ende1, ende2
         type(WeightObj_t) :: weights
         real(dp) :: plusWeight, minusWeight, zeroWeight
-        integer(n_int), pointer :: tempExcits(:, :)
+        integer(n_int), allocatable :: tempExcits(:, :)
         !todo asserts
 
         ASSERT(.not. isThree(ilut, excitInfo%fullStart))
@@ -15909,7 +16192,7 @@ contains
                              posSwitches, negSwitches)
         integer(n_int), intent(in) :: ilut(0:nifguga)
         type(ExcitationInformation_t), intent(inout) :: excitInfo
-        integer(n_int), intent(out), pointer :: excitations(:, :)
+        integer(n_int), intent(out), allocatable :: excitations(:, :)
         integer, intent(out) :: nExcits
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
         character(*), parameter :: this_routine = "calcDoubleL2R"
@@ -15917,7 +16200,7 @@ contains
         integer :: iOrb, start1, start2, ende1, ende2
         type(WeightObj_t) :: weights
         real(dp) :: plusWeight, minusWeight, zeroWeight
-        integer(n_int), pointer :: tempExcits(:, :)
+        integer(n_int), allocatable :: tempExcits(:, :)
         !todo asserts
 
         ASSERT(.not. isZero(ilut, excitInfo%fullStart))
@@ -15998,7 +16281,7 @@ contains
 
         integer(n_int), intent(in) :: ilut(0:nifguga)
         type(ExcitationInformation_t), intent(inout) :: excitInfo
-        integer(n_int), intent(out), pointer :: excitations(:, :)
+        integer(n_int), intent(out), allocatable :: excitations(:, :)
         integer, intent(out) :: nExcits
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
         character(*), parameter :: this_routine = "calcDoubleRaising"
@@ -16006,7 +16289,7 @@ contains
         integer :: iOrb, start2, ende1, ende2
         type(WeightObj_t) :: weights
         real(dp) :: plusWeight, minusWeight, zeroWeight
-        integer(n_int), pointer :: tempExcits(:, :)
+        integer(n_int), allocatable :: tempExcits(:, :)
         !todo asserts
 
 #ifdef DEBUG_
@@ -16094,7 +16377,7 @@ contains
         ! case, since the called functions are the same
         integer(n_int), intent(in) :: ilut(0:nifguga)
         type(ExcitationInformation_t), intent(inout) :: excitInfo
-        integer(n_int), intent(out), pointer :: excitations(:, :)
+        integer(n_int), intent(out), allocatable :: excitations(:, :)
         integer, intent(out) :: nExcits
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
         character(*), parameter :: this_routine = "calcDoubleLowering"
@@ -16102,7 +16385,7 @@ contains
         integer :: iOrb, start2, ende1, ende2
         type(WeightObj_t) :: weights
         real(dp) :: plusWeight, minusWeight, zeroWeight
-        integer(n_int), pointer :: tempExcits(:, :)
+        integer(n_int), allocatable :: tempExcits(:, :)
         !todo asserts
 
 #ifdef DEBUG_
@@ -16182,7 +16465,7 @@ contains
     subroutine calcFullStartFullStopAlike(ilut, excitInfo, excitations)
         integer(n_int), intent(in) :: ilut(0:nifguga)
         type(ExcitationInformation_t), intent(in) :: excitInfo
-        integer(n_int), intent(out), pointer :: excitations(:, :)
+        integer(n_int), intent(out), allocatable :: excitations(:, :)
         character(*), parameter :: this_routine = "calcFullStartFullStopAlike"
 
         integer :: ierr
@@ -16235,11 +16518,11 @@ contains
                                           posSwitches, negSwitches)
         integer(n_int), intent(in) :: ilut(0:nifguga)
         type(ExcitationInformation_t), intent(in) :: excitInfo
-        integer(n_int), intent(out), pointer :: excitations(:, :)
+        integer(n_int), intent(out), allocatable :: excitations(:, :)
         integer, intent(out) :: nExcits
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
 
-        integer(n_int), pointer :: tempExcits(:, :)
+        integer(n_int), allocatable :: tempExcits(:, :)
         real(dp) :: plusWeight, minusWeight, zeroWeight
         type(WeightObj_t) :: weights
         integer :: iOrb
@@ -16300,7 +16583,7 @@ contains
                                 posSwitches, negSwitches, t_no_singles_opt)
         integer(n_int), intent(in) :: ilut(0:nifguga)
         type(ExcitationInformation_t), intent(inout) :: excitInfo
-        integer(n_int), intent(out), pointer :: excitations(:, :)
+        integer(n_int), intent(out), allocatable :: excitations(:, :)
         integer, intent(out) :: nExcits
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
         logical, intent(in), optional :: t_no_singles_opt
@@ -16309,7 +16592,7 @@ contains
         integer :: ierr, iOrb, start, ende, semi, gen, start2
         type(WeightObj_t) :: weights
         real(dp) :: minusWeight, plusWeight, zeroWeight
-        integer(n_int), pointer :: tempExcits(:, :)
+        integer(n_int), allocatable :: tempExcits(:, :)
         logical :: t_no_singles
 
         ASSERT(.not. isZero(ilut, excitInfo%fullStart))
@@ -16398,7 +16681,7 @@ contains
                                 posSwitches, negSwitches, t_no_singles_opt)
         integer(n_int), intent(in) :: ilut(0:nifguga)
         type(ExcitationInformation_t), intent(inout) :: excitInfo
-        integer(n_int), intent(out), pointer :: excitations(:, :)
+        integer(n_int), intent(out), allocatable :: excitations(:, :)
         integer, intent(out) :: nExcits
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
         logical, intent(in), optional :: t_no_singles_opt
@@ -16407,7 +16690,7 @@ contains
         integer :: ierr, iOrb, start, ende, semi, gen
         real(dp) :: minusWeight, plusWeight, zeroWeight
         type(WeightObj_t) :: weights
-        integer(n_int), pointer :: tempExcits(:, :)
+        integer(n_int), allocatable :: tempExcits(:, :)
         logical :: t_no_singles
 
         ASSERT(.not. isZero(ilut, excitInfo%fullStart))
@@ -16495,7 +16778,7 @@ contains
                                    minusWeight, t_no_singles_opt)
         integer(n_int), intent(in) :: ilut(0:nifguga)
         type(ExcitationInformation_t) :: excitInfo
-        integer(n_int), intent(inout), pointer :: tempExcits(:, :)
+        integer(n_int), intent(inout), allocatable :: tempExcits(:, :)
         integer, intent(inout) :: nExcits
         real(dp), intent(in) :: plusWeight, minusWeight
         logical, intent(in), optional :: t_no_singles_opt
@@ -17010,7 +17293,7 @@ contains
                                     minusWeight, t_no_singles_opt)
         integer(n_int), intent(in) :: ilut(0:nifguga)
         type(ExcitationInformation_t) :: excitInfo
-        integer(n_int), intent(inout), pointer :: tempExcits(:, :)
+        integer(n_int), intent(inout), allocatable :: tempExcits(:, :)
         integer, intent(inout) :: nExcits
         real(dp), intent(in) :: plusWeight, minusWeight
         logical, intent(in), optional :: t_no_singles_opt
@@ -17524,7 +17807,7 @@ contains
         integer(n_int), intent(in) :: ilut(0:nifguga)
         type(ExcitationInformation_t), intent(in) :: excitInfo
         real(dp), intent(in) :: plusWeight, minusWeight, zeroWeight
-        integer(n_int), intent(out), pointer :: tempExcits(:, :)
+        integer(n_int), intent(out), allocatable :: tempExcits(:, :)
         integer, intent(out) :: nExcits
         character(*), parameter :: this_routine = "mixedFullStart"
 
@@ -17712,7 +17995,7 @@ contains
                                     posSwitches, negSwitches)
         integer(n_int), intent(in) :: ilut(0:nifguga)
         type(ExcitationInformation_t), intent(inout) :: excitInfo
-        integer(n_int), intent(out), pointer :: excitations(:, :)
+        integer(n_int), intent(out), allocatable :: excitations(:, :)
         integer, intent(out) :: nExcits
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
         character(*), parameter :: this_routine = "calcFullStartRaising"
@@ -17721,7 +18004,7 @@ contains
         integer(n_int) :: t(0:nifguga)
         real(dp) :: tempWeight, minusWeight, plusWeight, bVal, nOpen
         type(WeightObj_t) :: weights
-        integer(n_int), pointer :: tempExcits(:, :)
+        integer(n_int), allocatable :: tempExcits(:, :)
 
         ASSERT(isZero(ilut, excitInfo%fullStart))
         ASSERT(isProperCSF_ilut(ilut))
@@ -17897,7 +18180,7 @@ contains
                                      posSwitches, negSwitches)
         integer(n_int), intent(in) :: ilut(0:nifguga)
         type(ExcitationInformation_t), intent(inout) :: excitInfo
-        integer(n_int), intent(out), pointer :: excitations(:, :)
+        integer(n_int), intent(out), allocatable :: excitations(:, :)
         integer, intent(out) :: nExcits
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
         character(*), parameter :: this_routine = "calcFullStartLowering"
@@ -17906,7 +18189,7 @@ contains
         integer(n_int) :: t(0:nifguga)
         real(dp) :: tempWeight, minusWeight, plusWeight, bVal, nOpen
         type(WeightObj_t) :: weights
-        integer(n_int), pointer :: tempExcits(:, :)
+        integer(n_int), allocatable :: tempExcits(:, :)
 
         ASSERT(isThree(ilut, excitInfo%fullStart))
         ASSERT(isProperCSF_ilut(ilut))
@@ -18075,14 +18358,14 @@ contains
                                posSwitches, negSwitches, t_no_singles_opt)
         integer(n_int), intent(in) :: ilut(0:nifguga)
         type(ExcitationInformation_t), intent(inout) :: excitInfo
-        integer(n_int), intent(out), pointer :: excitations(:, :)
+        integer(n_int), intent(out), allocatable :: excitations(:, :)
         integer, intent(out) :: nExcits
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
         logical, intent(in), optional :: t_no_singles_opt
 
         ! not sure if single or double weight is necessary here...
         type(WeightObj_t) :: weights
-        integer(n_int), pointer :: tempExcits(:, :)
+        integer(n_int), allocatable :: tempExcits(:, :)
         integer(n_int) :: t(0:nifguga)
         integer :: iOrb, iEx, cnt, st, se, en, ierr
         real(dp) :: minusWeight, plusWeight, zeroWeight
@@ -18197,14 +18480,14 @@ contains
                                posSwitches, negSwitches, t_no_singles_opt)
         integer(n_int), intent(in) :: ilut(0:nifguga)
         type(ExcitationInformation_t), intent(inout) :: excitInfo
-        integer(n_int), intent(out), pointer :: excitations(:, :)
+        integer(n_int), intent(out), allocatable :: excitations(:, :)
         integer, intent(out) :: nExcits
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
         logical, intent(in), optional :: t_no_singles_opt
 
         ! not sure if single or double weight is necessary here...
         type(WeightObj_t) :: weights
-        integer(n_int), pointer :: tempExcits(:, :)
+        integer(n_int), allocatable :: tempExcits(:, :)
         integer(n_int) :: t(0:nifguga)
         integer :: iOrb, iEx, cnt, st, se, en, ierr
         real(dp) :: minusWeight, plusWeight, zeroWeight
@@ -18318,9 +18601,9 @@ contains
         ! full stop routine for mixed generators
         integer(n_int), intent(in) :: ilut(0:nifguga)
         type(ExcitationInformation_t), intent(in) :: excitInfo
-        integer(n_int), intent(inout), pointer :: tempExcits(:, :)
+        integer(n_int), intent(inout), allocatable :: tempExcits(:, :)
         integer, intent(inout) :: nExcits
-        integer(n_int), intent(out), pointer :: excitations(:, :)
+        integer(n_int), intent(out), allocatable :: excitations(:, :)
         logical, intent(in), optional :: t_no_singles_opt
         character(*), parameter :: this_routine = "mixedFullStop"
 
@@ -19457,14 +19740,14 @@ contains
                                     posSwitches, negSwitches)
         integer(n_int), intent(in) :: ilut(0:nifguga)
         type(ExcitationInformation_t), intent(inout) :: excitInfo
-        integer(n_int), intent(out), pointer :: excitations(:, :)
+        integer(n_int), intent(out), allocatable :: excitations(:, :)
         integer, intent(out) :: nExcits
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
         character(*), parameter :: this_routine = "calcFullstopLowering"
 
         ! not sure if single or double weight is necessary here...
         type(WeightObj_t) :: weights
-        integer(n_int), pointer :: tempExcits(:, :)
+        integer(n_int), allocatable :: tempExcits(:, :)
         integer(n_int) :: t(0:nifguga)
         integer :: iOrb, iEx, deltaB, cnt, ierr
         real(dp) :: tempWeight, sig, bVal
@@ -19620,14 +19903,14 @@ contains
                                    posSwitches, negSwitches)
         integer(n_int), intent(in) :: ilut(0:nifguga)
         type(ExcitationInformation_t), intent(inout) :: excitInfo
-        integer(n_int), intent(out), pointer :: excitations(:, :)
+        integer(n_int), intent(out), allocatable :: excitations(:, :)
         integer, intent(out) :: nExcits
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
         character(*), parameter :: this_routine = "calcFullstopRaising"
 
         ! not sure if single or double weight is necessary here...
         type(WeightObj_t) :: weights
-        integer(n_int), pointer :: tempExcits(:, :)
+        integer(n_int), allocatable :: tempExcits(:, :)
         integer(n_int) :: t(0:nifguga)
         integer :: iOrb, iEx, deltaB, cnt, ierr
         real(dp) :: tempWeight, sig, bVal
@@ -19778,12 +20061,12 @@ contains
                                          posSwitches, negSwitches)
         integer(n_int), intent(in) :: ilut(0:nifguga)
         type(ExcitationInformation_t), intent(inout) :: excitInfo
-        integer(n_int), intent(out), pointer :: excitations(:, :)
+        integer(n_int), intent(out), allocatable :: excitations(:, :)
         integer, intent(out) :: nExcits
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
         character(*), parameter :: this_routine = "calcSingleOverlapLowering"
 
-        integer(n_int), pointer :: tempExcits(:, :)
+        integer(n_int), allocatable :: tempExcits(:, :)
         integer(n_int) ::  t(0:nifguga)
         integer :: i, iEx, deltaB, ss
         type(WeightObj_t) :: weights
@@ -19871,12 +20154,12 @@ contains
         ! double excitations with only raising generators
         integer(n_int), intent(in) :: ilut(0:nifguga)
         type(ExcitationInformation_t), intent(inout) :: excitInfo
-        integer(n_int), intent(out), pointer :: excitations(:, :)
+        integer(n_int), intent(out), allocatable :: excitations(:, :)
         integer, intent(out) :: nExcits
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
         character(*), parameter :: this_routine = "calcSingleOverlapRaising"
 
-        integer(n_int), pointer :: tempExcits(:, :)
+        integer(n_int), allocatable :: tempExcits(:, :)
         integer(n_int) :: t(0:nifguga)
         integer :: i, iEx, deltaB, se, en
         type(WeightObj_t) :: weightObj
@@ -20037,7 +20320,7 @@ contains
         ! mixed generators
         integer(n_int), intent(in) :: ilut(0:nifguga)
         type(ExcitationInformation_t), intent(inout) :: excitInfo
-        integer(n_int), intent(out), pointer :: excitations(:, :)
+        integer(n_int), intent(out), allocatable :: excitations(:, :)
         integer, intent(out) :: nExcits
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
         character(*), parameter :: this_routine = "calcSingleOverlapMixed"
@@ -20045,7 +20328,7 @@ contains
         type(WeightObj_t) :: weights
         integer :: iOrb, iEx, deltaB
         integer(n_int) :: t(0:nifguga)
-        integer(n_int), pointer :: tempExcits(:, :)
+        integer(n_int), allocatable :: tempExcits(:, :)
         real(dp) :: tempWeight
 
         ! todo: create weight objects, here are the normal single excitation
@@ -20130,11 +20413,11 @@ contains
         ! specific subroutine to calculate the non overlap double excitations
         integer(n_int), intent(in) :: ilut(0:nifguga)
         type(ExcitationInformation_t), intent(in) :: excitInfo
-        integer(n_int), intent(out), pointer :: excitations(:, :)
+        integer(n_int), intent(out), allocatable :: excitations(:, :)
         integer, intent(out) :: nExcits
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
 
-        integer(n_int), pointer :: tempExcits(:, :), tempExcits2(:, :), tmp_excitations(:, :)
+        integer(n_int), allocatable :: tempExcits(:, :), tempExcits2(:, :), tmp_excitations(:, :)
         integer :: tmpNum, iEx, tmpNum2, nOpen1, nOpen2, ierr, iEx2, nMax, i, j
         type(ExcitationInformation_t) :: tmpInfo
 
@@ -20212,7 +20495,7 @@ contains
         ! generator, which is really similar so a normal single excitation
         integer(n_int), intent(in) :: ilut(0:nifguga)
         type(ExcitationInformation_t), intent(in) :: excitInfo
-        integer(n_int), intent(out), pointer :: excitations(:, :)
+        integer(n_int), intent(out), allocatable :: excitations(:, :)
         integer, intent(out) :: nExcits
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
 
@@ -20244,6 +20527,73 @@ contains
         end do
 
     end subroutine calcDoubleExcitation_withWeight
+
+    subroutine checkCompatibility_single(L, excitInfo, flag, posSwitches, negSwitches, opt_weight)
+        integer(n_int), intent(in) :: L(0:nifguga)
+        type(ExcitationInformation_t), intent(in) :: excitInfo
+        logical, intent(out) :: flag
+        real(dp), intent(out), optional :: posSwitches(nSpatOrbs), &
+                                           negSwitches(nSpatOrbs)
+
+        type(WeightObj_t), intent(out), optional :: opt_weight
+        debug_function_name("checkCompatibility_single")
+
+        real(dp) :: pw, mw
+        integer ::  st, en
+        type(WeightObj_t) :: weights
+
+        ASSERT(excitInfo%typ == excit_type%single)
+        ASSERT(excitInfo%gen1 == gen_type%R .or. excitInfo%gen1 == gen_type%L)
+
+        call calcRemainingSwitches_excitInfo_single(excitInfo, posSwitches, negSwitches)
+
+        st = excitInfo%fullStart
+        en = excitInfo%fullEnd
+        flag = .true.
+
+        if (excitInfo%gen1 == gen_type%R) then
+            ! raising
+            if (current_stepvector(st) == 3 .or. current_stepvector(en) == 0) then
+                flag = .false.
+                return
+            end if
+
+            weights = init_singleWeight(L, en)
+            mw = weights%proc%minus(negSwitches(st), currentB_ilut(st), weights%dat)
+            pw = weights%proc%plus(posSwitches(st), currentB_ilut(st), weights%dat)
+
+            if ((near_zero(pw) .and. near_zero(mw)) &
+                .or. (current_stepvector(st) == 1 .and. near_zero(pw)) &
+                .or. (current_stepvector(st) == 2 .and. near_zero(mw))) then
+                flag = .false.
+                return
+            end if
+
+        else if (excitInfo%gen1 == gen_type%L) then
+            ! lowering
+
+            if (current_stepvector(en) == 3 .or. current_stepvector(st) == 0) then
+                flag = .false.
+                return
+            end if
+
+            weights = init_singleWeight(L, en)
+            mw = weights%proc%minus(negSwitches(st), currentB_ilut(st), weights%dat)
+            pw = weights%proc%plus(posSwitches(st), currentB_ilut(st), weights%dat)
+
+
+            if ((current_stepvector(st) == 1 .and. near_zero(pw)) &
+                .or. (current_stepvector(st) == 2 .and. near_zero(mw)) &
+                .or. (near_zero(pw + mw))) then
+                flag = .false.
+                return
+            end if
+        end if
+
+        if (present(opt_weight)) opt_weight = weights
+
+    end subroutine checkCompatibility_single
+
 
     subroutine checkCompatibility(L, excitInfo, flag, posSwitches, negSwitches, opt_weight)
         ! depending on the type of excitation determined in the
@@ -20896,9 +21246,7 @@ contains
 
         end select
 
-        if (present(opt_weight)) then
-            opt_weight = weights
-        end if
+        if (present(opt_weight)) opt_weight = weights
 
     end subroutine checkCompatibility
 
@@ -24334,6 +24682,52 @@ contains
         end if
 
     end subroutine gen_a_orb_cum_list_guga_mol
+
+    function get_guga_integral_contrib_spat(occ_orbs, orb_a, orb_b) result(cpt)
+        integer, intent(in) :: occ_orbs(2), orb_a, orb_b
+        real(dp) :: cpt
+
+        integer :: ind(2)
+
+        ind = occ_orbs
+        ! for now, since i dont know how to correctly do it, and for testing
+        ! purposes just add a uniformly factor to all of the orbitals.
+
+        ! do a input dependent switch to compare influence on the pgens..
+        if (tGen_guga_weighted) then
+
+            if (orb_b < 0) then
+
+                cpt = sqrt(abs_l1(UMat2D(max(ind(1),orb_a), min(ind(1),orb_a)))) &
+                    + sqrt(abs_l1(UMat2D(max(ind(2),orb_a), min(ind(2),orb_a))))
+            else
+
+                cpt = sqrt(abs(get_umat_el(ind(1),ind(2),orb_a,orb_b)) &
+                                 + abs(get_umat_el(ind(1),ind(2),orb_b,orb_a)))
+
+            end if
+
+        else
+
+            if (orb_b < 0) then
+
+                cpt = 1.0_dp
+
+            else
+
+                if (t_guga_pchb) then
+                    cpt = abs(get_umat_el(ind(1),ind(2),orb_a,orb_b)) +&
+                          abs(get_umat_el(ind(1),ind(2),orb_b,orb_a))
+
+                else
+                    cpt = sqrt(abs(get_umat_el(ind(1),ind(2),orb_a,orb_b)) +&
+                          abs(get_umat_el(ind(1),ind(2),orb_b,orb_a)))
+                  end if
+            end if
+        end if
+
+
+    end function get_guga_integral_contrib_spat
 
     function get_guga_integral_contrib(occ_orbs, orb_a, orb_b) result(cpt)
         ! routine which gets the correct FCIDUMP integral contribution for
@@ -29703,14 +30097,19 @@ contains
 
         print *, "Excitation Information: "
         print *, "Typ: ", excitInfo%typ, trim(excit_names(excitInfo%typ)%str)
-        print *, "i,j,k,l:", excitInfo%i, excitInfo%j, excitInfo%k, excitInfo%l
-        print *, "fullStart,secondStart,firstEnd,fullEnd:", excitInfo%fullStart, &
-            excitInfo%secondStart, excitInfo%firstEnd, excitInfo%fullEnd
-        print *, "gen1,gen2,currentGen ", excitInfo%gen1, excitInfo%gen2, excitInfo%currentGen
-        print *, "firstGen,lastGen: ", excitInfo%firstGen, excitInfo%lastGen
+        print *, "i,j,k,l:"
+        print *, excitInfo%i, excitInfo%j,excitInfo%k,excitInfo%l
+        print *, "fullStart,secondStart,firstEnd,fullEnd:"
+        print *, excitInfo%fullStart, excitInfo%secondStart, &
+            excitInfo%firstEnd, excitInfo%fullEnd
+        print *, "gen1,gen2,currentGen "
+        print *, excitInfo%gen1, excitInfo%gen2, excitInfo%currentGen
+        print *, "firstGen,lastGen: "
+        print *, excitInfo%firstGen, excitInfo%lastGen
         print *, "valid? ", excitInfo%valid
         print *, "spin_change?", excitInfo%spin_change
         print *, "orders:", excitInfo%order, excitInfo%order1
+        print *, "excit-level: ", excitInfo%excitLvl
 
     end subroutine print_excitInfo
 

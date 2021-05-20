@@ -104,7 +104,7 @@
 
 \begin{document}
 
-\author{Simon Smart, Nick Blunt, Kai Guther, Oskar Weser, Werner Dobrautz and George Booth}
+\author{Simon Smart, Nick Blunt, Kai Guther, Oskar Weser,\\ Werner Dobrautz and George Booth}
 \title{Unravelling the mysteries of NECI}
 \subtitle{The $n$-Electron Configuration Interaction solver}
 \maketitle
@@ -676,6 +676,16 @@ the \texttt{endsys} keyword.
     alias tables. This excitation generator is extremely fast, while
     maintaining high acceptance rates and is generally recommended when
     memory is not an issue.
+    
+    \codeitem{guga-pchb}
+    Uses the pre-computed alias tables for the spin-adapted GUGA implementation. 
+	Needs the \texttt{guga} keyword in the \texttt{System} block. 
+    If it is used in conjunction with the \texttt{hist-tau-search} option, which 
+    is recommended for GUGA calculations in general, it automatically sets 
+    more reasonable defaults than for the usual \texttt{mol-guga-weighted} 
+    excitation generation option.
+    
+    
     \codeitem{nosymgen}
     Generate all possible excitations, regardless of symmetry. Might have a
     low acceptance rate.
@@ -719,41 +729,83 @@ the \texttt{endsys} keyword.
       the GAS spaces.
     It is possible to select the actual implementation with the
       \texttt{GAS-CI} keyword.
-    For the GAS specification it is assumed, that the orbitals
-      in each GAS space are contiguous, i.e. first all orbitals
-      from the first GAS space, then all from the second GAS space...
-    The specification is first the number of GAS spaces $n_\text{GAS}$
-      and then $3 \times n_\text{GAS}$ the specification for each GAS space
-      as number of spatial orbitals and cumulated minimum and maximum
-      number of particles
-      $n_i, N_i^\text{min, cmltve}, N_i^\text{max, cmltve}$.
+    It is possible to use \emph{local} or \emph{cumulative}
+      constraints on the particle number.
+    Local constraints define the minimum and maximum particle number per
+      GAS space.
+    Cumulative constraints define cumulative minima and maxima
+      of the cumulative particle number.
+    The specification is first \texttt{LOCAL} or \texttt{CUMULATIVE}
+      to define the kind of constraints
+      followed by the number of GAS spaces $n_\text{GAS}$.
+    The next items are $3 \times n_\text{GAS}$ numbers
+      which are the number of spatial orbitals and (cumulative) minimum and maximum
+      number of particles per GAS space
+      $n_i, N_i^\text{min}, N_i^\text{max}$.
     Finally an integer array denotes for each spatial orbital to which GAS space it belongs.
+    Instead of \texttt{1 1 1 1 1} one can write \texttt{5*1}.
     It is advantageous to use the line continuation (\texttt{+++})
       for human-readable formatting as table.
     Two benzenes with single inter-space excitation would be e.g. denoted as:
 
     \begin{lstlisting}[gobble=4]
-    GAS-SPEC  2 +++
+    GAS-SPEC LOCAL 2 +++
          6  5  7  +++
-         6 12 12  +++
+         6  5  7  +++
          1  1  1  1  1  1  2  2  2  2  2  2
     \end{lstlisting}
+    or
+    \begin{lstlisting}[gobble=4]
+    GAS-SPEC LOCAL  2 +++
+         6  5  7  +++
+         6  5  7  +++
+         6*1 6*2
+    \end{lstlisting}
+    or
+    \begin{lstlisting}[gobble=4]
+    GAS-SPEC CUMULATIVE 2 +++
+         6  5  7  +++
+         6 12 12 +++
+         6*1 6*2
+    \end{lstlisting}
+    In the given example the local and cumulative constraints are equivalent,
+      but they are not always!
 
   \codeitem{GAS-CI}
     \emph{Optional keyword.}
     Specify the actual implementation for GAS.
     If it is ommitted, it will be deduced from \texttt{GAS-SPEC}.
     \begin{description}
-      \codeitem{GENERAL}
-        Use general GAS, which is applicable to any GAS specification,
-          but a bit slower than necessary for disconnected spaces.
-      \codeitem{DISCONNECTED}
-        Use the disconnected GAS implementations, which assumes disconnected
-          spaces and performs there a bit better than the general implementation.
+      \codeitem{GENERAL-PCHB}
+        This is the default and the fastest implementation, if sufficient memory is available.
+        The double excitations work similar to the FCI precomputed heat bath excitation
+          generator but automatically exclude GAS forbidden excitations.
+        If one follows the keyword, by \texttt{SINGLES}, one can
+          select the singles for which there are three possibilities:
+        \begin{description}
+          \codeitem{PC-UNIFORM}
+            This is the default. It chooses GAS allowed electrons uniformly.
+          \codeitem{DISCARDING-UNIFORM}
+            It chooses electrons uniformly as in FCI and discards.
+          \codeitem{ON-FLY-HEAT-BATH}
+            It chooses GAS allowed electrons weighted by their matrix element.
+        \end{description}
+        An example is
+          \begin{lstlisting}[gobble=4]
+            GAS-CI GENERAL-PCHB +++
+                SINGLES ON-FLY-HEAT-BATH
+          \end{lstlisting}
       \codeitem{DISCARDING}
         Use a Full CI excitation generator and just discard excitations which
           are not contained in the GAS space.
         Currently PCHB is used for Full CI.
+      \codeitem{GENERAL}
+        Use heat bath on the fly general GAS,
+          which is applicable to any GAS specification,
+          but a bit slower than necessary for disconnected spaces.
+      \codeitem{DISCONNECTED}
+        Use the disconnected GAS implementations, which assumes disconnected
+          spaces and performs there a bit better than the general implementation.
     \end{description}
 \end{description}
 
@@ -765,6 +817,26 @@ the \texttt{endsys} keyword.
     optional. $type$ can be any of \texttt{chain}, \texttt{star},
     \texttt{square}, \texttt{rectangle}, \texttt{tilted}, \texttt{triangular},
     \texttt{hexagonal}, \texttt{kagome}, \texttt{ole}.
+
+    
+		  A crude implementation for reading a user input lattice from an external file is also in place. 
+		  For this to be activated, $type$ should be set to $ext\_input$ and further inputs on this line are ignored. 
+		  The program will then look for a file $lattice.inp$ from which it reads the lattice information. 
+		  An example of the $lattice.inp$ file is as follows:\\\\
+
+		  \code{dim 2}   ! the dimension of the lattice, here it is 2D\\   
+		  \code{lattice_type kagome} ! type of the lattice, only used for information purposes\\
+		  \code{lattice_param -2 2 2 -2} ! lattice parameters, not used yet, can skip it\\
+		  \code{n_sites 6} ! no of site in the unit cell\\
+		  \code{site 1 4 2 5 5 6} ! for each site specify the site $id$, \# of neigbouring connections and the neighbor $id$'s\\
+		  \code{site 2 4 1 3 4 5}\\
+		  \code{site 3 4 2 4 4 6}\\
+		  \code{site 4 4 2 3 3 6}\\
+		  \code{site 5 4 1 1 2 6}\\
+		  \code{site 6 4 1 3 4 5} \\
+		  \code{n_connect_max 4} ! max numbers of sites connected to each site in the lattice\\\\
+		  Periodic boundary conditions (PBC) are assumed here and the user is responsible for specifying the neighbouring connections properly satisfying PBC. 
+		  As of now only realspace implementation of neci works with this feature.  
     \codeitem{U $U$}
     Sets the Hubbard interaction strengh to $U$. Defaults to 4.
     \codeitem{B $t$}
@@ -783,6 +855,19 @@ the \texttt{endsys} keyword.
     \codeitem{ueg-offset $k_x$ $k_y$ $k_z$}
     Offset $(k_x, k_y, k_z)$ for the momentum grid used in for the uniform
     electron gas.
+    
+    
+    \codeitem{bipartite-order [n]}
+    Enables a bipartite ordering of bipartite lattice (chain, square for now)
+    Has to be put \textbf{before!} the \texttt{lattice} keyword. 
+    If an additional parameter \texttt{n}, which has to equal to the number of lattice sites, is given an 
+    arbitrary orbital ordering can be given in the subsequent input line. 
+    (It has to be \texttt{n} unique numbers from, 1 to $n$.) An example:
+    \begin{lstlisting}[gobble=4]
+	bipartite 5
+	1 3 2 5 4
+    \end{lstlisting}
+    
   \end{description}
 
   \subsubsection{Transcorrelation options}
@@ -1135,8 +1220,8 @@ the \texttt{endsys} keyword.
     \codeitem{\textcolor{oblue}{semi-stochastic}}
     Turn on the semi-stochastic adaptation.
     \codeitem{\textcolor{oblue}{pops-core $n$}}
-    When starting from a POPSFILE, this option will use the $n$ most
-    populated determinants from the popsfile to form the core space.
+    This option will use the $n$ most
+    populated determinants to form the core space.
     \codeitem{doubles-core}
     Use the reference determinant and all single and double excitations
     from it to form the core space.
@@ -1572,6 +1657,12 @@ the \texttt{endsys} keyword.
       Create a histogram of the scaling factor used for the auto-adaptive shift
       over the population of a determinant. Only has an effect if
       \code{auto-adaptive-shift} is used.
+      
+      \codeitem{local-spin}
+      Activates the cumulative local spin, $\hat S_i^2$, measurement for spin-adapted GUGA calculations. 
+      An output file \texttt{local\_spin\_stats} is created, which keeps track of the local spin measurement up to every spatial orbital for each iteration is stored. Similar to diagonal RDM entries, this option needs two replicas for an unbiased measurement. Since this is a diagonal property for the GUGA, there is no additional cost.
+      
+      
     \end{description}
     \subsubsection{Semi-stochastic output options}
     \begin{description}
@@ -1586,6 +1677,15 @@ the \texttt{endsys} keyword.
       determinants to a file called CORESPACE. This can further be read
       in and used as the core space in subsequent calculations using the
       \texttt{read-core} option.
+      
+      \codeitem{print-core-hamil}
+      Prints the semi-stochastic Hamiltonian and the semistochastic basis states to the output file \texttt{semistoch-hamil} and \texttt{semistoch-basis}. 
+      Caution with the size of the semistochastic space!
+      
+      \codeitem{print-core-vec}
+      Prints the semi-stochastic ``eigenvector'' to the output files \texttt{determ\_vecs} and \texttt{determ\_vecs\_av}.
+      Caution with the size of the semistochastic space!
+      
     \end{description}
     \subsubsection{RDM output options}
     These options control how the RDMs are printed. For a description of how
@@ -1634,6 +1734,13 @@ the \texttt{endsys} keyword.
 
      \codeitem{print-molcas-rdms}
      	It is now possible to calculate stochastic spin-free RDMs with the GUGA implementation. This keyword is necessary if one intends to use this feature in conjunction with \texttt{Molcas} to perform a spin-free Stochastic-CASSCF. It produces the three files \texttt{DMAT, PAMAT} and \texttt{PSMAT}, which are read-in by \texttt{Molcas}.
+     	
+     \codeitem{full-core-rdms}
+     In the `normal' RDM sampling only entries, e.g. for the 1-RDM, $\rho_{ij}$, which are actually connected by 
+     some Hamiltonian matrix element. This has no negative effect on the energy calculation, but for properties, e.g. spin-spin correlation functions. 
+     This option activates a full sampling of RDMs, at least in the semi-stochastic space. 
+     This option does increase the cost though.  
+     
     \end{description}
 
 \section{Useful References Containing Technical Details}
@@ -1893,5 +2000,60 @@ calculation, which is one measure of the accuracy of the RDMs.  Also printed by 
 
 	More information (including example plots, similar to those that
 	\code{blocking.py} produces) is available at JCP 91, 461.
+
+\section{Using the NECI pylib}
+
+A python frontend is available in the \code{neci_guga} python library, which
+is based on the \code{neci} build target (i.e. plain neci, without complex
+or multi-replica support) and is built by executing
+\begin{lstlisting}[gobble=2]
+  make neci_guga_pylib
+\end{lstlisting}
+in the neci build directory. This will create a python3 library
+\code{neci_guga.<build-specifier>.so}, which is installed in the
+\code{python/} subdirectory of the neci build directory.
+
+To use it, load the \code{python} subdirectory of the neci build directory
+into the library path of python, either by
+\begin{lstlisting}[gobble=2]
+  export PYTHONPATH=<neci_build>/python:$PYTHONPATH
+\end{lstlisting}
+or by adding
+\begin{lstlisting}[gobble=2]
+  import sys
+  sys.path.append('<neci_build>/python')
+\end{lstlisting}
+to the calling python module or script.
+
+The \code{neci_guga} python module can then be loaded in calling python code
+with \code{import neci_guga} and provides the following functionality:
+
+\begin{description}
+  \codeitem{neci\_guga.init\_guga(S)}
+  Takes the desired total spin \code{S} and initializes the GUGA functionality
+  of neci by reading in an existing FCIDUMP file. 
+
+  \codeitem{neci\_guga.clear\_guga()}
+  Clears all memory and deletes all objects initialized by \code{init_guga},
+  returns 0 on success, 1 else.
+
+  \codeitem{neci\_guga.diag\_matel(D)}
+  Returns the diagonal matrix element of a CSF \code{D}, passed as an array
+  of the size of the number of electrons.
+
+  \codeitem{neci\_guga.run\_neci(perm)}
+  Reads a neci input file \code{neci.inp} and an FCIDUMP file in the current
+  directory, using an orbital permutation \code{perm} to re-order the orbitals
+  used for the calculation (with respect to the FCIDUMP file). Then, a neci
+  calculation with the specified input is run and the weight of the leading
+  CSF is returned.
+  The permutation is given by specifying the new position for each orbital,
+  i.e. a permutation
+  \begin{lstlisting}[gobble=4]
+    perm = [3,4,2,1]
+  \end{lstlisting}
+  would put orbital 1 in the third position, orbital 2 in the fourth position,
+  orbital 3 in the second position and orbital 4 in the first position.
+\end{description}
 
 \end{document}

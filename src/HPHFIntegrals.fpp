@@ -9,7 +9,7 @@ module hphf_integrals
     use IntegralsData, only: UMat, FCK, NMAX
     use HPHFRandExcitMod, only: FindDetSpinSym, FindExcitBitDetSym
     use DetBitOps, only: DetBitEQ, FindExcitBitDet, FindBitExcitLevel, &
-                         TestClosedShellDet, CalcOpenOrbs
+                         TestClosedShellDet, CalcOpenOrbs, GetBitExcitation
     use excitation_types, only: NoExc_t, DoubleExc_t
     use sltcnd_mod, only: sltcnd, sltcnd_excit, sltcnd_knowIC, dyn_sltcnd_excit_old
     use bit_reps, only: NIfD, NIfTot, decode_bit_det

@@ -14,6 +14,8 @@ module semi_stoch_procs
 
     use constants
 
+    use util_mod, only: stop_all
+
     use orb_idx_mod, only: SpinOrbIdx_t
 
     use FciMCData, only: SpawnedParts, TotWalkers, CurrentDets, &
@@ -51,7 +53,9 @@ module semi_stoch_procs
 
     use Parallel_neci, only: MPIScatterV
 
-    use ParallelHelper, only: root
+    use MPI_wrapper, only: root, MPI_IN_PLACE, MPI_INTEGER, MPI_INTEGER8, &
+        MPI_COMM_SIZE, MPI_Win_Sync, MPI_Barrier, MPI_2DOUBLE_PRECISION, &
+        MPI_MAXLOC
 
     use sparse_arrays, only: sparse_ham, hamil_diag, HDiagTag
 
@@ -63,7 +67,9 @@ module semi_stoch_procs
 
     use adi_data, only: tSignedRepAv
 
-    use global_det_data, only: readFVals, readAPVals
+    use global_det_data, only: set_supergroup_idx
+
+    use gasci_supergroup_index, only: lookup_supergroup_indexer
 
     use LoggingData, only: tAccumPopsActive
 
@@ -74,6 +80,10 @@ module semi_stoch_procs
     use shared_memory_mpi, only: shared_allocate_mpi, shared_deallocate_mpi
 
     use guga_bitrepops, only: init_csf_information
+
+    use util_mod, only: get_free_unit
+
+    use DeterminantData, only: write_det
 
     implicit none
 
@@ -460,6 +470,38 @@ contains
 
     end subroutine average_determ_vector
 
+    subroutine print_determ_vec_av(run)
+        integer, intent(in), optional :: run
+
+        integer :: run_, iunit, i
+        def_default(run_, run, 1)
+
+        iunit = get_free_unit()
+        open(iunit, file = 'determ_vecs_av', status = 'replace')
+        associate ( rep => cs_replicas(run_))
+            do i = 1, rep%determ_space_size
+                write(iunit, *) rep%full_determ_vecs_av(1, i)
+            end do
+        end associate
+        close(iunit)
+    end subroutine print_determ_vec_av
+
+    subroutine print_determ_vec(run)
+        integer, intent(in), optional :: run
+
+        integer :: run_, iunit, i
+        def_default(run_, run, 1)
+
+        iunit = get_free_unit()
+        open(iunit, file = 'determ_vecs', status = 'replace')
+        associate ( rep => cs_replicas(run_))
+            do i = 1, rep%determ_space_size
+                write(iunit, *) rep%full_determ_vecs(1, i)
+            end do
+        end associate
+        close(iunit)
+    end subroutine print_determ_vec
+
     !> Check whether an ilut belongs to the core space
     !> @param[in] ilut  ilut we want to check
     !> @param[in] nI  determinant corresponding to this ilut. Redundant, but is passed
@@ -561,7 +603,7 @@ contains
 
     subroutine generate_core_connections(rep)
 
-        use DetBitOps, only: FindBitExcitLevel
+        use DetBitOps, only: FindBitExcitLevel, GetBitExcitation
         use Parallel_neci, only: MPIAllGatherV
         type(core_space_t), intent(inout) :: rep
         integer :: i, j, ic, counter, ierr
@@ -591,6 +633,8 @@ contains
             allocate(rep%core_connections(i)%positions(rep%sparse_core_ham(i)%num_elements - 1))
 
             ! The total number of non-zero elements in row i.
+            ! thats a problem for the RDM sampling! I need not only
+            ! connected states by the Hamiltonian.. because RDMs are more general...
             rep%core_connections(i)%num_elements = rep%sparse_core_ham(i)%num_elements - 1
 
             counter = 0
@@ -606,9 +650,10 @@ contains
                     ! for the GUGA implementation this has to be changed in the
                     ! future. but since this routine is only called if we calc.
                     ! RDMs on the fly, i can postpone that until then.. todo
-                    ic = FindBitExcitLevel(SpawnedParts(:, i), temp_store(:, rep%sparse_core_ham(i)%positions(j)))
+                    ic = FindBitExcitLevel(SpawnedParts(:, i), &
+                        temp_store(:, rep%sparse_core_ham(i)%positions(j)))
                     call GetBitExcitation(SpawnedParts(0:NIfD, i), temp_store(0:NIfD, &
-                                                                              rep%sparse_core_ham(i)%positions(j)), Ex, tSign)
+                                        rep%sparse_core_ham(i)%positions(j)), Ex, tSign)
                     if (tSign) then
                         ! Odd number of permutations. Minus the excitation level.
                         rep%core_connections(i)%elements(counter) = -ic
@@ -631,7 +676,8 @@ contains
         use FciMCData, only: CoreSpaceTag
         use MemoryManager, only: LogMemAlloc
         use Parallel_neci, only: MPIAllGatherV, iProcIndex_inter, iProcIndex_intra, &
-                                 mpi_comm_inter, mpi_comm_intra, nNodes, NodeLengths, iNodeIndex, MPIAllGather
+                                 mpi_comm_inter, mpi_comm_intra, nNodes, NodeLengths, &
+                                 iNodeIndex, MPIAllGather
         type(core_space_t), intent(inout) :: rep
         integer(MPIArg) :: MPIerr
         integer :: ierr
@@ -653,11 +699,11 @@ contains
         allocate(sizes_per_node(0:num_nodes - 1))
 
         call shared_allocate_mpi(rep%core_space_win, rep%core_space_direct, &
-                                 (/int(1 + NIfTot, int64), int(rep%determ_space_size, int64)/))
+                                 [int(1 + NIfTot, int64), int(rep%determ_space_size, int64)], ierr)
         ! Convert from 1-based first dimension to 0-based first dimension as used in iluts
         rep%core_space(0:, 1:) => rep%core_space_direct(1:, 1:)
         call LogMemAlloc('core_space', maxval(rep%determ_sizes) * (NIfTot + 1), 8, t_r, &
-                         rep%CoreSpaceTag, ierr)
+                         rep%CoreSpaceTag, err=ierr)
         if (iProcIndex_intra == 0) rep%core_space = 0_n_int
 
         ! Write the core-space on this node into core_space
@@ -956,7 +1002,6 @@ contains
     subroutine write_core_space(rep)
 
         use Parallel_neci, only: MPIBarrier
-        use util_mod, only: get_free_unit
         type(core_space_t), intent(in) :: rep
         integer :: i, k, iunit, ierr
 
@@ -1174,17 +1219,27 @@ contains
                         call stop_all(this_routine, 'Insufficient memory assigned')
                     end if
 
-                    SpawnedParts(0:NIfTot, i_non_core) = CurrentDets(:, i)
+                    SpawnedParts(0:NIfTot, i_non_core) = CurrentDets(0:NIfTot, i)
                     call reorder_handler%write_gdata(gdata_buf, 1, i, i_non_core)
                 end if
             end do
             ! Now copy all the core states in SpawnedParts into CurrentDets.
             ! Note that the amplitude in CurrentDets was copied across, so this is fine.
             do i = 1, nwalkers
-                CurrentDets(:, i) = SpawnedParts(0:NIfTot, i)
+                CurrentDets(0:NifTot, i) = SpawnedParts(0:NIfTot, i)
             end do
             ! Re-assign the reordered global det data cached in gdata_buf
             call reorder_handler%read_gdata(gdata_buf, nwalkers)
+
+            ! After reordering the dets, we have to reset all supergroup
+            ! idx in the global_det_data
+            if (associated(lookup_supergroup_indexer)) then
+                do i = 1, nwalkers
+                    call decode_bit_det(nI, CurrentDets(:, i))
+                    call set_supergroup_idx(&
+                        i, lookup_supergroup_indexer%idx_nI(nI))
+                end do
+            end if
 
             call clear_hash_table(HashIndex)
 
@@ -1613,7 +1668,6 @@ contains
     subroutine start_walkers_from_core_ground(tPrintInfo, run)
         use davidson_semistoch, only: davidson_ss, perform_davidson_ss, destroy_davidson_ss
         use Parallel_neci, only: MPISumAll
-        implicit none
 
         logical, intent(in) :: tPrintInfo
         integer, intent(in) :: run
@@ -1673,7 +1727,6 @@ contains
 
     subroutine start_walkers_from_core_ground_nonhermit(tPrintInfo, run)
         use bit_reps, only: encode_sign
-        implicit none
 
         logical, intent(in) :: tPrintInfo
         integer, intent(in) :: run
@@ -1832,6 +1885,36 @@ contains
 
     end subroutine diagonalize_core_non_hermitian
 
+    subroutine print_basis(rep)
+        type(core_space_t), intent(in) :: rep
+
+        integer :: iunit, i, nI(nel)
+
+        iunit = get_free_unit()
+        open(iunit, file = 'semistoch-basis', status = 'replace')
+
+        do i = 1, rep%determ_space_size
+            call decode_bit_det(nI, rep%core_space(:, i))
+            call write_det(iunit, nI, .true.)
+        end do
+        close(iunit)
+
+    end subroutine print_basis
+
+    subroutine print_hamiltonian(rep)
+        type(core_space_t), intent(in) :: rep
+
+        HElement_t(dp), allocatable :: full_H(:, :)
+        integer :: iunit
+
+        call calc_determin_hamil_full(full_H, rep)
+        iunit = get_free_unit()
+        open(iunit, file = 'semistoch-hamil', status = 'replace')
+        call print_matrix(full_H, iunit)
+        close(iunit)
+
+    end subroutine print_hamiltonian
+
     subroutine calc_determin_hamil_full(hamil, rep)
         use guga_data, only: ExcitationInformation_t
         use guga_excitations, only: calc_guga_matrix_element
@@ -1847,8 +1930,7 @@ contains
 
         do i = 1, rep%determ_space_size
             call decode_bit_det(nI, rep%core_space(:, i))
-
-            call init_csf_information(rep%core_space(0:nifd, i))
+            if (tGUGA) call init_csf_information(rep%core_space(0:nifd, i))
 
             if (tHPHF) then
                 hamil(i, i) = hphf_diag_helement(nI, rep%core_space(:, i))

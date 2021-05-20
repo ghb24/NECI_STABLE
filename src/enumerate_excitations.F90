@@ -4,6 +4,8 @@ module enumerate_excitations
 
     use SystemData, only: tReltvy, t_k_space_hubbard, t_new_real_space_hubbard
 
+    use util_mod, only: operator(.div.)
+
     use bit_rep_data, only: NIfD, NIfTot
 
     use bit_reps, only: decode_bit_det
@@ -347,12 +349,6 @@ contains
         logical, intent(in), optional :: tSinglesOnlyOpt
         character(*), parameter :: this_routine = "generate_connected_space"
 
-        ! this restriction does not apply anymore:
-!         if (tGUGA .and. tKPntSym) then
-!             call stop_all(this_routine, &
-!                 "k-point symmetry and GUGA + semi-stochastic or trial-wavefunction not yet implemented!")
-!         end if
-
         if (tKPntSym) then
             call generate_connected_space_kpnt(original_space_size, original_space, &
                                                connected_space_size, connected_space, tSinglesOnlyOpt)
@@ -379,7 +375,7 @@ contains
         use bit_reps, only: nifguga
         use SystemData, only: tGUGA
         integer :: nexcit, j
-        integer(n_int), pointer :: excitations(:, :)
+        integer(n_int), allocatable :: excitations(:, :)
         integer(n_int) :: ilutG(0:nifguga)
 
         integer, intent(in) :: original_space_size
@@ -555,7 +551,7 @@ contains
 
         integer :: nexcit, j
         integer(n_int) :: ilutG(0:nifguga)
-        integer(n_int), pointer :: excitations(:, :)
+        integer(n_int), allocatable :: excitations(:, :)
 
         integer, intent(in) :: original_space_size
         integer(n_int), intent(in) :: original_space(0:, :)

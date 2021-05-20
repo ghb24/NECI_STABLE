@@ -33,6 +33,7 @@ module symrandexcit_Ex_mag
     use symrandexcit3, only: pick_elec_pair, count_orb_pairs, select_syms, select_orb_pair, &
                              create_excit_det2, construct_class_counts
     use symexcit3, only: GenSingleExcit
+
     implicit none
 
 contains
@@ -607,7 +608,7 @@ contains
             end if
 !        IF(mod(i,iWriteEvery).eq.0) THEN
 !            AllAverageContrib=0.0_dp
-!#ifdef PARALLEL
+!#ifdef USE_MPI
 !            CALL MPI_AllReduce(AverageContrib,AllAverageContrib,1,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,error)
 !#else
 !            AllAverageContrib=AverageContrib
@@ -635,7 +636,7 @@ contains
 
 !    IF(iProcIndex.eq.0) close(9)
 
-#ifdef PARALLEL
+#ifdef USE_MPI
         call MPIBarrier(error)
         call MPIAllReduce(DoublesHist, MPI_SUM, AllDoublesHist)
         call MPIAllReduce(SinglesHist, MPI_SUM, AllSinglesHist)

@@ -217,6 +217,7 @@ C.. Actually generate a det
       use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
       use SymData, only: SymClass,SymLabelCounts,SymLabelList
       use Determinants, only: write_det
+
       IMPLICIT NONE
       INTEGER NBASIS
       INTEGER NEXCITTYPES
@@ -485,10 +486,6 @@ C.. Actually generate a det
 !We've found an allowed orbital
                     InvalidOrb=.false.
                     I=j
-!                    IF(.not.BTEST(ILUT((SpinOrb-1)/32)
-!     &                       ,mod(SpinOrb-1,32))) THEN
-!                        call stop_all(this_routine, 'ILUT failure')
-!                    ENDIF
                     EXIT
                 ENDIF
             ENDDO
@@ -626,8 +623,8 @@ C.. Actually generate a det
 !..  I is the index in I to excite from.
       Subroutine SymGenRandExcitIt2_Single_GetTo(iSeed,nI,nEl,I,iSpn,
      &   iTo,nK,ExcitMat,TParity)
-      use SymData, only: SymClass,SymLabelCounts,SymLabelList
-        use Determinants, only: write_det
+         use SymData, only: SymClass,SymLabelCounts,SymLabelList
+         use Determinants, only: write_det
          use constants, only: dp,sizeof_int, maxExcit
          IMPLICIT NONE
          INTEGER iSeed

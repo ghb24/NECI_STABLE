@@ -4,11 +4,12 @@ module tau_search_hist
 
     use SystemData, only: tGen_4ind_weighted, AB_hole_pairs, par_hole_pairs,tHub, &
                           tGen_4ind_reverse, nOccAlpha, nOccBeta, tUEG, tGen_4ind_2, &
-                          nBasis, tGen_sym_guga_mol, tGen_nosym_guga, &
+                          nBasis, tGen_sym_guga_mol, &
                           tReal, t_k_space_hubbard, t_trans_corr_2body, &
                           t_trans_corr, t_new_real_space_hubbard, t_3_body_excits, &
                           t_trans_corr_hop, tGUGA, tgen_guga_crude, t_mixed_hubbard, &
-                          t_olle_hubbard, t_mol_3_body, t_exclude_3_body_excits
+                          t_olle_hubbard, t_mol_3_body, t_exclude_3_body_excits, &
+                          tGAS, t_pchb_excitgen
 
     use CalcData, only: tTruncInitiator, tReadPops, MaxWalkerBloom, tau, &
                         InitiatorWalkNo, tWalkContGrow, &
@@ -25,7 +26,7 @@ module tau_search_hist
     use Parallel_neci, only: MPIAllReduce, MPI_MAX, MPI_SUM, MPIAllLORLogical, &
                             MPISumAll, MPISUM, mpireduce, MPI_MIN
 
-    use ParallelHelper, only: iprocindex, root
+    use MPI_wrapper, only: iprocindex, root
 
     use constants, only: dp, EPS, iout, maxExcit, int64
 
@@ -35,14 +36,12 @@ module tau_search_hist
 
     use procedure_pointers, only: get_umat_el
     use UMatCache, only: gtid, UMat2d
-    use util_mod, only: abs_l1, operator(.isclose.)
+    use util_mod, only: abs_l1, operator(.isclose.), near_zero
     use LoggingData, only: t_log_ija, ija_bins_sing, all_ija_bins_sing, ija_thresh, &
                             ija_bins_para, all_ija_bins, ija_bins_anti, &
                             ija_orbs_sing, all_ija_orbs_sing, &
                             ija_orbs_para, all_ija_orbs, ija_orbs_anti
     use tc_three_body_data, only: pTriples, lMatEps
-
-    use guga_tausearch, only: find_max_tau_doubs_guga
 
     implicit none
     ! variables which i might have to define differently:
@@ -257,6 +256,11 @@ contains
             ! possible parallel excitations now. and to make the tau-search
             ! working we need to set this to true ofc:
             consider_par_bias = .true.
+        else if (t_pchb_excitgen .and. .not. tGUGA) then
+            ! The default pchb excitgen also uses parallel biases
+            consider_par_bias = .true.
+        else if (tGAS) then
+            consider_par_bias = .true.
         else
             consider_par_bias = .false.
         end if
@@ -356,12 +360,6 @@ contains
             allocate(frequency_bins_doubles(n_frequency_bins))
             frequency_bins_doubles = 0
 
-            ! actually the noysm tau search is in a different module..
-        else if (tGen_nosym_guga) then
-            call stop_all(this_routine, &
-                "should not end up here when nosym_guga, but in guga_tausearch!")
-
-
 
         else
             ! just to be save also use my new flags..
@@ -408,12 +406,17 @@ contains
         ! should we use the same variables in both tau-searches??
 
         ! Unless it is already specified, set an initial value for tau
-        if (.not. tRestart .and. .not. tReadPops .and. tau < EPS) then
+        if (.not. tRestart .and. .not. tReadPops .and. near_zero(tau)) then
             if (tGUGA) then
-                root_print "Warning: FindMaxTauDoubs misused for GUGA!"
-                root_print "still need a specific implementation for that!"
+                if (near_zero(MaxTau)) then
+                    call stop_all(this_routine, &
+                        "please specify a sensible 'max-tau' in input for GUGA calculations!")
+                else
+                    tau = MaxTau
+                end if
+            else
+                call FindMaxTauDoubs()
             end if
-            call FindMaxTauDoubs()
         end if
 
         if (tReadPops) then
@@ -1336,7 +1339,7 @@ contains
         ! try to write one general one and not multiple as in my GUGA branch
         use constants, only: int64
         use util_mod, only: get_free_unit, get_unique_filename
-        use ParallelHelper, only: root
+        use MPI_wrapper, only: root
 
         character(*), parameter :: this_routine = "print_frequency_histograms"
         character(255) :: filename, exname

@@ -1240,17 +1240,18 @@ contains
 !   now work out which reps are degenerate and label them
         allocate(SymReps(2, nBasis))
         call LogMemAlloc('SymReps', 2 * nBasis, 4, this_routine, tagSymReps)
-        J = 0
-        DO I = 1, NBASIS
-!            write(6,*) "SR2",I
+
+        symreps(2,1) = 1
+        symreps(1,1) = 1
+
+        J = 1
+        DO I = 2, NBASIS
             ltmp = .false.
-            if (i > 1) then
-                if (abs(arr(i, 2) - arr(i - 1, 2)) < degentol .and. &
-                    (tAbelian .or. symeq(G1(i)%sym, G1(i - 1)%sym))) then
-                    ! We have the same degenerate rep as the previous entry
-                    symreps(2, J) = symreps(2, J) + 1
-                    lTmp = .true.
-                end if
+            if (abs(arr(i, 2) - arr(i - 1, 2)) < degentol .and. &
+                (tAbelian .or. symeq(G1(i)%sym, G1(i - 1)%sym))) then
+                ! We have the same degenerate rep as the previous entry
+                symreps(2, J) = symreps(2, J) + 1
+                lTmp = .true.
             end if
             if (.not. lTmp) then
                 ! We have a new rep
@@ -1259,9 +1260,6 @@ contains
             end if
             SYMREPS(1, I) = J
         end do
-!         DO I=1,NBASIS
-!            write(6,*) "SR1",SYMREPS(1,I),SYMREPS(2,I)
-!         end do
     END SUBROUTINE GENSYMREPS
 
 !.  Irrep symmetries are specified in SYM(5).
@@ -1353,10 +1351,6 @@ contains
 !   (it is +/-CSF_NSBASIS)
         I = ISYM%MS + 0
         ISYM%Ms = I + SSYM
-!          if (t_new_hubbard) then
-        ! with the new lat%add_k_vec i should not need to map!
-!              isym%k = lat%map_k_vec(isym%k)
-!          end if
         RETURN
     END SUBROUTINE ADDELECSYM
 
@@ -1365,7 +1359,7 @@ contains
         TYPE(BasisFN) ISYM
         INTEGER nBasisMax(5, *)
         INTEGER I
-        if (t_new_hubbard) then
+        if (t_new_hubbard .and. t_k_space_hubbard) then
             ! deal differently with the new k-space hubbard
             ! use the lattice intrinsic function
             ! also do something in the real-space case!!
@@ -1391,11 +1385,6 @@ contains
 !ALEX PLEASE CHECK.
 
                 CALL MOMPBCSYM(ISYM%k, NBASISMAX)
-!            else if(NBASISMAX(1,3).EQ.2) THEN
-!   non-pbc mom space has parity symmetry
-!               DO I=1,3
-!                  ISYM(I)=MOD(ISYM(I),2)
-!               end do
             else if (NBASISMAX(1, 3) >= 2) THEN
 !   we're in real space so no sym
                 DO I = 1, 3

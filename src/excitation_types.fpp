@@ -22,12 +22,13 @@
 !>  The procedures create_excitation, get_excitation, and get_bit_excitation
 !>  can be used, to create excitations from nIs, or iluts at runtime.
 module excitation_types
-    use constants, only: dp, n_int, bits_n_int
+    use constants, only: dp, n_int, bits_n_int, maxExcit
     use bit_rep_data, only: nIfTot
     use util_mod, only: stop_all
     use SystemData, only: nEl
     use orb_idx_mod, only: SpinOrbIdx_t
     use sets_mod, only: disjoint, subset, is_sorted, special_union_complement
+    use DetBitOps, only: GetBitExcitation
     implicit none
     private
     public :: Excitation_t, NoExc_t, SingleExc_t, DoubleExc_t, TripleExc_t, &
@@ -181,6 +182,10 @@ module excitation_types
     #:endfor
     end interface
 
+    interface get_excitation
+        module procedure get_excitation_old, get_excitation_new
+    end interface
+
 contains
 
     #:for Excitation_t in non_trivial_excitations
@@ -304,7 +309,7 @@ contains
 !>      By using select type(exc) one can select the actual type at runtime
 !>      **and** statically dispatch as much as possible at compile time.
 !>  @param[out] tParity, The parity of the excitation.
-    subroutine get_excitation(nI, nJ, IC, exc, tParity)
+    subroutine get_excitation_new(nI, nJ, IC, exc, tParity)
         integer, intent(in) :: nI(nEl), nJ(nEl), IC
         class(Excitation_t), allocatable, intent(out) :: exc
         logical, intent(out) :: tParity
@@ -323,7 +328,18 @@ contains
             exc%val(1, 1) = 3
             call GetExcitation(nI, nJ, nel, exc%val, tParity)
         end select
-    end subroutine get_excitation
+    end subroutine get_excitation_new
+
+    subroutine get_excitation_old(nI, nJ, ic, exc, tParity)
+        integer, intent(in) :: nI(nEl), nJ(nEl), IC
+        integer, intent(out) :: exc(2, maxExcit)
+        logical, intent(out) :: tParity
+        character(*), parameter :: this_routine = 'get_excitation_old'
+        @:ASSERT(any(ic == [1, 2, 3]))
+        exc(1, 1) = ic
+        call GetExcitation(nI, nJ, nel, exc, tParity)
+    end subroutine
+
 
 !>  @brief
 !>      Create an excitation from ilutI to ilutJ where the excitation level

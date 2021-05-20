@@ -76,6 +76,13 @@ min_nprocs = 2
 max_nprocs = 2
 
 
+[neci/general-lattice-model/guga/]
+program = neci
+nprocs = 2
+min_nprocs = 2
+max_nprocs = 2
+
+
 [neci/parallel/*/]
 program = neci
 nprocs = 2
@@ -150,6 +157,10 @@ tolerance = (5.01e-8, None, 'overlap_sum'), (3.01e-7, None, 'hamil_sum')
 program = mneci
 tolerance = (5e-7, None, 'overlap_sum'), (1e-6, None, 'hamil_sum')
 
+[mneci/cfqmc/hubbard_4_states/]
+program = mneci
+tolerance = (5e-7, None, 'overlap_sum'), (1e-6, None, 'hamil_sum')
+
 [mneci/excited_state/Ne_hphf_2_states_rdm_transition/]
 program = mneci
 tolerance = (5e-8, None, 'sum_error_rdm_2'), (5e-8, None, 'sum_diff_trdm_1_2(1)'), (5e-8, None, 'sum_diff_trdm_1_2(2)'), (1e-9, None, 'max_diff_trdm_1_2(2)')
@@ -196,6 +207,13 @@ nprocs = 2
 min_nprocs = 2
 max_nprocs = 2
 tolerance = (1e-9, None, 'final_energy_1'), (1e-9, None, 'final_energy_2')
+
+[hdf5/dneci/guga/s1/]
+program = dneci
+nprocs = 2
+min_nprocs = 2
+max_nprocs = 2
+tolerance = (1e-9, None, 'final_energy_1'), (2e-9, None, 'final_energy_2')
 
 [hdf5/neci/C2_*/]
 program = neci

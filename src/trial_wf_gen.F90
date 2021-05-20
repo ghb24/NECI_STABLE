@@ -37,7 +37,7 @@ contains
         use initial_trial_states, only: calc_trial_states_lanczos, calc_trial_states_qmc, calc_trial_states_direct
         use LoggingData, only: tWriteTrial, tCompareTrialAmps
         use MemoryManager, only: LogMemAlloc, LogMemDealloc
-        use ParallelHelper, only: root
+        use MPI_wrapper, only: root
         use ras_data, only: trial_ras
         use searching, only: remove_repeated_states
         use sort_mod, only: sort
@@ -642,7 +642,7 @@ contains
         logical :: texist
         character(len=*), parameter :: t_r = 'write_trial_space'
 
-        write(6, '("Writing the trial space to a file...")'); 
+        write(6, '("Writing the trial space to a file...")');
         iunit = get_free_unit()
 
         ! Let each processor write its trial states to the file. Each processor waits for
@@ -685,7 +685,7 @@ contains
 
         use bit_reps, only: extract_sign
         use FciMCData, only: trial_space, trial_space_size, trial_wfs
-        use ParallelHelper, only: root
+        use MPI_wrapper, only: root
         use searching, only: BinSearchParts
 
         logical, intent(in) :: tFirstCall

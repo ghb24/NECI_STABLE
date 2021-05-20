@@ -31,7 +31,7 @@ module k_space_hubbard
 
     use bit_rep_data, only: NIfTot, nifd
 
-    use DetBitOps, only: FindBitExcitLevel, EncodeBitDet, ilut_lt, ilut_gt
+    use DetBitOps, only: FindBitExcitLevel, EncodeBitDet, ilut_lt, ilut_gt, GetBitExcitation
 
     use real_space_hubbard, only: lat_tau_factor
 
@@ -39,11 +39,12 @@ module k_space_hubbard
                          excit_gen_store_type, pSingles
 
     use CalcData, only: tau, t_hist_tau_search, t_hist_tau_search_option, &
-                        t_fill_frequency_hists, pParallelIn, pDoublesIn
+                        t_fill_frequency_hists, pParallelIn, pSinglesIn, pDoublesIn
 
     use dsfmt_interface, only: genrand_real2_dsfmt
 
-    use util_mod, only: binary_search_first_ge, binary_search, near_zero
+    use util_mod, only: binary_search_first_ge, binary_search, near_zero, &
+                        operator(.isclose.), operator(.div.)
 
     use get_excit, only: make_double
 
@@ -80,7 +81,7 @@ module k_space_hubbard
 
     use SymData, only: tagSymTable
 
-    use ParallelHelper, only: iProcIndex, root
+    use MPI_wrapper, only: iProcIndex, root
 
     use lattice_models_utils, only: make_ilutJ, get_ispn, get_orb_from_kpoints, &
                                     create_all_dets, find_minority_spin, &
@@ -478,17 +479,28 @@ contains
             three_body_prefac = real(bhub, dp) * 2.0_dp * (cosh(trans_corr_param_2body) - 1.0_dp) / real(omega**2, dp)
             ! i also have to set some generation probability parameters..
 
-            if (.not. near_zero(pDoublesIn)) then
-                pDoubles = pDoublesIn
-            else
-                pDoubles = 0.8_dp
-            end if
-
             ! use pSingles for triples!
             ! BE CAREFUL and dont get confused!
-            pSingles = 1.0_dp - pDoubles
+            ! @Werner: does this make sense?
+            if (allocated(pSinglesIn) .and. allocated(pDoublesIn)) then
+                if (.not. (pSinglesIn + pDoublesIn .isclose. 1.0_dp)) then
+                    call stop_all(this_routine, "pSinglesIn + pDoublesIn /= 1.0!")
+                else
+                    pSingles = pSinglesIn
+                    pDoubles = pDoublesIn
+                end if
+            else if (allocated(pSinglesIn) .and. (.not. allocated(pDoublesIn))) then
+                pSingles = pSinglesIn
+                pDoubles = 1.0_dp - pSingles
+            else if (allocated(pDoublesIn) .and. (.not. allocated(pSinglesIn))) then
+                pDoubles = pDoublesIn
+                pSingles = 1.0_dp - pDoubles
+            else
+                pDoubles = 0.8_dp
+                pSingles = 1.0_dp - pDoubles
+            end if
 
-            if (.not. near_zero(pParallelIn)) then
+            if (allocated(pParallelIn)) then
                 pParallel = pParallelIn
             else
                 pParallel = 0.5_dp
@@ -2518,6 +2530,8 @@ contains
 #endif
         ! change this routine to also use just the symmetry symbols
         type(symmetry) :: sym
+        logical :: t_sign_
+        def_default(t_sign_, t_sign, .false.)
 
         ! the spin input: -1 is beta, +1 is alpha, 0 is both!
         ! if spin is not present, default is both!
@@ -2526,7 +2540,7 @@ contains
         ! k_sym is actually always present..
         ! work on the newest, hopefully correct way to do this..
         ! i need -s k vector for the triples contribution to the doubles..
-        if (present(t_sign) .and. t_sign) then
+        if (t_sign_) then
             sgn = -1
         else
             sgn = 1
@@ -2583,6 +2597,8 @@ contains
         ! change this routine to also use just the symmetry symbols
         integer :: sym_shift
         type(symmetry) :: sym
+        logical :: t_sign_
+        def_default(t_sign_, t_sign, .false.)
 
         ! the spin input: -1 is beta, +1 is alpha, 0 is both!
         ! if spin is not present, default is both!
@@ -2591,7 +2607,7 @@ contains
         ! k_shift is actually always present..
         ! work on the newest, hopefully correct way to do this..
         ! i need -s k vector for the triples contribution to the doubles..
-        if (present(t_sign) .and. t_sign) then
+        if (t_sign_) then
             sgn = -1
         else
             sgn = 1

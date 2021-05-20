@@ -1,0 +1,52 @@
+title
+
+system hubbard k-space
+    2-body-transcorr 0.05
+    lattice tilted 3 3
+    b -1
+    u  1
+    electrons 18
+    (uniform-excitgen
+endsys
+
+calc
+
+    methods
+        method vertex fcimc
+    endmethods
+
+    totalwalkers   1000
+
+    tau 0.01
+
+    load-balance-blocks off
+
+    semi-stochastic 10
+    pops-core 20
+
+    trial-wavefunction 10
+    pops-trial 5
+
+    (start-neel-state
+
+    seed 1
+    nmcyc 3500
+
+    truncinitiator
+    addtoinitiator 1.2
+    allrealcoeff
+    (max-tau 0.001
+    (maxwalkerbloom 1
+    startsinglepart 1
+    shiftdamp 0.1
+    stepsshift 1
+    memoryfacpart  50.00
+    memoryfacspawn  100.00
+    time 2700
+endcalc
+
+logging
+    highlypopwrite 100
+    popsfile -1
+endlog
+end

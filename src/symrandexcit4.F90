@@ -21,7 +21,7 @@ module excit_gens_int_weighted
     use FciMCData, only: excit_gen_store_type, pSingles, pDoubles, pParallel
     use dSFMT_interface, only: genrand_real2_dSFMT
     use Determinants, only: get_helement, write_det
-    use DetBitOps, only: FindBitExcitLevel, EncodeBitDet, ilut_lt, ilut_gt
+    use DetBitOps, only: FindBitExcitLevel, EncodeBitDet, ilut_lt, ilut_gt, GetBitExcitation
     use bit_rep_data, only: NIfTot, NIfD, test_flag
     use bit_reps, only: decode_bit_det, get_initiator_flag
     use symdata, only: nSymLabels
@@ -854,6 +854,28 @@ contains
                                          SpinOrbSymLabel(src(2)))
 
     end subroutine
+
+    !>  @brief
+    !>  Return the pgen for pick_biased_elecs
+    !>
+    !>  @param[in] same_spin Do both electrons have the same spin.
+    !>  @param[in] pParallel Probability to draw a parallel excitation.
+    !>  @param[in] par_elec_pairs Number of electron pairs with same spin.
+    !>  @param[in] opp_elec_pairs Number of electron pairs with opposite spin.
+    pure function get_pgen_pick_biased_elecs(&
+            same_spin, pParallel, par_elec_pairs, opp_elec_pairs) result(pgen)
+        logical, intent(in) :: same_spin
+        real(dp), intent(in) :: pParallel
+        integer, intent(in) :: par_elec_pairs, opp_elec_pairs
+        real(dp) :: pgen
+        if (same_spin) then
+            pgen = pParallel / real(par_elec_pairs, dp)
+        else
+            pgen = (1.0_dp - pParallel) / real(opp_elec_pairs, dp)
+        end if
+    end function
+
+
 
     subroutine pick_oppspin_elecs(nI, elecs, src, sym_prod, ispn, sum_ml, pgen)
 
@@ -1856,7 +1878,7 @@ contains
         integer :: flag, ngen, pos, iunit, i, ic
         type(excit_gen_store_type) :: store
         integer(n_int) :: tgt_ilut(0:NifTot)
-        integer(n_int), pointer :: det_list(:, :)
+        integer(n_int), allocatable :: det_list(:, :)
         real(dp), allocatable :: contrib_list(:), pgen_list(:)
         HElement_t(dp), allocatable ::  matEle_list(:)
         logical, allocatable :: generated_list(:)
@@ -2055,10 +2077,12 @@ contains
                 else
                     cpt = abs(get_umat_el(ind1, inds(i), ind1, inds(i)))
                 end if
-                if (is_beta(nI(i)) .eqv. is_beta(nI(elecs(1)))) then
-                    cpt = cpt * pParallel
-                else
-                    cpt = cpt * (1.0_dp - pParallel)
+                if (.not. tGUGA) then
+                    if (is_beta(nI(i)) .eqv. is_beta(nI(elecs(1)))) then
+                        cpt = cpt * pParallel
+                    else
+                        cpt = cpt * (1.0_dp - pParallel)
+                    end if
                 end if
             end if
             cum_sum = cum_sum + cpt
@@ -2091,10 +2115,12 @@ contains
                 else
                     cpt = abs(get_umat_el(ind2, inds(i), ind2, inds(i)))
                 end if
-                if (is_beta(nI(i)) .eqv. is_beta(nI(elecs(2)))) then
-                    cpt = cpt * pParallel
-                else
-                    cpt = cpt * (1.0_dp - pParallel)
+                if (.not. tGUGA) then
+                    if (is_beta(nI(i)) .eqv. is_beta(nI(elecs(2)))) then
+                        cpt = cpt * pParallel
+                    else
+                        cpt = cpt * (1.0_dp - pParallel)
+                    end if
                 end if
             end if
             if (i == elecs(1)) final_cpt = cpt
@@ -2234,7 +2260,7 @@ contains
         use sort_mod, only: sort
 
         integer(n_int), intent(in) :: ilut(0:niftot)
-        integer(n_int), intent(out), pointer :: non_zero_list(:, :)
+        integer(n_int), intent(out), allocatable :: non_zero_list(:, :)
         integer, intent(out) :: n_non_zero
         character(*), parameter :: this_routine = "calc_all_excitations"
 
@@ -2243,7 +2269,7 @@ contains
         type(excit_gen_store_type) :: store
         logical :: found_all, par
         HElement_t(dp), allocatable :: hel_list(:)
-        integer(n_int), pointer :: det_list(:, :)
+        integer(n_int), allocatable :: det_list(:, :)
         logical, allocatable :: t_non_zero(:)
 
         ! Decode the determiant

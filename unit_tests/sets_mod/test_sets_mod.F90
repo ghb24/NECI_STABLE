@@ -115,8 +115,6 @@ program test_sets_mod
     implicit none
     integer :: failed_count, err
 
-    integer :: n
-
     call mpi_init(err)
 
     call init_fruit()

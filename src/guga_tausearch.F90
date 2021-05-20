@@ -96,7 +96,6 @@ contains
         ! this shouldn't be too big of a problem..
         if (.not. tRestart .and. (.not. tReadPops) .and. tau < EPS) then
             call FindMaxTauDoubs()
-!             call find_max_tau_doubs_guga()
         end if
         write(6, *) "Using initial time-step: ", tau
         write(6, *) "NOTE: this is not yet correctly adapted for the GUGA implementation"
@@ -231,7 +230,7 @@ contains
 
         character(*), parameter :: this_routine = "find_max_tau_doubs_guga"
         integer(n_int) :: ilutG(0:nifguga)
-        integer(n_int), pointer :: excitations(:, :)
+        integer(n_int), allocatable :: excitations(:, :)
         integer :: i, n_ex
         integer :: nHF(nel), nJ(nel)
         integer(n_int) :: ilutJ(0:niftot)

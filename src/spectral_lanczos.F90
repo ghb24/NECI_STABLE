@@ -8,7 +8,7 @@ module spectral_lanczos
     use ftlm_neci, only: subspace_expansion_lanczos, calc_final_hamil_elem
     use Parallel_neci, only: iProcIndex, nProcessors, MPIAllGather, MPISumAll, &
                              MPIBCast, MPIBarrier
-    use ParallelHelper, only: root
+    use MPI_wrapper, only: root
     use sparse_arrays, only: calculate_sparse_ham_par, sparse_ham
     use spectral_data
 

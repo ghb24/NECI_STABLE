@@ -24,7 +24,7 @@ module real_space_hubbard
                           tNoBrillouin, tUseBrillouin, &
                           t_trans_corr_hop, t_uniform_excits, t_hole_focus_excits, &
                           pholefocus, t_twisted_bc, twisted_bc, lnosymmetry, &
-                          t_anti_periodic
+                          t_anti_periodic, t_bipartite_order
 
     use lattice_mod, only: lattice, determine_optimal_time_step, lat, &
                            get_helement_lattice, get_helement_lattice_ex_mat, &
@@ -41,16 +41,18 @@ module real_space_hubbard
                          excit_gen_store_type
 
     use CalcData, only: t_hist_tau_search, t_hist_tau_search_option, tau, &
-                        t_fill_frequency_hists, matele_cutoff, pSinglesIn
+                        t_fill_frequency_hists, matele_cutoff, pSinglesIn, pDoublesIn
 
     use dsfmt_interface, only: genrand_real2_dsfmt
 
-    use DetBitOps, only: FindBitExcitLevel, EncodeBitDet, ilut_lt, ilut_gt
+    use DetBitOps, only: FindBitExcitLevel, EncodeBitDet, ilut_lt, ilut_gt, &
+        GetBitExcitation
 
     use bit_rep_data, only: NIfTot, nifd, nifguga
 
     use util_mod, only: binary_search_first_ge, choose, swap, get_free_unit, &
-                        binary_search, near_zero
+                        binary_search, near_zero, operator(.isclose.), &
+                        operator(.div.)
 
     use bit_reps, only: decode_bit_det
 
@@ -66,7 +68,7 @@ module real_space_hubbard
                                     get_spin_opp_neighbors, create_neel_state, &
                                     make_ilutJ, get_ispn
 
-    use ParallelHelper, only: iProcIndex
+    use MPI_wrapper, only: iProcIndex
 
     use guga_data, only: ExcitationInformation_t, ExcitationInformation_t, tNewDet
     use guga_excitations, only: calc_guga_matrix_element, generate_excitation_guga, &
@@ -125,7 +127,7 @@ contains
         integer :: neel_state_ni(nel)
         integer(n_int) :: ilut_neel(0:NIfTot)
 
-        print *, "using new real-space hubbard implementation: "
+        root_print "using new real-space hubbard implementation: "
 
         ! i do not need exchange integrals in the real-space hubbard model
         if (.not. t_trans_corr_hop) then
@@ -165,9 +167,8 @@ contains
             lat => lattice(lattice_type, length_x, length_y, length_z,.not. t_open_bc_x, &
                            .not. t_open_bc_y,.not. t_open_bc_z)
         else
-            ! otherwise i have to do it the other way around
             lat => lattice(lattice_type, length_x, length_y, length_z,.not. t_open_bc_x, &
-                           .not. t_open_bc_y,.not. t_open_bc_z)
+                       .not. t_open_bc_y,.not. t_open_bc_z, 'real-space', t_bipartite_order = t_bipartite_order)
 
             ! if nbaiss was not yet provided:
             if (nbasis <= 0) then
@@ -187,10 +188,23 @@ contains
         ecore = 0.0_dp
 
         if (t_trans_corr_hop) then
-            ! we have double excitations with the hopping correlation!
-            if (.not. near_zero(pSinglesIn)) then
+            ! we have double excitations with the hopping correlation
+            ! but only anti-parallel excitations!
+            if (allocated(pSinglesIn) .and. allocated(pDoublesIn)) then
+                if (.not. (pSinglesIn + pDoublesIn .isclose. 1.0_dp)) then
+                    call stop_all(this_routine, "pSinglesIn + pDoublesIn /= 1.0!")
+                else
+                    pSingles = pSinglesIn
+                    pDoubles = pDoublesIn
+                end if
+            else if (allocated(pSinglesIn) .and. (.not. allocated(pDoublesIn))) then
                 pSingles = pSinglesIn
                 pDoubles = 1.0_dp - pSingles
+            else if (allocated(pDoublesIn) .and. (.not. allocated(pSinglesIn))) then
+                pDoubles = pDoublesIn
+                pSingles = 1.0_dp - pDoubles
+
+            ! For consistency pParallelIn should be taken as well or error out
             else
                 pSingles = 0.8_dp
                 pDoubles = 1.0_dp - pSingles
@@ -233,13 +247,13 @@ contains
         ! the optimal time-step
         tau_opt = determine_optimal_time_step()
         if (tau < EPS) then
-            print *, "setting time-step to optimally determined time-step: ", tau_opt
-            print *, "times: ", lat_tau_factor
+            root_print "setting time-step to optimally determined time-step: ", tau_opt
+            root_print "times: ", lat_tau_factor
             tau = lat_tau_factor * tau_opt
 
         else
-            print *, "optimal time-step would be: ", tau_opt
-            print *, "but tau specified in input!"
+            root_print "optimal time-step would be: ", tau_opt
+            root_print "but tau specified in input!"
         end if
 
         ! re-enable tau-search if we have transcorrelation
@@ -258,7 +272,7 @@ contains
 
         if (t_start_neel_state) then
 
-            print *, "starting from the Neel state: "
+            root_print "starting from the Neel state: "
             if (nel > nbasis / 2) then
                 call stop_all(this_routine, &
                               "more than half-filling! does neel state make sense?")
@@ -798,7 +812,7 @@ contains
         ! this also depends on the boundary conditions
         character(*), parameter :: this_routine = "init_tmat"
 
-        integer :: i, ind, iunit, r_i(3), r_j(3), diff(3), j
+        integer :: i, ind, iunit, r_i(3), r_j(3), diff(3), j, iunit2
         HElement_t(dp) :: mat_el
         complex(dp) :: imag
         real(dp) :: hop
@@ -815,6 +829,8 @@ contains
             if (t_print_tmat) then
                 iunit = get_free_unit()
                 open(iunit, file='TMAT')
+                iunit2 = get_free_unit()
+                open(iunit2, file = 'spatial-tmat', status = 'replace')
             end if
 
             if (t_twisted_bc) then
@@ -829,7 +845,7 @@ contains
 
                     r_i = lat%get_r_vec(i)
 
-                    associate(next => lat%get_neighbors(i))
+                    associate(next => lat%get_neighbors(ind))
 
                         do j = 1, size(next)
 
@@ -917,8 +933,9 @@ contains
                             tmat2d(2 * ind, 2 * next(j)) = mat_el
 
                             if (t_print_tmat) then
-                                write(iunit, *) 2 * i - 1, 2 * next(j) - 1, mat_el
-                                write(iunit, *) 2 * i, 2 * next(j), mat_el
+                                write(iunit, *) 2 * ind - 1, 2 * next(j) - 1, mat_el
+                                write(iunit, *) 2 * ind, 2 * next(j), mat_el
+                                write(iunit2,*) ind, next(j), mat_el
                             end if
 
                         end do
@@ -945,7 +962,7 @@ contains
 
                     r_i = lat%get_r_vec(i)
 
-                    associate(next => lat%get_neighbors(i))
+                    associate(next => lat%get_neighbors(ind))
 
                         do j = 1, size(next)
 
@@ -996,8 +1013,9 @@ contains
                             tmat2d(2 * ind, 2 * next(j)) = mat_el
 
                             if (t_print_tmat) then
-                                write(iunit, *) 2 * i - 1, 2 * next(j) - 1, mat_el
-                                write(iunit, *) 2 * i, 2 * next(j), mat_el
+                                write(iunit, *) 2 * ind - 1, 2 * next(j) - 1, mat_el
+                                write(iunit, *) 2 * ind, 2 * next(j), mat_el
+                                write(iunit2,*) ind, next(j), mat_el
                             end if
 
                         end do
@@ -1020,7 +1038,8 @@ contains
 
                 do i = 1, lat%get_nsites()
                     ind = lat%get_site_index(i)
-                    associate(next => lat%get_neighbors(i))
+
+                    associate(next => lat%get_neighbors(ind))
                         ! beta orbitals:
                         tmat2d(2 * ind - 1, 2 * next - 1) = bhub
                         ! alpha:
@@ -1031,8 +1050,9 @@ contains
 
                         if (t_print_tmat) then
                             do j = 1, size(next)
-                                write(iunit, *) 2 * i - 1, 2 * next(j) - 1, bhub
-                                write(iunit, *) 2 * i, 2 * next(j), bhub
+                                write(iunit, *) 2 * ind - 1, 2 * next(j) - 1, bhub
+                                write(iunit, *) 2 * ind, 2 * next(j), bhub
+                                write(iunit2,*) ind, next(j), bhub
                             end do
                         end if
                     end associate
@@ -1048,7 +1068,10 @@ contains
             ! and the lattice is set up afterwards!
         end if
 
-        if (t_print_tmat) close(iunit)
+        if (t_print_tmat) then
+            close(iunit)
+            close(iunit2)
+        end if
 
     end subroutine init_tmat
 
@@ -1070,7 +1093,7 @@ contains
                 ASSERT(ind > 0)
                 ASSERT(ind <= nBasis / 2)
 
-                associate(next => lat%get_neighbors(i))
+                associate(next => lat%get_neighbors(ind))
 
                     ASSERT(all(next > 0))
                     ASSERT(all(next <= nBasis / 2))
@@ -1192,13 +1215,13 @@ contains
 #ifdef DEBUG_
         temp_pgen = calc_pgen_rs_hubbard_transcorr_uniform(ex, ic)
         if (abs(pgen - temp_pgen) > EPS) then
-            print *, "calculated pgen differ for exitation: "
-            print *, "nI: ", nI
-            print *, "ex: ", ex
-            print *, "ic: ", ic
-            print *, "pgen: ", pgen
-            print *, "calc. pgen: ", temp_pgen
-            print *, "H_ij: ", get_helement_lattice(nI, nJ, ic)
+            root_print "calculated pgen differ for exitation: "
+            root_print "nI: ", nI
+            root_print "ex: ", ex
+            root_print "ic: ", ic
+            root_print "pgen: ", pgen
+            root_print "calc. pgen: ", temp_pgen
+            root_print "H_ij: ", get_helement_lattice(nI, nJ, ic)
         end if
 #endif
 
@@ -1336,13 +1359,13 @@ contains
 #ifdef DEBUG_
         temp_pgen = calc_pgen_rs_hubbard_transcorr(nI, ilutI, ex, ic)
         if (abs(pgen - temp_pgen) > EPS) then
-            print *, "calculated pgen differ for exitation: "
-            print *, "nI: ", nI
-            print *, "ex: ", ex
-            print *, "ic: ", ic
-            print *, "pgen: ", pgen
-            print *, "calc. pgen: ", temp_pgen
-            print *, "H_ij: ", get_helement_lattice(nI, nJ, ic)
+            root_print  "calculated pgen differ for exitation: "
+            root_print  "nI: ", nI
+            root_print  "ex: ", ex
+            root_print  "ic: ", ic
+            root_print  "pgen: ", pgen
+            root_print  "calc. pgen: ", temp_pgen
+            root_print  "H_ij: ", get_helement_lattice(nI, nJ, ic)
         end if
 #endif
 
@@ -1510,13 +1533,13 @@ contains
 #ifdef DEBUG_
         temp_pgen = calc_pgen_rs_hubbard_transcorr(nI, ilutI, ex, ic)
         if (abs(pgen - temp_pgen) > EPS) then
-            print *, "calculated pgen differ for exitation: "
-            print *, "nI: ", nI
-            print *, "ex: ", ex
-            print *, "ic: ", ic
-            print *, "pgen: ", pgen
-            print *, "calc. pgen: ", temp_pgen
-            print *, "H_ij: ", get_helement_lattice(nI, nJ, ic)
+            root_print "calculated pgen differ for exitation: "
+            root_print "nI: ", nI
+            root_print "ex: ", ex
+            root_print "ic: ", ic
+            root_print "pgen: ", pgen
+            root_print "calc. pgen: ", temp_pgen
+            root_print "H_ij: ", get_helement_lattice(nI, nJ, ic)
         end if
 #endif
 

@@ -5,7 +5,7 @@ freeformat
 electrons 10
 spin-restrict 1
 nonuniformrandexcits 4ind-weighted-unbound
-hphf 0 
+hphf 0
 endsys
 
 calc
@@ -29,7 +29,6 @@ realspawncutoff 0.02
 jump-shift
 hist-tau-search 0.999
 max-tau 0.02
-tau 0.005
 (tau 0.005 search
 maxwalkerbloom 1
 memoryfacspawn 25.0

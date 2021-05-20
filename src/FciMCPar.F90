@@ -8,9 +8,10 @@ module FciMCParMod
                           t_new_real_space_hubbard, t_tJ_model, t_heisenberg_model, &
                           t_k_space_hubbard, max_ex_level, t_uniform_excits, &
                           tGen_guga_mixed, t_guga_mixed_init, t_guga_mixed_semi, &
-                          tReal, t_mixed_excits, tgen_nosym_guga, &
+                          tReal, t_mixed_excits, &
                           t_crude_exchange_noninits, t_approx_exchange_noninits, &
-                          is_init_guga, tGen_sym_guga_ueg, t_guga_unit_tests
+                          is_init_guga, tGen_sym_guga_ueg, t_guga_unit_tests, &
+                          t_analyze_pchb
 
     use CalcData, only: tFTLM, tSpecLanc, tExactSpec, tDetermProj, tMaxBloom, &
                         tUseRealCoeffs, tWritePopsNorm, tExactDiagAllSym, &
@@ -26,7 +27,7 @@ module FciMCParMod
                         t_back_spawn_option, tDynamicCoreSpace, coreSpaceUpdateCycle, &
                         DiagSft, tDynamicTrial, trialSpaceUpdateCycle, semistochStartIter, &
                         tSkipRef, tTrialShift, tSpinProject, t_activate_decay, &
-                        t_direct_guga_ref, t_trunc_guga_pgen_noninits, &
+                        t_trunc_guga_pgen_noninits, &
                         tLogAverageSpawns, tActivateLAS, eq_cyc, &
                         t_guga_back_spawn, tEN2Init, tEN2Rigorous, tDeathBeforeComms, &
                         tDetermProjApproxHamil, tCoreAdaptiveShift, &
@@ -50,7 +51,7 @@ module FciMCParMod
                            tHDF5TruncPopsWrite, iHDF5TruncPopsEx, tAccumPops, &
                            tAccumPopsActive, iAccumPopsIter, iAccumPopsExpireIters, &
                            tPopsProjE, iHDF5TruncPopsIter, iAccumPopsCounter, &
-                           AccumPopsExpirePercent
+                           AccumPopsExpirePercent, t_print_core_vec
 
     use rdm_data, only: print_2rdm_est, ThisRDMIter, inits_one_rdms, two_rdm_inits_spawn, &
                         two_rdm_inits, rdm_inits_defs, RDMCorrectionFactor, inits_estimates, tSetupInitsEst, &
@@ -66,7 +67,8 @@ module FciMCParMod
                               refresh_semistochastic_space
     use semi_stoch_procs, only: is_core_state, check_determ_flag, &
                                 determ_projection, average_determ_vector, &
-                                determ_projection_no_death, core_space_pos
+                                determ_projection_no_death, core_space_pos, &
+                                print_determ_vec_av, print_determ_vec
     use trial_wf_gen, only: update_compare_trial_file, init_trial_wf, refresh_trial_wf
     use hist, only: write_zero_hist_excit_tofrom
     use orthogonalise, only: orthogonalise_replicas, calc_replica_overlaps, &
@@ -114,7 +116,8 @@ module FciMCParMod
     use excit_gen_5, only: gen_excit_4ind_weighted2
 
     use guga_testsuite, only: run_test_excit_gen_det, runTestsGUGA
-    use guga_excitations, only: deallocate_projE_list, generate_excitation_guga
+    use guga_excitations, only: deallocate_projE_list, generate_excitation_guga, &
+                                global_excitInfo
     use guga_bitrepops, only: init_csf_information
     use tJ_model, only: init_guga_heisenberg_model, init_guga_tj_model
 
@@ -151,6 +154,10 @@ module FciMCParMod
 
     use sltcnd_mod, only: sltcnd_excit
     use hdf5_popsfile, only: write_popsfile_hdf5
+    use local_spin, only: measure_local_spin, write_local_spin_stats, &
+                          finalize_local_spin_measurement
+
+    use guga_pchb_excitgen, only: store_pchb_analysis
 
     implicit none
 
@@ -343,6 +350,10 @@ contains
             call WriteFCIMCStats()
         end if
 
+        if (t_measure_local_spin) then
+            call write_local_spin_stats(initial = .true.)
+            call write_local_spin_stats()
+        end if
         ! double occupancy:
         if (t_calc_double_occ) then
             call write_double_occ_stats(initial=.true.)
@@ -631,6 +642,9 @@ contains
                                                                       tPairedReplicas, t_comm_req=.false.)
                 call halt_timer(Stats_Comms_Time)
 
+                if (t_measure_local_spin) then
+                    call write_local_spin_stats()
+                end if
                 ! in calculate_new_shift_wrapper output is plotted too!
                 ! so for now do it here for double occupancy
                 if (t_calc_double_occ) then
@@ -739,8 +753,10 @@ contains
                 end if
             end if
 
-            if (TPopsFile .and. tHDF5TruncPopsWrite .and. iHDF5TruncPopsIter > 0 .and. (mod(Iter, iHDF5TruncPopsIter) == 0)) then
-                call write_popsfile_hdf5(iHDF5TruncPopsEx, .true.)
+            if (TPopsFile .and. tHDF5TruncPopsWrite .and. iHDF5TruncPopsIter > 0) then
+                if (mod(Iter, iHDF5TruncPopsIter) == 0) then
+                    call write_popsfile_hdf5(iHDF5TruncPopsEx, .true.)
+                end if
             end if
             IF (tHistSpawn .and. (mod(Iter, iWriteHistEvery) == 0) .and. (.not. tRDMonFly)) THEN
                 CALL WriteHistogram()
@@ -849,19 +865,12 @@ contains
         ! tau-search.. maybe change that later to be an option
         ! to be turned off
         if (t_print_frq_histograms .and. t_hist_tau_search_option) then
-            if (tgen_nosym_guga) then
-                call print_frequency_histogram_spec()
-            else
-                call print_frequency_histograms()
-            end if
+            call print_frequency_histograms()
 
             ! also deallocate here after no use of the histograms anymore
             call deallocate_histograms()
         end if
 
-        if (tGUGA) then
-            if (.not. t_direct_guga_ref) call deallocate_projE_list()
-        end if
 
         if (t_cc_amplitudes .and. t_plot_cc_amplitudes) then
             call print_cc_amplitudes()
@@ -927,6 +936,10 @@ contains
             CALL PrintOrbOccs(OrbOccs)
         end if
 
+        if (t_measure_local_spin) then
+            call finalize_local_spin_measurement()
+        end if
+
         if (t_calc_double_occ) then
             ! also output the final estimates from the summed up
             ! variable:
@@ -940,6 +953,7 @@ contains
                 call finalize_double_occ_and_spin_diff()
             end if
         end if
+
 
         if (tFillingStochRDMonFly .or. tFillingExplicRDMonFly) then
             call finalise_rdms(rdm_definitions, one_rdms, two_rdm_main, two_rdm_recv, &
@@ -955,6 +969,11 @@ contains
         end if
 
         call PrintHighPops()
+
+        if (t_print_core_vec) then
+            call print_determ_vec_av()
+            call print_determ_vec()
+        end if
 
         if (t_symmetry_analysis) then
             call analyze_wavefunction_symmetry()
@@ -1272,6 +1291,9 @@ contains
             ! excite from the first particle on a determinant).
             fcimc_excit_gen_store%tFilled = .false.
 
+            ! let the interested excitation generator know about the index in the CurrentDets array.
+            fcimc_excit_gen_store%idx_curr_dets = j
+
             ! Make sure that the parent flags from the last walker don't through.
             parent_flags = 0
 
@@ -1477,6 +1499,10 @@ contains
                                   get_double_occupancy(CurrentDets(:, j), SignCurr)
             end if
 
+            if (t_measure_local_spin) then
+                call measure_local_spin(SignCurr)
+            end if
+
             if (t_spin_measurements) then
                 call measure_double_occ_and_spin_diff(CurrentDets(:, j), &
                                                       DetCurr, SignCurr)
@@ -1611,9 +1637,10 @@ contains
                         end if
                     else
                         ! Generate a (random) excitation
-                        call generate_excitation(DetCurr, CurrentDets(:, j), nJ, &
-                                                 ilutnJ, exFlag, IC, ex, tParity, prob, &
-                                                 HElGen, fcimc_excit_gen_store, part_type)
+                        call generate_excitation(DetCurr, CurrentDets(:,j), nJ, &
+                            ilutnJ, exFlag, IC, ex, tParity, prob, &
+                            HElGen, fcimc_excit_gen_store, part_type)
+
                     end if
 
                     !If we are fixing the population of reference det, skip spawing into it.
@@ -1622,8 +1649,16 @@ contains
                         nJ(1) = 0
                     end if
 
+                    if (t_analyze_pchb) then
+                        call store_pchb_analysis(real(HElGen,dp), prob, &
+                            global_excitInfo, IsNullDet(nJ))
+                    end if
+
                     ! If a valid excitation, see if we should spawn children.
-                    if (.not. IsNullDet(nJ)) then
+                    if (IsNullDet(nJ)) then
+                        nInvalidExcits = nInvalidExcits + 1
+                    else
+                        nValidExcits = nValidExcits + 1
 
                         if (tSemiStochastic) then
                             call encode_child(CurrentDets(:, j), iLutnJ, ic, ex)

@@ -5,6 +5,8 @@ module unit_test_helpers
 
     use constants, only: dp, EPS, n_int, bits_n_int, maxExcit, int64, iout, lenof_sign, sp
 
+    use SymExcitDataMod, only: ScratchSize
+
     use lattice_mod, only: get_helement_lattice, lattice
 
     use Determinants, only: get_helement, write_det
@@ -13,11 +15,11 @@ module unit_test_helpers
                           trans_corr_param_2body, omega, nel, nBasis, &
                           arr, brr, nBasis, bhub, tGUGA
 
-    use fcimcdata, only: excit_gen_store_type
+    use fcimcdata, only: excit_gen_store_type, pSingles, pDoubles
 
     use util_mod, only: binary_search, choose, operator(.div.), operator(.isclose.), near_zero
 
-    use sltcnd_mod, only: dyn_sltcnd_excit
+    use sltcnd_mod, only: dyn_sltcnd_excit_old
 
     use bit_reps, only: decode_bit_det, extract_sign, get_weight
 
@@ -26,11 +28,11 @@ module unit_test_helpers
     use semi_stoch_procs, only: global_most_populated_states, GLOBAL_RUN
 
     use DetBitOps, only: ilut_lt, ilut_gt, EncodeBitDet, findbitexcitlevel, &
-                         count_open_orbs
+                         count_open_orbs, GetBitExcitation
 
     use orb_idx_mod, only: SpinOrbIdx_t, new_write_det => write_det, size
 
-    use excitation_types, only: Excitation_t, get_excitation
+    use excitation_types, only: Excitation_t, get_excitation, SingleExc_t, DoubleExc_t
 
     use sort_mod, only: sort
 
@@ -46,32 +48,43 @@ module unit_test_helpers
 
     use procedure_pointers, only: generate_all_excits_t, generate_excitation_t
 
+    use excitation_generators, only: ExcitationGenerator_t
+
+    use timing_neci
+
     implicit none
 
     private
     public :: run_excit_gen_tester, batch_run_excit_gen_tester, &
-              create_spin_dependent_hopping, create_hamiltonian, &
+              create_spin_dependent_hopping, create_lattice_hamil_nI, &
               similarity_transform, setup_arr_brr, create_all_spin_flips, &
               get_tranformation_matrix, create_hamiltonian_old, &
-              create_hilbert_space
+              create_hilbert_space, create_lattice_hamil_ilut
 
     abstract interface
-        real(dp) function calc_pgen_t(det_I, ilutI, exc)
-            import :: dp, SpinOrbIdx_t, Excitation_t, n_int, NifTot
-            type(SpinOrbIdx_t), intent(in) :: det_I
+        real(dp) function calc_pgen_t(nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2)
+            import :: ExcitationGenerator_t, n_int, dp, ScratchSize, maxExcit, NifTot, nEl
+            implicit none
+            integer, intent(in) :: nI(nel)
             integer(n_int), intent(in) :: ilutI(0:NIfTot)
-            class(Excitation_t), intent(in) :: exc
-        end function calc_pgen_t
+            integer, intent(in) :: ex(2, maxExcit), ic
+            integer, intent(in) :: ClassCount2(ScratchSize), ClassCountUnocc2(ScratchSize)
+        end function
 
         !> Return true, if an excitation exc from determinant det_I
         !> and a given pgen_diagnostic (sum 1/pgen) is considered
         !> to be problematic.
-        logical function problem_filter_t(det_I, exc, pgen_diagnostic)
-            import :: dp, SpinOrbIdx_t, Excitation_t
-            type(SpinOrbIdx_t), intent(in) :: det_I
-            class(Excitation_t), intent(in) :: exc
+        logical function problem_filter_t(nI, exc, ic, pgen_diagnostic)
+            import :: dp, nEl, maxExcit
+            implicit none
+            integer, intent(in) :: nI(nEl), exc(2, maxExcit), ic
             real(dp), intent(in) :: pgen_diagnostic
         end function
+    end interface
+
+    interface run_excit_gen_tester
+        module procedure run_excit_gen_tester_function
+        module procedure run_excit_gen_tester_class
     end interface
 
 contains
@@ -95,19 +108,27 @@ contains
 
         call sort(arr(1:nBasis, 1), brr(1:nBasis), nskip=2)
         call sort(arr(2:nBasis, 1), brr(2:nBasis), nskip=2)
-!
-!         print *, "arr: "
-!         do i = 1, nBasis
-!             print *, arr(i,:)
-!         end do
-!         print *, "brr: "
-!         do i = 1, nBasis
-!             print *, brr(i)
-!         end do
 
     end subroutine setup_arr_brr
 
-    function create_hamiltonian(list_nI) result(hamil)
+    function create_lattice_hamil_ilut(list_ilut) result(hamil)
+        integer(n_int), intent(in) :: list_ilut(:,:)
+        HElement_t(dp) :: hamil(size(list_ilut,2),size(list_ilut,2))
+
+        integer :: i, j, nI(nel), nJ(nel)
+        hamil = h_cast(0.0_dp)
+
+        do i = 1, size(list_ilut,2)
+            do j = 1, size(list_ilut,2)
+                call decode_bit_det(nI, list_ilut(:,i))
+                call decode_bit_det(nJ, list_ilut(:,j))
+                hamil(i,j) = get_helement_lattice(nJ, nI)
+            end do
+        end do
+
+    end function create_lattice_hamil_ilut
+
+    function create_lattice_hamil_nI(list_nI) result(hamil)
         ! quite specific hamiltonian creation for my tests..
         integer, intent(in) :: list_nI(:, :)
         HElement_t(dp) :: hamil(size(list_nI, 2), size(list_nI, 2))
@@ -122,7 +143,7 @@ contains
             end do
         end do
 
-    end function create_hamiltonian
+    end function create_lattice_hamil_nI
 
     function create_spin_dependent_hopping(list_nI, spin_opt) result(hamil)
         ! function to create a spin-dependent hopping matrix for the
@@ -393,7 +414,8 @@ contains
 !>  @param[in] excit_gen, An excitation generator.
 !>  @param[in] excit_gen_name, The name of the excitation generator.
 !>  @param[in] opt_nI, An optional reference state.
-!>  @param[in] opt_n_iters, An optional number of iterations. Defaults to 100000.
+!>  @param[in] opt_n_dets, An optional number of valid determinants to generate. Defaults to 100000.
+!>      (Does not count determinants with nJ(1) == 0!)
 !>  @param[in] gen_all_excits, An optional subroutine to generate all states
 !>      that can be reached from the reference state.
 !>  @param[in] calc_pgen, An optional function that calculates the pgen
@@ -410,11 +432,12 @@ contains
 !>      By default all states with a pgen_diagnostic that deviate
 !>      with more than 5\,\% from 100\,\% and have nonzereo matrix element
 !>      are printed.
-    subroutine run_excit_gen_tester(excit_gen, excit_gen_name, opt_nI, opt_n_iters, &
-                                    gen_all_excits, calc_pgen, problem_filter, i_unit, successful)
+    subroutine run_excit_gen_tester_function(&
+                        excit_gen, excit_gen_name, opt_nI, opt_n_dets, &
+                        gen_all_excits, calc_pgen, problem_filter, i_unit, successful)
         procedure(generate_excitation_t) :: excit_gen
         character(*), intent(in) :: excit_gen_name
-        integer, intent(in), optional :: opt_nI(nel), opt_n_iters
+        integer, intent(in), optional :: opt_nI(nel), opt_n_dets
         procedure(generate_all_excits_t), optional :: gen_all_excits
         procedure(calc_pgen_t), optional :: calc_pgen
         procedure(problem_filter_t), optional :: problem_filter
@@ -422,9 +445,9 @@ contains
         logical, intent(out), optional :: successful
         character(*), parameter :: this_routine = "run_excit_gen_tester"
 
-        integer :: i, nI(nel), n_iters
+        integer :: i, nI(nel), n_dets_target
         integer :: i_unit_
-        integer, parameter :: default_n_iters = 100000
+        integer, parameter :: default_n_dets_target = 100000
 
         integer(n_int) :: ilut(0:niftot), tgt_ilut(0:niftot)
         integer :: nJ(nel), n_excits, ex(2, maxExcit), ic, ex_flag, i_unused = 0
@@ -436,15 +459,13 @@ contains
         integer(n_int), allocatable :: det_list(:, :)
         real(dp), allocatable :: contrib_list(:)
         logical, allocatable :: generated_list(:)
-        integer :: n_generated, pos
-        integer(int64) :: start, finish, rate
+        integer :: n_generated, pos, n_iter
 
         procedure(problem_filter_t), pointer :: problem_filter_
 
         ! and also nbasis and stuff..
         ASSERT(nbasis > 0)
         ASSERT(nel <= nbasis)
-        call system_clock(count_rate=rate)
 
         if (present(i_unit)) then
             i_unit_ = i_unit
@@ -468,10 +489,10 @@ contains
             nI = [(i, i=1, nel)]
         end if
 
-        if (present(opt_n_iters)) then
-            n_iters = opt_n_iters
+        if (present(opt_n_dets)) then
+            n_dets_target = opt_n_dets
         else
-            n_iters = default_n_iters
+            n_dets_target = default_n_dets_target
         end if
 
         ! Calculate all possible excitations.
@@ -490,7 +511,7 @@ contains
         write(i_unit_, *) "---------------------------------"
         write(i_unit_, *) "testing: ", excit_gen_name
         write(i_unit_, *) "for ", size(det_list, 2), " configurations"
-        write(i_unit_, *) " and ", n_iters, " iterations "
+        write(i_unit_, *) " and ", n_dets_target, " determinants to generate"
 
         call EncodeBitDet(nI, ilut)
         write(i_unit_, *) "for starting determinant: ", nI
@@ -503,19 +524,21 @@ contains
         !   consistent)
 
         block
-            integer(int64) :: i, L
-            L = n_iters.div.100
+            integer(int64) :: L
+            type(timer), save :: loop_timer
+            loop_timer%timer_name = 'loop '//excit_gen_name
 
+            L = n_dets_target .div. 100
             n_generated = 0
+            n_iter = 0
             contrib = 0.0_dp
-            call system_clock(start)
-            do i = 1, int(n_iters, kind=int64)
-                if (mod(i, L) == 0_int64) then
-                    write(i_unit_, '(A)', advance='no') '#'
-                    flush (i_unit_)
-                end if
+            do while (n_generated < n_dets_target)
+                n_iter = n_iter + 1
+
+                call set_timer(loop_timer)
                 call excit_gen(nI, ilut, nJ, tgt_ilut, ex_flag, ic, ex, tpar, pgen, &
                                hel, store)
+                call halt_timer(loop_timer)
 
                 if (nJ(1) == 0) cycle
                 call EncodeBitDet(nJ, tgt_ilut)
@@ -525,6 +548,11 @@ contains
                     write(i_unit_, *) "ilutJ:", tgt_ilut
                     call stop_all(this_routine, 'Unexpected determinant generated')
                 else
+                    if (mod(n_generated, L) == 0_int64) then
+                        write(i_unit_, '(A)', advance='no') '#'
+                        flush (i_unit_)
+                    end if
+
                     generated_list(pos) = .true.
                     n_generated = n_generated + 1
 
@@ -533,19 +561,26 @@ contains
                     pgen_list(pos) = pgen
                 end if
             end do
-            call system_clock(finish)
+
+            write(i_unit_, *) ! linebreak
+            write(i_unit_, *) ! linebreak
+            write(i_unit_, *) "=================================================================="
+            write(i_unit_, *) n_generated, " dets generated in ", n_iter, " iterations "
+            write(i_unit_, *) n_generated, (n_iter - n_generated), n_iter, 'valid  invalid and total excitations'
+            write(i_unit_, *) 100.0_dp * real(n_iter - n_generated, dp) / real(n_iter, dp), "% abortion rate"
+            write(i_unit_, *) "Averaged contribution: ", contrib / real(n_excits * n_dets_target, dp)
+            write(i_unit_, *) ! linebreak
+            write(i_unit_, *) 'Elapsed Time in seconds:', get_total_time(loop_timer)
+            write(i_unit_, *) 'Elapsed Time in micro seconds per valid excitation:', get_total_time(loop_timer) / dble(n_dets_target)  * 10.**6
+            write(i_unit_, *) 'Elapsed Time in micro seconds per excitation:', get_total_time(loop_timer) / dble(n_iter)  * 10.**6
+            write(i_unit_, *) "=================================================================="
+            write(i_unit_, *) ! linebreak
             write(i_unit_, *) ! linebreak
         end block
 
-        write(i_unit_, *) n_generated, " dets generated in ", n_iters, " iterations "
-        write(i_unit_, *) 100.0_dp * (n_iters - n_generated) / real(n_iters, dp), "% abortion rate"
-        write(i_unit_, *) "Averaged contribution: ", contrib / real(n_excits * n_iters, dp)
-
         block
-            type(SpinOrbIdx_t) :: det_I
             real(dp) :: pgen_diagnostic
-            class(Excitation_t), allocatable :: exc
-            integer :: nJ(nEl)
+            integer :: nJ(nEl), exc(2, maxExcit)
             logical :: tParity
 
             write(i_unit_, *) "=================================="
@@ -557,43 +592,94 @@ contains
 
             successful = .true.
             do i = 1, n_excits
-                pgen_diagnostic = contrib_list(i) / real(n_iters, dp)
+            block
+                logical :: pgens_differ
+                pgen_diagnostic = contrib_list(i) / real(n_iter, dp)
                 ic = findbitexcitlevel(ilut, det_list(:, i))
                 call decode_bit_det(nJ, det_list(:, i))
                 call get_excitation(nI, nJ, ic, exc, tParity)
 
-                if (problem_filter_(SpinOrbIdx_t(nI), exc, pgen_diagnostic)) then
+                if (present(calc_pgen)) then
+                    pgens_differ = .not. (calc_pgen(nI, ilut, exc, ic, store%ClassCountOcc, store%ClassCountUnocc) .isclose. pgen_list(i))
+                else
+                    pgens_differ = .false.
+                end if
+
+                if (problem_filter_(nI, exc, ic, pgen_diagnostic) .or. pgens_differ) then
                     successful = .false.
                     call write_det(i_unit_, nJ, .false.)
                     write(i_unit_, '("|"F10.5"|"I2"|"F10.5"|"F15.10"|")', advance='no') &
                         pgen_diagnostic, ic, get_helement(nI, nJ), pgen_list(i)
                     if (present(calc_pgen)) then
                         write(i_unit_, '(F15.10"|")', advance='no') &
-                            calc_pgen(SpinOrbIdx_t(nI), det_list(:, i), exc)
+                            calc_pgen(nI, det_list(:, i), exc, ic, store%ClassCountOcc, store%ClassCountUnocc)
                     end if
                     write(i_unit_, *)
                 end if
+            end block
             end do
-            write(i_unit_, *) "=================================="
-            write(i_unit_, *) ! linebreak
-            write(i_unit_, *) 'Elapsed Time in seconds:', dble(finish - start) / dble(rate)
-            write(i_unit_, *) 'Elapsed Time in micro seconds per excitation:', dble(finish - start) * 1e6_dp / dble(n_iters * rate)
         end block
 
         call clean_excit_gen_store(store)
 
     contains
 
-        logical function default_predicate(det_I, exc, pgen_diagnostic)
-            type(SpinOrbIdx_t), intent(in) :: det_I
-            class(Excitation_t), intent(in) :: exc
+        logical function default_predicate(nI, exc, ic, pgen_diagnostic)
+            integer, intent(in) :: nI(nEl), exc(2, maxExcit), ic
             real(dp), intent(in) :: pgen_diagnostic
             default_predicate = &
-                (pgen_diagnostic <= 0.95_dp .or. 1.05_dp <= pgen_diagnostic) &
-                .and. .not. near_zero(dyn_sltcnd_excit(det_I%idx, exc, .true.))
+                (abs(1._dp - pgen_diagnostic) >= 0.05_dp) &
+                .and. .not. near_zero(dyn_sltcnd_excit_old(nI, ic, exc, .true.))
         end function
 
-    end subroutine run_excit_gen_tester
+    end subroutine run_excit_gen_tester_function
+
+    subroutine run_excit_gen_tester_class(&
+            exc_generator, excit_gen_name, opt_nI, opt_n_dets, &
+            problem_filter, i_unit, successful)
+        class(ExcitationGenerator_t), intent(inout) :: exc_generator
+        character(*), intent(in) :: excit_gen_name
+        integer, intent(in), optional :: opt_nI(nel), opt_n_dets
+        procedure(problem_filter_t), optional :: problem_filter
+        integer, intent(in), optional :: i_unit
+        logical, intent(out), optional :: successful
+
+        call run_excit_gen_tester_function(&
+                        gen_exc, excit_gen_name, opt_nI, opt_n_dets, &
+                        gen_all_excits, get_pgen, problem_filter, i_unit, successful)
+
+        contains
+
+            subroutine gen_exc(nI, ilutI, nJ, ilutJ, exFlag, ic, &
+                               ex, tParity, pGen, hel, store, part_type)
+                integer, intent(in) :: nI(nel), exFlag
+                integer(n_int), intent(in) :: ilutI(0:NIfTot)
+                integer, intent(out) :: nJ(nel), ic, ex(2, maxExcit)
+                integer(n_int), intent(out) :: ilutJ(0:NifTot)
+                real(dp), intent(out) :: pGen
+                logical, intent(out) :: tParity
+                HElement_t(dp), intent(out) :: hel
+                type(excit_gen_store_type), intent(inout), target :: store
+                integer, intent(in), optional :: part_type
+
+                call exc_generator%gen_exc(nI, ilutI, nJ, ilutJ, exFlag, ic, ex, tParity, pGen, hel, store, part_type)
+            end subroutine
+
+            subroutine gen_all_excits(nI, n_excits, det_list)
+                integer, intent(in) :: nI(nEl)
+                integer, intent(out) :: n_excits
+                integer(n_int), allocatable, intent(out) :: det_list(:,:)
+                call exc_generator%gen_all_excits(nI, n_excits, det_list)
+            end subroutine
+
+            real(dp) function get_pgen(nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2)
+                integer, intent(in) :: nI(nel)
+                integer(n_int), intent(in) :: ilutI(0:NIfTot)
+                integer, intent(in) :: ex(2, maxExcit), ic
+                integer, intent(in) :: ClassCount2(ScratchSize), ClassCountUnocc2(ScratchSize)
+                get_pgen = exc_generator%get_pgen(nI, ilutI, ex, ic, classcount2, classcountunocc2)
+            end function
+    end subroutine
 
     subroutine batch_run_excit_gen_tester(pgen_unit_test_spec)
 
@@ -683,7 +769,7 @@ contains
                     call run_excit_gen_tester( &
                         generate_excitation, 'Batch test', &
                         opt_nI=largest_walkers(i)%idx, &
-                        opt_n_iters=pgen_unit_test_spec%n_iter, &
+                        opt_n_dets=pgen_unit_test_spec%n_iter, &
                         gen_all_excits=gen_all_excits, &
                         i_unit=file_id)
                     close(file_id)
