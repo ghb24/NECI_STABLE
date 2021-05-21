@@ -105,7 +105,7 @@ NECI can be run directly as any executable:
 path/to/neci/build/bin/neci n2_neci.inp
 ```
 but parallel execution is usually desired.
-To run the above input file in parallel, we must use the respective commands MPI (`mpirun`, `mpiexec`, etc.)
+To run the above input file in parallel, we must use the respective MPI commands (`mpirun`, `mpiexec`, etc.)
 ```bash
 mpirun -np 4 path/to/neci/build/bin/neci n2_neci.inp
 ```
