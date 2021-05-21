@@ -20,13 +20,13 @@ if (GIT_SUBMOD_RESULT EQUAL "0")
         OUTPUT
             ${HTML_DOCUMENTATIONS}/index.html
         DEPENDS
-            ${PROJECT_SOURCE_DIR}/gen_docs.md 01_neci_user.md 02_neci_dev.md # TODO(@Oskar) Add fortran sources as dependencies
+            gen_docs.md pages/01_neci_user.md pages/02_neci_dev.md # TODO(@Oskar) Add fortran sources as dependencies
         COMMAND
             ${CMAKE_COMMAND} -E make_directory ${HTML_DOCUMENTATIONS} # Create output directory
         COMMAND
-            ${Python3_EXECUTABLE} ${FORD} ${PROJECT_SOURCE_DIR}/gen_docs.md --output_dir ${HTML_DOCUMENTATIONS}
+            ${Python3_EXECUTABLE} ${FORD} gen_docs.md --output_dir ${HTML_DOCUMENTATIONS}
         WORKING_DIRECTORY
-            ${PROJECT_SOURCE_DIR}
+            ${PROJECT_SOURCE_DIR}/docs
         COMMENT
             "Generating FORD documentation."
         VERBATIM
@@ -49,7 +49,7 @@ if (PANDOC)
             ${PDF_DOCUMENTATIONS}/neci_user.pdf
             ${PDF_DOCUMENTATIONS}/neci_dev.pdf
         DEPENDS
-           01_neci_user.md 02_neci_dev.md packages_to_include.tex ${PROJECT_SOURCE_DIR}/tools/create_pdf_doc.sh
+            pages/01_neci_user.md pages/02_neci_dev.md pages/packages_to_include.tex ${PROJECT_SOURCE_DIR}/tools/create_pdf_doc.sh
         COMMAND
             ${CMAKE_COMMAND} -E make_directory ${PDF_DOCUMENTATIONS} # Create output directory
         COMMAND
@@ -57,7 +57,7 @@ if (PANDOC)
         COMMAND
             ${PROJECT_SOURCE_DIR}/tools/create_pdf_doc.sh 02_neci_dev.md packages_to_include.tex ${PDF_DOCUMENTATIONS}/neci_dev.pdf
         WORKING_DIRECTORY
-            ${PROJECT_SOURCE_DIR}/docs
+            ${PROJECT_SOURCE_DIR}/docs/pages/
         COMMENT
             "Generating user and developer PDF documentation."
         VERBATIM
