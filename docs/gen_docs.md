@@ -18,9 +18,8 @@ source: true
 page_dir: pages
 md_extensions: markdown.extensions.toc
                markdown.extensions.smarty
-preprocess: true 
+preprocess: true
 fpp_extensions: fpp
-                F90
 preprocessor: fypp -m itertools -m functools
 search: false
 graph: false

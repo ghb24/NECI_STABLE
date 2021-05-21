@@ -11,10 +11,17 @@ FCIQMC is not a blackbox method and as such may be daunting to first approach. I
 The goal of this tutorial is to provide a practical, brief supplement to the full [NECI user's guide](../01_neci_user.html). We will use NECI to calculate the ground-state energy of the Nitrogen dimer in a (6,6) active space. We use the equilibrium geometry, 2.074 bohr radii.
 
 @note
-For this problem, FCIQMC will actually underperform compared to conventional Davidson CI. In addition, Davidson CI has no stochastic error (unlike FCIQMC), so it is strongly preferred for this problem. However, this is a relatively cheap example with which to get comfortable with NECI and FCIQMC. FCIQMC has better scaling behaviour, can be better parallelised, and benefits from sparsity. If you go to (e.g.) an (18,18) CAS then FCIQMC outshines Davidson, which is not a feasible method for problems of this size.
+For this problem, FCIQMC will actually underperform compared to conventional Davidson CI.
+In addition, Davidson CI has no stochastic error (unlike FCIQMC), so it is strongly preferred for this problem.
+However, this is a relatively cheap example with which to get comfortable with NECI and FCIQMC.
+FCIQMC has better scaling behaviour, can be better parallelised, and benefits from sparsity.
+If you go to (e.g.) an (20, 20) CAS then FCIQMC outshines Davidson, which is not a feasible method for problems of this size.
 @endnote
 
-First, we must generate the FCIDUMP file. NECI is *not* a standalone quantum chemistry suite, and cannot do this itself. For this, choose any program that can generate these (e.g. PySCF, Molpro, Molcas). This has been done for you, and you may download the file [here](FCIDUMP).
+First, we must generate the FCIDUMP file which contains the information about 1- and 2-electron integrals.
+NECI is a solver for the CI-problem and *not* a standalone quantum chemistry suite, and cannot do this itself.
+For this, choose any program that can generate these (e.g. PySCF, Molpro, Molcas).
+This has been done for you, and you may download the file [here](FCIDUMP).
 
 @todo
 Perhaps also include the Molpro code to generate this FCIDUMP file?
@@ -22,7 +29,7 @@ Perhaps also include the Molpro code to generate this FCIDUMP file?
 
 ## Anatomy of an Input File
 
-In order to run a NECI calculation, we must create an input file (extension `.inp`). Here is an example for the FCIDUMP file provided, called `n2_neci.inp`.
+In order to run a NECI calculation, we must create an input file. Here is an example for the FCIDUMP file provided, called `n2_neci.inp`.
 ```
 # comments are given like this
 ( or like this
@@ -33,33 +40,33 @@ In order to run a NECI calculation, we must create an input file (extension `.in
 
 title
 
-# read integrals from FCIDUMP
-system read
-electrons 6
-nonuniformrandexcits pchb
-endsys
+  # read integrals from FCIDUMP
+  system read
+    electrons 6
+    nonuniformrandexcits pchb
+  endsys
 
-calc
-nmcyc 10000
-# for reproducibility
-seed 8
+  calc
+    nmcyc 10000
+    # for reproducibility
+    seed 8
 
-totalWalkers 50000
-tau 0.01 search
+    totalWalkers 50000
+    tau 0.01 search
 
-# use the initiator method
-truncinitiator
-addtoinitiator 3
+    # use the initiator method
+    truncinitiator
+    addtoinitiator 3
 
-methods
-method vertex fcimc
-endmethods
+    methods
+      method vertex fcimc
+    endmethods
 
-endcalc
+  endcalc
 
-logging
-hdf5-pops
-endlog
+  logging
+    hdf5-pops
+  endlog
 
 end
 ```
@@ -71,9 +78,6 @@ these keywords are case insensitive.
 All these keywords (and plenty more) are explained in the [NECI user's guide](../01_neci_user.html). Let's break down the structure of this input file.
 
 - Comments can be added in the code with either `#` or `(` at the start of a line.
-@todo
-I was told that only `(` is supposed to work but I have been using `#`. May this cause some kind of problems later, or may I keep `#`?
-@endtodo
 - First, the actual input starts with `title`, which is mandatory, and must also end with `end` (i.e. wrap the program in this block).
 - Next, we have the `system` block, which is also mandatory.
     - The `system` keyword has a mandatory argument which comes directly after it on the same line. Here, we use `read` (as in `system read`), as we are doing the FCIQMC calculation from an FCIDUMP file.
@@ -96,30 +100,40 @@ You cannot use the `hdf5-pops` keyword if you did not build NECI with HDF5.
 
 After building, the NECI executable will be in `path/to/neci/build/bin/neci` (e.g. if I installed NECI in my home directory, it would be `~/neci/build/bin/neci`).
 
-NECI must be run with MPI (there is no serial version of NECI). To run the above input file, we must run
+NECI can be run directly as any executable:
+```bash
+path/to/neci/build/bin/neci n2_neci.inp
+```
+but parallel execution is usually desired.
+To run the above input file in parallel, we must use the respective commands MPI (`mpirun`, `mpiexec`, etc.)
 ```bash
 mpirun -np 4 path/to/neci/build/bin/neci n2_neci.inp
 ```
-where you can replace the `4` with however many processors with which you want to run (4 being a *very* modest number). This will print a lot of standard output, which you may wish to capture, e.g.
+where you can replace the `4` with however many processors with which you want to run (4 being a *very* modest number).
+This will print a lot to standard output, which you may wish to capture, e.g.
 ```bash
 mpirun -np 4 ~/neci/build/bin/neci n2_neci.inp > n2_neci.out
 ```
 
 @note
-If you made a mistake somewhere in your file (for example, a typo), NECI tries to give useful error messages. However, MPI can sometimes interfere with this. Before doing a full calculation, you may want to run simply without `mpirun`, e.g. simply
-```
+If you made a mistake somewhere in your file (for example, a typo), NECI tries to give useful error messages.
+However, MPI can sometimes interfere with this. Before doing a full calculation, you may want to run simply without `mpirun`, e.g. simply
+```bash
 ~/neci/build/bin/neci n2_neci.inp > n2_neci.out
 ```
 If this starts to run without an error, then you may stop it and run with `mpirun`.
 @endnote
 
 @note
-NECI has a useful utility to dynamically change variables *while it is running*. To do this, create a file called `CHANGEVARS`, and input whatever keyword you wish to change, e.g. if you think `nmcyc 10000` is too small, enter into `CHANGEVARS` the text `nmcyc 20000` (or whatever else). Then, the value will be updated in the next iteration of NECI. This is helpful for interacting with a running simulation.
+NECI has a useful utility to dynamically change variables *while it is running*.
+To do this, create a file called `CHANGEVARS`, and input whatever keyword you wish to change,
+  e.g. if you think `nmcyc 10000` is too small, enter into `CHANGEVARS` the text `nmcyc 20000` (or whatever else).
+  Then, the value will be updated in the next iteration of NECI. This is helpful for interacting with a running simulation.
 @endnote
 
 @warning
 It is generally not advisable to terminate a program with CTRL+C. Instead, use the above `CHANGEVARS` trick, to create a soft exit. Simple open/create `CHANGEVARS`, type in `SOFTEXIT` and save. Alternatively, you can do this in one line on the terminal with
-```
+```bash
 echo SOFTEXIT > CHANGEVARS
 ```
 @endwarning
@@ -159,18 +173,19 @@ will output a blocking plot to the plots subdirectory, starting after `<numiter>
 
 ![](|media|/plots1/blocking.png)
 
-Consisting of only three points, and having no plateau, this indicates that *we have not yet converged our FCIQMC calculation reliably.* That is, if all the above 6 plots indicate convergence but the blocking analysis has no plateau (as in this example), it is most likely that you must continue the calculation to get more data.
+Consisting of only three points, and having no plateau, this indicates that *we have not yet converged our FCIQMC calculation reliably.*
+That is, if all the above 6 plots indicate convergence but the blocking analysis has no plateau (as in this example), it is most likely that you must continue the calculation to get more data.
 
 ## Continuing a NECI Calculation
 
 In order to continue a NECI calculation (for example, if like in this example you have done a calculation only to find you do not have enough data), simply take the same NECI input as above, but add into the calc the `readPops` command, which indicates that NECI must read the popsfile previously created. You may also wish to increase the number of iterations `nmcyc`, e.g.
 ```text
 title
-...
-calc
-readPops
-nmcyc 70000
-...
+  ...
+  calc
+  readPops
+  nmcyc 70000
+  ...
 end
 ```
 This will add data into the previous FCIMCStats. After you have run this the same way as described above, repeat the blocking analysis. The plots will all still have well-defined plateaus, but the blocking analysis will result in something like this:
@@ -192,12 +207,12 @@ This time we see a clear plateau. The last point in this example indicates an ex
 ```
 
 We wish to take the energy from the **first** row here in the second-to-last column and its corresponding uncertainty in the last column, i.e.:
-```
+```text
 -0.017990709917 +/- 1.946944746518e-06
 ```
 
 This is then our estimate for the correlation energy. To get the *total* energy, we must also add the reference energy, which can be found in the standard output of NECI (we called it `n2_neci.out`):
-```
+```text
 Reference Energy set to:      -108.9606713172
 ```
 (search for "Reference Energy"). You'll also find estimates for the correlation energy in the output file. However, this is not as trustworthy as doing a full blocking analysis.

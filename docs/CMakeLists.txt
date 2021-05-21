@@ -20,7 +20,10 @@ if (GIT_SUBMOD_RESULT EQUAL "0")
         OUTPUT
             ${HTML_DOCUMENTATIONS}/index.html
         DEPENDS
-            gen_docs.md pages/01_neci_user.md pages/02_neci_dev.md # TODO(@Oskar) Add fortran sources as dependencies
+            gen_docs.md pages/01_neci_user.md pages/02_neci_dev.md
+            pages/tutorials/0installation.md  pages/tutorials/basic_use.md
+            pages/tutorials/FCIDUMP  pages/tutorials/index.md  pages/tutorials/n2.mol  pages/tutorials/plot_fcimcstats.plt
+            # TODO(@Oskar) Add fortran sources as dependencies
         COMMAND
             ${CMAKE_COMMAND} -E make_directory ${HTML_DOCUMENTATIONS} # Create output directory
         COMMAND

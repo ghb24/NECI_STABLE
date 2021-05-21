@@ -11,13 +11,15 @@ This is modified from instructions found on the internal wiki, written by Kai an
 Installation of NECI requires[^allogin]
 
 -   git,
--   cmake 2.8.4 or newer,
+-   cmake 3.12 or newer,
 -   BLAS/LAPACK,
 -   MPI 3,
 -   a Fortran compiler supporting Fortran 2003 features, and
 -   optionally HDF5 (recommended).
 
-There are two git repositories for NECI. The stable release is available publicly on github, [here](https://github.com/ghb24/NECI_STABLE). The developer version is on a private repository on bitbucket, for which you need to be invited to see. The Github version is not updated as frequently, so if you wish to use the latest methods, contact the developers. 
+There are two git repositories for NECI. The stable release is available publicly on github, [here](https://github.com/ghb24/NECI_STABLE).
+The developer version is on a private repository on bitbucket, for which you need to be invited to see.
+The Github version is not updated as frequently, so if you wish to use the latest methods, contact the developers.
 
 To get started, we must first clone the repository, with
 ```bash
@@ -30,7 +32,7 @@ git clone https://<username>@bitbucket.org/neci_developers/neci.git
 for the developer release (replace `<username>` with your bitbucket username).
 
 Next, make a subdirectory (let's call it "build"), then run cmake and then make:
-```
+```bash
 mkdir build
 cd build
 cmake -DENABLE_HDF5=ON -DENABLE_BUILD_HDF5=ON ../
