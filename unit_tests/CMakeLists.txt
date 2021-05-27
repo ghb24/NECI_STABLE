@@ -65,4 +65,6 @@ add_subdirectory( sets_mod )
 
 add_subdirectory( shared_array )
 
+add_subdirectory( SD_spin_purification )
+
 add_subdirectory( lib )
