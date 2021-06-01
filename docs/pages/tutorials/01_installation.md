@@ -61,7 +61,13 @@ where you define `HDF5_SRC` and `HDF5_ROOT` appropriately. Then, before running 
 export HDF5_ROOT= # where HDF5 was installed in the previous step
 ```
 
-and proceed with the NECI installation as above.
+and proceed with the NECI installation as before, 
+```bash
+mkdir build
+cd build
+cmake -DENABLE_HDF5=ON ../
+make -j
+```
 
 
 [^allogin]: If you are on a cluster, you may need to run a command similar to `module load ifort mpi.intel`.
