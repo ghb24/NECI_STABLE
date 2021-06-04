@@ -434,7 +434,7 @@ contains
     subroutine create_all_open_shell_dets_test
         use bit_rep_data, only: niftot, nifd
 
-        integer(n_int), allocatable :: basis(:)
+        integer(n_int), allocatable :: basis(:,:)
 
         niftot = 0
         nifd = 0
@@ -444,11 +444,11 @@ contains
 
         basis = create_all_open_shell_dets(4,2,2)
 
-        call assert_equals(6, size(basis))
-        call assert_equals(int(b'01011010',n_int),basis(1))
-        call assert_equals(int(b'01100110',n_int),basis(2))
-        call assert_equals(int(b'01101001',n_int),basis(3))
-        call assert_equals(int(b'10100101',n_int),basis(6))
+        call assert_equals(6, size(basis,2))
+        call assert_equals(int(b'01011010',n_int),basis(1,1))
+        call assert_equals(int(b'01100110',n_int),basis(1,2))
+        call assert_equals(int(b'01101001',n_int),basis(1,3))
+        call assert_equals(int(b'10100101',n_int),basis(1,6))
 
         niftot = -1
         nifd = -1
@@ -491,8 +491,7 @@ contains
     subroutine combine_spin_basis_test
         use bit_rep_data, only: niftot, nifd
 
-        integer(n_int), allocatable :: basis(:), spin_basis(:)
-        integer :: i
+        integer(n_int), allocatable :: basis(:,:), spin_basis(:)
 
         niftot = 0
         nifd = 0
@@ -504,36 +503,36 @@ contains
 
         ! for some really strange reason those b'xx' literal are 128-bit integers
         ! in gfortran..
-        call assert_equals(6, size(basis))
-        call assert_equals(int(b'01011010',n_int),(basis(1)))
-        call assert_equals(int(b'01100110',n_int),(basis(2)))
-        call assert_equals(int(b'01101001',n_int),(basis(3)))
-        call assert_equals(int(b'10100101',n_int),(basis(6)))
+        call assert_equals(6, size(basis,2))
+        call assert_equals(int(b'01011010',n_int),(basis(1,1)))
+        call assert_equals(int(b'01100110',n_int),(basis(1,2)))
+        call assert_equals(int(b'01101001',n_int),(basis(1,3)))
+        call assert_equals(int(b'10100101',n_int),(basis(1,6)))
 
         spin_basis = create_one_spin_basis(6,3)
 
         basis = combine_spin_basis(6,3,3,20,spin_basis,.false.)
 
         call assert_equals(20, size(basis))
-        call assert_equals(int(b'010101101010',n_int), (basis(1)))
-        call assert_equals(int(b'101010010101',n_int), (basis(20)))
+        call assert_equals(int(b'010101101010',n_int), (basis(1,1)))
+        call assert_equals(int(b'101010010101',n_int), (basis(1,20)))
 
         basis = combine_spin_basis(4,2,1,12,int([3,5,6,9,10,12],n_int),.false.)
 
         call assert_equals(12, size(basis))
-        call assert_equals(int(b'00011010',n_int), (basis(1)))
-        call assert_equals(int(b'01001010',n_int), (basis(2)))
-        call assert_equals(int(b'00100110',n_int), (basis(3)))
-        call assert_equals(int(b'10100001',n_int), (basis(11)))
-        call assert_equals(int(b'10100100',n_int), (basis(12)))
+        call assert_equals(int(b'00011010',n_int), (basis(1,1)))
+        call assert_equals(int(b'01001010',n_int), (basis(1,2)))
+        call assert_equals(int(b'00100110',n_int), (basis(1,3)))
+        call assert_equals(int(b'10100001',n_int), (basis(1,11)))
+        call assert_equals(int(b'10100100',n_int), (basis(1,12)))
 
         basis = combine_spin_basis(4,1,1,12,int([1,2,4,8],n_int),.false.)
 
         call assert_equals(12, size(basis))
-        call assert_equals(int(b'00000110',n_int), (basis(1)))
-        call assert_equals(int(b'00010010',n_int), (basis(2)))
-        call assert_equals(int(b'01000010',n_int), (basis(3)))
-        call assert_equals(int(b'10010000',n_int), (basis(12)))
+        call assert_equals(int(b'00000110',n_int), (basis(1,1)))
+        call assert_equals(int(b'00010010',n_int), (basis(1,2)))
+        call assert_equals(int(b'01000010',n_int), (basis(1,3)))
+        call assert_equals(int(b'10010000',n_int), (basis(1,12)))
 
         niftot = -1
         nifd = -1
@@ -568,7 +567,6 @@ contains
         use bit_rep_data, only: niftot, nifd
 
         integer(n_int), allocatable :: alpha(:)
-        integer :: i
 
         niftot = 0
         nifd = 0

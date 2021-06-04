@@ -16,7 +16,7 @@ MODULE System
 
     use constants
 
-    use read_fci, only: FCIDUMP_name
+    use read_fci, only: FCIDUMP_name, load_orb_perm
 
     use util_mod, only: error_function, error_function_c, &
                         near_zero, operator(.isclose.), get_free_unit, operator(.div.)
@@ -276,6 +276,8 @@ contains
         INTEGER I, Odd_EvenHPHF, Odd_EvenMI
         integer :: ras_size_1, ras_size_2, ras_size_3, ras_min_1, ras_max_3, itmp
         character(*), parameter :: t_r = 'SysReadInput'
+        character(*), parameter :: this_routine = 'SysReadInput'
+        integer :: temp_n_orbs
 
         ! The system block is specified with at least one keyword on the same
         ! line, giving the system type being used.
@@ -604,18 +606,10 @@ contains
                 end select
             case ("COULOMB")
                 call report("Coulomb feature removed", .true.)
-!            call getf(FCOUL)
+
             case ("COULOMB-DAMPING")
                 call report("Coulomb damping feature removed", .true.)
-!            call readu(w)
-!            select case(w)
-!            case("ENERGY")
-!               call getf(FCOULDAMPMU)
-!               call getf(FCOULDAMPBETA)
-!            case("ORBITAL")
-!               call geti(COULDAMPORB)
-!               call getf(FCOULDAMPBETA)
-!            end select
+
             case ("ENERGY-CUTOFF")
                 tOrbECutoff = .true.
                 call getf(OrbECutoff)
@@ -649,12 +643,6 @@ contains
                 call geti(NMAXY)
                 call geti(NMAXZ)
 
-                ! misuse the cell keyword to set this up to also have the
-                ! hubbard setup already provided..
-!             if (t_new_real_space_hubbard) then
-!                length_x = NMAXX
-!                length_y = NMAXY
-!            end if
 
             case ('SPIN-TRANSCORR')
                 ! make a spin-dependent transcorrelation factor
@@ -716,15 +704,8 @@ contains
                     case ("RAND-EXCITGEN")
                         tTrCorrRandExgen = .true.
 
-!              case default
-!                 t_ueg_3_body = .false.
-!                 tTrcorrExgen = .true.
-!                 tTrCorrRandExgen = .false.
-
                     end select
-!               write(6,*) tTrcorrExgen, tTrCorrRandExgen, t_ueg_3_body
                 end do
-!               call stop_all('debug stop')
 
             case ('UEG-DUMP')
                 t_ueg_dump = .true.
@@ -1005,27 +986,34 @@ contains
                     t_open_bc_y = .true.
                 end if
 
+            case ("BIPARTITE", "BIPARTITE-ORDER")
+                t_bipartite_order = .true.
+
+                if (item < nitems) then
+                    t_input_order = .true.
+                    call geti(temp_n_orbs)
+
+                    allocate(orbital_order(temp_n_orbs), source = 0)
+
+                    call read_line(eof)
+                    do i = 1, temp_n_orbs
+                        call geti(orbital_order(i))
+                    end do
+                end if
+
             case ("LATTICE")
                 ! new hubbard implementation
                 ! but maybe think of a better way to init that..
                 ! the input has to be like:
                 ! lattice [type] [len_1] [*len_2]
                 ! where length to is optional if it is necessary to input it.
-!             tHub = .false.
-!             treal = .false.
-!             lNoSymmetry = .true.
-                ! this treal is not true.. now we also have k-space hubbard lattice
                 ! support
-!             treal = .true.
-!             t_new_real_space_hubbard = .true.
 
                 ! set some defaults:
                 lattice_type = "read"
 
                 length_x = -1
                 length_y = -1
-
-!             tPBC = .false.
 
                 if (item < nitems) then
                     ! use only new hubbard flags in this case
@@ -1049,10 +1037,12 @@ contains
                                    .not. t_open_bc_x,.not. t_open_bc_y,.not. t_open_bc_z, 'k-space')
                 else if (t_new_real_space_hubbard) then
                     lat => lattice(lattice_type, length_x, length_y, length_z, &
-                                   .not. t_open_bc_x,.not. t_open_bc_y,.not. t_open_bc_z, 'real-space')
+                               .not. t_open_bc_x,.not. t_open_bc_y, &
+                                   .not. t_open_bc_z, 'real-space', t_bipartite_order = t_bipartite_order)
                 else
                     lat => lattice(lattice_type, length_x, length_y, length_z, &
-                                   .not. t_open_bc_x,.not. t_open_bc_y,.not. t_open_bc_z)
+                                   .not. t_open_bc_x,.not. t_open_bc_y,.not. t_open_bc_z, &
+                                   t_bipartite_order = t_bipartite_order)
 
                 end if
 
@@ -1417,13 +1407,12 @@ contains
                     call readu(w)
                     select case (w)
                     case ("NOSYM_GUGA")
-                        tGen_nosym_guga = .true.
+                        call Stop_All(this_routine, "'nosym-guga' option deprecated!")
 
                     case ("NOSYM_GUGA_DIFF")
-                        tGen_nosym_guga = .true.
-                        t_consider_diff_bias = .true.
+                        call Stop_All(this_routine, "'nosym-guga-diff' option deprecated!")
 
-                    case ("UEG_GUGA")
+                    case ("UEG_GUGA", "UEG-GUGA")
                         tGen_sym_guga_ueg = .true.
 
                         if (item < nitems) then
@@ -1657,6 +1646,11 @@ contains
                     case ("PCHB")
                         ! the precomputed heat-bath excitation generator (uniform singles)
                         t_pchb_excitgen = .true.
+
+                    case ("GUGA-PCHB")
+                        ! use an explicit guga-pchb keyword and flag
+                        t_guga_pchb = .true.
+
                     case ("UEG")
                         ! Use the new UEG excitation generator.
                         ! TODO: This probably isn't the best way to do this
@@ -1672,11 +1666,26 @@ contains
                 ! Enable using weighted single excitations with the pchb excitation generator
                 t_pchb_weighted_singles = .true.
 
-            case ("SPAWNLISTDETS")
+            ! enable intermediately some pchb+guga testing
+            case("ANALYZE-PCHB")
+                t_analyze_pchb = .true.
+
+            case("OLD-GUGA-PCHB")
+                ! original, rather unoptimized guga-pchb implementation
+                ! still testing planned for final verdict on best guga-pchb
+                ! implementation!
+                t_old_pchb = .true.
+
+            case("EXCHANGE-GUGA-PCHB")
+                ! additional guga-pchb implementation for exchange type
+                ! contributions. testing for final 'best' guga-pchb
+                ! version still needs to be done
+                t_exchange_pchb = .true.
+
+            case("SPAWNLISTDETS")
 !This option will mean that a file called SpawnOnlyDets will be read in,
 ! and only these determinants will be allowed to be spawned at.
                 CALL Stop_All("ReadSysInp", "SPAWNLISTDETS option depreciated")
-!            tListDets=.true.
 
             case ("UMATEPSILON")
 
@@ -1766,6 +1775,22 @@ contains
 
             case ("HEISENBERG")
                 tHeisenberg = .true.
+
+            case("PERMUTE-ORBS")
+                ! Apply a permutation of the orbital indices to the
+                ! ordering given in the FCIDUMP file - only has an
+                ! effect when reading an FCIDUMP file, has no effect for
+                ! hubbard/heisenberg/ueg systems etc
+                block
+                  integer :: buf(1000)
+                  integer :: n_orb
+                  n_orb = 0
+                  do while (item < nitems)
+                      n_orb = n_orb + 1
+                      call readi(buf(n_orb))
+                  end do
+                  call load_orb_perm(buf(1:n_orb))
+                end block
 
             case ("GIOVANNIS-BROKEN-INIT")
                 ! Giovanni's scheme for initialising determinants with the correct

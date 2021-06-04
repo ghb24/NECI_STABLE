@@ -262,6 +262,7 @@ C.. The first free space is at SYMPRODIND(1,ISPN,I)+SYMPRODIND(2,ISPN,I)+1.
          use SystemData, only: Symmetry,BasisFN,SymmetrySize
          use constants, only: int64
          use sym_mod, only: symprod, BINARYSEARCHSYM, WRITESYM
+
          IMPLICIT NONE
          INTEGER nPairs
          INTEGER ORBPAIRS(2,nPairs)
@@ -840,6 +841,7 @@ C.. And the doubles
          use SymData, only: SymLabelList,SymPairProds
          use SymData, only: tAbelianFastExcitGen
          use constants, only: maxExcit
+
          IMPLICIT NONE
          INTEGER NEXCITTYPES
          INTEGER NEL,NI(NEL),EXCITTYPES(5,NEXCITTYPES)
@@ -1210,6 +1212,7 @@ C     &               NBASIS,NBASISMAX,CURGEN,IFRZ2)
       use SymData, only: SymLabelCounts,SymStatePairs,SymClass
       use SymData, only: SymLabelList,SymPairProds
       use constants, only: maxExcit
+
       IMPLICIT NONE
       INTEGER NEXCITTYPES
       INTEGER NEL,NI(NEL),EXCITTYPES(5,NEXCITTYPES)
@@ -1748,6 +1751,7 @@ C.. a double
          use SymData, only: SymLabelCounts,SymStatePairs,SymClass
          use SymData, only: SymLabelList,SymPairProds
          use constants, only: maxExcit
+
          IMPLICIT NONE
          INTEGER nEl,nI(nEl)
 
@@ -2358,6 +2362,7 @@ C                     CALL WRITEDET(6,NK,NEL,.TRUE.)
 
 
       SUBROUTINE DUMPIMEMORY(IUNIT,MEM,INLEN)
+
          IMPLICIT NONE
          INTEGER IUNIT, INLEN!,I,J
          INTEGER*1 MEM(*)!,CH

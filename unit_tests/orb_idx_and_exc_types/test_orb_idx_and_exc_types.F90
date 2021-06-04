@@ -71,8 +71,6 @@ program test_orb_idx_and_exc_types
     implicit none
     integer :: failed_count, err
 
-    integer :: n
-
     call mpi_init(err)
 
     call init_fruit()

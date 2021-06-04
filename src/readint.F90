@@ -2,7 +2,11 @@ module read_fci
     implicit none
 
     character(len=1024) :: FCIDUMP_name
-
+    
+    ! Variable for orbital re-ordering - a permutation of the
+    ! orbitals which is applied to the content of the FCIDUMP file
+    integer, allocatable, private :: orbital_permutation(:)
+    
 contains
 
     SUBROUTINE INITFROMFCID(NEL, NBASISMAX, LEN, LMS, TBIN)
@@ -15,7 +19,7 @@ contains
         use util_mod, only: get_free_unit, near_zero
         logical, intent(in) :: tbin
         integer, intent(out) :: nBasisMax(5, *), LEN, LMS
-        integer, intent(in) :: NEL
+        integer, intent(inout) :: NEL
         integer SYMLZ(1000)
         integer OCC(nIrreps), CLOSED(nIrreps), FROZEN(nIrreps)
         integer(int64) :: ORBSYM(1000)
@@ -63,6 +67,8 @@ contains
             end if
             close(iunit)
         end if
+
+        call reorder_sym_labels(ORBSYM, SYML, SYMLZ)
 
 !Now broadcast these values to the other processors
         CALL MPIBCast(NORB, 1)
@@ -147,9 +153,14 @@ contains
         end if
 
         IF (NELEC /= NEL) THEN
-            write(6, *)                                                 &
-    &      '*** WARNING: NEL in FCIDUMP differs from input file ***'
-            write(6, *) ' NUMBER OF ELECTRONS : ', NEL
+            if( NEL == NEL_UNINITIALIZED ) then
+                write(6,*) "No number of electrons given, using NEL in FCIDUMP"
+                NEL = NELEC
+            else
+                write(6, *)                                                 &
+                    &      '*** WARNING: NEL in FCIDUMP differs from input file ***'
+                write(6, *) ' NUMBER OF ELECTRONS : ', NEL
+            endif
         end if
 !         NEL=NELEC
         IF (LMS /= MS2) THEN
@@ -256,6 +267,9 @@ contains
             end if
         end if
 
+        ! Re-order the orbitals symmetry labels if required
+        call reorder_sym_labels(ORBSYM, SYML, SYMLZ)
+                
 !Now broadcast these values to the other processors (the values are only read in on root)
         CALL MPIBCast(NORB, 1)
         CALL MPIBCast(NELEC, 1)
@@ -453,6 +467,11 @@ contains
                     end if
                 end if
 #endif
+                ! If a permutation is loaded, apply it to the read indices
+                call reorder_orb_label(I)
+                call reorder_orb_label(J)
+                call reorder_orb_label(K)
+                call reorder_orb_label(L)
 
                 IF (tROHF .and. (.not. tMolpro)) THEN
 !The FCIDUMP file is in spin-orbitals - we need to transfer them to spatial orbitals (unless from molpro, where already spatial).
@@ -663,6 +682,10 @@ contains
             open(iunit, FILE=FCIDUMP_name, STATUS='OLD')
             read(iunit, FCI)
         end if
+
+        ! Re-order the orbitals symmetry labels if required
+        call reorder_sym_labels(ORBSYM, SYML, SYMLZ)
+        
 !Now broadcast these values to the other processors (the values are only read in on root)
         CALL MPIBCast(NORB, 1)
         CALL MPIBCast(NELEC, 1)
@@ -751,6 +774,12 @@ contains
             end if
 #endif
 
+            ! If a permutation is loaded, apply it to the read indices
+            call reorder_orb_label(I)
+            call reorder_orb_label(J)
+            call reorder_orb_label(K)
+            call reorder_orb_label(L)
+            
             ! Remove integrals that are too small
             if (abs(Z) < UMatEps) then
                 if (ZeroedInt < 100) then
@@ -1107,7 +1136,9 @@ contains
             open(iunit, FILE=file_name, STATUS='OLD')
             read(iunit, FCI)
         end if
-
+        
+        ! Re-order the orbitals symmetry labels if required
+        
 !Now broadcast these values to the other processors (the values are only read in on root)
         CALL MPIBCast(NORB, 1)
         CALL MPIBCast(NELEC, 1)
@@ -1178,5 +1209,38 @@ contains
         CoreVal = core
 
     END SUBROUTINE ReadPropInts
+
+    subroutine load_orb_perm(perm)
+        integer, intent(in) :: perm(:)
+
+        orbital_permutation = perm
+    end subroutine load_orb_perm
+
+    subroutine clear_orb_perm()
+        if (allocated (orbital_permutation)) deallocate(orbital_permutation)
+    end subroutine clear_orb_perm
+
+    subroutine reorder_sym_labels(ORBSYM, SYML, SYMLZ)
+        use constants, only: int64
+        integer(int64), intent(inout) :: ORBSYM(:)
+        integer, intent(inout) :: SYML(:), SYMLZ(:)
+
+        integer :: NORB
+
+        if (allocated(orbital_permutation)) then
+            NORB = size(orbital_permutation, dim = 1)            
+            ORBSYM(1:NORB) = ORBSYM(orbital_permutation)
+            SYML(1:NORB) = SYML(orbital_permutation)
+            SYMLZ(1:NORB) = SYMLZ(orbital_permutation)
+        end if
+    end subroutine reorder_sym_labels
+            
+    subroutine reorder_orb_label(label)
+        integer, intent(inout) :: label
+
+        if (allocated(orbital_permutation) .and. label > 0) then
+            label = orbital_permutation(label)
+        end if
+    end subroutine reorder_orb_label
 
 end module read_fci
