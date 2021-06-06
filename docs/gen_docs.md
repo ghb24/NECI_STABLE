@@ -4,9 +4,9 @@ project_github: https://github.com/ghb24/NECI_STABLE/
 summary: for FCIQMC
 author: Alavi Group
 github:
-src_dir: ../src
-include: ../src
-         ../src/lib
+include:
+    ../src
+    ../src/lib
 parallel: 4
 media_dir: media
 dbg: false
@@ -19,13 +19,12 @@ page_dir: pages
 md_extensions: markdown.extensions.toc
                markdown.extensions.smarty
 preprocess: true
-fpp_extensions: fpp
-preprocessor: fypp -m itertools -m functools
 search: false
 graph: false
 graph_maxnodes: 250
 graph_maxdepth: 5
 coloured_edges: true
+<!-- Pass src_dir via CLI argument (as done automatically when using cmake and `make doc_html`) -->
 ---
 <!-- TODO not sure if the include dir is right -->
 <!-- I had these in but they are all default -->
