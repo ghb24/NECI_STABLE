@@ -1917,81 +1917,119 @@ Some of them are only created, when certain keywords are given.
 
 This file contains whitespace delimited data that is written
   every 10nth iteration.
-Currently (2021-06-08) there are 23 columns.
+Currently (2021-06-08) there are 35 columns.
 The information in this file is useful in virtually every way of using `NECI`.
 
 The columns are:
 
-<!-- #     1.Step   2.Shift    3.WalkerCng  4.GrowRate     5.TotWalkers  6.Annihil  7.NoDied  8.NoBorn  9.Proj.E       10.Av.Shift 11.Proj.E.ThisCyc  12.NoatHF 13.NoatDoubs  14.AccRat  15.UniqueDets  16.IterTime 17.FracSpawnFromSing  18.WalkersDiffProc  19.TotImagTime  20.ProjE.ThisIter  21.HFInstShift  22.TotInstShift  23.Tot-Proj.E.ThisCyc   24.HFContribtoE  25.NumContribtoE 26.HF weight    27.|Psi|     28.Inst S^2 29.Inst S^2   30.AbsProjE   31.PartsDiffProc 32.|Semistoch|/|Psi|  33.MaxCycSpawn   34.InvalidExcits  35. ValidExcits -->
+<!-- # 28.Inst S^2 29.Inst S^2   30.AbsProjE   31.PartsDiffProc 32.|Semistoch|/|Psi|  33.MaxCycSpawn   34.InvalidExcits  35. ValidExcits -->
 **1 Steps**<br>
 The number of iterations.
 
 **2 Shift**<br>
 The shift \(S\) for population control. Equals the correlation
 energy in the equilibrium.
+Shift + Reference energy should equal the projected energy in equilibrium.
 
-**3 Steps**<br>
-Lorem ipsum
+**3 Walker Change**<br>
+TODO
 
-**4 Steps**<br>
-Lorem ipsum
+**4 Growth Rate**<br>
+TODO
 
-**5 Steps**<br>
-Lorem ipsum
+**5 Total Walkers**<br>
+The number of total walkers.
 
-**6 Steps**<br>
-Lorem ipsum
+**6 Annihilation**<br>
+The number of annihilated walkers.
 
-**7 Steps**<br>
-Lorem ipsum
+**7 Number of died walkers**<br>
+The number of died walkers (from annihilation **or** diagonal death step).
 
-**8 Steps**<br>
-Lorem ipsum
+**8 Number of born walkers**<br>
+The number of born walkers.
 
-**9 Steps**<br>
-Lorem ipsum
+**9 Projected energy**<br>
+TODO
 
-**10 Steps**<br>
-Lorem ipsum
+**10 Average Shift**<br>
+TODO
 
-**11 Steps**<br>
-Lorem ipsum
+**11 Projected energy of this cycle**<br>
+TODO
 
-**12 Steps**<br>
-Lorem ipsum
+**12 Number of walkers at reference determinant \(D_0\)**<br>
+The number of walkers at the reference determinant.
 
-**13 Steps**<br>
-Lorem ipsum
+**13 NoatDoubs**<br>
+TODO
 
-**14 Steps**<br>
-Lorem ipsum
+**14 AccRat**<br>
+TODO
 
-**15 Steps**<br>
-Lorem ipsum
+**15 UniqueDets**<br>
+TODO
 
-**16 Steps**<br>
-Lorem ipsum
+**16 Iteration time**<br>
+This is the time averaged over the last 10 iterations.
 
-**17 Steps**<br>
-Lorem ipsum
+**17 FracSpawnFromSing**<br>
+TODO
 
-**18 Steps**<br>
-Lorem ipsum
+**18 WalkersDiffProc**<br>
+TODO
 
-**19 Steps**<br>
-Lorem ipsum
+**19 Total imaginary time**<br>
+TODO
 
-**20 Steps**<br>
-Lorem ipsum
+**20 ProjE.ThisIter**<br>
+TODO
 
-**21 Steps**<br>
-Lorem ipsum
+**21 HFInstShift**<br>
+TODO
 
-**22 Steps**<br>
-Lorem ipsum
+**22 TotInstShift**<br>
+TODO
 
-**23 Steps**<br>
-Lorem ipsum
+**23 Tot-Proj.E.ThisCyc**<br>
+TODO
+
+**24 HFContribtoE**<br>
+TODO
+
+**25 NumContribtoE**<br>
+TODO
+
+**26 HF weight**<br>
+TODO
+
+**27 \(| \Psi |\)**<br>
+TODO
+
+**28 Inst S^2**<br>
+TODO
+
+**29 Inst S^2**<br>
+TODO
+
+**30 AbsProjE**<br>
+TODO
+
+**31 PartsDiffProc**<br>
+TODO
+
+**32 |Semistoch|/|Psi|**<br>
+TODO
+
+**33 MaxCycSpawn**<br>
+TODO
+
+**34 InvalidExcits**<br>
+TODO
+
+**35 ValidExcits**<br>
+TODO
+
 
 ### Additional tips
 
