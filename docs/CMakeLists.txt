@@ -12,6 +12,24 @@ function(get_absolute_sources target result)
     set(${result} ${${result}} PARENT_SCOPE)
 endfunction()
 
+function(get_unique_dirs paths result)
+    # This function returns a unique list of all directories in paths.
+    # paths have to be absolute.
+
+    foreach(path ${${paths}})
+        if(IS_ABSOLUTE ${path})
+            get_filename_component(dir ${path} DIRECTORY)
+            if (NOT ${dir} IN_LIST ${result})
+                list(APPEND ${result} ${dir})
+            endif()
+        else()
+            message(FATAL_ERROR "Non absolute path passed to `get_unique_dirs`")
+        endif()
+    endforeach()
+
+    set(${result} ${${result}} PARENT_SCOPE)
+endfunction()
+
 
 add_custom_target(doc)
 
@@ -35,7 +53,11 @@ if (GIT_SUBMOD_RESULT EQUAL "0")
     get_absolute_sources(libneci libneci_sources)
     set(sources ${neci_sources} ${libneci_sources})
 
-    get_target_property(source_dir libneci SOURCE_DIR)
+    get_unique_dirs(sources source_dirs)
+
+    foreach(dir ${source_dirs})
+        list(APPEND src_dir_options "--src_dir=${dir}")
+    endforeach()
 
     add_custom_command(
         OUTPUT
@@ -48,8 +70,7 @@ if (GIT_SUBMOD_RESULT EQUAL "0")
         COMMAND
             ${CMAKE_COMMAND} -E make_directory ${HTML_DOCUMENTATIONS} # Create output directory
         COMMAND
-            ${Python3_EXECUTABLE} ${FORD} gen_docs.md --output_dir ${HTML_DOCUMENTATIONS} --src_dir=${source_dir}/lib
-#             ${Python3_EXECUTABLE} ${FORD} gen_docs.md --output_dir ${HTML_DOCUMENTATIONS} --src_dir=${source_dir} --src_dir=${source_dir}/lib
+            ${Python3_EXECUTABLE} ${FORD} gen_docs.md --output_dir ${HTML_DOCUMENTATIONS} ${src_dir_options}
         WORKING_DIRECTORY
             ${PROJECT_SOURCE_DIR}/docs
         COMMENT
