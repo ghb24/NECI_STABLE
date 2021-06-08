@@ -62,7 +62,7 @@ if (GIT_SUBMOD_RESULT EQUAL "0")
             ${HTML_DOCUMENTATIONS}/index.html
     )
     # We rely on fypp preprocessed files by the normal build process
-    add_dependencies(doc_html neci libneci)
+    add_dependencies(doc_html libneci_fypp_preprocessed libneci_templated)
     add_dependencies(doc doc_html)
 
 endif()
