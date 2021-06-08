@@ -160,21 +160,33 @@ if (PANDOC)
     add_custom_command(
         OUTPUT
             ${PDF_DOCUMENTATIONS}/neci_user.pdf
-            ${PDF_DOCUMENTATIONS}/neci_dev.pdf
         DEPENDS
             pages/packages_to_include.tex ${PROJECT_SOURCE_DIR}/tools/create_pdf_doc.sh
-            ${MANUALS_MARKDOWN}
+            pages/01_neci_user.md
         COMMAND
             ${CMAKE_COMMAND} -E make_directory ${PDF_DOCUMENTATIONS} # Create output directory
         COMMAND
             ${create_pdf} 01_neci_user.md packages_to_include.tex ${PDF_DOCUMENTATIONS}/neci_user.pdf
+        WORKING_DIRECTORY
+            ${PROJECT_SOURCE_DIR}/docs/pages/
+        COMMENT
+            "Generating user PDF documentation."
+    )
+
+    add_custom_command(
+        OUTPUT
+            ${PDF_DOCUMENTATIONS}/neci_dev.pdf
+        DEPENDS
+            pages/packages_to_include.tex ${PROJECT_SOURCE_DIR}/tools/create_pdf_doc.sh
+            pages/02_neci_dev.md
+        COMMAND
+            ${CMAKE_COMMAND} -E make_directory ${PDF_DOCUMENTATIONS} # Create output directory
         COMMAND
             ${create_pdf} 02_neci_dev.md packages_to_include.tex ${PDF_DOCUMENTATIONS}/neci_dev.pdf
         WORKING_DIRECTORY
             ${PROJECT_SOURCE_DIR}/docs/pages/
         COMMENT
-            "Generating user and developer PDF documentation."
-        VERBATIM
+            "Generating developer PDF documentation."
     )
 
     add_custom_target(doc_pdf

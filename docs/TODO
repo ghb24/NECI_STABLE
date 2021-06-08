@@ -1,14 +1,13 @@
 Large Technical:
-  - Manual preprocessing. @Oskar
   - Break single file into pieces **AND** write script to automatically join. @Oskar
-  - Spurious footnotes in files. 
-  - Spurious line breaks at footnotes. 
+  - Spurious footnotes in files.
+  - Spurious line breaks at footnotes.
 
 Large Content:
   - Tutorial @Philip in User Doc
   - FCIMCStats column documentation @Oskar
   - Reread User Doc @Philip
 
-Back-burner: 
+Back-burner:
   - citation to papers, if possible? BibTex Style   @Philip
   - cross references between docs, or even better between docs and code possible?

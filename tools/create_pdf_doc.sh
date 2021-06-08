@@ -10,7 +10,7 @@ latex_header=$2
 pdf_output=$3
 
 # TODO I'm not sure if there is a better way to do this without just copying it
-tmpfile=/tmp/tmp_reformat_neci_doc.md
+tmpfile=/tmp/tmp_reformat_${md_input}
 cp ${md_input} $tmpfile
 
 
@@ -32,7 +32,7 @@ sed -i 's/@bug/\\verbatimLaTeX\{\\begin\{bug\}\}/g' $tmpfile
 
 # replace with literature.md file contents (ford command)
 # couldn't figure out the general command, but hard-coding literature.md is fine
-sed -i "s/{!docs\/literature.md!}/$(awk 1 ORS='\\n' literature.md)/g" $tmpfile 
+sed -i "s/{!docs\/literature.md!}/$(awk 1 ORS='\\n' literature.md)/g" $tmpfile
 # replace ford markdown newline with pandoc newline
 sed -i 's/<br>$/\\/g' $tmpfile
 
