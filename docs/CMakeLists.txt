@@ -56,6 +56,12 @@ function(get_unique_dirs paths result)
     set(${result} ${${result}} PARENT_SCOPE)
 endfunction()
 
+function(add_ford_documentation target)
+    if (NOT ${target} IN_LIST ${PROJECT_NAME}_CONFIGURATIONS)
+        message(FATAL_ERROR "${target} has to be contained in [${${PROJECT_NAME}_CONFIGURATIONS}]")
+    endif()
+endfunction()
+
 
 add_custom_target(doc)
 
@@ -115,7 +121,6 @@ if (GIT_SUBMOD_RESULT EQUAL "0")
     # We rely on fypp preprocessed files by the normal build process
     add_dependencies(doc_html libneci_fypp_preprocessed libneci_templated)
     add_dependencies(doc doc_html)
-
 endif()
 
 
