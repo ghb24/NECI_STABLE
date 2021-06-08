@@ -24,6 +24,7 @@ set(ADDITIONAL_MARKDOWN_CONTENT
         pages/tutorials/02_basic_use.md
 )
 
+
 function(get_absolute_sources target result)
     # This function returns the source files of a given target as absolute paths.
     get_target_property(rel_source_files ${target} SOURCES)
@@ -38,10 +39,10 @@ function(get_absolute_sources target result)
     set(${result} ${${result}} PARENT_SCOPE)
 endfunction()
 
+
 function(get_unique_dirs paths result)
     # This function returns a unique list of all directories in paths.
     # paths have to be absolute.
-
     foreach(path ${${paths}})
         if(IS_ABSOLUTE ${path})
             get_filename_component(dir ${path} DIRECTORY)
@@ -52,44 +53,32 @@ function(get_unique_dirs paths result)
             message(FATAL_ERROR "Non absolute path passed to `get_unique_dirs`")
         endif()
     endforeach()
-
     set(${result} ${${result}} PARENT_SCOPE)
 endfunction()
 
-function(add_ford_documentation target)
-    if (NOT ${target} IN_LIST ${PROJECT_NAME}_CONFIGURATIONS)
-        message(FATAL_ERROR "${target} has to be contained in [${${PROJECT_NAME}_CONFIGURATIONS}]")
+function(add_ford_documentation target configuration)
+    # This function creates a target for the Ford documentation.
+    # configuration can be one of neci;kneci;dneci;mneci;kdneci;kmneci
+    #
+    # The target is not built by default! Use add_dependencies if appropiate.
+    if (NOT ${configuration} IN_LIST ${PROJECT_NAME}_CONFIGURATIONS)
+        message(FATAL_ERROR "${configuration} has to be contained in [${${PROJECT_NAME}_CONFIGURATIONS}]")
     endif()
-endfunction()
 
+    set(HTML_DOCUMENTATIONS ${PROJECT_BINARY_DIR}/documentation/html/${configuration})
 
-add_custom_target(doc)
-
-# We want our custom ford because of tailored changes!
-# Do not look for a preinstalled ford, or at least make sure it works!
-find_package(Git QUIET)
-execute_process(COMMAND
-                    ${GIT_EXECUTABLE} submodule update --init --recursive
-                WORKING_DIRECTORY
-                    ${PROJECT_SOURCE_DIR}
-                RESULT_VARIABLE
-                    GIT_SUBMOD_RESULT
-)
-
-if (GIT_SUBMOD_RESULT EQUAL "0")
-    set(HTML_DOCUMENTATIONS ${PROJECT_BINARY_DIR}/documentation/html/)
     find_package(Python3 REQUIRED)
-    find_program (FORD ford ${PROJECT_SOURCE_DIR}/External/ford/ford.py)
+    find_program (FORD ford ${PROJECT_SOURCE_DIR}/External/ford/ford.py REQUIRED)
 
-    get_absolute_sources(neci neci_sources)
-    get_absolute_sources(libneci libneci_sources)
-    set(fortran_sources ${neci_sources} ${libneci_sources})
+    get_absolute_sources(${configuration} prog_sources)
+    get_absolute_sources(lib${configuration} lib_sources)
+    set(fortran_sources ${prog_sources} ${lib_sources})
     get_unique_dirs(fortran_sources source_dirs)
     foreach(dir ${source_dirs})
         list(APPEND ford_options "--src_dir=${dir}")
     endforeach()
 
-    get_target_property(comp_definitions libneci COMPILE_DEFINITIONS)
+    get_target_property(comp_definitions lib${configuration} COMPILE_DEFINITIONS)
     foreach(def ${comp_definitions})
         list(APPEND ford_options "--macro=${def}")
     endforeach()
@@ -114,18 +103,42 @@ if (GIT_SUBMOD_RESULT EQUAL "0")
         VERBATIM
     )
 
-    add_custom_target(doc_html
+    add_custom_target(${target}
         DEPENDS
             ${HTML_DOCUMENTATIONS}/index.html
     )
-    # We rely on fypp preprocessed files by the normal build process
-    add_dependencies(doc_html libneci_fypp_preprocessed libneci_templated)
-    add_dependencies(doc doc_html)
+    # We rely on preprocessed files by the normal build process
+    add_dependencies(${target} lib${configuration}_fypp_preprocessed lib${configuration}_templated)
+endfunction()
+
+
+
+add_custom_target(doc)
+
+# We want our custom ford because of tailored changes!
+# Do not look for a preinstalled ford, or at least make sure it works!
+find_package(Git QUIET)
+execute_process(COMMAND
+                    ${GIT_EXECUTABLE} submodule update --init --recursive
+                WORKING_DIRECTORY
+                    ${PROJECT_SOURCE_DIR}
+                RESULT_VARIABLE
+                    GIT_SUBMOD_RESULT
+)
+
+if (GIT_SUBMOD_RESULT EQUAL "0")
+    foreach(configuration ${${PROJECT_NAME}_CONFIGURATIONS})
+        add_ford_documentation(doc_html_${configuration} ${configuration})
+    endforeach()
+
+    # Only build the documentation of `neci` by default
+    add_dependencies(doc doc_html_neci)
 endif()
 
 
 find_program(PANDOC pandoc)
 if (PANDOC)
+    # The PDF documentation is independent of possible configurations.
     set(PDF_DOCUMENTATIONS ${PROJECT_BINARY_DIR}/documentation/pdf/)
     add_custom_command(
         OUTPUT
