@@ -1907,40 +1907,122 @@ the RDMs are calculated and the content of the files, please see section
     Stochastic-CASSCF. It produces the three files `DMAT, PAMAT` and
     `PSMAT`, which are read-in by `Molcas`.
 
-## Useful References Containing Technical Details
+## Output files
 
-Original FCIQMC method:
+Apart from the output that is printed to standard out
+  there are some other useful files created by `NECI`.
+Some of them are only created, when certain keywords are given.
 
--   Fermion Monte Carlo without fixed nodes: a game of life, death, and
-    annihilation in Slater determinant space. GH Booth, AJ Thom, A Alavi
-    – The Journal of chemical physics (2009) 131, 054106
+### FCIMCStats
 
-Quite a bit of symmetries some stuff on the initiator method that is
-actually implemented:
+This file contains whitespace delimited data that is written
+  every 10nth iteration.
+Currently (2021-06-08) there are 23 columns.
+The information in this file is useful in virtually every way of using `NECI`.
 
--   Breaking the carbon dimer: the challenges of multiple bond
-    dissociation with full configuration interaction quantum Monte Carlo
-    methods. GH Booth, D Cleland, AJ Thom, A Alavi – The Journal of
-    chemical physics (2011) 135, 084104
+The columns are:
 
-Linear scaling algorithm, (uniform) excitation generation and overall
-algorithm of FCIQMC:
+<!-- #     1.Step   2.Shift    3.WalkerCng  4.GrowRate     5.TotWalkers  6.Annihil  7.NoDied  8.NoBorn  9.Proj.E       10.Av.Shift 11.Proj.E.ThisCyc  12.NoatHF 13.NoatDoubs  14.AccRat  15.UniqueDets  16.IterTime 17.FracSpawnFromSing  18.WalkersDiffProc  19.TotImagTime  20.ProjE.ThisIter  21.HFInstShift  22.TotInstShift  23.Tot-Proj.E.ThisCyc   24.HFContribtoE  25.NumContribtoE 26.HF weight    27.|Psi|     28.Inst S^2 29.Inst S^2   30.AbsProjE   31.PartsDiffProc 32.|Semistoch|/|Psi|  33.MaxCycSpawn   34.InvalidExcits  35. ValidExcits -->
+**1 Steps**<br>
+The number of iterations.
 
--   Linear-scaling and parallelisable algorithms for stochastic quantum
-    chemistry GH Booth, SD Smart, A Alavi – Molecular Physics (2014)
-    112, 1855
+**2 Shift**<br>
+The shift \(S\) for population control. Equals the correlation
+energy in the equilibrium.
 
-Density matrices, real walker weights and sampling bias:
+**3 Steps**<br>
+Lorem ipsum
 
--   Unbiased Reduced Density Matrices and Electronic Properties from
-    Full Configuration Interaction Quantum Monte Carlo. Catherine Overy,
-    George H. Booth, N. S. Blunt, James Shepherd, Deidre Cleland, Ali
-    Alavi, http://arxiv.org/abs/1410.6047
+**4 Steps**<br>
+Lorem ipsum
 
-KP-FCIQMC:
+**5 Steps**<br>
+Lorem ipsum
 
--   Krylov-projected quantum Monte Carlo N. S. Blunt, Ali Alavi,
-    George H. Booth, Phys. Rev. Lett. 115, 050603
+**6 Steps**<br>
+Lorem ipsum
+
+**7 Steps**<br>
+Lorem ipsum
+
+**8 Steps**<br>
+Lorem ipsum
+
+**9 Steps**<br>
+Lorem ipsum
+
+**10 Steps**<br>
+Lorem ipsum
+
+**11 Steps**<br>
+Lorem ipsum
+
+**12 Steps**<br>
+Lorem ipsum
+
+**13 Steps**<br>
+Lorem ipsum
+
+**14 Steps**<br>
+Lorem ipsum
+
+**15 Steps**<br>
+Lorem ipsum
+
+**16 Steps**<br>
+Lorem ipsum
+
+**17 Steps**<br>
+Lorem ipsum
+
+**18 Steps**<br>
+Lorem ipsum
+
+**19 Steps**<br>
+Lorem ipsum
+
+**20 Steps**<br>
+Lorem ipsum
+
+**21 Steps**<br>
+Lorem ipsum
+
+**22 Steps**<br>
+Lorem ipsum
+
+**23 Steps**<br>
+Lorem ipsum
+
+### Additional tips
+
+Typical useful plotting workflow involves **gnuplot** or **python**.
+As an example for **gnuplot** the projected energy can be plotted
+  against the iteration number with
+```gnuplot
+plot 'FCIMCStats' using 1:23 with lines
+```
+If **python** and **pandas** etc. is preferred, the whole file can be imported with
+```python3
+import pandas as pd
+
+def read_FCIMCStats(path):
+    columns = [
+      'Step', 'Shift', 'WalkerCng', 'GrowRate', 'TotWalkers', 'Annihil',
+      'NoDied', 'NoBorn', 'Proj_E', 'Av_Shift', 'Proj_E_ThisCyc', 'NoatHF',
+      'NoatDoubs', 'AccRat', 'UniqueDets', 'IterTime', 'FracSpawnFromSing',
+      'WalkersDiffProc', 'TotImagTime', 'ProjE_ThisIter', 'HFInstShift',
+      'TotInstShift', 'Tot_Proj_E_ThisCyc', 'HFContribtoE', 'NumContribtoE',
+      'HF_weight', '|Psi|', 'Inst_S^2_A', 'Inst_S^2_B', 'AbsProjE',
+      'PartsDiffProc', 'Semistoch|/|Psi|',
+      'MaxCycSpawn', 'InvalidExcits', 'ValidExcits']
+    df = pd.read_csv(path, delim_whitespace=True, names=columns, skiprows=3)
+
+    M = set(df.loc[:, 'Step'].diff(periods=1).iloc[1:])
+    assert len(M) == 1
+    Delta = M.pop()
+    df.loc[:, 'WallClockTime'] = df.loc[:, 'IterTime'].cumsum() * Delta
+    return df
+```
 
 ## Trial wave functions
 
@@ -2060,8 +2142,8 @@ populations.
 The calculation of the diagonal elements is done by keeping track of the
 average walker populations of each occupied determinant, and how long it
 has been occupied. The diagonal element from Di is then calculated as
-&lt;Ni&gt;(pop1) x &lt;Ni&gt;(pop2) x \[No. of iterations in this
-block\], and this is included every time we start a new averaging block,
+`pop1 * pop2 * (No. of iterations in this block)`,
+and this is included every time we start a new averaging block,
 which can occur when a determinant becomes unoccupied in either
 population, or when we require the calculation of the RDM energy during
 the simulation. As such, the exact RDM accumulated is dependent on the
@@ -2173,5 +2255,42 @@ rightmost columns) from here.
 
 More information (including example plots, similar to those that
 `blocking.py` produces) is available at JCP 91, 461.
+
+
+## Useful References Containing Technical Details
+
+Original FCIQMC method:
+
+-   Fermion Monte Carlo without fixed nodes: a game of life, death, and
+    annihilation in Slater determinant space. GH Booth, AJ Thom, A Alavi
+    – The Journal of chemical physics (2009) 131, 054106
+
+Quite a bit of symmetries some stuff on the initiator method that is
+actually implemented:
+
+-   Breaking the carbon dimer: the challenges of multiple bond
+    dissociation with full configuration interaction quantum Monte Carlo
+    methods. GH Booth, D Cleland, AJ Thom, A Alavi – The Journal of
+    chemical physics (2011) 135, 084104
+
+Linear scaling algorithm, (uniform) excitation generation and overall
+algorithm of FCIQMC:
+
+-   Linear-scaling and parallelisable algorithms for stochastic quantum
+    chemistry GH Booth, SD Smart, A Alavi – Molecular Physics (2014)
+    112, 1855
+
+Density matrices, real walker weights and sampling bias:
+
+-   Unbiased Reduced Density Matrices and Electronic Properties from
+    Full Configuration Interaction Quantum Monte Carlo. Catherine Overy,
+    George H. Booth, N. S. Blunt, James Shepherd, Deidre Cleland, Ali
+    Alavi, http://arxiv.org/abs/1410.6047
+
+KP-FCIQMC:
+
+-   Krylov-projected quantum Monte Carlo N. S. Blunt, Ali Alavi,
+    George H. Booth, Phys. Rev. Lett. 115, 050603
+
 
 {!pages/literature.md!}
