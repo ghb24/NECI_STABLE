@@ -66,9 +66,24 @@ function(add_ford_documentation target configuration)
     endif()
 
     set(HTML_DOCUMENTATIONS ${PROJECT_BINARY_DIR}/documentation/html/${configuration})
+    set(PYTHON_VENV ${PROJECT_BINARY_DIR}/venv)
 
     find_package(Python3 REQUIRED)
-    find_program (FORD ford ${PROJECT_SOURCE_DIR}/External/ford/ford.py REQUIRED)
+    find_program(FORD ford ${PROJECT_SOURCE_DIR}/External/ford/ford.py REQUIRED)
+    # We want to install the custom ford into a virtual environment for the build process
+    add_custom_command(
+        OUTPUT
+            ${PYTHON_VENV}
+        COMMAND
+            ${Python3_EXECUTABLE} -m venv ${PYTHON_VENV}
+        COMMAND
+            ${PYTHON_VENV}/bin/pip3 install ${PROJECT_SOURCE_DIR}/External/ford/
+        COMMENT
+            "Setting up virtual environment for ford."
+    )
+    unset(Python3_EXECUTABLE)
+    set(custom_Python3 ${PYTHON_VENV}/bin/python3)
+
 
     get_absolute_sources(${configuration} prog_sources)
     get_absolute_sources(lib${configuration} lib_sources)
@@ -88,6 +103,7 @@ function(add_ford_documentation target configuration)
             ${HTML_DOCUMENTATIONS}/index.html
         DEPENDS
             gen_docs.md
+            ${PYTHON_VENV}
             ${MANUALS_MARKDOWN}
             ${ADDITIONAL_MARKDOWN_CONTENT}
             ${MEDIA_FILES}
@@ -95,7 +111,7 @@ function(add_ford_documentation target configuration)
         COMMAND
             ${CMAKE_COMMAND} -E make_directory ${HTML_DOCUMENTATIONS} # Create output directory
         COMMAND
-            ${Python3_EXECUTABLE} ${FORD} gen_docs.md --output_dir ${HTML_DOCUMENTATIONS} ${ford_options}
+            ${custom_Python3} ${FORD} gen_docs.md --output_dir ${HTML_DOCUMENTATIONS} ${ford_options}
         WORKING_DIRECTORY
             ${PROJECT_SOURCE_DIR}/docs
         COMMENT
@@ -140,6 +156,7 @@ find_program(PANDOC pandoc)
 if (PANDOC)
     # The PDF documentation is independent of possible configurations.
     set(PDF_DOCUMENTATIONS ${PROJECT_BINARY_DIR}/documentation/pdf/)
+    set(create_pdf ${PROJECT_SOURCE_DIR}/tools/create_pdf_doc.sh)
     add_custom_command(
         OUTPUT
             ${PDF_DOCUMENTATIONS}/neci_user.pdf
@@ -150,9 +167,9 @@ if (PANDOC)
         COMMAND
             ${CMAKE_COMMAND} -E make_directory ${PDF_DOCUMENTATIONS} # Create output directory
         COMMAND
-            ${PROJECT_SOURCE_DIR}/tools/create_pdf_doc.sh 01_neci_user.md packages_to_include.tex ${PDF_DOCUMENTATIONS}/neci_user.pdf
+            ${create_pdf} 01_neci_user.md packages_to_include.tex ${PDF_DOCUMENTATIONS}/neci_user.pdf
         COMMAND
-            ${PROJECT_SOURCE_DIR}/tools/create_pdf_doc.sh 02_neci_dev.md packages_to_include.tex ${PDF_DOCUMENTATIONS}/neci_dev.pdf
+            ${create_pdf} 02_neci_dev.md packages_to_include.tex ${PDF_DOCUMENTATIONS}/neci_dev.pdf
         WORKING_DIRECTORY
             ${PROJECT_SOURCE_DIR}/docs/pages/
         COMMENT
