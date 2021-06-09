@@ -128,6 +128,7 @@ function(add_ford_documentation target configuration)
         DEPENDS
             gen_docs.md
             ${PYTHON_VENV}
+            pages/index.md
             ${markdown_files_user_doc}
             ${markdown_files_tutorial}
             ${markdown_files_dev_doc}
