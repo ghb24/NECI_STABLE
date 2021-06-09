@@ -1,5 +1,6 @@
 # Add additional dependencies here.
 # The order of files in each list matters!
+# (It defines in which order they appear in the PDF)
 set(markdown_files_user_doc
         pages/01_user_doc/index.md
         pages/01_user_doc/01_getting_into_the_game.md
@@ -46,6 +47,7 @@ set(MEDIA_FILES
         media/plots2/blocking.png
 )
 
+find_package(Python3 REQUIRED)
 
 function(get_absolute_sources target result)
     # This function returns the source files of a given target as absolute paths.
@@ -92,7 +94,6 @@ function(add_ford_documentation target configuration)
     set(HTML_DOCUMENTATIONS ${PROJECT_BINARY_DIR}/documentation/html/${configuration})
     set(PYTHON_VENV ${PROJECT_BINARY_DIR}/venv)
 
-    find_package(Python3 REQUIRED)
     find_program(FORD ford ${PROJECT_SOURCE_DIR}/External/ford/ford.py REQUIRED)
     # We want to install the custom ford into a virtual environment for the build process
     add_custom_command(
@@ -105,7 +106,6 @@ function(add_ford_documentation target configuration)
         COMMENT
             "Setting up virtual environment for ford."
     )
-    unset(Python3_EXECUTABLE)
     set(custom_Python3 ${PYTHON_VENV}/bin/python3)
 
 
@@ -113,10 +113,9 @@ function(add_ford_documentation target configuration)
     get_absolute_sources(lib${configuration} lib_sources)
     set(fortran_sources ${prog_sources} ${lib_sources})
     get_unique_dirs(fortran_sources source_dirs)
-    list(APPEND ford_options "--src_dir=${PROJECT_SOURCE_DIR}/src/lib")
-#     foreach(dir ${source_dirs})
-#         list(APPEND ford_options "--src_dir=${dir}")
-#     endforeach()
+    foreach(dir ${source_dirs})
+        list(APPEND ford_options "--src_dir=${dir}")
+    endforeach()
 
     get_target_property(comp_definitions lib${configuration} COMPILE_DEFINITIONS)
     foreach(def ${comp_definitions})
@@ -184,43 +183,47 @@ find_program(PANDOC pandoc)
 if (PANDOC)
     # The PDF documentation is independent of possible configurations (neci, dneci etc.).
     set(PDF_DOCUMENTATIONS ${PROJECT_BINARY_DIR}/documentation/pdf/)
-    set(PROCESSED_MARKDOWN ${PDF_DOCUMENTATIONS}/processed_markdown/)
-    set(create_pdf ${PROJECT_SOURCE_DIR}/tools/create_pdf_doc.sh)
-
-    add_custom_command(
-        OUTPUT
-            ${PROCESSED_MARKDOWN}/neci_user.md
-        COMMAND
-            ${CMAKE_COMMAND} -E make_directory ${PROCESSED_MARKDOWN} # Create output directory
-        COMMAND
-            cat ${markdown_files_user_doc} > ${PROCESSED_MARKDOWN}/neci_user.md
-        WORKING_DIRECTORY
-            ${PROJECT_SOURCE_DIR}/docs/
-        COMMENT
-            "Generating merged markdown file for user doc."
+    set(pandoc_options
+            --listings
+            --include-in-header LaTeX_headers/packages_to_include.tex
+            -V geometry:margin=3cm
+            -V geometry:a4paper
+            -V fontsize=18pt
+            -V numbersections=true
+            --toc
+            -f markdown-tex_math_dollars+tex_math_single_backslash
     )
 
-    add_custom_command(
-        OUTPUT
-            ${PDF_DOCUMENTATIONS}/neci_user.pdf
-        DEPENDS
-            ${PROJECT_SOURCE_DIR}/tools/create_pdf_doc.sh
-            LaTeX_headers/packages_to_include.tex
-            ${PROCESSED_MARKDOWN}/neci_user.md
-        COMMAND
-            ${CMAKE_COMMAND} -E make_directory ${PDF_DOCUMENTATIONS} # Create output directory
-        COMMAND
-            ${create_pdf} ${PROCESSED_MARKDOWN}/neci_user.md LaTeX_headers/packages_to_include.tex ${PDF_DOCUMENTATIONS}/neci_user.pdf
-        WORKING_DIRECTORY
-            ${PROJECT_SOURCE_DIR}/docs/
-        COMMENT
-            "Generating user PDF documentation."
-    )
+
+    function(add_pdf_command markdown_files out_name comment)
+        add_custom_command(
+            OUTPUT
+                ${PDF_DOCUMENTATIONS}/${out_name}
+            DEPENDS
+                ${PROJECT_SOURCE_DIR}/tools/create_pdf_doc.py
+                LaTeX_headers/packages_to_include.tex
+                ${${markdown_files}}
+            COMMAND
+                ${CMAKE_COMMAND} -E make_directory ${PDF_DOCUMENTATIONS} # Create output directory
+            COMMAND
+                cat ${${markdown_files}}
+                | ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/tools/create_pdf_doc.py
+                | tee ~/Desktop/test.md
+                | ${PANDOC} ${pandoc_options} -o ${PDF_DOCUMENTATIONS}/${out_name} -
+            WORKING_DIRECTORY
+                ${PROJECT_SOURCE_DIR}/docs/
+            COMMENT
+                ${comment}
+        )
+    endfunction()
+
+    add_pdf_command(markdown_files_user_doc neci_user.pdf "Generating user PDF documentation." )
+    add_pdf_command(markdown_files_dev_doc neci_dev.pdf "Generating developer PDF documentation." )
 
     add_custom_target(doc_pdf
         DEPENDS
             ${PDF_DOCUMENTATIONS}/neci_user.pdf
-#             ${PDF_DOCUMENTATIONS}/neci_dev.pdf
+            ${PDF_DOCUMENTATIONS}/neci_dev.pdf
     )
     add_dependencies(doc doc_pdf)
 endif()
