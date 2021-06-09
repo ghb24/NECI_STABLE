@@ -208,7 +208,6 @@ if (PANDOC)
             COMMAND
                 cat ${${markdown_files}}
                 | ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/tools/create_pdf_doc.py
-                | tee ~/Desktop/test.md
                 | ${PANDOC} ${pandoc_options} -o ${PDF_DOCUMENTATIONS}/${out_name} -
             WORKING_DIRECTORY
                 ${PROJECT_SOURCE_DIR}/docs/
