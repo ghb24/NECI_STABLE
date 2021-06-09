@@ -1,7 +1,38 @@
-# Add additional dependencies here
-file(GLOB markdown_files_user_doc "pages/01_user_doc/*.md")
-file(GLOB markdown_files_tutorial "pages/02_tutorials/*.md")
-file(GLOB markdown_files_dev_doc "pages/03_dev_doc/*.md")
+# Add additional dependencies here.
+# The order of files in each list matters!
+set(markdown_files_user_doc
+        pages/01_user_doc/index.md
+        pages/01_user_doc/01_getting_into_the_game.md
+        pages/01_user_doc/02_calculation_inputs.md
+        pages/01_user_doc/03_trial_wave_functions.md
+        pages/01_user_doc/04_sampling_excited_states.md
+        pages/01_user_doc/05_davidson_RAS.md
+        pages/01_user_doc/06_error_analysis.md
+        pages/01_user_doc/07_references.md
+)
+
+set(markdown_files_dev_doc
+    pages/03_dev_doc/index.md
+    pages/03_dev_doc/01_code_conventions.md
+    pages/03_dev_doc/02_comments_and_documentation.md
+    pages/03_dev_doc/03_review_guidelines.md
+    pages/03_dev_doc/04_DRY.md
+    pages/03_dev_doc/05_compiler_help.md
+    pages/03_dev_doc/06_premature_optimization.md
+    pages/03_dev_doc/07_memory_tracking.md
+    pages/03_dev_doc/08_templating.md
+    pages/03_dev_doc/09_testing.md
+    pages/03_dev_doc/10_interfacing_C.md
+    pages/03_dev_doc/11_debugging.md
+    pages/03_dev_doc/12_important_globals.md
+)
+
+set(markdown_files_tutorial
+    pages/02_tutorials/index.md
+    pages/02_tutorials/01_installation.md
+    pages/02_tutorials/02_basic_use.md
+)
+
 set(MEDIA_FILES
         pages/02_tutorials/FCIDUMP
         pages/02_tutorials/n2.mol
@@ -153,43 +184,43 @@ find_program(PANDOC pandoc)
 if (PANDOC)
     # The PDF documentation is independent of possible configurations (neci, dneci etc.).
     set(PDF_DOCUMENTATIONS ${PROJECT_BINARY_DIR}/documentation/pdf/)
+    set(PROCESSED_MARKDOWN ${PDF_DOCUMENTATIONS}/processed_markdown/)
     set(create_pdf ${PROJECT_SOURCE_DIR}/tools/create_pdf_doc.sh)
+
     add_custom_command(
         OUTPUT
-            ${PDF_DOCUMENTATIONS}/neci_user.pdf
-        DEPENDS
-            pages/packages_to_include.tex ${PROJECT_SOURCE_DIR}/tools/create_pdf_doc.sh
-            pages/01_neci_user.md
+            ${PROCESSED_MARKDOWN}/neci_user.md
         COMMAND
-            ${CMAKE_COMMAND} -E make_directory ${PDF_DOCUMENTATIONS} # Create output directory
+            ${CMAKE_COMMAND} -E make_directory ${PROCESSED_MARKDOWN} # Create output directory
         COMMAND
-            ${create_pdf} 01_neci_user.md packages_to_include.tex ${PDF_DOCUMENTATIONS}/neci_user.pdf
+            cat ${markdown_files_user_doc} > ${PROCESSED_MARKDOWN}/neci_user.md
         WORKING_DIRECTORY
-            ${PROJECT_SOURCE_DIR}/docs/pages/
+            ${PROJECT_SOURCE_DIR}/docs/
         COMMENT
-            "Generating user PDF documentation."
+            "Generating merged markdown file for user doc."
     )
 
     add_custom_command(
         OUTPUT
-            ${PDF_DOCUMENTATIONS}/neci_dev.pdf
+            ${PDF_DOCUMENTATIONS}/neci_user.pdf
         DEPENDS
-            pages/packages_to_include.tex ${PROJECT_SOURCE_DIR}/tools/create_pdf_doc.sh
-            pages/02_neci_dev.md
+            ${PROJECT_SOURCE_DIR}/tools/create_pdf_doc.sh
+            LaTeX_headers/packages_to_include.tex
+            ${PROCESSED_MARKDOWN}/neci_user.md
         COMMAND
             ${CMAKE_COMMAND} -E make_directory ${PDF_DOCUMENTATIONS} # Create output directory
         COMMAND
-            ${create_pdf} 02_neci_dev.md packages_to_include.tex ${PDF_DOCUMENTATIONS}/neci_dev.pdf
+            ${create_pdf} ${PROCESSED_MARKDOWN}/neci_user.md LaTeX_headers/packages_to_include.tex ${PDF_DOCUMENTATIONS}/neci_user.pdf
         WORKING_DIRECTORY
-            ${PROJECT_SOURCE_DIR}/docs/pages/
+            ${PROJECT_SOURCE_DIR}/docs/
         COMMENT
-            "Generating developer PDF documentation."
+            "Generating user PDF documentation."
     )
 
     add_custom_target(doc_pdf
         DEPENDS
             ${PDF_DOCUMENTATIONS}/neci_user.pdf
-            ${PDF_DOCUMENTATIONS}/neci_dev.pdf
+#             ${PDF_DOCUMENTATIONS}/neci_dev.pdf
     )
     add_dependencies(doc doc_pdf)
 endif()
