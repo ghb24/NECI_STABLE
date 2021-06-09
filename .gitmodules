@@ -3,4 +3,4 @@
 	url = https://github.com/aradi/fypp.git
 [submodule "External/ford"]
 	path = External/ford
-	url = https://github.com/jphaupt/ford.git
+	url = https://bitbucket.org/neci_developers/ford.git
