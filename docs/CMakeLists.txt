@@ -12,33 +12,34 @@ set(markdown_files_user_doc
         pages/01_user_doc/07_references.md
 )
 
-set(markdown_files_dev_doc
-    pages/03_dev_doc/index.md
-    pages/03_dev_doc/01_code_conventions.md
-    pages/03_dev_doc/02_comments_and_documentation.md
-    pages/03_dev_doc/03_review_guidelines.md
-    pages/03_dev_doc/04_DRY.md
-    pages/03_dev_doc/05_compiler_help.md
-    pages/03_dev_doc/06_premature_optimization.md
-    pages/03_dev_doc/07_memory_tracking.md
-    pages/03_dev_doc/08_templating.md
-    pages/03_dev_doc/09_testing.md
-    pages/03_dev_doc/10_interfacing_C.md
-    pages/03_dev_doc/11_debugging.md
-    pages/03_dev_doc/12_important_globals.md
+set(markdown_files_tutorial
+        pages/02_tutorials/index.md
+        pages/02_tutorials/01_installation.md
+        pages/02_tutorials/02_basic_use.md
 )
 
-set(markdown_files_tutorial
-    pages/02_tutorials/index.md
-    pages/02_tutorials/01_installation.md
-    pages/02_tutorials/02_basic_use.md
+set(markdown_files_dev_doc
+        pages/03_dev_doc/index.md
+        pages/03_dev_doc/01_code_conventions.md
+        pages/03_dev_doc/02_comments_and_documentation.md
+        pages/03_dev_doc/03_review_guidelines.md
+        pages/03_dev_doc/04_DRY.md
+        pages/03_dev_doc/05_compiler_help.md
+        pages/03_dev_doc/06_premature_optimization.md
+        pages/03_dev_doc/07_memory_tracking.md
+        pages/03_dev_doc/08_templating.md
+        pages/03_dev_doc/09_testing.md
+        pages/03_dev_doc/10_interfacing_C.md
+        pages/03_dev_doc/11_debugging.md
+        pages/03_dev_doc/12_important_globals.md
 )
 
 set(MEDIA_FILES
         pages/02_tutorials/FCIDUMP
         pages/02_tutorials/n2.mol
         pages/02_tutorials/plot_fcimcstats.plt
-        media/plots1/blocking.png media/plots1/check_denominator.png
+        media/plots1/blocking.png
+        media/plots1/check_denominator.png
         media/plots1/check_numerator.png
         media/plots1/check_refPop.png
         media/plots1/check_shift_energy.png
@@ -113,9 +114,11 @@ function(add_ford_documentation target configuration)
     get_absolute_sources(lib${configuration} lib_sources)
     set(fortran_sources ${prog_sources} ${lib_sources})
     get_unique_dirs(fortran_sources source_dirs)
-    foreach(dir ${source_dirs})
-        list(APPEND ford_options "--src_dir=${dir}")
-    endforeach()
+# TODO(Oskar, Philip): Put back all source files
+#     foreach(dir ${source_dirs})
+#         list(APPEND ford_options "--src_dir=${dir}")
+#     endforeach()
+    list(APPEND ford_options "--src_dir=${PROJECT_SOURCE_DIR}/src/lib")
 
     get_target_property(comp_definitions lib${configuration} COMPILE_DEFINITIONS)
     foreach(def ${comp_definitions})
@@ -181,12 +184,14 @@ endif()
 
 
 find_program(PANDOC pandoc)
-if (PANDOC)
+find_program(PANDOC_CITEPROC pandoc-citeproc)
+if (PANDOC AND PANDOC_CITEPROC)
     # The PDF documentation is independent of possible configurations (neci, dneci etc.).
     set(PDF_DOCUMENTATIONS ${PROJECT_BINARY_DIR}/documentation/pdf/)
     set(pandoc_options
             --listings
             --include-in-header LaTeX_headers/packages_to_include.tex
+            --bibliography LaTeX_headers/literature.bib
             -V geometry:margin=3cm
             -V geometry:a4paper
             -V fontsize=18pt
@@ -207,6 +212,7 @@ if (PANDOC)
             COMMAND
                 ${CMAKE_COMMAND} -E make_directory ${PDF_DOCUMENTATIONS} # Create output directory
             COMMAND
+                # the output of cat depends on the order in the lists!
                 cat ${${markdown_files}}
                 | ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/tools/create_pdf_doc.py
                 | ${PANDOC} ${pandoc_options} -o ${PDF_DOCUMENTATIONS}/${out_name} -
