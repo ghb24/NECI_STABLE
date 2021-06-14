@@ -34,18 +34,32 @@ contains
             !! The bra and ket Slater determinants in nI format.
         real(dp) :: res
             !! The matrix element.
-        logical :: alpha_I(size(nI)), alpha_J(size(nJ))
+        integer, allocatable :: oS_nI(:), oS_nJ(:)
+            !! The open shell of the respective input determinants.
+            !! (Can be empty!)
+        logical, allocatable :: alpha_I(:), alpha_J(:)
+            !! If nI and nJ have their open shell at the same spatial orbitals,
+            !! this array contains true if the i-th open-shell orbital is alpha
+            !! occupied.
+            !! [1, 2, 3, 6] get_open_shell-> [3, 6] %2-> [1, 0] ==0-> [False, True]
+            !! [1, 2, 4, 5] get_open_shell-> [4, 5] %2-> [0, 1] ==0-> [True, False]
         real(dp) :: spin_proj_term, raise_low_term
         character(*), parameter :: this_routine = 'S2_expval'
 
         ASSERT(size(nI) == size(nJ))
-        alpha_I = mod(get_open_shell(nI), 2) == 0
-        alpha_J = mod(get_open_shell(nJ), 2) == 0
 
-        if (count(alpha_I) /= count(alpha_J)) then
-            res = 0._dp
-            return
-        endif
+        oS_nI = get_open_shell(nI)
+        oS_nJ = get_open_shell(nJ)
+
+        res = 0.0_dp
+        if (size(oS_nI) /= size(oS_nJ)) return
+        if (size(oS_nI) == 0 .or. size(oS_nJ) == 0) return
+        ! Are the same spatial orbitals open shell?
+        ! < [a, a, 0, 0] | S^2 | [0, 0, a, a] >    ==  0
+        if (any(oS_nI + mod(oS_nI, 2) /= oS_nJ + mod(oS_nJ, 2))) return
+
+        alpha_I = mod(oS_nI, 2) == 0
+        alpha_J = mod(oS_nJ, 2) == 0
 
         if (all(nI == nJ)) then
             block
@@ -53,14 +67,15 @@ contains
                 ! N_a = count(mod(nI, 2) == 0)
                 ! N_b = size(nI) - N_a
                 ! s_z = (N_a - N_b) / 2._dp
-                s_z = (2 * count(alpha_I) - size(nI)) / 2._dp
+                ! s_z = (2 * N_a - size(nI)) / 2._dp
+                s_z = (2 * count(alpha_I) - size(alpha_I)) / 2._dp
                 spin_proj_term = s_z * (s_z - 1_dp)
             end block
         else
             spin_proj_term = 0._dp
         end if
 
-        ! there is one exchange, rest is equal
+        ! There is one exchange, rest is equal
         if (count(alpha_I .neqv. alpha_J) == 2) then
             raise_low_term = 1._dp
         ! Everything is equal
