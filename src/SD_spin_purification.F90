@@ -61,6 +61,8 @@ contains
         alpha_I = mod(oS_nI, 2) == 0
         alpha_J = mod(oS_nJ, 2) == 0
 
+        ASSERT(count(alpha_I) == count(alpha_J))
+
         if (all(nI == nJ)) then
             block
                 real(dp) :: s_z
