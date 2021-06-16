@@ -123,8 +123,10 @@ contains
     !> https://de.wikipedia.org/wiki/Partitionsfunktion#Geordnete_Zahlcompositionen
     pure function get_compositions(k, n) result(res)
         integer, intent(in) :: k, n
-        integer :: res(k, n_compositions(k, n))
+        integer, allocatable :: res(:, :)
         integer :: idx_part, i
+
+        allocate(res(k, n_compositions(k, n)))
 
         idx_part = 1
         res(:, idx_part) = 0
@@ -215,6 +217,9 @@ contains
         integer, allocatable :: compositions(:, :)
         type(buffer_int_2D_t) :: supergroups
 
+        ! NOTE: The following call and allocation for compositions
+        !   may exceed memory. In this case the compositions
+        !   have to be created on-the-fly.
         compositions = get_compositions(self%GASspec%nGAS(), self%nEl())
         call supergroups%init(rows=size(compositions, 1))
         do i = 1, size(compositions, 2)

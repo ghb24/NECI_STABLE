@@ -9,7 +9,7 @@ module test_gasci_supergroup_index_mod
 
     implicit none
     private
-    public :: test_compositioning, test_supergroup_indexer_class
+    public :: test_compositioning, test_supergroup_indexer_class, test_count_supergroups
 
 contains
 
@@ -85,6 +85,40 @@ contains
             call assert_true(5 == indexer%idx_nI([7, 10, 11]))
         end block
     end subroutine
+
+
+    subroutine test_count_supergroups()
+        type(SuperGroupIndexer_t), allocatable :: sg_indexer(:)
+        integer, allocatable :: expected(:)
+        integer :: i
+
+        sg_indexer = [(get_sg_indexer(i), i = 1, 5)]
+        expected = [1, 5, 19, 85, 381]
+
+        do i = 1, size(sg_indexer)
+            call assert_equals(expected(i), sg_indexer(i)%n_supergroups())
+        end do
+
+    contains
+
+        elemental function get_benzene_GAS_spec(n_benz, n_exc) result(res)
+            !! Create the GAS specification for [n_benz * (6, 6)] active spaces.
+            integer, intent(in) :: n_benz, n_exc
+            type(LocalGASSpec_t) :: res
+            integer :: i, j
+            res = LocalGASSpec_t(&
+                n_min=[(6 - n_exc, i = 1, n_benz)], &
+                n_max=[(6 + n_exc, i = 1, n_benz)], &
+                spat_GAS_orbs = [([(j, i = 1, 6)], j = 1, n_benz)])
+        end function
+
+        function get_sg_indexer(n_benz) result(res)
+            integer, intent(in) :: n_benz
+            integer, parameter :: n_exc = 2
+            type(SuperGroupIndexer_t) :: res
+            res = SuperGroupIndexer_t(get_benzene_GAS_spec(n_benz, n_exc), n_benz * 6)
+        end function
+    end subroutine
 end module
 
 
@@ -93,7 +127,7 @@ program test_gasci_program
     use mpi
     use fruit
     use Parallel_neci, only: MPIInit, MPIEnd
-    use test_gasci_supergroup_index_mod, only: test_compositioning, test_supergroup_indexer_class
+    use test_gasci_supergroup_index_mod, only: test_compositioning, test_supergroup_indexer_class, test_count_supergroups
 
 
     implicit none
@@ -120,5 +154,6 @@ contains
     subroutine test_gasci_driver()
         call run_test_case(test_compositioning, "test_compositioning")
         call run_test_case(test_supergroup_indexer_class, "test_supergroup_indexer_class")
+        call run_test_case(test_count_supergroups, "test_count_supergroups")
     end subroutine
 end program test_gasci_program
