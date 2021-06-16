@@ -4,7 +4,7 @@ module test_gasci_supergroup_index_mod
     use util_mod, only: operator(.div.), operator(.isclose.), near_zero, choose
     use util_mod, only: factrl, intswap, cumsum
 
-    use gasci, only: LocalGASSpec_t
+    use gasci, only: LocalGASSpec_t, CumulGASSpec_t
     use gasci_supergroup_index, only: SuperGroupIndexer_t, composition_idx, get_compositions
 
     implicit none
@@ -92,8 +92,8 @@ contains
         integer, allocatable :: expected(:)
         integer :: i
 
-        sg_indexer = [(get_sg_indexer(i), i = 1, 5)]
-        expected = [1, 5, 19, 85, 381]
+        sg_indexer = [(get_sg_indexer(i), i = 1, 8)]
+        expected = [1, 5, 25, 125, 625]
 
         do i = 1, size(sg_indexer)
             call assert_equals(expected(i), sg_indexer(i)%n_supergroups())
@@ -104,11 +104,11 @@ contains
         elemental function get_benzene_GAS_spec(n_benz, n_exc) result(res)
             !! Create the GAS specification for [n_benz * (6, 6)] active spaces.
             integer, intent(in) :: n_benz, n_exc
-            type(LocalGASSpec_t) :: res
+            type(CumulGASSpec_t) :: res
             integer :: i, j
-            res = LocalGASSpec_t(&
-                n_min=[(6 - n_exc, i = 1, n_benz)], &
-                n_max=[(6 + n_exc, i = 1, n_benz)], &
+            res = CumulGASSpec_t(&
+                cn_min=[(6 * i - n_exc, i = 1, n_benz - 1), n_benz * 6], &
+                cn_max=[(6 * i + n_exc, i = 1, n_benz - 1), n_benz * 6], &
                 spat_GAS_orbs = [([(j, i = 1, 6)], j = 1, n_benz)])
         end function
 
