@@ -92,7 +92,7 @@ contains
         integer, allocatable :: expected(:)
         integer :: i
 
-        sg_indexer = [(get_sg_indexer(i), i = 1, 8)]
+        sg_indexer = [(get_sg_indexer(i), i = 1, 5)]
         expected = [1, 5, 25, 125, 625]
 
         do i = 1, size(sg_indexer)

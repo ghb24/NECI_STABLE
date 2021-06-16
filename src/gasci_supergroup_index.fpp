@@ -126,15 +126,15 @@ contains
     pure function get_compositions(k, n) result(res)
         integer, intent(in) :: k, n
         integer, allocatable :: res(:, :)
-        integer :: idx_part, i
+        integer :: i
 
         allocate(res(k, n_compositions(k, n)))
 
         res(:, 1) = 0
         res(1, 1) = n
 
-        do idx_part = 2, size(res, 2)
-            res(:, idx_part) = next_composition(res(:, idx_part - 1))
+        do i = 2, size(res, 2)
+            res(:, i) = next_composition(res(:, i - 1))
         end do
     end function
 
