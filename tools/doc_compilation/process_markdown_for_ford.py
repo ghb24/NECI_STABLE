@@ -15,7 +15,6 @@ def ref_string(entry):
     takes bibtexparser entry and pretty prints it
     """
     to_print = ''
-    print(entry)
     if 'title' in entry:
         to_print += '*'+entry['title'].strip().replace('\n', ' ')+'* '
     if 'author' in entry:

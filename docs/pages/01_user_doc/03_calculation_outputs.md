@@ -28,7 +28,7 @@ energy in the equilibrium.
 Shift + Reference energy should equal the projected energy in equilibrium.
 
 **3 Walker Change**<br>
-TODO
+TODO asdf
 
 **4 Growth Rate**<br>
 TODO
