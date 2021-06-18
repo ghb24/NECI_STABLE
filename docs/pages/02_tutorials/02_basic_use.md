@@ -21,7 +21,7 @@ If you go to (e.g.) an (20, 20) CAS then FCIQMC outshines Davidson, which is not
 First, we must generate the FCIDUMP file which contains the information about 1- and 2-electron integrals.
 NECI is a solver for the CI-problem and *not* a standalone quantum chemistry suite, and cannot do this itself.
 For this, choose any program that can generate these (e.g. PySCF, Molpro, Molcas).
-This has been done for you, and you may download the file [here](FCIDUMP).
+This has been done for you, and you may download the file [here](|media|/N2_neci_files/FCIDUMP).
 
 @todo
 Perhaps also include the Molpro code to generate this FCIDUMP file?
