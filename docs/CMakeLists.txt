@@ -36,9 +36,9 @@ set(markdown_files_dev_doc
 )
 
 set(MEDIA_FILES
-        pages/02_tutorials/FCIDUMP
-        pages/02_tutorials/n2.mol
-        pages/02_tutorials/plot_fcimcstats.plt
+        media/N2_neci_files/FCIDUMP
+        media/N2_neci_files/n2.mol
+        media/N2_neci_files/plot_fcimcstats.plt
         media/plots1/blocking.png
         media/plots1/check_denominator.png
         media/plots1/check_numerator.png
@@ -83,6 +83,36 @@ function(get_unique_dirs paths result)
 endfunction()
 
 
+# add_custom_command(
+#     OUTPUT
+#         ${HTML_DOCUMENTATIONS}/preprocessed
+#     DEPENDS
+#         ${PYTHON_VENV}
+#         pages/index.md
+#         ${markdown_files_user_doc}
+#         ${markdown_files_tutorial}
+#         ${markdown_files_dev_doc}
+#         ${MEDIA_FILES}
+#     COMMAND
+#         ${CMAKE_COMMAND} -E make_directory ${HTML_DOCUMENTATIONS}/preprocessed # Create output directory
+#     COMMAND
+#         ${custom_Python3} ${PROJECT_SOURCE_DIR}/tools/prep  gen_docs.md --output_dir ${THIS_HTML_DOC} ${ford_options}
+#     COMMAND
+#         for dir in pages/01_user_doc  pages/02_tutorials  pages/03_dev_doc; do
+#             ~/code/neci/tools/preprocess_markdown.py --bibfile LaTeX_headers/literature.bib --out_dir ~/Desktop/${dir} --md_files ${dir}/**/*.md
+#         done
+#     WORKING_DIRECTORY
+#         ${PROJECT_SOURCE_DIR}/docs
+#     COMMENT
+#         "Generating FORD documentation."
+# )
+
+
+
+
+
+
+
 function(add_ford_documentation target configuration)
     # This function creates a target for the Ford documentation.
     # configuration can be one of neci;kneci;dneci;mneci;kdneci;kmneci
@@ -93,7 +123,8 @@ function(add_ford_documentation target configuration)
         message(FATAL_ERROR "${configuration} has to be contained in [${${PROJECT_NAME}_CONFIGURATIONS}]")
     endif()
 
-    set(HTML_DOCUMENTATIONS ${PROJECT_BINARY_DIR}/documentation/html/${configuration})
+    set(HTML_DOCUMENTATIONS ${PROJECT_BINARY_DIR}/documentation/html/)
+    set(THIS_HTML_DOC ${HTML_DOCUMENTATIONS}/${configuration})
     set(PYTHON_VENV ${PROJECT_BINARY_DIR}/venv)
 
     find_program(FORD ford ${PROJECT_SOURCE_DIR}/External/ford/ford.py REQUIRED)
@@ -109,7 +140,6 @@ function(add_ford_documentation target configuration)
             "Setting up virtual environment for ford."
     )
     set(custom_Python3 ${PYTHON_VENV}/bin/python3)
-
 
     get_absolute_sources(${configuration} prog_sources)
     get_absolute_sources(lib${configuration} lib_sources)
@@ -128,7 +158,7 @@ function(add_ford_documentation target configuration)
 
     add_custom_command(
         OUTPUT
-            ${HTML_DOCUMENTATIONS}/index.html
+            ${THIS_HTML_DOC}/index.html
         DEPENDS
             gen_docs.md
             ${PYTHON_VENV}
@@ -138,10 +168,12 @@ function(add_ford_documentation target configuration)
             ${markdown_files_dev_doc}
             ${MEDIA_FILES}
             ${fortran_sources}
+
+            ${HTML_DOCUMENTATIONS}/preprocessed
         COMMAND
-            ${CMAKE_COMMAND} -E make_directory ${HTML_DOCUMENTATIONS} # Create output directory
+            ${CMAKE_COMMAND} -E make_directory ${THIS_HTML_DOC} # Create output directory
         COMMAND
-            ${custom_Python3} ${FORD} gen_docs.md --output_dir ${HTML_DOCUMENTATIONS} ${ford_options}
+            ${custom_Python3} ${FORD} gen_docs.md --output_dir ${THIS_HTML_DOC} ${ford_options}
         WORKING_DIRECTORY
             ${PROJECT_SOURCE_DIR}/docs
         COMMENT
@@ -151,7 +183,7 @@ function(add_ford_documentation target configuration)
 
     add_custom_target(${target}
         DEPENDS
-            ${HTML_DOCUMENTATIONS}/index.html
+            ${THIS_HTML_DOC}/index.html
     )
     # We rely on preprocessed (fypp and custom templating) files by the normal build process.
     # Ford will run the "normal" C-preprocessor itself.

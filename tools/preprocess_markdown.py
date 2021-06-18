@@ -1,11 +1,13 @@
-# %%
+#!/usr/bin/env python3
+
+
 import bibtexparser
 from bibtexparser.bparser import BibTexParser
 from bibtexparser.customization import convert_to_unicode
+from pathlib import Path
+import argparse
 import re
 import sys
-
-# %%
 
 
 def ref_string(entry):
@@ -72,8 +74,6 @@ def preprocess_markdown_file(f, bib_database, reffile='', n=1, refs=''):
     break_yaml = '---'
     after_preamble = False
 
-    # n = 1
-    # refs = ''
     nfoot = 1
     to_end = ''
     line = f.readline()
@@ -98,20 +98,16 @@ def preprocess_markdown_file(f, bib_database, reffile='', n=1, refs=''):
     return processed_file, bib_database, refs, n
 
 
-# %%
+def driver(bibfile, md_files, out_dir):
+    outlitfile = out_dir / Path('{}.md'.format(bibfile.stem))
+    outlitfilehtml = out_dir / Path('{}.html'.format(bibfile.stem))
 
-if __name__ == "__main__":
-    bibfile = 'lit.bib'
-    outlitfile = 'literature.md'
-    outlitfilehtml = '.'.join(outlitfile.rsplit('.')[:-1])+'.html'
-    md_files = sys.argv[1:]
-
-    with open(bibfile) as bibtex_file:
+    with open(bibfile, 'r') as bibtex_file:
         parser = BibTexParser()
         parser.customization = convert_to_unicode
         bib_data = bibtexparser.load(bibtex_file, parser=parser)
 
-    # print(md_files)
+
     n = 1
     refs = ''
 
@@ -119,12 +115,23 @@ if __name__ == "__main__":
         with open(fname, 'r') as f:
             processed_lines, bib_data, refs, n = preprocess_markdown_file(
                 f, bib_data, reffile=outlitfilehtml, n=n, refs=refs)
-        with open(fname + "_parsed", 'w') as fp:  # TODO this is obviously a bad solution
+
+        with open(out_dir / fname.name, 'w') as fp:
             for l in processed_lines:
                 fp.write(l)
 
-    # NOTE I am overwriting the file if it's already there!
     with open(outlitfile, 'w') as outfile:
         outfile.write('title: References\n')
         outfile.write('---')
         outfile.write(refs)
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--bibfile', type=Path, help='The BibTex File', required=True)
+    parser.add_argument('--out_dir', type=Path, help='The Output directory', required=True)
+    parser.add_argument('--md_files', type=Path, help='The BibTex File', nargs='+', required=True)
+
+    args = parser.parse_args()
+
+    driver(args.bibfile, args.md_files, args.out_dir)

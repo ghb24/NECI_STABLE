@@ -6,7 +6,6 @@ include: ../src
          ../src/lib
 parallel: 4
 media_dir: media
-page_dir: pages
 dbg: false
 warn: false
 display: private
