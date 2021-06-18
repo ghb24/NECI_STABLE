@@ -6,9 +6,15 @@ author: Philip Haupt
 
 # Basic NECI Tutorial
 
-FCIQMC is not a blackbox method and as such may be daunting to first approach. In addition, there are many variants which excel in different kinds of problems. NECI has tools to make working with FCIQMC an easier task. While NECI is written predominantly in Fortran, in order to use it you need not know any programming language. In this tutorial, we assume an at least elementary understanding on the FCIQMC algorithm.[^fciqmc]
+FCIQMC is not a blackbox method and as such may be daunting to first approach.
+In addition, there are many variants which excel in different kinds of problems.
+NECI has tools to make working with FCIQMC an easier task.
+While NECI is written predominantly in Fortran, in order to use it you need not know any programming language.
+In this tutorial, we assume an at least elementary understanding on the FCIQMC algorithm.[@Booth2009]
 
-The goal of this tutorial is to provide a practical, brief supplement to the full [NECI user's guide](../01_neci_user.html). We will use NECI to calculate the ground-state energy of the Nitrogen dimer in a (6,6) active space. We use the equilibrium geometry, 2.074 bohr radii.
+The goal of this tutorial is to provide a practical, brief supplement to the full [NECI user's guide](../01_neci_user.html).
+We will use NECI to calculate the ground-state energy of the Nitrogen dimer in a (6,6) active space.
+We use the equilibrium geometry, 2.074 bohr radii.
 
 @note
 For this problem, FCIQMC will actually underperform compared to conventional Davidson CI.
@@ -88,7 +94,7 @@ All these keywords (and plenty more) are explained in the [NECI user's guide](..
     - We also specify a seed with the `seed` keyword. FCIQMC is a randomised algorithm, and setting the seed simply ensures we get the same result every time (useful for testing or checking stochastic effects, for example). This keyword is optional.
     - We also must include the `totalWalkers` keyword, followed by the target number of walkers. Once this number is reached, NECI will enter variable-shift mode; that is, the shift will vary so as to keep the number of walkers constant. We wish to have a statistically significant number of iterations where the number of walkers is roughly constant, as we will see. In this case, we have `totalWalkers 50000`.
     - We must also include `tau` which is the size of the time step per iteration. The additional keyword `search` is optional but useful for stability.
-    - Another form of FCIQMC is i-FCIQMC, which uses "initiator" walkers to speed up the calculation.[^initiator] This is optional, but generally recommended. Presence of the `truncinitiator` keyword in the `calc` block indicates i-FCIQMC, and `addToInitiator 3` means that any determinant with a population >= 3 will become an initiator.
+    - Another form of FCIQMC is i-FCIQMC, which uses "initiator" walkers to speed up the calculation.[@Cleland2010] This is optional, but generally recommended. Presence of the `truncinitiator` keyword in the `calc` block indicates i-FCIQMC, and `addToInitiator 3` means that any determinant with a population >= 3 will become an initiator.
     - Finally, as a mandatory subblock *inside* the calc block, we have the `methods` subblock, which necessarily ends with `endmethods`. Here, we simply specify what kind of calculation to do. We choose `method vertex fcimc`, which simply means to run an FCIQMC calculation.
 - Finally, we have an *optional* `logging` block which ends with `endlog`. By default, NECI will keep track of the population of walkers in a "POPSFILE", which is by default ASCII. Here, we wish to have an HDF5 POPSFILE which is generally better-performing. To do this, inside the `logging` block we have the `hdf5-pops` keyword.
 
@@ -159,7 +165,7 @@ The file `FCIMCStats` has several useful columns which you will want to plot to 
 
 Plot (1) is the most immediately useful plot, as it gives you a quick estimate of the total energy from the calculation (namely, you can see we have around 108.98 Hartree). For all of these, we expect variable behaviour until the total walkers (plot (2)) reaches the target total walkers (as per out input file, 50000 in this case). Then, we want all six of these plots to roughly plateau, as they all do above. Furthermore, FCIQMC has a built-in consistency check whereby the energy can be calculated in two independent ways: namely, by the shift (which is only updated once the target number of walkers is reached) and the projected energy. These are plotted on top of each other in plot (4). As we see, they agree once we have run for a long enough time.
 
-Once we are confident that all these plots exhibit plateaus for sufficiently large step numbers, we proceed with an error analysis. However, since FCIQMC calculations generally have correlated data, we cannot use standard error analysis, and here we use blocking analysis.[^blocking] A script to do blocking analysis is included in the NECI repository: `path/to/neci/utils/blocking.py`.
+Once we are confident that all these plots exhibit plateaus for sufficiently large step numbers, we proceed with an error analysis. However, since FCIQMC calculations generally have correlated data, we cannot use standard error analysis, and here we use blocking analysis.[@Flyvbjerg1989] A script to do blocking analysis is included in the NECI repository: `path/to/neci/utils/blocking.py`.
 
 @todo
 The blocking script is still written in Python2, and IMO should be updated to Python3 (which should be easy to do with `2to3`).
@@ -242,6 +248,3 @@ Once you have done that, you may be much more confident about your calculated co
 
 Congratulations!
 
-[^fciqmc]: Booth, G. H., Thom, A. J. W. & Alavi, A. Fermion monte carlo without fixed nodes: A game of life, death, and annihilation in Slater determinant space. J. Chem. Phys. 131, 054106 (2009).
-[^initiator]: D. Cleland, G.H. Booth, A. Alavi, J. Chem. Phys. 132, 041103 (2010)
-[^blocking]: H. Flyvbjerg and H. G. Petersen, “Error estimates on averages of correlated data,” J. Chem. Phys. 91, 461–466 (1989).

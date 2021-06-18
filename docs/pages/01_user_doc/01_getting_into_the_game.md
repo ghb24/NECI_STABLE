@@ -18,8 +18,7 @@ You will receive an invitation email. Please accept this invitation, and
 create a bitbucket account as prompted if necessary.
 
 To gain access to the NECI repository, an ssh key is required. This can
-be generated on any linux machine using the command\footnote{asdfasdf}
-[@dijkstra1959note]
+be generated on any linux machine using the command
 
 ```bash
 ssh-keygen -t rsa -b 2048

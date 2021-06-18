@@ -136,6 +136,7 @@ function(add_ford_documentation target configuration)
             ${PROJECT_SOURCE_DIR}/tools/doc_compilation/process_markdown_for_ford.py
             pages/index.md
             ${markdown_files}
+            LaTeX_headers/literature.bib
         COMMAND
             ${CMAKE_COMMAND} -E make_directory ${FORD_PAGES}
         COMMAND
