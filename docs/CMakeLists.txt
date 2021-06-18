@@ -120,15 +120,22 @@ function(add_ford_documentation target configuration)
 
     set(FORD_PAGES ${PROJECT_BINARY_DIR}/documentation/pages/${configuration}/)
 
+    foreach(file ${markdown_files})
+        get_filename_component(dir ${file} DIRECTORY)
+        get_filename_component(dir ${dir} NAME)
+        get_filename_component(name ${file} NAME)
+        list(APPEND processed_files "${FORD_PAGES}/${dir}/${name}")
+    endforeach()
+
 
     add_custom_command(
         OUTPUT
-            ${FORD_PAGES}
+            ${processed_files}
         DEPENDS
             ${PYTHON_VENV}
             ${PROJECT_SOURCE_DIR}/tools/doc_compilation/process_markdown_for_ford.py
             pages/index.md
-            ${markdown_dirs}
+            ${markdown_files}
         COMMAND
             ${CMAKE_COMMAND} -E make_directory ${FORD_PAGES}
         COMMAND
@@ -142,7 +149,7 @@ function(add_ford_documentation target configuration)
         WORKING_DIRECTORY
             ${PROJECT_SOURCE_DIR}/docs
         COMMENT
-            "Generating FORD documentation."
+            "Preprocessing for Ford."
     )
 
 
@@ -169,7 +176,8 @@ function(add_ford_documentation target configuration)
             ${PYTHON_VENV}
             ${MEDIA_FILES}
             ${fortran_sources}
-            ${FORD_PAGES}
+            ${processed_files}
+            ${markdown_files}
         COMMAND
             ${CMAKE_COMMAND} -E make_directory ${THIS_HTML_DOC} # Create output directory
         COMMAND
