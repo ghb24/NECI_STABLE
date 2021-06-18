@@ -100,9 +100,7 @@ def preprocess_markdown_file(f, bib_database, reffile='', n=1, refs=''):
 
 def process_dir(bibfile, md_files, out_dir, build_dir):
     outlitfile = out_dir / Path('{}.md'.format(bibfile.stem))
-
     outlitfilehtml = build_dir / Path('page') / Path(out_dir.name) / Path('{}.html'.format(bibfile.stem))
-    print(outlitfilehtml)
 
     out_dir.mkdir(parents=True, exist_ok=True)
 
@@ -134,7 +132,6 @@ def process_dir(bibfile, md_files, out_dir, build_dir):
 def driver(bibfile, md_dirs, out_dir, build_dir):
     for dir in md_dirs:
         process_dir(bibfile, dir.glob('*.md'), out_dir / Path(dir.name), build_dir)
-#          print(list(dir.glob('*.md')))
 
 
 

@@ -2533,5 +2533,3 @@ two datasets called `values` and `indices`, containing the values of the
 non-zero 6-index integrals and their indices. The `indices` dataset has
 to be of 6 times the size than the `values` dataset, each group of 6
 indices is attributed to one value (in storage order).
-
-{!pages/literature.md!}
