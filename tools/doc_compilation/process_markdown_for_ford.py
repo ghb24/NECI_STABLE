@@ -15,14 +15,20 @@ def ref_string(entry):
     takes bibtexparser entry and pretty prints it
     """
     to_print = ''
+    print(entry)
     if 'title' in entry:
         to_print += '*'+entry['title'].strip().replace('\n', ' ')+'* '
     if 'author' in entry:
-        to_print += entry['author'].strip().replace(' and ', ', ')+' '
-    if 'journal' in entry:
-        to_print += entry['journal'].strip() + ' -- '
+        to_print += entry['author'].strip().replace(' and ', ', ')+'; '
+    if 'journal' or 'journaltitle' in entry:
+        if 'journal' in entry:
+            to_print += entry['journal'].strip() + ' -- '
+        elif 'journaltitle' in entry:
+            to_print += entry['journaltitle'].strip() + ' -- '
         if 'year' in entry:
             to_print += '(' + entry['year'] + ') '
+        elif 'date' in entry:
+            to_print += '(' + entry['date'].split('-')[0] + ') '
         if 'volume' in entry:
             to_print += entry['volume']+' '
         if 'pages' in entry:
