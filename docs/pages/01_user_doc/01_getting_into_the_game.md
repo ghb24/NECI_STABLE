@@ -18,7 +18,7 @@ You will receive an invitation email. Please accept this invitation, and
 create a bitbucket account as prompted if necessary.
 
 To gain access to the NECI repository, an ssh key is required. This can
-be generated on any linux machine using the command
+be generated on any linux machine using the command\footnote{`ssh-keygen` can also generate DSA keys. Some ssh clients and servers will reject DSA keys longer than 1024 bits, and 1024 bits is	currently on the margin of being crackable. As such 2048 bit RSA keys are preferred. Top secret this code is. Probably. Apart from the master branch which hosted for all on github. And in molpro.	And anyone that wants it obviously.}
 
 ```bash
 ssh-keygen -t rsa -b 2048
