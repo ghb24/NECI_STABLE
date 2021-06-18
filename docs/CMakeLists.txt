@@ -68,50 +68,40 @@ endfunction()
 
 function(get_unique_dirs paths result)
     # This function returns a unique list of all directories in paths.
-    # paths have to be absolute.
+    #
+    # A/file1.txt A/file2.txt B/file1.txt -> A/ B/
     foreach(path ${${paths}})
-        if(IS_ABSOLUTE ${path})
-            get_filename_component(dir ${path} DIRECTORY)
+        get_filename_component(dir ${path} DIRECTORY)
+        if (NOT "${dir}" STREQUAL "")
             if (NOT ${dir} IN_LIST ${result})
                 list(APPEND ${result} ${dir})
             endif()
-        else()
-            message(FATAL_ERROR "Non absolute path passed to `get_unique_dirs`")
         endif()
     endforeach()
     set(${result} ${${result}} PARENT_SCOPE)
 endfunction()
 
 
-# add_custom_command(
-#     OUTPUT
-#         ${HTML_DOCUMENTATIONS}/preprocessed
-#     DEPENDS
-#         ${PYTHON_VENV}
-#         pages/index.md
-#         ${markdown_files_user_doc}
-#         ${markdown_files_tutorial}
-#         ${markdown_files_dev_doc}
-#         ${MEDIA_FILES}
-#     COMMAND
-#         ${CMAKE_COMMAND} -E make_directory ${HTML_DOCUMENTATIONS}/preprocessed # Create output directory
-#     COMMAND
-#         ${custom_Python3} ${PROJECT_SOURCE_DIR}/tools/prep  gen_docs.md --output_dir ${THIS_HTML_DOC} ${ford_options}
-#     COMMAND
-#         for dir in pages/01_user_doc  pages/02_tutorials  pages/03_dev_doc; do
-#             ~/code/neci/tools/preprocess_markdown.py --bibfile LaTeX_headers/literature.bib --out_dir ~/Desktop/${dir} --md_files ${dir}/**/*.md
-#         done
-#     WORKING_DIRECTORY
-#         ${PROJECT_SOURCE_DIR}/docs
-#     COMMENT
-#         "Generating FORD documentation."
-# )
+set(PYTHON_VENV ${PROJECT_BINARY_DIR}/venv)
+add_custom_command(
+    OUTPUT
+        ${PYTHON_VENV}
+    COMMAND
+        ${Python3_EXECUTABLE} -m venv ${PYTHON_VENV}
+    COMMAND
+        ${PYTHON_VENV}/bin/pip3 install ${PROJECT_SOURCE_DIR}/External/ford/
+    COMMAND
+        ${PYTHON_VENV}/bin/pip3 install bibtexparser
+    COMMENT
+        "Setting up virtual environment for ford."
+)
+set(custom_Python3 ${PYTHON_VENV}/bin/python3)
 
 
+set(HTML_DOCUMENTATIONS ${PROJECT_BINARY_DIR}/documentation/html)
 
-
-
-
+set(markdown_files ${markdown_files_user_doc} ${markdown_files_tutorial} ${markdown_files_dev_doc})
+get_unique_dirs(markdown_files markdown_dirs)
 
 function(add_ford_documentation target configuration)
     # This function creates a target for the Ford documentation.
@@ -123,23 +113,38 @@ function(add_ford_documentation target configuration)
         message(FATAL_ERROR "${configuration} has to be contained in [${${PROJECT_NAME}_CONFIGURATIONS}]")
     endif()
 
-    set(HTML_DOCUMENTATIONS ${PROJECT_BINARY_DIR}/documentation/html/)
     set(THIS_HTML_DOC ${HTML_DOCUMENTATIONS}/${configuration})
-    set(PYTHON_VENV ${PROJECT_BINARY_DIR}/venv)
 
     find_program(FORD ford ${PROJECT_SOURCE_DIR}/External/ford/ford.py REQUIRED)
     # We want to install the custom ford into a virtual environment for the build process
+
+    set(FORD_PAGES ${PROJECT_BINARY_DIR}/documentation/pages/${configuration}/)
+
+
     add_custom_command(
         OUTPUT
+            ${FORD_PAGES}
+        DEPENDS
             ${PYTHON_VENV}
+            ${PROJECT_SOURCE_DIR}/tools/doc_compilation/process_markdown_for_ford.py
+            pages/index.md
+            ${markdown_dirs}
         COMMAND
-            ${Python3_EXECUTABLE} -m venv ${PYTHON_VENV}
+            ${CMAKE_COMMAND} -E make_directory ${FORD_PAGES}
         COMMAND
-            ${PYTHON_VENV}/bin/pip3 install ${PROJECT_SOURCE_DIR}/External/ford/
+            cp pages/index.md ${FORD_PAGES}
+        COMMAND
+            ${custom_Python3} ${PROJECT_SOURCE_DIR}/tools/doc_compilation/process_markdown_for_ford.py
+                        --bibfile LaTeX_headers/literature.bib
+                        --out_dir ${FORD_PAGES}
+                        --md_dirs ${markdown_dirs}
+                        --build_dir ${THIS_HTML_DOC}
+        WORKING_DIRECTORY
+            ${PROJECT_SOURCE_DIR}/docs
         COMMENT
-            "Setting up virtual environment for ford."
+            "Generating FORD documentation."
     )
-    set(custom_Python3 ${PYTHON_VENV}/bin/python3)
+
 
     get_absolute_sources(${configuration} prog_sources)
     get_absolute_sources(lib${configuration} lib_sources)
@@ -162,18 +167,13 @@ function(add_ford_documentation target configuration)
         DEPENDS
             gen_docs.md
             ${PYTHON_VENV}
-            pages/index.md
-            ${markdown_files_user_doc}
-            ${markdown_files_tutorial}
-            ${markdown_files_dev_doc}
             ${MEDIA_FILES}
             ${fortran_sources}
-
-            ${HTML_DOCUMENTATIONS}/preprocessed
+            ${FORD_PAGES}
         COMMAND
             ${CMAKE_COMMAND} -E make_directory ${THIS_HTML_DOC} # Create output directory
         COMMAND
-            ${custom_Python3} ${FORD} gen_docs.md --output_dir ${THIS_HTML_DOC} ${ford_options}
+            ${custom_Python3} ${FORD} gen_docs.md --output_dir ${THIS_HTML_DOC} ${ford_options} --page_dir ${FORD_PAGES}
         WORKING_DIRECTORY
             ${PROJECT_SOURCE_DIR}/docs
         COMMENT
@@ -239,7 +239,7 @@ if (PANDOC AND PANDOC_CITEPROC)
             OUTPUT
                 ${PDF_DOCUMENTATIONS}/${out_name}
             DEPENDS
-                ${PROJECT_SOURCE_DIR}/tools/create_pdf_doc.py
+                ${PROJECT_SOURCE_DIR}/tools/doc_compilation/process_markdown_for_pdf.py
                 LaTeX_headers/packages_to_include.tex
                 ${${markdown_files}}
             COMMAND
@@ -247,7 +247,7 @@ if (PANDOC AND PANDOC_CITEPROC)
             COMMAND
                 # the output of cat depends on the order in the lists!
                 cat ${${markdown_files}}
-                | ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/tools/create_pdf_doc.py
+                | ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/tools/doc_compilation/process_markdown_for_pdf.py
                 | ${PANDOC} ${pandoc_options} -o ${PDF_DOCUMENTATIONS}/${out_name} -
             WORKING_DIRECTORY
                 ${PROJECT_SOURCE_DIR}/docs/

@@ -98,9 +98,14 @@ def preprocess_markdown_file(f, bib_database, reffile='', n=1, refs=''):
     return processed_file, bib_database, refs, n
 
 
-def driver(bibfile, md_files, out_dir):
+def process_dir(bibfile, md_files, out_dir, build_dir):
     outlitfile = out_dir / Path('{}.md'.format(bibfile.stem))
-    outlitfilehtml = out_dir / Path('{}.html'.format(bibfile.stem))
+
+    outlitfilehtml = build_dir / Path('page') / Path(out_dir.name) / Path('{}.html'.format(bibfile.stem))
+    print(outlitfilehtml)
+
+    out_dir.mkdir(parents=True, exist_ok=True)
+
 
     with open(bibfile, 'r') as bibtex_file:
         parser = BibTexParser()
@@ -126,12 +131,20 @@ def driver(bibfile, md_files, out_dir):
         outfile.write(refs)
 
 
+def driver(bibfile, md_dirs, out_dir, build_dir):
+    for dir in md_dirs:
+        process_dir(bibfile, dir.glob('*.md'), out_dir / Path(dir.name), build_dir)
+#          print(list(dir.glob('*.md')))
+
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--bibfile', type=Path, help='The BibTex File', required=True)
     parser.add_argument('--out_dir', type=Path, help='The Output directory', required=True)
-    parser.add_argument('--md_files', type=Path, help='The BibTex File', nargs='+', required=True)
+    parser.add_argument('--md_dirs', type=Path, help='The directories with md files', nargs='+', required=True)
+    parser.add_argument('--build_dir', type=Path, help='The directory where the documentation is built.', required=True)
 
     args = parser.parse_args()
 
-    driver(args.bibfile, args.md_files, args.out_dir)
+    driver(args.bibfile, args.md_dirs, args.out_dir, args.build_dir)
