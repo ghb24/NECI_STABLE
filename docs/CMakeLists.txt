@@ -97,21 +97,13 @@ endif()
 find_package(Python3 REQUIRED)
 set(PYTHON_VENV ${PROJECT_BINARY_DIR}/venv)
 set(custom_Python3 ${PYTHON_VENV}/bin/python3)
-
 add_custom_command(
     OUTPUT
         ${PYTHON_VENV}
     COMMAND
         ${Python3_EXECUTABLE} -m venv ${PYTHON_VENV}
-# We want to install the custom ford into a virtual environment for the build process
-# We want our custom ford because of tailored changes!
-# Do not look for a preinstalled ford, or at least make sure it works!
-    COMMAND
-        ${PYTHON_VENV}/bin/pip3 install ${PROJECT_SOURCE_DIR}/External/ford/
-    COMMAND
-        ${PYTHON_VENV}/bin/pip3 install bibtexparser
     COMMENT
-        "Setting up virtual environment for ford."
+        "Setting up virtual python environment."
 )
 
 
@@ -154,6 +146,8 @@ function(add_ford_documentation target configuration)
         COMMAND
             ${CMAKE_COMMAND} -E make_directory ${FORD_PAGES}
         COMMAND
+            ${custom_Python3} -m pip install bibtexparser
+        COMMAND
             cp pages/index.md ${FORD_PAGES}
         COMMAND
             ${custom_Python3} ${PROJECT_SOURCE_DIR}/tools/doc_compilation/process_markdown_for_ford.py
@@ -193,6 +187,11 @@ function(add_ford_documentation target configuration)
             ${fortran_sources}
             ${processed_files}
             ${markdown_files}
+        # We want to install the custom ford into a virtual environment for the build process
+        # We want our custom ford because of tailored changes!
+        # Do not look for a preinstalled ford, or at least make sure it works!
+        COMMAND
+            ${custom_Python3} -m pip install ${PROJECT_SOURCE_DIR}/External/ford/
         COMMAND
             ${CMAKE_COMMAND} -E make_directory ${THIS_HTML_DOC} # Create output directory
         COMMAND
