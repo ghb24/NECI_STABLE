@@ -75,6 +75,7 @@ def replace_footnotes(line, n=1, to_end=''):
 
 
 def preprocess_markdown_file(f, bib_database, reffile='', n=1, refs=''):
+    # TODO: processed_file could become a generator returning lines.
     processed_file = []
     break_yaml = '---'
     after_preamble = False
@@ -120,11 +121,13 @@ def process_dir(bibfile, md_files, out_dir, build_dir):
     refs = ''
 
     for fname in md_files:
-        with open(fname, 'r') as f:
+        if fname.resolve() == (out_dir / fname.name).resolve():
+            raise ValueError("Script would overwrite the input. Choose different out_dir.")
+
+        with open(fname, 'r') as f, open(out_dir / fname.name, 'w') as fp:
             processed_lines, bib_data, refs, n = preprocess_markdown_file(
                 f, bib_data, reffile=outlitfilehtml, n=n, refs=refs)
 
-        with open(out_dir / fname.name, 'w') as fp:
             for l in processed_lines:
                 fp.write(l)
 
