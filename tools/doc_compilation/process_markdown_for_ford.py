@@ -110,7 +110,6 @@ def process_dir(bibfile, md_files, out_dir, build_dir):
 
     out_dir.mkdir(parents=True, exist_ok=True)
 
-
     with open(bibfile, 'r') as bibtex_file:
         parser = BibTexParser()
         parser.customization = convert_to_unicode
@@ -119,7 +118,6 @@ def process_dir(bibfile, md_files, out_dir, build_dir):
 
     n = 1
     refs = ''
-
     for fname in md_files:
         if fname.resolve() == (out_dir / fname.name).resolve():
             raise ValueError("Script would overwrite the input. Choose different out_dir.")
@@ -139,7 +137,7 @@ def process_dir(bibfile, md_files, out_dir, build_dir):
 
 def driver(bibfile, md_dirs, out_dir, build_dir):
     for dir in md_dirs:
-        process_dir(bibfile, dir.glob('*.md'), out_dir / Path(dir.name), build_dir)
+        process_dir(bibfile, sorted(dir.glob('*.md')), out_dir / Path(dir.name), build_dir)
 
 
 
@@ -148,7 +146,7 @@ if __name__ == "__main__":
     parser.add_argument('--bibfile', type=Path, help='The BibTex File', required=True)
     parser.add_argument('--out_dir', type=Path, help='The Output directory', required=True)
     parser.add_argument('--md_dirs', type=Path, help='The directories with md files', nargs='+', required=True)
-    parser.add_argument('--build_dir', type=Path, help='The directory where the documentation is built.', required=True)
+    parser.add_argument('--build_dir', type=Path, help='The directory where html files of the final documentation reside.', required=True)
 
     args = parser.parse_args()
 

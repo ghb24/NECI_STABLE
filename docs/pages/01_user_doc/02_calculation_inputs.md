@@ -210,7 +210,7 @@ considered. The block starts with the `system` keyword and ends with the
 
 -   **GAS-SPEC**<br>
     Perform a *Generalized Active Spaces* (GAS) calculation and specify
-    the GAS spaces. It is possible to select the actual implementation
+    the GAS spaces.[@Weser2021] It is possible to select the actual implementation
     with the `GAS-CI` keyword. It is possible to use *local* or
     *cumulative* constraints on the particle number. Local constraints
     define the minimum and maximum particle number per GAS space.

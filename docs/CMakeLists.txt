@@ -49,8 +49,6 @@ set(MEDIA_FILES
         media/plots2/blocking.png
 )
 
-find_package(Python3 REQUIRED)
-
 function(get_absolute_sources target result)
     # This function returns the source files of a given target as absolute paths.
     get_target_property(rel_source_files ${target} SOURCES)
@@ -82,6 +80,8 @@ function(get_unique_dirs paths result)
 endfunction()
 
 
+find_package(Python3 REQUIRED)
+
 set(PYTHON_VENV ${PROJECT_BINARY_DIR}/venv)
 add_custom_command(
     OUTPUT
@@ -98,11 +98,6 @@ add_custom_command(
 set(custom_Python3 ${PYTHON_VENV}/bin/python3)
 
 
-set(HTML_DOCUMENTATIONS ${PROJECT_BINARY_DIR}/documentation/html)
-
-set(markdown_files ${markdown_files_user_doc} ${markdown_files_tutorial} ${markdown_files_dev_doc})
-get_unique_dirs(markdown_files markdown_dirs)
-
 function(add_ford_documentation target configuration)
     # This function creates a target for the Ford documentation.
     # configuration can be one of neci;kneci;dneci;mneci;kdneci;kmneci
@@ -113,12 +108,15 @@ function(add_ford_documentation target configuration)
         message(FATAL_ERROR "${configuration} has to be contained in [${${PROJECT_NAME}_CONFIGURATIONS}]")
     endif()
 
-    set(THIS_HTML_DOC ${HTML_DOCUMENTATIONS}/${configuration})
+    set(THIS_HTML_DOC ${PROJECT_BINARY_DIR}/documentation/html/${configuration})
 
     find_program(FORD ford ${PROJECT_SOURCE_DIR}/External/ford/ford.py REQUIRED)
     # We want to install the custom ford into a virtual environment for the build process
 
-    set(FORD_PAGES ${PROJECT_BINARY_DIR}/documentation/pages/${configuration}/)
+    set(FORD_PAGES ${PROJECT_BINARY_DIR}/documentation/ford_pages/${configuration}/)
+
+    set(markdown_files ${markdown_files_user_doc} ${markdown_files_tutorial} ${markdown_files_dev_doc})
+    get_unique_dirs(markdown_files markdown_dirs)
 
     foreach(file ${markdown_files})
         get_filename_component(dir ${file} DIRECTORY)
@@ -226,38 +224,43 @@ endif()
 
 
 find_program(PANDOC pandoc)
-find_program(PANDOC_CITEPROC pandoc-citeproc)
-if (PANDOC AND PANDOC_CITEPROC)
+find_package(LATEX COMPONENTS PDFLATEX BIBER REQUIRED)
+find_program(LATEXMK latexmk)
+if (PANDOC AND LATEX_FOUND AND LATEXMK)
     # The PDF documentation is independent of possible configurations (neci, dneci etc.).
     set(PDF_DOCUMENTATIONS ${PROJECT_BINARY_DIR}/documentation/pdf/)
+    set(TEX_FILES ${PROJECT_BINARY_DIR}/documentation/tex/)
     set(pandoc_options
-            --listings
             --include-in-header LaTeX_headers/packages_to_include.tex
-            --bibliography LaTeX_headers/literature.bib
             -V geometry:margin=3cm
             -V geometry:a4paper
             -V fontsize=18pt
             -V numbersections=true
+            --listings
+            --biblatex
+            -V biblio-title=Bibliography
+            --bibliography ${PROJECT_SOURCE_DIR}/docs/LaTeX_headers/literature.bib
             --toc
             -f markdown-tex_math_dollars+tex_math_single_backslash
     )
 
 
-    function(add_pdf_command markdown_files out_name comment)
+    function(add_tex_command markdown_files out_name comment)
+        get_filename_component(out_dir ${out_name} DIRECTORY)
         add_custom_command(
             OUTPUT
-                ${PDF_DOCUMENTATIONS}/${out_name}
+                ${out_name}
             DEPENDS
                 ${PROJECT_SOURCE_DIR}/tools/doc_compilation/process_markdown_for_pdf.py
-                LaTeX_headers/packages_to_include.tex
+                ${PROJECT_SOURCE_DIR}/docs/LaTeX_headers/packages_to_include.tex
                 ${${markdown_files}}
             COMMAND
-                ${CMAKE_COMMAND} -E make_directory ${PDF_DOCUMENTATIONS} # Create output directory
+                ${CMAKE_COMMAND} -E make_directory ${out_dir} # Create output directory
             COMMAND
                 # the output of cat depends on the order in the lists!
                 cat ${${markdown_files}}
-                | ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/tools/doc_compilation/process_markdown_for_pdf.py
-                | ${PANDOC} ${pandoc_options} -o ${PDF_DOCUMENTATIONS}/${out_name} -
+                    | ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/tools/doc_compilation/process_markdown_for_pdf.py
+                    | ${PANDOC} ${pandoc_options} -o ${out_name} -
             WORKING_DIRECTORY
                 ${PROJECT_SOURCE_DIR}/docs/
             COMMENT
@@ -265,8 +268,37 @@ if (PANDOC AND PANDOC_CITEPROC)
         )
     endfunction()
 
-    add_pdf_command(markdown_files_user_doc neci_user.pdf "Generating user PDF documentation." )
-    add_pdf_command(markdown_files_dev_doc neci_dev.pdf "Generating developer PDF documentation." )
+    function(add_pdf_command tex_file pdf_file comment)
+        get_filename_component(tex_dir ${tex_file} DIRECTORY)
+        get_filename_component(tex_stem ${tex_file} NAME_WE)
+        get_filename_component(out_dir ${pdf_file} DIRECTORY)
+        add_custom_command(
+            OUTPUT
+                ${pdf_file}
+            DEPENDS
+                ${tex_file}
+                ${PROJECT_SOURCE_DIR}/docs/LaTeX_headers/packages_to_include.tex
+                ${PROJECT_SOURCE_DIR}/docs/LaTeX_headers/literature.bib
+            COMMAND
+                ${CMAKE_COMMAND} -E make_directory ${out_dir} # Create output directory
+            COMMAND
+                ${LATEXMK} -view=pdf ${tex_file}
+            COMMAND
+                cp ${tex_stem}.pdf ${pdf_file}
+            WORKING_DIRECTORY
+                ${tex_dir}
+            COMMENT
+                ${comment}
+        )
+    endfunction()
+
+
+    add_tex_command(markdown_files_user_doc ${TEX_FILES}/neci_user.tex "Generating user documentation tex file." )
+    add_pdf_command(${TEX_FILES}/neci_user.tex ${PDF_DOCUMENTATIONS}/neci_user.pdf "Generating user pdf documentation.")
+    add_tex_command(markdown_files_dev_doc ${TEX_FILES}/neci_dev.tex "Generating developer documentation tex file." )
+    add_pdf_command(${TEX_FILES}/neci_dev.tex ${PDF_DOCUMENTATIONS}/neci_dev.pdf "Generating developer pdf documentation.")
+
+#     add_latex_document(${PDF_DOCUMENTATIONS}/neci_dev.tex BIBFILE ${PROJECT_SOURCE_DIR}/docs/LaTeX_headers/literature.bib)
 
     add_custom_target(doc_pdf
         DEPENDS
