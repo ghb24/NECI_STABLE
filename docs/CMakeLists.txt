@@ -95,9 +95,9 @@ endif()
 
 
 find_package(Python3 REQUIRED)
+set(PYTHON_VENV ${PROJECT_BINARY_DIR}/venv)
 set(custom_Python3 ${PYTHON_VENV}/bin/python3)
 
-set(PYTHON_VENV ${PROJECT_BINARY_DIR}/venv)
 add_custom_command(
     OUTPUT
         ${PYTHON_VENV}
@@ -189,7 +189,6 @@ function(add_ford_documentation target configuration)
         DEPENDS
             gen_docs.md
             ${PYTHON_VENV}
-            ${custom_Python3}
             ${MEDIA_FILES}
             ${fortran_sources}
             ${processed_files}
@@ -289,7 +288,7 @@ if (PANDOC AND LATEX_FOUND AND LATEXMK)
             COMMAND
                 ${CMAKE_COMMAND} -E make_directory ${out_dir} # Create output directory
             COMMAND
-                ${LATEXMK} -view=pdf ${tex_file}
+                ${LATEXMK} -view=pdf ${tex_file} 1> /dev/null
             COMMAND
                 cp ${tex_stem}.pdf ${pdf_file}
             WORKING_DIRECTORY
