@@ -232,14 +232,18 @@ if (PANDOC AND LATEX_FOUND AND LATEXMK)
     set(TEX_FILES ${PROJECT_BINARY_DIR}/documentation/tex/)
     set(pandoc_options
             --include-in-header LaTeX_headers/packages_to_include.tex
+            --standalone
             -V geometry:margin=3cm
             -V geometry:a4paper
             -V fontsize=18pt
             -V numbersections=true
             --listings
             --biblatex
-            -V biblio-title=Bibliography
-            --bibliography ${PROJECT_SOURCE_DIR}/docs/LaTeX_headers/literature.bib
+                -V biblatexoptions:doi=true
+                -V biblatexoptions:isbn=false
+                -V biblatexoptions:url=false
+                -V biblio-title=Bibliography
+                --bibliography ${PROJECT_SOURCE_DIR}/docs/LaTeX_headers/literature.bib
             --toc
             -f markdown-tex_math_dollars+tex_math_single_backslash
     )
@@ -297,8 +301,6 @@ if (PANDOC AND LATEX_FOUND AND LATEXMK)
     add_pdf_command(${TEX_FILES}/neci_user.tex ${PDF_DOCUMENTATIONS}/neci_user.pdf "Generating user pdf documentation.")
     add_tex_command(markdown_files_dev_doc ${TEX_FILES}/neci_dev.tex "Generating developer documentation tex file." )
     add_pdf_command(${TEX_FILES}/neci_dev.tex ${PDF_DOCUMENTATIONS}/neci_dev.pdf "Generating developer pdf documentation.")
-
-#     add_latex_document(${PDF_DOCUMENTATIONS}/neci_dev.tex BIBFILE ${PROJECT_SOURCE_DIR}/docs/LaTeX_headers/literature.bib)
 
     add_custom_target(doc_pdf
         DEPENDS
