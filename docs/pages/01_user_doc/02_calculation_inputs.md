@@ -182,7 +182,7 @@ considered. The block starts with the `system` keyword and ends with the
         negligible memory cost.
 
     -   **pcpp**<br>
-        The pre-computed power-pitzer excitation generator [^powerpitzer]. Has low
+        The pre-computed power-pitzer excitation generator [@Neufeld2019]. Has low
         memory cost and scales only mildly with system size, and can
         thus be used for large systems.
 
@@ -614,7 +614,7 @@ and ends with the `endcalc` keyword.
 #### Initiator options
 
 -   **<span style="color: blue">truncInitiator</span>**<br>
- Use the initiator method [^initiator].
+ Use the initiator method [@Cleland2010].
 
 -   **<span style="color: blue">addToInitiator \(x\)</span>**<br>
  Sets the initiator threshold to \(x\), so any determinant
@@ -1001,7 +1001,7 @@ terminated with the `endint` keyword.
 
 ### KP-FCIQMC Block
 
-This block enables the Krylov-projected FCIQMC (KPFCIQMC) method [^kpfciqmc]
+This block enables the Krylov-projected FCIQMC (KPFCIQMC) method [@Blunt2015]
 which is fully implemented in NECI. It requires `dneci` or `mneci` to be
 run. When specifying the KP-FCIQMC block, the METHODS block should be
 omitted. This block is started with the `kp-fciqmc` keyword and
