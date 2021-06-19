@@ -79,8 +79,23 @@ function(get_unique_dirs paths result)
     set(${result} ${${result}} PARENT_SCOPE)
 endfunction()
 
+find_package(Git QUIET REQUIRED)
+execute_process(
+    COMMAND
+        ${GIT_EXECUTABLE} submodule update --init --recursive
+    WORKING_DIRECTORY
+        ${PROJECT_SOURCE_DIR}
+    RESULT_VARIABLE
+        GIT_SUBMOD_RESULT
+)
+
+if (NOT GIT_SUBMOD_RESULT EQUAL "0")
+    message(FATAL_ERROR "Git submodules required. Check your internet connection.")
+endif()
+
 
 find_package(Python3 REQUIRED)
+set(custom_Python3 ${PYTHON_VENV}/bin/python3)
 
 set(PYTHON_VENV ${PROJECT_BINARY_DIR}/venv)
 add_custom_command(
@@ -88,6 +103,9 @@ add_custom_command(
         ${PYTHON_VENV}
     COMMAND
         ${Python3_EXECUTABLE} -m venv ${PYTHON_VENV}
+# We want to install the custom ford into a virtual environment for the build process
+# We want our custom ford because of tailored changes!
+# Do not look for a preinstalled ford, or at least make sure it works!
     COMMAND
         ${PYTHON_VENV}/bin/pip3 install ${PROJECT_SOURCE_DIR}/External/ford/
     COMMAND
@@ -95,7 +113,6 @@ add_custom_command(
     COMMENT
         "Setting up virtual environment for ford."
 )
-set(custom_Python3 ${PYTHON_VENV}/bin/python3)
 
 
 function(add_ford_documentation target configuration)
@@ -111,7 +128,6 @@ function(add_ford_documentation target configuration)
     set(THIS_HTML_DOC ${PROJECT_BINARY_DIR}/documentation/html/${configuration})
 
     find_program(FORD ford ${PROJECT_SOURCE_DIR}/External/ford/ford.py REQUIRED)
-    # We want to install the custom ford into a virtual environment for the build process
 
     set(FORD_PAGES ${PROJECT_BINARY_DIR}/documentation/ford_pages/${configuration}/)
 
@@ -173,6 +189,7 @@ function(add_ford_documentation target configuration)
         DEPENDS
             gen_docs.md
             ${PYTHON_VENV}
+            ${custom_Python3}
             ${MEDIA_FILES}
             ${fortran_sources}
             ${processed_files}
@@ -201,31 +218,17 @@ endfunction()
 
 add_custom_target(doc)
 
-# We want our custom ford because of tailored changes!
-# Do not look for a preinstalled ford, or at least make sure it works!
-find_package(Git QUIET)
-execute_process(
-    COMMAND
-        ${GIT_EXECUTABLE} submodule update --init --recursive
-    WORKING_DIRECTORY
-        ${PROJECT_SOURCE_DIR}
-    RESULT_VARIABLE
-        GIT_SUBMOD_RESULT
-)
+foreach(configuration ${${PROJECT_NAME}_CONFIGURATIONS})
+    add_ford_documentation(doc_html_${configuration} ${configuration})
+endforeach()
 
-if (GIT_SUBMOD_RESULT EQUAL "0")
-    foreach(configuration ${${PROJECT_NAME}_CONFIGURATIONS})
-        add_ford_documentation(doc_html_${configuration} ${configuration})
-    endforeach()
-
-    # Only build the documentation of `neci` by default (when typing `make doc`)
-    add_dependencies(doc doc_html_neci)
-endif()
+# Only build the documentation of `neci` by default (when typing `make doc`)
+add_dependencies(doc doc_html_neci)
 
 
-find_program(PANDOC pandoc)
+find_program(PANDOC pandoc REQUIRED)
 find_package(LATEX COMPONENTS PDFLATEX BIBER REQUIRED)
-find_program(LATEXMK latexmk)
+find_program(LATEXMK latexmk REQUIRED)
 if (PANDOC AND LATEX_FOUND AND LATEXMK)
     # The PDF documentation is independent of possible configurations (neci, dneci etc.).
     set(PDF_DOCUMENTATIONS ${PROJECT_BINARY_DIR}/documentation/pdf/)
