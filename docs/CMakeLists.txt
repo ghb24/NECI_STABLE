@@ -102,6 +102,8 @@ add_custom_command(
         ${PYTHON_VENV}
     COMMAND
         ${Python3_EXECUTABLE} -m venv ${PYTHON_VENV}
+    COMMAND
+        ${custom_Python3} -m pip install wheel --no-warn-script-location --quiet
     COMMENT
         "Setting up virtual python environment."
 )
@@ -146,7 +148,7 @@ function(add_ford_documentation target configuration)
         COMMAND
             ${CMAKE_COMMAND} -E make_directory ${FORD_PAGES}
         COMMAND
-            ${custom_Python3} -m pip install bibtexparser
+            ${custom_Python3} -m pip install bibtexparser --quiet
         COMMAND
             cp pages/index.md ${FORD_PAGES}
         COMMAND
@@ -191,7 +193,7 @@ function(add_ford_documentation target configuration)
         # We want our custom ford because of tailored changes!
         # Do not look for a preinstalled ford, or at least make sure it works!
         COMMAND
-            ${custom_Python3} -m pip install ${PROJECT_SOURCE_DIR}/External/ford/
+            ${custom_Python3} -m pip install ${PROJECT_SOURCE_DIR}/External/ford/ --quiet
         COMMAND
             ${CMAKE_COMMAND} -E make_directory ${THIS_HTML_DOC} # Create output directory
         COMMAND
