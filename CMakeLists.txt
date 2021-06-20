@@ -82,7 +82,7 @@ neci_add_option(
 
 neci_add_option(
     FEATURE DOC
-    DEFAULT ON
+    DEFAULT OFF
     DESCRIPTION "Enable the documentation. (Has additional requirements like pandoc or latexmk)")
 
 # Special option overrides
