@@ -58,6 +58,11 @@ contains
         ! < [a, a, 0, 0] | S^2 | [0, 0, a, a] >    ==  0
         if (any(oS_nI + mod(oS_nI, 2) /= oS_nJ + mod(oS_nJ, 2))) return
 
+        ! This explicit allocation should not be necessary because of automatic allocation,
+        ! but it does not work in ifort 18.0.x
+        ! Remove the statement, if support of ifort <= 18 is dropped.
+        allocate(alpha_I(size(oS_nI)), alpha_J(size(oS_nJ)))
+
         alpha_I = mod(oS_nI, 2) == 0
         alpha_J = mod(oS_nJ, 2) == 0
 
