@@ -148,16 +148,24 @@ considered. The block starts with the `system` keyword and ends with the
 #### Excitation generation options
 
 -   **<span style="color: blue">nonUniformRandExcits</span>**<br>
- Use a non-uniform random excitation generator for picking
+    Use a non-uniform random excitation generator for picking
     the move in the FCIQMC spawn step. This can significantly speed up
     the calculation. Requires an additional argument, that can be chosen
     from the following
 
     -   **<span style="color: blue">pchb</span>**<br>
- Generates excitations weighted directly with the matrix
+        Generates excitations weighted directly with the matrix
         elements using pre-computed alias tables. This excitation
         generator is extremely fast, while maintaining high acceptance
         rates and is generally recommended when memory is not an issue.
+
+    -   **guga-pchb**<br>
+        Uses the pre-computed alias tables for the spin-adapted GUGA implementation.
+        Needs the `guga` keyword in the `System` block.
+        If it is used in conjunction with the `hist-tau-search` option, which
+        is recommended for GUGA calculations in general, it automatically sets
+        more reasonable defaults than for the usual `mol-guga-weighted`
+        excitation generation option.
 
     -   **nosymgen**<br>
         Generate all possible excitations, regardless of symmetry. Might
@@ -324,6 +332,17 @@ considered. The block starts with the `system` keyword and ends with the
 -   **ueg-offset \(k_x\) \(k_y\) \(k_z\)**<br>
     Offset \((k_x, k_y, k_z)\) for the momentum grid used in for the
     uniform electron gas.
+
+-   **bipartite-order [\(n\)]**<br>
+    Enables a bipartite ordering of bipartite lattice (chain, square for now)
+    Has to be put **before!** the `lattice` keyword.
+    If an additional parameter `n`, which has to equal to the number of lattice sites, is given an
+    arbitrary orbital ordering can be given in the subsequent input line.
+    (It has to be `n` unique numbers from, 1 to \(n\).) An example:
+    ```bash
+       bipartite 5
+       1 3 2 5 4
+    ```
 
 #### Transcorrelation options
 
@@ -1286,6 +1305,13 @@ keyword.
     shift over the population of a determinant. Only has an effect if
     `auto-adaptive-shift` is used.
 
+-   **local-spin**<br>
+    Activates the cumulative local spin, \(\hat{S}_i^2\), measurement for spin-adapted GUGA calculations.
+    Needs two replicas for an unbiased measurement.
+    Since this is a diagonal property for the GUGA, there is no additional cost.
+
+
+
 #### Semi-stochastic output options
 
 -   **write-core**<br>
@@ -1300,6 +1326,18 @@ keyword.
     determinants to a file called CORESPACE. This can further be read in
     and used as the core space in subsequent calculations using the
     `read-core` option.
+
+-   **print-core-hamil**<br>
+    Prints the semi-stochastic Hamiltonian and the semistochastic basis states
+    to the output file `semistoch-hamil` and `semistoch-basis`.
+    Caution with the size of the semistochastic space!
+
+-   **print-core-vec**<br>
+    Prints the semi-stochastic "eigenvector" to the output files
+    `determ_vecs` and `determ_vecs_av`.
+    Caution with the size of the semistochastic space!
+
+
 
 #### RDM output options
 
@@ -1366,3 +1404,12 @@ the RDMs are calculated and the content of the files, please see section
     this feature in conjunction with `Molcas` to perform a spin-free
     Stochastic-CASSCF. It produces the three files `DMAT, PAMAT` and
     `PSMAT`, which are read-in by `Molcas`.
+
+-   **full-core-rdms**<br>
+    In the "normal" RDM only entries, e.g. for the 1-RDM, \(\rho_{ij}\),
+    which are actually connected by some Hamiltonian matrix element are sampled.
+    This has no negative effect on the energy calculation,
+    but for properties, e.g. spin-spin correlation functions.
+    This option activates a full sampling of RDMs,
+    at least in the semi-stochastic space.
+    This option does increase the cost though.
