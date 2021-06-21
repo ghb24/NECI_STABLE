@@ -775,8 +775,6 @@ contains
     end function
 
 
-
-
     !>  @brief
     !>  Constructor of CumulGASSpec_t
     !>
