@@ -10,7 +10,8 @@ set(markdown_files_user_doc
         pages/01_user_doc/05_sampling_excited_states.md
         pages/01_user_doc/06_davidson_RAS.md
         pages/01_user_doc/07_error_analysis.md
-        pages/01_user_doc/08_references.md
+        pages/01_user_doc/08_pylib.md
+        pages/01_user_doc/09_references.md
 )
 
 set(markdown_files_tutorial

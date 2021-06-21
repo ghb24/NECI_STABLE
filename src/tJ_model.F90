@@ -8,7 +8,8 @@ module tJ_model
                           t_heisenberg_model, t_new_real_space_hubbard, exchange_j, &
                           t_trans_corr, trans_corr_param, &
                           t_trans_corr_2body, trans_corr_param_2body, &
-                          nSpatOrbs, current_stepvector, currentB_int
+                          nSpatOrbs, current_stepvector, currentB_int, &
+                          t_bipartite_order
 
     use constants, only: dp, n_int, EPS, bits_n_int, maxExcit
 
@@ -27,7 +28,9 @@ module tJ_model
 
     use umatcache, only: gtid
 
-    use util_mod, only: binary_search_first_ge
+    use util_mod, only: operator(.div.), near_zero, get_free_unit
+
+    use util_mod_numerical, only: binary_search_first_ge
 
     use OneEInts, only: GetTMatEl, tmat2d
 
@@ -57,7 +60,8 @@ module tJ_model
 
     use guga_data, only: ExcitationInformation_t, excit_type, gen_type
 
-    use guga_bitRepOps, only: count_alpha_orbs_ij, count_beta_orbs_ij
+    use guga_bitRepOps, only: count_alpha_orbs_ij, count_beta_orbs_ij, &
+                              write_det_guga
 
     implicit none
 
@@ -108,8 +112,7 @@ contains
         else
             ! otherwise i have to do it the other way around
             lat => lattice(lattice_type, length_x, length_y, length_z,.not. t_open_bc_x, &
-                           .not. t_open_bc_y,.not. t_open_bc_z)
-
+                       .not. t_open_bc_y,.not. t_open_bc_z, t_bipartite_order = t_bipartite_order)
             ! if nbasis was not yet provided:
             if (nbasis <= 0) then
                 nbasis = 2 * lat%get_nsites()
@@ -186,7 +189,7 @@ contains
         else
             ! otherwise i have to do it the other way around
             lat => lattice(lattice_type, length_x, length_y, length_z,.not. t_open_bc_x, &
-                           .not. t_open_bc_y,.not. t_open_bc_z)
+                       .not. t_open_bc_y,.not. t_open_bc_z, t_bipartite_order = t_bipartite_order)
 
             ! if nbasis was not yet provided:
             if (nbasis <= 0) then
@@ -284,9 +287,8 @@ contains
             lat => lattice(lattice_type, length_x, length_y, length_z,.not. t_open_bc_x, &
                            .not. t_open_bc_y,.not. t_open_bc_z)
         else
-            ! otherwise i have to do it the other way around
             lat => lattice(lattice_type, length_x, length_y, length_z,.not. t_open_bc_x, &
-                           .not. t_open_bc_y,.not. t_open_bc_z)
+                       .not. t_open_bc_y,.not. t_open_bc_z, t_bipartite_order = t_bipartite_order)
 
             ! if nbasis was not yet provided:
             if (nbasis <= 0) then
@@ -365,22 +367,18 @@ contains
             ! then i have to construct tmat first
             ! no need for tmat in the heisenberg model
             call stop_all(this_routine, "starting from fcidump not yet implemented!")
-!             call init_tmat()
-!             call setup_exchange_matrix()
             ! and then construct the lattice
             lat => lattice(lattice_type, length_x, length_y, length_z,.not. t_open_bc_x, &
                            .not. t_open_bc_y,.not. t_open_bc_z)
         else
-            ! otherwise i have to do it the other way around
             lat => lattice(lattice_type, length_x, length_y, length_z,.not. t_open_bc_x, &
-                           .not. t_open_bc_y,.not. t_open_bc_z)
+                       .not. t_open_bc_y,.not. t_open_bc_z, t_bipartite_order = t_bipartite_order)
 
             ! if nbasis was not yet provided:
             if (nbasis <= 0) then
                 nbasis = 2 * lat%get_nsites()
             end if
 
-!             call init_tmat(lat)
             call setup_exchange_matrix(lat)
 
         end if
@@ -687,8 +685,8 @@ contains
             ! the idea is to target the spin-orbital of the other electron!
             ! (the first in this case!
             call create_cum_list_tJ_model(ilutI, nI(elec_2), &
-                                          lat%get_neighbors(gtid(nI(elec_2))), cum_arr_opp, cum_sum_opp, &
-                                          tmp_ic_list, src, cpt_opp)
+                lat%get_neighbors(gtid(nI(elec_2))), cum_arr_opp, cum_sum_opp, &
+                tmp_ic_list, src, cpt_opp)
 
             p_orb = p_orb + cpt_opp
 
@@ -948,7 +946,7 @@ contains
 
         id = gtID(nI(elec))
 
-        neighbors = lat%get_neighbors(id)
+        neighbors = lat%get_neighbors(lat%get_site_index(id))
 
         call gen_guga_tJ_cum_list(id, cum_arr)
 
@@ -1052,7 +1050,7 @@ contains
         ! spatial orbital:
         id = gtID(src)
 
-        neighbors = lat%get_neighbors(id)
+        neighbors = lat%get_neighbors(lat%get_site_index(id))
 
         call gen_guga_heisenberg_cum_list(ilut, id, cum_arr)
 
@@ -1083,8 +1081,8 @@ contains
         ende = max(id, tgt)
 
         excitInfo = assign_excitInfo_values_double(excit_type%fullstart_stop_mixed, &
-                                                   gen_type%L, gen_type%R, gen_type%R, gen_type%R, gen_type%R, &
-                                                   start, ende, ende, start, start, start, ende, ende, 0, 2, 1.0_dp, 1.0_dp)
+               gen_type%L, gen_type%R, gen_type%R, gen_type%R, gen_type%R, &
+               start, ende, ende, start, start, start, ende, ende, 0, 2, 1.0_dp, 1.0_dp)
 
         orb_pgen = p_elec * p_orb
 
@@ -1103,7 +1101,7 @@ contains
         integer, allocatable :: neighbors(:)
         real(dp) :: cum_sum, tmp
 
-        neighbors = lat%get_neighbors(id)
+        neighbors = lat%get_neighbors(lat%get_site_index(id))
 
         ! then check if the neighbors are available for exchange
         allocate(cum_arr(size(neighbors)), source=0.0_dp)
@@ -1116,6 +1114,8 @@ contains
         if (present(tgt)) then
 
             tgt_pgen = 0.0_dp
+            ! if target is not in the neighbors list we can exit
+            if (.not. any(tgt == neighbors)) return
 
             do i = 1, size(neighbors)
                 n = neighbors(i)
@@ -1158,7 +1158,9 @@ contains
                 end if
             end do
 
-            tgt_pgen = tgt_pgen / cum_sum
+            if (.not. near_zero(cum_sum)) then
+                tgt_pgen = tgt_pgen / cum_sum
+            end if
 
         else
             do i = 1, size(neighbors)
@@ -1418,7 +1420,7 @@ contains
         class(lattice), intent(in), pointer :: in_lat
         character(*), parameter :: this_routine = "setup_spin_free_exchange"
 
-        integer :: i, ind
+        integer :: i, ind, iunit
 
         ASSERT(associated(in_lat))
 
@@ -1427,22 +1429,28 @@ contains
 
         ASSERT(in_lat%get_nsites() == nBasis / 2)
 
+        iunit = get_free_unit()
+        open(iunit, file = 'spatial-exchange', status = 'replace')
+
         do i = 1, in_lat%get_nsites()
             ind = in_lat%get_site_index(i)
 
             ASSERT(ind > 0)
             ASSERT(ind <= nBasis / 2)
 
-            associate(next => in_lat%get_neighbors(i))
+            associate(next => in_lat%get_neighbors(ind))
                 ASSERT(all(next > 0))
                 ASSERT(all(next <= nBasis / 2))
 
                 ! in the spin-free form I have to divide by one 1/2 more!
                 spin_free_exchange(ind, next) = -exchange_j / 2.0_dp
+                write(iunit, *) ind, next, -exchange_j / 2.0_dp
 
             end associate
 
         end do
+
+        close(iunit)
 
     end subroutine setup_spin_free_exchange
 
@@ -1455,7 +1463,6 @@ contains
         integer :: i, ind
 
         ASSERT(associated(in_lat))
-!         if (present(in_lat)) then
         ! create the exchange matrix from the given lattice
         ! connections
         if (allocated(exchange_matrix)) deallocate(exchange_matrix)
@@ -1465,7 +1472,8 @@ contains
         ASSERT(in_lat%get_nsites() == nbasis / 2)
         do i = 1, in_lat%get_nsites()
             ind = in_lat%get_site_index(i)
-            associate(next => in_lat%get_neighbors(i))
+            ! print *, "ind, next:", ind, in_lat%get_neighbors(ind)
+            associate(next => in_lat%get_neighbors(ind))
                 exchange_matrix(2 * ind - 1, 2 * next) = exchange_j / 2.0_dp
                 exchange_matrix(2 * ind, 2 * next - 1) = exchange_j / 2.0_dp
 
@@ -1475,10 +1483,6 @@ contains
             ASSERT(ind > 0)
             ASSERT(ind <= nbasis / 2)
         end do
-
-!         else
-!             call stop_all(this_routine, "start from a fcidump not yet implemented!")
-!         end if
 
     end subroutine setup_exchange_matrix
 

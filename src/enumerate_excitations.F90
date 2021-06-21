@@ -4,6 +4,8 @@ module enumerate_excitations
 
     use SystemData, only: tReltvy, t_k_space_hubbard, t_new_real_space_hubbard
 
+    use util_mod, only: operator(.div.)
+
     use bit_rep_data, only: NIfD, NIfTot
 
     use bit_reps, only: decode_bit_det
@@ -346,12 +348,6 @@ contains
         integer(n_int), optional, intent(out) :: connected_space(0:, :)
         logical, intent(in), optional :: tSinglesOnlyOpt
         character(*), parameter :: this_routine = "generate_connected_space"
-
-        ! this restriction does not apply anymore:
-!         if (tGUGA .and. tKPntSym) then
-!             call stop_all(this_routine, &
-!                 "k-point symmetry and GUGA + semi-stochastic or trial-wavefunction not yet implemented!")
-!         end if
 
         if (tKPntSym) then
             call generate_connected_space_kpnt(original_space_size, original_space, &

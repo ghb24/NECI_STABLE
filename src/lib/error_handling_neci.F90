@@ -1,23 +1,4 @@
-subroutine stop_all_c (sub_name, error_msg) bind(c)
-    use, intrinsic :: iso_c_binding, only: c_char
-    use util_mod, only: strlen_wrap
-    implicit none
-
-    character(c_char), target, intent(in) :: sub_name(*), error_msg(*)
-    character(len=strlen_wrap(sub_name)), target :: sub_name_tmp
-    character(len=strlen_wrap(error_msg)), target :: error_msg_tmp
-
-    ! Convert from C character to standard fortran character string.
-    ! Note that strlen does not include the null character at the end of the
-    ! C string.  This is the behaviour we want.
-    sub_name_tmp = transfer(sub_name(:strlen_wrap(sub_name)), sub_name_tmp)
-    error_msg_tmp = transfer(error_msg(:strlen_wrap(error_msg)), error_msg_tmp)
-
-    call stop_all (sub_name_tmp, error_msg_tmp)
-
-end subroutine
-
-subroutine stop_all (sub_name, error_msg)
+subroutine stop_all(sub_name, error_msg)
 
     ! Stop calculation due to an error. Exit with code 222?
     !
@@ -39,7 +20,6 @@ subroutine stop_all (sub_name, error_msg)
     ! I found problems when the error code is larger 2^8 - 1 == 255
     integer, parameter :: error_code = 222
 
-#ifdef DEBUG_
     write (6,'(/a7)') 'ERROR.'
     write (6,'(a27,a)') 'NECI stops in subroutine: ',adjustl(sub_name)
     write (6,'(a9,18X,a)') 'Reason: ',adjustl(error_msg)
@@ -47,6 +27,7 @@ subroutine stop_all (sub_name, error_msg)
     write (6,'(a12,15X,i5)') 'Processor: ',iProcIndex
 #endif
     write (6,'(a11)') 'EXITING...'
+#ifdef DEBUG_
     call neci_flush (6)
 #else
     write (6,'(/a7)') 'ERROR.'
@@ -90,18 +71,40 @@ subroutine quiet_stop(msg)
 use Parallel_neci, only: MPIStopAll
 #endif
 
-implicit none
-character(*), intent(in), optional :: msg
+    implicit none
+    character(*), intent(in), optional :: msg
 
-if (present(msg)) then
-    write (6,'(1X,a)') adjustl(msg)
-    CALL neci_flush(6)
-end if
+    if (present(msg)) then
+        write (6,'(1X,a)') adjustl(msg)
+        CALL neci_flush(6)
+    end if
 
 #ifdef USE_MPI
 call MPIStopAll(0)
 #else
-stop
+    stop
 #endif
 
 end subroutine quiet_stop
+
+
+! subroutine stop_all_c (sub_name, error_msg) bind(c)
+!     use iso_c_hack
+!     use util_mod, only: strlen_wrap
+!     implicit none
+!
+!     character(c_char), target, intent(in) :: sub_name(*), error_msg(*)
+!     character(len=strlen_wrap(sub_name)), target :: sub_name_tmp
+!     character(len=strlen_wrap(error_msg)), target :: error_msg_tmp
+!
+!     ! Convert from C character to standard fortran character string.
+!     ! Note that strlen does not include the null character at the end of the
+!     ! C string.  This is the behaviour we want.
+!     sub_name_tmp = transfer(sub_name(:strlen_wrap(sub_name)), sub_name_tmp)
+!     error_msg_tmp = transfer(error_msg(:strlen_wrap(error_msg)), error_msg_tmp)
+!
+!     call stop_all (sub_name_tmp, error_msg_tmp)
+!
+! end subroutine
+
+

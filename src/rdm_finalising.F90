@@ -365,11 +365,11 @@ contains
             ! For closed shell systems we work with spatial orbitals, to
             ! calculate spin-free 1RDMs.
             if (open_shell) then
-                p = i; q = j; 
-                r = k; s = l; 
+                p = i; q = j;
+                r = k; s = l;
             else
-                p = spatial(i); q = spatial(j); 
-                r = spatial(k); s = spatial(l); 
+                p = spatial(i); q = spatial(j);
+                r = spatial(k); s = spatial(l);
             end if
 
             call extract_sign_rdm(two_rdms%elements(:, ielem), rdm_sign)
@@ -377,9 +377,9 @@ contains
             ! If abba or baab term - swap last two indices and sign.
             if (.not. same_spin(i, k)) then
                 if (open_shell) then
-                    r = l; s = k; 
+                    r = l; s = k;
                 else
-                    r = spatial(l); s = spatial(k); 
+                    r = spatial(l); s = spatial(k);
                 end if
                 rdm_sign = -rdm_sign
             end if
@@ -671,8 +671,8 @@ contains
         ! Within each file, therefore, only spatial orbital labels are printed.
         ! Thus, we need to use spatial orbitals to determine which RDM elements
         ! are  to kept, and which transformed.
-        p = spatial(i); q = spatial(j); 
-        r = spatial(k); s = spatial(l); 
+        p = spatial(i); q = spatial(j);
+        r = spatial(k); s = spatial(l);
         ! When we calculate the combined labels, pq and rs, we would
         ! usually have p and q swapped below, and similarly with r and s.
         ! However, the old RDM files prints only RDM elements with pq < rs,
@@ -683,9 +683,9 @@ contains
         ! Apply symmetry (for *real* RDMs), to only print elements from one
         ! half of the RDM, using the legacy ordering.
         if (pq_legacy > rs_legacy) then
-            i_temp = i; j_temp = j; 
-            i = k; j = l; 
-            k = i_temp; l = j_temp; 
+            i_temp = i; j_temp = j;
+            i = k; j = l;
+            k = i_temp; l = j_temp;
         end if
 
         ! If either i and j have the same spatial part, of k and l have the
@@ -808,7 +808,7 @@ contains
             call extract_sign_rdm(rdm%elements(:, ielem), rdm_sign)
 
             ! Store the original labels, before we possibly swap them.
-            k_orig = k; l_orig = l; 
+            k_orig = k; l_orig = l;
             ! If this term is abba or baab then we can make it abab or baba by
             ! swapping the last two indices, which introduces a minus sign.
             ! It will then contribute to a spinfree 2-RDM element.
@@ -819,8 +819,8 @@ contains
             end if
 
             ! Get the spatial orbital labels from the spin orbital ones.
-            p = spatial(i); q = spatial(j); 
-            r = spatial(k); s = spatial(l); 
+            p = spatial(i); q = spatial(j);
+            r = spatial(k); s = spatial(l);
             ! The 'combined' labels.
             pq = (p - 1) * nbasis + q
             rs = (r - 1) * nbasis + s
@@ -850,7 +850,7 @@ contains
                 call extract_sign_rdm(rdm%elements(:, ielem), rdm_sign)
 
                 ! Swap the spatial labels.
-                r = spatial(l_orig); s = spatial(k_orig); 
+                r = spatial(l_orig); s = spatial(k_orig);
                 rs = (r - 1) * nbasis + s
 
                 ! Half the sign of non-transition RDMs, where we apply
@@ -1110,8 +1110,8 @@ contains
                             ! Normalise.
                             rdm_sign = rdm_sign / rdm_trace
 
-                            p = spatial(i); q = spatial(j); 
-                            r = spatial(k); s = spatial(l); 
+                            p = spatial(i); q = spatial(j);
+                            r = spatial(k); s = spatial(l);
                             if ((.not. open_shell) .and. is_beta(i)) then
                                 call stop_all(t_r, "This is a closed shell system but we have an open shell type RDM element.&
                                                    & An error must have occured.")
@@ -1138,9 +1138,9 @@ contains
                             end if
                         end do
 
-                        close(iunit_aaaa); close (iunit_abab); close (iunit_abba); 
+                        close(iunit_aaaa); close (iunit_abab); close (iunit_abba);
                         if (open_shell) then
-                            close(iunit_bbbb); close (iunit_baba); close (iunit_baab); 
+                            close(iunit_bbbb); close (iunit_baba); close (iunit_baab);
                         end if
                     end if
                 end do

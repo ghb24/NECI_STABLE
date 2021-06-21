@@ -1080,7 +1080,7 @@ generated the spin flipped version also needs to be available, although
 this is not readily accessible in the excitation generator.
 
 As a result, a routine must be provided to calculate the probability of
-generating \(\ket{D_j}\) from \(\ket{D_i}\) without actually generating
+generating \(\left\rangle  D_j \right\rvert\) from \(\left\rangle  D_i \right\rvert\) without actually generating
 an excitation.
 
 @warning
