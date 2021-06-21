@@ -7,7 +7,7 @@ title: Trial wave functions
 By default, NECI uses a single reference determinant, \(|D_0\rangle\),
 in the projected energy estimator, or potentially a linear combination
 of two determinants if the the HPHF code is being used.
-\[E_0 = \frac{\langle D_0 | \hat{H} | \Psi\rangle}{\langle D_0 | \Psi}\rangle .\]
+\[E_0 = \frac{\langle D_0 | \hat{H} | \Psi\rangle}{\langle D_0 | \Psi \rangle} .\]
 This estimator can be improved by using a more accurate estimate of the
 true ground state, a trial wave function, \(|\Psi^T\rangle\),
 \[E_0 = \frac{\langle{\Psi^T | \hat{H} | \Psi}\rangle}{\langle{\Psi^T | \Psi}\rangle}.\]

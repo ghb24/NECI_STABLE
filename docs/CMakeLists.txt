@@ -4,7 +4,8 @@
 set(markdown_files_user_doc
         pages/01_user_doc/index.md
         pages/01_user_doc/01_getting_into_the_game.md
-        pages/01_user_doc/02_calculation_inputs.md
+        pages/01_user_doc/02_intro_tutorial.md
+        pages/01_user_doc/03_calculation_inputs.md
         pages/01_user_doc/03_calculation_outputs.md
         pages/01_user_doc/04_trial_wave_functions.md
         pages/01_user_doc/05_sampling_excited_states.md
@@ -24,9 +25,10 @@ set(markdown_files_dev_doc
         pages/03_dev_doc/index.md
         pages/03_dev_doc/01_code_conventions.md
         pages/03_dev_doc/02_comments_and_documentation.md
-        pages/03_dev_doc/03_review_guidelines.md
-        pages/03_dev_doc/04_DRY.md
-        pages/03_dev_doc/05_compiler_help.md
+        pages/03_dev_doc/03_git_overview.md
+        pages/03_dev_doc/04_review_guidelines.md
+        pages/03_dev_doc/05_DRY.md
+        pages/03_dev_doc/06_compiler_help.md
         pages/03_dev_doc/06_premature_optimization.md
         pages/03_dev_doc/07_memory_tracking.md
         pages/03_dev_doc/08_templating.md

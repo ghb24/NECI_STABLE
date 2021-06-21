@@ -66,4 +66,4 @@ length where the errors plateau and read of the final estimates (the
 rightmost columns) from here.
 
 More information (including example plots, similar to those that
-`blocking.py` produces) is available at JCP 91, 461.
+`blocking.py` produces) is available in Ref [@Flyvbjerg1989].
