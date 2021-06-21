@@ -124,12 +124,14 @@ from the projected energy expression
 The instantaneous correlation energy is given in column 11.
 The nominator and denominator are given in columns 24 and 25 and should be
 used for statistical analysis of errors.
+It is averaged over the last 10 iterations.
 
 **24 Instantaneous denominator of projected energy (HFContribtoE)**<br>
 This is the instantaneous denominator of the projected energy \(C_0\)
   and equivalent to the reference weight (column 12).
 Column 24 and 25 are used to evaluate the other projected energy columns
   (9, 11, and 23).
+It is averaged over the last 10 iterations.
 
 **25 Instantaneous numerator of projected energy (NumContribtoE)**<br>
 This is the instantaneous nominator of the projected energy
@@ -138,6 +140,7 @@ This is the instantaneous nominator of the projected energy
   \end{equation}
 Column 24 and 25 are used to evaluate the other projected energy columns
   (9, 11, and 23).
+It is averaged over the last 10 iterations.
 
 
 <!-- Confirm -->
