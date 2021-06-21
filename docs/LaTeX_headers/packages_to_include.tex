@@ -1,14 +1,4 @@
-\usepackage{physics} % TODO get rid of
 \usepackage{xcolor}
-% % \usepackage{combofont}
-% \directlua{luaotfload.add_fallback(
-%     "myfallback",
-%     {"NotoColorEmoji:mode=harf;"}
-%   )}
-% \setmainfont[RawFeature={fallback=myfallback}]{LatinModernRoman}
-% \setmonofont[RawFeature={fallback=myfallback}]{LatinModernMono}
-
-% https://github.com/jgm/pandoc/issues/3145
 
 \newcommand\verbatimLaTeX[1]{#1}
 
@@ -27,8 +17,8 @@
 \newenvironment{bug}{\begin{bugbox}\textbf{\underline{\textcolor{blue}{BUG}}}}{\end{bugbox}}
 
 
+% We rely on pandoc to import listings with the `--listings` option
 % Default formatting for code
-% \usepackage{listings}
 \definecolor{commentgreen}{rgb}{0,0.6,0}
 \lstset{
 	keywordstyle=\color{blue},
