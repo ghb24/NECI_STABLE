@@ -1,0 +1,13 @@
+dim 2 
+lattice_type square
+(lattice_param -2 2 2 -2
+n_sites 8
+n_connect_max 4
+site 1 4 3 5 7 8
+site 2 4 3 5 7 8
+site 4 4 3 5 7 8
+site 6 4 3 5 7 8
+site 3 4 1 2 4 6
+site 5 4 1 2 4 6
+site 7 4 1 2 4 6
+site 8 4 1 2 4 6

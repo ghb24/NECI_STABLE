@@ -12,7 +12,7 @@ module fcimc_initialisation
                           tRotatedOrbs, MolproID, nBasis, arr, brr, nel, &
                           tPickVirtUniform, tGen_4ind_reverse, &
                           tGenHelWeighted, tGen_4ind_weighted, tLatticeGens, &
-                          tGUGA, tGen_nosym_guga, ref_stepvector, ref_b_vector_int, &
+                          tGUGA, ref_stepvector, ref_b_vector_int, &
                           ref_occ_vector, ref_b_vector_real, tUEGNewGenerator, &
                           tGen_4ind_2, tReltvy, t_new_real_space_hubbard, &
                           t_lattice_model, t_tJ_model, t_heisenberg_model, &
@@ -23,7 +23,7 @@ module fcimc_initialisation
                           irrepOrbOffset, nIrreps, &
                           tTrcorrExgen, nClosedOrbs, irrepOrbOffset, nIrreps, &
                           nOccOrbs, tNoSinglesPossible, t_pcpp_excitgen, &
-                          t_pchb_excitgen, tGAS, tGASSpinRecoupling
+                          t_pchb_excitgen, tGAS, tGASSpinRecoupling, t_guga_pchb
     use tc_three_body_data, only: ptriples
     use SymExcitDataMod, only: tBuildOccVirtList, tBuildSpinSepLists
     use core_space_util, only: cs_replicas
@@ -50,7 +50,6 @@ module fcimc_initialisation
                         initial_refs, trial_init_reorder, tStartTrialLater, tTrialInit, &
                         ntrial_ex_calc, tPairedReplicas, tMultiRefShift, tPreCond, &
                         tMultipleInitialStates, initial_states, t_hist_tau_search, &
-                        t_direct_guga_ref, &
                         t_previous_hist_tau, t_fill_frequency_hists, t_back_spawn, &
                         t_trunc_nopen_diff, t_guga_back_spawn, tExpAdaptiveShift, &
                         t_back_spawn_option, t_back_spawn_flex_option, &
@@ -88,7 +87,7 @@ module fcimc_initialisation
                            OffDiagBinRange, iDiagSubspaceIter, &
                            AllHistInitPopsTag, HistInitPopsTag, tHDF5PopsRead, &
                            tTransitionRDMs, tLogEXLEVELStats, t_no_append_stats, &
-                           t_spin_measurements, &
+                           t_spin_measurements,  t_measure_local_spin, &
                            maxInitExLvlWrite, initsPerExLvl, AllInitsPerExLvl
 
     use DetCalcData, only: NMRKS, tagNMRKS, FCIDets, NKRY, NBLK, B2L, nCycle, &
@@ -205,10 +204,8 @@ module fcimc_initialisation
 
     use constants
 
-    use guga_tausearch, only: init_tau_search_guga_nosym, log_spawn_magnitude_guga_nosym, &
-                              update_tau_guga_nosym, init_hist_tau_search_guga_nosym, &
-                              update_hist_tau_guga_nosym
-    use guga_data, only: bVectorRef_ilut, bVectorRef_nI, projE_replica
+    use guga_data, only: bVectorRef_ilut, bVectorRef_nI
+
     use guga_bitRepOps, only: calcB_vector_nI, calcB_vector_ilut, convert_ilut_toNECI, &
                               convert_ilut_toGUGA, getDeltaB, write_det_guga, write_guga_list, &
                               calc_csf_info
@@ -250,7 +247,11 @@ module fcimc_initialisation
 
     use impurity_models, only: setupImpurityExcitgen, clearImpurityExcitgen, gen_excit_impurity_model
 
+    use guga_pchb_excitgen, only: init_guga_pchb_excitgen, finalize_pchb_excitgen_guga
+
     use symexcit3, only: gen_all_excits_default => gen_all_excits
+
+    use local_spin, only: init_local_spin_measure
 
     use CAS_distribution_init, only: InitFCIMC_CAS
 
@@ -493,19 +494,7 @@ contains
 
             ref_b_vector_real = real(ref_b_vector_int, dp)
 
-            ! for multiple runs i have to initialize all the necessary
-            ! projected energy lists
-            ! have to first allocate the type proje_replica
-            allocate(projE_replica(inum_runs), stat=ierr)
 
-            ! only initialize that if we use the old way to calc the
-            ! reference energy!
-            ! for testing purposes initiaize both
-            if (.not. t_direct_guga_ref) then
-                do run = 1, inum_runs
-                    call create_projE_list(run)
-                end do
-            end if
         end if
 
         if (tHPHF) then
@@ -1278,6 +1267,10 @@ contains
             call init_spin_measurements()
         end if
 
+        if (t_measure_local_spin) then
+            call init_local_spin_measure()
+        end if
+
         IF (abs(StepsSftImag) > 1.0e-12_dp) THEN
             write(iout, *) "StepsShiftImag detected. Resetting StepsShift."
             StepsSft = NINT(StepsSftImag / Tau)
@@ -1642,6 +1635,9 @@ contains
             tFillingExplicRDMonFly = .false.
             !One of these becomes true when we have reached the relevant iteration to begin filling the RDM.
 
+            ! initialize excitation generator
+            if (t_guga_pchb) call init_guga_pchb_excitgen()
+
             ! If we have a popsfile, read the walkers in now.
             if (tReadPops .and. .not. tPopsAlreadyRead) then
                 call InitFCIMC_pops(iPopAllTotWalkers, PopNIfSgn, iPopNel, read_nnodes, &
@@ -1716,9 +1712,10 @@ contains
         ! Initialise excitation generation storage
         call init_excit_gen_store(fcimc_excit_gen_store)
 
-        ! initialize excitation generator
+
         if (t_pcpp_excitgen) call init_pcpp_excitgen()
-        if(t_impurity_excitgen) call setupImpurityExcitgen()
+
+        if (t_impurity_excitgen) call setupImpurityExcitgen()
         ! [W.D.] I guess I want to initialize that before the tau-search,
         ! or otherwise some pgens get calculated incorrectly
         if (t_back_spawn .or. t_back_spawn_flex) then
@@ -1748,25 +1745,14 @@ contains
         end if
 
         if (tSearchTau) then
-            if (tGen_nosym_guga) then
-                call init_tau_search_guga_nosym()
-            else
-                call init_tau_search()
-            end if
-            ! set!
-            ! [Werner Dobrautz 4.4.2017:]
+            call init_tau_search()
             if (t_hist_tau_search) then
-                ! some setup went wrong!
                 call Stop_All(t_r, &
-                              "Input error! both standard AND Histogram tau-search chosen!")
+                      "Input error! both standard AND Histogram tau-search chosen!")
             end if
 
         else if (t_hist_tau_search) then
-            if (tGen_nosym_guga) then
-                call init_hist_tau_search_guga_nosym()
-            else
-                call init_hist_tau_search()
-            end if
+            call init_hist_tau_search()
 
         else if (t_hist_tau_search) then
             call init_hist_tau_search()
@@ -2286,7 +2272,12 @@ contains
 
 
         ! Cleanup excitation generator
+        if (t_guga_pchb) then
+            call finalize_pchb_excitgen_guga()
+        end if
+
         if (t_pcpp_excitgen) call finalize_pcpp_excitgen()
+
         if(t_impurity_excitgen) call clearImpurityExcitgen()
 
         if (tSemiStochastic) call end_semistoch()
@@ -2576,7 +2567,7 @@ contains
 
         integer :: run, DetHash
         real(dp), dimension(lenof_sign) :: InitialSign
-        real(dp) :: h_temp
+        HElement_t(dp) :: h_temp
 
         if (tOrthogonaliseReplicas) then
             call InitFCIMC_HF_orthog()
@@ -2630,9 +2621,9 @@ contains
                 end if
             else
                 ! HF energy is equal to 0 (when used as reference energy)
-                h_temp = 0.0_dp
+                h_temp = h_cast(0.0_dp)
             end if
-            call set_det_diagH(1, h_temp)
+            call set_det_diagH(1, real(h_temp, dp))
             HFInd = 1
 
             call store_decoding(1, HFDet)
@@ -3612,8 +3603,8 @@ contains
         integer :: iSpn, FirstA, nJ(NEl), a_loc, Ex(2, maxExcit), kx, ky, kz, OrbB
         integer :: ki2, kj2
         logical :: tParity
-        real(dp) :: Ranger, mp2, mp2all, length
-        HElement_t(dp) :: hel, H0tmp
+        real(dp) :: Ranger, length
+        HElement_t(dp) :: hel, H0tmp, mp2, mp2all
 
         !Divvy up the ij pairs
         Ranger = real(ElecPairs, dp) / real(nProcessors, dp)
@@ -3721,7 +3712,6 @@ contains
                     if (OrbB >= a_loc) cycle
 
                     !Find det
-!                    write(iout,*) "OrbB: ",OrbB
                     call make_double(HFDet, nJ, elec1ind, elec2ind, a_loc, &
                                      orbB, ex, tParity)
                     !Sum in mp2 contrib
@@ -3733,13 +3723,11 @@ contains
                         H0tmp = H0tmp + 2.0_dp * Madelung
                     end if
                     mp2 = mp2 + (hel**2) / H0tmp
-!                    write(iout,*) (hel**2),H0tmp
                 end do
 
             else if (iSpn == 2) then
                 do a_loc = 1, nBasis
                     !Loop over all a_loc
-!                    write(iout,*) "a_loc: ",a_loc
 
                     !Reject if a is occupied
                     if (IsOcc(iLutHF, a_loc)) cycle
@@ -3774,7 +3762,6 @@ contains
                     if (IsOcc(iLutHF, OrbB)) cycle
                     if (OrbB >= a_loc) cycle
 
-!                    write(iout,*) "OrbB: ",OrbB
                     !Find det
                     call make_double(HFDet, nJ, elec1ind, elec2ind, a_loc, &
                                      orbB, ex, tParity)
@@ -3786,13 +3773,11 @@ contains
                         H0tmp = H0tmp + 2.0_dp * Madelung
                     end if
                     mp2 = mp2 + (hel**2) / H0tmp
-!                    write(iout,*) (hel**2),H0tmp
                 end do
             end if
 
         end do
 
-!        write(iout,*) "mp2: ",mp2
         mp2all = 0.0_dp
 
         !Sum contributions across nodes.
@@ -3930,8 +3915,7 @@ contains
                 found_mask = .true.
 
                 do i = 1, n_excits
-                    diag_energies(i) = &
-                        calcDiagMatEleGUGA_ilut(excitations(:, i))
+                    diag_energies(i) = real(calcDiagMatEleGUGA_ilut(excitations(:, i)), dp)
                 end do
 
                 ! can i sort the excitation list, according to energies?

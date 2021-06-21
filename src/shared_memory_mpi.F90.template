@@ -72,6 +72,7 @@ contains
 
       subroutine shared_allocate_mpi (win_shm, p_shm, dims, ierr)
       use HElem
+
       integer(MPIArg):: win_shm
       integer, intent(out), optional :: ierr
 

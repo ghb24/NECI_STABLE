@@ -44,7 +44,7 @@ module k_space_hubbard
     use dsfmt_interface, only: genrand_real2_dsfmt
 
     use util_mod, only: binary_search_first_ge, binary_search, near_zero, &
-                        operator(.isclose.)
+                        operator(.isclose.), operator(.div.)
 
     use get_excit, only: make_double
 
