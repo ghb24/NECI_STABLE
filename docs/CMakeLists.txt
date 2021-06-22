@@ -22,20 +22,20 @@ set(markdown_files_tutorial
 )
 
 set(markdown_files_dev_doc
-        pages/03_dev_doc/index.md
-        pages/03_dev_doc/01_code_conventions.md
-        pages/03_dev_doc/02_comments_and_documentation.md
-        pages/03_dev_doc/03_git_overview.md
-        pages/03_dev_doc/04_review_guidelines.md
-        pages/03_dev_doc/05_DRY.md
-        pages/03_dev_doc/06_compiler_help.md
-        pages/03_dev_doc/06_premature_optimization.md
-        pages/03_dev_doc/07_memory_tracking.md
-        pages/03_dev_doc/08_templating.md
-        pages/03_dev_doc/09_testing.md
-        pages/03_dev_doc/10_interfacing_C.md
-        pages/03_dev_doc/11_debugging.md
-        pages/03_dev_doc/12_important_globals.md
+        pages/02_dev_doc/index.md
+        pages/02_dev_doc/01_code_conventions.md
+        pages/02_dev_doc/02_comments_and_documentation.md
+        pages/02_dev_doc/03_git_overview.md
+        pages/02_dev_doc/04_review_guidelines.md
+        pages/02_dev_doc/05_DRY.md
+        pages/02_dev_doc/06_compiler_help.md
+        pages/02_dev_doc/06_premature_optimization.md
+        pages/02_dev_doc/07_memory_tracking.md
+        pages/02_dev_doc/08_templating.md
+        pages/02_dev_doc/09_testing.md
+        pages/02_dev_doc/10_interfacing_C.md
+        pages/02_dev_doc/11_debugging.md
+        pages/02_dev_doc/12_important_globals.md
 )
 
 set(MEDIA_FILES
