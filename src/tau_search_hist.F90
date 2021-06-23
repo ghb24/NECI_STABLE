@@ -203,7 +203,7 @@ contains
         ! cause problems!
         if (.not. t_truncate_spawns) then
             write(iout, '("WARNING: NO spawn truncation chosen with keyword: &
-                &truncate-spawns [float] in input! this might cause &
+                &truncate-spawns [float] in input. this might cause &
                 &bloom problems with histogramming tau-search! BE CAUTIOUS!")')
         end if
 
