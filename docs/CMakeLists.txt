@@ -299,7 +299,7 @@ if (PANDOC AND LATEX_FOUND AND LATEXMK)
             COMMAND
                 # the output of cat depends on the order in the lists!
                 cat ${${markdown_files}}
-                    | ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/tools/doc_compilation/process_markdown_for_pdf.py
+                    | ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/tools/doc_compilation/process_markdown_for_pdf.py --media_dir ${MEDIA_WORKDIR}
                     | ${PANDOC} ${pandoc_options} -o ${out_name} -
             COMMAND
                 cp LaTeX-headers/literature.bib ${out_dir}/literature.bib

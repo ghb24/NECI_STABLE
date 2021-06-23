@@ -43,7 +43,7 @@ def process_markdown_file(f, media_path):
             else:
                 processed_file.append(line)
         elif '|media|' in line:
-            processed_file.append(line.replace('|media|', media_path))
+            processed_file.append(line.replace('|media|', str(media_path)))
         else:
             processed_file.append(line)
 
