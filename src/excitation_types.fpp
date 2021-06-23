@@ -67,11 +67,11 @@ module excitation_types
         integer :: val(2, 2) = UNKNOWN
     end type
 
-!> Represents the orbital indices of a triple excitation.
-!> The array is sorted like:
-!> [[src1, src2, src3],
-!>  [tgt1, tgt2, tgt3]]
     type, extends(Excitation_t) :: TripleExc_t
+        !! Represents the orbital indices of a triple excitation.
+        !!
+        !! The array is sorted like:
+        !! `[[src1, src2, src3], [tgt1, tgt2, tgt3]]`
         integer :: val(2, 3) = UNKNOWN
     end type
 

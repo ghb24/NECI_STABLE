@@ -80,6 +80,11 @@ neci_add_option(
     DEFAULT OFF
     DESCRIPTION "Build using shared libraries, rather than static linking" )
 
+neci_add_option(
+    FEATURE DOC
+    DEFAULT OFF
+    DESCRIPTION "Enable the documentation. (Has additional requirements like pandoc or latexmk)")
+
 # Special option overrides
 
 if( HAVE_SHARED_MEMORY AND CMAKE_Fortran_COMPILER_ID STREQUAL "PGI" )
@@ -151,8 +156,12 @@ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME AND BUILD_TESTING)
     add_subdirectory(unit_tests)
 endif()
 
-add_subdirectory(python)
-# And we are done
+if (HAVE_DOC)
+    add_subdirectory(docs)
+endif()
 
+add_subdirectory(python)
+
+# And we are done
 neci_print_summary()
 
