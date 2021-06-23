@@ -2,10 +2,8 @@ project: NECI
 project_github: https://github.com/ghb24/NECI_STABLE/
 summary: for FCIQMC
 author: Alavi Group
-include: ../src
-         ../src/lib
 parallel: 4
-media_dir: media
+media_dir: ../../media
 dbg: false
 warn: false
 display: private

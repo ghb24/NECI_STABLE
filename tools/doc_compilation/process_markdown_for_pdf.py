@@ -13,7 +13,7 @@ END_ENVIRONMENTS = {
     '@end{}'.format(env): '\\verbatimLaTeX{{\\end{{{}}}}}'.format(env) for env in ENVIRONMENTS}
 
 
-def process_markdown_file(f):
+def process_markdown_file(f, media_path):
     processed_file = []
     could_be_title = False
 
@@ -42,6 +42,8 @@ def process_markdown_file(f):
                 processed_file.pop()
             else:
                 processed_file.append(line)
+        elif '|media|' in line:
+            processed_file.append(line.replace('|media|', media_path))
         else:
             processed_file.append(line)
 
@@ -54,13 +56,15 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('input_file', nargs='?',
                         type=argparse.FileType('r'), default=sys.stdin)
+    parser.add_argument('--media_dir', type=Path, required=True,
+                        help='The directory containing media files.')
 
     args = parser.parse_args()
 
     if not args.input_file:
         sys.exit("Please provide an input file, or pipe it via stdin")
 
-    processed_file = process_markdown_file(args.input_file)
+    processed_file = process_markdown_file(args.input_file, args.media_dir)
 
     for line in processed_file:
         print(line, end='')

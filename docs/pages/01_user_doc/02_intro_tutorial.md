@@ -152,7 +152,10 @@ The popsfile will be very useful in case we wish to continue running the simulat
 
 ## Checking Convergence and Analysing Results
 
-The file `FCIMCStats` has several useful columns which you will want to plot to ensure convergence. To do this in one line, [there is a convenience script here](|media|/N2_neci_files/plot_fcimcstats.plt), which is run with gnuplot via `gnuplot plot_fcimcstats.plt` and will output plots of the most useful columns to a new `plots/` directory. Your results should look something like this:
+The file `FCIMCStats` has several useful columns which you will want to plot to ensure convergence.
+To do this in one line, [there is a convenience script here](|media|/N2_neci_files/plot_fcimcstats.plt),
+which is run with gnuplot via `gnuplot plot_fcimcstats.plt` and will output plots of the most useful columns to a new `plots/` directory.
+Your results should look something like this:
 
 1. ![](|media|/plots1/check_totE.png)
 2. ![](|media|/plots1/check_totWalkers.png)
@@ -244,4 +247,4 @@ Repeat this as above, do the same convergence analysis as above. Note, however, 
 
 Once you have done that, you may be much more confident about your calculated correlation energy.
 
-Congratulations on your first FCIQMC calculation with NECI. The software has many more sophisticated options and can be used for bigger systems. The rest of these documentations discuss these in some details, though not in a tutorial format. 
+Congratulations on your first FCIQMC calculation with NECI. The software has many more sophisticated options and can be used for bigger systems. The rest of these documentations discuss these in some details, though not in a tutorial format.

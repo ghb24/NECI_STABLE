@@ -1,3 +1,6 @@
+# This is the main target of this file
+add_custom_target(doc)
+
 # Add additional dependencies here.
 # The order of files in each list matters!
 # (It defines in which order they appear in the PDF)
@@ -15,20 +18,15 @@ set(markdown_files_user_doc
         pages/01_user_doc/09_references.md
 )
 
-set(markdown_files_tutorial
-        pages/02_tutorials/index.md
-        pages/02_tutorials/01_installation.md
-        pages/02_tutorials/02_basic_use.md
-)
-
 set(markdown_files_dev_doc
         pages/02_dev_doc/index.md
         pages/02_dev_doc/01_code_conventions.md
         pages/02_dev_doc/02_comments_and_documentation.md
-        pages/02_dev_doc/03_git_overview.md
-        pages/02_dev_doc/04_review_guidelines.md
-        pages/02_dev_doc/05_DRY.md
-        pages/02_dev_doc/06_compiler_help.md
+        # TODO(@Philip): Reintroduce your git stuff
+#         pages/02_dev_doc/03_git_overview.md
+        pages/02_dev_doc/03_review_guidelines.md
+        pages/02_dev_doc/04_DRY.md
+        pages/02_dev_doc/05_compiler_help.md
         pages/02_dev_doc/06_premature_optimization.md
         pages/02_dev_doc/07_memory_tracking.md
         pages/02_dev_doc/08_templating.md
@@ -51,6 +49,32 @@ set(MEDIA_FILES
         media/plots1/check_totWalkers.png
         media/plots2/blocking.png
 )
+
+set(DOC_WORKDIR ${PROJECT_BINARY_DIR}/documentation/work_dir)
+set(MEDIA_WORKDIR ${DOC_WORKDIR}/media)
+set(TEX_WORKDIR ${DOC_WORKDIR}/tex)
+set(FORD_ROOT_WORKDIR ${DOC_WORKDIR}/ford)
+
+
+foreach(file ${MEDIA_FILES})
+    list(APPEND processed_media_files "${DOC_WORKDIR}/${file}")
+endforeach()
+
+add_custom_command(
+    OUTPUT
+        ${processed_media_files}
+    DEPENDS
+        ${MEDIA_FILES}
+    COMMAND
+        ${CMAKE_COMMAND} -E make_directory ${DOC_WORKDIR} # Create output directory
+    COMMAND
+        cp -r media ${MEDIA_WORKDIR}
+    WORKING_DIRECTORY
+        ${PROJECT_SOURCE_DIR}/docs
+    COMMENT
+        "Copying media files"
+)
+
 
 function(get_absolute_sources target result)
     # This function returns the source files of a given target as absolute paths.
@@ -126,9 +150,10 @@ function(add_ford_documentation target configuration)
 
     find_program(FORD ford ${PROJECT_SOURCE_DIR}/External/ford/ford.py REQUIRED)
 
-    set(FORD_PAGES ${PROJECT_BINARY_DIR}/documentation/ford_pages/${configuration}/)
+    set(FORD_WORKDIR ${FORD_ROOT_WORKDIR}/${configuration})
+    set(FORD_PAGES ${FORD_WORKDIR}/pages)
 
-    set(markdown_files ${markdown_files_user_doc} ${markdown_files_tutorial} ${markdown_files_dev_doc})
+    set(markdown_files ${markdown_files_user_doc} ${markdown_files_dev_doc})
     get_unique_dirs(markdown_files markdown_dirs)
 
     foreach(file ${markdown_files})
@@ -145,18 +170,21 @@ function(add_ford_documentation target configuration)
         DEPENDS
             ${PYTHON_VENV}
             ${PROJECT_SOURCE_DIR}/tools/doc_compilation/process_markdown_for_ford.py
+            gen_docs.md
             pages/index.md
             ${markdown_files}
-            LaTeX_headers/literature.bib
+            LaTeX-headers/literature.bib
         COMMAND
             ${CMAKE_COMMAND} -E make_directory ${FORD_PAGES}
         COMMAND
             ${custom_Python3} -m pip install bibtexparser --quiet
         COMMAND
+            cp gen_docs.md ${FORD_WORKDIR}
+        COMMAND
             cp pages/index.md ${FORD_PAGES}
         COMMAND
             ${custom_Python3} ${PROJECT_SOURCE_DIR}/tools/doc_compilation/process_markdown_for_ford.py
-                        --bibfile LaTeX_headers/literature.bib
+                        --bibfile LaTeX-headers/literature.bib
                         --out_dir ${FORD_PAGES}
                         --md_dirs ${markdown_dirs}
                         --build_dir ${THIS_HTML_DOC}
@@ -177,6 +205,11 @@ function(add_ford_documentation target configuration)
 #     endforeach()
     list(APPEND ford_options "--src_dir=${PROJECT_SOURCE_DIR}/src/lib")
 
+    get_target_property(include_dirs lib${configuration} INCLUDE_DIRECTORIES)
+    foreach(dir ${include_dirs})
+        list(APPEND ford_options "--include=${dir}")
+    endforeach()
+
     get_target_property(comp_definitions lib${configuration} COMPILE_DEFINITIONS)
     foreach(def ${comp_definitions})
         list(APPEND ford_options "--macro=${def}")
@@ -188,7 +221,7 @@ function(add_ford_documentation target configuration)
         DEPENDS
             gen_docs.md
             ${PYTHON_VENV}
-            ${MEDIA_FILES}
+            ${processed_media_files}
             ${fortran_sources}
             ${processed_files}
             ${markdown_files}
@@ -202,7 +235,7 @@ function(add_ford_documentation target configuration)
         COMMAND
             ${custom_Python3} ${FORD} gen_docs.md --output_dir ${THIS_HTML_DOC} ${ford_options} --page_dir ${FORD_PAGES}
         WORKING_DIRECTORY
-            ${PROJECT_SOURCE_DIR}/docs
+            ${FORD_WORKDIR}
         COMMENT
             "Generating FORD documentation."
         VERBATIM
@@ -219,8 +252,6 @@ endfunction()
 
 
 
-add_custom_target(doc)
-
 foreach(configuration ${${PROJECT_NAME}_CONFIGURATIONS})
     add_ford_documentation(doc_html_${configuration} ${configuration})
 endforeach()
@@ -235,9 +266,8 @@ find_program(LATEXMK latexmk REQUIRED)
 if (PANDOC AND LATEX_FOUND AND LATEXMK)
     # The PDF documentation is independent of possible configurations (neci, dneci etc.).
     set(PDF_DOCUMENTATIONS ${PROJECT_BINARY_DIR}/documentation/pdf/)
-    set(TEX_FILES ${PROJECT_BINARY_DIR}/documentation/tex/)
     set(pandoc_options
-            --include-in-header LaTeX_headers/packages_to_include.tex
+            --include-in-header LaTeX-headers/packages_to_include.tex
             --standalone
             -V geometry:margin=3cm
             -V geometry:a4paper
@@ -249,7 +279,7 @@ if (PANDOC AND LATEX_FOUND AND LATEXMK)
                 -V biblatexoptions:isbn=false
                 -V biblatexoptions:url=false
                 -V biblio-title=Bibliography
-                --bibliography ${PROJECT_SOURCE_DIR}/docs/LaTeX_headers/literature.bib
+                --bibliography literature.bib
             --toc
             -f markdown-tex_math_dollars+tex_math_single_backslash
     )
@@ -259,10 +289,10 @@ if (PANDOC AND LATEX_FOUND AND LATEXMK)
         get_filename_component(out_dir ${out_name} DIRECTORY)
         add_custom_command(
             OUTPUT
-                ${out_name}
+                ${out_name} ${out_dir}/literature.bib
             DEPENDS
                 ${PROJECT_SOURCE_DIR}/tools/doc_compilation/process_markdown_for_pdf.py
-                ${PROJECT_SOURCE_DIR}/docs/LaTeX_headers/packages_to_include.tex
+                ${PROJECT_SOURCE_DIR}/docs/LaTeX-headers/packages_to_include.tex
                 ${${markdown_files}}
             COMMAND
                 ${CMAKE_COMMAND} -E make_directory ${out_dir} # Create output directory
@@ -271,6 +301,8 @@ if (PANDOC AND LATEX_FOUND AND LATEXMK)
                 cat ${${markdown_files}}
                     | ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/tools/doc_compilation/process_markdown_for_pdf.py
                     | ${PANDOC} ${pandoc_options} -o ${out_name} -
+            COMMAND
+                cp LaTeX-headers/literature.bib ${out_dir}/literature.bib
             WORKING_DIRECTORY
                 ${PROJECT_SOURCE_DIR}/docs/
             COMMENT
@@ -287,8 +319,9 @@ if (PANDOC AND LATEX_FOUND AND LATEXMK)
                 ${pdf_file}
             DEPENDS
                 ${tex_file}
-                ${PROJECT_SOURCE_DIR}/docs/LaTeX_headers/packages_to_include.tex
-                ${PROJECT_SOURCE_DIR}/docs/LaTeX_headers/literature.bib
+                ${PROJECT_SOURCE_DIR}/docs/LaTeX-headers/packages_to_include.tex
+                ${tex_dir}/literature.bib
+                ${processed_media_files}
             COMMAND
                 ${CMAKE_COMMAND} -E make_directory ${out_dir} # Create output directory
             COMMAND
@@ -303,10 +336,10 @@ if (PANDOC AND LATEX_FOUND AND LATEXMK)
     endfunction()
 
 
-    add_tex_command(markdown_files_user_doc ${TEX_FILES}/neci_user.tex "Generating user documentation tex file." )
-    add_pdf_command(${TEX_FILES}/neci_user.tex ${PDF_DOCUMENTATIONS}/neci_user.pdf "Generating user pdf documentation.")
-    add_tex_command(markdown_files_dev_doc ${TEX_FILES}/neci_dev.tex "Generating developer documentation tex file." )
-    add_pdf_command(${TEX_FILES}/neci_dev.tex ${PDF_DOCUMENTATIONS}/neci_dev.pdf "Generating developer pdf documentation.")
+    add_tex_command(markdown_files_user_doc ${TEX_WORKDIR}/user/neci_user.tex "Generating user documentation tex file." )
+    add_pdf_command(${TEX_WORKDIR}/user/neci_user.tex ${PDF_DOCUMENTATIONS}/neci_user.pdf "Generating user pdf documentation.")
+    add_tex_command(markdown_files_dev_doc ${TEX_WORKDIR}/dev/neci_dev.tex "Generating developer documentation tex file." )
+    add_pdf_command(${TEX_WORKDIR}/dev/neci_dev.tex ${PDF_DOCUMENTATIONS}/neci_dev.pdf "Generating developer pdf documentation.")
 
     add_custom_target(doc_pdf
         DEPENDS
