@@ -22,11 +22,10 @@ set(markdown_files_dev_doc
         pages/02_dev_doc/index.md
         pages/02_dev_doc/01_code_conventions.md
         pages/02_dev_doc/02_comments_and_documentation.md
-        # TODO(@Philip): Reintroduce your git stuff
-#         pages/02_dev_doc/03_git_overview.md
-        pages/02_dev_doc/03_review_guidelines.md
-        pages/02_dev_doc/04_DRY.md
-        pages/02_dev_doc/05_compiler_help.md
+        pages/02_dev_doc/03_git_overview.md
+        pages/02_dev_doc/04_review_guidelines.md
+        pages/02_dev_doc/05_DRY.md
+        pages/02_dev_doc/06_compiler_help.md
         pages/02_dev_doc/06_premature_optimization.md
         pages/02_dev_doc/07_memory_tracking.md
         pages/02_dev_doc/08_templating.md
