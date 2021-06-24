@@ -9,13 +9,13 @@ set(markdown_files_user_doc
         pages/01_user_doc/01_getting_into_the_game.md
         pages/01_user_doc/02_intro_tutorial.md
         pages/01_user_doc/03_calculation_inputs.md
-        pages/01_user_doc/03_calculation_outputs.md
-        pages/01_user_doc/04_trial_wave_functions.md
-        pages/01_user_doc/05_sampling_excited_states.md
-        pages/01_user_doc/06_davidson_RAS.md
-        pages/01_user_doc/07_error_analysis.md
-        pages/01_user_doc/08_pylib.md
-        pages/01_user_doc/09_references.md
+        pages/01_user_doc/04_calculation_outputs.md
+        pages/01_user_doc/05_trial_wave_functions.md
+        pages/01_user_doc/06_sampling_excited_states.md
+        pages/01_user_doc/07_davidson_RAS.md
+        pages/01_user_doc/08_error_analysis.md
+        pages/01_user_doc/09_pylib.md
+        pages/01_user_doc/10_references.md
 )
 
 set(markdown_files_dev_doc
