@@ -66,21 +66,25 @@ for the public release, or
 git clone https://<username>@bitbucket.org/neci_developers/neci.git
 ```
 for the developer release (replace `<username>` with your bitbucket username).
+The directory of this repository will be referred to as "`your_code_directory`".
 
-Next, make a subdirectory (let's call it "build"), then run cmake and then make:
+Next, create a directory (let's call it "`your_build_directory`"), then run cmake and then make:
 ```bash
 mkdir build
 cd build
-cmake -DENABLE_HDF5=ON -DENABLE_BUILD_HDF5=ON ../
+cmake -DENABLE_HDF5=ON -DENABLE_BUILD_HDF5=ON ${your_code_directory}
 make -j
 ```
 @note
-if you are making without HDF5, then remove the options `-DENABLE_HDF5=ON -DENABLE_BUILD_HDF5=ON` from the third line.
+If you are making without HDF5, then remove the options `-DENABLE_HDF5=ON -DENABLE_BUILD_HDF5=ON` from the third line.
 @endnote
 
 ## HDF5
 
-You may also need to build HDF5 yourself as a shared library, for example to ensure the same compilers for HDF5 and your programs.
+You may also need to build HDF5 yourself as a shared library, which speeds up the compilation process, since HDF5 does not have to be rebuilt for every new project.
+@note
+HDF5 should be built with the same set of compilers as NECI.
+@endnote
 
 In this case, download and extract the program from the HDF5 group website, then build with (you may replace the compilers if you wish, for example use `FC=mpifort` instead of `FC=mpiifort`)
 ```bash
@@ -101,27 +105,27 @@ and proceed with the NECI installation as before,
 ```bash
 mkdir build
 cd build
-cmake -DENABLE_HDF5=ON ../
+cmake -DENABLE_HDF5=ON ${your_code_directory}
 make -j
 ```
 
 ## Documentation
 
-If you wish to generate documentation for NECI, based on [Ford](https://github.com/Fortran-FOSS-Programmers/ford), then when you build with CMake, you must also include the flag `-DENABLE_DOC=ON`, for example 
+If you wish to generate documentation for NECI, based on [Ford](https://github.com/Fortran-FOSS-Programmers/ford),
+then when you build with CMake, you must also include the flag `-DENABLE_DOC=ON`, for example
 ```
 mkdir build
 cd build
-cmake -DENABLE_HDF5=ON -DENABLE_BUILD_HDF5=ON -DENABLE_DOC=ON ../
-make -j
+cmake -DENABLE_DOC=ON ${your_code_directory}
+make -j doc
 ```
 
-To make the docs, you don't need the last line `make -j` (which builds NECI). To make docs, use `make doc`. 
-
-Requirements to produce the docs are: 
+Requirements to produce the docs are:
 - pandoc,
 - latexmk,
 - pdflatex,
 - biber, and
 - a working internet connection (only for the first time, in order to get a custom-build of Ford).
 
-This will not only generate this documentation in the form of a PDF, but also as a website, having in addition to the information in the PDF also automatically generated documentation from comments in the source files. 
+This will not only generate this documentation in the form of a PDF, but also as a website,
+having in addition to the information in the PDF also automatically generated documentation from comments in the source files.
