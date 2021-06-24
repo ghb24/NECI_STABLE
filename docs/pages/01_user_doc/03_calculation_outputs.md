@@ -16,9 +16,9 @@ This file contains whitespace delimited data that is written
 Currently (2021-06-08) there are 35 columns.
 The information in this file is useful in virtually every way of using `NECI`.
 
-The columns are:
-
-<!-- #     16.IterTime 17.FracSpawnFromSing  18.WalkersDiffProc  19.TotImagTime  20.ProjE.ThisIter  21.HFInstShift  22.TotInstShift  23.Tot-Proj.E.ThisCyc   24.HFContribtoE  25.NumContribtoE 26.HF weight    27.|Psi|     28.Inst S^2 29.Inst S^2   30.AbsProjE   31.PartsDiffProc 32.|Semistoch|/|Psi|  33.MaxCycSpawn   34.InvalidExcits  35. ValidExcits    -->
+The columns are listed in the following.
+Important and often used columns are highlighted red,
+rarely used columns are greyed out.
 
 **<span style="color: red">1 Steps (Step)</span>**<br>
 The number of iterations.
