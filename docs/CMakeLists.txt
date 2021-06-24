@@ -49,6 +49,8 @@ set(MEDIA_FILES
         media/plots2/blocking.png
 )
 
+set(DOC_ROOT_SRC ${PROJECT_SOURCE_DIR}/docs)
+
 set(DOC_WORKDIR ${PROJECT_BINARY_DIR}/documentation/work_dir)
 set(MEDIA_WORKDIR ${DOC_WORKDIR}/media)
 set(TEX_WORKDIR ${DOC_WORKDIR}/tex)
@@ -155,10 +157,11 @@ function(add_ford_documentation target configuration)
     set(markdown_files ${markdown_files_user_doc} ${markdown_files_dev_doc})
     get_unique_dirs(markdown_files markdown_dirs)
 
-    foreach(file ${markdown_files})
-        get_filename_component(dir ${file} DIRECTORY)
+    foreach(path ${markdown_files})
+        list(APPEND src_files "${DOC_ROOT_SRC}/${path}")
+        get_filename_component(dir ${path} DIRECTORY)
         get_filename_component(dir ${dir} NAME)
-        get_filename_component(name ${file} NAME)
+        get_filename_component(name ${path} NAME)
         list(APPEND processed_files "${FORD_PAGES}/${dir}/${name}")
     endforeach()
 
@@ -171,7 +174,7 @@ function(add_ford_documentation target configuration)
             ${PROJECT_SOURCE_DIR}/tools/doc_compilation/process_markdown_for_ford.py
             gen_docs.md
             pages/index.md
-            ${markdown_files}
+            ${src_files}
             LaTeX-headers/literature.bib
         COMMAND
             ${CMAKE_COMMAND} -E make_directory ${FORD_PAGES}
@@ -285,6 +288,10 @@ if (PANDOC AND LATEX_FOUND AND LATEXMK)
 
 
     function(add_tex_command markdown_files out_name comment)
+        foreach(path ${${markdown_files}})
+            list(APPEND src_files "${DOC_ROOT_SRC}/${path}")
+        endforeach()
+
         get_filename_component(out_dir ${out_name} DIRECTORY)
         add_custom_command(
             OUTPUT
@@ -292,7 +299,7 @@ if (PANDOC AND LATEX_FOUND AND LATEXMK)
             DEPENDS
                 ${PROJECT_SOURCE_DIR}/tools/doc_compilation/process_markdown_for_pdf.py
                 ${PROJECT_SOURCE_DIR}/docs/LaTeX-headers/packages_to_include.tex
-                ${${markdown_files}}
+                ${src_files}
             COMMAND
                 ${CMAKE_COMMAND} -E make_directory ${out_dir} # Create output directory
             COMMAND
