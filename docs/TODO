@@ -2,7 +2,6 @@ Large Content:
     - FCIMCStats column documentation @Oskar
 
 Back-burner:
-    - remove make doc_pdf dependency on ford preprocessing
     - allow other fields in markdown preamble (requiring `---` twice and newline at end of file are okay)
 
 Questions to Ali:
