@@ -26,7 +26,6 @@ def process_markdown_file(f, media_path):
 
         if n == 4:
             processed_file.append('\\newpage\n')
-            processed_file.append('# Using NECI\n')
 
         stripped = line.strip()
         if stripped in START_ENVIRONMENTS.keys():

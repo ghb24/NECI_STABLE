@@ -5,6 +5,7 @@ import bibtexparser
 from bibtexparser.bparser import BibTexParser
 from bibtexparser.customization import convert_to_unicode
 from pathlib import Path
+from functools import cmp_to_key
 import argparse
 import re
 import sys
@@ -136,8 +137,20 @@ def process_dir(bibfile, md_files, out_dir, build_dir):
 
 
 def driver(bibfile, md_dirs, out_dir, build_dir):
+    @cmp_to_key
+    def compare(p1, p2):
+        "Compare two paths lexicographically, except if the file is named `index.md`"
+        if p1 == p2:
+            return 0
+        elif p1.name == 'index.md':
+            return -1
+        elif p2.name == 'index.md':
+            return 1
+        else:
+            return -1 if p1 < p2 else 1
+
     for dir in md_dirs:
-        process_dir(bibfile, sorted(dir.glob('*.md')), out_dir / Path(dir.name), build_dir)
+        process_dir(bibfile, sorted(dir.glob('*.md'), key=compare), out_dir / Path(dir.name), build_dir)
 
 
 

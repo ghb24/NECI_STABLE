@@ -9,24 +9,23 @@ set(markdown_files_user_doc
         pages/01_user_doc/01_getting_into_the_game.md
         pages/01_user_doc/02_intro_tutorial.md
         pages/01_user_doc/03_calculation_inputs.md
-        pages/01_user_doc/03_calculation_outputs.md
-        pages/01_user_doc/04_trial_wave_functions.md
-        pages/01_user_doc/05_sampling_excited_states.md
-        pages/01_user_doc/06_davidson_RAS.md
-        pages/01_user_doc/07_error_analysis.md
-        pages/01_user_doc/08_pylib.md
-        pages/01_user_doc/09_references.md
+        pages/01_user_doc/04_calculation_outputs.md
+        pages/01_user_doc/05_trial_wave_functions.md
+        pages/01_user_doc/06_sampling_excited_states.md
+        pages/01_user_doc/07_davidson_RAS.md
+        pages/01_user_doc/08_error_analysis.md
+        pages/01_user_doc/09_pylib.md
+        pages/01_user_doc/10_references.md
 )
 
 set(markdown_files_dev_doc
         pages/02_dev_doc/index.md
         pages/02_dev_doc/01_code_conventions.md
         pages/02_dev_doc/02_comments_and_documentation.md
-        # TODO(@Philip): Reintroduce your git stuff
-#         pages/02_dev_doc/03_git_overview.md
-        pages/02_dev_doc/03_review_guidelines.md
-        pages/02_dev_doc/04_DRY.md
-        pages/02_dev_doc/05_compiler_help.md
+        pages/02_dev_doc/03_git_overview.md
+        pages/02_dev_doc/04_review_guidelines.md
+        pages/02_dev_doc/05_DRY.md
+        pages/02_dev_doc/06_compiler_help.md
         pages/02_dev_doc/06_premature_optimization.md
         pages/02_dev_doc/07_memory_tracking.md
         pages/02_dev_doc/08_templating.md
@@ -49,6 +48,8 @@ set(MEDIA_FILES
         media/plots1/check_totWalkers.png
         media/plots2/blocking.png
 )
+
+set(DOC_ROOT_SRC ${PROJECT_SOURCE_DIR}/docs)
 
 set(DOC_WORKDIR ${PROJECT_BINARY_DIR}/documentation/work_dir)
 set(MEDIA_WORKDIR ${DOC_WORKDIR}/media)
@@ -156,10 +157,11 @@ function(add_ford_documentation target configuration)
     set(markdown_files ${markdown_files_user_doc} ${markdown_files_dev_doc})
     get_unique_dirs(markdown_files markdown_dirs)
 
-    foreach(file ${markdown_files})
-        get_filename_component(dir ${file} DIRECTORY)
+    foreach(path ${markdown_files})
+        list(APPEND src_files "${DOC_ROOT_SRC}/${path}")
+        get_filename_component(dir ${path} DIRECTORY)
         get_filename_component(dir ${dir} NAME)
-        get_filename_component(name ${file} NAME)
+        get_filename_component(name ${path} NAME)
         list(APPEND processed_files "${FORD_PAGES}/${dir}/${name}")
     endforeach()
 
@@ -172,7 +174,7 @@ function(add_ford_documentation target configuration)
             ${PROJECT_SOURCE_DIR}/tools/doc_compilation/process_markdown_for_ford.py
             gen_docs.md
             pages/index.md
-            ${markdown_files}
+            ${src_files}
             LaTeX-headers/literature.bib
         COMMAND
             ${CMAKE_COMMAND} -E make_directory ${FORD_PAGES}
@@ -199,11 +201,11 @@ function(add_ford_documentation target configuration)
     get_absolute_sources(lib${configuration} lib_sources)
     set(fortran_sources ${prog_sources} ${lib_sources})
     get_unique_dirs(fortran_sources source_dirs)
-# TODO(Oskar, Philip): Put back all source files
-#     foreach(dir ${source_dirs})
-#         list(APPEND ford_options "--src_dir=${dir}")
-#     endforeach()
-    list(APPEND ford_options "--src_dir=${PROJECT_SOURCE_DIR}/src/lib")
+    foreach(dir ${source_dirs})
+        list(APPEND ford_options "--src_dir=${dir}")
+    endforeach()
+# Use the following instead if you want to compile ford fast
+#     list(APPEND ford_options "--src_dir=${PROJECT_SOURCE_DIR}/src/lib")
 
     get_target_property(include_dirs lib${configuration} INCLUDE_DIRECTORIES)
     foreach(dir ${include_dirs})
@@ -286,6 +288,10 @@ if (PANDOC AND LATEX_FOUND AND LATEXMK)
 
 
     function(add_tex_command markdown_files out_name comment)
+        foreach(path ${${markdown_files}})
+            list(APPEND src_files "${DOC_ROOT_SRC}/${path}")
+        endforeach()
+
         get_filename_component(out_dir ${out_name} DIRECTORY)
         add_custom_command(
             OUTPUT
@@ -293,7 +299,7 @@ if (PANDOC AND LATEX_FOUND AND LATEXMK)
             DEPENDS
                 ${PROJECT_SOURCE_DIR}/tools/doc_compilation/process_markdown_for_pdf.py
                 ${PROJECT_SOURCE_DIR}/docs/LaTeX-headers/packages_to_include.tex
-                ${${markdown_files}}
+                ${src_files}
             COMMAND
                 ${CMAKE_COMMAND} -E make_directory ${out_dir} # Create output directory
             COMMAND
