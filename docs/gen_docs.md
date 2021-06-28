@@ -13,8 +13,8 @@ source: true
 md_extensions: markdown.extensions.toc
                markdown.extensions.smarty
 preprocess: true
-search: false
-graph: false
+search: true
+graph: true
 graph_maxnodes: 250
 graph_maxdepth: 5
 coloured_edges: true

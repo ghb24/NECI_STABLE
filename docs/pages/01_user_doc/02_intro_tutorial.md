@@ -1,8 +1,8 @@
+---
 title: Quickstart Tutorial
-author: Philip Haupt
 ---
 
-# Basic NECI Tutorial
+## Basic NECI Tutorial
 
 FCIQMC is not a blackbox method and as such may be daunting to first approach.
 In addition, there are many variants which excel in different kinds of problems.
@@ -31,7 +31,7 @@ This has been done for you, and you may download the file [here](|media|/N2_neci
 Perhaps also include the Molpro code to generate this FCIDUMP file?
 @endtodo
 
-## Anatomy of an Input File
+### Anatomy of an Input File
 
 In order to run a NECI calculation, we must create an input file. Here is an example for the FCIDUMP file provided, called `n2_neci.inp`.
 ```
@@ -100,7 +100,7 @@ All these keywords (and plenty more) are explained in the [next section](03_calc
 You cannot use the `hdf5-pops` keyword if you did not build NECI with HDF5.
 @endnote
 
-## Running NECI
+### Running NECI
 
 After building, the NECI executable will be in `path/to/neci/build/bin/neci` (e.g. if I installed NECI in my home directory, it would be `~/neci/build/bin/neci`).
 
@@ -150,7 +150,7 @@ This calculation should produce a few other files in the directory, namely:
 
 The popsfile will be very useful in case we wish to continue running the simulation. `FCIMCStats` has columns of useful data, which we will explore now.
 
-## Checking Convergence and Analysing Results
+### Checking Convergence and Analysing Results
 
 The file `FCIMCStats` has several useful columns which you will want to plot to ensure convergence.
 To do this in one line, [there is a convenience script here](|media|/N2_neci_files/plot_fcimcstats.plt),
@@ -183,7 +183,7 @@ will output a blocking plot to the plots subdirectory, starting after `<numiter>
 Consisting of only three points, and having no plateau, this indicates that *we have not yet converged our FCIQMC calculation reliably.*
 That is, if all the above 6 plots indicate convergence but the blocking analysis has no plateau (as in this example), it is most likely that you must continue the calculation to get more data.
 
-## Continuing a NECI Calculation
+### Continuing a NECI Calculation
 
 In order to continue a NECI calculation (for example, if like in this example you have done a calculation only to find you do not have enough data), simply take the same NECI input as above, but add into the calc the `readPops` command, which indicates that NECI must read the popsfile previously created. You may also wish to increase the number of iterations `nmcyc`, e.g.
 ```text
@@ -224,7 +224,7 @@ Reference Energy set to:      -108.9606713172
 ```
 (search for "Reference Energy"). You'll also find estimates for the correlation energy in the output file. However, this is not as trustworthy as doing a full blocking analysis.
 
-## Final Steps
+### Final Steps
 
 To be completely sure of our FCIQMC calculation, we must again continue from the popsfile with the `readPops` keyword, but change the number of walkers. The goal here is to verify that we have a sufficient number of walkers, and that we are converged with respect to the total number of walkers. Thus, to be really sure of our energy calculation, we must repeat the FCIQMC calculation but varying the number of walkers. The easiest way to do this is to restart from the previous popsfile and increase the total number of walkers. However, since the previous total number of walkers has already been reached, NECI is in variable-shift (or constant-walker-number) mode, and hence we need to tell NECI vary the number of walkers again.
 
@@ -247,4 +247,4 @@ Repeat this as above, do the same convergence analysis as above. Note, however, 
 
 Once you have done that, you may be much more confident about your calculated correlation energy.
 
-Congratulations on your first FCIQMC calculation with NECI. The software has many more sophisticated options and can be used for bigger systems. The rest of these documentations discuss these in some details, though not in a tutorial format.
+Congratulations on your first FCIQMC calculation with NECI. The software has many more sophisticated options and can be used for bigger systems. The rest of this documentation discusses these in some details, though not in a tutorial format.
