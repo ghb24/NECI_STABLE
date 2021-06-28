@@ -732,8 +732,6 @@ contains
     end function
 
 
-
-
     !>  Constructor of CumulGASSpec_t
     pure function construct_CumulGASSpec_t(cn_min, cn_max, spat_GAS_orbs) result(GAS_spec)
         !>  Cumulative minimum particle number.
