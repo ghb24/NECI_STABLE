@@ -26,7 +26,7 @@ MODULE Determinants
     use guga_data, only: ExcitationInformation_t
 
     use lattice_mod, only: get_helement_lattice
-    use util_mod, only: NECI_ICOPY
+    use util_mod, only: NECI_ICOPY, operator(.div.)
     use SymData , only : nSymLabels,SymLabelList,SymLabelCounts,TwoCycleSymGens
     use sym_mod
 
@@ -103,7 +103,7 @@ contains
                 write(6,*) "S: ", STOT
                 write(6,*) "calculated S of inputted CSF: ", ms
                 call stop_all(this_routine, " Defined CSF has the &
-                    &wrong total spin quantum number! Change DEFINEDET or &
+                    &wrong total spin quantum number. Change DEFINEDET or &
                     &S quantum numnber!")
             end if
         end if
@@ -394,16 +394,13 @@ contains
 
         IF((.not.tHub).and.(.not.tUEG).and.TwoCycleSymGens) THEN
             do i=1,nSymLabels
-!                write(6,*) "NSymLabels: ",NSymLabels,i-1
                 EndSymState=SymLabelCounts(1,i)+SymLabelCounts(2,i)-1
-!                write(6,*) "Number of states: ",SymLabelCounts(2,i)
                 do j=SymLabelCounts(1,i),EndSymState
 
                     Beta=(2*SymLabelList(j))-1
                     Alpha=(2*SymLabelList(j))
                     SymAlpha=INT((G1(Alpha)%Sym%S),4)
                     SymBeta=INT((G1(Beta)%Sym%S),4)
-!                    write(6,*) "***",Alpha,Beta
 
                     IF(.not.tFoundOrbs(Beta)) THEN
                         tFoundOrbs(Beta)=.true.
@@ -575,10 +572,6 @@ contains
         end if
 
         if (tStoreAsExcitations .and. nI(1) == -1 .and. nJ(1) == -1) then
-            ! TODO: how to express requirement for double?
-            !if (IC /= 2) &
-            !    call stop_all (this_routine, "tStoreAsExcitations in &
-            !                  &get_helement requires IC=2 (doubles)")
 
             ex(1,:) = nJ(4:5)
             ex(2,:) = nJ(6:7)
@@ -765,12 +758,12 @@ contains
        if(lTerm) write(iUnit,*)
     end subroutine write_bit_rep
 
-    subroutine get_lexicographic_dets (ilut_src, store, ilut_gen) !, det)
+    subroutine get_lexicographic_dets (ilut_src, store, ilut_gen)
+
 
         integer(n_int), intent(in) :: ilut_src(0:NIfTot)
         type(lexicographic_store), intent(inout) :: store
         integer(n_int), intent(out), optional :: ilut_gen(0:NIfTot)
-        !integer, intent(out), optional :: det(nel)
 
         integer :: i, nfound, orb, clro
         integer(n_int) :: ilut_tmp(0:NIfTot)
@@ -794,13 +787,9 @@ contains
             ilut_tmp = spatial_bit_det(ilut_src)
             do i = 1, nbasis-1, 2
                 if (IsOcc(ilut_tmp, i)) then
-                    if (IsOcc(ilut_tmp, i+1)) then
-                    !    nelec = nelec + 2
-                    else
+                    if (IsNotOcc(ilut_tmp, i + 1)) then
                         nfound = nfound + 1
-                    !    nelec = nelec + 1
                         store%open_orbs(nfound) = i
-                    !    nhoce%open_indices(nfound) = nelec
                         if (nfound == store%nopen) exit
                     end if
                 end if
@@ -1078,6 +1067,7 @@ END MODULE Determinants
          use SystemData,only: nBasis
          use bit_reps, only: nIfTot
          use constants, only: n_int,bits_n_int
+         use util_mod, only: operator(.div.)
          implicit none
          integer, intent(in) :: nUnit
          integer(kind=n_int), intent(in) :: iLutnI(0:NIfTot)

@@ -27,10 +27,10 @@ if (CMAKE_VERSION VERSION_LESS "3.1")
          message(FATAL_ERROR "C++ compiler does not support c++11 standard")
        endif()
   endif()
-  set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+  set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -fPIC")
 else ()
 #  set (CMAKE_CXX_STANDARD 11)
-   set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+   set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -fPIC")
 endif ()
 
 # We require at least ifort17, previous versions do not support all required options
@@ -85,6 +85,11 @@ neci_add_option(
 	DEFAULT off
 	DESCRIPTION "Use the TCHInt library for transcorrelated integrals and matrix elements"
 	REQUIRED_PACKAGES TCHINT_NECI )
+
+neci_add_option(
+    FEATURE DOC
+    DEFAULT OFF
+    DESCRIPTION "Enable the documentation. (Has additional requirements like pandoc or latexmk)")
 
 # Special option overrides
 
@@ -157,7 +162,12 @@ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME AND BUILD_TESTING)
     add_subdirectory(unit_tests)
 endif()
 
-# And we are done
+if (HAVE_DOC)
+    add_subdirectory(docs)
+endif()
 
+add_subdirectory(python)
+
+# And we are done
 neci_print_summary()
 

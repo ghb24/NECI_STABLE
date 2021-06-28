@@ -1,5 +1,6 @@
 # Special defines for Intel c++ compiler
 
+set( ${PROJECT_NAME}_CXX_FLAGS "-fPIC" )
 set( ${PROJECT_NAME}_CXX_FLAGS_RELEASE "-O3 -xHost" )
 set( ${PROJECT_NAME}_CXX_FLAGS_CLUSTER "-ipo" )
 

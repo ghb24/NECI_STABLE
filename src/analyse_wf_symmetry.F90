@@ -249,10 +249,6 @@ contains
         ms = sum(get_spin_pn(nI))
         sym_labels(n_syms) = sym_labels(n_syms) + real(ms * (ms + 2) / 4.0, dp)
 
-!         ilut_spin = apply_s_squared(ilut_list)
-!
-!         sym_labels(n_syms) = calc_overlap(ilut_list, ilut_spin)
-
     end subroutine analyze_full_wavefunction_sym
 
     function apply_s_squared(ilut_list) result(ilut_spin)
@@ -323,20 +319,6 @@ contains
         end do
 
         trans_wf(:, :, 9) = apply_inversion_wf(ilut_list)
-
-        ! test to output the matrix representation of the symmetry operation
-!         print *, "sort_ind: ", sort_ind
-!         matrix = 0
-!         do i = 1, size(ilut_list,2)
-!             call extract_sign(ilut_list(:,i), signI)
-!             call extract_sign(trans_wf(:,sort_ind(i),8), signJ)
-!
-! !             matrix(i,sort_ind(i)) = int(sign(1.0_dp, signI(1)*signJ(1)))
-!
-!         end do
-
-!         print *, "m_o: "
-!         call print_matrix(matrix)
 
     end function apply_2D_point_group
 

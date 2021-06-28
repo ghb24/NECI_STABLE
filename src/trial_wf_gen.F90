@@ -642,7 +642,7 @@ contains
         logical :: texist
         character(len=*), parameter :: t_r = 'write_trial_space'
 
-        write(6, '("Writing the trial space to a file...")'); 
+        write(6, '("Writing the trial space to a file...")');
         iunit = get_free_unit()
 
         ! Let each processor write its trial states to the file. Each processor waits for

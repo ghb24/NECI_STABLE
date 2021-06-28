@@ -24,7 +24,7 @@ module semi_stoch_gen
     use guga_excitations, only: actHamiltonian
     use guga_bitRepOps, only: convert_ilut_toGUGA, convert_ilut_toNECI
     use guga_data, only: tGUGACore
-    use util_mod, only: near_zero
+    use util_mod, only: near_zero, operator(.div.)
     use core_space_util, only: core_space_t, cs_replicas, deallocate_sparse_ham
 
     implicit none
@@ -51,7 +51,7 @@ contains
         use sort_mod, only: sort
         use sparse_arrays, only: HDiagTag
         use sparse_arrays, only: SparseHamilTags
-        use LoggingData, only: t_print_core_info
+        use LoggingData, only: t_print_core_info, t_print_core_hamil
         use SystemData, only: nel, tAllSymSectors, tReltvy, nOccAlpha, nOccBeta
         use davidson_neci, only: DavidsonCalcType, perform_davidson, DestroyDavidsonCalc
 
@@ -199,6 +199,10 @@ contains
                 if (t_print_core_info) then
                     ! i think i also want information, like the energy and the
                     ! eigenvectors of the core-space
+                    if (t_print_core_hamil) then
+                        call print_basis(rep)
+                        call print_hamiltonian(rep)
+                    end if
                     root_print "I am before the diagonalization step with", t_non_hermitian
                     if (t_non_hermitian) then
                         call diagonalize_core_non_hermitian(e_values, e_vectors, rep)
@@ -312,8 +316,6 @@ contains
                     call generate_fci_core(SpawnedParts, space_size)
 
                 end if
-                !else if (core_in%tHeisenbergFCI) then
-                !    call generate_heisenberg_fci(SpawnedParts, space_size)
             end if
 
         else if (tGUGACore) then
@@ -384,6 +386,7 @@ contains
         ! routine to generate the singles and doubles core space from the
         ! HF (or current reference determinant) used in the semi-stochastic
         ! code when GUGA is in use
+        use guga_bitRepOps, only: write_guga_list
         integer(n_int), intent(inout) :: ilut_list(0:, :)
         integer, intent(inout) :: space_size
         logical, intent(in) :: only_keep_conn

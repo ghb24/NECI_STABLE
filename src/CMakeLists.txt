@@ -187,9 +187,9 @@ set( SRC_FILES
     guga_write_H_matrix.F90
     guga_matrixElements.F90
     guga_procedure_pointers.F90
-    guga_tausearch.F90
     guga_testsuite.F90
     guga_types.F90
+	guga_plugin.F90
     lattice_mod.F90
     tJ_model.F90
     k_space_hubbard.F90
@@ -206,6 +206,8 @@ set( SRC_FILES
     real_time_procs.F90
     real_time_read_input.F90
     verlet_aux.F90
+    guga_pchb_excitgen.F90
+    local_spin.F90
     CAS_distribution_init.F90
     excitation_generators.F90
     exc_gen_class_wrappers.F90

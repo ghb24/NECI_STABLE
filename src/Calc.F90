@@ -15,6 +15,7 @@ MODULE Calc
                           t_3_body_excits
     use Determinants, only: write_det
     use default_sets
+    use read_fci, only: reorder_orb_label
     use Determinants, only: iActiveBasis, SpecDet, tSpecDet, nActiveSpace, &
                             tDefineDet
     use DetCalc, only: iObs, jObs, kObs, DETINV, &
@@ -970,6 +971,7 @@ contains
                     end if
                 end do
                 if(i - 1 /= nel) call stop_all(t_r, "Insufficient orbitals given in DEFINEDET")
+                
                 ! there is something going wrong later in the init, so
                 ! do it actually here
                 if(tHPHF) then
@@ -1264,10 +1266,13 @@ contains
                 ! keyword
                 t_read_probs = .false.
 
-            case("DIRECT-GUGA-REF")
-                ! option to calculate the reference energy directly and not
-                ! via a pre-computed list
-                t_direct_guga_ref = .true.
+            case ("DIRECT-GUGA-REF")
+                ! obsolet since standard now!
+                write(iout, *) "WARNING: direct-guga-ref is the default now and not necessary as input"
+
+            case ("LIST-GUGA-REF")
+                ! option to calculate the reference energy via a pre-computed list
+                call stop_all(this_routine, "'list-guga-ref' option deprecated")
 
             case('TRUNC-GUGA-PGEN')
                 ! truncate GUGA excitation with a pgen below a chosen
@@ -1675,8 +1680,6 @@ contains
                     ! yes:
                     print *, "setting ntrial_ex_calc to max(trial_excit_choice)!"
                     ntrial_ex_calc = maxval(trial_excit_choice)
-!                     call stop_all(this_routine, &
-!                         "NUM-TRIAL-STATES-CALC must be >= max(TRIAL-EXCITS)!")
                 end if
 
             case("QMC-TRIAL-WF")
@@ -2131,7 +2134,6 @@ contains
                 tShiftonHFPop = .true.
             case("STARTMP1")
 !For FCIMC, this has an initial configuration of walkers which is proportional to the MP1 wavefunction
-!                CALL Stop_All(t_r,"STARTMP1 option depreciated")
                 TStartMP1 = .true.
                 TStartSinglePart = .false.
                 if(item < nitems) then
@@ -2141,7 +2143,6 @@ contains
                 end if
             case("STARTCAS")
 !For FCIMC, this has an initial configuration of walkers which is proportional to the MP1 wavefunction
-!                CALL Stop_All(t_r,"STARTMP1 option depreciated")
                 TStartCAS = .true.
                 TStartSinglePart = .false.
                 call geti(OccCASOrbs)  !Number of electrons in CAS
@@ -3884,7 +3885,7 @@ contains
         use global_utilities
         character(*), parameter :: this_routine = 'CalcCleanup'
 
-        deallocate(MCDet)
+        if(allocated(MCDet)) deallocate(MCDet)
         call LogMemDealloc(this_routine, tagMCDet)
 
         if (allocated(user_input_seed)) deallocate(user_input_seed)

@@ -41,6 +41,7 @@ module sltcnd_mod
     use bit_reps, only: NIfTot
     use LMat_mod, only: get_lmat_el, get_lmat_el_ua, external_lMat_matel
     use gen_coul_ueg_mod, only: get_contact_umat_el_3b_sp, get_contact_umat_el_3b_sap
+
     implicit none
     private
     public :: initSltCndPtr, &

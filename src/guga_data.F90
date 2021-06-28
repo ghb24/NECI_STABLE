@@ -13,7 +13,7 @@ module guga_data
     implicit none
 
     private
-    public :: ExcitationInformation_t, projE_replica, WeightData_t, &
+    public :: ExcitationInformation_t, WeightData_t, projE_replica, &
               getSingleMatrixElement, getDoubleMatrixElement, getMixedFullStop, &
               orbitalIndex, funA_0_2overR2, minFunA_2_0_overR2, funA_m1_1_overR2, &
               funa_2_0_overr2, getdoublecontribution, tnewdet, tag_excitations, &
@@ -22,7 +22,7 @@ module guga_data
               excit_type, gen_type, excit_names, &
               rdm_ind_bitmask, pos_excit_lvl_bits, pos_excit_type_bits, &
               n_excit_lvl_bits, n_excit_type_bits, n_excit_info_bits, &
-              RdmContribList_t
+              RdmContribList_t, n_excit_index_bits
 
     ! ========================== type defs ===================================
 
@@ -92,6 +92,9 @@ module guga_data
     ! the rdm_ind
     integer(int_rdm), parameter :: rdm_ind_bitmask = not(excitInfo_bitmask)
 
+    ! define similar stuff as above for encoding the minimal excit-type
+    ! information into an 64bit integer
+    integer, parameter :: n_excit_index_bits = 8
     ! define a type structure to store excitation information between two
     ! CSFs needed in the matrix element calculation between them
     ! this may also be used/needed for the excitation generation
@@ -164,7 +167,7 @@ module guga_data
 
     type :: ExcitationInformation_t
 
-        integer :: typ = 25 ! 25 is the invalid indicator
+        integer :: typ = excit_type%invalid
         ! need the involved indices of the excitation: list of integers
         ! for now the convention is, that they are given in an ordered form
         ! and is not related to the involved generators E_{ij} (E_{kl})

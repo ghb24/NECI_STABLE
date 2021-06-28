@@ -2,7 +2,7 @@
 
 module fcimc_pointed_fns
 
-    use SystemData, only: nel, tGUGA, tGen_nosym_guga, &
+    use SystemData, only: nel, tGUGA, &
                           tGen_sym_guga_mol, t_consider_diff_bias, nSpatOrbs, thub, &
                           tUEG, nBasis, tgen_guga_crude, &
                           t_k_space_hubbard, t_new_real_space_hubbard, &
@@ -259,16 +259,6 @@ contains
 
                     call fill_frequency_histogram_4ind(abs(rh_used / precond_fac), prob, &
                                                        ic, t_par, ex)
-
-                else if (tGen_nosym_guga) then
-                    ! have to also check if diff bias is considered
-                    if (t_consider_diff_bias) then
-                        call fill_frequency_histogram_nosym_diff(abs(rh_used / precond_fac), prob, &
-                                                                 ic, ex(1, 1), ex(1, 2))
-                    else
-                        call fill_frequency_histogram_nosym_nodiff(abs(rh_used / precond_fac), &
-                                                                   prob, ic, ex(1, 1))
-                    end if
 
                 else
                     ! for any other excitation generator just use one histogram

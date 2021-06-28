@@ -265,6 +265,7 @@ contains
 #ifndef CMPLX_
                 spwn_sgn = -sign(1.0_dp, sgn) * sign(real(nspawn, dp), hoffdiag)
 #else
+                unused_var(sgn)
                 call stop_all(this_routine, "Not implemented")
 #endif
 

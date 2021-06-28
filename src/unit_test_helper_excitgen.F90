@@ -127,7 +127,7 @@ contains
         numEx = 0
         tAllExFound = .false.
         do
-            call GenExcitations3(nI, ilut, nJ, exflag, ex, tPar, tAllExFound, .false.)
+            call GenExcitations3(nI, ilut, nJ, exflag, ex(:,1:2), tPar, tAllExFound, .false.)
             if (tAllExFound) exit
             call encodeBitDet(nJ, ilutJ)
             numEx = numEx + 1
