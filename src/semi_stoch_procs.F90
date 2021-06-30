@@ -139,11 +139,12 @@ contains
                                 do r_pt = rep%min_part(), rep%max_part(), 2
                                     i_pt = r_pt + 1
                                     rep%partial_determ_vecs(r_pt, i) = rep%partial_determ_vecs(r_pt, i) - &
-                              Real(rep%sparse_core_ham(i)%elements(j)) * rep%full_determ_vecs(r_pt, rep%sparse_core_ham(i)%positions(j)) + &
-                                 Aimag(rep%sparse_core_ham(i)%elements(j)) * rep%full_determ_vecs(i_pt, rep%sparse_core_ham(i)%positions(j))
+                                        Real(rep%sparse_core_ham(i)%elements(j)) * rep%full_determ_vecs(r_pt, rep%sparse_core_ham(i)%positions(j)) + &
+                                        Aimag(rep%sparse_core_ham(i)%elements(j)) * rep%full_determ_vecs(i_pt, rep%sparse_core_ham(i)%positions(j))
+
                                     rep%partial_determ_vecs(i_pt, i) = rep%partial_determ_vecs(i_pt, i) - &
-                             Aimag(rep%sparse_core_ham(i)%elements(j)) * rep%full_determ_vecs(r_pt, rep%sparse_core_ham(i)%positions(j)) - &
-                                  Real(rep%sparse_core_ham(i)%elements(j)) * rep%full_determ_vecs(i_pt, rep%sparse_core_ham(i)%positions(j))
+                                        Aimag(rep%sparse_core_ham(i)%elements(j)) * rep%full_determ_vecs(r_pt, rep%sparse_core_ham(i)%positions(j)) - &
+                                        Real(rep%sparse_core_ham(i)%elements(j)) * rep%full_determ_vecs(i_pt, rep%sparse_core_ham(i)%positions(j))
                                 end do
                             end do
                         end do
@@ -153,7 +154,7 @@ contains
                     do i = 1, rep%determ_sizes(iProcIndex)
                         do j = 1, rep%sparse_core_ham(i)%num_elements
                             rep%partial_determ_vecs(:, i) = rep%partial_determ_vecs(:, i) - &
-                                           rep%sparse_core_ham(i)%elements(j) * rep%full_determ_vecs(:, rep%sparse_core_ham(i)%positions(j))
+                               rep%sparse_core_ham(i)%elements(j) * rep%full_determ_vecs(:, rep%sparse_core_ham(i)%positions(j))
                         end do
                     end do
 #endif
@@ -169,18 +170,19 @@ contains
                                 shiftFactorFunction( &
                                 rep%indices_of_determ_states(i), run, &
                                 sqrt(rep%full_determ_vecs(min_pt, &
-                                                          i + rep%determ_displs(iProcIndex))**2 + &
-                                     rep%full_determ_vecs(max_pt, &
-                                                          i + rep%determ_displs(iProcIndex))**2)) * DiagSft(run)
+                                    i + rep%determ_displs(iProcIndex))**2 + &
+                                    rep%full_determ_vecs(max_pt, &
+                                    i + rep%determ_displs(iProcIndex))**2)) * DiagSft(run)
                         else
                             scaledDiagSft = DiagSft
                         end if
 
                         do part_type = 1, size(rep%partial_determ_vecs, dim=1)
                             ! Convert the index along partial_determ_vecs into a part_type
-                            rep%partial_determ_vecs(part_type, i) = rep%partial_determ_vecs(part_type, i) + &
-                                                                    scaledDiagSft(part_type_to_run(rep%min_part() + part_type - 1)) &
-                                                                    * rep%full_determ_vecs(part_type, i + rep%determ_displs(iProcIndex))
+                            rep%partial_determ_vecs(part_type, i) = &
+                                rep%partial_determ_vecs(part_type, i) + &
+                                scaledDiagSft(part_type_to_run(rep%min_part() + part_type - 1)) &
+                                * rep%full_determ_vecs(part_type, i + rep%determ_displs(iProcIndex))
                         end do
                     end do
 #else
@@ -1946,12 +1948,13 @@ contains
 
                 if (tHPHF) then
                     hamil(i, j) = hphf_off_diag_helement(nI, nJ, &
-                                                         rep%core_space(:, i), rep%core_space(:, j))
+                                     rep%core_space(:, i), rep%core_space(:, j))
                 else if (tGUGA) then
-                    call calc_guga_matrix_element(rep%core_space(:, i), rep%core_space(:, j), &
-                                                  excitInfo, hamil(i, j), .true., 1)
+                    call calc_guga_matrix_element(rep%core_space(:, i), &
+                        rep%core_space(:, j), excitInfo, hamil(i, j), .true., 1)
                 else
-                    hamil(i, j) = get_helement(nI, nJ, rep%core_space(:, i), rep%core_space(:, j))
+                    hamil(i, j) = get_helement(nI, nJ, rep%core_space(:, i), &
+                        rep%core_space(:, j))
                 end if
 
             end do

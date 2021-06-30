@@ -456,7 +456,7 @@ contains
                         ! Don't need to consider beta values that aren't in the unpaired detereminants
                         if (beta_m1_contribs(i)%pos(k) > nbeta_unpaired) cycle
                         nbeta_beta%ptr(beta_m1_contribs(i)%pos(j)) = nbeta_beta%ptr(beta_m1_contribs(i)%pos(j)) + 1
-                  call beta_beta%set_val(int(beta_m1_contribs(i)%pos(j), int32), int(nbeta_beta%ptr(beta_m1_contribs(i)%pos(j)), int32), int(beta_m1_contribs(i)%pos(k), int32))
+                        call beta_beta%set_val(int(beta_m1_contribs(i)%pos(j), int32), int(nbeta_beta%ptr(beta_m1_contribs(i)%pos(j)), int32), int(beta_m1_contribs(i)%pos(k), int32))
                     end do
                 end do
             end do
@@ -493,9 +493,9 @@ contains
                         ! Don't need to consider alpha values that aren't in the unpaired detereminants
                         if (alpha_m1_contribs(i)%pos(k) > nalpha_unpaired) cycle
                         nalpha_alpha%ptr(alpha_m1_contribs(i)%pos(j)) = nalpha_alpha%ptr(alpha_m1_contribs(i)%pos(j)) + 1
-           call alpha_alpha%set_val(int(alpha_m1_contribs(i)%pos(j), int32), &
-                                    int(nalpha_alpha%ptr(alpha_m1_contribs(i)%pos(j)), int32), &
-                                    int(alpha_m1_contribs(i)%pos(k), int32))
+                        call alpha_alpha%set_val(int(alpha_m1_contribs(i)%pos(j), int32), &
+                            int(nalpha_alpha%ptr(alpha_m1_contribs(i)%pos(j)), int32), &
+                            int(alpha_m1_contribs(i)%pos(k), int32))
 
                     end do
                 end do
@@ -626,7 +626,7 @@ contains
 
                 if (IC <= 2) then
                     hel = hphf_off_diag_helement_opt(nI, rep%core_space(:, i_full), &
-                                                     rep%core_space(:, ind_j), IC, CS_I, CS_J)
+                                             rep%core_space(:, ind_j), IC, CS_I, CS_J)
 
                     if (abs(hel) > 0.0_dp) then
                         call hamil_pos%push_back(ind_j)
@@ -1226,12 +1226,12 @@ contains
                 do j = 1, nbeta_m1_contribs(i)
                     do k = j + 1, nbeta_m1_contribs(i)
                         nbeta_beta%ptr(beta_m1_contribs(i)%pos(j)) = nbeta_beta%ptr(beta_m1_contribs(i)%pos(j)) + 1
-                  call beta_beta%set_val(int(beta_m1_contribs(i)%pos(j), int32), &
+                        call beta_beta%set_val(int(beta_m1_contribs(i)%pos(j), int32), &
                                          int(nbeta_beta%ptr(beta_m1_contribs(i)%pos(j)), int32), &
                                          int(beta_m1_contribs(i)%pos(k), int32))
 
                         nbeta_beta%ptr(beta_m1_contribs(i)%pos(k)) = nbeta_beta%ptr(beta_m1_contribs(i)%pos(k)) + 1
-                  call beta_beta%set_val(int(beta_m1_contribs(i)%pos(k), int32), &
+                        call beta_beta%set_val(int(beta_m1_contribs(i)%pos(k), int32), &
                                          int(nbeta_beta%ptr(beta_m1_contribs(i)%pos(k)), int32), &
                                          int(beta_m1_contribs(i)%pos(j), int32))
                     end do
@@ -1261,12 +1261,12 @@ contains
                 do j = 1, nalpha_m1_contribs(i)
                     do k = j + 1, nalpha_m1_contribs(i)
                         nalpha_alpha%ptr(alpha_m1_contribs(i)%pos(j)) = nalpha_alpha%ptr(alpha_m1_contribs(i)%pos(j)) + 1
-           call alpha_alpha%set_val(int(alpha_m1_contribs(i)%pos(j), int32), &
+                        call alpha_alpha%set_val(int(alpha_m1_contribs(i)%pos(j), int32), &
                                     int(nalpha_alpha%ptr(alpha_m1_contribs(i)%pos(j)), int32), &
                                     int(alpha_m1_contribs(i)%pos(k), int32))
 
                         nalpha_alpha%ptr(alpha_m1_contribs(i)%pos(k)) = nalpha_alpha%ptr(alpha_m1_contribs(i)%pos(k)) + 1
-           call alpha_alpha%set_val(int(alpha_m1_contribs(i)%pos(k), int32), &
+                        call alpha_alpha%set_val(int(alpha_m1_contribs(i)%pos(k), int32), &
                                     int(nalpha_alpha%ptr(alpha_m1_contribs(i)%pos(k)), int32), &
                                     int(alpha_m1_contribs(i)%pos(j), int32))
                     end do
