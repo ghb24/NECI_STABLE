@@ -673,8 +673,8 @@ contains
                     end if
                 end if
 
-                if (iProcIndex == root) &
-                    TotalTime8 = real(s_end - s_global_start, dp)
+                if (iProcIndex == root) TotalTime8 = real(s_end - s_global_start, dp)
+
                 call MPIBCast(TotalTime8)    !TotalTime is local - broadcast to all procs
 
 !This routine will check for a CHANGEVARS file and change the parameters of the calculation accordingly.

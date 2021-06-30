@@ -20,9 +20,10 @@ include_directories( ${CMAKE_CURRENT_SOURCE_DIR} )
 add_subdirectory( fruit_src )
 
 # And start adding tests
+# finally get unit testing integrated in software projects
+
 add_subdirectory( det_bit_ops )
 
-# finally get unit testing integrated in software projects
 add_subdirectory( real_space_hubbard )
 
 add_subdirectory( lattice_mod )
@@ -64,5 +65,7 @@ add_subdirectory( orb_idx_and_exc_types )
 add_subdirectory( sets_mod )
 
 add_subdirectory( shared_array )
+
+add_subdirectory( SD_spin_purification )
 
 add_subdirectory( lib )

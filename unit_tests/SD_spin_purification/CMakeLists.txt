@@ -1,0 +1,1 @@
+add_unit_test(SD_spin_purification)

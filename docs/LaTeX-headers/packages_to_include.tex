@@ -1,0 +1,32 @@
+\usepackage{xcolor}
+
+\newcommand\verbatimLaTeX[1]{#1}
+
+\usepackage{tcolorbox}
+
+\newtcolorbox{myquote}{colback=red!5!white, colframe=red!75!black}
+\newtcolorbox{notebox}{colback=blue!5!white, colframe=blue!75!black}
+\newtcolorbox{warningbox}{colback=red!5!white, colframe=red!75!black}
+\newtcolorbox{todobox}{colback=green!5!white, colframe=green!75!black}
+\newtcolorbox{bugbox}{colback=red!5!white, colframe=red!75!black}
+\renewenvironment{quote}{\begin{myquote}}{\end{myquote}}
+
+\newenvironment{note}{\begin{notebox}\textbf{\underline{\textcolor{blue}{NOTE}}}}{\end{notebox}}
+\newenvironment{warning}{\begin{warningbox}\textbf{\underline{\textcolor{red}{WARNING}}}}{\end{warningbox}}
+\newenvironment{todo}{\begin{todobox}\textbf{\underline{\textcolor{blue}{TODO}}}}{\end{todobox}}
+\newenvironment{bug}{\begin{bugbox}\textbf{\underline{\textcolor{blue}{BUG}}}}{\end{bugbox}}
+
+
+% Default formatting for code
+% \usepackage{listings}
+\definecolor{commentgreen}{rgb}{0,0.6,0}
+\lstset{
+	keywordstyle=\color{blue},
+	commentstyle=\color{commentgreen},
+	language=Fortran,
+	tabsize=4,
+	basicstyle=\footnotesize\ttfamily,
+	morekeywords={HElement_t,pure,elemental,supermodule,ubound,lbound,abstract,protected},
+	belowskip=-3pt,
+	lineskip=-1pt    % Bring the lines a bit closer together (eliminate spaces)
+}
