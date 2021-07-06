@@ -3,12 +3,14 @@
 module test_SD_spin_purification_mod
     use fruit
     use constants, only: dp, n_int
-    use SD_spin_purification_mod, only: S2_expval, spin_momentum, get_open_shell, spin_q_num, S2_expval_exc
+    use SD_spin_purification_mod, only: S2_expval, spin_momentum, &
+        get_open_shell, spin_q_num, S2_expval_exc, dyn_S2_expval_exc
     use excitation_types, only: Excitation_t, NoExc_t, SingleExc_t, DoubleExc_t, TripleExc_t
     use util_mod, only: operator(.isclose.)
     implicit none
     private
-    public :: test_S2_expval, test_spin_momentum, test_spin_q_num, test_get_open_shell, test_S2_expval_exc
+    public :: test_S2_expval, test_spin_momentum, test_spin_q_num, &
+        test_get_open_shell, test_S2_expval_exc, test_dyn_S2_expval_exc
 
 
 
@@ -97,6 +99,28 @@ contains
         call assert_true(1.0_dp .isclose. S2_expval_exc([1, 4, 5, 6], DoubleExc_t(1, 2, 4, 3)))
     end subroutine
 
+    subroutine test_dyn_S2_expval_exc()
+        call assert_equals(0._dp, dyn_S2_expval_exc([integer::], NoExc_t()))
+
+        call assert_equals(0._dp, dyn_S2_expval_exc([integer::], DoubleExc_t(1, 2, 3, 4)))
+
+        call assert_equals(0._dp, dyn_S2_expval_exc([1, 2, 3, 4], NoExc_t()))
+
+        call assert_equals(0._dp, dyn_S2_expval_exc([1, 3], DoubleExc_t(1, 3, 5, 7)))
+
+        call assert_true(spin_momentum(0.5_dp)**2 .isclose. dyn_S2_expval_exc([1], NoExc_t()))
+
+        call assert_true(spin_momentum(0.5_dp)**2 .isclose. dyn_S2_expval_exc([2], NoExc_t()))
+
+        call assert_equals(2._dp, dyn_S2_expval_exc([1, 3], NoExc_t()))
+
+        call assert_true(spin_momentum(1.0_dp)**2 .isclose. dyn_S2_expval_exc([2, 4], NoExc_t()))
+
+        call assert_true(1.0_dp .isclose. dyn_S2_expval_exc([1, 4], NoExc_t()))
+
+        call assert_true(1.0_dp .isclose. dyn_S2_expval_exc([1, 4, 5, 6], DoubleExc_t(1, 2, 4, 3)))
+    end subroutine
+
 
 end module test_SD_spin_purification_mod
 
@@ -134,6 +158,7 @@ contains
         call run_test_case(test_spin_q_num, "test_spin_q_num")
         call run_test_case(test_S2_expval, "test_S2_expval")
         call run_test_case(test_S2_expval_exc, "test_S2_expval_exc")
+        call run_test_case(test_dyn_S2_expval_exc, "test_dyn_S2_expval_exc")
         call run_test_case(test_get_open_shell, "test_get_open_shell")
     end subroutine
 end program test_SD_spin_purification_prog

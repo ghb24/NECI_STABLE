@@ -1,4 +1,6 @@
 #include "macros.h"
+#:include "macros.fpph"
+#:set excitations = ['NoExc_t', 'SingleExc_t', 'DoubleExc_t', 'TripleExc_t']
 
 
 module SD_spin_purification_mod
@@ -16,7 +18,14 @@ module SD_spin_purification_mod
 
     private
     public :: S2_expval, spin_momentum, spin_q_num, get_open_shell, &
-        tSD_spin_purification, spin_pure_alpha, S2_expval_exc
+        tSD_spin_purification, spin_pure_alpha, S2_expval_exc, dyn_S2_expval_exc
+
+
+    interface S2_expval_exc
+    #:for T in excitations
+        module procedure S2_expval_exc_${T}$
+    #:endfor
+    end interface
 
 contains
 
@@ -95,34 +104,62 @@ contains
         end if
     end function
 
-    pure function S2_expval_exc(nI, exc) result(res)
-        ! Calculate the  by the SlaterCondon Rules when the two
-        ! determinants are the same (so we only need to specify one).
+    pure function dyn_S2_expval_exc(nI, exc) result(res)
         integer, intent(in) :: nI(:)
         class(Excitation_t), intent(in) :: exc
         real(dp) :: res
 
-        integer, allocatable :: oS_nI(:)
-
-        res = 0.0_dp
-        oS_nI = get_open_shell(nI)
-        if (size(oS_nI) == 0) return
-
-        res = 0.0_dp
         select type(exc)
         type is (NoExc_t)
+            res = S2_expval_exc(nI, exc)
+        type is (SingleExc_t)
+            res = S2_expval_exc(nI, exc)
+        type is (DoubleExc_t)
+            res = S2_expval_exc(nI, exc)
+        type is (TripleExc_t)
+            res = S2_expval_exc(nI, exc)
+        end select
+    end function
+
+    pure function S2_expval_exc_NoExc_t(nI, exc) result(res)
+        integer, intent(in) :: nI(:)
+        type(NoExc_t), intent(in) :: exc
+        real(dp) :: res
+        integer, allocatable :: oS_nI(:)
+        real(dp) :: s_z
+        @:unused_var(exc)
+        oS_nI = get_open_shell(nI)
+        if (size(oS_nI) == 0) then
+            res = 0.0_dp
+        else
         block
             logical :: alpha_I(size(os_nI))
-            real(dp) :: s_z
             alpha_I = mod(oS_nI, 2) == 0
             s_z = (2 * count(alpha_I) - size(alpha_I)) / 2._dp
             res = s_z * (s_z - 1_dp) + real(count(alpha_I), dp)
         end block
-        type is (DoubleExc_t)
-        block
-            integer :: src(2), tgt_spat(2), os_nI_spat(size(os_nI))
-            src(:) = exc%val(1, :)
+        end if
+    end function
 
+    pure function S2_expval_exc_SingleExc_t(nI, exc) result(res)
+        integer, intent(in) :: nI(:)
+        type(SingleExc_t), intent(in) :: exc
+        real(dp) :: res
+        @:unused_var(nI, exc)
+        res = 0.0_dp
+    end function
+
+    pure function S2_expval_exc_DoubleExc_t(nI, exc) result(res)
+        integer, intent(in) :: nI(:)
+        type(DoubleExc_t), intent(in) :: exc
+        real(dp) :: res
+        integer, allocatable :: oS_nI(:), os_nI_spat(:)
+        integer :: src(2), tgt_spat(2)
+        oS_nI = get_open_shell(nI)
+        if (size(oS_nI) == 0) then
+            res = 0.0_dp
+        else
+            src(:) = exc%val(1, :)
             ! Test if double excitation is of exchange type,
             !   i.e. if one deleted particle is alpha one beta.
             if (count(mod(src, 2) == 0) == 1) then
@@ -138,8 +175,15 @@ contains
                     end if
                 end if
             end if
-        end block
-        end select
+        end if
+    end function
+
+    pure function S2_expval_exc_TripleExc_t(nI, exc) result(res)
+        integer, intent(in) :: nI(:)
+        type(TripleExc_t), intent(in) :: exc
+        real(dp) :: res
+        @:unused_var(nI, exc)
+        res = 0.0_dp
     end function
 
     pure function get_open_shell(nI) result(res)
