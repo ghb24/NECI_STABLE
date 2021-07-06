@@ -4,15 +4,21 @@
 module SD_spin_purification_mod
     use constants, only: n_int, dp, int64
     use growing_buffers, only: buffer_int_1D_t
-    use util_mod, only: stop_all, operator(.isclose.)
-    implicit none
+    use util_mod, only: stop_all, operator(.isclose.), swap, operator(.div.)
+    use sets_mod, only: subset
+    use excitation_types, only: excitation_t, NoExc_t, SingleExc_t, DoubleExc_t, &
+                                TripleExc_t, FurtherExc_t, &
+                                UNKNOWN, get_excitation, get_bit_excitation, create_excitation
+    implicit none(type, external)
+
+    logical :: tSD_spin_purification = .false.
+    real(dp), allocatable :: spin_pure_alpha
 
     private
-    public :: S2_expval, spin_momentum, spin_q_num, get_open_shell
+    public :: S2_expval, spin_momentum, spin_q_num, get_open_shell, &
+        tSD_spin_purification, spin_pure_alpha, S2_expval_exc
 
 contains
-
-    ! TODO(@Oskar): Can it be complex?
 
     pure function S2_expval(nI, nJ) result(res)
         !! Evaluates \(< D_i | S^2 | D_j > )\
@@ -23,7 +29,7 @@ contains
         !! Uses the second quantisation expression for the spin operator
         !! with \(S^2 = S_z ( S_z - 1) + S_{+} S_{-})\.
         !!
-        !! Since $S_z$ is basically a particle counting operator,
+        !! Since \(S_z\) is basically a particle counting operator,
         !! the first summand only appears in the diagonal, i.e. `nI == nJ`.
         !!
         !! The second summand is nonzero only, if $D_i$ and $D_j$
@@ -41,19 +47,19 @@ contains
             !! If nI and nJ have their open shell at the same spatial orbitals,
             !! this array contains true if the i-th open-shell orbital is alpha
             !! occupied.
-            !! [1, 2, 3, 6] get_open_shell-> [3, 6] %2-> [1, 0] ==0-> [False, True]
-            !! [1, 2, 4, 5] get_open_shell-> [4, 5] %2-> [0, 1] ==0-> [True, False]
-        real(dp) :: spin_proj_term, raise_low_term
+            !! `[1, 2, 3, 6] get_open_shell-> [3, 6] %2-> [1, 0] ==0-> [False, True]`
+            !! `[1, 2, 4, 5] get_open_shell-> [4, 5] %2-> [0, 1] ==0-> [True, False]`
         character(*), parameter :: this_routine = 'S2_expval'
 
+        res = 0.0_dp
         ASSERT(size(nI) == size(nJ))
 
         oS_nI = get_open_shell(nI)
+        if (size(oS_nI) == 0) return
         oS_nJ = get_open_shell(nJ)
+        if (size(oS_nJ) == 0) return
 
-        res = 0.0_dp
         if (size(oS_nI) /= size(oS_nJ)) return
-        if (size(oS_nI) == 0 .or. size(oS_nJ) == 0) return
         ! Are the same spatial orbitals open shell?
         ! < [a, a, 0, 0] | S^2 | [0, 0, a, a] >    ==  0
         if (any(oS_nI + mod(oS_nI, 2) /= oS_nJ + mod(oS_nJ, 2))) return
@@ -66,33 +72,74 @@ contains
         alpha_I = mod(oS_nI, 2) == 0
         alpha_J = mod(oS_nJ, 2) == 0
 
+        ! We assume that inside NECI all determinants have the
+        ! same spin projection.
         ASSERT(count(alpha_I) == count(alpha_J))
-
-        if (all(nI == nJ)) then
-            block
-                real(dp) :: s_z
-                ! N_a = count(mod(nI, 2) == 0)
-                ! N_b = size(nI) - N_a
-                ! s_z = (N_a - N_b) / 2._dp
-                ! s_z = (2 * N_a - size(nI)) / 2._dp
-                s_z = (2 * count(alpha_I) - size(alpha_I)) / 2._dp
-                spin_proj_term = s_z * (s_z - 1_dp)
-            end block
-        else
-            spin_proj_term = 0._dp
-        end if
 
         ! There is one exchange, rest is equal
         if (count(alpha_I .neqv. alpha_J) == 2) then
-            raise_low_term = 1._dp
+            res = 1._dp
         ! Everything is equal
         else if (all(alpha_I .eqv. alpha_J)) then
-            raise_low_term = real(count(alpha_I), dp)
+        block
+            real(dp) :: s_z
+            ! N_a = count(mod(nI, 2) == 0)
+            ! N_b = size(nI) - N_a
+            ! s_z = (N_a - N_b) / 2._dp
+            ! s_z = (2 * N_a - size(nI)) / 2._dp
+            s_z = (2 * count(alpha_I) - size(alpha_I)) / 2._dp
+            res = s_z * (s_z - 1_dp) + real(count(alpha_I), dp)
+        end block
         else
-            raise_low_term = 0._dp
+            res = 0.0_dp
         end if
+    end function
 
-        res = spin_proj_term + raise_low_term
+    pure function S2_expval_exc(nI, exc) result(res)
+        ! Calculate the  by the SlaterCondon Rules when the two
+        ! determinants are the same (so we only need to specify one).
+        integer, intent(in) :: nI(:)
+        class(Excitation_t), intent(in) :: exc
+        real(dp) :: res
+
+        integer, allocatable :: oS_nI(:)
+
+        res = 0.0_dp
+        oS_nI = get_open_shell(nI)
+        if (size(oS_nI) == 0) return
+
+        res = 0.0_dp
+        select type(exc)
+        type is (NoExc_t)
+        block
+            logical :: alpha_I(size(os_nI))
+            real(dp) :: s_z
+            alpha_I = mod(oS_nI, 2) == 0
+            s_z = (2 * count(alpha_I) - size(alpha_I)) / 2._dp
+            res = s_z * (s_z - 1_dp) + real(count(alpha_I), dp)
+        end block
+        type is (DoubleExc_t)
+        block
+            integer :: src(2), tgt_spat(2), os_nI_spat(size(os_nI))
+            src(:) = exc%val(1, :)
+
+            ! Test if double excitation is of exchange type,
+            !   i.e. if one deleted particle is alpha one beta.
+            if (count(mod(src, 2) == 0) == 1) then
+                if (src(1) > src(2)) call swap(src(1), src(2))
+                if (subset(src, os_nI)) then
+                    os_nI_spat = (os_nI + 1) .div. 2
+                    tgt_spat = (exc%val(2, :) + 1) .div. 2
+                    if (tgt_spat(1) > tgt_spat(2)) then
+                        call swap(tgt_spat(1), tgt_spat(2))
+                    end if
+                    if (subset(tgt_spat, os_nI_spat)) then
+                        res = 1.0_dp
+                    end if
+                end if
+            end if
+        end block
+        end select
     end function
 
     pure function get_open_shell(nI) result(res)
