@@ -104,9 +104,10 @@ contains
         end if
     end function
 
-    pure function dyn_S2_expval_exc(nI, exc) result(res)
+    pure function dyn_S2_expval_exc(nI, exc, tSign) result(res)
         integer, intent(in) :: nI(:)
         class(Excitation_t), intent(in) :: exc
+        logical, optional, intent(in) :: tSign
         real(dp) :: res
 
         select type(exc)
@@ -115,7 +116,7 @@ contains
         type is (SingleExc_t)
             res = S2_expval_exc(nI, exc)
         type is (DoubleExc_t)
-            res = S2_expval_exc(nI, exc)
+            res = S2_expval_exc(nI, exc, tSign)
         type is (TripleExc_t)
             res = S2_expval_exc(nI, exc)
         end select
@@ -149,32 +150,33 @@ contains
         res = 0.0_dp
     end function
 
-    pure function S2_expval_exc_DoubleExc_t(nI, exc) result(res)
+
+    pure function S2_expval_exc_DoubleExc_t(nI, exc, tSign) result(res)
         integer, intent(in) :: nI(:)
         type(DoubleExc_t), intent(in) :: exc
+        logical, optional, intent(in) :: tSign
         real(dp) :: res
-        integer, allocatable :: oS_nI(:), os_nI_spat(:)
-        integer :: src(2), tgt_spat(2)
+        integer, allocatable :: oS_nI(:)
+        integer :: src(2), src_spat(2), tgt_spat(2)
         oS_nI = get_open_shell(nI)
-        if (size(oS_nI) == 0) then
-            res = 0.0_dp
-        else
+        res = 0.0_dp
+        if (size(oS_nI) /= 0) then
             src(:) = exc%val(1, :)
-            ! Test if double excitation is of exchange type,
-            !   i.e. if one deleted particle is alpha one beta.
+            ! Test if double excitation is of exchange type.
             if (count(mod(src, 2) == 0) == 1) then
                 if (src(1) > src(2)) call swap(src(1), src(2))
                 if (subset(src, os_nI)) then
-                    os_nI_spat = (os_nI + 1) .div. 2
                     tgt_spat = (exc%val(2, :) + 1) .div. 2
-                    if (tgt_spat(1) > tgt_spat(2)) then
-                        call swap(tgt_spat(1), tgt_spat(2))
-                    end if
-                    if (subset(tgt_spat, os_nI_spat)) then
+                    if (tgt_spat(1) > tgt_spat(2)) call swap(tgt_spat(1), tgt_spat(2))
+                    src_spat = (src + 1) .div. 2
+                    if (all(src_spat == tgt_spat)) then
                         res = 1.0_dp
                     end if
                 end if
             end if
+        end if
+        if (present(tSign)) then
+            if (tSign) res = -res
         end if
     end function
 

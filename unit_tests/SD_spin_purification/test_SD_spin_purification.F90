@@ -97,6 +97,18 @@ contains
         call assert_true(1.0_dp .isclose. S2_expval_exc([1, 4], NoExc_t()))
 
         call assert_true(1.0_dp .isclose. S2_expval_exc([1, 4, 5, 6], DoubleExc_t(1, 2, 4, 3)))
+
+        call assert_true(1.0_dp .isclose. S2_expval_exc([1, 4], NoExc_t()))
+
+        call assert_true(1.0_dp .isclose. S2_expval_exc([2, 3], NoExc_t()))
+
+        call assert_true(1.0_dp .isclose. S2_expval_exc([1, 4], DoubleExc_t(src1=1, tgt1=2, src2=4, tgt2=3)))
+
+        call assert_true(1.0_dp .isclose. S2_expval_exc([2, 3], DoubleExc_t(src1=2, tgt1=1, src2=3, tgt2=4)))
+
+!         call assert_true(1.0_dp .isclose. S2_expval_exc([2, 3], DoubleExc_t(src1=3, tgt1=1, src2=2, tgt2=4)))
+
+!         call assert_true(1.0_dp .isclose. S2_expval_exc([2, 3], DoubleExc_t(src1=2, tgt1=4, src2=3, tgt2=1)))
     end subroutine
 
     subroutine test_dyn_S2_expval_exc()
