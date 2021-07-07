@@ -179,6 +179,8 @@ function(add_ford_documentation target configuration)
         COMMAND
             ${custom_Python3} -m pip install bibtexparser --quiet
         COMMAND
+            ${custom_Python3} -m pip install lxml --quiet
+        COMMAND
             cp pages/index.md ${FORD_PAGES}
         COMMAND
             ${custom_Python3} ${PROJECT_SOURCE_DIR}/tools/doc_compilation/process_markdown_for_ford.py
