@@ -970,7 +970,7 @@ contains
                     end if
                 end do
                 if(i - 1 /= nel) call stop_all(t_r, "Insufficient orbitals given in DEFINEDET")
-                
+
                 ! there is something going wrong later in the init, so
                 ! do it actually here
                 if(tHPHF) then
@@ -986,8 +986,6 @@ contains
 
                 if(tGUGA) then
                     if(.not. isProperCSF_ni(defdet)) then
-                        write(iout, *) " automatic neel-state creation produced invalid CSF!"
-                        write(iout, *) "created neel-state: "
                         call write_det(iout, DefDet, .true.)
                         call stop_all(t_r, " definedet is not a proper CSF or has wrong SPIN!")
                     end if
@@ -1003,6 +1001,12 @@ contains
                     do i = 1, nel
                         call geti(initial_refs(i, line))
                     end do
+                    if(tGUGA) then
+                        if (.not. isProperCSF_ni(initial_refs(:, line))) then
+                            call write_det(iout, initial_refs(:, line), .true.)
+                            call stop_all(t_r, "An initial_ref is not a proper CSF or has wrong SPIN!")
+                        end if
+                    end if
                 end do
 
             case("MULTIPLE-INITIAL-STATES")
@@ -1015,6 +1019,12 @@ contains
                     do i = 1, nel
                         call geti(initial_states(i, line))
                     end do
+                    if(tGUGA) then
+                        if (.not. isProperCSF_ni(initial_states(:, line))) then
+                            call write_det(iout, initial_states(:, line), .true.)
+                            call stop_all(t_r, "An initial state is not a proper CSF or has wrong SPIN!")
+                        end if
+                    end if
                 end do
 
             case("FINDGUIDINGFUNCTION")
