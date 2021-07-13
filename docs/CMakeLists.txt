@@ -171,9 +171,9 @@ function(add_ford_documentation target configuration)
         DEPENDS
             ${PYTHON_VENV}
             ${PROJECT_SOURCE_DIR}/tools/doc_compilation/process_markdown_for_ford.py
-            pages/index.md
+            ${PROJECT_SOURCE_DIR}/docs/pages/index.md
             ${src_files}
-            LaTeX-headers/literature.bib
+            ${PROJECT_SOURCE_DIR}/docs/LaTeX-headers/literature.bib
         COMMAND
             ${CMAKE_COMMAND} -E make_directory ${FORD_PAGES}
         COMMAND

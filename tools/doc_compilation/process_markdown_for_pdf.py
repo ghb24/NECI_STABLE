@@ -17,8 +17,6 @@ def process_markdown_file(f, media_path):
     processed_file = []
     could_be_title = False
 
-    color_regex = re.compile(r'<span style="color: (.*)">(.*)<\/span>')
-
     line = f.readline()
     n = 0
     while line:
@@ -32,9 +30,6 @@ def process_markdown_file(f, media_path):
             processed_file.append(START_ENVIRONMENTS[stripped] + '\n')
         elif stripped in END_ENVIRONMENTS.keys():
             processed_file.append(END_ENVIRONMENTS[stripped] + '\n')
-        elif color_regex.search(line):
-            processed_file.append(color_regex.sub(
-                r'\\textcolor{\1}{\2}', line))
         elif line == '---\n' and len(processed_file) >= 3:
             if 'title:' in processed_file[-1] and '---\n' == processed_file[-2]:
                 processed_file.pop()

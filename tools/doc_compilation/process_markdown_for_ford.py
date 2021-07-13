@@ -75,6 +75,11 @@ def replace_footnotes(line, n=1, to_end=''):
     return line_parsed, to_end, n
 
 
+def replace_textcolor(line):
+    color_regex = re.compile(r'\\textcolor{(.*)}{(.*)}')
+    return color_regex.sub(r'<span style="color: \1">\2</span>', line)
+
+
 def preprocess_markdown_file(f, bib_database, reffile='', n=1, refs=''):
     # TODO: processed_file could become a generator returning lines.
     processed_file = []
@@ -91,6 +96,7 @@ def preprocess_markdown_file(f, bib_database, reffile='', n=1, refs=''):
                 line, bib_database, to_end=refs, n=n, reffile=reffile)
             line_parsed, to_end, nfoot = replace_footnotes(
                 line_parsed, n=nfoot, to_end=to_end)
+            line_parsed = replace_textcolor(line_parsed)
         else:
             if line.strip() == '---':
                 after_preamble = True
