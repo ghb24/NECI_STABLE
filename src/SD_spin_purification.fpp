@@ -164,7 +164,7 @@ contains
             !! The bra Slater determinant in nI format.
         type(SingleExc_t), intent(in) :: exc
         real(dp) :: res
-            !! The matrix element is always exacly zero
+            !! The matrix element is always exactly zero
         @:unused_var(nI, exc)
         res = 0.0_dp
     end function
@@ -210,7 +210,7 @@ contains
             !! The bra Slater determinant in nI format.
         type(TripleExc_t), intent(in) :: exc
         real(dp) :: res
-            !! The matrix element is always exacly zero
+            !! The matrix element is always exactly zero
         @:unused_var(nI, exc)
         res = 0.0_dp
     end function
