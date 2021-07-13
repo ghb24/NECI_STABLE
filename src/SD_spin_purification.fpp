@@ -30,25 +30,28 @@ module SD_spin_purification_mod
 contains
 
     pure function S2_expval(nI, nJ) result(res)
-        !! Evaluates \(< D_i | S^2 | D_j > )\
+        !! Evaluates \(< D_i | S^2 | D_j > \)
         !!
         !! Only the singly occupied (open-shell) orbitals
         !! are relevant for the evaluation.
         !! Is nonzero only, if the spin projection of bra and ket are the same.
         !! Uses the second quantisation expression for the spin operator
-        !! with \(S^2 = S_z ( S_z - 1) + S_{+} S_{-})\.
+        !! with \( S^2 = S_z ( S_z - 1) + S_{+} S_{-} \).
         !!
         !! Since \(S_z\) is basically a particle counting operator,
-        !! the first summand only appears in the diagonal, i.e. `nI == nJ`.
+        !! the first summand only appears in the diagonal, i.e. `all(nI == nJ)`.
         !!
-        !! The second summand is nonzero only, if $D_i$ and $D_j$
+        !! The second summand is nonzero only, if \( D_i \) and \( D_j \)
         !! differ not at all, or if they differ by exactly one spin exchange.
-        !! In the former case it evaluates to the number of $\alpha$ electrons,
+        !! In the former case it evaluates to the number of \( \alpha \) electrons,
         !! in the latter case it is always one.
-        integer, intent(in) :: nI(:), nJ(:)
-            !! The bra and ket Slater determinants in nI format.
+        integer, intent(in) :: nI(:)
+            !! The bra Slater determinant in nI format.
+        integer, intent(in) :: nJ(:)
+            !! The ket Slater determinant in nI format.
         real(dp) :: res
             !! The matrix element.
+            !! It is real even for complex `NECI`.
         integer, allocatable :: oS_nI(:), oS_nJ(:)
             !! The open shell of the respective input determinants.
             !! (Can be empty!)
@@ -105,9 +108,15 @@ contains
     end function
 
     pure function dyn_S2_expval_exc(nI, exc, tSign) result(res)
+        !! Evaluates \(< D_i | S^2 | D_j > \)
+        !!
+        !! \( D_j \) is connected to \( D_i \) via the excitation `exc`.
         integer, intent(in) :: nI(:)
+            !! The bra Slater determinant in nI format.
         class(Excitation_t), intent(in) :: exc
+            !! An excitation.
         logical, optional, intent(in) :: tSign
+            !! Flag for the sign in front.
         real(dp) :: res
 
         select type(exc)
@@ -123,11 +132,18 @@ contains
     end function
 
     pure function S2_expval_exc_NoExc_t(nI, exc) result(res)
+        !! Evaluates \(< D_i | S^2 | D_i > \)
         integer, intent(in) :: nI(:)
+            !! The bra Slater determinant in nI format.
         type(NoExc_t), intent(in) :: exc
         real(dp) :: res
+            !! The matrix element.
+            !! It is real even for complex `NECI`.
         integer, allocatable :: oS_nI(:)
+            !! The open-shell spin-orbitals of nI.
+            !! Can be empty (allocated, but size == 0).
         real(dp) :: s_z
+            !! The spin sprojection.
         @:unused_var(exc)
         oS_nI = get_open_shell(nI)
         if (size(oS_nI) == 0) then
@@ -143,19 +159,27 @@ contains
     end function
 
     pure function S2_expval_exc_SingleExc_t(nI, exc) result(res)
+        !! Evaluates \(< D_i | S^2 | a^\dagger_A a_I D_i > = 0 \)
         integer, intent(in) :: nI(:)
+            !! The bra Slater determinant in nI format.
         type(SingleExc_t), intent(in) :: exc
         real(dp) :: res
+            !! The matrix element is always exacly zero
         @:unused_var(nI, exc)
         res = 0.0_dp
     end function
 
 
     pure function S2_expval_exc_DoubleExc_t(nI, exc, tSign) result(res)
+        !! Evaluates \(< D_i | S^2 | a^\dagger_A a^\dagger_B a_I a_J D_i > = 0 \)
         integer, intent(in) :: nI(:)
+            !! The bra Slater determinant in nI format.
         type(DoubleExc_t), intent(in) :: exc
         logical, optional, intent(in) :: tSign
+            !! Flag for the sign in front.
         real(dp) :: res
+            !! The matrix element.
+            !! It is real even for complex `NECI`.
         integer, allocatable :: oS_nI(:)
         integer :: src(2), src_spat(2), tgt_spat(2)
         oS_nI = get_open_shell(nI)
@@ -181,9 +205,12 @@ contains
     end function
 
     pure function S2_expval_exc_TripleExc_t(nI, exc) result(res)
+        !! Evaluates \(< D_i | S^2 | a^\dagger_A a^\dagger_B a^\dagger_C a_I a_J a_K D_i > = 0 \)
         integer, intent(in) :: nI(:)
+            !! The bra Slater determinant in nI format.
         type(TripleExc_t), intent(in) :: exc
         real(dp) :: res
+            !! The matrix element is always exacly zero
         @:unused_var(nI, exc)
         res = 0.0_dp
     end function
@@ -193,6 +220,8 @@ contains
         integer, intent(in) :: nI(:)
             !! Determinant in nI format.
         integer, allocatable :: res(:)
+            !! The singly occupied orbitals.
+            !! Result can be empty, i.e. allocated but `size == 0`.
         integer :: i
         type(buffer_int_1D_t) :: buffer
 
@@ -231,8 +260,8 @@ contains
     elemental function spin_q_num(spin_momentum) result(res)
         !! Return the spin quantum number for a given angular momentum.
         !!
-        !! Solves the equation \(X = \sqrt(s \cdot (s + 1))\)
-        !! for $s$.
+        !! Solves the equation \(X = \sqrt{s \cdot (s + 1)}\)
+        !! for \( s \).
         real(dp), intent(in) :: spin_momentum
             !! The spin angular momentum.
         real(dp) :: res
