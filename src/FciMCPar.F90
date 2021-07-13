@@ -673,8 +673,8 @@ contains
                     end if
                 end if
 
-                if (iProcIndex == root) &
-                    TotalTime8 = real(s_end - s_global_start, dp)
+                if (iProcIndex == root) TotalTime8 = real(s_end - s_global_start, dp)
+
                 call MPIBCast(TotalTime8)    !TotalTime is local - broadcast to all procs
 
 !This routine will check for a CHANGEVARS file and change the parameters of the calculation accordingly.
@@ -970,9 +970,11 @@ contains
 
         call PrintHighPops()
 
-        if (t_print_core_vec) then
-            call print_determ_vec_av()
+        if (tSemiStochastic .and. t_print_core_vec) then
             call print_determ_vec()
+            if (tFillingStochRDMonFly) then
+                call print_determ_vec_av()
+            end if
         end if
 
         if (t_symmetry_analysis) then

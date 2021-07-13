@@ -212,6 +212,7 @@ set( SRC_FILES
     excitation_generators.F90
     exc_gen_class_wrappers.F90
     exc_gen_classes.F90
+    SD_spin_purification.F90
 
     lib/backtrace.cpp
     lib/cons_neci.F90
