@@ -1,7 +1,7 @@
 #include "macros.h"
 
 module LMat_freeze
-    use IntegralsData, only: nFrozen, UMat, umat_win
+    use IntegralsData, only: nFrozen, UMat, umat_win, t_mimic_manu_freeze
     use UMatCache, only: numBasisIndices, UMatInd
     use constants
     use util_mod, only: operator(.div.), custom_findloc
@@ -113,7 +113,9 @@ contains
 
         ! Offset the orbital indexing
         call map_indices(indices)
-        call add_core_en(matel, indices)
+        if (.not. t_mimic_manu_freeze) then
+            call add_core_en(matel, indices)
+        end if
     end subroutine freeze_lmat
 
     !------------------------------------------------------------------------------------------!
@@ -436,7 +438,7 @@ contains
         if(t_quad) then
             ! The only options with a quadruple index are
             ! a) one direct excitation => -2
-            ! b) three direct exctiations => +2            
+            ! b) three direct exctiations => +2
             prefactor = merge(-2.0_dp, 2.0_dp, directs == 1)
         else
             ! In the other case, there are three relevant cases:

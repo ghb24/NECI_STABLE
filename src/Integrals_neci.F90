@@ -359,6 +359,7 @@ contains
                 end select
             case ("NOUMATCACHE")
                 NSLOTSINIT = -1
+
             case ("DFMETHOD")
                 call readu(w)
                 select case(w)
@@ -373,6 +374,7 @@ contains
                 case default
                     call report("keyword "//trim(w)//" not recognized in DFMETHOD block", .true.)
                 end select
+
             case ("POSTFREEZEHF")
                 tPostFreezeHF = .true.
 
@@ -384,6 +386,9 @@ contains
                 else
                     tchint_mode = "PC"
                 end if
+
+            case ("MIMIC-MANU-FREEZE")
+                t_mimic_manu_freeze = .true.
 
             case ("HDF5-INTEGRALS")
                 ! Read the 6-index integrals from an hdf5 file

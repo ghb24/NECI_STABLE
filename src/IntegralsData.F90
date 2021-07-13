@@ -46,6 +46,7 @@ module IntegralsData
 ! Set if we need virtual orbitals  (usually set).  Will be unset (by Calc readinput) if I_VMAX=1 and TENERGY is false
     Logical :: tNeedsVirts
 
+    logical :: t_mimic_manu_freeze = .false.
 ! Details to permit reversing freezing for convenience.
     integer :: nel_pre_freezing
     integer, allocatable :: frozen_orb_list(:), frozen_orb_reverse_map(:)

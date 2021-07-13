@@ -25,7 +25,7 @@ module LMat_class
 
     private
     public :: lMat_t, sparse_lMat_t, dense_lMat_t
-    
+
     !> Abstract base class for lMat_t objects (6-index integrals)
     type, abstract :: lMat_t
         private
@@ -323,7 +323,7 @@ contains
                         matel = 3.0_dp * matel
                         call freeze_lmat(matel,indices)
                         ! else assign the matrix element
-                        
+
                         if(abs(matel) > LMatEps) then
                             counter = counter + 1
                             index = this%indexFunc(&
@@ -522,7 +522,7 @@ contains
         integer(int64), allocatable, intent(inout) :: indices(:, :), entries(:, :)
 
         integer(int64) :: block_size, i
-        integer(int64), allocatable :: combined_inds(:)        
+        integer(int64), allocatable :: combined_inds(:)
         integer(int64) :: dummy
         HElement_t(dp) :: rVal
         block_size = size(indices, dim=2)
@@ -535,17 +535,17 @@ contains
                 ! Only freeze once, when filling in the values (this read_op can be called
                 ! multiple times for the same block)
                 if(this%htable%known_conflicts()) then
-                    rVal = transfer(entries(1,i),rVal)                
+                    rVal = transfer(entries(1,i),rVal)
                     call add_core_en(rVal,indices(:,i))
                     entries(1,i) = transfer(rVal,entries(1,i))
                 end if
             end if
-            
+
             combined_inds(i) = this%indexFunc(indices(1, i), indices(2, i), indices(3, i), &
                 indices(4, i), indices(5, i), indices(6, i))
 
             ! If the entry is frozen, do not count it
-            if(t_freeze(indices)) combined_inds(i) = 0            
+            if(t_freeze(indices)) combined_inds(i) = 0
         end do
         ! We might need this memory - all these operations can be memory critical
         deallocate(indices)
@@ -806,7 +806,7 @@ contains
             ! If umat is updated, it has to be done using MPI RMA calls, so synchronization is
             ! required
             call umat_fence()
-            ! This has to be threadsafe !!!            
+            ! This has to be threadsafe !!!
             call lMat%read_op_hdf5(indices, entries)
             call umat_fence()
 
@@ -829,7 +829,7 @@ contains
 
         subroutine umat_fence()
             use IntegralsData, only: umat_win, nFrozen
-            
+
             if(nFrozen > 0) call MPI_Win_fence(0,umat_win,ierr)
         end subroutine umat_fence
 
