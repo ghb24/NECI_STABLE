@@ -165,14 +165,12 @@ function(add_ford_documentation target configuration)
         list(APPEND processed_files "${FORD_PAGES}/${dir}/${name}")
     endforeach()
 
-
     add_custom_command(
         OUTPUT
             ${processed_files}
         DEPENDS
             ${PYTHON_VENV}
             ${PROJECT_SOURCE_DIR}/tools/doc_compilation/process_markdown_for_ford.py
-            gen_docs.md
             pages/index.md
             ${src_files}
             LaTeX-headers/literature.bib
@@ -181,7 +179,7 @@ function(add_ford_documentation target configuration)
         COMMAND
             ${custom_Python3} -m pip install bibtexparser --quiet
         COMMAND
-            cp gen_docs.md ${FORD_WORKDIR}
+            ${custom_Python3} -m pip install lxml --quiet
         COMMAND
             cp pages/index.md ${FORD_PAGES}
         COMMAND
@@ -195,7 +193,6 @@ function(add_ford_documentation target configuration)
         COMMENT
             "Preprocessing for Ford."
     )
-
 
     get_absolute_sources(${configuration} prog_sources)
     get_absolute_sources(lib${configuration} lib_sources)
@@ -217,11 +214,22 @@ function(add_ford_documentation target configuration)
         list(APPEND ford_options "--macro=${def}")
     endforeach()
 
+    option(ENABLE_FORD_SEARCH "Enable Search in Ford" OFF)
+    if (ENABLE_FORD_SEARCH)
+        set(SEARCH_REPLACEMENT_STRING "true")
+    else()
+        set(SEARCH_REPLACEMENT_STRING "false")
+    endif()
+    configure_file(
+        ${PROJECT_SOURCE_DIR}/docs/gen_docs.md.in
+        ${FORD_WORKDIR}/gen_docs.md
+    )
+
     add_custom_command(
         OUTPUT
             ${THIS_HTML_DOC}/index.html
         DEPENDS
-            gen_docs.md
+            ${FORD_WORKDIR}/gen_docs.md
             ${PYTHON_VENV}
             ${processed_media_files}
             ${fortran_sources}
