@@ -120,8 +120,6 @@ cmake -DENABLE_DOC=ON ${your_code_directory}
 make -j doc
 ```
 
-To make the docs, you don't need the last line `make -j` (which builds NECI). To make docs, use `make doc`. 
-
 Requirements to produce the docs are: 
 
 - pandoc,
