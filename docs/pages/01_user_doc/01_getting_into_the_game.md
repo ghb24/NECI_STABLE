@@ -120,7 +120,7 @@ cmake -DENABLE_DOC=ON ${your_code_directory}
 make -j doc
 ```
 
-Requirements to produce the docs are: 
+Requirements to produce the docs are:
 
 - pandoc,
 - latexmk,
