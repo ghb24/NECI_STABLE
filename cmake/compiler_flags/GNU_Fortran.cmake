@@ -1,6 +1,6 @@
 # Special defines for gnu fortran compiler
 
-set( ${PROJECT_NAME}_Fortran_FLAGS "-g -ffree-line-length-none -fPIC" )
+set( ${PROJECT_NAME}_Fortran_FLAGS "-fallow-argument-mismatch -g -ffree-line-length-none -fPIC" )
 set( ${PROJECT_NAME}_Fortran_FLAGS_DEBUG "-O0 -fbounds-check -fcheck=all -fbacktrace -finit-real=nan -ffpe-trap=invalid,zero,overflow,underflow" )
 set( ${PROJECT_NAME}_Fortran_FLAGS_RELEASE "-O3 -march=native -mtune=native -funroll-loops" )
 set( ${PROJECT_NAME}_Fortran_FLAGS_CLUSTER "-flto" )
