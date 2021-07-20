@@ -269,7 +269,6 @@ endforeach()
 # Only build the documentation of `neci` by default (when typing `make doc`)
 add_dependencies(doc doc_html_neci)
 
-
 find_program(PANDOC pandoc REQUIRED)
 find_package(LATEX COMPONENTS PDFLATEX BIBER REQUIRED)
 find_program(LATEXMK latexmk REQUIRED)
