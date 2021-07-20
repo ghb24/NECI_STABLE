@@ -285,9 +285,12 @@ if (PANDOC AND LATEX_FOUND AND LATEXMK)
             -V numbersections=true
             --listings
             --biblatex
-                -V biblatexoptions:doi=true
+                -V biblatexoptions:style=numeric
+                -V biblatexoptions:doi=false
                 -V biblatexoptions:isbn=false
                 -V biblatexoptions:url=false
+                -V biblatexoptions:eprint=false
+                -V biblatexoptions:date=year
                 -V biblio-title=Bibliography
                 --bibliography literature.bib
             --toc
