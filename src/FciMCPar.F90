@@ -417,7 +417,7 @@ contains
             end if
 
             ! Is this an iteration where semi-stochastic is turned on?
-            if (semistoch_shift_iter /= 0 .and. all(.not. tSinglePartPhase)) then
+            if (semistoch_shift_iter /= 0 .and. .not. any(tSinglePartPhase)) then
                 if ((Iter - maxval(VaryShiftIter)) == semistoch_shift_iter + 1) then
                     tSemiStochastic = .true.
                     call init_semi_stochastic(ss_space_in, tStartedFromCoreGround)
@@ -507,6 +507,7 @@ contains
                 call iterate_cont_time(iter_data_fciqmc)
             else
                 call PerformFciMCycPar(iter_data_fciqmc, err)
+                if (err /= 0) call stop_all(this_routine, 'Failure from PerformFciMCycPar')
             end if
 
             if (tAccumPops .and. iter + PreviousCycles >= iAccumPopsIter) then
@@ -547,7 +548,9 @@ contains
             end if
 
             ! if the iteration failed, stop the calculation now
-            if (err /= 0) exit
+            if (err /= 0) then
+                call stop_all(this_routine, 'if the iteration failed, stop the calculation now')
+            end if
 
             if (iProcIndex == root) then
                 s_end = neci_etime(tend)
@@ -1743,10 +1746,18 @@ contains
                         if (use_spawn_hash_table) then
                             call create_particle_with_hash_table(nJ, ilutnJ, child, part_type, &
                                                                  CurrentDets(:, j), iter_data, err)
+                            if (err /= 0) then
+                                write(*, *) 'failure from create_particle_with_hash_table'
+                                call stop_all(this_routine, 'failure from create_particle_with_hash_table')
+                            end if
                         else
                             call create_particle(nJ, iLutnJ, child, part_type, hdiag_spawn, err, &
                                                  CurrentDets(:, j), SignCurr, p, &
                                                  RDMBiasFacCurr, WalkersToSpawn, abs(HElGen), j)
+                            if (err /= 0) then
+                                write(*, *) 'failure from create_particle'
+                                call stop_all(this_routine, 'failure from create_particle')
+                            end if
                         end if
                         if (err /= 0) then
                             ! exit the fcimc calculation in a soft manner

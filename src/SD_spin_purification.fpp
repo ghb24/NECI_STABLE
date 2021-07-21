@@ -11,7 +11,7 @@ module SD_spin_purification_mod
     use excitation_types, only: excitation_t, NoExc_t, SingleExc_t, DoubleExc_t, &
                                 TripleExc_t, FurtherExc_t, &
                                 UNKNOWN, get_excitation, get_bit_excitation, create_excitation
-    implicit none(type, external)
+    implicit none
 
     logical :: tSD_spin_purification = .false.
     real(dp), allocatable :: spin_pure_alpha
