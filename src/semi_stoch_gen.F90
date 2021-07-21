@@ -51,9 +51,10 @@ contains
         use sort_mod, only: sort
         use sparse_arrays, only: HDiagTag
         use sparse_arrays, only: SparseHamilTags
-        use LoggingData, only: t_print_core_info, t_print_core_hamil
+        use LoggingData, only: t_print_core_info, t_print_core_hamil, t_print_core_vec
         use SystemData, only: nel, tAllSymSectors, tReltvy, nOccAlpha, nOccBeta
         use davidson_neci, only: DavidsonCalcType, perform_davidson, DestroyDavidsonCalc
+        use matrix_util, only: print_vec
 
         type(subspace_in) :: core_in
         logical, intent(out) :: tStartedFromCoreGround
@@ -215,6 +216,11 @@ contains
                         call diagonalize_core(gs_energy, gs_vector, rep)
                     end if
                     root_print "semi-stochastic space GS energy: ", gs_energy
+
+                    if (t_print_core_vec) then
+                        root_print "semi-stochastic gs vector:"
+                        call print_vec(gs_vector, "semistoch-vec")
+                    end if
                 end if
 #endif
 
