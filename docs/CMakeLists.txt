@@ -290,6 +290,7 @@ if (PANDOC AND LATEX_FOUND AND LATEXMK)
                 -V biblatexoptions:url=false
                 -V biblatexoptions:eprint=false
                 -V biblatexoptions:date=year
+                -V biblatexoptions:maxbibnames=3
                 -V biblio-title=Bibliography
                 --bibliography literature.bib
             --toc
