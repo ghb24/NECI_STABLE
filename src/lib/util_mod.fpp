@@ -92,6 +92,13 @@ module util_mod
             real(c_double), intent(in) :: x
             real(c_double) :: ec
         end function
+        subroutine toggle_lprof() bind(C, name='toggle_lprof')
+            !! This call toggles the profiling using MAQAO
+            !!
+            !! It can be for example used to switch on profiling
+            !! right before the main loop
+            !! and to switch it off directly afterwards.
+        end subroutine
     end interface
 
     interface operator(.div.)
