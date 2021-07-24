@@ -13,8 +13,8 @@ source: true
 md_extensions: markdown.extensions.toc
                markdown.extensions.smarty
 preprocess: true
-search: true
-graph: true
+search: @SEARCH_REPLACEMENT_STRING@
+graph: false
 graph_maxnodes: 250
 graph_maxdepth: 5
 coloured_edges: true
