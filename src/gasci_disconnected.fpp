@@ -293,7 +293,6 @@ contains
         integer :: ms
         real(dp) :: r, pgen_pick1, pgen_pick2
         logical :: tExchange
-        character(*), parameter :: this_routine = 'generate_nGAS_double'
         ! assuming that there are possible excitations within each active space,
         ! pick two random electrons (we would not include a full / empty space, so
         ! the assumption is very mild)

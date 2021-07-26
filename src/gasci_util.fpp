@@ -294,7 +294,7 @@ contains
             type(LocalGASSpec_t) :: sg_alpha_constraint
             type(SuperGroupIndexer_t) :: sg_indexer
             integer :: N_alpha
-            N_alpha = (N + abs(S_z%val)) .div. 2
+            N_alpha = (N + S_z%val) .div. 2
             sg_alpha_constraint = LocalGASSpec_t(&
                                 n_min=max(sg - n_orbs, 0), &
                                 n_max=min(sg, n_orbs), &
@@ -349,7 +349,7 @@ contains
         block
             integer :: n_alpha, n_beta, n_spat_orbs
             integer(int64) :: size_CAS, size_GAS
-            N_alpha = (N + abs(S_z%val)) .div. 2
+            N_alpha = (N + S_z%val) .div. 2
             N_beta = N - N_alpha
             n_spat_orbs = GAS_spec%n_spin_orbs() .div. 2
             size_CAS = choose(n_spat_orbs, N_alpha) * choose(n_spat_orbs, N_beta)
