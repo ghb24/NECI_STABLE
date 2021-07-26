@@ -269,14 +269,21 @@ contains
         end if
     end subroutine
 
-    pure function get_alpha_supergroups(sg, n_orbs, S_z) result(res)
+    pure function get_alpha_supergroups(sg, n_orbs, S_z) result(sg_alpha)
+        !! Return the possible supergroups for alpha electrons.
+        !!
+        !! If `sg_alpha` and `sg_beta` are the distributions of alpha/beta electrons among the
+        !! GAS spaces. Then we have `sg(:) = sg_alpha(:) + sg_beta(:)`.
+        !! We want to generate all possible `sg_alpha` such that
+        !! The GAS constraints are still fullfilled and the total
+        !! spin projection is maintained. (`sum(sg_alpha) + sum(sg_beta) == 2*S_z`)
         integer, intent(in) :: sg(:)
             !! The overall supergroup
         integer, intent(in) :: n_orbs(size(sg))
             !! The number of spatial orbitals per GAS space
         type(SpinProj_t), intent(in) :: S_z
             !! The Spin projection
-        integer, allocatable :: res(:, :)
+        integer, allocatable :: sg_alpha(:, :)
             !! All possible distributions of alpha electrons among the
             !!      GAS spaces.
         integer :: N, i, j
@@ -293,18 +300,21 @@ contains
                                 n_max=min(sg, n_orbs), &
                                 spat_GAS_orbs=[((j, i = 1, n_orbs(j)), j = 1, size(n_orbs))])
             sg_indexer = SuperGroupIndexer_t(sg_alpha_constraint, N_alpha)
-            res = sg_indexer%get_supergroups()
+            sg_alpha = sg_indexer%get_supergroups()
         end block
         else
-            allocate(res(0, 0))
+            allocate(sg_alpha(0, 0))
         end if
     end function
 
     elemental function get_n_SDs(GAS_spec, N, S_z) result(n_SDs)
+        !! Return the number of Slater-determinants.
         class(GASSpec_t), intent(in) :: GAS_spec
+            !! GAS specification.
         integer, intent(in) :: N
             !! The number of particles
         type(SpinProj_t), intent(in) :: S_z
+            !! Spin projection
         integer(int64) :: n_SDs
         integer, allocatable :: supergroups(:, :), alpha_supergroups(:, :)
         type(SuperGroupIndexer_t) :: sg_indexer
