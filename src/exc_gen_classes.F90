@@ -5,7 +5,7 @@ module exc_gen_classes
     use FciMCData, only: excit_gen_store_type
     use procedure_pointers, only: generate_excitation_t, generate_all_excits_t
     use bit_rep_data, only: NIfTot
-    use SystemData, only: nel, tGAS, tGASSpinRecoupling
+    use SystemData, only: nel, tGAS
     use Determinants, only: DefDet
 
     use orb_idx_mod, only: SpinProj_t, calc_spin_raw, sum
@@ -68,7 +68,7 @@ contains
                     select type(current_exc_generator)
                     type is (GAS_PCHB_ExcGenerator_t)
                         call current_exc_generator%init(GAS_specification, use_supergroup_lookup, &
-                                                        use_supergroup_lookup, tGASSpinRecoupling, GAS_PCHB_singles_generator)
+                                                        use_supergroup_lookup, GAS_PCHB_singles_generator)
                     end select
                 else if (GAS_exc_gen == possible_GAS_exc_gen%GENERAL) then
                     current_exc_generator = GAS_heat_bath_ExcGenerator_t(GAS_specification)

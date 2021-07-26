@@ -68,6 +68,7 @@ module gasci
         logical :: lookup_is_connected
             !! These lookup variables stay valid, because the data structure is
             !!  immutable
+        logical :: exchange_recoupling
     contains
         ! Nearly all member functions should be public.
         procedure(contains_supergroup_t), deferred :: contains_supergroup
@@ -81,6 +82,7 @@ module gasci
         procedure :: nGAS => get_nGAS
         procedure :: n_spin_orbs => get_nOrbs
         procedure :: max_GAS_size => get_max_GAS_size
+        procedure :: recoupling
 
         generic :: GAS_size => get_GAS_size_i
         generic :: GAS_size => get_GAS_size_idx
@@ -286,6 +288,11 @@ contains
         res = self%contains_supergroup(self%count_per_GAS(nI))
     end function
 
+    logical elemental function recoupling(self)
+        class(GASSpec_t), intent(in) :: self
+        recoupling = self%exchange_recoupling
+    end function
+
     !>  Query wether a determinant in bitmask format is contained in the GAS space.
     !>
     !>  The function in nI-format is faster!
@@ -367,11 +374,10 @@ contains
     !> Is called once at initialization, so it does not have to be super fast.
     !> `recoupling` allows recoupling excitations that change the spin projection
     !> of individual GAS spaces.
-    logical pure function is_allowed_double(this, exc, supergroup, recoupling)
+    logical pure function is_allowed_double(this, exc, supergroup)
         class(GASSpec_t), intent(in) :: this
         type(DoubleExc_t), intent(in) :: exc
         integer, intent(in) :: supergroup(:)
-        logical, intent(in) :: recoupling
 
         integer :: excited_supergroup(size(supergroup))
         integer :: src_spaces(2), tgt_spaces(2)
@@ -391,7 +397,7 @@ contains
 
             is_allowed_double = this%contains_supergroup(excited_supergroup)
 
-            if (is_allowed_double .and. .not. recoupling) then
+            if (is_allowed_double .and. .not. this%exchange_recoupling) then
                 block
                     type(SpinProj_t) :: src_spins(2), tgt_spins(2)
                     #:set spin_swap = functools.partial(swap, 'SpinProj_t', "", 0)
@@ -522,13 +528,16 @@ contains
     end function
 
     !>  Constructor of LocalGASSpec_t
-    pure function construct_LocalGASSpec_t(n_min, n_max, spat_GAS_orbs) result(GAS_spec)
+    pure function construct_LocalGASSpec_t(n_min, n_max, spat_GAS_orbs, recoupling) result(GAS_spec)
         !> Minimum particle number per GAS space.
         integer, intent(in) :: n_min(:)
         !> Maximum particle number per GAS space.
         integer, intent(in) :: n_max(:)
         !> GAS space for the i-th **spatial** orbital.
         integer, intent(in) :: spat_GAS_orbs(:)
+        !> Exchange double excitations that recouple the spin are allowed
+        logical, intent(in), optional :: recoupling
+        logical :: recoupling_
 
         type(LocalGASSpec_t) :: GAS_spec
         character(*), parameter :: this_routine = 'construct_LocalGASSpec_t'
@@ -536,6 +545,8 @@ contains
         integer :: n_spin_orbs, max_GAS_size
         integer, allocatable :: splitted_orbitals(:, :), GAS_table(:), GAS_sizes(:)
         integer :: i, iel, iGAS, nGAS
+
+        @:def_default(recoupling_, recoupling, .true.)
 
         nGAS = maxval(spat_GAS_orbs)
         GAS_sizes = 2 * frequency(spat_GAS_orbs)
@@ -560,11 +571,14 @@ contains
             @:pure_ASSERT(all(GAS_sizes == splitted_sizes))
         end block
 
+
+
         GAS_spec = LocalGASSpec_t(&
                 min=n_min, max=n_max, GAS_table=GAS_table, &
                 GAS_sizes=GAS_sizes, largest_GAS_size=max_GAS_size, &
                 splitted_orbitals=splitted_orbitals, &
-                lookup_is_connected=any(n_min(:) /= n_max(:)))
+                lookup_is_connected=any(n_min(:) /= n_max(:)), &
+                exchange_recoupling=recoupling_)
 
         @:pure_ASSERT(GAS_spec%is_valid())
 
@@ -648,6 +662,10 @@ contains
             write(iunit, '(A)') 'In at least one GAS space, the maximum allowed particle number by GAS constraints'
             write(iunit, '(A)') '   is larger than the particle number allowed by the Pauli principle.'
             write(iunit, '(A)') '   Was this intended when preparing your input?'
+        end if
+
+        if (.not. self%recoupling()) then
+            write(iunit, '(A)') 'Double excitations with exchange are forbidden.'
         end if
     end subroutine
 
@@ -733,13 +751,16 @@ contains
 
 
     !>  Constructor of CumulGASSpec_t
-    pure function construct_CumulGASSpec_t(cn_min, cn_max, spat_GAS_orbs) result(GAS_spec)
+    pure function construct_CumulGASSpec_t(cn_min, cn_max, spat_GAS_orbs, recoupling) result(GAS_spec)
         !>  Cumulative minimum particle number.
         integer, intent(in) :: cn_min(:)
         !>  Cumulative maximum particle number.
         integer, intent(in) :: cn_max(:)
         !>  GAS space for the i-th **spatial** orbital.
         integer, intent(in) :: spat_GAS_orbs(:)
+        !> Exchange double excitations that recouple the spin are allowed
+        logical, intent(in), optional :: recoupling
+        logical :: recoupling_
 
         type(CumulGASSpec_t) :: GAS_spec
         character(*), parameter :: this_routine = 'construct_CumulGASSpec_t'
@@ -747,6 +768,8 @@ contains
         integer :: n_spin_orbs, max_GAS_size
         integer, allocatable :: splitted_orbitals(:, :), GAS_table(:), GAS_sizes(:)
         integer :: i, iel, iGAS, nGAS
+
+        @:def_default(recoupling_, recoupling, .true.)
 
         nGAS = maxval(spat_GAS_orbs)
         GAS_sizes = 2 * frequency(spat_GAS_orbs)
@@ -775,7 +798,8 @@ contains
                 c_min=cn_min, c_max=cn_max, GAS_table=GAS_table, &
                 GAS_sizes=GAS_sizes, largest_GAS_size=max_GAS_size, &
                 splitted_orbitals=splitted_orbitals, &
-                lookup_is_connected=any(cn_min(:) /= cn_max(:)))
+                lookup_is_connected=any(cn_min(:) /= cn_max(:)), &
+                exchange_recoupling=recoupling_)
 
         @:pure_ASSERT(GAS_spec%is_valid())
 
@@ -872,6 +896,10 @@ contains
             write(iunit, '(A)') 'In at least one GAS space, the maximum allowed particle number by GAS constraints'
             write(iunit, '(A)') '   is larger than the particle number allowed by the Pauli principle.'
             write(iunit, '(A)') '   Was this intended when preparing your input?'
+        end if
+
+        if (.not. self%recoupling()) then
+            write(iunit, '(A)') 'Double excitations with exchange are forbidden.'
         end if
     end subroutine
 

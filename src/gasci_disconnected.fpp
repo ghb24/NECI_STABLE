@@ -4,7 +4,7 @@
 #:set ExcitationTypes = ['SingleExc_t', 'DoubleExc_t']
 
 module gasci_disconnected
-    use SystemData, only: tGAS, tGASSpinRecoupling, nBasis, nel
+    use SystemData, only: tGAS, nBasis, nel
     use constants
     use SymExcitDataMod, only: ScratchSize
     use util_mod, only: get_free_unit, binary_search_first_ge, operator(.div.), &
@@ -302,10 +302,8 @@ contains
         ! active spaces we consider
         srcGAS = this%GAS_table(src)
 
-        @:ASSERT(tGASSpinRecoupling)
-
         tExchange = (ispn == 2) &
-                    .and. (tGASSpinRecoupling .or. srcGAS(1) == srcGAS(2))
+                    .and. (this%GAS_spec%recoupling() .or. srcGAS(1) == srcGAS(2))
 
         ! pick an empty orb from each active space chosen
         ! number of empty orbs in this active space
@@ -655,7 +653,7 @@ contains
         pgen_pick_elec = get_pgen_pick_biased_elecs(parallel_spin, pParallel, par_elec_pairs, AB_elec_pairs)
 
         tExchange = .not. parallel_spin &
-                    .and. (tGASSpinRecoupling .or. this%GAS_table(src1) == this%GAS_table(src2))
+                    .and. (this%GAS_spec%recoupling() .or. this%GAS_table(src1) == this%GAS_table(src2))
 
         iGAS = this%GAS_table(tgt1)
         nEmpty = this%GAS_size(iGAS) &
