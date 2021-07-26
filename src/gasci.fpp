@@ -643,9 +643,10 @@ contains
         integer, intent(in) :: iunit
         integer :: iGAS, iorb
 
+        write(iunit, '(A)') 'Local constraints'
         write(iunit, '(A)') 'n_i: number of spatial orbitals per i-th GAS space'
-        write(iunit, '(A)') 'n_min_i: minimum number of particles per i-th GAS space'
-        write(iunit, '(A)') 'n_max_i: maximum number of particles per i-th GAS space'
+        write(iunit, '(A)') 'n_min_i: minimum of particle number per i-th GAS space'
+        write(iunit, '(A)') 'n_max_i: maximum of particle number per i-th GAS space'
         write(iunit, '(A10, 1x, A10, 1x, A10)') 'n_i', 'n_min_i', 'n_max_i'
         write(iunit, '(A)') '--------------------------------'
         do iGAS = 1, self%nGAS()
@@ -876,9 +877,10 @@ contains
         integer, intent(in) :: iunit
         integer :: iGAS, iorb
 
+        write(iunit, '(A)') 'Cumulative constraints'
         write(iunit, '(A)') 'n_i: number of spatial orbitals per i-th GAS space'
-        write(iunit, '(A)') 'cn_min_i: cumulative minimum number of particles per i-th GAS space'
-        write(iunit, '(A)') 'cn_max_i: cumulative maximum number of particles per i-th GAS space'
+        write(iunit, '(A)') 'cn_min_i: minimum of cumulative particle number per i-th GAS space'
+        write(iunit, '(A)') 'cn_max_i: maximum of cumulative particle number per i-th GAS space'
         write(iunit, '(A10, 1x, A10, 1x, A10)') 'n_i', 'cn_min_i', 'cn_max_i'
         write(iunit, '(A)') '--------------------------------'
         do iGAS = 1, self%nGAS()
