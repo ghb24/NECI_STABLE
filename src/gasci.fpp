@@ -215,7 +215,7 @@ contains
         get_max_GAS_size = self%largest_GAS_size
     end function
 
-    !>  Returns the size of the i-th GAS space.
+    !>  Returns the size of the i-th GAS space in number of spin orbitals.
     integer pure function get_GAS_size_i(self, iGAS)
         class(GASSpec_t), intent(in) :: self
         integer, intent(in) :: iGAS
@@ -521,7 +521,6 @@ contains
         end block
     end function
 
-
     !>  Constructor of LocalGASSpec_t
     pure function construct_LocalGASSpec_t(n_min, n_max, spat_GAS_orbs) result(GAS_spec)
         !> Minimum particle number per GAS space.
@@ -532,7 +531,7 @@ contains
         integer, intent(in) :: spat_GAS_orbs(:)
 
         type(LocalGASSpec_t) :: GAS_spec
-        character(*), parameter :: this_routine = 'construct_GASSpec_t'
+        character(*), parameter :: this_routine = 'construct_LocalGASSpec_t'
 
         integer :: n_spin_orbs, max_GAS_size
         integer, allocatable :: splitted_orbitals(:, :), GAS_table(:), GAS_sizes(:)
@@ -590,7 +589,8 @@ contains
         !> A supergroup.
         integer, intent(in) :: supergroup(:)
         logical :: res
-        res = all(self%min(:) <= supergroup .and. supergroup <= self%max(:))
+        res = all(self%min(:) <= supergroup &
+                  .and. supergroup <= min(self%max(:), self%GAS_sizes(:)))
     end function
 
     !> Check if the GAS specification is valid
@@ -742,7 +742,7 @@ contains
         integer, intent(in) :: spat_GAS_orbs(:)
 
         type(CumulGASSpec_t) :: GAS_spec
-        character(*), parameter :: this_routine = 'construct_GASSpec_t'
+        character(*), parameter :: this_routine = 'construct_CumulGASSpec_t'
 
         integer :: n_spin_orbs, max_GAS_size
         integer, allocatable :: splitted_orbitals(:, :), GAS_table(:), GAS_sizes(:)
@@ -799,7 +799,9 @@ contains
         integer, intent(in) :: supergroup(:)
         logical :: res
         associate(cumulated => cumsum(supergroup))
-            res = all(self%c_min(:) <= cumulated .and. cumulated <= self%c_max(:))
+            res = all(self%c_min(:) <= cumulated &
+                      .and. cumulated <= self%c_max(:) &
+                      .and. supergroup <= self%GAS_sizes(:))
         end associate
     end function
 

@@ -15,7 +15,8 @@ set( ${PROJECT_NAME}_Fortran_WARNING_FLAGS "-Wall -Wextra -Wno-zerotrip -Wno-may
 set( ${PROJECT_NAME}_Fortran_relaxed_WARNING_FLAGS "-Wno-unused -Wno-do-subscript")
 
 # Treat errors as warnings
-set( ${PROJECT_NAME}_Fortran_WARN_ERROR_FLAG "-Werror")
+# set( ${PROJECT_NAME}_Fortran_WARN_ERROR_FLAG "-Werror")
+set( ${PROJECT_NAME}_Fortran_WARN_ERROR_FLAG "")
 
 # Treat 32bit/64bit compilation differently
 
