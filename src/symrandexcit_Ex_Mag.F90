@@ -118,18 +118,18 @@ contains
 
 #ifdef DEBUG_
         if (nJ(1) /= 0 .and. excitType /= getExcitationType(ExcitMat, IC)) then
-            write(iout, *) "NI", ni
-            write(iout, *) "NJ", nj
-            write(iout, *) "--- excit type wanted", excitType
-            write(iout, *) "--- generated excit type", getExcitationType(ExcitMat, IC)
-            write(iout, *) "--- ic", ic
-            write(iout, *) pSingles
-            write(iout, *) pSing_spindiff1
-            write(iout, *) pDoubles
-            write(iout, *) pDoub_spindiff1
-            write(iout, *) pDoub_spindiff2
-            write(iout, *) "first excit", excitMat(:, 1)
-            write(iout, *) "second excit", excitMat(:, 2)
+            write(stderr, *) "NI", ni
+            write(stderr, *) "NJ", nj
+            write(stderr, *) "--- excit type wanted", excitType
+            write(stderr, *) "--- generated excit type", getExcitationType(ExcitMat, IC)
+            write(stderr, *) "--- ic", ic
+            write(stderr, *) pSingles
+            write(stderr, *) pSing_spindiff1
+            write(stderr, *) pDoubles
+            write(stderr, *) pDoub_spindiff1
+            write(stderr, *) pDoub_spindiff2
+            write(stderr, *) "first excit", excitMat(:, 1)
+            write(stderr, *) "second excit", excitMat(:, 2)
 
             call stop_all(this_routine, "invalid excitation generated")
         end if
@@ -426,15 +426,15 @@ contains
 #ifdef DEBUG_
         ! For debugging purposes only (O[N] operation).
         if (.not. SymAllowedExcit(nI, nJ, 1, ExcitMat) .or. ExcitMat(1, 1) * ExcitMat(2, 1) == 0) then
-            write(iout, *) "ccocc(1)", store%ClassCountOcc(1)
-            write(iout, *) "ccocc(2)", store%ClassCountOcc(2)
-            write(iout, *) "ccunocc(1)", store%ClassCountUnocc(1)
-            write(iout, *) "ccunocc(2)", store%ClassCountUnocc(2)
-            write(iout, *) "ind", ind
-            write(iout, *) "pair_list", store%scratch3
-            write(iout, *) "alpha count", store%nel_alpha
-            write(iout, *) "src", src, "tgt", tgt
-            write(iout, *) "excitmat", excitmat(1, :)
+            write(stderr, *) "ccocc(1)", store%ClassCountOcc(1)
+            write(stderr, *) "ccocc(2)", store%ClassCountOcc(2)
+            write(stderr, *) "ccunocc(1)", store%ClassCountUnocc(1)
+            write(stderr, *) "ccunocc(2)", store%ClassCountUnocc(2)
+            write(stderr, *) "ind", ind
+            write(stderr, *) "pair_list", store%scratch3
+            write(stderr, *) "alpha count", store%nel_alpha
+            write(stderr, *) "src", src, "tgt", tgt
+            write(stderr, *) "excitmat", excitmat(1, :)
             call stop_all(this_routine, "invalid single excitation generated")
         end if
 #endif

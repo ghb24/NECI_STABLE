@@ -476,35 +476,22 @@ contains
         logical, save :: new_warning = .true.
         list_full = .false.
         if (proc == nNodes - 1) then
-            if (ValidSpawnedList(proc) > MaxSpawned) list_full = .true.
+            list_full = ValidSpawnedList(proc) > MaxSpawned
         else
-            if (ValidSpawnedList(proc) >= InitialSpawnedSlots(proc + 1)) &
-                list_full = .true.
+            list_full = ValidSpawnedList(proc) >= InitialSpawnedSlots(proc + 1)
         end if
         if (list_full .and. new_warning) then
             ! Only ever print this warning once
             new_warning = .false.
-            write(6, *) "Attempting to spawn particle onto processor: ", proc
-            write(6, *) "No memory slots available for this spawn."
-            write(6, *) "Please increase MEMORYFACSPAWN"
-            write(6, *) ValidSpawnedList
-            write(6, *) InitialSpawnedSlots
+            write(stderr, *) "Attempting to spawn particle onto processor: ", proc
+            write(stderr, *) "No memory slots available for this spawn."
+            write(stderr, *) "Please increase MEMORYFACSPAWN"
+            write(stderr, *) ValidSpawnedList
+            write(stderr, *) InitialSpawnedSlots
             ! give a note on the counter-intuitive scaling behaviour
             if (MaxSpawned / nProcessors < 0.1_dp * TotWalkers) then
-                write(6, *) "Memory available for spawns is too low, number of processes might be too high for the given walker number"
+                write(stderr, *) "Memory available for spawns is too low, number of processes might be too high for the given walker number"
             end if
-! #else
-!             print *, "Attempting to spawn particle onto processor: ", proc
-!             print *, "No memory slots available for this spawn, terminating calculation"
-!             print *, "Please increase MEMORYFACSPAWN"
-!             print *, ValidSpawnedList
-!             print *, InitialSpawnedSlots
-!
-!             ! give a note on the counter-intuitive scaling behaviour
-!             if (MaxSpawned / nProcessors < 0.1_dp * TotWalkers) then
-!                 print *, "Memory available for spawns is too low, number of processes might be too high for the given walker number"
-!             end if
-! #endif
         end if
 
     end function checkValidSpawnedList

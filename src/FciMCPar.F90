@@ -106,7 +106,7 @@ module FciMCParMod
     use fcimc_iter_utils
     use replica_estimates
     use neci_signals
-    use fcimc_helper
+    use fcimc_helper, only: create_particle, create_particle_with_hash_table
     use fcimc_output
     use FciMCData
     use constants
@@ -1284,7 +1284,7 @@ contains
             end if
         end if
         lstart = mpi_wtime()
-        do j = 1, int(TotWalkers, sizeof_int)
+        loop_over_determinants: do j = 1, int(TotWalkers, sizeof_int)
 
             ! N.B. j indicates the number of determinants, not the number
             !      of walkers.
@@ -1754,15 +1754,8 @@ contains
                             call create_particle(nJ, iLutnJ, child, part_type, hdiag_spawn, err, &
                                                  CurrentDets(:, j), SignCurr, p, &
                                                  RDMBiasFacCurr, WalkersToSpawn, abs(HElGen), j)
-                            if (err /= 0) then
-                                call stop_all(this_routine, 'failure from create_particle')
-                            end if
+                            if (err /= 0) call stop_all(this_routine, 'failure from create_particle')
                         end if
-                        if (err /= 0) then
-                            ! exit the fcimc calculation in a soft manner
-                            exit
-                        end if
-
                     end if is_child_created ! (child /= 0), Child created.
 
                 end do loop_over_particles ! Cycling over mulitple particles on same determinant.
@@ -1780,7 +1773,7 @@ contains
                                   t_core_die_=.false.)
             end if
 
-        end do ! Loop over determinants.
+        end do loop_over_determinants
 
         !loop timing for this iteration on this MPI rank
         lt_arr(mod(Iter - 1, 100) + 1) = mpi_wtime() - lstart
