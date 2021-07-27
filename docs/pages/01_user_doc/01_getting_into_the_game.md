@@ -13,8 +13,8 @@ The Github version is not updated as frequently, so if you wish to use the lates
 ### BitBucket Repository Access
 
 To gain access, contact one of the repository administrators [Oskar Weser
-([o.weser@fkf.mpg.de](o.weser@fkf.mpg.de)) and Werner Dobrautz
-([w.dobrautz@fkf.mpg.de](w.dobrautz@fkf.mpg.de)) who will invite you. If you
+([o.weser@fkf.mpg.de](mailto:o.weser@fkf.mpg.de)) and Werner Dobrautz
+([w.dobrautz@fkf.mpg.de](mailto:w.dobrautz@fkf.mpg.de))] who will invite you. If you
 already have a bitbucket account let the repository administrators know
 the email address associated with your account.
 
@@ -121,6 +121,7 @@ make -j doc
 ```
 
 Requirements to produce the docs are:
+
 - pandoc,
 - latexmk,
 - pdflatex,

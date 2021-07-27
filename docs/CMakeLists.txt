@@ -269,7 +269,6 @@ endforeach()
 # Only build the documentation of `neci` by default (when typing `make doc`)
 add_dependencies(doc doc_html_neci)
 
-
 find_program(PANDOC pandoc REQUIRED)
 find_package(LATEX COMPONENTS PDFLATEX BIBER REQUIRED)
 find_program(LATEXMK latexmk REQUIRED)
@@ -285,9 +284,13 @@ if (PANDOC AND LATEX_FOUND AND LATEXMK)
             -V numbersections=true
             --listings
             --biblatex
-                -V biblatexoptions:doi=true
+                -V biblatexoptions:style=numeric
+                -V biblatexoptions:doi=false
                 -V biblatexoptions:isbn=false
                 -V biblatexoptions:url=false
+                -V biblatexoptions:eprint=false
+                -V biblatexoptions:date=year
+                -V biblatexoptions:maxbibnames=3
                 -V biblio-title=Bibliography
                 --bibliography literature.bib
             --toc

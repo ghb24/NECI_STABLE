@@ -128,7 +128,7 @@ module FciMCParMod
 
     use bit_reps, only: decode_bit_det
 
-    use util_mod, only: operator(.div.)
+    use util_mod, only: operator(.div.), toggle_lprof
 
     use hdiag_from_excit, only: get_hdiag_from_excit, get_hdiag_bare_hphf
 
@@ -392,8 +392,9 @@ contains
         lt_arr = 0.
         lt_imb_cycle = 0.
 
-        do while (.true.)
-!Main iteration loop...
+
+        call toggle_lprof()
+        main_iteration_loop: do while (.true.)
             if (TestMCExit(Iter, iRDMSamplingIter)) then
                 ! The popsfile requires the right total walker number, so
                 ! update it (TotParts is updated in the annihilation step)
@@ -842,8 +843,8 @@ contains
             Iter = Iter + 1
             if (tFillingStochRDMonFly) iRDMSamplingIter = iRDMSamplingIter + 1
 
-            ! End of MC cycle
-        end do
+        end do main_iteration_loop
+        call toggle_lprof()
 
         ! Final output is always enabled
         tSuppressSIOutput = .false.
