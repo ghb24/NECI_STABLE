@@ -339,7 +339,7 @@ module real_time_read_input_module
                 ! use an unconstrained shift mode that also allows
                 ! negative shifts
                 tOnlyPositiveShift = .false.
-                write(iout, *) &
+                write(stdout, *) &
                     "WARNING: Using an unconstrained shift can lead to instabilities"
 
             case ("HF-OVERLAP")

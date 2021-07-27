@@ -924,7 +924,7 @@ r_loop: do while(.not.tStoreDet)
             endif
             TotWalkers = int(TotWalkersIn, int64)
 
-            write(iout,*) "Total number of walkers after perturbation: ", TotWalkers
+            write(stdout,*) "Total number of walkers after perturbation: ", TotWalkers
         else
             call ReadFromPopsfile(iPopAllTotWalkers, ReadBatch, TotWalkers, TotParts, NoatHF, &
                                   CurrentDets, MaxWalkersPart, pops_nnodes, pops_walkers, PopNIfSgn, &
@@ -1155,20 +1155,20 @@ r_loop: do while(.not.tStoreDet)
                 if (.not. near_zero(read_psingles)) then
                     pSingles = read_psingles
                     pDoubles = 1.0_dp - pSingles
-                    write(iout,*) " use pSingles and pDoubles provided by POPSFILE!"
-                    write(iout,*)" pSingles set to: ", pSingles
-                    write(iout,*) " pDoubles set to: ", pDoubles
+                    write(stdout,*) " use pSingles and pDoubles provided by POPSFILE!"
+                    write(stdout,*)" pSingles set to: ", pSingles
+                    write(stdout,*) " pDoubles set to: ", pDoubles
                 end if
                 tReadPTriples = .false.
                 if(.not. near_zero(read_ptriples)) then
                     pTriples = read_ptriples
                     tReadPTriples = .true.
-                    write(iout,*) "Using pTriples provided by POPSFILE"
+                    write(stdout,*) "Using pTriples provided by POPSFILE"
                 end if
 
                 ! also do that for pParallel
                 if (.not. near_zero(read_pparallel)) then
-                    write(iout,*) " use pParallel provided by POPSFILE: ", read_pparallel
+                    write(stdout,*) " use pParallel provided by POPSFILE: ", read_pparallel
                     pParallel = read_pparallel
                 end if
             else
@@ -1192,7 +1192,7 @@ r_loop: do while(.not.tStoreDet)
                     if (tSearchTau .or. t_hist_tau_search) then
                         write(6,"(A)") "But continuing to dynamically adjust to optimise this"
                     end if
-                    write(iout,"(A,F12.8)") " used time-step: ", tau
+                    write(stdout,"(A,F12.8)") " used time-step: ", tau
 
                     ! If we have been searching for tau, we may have been searching
                     ! for psingles (it is done at the same time).
@@ -1205,20 +1205,20 @@ r_loop: do while(.not.tStoreDet)
                                 pDoubles = 1.0_dp - pSingles
                             end if
 
-                            write(iout,"(A)") "Using pSingles and pDoubles from POPSFILE: "
-                            write(iout,"(A,F12.8)") " pSingles: ", pSingles
-                            write(iout,"(A,F12.8)") " pDoubles: ", pDoubles
+                            write(stdout,"(A)") "Using pSingles and pDoubles from POPSFILE: "
+                            write(stdout,"(A,F12.8)") " pSingles: ", pSingles
+                            write(stdout,"(A,F12.8)") " pDoubles: ", pDoubles
 
                         end if
                     end if
 
                     if (allocated(pParallelIn)) then
-                        write(iout,"(A)") "Using pParallel specified in input file!"
+                        write(stdout,"(A)") "Using pParallel specified in input file!"
                     else
                         if (.not. near_zero(read_pparallel)) then
                             pParallel = read_pparallel
-                            write(iout,"(A)") "Using pParallel from POPSFILE: "
-                            write(iout,"(A,F12.8)") " pParallel: ", pParallel
+                            write(stdout,"(A)") "Using pParallel from POPSFILE: "
+                            write(stdout,"(A,F12.8)") " pParallel: ", pParallel
                         end if
                     end if
 
@@ -1238,20 +1238,20 @@ r_loop: do while(.not.tStoreDet)
                             if (.not. tReltvy) then
                                 pDoubles = 1.0_dp - pSingles
                             end if
-                            write(iout,"(A)") "Using pSingles and pDoubles from POPSFILE: "
-                            write(iout,"(A,F12.8)") " pSingles: ", pSingles
-                            write(iout,"(A,F12.8)") " pDoubles: ", pDoubles
+                            write(stdout,"(A)") "Using pSingles and pDoubles from POPSFILE: "
+                            write(stdout,"(A,F12.8)") " pSingles: ", pSingles
+                            write(stdout,"(A,F12.8)") " pDoubles: ", pDoubles
 
                         end if
                     end if
 
                     if (allocated(pParallelIn)) then
-                        write(iout,"(A)") "Using pParallel specified in input file!"
+                        write(stdout,"(A)") "Using pParallel specified in input file!"
                     else
                         if (.not. near_zero(read_pparallel)) then
                             pParallel = read_pparallel
-                            write(iout,"(A)") "Using pParallel from POPSFILE: "
-                            write(iout,"(A,F12.8)") " pParallel: ", pParallel
+                            write(stdout,"(A)") "Using pParallel from POPSFILE: "
+                            write(stdout,"(A,F12.8)") " pParallel: ", pParallel
                         end if
                     end if
                 else
@@ -1278,7 +1278,7 @@ r_loop: do while(.not.tStoreDet)
                 end if
                 tReadPTriples = .false.
                 if (allocated(pTriplesIn)) then
-                    write(iout,"(A)") "Using pTriples specified in input file!"
+                    write(stdout,"(A)") "Using pTriples specified in input file!"
                 else
                     if(.not. near_zero(read_pTriples)) then
                         pTriples = read_pTriples
@@ -1508,7 +1508,7 @@ r_loop: do while(.not.tStoreDet)
             t_previous_hist_tau = PopPreviousHistTau
 
             if (t_previous_hist_tau) then
-                Write(iout,*) "Turning OFF the tau-search, since continued run!"
+                Write(stdout,*) "Turning OFF the tau-search, since continued run!"
                 ! can i turn off the tau-seach here?
                 ! try it:
                 tSearchTau = .false.

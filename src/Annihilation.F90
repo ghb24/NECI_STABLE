@@ -206,9 +206,9 @@ contains
         ! ordered in each processor
         if (MaxIndex > (0.9_dp * MaxSpawned)) then
 #ifdef DEBUG_
-            write(6, *) MaxIndex, MaxSpawned
+            write(stdout, *) MaxIndex, MaxSpawned
 #else
-            write(iout, *) 'On task ', iProcIndex, ': ', MaxIndex, MaxSpawned
+            write(stdout, *) 'On task ', iProcIndex, ': ', MaxIndex, MaxSpawned
 #endif
             call Warning_neci("SendProcNewParts", "Maximum index of newly-spawned array is " &
             & //"close to maximum length after annihilation send. Increase MemoryFacSpawn")

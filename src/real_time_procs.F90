@@ -24,7 +24,7 @@ module real_time_procs
     use real_time_aux, only: write_overlap_state, write_overlap_state_serial
 
     use kp_fciqmc_data_mod, only: perturbed_ground, overlap_pert
-    use constants, only: dp, lenof_sign, int64, n_int, EPS, iout, null_part, &
+    use constants, only: dp, lenof_sign, int64, n_int, EPS, stdout, null_part, &
                          sizeof_int, MPIArg
     use bit_reps, only: decode_bit_det, test_flag, encode_sign, &
                         set_flag, encode_bit_rep, extract_bit_rep, &
@@ -401,8 +401,8 @@ contains
                         ! If we are early in the calculation, and are using tau
                         ! searching, then this is not a big deal. Just let the
                         ! searching deal with it
-                        write(iout, '("** WARNING ** Death probability > 2: Algorithm unstable.")')
-                        write(iout, '("** WARNING ** Truncating spawn to ensure stability")')
+                        write(stdout, '("** WARNING ** Death probability > 2: Algorithm unstable.")')
+                        write(stdout, '("** WARNING ** Truncating spawn to ensure stability")')
                         do run = 1, lenof_sign
                             fac(run) = min(2.0_dp, fac(run))
                         end do
@@ -411,9 +411,9 @@ contains
                     end if
                 else
                     do run = 1, inum_runs
-                        write(iout, '(1X,f13.7)', advance='no') fac(run)
+                        write(stdout, '(1X,f13.7)', advance='no') fac(run)
                     end do
-                    write(iout, '()')
+                    write(stdout, '()')
                 end if
             end if
             do run = 1, inum_runs
@@ -478,8 +478,8 @@ contains
                         ! If we are early in the calculation, and are using tau
                         ! searching, then this is not a big deal. Just let the
                         ! searching deal with it
-                        write(iout, '("** WARNING ** Death probability > 2: Algorithm unstable.")')
-                        write(iout, '("** WARNING ** Truncating spawn to ensure stability")')
+                        write(stdout, '("** WARNING ** Death probability > 2: Algorithm unstable.")')
+                        write(stdout, '("** WARNING ** Truncating spawn to ensure stability")')
                         do run = 1, lenof_sign
                             fac(run) = min(2.0_dp, fac(run))
                         end do
@@ -487,11 +487,11 @@ contains
                         call stop_all(this_routine, "Death probability > 2: Algorithm unstable. Reduce timestep.")
                     end if
                 else
-                    write(iout, *) "Warning, diagonal spawn probability > 1. Reduce timestep."
+                    write(stdout, *) "Warning, diagonal spawn probability > 1. Reduce timestep."
                     do run = 1, inum_runs
-                        write(iout, '(1X,f13.7)', advance='no') fac(run)
+                        write(stdout, '(1X,f13.7)', advance='no') fac(run)
                     end do
-                    write(iout, '()')
+                    write(stdout, '()')
                 end if
             end if
             do run = 1, inum_runs
@@ -1360,8 +1360,8 @@ contains
             tmp_totwalkers = int(TotWalkers)
         end if
 
-        write(iout, *) "Creating the wavefunction to projected on!"
-        write(iout, *) "Initial number of walkers: ", tmp_totwalkers
+        write(stdout, *) "Creating the wavefunction to projected on!"
+        write(stdout, *) "Initial number of walkers: ", tmp_totwalkers
 
         if (allocated(overlap_pert)) then
             call MPISumAll(tmp_totwalkers, TotWalkers_orig_max)
@@ -1375,7 +1375,7 @@ contains
         allocate(overlap_states(gf_count), stat=ierr)
         if (t_use_perturbed_buf) &
             allocate(perturbed_buf(0:niftot, TotWalkers_orig_max), stat=ierr)
-        write(iout, *) "Read-in dets", TotWalkers_orig
+        write(stdout, *) "Read-in dets", TotWalkers_orig
         do i = 1, gf_count
             totwalkers_backup = tmp_totwalkers
             if (t_use_perturbed_buf) then
@@ -1427,7 +1427,7 @@ contains
             tmp_totwalkers = totwalkers_backup
         end do
 
-        if (allocated(overlap_states)) write(iout, *) &
+        if (allocated(overlap_states)) write(stdout, *) &
             "Determinants remaining in perturbed ground state:", overlap_states(1)%nDets
         if (allocated(perturbed_buf)) deallocate(perturbed_buf, stat=ierr)
 
@@ -1483,10 +1483,10 @@ contains
         TotPartsStorage = TotParts
         if ((iProcIndex == root) .and. .not. tSpinProject .and. &
             any(abs(growth_tot - (allWalkers - allWalkersOld)) > 1.0e-4_dp)) then
-            write(iout, *) message
-            write(iout, *) "update_growth: ", growth_tot
-            write(iout, *) "AllTotParts: ", allWalkers
-            write(iout, *) "AllTotPartsOld: ", allWalkersOld
+            write(stdout, *) message
+            write(stdout, *) "update_growth: ", growth_tot
+            write(stdout, *) "AllTotParts: ", allWalkers
+            write(stdout, *) "AllTotPartsOld: ", allWalkersOld
             write(6, *) "nborn", allBorn
             write(6, *) "ndied", allDied
             write(6, *) "nannihil", allAnnihil

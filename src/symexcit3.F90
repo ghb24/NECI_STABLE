@@ -7,7 +7,7 @@ MODULE SymExcit3
 
     use SystemData, only: NEl, G1, nBasis, tNoSymGenRandExcits
     use bit_reps, only: NIfTot
-    use constants, only: n_int, maxExcit, iout
+    use constants, only: n_int, maxExcit, stdout
     USE GenRandSymExcitNUMod, only: SymLabelList2, SymLabelCounts2, ClassCountInd, ScratchSize
     use SymExcitDataMod, only: SpinOrbSymLabel
     use get_excit, only: make_double
@@ -660,8 +660,8 @@ CONTAINS
         end do
 
         if (n_dets /= n_excits) then
-            write(iout, *) "expected number of excitations: ", n_excits
-            write(iout, *) "actual calculated ones: ", n_dets
+            write(stdout, *) "expected number of excitations: ", n_excits
+            write(stdout, *) "actual calculated ones: ", n_dets
             call stop_all(this_routine, "Incorrect number of excitations found")
         end if
 

@@ -1,5 +1,5 @@
 module exc_gen_classes
-    use constants, only: dp, n_int, maxExcit, iout
+    use constants, only: dp, n_int, maxExcit, stdout
     use procedure_pointers, only: generate_excitation, gen_all_excits
     use excitation_generators, only: ExcitationGenerator_t
     use FciMCData, only: excit_gen_store_type
@@ -72,14 +72,14 @@ contains
                 else if (GAS_exc_gen == possible_GAS_exc_gen%disconnected) then
                     current_exc_generator = GAS_disc_ExcGenerator_t(GAS_specification)
                 end if
-                write(iout, *)
-                write(iout, '(A" is activated")') get_name(GAS_exc_gen)
-                write(iout, '(A)') 'The following GAS specification was used: '
-                call GAS_specification%write_to(iout)
+                write(stdout, *)
+                write(stdout, '(A" is activated")') get_name(GAS_exc_gen)
+                write(stdout, '(A)') 'The following GAS specification was used: '
+                call GAS_specification%write_to(stdout)
                 if (.not. tGASSpinRecoupling) then
-                    write(iout, '(A)') 'Double excitations with exchange are forbidden.'
+                    write(stdout, '(A)') 'Double excitations with exchange are forbidden.'
                 end if
-                write(iout, *)
+                write(stdout, *)
                 end if
         end block
 

@@ -638,7 +638,7 @@ contains
 
       ! if buf is unallocated, this is not going anywhere
       if(.not. allocated(buf)) then
-         write(iout,*) "WARNING: Trying to move data from empty buffer"
+         write(stdout,*) "WARNING: Trying to move data from empty buffer"
          return
       endif
 

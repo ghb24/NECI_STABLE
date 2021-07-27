@@ -120,14 +120,14 @@ contains
             tRestart = .false.
             do run = 1, inum_runs
                 if (near_zero(sum(AllTotParts(min_part_type(run):max_part_type(run))))) then
-                    write(iout, "(A)") "All particles have died. Restarting."
+                    write(stdout, "(A)") "All particles have died. Restarting."
                     tRestart = .true.
                     exit
                 end if
             end do
 #else
             if (near_zero(AllTotParts(1)) .or. near_zero(AllTotParts(inum_runs))) then
-                write(iout, "(A)") "All particles have died. Restarting."
+                write(stdout, "(A)") "All particles have died. Restarting."
                 tRestart = .true.
             else
                 tRestart = .false.
@@ -291,7 +291,7 @@ contains
                 pop_change = FracLargerDet * abs(AllNoAtHF(1))
             end if
 #endif
-!            write(iout,*) "***",AllNoAtHF,FracLargerDet,pop_change, pop_highest,proc_highest
+!            write(stdout,*) "***",AllNoAtHF,FracLargerDet,pop_change, pop_highest,proc_highest
             ! Do we need to do a change?
             ! is this a valid comparison?? we ware comparing a real(dp) pop_change
             ! with a (now) 32 bit integer..
@@ -835,9 +835,9 @@ contains
             ! Write this 'ASSERTROOT' out explicitly to avoid line lengths problems
             if ((iProcIndex == root) .and. .not. tSpinProject .and. .not. tTrialShift .and. &
                 all(abs(iter_data%update_growth_tot - (AllTotParts - AllTotPartsOld)) > 1.0e-5)) then
-                write(iout, *) "update_growth: ", iter_data%update_growth_tot
-                write(iout, *) "AllTotParts: ", AllTotParts
-                write(iout, *) "AllTotPartsOld: ", AllTotPartsOld
+                write(stderr, *) "update_growth: ", iter_data%update_growth_tot
+                write(stderr, *) "AllTotParts: ", AllTotParts
+                write(stderr, *) "AllTotPartsOld: ", AllTotPartsOld
                 call stop_all(this_routine, &
                               "Assertation failed: all(iter_data%update_growth_tot.eq.AllTotParts-AllTotPartsOld)")
             end if
@@ -965,7 +965,7 @@ contains
                     !When reaching target overlap with trial wavefunction, set flag to keep it fixed.
                     tFixTrial(run) = .True.
 
-                    write(iout, '(a,i13,a,i1)') 'Exiting the varaible shift phase on iteration: ' &
+                    write(stdout, '(a,i13,a,i1)') 'Exiting the varaible shift phase on iteration: ' &
                         , iter + PreviousCycles, ' - overlap with trial wavefunction of the following run is now fixed: ', run
                 end if
 
@@ -974,7 +974,7 @@ contains
                         !When reaching target N0, set flag to keep the population of reference det fixed.
                         tSkipRef(run) = .True.
 
-                        write(iout, '(a,i13,a,i1)') 'Exiting the fixed shift phase on iteration: ' &
+                        write(stdout, '(a,i13,a,i1)') 'Exiting the fixed shift phase on iteration: ' &
                             , iter + PreviousCycles, ' - reference population of the following run is now fixed: ', run
                         !Set these parameters because other parts of the code depends on them
                         VaryShiftIter(run) = Iter
@@ -994,7 +994,7 @@ contains
                         ! Update the shift averages
                         if ((iter - VaryShiftIter(run)) >= nShiftEquilSteps) then
                             if ((iter - VaryShiftIter(run) - nShiftEquilSteps) < StepsSft) &
-                                write(iout, '(a,i14)') 'Beginning to average shift value on iteration: ', iter + PreviousCycles
+                                write(stdout, '(a,i14)') 'Beginning to average shift value on iteration: ', iter + PreviousCycles
                             VaryShiftCycles(run) = VaryShiftCycles(run) + 1
                             SumDiagSft(run) = SumDiagSft(run) + DiagSft(run)
                             AvDiagSft(run) = SumDiagSft(run) / real(VaryShiftCycles(run), dp)
@@ -1015,7 +1015,7 @@ contains
                     ! Update the shift averages
                     if ((iter - VaryShiftIter(run)) >= nShiftEquilSteps) then
                         if ((iter - VaryShiftIter(run) - nShiftEquilSteps) < StepsSft) &
-                            write(iout, '(a,i14)') 'Beginning to average shift value on iteration: ', iter + PreviousCycles
+                            write(stdout, '(a,i14)') 'Beginning to average shift value on iteration: ', iter + PreviousCycles
                         VaryShiftCycles(run) = VaryShiftCycles(run) + 1
                         SumDiagSft(run) = SumDiagSft(run) + DiagSft(run)
                         AvDiagSft(run) = SumDiagSft(run) / real(VaryShiftCycles(run), dp)
@@ -1028,13 +1028,13 @@ contains
 #ifdef CMPLX_
                         if ((sum(AllTotParts(lb:ub)) > tot_walkers) .or. &
                             (abs_sign(AllNoatHF(lb:ub)) > MaxNoatHF)) then
-                            write(iout, '(a,i13,a)') 'Exiting the single particle growth phase on iteration: ', iter + PreviousCycles, &
+                            write(stdout, '(a,i13,a)') 'Exiting the single particle growth phase on iteration: ', iter + PreviousCycles, &
                                 ' - Shift can now change'
                             VaryShiftIter(run) = Iter
                             iBlockingIter(run) = Iter + PreviousCycles
                             tSinglePartPhase(run) = .false.
                             if (abs(TargetGrowRate(run)) > EPS) then
-                                write(iout, "(A)") "Setting target growth rate to 1."
+                                write(stdout, "(A)") "Setting target growth rate to 1."
                                 TargetGrowRate = 0.0_dp
                             end if
 
@@ -1061,7 +1061,7 @@ contains
                         end if
 
                         if (start_varying_shift) then
-                            write(iout, '(a,i13,a,i1)') 'Exiting the single particle growth phase on iteration: ' &
+                            write(stdout, '(a,i13,a,i1)') 'Exiting the single particle growth phase on iteration: ' &
                                 , iter + PreviousCycles, ' - Shift can now change for population', run
                             VaryShiftIter(run) = Iter
                             iBlockingIter(run) = Iter + PreviousCycles
@@ -1069,7 +1069,7 @@ contains
                             ! [W.D. 15.5.2017]
                             ! change equal 0 comps
                             if (abs(TargetGrowRate(run)) > EPS) then
-                                write(iout, "(A)") "Setting target growth rate to 1."
+                                write(stdout, "(A)") "Setting target growth rate to 1."
                                 TargetGrowRate(run) = 0.0_dp
                             end if
 
@@ -1088,7 +1088,7 @@ contains
 #else
                         if (abs(AllNoatHF(run)) < MaxNoatHF - HFPopThresh) then
 #endif
-                            write(iout, '(a,i13,a)') 'No at HF has fallen too low - reentering the &
+                            write(stdout, '(a,i13,a)') 'No at HF has fallen too low - reentering the &
                                          &single particle growth phase on iteration', iter + PreviousCycles, ' - particle number &
                                          &may grow again.'
                             tSinglePartPhase(run) = .true.
@@ -1152,7 +1152,7 @@ contains
                         ! Update the shift averages
                         if ((iter - VaryShiftIter(run)) >= nShiftEquilSteps) then
                             if ((iter - VaryShiftIter(run) - nShiftEquilSteps) < StepsSft) &
-                                write(iout, '(a,i14)') 'Beginning to average shift value on iteration: ', iter + PreviousCycles
+                                write(stdout, '(a,i14)') 'Beginning to average shift value on iteration: ', iter + PreviousCycles
                             VaryShiftCycles(run) = VaryShiftCycles(run) + 1
                             SumDiagSft(run) = SumDiagSft(run) + DiagSft(run)
                             AvDiagSft(run) = SumDiagSft(run) / real(VaryShiftCycles(run), dp)

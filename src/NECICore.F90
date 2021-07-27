@@ -122,7 +122,7 @@ Subroutine NECICore(iCacheFlag, tCPMD, tVASP, tMolpro_local, call_as_lib, &
                 j = INDEX(filename(i:), 'NECI'); IF (j /= 0) i = i + j - 1
                 MolproID = filename(i:MIN(i + LEN(MolproID) - 1, LEN(filename)))
 #endif
-                write(iout, "(A,A)") "Molpro unique filename suffix: ", MolproID
+                write(stdout, "(A,A)") "Molpro unique filename suffix: ", MolproID
             end if
         end if
     end if

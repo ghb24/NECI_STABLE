@@ -2,11 +2,11 @@ module read_fci
     implicit none
 
     character(len=1024) :: FCIDUMP_name
-    
+
     ! Variable for orbital re-ordering - a permutation of the
     ! orbitals which is applied to the content of the FCIDUMP file
     integer, allocatable, private :: orbital_permutation(:)
-    
+
 contains
 
     SUBROUTINE INITFROMFCID(NEL, NBASISMAX, LEN, LMS, TBIN)
@@ -269,7 +269,7 @@ contains
 
         ! Re-order the orbitals symmetry labels if required
         call reorder_sym_labels(ORBSYM, SYML, SYMLZ)
-                
+
 !Now broadcast these values to the other processors (the values are only read in on root)
         CALL MPIBCast(NORB, 1)
         CALL MPIBCast(NELEC, 1)
@@ -685,7 +685,7 @@ contains
 
         ! Re-order the orbitals symmetry labels if required
         call reorder_sym_labels(ORBSYM, SYML, SYMLZ)
-        
+
 !Now broadcast these values to the other processors (the values are only read in on root)
         CALL MPIBCast(NORB, 1)
         CALL MPIBCast(NELEC, 1)
@@ -779,7 +779,7 @@ contains
             call reorder_orb_label(J)
             call reorder_orb_label(K)
             call reorder_orb_label(L)
-            
+
             ! Remove integrals that are too small
             if (abs(Z) < UMatEps) then
                 if (ZeroedInt < 100) then
@@ -1104,7 +1104,7 @@ contains
 
     SUBROUTINE ReadPropInts(nBasis, PropFile, CoreVal, OneElInts)
 
-        use constants, only: dp, int64, iout
+        use constants, only: dp, int64, stdout
         use util_mod, only: get_free_unit
         use SymData, only: PropBitLen, nProp
         use SystemData, only: UMatEps, tROHF, tReltvy
@@ -1132,13 +1132,13 @@ contains
         if (iProcIndex == 0) then
             iunit = get_free_unit()
             file_name = PropFile
-            write(iout, *) 'Reading integral from the file:', trim(file_name)
+            write(stdout, *) 'Reading integral from the file:', trim(file_name)
             open(iunit, FILE=file_name, STATUS='OLD')
             read(iunit, FCI)
         end if
-        
+
         ! Re-order the orbitals symmetry labels if required
-        
+
 !Now broadcast these values to the other processors (the values are only read in on root)
         CALL MPIBCast(NORB, 1)
         CALL MPIBCast(NELEC, 1)
@@ -1228,13 +1228,13 @@ contains
         integer :: NORB
 
         if (allocated(orbital_permutation)) then
-            NORB = size(orbital_permutation, dim = 1)            
+            NORB = size(orbital_permutation, dim = 1)
             ORBSYM(1:NORB) = ORBSYM(orbital_permutation)
             SYML(1:NORB) = SYML(orbital_permutation)
             SYMLZ(1:NORB) = SYMLZ(orbital_permutation)
         end if
     end subroutine reorder_sym_labels
-            
+
     subroutine reorder_orb_label(label)
         integer, intent(inout) :: label
 

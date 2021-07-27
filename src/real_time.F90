@@ -47,7 +47,7 @@ module real_time
     use FciMCParMod, only: rezero_iter_stats_each_iter
     use hash, only: clear_hash_table
     use constants, only: int64, sizeof_int, n_int, lenof_sign, dp, EPS, inum_runs, bits_n_int, &
-                         iout, maxExcit
+                         stdout, maxExcit
     use AnnihilationMod, only: DirectAnnihilation, AnnihilateSpawnedParts, &
                                deterministic_annihilation, communicate_and_merge_spawns
     use bit_reps, only: extract_bit_rep, decode_bit_det
@@ -241,9 +241,9 @@ contains
         logical :: t_comm_done
         rtPOPSFILE_name = 'TIME_EVOLVED_POP'
 
-        write(iout, *) " ========================================================== "
-        write(iout, *) " ------------------ Real-time FCIQMC ---------------------- "
-        write(iout, *) " ========================================================== "
+        write(stdout, *) " ========================================================== "
+        write(stdout, *) " ------------------ Real-time FCIQMC ---------------------- "
+        write(stdout, *) " ========================================================== "
 
         ! call the real-time setup routine and all the initialization
 
@@ -253,7 +253,7 @@ contains
         ! initial states for verlet
         iterRK = 0
 
-        write(iout, *) " Real-time FCIQMC initialized! "
+        write(stdout, *) " Real-time FCIQMC initialized! "
         ! rewrite the major original neci core loop here and adapt it to
         ! the new necessary real-time stuff
         ! check nicks kp code, to have a guideline in how to go into that!
@@ -275,18 +275,18 @@ contains
         allocate(norm_buf(normsize), stat=i)
 
         call update_gf_overlap()
-        write(iout, *) "test on overlap at t = 0: "
+        write(stdout, *) "test on overlap at t = 0: "
         if (.not. tRealTimePopsfile) then
             if (gf_type == -1) then
-                write(iout, *) " for lesser GF  <y(0)| a^+_i a_j |y(0) >; i,j: ", &
+                write(stdout, *) " for lesser GF  <y(0)| a^+_i a_j |y(0) >; i,j: ", &
                     overlap_pert(1)%ann_orbs(1), pops_pert(1)%ann_orbs(1)
             else if (gf_type == 1) then
-                write(iout, *) " for greater GF <y(0)| a_i a^+_j |y(0)> ; i,j: ", &
+                write(stdout, *) " for greater GF <y(0)| a_i a^+_j |y(0)> ; i,j: ", &
                     overlap_pert(1)%crtn_orbs(1), pops_pert(1)%crtn_orbs(1)
             end if
         end if
-        write(iout, *) "Current GF:", gf_overlap(1, 1) / pert_norm(1, 1), pert_norm(1, 1), normsize
-        write(iout, *) "Normalization", pert_norm(1, 1), dyn_norm_red(1, 1)
+        write(stdout, *) "Current GF:", gf_overlap(1, 1) / pert_norm(1, 1), pert_norm(1, 1), normsize
+        write(stdout, *) "Normalization", pert_norm(1, 1), dyn_norm_red(1, 1)
 
         ! enter the main real-time fciqmc loop here
         fciqmc_loop: do while (.true.)
@@ -373,7 +373,7 @@ contains
             call MPISumAll(err, all_err)
             if (all_err /= 0) then
                 ! Print an error message, then exit
-                write(iout, *) "Error occured during real-time iteration"
+                write(stdout, *) "Error occured during real-time iteration"
                 exit
             end if
             ! check if somthing happpened to stop the iteration or something
@@ -438,7 +438,7 @@ contains
 
         ! For testing purpose, report the value of the green's function at the end
         if (gf_count > 0) &
-            write(iout, *) "Final real part of Green function", overlap_real(1)
+            write(stdout, *) "Final real part of Green function", overlap_real(1)
 
         ! We finish writing any extra output files like the tauContour and
         ! the CORESPACE file
@@ -991,7 +991,7 @@ contains
         tau_real = (real_time_info%quad_damp_fac + 0.5d0)*tau_real
         tau_imag = (real_time_info%quad_damp_fac + 0.5d0)*tau_imag
 
-       
+
         call first_real_time_spawn(err)
         if (catch_error()) return
 

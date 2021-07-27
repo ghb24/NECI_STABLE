@@ -157,7 +157,7 @@ contains
                         gdata_buf(this%apvals_start:this%apvals_end, :), ndets, initial)
                 end if
             else
-                write(iout, *) "WARNING: Dimension mismatch in read_gdata, ignoring all read data"
+                write(stderr, *) "WARNING: Dimension mismatch in read_gdata, ignoring all read data"
             end if
         end if
     end subroutine read_gdata
@@ -195,7 +195,7 @@ contains
                     gdata_buf(this%apvals_start:this%apvals_end, offset:(offset + ndets - 1)), &
                     ndets, initial)
             else
-                write(iout, *) "WARNING: Dimension mismatch in write_gdata, writing 0"
+                write(stderr, *) "WARNING: Dimension mismatch in write_gdata, writing 0"
                 gdata_buf = 0.0_dp
             end if
         end if
@@ -231,7 +231,7 @@ contains
                 end if
             else
                 if (t_warn) then
-                    write(iout, *) "WARNING: Dimension mismatch in read_gdata_hdf5, ignoring read data"
+                    write(stderr, *) "WARNING: Dimension mismatch in read_gdata_hdf5, ignoring read data"
                     t_warn = .false.
                 end if
             end if
@@ -271,7 +271,7 @@ contains
                 call writeAPValsAsInt(gdata_buf(this%apvals_start:this%apvals_end), pos)
             end if
         else
-            write(iout, *) "WARNING: Dimension mismatch in write_gdata_hdf5, writing 0"
+            write(stderr, *) "WARNING: Dimension mismatch in write_gdata_hdf5, writing 0"
             gdata_buf = 0_hsize_t
         end if
     end subroutine write_gdata_hdf5
@@ -378,7 +378,7 @@ contains
 
                 end if
             else
-                write(iout, *) "WARNING: Dimension mismatch in clone_gdata. No data read"
+                write(stderr, *) "WARNING: Dimension mismatch in clone_gdata. No data read"
             end if
         end if
     end subroutine clone_gdata

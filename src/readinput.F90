@@ -643,9 +643,9 @@ contains
             if (allocated(user_input_seed)) then
                 deterministic = loadBalanceInterval /= 0
                 if (tLoadBalanceBlocks .and. .not. deterministic) then
-        write(iout, *) 'Seed was specified in input.'
-        write(iout, *) 'Please note that because of load-balancing the calculation is not fully deterministic (CPU load).'
-        write(iout, *) 'If a fully deterministic calculation is required use the `load-balance-interval` keyword.'
+        write(stdout, *) 'Seed was specified in input.'
+        write(stdout, *) 'Please note that because of load-balancing the calculation is not fully deterministic (CPU load).'
+        write(stdout, *) 'If a fully deterministic calculation is required use the `load-balance-interval` keyword.'
                 end if
             end if
         end block

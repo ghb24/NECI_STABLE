@@ -117,8 +117,8 @@ contains
             ! (Don't stop all, as it could occur (Just) due to rounding errors
             ! when it would still be valid)
             if (found_all) then
-                write(iout, '("Potential cumulative sum error: ")')
-                write(iout, *) cum_rate, rate, r
+                write(stderr, '("Potential cumulative sum error: ")')
+                write(stderr, *) cum_rate, rate, r
                 exit
             end if
 
@@ -184,9 +184,9 @@ contains
         call generate_excitation(det, ilut, det_spwn, ilut_spwn, 3, ic, ex, &
                                  tParity, pgen, helgen, store)
         IFDEBUG(FCIMCDebug, 3) then
-            write(iout, '("SP att: ",f12.5)', advance='no') pgen
-            call write_det(iout, det_spwn, .true.)
-            call neci_flush(iout)
+            write(stdout, '("SP att: ",f12.5)', advance='no') pgen
+            call write_det(stdout, det_spwn, .true.)
+            call neci_flush(stdout)
         end if
 
         if (.not. IsNullDet(det_spwn)) then
@@ -209,10 +209,10 @@ contains
                 if (new_fac > old) then
                     oversample_factors(ic, nopen) = new_fac
 
-                    write(iout, '("New oversampling factors")')
+                    write(stdout, '("New oversampling factors")')
                     do j = 1, 2
-                        write(iout, '("ic",i1," ")', advance='no') j
-                        write(iout, *) (oversample_factors(j, i), i=LMS, nel, 2)
+                        write(stdout, '("ic",i1," ")', advance='no') j
+                        write(stdout, *) (oversample_factors(j, i), i=LMS, nel, 2)
                     end do
                 end if
                 nspawn = stochastic_round_r(cont_time_max_overspawn, r)

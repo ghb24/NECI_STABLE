@@ -172,15 +172,15 @@ contains
         IlutBits%ind_pop = IlutBits%len_orb + 1
         IlutBits%len_pop = lenof_sign
 #ifdef PROG_NUMRUNS_
-        write(6, *) 'Calculation supports multiple parallel runs'
+        write(stdout, *) 'Calculation supports multiple parallel runs'
 #elif defined(DOUBLERUN_)
-        write(6, *) "Double run in use."
+        write(stdout, *) "Double run in use."
 #endif
 #if defined(CMPLX_)
-        write(6, *) "Complex walkers in use."
+        write(stdout, *) "Complex walkers in use."
 #endif
-        write(6, *) 'Number of simultaneous walker distributions: ', inum_runs
-        write(6, *) 'Number of sign components in bit representation of determinant: ', &
+        write(stdout, *) 'Number of simultaneous walker distributions: ', inum_runs
+        write(stdout, *) 'Number of sign components in bit representation of determinant: ', &
             IlutBits%len_pop
 
         ! The number of integers used for sorting / other bit manipulations
@@ -188,7 +188,7 @@ contains
 
 #ifdef PROG_NUMRUNS_
         if (inum_runs > inum_runs_max) then
-            write(iout, *) "Maximally", inum_runs_max, "replicas are allowed"
+            write(stdout, *) "Maximally", inum_runs_max, "replicas are allowed"
             call stop_all(this_routine, "Requesting more than the maximum number of replicas")
         end if
 #endif

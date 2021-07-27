@@ -22,7 +22,7 @@ module guga_excitations
                           t_guga_pchb
 
     use constants, only: dp, n_int, bits_n_int, lenof_sign, Root2, THIRD, HEl_zero, &
-                         EPS, bni_, bn2_, iout, int64, inum_runs, maxExcit, int_rdm
+                         EPS, bni_, bn2_, stdout, int64, inum_runs, maxExcit, int_rdm
 
     use bit_reps, only: decode_bit_det, encode_det, encode_part_sign, &
                         extract_part_sign
@@ -2384,7 +2384,7 @@ contains
 
         print *, "all excact excitations: ", nexcit
 
-        call write_guga_list(iout, excitations(:, 1:nexcit))
+        call write_guga_list(stdout, excitations(:, 1:nexcit))
 
         ! and convert them back to a list of neci iluts
         allocate(det_list(0:niftot, nexcit))
@@ -14433,9 +14433,9 @@ contains
 
         call halt_timer(proc_timer)
         if (t_print_time_) then
-            write(iout, *) " Exact Hamiltonian application done! "
-            write(iout, *) " Elapsed time: ", get_total_time(proc_timer)
-            call neci_flush(iout)
+            write(stdout, *) " Exact Hamiltonian application done! "
+            write(stdout, *) " Elapsed time: ", get_total_time(proc_timer)
+            call neci_flush(stdout)
         end if
 
     end subroutine actHamiltonian

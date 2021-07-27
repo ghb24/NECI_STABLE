@@ -1178,7 +1178,7 @@ contains
             core_sum = core_sum + amps_this_proc(length_this_proc - i + 1)
         end do
         call MPISum(core_sum, all_core_sum)
-        write(iout, *) "Total core population", all_core_sum
+        write(stdout, *) "Total core population", all_core_sum
         deallocate(amps_this_proc)
         call LogMemDealloc(this_routine, TagA, ierr)
         deallocate(amps_all_procs)

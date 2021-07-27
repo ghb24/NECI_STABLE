@@ -1163,13 +1163,13 @@ contains
             ! Test that SpawnedParts is going to be big enough
             if (rep%determ_sizes(iProcIndex) > MaxSpawned) then
 #ifdef DEBUG_
-                write(6, *) 'Spawned parts array will not be big enough for &
+                write(stderr, *) 'Spawned parts array will not be big enough for &
                     &Semi-Stochastic initialisation'
-                write(6, *) 'Please increase MEMORYFACSPAWN'
+                write(stderr, *) 'Please increase MEMORYFACSPAWN'
 #else
-                write(iout, *) 'Spawned parts array will not be big enough for &
+                write(stderr, *) 'Spawned parts array will not be big enough for &
                     &Semi-Stochastic initialisation on task ', iProcIndex
-                write(iout, *) 'Please increase MEMORYFACSPAWN'
+                write(stderr, *) 'Please increase MEMORYFACSPAWN'
 #endif
                 call stop_all(this_routine, "Insufficient memory assigned")
             end if
@@ -1236,13 +1236,13 @@ contains
                     ! spawned parts array...
                     if (i_non_core > MaxSpawned) then
 #ifdef DEBUG_
-                        write(6, *) 'Spawned parts array too small for &
+                        write(stderr, *) 'Spawned parts array too small for &
                             &semi-stochastic initialisation'
-                        write(6, *) 'Please increase MEMORYFACSPAWN'
+                        write(stderr, *) 'Please increase MEMORYFACSPAWN'
 #else
-                        write(iout, *) 'Spawned parts array too small for &
+                        write(stderr, *) 'Spawned parts array too small for &
                             &semi-stochastic initialisation on task ', iProcIndex
-                        write(iout, *) 'Please increase MEMORYFACSPAWN'
+                        write(stderr, *) 'Please increase MEMORYFACSPAWN'
 #endif
                         call stop_all(this_routine, 'Insufficient memory assigned')
                     end if

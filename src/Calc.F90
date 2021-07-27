@@ -970,7 +970,7 @@ contains
                     end if
                 end do
                 if(i - 1 /= nel) call stop_all(t_r, "Insufficient orbitals given in DEFINEDET")
-                
+
                 ! there is something going wrong later in the init, so
                 ! do it actually here
                 if(tHPHF) then
@@ -979,16 +979,16 @@ contains
                     def_ilut_sym = return_hphf_sym_det(def_ilut)
                     if(.not. DetBitEq(def_ilut, def_ilut_sym)) then
                         call decode_bit_det(DefDet, def_ilut_sym)
-                        write(iout, *) "definedet changed to HPHF symmetric:"
-                        call write_det(iout, DefDet, .true.)
+                        write(stdout, *) "definedet changed to HPHF symmetric:"
+                        call write_det(stdout, DefDet, .true.)
                     end if
                 end if
 
                 if(tGUGA) then
                     if(.not. isProperCSF_ni(defdet)) then
-                        write(iout, *) " automatic neel-state creation produced invalid CSF!"
-                        write(iout, *) "created neel-state: "
-                        call write_det(iout, DefDet, .true.)
+                        write(stdout, *) " automatic neel-state creation produced invalid CSF!"
+                        write(stdout, *) "created neel-state: "
+                        call write_det(stdout, DefDet, .true.)
                         call stop_all(t_r, " definedet is not a proper CSF or has wrong SPIN!")
                     end if
                 end if
@@ -1267,7 +1267,7 @@ contains
 
             case ("DIRECT-GUGA-REF")
                 ! obsolet since standard now!
-                write(iout, *) "WARNING: direct-guga-ref is the default now and not necessary as input"
+                write(stdout, *) "WARNING: direct-guga-ref is the default now and not necessary as input"
 
             case ("LIST-GUGA-REF")
                 ! option to calculate the reference energy via a pre-computed list
@@ -1356,7 +1356,7 @@ contains
                 ! turn off the other tau-search, if by mistake both were
                 ! chosen!
                 if(tSearchTau .or. tSearchTauOption) then
-                    write(iout, &
+                    write(stdout, &
                         '("(WARNING: both the histogramming and standard tau&
                         &-search option were chosen! TURNING STANDARD VERSION OFF!")')
                     tSearchTau = .false.
@@ -1373,7 +1373,7 @@ contains
                     ! check that not too many bins are used which may crash
                     ! the MPI communication of the histograms!
                     if(n_frequency_bins > 1000000) then
-                        write(iout, &
+                        write(stdout, &
                             '("WARNING: maybe too many bins used for the &
                             &histograms! This might cause MPI problems!")')
                     end if
@@ -1472,15 +1472,15 @@ contains
 
                 if(tGUGA) then
                     if(.not. isProperCSF_ni(defdet)) then
-                        write(iout, *) " automatic neel-state creation produced invalid CSF!"
-                        write(iout, *) "created neel-state: "
-                        call write_det(iout, DefDet, .true.)
+                        write(stdout, *) " automatic neel-state creation produced invalid CSF!"
+                        write(stdout, *) "created neel-state: "
+                        call write_det(stdout, DefDet, .true.)
                         call stop_all(t_r, " automatic neel-state creation produced invalid CSF!")
                     end if
                 end if
 
-                write(iout, *) "created neel-state: "
-                call write_det(iout, DefDet, .true.)
+                write(stdout, *) "created neel-state: "
+                call write_det(stdout, DefDet, .true.)
 
             case("MAXWALKERBLOOM")
                 !Set the maximum allowed walkers to create in one go, before reducing tau to compensate.
@@ -1506,7 +1506,7 @@ contains
             case("LINSCALEFCIMCALGO")
                 ! Use the linear scaling FCIMC algorithm
                 ! This option is now deprecated, as it is default.
-                write(iout, '("WARNING: LINSCALEFCIMCALGO option has been &
+                write(stdout, '("WARNING: LINSCALEFCIMCALGO option has been &
                               &deprecated, and now does nothing")')
                 !call stop_all(t_r, "Option LINSCALEFCIMCALGO deprecated")
 
@@ -1751,7 +1751,7 @@ contains
                 !    trial_space_in%tHeisenbergFCI = .true.
             case("TRIAL-BIN-SEARCH")
                 tTrialHash = .false.
-                write(iout, *) "WARNING: Disabled trial hashtable. Load balancing "// &
+                write(stdout, *) "WARNING: Disabled trial hashtable. Load balancing "// &
                     "is not supported in this mode and might break the trial energy"
             case("TRIAL-ESTIMATE-REORDER")
                 allocate(trial_est_reorder(inum_runs))
@@ -3004,7 +3004,7 @@ contains
                     end select
 
                     if(tLoadBalanceBlocks) then
-                        write(iout, '("WARNING: LOAD-BALANCE-BLOCKS option is &
+                        write(stdout, '("WARNING: LOAD-BALANCE-BLOCKS option is &
                                     &now enabled by default.")')
                     end if
                 end if
@@ -4170,4 +4170,3 @@ FUNCTION CALCT2(NI, NEL, G1, ALAT, CST)
     end do
     RETURN
 END FUNCTION CALCT2
-

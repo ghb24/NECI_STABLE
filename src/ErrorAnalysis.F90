@@ -489,7 +489,7 @@ contains
             filename = 'FCIQMCStats_'//adjustl(MolproID)
             inquire (file=filename, exist=exists)
             if (.not. exists) then
-                write(iout, *) 'No FCIQMCStats file found for error analysis'
+                write(stdout, *) 'No FCIQMCStats file found for error analysis'
                 tFailRead = .true.
                 return
             end if
@@ -499,7 +499,7 @@ contains
             filename = 'FCIMCStats'
             inquire (file='FCIMCStats', exist=exists)
             if (.not. exists) then
-                write(iout, *) 'No FCIMCStats file found for error analysis'
+                write(stdout, *) 'No FCIMCStats file found for error analysis'
                 tFailRead = .true.
                 return
             end if
@@ -1172,38 +1172,38 @@ contains
         iroot = 1
         CALL GetSym(FDet, NEl, G1, NBasisMax, RefSym)
         isymh = int(RefSym%Sym%S, sizeof_int) + 1
-        write(iout, 10101) iroot, isymh
+        write(stdout, 10101) iroot, isymh
 10101   format(//'RESULTS FOR STATE', i2, '.', i1/'====================='/)
-        write(iout, '('' Current reference energy'',T52,F19.12)') Hii
+        write(stdout, '('' Current reference energy'',T52,F19.12)') Hii
         if (tNoProjEValue) then
-            write(iout, '('' No projected energy value could be obtained'',T52)')
+            write(stdout, '('' No projected energy value could be obtained'',T52)')
         else
-            write(iout, '('' Projected correlation energy'',T52,F19.12)') mean_ProjE_re
-            write(iout, '('' Estimated error in Projected correlation energy'',T52,F19.12)') ProjE_Err_re
+            write(stdout, '('' Projected correlation energy'',T52,F19.12)') mean_ProjE_re
+            write(stdout, '('' Estimated error in Projected correlation energy'',T52,F19.12)') ProjE_Err_re
         end if
         if (lenof_sign == 2 .and. inum_runs == 1) then
-            write(iout, '('' Projected imaginary energy'',T52,F19.12)') mean_ProjE_im
-            write(iout, '('' Estimated error in Projected imaginary energy'',T52,F19.12)') ProjE_Err_im
+            write(stdout, '('' Projected imaginary energy'',T52,F19.12)') mean_ProjE_im
+            write(stdout, '('' Estimated error in Projected imaginary energy'',T52,F19.12)') ProjE_Err_im
         end if
         if (tNoShiftValue) then
-            write(iout, '('' No shift energy value could be obtained'',T52)')
+            write(stdout, '('' No shift energy value could be obtained'',T52)')
         else
-            write(iout, '('' Shift correlation energy'',T52,F19.12)') mean_Shift
-            write(iout, '('' Estimated error in shift correlation energy'',T52,F19.12)') shift_err
+            write(stdout, '('' Shift correlation energy'',T52,F19.12)') mean_Shift
+            write(stdout, '('' Estimated error in shift correlation energy'',T52,F19.12)') shift_err
         end if
 
         !Do shift and projected energy agree?
-        write(iout, "(A)")
+        write(stdout, "(A)")
         if (tNoProjEValue .and. tNoShiftValue) return
         EnergyDiff = abs(mean_Shift - mean_ProjE_re)
         if (EnergyDiff <= sqrt(shift_err**2 + ProjE_Err_re**2)) then
-            write(iout, "(A,F15.8)") " Projected and shift energy estimates agree " &
+            write(stdout, "(A,F15.8)") " Projected and shift energy estimates agree " &
                 & //"within errorbars: EDiff = ", EnergyDiff
         else if (EnergyDiff <= sqrt((max(shift_err, ProjE_Err_re) * 2)**2 + min(shift_err, ProjE_Err_re)**2)) then
-            write(iout, "(A,F15.8)") " Projected and shift energy estimates agree to within two sigma " &
+            write(stdout, "(A,F15.8)") " Projected and shift energy estimates agree to within two sigma " &
                 & //"of largest error: EDiff = ", EnergyDiff
         else
-            write(iout, "(A,F15.8)") " Projected and shift energy estimates do not agree to " &
+            write(stdout, "(A,F15.8)") " Projected and shift energy estimates do not agree to " &
                 & //"within approximate errorbars: EDiff = ", EnergyDiff
         end if
         if (ProjE_Err_re < shift_err) then
@@ -1211,15 +1211,15 @@ contains
         else
             BestEnergy = mean_shift + Hii
         end if
-        write(iout, "(A)")
-        write(iout, "(A,F20.8,A,G15.6)") " Total projected energy ", &
+        write(stdout, "(A)")
+        write(stdout, "(A,F20.8,A,G15.6)") " Total projected energy ", &
             mean_ProjE_re + Hii, " +/- ", ProjE_Err_re
-        write(iout, "(A,F20.8,A,G15.6)") " Total shift energy     ", &
+        write(stdout, "(A,F20.8,A,G15.6)") " Total shift energy     ", &
             mean_shift + Hii, " +/- ", shift_err
 
         CALL MolproPluginResult('ENERGY', [BestEnergy])
         CALL MolproPluginResult('FCIQMC_ERR', [min(ProjE_Err_re, shift_err)])
-        write(iout, "(/)")
+        write(stdout, "(/)")
 
     end subroutine Standalone_Errors
 
