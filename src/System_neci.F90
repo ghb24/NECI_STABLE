@@ -32,7 +32,7 @@ MODULE System
     use gasci, only: GAS_specification, GAS_exc_gen, possible_GAS_exc_gen, &
         LocalGASSpec_t, CumulGASSpec_t, user_input_GAS_exc_gen
 
-    use SD_spin_purification_mod, only: tSD_spin_purification, spin_pure_alpha
+    use SD_spin_purification_mod, only: tSD_spin_purification, spin_pure_J
 
     use gasci_pchb, only: possible_GAS_singles, GAS_PCHB_singles_generator
 
@@ -1904,9 +1904,9 @@ contains
 
             case ("SD-SPIN-PURIFICATION")
                 tSD_spin_purification = .true.
-                allocate(spin_pure_alpha)
-                call getf(spin_pure_alpha)
-                if (spin_pure_alpha <= 0) then
+                allocate(spin_pure_J)
+                call getf(spin_pure_J)
+                if (spin_pure_J <= 0) then
                     call stop_all(t_r, "Alpha should be positive and nonzero")
                 end if
 

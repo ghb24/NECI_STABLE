@@ -41,7 +41,7 @@ module sltcnd_mod
     use bit_reps, only: NIfTot
     use LMat_mod, only: get_lmat_el, get_lmat_el_ua
     use gen_coul_ueg_mod, only: get_contact_umat_el_3b_sp, get_contact_umat_el_3b_sap
-    use SD_spin_purification_mod, only: tSD_spin_purification, spin_pure_alpha, &
+    use SD_spin_purification_mod, only: tSD_spin_purification, spin_pure_J, &
         S2_expval_exc, dyn_S2_expval_exc
 
     implicit none
@@ -870,7 +870,7 @@ contains
         integer, intent(in) :: nI(nel)
         type(NoExc_t), intent(in) :: exc
         HElement_t(dp) :: hel
-        hel = sltcnd_0_base(nI, exc) + spin_pure_alpha * S2_expval_exc(nI, exc)
+        hel = sltcnd_0_base(nI, exc) + spin_pure_J * S2_expval_exc(nI, exc)
     end function
 
     function sltcnd_2_purify_spin(nI, exc, tSign) result(hel)
@@ -878,7 +878,7 @@ contains
         type(DoubleExc_t), intent(in) :: exc
         logical, intent(in) :: tSign
         HElement_t(dp) :: hel
-        hel = sltcnd_2_base(nI, exc, tSign) + spin_pure_alpha * S2_expval_exc(nI, exc, tSign)
+        hel = sltcnd_2_base(nI, exc, tSign) + spin_pure_J * S2_expval_exc(nI, exc, tSign)
     end function
 
 !>  @brief

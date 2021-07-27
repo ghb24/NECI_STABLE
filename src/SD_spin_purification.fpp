@@ -14,11 +14,11 @@ module SD_spin_purification_mod
     implicit none
 
     logical :: tSD_spin_purification = .false.
-    real(dp), allocatable :: spin_pure_alpha
+    real(dp), allocatable :: spin_pure_J
 
     private
     public :: S2_expval, spin_momentum, spin_q_num, get_open_shell, &
-        tSD_spin_purification, spin_pure_alpha, S2_expval_exc, dyn_S2_expval_exc
+        tSD_spin_purification, spin_pure_J, S2_expval_exc, dyn_S2_expval_exc
 
 
     interface S2_expval_exc
