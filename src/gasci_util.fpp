@@ -270,7 +270,7 @@ contains
     end subroutine
 
     pure function get_alpha_supergroups(sg, n_orbs, S_z) result(sg_alpha)
-        !! Return the possible supergroups for alpha electrons.
+        !! Return the possible supergroups/distributions for alpha electrons.
         !!
         !! If `sg_alpha` and `sg_beta` are the distributions of alpha/beta electrons among the
         !! GAS spaces. Then we have `sg(:) = sg_alpha(:) + sg_beta(:)`.
@@ -324,7 +324,9 @@ contains
         supergroups = sg_indexer%get_supergroups()
 
         block
-            integer :: N_alpha(GAS_spec%nGAS()), n_spat_orbs(GAS_spec%nGAS()), N_beta(GAS_spec%nGAS())
+            integer :: N_alpha(GAS_spec%nGAS()), N_beta(GAS_spec%nGAS()), n_spat_orbs(GAS_spec%nGAS())
+                !! These are the number of alpha/beta electrons and the number of
+                !!  spatial orbitals per GAS space
             n_spat_orbs = GAS_spec%GAS_size() .div. 2
 
             n_SDs = 0_int64
@@ -333,6 +335,11 @@ contains
                 do i = 1, size(alpha_supergroups, 2)
                     N_alpha = alpha_supergroups(:, i)
                     N_beta = supergroups(:, j) - N_alpha(:)
+                    ! Note that choose is elemental.
+                    ! For a given supergroup and S_z in each GAS space
+                    !   (coming from the distribution of alpha electrons)
+                    !   the number of possible configurations in each GAS space is calculated.
+                    ! The overall number is just the product over the GAS spaces.
                     n_SDs = n_SDs + product(choose(n_spat_orbs, N_alpha) * choose(n_spat_orbs, N_beta))
                 end do
             end do
@@ -340,10 +347,17 @@ contains
     end function
 
     subroutine write_GAS_info(GAS_spec, N, S_z, iunit)
+        !! Write info about the GAS constraints to `iunit`
+        !!
+        !! The routine especially compares the CAS and GAS Hilbert space sizes.
         class(GASSpec_t), intent(in) :: GAS_spec
+            !! GAS constraints.
         integer, intent(in) :: N
+            !! The particle number.
         type(SpinProj_t), intent(in) :: S_z
+            !! The total spin projection.
         integer, intent(in) :: iunit
+
         call GAS_spec%write_to(iunit)
 
         block
