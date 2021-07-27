@@ -521,8 +521,8 @@ contains
         vectors = matrix
 #ifdef CMPLX_
         block
-            HElement_t(dp), allocatable :: rwork(:)
-            allocate(rwork(max(1,3*n-2)))
+            real(dp), allocatable :: rwork(:)
+            allocate(rwork(max(1, 3*n - 2)))
             call zheev('V', 'U', n, vectors, n, values, work, 3*n-1, rwork, info)
             deallocate(rwork)
         end block
@@ -531,14 +531,12 @@ contains
 #endif
         ! now i have the eigenvectors, which i need the inverse of
         ! it is rotation only or? so i would just need a transpose or?
-!         inverse = matrix_inverse(vectors)
         inverse = transpose(vectors)
 
         ! i need to construct exp(eigenvalues) as a diagonal matrix!
         exp_diag = matrix_diag(exp(values))
 
-        exp_matrix = blas_matmul(blas_matmul(vectors,exp_diag),inverse)
-!         exp_matrix = matmul(matmul(vectors,exp_diag),inverse)
+        exp_matrix = blas_matmul(blas_matmul(vectors,exp_diag), inverse)
 
     end function matrix_exponential
 
