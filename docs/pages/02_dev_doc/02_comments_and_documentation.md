@@ -96,3 +96,21 @@ end subroutine feed_pets
 Note that unlike Doxygen `intent`, `allocatable`, `target` etc. attributes
 are automatically
 parsed by `ford` and **shall not be** specified in the documentation redundantly.
+
+Ford has some useful notes you may recognise from using Doxygen, like
+
+@note
+notes
+@endnote
+
+@warning
+warning tags
+@endwarning
+
+@todo
+todo tags
+@endtodo
+
+@bug
+bug tags
+@endbug
