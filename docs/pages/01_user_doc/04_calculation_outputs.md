@@ -20,10 +20,10 @@ The columns are listed in the following.
 Important and often used columns are highlighted red,
 rarely used columns are greyed out.
 
-**<span style="color: red">1 Steps (Step)</span>**<br>
+**\textcolor{red}{1 Steps (Step)}**<br>
 The number of iterations.
 
-**<span style="color: red">2 Shift (Shift)</span>**<br>
+**\textcolor{red}{2 Shift (Shift)}**<br>
 The shift \(S\) for population control. Equals the correlation
 energy in the equilibrium.
 Shift + Reference energy should equal the projected energy in equilibrium.
@@ -35,26 +35,26 @@ Absolute change of the walker number.
 **4 Growth Rate (GrowRate)**<br>
 Relative change of walker number.
 
-**<span style="color: red">5 Total Walkers (TotWalkers)</span>**<br>
+**\textcolor{red}{5 Total Walkers (TotWalkers)}**<br>
 The number of total walkers.
 
 **6 Annihilation (Annihil)**<br>
 The number of annihilated walkers.
 
-**<span style="color: gray">7 Number of died walkers (NoDied)</span>**<br>
-<span style="color: gray">The number of died walkers (from annihilation or diagonal death step).</span>
+**\textcolor{gray}{7 Number of died walkers (NoDied)}**<br>
+\textcolor{gray}{The number of died walkers (from annihilation or diagonal death step).}
 
-**<span style="color: gray">8 Number of born walkers (NoBorn)</span>**<br>
-<span style="color: gray">The number of born walkers.</span>
+**\textcolor{gray}{8 Number of born walkers (NoBorn)}**<br>
+\textcolor{gray}{The number of born walkers.}
 
-**<span style="color: gray">9 Projected averaged correlation energy (Proj.E)</span>**<br>
-<span style="color: gray">Averaged correlation energy as calculated from the projected energy expression.  The unaveraged values are given in column 11.</span>
+**\textcolor{gray}{9 Projected averaged correlation energy (Proj.E)}**<br>
+\textcolor{gray}{Averaged correlation energy as calculated from the projected energy expression.  The unaveraged values are given in column 11.}
 
-**<span style="color: gray">10 Average Shift (Av.Shift)</span>**<br>
-<span style="color: gray">Averaged shift.  Note that it should not be used, when the average was taken over a period that not in stationary conditions.</span>
+**\textcolor{gray}{10 Average Shift (Av.Shift)}**<br>
+\textcolor{gray}{Averaged shift.  Note that it should not be used, when the average was taken over a period that not in stationary conditions.}
 
 
-**<span style="color: red">11 Projected instantaneous correlation energy (Proj.E.ThisCyc)</span>**<br>
+**\textcolor{red}{11 Projected instantaneous correlation energy (Proj.E.ThisCyc)}**<br>
 Instantaneous (not averaged) correlation energy as calculated
 from the projected energy expression.
 \begin{equation}
@@ -67,13 +67,13 @@ from the projected energy expression.
 The averaged values are given in column 9.
 The total energy (correlation + reference energy) is given in column 23)
 
-**<span style="color: red">12 Number of walkers at reference determinant \(D_0\) (NoatHF)</span>**<br>
+**\textcolor{red}{12 Number of walkers at reference determinant \(D_0\) (NoatHF)}**<br>
 The number of walkers at the reference determinant.
 (Since there are fractional walkers, this can be non-integer.)
 
 <!-- Unimportant -->
-**<span style="color: gray">13 Number of walkers at doubles (NoatDoubs)</span>**<br>
-<span style="color: gray">Number of walkers that are a double excitation away from the reference.</span>
+**\textcolor{gray}{13 Number of walkers at doubles (NoatDoubs)}**<br>
+\textcolor{gray}{Number of walkers that are a double excitation away from the reference.}
 
 **14 Acceptance rate (AccRat)**<br>
 Probability that a spawn gets accepted.
@@ -86,14 +86,14 @@ Number of unique configurations (determinants/CSFs).
 This is the time averaged over the last 10 iterations.
 
 <!-- Unimportant -->
-**<span style="color: gray">17 (FracSpawnFromSing)</span>**<br>
+**\textcolor{gray}{17 (FracSpawnFromSing)}**<br>
 TODO
 
 <!-- Unimportant -->
-**<span style="color: gray">18 (WalkersDiffProc)</span>**<br>
+**\textcolor{gray}{18 (WalkersDiffProc)}**<br>
 TODO
 
-**<span style="color: red">19 Total imaginary time \(\tau\) (TotImagTime)</span>**<br>
+**\textcolor{red}{19 Total imaginary time \(\tau\) (TotImagTime)}**<br>
 The elapsed **imaginary** time since start of the dynamics.
 
 <!-- Confirm -->
@@ -111,7 +111,7 @@ TODO
 TODO
 <!-- Ask Khaldoon -->
 
-**<span style="color: red">23 Projected instantaneous total energy (Tot-Proj.E.ThisCyc)</span>**<br>
+**\textcolor{red}{23 Projected instantaneous total energy (Tot-Proj.E.ThisCyc)}**<br>
 Instantaneous (not averaged) total energy as calculated
 from the projected energy expression
 \begin{equation}
@@ -144,7 +144,7 @@ It is averaged over the last 10 iterations.
 
 
 <!-- Confirm -->
-**<span style="color: red">26 Amplitude of reference (HF weight)</span>**<br>
+**\textcolor{red}{26 Amplitude of reference (HF weight)}**<br>
 Unlike the name suggests, this is the **amplitude** weight of the reference determinant
   given by:
   \begin{equation}
@@ -173,16 +173,16 @@ TODO
 
 <!-- Unimportant -->
 <!-- Confirm -->
-**<span style="color: gray">30 Absolute instantaneous projected correlation energy (AbsProjE)</span>**<br>
-<span style="color: gray">L1-norm of projected correlation energy expression.</span>
+**\textcolor{gray}{30 Absolute instantaneous projected correlation energy (AbsProjE)}**<br>
+\textcolor{gray}{L1-norm of projected correlation energy expression.}
 \begin{equation}
   \sum_{j\neq 0} |H_{0j}| \frac{|C_j|}{|C_0|} \quad.
 \end{equation}
 
 <!-- Unimportant -->
 <!-- Uninitialised Garbage -->
-**<span style="color: gray">31 (PartsDiffProc)</span>**<br>
-<span style="color: gray">Uninitialised Garbage.</span>
+**\textcolor{gray}{31 (PartsDiffProc)}**<br>
+\textcolor{gray}{Uninitialised Garbage.}
 
 **32 Weight of semistochastic space (|Semistoch|/|Psi|)**<br>
 If \(S_C\) is the semistochastic or core space, then we have:
@@ -191,8 +191,8 @@ If \(S_C\) is the semistochastic or core space, then we have:
 \end{equation}
 
 <!-- Unimportant -->
-**<span style="color: gray">33 Largest spawn per iteration (MaxCycSpawn)</span>**<br>
-<span style="color: gray">This is the largest spawn per iteration.</span>
+**\textcolor{gray}{33 Largest spawn per iteration (MaxCycSpawn)}**<br>
+\textcolor{gray}{This is the largest spawn per iteration.}
 
 **34 The number of discarded excitations (InvalidExcits)**<br>
 This is the number of discarded excitations averaged over the last 10 iterations.

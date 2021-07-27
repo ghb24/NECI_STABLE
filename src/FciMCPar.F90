@@ -973,9 +973,11 @@ contains
 
         call PrintHighPops()
 
-        if (t_print_core_vec) then
-            call print_determ_vec_av()
+        if (tSemiStochastic .and. t_print_core_vec) then
             call print_determ_vec()
+            if (tFillingStochRDMonFly) then
+                call print_determ_vec_av()
+            end if
         end if
 
         if (t_symmetry_analysis) then
