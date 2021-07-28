@@ -7,7 +7,7 @@ The program utilizes a
 very powerful parallelization and scales efficiently to more than 24 000 central processing unit cores.
 
 ## Contributors
-Contributors to the Alavi group NECI codebase, in alphabetical order
+Contributors to the NECI codebase, in alphabetical order
 
 Ali Alavi, Robert Anderson, Nick Blunt, George Booth, Deirdre Cleland, Werner Dobrautz,
 Khaldoon Ghanem, Kai Guther, Peter Jeszenski, Niklas Liebermann, Florian Merz,
@@ -38,8 +38,8 @@ For detailed compilation and run options, please see the user documentation.
 ## Interfaces
 
 Since NECI is mainly a program to solve the CI-problem
-and only depends on the 1- and 2-electronic integrals.
-Other code is required to compute these integrals and perform
+and only depends on the 1- and 2-electronic integrals
+other code is required to compute these integrals and perform
 other optimization tasks (like SCF orbital rotations).
 
 So far it has been interfaced to
@@ -50,11 +50,11 @@ So far it has been interfaced to
 
 ## License
 
-FCIQMC code developed by George Booth and Ali Alavi, 2013
+FCIQMC code initially developed by George Booth and Ali Alavi, 2013
 Copyright (c) 2013, Ali Alavi
 Please see "LICENSE" file for GNU GPL v.3 license associated with this software.
 
 ## Questions
 
-Please feel free to contact myself (George Booth) or Ali Alavi for
-queries or help at george.booth@kcl.ac.uk and office-alavi@fkf.mpg.de.
+Please feel free to create an issue at the public GitHub page
+if you have any questions.
