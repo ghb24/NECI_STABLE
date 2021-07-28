@@ -23,7 +23,7 @@ module fcimc_initialisation
                           irrepOrbOffset, nIrreps, &
                           tTrcorrExgen, nClosedOrbs, irrepOrbOffset, nIrreps, &
                           nOccOrbs, tNoSinglesPossible, t_pcpp_excitgen, &
-                          t_pchb_excitgen, tGAS, tGASSpinRecoupling, t_guga_pchb
+                          t_pchb_excitgen, tGAS, t_guga_pchb
     use tc_three_body_data, only: ptriples
     use SymExcitDataMod, only: tBuildOccVirtList, tBuildSpinSepLists
     use core_space_util, only: cs_replicas

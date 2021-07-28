@@ -300,7 +300,7 @@ module SystemData
     logical :: t_guga_noreorder = .false.
 
 ! Are we restricting excitations
-    logical :: tGAS = .false., tGASSpinRecoupling = .true.
+    logical :: tGAS = .false.
 
 ! twisted boundary implementation for the hubbard model:
 ! use keyword twisted-bc [real, real] in System Block of input
