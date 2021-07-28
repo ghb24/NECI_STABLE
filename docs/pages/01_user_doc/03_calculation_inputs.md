@@ -384,8 +384,8 @@ considered. The block starts with the `system` keyword and ends with the
 
 #### Spin purification
 
--   **SD-SPIN-PURIFICATION \(\alpha\)**<br>
-    Use an adjusted hamiltonian \(H + \alpha S^2\) for the dynamic
+-   **SD-SPIN-PURIFICATION \(J\)**<br>
+    Use an adjusted hamiltonian \(H + J S^2\) for the dynamic
     to force antiferromagnetic ordering and ensure pure spin-states
     in a Slater determinant (SD) basis.
 
