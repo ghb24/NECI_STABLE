@@ -103,34 +103,37 @@ contains
         call assert_true(1.0_dp .isclose. S2_expval_exc([2, 3], NoExc_t()))
 
         call assert_true(1.0_dp .isclose. S2_expval_exc([1, 4], DoubleExc_t(src1=1, tgt1=2, src2=4, tgt2=3)))
-
-        call assert_true(1.0_dp .isclose. S2_expval_exc([2, 3], DoubleExc_t(src1=2, tgt1=1, src2=3, tgt2=4)))
-
-!         call assert_true(1.0_dp .isclose. S2_expval_exc([2, 3], DoubleExc_t(src1=3, tgt1=1, src2=2, tgt2=4)))
-
-!         call assert_true(1.0_dp .isclose. S2_expval_exc([2, 3], DoubleExc_t(src1=2, tgt1=4, src2=3, tgt2=1)))
     end subroutine
 
     subroutine test_dyn_S2_expval_exc()
-        call assert_equals(0._dp, dyn_S2_expval_exc([integer::], NoExc_t()))
+        class(Excitation_t), allocatable :: exc
 
-        call assert_equals(0._dp, dyn_S2_expval_exc([integer::], DoubleExc_t(1, 2, 3, 4)))
+        exc = NoExc_t()
+        call assert_equals(0._dp, dyn_S2_expval_exc([integer::], exc))
 
-        call assert_equals(0._dp, dyn_S2_expval_exc([1, 2, 3, 4], NoExc_t()))
+        exc = DoubleExc_t(1, 2, 3, 4)
+        call assert_equals(0._dp, dyn_S2_expval_exc([integer::], exc))
 
+        exc = NoExc_t()
+        call assert_equals(0._dp, dyn_S2_expval_exc([1, 2, 3, 4], exc))
+
+        exc = DoubleExc_t(1, 3, 5, 7)
         call assert_equals(0._dp, dyn_S2_expval_exc([1, 3], DoubleExc_t(1, 3, 5, 7)))
 
-        call assert_true(spin_momentum(0.5_dp)**2 .isclose. dyn_S2_expval_exc([1], NoExc_t()))
+        exc = NoExc_t()
+        call assert_true(spin_momentum(0.5_dp)**2 .isclose. dyn_S2_expval_exc([1], exc))
 
-        call assert_true(spin_momentum(0.5_dp)**2 .isclose. dyn_S2_expval_exc([2], NoExc_t()))
+        exc = NoExc_t()
+        call assert_true(spin_momentum(0.5_dp)**2 .isclose. dyn_S2_expval_exc([2], exc))
 
-        call assert_equals(2._dp, dyn_S2_expval_exc([1, 3], NoExc_t()))
+        exc = NoExc_t()
+        call assert_equals(2._dp, dyn_S2_expval_exc([1, 3], exc))
 
-        call assert_true(spin_momentum(1.0_dp)**2 .isclose. dyn_S2_expval_exc([2, 4], NoExc_t()))
+        exc = NoExc_t()
+        call assert_true(spin_momentum(1.0_dp)**2 .isclose. dyn_S2_expval_exc([2, 4], exc))
 
-        call assert_true(1.0_dp .isclose. dyn_S2_expval_exc([1, 4], NoExc_t()))
-
-        call assert_true(1.0_dp .isclose. dyn_S2_expval_exc([1, 4, 5, 6], DoubleExc_t(1, 2, 4, 3)))
+        exc = NoExc_t()
+        call assert_true(1.0_dp .isclose. dyn_S2_expval_exc([1, 4], exc))
     end subroutine
 
 
