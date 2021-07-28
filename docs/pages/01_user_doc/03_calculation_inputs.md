@@ -257,6 +257,9 @@ considered. The block starts with the `system` keyword and ends with the
     In the given example the local and cumulative constraints are
     equivalent, but they are not always!
 
+    It is possible to switch off the spin recoupling between
+    different GAS spaces by appending `NO-RECOUPLING`.
+
 -   **GAS-CI**<br>
     *Optional keyword.* Specify the actual implementation for GAS. If it
     is ommitted, it will be deduced from `GAS-SPEC`.

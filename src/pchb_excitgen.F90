@@ -40,7 +40,7 @@ contains
         ! is no point to use the lookup.
         call this%doubles_generator%init(&
                 CAS_spec(n_el=nEl, n_spat_orbs=nBasis .div. 2), &
-                use_lookup=.false., create_lookup=.false., recoupling=.true.)
+                use_lookup=.false., create_lookup=.false.)
 
         ! luckily the singles generators don't require initialization.
         if (t_pchb_weighted_singles) then

@@ -228,7 +228,6 @@ contains
         tMultiReplicas = .false.
         tGiovannisBrokenInit = .false.
         ! GAS options
-        tGASSpinRecoupling = .true.
         tGAS = .false.
 
 #ifdef PROG_NUMRUNS_
@@ -1806,7 +1805,7 @@ contains
 
                 tGAS = .true.
                 block
-                    logical :: cumulative_constraints
+                    logical :: cumulative_constraints, recoupling
                     integer :: nGAS, iGAS
                     integer :: i_orb, n_spat_orbs
                     ! n_orbs are the number of spatial orbitals per GAS space
@@ -1853,10 +1852,24 @@ contains
                         end do
                     end block
 
-                    if (cumulative_constraints) then
-                        GAS_specification = CumulGASSpec_t(cn_min, cn_max, spat_GAS_orbs)
+                    if (item < nitems) then
+                        call readu(w)
+                        select case (w)
+                        case ('RECOUPLING')
+                            recoupling = .true.
+                        case ('NO-RECOUPLING')
+                            recoupling = .false.
+                        case default
+                            call Stop_All(t_r, "Only RECOUPLING or NO-RECOUPLING allowed.")
+                        end select
                     else
-                        GAS_specification = LocalGASSpec_t(cn_min, cn_max, spat_GAS_orbs)
+                        recoupling = .true.
+                    end if
+
+                    if (cumulative_constraints) then
+                        GAS_specification = CumulGASSpec_t(cn_min, cn_max, spat_GAS_orbs, recoupling)
+                    else
+                        GAS_specification = LocalGASSpec_t(cn_min, cn_max, spat_GAS_orbs, recoupling)
                     end if
 
                     beta_orbs = [(i, i=1, n_spat_orbs * 2, 2)]
@@ -1898,9 +1911,6 @@ contains
                 case default
                     call Stop_All(t_r, trim(w)//" not a valid keyword")
                 end select
-
-            case ("GAS-NO-SPIN-RECOUPLING")
-                tGASSpinRecoupling = .false.
 
             case ("SD-SPIN-PURIFICATION")
                 tSD_spin_purification = .true.

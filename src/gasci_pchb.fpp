@@ -46,7 +46,7 @@ module gasci_pchb
     use growing_buffers, only: buffer_int_2D_t
     use timing_neci, only: timer, set_timer, halt_timer
 
-    use SystemData, only: nEl, AB_elec_pairs, par_elec_pairs, tGASSpinRecoupling
+    use SystemData, only: nEl, AB_elec_pairs, par_elec_pairs
     use bit_rep_data, only: NIfTot, nIfD
     use bit_reps, only: decode_bit_det
     use sort_mod, only: sort
@@ -426,10 +426,10 @@ contains
     !>  This does two things:
     !>  1. setup the lookup table for the mapping ab -> (a,b)
     !>  2. setup the alias table for picking ab given ij with probability ~<ij|H|ab>
-    subroutine GAS_doubles_PCHB_init(this, GAS_spec, use_lookup, create_lookup, recoupling)
+    subroutine GAS_doubles_PCHB_init(this, GAS_spec, use_lookup, create_lookup)
         class(GAS_doubles_PCHB_ExcGenerator_t), intent(inout) :: this
         class(GASSpec_t), intent(in) :: GAS_spec
-        logical, intent(in) :: use_lookup, create_lookup, recoupling
+        logical, intent(in) :: use_lookup, create_lookup
         character(*), parameter :: this_routine = 'GAS_doubles_PCHB_init'
 
         integer :: ab, a, b, abMax
@@ -465,7 +465,7 @@ contains
         end do
 
         ! setup the alias table
-        call this%compute_samplers(nBI, recoupling)
+        call this%compute_samplers(nBI)
 
         write(stdout, *) "Finished excitation generator initialization"
 
@@ -651,10 +651,9 @@ contains
     end function
 
 
-    subroutine GAS_doubles_PCHB_compute_samplers(this, nBI, recoupling)
+    subroutine GAS_doubles_PCHB_compute_samplers(this, nBI)
         class(GAS_doubles_PCHB_ExcGenerator_t), intent(inout) :: this
         integer, intent(in) :: nBI
-        logical, intent(in) :: recoupling
         integer :: i, j, ij, ijMax
         integer :: a, b, ab, abMax
         integer :: ex(2, 2)
@@ -712,7 +711,7 @@ contains
                                 ! b is alpha for sampe-spin (1) and opp spin w exchange (3)
                                 ex(2, 1) = map_orb(b, [SAME_SPIN, OPP_SPIN_EXCH])
                                 ! use the actual matrix elements as weights
-                                if (this%GAS_spec%is_allowed(DoubleExc_t(ex), supergroups(:, i_sg), recoupling)) then
+                                if (this%GAS_spec%is_allowed(DoubleExc_t(ex), supergroups(:, i_sg))) then
                                     w(ab) = abs(sltcnd_excit(projEDet(:, 1), DoubleExc_t(ex), .false.))
                                 else
                                     w(ab) = 0._dp
@@ -768,14 +767,12 @@ contains
     !>
     !>  @param[in] GAS_spec The GAS specifications for the excitation generator.
     !>  @param[in] use_lookup Use a lookup for the supergroup indexing.
-    !>  @param[in] recoupling Allow double excitations that change the
-    !>                  spin projection per GAS space.
     !>  @param[in] singles_generator A **fully** initialized singles_generator
     !>                  whose cleanup happens outside. Has to be a target.
-    subroutine GAS_PCHB_init(this, GAS_spec, use_lookup, create_lookup, recoupling, used_singles_generator)
+    subroutine GAS_PCHB_init(this, GAS_spec, use_lookup, create_lookup, used_singles_generator)
         class(GAS_PCHB_ExcGenerator_t), intent(inout) :: this
         class(GASSpec_t), intent(in) :: GAS_spec
-        logical, intent(in) :: use_lookup, create_lookup, recoupling
+        logical, intent(in) :: use_lookup, create_lookup
         type(GAS_used_singles_t), intent(in) :: used_singles_generator
 
         if (used_singles_generator == possible_GAS_singles%DISCARDING_UNIFORM) then
@@ -795,7 +792,7 @@ contains
             allocate(this%singles_generator, source=GAS_singles_heat_bath_ExcGen_t(GAS_spec))
         end if
 
-        call this%doubles_generator%init(GAS_spec, use_lookup, create_lookup, recoupling)
+        call this%doubles_generator%init(GAS_spec, use_lookup, create_lookup)
     end subroutine
 
 

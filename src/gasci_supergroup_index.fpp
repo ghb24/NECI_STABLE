@@ -92,7 +92,7 @@ module gasci_supergroup_index
 
 contains
 
-    function construct_SuperGroupIndexer_t(GASspec, N) result(idxer)
+    pure function construct_SuperGroupIndexer_t(GASspec, N) result(idxer)
         class(GASSpec_t), intent(in) :: GASspec
         integer, intent(in) :: N
         type(SuperGroupIndexer_t) :: idxer
