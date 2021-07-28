@@ -51,6 +51,7 @@ set(MEDIA_FILES
 
 set(DOC_ROOT_SRC ${PROJECT_SOURCE_DIR}/docs)
 
+set(PDF_DOCUMENTATIONS ${PROJECT_BINARY_DIR}/documentation/pdf/)
 set(DOC_WORKDIR ${PROJECT_BINARY_DIR}/documentation/work_dir)
 set(MEDIA_WORKDIR ${DOC_WORKDIR}/media)
 set(TEX_WORKDIR ${DOC_WORKDIR}/tex)
@@ -135,6 +136,103 @@ add_custom_command(
     COMMENT
         "Setting up virtual python environment."
 )
+
+
+find_program(PANDOC pandoc REQUIRED)
+find_package(LATEX COMPONENTS PDFLATEX BIBER REQUIRED)
+find_program(LATEXMK latexmk REQUIRED)
+if (PANDOC AND LATEX_FOUND AND LATEXMK)
+    # The PDF documentation is independent of possible configurations (neci, dneci etc.).
+    set(pandoc_options
+            --include-in-header LaTeX-headers/packages_to_include.tex
+            --standalone
+            -V geometry:margin=3cm
+            -V geometry:a4paper
+            -V fontsize=18pt
+            -V numbersections=true
+            --listings
+            --biblatex
+                -V biblatexoptions:style=numeric
+                -V biblatexoptions:doi=false
+                -V biblatexoptions:isbn=false
+                -V biblatexoptions:url=false
+                -V biblatexoptions:eprint=false
+                -V biblatexoptions:date=year
+                -V biblatexoptions:maxbibnames=3
+                -V biblio-title=Bibliography
+                --bibliography literature.bib
+            --toc
+            -f markdown-tex_math_dollars+tex_math_single_backslash
+    )
+
+
+    function(add_tex_command markdown_files out_name comment)
+        foreach(path ${${markdown_files}})
+            list(APPEND src_files "${DOC_ROOT_SRC}/${path}")
+        endforeach()
+
+        get_filename_component(out_dir ${out_name} DIRECTORY)
+        add_custom_command(
+            OUTPUT
+                ${out_name} ${out_dir}/literature.bib
+            DEPENDS
+                ${PROJECT_SOURCE_DIR}/tools/doc_compilation/process_markdown_for_pdf.py
+                ${PROJECT_SOURCE_DIR}/docs/LaTeX-headers/packages_to_include.tex
+                ${src_files}
+            COMMAND
+                ${CMAKE_COMMAND} -E make_directory ${out_dir} # Create output directory
+            COMMAND
+                # the output of cat depends on the order in the lists!
+                cat ${${markdown_files}}
+                    | ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/tools/doc_compilation/process_markdown_for_pdf.py --media_dir ${MEDIA_WORKDIR}
+                    | ${PANDOC} ${pandoc_options} -o ${out_name} -
+            COMMAND
+                cp LaTeX-headers/literature.bib ${out_dir}/literature.bib
+            WORKING_DIRECTORY
+                ${PROJECT_SOURCE_DIR}/docs/
+            COMMENT
+                ${comment}
+        )
+    endfunction()
+
+    function(add_pdf_command tex_file pdf_file comment)
+        get_filename_component(tex_dir ${tex_file} DIRECTORY)
+        get_filename_component(tex_stem ${tex_file} NAME_WE)
+        get_filename_component(out_dir ${pdf_file} DIRECTORY)
+        add_custom_command(
+            OUTPUT
+                ${pdf_file}
+            DEPENDS
+                ${tex_file}
+                ${PROJECT_SOURCE_DIR}/docs/LaTeX-headers/packages_to_include.tex
+                ${tex_dir}/literature.bib
+                ${processed_media_files}
+            COMMAND
+                ${CMAKE_COMMAND} -E make_directory ${out_dir} # Create output directory
+            COMMAND
+                ${LATEXMK} -view=pdf ${tex_file} 1> /dev/null
+            COMMAND
+                cp ${tex_stem}.pdf ${pdf_file}
+            WORKING_DIRECTORY
+                ${tex_dir}
+            COMMENT
+                ${comment}
+        )
+    endfunction()
+
+
+    add_tex_command(markdown_files_user_doc ${TEX_WORKDIR}/user/neci_user.tex "Generating user documentation tex file." )
+    add_pdf_command(${TEX_WORKDIR}/user/neci_user.tex ${PDF_DOCUMENTATIONS}/neci_user.pdf "Generating user pdf documentation.")
+    add_tex_command(markdown_files_dev_doc ${TEX_WORKDIR}/dev/neci_dev.tex "Generating developer documentation tex file." )
+    add_pdf_command(${TEX_WORKDIR}/dev/neci_dev.tex ${PDF_DOCUMENTATIONS}/neci_dev.pdf "Generating developer pdf documentation.")
+
+    add_custom_target(doc_pdf
+        DEPENDS
+            ${PDF_DOCUMENTATIONS}/neci_user.pdf
+            ${PDF_DOCUMENTATIONS}/neci_dev.pdf
+    )
+    add_dependencies(doc doc_pdf)
+endif()
 
 
 function(add_ford_documentation target configuration)
@@ -251,13 +349,34 @@ function(add_ford_documentation target configuration)
         VERBATIM
     )
 
+    set(PDF_in_ford ${THIS_HTML_DOC}/pdf/neci_user.pdf ${THIS_HTML_DOC}/pdf/neci_dev.pdf)
+
+    add_custom_command(
+        OUTPUT
+            ${PDF_in_ford}
+        DEPENDS
+            ${THIS_HTML_DOC}/index.html # Ensure that it is copied afterwards
+            ${PDF_DOCUMENTATIONS}/neci_user.pdf
+            ${PDF_DOCUMENTATIONS}/neci_dev.pdf
+        COMMAND
+            ${CMAKE_COMMAND} -E make_directory ${THIS_HTML_DOC}/pdf # Create output directory
+        COMMAND
+            cp ${PDF_DOCUMENTATIONS}/neci_user.pdf ${PDF_DOCUMENTATIONS}/neci_dev.pdf ${THIS_HTML_DOC}/pdf
+        COMMENT
+            "Copying pdfs to HTML"
+    )
+
+
+
     add_custom_target(${target}
         DEPENDS
             ${THIS_HTML_DOC}/index.html
+            ${PDF_in_ford}
     )
     # We rely on preprocessed (fypp and custom templating) files by the normal build process.
     # Ford will run the "normal" C-preprocessor itself.
     add_dependencies(${target} lib${configuration}_fypp_preprocessed lib${configuration}_templated)
+    add_dependencies(${target} doc_pdf)
 endfunction()
 
 
@@ -269,99 +388,3 @@ endforeach()
 # Only build the documentation of `neci` by default (when typing `make doc`)
 add_dependencies(doc doc_html_neci)
 
-find_program(PANDOC pandoc REQUIRED)
-find_package(LATEX COMPONENTS PDFLATEX BIBER REQUIRED)
-find_program(LATEXMK latexmk REQUIRED)
-if (PANDOC AND LATEX_FOUND AND LATEXMK)
-    # The PDF documentation is independent of possible configurations (neci, dneci etc.).
-    set(PDF_DOCUMENTATIONS ${PROJECT_BINARY_DIR}/documentation/pdf/)
-    set(pandoc_options
-            --include-in-header LaTeX-headers/packages_to_include.tex
-            --standalone
-            -V geometry:margin=3cm
-            -V geometry:a4paper
-            -V fontsize=18pt
-            -V numbersections=true
-            --listings
-            --biblatex
-                -V biblatexoptions:style=numeric
-                -V biblatexoptions:doi=false
-                -V biblatexoptions:isbn=false
-                -V biblatexoptions:url=false
-                -V biblatexoptions:eprint=false
-                -V biblatexoptions:date=year
-                -V biblatexoptions:maxbibnames=3
-                -V biblio-title=Bibliography
-                --bibliography literature.bib
-            --toc
-            -f markdown-tex_math_dollars+tex_math_single_backslash
-    )
-
-
-    function(add_tex_command markdown_files out_name comment)
-        foreach(path ${${markdown_files}})
-            list(APPEND src_files "${DOC_ROOT_SRC}/${path}")
-        endforeach()
-
-        get_filename_component(out_dir ${out_name} DIRECTORY)
-        add_custom_command(
-            OUTPUT
-                ${out_name} ${out_dir}/literature.bib
-            DEPENDS
-                ${PROJECT_SOURCE_DIR}/tools/doc_compilation/process_markdown_for_pdf.py
-                ${PROJECT_SOURCE_DIR}/docs/LaTeX-headers/packages_to_include.tex
-                ${src_files}
-            COMMAND
-                ${CMAKE_COMMAND} -E make_directory ${out_dir} # Create output directory
-            COMMAND
-                # the output of cat depends on the order in the lists!
-                cat ${${markdown_files}}
-                    | ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/tools/doc_compilation/process_markdown_for_pdf.py --media_dir ${MEDIA_WORKDIR}
-                    | ${PANDOC} ${pandoc_options} -o ${out_name} -
-            COMMAND
-                cp LaTeX-headers/literature.bib ${out_dir}/literature.bib
-            WORKING_DIRECTORY
-                ${PROJECT_SOURCE_DIR}/docs/
-            COMMENT
-                ${comment}
-        )
-    endfunction()
-
-    function(add_pdf_command tex_file pdf_file comment)
-        get_filename_component(tex_dir ${tex_file} DIRECTORY)
-        get_filename_component(tex_stem ${tex_file} NAME_WE)
-        get_filename_component(out_dir ${pdf_file} DIRECTORY)
-        add_custom_command(
-            OUTPUT
-                ${pdf_file}
-            DEPENDS
-                ${tex_file}
-                ${PROJECT_SOURCE_DIR}/docs/LaTeX-headers/packages_to_include.tex
-                ${tex_dir}/literature.bib
-                ${processed_media_files}
-            COMMAND
-                ${CMAKE_COMMAND} -E make_directory ${out_dir} # Create output directory
-            COMMAND
-                ${LATEXMK} -view=pdf ${tex_file} 1> /dev/null
-            COMMAND
-                cp ${tex_stem}.pdf ${pdf_file}
-            WORKING_DIRECTORY
-                ${tex_dir}
-            COMMENT
-                ${comment}
-        )
-    endfunction()
-
-
-    add_tex_command(markdown_files_user_doc ${TEX_WORKDIR}/user/neci_user.tex "Generating user documentation tex file." )
-    add_pdf_command(${TEX_WORKDIR}/user/neci_user.tex ${PDF_DOCUMENTATIONS}/neci_user.pdf "Generating user pdf documentation.")
-    add_tex_command(markdown_files_dev_doc ${TEX_WORKDIR}/dev/neci_dev.tex "Generating developer documentation tex file." )
-    add_pdf_command(${TEX_WORKDIR}/dev/neci_dev.tex ${PDF_DOCUMENTATIONS}/neci_dev.pdf "Generating developer pdf documentation.")
-
-    add_custom_target(doc_pdf
-        DEPENDS
-            ${PDF_DOCUMENTATIONS}/neci_user.pdf
-            ${PDF_DOCUMENTATIONS}/neci_dev.pdf
-    )
-    add_dependencies(doc doc_pdf)
-endif()
