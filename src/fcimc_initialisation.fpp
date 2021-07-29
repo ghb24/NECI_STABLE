@@ -255,6 +255,8 @@ module fcimc_initialisation
 
     use CAS_distribution_init, only: InitFCIMC_CAS
 
+    use SD_spin_purification_mod, only: tSD_spin_purification, spin_pure_J
+
     use exc_gen_classes, only: init_exc_gen_class, finalize_exz_gen_class, class_managed
     implicit none
 
@@ -1384,6 +1386,17 @@ contains
         ! by the number of alpha and beta electrons and the number of orbitals
         ! and can hence be precomputed
         if (t_mol_3_body .or. t_ueg_3_body) call setup_mol_tc_excitgen()
+
+        if (tSD_spin_purification) then
+            if (allocated(spin_pure_J)) then
+                write(stdout, *)
+                write(stdout, '(A)') 'Spin purification of Slater-Determinants with $ H + J * S^2 $ activated.$'
+                write(stdout, '(A, 1x, E10.5)') 'J =', spin_pure_J
+                write(stdout, *)
+            else
+                call stop_all(this_routine, "spin_pure_J not allocated")
+            end if
+        end if
 
         call init_exc_gen_class()
     END SUBROUTINE SetupParameters
