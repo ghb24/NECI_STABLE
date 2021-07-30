@@ -100,7 +100,7 @@ module guga_pchb_gas_excitgen
 
         write(iout, *) "Allocating PCHB excitation generator objects"
         ! number of spatial orbs
-        nBI = numBasisIndices(this%GAS_spec%n_spin_orbs())
+        nBI = numBasisIndices(this%GAS_spec%n_spin_orbs() .div. 2)
         ! initialize the mapping ab -> (a, b)
         abMax = fuseIndex(nBI, nBI)
         allocate(this%tgtOrbs(2, 0 : abMax), source=0)
@@ -129,11 +129,12 @@ module guga_pchb_gas_excitgen
         total_size = nEntries * entrySize
         call this%all_info_table%shared_alloc(total_size)
 
+        windowStart = 1_int64
         do iEntry = 1, nEntries
-            windowStart = (iEntry - 1) * entrySize + 1
             windowEnd = windowStart + entrySize - 1
 
             this%info_tables(iEntry)%ptr => this%all_info_table%ptr(windowStart : windowEnd)
+            windowStart = windowStart + entrySize
         end do
     end subroutine setup_info_table
 
@@ -275,54 +276,24 @@ module guga_pchb_gas_excitgen
 
         integer :: ab, ij, nex(2, 2), samplerIndex, i_sg
 
-        @:unused_var(ilutI, ClassCount2, ClassCountUnocc2)
-        @:ASSERT(ic == 2)
-
-        i_sg = this%indexer%idx_nI(nI)
-        ! spatial orbitals of the excitation
-        nex = gtID(ex(:, : 2))
-        ij = fuseIndex(nex(1, 1), nex(1, 2))
-        ! the probability of picking the two electrons: they are chosen uniformly
-        ! check which sampler was used
-        if (is_beta(ex(1, 1)) .eqv. is_beta(ex(1, 2))) then
-            pgen = pParallel / par_elec_pairs
-            ! same-spin case
-            samplerIndex = SAME_SPIN
-        else
-            pgen = (1.0_dp - pParallel) / AB_elec_pairs
-            ! excitations without spin-exchange OR to the same spatial orb
-            if ((is_beta(ex(1, 1)) .eqv. is_beta(ex(2, 1))) .or. (nex(2, 1) == nex(2, 2))) then
-                ! opp spin case without exchange
-                samplerIndex = OPP_SPIN_NO_EXCH
-                pgen = pgen * (1 - this%pExch(ij, i_sg))
-            else
-                ! opp spin case with exchange
-                samplerIndex = OPP_SPIN_EXCH
-                pgen = pgen * this%pExch(ij, i_sg)
-            end if
-        end if
-
-        ! look up the probability for this excitation in the sampler
-        ab = fuseIndex(nex(2, 1), nex(2, 2))
-        pgen = pgen * this%pchb_samplers%get_prob(ij, samplerIndex, i_sg, ab)
     end function
 
 
-    subroutine GAS_doubles_PCHB_compute_samplers(this, nBI)
+    subroutine GAS_doubles_PCHB_compute_samplers(this)
         class(GAS_doubles_PCHB_ExcGenerator_t), intent(inout) :: this
-        integer, intent(in) :: nBI
         integer :: i, j, ij, ijMax
         integer :: a, b, ab, abMax
         integer :: ex(2, 2)
         integer(int64) :: memCost
-        real(dp), allocatable :: w(:), pNoExch(:)
+        real(dp), allocatable :: w(:)
         integer, allocatable :: supergroups(:, :)
+        integer(int64), allocatable :: excit_info(:), counts(:)
         integer :: i_sg, i_exch
         ! possible supergroups
         supergroups = this%indexer%get_supergroups()
 
         ! number of possible source orbital pairs
-        ijMax = fuseIndex(nBI, nBI)
+        ijMax = fuseIndex(nSpatOrbs, nSpatOrbs)
         abMax = ijMax
 
         !> n_supergroup * number_of_fused_indices * (bytes_per_sampler)
@@ -359,231 +330,35 @@ module guga_pchb_gas_excitgen
 
                             ab = fuseIndex(a, b)
                             if (this%GAS_spec%is_allowed(DoubleExc_t(ex), supergroups(:, i_sg))) then
-                                if (i == j) then
-                                    if (a == b) then
-                                        ! here we only have a contribution if
-                                        ! a != i
-                                        if (a < i) then
-                                            ! _RR_(a) -> ^RR^(i)
-                                            w(ab) = get_pchb_integral_contrib(i, j, a, b, &
-                                                typ=excit_type%fullstart_stop_alike)
-                                            excit_info(ab) = encode_excit_info(&
-                                                typ=excit_type%fullstart_stop_alike, &
-                                                a=a, i=i, b=b, j=j)
-                                        else if (a > i) then
-                                            ! _LL_(i) > ^LL^(a)
-                                            w(ab) = get_pchb_integral_contrib(i, j, a, b, &
-                                                typ = excit_type%fullstart_stop_alike)
-                                            excit_info(ab) = encode_excit_info(&
-                                                typ=excit_type%fullstart_stop_alike, &
-                                                a=a, i=i, b=b, j=j)
-                                        end if
-                                    elseif (a /= b) then
-                                        ! here we have to determine where (a) and
-                                        ! (b) are relative to (i=j) and a == i or
-                                        ! b == i are NOT allowed!
-                                        if (a < i) then
-                                            if (b < i) then
-                                                ! _R(a) -> _RR(b) -> ^RR^(i)
-                                                w(ab) = get_pchb_integral_contrib(i, j, a, b, &
-                                                    typ=excit_type%fullstop_raising)
-                                                excit_info(ab) = encode_excit_info(&
-                                                    typ=excit_type%fullstop_raising, &
-                                                    a=a, i=i, b=b, j=j)
-                                            else if (b > i) then
-                                                ! _R(a) -> ^RL_(i) -> ^L(b)
-                                                w(ab) = get_pchb_integral_contrib(i, j, a, b, &
-                                                    excit_type%single_overlap_R_to_L)
-                                                excit_info(ab) = encode_excit_info(&
-                                                    typ=excit_type%single_overlap_R_to_L, &
-                                                    a=a, i=i, b=b, j=j)
-                                            end if
-                                        else if (a > i) then
-                                            ! since b > a ensured only:
-                                            ! _LL_(i) -> ^LL(a) -> ^L(b)
-                                            w(ab) = get_pchb_integral_contrib(i, j, a, b, &
-                                                excit_type%fullstart_lowering)
-                                            excit_info(ab) = encode_excit_info(&
-                                                typ=excit_type%fullstart_lowering, &
-                                                a=a, i=i, b=b, j=j)
-                                        end if
-                                    end if
-                                else if ( i /= j) then
-                                    if (a == b) then
-                                        ! a == i or a == j NOT allowed!
-                                        if (a < i) then
-                                            ! _RR_(a) -> ^RR(i) -> ^R(j)
-                                            w(ab) = get_pchb_integral_contrib(i, j, a, b,&
-                                                typ = excit_type%fullstart_raising)
-                                            excit_info(ab) = encode_excit_info(&
-                                                typ=excit_type%fullstart_raising, &
-                                                a=a, i=i, b=b, j=j)
-                                        else if (a > i .and. a < j) then
-                                            ! _L(i) -> ^LR_(a) -> ^R(j)
-                                            w(ab) = get_pchb_integral_contrib(i, j, a, b,&
-                                                excit_type%single_overlap_L_to_R)
-                                            excit_info(ab) = encode_excit_info(&
-                                                typ=excit_type%single_overlap_L_to_R, &
-                                                a=a, i=i, b=b, j=j)
-                                        else if (a > j) then
-                                            ! _L(i) -> _LL(j) -> ^LL^(a)
-                                            w(ab) = get_pchb_integral_contrib(i, j, a, b,&
-                                                excit_type%fullstop_lowering)
-                                            excit_info(ab) = encode_excit_info(&
-                                                typ=excit_type%fullstop_lowering, &
-                                                a=a, i=i, b=b, j=j)
-                                        end if
-                                    else if (a /= b) then
-                                        ! this is the most general case. a lot of IFs
-                                        if (a < i) then
-                                            if (b < i) then
-                                                w(ab) = get_pchb_integral_contrib(&
-                                                    i=j, j=i, a=b, b=a, &
-                                                    typ=excit_type%double_raising)
-                                                ! in E_{ai}E_{bi} form this would be
-                                                ! _R(a) -> RR_(b) -> ^RR(i) -> ^R(j)
-                                                ! which would have the opposite
-                                                ! sign conventions for the x1
-                                                ! elements as in the Shavitt 81
-                                                ! paper.
-                                                ! (technically it would not matter
-                                                !  here since both are flipped,
-                                                !  but lets stay consistent!)
-                                                ! for E_{bj}E_{ai}
-                                                ! _R(a) -> _RR(b) -> RR^(i) -> ^R(j)
-                                                ! it would fit! so:
-                                                excit_info(ab) = encode_excit_info(&
-                                                    typ = excit_type%double_raising, &
-                                                    a=b, i=j, b=a, j=i)
-                                            ! else if (b == i) then
-                                                ! b == i also NOT allowed here,
-                                                ! since this would correspond to
-                                                ! a single!
-                                            else if (b > i .and. b < j) then
-                                                w(ab) = get_pchb_integral_contrib(&
-                                                    i=j, j=i, a=a, b=b, &
-                                                    typ=excit_type%double_R_to_L_to_R)
-                                                ! for E_{ai}E_{bj} this would
-                                                ! correspond to a non-overlap:
-                                                ! _R(a) -> ^R(i) + _R(b) > ^R(j)
-                                                ! which are not directly sampled
-                                                ! However for E_{aj}E_{bj} this is
-                                                ! _R{a} -> _LR(i) -> ^LR(b) -> ^R(j)
-                                                excit_info(ab) = encode_excit_info(&
-                                                    typ=excit_type%double_R_to_L_to_R, &
-                                                    a=a, i=j, b=b, j=i)
-                                            else if (b == j) then
-                                                w(ab) = get_pchb_integral_contrib(&
-                                                    i=j, j=i, a=a, b=b, &
-                                                    typ=excit_type%fullstop_R_to_L)
-                                                ! here we also have to switch
-                                                ! indices to E_{aj}E_{bi} to get:
-                                                ! _R(i) -> _LR(a) -> ^LR^(j)
-                                                excit_info(ab) = encode_excit_info(&
-                                                    typ=excit_type%fullstop_R_to_L, &
-                                                    a=a, i=j, b=b, j=i)
-
-                                            else if (b > j) then
-                                                w(ab) = get_pchb_integral_contrib(&
-                                                    i=j, j=i, a=a, b=b, &
-                                                    typ=excit_type%double_R_to_L)
-                                                ! here we have to switch to
-                                                ! E_{aj}E_{bi} to get:
-                                                ! _R(a) > _LR(i) -> LR^(j) -> ^L(b)
-                                                excit_info(ab) = encode_excit_info(&
-                                                    typ=excit_type%double_R_to_L, &
-                                                    a=a, i=j, b=b, j=i)
-                                            end if
-                                        else if (a == i) then
-                                            ! b > i is ensured here since b > a in here!
-                                            if (b < j) then
-                                                w(ab) = get_pchb_integral_contrib(&
-                                                    i=j, j=i, a=a, b=b, &
-                                                    typ=excit_type%fullstart_L_to_R)
-                                                ! here we have to switch again:
-                                                ! E_{aj}E_{bi}:
-                                                ! _RL_(i) -> ^LR(b) -> ^R(j)
-                                                excit_info(ab) = encode_excit_info(&
-                                                    typ=excit_type%fullstart_L_to_R, &
-                                                    a=a, i=j, b=b, j=i)
-                                            else if (b == j) then
-                                                w(ab) = get_pchb_integral_contrib(&
-                                                    i=j, j=i, a=a, b=b, &
-                                                    typ=excit_type%fullstart_stop_mixed)
-                                                ! switch again: E_{aj}E_{bi}
-                                                ! _RL_(i) -> _RL_(j)
-                                                excit_info(ab) = encode_excit_info(&
-                                                    typ=excit_type%fullstart_stop_mixed, &
-                                                    a=a, i=j, b=b, j=i)
-                                            else if (b > j) then
-                                                w(ab) = get_pchb_integral_contrib(&
-                                                    i=j, j=i, a=a, b=b, &
-                                                    typ=excit_type%fullstart_R_to_L)
-                                                ! switch again: E_{aj}E_{bi}
-                                                ! _RL_(i) -> ^RL(j) -> ^L(b)
-                                                excit_info(ab) = encode_excit_info(&
-                                                    typ=excit_type%fullstart_R_to_L, &
-                                                    a=a, i=j, b=b, j=i)
-                                            end if
-                                        else if (a > i .and. a < j) then
-                                            ! b > a still ensured!
-                                            if (b < j) then
-                                                w(ab) = get_pchb_integral_contrib(&
-                                                    i=j, j=i, a=a, b=b, &
-                                                    typ=excit_type%double_L_to_R)
-                                                ! switch: E_{aj}E_{bi}:
-                                                ! _L(j) -> _RL(a) -> ^LR(b) -> ^R(j)
-                                                excit_info(ab) = encode_excit_info(&
-                                                    typ=excit_type%double_L_to_R, &
-                                                    a=a, i=j, b=b, j=i)
-
-                                            else if (b == j) then
-                                                w(ab) = get_pchb_integral_contrib(&
-                                                    i=j, j=i, a=a, b=b, &
-                                                    typ=excit_type%fullstop_L_to_R)
-                                                ! switch: E_{aj}E_{bi}
-                                                ! _L(i) -> _RL(a) -> ^RL^(j)
-                                                excit_info(ab) = encode_excit_info(&
-                                                    typ=excit_type%fullstop_L_to_R, &
-                                                    a=a, i=j, b=b, j=i)
-                                            else if (b > j) then
-                                                w(ab) = get_pchb_integral_contrib(&
-                                                    i=j, j=i, a=a, b=b, &
-                                                    typ=excit_type%double_L_to_R_to_L)
-                                                ! switch: E_{aj}E_{bi}
-                                                ! _L(i) -> _RL(a) - > ^RL(j) -> ^L(b)
-                                                excit_info(ab) = encode_excit_info(&
-                                                    typ=excit_type%double_L_to_R_to_L, &
-                                                    a=a, i=j, b=b, j=i)
-                                            end if
-                                        ! else if (a == j) then
-                                            ! a == j also NOT allowed here!
-                                        else if (a > j) then
-                                            ! b > a > j implied here!
-                                            w(ab) = get_pchb_integral_contrib(&
-                                                i=i, j=j, a=a, b=b, &
-                                                typ=excit_type%double_lowering)
-                                            ! E_{ai}E_{bj} would lead to:
-                                            ! _L(i) -> LL_(j) -> ^LL(a) -> ^L(b)
-                                            ! which has the correct sign convention
-                                            ! as in the Shavitt 81 paper
-                                            excit_info(ab) = encode_excit_info(&
-                                                typ=excit_type%double_lowering, &
-                                                a=a, i=i, b=b, j=j)
-                                        end if
-                                    end if
-                                end if
+                                call get_weight_and_info(i, j, a, b, w(ab), excit_info(ab))
                             else
                                 w(ab) = 0._dp
                             end if
                         end do
                     end do
-                    call guga_pchb_sampler%alias_sampler%setup_entry(ij, i_sg, w)
-                    call guga_pchb_sampler%setup_entry_info(ij, excit_info)
+                    call this%alias_sampler%setup_entry(ij, i_sg, w)
+                    call this%setup_entry_info(ij, excit_info)
                 end do
             end do
         end do
     end subroutine
+
+
+    subroutine setup_entry_info(this, iEntry, infos)
+        class(GugaAliasSampler_t) :: this
+        integer, intent(in) :: iEntry
+        integer(int64), intent(in) :: infos(:)
+
+        ! i think this is everyhing...
+        if (iProcIndex_intra == 0) then
+            this%info_tables(iEntry)%ptr = infos
+        end if
+
+        ! then sync:
+        call this%all_info_table%sync()
+
+    end subroutine setup_entry_info
+
 
 
     subroutine GAS_doubles_PCHB_gen_all_excits(this, nI, n_excits, det_list)
@@ -593,5 +368,225 @@ module guga_pchb_gas_excitgen
         integer(n_int), allocatable, intent(out) :: det_list(:,:)
 
         call gen_all_excits(this%GAS_spec, nI, n_excits, det_list, ic=2)
+    end subroutine
+
+    elemental subroutine get_weight_and_info(i, j, a, b, w, info)
+        integer, intent(in) :: i, j, a, b
+        real(dp), intent(out) :: w
+        integer(int64), intent(out) :: info
+        if (i == j) then
+            if (a == b) then
+                ! here we only have a contribution if
+                ! a != i
+                if (a < i) then
+                    ! _RR_(a) -> ^RR^(i)
+                    w = get_pchb_integral_contrib(i, j, a, b, &
+                        typ=excit_type%fullstart_stop_alike)
+                    info = encode_excit_info(&
+                        typ=excit_type%fullstart_stop_alike, &
+                        a=a, i=i, b=b, j=j)
+                else if (a > i) then
+                    ! _LL_(i) > ^LL^(a)
+                    w = get_pchb_integral_contrib(i, j, a, b, &
+                        typ = excit_type%fullstart_stop_alike)
+                    info = encode_excit_info(&
+                        typ=excit_type%fullstart_stop_alike, &
+                        a=a, i=i, b=b, j=j)
+                end if
+            elseif (a /= b) then
+                ! here we have to determine where (a) and
+                ! (b) are relative to (i=j) and a == i or
+                ! b == i are NOT allowed!
+                if (a < i) then
+                    if (b < i) then
+                        ! _R(a) -> _RR(b) -> ^RR^(i)
+                        w = get_pchb_integral_contrib(i, j, a, b, &
+                            typ=excit_type%fullstop_raising)
+                        info = encode_excit_info(&
+                            typ=excit_type%fullstop_raising, &
+                            a=a, i=i, b=b, j=j)
+                    else if (b > i) then
+                        ! _R(a) -> ^RL_(i) -> ^L(b)
+                        w = get_pchb_integral_contrib(i, j, a, b, &
+                            excit_type%single_overlap_R_to_L)
+                        info = encode_excit_info(&
+                            typ=excit_type%single_overlap_R_to_L, &
+                            a=a, i=i, b=b, j=j)
+                    end if
+                else if (a > i) then
+                    ! since b > a ensured only:
+                    ! _LL_(i) -> ^LL(a) -> ^L(b)
+                    w = get_pchb_integral_contrib(i, j, a, b, &
+                        excit_type%fullstart_lowering)
+                    info = encode_excit_info(&
+                        typ=excit_type%fullstart_lowering, &
+                        a=a, i=i, b=b, j=j)
+                end if
+            end if
+        else if ( i /= j) then
+            if (a == b) then
+                ! a == i or a == j NOT allowed!
+                if (a < i) then
+                    ! _RR_(a) -> ^RR(i) -> ^R(j)
+                    w = get_pchb_integral_contrib(i, j, a, b,&
+                        typ = excit_type%fullstart_raising)
+                    info = encode_excit_info(&
+                        typ=excit_type%fullstart_raising, &
+                        a=a, i=i, b=b, j=j)
+                else if (a > i .and. a < j) then
+                    ! _L(i) -> ^LR_(a) -> ^R(j)
+                    w = get_pchb_integral_contrib(i, j, a, b,&
+                        excit_type%single_overlap_L_to_R)
+                    info = encode_excit_info(&
+                        typ=excit_type%single_overlap_L_to_R, &
+                        a=a, i=i, b=b, j=j)
+                else if (a > j) then
+                    ! _L(i) -> _LL(j) -> ^LL^(a)
+                    w = get_pchb_integral_contrib(i, j, a, b,&
+                        excit_type%fullstop_lowering)
+                    info = encode_excit_info(&
+                        typ=excit_type%fullstop_lowering, &
+                        a=a, i=i, b=b, j=j)
+                end if
+            else if (a /= b) then
+                ! this is the most general case. a lot of IFs
+                if (a < i) then
+                    if (b < i) then
+                        w = get_pchb_integral_contrib(&
+                            i=j, j=i, a=b, b=a, &
+                            typ=excit_type%double_raising)
+                        ! in E_{ai}E_{bi} form this would be
+                        ! _R(a) -> RR_(b) -> ^RR(i) -> ^R(j)
+                        ! which would have the opposite
+                        ! sign conventions for the x1
+                        ! elements as in the Shavitt 81
+                        ! paper.
+                        ! (technically it would not matter
+                        !  here since both are flipped,
+                        !  but lets stay consistent!)
+                        ! for E_{bj}E_{ai}
+                        ! _R(a) -> _RR(b) -> RR^(i) -> ^R(j)
+                        ! it would fit! so:
+                        info = encode_excit_info(&
+                            typ = excit_type%double_raising, &
+                            a=b, i=j, b=a, j=i)
+                    ! else if (b == i) then
+                        ! b == i also NOT allowed here,
+                        ! since this would correspond to
+                        ! a single!
+                    else if (b > i .and. b < j) then
+                        w = get_pchb_integral_contrib(&
+                            i=j, j=i, a=a, b=b, &
+                            typ=excit_type%double_R_to_L_to_R)
+                        ! for E_{ai}E_{bj} this would
+                        ! correspond to a non-overlap:
+                        ! _R(a) -> ^R(i) + _R(b) > ^R(j)
+                        ! which are not directly sampled
+                        ! However for E_{aj}E_{bj} this is
+                        ! _R{a} -> _LR(i) -> ^LR(b) -> ^R(j)
+                        info = encode_excit_info(&
+                            typ=excit_type%double_R_to_L_to_R, &
+                            a=a, i=j, b=b, j=i)
+                    else if (b == j) then
+                        w = get_pchb_integral_contrib(&
+                            i=j, j=i, a=a, b=b, &
+                            typ=excit_type%fullstop_R_to_L)
+                        ! here we also have to switch
+                        ! indices to E_{aj}E_{bi} to get:
+                        ! _R(i) -> _LR(a) -> ^LR^(j)
+                        info = encode_excit_info(&
+                            typ=excit_type%fullstop_R_to_L, &
+                            a=a, i=j, b=b, j=i)
+
+                    else if (b > j) then
+                        w = get_pchb_integral_contrib(&
+                            i=j, j=i, a=a, b=b, &
+                            typ=excit_type%double_R_to_L)
+                        ! here we have to switch to
+                        ! E_{aj}E_{bi} to get:
+                        ! _R(a) > _LR(i) -> LR^(j) -> ^L(b)
+                        info = encode_excit_info(&
+                            typ=excit_type%double_R_to_L, &
+                            a=a, i=j, b=b, j=i)
+                    end if
+                else if (a == i) then
+                    ! b > i is ensured here since b > a in here!
+                    if (b < j) then
+                        w = get_pchb_integral_contrib(&
+                            i=j, j=i, a=a, b=b, &
+                            typ=excit_type%fullstart_L_to_R)
+                        ! here we have to switch again:
+                        ! E_{aj}E_{bi}:
+                        ! _RL_(i) -> ^LR(b) -> ^R(j)
+                        info = encode_excit_info(&
+                            typ=excit_type%fullstart_L_to_R, &
+                            a=a, i=j, b=b, j=i)
+                    else if (b == j) then
+                        w = get_pchb_integral_contrib(&
+                            i=j, j=i, a=a, b=b, &
+                            typ=excit_type%fullstart_stop_mixed)
+                        ! switch again: E_{aj}E_{bi}
+                        ! _RL_(i) -> _RL_(j)
+                        info = encode_excit_info(&
+                            typ=excit_type%fullstart_stop_mixed, &
+                            a=a, i=j, b=b, j=i)
+                    else if (b > j) then
+                        w = get_pchb_integral_contrib(&
+                            i=j, j=i, a=a, b=b, &
+                            typ=excit_type%fullstart_R_to_L)
+                        ! switch again: E_{aj}E_{bi}
+                        ! _RL_(i) -> ^RL(j) -> ^L(b)
+                        info = encode_excit_info(&
+                            typ=excit_type%fullstart_R_to_L, &
+                            a=a, i=j, b=b, j=i)
+                    end if
+                else if (a > i .and. a < j) then
+                    ! b > a still ensured!
+                    if (b < j) then
+                        w = get_pchb_integral_contrib(&
+                            i=j, j=i, a=a, b=b, &
+                            typ=excit_type%double_L_to_R)
+                        ! switch: E_{aj}E_{bi}:
+                        ! _L(j) -> _RL(a) -> ^LR(b) -> ^R(j)
+                        info = encode_excit_info(&
+                            typ=excit_type%double_L_to_R, &
+                            a=a, i=j, b=b, j=i)
+
+                    else if (b == j) then
+                        w = get_pchb_integral_contrib(&
+                            i=j, j=i, a=a, b=b, &
+                            typ=excit_type%fullstop_L_to_R)
+                        ! switch: E_{aj}E_{bi}
+                        ! _L(i) -> _RL(a) -> ^RL^(j)
+                        info = encode_excit_info(&
+                            typ=excit_type%fullstop_L_to_R, &
+                            a=a, i=j, b=b, j=i)
+                    else if (b > j) then
+                        w = get_pchb_integral_contrib(&
+                            i=j, j=i, a=a, b=b, &
+                            typ=excit_type%double_L_to_R_to_L)
+                        ! switch: E_{aj}E_{bi}
+                        ! _L(i) -> _RL(a) - > ^RL(j) -> ^L(b)
+                        info = encode_excit_info(&
+                            typ=excit_type%double_L_to_R_to_L, &
+                            a=a, i=j, b=b, j=i)
+                    end if
+                ! else if (a == j) then
+                    ! a == j also NOT allowed here!
+                else if (a > j) then
+                    ! b > a > j implied here!
+                    w = get_pchb_integral_contrib(&
+                        i=i, j=j, a=a, b=b, &
+                        typ=excit_type%double_lowering)
+                    ! E_{ai}E_{bj} would lead to:
+                    ! _L(i) -> LL_(j) -> ^LL(a) -> ^L(b)
+                    ! which has the correct sign convention
+                    ! as in the Shavitt 81 paper
+                    info = encode_excit_info(&
+                        typ=excit_type%double_lowering, &
+                        a=a, i=i, b=b, j=j)
+                end if
+            end if
+        end if
     end subroutine
 end module
