@@ -953,7 +953,6 @@ contains
         class(GugaAliasSampler_t), intent(inout) :: this
 
         call this%all_info_table%shared_dealloc()
-
     end subroutine info_table_destructor
 
     subroutine setup_entry_info(this, iEntry, infos)
@@ -968,7 +967,6 @@ contains
 
         ! then sync:
         call this%all_info_table%sync()
-
     end subroutine setup_entry_info
 
     subroutine init_guga_pchb_excitgen
@@ -1026,7 +1024,6 @@ contains
         call setup_pchb_sampler_conditional()
 
         write(iout,*) "Finished GUGA PCHB excitation generator initialization"
-
     end subroutine init_guga_pchb_excitgen
 
     subroutine setup_pchb_sampler_conditional()
@@ -1317,11 +1314,9 @@ contains
                 ! todo: do the same for the excit_info array!
             end do
         end do
-
     end subroutine setup_pchb_sampler_conditional
 
     subroutine finalize_pchb_excitgen_guga()
-
         if (t_analyze_pchb) then
             ! for analysis:
             call print_pchb_statistics()
@@ -1337,8 +1332,6 @@ contains
         call guga_pchb_sampler%alias_sampler%finalize()
         call guga_pchb_sampler%info_table_destructor()
         deallocate(tgtOrbs)
-
-
     end subroutine finalize_pchb_excitgen_guga
 
     subroutine pick_orbitals_double_pchb(ilut, nI, excitInfo, pgen)

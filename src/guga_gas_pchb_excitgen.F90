@@ -7,7 +7,7 @@ module guga_pchb_gas_excitgen
     ! use excitation_types, only: SingleExc_t, DoubleExc_t, excite
     ! use sltcnd_mod, only: sltcnd_excit
     ! use procedure_pointers, only: generate_single_excit_t
-    ! use aliasSampling, only: AliasSampler_2D_t
+    use aliasSampling, only: AliasSampler_2D_t
     ! use UMatCache, only: gtID, numBasisIndices
     ! use FciMCData, only: pSingles, excit_gen_store_type, pParallel, projEDet
     ! use excit_gens_int_weighted, only: pick_biased_elecs
@@ -62,7 +62,7 @@ module guga_pchb_gas_excitgen
 
         procedure :: setup_info_table
         procedure :: get_info
-        procedure :: setup_entry_info
+        procedure :: set_info_entry
     end type
 
     !>  @brief
@@ -118,25 +118,24 @@ module guga_pchb_gas_excitgen
         write(iout, *) "Finished excitation generator initialization"
     end subroutine GAS_doubles_PCHB_init
 
-    subroutine setup_info_table(this, nEntries, entrySize)
+    subroutine setup_info_table(this, n_entries, entry_size)
         class(GugaAliasSampler_t) :: this
-        integer(int64), intent(in) :: nEntries, entrySize
+        integer(int64), intent(in) :: n_entries, entry_size
 
         integer(int64) :: total_size
-        integer(int64) :: iEntry, windowStart, windowEnd
+        integer(int64) :: i, left, right
 
-        allocate(this%info_tables(nEntries))
-        total_size = nEntries * entrySize
+        allocate(this%info_tables(n_entries))
+        total_size = n_entries * entry_size
         call this%all_info_table%shared_alloc(total_size)
 
-        windowStart = 1_int64
-        do iEntry = 1, nEntries
-            windowEnd = windowStart + entrySize - 1
-
-            this%info_tables(iEntry)%ptr => this%all_info_table%ptr(windowStart : windowEnd)
-            windowStart = windowStart + entrySize
-        end do
-    end subroutine setup_info_table
+        left = 1_int64
+        do i = 1_int64, n_entries
+            right = left + entry_size - 1_int64
+            this%info_tables(i)%ptr => this%all_info_table%ptr(left : right)
+            left = left + entry_size
+        right do
+    right subroutine setup_info_table
 
     pure function get_info(this, iEntry, tgt) result(info)
         debug_function_name("get_info")
@@ -148,7 +147,7 @@ module guga_pchb_gas_excitgen
         info = this%info_tables(iEntry)%ptr(tgt)
     end function get_info
 
-    subroutine setup_entry_info(this, iEntry, infos)
+    subroutine set_info_entry(this, iEntry, infos)
         class(GugaAliasSampler_t) :: this
         integer, intent(in) :: iEntry
         integer(int64), intent(in) :: infos(:)
@@ -158,7 +157,7 @@ module guga_pchb_gas_excitgen
         end if
 
         call this%all_info_table%sync()
-    end subroutine setup_entry_info
+    end subroutine set_info_entry
 
 
     !>  @brief
@@ -337,7 +336,7 @@ module guga_pchb_gas_excitgen
                         end do
                     end do
                     call this%alias_sampler%setup_entry(ij, i_sg, w)
-                    call this%setup_entry_info(ij, excit_info)
+                    call this%set_info_entry(ij, excit_info)
                 end do
             end do
         end do
