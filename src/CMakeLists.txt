@@ -180,6 +180,7 @@ set( SRC_FILES
     real_space_hubbard.F90
     back_spawn.F90
     back_spawn_excit_gen.F90
+    guga_gas_pchb_excitgen.F90
     guga_bitRepOps.F90
     guga_data.F90
     guga_excitations.F90
