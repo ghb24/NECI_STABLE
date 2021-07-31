@@ -7,7 +7,7 @@ module cc_amplitudes
     use FciMCData, only: totwalkers, ilutref, currentdets, AllNoatHf, projedet, &
                          HashIndex, CurrentDets, ll_node
     use bit_reps, only: extract_sign
-    use constants, only: dp, lenof_sign, EPS, n_int, bits_n_int
+    use constants, only: dp, lenof_sign, EPS, n_int, bits_n_int, stdout
     use bit_reps, only: niftot, nifd, decode_bit_det
     use replica_data, only: AllEXLEVEL_WNorm
     use back_spawn, only: setup_virtual_mask, mask_virt_ni
@@ -2018,7 +2018,7 @@ contains
         t1 = 0.0_dp
         allocate(T2(Nvirt * (Nvirt + 1) * nel * (nel + 1) / 4), stat=ierr)
         t2 = 0.0_dp
-        write(6, *) 'dongxia testing C1 and T1'
+        write(stdout, *) 'dongxia testing C1 and T1'
 ! look for C1 and obtain T1
         do idet = 1, int(totwalkers)
             IC = 4
@@ -2031,11 +2031,11 @@ contains
                 C1(ind) = sign_tmp(1) / AllNoatHf(1)
                 T1(ind) = C1(ind)
                 if (abs(c1(ind)) > 1.0d-3) &
-                    write(6, '(3I5,F20.12)') ex(1, 1), ex(2, 1), ind, C1(ind)
+                    write(stdout, '(3I5,F20.12)') ex(1, 1), ex(2, 1), ind, C1(ind)
             end if
         end do
 ! look for C2, and obtain T2
-        write(6, *) 'dongxia testing double excitations'
+        write(stdout, *) 'dongxia testing double excitations'
         do idet = 1, int(totwalkers)
             IC = 4
             call get_bit_excitmat(iLutRef, CurrentDets(:, idet), ex, IC)
@@ -2050,11 +2050,11 @@ contains
                 T2(ind) = C2(ind) + T1(ind1(idj, ida)) * T1(ind1(idi, idb)) &
                           - T1(ind1(idi, ida)) * T1(ind1(idj, idb))
                 if (abs(c2(ind)) > 1.0d-3) &
-                    write(6, '(4I10,2F20.12)') idi, idj, ida, idb, C2(ind), T2(ind)
+                    write(stdout, '(4I10,2F20.12)') idi, idj, ida, idb, C2(ind), T2(ind)
             end if
         end do
 ! look for C3, and compare it with T3 (from T1^3, T1T2)
-        write(6, *) 'dongxia testing triple excitations'
+        write(stdout, *) 'dongxia testing triple excitations'
         do idet = 1, int(totwalkers)
             IC = 4
             call get_bit_excitmat(iLutRef, CurrentDets(:, idet), ex, IC)
@@ -2091,7 +2091,7 @@ contains
                      + t1(ind1(idk, idc)) * t2(ind2(idi, idj, ida, idb))
 
                 if (abs(c3) + abs(t3) > 1.0d-3) &
-                    write(6, '(3I5,4X,3I5,3F20.12)') idi, idj, idk, ida, idb, idc, c3, t3, t3 / c3 - 1
+                    write(stdout, '(3I5,4X,3I5,3F20.12)') idi, idj, idk, ida, idb, idc, c3, t3, t3 / c3 - 1
             end if
         end do
 

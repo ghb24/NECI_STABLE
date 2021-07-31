@@ -61,10 +61,10 @@ contains
                 CALL READHFBASIS(HFBASIS, HFE, G1, NBASIS)
                 CALL SETUPHFBASIS(NBASISMAX, G1, NBASIS, HFE, ARR, BRR)
             end if
-            write(6, *) "FINAL HF BASIS"
+            write(stdout, *) "FINAL HF BASIS"
             CALL WRITEBASIS(6, G1, nBasis, ARR, BRR)
 
-            write(6, "(A)", advance='no') " Fermi det (D0):"
+            write(stdout, "(A)", advance='no') " Fermi det (D0):"
             call write_det(6, FDET, .true.)
             CALL neci_flush(6)
 !C.. If in Hubbard, we generate site-spin occupations
@@ -77,7 +77,7 @@ contains
 !C.. unrestricted
             !THIS ROUTINE NO LONGER WORKS WITH NEW TMAT/UMAT MODULARISATION
             IF (THFBASIS) THEN
-                write(6, *) "Allocating TMAT2"
+                write(stdout, *) "Allocating TMAT2"
                 CALL SetupTMAT2(nBasis, 2, TMATINT)
                 NORBUSED = NBASIS - NTFROZEN
                 IF (TREADTUMAT) THEN

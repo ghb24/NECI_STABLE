@@ -1534,7 +1534,7 @@ contains
         call MPI_Abort(CommGlobal, int(error_code, kind=MPIArg), ierr)
 #endif
 
-        CALL neci_flush(iout)
+        CALL neci_flush(stdout)
         stop
     end subroutine
 

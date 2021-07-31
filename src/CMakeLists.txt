@@ -212,7 +212,6 @@ set( SRC_FILES
     excitation_generators.F90
     exc_gen_class_wrappers.F90
     exc_gen_classes.F90
-    SD_spin_purification.F90
 
     lib/backtrace.cpp
     lib/cons_neci.F90
@@ -450,6 +449,7 @@ set( FYPP_SRC_FILES
     lib/util_mod_epsilon_close.fpp
     sets_mod.fpp
 	shared_ragged_array.fpp
+    SD_spin_purification.fpp
 )
 
 set( TEMPLATED_SRC_FILES

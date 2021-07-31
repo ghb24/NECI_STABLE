@@ -25,7 +25,7 @@
 ! The details of calculating i_sg can be found in gasci_supergroup_index.f90
 
 module gasci_pchb
-    use constants, only: n_int, dp, int64, maxExcit, iout, bits_n_int, int32
+    use constants, only: n_int, dp, int64, maxExcit, stdout, bits_n_int, int32
     use orb_idx_mod, only: SpinProj_t, calc_spin_raw, operator(==), operator(/=), alpha, beta
     use util_mod, only: fuseIndex, getSpinIndex, near_zero, intswap, operator(.div.), operator(.implies.), EnumBase_t
     use dSFMT_interface, only: genrand_real2_dSFMT
@@ -194,12 +194,12 @@ contains
             if (associated(lookup_supergroup_indexer)) then
                 call stop_all(this_routine, 'Someone else is already managing the supergroup lookup.')
             else
-                write(iout, *) 'GAS singles is creating and managing the supergroup lookup'
+                write(stdout, *) 'GAS singles is creating and managing the supergroup lookup'
                 lookup_supergroup_indexer => this%indexer
             end if
         end if
         this%use_lookup = use_lookup
-        if (use_lookup) write(iout, *) 'GAS singles is using the supergroup lookup'
+        if (use_lookup) write(stdout, *) 'GAS singles is using the supergroup lookup'
         ! possible supergroups
         supergroups = this%indexer%get_supergroups()
 
@@ -444,13 +444,13 @@ contains
             if (associated(lookup_supergroup_indexer)) then
                 call stop_all(this_routine, 'Someone else is already managing the supergroup lookup.')
             else
-                write(iout, *) 'GAS PCHB doubles is creating and managing the supergroup lookup'
+                write(stdout, *) 'GAS PCHB doubles is creating and managing the supergroup lookup'
                 lookup_supergroup_indexer => this%indexer
             end if
         end if
-        if (this%use_lookup) write(iout, *) 'GAS PCHB doubles is using the supergroup lookup'
+        if (this%use_lookup) write(stdout, *) 'GAS PCHB doubles is using the supergroup lookup'
 
-        write(iout, *) "Allocating PCHB excitation generator objects"
+        write(stdout, *) "Allocating PCHB excitation generator objects"
         ! number of spatial orbs
         nBI = numBasisIndices(this%GAS_spec%n_spin_orbs())
         ! initialize the mapping ab -> (a, b)
@@ -467,7 +467,7 @@ contains
         ! setup the alias table
         call this%compute_samplers(nBI)
 
-        write(iout, *) "Finished excitation generator initialization"
+        write(stdout, *) "Finished excitation generator initialization"
 
         ! this is some bias used internally by CreateSingleExcit - not used here
         pDoubNew = 0.0
@@ -677,16 +677,16 @@ contains
                     * 3_int64 &
                     * (int(abMax, int64) * 3_int64 * 8_int64)
 
-        write(iout, *) "Excitation generator requires", real(memCost, dp) / 2.0_dp**30, "GB of memory"
-        write(iout, *) "The number of supergroups is", size(supergroups, 2)
-        write(iout, *) "Generating samplers for PCHB excitation generator"
-        write(iout, *) "Depending on the number of supergroups this can take up to 10min."
+        write(stdout, *) "Excitation generator requires", real(memCost, dp) / 2.0_dp**30, "GB of memory"
+        write(stdout, *) "The number of supergroups is", size(supergroups, 2)
+        write(stdout, *) "Generating samplers for PCHB excitation generator"
+        write(stdout, *) "Depending on the number of supergroups this can take up to 10min."
         call this%pchb_samplers%shared_alloc([ijMax, 3, size(supergroups, 2)], abMax, 'PCHB')
         ! weights per pair
         allocate(w(abMax))
         ! initialize the three samplers
         do i_sg = 1, size(supergroups, 2)
-            if (mod(i_sg, 100) == 0) write(iout, *) 'Still generating the samplers'
+            if (mod(i_sg, 100) == 0) write(stdout, *) 'Still generating the samplers'
             pNoExch = 1.0_dp - this%pExch(:, i_sg)
             do i_exch = 1, 3
                 ! allocate: all samplers have the same size
@@ -776,10 +776,10 @@ contains
         type(GAS_used_singles_t), intent(in) :: used_singles_generator
 
         if (used_singles_generator == possible_GAS_singles%DISCARDING_UNIFORM) then
-            write(iout, *) 'GAS discarding singles activated'
+            write(stdout, *) 'GAS discarding singles activated'
             allocate(this%singles_generator, source=GAS_singles_DiscardingGenerator_t(GAS_spec))
         else if (used_singles_generator == possible_GAS_singles%PC_UNIFORM) then
-            write(iout, *) 'GAS precomputed singles activated'
+            write(stdout, *) 'GAS precomputed singles activated'
             allocate(GAS_singles_PC_uniform_ExcGenerator_t :: this%singles_generator)
             select type(generator => this%singles_generator)
             type is(GAS_singles_PC_uniform_ExcGenerator_t)
@@ -788,7 +788,7 @@ contains
                 call generator%init(GAS_spec, use_lookup, create_lookup=.false.)
             end select
         else if (used_singles_generator == possible_GAS_singles%ON_FLY_HEAT_BATH) then
-            write(iout, *) 'GAS heat bath on the fly singles activated'
+            write(stdout, *) 'GAS heat bath on the fly singles activated'
             allocate(this%singles_generator, source=GAS_singles_heat_bath_ExcGen_t(GAS_spec))
         end if
 

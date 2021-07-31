@@ -151,10 +151,10 @@ SUBROUTINE CALCRHO2(NI, NJ, BETA, I_P, NEL, G1, NBASIS, &
     end if
 
 !WRDET
-!      write(6,"(A)",advance='no') "RHO:"
+!      write(stdout,"(A)",advance='no') "RHO:"
 !      CALL WRITEDET(6,NI,NEL,.FALSE.)
 !      CALL WRITEDET(6,NJ,NEL,.FALSE.)
-!      write(6,*) RH
+!      write(stdout,*) RH
     call halt_timer(proc_timer)
     RETURN
 END

@@ -46,7 +46,7 @@ MODULE GenRandSymExcitNUMod
     use DetBitOps, only: FindExcitBitDet, EncodeBitDet, detbiteq
     use excitation_types, only: SingleExc_t
     use sltcnd_mod, only: sltcnd_excit
-    use constants, only: dp, n_int, bits_n_int, maxExcit
+    use constants, only: dp, n_int, bits_n_int, maxExcit, stdout
     use bit_reps, only: NIfTot
     use sym_mod, only: mompbcsym, GetLz
     use timing_neci
@@ -163,9 +163,9 @@ contains
             end if
 
             IF (.not. tNoSymGenRandExcits) THEN
-                write(6, *) "GenRandSymExcitNU can only be used for molecular systems"
-                write(6, *) "This is because of difficulties with other symmetries setup."
-                write(6, *) "If you want to use these excitation generators, then add NOSYMGEN " &
+                write(stdout, *) "GenRandSymExcitNU can only be used for molecular systems"
+                write(stdout, *) "This is because of difficulties with other symmetries setup."
+                write(stdout, *) "If you want to use these excitation generators, then add NOSYMGEN " &
        &                //"to the input to ignore symmetry while generating excitations."
                 CALL neci_flush(6)
                 CALL Stop_All(this_routine, "GenRandSymExcitNU can only be used for molecular systems using symmetry")
@@ -392,7 +392,7 @@ pGen = pDoubles * ((1.0_dp / real(NExcitB, dp)) + (1.0_dp / real(NExcitOtherWay,
 
 !We now have our final orbitals.
             IF (z /= ChosenUnocc) THEN
-                write(6, *) "This is a problem, since there should definitely be an allowed beta orbital once alpha is chosen..."
+                write(stdout, *) "This is a problem, since there should definitely be an allowed beta orbital once alpha is chosen..."
                 CALL Stop_All("PickBOrb", "Could not find allowed unoccupied orbital to excite to.")
             end if
 
@@ -426,13 +426,13 @@ pGen = pDoubles * ((1.0_dp / real(NExcitB, dp)) + (1.0_dp / real(NExcitOtherWay,
                 end if
 
                 IF (Attempts > 1000) THEN
-                    write(6, *) "Cannot find double excitation unoccupied orbital after 1000 attempts..."
-                    write(6, *) "This is a problem, since there should definitly be an allowed beta orbital once alpha is chosen..."
-                    write(6, *) "nI: "
+                    write(stdout, *) "Cannot find double excitation unoccupied orbital after 1000 attempts..."
+                    write(stdout, *) "This is a problem, since there should definitly be an allowed beta orbital once alpha is chosen..."
+                    write(stdout, *) "nI: "
                     call write_det(6, nI, .TRUE.)
-                    write(6, *) "iSpn: ", iSpn
-                    write(6, *) "ClassCountUnocc2: ", ClassCountUnocc2(:)
-                    write(6, *) "NExcit", NExcit
+                    write(stdout, *) "iSpn: ", iSpn
+                    write(stdout, *) "ClassCountUnocc2: ", ClassCountUnocc2(:)
+                    write(stdout, *) "NExcit", NExcit
                     CALL Stop_All("PickBOrb", "Cannot find double excitation unoccupied orbital after 250 attempts...")
                 end if
                 Attempts = Attempts + 1
@@ -598,7 +598,7 @@ pGen = pDoubles * ((1.0_dp / real(NExcitB, dp)) + (1.0_dp / real(NExcitOtherWay,
         ELSE
             !Not Lz symmetry...
             IF (iSpn == 2) THEN
-!                write(6,*) "Alpha/Beta"
+!                write(stdout,*) "Alpha/Beta"
 !i,j are an alpha/beta pair. The number of forbidden orbitals includes all alphas and betas.
 
                 Ind = 1
@@ -615,7 +615,7 @@ pGen = pDoubles * ((1.0_dp / real(NExcitB, dp)) + (1.0_dp / real(NExcitOtherWay,
                         ForbiddenOrbs = ForbiddenOrbs + ClassCountUnocc2(ClassCountInd(2,   &
                 &           RandExcitSymLabelProd(SymProduct, SymInvLabel(i)), 0))
                         !No unocc alphas in i, therefore all betas in ConjSym are forbidden
-!                        write(6,*) ClassCountUnocc2(2,ConjSym),i,ConjSym
+!                        write(stdout,*) ClassCountUnocc2(2,ConjSym),i,ConjSym
                     end if
                     IF (ClassCountUnocc2(Ind + 1) == 0) THEN
 !This symmetry has no unoccupied beta orbitals - does its symmetry conjugate have any
@@ -826,7 +826,7 @@ pGen = pDoubles * ((1.0_dp / real(NExcitB, dp)) + (1.0_dp / real(NExcitOtherWay,
                         end if
 
                         IF (Attempts > 250) THEN
-                            write(6, *) "Cannot find A unoccupied orbital after 250 attempts..."
+                            write(stdout, *) "Cannot find A unoccupied orbital after 250 attempts..."
                             call write_det(6, nI, .TRUE.)
                             CALL Stop_All("PickAOrb", "Cannot find A unoccupied orbital after 250 attempts...")
                         end if
@@ -905,7 +905,7 @@ pGen = pDoubles * ((1.0_dp / real(NExcitB, dp)) + (1.0_dp / real(NExcitOtherWay,
                         end if
 
                         IF (Attempts > 250) THEN
-                            write(6, *) "Cannot find A unoccupied orbital after 250 attempts..."
+                            write(stdout, *) "Cannot find A unoccupied orbital after 250 attempts..."
                             call write_det(6, nI, .TRUE.)
                             CALL Stop_All("PickAOrb", "Cannot find A unoccupied orbital after 250 attempts...")
                         end if
@@ -927,13 +927,13 @@ pGen = pDoubles * ((1.0_dp / real(NExcitB, dp)) + (1.0_dp / real(NExcitOtherWay,
             end if
 
             IF (AttemptsOverall > (nBasis * 20)) THEN
-                write(6, *) "Cannot find first allowed unoccupied orbital for given i,j pair after ", nBasis * 20, " attempts."
-                write(6, *) "It may be that there are no possible excitations from this i,j pair, in which case "
-                write(6, *) "the given algorithm is inadequate to describe excitations from such a small space."
-                write(6, *) "Try reverting to old excitation generators."
+                write(stdout, *) "Cannot find first allowed unoccupied orbital for given i,j pair after ", nBasis * 20, " attempts."
+                write(stdout, *) "It may be that there are no possible excitations from this i,j pair, in which case "
+                write(stdout, *) "the given algorithm is inadequate to describe excitations from such a small space."
+                write(stdout, *) "Try reverting to old excitation generators."
                 call write_det(6, nI, .TRUE.)
-                write(6, *) "***", NExcit, ForbiddenOrbs
-                write(6, *) "I,J pair; sym_i, sym_j: ", nI(Elec1Ind), nI(Elec2Ind), G1(nI(Elec1Ind))%Sym%S, G1(nI(Elec2Ind))%Sym%S
+                write(stdout, *) "***", NExcit, ForbiddenOrbs
+                write(stdout, *) "I,J pair; sym_i, sym_j: ", nI(Elec1Ind), nI(Elec2Ind), G1(nI(Elec1Ind))%Sym%S, G1(nI(Elec2Ind))%Sym%S
                 CALL Stop_All("PickAOrb", "Cannot find first allowed unocc orb for double excitation")
             end if
             AttemptsOverall = AttemptsOverall + 1
@@ -1237,9 +1237,9 @@ pGen = pDoubles * ((1.0_dp / real(NExcitB, dp)) + (1.0_dp / real(NExcitOtherWay,
             IF (NExcit /= 0) EXIT    !Have found electron with allowed excitations
 
             IF (Attempts > 250) THEN
-                write(6, *) "Cannot find single excitation from electrons after 250 attempts..."
+                write(stdout, *) "Cannot find single excitation from electrons after 250 attempts..."
                 call write_det(6, nI, .true.)
-                write(6, *) "***"
+                write(stdout, *) "***"
                 call stop_all(t_r, "Cannot find single excitation from &
                                    &electrons after 250 attempts...")
             end if
@@ -1324,10 +1324,10 @@ pGen = pDoubles * ((1.0_dp / real(NExcitB, dp)) + (1.0_dp / real(NExcitOtherWay,
                 end if
 
                 IF (Attempts > 250) THEN
-                    write(6, *) "Cannot find single excitation unoccupied orbital after 250 attempts..."
-                    write(6, *) "Desired symmetry of unoccupied orbital = ", ElecSym
-                    write(6, *) "Number of orbitals (of correct spin) in symmetry = ", nOrbs
-                    write(6, *) "Number of orbitals to legitimatly pick = ", NExcit
+                    write(stdout, *) "Cannot find single excitation unoccupied orbital after 250 attempts..."
+                    write(stdout, *) "Desired symmetry of unoccupied orbital = ", ElecSym
+                    write(stdout, *) "Number of orbitals (of correct spin) in symmetry = ", nOrbs
+                    write(stdout, *) "Number of orbitals to legitimatly pick = ", NExcit
                     call write_det(6, nI, .true.)
                     call stop_all(t_r, "Cannot find single excitation &
                                    &unoccupied orbital after 250 attempts...")
@@ -1456,7 +1456,7 @@ pGen = pDoubles * ((1.0_dp / real(NExcitB, dp)) + (1.0_dp / real(NExcitOtherWay,
             OrbJ = Ex(1, 2)
             OrbA = Ex(2, 1)
             OrbB = Ex(2, 2)
-!            write(6,*) OrbI,OrbJ,OrbA,OrbB
+!            write(stdout,*) OrbI,OrbJ,OrbA,OrbB
 
 !Find the spin-product of the occupied pair
             IF ((G1(OrbI)%Ms) * (G1(OrbJ)%Ms) == -1) THEN
@@ -1502,7 +1502,7 @@ pGen = pDoubles * ((1.0_dp / real(NExcitB, dp)) + (1.0_dp / real(NExcitOtherWay,
 !                SymA=INT(G1(OrbA)%Sym%S,4)
 !                SymB=IEOR(SymA,ElecSym)
             end if
-!            write(6,*) "Check: ",ForbiddenOrbs,ElecSym,iSpn,SymA,SymB,OrbA,OrbB
+!            write(stdout,*) "Check: ",ForbiddenOrbs,ElecSym,iSpn,SymA,SymB,OrbA,OrbB
 
 !We want to calculate the number of possible B's given the symmetry and spin it has to be since we have already picked A.
 !We have calculated in NExcit the number of orbitals available for B given A,
@@ -1565,9 +1565,9 @@ pGen = pDoubles * ((1.0_dp / real(NExcitB, dp)) + (1.0_dp / real(NExcitOtherWay,
                 CALL Stop_All(this_routine, "No biased excitgens for UEG")
             end if
             IF (.not. tNoSymGenRandExcits) THEN
-                write(6, *) "GenRandSymExcitBiased can only be used for molecular systems"
-                write(6, *) "This is because of difficulties with other symmetries setup."
-                write(6, *) "If you want to use these excitation generators, then add NOSYMGEN " &
+                write(stdout, *) "GenRandSymExcitBiased can only be used for molecular systems"
+                write(stdout, *) "This is because of difficulties with other symmetries setup."
+                write(stdout, *) "If you want to use these excitation generators, then add NOSYMGEN " &
                 & //"to the input to ignore symmetry while generating excitations."
                 CALL neci_flush(6)
                 CALL Stop_All(this_routine, "GenRandSymExcitBiased can only be used for molecular systems using symmetry")
@@ -1683,9 +1683,9 @@ pGen = pDoubles * ((1.0_dp / real(NExcitB, dp)) + (1.0_dp / real(NExcitOtherWay,
             IF (NExcit /= 0) EXIT    !Have found electron with allowed excitations
 
             IF (Attempts > 250) THEN
-                write(6, *) "Cannot find single excitation from electrons after 250 attempts..."
+                write(stdout, *) "Cannot find single excitation from electrons after 250 attempts..."
                 call write_det(6, nI, .true.)
-                write(6, *) "***"
+                write(stdout, *) "***"
                 CALL Stop_All("CreateSingleExcit", "Cannot find single excitation from electrons after 250 attempts...")
             end if
 
@@ -2083,12 +2083,12 @@ pGen = pDoubles * ((1.0_dp / real(NExcitB, dp)) + (1.0_dp / real(NExcitOtherWay,
             DO i = 1, 3
                 IF ((kvec(nI(Elec2Ind), i) + kvec(nI(Elec1Ind), i) &
                      - kvec(Hole1BasisNum, i) - kvec(Hole2BasisNum, i)) /= 0) THEN
-                    write(6, *) "Tried to excite "
-                    write(6, *) "ki ", ki
-                    write(6, *) "kj ", kj
-                    write(6, *) "ka ", ka
-                    write(6, *) "kb should be ", kb
-                    write(6, *) "but found as ", kvec(Hole2BasisNum, 1:3)
+                    write(stdout, *) "Tried to excite "
+                    write(stdout, *) "ki ", ki
+                    write(stdout, *) "kj ", kj
+                    write(stdout, *) "ka ", ka
+                    write(stdout, *) "kb should be ", kb
+                    write(stdout, *) "but found as ", kvec(Hole2BasisNum, 1:3)
                     CALL Stop_All("CreateDoubExcitLattice", "Wrong b found")
                 end if
             end do
@@ -2202,12 +2202,12 @@ pGen = pDoubles * ((1.0_dp / real(NExcitB, dp)) + (1.0_dp / real(NExcitOtherWay,
             ! Check that the correct kb has been found -- can be commented out later
             DO i = 1, 3
                 IF ((G1(nI(Elec2Ind))%k(i) + G1(nI(Elec1Ind))%k(i) - G1(Hole1BasisNum)%k(i) - G1(Hole2BasisNum)%k(i)) /= 0) THEN
-                    write(6, *) "Tried to excite "
-                    write(6, *) "ki ", ki
-                    write(6, *) "kj ", kj
-                    write(6, *) "ka ", ka
-                    write(6, *) "kb should be ", kb
-                    write(6, *) "but found as ", G1(Hole2BasisNum)%k
+                    write(stdout, *) "Tried to excite "
+                    write(stdout, *) "ki ", ki
+                    write(stdout, *) "kj ", kj
+                    write(stdout, *) "ka ", ka
+                    write(stdout, *) "kb should be ", kb
+                    write(stdout, *) "but found as ", G1(Hole2BasisNum)%k
                     CALL Stop_All("CreateDoubExcitLattice", "Wrong b found")
                 end if
             end do
@@ -2398,7 +2398,7 @@ pGen = pDoubles * ((1.0_dp / real(NExcitB, dp)) + (1.0_dp / real(NExcitOtherWay,
             ! If there are no excitations for this ij pair then this subroutine must exit
             iAllowedExcites = KaXRange * KaYRange * KaZRange - iElecInExcitRange
             IF (iAllowedExcites == 0) THEN
-                !    write(6,*) "No allowed excitations from this ij pair"
+                !    write(stdout,*) "No allowed excitations from this ij pair"
                 nJ(1) = 0
                 pGen = 1.0_dp
                 RETURN
@@ -2408,9 +2408,9 @@ pGen = pDoubles * ((1.0_dp / real(NExcitB, dp)) + (1.0_dp / real(NExcitOtherWay,
         DO i = 1, 10000
             IF (i == 10000) THEN ! Arbitrary termination of the loop to prevent hanging
                 ! due to no excitations being allowed from a certain ij pair
-                write(6, *) "nI:", nI
-                write(6, *) "i & j", nI(Elec1Ind), nI(Elec2Ind)
-                write(6, *) "Allowed Excitations", iAllowedExcites
+                write(stdout, *) "nI:", nI
+                write(stdout, *) "i & j", nI(Elec1Ind), nI(Elec2Ind)
+                write(stdout, *) "Allowed Excitations", iAllowedExcites
                 CALL Stop_All("CreateExcitLattice", "Failure to generate a valid excitation from an electron pair combination")
             end if
             CALL CreateDoubExcitLattice(nI, iLutnI, nJ, tParity, ExcitMat, pGen, Elec1Ind, Elec2Ind, iSpn, temp_part_type)
@@ -2656,12 +2656,12 @@ pGen = pDoubles * ((1.0_dp / real(NExcitB, dp)) + (1.0_dp / real(NExcitOtherWay,
         integer :: ex(2, maxExcit)
         logical :: tpar
 
-        write(6, *) 'In HERE'
+        write(stdout, *) 'In HERE'
         call neci_flush(6)
 
-        write(6, *) nI(:)
-        write(6, *) Iterations, pDoub, exFlag
-        write(6, *) "nSymLabels: ", nSymLabels
+        write(stdout, *) nI(:)
+        write(stdout, *) Iterations, pDoub, exFlag
+        write(stdout, *) "nSymLabels: ", nSymLabels
         CALL neci_flush(6)
 
         ! The old excitation generator will not generate singles from the HF
@@ -2716,7 +2716,7 @@ pGen = pDoubles * ((1.0_dp / real(NExcitB, dp)) + (1.0_dp / real(NExcitOtherWay,
         tNoBrillouin = brillouin_tmp(1)
         tUseBrillouin = brillouin_tmp(2)
 
-        write(6, *) "Determinant has ", excitcount, " total excitations from it."
+        write(stdout, *) "Determinant has ", excitcount, " total excitations from it."
         CALL neci_flush(6)
 
         ! Allocate the accumulators
@@ -2758,7 +2758,7 @@ pGen = pDoubles * ((1.0_dp / real(NExcitB, dp)) + (1.0_dp / real(NExcitOtherWay,
         do i = 1, Iterations
 
             IF (mod(i, 400000) == 0) THEN
-                write(6, "(A,I10)") "Iteration: ", i
+                write(stdout, "(A,I10)") "Iteration: ", i
                 CALL neci_flush(6)
             end if
 
@@ -2861,8 +2861,8 @@ pGen = pDoubles * ((1.0_dp / real(NExcitB, dp)) + (1.0_dp / real(NExcitOtherWay,
         call MPIAllReduce(DoublesCount, MPI_SUM, AllDoublesCount)
         call MPIAllReduce(SinglesCount, MPI_SUM, AllSinglesCount)
 
-        write(6, *) 'sum singles count', sum(AllSinglesCount)
-        write(6, *) 'sum doubles count', sum(AllDoublesCount)
+        write(stdout, *) 'sum singles count', sum(AllSinglesCount)
+        write(stdout, *) 'sum doubles count', sum(AllDoublesCount)
 
         !Now run through arrays normalising them so that numbers are more managable.
         IF (iProcIndex == 0) THEN
@@ -2884,7 +2884,7 @@ pGen = pDoubles * ((1.0_dp / real(NExcitB, dp)) + (1.0_dp / real(NExcitOtherWay,
                                     AllDoublesHist(i, j, k, l) / (real(Iterations, dp) &
                                                                   * nProcessors), &
                                     i, j, k, l, iLutnJ(0), AllDoublesCount(i, j, k, l)
-                                !                            write(6,*) DetNum,DoublesHist(i,j,k,l),i,j,"->",k,l
+                                !                            write(stdout,*) DetNum,DoublesHist(i,j,k,l),i,j,"->",k,l
                                 IF (tHub .or. tUEG) THEN
                                     write(8, *) "#", G1(i)%k(1), G1(i)%k(2)
                                     write(8, *) "#", G1(j)%k(1), G1(j)%k(2)
@@ -2897,7 +2897,7 @@ pGen = pDoubles * ((1.0_dp / real(NExcitB, dp)) + (1.0_dp / real(NExcitOtherWay,
                 end do
             end do
             close(8)
-            write(6, *) DetNum, " Double excitations found from nI"
+            write(stdout, *) DetNum, " Double excitations found from nI"
             open(9, FILE="SinglesHist", STATUS="UNKNOWN")
             DetNumS = 0
             do i = 1, nBasis
@@ -2910,19 +2910,19 @@ pGen = pDoubles * ((1.0_dp / real(NExcitB, dp)) + (1.0_dp / real(NExcitOtherWay,
                         write(9, *) DetNumS, AllSinglesHist(i, j) / &
                             (real(Iterations, dp) * nProcessors), &
                             i, "->", j, ALlSinglesCount(i, j)
-                        !                    write(6,*) DetNumS,AllSinglesHist(i,j),i,"->",j
+                        !                    write(stdout,*) DetNumS,AllSinglesHist(i,j),i,"->",j
                     end if
                 end do
             end do
             close(9)
-            write(6, *) DetNumS, " Single excitations found from nI"
+            write(stdout, *) DetNumS, " Single excitations found from nI"
             IF ((DetNum + DetNumS) /= ExcitCount) THEN
                 CALL construct_class_counts(nI, store%ClassCountOcc, &
                                             store%ClassCountUnocc)
-                write(6, *) "Total determinants = ", ExcitCount
-                write(6, *) "ClassCount2(:)= ", store%ClassCountOcc
-                write(6, *) "***"
-                write(6, *) "ClassCountUnocc2(:)= ", store%ClassCountUnocc
+                write(stdout, *) "Total determinants = ", ExcitCount
+                write(stdout, *) "ClassCount2(:)= ", store%ClassCountOcc
+                write(stdout, *) "***"
+                write(stdout, *) "ClassCountUnocc2(:)= ", store%ClassCountUnocc
                 CALL Stop_All("TestGenRandSymExcitNU", "Not all excitations accounted for...")
             end if
         end if
@@ -3030,7 +3030,7 @@ SUBROUTINE SpinOrbSymSetup()
     use Determinants, only: FDet
     use umatcache, only: gtID
     use sym_mod, only: mompbcsym, SymProd, writesym
-    use constants, only: dp
+    use constants, only: dp, stdout
     use lattice_mod, only: lat
 
     IMPLICIT NONE
@@ -3047,7 +3047,7 @@ SUBROUTINE SpinOrbSymSetup()
 
     ElecPairs = (NEl * (NEl - 1)) / 2
     MaxABPairs = (nBasis * (nBasis - 1) / 2)
-!    write(6,*) "SETTING UP SYMMETRY!!",nBasis,elecpairs
+!    write(stdout,*) "SETTING UP SYMMETRY!!",nBasis,elecpairs
 
     IF (tFixLz) THEN
 !Calculate the upper array bound for the ClassCount2 arrays. This will be dependant on the number of symmetries needed.
@@ -3081,9 +3081,9 @@ SUBROUTINE SpinOrbSymSetup()
         end if
     end do
 #ifdef DEBUG_
-    write(6, *) "SpinOrbSymLabel: "
+    write(stdout, *) "SpinOrbSymLabel: "
     do i = 1, nBasis
-        write(6, *) i, SpinOrbSymLabel(i)
+        write(stdout, *) i, SpinOrbSymLabel(i)
     end do
 #endif
 
@@ -3112,12 +3112,12 @@ SUBROUTINE SpinOrbSymSetup()
             end do
         end do
 #ifdef DEBUG_
-        write(6, *) "SymTable:"
+        write(stdout, *) "SymTable:"
         do i = 0, nSymLabels - 1
             do j = 0, nSymLabels - 1
-                write(6, "(I6)", advance='no') SymTableLabels(i, j)
+                write(stdout, "(I6)", advance='no') SymTableLabels(i, j)
             end do
-            write(6, *) ""
+            write(stdout, *) ""
         end do
 #endif
 
@@ -3147,7 +3147,7 @@ SUBROUTINE SpinOrbSymSetup()
                 ! rep
                 if (SymTableLabels(i, j) == sym0) then
                     if (SymInvLabel(i) /= -999) then
-                        write(6, *) "SymLabel: ", i
+                        write(stdout, *) "SymLabel: ", i
                         call stop_all(this_routine, &
                                       "Multiple inverse irreps found - error")
                     end if
@@ -3156,7 +3156,7 @@ SUBROUTINE SpinOrbSymSetup()
                 end if
             end do
             if (SymInvLabel(i) == -999) then
-                write(6, *) "SymLabel: ", i
+                write(stdout, *) "SymLabel: ", i
                 call stop_all(this_routine, "No inverse symmetry found - error")
             end if
         else
@@ -3165,14 +3165,14 @@ SUBROUTINE SpinOrbSymSetup()
         end if
     end do
 #ifdef DEBUG_
-    write(6, *) "SymInvLabel: "
+    write(stdout, *) "SymInvLabel: "
     do i = 0, nSymLabels - 1
-        write(6, *) i, SymInvLabel(i)
+        write(stdout, *) i, SymInvLabel(i)
     end do
 #endif
 
     if (tISKFuncs) then
-        write(6, *) "Setting up inverse orbital lookup for use with ISK functions..."
+        write(stdout, *) "Setting up inverse orbital lookup for use with ISK functions..."
         if (.not. tKPntSym) call stop_all(this_routine, "Cannot use ISK funcs without KPoint symmetry")
         if (tSpn) call stop_all(this_routine, "Cannot use ISK on open shell systems")
         if (tHPHF) call stop_all(this_routine, "HPHF is not yet working with ISK")
@@ -3202,17 +3202,17 @@ SUBROUTINE SpinOrbSymSetup()
                 end if
             end do
             if (j > nBasis) then
-                write(6, *) "Orbital: ", i
-                write(6, *) "Symmetry label: ", OrbSym
-                write(6, *) "Inverse Symmetry label: ", InvSym
-                write(6, *) "Fock energy: ", Arr(i, 2)
-                write(6, *) "SpinOrbSymLabel: "
+                write(stdout, *) "Orbital: ", i
+                write(stdout, *) "Symmetry label: ", OrbSym
+                write(stdout, *) "Inverse Symmetry label: ", InvSym
+                write(stdout, *) "Fock energy: ", Arr(i, 2)
+                write(stdout, *) "SpinOrbSymLabel: "
                 do k = 1, nBasis
-                    write(6, *) k, SpinOrbSymLabel(k)
+                    write(stdout, *) k, SpinOrbSymLabel(k)
                 end do
-                write(6, *) "SymInvLavel: "
+                write(stdout, *) "SymInvLavel: "
                 do k = 0, nSymLabels - 1
-                    write(6, *) k, SymInvLabel(k)
+                    write(stdout, *) k, SymInvLabel(k)
                 end do
                 call stop_all(this_routine, "Could not find inverse orbital pair for ISK setup.")
             end if
@@ -3221,18 +3221,18 @@ SUBROUTINE SpinOrbSymSetup()
             if (KPntInvSymOrb(i) /= i) exit
         end do
         if (i > nBasis) then
-            write(6, *) "!! All kpoints are self-inverse, i.e. at the Gamma point or BZ boundary !!"
-            write(6, *) "This means that ISK functions cannot be constructed."
-            write(6, *) "However, through correct rotation of orbitals, all orbitals should be " &
+            write(stdout, *) "!! All kpoints are self-inverse, i.e. at the Gamma point or BZ boundary !!"
+            write(stdout, *) "This means that ISK functions cannot be constructed."
+            write(stdout, *) "However, through correct rotation of orbitals, all orbitals should be " &
             & //"made real, and the code run in real mode (with tRotatedOrbsReal set)."
-            write(6, *) "Alternatively, run again in complex mode without ISK functions."
-            write(6, *) "If ISK functions are desired, the kpoint lattice must be shifted from this position."
+            write(stdout, *) "Alternatively, run again in complex mode without ISK functions."
+            write(stdout, *) "If ISK functions are desired, the kpoint lattice must be shifted from this position."
 !            call stop_all(this_routine,"All kpoints are self-inverse")
         end if
-        write(6, *) "All inverse kpoint orbitals correctly assigned."
-        write(6, *) "Orbital     Inverse Orbital"
+        write(stdout, *) "All inverse kpoint orbitals correctly assigned."
+        write(stdout, *) "Orbital     Inverse Orbital"
         do i = 1, nBasis
-            write(6, *) i, KPntInvSymOrb(i)
+            write(stdout, *) i, KPntInvSymOrb(i)
         end do
     end if
 
@@ -3259,7 +3259,7 @@ SUBROUTINE SpinOrbSymSetup()
         ELSE
             Spin = 2
         end if
-!        write(6,*) "BASIS FN ",j,G1(j)%Sym,SymClasses((j+1)/2)
+!        write(stdout,*) "BASIS FN ",j,G1(j)%Sym,SymClasses((j+1)/2)
         SymInd = ClassCountInd(Spin, SpinOrbSymLabel(j), G1(j)%Ml)
         SymLabelCounts2(2, SymInd) = SymLabelCounts2(2, SymInd) + 1
     end do
@@ -3281,8 +3281,8 @@ SUBROUTINE SpinOrbSymSetup()
     ! get also only the spatial orbitals
     sym_label_list_spat = gtID(SymLabelList2)
 
-!    write(6,*) "SymLabelCounts2: ",SymLabelCounts2(1,:)
-!    write(6,*) "SymLabelCounts2: ",SymLabelCounts2(2,:)
+!    write(stdout,*) "SymLabelCounts2: ",SymLabelCounts2(1,:)
+!    write(stdout,*) "SymLabelCounts2: ",SymLabelCounts2(2,:)
     Deallocate(Temp)
 
     allocate(OrbClassCount(ScratchSize))
@@ -3295,20 +3295,20 @@ SUBROUTINE SpinOrbSymSetup()
     ELSE
         do i = 1, nBasis
             IF (G1(i)%Ms == 1) THEN
-!                write(6,*) "Index: ",ClassCountInd(1,SpinOrbSymLabel(i),G1(i)%Ml)
-!                write(6,*) i,"SpinOrbSymLabel: ",SpinOrbSymLabel(i)
+!                write(stdout,*) "Index: ",ClassCountInd(1,SpinOrbSymLabel(i),G1(i)%Ml)
+!                write(stdout,*) i,"SpinOrbSymLabel: ",SpinOrbSymLabel(i)
                 OrbClassCount(ClassCountInd(1, SpinOrbSymLabel(i), G1(i)%Ml)) = &
                 & OrbClassCount(ClassCountInd(1, SpinOrbSymLabel(i), G1(i)%Ml)) + 1
             ELSE
-!                write(6,*) "Index: ",ClassCountInd(1,SpinOrbSymLabel(i),G1(i)%Ml)
-!                write(6,*) i,"SpinOrbSymLabel: ",SpinOrbSymLabel(i)
+!                write(stdout,*) "Index: ",ClassCountInd(1,SpinOrbSymLabel(i),G1(i)%Ml)
+!                write(stdout,*) i,"SpinOrbSymLabel: ",SpinOrbSymLabel(i)
                 OrbClassCount(ClassCountInd(2, SpinOrbSymLabel(i), G1(i)%Ml)) = &
                 & OrbClassCount(ClassCountInd(2, SpinOrbSymLabel(i), G1(i)%Ml)) + 1
             end if
         end do
     end if
 
-!    write(6,*) "*******",OrbClassCount(:)
+!    write(stdout,*) "*******",OrbClassCount(:)
 
 !        ELSE
 !!SymLabelCounts(2,1:nSymLabels) gives the number of *states* in each symmetry class.
@@ -3380,7 +3380,7 @@ SUBROUTINE SpinOrbSymSetup()
             kTotal(2) = kTotal(2) + kvec(FDet(j), 2)
             kTotal(3) = kTotal(3) + kvec(FDet(j), 3)
         end do
-        write(6, *) "Total momentum is", kTotal
+        write(stdout, *) "Total momentum is", kTotal
 
         return
     end if
@@ -3433,7 +3433,7 @@ SUBROUTINE SpinOrbSymSetup()
             kTotal(1) = ktrial(1)
             kTotal(2) = ktrial(2)
         end if
-        write(6, *) "Total momentum is", kTotal
+        write(stdout, *) "Total momentum is", kTotal
     end if
 
 END SUBROUTINE SpinOrbSymSetup
@@ -3465,11 +3465,11 @@ LOGICAL FUNCTION IsMomAllowedDetAnyParent(nJ, parentSym)
     end do
 
     IF (SYM1%S /= parentSym%S) THEN
-        write(6, *) "nJ: ", nJ(:)
-        write(6, *) "parentSym,SYM1: ", parentSym%S, SYM1%S
-!        write(6,*) "Counter: ",Counter
+        write(stdout, *) "nJ: ", nJ(:)
+        write(stdout, *) "parentSym,SYM1: ", parentSym%S, SYM1%S
+!        write(stdout,*) "Counter: ",Counter
         CALL DecomposeAbelianSym(SYM1%S, KPnt)
-        write(6, "(A,3I5)") "KPnt for nJ: ", KPnt(1), KPnt(2), KPnt(3)
+        write(stdout, "(A,3I5)") "KPnt for nJ: ", KPnt(1), KPnt(2), KPnt(3)
         CALL Stop_All("IsMomAllowedDet", "Momentum forbidden excitation created1.")
     ELSE
         IsMomAllowedDetAnyParent = .true.
@@ -3478,11 +3478,11 @@ LOGICAL FUNCTION IsMomAllowedDetAnyParent(nJ, parentSym)
     CALL GETSYM(nJ, NEl, G1, nBasisMax, iSym)
 
     IF (iSym%Sym%S /= parentSym%S) THEN
-        write(6, *) "nJ: ", nJ(:)
-        write(6, *) "parentSym,SYM1: ", parentSym%S, iSym%Sym%S
-!        write(6,*) "Counter: ",Counter
+        write(stdout, *) "nJ: ", nJ(:)
+        write(stdout, *) "parentSym,SYM1: ", parentSym%S, iSym%Sym%S
+!        write(stdout,*) "Counter: ",Counter
         CALL DecomposeAbelianSym(iSym%Sym%S, KPnt)
-        write(6, "(A,3I5)") "KPnt for nJ: ", KPnt(1), KPnt(2), KPnt(3)
+        write(stdout, "(A,3I5)") "KPnt for nJ: ", KPnt(1), KPnt(2), KPnt(3)
         CALL Stop_All("IsMomAllowedDet", "Momentum forbidden excitation created2.")
     ELSE
         IsMomAllowedDetAnyParent = .true.

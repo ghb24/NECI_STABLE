@@ -10,7 +10,7 @@ module gen_coul_ueg_mod
                           tInfSumTCPrint, tInfSumTCRead, Tperiodicinmom
     use IntegralsData, only: UMat, FCK
     use global_utilities
-    use constants, only: sp, dp, pi, pi2, THIRD
+    use constants, only: sp, dp, pi, pi2, THIRD, stdout
     use Parallel_neci, only: iProcIndex, root
     use util_mod, only: near_zero
     use breathing_Hub, only: bHubIndexFunction
@@ -220,7 +220,7 @@ contains
                                 ((G1(l)%K(2) - G1(j)%K(2)) == b) .and. &
                                 ((G1(l)%K(3) - G1(j)%K(3)) == c) .and. &
                                 ((a /= 0) .or. (b /= 0) .or. (c /= 0))) then
-                                ! write(6,*) '(',i,j,'|',k,l,')',a,b,c
+                                ! write(stdout,*) '(',i,j,'|',k,l,')',a,b,c
                                 ! ajwt <ij|r_12^-1|kl> = v_(G_i-G_k) delta_((G_i-G_k)-(G_l-G_k))
                                 ! v_G = 4 pi / G**2. G = 2 pi / L(nx, ny, nx) etc.
                                 sum = ((a / ALAT(1))**2 + (b / ALAT(2))**2)
@@ -253,7 +253,7 @@ contains
             ind = nbasis / 2 + 1 + (nbasis / 2) * nbasis * (nbasis + 1)
             FCK(ind) = (0.0_sp, 0.0_sp)
         end if
-        write(6, *) ' !!! FINISHED CALCULATING ALL 2E INTEGRALS !!! '
+        write(stdout, *) ' !!! FINISHED CALCULATING ALL 2E INTEGRALS !!! '
 
         call halt_timer(proc_timer)
 
@@ -295,7 +295,7 @@ contains
             ! GD1=0,0,0, which has to be removed as this cancels the
             ! background term.
             T = .false.
-            ! write(6,*) CK(GD(1),GD(2),GD(3)),GD(1),GD(2),GD(3)
+            ! write(stdout,*) CK(GD(1),GD(2),GD(3)),GD(1),GD(2),GD(3)
         end if
         ! if (T) then
         OUT = real(CK(2 * GD(1), 2 * GD(2), 2 * GD(3)))
@@ -461,7 +461,7 @@ contains
                 ((G1(l)%k(3) - G1(j)%k(3)) == c)) then
 
                 if ((a /= 0) .or. (b /= 0) .or. (c /= 0)) then
-                    ! write(6,*) "(",I,J,"|",K,L,")",A,B,C
+                    ! write(stdout,*) "(",I,J,"|",K,L,")",A,B,C
                     ! Coulomb integrals are long-ranged, so calculated with
                     ! 4 pi/G**2.
                     !AJWT <IJ|r_12^-1|KL> = v_(G_I-G_K) delta_((G_I-G_K)-(G_L-G_J)
@@ -628,7 +628,7 @@ contains
             end if
 
         else
-            write(6, *) 'dimension error in get_ueg_umat_el', dimen
+            write(stdout, *) 'dimension error in get_ueg_umat_el', dimen
             stop
         end if
 
@@ -961,8 +961,8 @@ contains
 
                     hel = hel / ALAT(1)**3
 
-!                       write(6,*)'in hel'
-!                       write(6,*)hel, PotentialStrength, ALAT(1)
+!                       write(stdout,*)'in hel'
+!                       write(stdout,*)hel, PotentialStrength, ALAT(1)
 
                 else    !renormalization
 
@@ -1050,7 +1050,7 @@ contains
             end if ! ((G1(k)%k(1) - G1(i)%k(1)) == a)
 
         else
-            write(6, *) 'dimension error in get_contact_umat_el', dimen
+            write(stdout, *) 'dimension error in get_contact_umat_el', dimen
             stop
         end if
 
@@ -1183,15 +1183,15 @@ contains
                                         if (length >= TranscorrIntCutoff .or. length < kmaxcutoff) cycle
                                         diffk = shiftk - k
                                         difflength = dsqrt(dfloat(diffi**2 + diffj**2 + diffk**2))
-!                        write(6,*)'diff', diffi,diffj,diffk
+!                        write(stdout,*)'diff', diffi,diffj,diffk
                                         if (difflength < kmaxcutoff) cycle
                                         sprod = dfloat(k * diffk + sprodij)
                                         summasumma = summasumma + sprod / (length**3 * difflength**3)
-!                       write(6,*)'summasumma',i,j,k,summasumma,sprod/(length**3*difflength**3)
+!                       write(stdout,*)'summasumma',i,j,k,summasumma,sprod/(length**3*difflength**3)
                                     end do !k
                                 end do !j
                             end do !i
-!                       write(6,*)'summasumma',shifti,shiftj,shiftk,summasumma
+!                       write(stdout,*)'summasumma',shifti,shiftj,shiftk,summasumma
 !                      if(shiftk.eq.1) stop
                             summasumma = prefactk * summasumma
                             UMAT_TC2_Contact3D(shifti, shiftj, shiftk) = summasumma
@@ -1221,7 +1221,7 @@ contains
 
                 read(32, *) dummyword, trcutoffread
                 if (trcutoffread /= kmaxcutoff) then
-                    write(6, *) "From TranscorrInfSum: ", trcutoffread, " From the input file:", kmaxcutoff
+                    write(stdout, *) "From TranscorrInfSum: ", trcutoffread, " From the input file:", kmaxcutoff
                     stop "The value of TrCutoff is different in TranscorrInfSum."
                 end if
 
@@ -1255,21 +1255,21 @@ contains
                         end if
                     end if
                 end do
-32              write(6, *) "The values of inifinite sums are readed from TranscorrInfSum."
+32              write(stdout, *) "The values of inifinite sums are readed from TranscorrInfSum."
             end if
 
             if (tInfSumTCPrint .or. tInfSumTCRead) close(32)
         else
-!       write(6,*) 'dimension error in GEN_Umat_TC', dimen
+!       write(stdout,*) 'dimension error in GEN_Umat_TC', dimen
 !       stop
         end if
 
-!     write(6,*)'UMAT_TC2_Contact3D'
+!     write(stdout,*)'UMAT_TC2_Contact3D'
 
 !     do i=0, twokmax
 !     do j=0, twokmax
 !     do k=0, twokmax
-!       write(6,*)i,j,k,UMAT_TC2_Contact3D(i,j,k)
+!       write(stdout,*)i,j,k,UMAT_TC2_Contact3D(i,j,k)
 !     end do
 !     end do
 !     end do
@@ -1379,7 +1379,7 @@ contains
             end do
 
         else
-            write(6, *) 'dimension error in GEN_Umat_TC', dimen
+            write(stdout, *) 'dimension error in GEN_Umat_TC', dimen
             stop
         end if
 
@@ -1443,7 +1443,7 @@ contains
                 u_tc = -6.283185307179586 / k2 / dsqrt(k2)
             end if
         else
-            write(6, *) 'dimension error in uu_tc_prod', dimen
+            write(stdout, *) 'dimension error in uu_tc_prod', dimen
             stop
         end if
 
@@ -1473,7 +1473,7 @@ contains
             uu_prod = k12 * u1 * u2
 
         else
-            write(6, *) 'dimension error in uu_tc_prod', dimen
+            write(stdout, *) 'dimension error in uu_tc_prod', dimen
             stop
         end if
 

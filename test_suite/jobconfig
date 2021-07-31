@@ -95,6 +95,12 @@ nprocs = 2
 min_nprocs = 2
 max_nprocs = 2
 
+[neci/SD_spin_purification/*/]
+program = neci
+nprocs = 2
+min_nprocs = 2
+max_nprocs = 2
+
 [neci/rdm_singlerun/serial/*]
 program = neci
 max_nprocs = 1

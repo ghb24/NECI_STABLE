@@ -361,7 +361,7 @@ contains
         call InitFCIMCCalcPar()
         call init_fcimc_fn_pointers()
 
-        write(6, '(/,12("="),1x,a9,1x,12("="))') "KP-FCIQMC"
+        write(stdout, '(/,12("="),1x,a9,1x,12("="))') "KP-FCIQMC"
 
         if (tSemiStochastic .and. (.not. tFullyStochasticHamil)) then
             tSemiStochasticKPHamil = .true.
@@ -423,15 +423,15 @@ contains
             ! Allocate the krylov_vecs array.
             ! The number of MB of memory required to allocate krylov_vecs.
             krylov_vecs_mem = krylov_vecs_length * (NIfTotKP + 1) * size_n_int / 1000000
-            write(6, '(a73,'//int_fmt(krylov_vecs_mem, 1)//')') "About to allocate array to hold all Krylov vectors. &
+            write(stdout, '(a73,'//int_fmt(krylov_vecs_mem, 1)//')') "About to allocate array to hold all Krylov vectors. &
                                            &Memory required (MB):", krylov_vecs_mem
-            write(6, '(a13)', advance='no') "Allocating..."; call neci_flush(6)
+            write(stdout, '(a13)', advance='no') "Allocating..."; call neci_flush(6)
             allocate(krylov_vecs(0:NIfTotKP, krylov_vecs_length), stat=ierr)
             if (ierr /= 0) then
-                write(6, '(1x,a11,1x,i5)') "Error code:", ierr
+                write(stdout, '(1x,a11,1x,i5)') "Error code:", ierr
                 call stop_all(t_r, "Error allocating krylov_vecs array.")
             else
-                write(6, '(1x,a5)') "Done."
+                write(stdout, '(1x,a5)') "Done."
             end if
             call neci_flush(6)
             krylov_vecs = 0_n_int
@@ -439,15 +439,15 @@ contains
             ! Allocate the krylov_helems array.
             ! The number of MB of memory required to allocate krylov_helems.
             krylov_vecs_mem = krylov_vecs_length * size_n_int / 1000000
-            write(6, '(a103,'//int_fmt(krylov_vecs_mem, 1)//')') "About to allocate array to hold diagonal Hamiltonian &
+            write(stdout, '(a103,'//int_fmt(krylov_vecs_mem, 1)//')') "About to allocate array to hold diagonal Hamiltonian &
                                            &elements for Krylov vectors. Memory required (MB):", krylov_vecs_mem
-            write(6, '(a13)', advance='no') "Allocating..."; call neci_flush(6)
+            write(stdout, '(a13)', advance='no') "Allocating..."; call neci_flush(6)
             allocate(krylov_helems(krylov_vecs_length), stat=ierr)
             if (ierr /= 0) then
-                write(6, '(1x,a11,1x,i5)') "Error code:", ierr
+                write(stdout, '(1x,a11,1x,i5)') "Error code:", ierr
                 call stop_all(t_r, "Error allocating krylov_helems array.")
             else
-                write(6, '(1x,a5)') "Done."
+                write(stdout, '(1x,a5)') "Done."
             end if
             call neci_flush(6)
             krylov_helems = 0.0_dp
@@ -456,16 +456,16 @@ contains
             ! The number of MB of memory required to allocate krylov_vecs_ht.
             ! Each node requires 16 bytes.
             krylov_ht_mem = nhashes_kp * 16 / 1000000
-            write(6, '(a78,'//int_fmt(krylov_ht_mem, 1)//')') "About to allocate hash table to the Krylov vector array. &
+            write(stdout, '(a78,'//int_fmt(krylov_ht_mem, 1)//')') "About to allocate hash table to the Krylov vector array. &
                                            &Memory required (MB):", krylov_ht_mem
-            write(6, '(a13)', advance='no') "Allocating..."; call neci_flush(6)
+            write(stdout, '(a13)', advance='no') "Allocating..."; call neci_flush(6)
             allocate(krylov_vecs_ht(nhashes_kp), stat=ierr)
             if (ierr /= 0) then
-                write(6, '(1x,a11,1x,i5)') "Error code:", ierr
+                write(stdout, '(1x,a11,1x,i5)') "Error code:", ierr
                 call stop_all(t_r, "Error allocating krylov_vecs_ht array.")
             else
-                write(6, '(1x,a5)') "Done."
-                write(6, '(a106)') "Note that the hash table uses linked lists, and the memory usage will &
+                write(stdout, '(1x,a5)') "Done."
+                write(stdout, '(a106)') "Note that the hash table uses linked lists, and the memory usage will &
                                   &increase as further nodes are added."
             end if
 
@@ -494,16 +494,16 @@ contains
         ! Each node requires 16 bytes.
         nhashes_spawn = int(0.8 * MaxSpawned)
         spawn_ht_mem = nhashes_spawn * 16 / 1000000
-        write(6, '(a78,'//int_fmt(spawn_ht_mem, 1)//')') "About to allocate hash table to the spawning array. &
+        write(stdout, '(a78,'//int_fmt(spawn_ht_mem, 1)//')') "About to allocate hash table to the spawning array. &
                                        &Memory required (MB):", spawn_ht_mem
-        write(6, '(a13)', advance='no') "Allocating..."; call neci_flush(6)
+        write(stdout, '(a13)', advance='no') "Allocating..."; call neci_flush(6)
         allocate(spawn_ht(nhashes_spawn), stat=ierr)
         if (ierr /= 0) then
-            write(6, '(1x,a11,1x,i5)') "Error code:", ierr
+            write(stdout, '(1x,a11,1x,i5)') "Error code:", ierr
             call stop_all(t_r, "Error allocating spawn_ht array.")
         else
-            write(6, '(1x,a5)') "Done."
-            write(6, '(a106)') "Note that the hash table uses linked lists, and the memory usage will &
+            write(stdout, '(1x,a5)') "Done."
+            write(stdout, '(a106)') "Note that the hash table uses linked lists, and the memory usage will &
                               &increase as further nodes are added."
         end if
 
@@ -511,9 +511,9 @@ contains
 
         ! (2*kp%nrepeats+16) arrays with (kp%nvecs**2) 8-byte elements each.
         matrix_mem = (2 * kp%nrepeats + 16) * (kp%nvecs**2) * 8 / 1000000
-        write(6, '(a66,'//int_fmt(matrix_mem, 1)//')') "About to allocate various subspace matrices. &
+        write(stdout, '(a66,'//int_fmt(matrix_mem, 1)//')') "About to allocate various subspace matrices. &
                                        &Memory required (MB):", matrix_mem
-        write(6, '(a13)', advance='no') "Allocating..."
+        write(stdout, '(a13)', advance='no') "Allocating..."
         call neci_flush(6)
 
         if (tOverlapPert) then
@@ -533,7 +533,7 @@ contains
         allocate(kp_inter_matrix(kp%nvecs, kp%nvecs))
         allocate(kp_eigenvecs_krylov(kp%nvecs, kp%nvecs))
 
-        write(6, '(1x,a5)') "Done."
+        write(stdout, '(1x,a5)') "Done."
 
         ! If av_mc_excits_kp hasn't been set by the user, just use AvMCExcits.
         if (near_zero(av_mc_excits_kp)) av_mc_excits_kp = AvMCExcits
@@ -581,7 +581,7 @@ contains
         integer(MPIArg) :: space_sizes(0:nProcessors - 1), space_displs(0:nProcessors - 1)
         type(fcimc_iter_data), intent(in) :: iter_data
 
-        write(6, '(1x,a22,'//int_fmt(irepeat, 1)//')') "Starting repeat number", irepeat
+        write(stdout, '(1x,a22,'//int_fmt(irepeat, 1)//')') "Starting repeat number", irepeat
 
         if (tExcitedStateKP) then
             nexcit = nvecs
@@ -774,7 +774,7 @@ contains
                 ! before creating the random initial configuration.
                 if (tUseInitConfigSeeds) call dSFMT_init((iProcIndex + 1) * init_config_seeds(iconfig))
 
-                write(6, '(a44)', advance='no') "# Generating initial walker configuration..."
+                write(stdout, '(a44)', advance='no') "# Generating initial walker configuration..."
                 call set_timer(kp_generate_time)
                 total_time_before = get_total_time(kp_generate_time)
 
@@ -787,7 +787,7 @@ contains
 
                 call halt_timer(kp_generate_time)
                 total_time_after = get_total_time(kp_generate_time)
-                write(6, '(1x,a31,f9.3)') "Complete. Time taken (seconds):", total_time_after - total_time_before
+                write(stdout, '(1x,a31,f9.3)') "Complete. Time taken (seconds):", total_time_after - total_time_before
 
             end if
         else if (irepeat > 1) then
@@ -852,16 +852,16 @@ contains
         ! Memory required in MB.
         mem_reqd = int(TotWalkers / 1000000_int64) * (NIfTotKP + 1) * size_n_int
 
-        write(6, '(a73,'//int_fmt(mem_reqd, 1)//')') "About to allocate array to hold the perturbed &
+        write(stdout, '(a73,'//int_fmt(mem_reqd, 1)//')') "About to allocate array to hold the perturbed &
                                            &ground state. Memory required (MB):", mem_reqd
-        write(6, '(a13)', advance='no') "Allocating..."
+        write(stdout, '(a13)', advance='no') "Allocating..."
         call neci_flush(6)
         allocate(perturbed_ground(0:NIfTot, TotWalkers), stat=ierr)
         if (ierr /= 0) then
-            write(6, '(1x,a11,1x,i5)') "Error code:", ierr
+            write(stdout, '(1x,a11,1x,i5)') "Error code:", ierr
             call stop_all(t_r, "Error allocating array.")
         else
-            write(6, '(1x,a5)') "Done."
+            write(stdout, '(1x,a5)') "Done."
         end if
         call neci_flush(6)
 

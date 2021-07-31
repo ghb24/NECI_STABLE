@@ -177,7 +177,7 @@ contains
             end if
 
             if (print_info) then
-                write(6, '(1x,"number of determinants in total:",'//int_fmt(space_size, 1)//')') space_size; call neci_flush(6)
+                write(stdout, '(1x,"number of determinants in total:",'//int_fmt(space_size, 1)//')') space_size; call neci_flush(6)
             end if
 
             if (tCalcHFIndex) then
@@ -192,7 +192,7 @@ contains
             if (t_store_subspace_basis) then
                 safe_calloc(this%basis_vectors, (this%space_size, max_subspace_size), 0.0_dp)
                 if (print_info) then
-                    write(6, '(1x,"allocating array to hold subspace vectors (",'//int_fmt(mem_reqd, 0)//',1x,"mb).")') mem_reqd
+                    write(stdout, '(1x,"allocating array to hold subspace vectors (",'//int_fmt(mem_reqd, 0)//',1x,"mb).")') mem_reqd
                     call neci_flush(6)
                 end if
             end if
@@ -205,7 +205,7 @@ contains
 
             this%skip_calc = .false.
             if (print_info) then
-                write(6, '(1x,"Hamiltonian calculation setup complete.",/)')
+                write(stdout, '(1x,"Hamiltonian calculation setup complete.",/)')
             end if
             call neci_flush(6)
 
@@ -233,7 +233,7 @@ contains
         HElement_t(dp), intent(out) :: full_ham(:, :)
         HElement_t(dp), allocatable :: vec(:)
         integer :: i, ierr
-        write(6, *) "converting sparse hamiltonian to full"
+        write(stdout, *) "converting sparse hamiltonian to full"
         safe_malloc(vec, (this%space_size))
         do i = 1, this%space_size
             call MPIBarrier(ierr)
@@ -244,7 +244,7 @@ contains
             else
                 call multiply_hamil_and_vector(this, vec, this%temp_out)
             end if
-            write(6, *) i, "hamiltonian columns converted"
+            write(stdout, *) i, "hamiltonian columns converted"
             call MPIBarrier(ierr)
         end do
         safe_free(vec)
