@@ -97,9 +97,9 @@ contains
         if (.not. tRestart .and. (.not. tReadPops) .and. tau < EPS) then
             call FindMaxTauDoubs()
         end if
-        write(6, *) "Using initial time-step: ", tau
-        write(6, *) "NOTE: this is not yet correctly adapted for the GUGA implementation"
-        write(6, *) " -> so use this with caution and check for erroneous values!"
+        write(stdout, *) "Using initial time-step: ", tau
+        write(stdout, *) "NOTE: this is not yet correctly adapted for the GUGA implementation"
+        write(stdout, *) " -> so use this with caution and check for erroneous values!"
 
         ! check maximum spawn size:
         if (int(MaxWalkerBloom) == -1) then
@@ -198,7 +198,7 @@ contains
             if (.not. tRestart .and. .not. tReadPops .and. (tau.isclose.0.0_dp)) &
                 call FindMaxTauDoubs()
 !                 call find_max_tau_doubs_guga()
-            write(6, *) 'Using initial time-step: ', tau
+            write(stdout, *) 'Using initial time-step: ', tau
 
             ! Set the maximum spawn size
             if (int(MaxWalkerBloom) == -1) then

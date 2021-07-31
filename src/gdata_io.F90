@@ -420,7 +420,7 @@ contains
 
             deallocate(sgn_store)
         else
-            write(6, *) "WARNING: Attempted to adjust lenof_sign for an empty input"
+            write(stdout, *) "WARNING: Attempted to adjust lenof_sign for an empty input"
             ! throw a warning
         end if
 

@@ -130,9 +130,9 @@ contains
             is_beta = btest(ilut(pos), mod(beta_ind - 1, bits_n_int))
 
             if (is_alpha .and. (.not. is_beta)) then
-                write(6, '(a1)', advance='no') "1"
+                write(stdout, '(a1)', advance='no') "1"
             else if (is_beta .and. (.not. is_alpha)) then
-                write(6, '(a1)', advance='no') "0"
+                write(stdout, '(a1)', advance='no') "0"
             else if (is_beta .and. is_alpha) then
                 call stop_all("t_r", "A spin is both up and down, this shouldn't happen!")
             else if ((.not. is_beta) .and. (.not. is_alpha)) then
@@ -140,7 +140,7 @@ contains
             end if
         end do
 
-        write(6, '()', advance='yes')
+        write(stdout, '()', advance='yes')
 
     end subroutine write_spins_heisenberg
 

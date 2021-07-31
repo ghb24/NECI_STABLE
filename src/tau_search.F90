@@ -114,7 +114,7 @@ contains
             end if
         end if
 
-        write(6, *) 'Using initial time-step: ', tau
+        write(stdout, *) 'Using initial time-step: ', tau
 
         ! Set the maximum spawn size
         if (MaxWalkerBloom.isclose.-1._dp) then

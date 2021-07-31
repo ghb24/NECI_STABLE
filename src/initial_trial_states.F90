@@ -70,7 +70,7 @@ contains
             call stop_all(this_routine, "non-supported trial space for GUGA!")
         end if
 
-        write(6, *) " Initialising wavefunctions by the Lanczos algorithm"
+        write(stdout, *) " Initialising wavefunctions by the Lanczos algorithm"
 
         ! Choose the correct generating routine.
         if (space_in%tHF) call add_state_to_space(ilutHF, trial_iluts, ndets_this_proc)
@@ -107,7 +107,7 @@ contains
         ndets_all_procs = sum(space_sizes)
 
         if (ndets_all_procs < lanczos_space_size_cutoff .and. .not. t_force_lanczos) then
-            write(6, *) " Aborting Lanczos and initialising trial states with direct diagonalisation"
+            write(stdout, *) " Aborting Lanczos and initialising trial states with direct diagonalisation"
             call calc_trial_states_direct(space_in, nexcit, ndets_this_proc, trial_iluts, evecs_this_proc, evals, &
                                           space_sizes, space_displs, reorder)
             return

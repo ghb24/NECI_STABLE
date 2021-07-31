@@ -541,9 +541,9 @@ contains
 
         do i = lbound(mat, 1), ubound(mat, 1)
             do j = lbound(mat, 2), ubound(mat, 2)
-                write(6, '(f17.9, " ")', advance='no') mat(i, j)
+                write(stdout, '(f17.9, " ")', advance='no') mat(i, j)
             end do
-            write(6, *)
+            write(stdout, *)
         end do
 
     end subroutine
@@ -604,9 +604,9 @@ contains
                    size(work), info)
 
         if (any(evals < 0)) then
-            write(6, *) '*** WARNING ***'
-            write(6, *) "Not orthogonalising this iteration."
-            write(6, *) 'Negative eigenvalue of overlap matrix found'
+            write(stdout, *) '*** WARNING ***'
+            write(stdout, *) "Not orthogonalising this iteration."
+            write(stdout, *) 'Negative eigenvalue of overlap matrix found'
             return
         end if
 

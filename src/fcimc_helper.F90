@@ -775,10 +775,10 @@ contains
         if (tPrintOrbOcc .and. (iter >= StartPrintOrbOcc)) then
             if (iter == StartPrintOrbOcc .and. &
                 DetBitEq(ilut, ilutHF, nifd)) then
-                write(6, *) 'Beginning to fill the HF orbital occupation list &
+                write(stdout, *) 'Beginning to fill the HF orbital occupation list &
                            &during iteration', iter
                 if (tPrintOrbOccInit) &
-                    write(6, *) 'Only doing so for initiator determinants'
+                    write(stdout, *) 'Only doing so for initiator determinants'
             end if
             if ((tPrintOrbOccInit .and. test_flag(ilut, get_initiator_flag(1))) &
                 .or. .not. tPrintOrbOccInit) then
@@ -2431,11 +2431,11 @@ contains
             end if
 
             if (RDMExcitLevel == 1) then
-                write(6, '(A)') 'Calculating the 1 electron density matrix on the fly.'
+                write(stdout, '(A)') 'Calculating the 1 electron density matrix on the fly.'
             else
-                write(6, '(A)') 'Calculating the 2 electron density matrix on the fly.'
+                write(stdout, '(A)') 'Calculating the 2 electron density matrix on the fly.'
             end if
-            write(6, '(A,I10)') 'Beginning to fill the RDMs during iteration', Iter
+            write(stdout, '(A,I10)') 'Beginning to fill the RDMs during iteration', Iter
         end if
 
     end subroutine check_start_rdm
@@ -2465,7 +2465,7 @@ contains
               ' on the next update cycle to: '
         call write_det(stdout, ProjEDet(:, run), .true.)
         call GetSym(ProjEDet(:, run), nEl, G1, nBasisMax, isym)
-        write(6, "(A)", advance='no') " Symmetry: "
+        write(stdout, "(A)", advance='no') " Symmetry: "
         call writeSym(6, isym%sym, .true.)
 
         ! if in guga run, i also need to recreate the list of connected

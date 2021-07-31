@@ -1468,7 +1468,7 @@ contains
                 IF(AllSinglesHistVirtOcc(i).gt.0.0_dp) write(io(7),*) EnergyBin, AllSinglesHistVirtOcc(i)
                 IF(AllSinglesHistVirtVirt(i).gt.0.0_dp) write(io(8),*) EnergyBin, AllSinglesHistVirtVirt(i)
                 EnergyBin=EnergyBin+OffDiagBinRange
-!                write(6,*) i
+!                write(stdout,*) i
             end do
 
             close(io(1))
@@ -1576,7 +1576,7 @@ contains
 
                 write(stdout,*)
                 write(stdout,'("Input DEFINEDET line (includes frozen orbs):")')
-                write(6,'("definedet ")', advance='no')
+                write(stdout,'("definedet ")', advance='no')
                 if (allocated(frozen_orb_list)) then
                     allocate(tmp_ni(nel_pre_freezing))
                     tmp_ni(1:nel) = frozen_orb_reverse_map(ProjEDet(:,run))
@@ -1585,13 +1585,13 @@ contains
                     call sort(tmp_ni)
                     call writeDefDet(tmp_ni, nel_pre_freezing)
                     !                    do i = 1, nel_pre_freezing
-                    !                        write(6, '(i3," ")', advance='no') tmp_ni(i)
+                    !                        write(stdout, '(i3," ")', advance='no') tmp_ni(i)
                     !                    end do
                     deallocate(tmp_ni)
                 else
                     call writeDefDet(ProjEDet(:,run), nel)
                     !                    do i = 1, nel
-                    !                        write(6, '(i3," ")', advance='no') ProjEDet(i, run)
+                    !                        write(stdout, '(i3," ")', advance='no') ProjEDet(i, run)
                     !                    end do
                 end if
                 do i = 1, nel

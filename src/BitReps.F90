@@ -208,9 +208,9 @@ contains
         NIfTot = IlutBits%len_orb + IlutBits%len_pop + 1
         IlutBits%len_tot = IlutBits%len_orb + IlutBits%len_pop + 1
 
-        write(6, "(A,I6)") "Setting integer length of determinants as bit-strings to: ", &
+        write(stdout, "(A,I6)") "Setting integer length of determinants as bit-strings to: ", &
             IlutBits%len_tot + 1
-        write(6, "(A,I6)") "Setting integer bit-length of determinants as bit-strings to: ", &
+        write(stdout, "(A,I6)") "Setting integer bit-length of determinants as bit-strings to: ", &
             bits_n_int
 
         if (tGUGA) then
@@ -228,7 +228,7 @@ contains
             !  1         * 32-bits              deltaB value
 
             call init_guga_bitrep(nifd)
-            write(6, "(A,I6)") "For GUGA calculation set up a integer list of length: ", &
+            write(stdout, "(A,I6)") "For GUGA calculation set up a integer list of length: ", &
                 nIfGUGA + 1
 
             ! if we use fast guga rdms we also need space in the
@@ -1040,7 +1040,7 @@ contains
         def_default(prefactor_, prefactor, 1.0_dp)
 
         if (.not. sorted_lists) then
-            write(6, *) lbound(list_1, 1), ubound(list_1, 1), lbound(list_2, 1), ubound(list_2, 1)
+            write(stdout, *) lbound(list_1, 1), ubound(list_1, 1), lbound(list_2, 1), ubound(list_2, 1)
             call neci_flush(6)
             call sort(list_1(:, 1:ndets_1), ilut_lt, ilut_gt)
             call sort(list_2(:, 1:ndets_2), ilut_lt, ilut_gt)

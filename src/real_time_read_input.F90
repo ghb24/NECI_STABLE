@@ -50,7 +50,7 @@ module real_time_read_input_module
                 ! using a verlet algorithm instead of the second order runge-kutta
                 tVerletScheme = .true.
                 if (item < nitems) call readi(iterInit)
-                if (stepsAlpha == 1) write(6, *) "Warning: STEPSALPHA is 1. Ignoring VERLET keyword"
+                if (stepsAlpha == 1) write(stdout, *) "Warning: STEPSALPHA is 1. Ignoring VERLET keyword"
 
             case ("DAMPING")
                 ! to reduce the explosive spread of walkers through the
@@ -418,7 +418,7 @@ module real_time_read_input_module
                 ! length of the decay channel update cycle (in timesteps)
                 ! i.e. angle of rotation and damping
                 call readi(stepsAlpha)
-                if (stepsAlpha == 1 .and. tVerletScheme) write(6, *) &
+                if (stepsAlpha == 1 .and. tVerletScheme) write(stdout, *) &
                     "Warning: STEPSALPHA is 1. Ignoring VERLET keyword"
 
             case ("DYNAMIC-DAMPING")

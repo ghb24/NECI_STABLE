@@ -224,7 +224,7 @@ contains
 
         if (tJustBlocking) then
             ! Just reblock the current data, and do not perform an fcimc calculation.
-            write(6, "(A)") "Skipping FCIQMC calculation and simply reblocking previous output"
+            write(stdout, "(A)") "Skipping FCIQMC calculation and simply reblocking previous output"
             call Standalone_Errors()
             return
         end if
@@ -414,7 +414,7 @@ contains
                 mod(iter - semistochStartIter, &
                     coreSpaceUpdateCycle) == 0) then
                 call refresh_semistochastic_space()
-                write(6, *) "Refereshing semistochastic space at iteration ", iter
+                write(stdout, *) "Refereshing semistochastic space at iteration ", iter
             end if
 
             ! Is this an iteration where semi-stochastic is turned on?
@@ -440,7 +440,7 @@ contains
                     call refresh_trial_wf(trial_space_in, ntrial_ex_calc, &
                                           inum_runs, .false.)
                 end if
-                write(6, *) "Refreshing trial wavefunction at iteration ", iter
+                write(stdout, *) "Refreshing trial wavefunction at iteration ", iter
             end if
 
             if (((Iter - maxval(VaryShiftIter)) == allDoubsInitsDelay + 1 &
@@ -514,7 +514,7 @@ contains
             if (tAccumPops .and. iter + PreviousCycles >= iAccumPopsIter) then
                 if (.not. tAccumPopsActive) then
                     tAccumPopsActive = .true.
-                    write(6, *) "Starting to accumulate populations ..."
+                    write(stdout, *) "Starting to accumulate populations ..."
                 end if
 
                 call update_pops_sum_all(TotWalkers, iter + PreviousCycles)
@@ -899,19 +899,19 @@ contains
                 if (iHDF5TruncPopsIter == 0 .or. (mod(Iter, iHDF5TruncPopsIter) /= 0)) then
                     call write_popsfile_hdf5(iHDF5TruncPopsEx)
                 else
-                    write(6, *)
-                    write(6, *) "============== Writing Truncated HDF5 popsfile =============="
-                    write(6, *) "Unnecessary duplication of truncated popsfile is avoided."
-                    write(6, *) "It has already been written in the last iteration."
+                    write(stdout, *)
+                    write(stdout, *) "============== Writing Truncated HDF5 popsfile =============="
+                    write(stdout, *) "Unnecessary duplication of truncated popsfile is avoided."
+                    write(stdout, *) "It has already been written in the last iteration."
                 end if
             end if
 
             if (tPopsProjE) then
                 call calc_proje(InstE, AccumE)
-                write(6, *)
-                write(6, *) 'Instantaneous projected energy of popsfile:', InstE + Hii
+                write(stdout, *)
+                write(stdout, *) 'Instantaneous projected energy of popsfile:', InstE + Hii
                 if (tAccumPopsActive) &
-                    write(6, *) 'Accumulated projected energy of popsfile:', AccumE + Hii
+                    write(stdout, *) 'Accumulated projected energy of popsfile:', AccumE + Hii
             end if
         end if
 
@@ -1090,7 +1090,7 @@ contains
             write(stdout, '('' Shift correlation energy'',T52,F19.12)') mean_Shift
             write(stdout, '('' Estimated error in shift correlation energy'',T52,F19.12)') shift_err
         else
-            write(6, "(A)") " No reliable averaged shift correlation energy could be obtained automatically"
+            write(stdout, "(A)") " No reliable averaged shift correlation energy could be obtained automatically"
         end if
         if ((.not. tNoProjEValue) .and. (.not. tNoShiftValue)) then
             !Do shift and projected energy agree?

@@ -2447,7 +2447,7 @@ contains
         contrib = 0.0_dp
         do i = 1, iterations
             if (mod(i, 10000) == 0) then
-                write(6, *) i, '/', iterations, ' - ', contrib / (real(nexcit, dp) * i)
+                write(stdout, *) i, '/', iterations, ' - ', contrib / (real(nexcit, dp) * i)
             end if
 
             if (tgen_guga_crude) then
@@ -2464,7 +2464,7 @@ contains
             call EncodeBitDet(det, tgt_ilut)
             pos = binary_search(det_list(0:nifd, 1:nexcit), tgt_ilut(0:nifd))
             if (pos < 0) then
-                write(6, *) 'FAILED DET', tgt_ilut
+                write(stdout, *) 'FAILED DET', tgt_ilut
                 print *, "from CSF:"
                 call write_det_guga(6, ilutG)
                 call write_det_guga(6, tgt_ilut(0:nifd))
@@ -2501,11 +2501,11 @@ contains
         sum_pgens = sum(pgen_list)
 
         ! How many of the iterations generated a good det?
-        write(6, *) ngen, " dets generated in ", iterations, " iterations."
-        write(6, *) 100_dp * (iterations - ngen) / real(iterations, dp), &
+        write(stdout, *) ngen, " dets generated in ", iterations, " iterations."
+        write(stdout, *) 100_dp * (iterations - ngen) / real(iterations, dp), &
             '% abortion rate'
         ! Contribution averages
-        write(6, '("Averaged contribution: ", f15.10)') &
+        write(stdout, '("Averaged contribution: ", f15.10)') &
             contrib / (real(nexcit, dp) * iterations)
 
         if (t_full_guga_tests .or. t_guga_testsuite) then
@@ -2553,7 +2553,7 @@ contains
         ! Check that all of the determinants were generated!!!
         if (.not. all(generated_list)) then
 
-            write(6, *) count(.not. generated_list), '/', size(generated_list), &
+            write(stdout, *) count(.not. generated_list), '/', size(generated_list), &
                 'not generated'
 
             if (near_zero(pDoubles)) then

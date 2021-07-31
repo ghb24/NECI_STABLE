@@ -358,7 +358,7 @@ contains
 
             if (tGenerateCoreSpace .and. (mod(iter, corespace_log_interval) == 0)) then
                 call expand_corespace_buf(core_space_buf, csbuf_size)
-                write(6, *) "New corespace buffer size", csbuf_size
+                write(stdout, *) "New corespace buffer size", csbuf_size
             end if
 
             ! perform the actual iteration(excitation generation etc.)
@@ -512,7 +512,7 @@ contains
                         < stabilizerThresh * TotPartsPeak(run) .and. tSinglePartPhase(run)) then
                         ! if it is, enable dynamic shift to enforce a sufficiently high walker number
                         tSinglePartPhase(run) = .false.
-                        write(6, *) "Walker number dropped below threshold, enabling dynamic shift"
+                        write(stdout, *) "Walker number dropped below threshold, enabling dynamic shift"
                     end if
                 end do
             end if

@@ -5,7 +5,7 @@ module RPA_Mod
     use SystemData, only: nel, nBasis, Arr, Brr, G1, tReltvy
     use excitation_types, only: DoubleExc_t
     use sltcnd_mod, only: sltcnd_excit
-    use constants, only: dp, int64, n_int, maxExcit
+    use constants, only: dp, int64, n_int, maxExcit, stdout
     use Determinants, only: get_helement, fDet
     use SymExcit3, only: GenExcitations3
     use SymExcit4, only: GenExcitations4, ExcitGenSessionType
@@ -53,20 +53,20 @@ contains
 
         type(ExcitGenSessionType) :: session
 
-        write(6, "(A)")
-        write(6, "(A)") "**************************************"
+        write(stdout, "(A)")
+        write(stdout, "(A)") "**************************************"
         if (tDirectRPA) then
-            write(6, "(A)") "*   Entering DIRECT RPA calculation  *"
+            write(stdout, "(A)") "*   Entering DIRECT RPA calculation  *"
         else
-            write(6, "(A)") "*   Entering FULL RPA calculation    *"
+            write(stdout, "(A)") "*   Entering FULL RPA calculation    *"
         end if
-        write(6, "(A)") "**************************************"
-        write(6, "(A)")
+        write(stdout, "(A)") "**************************************"
+        write(stdout, "(A)")
         call neci_flush(6)
 
         HDiagTemp = get_helement(fDet, fDet, 0)
         Energy = real(HDiagTemp, dp)
-        write(6, "(A,G25.10)") "Reference energy is: ", Energy
+        write(stdout, "(A,G25.10)") "Reference energy is: ", Energy
 
         !Quickly find correlation energy from MP2 for comparison.
         Temp_real = 0.0_dp
@@ -94,14 +94,14 @@ contains
             H0tmp = Fii - H0tmp
             Temp_real = Temp_real + (hel**2) / H0tmp
         end do
-        write(6, "(A,G25.10)") "For comparison, MP2 correlation energy is: ", Temp_real
+        write(stdout, "(A,G25.10)") "For comparison, MP2 correlation energy is: ", Temp_real
 
         Weight = (0.0_dp)
         Energy = (0.0_dp)
 
         ov_space = (nBasis - NEl) * NEl
         virt_start = NEl + 1
-        write(6, "(A,I8)") "1p-1h space is: ", ov_space
+        write(stdout, "(A,I8)") "1p-1h space is: ", ov_space
 
         allocate(A_mat(ov_space, ov_space), stat=ierr)
         allocate(B_mat(ov_space, ov_space), stat=ierr)
@@ -172,7 +172,7 @@ contains
                 mi_ind = ov_space_ind(m, i)
 
                 A_mat(mi_ind, mi_ind) = A_mat(mi_ind, mi_ind) + (Arr(Brr(m), 2) - Arr(Brr(i), 2))
-!                write(6,*) Arr(Brr(m),2)-Arr(Brr(i),2)
+!                write(stdout,*) Arr(Brr(m),2)-Arr(Brr(i),2)
             end do
         end do
 
@@ -180,11 +180,11 @@ contains
         do i = 1, ov_space
             do j = 1, ov_space
                 if (abs(B_mat(i, j) - B_mat(j, i)) > 1.0e-7_dp) then
-                    write(6, *) i, j, B_mat(i, j), B_mat(j, i), abs(B_mat(i, j) - B_mat(j, i))
+                    write(stdout, *) i, j, B_mat(i, j), B_mat(j, i), abs(B_mat(i, j) - B_mat(j, i))
                     call stop_all(t_r, "B not symmetric")
                 end if
                 if (abs(A_mat(i, j) - A_mat(j, i)) > 1.0e-7_dp) then
-                    write(6, *) i, j, A_mat(i, j), A_mat(j, i), abs(A_mat(i, j) - A_mat(j, i))
+                    write(stdout, *) i, j, A_mat(i, j), A_mat(j, i), abs(A_mat(i, j) - A_mat(j, i))
 
                     call stop_all(t_r, "A not hermitian")
                 end if
@@ -196,8 +196,8 @@ contains
             !This should give identical results to other method, will be quite a bit slower, but also
             !gives information about the stability of the HF solution in all directions.
 
-            write(6, "(A)")
-            write(6, "(A)") "Calculating RPA from stability matrix..."
+            write(stdout, "(A)")
+            write(stdout, "(A)") "Calculating RPA from stability matrix..."
 
 #ifdef CMPLX_
             call stop_all(t_r, "Not coded up for complex integrals. Bug ghb24")
@@ -240,12 +240,12 @@ contains
 
             do i = 1, StabilitySize
                 if (W(i) < 0.0_dp) then
-                    write(6, *) i, W(i)
+                    write(stdout, *) i, W(i)
                     call stop_all(t_r, "HF solution not stable. Not local minimum. Recompute HF.")
                 end if
             end do
             if (.not. tdirectRPA) then
-                write(6, "(A)") "Stability matrix positive definite. HF solution is minimum. RPA stable"
+                write(stdout, "(A)") "Stability matrix positive definite. HF solution is minimum. RPA stable"
             end if
 
             !Now compute S^(1/2), and transform into original basis
@@ -306,7 +306,7 @@ contains
             do i = 1, ov_space
                 !This they are listed in order of increasing eigenvalue, we should be able to easily check that they pair up
                 if (abs(W2(i) + W2(StabilitySize - i + 1)) > 1.0e-7_dp) then
-                    write(6, *) i, StabilitySize - i + 1, W2(i), W2(StabilitySize - i + 1), abs(W2(i) - W2(StabilitySize - i + 1))
+                    write(stdout, *) i, StabilitySize - i + 1, W2(i), W2(StabilitySize - i + 1), abs(W2(i) - W2(StabilitySize - i + 1))
                     call stop_all(t_r, "Excitation energy eigenvalues do not pair")
                 end if
             end do
@@ -331,9 +331,9 @@ contains
             !Check that eigenvectors are also paired.
             !Rotations among degenerate sets will screw this up though
 !            do i=1,ov_space
-!                write(6,*) "Eigenvectors: ",i,StabilitySize-i+1,W2(i),W2(StabilitySize-i+1)
+!                write(stdout,*) "Eigenvectors: ",i,StabilitySize-i+1,W2(i),W2(StabilitySize-i+1)
 !                do j=1,StabilitySize
-!                    write(6,*) j,temp2(j,i),temp2(j,StabilitySize-i+1)
+!                    write(stdout,*) j,temp2(j,i),temp2(j,StabilitySize-i+1)
 !                end do
 !            end do
 
@@ -362,7 +362,7 @@ contains
                     X_norm = X_norm + X_stab(i, mu) * X_stab(i, mu)
                 end do
                 if (norm <= 0.0_dp) then
-                    write(6, *) "Norm^2 for vector ", mu, " is: ", norm
+                    write(stdout, *) "Norm^2 for vector ", mu, " is: ", norm
                     call stop_all(t_r, 'norm undefined')
                 end if
                 norm = sqrt(norm)
@@ -371,10 +371,10 @@ contains
                     Y_stab(i, mu) = Y_stab(i, mu) / norm
                 end do
                 if (Y_norm > X_norm / 2.0_dp) then
-                    write(6, *) "Warning: hole amplitudes large for excitation: ", mu, &
+                    write(stdout, *) "Warning: hole amplitudes large for excitation: ", mu, &
                         " Quasi-boson approximation breaking down."
-                    write(6, *) "Norm of X component: ", X_norm
-                    write(6, *) "Norm of Y component: ", Y_norm
+                    write(stdout, *) "Norm of X component: ", X_norm
+                    write(stdout, *) "Norm of Y component: ", Y_norm
                 end if
             end do
 !            call writematrix(X_stab,'X',.true.)
@@ -398,7 +398,7 @@ contains
             do i = 1, ov_space
                 do j = 1, ov_space
                     if (abs(temp2(j, i) - (W2(i + ov_space) * X_stab(j, i))) > 1.0e-6_dp) then
-                        write(6, *) i, j, temp2(j, i), (W2(i + ov_space) * X_stab(j, i)), W2(i + ov_space)
+                        write(stdout, *) i, j, temp2(j, i), (W2(i + ov_space) * X_stab(j, i)), W2(i + ov_space)
                         call stop_all(t_r, "RPA equations not satisfied for positive frequencies in X matrix")
                     end if
                 end do
@@ -406,7 +406,7 @@ contains
             do i = 1, ov_space
                 do j = 1, ov_space
                     if (abs(temp2(j + ov_space, i) - (-W2(i + ov_space) * Y_stab(j, i))) > 1.0e-6_dp) then
-                        write(6, *) i, j, temp2(j + ov_space, i), (-W2(i + ov_space) * Y_stab(j, i)), -W2(i + ov_space)
+                        write(stdout, *) i, j, temp2(j + ov_space, i), (-W2(i + ov_space) * Y_stab(j, i)), -W2(i + ov_space)
                         call stop_all(t_r, "RPA equations not satisfied for positive frequencies in Y matrix")
                     end if
                 end do
@@ -478,10 +478,10 @@ contains
             Energy_stab = Energy_stab / 2.0_dp
 
             if (tDirectRPA) then
-                write(6, "(A,G25.10)") "Direct RPA energy from stability analysis (plasmonic RPA-TDA excitation energies): ", &
+                write(stdout, "(A,G25.10)") "Direct RPA energy from stability analysis (plasmonic RPA-TDA excitation energies): ", &
                     Energy_stab
             else
-                write(6, "(A,G25.10)") "Full RPA energy from stability analysis (plasmonic RPA-TDA excitation energies): ", &
+                write(stdout, "(A,G25.10)") "Full RPA energy from stability analysis (plasmonic RPA-TDA excitation energies): ", &
                     Energy_stab
             end if
 
@@ -504,9 +504,9 @@ contains
             end do
             Energy_stab = Energy_stab / 2.0_dp
             if (tDirectRPA) then
-                write(6, "(A,G25.10)") "Direct RPA energy from stability analysis (Ring-CCD: 1/2 Tr[BZ]): ", Energy_stab
+                write(stdout, "(A,G25.10)") "Direct RPA energy from stability analysis (Ring-CCD: 1/2 Tr[BZ]): ", Energy_stab
             else
-                write(6, "(A,G25.10)") "Full RPA energy from stability analysis (Ring-CCD: 1/2 Tr[BZ]): ", Energy_stab
+                write(stdout, "(A,G25.10)") "Full RPA energy from stability analysis (Ring-CCD: 1/2 Tr[BZ]): ", Energy_stab
             end if
 
             Energy_stab = 0.0_dp
@@ -518,17 +518,17 @@ contains
                 Energy_stab = Energy_stab - W2(i + ov_space) * Y_norm
             end do
             if (tDirectRPA) then
-                write(6, "(A,G25.10)") "Direct RPA energy from stability analysis (Y-matrix): ", Energy_stab
+                write(stdout, "(A,G25.10)") "Direct RPA energy from stability analysis (Y-matrix): ", Energy_stab
             else
-                write(6, "(A,G25.10)") "Full RPA energy from stability analysis (Y-matrix): ", Energy_stab
+                write(stdout, "(A,G25.10)") "Full RPA energy from stability analysis (Y-matrix): ", Energy_stab
             end if
 
             deallocate(W2, W, temp, temp2, StabilityCopy, Stability)
 
         end if
 
-        write(6, *)
-        write(6, "(A)") "Calculating RPA via Cholesky decomposition"
+        write(stdout, *)
+        write(stdout, "(A)") "Calculating RPA via Cholesky decomposition"
         !Now, we calculate the RPA amplitudes via consideration of the boson operators.
         !This will generally be quicker, and should give the same result.
 
@@ -680,7 +680,7 @@ contains
 !        do i=1,ov_space
 !            do j=1,ov_space
 !                if(abs(Y_Chol(i,j)).gt.1.0e-7) then
-!                    write(6,*) "Found non-zero Y matrix value..."
+!                    write(stdout,*) "Found non-zero Y matrix value..."
 !                end if
 !            end do
 !        end do
@@ -698,11 +698,11 @@ contains
 !            do i=1,ov_space
 !                do j=1,ov_space
 !                    if(abs(X_Chol(j,i)-X_Stab(j,i)).gt.1.0e-7) then
-!                        write(6,*) j,i,X_Chol(j,i),X_Stab(j,i)
+!                        write(stdout,*) j,i,X_Chol(j,i),X_Stab(j,i)
 !!                        call stop_all(t_r,"Calculation of X matrix not the same as via stability matrix")
 !                    end if
 !                    if(abs(Y_Chol(j,i)-Y_Stab(j,i)).gt.1.0e-7) then
-!                        write(6,*) j,i,Y_Chol(j,i),Y_Stab(j,i)
+!                        write(stdout,*) j,i,Y_Chol(j,i),Y_Stab(j,i)
 !!                        call stop_all(t_r,"Calculation of Y matrix not the same as via stability matrix")
 !                    end if
 !                end do
@@ -729,7 +729,7 @@ contains
         do i = 1, ov_space
             do j = 1, ov_space
                 if (abs(temp2(j, i) - (sqrt(W(i)) * X_Chol(j, i))) > 1.0e-6_dp) then
-                    write(6, *) i, j, temp2(j, i), (sqrt(W(i)) * X_Chol(j, i)), sqrt(W(i))
+                    write(stdout, *) i, j, temp2(j, i), (sqrt(W(i)) * X_Chol(j, i)), sqrt(W(i))
                     call stop_all(t_r, "RPA equations not satisfied for positive frequencies in X matrix")
                 end if
             end do
@@ -737,7 +737,7 @@ contains
         do i = 1, ov_space
             do j = 1, ov_space
                 if (abs(temp2(j + ov_space, i) - (-sqrt(W(i)) * Y_Chol(j, i))) > 1.0e-6_dp) then
-                    write(6, *) i, j, temp2(j + ov_space, i), (-sqrt(W(i)) * Y_Chol(j, i)), -sqrt(W(i))
+                    write(stdout, *) i, j, temp2(j + ov_space, i), (-sqrt(W(i)) * Y_Chol(j, i)), -sqrt(W(i))
                     call stop_all(t_r, "RPA equations not satisfied for positive frequencies in Y matrix")
                 end if
             end do
@@ -814,10 +814,10 @@ contains
         end do
         Energy2 = Energy2 + norm / 2.0_dp
         if (tDirectRPA) then
-            write(6, "(A,G25.10)") "Direct RPA energy (plasmonic RPA-TDA excitation energies): ", &
+            write(stdout, "(A,G25.10)") "Direct RPA energy (plasmonic RPA-TDA excitation energies): ", &
                 Energy2 - real(HDiagTemp, dp)
         else
-            write(6, "(A,G25.10)") "Full RPA energy (plasmonic RPA-TDA excitation energies): ", &
+            write(stdout, "(A,G25.10)") "Full RPA energy (plasmonic RPA-TDA excitation energies): ", &
                 Energy2 - real(HDiagTemp, dp)
         end if
 
@@ -833,9 +833,9 @@ contains
         end do
         Energy = Energy / 2.0_dp
         if (tDirectRPA) then
-            write(6, "(A,G25.10)") "Direct RPA energy (Ring-CCD: 1/2 Tr[BZ]): ", Energy
+            write(stdout, "(A,G25.10)") "Direct RPA energy (Ring-CCD: 1/2 Tr[BZ]): ", Energy
         else
-            write(6, "(A,G25.10)") "Full RPA energy (Ring-CCD: 1/2 Tr[BZ]): ", Energy
+            write(stdout, "(A,G25.10)") "Full RPA energy (Ring-CCD: 1/2 Tr[BZ]): ", Energy
         end if
         deallocate(temp, temp2)
 
@@ -849,16 +849,16 @@ contains
             Energy = Energy - norm * sqrt(W(v))
         end do
         if (tDirectRPA) then
-            write(6, "(A,G25.10)") "Direct RPA energy (Y matrix): ", Energy - real(HDiagTemp, dp)
+            write(stdout, "(A,G25.10)") "Direct RPA energy (Y matrix): ", Energy - real(HDiagTemp, dp)
         else
-            write(6, "(A,G25.10)") "Full RPA energy (Y matrix): ", Energy - real(HDiagTemp, dp)
+            write(stdout, "(A,G25.10)") "Full RPA energy (Y matrix): ", Energy - real(HDiagTemp, dp)
         end if
 
-        write(6, "(A)")
-        write(6, "(A)") "RPA calculation completed successfully"
-        write(6, "(A)")
+        write(stdout, "(A)")
+        write(stdout, "(A)") "RPA calculation completed successfully"
+        write(stdout, "(A)")
 
-        write(6, "(A)") "Calculating 1RDM..."
+        write(stdout, "(A)") "Calculating 1RDM..."
         allocate(OccNumbers(nBasis))    !This is the GS 1RDM, which is diagonal in RPA
 
         OccNumbers(:) = 0.0_dp
@@ -885,8 +885,8 @@ contains
             end do
         end do
 
-        write(6, "(A)") "Writing RPA occupation numbers to file: RPA_OccNumbers"
-        write(6, "(A)") ""
+        write(stdout, "(A)") "Writing RPA occupation numbers to file: RPA_OccNumbers"
+        write(stdout, "(A)") ""
         iunit = get_free_unit()
         open(iunit, file='RPA_OccNumbers', status='unknown')
         write(iunit, "(A)") "# Orbital(Energy_order)  Orbital   Fock eigenvalue   RPA_Occupation"
@@ -919,7 +919,7 @@ contains
         call dGETRF(msize, nsize, matdum, nsize, ipiv, info)
 !        IF (INFO /= 0) STOP 'Error with d_inv 1'
         if (info /= 0) then
-            write(6, *) 'Warning from d_inv 1', info
+            write(stdout, *) 'Warning from d_inv 1', info
             call stop_all("d_inv", "Warning from d_inv 1")
         end if
         call dGETRS('n', msize, nsize, matdum, nsize, IPIV, matinv, msize, info)
@@ -942,12 +942,12 @@ contains
                     temp = temp + X(i, mu) * X(i, mu_p) - Y(i, mu) * Y(i, mu_p)
                 end do
                 if ((mu == mu_p) .and. ((abs(temp) - 1.0_dp) > 1.0e-6_dp)) then
-                    write(6, *) mu, mu_p, temp
+                    write(stdout, *) mu, mu_p, temp
                     call writevector(X(:, mu), 'X(:,mu)')
                     call writevector(Y(:, mu), 'Y(:,mu)')
                     call stop_all(t_r, 'X/Y not normalized')
                 else if ((mu /= mu_p) .and. (abs(temp) > 1.0e-6_dp)) then
-                    write(6, *) mu, mu_p
+                    write(stdout, *) mu, mu_p
                     call stop_all(t_r, 'X/Y not orthogonal')
                 end if
             end do
@@ -961,10 +961,10 @@ contains
                     temp = temp + X(i, mu) * X(j, mu) - Y(i, mu) * Y(j, mu)
                 end do
                 if ((i /= j) .and. (abs(temp) > 1.0e-7_dp)) then
-                    write(6, *) i, j, temp
+                    write(stdout, *) i, j, temp
                     call stop_all(t_r, 'X/Y rows not orthogonal')
                 else if ((i == j) .and. (abs(temp) - 1.0_dp) > 1.0e-7_dp) then
-                    write(6, *) i, j, temp
+                    write(stdout, *) i, j, temp
                     call stop_all(t_r, 'X/Y rows not normalized')
                 end if
             end do
@@ -988,17 +988,17 @@ contains
         integer :: i, j
         logical :: tOneLine
 
-        write(6, *) "Writing out matrix: ", trim(matname)
-        write(6, "(A,I7,A,I7)") "Size: ", size(mat, 1), " by ", size(mat, 2)
+        write(stdout, *) "Writing out matrix: ", trim(matname)
+        write(stdout, "(A,I7,A,I7)") "Size: ", size(mat, 1), " by ", size(mat, 2)
         do i = 1, size(mat, 1)
             do j = 1, size(mat, 2)
                 if (tOneLine) then
-                    write(6, "(G25.10)", advance='no') mat(i, j)
+                    write(stdout, "(G25.10)", advance='no') mat(i, j)
                 else
-                    write(6, "(2I6,G25.10)") i, j, mat(i, j)
+                    write(stdout, "(2I6,G25.10)") i, j, mat(i, j)
                 end if
             end do
-            write(6, *)
+            write(stdout, *)
         end do
     end subroutine WriteMatrix
 
@@ -1008,13 +1008,13 @@ contains
         character(len=*), intent(in) :: vecname
         integer :: i
 
-        write(6, *) "Writing out vector: ", trim(vecname)
-        write(6, "(A,I7,A,I7)") "Size: ", size(vec, 1)
+        write(stdout, *) "Writing out vector: ", trim(vecname)
+        write(stdout, "(A,I7,A,I7)") "Size: ", size(vec, 1)
         do i = 1, size(vec, 1)
-!            write(6,"(G25.10)",advance='no') vec(i)
-            write(6, "(G25.10)") vec(i)
+!            write(stdout,"(G25.10)",advance='no') vec(i)
+            write(stdout, "(G25.10)") vec(i)
         end do
-        write(6, *)
+        write(stdout, *)
     end subroutine WriteVector
 
 end module RPA_Mod

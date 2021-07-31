@@ -176,7 +176,7 @@ contains
             if (allNValidExcits /= 0) then
                 ! we try to have approx. one valid excitation generated per walker
                 AvMCExcits = (allNValidExcits + allNInvalidExcits) / (allNValidExcits)
-                write(6, *) "Now spawning ", AvMCExcits, " times per walker"
+                write(stdout, *) "Now spawning ", AvMCExcits, " times per walker"
             end if
         end if
 
@@ -221,7 +221,7 @@ contains
                 ! growth
                 TempSpawnedPartsSize = int(maxval(iHighestPop) * 1.5)
                 allocate_temp_parts = .true.
-                !write(6,*) 1.5 * maxval(iHighestPop), TempSpawnedPartsSize
+                !write(stdout,*) 1.5 * maxval(iHighestPop), TempSpawnedPartsSize
             end if
 
             ! If we need to allocate this array, then do so.
@@ -236,7 +236,7 @@ contains
                                  this_routine, TempSpawnedPartsTag, ierr)
                 write (6, "(' Allocating temporary array for walkers spawned &
                            &from a particular Di.')")
-                write(6, "(a,f14.6,a)") " This requires ", &
+                write(stdout, "(a,f14.6,a)") " This requires ", &
                     real(((nifd + 1) * TempSpawnedPartsSize * size_n_int), dp) &
                     / 1048576.0_dp, " Mb/Processor"
             end if
@@ -1138,7 +1138,7 @@ contains
                                 DiagSft(run) = DiagSft(run) - (log(AllHFGrowRate(run)) * SftDamp) / &
                                                (Tau * StepsSft)
                             else
-                                !"write(6,*) "AllGrowRate, TargetGrowRate", AllGrowRate, TargetGrowRate
+                                !"write(stdout,*) "AllGrowRate, TargetGrowRate", AllGrowRate, TargetGrowRate
                                 DiagSft(run) = DiagSft(run) - (log(AllGrowRate(run)) * SftDamp) / &
                                                (Tau * StepsSft)
                                 if (tTargetShiftdamp) then
@@ -1486,7 +1486,7 @@ contains
         !Choose a random processor propotioanl to the sum of amplitudes of its trial space
         call MPIGather(total_amp, total_amps, err)
         if (iProcIndex == root) then
-            !write(6,*) "total_amps: ", total_amps
+            !write(stdout,*) "total_amps: ", total_amps
             do j = 2, nProcessors
                 total_amps(j) = total_amps(j) + total_amps(j - 1)
             end do
@@ -1494,9 +1494,9 @@ contains
         end if
         call MPIBCast(proc_idx)
 
-        !write(6,*) "proc_idx", proc_idx
-        !write(6,*) "total_count: ", trial_count
-        !write(6,*) "amps: ", amps(1:trial_count)
+        !write(stdout,*) "proc_idx", proc_idx
+        !write(stdout,*) "total_count: ", trial_count
+        !write(stdout,*) "amps: ", amps(1:trial_count)
         !Enforcing an update of the random determinant of the random processor
         if (iProcIndex == proc_idx) then
             !Choose a random determinant

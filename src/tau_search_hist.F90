@@ -422,7 +422,7 @@ contains
         if (tReadPops) then
             write(stdout,*) "Using time-step from POPSFILE!"
         else
-            write(6,*) 'Using initial time-step: ', tau
+            write(stdout,*) 'Using initial time-step: ', tau
         end if
 
         ! Set the maximum spawn size

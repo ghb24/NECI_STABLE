@@ -156,7 +156,7 @@ contains
             tDetermState = .false.
             CurrentSign = 0.0_dp
 
-!            write(6,*) 'i,DiagParts(:,i)',i,DiagParts(:,i)
+!            write(stdout,*) 'i,DiagParts(:,i)',i,DiagParts(:,i)
 
             if (tSuccess) then
 
@@ -1058,16 +1058,16 @@ contains
         ! Each node requires 16 bytes.
         nhashes_spawn = int(0.8_dp * real(MaxSpawned, dp))
         spawn_ht_mem = nhashes_spawn * 16 / 1000000
-        write(6, '(a78,'//int_fmt(spawn_ht_mem, 1)//')') "About to allocate hash table to the spawning array. &
+        write(stdout, '(a78,'//int_fmt(spawn_ht_mem, 1)//')') "About to allocate hash table to the spawning array. &
                                        &Memory required (MB):", spawn_ht_mem
-        write(6, '(a13)', advance='no') "Allocating..."; call neci_flush(6)
+        write(stdout, '(a13)', advance='no') "Allocating..."; call neci_flush(6)
         allocate(spawn_ht(nhashes_spawn), stat=ierr)
         if (ierr /= 0) then
-            write(6, '(1x,a11,1x,i5)') "Error code:", ierr
+            write(stdout, '(1x,a11,1x,i5)') "Error code:", ierr
             call stop_all(this_routine, "Error allocating spawn_ht array.")
         else
-            write(6, '(1x,a5)') "Done."
-            write(6, '(a106)') "Note that the hash table uses linked lists, and the memory usage will &
+            write(stdout, '(1x,a5)') "Done."
+            write(stdout, '(a106)') "Note that the hash table uses linked lists, and the memory usage will &
                               &increase as further nodes are added."
         end if
 
@@ -1412,16 +1412,16 @@ contains
 
                 call write_overlap_state_serial(perturbed_buf, TotWalkers_orig_max, i)
             else
-                write(6, *) "Generated overlap state"
+                write(stdout, *) "Generated overlap state"
                 call write_overlap_state_serial(CurrentDets, int(TotWalkers), i)
-                write(6, *) "Written overlap state to array"
+                write(stdout, *) "Written overlap state to array"
             end if
             call MPISumAll(overlap_states(i)%nDets, totNOccDets)
             if (totNOccDets == 0) then
                 if (gf_count == 1) then
                     call stop_all('create_perturbed_ground', 'No walkers survived perturbation')
                 else
-                    write(6, *) "WARNING, EMPTY PERTURBED STATE WITH INDEX", i
+                    write(stdout, *) "WARNING, EMPTY PERTURBED STATE WITH INDEX", i
                 end if
             end if
             tmp_totwalkers = totwalkers_backup
@@ -1487,11 +1487,11 @@ contains
             write(stdout, *) "update_growth: ", growth_tot
             write(stdout, *) "AllTotParts: ", allWalkers
             write(stdout, *) "AllTotPartsOld: ", allWalkersOld
-            write(6, *) "nborn", allBorn
-            write(6, *) "ndied", allDied
-            write(6, *) "nannihil", allAnnihil
-            write(6, *) "naborted", allAbrt
-            write(6, *) "nremoved", allRmv
+            write(stdout, *) "nborn", allBorn
+            write(stdout, *) "ndied", allDied
+            write(stdout, *) "nannihil", allAnnihil
+            write(stdout, *) "naborted", allAbrt
+            write(stdout, *) "nremoved", allRmv
 
             call stop_all("check_update_growth", &
                           "Assertation failed: all(iter_data_fciqmc%update_growth_tot.eq.AllTotParts_1-AllTotPartsOld_1)")

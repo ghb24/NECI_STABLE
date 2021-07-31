@@ -27,7 +27,7 @@ module k_space_hubbard
 
     use procedure_pointers, only: get_umat_el, generate_excitation
 
-    use constants, only: n_int, dp, EPS, bits_n_int, int64, maxExcit
+    use constants, only: n_int, dp, EPS, bits_n_int, int64, maxExcit, stdout
 
     use bit_rep_data, only: NIfTot, nifd
 
@@ -171,10 +171,10 @@ contains
         nSymLabels = nsym
 
         ! copy the output from the old hubbard code:
-        write(6, "(A,I3,A)") "Generating abelian symmetry table with", &
+        write(stdout, "(A,I3,A)") "Generating abelian symmetry table with", &
             nsym, " generators for Hubbard momentum"
         if (allocated(SymLabels)) then
-            write(6, '(a/a)') &
+            write(stdout, '(a/a)') &
                 'Warning: symmetry info already allocated.', &
                 'Deallocating and reallocating.'
             deallocate(SymLabels)
@@ -293,7 +293,7 @@ contains
             end do
         end do
 #ifdef DEBUG_
-        write(6, *) "Symmetry, Symmetry Conjugate"
+        write(stdout, *) "Symmetry, Symmetry Conjugate"
         do i = 1, lat%get_nsites()
             print *, i, SymConjTab(i)
         end do
@@ -2957,9 +2957,9 @@ contains
                 SpinOrbSymLabel(i) = SymClasses(((i + 1) / 2)) - 1
             end do
 #ifdef DEBUG_
-            write(6, *) "SpinOrbSymLabel: "
+            write(stdout, *) "SpinOrbSymLabel: "
             do i = 1, nBasis
-                write(6, *) i, SpinOrbSymLabel(i)
+                write(stdout, *) i, SpinOrbSymLabel(i)
             end do
 #endif
             if (allocated(SymTableLabels)) deallocate(SymTableLabels)
@@ -2987,12 +2987,12 @@ contains
                 end do
             end do
 #ifdef DEBUG_
-            write(6, *) "SymTable:"
+            write(stdout, *) "SymTable:"
             do i = 0, nSymLabels - 1
                 do j = 0, nSymLabels - 1
-                    write(6, "(I6)", advance='no') SymTableLabels(i, j)
+                    write(stdout, "(I6)", advance='no') SymTableLabels(i, j)
                 end do
-                write(6, *) ""
+                write(stdout, *) ""
             end do
 #endif
 
@@ -3020,7 +3020,7 @@ contains
                     ! rep
                     if (SymTableLabels(i, j) == sym0) then
                         if (SymInvLabel(i) /= -999) then
-                            write(6, *) "SymLabel: ", i
+                            write(stdout, *) "SymLabel: ", i
                             call stop_all(this_routine, &
                                           "Multiple inverse irreps found - error")
                         end if
@@ -3029,14 +3029,14 @@ contains
                     end if
                 end do
                 if (SymInvLabel(i) == -999) then
-                    write(6, *) "SymLabel: ", i
+                    write(stdout, *) "SymLabel: ", i
                     call stop_all(this_routine, "No inverse symmetry found - error")
                 end if
             end do
 #ifdef DEBUG_
-            write(6, *) "SymInvLabel: "
+            write(stdout, *) "SymInvLabel: "
             do i = 0, nSymLabels - 1
-                write(6, *) i, SymInvLabel(i)
+                write(stdout, *) i, SymInvLabel(i)
             end do
 #endif
 

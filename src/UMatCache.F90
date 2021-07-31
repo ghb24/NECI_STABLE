@@ -2,7 +2,7 @@
 
 MODULE UMatCache
 
-    use constants, only: dp, sizeof_int, int64
+    use constants, only: dp, sizeof_int, int64, stdout
 
     use SystemData, only: tROHF, tStoreSpinOrbs, tComplexWalkers_RealInts, &
                           Symmetry, BasisFN, UMatEps, tROHF
@@ -161,9 +161,9 @@ Contains
         INTEGER BRR2(NBASIS), ierr, I, t
         character(*), parameter :: t_r = 'CreateInvBRR2'
 
-!        write(6,*) "================================"
-!        write(6,*) "BRR2 is "
-!        write(6,*) BRR2(:)
+!        write(stdout,*) "================================"
+!        write(stdout,*) "BRR2 is "
+!        write(stdout,*) BRR2(:)
 
         allocate(INVBRR2(NBASIS / 2), STAT=ierr)
         CALL LogMemAlloc('INVBRR2', NBASIS / 2, 4, t_r, tagINVBRR2, ierr)
@@ -174,9 +174,9 @@ Contains
             INVBRR2(BRR2(I) / 2) = t
         end do
 
-!        write(6,*) "================================"
-!        write(6,*) "InvBRR2 is "
-!        write(6,*) INVBRR2(:)
+!        write(stdout,*) "================================"
+!        write(stdout,*) "InvBRR2 is "
+!        write(stdout,*) INVBRR2(:)
 
         RETURN
     END SUBROUTINE CreateInvBRR2
@@ -406,24 +406,24 @@ Contains
         NSTATES = NSTATE
         IF(NSLOTSINIT <= 0) THEN
             NSLOTS = 0
-            write(6, *) "Not using UMATCACHE."
+            write(stdout, *) "Not using UMATCACHE."
         ELSE
             NPAIRS = NSTATES * (NSTATES + 1) / 2
-            write(6, *) "NPairs: ", NSTATES, NPAIRS
+            write(stdout, *) "NPairs: ", NSTATES, NPAIRS
             IF(TSMALL) THEN
                 NSLOTS = NSTATES
                 tSmallUMat = .TRUE.
-                write(6, *) "Using small pre-freezing UMat Cache."
+                write(stdout, *) "Using small pre-freezing UMat Cache."
             ELSE
                 IF(nMemInit /= 0) THEN
-                    write(6, *) "Allocating ", nMemInit, "Mb for UMatCache+Labels."
+                    write(stdout, *) "Allocating ", nMemInit, "Mb for UMatCache+Labels."
                     nSlotsInit = nint((nMemInit * 1048576 / 8) / (nPairs * (nTypes * HElement_t_size + 1.0_dp / irat)), sizeof_int)
                 end if
                 NSLOTS = MIN(NPAIRS, NSLOTSINIT)
                 tSmallUMat = .FALSE.
             end if
             UMATCACHEFLAG = 0
-            write(6, "(A,I3,2I7,I10)") "UMAT NTYPES,NSLOTS,NPAIRS,TOT", NTYPES, NSLOTS, NPAIRS, NSLOTS * NPAIRS * NTYPES
+            write(stdout, "(A,I3,2I7,I10)") "UMAT NTYPES,NSLOTS,NPAIRS,TOT", NTYPES, NSLOTS, NPAIRS, NSLOTS * NPAIRS * NTYPES
             TUMAT2D = .FALSE.
             ! Each cache element stores <ij|ab> and <ib|aj>.  If real orbitals
             ! then these are identical and we can use this to halve the storage
@@ -434,7 +434,7 @@ Contains
             allocate(UMatLabels(nSlots, nPairs), STAT=ierr)
             CALL LogMemAlloc('UMATLABELS', nSlots * nPairs, 4, thisroutine, tagUMatLabels)
             Memory = (REAL(nTypes * nSlots, dp) * nPairs * 8.0_dp * HElement_t_size + nSlots * nPairs * 4.0_dp) * 9.536743316e-7_dp
-            write(6, "(A,G20.10,A)") "Total memory allocated for storage of integrals in cache is: ", Memory, "Mb/Processor"
+            write(stdout, "(A,G20.10,A)") "Total memory allocated for storage of integrals in cache is: ", Memory, "Mb/Processor"
 
             UMatCacheData = (0.0_dp)
             UMATLABELS(1:nSlots, 1:nPairs) = 0
@@ -442,7 +442,7 @@ Contains
 !the <ik|u|jk> integrals from the FCIDUMP file, then disperse them using the
 !FillUMatCache routine. Otherwise, we need to read in all the integrals.
             if(.not. tSmallUMat .and. tReadInCache) then
-                write(6, *) 'reading in cache'
+                write(stdout, *) 'reading in cache'
                 call ReadInUMatCache
             end if
         end if
@@ -463,7 +463,7 @@ Contains
         character(len=*), parameter :: thisroutine = 'SETUPUMAT2D'
         IF((NSLOTSINIT < 0)) THEN
             TUMAT2D = .FALSE.
-            write(6, *) "Not using UMAT2D."
+            write(stdout, *) "Not using UMAT2D."
         ELSE
             TUMAT2D = .TRUE.
             allocate(UMat2D(nStates, nStates), STAT=ierr)
@@ -481,12 +481,12 @@ Contains
         character(len=*), parameter :: thisroutine = 'SETUPUMAT2D_DF'
         IF(NSLOTSINIT < 0) THEN
             TUMAT2D = .FALSE.
-            write(6, *) "Not using UMAT2D."
+            write(stdout, *) "Not using UMAT2D."
         ELSE
             TUMAT2D = .TRUE.
             allocate(UMat2D(nStates, nStates), STAT=ierr)
             UMat2D = 0.0_dp
-!            write(6,*) "nStates for UMat2D: ",nStates
+!            write(stdout,*) "nStates for UMat2D: ",nStates
             call LogMemAlloc('UMat2D', nStates**2, 8 * HElement_t_size, thisroutine, tagUMat2D, ierr)
             IF(tRIIntegrals .or. tCacheFCIDUMPInts) THEN
                 !        CALL ReadRI2EIntegrals(nStates,UMat2D,tUMat2D)
@@ -538,9 +538,9 @@ Contains
             end if
         end do
         IF(tDiff) THEN
-            write(6, *) "New->Old State Translation Table"
+            write(stdout, *) "New->Old State Translation Table"
             DO I = 1, nNew / 2
-                write(6, *) I, TransTable(I)
+                write(stdout, *) I, TransTable(I)
             end do
         end if
         TTRANSFINDX = .TRUE.
@@ -551,7 +551,7 @@ Contains
         character(len=*), parameter :: thisroutine = 'DESTROYUMATCACHE'
         CALL WriteUMatCacheStats()
         IF(ASSOCIated(UMatCacheData)) THEN
-            write(6, *) "Destroying UMatCache"
+            write(stdout, *) "Destroying UMatCache"
             CALL LogMemDealloc(thisroutine, tagUMatCacheData)
             Deallocate(UMatCacheData)
             CALL LogMemDealloc(thisroutine, tagUMATLABELS)
@@ -574,12 +574,12 @@ Contains
     SUBROUTINE WriteUMatCacheStats
         IMPLICIT NONE
         IF(ASSOCIated(UMatCacheData)) THEN
-            write(6, *) "UMAT Cache Statistics"
-            write(6, *) NHITS, " hits"
-            write(6, *) NMISSES, " misses"
-            write(6, *) iCacheOvCount, " overwrites"
+            write(stdout, *) "UMAT Cache Statistics"
+            write(stdout, *) NHITS, " hits"
+            write(stdout, *) NMISSES, " misses"
+            write(stdout, *) iCacheOvCount, " overwrites"
             if(NHITS + NMISSES > 0) then
-                write(6, "(F6.2,A)")(NHITS / (NHITS + NMISSES + 0.0_dp)) * 100, "% success"
+                write(stdout, "(F6.2,A)")(NHITS / (NHITS + NMISSES + 0.0_dp)) * 100, "% success"
             end if
         end if
     END SUBROUTINE WriteUMatCacheStats
@@ -659,7 +659,7 @@ Contains
         INTEGER TAB(A:B)
         INTEGER I, J, IFIRST, N, ILAST
 !         DO I=A,B
-!            write(6,*) I,TAB(I)
+!            write(stdout,*) I,TAB(I)
 !         end do
         I = A
         J = B
@@ -667,7 +667,7 @@ Contains
         ILAST = J
         DO WHILE(J - I >= 1)
             N = (I + J) / 2
-!            write(6,"(A,5I3)") "TN",I,J,N,TAB(N),VAL
+!            write(stdout,"(A,5I3)") "TN",I,J,N,TAB(N),VAL
             IF(TAB(N) < VAL .AND. TAB(N) /= 0 .AND. I /= N) THEN
                 IF(TAB(N) /= TAB(IFIRST)) IFIRST = N
 !   reset the lower limit
@@ -680,7 +680,7 @@ Contains
 !   bingo, we've got it!
                 LOC = N
 !         DO I=A,B
-!            write(6,*) I,TAB(I),I.EQ.LOC
+!            write(stdout,*) I,TAB(I),I.EQ.LOC
 !         end do
                 LOC1 = N
                 LOC2 = N
@@ -700,7 +700,7 @@ Contains
         end if
 !   We've failed.  However, the new value should sit between I and J.
 !   Split whichever of the prior or after slots which has the most duplicates
-!         write(6,*) "FAIL:",IFIRST,I,J,ILAST
+!         write(stdout,*) "FAIL:",IFIRST,I,J,ILAST
         LOC1 = IFIRST + 1
         LOC2 = ILAST - 1
         IF(TAB(IFIRST) == TAB(ILAST)) THEN
@@ -713,7 +713,7 @@ Contains
             LOC = (ILAST + J) / 2
         end if
 !         DO I=A,B
-!            write(6,*) I,TAB(I),I.EQ.LOC
+!            write(stdout,*) I,TAB(I),I.EQ.LOC
 !         end do
     END SUBROUTINE BinarySearch
 
@@ -774,12 +774,12 @@ Contains
         INTEGER nOld, nNew, OrbTrans(nOld)
         INTEGER onSlots, onPairs
         if(nNew / 2 /= nStates .OR. tSmallUMat) THEN
-            write(6, *) "Reordering UMatCache for freezing"
+            write(stdout, *) "Reordering UMatCache for freezing"
             onSlots = nSlots
             onPairs = nPairs
             CALL FreezeUMatCacheInt(OrbTrans, nOld, nNew, onSlots, onPairs)
         else
-            write(6, *) "UMatCache size not changing.  Not reordering."
+            write(stdout, *) "UMatCache size not changing.  Not reordering."
         end if
     END SUBROUTINE FreezeUMatCache
 
@@ -938,20 +938,20 @@ Contains
             CALL SWAP(K, L)
         end if
 
-!          write(6,*) "Final Phys ordering: ",I,J,K,L
-!          write(6,*) "Pair indices: ",A,B
+!          write(stdout,*) "Final Phys ordering: ",I,J,K,L
+!          write(stdout,*) "Pair indices: ",A,B
 
         IF(A > nPairs) THEN
-            write(6, *) "Final Phys ordering: ", I, J, K, L
-            write(6, *) "Pair indices: ", A, B
-            write(6, *) "nPairs,nSlots: ", nPairs, nSlots
+            write(stdout, *) "Final Phys ordering: ", I, J, K, L
+            write(stdout, *) "Pair indices: ", A, B
+            write(stdout, *) "nPairs,nSlots: ", nPairs, nSlots
             CALL Stop_All("CacheFCIDUMP", "Error in caching")
         end if
 
 !Store the integral in a contiguous fashion. A is the index for the i,k pair
         IF(UMATLABELS(CacheInd(A), A) /= 0) THEN
             IF((abs(REAL(UMatCacheData(nTypes - 1, CacheInd(A), A), dp) - Z)) > 1.0e-7_dp) THEN
-                write(6, *) i, j, k, l, z, UMatCacheData(nTypes - 1, CacheInd(A), A)
+                write(stdout, *) i, j, k, l, z, UMatCacheData(nTypes - 1, CacheInd(A), A)
                 CALL Stop_All("CacheFCIDUMP", "Same integral cached in same place with different value")
             end if
 
@@ -1013,9 +1013,9 @@ Contains
                 CALL Stop_All("CalcNSlotsInit", "Problem since X > nPairs")
             end if
             IF((MaxSlots(X) > nPairs2) .and. (.not. tROHF)) THEN
-                write(6, *) "Final Phys ordering: ", I, J, K, L
-                write(6, *) "Pair indices: ", X, Y
-                write(6, *) "nPairs,nSlots: ", nPairs2, MaxSlots(X)
+                write(stdout, *) "Final Phys ordering: ", I, J, K, L
+                write(stdout, *) "Pair indices: ", X, Y
+                write(stdout, *) "nPairs,nSlots: ", nPairs2, MaxSlots(X)
                 CALL Stop_All("CalcNSlotsInit", "Problem since more integrals for a given ik pair found than possible.")
             end if
         end if
@@ -1030,13 +1030,13 @@ Contains
         logical tDummy, testfile
         inquire(file="CacheDump", exist=testfile)
         if(.not. testfile) then
-            write(6, *) 'CacheDump does not exist.'
+            write(stdout, *) 'CacheDump does not exist.'
             return
         end if
         iunit = get_free_unit()
         open(iunit, file="CacheDump", status="old", iostat=readerr)
         if(readerr /= 0) then
-            write(6, *) 'Error reading CacheDump.'
+            write(stdout, *) 'Error reading CacheDump.'
             return
         end if
         read(iunit, *) nStatesDump
@@ -1181,12 +1181,12 @@ Contains
         INTEGER A, B, ITYPE, ISTAR, ISWAP
 !         LOGICAL tDebug
 !         IF(IDI.eq.14.and.IDJ.eq.17.and.IDK.eq.23.and.IDL.eq.6) THEN
-!             write(6,*) "Setting tDebug!"
+!             write(stdout,*) "Setting tDebug!"
 !             tDebug=.true.
 !         ELSE
 !             tDebug=.false.
 !         end if
-!         write(6,"(A,4I5)") "GCUI",IDI,IDJ,IDK,IDL
+!         write(stdout,"(A,4I5)") "GCUI",IDI,IDJ,IDK,IDL
         IF(NSLOTS == 0) THEN
 !We don't have a cache so signal failure.
             GETCACHEDUMATEL = .TRUE.
@@ -1313,7 +1313,7 @@ Contains
                 end if
             end if
         end if
-!         IF(tDebug) write(6,"(A,8I5)") "GCUE",IDI,IDJ,IDK,IDL,A,B,iType,UMatCacheFlag
+!         IF(tDebug) write(stdout,"(A,8I5)") "GCUE",IDI,IDJ,IDK,IDL,A,B,iType,UMatCacheFlag
         ICACHE = A
         IF(NSLOTS == NPAIRS .OR. tSmallUMat) THEN
 !   we've a small enough system to store everything.
@@ -1330,11 +1330,11 @@ Contains
                 ICACHEI2 = ICACHEI1
                 IF(UMatLabels(iCacheI, A) /= 0) iCacheOvCount = iCacheOvCount + 1
 
-!write(6,*) "Cache Overwrite", A,B
-!                  write(6,*) IDI,IDJ,IDK,IDL
-!                  write(6,*) A,B,NSLOTS,NPAIRS
-!                  write(6,*) ICACHEI1,ICACHEI2
-!                  write(6,*) ICACHEI
+!write(stdout,*) "Cache Overwrite", A,B
+!                  write(stdout,*) IDI,IDJ,IDK,IDL
+!                  write(stdout,*) A,B,NSLOTS,NPAIRS
+!                  write(stdout,*) ICACHEI1,ICACHEI2
+!                  write(stdout,*) ICACHEI
             ELSE
 !                IF(tDebug) THEN
 !                     CALL DumpUMatCache(nBasis)
@@ -1346,7 +1346,7 @@ Contains
             end if
         end if
         IF(UMATLABELS(ICACHEI, ICACHE) == B) THEN
-            !write(6,*) "C",IDI,IDJ,IDK,IDL,ITYPE,UMatCacheData(0:nTypes-1,ICACHEI,ICACHE)
+            !write(stdout,*) "C",IDI,IDJ,IDK,IDL,ITYPE,UMatCacheData(0:nTypes-1,ICACHEI,ICACHE)
             UMATEL = UMatCacheData(IAND(ITYPE, 1), ICACHEI, ICACHE)
 #ifdef CMPLX_
             IF(BTEST(ITYPE, 1)) UMATEL = CONJG(UMATEL)  ! Bit 1 tells us whether we need to complex conjg the integral
@@ -1356,7 +1356,7 @@ Contains
         ELSE
 !   signal failure
             GETCACHEDUMATEL = .TRUE.
-!            write(68,*) A,B,ICACHEI1,ICACHEI2,ICACHEI
+!            write(stdout8,*) A,B,ICACHEI1,ICACHEI2,ICACHEI
         end if
         RETURN
     END FUNCTION GETCACHEDUMATEL
@@ -1457,8 +1457,8 @@ SUBROUTINE CACHEUMATEL(B, UMATEL, ICACHE, ICACHEI, iType)
     SAVE ITOTAL
     DATA ITOTAL/0/
     if(nSlots == 0) return
-!         write(6,*) "CU",A,B,UMATEL,iType
-!         write(6,*) A,ICache,B,ICacheI
+!         write(stdout,*) "CU",A,B,UMATEL,iType
+!         write(stdout,*) A,ICache,B,ICacheI
     if(nTypes > 1) then
 ! A number of different cases to deal with depending on the order the integral came in (see GetCachedUMatEl for details)
 !  First get which pos in the slot will be the new first pos
@@ -1485,8 +1485,8 @@ SUBROUTINE CACHEUMATEL(B, UMATEL, ICACHE, ICACHEI, iType)
 #endif
         UMatEl = Tmp
     end if
-!         write(6,*) "CU",A,B,UMATEL,iType
-!         write(69,*) NSLOTS,A,B,UMATEL,ICACHE,ICACHEI
+!         write(stdout,*) "CU",A,B,UMATEL,iType
+!         write(stdout9,*) NSLOTS,A,B,UMATEL,ICACHE,ICACHEI
     IF(NSLOTS == NPAIRS .OR. UMATCACHEFLAG == 1 .OR. tSmallUMat) THEN
 !   small system.  only store a single element
         UMATLABELS(ICACHEI, ICACHE) = B
@@ -1495,14 +1495,14 @@ SUBROUTINE CACHEUMATEL(B, UMATEL, ICACHE, ICACHEI, iType)
         RETURN
     end if
     IC1 = ICACHEI
-!         write(6,*) "ICI",ICACHEI,ICACHE
+!         write(stdout,*) "ICI",ICACHEI,ICACHE
     OLAB = UMATLABELS(ICACHEI, ICACHE)
 !   If we're in a block of prior, fill after
     DO WHILE(OLAB < B .AND. ICACHEI <= NSLOTS)
         UMatCacheData(:, ICACHEI, ICACHE) = UMATEL
         UMATLABELS(ICACHEI, ICACHE) = B
 !            IF(ICACHEI.LT.1.OR.ICACHE.LT.1.OR.ICACHEI.GT.NSLOTS.OR.ICACHE.GT.NPAIRS) THEN
-!               write(6,*) ICACHEI,ICACHE
+!               write(stdout,*) ICACHEI,ICACHE
 !               STOP "a"
 !            end if
         ICACHEI = ICACHEI + 1
@@ -1513,12 +1513,12 @@ SUBROUTINE CACHEUMATEL(B, UMATEL, ICACHE, ICACHEI, iType)
         end if
     end do
     IF(OLAB == 0) ICACHEI = IC1
-!        write(6,*) "ICI2",ICACHEI,ICACHE
+!        write(stdout,*) "ICI2",ICACHEI,ICACHE
     DO WHILE((OLAB > B .OR. OLAB == 0) .AND. ICACHEI > 0)
         UMatCacheData(:, ICACHEI, ICACHE) = UMATEL
         UMATLABELS(ICACHEI, ICACHE) = B
 !            IF(ICACHEI.LT.1.OR.ICACHE.LT.1.OR.ICACHEI.GT.NSLOTS.OR.ICACHE.GT.NPAIRS) THEN
-!               write(6,*) ICACHEI,ICACHE
+!               write(stdout,*) ICACHEI,ICACHE
 !               STOP "b"
 !            end if
         ICACHEI = ICACHEI - 1

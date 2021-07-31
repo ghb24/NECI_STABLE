@@ -489,9 +489,9 @@ contains
         type(timer), save :: test_timer
         character(*), parameter :: t_r = 'test_sym_excit_ExMag'
 
-        write(6, *) nI(:)
-        write(6, *) Iterations
-        write(6, *) "nSymLabels: ", nSymLabels
+        write(stdout, *) nI(:)
+        write(stdout, *) Iterations
+        write(stdout, *) "nSymLabels: ", nSymLabels
         CALL neci_flush(6)
 
         call CountExcitations4(nI, 1, 1, 0, 0, nSing)
@@ -500,11 +500,11 @@ contains
         call CountExcitations4(nI, 1, 1, 1, 1, nDoub_1)
         call CountExcitations4(nI, 1, 1, 2, 2, nDoub_2)
 
-        write(6, *) "nSing: ", nSing
-        write(6, *) "nSing_1: ", nSing_1
-        write(6, *) "nDoub: ", nDoub
-        write(6, *) "nDoub_1: ", nDoub_1
-        write(6, *) "nDoub_2: ", nDoub_2
+        write(stdout, *) "nSing: ", nSing
+        write(stdout, *) "nSing_1: ", nSing_1
+        write(stdout, *) "nDoub: ", nDoub
+        write(stdout, *) "nDoub_1: ", nDoub_1
+        write(stdout, *) "nDoub_2: ", nDoub_2
 
         excitcount = nSing + nSing_1 + nDoub + nDoub_1 + nDoub_2
 
@@ -514,7 +514,7 @@ contains
         pDoub_spindiff1 = real(nDoub_1, dp) / real(excitcount, dp)
         pDoub_spindiff2 = real(nDoub_2, dp) / real(excitcount, dp)
 
-        write(6, *) "Determinant has ", excitcount, " total excitations from it."
+        write(stdout, *) "Determinant has ", excitcount, " total excitations from it."
         CALL neci_flush(6)
 
         ! Allocate the accumulators
@@ -561,7 +561,7 @@ contains
 
             IF (mod(i, 1) == 0) THEN
                 !IF(mod(i,40000).eq.0) THEN
-                !write(6,"(A,I10)") "Iteration: ",i
+                !write(stdout,"(A,I10)") "Iteration: ",i
                 CALL neci_flush(6)
             end if
 
@@ -575,10 +575,10 @@ contains
 
 !        CALL EncodeBitDet(nJ,iLutnJ)
 !        IF(IC.eq.1) THEN
-!            write(6,*) ExcitMat(1,1),ExcitMat(2,1)
+!            write(stdout,*) ExcitMat(1,1),ExcitMat(2,1)
 !        ELSE
-!            write(6,*) "Double Created"
-!            write(6,*) ExcitMat(1,1),ExcitMat(1,2),ExcitMat(2,1),ExcitMat(2,2)
+!            write(stdout,*) "Double Created"
+!            write(stdout,*) ExcitMat(1,1),ExcitMat(1,2),ExcitMat(2,1),ExcitMat(2,2)
 !        end if
 
             IF (IC == 1) THEN
@@ -622,11 +622,11 @@ contains
 
 !Check excitation
             if (.not. SymAllowedExcit(nI, nJ, ic, excitmat)) then
-                write(6, *) "nI: ", nI
-                write(6, *) "nJ: ", nJ
-                write(6, *) "IC: ", IC
-                write(6, *) "electrons ", excitmat(1, :)
-                write(6, *) "holes: ", excitmat(2, :)
+                write(stdout, *) "nI: ", nI
+                write(stdout, *) "nJ: ", nJ
+                write(stdout, *) "IC: ", IC
+                write(stdout, *) "electrons ", excitmat(1, :)
+                write(stdout, *) "holes: ", excitmat(2, :)
                 call stop_all(t_r, 'Invalid determinant')
             end if
 
@@ -684,7 +684,7 @@ contains
                                     AllDoublesHist(i, j, k, l) / (real(Iterations, dp) &
                                                                   * nProcessors), &
                                     i, j, k, l, iLutnJ(0), AllDoublesCount(i, j, k, l), getExcitationType(excitMat, 2)
-!                            write(6,*) DetNum,DoublesHist(i,j,k,l),i,j,"->",k,l
+!                            write(stdout,*) DetNum,DoublesHist(i,j,k,l),i,j,"->",k,l
                                 IF (tHub .or. tUEG) THEN
                                     write(8, *) "#", G1(i)%k(1), G1(i)%k(2)
                                     write(8, *) "#", G1(j)%k(1), G1(j)%k(2)
@@ -697,10 +697,10 @@ contains
                 end do
             end do
             close(8)
-            write(6, *) DetNum, " Total double excitations found from nI"
-            write(6, *) DetNumD0, " Double spindiff0 excitations found from nI"
-            write(6, *) DetNumD1, " Double spindiff1 excitations found from nI"
-            write(6, *) DetNumD2, " Double spindiff2 excitations found from nI"
+            write(stdout, *) DetNum, " Total double excitations found from nI"
+            write(stdout, *) DetNumD0, " Double spindiff0 excitations found from nI"
+            write(stdout, *) DetNumD1, " Double spindiff1 excitations found from nI"
+            write(stdout, *) DetNumD2, " Double spindiff2 excitations found from nI"
             open(9, FILE="SinglesHist3", STATUS="UNKNOWN")
             DetNumS = 0
             DetNumS0 = 0
@@ -721,24 +721,24 @@ contains
                         write(9, *) DetNumS, AllSinglesHist(i, j) / &
                             (real(Iterations, dp) * nProcessors), &
                             i, "->", j, ALlSinglesCount(i, j)
-!                    write(6,*) DetNumS,AllSinglesHist(i,j),i,"->",j
+!                    write(stdout,*) DetNumS,AllSinglesHist(i,j),i,"->",j
                     end if
                 end do
             end do
             close(9)
-            write(6, *) DetNumS, " Single excitations found from nI"
-            write(6, *) DetNumS0, " Single spindiff0 excitations found from nI"
-            write(6, *) DetNumS1, " Single spindiff1 excitations found from nI"
+            write(stdout, *) DetNumS, " Single excitations found from nI"
+            write(stdout, *) DetNumS0, " Single spindiff0 excitations found from nI"
+            write(stdout, *) DetNumS1, " Single spindiff1 excitations found from nI"
 
-            write(6, *) DetNumS + DetNum, " Total excitations found from nI"
+            write(stdout, *) DetNumS + DetNum, " Total excitations found from nI"
             IF ((DetNum + DetNumS) /= ExcitCount) THEN
                 CALL construct_class_counts(nI, store%ClassCountOcc, &
                                             store%ClassCountUnocc, &
                                             store%scratch3)
-                write(6, *) "Total determinants = ", ExcitCount
-                write(6, *) "ClassCount2(:)= ", store%ClassCountOcc
-                write(6, *) "***"
-                write(6, *) "ClassCountUnocc2(:)= ", store%ClassCountUnocc
+                write(stdout, *) "Total determinants = ", ExcitCount
+                write(stdout, *) "ClassCount2(:)= ", store%ClassCountOcc
+                write(stdout, *) "***"
+                write(stdout, *) "ClassCountUnocc2(:)= ", store%ClassCountUnocc
                 CALL Stop_All("TestGenRandSymExcitNU", "Not all excitations accounted for...")
             end if
         end if

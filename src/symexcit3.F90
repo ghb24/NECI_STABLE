@@ -66,7 +66,7 @@ CONTAINS
         end if
 
 ! This is the end of the singles.
-!            write(6,*) 'Number of singles',nSingleExcits
+!            write(stdout,*) 'Number of singles',nSingleExcits
 
 ! For the doubles, first pick an electron pair i,j.
 ! Based on these orbitals, run through each spin and each symmetry - take this to be orbital a.
@@ -390,7 +390,7 @@ CONTAINS
                 IF (tFirsta) THEN
 ! If this is the first double we are picking with this ij, we start with the alpha spin, unless i and j are both beta.
 ! There is no restriction on the symmetry for orbital a - although clearly the symmetry we pick determins b.
-!                    write(6,*) "iSpn",iSpn
+!                    write(stdout,*) "iSpn",iSpn
                     IF (iSpn == 1) THEN
                         !beta beta pair
                         Spina = 2
@@ -409,7 +409,7 @@ CONTAINS
 ! If it is not the first, we have stored the previous spina and orba index - need to start with these and see
 ! if any more double remain.
                 Orba = OrbaChosen
-!                write(6,*) "Chosen index, orbital for a: ",OrbaChosen,Orba
+!                write(stdout,*) "Chosen index, orbital for a: ",OrbaChosen,Orba
 
 ! The orbital chosen must be unoccupied.  This is just a test to make sure this is the case.
                 do while ((BTEST(iLut((Orba - 1) / bits_n_int), MOD((Orba - 1), bits_n_int))) .or. (abs(SumMl - G1(Orba)%Ml) > iMaxLz))
@@ -439,7 +439,7 @@ CONTAINS
 
 ! Otherwise the new orbital a is the first unoccupied orbital of allowed symmetry etc.
                     Orba = OrbaChosen
-!                    write(6,*) "Chosen index, orbital for a: ",OrbaChosen,Orba
+!                    write(stdout,*) "Chosen index, orbital for a: ",OrbaChosen,Orba
                 end do
 
 ! If we have got to the end of the a orbitals, and need a new i,j pair, we increment ijInd and check
@@ -519,16 +519,16 @@ CONTAINS
 
                                 IF (OrbbIndex > (SymLabelCounts2(1, SymInd) + SymLabelCounts2(2, SymInd) - 1)) THEN
                                     !Reached end of symmetry block - need new a
-!                                    write(6,*) "Reached end of sym block",Orbb,Orba
+!                                    write(stdout,*) "Reached end of sym block",Orbb,Orba
                                     tNewa = .true.
                                     tFirsta = .false.
                                     EXIT
                                 end if
 
-!                                write(6,*) "Cycling through orbitals: ",OrbbIndex,Orbb
+!                                write(stdout,*) "Cycling through orbitals: ",OrbbIndex,Orbb
                                 !Update new orbital b index
                                 Orbb = SymLabelList2(OrbbIndex)
-!                                write(6,*) "Attempting again with orbital: ",Orbb
+!                                write(stdout,*) "Attempting again with orbital: ",Orbb
                             end do
                         end if
                     end if
@@ -550,13 +550,13 @@ CONTAINS
 !                            tFirsta=.false.
                         end if
                         tFirstb = .true.
-!                        write(6,*) "New OrbaChosen: ",OrbaChosen
+!                        write(stdout,*) "New OrbaChosen: ",OrbaChosen
                         IF (OrbaChosen > nBasis) THEN
 !We have reached the end of all allowed symmetries for the a orbital, only taking
 !into account spin symmetry. Choose new ij pair now.
                             tNewij = .true.
                             ijInd = ijInd + 1
-!                            write(6,*) "ijInd: ",ijInd
+!                            write(stdout,*) "ijInd: ",ijInd
                             IF (ijInd > ElecPairs) THEN
                                 tAllExcitFound = .true.
                                 tDoubleExcitFound = .false.

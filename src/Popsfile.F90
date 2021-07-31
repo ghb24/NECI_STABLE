@@ -222,11 +222,11 @@ contains
 
             IF(iProcIndex.eq.Root) THEN
                 IF(abs(iWeightPopRead) > 1.0e-12_dp) THEN
-                    WRITE(6,"(A,I15,A,es17.10,A)") "Although ",EndPopsList, &
+                    write(stdout,"(A,I15,A,es17.10,A)") "Although ",EndPopsList, &
                         " configurations will be read in, only determinants &
                         &with a weight of over ",iWeightPopRead," will be stored."
                 else
-                    write(6,"(A,I15,A)") "Reading in a total of ",EndPopsList, " configurations from POPSFILE."
+                    write(stdout,"(A,I15,A)") "Reading in a total of ",EndPopsList, " configurations from POPSFILE."
                 ENDIF
                 !if(abs(ScaleWalkers - 1) > 1.0e-12_dp) then
                     !call warning_neci(this_routine,"ScaleWalkers parameter found, but not implemented in POPSFILE v3 - ignoring.")
@@ -263,23 +263,23 @@ contains
             endif
 
             ! Test we have still got all determinants
-            write(6,*) "initial number of walker read-in: CurrWalkers: ", CurrWalkers
+            write(stdout,*) "initial number of walker read-in: CurrWalkers: ", CurrWalkers
             call MPISum(CurrWalkers, 1, AllCurrWalkers)
             if (iProcIndex == Root) then
                 if (AllCurrWalkers /= EndPopsList .and. .not. trimmed_parts) then
-                    write(6,*) "AllCurrWalkers: ", AllCurrWalkers
-                    write(6,*) "EndPopsList: ", EndPopsList
+                    write(stdout,*) "AllCurrWalkers: ", AllCurrWalkers
+                    write(stdout,*) "EndPopsList: ", EndPopsList
 
                     if (tSplitPops) then
-                        write(6,*)
-                        write(6,*) '*******************************************'
-                        write(6,*) 'Currently using: ', nProcessors, ' processors'
-                        write(6,*)
-                        write(6,*) 'Using pre-split popsfiles (SPLIT-POPS, &
+                        write(stdout,*)
+                        write(stdout,*) '*******************************************'
+                        write(stdout,*) 'Currently using: ', nProcessors, ' processors'
+                        write(stdout,*)
+                        write(stdout,*) 'Using pre-split popsfiles (SPLIT-POPS, &
                                    &POPSFILEBIN-*).'
-                        write(6,*) 'Ensure that the number of processors and &
+                        write(stdout,*) 'Ensure that the number of processors and &
                                    &number of POPSFILEs match.'
-                        write(6,*) '*******************************************'
+                        write(stdout,*) '*******************************************'
                     end if
 
                     call stop_All(this_routine, "Not all walkers accounted for &
@@ -385,7 +385,7 @@ contains
 
         allocate(BatchRead(0:NifTot, 1:MaxWalkersPart))
 
-        write(6,*) 'Reading a maximum of ', MaxWalkersPart, ' particles to &
+        write(stdout,*) 'Reading a maximum of ', MaxWalkersPart, ' particles to &
                    &each node from split POPSFILES'
 
         ! Initialise the relevant counters
@@ -498,7 +498,7 @@ contains
             ! for ! each processor are placed in?
             forall(i = 0 : nNodes - 1) PopsInitialSlots(i) = batch_size * i + 1
 
-            write(6, '(a,i12,a)') "Reading in a maximum of ", ReadBatch, &
+            write(stdout, '(a,i12,a)') "Reading in a maximum of ", ReadBatch, &
                                   " determinants at a time from POPSFILE'"
             call neci_flush(6)
         end if
@@ -622,9 +622,9 @@ r_loop: do while (.not. tReadAllPops)
             call MPIBCast(tReadAllPops)
         end do r_loop
 
-        write(6,"(a,i8)") "Number of batches required to distribute all &
+        write(stdout,"(a,i8)") "Number of batches required to distribute all &
                           &determinants in POPSFILE: ", nBatches
-        write(6,*) "Number of configurations read in to this process: ", &
+        write(stdout,*) "Number of configurations read in to this process: ", &
                    CurrWalkers
 
         deallocate(gdataRead)
@@ -873,10 +873,10 @@ r_loop: do while(.not.tStoreDet)
             if(iAccumPopsIter<=PreviousCycles)then
                 tAccumPopsActive = .true.
                 iAccumPopsCounter = PopAccumPopsCounter
-                write(6,*) "Accumulated populations are found. Accumulation will continue."
+                write(stdout,*) "Accumulated populations are found. Accumulation will continue."
             else
-                write(6,*) "Accumulated populations are found, but will be discarded."
-                write(6,*) "Accumulation will restart at iteration: ", iAccumPopsIter
+                write(stdout,*) "Accumulated populations are found, but will be discarded."
+                write(stdout,*) "Accumulation will restart at iteration: ", iAccumPopsIter
             endif
         endif
         ! decide which global det data is read
@@ -903,8 +903,8 @@ r_loop: do while(.not.tStoreDet)
                                   PopNel, PopBalanceBlocks, gdata_read_handler, tCalcExtraInfo=.false., &
                                   filename_stem = identifier)
 
-            write(6,*) "Applying perturbation to read-in walker confguration!"
-            write(6, *) "Total number of walkers before perturbation: ", TotWalkers
+            write(stdout,*) "Applying perturbation to read-in walker confguration!"
+            write(stdout, *) "Total number of walkers before perturbation: ", TotWalkers
             ! also store the original walker number in the real-time FCIQMC
 
             TotWalkersIn = int(TotWalkers, sizeof_int)
@@ -934,7 +934,7 @@ r_loop: do while(.not.tStoreDet)
         end if
 
         if(abs(ScaleWalkers - 1) > 1.0e-12_dp) then
-            WRITE(6,*) "Rescaling walkers by a factor of: ",ScaleWalkers
+            write(stdout,*) "Rescaling walkers by a factor of: ",ScaleWalkers
             do l = 1, TotWalkers
                 call extract_sign(CurrentDets(:,l),TempSign)
                 !do j = 1, lenof_sign
@@ -1003,8 +1003,8 @@ r_loop: do while(.not.tStoreDet)
 #ifdef CMPLX_
                 if ((tLetInitialPopDie .and. sum(AllTotParts(min_part_type(run):max_part_type(run))) < tot_walkers) .or. &
                     ((.not. tLetInitialPopDie) .and. sum(AllTotParts(min_part_type(run):max_part_type(run))) > tot_walkers)) then
-                    write(6,'("WALKCONTGROW set in input, but simulation already exceeds target number of particles")')
-                    write(6,'("Continuing with DIAGSHIFT from POPSFILE")')
+                    write(stdout,'("WALKCONTGROW set in input, but simulation already exceeds target number of particles")')
+                    write(stdout,'("Continuing with DIAGSHIFT from POPSFILE")')
                     if (tHDF5PopsRead) then
                         root_print "diagshift:" , hdf5_diagsft(run)
                         DiagSft(run) = hdf5_diagsft(run)
@@ -1017,8 +1017,8 @@ r_loop: do while(.not.tStoreDet)
 #else
                 if ((tLetInitialPopDie .and. AllTotParts(run) < tot_walkers) .or. &
                     ((.not. tLetInitialPopDie) .and. AllTotParts(run) > tot_walkers)) then
-                    write(6,'("WALKCONTGROW set in input, but simulation already exceeds target number of particles")')
-                    write(6,'("Continuing with DIAGSHIFT from POPSFILE for run ",i4)') run
+                    write(stdout,'("WALKCONTGROW set in input, but simulation already exceeds target number of particles")')
+                    write(stdout,'("Continuing with DIAGSHIFT from POPSFILE for run ",i4)') run
                     if (tHDF5PopsRead) then
                         root_print "diagshift:" , hdf5_diagsft(run)
                         DiagSft(run) = hdf5_diagsft(run)
@@ -1037,7 +1037,7 @@ r_loop: do while(.not.tStoreDet)
         if (tPopsJumpShift .and. .not. tWalkContGrow) then
             call calc_proje(InstE)
             DiagSft = real(InstE, dp)
-            write(6,*) 'Calculated instantaneous projected energy', DiagSft
+            write(stdout,*) 'Calculated instantaneous projected energy', DiagSft
         end if
 
     end subroutine InitFCIMC_pops
@@ -1121,14 +1121,14 @@ r_loop: do while(.not.tStoreDet)
         AllSumENum(1:inum_runs) = PopAllSumENum
         AllSumNoatHF(1:lenof_sign) = PopSumNoatHF
         PreviousCycles=iPopIter
-        WRITE(6,*) "Number of iterations in previous simulation: ",PreviousCycles
+        write(stdout,*) "Number of iterations in previous simulation: ",PreviousCycles
         IF(NEquilSteps.gt.0) THEN
-            WRITE(6,*) "Removing equilibration steps since reading in from POPSFILE."
+            write(stdout,*) "Removing equilibration steps since reading in from POPSFILE."
             NEquilSteps=0
         ENDIF
         IF(TZeroProjE) THEN
             !Reset energy estimator
-            WRITE(6,*) "Resetting projected energy counters to zero..."
+            write(stdout,*) "Resetting projected energy counters to zero..."
             AllSumENum=0.0_dp
             AllSumNoatHF = 0
         ENDIF
@@ -1139,8 +1139,8 @@ r_loop: do while(.not.tStoreDet)
                 call stop_all(this_routine,"Cannot dynamically search for timestep if reading &
                     &in POPSFILE v.3. Manually specify timestep.")
             endif
-            write(6,*) "Old popsfile detected."
-            write(6,*) "Therefore automatic blocking will only start from current run"
+            write(stdout,*) "Old popsfile detected."
+            write(stdout,*) "Therefore automatic blocking will only start from current run"
             iBlockingIter = PreviousCycles
         else
 
@@ -1184,20 +1184,20 @@ r_loop: do while(.not.tStoreDet)
                         tSearchTau=.false.
                     endif
                     if (tSpecifiedTau) then
-                        write(6, *) "time-step specified in input file!"
+                        write(stdout, *) "time-step specified in input file!"
                     else
                         Tau=read_tau
-                        write(6,"(A)") "Using timestep specified in POPSFILE!"
+                        write(stdout,"(A)") "Using timestep specified in POPSFILE!"
                     end if
                     if (tSearchTau .or. t_hist_tau_search) then
-                        write(6,"(A)") "But continuing to dynamically adjust to optimise this"
+                        write(stdout,"(A)") "But continuing to dynamically adjust to optimise this"
                     end if
                     write(stdout,"(A,F12.8)") " used time-step: ", tau
 
                     ! If we have been searching for tau, we may have been searching
                     ! for psingles (it is done at the same time).
                     if (allocated(pSinglesIn) .or. allocated(pDoublesIn)) then
-                        write(6, *) "using pSingles/pDoubles specified in input file!"
+                        write(stdout, *) "using pSingles/pDoubles specified in input file!"
                     else
                         if (.not. near_zero(read_psingles)) then
                             pSingles = read_psingles
@@ -1224,14 +1224,14 @@ r_loop: do while(.not.tStoreDet)
 
                 else if (t_keep_tau_fixed) then
                     if (tSpecifiedTau) then
-                        write(6, *) "time-step specified in input file!"
+                        write(stdout, *) "time-step specified in input file!"
                     else
-                        write(6,"(A)") "Using timestep specified in POPSFILE, without continuing to dynammically adjust it!"
-                        write(6,*) "Timestep is tau=", tau
+                        write(stdout,"(A)") "Using timestep specified in POPSFILE, without continuing to dynammically adjust it!"
+                        write(stdout,*) "Timestep is tau=", tau
                         tau = read_tau
                     end if
                     if (allocated(pSinglesIn) .or. allocated(pDoublesIn)) then
-                        write(6, *) "using pSingles/pDoubles specified in input file!"
+                        write(stdout, *) "using pSingles/pDoubles specified in input file!"
                     else
                         if (abs(read_psingles) > 1.0e-12_dp) then
                             pSingles = read_psingles
@@ -1259,21 +1259,21 @@ r_loop: do while(.not.tStoreDet)
                     if(abs(read_tau-Tau).gt.1.0e-5_dp) then
                         call warning_neci(this_routine,"Timestep specified in input file is different to that in the popsfile.")
 
-                        write(6,"(A,F12.8)") "Old timestep: ",read_tau
-                        write(6,"(A,F12.8)") "New timestep: ",tau
+                        write(stdout,"(A,F12.8)") "Old timestep: ",read_tau
+                        write(stdout,"(A,F12.8)") "New timestep: ",tau
 
                     endif
                 endif
                 if (allocated(pSinglesIn) .or. allocated(pDoublesIn)) then
-                    write(6, *) "using pSingles/pDoubles specified in input file!"
+                    write(stdout, *) "using pSingles/pDoubles specified in input file!"
                 else
                     if (.not. near_zero(read_psingles)) then
                         pSingles = read_psingles
                         if (.not. tReltvy) then
                             pDoubles = 1.0_dp - pSingles
                         end if
-                        write(6,*) "Using read-in pSingles=", pSingles
-                        write(6,*) "Using read-in pDoubles=", pDoubles
+                        write(stdout,*) "Using read-in pSingles=", pSingles
+                        write(stdout,*) "Using read-in pDoubles=", pDoubles
                     end if
                 end if
                 tReadPTriples = .false.
@@ -1741,7 +1741,7 @@ r_loop: do while(.not.tStoreDet)
         end if
 
         CALL MPIBarrier(error)  !sync
-!        WRITE(6,*) "Get Here",nDets
+!        write(stdout,*) "Get Here",nDets
 !        CALL neci_flush(6)
 
 !First, make sure we have up-to-date information - again collect AllTotWalkers
@@ -1794,31 +1794,31 @@ r_loop: do while(.not.tStoreDet)
 
             ! Construct an output string to give feedback about what is
             ! being done.
-            write(6,*)
-            write(6,'("*********************************")')
+            write(stdout,*)
+            write(stdout,'("*********************************")')
             write(out_tmp, '("Writing a ", i2, "-bit")') bits_n_int
             if (iPopsPartEvery /= 1) out_tmp = trim(out_tmp) // " reduced"
             out_tmp = trim(out_tmp) // " POPSFILE"
             if (tBinPops) out_tmp = trim(out_tmp) // "BIN"
             out_tmp = trim(out_tmp) // "..."
-            write(6, '(a)') trim(adjustl(out_tmp))
+            write(stdout, '(a)') trim(adjustl(out_tmp))
 
             ! If we aren't outputting all of the walkers, indicate how many
             ! we are going to output.
             !if (iPopsPartEvery /= 1) then
                 write(num_tmp, '(i12)') AllTotWalkers
-                write(6, '("Writing a total of ",a," determinants.")') &
+                write(stdout, '("Writing a total of ",a," determinants.")') &
                     trim(adjustl(num_tmp))
             !end if
 
             ! If we are only outputting determinants with a certain weight
             if (tBinPops .and. abs(binarypops_min_weight) > 1.0e-12_dp) then
                 write(num_tmp, '(f12.3)') binarypops_min_weight
-                write(6, '("Only outputting determinants holding >= ",a,&
+                write(stdout, '("Only outputting determinants holding >= ",a,&
                            &" walkers")') trim(adjustl(num_tmp))
             end if
-            write(6,'("*********************************")')
-            write(6,*)
+            write(stdout,'("*********************************")')
+            write(stdout,*)
 
             ! With a normal popsfile, the header is written at the start.
             ! Thus we need to do that now.
@@ -1984,7 +1984,7 @@ r_loop: do while(.not.tStoreDet)
             call MPISum(write_count, write_count_sum)
             if (abs(binarypops_min_weight) < 1.0e-12_dp .and. &
                     write_count_sum /= AllTotwalkers) then
-                write(6,*) 'WARNING: Number of particles written (', &
+                write(stdout,*) 'WARNING: Number of particles written (', &
                     write_count_sum, ') does not equal AllTotWalkers (', &
                     AllTotWalkers, ')'
             end if
@@ -2318,7 +2318,7 @@ r_loop: do while(.not.tStoreDet)
         real(dp) :: sign_largest(inum_runs)
         character(*), parameter :: this_routine = 'ReadFromPopsfilePar'
 
-        WRITE(6,*) "THIS IS THE POPSFILE ROUTINE WE'RE USING"
+        write(stdout,*) "THIS IS THE POPSFILE ROUTINE WE'RE USING"
 
         if (lenof_sign /= 1) &
             call Stop_All(this_routine, "Popsfile V.2 does not work with &
@@ -2380,13 +2380,13 @@ r_loop: do while(.not.tStoreDet)
             REWIND(iunit)
             READ(iunit,*) FirstLine,FirstLine,FirstLine,PopsVersion
         ENDIF
-        WRITE(6,"(A,I5,A)") "Version",PopsVersion," POPSFILE detected"
+        write(stdout,"(A,I5,A)") "Version",PopsVersion," POPSFILE detected"
 
 !Read in initial data on processors which have a popsfile
         IF(PopsVersion.eq.2) THEN
             READ(iunit,'(A12,L5,A8,L5,A8,L5,A12,L5)') junk,tPop64BitDets,junk2,tPopHPHF,junk3,tPopLz,junk4,tPopInitiator
         ELSE
-            WRITE(6,'(A)') "Reading in from depreciated POPSFILE - assuming that parameters " &
+            write(stdout,'(A)') "Reading in from depreciated POPSFILE - assuming that parameters " &
             & //"are the same as when POPSFILE was written"
         ENDIF
         READ(iunit,*) tmp_dp
@@ -2398,7 +2398,7 @@ r_loop: do while(.not.tStoreDet)
 
         IF(iProcIndex.eq.Root) THEN
             IF(abs(iWeightPopRead) > 1.0e-12_dp) THEN
-                WRITE(6,"(A,I15,A,I4,A)") "Although ",AllTotWalkers, &
+                write(stdout,"(A,I15,A,I4,A)") "Although ",AllTotWalkers, &
                  " configurations will be read in, only determinants with a weight of over ",iWeightPopRead," will be stored."
             ENDIF
         ENDIF
@@ -2426,14 +2426,14 @@ r_loop: do while(.not.tStoreDet)
 
         IF(iProcIndex.eq.Root) THEN
 
-            WRITE(6,*) "Number of cycles in previous simulation: ",PreviousCycles
+            write(stdout,*) "Number of cycles in previous simulation: ",PreviousCycles
             IF(NEquilSteps.gt.0) THEN
-                WRITE(6,*) "Removing equilibration steps since reading in from POPSFILE."
+                write(stdout,*) "Removing equilibration steps since reading in from POPSFILE."
                 NEquilSteps=0
             ENDIF
             IF(TZeroProjE) THEN
 !Reset energy estimator
-                WRITE(6,*) "Resetting projected energy counters to zero..."
+                write(stdout,*) "Resetting projected energy counters to zero..."
                 AllSumENum=0.0_dp
                 AllSumNoatHF = 0
             ENDIF
@@ -2496,7 +2496,7 @@ r_loop: do while(.not.tStoreDet)
         CALL MPIScatter(NodeSumNoatHF,SumNoatHF(1),error)
 
         IF(MemoryFacPart.le.1.0_dp) THEN
-            WRITE(6,*) 'MemoryFacPart must be larger than 1.0 when reading in a POPSFILE - increasing it to 1.50.'
+            write(stdout,*) 'MemoryFacPart must be larger than 1.0 when reading in a POPSFILE - increasing it to 1.50.'
             MemoryFacPart=1.50
         ENDIF
 
@@ -2523,7 +2523,7 @@ r_loop: do while(.not.tStoreDet)
         MemoryAlloc=(NIfTot+1)*MaxWalkersPart*size_n_int    !Memory Allocated in bytes
 
 !Just allocating this here, so that the SpawnParts arrays can be used for sorting the determinants when using direct annihilation.
-        WRITE(6,"(A,I12,A)") " Spawning vectors allowing for a total of ",MaxSpawned, &
+        write(stdout,"(A,I12,A)") " Spawning vectors allowing for a total of ",MaxSpawned, &
          &" particles to be spawned in any one iteration."
         ALLOCATE(SpawnVec(0:NIfTot,MaxSpawned),stat=ierr)
         CALL LogMemAlloc('SpawnVec',MaxSpawned*(NIfTot+1),size_n_int,this_routine,SpawnVecTag,ierr)
@@ -2688,11 +2688,11 @@ r_loop: do while(.not.tStoreDet)
         CALL MPIBarrier(error)  !Sync
         CALL MPIAllReduce(TempCurrWalkers,MPI_SUM,AllTotWalkers)
 
-        IF(iProcIndex.eq.root) WRITE(6,'(I10,A)') INT(AllTotWalkers,int64)," configurations read in from POPSFILE and distributed."
+        IF(iProcIndex.eq.root) write(stdout,'(I10,A)') INT(AllTotWalkers,int64)," configurations read in from POPSFILE and distributed."
 
         IF(abs(ScaleWalkers - 1) > 1.0e-12_dp) THEN
 
-            WRITE(6,*) "Rescaling walkers by a factor of: ",ScaleWalkers
+            write(stdout,*) "Rescaling walkers by a factor of: ",ScaleWalkers
 
 ! CurrWalkers is the number of determinants on a particular node, AllTotWalkers is the total over all nodes.
             IntegerPart=INT(ScaleWalkers)
@@ -2720,7 +2720,7 @@ r_loop: do while(.not.tStoreDet)
             IF(iProcIndex.eq.root) THEN
 !                AllTotWalkers=TotWalkers
                 AllTotWalkersOld=AllTotWalkers
-                WRITE(6,'(A,I10)') " Number of initial walkers on this processor is now: ",INT(TotWalkers,int64)
+                write(stdout,'(A,I10)') " Number of initial walkers on this processor is now: ",INT(TotWalkers,int64)
             ENDIF
 
         ELSE
@@ -2731,15 +2731,15 @@ r_loop: do while(.not.tStoreDet)
             IF(iProcIndex.eq.root) THEN
 !                AllTotWalkers=TotWalkers
                 AllTotWalkersOld=AllTotWalkers
-                WRITE(6,'(A,I10)') " Number of initial walkers on this processor is now: ",INT(TotWalkers,int64)
+                write(stdout,'(A,I10)') " Number of initial walkers on this processor is now: ",INT(TotWalkers,int64)
             ENDIF
 
         ENDIF
 
-        WRITE(6,*) "Initial Diagonal Shift (ECorr guess) is now: ",DiagSft(1)
-        WRITE(6,"(A,F14.6,A)") " Initial memory (without excitgens) consists of : ",REAL(MemoryAlloc,dp)/1048576.0_dp," Mb"
-        WRITE(6,*) "Initial memory allocation successful..."
-        WRITE(6,*) "Excitgens will be regenerated when they are needed..."
+        write(stdout,*) "Initial Diagonal Shift (ECorr guess) is now: ",DiagSft(1)
+        write(stdout,"(A,F14.6,A)") " Initial memory (without excitgens) consists of : ",REAL(MemoryAlloc,dp)/1048576.0_dp," Mb"
+        write(stdout,*) "Initial memory allocation successful..."
+        write(stdout,*) "Excitgens will be regenerated when they are needed..."
         CALL neci_flush(6)
 
         ! If we are changing the reference determinant to the largest
@@ -2789,7 +2789,7 @@ r_loop: do while(.not.tStoreDet)
             AllTotPartsOld=AllTotParts
             iter_data_fciqmc%tot_parts_old = AllTotParts
         endif
-        write(6,'(A,i20)') ' The total number of particles read from the POPSFILE is: ',AllTotParts(1)
+        write(stdout,'(A,i20)') ' The total number of particles read from the POPSFILE is: ',AllTotParts(1)
 
         if (tReadPopsRestart) then
             tPopsAlreadyRead = .true.
@@ -2884,7 +2884,7 @@ r_loop: do while(.not.tStoreDet)
             REWIND(iunit)
             READ(iunit,*) FirstLine,FirstLine,FirstLine,PopsVersion
         ENDIF
-        WRITE(6,"(A,I5,A)") "Version",PopsVersion," POPSFILE detected"
+        write(stdout,"(A,I5,A)") "Version",PopsVersion," POPSFILE detected"
 
 
 
@@ -2892,7 +2892,7 @@ r_loop: do while(.not.tStoreDet)
         IF(PopsVersion.eq.2) THEN
             READ(iunit,'(A12,L5,A8,L5,A8,L5,A12,L5)') junk,tPop64BitDets,junk2,tPopHPHF,junk3,tPopLz,junk4,tPopInitiator
         ELSE
-            WRITE(6,'(A)') "Reading in from depreciated POPSFILE - assuming that parameters are same as when POPSFILE was written"
+            write(stdout,'(A)') "Reading in from depreciated POPSFILE - assuming that parameters are same as when POPSFILE was written"
         ENDIF
         READ(iunit,*) AllTotWalkers
         READ(iunit,*) DiagSftTemp
@@ -2902,7 +2902,7 @@ r_loop: do while(.not.tStoreDet)
 
         IF(iProcIndex.eq.Root) THEN
             IF(abs(iWeightPopRead) > 1.0e-12_dp) THEN
-                WRITE(6,"(A,I15,A,I4,A)") "Although ",AllTotWalkers,    &
+                write(stdout,"(A,I15,A,I4,A)") "Although ",AllTotWalkers,    &
                 " configurations will be read in, only determinants with a weight of over ",iWeightPopRead," will be stored."
             ENDIF
         ENDIF
@@ -2929,14 +2929,14 @@ r_loop: do while(.not.tStoreDet)
 
         IF(iProcIndex.eq.Root) THEN
 
-            WRITE(6,*) "Number of cycles in previous simulation: ",PreviousCycles
+            write(stdout,*) "Number of cycles in previous simulation: ",PreviousCycles
             IF(NEquilSteps.gt.0) THEN
-                WRITE(6,*) "Removing equilibration steps since reading in from POPSFILE."
+                write(stdout,*) "Removing equilibration steps since reading in from POPSFILE."
                 NEquilSteps=0
             ENDIF
             IF(TZeroProjE) THEN
 !Reset energy estimator
-                WRITE(6,*) "Resetting projected energy counters to zero..."
+                write(stdout,*) "Resetting projected energy counters to zero..."
                 AllSumENum=0.0_dp
                 AllSumNoatHF = 0
             ENDIF
@@ -2974,7 +2974,7 @@ r_loop: do while(.not.tStoreDet)
 ! and the SumNoatHF for each node which is distributed approximatly equally
 
         IF(MemoryFacPart.le.1.0_dp) THEN
-            WRITE(6,*) 'MemoryFacPart must be larger than 1.0 when reading in a POPSFILE - increasing it to 1.50.'
+            write(stdout,*) 'MemoryFacPart must be larger than 1.0 when reading in a POPSFILE - increasing it to 1.50.'
             MemoryFacPart=1.50
         ENDIF
 
@@ -3014,7 +3014,7 @@ r_loop: do while(.not.tStoreDet)
         CurrWalkers=0
         sign_largest = 0
         ilut_largest = 0
-        write(6,*) "Reading in ", AllTotWalkers, " walkers"
+        write(stdout,*) "Reading in ", AllTotWalkers, " walkers"
         do i=1,int(AllTotWalkers,sizeof_int)
             iLutTemp(:)=0
             IF(PopsVersion.ne.1) THEN
@@ -3121,11 +3121,11 @@ r_loop: do while(.not.tStoreDet)
         CALL MPIBarrier(error)  !Sync
         CALL MPIAllReduce(TempCurrWalkers,MPI_SUM,AllTotWalkers)
 
-        IF(iProcIndex.eq.root) WRITE(6,'(I10,A)') INT(AllTotWalkers,int64)," configurations read in from POPSFILE and distributed."
+        IF(iProcIndex.eq.root) write(stdout,'(I10,A)') INT(AllTotWalkers,int64)," configurations read in from POPSFILE and distributed."
 
         IF(abs(ScaleWalkers - 1) > 1.0e-12_dp) THEN
 
-            WRITE(6,*) "Rescaling walkers by a factor of: ",ScaleWalkers
+            write(stdout,*) "Rescaling walkers by a factor of: ",ScaleWalkers
 
 ! CurrWalkers is the number of determinants on a particular node, AllTotWalkers is the total over all nodes.
             IntegerPart=INT(ScaleWalkers)
@@ -3151,7 +3151,7 @@ r_loop: do while(.not.tStoreDet)
             nDets=CurrWalkers
             IF(iProcIndex.eq.root) THEN
 !                AllTotWalkers=TotWalkers
-                WRITE(6,'(A,I10)') " Number of initial walkers on this processor is now: ",INT(TotWalkers,int64)
+                write(stdout,'(A,I10)') " Number of initial walkers on this processor is now: ",INT(TotWalkers,int64)
             ENDIF
 
         ELSE
@@ -3160,15 +3160,15 @@ r_loop: do while(.not.tStoreDet)
             nDets=CurrWalkers
             IF(iProcIndex.eq.root) THEN
 !                AllTotWalkers=TotWalkers
-                WRITE(6,'(A,I10)') " Number of initial walkers on this processor is now: ",INT(TotWalkers,int64)
+                write(stdout,'(A,I10)') " Number of initial walkers on this processor is now: ",INT(TotWalkers,int64)
             ENDIF
 
         ENDIF
 
-        WRITE(6,*) "Initial Diagonal Shift (ECorr guess) is now: ",DiagSft
-        WRITE(6,"(A,F14.6,A)") " Initial memory (without excitgens) consists of : ",REAL(MemoryAlloc,dp)/1048576.0_dp," Mb"
-        WRITE(6,*) "Initial memory allocation successful..."
-        WRITE(6,*) "Excitgens will be regenerated when they are needed..."
+        write(stdout,*) "Initial Diagonal Shift (ECorr guess) is now: ",DiagSft
+        write(stdout,"(A,F14.6,A)") " Initial memory (without excitgens) consists of : ",REAL(MemoryAlloc,dp)/1048576.0_dp," Mb"
+        write(stdout,*) "Initial memory allocation successful..."
+        write(stdout,*) "Excitgens will be regenerated when they are needed..."
         CALL neci_flush(6)
 
 !Now find out the data needed for the particles which have been read in...
@@ -3184,7 +3184,7 @@ r_loop: do while(.not.tStoreDet)
         CALL MPIReduce(TempTotParts,MPI_SUM,AllTotParts)
 
         IF(iProcIndex.eq.root) AllTotPartsOld=AllTotParts
-        write(6,'(A,i20)') ' The total number of particles read from the POPSFILE is: ',AllTotParts(1)
+        write(stdout,'(A,i20)') ' The total number of particles read from the POPSFILE is: ',AllTotParts(1)
 
         if (tReadPopsRestart) then
             tPopsAlreadyRead = .true.

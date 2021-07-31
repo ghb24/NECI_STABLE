@@ -104,7 +104,7 @@ contains
             call MPIAllGather(mpi_refs_found, refs_found_per_proc, ierr)
             all_refs_found = sum(refs_found_per_proc)
             if (all_refs_found /= maxNRefs) then
-                write(6, *) "Warning: Less than ", maxNRefs, &
+                write(stdout, *) "Warning: Less than ", maxNRefs, &
                     " superinitiators found, using only ", all_refs_found, " superinitiators"
             end if
             ! Set the number of SIs to the number actually found
@@ -197,7 +197,7 @@ contains
         end if
 
         if (iProcIndex == root) &
-            write(6, *) "Getting superinitiators for all-doubs-initiators: ", nRefs, " SIs found"
+            write(stdout, *) "Getting superinitiators for all-doubs-initiators: ", nRefs, " SIs found"
 
         if (tWriteRefs) call output_reference_space(ref_filename)
     end subroutine generate_ref_space
@@ -314,7 +314,7 @@ contains
                 si_buf(0:NIfTot, i) = mpi_buf(0:NIfTot, largest_inds(i))
             end do
             if (iProcIndex == root .and. NoTypeN > 1) &
-                write(6, '(A,I5,A,I5,A)') "In total ", all_refs_found, &
+                write(stdout, '(A,I5,A,I5,A)') "In total ", all_refs_found, &
                 " SIs were found, which is more than the maximum number of ", &
                 maxNRefs, " - truncating"
             ! make it look to the outside as though maxNRefs were found
@@ -758,7 +758,7 @@ contains
             lastAllNoatHF = cAllNoatHF
             lastNRefs = nRefsOld
 
-            write(6, *) "Now at ", nRefs, " superinitiators"
+            write(stdout, *) "Now at ", nRefs, " superinitiators"
 
         end if
     end subroutine adjust_nRefs

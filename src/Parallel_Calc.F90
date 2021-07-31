@@ -78,13 +78,13 @@ contains
         case (0)
             ! Generate both single and double excitations.  CPMD works in a Kohn--Sham
             ! basis, and so Brillouin's theorem does not apply.
-            write(6, *) 'ParMP2: using single and double excitation.'
+            write(stdout, *) 'ParMP2: using single and double excitation.'
             ExLevel = 3
         case (8)
-            write(6, *) 'ParMP2: using only single excitations.'
+            write(stdout, *) 'ParMP2: using only single excitations.'
             ExLevel = 1
         case (16)
-            write(6, *) 'ParMP2: using only double excitations.'
+            write(stdout, *) 'ParMP2: using only double excitations.'
             ExLevel = 2
         case (24)
             call stop_all('ParMP2', 'Invalid combination of flags in nWHTay.  Invalid EXCITAIONS specification?')
@@ -92,7 +92,7 @@ contains
 
         iC0 = 0
 
-        write(6, *) "Proc ", iProcIndex + 1, "/", nProcessors
+        write(stdout, *) "Proc ", iProcIndex + 1, "/", nProcessors
         if (tCPMD) then
             ! For CPMD jobs, we actually want each processor to do the full sum, as each
             ! integral is divided across the processors.
@@ -102,7 +102,7 @@ contains
             ! For other calculations, the sum is split over processors.
             call GetProcElectrons(iProcIndex + 1, iMinElec, iMaxElec)
         end if
-        write(6, *) "Electrons ", iMinElec, " TO ", iMaxElec
+        write(stdout, *) "Electrons ", iMinElec, " TO ", iMaxElec
 
 !  The root's "energy"---sum over the eigenvalues of occ. spin orbitals and the
 !  core energy. Only used it the H0Element formulation is used (see below).
@@ -346,23 +346,23 @@ contains
 
             end if
 
-            !write(6,'(2i3,a2,2i3,2f17.8)') Excit(1,:),'->',Excit(2,:),dE
+            !write(stdout,'(2i3,a2,2i3,2f17.8)') Excit(1,:),'->',Excit(2,:),dE
 
             ! Get next excitation.
             CALL GENSYMEXCITIT3Par(NI, .false., EX, nJ, IC, STORE, ExLevel, iMinElec, iMaxElec)
 
         end do
 
-        write(6, *) 'No. of excitations=', I
-        write(6, *) 'No. of spin and symmetry unique excitations=', J
+        write(stdout, *) 'No. of excitations=', I
+        write(stdout, *) 'No. of spin and symmetry unique excitations=', J
         if (.not. tCPMD) then
-            write(6, '(a28,i3,a1,2f15.8)') 'Contribution from processor', iProcIndex + 1, ':', dEtot
+            write(stdout, '(a28,i3,a1,2f15.8)') 'Contribution from processor', iProcIndex + 1, ':', dEtot
             dEarr = dETot
             call MPISumAll(dEArr, 2, dETot)
         end if
-        if (iand(ExLevel, 1) == 1) write(6, *) 'MP2 SINGLES=', dETot(1) + dE0
-        if (iand(ExLevel, 2) == 2) write(6, *) 'MP2 DOUBLES=', dETot(2) + dE0
-        write(6, *) 'MP2 ENERGY =', dETot(1) + dETot(2) + dE0
+        if (iand(ExLevel, 1) == 1) write(stdout, *) 'MP2 SINGLES=', dETot(1) + dE0
+        if (iand(ExLevel, 2) == 2) write(stdout, *) 'MP2 DOUBLES=', dETot(2) + dE0
+        write(stdout, *) 'MP2 ENERGY =', dETot(1) + dETot(2) + dE0
 
         deallocate(Ex)
         call LogMemDealloc(this_routine, tag_Ex)
@@ -399,9 +399,9 @@ contains
         HElement_t(dp) dEw, dw, dEwtot, dwtot, dTots(2), dTots2(2)
         iC0 = 0
         i = iProcIndex + 1
-        write(6, *) "Proc ", i, "/", nProcessors
+        write(stdout, *) "Proc ", i, "/", nProcessors
         call GetProcElectrons(iProcIndex + 1, iMinElec, iMaxElec)
-        write(6, *) "Electrons ", iMinElec, " TO ", iMaxElec
+        write(stdout, *) "Electrons ", iMinElec, " TO ", iMaxElec
 
 !  The root's energy
         dE1 = get_helement(nI, nI, 0)
@@ -437,12 +437,12 @@ contains
             dwTot = dwTot + dw
             CALL GENSYMEXCITIT3Par(NI, .False., EX, nJ, IC, STORE, 3, iMinElec, iMaxElec)
         end do
-        write(6, *) I
-        write(6, *) dEwTot, dwTot, dEwTot / dwTot
+        write(stdout, *) I
+        write(stdout, *) dEwTot, dwTot, dEwTot / dwTot
         dTots(1) = dwTot
         dTots(2) = dEwTot
         Call MPISumAll(dTots, 2, dTots2)
-        write(6, *) dTots2(2), dTots2(1), dTots2(2) / dTots2(1)
+        write(stdout, *) dTots2(2), dTots2(1), dTots2(2) / dTots2(1)
         deallocate(Ex)
     End Subroutine Par2vSum
 
@@ -502,25 +502,25 @@ contains
         end if
 
 !  Calculate eigenvalues.
-!   write(6,*) dE1,dE2,dU
+!   write(stdout,*) dE1,dE2,dU
 
         dD = ((dE1 + dE2)**2 - 4 * (dE1 * dE2) + 4 * abs(dU)**2)
 
-!   write(6,*) dD
+!   write(stdout,*) dD
 
         dD = sqrt(dD) / 2
         dEp = (dE1 + dE2) / 2
         dEm = dEp - dD
         dEp = dEp + dD
 
-!   write(6,*) dD,dEp,dEm
+!   write(stdout,*) dD,dEp,dEm
 
 !  The normalized first coefficient of an eigenvector is U/sqrt((dE1-dEpm)**2+U**2)
         dD = 1 / sqrt((dE1 - dEp)**2 + abs(dU)**2) ! normalisation factor
         dD2 = dD * (dEp - dE1)               ! second coefficient
         dD = dD * dU                           ! first coefficient
 
-!   write(6,*) dD,dD2
+!   write(stdout,*) dD,dD2
 
 !dD is the eigenvector component
         dEx = exp(-dBeta * (dEp - dE1))
@@ -532,9 +532,9 @@ contains
         dEt = dEt + dU * dD * (dD2) * dEx
 #endif
 
-!   write(6,*) dEx,dw,dEt
+!   write(stdout,*) dEx,dw,dEt
 
-!   write(6,*) dEp,dD,dD2,dw,dEx,dBeta
+!   write(stdout,*) dEp,dD,dD2,dw,dEx,dBeta
 !  This can be numerically unstable when dE1 is v close to dEm:
 !      dD=1/sqrt((dE1-dEm)**2+dU**2)
 !      dD2=dD*(dEm-dE1)
@@ -550,7 +550,7 @@ contains
 #endif
         dEx = exp(-dBeta * (dEm - dE1))
         dw = dw + (abs(dD)**2 * dEx)
-!   write(6,*) dEm,dD,dD2,dw,dEx
+!   write(stdout,*) dEm,dD,dD2,dw,dEx
         dEt = dEt + (dE1 * abs(dD)**2 * dEx)
 #ifdef CMPLX_
         dEt = dEt + dU * dD * conjg(dD2) * dEx
@@ -566,7 +566,7 @@ contains
 !  As we factor out exp(-\beta E_i), this becomes just:
         dEt = dEt - (dE1)
         dw = dw - (1)
-        write(6, *) 'wE,E', dEt, dw
+        write(stdout, *) 'wE,E', dEt, dw
 
     end subroutine Get2vWeightEnergy
 
