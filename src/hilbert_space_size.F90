@@ -2,7 +2,7 @@
 
 module hilbert_space_size
 
-    use constants, only: dp, int64, n_int, bits_n_int, sizeof_int
+    use constants, only: dp, int64, n_int, bits_n_int, sizeof_int, stdout
     use util_mod, only: choose, get_free_unit, operator(.div.)
     implicit none
 
@@ -57,7 +57,7 @@ contains
             write(IUNIT, *) "Momentum of HF determinant is: ", FDetMom
         end if
         IF (tHPHF) THEN
-            write(6, *) "Imposing time-reversal symmetry (HPHF) on " &
+            write(stdout, *) "Imposing time-reversal symmetry (HPHF) on " &
                 //"size of space calculation"
         end if
 
@@ -74,7 +74,7 @@ contains
         !Calculate excitation level bias due to the way the determinants are constructed.
         do i = 0, iExcitLevTest
             ExcitLevBias(i) = Choose(NEl - i, iExcitLevTest - i)
-!             write(6,*) ExcitLevBias(i)
+!             write(stdout,*) ExcitLevBias(i)
         end do
 
         write(IUNIT, *) "Size of excitation level neglecting all symmetry: " &
@@ -112,7 +112,7 @@ contains
                 SymSpace = 0.0_dp
                 Frac = REAL(AcceptAll, dp) / REAL(TotalAttemptsAll, dp)  !Fraction of the 'full' space which is symmetry allowed
                 do j = 0, iExcitLevTest
-!                     write(6,*) REAL(ExcitBinAll(j),dp),REAL(AcceptAll,dp),Frac,FullSpace,ExcitLevBias(j)
+!                     write(stdout,*) REAL(ExcitBinAll(j),dp),REAL(AcceptAll,dp),Frac,FullSpace,ExcitLevBias(j)
                     SizeLevel(j) = ((REAL(ExcitBinAll(j), dp) / REAL(AcceptAll, dp)) * Frac * FullSpace) / ExcitLevBias(j)
                     SymSpace = SymSpace + SizeLevel(j)
                 end do
@@ -142,7 +142,7 @@ contains
         SymSpace = 0.0_dp
         Frac = REAL(AcceptAll, dp) / REAL(TotalAttemptsAll, dp)  !Fraction of the 'full' space which is symmetry allowed
         do j = 0, iExcitLevTest
-!             write(6,*) REAL(ExcitBinAll(j),dp),REAL(AcceptAll,dp),Frac,FullSpace,ExcitLevBias(j)
+!             write(stdout,*) REAL(ExcitBinAll(j),dp),REAL(AcceptAll,dp),Frac,FullSpace,ExcitLevBias(j)
             SizeLevel(j) = ((REAL(ExcitBinAll(j), dp) / REAL(AcceptAll, dp)) * Frac * FullSpace) / ExcitLevBias(j)
             SymSpace = SymSpace + SizeLevel(j)
         end do
@@ -434,7 +434,7 @@ contains
         end do
 
         IF (.not. ((Momx == 0) .and. (Momy == 0) .and. (Momz == 0))) THEN
-            write(6, *) "Momx: ", Momx, "Momy: ", Momy, "Momz: ", Momz
+            write(stdout, *) "Momx: ", Momx, "Momy: ", Momy, "Momz: ", Momz
             call stop_all("FindSymMCSizeofSpace", "Cannot calculate MC size of space with non-zero momentum")
         end if
 
@@ -456,7 +456,7 @@ contains
             write(iunit, *) "K-point sym of HF determinant is: ", FDetKPntMom%S
         end if
         IF (tHPHF) THEN
-            write(6, *) "Imposing time-reversal symmetry (HPHF) on " &
+            write(stdout, *) "Imposing time-reversal symmetry (HPHF) on " &
                 //"size of space calculation"
         end if
 
@@ -700,7 +700,7 @@ contains
         do i = 1, NEl
             FDetSym = IEOR(FDetSym, INT(G1(FDet(i))%Sym%S, sizeof_int))
         end do
-        write(6, *) "Symmetry of HF determinant is: ", FDetSym
+        write(stdout, *) "Symmetry of HF determinant is: ", FDetSym
         CALL neci_flush(IUNIT)
         ClassCounts(:, :) = 0
 !First, we need to find the number of spatial orbitals in each symmetry irrep.
@@ -716,7 +716,7 @@ contains
         end do
         do i = 0, 7
             IF (mod((ClassCounts(1, i) + ClassCounts(2, i)), 2) /= 0) THEN
-                write(6, *) 'WARNING: Different number of symmetries between the alpha and beta orbitals.'
+                write(stdout, *) 'WARNING: Different number of symmetries between the alpha and beta orbitals.'
             end if
         end do
 
@@ -889,7 +889,7 @@ contains
         do i = 1, NEl
             FDetSym = IEOR(FDetSym, INT(G1(FDet(i))%Sym%S, sizeof_int))
         end do
-        write(6, *) "Symmetry of HF determinant is: ", FDetSym
+        write(stdout, *) "Symmetry of HF determinant is: ", FDetSym
         CALL neci_flush(IUNIT)
         ClassCountsOcc(:) = 0
         ClassCountsVirt(:) = 0

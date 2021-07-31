@@ -207,11 +207,8 @@ macro( neci_add_library )
         endif()
     endif()
 
-    if( HAVE_WARNINGS )
-#         set( ${_p_TARGET}_RELAX_WARNINGS )
-        if (_p_RELAX_WARNINGS )
-            set_property(SOURCE ${_p_RELAX_WARNINGS} PROPERTY COMPILE_FLAGS ${${PROJECT_NAME}_Fortran_relaxed_WARNING_FLAGS})
-        endif()
+    if (_p_RELAX_WARNINGS )
+        set_property(SOURCE ${_p_RELAX_WARNINGS} PROPERTY COMPILE_FLAGS ${${PROJECT_NAME}_Fortran_relaxed_WARNING_FLAGS})
     endif()
 
 

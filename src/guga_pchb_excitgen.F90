@@ -2,7 +2,7 @@
 module guga_pchb_excitgen
 
     use aliasSampling, only: AliasSampler_1D_t
-    use constants, only: n_int, dp, maxExcit, int64, iout, int_rdm
+    use constants, only: n_int, dp, maxExcit, int64, stdout, int_rdm
     use bit_rep_data, only: IlutBits, GugaBits
     use SystemData, only: nel, G1, current_stepvector, t_pchb_weighted_singles, &
                           nBasis, nSpatOrbs, ElecPairs, currentOcc_int, &
@@ -1000,7 +1000,7 @@ contains
                 &on if too many blooms happen!"
         end if
 
-        write(iout,*) "Allocating GUGA PCHB excitation generator objects"
+        write(stdout,*) "Allocating GUGA PCHB excitation generator objects"
         ! initialize the mapping ab -> (a,b)
         abMax = fuseIndex(nSpatOrbs,nSpatOrbs)
         allocate(tgtOrbs(2,0:abMax), source = 0)
@@ -1017,13 +1017,13 @@ contains
 
         ijMax = fuseIndex(nSpatOrbs, nSpatOrbs)
         memCost = abMax*ijMax*24*2
-        write(iout,*) "Excitation generator requires", &
+        write(stdout,*) "Excitation generator requires", &
             real(memCost,dp)/2.0_dp**30, "GB of memory"
-        write(iout,*) "Generating samplers for PCHB excitation generator"
+        write(stdout,*) "Generating samplers for PCHB excitation generator"
 
         call setup_pchb_sampler_conditional()
 
-        write(iout,*) "Finished GUGA PCHB excitation generator initialization"
+        write(stdout,*) "Finished GUGA PCHB excitation generator initialization"
     end subroutine init_guga_pchb_excitgen
 
     subroutine setup_pchb_sampler_conditional()
@@ -1718,4 +1718,3 @@ contains
     end subroutine calc_orbital_pgen_contr_end_pchb
 
 end module guga_pchb_excitgen
-

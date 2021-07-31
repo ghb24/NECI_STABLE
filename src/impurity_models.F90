@@ -163,13 +163,13 @@ end subroutine constructConnections
 !------------------------------------------------------------------------------------------!
 
   subroutine assignPSingles()
-    use constants, only: iout
+    use constants, only: stdout
     ! set the initial values for pSingles/pDoubles
     implicit none
 
     pSingles = 0.9_dp
-    write (iout,'(A,F14.6)') " pDoubles set to: ", 1.0_dp - pSingles
-    write (iout,'(A,F14.6)') " pSingles set to: ", pSingles
+    write (stdout,'(A,F14.6)') " pDoubles set to: ", 1.0_dp - pSingles
+    write (stdout,'(A,F14.6)') " pSingles set to: ", pSingles
 
   end subroutine assignPSingles
 

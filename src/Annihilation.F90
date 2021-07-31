@@ -206,9 +206,9 @@ contains
         ! ordered in each processor
         if (MaxIndex > (0.9_dp * MaxSpawned)) then
 #ifdef DEBUG_
-            write(6, *) MaxIndex, MaxSpawned
+            write(stdout, *) MaxIndex, MaxSpawned
 #else
-            write(iout, *) 'On task ', iProcIndex, ': ', MaxIndex, MaxSpawned
+            write(stdout, *) 'On task ', iProcIndex, ': ', MaxIndex, MaxSpawned
 #endif
             call Warning_neci("SendProcNewParts", "Maximum index of newly-spawned array is " &
             & //"close to maximum length after annihilation send. Increase MemoryFacSpawn")
@@ -640,10 +640,10 @@ contains
 
         if (tHistSpawn) HistMinInd2(1:NEl) = FCIDetIndex(1:NEl)
 
-        !write(6,*) "SpawnedParts before:"
+        !write(stdout,*) "SpawnedParts before:"
         !do i = 1, ValidSpawned
         !    call extract_sign (SpawnedParts(:, i), temp_sign)
-        !    write(6,'(i7, 4x, i16, 4x, f18.7, 4x, l1)') i, SpawnedParts(0,i), temp_sign, &
+        !    write(stdout,'(i7, 4x, i16, 4x, f18.7, 4x, l1)') i, SpawnedParts(0,i), temp_sign, &
         !        test_flag(SpawnedParts(:,i), get_initiator_flag(1))
         !end do
 
@@ -811,11 +811,11 @@ contains
         SpawnedParts2 => SpawnedParts
         SpawnedParts => PointTemp
 
-        !write(6,*) "SpawnedParts after:"
+        !write(stdout,*) "SpawnedParts after:"
         !do i = 1, ValidSpawned
-        !    if (SpawnedParts(0,i) == SpawnedParts(0,i+1)) write(6,*) "Here!"
+        !    if (SpawnedParts(0,i) == SpawnedParts(0,i+1)) write(stdout,*) "Here!"
         !    call extract_sign (SpawnedParts(:, i), temp_sign)
-        !    write(6,'(i7, 4x, i16, 4x, f18.7, 4x, l1)') i, SpawnedParts(0,i), temp_sign, &
+        !    write(stdout,'(i7, 4x, i16, 4x, f18.7, 4x, l1)') i, SpawnedParts(0,i), temp_sign, &
         !        test_flag(SpawnedParts(:,i), get_initiator_flag(1))
         !end do
 
@@ -897,11 +897,11 @@ contains
 
         ValidSpawned = length_new
 
-        !write(6,*) "SpawnedParts final:"
+        !write(stdout,*) "SpawnedParts final:"
         !do i = 1, ValidSpawned
-        !    if (SpawnedParts(0,i) == SpawnedParts(0,i+1)) write(6,*) "ERROR!"
+        !    if (SpawnedParts(0,i) == SpawnedParts(0,i+1)) write(stdout,*) "ERROR!"
         !    call extract_sign (SpawnedParts(:, i), spawned_sign)
-        !    write(6,'(i7, 4x, i16, 4x, f18.7, 4x, l1)') i, SpawnedParts(0,i), spawned_sign, &
+        !    write(stdout,'(i7, 4x, i16, 4x, f18.7, 4x, l1)') i, SpawnedParts(0,i), spawned_sign, &
         !        test_flag(SpawnedParts(:,i), get_initiator_flag(1))
         !end do
 
@@ -1123,7 +1123,7 @@ contains
                                     InstAnnihil(j, PartIndex) = InstAnnihil(j, PartIndex) + &
                                                                 real(2 * (min(abs(CurrentSign(j)), abs(SpawnedSign(j)))), dp)
                                 else
-                                    write(6, *) "***", SpawnedParts(0:NIftot, i)
+                                    write(stdout, *) "***", SpawnedParts(0:NIftot, i)
                                     Call WriteBitDet(6, SpawnedParts(0:NIfTot, i), .true.)
                                     call stop_all("AnnihilateSpawnedParts", "Cannot find corresponding FCI "&
                                             & //"determinant when histogramming")

@@ -2,7 +2,7 @@
 
 module back_spawn_excit_gen
 
-    use constants, only: dp, n_int, EPS, bits_n_int, maxExcit
+    use constants, only: dp, n_int, EPS, bits_n_int, maxExcit, stdout
     use SystemData, only: nel, G1, nbasis, tHPHF, NMAXX, NMAXY, NMAXZ, &
                           tOrbECutoff, OrbECutoff, nOccBeta, nOccAlpha, ElecPairs, &
                           tHPHF
@@ -92,18 +92,18 @@ contains
                         temp_hel = get_helement(nI, nJ, ilutI, ilutJ)
                     end if
 
-                    write(6, *) 'Calculated and actual pgens differ. for non-initiator'
-                    write(6, *) 'This will break HPHF calculations'
-                    write(6, *) 'reference det: '
+                    write(stdout, *) 'Calculated and actual pgens differ. for non-initiator'
+                    write(stdout, *) 'This will break HPHF calculations'
+                    write(stdout, *) 'reference det: '
                     call write_det(6, projedet(:, part_type_to_run(part_type)), .true.)
                     call write_det(6, nI, .false.)
-                    write(6, '(" --> ")', advance='no')
+                    write(stdout, '(" --> ")', advance='no')
                     call write_det(6, nJ, .true.)
-                    write(6, *) 'Excitation matrix: ', ExcitMat(1, 1:ic), '-->', &
+                    write(stdout, *) 'Excitation matrix: ', ExcitMat(1, 1:ic), '-->', &
                         ExcitMat(2, 1:ic)
-                    write(6, *) 'Generated pGen:  ', pgen
-                    write(6, *) 'Calculated pGen: ', pgen2
-                    write(6, *) 'matrix element: ', temp_hel
+                    write(stdout, *) 'Generated pGen:  ', pgen
+                    write(stdout, *) 'Calculated pGen: ', pgen2
+                    write(stdout, *) 'matrix element: ', temp_hel
                     call stop_all(this_routine, "Invalid pGen")
                 end if
             end if
@@ -124,16 +124,16 @@ contains
                         temp_hel = get_helement(nI, nJ, ilutI, ilutJ)
                     end if
 
-                    write(6, *) 'Calculated and actual pgens differ. for non-initiator'
-                    write(6, *) 'This will break HPHF calculations'
+                    write(stdout, *) 'Calculated and actual pgens differ. for non-initiator'
+                    write(stdout, *) 'This will break HPHF calculations'
                     call write_det(6, nI, .false.)
-                    write(6, '(" --> ")', advance='no')
+                    write(stdout, '(" --> ")', advance='no')
                     call write_det(6, nJ, .true.)
-                    write(6, *) 'Excitation matrix: ', ExcitMat(1, 1:ic), '-->', &
+                    write(stdout, *) 'Excitation matrix: ', ExcitMat(1, 1:ic), '-->', &
                         ExcitMat(2, 1:ic)
-                    write(6, *) 'Generated pGen:  ', pgen
-                    write(6, *) 'Calculated pGen: ', pgen2
-                    write(6, *) 'matrix element: ', temp_hel
+                    write(stdout, *) 'Generated pGen:  ', pgen
+                    write(stdout, *) 'Calculated pGen: ', pgen2
+                    write(stdout, *) 'matrix element: ', temp_hel
                     call stop_all(this_routine, "Invalid pGen")
                 end if
             end if
@@ -358,16 +358,16 @@ contains
                         temp_hel = get_helement(nI, nJ, ilutI, ilutJ)
                     end if
 
-                    write(6, *) 'Calculated and actual pgens differ. for non-initiator'
-                    write(6, *) 'This will break HPHF calculations'
+                    write(stdout, *) 'Calculated and actual pgens differ. for non-initiator'
+                    write(stdout, *) 'This will break HPHF calculations'
                     call write_det(6, nI, .false.)
-                    write(6, '(" --> ")', advance='no')
+                    write(stdout, '(" --> ")', advance='no')
                     call write_det(6, nJ, .true.)
-                    write(6, *) 'Excitation matrix: ', ExcitMat(1, 1:ic), '-->', &
+                    write(stdout, *) 'Excitation matrix: ', ExcitMat(1, 1:ic), '-->', &
                         ExcitMat(2, 1:ic)
-                    write(6, *) 'Generated pGen:  ', pgen
-                    write(6, *) 'Calculated pGen: ', pgen2
-                    write(6, *) 'matrix element: ', temp_hel
+                    write(stdout, *) 'Generated pGen:  ', pgen
+                    write(stdout, *) 'Calculated pGen: ', pgen2
+                    write(stdout, *) 'matrix element: ', temp_hel
                     call stop_all(this_routine, "Invalid pGen")
                 end if
             end if
@@ -390,16 +390,16 @@ contains
                         temp_hel = get_helement(nI, nJ, ilutI, ilutJ)
                     end if
 
-                    write(6, *) 'Calculated and actual pgens differ. for non-initiator'
-                    write(6, *) 'This will break HPHF calculations'
+                    write(stdout, *) 'Calculated and actual pgens differ. for non-initiator'
+                    write(stdout, *) 'This will break HPHF calculations'
                     call write_det(6, nI, .false.)
-                    write(6, '(" --> ")', advance='no')
+                    write(stdout, '(" --> ")', advance='no')
                     call write_det(6, nJ, .true.)
-                    write(6, *) 'Excitation matrix: ', ExcitMat(1, 1:ic), '-->', &
+                    write(stdout, *) 'Excitation matrix: ', ExcitMat(1, 1:ic), '-->', &
                         ExcitMat(2, 1:ic)
-                    write(6, *) 'Generated pGen:  ', pgen
-                    write(6, *) 'Calculated pGen: ', pgen2
-                    write(6, *) 'matrix element: ', temp_hel
+                    write(stdout, *) 'Generated pGen:  ', pgen
+                    write(stdout, *) 'Calculated pGen: ', pgen2
+                    write(stdout, *) 'matrix element: ', temp_hel
                     call stop_all(this_routine, "Invalid pGen")
                 end if
             end if
@@ -701,16 +701,16 @@ contains
                         temp_hel = get_helement(nI, nJ, ilutI, ilutJ)
                     end if
 
-                    write(6, *) 'Calculated and actual pgens differ. for non-initiator'
-                    write(6, *) 'This will break HPHF calculations'
+                    write(stdout, *) 'Calculated and actual pgens differ. for non-initiator'
+                    write(stdout, *) 'This will break HPHF calculations'
                     call write_det(6, nI, .false.)
-                    write(6, '(" --> ")', advance='no')
+                    write(stdout, '(" --> ")', advance='no')
                     call write_det(6, nJ, .true.)
-                    write(6, *) 'Excitation matrix: ', ExcitMat(1, 1:ic), '-->', &
+                    write(stdout, *) 'Excitation matrix: ', ExcitMat(1, 1:ic), '-->', &
                         ExcitMat(2, 1:ic)
-                    write(6, *) 'Generated pGen:  ', pgen
-                    write(6, *) 'Calculated pGen: ', pgen2
-                    write(6, *) 'matrix element: ', temp_hel
+                    write(stdout, *) 'Generated pGen:  ', pgen
+                    write(stdout, *) 'Calculated pGen: ', pgen2
+                    write(stdout, *) 'matrix element: ', temp_hel
                     call stop_all(this_routine, "Invalid pGen")
                 end if
             end if
@@ -733,16 +733,16 @@ contains
                         temp_hel = get_helement(nI, nJ, ilutI, ilutJ)
                     end if
 
-                    write(6, *) 'Calculated and actual pgens differ. for non-initiator'
-                    write(6, *) 'This will break HPHF calculations'
+                    write(stdout, *) 'Calculated and actual pgens differ. for non-initiator'
+                    write(stdout, *) 'This will break HPHF calculations'
                     call write_det(6, nI, .false.)
-                    write(6, '(" --> ")', advance='no')
+                    write(stdout, '(" --> ")', advance='no')
                     call write_det(6, nJ, .true.)
-                    write(6, *) 'Excitation matrix: ', ExcitMat(1, 1:ic), '-->', &
+                    write(stdout, *) 'Excitation matrix: ', ExcitMat(1, 1:ic), '-->', &
                         ExcitMat(2, 1:ic)
-                    write(6, *) 'Generated pGen:  ', pgen
-                    write(6, *) 'Calculated pGen: ', pgen2
-                    write(6, *) 'matrix element: ', temp_hel
+                    write(stdout, *) 'Generated pGen:  ', pgen
+                    write(stdout, *) 'Calculated pGen: ', pgen2
+                    write(stdout, *) 'matrix element: ', temp_hel
                     call stop_all(this_routine, "Invalid pGen")
                 end if
             end if
@@ -944,18 +944,18 @@ contains
                         temp_hel = get_helement(nI, nJ, ilutI, ilutJ)
                     end if
 
-                    write(6, *) 'Calculated and actual pgens differ. for non-initiator'
-                    write(6, *) 'This will break HPHF calculations'
-                    write(6, *) "reference determinant: "
+                    write(stdout, *) 'Calculated and actual pgens differ. for non-initiator'
+                    write(stdout, *) 'This will break HPHF calculations'
+                    write(stdout, *) "reference determinant: "
                     call write_det(6, projedet(:, part_type_to_run(part_type)), .true.)
                     call write_det(6, nI, .false.)
-                    write(6, '(" --> ")', advance='no')
+                    write(stdout, '(" --> ")', advance='no')
                     call write_det(6, nJ, .true.)
-                    write(6, *) 'Excitation matrix: ', ExcitMat(1, 1:ic), '-->', &
+                    write(stdout, *) 'Excitation matrix: ', ExcitMat(1, 1:ic), '-->', &
                         ExcitMat(2, 1:ic)
-                    write(6, *) 'Generated pGen:  ', pgen
-                    write(6, *) 'Calculated pGen: ', pgen2
-                    write(6, *) 'matrix element: ', temp_hel
+                    write(stdout, *) 'Generated pGen:  ', pgen
+                    write(stdout, *) 'Calculated pGen: ', pgen2
+                    write(stdout, *) 'matrix element: ', temp_hel
                     call stop_all(this_routine, "Invalid pGen")
                 end if
             end if
@@ -990,16 +990,16 @@ contains
                         temp_hel = get_helement(nI, nJ, ilutI, ilutJ)
                     end if
 
-                    write(6, *) 'Calculated and actual pgens differ. initiator'
-                    write(6, *) 'This will break HPHF calculations'
+                    write(stdout, *) 'Calculated and actual pgens differ. initiator'
+                    write(stdout, *) 'This will break HPHF calculations'
                     call write_det(6, nI, .false.)
-                    write(6, '(" --> ")', advance='no')
+                    write(stdout, '(" --> ")', advance='no')
                     call write_det(6, nJ, .true.)
-                    write(6, *) 'Excitation matrix: ', ExcitMat(1, 1:ic), '-->', &
+                    write(stdout, *) 'Excitation matrix: ', ExcitMat(1, 1:ic), '-->', &
                         ExcitMat(2, 1:ic)
-                    write(6, *) 'Generated pGen:  ', pgen
-                    write(6, *) 'Calculated pGen: ', pgen2
-                    write(6, *) 'matrix element: ', temp_hel
+                    write(stdout, *) 'Generated pGen:  ', pgen
+                    write(stdout, *) 'Calculated pGen: ', pgen2
+                    write(stdout, *) 'matrix element: ', temp_hel
                     call stop_all(this_routine, "Invalid pGen")
                 end if
             end if

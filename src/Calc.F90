@@ -684,7 +684,7 @@ contains
                         tExitNow = .true.
 
                     case default
-                        write(6, *) 'REPORT'//trim(w)
+                        write(stdout, *) 'REPORT'//trim(w)
                         !call report ("Keyword "//trim(w)//" not recognized",.true.)
                     end select
 
@@ -828,7 +828,7 @@ contains
                 end do
                 EXCITFUNCS(3) = .true.
             case("EXCITWEIGHTING")
-                write(6, *) '---------------->excitweighting'
+                write(stdout, *) '---------------->excitweighting'
                 call neci_flush(6)
                 call readf(g_VMC_ExcitWeights(1, 1))
                 call readf(g_VMC_ExcitWeights(2, 1))
@@ -970,7 +970,7 @@ contains
                     end if
                 end do
                 if(i - 1 /= nel) call stop_all(t_r, "Insufficient orbitals given in DEFINEDET")
-                
+
                 ! there is something going wrong later in the init, so
                 ! do it actually here
                 if(tHPHF) then
@@ -979,16 +979,16 @@ contains
                     def_ilut_sym = return_hphf_sym_det(def_ilut)
                     if(.not. DetBitEq(def_ilut, def_ilut_sym)) then
                         call decode_bit_det(DefDet, def_ilut_sym)
-                        write(iout, *) "definedet changed to HPHF symmetric:"
-                        call write_det(iout, DefDet, .true.)
+                        write(stdout, *) "definedet changed to HPHF symmetric:"
+                        call write_det(stdout, DefDet, .true.)
                     end if
                 end if
 
                 if(tGUGA) then
                     if(.not. isProperCSF_ni(defdet)) then
-                        write(iout, *) " automatic neel-state creation produced invalid CSF!"
-                        write(iout, *) "created neel-state: "
-                        call write_det(iout, DefDet, .true.)
+                        write(stdout, *) " automatic neel-state creation produced invalid CSF!"
+                        write(stdout, *) "created neel-state: "
+                        call write_det(stdout, DefDet, .true.)
                         call stop_all(t_r, " definedet is not a proper CSF or has wrong SPIN!")
                     end if
                 end if
@@ -1267,7 +1267,7 @@ contains
 
             case ("DIRECT-GUGA-REF")
                 ! obsolet since standard now!
-                write(iout, *) "WARNING: direct-guga-ref is the default now and not necessary as input"
+                write(stdout, *) "WARNING: direct-guga-ref is the default now and not necessary as input"
 
             case ("LIST-GUGA-REF")
                 ! option to calculate the reference energy via a pre-computed list
@@ -1356,7 +1356,7 @@ contains
                 ! turn off the other tau-search, if by mistake both were
                 ! chosen!
                 if(tSearchTau .or. tSearchTauOption) then
-                    write(iout, &
+                    write(stdout, &
                         '("(WARNING: both the histogramming and standard tau&
                         &-search option were chosen! TURNING STANDARD VERSION OFF!")')
                     tSearchTau = .false.
@@ -1373,7 +1373,7 @@ contains
                     ! check that not too many bins are used which may crash
                     ! the MPI communication of the histograms!
                     if(n_frequency_bins > 1000000) then
-                        write(iout, &
+                        write(stdout, &
                             '("WARNING: maybe too many bins used for the &
                             &histograms! This might cause MPI problems!")')
                     end if
@@ -1472,15 +1472,15 @@ contains
 
                 if(tGUGA) then
                     if(.not. isProperCSF_ni(defdet)) then
-                        write(iout, *) " automatic neel-state creation produced invalid CSF!"
-                        write(iout, *) "created neel-state: "
-                        call write_det(iout, DefDet, .true.)
+                        write(stdout, *) " automatic neel-state creation produced invalid CSF!"
+                        write(stdout, *) "created neel-state: "
+                        call write_det(stdout, DefDet, .true.)
                         call stop_all(t_r, " automatic neel-state creation produced invalid CSF!")
                     end if
                 end if
 
-                write(iout, *) "created neel-state: "
-                call write_det(iout, DefDet, .true.)
+                write(stdout, *) "created neel-state: "
+                call write_det(stdout, DefDet, .true.)
 
             case("MAXWALKERBLOOM")
                 !Set the maximum allowed walkers to create in one go, before reducing tau to compensate.
@@ -1506,7 +1506,7 @@ contains
             case("LINSCALEFCIMCALGO")
                 ! Use the linear scaling FCIMC algorithm
                 ! This option is now deprecated, as it is default.
-                write(iout, '("WARNING: LINSCALEFCIMCALGO option has been &
+                write(stdout, '("WARNING: LINSCALEFCIMCALGO option has been &
                               &deprecated, and now does nothing")')
                 !call stop_all(t_r, "Option LINSCALEFCIMCALGO deprecated")
 
@@ -1751,7 +1751,7 @@ contains
                 !    trial_space_in%tHeisenbergFCI = .true.
             case("TRIAL-BIN-SEARCH")
                 tTrialHash = .false.
-                write(iout, *) "WARNING: Disabled trial hashtable. Load balancing "// &
+                write(stdout, *) "WARNING: Disabled trial hashtable. Load balancing "// &
                     "is not supported in this mode and might break the trial energy"
             case("TRIAL-ESTIMATE-REORDER")
                 allocate(trial_est_reorder(inum_runs))
@@ -1925,7 +1925,7 @@ contains
             case("STEPSSHIFT")
 !For FCIMC, this is the number of steps taken before the Diag shift is updated
                 if(tFixedN0 .or. tTrialShift) then
-                    write(6, *) "WARNING: 'STEPSSHIFT' cannot be changed. &
+                    write(stdout, *) "WARNING: 'STEPSSHIFT' cannot be changed. &
 & 'FIXED-N0' or 'TRIAL-SHIFT' is already specified and sets this parameter to 1."
                 else
                     call geti(StepsSft)
@@ -2875,7 +2875,7 @@ contains
                 end do
 
             case("TAU-CNT-THRESHOLD")
-                write(6, *) 'WARNING: This option is unused in this branch'
+                write(stdout, *) 'WARNING: This option is unused in this branch'
 
             case("INITIATOR-SURVIVAL-CRITERION")
                 ! If a site survives for at least a certain number of
@@ -3004,7 +3004,7 @@ contains
                     end select
 
                     if(tLoadBalanceBlocks) then
-                        write(iout, '("WARNING: LOAD-BALANCE-BLOCKS option is &
+                        write(stdout, '("WARNING: LOAD-BALANCE-BLOCKS option is &
                                     &now enabled by default.")')
                     end if
                 end if
@@ -3535,7 +3535,7 @@ contains
             if(noccAlpha == 1 .or. noccBeta == 1) then
                 tSmallBasisForThreeBody = .false.
             else
-                write(6, *) 'There is not enough unoccupied orbitals for a poper three-body ', &
+                write(stdout, *) 'There is not enough unoccupied orbitals for a poper three-body ', &
                     'excitation! Some of the three-body excitations are possible', &
                     'some of or not. If you really would like to calculate this system, ', &
                     'you have to implement the handling of cases, which are not possible.'
@@ -3552,42 +3552,42 @@ contains
         call LogMemAlloc('MCDet', nEl, 4, this_routine, tagMCDet)
 
         IF(NPATHS == -1) THEN
-            write(6, *) 'NPATHS=-1.  SETTING NPATHS to NDET'
+            write(stdout, *) 'NPATHS=-1.  SETTING NPATHS to NDET'
             NPATHS = NDET
         end if
         IF(NDET > 0 .AND. ABS(DETINV) + NPATHS > NDET) THEN
-            write(6, *) 'DETINV+NPATHS=', ABS(DETINV) + NPATHS, '>NDET=', NDET
-            write(6, *) 'Setting DETINV and NPATHS to 0'
+            write(stdout, *) 'DETINV+NPATHS=', ABS(DETINV) + NPATHS, '>NDET=', NDET
+            write(stdout, *) 'Setting DETINV and NPATHS to 0'
             DETINV = 0
             NPATHS = 0
         end if
 
         IF(THFCALC) THEN
-            write(6, *) "Calculating Hartree-Fock Basis"
-            write(6, *) "Max Iterations:", NHFIT
-            write(6, *) "FMIX,EDELTA", HFMIX, HFEDELTA
+            write(stdout, *) "Calculating Hartree-Fock Basis"
+            write(stdout, *) "Max Iterations:", NHFIT
+            write(stdout, *) "FMIX,EDELTA", HFMIX, HFEDELTA
         end if
         IF(TMONTE) THEN
-            write(6, *) 'MC Determinant Symmetry:'
-            write(6, *)(MDK(I), I=1, 4)
+            write(stdout, *) 'MC Determinant Symmetry:'
+            write(stdout, *)(MDK(I), I=1, 4)
         end if
 ! Thus would appear to be obsolete
 
 !          IF(G_VMC_FAC.LE.0) THEN
-!             write(6,*) "G_VMC_FAC=",G_VMC_FAC
+!             write(stdout,*) "G_VMC_FAC=",G_VMC_FAC
 !             call stop_all(this_routine, "G_VNC_FAC LE 0")
 !          end if
 
         IF(.not. near_zero(BETAP)) THEN
             I_P = NINT(BETA / BETAP)
             IF(.not. tFCIMC) THEN
-                write(6, *) 'BETAP=', BETAP
-                write(6, *) 'RESETTING P '
-                IF(I_P > 100000) write(6, *) '*** WARNING I_P=', I_P
+                write(stdout, *) 'BETAP=', BETAP
+                write(stdout, *) 'RESETTING P '
+                IF(I_P > 100000) write(stdout, *) '*** WARNING I_P=', I_P
             end if
         end if
 
-        IF(.not. tFCIMC) write(6, *) 'BETA, P :', BETA, I_P
+        IF(.not. tFCIMC) write(stdout, *) 'BETA, P :', BETA, I_P
 
 !C         DBRAT=0.001
 !C         DBETA=DBRAT*BETA
@@ -3617,12 +3617,12 @@ contains
 !             CALL WRITETMAT(NBASIS)
             IC = 0
             HDiagTemp = get_helement(fDet, fDet, 0)
-            write(6, *) '<D0|H|D0>=', real(HDiagTemp, dp)
-            write(6, *) '<D0|T|D0>=', CALCT(FDET, NEL)
+            write(stdout, *) '<D0|H|D0>=', real(HDiagTemp, dp)
+            write(stdout, *) '<D0|T|D0>=', CALCT(FDET, NEL)
 
             IF(TUEG) THEN
 !  The actual KE rather than the one-electron part of the Hamiltonian
-                write(6, *) 'Kinetic=', CALCT2(FDET, NEL, G1, ALAT, CST)
+                write(stdout, *) 'Kinetic=', CALCT2(FDET, NEL, G1, ALAT, CST)
             end if
         end if
 
@@ -3635,8 +3635,8 @@ contains
         ! But change this in future and include a corresponding CalcInitGUGA()
 
         if(tGUGA) then
-            write(6, *) " !! NOTE: running a GUGA simulation, so following info makes no sense!"
-            write(6, *) " but is kept for now to not break remaining code!"
+            write(stdout, *) " !! NOTE: running a GUGA simulation, so following info makes no sense!"
+            write(stdout, *) " but is kept for now to not break remaining code!"
         end if
 
         nOccAlpha = 0
@@ -3652,7 +3652,7 @@ contains
             end if
         end do
 
-        write(6, "(A,I5,A,I5,A)") " FDet has ", nOccAlpha, " alpha electrons, and ", nOccBeta, " beta electrons."
+        write(stdout, "(A,I5,A,I5,A)") " FDet has ", nOccAlpha, " alpha electrons, and ", nOccBeta, " beta electrons."
         ElecPairs = (NEl * (NEl - 1)) / 2
         MaxABPairs = (nBasis * (nBasis - 1) / 2)
 
@@ -3665,11 +3665,11 @@ contains
         if(AA_elec_pairs + BB_elec_pairs + AB_elec_pairs /= ElecPairs) &
             call stop_all(this_routine, "Calculation of electron pairs failed")
 
-        write(6, *) '    ', AA_elec_pairs, &
+        write(stdout, *) '    ', AA_elec_pairs, &
             ' alpha-alpha occupied electron pairs'
-        write(6, *) '    ', BB_elec_pairs, &
+        write(stdout, *) '    ', BB_elec_pairs, &
             ' beta-beta occupied electron pairs'
-        write(6, *) '    ', AB_elec_pairs, &
+        write(stdout, *) '    ', AB_elec_pairs, &
             ' alpha-beta occupied electron pairs'
 
         ! Get some stats about available numbers of holes, etc.
@@ -3688,9 +3688,9 @@ contains
         if(par_hole_pairs + AB_hole_pairs /= hole_pairs) &
             call stop_all(this_routine, "Calculation of hole pairs failed")
 
-        write(6, *) '    ', AA_hole_pairs, 'alpha-alpha (vacant) hole pairs'
-        write(6, *) '    ', BB_hole_pairs, 'beta-beta (vacant) hole pairs'
-        write(6, *) '    ', AB_hole_pairs, 'alpha-beta (vacant) hole pairs'
+        write(stdout, *) '    ', AA_hole_pairs, 'alpha-alpha (vacant) hole pairs'
+        write(stdout, *) '    ', BB_hole_pairs, 'beta-beta (vacant) hole pairs'
+        write(stdout, *) '    ', AB_hole_pairs, 'alpha-beta (vacant) hole pairs'
 
         IF(tExactSizeSpace) THEN
             IF(ICILevel == 0) THEN
@@ -3721,7 +3721,7 @@ contains
             end do
         end if
         IF(TMONTE) THEN
-            write(6, "(A)", advance='no') 'MC Start Det: '
+            write(stdout, "(A)", advance='no') 'MC Start Det: '
             call write_det(6, mcDet, .true.)
         end if
 !C.. we need to calculate a value for RHOEPS, so we approximate that
@@ -3731,7 +3731,7 @@ contains
 !C.. If we're using rhos,
             RHOEPS = GETRHOEPS(RHOEPSILON, BETA, NEL, BRR, I_P)
 
-!             write(6,*) "RHOEPS:",RHOEPS
+!             write(stdout,*) "RHOEPS:",RHOEPS
         ELSE
 !C.. we're acutally diagonalizing H's, so we just leave RHOEPS as RHOEPSILON
             RHOEPS = RHOEPSILON
@@ -3796,8 +3796,8 @@ contains
             !             IF(TRHOIJND) THEN
             !C.. We're calculating the RHOs for interest's sake, and writing them,
             !C.. but not keeping them in memory
-            !                  write(6,*) "Calculating RHOS..."
-            !                  write(6,*) "Using approx NTAY=",NTAY
+            !                  write(stdout,*) "Calculating RHOS..."
+            !                  write(stdout,*) "Using approx NTAY=",NTAY
             !                  CALL CALCRHOSD(NMRKS,BETA,I_P,I_HMAX,I_VMAX,NEL,NDET,        &
             !     &               NBASISMAX,G1,nBasis,BRR,NMSH,FCK,NMAX,ALAT,UMAT,             &
             !     &               NTAY,RHOEPS,NWHTAY,ECORE)
@@ -3808,14 +3808,14 @@ contains
                 if((.not. tMolpro) .and. (.not. tMolproMimic)) then
                     if(allocated(final_energy)) then
                         do i = 1, size(final_energy)
-                            write(6, '(1X,"Final energy estimate for state",1X,'//int_fmt(i)//',":",g25.14)') &
+                            write(stdout, '(1X,"Final energy estimate for state",1X,'//int_fmt(i)//',":",g25.14)') &
                                 i, final_energy(i)
                         end do
                     end if
                 end if
             else if(tRPA_QBA) then
                 call RunRPA_QBA(WeightDum, EnerDum)
-                write(6, *) "Summed approx E(Beta)=", EnerDum
+                write(stdout, *) "Summed approx E(Beta)=", EnerDum
             else if(tKP_FCIQMC) then
                 if(tExcitedStateKP) then
                     call perform_subspace_fciqmc(kp)
@@ -3824,7 +3824,7 @@ contains
                 end if
             else if(tRPA_QBA) then
                 call RunRPA_QBA(WeightDum, EnerDum)
-                write(6, *) "Summed approx E(Beta)=", EnerDum
+                write(stdout, *) "Summed approx E(Beta)=", EnerDum
             else if(tKP_FCIQMC) then
                 if(tExcitedStateKP) then
                     call perform_subspace_fciqmc(kp)
@@ -3837,16 +3837,16 @@ contains
             IF(TMONTE .and. .not. tMP2Standalone) THEN
 !             DBRAT=0.01
 !             DBETA=DBRAT*BETA
-                write(6, *) "I_HMAX:", I_HMAX
-                write(6, *) "Calculating MC Energy..."
+                write(stdout, *) "I_HMAX:", I_HMAX
+                write(stdout, *) "Calculating MC Energy..."
                 CALL neci_flush(6)
                 IF(NTAY(1) > 0) THEN
-                    write(6, *) "Using approx RHOs generated on the fly, NTAY=", NTAY(1)
+                    write(stdout, *) "Using approx RHOs generated on the fly, NTAY=", NTAY(1)
 !C.. NMAX is now ARR
                     call stop_all(this_routine, "DMONTECARLO2 is now non-functional.")
                 else if(NTAY(1) == 0) THEN
                     IF(TENERGY) THEN
-                        write(6, *) "Using exact RHOs generated on the fly"
+                        write(stdout, *) "Using exact RHOs generated on the fly"
 !C.. NTAY=0 signifying we're going to calculate the RHO values when we
 !C.. need them from the list of eigenvalues.
 !C.. Hide NMSH=NEVAL
@@ -3863,7 +3863,7 @@ contains
                         call stop_all(this_routine, "TENERGY not set, but NTAY=0")
                     end if
                 end if
-                write(6, *) "MC Energy:", EN
+                write(stdout, *) "MC Energy:", EN
 !CC           write(12,*) DBRAT,EN
             end if
         end if
@@ -4170,4 +4170,3 @@ FUNCTION CALCT2(NI, NEL, G1, ALAT, CST)
     end do
     RETURN
 END FUNCTION CALCT2
-

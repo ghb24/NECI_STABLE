@@ -74,7 +74,7 @@ contains
 
         call InitDavidsonCalc(this, print_info, hamil_type_in)
 
-        if (print_info) write(6, '(1X,"Iteration",4X,"Residual norm",12X,"Energy",7X,"Time")'); call neci_flush(6)
+        if (print_info) write(stdout, '(1X,"Iteration",4X,"Residual norm",12X,"Energy",7X,"Time")'); call neci_flush(6)
 
         do i = 2, max_num_davidson_iters
 
@@ -94,14 +94,14 @@ contains
 
             end_time = MPI_WTIME()
 
-            if (print_info) write(6, '(8X,i2,3X,f14.9,2x,f16.10,2x,f9.3)') i - 1, this%residual_norm, &
+            if (print_info) write(stdout, '(8X,i2,3X,f14.9,2x,f16.10,2x,f9.3)') i - 1, this%residual_norm, &
                 this%davidson_eigenvalue, end_time - start_time; call neci_flush(6)
 
             if (this%residual_norm < residual_norm_target) exit
 
         end do
 
-        if (print_info) write(6, '(/,1x,"Final calculated energy:",1X,f16.10)') this%davidson_eigenvalue
+        if (print_info) write(stdout, '(/,1x,"Final calculated energy:",1X,f16.10)') this%davidson_eigenvalue
 
         call FreeDavidsonCalc(this)
 
@@ -194,7 +194,7 @@ contains
                 safe_malloc(this%temp_out, (space_size))
             end if
 
-            if (print_info) write(6, '(1x,"calculating the initial residual vector...")', advance='no'); call neci_flush(6)
+            if (print_info) write(stdout, '(1x,"calculating the initial residual vector...")', advance='no'); call neci_flush(6)
 
             ! check that multiplying the initial vector by the hamiltonian doesn't give back
             ! the same vector. if it does then the initial vector (the hf determinant) is
@@ -220,7 +220,7 @@ contains
             call calculate_residual(this, 1)
             call calculate_residual_norm(this)
 
-            if (print_info) write(6, '(1x,"done.",/)'); call neci_flush(6)
+            if (print_info) write(stdout, '(1x,"done.",/)'); call neci_flush(6)
 
         end associate
 
@@ -423,7 +423,7 @@ contains
         type(DavidsonCalcType) :: this
         integer :: class_i, class_j, j, sym_i, sym_j
 
-        write(6, '(/,1X,"Beginning Direct CI Davidson calculation.",/)'); call neci_flush(6)
+        write(stdout, '(/,1X,"Beginning Direct CI Davidson calculation.",/)'); call neci_flush(6)
 
         call initialise_ras_space(davidson_ras, davidson_classes)
         ! The total hilbert space dimension of calculation to be performed.
@@ -468,9 +468,9 @@ contains
             call LogMemDealloc("davidson_direct_ci_end", DavidsonTag, ierr)
         end if
 
-        write(6, '(/,1X,"Direct CI Davidson calculation complete.",/)'); call neci_flush(6)
+        write(stdout, '(/,1X,"Direct CI Davidson calculation complete.",/)'); call neci_flush(6)
 
-        write(6, "(1X,a10,f16.10)") "GROUND E =", this%davidson_eigenvalue; call neci_flush(6)
+        write(stdout, "(1X,a10,f16.10)") "GROUND E =", this%davidson_eigenvalue; call neci_flush(6)
     end subroutine davidson_direct_ci_end
 
 end module davidson_neci

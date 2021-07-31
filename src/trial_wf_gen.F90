@@ -70,7 +70,7 @@ contains
 
         call set_timer(Trial_Init_Time)
 
-        write(6, '(/,11("="),1X,"Trial wavefunction initialisation",1X,10("="))')
+        write(stdout, '(/,11("="),1X,"Trial wavefunction initialisation",1X,10("="))')
 
         ntrial_excits = nexcit_keep
 
@@ -83,7 +83,7 @@ contains
         trial_energies = 0.0_dp
         trial_space = 0_n_int
 
-        write(6, '("Generating the trial space...")'); call neci_flush(6)
+        write(stdout, '("Generating the trial space...")'); call neci_flush(6)
 
         if (qmc_trial_wf) then
 #ifdef CMPLX_
@@ -102,7 +102,7 @@ contains
             end if
         end if
 
-        write(6, '("Size of trial space on this processor:",1X,i8)') trial_space_size; call neci_flush(6)
+        write(stdout, '("Size of trial space on this processor:",1X,i8)') trial_space_size; call neci_flush(6)
 
         if (.not. qmc_trial_wf) then
             ! Allocate the array to hold the final trial wave functions which we
@@ -125,7 +125,7 @@ contains
         ! At this point, each processor has only those states which reside on them, and
         ! have only counted those states. Send all states to all processors for the next bit.
         tot_trial_space_size = int(sum(trial_counts), sizeof_int)
-        write(6, '("Total size of the trial space:",1X,i8)') tot_trial_space_size; call neci_flush(6)
+        write(stdout, '("Total size of the trial space:",1X,i8)') tot_trial_space_size; call neci_flush(6)
 
         ! Use SpawnedParts as temporary space:
         call MPIAllGatherV(trial_space(0:NIfTot, 1:trial_space_size), &
@@ -147,24 +147,24 @@ contains
             ! Find the states connected to the trial space. This typically takes a long time, so
             ! it is done in parallel by letting each processor find the states connected to a
             ! portion of the trial space.
-            write(6, '("Calculating the number of states in the connected space...")'); call neci_flush(6)
+            write(stdout, '("Calculating the number of states in the connected space...")'); call neci_flush(6)
 
             call generate_connected_space(num_elem, SpawnedParts(0:NIfTot, min_elem:max_elem), con_space_size)
 
-            write(6, '("Attempting to allocate con_space. Size =",1X,F12.3,1X,"Mb")') &
+            write(stdout, '("Attempting to allocate con_space. Size =",1X,F12.3,1X,"Mb")') &
                 real(con_space_size, dp) * (NIfTot + 1.0_dp) * 7.629392e-06_dp; call neci_flush(6)
             allocate(con_space(0:NIfTot, con_space_size), stat=ierr)
             call LogMemAlloc('con_space', con_space_size * (NIfTot + 1), size_n_int, t_r, ConTag, ierr)
             con_space = 0_n_int
 
-            write(6, '("States found on this processor, including repeats:",1X,i8)') con_space_size
+            write(stdout, '("States found on this processor, including repeats:",1X,i8)') con_space_size
 
-            write(6, '("Generating and storing the connected space...")'); call neci_flush(6)
+            write(stdout, '("Generating and storing the connected space...")'); call neci_flush(6)
 
             call generate_connected_space(num_elem, SpawnedParts(0:NIfTot, min_elem:max_elem), &
                                           con_space_size, con_space)
 
-            write(6, '("Removing repeated states and sorting by processor...")'); call neci_flush(6)
+            write(stdout, '("Removing repeated states and sorting by processor...")'); call neci_flush(6)
 
             call remove_repeated_states(con_space, con_space_size)
 
@@ -174,13 +174,13 @@ contains
             con_space_size = 0
             con_sendcounts = 0
             allocate(con_space(0, 0), stat=ierr)
-            write(6, '("This processor will not search for connected states.")'); call neci_flush(6)
+            write(stdout, '("This processor will not search for connected states.")'); call neci_flush(6)
             !Although the size is zero, we should allocate it, because the rest of the code use it.
             !Otherwise, we get segmentation fault later.
             allocate(con_space(0:NIfTot, con_space_size), stat=ierr)
         end if
 
-        write(6, '("Performing MPI communication of connected states...")'); call neci_flush(6)
+        write(stdout, '("Performing MPI communication of connected states...")'); call neci_flush(6)
 
         ! Send the connected states to their processors.
         ! con_sendcounts holds the number of states to send to other processors from this one.
@@ -198,7 +198,7 @@ contains
             con_recvdispls(i) = con_recvdispls(i - 1) + con_recvcounts(i - 1)
         end do
 
-        write(6, '("Attempting to allocate temp_space. Size =",1X,F12.3,1X,"Mb")') &
+        write(stdout, '("Attempting to allocate temp_space. Size =",1X,F12.3,1X,"Mb")') &
             real(con_space_size, dp) * (NIfTot + 1.0_dp) * 7.629392e-06_dp; call neci_flush(6)
         allocate(temp_space(0:NIfTot, con_space_size), stat=ierr)
         call LogMemAlloc('temp_space', con_space_size * (NIfTot + 1), size_n_int, t_r, TempTag, ierr)
@@ -210,7 +210,7 @@ contains
             deallocate(con_space, stat=ierr)
             call LogMemDealloc(t_r, ConTag, ierr)
         end if
-        write(6, '("Attempting to allocate con_space. Size =",1X,F12.3,1X,"Mb")') &
+        write(stdout, '("Attempting to allocate con_space. Size =",1X,F12.3,1X,"Mb")') &
             real(con_space_size, dp) * (NIfTot + 1.0_dp) * 7.629392e-06_dp; call neci_flush(6)
         allocate(con_space(0:NIfTot, 1:con_space_size), stat=ierr)
         call LogMemAlloc('con_space', con_space_size * (NIfTot + 1), size_n_int, t_r, ConTag, ierr)
@@ -239,8 +239,8 @@ contains
         ! trial/connected space on a single proc
         allocate(con_send_buf(0:NConEntry, max(maxval(con_counts), maxval(trial_counts))))
 
-        write(6, '("Total size of connected space:",1X,i10)') tot_con_space_size
-        write(6, '("Size of connected space on this processor:",1X,i10)') con_space_size
+        write(stdout, '("Total size of connected space:",1X,i10)') tot_con_space_size
+        write(stdout, '("Size of connected space on this processor:",1X,i10)') con_space_size
         call neci_flush(6)
 
         ! Create the trial wavefunction from all processors, on all processors.
@@ -249,7 +249,7 @@ contains
 
         call sort_space_by_proc(SpawnedParts(0:NIfTot, 1:tot_trial_space_size), tot_trial_space_size, trial_counts)
 
-        write(6, '("Generating the vector \sum_j H_{ij} \psi^T_j...")'); call neci_flush(6)
+        write(stdout, '("Generating the vector \sum_j H_{ij} \psi^T_j...")'); call neci_flush(6)
         allocate(con_space_vecs(nexcit_keep, con_space_size), stat=ierr)
         call LogMemAlloc('con_space_vecs', con_space_size, 8, t_r, ConVecTag, ierr)
         call generate_connected_space_vector(SpawnedParts, trial_wfs_all_procs, con_space, con_space_vecs)
@@ -642,7 +642,7 @@ contains
         logical :: texist
         character(len=*), parameter :: t_r = 'write_trial_space'
 
-        write(6, '("Writing the trial space to a file...")');
+        write(stdout, '("Writing the trial space to a file...")');
         iunit = get_free_unit()
 
         ! Let each processor write its trial states to the file. Each processor waits for
@@ -884,7 +884,7 @@ contains
 
         allocate(con_ht(con_space_size), stat=ierr)
         if (ierr /= 0) then
-            write(6, '("ierr:")') ierr
+            write(stdout, '("ierr:")') ierr
             call neci_flush(6)
             call stop_all("t_r", "Error in allocating con_ht array.")
         end if
@@ -957,7 +957,7 @@ contains
         end if
         if (allocated(trial_energies)) then
             deallocate(trial_energies, stat=ierr)
-            if (ierr /= 0) write(6, '("Error when deallocating trial_energies:",1X,i8)') ierr
+            if (ierr /= 0) write(stdout, '("Error when deallocating trial_energies:",1X,i8)') ierr
         end if
         if (allocated(con_space)) then
             deallocate(con_space, stat=ierr)
@@ -1027,7 +1027,7 @@ contains
         end if
 
         tAS_Offset = .true.
-        write(6, *) "The adaptive shift is offset by the eigen energy(s) of this trial-space."
+        write(stdout, *) "The adaptive shift is offset by the eigen energy(s) of this trial-space."
 
     end subroutine
 

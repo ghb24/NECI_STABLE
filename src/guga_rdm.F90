@@ -4,7 +4,7 @@ module guga_rdm
     ! RDM module specifically for the GUGA spin-adapted implementation
 
     use constants, only: n_int, dp, lenof_sign, EPS, sizeof_int, int_rdm, bn2_, &
-                         Root2, int64, int_rdm
+                         Root2, int64, int_rdm, stdout
     use SystemData, only: nel, nSpatOrbs, current_stepvector, currentB_ilut
     use bit_reps, only: extract_bit_rep, decode_bit_det, niftot, nifd, &
                         any_run_is_initiator, all_runs_are_initiator
@@ -386,12 +386,12 @@ contains
         if (typ == 1) then
             call extract_1_rdm_ind(rdm_ind, i, j)
 
-            write(6, '(2i3)', advance=adv) i, j
+            write(stdout, '(2i3)', advance=adv) i, j
 
         else if (typ == 2) then
             call extract_2_rdm_ind(rdm_ind, i, j, k, l)
 
-            write(6, '(4i3)', advance=adv) i, j, k, l
+            write(stdout, '(4i3)', advance=adv) i, j, k, l
         end if
 
     end subroutine print_rdm_ind
@@ -2256,9 +2256,9 @@ contains
 
 #ifdef DEBUG_
                 if (Sing_ExcList(Proc) > nint(OneEl_Gap * (Proc + 1))) then
-                    write(6, *) 'Proc', Proc
-                    write(6, *) 'Sing_ExcList', Sing_ExcList
-                    write(6, *) 'No. spaces for each proc', nint(OneEl_Gap)
+                    write(stdout, *) 'Proc', Proc
+                    write(stdout, *) 'Sing_ExcList', Sing_ExcList
+                    write(stdout, *) 'No. spaces for each proc', nint(OneEl_Gap)
                     call Stop_All('GenExcDjs', 'Too many excitations for space available.')
                 end if
 #endif
@@ -2277,9 +2277,9 @@ contains
 
 #ifdef DEBUG_
                 if (Doub_ExcList(Proc) > nint(TwoEl_Gap * (Proc + 1))) then
-                    write(6, *) 'Proc', Proc
-                    write(6, *) 'Doub_ExcList', Doub_ExcList
-                    write(6, *) 'No. spaces for each proc', nint(TwoEl_Gap)
+                    write(stdout, *) 'Proc', Proc
+                    write(stdout, *) 'Doub_ExcList', Doub_ExcList
+                    write(stdout, *) 'No. spaces for each proc', nint(TwoEl_Gap)
                     call Stop_All('GenExcDjs', 'Too many excitations for space available.')
                 end if
 #endif

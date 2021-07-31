@@ -522,7 +522,7 @@ contains
 
             call halt_timer(aux_time)
 
-            write(6, '("Time to create auxiliary arrays:", f9.3)') get_total_time(aux_time); call neci_flush(6)
+            write(stdout, '("Time to create auxiliary arrays:", f9.3)') get_total_time(aux_time); call neci_flush(6)
 
             ! Sort auxiliary arrays into the required order
             call set_timer(sort_aux_time)
@@ -548,7 +548,7 @@ contains
             end block
 
             call halt_timer(sort_aux_time)
-            write(6, '("Time to sort auxiliary arrays:", f9.3)') &
+            write(stdout, '("Time to sort auxiliary arrays:", f9.3)') &
                 get_total_time(sort_aux_time); call neci_flush(6)
         end if
 
@@ -612,12 +612,12 @@ contains
         allocate(rep%core_ham_diag(rep%determ_sizes(iProcIndex)), stat=ierr)
 
         if (ierr == 0) then
-            write(6, '("Arrays for Hamiltonian successfully allocated...")')
+            write(stdout, '("Arrays for Hamiltonian successfully allocated...")')
             call neci_flush(6)
         else
-            write(6, '("Arrays for Hamiltonian *not* successfully allocated")')
+            write(stdout, '("Arrays for Hamiltonian *not* successfully allocated")')
             call neci_flush(6)
-            write(6, '("error code:",1X,i8)') ierr; call neci_flush(6)
+            write(stdout, '("error code:",1X,i8)') ierr; call neci_flush(6)
         end if
 
         ! Loop over the determinants on this process
@@ -849,16 +849,16 @@ contains
 
         call halt_timer(ham_time)
 
-        write(6, '("Time to create the Hamiltonian:", f9.3)') get_total_time(ham_time); call neci_flush(6)
+        write(stdout, '("Time to create the Hamiltonian:", f9.3)') get_total_time(ham_time); call neci_flush(6)
 
         ! Optional: sort the Hamiltonian? This could speed up subsequent
         ! multiplications, as we don't jump about in memory so much
         call set_timer(sort_ham_time)
         call halt_timer(sort_ham_time)
-        !write(6,'("Time to sort the Hamiltonian:", f9.3)') get_total_time(sort_ham_time); call neci_flush(6)
+        !write(stdout,'("Time to sort the Hamiltonian:", f9.3)') get_total_time(sort_ham_time); call neci_flush(6)
 
         total_time = get_total_time(aux_time) + get_total_time(sort_aux_time) + get_total_time(ham_time)
-        write(6, '("total_time:", f9.3)') total_time; call neci_flush(6)
+        write(stdout, '("total_time:", f9.3)') total_time; call neci_flush(6)
 
         ! --- Deallocate all auxiliary arrays -------------
 
@@ -1323,7 +1323,7 @@ contains
 
             call halt_timer(aux_time)
 
-            write(6, '("Time to create auxiliary arrays:", f9.3)') get_total_time(aux_time)
+            write(stdout, '("Time to create auxiliary arrays:", f9.3)') get_total_time(aux_time)
             call neci_flush(6)
             ! Sort auxiliary arrays into the required order
             call set_timer(sort_aux_time)
@@ -1350,7 +1350,7 @@ contains
             end block
 
             call halt_timer(sort_aux_time)
-            write(6, '("Time to sort auxiliary arrays:", f9.3)') get_total_time(sort_aux_time)
+            write(stdout, '("Time to sort auxiliary arrays:", f9.3)') get_total_time(sort_aux_time)
             call neci_flush(6)
         end if
 
@@ -1412,12 +1412,12 @@ contains
         allocate(rep%core_ham_diag(rep%determ_sizes(iProcIndex)), stat=ierr)
 
         if (ierr == 0) then
-            write(6, '("Arrays for Hamiltonian successfully allocated...")')
+            write(stdout, '("Arrays for Hamiltonian successfully allocated...")')
             call neci_flush(6)
         else
-            write(6, '("Arrays for Hamiltonian *not* successfully allocated")')
+            write(stdout, '("Arrays for Hamiltonian *not* successfully allocated")')
             call neci_flush(6)
-            write(6, '("error code:",1X,i8)') ierr; call neci_flush(6)
+            write(stdout, '("error code:",1X,i8)') ierr; call neci_flush(6)
         end if
 
         ! Loop over the determinants on this process
@@ -1509,13 +1509,13 @@ contains
         call halt_timer(ham_time)
 
         if (iProcIndex_intra == 0) then
-            write(6, '("Time to create the Hamiltonian:", f9.3)') get_total_time(ham_time)
+            write(stdout, '("Time to create the Hamiltonian:", f9.3)') get_total_time(ham_time)
             call neci_flush(6)
             ! Optional: sort the Hamiltonian? This could speed up subsequent
             ! multiplications, as we don't jump about in memory so much
 
             total_time = get_total_time(aux_time) + get_total_time(sort_aux_time) + get_total_time(ham_time)
-            write(6, '("total_time:", f9.3)') total_time; call neci_flush(6)
+            write(stdout, '("total_time:", f9.3)') total_time; call neci_flush(6)
         end if
 
         ! --- Deallocate all auxiliary arrays -------------

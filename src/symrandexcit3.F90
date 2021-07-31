@@ -464,9 +464,9 @@ contains
         type(timer), save :: test_timer
         character(*), parameter :: t_r = 'test_sym_excit3'
 
-        write(6, *) nI(:)
-        write(6, *) Iterations, pDoub, exFlag
-        write(6, *) "nSymLabels: ", nSymLabels
+        write(stdout, *) nI(:)
+        write(stdout, *) Iterations, pDoub, exFlag
+        write(stdout, *) "nSymLabels: ", nSymLabels
         CALL neci_flush(6)
 
         ! The old excitation generator will not generate singles from the HF
@@ -520,7 +520,7 @@ contains
         tNoBrillouin = brillouin_tmp(1)
         tUseBrillouin = brillouin_tmp(2)
 
-        write(6, *) "Determinant has ", excitcount, " total excitations from it."
+        write(stdout, *) "Determinant has ", excitcount, " total excitations from it."
         CALL neci_flush(6)
 
         ! Allocate the accumulators
@@ -568,7 +568,7 @@ contains
             iter = i
 
             IF (mod(i, 400000) == 0) THEN
-                write(6, "(A,I10)") "Iteration: ", i
+                write(stdout, "(A,I10)") "Iteration: ", i
                 CALL neci_flush(6)
             end if
 
@@ -614,10 +614,10 @@ contains
 
 !        CALL EncodeBitDet(nJ,iLutnJ)
 !        IF(IC.eq.1) THEN
-!            write(6,*) ExcitMat(1,1),ExcitMat(2,1)
+!            write(stdout,*) ExcitMat(1,1),ExcitMat(2,1)
 !        ELSE
-!            write(6,*) "Double Created"
-!            write(6,*) ExcitMat(1,1),ExcitMat(1,2),ExcitMat(2,1),ExcitMat(2,2)
+!            write(stdout,*) "Double Created"
+!            write(stdout,*) ExcitMat(1,1),ExcitMat(1,2),ExcitMat(2,1),ExcitMat(2,2)
 !        end if
 
             IF (IC == 1) THEN
@@ -702,7 +702,7 @@ contains
                                     AllDoublesHist(i, j, k, l) / (real(Iterations, dp) &
                                                                   * nProcessors), &
                                     i, j, k, l, iLutnJ(0), AllDoublesCount(i, j, k, l)
-!                            write(6,*) DetNum,DoublesHist(i,j,k,l),i,j,"->",k,l
+!                            write(stdout,*) DetNum,DoublesHist(i,j,k,l),i,j,"->",k,l
                                 IF (tHub .or. tUEG) THEN
                                     write(8, *) "#", G1(i)%k(1), G1(i)%k(2)
                                     write(8, *) "#", G1(j)%k(1), G1(j)%k(2)
@@ -715,7 +715,7 @@ contains
                 end do
             end do
             close(8)
-            write(6, *) DetNum, " Double excitations found from nI"
+            write(stdout, *) DetNum, " Double excitations found from nI"
             open(9, FILE="SinglesHist3", STATUS="UNKNOWN")
             DetNumS = 0
             do i = 1, nBasis
@@ -728,20 +728,20 @@ contains
                         write(9, *) DetNumS, AllSinglesHist(i, j) / &
                             (real(Iterations, dp) * nProcessors), &
                             i, "->", j, ALlSinglesCount(i, j)
-!                    write(6,*) DetNumS,AllSinglesHist(i,j),i,"->",j
+!                    write(stdout,*) DetNumS,AllSinglesHist(i,j),i,"->",j
                     end if
                 end do
             end do
             close(9)
-            write(6, *) DetNumS, " Single excitations found from nI"
+            write(stdout, *) DetNumS, " Single excitations found from nI"
             IF ((DetNum + DetNumS) /= ExcitCount) THEN
                 CALL construct_class_counts(nI, store%ClassCountOcc, &
                                             store%ClassCountUnocc, &
                                             store%scratch3)
-                write(6, *) "Total determinants = ", ExcitCount
-                write(6, *) "ClassCount2(:)= ", store%ClassCountOcc
-                write(6, *) "***"
-                write(6, *) "ClassCountUnocc2(:)= ", store%ClassCountUnocc
+                write(stdout, *) "Total determinants = ", ExcitCount
+                write(stdout, *) "ClassCount2(:)= ", store%ClassCountOcc
+                write(stdout, *) "***"
+                write(stdout, *) "ClassCountUnocc2(:)= ", store%ClassCountUnocc
                 CALL Stop_All("TestGenRandSymExcitNU", "Not all excitations accounted for...")
             end if
         end if

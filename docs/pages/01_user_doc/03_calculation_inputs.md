@@ -381,6 +381,15 @@ considered. The block starts with the `system` keyword and ends with the
     Disables the generation of triple excitations, but still takes into
     account 3-body interactions for all other purposes.
 
+
+#### Spin purification
+
+-   **SD-SPIN-PURIFICATION \(J\)**<br>
+    Use an adjusted hamiltonian \(H + J S^2\) for the dynamic
+    to force antiferromagnetic ordering and ensure pure spin-states
+    in a Slater determinant (SD) basis.
+
+
 ### CALC Block
 
 The CALC block is used to set options concerning the simulation

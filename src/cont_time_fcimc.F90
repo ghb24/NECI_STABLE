@@ -79,13 +79,13 @@ contains
             end if
 
             IFDEBUG(FCIMCDebug, 3) then
-                write(iout, "(A,I10,a)", advance='no') 'TW:', j, '['
+                write(stdout, "(A,I10,a)", advance='no') 'TW:', j, '['
                 do part_type = 1, lenof_sign
-                    write(iout, "(f10.5)", advance='no') sgn(part_type)
+                    write(stdout, "(f10.5)", advance='no') sgn(part_type)
                 end do
-                write(iout, '(a)', advance='no') '] '
-                call WriteBitDet(iout, CurrentDets(:, j), .true.)
-                call neci_flush(iout)
+                write(stdout, '(a)', advance='no') '] '
+                call WriteBitDet(stdout, CurrentDets(:, j), .true.)
+                call neci_flush(stdout)
             end if
 
             ! Global stored data to make things efficient
@@ -144,7 +144,7 @@ contains
             end if
 
         end do
-        IFDEBUG(FCIMCDebug, 2) write(iout, '("Finnished loop over sites")')
+        IFDEBUG(FCIMCDebug, 2) write(stdout, '("Finnished loop over sites")')
         call halt_timer(walker_time)
 
         ! Update statistics. This is done before annihilation as the output
@@ -160,7 +160,7 @@ contains
 
         TotWalkers = TotWalkersNew
         call halt_timer(annihil_time)
-        IFDEBUG(FCIMCDebug, 2) write(iout, '("Finished annihilation")')
+        IFDEBUG(FCIMCDebug, 2) write(stdout, '("Finished annihilation")')
 
         ! If we are orthogonalising the replica wavefunctions, to generate
         ! excited states, then do that here.
@@ -237,7 +237,7 @@ contains
                 ! the current particle, rather than generating antiparticles.
                 if (ic == 0) then
                     survives = .false.
-                    IFDEBUG(FCIMCDebug, 3) write(iout, '("Particle died")')
+                    IFDEBUG(FCIMCDebug, 3) write(stdout, '("Particle died")')
                     exit
                 end if
 
@@ -299,14 +299,14 @@ contains
                     child(part_type) = spwn_sgn
 
                     IFDEBUG(FCIMCDebug, 3) then
-                        write(iout, '(a)', advance='no') 'SP: ['
+                        write(stdout, '(a)', advance='no') 'SP: ['
                         do y = 1, lenof_sign
-                            write(iout, '(f12.5)', advance='no') &
+                            write(stdout, '(f12.5)', advance='no') &
                                 child(y)
                         end do
-                        write(iout, '("] ")', advance='no')
+                        write(stdout, '("] ")', advance='no')
                         call write_det(6, det_spwn, .true.)
-                        call neci_flush(iout)
+                        call neci_flush(stdout)
                     end if
 
                     if (use_spawn_hash_table) then
