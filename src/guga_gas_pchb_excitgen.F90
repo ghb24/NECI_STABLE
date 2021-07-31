@@ -1,11 +1,20 @@
 #include "macros.h"
 
-module guga_pchb_gas_excitgen
-    use constants, only: n_int, dp, int64, maxExcit, iout, bits_n_int, int32
+module guga_gas_pchb_excitgen
+    use constants, only: n_int, dp, int64, maxExcit, stdout, stderr, bits_n_int, int32
     use bit_rep_data, only: IlutBits, GugaBits, nIfTot
+    use util_mod, only: fuseIndex, near_zero, stop_all
     use aliasSampling, only: AliasSampler_2D_t
     use UMatCache, only: gtID, numBasisIndices
-    use SymExcitDataMod, only: pDoubNew, ScratchSize
+    use SymExcitDataMod, only: pDoubNew, ScratchSize, OrbClassCount, SymLabelCounts2, &
+                               sym_label_list_spat, SpinOrbSymLabel
+    use GenRandSymExcitNUMod, only: RandExcitSymLabelProd
+    use excitation_types, only: SingleExc_t, DoubleExc_t, excite
+
+    use parallel_neci, only: iProcIndex_intra
+
+    use SymExcitDataMod, only: OrbClassCount, SymLabelCounts2, &
+                               sym_label_list_spat, SpinOrbSymLabel
 
     use FciMCData, only: excit_gen_store_type, pSingles, pDoubles, MaxTau
 
@@ -27,8 +36,6 @@ module guga_pchb_gas_excitgen
                               contract_2_rdm_ind
     use shared_array, only: shared_array_int64_t
 
-
-
     use gasci, only: GASSpec_t
     use gasci_util, only: gen_all_excits
     use gasci_supergroup_index, only: SuperGroupIndexer_t, lookup_supergroup_indexer
@@ -38,8 +45,11 @@ module guga_pchb_gas_excitgen
             DoubleExcitationGenerator_t, gen_exc_sd, get_pgen_sd, gen_all_excits_sd
     implicit none
 
+    private
+    public :: GAS_doubles_PCHB_ExcGenerator_t
+
     !> The GAS PCHB excitation generator for doubles
-    type, extends(DoubleExcitationGenerator_t) :: GAS_doubles_PCHB_ExcGenerator_t
+    type :: GAS_doubles_PCHB_ExcGenerator_t
         private
         !> Use a lookup for the supergroup index in global_det_data
         logical, public :: use_lookup = .false.
@@ -58,13 +68,15 @@ module guga_pchb_gas_excitgen
         private
         procedure, public :: init => GAS_doubles_PCHB_init
         procedure, public :: finalize => GAS_doubles_PCHB_finalize
-        procedure, public :: gen_exc => GAS_doubles_PCHB_gen_exc
-        procedure, public :: get_pgen => GAS_doubles_PCHB_get_pgen
-        procedure, public :: gen_all_excits => GAS_doubles_PCHB_gen_all_excits
+        procedure, public :: pick_orbitals_double_pchb
+
+        procedure, public :: calc_orb_pgen_guga_pchb_double_excitInfo
+        procedure, public :: calc_orbital_pgen_contr_pchb
+        procedure, public :: calc_orbital_pgen_contr_start_pchb
+        procedure, public :: calc_orbital_pgen_contr_end_pchb
 
         procedure :: compute_samplers => GAS_doubles_PCHB_compute_samplers
-
-        procedure :: setup_info_table
+        procedure :: create_info_table
         procedure :: get_info
         procedure :: set_info_entry
     end type
@@ -85,7 +97,6 @@ contains
         character(*), parameter :: this_routine = 'GAS_doubles_PCHB_init'
 
         integer :: ab, a, b, abMax
-        integer :: nBI
 
         ASSERT(GAS_spec%recoupling())
 
@@ -98,19 +109,16 @@ contains
             if (associated(lookup_supergroup_indexer)) then
                 call stop_all(this_routine, 'Someone else is already managing the supergroup lookup.')
             else
-                write(iout, *) 'GUGA GAS PCHB doubles is creating and managing the supergroup lookup'
+                write(stdout, *) 'GUGA GAS PCHB doubles is creating and managing the supergroup lookup'
                 lookup_supergroup_indexer => this%indexer
             end if
         end if
-        if (this%use_lookup) write(iout, *) 'GAS PCHB doubles is using the supergroup lookup'
+        if (this%use_lookup) write(stdout, *) 'GAS PCHB doubles is using the supergroup lookup'
 
-        write(iout, *) "Allocating PCHB excitation generator objects"
-        ! number of spatial orbs
-        nBI = numBasisIndices(this%GAS_spec%n_spin_orbs() .div. 2)
         ! initialize the mapping ab -> (a, b)
-        abMax = fuseIndex(nBI, nBI)
+        abMax = fuseIndex(nSpatOrbs, nSpatOrbs)
         allocate(this%tgtOrbs(2, 0 : abMax), source=0)
-        do a = 1, nBI
+        do a = 1, nSpatOrbs
             do b = 1, a
                 ab = fuseIndex(a, b)
                 this%tgtOrbs(1, ab) = b
@@ -119,12 +127,12 @@ contains
         end do
 
         ! setup the alias table
-        call this%compute_samplers(nBI)
+        call this%compute_samplers()
 
-        write(iout, *) "Finished excitation generator initialization"
+        write(stdout, *) "Finished excitation generator initialization"
     end subroutine GAS_doubles_PCHB_init
 
-    subroutine setup_info_table(this, n_entries, entry_size)
+    subroutine create_info_table(this, n_entries, entry_size)
         class(GAS_doubles_PCHB_ExcGenerator_t) :: this
         integer(int64), intent(in) :: n_entries, entry_size
 
@@ -141,7 +149,7 @@ contains
             this%info_tables(i)%ptr => this%all_info_table%ptr(left : right)
             left = left + entry_size
         end do
-    end subroutine setup_info_table
+    end subroutine
 
     pure function get_info(this, iEntry, tgt) result(info)
         debug_function_name("get_info")
@@ -157,11 +165,9 @@ contains
         class(GAS_doubles_PCHB_ExcGenerator_t) :: this
         integer, intent(in) :: iEntry
         integer(int64), intent(in) :: infos(:)
-
         if (iProcIndex_intra == 0) then
             this%info_tables(iEntry)%ptr = infos
         end if
-
         call this%all_info_table%sync()
     end subroutine set_info_entry
 
@@ -184,18 +190,25 @@ contains
     end subroutine
 
 
-    subroutine pick_orbitals_double_pchb(this, ilut, nI, excitInfo, pgen)
+    subroutine pick_orbitals_double_pchb(this, ilut, nI, store, excitInfo, pgen)
         debug_function_name("pick_orbitals_double_pchb")
         class(GAS_doubles_PCHB_ExcGenerator_t), intent(in) :: this
-        integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
+        integer(n_int), intent(in) :: ilut(0 : GugaBits%len_tot)
         integer, intent(in) :: nI(nel)
+        type(excit_gen_store_type), intent(in) :: store
         type(ExcitationInformation_t), intent(out) :: excitInfo
         real(dp), intent(out) :: pgen
 
         integer :: src(2), sym_prod, sum_ml, i, j, a, b, orbs(2), ij, ab
+        integer :: i_sg
         real(dp) :: pgen_elec, pgen_orbs
-
         unused_var(ilut)
+
+        if (this%use_lookup) then
+            i_sg = this%indexer%lookup_supergroup_idx(store%idx_curr_dets, nI)
+        else
+            i_sg = this%indexer%idx_nI(nI)
+        end if
 
         ! maybe I will also produce a weighted electron pickin in the
         ! GUGA formalism.. but for now pick them uniformly:
@@ -203,8 +216,7 @@ contains
         ! make a different picker, which does not bias towards doubly
         ! occupied orbitals here too!
 
-        ASSERT( src(1) < src(2) )
-
+        ASSERT(src(1) < src(2))
         i = gtID(src(1))
         j = gtID(src(2))
 
@@ -218,7 +230,7 @@ contains
         ij = fuseIndex(i, j)
 
         ! get a pair of orbitals using the precomputed weights
-        call this%alias_sampler%sample(ij,ab,pgen_orbs)
+        call this%alias_sampler%sample(ij, i_sg, ab, pgen_orbs)
 
         ! unfortunately, there is a super-rare case when, due to floating point error,
         ! an excitation with pGen=0 is created. Those are invalid, too
@@ -226,10 +238,9 @@ contains
             excitInfo%valid = .false.
             pgen = 0.0_dp
             ! Yes, print. Those events are signficant enough to be always noted in the output
-            print *, "WARNING: Generated excitation with probability of 0"
+            write(stderr, '(A)') "WARNING: Generated excitation with probability of 0"
             return
         endif
-
 
         ! split the index ab (using a table containing mapping ab -> (a,b))
         orbs = this%tgtOrbs(:, ab)
@@ -242,9 +253,10 @@ contains
         ! the given source) abort
         ! these are the 'easy' checks for GUGA.. more checks need to be done
         ! to see if it is actually a valid combination..
-        if (any(orbs == 0) .or. (current_stepvector(a) == 3) .or. &
-            (current_stepvector(b) == 3) .or. (a == b .and. &
-            current_stepvector(b) /= 0)) then
+        if (any(orbs == 0) &
+                .or. (current_stepvector(a) == 3) &
+                .or. (current_stepvector(b) == 3) &
+                .or. (a == b .and. current_stepvector(b) /= 0)) then
             excitInfo%valid = .false.
             return
         end if
@@ -253,28 +265,7 @@ contains
         call extract_excit_info(this%get_info(ij, ab), excitInfo)
 
         pGen = pgen_elec * pgen_orbs
-
     end subroutine pick_orbitals_double_pchb
-
-
-    !>  @brief
-    !>  Calculate the probability of drawing a given double excitation ex
-    !>
-    !>  @param[in] ex  2x2 excitation matrix
-    !>
-    !>  @return pgen  probability of generating this double with the pchb double excitgen
-    function GAS_doubles_PCHB_get_pgen(this, nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2) result(pgen)
-        class(GAS_doubles_PCHB_ExcGenerator_t), intent(inout) :: this
-        integer, intent(in) :: nI(nel)
-        integer(n_int), intent(in) :: ilutI(0:NIfTot)
-        integer, intent(in) :: ex(2, maxExcit), ic
-        integer, intent(in) :: ClassCount2(ScratchSize), ClassCountUnocc2(ScratchSize)
-        real(dp) :: pgen
-        character(*), parameter :: this_routine = 'GAS_doubles_PCHB_get_pgen'
-
-        integer :: ab, ij, nex(2, 2), samplerIndex, i_sg
-
-    end function
 
 
     subroutine GAS_doubles_PCHB_compute_samplers(this)
@@ -285,8 +276,8 @@ contains
         integer(int64) :: memCost
         real(dp), allocatable :: w(:)
         integer, allocatable :: supergroups(:, :)
-        integer(int64), allocatable :: excit_info(:), counts(:)
-        integer :: i_sg, i_exch
+        integer(int64), allocatable :: excit_info(:)
+        integer :: i_sg
         ! possible supergroups
         supergroups = this%indexer%get_supergroups()
 
@@ -294,29 +285,28 @@ contains
         ijMax = fuseIndex(nSpatOrbs, nSpatOrbs)
         abMax = ijMax
 
-        !> n_supergroup * number_of_fused_indices * (bytes_per_sampler)
-        memCost = size(supergroups, 2, kind=int64) &
-                    * int(ijMax, int64) &
-                    * (int(abMax, int64) * 3_int64 * 8_int64)
+        ! number_of_fused_indices * (bytes_per_sampler) * n_supergroup
+        memCost = int(ijMax, int64) * (int(abMax, int64) * 3_int64 * 8_int64) &
+                  * size(supergroups, 2, kind=int64)
 
-        write(iout, *) "Excitation generator requires", real(memCost, dp) / 2.0_dp**30, "GB of memory"
-        write(iout, *) "The number of supergroups is", size(supergroups, 2)
-        write(iout, *) "Generating samplers for PCHB excitation generator"
-        write(iout, *) "Depending on the number of supergroups this can take up to 10min."
+        write(stdout, *) "Excitation generator requires", real(memCost, dp) / 2.0_dp**30, "GB of memory"
+        write(stdout, *) "The number of supergroups is", size(supergroups, 2)
+        write(stdout, *) "Generating samplers for PCHB excitation generator"
+        write(stdout, *) "Depending on the number of supergroups this can take up to 10min."
         call this%alias_sampler%shared_alloc([ijMax, size(supergroups, 2)], abMax, 'PCHB')
-        call this%setup_info_table(ijMax, abMax)
+        call this%create_info_table(int(ijMax, int64), int(abMax, int64))
         allocate(w(abMax))
 
         do i_sg = 1, size(supergroups, 2)
-            if (mod(i_sg, 100) == 0) write(iout, *) 'Still generating the samplers'
+            if (mod(i_sg, 100) == 0) write(stdout, *) 'Still generating the samplers'
             ! allocate: all samplers have the same size
             do i = 1, nSpatOrbs
                 ! TODO: The comment is not correct
                 ! as we order a,b, we can assume j <= i
                 do j = i, nSpatOrbs
                     w(:) = 0.0_dp
-                    ij = fuseIndex(i,j)
                     excit_info = 0_int64
+                    ij = fuseIndex(i,j)
                     do a = 1, nSpatOrbs
                         do b = a, nSpatOrbs
                             if (RandExcitSymLabelProd(&
@@ -329,8 +319,6 @@ contains
                             ab = fuseIndex(a, b)
                             if (this%GAS_spec%is_allowed(DoubleExc_t(ex), supergroups(:, i_sg))) then
                                 call get_weight_and_info(i, j, a, b, w(ab), excit_info(ab))
-                            else
-                                w(ab) = 0._dp
                             end if
                         end do
                     end do
@@ -341,32 +329,100 @@ contains
         end do
     end subroutine
 
-
-    subroutine setup_entry_info(this, iEntry, infos)
-        class(GAS_doubles_PCHB_ExcGenerator_t) :: this
-        integer, intent(in) :: iEntry
-        integer(int64), intent(in) :: infos(:)
-
-        ! i think this is everyhing...
-        if (iProcIndex_intra == 0) then
-            this%info_tables(iEntry)%ptr = infos
-        end if
-
-        ! then sync:
-        call this%all_info_table%sync()
-
-    end subroutine setup_entry_info
-
-
-
-    subroutine GAS_doubles_PCHB_gen_all_excits(this, nI, n_excits, det_list)
+    pure function calc_orb_pgen_guga_pchb_double_excitInfo(this, excitInfo, i_sg) result(pgen)
         class(GAS_doubles_PCHB_ExcGenerator_t), intent(in) :: this
-        integer, intent(in) :: nI(nEl)
-        integer, intent(out) :: n_excits
-        integer(n_int), allocatable, intent(out) :: det_list(:,:)
+        type(ExcitationInformation_t), intent(in) :: excitInfo
+        integer, intent(in) :: i_sg
+            !! The supergroup index
+        real(dp) :: pgen
 
-        call gen_all_excits(this%GAS_spec, nI, n_excits, det_list, ic=2)
-    end subroutine
+        integer :: ij, ab
+        real(dp) :: p_elec
+
+        ! i, j, k and l entries have the info about the electrons and
+        ! holes of the excitation: E_{ij}E_{kl} is the convention ...
+        ij = fuseIndex(excitInfo%j, excitInfo%l)
+        p_elec = 1.0_dp / real(ElecPairs, dp)
+        ab = fuseIndex(excitInfo%i, excitInfo%k)
+        pgen = p_elec * this%alias_sampler%get_prob(ij, i_sg, ab)
+    end function calc_orb_pgen_guga_pchb_double_excitInfo
+
+    ! I need the pgen-recalculation routines for exchange type excitations
+    ! also for the PCHB excit-gen
+    pure subroutine calc_orbital_pgen_contr_pchb(this, ilut, occ_orbs, i_sg, cpt_a, cpt_b)
+        class(GAS_doubles_PCHB_ExcGenerator_t), intent(in) :: this
+        integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
+        integer, intent(in) :: occ_orbs(2)
+        integer, intent(in) :: i_sg
+            !! The supergroup index
+        real(dp), intent(out) :: cpt_a, cpt_b
+
+        integer :: ij
+        unused_var(ilut)
+
+        ! this function can in theory be called with both i < j and i > j..
+        ! to take the correct values here!
+        ! although for the fuseIndex function the order is irrelevant
+
+        ! i think i have to consider both the above and below contribution..
+        ! but i am not so sure how.. in this PCHB case..
+        ! maybe in PCHB those 2 are just the same.. i am confused
+        ij = fuseIndex(gtID(occ_orbs(1)), gtID(occ_orbs(2)))
+
+        ! and both I and J are electron and hole indices here
+        cpt_a = this%alias_sampler%get_prob(ij, i_sg, ij) / 2.0_dp
+        ! but since they will get added in later routines i actually have
+        ! to divide by 2 here..
+
+        ! and in the PCHB there is no difference between the 2!
+        cpt_b = cpt_a
+    end subroutine calc_orbital_pgen_contr_pchb
+
+    ! i think it would be better if i 'just' reimplement:
+    pure function calc_orbital_pgen_contr_start_pchb(this, occ_orbs, a, i_sg) result(orb_pgen)
+        debug_function_name("calc_orbital_pgen_contr_start_pchb")
+        class(GAS_doubles_PCHB_ExcGenerator_t), intent(in) :: this
+        integer, intent(in) :: occ_orbs(2), a
+        integer, intent(in) :: i_sg
+            !! The supergroup index
+        real(dp) :: orb_pgen
+
+        integer :: i, j, ij, ab
+
+        ! depending on type (R->L / L->R) a can be > j or < j, but always > i
+        i = gtID(occ_orbs(1))
+        j = gtID(occ_orbs(2))
+
+        ASSERT( i < a )
+
+        ! here i is both electron and hole index!
+        ij = fuseIndex(i, j)
+        ab = fuseIndex(i, a)
+        orb_pgen = this%alias_sampler%get_prob(ij, i_sg, ab)
+    end function calc_orbital_pgen_contr_start_pchb
+
+    pure function calc_orbital_pgen_contr_end_pchb(this, occ_orbs, a, i_sg) result(orb_pgen)
+        debug_function_name("calc_orbital_pgen_contr_end_pchb")
+        class(GAS_doubles_PCHB_ExcGenerator_t), intent(in) :: this
+        integer, intent(in) :: occ_orbs(2), a
+        integer, intent(in) :: i_sg
+            !! The supergroup index
+        real(dp) :: orb_pgen
+
+        integer :: i, j, ij, ab
+
+        i = gtID(occ_orbs(1)); j = gtID(occ_orbs(2))
+        ! j is at the same time electron and hole index!
+
+        ! depending on L->R or R->L type a can be > i o r < i, but always < j!
+        ASSERT( a < j )
+
+        ! j here is both elec and hole ind!
+        ij = fuseIndex(i, j)
+        ab = fuseIndex(a, j)
+        orb_pgen = this%alias_sampler%get_prob(ij, i_sg, ab)
+    end function calc_orbital_pgen_contr_end_pchb
+
 
     subroutine get_weight_and_info(i, j, a, b, w, info)
         integer, intent(in) :: i, j, a, b
@@ -597,10 +653,10 @@ contains
         logical :: flag_
         real(dp) :: cpt1, cpt2, cpt3, cpt4
 
-        ASSERT(a > 0 .and. a <= nSpatOrbs)
-        ASSERT(i > 0 .and. i <= nSpatOrbs)
-        ASSERT(b > 0 .and. b <= nSpatOrbs)
-        ASSERT(j > 0 .and. j <= nSpatOrbs)
+        ASSERT(0 < a .and. a <= nSpatOrbs)
+        ASSERT(0 < i .and. i <= nSpatOrbs)
+        ASSERT(0 < b .and. b <= nSpatOrbs)
+        ASSERT(0 < j .and. j <= nSpatOrbs)
 
 
         if (t_old_pchb) then
@@ -678,12 +734,10 @@ contains
 
             integral = abs(get_umat_el(a, i, i, a) + get_umat_el(i, a, a, i)) / 2.0_dp
 
-#ifdef DEBUG_
         case default
+
             call stop_all(this_routine, "wrong excit-type")
-#endif
 
         end select
-
     end function get_pchb_integral_contrib
 end module
