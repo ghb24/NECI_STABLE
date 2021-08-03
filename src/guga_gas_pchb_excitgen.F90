@@ -272,7 +272,6 @@ contains
         class(GAS_doubles_PCHB_ExcGenerator_t), intent(inout) :: this
         integer :: i, j, ij, ijMax
         integer :: a, b, ab, abMax
-        integer :: ex(2, 2)
         integer(int64) :: memCost
         real(dp), allocatable :: w(:)
         integer, allocatable :: supergroups(:, :)
@@ -285,9 +284,13 @@ contains
         ijMax = fuseIndex(nSpatOrbs, nSpatOrbs)
         abMax = ijMax
 
-        ! number_of_fused_indices * (bytes_per_sampler) * n_supergroup
-        memCost = int(ijMax, int64) * (int(abMax, int64) * 3_int64 * 8_int64) &
-                  * size(supergroups, 2, kind=int64)
+        calculate_memory_demand: block
+            integer(int64) :: number_of_fused_indices, bytes_per_sampler, n_supergroup
+            number_of_fused_indices = int(ijMax, int64)
+            bytes_per_sampler = (int(abMax, int64) * 3_int64 * 8_int64)
+            n_supergroup = size(supergroups, 2, kind=int64)
+            memCost = number_of_fused_indices * bytes_per_sampler * n_supergroup
+        end block calculate_memory_demand
 
         write(stdout, *) "Excitation generator requires", real(memCost, dp) / 2.0_dp**30, "GB of memory"
         write(stdout, *) "The number of supergroups is", size(supergroups, 2)
