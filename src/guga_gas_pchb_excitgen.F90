@@ -317,7 +317,7 @@ contains
                             end if
 
                             ab = fuseIndex(a, b)
-                            if (this%GAS_spec%is_allowed(DoubleExc_t(ex), supergroups(:, i_sg))) then
+                            if (this%GAS_spec%is_allowed(DoubleExc_t(2*i, 2*a, 2*j, 2*b), supergroups(:, i_sg))) then
                                 call get_weight_and_info(i, j, a, b, w(ab), excit_info(ab))
                             end if
                         end do
