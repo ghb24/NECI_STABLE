@@ -157,8 +157,6 @@ module FciMCParMod
     use local_spin, only: measure_local_spin, write_local_spin_stats, &
                           finalize_local_spin_measurement
 
-    use guga_pchb_excitgen, only: store_pchb_analysis
-
     implicit none
 
     !array for timings of the main compute loop
@@ -1653,11 +1651,6 @@ contains
                     if (tSkipRef(run) .and. all(nJ == projEdet(:, run))) then
                         !Set nJ to null
                         nJ(1) = 0
-                    end if
-
-                    if (t_analyze_pchb) then
-                        call store_pchb_analysis(real(HElGen,dp), prob, &
-                            global_excitInfo, IsNullDet(nJ))
                     end if
 
                     ! If a valid excitation, see if we should spawn children.

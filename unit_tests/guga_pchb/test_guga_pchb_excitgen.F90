@@ -22,15 +22,16 @@ program test_guga_pchb_excitgen
     use guga_bitRepOps
     use guga_data
     use guga_types
-    use guga_pchb_excitgen
+    use guga_pchb_class, only: GugaAliasSampler_t, calc_orb_pgen_uniform_singles, pick_uniform_spatial_hole, pick_orbitals_pure_uniform_singles
+    ! use guga_pchb_excitgen
     use util_mod
 
     use fruit
     use fruit_extensions
 
-    ! use template
-
     implicit none
+
+    type(GugaAliasSampler_t) :: guga_pchb_sampler
 
     integer :: failed_count
 
@@ -110,7 +111,6 @@ contains
         call DetPreFreezeInit()
 
         call CalcInit()
-
     end subroutine init_guga_testsuite
 
     subroutine guga_pchb_test_driver()
@@ -133,9 +133,6 @@ contains
         call my_run_test_case(setup_pchb_sampler_conditional_test, &
             "setup_pchb_sampler_conditional_test", &
             "setup_pchb_sampler_conditional")
-
-
-
     end subroutine guga_pchb_test_driver
 
     subroutine guga_pchb_sampler_test
@@ -146,7 +143,7 @@ contains
 
         integer :: i, ijMax, j
 
-        call setup_pchb_sampler_conditional()
+        call guga_pchb_sampler%init()
 
         ! the first index: (1,1) - > 1 and (1,1) -> 1 should be 0 since
         ! only weight
@@ -160,7 +157,7 @@ contains
         associate(sampler => guga_pchb_sampler, &
                   a_sampler => guga_pchb_sampler%alias_sampler)
 
-            call assert_equals(0_int64, sampler%get_info(1,1))
+            call assert_equals(0_int64, sampler%get_info_entry(1,1))
             call assert_equals(0.0_dp, a_sampler%get_prob(1,1))
 
         end associate
@@ -169,7 +166,7 @@ contains
 
         do i = 1, ijMax
             do j = 1, ijMax
-                print *, guga_pchb_sampler%get_info(i,j), &
+                print *, guga_pchb_sampler%get_info_entry(i,j), &
                     guga_pchb_sampler%alias_sampler%get_prob(i,j)
             end do
         end do
@@ -191,36 +188,17 @@ contains
         ex(1,1) = 1
         ex(2,1) = 2
 
-        pgen = calc_orb_pgen_uniform_singles(ex)
-        call assert_equals(0.0_dp, pgen)
-
         excitInfo%j = 1
         excitInfo%i = 1
         pgen = calc_orb_pgen_uniform_singles(excitInfo)
-        call assert_equals(0.0_dp, pgen)
-
-        ex(2,1) = 3
-        pgen = calc_orb_pgen_uniform_singles(ex)
-        call assert_equals(0.0_dp, pgen)
-
-        ex(2,1) = 4
-        pgen = calc_orb_pgen_uniform_singles(ex)
         call assert_equals(0.0_dp, pgen)
 
         excitInfo%i = 2
         pgen = calc_orb_pgen_uniform_singles(excitInfo)
         call assert_equals(0.0_dp, pgen)
 
-        ex(2,1) = 5
-        pgen = calc_orb_pgen_uniform_singles(ex)
-        call assert_equals(1.0_dp/4.0_dp, pgen)
-
         excitInfo%i = 3
         pgen = calc_orb_pgen_uniform_singles(excitInfo)
-        call assert_equals(1.0_dp/4.0_dp, pgen)
-
-        ex(2,1) = 8
-        pgen = calc_orb_pgen_uniform_singles(ex)
         call assert_equals(1.0_dp/4.0_dp, pgen)
 
         excitInfo%i = 4
@@ -231,18 +209,9 @@ contains
         call EncodeBitDet_guga(nI, ilut)
         call init_csf_information(ilut)
 
-        ex(2,1) = 8
-        pgen = calc_orb_pgen_uniform_singles(ex)
-        call assert_equals(1.0_dp/9.0_dp, pgen)
-
         excitInfo%i = 4
         pgen = calc_orb_pgen_uniform_singles(excitInfo)
         call assert_equals(1.0_dp/9.0_dp, pgen)
-
-        ex(1,1) = 3
-        ex(2,1) = 8
-        pgen = calc_orb_pgen_uniform_singles(ex)
-        call assert_equals(1.0_dp/6.0_dp, pgen)
 
         excitInfo%j = 2
         excitInfo%i = 4
@@ -252,11 +221,6 @@ contains
         nI = [1,4,5,8]
         call EncodeBitDet_guga(nI, ilut)
         call init_csf_information(ilut)
-
-        ex(1,1) = 8
-        ex(2,1) = 3
-        pgen = calc_orb_pgen_uniform_singles(ex)
-        call assert_equals(1.0_dp/12.0_dp, pgen)
 
         excitInfo%j = 4
         excitInfo%i = 2
@@ -348,17 +312,7 @@ contains
         call assert_true(pgen > 0.0_dp)
         call assert_true(s_orb == 3 .or. s_orb == 4 .or. s_orb == 2)
         call assert_equals(1.0_dp/3.0_dp, pgen)
-
-
-
-
-
-
-
     end subroutine pick_uniform_spatial_hole_test
-
-
-
 
 end program test_guga_pchb_excitgen
 
