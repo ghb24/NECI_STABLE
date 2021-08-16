@@ -242,7 +242,7 @@ contains
         class(dense_lMat_t), intent(inout) :: this
         integer(int64), intent(in) :: size
 
-        write(iout, *) "Six-index integrals require", real(size) * real(HElement_t_SizeB) / (2.0**30), "GB"
+        write(stdout, *) "Six-index integrals require", real(size) * real(HElement_t_SizeB) / (2.0**30), "GB"
         call this%lmat_vals%shared_alloc(size, "LMat")
         if (iProcIndex_intra == 0) then
             this%lmat_vals%ptr = 0.0_dp
@@ -330,7 +330,7 @@ contains
                                 indices(1),indices(2),indices(3),indices(4),indices(5), indices(6))
                             if(index > this%lMat_size()) then
                                 counter = index
-                                write(iout, *) "Warning, exceeding size"
+                                write(stdout, *) "Warning, exceeding size"
                             endif
                             this%lMat_vals%ptr(index) = matel
                         endif
@@ -338,9 +338,9 @@ contains
 
                 end do
 
-                write(iout, *) "Sparsity of LMat", real(counter) / real(this%lMat_size())
-                write(iout, *) "Nonzero elements in LMat", counter
-                write(iout, *) "Allocated size of LMat", this%lMat_size()
+                write(stdout, *) "Sparsity of LMat", real(counter) / real(this%lMat_size())
+                write(stdout, *) "Nonzero elements in LMat", counter
+                write(stdout, *) "Allocated size of LMat", this%lMat_size()
                 close(iunit)
             end if
             call MPIBcast(counter)
@@ -412,11 +412,11 @@ contains
         integer(int64), intent(in) :: size
         character(*), parameter :: t_r = "alloc_sparse"
 
-        write(iout, *) "Six-index integrals require", real(size) * real(HElement_t_SizeB) / (2.0**30), "GB"
+        write(stdout, *) "Six-index integrals require", real(size) * real(HElement_t_SizeB) / (2.0**30), "GB"
         call this%nonzero_vals%shared_alloc(size, "LMat")
         ! For now, have the htable of the same size as the integrals
         call this%htable%alloc(size, size)
-        write(iout, *) "Sparse format overhead is", 2 * real(size) * real(sizeof_int64) / (2.0**30), "GB"
+        write(stdout, *) "Sparse format overhead is", 2 * real(size) * real(sizeof_int64) / (2.0**30), "GB"
     end subroutine alloc_sparse
 
     !------------------------------------------------------------------------------------------!
@@ -689,12 +689,12 @@ contains
 
         ratios(:) = real(histogram(:)) / real(this%lMat_size())
         ! print the ratios
-        write(iout, *) "Matrix elements below", 0.1**(minExp), ":", ratios(minExp)
+        write(stdout, *) "Matrix elements below", 0.1**(minExp), ":", ratios(minExp)
         do i = minExp - 1, 1, -1
-            write(iout, *) "Matrix elements from", 0.1**(i + 1), "to", 0.1**(i), ":", ratios(i)
+            write(stdout, *) "Matrix elements from", 0.1**(i + 1), "to", 0.1**(i), ":", ratios(i)
         end do
-        write(iout, *) "Matrix elements above", 0.1, ":", ratios(0)
-        write(iout, *) "Total number of logged matrix elements", sum(histogram)
+        write(stdout, *) "Matrix elements above", 0.1, ":", ratios(0)
+        write(stdout, *) "Total number of logged matrix elements", sum(histogram)
 
     end subroutine histogram_lMat
 
@@ -729,7 +729,7 @@ contains
 
         ! get the number of integrals
         call read_int64_attribute(this%grp_id, nm_nInts, nInts, required=.true.)
-        write(iout, *) "Reading", nInts, "integrals"
+        write(stdout, *) "Reading", nInts, "integrals"
 
         ! how many entries does each proc get?
         call MPI_Comm_Size(mpi_comm_intra, procs_per_node, ierr)

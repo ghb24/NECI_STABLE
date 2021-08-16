@@ -4,12 +4,8 @@
 #:set trivial_excitations = excitations[:2]
 #:set non_trivial_excitations = excitations[2:]
 
-!>  @brief
-!>      A module for representing different excitations.
+!>  A module for representing different excitations.
 !>
-!>  @author Oskar Weser
-!>
-!>  @details
 !>  There is one abstract base class excitation_t that represents
 !>  an arbitrary excitation.
 !>  Possible excitations are the
@@ -37,32 +33,28 @@ module excitation_types
         ilut_excite, excite, dyn_excite
 
 
-!> Arbitrary non occuring (?!) orbital index.
+    !> Arbitrary non occuring (?!) orbital index.
     integer, parameter :: UNKNOWN = -20
 
-!>  @brief
-!>      Abstract base class for excitations.
+    !>  Abstract base class for excitations.
     type, abstract :: Excitation_t
     end type
 
-!>  @brief
-!>      Represents a No-Op excitation.
+    !>  Represents a No-Op excitation.
     type, extends(Excitation_t) :: NoExc_t
     end type
 
-!>  @brief
-!>      Represents the orbital indices of a single excitation.
-!>      The array is sorted like:
-!>      [src1, tgt2]
+    !>  Represents the orbital indices of a single excitation.
+    !>  The array is sorted like:
+    !>  [src1, tgt2]
     type, extends(Excitation_t) :: SingleExc_t
         integer :: val(2) = UNKNOWN
     end type
 
-!>  @brief
-!>      Represents the orbital indices of a double excitation.
-!>      The array is sorted like:
-!>      [[src1, src2],
-!>      [tgt1, tgt2]]
+    !> Represents the orbital indices of a double excitation.
+    !> The array is sorted like:
+    !> [[src1, src2],
+    !> [tgt1, tgt2]]
     type, extends(Excitation_t) :: DoubleExc_t
         integer :: val(2, 2) = UNKNOWN
     end type
@@ -75,19 +67,15 @@ module excitation_types
         integer :: val(2, 3) = UNKNOWN
     end type
 
-!> Represents an excitation with so many differing indices,
-!> that it is for sure zero.
+    !> Represents an excitation with so many differing indices,
+    !> that it is for sure zero.
     type, extends(Excitation_t) :: FurtherExc_t
     end type
 
     #:for Excitation_t in non_trivial_excitations
-!>  @brief
-!>      Additional constructors for the excitation types from integers instead
-!>      of an integer array.
+!>  Additional constructors for the excitation types from integers instead
+!>  of an integer array.
 !>
-!>  @author Oskar Weser
-!>
-!>  @details
 !>  The non trivial excitations SingleExc_t, DoubleExc_t, and TripleExc_t
 !>  are initialized by passing the respective integer arrays into
 !>  the type.
@@ -100,72 +88,40 @@ module excitation_types
 !>  SingleExc_t(src=1)
 !>  \endcode
 !>
-!>  The signature is (src_1, tgt_1, src_2, tgt_2, ...).
+!>  The signature is `(src_1, tgt_1, src_2, tgt_2, ...)`.
 !>  depending on the actual type.
-!>
-!>  @param[in] src_i
-!>  @param[in] tgt_i
     interface ${Excitation_t}$
         module procedure from_integer_${Excitation_t}$
     end interface
     #:endfor
 
-!>  @brief
-!>     Return true if all sources and targets are not UNKNOWN.
-!>
-!>  @author Oskar Weser
-!>
-!>  @details
-!>
-!>  @param[in] exc, A non_trivial_excitation.
+!>  Return true if all sources and targets are not UNKNOWN.
     interface defined
     #:for Excitation_t in non_trivial_excitations + ['NoExc_t']
         module procedure defined_${Excitation_t}$
     #:endfor
     end interface
 
-!>  @brief
-!>     Get the last target of a non trivial excitation.
-!>
-!>  @author Oskar Weser
-!>
-!>  @details
-!>
-!>  @param[in] exc, A non_trivial_excitation.
+!>  Get the last target of a non trivial excitation.
     interface get_last_tgt
     #:for Excitation_t in non_trivial_excitations
         module procedure get_last_tgt_${Excitation_t}$
     #:endfor
     end interface
 
-!>  @brief
-!>     Set the last target of a non trivial excitation.
-!>
-!>  @author Oskar Weser
-!>
-!>  @details
-!>
-!>  @param[in] exc, A non_trivial_excitation.
-!>  @param[in] tgt, Index of target.
+!>  Set the last target of a non trivial excitation.
     interface set_last_tgt
     #:for Excitation_t in non_trivial_excitations
         module procedure set_last_tgt_${Excitation_t}$
     #:endfor
     end interface
 
-!>  @brief
-!>     Perform the excitation on a given determinant.
+!>  Perform the excitation on a given determinant.
 !>
-!>  @author Oskar Weser
-!>
-!>  @details
 !>  It is assumed, that the excitations are non trivial.
 !>  I.e. for single excitations source /= target
 !>  and for double excitations the set of sources and targets has
 !>  to be disjoint.
-!>
-!>  @param[in] det_I, A Slater determinant of SpinOrbIdx_t.
-!>  @param[in] exc, NoExc_t, SingleExc_t, or DoubleExc_t.
     interface excite
     #:for det_type in ['nI', 'SpinOrbIdx_t']
         #:for Excitation_t in ['NoExc_t', 'SingleExc_t', 'DoubleExc_t']
@@ -252,18 +208,16 @@ contains
         if (present(tgt2)) res%val(2, 3) = tgt3
     end function
 
-!>  @brief
-!>      Create an excitation from an excitation matrix and excitation level IC
-!>
-!>  @param[out] exc, An excitation of type excitation_t.
-!>      By using select type(exc) one can select the actual type at runtime
-!>      **and** statically dispatch as much as possible at runtime.
-!>  @param[in] ic, The excitation level. (1=SingleExc_t, 2=DoubleExc_t, ...)
-!>  @param[in] ex, An excitation matrix as in the %val component of
-!>      the excitation types.
+!>  Create an excitation from an excitation matrix and excitation level IC
     subroutine create_excitation(exc, ic, ex)
+        !>  The excitation level. (1=SingleExc_t, 2=DoubleExc_t, ...)
         integer, intent(in) :: IC
+        !>  An excitation matrix as in the %val component of
+        !>      the excitation types.
         integer, intent(in), optional :: ex(2, ic)
+        !>  An excitation of type excitation_t.
+        !>      By using select type(exc) one can select the actual type at runtime
+        !>      **and** statically dispatch as much as possible at runtime.
         class(Excitation_t), allocatable, intent(out) :: exc
 #ifdef DEBUG_
         character(*), parameter :: this_routine = 'create_excitation'
@@ -298,20 +252,18 @@ contains
         end if
     end subroutine
 
-!>  @brief
-!>      Create an excitation from nI to nJ where the excitation level
-!>      is already known.
-!>
-!>  @param[in] nI, An array of occupied orbital indices.
-!>  @param[in] nJ, An array of occupied orbital indices.
-!>  @param[in] ic, The excitation level. (1=SingleExc_t, 2=DoubleExc_t, ...)
-!>  @param[out] exc, An excitation of type excitation_t.
-!>      By using select type(exc) one can select the actual type at runtime
-!>      **and** statically dispatch as much as possible at compile time.
-!>  @param[out] tParity, The parity of the excitation.
+!>  Create an excitation from nI to nJ where the excitation level
+!>  is already known.
     subroutine get_excitation_new(nI, nJ, IC, exc, tParity)
-        integer, intent(in) :: nI(nEl), nJ(nEl), IC
+        !> Two Slater determinants in nI format.
+        integer, intent(in) :: nI(nEl), nJ(nEl)
+        !>  The excitation level. (1=SingleExc_t, 2=DoubleExc_t, ...)
+        integer, intent(in) :: IC
+        !>  An excitation of type excitation_t.
+        !>      By using select type(exc) one can select the actual type at runtime
+        !>      **and** statically dispatch as much as possible at compile time.
         class(Excitation_t), allocatable, intent(out) :: exc
+        !>  The parity of the excitation.
         logical, intent(out) :: tParity
 
         call create_excitation(exc, IC)
@@ -341,20 +293,14 @@ contains
     end subroutine
 
 
-!>  @brief
-!>      Create an excitation from ilutI to ilutJ where the excitation level
-!>      is already known.
-!>
-!>  @param[in] ilutI, A bitmask encoding occupation of spin orbitals.
-!>  @param[in] ilutJ, A bitmask encoding occupation of spin orbitals.
-!>  @param[in] ic, The excitation level. (1=SingleExc_t, 2=DoubleExc_t, ...)
-!>  @param[out] exc, An excitation of type excitation_t.
-!>      By using select type(exc) one can select the actual type at runtime
-!>      **and** statically dispatch as much as possible at runtime.
-!>  @param[out] tParity, The parity of the excitation.
+!>  Create an excitation from ilutI to ilutJ where the excitation level
+!>  is already known.
     subroutine get_bit_excitation(ilutI, ilutJ, IC, exc, tParity)
+        !> Two Slater determinants in bitmask format.
         integer(kind=n_int), intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
+        !>  The excitation level. (1=SingleExc_t, 2=DoubleExc_t, ...)
         integer, intent(in) :: IC
+        !>  The parity of the excitation.
         class(Excitation_t), allocatable, intent(out) :: exc
         logical, intent(out) :: tParity
 

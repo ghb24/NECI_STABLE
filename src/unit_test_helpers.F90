@@ -3,7 +3,7 @@
 ! a small module with functions needed for the unit-tests
 module unit_test_helpers
 
-    use constants, only: dp, EPS, n_int, bits_n_int, maxExcit, int64, iout, lenof_sign, sp
+    use constants, only: dp, EPS, n_int, bits_n_int, maxExcit, int64, stdout, lenof_sign, sp
 
     use SymExcitDataMod, only: ScratchSize
 
@@ -470,7 +470,7 @@ contains
         if (present(i_unit)) then
             i_unit_ = i_unit
         else
-            i_unit_ = iout
+            i_unit_ = stdout
         end if
 
         if (present(problem_filter)) then

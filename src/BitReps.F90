@@ -172,15 +172,15 @@ contains
         IlutBits%ind_pop = IlutBits%len_orb + 1
         IlutBits%len_pop = lenof_sign
 #ifdef PROG_NUMRUNS_
-        write(6, *) 'Calculation supports multiple parallel runs'
+        write(stdout, *) 'Calculation supports multiple parallel runs'
 #elif defined(DOUBLERUN_)
-        write(6, *) "Double run in use."
+        write(stdout, *) "Double run in use."
 #endif
 #if defined(CMPLX_)
-        write(6, *) "Complex walkers in use."
+        write(stdout, *) "Complex walkers in use."
 #endif
-        write(6, *) 'Number of simultaneous walker distributions: ', inum_runs
-        write(6, *) 'Number of sign components in bit representation of determinant: ', &
+        write(stdout, *) 'Number of simultaneous walker distributions: ', inum_runs
+        write(stdout, *) 'Number of sign components in bit representation of determinant: ', &
             IlutBits%len_pop
 
         ! The number of integers used for sorting / other bit manipulations
@@ -188,7 +188,7 @@ contains
 
 #ifdef PROG_NUMRUNS_
         if (inum_runs > inum_runs_max) then
-            write(iout, *) "Maximally", inum_runs_max, "replicas are allowed"
+            write(stdout, *) "Maximally", inum_runs_max, "replicas are allowed"
             call stop_all(this_routine, "Requesting more than the maximum number of replicas")
         end if
 #endif
@@ -208,9 +208,9 @@ contains
         NIfTot = IlutBits%len_orb + IlutBits%len_pop + 1
         IlutBits%len_tot = IlutBits%len_orb + IlutBits%len_pop + 1
 
-        write(6, "(A,I6)") "Setting integer length of determinants as bit-strings to: ", &
+        write(stdout, "(A,I6)") "Setting integer length of determinants as bit-strings to: ", &
             IlutBits%len_tot + 1
-        write(6, "(A,I6)") "Setting integer bit-length of determinants as bit-strings to: ", &
+        write(stdout, "(A,I6)") "Setting integer bit-length of determinants as bit-strings to: ", &
             bits_n_int
 
         if (tGUGA) then
@@ -228,7 +228,7 @@ contains
             !  1         * 32-bits              deltaB value
 
             call init_guga_bitrep(nifd)
-            write(6, "(A,I6)") "For GUGA calculation set up a integer list of length: ", &
+            write(stdout, "(A,I6)") "For GUGA calculation set up a integer list of length: ", &
                 nIfGUGA + 1
 
             ! if we use fast guga rdms we also need space in the
@@ -1040,7 +1040,7 @@ contains
         def_default(prefactor_, prefactor, 1.0_dp)
 
         if (.not. sorted_lists) then
-            write(6, *) lbound(list_1, 1), ubound(list_1, 1), lbound(list_2, 1), ubound(list_2, 1)
+            write(stdout, *) lbound(list_1, 1), ubound(list_1, 1), lbound(list_2, 1), ubound(list_2, 1)
             call neci_flush(6)
             call sort(list_1(:, 1:ndets_1), ilut_lt, ilut_gt)
             call sort(list_2(:, 1:ndets_2), ilut_lt, ilut_gt)

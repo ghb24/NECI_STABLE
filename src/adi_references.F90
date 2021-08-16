@@ -104,7 +104,7 @@ contains
             call MPIAllGather(mpi_refs_found, refs_found_per_proc, ierr)
             all_refs_found = sum(refs_found_per_proc)
             if (all_refs_found /= maxNRefs) then
-                write(6, *) "Warning: Less than ", maxNRefs, &
+                write(stdout, *) "Warning: Less than ", maxNRefs, &
                     " superinitiators found, using only ", all_refs_found, " superinitiators"
             end if
             ! Set the number of SIs to the number actually found
@@ -197,7 +197,7 @@ contains
         end if
 
         if (iProcIndex == root) &
-            write(6, *) "Getting superinitiators for all-doubs-initiators: ", nRefs, " SIs found"
+            write(stdout, *) "Getting superinitiators for all-doubs-initiators: ", nRefs, " SIs found"
 
         if (tWriteRefs) call output_reference_space(ref_filename)
     end subroutine generate_ref_space
@@ -251,7 +251,7 @@ contains
 
         ! we only keep at most maxNRefs determinants
         if (refs_found > maxNRefs .and. NoTypeN > 1) then
-            write(iout, '(A,I5,A,I5,A,I5,A)') "On proc ", iProcIndex, " found ", refs_found, &
+            write(stdout, '(A,I5,A,I5,A,I5,A)') "On proc ", iProcIndex, " found ", refs_found, &
                 " SIs, which is more than the maximum of ", maxNRefs, " - truncating"
             ! in case we found more, take the maxNRefs with the highest population
             call sort(tmp(0:NIfTot, 1:refs_found), sign_gt, sign_lt)
@@ -314,7 +314,7 @@ contains
                 si_buf(0:NIfTot, i) = mpi_buf(0:NIfTot, largest_inds(i))
             end do
             if (iProcIndex == root .and. NoTypeN > 1) &
-                write(6, '(A,I5,A,I5,A)') "In total ", all_refs_found, &
+                write(stdout, '(A,I5,A,I5,A)') "In total ", all_refs_found, &
                 " SIs were found, which is more than the maximum number of ", &
                 maxNRefs, " - truncating"
             ! make it look to the outside as though maxNRefs were found
@@ -392,8 +392,8 @@ contains
         if (iProcIndex == root .and. .not. tSuppressSIOutput) then
             ! print out the given SIs sorted according to population
             call sort(ilutRefAdi(0:NIfTot, iStart:iEnd), sign_gt, sign_lt)
-            write(iout, *) title
-            if (present(legend)) write(iout, "(4A25)") &
+            write(stdout, *) title
+            if (present(legend)) write(stdout, "(4A25)") &
                 ! TODO: Adapt legend for multiple runs
                 "Determinant (bitwise)", "Excitation level", "Coherence parameter", "Number of walkers"
             do i = iStart, iEnd
@@ -410,19 +410,19 @@ contains
         real(dp) :: temp_sgn(lenof_sign)
         integer :: j
         ! First, print the determinant (bitwise)
-        call WriteDetBit(iout, ilut, .false.)
+        call WriteDetBit(stdout, ilut, .false.)
         ! Then, the excitation level
-        write(iout, "(5X)", advance='no')
-        write(iout, "(G1.4)", advance='no') FindBitExcitLevel(ilut, ilutRef(:, 1))
+        write(stdout, "(5X)", advance='no')
+        write(stdout, "(G1.4)", advance='no') FindBitExcitLevel(ilut, ilutRef(:, 1))
         ! And the sign coherence parameter
-        write(iout, "(G16.7)", advance='no') get_sign_op(ilut)
+        write(stdout, "(G16.7)", advance='no') get_sign_op(ilut)
         ! And then the sign
         call extract_sign(ilut, temp_sgn)
         do j = 1, lenof_sign
-            write(iout, "(G16.7)", advance='no') temp_sgn(j)
+            write(stdout, "(G16.7)", advance='no') temp_sgn(j)
         end do
 
-        write(iout, '()')
+        write(stdout, '()')
 
     end subroutine print_bit_rep
 
@@ -758,7 +758,7 @@ contains
             lastAllNoatHF = cAllNoatHF
             lastNRefs = nRefsOld
 
-            write(6, *) "Now at ", nRefs, " superinitiators"
+            write(stdout, *) "Now at ", nRefs, " superinitiators"
 
         end if
     end subroutine adjust_nRefs
@@ -940,11 +940,11 @@ contains
         use adi_data, only: tAllDoubsInitiators, tAdiActive
         implicit none
 
-        write(iout, '()')
-        write(iout, *) "Setting all double excitations to initiators"
-        write(iout, *) "Using static references"
-        write(iout, *) "Further notification on additional references will be given"
-        write(iout, '()')
+        write(stdout, '()')
+        write(stdout, *) "Setting all double excitations to initiators"
+        write(stdout, *) "Using static references"
+        write(stdout, *) "Further notification on additional references will be given"
+        write(stdout, '()')
         tAllDoubsInitiators = .true.
         tAdiActive = .true.
 

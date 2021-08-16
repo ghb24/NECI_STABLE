@@ -7,7 +7,7 @@ module real_time_aux
     use FciMCData, only: SpawnedParts, ValidSpawnedList, MaxSpawned, InitialSpawnedSlots, &
                          CurrentDets, hashindex
     use SystemData, only: nel
-    use constants, only: dp, lenof_sign, n_int, iout
+    use constants, only: dp, lenof_sign, n_int, stdout
     use MPI_wrapper, only: iProcIndex, nNodes, MPIBarrier
     use Parallel_neci
 

@@ -53,7 +53,7 @@ module guga_init
 
     use FciMCData, only: pExcit2, pExcit4, pExcit2_same, pExcit3_same, tSearchTau
 
-    use constants, only: dp, int_rdm, n_int
+    use constants, only: dp, int_rdm, n_int, stdout
 
     use MPI_wrapper, only: iProcIndex
 
@@ -179,17 +179,17 @@ contains
         ! main initialization routine
 
         ! this routine is called in SysInit() of System_neci.F90
-        write(6, *) ' ************ Using the GUGA-CSF implementation **********'
-        write(6, *) ' Restricting the total spin of the system, tGUGA : ', tGUGA
-        write(6, '(A,I5)') '  Restricting total spin S in units of h/2 to ', STOT
-        write(6, *) ' So eg. S = 1 corresponds to one unpaired electron '
-        write(6, *) ' not quite sure yet how to deal with extensively used m_s quantum number..'
-        write(6, *) ' NOTE: for now, although SPIN-RESTRICT is set off, internally m_s(LMS) '
-        write(6, *) ' is set to STOT, to make use of reference determinant creations already implemented'
-        write(6, *) ' Since NECI always seems to take the beta orbitals first for open shell or '
-        write(6, *) ' spin restricted systems, associate those to positively coupled +h/2 orbitals '
-        write(6, *) ' to always ensure a S >= 0 value!'
-        write(6, *) ' *********************************************************'
+        write(stdout, *) ' ************ Using the GUGA-CSF implementation **********'
+        write(stdout, *) ' Restricting the total spin of the system, tGUGA : ', tGUGA
+        write(stdout, '(A,I5)') '  Restricting total spin S in units of h/2 to ', STOT
+        write(stdout, *) ' So eg. S = 1 corresponds to one unpaired electron '
+        write(stdout, *) ' not quite sure yet how to deal with extensively used m_s quantum number..'
+        write(stdout, *) ' NOTE: for now, although SPIN-RESTRICT is set off, internally m_s(LMS) '
+        write(stdout, *) ' is set to STOT, to make use of reference determinant creations already implemented'
+        write(stdout, *) ' Since NECI always seems to take the beta orbitals first for open shell or '
+        write(stdout, *) ' spin restricted systems, associate those to positively coupled +h/2 orbitals '
+        write(stdout, *) ' to always ensure a S >= 0 value!'
+        write(stdout, *) ' *********************************************************'
 
         if (tGen_nosym_guga) then
             call Stop_All(this_routine, "'nosym-guga' option deprecated!")

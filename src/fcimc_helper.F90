@@ -117,19 +117,18 @@ module fcimc_helper
 contains
 
     function TestMCExit(Iter, RDMSamplingIter) result(ExitCriterion)
-        implicit none
         integer, intent(in) :: Iter, RDMSamplingIter
         logical :: ExitCriterion
 
         if ((Iter > NMCyc) .and. (NMCyc /= -1)) then
-            write(iout, "(A)") "Total iteration number limit reached. Finishing FCIQMC loop..."
+            write(stdout, "(A)") "Total iteration number limit reached. Finishing FCIQMC loop..."
             ExitCriterion = .true.
         else if ((RDMSamplingIter > iSampleRDMIters) .and. (iSampleRDMIters /= -1)) then
-            write(iout, "(A)") "RDM Sampling iteration number limit reached. Finishing FCIQMC loop..."
+            write(stdout, "(A)") "RDM Sampling iteration number limit reached. Finishing FCIQMC loop..."
             ExitCriterion = .true.
         else if (Iter - maxval(VaryShiftIter) >= eq_cyc .and. eq_cyc > -1 &
                  .and. all(.not. tSinglePartPhase)) then
-            write(iout, "(A)") "Equilibrated iteration number limit reached. Finishing FCIQMC loop..."
+            write(stdout, "(A)") "Equilibrated iteration number limit reached. Finishing FCIQMC loop..."
             ExitCriterion = .true.
         else
             ExitCriterion = .false.
@@ -472,39 +471,27 @@ contains
         ! Check that the position described by ValidSpawnedList is acceptable.
         ! If we have filled up the memory that would be acceptable, then
         ! end the calculation, i.e. throw an error
-        implicit none
         logical :: list_full
         integer, intent(in) :: proc
-        logical :: new_warning = .true.
+        logical, save :: new_warning = .true.
         list_full = .false.
         if (proc == nNodes - 1) then
-            if (ValidSpawnedList(proc) > MaxSpawned) list_full = .true.
+            list_full = ValidSpawnedList(proc) > MaxSpawned
         else
-            if (ValidSpawnedList(proc) >= InitialSpawnedSlots(proc + 1)) &
-                list_full = .true.
+            list_full = ValidSpawnedList(proc) >= InitialSpawnedSlots(proc + 1)
         end if
         if (list_full .and. new_warning) then
             ! Only ever print this warning once
             new_warning = .false.
-#ifdef DEBUG_
-            write(6, *) "Attempting to spawn particle onto processor: ", proc
-            write(6, *) "No memory slots available for this spawn."
-            write(6, *) "Please increase MEMORYFACSPAWN"
-            write(6, *) ValidSpawnedList
-            write(6, *) InitialSpawnedSlots
-            if (MaxSpawned / nProcessors < 0.1_dp * TotWalkers) write(6, *) &
-                "Memory available for spawns is too low, number of processes might be too high for the given walker number"
-#else
-            print *, "Attempting to spawn particle onto processor: ", proc
-            print *, "No memory slots available for this spawn, terminating calculation"
-            print *, "Please increase MEMORYFACSPAWN"
-            print *, ValidSpawnedList
-            print *, InitialSpawnedSlots
-
+            write(stderr, *) "Attempting to spawn particle onto processor: ", proc
+            write(stderr, *) "No memory slots available for this spawn."
+            write(stderr, *) "Please increase MEMORYFACSPAWN"
+            write(stderr, *) ValidSpawnedList
+            write(stderr, *) InitialSpawnedSlots
             ! give a note on the counter-intuitive scaling behaviour
-            if (MaxSpawned / nProcessors < 0.1_dp * TotWalkers) print *, &
-                "Memory available for spawns is too low, number of processes might be too high for the given walker number"
-#endif
+            if (MaxSpawned / nProcessors < 0.1_dp * TotWalkers) then
+                write(stderr, *) "Memory available for spawns is too low, number of processes might be too high for the given walker number"
+            end if
         end if
 
     end function checkValidSpawnedList
@@ -788,10 +775,10 @@ contains
         if (tPrintOrbOcc .and. (iter >= StartPrintOrbOcc)) then
             if (iter == StartPrintOrbOcc .and. &
                 DetBitEq(ilut, ilutHF, nifd)) then
-                write(6, *) 'Beginning to fill the HF orbital occupation list &
+                write(stdout, *) 'Beginning to fill the HF orbital occupation list &
                            &during iteration', iter
                 if (tPrintOrbOccInit) &
-                    write(6, *) 'Only doing so for initiator determinants'
+                    write(stdout, *) 'Only doing so for initiator determinants'
             end if
             if ((tPrintOrbOccInit .and. test_flag(ilut, get_initiator_flag(1))) &
                 .or. .not. tPrintOrbOccInit) then
@@ -802,7 +789,6 @@ contains
 
     contains
         function enum_contrib() result(dE)
-            implicit none
             HElement_t(dp) :: dE
 
             dE = (HOffDiag(run) * ARR_RE_OR_CPLX(RealwSign, run)) / dProbFin
@@ -1000,7 +986,6 @@ contains
     contains
 
         subroutine add_sign_on_run(var)
-            implicit none
             real(dp), intent(inout) :: var(lenof_sign)
 
 #ifdef CMPLX_
@@ -1012,7 +997,6 @@ contains
         end subroutine add_sign_on_run
 
         function enum_contrib() result(dE)
-            implicit none
             HElement_t(dp) :: dE
 
             dE = (hoffdiag * sgn_run) / dProbFin
@@ -1021,7 +1005,6 @@ contains
     end subroutine SumEContrib_different_refs
 
     subroutine CalcParentFlag_normal(j, parent_flags)
-        implicit none
         integer, intent(in) :: j
         integer, intent(out) :: parent_flags
         integer :: nI(nel), exLvl
@@ -1137,7 +1120,6 @@ contains
 
     function TestInitiator_explicit(ilut, nI, det_idx, is_init, sgn, exLvl, run) result(initiator)
         use adi_initiators, only: check_static_init
-        implicit none
         ! For a given particle (with its given particle type), should it
         ! be considered as an initiator for the purposes of spawning.
         !
@@ -1269,7 +1251,6 @@ contains
     end function TestInitiator_pure_space
 
     function initiator_criterium(sign, hdiag, run) result(init_flag)
-        implicit none
         real(dp), intent(in) :: sign(lenof_sign), hdiag
         integer, intent(in) :: run
         ! variance of sign and either a single value or an aggregate
@@ -1316,7 +1297,6 @@ contains
     end function initiator_criterium
 
     function spawn_criterium(idx) result(spawnInit)
-        implicit none
         ! makes something an initiator if the sign of spawns is sufficiently unique
         integer, intent(in) :: idx
         logical :: spawnInit
@@ -1483,8 +1463,6 @@ contains
     end subroutine
 
     subroutine end_iter_stats(TotWalkersNew)
-
-        implicit none
         integer, intent(in) :: TotWalkersNew
         integer :: proc, pos, i, k
         real(dp) :: sgn(lenof_sign)
@@ -1502,7 +1480,7 @@ contains
             .or. tPrintHighPop) then
             call FindHighPopDet(TotWalkersNew)
             if (tHistInitPops) then
-                root_write(iout, '(a)') 'Writing out the spread of the &
+                root_write(stdout, '(a)') 'Writing out the spread of the &
                                        &initiator determinant populations.'
                 call WriteInitPops(iter + PreviousCycles)
             end if
@@ -1646,15 +1624,15 @@ contains
         CALL MPIBcast(DetPos, NIfTot + 1, int(HighPopOutPos(2)))
 
         if (iProcIndex == 0) then
-            write(iout, '(a,f12.5,a)') 'The most highly populated determinant &
+            write(stdout, '(a,f12.5,a)') 'The most highly populated determinant &
                                   & with the opposite sign to the HF has ', &
                                   HighPopoutNeg(1), ' walkers.'
-            call WriteBitDet(iout, DetNeg, .true.)
+            call WriteBitDet(stdout, DetNeg, .true.)
 
-            write(iout, '(a,f12.5,a9)') 'The most highly populated determinant &
+            write(stdout, '(a,f12.5,a9)') 'The most highly populated determinant &
                                   & with the same sign as the HF has ', &
                                   HighPopoutPos(1), ' walkers.'
-            call WriteBitDet(iout, DetPos, .true.)
+            call WriteBitDet(stdout, DetPos, .true.)
         end if
 
         tPrintHighPop = .false.
@@ -1789,7 +1767,6 @@ contains
 !Routine which takes a set of determinants and returns the ground state energy
     subroutine LanczosFindGroundE(Dets, DetLen, GroundE, ProjGroundE, tInit)
         use DetCalcData, only: NKRY, NBLK, B2L, nCycle
-        implicit none
         real(dp), intent(out) :: GroundE, ProjGroundE
         logical, intent(in) :: tInit
         integer, intent(in) :: DetLen
@@ -1818,7 +1795,7 @@ contains
             nEval = DetLen
         end if
 
-        write(iout, '(A,I10)') 'DetLen = ', DetLen
+        write(stdout, '(A,I10)') 'DetLen = ', DetLen
 !C..
         allocate(Ck(DetLen, nEval), stat=ierr)
         call LogMemAlloc('CK', DetLen * nEval, 8, t_r, tagCK, ierr)
@@ -1827,7 +1804,6 @@ contains
         allocate(W(nEval), stat=ierr)
         call LogMemAlloc('W', nEval, 8, t_r, tagW, ierr)
         W = 0.0_dp
-!        write(iout,*) "Calculating H matrix"
 !C..We need to measure HAMIL and LAB first
         allocate(NROW(DetLen), stat=ierr)
         call LogMemAlloc('NROW', DetLen, 4, t_r, NROWTag, ierr)
@@ -1835,9 +1811,8 @@ contains
         ICMAX = 1
         TMC = .FALSE.
         call DETHAM(DetLen, NEL, Dets, HAMIL, LAB, NROW, .TRUE., ICMAX, GC, TMC)
-!        write(iout,*) ' FINISHED COUNTING '
-        write(iout, *) "Allocating memory for hamiltonian: ", GC * 2
-        CALL neci_flush(iout)
+        write(stdout, *) "Allocating memory for hamiltonian: ", GC * 2
+        CALL neci_flush(stdout)
 !C..Now we know size, allocate memory to HAMIL and LAB
         LENHAMIL = GC
         allocate(Hamil(LenHamil), stat=ierr)
@@ -1863,7 +1838,6 @@ contains
             LSCR = MAX(DetLen * NEVAL, 8 * NBLOCK * NKRY)
             LISCR = 6 * NBLOCK * NKRY
             !C..
-            !       write(iout,'(7X," *",19X,A,18X,"*")') ' LANCZOS DIAGONALISATION '
             !C..Set up memory for FRSBLKH
 
             allocate(A_Arr(NEVAL, NEVAL), stat=ierr)
@@ -1975,7 +1949,6 @@ contains
             end if
         end do
         ProjGroundE = (Num / Denom) + Hii
-!        write(iout,*) "***", nDoubles
 
         if (tHistSpawn .and. .not. tInit) then
             !Write out the ground state wavefunction for this truncated calculation.
@@ -2010,7 +1983,7 @@ contains
             end do
             Norm = sqrt(Norm)
             if (abs(Norm - 1.0_dp) > 1.0e-7_dp) then
-                write(iout, *) "***", norm
+                write(stdout, *) "***", norm
                 call warning_neci(t_r, "Normalisation not correct for diagonalised wavefunction!")
             end if
 
@@ -2072,7 +2045,6 @@ contains
 !This routine takes the walkers from all subspaces, constructs the hamiltonian, and diagonalises it.
 !Currently, this only works in serial.
     subroutine DiagWalkerSubspace()
-        implicit none
         integer :: i, iSubspaceSize, ierr, iSubspaceSizeFull
         real(dp) :: CurrentSign(lenof_sign)
         integer, allocatable :: ExpandedWalkerDets(:, :)
@@ -2085,7 +2057,7 @@ contains
 
         if (tTruncInitiator) then
             !First, diagonalise initiator subspace
-            write(iout, '(A)') 'Diagonalising initiator subspace...'
+            write(stdout, '(A)') 'Diagonalising initiator subspace...'
 
             iSubspaceSize = 0
             do i = 1, int(TotWalkers, sizeof_int)
@@ -2097,7 +2069,7 @@ contains
                 end if
             end do
 
-            write(iout, '(A,I12)') "Number of initiators found to diagonalise: ", iSubspaceSize
+            write(stdout, '(A,I12)') "Number of initiators found to diagonalise: ", iSubspaceSize
             allocate(ExpandedWalkerDets(NEl, iSubspaceSize), stat=ierr)
             call LogMemAlloc('ExpandedWalkerDets', NEl * iSubspaceSize, 4, t_r, ExpandedWalkTag, ierr)
 
@@ -2115,10 +2087,10 @@ contains
             if (iSubspaceSize > 0) then
 !Routine to diagonalise a set of determinants, and return the ground state energy
                 call LanczosFindGroundE(ExpandedWalkerDets, iSubspaceSize, GroundEInit, ProjGroundEInit, .true.)
-                write(iout, '(A,G25.10)') 'Ground state energy of initiator walker subspace = ', GroundEInit
+                write(stdout, '(A,G25.10)') 'Ground state energy of initiator walker subspace = ', GroundEInit
             else
                 CreateNan = -1.0_dp
-                write(iout, '(A,G25.10)') 'Ground state energy of initiator walker subspace = ', sqrt(CreateNan)
+                write(stdout, '(A,G25.10)') 'Ground state energy of initiator walker subspace = ', sqrt(CreateNan)
             end if
 
             deallocate(ExpandedWalkerDets)
@@ -2129,8 +2101,8 @@ contains
         iSubspaceSizeFull = int(TotWalkers, sizeof_int)
 
         !Allocate memory for walker list.
-        write(iout, '(A)') "Allocating memory for diagonalisation of full walker subspace"
-        write(iout, '(A,I12,A)') "Size = ", iSubspaceSizeFull, " walkers."
+        write(stdout, '(A)') "Allocating memory for diagonalisation of full walker subspace"
+        write(stdout, '(A,I12,A)') "Size = ", iSubspaceSizeFull, " walkers."
 
         allocate(ExpandedWalkerDets(NEl, iSubspaceSizeFull), stat=ierr)
         call LogMemAlloc('ExpandedWalkerDets', NEl * iSubspaceSizeFull, 4, t_r, ExpandedWalkTag, ierr)
@@ -2141,7 +2113,7 @@ contains
 !Routine to diagonalise a set of determinants, and return the ground state energy
         call LanczosFindGroundE(ExpandedWalkerDets, iSubspaceSizeFull, GroundEFull, ProjGroundEFull, .false.)
 
-        write(iout, '(A,G25.10)') 'Ground state energy of full walker subspace = ', GroundEFull
+        write(stdout, '(A,G25.10)') 'Ground state energy of full walker subspace = ', GroundEFull
 
         if (tTruncInitiator) then
             write(unitWalkerDiag, '(3I14,4G25.15)') Iter, iSubspaceSize, iSubspaceSizeFull, GroundEInit - Hii, &
@@ -2312,11 +2284,11 @@ contains
 
         IFDEBUG(FCIMCDebug, 3) then
             if (sum(abs(iDie)) > 1.0e-10_dp) then
-                write(iout, "(A)", advance='no') "Death: "
+                write(stdout, "(A)", advance='no') "Death: "
                 do i = 1, lenof_sign - 1
-                    write(iout, "(f10.5)", advance='no') iDie(i)
+                    write(stdout, "(f10.5)", advance='no') iDie(i)
                 end do
-                write(iout, "(f10.5)") iDie(i)
+                write(stdout, "(f10.5)") iDie(i)
             end if
         end if
 
@@ -2411,7 +2383,6 @@ contains
 
         use rdm_general, only: realloc_SpawnedParts
         use LoggingData, only: tReadRDMs, tTransitionRDMs
-        implicit none
         logical :: tFullVaryshift
 
         tFullVaryShift = .false.
@@ -2460,11 +2431,11 @@ contains
             end if
 
             if (RDMExcitLevel == 1) then
-                write(6, '(A)') 'Calculating the 1 electron density matrix on the fly.'
+                write(stdout, '(A)') 'Calculating the 1 electron density matrix on the fly.'
             else
-                write(6, '(A)') 'Calculating the 2 electron density matrix on the fly.'
+                write(stdout, '(A)') 'Calculating the 2 electron density matrix on the fly.'
             end if
-            write(6, '(A,I10)') 'Beginning to fill the RDMs during iteration', Iter
+            write(stdout, '(A,I10)') 'Beginning to fill the RDMs during iteration', Iter
         end if
 
     end subroutine check_start_rdm
@@ -2489,12 +2460,12 @@ contains
         iLutRef(:, run) = 0_n_int
         iLutRef(0:nifd, run) = ilut(0:nifd)
         call decode_bit_det(ProjEDet(:, run), iLutRef(:, run))
-        write(iout, '(a,i3,a)', advance='no') 'Changing projected &
+        write(stdout, '(a,i3,a)', advance='no') 'Changing projected &
               &energy reference determinant for run', run, &
               ' on the next update cycle to: '
-        call write_det(iout, ProjEDet(:, run), .true.)
+        call write_det(stdout, ProjEDet(:, run), .true.)
         call GetSym(ProjEDet(:, run), nEl, G1, nBasisMax, isym)
-        write(6, "(A)", advance='no') " Symmetry: "
+        write(stdout, "(A)", advance='no') " Symmetry: "
         call writeSym(6, isym%sym, .true.)
 
         ! if in guga run, i also need to recreate the list of connected
@@ -2534,7 +2505,7 @@ contains
                         "Error in changing reference determinant &
                         &to open shell HPHF")
                 end if
-                write(iout, "(A,i3)") "Now projecting onto open-shell &
+                write(stdout, "(A,i3)") "Now projecting onto open-shell &
                     &HPHF as a linear combo of two determinants...&
                     & for run", run
                 tSpinCoupProjE(run) = .true.
@@ -2567,12 +2538,12 @@ contains
                                      ProjEDet(:, 1), 0)
             end if
             Hii = real(h_tmp, dp)
-            write(iout, '(a, g25.15)') &
+            write(stdout, '(a, g25.15)') &
                 'Reference energy now set to: ', Hii
 
             ! Regenerate all the diagonal elements relative to the
             ! new reference det.
-            write(iout, *) 'Regenerating the stored diagonal &
+            write(stdout, *) 'Regenerating the stored diagonal &
                            &HElements for all walkers.'
             do i = 1, int(Totwalkers, sizeof_int)
                 call decode_bit_det(det, CurrentDets(:, i))

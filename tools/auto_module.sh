@@ -8,8 +8,8 @@
 echo "Loading modules for: $@"
 
 if [ "fkf-ifort -g" == "$@" ] || [ "fkf-ifort" == "$@" ] || [ "fkf-ifort-new" == "$@" ]; then
-        export HDF5_ROOT=/usr/lib/custom_hdf5_ifort
-        module load ifort/18.0.1 mpi.intel/5.0.3 #hdf5-intel
+    export HDF5_ROOT=/usr/lib/custom_hdf5_ifort
+    module load ifort/18.0.1 mpi.intel/5.0.3 #hdf5-intel
 elif [ "gfortran-simple -g" == "$@" ] || [ "gfortran-simple" == "$@" ] || [ "gfortran-integer8" == "$@" ]; then
     export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/lib64/mpi/gcc/openmpi3/lib64
 	export PATH=$PATH:/usr/lib64/mpi/gcc/openmpi3/bin

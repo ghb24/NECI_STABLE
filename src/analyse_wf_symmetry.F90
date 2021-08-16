@@ -18,7 +18,7 @@ module analyse_wf_symmetry
 
     use bit_rep_data, only: niftot, nifd
 
-    use constants, only: n_int, dp, pi, lenof_sign
+    use constants, only: n_int, dp, pi, lenof_sign, stdout
 
     use util_mod, only: binary_search, binary_search_int, near_zero, &
                         operator(.isclose.)
@@ -597,7 +597,7 @@ contains
         if (present(nUnit)) then
             iout = nunit
         else
-            iout = 6
+            iout = stdout
         end if
 
         call extract_sign(left, left_sign)

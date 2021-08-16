@@ -6,7 +6,7 @@
 #include "NECICore.h"
 
 #ifdef DEBUG_
-        write(6, *) "STARTING NECI"
+        write(stdout, *) "STARTING NECI"
 #endif
 
         ! Indicate not called by CPMD, VASP, Molpro

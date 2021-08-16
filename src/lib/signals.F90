@@ -7,6 +7,7 @@ module neci_signals
     ! accessible in signal.h.
 
     use, intrinsic :: iso_c_binding, only: c_int
+    use constants, only: stdout
     implicit none
     private
 
@@ -46,25 +47,25 @@ contains
         ! Flush existing output in the stdout buffer
         ! --> Try and avoid issues if we happen to Ctrl-C during a write.
         call neci_flush(6)
-        write(6,*)
-        write(6,*) '----------------------------------------'
-        write(6,*) 'NECI SIGINT (Ctrl-C) handler'
-        write(6,*)
+        write(stdout,*)
+        write(stdout,*) '----------------------------------------'
+        write(stdout,*) 'NECI SIGINT (Ctrl-C) handler'
+        write(stdout,*)
         sigint_count = sigint_count + 1
 
         if (sigint_count == 1) then
-            write(6,*) 'Calculation will cleanly exit at the next update cycle.'
-            write(6,*) 'To kill the application immediately, resend signal again &
+            write(stdout,*) 'Calculation will cleanly exit at the next update cycle.'
+            write(stdout,*) 'To kill the application immediately, resend signal again &
                        & (Ctrl-C)'
-            write(6,*) '----------------------------------------'
-            write(6,*)
+            write(stdout,*) '----------------------------------------'
+            write(stdout,*)
 
             ! Trigger soft exit
             tSoftExitFound = .true.
         else
-            write(6,*) 'Killing calculation'
-            write(6,*) '----------------------------------------'
-            write(6,*)
+            write(stdout,*) 'Killing calculation'
+            write(stdout,*) '----------------------------------------'
+            write(stdout,*)
             call neci_flush(6)
             call stop_all(t_r, "User requested")
         end if
