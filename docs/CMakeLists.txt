@@ -51,6 +51,7 @@ set(MEDIA_FILES
 
 set(DOC_ROOT_SRC ${PROJECT_SOURCE_DIR}/docs)
 
+set(PDF_DOCUMENTATIONS ${PROJECT_BINARY_DIR}/documentation/pdf/)
 set(DOC_WORKDIR ${PROJECT_BINARY_DIR}/documentation/work_dir)
 set(MEDIA_WORKDIR ${DOC_WORKDIR}/media)
 set(TEX_WORKDIR ${DOC_WORKDIR}/tex)
@@ -137,137 +138,11 @@ add_custom_command(
 )
 
 
-function(add_ford_documentation target configuration)
-    # This function creates a target for the Ford documentation.
-    # configuration can be one of neci;kneci;dneci;mneci;kdneci;kmneci
-    #
-    # The target is not built by default! Use add_dependencies if appropiate.
-
-    if (NOT ${configuration} IN_LIST ${PROJECT_NAME}_CONFIGURATIONS)
-        message(FATAL_ERROR "${configuration} has to be contained in [${${PROJECT_NAME}_CONFIGURATIONS}]")
-    endif()
-
-    set(THIS_HTML_DOC ${PROJECT_BINARY_DIR}/documentation/html/${configuration})
-
-    find_program(FORD ford ${PROJECT_SOURCE_DIR}/External/ford/ford.py REQUIRED)
-
-    set(FORD_WORKDIR ${FORD_ROOT_WORKDIR}/${configuration})
-    set(FORD_PAGES ${FORD_WORKDIR}/pages)
-
-    set(markdown_files ${markdown_files_user_doc} ${markdown_files_dev_doc})
-    get_unique_dirs(markdown_files markdown_dirs)
-
-    foreach(path ${markdown_files})
-        list(APPEND src_files "${DOC_ROOT_SRC}/${path}")
-        get_filename_component(dir ${path} DIRECTORY)
-        get_filename_component(dir ${dir} NAME)
-        get_filename_component(name ${path} NAME)
-        list(APPEND processed_files "${FORD_PAGES}/${dir}/${name}")
-    endforeach()
-
-
-    add_custom_command(
-        OUTPUT
-            ${processed_files}
-        DEPENDS
-            ${PYTHON_VENV}
-            ${PROJECT_SOURCE_DIR}/tools/doc_compilation/process_markdown_for_ford.py
-            gen_docs.md
-            pages/index.md
-            ${src_files}
-            LaTeX-headers/literature.bib
-        COMMAND
-            ${CMAKE_COMMAND} -E make_directory ${FORD_PAGES}
-        COMMAND
-            ${custom_Python3} -m pip install bibtexparser --quiet
-        COMMAND
-            cp gen_docs.md ${FORD_WORKDIR}
-        COMMAND
-            cp pages/index.md ${FORD_PAGES}
-        COMMAND
-            ${custom_Python3} ${PROJECT_SOURCE_DIR}/tools/doc_compilation/process_markdown_for_ford.py
-                        --bibfile LaTeX-headers/literature.bib
-                        --out_dir ${FORD_PAGES}
-                        --md_dirs ${markdown_dirs}
-                        --build_dir ${THIS_HTML_DOC}
-        WORKING_DIRECTORY
-            ${PROJECT_SOURCE_DIR}/docs
-        COMMENT
-            "Preprocessing for Ford."
-    )
-
-
-    get_absolute_sources(${configuration} prog_sources)
-    get_absolute_sources(lib${configuration} lib_sources)
-    set(fortran_sources ${prog_sources} ${lib_sources})
-    get_unique_dirs(fortran_sources source_dirs)
-    foreach(dir ${source_dirs})
-        list(APPEND ford_options "--src_dir=${dir}")
-    endforeach()
-# Use the following instead if you want to compile ford fast
-#     list(APPEND ford_options "--src_dir=${PROJECT_SOURCE_DIR}/src/lib")
-
-    get_target_property(include_dirs lib${configuration} INCLUDE_DIRECTORIES)
-    foreach(dir ${include_dirs})
-        list(APPEND ford_options "--include=${dir}")
-    endforeach()
-
-    get_target_property(comp_definitions lib${configuration} COMPILE_DEFINITIONS)
-    foreach(def ${comp_definitions})
-        list(APPEND ford_options "--macro=${def}")
-    endforeach()
-
-    add_custom_command(
-        OUTPUT
-            ${THIS_HTML_DOC}/index.html
-        DEPENDS
-            gen_docs.md
-            ${PYTHON_VENV}
-            ${processed_media_files}
-            ${fortran_sources}
-            ${processed_files}
-            ${markdown_files}
-        # We want to install the custom ford into a virtual environment for the build process
-        # We want our custom ford because of tailored changes!
-        # Do not look for a preinstalled ford, or at least make sure it works!
-        COMMAND
-            ${custom_Python3} -m pip install ${PROJECT_SOURCE_DIR}/External/ford/ --quiet
-        COMMAND
-            ${CMAKE_COMMAND} -E make_directory ${THIS_HTML_DOC} # Create output directory
-        COMMAND
-            ${custom_Python3} ${FORD} gen_docs.md --output_dir ${THIS_HTML_DOC} ${ford_options} --page_dir ${FORD_PAGES}
-        WORKING_DIRECTORY
-            ${FORD_WORKDIR}
-        COMMENT
-            "Generating FORD documentation."
-        VERBATIM
-    )
-
-    add_custom_target(${target}
-        DEPENDS
-            ${THIS_HTML_DOC}/index.html
-    )
-    # We rely on preprocessed (fypp and custom templating) files by the normal build process.
-    # Ford will run the "normal" C-preprocessor itself.
-    add_dependencies(${target} lib${configuration}_fypp_preprocessed lib${configuration}_templated)
-endfunction()
-
-
-
-foreach(configuration ${${PROJECT_NAME}_CONFIGURATIONS})
-    add_ford_documentation(doc_html_${configuration} ${configuration})
-endforeach()
-
-# Only build the documentation of `neci` by default (when typing `make doc`)
-add_dependencies(doc doc_html_neci)
-
-
 find_program(PANDOC pandoc REQUIRED)
 find_package(LATEX COMPONENTS PDFLATEX BIBER REQUIRED)
 find_program(LATEXMK latexmk REQUIRED)
 if (PANDOC AND LATEX_FOUND AND LATEXMK)
     # The PDF documentation is independent of possible configurations (neci, dneci etc.).
-    set(PDF_DOCUMENTATIONS ${PROJECT_BINARY_DIR}/documentation/pdf/)
     set(pandoc_options
             --include-in-header LaTeX-headers/packages_to_include.tex
             --standalone
@@ -277,9 +152,13 @@ if (PANDOC AND LATEX_FOUND AND LATEXMK)
             -V numbersections=true
             --listings
             --biblatex
-                -V biblatexoptions:doi=true
+                -V biblatexoptions:style=numeric
+                -V biblatexoptions:doi=false
                 -V biblatexoptions:isbn=false
                 -V biblatexoptions:url=false
+                -V biblatexoptions:eprint=false
+                -V biblatexoptions:date=year
+                -V biblatexoptions:maxbibnames=3
                 -V biblio-title=Bibliography
                 --bibliography literature.bib
             --toc
@@ -354,3 +233,158 @@ if (PANDOC AND LATEX_FOUND AND LATEXMK)
     )
     add_dependencies(doc doc_pdf)
 endif()
+
+
+function(add_ford_documentation target configuration)
+    # This function creates a target for the Ford documentation.
+    # configuration can be one of neci;kneci;dneci;mneci;kdneci;kmneci
+    #
+    # The target is not built by default! Use add_dependencies if appropiate.
+
+    if (NOT ${configuration} IN_LIST ${PROJECT_NAME}_CONFIGURATIONS)
+        message(FATAL_ERROR "${configuration} has to be contained in [${${PROJECT_NAME}_CONFIGURATIONS}]")
+    endif()
+
+    set(THIS_HTML_DOC ${PROJECT_BINARY_DIR}/documentation/html/${configuration})
+
+    find_program(FORD ford ${PROJECT_SOURCE_DIR}/External/ford/ford.py REQUIRED)
+
+    set(FORD_WORKDIR ${FORD_ROOT_WORKDIR}/${configuration})
+    set(FORD_PAGES ${FORD_WORKDIR}/pages)
+
+    set(markdown_files ${markdown_files_user_doc} ${markdown_files_dev_doc})
+    get_unique_dirs(markdown_files markdown_dirs)
+
+    foreach(path ${markdown_files})
+        list(APPEND src_files "${DOC_ROOT_SRC}/${path}")
+        get_filename_component(dir ${path} DIRECTORY)
+        get_filename_component(dir ${dir} NAME)
+        get_filename_component(name ${path} NAME)
+        list(APPEND processed_files "${FORD_PAGES}/${dir}/${name}")
+    endforeach()
+
+    add_custom_command(
+        OUTPUT
+            ${processed_files}
+        DEPENDS
+            ${PYTHON_VENV}
+            ${PROJECT_SOURCE_DIR}/tools/doc_compilation/process_markdown_for_ford.py
+            ${PROJECT_SOURCE_DIR}/docs/pages/index.md
+            ${src_files}
+            ${PROJECT_SOURCE_DIR}/docs/LaTeX-headers/literature.bib
+        COMMAND
+            ${CMAKE_COMMAND} -E make_directory ${FORD_PAGES}
+        COMMAND
+            ${custom_Python3} -m pip install bibtexparser --quiet
+        COMMAND
+            ${custom_Python3} -m pip install lxml --quiet
+        COMMAND
+            cp pages/index.md ${FORD_PAGES}
+        COMMAND
+            ${custom_Python3} ${PROJECT_SOURCE_DIR}/tools/doc_compilation/process_markdown_for_ford.py
+                        --bibfile LaTeX-headers/literature.bib
+                        --out_dir ${FORD_PAGES}
+                        --md_dirs ${markdown_dirs}
+                        --build_dir ${THIS_HTML_DOC}
+        WORKING_DIRECTORY
+            ${PROJECT_SOURCE_DIR}/docs
+        COMMENT
+            "Preprocessing for Ford."
+    )
+
+    get_absolute_sources(${configuration} prog_sources)
+    get_absolute_sources(lib${configuration} lib_sources)
+    set(fortran_sources ${prog_sources} ${lib_sources})
+    get_unique_dirs(fortran_sources source_dirs)
+    foreach(dir ${source_dirs})
+        list(APPEND ford_options "--src_dir=${dir}")
+    endforeach()
+# Use the following instead if you want to compile ford fast
+#     list(APPEND ford_options "--src_dir=${PROJECT_SOURCE_DIR}/src/lib")
+
+    get_target_property(include_dirs lib${configuration} INCLUDE_DIRECTORIES)
+    foreach(dir ${include_dirs})
+        list(APPEND ford_options "--include=${dir}")
+    endforeach()
+
+    get_target_property(comp_definitions lib${configuration} COMPILE_DEFINITIONS)
+    foreach(def ${comp_definitions})
+        list(APPEND ford_options "--macro=${def}")
+    endforeach()
+
+    option(ENABLE_FORD_SEARCH "Enable Search in Ford" OFF)
+    if (ENABLE_FORD_SEARCH)
+        set(SEARCH_REPLACEMENT_STRING "true")
+    else()
+        set(SEARCH_REPLACEMENT_STRING "false")
+    endif()
+    configure_file(
+        ${PROJECT_SOURCE_DIR}/docs/gen_docs.md.in
+        ${FORD_WORKDIR}/gen_docs.md
+    )
+
+    add_custom_command(
+        OUTPUT
+            ${THIS_HTML_DOC}/index.html
+        DEPENDS
+            ${FORD_WORKDIR}/gen_docs.md
+            ${PYTHON_VENV}
+            ${processed_media_files}
+            ${fortran_sources}
+            ${processed_files}
+            ${markdown_files}
+        # We want to install the custom ford into a virtual environment for the build process
+        # We want our custom ford because of tailored changes!
+        # Do not look for a preinstalled ford, or at least make sure it works!
+        COMMAND
+            ${custom_Python3} -m pip install ${PROJECT_SOURCE_DIR}/External/ford/ --quiet
+        COMMAND
+            ${CMAKE_COMMAND} -E make_directory ${THIS_HTML_DOC} # Create output directory
+        COMMAND
+            ${custom_Python3} ${FORD} gen_docs.md --output_dir ${THIS_HTML_DOC} ${ford_options} --page_dir ${FORD_PAGES}
+        WORKING_DIRECTORY
+            ${FORD_WORKDIR}
+        COMMENT
+            "Generating FORD documentation."
+        VERBATIM
+    )
+
+    set(PDF_in_ford ${THIS_HTML_DOC}/pdf/neci_user.pdf ${THIS_HTML_DOC}/pdf/neci_dev.pdf)
+
+    add_custom_command(
+        OUTPUT
+            ${PDF_in_ford}
+        DEPENDS
+            ${THIS_HTML_DOC}/index.html # Ensure that it is copied afterwards
+            ${PDF_DOCUMENTATIONS}/neci_user.pdf
+            ${PDF_DOCUMENTATIONS}/neci_dev.pdf
+        COMMAND
+            ${CMAKE_COMMAND} -E make_directory ${THIS_HTML_DOC}/pdf # Create output directory
+        COMMAND
+            cp ${PDF_DOCUMENTATIONS}/neci_user.pdf ${PDF_DOCUMENTATIONS}/neci_dev.pdf ${THIS_HTML_DOC}/pdf
+        COMMENT
+            "Copying pdfs to HTML"
+    )
+
+
+
+    add_custom_target(${target}
+        DEPENDS
+            ${THIS_HTML_DOC}/index.html
+            ${PDF_in_ford}
+    )
+    # We rely on preprocessed (fypp and custom templating) files by the normal build process.
+    # Ford will run the "normal" C-preprocessor itself.
+    add_dependencies(${target} lib${configuration}_fypp_preprocessed lib${configuration}_templated)
+    add_dependencies(${target} doc_pdf)
+endfunction()
+
+
+
+foreach(configuration ${${PROJECT_NAME}_CONFIGURATIONS})
+    add_ford_documentation(doc_html_${configuration} ${configuration})
+endforeach()
+
+# Only build the documentation of `neci` by default (when typing `make doc`)
+add_dependencies(doc doc_html_neci)
+

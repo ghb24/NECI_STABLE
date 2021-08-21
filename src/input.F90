@@ -2,7 +2,7 @@
 
 MODULE input_neci
 
-    use constants, only: sp, dp, int64
+    use constants, only: sp, dp, int64, stdout
 
     IMPLICIT NONE
 
@@ -205,7 +205,7 @@ CONTAINS
                 go to 10
 !  End of file
 900             if (more .and. m > 1) then
-                    write(6, "(a)") "Apparently concatenating at end-of-file"
+                    write(stdout, "(a)") "Apparently concatenating at end-of-file"
                     call report("Unexpected end of data file", .true.)
                 end if
                 if (level > 0) then
@@ -226,7 +226,7 @@ CONTAINS
 
 !  Find last non-blank character
 10              last = verify(char, space//tab, back=.true.)
-                if (echo) write(6, "(a)") char(m:last)
+                if (echo) write(stdout, "(a)") char(m:last)
 !  Look for concatenation string
                 if (lc > 0 .and. last >= lc) then
                     more = (char(last - lc + 1:last) == concat)
@@ -329,11 +329,11 @@ CONTAINS
         if (debug) then
             !       print "(8(I6,I4))", (loc(i), end(i), i=1,nitems)
             if (echo .and. nitems > 0) then
-                write(6, "(100a1)") (" ", i=1, loc(1) - 1), &
+                write(stdout, "(100a1)") (" ", i=1, loc(1) - 1), &
                     (("+", i=loc(k), end(k)), (" ", i=end(k) + 1, loc(k + 1) - 1), k=1, nitems - 1), &
                     ("+", i=loc(nitems), end(nitems))
             end if
-            write(6, "(I2,A)") nitems, " items"
+            write(stdout, "(I2,A)") nitems, " items"
         end if
 
     END SUBROUTINE read_line
@@ -653,7 +653,7 @@ CONTAINS
         case (-1, 0)
             call report("Error while reading real number", .true.)
         case (1)
-            write(6, "(2a)") "Error while reading real number. Input is ", trim(string)
+            write(stdout, "(2a)") "Error while reading real number. Input is ", trim(string)
         case (2)
             nerror = -1
         end select
@@ -708,7 +708,7 @@ CONTAINS
         case (-1, 0)
             call report("Error while reading integer", .true.)
         case (1)
-            write(6, "(2a)") "Error while reading integer. Input is ", trim(string)
+            write(stdout, "(2a)") "Error while reading integer. Input is ", trim(string)
         case (2)
             nerror = -1
         end select
@@ -755,7 +755,7 @@ CONTAINS
             case ("T")
                 val = .true.
             case default
-                write(6, *) 'Error interpreting value: ', trim(w)
+                write(stdout, *) 'Error interpreting value: ', trim(w)
             end select
         end if
 
@@ -787,7 +787,7 @@ CONTAINS
         case (-1, 0)
             call report("Error while reading long integer", .true.)
         case (1)
-            write(6, "(2a)") "Error while reading long integer. Input is ", trim(string)
+            write(stdout, "(2a)") "Error while reading long integer. Input is ", trim(string)
         case (2)
             nerror = -1
         end select
@@ -986,7 +986,7 @@ CONTAINS
 
         CHARACTER(LEN=3) s1, s2
 
-        write(6, "(a)") c
+        write(stdout, "(a)") c
         if (present(reflect)) then
             if (reflect) then
                 l = loc(item)
@@ -997,13 +997,13 @@ CONTAINS
                 s2 = " "
                 if (i2 < last) s2 = "..."
                 if (level > 0) then
-                    write(6, "(a, I5, a,a)") "Input line ", line(level), &
+                    write(stdout, "(a, I5, a,a)") "Input line ", line(level), &
                         " in file ", trim(file(level))
                 else
-                    write(6, "(a, I5)") "Input line ", line(level)
+                    write(stdout, "(a, I5)") "Input line ", line(level)
                 end if
-                write(6, "(a3,1x,a,1x,a3)") s1, char(i1:i2), s2
-                write(6, "(3x,80a1)") (" ", i=i1, l), "*"
+                write(stdout, "(a3,1x,a,1x,a3)") s1, char(i1:i2), s2
+                write(stdout, "(3x,80a1)") (" ", i=i1, l), "*"
             end if
         end if
         call stop_all("report", 'Input error')

@@ -25,7 +25,6 @@ contains
 
 
     subroutine test_pgen()
-        use SystemData, only: tGASSpinRecoupling
         use FciMCData, only: pSingles, pDoubles, pParallel
         type(LocalGASSpec_t) :: GAS_spec
         integer, parameter :: det_I(6) = [1, 2, 3, 7, 8, 10]
@@ -37,8 +36,6 @@ contains
         pParallel = 0.05_dp
         pSingles = 0.6_dp
         pDoubles = 1.0_dp - pSingles
-
-        call assert_true(tGASSpinRecoupling)
 
         GAS_spec = LocalGASSpec_t(n_min=[3, 3], n_max=[3, 3], &
                              spat_GAS_orbs=[1, 1, 1, 2, 2, 2])

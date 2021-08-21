@@ -91,9 +91,9 @@ contains
 
         call getProjEOffset()
 
-        IF(iProcIndex.eq.root) THEN
+        IF(iProcIndex == root) THEN
 !Print out initial starting configurations
-            write(iout,*) ""
+            write(stdout,*) ""
             IF(tTruncInitiator) THEN
                write(initiatorstats_unit,"(A2,A17,16A23)", advance = 'no') &
                     "# ","1.Step","2.TotWalk","3.Annihil","4.Died", &
@@ -147,7 +147,7 @@ contains
 
 #ifdef CMPLX_
             if(tMCOutput) then
-                write(iout, '(a)') "       Step     Shift      WalkerCng(Re)  &
+                write(stdout, '(a)') "       Step     Shift      WalkerCng(Re)  &
                        &WalkerCng(Im)    TotWalkers(Re)   TotWalkers(Im)    &
                        &Proj.E(Re)   ProjE(Im)     Proj.E.ThisCyc(Re)  &
                        &Proj.E.ThisCyc(Im)   NoatHF(Re)   NoatHF(Im)   &
@@ -208,13 +208,13 @@ contains
 #endif
 #ifndef CMPLX_
             if(tMCOutput) then
-                write(iout, "(A)", advance = 'no') "        Step    Shift           &
+                write(stdout, "(A)", advance = 'no') "        Step    Shift           &
                       &WalkerCng       GrowRate        TotWalkers      Annihil         &
                       &NoDied          NoBorn          Proj.E          Av.Shift        &
                       &Proj.E.Cyc"
-                if (tTrialWavefunction .or. tStartTrialLater) write(iout, "(A)", advance = 'no') &
+                if (tTrialWavefunction .or. tStartTrialLater) write(stdout, "(A)", advance = 'no') &
                       "    Trial.E.Cyc "
-                write(iout, "(A)", advance = 'yes') "      NoatHF          NoatDoubs       &
+                write(stdout, "(A)", advance = 'yes') "      NoatHF          NoatDoubs       &
                 &AccRat        UniqueDets    NumDetsSpawned   IterTime"
             end if
             write(fcimcstats_unit, "(a,i4,a,l1,a,l1,a,l1)") &
@@ -358,7 +358,7 @@ contains
                 write(fcimcstats_unit, "()", advance = 'yes')
 
             if(tMCOutput) then
-                write(iout, "(I12,13G16.7,2I12,G13.5)") &
+                write(stdout, "(I12,13G16.7,2I12,G13.5)") &
                     Iter + PreviousCycles, &
                     DiagSft + E_ref_tmp, &
                     AllTotParts(1) - AllTotPartsLastOutput(1), &
@@ -498,7 +498,7 @@ contains
                 write(fcimcstats_unit, "()", advance = 'yes')
 
             if(tMCOutput) then
-                write(iout, "(I12,10G16.7)", advance = 'no') &
+                write(stdout, "(I12,10G16.7)", advance = 'no') &
                     Iter + PreviousCycles, &
                     DiagSft(1)+E_ref_tmp(1), &
                     AllTotParts(1) - AllTotPartsLastOutput(1), &
@@ -511,12 +511,12 @@ contains
                     AvDiagSft(1), &
                     proje_iter(1)
                 if (tTrialWavefunction) then
-                     write(iout, "(G20.11)", advance = 'no') &
+                     write(stdout, "(G20.11)", advance = 'no') &
                          (tot_trial_numerator(1)/tot_trial_denom(1))
                 else if (tStartTrialLater) then
-                     write(iout, "(G20.11)", advance = 'no') 0.0_dp
+                     write(stdout, "(G20.11)", advance = 'no') 0.0_dp
                 end if
-                write(iout, "(3G16.7,2I12,G13.5)", advance = 'yes') &
+                write(stdout, "(3G16.7,2I12,G13.5)", advance = 'yes') &
                     AllNoatHF(1), &
                     AllNoatDoubs(1), &
                     AccRat(1), &
@@ -556,17 +556,17 @@ contains
             end if ! tLogEXLEVELStats
 
             if (tMCOutput .and. tLMatCalc .and. mod(Iter, lMatCalcStatsIters) == 0) then
-                write(iout, *) "============ LMatCalc Caching Stats ==============="
-                write(iout, *) "LMatCalc Cache Fill Ratio: ", &
+                write(stdout, *) "============ LMatCalc Caching Stats ==============="
+                write(stdout, *) "LMatCalc Cache Fill Ratio: ", &
                     real(lMatCalcHUsed,dp)/real(lMatCalcHSize,dp)
-                write(iout, *) "LMatCalc Cache Hit Rate  : ", lMatCalcHit/real(lMatCalcTot)
+                write(stdout, *) "LMatCalc Cache Hit Rate  : ", lMatCalcHit/real(lMatCalcTot)
                 lMatCalcHit = 0
                 lMatCalcTot = 0
-                write(iout, *) "==================================================="
+                write(stdout, *) "==================================================="
             end if
 
             if(tMCOutput) then
-                call neci_flush(iout)
+                call neci_flush(stdout)
             end if
             call neci_flush(fcimcstats_unit)
             if (inum_runs.eq.2) call neci_flush(fcimcstats_unit2)
@@ -932,11 +932,11 @@ contains
             ! And we are done
             write(state%funit, *)
             if (tTruncInitiator) write(state_i%funit, *)
-            if (tMCOutput) write(iout, *)
+            if (tMCOutput) write(stdout, *)
 
             call neci_flush(state%funit)
             if (tTruncInitiator) call neci_flush(state_i%funit)
-            call neci_flush(iout)
+            call neci_flush(stdout)
 
         end if
 
@@ -961,11 +961,11 @@ contains
       ! that there aren't repeats if starting from POPSFILES
       if (state%init .or. state%prepend) then
          write(state%funit, '("#")', advance='no')
-         if (tMCOutput) write(iout, '("#")', advance='no')
+         if (tMCOutput) write(stdout, '("#")', advance='no')
          state%prepend = state%init
       else if (.not. state%prepend) then
          write(state%funit, '(" ")', advance='no')
-         if (tMCOutput) write(iout, '(" ")', advance='no')
+         if (tMCOutput) write(stdout, '(" ")', advance='no')
       end if
     end subroutine write_padding_init
 
@@ -1025,7 +1025,7 @@ contains
 #else
         norm1=SQRT(norm1)
 #endif
-        write(iout,*) "Total FCIMC Wavefuction normalisation:",norm1
+        write(stdout,*) "Total FCIMC Wavefuction normalisation:",norm1
         do i=1,Det
             do j=1,lenof_sign
 #ifdef CMPLX_
@@ -1093,8 +1093,8 @@ contains
 !This will open a file called SpawnHist-"Iter" on unit number 17.
         abstr = 'SpawnHist-'//str(Iter)
         IF(iProcIndex.eq.0) THEN
-            write(iout,*) "Writing out the average wavevector up to iteration number: ", Iter
-            CALL neci_flush(iout)
+            write(stdout,*) "Writing out the average wavevector up to iteration number: ", Iter
+            CALL neci_flush(stdout)
         end if
 
         IF(iProcIndex.eq.0) THEN
@@ -1318,8 +1318,8 @@ contains
 !This will open a file called HamilHist-"Iter" on unit number 17.
         abstr = 'HamilHist-'//str(Iter)
         IF(iProcIndex.eq.0) THEN
-            write(iout,*) "Writing out the average hamiltonian up to iteration number: ", Iter
-            CALL neci_flush(iout)
+            write(stdout,*) "Writing out the average hamiltonian up to iteration number: ", Iter
+            CALL neci_flush(stdout)
         end if
 
         IF(iProcIndex.eq.0) THEN
@@ -1391,7 +1391,7 @@ contains
             do i=1,iOffDiagNoBins
                 Norm=Norm+AllSinglesHist(i)
             end do
-!            write(iout,*) "AllSinglesHistNorm = ",Norm
+!            write(stdout,*) "AllSinglesHistNorm = ",Norm
             do i=1,iOffDiagNoBins
                 AllSinglesHist(i)=AllSinglesHist(i)/Norm
             end do
@@ -1468,7 +1468,7 @@ contains
                 IF(AllSinglesHistVirtOcc(i).gt.0.0_dp) write(io(7),*) EnergyBin, AllSinglesHistVirtOcc(i)
                 IF(AllSinglesHistVirtVirt(i).gt.0.0_dp) write(io(8),*) EnergyBin, AllSinglesHistVirtVirt(i)
                 EnergyBin=EnergyBin+OffDiagBinRange
-!                write(6,*) i
+!                write(stdout,*) i
             end do
 
             close(io(1))
@@ -1532,9 +1532,9 @@ contains
             ! Execute this once per run with run instead of GLOBAL_RUN -> prints the highest
             ! determinants for each replica
             if(t_replica_resolved_output) then
-                write(iout,*) "============================================================="
-                write(iout,*) "Reference and leading determinants for replica",run
-                write(iout,*) "============================================================="
+                write(stdout,*) "============================================================="
+                write(stdout,*) "Reference and leading determinants for replica",run
+                write(stdout,*) "============================================================="
             end if
             if(t_replica_resolved_output) then
                 this_run = run
@@ -1561,22 +1561,22 @@ contains
                 end do
 
 
-                write(iout,*) ""
+                write(stdout,*) ""
                 if (tReplicaReferencesDiffer) then
-                    write(iout,'(A)') "Current references: "
-                    call write_det(iout, ProjEDet(:,run), .true.)
-                    call writeDetBit(iout, ilutRef(:, run), .true.)
+                    write(stdout,'(A)') "Current references: "
+                    call write_det(stdout, ProjEDet(:,run), .true.)
+                    call writeDetBit(stdout, ilutRef(:, run), .true.)
                 else
-                    write(iout,'(A)') "Current reference: "
-                    call write_det (iout, ProjEDet(:,1), .true.)
+                    write(stdout,'(A)') "Current reference: "
+                    call write_det (stdout, ProjEDet(:,1), .true.)
                     if(tSetupSIs) call print_reference_notification(&
                         1,nRefs,"Used Superinitiator",.true.)
-                    write(iout,*) "Number of superinitiators", nRefs
+                    write(stdout,*) "Number of superinitiators", nRefs
                 end if
 
-                write(iout,*)
-                write(iout,'("Input DEFINEDET line (includes frozen orbs):")')
-                write(6,'("definedet ")', advance='no')
+                write(stdout,*)
+                write(stdout,'("Input DEFINEDET line (includes frozen orbs):")')
+                write(stdout,'("definedet ")', advance='no')
                 if (allocated(frozen_orb_list)) then
                     allocate(tmp_ni(nel_pre_freezing))
                     tmp_ni(1:nel) = frozen_orb_reverse_map(ProjEDet(:,run))
@@ -1585,13 +1585,13 @@ contains
                     call sort(tmp_ni)
                     call writeDefDet(tmp_ni, nel_pre_freezing)
                     !                    do i = 1, nel_pre_freezing
-                    !                        write(6, '(i3," ")', advance='no') tmp_ni(i)
+                    !                        write(stdout, '(i3," ")', advance='no') tmp_ni(i)
                     !                    end do
                     deallocate(tmp_ni)
                 else
                     call writeDefDet(ProjEDet(:,run), nel)
                     !                    do i = 1, nel
-                    !                        write(6, '(i3," ")', advance='no') ProjEDet(i, run)
+                    !                        write(stdout, '(i3," ")', advance='no') ProjEDet(i, run)
                     !                    end do
                 end if
                 do i = 1, nel
@@ -1599,24 +1599,24 @@ contains
                     if (allocated(frozen_orb_list)) &
                         full_orb = full_orb  + count(frozen_orb_list <= ProjEDet(i, run))
                 end do
-                write(iout,*)
+                write(stdout,*)
 
-                write(iout,*) ""
-                write(iout,"(A,I10,A)") "Most occupied ",counter," determinants as excitations from reference: "
-                write(iout,*)
+                write(stdout,*) ""
+                write(stdout,"(A,I10,A)") "Most occupied ",counter," determinants as excitations from reference: "
+                write(stdout,*)
                 if(lenof_sign.eq.1) then
                     if(tHPHF) then
-                        write(iout,"(A)") " Excitation   ExcitLevel   Seniority    Walkers    Amplitude    Init?   Proc  Spin-Coup?"
+                        write(stdout,"(A)") " Excitation   ExcitLevel   Seniority    Walkers    Amplitude    Init?   Proc  Spin-Coup?"
                     else
-                        write(iout,"(A)") " Excitation   ExcitLevel   Seniority    Walkers    Amplitude    Init?   Proc"
+                        write(stdout,"(A)") " Excitation   ExcitLevel   Seniority    Walkers    Amplitude    Init?   Proc"
                     end if
                 else
 #ifdef CMPLX_
                     if(tHPHF) then
-                        write(iout,"(A)") " Excitation   ExcitLevel Seniority  Walkers(Re)   Walkers(Im)  Weight   &
+                        write(stdout,"(A)") " Excitation   ExcitLevel Seniority  Walkers(Re)   Walkers(Im)  Weight   &
                             &Init?(Re)   Init?(Im)   Proc  Spin-Coup?"
                     else
-                        write(iout,"(A)") " Excitation   ExcitLevel Seniority   Walkers(Re)   Walkers(Im)  Weight   &
+                        write(stdout,"(A)") " Excitation   ExcitLevel Seniority   Walkers(Re)   Walkers(Im)  Weight   &
                             &Init?(Re)   Init?(Im)   Proc"
                     end if
 #else
@@ -1638,7 +1638,7 @@ contains
                         header = trim(header) // " Spin-Coup?"
                     end if
 
-                    write(iout, '(a)') trim(header)
+                    write(stdout, '(a)') trim(header)
 
 #endif
                 end if
@@ -1646,41 +1646,41 @@ contains
                     call extract_sign(GlobalLargestWalkers(:,i),SignCurr)
                     HighSign = core_space_weight(SignCurr,this_run)
                     if(HighSign < eps_high) cycle
-                    call WriteDetBit(iout,GlobalLargestWalkers(:,i),.false.)
+                    call WriteDetBit(stdout,GlobalLargestWalkers(:,i),.false.)
                     if (tGUGA) then
                         excitInfo = identify_excitation(iLutRef(:,1), GlobalLargestWalkers(:,i))
                         excitLev = excitInfo%excitLvl
                     else
                         Excitlev=FindBitExcitLevel(iLutRef(:,1),GlobalLargestWalkers(:,i),nEl,.true.)
                     end if
-                    write(iout,"(I5)",advance='no') Excitlev
+                    write(stdout,"(I5)",advance='no') Excitlev
                     nopen=count_open_orbs(GlobalLargestWalkers(:,i))
-                    write(iout,"(I5)",advance='no') nopen
+                    write(stdout,"(I5)",advance='no') nopen
                     do j=1,lenof_out
-                        write(iout,"(G16.7)",advance='no') SignCurr(j+offset)
+                        write(stdout,"(G16.7)",advance='no') SignCurr(j+offset)
                     end do
                     if(tHPHF.and.(.not.TestClosedShellDet(GlobalLargestWalkers(:,i)))) then
                         !Weight is proportional to (nw/sqrt(2))**2
-                        write(iout,"(F9.5)",advance='no') ((HighSign/sqrt(2.0_dp))/norm )
+                        write(stdout,"(F9.5)",advance='no') ((HighSign/sqrt(2.0_dp))/norm )
                     else
-                        write(iout,"(F9.5)",advance='no') (HighSign/norm)
+                        write(stdout,"(F9.5)",advance='no') (HighSign/norm)
                     end if
                     do j=1,lenof_out
                         if(.not.tTruncInitiator) then
-                            write(iout,"(A3)",advance='no') 'Y'
+                            write(stdout,"(A3)",advance='no') 'Y'
                         else
                             if(test_flag(GlobalLargestWalkers(:,i),get_initiator_flag(j+offset))) then
-                                write(iout,"(A3)",advance='no') 'Y'
+                                write(stdout,"(A3)",advance='no') 'Y'
                             else
-                                write(iout,"(A3)",advance='no') 'N'
+                                write(stdout,"(A3)",advance='no') 'N'
                             end if
                         end if
                     end do
                     if(tHPHF.and.(.not.TestClosedShellDet(GlobalLargestWalkers(:,i)))) then
-                        write(iout,"(I7)",advance='no') GlobalProc(i)
-                        write(iout,"(A3)") "*"
+                        write(stdout,"(I7)",advance='no') GlobalProc(i)
+                        write(stdout,"(A3)") "*"
                     else
-                        write(iout,"(I7)") GlobalProc(i)
+                        write(stdout,"(I7)") GlobalProc(i)
                     end if
                 end do
                 ! Keep the reference weight in a separate output variable
@@ -1688,10 +1688,10 @@ contains
                 call extract_sign(GlobalLargestWalkers(:,1),SignCurr)
                 fciqmc_run_ref_weight = SignCurr(1)
                 if(tHPHF) then
-                    write(iout,"(A)") " * = Spin-coupled function implicitly has time-reversed determinant with same weight."
+                    write(stdout,"(A)") " * = Spin-coupled function implicitly has time-reversed determinant with same weight."
                 end if
 
-                write(iout,*) ""
+                write(stdout,*) ""
             end if
             ! Only continue if printing the replica-resolved output
             if(.not. t_replica_resolved_output) exit
@@ -1731,7 +1731,7 @@ contains
                         write(bufEnd,'(i3)') defdet(i)
                         lenEnd = len_trim(bufEnd)
                         bufStart(lenStart+2:lenStart+lenEnd+1) = adjustl(trim(bufEnd))
-                        write(iout,'(A7)',advance='no') trim(adjustl(bufStart))
+                        write(stdout,'(A7)',advance='no') trim(adjustl(bufStart))
                         ! the first orbital of a contiguous range of orbs
                     else if(.not.previousInRange .and. nextInRange) then
                         write(bufStart,'(i3)') defdet(i)
@@ -1739,7 +1739,7 @@ contains
                         bufStart(lenStart+1:lenStart+1) = "-"
                         ! and an orbital not in any range
                     else if(.not.previousInRange .and. .not.nextInRange) then
-                        write(iout,'(i3," ")', advance='no') defdet(i)
+                        write(stdout,'(i3," ")', advance='no') defdet(i)
                     end if
                 end do
 
@@ -1948,7 +1948,7 @@ contains
             ! communicate the histogram
             call MPISum(hist, allHist)
         else
-            write(iout,*) "WARNING: Empty energy histogram of acceptance rates"
+            write(stdout,*) "WARNING: Empty energy histogram of acceptance rates"
         end if
     end subroutine generate_fval_energy_hist
 
@@ -2028,26 +2028,26 @@ contains
         if (rat > 0.95_dp) then
 #ifdef DEBUG_
             if(tMolpro) then
-                write(iout, '(a)') '*WARNING* - Number of particles/determinants &
+                write(stderr, '(a)') '*WARNING* - Number of particles/determinants &
                                  &has increased to over 95% of allotted memory. &
                                  &Errors imminent. Increase MEMORYFACWALKERS, or reduce rate of growth.'
             else
-                write(iout, '(a)') '*WARNING* - Number of particles/determinants &
+                write(stderr, '(a)') '*WARNING* - Number of particles/determinants &
                                  &has increased to over 95% of allotted memory. &
                                  &Errors imminent. Increase MEMORYFACPART, or reduce rate of growth.'
             end if
 #else
             if(tMolpro) then
-                write(iout,*) '*WARNING* - Number of particles/determinants &
+                write(stderr,*) '*WARNING* - Number of particles/determinants &
                                  &has increased to over 95% of allotted memory on task ', iProcIndex, '. &
                                  &Errors imminent. Increase MEMORYFACWALKERS, or reduce rate of growth.'
             else
-                write(iout,*) '*WARNING* - Number of particles/determinants &
+                write(stderr,*) '*WARNING* - Number of particles/determinants &
                                  &has increased to over 95% of allotted memory on task ', iProcIndex, '. &
                                  &Errors imminent. Increase MEMORYFACPART, or reduce rate of growth.'
             end if
 #endif
-            call neci_flush(iout)
+            call neci_flush(stderr)
         end if
 
         ! Are ony of the sublists near the end of their alloted space?
@@ -2058,26 +2058,26 @@ contains
                 if (rat > 0.95_dp) then
 #ifdef DEBUG_
                     if(tMolpro) then
-                        write(iout, '(a)') '*WARNING* - Highest processor spawned &
+                        write(stderr, '(a)') '*WARNING* - Highest processor spawned &
                                          &particles has reached over 95% of allotted memory.&
                                          &Errors imminent. Increase MEMORYFACSPAWNED, or reduce spawning rate.'
                     else
-                        write(iout, '(a)') '*WARNING* - Highest processor spawned &
+                        write(stderr, '(a)') '*WARNING* - Highest processor spawned &
                                          &particles has reached over 95% of allotted memory.&
                                          &Errors imminent. Increase MEMORYFACSPAWN, or reduce spawning rate.'
                     end if
 #else
                     if(tMolpro) then
-                        write(iout,*) '*WARNING* - Highest processor spawned &
+                        write(stderr,*) '*WARNING* - Highest processor spawned &
                                          &particles has reached over 95% of allotted memory on task ',iProcIndex,' .&
                                          &Errors imminent. Increase MEMORYFACSPAWNED, or reduce spawning rate.'
                     else
-                        write(iout,*) '*WARNING* - Highest processor spawned &
+                        write(stderr,*) '*WARNING* - Highest processor spawned &
                                          &particles has reached over 95% of allotted memory on task ',iProcIndex,' .&
                                          &Errors imminent. Increase MEMORYFACSPAWN, or reduce spawning rate.'
                     end if
 #endif
-                    call neci_flush(iout)
+                    call neci_flush(stderr)
                 end if
             end do
         else
@@ -2085,26 +2085,26 @@ contains
             if (rat > 0.95_dp) then
 #ifdef DEBUG_
                 if(tMolpro) then
-                    write(iout, '(a)') '*WARNING* - Highest processor spawned &
+                    write(stderr, '(a)') '*WARNING* - Highest processor spawned &
                                      &particles has reached over 95% of allotted memory.&
                                      &Errors imminent. Increase MEMORYFACSPAWNED, or reduce spawning rate.'
                 else
-                    write(iout, '(a)') '*WARNING* - Highest processor spawned &
+                    write(stderr, '(a)') '*WARNING* - Highest processor spawned &
                                      &particles has reached over 95% of allotted memory.&
                                      &Errors imminent. Increase MEMORYFACSPAWN, or reduce spawning rate.'
                 end if
 #else
                 if(tMolpro) then
-                    write(iout,*) '*WARNING* - Highest processor spawned &
+                    write(stderr,*) '*WARNING* - Highest processor spawned &
                                      &particles has reached over 95% of allotted memory on task ',iProcIndex,' .&
                                      &Errors imminent. Increase MEMORYFACSPAWNED, or reduce spawning rate.'
                 else
-                    write(iout,*) '*WARNING* - Highest processor spawned &
+                    write(stderr,*) '*WARNING* - Highest processor spawned &
                                      &particles has reached over 95% of allotted memory on task ',iProcIndex,' .&
                                      &Errors imminent. Increase MEMORYFACSPAWN, or reduce spawning rate.'
                 end if
 #endif
-                call neci_flush(iout)
+                call neci_flush(stderr)
             end if
          end if
 
@@ -2241,8 +2241,9 @@ contains
                     end do
                     close(iunit)
                 else
-                    write(iout,*) "Integer overflow in all_frequency_bins!"
-                    write(iout,*) "Do no print it!"
+                    write(stderr,*) "Integer overflow in all_frequency_bins!"
+                    write(stdout,*) "Integer overflow in all_frequency_bins!"
+                    write(stdout,*) "Do no print it!"
                 end if
 
                 ! also print out a normed frequency histogram to better
@@ -2267,9 +2268,9 @@ contains
                     close(iunit)
 
                 else
-                    write(iout,*) "Integer overflow in normed frequency histogram!"
-                    write(iout,*) "Do no print it!"
-
+                    write(stderr,*) "Integer overflow in normed frequency histogram!"
+                    write(stdout,*) "Integer overflow in normed frequency histogram!"
+                    write(stdout,*) "Do no print it!"
                 end if
             end if
 
@@ -2319,8 +2320,9 @@ contains
                     end do
                     close(iunit)
                 else
-                    write(iout,*) "Integer overflow in all_frequency_bins!"
-                    write(iout,*) "Do no print it!"
+                    write(stderr,*) "Integer overflow in all_frequency_bins!"
+                    write(stdout,*) "Integer overflow in all_frequency_bins!"
+                    write(stdout,*) "Do no print it!"
                 end if
 
                 ! also print out a normed frequency histogram to better
@@ -2344,8 +2346,9 @@ contains
                     close(iunit)
 
                 else
-                    write(iout,*) "Integer overflow in normed frequency histogram!"
-                    write(iout,*) "Do no print it!"
+                    write(stderr,*) "Integer overflow in normed frequency histogram!"
+                    write(stdout,*) "Integer overflow in normed frequency histogram!"
+                    write(stdout,*) "Do no print it!"
                 end if
 
             end if
@@ -2402,8 +2405,9 @@ contains
                 close(iunit)
 
             else
-                write(iout,*) "Integer overflow in normed frequency histogram!"
-                write(iout,*) "Do no print it!"
+                write(stderr,*) "Integer overflow in normed frequency histogram!"
+                write(stdout,*) "Integer overflow in normed frequency histogram!"
+                write(stdout,*) "Do no print it!"
 
             end if
 

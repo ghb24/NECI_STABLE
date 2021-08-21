@@ -66,9 +66,9 @@ contains
         end if
 
         if (tExplicitAllRDM) then
-            write(6, '(/,"****","'//trim(RDMName)//'"," CALCULATED EXPLICITLY ****",1X,/)')
+            write(stdout, '(/,"****","'//trim(RDMName)//'"," CALCULATED EXPLICITLY ****",1X,/)')
         else
-            write(6, '(/,"****","'//trim(RDMName)//'"," CALCULATED STOCHASTICALLY ****",1X,/)')
+            write(stdout, '(/,"****","'//trim(RDMName)//'"," CALCULATED STOCHASTICALLY ****",1X,/)')
         end if
 
         ! Combine the 1- or 2-RDM from all processors, etc.
@@ -102,7 +102,7 @@ contains
         ! Stuff using the 1-RDMs:
         if (RDMExcitLevel == 1 .or. RDMExcitLevel == 3) then
             ! Output banner for start of 1-RDM section in the output.
-            write(6, '(1x,2("="),1x,"INFORMATION FOR FINAL 1-","'//trim(RDMName)//'",1x,57("="))')
+            write(stdout, '(1x,2("="),1x,"INFORMATION FOR FINAL 1-","'//trim(RDMName)//'",1x,57("="))')
 
             if (RDMExcitLevel == 1) call finalise_1e_rdm(rdm_defs, one_rdms, norm_1rdm)
 
@@ -110,8 +110,8 @@ contains
                 call calc_rho_ii_and_sum_n(one_rdms, norm_1rdm, SumN_Rho_ii)
 
                 do irdm = 1, size(one_rdms)
-                    write(6, '(/,1x,"INFORMATION FOR 1-RDM",1x,'//int_fmt(irdm)//',":")') irdm
-                    write(6, '(/,1X,"SUM OF 1-RDM(i,i) FOR THE N LOWEST ENERGY HF ORBITALS:",1X,F20.13)') SumN_Rho_ii(irdm)
+                    write(stdout, '(/,1x,"INFORMATION FOR 1-RDM",1x,'//int_fmt(irdm)//',":")') irdm
+                    write(stdout, '(/,1X,"SUM OF 1-RDM(i,i) FOR THE N LOWEST ENERGY HF ORBITALS:",1X,F20.13)') SumN_Rho_ii(irdm)
 
                     if (RDMExcitLevel == 1 .or. tPrint1RDM) then
                         ! Write out the final, normalised, hermitian OneRDM.
@@ -135,7 +135,7 @@ contains
                 end if
             end do
             ! Output banner for the end of the 1-RDM section.
-            write(6, '(/,1x,89("="),/)')
+            write(stdout, '(/,1x,89("="),/)')
         end if
 
         ! Write the final instantaneous 2-RDM estimates, and also the final
@@ -147,7 +147,7 @@ contains
         if (print_2rdm_est .and. called_as_lib) then
             RDM_energy = rdm_estimates%energy_num(1) / rdm_estimates%norm(1)
             call MPIBCast(RDM_energy)
-            write(6, *) 'RDM_energy at rdm_finalising.F90 ', RDM_energy
+            write(stdout, *) 'RDM_energy at rdm_finalising.F90 ', RDM_energy
         end if
 
         ! this is allocated in find_nat_orb_occ_numbers and used later in
@@ -1304,7 +1304,7 @@ contains
         integer :: i, j
         real(dp) :: UpperBound
 
-        write(6, '("Ensuring that Cauchy--Schwarz inequality holds.")')
+        write(stdout, '("Ensuring that Cauchy--Schwarz inequality holds.")')
 
         associate(ind => SymLabelListInv_rot)
             do i = 1, nbasis
@@ -1319,7 +1319,7 @@ contains
                             matrix(ind(i), ind(j)) = UpperBound
                         end if
 
-                        write(6, '("Changing element:")') i, j
+                        write(stdout, '("Changing element:")') i, j
                     else
                         cycle
                     end if
@@ -1464,8 +1464,8 @@ contains
         end associate
 
         ! Output the hermiticity errors.
-        write(6, '(1X,"MAX ABS ERROR IN 1-RDM HERMITICITY",F20.13)') max_error_herm
-        write(6, '(1X,"MAX SUM ERROR IN 1-RDM HERMITICITY",F20.13)') sum_error_herm
+        write(stdout, '(1X,"MAX ABS ERROR IN 1-RDM HERMITICITY",F20.13)') max_error_herm
+        write(stdout, '(1X,"MAX SUM ERROR IN 1-RDM HERMITICITY",F20.13)') sum_error_herm
 
     end subroutine make_1e_rdm_hermitian
 
@@ -1519,7 +1519,7 @@ contains
             if (.not. tGUGA) then
                 if (tNormalise) then
                     ! Haven't got the capabilities to produce multiple 1-RDMs yet.
-                    write(6, '(1X,"Writing out the *normalised* 1 electron density matrix to file")')
+                    write(stdout, '(1X,"Writing out the *normalised* 1 electron density matrix to file")')
                     call neci_flush(6)
                     one_rdm_unit = get_free_unit()
 
@@ -1535,7 +1535,7 @@ contains
                     open(one_rdm_unit, file=trim(filename), status='unknown')
                 else
                     ! Only every write out 1 of these at the moment.
-                    write(6, '(1X,"Writing out the *unnormalised* 1 electron density matrix to file for reading in")')
+                    write(stdout, '(1X,"Writing out the *unnormalised* 1 electron density matrix to file for reading in")')
                     call neci_flush(6)
                     one_rdm_unit = get_free_unit()
                     if (is_transition_rdm) then

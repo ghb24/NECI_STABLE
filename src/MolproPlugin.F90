@@ -1,5 +1,6 @@
 MODULE MolproPlugin
     USE iso_c_binding
+    use constants, only: stdout
     IMPLICIT NONE
     PRIVATE
     PUBLIC :: MolproPluginInit, MolproPluginterm, MolproPluginResult
@@ -84,12 +85,12 @@ CONTAINS
         molpro_plugin_datafilename = PluginGuestReceiveF()
 
         IF (.FALSE.) THEN ! debugging
-            write(6, '(''Dump file: '',A)') TRIM(molpro_plugin_fcidumpname)
-            write(6, '(''Input file: '',A)') TRIM(molpro_plugin_datafilename)
+            write(stdout, '(''Dump file: '',A)') TRIM(molpro_plugin_fcidumpname)
+            write(stdout, '(''Input file: '',A)') TRIM(molpro_plugin_datafilename)
             open(1, file=molpro_plugin_datafilename, status='OLD')
             DO WHILE (.TRUE.)
                 read(1, '(A)', END=99) id
-                write(6, '(A)') TRIM(id)
+                write(stdout, '(A)') TRIM(id)
             END DO
 99          close(1)
         END IF
@@ -109,7 +110,7 @@ CONTAINS
 ! Graceful exit if Molpro server
             CALL PluginGuestClose
             ! without this print, then MPI gets lost ???
-            write(6, *) 'Stopping Molpro plugin, signal =', signal; FLUSH (6)
+            write(stdout, *) 'Stopping Molpro plugin, signal =', signal; FLUSH (6)
 ! doesn't look like slave threads ever make it here, so do not have a barrier
 !  IF (signal.EQ.0) THEN
 !   CALL MPI_Barrier(MPI_COMM_WORLD,ierr)
