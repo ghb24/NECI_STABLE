@@ -1005,7 +1005,7 @@ contains
                     end do
                     if(tGUGA) then
                         if (.not. isProperCSF_ni(initial_refs(:, line))) then
-                            call write_det(iout, initial_refs(:, line), .true.)
+                            call write_det(stdout, initial_refs(:, line), .true.)
                             call stop_all(t_r, "An initial_ref is not a proper CSF or has wrong SPIN!")
                         end if
                     end if
@@ -1023,7 +1023,7 @@ contains
                     end do
                     if(tGUGA) then
                         if (.not. isProperCSF_ni(initial_states(:, line))) then
-                            call write_det(iout, initial_states(:, line), .true.)
+                            call write_det(stdout, initial_states(:, line), .true.)
                             call stop_all(t_r, "An initial state is not a proper CSF or has wrong SPIN!")
                         end if
                     end if
