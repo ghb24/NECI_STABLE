@@ -681,6 +681,7 @@ contains
 
     end function get_pchb_integral_contrib
 
+
     subroutine get_weight_and_info(i, j, a, b, w, info)
         integer, intent(in) :: i, j, a, b
         real(dp), intent(out) :: w
@@ -900,4 +901,5 @@ contains
             end if
         end if
     end subroutine
+
 end module guga_pchb_class

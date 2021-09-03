@@ -1,31 +1,26 @@
 #include "macros.h"
+module gas_guga_pchb_class
 
-module guga_gas_pchb_excitgen
-    use constants, only: n_int, dp, int64, maxExcit, stdout, stderr, bits_n_int, int32
-    use bit_rep_data, only: IlutBits, GugaBits, nIfTot
-    use util_mod, only: fuseIndex, near_zero, stop_all
     use aliasSampling, only: AliasSampler_2D_t
-    use UMatCache, only: gtID, numBasisIndices
-    use SymExcitDataMod, only: pDoubNew, ScratchSize, OrbClassCount, SymLabelCounts2, &
-                               sym_label_list_spat, SpinOrbSymLabel
-    use GenRandSymExcitNUMod, only: RandExcitSymLabelProd
-    use excitation_types, only: SingleExc_t, DoubleExc_t, excite
-
-    use parallel_neci, only: iProcIndex_intra
-
-    use SymExcitDataMod, only: OrbClassCount, SymLabelCounts2, &
-                               sym_label_list_spat, SpinOrbSymLabel
-
-    use FciMCData, only: excit_gen_store_type, pSingles, pDoubles, MaxTau
-
+    use constants, only: n_int, dp, maxExcit, int64, stdout, int_rdm
+    use bit_rep_data, only: IlutBits, GugaBits
     use SystemData, only: nel, G1, current_stepvector, t_pchb_weighted_singles, &
                           nBasis, nSpatOrbs, ElecPairs, currentOcc_int, &
                           t_analyze_pchb, t_old_pchb, t_exchange_pchb
-
-    use procedure_pointers, only: get_umat_el
-
+    use FciMCData, only: excit_gen_store_type, pSingles, pDoubles, MaxTau
     use guga_data, only: tNewDet, ExcitationInformation_t, gen_type, excit_type
     use guga_bitrepops, only: convert_ilut_toGUGA, isProperCSF_ilut
+    use dSFMT_interface, only: genrand_real2_dSFMT
+    use util_mod, only: near_zero, fuseIndex, intswap, binary_search_first_ge, &
+                        get_free_unit, stop_all
+    use CalcData, only: t_matele_cutoff, matele_cutoff, frq_ratio_cutoff, &
+                        max_frequency_bound, n_frequency_bins, &
+                        t_hist_tau_search, t_truncate_spawns
+    use sym_general_mod, only: ClassCountInd
+    use SymExcitDataMod, only: OrbClassCount, SymLabelCounts2, &
+                               sym_label_list_spat, SpinOrbSymLabel
+    use excitation_types, only: DoubleExc_t
+    use UMatCache, only: gtID
     use guga_excitations, only: assign_excitinfo_values_single, &
                                 createStochasticExcitation_single, &
                                 pick_elec_pair_uniform_guga, &
@@ -34,22 +29,24 @@ module guga_gas_pchb_excitgen
     use guga_procedure_pointers, only: gen_single_excit_guga, gen_double_excit_guga
     use guga_bitrepops, only: identify_excitation, encode_excit_info, extract_excit_info, &
                               contract_2_rdm_ind
-    use shared_array, only: shared_array_int64_t
+    use bit_reps, only: decode_bit_det
+    use shared_array, only: shared_array_int64_t, shared_array_real_t
+    use MPI_wrapper, only: iProcIndex_intra, iprocindex
+    use GenRandSymExcitNUMod, only: RandExcitSymLabelProd
+    use procedure_pointers, only: get_umat_el
 
     use gasci, only: GASSpec_t
     use gasci_util, only: gen_all_excits
     use gasci_supergroup_index, only: SuperGroupIndexer_t, lookup_supergroup_indexer
 
-    use excitation_generators, only: &
-            ExcitationGenerator_t, SingleExcitationGenerator_t, &
-            DoubleExcitationGenerator_t, gen_exc_sd, get_pgen_sd, gen_all_excits_sd
+
     implicit none
 
     private
-    public :: GAS_doubles_PCHB_ExcGenerator_t
+    public :: GugaAliasSampler_t
+    public :: calc_orb_pgen_uniform_singles
 
-    !> The GAS PCHB excitation generator for doubles
-    type :: GAS_doubles_PCHB_ExcGenerator_t
+    type :: GugaAliasSampler_t
         private
         !> Use a lookup for the supergroup index in global_det_data
         logical, public :: use_lookup = .false.
@@ -58,45 +55,115 @@ module guga_gas_pchb_excitgen
 
         !> The shape is (fused_number_of_double_excitations, n_supergroup)
         type(AliasSampler_2D_t) :: alias_sampler
+        integer, allocatable :: tgtOrbs(:,:)
+
         type(shared_array_int64_t) :: all_info_table
         type(shared_array_int64_t), allocatable :: info_tables(:)
 
         type(SuperGroupIndexer_t), pointer :: indexer => null()
         class(GASSpec_t), allocatable :: GAS_spec
-        integer, allocatable :: tgtOrbs(:, :)
     contains
         private
-        procedure, public :: init => GAS_doubles_PCHB_init
-        procedure, public :: finalize => GAS_doubles_PCHB_finalize
-        procedure, public :: pick_orbitals_double_pchb
+        procedure, public :: init => init_GugaAliasSampler_t
+        procedure, public :: finalize => finalize_GugaAliasSampler_t
 
-        procedure, public :: calc_orb_pgen_guga_pchb_double_excitInfo
+        procedure, public :: pick_orbitals_double_pchb
+        procedure, public :: pick_orbitals_pure_uniform_singles
+        procedure, private :: pick_uniform_spatial_hole
+        procedure, public :: calc_pgen_guga_pchb
+
         procedure, public :: calc_orbital_pgen_contr_pchb
         procedure, public :: calc_orbital_pgen_contr_start_pchb
         procedure, public :: calc_orbital_pgen_contr_end_pchb
 
-        procedure :: compute_samplers => GAS_doubles_PCHB_compute_samplers
-        procedure :: create_info_table
-        procedure :: get_info
+        procedure :: new_info_table
         procedure :: set_info_entry
-    end type
+        ! made public for unit_tests:
+        procedure, public :: get_info_entry
+
+        procedure :: calc_orb_pgen_guga_pchb_double
+
+        procedure :: setup_pchb_sampler_conditional
+
+    end type GugaAliasSampler_t
 
 contains
 
-    !>  @brief
-    !>  Initialize the pchb excitation generator
-    !>
-    !>  @details
-    !>  This does two things:
-    !>  1. setup the lookup table for the mapping ab -> (a,b)
-    !>  2. setup the alias table for picking ab given ij with probability ~<ij|H|ab>
-    subroutine GAS_doubles_PCHB_init(this, GAS_spec, use_lookup, create_lookup)
-        class(GAS_doubles_PCHB_ExcGenerator_t), intent(inout) :: this
+    subroutine new_info_table(this, nEntries, entrySize)
+        class(GugaAliasSampler_t) :: this
+        integer(int64), intent(in) :: nEntries, entrySize
+
+        integer(int64) :: total_size
+        integer(int64) :: iEntry, windowStart, windowEnd
+
+        allocate(this%info_tables(nEntries))
+        total_size = nEntries * entrySize
+        call this%all_info_table%shared_alloc(total_size)
+        do iEntry = 1, nEntries
+            windowStart = (iEntry - 1) * entrySize + 1
+            windowEnd = windowStart + entrySize - 1
+
+            this%info_tables(iEntry)%ptr => this%all_info_table%ptr(windowStart:windowEnd)
+        end do
+    end subroutine
+
+    function get_info_entry(this, iEntry, tgt) result(info)
+        debug_function_name("get_info_entry")
+        class(GugaAliasSampler_t) :: this
+        integer, intent(in) :: iEntry, tgt
+        integer(int64) :: info
+
+        ASSERT(associated(this%info_tables(iEntry)%ptr))
+        info = this%info_tables(iEntry)%ptr(tgt)
+    end function
+
+    subroutine set_info_entry(this, iEntry, infos)
+        class(GugaAliasSampler_t) :: this
+        integer, intent(in) :: iEntry
+        integer(int64), intent(in) :: infos(:)
+
+        if (iProcIndex_intra == 0) then
+            this%info_tables(iEntry)%ptr = infos
+        end if
+        call this%all_info_table%sync()
+    end subroutine
+
+    subroutine init_GugaAliasSampler_t(this, GAS_spec, use_lookup, create_lookup)
+        debug_function_name("init_GugaAliasSampler_t")
+        class(GugaAliasSampler_t), intent(inout) :: this
         class(GASSpec_t), intent(in) :: GAS_spec
         logical, intent(in) :: use_lookup, create_lookup
-        character(*), parameter :: this_routine = 'GAS_doubles_PCHB_init'
 
-        integer :: ab, a, b, abMax
+
+        integer :: a, b
+        integer(int64) :: abMax, ab
+
+        ! also set some more strict defaults for the PCHB implo:
+        root_print "Setting reasonable defaults for GUGA-PCHB:"
+        if (near_zero(MaxTau) .or. MaxTau > 1e-3) then
+            root_print "max-tau zero or > 1e-3. setting it to: 1e-3"
+            MaxTau = 1e-3
+        end if
+
+        if (t_hist_tau_search) then
+            if (frq_ratio_cutoff < 0.999999) then
+                root_print "setting frequency cutoff to 0.999999"
+                frq_ratio_cutoff = 0.999999
+            end if
+            if (max_frequency_bound < 1e5) then
+                root_print "setting  max_frequency_bound to 1e5"
+                max_frequency_bound = 1e5
+            end if
+            if (n_frequency_bins < 1e5) then
+                root_print "setting n_frequency_bins to 1e5"
+                n_frequency_bins = 1e5
+            end if
+        end if
+
+        if (.not. t_truncate_spawns) then
+            root_print "'truncate-spawns' not activated! consider turning it &
+                &on if too many blooms happen!"
+        end if
 
         ASSERT(GAS_spec%recoupling())
 
@@ -126,84 +193,97 @@ contains
             end do
         end do
 
-        ! setup the alias table
-        call this%compute_samplers()
+        call this%setup_pchb_sampler_conditional()
 
         write(stdout, *) "Finished excitation generator initialization"
-    end subroutine GAS_doubles_PCHB_init
+    end subroutine init_GugaAliasSampler_t
 
-    subroutine create_info_table(this, n_entries, entry_size)
-        class(GAS_doubles_PCHB_ExcGenerator_t) :: this
-        integer(int64), intent(in) :: n_entries, entry_size
+    subroutine setup_pchb_sampler_conditional(this)
+        class(GugaAliasSampler_t), intent(inout) :: this
+        integer :: i, j, ij, a, b, ab, i_sg
+        integer(int64) :: ijMax, abMax, memCost
+        integer(int64), allocatable :: excit_info(:)
+        integer, allocatable :: supergroups(:, :)
+        real(dp), allocatable :: w(:)
 
-        integer(int64) :: total_size
-        integer(int64) :: i, left, right
+        ! possible supergroups
+        supergroups = this%indexer%get_supergroups()
 
-        allocate(this%info_tables(n_entries))
-        total_size = n_entries * entry_size
-        call this%all_info_table%shared_alloc(total_size)
+        ijMax = fuseIndex(nSpatOrbs, nSpatOrbs)
+        abMax = ijMax
 
-        left = 1_int64
-        do i = 1_int64, n_entries
-            right = left + entry_size - 1_int64
-            this%info_tables(i)%ptr => this%all_info_table%ptr(left : right)
-            left = left + entry_size
+        calculate_memory_demand: block
+            integer(int64) :: number_of_fused_indices, bytes_per_sampler, n_supergroup
+            number_of_fused_indices = int(ijMax, int64)
+            bytes_per_sampler = (int(abMax, int64) * 3_int64 * 8_int64)
+            n_supergroup = size(supergroups, 2, kind=int64)
+            memCost = number_of_fused_indices * bytes_per_sampler * n_supergroup
+        end block calculate_memory_demand
+
+        write(stdout, *) "Excitation generator requires", real(memCost, dp) / 2.0_dp**30, "GB of memory"
+        write(stdout, *) "The number of supergroups is", size(supergroups, 2)
+        write(stdout, *) "Generating samplers for PCHB excitation generator"
+        write(stdout, *) "Depending on the number of supergroups this can take up to 10min."
+        call this%alias_sampler%shared_alloc([int(ijMax), size(supergroups, 2)], int(abMax), 'PCHB')
+        call this%new_info_table(int(ijMax, int64), int(abMax, int64))
+
+        ! the encode_excit_info function encodes as: E_{ai}E_{bj)
+        ! but for some index combinations we have to change the input so
+        ! actually E_{aj}E_{bi} is encoded! convention to use only
+        ! certain type of excit-types
+        allocate(w(abMax), source = 0.0_dp)
+        allocate(excit_info(abMax))
+        do i_sg = 1, size(supergroups, 2)
+            do i = 1, nSpatOrbs
+                do j = i, nSpatOrbs
+                    w = 0.0_dp
+                    ij = fuseIndex(i,j)
+                    excit_info = 0_int64
+                    do a = 1, nSpatOrbs
+                        do b = a, nSpatOrbs
+                            if (.not. symmetry_allowed(i, j, a, b)) cycle
+                            ab = fuseIndex(a,b)
+                            if (this%GAS_spec%is_allowed(DoubleExc_t(2*i, 2*a, 2*j, 2*b), supergroups(:, i_sg))) then
+                                call get_weight_and_info(i, j, a, b, w(ab), excit_info(ab))
+                            end if
+                        end do
+                    end do
+                    call this%alias_sampler%setup_entry(ij, i_sg, w)
+                    if (i_sg == 1) call this%set_info_entry(ij, excit_info)
+                end do
+            end do
         end do
-    end subroutine
+        contains
+            logical function symmetry_allowed(i, j, a, b)
+                integer, intent(in) :: i, j, a, b
+                ! shoud i point group symmetry restrctions here?
+                ! this would avoid unnecessary if statements..
+                symmetry_allowed = &
+                    RandExcitSymLabelProd(SpinOrbSymLabel(2 * i), SpinOrbSymLabel(2 * j)) &
+                    == RandExcitSymLabelProd(SpinOrbSymLabel(2 * a), SpinOrbSymLabel(2 * b))
+            end function
+    end subroutine setup_pchb_sampler_conditional
 
-    pure function get_info(this, iEntry, tgt) result(info)
-        debug_function_name("get_info")
-        class(GAS_doubles_PCHB_ExcGenerator_t), intent(in) :: this
-        integer, intent(in) :: iEntry, tgt
-        integer(int64) :: info
-
-        ASSERT(associated(this%info_tables(iEntry)%ptr))
-        info = this%info_tables(iEntry)%ptr(tgt)
-    end function get_info
-
-    subroutine set_info_entry(this, iEntry, infos)
-        class(GAS_doubles_PCHB_ExcGenerator_t) :: this
-        integer, intent(in) :: iEntry
-        integer(int64), intent(in) :: infos(:)
-        if (iProcIndex_intra == 0) then
-            this%info_tables(iEntry)%ptr = infos
-        end if
-        call this%all_info_table%sync()
-    end subroutine set_info_entry
-
-
-    !>  @brief
-    !>  Deallocate the sampler and the mapping ab -> (a,b)
-    subroutine GAS_doubles_PCHB_finalize(this)
-        class(GAS_doubles_PCHB_ExcGenerator_t), intent(inout) :: this
-
+    subroutine finalize_GugaAliasSampler_t(this)
+        class(GugaAliasSampler_t), intent(inout) :: this
         call this%alias_sampler%finalize()
         call this%all_info_table%shared_dealloc()
-        deallocate(this%info_tables)
         deallocate(this%tgtOrbs)
-
-        deallocate(this%indexer)
-
-        if (this%create_lookup) then
-            nullify(lookup_supergroup_indexer)
-        end if
     end subroutine
-
 
     subroutine pick_orbitals_double_pchb(this, ilut, nI, store, excitInfo, pgen)
         debug_function_name("pick_orbitals_double_pchb")
-        class(GAS_doubles_PCHB_ExcGenerator_t), intent(in) :: this
-        integer(n_int), intent(in) :: ilut(0 : GugaBits%len_tot)
+        class(GugaAliasSampler_t), intent(in) :: this
+        integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
         integer, intent(in) :: nI(nel)
-        type(excit_gen_store_type), intent(in) :: store
+        type(excit_gen_store_type), optional, intent(in) :: store
         type(ExcitationInformation_t), intent(out) :: excitInfo
         real(dp), intent(out) :: pgen
 
-        integer :: src(2), sym_prod, sum_ml, i, j, a, b, orbs(2), ij, ab
-        integer :: i_sg
+        integer :: src(2), sym_prod, sum_ml, i, j, a, b, orbs(2), ij, ab, i_sg
         real(dp) :: pgen_elec, pgen_orbs
-        unused_var(ilut)
 
+        unused_var(ilut)
         if (this%use_lookup) then
             i_sg = this%indexer%lookup_supergroup_idx(store%idx_curr_dets, nI)
         else
@@ -216,7 +296,9 @@ contains
         ! make a different picker, which does not bias towards doubly
         ! occupied orbitals here too!
 
-        ASSERT(src(1) < src(2))
+
+        ASSERT( src(1) < src(2) )
+
         i = gtID(src(1))
         j = gtID(src(2))
 
@@ -234,16 +316,17 @@ contains
 
         ! unfortunately, there is a super-rare case when, due to floating point error,
         ! an excitation with pGen=0 is created. Those are invalid, too
-        if (near_zero(pgen_orbs)) then
+        if(near_zero(pgen_orbs)) then
             excitInfo%valid = .false.
             pgen = 0.0_dp
             ! Yes, print. Those events are signficant enough to be always noted in the output
-            write(stderr, '(A)') "WARNING: Generated excitation with probability of 0"
+            print *, "WARNING: Generated excitation with probability of 0"
             return
         endif
 
+
         ! split the index ab (using a table containing mapping ab -> (a,b))
-        orbs = this%tgtOrbs(:, ab)
+        orbs = this%tgtOrbs(:,ab)
 
         a = orbs(1)
         b = orbs(2)
@@ -262,81 +345,181 @@ contains
         end if
 
         ! setup a getInfo functionality in the sampler!
-        call extract_excit_info(this%get_info(ij, ab), excitInfo)
+        ! TODO: include supergroup into bitmask
+        call extract_excit_info(this%get_info_entry(ij, ab), excitInfo)
+        excitInfo%i_sg_start = i_sg
 
         pGen = pgen_elec * pgen_orbs
     end subroutine pick_orbitals_double_pchb
 
+    subroutine pick_orbitals_pure_uniform_singles(this, ilut, nI, excitInfo, pgen)
+        debug_function_name("pick_orbitals_pure_uniform_singles")
+        class(GugaAliasSampler_t), intent(in) :: this
+        integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
+        integer, intent(in) :: nI(nel)
+        type(ExcitationInformation_t), intent(out) :: excitInfo
+        real(dp), intent(out) :: pgen
 
-    subroutine GAS_doubles_PCHB_compute_samplers(this)
-        class(GAS_doubles_PCHB_ExcGenerator_t), intent(inout) :: this
-        integer :: i, j, ij, ijMax
-        integer :: a, b, ab, abMax
-        integer(int64) :: memCost
-        real(dp), allocatable :: w(:)
-        integer, allocatable :: supergroups(:, :)
-        integer(int64), allocatable :: excit_info(:)
-        integer :: i_sg
-        ! possible supergroups
-        supergroups = this%indexer%get_supergroups()
+        integer :: spat_src, spat_tgt
 
-        ! number of possible source orbital pairs
-        ijMax = fuseIndex(nSpatOrbs, nSpatOrbs)
-        abMax = ijMax
+        integer :: occ_spat_orbs(nEl)
 
-        calculate_memory_demand: block
-            integer(int64) :: number_of_fused_indices, bytes_per_sampler, n_supergroup
-            number_of_fused_indices = int(ijMax, int64)
-            bytes_per_sampler = (int(abMax, int64) * 3_int64 * 8_int64)
-            n_supergroup = size(supergroups, 2, kind=int64)
-            memCost = number_of_fused_indices * bytes_per_sampler * n_supergroup
-        end block calculate_memory_demand
+        unused_var(ilut)
+        ASSERT(isProperCSF_ilut(ilut, .true.))
 
-        write(stdout, *) "Excitation generator requires", real(memCost, dp) / 2.0_dp**30, "GB of memory"
-        write(stdout, *) "The number of supergroups is", size(supergroups, 2)
-        write(stdout, *) "Generating samplers for PCHB excitation generator"
-        write(stdout, *) "Depending on the number of supergroups this can take up to 10min."
-        call this%alias_sampler%shared_alloc([ijMax, size(supergroups, 2)], abMax, 'PCHB')
-        call this%create_info_table(int(ijMax, int64), int(abMax, int64))
-        allocate(w(abMax))
+        ! pick random electron
+        ! have to modify pgen for doubly occupied orbs! since double the
+        ! chance!
+        ! i have this fake bias towards double occupied spatial orbitals
+        ! this way...
+        ! try it with a 'real pure' uniform picking here..
+        occ_spat_orbs = gtID(nI)
 
-        do i_sg = 1, size(supergroups, 2)
-            if (mod(i_sg, 100) == 0) write(stdout, *) 'Still generating the samplers'
-            ! allocate: all samplers have the same size
-            do i = 1, nSpatOrbs
-                ! TODO: The comment is not correct
-                ! as we order a,b, we can assume j <= i
-                do j = i, nSpatOrbs
-                    w(:) = 0.0_dp
-                    excit_info = 0_int64
-                    ij = fuseIndex(i,j)
-                    do a = 1, nSpatOrbs
-                        do b = a, nSpatOrbs
-                            if (RandExcitSymLabelProd(&
-                                        SpinOrbSymLabel(2 * i), SpinOrbSymLabel(2 * j)) &
-                                /= RandExcitSymLabelProd(&
-                                        SpinOrbSymLabel(2 * a), SpinOrbSymLabel(2 * b))) then
-                                cycle
-                            end if
+        spat_src = occ_spat_orbs(1 + int(genrand_real2_dSFMT() * nel))
 
-                            ab = fuseIndex(a, b)
-                            if (this%GAS_spec%is_allowed(DoubleExc_t(2*i, 2*a, 2*j, 2*b), supergroups(:, i_sg))) then
-                                call get_weight_and_info(i, j, a, b, w(ab), excit_info(ab))
-                            end if
-                        end do
-                    end do
-                    call this%alias_sampler%setup_entry(ij, i_sg, w)
-                    call this%set_info_entry(ij, excit_info)
-                end do
-            end do
-        end do
-    end subroutine
+        call this%pick_uniform_spatial_hole(spat_src, spat_tgt, pgen)
 
-    pure function calc_orb_pgen_guga_pchb_double_excitInfo(this, excitInfo, i_sg) result(pgen)
-        class(GAS_doubles_PCHB_ExcGenerator_t), intent(in) :: this
+        if (near_zero(pgen) .or. spat_tgt == 0) then
+            pgen = 0.0_dp
+            spat_tgt = 0
+            return
+        end if
+
+        pgen = pgen / real(nEl, dp)
+
+        if (current_stepvector(spat_src) == 3) pgen = 2.0_dp * pgen
+
+        if (spat_tgt < spat_src) then
+            excitInfo = assign_excitinfo_values_single(&
+                            gen_type%R, spat_tgt, spat_src, spat_tgt, spat_src)
+        else
+            excitInfo = assign_excitinfo_values_single(&
+                            gen_type%L, spat_tgt, spat_src, spat_src, spat_tgt)
+        end if
+    end subroutine pick_orbitals_pure_uniform_singles
+
+    subroutine pick_uniform_spatial_hole(this, src, tgt, pgen)
+        class(GugaAliasSampler_t), intent(in) :: this
+        integer, intent(in) :: src
+            !! Source spatial orbital
+        integer, intent(out) :: tgt
+            !! Target spatial orbital
+        real(dp), intent(out) :: pgen
+
+        integer :: cc_i, nOrb, sym_index
+        integer, allocatable :: valid_orbs(:)
+
+        pgen = 0.0_dp
+        tgt = 0
+
+        ! get the symmetry index for this electron
+        cc_i = ClassCountInd(1, SpinOrbSymLabel(2*src), G1(2*src)%ml)
+
+        ! and the number of orbitals
+        nOrb = OrbClassCount(cc_i)
+
+        if (nOrb == 0) return
+
+        ! get the symmetry index for later use
+        sym_index = SymLabelCounts2(1, cc_i)
+
+        ! or better determine the non-double occupied orbitals in this
+        ! symmetry sector and also is not the electron index!
+
+        block
+            integer, allocatable :: sym_orbs(:)
+            sym_orbs = sym_label_list_spat(sym_index : sym_index + nOrb - 1)
+            valid_orbs = pack(sym_orbs, current_stepvector(sym_orbs) /= 3 .and. sym_orbs /= src)
+
+            ! GAS conditions
+        end block
+
+        if (size(valid_orbs) == 0) return
+
+        tgt = valid_orbs(1 + floor(genrand_real2_dSFMT() * size(valid_orbs)))
+
+        ! do i need nOrb now or the actual number of unoccupied in the
+        ! CSF? i think the second..
+        pgen = 1.0_dp / real(size(valid_orbs), dp)
+    end subroutine pick_uniform_spatial_hole
+
+    function calc_orb_pgen_uniform_singles(excitInfo) result(pgen)
+        debug_function_name("calc_orb_pgen_uniform_singles")
         type(ExcitationInformation_t), intent(in) :: excitInfo
-        integer, intent(in) :: i_sg
-            !! The supergroup index
+        real(dp) :: pgen
+
+        integer :: nOrb, so_elec, cc_i, nOcc, sym_index, nUnocc
+
+        ASSERT(excitInfo%i > 0 .and. excitInfo%i <= nSpatOrbs)
+        ASSERT(excitInfo%j > 0 .and. excitInfo%j <= nSpatOrbs)
+
+        pgen = 0.0_dp
+
+        if (excitInfo%i == excitInfo%j) return
+        if (current_stepvector(excitInfo%i) == 3) return
+        if (current_stepvector(excitInfo%j) == 0) return
+
+        nOcc = count(currentOcc_int /= 0)
+
+        so_elec = 2*excitInfo%j
+
+        cc_i = ClassCountInd(1, SpinOrbSymLabel(so_elec), G1(so_elec)%ml)
+        nOrb = OrbClassCount(cc_i)
+        ! get the symmetry index for later use
+        sym_index = SymLabelCounts2(1, cc_i)
+
+
+        nUnocc = count(&
+            (current_stepvector(sym_label_list_spat(sym_index:sym_index+nOrb-1)) /= 3) &
+            .and. (sym_label_list_spat(sym_index:sym_index+nOrb-1) /= excitInfo%j))
+
+        pgen = 1.0_dp / real(nOcc * nUnocc, dp)
+
+
+    end function calc_orb_pgen_uniform_singles
+
+    function calc_pgen_guga_pchb(this, ilutI, ilutJ, excitInfo_in) result(pgen)
+        class(GugaAliasSampler_t), intent(in) :: this
+        integer(n_int), intent(in) :: ilutI(0:GugaBits%len_tot), ilutJ(GugaBits%len_tot)
+        type(ExcitationInformation_t), intent(in), optional :: excitInfo_in
+        type(ExcitationInformation_t) :: excitInfo
+        real(dp) :: pgen
+        integer :: ic
+        integer :: nI(nel), nJ(nel)
+
+        if (present(excitInfo_in)) then
+            excitInfo = excitInfo_in
+        else
+            excitInfo = identify_excitation(ilutI, ilutJ)
+        end if
+
+        ic = get_excit_level_from_excitInfo(excitInfo)
+
+        if (ic == 1) then
+            if (t_pchb_weighted_singles) then
+                call decode_bit_det(nI, ilutI)
+                call decode_bit_det(nJ, ilutJ)
+                pgen = calc_pgen_mol_guga_single(ilutI, nI, ilutJ, &
+                    nJ, excitInfo)
+            else
+                pgen = calc_orb_pgen_uniform_singles(excitInfo)
+            end if
+
+            pgen = pgen * pSingles
+
+        else if (ic == 2) then
+
+            pgen = pDoubles * this%calc_orb_pgen_guga_pchb_double(excitInfo)
+
+        else
+            pgen = 0.0_dp
+        end if
+
+    end function calc_pgen_guga_pchb
+
+    pure function calc_orb_pgen_guga_pchb_double(this, excitInfo) result(pgen)
+        class(GugaAliasSampler_t), intent(in) :: this
+        type(ExcitationInformation_t), intent(in) :: excitInfo
         real(dp) :: pgen
 
         integer :: ij, ab
@@ -345,19 +528,21 @@ contains
         ! i, j, k and l entries have the info about the electrons and
         ! holes of the excitation: E_{ij}E_{kl} is the convention ...
         ij = fuseIndex(excitInfo%j, excitInfo%l)
+
         p_elec = 1.0_dp / real(ElecPairs, dp)
+
         ab = fuseIndex(excitInfo%i, excitInfo%k)
-        pgen = p_elec * this%alias_sampler%get_prob(ij, i_sg, ab)
-    end function calc_orb_pgen_guga_pchb_double_excitInfo
+        pgen = p_elec * this%alias_sampler%get_prob(ij, excitInfo%i_sg_start, ab)
+
+    end function calc_orb_pgen_guga_pchb_double
 
     ! I need the pgen-recalculation routines for exchange type excitations
     ! also for the PCHB excit-gen
-    pure subroutine calc_orbital_pgen_contr_pchb(this, ilut, occ_orbs, i_sg, cpt_a, cpt_b)
-        class(GAS_doubles_PCHB_ExcGenerator_t), intent(in) :: this
+    pure subroutine calc_orbital_pgen_contr_pchb(this, ilut, occ_orbs, excitInfo, cpt_a, cpt_b)
+        class(GugaAliasSampler_t), intent(in) :: this
         integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
         integer, intent(in) :: occ_orbs(2)
-        integer, intent(in) :: i_sg
-            !! The supergroup index
+        type(ExcitationInformation_t), intent(in) :: excitInfo
         real(dp), intent(out) :: cpt_a, cpt_b
 
         integer :: ij
@@ -373,59 +558,165 @@ contains
         ij = fuseIndex(gtID(occ_orbs(1)), gtID(occ_orbs(2)))
 
         ! and both I and J are electron and hole indices here
-        cpt_a = this%alias_sampler%get_prob(ij, i_sg, ij) / 2.0_dp
+        cpt_a = this%alias_sampler%get_prob(ij, excitInfo%i_sg_start, ij) / 2.0_dp
         ! but since they will get added in later routines i actually have
-        ! to divide by 2 here..
+        ! do divide by 2 here..
 
         ! and in the PCHB there is no difference between the 2!
         cpt_b = cpt_a
+
     end subroutine calc_orbital_pgen_contr_pchb
 
+
     ! i think it would be better if i 'just' reimplement:
-    pure function calc_orbital_pgen_contr_start_pchb(this, occ_orbs, a, i_sg) result(orb_pgen)
+    pure subroutine calc_orbital_pgen_contr_start_pchb(this, occ_orbs, a, excitInfo, orb_pgen)
         debug_function_name("calc_orbital_pgen_contr_start_pchb")
-        class(GAS_doubles_PCHB_ExcGenerator_t), intent(in) :: this
+        class(GugaAliasSampler_t), intent(in) :: this
         integer, intent(in) :: occ_orbs(2), a
-        integer, intent(in) :: i_sg
-            !! The supergroup index
-        real(dp) :: orb_pgen
+        type(ExcitationInformation_t), intent(in) :: excitInfo
+        real(dp), intent(out) :: orb_pgen
 
         integer :: i, j, ij, ab
 
         ! depending on type (R->L / L->R) a can be > j or < j, but always > i
+        !
         i = gtID(occ_orbs(1))
         j = gtID(occ_orbs(2))
 
         ASSERT( i < a )
 
         ! here i is both electron and hole index!
+
         ij = fuseIndex(i, j)
         ab = fuseIndex(i, a)
-        orb_pgen = this%alias_sampler%get_prob(ij, i_sg, ab)
-    end function calc_orbital_pgen_contr_start_pchb
 
-    pure function calc_orbital_pgen_contr_end_pchb(this, occ_orbs, a, i_sg) result(orb_pgen)
+        orb_pgen = this%alias_sampler%get_prob(ij, excitInfo%i_sg_start, ab)
+
+    end subroutine calc_orbital_pgen_contr_start_pchb
+
+    pure subroutine calc_orbital_pgen_contr_end_pchb(this, occ_orbs, a, excitInfo, orb_pgen)
         debug_function_name("calc_orbital_pgen_contr_end_pchb")
-        class(GAS_doubles_PCHB_ExcGenerator_t), intent(in) :: this
+        class(GugaAliasSampler_t), intent(in) :: this
         integer, intent(in) :: occ_orbs(2), a
-        integer, intent(in) :: i_sg
-            !! The supergroup index
-        real(dp) :: orb_pgen
+        type(ExcitationInformation_t), intent(in) :: excitInfo
+        real(dp), intent(out) :: orb_pgen
 
         integer :: i, j, ij, ab
 
-        i = gtID(occ_orbs(1)); j = gtID(occ_orbs(2))
-        ! j is at the same time electron and hole index!
+        i = gtID(occ_orbs(1))
+        j = gtID(occ_orbs(2))
+
+        ! and j is at the same time electron and hole index!
 
         ! depending on L->R or R->L type a can be > i o r < i, but always < j!
         ASSERT( a < j )
 
         ! j here is both elec and hole ind!
-        ij = fuseIndex(i, j)
-        ab = fuseIndex(a, j)
-        orb_pgen = this%alias_sampler%get_prob(ij, i_sg, ab)
-    end function calc_orbital_pgen_contr_end_pchb
+        ij = fuseIndex(i,j)
 
+        ab = fuseIndex(a,j)
+
+        orb_pgen = this%alias_sampler%get_prob(ij, excitInfo%i_sg_start, ab)
+
+    end subroutine calc_orbital_pgen_contr_end_pchb
+
+    function get_pchb_integral_contrib(i, j, a, b, typ) result(integral)
+        ! specialized function to obtain the guga-integral contrib for
+        ! the pchb weights
+        integer, intent(in) :: a, i, b, j, typ
+        real(dp) :: integral
+        debug_function_name("get_pchb_integral_contrib")
+        logical :: flag_
+        real(dp) :: cpt1, cpt2, cpt3, cpt4
+
+        ASSERT(0 < a .and. a <= nSpatOrbs)
+        ASSERT(0 < i .and. i <= nSpatOrbs)
+        ASSERT(0 < b .and. b <= nSpatOrbs)
+        ASSERT(0 < j .and. j <= nSpatOrbs)
+
+
+        if (t_old_pchb) then
+            integral = get_guga_integral_contrib_spat([i,j],a,b)
+            return
+        end if
+
+        flag_ = t_exchange_pchb
+
+        select case (typ)
+
+        ! i need to get the correct indices for the integral contributions!
+        case (excit_type%single_overlap_L_to_R)
+
+            integral = abs(get_umat_el(a, a, i, j) + get_umat_el(a, a, j, i)) / 2.0_dp
+
+        case (excit_type%single_overlap_R_to_L)
+
+            integral = abs(get_umat_el(a, b, i, i) + get_umat_el(b, a, i, i)) / 2.0_dp
+
+        case (excit_type%double_lowering, excit_type%double_raising)
+
+            cpt1 = (get_umat_el(a, b, i, j) + get_umat_el(b, a, j, i))
+            cpt2 = (get_umat_el(b, a, i, j) + get_umat_el(a, b, j, i))
+            cpt3 = abs(cpt1 + cpt2) / 2.0_dp
+            cpt4 = abs(cpt1 - cpt2) / 2.0_dp
+
+            cpt1 = abs(cpt1)
+            cpt2 = abs(cpt2)
+
+            if (flag_) then
+                integral = cpt4
+            else
+                integral = maxval([cpt1, cpt2, cpt3, cpt4])
+            end if
+
+        case (excit_type%double_L_to_R_to_L, excit_type%double_R_to_L_to_R, &
+              excit_type%double_L_to_R, excit_type%double_R_to_L)
+
+            cpt1 = (get_umat_el(a, b, j, i) + get_umat_el(b, a, i, j))
+            cpt2 = (get_umat_el(b, a, j, i) + get_umat_el(a, b, i, j))
+
+            cpt3 = abs(cpt2 - cpt1)
+            ! cpt4 = abs(cpt1 + cpt2)
+            cpt4 = abs(cpt2 - 2.0_dp * cpt1)/2.0_dp
+
+            if (flag_) then
+                integral = abs(cpt2)
+            else
+                integral = maxval([abs(cpt1),abs(cpt2)/2.0_dp, cpt3, cpt4])
+            end if
+
+
+        case (excit_type%fullstop_lowering, excit_type%fullstart_raising)
+
+            integral = abs(get_umat_el(a, a, i, j) + get_umat_el(a, a, j, i))/2.0_dp
+
+        case (excit_type%fullstop_raising, excit_type%fullstart_lowering)
+
+            integral = abs(get_umat_el(a, b, i, i) + get_umat_el(b, a, i, i))/2.0_dp
+
+        case (excit_type%fullstop_R_to_L, excit_type%fullstop_L_to_R)
+
+            integral = abs(get_umat_el(b, a, j, b) + get_umat_el(a, b, b, j))/2.0_dp
+
+        case (excit_type%fullstart_L_to_R, excit_type%fullstart_R_to_L)
+
+            integral = abs(get_umat_el(a, b, i, a) + get_umat_el(b, a, a, i))/2.0_dp
+
+        case (excit_type%fullstart_stop_alike)
+
+            integral = abs(get_umat_el(a, a, i, i))/2.0_dp
+
+        case (excit_type%fullstart_stop_mixed)
+
+            integral = abs(get_umat_el(a, i, i, a) + get_umat_el(i, a, a, i)) / 2.0_dp
+
+#ifdef DEBUG_
+        case default
+            call stop_all(this_routine, "wrong excit-type")
+#endif
+        end select
+
+    end function get_pchb_integral_contrib
 
     subroutine get_weight_and_info(i, j, a, b, w, info)
         integer, intent(in) :: i, j, a, b
@@ -646,101 +937,4 @@ contains
             end if
         end if
     end subroutine
-
-    function get_pchb_integral_contrib(i, j, a, b, typ) result(integral)
-        ! specialized function to obtain the guga-integral contrib for
-        ! the pchb weights
-        integer, intent(in) :: a, i, b, j, typ
-        real(dp) :: integral
-        debug_function_name("get_pchb_integral_contrib")
-        logical :: flag_
-        real(dp) :: cpt1, cpt2, cpt3, cpt4
-
-        ASSERT(0 < a .and. a <= nSpatOrbs)
-        ASSERT(0 < i .and. i <= nSpatOrbs)
-        ASSERT(0 < b .and. b <= nSpatOrbs)
-        ASSERT(0 < j .and. j <= nSpatOrbs)
-
-
-        if (t_old_pchb) then
-            integral = get_guga_integral_contrib_spat([i,j],a,b)
-            return
-        end if
-
-        flag_ = t_exchange_pchb
-
-        select case (typ)
-
-        ! i need to get the correct indices for the integral contributions!
-        case (excit_type%single_overlap_L_to_R)
-
-            integral = abs(get_umat_el(a, a, i, j) + get_umat_el(a, a, j, i)) / 2.0_dp
-
-        case (excit_type%single_overlap_R_to_L)
-
-            integral = abs(get_umat_el(a, b, i, i) + get_umat_el(b, a, i, i)) / 2.0_dp
-
-        case (excit_type%double_lowering, excit_type%double_raising)
-
-            cpt1 = (get_umat_el(a, b, i, j) + get_umat_el(b, a, j, i))
-            cpt2 = (get_umat_el(b, a, i, j) + get_umat_el(a, b, j, i))
-            cpt3 = abs(cpt1 + cpt2) / 2.0_dp
-            cpt4 = abs(cpt1 - cpt2) / 2.0_dp
-
-            cpt1 = abs(cpt1)
-            cpt2 = abs(cpt2)
-
-            if (flag_) then
-                integral = cpt4
-            else
-                integral = maxval([cpt1, cpt2, cpt3, cpt4])
-            end if
-
-        case (excit_type%double_L_to_R_to_L, excit_type%double_R_to_L_to_R, &
-              excit_type%double_L_to_R, excit_type%double_R_to_L)
-
-            cpt1 = (get_umat_el(a, b, j, i) + get_umat_el(b, a, i, j))
-            cpt2 = (get_umat_el(b, a, j, i) + get_umat_el(a, b, i, j))
-
-            cpt3 = abs(cpt2 - cpt1)
-            ! cpt4 = abs(cpt1 + cpt2)
-            cpt4 = abs(cpt2 - 2.0_dp * cpt1)/2.0_dp
-
-            if (flag_) then
-                integral = abs(cpt2)
-            else
-                integral = maxval([abs(cpt1),abs(cpt2)/2.0_dp, cpt3, cpt4])
-            end if
-
-
-        case (excit_type%fullstop_lowering, excit_type%fullstart_raising)
-
-            integral = abs(get_umat_el(a, a, i, j) + get_umat_el(a, a, j, i))/2.0_dp
-
-        case (excit_type%fullstop_raising, excit_type%fullstart_lowering)
-
-            integral = abs(get_umat_el(a, b, i, i) + get_umat_el(b, a, i, i))/2.0_dp
-
-        case (excit_type%fullstop_R_to_L, excit_type%fullstop_L_to_R)
-
-            integral = abs(get_umat_el(b, a, j, b) + get_umat_el(a, b, b, j))/2.0_dp
-
-        case (excit_type%fullstart_L_to_R, excit_type%fullstart_R_to_L)
-
-            integral = abs(get_umat_el(a, b, i, a) + get_umat_el(b, a, a, i))/2.0_dp
-
-        case (excit_type%fullstart_stop_alike)
-
-            integral = abs(get_umat_el(a, a, i, i))/2.0_dp
-
-        case (excit_type%fullstart_stop_mixed)
-
-            integral = abs(get_umat_el(a, i, i, a) + get_umat_el(i, a, a, i)) / 2.0_dp
-
-        case default
-
-            call stop_all(this_routine, "wrong excit-type")
-
-        end select
-    end function get_pchb_integral_contrib
-end module
+end module gas_guga_pchb_class

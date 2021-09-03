@@ -8,12 +8,12 @@
 module guga_bitRepOps
 
     use SystemData, only: nEl, Stot, nSpatOrbs, &
-                          current_stepvector, currentOcc_ilut, currentOcc_int, &
-                          currentB_ilut, currentB_int, current_cum_list, nbasis
+                          current_cum_list, nbasis
     use guga_data, only: ExcitationInformation_t, excit_type, gen_type, &
                          rdm_ind_bitmask, pos_excit_lvl_bits, pos_excit_type_bits, &
                          n_excit_lvl_bits, n_excit_type_bits, n_excit_index_bits, &
                          excit_names
+    use guga_types, only: CSF_Info_t
     use constants, only: dp, n_int, bits_n_int, bni_, bn2_, int_rdm, int64
     use DetBitOps, only: return_ms, count_set_bits, MaskAlpha, &
                          count_open_orbs, ilut_lt, ilut_gt, MaskAlpha, MaskBeta, &
@@ -1774,9 +1774,10 @@ contains
 
     end subroutine find_switches_ilut
 
-    subroutine find_switches_stepvector(ind, lower, upper)
+    subroutine find_switches_stepvector(ind, csf_info, lower, upper)
         ! same as above but using the already calculated stepvector
         integer, intent(in) :: ind
+        type(CSF_Info_t), intent(in) :: csf_info
         integer, intent(out) :: lower, upper
         character(*), parameter :: this_routine = "find_switches_stepvector"
 
@@ -1785,10 +1786,10 @@ contains
         lower = 1
         upper = nSpatOrbs
 
-        if (current_stepvector(ind) == 1) then
+        if (csf_info%stepvector(ind) == 1) then
             switch = 2
 
-        else if (current_stepvector(ind) == 2) then
+        else if (csf_info%stepvector(ind) == 2) then
             switch = 1
 
         else
@@ -1797,13 +1798,13 @@ contains
         end if
 
         do i = ind - 1, 2, -1
-            if (current_stepvector(i) == switch) then
+            if (csf_info%stepvector(i) == switch) then
                 lower = i
                 exit
             end if
         end do
         do i = ind + 1, nSpatOrbs - 1
-            if (current_stepvector(i) == switch) then
+            if (csf_info%stepvector(i) == switch) then
                 upper = i
                 exit
             end if
@@ -1824,7 +1825,7 @@ contains
         ! for now just do a loop over double overlap region and compare
         ! stepvalues
 
-        ! i could also use the current_stepvector quantity here.. or?
+        ! i could also use the quantity here.. or?
         ! if it is always called for the current looked at ilut..
         ! i guess it does..
 
@@ -2191,10 +2192,10 @@ contains
     end subroutine update_matrix_element_cmplx
 #endif
 
-    function count_beta_orbs_ij(ilut, i, j) result(nOpen)
+    function count_beta_orbs_ij(csf_info, i, j) result(nOpen)
         ! function to count the number of 1s in a CSF det between spatial
         ! orbitals i and j
-        integer(n_int), intent(in) :: ilut(0:GugaBits%len_orb)
+        type(CSF_Info_t), intent(in) :: csf_info
         integer, intent(in) :: i, j
         integer :: nOpen
         character(*), parameter :: this_routine = "count_beta_orbs_ij"
@@ -2203,7 +2204,6 @@ contains
 
         ASSERT(i > 0 .and. i <= nSpatOrbs)
         ASSERT(j > 0 .and. j <= nSpatOrbs)
-        unused_var(ilut)
 
         nOpen = 0
 
@@ -2211,16 +2211,16 @@ contains
         ! do i always call that for the current det the excitation is
         ! calculated for?  i think so..
         do k = i, j
-            if (current_stepvector(k) == 1) then
+            if (csf_info%stepvector(k) == 1) then
                 nOpen = nOpen + 1
             end if
         end do
     end function count_beta_orbs_ij
 
-    function count_alpha_orbs_ij(ilut, i, j) result(nOpen)
+    function count_alpha_orbs_ij(csf_info, i, j) result(nOpen)
         ! function to count the number of 2s in a CSF det between spatial
         ! orbitals i and j
-        integer(n_int), intent(in) :: ilut(0:GugaBits%len_orb)
+        type(CSF_Info_t), intent(in) :: csf_info
         integer, intent(in) :: i, j
         integer :: nOpen
         character(*), parameter :: this_routine = "count_alpha_orbs_ij"
@@ -2229,22 +2229,21 @@ contains
 
         ASSERT(i > 0 .and. i <= nSpatOrbs)
         ASSERT(j > 0 .and. j <= nSpatOrbs)
-        unused_var(ilut)
 
         nOpen = 0
 
         ! quick fix for now to see if thats the problem: loop and check!
         do k = i, j
-            if (current_stepvector(k) == 2) then
+            if (csf_info%stepvector(k) == 2) then
                 nOpen = nOpen + 1
             end if
         end do
-
     end function count_alpha_orbs_ij
 
-    function count_open_orbs_ij(i, j, L) result(nOpen)
+    function count_open_orbs_ij(csf_info, i, j, L) result(nOpen)
         ! function to calculate the number of open orbitals between spatial
         ! orbitals i and j in ilut. i and j have to be given ordered i<j
+        type(CSF_Info_t), intent(in) :: csf_info
         integer, intent(in) :: i, j
         integer(n_int), intent(in), optional :: L(0:GugaBits%len_orb)
         integer :: nOpen
@@ -2263,7 +2262,7 @@ contains
         ! also here a quick fix do deal with excitrangemask probs:
 
         ! if the ilut input is present use it otherwise just look at the
-        ! current_stepvector
+        ! stepvector
         if (present(L)) then
             do k = i, j
                 flag = isOne(L, k)
@@ -2273,7 +2272,7 @@ contains
             end do
         else
             do k = i, j
-                if (current_stepvector(k) == 1 .or. current_stepvector(k) == 2) then
+                if (csf_info%stepvector(k) == 1 .or. csf_info%stepvector(k) == 2) then
                     nOpen = nOpen + 1
                 end if
             end do
@@ -2828,35 +2827,36 @@ contains
 
     end subroutine calc_csf_info
 
-    subroutine init_csf_information(ilut)
+    subroutine init_csf_information(ilut, csf_info)
         ! routine which sets up all the additional csf information, like
         ! stepvector, b vector, occupation etc. in various formats in one
         ! place
         ! and combine all the necessary calcs. into one loop instead of
         ! the seperate ones..
         integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
+        type(CSF_Info_t), intent(inout) :: csf_info
         debug_function_name("init_csf_information")
 
         integer :: i, step, b_int
         real(dp) :: b_real, cum_sum
 
         ASSERT(isProperCSF_ilut(ilut))
-        ASSERT(allocated(current_stepvector))
-        ASSERT(allocated(currentB_ilut))
-        ASSERT(allocated(currentOcc_ilut))
-        ASSERT(allocated(currentB_int))
-        ASSERT(allocated(currentOcc_int))
+        ASSERT(allocated(csf_info%stepvector))
+        ASSERT(allocated(csf_info%B_ilut))
+        ASSERT(allocated(csf_info%Occ_ilut))
+        ASSERT(allocated(csf_info%B_int))
+        ASSERT(allocated(csf_info%Occ_int))
 
         ! remove allocs and deallocs, since the size of these quantities
         ! never change.. do the allocation in guga_init
         ! and maybe think about other improvements of this code...
         ! what would be a neat way to calc all those quantities faster??
 
-        current_stepvector = 0
-        currentB_ilut = 0.0_dp
-        currentOcc_ilut = 0.0_dp
-        currentB_int = 0
-        currentOcc_int = 0
+        csf_info%stepvector = 0
+        csf_info%B_ilut = 0.0_dp
+        csf_info%Occ_ilut = 0.0_dp
+        csf_info%B_int = 0
+        csf_info%Occ_int = 0
 
         b_real = 0.0_dp
         b_int = 0
@@ -2869,21 +2869,21 @@ contains
 
             step = getStepvalue(ilut, i)
 
-            current_stepvector(i) = step
+            csf_info%stepvector(i) = step
 
             select case (step)
 
             case (0)
 
-                currentOcc_ilut(i) = 0.0_dp
-                currentOcc_int(i) = 0
+                csf_info%Occ_ilut(i) = 0.0_dp
+                csf_info%Occ_int(i) = 0
 
                 cum_sum = cum_sum + 1.0_dp
 
             case (1)
 
-                currentOcc_ilut(i) = 1.0_dp
-                currentOcc_int(i) = 1
+                csf_info%Occ_ilut(i) = 1.0_dp
+                csf_info%Occ_int(i) = 1
 
                 b_real = b_real + 1.0_dp
                 b_int = b_int + 1
@@ -2892,8 +2892,8 @@ contains
 
             case (2)
 
-                currentOcc_ilut(i) = 1.0_dp
-                currentOcc_int(i) = 1
+                csf_info%Occ_ilut(i) = 1.0_dp
+                csf_info%Occ_int(i) = 1
 
                 b_real = b_real - 1.0_dp
                 b_int = b_int - 1
@@ -2902,13 +2902,13 @@ contains
 
             case (3)
 
-                currentOcc_ilut(i) = 2.0_dp
-                currentOcc_int(i) = 2
+                csf_info%Occ_ilut(i) = 2.0_dp
+                csf_info%Occ_int(i) = 2
 
             end select
 
-            currentB_ilut(i) = b_real
-            currentB_int(i) = b_int
+            csf_info%B_ilut(i) = b_real
+            csf_info%B_int(i) = b_int
 
             current_cum_list(i) = cum_sum
 

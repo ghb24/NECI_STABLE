@@ -1,11 +1,12 @@
 module guga_types
+    use constants, only: dp
     use guga_procedure_pointers, only: general_weight_dummy, general_weight_zero
     use guga_data, only: WeightData_t
 
     implicit none
 
     private
-    public :: WeightObj_t
+    public :: WeightObj_t, CSF_Info_t
 
     ! define a general weight obj type, to access all calculating funcitons
     type :: WeightProc_t
@@ -25,5 +26,11 @@ module guga_types
         ! object as another pointer
         type(WeightObj_t), pointer :: ptr => null()
     end type WeightObj_t
+
+    type :: CSF_Info_t
+        integer, allocatable :: stepvector(:)
+        integer, allocatable :: Occ_int(:), B_int(:)
+        real(dp), allocatable :: Occ_ilut(:), B_ilut(:), B_nI(:)
+    end type
 
 end module

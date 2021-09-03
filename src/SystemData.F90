@@ -277,10 +277,10 @@ module SystemData
     integer :: nSpatOrbs
 
 ! try to store current_stepvector here.. if that improves stuff
-    integer, allocatable :: current_stepvector(:)
+    ! integer, allocatable :: current_stepvector(:)
 ! maybe also define currentOcc and currentB here.. if that helps..
-    integer, allocatable :: currentOcc_int(:), currentB_int(:)
-    real(dp), allocatable :: currentOcc_ilut(:), currentB_ilut(:), currentB_nI(:)
+    ! integer, allocatable :: currentOcc_int(:), currentB_int(:)
+    ! real(dp), allocatable :: currentOcc_ilut(:), currentB_ilut(:), currentB_nI(:)
 
 ! also use this kind of information for the reference determinant
 ! which i should initialize in the reference determinant init
