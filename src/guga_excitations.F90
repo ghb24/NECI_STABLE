@@ -178,8 +178,9 @@ module guga_excitations
     type(ExcitationInformation_t) :: global_excitInfo
 
     abstract interface
-        function calc_pgen_general(i) result(pgen)
-            use constants, only: dp
+        function calc_pgen_general(csf_info, i) result(pgen)
+            import :: dp, CSF_Info_t
+            type(CSF_Info_t), intent(in) :: csf_info
             integer, intent(in) :: i
             real(dp) :: pgen
         end function calc_pgen_general
@@ -359,8 +360,9 @@ contains
     end subroutine csf_to_sds_ilut
 
 
-    function calc_off_diag_guga_ref_direct(ilut, run, exlevel) result(hel)
+    function calc_off_diag_guga_ref_direct(ilut, csf_info, run, exlevel) result(hel)
         integer(n_int), intent(in) :: ilut(0:niftot)
+        type(CSF_Info_t), intent(in) :: csf_info
         integer, intent(in), optional :: run
         integer, intent(out), optional :: exlevel
         HElement_t(dp) :: hel
@@ -375,13 +377,13 @@ contains
         if (present(run)) then
             tmp_ilut = ilutRef(0:niftot, run)
             if (run > 1) then
-                call calc_guga_matrix_element(ilut, tmp_ilut, excitInfo, hel, .true.,  1)
+                call calc_guga_matrix_element(ilut, csf_info, tmp_ilut, excitInfo, hel, .true.,  1)
             else
-                call calc_guga_matrix_element(ilut, tmp_ilut, excitInfo, hel, .true.,  0)
+                call calc_guga_matrix_element(ilut, csf_info, tmp_ilut, excitInfo, hel, .true.,  0)
             end if
         else
             tmp_ilut = ilutRef(0:niftot, 1)
-            call calc_guga_matrix_element(ilut, tmp_ilut, excitInfo, hel, .true.,  0)
+            call calc_guga_matrix_element(ilut, csf_info, tmp_ilut, excitInfo, hel, .true.,  0)
         end if
 
 
@@ -402,13 +404,14 @@ contains
 
     end function calc_off_diag_guga_ref_direct
 
-    function calc_guga_mat_wrapper(ilutI, ilutJ) result(mat_ele)
+    function calc_guga_mat_wrapper(ilutI, csf_info, ilutJ) result(mat_ele)
+        type(CSF_Info_t), intent(in) :: csf_info
         integer(n_int), intent(in) :: ilutI(0:niftot), ilutJ(0:niftot)
         HElement_t(dp) :: mat_ele
 
         type(ExcitationInformation_t) :: excitInfo
 
-        call calc_guga_matrix_element(ilutI, ilutJ, excitInfo, mat_ele, &
+        call calc_guga_matrix_element(ilutI, csf_info, ilutJ, excitInfo, mat_ele, &
             t_hamil = .true., calc_type = 2)
 
     end function calc_guga_mat_wrapper
@@ -417,18 +420,20 @@ contains
         integer(n_int), intent(in) :: ilut_list(:,:)
         HElement_t(dp) :: hamil(size(ilut_list,2), size(ilut_list,2))
 
+        type(CSF_Info_t) :: csf_info
         integer :: i, j
 
         do i = 1, size(ilut_list,2)
             do j = 1, size(ilut_list,2)
-                hamil(i,j) = calc_guga_mat_wrapper(ilut_list(:,j),ilut_list(:,i))
+                call init_csf_information(ilut_list(:, j), csf_info)
+                hamil(i,j) = calc_guga_mat_wrapper(ilut_list(:, j), csf_info, ilut_list(:,i))
             end do
         end do
 
     end function create_hamiltonian_guga
 
 
-    subroutine calc_guga_matrix_element(ilutI, ilutJ, csf_info, excitInfo, mat_ele, t_hamil, &
+    subroutine calc_guga_matrix_element(ilutI, csf_info, ilutJ, excitInfo, mat_ele, t_hamil, &
                                         calc_type, rdm_ind, rdm_mat)
         ! function which, given the 2 CSFs ilutI/J and the excitation
         ! information, connecting those 2, calculates the Hamiltionian
@@ -640,7 +645,7 @@ contains
 
             ! but here i have to calculate all the double excitation
             ! influences which can lead to the same excitation(weights etc.)
-            call calc_single_excitation_ex(ilutJ, excitInfo, mat_ele, &
+            call calc_single_excitation_ex(ilutJ, csf_info, excitInfo, mat_ele, &
                                            t_hamil, rdm_ind, rdm_mat)
 
         case (excit_type%single_overlap_L_to_R)
@@ -711,14 +716,14 @@ contains
 
             ! here only x0 matrix element in overlap range!
             ! also combine fullstop-alike
-            call calc_fullstop_alike_ex(ilutJ, excitInfo, mat_ele, &
+            call calc_fullstop_alike_ex(ilutJ, csf_info, excitInfo, mat_ele, &
                                         t_hamil, rdm_ind, rdm_mat)
 
         case (excit_type%fullstop_raising)
             ! full-stop 2 raising
 
             ! here only x0 matrix elment in overlap range!
-            call calc_fullstop_alike_ex(ilutJ, excitInfo, mat_ele, &
+            call calc_fullstop_alike_ex(ilutJ, csf_info, excitInfo, mat_ele, &
                                         t_hamil, rdm_ind, rdm_mat)
 
         case (excit_type%fullstop_L_to_R)
@@ -728,7 +733,7 @@ contains
             ! influences ABOVE the last spin-coupling change
             ! this is more of a pain.. do later!
             ! finished the "easy" ones.. now to the annoying..
-            call calc_fullstop_mixed_ex(ilutI, ilutJ, excitInfo, mat_ele, &
+            call calc_fullstop_mixed_ex(ilutI, csf_info, ilutJ, excitInfo, mat_ele, &
                                         t_hamil, rdm_ind, rdm_mat)
 
         case (excit_type%fullstop_R_to_L)
@@ -736,14 +741,14 @@ contains
 
             ! here i have to consider all the singly occupied orbital
             ! influences ABOVE the last spin-coupling change
-            call calc_fullstop_mixed_ex(ilutI, ilutJ, excitInfo, mat_ele, &
+            call calc_fullstop_mixed_ex(ilutI, csf_info, ilutJ, excitInfo, mat_ele, &
                                         t_hamil, rdm_ind, rdm_mat)
 
         case (excit_type%fullstart_lowering)
             ! full-start 2 lowering
 
             ! here only x0 matrix element in overlap range!
-            call calc_fullstart_alike_ex(ilutJ, excitInfo, mat_ele, &
+            call calc_fullstart_alike_ex(ilutJ, csf_info, excitInfo, mat_ele, &
                                          t_hamil, rdm_ind, rdm_mat)
 
         case (excit_type%fullstart_raising)
@@ -751,7 +756,7 @@ contains
 
             ! here only the x0-matrix in the overlap range (this implies no
             ! spin-coupling changes, but i already dealt with that! (hopefully!))
-            call calc_fullstart_alike_ex(ilutJ, excitInfo, mat_ele, &
+            call calc_fullstart_alike_ex(ilutJ, csf_info, excitInfo, mat_ele, &
                                          t_hamil, rdm_ind, rdm_mat)
 
         case (excit_type%fullStart_L_to_R)
@@ -759,7 +764,7 @@ contains
 
             ! here i have to consider all the other singly occupied orbital
             ! influences BELOW the first spin-coupling change
-            call calc_fullstart_mixed_ex(ilutI, ilutJ, excitInfo, mat_ele, &
+            call calc_fullstart_mixed_ex(ilutI, csf_info, ilutJ, excitInfo, mat_ele, &
                                          t_hamil, rdm_ind, rdm_mat)
 
         case (excit_type%fullstart_R_to_L)
@@ -767,14 +772,14 @@ contains
 
             ! here i have to consider all the other singly occupied orbital
             ! influences BELOW the first spin-coupling change
-            call calc_fullstart_mixed_ex(ilutI, ilutJ, excitInfo, mat_ele, &
+            call calc_fullstart_mixed_ex(ilutI, csf_info, ilutJ, excitInfo, mat_ele, &
                                          t_hamil, rdm_ind, rdm_mat)
 
         case (excit_type%fullstart_stop_alike)
             ! full-start into full-stop alike
 
             ! here no spin-coupling changes are allowed!
-            call calc_fullstart_fullstop_alike_ex(ilutJ, excitInfo, &
+            call calc_fullstart_fullstop_alike_ex(ilutJ, csf_info, excitInfo, &
                                                   mat_ele, t_hamil, rdm_ind, rdm_mat)
 
         case (excit_type%fullstart_stop_mixed)
@@ -782,7 +787,7 @@ contains
 
             ! here i have to consider all the singly occupied orbitals
             ! below the first spin-change and above the last spin change
-            call calc_fullstart_fullstop_mixed_ex(ilutI, ilutJ, excitInfo, &
+            call calc_fullstart_fullstop_mixed_ex(ilutI, csf_info, ilutJ, excitInfo, &
                                                   mat_ele, t_hamil, rdm_ind, rdm_mat)
 
         case default
@@ -800,7 +805,7 @@ contains
         ! connected CSFs, with the option to output also all the indices and
         ! overlap matrix elements necessary for the rdm calculation
         integer(n_int), intent(in) :: ilutJ(0:niftot)
-        type(CSF_Info_t), intent(in) :: csf_info
+        type(CSF_Info_t), value :: csf_info
         type(ExcitationInformation_t), intent(in) :: excitInfo
         HElement_t(dp), intent(out) :: mat_ele
         logical, intent(in), optional :: t_calc_full
@@ -918,15 +923,6 @@ contains
 
             if (near_zero(tmp_mat)) return
 
-            ! this has to be adapted .. because inside there i use the
-            ! current_stepvector and similar quantities..
-            ! can i savely adjust the current_stepvector value here without
-            ! breaking other stuff.. especially for the FciMCPar loop..
-            temp_curr_step = csf_info%stepvector
-            temp_curr_b = csf_info%B_ilut
-            temp_curr_occ = csf_info%Occ_ilut
-            temp_curr_b_int = csf_info%B_int
-
             csf_info%stepvector = temp_step_i
             csf_info%B_ilut = temp_b_real_i
             csf_info%Occ_ilut = temp_occ_i
@@ -936,19 +932,12 @@ contains
             if (t_calc_full_) then
                 if (.not. (treal .or. t_new_real_space_hubbard .or. &
                            t_heisenberg_model .or. t_tJ_model .or. t_mixed_hubbard)) then
-                    call calc_integral_contribution_single(ilutJ, i, j, st, en, integral)
+                    ! TODO(@Oskar): Check if ilutJ is correct
+                    call calc_integral_contribution_single(csf_info, ilutJ, i, j, st, en, integral)
                 end if
             end if
 
             mat_ele = tmp_mat * integral
-
-            ! that should be it for the singles... check that when its fully
-            ! implemented
-            ! and assign back previous values
-            csf_info%stepvector = temp_curr_step
-            csf_info%B_ilut = temp_curr_b
-            csf_info%Occ_ilut = temp_curr_occ
-            csf_info%B_int = temp_curr_b_int
 
             if (present(rdm_mat)) rdm_mat = tmp_mat
 
@@ -1346,9 +1335,10 @@ contains
 
     end subroutine calc_normal_double_ex
 
-    subroutine calc_fullstop_alike_ex(ilutJ, excitInfo, mat_ele, &
+    subroutine calc_fullstop_alike_ex(ilutJ, csf_info, excitInfo, mat_ele, &
                                       t_hamil, rdm_ind, rdm_mat)
         integer(n_int), intent(in) :: ilutJ(0:niftot)
+        type(CSF_Info_t), intent(in) :: csf_info
         type(ExcitationInformation_t), intent(in) :: excitInfo
         HElement_t(dp), intent(out) :: mat_ele
         logical, intent(in), optional :: t_hamil
@@ -1450,9 +1440,10 @@ contains
 
     end subroutine calc_fullstop_alike_ex
 
-    subroutine calc_fullstart_alike_ex(ilutJ, excitInfo, mat_ele, &
+    subroutine calc_fullstart_alike_ex(ilutJ, csf_info, excitInfo, mat_ele, &
                                        t_hamil, rdm_ind, rdm_mat)
         integer(n_int), intent(in) :: ilutJ(0:niftot)
+        type(CSF_Info_t), intent(in) :: csf_info
         type(ExcitationInformation_t), intent(in) :: excitInfo
         HElement_t(dp), intent(out) :: mat_ele
         logical, intent(in), optional :: t_hamil
@@ -1541,9 +1532,10 @@ contains
 
     end subroutine calc_fullstart_alike_ex
 
-    subroutine calc_fullstart_fullstop_alike_ex(ilutJ, excitInfo, &
+    subroutine calc_fullstart_fullstop_alike_ex(ilutJ, csf_info, excitInfo, &
                                                 mat_ele, t_hamil, rdm_ind, rdm_mat)
         integer(n_int), intent(in) :: ilutJ(0:niftot)
+        type(CSF_Info_t), intent(in) :: csf_info
         type(ExcitationInformation_t), intent(in) :: excitInfo
         HElement_t(dp), intent(out) :: mat_ele
         logical, intent(in), optional :: t_hamil
@@ -1592,12 +1584,12 @@ contains
 
     end subroutine calc_fullstart_fullstop_alike_ex
 
-    subroutine calc_fullstop_mixed_ex(ilutI, ilutJ, csf_info, excitInfo, mat_ele, &
+    subroutine calc_fullstop_mixed_ex(ilutI, csf_info, ilutJ, excitInfo, mat_ele, &
                                       t_hamil, rdm_ind, rdm_mat)
         ! from the excitInfo i know the first switch position.
         ! this makes things a bit easier for the exact calculation
         integer(n_int), intent(in) :: ilutI(0:niftot), ilutJ(0:niftot)
-        type(CSF_Info_t), intent(in) :: csf_info
+        type(CSF_Info_t), value :: csf_info
         type(ExcitationInformation_t), intent(inout) :: excitInfo
         HElement_t(dp), intent(out) :: mat_ele
         logical, intent(in), optional :: t_hamil
@@ -1715,13 +1707,6 @@ contains
             ! use temp_mat1
             temp_mat1 = 1.0_dp
 
-            ! also temporarily have to store the current* quantities as they are
-            ! used in the below adapted routines from the stochasitc implementation
-            temp_curr_step = csf_info%stepvector
-            temp_curr_b = csf_info%B_ilut
-            temp_curr_occ_int = csf_info%Occ_int
-            temp_curr_b_int = csf_info%B_int
-
             csf_info%stepvector = temp_step_i
             csf_info%B_ilut = temp_b_real_i
             csf_info%Occ_int = int(temp_occ_i)
@@ -1763,20 +1748,14 @@ contains
             else
                 mat_ele = h_cast(temp_x1)
             end if
-
-            csf_info%stepvector = temp_curr_step
-            csf_info%B_ilut = temp_curr_b
-            csf_info%Occ_int = temp_curr_occ_int
-            csf_info%B_int = temp_curr_b_int
-
         end associate
 
     end subroutine calc_fullstop_mixed_ex
 
-    subroutine calc_fullstart_mixed_ex(ilutI, ilutJ, csf_info, excitInfo, mat_ele, &
+    subroutine calc_fullstart_mixed_ex(ilutI, csf_info, ilutJ, excitInfo, mat_ele, &
                                        t_hamil, rdm_ind, rdm_mat)
         integer(n_int), intent(in) :: ilutI(0:niftot), ilutJ(0:niftot)
-        type(CSF_Info_t), intent(in) :: csf_info
+        type(CSF_Info_t), value :: csf_info
         type(ExcitationInformation_t), intent(inout) :: excitInfo
         HElement_t(dp), intent(out) :: mat_ele
         logical, intent(in), optional :: t_hamil
@@ -1873,13 +1852,6 @@ contains
             ! need to input variable into start_contr routines, misuse temp_mat1
             temp_mat1 = 1.0_dp
 
-            ! also temporarily have to store the current* quantities as they are
-            ! used in the below adapted routines from the stochasitc implementation
-            temp_curr_step = csf_info%stepvector
-            temp_curr_b = csf_info%B_ilut
-            temp_curr_occ_int = csf_info%Occ_int
-            temp_curr_b_int = csf_info%B_int
-
             csf_info%stepvector = temp_step_i
             csf_info%B_ilut = temp_b_real_i
             csf_info%Occ_int = int(temp_occ_i)
@@ -1917,20 +1889,14 @@ contains
 
                 end if
             end if
-
-            csf_info%stepvector = temp_curr_step
-            csf_info%B_ilut = temp_curr_b
-            csf_info%Occ_int = temp_curr_occ_int
-            csf_info%B_int = temp_curr_b_int
-
         end associate
 
     end subroutine calc_fullstart_mixed_ex
 
-    subroutine calc_fullstart_fullstop_mixed_ex(ilutI, ilutJ, csf_info, excitInfo, &
+    subroutine calc_fullstart_fullstop_mixed_ex(ilutI, csf_info, ilutJ, excitInfo, &
                                                 mat_ele, t_hamil, rdm_ind, rdm_mat)
         integer(n_int), intent(in) :: ilutI(0:niftot), ilutJ(0:niftot)
-        type(CSF_Info_t), intent(in) :: csf_info
+        type(CSF_Info_t), value :: csf_info
         type(ExcitationInformation_t), intent(in) :: excitInfo
         HElement_t(dp), intent(out) :: mat_ele
         logical, intent(in), optional :: t_hamil
@@ -1948,18 +1914,16 @@ contains
         ! set default for early exits
         mat_ele = h_cast(0.0_dp)
 
+        ! TODO(@Oskar): Show this beauty to Werner
         associate (ii => excitInfo%i, jj => excitInfo%j, kk => excitInfo%k, &
                    ll => excitInfo%l, start => excitInfo%fullstart, &
                    ende => excitInfo%fullEnd)
+
 
             if (any(abs(temp_delta_b) > 2)) return
 
             call convert_ilut_toGUGA(ilutI, tmp_I)
             call convert_ilut_toGUGA(ilutJ, tmp_J)
-
-            temp_curr_occ_int = csf_info%Occ_int
-            temp_curr_step = csf_info%stepvector
-            temp_curr_b = csf_info%B_ilut
 
             csf_info%stepvector = temp_step_i
             csf_info%Occ_int = int(temp_occ_i)
@@ -1967,19 +1931,13 @@ contains
 
             if (t_hamil_ .or. (tFillingStochRDMOnFly .and. present(rdm_mat))) then
                 if (present(rdm_mat)) then
-                    mat_ele = calcMixedContribution(tmp_I, tmp_J, start, ende, &
+                    mat_ele = calcMixedContribution(tmp_I, csf_info, tmp_J, start, ende, &
                                                     rdm_ind, rdm_mat)
                 else
-                    mat_ele = calcMixedContribution(tmp_I, tmp_J, start, ende)
+                    mat_ele = calcMixedContribution(tmp_I, csf_info, tmp_J, start, ende)
                 end if
             end if
-
-            csf_info%stepvector = temp_curr_step
-            csf_info%Occ_int = temp_curr_occ_int
-            csf_info%B_ilut = temp_curr_b
-
         end associate
-
     end subroutine calc_fullstart_fullstop_mixed_ex
 
     function plus_start_single(weights, bVal, negSwitches, posSwitches) result(prob)
@@ -2363,6 +2321,7 @@ contains
         integer(n_int) :: tgt_ilut(0:NifTot)
         integer(n_int), allocatable :: det_list(:, :)
         integer, allocatable :: excitTyp(:), excitLvl(:), excit_mat(:, :)
+        type(CSF_Info_t) :: csf_info
         real(dp), allocatable :: contrib_list(:), pgen_list(:)
         HElement_t(dp), allocatable :: matEle_list(:), exact_helements(:)
         logical, allocatable :: generated_list(:)
@@ -2400,7 +2359,7 @@ contains
         allocate(excitLvl(nexcit), source=-1)
         allocate(excit_mat(nexcit, 4), source=0)
 
-        call init_csf_information(ilutG(0:nifd))
+        call init_csf_information(ilutG(0:nifd), csf_info)
         do i = 1, nexcit
             call convert_ilut_toNECI(excitations(:, i), det_list(:, i), helgen)
 
@@ -2412,7 +2371,7 @@ contains
             ! acthamiltonian..
             exact_helements(i) = helgen
             excitLvl(i) = getDeltaB(excitations(:, i))
-            call calc_guga_matrix_element(ilut, det_list(:, i), excitInfo, &
+            call calc_guga_matrix_element(ilut, csf_info, det_list(:, i), excitInfo, &
                                           temp_mat, .true., 1)
 
             excit_mat(i, :) = [excitInfo%i, excitInfo%j, excitInfo%k, excitInfo%l]
@@ -2613,11 +2572,10 @@ contains
 
     ! implement a crude approximation in the guga excitation, where we only
     ! do changes a the beginning and the end of excitations
-    subroutine generate_excitation_guga_crude(nI, ilutI, csf_info, nJ, ilutJ, exFlag, IC, &
+    subroutine generate_excitation_guga_crude(nI, ilutI, nJ, ilutJ, exFlag, IC, &
                                               excitMat, tParity, pgen, HElGen, store, part_type)
         integer, intent(in) :: nI(nEl), exFlag
         integer(n_int), intent(in) :: ilutI(0:niftot)
-        type(CSF_Info_t), intent(in) :: csf_info
         integer, intent(out) :: nJ(nEl), IC, excitMat(2, 2)
         integer(n_int), intent(out) :: ilutJ(0:niftot)
         logical, intent(out) :: tParity
@@ -2629,6 +2587,7 @@ contains
 
         integer(n_int) :: ilut(0:nifguga), excitation(0:nifguga)
         integer :: excit_typ(2)
+        type(CSF_Info_t) :: csf_info
 
         unused_var(exFlag); unused_var(store); unused_var(part_type)
 
@@ -2672,7 +2631,7 @@ contains
         if (tNewDet) then
             ! use new setup function for additional CSF informtation
             ! instead of calculating it all seperately..
-            call init_csf_information(ilut(0:nifd))
+            call init_csf_information(ilut(0:nifd), csf_info)
 
             ! then set tNewDet to false and only set it after the walker loop
             ! in FciMCPar
@@ -2689,7 +2648,7 @@ contains
         else
 
             IC = 2
-            call create_crude_guga_double(ilut, nI, excitation, pgen)
+            call create_crude_guga_double(ilut, nI, csf_info, excitation, pgen)
             pgen = pgen * pDoubles
 
         end if
@@ -2763,7 +2722,7 @@ contains
         ! here I have to do the actual crude double excitation..
         ! my idea for now is to create pseudo random spin-orbital from the
         ! picked spatial orbitals
-        call create_random_spin_orbs(ilut, excitInfo, elecs, orbs, branch_pgen)
+        call create_random_spin_orbs(ilut, csf_info, excitInfo, elecs, orbs, branch_pgen)
 
         if (any(elecs == 0) .or. any(orbs == 0)) then
             exc = 0_n_int
@@ -2796,7 +2755,7 @@ contains
         ! we also need to calculate the matrix element here!
         call convert_ilut_toNECI(ilut, ilutI)
         call convert_ilut_toNECI(exc, ilutJ)
-        call calc_guga_matrix_element(ilutI, ilutJ, excitInfo, mat_ele, .true., 2)
+        call calc_guga_matrix_element(ilutI, csf_info, ilutJ, excitInfo, mat_ele, .true., 2)
 
         if (near_zero(mat_ele)) then
             exc = 0_n_int
@@ -3137,7 +3096,7 @@ contains
                 ! now the general 4-index double excitations..
                 ! this can be nasty again..
 
-                call pick_random_4ind(elec_1, elec_2, orb_1, orb_2, elecs, orbs, pgen)
+                call pick_random_4ind(csf_info, elec_1, elec_2, orb_1, orb_2, elecs, orbs, pgen)
 
             end select
         end if
@@ -3525,7 +3484,7 @@ contains
         ! just to be super safe here:
         call convert_ilut_toNECI(ilut, ilutI)
         call convert_ilut_toNECI(exc, ilutJ)
-        call calc_guga_matrix_element(ilutI, ilutJ, excitInfo, mat_ele, .true., 2)
+        call calc_guga_matrix_element(ilutI, csf_info, ilutJ, excitInfo, mat_ele, .true., 2)
 
         if (near_zero(mat_ele)) then
             exc = 0_n_int
@@ -4035,18 +3994,18 @@ contains
             ! i have to change this for the crude implementation
         case (1)
             elec_factor = 1.0_dp
-            call gen_crude_guga_single_1(nI, orb_i, cc_i, cum_arr)
+            call gen_crude_guga_single_1(nI, csf_info, orb_i, cc_i, cum_arr)
 
         case (2)
             ! to do
             elec_factor = 1.0_dp
-            call gen_crude_guga_single_2(nI, orb_i, cc_i, cum_arr)
+            call gen_crude_guga_single_2(nI, csf_info, orb_i, cc_i, cum_arr)
 
         case (3)
             ! adjust pgen, the chance to pick a doubly occupied with
             ! spinorbitals is twice as high..
             elec_factor = 2.0_dp
-            call gen_crude_guga_single_3(nI, orb_i, cc_i, cum_arr)
+            call gen_crude_guga_single_3(nI, csf_info, orb_i, cc_i, cum_arr)
 
         case default
             call stop_all(this_routine, "should not have picked empty orbital")
@@ -4309,6 +4268,7 @@ contains
         integer :: excit_typ(2)
 
         type(ExcitationInformation_t) :: excitInfo
+        type(CSF_Info_t) :: csf_info
         real(dp) :: diff
         HElement_t(dp) :: tmp_mat1
         HElement_t(dp) :: tmp_mat
@@ -4357,7 +4317,7 @@ contains
         if (tNewDet) then
             ! use new setup function for additional CSF informtation
             ! instead of calculating it all seperately..
-            call init_csf_information(ilut(0:nifd))
+            call init_csf_information(ilut(0:nifd), csf_info)
 
             ! then set tNewDet to false and only set it after the walker loop
             ! in FciMCPar
@@ -4368,13 +4328,13 @@ contains
         if (genrand_real2_dSFMT() < pSingles) then
 
             IC = 1
-            call createStochasticExcitation_single(ilut, nI, excitation, pgen)
+            call createStochasticExcitation_single(ilut, nI, csf_info, excitation, pgen)
             pgen = pgen * pSingles
 
         else
 
             IC = 2
-            call createStochasticExcitation_double(ilut, nI, excitation, pgen, excit_typ)
+            call createStochasticExcitation_double(ilut, nI, csf_info, excitation, pgen, excit_typ)
             pgen = pgen * pDoubles
 
             if (near_zero(pgen)) then
@@ -4391,7 +4351,7 @@ contains
 #ifdef DEBUG_
         if (.not. near_zero(pgen)) then
             call convert_ilut_toNECI(excitation, ilutJ, HElgen)
-            call calc_guga_matrix_element(ilutI, ilutJ, excitInfo, tmp_mat, &
+            call calc_guga_matrix_element(ilutI, csf_info, ilutJ, excitInfo, tmp_mat, &
                                           .true., 2)
 
             diff = abs(HElGen - tmp_mat)
@@ -4409,7 +4369,8 @@ contains
             end if
 
             ! is the other order also fullfilled?
-            call calc_guga_matrix_element(ilutJ, ilutI, excitInfo, tmp_mat1, &
+            ! TODO(@Oskar): Here is probably an error
+            call calc_guga_matrix_element(ilutJ, csf_info, ilutI, excitInfo, tmp_mat1, &
                                           .true., 2)
 
 #ifdef CMPLX_
@@ -4530,7 +4491,7 @@ contains
         end if
 
         if (t_guga_back_spawn) then
-            if (increase_ex_levl(excitInfo) .and. .not. is_init_guga) then
+            if (increase_ex_levl(csf_info, excitInfo) .and. .not. is_init_guga) then
 
                 if (t_guga_back_spawn_trunc) then
                     pgen = 0.0_dp
@@ -4538,7 +4499,7 @@ contains
                     return
                 end if
 
-                call create_crude_guga_double(ilut, nI, excitation, branch_pgen, excitInfo)
+                call create_crude_guga_double(ilut, nI, csf_info, excitation, branch_pgen, excitInfo)
 
                 pgen = orb_pgen * branch_pgen
 
@@ -4564,7 +4525,7 @@ contains
             call convert_ilut_toNECI(ilut, ilutI)
             call convert_ilut_toNECI(excitation, ilutJ)
 
-            call calc_guga_matrix_element(ilutI, ilutJ, excitInfo, mat_ele, &
+            call calc_guga_matrix_element(ilutI, csf_info, ilutJ, excitInfo, mat_ele, &
                                           .true., 2)
 
             if (near_zero(mat_ele)) then
@@ -4592,7 +4553,7 @@ contains
             ! single overlap lowering into raising
             ! similar to a single excitation except the (predetermined)
             ! single overlap site.
-            call calcSingleOverlapMixedStochastic(ilut, excitInfo, excitation, &
+            call calcSingleOverlapMixedStochastic(ilut, csf_info, excitInfo, excitation, &
                                                   branch_pgen, posSwitches, negSwitches, weights)
 
             pgen = orb_pgen * branch_pgen
@@ -4605,19 +4566,19 @@ contains
             ! careful to just input the weights everywhere, and also check the
             ! checkCompatibility function, if the weights get reinitialized
             ! there correctly!
-            call calcSingleOverlapMixedStochastic(ilut, excitInfo, excitation, &
+            call calcSingleOverlapMixedStochastic(ilut, csf_info, excitInfo, excitation, &
                                                   branch_pgen, posSwitches, negSwitches, weights)
 
             pgen = orb_pgen * branch_pgen
 
         case (excit_type%double_lowering) ! normal double two lowering
-            call calcDoubleLoweringStochastic(ilut, excitInfo, excitation, branch_pgen, &
+            call calcDoubleLoweringStochastic(ilut, csf_info, excitInfo, excitation, branch_pgen, &
                                               posSwitches, negSwitches, weights)
 
             pgen = orb_pgen * branch_pgen
 
         case (excit_type%double_raising) ! normal double two raising
-            call calcDoubleRaisingStochastic(ilut, excitInfo, excitation, branch_pgen, &
+            call calcDoubleRaisingStochastic(ilut, csf_info, excitInfo, excitation, branch_pgen, &
                                              posSwitches, negSwitches, weights)
 
             pgen = orb_pgen * branch_pgen
@@ -4626,26 +4587,26 @@ contains
             ! should be able to use the same general function as above to
             ! calculate the excitation, but the matrix element calculation
             ! should be a little bit different... maybe additional input needed
-            call calcDoubleL2R2L_stochastic(ilut, excitInfo, excitation, branch_pgen, &
+            call calcDoubleL2R2L_stochastic(ilut, csf_info, excitInfo, excitation, branch_pgen, &
                                             posSwitches, negSwitches, weights)
 
             pgen = orb_pgen * branch_pgen
 
         case (excit_type%double_R_to_L_to_R) ! raising into lowering into raising
             ! dito about matrix elements as above...
-            call calcDoubleR2L2R_stochastic(ilut, excitInfo, excitation, branch_pgen, &
+            call calcDoubleR2L2R_stochastic(ilut, csf_info, excitInfo, excitation, branch_pgen, &
                                             posSwitches, negSwitches, weights)
 
             pgen = orb_pgen * branch_pgen
 
         case (excit_type%double_L_to_R) ! lowering into raising double
-            call calcDoubleL2R_stochastic(ilut, excitInfo, excitation, branch_pgen, &
+            call calcDoubleL2R_stochastic(ilut, csf_info, excitInfo, excitation, branch_pgen, &
                                           posSwitches, negSwitches, weights)
 
             pgen = orb_pgen * branch_pgen
 
         case (excit_type%double_R_to_L) ! raising into lowering double
-            call calcDoubleR2L_stochastic(ilut, excitInfo, excitation, branch_pgen, &
+            call calcDoubleR2L_stochastic(ilut, csf_info, excitInfo, excitation, branch_pgen, &
                                           posSwitches, negSwitches, weights)
 
             pgen = orb_pgen * branch_pgen
@@ -4653,14 +4614,14 @@ contains
         case (excit_type%fullstop_lowering) ! full stop 2 lowering
             ! again the double overlap part is easy to deal with, since its
             ! only the deltaB=0 branch
-            call calcFullstopLoweringStochastic(ilut, excitInfo, excitation, &
+            call calcFullstopLoweringStochastic(ilut, csf_info, excitInfo, excitation, &
                                                 branch_pgen, posSwitches, negSwitches, weights)
 
             pgen = orb_pgen * branch_pgen
 
         case (excit_type%fullstop_raising) ! full-stop 2 raising
             ! again only deltaB = 0 branch in DE overlap region
-            call calcFullstopRaisingStochastic(ilut, excitInfo, excitation, &
+            call calcFullstopRaisingStochastic(ilut, csf_info, excitInfo, excitation, &
                                                branch_pgen, posSwitches, negSwitches, weights)
 
             pgen = orb_pgen * branch_pgen
@@ -4672,7 +4633,7 @@ contains
                 ! determinant-like excitation without spin-recouplings
                 ! but only for non-inits.. so this information has to
                 ! be passed in here!
-                call perform_crude_excitation(ilut, excitInfo, excitation, compFlag)
+                call perform_crude_excitation(ilut, csf_info, excitInfo, excitation, compFlag)
 
                 ! in this case the pgen is just the orbital pgen, as only
                 ! on CSF can be created from it..
@@ -4686,7 +4647,7 @@ contains
                 end if
 
             else
-                call calcFullStopL2R_stochastic(ilut, excitInfo, excitation, &
+                call calcFullStopL2R_stochastic(ilut, csf_info, excitInfo, excitation, &
                                                 branch_pgen, posSwitches, negSwitches, weights)
 
                 if (t_approx_exchange .or. (t_approx_exchange_noninits .and. (.not. is_init_guga))) then
@@ -4700,7 +4661,7 @@ contains
         case (excit_type%fullstop_R_to_L) ! full-stop raising into lowering
 
             if (t_crude_exchange .or. (t_crude_exchange_noninits .and. (.not. is_init_guga))) then
-                call perform_crude_excitation(ilut, excitInfo, excitation, compFlag)
+                call perform_crude_excitation(ilut, csf_info, excitInfo, excitation, compFlag)
 
                 ! in this case the pgen is just the orbital pgen, as only
                 ! on CSF can be created from it..
@@ -4715,7 +4676,7 @@ contains
 
             else
 
-                call calcFullStopR2L_stochastic(ilut, excitInfo, excitation, &
+                call calcFullStopR2L_stochastic(ilut, csf_info, excitInfo, excitation, &
                                                 branch_pgen, posSwitches, negSwitches, weights)
 
                 if (t_approx_exchange .or. (t_approx_exchange_noninits .and. (.not. is_init_guga))) then
@@ -4728,7 +4689,7 @@ contains
 
         case (excit_type%fullstart_lowering) ! full-start 2 lowering
             ! again only deltaB = 0 branch in DE overlap region
-            call calcFullStartLoweringStochastic(ilut, excitInfo, excitation, &
+            call calcFullStartLoweringStochastic(ilut, csf_info, excitInfo, excitation, &
                                                  branch_pgen, posSwitches, negSwitches, weights)
 
             pgen = orb_pgen * branch_pgen
@@ -4737,7 +4698,7 @@ contains
             ! the double overlap part is again really easy here, since only
             ! the deltaB=0 branch is non-zero -> and the second part can be
             ! treated as a single excitation
-            call calcFullStartRaisingStochastic(ilut, excitInfo, excitation, &
+            call calcFullStartRaisingStochastic(ilut, csf_info, excitInfo, excitation, &
                                                 branch_pgen, posSwitches, negSwitches, weights)
 
             pgen = orb_pgen * branch_pgen
@@ -4745,7 +4706,7 @@ contains
         case (excit_type%fullStart_L_to_R) ! full-start lowering into raising
 
             if (t_crude_exchange .or. (t_crude_exchange_noninits .and. (.not. is_init_guga))) then
-                call perform_crude_excitation(ilut, excitInfo, excitation, compFlag)
+                call perform_crude_excitation(ilut, csf_info, excitInfo, excitation, compFlag)
 
                 ! in this case the pgen is just the orbital pgen, as only
                 ! on CSF can be created from it..
@@ -4760,7 +4721,7 @@ contains
 
             else
 
-                call calcFullStartL2R_stochastic(ilut, excitInfo, excitation, &
+                call calcFullStartL2R_stochastic(ilut, csf_info, excitInfo, excitation, &
                                                  branch_pgen, posSwitches, negSwitches, weights)
 
                 if (t_approx_exchange .or. (t_approx_exchange_noninits .and. (.not. is_init_guga))) then
@@ -4774,7 +4735,7 @@ contains
         case (excit_type%fullstart_R_to_L) ! full-start raising into lowering
 
             if (t_crude_exchange .or. (t_crude_exchange_noninits .and. (.not. is_init_guga))) then
-                call perform_crude_excitation(ilut, excitInfo, excitation, compFlag)
+                call perform_crude_excitation(ilut, csf_info, excitInfo, excitation, compFlag)
 
                 ! in this case the pgen is just the orbital pgen, as only
                 ! on CSF can be created from it..
@@ -4789,7 +4750,7 @@ contains
 
             else
 
-                call calcFullStartR2L_stochastic(ilut, excitInfo, excitation, &
+                call calcFullStartR2L_stochastic(ilut, csf_info, excitInfo, excitation, &
                                                  branch_pgen, posSwitches, negSwitches, weights)
 
                 if (t_approx_exchange .or. (t_approx_exchange_noninits .and. (.not. is_init_guga))) then
@@ -4813,7 +4774,7 @@ contains
                 return
             end if
 
-            call calcFullStartFullStopAlike(ilut, excitInfo, excitations)
+            call calcFullStartFullStopAlike(ilut, csf_info, excitInfo, excitations)
 
             excitation = excitations(:, 1)
 
@@ -4855,7 +4816,7 @@ contains
             ! thats seems a bit inefficient.
 
             if (t_crude_exchange .or. (t_crude_exchange_noninits .and. (.not. is_init_guga))) then
-                call perform_crude_excitation(ilut, excitInfo, excitation, compFlag)
+                call perform_crude_excitation(ilut, csf_info, excitInfo, excitation, compFlag)
 
                 ! in this case the pgen is just the orbital pgen, as only
                 ! on CSF can be created from it..
@@ -4870,7 +4831,7 @@ contains
 
             else
 
-                call calcFullStartFullStopMixedStochastic(ilut, excitInfo, &
+                call calcFullStartFullStopMixedStochastic(ilut, csf_info, excitInfo, &
                                                           excitation, branch_pgen, posSwitches, negSwitches, weights)
 
                 if (t_approx_exchange .or. (t_approx_exchange_noninits .and. (.not. is_init_guga))) then
@@ -5012,9 +4973,9 @@ contains
 
         if (t_approx_exchange .or. (t_approx_exchange_noninits .and. &
                 (.not. is_init_guga))) then
-            call forced_mixed_start(ilut, excitInfo, t, branch_pgen)
+            call forced_mixed_start(ilut, csf_info, excitInfo, t, branch_pgen)
         else
-            call mixedFullStartStochastic(ilut, excitInfo, weights, posSwitches, &
+            call mixedFullStartStochastic(ilut, csf_info, excitInfo, weights, posSwitches, &
                                           negSwitches, t, branch_pgen)
         end if
 
@@ -5033,7 +4994,7 @@ contains
         temp_pgen = 1.0_dp
 
         do iOrb = excitInfo%fullStart + 1, excitInfo%fullEnd - 1
-            call doubleUpdateStochastic(ilut, iOrb, excitInfo, weights, negSwitches, &
+            call doubleUpdateStochastic(ilut, csf_info, iOrb, excitInfo, weights, negSwitches, &
                                         posSwitches, t, branch_pgen)
 
             ! zero x1 - elements can also happen in the double update
@@ -5043,7 +5004,7 @@ contains
             end if
         end do
 
-        call mixedFullStopStochastic(ilut, excitInfo, t)
+        call mixedFullStopStochastic(ilut, csf_info, excitInfo, t)
 
         ! check if there was a change in the stepvector in the double
         ! overlap region
@@ -5082,7 +5043,7 @@ contains
                 return
             end if
 
-            integral = calcMixedContribution(ilut, t, excitInfo%fullStart, excitInfo%fullEnd)
+            integral = calcMixedContribution(ilut, csf_info, t, excitInfo%fullStart, excitInfo%fullEnd)
             pgen = branch_pgen
 
             ! just to be save that a switch always happens at the end
@@ -5110,16 +5071,17 @@ contains
 
     end subroutine calcFullStartFullStopMixedStochastic
 
-    subroutine calc_mixed_contr_nosym(ilut, t, excitInfo, pgen, integral)
+    subroutine calc_mixed_contr_nosym(ilut, csf_info, t, excitInfo, pgen, integral)
         integer(n_int), intent(in) :: ilut(0:nifguga), t(0:nifguga)
+        type(CSF_Info_t), intent(in) :: csf_info
         type(ExcitationInformation_t), intent(inout) :: excitInfo
         real(dp), intent(out) :: pgen
         HElement_t(dp), intent(out) :: integral
 
         ! for now: just use old (inefficient) but already provided functions:
-        integral = calcMixedContribution(ilut, t, excitInfo%fullStart, excitInfo%fullEnd)
+        integral = calcMixedContribution(ilut, csf_info, t, excitInfo%fullStart, excitInfo%fullEnd)
 
-        pgen = calcMixedPgenContribution(ilut, t, excitInfo)
+        pgen = calcMixedPgenContribution(ilut, csf_info, t, excitInfo)
 
     end subroutine calc_mixed_contr_nosym
 
@@ -5182,7 +5144,7 @@ contains
 
         ! also get p(b|a)
         ! did i get that the wrong way around??
-        call pgen_select_orb_guga_mol(occ_orbs, i, j, cpt_ba, ba_sum, i, .true.)
+        call pgen_select_orb_guga_mol(csf_info, occ_orbs, i, j, cpt_ba, ba_sum, i, .true.)
 
         if (tGen_guga_weighted) then
             do orb = i + 1, j - 1
@@ -5198,7 +5160,7 @@ contains
         cum_sum = cum_sum + cpt_b
 
         ! and get p(a|b)
-        call pgen_select_orb_guga_mol(occ_orbs, j, i, cpt_ab, ab_sum, -j, .true.)
+        call pgen_select_orb_guga_mol(csf_info, occ_orbs, j, i, cpt_ab, ab_sum, -j, .true.)
 
         ! and deal with rest:
 
@@ -5225,8 +5187,9 @@ contains
 
     end subroutine calc_orbital_pgen_contr_mol
 
-    subroutine calc_orbital_pgen_contr_ueg(ilut, occ_orbs, above_cpt, below_cpt)
+    subroutine calc_orbital_pgen_contr_ueg(ilut, csf_info, occ_orbs, above_cpt, below_cpt)
         integer(n_int), intent(in) :: ilut(0:nifguga)
+        type(CSF_Info_t), intent(in) :: csf_info
         integer, intent(in) :: occ_orbs(2)
         real(dp), intent(out) :: above_cpt, below_cpt
 
@@ -5235,7 +5198,7 @@ contains
         integer :: tmp_orbArr(nSpatOrbs)
         integer :: i, j
 
-        call gen_ab_cum_list_1_1(ilut, occ_orbs, cum_arr, tmp_excitInfo, tmp_orbArr)
+        call gen_ab_cum_list_1_1(ilut, csf_info, occ_orbs, cum_arr, tmp_excitInfo, tmp_orbArr)
         cum_sum = cum_arr(nSpatOrbs)
 
         i = gtID(occ_orbs(1))
@@ -5346,7 +5309,7 @@ contains
             ! reinit remainings switches and weights
             ! i think i could also do a on-the fly switch recalculation..
             ! so only the weights have to be reinited
-            call calcRemainingSwitches_excitInfo_double(excitInfo, posSwitches, &
+            call calcRemainingSwitches_excitInfo_double(csf_info, excitInfo, posSwitches, &
                                                         negSwitches)
 
             weights = init_doubleWeight(ilut, csf_info, j)
@@ -5672,7 +5635,7 @@ contains
 
     end subroutine calc_mixed_contr_sym
 
-    function calcMixedPgenContribution(ilut, t, csf_info, excitInfo) result(pgen)
+    function calcMixedPgenContribution(ilut, csf_info, t, excitInfo) result(pgen)
         integer(n_int), intent(in) :: ilut(0:nifguga), t(0:nifguga)
         type(CSF_Info_t), intent(in) :: csf_info
         type(ExcitationInformation_t), intent(inout) :: excitInfo
@@ -5704,7 +5667,7 @@ contains
                 excitInfo%fullEnd = j
                 excitInfo%firstEnd = j
                 ! reinit remainings switches and weights
-                call calcRemainingSwitches_excitInfo_double(excitInfo, posSwitches, &
+                call calcRemainingSwitches_excitInfo_double(csf_info, excitInfo, posSwitches, &
                                                             negSwitches)
 
                 weights = init_doubleWeight(ilut, csf_info, j)
@@ -5849,7 +5812,7 @@ contains
 
     end function calcMixedPgenContribution
 
-    function calcMixedContribution(ilut, t, csf_info, start, ende, rdm_ind, rdm_mat) result(integral)
+    function calcMixedContribution(ilut, csf_info, t, start, ende, rdm_ind, rdm_mat) result(integral)
         integer(n_int), intent(in) :: ilut(0:nifguga), t(0:nifguga)
         type(CSF_Info_t), intent(in) :: csf_info
         integer, intent(in) :: start, ende
@@ -6014,14 +5977,14 @@ contains
                                             csf_info%B_ilut(start2), csf_info%B_ilut(ende1))
         end if
 
-        call createStochasticStart_single(ilut, excitInfo, weights, posSwitches, &
+        call createStochasticStart_single(ilut, csf_info, excitInfo, weights, posSwitches, &
                                           negSwitches, t, branch_pgen)
 
         ! check validity
         check_abort_excit(branch_pgen, t)
 
         do iOrb = start1 + 1, start2 - 1
-            call singleStochasticUpdate(ilut, iOrb, excitInfo, weights, posSwitches, &
+            call singleStochasticUpdate(ilut, csf_info, iOrb, excitInfo, weights, posSwitches, &
                                         negSwitches, t, temp_pgen)
 
             branch_pgen = branch_pgen * temp_pgen
@@ -6034,14 +5997,14 @@ contains
         ! then do lowering semi start
         weights = weights%ptr
 
-        call calcLoweringSemiStartStochastic(ilut, excitInfo, weights, negSwitches, &
+        call calcLoweringSemiStartStochastic(ilut, csf_info, excitInfo, weights, negSwitches, &
                                              posSwitches, t, branch_pgen)
 
         ! check validity
         check_abort_excit(branch_pgen, t)
 
         do iOrb = start2 + 1, ende1 - 1
-            call doubleUpdateStochastic(ilut, iOrb, excitInfo, weights, negSwitches, &
+            call doubleUpdateStochastic(ilut, csf_info, iOrb, excitInfo, weights, negSwitches, &
                                         posSwitches, t, branch_pgen)
             ! check validity
             check_abort_excit(branch_pgen, t)
@@ -6051,7 +6014,7 @@ contains
         ! then update weights and and to lowering semi-stop
         weights = weights%ptr
 
-        call calcRaisingSemiStopStochastic(ilut, excitInfo, weights, negSwitches, &
+        call calcRaisingSemiStopStochastic(ilut, csf_info, excitInfo, weights, negSwitches, &
                                            posSwitches, t, branch_pgen)
 
         ! check validity
@@ -6060,7 +6023,7 @@ contains
         excitInfo%currentGen = excitInfo%lastGen
 
         do iOrb = ende1 + 1, ende2 - 1
-            call singleStochasticUpdate(ilut, iOrb, excitInfo, weights, posSwitches, &
+            call singleStochasticUpdate(ilut, csf_info, iOrb, excitInfo, weights, posSwitches, &
                                         negSwitches, t, temp_pgen)
 
             branch_pgen = branch_pgen * temp_pgen
@@ -6070,7 +6033,7 @@ contains
         end do
 
         ! and finally to end step
-        call singleStochasticEnd(excitInfo, t)
+        call singleStochasticEnd(csf_info, excitInfo, t)
 
         ! if we do RDMs also store the x0 and x1 coupling coeffs
         if (tFillingStochRDMOnFly) then
@@ -6182,14 +6145,14 @@ contains
                                             csf_info%B_ilut(start2), csf_info%B_ilut(ende1))
         end if
 
-        call createStochasticStart_single(ilut, excitInfo, weights, posSwitches, &
+        call createStochasticStart_single(ilut, csf_info, excitInfo, weights, posSwitches, &
                                           negSwitches, t, branch_pgen)
 
         ! check validity
         check_abort_excit(branch_pgen, t)
 
         do iOrb = start1 + 1, start2 - 1
-            call singleStochasticUpdate(ilut, iOrb, excitInfo, weights, posSwitches, &
+            call singleStochasticUpdate(ilut, csf_info, iOrb, excitInfo, weights, posSwitches, &
                                         negSwitches, t, temp_pgen)
             branch_pgen = branch_pgen * temp_pgen
 
@@ -6202,14 +6165,14 @@ contains
         ! then do lowering semi start
         weights = weights%ptr
 
-        call calcRaisingSemiStartStochastic(ilut, excitInfo, weights, negSwitches, &
+        call calcRaisingSemiStartStochastic(ilut, csf_info, excitInfo, weights, negSwitches, &
                                             posSwitches, t, branch_pgen)
 
         ! check validity
         check_abort_excit(branch_pgen, t)
 
         do iOrb = start2 + 1, ende1 - 1
-            call doubleUpdateStochastic(ilut, iOrb, excitInfo, weights, negSwitches, &
+            call doubleUpdateStochastic(ilut, csf_info, iOrb, excitInfo, weights, negSwitches, &
                                         posSwitches, t, branch_pgen)
             ! check validity
             check_abort_excit(branch_pgen, t)
@@ -6219,7 +6182,7 @@ contains
         ! then update weights and and to lowering semi-stop
         weights = weights%ptr
 
-        call calcLoweringSemiStopStochastic(ilut, excitInfo, weights, negSwitches, &
+        call calcLoweringSemiStopStochastic(ilut, csf_info, excitInfo, weights, negSwitches, &
                                             posSwitches, t, branch_pgen)
 
         ! check validity
@@ -6228,7 +6191,7 @@ contains
         excitInfo%currentGen = excitInfo%lastGen
 
         do iOrb = ende1 + 1, ende2 - 1
-            call singleStochasticUpdate(ilut, iOrb, excitInfo, weights, posSwitches, &
+            call singleStochasticUpdate(ilut, csf_info, iOrb, excitInfo, weights, posSwitches, &
                                         negSwitches, t, temp_pgen)
             branch_pgen = branch_pgen * temp_pgen
             ! check validity
@@ -6237,7 +6200,7 @@ contains
         end do
 
         ! and finally to end step
-        call singleStochasticEnd(excitInfo, t)
+        call singleStochasticEnd(csf_info, excitInfo, t)
 
         ! if we do RDMs also store the x0 and x1 coupling coeffs
         if (tFillingStochRDMOnFly) then
@@ -6326,14 +6289,14 @@ contains
                                             csf_info%B_ilut(start2), csf_info%B_ilut(ende1))
         end if
 
-        call createStochasticStart_single(ilut, excitInfo, weights, posSwitches, &
+        call createStochasticStart_single(ilut, csf_info, excitInfo, weights, posSwitches, &
                                           negSwitches, t, branch_pgen)
 
         ! check validity (defined in macros.h)
         check_abort_excit(branch_pgen, t)
 
         do iOrb = start1 + 1, start2 - 1
-            call singleStochasticUpdate(ilut, iOrb, excitInfo, weights, posSwitches, &
+            call singleStochasticUpdate(ilut, csf_info, iOrb, excitInfo, weights, posSwitches, &
                                         negSwitches, t, temp_pgen)
             ! check validity
             branch_pgen = branch_pgen * temp_pgen
@@ -6346,14 +6309,14 @@ contains
         ! then do lowering semi start
         weights = weights%ptr
 
-        call calcRaisingSemiStartStochastic(ilut, excitInfo, weights, negSwitches, &
+        call calcRaisingSemiStartStochastic(ilut, csf_info, excitInfo, weights, negSwitches, &
                                             posSwitches, t, branch_pgen)
 
         ! check validity
         check_abort_excit(branch_pgen, t)
 
         do iOrb = start2 + 1, ende1 - 1
-            call doubleUpdateStochastic(ilut, iOrb, excitInfo, weights, negSwitches, &
+            call doubleUpdateStochastic(ilut, csf_info, iOrb, excitInfo, weights, negSwitches, &
                                         posSwitches, t, branch_pgen)
             ! check validity
             check_abort_excit(branch_pgen, t)
@@ -6363,14 +6326,14 @@ contains
         ! then update weights and and to lowering semi-stop
         weights = weights%ptr
 
-        call calcRaisingSemiStopStochastic(ilut, excitInfo, weights, negSwitches, &
+        call calcRaisingSemiStopStochastic(ilut, csf_info, excitInfo, weights, negSwitches, &
                                            posSwitches, t, branch_pgen)
 
         ! check validity
         check_abort_excit(branch_pgen, t)
 
         do iOrb = ende1 + 1, ende2 - 1
-            call singleStochasticUpdate(ilut, iOrb, excitInfo, weights, posSwitches, &
+            call singleStochasticUpdate(ilut, csf_info, iOrb, excitInfo, weights, posSwitches, &
                                         negSwitches, t, temp_pgen)
             ! check validity
             branch_pgen = branch_pgen * temp_pgen
@@ -6380,7 +6343,7 @@ contains
         end do
 
         ! and finally to end step
-        call singleStochasticEnd(excitInfo, t)
+        call singleStochasticEnd(csf_info, excitInfo, t)
 
         ! if we do RDMs also store the x0 and x1 coupling coeffs
         if (tFillingStochRDMOnFly) then
@@ -6491,14 +6454,14 @@ contains
                                             csf_info%B_ilut(start2), csf_info%B_ilut(ende1))
         end if
 
-        call createStochasticStart_single(ilut, excitInfo, weights, posSwitches, &
+        call createStochasticStart_single(ilut, csf_info, excitInfo, weights, posSwitches, &
                                           negSwitches, t, branch_pgen)
 
         ! check validity
         check_abort_excit(branch_pgen, t)
 
         do iOrb = start1 + 1, start2 - 1
-            call singleStochasticUpdate(ilut, iOrb, excitInfo, weights, posSwitches, &
+            call singleStochasticUpdate(ilut, csf_info, iOrb, excitInfo, weights, posSwitches, &
                                         negSwitches, t, temp_pgen)
             ! check validity
             branch_pgen = branch_pgen * temp_pgen
@@ -6512,14 +6475,14 @@ contains
         ! just point to the next weight:
         weights = weights%ptr
 
-        call calcRaisingSemiStartStochastic(ilut, excitInfo, weights, negSwitches, &
+        call calcRaisingSemiStartStochastic(ilut, csf_info, excitInfo, weights, negSwitches, &
                                             posSwitches, t, branch_pgen)
 
         ! check validity
         check_abort_excit(branch_pgen, t)
 
         do iOrb = start2 + 1, ende1 - 1
-            call doubleUpdateStochastic(ilut, iOrb, excitInfo, weights, negSwitches, &
+            call doubleUpdateStochastic(ilut, csf_info, iOrb, excitInfo, weights, negSwitches, &
                                         posSwitches, t, branch_pgen)
             ! check validity
 
@@ -6530,14 +6493,14 @@ contains
         ! then update weights and and to lowering semi-stop
         weights = weights%ptr
 
-        call calcRaisingSemiStopStochastic(ilut, excitInfo, weights, negSwitches, &
+        call calcRaisingSemiStopStochastic(ilut, csf_info, excitInfo, weights, negSwitches, &
                                            posSwitches, t, branch_pgen)
 
         ! check validity
         check_abort_excit(branch_pgen, t)
 
         do iOrb = ende1 + 1, ende2 - 1
-            call singleStochasticUpdate(ilut, iOrb, excitInfo, weights, posSwitches, &
+            call singleStochasticUpdate(ilut, csf_info, iOrb, excitInfo, weights, posSwitches, &
                                         negSwitches, t, temp_pgen)
             ! check validity
             branch_pgen = branch_pgen * temp_pgen
@@ -6547,7 +6510,7 @@ contains
         end do
 
         ! and finally to end step
-        call singleStochasticEnd(excitInfo, t)
+        call singleStochasticEnd(csf_info, excitInfo, t)
 
         ! if we do RDMs also store the x0 and x1 coupling coeffs
         if (tFillingStochRDMOnFly) then
@@ -6622,14 +6585,14 @@ contains
                                                 csf_info%B_ilut(start2), csf_info%B_ilut(ende1))
             end if
 
-            call createStochasticStart_single(ilut, excitInfo, weights, posSwitches, &
+            call createStochasticStart_single(ilut, csf_info, excitInfo, weights, posSwitches, &
                                               negSwitches, t, branch_pgen)
 
             ! check validity
             check_abort_excit(branch_pgen, t)
 
             do iOrb = start1 + 1, start2 - 1
-                call singleStochasticUpdate(ilut, iOrb, excitInfo, weights, posSwitches, &
+                call singleStochasticUpdate(ilut, csf_info, iOrb, excitInfo, weights, posSwitches, &
                                             negSwitches, t, temp_pgen)
                 ! check validity
                 branch_pgen = branch_pgen * temp_pgen
@@ -6642,14 +6605,14 @@ contains
             ! then do lowering semi start
             weights = weights%ptr
 
-            call calcLoweringSemiStartStochastic(ilut, excitInfo, weights, negSwitches, &
+            call calcLoweringSemiStartStochastic(ilut, csf_info, excitInfo, weights, negSwitches, &
                                                  posSwitches, t, branch_pgen)
 
             ! check validity
             check_abort_excit(branch_pgen, t)
 
             do iOrb = start2 + 1, ende1 - 1
-                call doubleUpdateStochastic(ilut, iOrb, excitInfo, weights, negSwitches, &
+                call doubleUpdateStochastic(ilut, csf_info, iOrb, excitInfo, weights, negSwitches, &
                                             posSwitches, t, branch_pgen)
                 ! check validity
 
@@ -6660,14 +6623,14 @@ contains
             ! then update weights and and to lowering semi-stop
             weights = weights%ptr
 
-            call calcLoweringSemiStopStochastic(ilut, excitInfo, weights, negSwitches, &
+            call calcLoweringSemiStopStochastic(ilut, csf_info, excitInfo, weights, negSwitches, &
                                                 posSwitches, t, branch_pgen)
 
             ! check validity
             check_abort_excit(branch_pgen, t)
 
             do iOrb = ende1 + 1, ende2 - 1
-                call singleStochasticUpdate(ilut, iOrb, excitInfo, weights, posSwitches, &
+                call singleStochasticUpdate(ilut, csf_info, iOrb, excitInfo, weights, posSwitches, &
                                             negSwitches, t, temp_pgen)
 
                 branch_pgen = branch_pgen * temp_pgen
@@ -6677,7 +6640,7 @@ contains
             end do
 
             ! and finally to end step
-            call singleStochasticEnd(excitInfo, t)
+            call singleStochasticEnd(csf_info, excitInfo, t)
 
             ! if we do RDMs also store the x0 and x1 coupling coeffs
             if (tFillingStochRDMOnFly) then
@@ -6768,14 +6731,14 @@ contains
                                             csf_info%B_ilut(start2), csf_info%B_ilut(ende1))
         end if
 
-        call createStochasticStart_single(ilut, excitInfo, weights, posSwitches, &
+        call createStochasticStart_single(ilut, csf_info, excitInfo, weights, posSwitches, &
                                           negSwitches, t, branch_pgen)
 
         ! check validity
         check_abort_excit(branch_pgen, t)
 
         do iOrb = start1 + 1, start2 - 1
-            call singleStochasticUpdate(ilut, iOrb, excitInfo, weights, posSwitches, &
+            call singleStochasticUpdate(ilut, csf_info, iOrb, excitInfo, weights, posSwitches, &
                                         negSwitches, t, temp_pgen)
             ! check validity
             branch_pgen = branch_pgen * temp_pgen
@@ -6789,7 +6752,7 @@ contains
         weights = weights%ptr
 
         ! branch_pgen gets update insde the routine!
-        call calcLoweringSemiStartStochastic(ilut, excitInfo, weights, negSwitches, &
+        call calcLoweringSemiStartStochastic(ilut, csf_info, excitInfo, weights, negSwitches, &
                                              posSwitches, t, branch_pgen)
 
         ! check validity
@@ -6797,7 +6760,7 @@ contains
 
         do iOrb = start2 + 1, ende1 - 1
             ! branch_pgen gets updated inside update routine
-            call doubleUpdateStochastic(ilut, iOrb, excitInfo, weights, negSwitches, &
+            call doubleUpdateStochastic(ilut, csf_info, iOrb, excitInfo, weights, negSwitches, &
                                         posSwitches, t, branch_pgen)
             ! here only need to have probweight, since i cant only check x1 element
             ! check validity
@@ -6809,14 +6772,14 @@ contains
         weights = weights%ptr
 
         ! branch_pgen gets updated inside funciton
-        call calcLoweringSemiStopStochastic(ilut, excitInfo, weights, negSwitches, &
+        call calcLoweringSemiStopStochastic(ilut, csf_info, excitInfo, weights, negSwitches, &
                                             posSwitches, t, branch_pgen)
 
         ! check validity
         check_abort_excit(branch_pgen, t)
 
         do iOrb = ende1 + 1, ende2 - 1
-            call singleStochasticUpdate(ilut, iOrb, excitInfo, weights, posSwitches, &
+            call singleStochasticUpdate(ilut, csf_info, iOrb, excitInfo, weights, posSwitches, &
                                         negSwitches, t, temp_pgen)
             ! check validity
             branch_pgen = branch_pgen * temp_pgen
@@ -6825,7 +6788,7 @@ contains
         end do
 
         ! and finally to end step
-        call singleStochasticEnd(excitInfo, t)
+        call singleStochasticEnd(csf_info, excitInfo, t)
 
         ! if we do RDMs also store the x0 and x1 coupling coeffs
         if (tFillingStochRDMOnFly) then
@@ -6904,7 +6867,7 @@ contains
         end if
 
         ! create st
-        call createStochasticStart_single(ilut, excitInfo, weights, posSwitches, &
+        call createStochasticStart_single(ilut, csf_info, excitInfo, weights, posSwitches, &
                                           negSwitches, t, branch_pgen)
 
         ! in case of early access the pgen should be set to 0
@@ -6914,7 +6877,7 @@ contains
         check_abort_excit(branch_pgen, t)
 
         do i = st + 1, se - 1
-            call singleStochasticUpdate(ilut, i, excitInfo, weights, posSwitches, &
+            call singleStochasticUpdate(ilut, csf_info, i, excitInfo, weights, posSwitches, &
                                         negSwitches, t, temp_pgen)
             branch_pgen = branch_pgen * temp_pgen
             ! check validity
@@ -6926,7 +6889,7 @@ contains
         ! try the new reusing of the weights object..
         weights = weights%ptr
 
-        call calcRaisingSemiStartStochastic(ilut, excitInfo, weights, negSwitches, &
+        call calcRaisingSemiStartStochastic(ilut, csf_info, excitInfo, weights, negSwitches, &
                                             posSwitches, t, branch_pgen)
 
         ! check validity
@@ -6937,7 +6900,7 @@ contains
         ! actually that would be, in the full-stop case, temporary measure...
         ! but would unjust favor certain types of excitations..
         do i = se + 1, en - 1
-            call doubleUpdateStochastic(ilut, i, excitInfo, &
+            call doubleUpdateStochastic(ilut, csf_info, i, excitInfo, &
                                         weights, negSwitches, posSwitches, t, branch_pgen)
 
             if (near_zero(extract_matrix_element(t, 2)) .or. near_zero(branch_pgen)) then
@@ -6946,7 +6909,7 @@ contains
             end if
         end do
 
-        call mixedFullStopStochastic(ilut, excitInfo, t)
+        call mixedFullStopStochastic(ilut, csf_info, excitInfo, t)
 
         ! check if matrix element is non-zero and if a switch happened
         if (.not. near_zero(extract_matrix_element(t, 1))) then
@@ -7001,7 +6964,7 @@ contains
         global_excitInfo = excitInfo
 
         if (t_approx_exchange .or. (t_approx_exchange_noninits .and. (.not. is_init_guga))) then
-            call calc_mixed_end_contr_approx(t, excitInfo, integral)
+            call calc_mixed_end_contr_approx(t, csf_info, excitInfo, integral)
             pgen = branch_pgen
 
         else
@@ -7264,7 +7227,7 @@ contains
             ! have to initialize probWeight all the time
             probWeight = 1.0_dp
 
-            call calcRemainingSwitches_excitInfo_double(excitInfo, posSwitches, negSwitches)
+            call calcRemainingSwitches_excitInfo_double(csf_info, excitInfo, posSwitches, negSwitches)
 
             weights = init_semiStartWeight(ilut, csf_info, se, i, negSwitches(se), &
                                            posSwitches(se), csf_info%B_ilut(se))
@@ -7456,7 +7419,7 @@ contains
                 probWeight = 0.0_dp
             end if
             ! get orbitals prob. also
-            probWeight = probWeight * calc_pgen_yix(i)
+            probWeight = probWeight * calc_pgen_yix(csf_info, i)
 
             pgen = pgen + probWeight
 
@@ -7565,7 +7528,7 @@ contains
         end if
 
         ! create start
-        call createStochasticStart_single(ilut, excitInfo, weights, posSwitches, &
+        call createStochasticStart_single(ilut, csf_info, excitInfo, weights, posSwitches, &
                                           negSwitches, t, branch_pgen)
 
         ! in case of early exit pgen should be set to 0
@@ -7575,7 +7538,7 @@ contains
         check_abort_excit(branch_pgen, t)
 
         do i = st + 1, se - 1
-            call singleStochasticUpdate(ilut, i, excitInfo, weights, posSwitches, &
+            call singleStochasticUpdate(ilut, csf_info, i, excitInfo, weights, posSwitches, &
                                         negSwitches, t, temp_pgen)
             branch_pgen = branch_pgen * temp_pgen
             ! check validity
@@ -7586,7 +7549,7 @@ contains
         ! do the specific semi-start
         weights = weights%ptr
 
-        call calcLoweringSemiStartStochastic(ilut, excitInfo, weights, negSwitches, &
+        call calcLoweringSemiStartStochastic(ilut, csf_info, excitInfo, weights, negSwitches, &
                                              posSwitches, t, branch_pgen)
 
         ! check validity
@@ -7597,7 +7560,7 @@ contains
         ! actually that would be, in the full-stop case, temporary measure...
         ! but would unjust favor certain types of excitations..
         do i = se + 1, en - 1
-            call doubleUpdateStochastic(ilut, i, excitInfo, &
+            call doubleUpdateStochastic(ilut, csf_info, i, excitInfo, &
                                         weights, negSwitches, posSwitches, t, branch_pgen)
             ! also here there has to be a switch at some point so check x1
             if (near_zero(extract_matrix_element(t, 2)) .or. near_zero(branch_pgen)) then
@@ -7606,7 +7569,7 @@ contains
             end if
         end do
 
-        call mixedFullStopStochastic(ilut, excitInfo, t)
+        call mixedFullStopStochastic(ilut, csf_info, excitInfo, t)
 
         ! check if matrix element is non-zero and if a switch happened
         if (.not. near_zero(extract_matrix_element(t, 1))) then
@@ -7656,7 +7619,7 @@ contains
 
         if (t_approx_exchange .or. (t_approx_exchange_noninits .and. (.not. is_init_guga))) then
 
-            call calc_mixed_end_contr_approx(t, excitInfo, integral)
+            call calc_mixed_end_contr_approx(t, csf_info, excitInfo, integral)
             pgen = branch_pgen
 
         else
@@ -7849,14 +7812,14 @@ contains
             rdm_count = 0
         end if
 
-        call calcRemainingSwitches_excitInfo_double(excitInfo, posSwitches, negSwitches)
+        call calcRemainingSwitches_excitInfo_double(csf_info, excitInfo, posSwitches, negSwitches)
 
         ! need temporary switch arrays for more efficiently recalcing
         ! weights
         tmp_pos = posSwitches
         tmp_neg = negSwitches
         ! after last switch only dB = 0 branches! consider that
-        call setup_weight_funcs(t, st, se, weight_funcs)
+        call setup_weight_funcs(t, csf_info, st, se, weight_funcs)
 
         if (en < nSpatOrbs) then
             select case (step)
@@ -8373,7 +8336,7 @@ contains
             ! have to initialize probWeight all the time
             probWeight = 1.0_dp
 
-            call calcRemainingSwitches_excitInfo_double(excitInfo, posSwitches, negSwitches)
+            call calcRemainingSwitches_excitInfo_double(csf_info, excitInfo, posSwitches, negSwitches)
 
             weights = init_semiStartWeight(ilut, csf_info, se, i, negSwitches(se), &
                                            posSwitches(se), csf_info%B_ilut(se))
@@ -8565,7 +8528,7 @@ contains
                 probWeight = 0.0_dp
             end if
 
-            probWeight = probWeight * calc_pgen_yix(i)
+            probWeight = probWeight * calc_pgen_yix(csf_info, i)
 
             pgen = pgen + probWeight
 
@@ -9738,9 +9701,9 @@ contains
 
         if (t_approx_exchange .or. (t_approx_exchange_noninits .and. (.not. is_init_guga))) then
             ! todo the switch
-            call forced_mixed_start(ilut, excitInfo, t, branch_pgen)
+            call forced_mixed_start(ilut, csf_info, excitInfo, t, branch_pgen)
         else
-            call mixedFullStartStochastic(ilut, excitInfo, weights, posSwitches, &
+            call mixedFullStartStochastic(ilut, csf_info, excitInfo, weights, posSwitches, &
                                           negSwitches, t, branch_pgen)
         end if
 
@@ -9755,7 +9718,7 @@ contains
         ! single excitations
 
         do i = st + 1, se - 1
-            call doubleUpdateStochastic(ilut, i, excitInfo, &
+            call doubleUpdateStochastic(ilut, csf_info, i, excitInfo, &
                                         weights, negSwitches, posSwitches, t, branch_pgen)
 
             ! check validity
@@ -9772,7 +9735,7 @@ contains
         ! and then use smth like
         weights = weights%ptr
 
-        call calcRaisingSemiStopStochastic(ilut, excitInfo, weights, negSwitches, &
+        call calcRaisingSemiStopStochastic(ilut, csf_info, excitInfo, weights, negSwitches, &
                                            posSwitches, t, branch_pgen)
 
         ! check validity
@@ -9781,7 +9744,7 @@ contains
         excitInfo%currentGen = excitInfo%lastGen
 
         do i = se + 1, en - 1
-            call singleStochasticUpdate(ilut, i, excitInfo, weights, posSwitches, &
+            call singleStochasticUpdate(ilut, csf_info, i, excitInfo, weights, posSwitches, &
                                         negSwitches, t, temp_pgen)
             branch_pgen = branch_pgen * temp_pgen
 
@@ -9798,7 +9761,7 @@ contains
 
         end do
 
-        call singleStochasticEnd(excitInfo, t)
+        call singleStochasticEnd(csf_info, excitInfo, t)
 
         ! if we do RDMs also store the x0 and x1 coupling coeffs
         ! and I need to do it before the routines below since excitInfo
@@ -9834,7 +9797,7 @@ contains
         global_excitInfo = excitInfo
 
         if (t_approx_exchange .or. (t_approx_exchange_noninits .and. (.not. is_init_guga))) then
-            call calc_mixed_start_contr_approx(t, excitInfo, integral)
+            call calc_mixed_start_contr_approx(t, csf_info, excitInfo, integral)
             pgen = branch_pgen
 
         else
@@ -9977,7 +9940,7 @@ contains
         excitInfo%fullstart = 1
         excitInfo%secondStart = 1
 
-        call calcRemainingSwitches_excitInfo_double(excitInfo, posSwitches, negSwitches)
+        call calcRemainingSwitches_excitInfo_double(csf_info, excitInfo, posSwitches, negSwitches)
 
         se = excitInfo%firstEnd
         en = excitInfo%fullEnd
@@ -9999,7 +9962,7 @@ contains
 
         ! initialize pgen with original picked orbital combination
         ! although already calculated ... whatever..
-        pgen = branch_pgen * calc_pgen_yix_start(st)
+        pgen = branch_pgen * calc_pgen_yix_start(csf_info, st)
 
         ! also need to reinitialize the fullstart into semi-stop weights, as
         ! i need those to recalc. the pgen contributions
@@ -10098,7 +10061,7 @@ contains
                                                 1.0_dp, x1_element=tempWeight)
 
                     ! for every open orbitals also add up pgen contributions
-                    orbitalProb = calc_pgen_yix_start(i)
+                    orbitalProb = calc_pgen_yix_start(csf_info, i)
 
                     ! and now need the probabilities on the way:
                     ! first the start: need the specific stepvalue unfortunately...
@@ -10234,7 +10197,7 @@ contains
 
                 branch_pgen = branch_pgen * startWeight / origWeight
                 ! and also need the orbitals picking prob
-                orbitalProb = calc_pgen_yix_start(i)
+                orbitalProb = calc_pgen_yix_start(csf_info, i)
 
                 ! and add up correctly
                 pgen = pgen + orbitalProb * branch_pgen
@@ -10280,7 +10243,7 @@ contains
 
             startWeight = switchWeight / (zeroWeight + switchWeight)
 
-            orbitalProb = calc_pgen_yix_start(sw)
+            orbitalProb = calc_pgen_yix_start(csf_info, sw)
 
             pgen = pgen + orbitalProb * branch_pgen * startWeight / origWeight
 
@@ -10413,10 +10376,10 @@ contains
         ! force a switch at the beginning
         if (t_approx_exchange .or. (t_approx_exchange_noninits .and. (.not. is_init_guga))) then
             ! do the switch
-            call forced_mixed_start(ilut, excitInfo, t, branch_pgen)
+            call forced_mixed_start(ilut, csf_info, excitInfo, t, branch_pgen)
 
         else
-            call mixedFullStartStochastic(ilut, excitInfo, weights, posSwitches, &
+            call mixedFullStartStochastic(ilut, csf_info, excitInfo, weights, posSwitches, &
                                           negSwitches, t, branch_pgen)
         end if
 
@@ -10433,7 +10396,7 @@ contains
         ! somehow garuantees a switch happens at some point, to avoid
         ! single excitations
         do i = st + 1, se - 1
-            call doubleUpdateStochastic(ilut, i, excitInfo, &
+            call doubleUpdateStochastic(ilut, csf_info, i, excitInfo, &
                                         weights, negSwitches, posSwitches, t, branch_pgen)
 
             ! to keep it general, i cant only check weights in doubleUpdate
@@ -10447,7 +10410,7 @@ contains
         ! and update weights here
         weights = weights%ptr
 
-        call calcLoweringSemiStopStochastic(ilut, excitInfo, weights, negSwitches, &
+        call calcLoweringSemiStopStochastic(ilut, csf_info, excitInfo, weights, negSwitches, &
                                             posSwitches, t, branch_pgen)
 
         ! check validity
@@ -10456,7 +10419,7 @@ contains
         excitInfo%currentGen = excitInfo%lastGen
 
         do i = se + 1, en - 1
-            call singleStochasticUpdate(ilut, i, excitInfo, weights, posSwitches, &
+            call singleStochasticUpdate(ilut, csf_info, i, excitInfo, weights, posSwitches, &
                                         negSwitches, t, temp_pgen)
             branch_pgen = branch_pgen * temp_pgen
 
@@ -10472,7 +10435,7 @@ contains
             check_abort_excit(branch_pgen, t)
         end do
 
-        call singleStochasticEnd(excitInfo, t)
+        call singleStochasticEnd(csf_info, excitInfo, t)
 
         ! if we do RDMs also store the x0 and x1 coupling coeffs
         ! and I need to do it before the routines below since excitInfo
@@ -10520,7 +10483,7 @@ contains
         global_excitInfo = excitInfo
 
         if (t_approx_exchange .or. (t_approx_exchange_noninits .and. (.not. is_init_guga))) then
-            call calc_mixed_start_contr_approx(t, excitInfo, integral)
+            call calc_mixed_start_contr_approx(t, csf_info, excitInfo, integral)
             pgen = branch_pgen
         else
             call calc_mixed_start_l2r_contr(ilut, t, excitInfo, branch_pgen, pgen, integral)
@@ -10758,7 +10721,7 @@ contains
         call convert_ilut_toNECI(ilut, ilutI)
         call convert_ilut_toNECI(excitation, ilutJ)
 
-        call calc_guga_matrix_element(ilutI, ilutJ, dummy, mat_ele, &
+        call calc_guga_matrix_element(ilutI, csf_info, ilutJ, dummy, mat_ele, &
                                       .true., 2)
 
         if (near_zero(mat_ele)) then
@@ -10884,7 +10847,7 @@ contains
         ! it beforehand for all?
         excitInfo%fullStart = 1
         excitInfo%secondStart = 1
-        call calcRemainingSwitches_excitInfo_double(excitInfo, posSwitches, negSwitches)
+        call calcRemainingSwitches_excitInfo_double(csf_info, excitInfo, posSwitches, negSwitches)
 
         weights = init_fullStartWeight(ilut, csf_info, se, en, negSwitches(se), &
                                        posSwitches(se), csf_info%B_ilut(se))
@@ -11294,10 +11257,10 @@ contains
         ! depending if its a r2l or l2r full-stop:
         if (i < orb_a) then
             ! its a L2R -> so no restrictions
-            call pgen_select_orb_guga_mol(occ_orbs, orb_a, j, cpt_ba, ba_sum)
+            call pgen_select_orb_guga_mol(csf_info, occ_orbs, orb_a, j, cpt_ba, ba_sum)
         else
             ! its a R2L so orbital i is off-limits
-            call pgen_select_orb_guga_mol(occ_orbs, orb_a, j, cpt_ba, ba_sum, i)
+            call pgen_select_orb_guga_mol(csf_info, occ_orbs, orb_a, j, cpt_ba, ba_sum, i)
         end if
 
         ! change to the fullstart into fullstop: loop until orbital j for the
@@ -11317,7 +11280,7 @@ contains
 
         ! and get p(a|b)
         ! only orbitals below j are allowed!
-        call pgen_select_orb_guga_mol(occ_orbs, j, orb_a, cpt_ab, ab_sum, -j, .true.)
+        call pgen_select_orb_guga_mol(csf_info, occ_orbs, j, orb_a, cpt_ab, ab_sum, -j, .true.)
 
         ! and deal with rest:
         if (tGen_guga_weighted) then
@@ -11384,7 +11347,7 @@ contains
         ! over on the outside and is assumed picked first or 2nd here??
         ! taking i and j here is wrong! i is the open orbital, but j
         ! is the already picked electron! it has to be orb_a here or?
-        call pgen_select_orb_guga_mol(occ_orbs, i, orb_a, cpt_ba, ba_sum, i, .true.)
+        call pgen_select_orb_guga_mol(csf_info, occ_orbs, i, orb_a, cpt_ba, ba_sum, i, .true.)
 
         ! change to the fullstart into fullstop: loop until orbital a
         if (tGen_guga_weighted) then
@@ -11405,10 +11368,10 @@ contains
         ! play!
         if (orb_a > j) then
             ! then orb_j is off-limits
-            call pgen_select_orb_guga_mol(occ_orbs, orb_a, i, cpt_ab, ab_sum, j)
+            call pgen_select_orb_guga_mol(csf_info, occ_orbs, orb_a, i, cpt_ab, ab_sum, j)
         else
             ! in this case there is no restriction guga-wise..
-            call pgen_select_orb_guga_mol(occ_orbs, orb_a, i, cpt_ab, ab_sum)
+            call pgen_select_orb_guga_mol(csf_info, occ_orbs, orb_a, i, cpt_ab, ab_sum)
         end if
 
         ! and deal with rest:
@@ -11464,7 +11427,7 @@ contains
         excitInfo%fullstart = 1
         excitInfo%secondStart = 1
 
-        call calcRemainingSwitches_excitInfo_double(excitInfo, posSwitches, negSwitches)
+        call calcRemainingSwitches_excitInfo_double(csf_info, excitInfo, posSwitches, negSwitches)
 
         se = excitInfo%firstEnd
         en = excitInfo%fullEnd
@@ -11490,7 +11453,7 @@ contains
 
         ! initialize pgen with original picked orbital combination
         ! although already calculated ... whatever..
-        pgen = branch_pgen * calc_pgen_yix_start(st)
+        pgen = branch_pgen * calc_pgen_yix_start(csf_info, st)
 
         ! also need to reinitialize the fullstart into semi-stop weights, as
         ! i need those to recalc. the pgen contributions
@@ -11576,7 +11539,7 @@ contains
             ! not only until original fullstart...
             excitInfo%fullStart = 1
             excitInfo%secondStart = 1
-            call calcRemainingSwitches_excitInfo_double(excitInfo, posSwitches, negSwitches)
+            call calcRemainingSwitches_excitInfo_double(csf_info, excitInfo, posSwitches, negSwitches)
 
             ! the rest all gets modified by botCont.. so if it is zero do not
             ! continue ( do not forget to encode the umat!
@@ -11598,7 +11561,7 @@ contains
                                                 1.0_dp, x1_element=tempWeight)
 
                     ! for every open orbitals also add up pgen contributions
-                    orbitalProb = calc_pgen_yix_start(i)
+                    orbitalProb = calc_pgen_yix_start(csf_info, i)
 
                     ! have to reinitialize the weights dont i? nah nid so richtig
                     ! weils ja nur nach hinten geht...
@@ -11742,7 +11705,7 @@ contains
                 branch_pgen = branch_pgen * startWeight / origWeight
                 ! and also need the orbitals picking prob
 
-                orbitalProb = calc_pgen_yix_start(i)
+                orbitalProb = calc_pgen_yix_start(csf_info, i)
 
                 ! and add up correctly
                 pgen = pgen + orbitalProb * branch_pgen
@@ -11793,7 +11756,7 @@ contains
 
             startWeight = switchWeight / (zeroWeight + switchWeight)
 
-            orbitalProb = calc_pgen_yix_start(sw)
+            orbitalProb = calc_pgen_yix_start(csf_info, sw)
 
             pgen = pgen + orbitalProb * branch_pgen * startWeight / origWeight
 
@@ -12086,14 +12049,14 @@ contains
             weights = init_singleWeight(ilut, csf_info, excitInfo%fullEnd)
         end if
 
-        call createStochasticStart_single(ilut, excitInfo, weights, posSwitches, &
+        call createStochasticStart_single(ilut, csf_info, excitInfo, weights, posSwitches, &
                                           negSwitches, t, branch_pgen)
 
         ! check if weights were 0
         check_abort_excit(branch_pgen, t)
 
         do iOrb = excitInfo%fullStart + 1, excitInfo%secondStart - 1
-            call singleStochasticUpdate(ilut, iOrb, excitInfo, weights, posSwitches, &
+            call singleStochasticUpdate(ilut, csf_info, iOrb, excitInfo, weights, posSwitches, &
                                         negSwitches, t, temp_pgen)
             ! check and update weights
             branch_pgen = branch_pgen * temp_pgen
@@ -12133,7 +12096,7 @@ contains
         excitInfo%currentGen = excitInfo%lastGen
 
         do iOrb = excitInfo%secondStart + 1, excitInfo%fullEnd - 1
-            call singleStochasticUpdate(ilut, iOrb, excitInfo, weights, posSwitches, &
+            call singleStochasticUpdate(ilut, csf_info, iOrb, excitInfo, weights, posSwitches, &
                                         negSwitches, t, temp_pgen)
             ! check and update weights
             branch_pgen = branch_pgen * temp_pgen
@@ -12141,7 +12104,7 @@ contains
             check_abort_excit(branch_pgen, t)
         end do
 
-        call singleStochasticEnd(excitInfo, t)
+        call singleStochasticEnd(csf_info, excitInfo, t)
 
         if (tFillingStochRDMOnFly) then
             call encode_stochastic_rdm_info(GugaBits, t, rdm_ind= &
@@ -12200,7 +12163,7 @@ contains
         end if
 
         ! i only need normal single stochastic start then..
-        call createStochasticStart_single(ilut, excitInfo, weights, posSwitches, &
+        call createStochasticStart_single(ilut, csf_info, excitInfo, weights, posSwitches, &
                                           negSwitches, t, branch_pgen)
 
         ! matrix element cannot be zero but both branch weights might have been
@@ -12208,7 +12171,7 @@ contains
 
         ! then stochastc single update
         do iOrb = excitInfo%fullStart + 1, excitInfo%secondStart - 1
-            call singleStochasticUpdate(ilut, iOrb, excitInfo, weights, posSwitches, &
+            call singleStochasticUpdate(ilut, csf_info, iOrb, excitInfo, weights, posSwitches, &
                                         negSwitches, t, temp_pgen)
             branch_pgen = branch_pgen * temp_pgen
             ! check if branch weights turned 0
@@ -12344,7 +12307,7 @@ contains
         end if
 
         ! i only need normal single stochastic start then..
-        call createStochasticStart_single(ilut, excitInfo, weights, posSwitches, &
+        call createStochasticStart_single(ilut, csf_info, excitInfo, weights, posSwitches, &
                                           negSwitches, t, branch_pgen)
 
         ! matrix elements cant be 0, but maybe both branch weights were...
@@ -12352,7 +12315,7 @@ contains
 
         ! then stochastc single update
         do iOrb = excitInfo%fullStart + 1, excitInfo%secondStart - 1
-            call singleStochasticUpdate(ilut, iOrb, excitInfo, weights, posSwitches, &
+            call singleStochasticUpdate(ilut, csf_info, iOrb, excitInfo, weights, posSwitches, &
                                         negSwitches, t, temp_pgen)
             branch_pgen = branch_pgen * temp_pgen
             ! matrix elements cant be 0 but branch weight might be..
@@ -12599,14 +12562,14 @@ contains
 
         ! and then we have to do just a regular single excitation
         do iOrb = semi + 1, ende - 1
-            call singleStochasticUpdate(ilut, iOrb, excitInfo, weights, &
+            call singleStochasticUpdate(ilut, csf_info, iOrb, excitInfo, weights, &
                                         posSwitches, negSwitches, t, temp_pgen)
             ! matrix element cant be 0 but maybe both branch weights were..
             branch_pgen = branch_pgen * temp_pgen
             check_abort_excit(branch_pgen, t)
         end do
 
-        call singleStochasticEnd(excitInfo, t)
+        call singleStochasticEnd(csf_info, excitInfo, t)
 
         if (tFillingStochRDMOnFly) then
             call encode_stochastic_rdm_info(GugaBits, t, rdm_ind= &
@@ -12781,7 +12744,7 @@ contains
         ! x0 matrix elements cant be 0 at a RR semistop
         ! and then we have to do just a regular single excitation
         do iOrb = semi + 1, ende - 1
-            call singleStochasticUpdate(ilut, iOrb, excitInfo, weights, &
+            call singleStochasticUpdate(ilut, csf_info, iOrb, excitInfo, weights, &
                                         posSwitches, negSwitches, t, temp_pgen)
             branch_pgen = branch_pgen * temp_pgen
             ! in the single overlap regions matrix elements cant actually
@@ -12792,7 +12755,7 @@ contains
             check_abort_excit(branch_pgen, t)
         end do
 
-        call singleStochasticEnd(excitInfo, t)
+        call singleStochasticEnd(csf_info, excitInfo, t)
 
         if (tFillingStochRDMOnFly) then
             call encode_stochastic_rdm_info(GugaBits, t, rdm_ind= &
@@ -12889,7 +12852,7 @@ contains
         ! do the crude approximation here for now..
         if (tgen_guga_crude .and. .not. tgen_guga_mixed) then
 
-            call create_crude_single(ilut, exc, branch_pgen, excitInfo)
+            call create_crude_single(ilut, csf_info, exc, branch_pgen, excitInfo)
 
             if (near_zero(branch_pgen)) then
                 exc = 0_n_int
@@ -12900,7 +12863,7 @@ contains
             call convert_ilut_toNECI(ilut, ilutI)
             call convert_ilut_toNECI(exc, ilutJ)
 
-            call calc_guga_matrix_element(ilutI, ilutJ, excitInfo, mat_ele, &
+            call calc_guga_matrix_element(ilutI, csf_info, ilutJ, excitInfo, mat_ele, &
                                           .true., 2)
 
             if (near_zero(mat_ele)) then
@@ -12939,7 +12902,7 @@ contains
 
         ! create the start randomly(if multiple possibilities)
         ! create the start in such a way to use it for double excitations too
-        call createStochasticStart_single(ilut, excitInfo, weights, posSwitches, &
+        call createStochasticStart_single(ilut, csf_info, excitInfo, weights, posSwitches, &
                                           negSwitches, exc, branch_pgen)
 
         ! can it be zero here? maybe due to matrix element issues...
@@ -12960,7 +12923,7 @@ contains
             ! the same way as single and double excitations..
             deltaB = getDeltaB(exc)
 
-            call singleStochasticUpdate(ilut, iO, excitInfo, weights, posSwitches, &
+            call singleStochasticUpdate(ilut, csf_info, iO, excitInfo, weights, posSwitches, &
                                         negSwitches, exc, temp_pgen)
 
             branch_pgen = branch_pgen * temp_pgen
@@ -12994,7 +12957,7 @@ contains
         ! the end step should be easy in this case. since due to the
         ! correct use of probabilistic weights only valid excitations should
         ! come to this point
-        call singleStochasticEnd(excitInfo, exc)
+        call singleStochasticEnd(csf_info, excitInfo, exc)
 
         ! maybe but a check here if the matrix element anyhow turned out zero
         if (near_zero(extract_matrix_element(exc, 1))) then
@@ -13014,7 +12977,7 @@ contains
         ! and also for the matrix element calculation maybe..
         if (.not. (treal .or. t_new_real_space_hubbard .or. &
                    t_heisenberg_model .or. t_tJ_model .or. t_mixed_hubbard)) then
-            call calc_integral_contribution_single(exc, i, j, st, en, integral)
+            call calc_integral_contribution_single(csf_info, exc, i, j, st, en, integral)
         end if
 
         if (tFillingStochRDMOnFly) then
@@ -20726,7 +20689,7 @@ contains
         type(WeightObj_t) :: weights
 
         ! also include probabilistic weights
-        call calcRemainingSwitches_excitInfo_double(&
+        call calcRemainingSwitches_excitInfo_double( &
                 csf_info, excitInfo, posSwitches, negSwitches)
 
         ! todo include probabilistic weights too.
@@ -23276,10 +23239,9 @@ contains
 
     end subroutine gen_ab_cum_list_3
 
-    subroutine pickOrbs_sym_uniform_mol_double(ilut, nI, csf_info, excitInfo, pgen)
+    subroutine pickOrbs_sym_uniform_mol_double(nI, csf_info, excitInfo, pgen)
         ! new orbital picking routine, which is closer to simons already
         ! implemented one for the determinant version
-        integer(n_int), intent(in) :: ilut(0:nifguga)
         integer, intent(in) :: nI(nel)
         type(CSF_Info_t), intent(in) :: csf_info
         type(ExcitationInformation_t), intent(out) :: excitInfo
@@ -28057,7 +28019,7 @@ contains
 
             excitInfo = excitationIdentifier(i, j, k, l)
 
-            call calcRemainingSwitches_excitInfo_double(&
+            call calcRemainingSwitches_excitInfo_double( &
                     csf_info, excitInfo, posSwitches, negSwitches)
 
         end if
@@ -30185,6 +30147,7 @@ contains
         character(*), parameter :: this_routine = "calc_pgen_yix_start_11"
 
         ASSERT(nSpatOrbs - i - 1 /= 0)
+        unused_var(csf_info)
 
         pgen = 1.0_dp / real(nSpatOrbs - i - 1, dp)
 
@@ -30237,6 +30200,7 @@ contains
         integer, intent(in) :: i
         real(dp) :: pgen
         character(*), parameter :: this_routine = "calc_pgen_yix_end_11"
+        unused_var(csf_info)
 
         ASSERT(i - 2 /= 0)
 
