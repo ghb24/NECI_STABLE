@@ -1774,10 +1774,10 @@ contains
 
     end subroutine find_switches_ilut
 
-    subroutine find_switches_stepvector(ind, csf_info, lower, upper)
+    subroutine find_switches_stepvector(csf_info, ind, lower, upper)
         ! same as above but using the already calculated stepvector
-        integer, intent(in) :: ind
         type(CSF_Info_t), intent(in) :: csf_info
+        integer, intent(in) :: ind
         integer, intent(out) :: lower, upper
         character(*), parameter :: this_routine = "find_switches_stepvector"
 
