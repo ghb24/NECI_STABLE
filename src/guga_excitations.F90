@@ -67,7 +67,7 @@ module guga_excitations
 
     use util_mod, only: get_free_unit, binary_search, get_unique_filename, &
                         binary_search_first_ge, abs_l1, operator(.isclose.), &
-                        operator(.div.), near_zero
+                        operator(.div.), near_zero, stop_all
 
     use sort_mod, only: sort
 
@@ -816,10 +816,6 @@ contains
         integer :: iOrb, db, step1, step2
         real(dp) :: bVal
         HElement_t(dp) :: integral
-        ! have to temporarily store the current* quantities as they are used
-        ! in the integral contribution routine for the single excitations..
-        integer :: temp_curr_step(nSpatOrbs), temp_curr_b_int(nSpatOrbs)
-        real(dp) :: temp_curr_b(nSpatOrbs), temp_curr_occ(nSpatOrbs)
         logical :: t_calc_full_
         ! just mimick the stochastic single excitation!
         real(dp) :: tmp_mat
@@ -1601,9 +1597,8 @@ contains
         HElement_t(dp) :: integral
         integer(n_int) :: tmp_I(0:nifguga), tmp_J(0:nifguga)
 
-        integer :: temp_curr_step(nSpatOrbs), temp_curr_occ_int(nSpatOrbs), &
-                   temp_curr_b_int(nSpatOrbs), st, se, en
-        real(dp) :: temp_curr_b(nSpatOrbs), guga_mat
+        integer :: st, se, en
+        real(dp) :: guga_mat
         logical :: t_hamil_
 
         def_default(t_hamil_, t_hamil, .true.)
@@ -1768,9 +1763,8 @@ contains
         integer(n_int) :: tmp_I(0:nifguga), tmp_J(0:nifguga)
         logical :: t_hamil_
 
-        integer :: temp_curr_step(nSpatOrbs), temp_curr_occ_int(nSpatOrbs), &
-                   temp_curr_b_int(nSpatOrbs), st, en, se
-        real(dp) :: temp_curr_b(nSpatOrbs), guga_mat
+        integer :: st, en, se
+        real(dp) :: guga_mat
 
         def_default(t_hamil_, t_hamil, .true.)
 
@@ -1904,9 +1898,6 @@ contains
         real(dp), intent(out), allocatable, optional :: rdm_mat(:)
 
         integer(n_int) :: tmp_I(0:nifguga), tmp_J(0:nifguga)
-        ! also need temporary storage of current* quantities
-        integer :: temp_curr_step(nSpatOrbs), temp_curr_occ_int(nSpatOrbs)
-        real(dp) :: temp_curr_b(nSpatOrbs)
         logical :: t_hamil_
 
         def_default(t_hamil_, t_hamil, .true.)
@@ -4965,9 +4956,9 @@ contains
         else
             if (t_approx_exchange .or. (t_approx_exchange_noninits .and. &
                     (.not. is_init_guga))) then
-                weights = init_forced_end_exchange_weight(ilut, csf_info, excitInfo%fullEnd)
+                weights = init_forced_end_exchange_weight(csf_info, excitInfo%fullEnd)
             else
-                weights = init_doubleWeight(ilut, csf_info, excitInfo%fullEnd)
+                weights = init_doubleWeight(csf_info, excitInfo%fullEnd)
             end if
         end if
 
@@ -5187,8 +5178,7 @@ contains
 
     end subroutine calc_orbital_pgen_contr_mol
 
-    subroutine calc_orbital_pgen_contr_ueg(ilut, csf_info, occ_orbs, above_cpt, below_cpt)
-        integer(n_int), intent(in) :: ilut(0:nifguga)
+    subroutine calc_orbital_pgen_contr_ueg(csf_info, occ_orbs, above_cpt, below_cpt)
         type(CSF_Info_t), intent(in) :: csf_info
         integer, intent(in) :: occ_orbs(2)
         real(dp), intent(out) :: above_cpt, below_cpt
@@ -5198,7 +5188,7 @@ contains
         integer :: tmp_orbArr(nSpatOrbs)
         integer :: i, j
 
-        call gen_ab_cum_list_1_1(ilut, csf_info, occ_orbs, cum_arr, tmp_excitInfo, tmp_orbArr)
+        call gen_ab_cum_list_1_1(csf_info, occ_orbs, cum_arr, tmp_excitInfo, tmp_orbArr)
         cum_sum = cum_arr(nSpatOrbs)
 
         i = gtID(occ_orbs(1))
@@ -5312,7 +5302,7 @@ contains
             call calcRemainingSwitches_excitInfo_double(csf_info, excitInfo, posSwitches, &
                                                         negSwitches)
 
-            weights = init_doubleWeight(ilut, csf_info, j)
+            weights = init_doubleWeight(csf_info, j)
 
             ! i have to reset the below flag each iteration of j..
             below_flag = .false.
@@ -5670,7 +5660,7 @@ contains
                 call calcRemainingSwitches_excitInfo_double(csf_info, excitInfo, posSwitches, &
                                                             negSwitches)
 
-                weights = init_doubleWeight(ilut, csf_info, j)
+                weights = init_doubleWeight(csf_info, j)
 
                 zeroWeight = weights%proc%zero(negSwitches(i), &
                                                posSwitches(i), csf_info%B_ilut(i), weights%dat)
@@ -5972,7 +5962,7 @@ contains
         if (present(opt_weight)) then
             weights = opt_weight
         else
-            weights = init_fullDoubleWeight(ilut, csf_info, start2, ende1, ende2, negSwitches(start2), &
+            weights = init_fullDoubleWeight(csf_info, start2, ende1, ende2, negSwitches(start2), &
                                             negSwitches(ende1), posSwitches(start2), posSwitches(ende1), &
                                             csf_info%B_ilut(start2), csf_info%B_ilut(ende1))
         end if
@@ -6140,7 +6130,7 @@ contains
         if (present(opt_weight)) then
             weights = opt_weight
         else
-            weights = init_fullDoubleWeight(ilut, csf_info, start2, ende1, ende2, negSwitches(start2), &
+            weights = init_fullDoubleWeight(csf_info, start2, ende1, ende2, negSwitches(start2), &
                                             negSwitches(ende1), posSwitches(start2), posSwitches(ende1), &
                                             csf_info%B_ilut(start2), csf_info%B_ilut(ende1))
         end if
@@ -6284,7 +6274,7 @@ contains
             weights = opt_weight
         else
             ! : create correct weights:
-            weights = init_fullDoubleWeight(ilut, csf_info, start2, ende1, ende2, negSwitches(start2), &
+            weights = init_fullDoubleWeight(csf_info, start2, ende1, ende2, negSwitches(start2), &
                                             negSwitches(ende1), posSwitches(start2), posSwitches(ende1), &
                                             csf_info%B_ilut(start2), csf_info%B_ilut(ende1))
         end if
@@ -6449,7 +6439,7 @@ contains
         if (present(opt_weight)) then
             weights = opt_weight
         else
-            weights = init_fullDoubleWeight(ilut, csf_info, start2, ende1, ende2, negSwitches(start2), &
+            weights = init_fullDoubleWeight(csf_info, start2, ende1, ende2, negSwitches(start2), &
                                             negSwitches(ende1), posSwitches(start2), posSwitches(ende1), &
                                             csf_info%B_ilut(start2), csf_info%B_ilut(ende1))
         end if
@@ -6580,7 +6570,7 @@ contains
                 weights = opt_weight
             else
                 ! : create correct weights:
-                weights = init_fullDoubleWeight(ilut, csf_info, start2, ende1, ende2, negSwitches(start2), &
+                weights = init_fullDoubleWeight(csf_info, start2, ende1, ende2, negSwitches(start2), &
                                                 negSwitches(ende1), posSwitches(start2), posSwitches(ende1), &
                                                 csf_info%B_ilut(start2), csf_info%B_ilut(ende1))
             end if
@@ -6726,7 +6716,7 @@ contains
         if (present(opt_weight)) then
             weights = opt_weight
         else
-            weights = init_fullDoubleWeight(ilut, csf_info, start2, ende1, ende2, negSwitches(start2), &
+            weights = init_fullDoubleWeight(csf_info, start2, ende1, ende2, negSwitches(start2), &
                                             negSwitches(ende1), posSwitches(start2), posSwitches(ende1), &
                                             csf_info%B_ilut(start2), csf_info%B_ilut(ende1))
         end if
@@ -6857,7 +6847,7 @@ contains
             if (t_approx_exchange .or. (t_approx_exchange_noninits .and. (.not. is_init_guga))) then
                 ! the weights should be the only necessary change to force
                 ! a switch at the end, as the other branches get 0 weight..
-                weights = init_forced_end_semistart_weight(ilut, csf_info, se, en, negSwitches(se), &
+                weights = init_forced_end_semistart_weight(csf_info, se, en, negSwitches(se), &
                                                            posSwitches(se), csf_info%B_ilut(se))
 
             else
@@ -7519,7 +7509,7 @@ contains
             weights = opt_weight
         else
             if (t_approx_exchange .or. (t_approx_exchange_noninits .and. (.not. is_init_guga))) then
-                weights = init_forced_end_semistart_weight(ilut, csf_info, se, en, negSwitches(se), &
+                weights = init_forced_end_semistart_weight(csf_info, se, en, negSwitches(se), &
                                                            posSwitches(se), csf_info%B_ilut(se))
             else
                 weights = init_semiStartWeight(ilut, csf_info, se, en, negSwitches(se), &
@@ -9695,7 +9685,7 @@ contains
         if (present(opt_weight)) then
             weights = opt_weight
         else
-            weights = init_fullStartWeight(ilut, csf_info, se, en, negSwitches(se), &
+            weights = init_fullStartWeight(csf_info, se, en, negSwitches(se), &
                                            posSwitches(se), csf_info%B_ilut(se))
         end if
 
@@ -9966,7 +9956,7 @@ contains
 
         ! also need to reinitialize the fullstart into semi-stop weights, as
         ! i need those to recalc. the pgen contributions
-        weights = init_fullStartWeight(ilut, csf_info, se, en, negSwitches(se), &
+        weights = init_fullStartWeight(csf_info, se, en, negSwitches(se), &
                                        posSwitches(se), csf_info%B_ilut(se))
 
         ! otherwise continue with the additional contributions
@@ -10368,7 +10358,7 @@ contains
         if (present(opt_weight)) then
             weights = opt_weight
         else
-            weights = init_fullStartWeight(ilut, csf_info, se, en, negSwitches(se), &
+            weights = init_fullStartWeight(csf_info, se, en, negSwitches(se), &
                                            posSwitches(se), csf_info%B_ilut(se))
         end if
 
@@ -10849,7 +10839,7 @@ contains
         excitInfo%secondStart = 1
         call calcRemainingSwitches_excitInfo_double(csf_info, excitInfo, posSwitches, negSwitches)
 
-        weights = init_fullStartWeight(ilut, csf_info, se, en, negSwitches(se), &
+        weights = init_fullStartWeight(csf_info, se, en, negSwitches(se), &
                                        posSwitches(se), csf_info%B_ilut(se))
 
         ! determine the original starting weight
@@ -11457,7 +11447,7 @@ contains
 
         ! also need to reinitialize the fullstart into semi-stop weights, as
         ! i need those to recalc. the pgen contributions
-        weights = init_fullStartWeight(ilut, csf_info, se, en, negSwitches(se), &
+        weights = init_fullStartWeight(csf_info, se, en, negSwitches(se), &
                                        posSwitches(se), csf_info%B_ilut(se))
 
         ! then i need to calc. the bottom contribution equivalent for the pgen
@@ -12046,7 +12036,7 @@ contains
         if (present(opt_weight)) then
             weights = opt_weight
         else
-            weights = init_singleWeight(ilut, csf_info, excitInfo%fullEnd)
+            weights = init_singleWeight(csf_info, excitInfo%fullEnd)
         end if
 
         call createStochasticStart_single(ilut, csf_info, excitInfo, weights, posSwitches, &
@@ -12159,7 +12149,7 @@ contains
         if (present(opt_weight)) then
             weights = opt_weight
         else
-            weights = init_singleWeight(ilut, csf_info, excitInfo%secondStart)
+            weights = init_singleWeight(csf_info, excitInfo%secondStart)
         end if
 
         ! i only need normal single stochastic start then..
@@ -12303,7 +12293,7 @@ contains
         if (present(opt_weight)) then
             weights = opt_weight
         else
-            weights = init_singleWeight(ilut, csf_info, excitInfo%secondStart)
+            weights = init_singleWeight(csf_info, excitInfo%secondStart)
         end if
 
         ! i only need normal single stochastic start then..
@@ -12470,7 +12460,7 @@ contains
         if (present(opt_weight)) then
             weights = opt_weight
         else
-            weights = init_singleWeight(ilut, csf_info, ende)
+            weights = init_singleWeight(csf_info, ende)
         end if
         ! could encode matrix element here, but do it later for more efficiency
 
@@ -12650,7 +12640,7 @@ contains
         if (present(opt_weight)) then
             weights = opt_weight
         else
-            weights = init_singleWeight(ilut, csf_info, ende)
+            weights = init_singleWeight(csf_info, ende)
         end if
 
         ! could encode matrix element here, but do it later for more efficiency
@@ -12812,7 +12802,7 @@ contains
         end if
 
         if (t_guga_pchb) then
-            call checkCompatibility_single(ilut, csf_info, excitInfo, compFlag, &
+            call checkCompatibility_single(csf_info, excitInfo, compFlag, &
                 posSwitches, negSwitches, weights)
 
             if (.not.compFlag) then
@@ -12897,7 +12887,7 @@ contains
         if (.not. t_guga_pchb) then
             call calcRemainingSwitches_excitInfo_single(csf_info, excitInfo, posSwitches, negSwitches)
             ! intitialize the weights
-            weights = init_singleWeight(ilut, csf_info, excitInfo%fullEnd)
+            weights = init_singleWeight(csf_info, excitInfo%fullEnd)
         end if
 
         ! create the start randomly(if multiple possibilities)
@@ -13689,14 +13679,12 @@ contains
     end function calcStayingProb
 
     ! proabbilistic weight objects:
-    function init_singleWeight(ilut, csf_info, sOrb) result(singleWeight)
-        integer(n_int), intent(in) :: ilut(0:nifguga)
+    elemental function init_singleWeight(csf_info, sOrb) result(singleWeight)
         type(CSF_Info_t), intent(in) :: csf_info
         integer, intent(in) :: sOrb
         type(WeightObj_t) :: singleWeight
         character(*), parameter :: this_routine = "init_singleWeight"
 
-        ASSERT(isProperCSF_ilut(ilut))
         ASSERT(sOrb > 0 .and. sOrb <= nSpatOrbs)
 
         singleWeight%dat%F = endFx(csf_info, sOrb)
@@ -13747,15 +13735,13 @@ contains
 
     end function getPlus_single
 
-    function init_forced_end_exchange_weight(ilut, csf_info, sOrb) result(forced_double)
+    elemental function init_forced_end_exchange_weight(csf_info, sOrb) result(forced_double)
         ! obj has the same structure as the semi-start weight, reuse them!
-        integer(n_int), intent(in) :: ilut(0:nifguga)
         type(CSF_Info_t), intent(in) :: csf_info
         integer, intent(in) :: sOrb
         type(WeightObj_t) :: forced_double
         character(*), parameter :: this_routine = "init_forced_end_exchange_weight"
 
-        ASSERT(isProperCSF_ilut(ilut))
         ASSERT(sOrb > 0 .and. sOrb <= nSpatOrbs)
 
         forced_double%dat%F = endFx(csf_info, sOrb)
@@ -13766,17 +13752,14 @@ contains
         forced_double%proc%zero => get_forced_zero_double
 
         forced_double%initialized = .true.
-
     end function init_forced_end_exchange_weight
 
-    function init_doubleWeight(ilut, csf_info, sOrb) result(doubleWeight)
+    function init_doubleWeight(csf_info, sOrb) result(doubleWeight)
         ! obj has the same structure as the semi-start weight, reuse them!
-        integer(n_int), intent(in) :: ilut(0:nifguga)
         type(CSF_Info_t), intent(in) :: csf_info
         integer, intent(in) :: sOrb
         type(WeightObj_t) :: doubleWeight
         character(*), parameter :: this_routine = "init_doubleWeight"
-        ASSERT(isProperCSF_ilut(ilut))
         ASSERT(sOrb > 0 .and. sOrb <= nSpatOrbs)
 
         doubleWeight%dat%F = endFx(csf_info, sOrb)
@@ -13857,9 +13840,8 @@ contains
         ASSERT(zeroWeight >= 0.0_dp)
     end function getZero_double
 
-    function init_fullStartWeight(ilut, csf_info, sOrb, pOrb, negSwitches, &
+    function init_fullStartWeight(csf_info, sOrb, pOrb, negSwitches, &
                                   posSwitches, bVal) result(fullStart)
-        integer(n_int), intent(in) :: ilut(0:nifguga)
         type(CSF_Info_t), intent(in) :: csf_info
         integer, intent(in) :: sOrb, pOrb
         real(dp), intent(in) :: negSwitches, posSwitches
@@ -13868,7 +13850,6 @@ contains
         character(*), parameter :: this_routine = "init_fullStartWeight"
 
         type(WeightObj_t), target, save :: single
-        ASSERT(isProperCSF_ilut(ilut))
         ASSERT(sOrb > 0 .and. sOrb <= nSpatOrbs)
         ASSERT(pOrb > 0 .and. pOrb <= nSpatOrbs)
         ASSERT(negSwitches >= 0.0_dp)
@@ -13878,7 +13859,7 @@ contains
         fullStart%dat%G = endGx(csf_info, sOrb)
 
         ! have to set up a single weight obj.
-        single = init_singleWeight(ilut, csf_info, pOrb)
+        single = init_singleWeight(csf_info, pOrb)
 
         ! try to reuse the already initialized singles weight in the cause of
         ! an excitation, i hope this works with the pointers and stuff.
@@ -13955,20 +13936,20 @@ contains
 
     end function getZero_fullStart
 
-    function init_forced_end_semistart_weight(ilut, csf_info, sOrb, pOrb, negSwitches, posSwitches, bVal) &
+    function init_forced_end_semistart_weight(csf_info, sOrb, pOrb, negSwitches, posSwitches, bVal) &
         result(forced_semistart)
-        integer(n_int), intent(in) :: ilut(0:nifguga)
         type(CSF_Info_t), intent(in) :: csf_info
         integer, intent(in) :: sOrb, pOrb
         real(dp), intent(in) :: negSwitches, posSwitches, bVal
         type(WeightObj_t) :: forced_semistart
 
+        ! TODO(@Oskar): I think this is invalid code
         type(WeightObj_t), target, save :: double
 
         forced_semistart%dat%F = endFx(csf_info, sorb)
         forced_semistart%dat%G = endGx(csf_info, sorb)
 
-        double = init_forced_end_exchange_weight(ilut, csf_info, porb)
+        double = init_forced_end_exchange_weight(csf_info, porb)
 
         forced_semistart%ptr => double
 
@@ -13980,7 +13961,6 @@ contains
         forced_semistart%proc%plus => getPlus_semiStart
 
         forced_semistart%initialized = .true.
-
     end function init_forced_end_semistart_weight
 
     function init_semiStartWeight(ilut, csf_info, sOrb, pOrb, negSwitches, posSwitches, bVal) &
@@ -14003,7 +13983,7 @@ contains
         semiStart%dat%F = endFx(csf_info, sOrb)
         semiStart%dat%G = endGx(csf_info, sOrb)
 
-        double = init_doubleWeight(ilut, csf_info, pOrb)
+        double = init_doubleWeight(csf_info, pOrb)
 
         semiStart%ptr => double
 
@@ -14055,9 +14035,8 @@ contains
 
     end function getPlus_semiStart
 
-    function init_fullDoubleWeight(ilut, csf_info, sOrb, pOrb, oOrb, negSwitches1, &
+    function init_fullDoubleWeight(csf_info, sOrb, pOrb, oOrb, negSwitches1, &
                                    negSwitches2, posSwitches1, posSwitches2, bVal1, bVal2) result(fullDouble)
-        integer(n_int), intent(in) :: ilut(0:nifguga)
         type(CSF_Info_t), intent(in) :: csf_info
         integer, intent(in) :: sOrb, pOrb, oOrb
         real(dp), intent(in) :: negSwitches1, negSwitches2, posSwitches1, &
@@ -14067,7 +14046,6 @@ contains
 
         type(WeightObj_t), target, save :: fullStart
 
-        ASSERT(isProperCSF_ilut(ilut))
         ASSERT(sOrb > 0 .and. sOrb <= nSpatOrbs)
         ASSERT(pOrb > 0 .and. pOrb <= nSpatOrbs)
         ASSERT(oOrb > 0 .and. oOrb <= nSpatOrbs)
@@ -14079,7 +14057,7 @@ contains
         fullDouble%dat%F = endFx(csf_info, sOrb)
         fullDouble%dat%G = endGx(csf_info, sOrb)
 
-        fullStart = init_fullStartWeight(ilut, csf_info, pOrb, oOrb, negSwitches2, &
+        fullStart = init_fullStartWeight(csf_info, pOrb, oOrb, negSwitches2, &
                                          posSwitches2, bVal2)
 
         fullDouble%ptr => fullStart
@@ -14096,9 +14074,8 @@ contains
 
     end function init_fullDoubleWeight
 
-    function init_singleOverlapRaising(ilut, csf_info, sOrb, pOrb, negSwitches, posSwitches, &
+    function init_singleOverlapRaising(csf_info, sOrb, pOrb, negSwitches, posSwitches, &
                                        bVal) result(singleRaising)
-        integer(n_int), intent(in) :: ilut(0:nifguga)
         type(CSF_Info_t), intent(in) :: csf_info
         integer, intent(in) :: sOrb, pOrb
         real(dp), intent(in) :: negSwitches, posSwitches, bVal
@@ -14107,7 +14084,6 @@ contains
 
         type(WeightObj_t) :: single
 
-        ASSERT(isProperCSF_ilut(ilut))
         ASSERT(sOrb > 0 .and. sOrb <= nSpatOrbs)
         ASSERT(pOrb > 0 .and. pOrb <= nSpatOrbs)
         ASSERT(negSwitches >= 0.0_dp)
@@ -14118,7 +14094,7 @@ contains
         singleRaising%dat%G = endGx(csf_info, sOrb)
         singleRaising%dat%zero = endLx(csf_info, sOrb)
 
-        single = init_singleWeight(ilut, csf_info, pOrb)
+        single = init_singleWeight(csf_info, pOrb)
 
         singleRaising%dat%minus = single%proc%minus(negSwitches, bVal, single%dat)
         singleRaising%dat%plus = single%proc%plus(posSwitches, bVal, single%dat)
@@ -14176,9 +14152,8 @@ contains
 
     end function getPlus_overlapRaising
 
-    function init_singleOverlapLowering(ilut, csf_info, sOrb, pOrb, negSwitches, &
+    function init_singleOverlapLowering(csf_info, sOrb, pOrb, negSwitches, &
                                         posSwitches, bVal) result(singleLowering)
-        integer(n_int), intent(in) :: ilut(0:nifguga)
         type(CSF_Info_t), intent(in) :: csf_info
         integer, intent(in) :: sOrb, pOrb
         real(dp), intent(in) :: negSwitches, posSwitches, bVal
@@ -14187,7 +14162,6 @@ contains
 
         type(WeightObj_t), target, save :: single
 
-        ASSERT(isProperCSF_ilut(ilut))
         ASSERT(sOrb > 0 .and. sOrb <= nSpatOrbs)
         ASSERT(pOrb > 0 .and. pOrb <= nSpatOrbs)
         ASSERT(negSwitches >= 0.0_dp)
@@ -14197,7 +14171,7 @@ contains
         singleLowering%dat%F = endFx(csf_info, sOrb)
         singleLowering%dat%G = endGx(csf_info, sOrb)
 
-        single = init_singleWeight(ilut, csf_info, pOrb)
+        single = init_singleWeight(csf_info, pOrb)
 
         singleLowering%ptr => single
 
@@ -14520,7 +14494,7 @@ contains
 
         ! also do not need to check if excitation is compatible, since this
         ! has already been done
-        weights = init_singleWeight(ilut, csf_info, excitInfo%fullEnd)
+        weights = init_singleWeight(csf_info, excitInfo%fullEnd)
 
         ! have to give probabilistic weight object as input, to deal
         call createSingleStart(ilut, csf_info, excitInfo, posSwitches, &
@@ -14608,7 +14582,7 @@ contains
         ! the WeightObj_t objects.. to efficiently determine
         ! if excitations have to aborted
         ! and to make the whole code more general
-        weights = init_singleWeight(ilut, csf_info, excitInfo%fullEnd)
+        weights = init_singleWeight(csf_info, excitInfo%fullEnd)
         plusWeight = weights%proc%plus(posSwitches(excitInfo%fullStart), &
                                        csf_info%B_ilut(excitInfo%fullStart), weights%dat)
         minusWeight = weights%proc%minus(negSwitches(excitInfo%fullStart), &
@@ -16176,7 +16150,7 @@ contains
         ende2 = excitInfo%fullEnd
 
         ! todo: create correct weights:
-        weights = init_fullDoubleWeight(ilut, csf_info, start2, ende1, ende2, negSwitches(start2), &
+        weights = init_fullDoubleWeight(csf_info, start2, ende1, ende2, negSwitches(start2), &
                                         negSwitches(ende1), posSwitches(start2), posSwitches(ende1), &
                                         csf_info%B_ilut(start2), csf_info%B_ilut(ende1))
 
@@ -16263,7 +16237,7 @@ contains
         ende2 = excitInfo%fullEnd
 
         !  create correct weights:
-        weights = init_fullDoubleWeight(ilut, csf_info, start2, ende1, ende2, negSwitches(start2), &
+        weights = init_fullDoubleWeight(csf_info, start2, ende1, ende2, negSwitches(start2), &
                                         negSwitches(ende1), posSwitches(start2), posSwitches(ende1), &
                                         csf_info%B_ilut(start2), csf_info%B_ilut(ende1))
 
@@ -16362,7 +16336,7 @@ contains
         ende2 = excitInfo%fullEnd
 
         ! create correct weights:
-        weights = init_fullDoubleWeight(ilut, csf_info, start2, ende1, ende2, negSwitches(start2), &
+        weights = init_fullDoubleWeight(csf_info, start2, ende1, ende2, negSwitches(start2), &
                                         negSwitches(ende1), posSwitches(start2), posSwitches(ende1), &
                                         csf_info%B_ilut(start2), csf_info%B_ilut(ende1))
 
@@ -16458,7 +16432,7 @@ contains
         ende2 = excitInfo%fullEnd
 
         ! : create correct weights:
-        weights = init_fullDoubleWeight(ilut, csf_info, start2, ende1, ende2, negSwitches(start2), &
+        weights = init_fullDoubleWeight(csf_info, start2, ende1, ende2, negSwitches(start2), &
                                         negSwitches(ende1), posSwitches(start2), posSwitches(ende1), &
                                         csf_info%B_ilut(start2), csf_info%B_ilut(ende1))
 
@@ -16609,7 +16583,7 @@ contains
             ! function specifically for these cases.
 
             ! can i just use already implemented fullStart? i think
-            weights = init_doubleWeight(ilut, csf_info, en)
+            weights = init_doubleWeight(csf_info, en)
             plusWeight = weights%proc%plus(posSwitches(st), csf_info%B_ilut(st), weights%dat)
             minusWeight = weights%proc%minus(negSwitches(st), csf_info%B_ilut(st), weights%dat)
             zeroWeight = weights%proc%zero(negSwitches(st), posSwitches(st), &
@@ -16682,7 +16656,7 @@ contains
         end if
 
         ! create correct weights:
-        weights = init_fullStartWeight(ilut, csf_info, semi, ende, negSwitches(semi), &
+        weights = init_fullStartWeight(csf_info, semi, ende, negSwitches(semi), &
                                        posSwitches(semi), csf_info%B_ilut(semi))
 
         minusWeight = weights%proc%minus(negSwitches(start), csf_info%B_ilut(start), weights%dat)
@@ -16770,7 +16744,7 @@ contains
         end if
 
         ! create correct weights:
-        weights = init_fullStartWeight(ilut, csf_info, semi, ende, negSwitches(semi), &
+        weights = init_fullStartWeight(csf_info, semi, ende, negSwitches(semi), &
                                        posSwitches(semi), csf_info%B_ilut(semi))
 
         minusWeight = weights%proc%minus(negSwitches(start), csf_info%B_ilut(start), weights%dat)
@@ -18109,7 +18083,7 @@ contains
 
         ! have to calc. weights here, which are only the normel single
         ! excitation weights
-        weights = init_singleWeight(ilut, csf_info, ende)
+        weights = init_singleWeight(csf_info, ende)
         minusWeight = weights%proc%minus(negSwitches(semi), csf_info%B_ilut(semi), weights%dat)
         plusWeight = weights%proc%plus(posSwitches(semi), csf_info%B_ilut(semi), weights%dat)
 
@@ -18290,7 +18264,7 @@ contains
 
         ! have to calc. weights here, which are only the normel single
         ! excitation weights
-        weights = init_singleWeight(ilut, csf_info, ende)
+        weights = init_singleWeight(csf_info, ende)
         minusWeight = weights%proc%minus(negSwitches(semi), bVal, weights%dat)
         plusWeight = weights%proc%plus(posSwitches(semi), bVal, weights%dat)
 
@@ -19821,7 +19795,7 @@ contains
         ! create weight object here
         ! i think i only need single excitations weights here, since
         ! the semi stop in this case is like an end step...
-        weights = init_singleWeight(ilut, csf_info, excitInfo%secondStart)
+        weights = init_singleWeight(csf_info, excitInfo%secondStart)
 
         ! create start
         call createSingleStart(ilut, csf_info, excitInfo, posSwitches, negSwitches, &
@@ -19983,7 +19957,7 @@ contains
         real(dp) :: tempWeight, sig, bVal
 
         ! create weight object here todo
-        weights = init_singleWeight(ilut, csf_info, excitInfo%secondStart)
+        weights = init_singleWeight(csf_info, excitInfo%secondStart)
 
         excitInfo%currentGen = excitInfo%firstGen
 
@@ -20146,7 +20120,7 @@ contains
 
         excitInfo%currentGen = excitInfo%firstGen
         ! have to make specific single start to correctly adress the weights
-        weights = init_singleOverlapLowering(ilut, csf_info, excitInfo%firstEnd, &
+        weights = init_singleOverlapLowering(csf_info, excitInfo%firstEnd, &
                                              excitInfo%fullEnd, negSwitches(excitInfo%firstEnd), posSwitches(excitInfo%firstEnd), &
                                              csf_info%B_ilut(excitInfo%firstEnd))
 
@@ -20242,7 +20216,7 @@ contains
         se = excitInfo%secondStart
         en = excitInfo%fullEnd
         ! create weight object here
-        weightObj = init_singleOverlapRaising(ilut, csf_info, se, en, negSwitches(se), &
+        weightObj = init_singleOverlapRaising(csf_info, se, en, negSwitches(se), &
                                               posSwitches(se), csf_info%B_ilut(se))
 
         excitInfo%currentGen = excitInfo%firstGen
@@ -20259,7 +20233,7 @@ contains
         i = excitInfo%secondStart
 
         ! update weights
-        weightObj = init_singleWeight(ilut, csf_info, en)
+        weightObj = init_singleWeight(csf_info, en)
         plusWeight = weightObj%proc%plus(posSwitches(se), &
                                          csf_info%B_ilut(se), weightObj%dat)
         minusWeight = weightObj%proc%minus(negSwitches(se), &
@@ -20403,7 +20377,7 @@ contains
 
         ! todo: create weight objects, here are the normal single excitation
         ! weight operators.
-        weights = init_singleWeight(ilut, csf_info, excitInfo%fullEnd)
+        weights = init_singleWeight(csf_info, excitInfo%fullEnd)
 
         excitInfo%currentGen = excitInfo%firstGen
         ! create according start
@@ -20600,8 +20574,7 @@ contains
 
     end subroutine calcDoubleExcitation_withWeight
 
-    subroutine checkCompatibility_single(L, csf_info, excitInfo, flag, posSwitches, negSwitches, opt_weight)
-        integer(n_int), intent(in) :: L(0:nifguga)
+    subroutine checkCompatibility_single(csf_info, excitInfo, flag, posSwitches, negSwitches, opt_weight)
         type(CSF_Info_t), intent(in) :: csf_info
         type(ExcitationInformation_t), intent(in) :: excitInfo
         logical, intent(out) :: flag
@@ -20631,7 +20604,7 @@ contains
                 return
             end if
 
-            weights = init_singleWeight(L, csf_info, en)
+            weights = init_singleWeight(csf_info, en)
             mw = weights%proc%minus(negSwitches(st), csf_info%B_ilut(st), weights%dat)
             pw = weights%proc%plus(posSwitches(st), csf_info%B_ilut(st), weights%dat)
 
@@ -20650,7 +20623,7 @@ contains
                 return
             end if
 
-            weights = init_singleWeight(L, csf_info, en)
+            weights = init_singleWeight(csf_info, en)
             mw = weights%proc%minus(negSwitches(st), csf_info%B_ilut(st), weights%dat)
             pw = weights%proc%plus(posSwitches(st), csf_info%B_ilut(st), weights%dat)
 
@@ -20714,7 +20687,7 @@ contains
                 return
             end if
 
-            weights = init_singleWeight(L, csf_info, en)
+            weights = init_singleWeight(csf_info, en)
             mw = weights%proc%minus(negSwitches(st), csf_info%B_ilut(st), weights%dat)
             pw = weights%proc%plus(posSwitches(st), csf_info%B_ilut(st), weights%dat)
 
@@ -20735,7 +20708,7 @@ contains
                 return
             end if
 
-            weights = init_singleWeight(L, csf_info, en)
+            weights = init_singleWeight(csf_info, en)
             mw = weights%proc%minus(negSwitches(st), csf_info%B_ilut(st), weights%dat)
             pw = weights%proc%plus(posSwitches(st), csf_info%B_ilut(st), weights%dat)
 
@@ -20760,7 +20733,7 @@ contains
                 return
             end if
 
-            weights = init_singleWeight(L, csf_info, fe)
+            weights = init_singleWeight(csf_info, fe)
 
             mw = weights%proc%minus(negSwitches(st), csf_info%B_ilut(st), weights%dat)
             pw = weights%proc%plus(posSwitches(st), csf_info%B_ilut(st), weights%dat)
@@ -20774,7 +20747,7 @@ contains
             end if
 
             ! then second
-            weights = init_singleWeight(L, csf_info, en)
+            weights = init_singleWeight(csf_info, en)
 
             mw = weights%proc%minus(negSwitches(ss), csf_info%B_ilut(ss), weights%dat)
             pw = weights%proc%plus(posSwitches(ss), csf_info%B_ilut(ss), weights%dat)
@@ -20799,7 +20772,7 @@ contains
             ! bvalue restrictions to the calc.!!!
             ! todo
 
-            weights = init_singleOverlapLowering(L, csf_info, fe, en, negSwitches(fe), &
+            weights = init_singleOverlapLowering(csf_info, fe, en, negSwitches(fe), &
                                                  posSwitches(fe), csf_info%B_ilut(fe))
 
             pw = weights%proc%plus(posSwitches(st), csf_info%B_ilut(st), weights%dat)
@@ -20824,7 +20797,7 @@ contains
                 return
             end if
 
-            weights = init_singleOverlapRaising(L, csf_info, fe, en, negSwitches(fe), &
+            weights = init_singleOverlapRaising(csf_info, fe, en, negSwitches(fe), &
                                                 posSwitches(fe), csf_info%B_ilut(fe))
 
             pw = weights%proc%plus(posSwitches(st), csf_info%B_ilut(st), weights%dat)
@@ -20846,7 +20819,7 @@ contains
                 return
             end if
 
-            weights = init_singleWeight(L, csf_info, en)
+            weights = init_singleWeight(csf_info, en)
             mw = weights%proc%minus(negSwitches(st), csf_info%B_ilut(st), weights%dat)
             pw = weights%proc%plus(posSwitches(st), csf_info%B_ilut(st), weights%dat)
 
@@ -20866,7 +20839,7 @@ contains
                 return
             end if
 
-            weights = init_singleWeight(L, csf_info, en)
+            weights = init_singleWeight(csf_info, en)
             mw = weights%proc%minus(negSwitches(st), csf_info%B_ilut(st), weights%dat)
             pw = weights%proc%plus(posSwitches(st), csf_info%B_ilut(st), weights%dat)
 
@@ -20887,7 +20860,7 @@ contains
                 return
             end if
 
-            weights = init_fullDoubleWeight(L, csf_info, ss, fe, en, negSwitches(ss), &
+            weights = init_fullDoubleWeight(csf_info, ss, fe, en, negSwitches(ss), &
                                             negSwitches(fe), posSwitches(ss), posSwitches(fe), csf_info%B_ilut(ss), &
                                             csf_info%B_ilut(fe))
 
@@ -20911,7 +20884,7 @@ contains
                 return
             end if
 
-            weights = init_fullDoubleWeight(L, csf_info, ss, fe, en, negSwitches(ss), &
+            weights = init_fullDoubleWeight(csf_info, ss, fe, en, negSwitches(ss), &
                                             negSwitches(fe), posSwitches(ss), posSwitches(fe), csf_info%B_ilut(ss), &
                                             csf_info%B_ilut(fe))
 
@@ -20935,7 +20908,7 @@ contains
                 return
             end if
 
-            weights = init_fullDoubleWeight(L, csf_info, ss, fe, en, negSwitches(ss), &
+            weights = init_fullDoubleWeight(csf_info, ss, fe, en, negSwitches(ss), &
                                             negSwitches(fe), posSwitches(ss), posSwitches(fe), csf_info%B_ilut(ss), &
                                             csf_info%B_ilut(fe))
 
@@ -20959,7 +20932,7 @@ contains
                 return
             end if
 
-            weights = init_fullDoubleWeight(L, csf_info, ss, fe, en, negSwitches(ss), &
+            weights = init_fullDoubleWeight(csf_info, ss, fe, en, negSwitches(ss), &
                                             negSwitches(fe), posSwitches(ss), posSwitches(fe), csf_info%B_ilut(ss), &
                                             csf_info%B_ilut(fe))
 
@@ -20983,7 +20956,7 @@ contains
                 return
             end if
 
-            weights = init_fullDoubleWeight(L, csf_info, ss, fe, en, negSwitches(ss), &
+            weights = init_fullDoubleWeight(csf_info, ss, fe, en, negSwitches(ss), &
                                             negSwitches(fe), posSwitches(ss), posSwitches(fe), csf_info%B_ilut(ss), &
                                             csf_info%B_ilut(fe))
 
@@ -21007,7 +20980,7 @@ contains
                 return
             end if
 
-            weights = init_fullDoubleWeight(L, csf_info, ss, fe, en, negSwitches(ss), &
+            weights = init_fullDoubleWeight(csf_info, ss, fe, en, negSwitches(ss), &
                                             negSwitches(fe), posSwitches(ss), posSwitches(fe), csf_info%B_ilut(ss), &
                                             csf_info%B_ilut(fe))
 
@@ -21030,7 +21003,7 @@ contains
                 return
             end if
 
-            weights = init_singleWeight(L, csf_info, ss)
+            weights = init_singleWeight(csf_info, ss)
 
             pw = weights%proc%plus(posSwitches(st), csf_info%B_ilut(st), weights%dat)
             mw = weights%proc%minus(negSwitches(st), csf_info%B_ilut(st), weights%dat)
@@ -21051,7 +21024,7 @@ contains
                 return
             end if
 
-            weights = init_singleWeight(L, csf_info, ss)
+            weights = init_singleWeight(csf_info, ss)
 
             pw = weights%proc%plus(posSwitches(st), csf_info%B_ilut(st), weights%dat)
             mw = weights%proc%minus(negSwitches(st), csf_info%B_ilut(st), weights%dat)
@@ -21083,7 +21056,7 @@ contains
                 ! need to check the compatibility differently as
                 ! the flips at the indices are enforced
 
-                weights = init_forced_end_semistart_weight(L, csf_info, ss, en, &
+                weights = init_forced_end_semistart_weight(csf_info, ss, en, &
                                                            negSwitches(ss), posSwitches(ss), csf_info%B_ilut(ss))
 
             else
@@ -21115,7 +21088,7 @@ contains
             if (t_approx_exchange .or. (t_approx_exchange_noninits .and. (.not. is_init_guga))) then
                 ! todo: the logic
 
-                weights = init_forced_end_semistart_weight(L, csf_info, ss, en, &
+                weights = init_forced_end_semistart_weight(csf_info, ss, en, &
                                                            negSwitches(ss), posSwitches(ss), csf_info%B_ilut(ss))
 
             else
@@ -21147,7 +21120,7 @@ contains
             ! in the actual excitation generation i use the the
             ! single weights here.. and this make more sense i must
             ! admit.
-            weights = init_singleWeight(L, csf_info, en)
+            weights = init_singleWeight(csf_info, en)
 
             ! update! here i shouldnt use the real available switches for
             ! the double overlap region since switches are not allowed in
@@ -21178,7 +21151,7 @@ contains
 
             ! i can actually use just the singles weight..
 
-            weights = init_singleWeight(L, csf_info, en)
+            weights = init_singleWeight(csf_info, en)
 
             pw = weights%proc%plus(posSwitches(fe), csf_info%B_ilut(fe), weights%dat)
             mw = weights%proc%minus(negSwitches(fe), csf_info%B_ilut(fe), weights%dat)
@@ -21200,7 +21173,7 @@ contains
                 return
             end if
 
-            weights = init_fullStartWeight(L, csf_info, fe, en, negSwitches(fe), posSwitches(fe), &
+            weights = init_fullStartWeight(csf_info, fe, en, negSwitches(fe), posSwitches(fe), &
                                            csf_info%B_ilut(fe))
 
             ! then it is actually not a proper double excitation..
@@ -21238,7 +21211,7 @@ contains
                 return
             end if
 
-            weights = init_fullStartWeight(L, csf_info, fe, en, negSwitches(fe), posSwitches(fe), &
+            weights = init_fullStartWeight(csf_info, fe, en, negSwitches(fe), posSwitches(fe), &
                                            csf_info%B_ilut(fe))
 
             ! if its a 3 start no switches in overlap region are possible
@@ -21275,7 +21248,7 @@ contains
             ! here i essentially do not need to check the weights..
             ! since no switch is possible anyway and there is only one
             ! connecting CSF..
-            weights = init_doubleWeight(L, csf_info, en)
+            weights = init_doubleWeight(csf_info, en)
 
             zw = weights%proc%zero(negSwitches(st), posSwitches(st), csf_info%B_ilut(st), &
                                    weights%dat)
@@ -21295,11 +21268,11 @@ contains
 
             if (t_approx_exchange .or. (t_approx_exchange_noninits .and. (.not. is_init_guga))) then
                 ! the weights also change for fully-exchange type
-                weights = init_forced_end_exchange_weight(L, csf_info, en)
+                weights = init_forced_end_exchange_weight(csf_info, en)
 
             else
 
-                weights = init_doubleWeight(L, csf_info, en)
+                weights = init_doubleWeight(csf_info, en)
             end if
 
             zw = weights%proc%zero(negSwitches(st), posSwitches(st), csf_info%B_ilut(st), &
@@ -22384,7 +22357,7 @@ contains
 
         ! determine the GUGA restrictions:
         if (is_in_pair(occ_orbs(1), occ_orbs(2))) then
-            call gen_ab_cum_list_3(ilut, csf_info, occ_orbs, cum_arr, excit_arr, orb_arr)
+            call gen_ab_cum_list_3(csf_info, occ_orbs, cum_arr, excit_arr, orb_arr)
 
         else
             ! determine the different types
@@ -22394,7 +22367,7 @@ contains
             ! the hubbard model!
             ! not sure about this assumption above anymore! have to check that!
             if ((.not. IsDoub(ilut, occ_orbs(1))) .and. (.not. IsDoub(ilut, occ_orbs(2)))) then
-                call gen_ab_cum_list_1_1(ilut, csf_info, occ_orbs, cum_arr, excit_arr, orb_arr)
+                call gen_ab_cum_list_1_1(csf_info, occ_orbs, cum_arr, excit_arr, orb_arr)
 
             else
                 call gen_ab_cum_list_3_3(csf_info, occ_orbs, cum_arr, excit_arr, orb_arr)
@@ -22404,7 +22377,7 @@ contains
 
     end subroutine gen_ab_cum_list_ueg
 
-    subroutine gen_ab_cum_list_1_1(ilut, csf_info, occ_orbs, cum_arr, excit_arr, orb_arr)
+    subroutine gen_ab_cum_list_1_1(csf_info, occ_orbs, cum_arr, excit_arr, orb_arr)
         ! specific routine when the occupaton of the already picked orbitals
         ! is 2 -> still think if i really want to outpout a cum_arr of lenght
         ! nBasis -> nSpatOrbs would be better and doable... !! todo
@@ -22413,7 +22386,6 @@ contains
         ! contraint then, that there has to be a possible switch between them!
         ! so, probably a good idea to check if there is a possible switch
         ! between i and j first, and only then allow a = (i,j)
-        integer(n_int), intent(in) :: ilut(0:nifguga)
         type(CSF_Info_t), intent(in) :: csf_info
         integer, intent(in) :: occ_orbs(2)
         real(dp), intent(out) :: cum_arr(nSpatOrbs)
@@ -23000,10 +22972,9 @@ contains
 
     end subroutine gen_ab_cum_list_3_3
 
-    subroutine gen_ab_cum_list_3(ilut, csf_info, occ_orbs, cum_arr, excit_arr, orb_arr)
+    subroutine gen_ab_cum_list_3(csf_info, occ_orbs, cum_arr, excit_arr, orb_arr)
         ! specific routine, when 2 already picked orbtitals are from same
         ! spatial orbital
-        integer(n_int), intent(in) :: ilut(0:nifguga)
         type(CSF_Info_t), intent(in) :: csf_info
         integer, intent(in) :: occ_orbs(2)
         real(dp), intent(out) :: cum_arr(nSpatOrbs)
@@ -27189,19 +27160,16 @@ contains
 
     end subroutine pickRandomOrb_scalar
 
-    subroutine pickOrbitals_nosym_single(ilut, nI, csf_info, excitInfo, pgen)
+    subroutine pickOrbitals_nosym_single(nI, csf_info, excitInfo, pgen)
         ! funnction to pick 2 valid excitation orbitals provided a ilut for a
         ! single excitation. todo how to combine that with integral files...
         type(CSF_Info_t), intent(in) :: csf_info
-        integer(n_int), intent(in) :: ilut(0:nifguga)
         integer, intent(in) :: nI(nel)
         type(ExcitationInformation_t), intent(out) :: excitInfo
         real(dp), intent(out) :: pgen
-        character(*), parameter :: this_routine = "pickOrbitals_nosym_single"
 
         integer :: i, j, nOrbs, nSwitches
         real(dp) :: factor
-        ASSERT(isProperCSF_ilut(ilut))
 
         unused_var(nI)
 
