@@ -39,6 +39,7 @@ module excit_gen_5
     use guga_bitRepOps, only: isProperCSF_ilut, convert_ilut_toGUGA, write_det_guga, &
                               init_csf_information
     use guga_data, only: ExcitationInformation_t, tNewDet
+    use guga_types, only: CSF_Info_t
     use guga_excitations, only: calc_guga_matrix_element, &
                                 global_excitinfo, print_excitInfo
 
@@ -64,6 +65,8 @@ contains
         real(dp) :: cum_arr(nbasis)
         type(ExcitationInformation_t) :: excitInfo
         integer(n_int) :: ilutGi(0:nifguga), ilutGj(0:nifguga)
+        ! TODO(@Oskar): I don't like this, discuss with Werner
+        type(CSF_Info_t), save :: csf_info
 
 #ifdef DEBUG_
         HElement_t(dp) :: temp_hel
@@ -112,7 +115,7 @@ contains
                 call convert_ilut_toGUGA(ilutI, ilutGi)
                 ! use new setup function for additional CSF informtation
                 ! instead of calculating it all seperately..
-                call init_csf_information(ilutGi(0:nifd))
+                call init_csf_information(ilutGi(0:nifd), csf_info)
 
                 ! then set tNewDet to false and only set it after the walker loop
                 ! in FciMCPar
@@ -120,7 +123,7 @@ contains
 
             end if
 
-            call calc_guga_matrix_element(ilutI, ilutJ, excitInfo, HelGen, .true., 1)
+            call calc_guga_matrix_element(ilutI, csf_info, ilutJ, excitInfo, HelGen, .true., 1)
 
             if (abs(HelGen) < EPS) then
                 nJ(1) = 0
