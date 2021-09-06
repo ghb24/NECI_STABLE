@@ -8,8 +8,7 @@ module tJ_model
                           t_heisenberg_model, t_new_real_space_hubbard, exchange_j, &
                           t_trans_corr, trans_corr_param, &
                           t_trans_corr_2body, trans_corr_param_2body, &
-                          nSpatOrbs, current_stepvector, currentB_int, &
-                          t_bipartite_order
+                          nSpatOrbs, t_bipartite_order
 
     use constants, only: dp, n_int, EPS, bits_n_int, maxExcit
 
@@ -61,7 +60,7 @@ module tJ_model
     use guga_data, only: ExcitationInformation_t, excit_type, gen_type
 
     use guga_bitRepOps, only: count_alpha_orbs_ij, count_beta_orbs_ij, &
-                              write_det_guga
+                              write_det_guga, CSF_Info_t
 
     implicit none
 
@@ -922,7 +921,7 @@ contains
 
     end function calc_pgen_tJ_model
 
-    subroutine pick_orbitals_guga_tJ(ilut, nI, excitInfo, orb_pgen)
+    subroutine pick_orbitals_guga_tJ(ilut, nI, csf_info, excitInfo, orb_pgen)
         ! orbital picking routine for the GUGA t-J model.
         ! the most effective way would be to pick a hole first, instead
         ! of an random electron, so the chance of a succesful hop
@@ -930,6 +929,7 @@ contains
         ! actually.
         integer(n_int), intent(in) :: ilut(0:nifguga)
         integer, intent(in) :: nI(nel)
+        type(CSF_Info_t), intent(in) :: csf_info
         type(ExcitationInformation_t), intent(out) :: excitInfo
         real(dp), intent(out) :: orb_pgen
         character(*), parameter :: this_routine = "pick_orbitals_guga_tJ"
@@ -948,7 +948,7 @@ contains
 
         neighbors = lat%get_neighbors(lat%get_site_index(id))
 
-        call gen_guga_tJ_cum_list(id, cum_arr)
+        call gen_guga_tJ_cum_list(csf_info, id, cum_arr)
 
         cum_sum = cum_arr(size(neighbors))
 
@@ -979,7 +979,8 @@ contains
 
     end subroutine pick_orbitals_guga_tJ
 
-    subroutine gen_guga_tJ_cum_list(id, cum_arr, tgt, tgt_pgen)
+    subroutine gen_guga_tJ_cum_list(csf_info, id, cum_arr, tgt, tgt_pgen)
+        type(CSF_Info_t), intent(in) :: csf_info
         integer, intent(in) :: id
         real(dp), allocatable, intent(out) :: cum_arr(:)
         integer, intent(in), optional :: tgt
@@ -1004,7 +1005,7 @@ contains
 
                 n = neighbors(i)
 
-                if (current_stepvector(n) == 0) then
+                if (csf_info%stepvector(n) == 0) then
                     tmp = 1.0_dp
                     cum_sum = cum_sum + tmp
                     if (tgt == n) tgt_pgen = tmp
@@ -1014,7 +1015,7 @@ contains
             do i = 1, size(neighbors)
                 n = neighbors(i)
 
-                if (current_stepvector(n) == 0) then
+                if (csf_info%stepvector(n) == 0) then
                     cum_sum = cum_sum + 1.0_dp
                 end if
 
@@ -1024,11 +1025,11 @@ contains
 
     end subroutine gen_guga_tJ_cum_list
 
-    subroutine pick_orbitals_guga_heisenberg(ilut, nI, excitInfo, orb_pgen)
+    subroutine pick_orbitals_guga_heisenberg(nI, csf_info, excitInfo, orb_pgen)
         ! i "just" need to implement a custom orbital picker for the
         ! spin-free Heisenberg exchange
-        integer(n_int), intent(in) :: ilut(0:nifguga)
         integer, intent(in) :: nI(nel)
+        type(CSF_Info_t), intent(in) :: csf_info
         type(ExcitationInformation_t), intent(out) :: excitInfo
         real(dp), intent(out) :: orb_pgen
         character(*), parameter :: this_routine = "pick_orbitals_guga_heisenberg"
@@ -1052,7 +1053,7 @@ contains
 
         neighbors = lat%get_neighbors(lat%get_site_index(id))
 
-        call gen_guga_heisenberg_cum_list(ilut, id, cum_arr)
+        call gen_guga_heisenberg_cum_list(csf_info, id, cum_arr)
 
         cum_sum = cum_arr(size(neighbors))
 
@@ -1088,9 +1089,9 @@ contains
 
     end subroutine pick_orbitals_guga_heisenberg
 
-    subroutine gen_guga_heisenberg_cum_list(ilut, id, cum_arr, tgt, tgt_pgen)
+    subroutine gen_guga_heisenberg_cum_list(csf_info, id, cum_arr, tgt, tgt_pgen)
         ! make a routine for this, for easy pgen recalculation
-        integer(n_int), intent(in) :: ilut(0:nifguga)
+        type(CSF_Info_t), intent(in) :: csf_info
         integer, intent(in) :: id
         real(dp), allocatable, intent(out) :: cum_arr(:)
         integer, intent(in), optional :: tgt
@@ -1109,7 +1110,7 @@ contains
         cum_sum = 0.0_dp
         tmp = 0.0_dp
 
-        step = current_stepvector(id)
+        step = csf_info%stepvector(id)
 
         if (present(tgt)) then
 
@@ -1120,19 +1121,17 @@ contains
             do i = 1, size(neighbors)
                 n = neighbors(i)
 
-                if (current_stepvector(n) == 0) then
+                if (csf_info%stepvector(n) == 0) then
                     cycle
 
-                else if (current_stepvector(n) == step) then
+                else if (csf_info%stepvector(n) == step) then
                     if (abs(id - n) == 1) then
                         cycle
                     else
 
-                        if (step == 1 .and. &
-                            count_alpha_orbs_ij(ilut(0:nifd), min(id, n), max(id, n)) == 0) cycle
+                        if (step == 1 .and. count_alpha_orbs_ij(csf_info, min(id, n), max(id, n)) == 0) cycle
 
-                        if (step == 2 .and. &
-                            count_beta_orbs_ij(ilut(0:nifd), min(id, n), max(id, n)) == 0) cycle
+                        if (step == 2 .and. count_beta_orbs_ij(csf_info, min(id, n), max(id, n)) == 0) cycle
 
                         tmp = 1.0_dp
 
@@ -1141,14 +1140,20 @@ contains
                         if (tgt == n) tgt_pgen = tmp
                     end if
 
-                else if (current_stepvector(n) /= 0 .and. &
-                         current_stepvector(n) /= step) then
+                else if (csf_info%stepvector(n) /= 0 &
+                         .and. csf_info%stepvector(n) /= step) then
 
-                    if (id - n == -1 .and. current_stepvector(id) == 1 .and. &
-                        currentB_int(id) == 1) cycle
+                    if (id - n == -1 &
+                            .and. csf_info%stepvector(id) == 1 &
+                            .and.  csf_info%B_int(id) == 1) then
+                        cycle
+                    end if
 
-                    if (id - n == 1 .and. current_stepvector(n) == 1 .and. &
-                        currentB_int(n) == 1) cycle
+                    if (id - n == 1 &
+                            .and. csf_info%stepvector(n) == 1 &
+                            .and. csf_info%B_int(n) == 1) then
+                        cycle
+                    end if
 
                     tmp = 1.0_dp
 
@@ -1165,26 +1170,26 @@ contains
         else
             do i = 1, size(neighbors)
                 n = neighbors(i)
-                if (current_stepvector(n) == 0) then
+                if (csf_info%stepvector(n) == 0) then
                     ! t-J case
                     cum_arr(i) = cum_sum
                     cycle
 
-                else if (current_stepvector(n) == step) then
+                else if (csf_info%stepvector(n) == step) then
                     ! this can only be if we have space
                     ! between the step-vectors
                     if (abs(id - n) == 1) then
                         cum_arr(i) = cum_sum
                         cycle
                     else
-                        if (step == 1 .and. &
-                            count_alpha_orbs_ij(ilut(0:nifd), min(id, n), max(id, n)) == 0) then
+                        if (step == 1 &
+                                .and. count_alpha_orbs_ij(csf_info, min(id, n), max(id, n)) == 0) then
                             cum_arr(i) = cum_sum
                             cycle
                         end if
 
-                        if (step == 2 .and. &
-                            count_beta_orbs_ij(ilut(0:nifd), min(id, n), max(id, n)) == 0) then
+                        if (step == 2 &
+                                .and. count_beta_orbs_ij(csf_info, min(id, n), max(id, n)) == 0) then
                             cum_arr(i) = cum_sum
                             cycle
                         end if
@@ -1193,17 +1198,18 @@ contains
                         cum_sum = cum_sum + 1.0_dp
                     end if
 
-                else if (current_stepvector(n) /= 0 .and. &
-                         current_stepvector(n) /= step) then
+                else if (csf_info%stepvector(n) /= 0 .and. csf_info%stepvector(n) /= step) then
 
-                    if (id - n == -1 .and. current_stepvector(id) == 1 .and. &
-                        currentB_int(id) == 1) then
+                    if (id - n == -1 &
+                            .and. csf_info%stepvector(id) == 1 &
+                            .and.  csf_info%B_int(id) == 1) then
                         cum_arr(i) = cum_sum
                         cycle
                     end if
 
-                    if (id - n == 1 .and. current_stepvector(n) == 1 .and. &
-                        currentB_int(n) == 1) then
+                    if (id - n == 1 &
+                            .and. csf_info%stepvector(n) == 1 &
+                            .and. csf_info%B_int(n) == 1) then
                         cum_arr(i) = cum_sum
                         cycle
                     end if
@@ -1216,10 +1222,10 @@ contains
 
     end subroutine gen_guga_heisenberg_cum_list
 
-    subroutine calc_orbital_pgen_contr_heisenberg(ilut, occ_orbs, above_cpt, below_cpt)
+    subroutine calc_orbital_pgen_contr_heisenberg(csf_info, occ_orbs, above_cpt, below_cpt)
         ! and I also need an orbital pgen recalculator for the
         ! exchange type excitations
-        integer(n_int), intent(in) :: ilut(0:nifguga)
+        type(CSF_Info_t), intent(in) :: csf_info
         integer, intent(in) :: occ_orbs(2)
         real(dp), intent(out) :: above_cpt, below_cpt
         character(*), parameter :: this_routine = "calc_orbital_pgen_contr_heisenberg"
@@ -1240,10 +1246,10 @@ contains
         ! the occ_orbs are spin-orbitals!  so convert!
         sp_orbs = gtID(occ_orbs)
 
-        call gen_guga_heisenberg_cum_list(ilut, minval(sp_orbs), cum_arr, &
+        call gen_guga_heisenberg_cum_list(csf_info, minval(sp_orbs), cum_arr, &
                                           maxval(sp_orbs), below_cpt)
 
-        call gen_guga_heisenberg_cum_list(ilut, maxval(sp_orbs), cum_arr, &
+        call gen_guga_heisenberg_cum_list(csf_info, maxval(sp_orbs), cum_arr, &
                                           minval(sp_orbs), above_cpt)
 
         above_cpt = above_cpt * p_elec

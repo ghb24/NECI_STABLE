@@ -66,11 +66,11 @@ MODULE PopsfileMod
     use guga_data, only: ExcitationInformation_t
     use guga_excitations, only: calc_guga_matrix_element
 
-    use guga_bitrepops, only: init_csf_information
+    use guga_bitrepops, only: fill_csf_info
     use real_time_data, only: t_real_time_fciqmc, phase_factors, t_kspace_operators, &
                               TotWalkers_orig
 
-    use guga_bitrepops, only: init_csf_information, getExcitation_guga
+    use guga_bitrepops, only: fill_csf_info, getExcitation_guga
 
     implicit none
 

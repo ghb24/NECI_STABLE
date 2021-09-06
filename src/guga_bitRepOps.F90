@@ -7,13 +7,11 @@
 ! explicetly too
 module guga_bitRepOps
 
-    use SystemData, only: nEl, Stot, nSpatOrbs, &
-                          current_cum_list, nbasis
+    use SystemData, only: nEl, Stot, nSpatOrbs, nbasis
     use guga_data, only: ExcitationInformation_t, excit_type, gen_type, &
                          rdm_ind_bitmask, pos_excit_lvl_bits, pos_excit_type_bits, &
                          n_excit_lvl_bits, n_excit_type_bits, n_excit_index_bits, &
                          excit_names
-    use guga_types, only: CSF_Info_t
     use constants, only: dp, n_int, bits_n_int, bni_, bn2_, int_rdm, int64
     use DetBitOps, only: return_ms, count_set_bits, MaskAlpha, &
                          count_open_orbs, ilut_lt, ilut_gt, MaskAlpha, MaskBeta, &
@@ -45,7 +43,8 @@ module guga_bitRepOps
             count_open_orbs, count_open_orbs_ij, &
             count_beta_orbs_ij, count_alpha_orbs_ij, &
             calcOcc_vector_ilut, calcOcc_vector_int, &
-            encodebitdet_guga, identify_excitation, init_csf_information, &
+            encodebitdet_guga, identify_excitation, &
+            CSF_Info_t, csf_info, fill_csf_info, &
             calc_csf_info, extract_h_element, getexcitation_guga, &
             getspatialoccupation, getExcitationRangeMask, &
             contract_1_rdm_ind, contract_2_rdm_ind, extract_1_rdm_ind, &
@@ -107,6 +106,22 @@ module guga_bitRepOps
         module procedure encode_excit_info_indices_scalar
     end interface encode_excit_info_indices
 
+    type :: CSF_Info_t
+        integer, allocatable :: stepvector(:)
+        integer, allocatable :: Occ_int(:), B_int(:)
+        real(dp), allocatable :: Occ_ilut(:), B_ilut(:), B_nI(:)
+
+        real(dp), allocatable :: cum_list(:)
+            !! also use a fake cum-list of the non-doubly occupied orbital to increase
+            !! preformance in the picking of orbitals (a)
+    end type
+
+    interface CSF_Info_t
+        module procedure construct_CSF_Info_t
+    end interface
+
+    type(CSF_Info_t) :: csf_info
+        !! Information about the current CSF, similar to ilut and nI.
 contains
 
     subroutine init_guga_bitrep(n_spatial_bits)
@@ -2449,15 +2464,11 @@ contains
 
     end function isProperCSF_nI
 
-    function isProperCSF_b(ilut) result(flag)
+    pure function isProperCSF_b(ilut) result(flag)
         integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
         logical :: flag
 
-        flag = .true.
-
-        ! check if b value drops below zero
-        if (any(calcB_vector_int(ilut(0:GugaBits%len_orb)) < 0)) flag = .false.
-
+        flag = all(calcB_vector_int(ilut(0:GugaBits%len_orb)) >= 0)
     end function isProperCSF_b
 
     pure function isProperCSF_flexible(ilut, spin, num_el) result(flag)
@@ -2827,7 +2838,19 @@ contains
 
     end subroutine calc_csf_info
 
-    subroutine init_csf_information(ilut, csf_info)
+    pure function construct_CSF_Info_t(ilut) result(csf_info)
+        integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
+        type(CSF_Info_t) :: csf_info
+        allocate(csf_info%stepvector(nSpatOrbs), &
+                 csf_info%B_ilut(nSpatOrbs), &
+                 csf_info%Occ_ilut(nSpatOrbs), &
+                 csf_info%B_int(nSpatOrbs), &
+                 csf_info%Occ_int(nSpatOrbs), &
+                 csf_info%cum_list(nSpatOrbs))
+        call fill_csf_info(ilut, csf_info)
+    end function
+
+    pure subroutine fill_csf_info(ilut, csf_info)
         ! routine which sets up all the additional csf information, like
         ! stepvector, b vector, occupation etc. in various formats in one
         ! place
@@ -2847,11 +2870,6 @@ contains
         ASSERT(allocated(csf_info%B_int))
         ASSERT(allocated(csf_info%Occ_int))
 
-        ! remove allocs and deallocs, since the size of these quantities
-        ! never change.. do the allocation in guga_init
-        ! and maybe think about other improvements of this code...
-        ! what would be a neat way to calc all those quantities faster??
-
         csf_info%stepvector = 0
         csf_info%B_ilut = 0.0_dp
         csf_info%Occ_ilut = 0.0_dp
@@ -2862,7 +2880,7 @@ contains
         b_int = 0
 
         ! also create a fake cum-list of the non-doubly occupied orbitals
-        current_cum_list = 0.0_dp
+        csf_info%cum_list = 0.0_dp
         cum_sum = 0.0_dp
 
         do i = 1, nSpatOrbs
@@ -2910,11 +2928,10 @@ contains
             csf_info%B_ilut(i) = b_real
             csf_info%B_int(i) = b_int
 
-            current_cum_list(i) = cum_sum
-
+            csf_info%cum_list(i) = cum_sum
         end do
 
-    end subroutine init_csf_information
+    end subroutine fill_csf_info
 
     pure subroutine encode_stochastic_rdm_info(BitIndex, ilut, rdm_ind, x0, x1)
         ! make these function general by also providing the

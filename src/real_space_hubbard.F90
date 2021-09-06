@@ -73,7 +73,7 @@ module real_space_hubbard
     use guga_data, only: ExcitationInformation_t, ExcitationInformation_t, tNewDet
     use guga_excitations, only: calc_guga_matrix_element, generate_excitation_guga, &
                                 global_excitinfo
-    use guga_bitRepOps, only: isProperCSF_ilut, convert_ilut_toGUGA, init_csf_information
+    use guga_bitRepOps, only: isProperCSF_ilut, convert_ilut_toGUGA, fill_csf_info, global_csf_info => csf_info
 
     implicit none
 
@@ -2076,7 +2076,7 @@ contains
                 call convert_ilut_toGUGA(ilutI, ilutGi)
                 ! use new setup function for additional CSF informtation
                 ! instead of calculating it all seperately..
-                call init_csf_information(ilutGi(0:nifd))
+                call fill_csf_info(ilutGi(0:nifd), global_csf_info)
 
                 ! then set tNewDet to false and only set it after the walker loop
                 ! in FciMCPar
@@ -2084,7 +2084,7 @@ contains
 
             end if
 
-            call calc_guga_matrix_element(ilutI, ilutJ, excitInfo, hel, .true., 1)
+            call calc_guga_matrix_element(ilutI, global_csf_info, ilutJ, excitInfo, hel, .true., 1)
 
             if (abs(hel) < EPS) then
                 nJ(1) = 0
@@ -2502,7 +2502,7 @@ contains
             call EncodeBitDet(nI, ilut)
             ilutJ = make_ilutJ(ilut, ex, 1)
 
-            call calc_guga_matrix_element(ilut, csf_info, ilutJ, excitInfo, hel, .true., 2)
+            call calc_guga_matrix_element(ilut, global_csf_info, ilutJ, excitInfo, hel, .true., 2)
 
             if (tpar) hel = -hel
             return

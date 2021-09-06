@@ -37,9 +37,8 @@ module excit_gen_5
                           check_electron_location, pick_second_occupied_orbital
 
     use guga_bitRepOps, only: isProperCSF_ilut, convert_ilut_toGUGA, write_det_guga, &
-                              init_csf_information
+                              CSF_Info_t, fill_csf_info
     use guga_data, only: ExcitationInformation_t, tNewDet
-    use guga_types, only: CSF_Info_t
     use guga_excitations, only: calc_guga_matrix_element, &
                                 global_excitinfo, print_excitInfo
 
@@ -115,7 +114,7 @@ contains
                 call convert_ilut_toGUGA(ilutI, ilutGi)
                 ! use new setup function for additional CSF informtation
                 ! instead of calculating it all seperately..
-                call init_csf_information(ilutGi(0:nifd), csf_info)
+                call fill_csf_info(ilutGi(0:nifd), csf_info)
 
                 ! then set tNewDet to false and only set it after the walker loop
                 ! in FciMCPar

@@ -379,7 +379,7 @@ contains
                     H_tmp(i, i) = get_helement(det_list(:, i), det_list(:, i), 0)
                 end if
                 ! off diagonal elements
-                if (tGUGA) call init_csf_information(ilut_list(0:nifd, i))
+                if (tGUGA) call fill_csf_info(ilut_list(0:nifd, i))
                 do j = 1, i - 1
                     if (tHPHF) then
                         H_tmp(i, j) = hphf_off_diag_helement(det_list(:, i), det_list(:, j), ilut_list(:, i), &

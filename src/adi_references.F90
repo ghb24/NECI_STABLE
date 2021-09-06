@@ -514,6 +514,7 @@ contains
         use SystemData, only: tHPHF
         use hphf_integrals, only: hphf_off_diag_helement
         use guga_excitations, only: calc_guga_matrix_element
+        use guga_bitRepOps, only: CSF_Info_t
         use guga_data, only: ExcitationInformation_t
         implicit none
         integer(n_int), intent(in) :: ilut(0:NIfTot)
@@ -539,7 +540,7 @@ contains
         if (tHPHF) then
             h_el = hphf_off_diag_helement(nI, nJRef(:), ilut, ilutRefAdi(:, iRef))
         else if (tGUGA) then
-            call calc_guga_matrix_element(ilut, ilutRefAdi(:, iref), excitInfo, h_el, .true., 2)
+            call calc_guga_matrix_element(ilut, CSF_Info_t(ilut), ilutRefAdi(:, iref), excitInfo, h_el, .true., 2)
         else
             h_el = get_helement(nI, nJRef(:), ilut, ilutRefAdi(:, iRef))
         end if
@@ -589,6 +590,7 @@ contains
         use Determinants, only: get_helement
         use hphf_integrals, only: hphf_off_diag_helement
         use guga_excitations, only: calc_guga_matrix_element
+        use guga_bitRepOps, only: CSF_Info_t
         use guga_data, only: ExcitationInformation_t
         implicit none
         integer, intent(in) :: nI(nel), i
@@ -609,7 +611,7 @@ contains
         if (tHPHF) then
             h_el = hphf_off_diag_helement(nI, nIRef(:, i), ilut, ilutRefAdi(:, i))
         else if (tGUGA) then
-            call calc_guga_matrix_element(ilut, ilutRefAdi(:, i), excitInfo, h_el, .true., 2)
+            call calc_guga_matrix_element(ilut, CSF_Info_t(ilut), ilutRefAdi(:, i), excitInfo, h_el, .true., 2)
         else
             h_el = get_helement(nI, nIRef(:, i), ilut, ilutRefAdi(:, i))
         end if

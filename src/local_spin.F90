@@ -12,7 +12,7 @@ module local_spin
       use FciMCData, only: iter, PreviousCycles, norm_psi, totwalkers, &
                            all_norm_psi_squared
       use util_mod, only: get_free_unit, near_zero, stats_out
-      use guga_types, only: CSF_Info_t
+      use guga_data, only: CSF_Info_t
 
       implicit none
 

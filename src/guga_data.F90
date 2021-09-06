@@ -5,10 +5,10 @@
 module guga_data
     ! dependencies: be EXPLICIT about them!
     use SystemData, only: nBasis, tSPN, tHPHF, lNoSymmetry, STOT, nEl, &
-                          tNoBrillouin, tExactSizeSpace, tUHF, tGUGA
-    use constants, only: dp, Root2, OverR2, n_int, int_rdm
+                          tNoBrillouin, tExactSizeSpace, tUHF, tGUGA, nSpatOrbs
+    use constants, only: dp, Root2, OverR2, n_int, int_rdm, bn2_
     use MemoryManager, only: TagIntType
-    use bit_rep_data, only: BitRep_t
+    use bit_rep_data, only: BitRep_t, GugaBits
 
     implicit none
 
@@ -23,8 +23,6 @@ module guga_data
               rdm_ind_bitmask, pos_excit_lvl_bits, pos_excit_type_bits, &
               n_excit_lvl_bits, n_excit_type_bits, n_excit_info_bits, &
               RdmContribList_t, n_excit_index_bits
-
-    ! ========================== type defs ===================================
 
     ! define types for the probabilistic weights functions used in the
     ! stochastic excitations generations

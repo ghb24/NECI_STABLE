@@ -4,11 +4,11 @@ module gas_guga_pchb_class
     use aliasSampling, only: AliasSampler_2D_t
     use constants, only: n_int, dp, maxExcit, int64, stdout, int_rdm
     use bit_rep_data, only: IlutBits, GugaBits
-    use SystemData, only: nel, G1, current_stepvector, t_pchb_weighted_singles, &
-                          nBasis, nSpatOrbs, ElecPairs, currentOcc_int, &
+    use SystemData, only: nel, G1, t_pchb_weighted_singles, &
+                          nBasis, nSpatOrbs, ElecPairs, &
                           t_analyze_pchb, t_old_pchb, t_exchange_pchb
     use FciMCData, only: excit_gen_store_type, pSingles, pDoubles, MaxTau
-    use guga_data, only: tNewDet, ExcitationInformation_t, gen_type, excit_type
+    use guga_data, only: tNewDet, ExcitationInformation_t, gen_type, excit_type, CSF_Info_t
     use guga_bitrepops, only: convert_ilut_toGUGA, isProperCSF_ilut
     use dSFMT_interface, only: genrand_real2_dSFMT
     use util_mod, only: near_zero, fuseIndex, intswap, binary_search_first_ge, &
@@ -303,8 +303,8 @@ contains
         j = gtID(src(2))
 
         if (i /= j) then
-            if (current_stepvector(i) == 3) pgen_elec = 2.0_dp * pgen_elec
-            if (current_stepvector(j) == 3) pgen_elec = 2.0_dp * pgen_elec
+            if (csf_info%stepvector(i) == 3) pgen_elec = 2.0_dp * pgen_elec
+            if (csf_info%stepvector(j) == 3) pgen_elec = 2.0_dp * pgen_elec
         end if
 
         ! use the sampler for this electron pair -> order of src electrons
@@ -337,9 +337,9 @@ contains
         ! these are the 'easy' checks for GUGA.. more checks need to be done
         ! to see if it is actually a valid combination..
         if (any(orbs == 0) &
-                .or. (current_stepvector(a) == 3) &
-                .or. (current_stepvector(b) == 3) &
-                .or. (a == b .and. current_stepvector(b) /= 0)) then
+                .or. (csf_info%stepvector(a) == 3) &
+                .or. (csf_info%stepvector(b) == 3) &
+                .or. (a == b .and. csf_info%stepvector(b) /= 0)) then
             excitInfo%valid = .false.
             return
         end if
@@ -387,7 +387,7 @@ contains
 
         pgen = pgen / real(nEl, dp)
 
-        if (current_stepvector(spat_src) == 3) pgen = 2.0_dp * pgen
+        if (csf_info%stepvector(spat_src) == 3) pgen = 2.0_dp * pgen
 
         if (spat_tgt < spat_src) then
             excitInfo = assign_excitinfo_values_single(&
@@ -429,7 +429,7 @@ contains
         block
             integer, allocatable :: sym_orbs(:)
             sym_orbs = sym_label_list_spat(sym_index : sym_index + nOrb - 1)
-            valid_orbs = pack(sym_orbs, current_stepvector(sym_orbs) /= 3 .and. sym_orbs /= src)
+            valid_orbs = pack(sym_orbs, csf_info%stepvector(sym_orbs) /= 3 .and. sym_orbs /= src)
 
             ! GAS conditions
         end block
@@ -443,8 +443,9 @@ contains
         pgen = 1.0_dp / real(size(valid_orbs), dp)
     end subroutine pick_uniform_spatial_hole
 
-    function calc_orb_pgen_uniform_singles(excitInfo) result(pgen)
+    function calc_orb_pgen_uniform_singles(csf_info, excitInfo) result(pgen)
         debug_function_name("calc_orb_pgen_uniform_singles")
+        type(CSF_Info_t), intent(in) :: csf_info
         type(ExcitationInformation_t), intent(in) :: excitInfo
         real(dp) :: pgen
 
@@ -456,10 +457,10 @@ contains
         pgen = 0.0_dp
 
         if (excitInfo%i == excitInfo%j) return
-        if (current_stepvector(excitInfo%i) == 3) return
-        if (current_stepvector(excitInfo%j) == 0) return
+        if (csf_info%stepvector(excitInfo%i) == 3) return
+        if (csf_info%stepvector(excitInfo%j) == 0) return
 
-        nOcc = count(currentOcc_int /= 0)
+        nOcc = count(csf_info%Occ_int /= 0)
 
         so_elec = 2*excitInfo%j
 
@@ -470,7 +471,7 @@ contains
 
 
         nUnocc = count(&
-            (current_stepvector(sym_label_list_spat(sym_index:sym_index+nOrb-1)) /= 3) &
+            (csf_info%stepvector(sym_label_list_spat(sym_index:sym_index+nOrb-1)) /= 3) &
             .and. (sym_label_list_spat(sym_index:sym_index+nOrb-1) /= excitInfo%j))
 
         pgen = 1.0_dp / real(nOcc * nUnocc, dp)

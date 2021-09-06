@@ -9,7 +9,7 @@ module guga_pchb_class
                           t_analyze_pchb, t_old_pchb, t_exchange_pchb
     use FciMCData, only: excit_gen_store_type, pSingles, pDoubles, MaxTau
     use guga_data, only: tNewDet, ExcitationInformation_t, gen_type, excit_type
-    use guga_bitrepops, only: convert_ilut_toGUGA, isProperCSF_ilut
+    use guga_bitrepops, only: convert_ilut_toGUGA, isProperCSF_ilut, CSF_Info_t
     use dSFMT_interface, only: genrand_real2_dSFMT
     use util_mod, only: near_zero, fuseIndex, intswap, binary_search_first_ge, &
                         get_free_unit, stop_all
@@ -28,7 +28,6 @@ module guga_pchb_class
     use guga_procedure_pointers, only: gen_single_excit_guga, gen_double_excit_guga
     use guga_bitrepops, only: identify_excitation, encode_excit_info, extract_excit_info, &
                               contract_2_rdm_ind
-    use guga_types, only: CSF_Info_t
     use bit_reps, only: decode_bit_det
     use shared_array, only: shared_array_int64_t, shared_array_real_t
     use MPI_wrapper, only: iProcIndex_intra, iprocindex
@@ -209,10 +208,12 @@ contains
                         ! shoud i point group symmetry restrctions here?
                         ! this would avoid unnecessary if statements..
 
-                        if (RandExcitSymLabelProd(SpinOrbSymLabel(2*i), &
-                            SpinOrbSymLabel(2*j)) /= &
-                            RandExcitSymLabelProd(SpinOrbSymLabel(2*a), &
-                            SpinOrbSymLabel(2*b))) cycle
+                        if (RandExcitSymLabelProd(&
+                                        SpinOrbSymLabel(2*i), SpinOrbSymLabel(2*j)) &
+                                /= RandExcitSymLabelProd(&
+                                        SpinOrbSymLabel(2*a), SpinOrbSymLabel(2*b))) then
+                            cycle
+                        end if
 
                         ab = fuseIndex(a,b)
                         call get_weight_and_info(i, j, a, b, w(ab), excit_info(ab))

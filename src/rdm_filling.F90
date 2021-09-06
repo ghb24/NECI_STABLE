@@ -10,7 +10,7 @@ module rdm_filling
     use constants
     use SystemData, only: tGUGA, nbasis
     use guga_bitRepOps, only: extract_stochastic_rdm_info, extract_2_rdm_ind, &
-                              init_csf_information, identify_excitation
+                              fill_csf_info, identify_excitation
     use rdm_data, only: rdm_spawn_t, rdmCorrectionFactor
     use CalcData, only: tAdaptiveShift, tNonInitsForRDMs, tInitsRDMRef, &
                         tNonVariationalRDMs
@@ -1012,7 +1012,7 @@ contains
 
                 call decode_bit_det(nI, iLutI)
 
-                if (tGUGA) call init_csf_information(ilutI(0:nifd))
+                if (tGUGA) call fill_csf_info(ilutI(0:nifd))
 
                 do j = 1, num_j
                     ! Running over all non-zero off-diag matrix elements

@@ -38,7 +38,7 @@ module guga_rdm
                          minFunA_0_2_overR2, getDoubleContribution, getMixedFullStop
     use guga_types, only: WeightObj_t
     use guga_bitRepOps, only: update_matrix_element, setDeltaB, extract_matrix_element
-    use guga_bitRepOps, only: isProperCSF_ilut, isDouble, init_csf_information
+    use guga_bitRepOps, only: isProperCSF_ilut, isDouble, CSF_Info_t, fill_csf_info
     use guga_bitRepOps, only: write_guga_list, write_det_guga, getSpatialOccupation
     use guga_bitRepOps, only: convert_ilut_toGUGA, convert_ilut_toNECI
     use guga_bitRepOps, only: calc_csf_info, add_guga_lists, EncodeBitDet_guga
@@ -2297,11 +2297,13 @@ contains
         integer :: i, j, k, l, nMax, ierr, n, n_excits, jl, ik
         integer(n_int), allocatable :: temp_excits(:, :), tmp_all_excits(:, :)
         integer(int_rdm) :: ijkl
+        type(CSF_Info_t) :: csf_info
 
-        call init_csf_information(ilut)
+        ! TODO(@Oskar): Perhaps precalculate?
+        csf_info = CSF_Info_t(ilut)
 
         nMax = 6 + 4 * (nSpatOrbs)**3 * (count_open_orbs(ilut) + 1)
-        allocate(tmp_all_excits(0:GugaBits%len_tot, nMax), stat=ierr)
+        allocate(tmp_all_excits(0:GugaBits%len_tot, nMax))
         call LogMemAlloc('tmp_all_excits', (GugaBits%len_tot + 1) * nMax, 8, this_routine, tag_tmp_excits)
 
         n_tot = 0
@@ -2363,7 +2365,7 @@ contains
         integer(n_int), allocatable :: temp_excits(:, :), tmp_all_excits(:, :)
         integer(int_rdm) :: ijkl
 
-        call init_csf_information(ilut)
+        call fill_csf_info(ilut)
 
         nMax = 6 + 4 * (nSpatOrbs)**3 * (count_open_orbs(ilut) + 1)
         allocate(tmp_all_excits(0:GugaBits%len_tot, nMax), stat=ierr)
@@ -2461,7 +2463,7 @@ contains
         integer :: i, j, nMax, ierr, n, n_excits
         integer(n_int), allocatable :: temp_excits(:, :), tmp_all_excits(:, :)
 
-        call init_csf_information(ilut)
+        call fill_csf_info(ilut)
 
         nMax = 6 + 4 * (nSpatOrbs)**2 * (count_open_orbs(ilut) + 1)
         allocate(tmp_all_excits(0:GugaBits%len_tot, nMax), stat=ierr)

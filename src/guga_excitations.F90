@@ -10,7 +10,6 @@ module guga_excitations
 
     use SystemData, only: nEl, nBasis, ElecPairs, G1, nmaxx, &
                           nmaxy, nmaxz, OrbECutoff, tOrbECutoff, nSpatOrbs, &
-                          current_cum_list, &
                           tGen_guga_weighted, ref_stepvector, ref_b_vector_real, &
                           ref_occ_vector, ref_b_vector_int, t_full_guga_tests, &
                           nBasisMax, tHub, treal, t_guga_testsuite, tgen_guga_crude, &
@@ -39,8 +38,6 @@ module guga_excitations
                          tNewDet, tag_excitations, tag_tmp_excits, tag_proje_list, &
                          excit_type, gen_type, excit_names
 
-    use guga_types, only: CSF_Info_t
-
     use guga_bitRepOps, only: isProperCSF_ilut, calcB_vector_ilut, getDeltaB, &
                               setDeltaB, count_open_orbs_ij, calcOcc_vector_ilut, &
                               encode_matrix_element, update_matrix_element, &
@@ -49,9 +46,10 @@ module guga_excitations
                               count_beta_orbs_ij, findFirstSwitch, findLastSwitch, &
                               calcStepvector, find_switches, convert_ilut_toNECI, &
                               calcB_vector_int, calcOcc_vector_int, EncodeBitDet_guga, &
-                              identify_excitation, init_csf_information, calc_csf_info, &
+                              identify_excitation, calc_csf_info, &
                               extract_h_element, encode_stochastic_rdm_info, &
-                              get_preceeding_opposites
+                              get_preceeding_opposites, &
+                              CSF_Info_t, fill_csf_info
 
     use guga_matrixElements, only: calcDiagMatEleGUGA_ilut, calcDiagMatEleGuga_nI
 
@@ -425,7 +423,7 @@ contains
 
         do i = 1, size(ilut_list,2)
             do j = 1, size(ilut_list,2)
-                call init_csf_information(ilut_list(:, j), csf_info)
+                call fill_csf_info(ilut_list(:, j), csf_info)
                 hamil(i,j) = calc_guga_mat_wrapper(ilut_list(:, j), csf_info, ilut_list(:,i))
             end do
         end do
@@ -2350,7 +2348,7 @@ contains
         allocate(excitLvl(nexcit), source=-1)
         allocate(excit_mat(nexcit, 4), source=0)
 
-        call init_csf_information(ilutG(0:nifd), csf_info)
+        call fill_csf_info(ilutG(0:nifd), csf_info)
         do i = 1, nexcit
             call convert_ilut_toNECI(excitations(:, i), det_list(:, i), helgen)
 
@@ -2622,7 +2620,7 @@ contains
         if (tNewDet) then
             ! use new setup function for additional CSF informtation
             ! instead of calculating it all seperately..
-            call init_csf_information(ilut(0:nifd), csf_info)
+            call fill_csf_info(ilut(0:nifd), csf_info)
 
             ! then set tNewDet to false and only set it after the walker loop
             ! in FciMCPar
@@ -4308,7 +4306,7 @@ contains
         if (tNewDet) then
             ! use new setup function for additional CSF informtation
             ! instead of calculating it all seperately..
-            call init_csf_information(ilut(0:nifd), csf_info)
+            call fill_csf_info(ilut(0:nifd), csf_info)
 
             ! then set tNewDet to false and only set it after the walker loop
             ! in FciMCPar
@@ -5164,7 +5162,7 @@ contains
         end if
 
         if (.not. tGen_guga_weighted) then
-            cum_sum = current_cum_list(nSpatOrbs)
+            cum_sum = csf_info%cum_list(nSpatOrbs)
         end if
 
         if (near_zero(cum_sum) .or. near_zero(ab_sum) .or. near_zero(ba_sum)) then
@@ -11282,7 +11280,7 @@ contains
         end if
 
         if (.not. tGen_guga_weighted) then
-            cum_sum = current_cum_list(nSpatOrbs)
+            cum_sum = csf_info%cum_list(nSpatOrbs)
         end if
 
         if (near_zero(cum_sum) .or. near_zero(ab_sum) .or. near_zero(ba_sum)) then
@@ -11374,7 +11372,7 @@ contains
         end if
 
         if (.not. tGen_guga_weighted) then
-            cum_sum = current_cum_list(nSpatOrbs)
+            cum_sum = csf_info%cum_list(nSpatOrbs)
         end if
 
         if (near_zero(cum_sum) .or. near_zero(ab_sum) .or. near_zero(ba_sum)) then
@@ -14302,7 +14300,7 @@ contains
         nTot = 0
 
         ! TODO(@Oskar): uncomment
-        call init_csf_information(ilut(0:nifd), csf_info)
+        call fill_csf_info(ilut(0:nifd), csf_info)
 
         ! single excitations:
         ! does it help to not calculate stuff if not necessary..
@@ -24678,7 +24676,7 @@ contains
         if (tGen_guga_weighted) then
             call gen_a_orb_cum_list_guga_mol(csf_info, occ_orbs, cum_arr)
         else
-            cum_arr = current_cum_list
+            cum_arr = csf_info%cum_list
         end if
 
         cum_sum = cum_arr(nSpatOrbs)

@@ -105,7 +105,7 @@ contains
         use SystemData, only: tHPHF, nel
         use guga_excitations, only: calc_guga_matrix_element
         use guga_data, only: ExcitationInformation_t
-        use guga_bitrepops, only: init_csf_information
+        use guga_bitrepops, only: fill_csf_info
         use bit_rep_data, only: nifd
         integer(n_int), intent(in) :: ilut_list(0:, :)
         HElement_t(dp), intent(inout), allocatable :: local_hamil(:, :)
@@ -133,7 +133,7 @@ contains
         end if
         do i = 1, ndets
             call decode_bit_det(nI, ilut_list(:, i))
-            if (tGUGA) call init_csf_information(ilut_list(0:nifd, i))
+            if (tGUGA) call fill_csf_info(ilut_list(0:nifd, i))
 
             do j = i, ndets
                 call decode_bit_det(nJ, ilut_list(:, j))

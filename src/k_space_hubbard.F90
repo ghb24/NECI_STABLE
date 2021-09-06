@@ -91,8 +91,8 @@ module k_space_hubbard
 
     use guga_excitations, only: generate_excitation_guga, generate_excitation_guga_crude, &
                                 calc_guga_matrix_element, global_excitinfo, print_excitInfo
-    use guga_bitRepOps, only: convert_ilut_toGUGA, init_csf_information, &
-                              isProperCSF_ilut
+    use guga_bitRepOps, only: convert_ilut_toGUGA, fill_csf_info, &
+                              isProperCSF_ilut, global_csf_info => csf_info
     use guga_data, only: ExcitationInformation_t, tNewDet
 
     implicit none
@@ -640,7 +640,7 @@ contains
                 call convert_ilut_toGUGA(ilutI, ilutGi)
                 ! use new setup function for additional CSF informtation
                 ! instead of calculating it all seperately..
-                call init_csf_information(ilutGi(0:nifd))
+                call fill_csf_info(ilutGi(0:nifd), global_csf_info)
 
                 ! then set tNewDet to false and only set it after the walker loop
                 ! in FciMCPar
@@ -648,7 +648,7 @@ contains
 
             end if
 
-            call calc_guga_matrix_element(ilutI, ilutJ, excitInfo, hel, .true., 1)
+            call calc_guga_matrix_element(ilutI, global_csf_info, ilutJ, excitInfo, hel, .true., 1)
 
             if (abs(hel) < EPS) then
                 nJ(1) = 0

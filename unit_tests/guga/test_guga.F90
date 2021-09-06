@@ -1208,7 +1208,7 @@ contains
 
         nel = 2
         call EncodeBitDet_guga([1,2], ilut)
-        call init_csf_information(ilut)
+        call fill_csf_info(ilut)
 
         call calc_all_excits_guga_rdm_doubles(ilut, 2, 1, 0, 0, excits, n_excits)
 
@@ -1275,7 +1275,7 @@ contains
         call assert_equals(1, l)
 
         call EncodeBitDet_guga([3,4], ilut)
-        call init_csf_information(ilut)
+        call fill_csf_info(ilut)
 
         call calc_all_excits_guga_rdm_doubles(ilut, 1, 2, 1, 2, excits, n_excits)
 
@@ -1295,7 +1295,7 @@ contains
 
 
         call EncodeBitDet_guga([5,6], ilut)
-        call init_csf_information(ilut)
+        call fill_csf_info(ilut)
 
         call calc_all_excits_guga_rdm_doubles(ilut, 1, 3, 2, 3, excits, n_excits)
 
@@ -1334,7 +1334,7 @@ contains
         nel = 3
 
         call EncodeBitDet_guga([1,5,6], ilut)
-        call init_csf_information(ilut)
+        call fill_csf_info(ilut)
 
         call calc_all_excits_guga_rdm_doubles(ilut, 3, 1, 2, 3, excits, n_excits)
         call assert_equals(0, n_excits)
@@ -1343,7 +1343,7 @@ contains
 
         nel = 4
         call EncodeBitDet_guga([1,3,6,8], ilut)
-        call init_csf_information(ilut)
+        call fill_csf_info(ilut)
 
         deallocate(nJ)
         allocate(nJ(nel))
@@ -1385,7 +1385,7 @@ contains
 
 
         call EncodeBitDet_guga([1,4,5,8], ilut)
-        call init_csf_information(ilut)
+        call fill_csf_info(ilut)
 
         call calc_all_excits_guga_rdm_doubles(ilut, 1, 4, 4, 1, excits, n_excits)
 
@@ -1499,7 +1499,7 @@ contains
             nel = 2
             call EncodeBitDet_guga([1,2], ilut)
 
-            call init_csf_information(ilut)
+            call fill_csf_info(ilut)
 
             call calc_all_excits_guga_rdm_singles(ilut, 1, 2, excits, n_excits)
 
@@ -1524,7 +1524,7 @@ contains
             call assert_equals(2, i)
 
             call EncodeBitDet_guga([3,4],ilut)
-            call init_csf_information(ilut)
+            call fill_csf_info(ilut)
 
             call calc_all_excits_guga_rdm_singles(ilut, 2, 1, excits, n_excits)
             call assert_equals(0, n_excits)
@@ -1549,7 +1549,7 @@ contains
             deallocate(nJ);
 
             call EncodeBitDet_guga([1,2,3], ilut)
-            call init_csf_information(ilut)
+            call fill_csf_info(ilut)
 
             call calc_all_excits_guga_rdm_singles(ilut, 3, 1, excits, n_excits)
 
@@ -2355,7 +2355,7 @@ contains
 
         call EncodeBitDet(test_det, ilutI)
         call convert_ilut_toGUGA(ilutI, ilutG)
-        call init_csf_information(ilutG)
+        call fill_csf_info(ilutG)
         call actHamiltonian(ilutG, ex, nEx)
 
 
@@ -5138,7 +5138,7 @@ contains
         nI = [1,2,3,4]; ilutI = 0_n_int
         call EncodeBitDet(nI,ilutI)
 
-        call init_csf_information(ilutI)
+        call fill_csf_info(ilutI)
 
         call convert_ilut_toGUGA(ilutI, ilutGi)
 
@@ -5198,7 +5198,7 @@ contains
         nI = [1,2,5,6]
         call EncodeBitDet(nI,ilutI)
 
-        call init_csf_information(ilutI)
+        call fill_csf_info(ilutI)
 
         call generate_excitation_guga(nI,ilutI,nJ,ilutJ,exFlag,IC,excitMat,&
             tParity,pgen,HElGen,store)
@@ -5256,7 +5256,7 @@ contains
         nI = [1,2,7,8]
         call EncodeBitDet(nI,ilutI)
 
-        call init_csf_information(ilutI)
+        call fill_csf_info(ilutI)
 
         call generate_excitation_guga(nI,ilutI,nJ,ilutJ,exFlag,IC,excitMat,&
             tParity,pgen,HElGen,store)
@@ -5314,7 +5314,7 @@ contains
         nI = [3,4,5,6]
         call EncodeBitDet(nI,ilutI)
 
-        call init_csf_information(ilutI)
+        call fill_csf_info(ilutI)
 
         call generate_excitation_guga(nI,ilutI,nJ,ilutJ,exFlag,IC,excitMat,&
             tParity,pgen,HElGen,store)
@@ -5372,7 +5372,7 @@ contains
         nI = [3,4,7,8]
         call EncodeBitDet(nI,ilutI)
 
-        call init_csf_information(ilutI)
+        call fill_csf_info(ilutI)
 
         call generate_excitation_guga(nI,ilutI,nJ,ilutJ,exFlag,IC,excitMat,&
             tParity,pgen,HElGen,store)
@@ -5430,7 +5430,7 @@ contains
         nI = [5,6,7,8]
         call EncodeBitDet(nI,ilutI)
 
-        call init_csf_information(ilutI)
+        call fill_csf_info(ilutI)
 
         call generate_excitation_guga(nI,ilutI,nJ,ilutJ,exFlag,IC,excitMat,&
             tParity,pgen,HElGen,store)
@@ -5489,7 +5489,7 @@ contains
         nI = [1,6,7,8]
         call EncodeBitDet(nI,ilutI)
 
-        call init_csf_information(ilutI)
+        call fill_csf_info(ilutI)
 
         call convert_ilut_toGUGA(ilutI, ilutGi)
 
@@ -5548,7 +5548,7 @@ contains
         nI = [1,2,3,8]
         call EncodeBitDet(nI,ilutI)
 
-        call init_csf_information(ilutI)
+        call fill_csf_info(ilutI)
 
         call generate_excitation_guga(nI,ilutI,nJ,ilutJ,exFlag,IC,excitMat,&
             tParity,pgen,HElGen,store)
@@ -5606,7 +5606,7 @@ contains
         nI = [1,2,3,6]
         call EncodeBitDet(nI,ilutI)
 
-        call init_csf_information(ilutI)
+        call fill_csf_info(ilutI)
 
         call generate_excitation_guga(nI,ilutI,nJ,ilutJ,exFlag,IC,excitMat,&
             tParity,pgen,HElGen,store)
@@ -5664,7 +5664,7 @@ contains
         nI = [1,2,5,8]
         call EncodeBitDet(nI,ilutI)
 
-        call init_csf_information(ilutI)
+        call fill_csf_info(ilutI)
 
         call convert_ilut_toGUGA(ilutI, ilutGi)
 
@@ -5724,7 +5724,7 @@ contains
         nI = [3,4,5,8]
         call EncodeBitDet(nI,ilutI)
 
-        call init_csf_information(ilutI)
+        call fill_csf_info(ilutI)
 
         call generate_excitation_guga(nI,ilutI,nJ,ilutJ,exFlag,IC,excitMat,&
             tParity,pgen,HElGen,store)
@@ -5782,7 +5782,7 @@ contains
         nI = [1,4,5,6]
         call EncodeBitDet(nI,ilutI)
 
-        call init_csf_information(ilutI)
+        call fill_csf_info(ilutI)
 
         call generate_excitation_guga(nI,ilutI,nJ,ilutJ,exFlag,IC,excitMat,&
             tParity,pgen,HElGen,store)
@@ -5840,7 +5840,7 @@ contains
         nI = [1,4,7,8]
         call EncodeBitDet(nI,ilutI)
 
-        call init_csf_information(ilutI)
+        call fill_csf_info(ilutI)
 
         call generate_excitation_guga(nI,ilutI,nJ,ilutJ,exFlag,IC,excitMat,&
             tParity,pgen,HElGen,store)
@@ -5898,7 +5898,7 @@ contains
         nI = [1,3,4,6]
         call EncodeBitDet(nI,ilutI)
 
-        call init_csf_information(ilutI)
+        call fill_csf_info(ilutI)
 
         call generate_excitation_guga(nI,ilutI,nJ,ilutJ,exFlag,IC,excitMat,&
             tParity,pgen,HElGen,store)
@@ -5956,7 +5956,7 @@ contains
         nI = [1,3,4,8]
         call EncodeBitDet(nI,ilutI)
 
-        call init_csf_information(ilutI)
+        call fill_csf_info(ilutI)
 
         call generate_excitation_guga(nI,ilutI,nJ,ilutJ,exFlag,IC,excitMat,&
             tParity,pgen,HElGen,store)
@@ -6014,7 +6014,7 @@ contains
         nI = [1,5,6,8]
         call EncodeBitDet(nI,ilutI)
 
-        call init_csf_information(ilutI)
+        call fill_csf_info(ilutI)
 
         call generate_excitation_guga(nI,ilutI,nJ,ilutJ,exFlag,IC,excitMat,&
             tParity,pgen,HElGen,store)
@@ -6072,7 +6072,7 @@ contains
         nI = [3,5,6,8]
         call EncodeBitDet(nI,ilutI)
 
-        call init_csf_information(ilutI)
+        call fill_csf_info(ilutI)
 
         call generate_excitation_guga(nI,ilutI,nJ,ilutJ,exFlag,IC,excitMat,&
             tParity,pgen,HElGen,store)
@@ -6130,7 +6130,7 @@ contains
         nI = [3,6,7,8]
         call EncodeBitDet(nI,ilutI)
 
-        call init_csf_information(ilutI)
+        call fill_csf_info(ilutI)
 
         call generate_excitation_guga(nI,ilutI,nJ,ilutJ,exFlag,IC,excitMat,&
             tParity,pgen,HElGen,store)
@@ -6189,7 +6189,7 @@ contains
         nI = [1,3,6,8]
         call EncodeBitDet(nI,ilutI)
 
-        call init_csf_information(ilutI)
+        call fill_csf_info(ilutI)
 
         call generate_excitation_guga(nI,ilutI,nJ,ilutJ,exFlag,IC,excitMat,&
             tParity,pgen,HElGen,store)
@@ -6248,7 +6248,7 @@ contains
         nI = [1,4,5,8]
         call EncodeBitDet(nI,ilutI)
 
-        call init_csf_information(ilutI)
+        call fill_csf_info(ilutI)
 
         call generate_excitation_guga(nI,ilutI,nJ,ilutJ,exFlag,IC,excitMat,&
             tParity,pgen,HElGen,store)
@@ -6335,7 +6335,7 @@ contains
         nI = [1,2,3,4]; ilutI = 0_n_int
         call EncodeBitDet(nI,ilutI)
 
-        call init_csf_information(ilutI)
+        call fill_csf_info(ilutI)
 
         call convert_ilut_toGUGA(ilutI, ilutGi)
 
@@ -6381,7 +6381,7 @@ contains
         nI = [1,2,5,6]
         call EncodeBitDet(nI,ilutI)
 
-        call init_csf_information(ilutI)
+        call fill_csf_info(ilutI)
 
         call generate_excitation_guga(nI,ilutI,nJ,ilutJ,exFlag,IC,excitMat,&
             tParity,pgen,HElGen,store)
@@ -6424,7 +6424,7 @@ contains
         nI = [1,2,7,8]
         call EncodeBitDet(nI,ilutI)
 
-        call init_csf_information(ilutI)
+        call fill_csf_info(ilutI)
 
         call generate_excitation_guga(nI,ilutI,nJ,ilutJ,exFlag,IC,excitMat,&
             tParity,pgen,HElGen,store)
@@ -6468,7 +6468,7 @@ contains
         nI = [3,4,5,6]
         call EncodeBitDet(nI,ilutI)
 
-        call init_csf_information(ilutI)
+        call fill_csf_info(ilutI)
 
         call generate_excitation_guga(nI,ilutI,nJ,ilutJ,exFlag,IC,excitMat,&
             tParity,pgen,HElGen,store)
@@ -6512,7 +6512,7 @@ contains
         nI = [3,4,7,8]
         call EncodeBitDet(nI,ilutI)
 
-        call init_csf_information(ilutI)
+        call fill_csf_info(ilutI)
 
         call generate_excitation_guga(nI,ilutI,nJ,ilutJ,exFlag,IC,excitMat,&
             tParity,pgen,HElGen,store)
@@ -6556,7 +6556,7 @@ contains
         nI = [5,6,7,8]
         call EncodeBitDet(nI,ilutI)
 
-        call init_csf_information(ilutI)
+        call fill_csf_info(ilutI)
 
         call generate_excitation_guga(nI,ilutI,nJ,ilutJ,exFlag,IC,excitMat,&
             tParity,pgen,HElGen,store)
@@ -6600,7 +6600,7 @@ contains
         nI = [1,6,7,8]
         call EncodeBitDet(nI,ilutI)
 
-        call init_csf_information(ilutI)
+        call fill_csf_info(ilutI)
 
         call convert_ilut_toGUGA(ilutI, ilutGi)
 
@@ -6645,7 +6645,7 @@ contains
         nI = [1,2,3,8]
         call EncodeBitDet(nI,ilutI)
 
-        call init_csf_information(ilutI)
+        call fill_csf_info(ilutI)
 
         call generate_excitation_guga(nI,ilutI,nJ,ilutJ,exFlag,IC,excitMat,&
             tParity,pgen,HElGen,store)
@@ -6689,7 +6689,7 @@ contains
         nI = [1,2,3,6]
         call EncodeBitDet(nI,ilutI)
 
-        call init_csf_information(ilutI)
+        call fill_csf_info(ilutI)
 
         call generate_excitation_guga(nI,ilutI,nJ,ilutJ,exFlag,IC,excitMat,&
             tParity,pgen,HElGen,store)
@@ -6733,7 +6733,7 @@ contains
         nI = [1,2,5,8]
         call EncodeBitDet(nI,ilutI)
 
-        call init_csf_information(ilutI)
+        call fill_csf_info(ilutI)
 
         call generate_excitation_guga(nI,ilutI,nJ,ilutJ,exFlag,IC,excitMat,&
             tParity,pgen,HElGen,store)
@@ -6777,7 +6777,7 @@ contains
         nI = [3,4,5,8]
         call EncodeBitDet(nI,ilutI)
 
-        call init_csf_information(ilutI)
+        call fill_csf_info(ilutI)
 
         call generate_excitation_guga(nI,ilutI,nJ,ilutJ,exFlag,IC,excitMat,&
             tParity,pgen,HElGen,store)
@@ -6821,7 +6821,7 @@ contains
         nI = [1,4,5,6]
         call EncodeBitDet(nI,ilutI)
 
-        call init_csf_information(ilutI)
+        call fill_csf_info(ilutI)
 
         call generate_excitation_guga(nI,ilutI,nJ,ilutJ,exFlag,IC,excitMat,&
             tParity,pgen,HElGen,store)
@@ -6865,7 +6865,7 @@ contains
         nI = [1,4,7,8]
         call EncodeBitDet(nI,ilutI)
 
-        call init_csf_information(ilutI)
+        call fill_csf_info(ilutI)
 
         call generate_excitation_guga(nI,ilutI,nJ,ilutJ,exFlag,IC,excitMat,&
             tParity,pgen,HElGen,store)
@@ -6909,7 +6909,7 @@ contains
         nI = [1,3,4,6]
         call EncodeBitDet(nI,ilutI)
 
-        call init_csf_information(ilutI)
+        call fill_csf_info(ilutI)
 
         call generate_excitation_guga(nI,ilutI,nJ,ilutJ,exFlag,IC,excitMat,&
             tParity,pgen,HElGen,store)
@@ -6953,7 +6953,7 @@ contains
         nI = [1,3,4,8]
         call EncodeBitDet(nI,ilutI)
 
-        call init_csf_information(ilutI)
+        call fill_csf_info(ilutI)
 
         call generate_excitation_guga(nI,ilutI,nJ,ilutJ,exFlag,IC,excitMat,&
             tParity,pgen,HElGen,store)
@@ -6997,7 +6997,7 @@ contains
         nI = [1,5,6,8]
         call EncodeBitDet(nI,ilutI)
 
-        call init_csf_information(ilutI)
+        call fill_csf_info(ilutI)
 
         call generate_excitation_guga(nI,ilutI,nJ,ilutJ,exFlag,IC,excitMat,&
             tParity,pgen,HElGen,store)
@@ -7041,7 +7041,7 @@ contains
         nI = [3,5,6,8]
         call EncodeBitDet(nI,ilutI)
 
-        call init_csf_information(ilutI)
+        call fill_csf_info(ilutI)
 
         call generate_excitation_guga(nI,ilutI,nJ,ilutJ,exFlag,IC,excitMat,&
             tParity,pgen,HElGen,store)
@@ -7085,7 +7085,7 @@ contains
         nI = [3,6,7,8]
         call EncodeBitDet(nI,ilutI)
 
-        call init_csf_information(ilutI)
+        call fill_csf_info(ilutI)
 
         call generate_excitation_guga(nI,ilutI,nJ,ilutJ,exFlag,IC,excitMat,&
             tParity,pgen,HElGen,store)
@@ -7129,7 +7129,7 @@ contains
         nI = [1,3,6,8]
         call EncodeBitDet(nI,ilutI)
 
-        call init_csf_information(ilutI)
+        call fill_csf_info(ilutI)
 
         call generate_excitation_guga(nI,ilutI,nJ,ilutJ,exFlag,IC,excitMat,&
             tParity,pgen,HElGen,store)
@@ -7174,7 +7174,7 @@ contains
         nI = [1,4,5,8]
         call EncodeBitDet(nI,ilutI)
 
-        call init_csf_information(ilutI)
+        call fill_csf_info(ilutI)
 
         call generate_excitation_guga(nI,ilutI,nJ,ilutJ,exFlag,IC,excitMat,&
             tParity,pgen,HElGen,store)
@@ -10714,7 +10714,7 @@ contains
 
         ! 0033
         call EncodeBitDet_guga([5,6,7,8],ilut)
-        call init_csf_information(ilut)
+        call fill_csf_info(ilut)
 
         excitInfo = excitationIdentifier_double(1,2,1,4)
         call checkCompatibility(ilut, excitInfo, flag, posSwitch, negSwitch)

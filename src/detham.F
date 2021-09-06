@@ -17,7 +17,7 @@
       use guga_matrixElements, only: calcDiagMatEleGuga_nI
       use guga_excitations, only: calc_guga_matrix_element
       use guga_data, only: ExcitationInformation_t
-      use guga_bitrepops, only: init_csf_information
+      use guga_bitrepops, only: fill_csf_info
 
       use lattice_mod, only: get_helement_lattice
 
@@ -80,7 +80,7 @@ C..   Now we need to match up any two determinants
          ! try to use the new guga matrix element calc here.. for this
          ! misuse the current_stepvector quantities to init this only
          ! once for nI
-         if (tGUGA) call init_csf_information(ilutI)
+         if (tGUGA) call fill_csf_info(ilutI)
 
          DO KJ=IBEGJ,IMAXJ,STEP
             call EncodeBitDet(NMRKS(:,KJ), ilutJ)

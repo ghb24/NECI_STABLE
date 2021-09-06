@@ -12,7 +12,7 @@ module trial_wf_gen
 
     use guga_data, only: ExcitationInformation_t
     use guga_excitations, only: calc_guga_matrix_element
-    use guga_bitrepops, only: write_det_guga, init_csf_information
+    use guga_bitrepops, only: write_det_guga, fill_csf_info
 
     use util_mod, only: get_free_unit, binary_search_custom, operator(.div.)
     use FciMCData, only: con_send_buf, NConEntry
@@ -544,7 +544,7 @@ contains
 
             ! i am only here in the guga case if i use the new way to calc
             ! the off-diagonal elements..
-            if (tGUGA) call init_csf_information(con_space(0:nifd, i))
+            if (tGUGA) call fill_csf_info(con_space(0:nifd, i))
 
             do j = 1, size(trial_vecs, 2)
 
