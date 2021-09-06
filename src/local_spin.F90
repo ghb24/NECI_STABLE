@@ -6,12 +6,13 @@ module local_spin
       use bit_rep_data, only: IlutBits
       use LoggingData, only: tMCOutput
       use Parallel_neci, only: MPIAllreduce, iProcIndex, MPISumAll, root
-      use SystemData, only: nel, currentB_ilut, nSpatOrbs
+      use SystemData, only: nel, nSpatOrbs
       use CalcData, only: tReadPops, StepsSft
       use double_occ_mod, only: sum_norm_psi_squared
       use FciMCData, only: iter, PreviousCycles, norm_psi, totwalkers, &
                            all_norm_psi_squared
       use util_mod, only: get_free_unit, near_zero, stats_out
+      use guga_types, only: CSF_Info_t
 
       implicit none
 
@@ -26,8 +27,9 @@ module local_spin
 
 contains
 
-    subroutine measure_local_spin(real_sgn)
+    subroutine measure_local_spin(real_sgn, csf_info)
         real(dp), intent(in) :: real_sgn(lenof_sign)
+        type(CSF_Info_t), intent(in) :: csf_info
         real(dp) :: coeff, loc_spin(nSpatOrbs)
 #if defined PROG_NUMRUNS_ || defined DOUBLERUN_
 #ifdef CMPLX_
@@ -43,7 +45,7 @@ contains
 #endif
 
         ! the current b vector should be fine to get the total spin
-        loc_spin = currentB_ilut / 2.0_dp * (currentB_ilut / 2.0_dp + 1.0_dp)
+        loc_spin = csf_info%B_ilut / 2.0_dp * (csf_info%B_ilut / 2.0_dp + 1.0_dp)
 
         inst_local_spin = inst_local_spin + coeff * loc_spin
 

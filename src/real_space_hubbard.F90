@@ -2488,6 +2488,7 @@ contains
 
     end function get_double_helem_rs_hub_transcorr
 
+    ! TODO(@Oskar, @Werner): This has to be probably split up into a GUGA and a non-GUGA function.
     function get_offdiag_helement_rs_hub(nI, ex, tpar) result(hel)
         integer, intent(in) :: nI(nel), ex(2)
         logical, intent(in) :: tpar
@@ -2501,8 +2502,7 @@ contains
             call EncodeBitDet(nI, ilut)
             ilutJ = make_ilutJ(ilut, ex, 1)
 
-            call calc_guga_matrix_element(ilut, ilutJ, excitInfo, hel, &
-                                          .true., 2)
+            call calc_guga_matrix_element(ilut, csf_info, ilutJ, excitInfo, hel, .true., 2)
 
             if (tpar) hel = -hel
             return
