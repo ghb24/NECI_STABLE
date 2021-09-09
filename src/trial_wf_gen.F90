@@ -535,6 +535,8 @@ contains
         HElement_t(dp) :: H_ij
         character(len=*), parameter :: this_routine = "generate_connected_space_vector"
         type(ExcitationInformation_t) :: excitInfo
+        type(CSF_Info_t) :: csf_info
+
         con_vecs = 0.0_dp
 
         ! do i need to change this here for the non-hermitian transcorrelated
@@ -544,7 +546,7 @@ contains
 
             ! i am only here in the guga case if i use the new way to calc
             ! the off-diagonal elements..
-            if (tGUGA) call fill_csf_info(con_space(0:nifd, i))
+            if (tGUGA) csf_info = CSF_Info_t(con_space(0 : nifd, i))
 
             do j = 1, size(trial_vecs, 2)
 
@@ -568,7 +570,7 @@ contains
                         ! H_ij = hphf_off_diag_helement(nI, nJ, con_space(:,i), trial_space(:,j))
                     else if (tGUGA) then
                         ASSERT(.not. t_non_hermitian)
-                        call calc_guga_matrix_element(con_space(:, i), trial_space(:, j), &
+                        call calc_guga_matrix_element(con_space(:, i), csf_info, trial_space(:, j), &
                                                       excitInfo, H_ij, .true., 1)
 #ifdef CMPLX_
                         H_ij = conjg(H_ij)

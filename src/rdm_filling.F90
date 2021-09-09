@@ -1012,7 +1012,7 @@ contains
 
                 call decode_bit_det(nI, iLutI)
 
-                if (tGUGA) call fill_csf_info(ilutI(0:nifd))
+                ! if (tGUGA) call fill_csf_info(ilutI(0:nifd))
 
                 do j = 1, num_j
                     ! Running over all non-zero off-diag matrix elements

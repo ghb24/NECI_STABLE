@@ -44,7 +44,7 @@ module guga_bitRepOps
             count_beta_orbs_ij, count_alpha_orbs_ij, &
             calcOcc_vector_ilut, calcOcc_vector_int, &
             encodebitdet_guga, identify_excitation, &
-            CSF_Info_t, csf_info, fill_csf_info, &
+            CSF_Info_t, csf_info, new_CSF_Info_t, fill_csf_info, &
             calc_csf_info, extract_h_element, getexcitation_guga, &
             getspatialoccupation, getExcitationRangeMask, &
             contract_1_rdm_ind, contract_2_rdm_ind, extract_1_rdm_ind, &
@@ -2841,14 +2841,20 @@ contains
     pure function construct_CSF_Info_t(ilut) result(csf_info)
         integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
         type(CSF_Info_t) :: csf_info
-        allocate(csf_info%stepvector(nSpatOrbs), &
-                 csf_info%B_ilut(nSpatOrbs), &
-                 csf_info%Occ_ilut(nSpatOrbs), &
-                 csf_info%B_int(nSpatOrbs), &
-                 csf_info%Occ_int(nSpatOrbs), &
-                 csf_info%cum_list(nSpatOrbs))
+        call new_CSF_Info_t(nSpatOrbs, csf_info)
         call fill_csf_info(ilut, csf_info)
     end function
+
+    pure subroutine new_CSF_Info_t(n_spat_orbs, csf_info)
+        integer, intent(in) :: n_spat_orbs
+        type(CSF_Info_t), intent(out) :: csf_info
+        allocate(csf_info%stepvector(n_spat_orbs), &
+                 csf_info%B_ilut(n_spat_orbs), &
+                 csf_info%Occ_ilut(n_spat_orbs), &
+                 csf_info%B_int(n_spat_orbs), &
+                 csf_info%Occ_int(n_spat_orbs), &
+                 csf_info%cum_list(n_spat_orbs))
+    end subroutine
 
     pure subroutine fill_csf_info(ilut, csf_info)
         ! routine which sets up all the additional csf information, like

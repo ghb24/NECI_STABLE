@@ -5,7 +5,7 @@ module guga_rdm
 
     use constants, only: n_int, dp, lenof_sign, EPS, sizeof_int, int_rdm, bn2_, &
                          Root2, int64, int_rdm, stdout
-    use SystemData, only: nel, nSpatOrbs, current_stepvector, currentB_ilut
+    use SystemData, only: nel, nSpatOrbs
     use bit_reps, only: extract_bit_rep, decode_bit_det, niftot, nifd, &
                         any_run_is_initiator, all_runs_are_initiator
     use rdm_data, only: one_rdms, two_rdm_spawn, rdmCorrectionFactor
@@ -679,8 +679,12 @@ contains
         HElement_t(dp) :: mat_ele
         integer :: p, q, r, s, n
         real(dp) :: full_sign(spawn%rdm_send%sign_length)
+        type(CSF_Info_t) :: csf_info
 
-        call calc_guga_matrix_element(ilutI, ilutJ, excitInfo, mat_ele, &
+        ! TODO(@Oskar): Perhaps precalculate?
+        csf_info = CSF_Info_t(ilutI)
+
+        call calc_guga_matrix_element(ilutI, csf_info, ilutJ, excitInfo, mat_ele, &
                                       t_hamil=.false., calc_type=calc_type, &
                                       rdm_ind=rdm_ind, rdm_mat=rdm_mat)
 
@@ -744,6 +748,7 @@ contains
         integer(n_int) :: ilutGi(0:GugaBits%len_tot), ilutGj(0:GugaBits%len_tot)
         integer(int_rdm) :: pure_ind
         logical :: t_fast_
+        type(CSF_Info_t) :: csf_info
 
         def_default(t_fast_, t_fast, .true.)
 
@@ -815,8 +820,10 @@ contains
                 call EncodeBitDet_guga(nI, ilutGJ)
                 call EncodeBitDet_guga(nJ, ilutGi)
             end if
+            ! TODO(@Oskar): Perhaps precalculate?
+            csf_info = CSF_Info_t(ilutGi)
 
-            call calc_guga_matrix_element(IlutGi, ilutGj, excitInfo, mat_ele, &
+            call calc_guga_matrix_element(IlutGi, csf_info, ilutGj, excitInfo, mat_ele, &
                                           t_hamil=.false., calc_type=2, rdm_ind=rdm_ind, &
                                           rdm_mat=rdm_mat)
 
@@ -2365,8 +2372,6 @@ contains
         integer(n_int), allocatable :: temp_excits(:, :), tmp_all_excits(:, :)
         integer(int_rdm) :: ijkl
 
-        call fill_csf_info(ilut)
-
         nMax = 6 + 4 * (nSpatOrbs)**3 * (count_open_orbs(ilut) + 1)
         allocate(tmp_all_excits(0:GugaBits%len_tot, nMax), stat=ierr)
         call LogMemAlloc('tmp_all_excits', (GugaBits%len_tot + 1) * nMax, 8, this_routine, tag_tmp_excits)
@@ -2462,8 +2467,10 @@ contains
 
         integer :: i, j, nMax, ierr, n, n_excits
         integer(n_int), allocatable :: temp_excits(:, :), tmp_all_excits(:, :)
+        type(CSF_Info_t) :: csf_info
 
-        call fill_csf_info(ilut)
+        ! TODO(@Oskar): Perhaps precalculate?
+        csf_info = CSF_Info_t(ilut)
 
         nMax = 6 + 4 * (nSpatOrbs)**2 * (count_open_orbs(ilut) + 1)
         allocate(tmp_all_excits(0:GugaBits%len_tot, nMax), stat=ierr)
@@ -2531,6 +2538,7 @@ contains
         logical :: compFlag
         integer(n_int) :: tmp_ilut(0:niftot)
         integer(int_rdm) :: ijkl
+        type(CSF_Info_t) :: csf_info
 
         ASSERT(isProperCSF_ilut(ilut))
         ASSERT(i > 0 .and. i <= nSpatOrbs)
@@ -2550,6 +2558,8 @@ contains
 
         ! otherwise get excitation information
         excitInfo = excitationIdentifier(i, j, k, l)
+        ! TODO(@Oskar): Perhaps precalculate?
+        csf_info = CSF_Info_t(ilut)
 
         ! screw it. for now write a function which checks if indices and ilut
         ! are compatible, and not initiate the excitation right away
@@ -2557,7 +2567,7 @@ contains
         ! in checkCompatibility the number of switches is already
         ! calulated to check if the probabilistic weights fit... maybe but
         ! that out and reuse.. to not waste any effort.
-        call checkCompatibility(ilut, excitInfo, compFlag, posSwitches, negSwitches)
+        call checkCompatibility(ilut, csf_info, excitInfo, compFlag, posSwitches, negSwitches)
 
         ! for mixed type full starts and/or full stops i have to consider
         ! the possible diagonal/single excitations here!
@@ -2596,19 +2606,19 @@ contains
             ! can be treated almost like a single excitation
             ! essentially the same, except if d(w) == 3 in the excitaton regime
 
-            call calcDoubleExcitation_withWeight(ilut, excitInfo, excits, &
+            call calcDoubleExcitation_withWeight(ilut, csf_info, excitInfo, excits, &
                                                  n_excits, posSwitches, negSwitches)
 
             exlevel = 1
 
         case (excit_type%lowering) ! weight + lowering gen
-            call calcDoubleExcitation_withWeight(ilut, excitInfo, excits, &
+            call calcDoubleExcitation_withWeight(ilut, csf_info, excitInfo, excits, &
                                                  n_excits, posSwitches, negSwitches)
 
             exlevel = 1
 
         case (excit_type%non_overlap) ! non overlap
-            call calcNonOverlapDouble(ilut, excitInfo, excits, n_excits, &
+            call calcNonOverlapDouble(ilut, csf_info, excitInfo, excits, n_excits, &
                                       posSwitches, negSwitches)
 
             exlevel = 2
@@ -2617,61 +2627,61 @@ contains
             ! how can i efficiently adress that?
             ! can i write that efficiently in one function or do i need more?
             ! probably need more... i already determined
-            call calcSingleOverlapLowering(ilut, excitInfo, excits, n_excits, &
+            call calcSingleOverlapLowering(ilut, csf_info, excitInfo, excits, n_excits, &
                                            posSwitches, negSwitches)
 
             exlevel = 1
 
         case (excit_type%single_overlap_raising) ! single overlap raising
-            call calcSingleOverlapRaising(ilut, excitInfo, excits, n_excits, &
+            call calcSingleOverlapRaising(ilut, csf_info, excitInfo, excits, n_excits, &
                                           posSwitches, negSwitches)
 
             exlevel = 1
 
         case (excit_type%single_overlap_L_to_R) ! single overlap lowering into raising
-            call calcSingleOverlapMixed(ilut, excitInfo, excits, n_excits, &
+            call calcSingleOverlapMixed(ilut, csf_info, excitInfo, excits, n_excits, &
                                         posSwitches, negSwitches)
 
             exlevel = 2
 
         case (excit_type%single_overlap_R_to_L) ! single overlap raising into lowering
-            call calcSingleOverlapMixed(ilut, excitInfo, excits, n_excits, &
+            call calcSingleOverlapMixed(ilut, csf_info, excitInfo, excits, n_excits, &
                                         posSwitches, negSwitches)
 
             exlevel = 2
 
         case (excit_type%double_lowering) ! normal double overlap two lowering
-            call calcDoubleLowering(ilut, excitInfo, excits, n_excits, &
+            call calcDoubleLowering(ilut, csf_info, excitInfo, excits, n_excits, &
                                     posSwitches, negSwitches)
 
             exlevel = 2
 
         case (excit_type%double_raising) ! normal double overlap two raising
-            call calcDoubleRaising(ilut, excitInfo, excits, n_excits, &
+            call calcDoubleRaising(ilut, csf_info, excitInfo, excits, n_excits, &
                                    posSwitches, negSwitches)
 
             exlevel = 2
 
         case (excit_type%double_L_to_R_to_L) ! lowering into raising into lowering
-            call calcDoubleRaising(ilut, excitInfo, excits, n_excits, &
+            call calcDoubleRaising(ilut, csf_info, excitInfo, excits, n_excits, &
                                    posSwitches, negSwitches)
 
             exlevel = 2
 
         case (excit_type%double_R_to_L_to_R) ! raising into lowering into raising
-            call calcDoubleLowering(ilut, excitInfo, excits, n_excits, &
+            call calcDoubleLowering(ilut, csf_info, excitInfo, excits, n_excits, &
                                     posSwitches, negSwitches)
 
             exlevel = 2
 
         case (excit_type%double_L_to_R) ! lowering into raising double
-            call calcDoubleL2R(ilut, excitInfo, excits, n_excits, &
+            call calcDoubleL2R(ilut, csf_info, excitInfo, excits, n_excits, &
                                posSwitches, negSwitches)
 
             exlevel = 2
 
         case (excit_type%double_R_to_L) ! raising into lowering double
-            call calcDoubleR2L(ilut, excitInfo, excits, n_excits, &
+            call calcDoubleR2L(ilut, csf_info, excitInfo, excits, n_excits, &
                                posSwitches, negSwitches)
 
             exlevel = 2
@@ -2679,19 +2689,19 @@ contains
         case (excit_type%fullstop_lowering) ! full stop 2 lowering
             ! can i write a function for both alike generator combinations
             ! i think i can
-            call calcFullstopLowering(ilut, excitInfo, excits, n_excits, &
+            call calcFullstopLowering(ilut, csf_info, excitInfo, excits, n_excits, &
                                       posSwitches, negSwitches)
 
             exlevel = 2
 
         case (excit_type%fullstop_raising) ! full stop 2 raising
-            call calcFullstopRaising(ilut, excitInfo, excits, n_excits, &
+            call calcFullstopRaising(ilut, csf_info, excitInfo, excits, n_excits, &
                                      posSwitches, negSwitches)
 
             exlevel = 2
 
         case (excit_type%fullstop_L_to_R) ! full stop lowering into raising
-            call calcFullStopL2R(ilut, excitInfo, excits, n_excits, &
+            call calcFullStopL2R(ilut, csf_info, excitInfo, excits, n_excits, &
                                  posSwitches, negSwitches, t_no_singles_opt=.true.)
 
             ! in this case there is also the possibility for one single-like
@@ -2710,46 +2720,46 @@ contains
             exlevel = 2
 
         case (excit_type%fullstop_R_to_L) ! full stop raising into lowering
-            call calcFullStopR2L(ilut, excitInfo, excits, n_excits, &
+            call calcFullStopR2L(ilut, csf_info, excitInfo, excits, n_excits, &
                                  posSwitches, negSwitches, t_no_singles_opt=.true.)
 
             ! same as for 16
             exlevel = 2
 
         case (excit_type%fullstart_lowering) ! full start 2 lowering
-            call calcFullStartLowering(ilut, excitInfo, excits, n_excits, &
+            call calcFullStartLowering(ilut, csf_info, excitInfo, excits, n_excits, &
                                        posSwitches, negSwitches)
 
             exlevel = 2
 
         case (excit_type%fullstart_raising) ! full start 2 raising
-            call calcFulLStartRaising(ilut, excitInfo, excits, n_excits, &
+            call calcFulLStartRaising(ilut, csf_info, excitInfo, excits, n_excits, &
                                       posSwitches, negSwitches)
 
             exlevel = 2
 
         case (excit_type%fullstart_L_to_R) ! full start lowering into raising
-            call calcFullStartL2R(ilut, excitInfo, excits, n_excits, &
+            call calcFullStartL2R(ilut, csf_info, excitInfo, excits, n_excits, &
                                   posSwitches, negSwitches, t_no_singles_opt=.true.)
 
             ! same as for 16
             exlevel = 2
 
         case (excit_type%fullstart_R_to_L) ! full start raising into lowering
-            call calcFullStartR2L(ilut, excitInfo, excits, n_excits, &
+            call calcFullStartR2L(ilut, csf_info, excitInfo, excits, n_excits, &
                                   posSwitches, negSwitches, t_no_singles_opt=.true.)
 
             ! same as for 16
             exlevel = 2
 
         case (excit_type%fullstart_stop_alike) ! full start into full stop alike
-            call calcFullStartFullStopAlike(ilut, excitInfo, excits)
+            call calcFullStartFullStopAlike(ilut, csf_info, excitInfo, excits)
             n_excits = 1
 
             exlevel = 2
 
         case (excit_type%fullstart_stop_mixed) ! full start into full stop mixed
-            call calcFullStartFullStopMixed(ilut, excitInfo, excits, n_excits, &
+            call calcFullStartFullStopMixed(ilut, csf_info, excitInfo, excits, n_excits, &
                                             posSwitches, negSwitches)
 
             ! same as for 16
@@ -2783,6 +2793,7 @@ contains
         integer :: iEx, iOrb, ierr
         integer(n_int), allocatable :: tempExcits(:, :)
         real(dp) :: minusWeight, plusWeight
+        type(CSF_Info_t) :: csf_info
 
         ASSERT(i > 0 .and. i <= nSpatOrbs)
         ASSERT(j > 0 .and. j <= nSpatOrbs)
@@ -2790,42 +2801,44 @@ contains
         n_excits = 0
 
         excitInfo = excitationIdentifier(i, j)
+        ! TODO(@Oskar): Perhaps precalculate?
+        csf_info = CSF_Info_t(ilut)
 
         associate (gen1 => excitInfo%gen1, en => excitInfo%fullEnd, &
                    st => excitInfo%fullStart)
 
             if (gen1 /= 0) then
-                if (current_stepvector(i) == 3 .or. current_stepvector(j) == 0) then
-                    allocate(excits(0, 0), stat=ierr)
+                if (csf_info%stepvector(i) == 3 .or. csf_info%stepvector(j) == 0) then
+                    allocate(excits(0, 0))
                     return
                 end if
             end if
 
-            call calcRemainingSwitches_excitInfo_single(excitInfo, posSwitches, negSwitches)
+            call calcRemainingSwitches_excitInfo_single(csf_info, excitInfo, posSwitches, negSwitches)
 
-            weights = init_singleWeight(ilut, en)
-            plusWeight = weights%proc%plus(posSwitches(st), currentB_ilut(st), weights%dat)
-            minusWeight = weights%proc%minus(negSwitches(st), currentB_ilut(st), weights%dat)
+            weights = init_singleWeight(csf_info, en)
+            plusWeight = weights%proc%plus(posSwitches(st), csf_info%B_ilut(st), weights%dat)
+            minusWeight = weights%proc%minus(negSwitches(st), csf_info%B_ilut(st), weights%dat)
 
             ! check compatibility of chosen indices
 
-            if ((current_stepvector(st) == 1 .and. near_zero(plusWeight)) .or. &
-                (current_stepvector(st) == 2 .and. near_zero(minusWeight)) .or. &
-                near_zero(minusWeight + plusWeight)) then
-                allocate(excits(0, 0), stat=ierr)
+            if (csf_info%stepvector(st) == 1 .and. near_zero(plusWeight) &
+                    .or. csf_info%stepvector(st) == 2 .and. near_zero(minusWeight) &
+                    .or. near_zero(minusWeight + plusWeight)) then
+                allocate(excits(0, 0))
                 return
             end if
 
             ! have to give probabilistic weight object as input, to deal
-            call createSingleStart(ilut, excitInfo, posSwitches, &
+            call createSingleStart(ilut, csf_info, excitInfo, posSwitches, &
                                    negSwitches, weights, tempExcits, n_excits)
 
             do iOrb = st + 1, en - 1
-                call singleUpdate(ilut, iOrb, excitInfo, posSwitches, &
+                call singleUpdate(ilut, csf_info, iOrb, excitInfo, posSwitches, &
                                   negSwitches, weights, tempExcits, n_excits)
             end do
 
-            call singleEnd(ilut, excitInfo, tempExcits, &
+            call singleEnd(ilut, csf_info, excitInfo, tempExcits, &
                            n_excits, excits)
 
             ! encode the combined RDM-ind in the deltaB position for
