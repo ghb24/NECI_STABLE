@@ -8,8 +8,6 @@ module guga_init
                           tPickVirtUniform, tGenHelWeighted, tGen_4ind_2, tGen_4ind_weighted, &
                           tGen_4ind_reverse, tGen_sym_guga_ueg, tGen_sym_guga_mol, &
                           tGen_nosym_guga, nSpatOrbs, t_consider_diff_bias, &
-                          current_stepvector, currentOcc_ilut, currentOcc_int, &
-                          currentB_ilut, currentB_int, current_cum_list, &
                           ref_stepvector, ref_b_vector_int, ref_occ_vector, &
                           ref_b_vector_real, treal, tHUB, t_guga_noreorder, tgen_guga_crude, &
                           t_new_real_space_hubbard, t_heisenberg_model, &
@@ -64,7 +62,7 @@ module guga_init
 
     use back_spawn, only: setup_virtual_mask
 
-    use guga_bitRepOps, only: init_guga_bitrep
+    use guga_bitRepOps, only: init_guga_bitrep, new_CSF_Info_t, current_csf_info
 
     use guga_pchb_excitgen, only: pick_orbitals_pure_uniform_singles, &
                                   pick_orbitals_double_pchb, &
@@ -229,23 +227,11 @@ contains
         allocate(orbitalIndex(nSpatOrbs), stat=ierr)
         orbitalIndex = [(i, i=1, nSpatOrbs)]
 
-        ! maybe more to come...
-        ! also allocate the currrent_ quantities
-        if (allocated(current_stepvector)) deallocate(current_stepvector)
-        if (allocated(currentB_ilut)) deallocate(currentB_ilut)
-        if (allocated(currentOcc_ilut)) deallocate(currentOcc_ilut)
-        if (allocated(currentB_int)) deallocate(currentB_int)
-        if (allocated(currentOcc_int)) deallocate(currentOcc_int)
 
-        allocate(current_stepvector(nSpatOrbs), stat=ierr)
-        allocate(currentB_ilut(nSpatOrbs), stat=ierr)
-        allocate(currentOcc_ilut(nSpatOrbs), stat=ierr)
-        allocate(currentB_int(nSpatOrbs), stat=ierr)
-        allocate(currentOcc_int(nSpatOrbs), stat=ierr)
-
-        if (allocated(current_cum_list)) deallocate(current_cum_list)
-
-        allocate(current_cum_list(nSpatOrbs), stat=ierr)
+        ! Store GUGA specific information about the current CSF.
+        ! In principle this is redundant and could be computed from nI or ilut,
+        !   but we precompute it for performance reasons.
+        call new_CSF_Info_t(current_csf_info)
 
         ! also allocate the temporary variables used in the matrix element
         ! calculation and also the similar variables for the reference

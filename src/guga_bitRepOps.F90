@@ -44,7 +44,7 @@ module guga_bitRepOps
             count_beta_orbs_ij, count_alpha_orbs_ij, &
             calcOcc_vector_ilut, calcOcc_vector_int, &
             encodebitdet_guga, identify_excitation, &
-            CSF_Info_t, csf_info, new_CSF_Info_t, fill_csf_info, &
+            CSF_Info_t, current_csf_info, new_CSF_Info_t, fill_csf_info, &
             calc_csf_info, extract_h_element, getexcitation_guga, &
             getspatialoccupation, getExcitationRangeMask, &
             contract_1_rdm_ind, contract_2_rdm_ind, extract_1_rdm_ind, &
@@ -120,7 +120,7 @@ module guga_bitRepOps
         module procedure construct_CSF_Info_t
     end interface
 
-    type(CSF_Info_t) :: csf_info
+    type(CSF_Info_t) :: current_csf_info
         !! Information about the current CSF, similar to ilut and nI.
 contains
 
