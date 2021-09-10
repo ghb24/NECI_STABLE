@@ -1,6 +1,6 @@
 #include "macros.h"
 MODULE Determinants
-    use constants, only: dp, n_int, bits_n_int, int64, maxExcit
+    use constants, only: dp, n_int, bits_n_int, int64, maxExcit, stdout
     use SystemData, only: BasisFN, nel, G1, Brr, ECore, ALat, NMSH, &
                           nBasis, nBasisMax, tStoreAsExcitations, tHPHFInts, &
                           tCPMD, tPickVirtUniform, LMS, modk_offdiag, &
@@ -81,7 +81,7 @@ contains
     allocate(FDet(nEl), stat=ierr)
     LogAlloc(ierr, 'FDet', nEl, 4, tagFDet)
     IF(tDefineDet) THEN
-       write(6,*) 'Defining FDet according to input'
+       write(stdout,*) 'Defining FDet according to input'
        do i=1,NEl
           FDet(i)=DefDet(i)
        end do
@@ -90,8 +90,8 @@ contains
        ! A quick check that we have defined a reasonable det.
        ms = sum(get_spin_pn(fdet(1:nel)))
        if (abs(ms) /= abs(lms)) then
-          write(6,*) 'LMS', lms
-          write(6,*) 'Calculated Ms', ms
+          write(stdout,*) 'LMS', lms
+          write(stdout,*) 'Calculated Ms', ms
           call stop_all (this_routine, "Defined determinant has the &
                &wrong Ms value. Change DEFINEDET or &
                &SPIN-RESTRICT")
@@ -100,10 +100,10 @@ contains
         if (tGUGA) then
             ms = abs(ms)
             if (ms < 0 .or. ms /= STOT) then
-                write(6,*) "S: ", STOT
-                write(6,*) "calculated S of inputted CSF: ", ms
+                write(stdout,*) "S: ", STOT
+                write(stdout,*) "calculated S of inputted CSF: ", ms
                 call stop_all(this_routine, " Defined CSF has the &
-                    &wrong total spin quantum number! Change DEFINEDET or &
+                    &wrong total spin quantum number. Change DEFINEDET or &
                     &S quantum numnber!")
             end if
         end if
@@ -141,26 +141,26 @@ contains
           CALL GENFDET(FDET)
           call assignOccOrbs()
           IF(tUEGSpecifyMomentum) THEN
-             write(6,*) 'Defining FDet according to a momentum input'
+             write(stdout,*) 'Defining FDet according to a momentum input'
              CALL ModifyMomentum(FDET)
           end if
           tRef_Not_HF = .false.
        end if
     end if
-    write(6,"(A)",advance='no') " Fermi det (D0):"
+    write(stdout,"(A)",advance='no') " Fermi det (D0):"
     call write_det (6, FDET, .true.)
     Call GetSym(FDet,nEl,G1,nBasisMax,s)
-    write(6,"(A)",advance='no') " Symmetry: "
+    write(stdout,"(A)",advance='no') " Symmetry: "
     Call WriteSym(6,s%Sym,.true.)
     IF(tFixLz) THEN
        Call GetLz(FDet,nEl,Lz)
-       write(6,"(A,I5)") "Lz of Fermi det:",Lz
+       write(stdout,"(A,I5)") "Lz of Fermi det:",Lz
     end if
     CALL NECI_ICOPY(NEL,FDET,1,NUHFDET,1)
     if(tMolpro) then
        !Orbitals are ordered by occupation number from MOLPRO, and not reordered in NECI
        !Therefore, we know HF determinant is first four occupied orbitals.
-       write(6,"(A)") "NECI called from MOLPRO, so assuming orbitals ordered by occupation number."
+       write(stdout,"(A)") "NECI called from MOLPRO, so assuming orbitals ordered by occupation number."
        if(.not.tDefineDet) then
           FDetTemp(:)=FDet(:)
        else
@@ -168,13 +168,13 @@ contains
           !of 'orbital energies'
           CALL GENFDET(FDETTEMP)
        end if
-       write(6,"(A)") "Calculating orbital energies..."
+       write(stdout,"(A)") "Calculating orbital energies..."
        do i=1,nBasis
           OrbE=CalcFockOrbEnergy(i,FDetTemp)
           Arr(i,1)=real(OrbE,dp)
           Brr(i)=i
        end do
-       write(6,"(A)") "Reordering basis by orbital energies..."
+       write(stdout,"(A)") "Reordering basis by orbital energies..."
        OrbOrder(:,:)=0
        call ORDERBASIS(NBASIS,Arr,Brr,OrbOrder,nBasisMax,G1)
        !However, we reorder them here
@@ -184,7 +184,7 @@ contains
     DO I=1,NEL
        E0HFDET=E0HFDET+ARR(NUHFDET(i),2)
     end do
-    write(6,*) "Fock operator energy:",E0HFDET
+    write(stdout,*) "Fock operator energy:",E0HFDET
 
     ! Store the value of Ms for use in other areas
     calculated_ms = sum(get_spin_pn(fdet(1:nel)))
@@ -233,7 +233,7 @@ contains
         allocate(FDet(nEl), stat=ierr)
         LogAlloc(ierr, 'FDet', nEl, 4, tagFDet)
         IF(tDefineDet) THEN
-            write(6,*) 'Defining FDet according to input'
+            write(stdout,*) 'Defining FDet according to input'
             do i=1,NEl
                 FDet(i)=DefDet(i)
             end do
@@ -270,26 +270,26 @@ contains
            if(tGenFDet) then
               CALL GENFDET(FDET)
               IF(tUEGSpecifyMomentum) THEN
-                 write(6,*) 'Defining FDet according to a momentum input'
+                 write(stdout,*) 'Defining FDet according to a momentum input'
                  CALL ModifyMomentum(FDET)
               end if
               tRef_Not_HF = .false.
            end if
         end if
-      write(6,"(A)",advance='no') " Fermi det (D0):"
+      write(stdout,"(A)",advance='no') " Fermi det (D0):"
       call write_det (6, FDET, .true.)
       Call GetSym(FDet,nEl,G1,nBasisMax,s)
-      write(6,"(A)",advance='no') " Symmetry: "
+      write(stdout,"(A)",advance='no') " Symmetry: "
       Call WriteSym(6,s%Sym,.true.)
       IF(tFixLz) THEN
          Call GetLz(FDet,nEl,Lz)
-         write(6,"(A,I5)") "Lz of Fermi det:",Lz
+         write(stdout,"(A,I5)") "Lz of Fermi det:",Lz
       end if
       CALL NECI_ICOPY(NEL,FDET,1,NUHFDET,1)
       if(tMolpro) then
           !Orbitals are ordered by occupation number from MOLPRO, and not reordered in NECI
           !Therefore, we know HF determinant is first four occupied orbitals.
-          write(6,"(A)") "NECI called from MOLPRO, so assuming orbitals ordered by occupation number."
+          write(stdout,"(A)") "NECI called from MOLPRO, so assuming orbitals ordered by occupation number."
           if(.not.tDefineDet) then
               FDetTemp(:)=FDet(:)
           else
@@ -297,13 +297,13 @@ contains
               !of 'orbital energies'
               CALL GENFDET(FDETTEMP)
           end if
-          write(6,"(A)") "Calculating orbital energies..."
+          write(stdout,"(A)") "Calculating orbital energies..."
           do i=1,nBasis
                OrbE=CalcFockOrbEnergy(i,FDetTemp)
                Arr(i,1)=real(OrbE,dp)
                Brr(i)=i
           end do
-          write(6,"(A)") "Reordering basis by orbital energies..."
+          write(stdout,"(A)") "Reordering basis by orbital energies..."
           OrbOrder(:,:)=0
           call ORDERBASIS(NBASIS,Arr,Brr,OrbOrder,nBasisMax,G1)
           !However, we reorder them here
@@ -313,7 +313,7 @@ contains
       DO I=1,NEL
          E0HFDET=E0HFDET+ARR(NUHFDET(i),2)
       end do
-      write(6,*) "Fock operator energy:",E0HFDET
+      write(stdout,*) "Fock operator energy:",E0HFDET
 
       ! Store the value of Ms for use in other areas
       calculated_ms = sum(get_spin_pn(fdet(1:nel)))
@@ -328,7 +328,7 @@ contains
       LOGICAL :: tSuccess,tFoundOrbs(nBasis)
       integer :: ncsf
 
-      write(6,*) "SYMMETRY MULTIPLICATION TABLE"
+      write(stdout,*) "SYMMETRY MULTIPLICATION TABLE"
       CALL WRITESYMTABLE(6)
 
       CALL GENSymStatePairs(NBASIS/2,.false.)
@@ -342,8 +342,8 @@ contains
 !  PATHS ACTIVE ORBITALS
          nActiveBasis(1)=nEl+1-nActiveSpace(1)
          nActiveBasis(2)=nEl+nActiveSpace(2)
-         write(6,*) "Active space:", nActiveBasis(1)," TO ", nActiveBasis(2)," (ordered labels)."
-         write(6,*) "Active space electrons:",nEl-nActiveBasis(1)+1
+         write(stdout,*) "Active space:", nActiveBasis(1)," TO ", nActiveBasis(2)," (ordered labels)."
+         write(stdout,*) "Active space electrons:",nEl-nActiveBasis(1)+1
       else
          nActiveBasis(1)=1
          nActiveBasis(2)=nBasis
@@ -355,7 +355,7 @@ contains
 
 !C.. Check if we're blocking the hamiltonian
 !C      IF(THFBASIS.AND.TBLOCK) THEN
-!C         write(6,*) "THFBASIS set and NBLK=0.  ",
+!C         write(stdout,*) "THFBASIS set and NBLK=0.  ",
 !C     &         "Cannot block diagonalize in HF Basis."
 !C         STOP
 !C      end if
@@ -379,10 +379,10 @@ contains
          end do
 
         IF (abs(real(NDET) - dndet) > 1.0e-6) THEN
-!         write(6,*) ' NUMBER OF DETERMINANTS : ' , DNDET
+!         write(stdout,*) ' NUMBER OF DETERMINANTS : ' , DNDET
          NDET=-1
         ELSE
-!         write(6,*) ' NUMBER OF DETERMINANTS : ' , NDET
+!         write(stdout,*) ' NUMBER OF DETERMINANTS : ' , NDET
         end if
 
 !C      CALL TC(I_HMAX,I_P,NWHTAY)
@@ -424,7 +424,7 @@ contains
             end do
             do i=1,nBasis
                 IF(.not.tFoundOrbs(i)) THEN
-                    write(6,*) "Orbital: ",i, " not found."
+                    write(stdout,*) "Orbital: ",i, " not found."
                     CALL Stop_All("SetupParameters","Orbital not found")
                 end if
             end do
@@ -437,17 +437,17 @@ contains
         ! generators won't work.
         IF(.not.tCPMD) THEN
             IF(.not.tSuccess) THEN
-                write(6,*) "************************************************"
-                write(6,*) "**                 WARNING!!!                 **"
-                write(6,*) "************************************************"
-                write(6,*) "Symmetry information not set up correctly in NECI initialisation"
-                write(6,*) "Will attempt to set up the symmetry again, but now in terms of spin orbitals"
-                write(6,*) "Old excitation generators will not work"
-                write(6,*) "I strongly suggest you check that the reference energy is correct."
+                write(stdout,*) "************************************************"
+                write(stdout,*) "**                 WARNING!!!                 **"
+                write(stdout,*) "************************************************"
+                write(stdout,*) "Symmetry information not set up correctly in NECI initialisation"
+                write(stdout,*) "Will attempt to set up the symmetry again, but now in terms of spin orbitals"
+                write(stdout,*) "Old excitation generators will not work"
+                write(stdout,*) "I strongly suggest you check that the reference energy is correct."
                 !CALL SpinOrbSymSetup() !.true.)
             ELSE
-                write(6,*) "Symmetry and spin of orbitals correctly set up for excitation generators."
-                write(6,*) "Simply transferring this into a spin orbital representation."
+                write(stdout,*) "Symmetry and spin of orbitals correctly set up for excitation generators."
+                write(stdout,*) "Simply transferring this into a spin orbital representation."
                 !CALL SpinOrbSymSetup() !.false.)
             end if
 
@@ -897,7 +897,7 @@ END MODULE Determinants
             end do
             call sort(fdet)
             IF(J.NE.NEL-NFROZEN-NFROZENIN) THEN
-               write(6,*) "Failed Freezing Det:"
+               write(stdout,*) "Failed Freezing Det:"
                call write_det (6, FDET, .true.)
                call stop_all(this_routine, "After Freezing, FDET has wrong number of electrons")
             end if
@@ -915,19 +915,19 @@ END MODULE Determinants
             end do
             call sort (nUHFDet(1:nel))
             IF(J.NE.NEL-NFROZEN-NFROZENIN) THEN
-               write(6,*) "Failed Freezing Det:"
+               write(stdout,*) "Failed Freezing Det:"
                call write_det (6, nUHFDET, .true.)
                call stop_all(this_routine, "After Freezing, UHFDET has wrong number of electrons")
             end if
          end if
-         write(6,"(A)",advance='no') " Post-Freeze Fermi det (D0):"
+         write(stdout,"(A)",advance='no') " Post-Freeze Fermi det (D0):"
          call write_det_len (6, fDet, nel-nfrozen-nfrozenin, .true.)
-         write(6,"(A)",advance='no') " Symmetry: "
+         write(stdout,"(A)",advance='no') " Symmetry: "
          Call GetSym(FDet,nEl-nFrozen-nFrozenIn,G1,nBasisMax,s)
          Call WriteSym(6,s%Sym,.true.)
          IF(tFixLz) THEN
              Call GetLz(FDet,nEl-nFrozen-nFrozenIn,Lz)
-             write(6,"(A,I5)") " Lz of Fermi det:",Lz
+             write(stdout,"(A,I5)") " Lz of Fermi det:",Lz
          end if
 
       end subroutine
@@ -964,27 +964,27 @@ END MODULE Determinants
 
       SUBROUTINE GenActiveBasis(ARR,nBasis,nEl,nActiveBasis, nDown,nUp)
          use SystemData, only: BasisFN
-         use constants, only: dp
+         use constants, only: dp, stdout
          IMPLICIT NONE
          INTEGER nEl,nActiveBasis(2),nBasis
          real(dp) ARR(nBasis)
          INTEGER I,nDown,nUp,nLeft
          I=nEl+1
          nLeft=1+nUp
-         IF(nDown.NE.0.AND.nUp.NE.0) write(6,*) "Including ",-nDown,",",nUp," extra degenerate sets in active space."
+         IF(nDown.NE.0.AND.nUp.NE.0) write(stdout,*) "Including ",-nDown,",",nUp," extra degenerate sets in active space."
          DO WHILE (nLeft.GT.0.AND.I.LT.nBasis)
             DO WHILE (I.LT.nBasis.AND.ABS(ARR(I)-ARR(I-1)).LT.1.0e-5_dp)
                I=I+1
             end do
             nLeft=nLeft-1
-            IF(nLeft.EQ.nUp.AND.I.NE.nEl+1) write(6,*) "Fermi determinant degenerate.  "
+            IF(nLeft.EQ.nUp.AND.I.NE.nEl+1) write(stdout,*) "Fermi determinant degenerate.  "
             IF(nLeft.ne.0) I=I+2
          end do
          IF(I.EQ.nEl+1.and.nDown.eq.0) THEN
 !We have no degeneracies at the Fermi Energy
-            write(6,*) "Fermi determinant non-degenerate.  "
+            write(stdout,*) "Fermi determinant non-degenerate.  "
             IF(nDown.eq.0) THEN
-               write(6,*) "Active space empty."
+               write(stdout,*) "Active space empty."
                nActiveBasis(1)=nEl+1
                nActiveBasis(2)=nEl
                RETURN
@@ -1001,8 +1001,8 @@ END MODULE Determinants
             nLeft=nLeft-1
          end do
          nActiveBasis(1)=I+1
-         write(6,*) "Active space:", nActiveBasis(1)," TO ",nActiveBasis(2)," (ordered labels)."
-         write(6,*) "Active space electrons:",nEl-nActiveBasis(1)+1
+         write(stdout,*) "Active space:", nActiveBasis(1)," TO ",nActiveBasis(2)," (ordered labels)."
+         write(stdout,*) "Active space electrons:",nEl-nActiveBasis(1)+1
          RETURN
       END
 
@@ -1139,6 +1139,7 @@ END MODULE Determinants
 ! According to input options
       subroutine ModifyMomentum(FDet)
         use SystemData, only : nEl,G1,k_momentum,nBasis,tUEG
+        use constants, only: stdout
         implicit none
         integer :: i,j ! Loop variables
         integer, intent(inout) :: FDet(NEl)
@@ -1165,7 +1166,7 @@ END MODULE Determinants
         end do
         delta_k=k_momentum-k_total
 
-        if (delta_k(1).eq.0.and.delta_k(2).eq.0.and.delta_k(3).eq.0) write(6,*) "WARNING: specified momentum is ground state"
+        if (delta_k(1).eq.0.and.delta_k(2).eq.0.and.delta_k(3).eq.0) write(stdout,*) "WARNING: specified momentum is ground state"
 
         ! Creates a look-up table for k-points (this was taken from symrandexcit2.F90)
         kmaxX=0
@@ -1356,6 +1357,6 @@ END MODULE Determinants
             if (sorted) exit
         end do
 
-        write(6,*) "Total momentum set to", k_momentum
+        write(stdout,*) "Total momentum set to", k_momentum
 
       end subroutine ModifyMomentum

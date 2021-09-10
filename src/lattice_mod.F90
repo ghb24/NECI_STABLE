@@ -3778,7 +3778,7 @@ contains
                                 , this%kmin(3):this%kmax(3)))
         allocate(this%bz_table(this%kmin(1):this%kmax(1), this%kmin(2):this%kmax(2), &
                                 this%kmin(3):this%kmax(3)))
-        ! write(6, *) "Lookup table size is ", 2 * (this%kmax(1) - this%kmin(1) + 1) &
+        ! write(stdout, *) "Lookup table size is ", 2 * (this%kmax(1) - this%kmin(1) + 1) &
             ! * (this%kmax(2) - this%kmin(2) + 1) * 8 / 1024, " kB"
         ! and fill thee lookup table with the bz vectors
         call this%fill_bz_table()

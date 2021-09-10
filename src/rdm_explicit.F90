@@ -346,9 +346,9 @@ contains
 
             ! Want a quick test to see if arrays are getting full.
             if (Sing_ExcList(Proc) > nint(OneEl_Gap * (Proc + 1))) then
-                write(6, *) 'Proc', Proc
-                write(6, *) 'Sing_ExcList', Sing_ExcList
-                write(6, *) 'No. spaces for each proc', nint(OneEl_Gap)
+                write(stdout, *) 'Proc', Proc
+                write(stdout, *) 'Sing_ExcList', Sing_ExcList
+                write(stdout, *) 'No. spaces for each proc', nint(OneEl_Gap)
                 call Stop_All('GenExcDjs', 'Too many excitations for space available.')
             end if
         end do
@@ -396,9 +396,9 @@ contains
 
                 ! Want a quick test to see if arrays are getting full.
                 if (Doub_ExcList(Proc) > nint(TwoEl_Gap * (Proc + 1))) then
-                    write(6, *) 'Proc', Proc
-                    write(6, *) 'Doub_ExcList', Doub_ExcList
-                    write(6, *) 'No. spaces for each proc', nint(TwoEl_Gap)
+                    write(stdout, *) 'Proc', Proc
+                    write(stdout, *) 'Doub_ExcList', Doub_ExcList
+                    write(stdout, *) 'No. spaces for each proc', nint(TwoEl_Gap)
                     call Stop_All('GenExcDjs', 'Too many excitations for space available.')
                 end if
             end do
@@ -487,9 +487,9 @@ contains
 
             ! Want a quick test to see if arrays are getting full.
             if (Sing_ExcList(Proc) > nint(OneEl_Gap * (Proc + 1))) then
-                write(6, *) 'Proc', Proc
-                write(6, *) 'Sing_ExcList', Sing_ExcList
-                write(6, *) 'No. spaces for each proc', nint(OneEl_Gap)
+                write(stdout, *) 'Proc', Proc
+                write(stdout, *) 'Sing_ExcList', Sing_ExcList
+                write(stdout, *) 'No. spaces for each proc', nint(OneEl_Gap)
                 call Stop_All('GenExcDjs', 'Too many excitations for space available.')
             end if
         end do
@@ -533,9 +533,9 @@ contains
 
                 ! Want a quick test to see if arrays are getting full.
                 if (Doub_ExcList(Proc) > nint(TwoEl_Gap * (Proc + 1))) then
-                    write(6, *) 'Proc', Proc
-                    write(6, *) 'Doub_ExcList', Doub_ExcList
-                    write(6, *) 'No. spaces for each proc', nint(TwoEl_Gap)
+                    write(stdout, *) 'Proc', Proc
+                    write(stdout, *) 'Doub_ExcList', Doub_ExcList
+                    write(stdout, *) 'No. spaces for each proc', nint(TwoEl_Gap)
                     call Stop_All('GenExcDjs', 'Too many excitations for space available.')
                 end if
             end do

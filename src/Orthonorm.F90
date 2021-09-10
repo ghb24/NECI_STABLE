@@ -4,7 +4,7 @@
 ! MAT is NxN and is returned as an orthogal matrix
 ! R1 and R2 are NxN workspaces
       SUBROUTINE LOWDIN_ORTH(MAT, N, R1, R2, WORK)
-          use constants, only: dp, sp
+          use constants, only: dp, sp, stdout
           use HElem
           IMPLICIT NONE
           INTEGER N
@@ -30,7 +30,7 @@
           end if
 ! eigenvector 1 is given by R1(I,1)
           IF (INFO /= 0) THEN
-              write(6, *) "INFO=", INFO, " on diag in LOWDIN_ORTH. Stopping"
+              write(stdout, *) "INFO=", INFO, " on diag in LOWDIN_ORTH. Stopping"
               call stop_all(this_routine, 'Error in LOWDIN_ORTH.')
           end if
 ! Calculate P = S^(-1/2) R = U L^(-1/2) UT R.  U=R1
@@ -61,7 +61,7 @@
 
       SUBROUTINE GRAMSCHMIDT_NECI(MAT, LEN)
 ! MAT(IELEMENT,IVECTOR)
-          use constants, only: dp
+          use constants, only: dp, stdout
           IMPLICIT NONE
           INTEGER LEN
           HElement_t(dp) MAT(LEN, LEN), DOT
@@ -88,9 +88,9 @@
                   NORM = NORM + abs(MAT(K, I))**2
               end do
               SNORM = SQRT(NORM)
-!            write(6,*) NORM
+!            write(stdout,*) NORM
               DO K = 1, LEN
-!               write(6,*) MAT(K,I),MAT(K,I)/SNORM
+!               write(stdout,*) MAT(K,I),MAT(K,I)/SNORM
                   MAT(K, I) = MAT(K, I) / (SNORM)
               end do
           end do

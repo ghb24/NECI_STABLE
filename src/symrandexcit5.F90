@@ -141,16 +141,16 @@ contains
                     temp_hel = get_helement(nI, nJ, ilutI, ilutJ)
                 end if
 
-                write(6, *) 'Calculated and actual pgens differ.'
-                write(6, *) 'This will break HPHF calculations'
+                write(stdout, *) 'Calculated and actual pgens differ.'
+                write(stdout, *) 'This will break HPHF calculations'
                 call write_det(6, nI, .false.)
-                write(6, '(" --> ")', advance='no')
+                write(stdout, '(" --> ")', advance='no')
                 call write_det(6, nJ, .true.)
-                write(6, *) 'Excitation matrix: ', ExcitMat(1, 1:ic), '-->', &
+                write(stdout, *) 'Excitation matrix: ', ExcitMat(1, 1:ic), '-->', &
                     ExcitMat(2, 1:ic)
-                write(6, *) 'Generated pGen:  ', pgen
-                write(6, *) 'Calculated pGen: ', pgen2
-                write(6, *) 'matrix element: ', temp_hel
+                write(stdout, *) 'Generated pGen:  ', pgen
+                write(stdout, *) 'Calculated pGen: ', pgen2
+                write(stdout, *) 'matrix element: ', temp_hel
                 call stop_all(this_routine, "Invalid pGen")
             end if
         end if
@@ -588,11 +588,11 @@ contains
         call calc_all_excitations(ilut, det_list, nexcit)
 
 !         ! How many connected determinants are we expecting?
-        write(6, '("*****************************************")')
-        write(6, '("Enumerating excitations")')
-        write(6, '("Starting from: ")', advance='no')
+        write(stdout, '("*****************************************")')
+        write(stdout, '("Enumerating excitations")')
+        write(stdout, '("Starting from: ")', advance='no')
         call write_det(6, src_det, .true.)
-        write(6, *) 'Expecting ', nexcit, "excitations"
+        write(stdout, *) 'Expecting ', nexcit, "excitations"
 
         ! Lists to keep track of things
         allocate(generated_list(nexcit))
@@ -611,7 +611,7 @@ contains
         contrib = 0.0_dp
         do i = 1, iterations
             if (mod(i, 10000) == 0) &
-                write(6, *) i, '/', iterations, ' - ', contrib / (real(nexcit, dp) * i)
+                write(stdout, *) i, '/', iterations, ' - ', contrib / (real(nexcit, dp) * i)
 
             call gen_excit_4ind_weighted2(src_det, ilut, det, tgt_ilut, 2, &
                                           ic, ex, par, pgen, helgen, store)
@@ -624,9 +624,9 @@ contains
 
             pos = binary_search(det_list, tgt_ilut, NIfD + 1)
             if (pos < 0) then
-                write(6, *) det
-                write(6, '(b64)') tgt_ilut(0)
-                write(6, *) 'FAILED DET', tgt_ilut
+                write(stdout, *) det
+                write(stdout, '(b64)') tgt_ilut(0)
+                write(stdout, *) 'FAILED DET', tgt_ilut
                 call writebitdet(6, tgt_ilut, .true.)
                 call stop_all(this_routine, 'Unexpected determinant generated')
             else
@@ -641,11 +641,11 @@ contains
             end if
         end do
         ! How many of the iterations generated a good det?
-        write(6, *) ngen, " dets generated in ", iterations, " iterations."
-        write(6, *) 100_dp * (iterations - ngen) / real(iterations, dp), &
+        write(stdout, *) ngen, " dets generated in ", iterations, " iterations."
+        write(stdout, *) 100_dp * (iterations - ngen) / real(iterations, dp), &
             '% abortion rate'
         ! Contribution averages
-        write(6, '("Averaged contribution: ", f15.10)') &
+        write(stdout, '("Averaged contribution: ", f15.10)') &
             contrib / (real(nexcit, dp) * iterations)
 
         ! Output the determinant specific contributions
@@ -659,7 +659,7 @@ contains
 
         ! Check that all of the determinants were generated!!!
         if (.not. all(generated_list)) then
-            write(6, *) count(.not. generated_list), '/', size(generated_list), &
+            write(stdout, *) count(.not. generated_list), '/', size(generated_list), &
                 'not generated'
             found_all = .true.
             do i = 1, nexcit
@@ -669,7 +669,7 @@ contains
                     if (abs(hel) > 1.0e-6) then
                         found_all = .false.
                         call writebitdet(6, det_list(:, i), .false.)
-                        write(6, *) hel
+                        write(stdout, *) hel
                     end if
                 end if
             end do
@@ -679,7 +679,7 @@ contains
         if (any(abs(contrib_list / iterations - 1.0_dp) > 0.01_dp)) then
             do i = 1, nexcit
                 call writebitdet(6, det_list(:, i), .false.)
-                write(6, *) contrib_list(i) / (iterations - 1.0_dp)
+                write(stdout, *) contrib_list(i) / (iterations - 1.0_dp)
             end do
 !             call stop_all(this_routine, "Insufficiently uniform generation")
         end if

@@ -418,9 +418,9 @@ contains
         FillOneRDM_Time%timer_name = 'FillOneRDM'
         call set_timer(FillOneRDM_Time, 30)
 
-        write(6, *) '*** The weight of the HF determinant is : ', AllHistogram(1, 1)
+        write(stdout, *) '*** The weight of the HF determinant is : ', AllHistogram(1, 1)
 
-        write(6, *) 'Beginning to fill the one-electron reduced density matrix.'
+        write(stdout, *) 'Beginning to fill the one-electron reduced density matrix.'
 
         if (ICILevel == 0) then
             MaxExcit = NEl
@@ -518,18 +518,18 @@ contains
                         if ((abs(AllHistogram(1, i) * AllHistogram(1, j)) > 1.0e-12_dp) .and. &
                             (int(G1(SymLabelList2_rot(Orbi) * Spins)%sym%S, 4) /= &
                              int(G1(SymLabelList2_rot(Orbj) * Spins)%sym%S, 4))) then
-                            write(6, *) 'ERROR in symmetries'
-                            write(6, *) 'Ex,', Ex(1, 1), Ex(2, 1)
-                            write(6, *) ceiling(real(Ex(1, 1) / 2.0_dp, dp)), ceiling(real(Ex(2, 1) / 2.0_dp, dp))
-                            write(6, *) 'Orbi,', Orbi, 'Orbj,', Orbj
-                            write(6, *) 'Sym(Orbi)', int(G1(SymLabelList2_rot(Orbi) * Spins)%sym%S, 4), 'Sym(Orbj)', &
+                            write(stdout, *) 'ERROR in symmetries'
+                            write(stdout, *) 'Ex,', Ex(1, 1), Ex(2, 1)
+                            write(stdout, *) ceiling(real(Ex(1, 1) / 2.0_dp, dp)), ceiling(real(Ex(2, 1) / 2.0_dp, dp))
+                            write(stdout, *) 'Orbi,', Orbi, 'Orbj,', Orbj
+                            write(stdout, *) 'Sym(Orbi)', int(G1(SymLabelList2_rot(Orbi) * Spins)%sym%S, 4), 'Sym(Orbj)', &
                                 int(G1(SymLabelList2_rot(Orbj) * Spins)%sym%S, 4)
                             call decode_bit_det(nI, FCIDets(0:NIfTot, i))
-                            write(6, *) 'i', nI
+                            write(stdout, *) 'i', nI
                             call decode_bit_det(nJ, FCIDets(0:NIfTot, j))
-                            write(6, *) 'j', nJ
-                            write(6, *) 'AllHistogram(1,i)', AllHistogram(1, i)
-                            write(6, *) 'AllHistogram(1,j)', AllHistogram(1, j)
+                            write(stdout, *) 'j', nJ
+                            write(stdout, *) 'AllHistogram(1,i)', AllHistogram(1, i)
+                            write(stdout, *) 'AllHistogram(1,j)', AllHistogram(1, j)
                             call neci_flush(6)
                             call stop_all('FillOneRDM', 'Non-zero element between different symmetries.')
                         end if
@@ -553,7 +553,7 @@ contains
             end do
         end do
 
-        write(6, *) 'Filled OneRDM'
+        write(stdout, *) 'Filled OneRDM'
 
         call halt_timer(FillOneRDM_Time)
 
@@ -597,7 +597,7 @@ contains
         ! which is which when the evectors are reordered and maintain spin
         ! symmetry.
 
-        write(6, *) 'Filling MP2VDM nat orb matrix'
+        write(stdout, *) 'Filling MP2VDM nat orb matrix'
         call neci_flush(6)
 
         FillMP2VDM_Time%timer_name = 'FillMP2VDM'
@@ -699,7 +699,7 @@ contains
                                             else if (tStoreSpinOrbs) then
                                                 if (abs(ARR(i, 2) + ARR(j, 2) - ARR(a, 2) - ARR(c, 2)) < 1.0e-12_dp) then
                                                     if (abs(real(UMAT(UMatInd(a, c, i, j)), dp)) > 1.0e-12_dp) then
-                                                        write(6, *) i, j, a, c, real(UMAT(UMatInd(a, c, i, j)), dp)
+                                                        write(stdout, *) i, j, a, c, real(UMAT(UMatInd(a, c, i, j)), dp)
                                                         call stop_all(t_r, "Dividing a non-zero by zero.")
                                                     end if
                                                 end if
@@ -738,7 +738,7 @@ contains
             end do
         end do
 
-        write(6, *) 'Finished filling MP2VDM'
+        write(stdout, *) 'Finished filling MP2VDM'
 
         call halt_timer(FillMP2VDM_Time)
 
@@ -818,14 +818,14 @@ contains
                 if (tStoreSpinOrbs) then
                     if ((int(G1(SymLabelList2_rot(i))%sym%S, 4) /= int(G1(SymLabelList2_rot(j))%sym%S, 4))) then
                         if (abs(NatOrbMat(i, j)) >= 1.0e-15_dp) then
-                            write(6, '(6A8,A20)') 'i', 'j', 'Label i', 'Label j', 'Sym i', 'Sym j', 'Matrix value'
-                            write(6, '(6I3,F40.20)') i, j, SymLabelList2_rot(i), SymLabelList2_rot(j), &
+                            write(stdout, '(6A8,A20)') 'i', 'j', 'Label i', 'Label j', 'Sym i', 'Sym j', 'Matrix value'
+                            write(stdout, '(6I3,F40.20)') i, j, SymLabelList2_rot(i), SymLabelList2_rot(j), &
                                 int(G1(SymLabelList2_rot(i))%sym%S, 4), &
                                 int(G1(SymLabelList2_rot(j))%sym%S, 4), NatOrbMat(i, j)
                             if (tUseMP2VarDenMat) then
-                                write(6, *) '**WARNING** - There is a non-zero NatOrbMat value between " &
+                                write(stdout, *) '**WARNING** - There is a non-zero NatOrbMat value between " &
                                  & //"orbitals of different symmetry.'
-                                write(6, *) 'These elements will be ignored, and the symmetry maintained " &
+                                write(stdout, *) 'These elements will be ignored, and the symmetry maintained " &
                                  & //"in the final transformation matrix.'
                             else
                                 call stop_all(t_r, 'Non-zero NatOrbMat value between different symmetries.')
@@ -836,13 +836,13 @@ contains
                 else
                     if ((int(G1(SymLabelList2_rot(i) * 2)%sym%S, 4) /= int(G1(SymLabelList2_rot(j) * 2)%sym%S, 4))) then
                         if (abs(NatOrbMat(i, j)) >= 1.0e-15_dp) then
-                            write(6, '(6A8,A20)') 'i', 'j', 'Label i', 'Label j', 'Sym i', 'Sym j', 'Matrix value'
-                            write(6, '(6I3,F40.20)') i, j, SymLabelList2_rot(i), SymLabelList2_rot(j), &
+                            write(stdout, '(6A8,A20)') 'i', 'j', 'Label i', 'Label j', 'Sym i', 'Sym j', 'Matrix value'
+                            write(stdout, '(6I3,F40.20)') i, j, SymLabelList2_rot(i), SymLabelList2_rot(j), &
                                 int(G1(SymLabelList2_rot(i) * 2)%sym%S, 4), int(G1(SymLabelList2_rot(j) * 2)%sym%S, 4), NatOrbMat(i, j)
                             if (tUseMP2VarDenMat) then
-                                write(6, *) '**WARNING** - There is a non-zero NatOrbMat value between orbitals of " &
+                                write(stdout, *) '**WARNING** - There is a non-zero NatOrbMat value between orbitals of " &
                                 & //"different symmetry.'
-                                write(6, *) 'These elements will be ignored, and the symmetry maintained in the " &
+                                write(stdout, *) 'These elements will be ignored, and the symmetry maintained in the " &
                                 & //"final transformation matrix.'
                             else
                                 call stop_all(t_r, 'Non-zero NatOrbMat value between different symmetries.')
@@ -859,7 +859,7 @@ contains
             SumTrace = SumTrace + NatOrbMat(i, i)
         end do
 
-        write(6, *) 'Calculating eigenvectors and eigenvalues of NatOrbMat'
+        write(stdout, *) 'Calculating eigenvectors and eigenvalues of NatOrbMat'
         call neci_flush(6)
 
         ! If we are using spin orbitals, need to feed in the alpha and beta
@@ -921,14 +921,14 @@ contains
                             end do
                         end do
 
-                        write(6, *) '*****'
-                        write(6, *) 'Symmetry ', Sym, 'with x ', x, ' and z ', z, ' has ', NoSymBlock, ' orbitals.'
-                        write(6, *) 'The NatOrbMat for this symmetry block is '
+                        write(stdout, *) '*****'
+                        write(stdout, *) 'Symmetry ', Sym, 'with x ', x, ' and z ', z, ' has ', NoSymBlock, ' orbitals.'
+                        write(stdout, *) 'The NatOrbMat for this symmetry block is '
                         do i = 1, NoSymBlock
                             do j = 1, NoSymBlock
-                                write(6, '(F20.10)', advance='no') NOMSym(j, i)
+                                write(stdout, '(F20.10)', advance='no') NOMSym(j, i)
                             end do
-                            write(6, *) ''
+                            write(stdout, *) ''
                         end do
 
                         ! NOMSym goes in as the original NOMSym, comes out as
@@ -936,12 +936,12 @@ contains
                         ! as the eigenvalues in ascending order.
                         call dsyev('V', 'L', NoSymBlock, NOMSym, NoSymBlock, EvaluesSym, WORK2, LWORK2, ierr)
 
-                        write(6, *) 'After diagonalization, the e-vectors (diagonal elements) of this matrix are,'
+                        write(stdout, *) 'After diagonalization, the e-vectors (diagonal elements) of this matrix are,'
                         do i = 1, NoSymBlock
-                            write(6, '(F20.10)', advance='no') EvaluesSym(i)
+                            write(stdout, '(F20.10)', advance='no') EvaluesSym(i)
                         end do
-                        write(6, *) ''
-                        write(6, *) 'These go from orbital,', SymStartInd + 1, ' to ', SymStartInd + NoSymBlock
+                        write(stdout, *) ''
+                        write(stdout, *) 'These go from orbital,', SymStartInd + 1, ' to ', SymStartInd + NoSymBlock
 
                         do i = 1, NoSymBlock
                             Evalues(SymStartInd + i) = EvaluesSym(i)
@@ -953,12 +953,12 @@ contains
                         ! TMAT2DRot in transform2elints. A check that comes out
                         ! as diagonal is a check of this routine anyway.
 
-                        write(6, *) 'The eigenvectors (coefficients) for symmetry block ', Sym
+                        write(stdout, *) 'The eigenvectors (coefficients) for symmetry block ', Sym
                         do i = 1, NoSymBlock
                             do j = 1, NoSymBlock
-                                write(6, '(F20.10)', advance='no') NOMSym(j, i)
+                                write(stdout, '(F20.10)', advance='no') NOMSym(j, i)
                             end do
-                            write(6, *) ''
+                            write(stdout, *) ''
                         end do
 
                         ! Directly fill the coefficient matrix with the
@@ -984,9 +984,9 @@ contains
 
                         Evalues(SymStartInd + 1) = NatOrbMat(SymStartInd + 1, SymStartInd + 1)
                         NatOrbMat(SymStartInd + 1, SymStartInd + 1) = 1.0_dp
-                        write(6, *) '*****'
-                        write(6, *) 'Symmetry ', Sym, ' has only one orbital.'
-                        write(6, *) 'Copying diagonal element,', SymStartInd + 1, 'to NatOrbMat'
+                        write(stdout, *) '*****'
+                        write(stdout, *) 'Symmetry ', Sym, ' has only one orbital.'
+                        write(stdout, *) 'Copying diagonal element,', SymStartInd + 1, 'to NatOrbMat'
                     end if
 
                     Sym = Sym + 1
@@ -994,7 +994,7 @@ contains
             end do
         end do
 
-        write(6, *) 'Matrix diagonalised'
+        write(stdout, *) 'Matrix diagonalised'
         call neci_flush(6)
 
         SumDiagTrace = 0.0_dp
@@ -1002,9 +1002,9 @@ contains
             SumDiagTrace = SumDiagTrace + Evalues(i)
         end do
         if ((abs(SumDiagTrace - SumTrace)) > 10.0_dp) then
-            write(6, *) 'Sum of diagonal NatOrbMat elements : ', SumTrace
-            write(6, *) 'Sum of eigenvalues : ', SumDiagTrace
-            write(6, *) 'WARNING, The trace of the 1RDM matrix before diagonalisation is not equal to that after.'
+            write(stdout, *) 'Sum of diagonal NatOrbMat elements : ', SumTrace
+            write(stdout, *) 'Sum of eigenvalues : ', SumDiagTrace
+            write(stdout, *) 'WARNING, The trace of the 1RDM matrix before diagonalisation is not equal to that after.'
         end if
 
         call halt_timer(DiagNatOrbMat_Time)
@@ -1124,9 +1124,9 @@ contains
 
         call halt_timer(OrderCoeff_Time)
 
-        write(6, *) 'Eigen-values: '
+        write(stdout, *) 'Eigen-values: '
         do i = 1, NoOrbs
-            write(6, *) Evalues(i)
+            write(stdout, *) Evalues(i)
         end do
 
     end subroutine OrderCoeffT1
@@ -1146,12 +1146,12 @@ contains
         FillCoeff_Time%timer_name = 'FillCoeff'
         call set_timer(FillCoeff_Time, 30)
 
-        write(6, *) 'NatOrbMat'
+        write(stdout, *) 'NatOrbMat'
         do i = 1, nBasis
             do j = 1, nBasis
-                write(6, '(F10.6)', advance='no') NatOrbMat(j, i)
+                write(stdout, '(F10.6)', advance='no') NatOrbMat(j, i)
             end do
-            write(6, *) ''
+            write(stdout, *) ''
         end do
 
         if (tTruncRODump) then
@@ -1545,7 +1545,7 @@ contains
             do i = 1, nBasis
                 Norm = Norm + AllOrbOccs(i)
                 if ((AllOrbOccs(i) < 0) .or. (Norm < 0)) then
-                    write(6, *) 'WARNING: Integer overflow when calculating the orbital occupations.'
+                    write(stdout, *) 'WARNING: Integer overflow when calculating the orbital occupations.'
                     tWarning = .true.
                 end if
             end do

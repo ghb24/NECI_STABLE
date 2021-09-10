@@ -374,15 +374,15 @@ contains
             if (tPrintInfo) then
                 if (i == 1) then
                     bytes_required = row_size * (8 + bytes_int)
-                    write(6, '(1x,a43)') "About to allocate first row of Hamiltonian."
-                    write(6, '(1x,a40,1x,i8)') "The memory (bytes) required for this is:", bytes_required
-                    write(6, '(1x,a71,1x,i7)') "The total number of determinants (and hence rows) on this processor is:", &
+                    write(stdout, '(1x,a43)') "About to allocate first row of Hamiltonian."
+                    write(stdout, '(1x,a40,1x,i8)') "The memory (bytes) required for this is:", bytes_required
+                    write(stdout, '(1x,a71,1x,i7)') "The total number of determinants (and hence rows) on this processor is:", &
                         num_states(iProcIndex)
-                    write(6, '(1x,a58,1x,i7)') "The total number of determinants across all processors is:", num_states_tot
-                    write(6, '(1x,a77,1x,i7)') "It is therefore expected that the total memory (MB) required will be roughly:", &
+                    write(stdout, '(1x,a58,1x,i7)') "The total number of determinants across all processors is:", num_states_tot
+                    write(stdout, '(1x,a77,1x,i7)') "It is therefore expected that the total memory (MB) required will be roughly:", &
                         num_states_tot * bytes_required / 1000000
                 else if (mod(i, 1000) == 0) then
-                    write(6, '(1x,a23,1x,i7)') "Finished computing row:", i
+                    write(stdout, '(1x,a23,1x,i7)') "Finished computing row:", i
                 end if
             end if
 
@@ -734,8 +734,10 @@ contains
                         IC = CountBits(tmp, NIfD)
 
                         if (IC <= maxExcit .or. ((.not. CS_I) .and. (.not. cs(j)))) then
-                            hamiltonian_row(j) = hphf_off_diag_helement_opt(nI, rep%core_space(:, i + rep%determ_displs(iProcIndex)), &
-                                                                            rep%core_space(:, j), IC, CS_I, cs(j))
+
+                            hamiltonian_row(j) = hphf_off_diag_helement_opt(nI, &
+                                rep%core_space(:, i + rep%determ_displs(iProcIndex)), &
+                                rep%core_space(:, j), IC, CS_I, cs(j))
 
                             if (abs(hamiltonian_row(j)) > 0.0_dp) row_size = row_size + 1
                         end if
@@ -811,12 +813,12 @@ contains
             do i = 1, size(ht)
                 if (allocated(ht(i)%ind)) then
                     deallocate(ht(i)%ind, stat=ierr)
-                    if (ierr /= 0) write(6, '("Error when deallocating core hashtable ind array:",1X,i8)') ierr
+                    if (ierr /= 0) write(stdout, '("Error when deallocating core hashtable ind array:",1X,i8)') ierr
                 end if
             end do
 
             deallocate(ht, stat=ierr)
-            if (ierr /= 0) write(6, '("Error when deallocating core hashtable:",1X,i8)') ierr
+            if (ierr /= 0) write(stdout, '("Error when deallocating core hashtable:",1X,i8)') ierr
         end if
 
     end subroutine deallocate_core_hashtable
@@ -831,12 +833,12 @@ contains
             do i = 1, size(ht)
                 if (allocated(ht(i)%states)) then
                     deallocate(ht(i)%states, stat=ierr)
-                    if (ierr /= 0) write(6, '("Error when deallocating trial hashtable states array:",1X,i8)') ierr
+                    if (ierr /= 0) write(stdout, '("Error when deallocating trial hashtable states array:",1X,i8)') ierr
                 end if
             end do
 
             deallocate(ht, stat=ierr)
-            if (ierr /= 0) write(6, '("Error when deallocating core hashtable:",1X,i8)') ierr
+            if (ierr /= 0) write(stdout, '("Error when deallocating core hashtable:",1X,i8)') ierr
         end if
 
     end subroutine deallocate_trial_hashtable

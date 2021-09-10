@@ -527,7 +527,7 @@ contains
             ! if the list is almost full, activate the walker decay
             if (t_prone_walkers .and. TotWalkersNew > 0.95_dp * real(MaxWalkersPart, dp)) then
                 t_activate_decay = .true.
-                write(iout, *) "Warning: Starting to randomly kill singly-spawned walkers"
+                write(stderr, *) "Warning: Starting to randomly kill singly-spawned walkers"
             end if
         end if
         CurrentDets(:, DetPosition) = iLutCurr(:)
@@ -771,23 +771,23 @@ contains
         end if
 
         IFDEBUGTHEN(FCIMCDebug, 6)
-        write(6, *) "After annihilation: "
-        write(6, *) "TotWalkersNew: ", TotWalkersNew
-        write(6, *) "AnnihilatedDet: ", AnnihilatedDet
-        write(6, *) "HolesInList: ", HolesInList
-        write(iout, "(A,I12)") "Walker list length: ", TotWalkersNew
-        write(iout, "(A)") "TW: Walker  Det"
-        do j = 1, int(TotWalkersNew, sizeof_int)
-            CurrentSign = &
-                transfer(CurrentDets(IlutBits%ind_pop:IlutBits%ind_pop + lenof_sign - 1, j), &
-                         CurrentSign)
-            write(iout, "(A,I10,a)", advance='no') 'TW:', j, '['
-            do part_type = 1, lenof_sign
-                write(iout, "(f16.3)", advance='no') CurrentSign(part_type)
+            write(6, *) "After annihilation: "
+            write(6, *) "TotWalkersNew: ", TotWalkersNew
+            write(6, *) "AnnihilatedDet: ", AnnihilatedDet
+            write(6, *) "HolesInList: ", HolesInList
+            write(stdout, "(A,I12)") "Walker list length: ", TotWalkersNew
+            write(stdout, "(A)") "TW: Walker  Det"
+            do j = 1, int(TotWalkersNew, sizeof_int)
+                CurrentSign = &
+                    transfer(CurrentDets(IlutBits%ind_pop:IlutBits%ind_pop + lenof_sign - 1, j), &
+                             CurrentSign)
+                write(stdout, "(A,I10,a)", advance='no') 'TW:', j, '['
+                do part_type = 1, lenof_sign
+                    write(stdout, "(f16.3)", advance='no') CurrentSign(part_type)
+                end do
+                call WriteBitDet(stdout, CurrentDets(:, j), .true.)
+                call neci_flush(stdout)
             end do
-            call WriteBitDet(iout, CurrentDets(:, j), .true.)
-            call neci_flush(iout)
-        end do
         ENDIFDEBUG
 
         ! RT_M_Merge: i have to ask werner why this check makes sense

@@ -53,8 +53,8 @@ contains
         ELSE
             TotNoBlockSizes = FLOOR((LOG10((REAL(NMCyc - StartBlockIter, dp)) / (REAL(StepsSft, dp)))) / (LOG10(2.0_dp)))
         end if
-        write(6, *) 'Beginning blocking analysis of the errors in the projected energies.'
-        write(6, "(A,I6)") "The total number of different block sizes possible is: ", TotNoBlockSizes
+        write(stdout, *) 'Beginning blocking analysis of the errors in the projected energies.'
+        write(stdout, "(A,I6)") "The total number of different block sizes possible is: ", TotNoBlockSizes
         ! The blocks will have size 1,2,4,8,....,2**TotNoBlockSizes
         ! In the below arrays, the element i will correspond to block size 2**(i),
         !but the arrays go from 0 -> TotNoBlockSizes.
@@ -88,8 +88,8 @@ contains
         ! This is the iteration the blocking was started.
 
         TotNoShiftBlockSizes = FLOOR((LOG10((REAL(NMCyc - StartShiftBlockIter, dp)) / (REAL(StepsSft, dp)))) / (LOG10(2.0_dp)))
-        write(6, *) 'Beginning blocking analysis of the errors in the shift.'
-        write(6, "(A,I6)") "The total number of different block sizes possible is: ", TotNoShiftBlockSizes
+        write(stdout, *) 'Beginning blocking analysis of the errors in the shift.'
+        write(stdout, "(A,I6)") "The total number of different block sizes possible is: ", TotNoShiftBlockSizes
         ! The blocks will have size 1,2,4,8,....,2**TotNoBlockSizes
         ! In the below arrays, the element i will correspond to block size 2**(i),
         !but the arrays go from 0 -> TotNoBlockSizes.
@@ -443,10 +443,10 @@ contains
         LOGICAL :: tParity
         HElement_t(dp) :: HEl
 
-!        write(6,*) 'Child',Child
-!        write(6,*) 'DetCurr',DetCurr
-!        write(6,*) 'nJ',nJ
-!        write(6,*) 'iLutnJ',iLutnJ
+!        write(stdout,*) 'Child',Child
+!        write(stdout,*) 'DetCurr',DetCurr
+!        write(stdout,*) 'nJ',nJ
+!        write(stdout,*) 'iLutnJ',iLutnJ
 !        CALL neci_flush(6)
 !        stop
 
@@ -489,7 +489,7 @@ contains
         call MPIGather(MinHElAccept, AllMinHElAccept(1:nProcessors), error)
 
         IF (iProcIndex == Root) THEN
-!            write(6,*) 'AllMinHElAccept',AllMinHElAccept
+!            write(stdout,*) 'AllMinHElAccept',AllMinHElAccept
             CALL neci_flush(6)
             MaxHElNotAccept = ABS(AllMaxHElNotAccept(1))
             do i = 2, nProcessors

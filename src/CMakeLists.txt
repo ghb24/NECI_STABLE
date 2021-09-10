@@ -231,6 +231,7 @@ set( SRC_FILES
     lib/matrix_util.F90
     lib/display_matrices.F90
     lib/binomial_lookup.F90
+    lib/MAQAO_toggle.c
 )
 
 set( RELAX_WARNINGS_SRCS
@@ -448,6 +449,7 @@ set( FYPP_SRC_FILES
     lib/util_mod_epsilon_close.fpp
     sets_mod.fpp
 	shared_ragged_array.fpp
+    SD_spin_purification.fpp
 )
 
 set( TEMPLATED_SRC_FILES

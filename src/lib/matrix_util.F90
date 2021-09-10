@@ -188,6 +188,7 @@ contains
         real(dp), intent(out) :: e_values(size(matrix,1))
         complex(dp), intent(out), optional :: e_vectors(size(matrix,1),size(matrix,1))
         logical, intent(in), optional :: t_left_ev
+        character(*), parameter :: this_routine = 'eig_cmplx'
 
         ! get the specifics for the eigenvectors still..
         ! i think i need a bigger work, and maybe also a flag for how many
@@ -198,7 +199,7 @@ contains
         real(dp), allocatable :: rwork(:)
         real(dp) :: right_ev(size(matrix,1),size(matrix,1))
         integer :: sort_ind(size(matrix,1))
-        character :: left, right
+        character(len=1) :: left, right
 
 
         ! and convention is: we only want the right eigenvectors!!
@@ -236,8 +237,9 @@ contains
                  e_values, &
                  work, &
                  4*n, &
-                 rwork,&
+                 rwork, &
                  info)
+            if (info /= 0) call stop_all(this_routine, 'Failed in BLAS call.')
             deallocate(rwork)
 
             sort_ind = [(n, n = 1, size(matrix,1))]
@@ -263,6 +265,7 @@ contains
     function calc_eigenvalues_real(matrix) result(e_values)
         real(dp), intent(in) :: matrix(:,:)
         real(dp) :: e_values(size(matrix,1))
+        character(*), parameter :: this_routine = 'calc_eigenvalues_real'
 
         integer :: n, info
         real(dp) :: work(3*size(matrix,1))
@@ -274,6 +277,7 @@ contains
         tmp_matrix = matrix
         call dgeev('N','N', n, tmp_matrix, n, e_values, &
             dummy_val, dummy_vec_1,1,dummy_vec_2,1,work,3*n,info)
+        if (info /= 0) call stop_all(this_routine, 'Failed in BLAS call.')
         call sort(e_values)
 
     end function calc_eigenvalues_real
@@ -281,17 +285,19 @@ contains
     function calc_eigenvalues_cmplx(matrix) result(e_values)
         complex(dp), intent(in) :: matrix(:,:)
         real(dp) :: e_values(size(matrix,1))
+        character(*), parameter :: this_routine = 'calc_eigenvalues_cmplx'
 
-        integer :: n
+        integer :: n, info
         complex(dp) :: work(3*size(matrix,1))
         complex(dp) :: tmp_matrix(size(matrix,1),size(matrix,2))
-        complex(dp), allocatable :: rwork(:)
+        real(dp), allocatable :: rwork(:)
 
         n = size(matrix,1)
 
         tmp_matrix = matrix
-        allocate(rwork(max(1,3*n-2)))
-        call zheev('N','N', n, tmp_matrix, n, e_values, work, 3*n, rwork)
+        allocate(rwork(max(1, 3*n - 2)))
+        call zheev('N','N', n, tmp_matrix, n, e_values, work, 3*n, rwork, info)
+        if (info /= 0) call stop_all(this_routine, 'Failed in BLAS call.')
         deallocate(rwork)
         call sort(e_values)
 
@@ -301,6 +307,7 @@ contains
         real(dp), intent(in) :: matrix(:,:)
         real(dp), intent(out) :: e_values(size(matrix,1))
         real(dp), intent(out), optional :: e_vectors(size(matrix,1),size(matrix,2))
+        character(*), parameter :: this_routine = 'eig_sym'
         integer :: n, info, lwork
         character(1) :: jobz
         real(dp) :: tmp_matrix(size(matrix,1),size(matrix,2))
@@ -327,6 +334,7 @@ contains
             work, &
             lwork, &
             info)
+        if (info /= 0) call stop_all(this_routine, 'Failed in BLAS call.')
 
         if (present(e_vectors)) then
             e_vectors = tmp_matrix
@@ -521,8 +529,8 @@ contains
         vectors = matrix
 #ifdef CMPLX_
         block
-            HElement_t(dp), allocatable :: rwork(:)
-            allocate(rwork(max(1,3*n-2)))
+            real(dp), allocatable :: rwork(:)
+            allocate(rwork(max(1, 3*n - 2)))
             call zheev('V', 'U', n, vectors, n, values, work, 3*n-1, rwork, info)
             deallocate(rwork)
         end block
@@ -531,14 +539,12 @@ contains
 #endif
         ! now i have the eigenvectors, which i need the inverse of
         ! it is rotation only or? so i would just need a transpose or?
-!         inverse = matrix_inverse(vectors)
         inverse = transpose(vectors)
 
         ! i need to construct exp(eigenvalues) as a diagonal matrix!
         exp_diag = matrix_diag(exp(values))
 
-        exp_matrix = blas_matmul(blas_matmul(vectors,exp_diag),inverse)
-!         exp_matrix = matmul(matmul(vectors,exp_diag),inverse)
+        exp_matrix = blas_matmul(blas_matmul(vectors,exp_diag), inverse)
 
     end function matrix_exponential
 

@@ -4,6 +4,7 @@ subroutine stop_all(sub_name, error_msg)
     !
     ! In: sub_name    - Calling routine
     !     error_msg   - Error message
+    use constants, only: stdout, stderr
 
 #ifdef USE_MPI
     use Parallel_neci, only: iProcIndex, MPIStopAll
@@ -20,34 +21,34 @@ subroutine stop_all(sub_name, error_msg)
     ! I found problems when the error code is larger 2^8 - 1 == 255
     integer, parameter :: error_code = 222
 
-    write (6,'(/a7)') 'ERROR.'
-    write (6,'(a27,a)') 'NECI stops in subroutine: ',adjustl(sub_name)
-    write (6,'(a9,18X,a)') 'Reason: ',adjustl(error_msg)
+    write (stdout,'(/a7)') 'ERROR.'
+    write (stdout,'(a27,a)') 'NECI stops in subroutine: ',adjustl(sub_name)
+    write (stdout,'(a9,18X,a)') 'Reason: ',adjustl(error_msg)
 #ifdef USE_MPI
-    write (6,'(a12,15X,i5)') 'Processor: ',iProcIndex
+    write (stdout,'(a12,15X,i5)') 'Processor: ',iProcIndex
 #endif
-    write (6,'(a11)') 'EXITING...'
+    write (stdout,'(a11)') 'EXITING...'
 #ifdef DEBUG_
-    call neci_flush (6)
+    call neci_flush (stdout)
 #else
-    write (6,'(/a7)') 'ERROR.'
-    write (6,'(a27,a)') 'NECI stops in subroutine: ',adjustl(sub_name)
-    write (6,'(a9,18X,a)') 'Reason: ',adjustl(error_msg)
+    write (stdout,'(/a7)') 'ERROR.'
+    write (stdout,'(a27,a)') 'NECI stops in subroutine: ',adjustl(sub_name)
+    write (stdout,'(a9,18X,a)') 'Reason: ',adjustl(error_msg)
 #ifdef USE_MPI
-    write (6,'(a12,15X,i5)') 'Processor: ',iProcIndex
+    write (stdout,'(a12,15X,i5)') 'Processor: ',iProcIndex
 #endif
-    write (6,'(a11)') 'EXITING...'
+    write (stdout,'(a11)') 'EXITING...'
 #endif
 
     ! Also push this to the stderr unit, so it hopefully ends up somewhere
     ! more useful.
-    write (7,'(/a7)') 'ERROR.'
-    write (7,'(a27,a)') 'NECI stops in subroutine: ',adjustl(sub_name)
-    write (7,'(a9,18X,a)') 'Reason: ',adjustl(error_msg)
+    write (stderr,'(/a7)') 'ERROR.'
+    write (stderr,'(a27,a)') 'NECI stops in subroutine: ',adjustl(sub_name)
+    write (stderr,'(a9,18X,a)') 'Reason: ',adjustl(error_msg)
 #ifdef USE_MPI
-    write (7,'(a12,15X,i5)') 'Processor: ',iProcIndex
+    write (stderr,'(a12,15X,i5)') 'Processor: ',iProcIndex
 #endif
-    write (7,'(a11)') 'EXITING...'
+    write (stderr,'(a11)') 'EXITING...'
 
     call print_backtrace_neci()
 

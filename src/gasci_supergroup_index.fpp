@@ -53,7 +53,7 @@
 ! for all allowed super groups.
 module gasci_supergroup_index
     use constants, only: int64, n_int
-    use util_mod, only: choose, cumsum, binary_search_first_ge
+    use util_mod, only: choose, cumsum, binary_search_first_ge, custom_findloc
     use bit_rep_data, only: nIfD
     use gasci, only: GASSpec_t
     use hash, only: hash_table_lookup
@@ -92,7 +92,7 @@ module gasci_supergroup_index
 
 contains
 
-    function construct_SuperGroupIndexer_t(GASspec, N) result(idxer)
+    pure function construct_SuperGroupIndexer_t(GASspec, N) result(idxer)
         class(GASSpec_t), intent(in) :: GASspec
         integer, intent(in) :: N
         type(SuperGroupIndexer_t) :: idxer
@@ -121,32 +121,41 @@ contains
     !> \f[ 0 + 1 = 1 \f].
     !> The German wikipedia has a nice article
     !> https://de.wikipedia.org/wiki/Partitionsfunktion#Geordnete_Zahlcompositionen
+    !>
+    !> The compositions are returned in lexicographically decreasing order.
     pure function get_compositions(k, n) result(res)
         integer, intent(in) :: k, n
-        integer :: res(k, n_compositions(k, n))
-        integer :: idx_part, i
+        integer, allocatable :: res(:, :)
+        integer :: i
 
-        idx_part = 1
-        res(:, idx_part) = 0
-        res(1, idx_part) = n
+        allocate(res(k, n_compositions(k, n)))
 
-        if (k == 1) return
+        res(:, 1) = 0
+        res(1, 1) = n
 
-        do idx_part = 2, size(res, 2) - 1
-            res(:, idx_part) = res(:, idx_part - 1)
-
-            do i = size(res, 1), 2, -1
-                if (res(i - 1, idx_part) > 0) exit
-            end do
-
-            ! Transfer 1 from left neighbour and everything from all right neighbours to res(j)
-            res(i, idx_part) = res(i, idx_part) + 1 + sum(res(i + 1 :, idx_part))
-            res(i + 1 :, idx_part) = 0
-            res(i - 1, idx_part) = res(i - 1, idx_part) - 1
+        do i = 2, size(res, 2)
+            res(:, i) = next_composition(res(:, i - 1))
         end do
+    end function
 
-        res(:, idx_part) = 0
-        res(size(res, 1), idx_part) = n
+
+    pure function next_composition(previous) result(res)
+        integer, intent(in) :: previous(:)
+        integer :: res(size(previous))
+        integer :: k, n, i
+        k = size(previous)
+        n = sum(previous)
+
+        if (n == previous(k)) then
+            res(:) = -1
+        else
+            i = custom_findloc(previous(: k - 1) > 0, .true., back=.true.) + 1
+            ! Transfer 1 from left neighbour and everything from all right neighbours to res(i)
+            res(: i - 2) = previous(: i - 2)
+            res(i - 1) = previous(i - 1) - 1
+            res(i) = previous(i) + 1 + sum(previous(i + 1 :))
+            res(i + 1 :) = 0
+        end if
     end function
 
 
@@ -201,7 +210,6 @@ contains
     end function
 
 
-
     !> @brief
     !> Get the ordered compositions of n into k summands
     !>  constrained by cumulative minima and maxima.
@@ -211,19 +219,23 @@ contains
     pure function indexer_get_supergroups(self) result(res)
         class(SuperGroupIndexer_t), intent(in) :: self
         integer, allocatable :: res(:, :)
-        integer :: i
-        integer, allocatable :: compositions(:, :)
+        integer(int64) :: i
+        integer :: composition(self%GASspec%nGAS())
         type(buffer_int_2D_t) :: supergroups
 
-        compositions = get_compositions(self%GASspec%nGAS(), self%nEl())
-        call supergroups%init(rows=size(compositions, 1))
-        do i = 1, size(compositions, 2)
-            if (self%GASspec%contains_supergroup(compositions(:, i))) then
-                call supergroups%push_back(compositions(:, i))
+        composition(:) = 0
+        composition(1) = self%nEl()
+
+        call supergroups%init(rows=self%GASspec%nGAS())
+        do i = 1_int64, n_compositions(self%GASspec%nGAS(), self%nEl())
+            if (self%GASspec%contains_supergroup(composition(:))) then
+                call supergroups%push_back(composition(:))
             end if
+            composition = next_composition(composition)
         end do
         call supergroups%dump_reset(res)
     end function
+
 
     pure function get_supergroup_idx(self, supergroup) result(idx)
         class(SuperGroupIndexer_t), intent(in) :: self

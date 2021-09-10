@@ -681,7 +681,7 @@ contains
         INTEGER :: i, j, N, Comp
         LOGICAL :: tSuccess
 
-!        write(6,*) "Binary searching between ",MinInd, " and ",MaxInd
+!        write(stdout,*) "Binary searching between ",MinInd, " and ",MaxInd
 !        CALL neci_flush(6)
         i = MinInd
         j = MaxInd

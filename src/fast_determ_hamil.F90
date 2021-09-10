@@ -173,7 +173,8 @@ contains
                     ! --- Beta string -----------------------------
                     beta_ilut(0:NIfD) = iand(ilut_full(0:NIfD), MaskBeta)
                     call decode_bit_det(nI_beta, beta_ilut)
-                    call hash_table_lookup(nI_beta, beta_ilut, NIfD, beta_ht, beta_list, ind_beta, hash_val_beta, tSuccess)
+                    call hash_table_lookup(nI_beta, beta_ilut, NIfD, beta_ht, &
+                        beta_list, ind_beta, hash_val_beta, tSuccess)
 
                     ! If this beta string has not been generated already, add it to
                     ! the list of all beta strings, and the associated hash table.
@@ -193,7 +194,8 @@ contains
                     ! --- Alpha string ---------------------------
                     alpha_ilut(0:NIfD) = iand(ilut_full(0:NIfD), MaskAlpha)
                     call decode_bit_det(nI_alpha, alpha_ilut)
-                    call hash_table_lookup(nI_alpha, alpha_ilut, NIfD, alpha_ht, alpha_list, ind_alpha, hash_val_alpha, tSuccess)
+                    call hash_table_lookup(nI_alpha, alpha_ilut, NIfD, alpha_ht, &
+                        alpha_list, ind_alpha, hash_val_alpha, tSuccess)
 
                     ! If this alpha string has not been generated already, add it to
                     ! the list of all alpha strings, and the associated hash table.
@@ -239,7 +241,8 @@ contains
                     beta_m1_ilut = beta_ilut
                     clr_orb(beta_m1_ilut, nI_beta(j))
 
-                    call hash_table_lookup(nI_beta_m1, beta_m1_ilut, NIfD, beta_m1_ht, beta_m1_list, ind, hash_val, tSuccess)
+                    call hash_table_lookup(nI_beta_m1, beta_m1_ilut, NIfD, &
+                        beta_m1_ht, beta_m1_list, ind, hash_val, tSuccess)
 
                     ! If this beta-1 string has not been generated already, add it to
                     ! the list of all beta-1 strings, and the associated hash table.
@@ -270,7 +273,8 @@ contains
                     alpha_m1_ilut = alpha_ilut
                     clr_orb(alpha_m1_ilut, nI_alpha(j))
 
-                    call hash_table_lookup(nI_alpha_m1, alpha_m1_ilut, NIfD, alpha_m1_ht, alpha_m1_list, ind, hash_val, tSuccess)
+                    call hash_table_lookup(nI_alpha_m1, alpha_m1_ilut, NIfD, &
+                        alpha_m1_ht, alpha_m1_list, ind, hash_val, tSuccess)
 
                     ! If this alpha-1 string has not been generated already, add it to
                     ! the list of all alpha-1 strings, and the associated hash table.
@@ -342,23 +346,28 @@ contains
                     ! --- Beta string -----------------------------
                     beta_ilut(0:NIfD) = iand(ilut_full(0:NIfD), MaskBeta)
                     call decode_bit_det(nI_beta, beta_ilut)
-                    call hash_table_lookup(nI_beta, beta_ilut, NIfD, beta_ht, beta_list, ind_beta, hash_val_beta, tSuccess)
+                    call hash_table_lookup(nI_beta, beta_ilut, NIfD, beta_ht, &
+                        beta_list, ind_beta, hash_val_beta, tSuccess)
 
                     ! --- Alpha string -----------------------------
                     alpha_ilut(0:NIfD) = iand(ilut_full(0:NIfD), MaskAlpha)
                     call decode_bit_det(nI_alpha, alpha_ilut)
-                    call hash_table_lookup(nI_alpha, alpha_ilut, NIfD, alpha_ht, alpha_list, ind_alpha, hash_val_alpha, tSuccess)
+                    call hash_table_lookup(nI_alpha, alpha_ilut, NIfD, alpha_ht, &
+                        alpha_list, ind_alpha, hash_val_alpha, tSuccess)
 
                     ! Now add this determinant to the list of determinants with this
                     ! beta string.
                     nbeta_dets%ptr(ind_beta) = nbeta_dets%ptr(ind_beta) + 1
-                    call beta_dets%set_val(int(ind_beta, int32), nbeta_dets%ptr(ind_beta), int(i, int32))
+                    call beta_dets%set_val(int(ind_beta, int32), &
+                        nbeta_dets%ptr(ind_beta), int(i, int32))
 
                     ! Now add this determinant to the list of determinants with this
                     ! alpha string.
                     nalpha_dets%ptr(ind_alpha) = nalpha_dets%ptr(ind_alpha) + 1
-                    call alpha_dets%set_val(int(ind_alpha, int32), nalpha_dets%ptr(ind_alpha), int(i, int32))
-                    call beta_with_alpha%set_val(int(ind_alpha, int32), nalpha_dets%ptr(ind_alpha), int(ind_beta, int32))
+                    call alpha_dets%set_val(int(ind_alpha, int32), &
+                        nalpha_dets%ptr(ind_alpha), int(i, int32))
+                    call beta_with_alpha%set_val(int(ind_alpha, int32), &
+                        nalpha_dets%ptr(ind_alpha), int(ind_beta, int32))
                 end do
             end do
 
@@ -366,7 +375,8 @@ contains
                 beta_ilut(0:NIfD) = beta_list(0:NIfD, i)
                 call decode_bit_det(nI_beta, beta_ilut)
 
-                call hash_table_lookup(nI_beta, beta_ilut, NIfD, beta_ht, beta_list, ind_beta, hash_val_beta, tSuccess)
+                call hash_table_lookup(nI_beta, beta_ilut, NIfD, beta_ht, &
+                    beta_list, ind_beta, hash_val_beta, tSuccess)
                 ! --- Beta-1 string ----------------------------
                 do j = 1, nOccBeta
                     ! Create the beta-1 orbitals and ilut
@@ -375,7 +385,8 @@ contains
                     beta_m1_ilut = beta_ilut
                     clr_orb(beta_m1_ilut, nI_beta(j))
 
-                    call hash_table_lookup(nI_beta_m1, beta_m1_ilut, NIfD, beta_m1_ht, beta_m1_list, ind, hash_val, tSuccess)
+                    call hash_table_lookup(nI_beta_m1, beta_m1_ilut, NIfD, &
+                        beta_m1_ht, beta_m1_list, ind, hash_val, tSuccess)
 
                     if (.not. tSuccess) call stop_all(t_r, "beta-1 string not found.")
 
@@ -390,7 +401,8 @@ contains
                 alpha_ilut(0:NIfD) = alpha_list(0:NIfD, i)
                 call decode_bit_det(nI_alpha, alpha_ilut)
 
-                call hash_table_lookup(nI_alpha, alpha_ilut, NIfD, alpha_ht, alpha_list, ind_alpha, hash_val_alpha, tSuccess)
+                call hash_table_lookup(nI_alpha, alpha_ilut, NIfD, alpha_ht, &
+                    alpha_list, ind_alpha, hash_val_alpha, tSuccess)
                 ! --- Alpha-1 string ---------------------------
                 do j = 1, nOccAlpha
                     ! Create the alpha-1 orbitals and ilut
@@ -399,7 +411,8 @@ contains
                     alpha_m1_ilut = alpha_ilut
                     clr_orb(alpha_m1_ilut, nI_alpha(j))
 
-                    call hash_table_lookup(nI_alpha_m1, alpha_m1_ilut, NIfD, alpha_m1_ht, alpha_m1_list, ind, hash_val, tSuccess)
+                    call hash_table_lookup(nI_alpha_m1, alpha_m1_ilut, NIfD, &
+                        alpha_m1_ht, alpha_m1_list, ind, hash_val, tSuccess)
 
                     if (.not. tSuccess) call stop_all(t_r, "alpha-1 string not found.")
 
@@ -432,7 +445,8 @@ contains
                         if (j == k) cycle
                         ! Don't need to consider beta values that aren't in the unpaired detereminants
                         if (beta_m1_contribs(i)%pos(k) > nbeta_unpaired) cycle
-                        nbeta_beta%ptr(beta_m1_contribs(i)%pos(j)) = nbeta_beta%ptr(beta_m1_contribs(i)%pos(j)) + 1
+                        nbeta_beta%ptr(beta_m1_contribs(i)%pos(j)) = &
+                            nbeta_beta%ptr(beta_m1_contribs(i)%pos(j)) + 1
                     end do
                 end do
             end do
@@ -455,8 +469,11 @@ contains
                         if (j == k) cycle
                         ! Don't need to consider beta values that aren't in the unpaired detereminants
                         if (beta_m1_contribs(i)%pos(k) > nbeta_unpaired) cycle
-                        nbeta_beta%ptr(beta_m1_contribs(i)%pos(j)) = nbeta_beta%ptr(beta_m1_contribs(i)%pos(j)) + 1
-                  call beta_beta%set_val(int(beta_m1_contribs(i)%pos(j), int32), int(nbeta_beta%ptr(beta_m1_contribs(i)%pos(j)), int32), int(beta_m1_contribs(i)%pos(k), int32))
+                        nbeta_beta%ptr(beta_m1_contribs(i)%pos(j)) = &
+                            nbeta_beta%ptr(beta_m1_contribs(i)%pos(j)) + 1
+                        call beta_beta%set_val(int(beta_m1_contribs(i)%pos(j), int32), &
+                            int(nbeta_beta%ptr(beta_m1_contribs(i)%pos(j)), &
+                            int32), int(beta_m1_contribs(i)%pos(k), int32))
                     end do
                 end do
             end do
@@ -469,7 +486,8 @@ contains
                         if (j == k) cycle
                         ! Don't need to consider alpha values that aren't in the unpaired detereminants
                         if (alpha_m1_contribs(i)%pos(k) > nalpha_unpaired) cycle
-                        nalpha_alpha%ptr(alpha_m1_contribs(i)%pos(j)) = nalpha_alpha%ptr(alpha_m1_contribs(i)%pos(j)) + 1
+                        nalpha_alpha%ptr(alpha_m1_contribs(i)%pos(j)) = &
+                            nalpha_alpha%ptr(alpha_m1_contribs(i)%pos(j)) + 1
                     end do
                 end do
             end do
@@ -492,10 +510,11 @@ contains
                         if (j == k) cycle
                         ! Don't need to consider alpha values that aren't in the unpaired detereminants
                         if (alpha_m1_contribs(i)%pos(k) > nalpha_unpaired) cycle
-                        nalpha_alpha%ptr(alpha_m1_contribs(i)%pos(j)) = nalpha_alpha%ptr(alpha_m1_contribs(i)%pos(j)) + 1
-           call alpha_alpha%set_val(int(alpha_m1_contribs(i)%pos(j), int32), &
-                                    int(nalpha_alpha%ptr(alpha_m1_contribs(i)%pos(j)), int32), &
-                                    int(alpha_m1_contribs(i)%pos(k), int32))
+                        nalpha_alpha%ptr(alpha_m1_contribs(i)%pos(j)) = &
+                            nalpha_alpha%ptr(alpha_m1_contribs(i)%pos(j)) + 1
+                        call alpha_alpha%set_val(int(alpha_m1_contribs(i)%pos(j), int32), &
+                            int(nalpha_alpha%ptr(alpha_m1_contribs(i)%pos(j)), int32), &
+                            int(alpha_m1_contribs(i)%pos(k), int32))
 
                     end do
                 end do
@@ -503,7 +522,7 @@ contains
 
             call halt_timer(aux_time)
 
-            write(6, '("Time to create auxiliary arrays:", f9.3)') get_total_time(aux_time); call neci_flush(6)
+            write(stdout, '("Time to create auxiliary arrays:", f9.3)') get_total_time(aux_time); call neci_flush(6)
 
             ! Sort auxiliary arrays into the required order
             call set_timer(sort_aux_time)
@@ -529,7 +548,8 @@ contains
             end block
 
             call halt_timer(sort_aux_time)
-            write(6, '("Time to sort auxiliary arrays:", f9.3)') get_total_time(sort_aux_time); call neci_flush(6)
+            write(stdout, '("Time to sort auxiliary arrays:", f9.3)') &
+                get_total_time(sort_aux_time); call neci_flush(6)
         end if
 
         ! On procs which are not node-root, we need to reassign the internal pointers
@@ -592,10 +612,12 @@ contains
         allocate(rep%core_ham_diag(rep%determ_sizes(iProcIndex)), stat=ierr)
 
         if (ierr == 0) then
-            write(6, '("Arrays for Hamiltonian successfully allocated...")'); call neci_flush(6)
+            write(stdout, '("Arrays for Hamiltonian successfully allocated...")')
+            call neci_flush(6)
         else
-            write(6, '("Arrays for Hamiltonian *not* successfully allocated")'); call neci_flush(6)
-            write(6, '("error code:",1X,i8)') ierr; call neci_flush(6)
+            write(stdout, '("Arrays for Hamiltonian *not* successfully allocated")')
+            call neci_flush(6)
+            write(stdout, '("error code:",1X,i8)') ierr; call neci_flush(6)
         end if
 
         ! Loop over the determinants on this process
@@ -626,7 +648,7 @@ contains
 
                 if (IC <= 2) then
                     hel = hphf_off_diag_helement_opt(nI, rep%core_space(:, i_full), &
-                                                     rep%core_space(:, ind_j), IC, CS_I, CS_J)
+                                             rep%core_space(:, ind_j), IC, CS_I, CS_J)
 
                     if (abs(hel) > 0.0_dp) then
                         call hamil_pos%push_back(ind_j)
@@ -668,7 +690,8 @@ contains
                         tmp = iand(ilut_paired(0:NIfD), tmp)
                         IC = CountBits(tmp, NIfD)
                         if (IC <= 2) then
-                            hel = hphf_off_diag_special_case(nI_paired, ilut_paired, rep%core_space(:, ind_j), IC, OpenOrbsI)
+                            hel = hphf_off_diag_special_case(nI_paired, ilut_paired, &
+                                rep%core_space(:, ind_j), IC, OpenOrbsI)
                             if (abs(hel) > 0.0_dp) then
                                 call hamil_pos%push_back(ind_j)
                                 call hamil_row%push_back(hel)
@@ -735,7 +758,8 @@ contains
                         tmp = iand(ilut_paired(0:NIfD), tmp)
                         IC = CountBits(tmp, NIfD)
                         if (IC <= 2) then
-                            hel = hphf_off_diag_special_case(nI_paired, ilut_paired, rep%core_space(:, ind_j), IC, OpenOrbsI)
+                            hel = hphf_off_diag_special_case(nI_paired, ilut_paired, &
+                                rep%core_space(:, ind_j), IC, OpenOrbsI)
                             if (abs(hel) > 0.0_dp) then
                                 call hamil_pos%push_back(ind_j)
                                 call hamil_row%push_back(hel)
@@ -759,7 +783,8 @@ contains
                     ind_k = alpha_dets%sub(ind_alpha_conn, intersec_inds(k))
                     CS_K = cs%ptr(ind_k)
 
-                    hel = hphf_off_diag_helement_opt(nI, rep%core_space(:, i_full), rep%core_space(:, ind_k), 2, CS_I, CS_K)
+                    hel = hphf_off_diag_helement_opt(nI, rep%core_space(:, i_full), &
+                        rep%core_space(:, ind_k), 2, CS_I, CS_K)
                     if (abs(hel) > 0.0_dp) then
                         call hamil_pos%push_back(ind_k)
                         call hamil_row%push_back(hel)
@@ -792,7 +817,8 @@ contains
                         IC = CountBits(tmp, NIfD)
                         if (IC <= 2) cycle
 
-                        hel = hphf_off_diag_special_case(nI_paired, ilut_paired, rep%core_space(:, ind_k), 2, OpenOrbsI)
+                        hel = hphf_off_diag_special_case(nI_paired, ilut_paired, &
+                            rep%core_space(:, ind_k), 2, OpenOrbsI)
                         if (abs(hel) > 0.0_dp) then
                             call hamil_pos%push_back(ind_k)
                             call hamil_row%push_back(hel)
@@ -823,16 +849,16 @@ contains
 
         call halt_timer(ham_time)
 
-        write(6, '("Time to create the Hamiltonian:", f9.3)') get_total_time(ham_time); call neci_flush(6)
+        write(stdout, '("Time to create the Hamiltonian:", f9.3)') get_total_time(ham_time); call neci_flush(6)
 
         ! Optional: sort the Hamiltonian? This could speed up subsequent
         ! multiplications, as we don't jump about in memory so much
         call set_timer(sort_ham_time)
         call halt_timer(sort_ham_time)
-        !write(6,'("Time to sort the Hamiltonian:", f9.3)') get_total_time(sort_ham_time); call neci_flush(6)
+        !write(stdout,'("Time to sort the Hamiltonian:", f9.3)') get_total_time(sort_ham_time); call neci_flush(6)
 
         total_time = get_total_time(aux_time) + get_total_time(sort_aux_time) + get_total_time(ham_time)
-        write(6, '("total_time:", f9.3)') total_time; call neci_flush(6)
+        write(stdout, '("total_time:", f9.3)') total_time; call neci_flush(6)
 
         ! --- Deallocate all auxiliary arrays -------------
 
@@ -879,11 +905,13 @@ contains
         logical :: tSuccess
         integer(n_int) :: tmp(0:NIfD)
 
-        integer(n_int) :: alpha_ilut(0:NIfTot), alpha_m1_ilut(0:NIfTot), beta_ilut(0:NIfTot), beta_m1_ilut(0:NIfTot)
+        integer(n_int) :: alpha_ilut(0:NIfTot), alpha_m1_ilut(0:NIfTot), &
+            beta_ilut(0:NIfTot), beta_m1_ilut(0:NIfTot)
         integer(n_int) :: beta_ilut_1(0:NIfD), beta_ilut_2(0:NIfD)
         integer(n_int), allocatable :: alpha_m1_list(:, :), beta_m1_list(:, :)
 
-        integer :: nI_alpha(nOccAlpha), nI_alpha_m1(nOccAlpha - 1), nI_beta(nOccBeta), nI_beta_m1(nOccBeta - 1)
+        integer :: nI_alpha(nOccAlpha), nI_alpha_m1(nOccAlpha - 1), &
+            nI_beta(nOccBeta), nI_beta_m1(nOccBeta - 1)
         integer(int32) :: nbeta, nalpha, nbeta_m1, nalpha_m1
 
         integer(int32) :: nintersec
@@ -909,7 +937,8 @@ contains
         real(dp) :: total_time
 
         ! Shared resources
-        integer(n_int), pointer :: beta_list(:, :), alpha_list(:, :), beta_list_ptr(:, :), alpha_list_ptr(:, :)
+        integer(n_int), pointer :: beta_list(:, :), alpha_list(:, :), &
+            beta_list_ptr(:, :), alpha_list_ptr(:, :)
         integer(MPIArg) :: beta_list_win, alpha_list_win
 
         type(shared_array_int32_t) :: nbeta_dets, nalpha_dets
@@ -969,7 +998,8 @@ contains
                 ! --- Beta string -----------------------------
                 beta_ilut(0:NIfD) = iand(rep%core_space(0:NIfD, i), MaskBeta)
                 call decode_bit_det(nI_beta, beta_ilut)
-                call hash_table_lookup(nI_beta, beta_ilut, NIfD, beta_ht, beta_list, ind_beta, hash_val_beta, tSuccess)
+                call hash_table_lookup(nI_beta, beta_ilut, NIfD, beta_ht, beta_list, &
+                    ind_beta, hash_val_beta, tSuccess)
 
                 ! If this beta string has not been generated already, add it to
                 ! the list of all beta strings, and the associated hash table.
@@ -988,7 +1018,8 @@ contains
                 ! --- Alpha string ---------------------------
                 alpha_ilut(0:NIfD) = iand(rep%core_space(0:NIfD, i), MaskAlpha)
                 call decode_bit_det(nI_alpha, alpha_ilut)
-                call hash_table_lookup(nI_alpha, alpha_ilut, NIfD, alpha_ht, alpha_list, ind_alpha, hash_val_alpha, tSuccess)
+                call hash_table_lookup(nI_alpha, alpha_ilut, NIfD, alpha_ht, &
+                    alpha_list, ind_alpha, hash_val_alpha, tSuccess)
 
                 ! If this alpha string has not been generated already, add it to
                 ! the list of all alpha strings, and the associated hash table.
@@ -1032,7 +1063,8 @@ contains
                     beta_m1_ilut = beta_ilut
                     clr_orb(beta_m1_ilut, nI_beta(j))
 
-                    call hash_table_lookup(nI_beta_m1, beta_m1_ilut, NIfD, beta_m1_ht, beta_m1_list, ind, hash_val, tSuccess)
+                    call hash_table_lookup(nI_beta_m1, beta_m1_ilut, NIfD, &
+                        beta_m1_ht, beta_m1_list, ind, hash_val, tSuccess)
 
                     ! If this beta-1 string has not been generated already, add it to
                     ! the list of all beta-1 strings, and the associated hash table.
@@ -1063,7 +1095,8 @@ contains
                     alpha_m1_ilut = alpha_ilut
                     clr_orb(alpha_m1_ilut, nI_alpha(j))
 
-                    call hash_table_lookup(nI_alpha_m1, alpha_m1_ilut, NIfD, alpha_m1_ht, alpha_m1_list, ind, hash_val, tSuccess)
+                    call hash_table_lookup(nI_alpha_m1, alpha_m1_ilut, NIfD, &
+                        alpha_m1_ht, alpha_m1_list, ind, hash_val, tSuccess)
 
                     ! If this alpha-1 string has not been generated already, add it to
                     ! the list of all alpha-1 strings, and the associated hash table.
@@ -1121,30 +1154,36 @@ contains
                 ! --- Beta string -----------------------------
                 beta_ilut(0:NIfD) = iand(rep%core_space(0:NIfD, i), MaskBeta)
                 call decode_bit_det(nI_beta, beta_ilut)
-                call hash_table_lookup(nI_beta, beta_ilut, NIfD, beta_ht, beta_list, ind_beta, hash_val_beta, tSuccess)
+                call hash_table_lookup(nI_beta, beta_ilut, NIfD, beta_ht, &
+                    beta_list, ind_beta, hash_val_beta, tSuccess)
 
                 ! --- Alpha string -----------------------------
                 alpha_ilut(0:NIfD) = iand(rep%core_space(0:NIfD, i), MaskAlpha)
                 call decode_bit_det(nI_alpha, alpha_ilut)
-                call hash_table_lookup(nI_alpha, alpha_ilut, NIfD, alpha_ht, alpha_list, ind_alpha, hash_val_alpha, tSuccess)
+                call hash_table_lookup(nI_alpha, alpha_ilut, NIfD, alpha_ht, &
+                    alpha_list, ind_alpha, hash_val_alpha, tSuccess)
 
                 ! Now add this determinant to the list of determinants with this
                 ! beta string.
                 nbeta_dets%ptr(ind_beta) = nbeta_dets%ptr(ind_beta) + 1
-                call beta_dets%set_val(int(ind_beta, int32), nbeta_dets%ptr(ind_beta), int(i, int32))
+                call beta_dets%set_val(int(ind_beta, int32), &
+                    nbeta_dets%ptr(ind_beta), int(i, int32))
 
                 ! Now add this determinant to the list of determinants with this
                 ! alpha string.
                 nalpha_dets%ptr(ind_alpha) = nalpha_dets%ptr(ind_alpha) + 1
-                call alpha_dets%set_val(int(ind_alpha, int32), nalpha_dets%ptr(ind_alpha), int(i, int32))
-                call beta_with_alpha%set_val(int(ind_alpha, int32), nalpha_dets%ptr(ind_alpha), int(ind_beta, int32))
+                call alpha_dets%set_val(int(ind_alpha, int32), &
+                    nalpha_dets%ptr(ind_alpha), int(i, int32))
+                call beta_with_alpha%set_val(int(ind_alpha, int32), &
+                    nalpha_dets%ptr(ind_alpha), int(ind_beta, int32))
             end do
 
             do i = 1, nbeta
                 beta_ilut(0:NIfD) = beta_list(0:NIfD, i)
                 call decode_bit_det(nI_beta, beta_ilut)
 
-                call hash_table_lookup(nI_beta, beta_ilut, NIfD, beta_ht, beta_list, ind_beta, hash_val_beta, tSuccess)
+                call hash_table_lookup(nI_beta, beta_ilut, NIfD, beta_ht, &
+                    beta_list, ind_beta, hash_val_beta, tSuccess)
                 ! --- Beta-1 string ----------------------------
                 do j = 1, nOccBeta
                     ! Create the beta-1 orbitals and ilut
@@ -1153,7 +1192,8 @@ contains
                     beta_m1_ilut = beta_ilut
                     clr_orb(beta_m1_ilut, nI_beta(j))
 
-                    call hash_table_lookup(nI_beta_m1, beta_m1_ilut, NIfD, beta_m1_ht, beta_m1_list, ind, hash_val, tSuccess)
+                    call hash_table_lookup(nI_beta_m1, beta_m1_ilut, NIfD, &
+                        beta_m1_ht, beta_m1_list, ind, hash_val, tSuccess)
 
                     if (.not. tSuccess) call stop_all(t_r, "beta-1 string not found.")
 
@@ -1168,7 +1208,8 @@ contains
                 alpha_ilut(0:NIfD) = alpha_list(0:NIfD, i)
                 call decode_bit_det(nI_alpha, alpha_ilut)
 
-                call hash_table_lookup(nI_alpha, alpha_ilut, NIfD, alpha_ht, alpha_list, ind_alpha, hash_val_alpha, tSuccess)
+                call hash_table_lookup(nI_alpha, alpha_ilut, NIfD, alpha_ht, &
+                    alpha_list, ind_alpha, hash_val_alpha, tSuccess)
                 ! --- Alpha-1 string ---------------------------
                 do j = 1, nOccAlpha
                     ! Create the alpha-1 orbitals and ilut
@@ -1177,7 +1218,8 @@ contains
                     alpha_m1_ilut = alpha_ilut
                     clr_orb(alpha_m1_ilut, nI_alpha(j))
 
-                    call hash_table_lookup(nI_alpha_m1, alpha_m1_ilut, NIfD, alpha_m1_ht, alpha_m1_list, ind, hash_val, tSuccess)
+                    call hash_table_lookup(nI_alpha_m1, alpha_m1_ilut, NIfD, &
+                        alpha_m1_ht, alpha_m1_list, ind, hash_val, tSuccess)
 
                     if (.not. tSuccess) call stop_all(t_r, "alpha-1 string not found.")
 
@@ -1205,7 +1247,8 @@ contains
             ! Find the size of the beta_beta array to be created
             do i = 1, nbeta_m1
                 do j = 1, nbeta_m1_contribs(i)
-                    nbeta_beta%ptr(beta_m1_contribs(i)%pos(j)) = nbeta_beta%ptr(beta_m1_contribs(i)%pos(j)) + nbeta_m1_contribs(i) - 1
+                    nbeta_beta%ptr(beta_m1_contribs(i)%pos(j)) = &
+                        nbeta_beta%ptr(beta_m1_contribs(i)%pos(j)) + nbeta_m1_contribs(i) - 1
                 end do
             end do
 
@@ -1225,13 +1268,15 @@ contains
             do i = 1, nbeta_m1
                 do j = 1, nbeta_m1_contribs(i)
                     do k = j + 1, nbeta_m1_contribs(i)
-                        nbeta_beta%ptr(beta_m1_contribs(i)%pos(j)) = nbeta_beta%ptr(beta_m1_contribs(i)%pos(j)) + 1
-                  call beta_beta%set_val(int(beta_m1_contribs(i)%pos(j), int32), &
+                        nbeta_beta%ptr(beta_m1_contribs(i)%pos(j)) = &
+                            nbeta_beta%ptr(beta_m1_contribs(i)%pos(j)) + 1
+                        call beta_beta%set_val(int(beta_m1_contribs(i)%pos(j), int32), &
                                          int(nbeta_beta%ptr(beta_m1_contribs(i)%pos(j)), int32), &
                                          int(beta_m1_contribs(i)%pos(k), int32))
 
-                        nbeta_beta%ptr(beta_m1_contribs(i)%pos(k)) = nbeta_beta%ptr(beta_m1_contribs(i)%pos(k)) + 1
-                  call beta_beta%set_val(int(beta_m1_contribs(i)%pos(k), int32), &
+                        nbeta_beta%ptr(beta_m1_contribs(i)%pos(k)) = &
+                            nbeta_beta%ptr(beta_m1_contribs(i)%pos(k)) + 1
+                        call beta_beta%set_val(int(beta_m1_contribs(i)%pos(k), int32), &
                                          int(nbeta_beta%ptr(beta_m1_contribs(i)%pos(k)), int32), &
                                          int(beta_m1_contribs(i)%pos(j), int32))
                     end do
@@ -1241,7 +1286,8 @@ contains
             ! Find the size of the alpha_alpha array to be created
             do i = 1, nalpha_m1
                 do j = 1, nalpha_m1_contribs(i)
-                   nalpha_alpha%ptr(alpha_m1_contribs(i)%pos(j)) = nalpha_alpha%ptr(alpha_m1_contribs(i)%pos(j)) + nalpha_m1_contribs(i) - 1
+                   nalpha_alpha%ptr(alpha_m1_contribs(i)%pos(j)) = &
+                       nalpha_alpha%ptr(alpha_m1_contribs(i)%pos(j)) + nalpha_m1_contribs(i) - 1
                 end do
             end do
         end if
@@ -1260,13 +1306,15 @@ contains
             do i = 1, nalpha_m1
                 do j = 1, nalpha_m1_contribs(i)
                     do k = j + 1, nalpha_m1_contribs(i)
-                        nalpha_alpha%ptr(alpha_m1_contribs(i)%pos(j)) = nalpha_alpha%ptr(alpha_m1_contribs(i)%pos(j)) + 1
-           call alpha_alpha%set_val(int(alpha_m1_contribs(i)%pos(j), int32), &
+                        nalpha_alpha%ptr(alpha_m1_contribs(i)%pos(j)) = &
+                            nalpha_alpha%ptr(alpha_m1_contribs(i)%pos(j)) + 1
+                        call alpha_alpha%set_val(int(alpha_m1_contribs(i)%pos(j), int32), &
                                     int(nalpha_alpha%ptr(alpha_m1_contribs(i)%pos(j)), int32), &
                                     int(alpha_m1_contribs(i)%pos(k), int32))
 
-                        nalpha_alpha%ptr(alpha_m1_contribs(i)%pos(k)) = nalpha_alpha%ptr(alpha_m1_contribs(i)%pos(k)) + 1
-           call alpha_alpha%set_val(int(alpha_m1_contribs(i)%pos(k), int32), &
+                        nalpha_alpha%ptr(alpha_m1_contribs(i)%pos(k)) = &
+                            nalpha_alpha%ptr(alpha_m1_contribs(i)%pos(k)) + 1
+                        call alpha_alpha%set_val(int(alpha_m1_contribs(i)%pos(k), int32), &
                                     int(nalpha_alpha%ptr(alpha_m1_contribs(i)%pos(k)), int32), &
                                     int(alpha_m1_contribs(i)%pos(j), int32))
                     end do
@@ -1275,7 +1323,8 @@ contains
 
             call halt_timer(aux_time)
 
-            write(6, '("Time to create auxiliary arrays:", f9.3)') get_total_time(aux_time); call neci_flush(6)
+            write(stdout, '("Time to create auxiliary arrays:", f9.3)') get_total_time(aux_time)
+            call neci_flush(6)
             ! Sort auxiliary arrays into the required order
             call set_timer(sort_aux_time)
 
@@ -1301,7 +1350,8 @@ contains
             end block
 
             call halt_timer(sort_aux_time)
-            write(6, '("Time to sort auxiliary arrays:", f9.3)') get_total_time(sort_aux_time); call neci_flush(6)
+            write(stdout, '("Time to sort auxiliary arrays:", f9.3)') get_total_time(sort_aux_time)
+            call neci_flush(6)
         end if
 
         ! On procs which are not node-root, we need to reassign the internal pointers
@@ -1362,10 +1412,12 @@ contains
         allocate(rep%core_ham_diag(rep%determ_sizes(iProcIndex)), stat=ierr)
 
         if (ierr == 0) then
-            write(6, '("Arrays for Hamiltonian successfully allocated...")'); call neci_flush(6)
+            write(stdout, '("Arrays for Hamiltonian successfully allocated...")')
+            call neci_flush(6)
         else
-            write(6, '("Arrays for Hamiltonian *not* successfully allocated")'); call neci_flush(6)
-            write(6, '("error code:",1X,i8)') ierr; call neci_flush(6)
+            write(stdout, '("Arrays for Hamiltonian *not* successfully allocated")')
+            call neci_flush(6)
+            write(stdout, '("error code:",1X,i8)') ierr; call neci_flush(6)
         end if
 
         ! Loop over the determinants on this process
@@ -1387,7 +1439,8 @@ contains
                 IC = CountBits(tmp, NIfD)
                 if (IC <= maxExcit) then
                     call decode_bit_det(nJ, rep%core_space(:, ind_j))
-                    hel = get_helement(nI, nJ, IC, rep%core_space(:, i_full), rep%core_space(:, ind_j))
+                    hel = get_helement(nI, nJ, IC, rep%core_space(:, i_full), &
+                        rep%core_space(:, ind_j))
                     if (abs(hel) > 0.0_dp) then
                         call hamil_pos%push_back(ind_j)
                         call hamil_row%push_back(hel)
@@ -1398,7 +1451,8 @@ contains
             ! --- Alpha string -----------------------------
             alpha_ilut(0:NIfD) = iand(rep%core_space(0:NIfD, i_full), MaskAlpha)
             call decode_bit_det(nI_alpha, alpha_ilut)
-            call shared_rht_lookup(alpha_rht, alpha_ilut, nI_alpha, alpha_list, ind_alpha, tSuccess)
+            call shared_rht_lookup(alpha_rht, alpha_ilut, nI_alpha, alpha_list, &
+                ind_alpha, tSuccess)
             do j = 1, nalpha_dets%ptr(ind_alpha)
                 ind_j = alpha_dets%sub(ind_alpha, j)
                 if (i_full == ind_j) cycle
@@ -1407,7 +1461,8 @@ contains
                 IC = CountBits(tmp, NIfD)
                 if (IC <= maxExcit) then
                     call decode_bit_det(nJ, rep%core_space(:, ind_j))
-                    hel = get_helement(nI, nJ, IC, rep%core_space(:, i_full), rep%core_space(:, ind_j))
+                    hel = get_helement(nI, nJ, IC, rep%core_space(:, i_full), &
+                        rep%core_space(:, ind_j))
                     if (abs(hel) > 0.0_dp) then
                         call hamil_pos%push_back(ind_j)
                         call hamil_row%push_back(hel)
@@ -1454,12 +1509,13 @@ contains
         call halt_timer(ham_time)
 
         if (iProcIndex_intra == 0) then
-            write(6, '("Time to create the Hamiltonian:", f9.3)') get_total_time(ham_time); call neci_flush(6)
+            write(stdout, '("Time to create the Hamiltonian:", f9.3)') get_total_time(ham_time)
+            call neci_flush(6)
             ! Optional: sort the Hamiltonian? This could speed up subsequent
             ! multiplications, as we don't jump about in memory so much
 
             total_time = get_total_time(aux_time) + get_total_time(sort_aux_time) + get_total_time(ham_time)
-            write(6, '("total_time:", f9.3)') total_time; call neci_flush(6)
+            write(stdout, '("total_time:", f9.3)') total_time; call neci_flush(6)
         end if
 
         ! --- Deallocate all auxiliary arrays -------------

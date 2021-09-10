@@ -16,7 +16,7 @@ MODULE ISKRandExcit
     use DetBitOps, only: DetBitLT, DetBitEQ, FindExcitBitDet, &
                          FindBitExcitLevel, TestClosedShellDet
     use FciMCData, only: pDoubles, excit_gen_store_type
-    use constants, only: dp, n_int, bits_n_int, maxExcit
+    use constants, only: dp, n_int, bits_n_int, maxExcit, stdout
     use HElem
     use bit_reps, only: NIfD, NIfTot
     use SymExcitDataMod, only: SpinOrbSymLabel, SymTableLabels, SymInvLabel, &
@@ -92,11 +92,11 @@ contains
                 !nI *CANNOT* be a self-inverse ISK here, otherwise we should have had a cross-term.
                 !Check this, but remove check once we know it is working.
                 if (is_self_inverse(nI, iLutnI)) then
-                    write(6, *) "no cross term, therefore should not be self-inv, but is..."
-                    write(6, *) "nI: ", nI(:)
-                    write(6, *) "nJ: ", nJ(:)
-                    write(6, *) "nJSym: ", nJSym(:)
-                    write(6, *) tSwapped
+                    write(stdout, *) "no cross term, therefore should not be self-inv, but is..."
+                    write(stdout, *) "nI: ", nI(:)
+                    write(stdout, *) "nJ: ", nJ(:)
+                    write(stdout, *) "nJSym: ", nJSym(:)
+                    write(stdout, *) tSwapped
                     call stop_all(this_routine, "Dodgy logic - this should not be self-inv")
                 end if
 
@@ -130,15 +130,15 @@ contains
             !The inverse of the excitation is the determinant that we started with!
             !This does not want to be allowed.
             tSame_ISK = .true.
-!            write(6,*) "Generated same det"
+!            write(stdout,*) "Generated same det"
             return
         else if (CrossIC > 2) then
             tcross_conn = .false.
-!            write(6,*) "Det is more than double excit",CrossIC
+!            write(stdout,*) "Det is more than double excit",CrossIC
             return
         end if
 
-!        write(6,*) "Det is allowed by excitlevel: ",CrossIC
+!        write(stdout,*) "Det is allowed by excitlevel: ",CrossIC
 
         !cross-term is allowed by excitation level. Is it allowed by momentum conservation?
         !calculate excitation matrix
@@ -214,8 +214,8 @@ contains
             call find_invsym_det(nI, nISym, iLutnISym)
         end if
 
-!        write(6,*) "Original det: ",nI(:)
-!        write(6,*) "Inv det: ",nISym(:)
+!        write(stdout,*) "Original det: ",nI(:)
+!        write(stdout,*) "Inv det: ",nISym(:)
 
         ! iLutnI is 'less' than iLutSym, so iLutSym is the determinant with
         ! the first open-shell = alpha. Swap them around.
@@ -313,9 +313,9 @@ contains
 
         iLutnISym(:) = 0
 
-!        write(6,*) "KPntInvSymOrb: "
+!        write(stdout,*) "KPntInvSymOrb: "
 !        do i=1,nBasis
-!            write(6,*) i,KPntInvSymOrb(i)
+!            write(stdout,*) i,KPntInvSymOrb(i)
 !        end do
         do i = 1, NEl
             orb = KPntInvSymOrb(nI(i))
@@ -371,37 +371,37 @@ contains
         IF (is_self_inverse(nI, iLutnI)) THEN
             call find_invsym_det(nI, nI2, iLutnI2)
             IF (.not. DetBitEQ(iLutnI, iLutnI2, nifd)) THEN
-                write(6, *) "nI: ", nI(:)
-                write(6, *) ""
-                write(6, *) "nISym: ", nI2(:)
-                write(6, *) ""
-                write(6, *) "iLutnI: ", iLutnI(:)
-                write(6, *) "iLutnISym: ", iLutnI2(:)
-                write(6, *) "***"
+                write(stdout, *) "nI: ", nI(:)
+                write(stdout, *) ""
+                write(stdout, *) "nISym: ", nI2(:)
+                write(stdout, *) ""
+                write(stdout, *) "iLutnI: ", iLutnI(:)
+                write(stdout, *) "iLutnISym: ", iLutnI2(:)
+                write(stdout, *) "***"
                 CALL Stop_All("TestGenRandISKExcit", "Self-inverse determinant entered, but coupled dets different...")
             end if
         ELSE
             call returned_invsym(nI, nI2, iLutnI, iLutnI2, .true., tSwapped)
             if (tSwapped) then
-                write(6, *) "Swapped nI with inverse determinant to maintain excitations from correct det."
+                write(stdout, *) "Swapped nI with inverse determinant to maintain excitations from correct det."
             end if
         end if
-        write(6, *) "nI: ", nI(:)
-        write(6, *) ""
-        write(6, *) "nISym: ", nI2(:)
-        write(6, *) ""
-        write(6, *) "iLutnI: ", iLutnI(:)
-        write(6, *) "iLutnISym: ", iLutnI2(:)
-        write(6, *) "***"
-        write(6, *) Iterations, pDoub
-!        write(6,*) "nSymLabels: ",nSymLabels
+        write(stdout, *) "nI: ", nI(:)
+        write(stdout, *) ""
+        write(stdout, *) "nISym: ", nI2(:)
+        write(stdout, *) ""
+        write(stdout, *) "iLutnI: ", iLutnI(:)
+        write(stdout, *) "iLutnISym: ", iLutnI2(:)
+        write(stdout, *) "***"
+        write(stdout, *) Iterations, pDoub
+!        write(stdout,*) "nSymLabels: ",nSymLabels
         CALL neci_flush(6)
 
 !First, we need to enumerate all possible ISK wavefunctions from each inverse-pair of determinants.
 !These need to be stored in an array
 !Find the number of symmetry allowed excitations there should be by looking at the full excitation generator.
 !Setup excit generators for this determinant
-        write(6, *) "Generating ALL excitations from first determinant..."
+        write(stdout, *) "Generating ALL excitations from first determinant..."
         iMaxExcit = 0
         nStore(1:6) = 0
         CALL GenSymExcitIt2(nI, NEl, G1, nBasis, .TRUE., nExcitMemLen, nJ, iMaxExcit, nStore, 3)
@@ -410,22 +410,22 @@ contains
         EXCITGEN(:) = 0
         CALL GenSymExcitIt2(nI, NEl, G1, nBasis, .TRUE., EXCITGEN, nJ, iMaxExcit, nStore, 3)
         CALL GetSymExcitCount(EXCITGEN, DetConn)
-        write(6, *) "Stored determinant (dubbed alpha determinant) has ", DetConn, " total excitations:"
+        write(stdout, *) "Stored determinant (dubbed alpha determinant) has ", DetConn, " total excitations:"
         allocate(ConnsAlpha(0:NIfTot, DetConn))
         i = 1
         lp2: do while (.true.)
             CALL GenSymExcitIt2(nI, NEl, G1, nBasis, .false., EXCITGEN, nJ, iExcit, nStore, 3)
             IF (IsNullDet(nJ)) exit lp2
             if ((iExcit == 1) .and. (nJ(NEl) == 105)) then
-                write(6, *) "Generated single: "
-                write(6, *) nJ(:)
+                write(stdout, *) "Generated single: "
+                write(stdout, *) nJ(:)
             end if
             CALL EncodeBitDet(nJ, iLutnJ)
             IF (.not. is_self_inverse(nJ, iLutnJ)) THEN
 !                CALL ReturnAlphaOpenDet(nJ,nJ2,iLutnJ,iLutSym,.true.,.true.,tSwapped)
                 call returned_invsym(nJ, nJ2, iLutnJ, iLutSym, .true., tSwapped)
             end if
-!            write(6,"(4I4,A,I4,A,I13)") nJ(:), " *** ", iExcit, " *** ", iLutnJ(:)
+!            write(stdout,"(4I4,A,I4,A,I13)") nJ(:), " *** ", iExcit, " *** ", iLutnJ(:)
             ConnsAlpha(0:NIfD, i) = iLutnJ(:)
             i = i + 1
         end do lp2
@@ -441,7 +441,7 @@ contains
         EXCITGEN(:) = 0
         CALL GenSymExcitIt2(nI2, NEl, G1, nBasis, .TRUE., EXCITGEN, nJ, iMaxExcit, nStore, 3)
         CALL GetSymExcitCount(EXCITGEN, DetConn2)
-        write(6, *) "Inverse determinant has ", DetConn2, " total excitations"
+        write(stdout, *) "Inverse determinant has ", DetConn2, " total excitations"
         allocate(ConnsBeta(0:NIfTot, DetConn2))
         i = 1
         lp: do while (.true.)
@@ -455,7 +455,7 @@ contains
 !            IF(.not.TestClosedShellDet(iLutnJ)) THEN
 !                CALL ReturnAlphaOpenDet(nJ,nJ2,iLutnJ,iLutSym,.true.,.true.,tSwapped)
 !            end if
-!            write(6,"(4I4,A,I4,A,I13)") nJ(:), " *** ",iExcit," *** ",iLutnJ(:)
+!            write(stdout,"(4I4,A,I4,A,I13)") nJ(:), " *** ",iExcit," *** ",iLutnJ(:)
             ConnsBeta(:, i) = iLutnJ(:)
             i = i + 1
         end do lp
@@ -507,9 +507,9 @@ contains
             end if
         end do
 
-        write(6, *) "There are ", iUniqueHPHF, " unique ISK wavefunctions from the ISK given."
+        write(stdout, *) "There are ", iUniqueHPHF, " unique ISK wavefunctions from the ISK given."
 
-        write(6, *) "There are ", iUniqueBeta, " unique ISK wavefunctions from the inverted determinant, " &
+        write(stdout, *) "There are ", iUniqueBeta, " unique ISK wavefunctions from the inverted determinant, " &
         & //"which are not in the alpha version."
         IF (iUniqueBeta /= 0) THEN
             call stop_all(this_routine, "ISK from beta, but not from alpha!")
@@ -567,7 +567,7 @@ contains
         call sort(UniqueHPHFList(:, 1:iUniqueHPHF), ExcitGen)
         DEallocate(ExcitGen)
 
-        write(6, *) "Unique ISK wavefunctions are: ", iUniqueHPHF, " written to unit 78"
+        write(stdout, *) "Unique ISK wavefunctions are: ", iUniqueHPHF, " written to unit 78"
         do i = 1, iUniqueHPHF
             write(78, *) UniqueHPHFList(0:NIfTot, i)
         end do
@@ -578,11 +578,11 @@ contains
         Weights(:) = 0.0_dp
         store%tFilled = .false.
 
-        write(6, *) "Generating ISK random excitations..."
+        write(stdout, *) "Generating ISK random excitations..."
 
         do i = 1, Iterations
 
-            IF ((mod(i, 10000) == 0) .or. (i <= 200)) write(6, "(A,I10)") "Iteration: ", i
+            IF ((mod(i, 10000) == 0) .or. (i <= 200)) write(stdout, "(A,I10)") "Iteration: ", i
 
 !            tTmp = tGenMatHEl
 !            tGenMatHel = .false.
@@ -595,8 +595,8 @@ contains
             CALL BinSearchListHPHF(iLutnJ, UniqueHPHFList(:, 1:iUniqueHPHF), iUniqueHPHF, 1, iUniqueHPHF, PartInd, Unique)
 
             IF (.not. Unique) THEN
-                write(6, *) "iLutnJ: ", iLutnJ(:)
-                write(6, *) "nJ: ", nJ(:)
+                write(stdout, *) "iLutnJ: ", iLutnJ(:)
+                write(stdout, *) "nJ: ", nJ(:)
                 CALL Stop_All("TestGenRandISKExcit", "Cannot find excitation in list of allowed excitations")
             end if
 
@@ -619,12 +619,12 @@ contains
             do i = 1, iUniqueHPHF
                 AllWeights(i) = AllWeights(i) / (real(Iterations, dp) * real(nNodes, dp))
                 IF (abs(AllWeights(i) - 1.0_dp) > 0.1_dp) THEN
-                    write(6, *) "Error here!", i
+                    write(stdout, *) "Error here!", i
                     Die = .true.
                 end if
-                !            write(6,*) i,UniqueHPHFList(0:NIfTot,i),Weights(i)
+                !            write(stdout,*) i,UniqueHPHFList(0:NIfTot,i),Weights(i)
                 call decode_bit_det(nIX, UniqueHPHFList(0:NIfTot, i))
-                !            write(6,*) nIX(:)
+                !            write(stdout,*) nIX(:)
                 write(iunit, "(I8,G25.10)", advance='no') i, AllWeights(i)
                 do j = 0, NIfTot - 1
                     write(iunit, "(I24)", advance='no') UniqueHPHFList(j, i)
