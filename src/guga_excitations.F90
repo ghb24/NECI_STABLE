@@ -1711,12 +1711,12 @@ contains
                     ! what do i have to put in as the branch pgen?? does it have
                     ! an influence on the integral and matrix element calculation?
                     if (present(rdm_mat)) then
-                        call calc_mixed_end_l2r_contr(tmp_I, tmp_J, excitInfo, temp_mat1, &
+                        call calc_mixed_end_l2r_contr(tmp_I, csf_info, tmp_J, excitInfo, temp_mat1, &
                                                       temp_mat0, integral, rdm_ind, rdm_mat)
                         ! need to multiply by x1
                         rdm_mat = rdm_mat * temp_x1
                     else
-                        call calc_mixed_end_l2r_contr(tmp_I, tmp_J, excitInfo, temp_mat1, &
+                        call calc_mixed_end_l2r_contr(tmp_I, csf_info, tmp_J, excitInfo, temp_mat1, &
                                                       temp_mat0, integral)
                     end if
 
@@ -1726,11 +1726,11 @@ contains
                 else if (typ == excit_type%fullstop_R_to_L) then
                     ! R -> L
                     if (present(rdm_mat)) then
-                        call calc_mixed_end_r2l_contr(tmp_I, tmp_J, excitInfo, temp_mat1, &
+                        call calc_mixed_end_r2l_contr(tmp_I, csf_info, tmp_J, excitInfo, temp_mat1, &
                                                       temp_mat0, integral, rdm_ind, rdm_mat)
                         rdm_mat = rdm_mat * temp_x1
                     else
-                        call calc_mixed_end_r2l_contr(tmp_I, tmp_J, excitInfo, temp_mat1, &
+                        call calc_mixed_end_r2l_contr(tmp_I, csf_info, tmp_J, excitInfo, temp_mat1, &
                                                       temp_mat0, integral)
                     end if
 
@@ -1853,12 +1853,12 @@ contains
                 if (typ == excit_type%fullstart_L_to_R) then
                     ! L -> R
                     if (present(rdm_mat)) then
-                        call calc_mixed_start_l2r_contr(tmp_I, tmp_J, excitInfo, temp_mat1, &
+                        call calc_mixed_start_l2r_contr(tmp_I, csf_info, tmp_J, excitInfo, temp_mat1, &
                                                         temp_mat0, integral, rdm_ind, rdm_mat)
                         ! need to multiply by guga-mat:
                         rdm_mat = rdm_mat * guga_mat
                     else
-                        call calc_mixed_start_l2r_contr(tmp_I, tmp_J, excitInfo, temp_mat1, &
+                        call calc_mixed_start_l2r_contr(tmp_I, csf_info, tmp_J, excitInfo, temp_mat1, &
                                                         temp_mat0, integral, rdm_ind, rdm_mat)
                     end if
 
@@ -1868,11 +1868,11 @@ contains
                 else if (typ == excit_type%fullstart_R_to_L) then
 
                     if (present(rdm_mat)) then
-                        call calc_mixed_start_r2l_contr(tmp_I, tmp_J, excitInfo, temp_mat1, &
+                        call calc_mixed_start_r2l_contr(tmp_I, csf_info, tmp_J, excitInfo, temp_mat1, &
                                                         temp_mat0, integral, rdm_ind, rdm_mat)
                         rdm_mat = rdm_mat * guga_mat
                     else
-                        call calc_mixed_start_r2l_contr(tmp_I, tmp_J, excitInfo, temp_mat1, &
+                        call calc_mixed_start_r2l_contr(tmp_I, csf_info, tmp_J, excitInfo, temp_mat1, &
                                                         temp_mat0, integral)
                     end if
 
@@ -2689,7 +2689,7 @@ contains
         if (present(excitInfo_in)) then
             excitInfo = excitInfo_in
         else
-            call pickOrbitals_double(ilut, nI, excitInfo, orb_pgen)
+            call pickOrbitals_double(ilut, nI, csf_info, excitInfo, orb_pgen)
 
             if (.not. excitInfo%valid) then
                 ! if no valid indices were picked, return 0 excitation and return
@@ -4449,7 +4449,7 @@ contains
         ! or maybe even in the FciMCPar to use the same b and occvector
         ! for and occupied determinant/CSF
 
-        call pickOrbitals_double(ilut, nI, excitInfo, orb_pgen)
+        call pickOrbitals_double(ilut, nI, csf_info, excitInfo, orb_pgen)
 
         ! check if orbitals were correctly picked
         if ( .not. excitInfo%valid ) then
@@ -5015,7 +5015,7 @@ contains
             l = excitInfo%l
             typ = excitInfo%typ
             rdm_mat = extract_matrix_element(t, 2)
-            call calc_orbital_pgen_contr(ilut, [2 * i, 2 * j], above_cpt, &
+            call calc_orbital_pgen_contr(csf_info, [2 * i, 2 * j], above_cpt, &
                                          below_cpt)
             p_orig = (above_cpt + below_cpt) * branch_pgen
             if (.not. (t_heisenberg_model .or. t_tJ_model)) then
@@ -5038,7 +5038,7 @@ contains
             ! just to be save that a switch always happens at the end
             ! print that out for now
         else
-            call calc_mixed_contr(ilut, t, excitInfo, pgen, integral)
+            call calc_mixed_contr(ilut, t, csf_info, excitInfo, pgen, integral)
         end if
 
         if (near_zero(integral)) then
@@ -5074,19 +5074,16 @@ contains
 
     end subroutine calc_mixed_contr_nosym
 
-    subroutine calc_orbital_pgen_contr_mol(ilut, csf_info, occ_orbs, cpt_a, cpt_b)
+    subroutine calc_orbital_pgen_contr_mol(csf_info, occ_orbs, cpt_a, cpt_b)
         ! calculates the cumulatice probability list for different
         ! full-start -> full-stop mixed excitations, used in the recalculation of
         ! contrbuting pgens from different picked orbitals
-        integer(n_int), intent(in) :: ilut(0:nifguga)
         type(CSF_Info_t), intent(in) :: csf_info
         integer, intent(in) :: occ_orbs(2)
         real(dp), intent(out) :: cpt_a, cpt_b
 
         integer :: i, j, orb
         real(dp) :: cum_sum, cpt_ab, cpt_ba, ba_sum, ab_sum
-
-        unused_var(ilut)
 
         ! given 2 already picked electrons, this routine creates a list of
         ! p(a)*p(b|a) probabilities to pick the already determined holes
@@ -5312,7 +5309,7 @@ contains
 
                 ! this is the only difference for molecular/hubbard/ueg
                 ! calculations
-                call calc_orbital_pgen_contr(ilut, [2 * i, 2 * j], above_cpt, &
+                call calc_orbital_pgen_contr(csf_info, [2 * i, 2 * j], above_cpt, &
                                              below_cpt)
 
                 ! yes they can, and then this orbital does not contribute to the
@@ -6934,8 +6931,8 @@ contains
             elecInd = st
             holeInd = se
             rdm_mat = extract_matrix_element(t, 2)
-            call calc_orbital_pgen_contrib_end([2 * elecInd, 2 * en], &
-                                               holeInd, orb_pgen)
+            call calc_orbital_pgen_contrib_end(&
+                    csf_info, [2 * elecInd, 2 * en], holeInd, orb_pgen)
             p_orig = orb_pgen * branch_pgen / real(ElecPairs, dp)
             if (csf_info%stepvector(elecInd) == 3) p_orig = p_orig * 2.0_dp
         end if
@@ -6956,7 +6953,7 @@ contains
             pgen = branch_pgen
 
         else
-            call calc_mixed_end_l2r_contr(ilut, t, excitInfo, branch_pgen, pgen, &
+            call calc_mixed_end_l2r_contr(ilut, csf_info, t, excitInfo, branch_pgen, pgen, &
                                           integral)
         end if
 
@@ -7592,8 +7589,8 @@ contains
             elecInd = se
             holeInd = st
             rdm_mat = extract_matrix_element(t, 2)
-            call calc_orbital_pgen_contrib_end([2 * elecInd, 2 * en], &
-                                               holeInd, orb_pgen)
+            call calc_orbital_pgen_contrib_end(&
+                    csf_info, [2 * elecInd, 2 * en], holeInd, orb_pgen)
             p_orig = orb_pgen * branch_pgen / real(ElecPairs, dp)
             if (csf_info%stepvector(elecInd) == 3) p_orig = p_orig * 2.0_dp
 
@@ -7611,7 +7608,7 @@ contains
             pgen = branch_pgen
 
         else
-            call calc_mixed_end_r2l_contr(ilut, t, excitInfo, branch_pgen, pgen, integral)
+            call calc_mixed_end_r2l_contr(ilut, csf_info, t, excitInfo, branch_pgen, pgen, integral)
         end if
 
         if (tFillingStochRDMOnFly) then
@@ -7735,7 +7732,7 @@ contains
 
     end subroutine setup_weight_funcs
 
-    subroutine calc_mixed_end_contr_sym(ilut, t, csf_info, excitInfo, branch_pgen, pgen, &
+    subroutine calc_mixed_end_contr_sym(ilut, csf_info, t, excitInfo, branch_pgen, pgen, &
                                         integral, rdm_ind, rdm_mat)
         integer(n_int), intent(in) :: ilut(0:nifguga), t(0:nifguga)
         type(CSF_Info_t), intent(in) :: csf_info
@@ -7784,8 +7781,8 @@ contains
 
         integral = h_cast(0.0_dp)
         ! also here i didn't consider the actual end contribution or? ...
-        call calc_orbital_pgen_contrib_end([2 * elecInd, 2 * en], &
-                                           holeInd, orb_pgen)
+        call calc_orbital_pgen_contrib_end(&
+                csf_info, [2 * elecInd, 2 * en], holeInd, orb_pgen)
 
         pgen = orb_pgen * branch_pgen
 
@@ -7856,8 +7853,8 @@ contains
                     end if
 
                     ! then calc. orbital probability
-                    call calc_orbital_pgen_contrib_end([2 * elecInd, 2 * i], &
-                                                       holeInd, orb_pgen)
+                    call calc_orbital_pgen_contrib_end(&
+                            csf_info, [2 * elecInd, 2 * i], holeInd, orb_pgen)
 
                     ! should be able to do that without second loop too!
                     ! figure out!
@@ -7995,8 +7992,8 @@ contains
                 if (csf_info%Occ_int(i) /= 1) cycle
 
                 ! get orbital pgen
-                call calc_orbital_pgen_contrib_end([2 * elecInd, 2 * i], &
-                                                   holeInd, orb_pgen)
+                call calc_orbital_pgen_contrib_end(&
+                        csf_info, [2 * elecInd, 2 * i], holeInd, orb_pgen)
 
                 if (csf_info%stepvector(i) == 1) then
                     ! by looping in this direction i have to reduce
@@ -8092,8 +8089,8 @@ contains
             ! deal with switch specifically:
 
             ! figure out orbital pgen
-            call calc_orbital_pgen_contrib_end([2 * elecInd, 2 * sw], holeInd, &
-                                               orb_pgen)
+            call calc_orbital_pgen_contrib_end(&
+                    csf_info, [2 * elecInd, 2 * sw], holeInd, orb_pgen)
 
             if (.not. near_zero(orb_pgen) .or. rdm_flag) then
 
@@ -9765,8 +9762,8 @@ contains
             elecInd = se
             holeInd = en
             rdm_mat = extract_matrix_element(t, 2)
-            call calc_orbital_pgen_contrib_start([2 * st, 2 * elecInd], &
-                                                 holeInd, orb_pgen)
+            call calc_orbital_pgen_contrib_start(&
+                    csf_info, [2 * st, 2 * elecInd], holeInd, orb_pgen)
             p_orig = orb_pgen * branch_pgen / real(ElecPairs, dp)
             if (csf_info%stepvector(elecInd) == 3) p_orig = p_orig * 2.0_dp
         end if
@@ -9789,7 +9786,7 @@ contains
             pgen = branch_pgen
 
         else
-            call calc_mixed_start_r2l_contr(ilut, t, excitInfo, branch_pgen, pgen, &
+            call calc_mixed_start_r2l_contr(ilut, csf_info, t, excitInfo, branch_pgen, pgen, &
                                             integral)
         end if
 
@@ -10439,8 +10436,8 @@ contains
             elecInd = en
             holeInd = se
             rdm_mat = extract_matrix_element(t, 2)
-            call calc_orbital_pgen_contrib_start([2 * st, 2 * elecInd], &
-                                                 holeInd, orb_pgen)
+            call calc_orbital_pgen_contrib_start(&
+                    csf_info, [2 * st, 2 * elecInd], holeInd, orb_pgen)
             p_orig = orb_pgen * branch_pgen / real(ElecPairs, dp)
             if (csf_info%stepvector(elecInd) == 3) p_orig = p_orig * 2.0_dp
         end if
@@ -10474,7 +10471,7 @@ contains
             call calc_mixed_start_contr_approx(t, csf_info, excitInfo, integral)
             pgen = branch_pgen
         else
-            call calc_mixed_start_l2r_contr(ilut, t, excitInfo, branch_pgen, pgen, integral)
+            call calc_mixed_start_l2r_contr(ilut, csf_info, t, excitInfo, branch_pgen, pgen, integral)
         end if
 
         if (tFillingStochRDMOnFly) then
@@ -10724,9 +10721,10 @@ contains
 
     end subroutine perform_crude_excitation
 
-    subroutine calc_mixed_x2x_ueg(ilut, t, excitInfo, branch_pgen, pgen, &
+    subroutine calc_mixed_x2x_ueg(ilut, csf_info, t, excitInfo, branch_pgen, pgen, &
                                   integral, rdm_ind, rdm_mat)
         integer(n_int), intent(in) :: ilut(0:nifguga), t(0:nifguga)
+        type(CSF_Info_t), intent(in) :: csf_info
         type(ExcitationInformation_t), intent(inout) :: excitInfo
         real(dp), intent(inout) :: branch_pgen
         real(dp), intent(out) :: pgen
@@ -10737,25 +10735,19 @@ contains
 
         pgen = 0.0_dp
         integral = 0.0_dp
-
+        unused_var(ilut); unused_var(t); unused_var(excitInfo); unused_var(branch_pgen);
+        unused_var(csf_info)
         if (present(rdm_ind)) then
             allocate(rdm_ind(0), source=0_int_rdm)
         end if
         if (present(rdm_mat)) then
             allocate(rdm_mat(0), source=0.0_dp)
         end if
-
         call stop_all(this_routine, &
                       "in Hubbard/UEG calculations with full k-point symmetry, this excitation shouldnt be reached!")
-
-        unused_var(ilut)
-        unused_var(t)
-        unused_var(excitInfo)
-        unused_var(branch_pgen)
-
     end subroutine calc_mixed_x2x_ueg
 
-    subroutine calc_mixed_start_contr_sym(ilut, t, csf_info, excitInfo, branch_pgen, &
+    subroutine calc_mixed_start_contr_sym(ilut, csf_info, t, excitInfo, branch_pgen, &
                                           pgen, integral, rdm_ind, rdm_mat)
         integer(n_int), intent(in) :: ilut(0:nifguga), t(0:nifguga)
         type(CSF_Info_t), intent(in) :: csf_info
@@ -10825,8 +10817,8 @@ contains
 
         ! do i actually deal with the actual start orbital influence??
         ! fuck i don't think so.. wtf..
-        call calc_orbital_pgen_contrib_start([2 * st, 2 * elecInd], &
-                                             holeInd, orb_pgen)
+        call calc_orbital_pgen_contrib_start(&
+            csf_info, [2 * st, 2 * elecInd], holeInd, orb_pgen)
 
         pgen = orb_pgen * branch_pgen
 
@@ -10924,8 +10916,8 @@ contains
                 ! and that fullend is the electron eg.
                 ! depening on the type of excitation (r2l or l2r) the electron
                 ! orbitals change here
-                call calc_orbital_pgen_contrib_start([2 * i, 2 * elecInd], &
-                                                     holeInd, orb_pgen)
+                call calc_orbital_pgen_contrib_start(&
+                    csf_info, [2 * i, 2 * elecInd], holeInd, orb_pgen)
 
                 ! then deal with the matrix element and branching probabilities
                 step = csf_info%stepvector(i)
@@ -11048,8 +11040,8 @@ contains
                 if (csf_info%Occ_int(i) /= 1) cycle
 
                 ! calculate orbitals pgen first and cycle if 0
-                call calc_orbital_pgen_contrib_start([2 * i, 2 * elecInd], holeInd, &
-                                                     orb_pgen)
+                call calc_orbital_pgen_contrib_start(&
+                        csf_info, [2 * i, 2 * elecInd], holeInd, orb_pgen)
 
                 step = csf_info%stepvector(i)
 
@@ -11124,8 +11116,8 @@ contains
             if (sw > st) then
 
                 ! check orb_pgen otherwise no influencce
-                call calc_orbital_pgen_contrib_start([2 * sw, 2 * elecInd], holeInd, &
-                                                     orb_pgen)
+                call calc_orbital_pgen_contrib_start(&
+                        csf_info, [2 * sw, 2 * elecInd], holeInd, orb_pgen)
 
                 if (.not. near_zero(orb_pgen) .or. rdm_flag) then
 
@@ -12790,7 +12782,7 @@ contains
         ! and non-symmetric excitation generator
         ! so in the initialize function point a general orbital picker to
         ! the specific one, depending on the input..
-        call pickOrbitals_single(ilut, nI, excitInfo, orb_pgen)
+        call pickOrbitals_single(ilut, nI, csf_info, excitInfo, orb_pgen)
 
         if (.not. excitInfo%valid) then
             ! if no valid indices were picked, return 0 excitation and return
@@ -21727,22 +21719,20 @@ contains
 
     end subroutine gen_cum_list_real_hub_3
 
-    subroutine pickOrbs_real_hubbard_double(ilut, nI, excitInfo, pgen)
+    subroutine pickOrbs_real_hubbard_double(ilut, nI, csf_info, excitInfo, pgen)
         integer(n_int), intent(in) :: ilut(0:nifguga)
         integer, intent(in) :: nI(nel)
+        type(CSF_Info_t), intent(in) :: csf_info
         type(ExcitationInformation_t), intent(out) :: excitInfo
         real(dp), intent(out) :: pgen
         character(*), parameter :: this_routine = "pickOrbs_real_hubbard_double"
 
         ! should not be here in the real-space hubbard implementation!
         print *, "psingles, pDoubles: ", pSingles, pDoubles
+        pgen = 0.0_dp
+        unused_var(ilut); unused_var(nI); unused_var(csf_info); unused_var(excitInfo)
         call stop_all(this_routine, &
                       "should not be at double excitations in the real-space hubbard model!")
-        unused_var(ilut)
-        unused_var(nI)
-        unused_var(excitInfo)
-        pgen = 0.0_dp
-
     end subroutine pickOrbs_real_hubbard_double
 
     subroutine pickOrbs_real_hubbard_single(ilut, nI, csf_info, excitInfo, pgen)
@@ -22323,23 +22313,23 @@ contains
 
     end subroutine pickOrbs_sym_uniform_ueg_double
 
-    subroutine pickOrbs_sym_uniform_ueg_single(ilut, nI, excitInfo, pgen)
+    subroutine pickOrbs_sym_uniform_ueg_single(ilut, nI, csf_info, excitInfo, pgen)
         ! dummy function to abort calculation if single excitation in
         ! hubbard/ueg models gets called incorrectly
         integer(n_int), intent(in) :: ilut(0:nifguga)
         integer, intent(in) :: nI(nel)
+        type(CSF_Info_t), intent(in) :: csf_info
         type(ExcitationInformation_t), intent(out) :: excitInfo
         real(dp), intent(out) :: pgen
         character(*), parameter :: this_routine = "pickOrbs_sym_uniform_ueg_single"
+
+        pgen = 0.0_dp
+        unused_var(ilut); unused_var(nI); unused_var(csf_info); unused_var(excitInfo)
 
         ! single excitations shouldnt be called in hubbard/ueg simulations
         ! due to k-point symmetry
         call stop_all(this_routine, &
                       "single excitation should not be called in Hubbard/UEG models due to k-point symmetries! abort!")
-        pgen = 0.0_dp
-        unused_var(ilut)
-        unused_var(nI)
-        unused_var(excitInfo)
 
     end subroutine pickOrbs_sym_uniform_ueg_single
 
@@ -23208,9 +23198,10 @@ contains
 
     end subroutine gen_ab_cum_list_3
 
-    subroutine pickOrbs_sym_uniform_mol_double(nI, csf_info, excitInfo, pgen)
+    subroutine pickOrbs_sym_uniform_mol_double(ilut, nI, csf_info, excitInfo, pgen)
         ! new orbital picking routine, which is closer to simons already
         ! implemented one for the determinant version
+        integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
         integer, intent(in) :: nI(nel)
         type(CSF_Info_t), intent(in) :: csf_info
         type(ExcitationInformation_t), intent(out) :: excitInfo
@@ -23222,6 +23213,9 @@ contains
         real(dp) :: int_contrib(2), cum_sum(2), cum_arr(nSpatOrbs), &
                     int_switch(2), cum_switch(2)
         logical :: range_flag
+
+        ! has to be in the interface for function pointers
+        unused_var(ilut)
 
         ! pick 2 ocupied orbitals randomly:
         call pick_elec_pair_uniform_guga(nI, occ_orbs, sym_prod, sum_ml, &

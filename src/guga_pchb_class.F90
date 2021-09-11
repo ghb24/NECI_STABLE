@@ -510,15 +510,14 @@ contains
 
     ! I need the pgen-recalculation routines for exchange type excitations
     ! also for the PCHB excit-gen
-    pure subroutine calc_orbital_pgen_contr_pchb(this, ilut, occ_orbs, cpt_a, cpt_b)
+    pure subroutine calc_orbital_pgen_contr_pchb(this, csf_info, occ_orbs, cpt_a, cpt_b)
         class(GugaAliasSampler_t), intent(in) :: this
-        integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
+        type(CSF_Info_t), intent(in) :: csf_info
         integer, intent(in) :: occ_orbs(2)
         real(dp), intent(out) :: cpt_a, cpt_b
 
         integer :: ij
-        unused_var(ilut)
-
+        unused_var(csf_info)
         ! this function can in theory be called with both i < j and i > j..
         ! to take the correct values here!
         ! although for the fuseIndex function the order is irrelevant
@@ -540,13 +539,17 @@ contains
 
 
     ! i think it would be better if i 'just' reimplement:
-    pure subroutine calc_orbital_pgen_contr_start_pchb(this, occ_orbs, a, orb_pgen)
+    pure subroutine calc_orbital_pgen_contr_start_pchb(this, csf_info, occ_orbs, a, orb_pgen)
         debug_function_name("calc_orbital_pgen_contr_start_pchb")
         class(GugaAliasSampler_t), intent(in) :: this
+        type(CSF_Info_t), intent(in) :: csf_info
         integer, intent(in) :: occ_orbs(2), a
         real(dp), intent(out) :: orb_pgen
 
         integer :: i, j, ij, ab
+
+        ! Has to be there for function pointer interface
+        unused_var(csf_info)
 
         ! depending on type (R->L / L->R) a can be > j or < j, but always > i
         !
@@ -564,13 +567,17 @@ contains
 
     end subroutine calc_orbital_pgen_contr_start_pchb
 
-    pure subroutine calc_orbital_pgen_contr_end_pchb(this, occ_orbs, a, orb_pgen)
+    pure subroutine calc_orbital_pgen_contr_end_pchb(this, csf_info, occ_orbs, a, orb_pgen)
         debug_function_name("calc_orbital_pgen_contr_end_pchb")
         class(GugaAliasSampler_t), intent(in) :: this
+        type(CSF_Info_t), intent(in) :: csf_info
         integer, intent(in) :: occ_orbs(2), a
         real(dp), intent(out) :: orb_pgen
 
         integer :: i, j, ij, ab
+
+        ! Has to be there for function pointer interface
+        unused_var(csf_info)
 
         i = gtID(occ_orbs(1))
         j = gtID(occ_orbs(2))

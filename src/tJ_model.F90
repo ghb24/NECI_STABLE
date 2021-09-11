@@ -23,7 +23,7 @@ module tJ_model
 
     use CalcData, only: t_hist_tau_search_option, t_hist_tau_search, tau
 
-    use bit_rep_data, only: NIfTot, nifguga, nifd
+    use bit_rep_data, only: NIfTot, nifguga, nifd, GugaBits
 
     use umatcache, only: gtid
 
@@ -1025,9 +1025,10 @@ contains
 
     end subroutine gen_guga_tJ_cum_list
 
-    subroutine pick_orbitals_guga_heisenberg(nI, csf_info, excitInfo, orb_pgen)
+    subroutine pick_orbitals_guga_heisenberg(ilut, nI, csf_info, excitInfo, orb_pgen)
         ! i "just" need to implement a custom orbital picker for the
         ! spin-free Heisenberg exchange
+        integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
         integer, intent(in) :: nI(nel)
         type(CSF_Info_t), intent(in) :: csf_info
         type(ExcitationInformation_t), intent(out) :: excitInfo
@@ -1038,6 +1039,9 @@ contains
         real(dp) :: p_elec, cum_sum, r, p_orb
         integer, allocatable :: neighbors(:)
         real(dp), allocatable :: cum_arr(:)
+
+        ! Exists for the function pointer interface
+        unused_var(ilut)
 
         ! here i want to only pick nearest neighbor electrons, where a
         ! spin recoupling is possible

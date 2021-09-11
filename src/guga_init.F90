@@ -231,7 +231,7 @@ contains
         ! Store GUGA specific information about the current CSF.
         ! In principle this is redundant and could be computed from nI or ilut,
         !   but we precompute it for performance reasons.
-        call new_CSF_Info_t(current_csf_info)
+        call new_CSF_Info_t(nSpatOrbs, current_csf_info)
 
         ! also allocate the temporary variables used in the matrix element
         ! calculation and also the similar variables for the reference

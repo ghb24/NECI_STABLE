@@ -2807,35 +2807,21 @@ contains
         b_int = 0
 
         do i = 1, nSpatOrbs
-
             step = getStepvalue(ilut, i)
-
             step_vector(i) = step
-
             select case (step)
-
             case (1)
-
                 occ_vector(i) = 1.0_dp
-
                 b_int = b_int + 1
-
             case (2)
-
                 occ_vector(i) = 1.0_dp
-
                 b_int = b_int - 1
-
             case (3)
-
                 occ_vector(i) = 2.0_dp
-
             end select
 
             b_vector(i) = b_int
-
         end do
-
     end subroutine calc_csf_info
 
     pure function construct_CSF_Info_t(ilut) result(csf_info)

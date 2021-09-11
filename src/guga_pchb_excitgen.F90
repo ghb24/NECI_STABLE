@@ -49,25 +49,27 @@ contains
 
     ! I need the pgen-recalculation routines for exchange type excitations
     ! also for the PCHB excit-gen
-    pure subroutine calc_orbital_pgen_contr_pchb(ilut, occ_orbs, cpt_a, cpt_b)
-        integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
+    pure subroutine calc_orbital_pgen_contr_pchb(csf_info, occ_orbs, cpt_a, cpt_b)
+        type(CSF_Info_t), intent(in) :: csf_info
         integer, intent(in) :: occ_orbs(2)
         real(dp), intent(out) :: cpt_a, cpt_b
-        call pchb_sampler%calc_orbital_pgen_contr_pchb(ilut, occ_orbs, cpt_a, cpt_b)
+        call pchb_sampler%calc_orbital_pgen_contr_pchb(csf_info, occ_orbs, cpt_a, cpt_b)
     end subroutine calc_orbital_pgen_contr_pchb
 
 
     ! i think it would be better if i 'just' reimplement:
-    pure subroutine calc_orbital_pgen_contr_start_pchb(occ_orbs, a, orb_pgen)
+    pure subroutine calc_orbital_pgen_contr_start_pchb(csf_info, occ_orbs, a, orb_pgen)
+        type(CSF_Info_t), intent(in) :: csf_info
         integer, intent(in) :: occ_orbs(2), a
         real(dp), intent(out) :: orb_pgen
-        call pchb_sampler%calc_orbital_pgen_contr_start_pchb(occ_orbs, a, orb_pgen)
+        call pchb_sampler%calc_orbital_pgen_contr_start_pchb(csf_info, occ_orbs, a, orb_pgen)
     end subroutine
 
-    pure subroutine calc_orbital_pgen_contr_end_pchb(occ_orbs, a, orb_pgen)
+    pure subroutine calc_orbital_pgen_contr_end_pchb(csf_info, occ_orbs, a, orb_pgen)
+        type(CSF_Info_t), intent(in) :: csf_info
         integer, intent(in) :: occ_orbs(2), a
         real(dp), intent(out) :: orb_pgen
-        call pchb_sampler%calc_orbital_pgen_contr_end_pchb(occ_orbs, a, orb_pgen)
+        call pchb_sampler%calc_orbital_pgen_contr_end_pchb(csf_info, occ_orbs, a, orb_pgen)
     end subroutine calc_orbital_pgen_contr_end_pchb
 
     function calc_pgen_guga_pchb(ilutI, csf_info, ilutJ, excitInfo) result(pgen)
