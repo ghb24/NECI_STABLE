@@ -2871,6 +2871,14 @@ contains
         b_real = 0.0_dp
         b_int = 0
 
+
+        ! TODO(@Oskar): Use these functions instead
+        ! currentB_ilut = calcB_vector_ilut(ilut)
+        ! currentOcc_ilut = calcOcc_vector_ilut(ilut)
+        ! currentOcc_int = calcOcc_vector_int(ilut)
+        ! current_stepvector = calcStepVector(ilut)
+        ! currentB_int = calcB_vector_int(ilut)
+
         ! also create a fake cum-list of the non-doubly occupied orbitals
         csf_info%cum_list = 0.0_dp
         cum_sum = 0.0_dp

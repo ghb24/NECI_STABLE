@@ -118,7 +118,7 @@ module FciMCParMod
     use guga_testsuite, only: run_test_excit_gen_det, runTestsGUGA
     use guga_excitations, only: deallocate_projE_list, generate_excitation_guga, &
                                 global_excitInfo
-    use guga_bitrepops, only: fill_csf_info
+    use guga_bitrepops, only: fill_csf_info, current_csf_info
     use tJ_model, only: init_guga_heisenberg_model, init_guga_tj_model
 
     use real_time_data, only: t_prepare_real_time, n_real_time_copies, &
@@ -1491,7 +1491,7 @@ contains
             ! the csf_information out here, so it can be used in the
             ! new way to calculate the reference energy and then the flag
             ! does not have to be checked each time we loop over the walkers..
-            if (tGUGA) call fill_csf_info(CurrentDets(0:nifd, j))
+            if (tGUGA) call fill_csf_info(CurrentDets(0:nifd, j), current_csf_info)
 
             ! Sum in any energy contribution from the determinant, including
             ! other parameters, such as excitlevel info.
@@ -1504,7 +1504,11 @@ contains
             end if
 
             if (t_measure_local_spin) then
-                call measure_local_spin(SignCurr)
+                if (tGUGA) then
+                    call stop_all(this_routine, "measure_local_spin works only for GUGA")
+                else
+                    call measure_local_spin(SignCurr, current_csf_info)
+                end if
             end if
 
             if (t_spin_measurements) then
