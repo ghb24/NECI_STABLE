@@ -3,14 +3,14 @@ module Integrals_neci
 
     use SystemData, only: tStoreSpinOrbs, nBasisMax, iSpinSkip, &
                           tFixLz, nBasis, G1, Symmetry, tCacheFCIDUMPInts, &
-                          tRIIntegrals, tVASP,tComplexOrbs_RealInts, NEl, LMS,&
+                          tRIIntegrals, tVASP, tComplexOrbs_RealInts, NEl, LMS, &
                           ECore, t_new_real_space_hubbard, t_trans_corr_hop, &
-                          t_new_hubbard, t_k_space_hubbard,  t_mol_3_body, &
+                          t_new_hubbard, t_k_space_hubbard, t_mol_3_body, &
                           tContact, t12FoldSym
 
-    use UmatCache, only: tUmat2D, UMatInd, UMatConj, umat2d, tTransFIndx, nHits, &
+    use UmatCache, only: tUmat2D, UMatInd, UMat2Ind, UMatConj, umat2d, tTransFIndx, nHits, &
                          nMisses, GetCachedUMatEl, HasKPoints, TransTable, &
-                         nTypes, gen2CPMDInts, tDFInts
+                         nTypes, gen2CPMDInts, tDFInts, setup_UMatInd
 
     use vasp_neci_interface
 
@@ -37,7 +37,7 @@ module Integrals_neci
 
     use sym_mod, only: symProd, symConj, totsymrep
 
-    USE OneEInts, only : TMAT2D
+    USE OneEInts, only: TMAT2D
 
     use util_mod, only: get_free_unit
 
@@ -47,674 +47,681 @@ module Integrals_neci
                                   init_hopping_transcorr
 
     use tc_three_body_data, only: tHDF5LMat, &
-         tSparseLMat, tLMatCalc, LMatCalcHFactor, tSymBrokenLMat
+        tSparseLMat, tLMatCalc, LMatCalcHFactor, tSymBrokenLMat
+
+    use read_fci, only: clear_orb_perm
     implicit none
 
 contains
 
     subroutine SetIntDefaults()
-      != Set defaults for Calc data items.
+        != Set defaults for Calc data items.
 
-      use SystemData , only : OrbOrder
-      use UMatCache, only: tReadInCache,nSlotsInit,nMemInit,iDumpCacheFlag,iDFMethod
-      use default_sets
-      implicit none
+        use SystemData, only: OrbOrder
+        use UMatCache, only: tReadInCache, nSlotsInit, nMemInit, iDumpCacheFlag, iDFMethod
+        use default_sets
+        implicit none
 
-      tDumpFCIDUMP = .false.
-      TLinRootChange=.false.
-      TRmRootExcitStarsRootChange=.false.
-      TExcitStarsRootChange=.false.
-      TDiagStarStars=.false.
-      TJustQuads=.false.
-      TNoDoubs=.false.
-      TCalcExcitStar=.false.
-      TQuadVecMax=.false.
-      TQuadValMax=.false.
-      TDISCONODES=.FALSE.
-      NRCONV=1.0e-13_dp
-      RFCONV=1.0e-8_dp
-      NRSTEPSMAX=50
-      TQUADRHO=.false.
-      TEXPRHO=.false.
-      NTAY(1:2) = 1
-      THFBASIS=.false.
-      THFCALC = .false.
-      nHFit=0
-      HFMix=0.0_dp
-      HFEDelta=0.0_dp
-      HFCDelta=0.0_dp
-      IHFMETHOD = 1
-      TRHF=.true.
-      TReadTUMat=.false.
-      TReadHF=.false.
-      NFROZEN=0
-      NTFROZEN=0
-      NFROZENIN=0
-      NTFROZENIN=0
-      NPartFrozen=0
-      NHolesFrozen=0
-      NVirtPartFrozen=0
-      NElVirtFrozen=0
-      tPartFreezeCore=.false.
-      tPartFreezeVirt=.false.
-      OrbOrder(:,:)=0
-      OrbOrder2(:)=0.0_dp
-      nSlotsInit=1024
-      nMemInit=0
-      iDumpCacheFlag=0
-      tReadInCache=.false.
-      iDFMethod=0
-      HFRand=0.01_dp
-      DMatEpsilon=0
-      tPostFreezeHF=.false.
-      tSparseLMat = .false.
-      tSymBrokenLMat = .false.
-      tHDF5LMat = .false.
-      tSymBrokenLMat = .false.
+        tDumpFCIDUMP = .false.
+        TLinRootChange = .false.
+        TRmRootExcitStarsRootChange = .false.
+        TExcitStarsRootChange = .false.
+        TDiagStarStars = .false.
+        TJustQuads = .false.
+        TNoDoubs = .false.
+        TCalcExcitStar = .false.
+        TQuadVecMax = .false.
+        TQuadValMax = .false.
+        TDISCONODES = .FALSE.
+        NRCONV = 1.0e-13_dp
+        RFCONV = 1.0e-8_dp
+        NRSTEPSMAX = 50
+        TQUADRHO = .false.
+        TEXPRHO = .false.
+        NTAY(1:2) = 1
+        THFBASIS = .false.
+        THFCALC = .false.
+        nHFit = 0
+        HFMix = 0.0_dp
+        HFEDelta = 0.0_dp
+        HFCDelta = 0.0_dp
+        IHFMETHOD = 1
+        TRHF = .true.
+        TReadTUMat = .false.
+        TReadHF = .false.
+        NFROZEN = 0
+        NTFROZEN = 0
+        NFROZENIN = 0
+        NTFROZENIN = 0
+        NPartFrozen = 0
+        NHolesFrozen = 0
+        NVirtPartFrozen = 0
+        NElVirtFrozen = 0
+        tPartFreezeCore = .false.
+        tPartFreezeVirt = .false.
+        OrbOrder(:, :) = 0
+        OrbOrder2(:) = 0.0_dp
+        nSlotsInit = 1024
+        nMemInit = 0
+        iDumpCacheFlag = 0
+        tReadInCache = .false.
+        iDFMethod = 0
+        HFRand = 0.01_dp
+        DMatEpsilon = 0
+        tPostFreezeHF = .false.
+        tSparseLMat = .false.
+        tSymBrokenLMat = .false.
+        tHDF5LMat = .false.
+        tSymBrokenLMat = .false.
 !Feb 08 defaults
-      IF(Feb08) THEN
-         NTAY(2)=3
-      ENDIF
+        IF(Feb08) THEN
+            NTAY(2) = 3
+        end if
 
-      tLMatCalc = .false.
-      lMatCalcHFactor = 1.0
+        tLMatCalc = .false.
+        lMatCalcHFactor = 1.0
 
     end subroutine SetIntDefaults
 
     SUBROUTINE IntReadInput()
-      USE input_neci
-      use SystemData, only: NEL, TUSEBRILLOUIN, OrbOrder, BasisFN
-      use UMatCache, only: tReadInCache,nSlotsInit,nMemInit,iDumpCacheFlag,iDFMethod
-      IMPLICIT NONE
-      LOGICAL eof
-      CHARACTER (LEN=100) w
-      INTEGER :: i
+        USE input_neci
+        use SystemData, only: NEL, TUSEBRILLOUIN, OrbOrder, BasisFN
+        use UMatCache, only: tReadInCache, nSlotsInit, nMemInit, iDumpCacheFlag, iDFMethod
+        IMPLICIT NONE
+        LOGICAL eof
+        CHARACTER(LEN=100) w
+        INTEGER :: i
 
-      integral: do
-        call read_line(eof)
-        if (eof) then
-            exit
-        end if
-        call readu(w)
-        select case(w)
-        case("DUMPFCIDUMP")
-            tDumpFCIDUMP = .true.
-        case("LINROOTCHANGE")
-            TLinRootChange=.true.
-        case("RMROOTEXCITSTARSROOTCHANGE")
-            TRmRootExcitStarsRootChange=.true.
-        case("EXCITSTARSROOTCHANGE")
-            TExcitStarsRootChange=.true.
-        case("DIAGSTARSTARS")
-            TDiagStarStars=.true.
-        case("STARQUADEXCITS")
-            TJustQuads=.true.
-        case("STARNODOUBS")
-            TNoDoubs=.true.
-        case("CALCEXCITSTAR")
-            TCalcExcitStar=.true.
-        case("QUADVECMAX")
-            TQuadVecMax=.true.
-        case("QUADVALMAX")
-            TQuadValMax=.true.
-        case("NRCONV")
-            call readf(NRCONV)
-        case("RFCONV")
-            call readf(RFCONV)
-        case("NRSTEPSMAX")
-            call readi(NRSTEPSMAX)
-        case("INCLUDEQUADRHO")
-            TQUADRHO=.true.
-        case("EXPRHO")
-            TEXPRHO=.true.
-        case("RHO-1STORDER")
-            NTAY(2)=4
-        case("FOCK-PARTITION")
-            NTAY(2)=2
-        case("FOCK-PARTITION-LOWDIAG")
-            NTAY(2)=3
-        case("FOCK-PARTITION-DCCORRECT-LOWDIAG")
-            NTAY(2)=5
-        case("DIAG-PARTITION")
-            NTAY(2)=1
-        case("CALCREALPROD")
-            TCALCREALPROD=.TRUE.
-            IF(.NOT.TUSEBRILLOUIN) THEN
-              call report(trim(w)//" will not work unless "           &
-     &        //"USEBRILLOUINTHEOREM set",.true.)
-            ENDIF
-        case("CALCRHOPROD")
-            TCALCRHOPROD=.TRUE.
-        case("SUMPRODII")
-            TSUMPROD=.TRUE.
-        case("DISCONNECTNODES")
-            TDISCONODES=.TRUE.
-        case("HF")
-            THFBASIS = .true.
-        case("CALCULATE")
-            THFCALC = .true.
-        case("MAXITERATIONS")
-            call geti(NHFIT)
-        case("MIX")
-            call getf(HFMIX)
-        case("RAND")
-            call getf(HFRAND)
-        case("THRESHOLD")
-            do while ( item .lt. nitems )
-              call readu(w)
-              select case(w)
-              case("ENERGY")
-                  call readf(HFEDELTA)
-              case("ORBITAL")
-                  call readf(HFCDELTA)
-              case default
-                  call report(trim(w)//" not valid THRESHOLD"         &
-     &         //"OPTION.  Specify ENERGY or ORBITAL convergence"     &
-     &           //" threshold.",.true.)
-              end select
-            end do
-        case("RHF")
-            TRHF = .true.
-        case("UHF")
-            TRHF = .false.
-        case("HFMETHOD")
+        integral: do
+            call read_line(eof)
+            if(eof) then
+                exit
+            end if
             call readu(w)
             select case(w)
-            case("DESCENT")
+            case ("DUMPFCIDUMP")
+                tDumpFCIDUMP = .true.
+            case ("LINROOTCHANGE")
+                TLinRootChange = .true.
+            case ("RMROOTEXCITSTARSROOTCHANGE")
+                TRmRootExcitStarsRootChange = .true.
+            case ("EXCITSTARSROOTCHANGE")
+                TExcitStarsRootChange = .true.
+            case ("DIAGSTARSTARS")
+                TDiagStarStars = .true.
+            case ("STARQUADEXCITS")
+                TJustQuads = .true.
+            case ("STARNODOUBS")
+                TNoDoubs = .true.
+            case ("CALCEXCITSTAR")
+                TCalcExcitStar = .true.
+            case ("QUADVECMAX")
+                TQuadVecMax = .true.
+            case ("QUADVALMAX")
+                TQuadValMax = .true.
+            case ("NRCONV")
+                call readf(NRCONV)
+            case ("RFCONV")
+                call readf(RFCONV)
+            case ("NRSTEPSMAX")
+                call readi(NRSTEPSMAX)
+            case ("INCLUDEQUADRHO")
+                TQUADRHO = .true.
+            case ("EXPRHO")
+                TEXPRHO = .true.
+            case ("RHO-1STORDER")
+                NTAY(2) = 4
+            case ("FOCK-PARTITION")
+                NTAY(2) = 2
+            case ("FOCK-PARTITION-LOWDIAG")
+                NTAY(2) = 3
+            case ("FOCK-PARTITION-DCCORRECT-LOWDIAG")
+                NTAY(2) = 5
+            case ("DIAG-PARTITION")
+                NTAY(2) = 1
+            case ("CALCREALPROD")
+                TCALCREALPROD = .TRUE.
+                IF(.NOT. TUSEBRILLOUIN) THEN
+                    call report(trim(w)//" will not work unless "           &
+           &        //"USEBRILLOUINTHEOREM set", .true.)
+                end if
+            case ("CALCRHOPROD")
+                TCALCRHOPROD = .TRUE.
+            case ("SUMPRODII")
+                TSUMPROD = .TRUE.
+            case ("DISCONNECTNODES")
+                TDISCONODES = .TRUE.
+            case ("HF")
+                THFBASIS = .true.
+            case ("CALCULATE")
+                THFCALC = .true.
+            case ("MAXITERATIONS")
+                call geti(NHFIT)
+            case ("MIX")
+                call getf(HFMIX)
+            case ("RAND")
+                call getf(HFRAND)
+            case ("THRESHOLD")
+                do while(item < nitems)
+                    call readu(w)
+                    select case(w)
+                    case ("ENERGY")
+                        call readf(HFEDELTA)
+                    case ("ORBITAL")
+                        call readf(HFCDELTA)
+                    case default
+                        call report(trim(w)//" not valid THRESHOLD"         &
+           &         //"OPTION.  Specify ENERGY or ORBITAL convergence"     &
+           &           //" threshold.", .true.)
+                    end select
+                end do
+            case ("RHF")
+                TRHF = .true.
+            case ("UHF")
+                TRHF = .false.
+            case ("HFMETHOD")
                 call readu(w)
                 select case(w)
-                case("OTHER")
-                    IHFMETHOD = 2
-                case("SINGLES")
-                    IHFMETHOD = 1
+                case ("DESCENT")
+                    call readu(w)
+                    select case(w)
+                    case ("OTHER")
+                        IHFMETHOD = 2
+                    case ("SINGLES")
+                        IHFMETHOD = 1
+                    case default
+                        call report(trim(w)//" not valid DESCENT"         &
+         &              //" option", .true.)
+                    end select
+                case ("STANDARD")
+                    IHFMETHOD = 0
+                case ("MODIFIED")
+                    IHFMETHOD = 3
                 case default
-                    call report(trim(w)//" not valid DESCENT"         &
-     &              //" option",.true.)
+                    call report(trim(w)//" not valid HF method",          &
+         &           .true.)
                 end select
-            case("STANDARD")
-                IHFMETHOD = 0
-            case("MODIFIED")
-               IHFMETHOD=3
-            case default
-                call report(trim(w)//" not valid HF method",          &
-     &           .true.)
-            end select
-        case("READ")
-            do while ( item .lt. nitems )
-              call readu(w)
-              select case(w)
-              case("MATRIX")
-                  TREADTUMAT = .true.
-              case("BASIS")
-                  TREADHF = .true.
-              case default
-                  call report(trim(w)//" is an invalid HF read"       &
-     &            //" option.",.true.)
-              end select
-            end do
-        case("FREEZE")
-            call readi(NFROZEN)
-            call readi(NTFROZEN)
-            if ( mod(NFROZEN,2).ne.0 .or.                             &
-     &       (NTFROZEN.GT.0 .and. mod(NTFROZEN,2).ne.0) ) then
-                call report("NFROZEN and (+ve) NTFROZEN must be"      &
-     &          //"multiples of 2",.true.)
-            end if
-            if (                                                      &
-     &       (NTFROZEN.LT.0 .and. mod(NEL-NTFROZEN,2).ne.0) ) then
-                call report("-ve NTFROZEN must be same parity  "      &
-     &          //"as NEL",.true.)
-            end if
-        case("FREEZEINNER")
+
+            case ("READ")
+                do while(item < nitems)
+                    call readu(w)
+                    select case(w)
+                    case ("MATRIX")
+                        TREADTUMAT = .true.
+                    case ("BASIS")
+                        TREADHF = .true.
+                    case default
+                        call report(trim(w)//" is an invalid HF read"       &
+           &            //" option.", .true.)
+                    end select
+                end do
+
+            case ("FREEZE")
+                call readi(NFROZEN)
+                call readi(NTFROZEN)
+                if(mod(NFROZEN, 2) /= 0 .or.                             &
+         &       (NTFROZEN > 0 .and. mod(NTFROZEN, 2) /= 0)) then
+                    call report("NFROZEN and (+ve) NTFROZEN must be"      &
+         &          //"multiples of 2", .true.)
+                end if
+                if(                                                      &
+         &       (NTFROZEN < 0 .and. mod(NEL - NTFROZEN, 2) /= 0)) then
+                    call report("-ve NTFROZEN must be same parity  "      &
+         &          //"as NEL", .true.)
+                end if
+
+            case ("FREEZEINNER")
 !This option allows us to freeze orbitals 'from the inside'.  This means that rather than freezing
 !the lowest energy occupied orbitals, the NFROZENIN occupied (spin) orbitals with the highest energy are
 !frozen, along with the NTFROZENIN lowest energy virtual (spin) orbitals.
 !The main purpose of this is to select an active space and calculate the energy of the orbitals NOT in this
 !active space.
-            call readi(NFROZENIN)
-            call readi(NTFROZENIN)
-            NFROZENIN=ABS(NFROZENIN)
-            NTFROZENIN=ABS(NTFROZENIN)
-            if((mod(NFROZENIN,2).ne.0).or.(mod(NTFROZENIN,2).ne.0) ) then
-                call report("NFROZENIN and NTFROZENIN must be"      &
-     &          //"multiples of 2",.true.)
-            end if
-        case("PARTIALLYFREEZE")
+                call readi(NFROZENIN)
+                call readi(NTFROZENIN)
+                NFROZENIN = ABS(NFROZENIN)
+                NTFROZENIN = ABS(NTFROZENIN)
+                if((mod(NFROZENIN, 2) /= 0) .or. (mod(NTFROZENIN, 2) /= 0)) then
+                    call report("NFROZENIN and NTFROZENIN must be"      &
+         &          //"multiples of 2", .true.)
+                end if
+
+            case ("PARTIALLYFREEZE")
 !This option chooses a set of NPartFrozen SPIN orbitals as a core, and partially freezes the electrons
 !in these orbitals so that no more than NHolesFrozen holes may exist in this core at a time.
 !In practice, a walker attempts to spawn on a determinant - if this determinant has more than the
 !allowed number of holes in the partially frozen core, the spawning is forbidden.
-            tPartFreezeCore=.true.
-            call readi(NPartFrozen)
-            call readi(NHolesFrozen)
-        case("PARTIALLYFREEZEVIRT")
+                tPartFreezeCore = .true.
+                call readi(NPartFrozen)
+                call readi(NHolesFrozen)
+
+            case ("PARTIALLYFREEZEVIRT")
 !This option works very similarly to the one above.  The integers following this keyword refer firstly to the number
 !of *spin* orbitals that are frozen from the highest energy virtual orbitals down.  The second integer refers to the
 !number of electrons that are allowed to occupy these 'partially frozen' virtual orbitals.  I.e. NElVirtFrozen = 1,
 !means that spawning is accepted if is to a determinant that only has one or less of the partially frozen virtual
 !orbitals occupied.  Any more than this, and the spawning is rejected.
-            tPartFreezeVirt=.true.
-            call readi(NVirtPartFrozen)
-            call readi(NElVirtFrozen)
-        case("ORDER")
-            I = 1
-            do while ( item .lt. nitems )
-              call readf(ORBORDER2(I))
-              I = I + 1
-            end do
-            DO I=1,8
+                tPartFreezeVirt = .true.
+                call readi(NVirtPartFrozen)
+                call readi(NElVirtFrozen)
+
+            case ("ORDER")
+                I = 1
+                do while(item < nitems)
+                    call readf(ORBORDER2(I))
+                    I = I + 1
+                end do
+                DO I = 1, 8
 ! two ways of specifying open orbitals
 ! if orborder2(I,1) is integral, then if it's odd, we have a single
 ! open orbital
-               IF(abs(ORBORDER2(I) - INT(ORBORDER2(I))) < 1.0e-12_dp) THEN
-                  ORBORDER(I,1)=IAND(INT(ORBORDER2(I)),65534)
-                  IF((INT(ORBORDER2(I))-ORBORDER(I,1)).GT.0) THEN
+                    IF(abs(ORBORDER2(I) - INT(ORBORDER2(I))) < 1.0e-12_dp) THEN
+                        ORBORDER(I, 1) = IAND(INT(ORBORDER2(I)), 65534)
+                        IF((INT(ORBORDER2(I)) - ORBORDER(I, 1)) > 0) THEN
 ! we have an open orbital
-                     ORBORDER(I,2)=2
-                  ELSE
-                     ORBORDER(I,2)=0
-                  ENDIF
-               ELSE
+                            ORBORDER(I, 2) = 2
+                        ELSE
+                            ORBORDER(I, 2) = 0
+                        end if
+                    ELSE
 ! non-integral.  The integral part is the number of closed oribtals,
 ! and the fractional*1000 is the number of open orbitals.
 ! e.g. 6.002 would mean 6 closed and 2 open
 ! which would have orborder(I,1)=6, orborder(I,2)=4
 ! but say 5.002 would be meaningless as the integral part must be a
 ! multiple of 2
-                  ORBORDER(I,1)=INT(ORBORDER2(I)+0.000001_dp)
-                  ORBORDER(I,2)=INT((ORBORDER2(I)-ORBORDER(I,1)+      &
-     &                           0.000001_dp)*1000)*2
-               ENDIF
-            ENDDO
-        case("UMATCACHE")
-            call readu(w)
-            select case(w)
-               case("SLOTS")
-                  call geti(NSLOTSINIT)
-               case("MB")
-                  call geti(NMEMINIT)
-                  if (nMemInit.eq.0) then
-                      ! Not using the cache...
-                      nSlotsInit=0
-                  else
-                      nSlotsInit=1
-                  end if
-               case("READ")
-                   tReadInCache=.true.
-               case("DUMP")
-                   if (iDumpCacheFlag.eq.0) iDumpCacheFlag=1
-               case("FORCE")
-                   iDumpCacheFlag=2
-               case default
-                  call reread(-1)
-                  call geti(NSLOTSINIT)
+                        ORBORDER(I, 1) = INT(ORBORDER2(I) + 0.000001_dp)
+                        ORBORDER(I, 2) = INT((ORBORDER2(I) - ORBORDER(I, 1) +      &
+           &                           0.000001_dp) * 1000) * 2
+                    end if
+                end do
+            case ("UMATCACHE")
+                call readu(w)
+                select case(w)
+                case ("SLOTS")
+                    call geti(NSLOTSINIT)
+                case ("MB")
+                    call geti(NMEMINIT)
+                    if(nMemInit == 0) then
+                        ! Not using the cache...
+                        nSlotsInit = 0
+                    else
+                        nSlotsInit = 1
+                    end if
+                case ("READ")
+                    tReadInCache = .true.
+                case ("DUMP")
+                    if(iDumpCacheFlag == 0) iDumpCacheFlag = 1
+                case ("FORCE")
+                    iDumpCacheFlag = 2
+                case default
+                    call reread(-1)
+                    call geti(NSLOTSINIT)
+                end select
+            case ("NOUMATCACHE")
+                NSLOTSINIT = -1
+            case ("DFMETHOD")
+                call readu(w)
+                select case(w)
+                case ("DFOVERLAP")
+                    iDFMethod = 1
+                case ("DFOVERLAP2NDORD")
+                    iDFMethod = 2
+                case ("DFOVERLAP2")
+                    iDFMethod = 3
+                case ("DFCOULOMB")
+                    iDFMethod = 4
+                case default
+                    call report("keyword "//trim(w)//" not recognized in DFMETHOD block", .true.)
+                end select
+            case ("POSTFREEZEHF")
+                tPostFreezeHF = .true.
+
+            case ("HDF5-INTEGRALS")
+                ! Read the 6-index integrals from an hdf5 file
+                tHDF5LMat = .true.
+            case ("SPARSE-LMAT")
+                ! Allows for storing the 6-index integrals in a sparse format
+                tSparseLMat = .true.
+            case ("SYM-BROKEN-LMAT")
+                ! Can be used to disable the permuational symmetry of the 6-index integrals
+                tSymBrokenLMat = .true.
+            case ("UNSYMMETRIC-INTEGRALS")
+                ! the 6-index integrals are not symmetrized yet (has to be done
+                ! on the fly then)
+                tSymBrokenLMat = .true.
+
+            case ("DMATEPSILON")
+                call readf(DMatEpsilon)
+
+            case ("LMATCALC")
+
+                if(tSymBrokenLMat .or. t12FoldSym) then
+                    call report("LMATCALC assumes 48-fold symmetry", .true.)
+                end if
+
+                tLMatCalc = .true.
+
+                if(item < nitems) then
+                    call readf(lMatCalcHFactor)
+                end if
+
+            case ("ENDINT")
+                exit integral
+            case default
+                call report("keyword "//trim(w)//" not recognized in integral block", .true.)
             end select
-        case("NOUMATCACHE")
-            NSLOTSINIT=-1
-        case ("DFMETHOD")
-            call readu(w)
-            select case(w)
-            case ("DFOVERLAP")
-               iDFMethod=1
-            case ("DFOVERLAP2NDORD")
-               iDFMethod=2
-            case ("DFOVERLAP2")
-               iDFMethod=3
-            case ("DFCOULOMB")
-               iDFMethod=4
-           case default
-               call report("keyword "//trim(w)//" not recognized in DFMETHOD block",.true.)
-            end select
-        case("POSTFREEZEHF")
-           tPostFreezeHF=.true.
-
-       case("HDF5-INTEGRALS")
-           ! Read the 6-index integrals from an hdf5 file
-           tHDF5LMat = .true.
-       case("SPARSE-LMAT")
-           ! Allows for storing the 6-index integrals in a sparse format
-            tSparseLMat = .true.
-        case("SYM-BROKEN-LMAT")
-            ! Can be used to disable the permuational symmetry of the 6-index integrals
-            tSymBrokenLMat = .true.
-        case("UNSYMMETRIC-INTEGRALS")
-           ! the 6-index integrals are not symmetrized yet (has to be done
-           ! on the fly then)
-           tSymBrokenLMat = .true.
-
-        case("DMATEPSILON")
-          call readf(DMatEpsilon)
-
-        case("LMATCALC")
-
-            if(tSymBrokenLMat .or. t12FoldSym)then
-               call report("LMATCALC assumes 48-fold symmetry",.true.)
-          end if
-
-          tLMatCalc = .true.
-
-          if (item.lt.nitems) then
-           call readf(lMatCalcHFactor)
-          end if
-
-        case("ENDINT")
-             exit integral
-        case default
-            call report("keyword "//trim(w)//" not recognized in integral block",.true.)
-        end select
-      end do integral
+        end do integral
 
     END SUBROUTINE IntReadInput
 
-
-
     Subroutine IntInit(iCacheFlag)
 !who knows what for
-      Use global_utilities
-      Use OneEInts, only: SetupTMat, SetupPropInts, OneEPropInts, PropCore
-      USE UMatCache, only : FreezeTransfer, CreateInvBRR, GetUMatSize, SetupUMat2D_df
-      Use UMatCache, only: SetupUMatCache
-      use SystemData, only : nBasisMax, Alpha,BHub, BRR,nmsh,nEl
-      use SystemData, only : G1,iSpinSkip,nBasis,nMax,nMaxZ
-      use SystemData, only: Omega,tAlpha,TBIN,tCPMD,tDFread,THFORDER
-      use SystemData, only: thub,tpbc,treadint,ttilt,TUEG,tPickVirtUniform
-      use SystemData, only: uhub, arr,alat,treal,tReltvy
-      use SymExcitDataMod, only: tBuildOccVirtList, tBuildSpinSepLists
-      use LoggingData, only:tCalcPropEst, iNumPropToEst, EstPropFile
-      use Parallel_neci, only : iProcIndex,MPIBcast
-      use MemoryManager, only: TagIntType
-      use sym_mod, only: GenSymStatePairs
-      use read_fci
-      use LoggingData, only: t_umat_output
-      use real_space_hubbard, only: init_tmat
-      use k_space_hubbard, only: init_tmat_kspace
-      use lattice_mod, only: lat
-      use LMat_mod, only: readLMat
-      implicit none
-      INTEGER iCacheFlag
-      complex(dp),ALLOCATABLE :: ZIA(:)
-      INTEGER(TagIntType),SAVE :: tagZIA=0
-      INTEGER i!,j,k,l,idi,idj,idk,idl,Index1
-      INTEGER TmatInt
-      integer(int64) :: UMatInt,ii
-      real(dp) :: UMatMem
-      integer iErr, IntSize
-      character(25), parameter :: this_routine='IntInit'
-      LOGICAL :: tReadFreezeInts
+        Use global_utilities
+        Use OneEInts, only: SetupTMat, SetupPropInts, OneEPropInts, PropCore
+        USE UMatCache, only: FreezeTransfer, CreateInvBRR, GetUMatSize, SetupUMat2D_df
+        Use UMatCache, only: SetupUMatCache
+        use SystemData, only: nBasisMax, Alpha, BHub, BRR, nmsh, nEl
+        use SystemData, only: G1, iSpinSkip, nBasis, nMax, nMaxZ
+        use SystemData, only: Omega, tAlpha, TBIN, tCPMD, tDFread, THFORDER
+        use SystemData, only: thub, tpbc, treadint, ttilt, TUEG, tPickVirtUniform
+        use SystemData, only: uhub, arr, alat, treal, tReltvy
+        use SymExcitDataMod, only: tBuildOccVirtList, tBuildSpinSepLists
+        use LoggingData, only: tCalcPropEst, iNumPropToEst, EstPropFile
+        use Parallel_neci, only: iProcIndex, MPIBcast
+        use MemoryManager, only: TagIntType
+        use sym_mod, only: GenSymStatePairs
+        use read_fci
+        use LoggingData, only: t_umat_output
+        use real_space_hubbard, only: init_tmat
+        use k_space_hubbard, only: init_tmat_kspace
+        use lattice_mod, only: lat
 
-      FREEZETRANSFER=.false.
+        implicit none
+        INTEGER iCacheFlag
+        complex(dp), ALLOCATABLE :: ZIA(:)
+        INTEGER(TagIntType), SAVE :: tagZIA = 0
+        INTEGER i!,j,k,l,idi,idj,idk,idl,Index1
+        INTEGER TmatInt
+        integer(int64) :: UMatInt, ii
+        real(dp) :: UMatMem
+        integer iErr, IntSize
+        character(25), parameter :: this_routine = 'IntInit'
+        LOGICAL :: tReadFreezeInts
 
-      IF(THFBASIS) THEN
-         WRITE(6,*) "Using Hartree-Fock Basis"
-         IF(.NOT.THFCALC) WRITE(6,*) "Reading Hartree-Fock Basis"
-      ENDIF
+        FREEZETRANSFER = .false.
+
+        IF(THFBASIS) THEN
+            write(stdout, *) "Using Hartree-Fock Basis"
+            IF(.NOT. THFCALC) write(stdout, *) "Reading Hartree-Fock Basis"
+        ENDIF
+
 !I_VMAX.EQ.1.AND..NOT.TENERGY.AND.
-      IF(.not.tNeedsVirts.and.NTFROZEN.EQ.0) THEN
-         WRITE(6,*) "MaxVertices=1 and NTFROZEN=0."
-         IF(ABS(ARR(NEL,1)-ARR(NEL+1,1)).GT.1.0e-3_dp) THEN
-           WRITE(6,*) "NEL spinorbitals completely fills up degenerate set."
-           WRITE(6,*) "Only calculating vertex sum, so freezing all virtuals."
-           NTFROZEN=NBASIS-NEL
-         ELSE
-           WRITE(6,*) "NEL spinorbitals does not completely fill up degenerate set."
-           WRITE(6,*) "NOT freezing all virtuals."
-         ENDIF
-      ENDIF
+        IF(.not. tNeedsVirts .and. NTFROZEN == 0) THEN
+            write(stdout, *) "MaxVertices=1 and NTFROZEN=0."
+            IF(ABS(ARR(NEL, 1) - ARR(NEL + 1, 1)) > 1.0e-3_dp) THEN
+                write(stdout, *) "NEL spinorbitals completely fills up degenerate set."
+                write(stdout, *) "Only calculating vertex sum, so freezing all virtuals."
+                NTFROZEN = NBASIS - NEL
+            ELSE
+                write(stdout, *) "NEL spinorbitals does not completely fill up degenerate set."
+                write(stdout, *) "NOT freezing all virtuals."
+            end if
+        end if
 
 !     IF(.NOT.(TREAD.OR.TREADRHO)) THEN
-      IF(NTFROZEN.LT.0) THEN
-         I=NEL+(-NTFROZEN)
-      ELSE
-         I=nBasis-NTFROZEN
-      ENDIF
-      IF(TCPMD) THEN
+        IF(NTFROZEN < 0) THEN
+            I = NEL + (-NTFROZEN)
+        ELSE
+            I = nBasis - NTFROZEN
+        ENDIF
+        ! Initialize the umat-index function
+        call setup_UMatInd()
+        IF(TCPMD) THEN
 !.. We don't need to do init any 4-index integrals, but we do need to init the 2-index
-         WRITE(6,*) " *** INITIALIZING CPMD 2-index integrals ***"
-         call shared_allocate_mpi (umat_win, umat, (/1_int64/))
-         !Allocate(UMat(1), stat=ierr)
-         LogAlloc(ierr, 'UMat', 1,HElement_t_SizeB, tagUMat)
-         CALL GENSymStatePairs(nBasis/2,.false.)
-         CALL SetupTMAT(nBasis,2,TMATINT)
-         CALL CPMDINIT2INDINT(nBasis,I,G1,NEL,ECORE,THFORDER,ARR,BRR,iCacheFlag)
-      ELSEIF(tVASP) THEN
-         call shared_allocate_mpi (umat_win, umat, (/1_int64/))
-         !Allocate(UMat(1), stat=ierr)
-         LogAlloc(ierr, 'UMat', 1,HElement_t_SizeB, tagUMat)
-         CALL GENSymStatePairs(nBasis/2,.false.)
-         CALL SetupTMAT(nBasis,2,TMATINT)
-         CALL VASPInitIntegrals(I,ECore,tHFOrder)
-!      ELSEIF(TREADINT.AND.TReadCacheInts)...
+            write(stdout, *) " *** INITIALIZING CPMD 2-index integrals ***"
+            call shared_allocate_mpi(umat_win, umat,(/1_int64/))
+            !allocate(UMat(1), stat=ierr)
+            LogAlloc(ierr, 'UMat', 1, HElement_t_SizeB, tagUMat)
+            CALL GENSymStatePairs(nBasis / 2, .false.)
+            CALL SetupTMAT(nBasis, 2, TMATINT)
+            CALL CPMDINIT2INDINT(nBasis, I, G1, NEL, ECORE, THFORDER, ARR, BRR, iCacheFlag)
+        else if(tVASP) THEN
+            call shared_allocate_mpi(umat_win, umat,(/1_int64/))
+            !allocate(UMat(1), stat=ierr)
+            LogAlloc(ierr, 'UMat', 1, HElement_t_SizeB, tagUMat)
+            CALL GENSymStatePairs(nBasis / 2, .false.)
+            CALL SetupTMAT(nBasis, 2, TMATINT)
+            CALL VASPInitIntegrals(I, ECore, tHFOrder)
+!      else if(TREADINT.AND.TReadCacheInts)...
 !set up dummy umat, read in TMAT, <ij|ij> and <ii|jj>
 !Work out size needed for cache
 !Initialise cache
 !read in integral and put in cache
 !change flag to read integrals from cache
-      ELSEIF(TREADINT.AND.TDFREAD) THEN
-         call shared_allocate_mpi (umat_win, umat, (/1_int64/))
-         !Allocate(UMat(1), stat=ierr)
-         LogAlloc(ierr, 'UMat', 1,HElement_t_SizeB, tagUMat)
-         CALL SetupTMAT(nBasis,2,TMATINT)
-         Call ReadDalton1EIntegrals(G1,nBasis,ECore)
-         Call ReadDF2EIntegrals(nBasis,I)
-      ELSEIF(TREADINT.AND.tRIIntegrals) THEN
-         call shared_allocate_mpi (umat_win, umat, (/1_int64/))
-         !Allocate(UMat(1), stat=ierr)
-         LogAlloc(ierr, 'UMat', 1,HElement_t_SizeB, tagUMat)
+        else if(TREADINT .AND. TDFREAD) THEN
+            call shared_allocate_mpi(umat_win, umat,(/1_int64/))
+            !allocate(UMat(1), stat=ierr)
+            LogAlloc(ierr, 'UMat', 1, HElement_t_SizeB, tagUMat)
+            CALL SetupTMAT(nBasis, 2, TMATINT)
+            Call ReadDalton1EIntegrals(G1, nBasis, ECore)
+            Call ReadDF2EIntegrals(nBasis, I)
+        else if(TREADINT .AND. tRIIntegrals) THEN
+            call shared_allocate_mpi(umat_win, umat,(/1_int64/))
+            !allocate(UMat(1), stat=ierr)
+            LogAlloc(ierr, 'UMat', 1, HElement_t_SizeB, tagUMat)
 !Why is this called twice here?!
-         CALL SetupTMAT(nBasis,2,TMATINT)
-         CALL SetupTMAT(nBasis,iSpinSkip,TMATINT)
-         !   CALL READFCIINTBIN(UMAT,NBASIS,ECORE,ARR,BRR,G1)
-         Call ReadRIIntegrals(nBasis,I)
-         CALL READFCIINT(UMAT,umat_win,NBASIS,ECORE,.false.)
-         NBASISMAX(2,3)=0
-         WRITE(6,*) ' ECORE=',ECORE
-      ELSEIF(tReadInt.and.tCacheFCIDUMPInts) THEN
-         call shared_allocate_mpi (umat_win, umat, (/1_int64/))
-         !ALLOCATE(UMat(1),stat=ierr)
-         LogAlloc(ierr,'UMat',1,HElement_t_SizeB,tagUMat)
-         CALL SetupTMAT(nBasis,iSpinSkip,TMATINT)
+            CALL SetupTMAT(nBasis, 2, TMATINT)
+            CALL SetupTMAT(nBasis, iSpinSkip, TMATINT)
+            !   CALL READFCIINTBIN(UMAT,NBASIS,ECORE,ARR,BRR,G1)
+            Call ReadRIIntegrals(nBasis, I)
+            CALL READFCIINT(UMAT, umat_win, NBASIS, ECORE, .false.)
+            NBASISMAX(2, 3) = 0
+            write(stdout, *) ' ECORE=', ECORE
+        else if(tReadInt .and. tCacheFCIDUMPInts) THEN
+            call shared_allocate_mpi(umat_win, umat,(/1_int64/))
+            !allocate(UMat(1),stat=ierr)
+            LogAlloc(ierr, 'UMat', 1, HElement_t_SizeB, tagUMat)
+            CALL SetupTMAT(nBasis, iSpinSkip, TMATINT)
 !Now set up the UMatCache (**what size is allocated**.)
-         IF(nBasis.ne.I) THEN
+            IF(nBasis /= I) THEN
 !We will freeze later - only allocate a small preliminary cache before freezing.
-             WRITE(6,*) "Setting up pre-freezing UMatCache"
-             call SetupUMatCache(I/2,.TRUE.)
+                write(stdout, *) "Setting up pre-freezing UMatCache"
+                call SetupUMatCache(I / 2, .TRUE.)
 !Here, if we are freezing, we only want to read in the <ij|kj> integrals - not all of them.
-             tReadFreezeInts=.true.
-         ELSE
-!nBasisMax(2,3) is iSpinSkip = 1 if UHF and 2 if RHF/ROHF
-             iSpinSkip=nBasisMax(2,3)
-             IF(iSpinSkip.eq.1) THEN
-                 WRITE(6,*) "Setting up main UMatCache for open-shell system (inefficient - ~16x too much memory used for ROHF)"
-                 call SetupUMatCache(I,.FALSE.)
-             ELSE
-                 call SetupUMatCache(I/2,.FALSE.)
-                 WRITE(6,*) "Setting up main UMatCache for closed-shell system"
-             ENDIF
-             tReadFreezeInts=.false.
-         ENDIF
-!Set up UMat2D for storing the <ij|u|ij> and <ij|u|ji> integrals
-         call SetupUMat2D_df()  !This needs to be changed
-!The actual UMat2D integrals are read here into UMat2D here, as well as the integrals needed into the cache.
-         CALL READFCIINT(UMAT,umat_win,NBASIS,ECORE,tReadFreezeInts)
-!This is generally iSpinSkp, but stupidly, needs to be .le.0 to indicate that we want to look up the integral.
-         NBASISMAX(2,3)=0
-         WRITE(6,*) ' ECORE=',ECORE
-      ELSEIF(TREADINT) THEN
-         WRITE(6,'(A)') '*** READING PRIMITIVE INTEGRALS FROM FCIDUMP ***'
-!.. Generate the 2e integrals (UMAT)
-         ISPINSKIP=NBasisMax(2,3)
-         IF(ISPINSKIP.le.0) call stop_all(this_routine, 'NBASISMAX(2,3) ISpinSkip unset')
-!nBasisMax(2,3) is iSpinSkip = 1 if UHF and 2 if RHF/ROHF
-         CALL GetUMatSize(nBasis,UMATINT)
-         WRITE(6,*) "UMatSize: ",UMATINT
-         UMatMem=REAL(UMatInt,dp)*REAL(HElement_t_sizeB,dp)*(9.536743164e-7_dp)
-         WRITE(6,"(A,G20.10,A)") "Memory required for integral storage: ",UMatMem, " Mb/Shared Memory"
-         call neci_flush(6)
-         call shared_allocate_mpi (umat_win, umat, (/UMatInt/))
-         !Allocate(UMat(UMatInt), stat=ierr)
-         LogAlloc(ierr, 'UMat', int(UMatInt),HElement_t_SizeB, tagUMat)
-         if (iprocindex == 0) then
-!for very large UMats, the intrinic zeroing can cause a crash. In that case do an explicit zeroing
-             if (UMatInt <= 1000000000) then
-                 UMat = 0.0_dp
-             else
-                 do ii=1,UMatInt
-                     UMat(ii) = 0.0_dp
-                 enddo
-             endif
-         endif
-!nBasisMax(2,3) is iSpinSkip = 1 if UHF and 2 if RHF/ROHF
-         CALL SetupTMAT(nBasis,iSpinSkip,TMATINT)
-         IF(TBIN) THEN
-            CALL READFCIINTBIN(UMAT,ECORE)
-         ELSE
-            CALL READFCIINT(UMAT,umat_win,NBASIS,ECORE,.false.)
-         ENDIF
-         WRITE(6,*) 'ECORE=',ECORE
-         IF(tCalcPropEst) THEN
-           call SetupPropInts(nBasis)
-           do i=1,iNumPropToEst
-             call ReadPropInts(nBasis,EstPropFile(i),PropCore(i),OneEPropInts(:,:,i))
-             call MPIBCast(PropCore(i),1)
-             IntSize = nBasis*nBasis
-             call MPIBCast(OneEPropInts(:,:,i),IntSize)
-           end do
-         ENDIF
-      ELSE
-         ISPINSKIP=NBASISMAX(2,3)
-         IF(NBASISMAX(1,3).GE.0) THEN
-            IF(TUEG.OR.THUB) THEN
-               IF(THUB.AND.TREAL) THEN
-    !!C.. Real space hubbard
-    !!C.. we pre-compute the 2-e integrals
-                  if ((t_new_real_space_hubbard .and. .not. t_trans_corr_hop) &
-                      .or. t_tJ_model .or. t_heisenberg_model) then
-                     WRITE(6,*) "Not precomputing HUBBARD 2-e integrals"
-                     UMatInt = 1_int64
-                     call shared_allocate_mpi (umat_win, umat, (/UMatInt/))
-                     !Allocate(UMat(1), stat=ierr)
-                     LogAlloc(ierr, 'UMat', 1,HElement_t_SizeB, tagUMat)
-                     UMAT(1)=UHUB
-                 else if (t_new_real_space_hubbard .and. t_trans_corr_hop) then
-
-                     call init_hopping_transcorr()
-                     call init_umat_rs_hub_transcorr()
-                 else
-                      WRITE(6,*) "Generating 2e integrals"
-        !!C.. Generate the 2e integrals (UMAT)
-                      CALL GetUMatSize(nBasis,UMATINT)
-                      call shared_allocate_mpi (umat_win, umat, (/UMatInt/))
-                      !Allocate(UMat(UMatInt), stat=ierr)
-                      LogAlloc(ierr, 'UMat', int(UMatInt),HElement_t_SizeB, tagUMat)
-                      UMat = 0.0_dp
-                      WRITE(6,*) "Size of UMat is: ",UMATINT
-                      CALL CALCUMATHUBREAL(NBASIS,UHUB,UMAT)
-                  end if
-
-               ELSEIF(THUB.AND..NOT.TPBC) THEN
-    !!C.. we pre-compute the 2-e integrals
-                  WRITE(6,*) "Generating 2e integrals"
-    !!C.. Generate the 2e integrals (UMAT)
-                  CALL GetUMatSize(nBasis,UMATINT)
-                  call shared_allocate_mpi (umat_win, umat, (/UMatInt/))
-                  !Allocate(UMat(UMatInt), stat=ierr)
-                  LogAlloc(ierr, 'UMat', int(UMatInt),HElement_t_SizeB, tagUMat)
-                  UMat = 0.0_dp
-    !!C.. Non-periodic hubbard (mom space)
-                  call gen_coul_hubnpbc
-               ELSE
-    !!C.. Most normal Hubbards
-                  IF(.NOT.TUEG) THEN
-    !                CALL GEN_COUL_UEG(NEL,NBASISMAX,nBasis,G1,NMSH,NMAX,FCK,UMAT,ISPINSKIP,THUB,UHUB,OMEGA,ALAT)
-                     ISPINSKIP=-1
-                     NBASISMAX(2,3)=-1
-                     WRITE(6,*) "Not precomputing HUBBARD 2-e integrals"
-                     call shared_allocate_mpi (umat_win, umat, (/1_int64/))
-                     !Allocate(UMat(1), stat=ierr)
-                     LogAlloc(ierr, 'UMat', 1,HElement_t_SizeB, tagUMat)
-                     UMAT(1)=UHUB/OMEGA
-                     ! try to output the UMat anyway. to apply dmrg comparison
-                     if (t_umat_output) call write_kspace_umat()
-
-                  ENDIF
-    !!C.. The UEG doesn't store coul integrals
-               ENDIF
+                tReadFreezeInts = .true.
             ELSE
-    !!C.. We need to init the arrays regardless of whether we're storing H
-    !!C..Need to initialise the Fourier arrays
-               Allocate(Fck(nMsh**3),stat=ierr)
-               LogAlloc(ierr,'FCK',NMSH**3,16,tagFCK)
-               allocate(ZIA(2*(NMSH+1)*NMAX*NMAX))
-               LogAlloc(ierr,'ZIA',2*(NMSH+1)*NMAX*NMAX,16,tagZIA)
-               WRITE(6,*) NMSH,NMAX
-    !!C..
+!nBasisMax(2,3) is iSpinSkip = 1 if UHF and 2 if RHF/ROHF
+                iSpinSkip = nBasisMax(2, 3)
+                IF(iSpinSkip == 1) THEN
+                    write(stdout, *) "Setting up main UMatCache for open-shell system (inefficient - ~16x too much memory used for ROHF)"
+                    call SetupUMatCache(I, .FALSE.)
+                ELSE
+                    call SetupUMatCache(I / 2, .FALSE.)
+                    write(stdout, *) "Setting up main UMatCache for closed-shell system"
+                end if
+                tReadFreezeInts = .false.
+            end if
+!Set up UMat2D for storing the <ij|u|ij> and <ij|u|ji> integrals
+            call SetupUMat2D_df()  !This needs to be changed
+!The actual UMat2D integrals are read here into UMat2D here, as well as the integrals needed into the cache.
+            CALL READFCIINT(UMAT, umat_win, NBASIS, ECORE, tReadFreezeInts)
+!This is generally iSpinSkp, but stupidly, needs to be .le.0 to indicate that we want to look up the integral.
+            NBASISMAX(2, 3) = 0
+            write(stdout, *) ' ECORE=', ECORE
+        else if(TREADINT) THEN
+            write(stdout, '(A)') '*** READING PRIMITIVE INTEGRALS FROM FCIDUMP ***'
+!.. Generate the 2e integrals (UMAT)
+            ISPINSKIP = NBasisMax(2, 3)
+            IF(ISPINSKIP <= 0) call stop_all(this_routine, 'NBASISMAX(2,3) ISpinSkip unset')
+!nBasisMax(2,3) is iSpinSkip = 1 if UHF and 2 if RHF/ROHF
+            CALL GetUMatSize(nBasis, UMATINT)
+            write(stdout, *) "UMatSize: ", UMATINT
+            UMatMem = REAL(UMatInt, dp) * REAL(HElement_t_sizeB, dp) * (9.536743164e-7_dp)
+            write(stdout, "(A,G20.10,A)") "Memory required for integral storage: ", UMatMem, " Mb/Shared Memory"
+            call neci_flush(6)
+            call shared_allocate_mpi(umat_win, umat,(/UMatInt/))
+            !allocate(UMat(UMatInt), stat=ierr)
+            LogAlloc(ierr, 'UMat', int(UMatInt), HElement_t_SizeB, tagUMat)
+            if(iprocindex == 0) then
+!for very large UMats, the intrinic zeroing can cause a crash. In that case do an explicit zeroing
+                if(UMatInt <= 1000000000) then
+                    UMat = 0.0_dp
+                else
+                    do ii = 1, UMatInt
+                        UMat(ii) = 0.0_dp
+                    end do
+                end if
+            end if
+!nBasisMax(2,3) is iSpinSkip = 1 if UHF and 2 if RHF/ROHF
+            CALL SetupTMAT(nBasis, iSpinSkip, TMATINT)
+            IF(TBIN) THEN
+                CALL READFCIINTBIN(UMAT, ECORE)
+            ELSE
+                CALL READFCIINT(UMAT, umat_win, NBASIS, ECORE, .false.)
+            end if
+            write(stdout, *) 'ECORE=', ECORE
+            IF(tCalcPropEst) THEN
+                call SetupPropInts(nBasis)
+                do i = 1, iNumPropToEst
+                    call ReadPropInts(nBasis, EstPropFile(i), PropCore(i), OneEPropInts(:, :, i))
+                    call MPIBCast(PropCore(i), 1)
+                    IntSize = nBasis * nBasis
+                    call MPIBCast(OneEPropInts(:, :, i), IntSize)
+                end do
+            end if
+        ELSE
+            ISPINSKIP = NBASISMAX(2, 3)
+            IF(NBASISMAX(1, 3) >= 0) THEN
+                IF(TUEG .OR. THUB) THEN
+                    IF(THUB .AND. TREAL) THEN
+                        !!C.. Real space hubbard
+                        !!C.. we pre-compute the 2-e integrals
+                        if((t_new_real_space_hubbard .and. .not. t_trans_corr_hop) &
+                           .or. t_tJ_model .or. t_heisenberg_model) then
+                            write(stdout, *) "Not precomputing HUBBARD 2-e integrals"
+                            UMatInt = 1_int64
+                            call shared_allocate_mpi(umat_win, umat,(/UMatInt/))
+                            !allocate(UMat(1), stat=ierr)
+                            LogAlloc(ierr, 'UMat', 1, HElement_t_SizeB, tagUMat)
+                            UMAT(1) = UHUB
+                        else if(t_new_real_space_hubbard .and. t_trans_corr_hop) then
+
+                            call init_hopping_transcorr()
+                            call init_umat_rs_hub_transcorr()
+                        else
+                            write(stdout, *) "Generating 2e integrals"
+                            !!C.. Generate the 2e integrals (UMAT)
+                            CALL GetUMatSize(nBasis, UMATINT)
+                            call shared_allocate_mpi(umat_win, umat,(/UMatInt/))
+                            !allocate(UMat(UMatInt), stat=ierr)
+                            LogAlloc(ierr, 'UMat', int(UMatInt), HElement_t_SizeB, tagUMat)
+                            UMat = 0.0_dp
+                            write(stdout, *) "Size of UMat is: ", UMATINT
+                            CALL CALCUMATHUBREAL(NBASIS, UHUB, UMAT)
+                        end if
+
+                    else if(THUB .AND. .NOT. TPBC) THEN
+                        !!C.. we pre-compute the 2-e integrals
+                        write(stdout, *) "Generating 2e integrals"
+                        !!C.. Generate the 2e integrals (UMAT)
+                        CALL GetUMatSize(nBasis, UMATINT)
+                        call shared_allocate_mpi(umat_win, umat,(/UMatInt/))
+                        !allocate(UMat(UMatInt), stat=ierr)
+                        LogAlloc(ierr, 'UMat', int(UMatInt), HElement_t_SizeB, tagUMat)
+                        UMat = 0.0_dp
+                        !!C.. Non-periodic hubbard (mom space)
+                        call gen_coul_hubnpbc
+                    ELSE
+                        !!C.. Most normal Hubbards
+                        IF(.NOT. TUEG) THEN
+                            !                CALL GEN_COUL_UEG(NEL,NBASISMAX,nBasis,G1,NMSH,NMAX,FCK,UMAT,ISPINSKIP,THUB,UHUB,OMEGA,ALAT)
+                            ISPINSKIP = -1
+                            NBASISMAX(2, 3) = -1
+                            write(stdout, *) "Not precomputing HUBBARD 2-e integrals"
+                            call shared_allocate_mpi(umat_win, umat,(/1_int64/))
+                            !allocate(UMat(1), stat=ierr)
+                            LogAlloc(ierr, 'UMat', 1, HElement_t_SizeB, tagUMat)
+                            UMAT(1) = UHUB / OMEGA
+                            ! try to output the UMat anyway. to apply dmrg comparison
+                            if(t_umat_output) call write_kspace_umat()
+
+                        end if
+                        !!C.. The UEG doesn't store coul integrals
+                    end if
+                ELSE
+                    !!C.. We need to init the arrays regardless of whether we're storing H
+                    !!C..Need to initialise the Fourier arrays
+                    allocate(Fck(nMsh**3), stat=ierr)
+                    LogAlloc(ierr, 'FCK', NMSH**3, 16, tagFCK)
+                    allocate(ZIA(2 * (NMSH + 1) * NMAX * NMAX))
+                    LogAlloc(ierr, 'ZIA', 2 * (NMSH + 1) * NMAX * NMAX, 16, tagZIA)
+                    write(stdout, *) NMSH, NMAX
+                    !!C..
 !               CALL N_MEMORY_CHECK()
-               IF(NMAXZ.EQ.0) THEN
-    !!C..  We're doing a 2D simulation
-                  CALL INITFOU2D(NMSH,FCK,NMAX,ALAT,TALPHA,ALPHA,OMEGA,ZIA)
-               ELSE
-                  CALL INITFOU(NMSH,FCK,NMAX,ALAT,TALPHA,ALPHA,OMEGA,ZIA)
-               ENDIF
+                    IF(NMAXZ == 0) THEN
+                        !!C..  We're doing a 2D simulation
+                        CALL INITFOU2D(NMSH, FCK, NMAX, ALAT, TALPHA, ALPHA, OMEGA, ZIA)
+                    ELSE
+                        CALL INITFOU(NMSH, FCK, NMAX, ALAT, TALPHA, ALPHA, OMEGA, ZIA)
+                    end if
 !               CALL N_MEMORY_CHECK()
-    !!C.. we pre-compute the 2-e integrals
-               WRITE(6,*) "Generating 2e integrals"
-    !!C.. Generate the 2e integrals (UMAT)
-               CALL GetUMatSize(nBasis,UMATINT)
-               call shared_allocate_mpi (umat_win, umat, (/UMatInt/))
-               !Allocate(UMat(UMatInt), stat=ierr)
-               LogAlloc(ierr, 'UMat', int(UMatInt),HElement_t_SizeB, tagUMat)
-               UMat = 0.0_dp
-               CALL GEN_COUL(NBASISMAX,nBasis,G1,NMSH,NMAX,FCK,UMAT,ZIA)
-               deallocate(ZIA)
-               LogDealloc(tagZIA)
-               LogDealloc(tagFCK)
-               Deallocate(FCK)
-            ENDIF
-         ELSE
-            WRITE(6,*) "Not precomputing 2-e integrals"
-            call shared_allocate_mpi (umat_win, umat, (/1_int64/))
-            !Allocate(UMat(1), stat=ierr)
-            LogAlloc(ierr, 'UMat', 1,HElement_t_SizeB, tagUMat)
-         ENDIF
+                    !!C.. we pre-compute the 2-e integrals
+                    write(stdout, *) "Generating 2e integrals"
+                    !!C.. Generate the 2e integrals (UMAT)
+                    CALL GetUMatSize(nBasis, UMATINT)
+                    call shared_allocate_mpi(umat_win, umat,(/UMatInt/))
+                    !allocate(UMat(UMatInt), stat=ierr)
+                    LogAlloc(ierr, 'UMat', int(UMatInt), HElement_t_SizeB, tagUMat)
+                    UMat = 0.0_dp
+                    CALL GEN_COUL(NBASISMAX, nBasis, G1, NMSH, NMAX, FCK, UMAT, ZIA)
+                    deallocate(ZIA)
+                    LogDealloc(tagZIA)
+                    LogDealloc(tagFCK)
+                    Deallocate(FCK)
+                end if
+            ELSE
+                write(stdout, *) "Not precomputing 2-e integrals"
+                call shared_allocate_mpi(umat_win, umat,(/1_int64/))
+                !allocate(UMat(1), stat=ierr)
+                LogAlloc(ierr, 'UMat', 1, HElement_t_SizeB, tagUMat)
+            end if
 !         CALL N_MEMORY_CHECK()
-    !!C.. we need to generate TMAT - Now setup in individual routines
-         !CALL N_MEMORY(IP_TMAT,HElement_t_size*nBasis*nBasis,'TMAT')
-         !TMAT=(0.0_dp)
-         IF(THUB) THEN
-             if (t_new_hubbard) then
-                 if (t_k_space_hubbard) then
-                     ! also change here to the new k-space implementation
-                     call init_tmat_kspace(lat)
+            !!C.. we need to generate TMAT - Now setup in individual routines
+            !CALL N_MEMORY(IP_TMAT,HElement_t_size*nBasis*nBasis,'TMAT')
+            !TMAT=(0.0_dp)
+            IF(THUB) THEN
+                if(t_new_hubbard) then
+                    if(t_k_space_hubbard) then
+                        ! also change here to the new k-space implementation
+                        call init_tmat_kspace(lat)
 
-                 else if (t_new_real_space_hubbard) then
-                     call init_tmat(lat)
-                 end if
-             else
-                 CALL CALCTMATHUB(NBASIS,NBASISMAX,BHUB,TTILT,G1,TREAL,TPBC)
-             end if
-         ELSE
-    !!C..Cube multiplier
-             CST=PI*PI/(2.0_dp*ALAT(1)*ALAT(1))
-    !!C.. the UEG has k=2pi n/L rather than pi n/L, so we need to multiply the
-    !!C.. KE up by 4
-            IF(NBASISMAX(1,1).LE.0) CST=CST*4
-            CALL CALCTMATUEG(NBASIS,ALAT,G1,CST,NBASISMAX(1,1).LE.0,OMEGA)
-         ENDIF
-      ENDIF
+                    else if(t_new_real_space_hubbard) then
+                        call init_tmat(lat)
+                    end if
+                else
+                    CALL CALCTMATHUB(NBASIS, NBASISMAX, BHUB, TTILT, G1, TREAL, TPBC)
+                end if
+            ELSE
+                !!C..Cube multiplier
+                CST = PI * PI / (2.0_dp * ALAT(1) * ALAT(1))
+                !!C.. the UEG has k=2pi n/L rather than pi n/L, so we need to multiply the
+                !!C.. KE up by 4
+                IF(NBASISMAX(1, 1) <= 0) CST = CST * 4
+                CALL CALCTMATUEG(NBASIS, ALAT, G1, CST, NBASISMAX(1, 1) <= 0, OMEGA)
+            end if
+        end if
 
-      if ((tPickVirtUniform .and. tBuildSpinSepLists .and. tBuildOccVirtList) .and. .not. tReltvy) then
-        call stop_all(this_routine, "pick-virt-uniform-mag option needs TREL=.TRUE. in FCIDUMP")
-      endif
+        if((tPickVirtUniform .and. tBuildSpinSepLists .and. tBuildOccVirtList) .and. .not. tReltvy) then
+            call stop_all(this_routine, "pick-virt-uniform-mag option needs TREL=.TRUE. in FCIDUMP")
+        end if
 
-      !ENDIF
-
-!      WRITE(6,*) "ONE ELECTRON"
+!      write(stdout,*) "ONE ELECTRON"
 !      do i=1,nBasis
 !          do j=1,nBasis
-!              WRITE(36,"(2I5,G25.10)") i,j,GetTMatEl(i,j)
-!          enddo
-!      enddo
-!      WRITE(6,*) "TWO ELECTRON"
+!              write(36,"(2I5,G25.10)") i,j,GetTMatEl(i,j)
+!          end do
+!      end do
+!      write(stdout,*) "TWO ELECTRON"
 !      do i=1,nBasis
 !          do j=1,nBasis
 !              do k=1,nBasis
@@ -724,60 +731,56 @@ contains
 !                     IDk = GTID(k)
 !                     IDl = GTID(l)
 !                     Index1=UMatInd(idi,idj,idk,idl)
-!                     WRITE(37,"(9I5,G25.10)") i,j,k,l,
+!                     write(37,"(9I5,G25.10)") i,j,k,l,
 !idi,idj,idk,idl,Index1,GetUMatEl(NBasisMax,UMAT,ALAT,nBasis,ISpinSkip,G1,idi,idj,idk,idl)
-!                 enddo
-!             enddo
-!         enddo
-!     enddo
+!                 end do
+!             end do
+!         end do
+!     end do
 
-      ! Setup the umatel pointers as well
-      call init_getumatel_fn_pointers ()
-
-      if(t_mol_3_body) call readLMat()
-
+        ! Setup the umatel pointers as well
+        call init_getumatel_fn_pointers()
     End Subroutine IntInit
 
-
     Subroutine IntFreeze
-      use SystemData, only: Brr,CoulDampOrb,ECore,fCoulDampMu
-      use SystemData, only: G1,iSpinSkip
-      use SystemData, only: nBasis,nEl,arr,nbasismax
-      use UMatCache, only: GetUMatSize
-      use SymData , only : TwoCycleSymGens
-      use MemoryManager, only: TagIntType
-      use global_utilities
+        use SystemData, only: Brr, CoulDampOrb, ECore, fCoulDampMu
+        use SystemData, only: G1, iSpinSkip
+        use SystemData, only: nBasis, nEl, arr, nbasismax
+        use UMatCache, only: GetUMatSize
+        use SymData, only: TwoCycleSymGens
+        use MemoryManager, only: TagIntType
+        use global_utilities
 
-      character(25), parameter ::this_routine='IntFreeze'
+        character(25), parameter ::this_routine = 'IntFreeze'
 !//Locals
-      HElement_t(dp), pointer :: UMAT2(:)
-      INTEGER(TagIntType) tagUMat2
-      INTEGER nOcc
-      integer(MPIArg) :: umat2_win
-      integer(int64) :: UMATInt
-      integer nHG
+        HElement_t(dp), pointer :: UMAT2(:)
+        INTEGER(TagIntType) tagUMat2
+        INTEGER nOcc
+        integer(MPIArg) :: umat2_win
+        integer(int64) :: UMATInt
+        integer nHG
 
-      nHG=nBasis
+        nHG = nBasis
 
-      if(NEL+1<nBasis) CHEMPOT=(ARR(NEL,1)+ARR(NEL+1,1))/2.0_dp
-!      WRITE(6,*) "Chemical Potential: ",CHEMPOT
-      IF(NTFROZEN.LT.0) THEN
-         WRITE(6,*) "NTFROZEN<0.  Leaving ", -NTFROZEN," unfrozen virtuals."
-         NTFROZEN=NTFROZEN+nBasis-NEL
-      ENDIF
-      IF((NFROZEN+NFROZENIN).gt.NEL) CALL Stop_All("IntFreeze","Overlap between low energy frozen orbitals &
-                                & and inner frozen occupied orbitals - to many frozen occupied orbitals &
-                                & for the number of electrons.")
-      IF((NTFROZEN+NTFROZENIN).gt.(NBASIS-NEL)) CALL Stop_All("IntFreeze","Overlap between high energy frozen orbitals &
-                                & and inner frozen virtual orbitals - to many frozen virtual orbitals &
-                                & for the number of unnoccupied orbitals.")
-      IF(((NFROZENIN.GT.0).or.(NTFROZENIN.GT.0)).and.(.not.TwoCycleSymGens)) THEN
-                                CALL Stop_All("IntFreeze","TwoCycleSymGens is not true. &
-                                & The code is only set up to deal with freezing from the inside for molecular &
-                                & systems with only 8 symmetry irreps.")
-      ENDIF
-      IF(NFROZEN.GT.0.OR.NTFROZEN.GT.0.OR.NFROZENIN.GT.0.OR.NTFROZENIN.GT.0) THEN
-          WRITE(6,'(A)') '======== FREEZING ORBITALS =========='
+        if(NEL + 1 < nBasis) CHEMPOT = (ARR(NEL, 1) + ARR(NEL + 1, 1)) / 2.0_dp
+!      write(stdout,*) "Chemical Potential: ",CHEMPOT
+        IF(NTFROZEN < 0) THEN
+            write(stdout, *) "NTFROZEN<0.  Leaving ", -NTFROZEN, " unfrozen virtuals."
+            NTFROZEN = NTFROZEN + nBasis - NEL
+        end if
+        IF((NFROZEN + NFROZENIN) > NEL) CALL Stop_All("IntFreeze", "Overlap between low energy frozen orbitals &
+                                  & and inner frozen occupied orbitals - to many frozen occupied orbitals &
+                                  & for the number of electrons.")
+        IF((NTFROZEN + NTFROZENIN) > (NBASIS - NEL)) CALL Stop_All("IntFreeze", "Overlap between high energy frozen orbitals &
+                                  & and inner frozen virtual orbitals - to many frozen virtual orbitals &
+                                  & for the number of unnoccupied orbitals.")
+        IF(((NFROZENIN > 0) .or. (NTFROZENIN > 0)) .and. (.not. TwoCycleSymGens)) THEN
+            CALL Stop_All("IntFreeze", "TwoCycleSymGens is not true. &
+            & The code is only set up to deal with freezing from the inside for molecular &
+            & systems with only 8 symmetry irreps.")
+        end if
+        IF(NFROZEN > 0 .OR. NTFROZEN > 0 .OR. NFROZENIN > 0 .OR. NTFROZENIN > 0) THEN
+            write(stdout, '(A)') '======== FREEZING ORBITALS =========='
 !!C.. At this point, we transform the UMAT and TMAT into a new UMAT and
 !!C.. TMAT and Ecore with the frozen orbitals factored in
 !!C..
@@ -786,76 +789,70 @@ contains
 !!C.. t'_ii = t_ii+ sum_a ( <ai|ai> - <ai|ia> )
 !!C.. NHG contains the old number of orbitals
 !!C.. NBASIS contains the new
-         NBASIS=NBASIS-NFROZEN-NTFROZEN-NFROZENIN-NTFROZENIN
+            NBASIS = NBASIS - NFROZEN - NTFROZEN - NFROZENIN - NTFROZENIN
 !!C.. We need to transform some integrals
-         !CALL N_MEMORY(IP_TMAT2,HElement_t_size*(NBASIS)**2,'TMAT2')
-         !TMAT2=(0.0_dp)
-         IF(NBASISMAX(1,3).GE.0.AND.ISPINSKIP.NE.0) THEN
-            CALL GetUMatSize(nBasis,UMATINT)
-            call shared_allocate_mpi (umat2_win, umat2, (/UMatInt/))
-            !Allocate(UMat2(UMatInt), stat=ierr)
-            LogAlloc(ierr, 'UMat2', int(UMatInt),HElement_t_SizeB, tagUMat2)
-            UMAT2 = 0.0_dp
-         ELSE
+            !CALL N_MEMORY(IP_TMAT2,HElement_t_size*(NBASIS)**2,'TMAT2')
+            !TMAT2=(0.0_dp)
+            IF(NBASISMAX(1, 3) >= 0 .AND. ISPINSKIP /= 0) THEN
+                CALL GetUMatSize(nBasis, UMATINT)
+                call shared_allocate_mpi(umat2_win, umat2,(/UMatInt/))
+                !allocate(UMat2(UMatInt), stat=ierr)
+                LogAlloc(ierr, 'UMat2', int(UMatInt), HElement_t_SizeB, tagUMat2)
+                UMAT2 = 0.0_dp
+            ELSE
 !!C.. we don't precompute 4-e integrals, so don't allocate a large UMAT
-            call shared_allocate_mpi (umat2_win, umat2, (/1_int64/))
-            !Allocate(UMat2(1), stat=ierr)
-            LogAlloc(ierr, 'UMat2', 1,HElement_t_SizeB, tagUMat2)
-         ENDIF
+                call shared_allocate_mpi(umat2_win, umat2,(/1_int64/))
+                !allocate(UMat2(1), stat=ierr)
+                LogAlloc(ierr, 'UMat2', 1, HElement_t_SizeB, tagUMat2)
+            end if
 !         CALL N_MEMORY_CHECK()
 
-         WRITE(6,*) "Freezing ",NFROZEN," core orbitals."
-         WRITE(6,*) "Freezing ",NTFROZEN," virtual orbitals."
-         IF(NFROZENIN.ne.0) WRITE(6,*) "Freezing ",NFROZENIN," of the highest energy occupied (inner) orbitals."
-         IF(NTFROZENIN.ne.0) WRITE(6,*) "Freezing ",NTFROZENIN," of the lowest energy virtual (inner) orbitals."
+            write(stdout, *) "Freezing ", NFROZEN, " core orbitals."
+            write(stdout, *) "Freezing ", NTFROZEN, " virtual orbitals."
+            IF(NFROZENIN /= 0) write(stdout, *) "Freezing ", NFROZENIN, " of the highest energy occupied (inner) orbitals."
+            IF(NTFROZENIN /= 0) write(stdout, *) "Freezing ", NTFROZENIN, " of the lowest energy virtual (inner) orbitals."
 
 !At the end of IntFREEZEBASIS, NHG is reset to nBasis - the final number of active orbitals.
-         CALL IntFREEZEBASIS(NHG,NBASIS,UMAT,UMAT2,ECORE, G1,NBASISMAX,ISPINSKIP,BRR,NFROZEN,NTFROZEN,NFROZENIN,NTFROZENIN,NEL)
-         CALL neci_flush(6)
-!         CALL N_MEMORY_CHECK()
-         WRITE(6,*) "ECORE now",ECORE
-         WRITE(6,*) "Number of orbitals remaining: ",NBASIS
-         nel_pre_freezing = nel
-         NEL=NEL-NFROZEN-NFROZENIN
-         NOCC=NEL/2
+          CALL IntFREEZEBASIS(NHG, NBASIS, UMAT, UMAT2, ECORE, G1, NBASISMAX, ISPINSKIP, BRR, NFROZEN, NTFROZEN, NFROZENIN, NTFROZENIN, NEL)
+            CALL neci_flush(6)
+            write(stdout, *) "ECORE now", ECORE
+            write(stdout, *) "Number of orbitals remaining: ", NBASIS
+            nel_pre_freezing = nel
+            NEL = NEL - NFROZEN - NFROZENIN
+            NOCC = NEL / 2
 !!C.. NEL now only includes active electrons
-         WRITE(6,*) "Number of active electrons:",NEL
+            write(stdout, *) "Number of active electrons:", NEL
 
-         !CALL N_FREEM(IP_TMAT)
-         !IP_TMAT=IP_TMAT2
-         !IP_TMAT2=NULL
+            !CALL N_FREEM(IP_TMAT)
+            !IP_TMAT=IP_TMAT2
+            !IP_TMAT2=NULL
 !!C.. Now we can remove the old UMATRIX, and set the pointer UMAT to point
 !!C.. to UMAT2
-         LogDealloc(tagUMat)
-         call shared_deallocate_mpi(int(umat_win,MPIArg),umat)
-         !Deallocate(UMat)
-         umat_win=umat2_win
-         UMat=>UMat2
-         nullify(UMat2)
-         tagUMat=tagUMat2
-         tagUMat2=0
-!         CALL N_MEMORY_CHECK()
-!         WRITE(6,*) "Active basis functions:",NHG
-         CALL WRITEBASIS(6,G1,NHG,ARR,BRR)
-      ENDIF
-!      CALL WRITETMAT(NBASIS)
-!      CALL WRITESYMCLASSES(NBASIS)
+            LogDealloc(tagUMat)
+            call shared_deallocate_mpi(int(umat_win, MPIArg), umat)
+            !Deallocate(UMat)
+            umat_win = umat2_win
+            UMat => UMat2
+            nullify(UMat2)
+            tagUMat = tagUMat2
+            tagUMat2 = 0
+            call setup_UMatInd()
+            CALL WRITEBASIS(6, G1, NHG, ARR, BRR)
+        end if
 
         ! Setup the umatel pointers as well
-        call init_getumatel_fn_pointers ()
+        call init_getumatel_fn_pointers()
+        call init_bit_rep()
 
-        call init_bit_rep ()
-
-      IF(COULDAMPORB.GT.0) THEN
-         FCOULDAMPMU=(ARR(COULDAMPORB,1)+ARR(COULDAMPORB+1,1))/2
-         WRITE(6,*) "Setting Coulomb damping mu between orbitals ",ARR(COULDAMPORB,1)," and ",ARR(COULDAMPORB+1,1)
-         WRITE(6,*) "MU=",FCOULDAMPMU
-      ENDIF
+        IF(COULDAMPORB > 0) THEN
+            FCOULDAMPMU = (ARR(COULDAMPORB, 1) + ARR(COULDAMPORB + 1, 1)) / 2
+            write(stdout, *) "Setting Coulomb damping mu between orbitals ", ARR(COULDAMPORB, 1), " and ", ARR(COULDAMPORB + 1, 1)
+            write(stdout, *) "MU=", FCOULDAMPMU
+        end if
 
     End Subroutine IntFreeze
 
-
-    subroutine IntCleanup (iCacheFlag)
+    subroutine IntCleanup(iCacheFlag)
         use UMatCache, only: iDumpCacheFlag, tReadInCache, nStates, &
                              nStatesDump, DumpUMatCache, DestroyUMatCache, &
                              WriteUMatCacheStats
@@ -865,118 +862,119 @@ contains
 
         if(t_mol_3_body) call freeLMat()
 
-        if ((btest(iDumpCacheFlag, 0) .and. &
+        if((btest(iDumpCacheFlag, 0) .and. &
             (nStatesDump < nStates .or. .not. tReadInCache)) .or. &
-            btest(iDumpCacheFlag, 1)) call DumpUMatCache ()
+           btest(iDumpCacheFlag, 1)) call DumpUMatCache()
 
         ! If we're told explicitly not to destroy the cache, we don't
-        if (.not. btest(iCacheFlag, 0)) then
-            call DestroyUMatCache ()
+        if(.not. btest(iCacheFlag, 0)) then
+            call DestroyUMatCache()
         else
-            call WriteUMatCacheStats ()
-        endif
+            call WriteUMatCacheStats()
+        end if
 
         ! Cleanup UMAT array
-        if (associated(UMAT)) then
-            LogDealloc (tagUMat)
-            call shared_deallocate_mpi (int(umat_win,MPIArg),UMAT)
-        endif
+        if(associated(UMAT)) then
+            LogDealloc(tagUMat)
+            call shared_deallocate_mpi(int(umat_win, MPIArg), UMAT)
+        end if
 
-        if (allocated(frozen_orb_list)) then
+        if(allocated(frozen_orb_list)) then
             LogDealloc(tagFrozen)
             deallocate(frozen_orb_list)
         end if
-        if (allocated(frozen_orb_reverse_map)) then
+        if(allocated(frozen_orb_reverse_map)) then
             LogDealloc(tagFrozenMap)
             deallocate(frozen_orb_reverse_map)
         end if
 
+        call clear_orb_perm()
+
     end subroutine
 
 !This routine takes the frozen orbitals and modifies ECORE, UMAT, BRR etc accordingly.
-    SUBROUTINE IntFREEZEBASIS(NHG,NBASIS,UMAT,UMAT2,ECORE,           &
-   &         G1,NBASISMAX,ISS,BRR,NFROZEN,NTFROZEN,NFROZENIN,NTFROZENIN,NEL)
-       use SystemData, only: Symmetry, BasisFN, arr, tagarr
-       use OneEInts, only: GetPropIntEl, GetTMATEl, TMATSYM2, TMAT2D2, PropCore, &
-                           OneEPropInts2, OneEPropInts, tOneElecDiag, NewTMatInd, &
-                           GetNEWTMATEl, tCPMDSymTMat, SetupTMAT2, SWAPTMAT, &
-                           SwapOneEPropInts, SetupPropInts2
-       USE UMatCache, only: FreezeTransfer,UMatCacheData
-       Use UMatCache, only: FreezeUMatCache, CreateInvBrr2,FreezeUMat2D, SetupUMatTransTable
-       use LoggingData, only:tCalcPropEst, iNumPropToEst
-       use UMatCache, only: GTID
-       use global_utilities
-       use sym_mod, only: getsym, SetupFREEZEALLSYM, FREEZESYMLABELS
-       use util_mod, only: NECI_ICOPY
+    SUBROUTINE IntFREEZEBASIS(NHG, NBASIS, UMAT, UMAT2, ECORE,           &
+   &         G1, NBASISMAX, ISS, BRR, NFROZEN, NTFROZEN, NFROZENIN, NTFROZENIN, NEL)
+        use SystemData, only: Symmetry, BasisFN, arr, tagarr
+        use OneEInts, only: GetPropIntEl, GetTMATEl, TMATSYM2, TMAT2D2, PropCore, &
+                            OneEPropInts2, OneEPropInts, tOneElecDiag, NewTMatInd, &
+                            GetNEWTMATEl, tCPMDSymTMat, SetupTMAT2, SWAPTMAT, &
+                            SwapOneEPropInts, SetupPropInts2
+        USE UMatCache, only: FreezeTransfer, UMatCacheData
+        Use UMatCache, only: FreezeUMatCache, CreateInvBrr2, FreezeUMat2D, SetupUMatTransTable
+        use LoggingData, only: tCalcPropEst, iNumPropToEst
+        use UMatCache, only: GTID
+        use global_utilities
+        use sym_mod, only: getsym, SetupFREEZEALLSYM, FREEZESYMLABELS
+        use util_mod, only: NECI_ICOPY
 
-       IMPLICIT NONE
-       INTEGER NHG,NBASIS,nBasisMax(5,*),ISS
-       TYPE(BASISFN) G1(NHG),KSYM
-       HElement_t(dp) UMAT(*)
+        IMPLICIT NONE
+        INTEGER NHG, NBASIS, nBasisMax(5, *), ISS
+        TYPE(BASISFN) G1(NHG), KSYM
+        HElement_t(dp) UMAT(*)
 !!C.. was (NHG/ISS,NHG/ISS,NHG/ISS,NHG/ISS)
-       HElement_t(dp) UMAT2(*)
-       real(dp) ECORE
+        HElement_t(dp) UMAT2(*)
+        real(dp) ECORE
 !!C.. was (NBASIS/ISS,NBASIS/ISS,NBASIS/ISS,NBASIS/ISS)
-       real(dp) ARR2(NBASIS,2)
-       INTEGER NFROZEN,BRR(NHG),BRR2(NBASIS),GG(NHG)
-       TYPE(BASISFN) G2(NHG)
-       INTEGER NTFROZEN,NFROZENIN,NTFROZENIN, frozen_count, list_sz
-       INTEGER BLOCKMINW,BLOCKMAXW,FROZENBELOWW,BLOCKMINY,BLOCKMAXY,FROZENBELOWY
-       INTEGER BLOCKMINX,BLOCKMAXX,FROZENBELOWX,BLOCKMINZ,BLOCKMAXZ,FROZENBELOWZ
-       INTEGER I,J,K,L,A,B,IP,JP,IDI,IDJ,IDK,IDL,W,X,Y,Z
-       INTEGER IB,JB,KB,LB,AB,BB,IPB,JPB,KPB,LPB
-       INTEGER IDIP,IDJP,IDKP,IDLP
-       INTEGER IDA,IDB
-       INTEGER iSize,ierr
-       INTEGER NEL
-       logical :: frozen_occ, frozen_virt
+        real(dp) ARR2(NBASIS, 2)
+        INTEGER NFROZEN, BRR(NHG), BRR2(NBASIS), GG(NHG)
+        TYPE(BASISFN) G2(NHG)
+        INTEGER NTFROZEN, NFROZENIN, NTFROZENIN, frozen_count, list_sz
+        INTEGER BLOCKMINW, BLOCKMAXW, FROZENBELOWW, BLOCKMINY, BLOCKMAXY, FROZENBELOWY
+        INTEGER BLOCKMINX, BLOCKMAXX, FROZENBELOWX, BLOCKMINZ, BLOCKMAXZ, FROZENBELOWZ
+        INTEGER I, J, K, L, A, B, IP, JP, IDI, IDJ, IDK, IDL, W, X, Y, Z
+        INTEGER IB, JB, KB, LB, AB, BB, IPB, JPB, KPB, LPB
+        INTEGER IDIP, IDJP, IDKP, IDLP
+        INTEGER IDA, IDB
+        INTEGER iSize, ierr
+        INTEGER NEL
+        logical :: frozen_occ, frozen_virt
 !       TYPE(Symmetry) KSYM
-       character(*), parameter :: this_routine='IntFreezeBasis'
+        character(*), parameter :: this_routine = 'IntFreezeBasis'
 
 !       IF(tHub.or.tUEG) THEN
 !           CALL Stop_All("IntFreezeBasis","Freezing does not currently work with the hubbard model/UEG.")
-!       ENDIF
+!       end if
 
 !!C.. Just check to see if we're not in the middle of a degenerate set with the same sym
-       IF(NFROZEN.GT.0) THEN
-          IF(ABS(ARR(NFROZEN,1)-ARR(NFROZEN+1,1)).LT.1.0e-6_dp.AND.       &
-   &        G1(BRR(NFROZEN))%SYM%s.EQ.G1(BRR(NFROZEN+1))%SYM%s) THEN
-             call stop_all(this_routine, "Cannot freeze in the middle of a degenerate set")
-          ELSE IF (ABS(ARR(NFROZEN,1)-ARR(NFROZEN+1,1)).LT.1.0e-6_dp) THEN
-             write (6,'(a)') 'WARNING: Freezing in the middle of a degenerate set.'
-             write (6,'(a)') 'This should only be done for debugging purposes.'
-          ENDIF
-       ENDIF
-       IF(NTFROZEN.GT.0) THEN
-          IF(ABS(ARR(NHG-NTFROZEN,1)-ARR(NHG-NTFROZEN+1,1)).LT.1.0e-6_dp  &
-   &         .AND.G1(BRR(NHG-NTFROZEN))%SYM%s                         &
-   &               .EQ.G1(BRR(NHG-NTFROZEN+1))%SYM%s) THEN
-             call stop_all(this_routine, "Cannot freeze in the middle of a degenerate virtual set")
-          ELSE IF (ABS(ARR(NHG-NTFROZEN,1)-ARR(NHG-NTFROZEN+1,1)).LT.1.0e-6_dp) THEN
-             write (6,'(a)') 'WARNING: Freezing in the middle of a degenerate set.'
-             write (6,'(a)') 'This should only be done for debugging purposes.'
-          ENDIF
-       ENDIF
-       IF(NFROZENIN.GT.0) THEN
-          IF(ABS(ARR(NEL-NFROZENIN,1)-ARR(NEL-NFROZENIN+1,1)).LT.1.0e-6_dp.AND.       &
-   &        G1(BRR(NEL-NFROZENIN))%SYM%s.EQ.G1(BRR(NEL-NFROZENIN+1))%SYM%s) THEN
-             call stop_all(this_routine, "Cannot freeze in the middle of a degenerate set")
-          ELSE IF (ABS(ARR(NEL-NFROZENIN,1)-ARR(NEL-NFROZENIN+1,1)).LT.1.0e-6_dp) THEN
-             write (6,'(a)') 'WARNING: Freezing in the middle of a degenerate set.'
-             write (6,'(a)') 'This should only be done for debugging purposes.'
-          ENDIF
-       ENDIF
-       IF(NTFROZENIN.GT.0) THEN
-          IF(ABS(ARR(NEL+NTFROZENIN,1)-ARR(NEL+NTFROZENIN+1,1)).LT.1.0e-6_dp  &
-   &         .AND.G1(BRR(NEL+NTFROZENIN))%SYM%s                         &
-   &               .EQ.G1(BRR(NEL+NTFROZENIN+1))%SYM%s) THEN
-             call stop_all(this_routine, "Cannot freeze in the middle of a degenerate virtual set")
-          ELSE IF (ABS(ARR(NEL+NTFROZENIN,1)-ARR(NEL+NTFROZENIN+1,1)).LT.1.0e-6_dp) THEN
-             write (6,'(a)') 'WARNING: Freezing in the middle of a degenerate set.'
-             write (6,'(a)') 'This should only be done for debugging purposes.'
-          ENDIF
-       ENDIF
-
+        IF(NFROZEN > 0) THEN
+            IF(ABS(ARR(NFROZEN, 1) - ARR(NFROZEN + 1, 1)) < 1.0e-6_dp .AND.       &
+     &        G1(BRR(NFROZEN))%SYM%s == G1(BRR(NFROZEN + 1))%SYM%s) THEN
+                call stop_all(this_routine, "Cannot freeze in the middle of a degenerate set")
+            ELSE IF(ABS(ARR(NFROZEN, 1) - ARR(NFROZEN + 1, 1)) < 1.0e-6_dp) THEN
+                write(stdout, '(a)') 'WARNING: Freezing in the middle of a degenerate set.'
+                write(stdout, '(a)') 'This should only be done for debugging purposes.'
+            end if
+        end if
+        IF(NTFROZEN > 0) THEN
+            IF(ABS(ARR(NHG - NTFROZEN, 1) - ARR(NHG - NTFROZEN + 1, 1)) < 1.0e-6_dp  &
+     &         .AND. G1(BRR(NHG - NTFROZEN))%SYM%s                         &
+     &               == G1(BRR(NHG - NTFROZEN + 1))%SYM%s) THEN
+                call stop_all(this_routine, "Cannot freeze in the middle of a degenerate virtual set")
+            ELSE IF(ABS(ARR(NHG - NTFROZEN, 1) - ARR(NHG - NTFROZEN + 1, 1)) < 1.0e-6_dp) THEN
+                write(stdout, '(a)') 'WARNING: Freezing in the middle of a degenerate set.'
+                write(stdout, '(a)') 'This should only be done for debugging purposes.'
+            end if
+        end if
+        IF(NFROZENIN > 0) THEN
+            IF(ABS(ARR(NEL - NFROZENIN, 1) - ARR(NEL - NFROZENIN + 1, 1)) < 1.0e-6_dp .AND.       &
+     &        G1(BRR(NEL - NFROZENIN))%SYM%s == G1(BRR(NEL - NFROZENIN + 1))%SYM%s) THEN
+                call stop_all(this_routine, "Cannot freeze in the middle of a degenerate set")
+            ELSE IF(ABS(ARR(NEL - NFROZENIN, 1) - ARR(NEL - NFROZENIN + 1, 1)) < 1.0e-6_dp) THEN
+                write(stdout, '(a)') 'WARNING: Freezing in the middle of a degenerate set.'
+                write(stdout, '(a)') 'This should only be done for debugging purposes.'
+            end if
+        end if
+        IF(NTFROZENIN > 0) THEN
+            IF(ABS(ARR(NEL + NTFROZENIN, 1) - ARR(NEL + NTFROZENIN + 1, 1)) < 1.0e-6_dp  &
+     &         .AND. G1(BRR(NEL + NTFROZENIN))%SYM%s                         &
+     &               == G1(BRR(NEL + NTFROZENIN + 1))%SYM%s) THEN
+                call stop_all(this_routine, "Cannot freeze in the middle of a degenerate virtual set")
+            ELSE IF(ABS(ARR(NEL + NTFROZENIN, 1) - ARR(NEL + NTFROZENIN + 1, 1)) < 1.0e-6_dp) THEN
+                write(stdout, '(a)') 'WARNING: Freezing in the middle of a degenerate set.'
+                write(stdout, '(a)') 'This should only be done for debugging purposes.'
+            end if
+        end if
 
 !!C.. At this point, we transform the UMAT and TMAT into a new UMAT and
 !!C.. TMAT and Ecore with the frozen orbitals factored in
@@ -989,59 +987,59 @@ contains
 !!C.. We first need to work out where each of the current orbitals will
 !!C.. end up in the new set
 
-       ! Allocate the frozen orbital list for later use
-       ! n.b. These are for frozen occupied orbs. Frozen virts are chucked.
-       list_sz = nfrozen + nfrozenin !ntfrozen + ntfrozenin
-       if (list_sz /= 0 .or. ntfrozen + ntfrozenin /= 0) then
-           allocate(frozen_orb_list(list_sz), frozen_orb_reverse_map(nbasis), &
-                    stat=ierr)
-           call LogMemAlloc("frozen_orb_list", list_sz, sizeof_int, &
-                            this_routine, tagFrozen)
-           call LogMemAlloc("frozen_orb_reverse_map", nbasis, sizeof_int, &
-                            this_routine, tagFrozenMap)
-       end if
+        ! Allocate the frozen orbital list for later use
+        ! n.b. These are for frozen occupied orbs. Frozen virts are chucked.
+        list_sz = nfrozen + nfrozenin !ntfrozen + ntfrozenin
+        if(list_sz /= 0 .or. ntfrozen + ntfrozenin /= 0) then
+            allocate(frozen_orb_list(list_sz), frozen_orb_reverse_map(nbasis), &
+                     stat=ierr)
+            call LogMemAlloc("frozen_orb_list", list_sz, sizeof_int, &
+                             this_routine, tagFrozen)
+            call LogMemAlloc("frozen_orb_reverse_map", nbasis, sizeof_int, &
+                             this_routine, tagFrozenMap)
+        end if
 
-       K=0
-       frozen_count = 0
-       DO I=1,NHG
-          frozen_occ = .false.
-          frozen_virt = .false.
-          DO J=1,NFROZEN
-              ! if (any(brr(1:nfrozen) == i))
+        K = 0
+        frozen_count = 0
+        DO I = 1, NHG
+            frozen_occ = .false.
+            frozen_virt = .false.
+            DO J = 1, NFROZEN
+                ! if (any(brr(1:nfrozen) == i))
 !C.. if orb I is to be frozen, L will become 0
-             IF(BRR(J).EQ.I) frozen_occ = .true.
-          ENDDO
-          DO J=NEL-NFROZENIN+1,NEL
-             IF(BRR(J).EQ.I) frozen_occ = .true.
-          ENDDO
-          DO J=NEL+1,NEL+NTFROZENIN
-             IF(BRR(J).EQ.I) frozen_virt = .true.
-          ENDDO
-          DO J=NBASIS+NFROZEN+NFROZENIN+NTFROZENIN+1,NHG
+                IF(BRR(J) == I) frozen_occ = .true.
+            end do
+            DO J = NEL - NFROZENIN + 1, NEL
+                IF(BRR(J) == I) frozen_occ = .true.
+            end do
+            DO J = NEL + 1, NEL + NTFROZENIN
+                IF(BRR(J) == I) frozen_virt = .true.
+            end do
+            DO J = NBASIS + NFROZEN + NFROZENIN + NTFROZENIN + 1, NHG
 !C.. if orb I is to be frozen, L will become 0
-             IF(BRR(J).EQ.I) frozen_virt = .true.
-          ENDDO
-          if (frozen_occ) then
-             GG(I) = 0
-             frozen_count = frozen_count + 1
-             frozen_orb_list(frozen_count) = i
-          else if (frozen_virt) then
-             GG(I) = 0
-          ELSE
+                IF(BRR(J) == I) frozen_virt = .true.
+            end do
+            if(frozen_occ) then
+                GG(I) = 0
+                frozen_count = frozen_count + 1
+                frozen_orb_list(frozen_count) = i
+            else if(frozen_virt) then
+                GG(I) = 0
+            ELSE
 !C.. we've got an orb which is not to be frozen
-             K = k + 1
+                K = k + 1
 !C.. GG(I) is the new position in G of the (old) orb I
-             GG(I)=K
+                GG(I) = K
 !C.. copy the eigenvalue table to the new location
-             G2(K)=G1(I)
+                G2(K) = G1(I)
 
-             ! Store the reverse mapping as well
-             frozen_orb_reverse_map(k) = i
-          ENDIF
-       ENDDO
+                ! Store the reverse mapping as well
+                frozen_orb_reverse_map(k) = i
+            end if
+        end do
 
-       if (frozen_count /= list_sz .or. k /= nbasis) &
-           call stop_all(this_routine, 'Incorrect number of orbitals frozen')
+        if(frozen_count /= list_sz .or. k /= nbasis) &
+            call stop_all(this_routine, 'Incorrect number of orbitals frozen')
 
 !C.. Now construct the new BRR and ARR
 !       DO I=1,NBASIS
@@ -1049,488 +1047,485 @@ contains
 !Need to run through the remaining orbitals in 2 lots, the occupied and virtual, because
 !each are being shifted by different amounts.  The occupied are only affected by the low energy
 !frozen orbitals, but the virtuals need to also account for the inner frozen orbitals.
-       DO W=1,2
-          IF(W.eq.1) THEN
-              BLOCKMINW=1
-              BLOCKMAXW=NEL-NFROZEN-NFROZENIN
-              FROZENBELOWW=NFROZEN
-          ELSEIF(W.eq.2) THEN
-              BLOCKMINW=NEL-NFROZEN-NFROZENIN+1
-              BLOCKMAXW=NBASIS
-              FROZENBELOWW=NFROZEN+NFROZENIN+NTFROZENIN
-          ENDIF
-          DO I=BLOCKMINW,BLOCKMAXW
-              BRR2(I)=GG(BRR(I+FROZENBELOWW))
-              ARR2(I,1)=ARR(I+FROZENBELOWW,1)
-          ENDDO
-       ENDDO
+        DO W = 1, 2
+            IF(W == 1) THEN
+                BLOCKMINW = 1
+                BLOCKMAXW = NEL - NFROZEN - NFROZENIN
+                FROZENBELOWW = NFROZEN
+            else if(W == 2) THEN
+                BLOCKMINW = NEL - NFROZEN - NFROZENIN + 1
+                BLOCKMAXW = NBASIS
+                FROZENBELOWW = NFROZEN + NFROZENIN + NTFROZENIN
+            end if
+            DO I = BLOCKMINW, BLOCKMAXW
+                BRR2(I) = GG(BRR(I + FROZENBELOWW))
+                ARR2(I, 1) = ARR(I + FROZENBELOWW, 1)
+            end do
+        end do
 
-       DO I=1,NHG
-          IF(GG(I).NE.0) ARR2(GG(I),2)=ARR(I,2)
-       ENDDO
+        DO I = 1, NHG
+            IF(GG(I) /= 0) ARR2(GG(I), 2) = ARR(I, 2)
+        end do
 
-       CALL SetupTMAT2(NBASIS,2,iSize)
+        CALL SetupTMAT2(NBASIS, 2, iSize)
 
-       if (tCalcPropEst) call SetupPropInts2(NBASIS)
+        if(tCalcPropEst) call SetupPropInts2(NBASIS)
 
 !C.. First deal with Ecore
 !Adding the energy of the occupied orbitals to the core energy.
 !Need to do this for both the low energy frozen and inner frozen orbitals.
-       DO A=1,NFROZEN
-          AB=BRR(A)
-          ! Ecore' = Ecore + sum_a <a|h|a> where a is a frozen spin orbital
-          ! TMATEL is the one electron integrals <a|h|a>.
-          ECORE=ECORE+GetTMATEl(AB,AB)
+        DO A = 1, NFROZEN
+            AB = BRR(A)
+            ! Ecore' = Ecore + sum_a <a|h|a> where a is a frozen spin orbital
+            ! TMATEL is the one electron integrals <a|h|a>.
+            ECORE = ECORE + GetTMATEl(AB, AB)
 
-          ! Ecore' = Ecore + sum a<b (<ab|ab> - <ab|ba>)
-          DO B=A+1,NFROZEN
-             BB=BRR(B)
-             IDA = GTID(AB)
-             IDB = GTID(BB)
+            ! Ecore' = Ecore + sum a<b (<ab|ab> - <ab|ba>)
+            DO B = A + 1, NFROZEN
+                BB = BRR(B)
+                IDA = GTID(AB)
+                IDB = GTID(BB)
 !C.. No sign problems from permuations here as all perms even
-             ECORE=ECORE + get_umat_el(IDA,IDB,IDA,IDB)
+                ECORE = ECORE + get_umat_el(IDA, IDB, IDA, IDB)
 !C.. If we have spin-independent integrals, or
 !C.. if the spins are the same
-             IF(G1(AB)%MS.EQ.G1(BB)%MS)                               &
-   &            ECORE=ECORE - get_umat_el(IDA,IDB,IDB,IDA)
-          ENDDO
+                IF(G1(AB)%MS == G1(BB)%MS)                               &
+      &            ECORE = ECORE - get_umat_el(IDA, IDB, IDB, IDA)
+            end do
 
 !The sum over b runs over all frozen orbitals > a, so the inner frozen orbitals too.
-          DO B=NEL-NFROZENIN+1,NEL
-             BB=BRR(B)
-             IDA = GTID(AB)
-             IDB = GTID(BB)
+            DO B = NEL - NFROZENIN + 1, NEL
+                BB = BRR(B)
+                IDA = GTID(AB)
+                IDB = GTID(BB)
 !C.. No sign problems from permuations here as all perms even
-             ECORE=ECORE + get_umat_el(IDA,IDB,IDA,IDB)
+                ECORE = ECORE + get_umat_el(IDA, IDB, IDA, IDB)
 !C.. If we have spin-independent integrals, or
 !C.. if the spins are the same
-             IF(G1(AB)%MS.EQ.G1(BB)%MS)                               &
-   &            ECORE=ECORE - get_umat_el(IDA,IDB,IDB,IDA)
-          ENDDO
-       ENDDO
+                IF(G1(AB)%MS == G1(BB)%MS)                               &
+      &            ECORE = ECORE - get_umat_el(IDA, IDB, IDB, IDA)
+            end do
+        end do
 
 !Need to also account for when a is the frozen inner orbitals, but b > a, so b only runs over the frozen
 !inner.
-       DO A=NEL-NFROZENIN+1,NEL
-          AB=BRR(A)
-          ECORE=ECORE+GetTMATEl(AB,AB)
-          DO B=A+1,NEL
-             BB=BRR(B)
-             IDA = GTID(AB)
-             IDB = GTID(BB)
+        DO A = NEL - NFROZENIN + 1, NEL
+            AB = BRR(A)
+            ECORE = ECORE + GetTMATEl(AB, AB)
+            DO B = A + 1, NEL
+                BB = BRR(B)
+                IDA = GTID(AB)
+                IDB = GTID(BB)
 !C.. No sign problems from permuations here as all perms even
-             ECORE=ECORE + get_umat_el(IDA,IDB,IDA,IDB)
+                ECORE = ECORE + get_umat_el(IDA, IDB, IDA, IDB)
 !C.. If we have spin-independent integrals, or
 !C.. if the spins are the same
-             IF(G1(AB)%MS.EQ.G1(BB)%MS)                               &
-   &            ECORE=ECORE - get_umat_el(IDA,IDB,IDB,IDA)
-          ENDDO
-       ENDDO
+                IF(G1(AB)%MS == G1(BB)%MS)                               &
+      &            ECORE = ECORE - get_umat_el(IDA, IDB, IDB, IDA)
+            end do
+        end do
 
 ! Now dealing with the zero body part of the property integrals if needed
 
-       IF(tCalcPropEst) then
-          write(iout, *) 'PropCore before freezing:', PropCore
-          DO A=1,NFROZEN
-             AB=BRR(A)
-             ! Ecore' = Ecore + sum_a <a|h|a> where a is a frozen spin orbital
-             ! TMATEL is the one electron integrals <a|h|a>.
-             DO B=1,iNumPropToEst
-                PropCore(B)=PropCore(B)+GetPropIntEl(AB,AB,B)
-                write(iout, *) '1', PropCore(B), AB, B, GetPropIntEl(AB,AB,B)
-             ENDDO
-          ENDDO
+        IF(tCalcPropEst) then
+            write(stdout, *) 'PropCore before freezing:', PropCore
+            DO A = 1, NFROZEN
+                AB = BRR(A)
+                ! Ecore' = Ecore + sum_a <a|h|a> where a is a frozen spin orbital
+                ! TMATEL is the one electron integrals <a|h|a>.
+                DO B = 1, iNumPropToEst
+                    PropCore(B) = PropCore(B) + GetPropIntEl(AB, AB, B)
+                    write(stdout, *) '1', PropCore(B), AB, B, GetPropIntEl(AB, AB, B)
+                end do
+            end do
 
 !Need to also account for when a is the frozen inner orbitals
-          DO A=NEL-NFROZENIN+1,NEL
-             AB=BRR(A)
-             DO B=1,iNumPropToEst
-                PropCore(B)=PropCore(B)+GetPropIntEl(AB,AB,B)
-                write(iout,*) '2', PropCore(B), AB, B, GetPropIntEl(AB,AB,B)
-             ENDDO
-          ENDDO
-          write(iout,*) 'PropCore after freezing:', PropCore
-       ENDIF
-
+            DO A = NEL - NFROZENIN + 1, NEL
+                AB = BRR(A)
+                DO B = 1, iNumPropToEst
+                    PropCore(B) = PropCore(B) + GetPropIntEl(AB, AB, B)
+                    write(stdout, *) '2', PropCore(B), AB, B, GetPropIntEl(AB, AB, B)
+                end do
+            end do
+            write(stdout, *) 'PropCore after freezing:', PropCore
+        end if
 
 !C.. now deal with the new TMAT
-       FREEZETRANSFER=.true.
+        FREEZETRANSFER = .true.
 !First the low energy frozen orbitals.
 
 !t'_ii = t_ii+ sum_a ( <ai|ai> - <ai|ia> )
 !Again need to do this for the remaining occupied, and then the remaining virtual separately.
 !The above i runs over all orbitals, whereas a is only over the occupied virtuals.
-       DO W=1,2
-          IF(W.eq.1) THEN
-              BLOCKMINW=1
-              BLOCKMAXW=NEL-NFROZEN-NFROZENIN
-              FROZENBELOWW=NFROZEN
-          ELSEIF(W.eq.2) THEN
-              BLOCKMINW=NEL-NFROZEN-NFROZENIN+1
-              BLOCKMAXW=NBASIS
-              FROZENBELOWW=NFROZEN+NFROZENIN+NTFROZENIN
-          ENDIF
+        DO W = 1, 2
+            IF(W == 1) THEN
+                BLOCKMINW = 1
+                BLOCKMAXW = NEL - NFROZEN - NFROZENIN
+                FROZENBELOWW = NFROZEN
+            else if(W == 2) THEN
+                BLOCKMINW = NEL - NFROZEN - NFROZENIN + 1
+                BLOCKMAXW = NBASIS
+                FROZENBELOWW = NFROZEN + NFROZENIN + NTFROZENIN
+            end if
 
-          DO I=BLOCKMINW,BLOCKMAXW
-              IP=I+FROZENBELOWW
-              IB=BRR(IP)
-              IPB=GG(IB)
-              IDI = GTID(IB)
+            DO I = BLOCKMINW, BLOCKMAXW
+                IP = I + FROZENBELOWW
+                IB = BRR(IP)
+                IPB = GG(IB)
+                IDI = GTID(IB)
 
 !I and J give the indexes of the TMAT.  This bit accounts for the off-diagonal terms which must be copied accross.
-              DO Y=1,2
-                 IF(Y.eq.1) THEN
-                    BLOCKMINY=1
-                    BLOCKMAXY=NEL-NFROZEN-NFROZENIN
-                    FROZENBELOWY=NFROZEN
-                 ELSEIF(Y.eq.2) THEN
-                    BLOCKMINY=NEL-NFROZEN-NFROZENIN+1
-                    BLOCKMAXY=NBASIS
-                    FROZENBELOWY=NFROZEN+NFROZENIN+NTFROZENIN
-                 ENDIF
+                DO Y = 1, 2
+                    IF(Y == 1) THEN
+                        BLOCKMINY = 1
+                        BLOCKMAXY = NEL - NFROZEN - NFROZENIN
+                        FROZENBELOWY = NFROZEN
+                    else if(Y == 2) THEN
+                        BLOCKMINY = NEL - NFROZEN - NFROZENIN + 1
+                        BLOCKMAXY = NBASIS
+                        FROZENBELOWY = NFROZEN + NFROZENIN + NTFROZENIN
+                    end if
 
-                 DO J=BLOCKMINY,BLOCKMAXY
-                    JP=J+FROZENBELOWY
-                    JB=BRR(JP)
-                    JPB=GG(JB)
-                    IDJ = GTID(JB)
-                    IF(tCPMDSymTMat) THEN
-                       TMATSYM2(NEWTMATInd(IPB,JPB))=GetTMATEl(IB,JB)
-                    ELSE
-                       IF(IPB.eq.0.or.JPB.eq.0) THEN
-!                           WRITE(6,*) 'W',W,'I',I,'J',J,'IPB',IPB,'JPB',JPB
+                    DO J = BLOCKMINY, BLOCKMAXY
+                        JP = J + FROZENBELOWY
+                        JB = BRR(JP)
+                        JPB = GG(JB)
+                        IDJ = GTID(JB)
+                        IF(tCPMDSymTMat) THEN
+                            TMATSYM2(NEWTMATInd(IPB, JPB)) = GetTMATEl(IB, JB)
+                        ELSE
+                            IF(IPB == 0 .or. JPB == 0) THEN
+!                           write(stdout,*) 'W',W,'I',I,'J',J,'IPB',IPB,'JPB',JPB
 !                           CALL neci_flush(6)
 !                           CALL Stop_All("","here 01")
-                       ENDIF
-                       if(tOneElecDiag) then
-                           if((IB.eq.JB).and.(IPB.eq.JPB)) then
-                               TMAT2D2(IPB,1)=GetTMATEl(IB,JB)
-                           endif
-                       else
-                           TMAT2D2(IPB,JPB)=GetTMATEl(IB,JB)
-                       endif
-                    ENDIF
-                    DO A=1,NFROZEN
-                       AB=BRR(A)
-                       IDA = GTID(AB)
+                            end if
+                            if(tOneElecDiag) then
+                                if((IB == JB) .and. (IPB == JPB)) then
+                                    TMAT2D2(IPB, 1) = GetTMATEl(IB, JB)
+                                end if
+                            else
+                                TMAT2D2(IPB, JPB) = GetTMATEl(IB, JB)
+                            end if
+                        end if
+                        DO A = 1, NFROZEN
+                            AB = BRR(A)
+                            IDA = GTID(AB)
 !C.. SGN takes into account permutationnness.
 !C                SGN=1
 !C                IF(IB.GT.AB) SGN=-SGN
 !C                IF(JB.GT.AB) SGN=-SGN
-                       IF(G1(IB)%MS.EQ.G1(JB)%MS) THEN
-                          IF(tCPMDSymTMat) THEN
-                             TMATSYM2(NEWTMATInd(IPB,JPB))=                  &
-   &                         GetNEWTMATEl(IPB,JPB) + get_umat_el(IDA,IDI,IDA,IDJ)
-                          ELSE
+                            IF(G1(IB)%MS == G1(JB)%MS) THEN
+                                IF(tCPMDSymTMat) THEN
+                                    TMATSYM2(NEWTMATInd(IPB, JPB)) =                  &
+          &                         GetNEWTMATEl(IPB, JPB) + get_umat_el(IDA, IDI, IDA, IDJ)
+                                ELSE
 !                             IF(IPB.eq.0.or.JPB.eq.0) CALL Stop_All("","here 02")
-                             if(tOneElecDiag) then
-                                 if(IPB.eq.JPB) then
-                                     TMAT2D2(IPB,1)=TMAT2D2(IPB,1) + get_umat_el(IDA,IDI,IDA,IDJ)
-                                 else
-                                     if(abs(get_umat_el(IDA,IDI,IDA,IDJ)).gt.1.0e-8_dp) then
-                                         call stop_all("","Error here in freezing for UEG")
-                                     endif
-                                 endif
-                             else
-                                 TMAT2D2(IPB,JPB)=TMAT2D2(IPB,JPB) + get_umat_el(IDA,IDI,IDA,IDJ)
-                             endif
-                          ENDIF
-                       ENDIF
+                                    if(tOneElecDiag) then
+                                        if(IPB == JPB) then
+                                            TMAT2D2(IPB, 1) = TMAT2D2(IPB, 1) + get_umat_el(IDA, IDI, IDA, IDJ)
+                                        else
+                                            if(abs(get_umat_el(IDA, IDI, IDA, IDJ)) > 1.0e-8_dp) then
+                                                call stop_all("", "Error here in freezing for UEG")
+                                            end if
+                                        end if
+                                    else
+                                        TMAT2D2(IPB, JPB) = TMAT2D2(IPB, JPB) + get_umat_el(IDA, IDI, IDA, IDJ)
+                                    end if
+                                end if
+                            end if
 !C.. If we have spin-independent integrals, ISS.EQ.2.OR
 !C.. if the spins are the same
-                       IF(G1(IB)%MS.EQ.G1(AB)%MS.AND.G1(AB)%MS.EQ.G1(JB)%MS) THEN
-                          IF(tCPMDSymTMat) THEN
-                             TMATSYM2(NEWTMATInd(IPB,JPB))=GetNEWTMATEl(IPB,JPB) &
-   &                          - get_umat_el(IDA,IDI,IDJ,IDA)
-                          ELSE
-                              if(tOneElecDiag) then
-                                  if(IPB.eq.JPB) then
-                                      TMAT2D2(IPB,1)=GetNEWTMATEl(IPB,JPB)              &
-   &                                   - get_umat_el(IDA,IDI,IDJ,IDA)
-                                  else
-                                      if(abs(get_umat_el(IDA,IDI,IDJ,IDA)).gt.1.0e-8_dp) then
-                                         call stop_all("","Error here in freezing for UEG")
-                                      endif
-                                  endif
-                              else
-    !                             IF(IPB.eq.0.or.JPB.eq.0) CALL Stop_All("","here 03")
-                                 TMAT2D2(IPB,JPB)=GetNEWTMATEl(IPB,JPB)              &
-   &                              - get_umat_el(IDA,IDI,IDJ,IDA)
-                              endif
-                          ENDIF
-                       ENDIF
-                    ENDDO
-                    DO A=NEL-NFROZENIN+1,NEL
-                       AB=BRR(A)
-                       IDA = GTID(AB)
+                            IF(G1(IB)%MS == G1(AB)%MS .AND. G1(AB)%MS == G1(JB)%MS) THEN
+                                IF(tCPMDSymTMat) THEN
+                                    TMATSYM2(NEWTMATInd(IPB, JPB)) = GetNEWTMATEl(IPB, JPB) &
+          &                          - get_umat_el(IDA, IDI, IDJ, IDA)
+                                ELSE
+                                    if(tOneElecDiag) then
+                                        if(IPB == JPB) then
+                                            TMAT2D2(IPB, 1) = GetNEWTMATEl(IPB, JPB)              &
+         &                                   - get_umat_el(IDA, IDI, IDJ, IDA)
+                                        else
+                                            if(abs(get_umat_el(IDA, IDI, IDJ, IDA)) > 1.0e-8_dp) then
+                                                call stop_all("", "Error here in freezing for UEG")
+                                            end if
+                                        end if
+                                    else
+                                        !                             IF(IPB.eq.0.or.JPB.eq.0) CALL Stop_All("","here 03")
+                                        TMAT2D2(IPB, JPB) = GetNEWTMATEl(IPB, JPB)              &
+          &                              - get_umat_el(IDA, IDI, IDJ, IDA)
+                                    end if
+                                end if
+                            end if
+                        end do
+                        DO A = NEL - NFROZENIN + 1, NEL
+                            AB = BRR(A)
+                            IDA = GTID(AB)
 !C.. SGN takes into account permutationnness.
 !C                SGN=1
 !C                IF(IB.GT.AB) SGN=-SGN
 !C                IF(JB.GT.AB) SGN=-SGN
-                       IF(G1(IB)%MS.EQ.G1(JB)%MS) THEN
-                          IF(tCPMDSymTMat) THEN
-                             TMATSYM2(NEWTMATInd(IPB,JPB))=                  &
-   &                         GetNEWTMATEl(IPB,JPB) + get_umat_el(IDA,IDI,IDA,IDJ)
-                          ELSE
-                              if(tOneElecDiag) then
-                                  if(IPB.eq.JPB) then
-                                     TMAT2D2(IPB,1)=TMAT2D2(IPB,1) + get_umat_el(IDA,IDI,IDA,IDJ)
-                                 else
-                                     if(abs(get_umat_el(IDA,IDI,IDA,IDJ)).gt.1.0e-8_dp) then
-                                         call stop_all("","Error here in freezing for UEG")
-                                     endif
-                                 endif
-                              else
+                            IF(G1(IB)%MS == G1(JB)%MS) THEN
+                                IF(tCPMDSymTMat) THEN
+                                    TMATSYM2(NEWTMATInd(IPB, JPB)) =                  &
+          &                         GetNEWTMATEl(IPB, JPB) + get_umat_el(IDA, IDI, IDA, IDJ)
+                                ELSE
+                                    if(tOneElecDiag) then
+                                        if(IPB == JPB) then
+                                            TMAT2D2(IPB, 1) = TMAT2D2(IPB, 1) + get_umat_el(IDA, IDI, IDA, IDJ)
+                                        else
+                                            if(abs(get_umat_el(IDA, IDI, IDA, IDJ)) > 1.0e-8_dp) then
+                                                call stop_all("", "Error here in freezing for UEG")
+                                            end if
+                                        end if
+                                    else
 !                                 IF(IPB.eq.0.or.JPB.eq.0) CALL Stop_All("","here 04")
-                                 TMAT2D2(IPB,JPB)=TMAT2D2(IPB,JPB) + get_umat_el(IDA,IDI,IDA,IDJ)
-                             endif
-                          ENDIF
-                       ENDIF
+                                        TMAT2D2(IPB, JPB) = TMAT2D2(IPB, JPB) + get_umat_el(IDA, IDI, IDA, IDJ)
+                                    end if
+                                end if
+                            end if
 !C.. If we have spin-independent integrals, ISS.EQ.2.OR
 !C.. if the spins are the same
-                       IF(G1(IB)%MS.EQ.G1(AB)%MS.AND.G1(AB)%MS.EQ.G1(JB)%MS) THEN
-                          IF(tCPMDSymTMat) THEN
-                             TMATSYM2(NEWTMATInd(IPB,JPB))=GetNEWTMATEl(IPB,JPB) &
-   &                          - get_umat_el(IDA,IDI,IDJ,IDA)
-                          ELSE
-                              if(tOneElecDiag) then
-                                  if(IPB.eq.JPB) then
-                                     TMAT2D2(IPB,1)=GetNEWTMATEl(IPB,JPB)              &
-   &                                  - get_umat_el(IDA,IDI,IDJ,IDA)
-                                  else
-                                      if(abs(get_umat_el(IDA,IDI,IDJ,IDA)).gt.1.0e-8_dp) then
-                                         call stop_all("","Error here in freezing for UEG")
-                                      endif
-                                  endif
-                              else
+                            IF(G1(IB)%MS == G1(AB)%MS .AND. G1(AB)%MS == G1(JB)%MS) THEN
+                                IF(tCPMDSymTMat) THEN
+                                    TMATSYM2(NEWTMATInd(IPB, JPB)) = GetNEWTMATEl(IPB, JPB) &
+          &                          - get_umat_el(IDA, IDI, IDJ, IDA)
+                                ELSE
+                                    if(tOneElecDiag) then
+                                        if(IPB == JPB) then
+                                            TMAT2D2(IPB, 1) = GetNEWTMATEl(IPB, JPB)              &
+          &                                  - get_umat_el(IDA, IDI, IDJ, IDA)
+                                        else
+                                            if(abs(get_umat_el(IDA, IDI, IDJ, IDA)) > 1.0e-8_dp) then
+                                                call stop_all("", "Error here in freezing for UEG")
+                                            end if
+                                        end if
+                                    else
 !                                 IF(IPB.eq.0.or.JPB.eq.0) CALL Stop_All("","here 05")
-                                 TMAT2D2(IPB,JPB)=GetNEWTMATEl(IPB,JPB)              &
-   &                              - get_umat_el(IDA,IDI,IDJ,IDA)
-                              endif
-                          ENDIF
-                       ENDIF
-                    ENDDO
-!             WRITE(6,*) "T",TMAT(IB,JB),I,J,TMAT2(IPB,JPB)
-!          IF(abs(TMAT(IPB,JPB)).gt.1.0e-9_dp) WRITE(16,*) I,J,TMAT2(IPB,JPB)
-                 ENDDO
-             ENDDO
-          ENDDO
-       ENDDO
+                                        TMAT2D2(IPB, JPB) = GetNEWTMATEl(IPB, JPB)              &
+          &                              - get_umat_el(IDA, IDI, IDJ, IDA)
+                                    end if
+                                end if
+                            end if
+                        end do
+!             write(stdout,*) "T",TMAT(IB,JB),I,J,TMAT2(IPB,JPB)
+!          IF(abs(TMAT(IPB,JPB)).gt.1.0e-9_dp) write(16,*) I,J,TMAT2(IPB,JPB)
+                    end do
+                end do
+            end do
+        end do
 
 ! Reorganize the one-body integrals, no corrections are needed for the one-body integrals of the property integrals as long as corresponding pertubation operator does not have any two-body components.
 
-       IF (tCalcPropEst) then
+        IF(tCalcPropEst) then
 
-          DO W=1,2
-             IF(W.eq.1) THEN
-                 BLOCKMINW=1
-                 BLOCKMAXW=NEL-NFROZEN-NFROZENIN
-                 FROZENBELOWW=NFROZEN
-             ELSEIF(W.eq.2) THEN
-                 BLOCKMINW=NEL-NFROZEN-NFROZENIN+1
-                 BLOCKMAXW=NBASIS
-                 FROZENBELOWW=NFROZEN+NFROZENIN+NTFROZENIN
-             ENDIF
+            DO W = 1, 2
+                IF(W == 1) THEN
+                    BLOCKMINW = 1
+                    BLOCKMAXW = NEL - NFROZEN - NFROZENIN
+                    FROZENBELOWW = NFROZEN
+                else if(W == 2) THEN
+                    BLOCKMINW = NEL - NFROZEN - NFROZENIN + 1
+                    BLOCKMAXW = NBASIS
+                    FROZENBELOWW = NFROZEN + NFROZENIN + NTFROZENIN
+                end if
 
-             DO I=BLOCKMINW,BLOCKMAXW
-                 IP=I+FROZENBELOWW
-                 IB=BRR(IP)
-                 IPB=GG(IB)
+                DO I = BLOCKMINW, BLOCKMAXW
+                    IP = I + FROZENBELOWW
+                    IB = BRR(IP)
+                    IPB = GG(IB)
 
-                 DO Y=1,2
-                    IF(Y.eq.1) THEN
-                       BLOCKMINY=1
-                       BLOCKMAXY=NEL-NFROZEN-NFROZENIN
-                       FROZENBELOWY=NFROZEN
-                    ELSEIF(Y.eq.2) THEN
-                       BLOCKMINY=NEL-NFROZEN-NFROZENIN+1
-                       BLOCKMAXY=NBASIS
-                       FROZENBELOWY=NFROZEN+NFROZENIN+NTFROZENIN
-                    ENDIF
+                    DO Y = 1, 2
+                        IF(Y == 1) THEN
+                            BLOCKMINY = 1
+                            BLOCKMAXY = NEL - NFROZEN - NFROZENIN
+                            FROZENBELOWY = NFROZEN
+                        else if(Y == 2) THEN
+                            BLOCKMINY = NEL - NFROZEN - NFROZENIN + 1
+                            BLOCKMAXY = NBASIS
+                            FROZENBELOWY = NFROZEN + NFROZENIN + NTFROZENIN
+                        end if
 
-                    DO J=BLOCKMINY,BLOCKMAXY
-                       JP=J+FROZENBELOWY
-                       JB=BRR(JP)
-                       JPB=GG(JB)
-                       IF(tCPMDSymTMat) THEN
-                           call stop_all("IntFreezeBasis","Not implemented for tCPMD")
-                       ELSE
+                        DO J = BLOCKMINY, BLOCKMAXY
+                            JP = J + FROZENBELOWY
+                            JB = BRR(JP)
+                            JPB = GG(JB)
+                            IF(tCPMDSymTMat) THEN
+                                call stop_all("IntFreezeBasis", "Not implemented for tCPMD")
+                            ELSE
 !                         IF(IPB.eq.0.or.JPB.eq.0) THEN
-!                              WRITE(6,*) 'W',W,'I',I,'J',J,'IPB',IPB,'JPB',JPB
+!                              write(stdout,*) 'W',W,'I',I,'J',J,'IPB',IPB,'JPB',JPB
 !                              CALL neci_flush(6)
 !                              CALL Stop_All("","here 01")
-!                         ENDIF
-                          if(tOneElecDiag) then
-                             call stop_all("IntFreezeBasis","Not implemented for tOneElecDiag")
-                          else
-                             OneEPropInts2(IPB,JPB,:)=OneEPropInts(IB,JB,:)
-                          endif
-                       ENDIF
-!             WRITE(6,*) "T",TMAT(IB,JB),I,J,TMAT2(IPB,JPB)
-!          IF(abs(TMAT(IPB,JPB)).gt.1.0e-9_dp) WRITE(16,*) I,J,TMAT2(IPB,JPB)
-                    ENDDO
-                ENDDO
-             ENDDO
-          ENDDO
-       ENDIF
+!                         end if
+                                if(tOneElecDiag) then
+                                    call stop_all("IntFreezeBasis", "Not implemented for tOneElecDiag")
+                                else
+                                    OneEPropInts2(IPB, JPB, :) = OneEPropInts(IB, JB, :)
+                                end if
+                            end if
+!             write(stdout,*) "T",TMAT(IB,JB),I,J,TMAT2(IPB,JPB)
+!          IF(abs(TMAT(IPB,JPB)).gt.1.0e-9_dp) write(16,*) I,J,TMAT2(IPB,JPB)
+                        end do
+                    end do
+                end do
+            end do
+        end if
 
-       IF(NBASISMAX(1,3).GE.0.AND.ISS.NE.0) THEN
+        IF(NBASISMAX(1, 3) >= 0 .AND. ISS /= 0) THEN
 
 !CC Only do the below if we've a stored UMAT
 !C.. Now copy the relevant matrix elements of UMAT across
 !C.. the primed (...P) are the new versions
-          DO W=1,2
-              IF(W.eq.1) THEN
-                  BLOCKMINW=1
-                  BLOCKMAXW=NEL-NFROZEN-NFROZENIN
-                  FROZENBELOWW=NFROZEN
-              ELSEIF(W.eq.2) THEN
-                  BLOCKMINW=NEL-NFROZEN-NFROZENIN+1
-                  BLOCKMAXW=NBASIS
-                  FROZENBELOWW=NFROZEN+NFROZENIN+NTFROZENIN
-              ENDIF
-              DO I=BLOCKMINW,BLOCKMAXW
-                 IB=BRR(I+FROZENBELOWW)
-                 IPB=GG(IB)
-                 IF(ISS.NE.0.OR.G1(I)%MS.EQ.1) THEN
-                    IDI = GTID(IB)
-                    IDIP = GTID(IPB)
-                    DO X=1,2
-                      IF(X.eq.1) THEN
-                         BLOCKMINX=1
-                         BLOCKMAXX=NEL-NFROZEN-NFROZENIN
-                         FROZENBELOWX=NFROZEN
-                      ELSEIF(X.eq.2) THEN
-                         BLOCKMINX=NEL-NFROZEN-NFROZENIN+1
-                         BLOCKMAXX=NBASIS
-                         FROZENBELOWX=NFROZEN+NFROZENIN+NTFROZENIN
-                      ENDIF
-                      DO J=BLOCKMINX,BLOCKMAXX
-                          JB=BRR(J+FROZENBELOWX)
-                          JPB=GG(JB)
-                          IF(ISS.NE.0.OR.G1(I)%MS.EQ.1) THEN
-                             IDJ = GTID(JB)
-                             IDJP = GTID(JPB)
-                             DO Y=1,2
-                                 IF(Y.eq.1) THEN
-                                    BLOCKMINY=1
-                                    BLOCKMAXY=NEL-NFROZEN-NFROZENIN
-                                    FROZENBELOWY=NFROZEN
-                                 ELSEIF(Y.eq.2) THEN
-                                    BLOCKMINY=NEL-NFROZEN-NFROZENIN+1
-                                    BLOCKMAXY=NBASIS
-                                    FROZENBELOWY=NFROZEN+NFROZENIN+NTFROZENIN
-                                 ENDIF
-                                 DO K=BLOCKMINY,BLOCKMAXY
-                                    KB=BRR(K+FROZENBELOWY)
-                                    KPB=GG(KB)
-                                    IF(ISS.NE.0.OR.G1(I)%MS.EQ.1) THEN
-                                       IDK = GTID(KB)
-                                       IDKP = GTID(KPB)
-                                       DO Z=1,2
-                                         IF(Z.eq.1) THEN
-                                            BLOCKMINZ=1
-                                            BLOCKMAXZ=NEL-NFROZEN-NFROZENIN
-                                            FROZENBELOWZ=NFROZEN
-                                         ELSEIF(Z.eq.2) THEN
-                                            BLOCKMINZ=NEL-NFROZEN-NFROZENIN+1
-                                            BLOCKMAXZ=NBASIS
-                                            FROZENBELOWZ=NFROZEN+NFROZENIN+NTFROZENIN
-                                         ENDIF
-                                         DO L=BLOCKMINZ,BLOCKMAXZ
-                                              IF((K*(K-1))/2+I.GE.(L*(L-1))/2+J) THEN
-                                                 LB=BRR(L+FROZENBELOWZ)
-                                                 LPB=GG(LB)
-                                                 IF(ISS.NE.0.OR.G1(I)%MS.EQ.1) THEN
-                                                    IDL = GTID(LB)
-                                                    IDLP = GTID(LPB)
-                                                    UMAT2(UMatInd(IDIP,IDJP,IDKP,IDLP)) = &
-                   &                                             UMAT(UMatInd(IDI,IDJ,IDK,IDL))
-                                                 ENDIF
-                                              ENDIF
-                                         ENDDO
-                                       ENDDO
-                                    ENDIF
-                                 ENDDO
-                             ENDDO
-                          ENDIF
-                      ENDDO
-                    ENDDO
-                 ENDIF
-              ENDDO
-          ENDDO
-          CALL neci_flush(11)
-          CALL neci_flush(12)
+            DO W = 1, 2
+                IF(W == 1) THEN
+                    BLOCKMINW = 1
+                    BLOCKMAXW = NEL - NFROZEN - NFROZENIN
+                    FROZENBELOWW = NFROZEN
+                ELSEIF(W == 2) THEN
+                    BLOCKMINW = NEL - NFROZEN - NFROZENIN + 1
+                    BLOCKMAXW = NBASIS
+                    FROZENBELOWW = NFROZEN + NFROZENIN + NTFROZENIN
+                ENDIF
+                DO I = BLOCKMINW, BLOCKMAXW
+                    IB = BRR(I + FROZENBELOWW)
+                    IPB = GG(IB)
+                    IF(ISS /= 0 .OR. G1(I)%MS == 1) THEN
+                        IDI = GTID(IB)
+                        IDIP = GTID(IPB)
+                        DO X = 1, 2
+                            IF(X == 1) THEN
+                                BLOCKMINX = 1
+                                BLOCKMAXX = NEL - NFROZEN - NFROZENIN
+                                FROZENBELOWX = NFROZEN
+                            ELSEIF(X == 2) THEN
+                                BLOCKMINX = NEL - NFROZEN - NFROZENIN + 1
+                                BLOCKMAXX = NBASIS
+                                FROZENBELOWX = NFROZEN + NFROZENIN + NTFROZENIN
+                            ENDIF
+                            DO J = BLOCKMINX, BLOCKMAXX
+                                JB = BRR(J + FROZENBELOWX)
+                                JPB = GG(JB)
+                                IF(ISS /= 0 .OR. G1(I)%MS == 1) THEN
+                                    IDJ = GTID(JB)
+                                    IDJP = GTID(JPB)
+                                    DO Y = 1, 2
+                                        IF(Y == 1) THEN
+                                            BLOCKMINY = 1
+                                            BLOCKMAXY = NEL - NFROZEN - NFROZENIN
+                                            FROZENBELOWY = NFROZEN
+                                        ELSEIF(Y == 2) THEN
+                                            BLOCKMINY = NEL - NFROZEN - NFROZENIN + 1
+                                            BLOCKMAXY = NBASIS
+                                            FROZENBELOWY = NFROZEN + NFROZENIN + NTFROZENIN
+                                        ENDIF
+                                        DO K = BLOCKMINY, BLOCKMAXY
+                                            KB = BRR(K + FROZENBELOWY)
+                                            KPB = GG(KB)
+                                            IF(ISS /= 0 .OR. G1(I)%MS == 1) THEN
+                                                IDK = GTID(KB)
+                                                IDKP = GTID(KPB)
+                                                DO Z = 1, 2
+                                                    IF(Z == 1) THEN
+                                                        BLOCKMINZ = 1
+                                                        BLOCKMAXZ = NEL - NFROZEN - NFROZENIN
+                                                        FROZENBELOWZ = NFROZEN
+                                                    ELSEIF(Z == 2) THEN
+                                                        BLOCKMINZ = NEL - NFROZEN - NFROZENIN + 1
+                                                        BLOCKMAXZ = NBASIS
+                                                        FROZENBELOWZ = NFROZEN + NFROZENIN + NTFROZENIN
+                                                    ENDIF
+                                                    DO L = BLOCKMINZ, BLOCKMAXZ
+                                                        IF((K * (K - 1)) / 2 + I >= (L * (L - 1)) / 2 + J) THEN
+                                                            LB = BRR(L + FROZENBELOWZ)
+                                                            LPB = GG(LB)
+                                                            IF(ISS /= 0 .OR. G1(I)%MS == 1) THEN
+                                                                IDL = GTID(LB)
+                                                                IDLP = GTID(LPB)
+                                                                UMAT2(UMat2Ind(IDIP, IDJP, IDKP, IDLP)) = &
+                                                             &                                             UMAT(UMatInd(IDI, IDJ, IDK, IDL))
+                                                            ENDIF
+                                                        ENDIF
+                                                    ENDDO
+                                                ENDDO
+                                            ENDIF
+                                        ENDDO
+                                    ENDDO
+                                ENDIF
+                            ENDDO
+                        ENDDO
+                    ENDIF
+                ENDDO
+            ENDDO
+            CALL neci_flush(11)
+            CALL neci_flush(12)
 
-       ELSEIF(Associated(UMatCacheData)) THEN
+        ELSEIF(Associated(UMatCacheData)) THEN
 !.. We've a UMAT2D and a UMATCACHE.  Go and Freeze them
 !C.. NHG contains the old number of orbitals
 !C.. NBASIS contains the new
 !C.. GG(I) is the new position in G of the (old) orb I
-          CALL FreezeUMatCache(GG,NHG,NBASIS)
-       ENDIF
-       IF(ISS.EQ.0) CALL SetupUMatTransTable(GG,nHG,nBasis)
+            CALL FreezeUMatCache(GG, NHG, NBASIS)
+        end if
+        IF(ISS == 0) CALL SetupUMatTransTable(GG, nHG, nBasis)
 
 !       do i=1,NBASIS
-!           WRITE(6,*) i,G2(i)%Sym%S
-!       enddo
+!           write(stdout,*) i,G2(i)%Sym%S
+!       end do
 
-       IF(NFROZENIN.gt.0) THEN
+        IF(NFROZENIN > 0) THEN
 !             CALL GETSYM(BRR,NFROZEN,BRR((NEL-NFROZENIN+1):NEL),G1,NBASISMAX,KSym)
 !This is slightly dodgey... I have commented out the above routine that finds the symmetry of the frozen orbitals.
 !There is already a test to check we are not freezing in the middle of degenracies, so the symmetry should always come
 !out as 0 anyway, unless we are breaking up a set of symmetry irreps somehow ... I think.
-          WRITE(6,*) "WARNING: Setting the symmetry of the frozen orbitals to 0. This will be incorrect &
-                     &if orbitals are frozen in the middle of a degenerate set of the same symmetery irrep."
-          KSym%Sym%S=0
-          CALL SetupFREEZEALLSYM(KSym)
-       ELSEIF(NFROZEN>0) THEN
-          CALL GETSYM(BRR,NFROZEN,G1,NBASISMAX,KSym)
-!              WRITE(6,*) '************'
-!              WRITE(6,*) 'KSym',KSym
-          CALL SetupFREEZEALLSYM(KSym)
-       END IF
-       CALL FREEZESYMLABELS(NHG,NBASIS,GG,.false.)
-       do i=1,NBASIS
-           G1(i)=G2(i)
-       enddo
+            write(stdout, *) "WARNING: Setting the symmetry of the frozen orbitals to 0. This will be incorrect &
+                       &if orbitals are frozen in the middle of a degenerate set of the same symmetery irrep."
+            KSym%Sym%S = 0
+            CALL SetupFREEZEALLSYM(KSym)
+        else if(NFROZEN > 0) THEN
+            CALL GETSYM(BRR, NFROZEN, G1, NBASISMAX, KSym)
+!              write(stdout,*) '************'
+!              write(stdout,*) 'KSym',KSym
+            CALL SetupFREEZEALLSYM(KSym)
+        END IF
+        CALL FREEZESYMLABELS(NHG, NBASIS, GG, .false.)
+        do i = 1, NBASIS
+            G1(i) = G2(i)
+        end do
 
-       FREEZETRANSFER=.false.
+        FREEZETRANSFER = .false.
 !C.. Copy the new BRR and ARR over the old ones
-       CALL SWAPTMAT()
-       IF(tCalcPropEst) call SwapOneEPropInts(nBasis,iNumPropToEst)
+        CALL SWAPTMAT()
+        IF(tCalcPropEst) call SwapOneEPropInts(nBasis, iNumPropToEst)
 
-       deallocate(arr)
-       LogDealloc(tagarr)
-       allocate(arr(nBasis,2),stat=ierr)
-       LogAlloc(ierr,'Arr',2*nBasis,8,tagArr)
+        deallocate(arr)
+        LogDealloc(tagarr)
+        allocate(arr(nBasis, 2), stat=ierr)
+        LogAlloc(ierr, 'Arr', 2 * nBasis, 8, tagArr)
 
-       CALL NECI_ICOPY(NBASIS,BRR2,1,BRR,1)
-       CALL DCOPY(NBASIS*2,ARR2,1,ARR,1)
+        CALL NECI_ICOPY(NBASIS, BRR2, 1, BRR, 1)
+        CALL DCOPY(NBASIS * 2, ARR2, 1, ARR, 1)
 !C.. Now reset the total number of orbitals
-       NHG=NBASIS
-       Call DetFreezeBasis(GG)
+        NHG = NBASIS
+        Call DetFreezeBasis(GG)
 
-       RETURN
+        RETURN
     end subroutine intfreezebasis
 
+    function GetUMatEl2(I, J, A, B)
+        ! A wrapper for GetUMatEl, now everything is available via modules.
+        ! In:
+        !    I,J,A,B: indices of integral.  These are in spin indices in
+        !    unrestricted calculations and spatial indices in restricted.
+        ! Returns <ij|ab>
+        implicit none
+        HElement_t(dp) GetUMatEl2
+        integer :: I, J, A, B
 
-
-    function GetUMatEl2(I,J,A,B)
-       ! A wrapper for GetUMatEl, now everything is available via modules.
-       ! In:
-       !    I,J,A,B: indices of integral.  These are in spin indices in
-       !    unrestricted calculations and spatial indices in restricted.
-       ! Returns <ij|ab>
-       implicit none
-       HElement_t(dp) GetUMatEl2
-       integer :: I,J,A,B
-
-       GetUMatEl2 = get_umat_el(I,J,A,B)
+        GetUMatEl2 = get_umat_el(I, J, A, B)
 
     end function GetUMatEl2
 
-    subroutine init_getumatel_fn_pointers ()
+    subroutine init_getumatel_fn_pointers()
 
         use SystemData, only: t_k_space_hubbard
         use k_space_hubbard, only: get_umat_kspace
@@ -1538,17 +1533,17 @@ contains
 
         integer :: iss
 
-        if (t_new_hubbard) then
-            if (t_k_space_hubbard) then
+        if(t_new_hubbard) then
+            if(t_k_space_hubbard) then
                 get_umat_el => get_umat_kspace
             else
                 get_umat_el => get_umat_el_hub
             end if
         else
-            if (nBasisMax(1,3) >= 0) then
+            if(nBasisMax(1, 3) >= 0) then
                 ! This is a hack. iss is not what it should be. grr.
-                iss = nBasisMax(2,3)
-                if (iss == 0) then
+                iss = nBasisMax(2, 3)
+                if(iss == 0) then
                     ! Store <ij|ij> and <ij|ji> in umat2d.
                     ! n.b. <ij|jk> == <ii|jj>
                     !
@@ -1561,71 +1556,71 @@ contains
                     !         symmetry. It can be complex.
                     ! If orbitals are real, we substitute <ij|ij> for <ii|jj>
 
-                    if (tumat2d) then
+                    if(tumat2d) then
                         ! call umat2d routine
                         get_umat_el => get_umat_el_tumat2d
                     else
                         ! see if in the cache. This is the fallback if ids are
                         ! such that umat2d canot be used anyway.
                         get_umat_el => get_umat_el_cache
-                    endif
-                else if (iss == -1) then
+                    end if
+                else if(iss == -1) then
                     ! Non-stored hubbard integral
-                    if (t_k_space_hubbard) then
+                    if(t_k_space_hubbard) then
                         get_umat_el => get_umat_kspace
                     else
                         get_umat_el => get_hub_umat_el
                     end if
 
                 else
-                    write (6, '(" Setting normal GetUMatEl routine")')
+                    write(stdout, '(" Setting normal GetUMatEl routine")')
                     get_umat_el => get_umat_el_normal
-                endif
-            else if (nBasisMax(1,3) == -1) then
+                end if
+            else if(nBasisMax(1, 3) == -1) then
                 ! UEG integral
-                if (tContact) then
-                       get_umat_el => get_contact_umat_el
+                if(tContact) then
+                    get_umat_el => get_contact_umat_el
                 else
-                       get_umat_el => get_ueg_umat_el
-                endif
-            endif
+                    get_umat_el => get_ueg_umat_el
+                end if
+            end if
         end if
 
         ! Note that this comes AFTER the above tests
         ! --> the tfixlz case is earlier in the list and will therefore be
         !     executed first.
-        if (tFixLz) then
-            if (tStoreSpinOrbs) then
-                write (6, '(" Setting GetUmatEl to use fixed lz with &
+        if(tFixLz) then
+            if(tStoreSpinOrbs) then
+                write(stdout, '(" Setting GetUmatEl to use fixed lz with &
                             &tStoreSpinOrbs set")')
                 get_umat_el_secondary => get_umat_el
                 get_umat_el => get_umat_el_fixlz_storespinorbs
             else
-                write (6, '(" Setting GetUmatEl to use fixed lz without &
+                write(stdout, '(" Setting GetUmatEl to use fixed lz without &
                             &tStoreSpinOrbs set")')
                 get_umat_el_secondary => get_umat_el
                 get_umat_el => get_umat_el_fixlz_notspinorbs
-            endif
-        endif
+            end if
+        end if
 
         !If we have complex orbitals (i.e. k-point symmetry), but real integrals, we need to check
         !the symmetry before looking up the integral. This is because there is only 4x permutational
         !symmetry, and one version will be zero, while the other is non-zero
         if(tComplexOrbs_RealInts) then
             if(tStoreSpinOrbs) then
-                write(6,'("Setting GetUMatEl to use momentum checking with spinorbital storage")')
+                write(stdout, '("Setting GetUMatEl to use momentum checking with spinorbital storage")')
                 get_umat_el_secondary => get_umat_el
                 get_umat_el => get_umat_el_comporb_spinorbs
             else
-                write(6,'("Setting GetUMatEl to use momentum checking without spinorbital storage")')
+                write(stdout, '("Setting GetUMatEl to use momentum checking without spinorbital storage")')
                 get_umat_el_secondary => get_umat_el
                 get_umat_el => get_umat_el_comporb_notspinorbs
-            endif
-        endif
+            end if
+        end if
 
     end subroutine
 
-    function get_umat_el_tumat2d (idi, idj, idk, idl) result (hel)
+    function get_umat_el_tumat2d(idi, idj, idk, idl) result(hel)
 
         ! Obtains the Coulomb integral <ij|kl>.
 
@@ -1644,34 +1639,34 @@ contains
         integer :: i, j
         HElement_t(dp) :: hel
 
-        if ( (idi == idj) .and. (idi == idk) .and. (idi == idl) ) then
+        if((idi == idj) .and. (idi == idk) .and. (idi == idl)) then
             ! <ii|ii>
-            hel = umat2d (idi, idi)
-        else if ( (idi == idk) .and. (idj == idl) ) then
+            hel = umat2d(idi, idi)
+        else if((idi == idk) .and. (idj == idl)) then
             ! <ij|ij>
-            i = min (idi, idj)
-            j = max (idi, idj)
-            hel = umat2d (i, j)
-        else if ( (idi == idl) .and. (idj == idk) ) then
+            i = min(idi, idj)
+            j = max(idi, idj)
+            hel = umat2d(i, j)
+        else if((idi == idl) .and. (idj == idk)) then
             ! <ij|ji>
-            i = max (idi, idj)
-            j = min (idi, idj)
-            hel = umat2d (i, j)
-        else if ( (tCacheFCIDumpInts .or. tRIIntegrals) .and. &
-                  (idi == idj) .and. (idk == idl) .and. &
-                  (HElement_t_size == 1) ) then
+            i = max(idi, idj)
+            j = min(idi, idj)
+            hel = umat2d(i, j)
+        else if((tCacheFCIDumpInts .or. tRIIntegrals) .and. &
+                (idi == idj) .and. (idk == idl) .and. &
+                (HElement_t_size == 1)) then
             ! <ii|jj> = <ij|ji>, only for real systems (andn not for the local
             !                    exchange scheme.
-            i = max (idi, idk)
-            j = min (idi, idk)
-            hel = umat2d (i, j)
+            i = max(idi, idk)
+            j = min(idi, idk)
+            hel = umat2d(i, j)
         else
-            hel = get_umat_el_cache (idi, idj, idk, idl)
-        endif
+            hel = get_umat_el_cache(idi, idj, idk, idl)
+        end if
 
     end function get_umat_el_tumat2d
 
-    function get_umat_el_cache (idi, idj, idk, idl) result (hel)
+    function get_umat_el_cache(idi, idj, idk, idl) result(hel)
 
         ! Obtains the Coulomb integral <ij|kl>.
 
@@ -1696,7 +1691,7 @@ contains
         integer :: i, j, k, l, a, b
         integer :: iType, iCache, iCacheI
         type(Symmetry) :: isym
-        HElement_t(dp) :: hel, UElems(0:nTypes-1)
+        HElement_t(dp) :: hel, UElems(0:nTypes - 1)
         logical :: calc2ints
         complex(dp) :: vasp_int(1, 0:1)
 
@@ -1704,79 +1699,79 @@ contains
         j = idj
         k = idk
         l = idl
-        isym=totSymRep()
+        isym = totSymRep()
 
         ! UHF/ROHF (but not explicit ROHF in input) calculation. Integrals
         ! stored as spin-orbitals already...
         ! Also assume real orbitals, since this can only be done by
         ! tCacheFCIDumpInts
-        if (tStoreSpinOrbs) then
-            isym = symProd (isym, G1(i)%Sym)
-            isym = symProd (isym, G1(j)%Sym)
-            isym = symProd (isym, G1(k)%Sym)
-            isym = symProd (isym, G1(l)%Sym)
+        if(tStoreSpinOrbs) then
+            isym = symProd(isym, G1(i)%Sym)
+            isym = symProd(isym, G1(j)%Sym)
+            isym = symProd(isym, G1(k)%Sym)
+            isym = symProd(isym, G1(l)%Sym)
         else
-            isym = symProd (isym, symConj(G1(2*i-1)%Sym))
-            isym = symProd (isym, symConj(G1(2*j-1)%Sym))
-            isym = symProd (isym, G1(2*k-1)%Sym)
-            isym = symProd (isym, G1(2*l-1)%Sym)
-        endif
+            isym = symProd(isym, symConj(G1(2 * i - 1)%Sym))
+            isym = symProd(isym, symConj(G1(2 * j - 1)%Sym))
+            isym = symProd(isym, G1(2 * k - 1)%Sym)
+            isym = symProd(isym, G1(2 * l - 1)%Sym)
+        end if
 
         ! Check the symmetry of the 4-index integrals
-        if ( .not. lSymSym(isym)) then
+        if(.not. lSymSym(isym)) then
             hel = 0
             return
-        endif
+        end if
 
         ! First check whether we can reduce a set of k-points to a simpler
         ! symmetry related one.
         ! TODO: can we function pointer out this bit?
-        if (HasKPoints()) then
-            if (tTransFIndx) then
-                i = TransTable (i)
-                j = TransTable (j)
-                k = TransTable (k)
-                l = TransTable (l)
-            endif
+        if(HasKPoints()) then
+            if(tTransFIndx) then
+                i = TransTable(i)
+                j = TransTable(j)
+                k = TransTable(k)
+                l = TransTable(l)
+            end if
 
             ! As we're not looping over i,j,k,l it's safe to return the k-pnt
             ! related labels in the same variables
-            call KPntSymInt (i, j, k, l, i, j, k, l)
-            if (tTransFIndx) then
-                i = TransTable (i)
-                j = TransTable (j)
-                k = TransTable (k)
-                l = TransTable (l)
-            endif
-        endif
+            call KPntSymInt(i, j, k, l, i, j, k, l)
+            if(tTransFIndx) then
+                i = TransTable(i)
+                j = TransTable(j)
+                k = TransTable(k)
+                l = TransTable(l)
+            end if
+        end if
 
         ! This will rearrange i,j,k,l into the correct order (i,k) <= (j,l)
         ! and i <= k, j <= l.
-        if (GetCachedUmatEl (i, j, k, l, hel, iCache, iCacheI, a, b, &
-            iType)) then
+        if(GetCachedUmatEl(i, j, k, l, hel, iCache, iCacheI, a, b, &
+                           iType)) then
             ! We don't have a stored UMAt - we call to generate it
-            if (tDFInts .or. tRIIntegrals) then
+            if(tDFInts .or. tRIIntegrals) then
                 ! We're using density fitting
-                call GetDF2EInt (i, j, k, l, UElems)
-                hel = UElems (0)
-            else if (tCacheFCIDumpInts) then
+                call GetDF2EInt(i, j, k, l, UElems)
+                hel = UElems(0)
+            else if(tCacheFCIDumpInts) then
                 hel = 0
-            else if (tVASP) then
-                if (tTransFIndx) then
-                    call construct_ijab_one (TransTable(i), TransTable(j), &
-                                             TransTable(k), TransTable(l), &
-                                             vasp_int(1,0))
-                    call construct_ijab_one (TransTable(i), TransTable(l), &
-                                             TransTable(k), TransTable(j), &
-                                             vasp_int(1,1))
+            else if(tVASP) then
+                if(tTransFIndx) then
+                    call construct_ijab_one(TransTable(i), TransTable(j), &
+                                            TransTable(k), TransTable(l), &
+                                            vasp_int(1, 0))
+                    call construct_ijab_one(TransTable(i), TransTable(l), &
+                                            TransTable(k), TransTable(j), &
+                                            vasp_int(1, 1))
                 else
-                    call construct_ijab_one (i, j, k, l, vasp_int(1,0))
-                    call construct_ijab_one (i, l, k, j, vasp_int(1,1))
+                    call construct_ijab_one(i, j, k, l, vasp_int(1, 0))
+                    call construct_ijab_one(i, l, k, j, vasp_int(1, 1))
                 end if
 #ifdef CMPLX_
                 !cpp to avoid gfortran compiler warnings
-                UElems(0) = vasp_int(1,0)
-                UElems(1) = vasp_int(1,1)
+                UElems(0) = vasp_int(1, 0)
+                UElems(1) = vasp_int(1, 1)
 #endif
                 ! TODO: This bit seems broken. Why hel = ? twice
                 !       Why not iand(iType, 0)
@@ -1785,49 +1780,49 @@ contains
                 hel = UElems(iand(iType, 1))
                 ! Bit 1 tells us whether we need to complex conj the integral
 #ifdef CMPLX_
-                if (btest(iType, 1)) hel = conjg(hel)
+                if(btest(iType, 1)) hel = conjg(hel)
 #endif
             else
                 ! We call CPMD.
                 ! Only need <ij|kl> if we're doing a 2-vertex calculation
                 ! unless the intgral is for a single excitation, in which
                 ! case we need <il|jk> as well.
-                calc2ints = gen2CPMDInts .or. ( (idi == idj) .or. &
-                            (idi == idk) .or. (idi == idl) .or. &
-                            (idj == idk) .or. (idj == idl) )
-                if (tTransFIndx) then
-                    call InitFindXI (TransTable(i), TransTable(j), &
-                                     TransTable(k), TransTable(l), &
-                                     UElems, calc2ints)
+                calc2ints = gen2CPMDInts .or. ((idi == idj) .or. &
+                                               (idi == idk) .or. (idi == idl) .or. &
+                                               (idj == idk) .or. (idj == idl))
+                if(tTransFIndx) then
+                    call InitFindXI(TransTable(i), TransTable(j), &
+                                    TransTable(k), TransTable(l), &
+                                    UElems, calc2ints)
                 else
                     ! InitFindxI returns up to two integrals in UElems.
                     ! <id|u|kl> and <kj|u|il> (which are distinct when cplx
                     !                          orbitals are used)
-                    call InitFindXI (i, j, k, l, UElems, calc2ints)
-                endif
+                    call InitFindXI(i, j, k, l, UElems, calc2ints)
+                end if
 
                 ! TODO: Once again, should this not be iand(itype, 0)?
                 ! Bit 0 tells us which integral in the slot we need
-                hel = UElems (iand(iType, 1))
+                hel = UElems(iand(iType, 1))
                 ! Bit 1 tells us whether we need to complex conj the integral
 #ifdef CMPLX_
-                if (btest(iType, 1)) hel = conjg(hel)
+                if(btest(iType, 1)) hel = conjg(hel)
 #endif
-            endif
+            end if
 
             ! Because we've asked for the integral in the form to be stored,
             ! we shore as iType = 0.
-            if ( (iCache /= 0) .and. (.not. tCacheFCIDUMPInts)) &
-                call CacheUMatEl (b, UElems, iCache, iCacheI, 0)
+            if((iCache /= 0) .and. (.not. tCacheFCIDUMPInts)) &
+                call CacheUMatEl(b, UElems, iCache, iCacheI, 0)
             nMisses = nMisses + 1
         else
             nHits = nHits + 1
-        endif
+        end if
 
     end function
 
-    function get_umat_el_comporb_spinorbs (i, j, k, l) result(hel)
-        use sym_mod, only: symProd, symConj, decomposeabeliansym,totsymrep
+    function get_umat_el_comporb_spinorbs(i, j, k, l) result(hel)
+        use sym_mod, only: symProd, symConj, decomposeabeliansym, totsymrep
 
         ! Obtains the Coulomb integral <ij|kl>.
 
@@ -1844,10 +1839,10 @@ contains
         use SystemData, only: G1
         integer, intent(in) :: i, j, k, l
         HElement_t(dp) :: hel
-        type(Symmetry) :: SymX,SymY,SymX_C,symtot,sym_sym
+        type(Symmetry) :: SymX, SymY, SymX_C, symtot, sym_sym
 !        integer, dimension(3) :: ksymx,ksymy,ksymx_c
 #ifdef CMPLX_
-        character(len=*), parameter :: t_r='get_umat_el_comporb_spinorbs'
+        character(len=*), parameter :: t_r = 'get_umat_el_comporb_spinorbs'
 #endif
 
         ! If we have complex orbitals, then <ij|kl> != <kj|il> necessarily, since we
@@ -1857,35 +1852,35 @@ contains
 
         !TODO: This should be sped up, by using the k-point labels,
         !so that they don't need to be decomposed and repackaged each time.
-        SymX = SymProd(G1(i)%sym,G1(j)%sym)
-        SymY = SymProd(G1(k)%sym,G1(l)%sym)
+        SymX = SymProd(G1(i)%sym, G1(j)%sym)
+        SymY = SymProd(G1(k)%sym, G1(l)%sym)
         SymX_C = SymConj(SymX)
-        symtot = SymProd(SymX_C,SymY)
+        symtot = SymProd(SymX_C, SymY)
         sym_sym = totsymrep()
 
 !        call decomposeAbelianSym(SymX%s,ksymx)
 !        call decomposeAbelianSym(SymY%s,ksymy)
 !        call decomposeAbelianSym(SymX_C%s,ksymx_c)
-!        write(6,*) "SymX: ",ksymx(:)
-!        write(6,*) "SymY: ",ksymy(:)
-!        write(6,*) "SymX_C: ",ksymx_c(:)
+!        write(stdout,*) "SymX: ",ksymx(:)
+!        write(stdout,*) "SymY: ",ksymy(:)
+!        write(stdout,*) "SymX_C: ",ksymx_c(:)
 
-        if(symtot%s.eq.sym_sym%s) then
+        if(symtot%s == sym_sym%s) then
 !        if(SymX_C%S.eq.SymY%S) then
             !Symmetry allowed
             hel = get_umat_el_secondary(i, j, k, l)
-!            write(6,*) "symmetry allowed",i,j,k,l,hel
+!            write(stdout,*) "symmetry allowed",i,j,k,l,hel
         else
-!            write(6,*) "Symmetry forbidden", i,j,k,l
-           hel = 0
-        endif
+!            write(stdout,*) "Symmetry forbidden", i,j,k,l
+            hel = 0
+        end if
 #ifdef CMPLX_
-        call stop_all(t_r,"Should not be requesting a complex integral")
+        call stop_all(t_r, "Should not be requesting a complex integral")
 #endif
 
     end function
 
-    function get_umat_el_comporb_notspinorbs (i, j, k, l) result(hel)
+    function get_umat_el_comporb_notspinorbs(i, j, k, l) result(hel)
         use SystemData, only: G1
 
         ! Obtains the Coulomb integral <ij|kl>.
@@ -1904,9 +1899,9 @@ contains
 
         integer, intent(in) :: i, j, k, l
         HElement_t(dp) :: hel
-        type(Symmetry) :: SymX,SymY,SymX_C,symtot,sym_sym
+        type(Symmetry) :: SymX, SymY, SymX_C, symtot, sym_sym
 #ifdef CMPLX_
-        character(len=*), parameter :: t_r='get_umat_el_comporb_notspinorbs'
+        character(len=*), parameter :: t_r = 'get_umat_el_comporb_notspinorbs'
 #endif
 
         ! If we have complex orbitals, then <ij|kl> != <kj|il> necessarily, since we
@@ -1916,27 +1911,27 @@ contains
 
         !TODO: This should be sped up, by using the k-point labels,
         !so that they don't need to be decomposed and repackaged each time.
-        SymX = SymProd(G1(2*i)%sym,G1(2*j)%sym)
-        SymY = SymProd(G1(2*k)%sym,G1(2*l)%sym)
+        SymX = SymProd(G1(2 * i)%sym, G1(2 * j)%sym)
+        SymY = SymProd(G1(2 * k)%sym, G1(2 * l)%sym)
         SymX_C = SymConj(SymX)
-        symtot = SymProd(SymX_C,SymY)
+        symtot = SymProd(SymX_C, SymY)
         sym_sym = totsymrep()
 
-        if(symtot%s.eq.sym_sym%s) then
-        !if(SymX_C%S.eq.SymY%S) then
+        if(symtot%s == sym_sym%s) then
+            !if(SymX_C%S.eq.SymY%S) then
             !Symmety allowed
             ! get_umat_el_normal is a dummy argument
             hel = get_umat_el_secondary(i, j, k, l)
         else
             hel = 0
-        endif
+        end if
 #ifdef CMPLX_
-        call stop_all(t_r,"Should not be requesting a complex integral")
+        call stop_all(t_r, "Should not be requesting a complex integral")
 #endif
 
     end function
 
-    function get_umat_el_fixlz_storespinorbs (i, j, k, l) result(hel)
+    function get_umat_el_fixlz_storespinorbs(i, j, k, l) result(hel)
 
         ! Obtains the Coulomb integral <ij|kl>.
 
@@ -1955,16 +1950,16 @@ contains
         ! If we are fixing Lz, then <ij|kl> != <kj|il> necessarily, since we
         ! have complex orbitals (though real integrals) and want to ensure
         ! that we conserve momentum. i.e. momentum of bra = mom of ket.
-        if ( (G1(i)%Ml + G1(j)%Ml) /= (G1(k)%Ml + G1(l)%Ml) ) then
+        if((G1(i)%Ml + G1(j)%Ml) /= (G1(k)%Ml + G1(l)%Ml)) then
             hel = 0
         else
             ! get_umat_el_normal is a dummy argument
             hel = get_umat_el_secondary(i, j, k, l)
-        endif
+        end if
 
     end function
 
-    function get_umat_el_fixlz_notspinorbs (i, j, k, l) result(hel)
+    function get_umat_el_fixlz_notspinorbs(i, j, k, l) result(hel)
 
         ! Obtains the Coulomb integral <ij|kl>.
 
@@ -1984,16 +1979,16 @@ contains
         ! If we are fixing Lz, then <ij|kl> != <kj|il> necessarily, since we
         ! have complex orbitals (though real integrals) and want to ensure
         ! that we conserve momentum. i.e. momentum of bra = mom of ket.
-        if ( (G1(2*i)%Ml + G1(2*j)%Ml) /= (G1(2*k)%Ml + G1(2*l)%Ml) ) then
+        if((G1(2 * i)%Ml + G1(2 * j)%Ml) /= (G1(2 * k)%Ml + G1(2 * l)%Ml)) then
             hel = 0
         else
             ! get_umat_el_normal is a dummy argument
             hel = get_umat_el_secondary(i, j, k, l)
-        endif
+        end if
 
     end function
 
-    function get_umat_el_normal (idi, idj, idk, idl) result(hel)
+    function get_umat_el_normal(idi, idj, idk, idl) result(hel)
 
         ! Obtains the Coulomb integral <ij|kl>.
 
@@ -2011,7 +2006,7 @@ contains
         integer, intent(in) :: idi, idj, idk, idl
         HElement_t(dp) :: hel
 
-        hel = UMAT (UMatInd(idi, idj, idk, idl))
+        hel = UMAT(UMatInd(idi, idj, idk, idl))
 #ifdef CMPLX_
         hel = UMatConj(idi, idj, idk, idl, hel)
 #endif
@@ -2019,66 +2014,66 @@ contains
     end function
 
     SUBROUTINE WRITESYMCLASSES(nbasis)
-      use SystemData, only: BasisFN, Symmetry
-      USE UMatCache
-      use SymData, only: SymClasses,SymLabelCounts,nSymLabels
-      use util_mod, only: get_free_unit
-      IMPLICIT NONE
-      INTEGER I,nbasis,iunit
-      iunit = get_free_unit()
-      open(iunit, file="SYMCLASSES", status="unknown")
-      DO I=1,nbasis/2
-          WRITE(iunit,*) I,SYMCLASSES(I)
-          CALL neci_flush(iunit)
-      ENDDO
-      DO I=1,NSYMLABELS
-          WRITE(iunit,*) I,SYMLABELCOUNTS(2,I)
-      ENDDO
-      WRITE(iunit,*) "******************"
-      close(iunit)
+        use SystemData, only: BasisFN, Symmetry
+        USE UMatCache
+        use SymData, only: SymClasses, SymLabelCounts, nSymLabels
+        use util_mod, only: get_free_unit
+        IMPLICIT NONE
+        INTEGER I, nbasis, iunit
+        iunit = get_free_unit()
+        open(iunit, file="SYMCLASSES", status="unknown")
+        DO I = 1, nbasis / 2
+            write(iunit, *) I, SYMCLASSES(I)
+            CALL neci_flush(iunit)
+        end do
+        DO I = 1, NSYMLABELS
+            write(iunit, *) I, SYMLABELCOUNTS(2, I)
+        end do
+        write(iunit, *) "******************"
+        close(iunit)
     END subroutine writesymclasses
 
     subroutine DumpFCIDUMP()
         use SystemData, only: G1, nBasis, nel
         implicit none
-        integer :: i,j,k,l,iunit
-        character(len=*), parameter :: t_r='DumpFCIDUMP'
+        integer :: i, j, k, l, iunit
+        character(len=*), parameter :: t_r = 'DumpFCIDUMP'
 
-        if(tStoreSpinOrbs) call stop_all(t_r,'Dumping FCIDUMP not currently working with tStoreSpinOrbs (non RHF)')
-        if(tFixLz) call stop_all(t_r,'Dumping FCIDUMP not working with Lz')
+        if(tStoreSpinOrbs) call stop_all(t_r, 'Dumping FCIDUMP not currently working with tStoreSpinOrbs (non RHF)')
+        if(tFixLz) call stop_all(t_r, 'Dumping FCIDUMP not working with Lz')
 
         iunit = get_free_unit()
-        open(iunit,file='FCIDUMP-NECI',status='unknown')
-        write(iunit,'(2A6,I3,A7,I3,A5,I2,A)') '&FCI ','NORB=',nBasis/2,',NELEC=',NEl,',MS2=',LMS,','
-        WRITE(iunit,'(A9)',advance='no') 'ORBSYM='
-        do i = 1,nBasis,2
-            WRITE(iunit,'(I1,A1)',advance='no') (INT(G1(i)%sym%S)+1),','
-        enddo
-        write(iunit,'(A)') ''
-        WRITE(iunit,'(A9)') 'ISYM= 1,'
-        WRITE(iunit,'(A5)') '&END'
+        open(iunit, file='FCIDUMP-NECI', status='unknown')
+        write(iunit, '(2A6,I3,A7,I3,A5,I2,A)') '&FCI ', 'NORB=', nBasis / 2, ',NELEC=', NEl, ',MS2=', LMS, ','
+        write(iunit, '(A9)', advance='no') 'ORBSYM='
+        do i = 1, nBasis, 2
+            write(iunit, '(I1,A1)', advance='no')(INT(G1(i)%sym%S) + 1), ','
+        end do
+        write(iunit, '(A)') ''
+        write(iunit, '(A9)') 'ISYM= 1,'
+        write(iunit, '(A5)') '&END'
 
-        do i = 2,nBasis,2
-            do k = 2,i,2
-                do j = 2,nBasis,2
-                    do l = 2,j,2
-                        if((abs(real(umat(umatind(i/2,j/2,k/2,l/2)),dp))).gt.1.0e-9_dp) then
-                            write(iunit,'(F21.12,4I3)') REAL(UMat(UMatInd(i/2,j/2,k/2,l/2)),dp),i/2,k/2,j/2,l/2
-                        endif
-                    enddo
-                enddo
-            enddo
-        enddo
+        do i = 2, nBasis, 2
+            do k = 2, i, 2
+                do j = 2, nBasis, 2
+                    do l = 2, j, 2
+                        if((abs(real(umat(umatind(i / 2, j / 2, k / 2, l / 2)), dp))) > 1.0e-9_dp) then
+                            write(iunit, '(F21.12,4I3)') REAL(UMat(UMatInd(i / 2, j / 2, k / 2, l / 2)), dp), i / 2, k / 2, j / 2, l / 2
+                        end if
+                    end do
+                end do
+            end do
+        end do
 
-        do i = 2,nBasis,2
-            do j = 2,i,2
-                if(abs(real(tmat2d(i,j),dp)).gt.1.0e-9_dp) then
-                    write(iunit,'(F21.12,4I3)') REAL(TMAT2D(i,j),dp),i/2,j/2,0,0
-                endif
-            enddo
-        enddo
+        do i = 2, nBasis, 2
+            do j = 2, i, 2
+                if(abs(real(tmat2d(i, j), dp)) > 1.0e-9_dp) then
+                    write(iunit, '(F21.12,4I3)') REAL(TMAT2D(i, j), dp), i / 2, j / 2, 0, 0
+                end if
+            end do
+        end do
 
-        write(iunit,'(F21.12,4I3)') ECore,0,0,0,0
+        write(iunit, '(F21.12,4I3)') ECore, 0, 0, 0, 0
         call neci_flush(iunit)
         close(iunit)
 
@@ -2086,10 +2081,7 @@ contains
 
 !------------------------------------------------------------------------------------------!
 
-
 END MODULE Integrals_neci
-
-
 
 ! Calculate the diagonal matrix elements for the Uniform electron gas
 !  CST is PI*PI/2L*L for the non-periodic case, and
@@ -2115,63 +2107,63 @@ END MODULE Integrals_neci
 ! It is easiest to include this periodic image correction with the kinetic
 ! (one-electron) terms.
 
-SUBROUTINE CALCTMATUEG(nbasis,ALAT,G1,CST,TPERIODIC,OMEGA)
-  use constants, only: dp
-  use SystemData, only: BasisFN, k_offset, iPeriodicDampingType, kvec, k_lattice_constant
-  USE OneEInts, only : SetupTMAT,TMAT2D
-  use util_mod, only: get_free_unit
-  use SystemData, only: tUEG2
-  use Parallel_neci, only: iProcIndex, Root
+SUBROUTINE CALCTMATUEG(nbasis, ALAT, G1, CST, TPERIODIC, OMEGA)
+    use constants, only: dp, stdout
+    use SystemData, only: BasisFN, k_offset, iPeriodicDampingType, kvec, k_lattice_constant
+    USE OneEInts, only: SetupTMAT, TMAT2D
+    use util_mod, only: get_free_unit
+    use SystemData, only: tUEG2
+    use Parallel_neci, only: iProcIndex, Root
 
-  IMPLICIT NONE
-  INTEGER nbasis
-  TYPE(BASISFN) G1(nbasis)
-  real(dp) ALAT(4),CST,K_REAL(3), temp
-  INTEGER I
-  INTEGER iSIZE, iunit
-  real(dp) OMEGA
-  LOGICAL TPERIODIC
-  real(dp), PARAMETER :: PI=3.1415926535897932384626433832795029_dp
-  character(*), parameter :: this_routine = 'CALCTMATUEG'
+    IMPLICIT NONE
+    INTEGER nbasis
+    TYPE(BASISFN) G1(nbasis)
+    real(dp) ALAT(4), CST, K_REAL(3), temp
+    INTEGER I
+    INTEGER iSIZE, iunit
+    real(dp) OMEGA
+    LOGICAL TPERIODIC
+    real(dp), PARAMETER :: PI = 3.1415926535897932384626433832795029_dp
+    character(*), parameter :: this_routine = 'CALCTMATUEG'
 
 !=================================================
-  if (tUEG2) then
+    if(tUEG2) then
 
-      IF(TPERIODIC) WRITE(6,*) "Periodic UEG"
-      iunit = get_free_unit()
+        IF(TPERIODIC) write(stdout, *) "Periodic UEG"
+        iunit = get_free_unit()
 
-      if(iProcIndex.eq.Root) OPEN(iunit,FILE='TMAT',STATUS='UNKNOWN')
-      CALL SetupTMAT(nbasis,2,iSIZE)
-      DO I=1,nbasis
-         !K_OFFSET in cartesian coordinates
-         K_REAL=real(kvec(I, 1:3)+K_OFFSET, dp)
-         temp=K_REAL(1)**2+K_REAL(2)**2+K_REAL(3)**2
-         ! TMAT is diagonal for the UEG
-         TMAT2D(I,1)=0.5_dp*temp*k_lattice_constant**2
-         if(iProcIndex.eq.Root) WRITE(iunit,*) I,I,TMAT2D(I,1)
-      ENDDO
-      if(iProcIndex.eq.Root) CLOSE(iunit)
+        if(iProcIndex == Root) open(iunit, FILE='TMAT', STATUS='UNKNOWN')
+        CALL SetupTMAT(nbasis, 2, iSIZE)
+        DO I = 1, nbasis
+            !K_OFFSET in cartesian coordinates
+            K_REAL = real(kvec(I, 1:3) + K_OFFSET, dp)
+            temp = K_REAL(1)**2 + K_REAL(2)**2 + K_REAL(3)**2
+            ! TMAT is diagonal for the UEG
+            TMAT2D(I, 1) = 0.5_dp * temp * k_lattice_constant**2
+            if(iProcIndex == Root) write(iunit, *) I, I, TMAT2D(I, 1)
+        end do
+        if(iProcIndex == Root) close(iunit)
 
-      RETURN
-  end if ! tUEG2
+        RETURN
+    end if ! tUEG2
 !=================================================
 
-  IF(TPERIODIC) WRITE(6,*) "Periodic UEG"
-  iunit = get_free_unit()
-  if(iProcIndex.eq.Root) OPEN(iunit,FILE='TMAT',STATUS='UNKNOWN')
-  CALL SetupTMAT(nbasis,2,iSIZE)
+    IF(TPERIODIC) write(stdout, *) "Periodic UEG"
+    iunit = get_free_unit()
+    if(iProcIndex == Root) open(iunit, FILE='TMAT', STATUS='UNKNOWN')
+    CALL SetupTMAT(nbasis, 2, iSIZE)
 
-  DO I=1,nbasis
-    K_REAL=G1(I)%K+K_OFFSET
-    TMAT2D(I,1)=((ALAT(1)**2)*((K_REAL(1)**2)/(ALAT(1)**2)+        &
-&        (K_REAL(2)**2)/(ALAT(2)**2)+(K_REAL(3)**2)/(ALAT(3)**2)))
-    TMAT2D(I,1)=TMAT2D(I,1)*(CST)
+    DO I = 1, nbasis
+        K_REAL = G1(I)%K + K_OFFSET
+        TMAT2D(I, 1) = ((ALAT(1)**2) * ((K_REAL(1)**2) / (ALAT(1)**2) +        &
+    &        (K_REAL(2)**2) / (ALAT(2)**2) + (K_REAL(3)**2) / (ALAT(3)**2)))
+        TMAT2D(I, 1) = TMAT2D(I, 1) * (CST)
 !..  The G=0 component is explicitly calculated for the cell interactions as 2 PI Rc**2 .
 !   we *1/2 as we attribute only half the interaction to this cell.
-    IF(TPERIODIC .and. iPeriodicDampingType/=0) TMAT2D(I,1)=TMAT2D(I,1)-(PI*ALAT(4)**2/OMEGA)
-    if(iProcIndex.eq.Root) WRITE(iunit,*) I,I,TMAT2D(I,1)
-  ENDDO
-  if(iProcIndex.eq.Root) CLOSE(iunit)
-  RETURN
+        IF(TPERIODIC .and. iPeriodicDampingType /= 0) TMAT2D(I, 1) = TMAT2D(I, 1) - (PI * ALAT(4)**2 / OMEGA)
+        if(iProcIndex == Root) write(iunit, *) I, I, TMAT2D(I, 1)
+    end do
+    if(iProcIndex == Root) close(iunit)
+    RETURN
 END SUBROUTINE CALCTMATUEG
 

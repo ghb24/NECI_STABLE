@@ -8,56 +8,83 @@ module bit_rep_data
 
     ! Structure of a bit representation:
 
-    ! | 0-NIfD: Det | Yamanouchi | Sign(Re) | Sign(Im) | Flags |
+    ! | 0-NIfD: Det | Sign(Re) | Sign(Im) | Flags |
     !
     ! -------
     ! (NIfD + 1) * 64-bits              Orbital rep.
-    !  NIfY      * 32-bits              Yamanouchi symbol
     !  1         * 32-bits              Signs (Re)
     ! (1         * 32-bits if needed)   Signs (Im)
     ! (1         * 32-bits if needed)   Flags
 
+    ! save all the bit rep indices and lenghts in one data structure for
+    ! a more clear representation
+    type :: BitRep_t
+        ! number of integers (-1) to store the orbital occupation
+        integer :: len_orb = -1
+        ! position of the first entry for walker population
+        integer :: ind_pop = -1
+        ! length necessar to store the population (for complex and mneci..)
+        integer :: len_pop = -1
+        ! the index where the flag is stored
+        integer :: ind_flag = -1
+        ! the total length of the bit-representation
+        integer :: len_tot = -1
+        ! the length how much of the bit-rep is broadcasted
+        integer :: len_bcast = -1
+        ! the index for truncated spawning events
+        integer :: ind_spawn = -1
+        ! the index for hdiag in some implementation
+        integer :: ind_hdiag = -1
+
+        ! GUGA specific entries:
+        ! the index of the communicated rdm-index (containing info about
+        ! the excit-level and excit-type)
+        integer :: ind_rdm_ind = -1
+        ! the index of the x0 coupling coefficient contribution
+        integer :: ind_rdm_x0 = -1
+        ! the index of the x1 coupling coefficient contribution
+        integer :: ind_rdm_x1 = -1
+        ! the x0 element (in the hamiltonian matrix element calc.)
+        integer :: ind_x0 = -1
+        ! the x1 element -||-
+        integer :: ind_x1 = -1
+        ! the delta b element in the stochastic excit-gen
+        integer :: ind_b = -10
+
+        ! RDM specific entries:
+        ! the index of the rdm biasing factor
+        integer :: ind_rdm_fac = -1
+        ! the flags (initiator) of the parent
+        integer :: ind_parent_flag = -1
+        ! the index where the information where the spawn came from is stored
+        integer :: ind_source = -1
+        ! the index of the parent ci coeff ( in the enlarged SpawnedParts!)
+        integer :: ind_parent = -1
+
+    end type BitRep_t
+
+    ! make global data structure for the bit-rep indices
+    ! also initialize them to -1 so we can easily spot uninitialized stuff
+    type(BitRep_t) :: IlutBits = BitRep_t(), &
+                      IlutBitsParent = BitRep_t(), &
+                      GugaBits = BitRep_t()
+
     integer :: nIfTot  ! Upper bound of bit representation. In form 0:NIfTot
     integer :: nIfD    ! Final byte representing spatial/spin orbitals
 
-    integer :: nOffY   ! Offset of Yamanouchi symbol. n.b. always on a 64bit
-                       ! boundary --> This is in 64-bit integers.
-                       ! TODO: ensure Yamanouchi symbols are 32bit.
-    integer :: nIfY    ! Number of bytes to represent a Yamanouchi symbol
-
-    integer :: nIfDBO  ! Size used for bit operations (e.g. sorting)
-
-    integer :: nOffFlag   ! Offset of flags. in bytes
-    integer :: nIfFlag    ! Number of bytes to contain flags.
-
-    integer :: nOffSgn  ! Offset of signs in integers
-    integer :: nIfSgn   ! Number of integers used for signs
     integer :: nIfTotKP ! Upper bound of krylov_vecs.
 
     integer :: nIfGUGA ! number of integers needed for the GUGA CSFs and flags
 
-    integer :: nIfBCast ! Size of data to use in annihilation broadcast
-
     ! Has the RDM component of the bit representation (For bcast) been inited.
     logical :: bit_rdm_init
-    integer :: nOffParent
-
-    ! Somewhere to store the spawning parent coefficient (for funky
-    ! initiator thresholds).
-    integer :: nOffParentCoeff, nIfParentCoeff
-
-    ! position of the number of spawns in the broadcast
-    integer :: nSpawnOffset
-
-    ! position of the diagonal Hamiltonian element  of the spawning
-    integer :: NOffSpawnHDiag
 
     ! Flags which we can store
     integer :: flag_counter
 
     logical :: tuseflags = .true.
 
-    integer, parameter :: flag_deterministic = 0, &
+    integer, parameter :: flag_removed = 0, &
                           flag_determ_parent = 1, &
                           flag_trial = 2, &
                           flag_connected = 3, &
@@ -71,28 +98,29 @@ module bit_rep_data
                           flag_negative_sign = 11, &
                           flag_large_matel = 12
 
-
 #ifdef PROG_NUMRUNS_
     integer, parameter :: flag_initiator(lenof_sign_max) &
-                            = (/ 13, 14, 15, 16, 17, 18, 19, &
-                                20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32/), &
-                          flag_adi_checked = 33, &
+                          = (/13, 14, 15, 16, 17, 18, 19, &
+                              20, 21, 22, 23, 24, 25, 26, 57, 58/), &
                           flag_static_init(lenof_sign_max) &
-                            = (/34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, &
-                                45, 46, 47, 48, 49, 50, 51, 52, 53/), &
-                          flag_removed = 54, &
-                          num_flags = 55
+                          = (/27, 28, 29, 30, 31, 32, 33, &
+                              34, 35, 36, 37, 38, 39, 40, 59, 60/), &
+                          flag_deterministic(lenof_sign_max) &
+                          = (/41, 42, 43, 44, 45, 46, 47, &
+                              48, 49, 50, 51, 52, 53, 54, 61, 62/), &
+                          flag_adi_checked = 56, &
+                          num_flags = 63
 #else
-    integer, parameter :: flag_initiator(2) = (/ 13, 14/), &
+    integer, parameter :: flag_initiator(2) = (/13, 14/), &
                           flag_adi_checked = 15, &
                           flag_static_init(2) = (/16, 17/), &
-                          flag_removed = 18, &
-                          num_flags = 19
+                          flag_deterministic(2) = (/19, 20/), &
+                          num_flags = 21
 #endif
 
 contains
 
-    pure function test_flag (ilut, flg) result(bSet)
+    pure function test_flag(ilut, flg) result(bSet)
 
         ! Test specified flag (0 indexed) in the bit representation.
         !
@@ -104,25 +132,45 @@ contains
         integer, intent(in) :: flg
         logical :: bSet
 
-        !Commented out code is for when we need multiple integers for storing flags (unlikely!)
-!        ind = NOffFlag + flg / bits_n_int
-!        off = mod(flg, bits_n_int)
-
-!        bSet = btest(ilut(ind), off)
-
-        bSet = btest(ilut(NOffFlag), flg)
+        bSet = btest(ilut(IlutBits%ind_flag), flg)
 
     end function test_flag
 
-    pure subroutine extract_sign (ilut, real_sgn)
+    pure function test_flag_multi(ilut, flg) result(bSet)
+        integer(n_int), intent(in) :: ilut(0:nIfTot)
+        integer, intent(in) :: flg(:)
+        logical :: bSet
+
+        integer :: i
+
+        bSet = .false.
+        do i = 1, inum_runs
+            bSet = bSet .or. test_flag(ilut, flg(i))
+        end do
+    end function test_flag_multi
+
+    pure subroutine extract_sign(ilut, real_sgn)
         integer(n_int), intent(in) :: ilut(0:nIfTot)
         real(dp), intent(out) :: real_sgn(lenof_sign)
         integer(n_int) :: sgn(lenof_sign)
 
-        sgn = iLut(NOffSgn:NOffSgn+lenof_sign-1)
+        sgn = iLut(IlutBits%ind_pop:IlutBits%ind_pop + lenof_sign - 1)
         ! transfer operates elementwise
         real_sgn = transfer(sgn, real_sgn)
 
     end subroutine extract_sign
+
+    pure function get_weight(ilut) result(res)
+        integer(n_int), intent(in) :: ilut(0:NIfTot)
+        real(dp) :: res
+
+        real(dp) :: curr_sign(lenof_sign)
+        call extract_sign(ilut, curr_sign)
+#ifdef CMPLX_
+        res = sqrt(sum(abs(curr_sign(1::2)))**2 + sum(abs(curr_sign(2::2)))**2)
+#else
+        res = sum(real(abs(curr_sign), dp))
+#endif
+    end function
 
 end module

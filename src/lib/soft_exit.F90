@@ -80,12 +80,6 @@
 !                        highest population
 !   RESTARTHIGHPOP       Restart the calculation with same parameters but a
 !                        new reference determinant
-!   SPIN-PROJECT         Change the interval between applications of
-!                        stochastic spin projection. If 0, disable it.
-!                        If -1, disable FCIQMC propagation.
-!   SPIN-PROJECT-GAMMA   Change the delta-gamma value used for stochastic
-!                        spin projection
-!   SPIN-PROJECT-SHIFT   Change the spin projection shift value.
 !   REFSHIFT             Change the default use of the shift to now keep HF populations constant.
 !   CALCRDMONFLY XXX XXX XXX
 !                        Stochastically calculate the reduced density
@@ -131,7 +125,7 @@ module soft_exit
                         nmcyc_value => nmcyc, tTruncNOpen, trunc_nopen_max, &
                         target_grow_rate => TargetGrowRate, tShiftonHFPop, &
                         tAllRealCoeff, tRealSpawnCutoff, tJumpShift, &
-                        frq_ratio_cutoff, t_hist_tau_search, tSpinProject
+                        frq_ratio_cutoff, t_hist_tau_search
     use DetCalcData, only: ICILevel
     use IntegralsData, only: tPartFreezeCore, NPartFrozen, NHolesFrozen, &
                              NVirtPartFrozen, NelVirtFrozen, tPartFreezeVirt
@@ -148,10 +142,6 @@ module soft_exit
     use constants, only: lenof_sign, int32, dp
     use bit_rep_data, only: extract_sign
     use bit_reps, only: encode_sign
-    use spin_project, only: spin_proj_gamma, &
-                            spin_proj_interval, spin_proj_shift, &
-                            spin_proj_cutoff, spin_proj_spawn_initiators, &
-                            spin_proj_no_death, spin_proj_iter_count
     use load_balance_calcnodes, only: DetermineDetNode
     use hist_data, only: Histogram, tHistSpawn
     use Parallel_neci
@@ -172,34 +162,45 @@ contains
         !                        requested.
         ! Other changes are made directly to the modules concerned
 
-        integer, parameter :: excite = 1, truncatecas = 2, softexit = 3, &
-                              writepops = 4, varyshift = 5, nmcyc = 6, &
-                              tau = 7, diagshift = 8, shiftdamp = 9, &
-                              stepsshift = 10, singlesbias = 11, &
-                              zeroproje = 12, zerohist = 13, &
-                              partiallyfreeze = 14, partiallyfreezevirt = 15,&
-                              printerrorblocking = 16, &
-                              starterrorblocking = 17, &
-                              restarterrorblocking = 18, &
-                              printshiftblocking = 19, &
-                              restartshiftblocking = 20, &
-                              equilsteps = 21, starthist = 22, &
-                              histequilsteps = 23, truncinitiator = 24, &
-                              addtoinit = 25, scalehf = 26, &
-                              printhighpopdet = 27, changerefdet = 28, &
-                              restarthighpop = 29, spin_project = 30, &
-                              spin_project_gamma = 31, &
-                              spin_project_shift = 32, &
-                              spin_project_cutoff = 33, &
-                              spin_project_spawn_initiators = 34, &
-                              spin_project_no_death = 35, &
-                              spin_project_iter_count = 36, trunc_nopen = 37, &
-                              targetgrowrate = 38, refshift = 39, &
-                              calc_rdm = 40, calc_explic_rdm = 41, &
-                              fill_rdm_iter = 42, diag_one_rdm = 43, &
-                              frequency_cutoff = 44, & !for the histogram integration
-                              prepare_real_time = 45, &
-                              time = 46
+        integer, parameter :: excite                =  1, &
+                              truncatecas           =  2, &
+                              softexit              =  3, &
+                              writepops             =  4, &
+                              varyshift             =  5, &
+                              nmcyc                 =  6, &
+                              tau                   =  7, &
+                              diagshift             =  8, &
+                              shiftdamp             =  9, &
+                              stepsshift            = 10, &
+                              singlesbias           = 11, &
+                              zeroproje             = 12, &
+                              zerohist              = 13, &
+                              partiallyfreeze       = 14, &
+                              partiallyfreezevirt   = 15, &
+                              printerrorblocking    = 16, &
+                              starterrorblocking    = 17, &
+                              restarterrorblocking  = 18, &
+                              printshiftblocking    = 19, &
+                              restartshiftblocking  = 20, &
+                              equilsteps            = 21, &
+                              starthist             = 22, &
+                              histequilsteps        = 23, &
+                              truncinitiator        = 24, &
+                              addtoinit             = 25, &
+                              scalehf               = 26, &
+                              printhighpopdet       = 27, &
+                              changerefdet          = 28, &
+                              restarthighpop        = 29, &
+                              trunc_nopen           = 30, &
+                              targetgrowrate        = 31, &
+                              refshift              = 32, &
+                              calc_rdm              = 33, &
+                              calc_explic_rdm       = 34, &
+                              fill_rdm_iter         = 35, &
+                              diag_one_rdm          = 36, &
+                              frequency_cutoff      = 37, & !for the histogram integration
+                              time                  = 38
+
         integer, parameter :: last_item = time
         integer, parameter :: max_item_len = 30
         character(max_item_len), parameter :: option_list_molp(last_item) &
@@ -240,15 +241,8 @@ contains
                                    "not_option                   ", &
                                    "not_option                   ", &
                                    "not_option                   ", &
-                                   "not_option                   ", &
-                                   "not_option                   ", &
-                                   "not_option                   ", &
-                                   "not_option                   ", &
-                                   "not_option                   ", &
-                                   "not_option                   ", &
-                                   "not_option                   ", &
-                                   "not_option                   ", &
                                    "not_option                   "/)
+
         character(max_item_len), parameter :: option_list(last_item) &
                                = (/"excite                       ", &
                                    "truncatecas                  ", &
@@ -279,13 +273,6 @@ contains
                                    "printhighpopdet              ", &
                                    "changerefdet                 ", &
                                    "restarthighpop               ", &
-                                   "spin-project                 ", &
-                                   "spin-project-gamma           ", &
-                                   "spin-project-shift           ", &
-                                   "spin-project-cutoff          ", &
-                                   "spin-project-spawn-initiators", &
-                                   "spin-project-no-death        ", &
-                                   "spin-project-iter-count      ", &
                                    "trunc-nopen                  ", &
                                    "targetgrowrate               ", &
                                    "refshift                     ", &
@@ -294,7 +281,6 @@ contains
                                    "fillrdmiter                  ", &
                                    "diagflyonerdm                ", &
                                    "frequency-cutoff             ", &
-                                   "prepare_real_time            ", &
                                    "time                         "/)
 
         ! Logical(4) datatypes for compilation with builds of openmpi that don't
@@ -392,20 +378,6 @@ contains
                             call readf (InitiatorWalkNo)
                         elseif (i == scalehf) then
                             call readf (hfScaleFactor)
-                        elseif (i == spin_project) then
-                            call readi (spin_proj_interval)
-                        elseif (i == spin_project_gamma) then
-                            call readf (spin_proj_gamma)
-                        elseif (i == spin_project_shift) then
-                            call readf (spin_proj_shift)
-                        elseif (i == spin_project_cutoff) then
-                            call readi (spin_proj_cutoff)
-                        elseif (i == spin_project_spawn_initiators) then
-                            spin_proj_spawn_initiators = readt_default(.true.)
-                        elseif (i == spin_project_no_death) then
-                            spin_proj_no_death = readt_default (.true.)
-                        elseif (i == spin_project_iter_count) then
-                            call readi (spin_proj_iter_count)
                         elseif (i == trunc_nopen) then
                             call readi (trunc_nop_new)
                         elseif (i == calc_rdm) then
@@ -505,7 +477,7 @@ contains
             ! Write POPS file
             if (opts_selected(writepops)) then
                 tWritePopsFound = .true.
-                write(6,*) 'Asked to write out a popsfile on iteration: ',iter
+                write(stdout,*) 'Asked to write out a popsfile on iteration: ',iter
             endif
 
             ! Enter variable shift mode
@@ -517,7 +489,7 @@ contains
                     else
                         tSinglePartPhase(run) = .false.
                         VaryShiftIter(run) = iter
-                        write(6,*) 'Request to vary the shift detected on a node on iteration: ',iter
+                        write(stdout,*) 'Request to vary the shift detected on a node on iteration: ',iter
 
                         ! If specified, jump the value of the shift to that
                         ! predicted by the projected energy
@@ -546,14 +518,14 @@ contains
             ! Change Tau
             if (opts_selected(tau)) then
                 call MPIBCast (tau_value, tSource)
-                write(6,*) 'TAU changed to: ', tau_value, 'on iteration: ', iter
+                write(stdout,*) 'TAU changed to: ', tau_value, 'on iteration: ', iter
                 if (tSearchTau) then
-                    write(6,*) "Ceasing the searching for tau."
+                    write(stdout,*) "Ceasing the searching for tau."
                     tSearchTau = .false.
                 endif
                 ! also use that CHANGEVARS option to stop the new tau-search
                 if (t_hist_tau_search) then
-                    write(6,*) "Ceasing new tau-search!"
+                    write(stdout,*) "Ceasing new tau-search!"
                     t_hist_tau_search = .false.
                     ! i could also use that option to stop the histogramming
                     ! of the H_ij/pgen ratios.. since i do not need it anymore
@@ -564,32 +536,32 @@ contains
 
             if(opts_selected(targetgrowrate)) then
                 call MPIBCast(target_grow_rate, tSource)
-                write(6,*) "TARGETGROWRATE changed to: ",target_grow_rate, "on iteration: ",iter
+                write(stdout,*) "TARGETGROWRATE changed to: ",target_grow_rate, "on iteration: ",iter
             endif
 
             ! Change the shift value
             if (opts_selected(diagshift)) then
                 call MPIBCast (DiagSft, tSource)
-                write(6,*) 'DIAGSHIFT changed to: ', DiagSft, 'on iteration: ',iter
+                write(stdout,*) 'DIAGSHIFT changed to: ', DiagSft, 'on iteration: ',iter
             endif
 
             ! Change the shift damping parameter
             if (opts_selected(shiftdamp)) then
                 call MPIBCast (SftDamp, tSource)
-                write(6,*) 'SHIFTDAMP changed to: ', SftDamp, 'on iteration: ',iter
+                write(stdout,*) 'SHIFTDAMP changed to: ', SftDamp, 'on iteration: ',iter
             endif
 
             ! Change the shift update (and output) interval
             if (opts_selected(stepsshift)) then
                 call MPIBCast (StepsSft, tSource)
-                write(6,*) 'STEPSSHIFT changed to: ', StepsSft, 'on iteration: ',iter
+                write(stdout,*) 'STEPSSHIFT changed to: ', StepsSft, 'on iteration: ',iter
             endif
 
             ! Change the singles bias
             if (opts_selected(singlesbias)) then
                 call MPIBcast (SinglesBias_value, tSource)
                 tSingBiasChange = .true.
-                write(6,*) 'SINGLESBIAS changed to: ', SinglesBias, 'on iteration: ',iter
+                write(stdout,*) 'SINGLESBIAS changed to: ', SinglesBias, 'on iteration: ',iter
             endif
 
             ! Zero the average energy estimators
@@ -598,7 +570,7 @@ contains
                 SumNoatHF = 0
                 VaryShiftCycles = 0
                 SumDiagSft = 0
-                write(6,*) 'Zeroing all average energy estimators on iteration: ',iter
+                write(stdout,*) 'Zeroing all average energy estimators on iteration: ',iter
             endif
 
             ! Zero average histograms
@@ -613,14 +585,14 @@ contains
                 call MPIBCast (NPartFrozen, tSource)
                 call MPIBcast (NHolesFrozen, tSource)
 
-                write(6,*) 'Allowing ', nHolesFrozen, ' holes in ', &
+                write(stdout,*) 'Allowing ', nHolesFrozen, ' holes in ', &
                            nPartFrozen, ' partially frozen orbitals on iteration: ',iter
 
                 if (nHolesFrozen == nPartFrozen) then
                     ! Allowing as many holes as there are orbitals
                     !  --> equivalent to not freezing at all.
                     tPartFreezeCore = .false.
-                    write(6,*) 'Unfreezing any partially frozen core on iteration: ',iter
+                    write(stdout,*) 'Unfreezing any partially frozen core on iteration: ',iter
                 else
                     tPartFreezeCore = .true.
                 endif
@@ -630,14 +602,14 @@ contains
                 call MPIBcast (nVirtPartFrozen, tSource)
                 call MPIBcast (nelVirtFrozen, tSource)
 
-                write(6,*) 'Allowing ', nelVirtFrozen, ' electrons in ', &
+                write(stdout,*) 'Allowing ', nelVirtFrozen, ' electrons in ', &
                            nVirtPartFrozen, ' partially frozen virtual &
                           &orbitals on iteration: ',iter
                 if (nelVirtFrozen == nel) then
                     ! Allowing as many holes as there are orbitals
                     ! --> Equivalent ton not freezing at all
                     tPartFreezeVirt = .false.
-                    write(6,*) 'Unfreezing any partially frozen virtual &
+                    write(stdout,*) 'Unfreezing any partially frozen virtual &
                                &orbitals on iteration: ',iter
                 else
                     tPartFreezeVirt = .true.
@@ -662,14 +634,14 @@ contains
 
             ! Restart error blocking
             if (opts_selected(restarterrorblocking)) then
-                write(6,*) 'Restarting the error calculations. All blocking &
+                write(stdout,*) 'Restarting the error calculations. All blocking &
                            &arrays are re-set to zero on iteration: ',iter
                 if (iProcIndex == 0) call RestartBlocking (iter)
             endif
 
             ! Print shift blocking analysis here
             if (opts_selected(printshiftblocking)) then
-                write(6,*) 'Printing shift error blocking on iteration: ',iter
+                write(stdout,*) 'Printing shift error blocking on iteration: ',iter
                 if (iProcIndex == 0) call PrintShiftBlocking_proc (iter)
             endif
 
@@ -751,7 +723,7 @@ contains
             ! Print the determinants with the largest +- populations
             if (opts_selected(printhighpopdet)) then
                 tPrintHighPop = .true.
-                write(6,*) 'Request to print the determinants with the &
+                write(stdout,*) 'Request to print the determinants with the &
                            &largest populations detected on iteration: ',iter
             endif
 
@@ -761,7 +733,7 @@ contains
                 tCheckHighestPop = .true.
                 tChangeProjEDet = .true.
                 FracLargerDet = 1.0
-                write(6,*) 'Changing the reference determinant to the most &
+                write(stdout,*) 'Changing the reference determinant to the most &
                            &highly weighted determinant on iteration: ',iter
             endif
 
@@ -773,62 +745,6 @@ contains
                 FracLargerDet = 1.0
                 root_print 'Restarting the calculation with the most highly &
                            &weighted determinant as the reference determiant.'
-            endif
-
-            ! Enable spin projection, and change application interval
-            if (opts_selected(spin_project)) then
-                call MPIBcast (spin_proj_interval, tSource)
-                if (spin_proj_interval == 0) then
-                    tSpinProject = .false.
-                    root_print 'Stochastic spin projection disabled'
-                else
-                    tSpinProject = .true.
-                    root_print 'Stochastic spin projection applied every ', &
-                               spin_proj_interval, ' iterations.'
-                endif
-            endif
-
-            ! Change delta-gamma for spin projection
-            if (opts_selected(spin_project_gamma)) then
-                call MPIBcast (spin_proj_gamma, tSource)
-                root_print 'Changed gamma value for spin projection to ', &
-                           spin_proj_gamma
-            endif
-
-            ! Change shift value for spin projection
-            if (opts_selected(spin_project_shift)) then
-                call MPIBcast (spin_proj_shift, tSource)
-                root_print 'Changed shift value for spin projection to ', &
-                           spin_proj_shift
-            endif
-
-            ! Change walker number cutoff value for spin projection
-            if (opts_selected(spin_project_shift)) then
-                call MPIBcast (spin_proj_cutoff, tSource)
-                root_print 'Changed walker number cutoff value for spin &
-                           &projection to ', spin_proj_shift
-            endif
-
-            ! Change the way spin projection deals with initiators
-            if (opts_selected(spin_project_spawn_initiators)) then
-                call MPIBCast (spin_proj_spawn_initiators, tSource)
-                root_print 'Changed initiator behaviour with spin projection:&
-                           & ', spin_project_spawn_initiators
-            endif
-
-            ! Enable or disable walker death in spin projection
-            if (opts_selected(spin_project_no_death)) then
-                call MPIBcast (spin_proj_no_death, tSource)
-                root_print 'Walker death in spin projection enabled: ', &
-                           spin_project_no_death
-            endif
-
-            ! Apply the spin projection operator N times for each application
-            if (opts_selected(spin_project_iter_count)) then
-                call MPIBcast (spin_proj_iter_count, tSource)
-                root_print 'The stochastic spin projection operator will now &
-                           &be applied ', spin_proj_iter_count, ' times on &
-                           &each occasion.'
             endif
 
             ! Change the maximum nopen truncation level
@@ -858,7 +774,7 @@ contains
             ! varyshift according to reference population
             if (opts_selected(refshift)) then
                 tShiftonHFPop = .true.
-                write(6,*) 'Request to change default shift action to REFSHIFT &
+                write(stdout,*) 'Request to change default shift action to REFSHIFT &
                 &detected on a node on iteration: ',iter
             endif
 

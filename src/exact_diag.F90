@@ -21,16 +21,16 @@ contains
         call init_exact_diag()
 
         ! Create the workspace for dsyev.
-        lwork = max(1,3*ndets_ed-1)
+        lwork = max(1, 3 * ndets_ed - 1)
         allocate(work(lwork))
 
-        write(6,'(1x,a28)',advance='no') "Diagonalising Hamiltonian..."
+        write(stdout, '(1x,a28)', advance='no') "Diagonalising Hamiltonian..."
         call neci_flush(6)
 
         ! Perform the diagonalisation.
         call dsyev('V', 'U', ndets_ed, hamiltonian, ndets_ed, eigv_ed, work, lwork, info)
 
-        write(6,'(1x,a9,/)') "Complete."
+        write(stdout, '(1x,a9,/)') "Complete."
         call neci_flush(6)
 
         call output_exact_spectrum()
@@ -49,14 +49,14 @@ contains
         use util_mod, only: choose
 
         integer :: expected_ndets_tot
-        integer(n_int), allocatable :: ilut_list(:,:)
+        integer(n_int), allocatable :: ilut_list(:, :)
         character(len=*), parameter :: t_r = 'init_exact_diag'
         integer :: ierr
 
-        write(6,'(/,1x,a57,/)') "Beginning exact diagonalisation in all symmetry sectors."
+        write(stdout, '(/,1x,a57,/)') "Beginning exact diagonalisation in all symmetry sectors."
         call neci_flush(6)
 
-        write(6,'(1x,a56)',advance='no') "Enumerating and storing all determinants in the space..."
+        write(stdout, '(1x,a56)', advance='no') "Enumerating and storing all determinants in the space..."
         call neci_flush(6)
 
         ! Generate and count all the determinants on this processor, but don't store them.
@@ -65,34 +65,34 @@ contains
         ! Now generate them again and store them this time.
         call gndts_all_sym_this_proc(ilut_list, .false., ndets_ed)
 
-        write(6,'(1x,a9)') "Complete."
+        write(stdout, '(1x,a9)') "Complete."
         call neci_flush(6)
 
         expected_ndets_tot = int(choose(nbasis, nel))
         if (ndets_ed /= expected_ndets_tot) then
-            write(6,*) "ndets counted:", ndets_ed, "ndets expected:", expected_ndets_tot
+            write(stdout, *) "ndets counted:", ndets_ed, "ndets expected:", expected_ndets_tot
             call stop_all('t_r', 'The number of determinants generated is not &
                                     &consistent with the expected number.')
         end if
 
         allocate(eigv_ed(ndets_ed), stat=ierr)
         if (ierr /= 0) then
-            write(6,'(1x,a11,1x,i5)') "Error code:", ierr
+            write(stdout, '(1x,a11,1x,i5)') "Error code:", ierr
             call stop_all(t_r, "Error allocating eigenvalue array.")
         end if
         eigv_ed = 0.0_dp
 
-        write(6,'(1x,a48)') "Allocating and calculating Hamiltonian matrix..."
+        write(stdout, '(1x,a48)') "Allocating and calculating Hamiltonian matrix..."
         call neci_flush(6)
         allocate(hamiltonian(ndets_ed, ndets_ed), stat=ierr)
         if (ierr /= 0) then
-            write(6,'(1x,a11,1x,i5)') "Error code:", ierr
+            write(stdout, '(1x,a11,1x,i5)') "Error code:", ierr
             call stop_all(t_r, "Error allocating Hamiltonian array.")
         end if
-        write(6,'(1x,a46)') "Hamiltonian allocation completed successfully."
+        write(stdout, '(1x,a46)') "Hamiltonian allocation completed successfully."
         call neci_flush(6)
         call calculate_full_hamiltonian(ilut_list, hamiltonian)
-        write(6,'(1x,a33)') "Hamiltonian calculation complete."
+        write(stdout, '(1x,a33)') "Hamiltonian calculation complete."
         call neci_flush(6)
 
     end subroutine init_exact_diag
@@ -105,8 +105,10 @@ contains
         use SystemData, only: tHPHF, nel
         use guga_excitations, only: calc_guga_matrix_element
         use guga_data, only: ExcitationInformation_t
-        integer(n_int), intent(in) :: ilut_list(0:,:)
-        HElement_t(dp), intent(inout), allocatable :: local_hamil(:,:)
+        use guga_bitrepops, only: init_csf_information
+        use bit_rep_data, only: nifd
+        integer(n_int), intent(in) :: ilut_list(0:, :)
+        HElement_t(dp), intent(inout), allocatable :: local_hamil(:, :)
 
         integer :: ndets, i, j, ierr
         integer :: nI(nel), nJ(nel)
@@ -116,11 +118,11 @@ contains
         ! Initial checks that arrays passed in are consistent.
         ndets = size(ilut_list, 2)
         if (allocated(local_hamil)) then
-            if(size(local_hamil,1) /= ndets) call stop_all(t_r, "Inconsistent sizes Hamiltonian and ilut arrays.")
+            if (size(local_hamil, 1) /= ndets) call stop_all(t_r, "Inconsistent sizes Hamiltonian and ilut arrays.")
         else
             allocate(local_hamil(ndets, ndets), stat=ierr)
             if (ierr /= 0) then
-                write(6,'(1x,a11,1x,i5)') "Error code:", ierr
+                write(stdout, '(1x,a11,1x,i5)') "Error code:", ierr
                 call stop_all(t_r, "Error allocating Hamiltonian array.")
             end if
         end if
@@ -130,26 +132,31 @@ contains
             call stop_all(t_r, "check this for non-hermitian hamil!")
         end if
         do i = 1, ndets
-            call decode_bit_det(nI, ilut_list(:,i))
+            call decode_bit_det(nI, ilut_list(:, i))
+            if (tGUGA) call init_csf_information(ilut_list(0:nifd, i))
+
             do j = i, ndets
-                call decode_bit_det(nJ, ilut_list(:,j))
+                call decode_bit_det(nJ, ilut_list(:, j))
                 if (i == j) then
                     if (tHPHF) then
-                        local_hamil(i,i) = hphf_diag_helement(nI, ilut_list(:,i))
+                        local_hamil(i, i) = hphf_diag_helement(nI, ilut_list(:, i))
                     else
-                        local_hamil(i,i) = get_helement(nI, nI, 0)
+                        local_hamil(i, i) = get_helement(nI, nI, 0)
                     end if
                 else
                     if (tHPHF) then
-                        local_hamil(i,j) = hphf_off_diag_helement(nI, nJ, ilut_list(:,i), ilut_list(:,j))
+                        local_hamil(i, j) = hphf_off_diag_helement(nI, nJ, ilut_list(:, i), ilut_list(:, j))
                     else if (tGUGA) then
-                        call calc_guga_matrix_element(ilut_list(:,i),ilut_list(:,j), &
-                            excitInfo, local_hamil(i,j), .true., 2)
+                        call calc_guga_matrix_element(ilut_list(:, i), ilut_list(:, j), &
+                                                      excitInfo, local_hamil(i, j), .true., 1)
+! #ifdef CMPLX_
+!                         local_hamil(i,j) = conjg(local_hamil(i,j))
+! #endif
                     else
-                        local_hamil(i,j) = get_helement(nI, nJ, ilut_list(:,i), ilut_list(:,j))
+                        local_hamil(i, j) = get_helement(nI, nJ, ilut_list(:, i), ilut_list(:, j))
                     end if
                 end if
-                local_hamil(j,i) = local_hamil(i,j)
+                local_hamil(j, i) = local_hamil(i, j)
             end do
         end do
 
@@ -162,10 +169,10 @@ contains
         integer :: i, temp_unit
 
         temp_unit = get_free_unit()
-        open(temp_unit, file='EIGENVALUES',status='replace')
-        write(temp_unit,'(1x,a12)') "Total energy"
+        open(temp_unit, file='EIGENVALUES', status='replace')
+        write(temp_unit, '(1x,a12)') "Total energy"
         do i = 1, ndets_ed
-            write(temp_unit,'(1x,i7,5x,f15.10)') i, eigv_ed(i)
+            write(temp_unit, '(1x,i7,5x,f15.10)') i, eigv_ed(i)
         end do
         close(temp_unit)
 

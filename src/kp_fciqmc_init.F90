@@ -8,7 +8,8 @@ module kp_fciqmc_init
     use Parallel_neci, only: iProcIndex, MPISum, MPISumAll, nProcessors
     use kp_fciqmc_data_mod
     use util_mod, only: near_zero
-
+    use FciMCData, only: core_run
+    use core_space_util, only: cs_replicas
     implicit none
 
 contains
@@ -27,7 +28,7 @@ contains
         character(len=100) :: w
         integer :: i, j, niters_temp, nvecs_temp, nreports_temp, npert, nexcit
         integer :: ras_size_1, ras_size_2, ras_size_3, ras_min_1, ras_max_3
-        character (len=*), parameter :: t_r = "kp_fciqmc_read_inp"
+        character(len=*), parameter :: t_r = "kp_fciqmc_read_inp"
 
         ! Default values.
         tExcitedStateKP = .false.
@@ -74,31 +75,31 @@ contains
                 exit
             end if
             call readu(w)
-            select case(w)
-            case("END-KP-FCIQMC")
+            select case (w)
+            case ("END-KP-FCIQMC")
                 exit read_inp
-            case("EXCITED-STATE-KP")
+            case ("EXCITED-STATE-KP")
 #ifdef PROG_NUMRUNS_
                 tExcitedStateKP = .true.
                 call geti(kp%nvecs)
 #else
                 call stop_all(t_r, "NECI must be compiled with multiple replicas (mneci) to use the excited-state-kp option.")
 #endif
-            case("FINITE-TEMPERATURE")
+            case ("FINITE-TEMPERATURE")
                 tFiniteTemp = .true.
 
-            case("CALC-SPIN")
+            case ("CALC-SPIN")
                 tCalcSpin = .true.
 
-            case("MULTIPLE-POPS")
+            case ("MULTIPLE-POPS")
                 tMultiplePopStart = .true.
                 tIncrementPops = .true.
                 iPopsFileNoRead = -1
-            case("NUM-INIT-CONFIGS")
+            case ("NUM-INIT-CONFIGS")
                 call geti(kp%nconfigs)
-            case("NUM-REPEATS-PER-INIT-CONFIG")
+            case ("NUM-REPEATS-PER-INIT-CONFIG")
                 call geti(kp%nrepeats)
-            case("NUM-KRYLOV-VECS")
+            case ("NUM-KRYLOV-VECS")
                 call geti(nvecs_temp)
                 if (kp%nvecs /= 0) then
                     if (kp%nvecs /= nvecs_temp) call stop_all(t_r, 'The number of values specified for the number of iterations &
@@ -108,7 +109,7 @@ contains
                     allocate(kp%niters(kp%nvecs))
                     kp%niters(kp%nvecs) = 0
                 end if
-            case("NREPORTS")
+            case ("NREPORTS")
                 call geti(nreports_temp)
                 if (kp%nreports /= 0) then
                     if (kp%nreports /= nreports_temp) call stop_all(t_r, 'The number of values specified for the number of &
@@ -118,11 +119,11 @@ contains
                     allocate(kp%niters(kp%nreports))
                     kp%niters(kp%nreports) = 0
                 end if
-            case("NUM-ITERS-BETWEEN-VECS")
+            case ("NUM-ITERS-BETWEEN-VECS")
                 call geti(niters_temp)
-            case("NUM-ITERS-BETWEEN-REPORTS")
+            case ("NUM-ITERS-BETWEEN-REPORTS")
                 call geti(niters_temp)
-            case("NUM-ITERS-BETWEEN-VECS-VARY")
+            case ("NUM-ITERS-BETWEEN-VECS-VARY")
                 vary_niters = .true.
                 if (kp%nvecs /= 0) then
                     if (kp%nvecs /= nitems) call stop_all(t_r, 'The number of values specified for the number of iterations &
@@ -130,11 +131,11 @@ contains
                 end if
                 kp%nvecs = nitems
                 if (.not. allocated(kp%niters)) allocate(kp%niters(kp%nvecs))
-                do i = 1, kp%nvecs-1
+                do i = 1, kp%nvecs - 1
                     call geti(kp%niters(i))
                 end do
                 kp%niters(kp%nvecs) = 0
-            case("NUM-ITERS-BETWEEN-REPORTS-VARY")
+            case ("NUM-ITERS-BETWEEN-REPORTS-VARY")
                 vary_niters = .true.
                 if (kp%nreports /= 0) then
                     if (kp%nreports /= nitems) call stop_all(t_r, 'The number of values specified for the number of &
@@ -142,29 +143,29 @@ contains
                 end if
                 kp%nreports = nitems
                 if (.not. allocated(kp%niters)) allocate(kp%niters(kp%nreports))
-                do i = 1, kp%nreports-1
+                do i = 1, kp%nreports - 1
                     call geti(kp%niters(i))
                 end do
                 kp%niters(kp%nreports) = 0
-            case("MEMORY-FACTOR")
+            case ("MEMORY-FACTOR")
                 call getf(memory_factor_kp)
-            case("NUM-WALKERS-PER-SITE-INIT")
+            case ("NUM-WALKERS-PER-SITE-INIT")
                 call getf(nwalkers_per_site_init)
-            case("AVERAGEMCEXCITS-HAMIL")
+            case ("AVERAGEMCEXCITS-HAMIL")
                 call getf(av_mc_excits_kp)
-            case("EXACT-HAMIL-SPAWNING")
+            case ("EXACT-HAMIL-SPAWNING")
                 tExactHamilSpawning = .true.
-            case("EXACT-HAMIL-SPAWNING-FRAC")
+            case ("EXACT-HAMIL-SPAWNING-FRAC")
                 call getf(kp_hamil_exact_frac)
-            case("EXACT-HAMIL")
+            case ("EXACT-HAMIL")
                 tExactHamil = .true.
-            case("FULLY-STOCHASTIC-HAMIL")
+            case ("FULLY-STOCHASTIC-HAMIL")
                 tFullyStochasticHamil = .true.
-            case("INIT-CORRECT-WALKER-POP")
+            case ("INIT-CORRECT-WALKER-POP")
                 tInitCorrectNWalkers = .true.
-            case("OCCUPY-DETERM-INIT")
+            case ("OCCUPY-DETERM-INIT")
                 tOccDetermInit = .true.
-            case("INIT-CONFIG-SEEDS")
+            case ("INIT-CONFIG-SEEDS")
                 if (kp%nconfigs == 0) call stop_all(t_r, 'Please use the num-init-configs option to enter the number of &
                                                           &initial configurations before using the init-vec-seeds option.')
                 tUseInitConfigSeeds = .true.
@@ -172,13 +173,13 @@ contains
                 do i = 1, kp%nconfigs
                     call geti(init_config_seeds(i))
                 end do
-            case("ALL-SYM-SECTORS")
+            case ("ALL-SYM-SECTORS")
                 tAllSymSectors = .true.
-            case("WRITE-AVERAGE-MATRICES")
+            case ("WRITE-AVERAGE-MATRICES")
                 tOutputAverageKPMatrices = .true.
-            case("SCALE-POPULATION")
+            case ("SCALE-POPULATION")
                 tScalePopulation = .true.
-            case("EXCITED-INIT-STATE")
+            case ("EXCITED-INIT-STATE")
                 tExcitedInitState = .true.
                 ! Read in the number of excited states to be used.
                 call readi(nexcit)
@@ -198,9 +199,9 @@ contains
                     call getf(kpfciqmc_ex_weights(j))
                 end do
                 ! Normalise weights so that they sum to 1.
-                kpfciqmc_ex_weights = kpfciqmc_ex_weights/sum(kpfciqmc_ex_weights)
+                kpfciqmc_ex_weights = kpfciqmc_ex_weights / sum(kpfciqmc_ex_weights)
 
-            case("OVERLAP-PERTURB-ANNIHILATE")
+            case ("OVERLAP-PERTURB-ANNIHILATE")
                 alloc_popsfile_dets = .true.
                 tOverlapPert = .true.
                 tWritePopsNorm = .true.
@@ -228,7 +229,7 @@ contains
                     call init_perturbation_annihilation(overlap_pert(i))
                 end do
 
-            case("OVERLAP-PERTURB-CREATION")
+            case ("OVERLAP-PERTURB-CREATION")
                 alloc_popsfile_dets = .true.
                 tOverlapPert = .true.
                 tWritePopsNorm = .true.
@@ -256,53 +257,53 @@ contains
                     call init_perturbation_creation(overlap_pert(i))
                 end do
 
-            case("DOUBLES-TRIAL")
+            case ("DOUBLES-TRIAL")
                 kp_trial_space_in%tDoubles = .true.
-            case("CAS-TRIAL")
+            case ("CAS-TRIAL")
                 kp_trial_space_in%tCAS = .true.
                 tSpn = .true.
                 call geti(kp_trial_space_in%occ_cas)  ! Number of electrons in the CAS
                 call geti(kp_trial_space_in%virt_cas) ! Number of virtual spin-orbitals in the CAS
-            case("RAS-TRIAL")
+            case ("RAS-TRIAL")
                 kp_trial_space_in%tRAS = .true.
                 call geti(ras_size_1)  ! Number of spatial orbitals in RAS1.
                 call geti(ras_size_2)  ! Number of spatial orbitals in RAS2.
                 call geti(ras_size_3)  ! Number of spatial orbitals in RAS3.
                 call geti(ras_min_1)  ! Min number of electrons (alpha and beta) in RAS1 orbs.
                 call geti(ras_max_3)  ! Max number of electrons (alpha and beta) in RAS3 orbs.
-                kp_trial_space_in%ras%size_1 = int(ras_size_1,sp)
-                kp_trial_space_in%ras%size_2 = int(ras_size_2,sp)
-                kp_trial_space_in%ras%size_3 = int(ras_size_3,sp)
-                kp_trial_space_in%ras%min_1 = int(ras_min_1,sp)
-                kp_trial_space_in%ras%max_3 = int(ras_max_3,sp)
-            case("MP1-TRIAL")
+                kp_trial_space_in%ras%size_1 = int(ras_size_1, sp)
+                kp_trial_space_in%ras%size_2 = int(ras_size_2, sp)
+                kp_trial_space_in%ras%size_3 = int(ras_size_3, sp)
+                kp_trial_space_in%ras%min_1 = int(ras_min_1, sp)
+                kp_trial_space_in%ras%max_3 = int(ras_max_3, sp)
+            case ("MP1-TRIAL")
                 kp_trial_space_in%tMP1 = .true.
                 call geti(kp_trial_space_in%mp1_ndets)
-            case("HF-TRIAL")
+            case ("HF-TRIAL")
                 kp_trial_space_in%tHF = .true.
-            case("POPS-TRIAL")
+            case ("POPS-TRIAL")
                 kp_trial_space_in%tPops = .true.
                 call geti(kp_trial_space_in%npops)
-            case("READ-TRIAL")
+            case ("READ-TRIAL")
                 kp_trial_space_in%tRead = .true.
-            case("FCI-TRIAL")
+            case ("FCI-TRIAL")
                 kp_trial_space_in%tFCI = .false.
-            case("UNPAIRED-REPLICAS")
+            case ("UNPAIRED-REPLICAS")
                 tPairedReplicas = .false.
 #if defined(PROG_NUMRUNS_)
                 nreplicas = 1
 #endif
-            case("ORTHOGONALISE-REPLICAS")
+            case ("ORTHOGONALISE-REPLICAS")
                 tOrthogKPReplicas = .true.
                 if (item < nitems) then
                     call readi(orthog_kp_iter)
-                endif
+                end if
             case default
                 call report("Keyword "//trim(w)//" not recognized in kp-fciqmc block", .true.)
             end select
         end do read_inp
 
-        if ( (.not. vary_niters)) then
+        if ((.not. vary_niters)) then
             if (tExcitedStateKP) then
                 if (.not. allocated(kp%niters)) allocate(kp%niters(kp%nreports))
                 kp%niters = niters_temp
@@ -321,7 +322,7 @@ contains
         use CalcData, only: tSemiStochastic, tUseRealCoeffs, AvMCExcits, tPairedReplicas
         use fcimc_initialisation, only: SetupParameters, InitFCIMCCalcPar, init_fcimc_fn_pointers
         use FciMCData, only: tPopsAlreadyRead, nWalkerHashes, SpawnVecKP
-        use FciMCData, only: SpawnVecKP2, MaxSpawned, determ_space_size, determ_sizes
+        use FciMCData, only: SpawnVecKP2, MaxSpawned
         use FciMCData, only: SpawnedPartsKP, SpawnedPartsKP2, MaxWalkersUncorrected
         use FciMCData, only: iter_data_fciqmc, spawn_ht, nhashes_spawn, tReplicaReferencesDiffer
         use FciMCParMod, only: WriteFciMCStatsHeader, write_fcimcstats2, tSinglePartPhase
@@ -333,19 +334,19 @@ contains
 
         type(kp_fciqmc_data), intent(inout) :: kp
         integer :: ierr, krylov_vecs_mem, krylov_ht_mem, matrix_mem, spawn_ht_mem, i
-        character (len=*), parameter :: t_r = "init_kp_fciqmc"
+        character(len=*), parameter :: t_r = "init_kp_fciqmc"
 
         ! Checks.
-        if (.not. tUseRealCoeffs) call stop_all(t_r,'kp-fciqmc can only be run using &
+        if (.not. tUseRealCoeffs) call stop_all(t_r, 'kp-fciqmc can only be run using &
             &real coefficients).')
-        if (tExactHamil .and. nProcessors /= 1) call stop_all(t_r,'The exact-hamil &
+        if (tExactHamil .and. nProcessors /= 1) call stop_all(t_r, 'The exact-hamil &
             &option can only be used when running with one processor.')
-        if (theisenberg .and. tAllSymSectors) call stop_all(t_r,'The option to use all &
+        if (theisenberg .and. tAllSymSectors) call stop_all(t_r, 'The option to use all &
             &symmetry sectors at once has not been implemented with the Heisenberg model.')
         if (n_int == 4) call stop_all(t_r, 'Use of RealCoefficients does not work with 32 bit &
              &integers due to the use of the transfer operation from dp reals to 64 bit integers.')
         if (tExcitedStateKP) then
-            if (tPairedReplicas .and. inum_runs /= 2*kp%nvecs) then
+            if (tPairedReplicas .and. inum_runs /= 2 * kp%nvecs) then
                 call stop_all(t_r, 'When using the ExcitedStateKP option with paired replicas, the &
                                    &number of replicas must be twice the number of states to be calculated.')
             else if ((.not. tPairedReplicas) .and. inum_runs /= kp%nvecs) then
@@ -360,7 +361,7 @@ contains
         call InitFCIMCCalcPar()
         call init_fcimc_fn_pointers()
 
-        write(6,'(/,12("="),1x,a9,1x,12("="))') "KP-FCIQMC"
+        write(stdout, '(/,12("="),1x,a9,1x,12("="))') "KP-FCIQMC"
 
         if (tSemiStochastic .and. (.not. tFullyStochasticHamil)) then
             tSemiStochasticKPHamil = .true.
@@ -390,11 +391,11 @@ contains
 #endif
 #endif
 
-
         ! The number of elements required to store all replicas of all Krylov vectors.
-        lenof_all_signs = lenof_sign_kp*kp%nvecs
+        lenof_all_signs = lenof_sign_kp * kp%nvecs
         ! The total length of a bitstring containing all Krylov vectors.
-        NIfTotKP = NIfDBO + lenof_all_signs + NIfFlag
+        ! +1 one is for the flag integer
+        NIfTotKP = nifd + lenof_all_signs + 1
 
         ! Set up kp_ind_* arrays.
         allocate(kp_ind_1(kp%nvecs))
@@ -402,8 +403,8 @@ contains
 
         if (tPairedReplicas) then
             do i = 1, kp%nvecs
-                kp_ind_1(i) = 2*i-1
-                kp_ind_2(i) = 2*i
+                kp_ind_1(i) = 2 * i - 1
+                kp_ind_2(i) = 2 * i
             end do
         else
             do i = 1, kp%nvecs
@@ -416,37 +417,37 @@ contains
             ! Allocate all of the KP arrays.
             nhashes_kp = nWalkerHashes
             TotWalkersKP = 0
-            krylov_vecs_length = nint(MaxWalkersUncorrected*memory_factor_kp*kp%nvecs)
-            nkrylov_amp_elems_tot = lenof_sign*kp%nvecs*krylov_vecs_length
+            krylov_vecs_length = nint(MaxWalkersUncorrected * memory_factor_kp * kp%nvecs)
+            nkrylov_amp_elems_tot = lenof_sign * kp%nvecs * krylov_vecs_length
 
             ! Allocate the krylov_vecs array.
             ! The number of MB of memory required to allocate krylov_vecs.
-            krylov_vecs_mem = krylov_vecs_length*(NIfTotKP+1)*size_n_int/1000000
-            write(6,'(a73,'//int_fmt(krylov_vecs_mem,1)//')') "About to allocate array to hold all Krylov vectors. &
+            krylov_vecs_mem = krylov_vecs_length * (NIfTotKP + 1) * size_n_int / 1000000
+            write(stdout, '(a73,'//int_fmt(krylov_vecs_mem, 1)//')') "About to allocate array to hold all Krylov vectors. &
                                            &Memory required (MB):", krylov_vecs_mem
-            write(6,'(a13)',advance='no') "Allocating..."; call neci_flush(6)
+            write(stdout, '(a13)', advance='no') "Allocating..."; call neci_flush(6)
             allocate(krylov_vecs(0:NIfTotKP, krylov_vecs_length), stat=ierr)
             if (ierr /= 0) then
-                write(6,'(1x,a11,1x,i5)') "Error code:", ierr
+                write(stdout, '(1x,a11,1x,i5)') "Error code:", ierr
                 call stop_all(t_r, "Error allocating krylov_vecs array.")
             else
-                write(6,'(1x,a5)') "Done."
+                write(stdout, '(1x,a5)') "Done."
             end if
             call neci_flush(6)
             krylov_vecs = 0_n_int
 
             ! Allocate the krylov_helems array.
             ! The number of MB of memory required to allocate krylov_helems.
-            krylov_vecs_mem = krylov_vecs_length*size_n_int/1000000
-            write(6,'(a103,'//int_fmt(krylov_vecs_mem,1)//')') "About to allocate array to hold diagonal Hamiltonian &
+            krylov_vecs_mem = krylov_vecs_length * size_n_int / 1000000
+            write(stdout, '(a103,'//int_fmt(krylov_vecs_mem, 1)//')') "About to allocate array to hold diagonal Hamiltonian &
                                            &elements for Krylov vectors. Memory required (MB):", krylov_vecs_mem
-            write(6,'(a13)',advance='no') "Allocating..."; call neci_flush(6)
+            write(stdout, '(a13)', advance='no') "Allocating..."; call neci_flush(6)
             allocate(krylov_helems(krylov_vecs_length), stat=ierr)
             if (ierr /= 0) then
-                write(6,'(1x,a11,1x,i5)') "Error code:", ierr
+                write(stdout, '(1x,a11,1x,i5)') "Error code:", ierr
                 call stop_all(t_r, "Error allocating krylov_helems array.")
             else
-                write(6,'(1x,a5)') "Done."
+                write(stdout, '(1x,a5)') "Done."
             end if
             call neci_flush(6)
             krylov_helems = 0.0_dp
@@ -454,32 +455,34 @@ contains
             ! Allocate the hash table to krylov_vecs.
             ! The number of MB of memory required to allocate krylov_vecs_ht.
             ! Each node requires 16 bytes.
-            krylov_ht_mem = nhashes_kp*16/1000000
-            write(6,'(a78,'//int_fmt(krylov_ht_mem,1)//')') "About to allocate hash table to the Krylov vector array. &
+            krylov_ht_mem = nhashes_kp * 16 / 1000000
+            write(stdout, '(a78,'//int_fmt(krylov_ht_mem, 1)//')') "About to allocate hash table to the Krylov vector array. &
                                            &Memory required (MB):", krylov_ht_mem
-            write(6,'(a13)',advance='no') "Allocating..."; call neci_flush(6)
+            write(stdout, '(a13)', advance='no') "Allocating..."; call neci_flush(6)
             allocate(krylov_vecs_ht(nhashes_kp), stat=ierr)
             if (ierr /= 0) then
-                write(6,'(1x,a11,1x,i5)') "Error code:", ierr
+                write(stdout, '(1x,a11,1x,i5)') "Error code:", ierr
                 call stop_all(t_r, "Error allocating krylov_vecs_ht array.")
             else
-                write(6,'(1x,a5)') "Done."
-                write(6,'(a106)') "Note that the hash table uses linked lists, and the memory usage will &
+                write(stdout, '(1x,a5)') "Done."
+                write(stdout, '(a106)') "Note that the hash table uses linked lists, and the memory usage will &
                                   &increase as further nodes are added."
             end if
 
             call init_hash_table(krylov_vecs_ht)
 
-            allocate(SpawnVecKP(0:NOffSgn+lenof_all_signs-1,MaxSpawned),stat=ierr)
-            allocate(SpawnVecKP2(0:NOffSgn+lenof_all_signs-1,MaxSpawned),stat=ierr)
-            SpawnVecKP(:,:) = 0_n_int
-            SpawnVecKP2(:,:) = 0_n_int
+            allocate(SpawnVecKP(0:IlutBits%ind_pop + lenof_all_signs - 1, MaxSpawned), stat=ierr)
+            allocate(SpawnVecKP2(0:IlutBits%ind_pop + lenof_all_signs - 1, MaxSpawned), stat=ierr)
+            SpawnVecKP(:, :) = 0_n_int
+            SpawnVecKP2(:, :) = 0_n_int
             SpawnedPartsKP => SpawnVecKP
             SpawnedPartsKP2 => SpawnVecKP2
 
             if (tSemiStochastic) then
-                allocate(partial_determ_vecs_kp(lenof_all_signs,determ_sizes(iProcIndex)), stat=ierr)
-                allocate(full_determ_vecs_kp(lenof_all_signs,determ_space_size), stat=ierr)
+                associate(rep => cs_replicas(core_run))
+                    allocate(partial_determ_vecs_kp(lenof_all_signs, rep%determ_sizes(iProcIndex)), stat=ierr)
+                    allocate(full_determ_vecs_kp(lenof_all_signs, rep%determ_space_size), stat=ierr)
+                end associate
                 partial_determ_vecs_kp = 0.0_dp
                 full_determ_vecs_kp = 0.0_dp
             end if
@@ -490,27 +493,27 @@ contains
         ! The number of MB of memory required to allocate spawn_ht.
         ! Each node requires 16 bytes.
         nhashes_spawn = int(0.8 * MaxSpawned)
-        spawn_ht_mem = nhashes_spawn*16/1000000
-        write(6,'(a78,'//int_fmt(spawn_ht_mem,1)//')') "About to allocate hash table to the spawning array. &
+        spawn_ht_mem = nhashes_spawn * 16 / 1000000
+        write(stdout, '(a78,'//int_fmt(spawn_ht_mem, 1)//')') "About to allocate hash table to the spawning array. &
                                        &Memory required (MB):", spawn_ht_mem
-        write(6,'(a13)',advance='no') "Allocating..."; call neci_flush(6)
+        write(stdout, '(a13)', advance='no') "Allocating..."; call neci_flush(6)
         allocate(spawn_ht(nhashes_spawn), stat=ierr)
         if (ierr /= 0) then
-            write(6,'(1x,a11,1x,i5)') "Error code:", ierr
+            write(stdout, '(1x,a11,1x,i5)') "Error code:", ierr
             call stop_all(t_r, "Error allocating spawn_ht array.")
         else
-            write(6,'(1x,a5)') "Done."
-            write(6,'(a106)') "Note that the hash table uses linked lists, and the memory usage will &
+            write(stdout, '(1x,a5)') "Done."
+            write(stdout, '(a106)') "Note that the hash table uses linked lists, and the memory usage will &
                               &increase as further nodes are added."
         end if
 
         call init_hash_table(spawn_ht)
 
         ! (2*kp%nrepeats+16) arrays with (kp%nvecs**2) 8-byte elements each.
-        matrix_mem = (2*kp%nrepeats+16)*(kp%nvecs**2)*8/1000000
-        write(6,'(a66,'//int_fmt(matrix_mem,1)//')') "About to allocate various subspace matrices. &
+        matrix_mem = (2 * kp%nrepeats + 16) * (kp%nvecs**2) * 8 / 1000000
+        write(stdout, '(a66,'//int_fmt(matrix_mem, 1)//')') "About to allocate various subspace matrices. &
                                        &Memory required (MB):", matrix_mem
-        write(6,'(a13)',advance='no') "Allocating..."
+        write(stdout, '(a13)', advance='no') "Allocating..."
         call neci_flush(6)
 
         if (tOverlapPert) then
@@ -530,7 +533,7 @@ contains
         allocate(kp_inter_matrix(kp%nvecs, kp%nvecs))
         allocate(kp_eigenvecs_krylov(kp%nvecs, kp%nvecs))
 
-        write(6,'(1x,a5)') "Done."
+        write(stdout, '(1x,a5)') "Done."
 
         ! If av_mc_excits_kp hasn't been set by the user, just use AvMCExcits.
         if (near_zero(av_mc_excits_kp)) av_mc_excits_kp = AvMCExcits
@@ -539,7 +542,7 @@ contains
         kp_overlap_mean = 0.0_dp
         kp_hamil_mean = 0.0_dp
 
-        MaxSpawnedEachProc = int(0.88_dp*real(MaxSpawned,dp)/nProcessors)
+        MaxSpawnedEachProc = int(0.88_dp * real(MaxSpawned, dp) / nProcessors)
 
         if (tFCIMCStats2) then
             call write_fcimcstats2(iter_data_fciqmc, initial=.true.)
@@ -574,11 +577,11 @@ contains
 
         integer :: ndets_this_proc, nexcit
         real(dp), allocatable :: evals(:)
-        HElement_t(dp), allocatable :: evecs_this_proc(:,:), init_vecs(:,:)
-        integer(MPIArg) :: space_sizes(0:nProcessors-1), space_displs(0:nProcessors-1)
+        HElement_t(dp), allocatable :: evecs_this_proc(:, :), init_vecs(:, :)
+        integer(MPIArg) :: space_sizes(0:nProcessors - 1), space_displs(0:nProcessors - 1)
         type(fcimc_iter_data), intent(in) :: iter_data
 
-        write(6,'(1x,a22,'//int_fmt(irepeat,1)//')') "Starting repeat number", irepeat
+        write(stdout, '(1x,a22,'//int_fmt(irepeat, 1)//')') "Starting repeat number", irepeat
 
         if (tExcitedStateKP) then
             nexcit = nvecs
@@ -617,7 +620,7 @@ contains
             ! correct POPSFILE is read in this time. To read in POPSFILE.x,
             ! iPopsFileNoRead needs to be set to -x-1. We want to read in POPSFILE
             ! numbers 0 to kp%nconfigs-1
-            if (tMultiplePopStart) iPopsFileNoRead = -(iconfig-1)-1
+            if (tMultiplePopStart) iPopsFileNoRead = -(iconfig - 1) - 1
 
             if (tOverlapPert .and. irepeat == 1) then
                 pert_overlaps = 0.0_dp
@@ -639,7 +642,7 @@ contains
         if (tStartSinglePart) then
             OldAllAvWalkersCyc = InitialPart
         else
-            OldAllAvWalkersCyc = InitWalkers*nProcessors
+            OldAllAvWalkersCyc = InitWalkers * nProcessors
         end if
         proje_iter = 0.0_dp
         proje_iter_tot = 0.0_dp
@@ -691,7 +694,7 @@ contains
     subroutine create_initial_config(iconfig, irepeat, nrepeats)
 
         use CalcData, only: tStartSinglePart, InitialPart, InitWalkers, tSemiStochastic, tReadPops
-        use dSFMT_interface , only: dSFMT_init
+        use dSFMT_interface, only: dSFMT_init
         use fcimc_initialisation, only: InitFCIMC_HF
         use FciMCData, only: nWalkerHashes, HashIndex, pops_pert, SpawnedParts, TotWalkers, AllTotWalkers
         use FciMCData, only: TotParts, AllTotParts, TotPartsOld, AllTotPartsOld, kp_generate_time
@@ -719,9 +722,9 @@ contains
         call clear_hash_table(HashIndex)
 
         if (tStartSinglePart) then
-            nwalkers_target = real(InitialPart,dp)
+            nwalkers_target = real(InitialPart, dp)
         else
-            nwalkers_target = InitWalkers*nProcessors
+            nwalkers_target = InitWalkers * nProcessors
         end if
 
         if (irepeat == 1) then
@@ -738,12 +741,12 @@ contains
                     if (tScalePopulation) then
                         call scale_population(CurrentDets, TotWalkers, nwalkers_target, TotPartsCheck, scaling_factor)
                         ! Update global data.
-                        if (any(abs(TotPartsCheck-TotParts) > 1.0e-12_dp)) then
+                        if (any(abs(TotPartsCheck - TotParts) > 1.0e-12_dp)) then
                             call stop_all(t_r, "Inconsistent values of TotParts calculated.")
                         end if
-                        TotParts = TotParts*scaling_factor
+                        TotParts = TotParts * scaling_factor
                         TotPartsOld = TotParts
-                        AllTotParts = AllTotParts*scaling_factor
+                        AllTotParts = AllTotParts * scaling_factor
                         AllTotPartsOld = AllTotParts
                     end if
                 else
@@ -754,24 +757,24 @@ contains
                 if (tSemiStochastic) then
                     ! core_space stores all core determinants from all processors. Move those on this
                     ! processor to SpawnedParts, which add_core_states_currentdet_hash uses.
-                    call copy_core_dets_to_spawnedparts()
+                    call copy_core_dets_to_spawnedparts(cs_replicas(core_run))
                     ! Any core space determinants which are not already in CurrentDets will be added
                     ! by this routine.
-                    call add_core_states_currentdet_hash()
+                    call add_core_states_currentdet_hash(core_run)
                     if (tStartCoreGroundState .and. (.not. tReadPops)) &
-                        call start_walkers_from_core_ground(tPrintInfo = .false.)
+                        call start_walkers_from_core_ground(tPrintInfo=.false., run=core_run)
                 end if
 
             else if (tFiniteTemp) then
                 ! Convert the initial number of walkers to an integer. Note that on multiple
                 ! processors this may round up the requested number of walkers slightly.
-                nwalkers_int = ceiling(nwalkers_target/real(nProcessors,dp))
+                nwalkers_int = ceiling(nwalkers_target / real(nProcessors, dp))
 
                 ! If requested, reset the random number generator with the requested seed
                 ! before creating the random initial configuration.
-                if (tUseInitConfigSeeds) call dSFMT_init((iProcIndex+1)*init_config_seeds(iconfig))
+                if (tUseInitConfigSeeds) call dSFMT_init((iProcIndex + 1) * init_config_seeds(iconfig))
 
-                write (6,'(a44)',advance='no') "# Generating initial walker configuration..."
+                write(stdout, '(a44)', advance='no') "# Generating initial walker configuration..."
                 call set_timer(kp_generate_time)
                 total_time_before = get_total_time(kp_generate_time)
 
@@ -784,7 +787,7 @@ contains
 
                 call halt_timer(kp_generate_time)
                 total_time_after = get_total_time(kp_generate_time)
-                write(6,'(1x,a31,f9.3)') "Complete. Time taken (seconds):", total_time_after-total_time_before
+                write(stdout, '(1x,a31,f9.3)') "Complete. Time taken (seconds):", total_time_after - total_time_before
 
             end if
         else if (irepeat > 1) then
@@ -799,9 +802,9 @@ contains
             AllTotPartsOld = AllTotPartsInit
             do i = 1, int(TotWalkers, sizeof_int)
                 ! Copy across the bitstring encoding of the determinant and also the walker signs.
-                CurrentDets(0:NOffSgn+lenof_sign_kp-1,i) = krylov_vecs(0:NOffSgn+lenof_sign_kp-1,i)
+                CurrentDets(0:IlutBits%ind_pop + lenof_sign_kp - 1, i) = krylov_vecs(0:IlutBits%ind_pop + lenof_sign_kp - 1, i)
                 ! Copy across the flags.
-                CurrentDets(NIfTot,i) = krylov_vecs(NIfTotKP,i)
+                CurrentDets(NIfTot, i) = krylov_vecs(NIfTotKP, i)
             end do
             call fill_in_hash_table(HashIndex, nWalkerHashes, CurrentDets, int(TotWalkers, sizeof_int), .true.)
         end if
@@ -813,9 +816,9 @@ contains
         if (nrepeats > 1 .and. irepeat == 1) then
             HolesInList = 0
             do i = 1, TotWalkers
-                int_sign = CurrentDets(NOffSgn:NOffSgn+lenof_sign_kp-1,i)
-                call extract_sign (CurrentDets(:,i), real_sign)
-                tCoreDet = check_determ_flag(CurrentDets(:,i))
+                int_sign = CurrentDets(IlutBits%ind_pop:IlutBits%ind_pop + lenof_sign_kp - 1, i)
+                call extract_sign(CurrentDets(:, i), real_sign)
+                tCoreDet = check_determ_flag(CurrentDets(:, i))
                 ! Don't add unoccpied determinants, unless they are core determinants.
                 if (IsUnoccDet(real_sign) .and. (.not. tCoreDet)) HolesInList = HolesInList + 1
             end do
@@ -849,20 +852,20 @@ contains
         ! Memory required in MB.
         mem_reqd = int(TotWalkers / 1000000_int64) * (NIfTotKP + 1) * size_n_int
 
-        write(6,'(a73,'//int_fmt(mem_reqd,1)//')') "About to allocate array to hold the perturbed &
+        write(stdout, '(a73,'//int_fmt(mem_reqd, 1)//')') "About to allocate array to hold the perturbed &
                                            &ground state. Memory required (MB):", mem_reqd
-        write(6,'(a13)',advance='no') "Allocating..."
+        write(stdout, '(a13)', advance='no') "Allocating..."
         call neci_flush(6)
-        allocate(perturbed_ground(0:NIfTot,TotWalkers), stat=ierr)
+        allocate(perturbed_ground(0:NIfTot, TotWalkers), stat=ierr)
         if (ierr /= 0) then
-            write(6,'(1x,a11,1x,i5)') "Error code:", ierr
+            write(stdout, '(1x,a11,1x,i5)') "Error code:", ierr
             call stop_all(t_r, "Error allocating array.")
         else
-            write(6,'(1x,a5)') "Done."
+            write(stdout, '(1x,a5)') "Done."
         end if
         call neci_flush(6)
 
-        perturbed_ground = CurrentDets(0:NIfTot,1:TotWalkers)
+        perturbed_ground = CurrentDets(0:NIfTot, 1:TotWalkers)
 
     end subroutine create_overlap_pert_vec
 
@@ -893,7 +896,7 @@ contains
         real(dp) :: r, walker_amp, walker_sign(lenof_sign_kp)
         logical :: tInitiatorTemp
         type(fcimc_iter_data) :: unused_data
-        integer(n_int), pointer :: PointTemp(:,:)
+        integer(n_int), pointer :: PointTemp(:, :)
         HElement_t(dp) :: hdiag_spawn
 
         call allocate_iter_data(unused_data)
@@ -906,7 +909,7 @@ contains
         ValidSpawnedList = InitialSpawnedSlots
 
         ilut = 0_n_int
-        nspawns = ceiling(real(nwalkers,dp)/nwalkers_per_site_init)
+        nspawns = ceiling(real(nwalkers, dp) / nwalkers_per_site_init)
 
         do i = 1, nspawns
             ! Generate a determinant (output to ilut).
@@ -925,7 +928,7 @@ contains
             ! 50% chance of each.
             walker_amp = nwalkers_per_site_init
             r = genrand_real2_dSFMT()
-            if (r < 0.5_dp) walker_amp = -1.0_dp*walker_amp
+            if (r < 0.5_dp) walker_amp = -1.0_dp * walker_amp
 
             do ireplica = 1, inum_runs
                 walker_sign = 0.0_dp
@@ -937,7 +940,7 @@ contains
         ! Perform annihilation steps:
         ! Send the walkers to their correct processors. The resulting walkers will be stored in
         ! SpawnedParts2.
-        call SendProcNewParts(ndets, tSingleProc = .false.)
+        call SendProcNewParts(ndets, tSingleProc=.false.)
         ! CompressSpawnedList works on SpawnedParts, not SpawnedParts2, so swap the pointers around.
         PointTemp => SpawnedParts2
         SpawnedParts2 => SpawnedParts
@@ -948,8 +951,8 @@ contains
         ! Copy the determinants themselves to CurrentDets.
         TotParts = 0.0_dp
         do i = 1, ndets
-            CurrentDets(:,i) = SpawnedParts(0:NIfTot,i)
-            walker_sign = transfer(CurrentDets(NOffSgn:NOffSgn+lenof_sign_kp-1, i), walker_sign)
+            CurrentDets(:, i) = SpawnedParts(0:NIfTot, i)
+            walker_sign = transfer(CurrentDets(IlutBits%ind_pop:IlutBits%ind_pop + lenof_sign_kp - 1, i), walker_sign)
             TotParts = TotParts + abs(walker_sign)
         end do
         TotPartsOld = TotParts
@@ -964,8 +967,8 @@ contains
         if (tSemiStochastic) then
             ! Always need the core determinants to be at the top of CurrentDets, even when unoccupied.
             ! These routines will do this.
-            call copy_core_dets_to_spawnedparts()
-            call add_core_states_currentdet_hash()
+            call copy_core_dets_to_spawnedparts(cs_replicas(core_run))
+            call add_core_states_currentdet_hash(core_run)
         end if
 
         ValidSpawnedList = InitialSpawnedSlots
@@ -983,8 +986,9 @@ contains
 
         use CalcData, only: tSemiStochastic
         use dSFMT_interface, only: genrand_real2_dSFMT
-        use FciMCData, only: HashIndex, determ_sizes, determ_displs, TotWalkers, CurrentDets, HFDet
-        use FciMCData, only: TotParts, TotPartsOld, AllTotParts, AllTotPartsOld, core_space, ilutHF
+        use FciMCData, only: HashIndex, TotWalkers, CurrentDets, HFDet
+        use FciMCData, only: TotParts, TotPartsOld, AllTotParts, AllTotPartsOld, ilutHF
+        use core_space_util, only: cs_replicas
         use load_balance_calcnodes, only: DetermineDetNode
         use hash, only: rm_unocc_dets_from_hash_table, hash_table_lookup
         use hash, only: add_hash_table_entry
@@ -1010,7 +1014,7 @@ contains
 
         ideterm = 0
         tDetermAllOccupied = .false.
-
+        associate(rep => cs_replicas(1))
         do
             ! If using the tOccupyDetermSpace option then we want to put walkers
             ! on states in the deterministic space first.
@@ -1018,10 +1022,10 @@ contains
             ! randomly and uniformly.
             if (tOccupyDetermSpace .and. (.not. tDetermAllOccupied)) then
                 ideterm = ideterm + 1
-                ilut = core_space(:,ideterm + determ_displs(iProcIndex))
+                ilut = rep%core_space(:, ideterm + rep%determ_displs(iProcIndex))
                 call decode_bit_det(nI, ilut)
                 ! If we have now occupied all deterministic states.
-                if (ideterm == determ_sizes(iProcIndex)) tDetermAllOccupied = .true.
+                if (ideterm == rep%determ_sizes(iProcIndex)) tDetermAllOccupied = .true.
             else
                 ! Generate a random determinant (returned in ilut).
                 if (tAllSymSectors) then
@@ -1044,17 +1048,17 @@ contains
             ! 50% chance of each.
             real_sign_1 = nwalkers_per_site_init
             r = genrand_real2_dSFMT()
-            if (r < 0.5_dp) real_sign_1 = -1.0_dp*real_sign_1
+            if (r < 0.5_dp) real_sign_1 = -1.0_dp * real_sign_1
             int_sign = transfer(real_sign_1, int_sign)
 
             tDetFound = .false.
             ! Search the hash table to see if this determinant is in CurrentDets
             ! already.
-            call hash_table_lookup(nI, ilut, NIfDBO, HashIndex, CurrentDets, det_ind, hash_val, tDetFound)
+            call hash_table_lookup(nI, ilut, nifd, HashIndex, CurrentDets, det_ind, hash_val, tDetFound)
             if (tDetFound) then
                 ! This determinant is already in CurrentDets. Just need to add
                 ! the sign of this new walker on and update stats.
-                int_sign = CurrentDets(NOffSgn:NOffSgn+lenof_sign_kp-1, det_ind)
+                int_sign = CurrentDets(IlutBits%ind_pop:IlutBits%ind_pop + lenof_sign_kp - 1, det_ind)
                 real_sign_2 = transfer(int_sign, real_sign_2)
                 new_sign = real_sign_1 + real_sign_2
                 call encode_sign(CurrentDets(:, det_ind), new_sign)
@@ -1066,9 +1070,9 @@ contains
                 ! Add the new determinant to the hash table.
                 call add_hash_table_entry(HashIndex, det_ind, hash_val)
                 ! Copy determinant data across.
-                CurrentDets(0:NIfDBO, det_ind) = ilut(0:NIfDBO)
-                CurrentDets(NOffSgn:NOffSgn+lenof_sign_kp-1, det_ind) = int_sign
-                CurrentDets(NOffFlag, det_ind) = 0_n_int
+                CurrentDets(0:nifd, det_ind) = ilut(0:nifd)
+                CurrentDets(IlutBits%ind_pop:IlutBits%ind_pop + lenof_sign_kp - 1, det_ind) = int_sign
+                CurrentDets(IlutBits%ind_flag, det_ind) = 0_n_int
                 TotParts = TotParts + abs(real_sign_1)
             end if
 
@@ -1085,8 +1089,8 @@ contains
         if (tSemiStochastic) then
             ! Always need the core determinants to be at the top of CurrentDets, even when unoccupied.
             ! These routines will do this.
-            call copy_core_dets_to_spawnedparts()
-            call add_core_states_currentdet_hash()
+            call copy_core_dets_to_spawnedparts(rep)
+            call add_core_states_currentdet_hash(core_run)
         else
             ! Some determinants may have become occupied and then unoccupied in
             ! the course of the above. We need to remove the entries for these
@@ -1094,28 +1098,29 @@ contains
             ! this is done in add_core_states_currentdet_hash.
             call rm_unocc_dets_from_hash_table(HashIndex, CurrentDets, ndets)
         end if
+        end associate
 
     end subroutine generate_init_config_this_proc
 
     subroutine create_init_excited_state(ndets_this_proc, trial_vecs, ex_state_labels, ex_state_weights, init_vec)
 
         integer, intent(in) :: ndets_this_proc
-        HElement_t(dp), intent(in) :: trial_vecs(:,:)
+        HElement_t(dp), intent(in) :: trial_vecs(:, :)
         integer, intent(in) :: ex_state_labels(:)
         real(dp), intent(in) :: ex_state_weights(:)
-        HElement_t(dp), allocatable, intent(out) :: init_vec(:,:)
+        HElement_t(dp), allocatable, intent(out) :: init_vec(:, :)
 
         real(dp) :: real_sign(lenof_sign)
         integer :: i, j, ierr
         character(len=*), parameter :: t_r = "create_init_excited_state"
 
-        allocate(init_vec(1,ndets_this_proc), stat=ierr)
+        allocate(init_vec(1, ndets_this_proc), stat=ierr)
         if (ierr /= 0) call stop_all(t_r, "Error in MPIScatterV call.")
 
         do i = 1, ndets_this_proc
-            init_vec(1,i) = h_cast(0.0_dp)
+            init_vec(1, i) = h_cast(0.0_dp)
             do j = 1, size(ex_state_labels)
-                init_vec(1,i) = init_vec(1,i) + ex_state_weights(j)*trial_vecs(ex_state_labels(j), i)
+                init_vec(1, i) = init_vec(1, i) + ex_state_weights(j) * trial_vecs(ex_state_labels(j), i)
             end do
         end do
 
@@ -1127,7 +1132,7 @@ contains
         ! the list, and then multiply all the walker signs by some factor in
         ! order for the walker list to have the requested target population.
 
-        integer(n_int), intent(inout) :: walker_list(:,:)
+        integer(n_int), intent(inout) :: walker_list(:, :)
         integer(int64), intent(in) :: ndets
         real(dp), intent(in) :: target_pop
         real(dp), intent(out) :: input_pop(lenof_sign_kp)
@@ -1140,20 +1145,20 @@ contains
 
         ! First, find the population of the walkers in walker_list.
         do i = 1, ndets
-            call extract_sign(walker_list(:,i), real_sign)
+            call extract_sign(walker_list(:, i), real_sign)
             input_pop = input_pop + abs(real_sign)
         end do
 
         call MPISumAll(input_pop, all_input_pop)
 
         ! Just use the first particle type to determine the scaing factor.
-        scaling_factor = target_pop/all_input_pop(1)
+        scaling_factor = target_pop / all_input_pop(1)
 
         ! Now multiply the walker signs by scaling_factor.
         do i = 1, ndets
-            call extract_sign(walker_list(:,i), real_sign)
-            real_sign = real_sign*scaling_factor
-            call encode_sign(walker_list(:,i), real_sign)
+            call extract_sign(walker_list(:, i), real_sign)
+            real_sign = real_sign * scaling_factor
+            call encode_sign(walker_list(:, i), real_sign)
         end do
 
     end subroutine scale_population

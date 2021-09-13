@@ -2,6 +2,7 @@ title
 
 system read
 electrons 4
+nonuniformrandexcits mol_guga_weighted
 guga 0
 endsys
 

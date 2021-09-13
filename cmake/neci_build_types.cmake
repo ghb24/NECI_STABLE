@@ -5,7 +5,7 @@
 # i) Test debug mode in here (so that there is a well defined debug definitions test)
 # ii) If debug mode is on, we should automagically add warnings.
 
-set( CMAKE_CONFIGURATION_TYPES DEBUG RELEASE RELWITHDEBINFO CLUSTER CACHE TYPE INTERNAL FORCE )
+set( CMAKE_CONFIGURATION_TYPES ";DEBUG;RELEASE;CLUSTER;" CACHE STRING INTERNAL FORCE )
 
 # We want to have a default build type!
 if( NOT DEFINED CMAKE_BUILD_TYPE OR NOT CMAKE_BUILD_TYPE )
@@ -20,7 +20,7 @@ string( TOUPPER ${CMAKE_BUILD_TYPE} _build_type )
 set( _valid_type OFF )
 foreach( _ty ${CMAKE_CONFIGURATION_TYPES} )
     if ( _build_type STREQUAL ${_ty} )
-        set( _valid_type ON) 
+        set( _valid_type ON)
     endif()
 endforeach()
 

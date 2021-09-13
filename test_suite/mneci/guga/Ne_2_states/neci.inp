@@ -6,7 +6,6 @@ nonuniformrandexcits mol_guga_weighted
 guga 0
 sym 0 0 0 0
 system-replicas 2
-molpromimic
 freeformat
 endsys
 
@@ -38,6 +37,7 @@ tau 0.02 search
 truncinitiator
 addtoinitiator 3
 definedet 1 2 3 4 5 6 23 24 33 34
+core-inits
 endcalc
 
 integral

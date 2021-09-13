@@ -12,11 +12,11 @@ module hdf5_popsfile
     !       nodes (except where explicitly managed), and the HDF library
     !       ensures the writes happen in a sensible way.
 
-        !namelist /POPSHEAD/ Pop64Bit,PopHPHF,PopLz,PopNEl, &
-        !            PopCyc,PopNIfFlag,PopNIfTot, &
-        !            PopTau,PopiBlockingIter,PopRandomHash&
-        !            PopNNodes, PopWalkersOnNodes, &
-        !            PopMultiSumNoatHF, PopMultiSumENum, PopBalanceBlocks
+    !namelist /POPSHEAD/ Pop64Bit,PopHPHF,PopLz,PopNEl, &
+    !            PopCyc,PopNIfFlag,PopNIfTot, &
+    !            PopTau,PopiBlockingIter,PopRandomHash&
+    !            PopNNodes, PopWalkersOnNodes, &
+    !            PopMultiSumNoatHF, PopMultiSumENum, PopBalanceBlocks
     !
     ! A: vcs_ver             - The SHA ID of the git commit
     ! A: compiled_at         - The time of code compilation
@@ -68,14 +68,14 @@ module hdf5_popsfile
     !     /ilut/             - The bit representations of the determinants
     !     /sgns/             - The occupation of the determinants
 
-    use ParallelHelper
+    use MPI_wrapper
     use Parallel_neci
     use constants
     use hdf5_util
     use util_mod
-    use CalcData, only: tAutoAdaptiveShift, tScaleBlooms
-    use LoggingData, only: tPopAutoAdaptiveShift, tPopScaleBlooms, tAccumPops, tAccumPopsActive,&
-                           iAccumPopsIter, iAccumPopsCounter, tReduceHDF5Pops,&
+    use CalcData, only: tAutoAdaptiveShift, tScaleBlooms, tSpecifiedTau, pSinglesIn, pDoublesIn
+    use LoggingData, only: tPopAutoAdaptiveShift, tPopScaleBlooms, tAccumPops, tAccumPopsActive, &
+                           iAccumPopsIter, iAccumPopsCounter, tReduceHDF5Pops, &
                            HDF5PopsMin, iHDF5PopsMinEx, tPopAccumPops
     use global_det_data, only: max_ratio_size, fvals_size, apvals_size
 #ifdef USE_HDF_
@@ -87,70 +87,65 @@ module hdf5_popsfile
 
     ! Constants for naming various sections
     character(*), parameter :: &
+        nm_vcs_ver = 'vcs_ver', &
+        nm_comp_time = 'compiled_at', &
+        nm_comp_date = 'compiled_on', &
+        nm_date = 'date', &
+        nm_seq_no = 'seq_no', &
+        nm_comp_config = 'config', &
+        nm_comp_status = 'status', &
+        nm_calc_grp = 'calculation', &
+        nm_random_hash = 'random_hash', &
+        nm_iters = 'completed_iters', &
+        nm_tot_imag = 'tot_imag_time', &
+        nm_shift = 'shift', &
+        nm_tAuto = 'tAutoAdaptiveShift', &
+        nm_tAP = 'tAccumPops', &
+        nm_accum_counter = 'iAccumPopsCounter', &
+        nm_sc_blooms = 'tScaleBlooms', &
+        nm_tau_grp = 'tau_search', &
+        nm_gam_sing = 'gamma_sing', &
+        nm_gam_doub = 'gamma_doub', &
+        nm_gam_opp = 'gamma_opp', &
+        nm_gam_par = 'gamma_par', &
+        nm_en_sing = 'enough_sing', &
+        nm_en_doub = 'enough_doub', &
+        nm_en_opp = 'enough_opp', &
+        nm_en_par = 'enough_par', &
+        nm_cnt_sing = 'cnt_sing', &
+        nm_cnt_doub = 'cnt_doub', &
+        nm_cnt_opp = 'cnt_opp', &
+        nm_cnt_par = 'cnt_par', &
+        nm_max_death = 'max_death', &
+        nm_psingles = 'psingles', &
+        nm_pdoubles = 'pdoubles', &
+        nm_pparallel = 'pparallel', &
+        nm_ptriples = 'ptriples', &
+        nm_tau = 'tau', &
+        ! [W.D.]:
+        ! can i just add another entry without breaking anything?
+        nm_hist_tau = 'hist_tau_search', &
+        nm_acc_grp = 'accumulators', &
+        nm_sum_no_ref = 'sum_no_ref', &
+        nm_sum_enum = 'sum_enum', &
+        nm_wfn_grp = 'wavefunction', &
+        nm_rep_width = 'width', &
+        nm_sgn_len = 'lenof_sign', &
+        nm_num_dets = 'num_dets', &
+        nm_ilut = 'ilut', &
+        nm_sgns = 'sgns', &
+        nm_norm_sqr = 'norm_sqr', &
+        nm_num_parts = 'num_parts', &
+        nm_gdata = 'gdata', &
+        nm_gdata_old = 'fvals'
 
-            nm_vcs_ver = 'vcs_ver', &
-            nm_comp_time = 'compiled_at', &
-            nm_comp_date = 'compiled_on', &
-            nm_date = 'date', &
-            nm_seq_no = 'seq_no', &
-            nm_comp_config = 'config', &
-            nm_comp_status = 'status', &
-
-            nm_calc_grp = 'calculation', &
-            nm_random_hash = 'random_hash', &
-            nm_iters = 'completed_iters', &
-            nm_tot_imag = 'tot_imag_time', &
-            nm_shift = 'shift', &
-            nm_tAuto = 'tAutoAdaptiveShift', &
-            nm_tAP = 'tAccumPops', &
-            nm_accum_counter = 'iAccumPopsCounter', &
-            nm_sc_blooms = 'tScaleBlooms', &
-            nm_tau_grp = 'tau_search', &
-            nm_gam_sing = 'gamma_sing', &
-            nm_gam_doub = 'gamma_doub', &
-            nm_gam_opp = 'gamma_opp', &
-            nm_gam_par = 'gamma_par', &
-            nm_en_sing = 'enough_sing', &
-            nm_en_doub = 'enough_doub', &
-            nm_en_opp = 'enough_opp', &
-            nm_en_par = 'enough_par', &
-            nm_cnt_sing = 'cnt_sing', &
-            nm_cnt_doub = 'cnt_doub', &
-            nm_cnt_opp = 'cnt_opp', &
-            nm_cnt_par = 'cnt_par', &
-            nm_max_death = 'max_death', &
-            nm_psingles = 'psingles', &
-            nm_pdoubles = 'pdoubles', &
-            nm_pparallel = 'pparallel', &
-            nm_ptriples = 'ptriples', &
-            nm_tau = 'tau', &
-            ! [W.D.]:
-            ! can i just add another entry without breaking anything?
-            nm_hist_tau = 'hist_tau_search', &
-
-            nm_acc_grp = 'accumulators', &
-            nm_sum_no_ref = 'sum_no_ref', &
-            nm_sum_enum = 'sum_enum', &
-
-            nm_wfn_grp = 'wavefunction', &
-            nm_rep_width = 'width', &
-            nm_sgn_len = 'lenof_sign', &
-            nm_num_dets = 'num_dets', &
-            nm_ilut = 'ilut', &
-            nm_sgns = 'sgns', &
-            nm_norm_sqr = 'norm_sqr', &
-            nm_num_parts = 'num_parts', &
-            nm_gdata = 'gdata', &
-            nm_gdata_old = 'fvals'
-
-    integer(n_int), dimension(:,:), allocatable :: receivebuff
+    integer(n_int), dimension(:, :), allocatable :: receivebuff
     integer:: receivebuff_tag
 
     public :: write_popsfile_hdf5, read_popsfile_hdf5
     public :: add_pops_norm_contrib
 
 contains
-
 
     subroutine write_popsfile_hdf5(MaxEx, IterSuffix)
 
@@ -179,30 +174,30 @@ contains
         ! Get a unique filename for this popsfile. This needs to be done on
         ! the head node to avoid collisions.
         if (iProcIndex == 0) then
-            if(present(MaxEx))then
-                write (MaxExStr,'(I0)') MaxEx
+            if (present(MaxEx)) then
+                write(MaxExStr, '(I0)') MaxEx
                 stem = 'popsfile_trunc'//MaxExStr
             else
                 stem = 'popsfile'
             end if
-            if(present(IterSuffix) .and. IterSuffix)then
-                write (IterStr,'(I0)') (Iter+PreviousCycles)
+            if (present(IterSuffix) .and. IterSuffix) then
+                write(IterStr, '(I0)') (Iter + PreviousCycles)
                 stem = trim(stem)//'_'//IterStr
-            endif
+            end if
             call get_unique_filename(trim(stem), &
                                      tIncrementPops, .true., iPopsFileNoWrite, &
                                      filename, ext='.h5')
-        endif
+        end if
 
         call MPIBCast(filename)
 
-        write(6,*)
-        if(present(MaxEx))then
-            write(6,*) "========= Writing Truncated HDF5 popsfile ========="
+        write(stdout, *)
+        if (present(MaxEx)) then
+            write(stdout, *) "========= Writing Truncated HDF5 popsfile ========="
         else
-            write(6,*) "============== Writing HDF5 popsfile =============="
+            write(stdout, *) "============== Writing HDF5 popsfile =============="
         end if
-        write(6,*) "File name: ", trim(filename)
+        write(stdout, *) "File name: ", trim(filename)
 
         ! Initialise the hdf5 fortran interface
         call h5open_f(err)
@@ -217,22 +212,22 @@ contains
         call h5fcreate_f(filename, H5F_ACC_TRUNC_F, file_id, err, &
                          access_prp=plist_id)
         call h5pclose_f(plist_id, err)
-        write(6,*) "writing metadata"
+        write(stdout, *) "writing metadata"
         call write_metadata(file_id)
-        write(6,*) "writing calc_data"
+        write(stdout, *) "writing calc_data"
         call write_calc_data(file_id)
 
         call MPIBarrier(mpi_err)
 
-        if(present(MaxEx))then
-            write(6,*) "writing walkers up to excitation level: ", MaxExStr
+        if (present(MaxEx)) then
+            write(stdout, *) "writing walkers up to excitation level: ", MaxExStr
         else
-            write(6,*) "writing walkers"
+            write(stdout, *) "writing walkers"
         end if
         call write_walkers(file_id, MaxEx)
 
         call MPIBarrier(mpi_err)
-        write(6,*) "closing popsfile"
+        write(stdout, *) "closing popsfile"
         ! And we are done!
         call h5fclose_f(file_id, err)
         call h5close_f(err)
@@ -240,7 +235,7 @@ contains
         call h5garbage_collect_f(err)
 
         call MPIBarrier(mpi_err)
-        write(6,*) "popsfile write successful"
+        write(stdout, *) "popsfile write successful"
 
 #else
         call stop_all(t_r, 'HDF5 support not enabled at compile time')
@@ -275,9 +270,9 @@ contains
                                      iPopsFileNoRead, filename, ext='.h5')
         call MPIBcast(filename)
 
-        write(6,*)
-        write(6,*) "========== Reading in from HDF5 popsfile =========="
-        write(6,*) 'File name: ', trim(filename)
+        write(stdout, *)
+        write(stdout, *) "========== Reading in from HDF5 popsfile =========="
+        write(stdout, *) 'File name: ', trim(filename)
 
         ! Initialise the hdf5 fortran interface
         call h5open_f(err)
@@ -291,7 +286,7 @@ contains
         ! Open the popsfile
         call h5fopen_f(filename, H5F_ACC_RDONLY_F, file_id, err, &
                        access_prp=plist_id)
-        if(err.ne.0) call stop_all(t_r,"No popsfile.h5 found")
+        if (err /= 0) call stop_all(t_r, "No popsfile.h5 found")
 
         call read_metadata(file_id)
         call read_walkers(file_id, dets, CurrWalkers)
@@ -312,7 +307,6 @@ contains
 #endif
 
     end function
-
 
 #ifdef USE_HDF_
     subroutine write_metadata(parent)
@@ -360,25 +354,25 @@ contains
         logical :: exists
         character(100) :: str_buf
 
-        write(6,*) 'Previous calculation'
+        write(stdout, *) 'Previous calculation'
 
         call read_string_attribute(parent, nm_date, str_buf, exists)
-        if (exists) write(6,*) 'Date: ', trim(str_buf)
-        call read_int32_attribute(parent, nm_seq_no,  calc_seq_no, &
+        if (exists) write(stdout, *) 'Date: ', trim(str_buf)
+        call read_int32_attribute(parent, nm_seq_no, calc_seq_no, &
                                   default=1_int32)
-        write(6,*) 'Sequence no.:', calc_seq_no
+        write(stdout, *) 'Sequence no.:', calc_seq_no
 
         ! Output nice details for usability
         call read_string_attribute(parent, nm_vcs_ver, str_buf, exists)
-        if (exists) write(6,*) 'VCS ver: ', trim(str_buf)
+        if (exists) write(stdout, *) 'VCS ver: ', trim(str_buf)
         call read_string_attribute(parent, nm_comp_config, str_buf, exists)
-        if (exists) write(6,*) 'Build config: ', trim(str_buf)
+        if (exists) write(stdout, *) 'Build config: ', trim(str_buf)
         call read_string_attribute(parent, nm_comp_status, str_buf, exists)
-        if (exists) write(6,*) 'Build status: ', trim(str_buf)
+        if (exists) write(stdout, *) 'Build status: ', trim(str_buf)
         call read_string_attribute(parent, nm_comp_date, str_buf, exists)
-        if (exists) write(6,*) 'Build date: ', trim(str_buf)
+        if (exists) write(stdout, *) 'Build date: ', trim(str_buf)
         call read_string_attribute(parent, nm_comp_time, str_buf, exists)
-        if (exists) write(6,*) 'Build time: ', trim(str_buf)
+        if (exists) write(stdout, *) 'Build time: ', trim(str_buf)
 
         ! Update values for the new calculation
         calc_seq_no = calc_seq_no + 1
@@ -417,7 +411,7 @@ contains
 
     subroutine write_tau_opt(parent)
 
-        use tau_search, only:  cnt_sing, cnt_doub, cnt_opp, cnt_par
+        use tau_search, only: cnt_sing, cnt_doub, cnt_opp, cnt_par
         use FciMCData, only: pSingles, pDoubles, pParallel
         use CalcData, only: tau, gamma_sing, gamma_doub, gamma_opp, gamma_par, &
                             enough_sing, enough_doub, enough_opp, enough_par, max_death_cpt
@@ -509,7 +503,6 @@ contains
 
     end subroutine write_tau_opt
 
-
     subroutine write_accumulator_data(parent)
 
         use FciMCData, only: AllSumNoatHF, AllSumENum
@@ -556,12 +549,12 @@ contains
         call read_int64_scalar(grp_id, nm_iters, PreviousCycles, &
                                default=0_int64, exists=exists)
         if (exists) &
-            write(6,*) 'Completed iterations: ', PreviousCycles
+            write(stdout, *) 'Completed iterations: ', PreviousCycles
 
         call read_dp_scalar(grp_id, nm_tot_imag, TotImagTime, default=0.0_dp, &
                             exists=exists)
         if (exists) &
-            write(6,*) 'Resuming calculation after ', TotImagTime, ' a.u.'
+            write(stdout, *) 'Resuming calculation after ', TotImagTime, ' a.u.'
 
         ! Read in the diagsft. Note that it uses the absolute value (to be
         ! independent of choice of reference), so we must subtract out the
@@ -571,7 +564,7 @@ contains
             call read_dp_1d_dataset(grp_id, nm_shift, DiagSft, required=.true.)
             DiagSft = DiagSft - Hii
             tSinglePartPhase = (abs(DiagSft(1)) < 1.0e-6)
-            write(6,*) 'Initial shift: ', DiagSft
+            write(stdout, *) 'Initial shift: ', DiagSft
         else
             tSinglePartPhase = .true.
 
@@ -592,22 +585,18 @@ contains
         ! not use the read-in tau, but the one specified in the input!
         ! except the hist_tau was used the we want to use the
         ! one in the popsfile all the time
-!         if (tSearchTauOption) then
         call read_tau_opt(grp_id)
-!         else
-!             write(6,*) 'Skipping tau optimisation data as tau optimisation is &
-!                        &disabled'
-!         end if
+
         ! and also output some info:
-        write(6,*) "read-in tau optimization data: "
-        write(6,*) "time-step: ", tau
-        write(6,*) "pSingles: ", pSingles
-        write(6,*) "pDoubles: ", pDoubles
-        write(6,*) "pParallel: ", pParallel
+        write(stdout, *) "read-in tau optimization data: "
+        write(stdout, *) "time-step: ", tau
+        write(stdout, *) "pSingles: ", pSingles
+        write(stdout, *) "pDoubles: ", pDoubles
+        write(stdout, *) "pParallel: ", pParallel
         if (tSearchTau .or. t_hist_tau_search) then
-            write(6,*) "continuing tau-search!"
+            write(stdout, *) "continuing tau-search!"
         else
-            write(6,*) "Do not continue tau-search!"
+            write(stdout, *) "Do not continue tau-search!"
         end if
 
         call read_accumulator_data(grp_id)
@@ -663,49 +652,57 @@ contains
         call read_int64_scalar(grp_id, nm_cnt_opp, cnt_opp)
         call read_int64_scalar(grp_id, nm_cnt_par, cnt_par)
 
-        call read_dp_scalar(grp_id, nm_psingles, psingles)
-        call read_dp_scalar(grp_id, nm_pdoubles, pdoubles)
-        call read_dp_scalar(grp_id, nm_ptriples, ptriples, exists = tReadPTriples, default = 0.1_dp, &
-             required = .false.)
+        if (allocated(pSinglesIn) .or. allocated(pDoublesIn)) then
+            write(stdout,*) "pSingles or pDoubles specified in input file, which take precedence"
+        else
+            call read_dp_scalar(grp_id, nm_psingles, psingles)
+            call read_dp_scalar(grp_id, nm_pdoubles, pdoubles)
+        end if
+        call read_dp_scalar(grp_id, nm_ptriples, ptriples, exists=tReadPTriples, default=0.1_dp, &
+                            required=.false.)
         call read_dp_scalar(grp_id, nm_pparallel, pparallel, exists=ppar_set)
         ! here i want to make the distinction if we want to tau-search
         ! or not
         call read_dp_scalar(grp_id, nm_tau, temp_tau, exists=tau_set)
 
         call read_log_scalar(grp_id, nm_hist_tau, temp_previous, &
-            exists = hist_tau)
+                             exists=hist_tau)
 
         call h5gclose_f(grp_id, err)
 
-        if (tSearchTauOption .and. tau_set) then
-           tau = temp_tau
-        end if
+        if (tSpecifiedTau) then
+            write(stdout, *) "time-step specified in input, which takes precedence!"
+        else
+            if (tSearchTauOption .and. tau_set) then
+                tau = temp_tau
+            end if
 
-        ! also set if previous hist-tau
-        if (hist_tau) then
-            tau = temp_tau
-            ! and turn off if i dont want to force restart!
-            if (.not. t_restart_hist_tau) then
-                t_previous_hist_tau = temp_previous
+            ! also set if previous hist-tau
+            if (hist_tau .and. tau_set) then
+                tau = temp_tau
+                ! and turn off if i dont want to force restart!
+                if (.not. t_restart_hist_tau) then
+                    t_previous_hist_tau = temp_previous
 
-                if (t_previous_hist_tau) then
-                    tSearchTau = .false.
-                    tSearchTauOption = .false.
+                    if (t_previous_hist_tau) then
+                        tSearchTau = .false.
+                        tSearchTauOption = .false.
 
-                    if (t_hist_tau_search) then
-                        call deallocate_histograms()
-                        t_hist_tau_search = .false.
-                        t_fill_frequency_hists = .false.
+                        if (t_hist_tau_search) then
+                            call deallocate_histograms()
+                            t_hist_tau_search = .false.
+                            t_fill_frequency_hists = .false.
 
-                        t_hist_tau_search_option = .true.
-                        t_print_frq_histograms = .false.
+                            t_hist_tau_search_option = .true.
+                            t_print_frq_histograms = .false.
+                        end if
                     end if
                 end if
             end if
         end if
 
         ! if tau is 0, because no input provided, use the one here too
-        if (tau < EPS .and. (.not. temp_tau < EPS)) then
+        if (near_zero(tau) .and. (.not. near_zero(temp_tau))) then
             tau = temp_tau
         end if
 
@@ -746,10 +743,9 @@ contains
 
     subroutine write_walkers(parent, MaxEx)
 
-        use iso_c_hack
-        use bit_rep_data, only: NIfD, NIfTot, NOffSgn, extract_sign
+        use bit_rep_data, only: NIfD, NIfTot, IlutBits, extract_sign
         use FciMCData, only: AllTotWalkers, CurrentDets, MaxWalkersPart, &
-                             TotWalkers, iLutHF,Iter, PreviousCycles
+                             TotWalkers, iLutHF, Iter, PreviousCycles
         use CalcData, only: tUseRealCoeffs
         use DetBitOps, only: FindBitExcitLevel, tAccumEmptyDet
         use global_det_data, only: writeFValsAsInt, writeAPValsAsInt
@@ -769,7 +765,7 @@ contains
         integer(hdf_err) :: err
         integer(hid_t) :: plist_id
 
-        integer(hsize_t) :: counts(0:nProcessors-1)
+        integer(hsize_t) :: counts(0:nProcessors - 1)
         integer(hsize_t) :: all_count
 
         integer(int32) :: bit_rep_width
@@ -778,18 +774,17 @@ contains
         real(dp) :: all_parts(lenof_sign), all_norm_sqr(lenof_sign)
         integer(hsize_t) :: block_size, block_start, block_end
         integer :: ierr
-        integer(n_int), allocatable :: gdata_buf(:,:)
+        integer(n_int), allocatable :: gdata_buf(:, :)
 
         integer :: ExcitLevel
         integer(hsize_t) :: printed_count
-        integer(kind=n_int) , allocatable , target :: TmpVecDets(:,:)
-        integer(kind=n_int) , pointer :: PrintedDets(:,:)
+        integer(kind=n_int), allocatable, target :: TmpVecDets(:, :)
+        integer(kind=n_int), pointer :: PrintedDets(:, :)
         integer :: i, run
         real(dp) :: CurrentSign(lenof_sign), printed_tot_parts(lenof_sign), &
-            printed_norm_sqr(inum_runs)
+                    printed_norm_sqr(inum_runs)
         type(gdata_io_t) :: gdata_write_handler
         integer :: gdata_size
-
 
         ! We do not want to print all dets. At least empty dets should be skipped
         ! Let us find out which ones to be printed and copy them
@@ -800,43 +795,43 @@ contains
         printed_tot_parts = 0
 
         call gdata_write_handler%init_gdata_io(tAutoAdaptiveShift, &
-            tScaleBlooms, tAccumPopsActive, fvals_size, max_ratio_size, lenof_sign + 1)
+                                               tScaleBlooms, tAccumPopsActive, fvals_size, max_ratio_size, lenof_sign + 1)
         gdata_size = gdata_write_handler%entry_size()
-        if(gdata_size > 0) allocate(gdata_buf(gdata_size, TotWalkers))
+        if (gdata_size > 0) allocate(gdata_buf(gdata_size, TotWalkers))
 
-        do i = 1, int(TotWalkers,sizeof_int)
-            call extract_sign(CurrentDets(:,i),CurrentSign)
+        do i = 1, int(TotWalkers, sizeof_int)
+            call extract_sign(CurrentDets(:, i), CurrentSign)
             ! Skip empty determinants (unless we are accumulating its population)
-            if(IsUnoccDet(CurrentSign) .and. .not. tAccumEmptyDet(CurrentDets(:,i))) cycle
+            if (IsUnoccDet(CurrentSign) .and. .not. tAccumEmptyDet(CurrentDets(:, i))) cycle
 
-            ExcitLevel = FindBitExcitLevel(iLutHF, CurrentDets(:,i))
+            ExcitLevel = FindBitExcitLevel(iLutHF, CurrentDets(:, i))
 
             ! If we are printing truncated popsfiles, skip over large excitations
-            if(present(MaxEx) .and. ExcitLevel>MaxEx) cycle
+            if (present(MaxEx) .and. ExcitLevel > MaxEx) cycle
 
             ! If we are reducing the size of popsfiles, skip dets with low population and high excitations
-            if(tReduceHDF5Pops)then
-                if(all(abs(CurrentSign) <= HDF5PopsMin) .and. ExcitLevel>iHDF5PopsMinEx) cycle
-            endif
+            if (tReduceHDF5Pops) then
+                if (all(abs(CurrentSign) <= HDF5PopsMin) .and. ExcitLevel > iHDF5PopsMinEx) cycle
+            end if
 
             printed_count = printed_count + 1
 
             !Fill in det
-            PrintedDets(:,printed_count) = CurrentDets(:,i)
+            PrintedDets(:, printed_count) = CurrentDets(:, i)
 
             !Fill in global data
-            if(gdata_size > 0) then
+            if (gdata_size > 0) then
                 ! get the statistics of THIS processor
                 call gdata_write_handler%write_gdata_hdf5(gdata_buf(:, printed_count), i)
-            endif
+            end if
 
             ! Fill in stats
             printed_tot_parts = printed_tot_parts + abs(CurrentSign)
 #ifdef CMPLX_
             do run = 1, inum_runs
-               printed_norm_sqr(run) = printed_norm_sqr(run) + &
-                    sum(CurrentSign(min_part_type(run):max_part_type(run))**2)
-            enddo
+                printed_norm_sqr(run) = printed_norm_sqr(run) + &
+                                        sum(CurrentSign(min_part_type(run):max_part_type(run))**2)
+            end do
 #else
             printed_norm_sqr = printed_norm_sqr + CurrentSign**2
 #endif
@@ -860,7 +855,7 @@ contains
         ! How many occuiped determinants are there on each of the processors
         call MPIAllGather(printed_count, counts, ierr)
         all_count = sum(counts)
-        write_offset = [0_hsize_t, sum(counts(0:iProcIndex-1))]
+        write_offset = [0_hsize_t, sum(counts(0:iProcIndex - 1))]
 
         ! Output the bit-representation data
         call write_int32_attribute(wfn_grp_id, nm_rep_width, bit_rep_width)
@@ -875,11 +870,11 @@ contains
 
         ! denote if accum-pos will be written
         call write_log_scalar(wfn_grp_id, nm_tAP, tAccumPopsActive)
-        if(tAccumPopsActive) then
-           !Write the number of iterations, during which the populations have
-           !been accumulated
+        if (tAccumPopsActive) then
+            !Write the number of iterations, during which the populations have
+            !been accumulated
             call write_int64_scalar(wfn_grp_id, nm_accum_counter, iAccumPopsCounter)
-        endif
+        end if
 
         ! Accumulated values only valid on head node. collate_iter_data
         ! has not yet run.
@@ -892,35 +887,35 @@ contains
         !complicated hyperslabs + collective buffering
         ! Write out the determinant bit-representations
         call write_2d_multi_arr_chunk_buff( &
-                wfn_grp_id, nm_ilut, H5T_NATIVE_INTEGER_8, &
-                PrintedDets, &
-                [int(nifd+1, hsize_t), int(printed_count, hsize_t)], & ! dims
-                [0_hsize_t, 0_hsize_t], & ! offset
-                [int(nifd+1, hsize_t), all_count], & ! all dims
-                [0_hsize_t, sum(counts(0:iProcIndex-1))] & ! output offset
-        )
+            wfn_grp_id, nm_ilut, h5kind_to_type(int64, H5_INTEGER_KIND), &
+            PrintedDets, &
+            [int(nifd + 1, hsize_t), int(printed_count, hsize_t)], & ! dims
+            [0_hsize_t, 0_hsize_t], & ! offset
+            [int(nifd + 1, hsize_t), all_count], & ! all dims
+            [0_hsize_t, sum(counts(0:iProcIndex - 1))] & ! output offset
+            )
 
         call write_2d_multi_arr_chunk_buff( &
-                wfn_grp_id, nm_sgns, H5T_NATIVE_REAL_8, &
-                PrintedDets, &
-                [int(lenof_sign, hsize_t), int(printed_count, hsize_t)], & ! dims
-                [int(nOffSgn, hsize_t), 0_hsize_t], & ! offset
-                [int(lenof_sign, hsize_t), all_count], & ! all dims
-                [0_hsize_t, sum(counts(0:iProcIndex-1))] & ! output offset
-        )
+            wfn_grp_id, nm_sgns, h5kind_to_type(dp, H5_REAL_KIND), &
+            PrintedDets, &
+            [int(lenof_sign, hsize_t), int(printed_count, hsize_t)], & ! dims
+            [int(IlutBits%ind_pop, hsize_t), 0_hsize_t], & ! offset
+            [int(lenof_sign, hsize_t), all_count], & ! all dims
+            [0_hsize_t, sum(counts(0:iProcIndex - 1))] & ! output offset
+            )
 
         deallocate(TmpVecDets)
 
-        if(gdata_size > 0) then
-           call write_2d_multi_arr_chunk_buff(&
-                wfn_grp_id, nm_gdata, H5T_NATIVE_REAL_8, gdata_buf, &
+        if (gdata_size > 0) then
+            call write_2d_multi_arr_chunk_buff( &
+                wfn_grp_id, nm_gdata, h5kind_to_type(dp, H5_REAL_KIND), gdata_buf, &
                 [int(gdata_size, hsize_t), int(printed_count, hsize_t)], & ! dims
                 [0_hsize_t, 0_hsize_t], &
                 [int(gdata_size, hsize_t), all_count], &
-                [0_hsize_t, sum(counts(0:iProcIndex-1))] &
+                [0_hsize_t, sum(counts(0:iProcIndex - 1))] &
                 )
-           deallocate(gdata_buf)
-        endif
+            deallocate(gdata_buf)
+        end if
 
         ! And we are done
         call h5gclose_f(wfn_grp_id, err)
@@ -959,16 +954,16 @@ contains
         integer :: ierr
 
         integer(int32) :: bit_rep_width
-        integer(hsize_t) :: all_count, block_size, counts(0:nProcessors-1)
-        integer(hsize_t) :: offsets(0:nProcessors-1)
+        integer(hsize_t) :: all_count, block_size, counts(0:nProcessors - 1)
+        integer(hsize_t) :: offsets(0:nProcessors - 1)
         integer(hsize_t) :: block_start, block_end, last_part
         integer(hsize_t) :: this_block_size
         real(dp), allocatable :: pops_num_parts(:), pops_norm_sqr(:)
         real(dp) :: norm(lenof_sign), parts(lenof_sign)
         logical :: running, any_running
-        integer(hsize_t), dimension(:,:), allocatable :: temp_ilut, temp_sgns
-        integer(hsize_t), dimension(:,:), allocatable :: gdata_buf
-        integer(hsize_t), dimension(:,:), allocatable :: tmp_gdata, tmp_mr
+        integer(hsize_t), dimension(:, :), allocatable :: temp_ilut, temp_sgns
+        integer(hsize_t), dimension(:, :), allocatable :: gdata_buf
+        integer(hsize_t), dimension(:, :), allocatable :: tmp_gdata, tmp_mr
         integer :: temp_ilut_tag, temp_sgns_tag, rest
         integer(int32) :: read_lenof_sign
         type(gdata_io_t) :: gdata_read_handler
@@ -1008,7 +1003,7 @@ contains
         tmp_lenof_sign = int(read_lenof_sign)
         ! assign the tmp_inum_runs accordingly
 #ifdef CMPLX_
-        tmp_inum_runs = tmp_lenof_sign .div. 2
+        tmp_inum_runs = tmp_lenof_sign.div.2
 #else
         tmp_inum_runs = tmp_lenof_sign
 #endif
@@ -1018,17 +1013,17 @@ contains
         ! here, so we read it in alongside the walkers
         ! (calcdata has to be read in after the walkers, ugh)
         call read_log_scalar(grp_id, nm_tauto, tPopAutoAdaptiveShift, &
-            default = .false._int32, required=.false.)
+                             default=.false._int32, required=.false.)
         call read_log_scalar(grp_id, nm_sc_blooms, tPopScaleBlooms, &
-            default = .false._int32, required=.false.)
+                             default=.false._int32, required=.false.)
 
         ! Same goes for accum-pops and the corresponding values
         call read_log_scalar(grp_id, nm_tAP, tPopAccumPops, &
-             default = .false._int32, required=.false.)
+                             default=.false._int32, required=.false.)
 
         ! these variables are for consistency-checks
-        allocate(pops_norm_sqr(tmp_lenof_sign), stat = ierr)
-        allocate(pops_num_parts(tmp_lenof_sign), stat = ierr)
+        allocate(pops_norm_sqr(tmp_lenof_sign), stat=ierr)
+        allocate(pops_num_parts(tmp_lenof_sign), stat=ierr)
 
         call read_int64_attribute(grp_id, nm_num_dets, all_count, &
                                   required=.true.)
@@ -1038,37 +1033,37 @@ contains
                                   required=.true.)
 
         if (lenof_sign /= tmp_lenof_sign) then
-           ! currently only for real population
+            ! currently only for real population
 #ifndef CMPLX_
-           ! resize the attributes
-           call resize_attribute(pops_norm_sqr, lenof_sign)
-           call resize_attribute(pops_num_parts, lenof_sign)
-           ! notify
-           write(6,*) "WARNING: Popsfile and input lenof_sign mismatch. Cloning replicas"
+            ! resize the attributes
+            call resize_attribute(pops_norm_sqr, lenof_sign)
+            call resize_attribute(pops_num_parts, lenof_sign)
+            ! notify
+            write(stdout, *) "WARNING: Popsfile and input lenof_sign mismatch. Cloning replicas"
 #else
-           call stop_all(t_r, "Mismatched sign length")
+            call stop_all(t_r, "Mismatched sign length")
 #endif
-        endif
+        end if
 
-        write(6,*)
-        write(6,*) 'Reading in ', all_count, ' determinants'
+        write(stdout, *)
+        write(stdout, *) 'Reading in ', all_count, ' determinants'
 
         ! How many particles should each processor read in (try and distribute
         ! this as uniformly as possible. Also calculate the associated data
         ! offsets
         counts = all_count / nProcessors
         rest = int(mod(all_count, nProcessors))
-        if(rest.gt.0) counts(0:rest-1)=counts(0:rest-1)+1
+        if (rest > 0) counts(0:rest - 1) = counts(0:rest - 1) + 1
 
         if (sum(counts) /= all_count .or. any(counts < 0)) &
             call stop_all(t_r, "Invalid particles counts")
         offsets(0) = 0
         do proc = 1, nProcessors - 1
-            offsets(proc) = offsets(proc-1) + counts(proc-1)
+            offsets(proc) = offsets(proc - 1) + counts(proc - 1)
         end do
 
-        write(6,*) 'Reading in ', counts(iProcIndex), &
-                   ' determinants on this process ...'
+        write(stdout, *) 'Reading in ', counts(iProcIndex), &
+            ' determinants on this process ...'
 
         ! TODO: Split this up into more manageable chunks!
 
@@ -1077,14 +1072,14 @@ contains
         call h5dopen_f(grp_id, nm_sgns, ds_sgns, err)
 
         ! size of the ms data read in
-        tmp_fvals_size = 2*tmp_inum_runs
+        tmp_fvals_size = 2 * tmp_inum_runs
 
-        tmp_apvals_size = tmp_lenof_sign+1
+        tmp_apvals_size = tmp_lenof_sign + 1
 
         ! Only active the accumlation of populations if the popsfile has
         ! apvals and and accum-pops is specified with a proper iteration
         tAccumPopsActive = .false.
-        if(tAccumPops .and. tPopAccumPops)then
+        if (tAccumPops .and. tPopAccumPops) then
             ! Read previous iteration data.
             ! It is read again in read_calc_data, but we need it now
             call h5gopen_f(parent, nm_calc_grp, calc_grp_id, err)
@@ -1092,64 +1087,63 @@ contains
                                    default=0_int64, required=.false.)
             call h5gclose_f(calc_grp_id, err)
 
-            if(iAccumPopsIter<=PreviousCycles)then
+            if (iAccumPopsIter <= PreviousCycles) then
                 tAccumPopsActive = .true.
                 call read_int64_scalar(grp_id, nm_accum_counter, iAccumPopsCounter, &
-                                               default=0_int64, required=.false.)
-                write(6,*) "Accumulated populations are found. Accumulation will continue."
+                                       default=0_int64, required=.false.)
+                write(stdout, *) "Accumulated populations are found. Accumulation will continue."
             else
-                write(6,*) "Accumulated populations are found, but will be discarded."
-                write(6,*) "Accumulation will restart at iteration: ", iAccumPopsIter
-            endif
-        endif
+                write(stdout, *) "Accumulated populations are found, but will be discarded."
+                write(stdout, *) "Accumulation will restart at iteration: ", iAccumPopsIter
+            end if
+        end if
 
         ! create an io handler for the data that is actually in the file
         ! (can have different lenof_sign and options than the one we will be using)
-        call gdata_read_handler%init_gdata_io(&
+        call gdata_read_handler%init_gdata_io( &
             tPopAutoAdaptiveShift, tPopScaleBlooms, tPopAccumPops, &
             tmp_fvals_size, max_ratio_size, tmp_apvals_size)
         gdata_size = gdata_read_handler%entry_size()
 
         t_read_gdata = gdata_read_handler%t_io()
-        if(t_read_gdata) then
-           call h5lexists_f(grp_id, nm_gdata, t_exist_gdata, err)
-           if(t_exist_gdata) then
-               call h5dopen_f(grp_id, nm_gdata, ds_gdata, err)
-           else
-               !This is for backword-compatibility.
-               !gdata group had another earlier name.
-               call h5dopen_f(grp_id, nm_gdata_old, ds_gdata, err)
-           endif
-        endif
-
+        if (t_read_gdata) then
+            call h5lexists_f(grp_id, nm_gdata, t_exist_gdata, err)
+            if (t_exist_gdata) then
+                call h5dopen_f(grp_id, nm_gdata, ds_gdata, err)
+            else
+                !This is for backword-compatibility.
+                !gdata group had another earlier name.
+                call h5dopen_f(grp_id, nm_gdata_old, ds_gdata, err)
+            end if
+        end if
 
         ! Check that these datasets look like we expect them to.
         call check_dataset_params(ds_ilut, nm_ilut, 8_hsize_t, H5T_INTEGER_F, &
-                                  [int(bit_rep_width,hsize_t), all_count])
+                                  [int(bit_rep_width, hsize_t), all_count])
         call check_dataset_params(ds_sgns, nm_sgns, 8_hsize_t, H5T_FLOAT_F, &
                                   [int(tmp_lenof_sign, hsize_t), all_count])
-        if(t_read_gdata) then
-           if(t_exist_gdata)then
-             call check_dataset_params(ds_gdata, nm_gdata, 8_hsize_t, H5T_FLOAT_F, &
-                  [int(gdata_size, hsize_t), all_count])
-           else
-               !This is for backword-compatibility.
-               !gdata group had another earlier name.
-             call check_dataset_params(ds_gdata, nm_gdata_old, 8_hsize_t, H5T_FLOAT_F, &
-                  [int(gdata_size, hsize_t), all_count])
-           endif
-        endif
+        if (t_read_gdata) then
+            if (t_exist_gdata) then
+                call check_dataset_params(ds_gdata, nm_gdata, 8_hsize_t, H5T_FLOAT_F, &
+                                          [int(gdata_size, hsize_t), all_count])
+            else
+                !This is for backword-compatibility.
+                !gdata group had another earlier name.
+                call check_dataset_params(ds_gdata, nm_gdata_old, 8_hsize_t, H5T_FLOAT_F, &
+                                          [int(gdata_size, hsize_t), all_count])
+            end if
+        end if
 
         !limit the buffer size per MPI task to 50MB or MaxSpawned entries
-        block_size=50000000/(bit_rep_width*lenof_sign)/sizeof(SpawnedParts(1,1))
-        block_size = min(block_size,MaxSpawned)
+        block_size = 50000000 / (bit_rep_width * lenof_sign) / sizeof(SpawnedParts(1, 1))
+        block_size = min(block_size, MaxSpawned)
 #if 0
         do proc = 0, nProcessors - 2
             block_size = min(block_size, &
-                InitialSpawnedSlots(proc+1) - InitialSpawnedSlots(proc))
+                             InitialSpawnedSlots(proc + 1) - InitialSpawnedSlots(proc))
         end do
         block_size = min(block_size, &
-                MaxSpawned - InitialSpawnedSlots(nProcessors-1))
+                         MaxSpawned - InitialSpawnedSlots(nProcessors - 1))
 #endif
 
         ! Initialise relevant counters
@@ -1174,11 +1168,11 @@ contains
         running = .true.
         any_running = .true.
 
-        allocate(temp_ilut(int(bit_rep_width),int(this_block_size)),stat=ierr)
-        call LogMemAlloc('temp_ilut',size(temp_ilut),int(sizeof(temp_ilut(1,1))),'read_walkers',temp_ilut_tag,ierr)
+        allocate(temp_ilut(int(bit_rep_width), int(this_block_size)), stat=ierr)
+        call LogMemAlloc('temp_ilut', size(temp_ilut), int(sizeof(temp_ilut(1, 1))), 'read_walkers', temp_ilut_tag, ierr)
 
-        allocate(temp_sgns(int(tmp_lenof_sign),int(this_block_size)),stat=ierr)
-        call LogMemAlloc('temp_sgns',size(temp_sgns),lenof_sign,'read_walkers',temp_sgns_tag,ierr)
+        allocate(temp_sgns(int(tmp_lenof_sign), int(this_block_size)), stat=ierr)
+        call LogMemAlloc('temp_sgns', size(temp_sgns), lenof_sign, 'read_walkers', temp_sgns_tag, ierr)
 
         allocate(gdata_buf(int(gdata_size), int(this_block_size)), stat=ierr)
 
@@ -1193,35 +1187,35 @@ contains
             end if
 
             ! if we resized the sign, we need to go back to the original buffer size now
-            if(tmp_lenof_sign /= lenof_sign) then
-               deallocate(temp_sgns)
-               allocate(temp_sgns(int(tmp_lenof_sign),int(this_block_size)),stat=ierr)
-               deallocate(gdata_buf)
-               allocate(gdata_buf(int(gdata_size), int(this_block_size)), stat=ierr)
-               call gdata_read_handler%init_gdata_io(&
-                   tPopAutoAdaptiveShift, tPopScaleBlooms, tPopAccumPops, &
-                   tmp_fvals_size, max_ratio_size, tmp_apvals_size)
+            if (tmp_lenof_sign /= lenof_sign) then
+                deallocate(temp_sgns)
+                allocate(temp_sgns(int(tmp_lenof_sign), int(this_block_size)), stat=ierr)
+                deallocate(gdata_buf)
+                allocate(gdata_buf(int(gdata_size), int(this_block_size)), stat=ierr)
+                call gdata_read_handler%init_gdata_io( &
+                    tPopAutoAdaptiveShift, tPopScaleBlooms, tPopAccumPops, &
+                    tmp_fvals_size, max_ratio_size, tmp_apvals_size)
             end if
 
             call read_walker_block_buff(ds_ilut, ds_sgns, ds_gdata, block_start, &
-                                   this_block_size, bit_rep_width, temp_ilut, temp_sgns, &
-                                   gdata_buf)
+                                        this_block_size, bit_rep_width, temp_ilut, temp_sgns, &
+                                        gdata_buf)
 
-            if(tmp_lenof_sign /= lenof_sign) then
-               call clone_signs(temp_sgns,tmp_lenof_sign, lenof_sign, this_block_size)
-               ! resize the fvals in the same manner
-               if(t_read_gdata) then
-                   call gdata_read_handler%clone_gdata(&
-                       gdata_buf, tmp_fvals_size, fvals_size, tmp_apvals_size, &
-                       apvals_size, this_block_size)
-               endif
-            endif
+            if (tmp_lenof_sign /= lenof_sign) then
+                call clone_signs(temp_sgns, tmp_lenof_sign, lenof_sign, this_block_size)
+                ! resize the fvals in the same manner
+                if (t_read_gdata) then
+                    call gdata_read_handler%clone_gdata( &
+                        gdata_buf, tmp_fvals_size, fvals_size, tmp_apvals_size, &
+                        apvals_size, this_block_size)
+                end if
+            end if
 
             ! distribution and storage of the data is done with the read_handler, which
             ! has the memory layout for the current calculation
             call distribute_and_add_walkers(this_block_size, gdata_read_handler, &
-                temp_ilut, temp_sgns, gdata_buf, &
-                dets, nreceived, CurrWalkers, norm, parts)
+                                            temp_ilut, temp_sgns, gdata_buf, &
+                                            dets, nreceived, CurrWalkers, norm, parts)
 
             nread_walkers = nread_walkers + nreceived
 
@@ -1241,10 +1235,10 @@ contains
 
         deallocate(gdata_buf)
         deallocate(temp_ilut, temp_sgns)
-        call LogMemDeAlloc('read_walkers',temp_ilut_tag)
-        call LogMemDeAlloc('read_walkers',temp_sgns_tag)
+        call LogMemDeAlloc('read_walkers', temp_ilut_tag)
+        call LogMemDeAlloc('read_walkers', temp_sgns_tag)
 
-        if(t_read_gdata) call h5dclose_f(ds_gdata, err)
+        if (t_read_gdata) call h5dclose_f(ds_gdata, err)
         call h5dclose_f(ds_sgns, err)
         call h5dclose_f(ds_ilut, err)
         call h5gclose_f(grp_id, err)
@@ -1256,13 +1250,13 @@ contains
         deallocate(pops_num_parts)
         deallocate(pops_norm_sqr)
 
-        write(6,*) "... done"
-        write(6,*)
+        write(stdout, *) "... done"
+        write(stdout, *)
 
     end subroutine read_walkers
 
     subroutine read_walker_block_buff(ds_ilut, ds_sgns, ds_gdata, block_start, block_size, &
-                                 bit_rep_width, temp_ilut, temp_sgns, gdata_buf)
+                                      bit_rep_width, temp_ilut, temp_sgns, gdata_buf)
 
         use bit_rep_data, only: NIfD
         use FciMCData, only: SpawnedParts2
@@ -1278,33 +1272,33 @@ contains
         integer(hid_t), intent(in) :: ds_ilut, ds_sgns, ds_gdata
         integer(hsize_t), intent(in) :: block_start, block_size
         integer(int32), intent(in) :: bit_rep_width
-        integer(hsize_t), dimension(:,:) :: temp_ilut, temp_sgns
-        integer(hsize_t), dimension(:,:) :: gdata_buf
+        integer(hsize_t), dimension(:, :) :: temp_ilut, temp_sgns
+        integer(hsize_t), dimension(:, :) :: gdata_buf
         integer(hid_t) :: plist_id
         integer :: gdata_size
 
 #ifdef INT64_
 
         call read_2d_multi_chunk( &
-                ds_ilut, temp_ilut, H5T_NATIVE_INTEGER_8, &
-                [int(bit_rep_width, hsize_t), block_size], &
-                [0_hsize_t, block_start], &
-                [0_hsize_t, 0_hsize_t])
+            ds_ilut, temp_ilut, h5kind_to_type(int64, H5_INTEGER_KIND), &
+            [int(bit_rep_width, hsize_t), block_size], &
+            [0_hsize_t, block_start], &
+            [0_hsize_t, 0_hsize_t])
 
         call read_2d_multi_chunk( &
-             ds_sgns, temp_sgns, H5T_NATIVE_REAL_8, &
-             [int(tmp_lenof_sign, hsize_t), block_size], &
-             [0_hsize_t, block_start], &
-             [0_hsize_t, 0_hsize_t])
+            ds_sgns, temp_sgns, h5kind_to_type(dp, H5_REAL_KIND), &
+            [int(tmp_lenof_sign, hsize_t), block_size], &
+            [0_hsize_t, block_start], &
+            [0_hsize_t, 0_hsize_t])
 
-        gdata_size = size(gdata_buf, dim = 1)
-        if(gdata_size > 0) then
-           call read_2d_multi_chunk( &
-                ds_gdata, gdata_buf, H5T_NATIVE_REAL_8, &
+        gdata_size = size(gdata_buf, dim=1)
+        if (gdata_size > 0) then
+            call read_2d_multi_chunk( &
+                ds_gdata, gdata_buf, h5kind_to_type(dp, H5_REAL_KIND), &
                 [int(gdata_size, hsize_t), block_size], &
                 [0_hsize_t, block_start], &
                 [0_hsize_t, 0_hsize_t])
-        endif
+        end if
 
 #else
         call stop_all("read_walker_block", "32-64bit conversion not yet implemented")
@@ -1314,199 +1308,196 @@ contains
 
     end subroutine read_walker_block_buff
 
-
     subroutine distribute_and_add_walkers(block_size, gdata_read_handler, &
-        temp_ilut, temp_sgns, gdata_buf, &
-        dets, nreceived, CurrWalkers, norm, parts)
-      use FciMCData, only: MaxSpawned
-      implicit none
-      integer(n_int), intent(out) :: dets(:, :)
-      integer(int64), intent(inout) :: CurrWalkers
-      integer(hsize_t) :: block_size
-      type(gdata_io_t), intent(in) :: gdata_read_handler
-      integer:: nreceived
-      real(dp), intent(inout) :: norm(lenof_sign), parts(lenof_sign)
-      integer(hsize_t):: temp_ilut(:,:), temp_sgns(:,:), gdata_buf(:,:)
-      integer(MPIArg) :: sendcount(0:nProcessors-1)
-      integer :: nlocal=0
-      integer :: gdata_size
-      integer :: ierr
-      integer(hsize_t), allocatable :: gdata_comm(:,:), gdata_loc(:,:)
+                                          temp_ilut, temp_sgns, gdata_buf, &
+                                          dets, nreceived, CurrWalkers, norm, parts)
+        use FciMCData, only: MaxSpawned
+        implicit none
+        integer(n_int), intent(out) :: dets(:, :)
+        integer(int64), intent(inout) :: CurrWalkers
+        integer(hsize_t) :: block_size
+        type(gdata_io_t), intent(in) :: gdata_read_handler
+        integer:: nreceived
+        real(dp), intent(inout) :: norm(lenof_sign), parts(lenof_sign)
+        integer(hsize_t):: temp_ilut(:, :), temp_sgns(:, :), gdata_buf(:, :)
+        integer(MPIArg) :: sendcount(0:nProcessors - 1)
+        integer :: nlocal = 0
+        integer :: gdata_size
+        integer :: ierr
+        integer(hsize_t), allocatable :: gdata_comm(:, :), gdata_loc(:, :)
 
-      ! allocate the buffers for the gdata
-      gdata_size = size(gdata_buf, dim = 1)
-      allocate(gdata_comm(gdata_size,MaxSpawned), stat=ierr)
-      allocate(gdata_loc(gdata_size,MaxSpawned), stat=ierr)
+        ! allocate the buffers for the gdata
+        gdata_size = size(gdata_buf, dim=1)
+        allocate(gdata_comm(gdata_size, MaxSpawned), stat=ierr)
+        allocate(gdata_loc(gdata_size, MaxSpawned), stat=ierr)
 
-      call assign_dets_to_procs_buff(block_size, temp_ilut, temp_sgns, &
-           gdata_buf, gdata_loc, gdata_comm, sendcount)
+        call assign_dets_to_procs_buff(block_size, temp_ilut, temp_sgns, &
+                                       gdata_buf, gdata_loc, gdata_comm, sendcount)
 
-      !add elements that are on the right processor already
+        !add elements that are on the right processor already
 #define localfirst
 !#undef localfirst
 #ifdef localfirst
-      nlocal=sendcount(iProcIndex)
-      call add_new_parts(dets, nlocal, CurrWalkers, norm, parts, gdata_loc, gdata_read_handler)
-      sendcount(iProcIndex)=0
+        nlocal = sendcount(iProcIndex)
+        call add_new_parts(dets, nlocal, CurrWalkers, norm, parts, gdata_loc, gdata_read_handler)
+        sendcount(iProcIndex) = 0
 #endif
-      !communicate the remaining elements
-      nreceived = communicate_read_walkers_buff(sendcount, gdata_comm, gdata_loc)
-      call add_new_parts(dets, nreceived, CurrWalkers, norm, parts, gdata_loc, gdata_read_handler)
+        !communicate the remaining elements
+        nreceived = communicate_read_walkers_buff(sendcount, gdata_comm, gdata_loc)
+        call add_new_parts(dets, nreceived, CurrWalkers, norm, parts, gdata_loc, gdata_read_handler)
 
-      if (allocated(receivebuff)) then
-         deallocate(receivebuff)
-         call LogMemDeAlloc('distribute_and_add',receivebuff_tag)
-      end if
+        if (allocated(receivebuff)) then
+            deallocate(receivebuff)
+            call LogMemDeAlloc('distribute_and_add', receivebuff_tag)
+        end if
 
-      nreceived=nreceived+nlocal
+        nreceived = nreceived + nlocal
 
-      if(allocated(gdata_loc)) deallocate(gdata_loc)
-      if(allocated(gdata_comm)) deallocate(gdata_comm)
+        if (allocated(gdata_loc)) deallocate(gdata_loc)
+        if (allocated(gdata_comm)) deallocate(gdata_comm)
 
     end subroutine distribute_and_add_walkers
 
     subroutine assign_dets_to_procs_buff(block_size, temp_ilut, temp_sgns, &
-         gdata_buf, gdata_loc, gdata_comm, sendcount)
+                                         gdata_buf, gdata_loc, gdata_comm, sendcount)
 
         use load_balance_calcnodes, only: DetermineDetNode
         use bit_reps, only: decode_bit_det, extract_sign
         use FciMCData, only: SpawnedParts2, SpawnedParts, ValidSpawnedList
 
         use Determinants, only: write_det
-        use bit_rep_data, only: NIfD, NIFBCast
+        use bit_rep_data, only: NIfD, IlutBits
         use SystemData, only: nel
 
         integer(hsize_t), intent(in) :: block_size
         character(*), parameter :: t_r = 'distribute_walkers_from_block'
-        integer(hsize_t), dimension(:,:) :: temp_ilut, temp_sgns, gdata_buf, gdata_comm
-        integer(hsize_t), dimension(:,:) :: gdata_loc
-        integer(hsize_t) :: onepart(0:NIfBCast)
+        integer(hsize_t), dimension(:, :) :: temp_ilut, temp_sgns, gdata_buf, gdata_comm
+        integer(hsize_t), dimension(:, :) :: gdata_loc
+        integer(hsize_t) :: onepart(0:IlutBits%len_bcast)
         integer :: det(nel), p, j, proc, sizeilut, targetproc(block_size)
-        integer(MPIArg) :: sendcount(0:nProcessors-1)
+        integer(MPIArg) :: sendcount(0:nProcessors - 1)
         integer :: index, index2
         logical :: list_full, t_read_gdata
 
-        sizeilut=size(temp_ilut,1)
-        t_read_gdata = size(gdata_buf, dim = 1) > 0
+        sizeilut = size(temp_ilut, 1)
+        t_read_gdata = size(gdata_buf, dim=1) > 0
 
         ! Iterate through walkers in temp_ilut+temp_sgns and determine the target processor.
-        onepart=0
-        sendcount=0
+        onepart = 0
+        sendcount = 0
         do j = 1, int(block_size)
-            onepart(0:sizeilut-1)=temp_ilut(:,j)
-            onepart(sizeilut:sizeilut+int(lenof_sign)-1)=temp_sgns(:,j)
+            onepart(0:sizeilut - 1) = temp_ilut(:, j)
+            onepart(sizeilut:sizeilut + int(lenof_sign) - 1) = temp_sgns(:, j)
             ! Which processor does this determinant live on?
             call decode_bit_det(det, onepart)
             proc = DetermineDetNode(nel, det, 0)
-            targetproc(j)=proc
-            sendcount(proc)=sendcount(proc)+1
+            targetproc(j) = proc
+            sendcount(proc) = sendcount(proc) + 1
         end do
 
         ! Write the elements to SpawnedParts in the correct order for sending
-        index=1
-        index2=1
-        do p = 0, nProcessors-1
+        index = 1
+        index2 = 1
+        do p = 0, nProcessors - 1
 #ifdef localfirst
-           if (p.eq.iProcIndex) then
+            if (p == iProcIndex) then
 #else
-           if (.false.) then
+            if (.false.) then
 #endif
-              !elements that don't have to be communicated are written to SpawnedParts2
-              do j = 1, int(block_size)
-                 if(targetproc(j).eq.p) then
-                    onepart(0:sizeilut-1)=temp_ilut(:,j)
-                    onepart(sizeilut:sizeilut+int(lenof_sign)-1)=temp_sgns(:,j)
-                    SpawnedParts2(:,index2)=onepart
-                    if(t_read_gdata)&
-                         gdata_loc(:,index2)=gdata_buf(:,j)
-                    index2=index2+1
-                 end if
-              end do
-           else
-              !elements that have to be sent to other procs are written to SpawnedParts
-              do j = 1, int(block_size)
-                 if(targetproc(j).eq.p) then
-                    onepart(0:sizeilut-1)=temp_ilut(:,j)
-                    onepart(sizeilut:sizeilut+int(lenof_sign)-1)=temp_sgns(:,j)
-                    SpawnedParts(:,index)=onepart
-                    if(t_read_gdata) &
-                         gdata_comm(:,index)=gdata_buf(:,j)
-                    index=index+1
-                 end if
-              end do
-           end if
+                !elements that don't have to be communicated are written to SpawnedParts2
+                do j = 1, int(block_size)
+                    if (targetproc(j) == p) then
+                        onepart(0:sizeilut - 1) = temp_ilut(:, j)
+                        onepart(sizeilut:sizeilut + int(lenof_sign) - 1) = temp_sgns(:, j)
+                        SpawnedParts2(:, index2) = onepart
+                        if (t_read_gdata) &
+                            gdata_loc(:, index2) = gdata_buf(:, j)
+                        index2 = index2 + 1
+                    end if
+                end do
+            else
+                !elements that have to be sent to other procs are written to SpawnedParts
+                do j = 1, int(block_size)
+                    if (targetproc(j) == p) then
+                        onepart(0:sizeilut - 1) = temp_ilut(:, j)
+                        onepart(sizeilut:sizeilut + int(lenof_sign) - 1) = temp_sgns(:, j)
+                        SpawnedParts(:, index) = onepart
+                        if (t_read_gdata) &
+                            gdata_comm(:, index) = gdata_buf(:, j)
+                        index = index + 1
+                    end if
+                end do
+            end if
         end do
 
     end subroutine assign_dets_to_procs_buff
 
     function communicate_read_walkers_buff(sendcounts, gdata_comm, &
-         gdata_loc) result(num_received)
-        integer(MPIArg), intent(in) :: sendcounts(0:nProcessors-1)
-        integer(hsize_t), intent(inout) :: gdata_comm(:,:)
-        integer(hsize_t), allocatable, intent(inout) :: gdata_loc(:,:)
+                                           gdata_loc) result(num_received)
+        integer(MPIArg), intent(in) :: sendcounts(0:nProcessors - 1)
+        integer(hsize_t), intent(inout) :: gdata_comm(:, :)
+        integer(hsize_t), allocatable, intent(inout) :: gdata_loc(:, :)
         integer :: num_received
         integer(int64) :: lnum_received
 
-        integer(MPIArg) :: recvcounts(0:nProcessors-1), recvcountsScaled(0:nProcessors-1)
-        integer(MPIArg) :: disps(0:nProcessors-1), recvdisps(0:nProcessors-1)
-        integer(MPIArg) :: dispsScaled(0:nProcessors-1), recvdispsScaled(0:nProcessors-1)
-        integer(MPIArg) :: sendcountsScaled(0:nProcessors-1)
+        integer(MPIArg) :: recvcounts(0:nProcessors - 1), recvcountsScaled(0:nProcessors - 1)
+        integer(MPIArg) :: disps(0:nProcessors - 1), recvdisps(0:nProcessors - 1)
+        integer(MPIArg) :: dispsScaled(0:nProcessors - 1), recvdispsScaled(0:nProcessors - 1)
+        integer(MPIArg) :: sendcountsScaled(0:nProcessors - 1)
         integer :: j, ierr, gdata_size
-
 
         !offsets for data to the different procs
         disps(0) = 0
-        do j = 1, nProcessors-1
-            disps(j) = disps(j-1)+sendcounts(j-1)
+        do j = 1, nProcessors - 1
+            disps(j) = disps(j - 1) + sendcounts(j - 1)
         end do
 
         ! Communicate the number of particles that need to go to each proc
         call MPIAllToAll(sendcounts, 1, recvcounts, 1, ierr)
 
-
         ! We want the data to be contiguous after the move. So calculate the
         ! offsets
         recvdisps(0) = 0
-        do j = 1, nProcessors-1
-            recvdisps(j) = recvdisps(j-1) + recvcounts(j-1)
+        do j = 1, nProcessors - 1
+            recvdisps(j) = recvdisps(j - 1) + recvcounts(j - 1)
         end do
-        num_received = recvdisps(nProcessors-1) + recvcounts(nProcessors-1)
-        lnum_received = recvdisps(nProcessors-1) + recvcounts(nProcessors-1)
-        gdata_size = size(gdata_loc,1)
+        num_received = recvdisps(nProcessors - 1) + recvcounts(nProcessors - 1)
+        lnum_received = recvdisps(nProcessors - 1) + recvcounts(nProcessors - 1)
+        gdata_size = size(gdata_loc, 1)
         ! Adjust offsets so that they match the size of the array
-        call scaleCounts(size(SpawnedParts,1))
+        call scaleCounts(size(SpawnedParts, 1))
 
-        if (num_received.gt.size(SpawnedParts2,2)) then
-           ! there could in principle be a memory problem because we are not limiting the
-           ! size of receivebuff.
-           write(6,*) 'Allocating additional buffer for communication on Processor ', iProcIndex, 'with ', &
-                num_received*size(SpawnedParts,1)*sizeof(SpawnedParts(1,1))/1000000, 'MB'
-           allocate(receivebuff(size(SpawnedParts,1),num_received))
-           call LogMemAlloc('receivebuff',size(receivebuff),int(sizeof(receivebuff(1,1))),&
-                'communicate_read_walkers',receivebuff_tag,ierr)
-           call MPIAllToAllV(SpawnedParts, sendcountsScaled, dispsScaled, receivebuff, &
-                recvcountsScaled, recvdispsScaled, ierr)
+        if (num_received > size(SpawnedParts2, 2)) then
+            ! there could in principle be a memory problem because we are not limiting the
+            ! size of receivebuff.
+            write(stdout, *) 'Allocating additional buffer for communication on Processor ', iProcIndex, 'with ', &
+                num_received * size(SpawnedParts, 1) * sizeof(SpawnedParts(1, 1)) / 1000000, 'MB'
+            allocate(receivebuff(size(SpawnedParts, 1), num_received))
+            call LogMemAlloc('receivebuff', size(receivebuff), int(sizeof(receivebuff(1, 1))), &
+                             'communicate_read_walkers', receivebuff_tag, ierr)
+            call MPIAllToAllV(SpawnedParts, sendcountsScaled, dispsScaled, receivebuff, &
+                              recvcountsScaled, recvdispsScaled, ierr)
 
-           ! gdata communication for auto-adaptive shift mode
-           if(gdata_size > 0) then
-              if(allocated(gdata_loc)) deallocate(gdata_loc)
-              allocate(gdata_loc(gdata_size,num_received))
-           endif
+            ! gdata communication for auto-adaptive shift mode
+            if (gdata_size > 0) then
+                if (allocated(gdata_loc)) deallocate(gdata_loc)
+                allocate(gdata_loc(gdata_size, num_received))
+            end if
         else
-           call MPIAllToAllV(SpawnedParts, sendcountsScaled, dispsScaled, SpawnedParts2, &
-                recvcountsScaled, recvdispsScaled, ierr)
+            call MPIAllToAllV(SpawnedParts, sendcountsScaled, dispsScaled, SpawnedParts2, &
+                              recvcountsScaled, recvdispsScaled, ierr)
         end if
 
         call scaleCounts(gdata_size)
 
-        if(gdata_size > 0) then
-           call MPIAllToAllV(gdata_comm, sendcountsScaled, dispsScaled, gdata_loc, &
-                recvcountsScaled, recvdispsScaled, ierr)
-        endif
+        if (gdata_size > 0) then
+            call MPIAllToAllV(gdata_comm, sendcountsScaled, dispsScaled, gdata_loc, &
+                              recvcountsScaled, recvdispsScaled, ierr)
+        end if
 
-        contains
+    contains
 
-          subroutine scaleCounts(argSize)
+        subroutine scaleCounts(argSize)
             implicit none
             integer, intent(in) :: argSize
 
@@ -1514,18 +1505,18 @@ contains
             recvdispsScaled = recvdisps * argSize
             sendcountsScaled = sendcounts * argSize
             dispsScaled = disps * argSize
-          end subroutine scaleCounts
-      end function communicate_read_walkers_buff
+        end subroutine scaleCounts
+    end function communicate_read_walkers_buff
 
-      subroutine add_new_parts(dets, nreceived, CurrWalkers, norm, parts, &
-          gdata_write, gdata_read_handler)
+    subroutine add_new_parts(dets, nreceived, CurrWalkers, norm, parts, &
+                             gdata_write, gdata_read_handler)
         use CalcData, only: iWeightPopRead
         use bit_reps, only: extract_sign
 
         ! Integrate the just-read block of walkers into the main list.
 
         integer(n_int), intent(inout) :: dets(:, :)
-        integer(hsize_t), intent(in) :: gdata_write(:,:)
+        integer(hsize_t), intent(in) :: gdata_write(:, :)
         integer, intent(in) :: nreceived
 
         integer(int64), intent(inout) :: CurrWalkers
@@ -1535,54 +1526,54 @@ contains
         integer(int64) :: j
         real(dp) :: sgn(lenof_sign)
 
-            ! TODO: inum_runs == 2, PopNIfSgn == 1
+        ! TODO: inum_runs == 2, PopNIfSgn == 1
         if (allocated(receivebuff)) then
 
-           do j = 1, nreceived
+            do j = 1, nreceived
 
-              ! Check that the site is occupied, and passes the relevant
-              ! thresholds before adding it to the system.
-              ! However, when reading accumlated populations (APVals), we want
-              ! to add even unoccupied sites who has accumlated values
-              call extract_sign(receivebuff(: ,j), sgn)
-              if ((any(abs(sgn) >= iWeightPopRead) .and. .not. IsUnoccDet(sgn)) .or. &
-                  tAccumPopsActive) then
+                ! Check that the site is occupied, and passes the relevant
+                ! thresholds before adding it to the system.
+                ! However, when reading accumlated populations (APVals), we want
+                ! to add even unoccupied sites who has accumlated values
+                call extract_sign(receivebuff(:, j), sgn)
+                if ((any(abs(sgn) >= iWeightPopRead) .and. .not. IsUnoccDet(sgn)) .or. &
+                    tAccumPopsActive) then
 
-                 ! Add this site to the main list
-                 CurrWalkers = CurrWalkers + 1
-                 dets(:, CurrWalkers) = receivebuff(:, j)
-                 call add_pops_norm_contrib(dets(:, CurrWalkers))
-                 call extract_sign(receivebuff(:,j), sgn)
-                 norm = norm + sgn**2
-                 parts = parts + abs(sgn)
+                    ! Add this site to the main list
+                    CurrWalkers = CurrWalkers + 1
+                    dets(:, CurrWalkers) = receivebuff(:, j)
+                    call add_pops_norm_contrib(dets(:, CurrWalkers))
+                    call extract_sign(receivebuff(:, j), sgn)
+                    norm = norm + sgn**2
+                    parts = parts + abs(sgn)
 
-                 call gdata_read_handler%read_gdata_hdf5(gdata_write(:,j), int(CurrWalkers))
-              end if
-           end do
+                    call gdata_read_handler%read_gdata_hdf5(gdata_write(:, j), int(CurrWalkers))
+                end if
+            end do
         else
-           do j = 1, nreceived
+            do j = 1, nreceived
 
-              ! Check that the site is occupied, and passes the relevant
-              ! thresholds before adding it to the system.
-              ! However, when reading accumlated populations (APVals), we want
-              ! to add even unoccupied sites who has accumlated values
-              call extract_sign(SpawnedParts2(: ,j), sgn)
-              if ((any(abs(sgn) >= iWeightPopRead) .and. .not. IsUnoccDet(sgn)) .or. &
-                  tAccumPopsActive) then
+                ! Check that the site is occupied, and passes the relevant
+                ! thresholds before adding it to the system.
+                ! However, when reading accumlated populations (APVals), we want
+                ! to add even unoccupied sites who has accumlated values
+                call extract_sign(SpawnedParts2(:, j), sgn)
+                if ((any(abs(sgn) >= iWeightPopRead) .and. .not. IsUnoccDet(sgn)) .or. &
+                    tAccumPopsActive) then
 
-                 ! Add this site to the main list
-                 CurrWalkers = CurrWalkers + 1
-                 dets(:, CurrWalkers) = SpawnedParts2(:, j)
-                 call add_pops_norm_contrib(dets(:, CurrWalkers))
-                 call extract_sign(SpawnedParts2(:,j), sgn)
-                 norm = norm + sgn**2
-                 parts = parts + abs(sgn)
+                    ! Add this site to the main list
+                    CurrWalkers = CurrWalkers + 1
+                    dets(:, CurrWalkers) = SpawnedParts2(:, j)
+                    call add_pops_norm_contrib(dets(:, CurrWalkers))
+                    call extract_sign(SpawnedParts2(:, j), sgn)
+                    norm = norm + sgn**2
+                    parts = parts + abs(sgn)
 
-                 call gdata_read_handler%read_gdata_hdf5(gdata_write(:,j), int(CurrWalkers))
-              end if
-           end do
+                    call gdata_read_handler%read_gdata_hdf5(gdata_write(:, j), int(CurrWalkers))
+                end if
+            end do
 
-        endif
+        end if
         ! TODO: Add check that we have read in the correct number of parts
     end subroutine
 
@@ -1616,8 +1607,8 @@ contains
         !      dropped.
         call MPISum(nread_walkers, all_read_walkers)
         if (iProcIndex == 0 .and. all_read_walkers /= pops_det_count) then
-            write(6,*) 'Determinants in popsfile header: ', pops_det_count
-            write(6,*) 'Determinants read in: ', all_read_walkers
+            write(stdout, *) 'Determinants in popsfile header: ', pops_det_count
+            write(stdout, *) 'Determinants read in: ', all_read_walkers
             call stop_all(t_r, 'Particle number mismatch')
         end if
 
@@ -1626,8 +1617,8 @@ contains
         ! This is relative to the total number to account for relative errors
         call MPISumAll(parts, all_parts)
         if (any(abs(all_parts - pops_num_parts) > (pops_num_parts * 1.0e-10_dp))) then
-            write(6,*) 'popsfile particles: ', pops_num_parts
-            write(6,*) 'read particles: ', all_parts
+            write(stdout, *) 'popsfile particles: ', pops_num_parts
+            write(stdout, *) 'read particles: ', all_parts
             call stop_all(t_r, 'Incorrect particle weight read from popsfile')
         end if
 
@@ -1639,8 +1630,8 @@ contains
         ! Same relative error test as before
         call MPISumAll(norm, all_norm)
         if (any(abs(all_norm - pops_norm_sqr) > (pops_norm_sqr * 1.0e-10_dp))) then
-            write(6,*) 'popsfile norm**2: ', pops_norm_sqr
-            write(6,*) 'read norm**2: ', all_norm
+            write(stdout, *) 'popsfile norm**2: ', pops_norm_sqr
+            write(stdout, *) 'read norm**2: ', all_norm
             call stop_all(t_r, 'Wavefunction norm incorrect')
         end if
 
@@ -1673,11 +1664,11 @@ contains
         call extract_sign(ilut, real_sign)
 
 #ifdef DOUBLERUN_
-        pops_norm = pops_norm + real_sign(1)*real_sign(2)
+        pops_norm = pops_norm + real_sign(1) * real_sign(2)
 #elif CMPLX_
         pops_norm = pops_norm + real_sign(1)**2 + real_sign(2)**2
 #else
-        pops_norm = pops_norm + real_sign(1)*real_sign(1)
+        pops_norm = pops_norm + real_sign(1) * real_sign(1)
 #endif
 
     end subroutine add_pops_norm_contrib

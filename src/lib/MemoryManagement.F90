@@ -1,6 +1,6 @@
 #include "macros.h"
 module MemoryManager
-use constants , only : sizeof_int, dp, int64
+use constants , only : sizeof_int, dp, int64, int32
 
 ! JSS.  Memory book-keeping routines.  Contains a few elements of the initialisation,
 ! output and structure of the memory_manager module from CamCASP (formerly SITUS),
@@ -126,6 +126,27 @@ integer, save :: ismall=1 ! The smallest large object (remember to avoid repeati
 ! stored as the tag. Use long integer (int64) so can handle POINTER8.
 integer(int64), allocatable, save :: LookupPointer(:)
 
+! Log a memory allocation.
+! INPUT:
+!       ObjectName - Name of object.
+!       ObjectSize - Number of elements in object.
+!       ElementSize - Number of bytes per element.
+!       AllocRoutine - routine in which object is allocated.
+!       err (optional) - error output from allocate statement (checked if present).
+! OUTPUT:
+!       tag - position in memory log the object is stored at.
+!             If -1, then the log is full and it's not been stored.
+! IN/OUT:
+!       nCalls (optional) -  increments nCalls: counts the number of times
+!       a routine has called the LogMemAlloc routine (useful for tracking
+!       repeated allocations in debugging).
+!
+! Details:
+!       ObjectSize and ElementSize can either be both int32 or int64
+interface LogMemAlloc
+    module procedure LogMemAlloc_int32, LogMemAlloc_int64
+end interface
+
 contains
 
     subroutine InitMemoryManager(MemSize, print_err)
@@ -185,34 +206,31 @@ contains
     end subroutine InitMemoryManager
 
 
+    subroutine LogMemAlloc_int32(ObjectName,ObjectSize,ElementSize,AllocRoutine,tag,err,nCalls)
+        character(len=*), intent(in) :: ObjectName, AllocRoutine
+        integer(int32), intent(in) :: ObjectSize
+        integer(int32), intent(in) :: ElementSize
+        integer(TagIntType), intent(out) :: tag
+        integer, intent(in), optional :: err
+        integer, intent(inout), optional :: nCalls
+        call LogMemAlloc(ObjectName, int(ObjectSize, int64), int(ElementSize, int64), &
+                         AllocRoutine, tag, err, nCalls)
+    end subroutine
 
-    subroutine LogMemAlloc(ObjectName,ObjectSize,ElementSize,AllocRoutine,tag,err,nCalls)
-    ! Log a memory allocation.
-    ! INPUT:
-    !       ObjectName - Name of object.
-    !       ObjectSize - Number of elements in object.
-    !       ElementSize - Number of bytes per element.
-    !       AllocRoutine - routine in which object is allocated.
-    !       err (optional) - error output from allocate statement (checked if present).
-    ! OUTPUT:
-    !       tag - position in memory log the object is stored at.
-    !             If -1, then the log is full and it's not been stored.
-    ! IN/OUT:
-    !       nCalls (optional) -  increments nCalls: counts the number of times
-    !       a routine has called the LogMemAlloc routine (useful for tracking
-    !       repeated allocations in debugging).
-
+    subroutine LogMemAlloc_int64(ObjectName,ObjectSize,ElementSize,AllocRoutine,tag,err,nCalls)
     implicit none
 
-    character(len=*),intent(in) :: ObjectName,AllocRoutine
-    integer, intent(in) :: ObjectSize
-    integer, intent(in) :: ElementSize
+    character(len=*), intent(in) :: ObjectName, AllocRoutine
+    integer(int64), intent(in) :: ObjectSize
+    integer(int64), intent(in) :: ElementSize
     integer(TagIntType), intent(out) :: tag
     integer, intent(in), optional :: err
     integer, intent(inout), optional :: nCalls
 
-    integer :: ObjectSizeBytes,ismallloc(1)
-
+    integer(int64) :: ObjectSizeBytes
+    integer :: ismallloc(1)
+    character(*), parameter :: this_routine = 'LogMemAlloc'
+    external :: warning_neci
     if (present(nCalls)) nCalls=nCalls+1
 
     if (.not. initialised) then
@@ -232,8 +250,8 @@ contains
     end if
 
     if (present(err)) then
-        if (err.ne.0) then
-            call Warning_neci('LogMemAlloc','Possible failure to allocate array '//ObjectName//' in '//AllocRoutine)
+        if (err /= 0) then
+            call stop_all(this_routine, 'Failure to allocate array '//ObjectName//' in '//AllocRoutine)
         end if
     end if
 
@@ -249,7 +267,7 @@ contains
         tag=-1
         ! If we're not putting it in the log, test if it's a huge array:
         ! it's always the biggest fishes that get away!
-        if (ObjectSizeBytes.gt.LargeObjLog(ismall)%ObjectSize) then
+        if (ObjectSizeBytes > LargeObjLog(ismall)%ObjectSize) then
             LargeObjLog(ismall)%ObjectName=ObjectName
             LargeObjLog(ismall)%AllocRoutine=AllocRoutine
             LargeObjLog(ismall)%ObjectSize=ObjectSizeBytes
@@ -270,7 +288,7 @@ contains
     end if
 
     return
-    end subroutine LogMemAlloc
+    end subroutine LogMemAlloc_int64
 
 
 
@@ -291,7 +309,7 @@ contains
     integer, intent(in), optional :: err
     integer :: i,ismallloc(1)
     character(len=25) :: ObjectName
-
+    external :: stop_all
     if (.not.initialised) then
         if (err_output) write (6,*) 'Memory manager not initialised. Cannot log deallocation.'
         return
@@ -525,34 +543,38 @@ contains
         write (iunit,*) ''
     end if
     write (iunit,*) 'Name              Allocated in       Deallocated in         Size'
-    write (iunit,*) '- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - '
+    write (iunit,*) '- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -'
     return
     end subroutine WriteMemLogHeader
 
 
 
-    subroutine WriteMemSize(iunit,MemSize)
-    ! Write out a human-readable amount of memory.  MemSize is in bytes.
-    implicit none
-    integer, intent(in) :: iunit
-    integer(int64), intent(in) :: MemSize
-    character(len=*), parameter :: fmt1='(f6.1,a2)'
-    character(len=*), parameter :: fmt2='(i7,a1)'
-    if (MemUnitsBytes) then
-        if (MemSize.gt.1024**2) then
-            ! output in MB.
-            write (iunit,fmt1) real(MemSize,dp)/1024**2,'MB'
-        else if (MemSize.gt.1024) then
-            ! output in KB.
-            write (iunit,fmt1) real(MemSize,dp)/1024,'KB'
+    subroutine WriteMemSize(iunit, MemSize)
+        ! Write out a human-readable amount of memory.  MemSize is in bytes.
+        implicit none
+        integer, intent(in) :: iunit
+        integer(int64), intent(in) :: MemSize
+        character(len=*), parameter :: fmt1='(f6.1, a2)'
+        character(len=*), parameter :: fmt2='(i7, a1)'
+        if (MemUnitsBytes) then
+            if (MemSize < 1024) then
+                ! output in KB.
+                write (iunit, fmt1) real(MemSize, dp) / 1024, 'KB'
+            else if (MemSize < 1024**2) then
+                ! output in MB.
+                write (iunit, fmt1) real(MemSize, dp) / 1024**2, 'MB'
+            else if (MemSize < 1024**3) then
+                ! output in GB.
+                write (iunit, fmt1) real(MemSize, dp) / 1024**3, 'GB'
+            else if (MemSize < 1024_int64**4) then
+                ! output in GB.
+                write (iunit, fmt1) real(MemSize, dp) / 1024_int64**4, 'TB'
+            else
+                write (iunit, '(A)') '> 1 PB'
+            end if
         else
-            ! output in bytes.
-            write (iunit,fmt2) MemSize,'B'
+            write (iunit, fmt2) MemSize / 8, 'W'
         end if
-    else
-        write (iunit,fmt2) MemSize/8,'W'
-    end if
-    return
     end subroutine WriteMemSize
 
 

@@ -23,7 +23,7 @@ module cont_time_rates
     save
 
     type(excit_gen_store_type) :: secondary_gen_store
-    real(dp), allocatable :: oversample_factors(:,:)
+    real(dp), allocatable :: oversample_factors(:, :)
     integer(TagIntType) :: ostag
 
     integer :: cont_spawn_attempts
@@ -46,7 +46,7 @@ contains
         real(dp) :: rate
         character(*), parameter :: this_routine = 'spawn_rate_full'
 
-        integer :: ex(2,2), flag, det_spwn(nel)
+        integer :: ex(2, 2), flag, det_spwn(nel)
         logical :: par, found_all
 
         ASSERT(tContTimeFull)
@@ -81,7 +81,7 @@ contains
         integer, intent(out) :: ic
         character(*), parameter :: this_routine = 'cont_time_gen_excit_full'
 
-        integer :: ex(2,2), flag
+        integer :: ex(2, 2), flag
         logical :: found_all, par
         real(dp) :: r, cum_rate
 
@@ -117,8 +117,8 @@ contains
             ! (Don't stop all, as it could occur (Just) due to rounding errors
             ! when it would still be valid)
             if (found_all) then
-                write(iout, '("Potential cumulative sum error: ")')
-                write(iout, *) cum_rate, rate, r
+                write(stderr, '("Potential cumulative sum error: ")')
+                write(stderr, *) cum_rate, rate, r
                 exit
             end if
 
@@ -152,7 +152,7 @@ contains
 
         real(dp) :: probs(2), pgen, old, new_fac
         real(dp) :: rate_diag, rate_offdiag, pdiag, r, pneeded, pkeep
-        integer :: ex(2,maxExcit), i, j
+        integer :: ex(2, maxExcit), i, j
         logical :: tParity
         HElement_t(dp) :: helgen
 
@@ -178,15 +178,15 @@ contains
         ! Obtain the singles/doubles probability from the oversampling
         pSingles = oversample_factors(1, nopen) / rate_offdiag
         pDoubles = oversample_factors(2, nopen) / rate_offdiag
-        probs = (/ pSingles, pDoubles /)
+        probs = (/pSingles, pDoubles/)
 
         cont_spawn_attempts = cont_spawn_attempts + 1
         call generate_excitation(det, ilut, det_spwn, ilut_spwn, 3, ic, ex, &
                                  tParity, pgen, helgen, store)
-        IFDEBUG(FCIMCDebug,3) then
-            write(iout, '("SP att: ",f12.5)', advance='no') pgen
-            call write_det(iout, det_spwn, .true.)
-            call neci_flush(iout)
+        IFDEBUG(FCIMCDebug, 3) then
+            write(stdout, '("SP att: ",f12.5)', advance='no') pgen
+            call write_det(stdout, det_spwn, .true.)
+            call neci_flush(stdout)
         end if
 
         if (.not. IsNullDet(det_spwn)) then
@@ -205,14 +205,14 @@ contains
 
                 old = oversample_factors(ic, nopen)
                 new_fac = abs(hoffdiag) * probs(ic) &
-                        / (pgen * cont_time_max_overspawn)
+                          / (pgen * cont_time_max_overspawn)
                 if (new_fac > old) then
                     oversample_factors(ic, nopen) = new_fac
 
-                    write(iout, '("New oversampling factors")')
+                    write(stdout, '("New oversampling factors")')
                     do j = 1, 2
-                        write(iout, '("ic",i1," ")', advance='no') j
-                        write(iout, *) (oversample_factors(j,i),i=LMS,nel,2)
+                        write(stdout, '("ic",i1," ")', advance='no') j
+                        write(stdout, *) (oversample_factors(j, i), i=LMS, nel, 2)
                     end do
                 end if
                 nspawn = stochastic_round_r(cont_time_max_overspawn, r)
@@ -230,10 +230,10 @@ contains
 
             end if
 
-
             ! If this is going to survive, then encode it!
-            if (nspawn /= 0) &
+            if (nspawn /= 0) then
                 call encode_child(ilut, ilut_spwn, ic, ex)
+            end if
 
         end if
 
@@ -241,6 +241,5 @@ contains
         cont_spawn_success = cont_spawn_success + nspawn
 
     end subroutine
-
 
 end module

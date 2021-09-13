@@ -2,12 +2,12 @@ module CPMDData
 
 ! Module for data required for the CPMD interface.
 ! Data passed from CPMD.
-      use MemoryManager ,only: TagIntType
-      use constants, only: dp,int64
+    use MemoryManager, only: TagIntType
+    use constants, only: dp, int64
 
-      implicit none
+    implicit none
 
-      save
+    save
 
 !     NSTATES:   number of states.
 !     NCOMPLETE: number of states that are part of complete degenerate
@@ -23,7 +23,7 @@ module CPMDData
 !     CELLSIZES: dimensions of supercell in terms of the primitive cell.  Used
 !                only in gamma-point calculations when treating translational
 !                symmetry separately from rotational.
-      INTEGER :: NSTATES,NROTOP,NTRANSLAT,NCOMPLETE,NKPS,NKPTRANS,NSpGpOp,CellSizes(3)
+    INTEGER :: NSTATES, NROTOP, NTRANSLAT, NCOMPLETE, NKPS, NKPTRANS, NSpGpOp, CellSizes(3)
 
 !     BIGCELL:   true if the cell is non-primitive.
 !     PROJECT:   true if states are projected according to
@@ -32,15 +32,14 @@ module CPMDData
 !                than considering rotational and translaitonal
 !                symmetries separately.
 !     TKP:       true if doing a k-point calculation rather than gamma-point.
-      LOGICAL :: BIGCELL,PROJECT,TSPACEGP,TKP
-
+    LOGICAL :: BIGCELL, PROJECT, TSPACEGP, TKP
 
 !     XI:        finite size correction.  See paper by Fraser et al.  Currently
 !                not used---superseded by periodic image integrals.
 !     EIONION:   nuclear-nuclear interactions.
 !     DEGENTOL:  Tolerance (in eV) below which eigenvalues are taken to be
 !                degenerate.
-      real(dp) :: XI,EIONION,DEGENTOL
+    real(dp) :: XI, EIONION, DEGENTOL
 
 !     ROT_CHAR:  characters of (the degenerate sets of) the
 !                wavefunctions.
@@ -71,31 +70,31 @@ module CPMDData
 !                the translational symmetry operations of the
 !                equivalent supercell.
 !     KPNTIND:   K-point index of each state (using a combined index).
-      real(dp), ALLOCATABLE :: ROT_CHAR(:,:)     ! shape: (NSTATES,NROTOP)
-      real(dp), ALLOCATABLE :: EIGENVALUES(:)    ! shape: (NSTATES)
-      real(dp), ALLOCATABLE :: PIInt(:)          ! shape: (NStates)
-      complex(dp), ALLOCATABLE :: TRANS_CHAR(:,:)       ! shape: (NSTATES,NTRANSLAT)
-      complex(dp), ALLOCATABLE :: GROUP_CHAR(:,:)       ! shape: (nSpGpOp,NSTATES)
-      complex(dp), ALLOCATABLE :: TRANS_CHAR_TABLE(:,:) ! shape: (NTRANSLAT,NTRANSLAT)
-      complex(dp), ALLOCATABLE :: KPNT_CHAR(:,:)        ! shape: (NKPTRANS,NKPS)
-      LOGICAL, ALLOCATABLE :: IMPROPER_OP(:)    ! shape: (NROTOP*NTRANSLAT)
-      INTEGER, ALLOCATABLE :: K_VECTORS(:,:)    ! shape: (3,NTRANSLAT)
-      INTEGER, ALLOCATABLE :: ROT_LABEL(:)      ! shape: (NSTATES)
-      INTEGER, ALLOCATABLE :: TRANS_LABEL(:)    ! shape: (NSTATES)
-      INTEGER, ALLOCATABLE :: KPNTIND(:)        ! shape: (2*nkps*nStates)
+    real(dp), ALLOCATABLE :: ROT_CHAR(:, :)     ! shape: (NSTATES,NROTOP)
+    real(dp), ALLOCATABLE :: EIGENVALUES(:)    ! shape: (NSTATES)
+    real(dp), ALLOCATABLE :: PIInt(:)          ! shape: (NStates)
+    complex(dp), ALLOCATABLE :: TRANS_CHAR(:, :)       ! shape: (NSTATES,NTRANSLAT)
+    complex(dp), ALLOCATABLE :: GROUP_CHAR(:, :)       ! shape: (nSpGpOp,NSTATES)
+    complex(dp), ALLOCATABLE :: TRANS_CHAR_TABLE(:, :) ! shape: (NTRANSLAT,NTRANSLAT)
+    complex(dp), ALLOCATABLE :: KPNT_CHAR(:, :)        ! shape: (NKPTRANS,NKPS)
+    LOGICAL, ALLOCATABLE :: IMPROPER_OP(:)    ! shape: (NROTOP*NTRANSLAT)
+    INTEGER, ALLOCATABLE :: K_VECTORS(:, :)    ! shape: (3,NTRANSLAT)
+    INTEGER, ALLOCATABLE :: ROT_LABEL(:)      ! shape: (NSTATES)
+    INTEGER, ALLOCATABLE :: TRANS_LABEL(:)    ! shape: (NSTATES)
+    INTEGER, ALLOCATABLE :: KPNTIND(:)        ! shape: (2*nkps*nStates)
 
-      ! Memory logging tags.
-      INTEGER(TagIntType) :: tagROT_CHAR=0
-      INTEGER(TagIntType) :: tagEIGENVALUES=0
-      INTEGER(TagIntType) :: tagPIInt=0
-      INTEGER(TagIntType) :: tagTRANS_CHAR=0
-      INTEGER(TagIntType) :: tagGROUP_CHAR=0
-      INTEGER(TagIntType) :: tagTRANS_CHAR_TABLE=0
-      INTEGER(TagIntType) :: tagKPNT_CHAR=0
-      INTEGER(TagIntType) :: tagIMPROPER_OP=0
-      INTEGER(TagIntType) :: tagK_VECTORS=0
-      INTEGER(TagIntType) :: tagROT_LABEL=0
-      INTEGER(TagIntType) :: tagTRANS_LABEL=0
-      INTEGER(TagIntType) :: tagKPNTIND=0
+    ! Memory logging tags.
+    INTEGER(TagIntType) :: tagROT_CHAR = 0
+    INTEGER(TagIntType) :: tagEIGENVALUES = 0
+    INTEGER(TagIntType) :: tagPIInt = 0
+    INTEGER(TagIntType) :: tagTRANS_CHAR = 0
+    INTEGER(TagIntType) :: tagGROUP_CHAR = 0
+    INTEGER(TagIntType) :: tagTRANS_CHAR_TABLE = 0
+    INTEGER(TagIntType) :: tagKPNT_CHAR = 0
+    INTEGER(TagIntType) :: tagIMPROPER_OP = 0
+    INTEGER(TagIntType) :: tagK_VECTORS = 0
+    INTEGER(TagIntType) :: tagROT_LABEL = 0
+    INTEGER(TagIntType) :: tagTRANS_LABEL = 0
+    INTEGER(TagIntType) :: tagKPNTIND = 0
 
 end module CPMDData

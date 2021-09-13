@@ -41,6 +41,7 @@ module direct_ci
     use OneEInts, only: GetTMatEl
     use ras
     use ras_data
+    use util_mod, only: operator(.div.)
 
     implicit none
 
@@ -71,8 +72,8 @@ contains
         type(ras_factors) :: factors(ras%num_classes, 0:7)
         real(dp), allocatable, dimension(:) :: alpha_beta_fac
         integer, allocatable, dimension(:) :: r
-        real(dp), allocatable, dimension(:,:) :: c
-        integer, allocatable, dimension(:,:) :: excit_info
+        real(dp), allocatable, dimension(:, :) :: c
+        integer, allocatable, dimension(:, :) :: excit_info
         integer :: string_i(tot_nelec), string_j(tot_nelec)
         integer(n_int) :: ilut_i(0:NIfD)
         logical :: in_ras_space
@@ -94,8 +95,8 @@ contains
 
         do class_i = 1, ras%num_classes
             do sym_i = 0, 7
-                allocate(factors(class_i,sym_i)%elements(1:classes(class_i)%num_sym(sym_i)), &
-                     stat = ierr)
+                allocate(factors(class_i, sym_i)%elements(1:classes(class_i)%num_sym(sym_i)), &
+                          stat=ierr)
             end do
         end do
 
@@ -106,13 +107,13 @@ contains
                     sym_j = ieor(HFSym_ras, sym_i)
                     if (classes(class_i)%num_sym(sym_i) == 0 .or. &
                         classes(class_j)%num_sym(sym_j) == 0) cycle
-                    vec_out(class_i,class_j,sym_i)%elements(:,:) = 0.0_dp
+                    vec_out(class_i, class_j, sym_i)%elements(:, :) = 0.0_dp
                 end do
             end do
         end do
 
         allocate(alpha_beta_fac(ras%num_strings))
-        allocate(c(ras%num_strings,ras%num_strings))
+        allocate(c(ras%num_strings, ras%num_strings))
         allocate(r(ras%num_strings))
         alpha_beta_fac = 0.0_dp
         c = 0.0_dp
@@ -120,7 +121,6 @@ contains
 
         allocate(excit_info(2, ras%num_strings))
         excit_info = 0
-
 
         ! Beta and beta-beta (sigma_1) and alpha and alpha-alpha (sigma_2) contributions.
         ! See Eq. 20 for algorithm.
@@ -131,8 +131,8 @@ contains
             call zero_factors_array(ras%num_classes, factors)
 
             ! Get info for string_i.
-            sym_i = ras_strings(-1,i)
-            class_i = ras_strings(0,i)
+            sym_i = ras_strings(-1, i)
+            class_i = ras_strings(0, i)
             ind_i = i - ras%cum_classes(class_i) - classes(class_i)%cum_sym(sym_i)
 
             ! Loop over all single excitations from string_i (-> string_k).
@@ -141,12 +141,12 @@ contains
                 ! The full address of string k.
                 full_ind_k = ras_excit(i)%excit_ind(excit_k)
 
-                sym_k = ras_strings(-1,full_ind_k)
-                class_k = ras_strings(0,full_ind_k)
+                sym_k = ras_strings(-1, full_ind_k)
+                class_k = ras_strings(0, full_ind_k)
                 par_1 = ras_excit(i)%par(excit_k)
-                ex1 = ras_excit(i)%orbs(:,excit_k)
-                BRR_ex1(1) = BRR(2*ex1(1))/2
-                BRR_ex1(2) = BRR(2*ex1(2))/2
+                ex1 = ras_excit(i)%orbs(:, excit_k)
+                BRR_ex1(1) = BRR(2 * ex1(1)) / 2
+                BRR_ex1(2) = BRR(2 * ex1(2)) / 2
 
                 ! The shifted address (shifted so that the first string with this symmetry and
                 ! in this RAS class has address 1).
@@ -154,38 +154,38 @@ contains
 
                 ! In Eq. 20, this term is sgn(kl)*h_{kl}.
                 factors(class_k, sym_k)%elements(ind_k) = factors(class_k, sym_k)%elements(ind_k) + &
-                        par_1*GetTMatEl(BRR_ex1(2)*2,BRR_ex1(1)*2)
+                                                          par_1 * GetTMatEl(BRR_ex1(2) * 2, BRR_ex1(1) * 2)
 
                 ! The following lines add in g_{kl} from Eq. 29.
-                do j = 1, ex1(2)-1
+                do j = 1, ex1(2) - 1
                     factors(class_k, sym_k)%elements(ind_k) = factors(class_k, sym_k)%elements(ind_k) - &
-                            par_1*get_umat_el(BRR_ex1(2), BRR(2*j)/2, BRR(2*j)/2, BRR_ex1(1))
+                                                              par_1 * get_umat_el(BRR_ex1(2), BRR(2 * j) / 2, BRR(2 * j) / 2, BRR_ex1(1))
                 end do
 
                 if (ex1(2) > ex1(1)) then
                     factors(class_k, sym_k)%elements(ind_k) = factors(class_k, sym_k)%elements(ind_k) - &
-                            par_1*get_umat_el(BRR_ex1(2), BRR_ex1(2), BRR_ex1(2), BRR_ex1(1))
+                                                              par_1 * get_umat_el(BRR_ex1(2), BRR_ex1(2), BRR_ex1(2), BRR_ex1(1))
                 else if (ex1(2) == ex1(1)) then
                     factors(class_k, sym_k)%elements(ind_k) = factors(class_k, sym_k)%elements(ind_k) - &
-                            0.5_dp*par_1*get_umat_el(BRR_ex1(2), BRR_ex1(2), BRR_ex1(2), BRR_ex1(1))
+                                                              0.5_dp * par_1 * get_umat_el(BRR_ex1(2), BRR_ex1(2), BRR_ex1(2), BRR_ex1(1))
                 end if
 
                 ! Loop over all single excitations from string_k (-> string_j).
                 do excit_j = 1, ras_excit(full_ind_k)%nexcit
 
-                    ex2 = ras_excit(full_ind_k)%orbs(:,excit_j)
+                    ex2 = ras_excit(full_ind_k)%orbs(:, excit_j)
 
                     ! Only need to consider excitations where (ij) >= (kl) (see Eq. 28).
-                    if ((ex2(2)-1)*tot_norbs + ex2(1) < (ex1(2)-1)*tot_norbs + ex1(1)) cycle
+                    if ((ex2(2) - 1) * tot_norbs + ex2(1) < (ex1(2) - 1) * tot_norbs + ex1(1)) cycle
 
-                    BRR_ex2(1) = BRR(2*ex2(1))/2
-                    BRR_ex2(2) = BRR(2*ex2(2))/2
+                    BRR_ex2(1) = BRR(2 * ex2(1)) / 2
+                    BRR_ex2(2) = BRR(2 * ex2(2)) / 2
 
                     ! The full address for string j.
                     full_ind_j = ras_excit(full_ind_k)%excit_ind(excit_j)
 
-                    sym_j = ras_strings(-1,full_ind_j)
-                    class_j = ras_strings(0,full_ind_j)
+                    sym_j = ras_strings(-1, full_ind_j)
+                    class_j = ras_strings(0, full_ind_j)
                     par_2 = ras_excit(full_ind_k)%par(excit_j)
 
                     ! The shifted address (shifted so that the first string with this symmetry and
@@ -195,10 +195,10 @@ contains
                     ! Avoid overcounting for the case that the indices are the same.
                     if (ex1(1) == ex2(1) .and. ex1(2) == ex2(2)) then
                         factors(class_j, sym_j)%elements(ind_j) = factors(class_j, sym_j)%elements(ind_j) + &
-                          0.5_dp*par_1*par_2*get_umat_el(BRR_ex2(2), BRR_ex1(2), BRR_ex2(1), BRR_ex1(1))
+                                                        0.5_dp * par_1 * par_2 * get_umat_el(BRR_ex2(2), BRR_ex1(2), BRR_ex2(1), BRR_ex1(1))
                     else
                         factors(class_j, sym_j)%elements(ind_j) = factors(class_j, sym_j)%elements(ind_j) + &
-                          par_1*par_2*get_umat_el(BRR_ex2(2), BRR_ex1(2), BRR_ex2(1), BRR_ex1(1))
+                                                                 par_1 * par_2 * get_umat_el(BRR_ex2(2), BRR_ex1(2), BRR_ex2(1), BRR_ex1(1))
                     end if
 
                 end do
@@ -230,12 +230,12 @@ contains
                     ! Add in sigma_2.
                     vec_out(class_j, class_i, sym_j)%elements(:, ind_i) = &
                         vec_out(class_j, class_i, sym_j)%elements(:, ind_i) + &
-                        matmul(vec_in(class_j, class_k, sym_j)%elements(:,:), factors(class_k, sym_k)%elements)
+                        matmul(vec_in(class_j, class_k, sym_j)%elements(:, :), factors(class_k, sym_k)%elements)
 
                     ! Add in sigma_1.
                     vec_out(class_i, class_j, sym_i)%elements(ind_i, :) = &
                         vec_out(class_i, class_j, sym_i)%elements(ind_i, :) + &
-                        matmul(factors(class_k, sym_k)%elements, vec_in(class_k, class_j, sym_k)%elements(:,:))
+                        matmul(factors(class_k, sym_k)%elements, vec_in(class_k, class_j, sym_k)%elements(:, :))
 
                 end do ! Over all classes connected to string_j.
 
@@ -255,23 +255,23 @@ contains
                 ex1(1) = l
                 ex1(2) = k
                 ! Store these, for quick access later.
-                BRR_ex1(1) = BRR(2*l)/2
-                BRR_ex1(2) = BRR(2*k)/2
+                BRR_ex1(1) = BRR(2 * l) / 2
+                BRR_ex1(2) = BRR(2 * k) / 2
 
                 ! Loop over all strings (equivalent to J_{beta} in Eq. 23).
                 do i = 1, ras%num_strings
 
                     ! Get info for string_i.
-                    sym_i = ras_strings(-1,i)
-                    class_i = ras_strings(0,i)
+                    sym_i = ras_strings(-1, i)
+                    class_i = ras_strings(0, i)
                     nras1 = classes(class_i)%nelec_1
                     nras3 = classes(class_i)%nelec_3
-                    string_i = ras_strings(1:tot_nelec,i)
-                    ilut_i = ras_iluts(:,i)
+                    string_i = ras_strings(1:tot_nelec, i)
+                    ilut_i = ras_iluts(:, i)
 
                     ! This is the condition for (kl) to be an allowed excitation from the current string.
-                    if ( IsOcc(ilut_i,l) .and. &
-                        (.not. (IsOcc(ilut_i,k) .and. k /= l)) ) then
+                    if (IsOcc(ilut_i, l) .and. &
+                        (.not. (IsOcc(ilut_i, k) .and. k /= l))) then
                         ! Temporarily set these for get_excit_details to use.
                         sym_j = sym_i
                         class_j = class_i
@@ -280,8 +280,8 @@ contains
                         ! If the excitation is to outside the RAS space, then we don't need to consider it.
                         if (in_ras_space) then
                             ! Store the class and symmetry of the excited string for later, to save some speed.
-                            excit_info(1,i) = class_j
-                            excit_info(2,i) = sym_j
+                            excit_info(1, i) = class_j
+                            excit_info(2, i) = sym_j
 
                             ! The full address for string j.
                             ind_j = classes(class_j)%address_map(get_address(classes(class_j), string_j))
@@ -297,11 +297,11 @@ contains
                                 if (classes(class_m)%num_sym(sym_m) /= 0) then
                                     min_ind = ras%cum_classes(class_m) + classes(class_m)%cum_sym(sym_m) + 1
                                     max_ind = min_ind + classes(class_m)%num_sym(sym_m) - 1
-                                    c(min_ind:max_ind, i) = real(r(i),dp)*vec_in(class_j,class_m,sym_j)%elements(ind_j,:)
+                                    c(min_ind:max_ind, i) = real(r(i), dp) * vec_in(class_j, class_m, sym_j)%elements(ind_j, :)
                                 end if
                             end do
-                         end if
-                      endif
+                        end if
+                    end if
 
                 end do
 
@@ -313,8 +313,8 @@ contains
                     alpha_beta_fac = 0.0_dp
 
                     ! Get info for string_i.
-                    sym_i = ras_strings(-1,i)
-                    class_i = ras_strings(0,i)
+                    sym_i = ras_strings(-1, i)
+                    class_i = ras_strings(0, i)
                     ind_i = i - ras%cum_classes(class_i) - classes(class_i)%cum_sym(sym_i)
 
                     ! Loop over all single excitations from string_i (-> string_j).
@@ -322,14 +322,14 @@ contains
 
                         full_ind_j = ras_excit(i)%excit_ind(excit_j)
 
-                        class_j = ras_strings(0,full_ind_j)
+                        class_j = ras_strings(0, full_ind_j)
                         par_1 = ras_excit(i)%par(excit_j)
-                        ex2 = ras_excit(i)%orbs(:,excit_j)
-                        BRR_ex2(1) = BRR(2*ex2(1))/2
-                        BRR_ex2(2) = BRR(2*ex2(2))/2
+                        ex2 = ras_excit(i)%orbs(:, excit_j)
+                        BRR_ex2(1) = BRR(2 * ex2(1)) / 2
+                        BRR_ex2(2) = BRR(2 * ex2(2)) / 2
 
                         alpha_beta_fac(full_ind_j) = alpha_beta_fac(full_ind_j) + &
-                          par_1*get_umat_el(BRR_ex2(2), BRR_ex1(2), BRR_ex2(1), BRR_ex1(1))
+                                                     par_1 * get_umat_el(BRR_ex2(2), BRR_ex1(2), BRR_ex2(1), BRR_ex1(1))
 
                     end do
 
@@ -349,8 +349,8 @@ contains
                             v = 0.0_dp
                             ! excited_class and excited_sym give the class and symmetry of the string
                             ! which we get by exciting string j with (kl).
-                            excited_class = excit_info(1,full_ind_j)
-                            excited_sym = excit_info(2,full_ind_j)
+                            excited_class = excit_info(1, full_ind_j)
+                            excited_sym = excit_info(2, full_ind_j)
 
                             ! Loop over all classes connected to excited_class.
                             do m = 1, classes(excited_class)%num_comb
@@ -378,7 +378,7 @@ contains
         ! Deallocate arrays.
         do class_i = 1, ras%num_classes
             do sym_i = 0, 7
-               deallocate(factors(class_i,sym_i)%elements)
+                deallocate(factors(class_i, sym_i)%elements)
             end do
         end do
         deallocate(alpha_beta_fac)
@@ -394,8 +394,8 @@ contains
 
         do class_i = 1, num_classes
             do sym_i = 0, 7
-                if (allocated(factors(class_i,sym_i)%elements)) &
-                    factors(class_i,sym_i)%elements(:) = 0.0_dp
+                if (allocated(factors(class_i, sym_i)%elements)) &
+                    factors(class_i, sym_i)%elements(:) = 0.0_dp
             end do
         end do
 
@@ -446,15 +446,15 @@ contains
         end do
         call sort(string_j)
 
-        if(tHub) then
+        if (tHub) then
             !Since RAS is originally developed for molucules, it cannot handle kpoint symmetries.
             !As a quick fix, we ignore symmetry labels of the Hubbard model.
             sym_prod = 0
         else
-            sym_prod = int(ieor(G1(BRR(ex(1)*2))%Sym%S, G1(BRR(ex(2)*2))%Sym%S))
+            sym_prod = int(ieor(G1(BRR(ex(1) * 2))%Sym%S, G1(BRR(ex(2) * 2))%Sym%S))
         end if
 
-        sym_j = ieor(sym_j,sym_prod)
+        sym_j = ieor(sym_j, sym_prod)
 
     end subroutine get_excit_details
 
@@ -486,16 +486,16 @@ contains
             ! Loop over all strings.
             do
                 ind = classes(class_i)%address_map(get_address(classes(class_i), string_i))
-                do k = 1, class_i-1
-                   ind = ind + classes(k)%class_size
+                do k = 1, class_i - 1
+                    ind = ind + classes(k)%class_size
                 end do
 
                 ! Store the string, along with the symmetry, RAS class and ilut.
-                ras_strings(1:tot_nelec,ind) = string_i
-                ras_strings(-1,ind) = get_abelian_sym(string_i)
-                ras_strings(0,ind) = class_i
+                ras_strings(1:tot_nelec, ind) = string_i
+                ras_strings(-1, ind) = get_abelian_sym(string_i)
+                ras_strings(0, ind) = class_i
                 call encode_string(string_i, ilut_i)
-                ras_iluts(:,ind) = ilut_i
+                ras_iluts(:, ind) = ilut_i
 
                 ! Now count the number of excitations.
                 counter = 0
@@ -503,7 +503,7 @@ contains
                 tgen = .true.
                 do
                     call gen_next_single_ex(string_i, ilut_i, nras1, nras3, new_ind, par, &
-                            ex, ras, classes, gen_store_1, tgen, .true.)
+                                            ex, ras, classes, gen_store_1, tgen, .true.)
                     if (tgen) exit
                     counter = counter + 1
                 end do
@@ -514,13 +514,13 @@ contains
                 ! Now we know how many excitations there are, allocate the excitation array and store them.
                 allocate(ras_excit(ind)%excit_ind(ras_excit(ind)%nexcit))
                 allocate(ras_excit(ind)%par(ras_excit(ind)%nexcit))
-                allocate(ras_excit(ind)%orbs(2,ras_excit(ind)%nexcit))
+                allocate(ras_excit(ind)%orbs(2, ras_excit(ind)%nexcit))
 
                 counter = 0
                 tgen = .true.
                 do
                     call gen_next_single_ex(string_i, ilut_i, nras1, nras3, new_ind, par, &
-                            ex, ras, classes, gen_store_1, tgen, .false.)
+                                            ex, ras, classes, gen_store_1, tgen, .false.)
                     if (tgen) exit
                     counter = counter + 1
                     ! Store the index...
@@ -528,7 +528,7 @@ contains
                     ! ...and the parity of the excitation...
                     ras_excit(ind)%par(counter) = par
                     ! ...and the two orbitals involved in the excitation.
-                    ras_excit(ind)%orbs(:,counter) = ex
+                    ras_excit(ind)%orbs(:, counter) = ex
                 end do
 
                 call generate_next_string(string_i, ras, classes(class_i), none_left)
@@ -550,8 +550,8 @@ contains
         ilut = 0
 
         do i = 1, tot_nelec
-            pos = (string(i)-1)/bits_n_int
-            ilut(pos) = ibset(ilut(pos), mod(string(i)-1, bits_n_int))
+            pos = (string(i) - 1) / bits_n_int
+            ilut(pos) = ibset(ilut(pos), mod(string(i) - 1, bits_n_int))
         end do
 
     end subroutine encode_string
@@ -637,8 +637,8 @@ contains
 
                 class_k = ras%class_label(temp1, temp3)
                 ind = classes(class_k)%address_map(get_address(classes(class_k), string_k))
-                do m = 1, class_k-1
-                   ind = ind  + classes(m)%class_size
+                do m = 1, class_k - 1
+                    ind = ind + classes(m)%class_size
                 end do
                 par = get_single_parity(ilut_i, ex(1), ex(2))
 
@@ -772,16 +772,16 @@ contains
                     do ind_i = 1, classes(class_i)%num_sym(sym_i)
                         full_ind_i = sym_i_ind + ind_i
                         ! Lookup the string corresponding to this address.
-                        string_i = ras_strings(1:tot_nelec,full_ind_i)
+                        string_i = ras_strings(1:tot_nelec, full_ind_i)
                         ! Over all strings with this symmetry and class, for string_j.
                         do ind_j = 1, classes(class_j)%num_sym(sym_j)
                             counter = counter + 1
                             full_ind_j = sym_j_ind + ind_j
-                            string_j = ras_strings(1:tot_nelec,full_ind_j)
+                            string_j = ras_strings(1:tot_nelec, full_ind_j)
                             ! Beta string.
-                            nI(1:tot_nelec) = string_i*2-1
+                            nI(1:tot_nelec) = string_i * 2 - 1
                             ! Alpha string.
-                            nI(tot_nelec+1:nel) = string_j*2
+                            nI(tot_nelec + 1:nel) = string_j * 2
                             ! Replace all orbital numbers, orb, with the true orbital
                             ! numbers, BRR(orb). Also, sort this list.
                             do k = 1, nel

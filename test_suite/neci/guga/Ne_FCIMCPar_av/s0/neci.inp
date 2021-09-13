@@ -24,6 +24,8 @@ addtoinitiator 3
 tau-cnt-threshold 50
 load-balance-blocks off
 maxwalkerbloom 3.0
+
+tau 6.342713037945149E-003 search
 endcalc
 
 integral

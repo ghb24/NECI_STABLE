@@ -2,7 +2,7 @@
 module orthogonalise
 
     use FciMCData, only: TotWalkers, CurrentDets, all_norm_psi_squared, &
-                         NoBorn, NoDied, fcimc_iter_data,  replica_overlaps_real, &
+                         NoBorn, NoDied, fcimc_iter_data, replica_overlaps_real, &
 #ifdef CMPLX_
                          replica_overlaps_imag, &
 #endif
@@ -20,7 +20,7 @@ module orthogonalise
 
 contains
 
-    subroutine orthogonalise_replicas (iter_data)
+    subroutine orthogonalise_replicas(iter_data)
 
         ! Apply a Gram Schmidt orthogonalisation to the different system
         ! replicas.
@@ -66,8 +66,8 @@ contains
             do j = 1, int(TotWalkers, sizeof_int)
 
                 ! n.b. We are using a non-contiguous list (Hash algorithm)
-                call extract_sign(CurrentDets(:,j), sgn)
-                tCoreDet = check_determ_flag(CurrentDets(:,j))
+                call extract_sign(CurrentDets(:, j), sgn)
+                tCoreDet = check_determ_flag(CurrentDets(:, j))
                 if (IsUnoccDet(sgn) .and. (.not. tCoreDet)) then
                     HolesInList = HolesInList + 1
                     cycle
@@ -78,47 +78,47 @@ contains
 
                 ! set loop parameters
                 if (tPairedReplicas) then
-                    low_loop_bound = 2-mod(tgt_run, 2)
-                    high_loop_bound = tgt_run-2
+                    low_loop_bound = 2 - mod(tgt_run, 2)
+                    high_loop_bound = tgt_run - 2
                     loop_step = 2
                 else
                     low_loop_bound = 1
-                    high_loop_bound = tgt_run-1
+                    high_loop_bound = tgt_run - 1
                     loop_step = 1
-                endif
+                end if
 
                 do src_run = low_loop_bound, high_loop_bound, loop_step
 #ifdef CMPLX_
                     ! (a + ib)*(c + id) = ac - bd + i(ad +bc)
-                    delta_real = - ( sgn(min_part_type(src_run)) &
-                                    * all_overlaps_real(src_run, tgt_run) &
-                                 - sgn(max_part_type(src_run)) &
-                                    * all_overlaps_imag(src_run, tgt_run)) &
-                                           / all_norms(src_run)
+                    delta_real = -(sgn(min_part_type(src_run)) &
+                                   * all_overlaps_real(src_run, tgt_run) &
+                                   - sgn(max_part_type(src_run)) &
+                                   * all_overlaps_imag(src_run, tgt_run)) &
+                                 / all_norms(src_run)
                     sgn(min_part_type(tgt_run)) = sgn(min_part_type(tgt_run)) + delta_real
 
-                    delta_imag = - ( sgn(min_part_type(src_run)) &
-                                    * all_overlaps_imag(src_run, tgt_run) &
-                                 + sgn(max_part_type(src_run)) &
-                                    * all_overlaps_real(src_run, tgt_run)) &
-                                           / all_norms(src_run)
+                    delta_imag = -(sgn(min_part_type(src_run)) &
+                                   * all_overlaps_imag(src_run, tgt_run) &
+                                   + sgn(max_part_type(src_run)) &
+                                   * all_overlaps_real(src_run, tgt_run)) &
+                                 / all_norms(src_run)
                     sgn(max_part_type(tgt_run)) = sgn(max_part_type(tgt_run)) + delta_imag
 
 #else
-                    delta_real = - sgn(src_run) * all_overlaps_real(src_run, tgt_run) &
-                                           / all_norms(src_run)
+                    if (.not. near_zero(all_norms(src_run))) then
+                        delta_real = -sgn(src_run) * all_overlaps_real(src_run, tgt_run) &
+                                 / all_norms(src_run)
+                    end if
                     ! test if a small remaining overlap still gives the
                     ! correct shift..
                     if (t_test_overlap .and. tgt_run == inum_runs) then
                         ! draw a random sign and change by the
                         ! specified epsilon
                         ! or choose just a random number out of [-eps,+eps]
-!                         delta_real = delta_real + rand_sign * overlap_eps
-!                         delta_real = delta_real + (rand()-0.5_dp)*overlap_eps
                         ! or try a prefactor..
-                        delta_real = overlap_eps*delta_real
+                        delta_real = overlap_eps * delta_real
                         if (n_stop_ortho > 0 .and. iter > n_stop_ortho) then
-                            delta_real  = 0.0_dp
+                            delta_real = 0.0_dp
                         end if
                     end if
 
@@ -126,7 +126,7 @@ contains
 #endif
                 end do
 
-                call encode_sign(CurrentDets(:,j), sgn)
+                call encode_sign(CurrentDets(:, j), sgn)
 
                 ! Note that we shouldn't be able to kill all particles on a
                 ! site, as we can only change a run if there are particles in
@@ -145,20 +145,20 @@ contains
                 if (sgn(tgt_run) >= 0 .neqv. sgn_orig >= 0) then
                     NoDied(tgt_run) = NoDied(tgt_run) + abs(sgn_orig)
                     iter_data%ndied(tgt_run) = iter_data%ndied(tgt_run) &
-                                             + abs(sgn_orig)
+                                               + abs(sgn_orig)
                     NoBorn(tgt_run) = NoBorn(tgt_run) + abs(sgn(tgt_run))
                     iter_data%nborn(tgt_run) = iter_data%nborn(tgt_run) &
-                                             + abs(sgn(tgt_run))
+                                               + abs(sgn(tgt_run))
                 else if (abs(sgn(tgt_run)) >= abs(sgn_orig)) then
                     NoBorn(tgt_run) = NoBorn(tgt_run) &
-                                    + abs(sgn(tgt_run) - sgn_orig)
+                                      + abs(sgn(tgt_run) - sgn_orig)
                     iter_data%nborn(tgt_run) = iter_data%nborn(tgt_run) &
-                                             + abs(sgn(tgt_run) - sgn_orig)
+                                               + abs(sgn(tgt_run) - sgn_orig)
                 else
                     NoDied(tgt_run) = NoDied(tgt_run) &
-                                    + abs(sgn(tgt_run) - sgn_orig)
+                                      + abs(sgn(tgt_run) - sgn_orig)
                     iter_data%ndied(tgt_run) = iter_data%ndied(tgt_run) &
-                                             + abs(sgn(tgt_run) - sgn_orig)
+                                               + abs(sgn(tgt_run) - sgn_orig)
                 end if
 
                 ! We should be accumulating the norm for this run, so it can
@@ -170,7 +170,7 @@ contains
 #ifdef CMPLX_
                 ! (a+ib)*(a-ib) = a^2 + b^2
                 norms(tgt_run) = norms(tgt_run) &
-                    + sgn(min_part_type(tgt_run))**2 + sgn(max_part_type(tgt_run))**2
+                                 + sgn(min_part_type(tgt_run))**2 + sgn(max_part_type(tgt_run))**2
 #else
                 norms(tgt_run) = norms(tgt_run) + sgn(tgt_run)**2
 #endif
@@ -205,16 +205,16 @@ contains
                     ! |_x x x x x x  _|
 
                     overlaps_real(tgt_run, run) = overlaps_real(tgt_run, run) &
-                                           + sgn(min_part_type(run))*sgn(min_part_type(tgt_run)) &
-                                           + sgn(max_part_type(run))*sgn(max_part_type(tgt_run))
+                                                  + sgn(min_part_type(run)) * sgn(min_part_type(tgt_run)) &
+                                                  + sgn(max_part_type(run)) * sgn(max_part_type(tgt_run))
                     overlaps_imag(tgt_run, run) = overlaps_imag(tgt_run, run) &
-                                           + sgn(min_part_type(run))*sgn(max_part_type(tgt_run)) &
-                                           + sgn(max_part_type(run))*sgn(min_part_type(tgt_run))
+                                                  + sgn(min_part_type(run)) * sgn(max_part_type(tgt_run)) &
+                                                  + sgn(max_part_type(run)) * sgn(min_part_type(tgt_run))
                     overlaps_real(run, tgt_run) = overlaps_real(tgt_run, run)
                     overlaps_imag(run, tgt_run) = -overlaps_imag(tgt_run, run)
 #else
                     overlaps_real(tgt_run, run) = overlaps_real(tgt_run, run) &
-                                           + sgn(run)*sgn(tgt_run)
+                                                  + sgn(run) * sgn(tgt_run)
                     overlaps_real(run, tgt_run) = overlaps_real(tgt_run, run)
 #endif
                 end do
@@ -234,16 +234,16 @@ contains
         ! Store a normalised overlap matrix for each of the replicas.
         do src_run = 1, inum_runs - 1
             do tgt_run = src_run + 1, inum_runs
-               if(all_norms(src_run)*all_norms(tgt_run) > EPS) then
-                replica_overlaps_real(src_run, tgt_run) = &
-                    all_overlaps_real(src_run, tgt_run) / &
-                    sqrt(all_norms(src_run) * all_norms(tgt_run))
+                if (all_norms(src_run) * all_norms(tgt_run) > EPS) then
+                    replica_overlaps_real(src_run, tgt_run) = &
+                        all_overlaps_real(src_run, tgt_run) / &
+                        sqrt(all_norms(src_run) * all_norms(tgt_run))
 #ifdef CMPLX_
-                replica_overlaps_imag(src_run, tgt_run) = &
-                    all_overlaps_imag(src_run, tgt_run) / &
-                    sqrt(all_norms(src_run) * all_norms(tgt_run))
+                    replica_overlaps_imag(src_run, tgt_run) = &
+                        all_overlaps_imag(src_run, tgt_run) / &
+                        sqrt(all_norms(src_run) * all_norms(tgt_run))
 #endif
-             endif
+                end if
             end do
         end do
 
@@ -262,8 +262,7 @@ contains
 
     end subroutine orthogonalise_replicas
 
-
-    subroutine orthogonalise_replica_pairs (iter_data)
+    subroutine orthogonalise_replica_pairs(iter_data)
 
         ! complex walkers not supported here. This routine is never called: deprecated code?
 
@@ -284,7 +283,7 @@ contains
 
         type(fcimc_iter_data), intent(inout) :: iter_data
         integer :: tgt_state, src_state, run, j, irep, imod1, imod2, TotWalkersNew
-        real(dp) :: norms(inum_runs .div. 2), overlaps(inum_runs, inum_runs)
+        real(dp) :: norms(inum_runs.div.2), overlaps(inum_runs, inum_runs)
         real(dp) :: sgn(lenof_sign), sgn_orig(2), delta, r
         logical :: tCoreDet
         character(len=*), parameter :: this_routine = "orthogonalise_replica_pairs"
@@ -299,14 +298,14 @@ contains
         overlaps = 0.0_dp
 
         ! Loop over all excited states (thus over all replica *pairs*).
-        do tgt_state = 1, inum_runs/2
+        do tgt_state = 1, inum_runs / 2
 
             HolesInList = 0
             do j = 1, int(TotWalkers, sizeof_int)
 
                 ! n.b. We are using a non-contiguous list (Hash algorithm).
-                call extract_sign(CurrentDets(:,j), sgn)
-                tCoreDet = check_determ_flag(CurrentDets(:,j))
+                call extract_sign(CurrentDets(:, j), sgn)
+                tCoreDet = check_determ_flag(CurrentDets(:, j))
                 if (IsUnoccDet(sgn) .and. (.not. tCoreDet)) then
                     HolesInList = HolesInList + 1
                     cycle
@@ -314,71 +313,71 @@ contains
 
                 if (tgt_state > 1) then
 
-                ! The two replica signs for this excited state.
-                sgn_orig(1) = sgn(tgt_state*2-1)
-                sgn_orig(2) = sgn(tgt_state*2)
+                    ! The two replica signs for this excited state.
+                    sgn_orig(1) = sgn(tgt_state * 2 - 1)
+                    sgn_orig(2) = sgn(tgt_state * 2)
 
-                ! Loop over both replicas for this excited state.
-                do irep = 1, 2
+                    ! Loop over both replicas for this excited state.
+                    do irep = 1, 2
 
-                    ! These variables equal (1,2) and (2,1) when irep = 1 and
-                    ! 2, repsectively. They are used to access the correct
-                    ! indices of the sign arrays.
-                    imod1 = mod(irep, 2)
-                    imod2 = 1 - imod1
+                        ! These variables equal (1,2) and (2,1) when irep = 1 and
+                        ! 2, repsectively. They are used to access the correct
+                        ! indices of the sign arrays.
+                        imod1 = mod(irep, 2)
+                        imod2 = 1 - imod1
 
-                    do src_state = 1, tgt_state - 1
-                        delta = - sgn(src_state*2-imod1) * &
-                                  all_overlaps(src_state*2-imod2, tgt_state*2-imod1) / &
-                                  (2 * all_norms(src_state))
-                        sgn(tgt_state*2-imod1) = sgn(tgt_state*2-imod1) + delta
+                        do src_state = 1, tgt_state - 1
+                            delta = -sgn(src_state * 2 - imod1) * &
+                                    all_overlaps(src_state * 2 - imod2, tgt_state * 2 - imod1) / &
+                                    (2 * all_norms(src_state))
+                            sgn(tgt_state * 2 - imod1) = sgn(tgt_state * 2 - imod1) + delta
 
-                        delta = - sgn(src_state*2-imod2) * &
-                                  all_overlaps(src_state*2-imod1, tgt_state*2-imod1) / &
-                                  (2 * all_norms(src_state))
-                        sgn(tgt_state*2-imod1) = sgn(tgt_state*2-imod1) + delta
+                            delta = -sgn(src_state * 2 - imod2) * &
+                                    all_overlaps(src_state * 2 - imod1, tgt_state * 2 - imod1) / &
+                                    (2 * all_norms(src_state))
+                            sgn(tgt_state * 2 - imod1) = sgn(tgt_state * 2 - imod1) + delta
+                        end do
+
                     end do
 
-                end do
+                    call encode_sign(CurrentDets(:, j), sgn)
 
-                call encode_sign(CurrentDets(:,j), sgn)
-
-                ! Note that we shouldn't be able to kill all particles on a
-                ! site, as we can only change a run if there are particles in
-                ! a lower indexed run to change...
-                ! The exception is when using semi-stochastic, where
-                ! unoccupied determinants can be stored.
-                if (.not. tSemiStochastic) then
-                    ASSERT(.not. IsUnoccDet(sgn))
-                end if
-
-                ! Now we need to our accounting to make sure that NoBorn/
-                ! Died/etc. counters remain reasonable.
-                !
-                ! n.b. we don't worry about the delta=0 case, as adding 0 to
-                !      the accumulators doesn't cause errors...
-                do irep = 1, 2
-                    run = tgt_state*2 - mod(irep,2)
-
-                    if (sgn(run) >= 0 .neqv. sgn_orig(irep) >= 0) then
-                        NoDied(run) = NoDied(run) + abs(sgn_orig(irep))
-                        iter_data%ndied(run) = iter_data%ndied(run) &
-                                                 + abs(sgn_orig(irep))
-                        NoBorn(run) = NoBorn(run) + abs(sgn(run))
-                        iter_data%nborn(run) = iter_data%nborn(run) &
-                                                 + abs(sgn(run))
-                    else if (abs(sgn(run)) >= abs(sgn_orig(irep))) then
-                        NoBorn(run) = NoBorn(run) &
-                                        + abs(sgn(run) - sgn_orig(irep))
-                        iter_data%nborn(run) = iter_data%nborn(run) &
-                                                 + abs(sgn(run) - sgn_orig(irep))
-                    else
-                        NoDied(run) = NoDied(run) &
-                                        + abs(sgn(run) - sgn_orig(irep))
-                        iter_data%ndied(run) = iter_data%ndied(run) &
-                                                 + abs(sgn(run) - sgn_orig(irep))
+                    ! Note that we shouldn't be able to kill all particles on a
+                    ! site, as we can only change a run if there are particles in
+                    ! a lower indexed run to change...
+                    ! The exception is when using semi-stochastic, where
+                    ! unoccupied determinants can be stored.
+                    if (.not. tSemiStochastic) then
+                        ASSERT(.not. IsUnoccDet(sgn))
                     end if
-                end do
+
+                    ! Now we need to our accounting to make sure that NoBorn/
+                    ! Died/etc. counters remain reasonable.
+                    !
+                    ! n.b. we don't worry about the delta=0 case, as adding 0 to
+                    !      the accumulators doesn't cause errors...
+                    do irep = 1, 2
+                        run = tgt_state * 2 - mod(irep, 2)
+
+                        if (sgn(run) >= 0 .neqv. sgn_orig(irep) >= 0) then
+                            NoDied(run) = NoDied(run) + abs(sgn_orig(irep))
+                            iter_data%ndied(run) = iter_data%ndied(run) &
+                                                   + abs(sgn_orig(irep))
+                            NoBorn(run) = NoBorn(run) + abs(sgn(run))
+                            iter_data%nborn(run) = iter_data%nborn(run) &
+                                                   + abs(sgn(run))
+                        else if (abs(sgn(run)) >= abs(sgn_orig(irep))) then
+                            NoBorn(run) = NoBorn(run) &
+                                          + abs(sgn(run) - sgn_orig(irep))
+                            iter_data%nborn(run) = iter_data%nborn(run) &
+                                                   + abs(sgn(run) - sgn_orig(irep))
+                        else
+                            NoDied(run) = NoDied(run) &
+                                          + abs(sgn(run) - sgn_orig(irep))
+                            iter_data%ndied(run) = iter_data%ndied(run) &
+                                                   + abs(sgn(run) - sgn_orig(irep))
+                        end if
+                    end do
 
                 end if
 
@@ -388,22 +387,22 @@ contains
                 !
                 ! n.b. These are the values _after_ orthogonalisation with
                 !      the previous runs
-                norms(tgt_state) = norms(tgt_state) + sgn(2*tgt_state-1)*sgn(2*tgt_state)
+                norms(tgt_state) = norms(tgt_state) + sgn(2 * tgt_state - 1) * sgn(2 * tgt_state)
 
                 ! Calculate overlaps for all 4 combinations of the 2 replicas
                 ! of the 2 excited states.
-                do run = tgt_state + 1, inum_runs/2
-                    overlaps(tgt_state*2-1, run*2-1) = overlaps(tgt_state*2-1, run*2-1) &
-                                                     + sgn(tgt_state*2-1) * sgn(run*2-1)
+                do run = tgt_state + 1, inum_runs / 2
+                    overlaps(tgt_state * 2 - 1, run * 2 - 1) = overlaps(tgt_state * 2 - 1, run * 2 - 1) &
+                                                               + sgn(tgt_state * 2 - 1) * sgn(run * 2 - 1)
 
-                    overlaps(tgt_state*2-1, run*2) = overlaps(tgt_state*2-1, run*2) &
-                                                     + sgn(tgt_state*2-1) * sgn(run*2)
+                    overlaps(tgt_state * 2 - 1, run * 2) = overlaps(tgt_state * 2 - 1, run * 2) &
+                                                           + sgn(tgt_state * 2 - 1) * sgn(run * 2)
 
-                    overlaps(tgt_state*2, run*2-1) = overlaps(tgt_state*2, run*2-1) &
-                                                     + sgn(tgt_state*2) * sgn(run*2-1)
+                    overlaps(tgt_state * 2, run * 2 - 1) = overlaps(tgt_state * 2, run * 2 - 1) &
+                                                           + sgn(tgt_state * 2) * sgn(run * 2 - 1)
 
-                    overlaps(tgt_state*2, run*2) = overlaps(tgt_state*2, run*2) &
-                                                     + sgn(tgt_state*2) * sgn(run*2)
+                    overlaps(tgt_state * 2, run * 2) = overlaps(tgt_state * 2, run * 2) &
+                                                       + sgn(tgt_state * 2) * sgn(run * 2)
                 end do
 
             end do
@@ -429,7 +428,7 @@ contains
 
     end subroutine orthogonalise_replica_pairs
 
-    subroutine orthogonalise_replicas_2runs (iter_data)
+    subroutine orthogonalise_replicas_2runs(iter_data)
 
         ! complex walkers not supported here. This routine is never called: deprecated code?
 
@@ -472,10 +471,10 @@ contains
         do j = 1, int(TotWalkers, sizeof_int)
 
             ! Adjust the wavefunctions
-            call extract_sign(CurrentDets(:,j), sgn)
+            call extract_sign(CurrentDets(:, j), sgn)
             if (IsUnoccDet(sgn)) cycle
 
-            delta = - sgn(1) * all_scal_prod / all_psi_squared(1)
+            delta = -sgn(1) * all_scal_prod / all_psi_squared(1)
             sgn_orig = sgn(2)
             sgn(2) = sgn(2) + delta
 
@@ -487,10 +486,10 @@ contains
                     sgn(2) = sign(1.0_dp, sgn(2))
                 else
                     sgn(2) = 0.0_dp
-                endif
+                end if
             end if
 
-            call encode_sign(CurrentDets(:,j), sgn)
+            call encode_sign(CurrentDets(:, j), sgn)
 
             ! Note that we shouldn't be able to kill all particles on a site,
             ! as we can only change run 2 if run 1 is occupied, and run 1
@@ -513,12 +512,11 @@ contains
                 iter_data%nborn(2) = iter_data%nborn(2) + abs(sgn(2))
             else if (abs(sgn(2)) >= abs(sgn_orig)) then
                 NoBorn(2) = NoBorn(2) + abs(sgn(2) - sgn_orig)
-                iter_data%nborn(2) = iter_data%nborn(2) + abs(sgn(2) -sgn_orig)
+                iter_data%nborn(2) = iter_data%nborn(2) + abs(sgn(2) - sgn_orig)
             else
                 NoDied(2) = NoDied(2) + abs(sgn(2) - sgn_orig)
-                iter_data%ndied(2) = iter_data%ndied(2) + abs(sgn(2) -sgn_orig)
+                iter_data%ndied(2) = iter_data%ndied(2) + abs(sgn(2) - sgn_orig)
             end if
-
 
         end do
 
@@ -538,31 +536,30 @@ contains
 
     subroutine write_mat(mat)
 
-        real(dp) :: mat(:,:)
+        real(dp) :: mat(:, :)
         integer :: i, j
 
         do i = lbound(mat, 1), ubound(mat, 1)
             do j = lbound(mat, 2), ubound(mat, 2)
-                write(6, '(f17.9, " ")', advance='no') mat(i, j)
+                write(stdout, '(f17.9, " ")', advance='no') mat(i, j)
             end do
-            write(6,*)
+            write(stdout, *)
         end do
 
     end subroutine
-
 
     subroutine orthogonalise_replicas_lowdin(iter_data)
 
         ! Perform a symmetric (Lowdin) orthogonalisation
 
         type(fcimc_iter_data), intent(inout) :: iter_data
-        character(*), parameter :: this_routine='orthogonalise_replicas_lowdin'
+        character(*), parameter :: this_routine = 'orthogonalise_replicas_lowdin'
 
         real(dp) :: S(inum_runs, inum_runs), S_all(inum_runs, inum_runs)
         real(dp) :: evecs(inum_runs, inum_runs), evecs_t(inum_runs, inum_runs)
         real(dp) :: S_half(inum_runs, inum_runs)
         real(dp) :: elem, sgn(lenof_sign), sgn_orig(lenof_sign)
-        real(dp) :: work(3*inum_runs-1), evals(inum_runs)
+        real(dp) :: work(3 * inum_runs - 1), evals(inum_runs)
         real(dp) :: sgn_orig_norm(lenof_sign), sgn_norm(lenof_sign)
         real(dp) :: norm(inum_runs)
         integer :: j, run, runa, runb, info, TotWalkersNew
@@ -578,7 +575,7 @@ contains
         S = 0
         do j = 1, int(TotWalkers, sizeof_int)
 
-            call extract_sign(CurrentDets(:,j), sgn)
+            call extract_sign(CurrentDets(:, j), sgn)
             if (IsUnoccDet(sgn)) cycle
 
             do runa = 1, inum_runs
@@ -607,9 +604,9 @@ contains
                    size(work), info)
 
         if (any(evals < 0)) then
-            write(6,*) '*** WARNING ***'
-            write(6,*) "Not orthogonalising this iteration."
-            write(6,*) 'Negative eigenvalue of overlap matrix found'
+            write(stdout, *) '*** WARNING ***'
+            write(stdout, *) "Not orthogonalising this iteration."
+            write(stdout, *) 'Negative eigenvalue of overlap matrix found'
             return
         end if
 
@@ -632,8 +629,8 @@ contains
         do j = 1, int(TotWalkers, sizeof_int)
 
             ! n.b. We are using a non-contiguous list (Hash algorith)
-            call extract_sign(CurrentDets(:,j), sgn_orig)
-            tCoreDet = check_determ_flag(CurrentDets(:,j))
+            call extract_sign(CurrentDets(:, j), sgn_orig)
+            tCoreDet = check_determ_flag(CurrentDets(:, j))
             if (IsUnoccDet(sgn_orig) .and. (.not. tCoreDet)) then
                 HolesInList = HolesInList + 1
                 cycle
@@ -646,7 +643,7 @@ contains
             ! Obtain the new sign values
             sgn_norm = matmul(S_half, sgn_orig_norm)
             sgn = sgn_norm * norm
-            call encode_sign(CurrentDets(:,j), sgn)
+            call encode_sign(CurrentDets(:, j), sgn)
 
             ! We should not be able to kill all particles on a site. This is
             ! a rotation. The exception is when using semi-stochastic, where
@@ -660,17 +657,17 @@ contains
                 if (sgn(run) >= 0 .neqv. sgn_orig(run) >= 0) then
                     NoDied(run) = NoDied(run) + abs(sgn_orig(run))
                     iter_data%ndied(run) = iter_data%ndied(run) &
-                                         + abs(sgn_orig(run))
+                                           + abs(sgn_orig(run))
                     NoBorn(run) = NoBorn(run) + abs(sgn(run))
                     iter_data%nborn(run) = iter_data%nborn(run) + abs(sgn(run))
                 else if (abs(sgn(run)) >= abs(sgn_orig(run))) then
                     NoBorn(run) = NoBorn(run) + abs(sgn(run) - sgn_orig(run))
                     iter_data%nborn(run) = iter_data%nborn(run) &
-                                         + abs(sgn(run) - sgn_orig(run))
+                                           + abs(sgn(run) - sgn_orig(run))
                 else
                     NoDied(run) = NoDied(run) + abs(sgn(run) - sgn_orig(run))
                     iter_data%ndied(run) = iter_data%ndied(run) &
-                                         + abs(sgn(run) - sgn_orig(run))
+                                           + abs(sgn(run) - sgn_orig(run))
                 end if
             end do
 
@@ -705,17 +702,17 @@ contains
         do j = 1, int(TotWalkers, sizeof_int)
 
             ! n.b. We are using a non-contiguous list (Hash algorithm)
-            call extract_sign(CurrentDets(:,j), sgn)
+            call extract_sign(CurrentDets(:, j), sgn)
             if (IsUnoccDet(sgn)) cycle
 
 #ifndef CMPLX_
-            norms = norms + sgn*sgn
+            norms = norms + sgn * sgn
 #endif
 
             do tgt_run = 1, inum_runs
                 do run = tgt_run + 1, inum_runs
                     overlaps(tgt_run, run) = overlaps(tgt_run, run) &
-                                           + sgn(tgt_run) * sgn(run)
+                                             + sgn(tgt_run) * sgn(run)
                     overlaps(run, tgt_run) = 99999999.0_dp ! invalid
                 end do
             end do
@@ -730,11 +727,11 @@ contains
         ! Store a normalised overlap matrix for each of the replicas.
         do src_run = 1, inum_runs - 1
             do tgt_run = src_run + 1, inum_runs
-               if(all_norms(src_run)*all_norms(tgt_run) > EPS) then
-                  replica_overlaps_real(src_run, tgt_run) = &
-                       all_overlaps(src_run, tgt_run) / &
-                       sqrt(all_norms(src_run) * all_norms(tgt_run))
-               endif
+                if (all_norms(src_run) * all_norms(tgt_run) > EPS) then
+                    replica_overlaps_real(src_run, tgt_run) = &
+                        all_overlaps(src_run, tgt_run) / &
+                        sqrt(all_norms(src_run) * all_norms(tgt_run))
+                end if
                 replica_overlaps_real(src_run, tgt_run) = &
                     replica_overlaps_real(src_run, tgt_run)
             end do

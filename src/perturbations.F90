@@ -19,8 +19,8 @@ contains
         if (.not. allocated(pert%ann_elems)) allocate(pert%ann_elems(pert%nannihilate))
         if (.not. allocated(pert%ann_bits)) allocate(pert%ann_bits(pert%nannihilate))
         do i = 1, pert%nannihilate
-            pert%ann_elems(i) = (pert%ann_orbs(i)-1)/bits_n_int
-            pert%ann_bits(i) = mod(pert%ann_orbs(i)-1, bits_n_int)
+            pert%ann_elems(i) = (pert%ann_orbs(i) - 1) / bits_n_int
+            pert%ann_bits(i) = mod(pert%ann_orbs(i) - 1, bits_n_int)
         end do
 
     end subroutine init_perturbation_annihilation
@@ -37,13 +37,13 @@ contains
         if (.not. allocated(pert%crtn_elems)) allocate(pert%crtn_elems(pert%ncreate))
         if (.not. allocated(pert%crtn_bits)) allocate(pert%crtn_bits(pert%ncreate))
         do i = 1, pert%ncreate
-            pert%crtn_elems(i) = (pert%crtn_orbs(i)-1)/bits_n_int
-            pert%crtn_bits(i) = mod(pert%crtn_orbs(i)-1, bits_n_int)
+            pert%crtn_elems(i) = (pert%crtn_orbs(i) - 1) / bits_n_int
+            pert%crtn_bits(i) = mod(pert%crtn_orbs(i) - 1, bits_n_int)
         end do
 
     end subroutine init_perturbation_creation
 
-    subroutine apply_perturbation_array(perturbs, ndets, dets_in, dets_out,phase)
+    subroutine apply_perturbation_array(perturbs, ndets, dets_in, dets_out, phase)
 
         use bit_rep_data, only: NIfTot
         use bit_reps, only: add_ilut_lists
@@ -51,12 +51,12 @@ contains
 
         type(perturbation), intent(in) :: perturbs(:)
         integer, intent(inout) :: ndets
-        integer(n_int), intent(in) :: dets_in(0:,:) ! First dimension must be 0:NIfTot
-        integer(n_int), intent(out) :: dets_out(0:,:) ! First dimension must be 0:NIfTot
+        integer(n_int), intent(in) :: dets_in(0:, :) ! First dimension must be 0:NIfTot
+        integer(n_int), intent(out) :: dets_out(0:, :) ! First dimension must be 0:NIfTot
         real(dp), intent(in), optional :: phase(:) ! Phase factors of the perturbation operators
         ! size of phase must be equal to that of perturbs
         integer :: i, ndets_init, ndets_pert_1, ndets_pert_2, ierr
-        integer(n_int), allocatable :: temp_dets_1(:,:), temp_dets_2(:,:)
+        integer(n_int), allocatable :: temp_dets_1(:, :), temp_dets_2(:, :)
 
         ndets_init = ndets
 
@@ -69,20 +69,20 @@ contains
             ! Apply the first perturbation.
             ndets_pert_1 = ndets_init
             ! Note that ndets_pert_1 is altered by this routine.
-            if(present(phase)) then
-               call apply_perturbation(perturbs(1), ndets_pert_1, dets_in, temp_dets_1,phase(1))
+            if (present(phase)) then
+                call apply_perturbation(perturbs(1), ndets_pert_1, dets_in, temp_dets_1, phase(1))
             else
-               call apply_perturbation(perturbs(1), ndets_pert_1, dets_in, temp_dets_1)
-            endif
+                call apply_perturbation(perturbs(1), ndets_pert_1, dets_in, temp_dets_1)
+            end if
 
             do i = 2, size(perturbs)
                 ndets_pert_2 = ndets_init
                 ! Note that ndets_pert_2 is altered by this routine.
-                if(present(phase)) then
-                   call apply_perturbation(perturbs(i), ndets_pert_2, dets_in, temp_dets_2,phase(i))
+                if (present(phase)) then
+                    call apply_perturbation(perturbs(i), ndets_pert_2, dets_in, temp_dets_2, phase(i))
                 else
-                   call apply_perturbation(perturbs(i), ndets_pert_2, dets_in, temp_dets_2)
-                endif
+                    call apply_perturbation(perturbs(i), ndets_pert_2, dets_in, temp_dets_2)
+                end if
                 call add_ilut_lists(ndets_pert_1, ndets_pert_2, .false., temp_dets_1, temp_dets_2, dets_out, ndets)
                 ! If we still have more perturbations to apply, copy the result
                 ! to temp_dets_1. Else, exit the final result in dets_out.
@@ -90,7 +90,7 @@ contains
                     ndets_pert_1 = ndets
                     ! this is very inefficient, but it is only performed at the beginning
                     ! so leave it for now
-                    temp_dets_1(:,1:ndets) = dets_out(:,1:ndets)
+                    temp_dets_1(:, 1:ndets) = dets_out(:, 1:ndets)
                 end if
             end do
 
@@ -105,7 +105,7 @@ contains
 
     end subroutine apply_perturbation_array
 
-    subroutine apply_perturbation(perturb, ndets, dets_in, dets_out,phase)
+    subroutine apply_perturbation(perturb, ndets, dets_in, dets_out, phase)
 
         ! Take in a list of determinants (dets_in) and apply a pertubation
         ! to each determinant. As we go we shuffle down determinants to fill in
@@ -116,7 +116,7 @@ contains
         ! determinants. It will overwrite whatever is in SpawnedParts.
 
         use AnnihilationMod, only: SendProcNewParts
-        use bit_rep_data, only: NIfTot, NIfDBO, extract_sign
+        use bit_rep_data, only: NIfTot, nifd, extract_sign
         use bit_reps, only: encode_sign, decode_bit_det
         use DetBitOps, only: ilut_lt, ilut_gt
         use load_balance_calcnodes, only: DetermineDetNode
@@ -127,12 +127,12 @@ contains
 
         type(perturbation), intent(in) :: perturb
         integer, intent(inout) :: ndets
-        integer(n_int), intent(in) :: dets_in(0:,:) ! First dimension must be 0:NIfTot
-        integer(n_int), intent(out) :: dets_out(0:,:) ! First dimension must be 0:NIfTot
+        integer(n_int), intent(in) :: dets_in(0:, :) ! First dimension must be 0:NIfTot
+        integer(n_int), intent(out) :: dets_out(0:, :) ! First dimension must be 0:NIfTot
         real(dp), intent(in), optional :: phase ! add some phase to the perturbation
 
         integer(n_int) :: ilut(0:NIfTot)
-        integer(n_int), pointer :: PointTemp(:,:)
+        integer(n_int), pointer :: PointTemp(:, :)
         integer :: i, nremoved, proc, run
         integer :: nI(nel)
         real(dp) :: tmp_sign(lenof_sign), tmp_real
@@ -141,8 +141,8 @@ contains
         ! If the perturbation is the identity operator then just return.
         ! rneci_consitency: Possible optimization: Define behaviour in this case as copying
         if (perturb%nannihilate == 0 .and. perturb%ncreate == 0) then
-           dets_out = dets_in
-           return
+            dets_out = dets_in
+            return
         end if
 
         nremoved = 0
@@ -150,41 +150,41 @@ contains
         ValidSpawnedList = InitialSpawnedSlots
         do i = 1, ndets
             ! Copy the ilut so that we don't alter the input list.
-            ilut = dets_in(:,i)
+            ilut = dets_in(:, i)
             call perturb_det(ilut, perturb)
 
-            if (all(ilut(0:NIfDBO) == 0_n_int)) then
+            if (all(ilut(0:nifd) == 0_n_int)) then
                 nremoved = nremoved + 1
             else
                 call decode_bit_det(nI, ilut)
-                proc = DetermineDetNode(nel,nI,0)
+                proc = DetermineDetNode(nel, nI, 0)
                 ! If a phase factor is to be added, do it now
-                if(present(phase)) then
-                   call extract_sign(ilut,tmp_sign)
-                   do run = 1, inum_runs
-                      ! multiply by exp(i*phase)
-                      tmp_real = tmp_sign(min_part_type(run))
-                      tmp_sign(min_part_type(run)) = cos(phase)*tmp_sign(min_part_type(run)) &
-                           - sin(phase) * tmp_sign(max_part_type(run))
-                      tmp_sign(max_part_type(run)) = sin(phase)*tmp_real + cos(phase) *&
-                           max_part_type(run)
-                   end do
-                   call encode_sign(ilut,tmp_sign)
-                endif
+                if (present(phase)) then
+                    call extract_sign(ilut, tmp_sign)
+                    do run = 1, inum_runs
+                        ! multiply by exp(i*phase)
+                        tmp_real = tmp_sign(min_part_type(run))
+                        tmp_sign(min_part_type(run)) = cos(phase) * tmp_sign(min_part_type(run)) &
+                                                       - sin(phase) * tmp_sign(max_part_type(run))
+                        tmp_sign(max_part_type(run)) = sin(phase) * tmp_real + cos(phase) * &
+                                                       max_part_type(run)
+                    end do
+                    call encode_sign(ilut, tmp_sign)
+                end if
                 SpawnedParts(0:NIfTot, ValidSpawnedList(proc)) = ilut
                 ValidSpawnedList(proc) = ValidSpawnedList(proc) + 1
-                if(checkValidSpawnedList(proc)) then
-                   call stop_all(this_routine, "Not enough memory to apply perturbation")
-                endif
+                if (checkValidSpawnedList(proc)) then
+                    call stop_all(this_routine, "Not enough memory to apply perturbation")
+                end if
             end if
         end do
 
-        if(allocated(perturb%ann_orbs) .and. allocated(perturb%crtn_orbs))&
-             write(6,*) "Transfering from orbital ", perturb%ann_orbs(1), &
-             " to ", perturb%crtn_orbs(1)
+        if (allocated(perturb%ann_orbs) .and. allocated(perturb%crtn_orbs)) &
+            write(stdout, *) "Transfering from orbital ", perturb%ann_orbs(1), &
+            " to ", perturb%crtn_orbs(1)
         ndets = ndets - nremoved
 
-        write(6,*) "Communicating perturbed dets"
+        write(stdout, *) "Communicating perturbed dets"
         ! Send perturbed determinants to their new processors.
         call SendProcNewParts(ndets, tSingleProc=.false.)
 
@@ -195,11 +195,11 @@ contains
         PointTemp => SpawnedParts2
         SpawnedParts2 => SpawnedParts
         SpawnedParts => PointTemp
-        nullify(PointTemp)
+        nullify (PointTemp)
 
         ! Now move the contents of SpawnedParts to ilut_list.
         do i = 1, ndets
-            dets_out(:,i) = SpawnedParts(0:NIfTot,i)
+            dets_out(:, i) = SpawnedParts(0:NIfTot, i)
         end do
         call sort(dets_out(:, 1:ndets), ilut_lt, ilut_gt)
 
@@ -218,7 +218,7 @@ contains
         ! orbital for the i'th annihilation operator, and similarly for
         ! c_bits and c_elems for creation operators.
 
-        use bit_rep_data, only: NIfTot, NIfDBO, NIfD, extract_sign
+        use bit_rep_data, only: NIfTot, nifd, NIfD, extract_sign
         use bit_reps, only: encode_sign
         use DetBitOps, only: CountBits
 
@@ -235,23 +235,23 @@ contains
 
         original_ilut = ilut
 
-        associate(a_elems => perturb%ann_elems, a_bits => perturb%ann_bits, &
-                  c_elems => perturb%crtn_elems, c_bits => perturb%crtn_bits)
+        associate (a_elems => perturb%ann_elems, a_bits => perturb%ann_bits, &
+                   c_elems => perturb%crtn_elems, c_bits => perturb%crtn_bits)
 
             ! First, loop over all creation and annihilation operators and see if they
             ! destroy the determinant encoded in ilut.
 
             do i = 1, perturb%nannihilate
-               if ( .not. btest(ilut(a_elems(i)), a_bits(i)) ) then
-                    ilut(0:NIfDBO) = 0_n_int
+                if (.not. btest(ilut(a_elems(i)), a_bits(i))) then
+                    ilut(0:nifd) = 0_n_int
                     return
                 end if
                 ilut(a_elems(i)) = ibclr(ilut(a_elems(i)), a_bits(i))
             end do
 
             do i = 1, perturb%ncreate
-                if ( btest(ilut(c_elems(i)), c_bits(i)) ) then
-                    ilut(0:NIfDBO) = 0_n_int
+                if (btest(ilut(c_elems(i)), c_bits(i))) then
+                    ilut(0:nifd) = 0_n_int
                     return
                 end if
                 ilut(c_elems(i)) = ibset(ilut(c_elems(i)), c_bits(i))
@@ -366,14 +366,14 @@ contains
 
             nswap = 0
 
-            do i = 1, perturb%nannihilate-1
-                do j = i+1, perturb%nannihilate
+            do i = 1, perturb%nannihilate - 1
+                do j = i + 1, perturb%nannihilate
                     if (a_orbs(i) > a_orbs(j)) nswap = nswap + 1
                 end do
             end do
 
-            do i = 1, perturb%ncreate-1
-                do j = i+1, perturb%ncreate
+            do i = 1, perturb%ncreate - 1
+                do j = i + 1, perturb%ncreate
                     if (c_orbs(i) > c_orbs(j)) nswap = nswap + 1
                 end do
             end do
@@ -385,7 +385,7 @@ contains
         ! Finally, calculate and apply the new sign.
         new_sign_factor = (-1.0_dp)**num_minus_signs
         call extract_sign(ilut, real_sign)
-        real_sign = real_sign*new_sign_factor
+        real_sign = real_sign * new_sign_factor
         call encode_sign(ilut, real_sign)
 
     end subroutine perturb_det

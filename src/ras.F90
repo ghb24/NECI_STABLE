@@ -48,12 +48,12 @@ contains
         integer :: i, j, k, counter
         integer :: lower_ras3, upper_ras3
 
-        tot_nelec = nel/2
-        tot_norbs = nbasis/2
+        tot_nelec = nel / 2
+        tot_norbs = nbasis / 2
 
         ! Check that the RAS parameters are possible.
-        if (ras%size_1+ras%size_2+ras%size_3 /= tot_norbs .or. &
-            ras%min_1 > ras%size_1*2 .or. ras%max_3 > ras%size_3*2) &
+        if (ras%size_1 + ras%size_2 + ras%size_3 /= tot_norbs .or. &
+            ras%min_1 > ras%size_1 * 2 .or. ras%max_3 > ras%size_3 * 2) &
             call stop_all("generate_ras", "RAS parameters are not possible.")
         if (mod(nel, 2) /= 0) call stop_all("generate_ras", "RAS-core only implmented for &
                                             & closed shell molecules.")
@@ -62,7 +62,7 @@ contains
         ! of electrons in RAS1 and RAS3. Thus, we need to find all possible allowed
         ! combinations.
 
-        ras%lower_ras1 = max(0, ras%min_1-ras%size_1)
+        ras%lower_ras1 = max(0, ras%min_1 - ras%size_1)
         ras%upper_ras1 = min(tot_nelec, ras%size_1)
 
         allocate(ras%class_label(ras%lower_ras1:ras%upper_ras1, 0:tot_nelec))
@@ -71,11 +71,11 @@ contains
         ! First count the number of RAS classes...
         counter = 0
         do i = ras%lower_ras1, ras%upper_ras1
-            lower_ras3 = max(0, tot_nelec-i-ras%size_2)
-            upper_ras3 = min(tot_nelec-i, ras%max_3)
+            lower_ras3 = max(0, tot_nelec - i - ras%size_2)
+            upper_ras3 = min(tot_nelec - i, ras%max_3)
             do j = lower_ras3, upper_ras3
                 counter = counter + 1
-                ras%class_label(i,j) = counter
+                ras%class_label(i, j) = counter
             end do
         end do
 
@@ -85,13 +85,13 @@ contains
         ! ...then fill the classes in.
         allocate(classes(ras%num_classes))
         do i = ras%lower_ras1, ras%upper_ras1
-            lower_ras3 = max(0, tot_nelec-i-2*ras%size_2)
-            upper_ras3 = min(tot_nelec-i, ras%max_3)
+            lower_ras3 = max(0, tot_nelec - i - 2 * ras%size_2)
+            upper_ras3 = min(tot_nelec - i, ras%max_3)
             do j = lower_ras3, upper_ras3
                 counter = counter + 1
                 classes(counter)%nelec_1 = i
                 classes(counter)%nelec_3 = j
-                classes(counter)%nelec_2 = tot_nelec-i-j
+                classes(counter)%nelec_2 = tot_nelec - i - j
                 if (classes(counter)%nelec_2 < 0) then
                     call stop_all("initialise_ras_space", &
                                   "Current RAS combination is not possible.")
@@ -112,10 +112,10 @@ contains
                     ! (Eq. 11.8.2)
                     if (k == 0) then
                         ! The first columns will always contain 1's.
-                        classes(i)%vertex_weights(j,k) = 1
+                        classes(i)%vertex_weights(j, k) = 1
                     else
-                        classes(i)%vertex_weights(j,k) = classes(i)%vertex_weights(j-1,k) + &
-                                                              classes(i)%vertex_weights(j-1,k-1)
+                        classes(i)%vertex_weights(j, k) = classes(i)%vertex_weights(j - 1, k) + &
+                                                          classes(i)%vertex_weights(j - 1, k - 1)
                     end if
                 end do
             end do
@@ -144,14 +144,14 @@ contains
         do i = 1, ras%num_classes
             call setup_ras_class(ras, classes(i))
             ras%num_strings = ras%num_strings + classes(i)%class_size
-            if (i > 1) ras%cum_classes(i) = ras%cum_classes(i-1) + classes(i-1)%class_size
+            if (i > 1) ras%cum_classes(i) = ras%cum_classes(i - 1) + classes(i - 1)%class_size
         end do
 
         HFSym_ras = int(HFSym%Sym%S)
 
     end subroutine initialise_ras_space
 
-    pure function class_allowed(ras, n_elec_1, n_elec_3) result (allowed)
+    pure function class_allowed(ras, n_elec_1, n_elec_3) result(allowed)
 
         ! This function assumes that the total number of electrons is equal to tot_nelec, so
         ! that we don't have to check the number of electrons in RAS2. It also assumes
@@ -165,8 +165,8 @@ contains
         allowed = .false.
 
         if (n_elec_1 >= ras%lower_ras1 .and. n_elec_1 <= ras%upper_ras1) then
-            lower_ras3 = max(0, tot_nelec-n_elec_1-ras%size_2)
-            upper_ras3 = min(tot_nelec-n_elec_1, ras%max_3)
+            lower_ras3 = max(0, tot_nelec - n_elec_1 - ras%size_2)
+            upper_ras3 = min(tot_nelec - n_elec_1, ras%max_3)
             if (n_elec_3 >= lower_ras3 .and. n_elec_3 <= upper_ras3) then
                 allowed = .true.
             end if
@@ -174,14 +174,14 @@ contains
 
     end function class_allowed
 
-    pure function class_comb_allowed(ras, class_1, class_2) result (allowed)
+    pure function class_comb_allowed(ras, class_1, class_2) result(allowed)
 
         type(ras_parameters), intent(in) :: ras
         type(ras_class_data), intent(in) :: class_1, class_2
         logical :: allowed
 
-        allowed = (class_1%nelec_1+class_2%nelec_1 >= ras%min_1 .and. &
-                    class_1%nelec_3+class_2%nelec_3 <= ras%max_3)
+        allowed = (class_1%nelec_1 + class_2%nelec_1 >= ras%min_1 .and. &
+                   class_1%nelec_3 + class_2%nelec_3 <= ras%max_3)
 
     end function class_comb_allowed
 
@@ -206,20 +206,20 @@ contains
         if (orb <= ras%size_1) then
             ! If a RAS1 orbital.
             ! Condition for (orb,elec) combination to be allowed.
-            if (orb-elec <= ras%size_1-n_elec_1 .and. orb-elec >= 0 &
+            if (orb - elec <= ras%size_1 - n_elec_1 .and. orb - elec >= 0 &
                 .and. elec <= n_elec_1) not_allowed = .false.
 
-        else if (orb > ras%size_1+ras%size_2) then
+        else if (orb > ras%size_1 + ras%size_2) then
             ! If a RAS3 orbital.
-            if (orb+(tot_nelec-elec) <= tot_norbs .and. &
-                orb+(tot_nelec-elec) >= tot_norbs-(ras%size_3-n_elec_3) .and. &
-                elec >= (n_elec_1+n_elec_2)) not_allowed = .false.
+            if (orb + (tot_nelec - elec) <= tot_norbs .and. &
+                orb + (tot_nelec - elec) >= tot_norbs - (ras%size_3 - n_elec_3) .and. &
+                elec >= (n_elec_1 + n_elec_2)) not_allowed = .false.
 
         else
             ! If a RAS2 orbital.
-            if (orb-(elec-n_elec_1) <= ras%size_1+(ras%size_2-n_elec_2) .and. &
-                orb-(elec-n_elec_1) >= ras%size_1 .and. &
-                elec >= n_elec_1 .and. elec <= (n_elec_1+n_elec_2)) not_allowed = .false.
+            if (orb - (elec - n_elec_1) <= ras%size_1 + (ras%size_2 - n_elec_2) .and. &
+                orb - (elec - n_elec_1) >= ras%size_1 .and. &
+                elec >= n_elec_1 .and. elec <= (n_elec_1 + n_elec_2)) not_allowed = .false.
 
         end if
 
@@ -236,7 +236,7 @@ contains
         address = 1
         do elec = 1, size(string)
             address = address + ras_class%vertex_weights(string(elec), elec) - &
-                                ras_class%vertex_weights(string(elec)-1, elec-1)
+                      ras_class%vertex_weights(string(elec) - 1, elec - 1)
         end do
 
     end function get_address
@@ -249,7 +249,7 @@ contains
 
         type(ras_parameters), intent(in) :: ras
         type(ras_class_data), intent(inout) :: ras_class
-        integer :: string(ras_class%nelec_1+ras_class%nelec_2+ras_class%nelec_3)
+        integer :: string(ras_class%nelec_1 + ras_class%nelec_2 + ras_class%nelec_3)
         integer, allocatable, dimension(:) :: symmetries, addresses
         integer :: i, j, counter
         logical :: none_left
@@ -263,11 +263,11 @@ contains
         end do
         do j = 1, ras_class%nelec_2
             counter = counter + 1
-            string(counter) = ras%size_1+ras%size_2 - ras_class%nelec_2 + j
+            string(counter) = ras%size_1 + ras%size_2 - ras_class%nelec_2 + j
         end do
         do j = 1, ras_class%nelec_3
             counter = counter + 1
-            string(counter) = ras%size_1+ras%size_2+ras%size_3 - ras_class%nelec_3 + j
+            string(counter) = ras%size_1 + ras%size_2 + ras%size_3 - ras_class%nelec_3 + j
         end do
 
         ras_class%class_size = get_address(ras_class, string)
@@ -316,8 +316,8 @@ contains
 
         do i = 0, 7
             ras_class%cum_sym(i) = 0
-            do j = 0, i-1
-               ras_class%cum_sym(i) = ras_class%cum_sym(i) + ras_class%num_sym(j)
+            do j = 0, i - 1
+                ras_class%cum_sym(i) = ras_class%cum_sym(i) + ras_class%num_sym(j)
             end do
         end do
 
@@ -346,7 +346,7 @@ contains
 
         type(ras_parameters), intent(in) :: ras
         type(ras_class_data), intent(in) :: ras_class
-        integer, intent(inout) :: string(ras_class%nelec_1+ras_class%nelec_2+&
+        integer, intent(inout) :: string(ras_class%nelec_1 + ras_class%nelec_2 + &
                                          ras_class%nelec_3)
         integer :: i, counter
 
@@ -357,13 +357,13 @@ contains
             counter = counter + 1
         end do
         counter = 1
-        do i = ras_class%nelec_1+1, ras_class%nelec_1+ras_class%nelec_2
+        do i = ras_class%nelec_1 + 1, ras_class%nelec_1 + ras_class%nelec_2
             string(i) = ras%size_1 + counter
             counter = counter + 1
         end do
         counter = 1
-        do i = ras_class%nelec_1+ras_class%nelec_2+1, tot_nelec
-            string(i) = ras%size_1+ras%size_2 + counter
+        do i = ras_class%nelec_1 + ras_class%nelec_2 + 1, tot_nelec
+            string(i) = ras%size_1 + ras%size_2 + counter
             counter = counter + 1
         end do
 
@@ -373,7 +373,7 @@ contains
 
         type(ras_parameters), intent(in) :: ras
         type(ras_class_data), intent(in) :: ras_class
-        integer, intent(inout) :: string(ras_class%nelec_1+ras_class%nelec_2+&
+        integer, intent(inout) :: string(ras_class%nelec_1 + ras_class%nelec_2 + &
                                          ras_class%nelec_3)
         logical, intent(out) :: none_left
         integer :: string_1(ras_class%nelec_1)
@@ -383,9 +383,9 @@ contains
         ! The strings in the 3 RAS spaces, shifted so that the first orbital in each space would
         ! be labelled 1 (this is needed for the routine that generates all combinations).
         string_1 = string(1:ras_class%nelec_1)
-        string_2 = string(ras_class%nelec_1+1:ras_class%nelec_1+ras_class%nelec_2) - ras%size_1
-        string_3 = string(ras_class%nelec_1+ras_class%nelec_2+1:tot_nelec) - &
-                   (ras%size_1+ras%size_2)
+        string_2 = string(ras_class%nelec_1 + 1:ras_class%nelec_1 + ras_class%nelec_2) - ras%size_1
+        string_3 = string(ras_class%nelec_1 + ras_class%nelec_2 + 1:tot_nelec) - &
+                   (ras%size_1 + ras%size_2)
 
         loop1: do ! Over RAS1.
 
@@ -417,8 +417,8 @@ contains
         ! equal to .true. at this point and this value will be returned, signalling the end.
 
         string(1:ras_class%nelec_1) = string_1
-        string(ras_class%nelec_1+1:ras_class%nelec_1+ras_class%nelec_2) = string_2 + ras%size_1
-        string(ras_class%nelec_1+ras_class%nelec_2+1:tot_nelec) = string_3 + (ras%size_1+ras%size_2)
+        string(ras_class%nelec_1 + 1:ras_class%nelec_1 + ras_class%nelec_2) = string_2 + ras%size_1
+        string(ras_class%nelec_1 + ras_class%nelec_2 + 1:tot_nelec) = string_3 + (ras%size_1 + ras%size_2)
 
     end subroutine generate_next_string
 
@@ -436,18 +436,18 @@ contains
         num = size(nI)
         !Bubble sort
         par = 1
-        do j = num-1, 1, -1
+        do j = num - 1, 1, -1
             swapped = .FALSE.
             do i = 1, j
-                if (nI(i) > nI(i+1)) then
+                if (nI(i) > nI(i + 1)) then
                     temp = nI(i)
-                    nI(i) = nI(i+1)
-                    nI(i+1) = temp
+                    nI(i) = nI(i + 1)
+                    nI(i + 1) = temp
                     swapped = .TRUE.
-                    par = -1*par
+                    par = -1 * par
                 end if
             end do
-          if (.not. swapped) exit
+            if (.not. swapped) exit
         end do
 
         if (present(par_opt)) par_opt = par
@@ -463,8 +463,8 @@ contains
         integer, intent(out), optional :: parities(space_size)
         integer :: nI(nel)
         integer :: string(tot_nelec)
-        integer, allocatable, dimension(:,:) :: string_list
-        integer, allocatable, dimension(:,:) :: min_indices
+        integer, allocatable, dimension(:, :) :: string_list
+        integer, allocatable, dimension(:, :) :: min_indices
         integer :: temp_class
         integer :: string_address, block_address
         integer :: i, j, k, l, m, n, o, counter
@@ -483,12 +483,14 @@ contains
         block_address = 0
         do i = 1, ras%num_classes
             ! Address of the last string in the last class.
-            if (i > 1) block_address = block_address + classes(i-1)%class_size
+            associate(ind => i)
+            if (i > 1) block_address = block_address + classes(ind - 1)%class_size
+            end associate
 
             do j = 0, 7
-                min_indices(i,j) = block_address + 1
-                do k = 0, j -1
-                   min_indices(i,j) = min_indices(i,j) + classes(i)%num_sym(k)
+                min_indices(i, j) = block_address + 1
+                do k = 0, j - 1
+                    min_indices(i, j) = min_indices(i, j) + classes(i)%num_sym(k)
                 end do
             end do
 
@@ -518,15 +520,15 @@ contains
                 do k = 0, 7
                     l = ieor(HFSym_ras, k)
                     ! Add all combinations of states in these symmetry blocks to ilut_list.
-                    do m = min_indices(i,k), min_indices(i,k)+&
-                            classes(i)%num_sym(k)-1
-                        do n = min_indices(temp_class,l), min_indices(temp_class,l)+&
-                                classes(temp_class)%num_sym(l)-1
+                    do m = min_indices(i, k), min_indices(i, k) + &
+                        classes(i)%num_sym(k) - 1
+                        do n = min_indices(temp_class, l), min_indices(temp_class, l) + &
+                            classes(temp_class)%num_sym(l) - 1
 
                             ! Beta string.
-                            nI(1:tot_nelec) = string_list(:, m)*2-1
+                            nI(1:tot_nelec) = string_list(:, m) * 2 - 1
                             ! Alpha string.
-                            nI(tot_nelec+1:nel) = string_list(:, n)*2
+                            nI(tot_nelec + 1:nel) = string_list(:, n) * 2
 
                             ! Replace all orbital numbers, orb, with the true orbital
                             ! numbers, BRR(orb). Also, sort this list.
@@ -537,9 +539,9 @@ contains
                             call sort_orbitals(nI, par)
 
                             ! Find bitstring representation.
-                            counter = counter+1
-                            call EncodeBitDet(int(nI,sizeof_int), ilut_list(:,counter))
-                            if(present(parities))then
+                            counter = counter + 1
+                            call EncodeBitDet(int(nI, sizeof_int), ilut_list(:, counter))
+                            if (present(parities)) then
                                 parities(counter) = par
                             end if
                         end do
@@ -566,15 +568,15 @@ contains
         integer(int64) :: temp_sym
         integer :: i
 
-        if(tHub) then
+        if (tHub) then
             !Since RAS is originally developed for molucules, it cannot handle kpoint symmetries.
             !As a quick fix, we ignore symmetry labels of the Hubbard model.
             sym = 0
         else
-            temp_sym = G1(BRR(string(1)*2))%Sym%S
+            temp_sym = G1(BRR(string(1) * 2))%Sym%S
 
             do i = 2, size(string)
-                temp_sym = ieor(temp_sym, G1(BRR(string(i)*2))%Sym%S)
+                temp_sym = ieor(temp_sym, G1(BRR(string(i) * 2))%Sym%S)
             end do
 
             sym = int(temp_sym, sizeof_int)
@@ -605,7 +607,7 @@ contains
                     ! Finally, add the total number of combinations of strings from the two
                     ! classes with these symmetry labels.
                     space_size = space_size + &
-                        int(classes(i)%num_sym(k)*classes(temp_class)%num_sym(l),sizeof_int)
+                                 int(classes(i)%num_sym(k) * classes(temp_class)%num_sym(l), sizeof_int)
                 end do
             end do
         end do

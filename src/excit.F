@@ -55,8 +55,8 @@
 
         sort_elecs = ExcitMat(1,:)
 
-        !Return Excitmat with orbitals, rather than indices being specified.
-        ExcitMat(1,:) = nI(ExcitMat(1,:))
+        ! Return Excitmat with orbitals, rather than indices being specified.
+        ExcitMat(1,:) = nI(sort_elecs)
 
         ! this is the same functionality as in make_double.. but much more
         ! involved here.. so just take the core from make double and others..
@@ -276,36 +276,29 @@ C.. IF NORDER=0, we SET NORDER=NEL
 
 C.. THis does not use the excitation generators, but enumerates all possible
 C.. determinants within double excitations, which will end up fairly inefficient.
-      SUBROUTINE GENEXCIT(NI,NORDER,NBASIS,NEL,LIST,ICLIST,NLIST,NMIN,
+        SUBROUTINE GENEXCIT(NI,NORDER,NBASIS,NEL,LIST,ICLIST,NLIST,NMIN,
      &            G1,TSYM,NBASISMAX,TCOUNT)
-         use CalcData , only : TNEWEXCITATIONS
-         use SystemData, only: BasisFN
-         use sym_mod, only: getsym
-         use constants, only: int64
-         IMPLICIT NONE
-         INTEGER NEL,NI(NEL),NORDER,NBASIS,LIST(NEL,*),ICLIST(*)
-         INTEGER NEXCIT(NEL),NLIST,nBasisMax(5,*)
-         TYPE(BASISFN) ISYM
-         INTEGER NO,IFDET
-         LOGICAL TSYM,TCOUNT
-         INTEGER NMIN
-         type(BasisFN) G1(*)
-         INTEGER nBRR(1)
-         integer(int64) STORE(6)
-         INTEGER ICOUNT,ILEVEL
-         character(*), parameter :: t_r="GENEXCIT"
+            use CalcData , only : TNEWEXCITATIONS
+            use SystemData, only: BasisFN
+            use sym_mod, only: getsym
+            use constants, only: int64
+            IMPLICIT NONE
+            INTEGER NEL,NI(NEL),NORDER,NBASIS,LIST(NEL,*),ICLIST(*)
+            INTEGER NEXCIT(NEL),NLIST,nBasisMax(5,*)
+            TYPE(BASISFN) ISYM
+            INTEGER NO,IFDET
+            LOGICAL TSYM,TCOUNT
+            INTEGER NMIN
+            type(BasisFN) G1(*)
+            INTEGER nBRR(1)
+            integer(int64) STORE(6)
+            INTEGER ICOUNT,ILEVEL
+            character(*), parameter :: t_r="GENEXCIT"
 
 
-         NO=NORDER
-         IF(NO.EQ.0) NO=NEL
-         IF(TSYM) CALL GETSYM(NI,NEL,G1,NBASISMAX,ISYM)
-         IF(NBASISMAX(4,7).EQ.1) THEN
-            NLIST=0
-C.. If we're actually using CSFs
-            CALL GNCSFS(NEL,NBASIS,nBrr,NBASISMAX,
-     &         LIST,TCOUNT,G1,TSYM,ISYM%MS,TSYM,ISYM,NLIST,IFDET,
-     &         .TRUE.,NI,ICLIST,.TRUE.,NO)
-         ELSE
+            NO=NORDER
+            IF(NO.EQ.0) NO=NEL
+            IF(TSYM) CALL GETSYM(NI,NEL,G1,NBASISMAX,ISYM)
             IF(TNEWEXCITATIONS.AND.NORDER.LE.2) THEN
                IF(NORDER.EQ.1) ILEVEL=1
                IF(NORDER.EQ.2) THEN
@@ -337,9 +330,8 @@ C.. use a new excitation routine - THIS DOES NOT PRODUCE AN ORDERED LIST
      &            NLIST,NEXCIT,NO,1,NMIN,G1,ISYM,TSYM,NBASISMAX,TCOUNT)
                NLIST=NLIST-1
             ENDIF
-         ENDIF
-         RETURN
-      END
+            RETURN
+        END
 
 C.. AT 29/1/04 - Looks like this won't scale very well to lots of
 Celectrons

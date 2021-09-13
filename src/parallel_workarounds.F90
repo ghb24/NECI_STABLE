@@ -16,14 +16,14 @@ module Parallel_neci
 
     ! n.b. be explicit about uses from Parallel, to avoid multiple
     !      imports of mpi_ functions which annoy ifort
-    use ParallelHelper
+    use MPI_wrapper
     use par_internal, only: MPIBCast, MPIAllReduce, MpiAllGather, &
-                    MPIReduce,  MPISum, MPISumAll, MPIScatter, MPIAllGather, &
-                    MPIAllGatherV, MPIGather, MPIGatherV, MPIScatterV, &
-                    MPIAllReduceDatatype, MPIAllToAll, MPIAllToAllV, &
-                    MPIStopAll, MPINodes, MPIInit, MPIEnd, clean_parallel, &
-                    MPISend, MPIRecv, GetProcElectrons, nProcessors, &
-                    neci_MPIInit_called, neci_MPINodes_called
+                            MPIReduce, MPISum, MPISumAll, MPIScatter, MPIAllGather, &
+                            MPIAllGatherV, MPIGather, MPIGatherV, MPIScatterV, &
+                            MPIAllReduceDatatype, MPIAllToAll, MPIAllToAllV, &
+                            MPIStopAll, MPINodes, MPIInit, MPIEnd, clean_parallel, &
+                            MPISend, MPIRecv, GetProcElectrons, nProcessors, &
+                            neci_MPIInit_called, neci_MPINodes_called
 
     use constants
     implicit none
@@ -41,33 +41,7 @@ module Parallel_neci
         module procedure MPIAllGatherLogical
     end interface
 
-#ifdef CBINDMPI
-    interface
-        subroutine MPI_Bcast (buf, cnt, dtype, rt, comm, ierr) &
-            bind(c, name='mpi_bcast_wrap')
-            use iso_c_hack
-            use constants
-            c_ptr_t, intent(in), value :: buf
-            integer(c_int), intent(in), value :: cnt, dtype, rt, comm
-            integer(c_int), intent(out) :: ierr
-        end subroutine
-    end interface
-#endif
-
 contains
-
-!
-! n.b HACK
-! We need to be able to do a bit of hackery when using C-based MPI
-!
-! --> We relabel things a bit...
-#ifdef CBINDMPI
-#define val_in vptr
-#define val_out rptr
-#else
-#define val_in v
-#define val_out Ret
-#endif
 
     ! These MPI functions are here to avoid ifort getting overly upset about
     ! re-use of mpi_functions if we put it in the parallel supermodule
@@ -87,24 +61,16 @@ contains
         character(*), parameter :: t_r = 'MPIBcast_character'
         integer(MPIArg) :: length
 
-#ifdef PARALLEL
-#ifdef CBINDMPI
-#ifdef GFORTRAN_
-        type(c_ptr) :: g_loc
-#endif
-        c_ptr_t :: vptr
-        vptr = loc_neci(v)
-#endif
-
-        call GetComm (Comm, Node, rt)
+#ifdef USE_MPI
+        call GetComm(Comm, Node, rt)
 
         ! Broadcast the length
         length = int(len_trim(v), MPIArg)
         call MPIBCast(length, node)
 
-        call MPI_BCast(val_in, length, MPI_CHARACTER, rt, comm, ierr)
+        call MPI_BCast(v, length, MPI_CHARACTER, rt, comm, ierr)
 
-        ! Use v, not val_in, as v is explicitly a character array.
+        ! Use v, not v, as v is explicitly a character array.
         v = v(1:length)
 
         if (ierr /= MPI_SUCCESS) &
@@ -121,9 +87,9 @@ contains
         integer(MPIArg) :: comm
         integer :: v, ret, ierr
 
-#ifdef PARALLEL
+#ifdef USE_MPI
 
-        call GetComm (Comm, Node)
+        call GetComm(Comm, Node)
 
         ! We cast the logical to an integer. It is a bit yucky, but avoids
         ! oddities in behaviour with some MPI implementations
@@ -151,20 +117,12 @@ contains
         integer(MPIArg) :: ierr, comm, rt
         logical(int32), target :: v
 
-#ifdef PARALLEL
-#ifdef CBINDMPI
-#ifdef GFORTRAN_
-        type(c_ptr) :: g_loc
-#endif
-        c_ptr_t :: vptr
-        vptr = loc_neci(v)
-#endif
-
+#ifdef USE_MPI
         call GetComm(comm, node, rt)
         v = param_inout
 
         ! Use MPI_INTEGER instead of MPI_LOGICAL. Makes no difference for bcast
-        call MPI_Bcast(val_in, 1_MPIArg, MPI_INTEGER4, rt, comm, ierr)
+        call MPI_Bcast(v, 1_MPIArg, MPI_INTEGER4, rt, comm, ierr)
 
         if (Ierr /= MPI_SUCCESS) &
             call stop_all(t_r, 'MPIError. Terminating')
@@ -183,15 +141,8 @@ contains
         character(*), parameter :: t_r = 'MPIBCastLogical_logic'
         logical(int32), target :: v
 
-#ifdef PARALLEL
-#ifdef CBINDMPI
-#ifdef GFORTRAN_
-        type(c_ptr) :: g_loc
-#endif
-        c_ptr_t :: vptr
-        vptr = loc_neci(v)
-#endif
-        call GetComm (Comm, Node, rt, tMe)
+#ifdef USE_MPI
+        call GetComm(Comm, Node, rt, tMe)
 
         v = param_inout
 
@@ -201,7 +152,7 @@ contains
         if (ierr == MPI_SUCCESS) then
             ! Use MPI_INTEGER instead of MPI_LOGICAL. Makes no difference for
             ! bcast
-            call MPI_Bcast(val_in, 1_MPIArg, MPI_INTEGER4, nrt, comm, ierr)
+            call MPI_Bcast(v, 1_MPIArg, MPI_INTEGER4, nrt, comm, ierr)
         end if
 
         if (ierr /= MPI_SUCCESS) &
@@ -221,22 +172,14 @@ contains
         integer(MPIArg) :: ierr, comm, rt, length
         logical(int32), target :: v(size(param_inout))
 
-#ifdef PARALLEL
-#ifdef CBINDMPI
-#ifdef GFORTRAN_
-        type(c_ptr) :: g_loc
-#endif
-        c_ptr_t :: vptr
-        vptr = loc_neci(v)
-#endif
-
+#ifdef USE_MPI
         call GetComm(comm, node, rt)
 
         v = param_inout
 
         length = int(size(v), MPIArg)
         ! Use MPI_INTEGER instead of MPI_LOGICAL. Makes no difference for bcast
-        call MPI_Bcast(val_in, length, MPI_INTEGER4, rt, comm, ierr)
+        call MPI_Bcast(v, length, MPI_INTEGER4, rt, comm, ierr)
 
         if (Ierr /= MPI_SUCCESS) &
             call stop_all(t_r, 'MPIError. Terminating')
@@ -255,16 +198,8 @@ contains
         character(*), parameter :: t_r = 'MPIBCastLogical'
         logical(int32), target :: v(size(param_inout))
 
-#ifdef PARALLEL
-#ifdef CBINDMPI
-#ifdef GFORTRAN_
-        type(c_ptr) :: g_loc
-#endif
-        c_ptr_t :: vptr
-        vptr = loc_neci(v)
-#endif
-
-        call GetComm (Comm, Node, rt, tMe)
+#ifdef USE_MPI
+        call GetComm(Comm, Node, rt, tMe)
         v = param_inout
 
         ! Which processor is root?
@@ -274,7 +209,7 @@ contains
             length = int(size(v), MPIArg)
             ! Use MPI_INTEGER instead of MPI_LOGICAL. Makes no difference for
             ! bcast
-            call MPI_Bcast(val_in, length, MPI_INTEGER4, nrt, comm, ierr)
+            call MPI_Bcast(v, length, MPI_INTEGER4, nrt, comm, ierr)
         end if
 
         if (ierr /= MPI_SUCCESS) &

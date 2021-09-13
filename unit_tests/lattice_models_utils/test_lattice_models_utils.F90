@@ -7,6 +7,7 @@ program test_lattice_models_utils
     use constants
     use lattice_mod, only: lat
     use dsfmt_interface, only: dsfmt_init
+    use SystemData, only: t_k_space_hubbard
 
     implicit none
 
@@ -44,6 +45,7 @@ contains
         call run_test_case(pick_three_opp_elecs_test, "pick_three_opp_elecs_test")
         call run_test_case(pick_spin_par_elecs_test, "pick_spin_par_elecs_test")
         call run_test_case(find_minority_spin_test, "find_minority_spin_test")
+        call run_test_case(get_orb_from_kpoints_three_test, "get_orb_from_kpoints_three_test")
     end subroutine lattice_models_utils_test_driver
 
     subroutine find_minority_spin_test
@@ -407,6 +409,7 @@ contains
         nbasis = 8
         bhub = -1.0_dp
         nn_bhub = 0.0_dp
+        t_k_space_hubbard = .true.
         lat => lattice('chain', 4,1,1,.true.,.true.,.true.,'k-space')
 
         call setup_nbasismax(lat)
@@ -423,13 +426,15 @@ contains
 
         call assert_equals(7, get_orb_from_kpoints_three([3,4,5],6,8))
 
+        t_k_space_hubbard = .false.
+
     end subroutine get_orb_from_kpoints_three_test
 
 
     subroutine create_all_open_shell_dets_test
         use bit_rep_data, only: niftot, nifd
 
-        integer(n_int), allocatable :: basis(:)
+        integer(n_int), allocatable :: basis(:,:)
 
         niftot = 0
         nifd = 0
@@ -439,11 +444,11 @@ contains
 
         basis = create_all_open_shell_dets(4,2,2)
 
-        call assert_equals(6, size(basis))
-        call assert_equals(int(b'01011010',n_int),basis(1))
-        call assert_equals(int(b'01100110',n_int),basis(2))
-        call assert_equals(int(b'01101001',n_int),basis(3))
-        call assert_equals(int(b'10100101',n_int),basis(6))
+        call assert_equals(6, size(basis,2))
+        call assert_equals(int(b'01011010',n_int),basis(1,1))
+        call assert_equals(int(b'01100110',n_int),basis(1,2))
+        call assert_equals(int(b'01101001',n_int),basis(1,3))
+        call assert_equals(int(b'10100101',n_int),basis(1,6))
 
         niftot = -1
         nifd = -1
@@ -486,8 +491,7 @@ contains
     subroutine combine_spin_basis_test
         use bit_rep_data, only: niftot, nifd
 
-        integer(n_int), allocatable :: basis(:), spin_basis(:)
-        integer :: i
+        integer(n_int), allocatable :: basis(:,:), spin_basis(:)
 
         niftot = 0
         nifd = 0
@@ -499,36 +503,36 @@ contains
 
         ! for some really strange reason those b'xx' literal are 128-bit integers
         ! in gfortran..
-        call assert_equals(6, size(basis))
-        call assert_equals(int(b'01011010',n_int),(basis(1)))
-        call assert_equals(int(b'01100110',n_int),(basis(2)))
-        call assert_equals(int(b'01101001',n_int),(basis(3)))
-        call assert_equals(int(b'10100101',n_int),(basis(6)))
+        call assert_equals(6, size(basis,2))
+        call assert_equals(int(b'01011010',n_int),(basis(1,1)))
+        call assert_equals(int(b'01100110',n_int),(basis(1,2)))
+        call assert_equals(int(b'01101001',n_int),(basis(1,3)))
+        call assert_equals(int(b'10100101',n_int),(basis(1,6)))
 
         spin_basis = create_one_spin_basis(6,3)
 
         basis = combine_spin_basis(6,3,3,20,spin_basis,.false.)
 
         call assert_equals(20, size(basis))
-        call assert_equals(int(b'010101101010',n_int), (basis(1)))
-        call assert_equals(int(b'101010010101',n_int), (basis(20)))
+        call assert_equals(int(b'010101101010',n_int), (basis(1,1)))
+        call assert_equals(int(b'101010010101',n_int), (basis(1,20)))
 
         basis = combine_spin_basis(4,2,1,12,int([3,5,6,9,10,12],n_int),.false.)
 
         call assert_equals(12, size(basis))
-        call assert_equals(int(b'00011010',n_int), (basis(1)))
-        call assert_equals(int(b'01001010',n_int), (basis(2)))
-        call assert_equals(int(b'00100110',n_int), (basis(3)))
-        call assert_equals(int(b'10100001',n_int), (basis(11)))
-        call assert_equals(int(b'10100100',n_int), (basis(12)))
+        call assert_equals(int(b'00011010',n_int), (basis(1,1)))
+        call assert_equals(int(b'01001010',n_int), (basis(1,2)))
+        call assert_equals(int(b'00100110',n_int), (basis(1,3)))
+        call assert_equals(int(b'10100001',n_int), (basis(1,11)))
+        call assert_equals(int(b'10100100',n_int), (basis(1,12)))
 
         basis = combine_spin_basis(4,1,1,12,int([1,2,4,8],n_int),.false.)
 
         call assert_equals(12, size(basis))
-        call assert_equals(int(b'00000110',n_int), (basis(1)))
-        call assert_equals(int(b'00010010',n_int), (basis(2)))
-        call assert_equals(int(b'01000010',n_int), (basis(3)))
-        call assert_equals(int(b'10010000',n_int), (basis(12)))
+        call assert_equals(int(b'00000110',n_int), (basis(1,1)))
+        call assert_equals(int(b'00010010',n_int), (basis(1,2)))
+        call assert_equals(int(b'01000010',n_int), (basis(1,3)))
+        call assert_equals(int(b'10010000',n_int), (basis(1,12)))
 
         niftot = -1
         nifd = -1
@@ -563,7 +567,6 @@ contains
         use bit_rep_data, only: niftot, nifd
 
         integer(n_int), allocatable :: alpha(:)
-        integer :: i
 
         niftot = 0
         nifd = 0
@@ -602,16 +605,16 @@ contains
 
         print *, ""
         print *, "testing: right_most_zero:"
-        i = b'1001'
+        i = int(b'1001',n_int)
         call assert_equals(2, right_most_zero(i, 4))
 
-        i = b'0011'
+        i = int(b'0011',n_int)
         call assert_equals(3, right_most_zero(i, 4))
 
-        i = b'1010'
+        i = int(b'1010',n_int)
         call assert_equals(3, right_most_zero(i, 4))
 
-        i = b'1100'
+        i = int(b'1100',n_int)
         call assert_equals(5, right_most_zero(i, 4))
 
         call assert_equals(4, right_most_zero(int(b'1100',n_int), 3))

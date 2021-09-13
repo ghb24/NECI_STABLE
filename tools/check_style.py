@@ -1,10 +1,11 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
+
 
 from __future__ import print_function
 
 from collections import defaultdict
 from os import walk
-from os.path import join
+from os.path import join, isfile
 import re
 import sys
 import argparse
@@ -103,7 +104,7 @@ def output_errors(errors):
 
 def get_files(start_dir):
     return (join(dname, fname) for dname, dirs, fnames
-            in walk(start_dir) for fname in fnames)
+            in walk(start_dir) for fname in fnames if isfile(join(dname, fname)))
 
 
 def parse_args():
@@ -114,7 +115,7 @@ def parse_args():
 
 
 def _fortran_suffix(path):
-    return path.endswith(('.f', '.F', '.f90', '.F90'))
+    return path.endswith(('.f', '.F', '.f90', '.F90', '.fpp'))
 
 
 def _C_suffix(path):

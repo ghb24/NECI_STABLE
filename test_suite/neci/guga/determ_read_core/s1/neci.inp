@@ -25,6 +25,7 @@ realspawncutoff 0.01
 nmcyc 100
 semi-stochastic
 read-core
+core-inits
 truncinitiator
 addtoinitiator 2
 load-balance-blocks off

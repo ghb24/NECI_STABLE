@@ -26,8 +26,10 @@
          type(timer), save :: proc_timer
          real(dp) GSEN
          character(len=*), parameter :: t_r="HDIAG_neci"
-
+#ifndef CMPLX_
          unused_var(WORK)
+#endif
+
          proc_timer%timer_name='HDIAG     '
          call set_timer(proc_timer)
          GSEN=1.D100
@@ -97,29 +99,6 @@ C.. Diagonalize
                call stop_all(t_r, "DSYEV error")
             ENDIF
             IF(W(NBS).LT.GSEN) GSEN=W(NBS)
-! This is commented out develomental code to label the determinants
-! by their HPHF partner and number of open shells.
-!
-!            do j=1,ndet
-!                call EncodeBitDet(NMRKS(:,j),BitRep)
-!                if(j.eq.1) then
-!                    BitRepHF=BitRep
-!                endif
-!                nopen = count_open_orbs(BitRep)
-!                Excit = FindBitExcitLevel(BitRepHF,BitRep,NEl)
-!                call FindExcitBitDetSym(BitRep,BitRepSym)
-!                do k=1,ndet
-!                    call EncodeBitDet(NMRKS(:,k),TempBitRep)
-!                    if(DetBitEQ(TempBitRep,BitRepSym,NIfDBO)) then
-!!                        write(6,*) "Found same: ",j,k,BitRep(0:NIfDBO), &
-!!     &                      TempBitRep(0:NIfDBO)
-!                        exit
-!                    endif
-!                enddo
-!                if(k.eq.ndet+1) call stop_all(this_routine, 'Error in finding spin-coup dets')
-!                write(69,"(I4,4G20.10,3I5)") j,CK(j,1:4),Excit,nopen,k
-!            enddo
-!
          ENDDO
 
 !Developmental and research routine
