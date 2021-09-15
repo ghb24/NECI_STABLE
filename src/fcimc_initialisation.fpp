@@ -208,7 +208,7 @@ module fcimc_initialisation
 
     use guga_bitRepOps, only: calcB_vector_nI, calcB_vector_ilut, convert_ilut_toNECI, &
                               convert_ilut_toGUGA, getDeltaB, write_det_guga, write_guga_list, &
-                              calc_csf_info
+                              calc_csf_info, CSF_Info_t
 
     use guga_excitations, only: generate_excitation_guga, create_projE_list, &
                                 actHamiltonian
@@ -2987,7 +2987,7 @@ contains
             ! should finally do some general routine, which does all this
             ! below...
             call convert_ilut_toGUGA(ilutHF, ilutG)
-            call actHamiltonian(ilutG, excitations, iExcits)
+            call actHamiltonian(ilutG, CSF_Info_t(ilutG), excitations, iExcits)
             do i = 1, iExcits
                 call convert_ilut_toNECI(excitations(:, i), ilutnJ)
                 call decode_bit_det(nJ, iLutnJ)
@@ -3900,9 +3900,9 @@ contains
                 ! i guess i have to change that for the real-space
                 ! hubbard model implementation!
                 if (tHUB .or. tUEG .or. .not. (tNoBrillouin)) then
-                    call actHamiltonian(ilutHF, excitations, n_excits)
+                    call actHamiltonian(ilutHF, CSF_Info_t(ilutHF), excitations, n_excits)
                 else
-                    call actHamiltonian(ilutHF, excitations, n_excits, .true.)
+                    call actHamiltonian(ilutHF, CSF_Info_t(ilutHF), excitations, n_excits, .true.)
                 end if
 
                 ! if no excitations possible... there is something wrong

@@ -34,7 +34,10 @@ module enumerate_excitations
 
     use SystemData, only: nel, nBasis, G1, tFixLz, Arr, Brr, tHPHF, tHub, &
                           tUEG, tKPntSym, tReal, tUseBrillouin, tGUGA, tReltvy
+
     use guga_data, only: tag_excitations
+    use guga_bitRepOps, only: CSF_Info_t
+
     use MemoryManager, only: LogMemDealloc
 
     use lattice_models_utils, only: gen_all_excits_k_space_hubbard, &
@@ -425,7 +428,7 @@ contains
                 ! why is this done??
                 call convert_ilut_toGUGA(original_space(:, i), ilutG)
 
-                call actHamiltonian(ilutG, excitations, nexcit)
+                call actHamiltonian(ilutG, CSF_Info_t(ilutG), excitations, nexcit)
 
                 ! and if store flag is present:
                 if (tStoreConnSpace) then
@@ -607,7 +610,7 @@ contains
 
                 call convert_ilut_toGUGA(original_space(:, i), ilutG)
 
-                call actHamiltonian(ilutG, excitations, nexcit)
+                call actHamiltonian(ilutG, CSF_Info_t(ilutG), excitations, nexcit)
 
                 if (tStoreConnSpace) then
                     do j = 1, nexcit

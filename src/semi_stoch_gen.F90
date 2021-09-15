@@ -414,7 +414,7 @@ contains
         ! to the exact guga excitation to the HF det
         call convert_ilut_toGUGA(ilutHF, ilutG)
 
-        call actHamiltonian(ilutG, excitations, nexcit)
+        call actHamiltonian(ilutG, CSF_Info_t(ilutG), excitations, nexcit)
 
         do i = 1, nexcit
             ! check if matrix element is zero if we only want to keep the
@@ -1325,7 +1325,7 @@ contains
             ! in guga, create all excitations at once and then check for the
             ! MP1 amplitude in an additional loop
             call convert_ilut_toGUGA(ilutHF, ilutG)
-            call actHamiltonian(ilutG, excitations, ndets)
+            call actHamiltonian(ilutG, CSF_Info_t(ilutG), excitations, ndets)
             do i = 1, ndets
                 call convert_ilut_toNECI(excitations(:, i), ilut)
                 call decode_bit_det(nI, ilut)

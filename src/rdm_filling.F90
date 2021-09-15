@@ -10,7 +10,7 @@ module rdm_filling
     use constants
     use SystemData, only: tGUGA, nbasis
     use guga_bitRepOps, only: extract_stochastic_rdm_info, extract_2_rdm_ind, &
-                              fill_csf_info, identify_excitation
+                              fill_csf_info, identify_excitation, CSF_Info_t
     use rdm_data, only: rdm_spawn_t, rdmCorrectionFactor
     use CalcData, only: tAdaptiveShift, tNonInitsForRDMs, tInitsRDMRef, &
                         tNonVariationalRDMs
@@ -971,10 +971,12 @@ contains
         real(dp) :: full_sign(spawn%rdm_send%sign_length)
         logical :: tParity
         integer(n_int) :: iLutI(0:niftot), iLutJ(0:niftot)
+        type(CSF_Info_t) :: csf_info
         integer :: nI(nel), nJ(nel), IC, n
         integer :: IterRDM, connect_elem, num_j
         type(ExcitationInformation_t) :: excitInfo
         character(*), parameter :: this_routine = "fill_rdm_offdiag_deterministic"
+
 
         ! IterRDM will be the number of iterations that the contributions are
         ! ech weighted by.
@@ -1001,6 +1003,7 @@ contains
                     num_j = rep%sparse_core_ham(i)%num_elements - 1
                 end if
                 iLutI = rep%core_space(:, rep%determ_displs(iProcIndex) + i)
+                if (tGUGA) csf_info = CSF_Info_t(ilutI)
 
                 ! Connections to the HF are added in elsewhere, so skip them here.
                 if (DetBitEq(iLutI, iLutHF_True, nifd)) cycle
@@ -1074,7 +1077,7 @@ contains
                     else if (tGUGA) then
 
                         call add_rdm_from_ij_pair_guga_exact(spawn, one_rdms, &
-                                  ilutI, ilutJ, AvSignI * IterRDM, AvSignJ, calc_type=1)
+                                  ilutI, csf_info, ilutJ, AvSignI * IterRDM, AvSignJ, calc_type=1)
                     else
                         if (IC == 1) then
                             ! Single excitation - contributes to 1- and 2-RDM

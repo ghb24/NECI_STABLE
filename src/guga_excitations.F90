@@ -2218,7 +2218,7 @@ contains
         end if
 
         ! calc. all excitations from it
-        call actHamiltonian(ilutG, excitations, nExcit)
+        call actHamiltonian(ilutG, CSF_Info_t(ilutG), excitations, nExcit)
 
         ! they should be ordered due to the ordering in the add_ilut_list
 
@@ -2334,7 +2334,8 @@ contains
         print *, "<Di|H|Di>: ", calcDiagMatEleGuga_ilut(ilutG)
 
         ! calc. all excitations for the given ilut
-        call actHamiltonian(ilutG, excitations, nexcit)
+        csf_info = CSF_Info_t(ilutG)
+        call actHamiltonian(ilutG, csf_info, excitations, nexcit)
 
         print *, "all excact excitations: ", nexcit
 
@@ -2342,13 +2343,10 @@ contains
 
         ! and convert them back to a list of neci iluts
         allocate(det_list(0:niftot, nexcit))
-
-        allocate(exact_helements(nExcit))
-        exact_helements = 0.0_dp
+        allocate(exact_helements(nExcit), source=h_cast(0.0_dp))
         allocate(excitLvl(nexcit), source=-1)
         allocate(excit_mat(nexcit, 4), source=0)
 
-        call fill_csf_info(ilutG(0:nifd), csf_info)
         do i = 1, nexcit
             call convert_ilut_toNECI(excitations(:, i), det_list(:, i), helgen)
 
@@ -14222,7 +14220,7 @@ contains
 
     end function getPlus_overlapLowering
 
-    subroutine actHamiltonian(ilut, excitations, nTot, t_singles_only, &
+    subroutine actHamiltonian(ilut, csf_info, excitations, nTot, t_singles_only, &
             t_print_time, t_full)
         ! subroutine to calculate the action of the full Hamiltonian on a
         ! a single CSF given in ilut bit representation and outputs a list
@@ -14230,6 +14228,7 @@ contains
         ! is stored, where usually the signed walker weight of an occupied
         ! determinant is stored
         integer(n_int), intent(in) :: ilut(0:nifguga)
+        type(CSF_Info_t), intent(in) :: csf_info
         integer(n_int), intent(out), allocatable :: excitations(:, :)
         integer, intent(out) :: nTot
         logical, intent(in), optional :: t_singles_only, t_print_time, t_full
@@ -14242,7 +14241,6 @@ contains
         logical :: t_singles_only_, t_print_time_, t_full_
         integer :: n
         real(dp) :: cmp
-        type(CSF_Info_t) :: csf_info
 
         def_default(t_singles_only_, t_singles_only, .false.)
         def_default(t_print_time_, t_print_time, .false.)
@@ -14290,9 +14288,6 @@ contains
         ! maybe have to set to zero here then, or initialize somehow different
 
         nTot = 0
-
-        ! TODO(@Oskar): uncomment
-        call fill_csf_info(ilut(0:nifd), csf_info)
 
         ! single excitations:
         ! does it help to not calculate stuff if not necessary..

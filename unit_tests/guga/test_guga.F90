@@ -14,6 +14,7 @@ program test_guga
 
     use SystemData
     use guga_bitRepOps
+    use guga_bitRepOps, only: global_csf_info => current_csf_info
     use guga_excitations
     use guga_matrixElements
     use guga_data
@@ -232,18 +233,11 @@ contains
         call EncodeBitDet_guga(nI, ilut)
         csf_info = CSF_Info_t(ilut)
 
-        currentB_ilut = calcB_vector_ilut(ilut)
-        currentOcc_ilut = calcOcc_vector_ilut(ilut)
-        currentOcc_int = calcOcc_vector_int(ilut)
-        current_stepvector = calcStepVector(ilut)
-        currentB_int = calcB_vector_int(ilut)
-        currentB_ilut = calcB_vector_ilut(ilut)
-
         ! to test it fully, create a stochastic excitation and then use
         ! the obtained rdm_ind, x0 and x1 and then compare this to the
         ! calc_guga_matrix_element and calc_explicit_1/2_rdm_guga routines!!
 
-        call createStochasticExcitation_single(ilut, nI, t, pgen)
+        call createStochasticExcitation_single(ilut, nI, csf_info, t, pgen)
 
         if (pgen > EPS) then
             call extract_stochastic_rdm_info(GugaBits, t, rdm_ind, x0, x1)
@@ -253,7 +247,7 @@ contains
             call assert_equals(rdm_ind, rdm_inds(1))
             call assert_equals(x0, rdm_mats(1))
 
-            call calc_explicit_1_rdm_guga(ilut, nEx, ex)
+            call calc_explicit_1_rdm_guga(ilut, csf_info, nEx, ex)
             do i = 1, nex
                 if (DetBitEq(t(0:nifd), ex(0:nifd, i), nifd)) then
                     pos = i
@@ -266,7 +260,7 @@ contains
             call assert_equals(extract_matrix_element(ilutJ, 1), rdm_mats(1))
 
             ! also test with matrix element calculator!
-            call calc_guga_matrix_element(ilut, t, excitInfo, &
+            call calc_guga_matrix_element(ilut, csf_info, t, excitInfo, &
                                           mat_ele, t_hamil=.true., calc_type=2, rdm_ind=rdm_ind_ex, &
                                           rdm_mat=rdm_mat_ex)
             x0 = extract_stochastic_rdm_x0(GugaBits, t)
@@ -293,7 +287,7 @@ contains
         call assert_true(size(rdm_inds) > 0)
         call assert_equals(rdm_ind, rdm_inds(1))
 
-        call calc_explicit_2_rdm_guga(ilut, nEx, ex)
+        call calc_explicit_2_rdm_guga(ilut, csf_info, nEx, ex)
 
         cnt = 0
         do i = 1, nex
@@ -579,6 +573,7 @@ contains
         integer(int_rdm), allocatable :: rdm_ind(:)
         real(dp), allocatable :: rdm_mat(:)
         HElement_t(dp) :: mat_ele
+        type(CSF_Info_t) :: csf_info
 
         print *, ""
         print *, "comparing coupling coeffs from exact and from calc_guga_matrix_element"
@@ -587,16 +582,16 @@ contains
         allocate (nI(nel))
         nI = [1, 2]
         call EncodeBitDet_guga(nI, ilutI)
-        csf_info = CSF_Info_t(ilut)
+        csf_info = CSF_Info_t(ilutI)
 
-        call calc_explicit_2_rdm_guga(ilutI, n_tot, excits)
+        call calc_explicit_2_rdm_guga(ilutI, csf_info, n_tot, excits)
 
         do n = 1, n_tot
             ilutJ = excits(:, n)
             rdm_ind_1 = extract_rdm_ind(ilutJ)
             rdm_mat_1 = real(extract_h_element(ilutJ), dp)
 
-            call calc_guga_matrix_element(ilutI, ilutJ, excitInfo, mat_ele, &
+            call calc_guga_matrix_element(ilutI, csf_info, ilutJ, excitInfo, mat_ele, &
                                           t_hamil=.false., calc_type=2, rdm_ind=rdm_ind, &
                                           rdm_mat=rdm_mat)
 
@@ -616,15 +611,15 @@ contains
         nI = [1, 4]
 
         call EncodeBitDet_guga(nI, ilutI)
-        csf_info = CSF_Info_t(ilut)
-        call calc_explicit_2_rdm_guga(ilutI, n_tot, excits)
+        csf_info = CSF_Info_t(ilutI)
+        call calc_explicit_2_rdm_guga(ilutI, csf_info, n_tot, excits)
 
         do n = 1, n_tot
             ilutJ = excits(:, n)
             rdm_ind_1 = extract_rdm_ind(ilutJ)
             rdm_mat_1 = real(extract_h_element(ilutJ), dp)
 
-            call calc_guga_matrix_element(ilutI, ilutJ, excitInfo, mat_ele, &
+            call calc_guga_matrix_element(ilutI, csf_info, ilutJ, excitInfo, mat_ele, &
                                           t_hamil=.false., calc_type=2, rdm_ind=rdm_ind, &
                                           rdm_mat=rdm_mat)
 
@@ -646,15 +641,15 @@ contains
         nI = [3, 4, 5, 6]
 
         call EncodeBitDet_guga(nI, ilutI)
-        csf_info = CSF_Info_t(ilut)
-        call calc_explicit_2_rdm_guga(ilutI, n_tot, excits)
+        csf_info = CSF_Info_t(ilutI)
+        call calc_explicit_2_rdm_guga(ilutI, csf_info, n_tot, excits)
 
         do n = 1, n_tot
             ilutJ = excits(:, n)
             rdm_ind_1 = extract_rdm_ind(ilutJ)
             rdm_mat_1 = real(extract_h_element(ilutJ), dp)
 
-            call calc_guga_matrix_element(ilutI, ilutJ, excitInfo, mat_ele, &
+            call calc_guga_matrix_element(ilutI, csf_info, ilutJ, excitInfo, mat_ele, &
                                           t_hamil=.false., calc_type=2, rdm_ind=rdm_ind, &
                                           rdm_mat=rdm_mat)
 
@@ -672,15 +667,15 @@ contains
         nI = [1, 2, 7, 8]
 
         call EncodeBitDet_guga(nI, ilutI)
-        csf_info = CSF_Info_t(ilut)
-        call calc_explicit_2_rdm_guga(ilutI, n_tot, excits)
+        csf_info = CSF_Info_t(ilutI)
+        call calc_explicit_2_rdm_guga(ilutI, csf_info, n_tot, excits)
 
         do n = 1, n_tot
             ilutJ = excits(:, n)
             rdm_ind_1 = extract_rdm_ind(ilutJ)
             rdm_mat_1 = real(extract_h_element(ilutJ), dp)
 
-            call calc_guga_matrix_element(ilutI, ilutJ, excitInfo, mat_ele, &
+            call calc_guga_matrix_element(ilutI, csf_info, ilutJ, excitInfo, mat_ele, &
                                           t_hamil=.false., calc_type=2, rdm_ind=rdm_ind, &
                                           rdm_mat=rdm_mat)
 
@@ -697,15 +692,15 @@ contains
 
         nI = [1, 4, 5, 8]
         call EncodeBitDet_guga(nI, ilutI)
-        csf_info = CSF_Info_t(ilut)
-        call calc_explicit_2_rdm_guga(ilutI, n_tot, excits)
+        csf_info = CSF_Info_t(ilutI)
+        call calc_explicit_2_rdm_guga(ilutI, csf_info, n_tot, excits)
 
         do n = 1, n_tot
             ilutJ = excits(:, n)
             rdm_ind_1 = extract_rdm_ind(ilutJ)
             rdm_mat_1 = real(extract_h_element(ilutJ), dp)
 
-            call calc_guga_matrix_element(ilutI, ilutJ, excitInfo, mat_ele, &
+            call calc_guga_matrix_element(ilutI, csf_info, ilutJ, excitInfo, mat_ele, &
                                           t_hamil=.false., calc_type=2, rdm_ind=rdm_ind, &
                                           rdm_mat=rdm_mat)
 
@@ -722,15 +717,15 @@ contains
 
         nI = [1, 3, 6, 8]
         call EncodeBitDet_guga(nI, ilutI)
-        csf_info = CSF_Info_t(ilut)
-        call calc_explicit_2_rdm_guga(ilutI, n_tot, excits)
+        csf_info = CSF_Info_t(ilutI)
+        call calc_explicit_2_rdm_guga(ilutI, csf_info, n_tot, excits)
 
         do n = 1, n_tot
             ilutJ = excits(:, n)
             rdm_ind_1 = extract_rdm_ind(ilutJ)
             rdm_mat_1 = real(extract_h_element(ilutJ), dp)
 
-            call calc_guga_matrix_element(ilutI, ilutJ, excitInfo, mat_ele, &
+            call calc_guga_matrix_element(ilutI, csf_info, ilutJ, excitInfo, mat_ele, &
                                           t_hamil=.false., calc_type=2, rdm_ind=rdm_ind, &
                                           rdm_mat=rdm_mat)
 
@@ -853,11 +848,11 @@ contains
     end subroutine test_compare_RDM_indexing
 
     subroutine test_calc_explicit_diag_2_rdm_guga
-
         integer(n_int) :: ilut(0:nifguga)
         integer :: n_tot, i, j, k, l
         integer(n_int), allocatable :: excits(:, :)
         integer(int_rdm) :: rdm_ind
+        type(CSF_Info_t) :: csf_info
 
         print *, ""
         print *, "testing: calc_explicit_diag_2_rdm_guga"
@@ -867,13 +862,13 @@ contains
         call EncodeBitDet_guga([1, 7, 8], ilut)
         csf_info = CSF_Info_t(ilut)
 
-        call calc_explicit_diag_2_rdm_guga(ilut, n_tot, excits)
+        call calc_explicit_diag_2_rdm_guga(ilut, csf_info, n_tot, excits)
 
         call assert_equals(0, n_tot)
 
         call EncodeBitDet_guga([1, 4, 5], ilut)
         csf_info = CSF_Info_t(ilut)
-        call calc_explicit_diag_2_rdm_guga(ilut, n_tot, excits)
+        call calc_explicit_diag_2_rdm_guga(ilut, csf_info, n_tot, excits)
 
         call assert_equals(4, n_tot)
 
@@ -917,7 +912,7 @@ contains
 
         call EncodeBitDet_guga([1, 3, 6], ilut)
         csf_info = CSF_Info_t(ilut)
-        call calc_explicit_diag_2_rdm_guga(ilut, n_tot, excits)
+        call calc_explicit_diag_2_rdm_guga(ilut, csf_info, n_tot, excits)
 
         call assert_equals(4, n_tot)
 
@@ -963,7 +958,7 @@ contains
         call EncodeBitDet_guga([1, 3, 6, 8], ilut)
         csf_info = CSF_Info_t(ilut)
 
-        call calc_explicit_diag_2_rdm_guga(ilut, n_tot, excits)
+        call calc_explicit_diag_2_rdm_guga(ilut, csf_info, n_tot, excits)
 
         ! 1 3 - 3 1
         rdm_ind = extract_rdm_ind(excits(:, 1))
@@ -1045,9 +1040,9 @@ contains
         call EncodeBitDet_guga([1, 4, 5, 8], ilut)
         csf_info = CSF_Info_t(ilut)
 
-        call calc_explicit_diag_2_rdm_guga(ilut, n_tot, excits)
+        call calc_explicit_diag_2_rdm_guga(ilut, csf_info, n_tot, excits)
 
-        call calc_explicit_diag_2_rdm_guga(ilut, n_tot, excits)
+        call calc_explicit_diag_2_rdm_guga(ilut, csf_info, n_tot, excits)
 
         print *, ""
         print *, "testing: calc_explicit_diag_2_rdm_guga DONE"
@@ -1064,6 +1059,7 @@ contains
         integer(int_rdm) :: rdm_ind
         integer :: i, j, k, l, cnt, n
         integer(n_int) :: ilut(0:nifguga)
+        type(CSF_Info_t) :: csf_info
 
         nel = 2
         call EncodeBitDet_guga([5, 6], ilut)
@@ -1073,7 +1069,7 @@ contains
         print *, "testing: calc_explicit_2_rdm_guga"
         print *, ""
 
-        call calc_explicit_2_rdm_guga(ilut, n_tot, excits)
+        call calc_explicit_2_rdm_guga(ilut, csf_info, n_tot, excits)
 
         call assert_equals(9, n_tot)
 
@@ -1163,7 +1159,7 @@ contains
         call EncodeBitDet_guga([1, 3, 6, 8], ilut)
         csf_info = CSF_Info_t(ilut)
 
-        call calc_explicit_2_rdm_guga(ilut, n_tot, excits)
+        call calc_explicit_2_rdm_guga(ilut, csf_info, n_tot, excits)
 
         cnt = 0
         do n = 1, n_tot
@@ -1187,6 +1183,7 @@ contains
         integer, allocatable :: nJ(:)
         real(dp) :: rdm_mat
         integer(int_rdm) :: rdm_ind
+        type(CSF_Info_t) :: csf_info
 
         print *, ""
         print *, "testing: calc_all_excits_guga_rdm_doubles"
@@ -1195,9 +1192,8 @@ contains
         nel = 2
         call EncodeBitDet_guga([1, 2], ilut)
         csf_info = CSF_Info_t(ilut)
-        call fill_csf_info(ilut)
 
-        call calc_all_excits_guga_rdm_doubles(ilut, 2, 1, 0, 0, excits, n_excits)
+        call calc_all_excits_guga_rdm_doubles(ilut, csf_info, 2, 1, 0, 0, excits, n_excits)
 
         allocate (nJ(2))
 
@@ -1213,7 +1209,7 @@ contains
         call assert_equals(2, i)
         call assert_equals(1, j)
 
-        call calc_all_excits_guga_rdm_doubles(ilut, 2, 1, 2, 1, excits, n_excits)
+        call calc_all_excits_guga_rdm_doubles(ilut, csf_info, 2, 1, 2, 1, excits, n_excits)
 
         call assert_equals(1, n_excits)
         call decode_bit_det(nJ, excits(:, 1))
@@ -1229,7 +1225,7 @@ contains
         call assert_equals(2, k)
         call assert_equals(1, l)
 
-        call calc_all_excits_guga_rdm_doubles(ilut, 2, 1, 3, 1, excits, n_excits)
+        call calc_all_excits_guga_rdm_doubles(ilut, csf_info, 2, 1, 3, 1, excits, n_excits)
 
         call assert_equals(1, n_excits)
         call decode_bit_det(nJ, excits(:, 1))
@@ -1245,7 +1241,7 @@ contains
         call assert_equals(3, k)
         call assert_equals(1, l)
 
-        call calc_all_excits_guga_rdm_doubles(ilut, 3, 1, 2, 1, excits, n_excits)
+        call calc_all_excits_guga_rdm_doubles(ilut, csf_info, 3, 1, 2, 1, excits, n_excits)
 
         call assert_equals(1, n_excits)
         call decode_bit_det(nJ, excits(:, 1))
@@ -1263,9 +1259,8 @@ contains
 
         call EncodeBitDet_guga([3, 4], ilut)
         csf_info = CSF_Info_t(ilut)
-        call fill_csf_info(ilut)
 
-        call calc_all_excits_guga_rdm_doubles(ilut, 1, 2, 1, 2, excits, n_excits)
+        call calc_all_excits_guga_rdm_doubles(ilut, csf_info, 1, 2, 1, 2, excits, n_excits)
 
         call assert_equals(1, n_excits)
         call decode_bit_det(nJ, excits(:, 1))
@@ -1283,9 +1278,8 @@ contains
 
         call EncodeBitDet_guga([5, 6], ilut)
         csf_info = CSF_Info_t(ilut)
-        call fill_csf_info(ilut)
 
-        call calc_all_excits_guga_rdm_doubles(ilut, 1, 3, 2, 3, excits, n_excits)
+        call calc_all_excits_guga_rdm_doubles(ilut, csf_info, 1, 3, 2, 3, excits, n_excits)
 
         call assert_equals(1, n_excits)
         call decode_bit_det(nJ, excits(:, 1))
@@ -1301,7 +1295,7 @@ contains
         call assert_equals(2, k)
         call assert_equals(3, l)
 
-        call calc_all_excits_guga_rdm_doubles(ilut, 1, 3, 4, 3, excits, n_excits)
+        call calc_all_excits_guga_rdm_doubles(ilut, csf_info, 1, 3, 4, 3, excits, n_excits)
 
         call assert_equals(1, n_excits)
         call decode_bit_det(nJ, excits(:, 1))
@@ -1321,20 +1315,19 @@ contains
 
         call EncodeBitDet_guga([1, 5, 6], ilut)
         csf_info = CSF_Info_t(ilut)
-        call fill_csf_info(ilut)
 
-        call calc_all_excits_guga_rdm_doubles(ilut, 3, 1, 2, 3, excits, n_excits)
+        call calc_all_excits_guga_rdm_doubles(ilut, csf_info, 3, 1, 2, 3, excits, n_excits)
         call assert_equals(0, n_excits)
 
         nel = 4
         call EncodeBitDet_guga([1, 3, 6, 8], ilut)
         csf_info = CSF_Info_t(ilut)
-        call fill_csf_info(ilut)
+        csf_info = CSF_Info_t(ilut)
 
         deallocate (nJ)
         allocate (nJ(nel))
 
-        call calc_all_excits_guga_rdm_doubles(ilut, 1, 4, 4, 1, excits, n_excits)
+        call calc_all_excits_guga_rdm_doubles(ilut, csf_info, 1, 4, 4, 1, excits, n_excits)
 
         call assert_equals(2, n_excits)
 
@@ -1356,7 +1349,7 @@ contains
         call assert_equals(4, k)
         call assert_equals(1, l)
 
-        call calc_all_excits_guga_rdm_doubles(ilut, 4, 1, 1, 4, excits, n_excits)
+        call calc_all_excits_guga_rdm_doubles(ilut, csf_info, 4, 1, 1, 4, excits, n_excits)
 
         call assert_equals(2, n_excits)
 
@@ -1371,9 +1364,8 @@ contains
 
         call EncodeBitDet_guga([1, 4, 5, 8], ilut)
         csf_info = CSF_Info_t(ilut)
-        call fill_csf_info(ilut)
 
-        call calc_all_excits_guga_rdm_doubles(ilut, 1, 4, 4, 1, excits, n_excits)
+        call calc_all_excits_guga_rdm_doubles(ilut, csf_info, 1, 4, 4, 1, excits, n_excits)
 
         call decode_bit_det(nJ, excits(:, 1))
         call assert_equals([1, 4, 5, 8], nJ, 4)
@@ -1409,6 +1401,7 @@ contains
         integer(n_int) :: ilut(0:nifguga)
         integer(n_int), allocatable :: excits(:, :)
         integer, allocatable :: nJ(:)
+        type(CSF_Info_t) :: csf_info
 
         print *, ""
         print *, "testing: calc_explicit_1_rdm_guga"
@@ -1418,7 +1411,7 @@ contains
         call EncodeBitDet_guga([1, 2], ilut)
         csf_info = CSF_Info_t(ilut)
 
-        call calc_explicit_1_rdm_guga(ilut, n_tot, excits)
+        call calc_explicit_1_rdm_guga(ilut, csf_info, n_tot, excits)
         call assert_equals(3, n_tot)
 
         allocate (nJ(2))
@@ -1442,7 +1435,7 @@ contains
         call EncodeBitDet_guga([7, 8], ilut)
         csf_info = CSF_Info_t(ilut)
 
-        call calc_explicit_1_rdm_guga(ilut, n_tot, excits)
+        call calc_explicit_1_rdm_guga(ilut, csf_info, n_tot, excits)
         call assert_equals(3, n_tot)
 
         do iEx = 1, 3
@@ -1476,6 +1469,7 @@ contains
         integer, allocatable :: nJ(:)
         real(dp) :: rdm_mat
         integer(int_rdm) :: rdm_ind
+        type(CSF_Info_t) :: csf_info
 
         print *, ""
         print *, "testing: calc_all_excits_guga_rdm_singles"
@@ -1485,13 +1479,11 @@ contains
         call EncodeBitDet_guga([1, 2], ilut)
         csf_info = CSF_Info_t(ilut)
 
-        call fill_csf_info(ilut)
-
-        call calc_all_excits_guga_rdm_singles(ilut, 1, 2, excits, n_excits)
+        call calc_all_excits_guga_rdm_singles(ilut, csf_info, 1, 2, excits, n_excits)
 
         call assert_equals(0, n_excits)
 
-        call calc_all_excits_guga_rdm_singles(ilut, 2, 1, excits, n_excits)
+        call calc_all_excits_guga_rdm_singles(ilut, csf_info, 2, 1, excits, n_excits)
         call assert_equals(1, n_excits)
 
         allocate (nJ(nel), source=0)
@@ -1511,12 +1503,11 @@ contains
 
         call EncodeBitDet_guga([3, 4], ilut)
         csf_info = CSF_Info_t(ilut)
-        call fill_csf_info(ilut)
 
-        call calc_all_excits_guga_rdm_singles(ilut, 2, 1, excits, n_excits)
+        call calc_all_excits_guga_rdm_singles(ilut, csf_info, 2, 1, excits, n_excits)
         call assert_equals(0, n_excits)
 
-        call calc_all_excits_guga_rdm_singles(ilut, 1, 2, excits, n_excits)
+        call calc_all_excits_guga_rdm_singles(ilut, csf_info, 1, 2, excits, n_excits)
         call assert_equals(1, n_excits)
 
         call decode_bit_det(nJ, excits(:, 1))
@@ -1533,12 +1524,11 @@ contains
         call assert_equals(sqrt(2.0_dp), rdm_mat)
 
         nel = 3
-        deallocate (nJ); 
+        deallocate (nJ);
         call EncodeBitDet_guga([1, 2, 3], ilut)
         csf_info = CSF_Info_t(ilut)
-        call fill_csf_info(ilut)
 
-        call calc_all_excits_guga_rdm_singles(ilut, 3, 1, excits, n_excits)
+        call calc_all_excits_guga_rdm_singles(ilut, csf_info, 3, 1, excits, n_excits)
 
         call assert_equals(2, n_excits)
         allocate (nJ(nel), source=0)
@@ -2230,6 +2220,7 @@ contains
         integer :: det(4)
         integer :: i
         character(*), parameter :: testFun = "bitChecks"
+        type(CSF_Info_t) :: csf_info
 
         nel = 4
         det = [1, 2, 3, 6]
@@ -2323,13 +2314,14 @@ contains
         logical :: valid
         real(dp) :: pos(nSpatOrbs), neg(nSpatOrbs), diff
         HElement_t(dp) :: mat_ele
+        type(CSF_Info_t) :: csf_G
 
         test_det = [1, 2, 3, 4]
 
         call EncodeBitDet(test_det, ilutI)
         call convert_ilut_toGUGA(ilutI, ilutG)
-        call fill_csf_info(ilutG)
-        call actHamiltonian(ilutG, ex, nEx)
+        csf_G = CSF_Info_t(ilutG)
+        call actHamiltonian(ilutG, csf_G, ex, nEx)
 
         print *, ""
         print *, "Testing matrix elements for nEx excitations of: ", nEx
@@ -2346,13 +2338,13 @@ contains
             call assert_true(excitInfo%valid)
 
             if (excitInfo%typ /= excit_type%single) then
-                call checkCompatibility(ilutG, excitInfo, valid, pos, neg)
+                call checkCompatibility(ilutG, csf_G, excitInfo, valid, pos, neg)
 
                 call assert_true(valid)
 
             end if
 
-            call calc_guga_matrix_element(ilutG, ex(:, i), excitInfo, mat_ele, &
+            call calc_guga_matrix_element(ilutG, csf_G, ex(:, i), excitInfo, mat_ele, &
                                           .true., 1)
 
             diff = abs(extract_matrix_element(ex(:, i), 1) - mat_ele)
@@ -2385,7 +2377,7 @@ contains
 
             call write_det_guga(6, ex(:, i), .true.)
 
-            call actHamiltonian(ex(:, i), two_ex, nex_2)
+            call actHamiltonian(ex(:, i), CSF_Info_t(ex(:, i)), two_ex, nex_2)
 
             ! in acthamiltonian the current_stepvector quantity is set
             ! for the ilut input..
@@ -2394,7 +2386,7 @@ contains
 
                 excitInfo = identify_excitation(ilutG, two_ex(:, j))
 
-                call calc_guga_matrix_element(ilutG, two_ex(:, j), excitInfo, &
+                call calc_guga_matrix_element(ilutG, CSF_Info_t(ilutG), two_ex(:, j), excitInfo, &
                                               mat_ele, .true., 2)
 
                 if (abs(mat_ele) > EPS) then
@@ -2461,7 +2453,8 @@ contains
         integer(int_rdm), allocatable :: rdm_ind(:)
         real(dp), allocatable :: rdm_mat(:)
         integer :: i, j, k, l
-!
+        type(CSF_Info_t) :: csf_info
+
         print *, ""
         print *, " =============================================================="
         print *, " ====== testing the coupling coefficient calculation =========="
@@ -2473,7 +2466,7 @@ contains
         csf_info = CSF_Info_t(ilutI)
         call EncodeBitDet_guga([3], ilutJ)
 !
-        call calc_guga_matrix_element(ilutI, ilutJ, excitInfo, mat_ele, &
+        call calc_guga_matrix_element(ilutI, CSF_Info_t(ilutI), ilutJ, excitInfo, mat_ele, &
                                       t_hamil=.false., calc_type=2, rdm_ind=rdm_ind, rdm_mat=rdm_mat)
 !
         ! Single excitations:
@@ -2487,7 +2480,7 @@ contains
         call assert_equals(1, size(rdm_ind))
 !
 
-        call calc_guga_matrix_element(ilutJ, ilutI, excitInfo, mat_ele, &
+        call calc_guga_matrix_element(ilutJ, CSF_Info_t(ilutJ), ilutI, excitInfo, mat_ele, &
                                       t_hamil=.false., calc_type=2, rdm_ind=rdm_ind, rdm_mat=rdm_mat)
 !
         call assert_equals(h_cast(1.0_dp), mat_ele)
@@ -2504,7 +2497,7 @@ contains
         csf_info = CSF_Info_t(ilutI)
         call EncodeBitDet_guga([1, 4], ilutJ)
 !
-        call calc_guga_matrix_element(ilutI, ilutJ, excitInfo, mat_ele, &
+        call calc_guga_matrix_element(ilutI, CSF_Info_t(ilutI), ilutJ, excitInfo, mat_ele, &
                                       t_hamil=.false., calc_type=2, rdm_ind=rdm_ind, rdm_mat=rdm_mat)
         call assert_equals(h_cast(sqrt(2.0_dp)), mat_ele)
         call assert_equals(sqrt(2.0_dp), rdm_mat(1))
@@ -2515,7 +2508,7 @@ contains
         call assert_equals(1, size(rdm_mat))
         call assert_equals(1, size(rdm_ind))
 !
-        call calc_guga_matrix_element(ilutJ, ilutI, excitInfo, mat_ele, &
+        call calc_guga_matrix_element(ilutJ, CSF_Info_t(ilutJ), ilutI, excitInfo, mat_ele, &
                                       t_hamil=.false., calc_type=2, rdm_ind=rdm_ind, rdm_mat=rdm_mat)
         call assert_equals(h_cast(sqrt(2.0_dp)), mat_ele)
         call assert_equals(sqrt(2.0_dp), rdm_mat(1))
@@ -2528,7 +2521,7 @@ contains
 !
         call EncodeBitDet_guga([1, 6], ilutJ)
 !
-        call calc_guga_matrix_element(ilutI, ilutJ, excitInfo, mat_ele, &
+        call calc_guga_matrix_element(ilutI, CSF_Info_t(ilutI), ilutJ, excitInfo, mat_ele, &
                                       t_hamil=.false., calc_type=2, rdm_ind=rdm_ind, rdm_mat=rdm_mat)
         call assert_equals(h_cast(sqrt(2.0_dp)), mat_ele)
         call assert_equals(sqrt(2.0_dp), rdm_mat(1))
@@ -2538,7 +2531,7 @@ contains
         call assert_equals(1, size(rdm_mat))
         call assert_equals(1, size(rdm_ind))
 !
-        call calc_guga_matrix_element(ilutJ, ilutI, excitInfo, mat_ele, &
+        call calc_guga_matrix_element(ilutJ, CSF_Info_t(ilutJ), ilutI, excitInfo, mat_ele, &
                                       t_hamil=.false., calc_type=2, rdm_ind=rdm_ind, rdm_mat=rdm_mat)
         call assert_equals(h_cast(sqrt(2.0_dp)), mat_ele)
         call assert_equals(sqrt(2.0_dp), rdm_mat(1))
@@ -2553,7 +2546,7 @@ contains
         csf_info = CSF_Info_t(ilutI)
         call EncodeBitDet_guga([3, 4, 5], ilutJ)
 !
-        call calc_guga_matrix_element(ilutI, ilutJ, excitInfo, mat_ele, &
+        call calc_guga_matrix_element(ilutI, csf_info, ilutJ, excitInfo, mat_ele, &
                                       t_hamil=.false., calc_type=2, rdm_ind=rdm_ind, rdm_mat=rdm_mat)
         call assert_equals(h_cast(-1.0_dp), mat_ele)
         call assert_equals(-1.0_dp, rdm_mat(1))
@@ -2563,7 +2556,7 @@ contains
         call assert_equals(1, size(rdm_mat))
         call assert_equals(1, size(rdm_ind))
 !
-        call calc_guga_matrix_element(ilutJ, ilutI, excitInfo, mat_ele, &
+        call calc_guga_matrix_element(ilutJ, CSF_Info_t(ilutJ), ilutI, excitInfo, mat_ele, &
                                       t_hamil=.false., calc_type=2, rdm_ind=rdm_ind, rdm_mat=rdm_mat)
         call assert_equals(h_cast(-1.0_dp), mat_ele)
         call assert_equals(-1.0_dp, rdm_mat(1))
@@ -2577,7 +2570,7 @@ contains
         csf_info = CSF_Info_t(ilutI)
         call EncodeBitDet_guga([3, 5, 7], ilutJ)
 !
-        call calc_guga_matrix_element(ilutI, ilutJ, excitInfo, mat_ele, &
+        call calc_guga_matrix_element(ilutI, csf_info, ilutJ, excitInfo, mat_ele, &
                                       t_hamil=.false., calc_type=2, rdm_ind=rdm_ind, rdm_mat=rdm_mat)
         call assert_equals(h_cast(1.0_dp), mat_ele)
         call assert_equals(1.0_dp, rdm_mat(1))
@@ -2587,7 +2580,7 @@ contains
         call assert_equals(1, size(rdm_mat))
         call assert_equals(1, size(rdm_ind))
 !
-        call calc_guga_matrix_element(ilutj, iluti, excitInfo, mat_ele, &
+        call calc_guga_matrix_element(ilutj, CSF_Info_t(ilutJ), iluti, excitInfo, mat_ele, &
                                       t_hamil=.false., calc_type=2, rdm_ind=rdm_ind, rdm_mat=rdm_mat)
         call assert_equals(h_cast(1.0_dp), mat_ele)
         call assert_equals(1.0_dp, rdm_mat(1))
@@ -2602,7 +2595,7 @@ contains
         csf_info = CSF_Info_t(ilutI)
         call EncodeBitDet_guga([3, 4], ilutJ)
 !
-        call calc_guga_matrix_element(iluti, ilutj, excitInfo, mat_ele, &
+        call calc_guga_matrix_element(iluti, CSF_Info_t(ilutI), ilutj, excitInfo, mat_ele, &
                                       t_hamil=.false., calc_type=2, rdm_ind=rdm_ind, rdm_mat=rdm_mat)
         call assert_equals(h_cast(2.0_dp), mat_ele)
         call assert_equals(2.0_dp, rdm_mat(1))
@@ -2614,7 +2607,7 @@ contains
         call assert_equals(1, size(rdm_mat))
         call assert_equals(1, size(rdm_ind))
 !
-        call calc_guga_matrix_element(ilutJ, ilutI, excitInfo, mat_ele, &
+        call calc_guga_matrix_element(ilutJ, CSF_Info_t(ilutJ), ilutI, excitInfo, mat_ele, &
                                       t_hamil=.false., calc_type=2, rdm_ind=rdm_ind, rdm_mat=rdm_mat)
         call assert_equals(h_cast(2.0_dp), mat_ele)
         call assert_equals(2.0_dp, rdm_mat(1))
@@ -2628,7 +2621,7 @@ contains
 !
         call EncodeBitDet_guga([3, 6], ilutJ)
 !
-        call calc_guga_matrix_element(ilutI, ilutJ, excitInfo, mat_ele, &
+        call calc_guga_matrix_element(ilutI, CSF_Info_t(ilutI), ilutJ, excitInfo, mat_ele, &
                                       t_hamil=.false., calc_type=2, rdm_ind=rdm_ind, rdm_mat=rdm_mat)
         call assert_equals(h_cast(sqrt(2.0_dp)), mat_ele)
         call assert_equals(sqrt(2.0_dp), rdm_mat(1))
@@ -2821,6 +2814,7 @@ contains
         integer(n_int), allocatable :: ex(:, :)
         integer :: nEx, i
         integer :: nTest
+        type(CSF_Info_t) :: csf_info
 
         ! use fdet as first determinant and test on all excitations from this..!
         ! maybe a bit too much for bigger system?
@@ -2830,8 +2824,9 @@ contains
 
         ! first act the hamiltonian on the fdet
         call EncodeBitDet(fdet, ilut)
+        csf_info = CSF_Info_t(ilut)
 
-        call actHamiltonian(ilut, ex, nEx)
+        call actHamiltonian(ilut, csf_info, ex, nEx)
 
         if (t_full_guga_tests .or. t_guga_testsuite) then
             ! in this case also check if not too many n_guga_excits are
@@ -2900,7 +2895,7 @@ contains
 
         call EncodeBitDet(test_det, ilut)
 
-        call actHamiltonian(ilut, ex, nEx)
+        call actHamiltonian(ilut, CSF_Info_t(ilut), ex, nEx)
 
 !         nTest = min(nEx, 20)
         nTest = nEx
@@ -2919,6 +2914,7 @@ contains
 
     subroutine test_findSwitches
         integer(n_int) :: ilutI(0:nifguga), ilutJ(0:nifguga)
+        type(CSF_Info_t) :: csf_info
 
         print *, ""
         print *, "testing findSwitches routines:"
@@ -3005,32 +3001,30 @@ contains
 
     subroutine test_count_beta_orbs_ij
         integer(n_int) :: ilut(0:nifguga)
+        type(CSF_Info_t) :: csf_info
 
         ! these routine now need the current_stepvector quantitiy!
 
         call EncodeBitDet_guga([1, 2, 3, 4], ilut)
         csf_info = CSF_Info_t(ilut)
-
-        current_stepvector = calcStepVector(ilut)
-
         print *, ""
         print *, "testing count_beta_orbs_ij:"
         print *, ""
 
-        call assert_true(count_beta_orbs_ij(ilut, 1, 4) == 0)
-        call assert_true(count_beta_orbs_ij(ilut, 1, 3) == 0)
-        call assert_true(count_beta_orbs_ij(ilut, 2, 4) == 0)
+        call assert_true(count_beta_orbs_ij(csf_info, 1, 4) == 0)
+        call assert_true(count_beta_orbs_ij(csf_info, 1, 3) == 0)
+        call assert_true(count_beta_orbs_ij(csf_info, 2, 4) == 0)
 
         call EncodeBitDet_guga([1, 3, 6, 8], ilut)
         csf_info = CSF_Info_t(ilut)
 
-        call assert_true(count_beta_orbs_ij(ilut, 1, 4) == 2)
-        call assert_true(count_beta_orbs_ij(ilut, 2, 4) == 1)
+        call assert_true(count_beta_orbs_ij(csf_info, 1, 4) == 2)
+        call assert_true(count_beta_orbs_ij(csf_info, 2, 4) == 1)
 
         call EncodeBitDet_guga([3, 5, 6, 8], ilut)
         csf_info = CSF_Info_t(ilut)
 
-        call assert_true(count_beta_orbs_ij(ilut, 1, 4) == 1)
+        call assert_true(count_beta_orbs_ij(csf_info, 1, 4) == 1)
 
         print *, ""
         print *, "count_beta_orbs_ij tests passed!"
@@ -3040,6 +3034,7 @@ contains
 
     subroutine test_count_alpha_orbs_ij
         integer(n_int) :: ilut(0:nifguga)
+        type(CSF_Info_t) :: csf_info
 
         ! this routines now need the current_stepvector quantity!
         call EncodeBitDet_guga([1, 2, 3, 4], ilut)
@@ -3162,7 +3157,7 @@ contains
         print *, "testing calcFullStartFullStopMixed(ilut, exInfo, ex, num, posSwitch, negSwitch):"
         print *, ""
 
-        call calcFullStartFullStopMixed(ilut, excitInfo, ex, num, posSwitch, negSwitch)
+        call calcFullStartFullStopMixed(ilut, CSF_Info_t(ilut), excitInfo, ex, num, posSwitch, negSwitch)
 
         ! 1212
         ! 1212
@@ -3175,8 +3170,8 @@ contains
         call assert_true(abs(extract_matrix_element(ex(:, 2), 1) - sqrt(3.0_dp) / 2.0_dp) < 1.0e-10_dp)
 
         excitInfo = excitationIdentifier(3, 2, 2, 3)
-        call calcRemainingSwitches_excitInfo_double(excitInfo, posSwitch, negSwitch)
-        call calcFullStartFullStopMixed(ilut, excitInfo, ex, num, posSwitch, negSwitch)
+        call calcRemainingSwitches_excitInfo_double(csf_info, excitInfo, posSwitch, negSwitch)
+        call calcFullStartFullStopMixed(ilut, csf_info, excitInfo, ex, num, posSwitch, negSwitch)
 
         call assert_true(num == 2)
         call assert_true(all(calcStepVector(ex(:, 1)) == [1, 2, 1, 2]))
@@ -3185,8 +3180,8 @@ contains
         call assert_true(abs(extract_matrix_element(ex(:, 2), 1) - sqrt(3.0_dp) / 2.0_dp) < 1.0e-10_dp)
 
         excitInfo = excitationIdentifier(3, 1, 1, 3)
-        call calcRemainingSwitches_excitInfo_double(excitInfo, posSwitch, negSwitch)
-        call calcFullStartFullStopMixed(ilut, excitInfo, ex, num, posSwitch, negSwitch)
+        call calcRemainingSwitches_excitInfo_double(csf_info, excitInfo, posSwitch, negSwitch)
+        call calcFullStartFullStopMixed(ilut, csf_info, excitInfo, ex, num, posSwitch, negSwitch)
 
         call assert_true(num == 2)
         call assert_true(all(calcStepVector(ex(:, 1)) == [1, 2, 1, 2]))
@@ -3195,8 +3190,8 @@ contains
         call assert_true(abs(extract_matrix_element(ex(:, 2), 1) + sqrt(3.0_dp) / 2.0_dp) < 1.0e-10_dp)
 
         excitInfo = excitationIdentifier(4, 2, 2, 4)
-        call calcRemainingSwitches_excitInfo_double(excitInfo, posSwitch, negSwitch)
-        call calcFullStartFullStopMixed(ilut, excitInfo, ex, num, posSwitch, negSwitch)
+        call calcRemainingSwitches_excitInfo_double(csf_info, excitInfo, posSwitch, negSwitch)
+        call calcFullStartFullStopMixed(ilut, csf_info, excitInfo, ex, num, posSwitch, negSwitch)
 
         call assert_true(num == 2)
         call assert_true(all(calcStepVector(ex(:, 1)) == [1, 2, 1, 2]))
@@ -3227,9 +3222,9 @@ contains
 
         excitInfo = excitationIdentifier(3, 2, 2, 3)
 
-        call calcRemainingSwitches_excitInfo_double(excitInfo, posSwitch, negSwitch)
+        call calcRemainingSwitches_excitInfo_double(csf_info, excitInfo, posSwitch, negSwitch)
 
-        call calcFullStartFullStopMixed(ilut, excitInfo, ex, num, posSwitch, negSwitch)
+        call calcFullStartFullStopMixed(ilut, csf_info, excitInfo, ex, num, posSwitch, negSwitch)
 
         call assert_true(num == 2)
         call assert_true(all(calcStepVector(ex(:, 1)) == [1, 1, 2, 2]))
@@ -3239,9 +3234,8 @@ contains
 
         excitInfo = excitationIdentifier(3, 1, 1, 3)
 
-        call calcRemainingSwitches_excitInfo_double(excitInfo, posSwitch, negSwitch)
-
-        call calcFullStartFullStopMixed(ilut, excitInfo, ex, num, posSwitch, negSwitch)
+        call calcRemainingSwitches_excitInfo_double(csf_info, excitInfo, posSwitch, negSwitch)
+        call calcFullStartFullStopMixed(ilut, csf_info, excitInfo, ex, num, posSwitch, negSwitch)
 
         call assert_true(num == 2)
         call assert_true(all(calcStepVector(ex(:, 1)) == [1, 1, 2, 2]))
@@ -3251,9 +3245,8 @@ contains
 
         excitInfo = excitationIdentifier(4, 2, 2, 4)
 
-        call calcRemainingSwitches_excitInfo_double(excitInfo, posSwitch, negSwitch)
-
-        call calcFullStartFullStopMixed(ilut, excitInfo, ex, num, posSwitch, negSwitch)
+        call calcRemainingSwitches_excitInfo_double(csf_info, excitInfo, posSwitch, negSwitch)
+        call calcFullStartFullStopMixed(ilut, csf_info, excitInfo, ex, num, posSwitch, negSwitch)
 
         call assert_true(num == 2)
         call assert_true(all(calcStepVector(ex(:, 1)) == [1, 1, 2, 2]))
@@ -4988,12 +4981,6 @@ contains
 
         call EncodeBitDet_guga([1, 4, 5, 8], ilut)
 
-        currentB_ilut = calcB_vector_ilut(ilut)
-        currentOcc_ilut = calcOcc_vector_ilut(ilut)
-        currentOcc_int = calcOcc_vector_int(ilut)
-        current_stepvector = calcStepVector(ilut)
-        currentB_int = calcB_vector_int(ilut)
-
         call EncodeBitDet_guga([1, 3, 6, 8], t)
 
         print *, ""
@@ -5001,15 +4988,10 @@ contains
         print *, ""
         ! 1212
         ! 1122
-        call assert_true(calcMixedContribution(ilut, t, 1, 4) .isclose.h_cast(0.0_dp))
+        call assert_true(calcMixedContribution(ilut, CSF_Info_t(ilut), t, 1, 4) .isclose.h_cast(0.0_dp))
 
-        currentB_ilut = calcB_vector_ilut(t)
-        currentOcc_ilut = calcOcc_vector_ilut(t)
-        currentOcc_int = calcOcc_vector_int(t)
-        current_stepvector = calcStepVector(t)
-        currentB_int = calcB_vector_int(t)
 
-        call assert_true(calcMixedContribution(t, ilut, 1, 4) .isclose.h_cast(0.0_dp))
+        call assert_true(calcMixedContribution(t, CSF_Info_t(t), ilut, 1, 4) .isclose.h_cast(0.0_dp))
 
         print *, ""
         print *, "calcMixedContribution tests passed!"
@@ -5032,6 +5014,7 @@ contains
         real(dp), allocatable :: rdm_mat(:)
         type(ExcitationInformation_t) :: excitInfo
         integer :: i
+        type(CSF_Info_t) :: csf_info
 
         exFlag = 1
         ! make only double excitations:
@@ -5044,18 +5027,14 @@ contains
         ! 3300:
         nI = [1, 2, 3, 4]; ilutI = 0_n_int
         call EncodeBitDet(nI, ilutI)
-
-        call fill_csf_info(ilutI)
-
         call convert_ilut_toGUGA(ilutI, ilutGi)
-
+        global_csf_info = CSF_Info_t(ilutGi)
         call generate_excitation_guga(nI, ilutI, nJ, ilutJ, exFlag, IC, excitMat, &
                                       tParity, pgen, HElGen, store)
-
         call convert_ilut_toGUGA(ilutJ, ilutGj)
 
         if (pgen > 0.0_dp) then
-            call actHamiltonian(ilutI, ex, nEx)
+            call actHamiltonian(ilutI, global_csf_info, ex, nEx)
 
             pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             call assert_true(pos > 0)
@@ -5064,7 +5043,7 @@ contains
             call extract_stochastic_rdm_info(IlutBits, ilutJ, rdm_ind, x0, x1)
             rdm_ind_ = pure_rdm_ind(rdm_ind)
 
-            call calc_explicit_2_rdm_guga(ilutGi, nex, ex)
+            call calc_explicit_2_rdm_guga(ilutGi, global_csf_info, nex, ex)
 
             do i = 1, nex
                 if (DetBitEQ(ex(0:nifd, i), ilutJ(0:nifd))) then
@@ -5085,7 +5064,7 @@ contains
             rdm_comb = combine_x0_x1(rdm_ind, x0, x1)
             call assert_equals(rdm_mat_ex, rdm_comb)
 
-            call calc_guga_matrix_element(ilutGi, ilutGj, excitInfo, mat_ele, &
+            call calc_guga_matrix_element(ilutGi, global_csf_info, ilutGj, excitInfo, mat_ele, &
                                           t_hamil=.true., calc_type=2, rdm_ind=rdm_ind_v, &
                                           rdm_mat=rdm_mat)
 
@@ -5104,16 +5083,16 @@ contains
         nI = [1, 2, 5, 6]
         call EncodeBitDet(nI, ilutI)
 
-        call fill_csf_info(ilutI)
+        call convert_ilut_toGUGA(ilutI, ilutGi)
+        global_csf_info = CSF_Info_t(ilutGi)
 
         call generate_excitation_guga(nI, ilutI, nJ, ilutJ, exFlag, IC, excitMat, &
                                       tParity, pgen, HElGen, store)
-        call convert_ilut_toGUGA(ilutI, ilutGi)
-
         call convert_ilut_toGUGA(ilutJ, ilutGj)
 
+
         if (pgen > 0.0_dp) then
-            call actHamiltonian(ilutI, ex, nEx)
+            call actHamiltonian(ilutI, global_csf_info, ex, nEx)
             pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:, pos), 1)) < 1.0e-10_dp)
@@ -5121,7 +5100,7 @@ contains
             call extract_stochastic_rdm_info(IlutBits, ilutJ, rdm_ind, x0, x1)
             rdm_ind_ = pure_rdm_ind(rdm_ind)
 
-            call calc_explicit_2_rdm_guga(ilutGi, nex, ex)
+            call calc_explicit_2_rdm_guga(ilutGi, global_csf_info, nex, ex)
 
             do i = 1, nex
                 if (DetBitEQ(ex(0:nifd, i), ilutJ(0:nifd))) then
@@ -5142,7 +5121,7 @@ contains
             rdm_comb = combine_x0_x1(rdm_ind, x0, x1)
             call assert_equals(rdm_mat_ex, rdm_comb)
 
-            call calc_guga_matrix_element(ilutGi, ilutGj, excitInfo, mat_ele, &
+            call calc_guga_matrix_element(ilutGi, global_csf_info, ilutGj, excitInfo, mat_ele, &
                                           t_hamil=.true., calc_type=2, rdm_ind=rdm_ind_v, &
                                           rdm_mat=rdm_mat)
 
@@ -5161,17 +5140,15 @@ contains
         ! 3003
         nI = [1, 2, 7, 8]
         call EncodeBitDet(nI, ilutI)
-
-        call fill_csf_info(ilutI)
-
+        call convert_ilut_toGUGA(ilutI, ilutGi)
+        global_csf_info = CSF_Info_t(ilutGi)
         call generate_excitation_guga(nI, ilutI, nJ, ilutJ, exFlag, IC, excitMat, &
                                       tParity, pgen, HElGen, store)
-        call convert_ilut_toGUGA(ilutI, ilutGi)
-
         call convert_ilut_toGUGA(ilutJ, ilutGj)
 
+
         if (pgen > EPS) then
-            call actHamiltonian(ilutI, ex, nEx)
+            call actHamiltonian(ilutI, global_csf_info, ex, nEx)
             pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:, pos), 1)) < 1.0e-10_dp)
@@ -5179,7 +5156,7 @@ contains
             call extract_stochastic_rdm_info(IlutBits, ilutJ, rdm_ind, x0, x1)
             rdm_ind_ = pure_rdm_ind(rdm_ind)
 
-            call calc_explicit_2_rdm_guga(ilutGi, nex, ex)
+            call calc_explicit_2_rdm_guga(ilutGi, global_csf_info, nex, ex)
 
             do i = 1, nex
                 if (DetBitEQ(ex(0:nifd, i), ilutJ(0:nifd))) then
@@ -5200,7 +5177,7 @@ contains
             rdm_comb = combine_x0_x1(rdm_ind, x0, x1)
             call assert_equals(rdm_mat_ex, rdm_comb)
 
-            call calc_guga_matrix_element(ilutGi, ilutGj, excitInfo, mat_ele, &
+            call calc_guga_matrix_element(ilutGi, global_csf_info, ilutGj, excitInfo, mat_ele, &
                                           t_hamil=.true., calc_type=2, rdm_ind=rdm_ind_v, &
                                           rdm_mat=rdm_mat)
 
@@ -5218,17 +5195,15 @@ contains
         ! 0330
         nI = [3, 4, 5, 6]
         call EncodeBitDet(nI, ilutI)
-
-        call fill_csf_info(ilutI)
-
+        call convert_ilut_toGUGA(ilutI, ilutGi)
+        global_csf_info = CSF_Info_t(ilutGi)
         call generate_excitation_guga(nI, ilutI, nJ, ilutJ, exFlag, IC, excitMat, &
                                       tParity, pgen, HElGen, store)
-        call convert_ilut_toGUGA(ilutI, ilutGi)
-
         call convert_ilut_toGUGA(ilutJ, ilutGj)
 
+
         if (pgen > EPS) then
-            call actHamiltonian(ilutI, ex, nEx)
+            call actHamiltonian(ilutI, global_csf_info, ex, nEx)
             pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:, pos), 1)) < 1.0e-10_dp)
@@ -5236,7 +5211,7 @@ contains
             call extract_stochastic_rdm_info(IlutBits, ilutJ, rdm_ind, x0, x1)
             rdm_ind_ = pure_rdm_ind(rdm_ind)
 
-            call calc_explicit_2_rdm_guga(ilutGi, nex, ex)
+            call calc_explicit_2_rdm_guga(ilutGi, global_csf_info, nex, ex)
 
             do i = 1, nex
                 if (DetBitEQ(ex(0:nifd, i), ilutJ(0:nifd))) then
@@ -5257,7 +5232,7 @@ contains
             rdm_comb = combine_x0_x1(rdm_ind, x0, x1)
             call assert_equals(rdm_mat_ex, rdm_comb)
 
-            call calc_guga_matrix_element(ilutGi, ilutGj, excitInfo, mat_ele, &
+            call calc_guga_matrix_element(ilutGi, global_csf_info, ilutGj, excitInfo, mat_ele, &
                                           t_hamil=.true., calc_type=2, rdm_ind=rdm_ind_v, &
                                           rdm_mat=rdm_mat)
 
@@ -5275,17 +5250,15 @@ contains
         ! 0303
         nI = [3, 4, 7, 8]
         call EncodeBitDet(nI, ilutI)
-
-        call fill_csf_info(ilutI)
-
+        call convert_ilut_toGUGA(ilutI, ilutGi)
+        global_csf_info = CSF_Info_t(ilutGi)
         call generate_excitation_guga(nI, ilutI, nJ, ilutJ, exFlag, IC, excitMat, &
                                       tParity, pgen, HElGen, store)
-        call convert_ilut_toGUGA(ilutI, ilutGi)
-
         call convert_ilut_toGUGA(ilutJ, ilutGj)
 
+
         if (pgen > EPS) then
-            call actHamiltonian(ilutI, ex, nEx)
+            call actHamiltonian(ilutI, global_csf_info, ex, nEx)
             pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:, pos), 1)) < 1.0e-10_dp)
@@ -5293,7 +5266,7 @@ contains
             call extract_stochastic_rdm_info(IlutBits, ilutJ, rdm_ind, x0, x1)
             rdm_ind_ = pure_rdm_ind(rdm_ind)
 
-            call calc_explicit_2_rdm_guga(ilutGi, nex, ex)
+            call calc_explicit_2_rdm_guga(ilutGi, global_csf_info, nex, ex)
 
             do i = 1, nex
                 if (DetBitEQ(ex(0:nifd, i), ilutJ(0:nifd))) then
@@ -5314,7 +5287,7 @@ contains
             rdm_comb = combine_x0_x1(rdm_ind, x0, x1)
             call assert_equals(rdm_mat_ex, rdm_comb)
 
-            call calc_guga_matrix_element(ilutGi, ilutGj, excitInfo, mat_ele, &
+            call calc_guga_matrix_element(ilutGi, global_csf_info, ilutGj, excitInfo, mat_ele, &
                                           t_hamil=.true., calc_type=2, rdm_ind=rdm_ind_v, &
                                           rdm_mat=rdm_mat)
 
@@ -5332,17 +5305,14 @@ contains
         ! 0033
         nI = [5, 6, 7, 8]
         call EncodeBitDet(nI, ilutI)
-
-        call fill_csf_info(ilutI)
-
+        call convert_ilut_toGUGA(ilutI, ilutGi)
+        global_csf_info = CSF_Info_t(ilutGi)
         call generate_excitation_guga(nI, ilutI, nJ, ilutJ, exFlag, IC, excitMat, &
                                       tParity, pgen, HElGen, store)
-        call convert_ilut_toGUGA(ilutI, ilutGi)
-
         call convert_ilut_toGUGA(ilutJ, ilutGj)
 
         if (pgen > EPS) then
-            call actHamiltonian(ilutI, ex, nEx)
+            call actHamiltonian(ilutI, global_csf_info, ex, nEx)
             pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:, pos), 1)) < 1.0e-10_dp)
@@ -5350,7 +5320,7 @@ contains
             call extract_stochastic_rdm_info(IlutBits, ilutJ, rdm_ind, x0, x1)
             rdm_ind_ = pure_rdm_ind(rdm_ind)
 
-            call calc_explicit_2_rdm_guga(ilutGi, nex, ex)
+            call calc_explicit_2_rdm_guga(ilutGi, global_csf_info, nex, ex)
 
             do i = 1, nex
                 if (DetBitEQ(ex(0:nifd, i), ilutJ(0:nifd))) then
@@ -5371,7 +5341,7 @@ contains
             rdm_comb = combine_x0_x1(rdm_ind, x0, x1)
             call assert_equals(rdm_mat_ex, rdm_comb)
 
-            call calc_guga_matrix_element(ilutGi, ilutGj, excitInfo, mat_ele, &
+            call calc_guga_matrix_element(ilutGi, global_csf_info, ilutGj, excitInfo, mat_ele, &
                                           t_hamil=.true., calc_type=2, rdm_ind=rdm_ind_v, &
                                           rdm_mat=rdm_mat)
 
@@ -5389,18 +5359,15 @@ contains
         ! 1023
         nI = [1, 6, 7, 8]
         call EncodeBitDet(nI, ilutI)
-
-        call fill_csf_info(ilutI)
-
         call convert_ilut_toGUGA(ilutI, ilutGi)
-
+        global_csf_info = CSF_Info_t(ilutGi)
         call generate_excitation_guga(nI, ilutI, nJ, ilutJ, exFlag, IC, excitMat, &
                                       tParity, pgen, HElGen, store)
-
         call convert_ilut_toGUGA(ilutJ, ilutGj)
 
+
         if (pgen > 0.0_dp) then
-            call actHamiltonian(ilutI, ex, nEx)
+            call actHamiltonian(ilutI, global_csf_info, ex, nEx)
             pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:, pos), 1)) < 1.0e-10_dp)
@@ -5408,7 +5375,7 @@ contains
             call extract_stochastic_rdm_info(IlutBits, ilutJ, rdm_ind, x0, x1)
             rdm_ind_ = pure_rdm_ind(rdm_ind)
 
-            call calc_explicit_2_rdm_guga(ilutGi, nex, ex)
+            call calc_explicit_2_rdm_guga(ilutGi, global_csf_info, nex, ex)
 
             do i = 1, nex
                 if (DetBitEQ(ex(0:nifd, i), ilutJ(0:nifd))) then
@@ -5429,7 +5396,7 @@ contains
             rdm_comb = combine_x0_x1(rdm_ind, x0, x1)
             call assert_equals(rdm_mat_ex, rdm_comb)
 
-            call calc_guga_matrix_element(ilutGi, ilutGj, excitInfo, mat_ele, &
+            call calc_guga_matrix_element(ilutGi, global_csf_info, ilutGj, excitInfo, mat_ele, &
                                           t_hamil=.true., calc_type=2, rdm_ind=rdm_ind_v, &
                                           rdm_mat=rdm_mat)
 
@@ -5447,17 +5414,14 @@ contains
         ! 3102
         nI = [1, 2, 3, 8]
         call EncodeBitDet(nI, ilutI)
-
-        call fill_csf_info(ilutI)
-
+        call convert_ilut_toGUGA(ilutI, ilutGi)
+        global_csf_info = CSF_Info_t(ilutGi)
         call generate_excitation_guga(nI, ilutI, nJ, ilutJ, exFlag, IC, excitMat, &
                                       tParity, pgen, HElGen, store)
-        call convert_ilut_toGUGA(ilutI, ilutGi)
-
         call convert_ilut_toGUGA(ilutJ, ilutGj)
 
         if (pgen > 0.0_dp) then
-            call actHamiltonian(ilutI, ex, nEx)
+            call actHamiltonian(ilutI, global_csf_info, ex, nEx)
             pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:, pos), 1)) < 1.0e-10_dp)
@@ -5465,7 +5429,7 @@ contains
             call extract_stochastic_rdm_info(IlutBits, ilutJ, rdm_ind, x0, x1)
             rdm_ind_ = pure_rdm_ind(rdm_ind)
 
-            call calc_explicit_2_rdm_guga(ilutGi, nex, ex)
+            call calc_explicit_2_rdm_guga(ilutGi, global_csf_info, nex, ex)
 
             do i = 1, nex
                 if (DetBitEQ(ex(0:nifd, i), ilutJ(0:nifd))) then
@@ -5486,7 +5450,7 @@ contains
             rdm_comb = combine_x0_x1(rdm_ind, x0, x1)
             call assert_equals(rdm_mat_ex, rdm_comb)
 
-            call calc_guga_matrix_element(ilutGi, ilutGj, excitInfo, mat_ele, &
+            call calc_guga_matrix_element(ilutGi, global_csf_info, ilutGj, excitInfo, mat_ele, &
                                           t_hamil=.true., calc_type=2, rdm_ind=rdm_ind_v, &
                                           rdm_mat=rdm_mat)
 
@@ -5504,17 +5468,14 @@ contains
         ! 3120
         nI = [1, 2, 3, 6]
         call EncodeBitDet(nI, ilutI)
-
-        call fill_csf_info(ilutI)
-
+        call convert_ilut_toGUGA(ilutI, ilutGi)
+        global_csf_info = CSF_Info_t(ilutGi)
         call generate_excitation_guga(nI, ilutI, nJ, ilutJ, exFlag, IC, excitMat, &
                                       tParity, pgen, HElGen, store)
-        call convert_ilut_toGUGA(ilutI, ilutGi)
-
         call convert_ilut_toGUGA(ilutJ, ilutGj)
 
         if (pgen > 0.0_dp) then
-            call actHamiltonian(ilutI, ex, nEx)
+            call actHamiltonian(ilutI, global_csf_info, ex, nEx)
             pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:, pos), 1)) < 1.0e-10_dp)
@@ -5522,7 +5483,7 @@ contains
             call extract_stochastic_rdm_info(IlutBits, ilutJ, rdm_ind, x0, x1)
             rdm_ind_ = pure_rdm_ind(rdm_ind)
 
-            call calc_explicit_2_rdm_guga(ilutGi, nex, ex)
+            call calc_explicit_2_rdm_guga(ilutGi, global_csf_info, nex, ex)
 
             do i = 1, nex
                 if (DetBitEQ(ex(0:nifd, i), ilutJ(0:nifd))) then
@@ -5543,7 +5504,7 @@ contains
             rdm_comb = combine_x0_x1(rdm_ind, x0, x1)
             call assert_equals(rdm_mat_ex, rdm_comb)
 
-            call calc_guga_matrix_element(ilutGi, ilutGj, excitInfo, mat_ele, &
+            call calc_guga_matrix_element(ilutGi, global_csf_info, ilutGj, excitInfo, mat_ele, &
                                           t_hamil=.true., calc_type=2, rdm_ind=rdm_ind_v, &
                                           rdm_mat=rdm_mat)
 
@@ -5561,17 +5522,14 @@ contains
         ! 3012
         nI = [1, 2, 5, 8]
         call EncodeBitDet(nI, ilutI)
-
-        call fill_csf_info(ilutI)
-
         call convert_ilut_toGUGA(ilutI, ilutGi)
-
+        global_csf_info = CSF_Info_t(ilutGi)
         call generate_excitation_guga(nI, ilutI, nJ, ilutJ, exFlag, IC, excitMat, &
                                       tParity, pgen, HElGen, store)
         call convert_ilut_toGUGA(ilutJ, ilutGj)
 
         if (pgen > 0.0_dp) then
-            call actHamiltonian(ilutI, ex, nEx)
+            call actHamiltonian(ilutI, global_csf_info, ex, nEx)
             pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:, pos), 1)) < 1.0e-10_dp)
@@ -5579,7 +5537,7 @@ contains
             call extract_stochastic_rdm_info(IlutBits, ilutJ, rdm_ind, x0, x1)
             rdm_ind_ = pure_rdm_ind(rdm_ind)
 
-            call calc_explicit_2_rdm_guga(ilutGi, nex, ex)
+            call calc_explicit_2_rdm_guga(ilutGi, global_csf_info, nex, ex)
 
             do i = 1, nex
                 if (DetBitEQ(ex(0:nifd, i), ilutJ(0:nifd))) then
@@ -5600,7 +5558,7 @@ contains
             rdm_comb = combine_x0_x1(rdm_ind, x0, x1)
             call assert_equals(rdm_mat_ex, rdm_comb)
 
-            call calc_guga_matrix_element(ilutGi, ilutGj, excitInfo, mat_ele, &
+            call calc_guga_matrix_element(ilutGi, global_csf_info, ilutGj, excitInfo, mat_ele, &
                                           t_hamil=.true., calc_type=2, rdm_ind=rdm_ind_v, &
                                           rdm_mat=rdm_mat)
 
@@ -5620,17 +5578,14 @@ contains
         ! 0312
         nI = [3, 4, 5, 8]
         call EncodeBitDet(nI, ilutI)
-
-        call fill_csf_info(ilutI)
-
+        call convert_ilut_toGUGA(ilutI, ilutGi)
+        global_csf_info = CSF_Info_t(ilutGi)
         call generate_excitation_guga(nI, ilutI, nJ, ilutJ, exFlag, IC, excitMat, &
                                       tParity, pgen, HElGen, store)
-        call convert_ilut_toGUGA(ilutI, ilutGi)
-
         call convert_ilut_toGUGA(ilutJ, ilutGj)
 
         if (pgen > 0.0_dp) then
-            call actHamiltonian(ilutI, ex, nEx)
+            call actHamiltonian(ilutI, global_csf_info, ex, nEx)
             pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:, pos), 1)) < 1.0e-10_dp)
@@ -5638,7 +5593,7 @@ contains
             call extract_stochastic_rdm_info(IlutBits, ilutJ, rdm_ind, x0, x1)
             rdm_ind_ = pure_rdm_ind(rdm_ind)
 
-            call calc_explicit_2_rdm_guga(ilutGi, nex, ex)
+            call calc_explicit_2_rdm_guga(ilutGi, global_csf_info, nex, ex)
 
             do i = 1, nex
                 if (DetBitEQ(ex(0:nifd, i), ilutJ(0:nifd))) then
@@ -5659,7 +5614,7 @@ contains
             rdm_comb = combine_x0_x1(rdm_ind, x0, x1)
             call assert_equals(rdm_mat_ex, rdm_comb)
 
-            call calc_guga_matrix_element(ilutGi, ilutGj, excitInfo, mat_ele, &
+            call calc_guga_matrix_element(ilutGi, global_csf_info, ilutGj, excitInfo, mat_ele, &
                                           t_hamil=.true., calc_type=2, rdm_ind=rdm_ind_v, &
                                           rdm_mat=rdm_mat)
 
@@ -5677,17 +5632,14 @@ contains
         ! 1230
         nI = [1, 4, 5, 6]
         call EncodeBitDet(nI, ilutI)
-
-        call fill_csf_info(ilutI)
-
+        call convert_ilut_toGUGA(ilutI, ilutGi)
+        global_csf_info = CSF_Info_t(ilutGi)
         call generate_excitation_guga(nI, ilutI, nJ, ilutJ, exFlag, IC, excitMat, &
                                       tParity, pgen, HElGen, store)
-        call convert_ilut_toGUGA(ilutI, ilutGi)
-
         call convert_ilut_toGUGA(ilutJ, ilutGj)
 
         if (pgen > 0.0_dp) then
-            call actHamiltonian(ilutI, ex, nEx)
+            call actHamiltonian(ilutI, global_csf_info, ex, nEx)
             pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:, pos), 1)) < 1.0e-10_dp)
@@ -5695,7 +5647,7 @@ contains
             call extract_stochastic_rdm_info(IlutBits, ilutJ, rdm_ind, x0, x1)
             rdm_ind_ = pure_rdm_ind(rdm_ind)
 
-            call calc_explicit_2_rdm_guga(ilutGi, nex, ex)
+            call calc_explicit_2_rdm_guga(ilutGi, global_csf_info, nex, ex)
 
             do i = 1, nex
                 if (DetBitEQ(ex(0:nifd, i), ilutJ(0:nifd))) then
@@ -5716,7 +5668,7 @@ contains
             rdm_comb = combine_x0_x1(rdm_ind, x0, x1)
             call assert_equals(rdm_mat_ex, rdm_comb)
 
-            call calc_guga_matrix_element(ilutGi, ilutGj, excitInfo, mat_ele, &
+            call calc_guga_matrix_element(ilutGi, global_csf_info, ilutGj, excitInfo, mat_ele, &
                                           t_hamil=.true., calc_type=2, rdm_ind=rdm_ind_v, &
                                           rdm_mat=rdm_mat)
 
@@ -5734,17 +5686,14 @@ contains
         ! 1203
         nI = [1, 4, 7, 8]
         call EncodeBitDet(nI, ilutI)
-
-        call fill_csf_info(ilutI)
-
+        call convert_ilut_toGUGA(ilutI, ilutGi)
+        global_csf_info = CSF_Info_t(ilutGi)
         call generate_excitation_guga(nI, ilutI, nJ, ilutJ, exFlag, IC, excitMat, &
                                       tParity, pgen, HElGen, store)
-        call convert_ilut_toGUGA(ilutI, ilutGi)
-
         call convert_ilut_toGUGA(ilutJ, ilutGj)
 
         if (pgen > 0.0_dp) then
-            call actHamiltonian(ilutI, ex, nEx)
+            call actHamiltonian(ilutI, global_csf_info, ex, nEx)
             pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:, pos), 1)) < 1.0e-10_dp)
@@ -5752,7 +5701,7 @@ contains
             call extract_stochastic_rdm_info(IlutBits, ilutJ, rdm_ind, x0, x1)
             rdm_ind_ = pure_rdm_ind(rdm_ind)
 
-            call calc_explicit_2_rdm_guga(ilutGi, nex, ex)
+            call calc_explicit_2_rdm_guga(ilutGi, global_csf_info, nex, ex)
 
             do i = 1, nex
                 if (DetBitEQ(ex(0:nifd, i), ilutJ(0:nifd))) then
@@ -5773,7 +5722,7 @@ contains
             rdm_comb = combine_x0_x1(rdm_ind, x0, x1)
             call assert_equals(rdm_mat_ex, rdm_comb)
 
-            call calc_guga_matrix_element(ilutGi, ilutGj, excitInfo, mat_ele, &
+            call calc_guga_matrix_element(ilutGi, global_csf_info, ilutGj, excitInfo, mat_ele, &
                                           t_hamil=.true., calc_type=2, rdm_ind=rdm_ind_v, &
                                           rdm_mat=rdm_mat)
 
@@ -5791,17 +5740,14 @@ contains
         ! 1320
         nI = [1, 3, 4, 6]
         call EncodeBitDet(nI, ilutI)
-
-        call fill_csf_info(ilutI)
-
+        call convert_ilut_toGUGA(ilutI, ilutGi)
+        global_csf_info = CSF_Info_t(ilutGi)
         call generate_excitation_guga(nI, ilutI, nJ, ilutJ, exFlag, IC, excitMat, &
                                       tParity, pgen, HElGen, store)
-        call convert_ilut_toGUGA(ilutI, ilutGi)
-
         call convert_ilut_toGUGA(ilutJ, ilutGj)
 
         if (pgen > 0.0_dp) then
-            call actHamiltonian(ilutI, ex, nEx)
+            call actHamiltonian(ilutI, global_csf_info, ex, nEx)
             pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:, pos), 1)) < 1.0e-10_dp)
@@ -5809,7 +5755,7 @@ contains
             call extract_stochastic_rdm_info(IlutBits, ilutJ, rdm_ind, x0, x1)
             rdm_ind_ = pure_rdm_ind(rdm_ind)
 
-            call calc_explicit_2_rdm_guga(ilutGi, nex, ex)
+            call calc_explicit_2_rdm_guga(ilutGi, global_csf_info, nex, ex)
 
             do i = 1, nex
                 if (DetBitEQ(ex(0:nifd, i), ilutJ(0:nifd))) then
@@ -5830,7 +5776,7 @@ contains
             rdm_comb = combine_x0_x1(rdm_ind, x0, x1)
             call assert_equals(rdm_mat_ex, rdm_comb)
 
-            call calc_guga_matrix_element(ilutGi, ilutGj, excitInfo, mat_ele, &
+            call calc_guga_matrix_element(ilutGi, global_csf_info, ilutGj, excitInfo, mat_ele, &
                                           t_hamil=.true., calc_type=2, rdm_ind=rdm_ind_v, &
                                           rdm_mat=rdm_mat)
 
@@ -5848,17 +5794,14 @@ contains
         ! 1302
         nI = [1, 3, 4, 8]
         call EncodeBitDet(nI, ilutI)
-
-        call fill_csf_info(ilutI)
-
+        call convert_ilut_toGUGA(ilutI, ilutGi)
+        global_csf_info = CSF_Info_t(ilutGi)
         call generate_excitation_guga(nI, ilutI, nJ, ilutJ, exFlag, IC, excitMat, &
                                       tParity, pgen, HElGen, store)
-        call convert_ilut_toGUGA(ilutI, ilutGi)
-
         call convert_ilut_toGUGA(ilutJ, ilutGj)
 
         if (pgen > 0.0_dp) then
-            call actHamiltonian(ilutI, ex, nEx)
+            call actHamiltonian(ilutI, global_csf_info, ex, nEx)
             pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:, pos), 1)) < 1.0e-10_dp)
@@ -5866,7 +5809,7 @@ contains
             call extract_stochastic_rdm_info(IlutBits, ilutJ, rdm_ind, x0, x1)
             rdm_ind_ = pure_rdm_ind(rdm_ind)
 
-            call calc_explicit_2_rdm_guga(ilutGi, nex, ex)
+            call calc_explicit_2_rdm_guga(ilutGi, global_csf_info, nex, ex)
 
             do i = 1, nex
                 if (DetBitEQ(ex(0:nifd, i), ilutJ(0:nifd))) then
@@ -5887,7 +5830,7 @@ contains
             rdm_comb = combine_x0_x1(rdm_ind, x0, x1)
             call assert_equals(rdm_mat_ex, rdm_comb)
 
-            call calc_guga_matrix_element(ilutGi, ilutGj, excitInfo, mat_ele, &
+            call calc_guga_matrix_element(ilutGi, global_csf_info, ilutGj, excitInfo, mat_ele, &
                                           t_hamil=.true., calc_type=2, rdm_ind=rdm_ind_v, &
                                           rdm_mat=rdm_mat)
 
@@ -5905,17 +5848,14 @@ contains
         ! 1032
         nI = [1, 5, 6, 8]
         call EncodeBitDet(nI, ilutI)
-
-        call fill_csf_info(ilutI)
-
+        call convert_ilut_toGUGA(ilutI, ilutGi)
+        global_csf_info = CSF_Info_t(ilutGi)
         call generate_excitation_guga(nI, ilutI, nJ, ilutJ, exFlag, IC, excitMat, &
                                       tParity, pgen, HElGen, store)
-        call convert_ilut_toGUGA(ilutI, ilutGi)
-
         call convert_ilut_toGUGA(ilutJ, ilutGj)
 
         if (pgen > 0.0_dp) then
-            call actHamiltonian(ilutI, ex, nEx)
+            call actHamiltonian(ilutI, global_csf_info, ex, nEx)
             pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:, pos), 1)) < 1.0e-10_dp)
@@ -5923,7 +5863,7 @@ contains
             call extract_stochastic_rdm_info(IlutBits, ilutJ, rdm_ind, x0, x1)
             rdm_ind_ = pure_rdm_ind(rdm_ind)
 
-            call calc_explicit_2_rdm_guga(ilutGi, nex, ex)
+            call calc_explicit_2_rdm_guga(ilutGi, global_csf_info, nex, ex)
 
             do i = 1, nex
                 if (DetBitEQ(ex(0:nifd, i), ilutJ(0:nifd))) then
@@ -5944,7 +5884,7 @@ contains
             rdm_comb = combine_x0_x1(rdm_ind, x0, x1)
             call assert_equals(rdm_mat_ex, rdm_comb)
 
-            call calc_guga_matrix_element(ilutGi, ilutGj, excitInfo, mat_ele, &
+            call calc_guga_matrix_element(ilutGi, global_csf_info, ilutGj, excitInfo, mat_ele, &
                                           t_hamil=.true., calc_type=2, rdm_ind=rdm_ind_v, &
                                           rdm_mat=rdm_mat)
 
@@ -5962,17 +5902,14 @@ contains
         ! 0132
         nI = [3, 5, 6, 8]
         call EncodeBitDet(nI, ilutI)
-
-        call fill_csf_info(ilutI)
-
+        call convert_ilut_toGUGA(ilutI, ilutGi)
+        global_csf_info = CSF_Info_t(ilutGi)
         call generate_excitation_guga(nI, ilutI, nJ, ilutJ, exFlag, IC, excitMat, &
                                       tParity, pgen, HElGen, store)
-        call convert_ilut_toGUGA(ilutI, ilutGi)
-
         call convert_ilut_toGUGA(ilutJ, ilutGj)
 
         if (pgen > 0.0_dp) then
-            call actHamiltonian(ilutI, ex, nEx)
+            call actHamiltonian(ilutI, global_csf_info, ex, nEx)
             pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:, pos), 1)) < 1.0e-10_dp)
@@ -5980,7 +5917,7 @@ contains
             call extract_stochastic_rdm_info(IlutBits, ilutJ, rdm_ind, x0, x1)
             rdm_ind_ = pure_rdm_ind(rdm_ind)
 
-            call calc_explicit_2_rdm_guga(ilutGi, nex, ex)
+            call calc_explicit_2_rdm_guga(ilutGi, global_csf_info, nex, ex)
 
             do i = 1, nex
                 if (DetBitEQ(ex(0:nifd, i), ilutJ(0:nifd))) then
@@ -6001,7 +5938,7 @@ contains
             rdm_comb = combine_x0_x1(rdm_ind, x0, x1)
             call assert_equals(rdm_mat_ex, rdm_comb)
 
-            call calc_guga_matrix_element(ilutGi, ilutGj, excitInfo, mat_ele, &
+            call calc_guga_matrix_element(ilutGi, global_csf_info, ilutGj, excitInfo, mat_ele, &
                                           t_hamil=.true., calc_type=2, rdm_ind=rdm_ind_v, &
                                           rdm_mat=rdm_mat)
 
@@ -6019,17 +5956,14 @@ contains
         ! 0123
         nI = [3, 6, 7, 8]
         call EncodeBitDet(nI, ilutI)
-
-        call fill_csf_info(ilutI)
-
+        call convert_ilut_toGUGA(ilutI, ilutGi)
+        global_csf_info = CSF_Info_t(ilutGi)
         call generate_excitation_guga(nI, ilutI, nJ, ilutJ, exFlag, IC, excitMat, &
                                       tParity, pgen, HElGen, store)
-        call convert_ilut_toGUGA(ilutI, ilutGi)
-
         call convert_ilut_toGUGA(ilutJ, ilutGj)
 
         if (pgen > 0.0_dp) then
-            call actHamiltonian(ilutI, ex, nEx)
+            call actHamiltonian(ilutI, global_csf_info, ex, nEx)
             pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:, pos), 1)) < 1.0e-10_dp)
@@ -6037,7 +5971,7 @@ contains
             call extract_stochastic_rdm_info(IlutBits, ilutJ, rdm_ind, x0, x1)
             rdm_ind_ = pure_rdm_ind(rdm_ind)
 
-            call calc_explicit_2_rdm_guga(ilutGi, nex, ex)
+            call calc_explicit_2_rdm_guga(ilutGi, global_csf_info, nex, ex)
 
             do i = 1, nex
                 if (DetBitEQ(ex(0:nifd, i), ilutJ(0:nifd))) then
@@ -6058,7 +5992,7 @@ contains
             rdm_comb = combine_x0_x1(rdm_ind, x0, x1)
             call assert_equals(rdm_mat_ex, rdm_comb)
 
-            call calc_guga_matrix_element(ilutGi, ilutGj, excitInfo, mat_ele, &
+            call calc_guga_matrix_element(ilutGi, global_csf_info, ilutGj, excitInfo, mat_ele, &
                                           t_hamil=.true., calc_type=2, rdm_ind=rdm_ind_v, &
                                           rdm_mat=rdm_mat)
 
@@ -6077,17 +6011,14 @@ contains
         ! 1122
         nI = [1, 3, 6, 8]
         call EncodeBitDet(nI, ilutI)
-
-        call fill_csf_info(ilutI)
-
+        call convert_ilut_toGUGA(ilutI, ilutGi)
+        global_csf_info = CSF_Info_t(ilutGi)
         call generate_excitation_guga(nI, ilutI, nJ, ilutJ, exFlag, IC, excitMat, &
                                       tParity, pgen, HElGen, store)
-        call convert_ilut_toGUGA(ilutI, ilutGi)
-
         call convert_ilut_toGUGA(ilutJ, ilutGj)
 
         if (pgen > 0.0_dp) then
-            call actHamiltonian(ilutI, ex, nEx)
+            call actHamiltonian(ilutI, global_csf_info, ex, nEx)
             pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:, pos), 1)) < 1.0e-10_dp)
@@ -6095,7 +6026,7 @@ contains
             call extract_stochastic_rdm_info(IlutBits, ilutJ, rdm_ind, x0, x1)
             rdm_ind_ = pure_rdm_ind(rdm_ind)
 
-            call calc_explicit_2_rdm_guga(ilutGi, nex, ex)
+            call calc_explicit_2_rdm_guga(ilutGi, global_csf_info, nex, ex)
 
             do i = 1, nex
                 if (DetBitEQ(ex(0:nifd, i), ilutJ(0:nifd))) then
@@ -6116,7 +6047,7 @@ contains
             rdm_comb = combine_x0_x1(rdm_ind, x0, x1)
             call assert_equals(rdm_mat_ex, rdm_comb)
 
-            call calc_guga_matrix_element(ilutGi, ilutGj, excitInfo, mat_ele, &
+            call calc_guga_matrix_element(ilutGi, global_csf_info, ilutGj, excitInfo, mat_ele, &
                                           t_hamil=.true., calc_type=2, rdm_ind=rdm_ind_v, &
                                           rdm_mat=rdm_mat)
 
@@ -6135,17 +6066,14 @@ contains
         ! 1212
         nI = [1, 4, 5, 8]
         call EncodeBitDet(nI, ilutI)
-
-        call fill_csf_info(ilutI)
-
+        call convert_ilut_toGUGA(ilutI, ilutGi)
+        global_csf_info = CSF_Info_t(ilutGi)
         call generate_excitation_guga(nI, ilutI, nJ, ilutJ, exFlag, IC, excitMat, &
                                       tParity, pgen, HElGen, store)
-        call convert_ilut_toGUGA(ilutI, ilutGi)
-
         call convert_ilut_toGUGA(ilutJ, ilutGj)
 
         if (pgen > 0.0_dp) then
-            call actHamiltonian(ilutI, ex, nEx)
+            call actHamiltonian(ilutI, CSF_Info_t(ilutI), ex, nEx)
             pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:, pos), 1)) < 1.0e-10_dp)
@@ -6153,7 +6081,7 @@ contains
             call extract_stochastic_rdm_info(IlutBits, ilutJ, rdm_ind, x0, x1)
             rdm_ind_ = pure_rdm_ind(rdm_ind)
 
-            call calc_explicit_2_rdm_guga(ilutGi, nex, ex)
+            call calc_explicit_2_rdm_guga(ilutGi, CSF_Info_t(ilutGi), nex, ex)
 
             do i = 1, nex
                 if (DetBitEQ(ex(0:nifd, i), ilutJ(0:nifd))) then
@@ -6174,7 +6102,7 @@ contains
             rdm_comb = combine_x0_x1(rdm_ind, x0, x1)
             call assert_equals(rdm_mat_ex, rdm_comb)
 
-            call calc_guga_matrix_element(ilutGi, ilutGj, excitInfo, mat_ele, &
+            call calc_guga_matrix_element(ilutGi, CSF_Info_t(ilutGi), ilutGj, excitInfo, mat_ele, &
                                           t_hamil=.true., calc_type=2, rdm_ind=rdm_ind_v, &
                                           rdm_mat=rdm_mat)
 
@@ -6220,18 +6148,14 @@ contains
         ! 3300:
         nI = [1, 2, 3, 4]; ilutI = 0_n_int
         call EncodeBitDet(nI, ilutI)
-
-        call fill_csf_info(ilutI)
-
         call convert_ilut_toGUGA(ilutI, ilutGi)
-
+        global_csf_info = CSF_Info_t(ilutGi)
         call generate_excitation_guga(nI, ilutI, nJ, ilutJ, exFlag, IC, excitMat, &
                                       tParity, pgen, HElGen, store)
-
         call convert_ilut_toGUGA(ilutJ, ilutGj)
 
         if (pgen > 0.0_dp) then
-            call actHamiltonian(ilutI, ex, nEx)
+            call actHamiltonian(ilutI, global_csf_info, ex, nEx)
             pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:, pos), 1)) < 1.0e-10_dp)
@@ -6243,7 +6167,7 @@ contains
             call assert_equals(1, extract_excit_lvl_rdm(rdm_ind))
             call assert_equals(excit_type%single, extract_excit_type_rdm(rdm_ind))
 
-            call calc_explicit_1_rdm_guga(ilutGi, nEx, ex)
+            call calc_explicit_1_rdm_guga(ilutGi, global_csf_info, nEx, ex)
             pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             call assert_true(pos > 0)
 
@@ -6251,7 +6175,7 @@ contains
             call assert_equals(extract_matrix_element(ex(:, pos), 1), x0)
 
             ! also test with matrix element calculator!
-            call calc_guga_matrix_element(ilutI, ex(:, pos), excitInfo, &
+            call calc_guga_matrix_element(ilutI, global_csf_info, ex(:, pos), excitInfo, &
                                           mat_ele, t_hamil=.true., calc_type=2, rdm_ind=rdm_ind_v, &
                                           rdm_mat=rdm_mat)
             x0 = extract_stochastic_rdm_x0(IlutBits, ilutJ)
@@ -6266,17 +6190,14 @@ contains
         ! 3030
         nI = [1, 2, 5, 6]
         call EncodeBitDet(nI, ilutI)
-
-        call fill_csf_info(ilutI)
-
+        call convert_ilut_toGUGA(ilutI, ilutGi)
+        global_csf_info = CSF_Info_t(ilutGi)
         call generate_excitation_guga(nI, ilutI, nJ, ilutJ, exFlag, IC, excitMat, &
                                       tParity, pgen, HElGen, store)
-        call convert_ilut_toGUGA(ilutI, ilutGi)
-
         call convert_ilut_toGUGA(ilutJ, ilutGj)
 
         if (pgen > 0.0_dp) then
-            call actHamiltonian(ilutI, ex, nEx)
+            call actHamiltonian(ilutI, global_csf_info, ex, nEx)
             pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:, pos), 1)) < 1.0e-10_dp)
@@ -6285,7 +6206,7 @@ contains
             call assert_equals(1, extract_excit_lvl_rdm(rdm_ind))
             call assert_equals(excit_type%single, extract_excit_type_rdm(rdm_ind))
 
-            call calc_explicit_1_rdm_guga(ilutGi, nEx, ex)
+            call calc_explicit_1_rdm_guga(ilutGi, global_csf_info, nEx, ex)
             pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             call assert_true(pos > 0)
 
@@ -6294,7 +6215,7 @@ contains
                                extract_stochastic_rdm_x0(IlutBits, ilutJ))
 
             ! also test with matrix element calculator!
-            call calc_guga_matrix_element(ilutI, ex(:, pos), excitInfo, &
+            call calc_guga_matrix_element(ilutI, global_csf_info, ex(:, pos), excitInfo, &
                                           mat_ele, t_hamil=.true., calc_type=2, rdm_ind=rdm_ind_v, &
                                           rdm_mat=rdm_mat)
             x0 = extract_stochastic_rdm_x0(IlutBits, ilutJ)
@@ -6309,17 +6230,14 @@ contains
         ! 3003
         nI = [1, 2, 7, 8]
         call EncodeBitDet(nI, ilutI)
-
-        call fill_csf_info(ilutI)
-
+        call convert_ilut_toGUGA(ilutI, ilutGi)
+        global_csf_info = CSF_Info_t(ilutGi)
         call generate_excitation_guga(nI, ilutI, nJ, ilutJ, exFlag, IC, excitMat, &
                                       tParity, pgen, HElGen, store)
-        call convert_ilut_toGUGA(ilutI, ilutGi)
-
         call convert_ilut_toGUGA(ilutJ, ilutGj)
 
         if (pgen > 0.0_dp) then
-            call actHamiltonian(ilutI, ex, nEx)
+            call actHamiltonian(ilutI, global_csf_info, ex, nEx)
             pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:, pos), 1)) < 1.0e-10_dp)
@@ -6328,7 +6246,7 @@ contains
             call assert_equals(1, extract_excit_lvl_rdm(rdm_ind))
             call assert_equals(excit_type%single, extract_excit_type_rdm(rdm_ind))
 
-            call calc_explicit_1_rdm_guga(ilutGi, nEx, ex)
+            call calc_explicit_1_rdm_guga(ilutGi, global_csf_info, nEx, ex)
             pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             call assert_true(pos > 0)
 
@@ -6337,7 +6255,7 @@ contains
                                extract_stochastic_rdm_x0(IlutBits, ilutJ))
 
             ! also test with matrix element calculator!
-            call calc_guga_matrix_element(ilutI, ex(:, pos), excitInfo, &
+            call calc_guga_matrix_element(ilutI, global_csf_info, ex(:, pos), excitInfo, &
                                           mat_ele, t_hamil=.true., calc_type=2, rdm_ind=rdm_ind_v, &
                                           rdm_mat=rdm_mat)
             x0 = extract_stochastic_rdm_x0(IlutBits, ilutJ)
@@ -6352,17 +6270,14 @@ contains
         ! 0330
         nI = [3, 4, 5, 6]
         call EncodeBitDet(nI, ilutI)
-
-        call fill_csf_info(ilutI)
-
+        call convert_ilut_toGUGA(ilutI, ilutGi)
+        global_csf_info = CSF_Info_t(ilutGi)
         call generate_excitation_guga(nI, ilutI, nJ, ilutJ, exFlag, IC, excitMat, &
                                       tParity, pgen, HElGen, store)
-        call convert_ilut_toGUGA(ilutI, ilutGi)
-
         call convert_ilut_toGUGA(ilutJ, ilutGj)
 
         if (pgen > 0.0_dp) then
-            call actHamiltonian(ilutI, ex, nEx)
+            call actHamiltonian(ilutI, global_csf_info, ex, nEx)
             pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:, pos), 1)) < 1.0e-10_dp)
@@ -6371,7 +6286,7 @@ contains
             call assert_equals(1, extract_excit_lvl_rdm(rdm_ind))
             call assert_equals(excit_type%single, extract_excit_type_rdm(rdm_ind))
 
-            call calc_explicit_1_rdm_guga(ilutGi, nEx, ex)
+            call calc_explicit_1_rdm_guga(ilutGi, global_csf_info, nEx, ex)
             pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             call assert_true(pos > 0)
 
@@ -6380,7 +6295,7 @@ contains
                                extract_stochastic_rdm_x0(IlutBits, ilutJ))
 
             ! also test with matrix element calculator!
-            call calc_guga_matrix_element(ilutI, ex(:, pos), excitInfo, &
+            call calc_guga_matrix_element(ilutI, global_csf_info, ex(:, pos), excitInfo, &
                                           mat_ele, t_hamil=.true., calc_type=2, rdm_ind=rdm_ind_v, &
                                           rdm_mat=rdm_mat)
             x0 = extract_stochastic_rdm_x0(IlutBits, ilutJ)
@@ -6395,17 +6310,14 @@ contains
         ! 0303
         nI = [3, 4, 7, 8]
         call EncodeBitDet(nI, ilutI)
-
-        call fill_csf_info(ilutI)
-
+        call convert_ilut_toGUGA(ilutI, ilutGi)
+        global_csf_info = CSF_Info_t(ilutGi)
         call generate_excitation_guga(nI, ilutI, nJ, ilutJ, exFlag, IC, excitMat, &
                                       tParity, pgen, HElGen, store)
-        call convert_ilut_toGUGA(ilutI, ilutGi)
-
         call convert_ilut_toGUGA(ilutJ, ilutGj)
 
         if (pgen > 0.0_dp) then
-            call actHamiltonian(ilutI, ex, nEx)
+            call actHamiltonian(ilutI, global_csf_info, ex, nEx)
             pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:, pos), 1)) < 1.0e-10_dp)
@@ -6414,7 +6326,7 @@ contains
             call assert_equals(1, extract_excit_lvl_rdm(rdm_ind))
             call assert_equals(excit_type%single, extract_excit_type_rdm(rdm_ind))
 
-            call calc_explicit_1_rdm_guga(ilutGi, nEx, ex)
+            call calc_explicit_1_rdm_guga(ilutGi, global_csf_info, nEx, ex)
             pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             call assert_true(pos > 0)
 
@@ -6423,7 +6335,7 @@ contains
                                extract_stochastic_rdm_x0(IlutBits, ilutJ))
 
             ! also test with matrix element calculator!
-            call calc_guga_matrix_element(ilutI, ex(:, pos), excitInfo, &
+            call calc_guga_matrix_element(ilutI, global_csf_info, ex(:, pos), excitInfo, &
                                           mat_ele, t_hamil=.true., calc_type=2, rdm_ind=rdm_ind_v, &
                                           rdm_mat=rdm_mat)
             x0 = extract_stochastic_rdm_x0(IlutBits, ilutJ)
@@ -6438,17 +6350,14 @@ contains
         ! 0033
         nI = [5, 6, 7, 8]
         call EncodeBitDet(nI, ilutI)
-
-        call fill_csf_info(ilutI)
-
+        call convert_ilut_toGUGA(ilutI, ilutGi)
+        global_csf_info = CSF_Info_t(ilutGi)
         call generate_excitation_guga(nI, ilutI, nJ, ilutJ, exFlag, IC, excitMat, &
                                       tParity, pgen, HElGen, store)
-        call convert_ilut_toGUGA(ilutI, ilutGi)
-
         call convert_ilut_toGUGA(ilutJ, ilutGj)
 
         if (pgen > 0.0_dp) then
-            call actHamiltonian(ilutI, ex, nEx)
+            call actHamiltonian(ilutI, global_csf_info, ex, nEx)
             pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:, pos), 1)) < 1.0e-10_dp)
@@ -6457,7 +6366,7 @@ contains
             call assert_equals(1, extract_excit_lvl_rdm(rdm_ind))
             call assert_equals(excit_type%single, extract_excit_type_rdm(rdm_ind))
 
-            call calc_explicit_1_rdm_guga(ilutGi, nEx, ex)
+            call calc_explicit_1_rdm_guga(ilutGi, global_csf_info, nEx, ex)
             pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             call assert_true(pos > 0)
 
@@ -6466,7 +6375,7 @@ contains
                                extract_stochastic_rdm_x0(IlutBits, ilutJ))
 
             ! also test with matrix element calculator!
-            call calc_guga_matrix_element(ilutI, ex(:, pos), excitInfo, &
+            call calc_guga_matrix_element(ilutI, global_csf_info, ex(:, pos), excitInfo, &
                                           mat_ele, t_hamil=.true., calc_type=2, rdm_ind=rdm_ind_v, &
                                           rdm_mat=rdm_mat)
             x0 = extract_stochastic_rdm_x0(IlutBits, ilutJ)
@@ -6481,18 +6390,14 @@ contains
         ! 1023
         nI = [1, 6, 7, 8]
         call EncodeBitDet(nI, ilutI)
-
-        call fill_csf_info(ilutI)
-
         call convert_ilut_toGUGA(ilutI, ilutGi)
-
+        global_csf_info = CSF_Info_t(ilutGi)
         call generate_excitation_guga(nI, ilutI, nJ, ilutJ, exFlag, IC, excitMat, &
                                       tParity, pgen, HElGen, store)
-
         call convert_ilut_toGUGA(ilutJ, ilutGj)
 
         if (pgen > 0.0_dp) then
-            call actHamiltonian(ilutI, ex, nEx)
+            call actHamiltonian(ilutI, global_csf_info, ex, nEx)
             pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:, pos), 1)) < 1.0e-10_dp)
@@ -6501,7 +6406,7 @@ contains
             call assert_equals(1, extract_excit_lvl_rdm(rdm_ind))
             call assert_equals(excit_type%single, extract_excit_type_rdm(rdm_ind))
 
-            call calc_explicit_1_rdm_guga(ilutGi, nEx, ex)
+            call calc_explicit_1_rdm_guga(ilutGi, global_csf_info, nEx, ex)
             pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             call assert_true(pos > 0)
 
@@ -6510,7 +6415,7 @@ contains
                                extract_stochastic_rdm_x0(IlutBits, ilutJ))
 
             ! also test with matrix element calculator!
-            call calc_guga_matrix_element(ilutI, ex(:, pos), excitInfo, &
+            call calc_guga_matrix_element(ilutI, global_csf_info, ex(:, pos), excitInfo, &
                                           mat_ele, t_hamil=.true., calc_type=2, rdm_ind=rdm_ind_v, &
                                           rdm_mat=rdm_mat)
             x0 = extract_stochastic_rdm_x0(IlutBits, ilutJ)
@@ -6525,17 +6430,14 @@ contains
         ! 3102
         nI = [1, 2, 3, 8]
         call EncodeBitDet(nI, ilutI)
-
-        call fill_csf_info(ilutI)
-
+        call convert_ilut_toGUGA(ilutI, ilutGi)
+        global_csf_info = CSF_Info_t(ilutGi)
         call generate_excitation_guga(nI, ilutI, nJ, ilutJ, exFlag, IC, excitMat, &
                                       tParity, pgen, HElGen, store)
-        call convert_ilut_toGUGA(ilutI, ilutGi)
-
         call convert_ilut_toGUGA(ilutJ, ilutGj)
 
         if (pgen > 0.0_dp) then
-            call actHamiltonian(ilutI, ex, nEx)
+            call actHamiltonian(ilutI, global_csf_info, ex, nEx)
             pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:, pos), 1)) < 1.0e-10_dp)
@@ -6544,7 +6446,7 @@ contains
             call assert_equals(1, extract_excit_lvl_rdm(rdm_ind))
             call assert_equals(excit_type%single, extract_excit_type_rdm(rdm_ind))
 
-            call calc_explicit_1_rdm_guga(ilutGi, nEx, ex)
+            call calc_explicit_1_rdm_guga(ilutGi, global_csf_info, nEx, ex)
             pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             call assert_true(pos > 0)
 
@@ -6553,7 +6455,7 @@ contains
                                extract_stochastic_rdm_x0(IlutBits, ilutJ))
 
             ! also test with matrix element calculator!
-            call calc_guga_matrix_element(ilutI, ex(:, pos), excitInfo, &
+            call calc_guga_matrix_element(ilutI, global_csf_info, ex(:, pos), excitInfo, &
                                           mat_ele, t_hamil=.true., calc_type=2, rdm_ind=rdm_ind_v, &
                                           rdm_mat=rdm_mat)
             x0 = extract_stochastic_rdm_x0(IlutBits, ilutJ)
@@ -6568,17 +6470,14 @@ contains
         ! 3120
         nI = [1, 2, 3, 6]
         call EncodeBitDet(nI, ilutI)
-
-        call fill_csf_info(ilutI)
-
+        call convert_ilut_toGUGA(ilutI, ilutGi)
+        global_csf_info = CSF_Info_t(ilutGi)
         call generate_excitation_guga(nI, ilutI, nJ, ilutJ, exFlag, IC, excitMat, &
                                       tParity, pgen, HElGen, store)
-        call convert_ilut_toGUGA(ilutI, ilutGi)
-
         call convert_ilut_toGUGA(ilutJ, ilutGj)
 
         if (pgen > 0.0_dp) then
-            call actHamiltonian(ilutI, ex, nEx)
+            call actHamiltonian(ilutI, global_csf_info, ex, nEx)
             pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:, pos), 1)) < 1.0e-10_dp)
@@ -6587,7 +6486,7 @@ contains
             call assert_equals(1, extract_excit_lvl_rdm(rdm_ind))
             call assert_equals(excit_type%single, extract_excit_type_rdm(rdm_ind))
 
-            call calc_explicit_1_rdm_guga(ilutGi, nEx, ex)
+            call calc_explicit_1_rdm_guga(ilutGi, global_csf_info, nEx, ex)
             pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             call assert_true(pos > 0)
 
@@ -6596,7 +6495,7 @@ contains
                                extract_stochastic_rdm_x0(IlutBits, ilutJ))
 
             ! also test with matrix element calculator!
-            call calc_guga_matrix_element(ilutI, ex(:, pos), excitInfo, &
+            call calc_guga_matrix_element(ilutI, global_csf_info, ex(:, pos), excitInfo, &
                                           mat_ele, t_hamil=.true., calc_type=2, rdm_ind=rdm_ind_v, &
                                           rdm_mat=rdm_mat)
             x0 = extract_stochastic_rdm_x0(IlutBits, ilutJ)
@@ -6611,17 +6510,14 @@ contains
         ! 3012
         nI = [1, 2, 5, 8]
         call EncodeBitDet(nI, ilutI)
-
-        call fill_csf_info(ilutI)
-
+        call convert_ilut_toGUGA(ilutI, ilutGi)
+        global_csf_info = CSF_Info_t(ilutGi)
         call generate_excitation_guga(nI, ilutI, nJ, ilutJ, exFlag, IC, excitMat, &
                                       tParity, pgen, HElGen, store)
-        call convert_ilut_toGUGA(ilutI, ilutGi)
-
         call convert_ilut_toGUGA(ilutJ, ilutGj)
 
         if (pgen > 0.0_dp) then
-            call actHamiltonian(ilutI, ex, nEx)
+            call actHamiltonian(ilutI, global_csf_info, ex, nEx)
             pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:, pos), 1)) < 1.0e-10_dp)
@@ -6630,7 +6526,7 @@ contains
             call assert_equals(1, extract_excit_lvl_rdm(rdm_ind))
             call assert_equals(excit_type%single, extract_excit_type_rdm(rdm_ind))
 
-            call calc_explicit_1_rdm_guga(ilutGi, nEx, ex)
+            call calc_explicit_1_rdm_guga(ilutGi, global_csf_info, nEx, ex)
             pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             call assert_true(pos > 0)
 
@@ -6639,7 +6535,7 @@ contains
                                extract_stochastic_rdm_x0(IlutBits, ilutJ))
 
             ! also test with matrix element calculator!
-            call calc_guga_matrix_element(ilutI, ex(:, pos), excitInfo, &
+            call calc_guga_matrix_element(ilutI, global_csf_info, ex(:, pos), excitInfo, &
                                           mat_ele, t_hamil=.true., calc_type=2, rdm_ind=rdm_ind_v, &
                                           rdm_mat=rdm_mat)
             x0 = extract_stochastic_rdm_x0(IlutBits, ilutJ)
@@ -6654,17 +6550,14 @@ contains
         ! 0312
         nI = [3, 4, 5, 8]
         call EncodeBitDet(nI, ilutI)
-
-        call fill_csf_info(ilutI)
-
+        call convert_ilut_toGUGA(ilutI, ilutGi)
+        global_csf_info = CSF_Info_t(ilutGi)
         call generate_excitation_guga(nI, ilutI, nJ, ilutJ, exFlag, IC, excitMat, &
                                       tParity, pgen, HElGen, store)
-        call convert_ilut_toGUGA(ilutI, ilutGi)
-
         call convert_ilut_toGUGA(ilutJ, ilutGj)
 
         if (pgen > 0.0_dp) then
-            call actHamiltonian(ilutI, ex, nEx)
+            call actHamiltonian(ilutI, global_csf_info, ex, nEx)
             pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:, pos), 1)) < 1.0e-10_dp)
@@ -6673,7 +6566,7 @@ contains
             call assert_equals(1, extract_excit_lvl_rdm(rdm_ind))
             call assert_equals(excit_type%single, extract_excit_type_rdm(rdm_ind))
 
-            call calc_explicit_1_rdm_guga(ilutGi, nEx, ex)
+            call calc_explicit_1_rdm_guga(ilutGi, global_csf_info, nEx, ex)
             pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             call assert_true(pos > 0)
 
@@ -6682,7 +6575,7 @@ contains
                                extract_stochastic_rdm_x0(IlutBits, ilutJ))
 
             ! also test with matrix element calculator!
-            call calc_guga_matrix_element(ilutI, ex(:, pos), excitInfo, &
+            call calc_guga_matrix_element(ilutI, global_csf_info, ex(:, pos), excitInfo, &
                                           mat_ele, t_hamil=.true., calc_type=2, rdm_ind=rdm_ind_v, &
                                           rdm_mat=rdm_mat)
             x0 = extract_stochastic_rdm_x0(IlutBits, ilutJ)
@@ -6697,17 +6590,14 @@ contains
         ! 1230
         nI = [1, 4, 5, 6]
         call EncodeBitDet(nI, ilutI)
-
-        call fill_csf_info(ilutI)
-
+        call convert_ilut_toGUGA(ilutI, ilutGi)
+        global_csf_info = CSF_Info_t(ilutGi)
         call generate_excitation_guga(nI, ilutI, nJ, ilutJ, exFlag, IC, excitMat, &
                                       tParity, pgen, HElGen, store)
-        call convert_ilut_toGUGA(ilutI, ilutGi)
-
         call convert_ilut_toGUGA(ilutJ, ilutGj)
 
         if (pgen > 0.0_dp) then
-            call actHamiltonian(ilutI, ex, nEx)
+            call actHamiltonian(ilutI, global_csf_info, ex, nEx)
             pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:, pos), 1)) < 1.0e-10_dp)
@@ -6716,7 +6606,7 @@ contains
             call assert_equals(1, extract_excit_lvl_rdm(rdm_ind))
             call assert_equals(excit_type%single, extract_excit_type_rdm(rdm_ind))
 
-            call calc_explicit_1_rdm_guga(ilutGi, nEx, ex)
+            call calc_explicit_1_rdm_guga(ilutGi, global_csf_info, nEx, ex)
             pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             call assert_true(pos > 0)
 
@@ -6725,7 +6615,7 @@ contains
                                extract_stochastic_rdm_x0(IlutBits, ilutJ))
 
             ! also test with matrix element calculator!
-            call calc_guga_matrix_element(ilutI, ex(:, pos), excitInfo, &
+            call calc_guga_matrix_element(ilutI, global_csf_info, ex(:, pos), excitInfo, &
                                           mat_ele, t_hamil=.true., calc_type=2, rdm_ind=rdm_ind_v, &
                                           rdm_mat=rdm_mat)
             x0 = extract_stochastic_rdm_x0(IlutBits, ilutJ)
@@ -6740,17 +6630,14 @@ contains
         ! 1203
         nI = [1, 4, 7, 8]
         call EncodeBitDet(nI, ilutI)
-
-        call fill_csf_info(ilutI)
-
+        call convert_ilut_toGUGA(ilutI, ilutGi)
+        global_csf_info = CSF_Info_t(ilutGi)
         call generate_excitation_guga(nI, ilutI, nJ, ilutJ, exFlag, IC, excitMat, &
                                       tParity, pgen, HElGen, store)
-        call convert_ilut_toGUGA(ilutI, ilutGi)
-
         call convert_ilut_toGUGA(ilutJ, ilutGj)
 
         if (pgen > 0.0_dp) then
-            call actHamiltonian(ilutI, ex, nEx)
+            call actHamiltonian(ilutI, global_csf_info, ex, nEx)
             pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:, pos), 1)) < 1.0e-10_dp)
@@ -6759,7 +6646,7 @@ contains
             call assert_equals(1, extract_excit_lvl_rdm(rdm_ind))
             call assert_equals(excit_type%single, extract_excit_type_rdm(rdm_ind))
 
-            call calc_explicit_1_rdm_guga(ilutGi, nEx, ex)
+            call calc_explicit_1_rdm_guga(ilutGi, global_csf_info, nEx, ex)
             pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             call assert_true(pos > 0)
 
@@ -6768,7 +6655,7 @@ contains
                                extract_stochastic_rdm_x0(IlutBits, ilutJ))
 
             ! also test with matrix element calculator!
-            call calc_guga_matrix_element(ilutI, ex(:, pos), excitInfo, &
+            call calc_guga_matrix_element(ilutI, global_csf_info, ex(:, pos), excitInfo, &
                                           mat_ele, t_hamil=.true., calc_type=2, rdm_ind=rdm_ind_v, &
                                           rdm_mat=rdm_mat)
             x0 = extract_stochastic_rdm_x0(IlutBits, ilutJ)
@@ -6783,17 +6670,14 @@ contains
         ! 1320
         nI = [1, 3, 4, 6]
         call EncodeBitDet(nI, ilutI)
-
-        call fill_csf_info(ilutI)
-
+        call convert_ilut_toGUGA(ilutI, ilutGi)
+        global_csf_info = CSF_Info_t(ilutGi)
         call generate_excitation_guga(nI, ilutI, nJ, ilutJ, exFlag, IC, excitMat, &
                                       tParity, pgen, HElGen, store)
-        call convert_ilut_toGUGA(ilutI, ilutGi)
-
         call convert_ilut_toGUGA(ilutJ, ilutGj)
 
         if (pgen > 0.0_dp) then
-            call actHamiltonian(ilutI, ex, nEx)
+            call actHamiltonian(ilutI, global_csf_info, ex, nEx)
             pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:, pos), 1)) < 1.0e-10_dp)
@@ -6802,7 +6686,7 @@ contains
             call assert_equals(1, extract_excit_lvl_rdm(rdm_ind))
             call assert_equals(excit_type%single, extract_excit_type_rdm(rdm_ind))
 
-            call calc_explicit_1_rdm_guga(ilutGi, nEx, ex)
+            call calc_explicit_1_rdm_guga(ilutGi, global_csf_info, nEx, ex)
             pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             call assert_true(pos > 0)
 
@@ -6811,7 +6695,7 @@ contains
                                extract_stochastic_rdm_x0(IlutBits, ilutJ))
 
             ! also test with matrix element calculator!
-            call calc_guga_matrix_element(ilutI, ex(:, pos), excitInfo, &
+            call calc_guga_matrix_element(ilutI, global_csf_info, ex(:, pos), excitInfo, &
                                           mat_ele, t_hamil=.true., calc_type=2, rdm_ind=rdm_ind_v, &
                                           rdm_mat=rdm_mat)
             x0 = extract_stochastic_rdm_x0(IlutBits, ilutJ)
@@ -6826,17 +6710,14 @@ contains
         ! 1302
         nI = [1, 3, 4, 8]
         call EncodeBitDet(nI, ilutI)
-
-        call fill_csf_info(ilutI)
-
+        call convert_ilut_toGUGA(ilutI, ilutGi)
+        global_csf_info = CSF_Info_t(ilutGi)
         call generate_excitation_guga(nI, ilutI, nJ, ilutJ, exFlag, IC, excitMat, &
                                       tParity, pgen, HElGen, store)
-        call convert_ilut_toGUGA(ilutI, ilutGi)
-
         call convert_ilut_toGUGA(ilutJ, ilutGj)
 
         if (pgen > 0.0_dp) then
-            call actHamiltonian(ilutI, ex, nEx)
+            call actHamiltonian(ilutI, global_csf_info, ex, nEx)
             pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:, pos), 1)) < 1.0e-10_dp)
@@ -6845,7 +6726,7 @@ contains
             call assert_equals(1, extract_excit_lvl_rdm(rdm_ind))
             call assert_equals(excit_type%single, extract_excit_type_rdm(rdm_ind))
 
-            call calc_explicit_1_rdm_guga(ilutGi, nEx, ex)
+            call calc_explicit_1_rdm_guga(ilutGi, global_csf_info, nEx, ex)
             pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             call assert_true(pos > 0)
 
@@ -6854,7 +6735,7 @@ contains
                                extract_stochastic_rdm_x0(IlutBits, ilutJ))
 
             ! also test with matrix element calculator!
-            call calc_guga_matrix_element(ilutI, ex(:, pos), excitInfo, &
+            call calc_guga_matrix_element(ilutI, global_csf_info, ex(:, pos), excitInfo, &
                                           mat_ele, t_hamil=.true., calc_type=2, rdm_ind=rdm_ind_v, &
                                           rdm_mat=rdm_mat)
             x0 = extract_stochastic_rdm_x0(IlutBits, ilutJ)
@@ -6869,17 +6750,14 @@ contains
         ! 1032
         nI = [1, 5, 6, 8]
         call EncodeBitDet(nI, ilutI)
-
-        call fill_csf_info(ilutI)
-
+        call convert_ilut_toGUGA(ilutI, ilutGi)
+        global_csf_info = CSF_Info_t(ilutGi)
         call generate_excitation_guga(nI, ilutI, nJ, ilutJ, exFlag, IC, excitMat, &
                                       tParity, pgen, HElGen, store)
-        call convert_ilut_toGUGA(ilutI, ilutGi)
-
         call convert_ilut_toGUGA(ilutJ, ilutGj)
 
         if (pgen > 0.0_dp) then
-            call actHamiltonian(ilutI, ex, nEx)
+            call actHamiltonian(ilutI, global_csf_info, ex, nEx)
             pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:, pos), 1)) < 1.0e-10_dp)
@@ -6888,7 +6766,7 @@ contains
             call assert_equals(1, extract_excit_lvl_rdm(rdm_ind))
             call assert_equals(excit_type%single, extract_excit_type_rdm(rdm_ind))
 
-            call calc_explicit_1_rdm_guga(ilutGi, nEx, ex)
+            call calc_explicit_1_rdm_guga(ilutGi, global_csf_info, nEx, ex)
             pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             call assert_true(pos > 0)
 
@@ -6897,7 +6775,7 @@ contains
                                extract_stochastic_rdm_x0(IlutBits, ilutJ))
 
             ! also test with matrix element calculator!
-            call calc_guga_matrix_element(ilutI, ex(:, pos), excitInfo, &
+            call calc_guga_matrix_element(ilutI, global_csf_info, ex(:, pos), excitInfo, &
                                           mat_ele, t_hamil=.true., calc_type=2, rdm_ind=rdm_ind_v, &
                                           rdm_mat=rdm_mat)
             x0 = extract_stochastic_rdm_x0(IlutBits, ilutJ)
@@ -6912,17 +6790,14 @@ contains
         ! 0132
         nI = [3, 5, 6, 8]
         call EncodeBitDet(nI, ilutI)
-
-        call fill_csf_info(ilutI)
-
+        call convert_ilut_toGUGA(ilutI, ilutGi)
+        global_csf_info = CSF_Info_t(ilutI)
         call generate_excitation_guga(nI, ilutI, nJ, ilutJ, exFlag, IC, excitMat, &
                                       tParity, pgen, HElGen, store)
-        call convert_ilut_toGUGA(ilutI, ilutGi)
-
         call convert_ilut_toGUGA(ilutJ, ilutGj)
 
         if (pgen > 0.0_dp) then
-            call actHamiltonian(ilutI, ex, nEx)
+            call actHamiltonian(ilutI, global_csf_info, ex, nEx)
             pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:, pos), 1)) < 1.0e-10_dp)
@@ -6931,7 +6806,7 @@ contains
             call assert_equals(1, extract_excit_lvl_rdm(rdm_ind))
             call assert_equals(excit_type%single, extract_excit_type_rdm(rdm_ind))
 
-            call calc_explicit_1_rdm_guga(ilutGi, nEx, ex)
+            call calc_explicit_1_rdm_guga(ilutGi, global_csf_info, nEx, ex)
             pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             call assert_true(pos > 0)
 
@@ -6940,7 +6815,7 @@ contains
                                extract_stochastic_rdm_x0(IlutBits, ilutJ))
 
             ! also test with matrix element calculator!
-            call calc_guga_matrix_element(ilutI, ex(:, pos), excitInfo, &
+            call calc_guga_matrix_element(ilutI, global_csf_info, ex(:, pos), excitInfo, &
                                           mat_ele, t_hamil=.true., calc_type=2, rdm_ind=rdm_ind_v, &
                                           rdm_mat=rdm_mat)
             x0 = extract_stochastic_rdm_x0(IlutBits, ilutJ)
@@ -6955,17 +6830,14 @@ contains
         ! 0123
         nI = [3, 6, 7, 8]
         call EncodeBitDet(nI, ilutI)
-
-        call fill_csf_info(ilutI)
-
+        call convert_ilut_toGUGA(ilutI, ilutGi)
+        global_csf_info = CSF_Info_t(ilutGi)
         call generate_excitation_guga(nI, ilutI, nJ, ilutJ, exFlag, IC, excitMat, &
                                       tParity, pgen, HElGen, store)
-        call convert_ilut_toGUGA(ilutI, ilutGi)
-
         call convert_ilut_toGUGA(ilutJ, ilutGj)
 
         if (pgen > 0.0_dp) then
-            call actHamiltonian(ilutI, ex, nEx)
+            call actHamiltonian(ilutI, global_csf_info, ex, nEx)
             pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:, pos), 1)) < 1.0e-10_dp)
@@ -6974,7 +6846,7 @@ contains
             call assert_equals(1, extract_excit_lvl_rdm(rdm_ind))
             call assert_equals(excit_type%single, extract_excit_type_rdm(rdm_ind))
 
-            call calc_explicit_1_rdm_guga(ilutGi, nEx, ex)
+            call calc_explicit_1_rdm_guga(ilutGi, global_csf_info, nEx, ex)
             pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             call assert_true(pos > 0)
 
@@ -6983,7 +6855,7 @@ contains
                                extract_stochastic_rdm_x0(IlutBits, ilutJ))
 
             ! also test with matrix element calculator!
-            call calc_guga_matrix_element(ilutI, ex(:, pos), excitInfo, &
+            call calc_guga_matrix_element(ilutI, global_csf_info, ex(:, pos), excitInfo, &
                                           mat_ele, t_hamil=.true., calc_type=2, rdm_ind=rdm_ind_v, &
                                           rdm_mat=rdm_mat)
             x0 = extract_stochastic_rdm_x0(IlutBits, ilutJ)
@@ -6998,17 +6870,14 @@ contains
         ! 1122
         nI = [1, 3, 6, 8]
         call EncodeBitDet(nI, ilutI)
-
-        call fill_csf_info(ilutI)
-
+        call convert_ilut_toGUGA(ilutI, ilutGi)
+        global_csf_info = CSF_Info_t(ilutI)
         call generate_excitation_guga(nI, ilutI, nJ, ilutJ, exFlag, IC, excitMat, &
                                       tParity, pgen, HElGen, store)
-        call convert_ilut_toGUGA(ilutI, ilutGi)
-
         call convert_ilut_toGUGA(ilutJ, ilutGj)
 
         if (pgen > 0.0_dp) then
-            call actHamiltonian(ilutI, ex, nEx)
+            call actHamiltonian(ilutI, global_csf_info, ex, nEx)
             pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:, pos), 1)) < 1.0e-10_dp)
@@ -7017,7 +6886,7 @@ contains
             call assert_equals(1, extract_excit_lvl_rdm(rdm_ind))
             call assert_equals(excit_type%single, extract_excit_type_rdm(rdm_ind))
 
-            call calc_explicit_1_rdm_guga(ilutGi, nEx, ex)
+            call calc_explicit_1_rdm_guga(ilutGi, global_csf_info, nEx, ex)
             pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             call assert_true(pos > 0)
 
@@ -7026,7 +6895,7 @@ contains
                                extract_stochastic_rdm_x0(IlutBits, ilutJ))
 
             ! also test with matrix element calculator!
-            call calc_guga_matrix_element(ilutI, ex(:, pos), excitInfo, &
+            call calc_guga_matrix_element(ilutI, global_csf_info, ex(:, pos), excitInfo, &
                                           mat_ele, t_hamil=.true., calc_type=2, rdm_ind=rdm_ind_v, &
                                           rdm_mat=rdm_mat)
             x0 = extract_stochastic_rdm_x0(IlutBits, ilutJ)
@@ -7041,17 +6910,14 @@ contains
         ! 1212
         nI = [1, 4, 5, 8]
         call EncodeBitDet(nI, ilutI)
-
-        call fill_csf_info(ilutI)
-
+        call convert_ilut_toGUGA(ilutI, ilutGi)
+        global_csf_info = CSF_Info_t(ilutGi)
         call generate_excitation_guga(nI, ilutI, nJ, ilutJ, exFlag, IC, excitMat, &
                                       tParity, pgen, HElGen, store)
-        call convert_ilut_toGUGA(ilutI, ilutGi)
-
         call convert_ilut_toGUGA(ilutJ, ilutGj)
 
         if (pgen > 0.0_dp) then
-            call actHamiltonian(ilutI, ex, nEx)
+            call actHamiltonian(ilutI, global_csf_info, ex, nEx)
             pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:, pos), 1)) < 1.0e-10_dp)
@@ -7060,7 +6926,7 @@ contains
             call assert_equals(1, extract_excit_lvl_rdm(rdm_ind))
             call assert_equals(excit_type%single, extract_excit_type_rdm(rdm_ind))
 
-            call calc_explicit_1_rdm_guga(ilutGi, nEx, ex)
+            call calc_explicit_1_rdm_guga(ilutGi, global_csf_info, nEx, ex)
             pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             call assert_true(pos > 0)
 
@@ -7069,7 +6935,7 @@ contains
                                extract_stochastic_rdm_x0(IlutBits, ilutJ))
 
             ! also test with matrix element calculator!
-            call calc_guga_matrix_element(ilutI, ex(:, pos), excitInfo, &
+            call calc_guga_matrix_element(ilutI, global_csf_info, ex(:, pos), excitInfo, &
                                           mat_ele, t_hamil=.true., calc_type=2, rdm_ind=rdm_ind_v, &
                                           rdm_mat=rdm_mat)
             x0 = extract_stochastic_rdm_x0(IlutBits, ilutJ)
@@ -7097,15 +6963,11 @@ contains
         integer(int_rdm) :: rdm_ind
         integer :: i, j, k, l, ex_lvl, ex_typ
         real(dp) :: x0, x1
+        type(CSF_Info_t) :: csf_info
 
         ! encode det
         call EncodeBitDet_guga([1, 4, 5, 8], ilut)
-
-        currentB_ilut = calcB_vector_ilut(ilut)
-        currentOcc_ilut = calcOcc_vector_ilut(ilut)
-        currentOcc_int = calcOcc_vector_int(ilut)
-        current_stepvector = calcStepVector(ilut)
-        currentB_int = calcB_vector_int(ilut)
+        csf_info = CSF_Info_t(ilut)
 
         ! set up correct excitation information
         excitInfo = excitationIdentifier(1, 3, 4, 2)
@@ -7115,7 +6977,7 @@ contains
         print *, ""
         call assert_true(excitInfo%typ == excit_type%double_R_to_L)
 
-        call checkCompatibility(ilut, excitInfo, compFlag, posSwitches, negSwitches)
+        call checkCompatibility(ilut, csf_info, excitInfo, compFlag, posSwitches, negSwitches)
         call calcDoubleR2L_stochastic(ilut, excitInfo, ex, pgen, posSwitches, negSwitches)
 
         ! 1212
@@ -7142,19 +7004,14 @@ contains
         ! 0132
         ! 1023
         call EncodeBitDet_guga([3, 5, 6, 8], ilut)
-
-        currentB_ilut = calcB_vector_ilut(ilut)
-        currentOcc_ilut = calcOcc_vector_ilut(ilut)
-        currentOcc_int = calcOcc_vector_int(ilut)
-        current_stepvector = calcStepVector(ilut)
-        currentB_int = calcB_vector_int(ilut)
+        csf_info = CSF_Info_t(ilut)
 
         ! set up correct excitation information
         excitInfo = excitationIdentifier(4, 2, 1, 3)
 
         call assert_true(excitInfo%typ == excit_type%double_R_to_L)
 
-        call checkCompatibility(ilut, excitInfo, compFlag, posSwitches, negSwitches)
+        call checkCompatibility(ilut, csf_info, excitInfo, compFlag, posSwitches, negSwitches)
 
         call calcDoubleR2L_stochastic(ilut, excitInfo, ex, pgen, posSwitches, negSwitches)
 
@@ -7178,7 +7035,7 @@ contains
 
         call assert_true(excitInfo%typ == excit_type%double_R_to_L)
 
-        call checkCompatibility(ilut, excitInfo, compFlag, posSwitches, negSwitches)
+        call checkCompatibility(ilut, csf_info, excitInfo, compFlag, posSwitches, negSwitches)
 
         call calcDoubleR2L_stochastic(ilut, excitInfo, ex, pgen, posSwitches, negSwitches)
 
@@ -7215,15 +7072,11 @@ contains
         integer(int_rdm) :: rdm_ind
         integer :: i, j, k, l, ex_lvl, ex_typ
         real(dp) :: x0, x1
+        type(CSF_Info_t) :: csf_info
 
         ! encode det
         call EncodeBitDet_guga([1, 4, 5, 8], ilut)
-
-        currentB_ilut = calcB_vector_ilut(ilut)
-        currentOcc_ilut = calcOcc_vector_ilut(ilut)
-        currentOcc_int = calcOcc_vector_int(ilut)
-        current_stepvector = calcStepVector(ilut)
-        currentB_int = calcB_vector_int(ilut)
+        csf_info = CSF_Info_t(ilut)
 
         ! set up correct excitation information
         excitInfo = excitationIdentifier(3, 1, 2, 4)
@@ -7233,7 +7086,7 @@ contains
         print *, ""
         call assert_true(excitInfo%typ == excit_type%double_L_to_R)
 
-        call checkCompatibility(ilut, excitInfo, compFlag, posSwitches, negSwitches)
+        call checkCompatibility(ilut, csf_info, excitInfo, compFlag, posSwitches, negSwitches)
 
         call calcDoubleL2R_stochastic(ilut, excitInfo, ex, pgen, posSwitches, negSwitches)
 
@@ -7261,19 +7114,14 @@ contains
         ! 3102
         ! 1320
         call EncodeBitDet_guga([1, 2, 3, 8], ilut)
-
-        currentB_ilut = calcB_vector_ilut(ilut)
-        currentOcc_ilut = calcOcc_vector_ilut(ilut)
-        currentOcc_int = calcOcc_vector_int(ilut)
-        current_stepvector = calcStepVector(ilut)
-        currentB_int = calcB_vector_int(ilut)
+        csf_info = CSF_Info_t(ilut)
 
         ! set up correct excitation information
         excitInfo = excitationIdentifier(2, 4, 3, 1)
 
         call assert_true(excitInfo%typ == excit_type%double_L_to_R)
 
-        call checkCompatibility(ilut, excitInfo, compFlag, posSwitches, negSwitches)
+        call checkCompatibility(ilut, csf_info, excitInfo, compFlag, posSwitches, negSwitches)
 
         call calcDoubleL2R_stochastic(ilut, excitInfo, ex, pgen, posSwitches, negSwitches)
 
@@ -7311,16 +7159,11 @@ contains
         integer(int_rdm) :: rdm_ind
         integer :: i, j, k, l, ex_lvl, ex_typ
         real(dp) :: x0, x1
+        type(CSF_Info_t) :: csf_info
 
         ! encode det
         call EncodeBitDet_guga([1, 4, 5, 8], ilut)
-
-        ! calc b and occ vector
-        currentB_ilut = calcB_vector_ilut(ilut)
-        currentOcc_ilut = calcOcc_vector_ilut(ilut)
-        currentOcc_int = calcOcc_vector_int(ilut)
-        current_stepvector = calcStepVector(ilut)
-        currentB_int = calcB_vector_int(ilut)
+        csf_info = CSF_Info_t(ilut)
 
         ! set up correct excitation information
         excitInfo = excitationIdentifier(1, 4, 3, 2)
@@ -7330,7 +7173,7 @@ contains
         print *, ""
         call assert_true(excitInfo%typ == excit_type%double_R_to_L_to_R)
 
-        call checkCompatibility(ilut, excitInfo, compFlag, posSwitches, negSwitches)
+        call checkCompatibility(ilut, csf_info, excitInfo, compFlag, posSwitches, negSwitches)
 
         call calcDoubleR2L2R_stochastic(ilut, excitInfo, ex, pgen, posSwitches, negSwitches)
 
@@ -7354,13 +7197,7 @@ contains
         ! 0123
         ! 1032
         call EncodeBitDet_guga([3, 6, 7, 8], ilut)
-
-        ! calc b and occ vector
-        currentB_ilut = calcB_vector_ilut(ilut)
-        currentOcc_ilut = calcOcc_vector_ilut(ilut)
-        currentOcc_int = calcOcc_vector_int(ilut)
-        current_stepvector = calcStepVector(ilut)
-        currentB_int = calcB_vector_int(ilut)
+        csf_info = CSF_Info_t(ilut)
 
         ! set up correct excitation information
         excitInfo = excitationIdentifier(3, 2, 1, 4)
@@ -7406,16 +7243,11 @@ contains
         integer(int_rdm) :: rdm_ind
         integer :: i, j, k, l, ex_lvl, ex_typ
         real(dp) :: x0, x1
+        type(CSF_Info_t) :: csf_info
 
         ! encode det
         call EncodeBitDet_guga([1, 4, 5, 8], ilut)
-
-        ! calc b and occ vector
-        currentB_ilut = calcB_vector_ilut(ilut)
-        currentOcc_ilut = calcOcc_vector_ilut(ilut)
-        currentOcc_int = calcOcc_vector_int(ilut)
-        current_stepvector = calcStepVector(ilut)
-        currentB_int = calcB_vector_int(ilut)
+        csf_info = CSF_Info_t(ilut)
         ! set up correct excitation information
         excitInfo = excitationIdentifier(4, 1, 2, 3)
 
@@ -7452,13 +7284,7 @@ contains
         ! 1032
         ! 0123
         call EncodeBitDet_guga([1, 5, 6, 8], ilut)
-
-        ! calc b and occ vector
-        currentB_ilut = calcB_vector_ilut(ilut)
-        currentOcc_ilut = calcOcc_vector_ilut(ilut)
-        currentOcc_int = calcOcc_vector_int(ilut)
-        current_stepvector = calcStepVector(ilut)
-        currentB_int = calcB_vector_int(ilut)
+        csf_info = CSF_Info_t(ilut)
         ! set up correct excitation information
         excitInfo = excitationIdentifier(2, 3, 4, 1)
 
@@ -7501,16 +7327,12 @@ contains
         integer(int_rdm) :: rdm_ind
         integer :: i, j, k, l, ex_lvl, ex_typ
         real(dp) :: x0, x1
+        type(CSF_Info_t) :: csf_info
 
         ! encode det
         call EncodeBitDet_guga([1, 4, 5, 8], ilut)
+        csf_info = CSF_Info_t(ilut)
 
-        ! calc b and occ vector
-        currentB_ilut = calcB_vector_ilut(ilut)
-        currentOcc_ilut = calcOcc_vector_ilut(ilut)
-        currentOcc_int = calcOcc_vector_int(ilut)
-        current_stepvector = calcStepVector(ilut)
-        currentB_int = calcB_vector_int(ilut)
         ! set up correct excitation information
         excitInfo = excitationIdentifier(1, 4, 2, 3)
 
@@ -7569,13 +7391,7 @@ contains
 
         ! encode det
         call EncodeBitDet_guga([3, 5, 6, 8], ilut)
-
-        ! calc b and occ vector
-        currentB_ilut = calcB_vector_ilut(ilut)
-        currentOcc_ilut = calcOcc_vector_ilut(ilut)
-        currentOcc_int = calcOcc_vector_int(ilut)
-        current_stepvector = calcStepVector(ilut)
-        currentB_int = calcB_vector_int(ilut)
+        csf_info = CSF_Info_t(ilut)
         ! set up correct excitation information
         excitInfo = excitationIdentifier(1, 4, 2, 3)
 
@@ -7639,18 +7455,12 @@ contains
         integer(int_rdm) :: rdm_ind
         integer :: i, j, k, l, ex_lvl, ex_typ
         real(dp) :: x0, x1
+        type(CSF_Info_t) :: csf_info
 
         ! encode det
         ! 1212
         call EncodeBitDet_guga([1, 4, 5, 8], ilut)
-
-        ! calc b and occ vector
-
-        currentB_ilut = calcB_vector_ilut(ilut)
-        currentOcc_ilut = calcOcc_vector_ilut(ilut)
-        currentOcc_int = calcOcc_vector_int(ilut)
-        current_stepvector = calcStepVector(ilut)
-        currentB_int = calcB_vector_int(ilut)
+        csf_info = CSF_Info_t(ilut)
 
         ! set up correct excitation information
         excitInfo = excitationIdentifier(4, 1, 3, 2)
@@ -7709,14 +7519,7 @@ contains
         ! 3120
         ! 1032
         call EncodeBitDet_guga([1, 2, 3, 6], ilut)
-
-        ! calc b and occ vector
-
-        currentB_ilut = calcB_vector_ilut(ilut)
-        currentOcc_ilut = calcOcc_vector_ilut(ilut)
-        currentOcc_int = calcOcc_vector_int(ilut)
-        current_stepvector = calcStepVector(ilut)
-        currentB_int = calcB_vector_int(ilut)
+        csf_info = CSF_Info_t(ilut)
 
         ! set up correct excitation information
         excitInfo = excitationIdentifier(4, 1, 3, 2)
@@ -7781,17 +7584,11 @@ contains
         integer(int_rdm) :: rdm_ind
         integer :: i, j, k, l, ex_lvl, ex_typ
         real(dp) :: x0, x1
+        type(CSF_Info_t) :: csf_info
 
         ! encode det
         call EncodeBitDet_guga([1, 4, 5, 8], ilut)
-
-        ! calc b and occ vector
-        currentB_ilut = calcB_vector_ilut(ilut)
-        currentOcc_ilut = calcOcc_vector_ilut(ilut)
-        currentOcc_int = calcOcc_vector_int(ilut)
-        current_stepvector = calcStepVector(ilut)
-        currentB_int = calcB_vector_int(ilut)
-
+        csf_info = CSF_Info_t(ilut)
         ! set up correct excitation information
         excitInfo = excitationIdentifier(1, 4, 4, 2)
 
@@ -7816,13 +7613,7 @@ contains
         ! 1122
         ! 3012
         call EncodeBitDet_guga([1, 3, 6, 8], ilut)
-
-        ! calc b and occ vector
-        currentB_ilut = calcB_vector_ilut(ilut)
-        currentOcc_ilut = calcOcc_vector_ilut(ilut)
-        currentOcc_int = calcOcc_vector_int(ilut)
-        current_stepvector = calcStepVector(ilut)
-        currentB_int = calcB_vector_int(ilut)
+        csf_info = CSF_Info_t(ilut)
 
         ! set up correct excitation information
         excitInfo = excitationIdentifier(1, 4, 4, 2)
@@ -7886,16 +7677,10 @@ contains
         integer(int_rdm) :: rdm_ind
         integer :: i, j, k, l, ex_lvl, ex_typ
         real(dp) :: x0, x1
+        type(CSF_Info_t) :: csf_info
         ! encode det
         call EncodeBitDet_guga([1, 4, 5, 8], ilut)
-
-        ! calc b and occ vector
-
-        currentB_ilut = calcB_vector_ilut(ilut)
-        currentOcc_ilut = calcOcc_vector_ilut(ilut)
-        currentOcc_int = calcOcc_vector_int(ilut)
-        current_stepvector = calcStepVector(ilut)
-        currentB_int = calcB_vector_int(ilut)
+        csf_info = CSF_Info_t(ilut)
         ! set up correct excitation information
         excitInfo = excitationIdentifier(4, 1, 2, 4)
 
@@ -7918,14 +7703,7 @@ contains
 
         ! encode det
         call EncodeBitDet_guga([1, 3, 6, 8], ilut)
-
-        ! calc b and occ vector
-
-        currentB_ilut = calcB_vector_ilut(ilut)
-        currentOcc_ilut = calcOcc_vector_ilut(ilut)
-        currentOcc_int = calcOcc_vector_int(ilut)
-        current_stepvector = calcStepVector(ilut)
-        currentB_int = calcB_vector_int(ilut)
+        csf_info = CSF_Info_t(ilut)
         ! set up correct excitation information
         excitInfo = excitationIdentifier(4, 1, 2, 4)
 
@@ -7992,16 +7770,10 @@ contains
         integer(int_rdm) :: rdm_ind
         integer :: i, j, k, l, ex_lvl, ex_typ
         real(dp) :: x0, x1
+        type(CSF_Info_t) :: csf_info
         ! encode det
         call EncodeBitDet_guga([1, 4, 5, 8], ilut)
-
-        ! calc b and occ vector
-        currentB_ilut = calcB_vector_ilut(ilut)
-        currentOcc_ilut = calcOcc_vector_ilut(ilut)
-        currentOcc_int = calcOcc_vector_int(ilut)
-        current_stepvector = calcStepVector(ilut)
-        currentB_int = calcB_vector_int(ilut)
-
+        csf_info = CSF_Info_t(ilut)
         ! set up correct excitation information
         excitInfo = excitationIdentifier(1, 2, 4, 1)
 
@@ -8023,14 +7795,7 @@ contains
         ! 1122
         ! 1203
         call EncodeBitDet_guga([1, 3, 6, 8], ilut)
-
-        ! calc b and occ vector
-        currentB_ilut = calcB_vector_ilut(ilut)
-        currentOcc_ilut = calcOcc_vector_ilut(ilut)
-        currentOcc_int = calcOcc_vector_int(ilut)
-        current_stepvector = calcStepVector(ilut)
-        currentB_int = calcB_vector_int(ilut)
-
+        csf_info = CSF_Info_t(ilut)
         ! set up correct excitation information
         excitInfo = excitationIdentifier(1, 3, 4, 1)
 
@@ -8095,16 +7860,10 @@ contains
         integer(int_rdm) :: rdm_ind
         integer :: i, j, k, l, ex_lvl, ex_typ
         real(dp) :: x0, x1
+        type(CSF_Info_t) :: csf_info
         ! encode det
         call EncodeBitDet_guga([1, 4, 5, 8], ilut)
-
-        ! calc b and occ vector
-        currentB_ilut = calcB_vector_ilut(ilut)
-        currentOcc_ilut = calcOcc_vector_ilut(ilut)
-        currentOcc_int = calcOcc_vector_int(ilut)
-        current_stepvector = calcStepVector(ilut)
-        currentB_int = calcB_vector_int(ilut)
-
+        csf_info = CSF_Info_t(ilut)
         ! set up correct excitation information
         excitInfo = excitationIdentifier(1, 4, 2, 1)
 
@@ -8125,14 +7884,7 @@ contains
         ! 1122
         ! 1230 should work!
         call EncodeBitDet_guga([1, 3, 6, 8], ilut)
-
-        ! calc b and occ vector
-        currentB_ilut = calcB_vector_ilut(ilut)
-        currentOcc_ilut = calcOcc_vector_ilut(ilut)
-        currentOcc_int = calcOcc_vector_int(ilut)
-        current_stepvector = calcStepVector(ilut)
-        currentB_int = calcB_vector_int(ilut)
-
+        csf_info = CSF_Info_t(ilut)
         ! set up correct excitation information
         excitInfo = excitationIdentifier(1, 4, 3, 1)
 
@@ -8192,24 +7944,18 @@ contains
         type(ExcitationInformation_t) :: excitInfo
         type(WeightObj_t) :: weights
         real(dp) :: negSwitch(4), posSwitch(4), pgen
+        type(CSF_Info_t) :: csf_info
 
         ! encode det
         call EncodeBitDet_guga([1, 3, 4, 8], ilut)
-
-        ! calc b and occ vector
-        currentB_ilut = calcB_vector_ilut(ilut)
-        currentOcc_ilut = calcOcc_vector_ilut(ilut)
-        currentOcc_int = calcOcc_vector_int(ilut)
-        current_stepvector = calcStepVector(ilut)
-        currentB_int = calcB_vector_int(ilut)
-
+        csf_info = CSF_Info_t(ilut)
         ! set up correct excitation information
         excitInfo = excitationIdentifier(1, 2, 4, 1)
 
         call assert_true(excitInfo%typ == excit_type%fullstart_R_to_L)
 
         ! calc the possible switches
-        call calcRemainingSwitches_excitInfo_single(excitInfo, posSwitch, negSwitch)
+        call calcRemainingSwitches_excitInfo_single(csf_info, excitInfo, posSwitch, negSwitch)
 
         ! set up correct weights
         ! but switches are not yet set up... wtf
@@ -8237,19 +7983,12 @@ contains
         ! 1122
         ! 1203
         call EncodeBitDet_guga([1, 3, 6, 8], ilut)
-
-        ! calc b and occ vector
-        currentB_ilut = calcB_vector_ilut(ilut)
-        currentOcc_ilut = calcOcc_vector_ilut(ilut)
-        currentOcc_int = calcOcc_vector_int(ilut)
-        current_stepvector = calcStepVector(ilut)
-        currentB_int = calcB_vector_int(ilut)
-
+        csf_info = CSF_Info_t(ilut)
         ! set up correct excitation information
         excitInfo = excitationIdentifier(2, 3, 4, 2)
 
         ! calc the possible switches
-        call calcRemainingSwitches_excitInfo_single(excitInfo, posSwitch, negSwitch)
+        call calcRemainingSwitches_excitInfo_single(csf_info, excitInfo, posSwitch, negSwitch)
 
         ! set up correct weights
         ! but switches are not yet set up... wtf
@@ -8283,24 +8022,18 @@ contains
         type(ExcitationInformation_t) :: excitInfo
         type(WeightObj_t) :: weights
         real(dp) :: negSwitch(4), posSwitch(4), pgen
+        type(CSF_Info_t) :: csf_info
 
         ! encode det
         call EncodeBitDet_guga([1, 5, 6, 8], ilut)
-
-        ! calc b and occ vector
-        currentB_ilut = calcB_vector_ilut(ilut)
-        currentOcc_ilut = calcOcc_vector_ilut(ilut)
-        currentOcc_int = calcOcc_vector_int(ilut)
-        current_stepvector = calcStepVector(ilut)
-        currentB_int = calcB_vector_int(ilut)
-
+        csf_info = CSF_Info_t(ilut)
         ! set up correct excitation information
         excitInfo = excitationIdentifier(2, 1, 1, 4)
 
         call assert_true(excitInfo%typ == excit_type%fullstart_L_to_R)
 
         ! calc the possible switches
-        call calcRemainingSwitches_excitInfo_single(excitInfo, posSwitch, negSwitch)
+        call calcRemainingSwitches_excitInfo_single(csf_info, excitInfo, posSwitch, negSwitch)
 
         ! set up correct weights
         weights = init_fullStartWeight(ilut, 2, 4, negSwitch(2), posSwitch(2), &
@@ -8325,19 +8058,12 @@ contains
         ! 1122
         ! 1230
         call EncodeBitDet_guga([1, 3, 6, 8], ilut)
-
-        ! calc b and occ vector
-        currentB_ilut = calcB_vector_ilut(ilut)
-        currentOcc_ilut = calcOcc_vector_ilut(ilut)
-        currentOcc_int = calcOcc_vector_int(ilut)
-        current_stepvector = calcStepVector(ilut)
-        currentB_int = calcB_vector_int(ilut)
-
+        csf_info = CSF_Info_t(ilut)
         ! set up correct excitation information
         excitInfo = excitationIdentifier(2, 4, 3, 2)
 
         ! calc the possible switches
-        call calcRemainingSwitches_excitInfo_single(excitInfo, posSwitch, negSwitch)
+        call calcRemainingSwitches_excitInfo_single(csf_info, excitInfo, posSwitch, negSwitch)
 
         ! set up correct weights
         ! but switches are not yet set up... wtf
@@ -8371,16 +8097,11 @@ contains
         type(ExcitationInformation_t) :: excitInfo
         type(WeightObj_t) :: weights
         real(dp) :: negSwitch(4), posSwitch(4), pgen
+        type(CSF_Info_t) :: csf_info
 
         ! encode det
         call EncodeBitDet_guga([1, 5, 6, 8], ilut)
-
-        ! calc b and occ vector
-        currentB_ilut = calcB_vector_ilut(ilut)
-        currentOcc_ilut = calcOcc_vector_ilut(ilut)
-        currentOcc_int = calcOcc_vector_int(ilut)
-        current_stepvector = calcStepVector(ilut)
-        currentB_int = calcB_vector_int(ilut)
+        csf_info = CSF_Info_t(ilut)
         ! set up correct excitation information
         excitInfo = excitationIdentifier(4, 1, 2, 4)
         ! 1032
@@ -8390,7 +8111,7 @@ contains
         call assert_true(excitInfo%typ == excit_type%fullstop_L_to_R)
 
         ! calc the possible switches
-        call calcRemainingSwitches_excitInfo_single(excitInfo, posSwitch, negSwitch)
+        call calcRemainingSwitches_excitInfo_single(csf_info, excitInfo, posSwitch, negSwitch)
 
         ! set up correct weights
         weights = init_semiStartWeight(ilut, 2, 4, negSwitch(2), posSwitch(2), &
@@ -8429,29 +8150,24 @@ contains
         type(ExcitationInformation_t) :: excitInfo
         type(WeightObj_t) :: weights
         real(dp) :: negSwitch(4), posSwitch(4), pgen
+        type(CSF_Info_t) :: csf_info
 
         ! encode det
         call EncodeBitDet_guga([1, 3, 4, 8], ilut)
-
-        ! calc b and occ vector
-        currentB_ilut = calcB_vector_ilut(ilut)
-        currentOcc_ilut = calcOcc_vector_ilut(ilut)
-        currentOcc_int = calcOcc_vector_int(ilut)
-        current_stepvector = calcStepVector(ilut)
-        currentB_int = calcB_vector_int(ilut)
+        csf_info = CSF_Info_t(ilut)
         ! set up correct excitation information
         excitInfo = excitationIdentifier(1, 4, 4, 2)
 
         call assert_true(excitInfo%typ == excit_type%fullstop_R_to_L)
 
         ! calc the possible switches
-        call calcRemainingSwitches_excitInfo_single(excitInfo, posSwitch, negSwitch)
+        call calcRemainingSwitches_excitInfo_single(csf_info, excitInfo, posSwitch, negSwitch)
 
         ! set up correct weights
         weights = init_semiStartWeight(ilut, 2, 4, negSwitch(2), posSwitch(2), currentB_ilut(2))
 
         ! modify the excitation so it fits test case:
-        call createStochasticStart_single(ilut, excitInfo, weights, posSwitch, &
+        call createStochasticStart_single(ilut, csf_info, excitInfo, weights, posSwitch, &
                                           negSwitch, ex, pgen)
 
         call assert_true(pgen.isclose.1.0_dp)
@@ -8460,7 +8176,7 @@ contains
         print *, ""
         print *, "testing calcLoweringSemiStartStochastic(ilut,exInfo,weight,negSwitch,posSwitch,ex,pgen):"
         print *, ""
-        call calcLoweringSemiStartStochastic(ilut, excitInfo, weights, negSwitch, &
+        call calcLoweringSemiStartStochastic(ilut, csf_info, excitInfo, weights, negSwitch, &
                                              posSwitch, ex, pgen)
 
         ! 1302
@@ -8485,16 +8201,11 @@ contains
         integer(int_rdm) :: rdm_ind
         integer :: i, j, k, l, ex_lvl, ex_typ
         real(dp) :: x0, x1
+        type(CSF_Info_t) :: csf_info
 
         ! 0330
         call EncodeBitDet_guga([3, 4, 5, 6], ilut)
-
-        currentB_ilut = calcB_vector_ilut(ilut)
-        currentOcc_ilut = calcOcc_vector_ilut(ilut)
-        currentOcc_int = calcOcc_vector_int(ilut)
-        current_stepvector = calcStepVector(ilut)
-        currentB_int = calcB_vector_int(ilut)
-
+        csf_info = CSF_Info_t(ilut)
         excitInfo = excitationIdentifier(1, 3, 4, 3)
 
         print *, ""
@@ -8528,12 +8239,7 @@ contains
 
         ! 3003
         call EncodeBitDet_guga([1, 2, 7, 8], ilut)
-
-        currentB_ilut = calcB_vector_ilut(ilut)
-        currentOcc_ilut = calcOcc_vector_ilut(ilut)
-        currentOcc_int = calcOcc_vector_int(ilut)
-        current_stepvector = calcStepVector(ilut)
-        currentB_int = calcB_vector_int(ilut)
+        csf_info = CSF_Info_t(ilut)
 
         excitInfo = excitationIdentifier(3, 1, 3, 4)
 
@@ -8578,15 +8284,11 @@ contains
         integer(int_rdm) :: rdm_ind
         integer :: i, j, k, l, ex_lvl, ex_typ
         real(dp) :: x0, x1
+        type(CSF_Info_t) :: csf_info
 
         ! 3030
         call EncodeBitDet_guga([1, 2, 5, 6], ilut)
-
-        currentB_ilut = calcB_vector_ilut(ilut)
-        currentOcc_ilut = calcOcc_vector_ilut(ilut)
-        currentOcc_int = calcOcc_vector_int(ilut)
-        current_stepvector = calcStepVector(ilut)
-        currentB_int = calcB_vector_int(ilut)
+        csf_info = CSF_Info_t(ilut)
 
         excitInfo = excitationIdentifier(4, 1, 4, 3)
 
@@ -8632,15 +8334,11 @@ contains
         integer(int_rdm) :: rdm_ind
         integer :: i, j, k, l, ex_lvl, ex_typ
         real(dp) :: x0, x1
+        type(CSF_Info_t) :: csf_info
 
         ! 0303
         call EncodeBitDet_guga([3, 4, 7, 8], ilut)
-
-        currentB_ilut = calcB_vector_ilut(ilut)
-        currentOcc_ilut = calcOcc_vector_ilut(ilut)
-        currentOcc_int = calcOcc_vector_int(ilut)
-        current_stepvector = calcStepVector(ilut)
-        currentB_int = calcB_vector_int(ilut)
+        csf_info = CSF_Info_t(ilut)
         excitInfo = excitationIdentifier(1, 4, 3, 4)
 
         print *, ""
@@ -8685,15 +8383,11 @@ contains
         integer(int_rdm) :: rdm_ind
         integer :: i, j, k, l, ex_lvl, ex_typ
         real(dp) :: x0, x1
+        type(CSF_Info_t) :: csf_info
 
         ! 3030
         call EncodeBitDet_guga([1, 2, 5, 6], ilut)
-
-        currentB_ilut = calcB_vector_ilut(ilut)
-        currentOcc_ilut = calcOcc_vector_ilut(ilut)
-        currentOcc_int = calcOcc_vector_int(ilut)
-        current_stepvector = calcStepVector(ilut)
-        currentB_int = calcB_vector_int(ilut)
+        csf_info = CSF_Info_t(ilut)
         excitInfo = excitationIdentifier(3, 1, 4, 1)
 
         call assert_true(excitInfo%typ == excit_type%fullstart_lowering)
@@ -8756,14 +8450,11 @@ contains
         integer(int_rdm) :: rdm_ind
         integer :: i, j, k, l, ex_lvl, ex_typ
         real(dp) :: x0, x1
+        type(CSF_Info_t) :: csf_info
 
         ! 0033
         call EncodeBitDet_guga([5, 6, 7, 8], ilut)
-        currentB_ilut = calcB_vector_ilut(ilut)
-        currentOcc_ilut = calcOcc_vector_ilut(ilut)
-        currentOcc_int = calcOcc_vector_int(ilut)
-        current_stepvector = calcStepVector(ilut)
-        currentB_int = calcB_vector_int(ilut)
+        csf_info = CSF_Info_t(ilut)
 
         excitInfo = excitationIdentifier(1, 3, 1, 4)
 
@@ -8832,18 +8523,14 @@ contains
         type(ExcitationInformation_t) :: excitInfo
         type(WeightObj_t) :: weights
         real(dp) :: posSwitch(4), negSwitch(4), pgen
+        type(CSF_Info_t) :: csf_info
 
         call EncodeBitDet_guga([1, 4, 5, 8], ilut)
-
-        currentB_ilut = calcB_vector_ilut(ilut)
-        currentOcc_ilut = calcOcc_vector_ilut(ilut)
-        currentOcc_int = calcOcc_vector_int(ilut)
-        current_stepvector = calcStepVector(ilut)
-        currentB_int = calcB_vector_int(ilut)
+        csf_info = CSF_Info_t(ilut)
 
         excitInfo = excitationIdentifier(4, 1, 1, 4)
         weights = init_doubleWeight(ilut, 4)
-        call calcRemainingSwitches_excitInfo_single(excitInfo, posSwitch, negSwitch)
+        call calcRemainingSwitches_excitInfo_single(csf_info, excitInfo, posSwitch, negSwitch)
 
         call mixedFullStartStochastic(ilut, excitInfo, weights, posSwitch, &
                                       negSwitch, ex, pgen)
@@ -8879,19 +8566,15 @@ contains
         type(ExcitationInformation_t) :: excitInfo
         type(WeightObj_t) :: weights
         real(dp) :: posSwitch(4), negSwitch(4), pgen
+        type(CSF_Info_t) :: csf_info
 
         ! 1212
         call EncodeBitDet_guga([1, 4, 5, 8], ilut)
-
-        currentB_ilut = calcB_vector_ilut(ilut)
-        currentOcc_ilut = calcOcc_vector_ilut(ilut)
-        currentOcc_int = calcOcc_vector_int(ilut)
-        current_stepvector = calcStepVector(ilut)
-        currentB_int = calcB_vector_int(ilut)
+        csf_info = CSF_Info_t(ilut)
 
         excitInfo = excitationIdentifier(4, 1, 1, 4)
         weights = init_doubleWeight(ilut, 4)
-        call calcRemainingSwitches_excitInfo_single(excitInfo, posSwitch, negSwitch)
+        call calcRemainingSwitches_excitInfo_single(csf_info, excitInfo, posSwitch, negSwitch)
 
         call mixedFullStartStochastic(ilut, excitInfo, weights, posSwitch, &
                                       negSwitch, ex, pgen)
@@ -8956,24 +8639,21 @@ contains
         real(dp) :: pgen
         logical :: compFlag
         real(dp) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
+        type(CSF_Info_t) :: csf_info
 
         ! set up determinant and excitaiton information
         call EncodeBitDet_guga([1, 4, 5, 8], ilut)
+        csf_info = CSF_Info_t(ilut)
 
-        currentB_ilut = calcB_vector_ilut(ilut)
-        currentOcc_ilut = calcOcc_vector_ilut(ilut)
-        currentOcc_int = calcOcc_vector_int(ilut)
-        current_stepvector = calcStepVector(ilut)
-        currentB_int = calcB_vector_int(ilut)
         excitInfo = excitationIdentifier(1, 4, 4, 1)
 
         call assert_true(excitInfo%typ == excit_type%fullstart_stop_mixed)
 
-        call checkCompatibility(ilut, excitInfo, compFlag, posSwitches, negSwitches)
+        call checkCompatibility(ilut, csf_info, excitInfo, compFlag, posSwitches, negSwitches)
         print *, ""
         print *, "testing calcFullStartFullStopMixedStochastic(ilut,exInfo,ex,pgen)"
         print *, ""
-        call calcFullStartFullStopMixedStochastic(ilut, excitInfo, ex, pgen, posSwitches, negSwitches)
+        call calcFullStartFullStopMixedStochastic(ilut, csf_info, excitInfo, ex, pgen, posSwitches, negSwitches)
 
         ! in this constellation no excitaiton should be possible, due to 0
         ! matrix elements..
@@ -8981,21 +8661,17 @@ contains
 
         ! 1122
         call EncodeBitDet_guga([1, 3, 6, 8], ilut)
+        csf_info = CSF_Info_t(ilut)
 
-        currentB_ilut = calcB_vector_ilut(ilut)
-        currentOcc_ilut = calcOcc_vector_ilut(ilut)
-        currentOcc_int = calcOcc_vector_int(ilut)
-        current_stepvector = calcStepVector(ilut)
-        currentB_int = calcB_vector_int(ilut)
         excitInfo = excitationIdentifier(1, 4, 4, 1)
 
         call assert_true(excitInfo%typ == excit_type%fullstart_stop_mixed)
 
-        call checkCompatibility(ilut, excitInfo, compFlag, posSwitches, negSwitches)
+        call checkCompatibility(ilut, csf_info, excitInfo, compFlag, posSwitches, negSwitches)
         print *, ""
         print *, "testing calcFullStartFullStopMixedStochastic(ilut,exInfo,ex,pgen)"
         print *, ""
-        call calcFullStartFullStopMixedStochastic(ilut, excitInfo, ex, pgen, posSwitches, negSwitches)
+        call calcFullStartFullStopMixedStochastic(ilut, csf_info, excitInfo, ex, pgen, posSwitches, negSwitches)
 
         ! in this constellation no excitaiton should be possible, due to 0
         ! matrix elements..
@@ -9012,16 +8688,11 @@ contains
         integer(n_int) :: ilut(0:nifguga)
         real(dp) :: pgen
         integer :: nI(4)
+        type(CSF_Info_t) :: csf_info
 
         nI = [1, 2, 3, 4]
-
         call EncodeBitDet_guga([1, 2, 3, 4], ilut)
-
-        currentB_ilut = calcB_vector_ilut(ilut)
-        currentOcc_ilut = calcOcc_vector_ilut(ilut)
-        currentOcc_int = calcOcc_vector_int(ilut)
-        current_stepvector = calcStepVector(ilut)
-        currentB_int = calcB_vector_int(ilut)
+        csf_info = CSF_Info_t(ilut)
 
         ! still have to think about, if i preemptively choose the different
         ! types of double excitation (iiij, ii,jk, etc.) or let i happen
@@ -9058,12 +8729,7 @@ contains
 
         nI = [5, 6, 7, 8]
         call EncodeBitDet_guga(nI, ilut)
-
-        currentB_ilut = calcB_vector_ilut(ilut)
-        currentOcc_ilut = calcOcc_vector_ilut(ilut)
-        currentOcc_int = calcOcc_vector_int(ilut)
-        current_stepvector = calcStepVector(ilut)
-        currentB_int = calcB_vector_int(ilut)
+        csf_info = CSF_Info_t(ilut)
 
         ! 0033
         call pickOrbitals_double(ilut, nI, excitInfo, pgen)
@@ -9091,12 +8757,8 @@ contains
         end if
 
         nI = [1, 4, 5, 8]
-
-        currentB_ilut = calcB_vector_ilut(ilut)
-        currentOcc_ilut = calcOcc_vector_ilut(ilut)
-        currentOcc_int = calcOcc_vector_int(ilut)
-        current_stepvector = calcStepVector(ilut)
-        currentB_int = calcB_vector_int(ilut)
+        call EncodeBitDet_guga(nI, ilut)
+        csf_info = CSF_Info_t(ilut)
 
         call pickOrbitals_double(ilut, nI, excitInfo, pgen)
 
@@ -9121,20 +8783,16 @@ contains
         real(dp), allocatable :: rdm_mat(:)
         type(ExcitationInformation_t) :: excitInfo
         real(dp) :: x0, x1, rdm_mat_ex, rdm_comb
+        type(CSF_Info_t) :: csf_info
 
         nI = [1, 5, 6, 8]
 
         call EncodeBitDet_guga([1, 5, 6, 8], ilut)
-
-        currentB_ilut = calcB_vector_ilut(ilut)
-        currentOcc_ilut = calcOcc_vector_ilut(ilut)
-        currentOcc_int = calcOcc_vector_int(ilut)
-        current_stepvector = calcStepVector(ilut)
-        currentB_int = calcB_vector_int(ilut)
+        csf_info = CSF_Info_t(ilut)
         print *, ""
         print *, "testing createStochasticExcitation_double(ilut, ex, pgen):"
         print *, ""
-        call createStochasticExcitation_double(ilut, nI, ex, pgen, dummy)
+        call createStochasticExcitation_double(ilut, csf_info, nI, ex, pgen, dummy)
 
         ! what should i test here?
         if (pgen > EPS) then
@@ -9144,7 +8802,7 @@ contains
             x0 = extract_stochastic_rdm_x0(GugaBits, ex)
             x1 = extract_stochastic_rdm_x1(GugaBits, ex)
 
-            call actHamiltonian(ilut, all_ex, nex)
+            call actHamiltonian(ilut, csf_info, all_ex, nex)
             pos = binary_search(all_ex(0:nifd, 1:nex), ex(0:nifd))
             call assert_true(pos > 0)
             ilutJ = all_ex(:, pos)
@@ -9167,7 +8825,7 @@ contains
             rdm_comb = combine_x0_x1(rdm_ind, x0, x1)
             call assert_equals(rdm_mat_ex, rdm_comb)
 
-            call calc_guga_matrix_element(ilut, ex, excitInfo, mat_ele, &
+            call calc_guga_matrix_element(ilut, csf_info, ex, excitInfo, mat_ele, &
                                           t_hamil=.true., calc_type=2, rdm_ind=rdm_ind_v, &
                                           rdm_mat=rdm_mat)
 
@@ -9193,20 +8851,15 @@ contains
         type(ExcitationInformation_t) :: excitInfo
         type(WeightObj_t) :: weights
         real(dp) :: posSwitch(4), negSwitch(4), pgen
+        type(CSF_Info_t) :: csf_info
 
         ! 3300
         call EncodeBitDet_guga([1, 2, 3, 4], ilut)
-
-        currentB_ilut = calcB_vector_ilut(ilut)
-        currentOcc_ilut = calcOcc_vector_ilut(ilut)
-        currentOcc_int = calcOcc_vector_int(ilut)
-        current_stepvector = calcStepVector(ilut)
-        currentB_int = calcB_vector_int(ilut)
+        csf_info = CSF_Info_t(ilut)
         ! do not make it random here but choose specific excitation!
-!         excitInfo = pickOrbitals_single(ilut)
         excitInfo = excitationIdentifier(4, 1)
-        call calcRemainingSwitches_excitInfo_single(excitInfo, posSwitch, negSwitch)
-        weights = init_singleWeight(ilut, excitInfo%fullEnd)
+        call calcRemainingSwitches_excitInfo_single(csf_info, excitInfo, posSwitch, negSwitch)
+        weights = init_singleWeight(csf_info, excitInfo%fullEnd)
 
         call createStochasticStart_single(ilut, excitInfo, weights, posSwitch, &
                                           negSwitch, ex, pgen)
@@ -9238,15 +8891,11 @@ contains
         type(ExcitationInformation_t) :: excitInfo
         type(WeightObj_t) :: weights
         real(dp) :: posSwitch(4), negSwitch(4), pgen
+        type(CSF_Info_t) :: csf_info
 
         ! 3300
         call EncodeBitDet_guga([1, 2, 3, 4], ilut)
-
-        currentB_ilut = calcB_vector_ilut(ilut)
-        currentOcc_ilut = calcOcc_vector_ilut(ilut)
-        currentOcc_int = calcOcc_vector_int(ilut)
-        current_stepvector = calcStepVector(ilut)
-        currentB_int = calcB_vector_int(ilut)
+        csf_info = CSF_Info_t(ilut)
 
         ! do not make it random here but choose specific excitation!
 !         excitInfo = pickOrbitals_single(ilut)
@@ -9256,8 +8905,8 @@ contains
         call assert_true(excitInfo%fullStart == 1 .and. excitInfo%fullEnd == 4)
         call assert_true(excitInfo%gen1 == -1)
 
-        call calcRemainingSwitches_excitInfo_single(excitInfo, posSwitch, negSwitch)
-        weights = init_singleWeight(ilut, excitInfo%fullEnd)
+        call calcRemainingSwitches_excitInfo_single(csf_info, excitInfo, posSwitch, negSwitch)
+        weights = init_singleWeight(csf_info, excitInfo%fullEnd)
 
         call assert_true(all(posSwitch < EPS))
         call assert_true(all(negSwitch < EPS))
@@ -9296,14 +8945,10 @@ contains
         integer :: orb
         real(dp) :: pgen
         integer(n_int) :: ilut(0:nifguga)
+        type(CSF_Info_t) :: csf_info
 
         call EncodeBitDet_guga([1, 2, 3, 8], ilut)
-
-        currentB_ilut = calcB_vector_ilut(ilut)
-        currentOcc_ilut = calcOcc_vector_ilut(ilut)
-        currentOcc_int = calcOcc_vector_int(ilut)
-        current_stepvector = calcStepVector(ilut)
-        currentB_int = calcB_vector_int(ilut)
+        csf_info = CSF_Info_t(ilut)
 
         pgen = 1.0_dp
 
@@ -9364,20 +9009,17 @@ contains
         type(ExcitationInformation_t) :: excitInfo
         type(WeightObj_t) :: weights
         real(dp) :: posSwitch(4), negSwitch(4), prob
+        type(CSF_Info_t) :: csf_info
 
         ! 1230
         call EncodeBitDet_guga([1, 4, 5, 6], ilut)
 
-        currentB_ilut = calcB_vector_ilut(ilut)
-        currentOcc_ilut = calcOcc_vector_ilut(ilut)
-        currentOcc_int = calcOcc_vector_int(ilut)
-        current_stepvector = calcStepVector(ilut)
-        currentB_int = calcB_vector_int(ilut)
+        csf_info = CSF_Info_t(ilut)
 
         excitInfo = excitationIdentifier(4, 1, 1, 3)
 
         weights = init_doubleWeight(ilut, 4)
-        call calcRemainingSwitches_excitInfo_single(excitInfo, posSwitch, negSwitch)
+        call calcRemainingSwitches_excitInfo_single(csf_info, excitInfo, posSwitch, negSwitch)
 
         print *, ""
         print *, "testing mixedFullStartStochastic:"
@@ -9394,7 +9036,7 @@ contains
         excitInfo = excitationIdentifier(4, 2, 2, 3)
 
         weights = init_doubleWeight(ilut, 4)
-        call calcRemainingSwitches_excitInfo_single(excitInfo, posSwitch, negSwitch)
+        call calcRemainingSwitches_excitInfo_single(csf_info, excitInfo, posSwitch, negSwitch)
 
         call mixedFullStartStochastic(ilut, excitInfo, weights, posSwitch, &
                                       negSwitch, ex, prob)
@@ -9431,16 +9073,12 @@ contains
         type(WeightObj_t) :: weights
         real(dp) :: posSwitch(4), negSwitch(4), probWeight
         integer(n_int) :: ex(0:nifguga)
+        type(CSF_Info_t) :: csf_info
 
         ! 3300
         call EncodeBitDet_guga([1, 2, 3, 4], ilut)
 
-        currentB_ilut = calcB_vector_ilut(ilut)
-        currentOcc_ilut = calcOcc_vector_ilut(ilut)
-        currentOcc_int = calcOcc_vector_int(ilut)
-        current_stepvector = calcStepVector(ilut)
-        currentB_int = calcB_vector_int(ilut)
-        currentB_ilut = calcB_vector_ilut(ilut)
+        csf_info = CSF_Info_t(ilut)
 
         excitInfo = excitationIdentifier(4, 1)
 
@@ -9448,8 +9086,8 @@ contains
         call assert_true(excitInfo%fullStart == 1 .and. excitInfo%fullEnd == 4)
         call assert_true(excitInfo%gen1 == -1)
 
-        call calcRemainingSwitches_excitInfo_single(excitInfo, posSwitch, negSwitch)
-        weights = init_singleWeight(ilut, 4)
+        call calcRemainingSwitches_excitInfo_single(csf_info, excitInfo, posSwitch, negSwitch)
+        weights = init_singleWeight(csf_info, 4)
 
         call assert_true(all(posSwitch < EPS))
         call assert_true(all(negSwitch < EPS))
@@ -9476,17 +9114,13 @@ contains
         type(ExcitationInformation_t) :: excitInfo
         real(dp) :: pgen
         integer :: nI(4)
+        type(CSF_Info_t) :: csf_info
 
         nI = [1, 2, 3, 4]
 
         call EncodeBitDet_guga([1, 2, 3, 4], ilut)
 
-        currentB_ilut = calcB_vector_ilut(ilut)
-        currentOcc_ilut = calcOcc_vector_ilut(ilut)
-        currentOcc_int = calcOcc_vector_int(ilut)
-        current_stepvector = calcStepVector(ilut)
-        currentB_int = calcB_vector_int(ilut)
-        currentB_ilut = calcB_vector_ilut(ilut)
+        csf_info = CSF_Info_t(ilut)
 
         ! what should i test here?..
         print *, ""
@@ -9526,12 +9160,7 @@ contains
         nI = [5, 6, 7, 8]
         call EncodeBitDet_guga([5, 6, 7, 8], ilut)
 
-        currentB_ilut = calcB_vector_ilut(ilut)
-        currentOcc_ilut = calcOcc_vector_ilut(ilut)
-        currentOcc_int = calcOcc_vector_int(ilut)
-        current_stepvector = calcStepVector(ilut)
-        currentB_int = calcB_vector_int(ilut)
-        currentB_ilut = calcB_vector_ilut(ilut)
+        csf_info = CSF_Info_t(ilut)
 
         call pickOrbitals_single(ilut, nI, excitInfo, pgen)
 
@@ -9562,15 +9191,10 @@ contains
             call assert_true(excitInfo%gen1 == 1)
         end if
 
-        call EncodeBitDet_guga([1, 4, 5, 8], ilut)
 
         nI = [1, 4, 5, 8]
-        currentB_ilut = calcB_vector_ilut(ilut)
-        currentOcc_ilut = calcOcc_vector_ilut(ilut)
-        currentOcc_int = calcOcc_vector_int(ilut)
-        current_stepvector = calcStepVector(ilut)
-        currentB_int = calcB_vector_int(ilut)
-        currentB_ilut = calcB_vector_ilut(ilut)
+        call EncodeBitDet_guga(nI, ilut)
+        csf_info = CSF_Info_t(ilut)
 
         ! 1212
         call pickOrbitals_single(ilut, nI, excitInfo, pgen)
@@ -9603,17 +9227,11 @@ contains
         real(dp) :: x0
         integer(int_rdm) :: rdm_ind_
         type(ExcitationInformation_t) :: excitInfo
+        type(CSF_Info_t) :: csf_info
 
         nI = [1, 2, 3, 4]
-
-        call EncodeBitDet_guga([1, 2, 3, 4], ilut)
-
-        currentB_ilut = calcB_vector_ilut(ilut)
-        currentOcc_ilut = calcOcc_vector_ilut(ilut)
-        currentOcc_int = calcOcc_vector_int(ilut)
-        current_stepvector = calcStepVector(ilut)
-        currentB_int = calcB_vector_int(ilut)
-        currentB_ilut = calcB_vector_ilut(ilut)
+        call EncodeBitDet_guga(nI, ilut)
+        csf_info = CSF_Info_t(ilut)
 
         print *, ""
         print *, "testing: createStochasticExcitation_single(ilut,t,weight):"
@@ -9777,15 +9395,11 @@ contains
         integer(n_int) :: ilut(0:nifguga)
         integer(n_int), allocatable :: ex(:, :)
         integer :: nExcits
+        type(CSF_Info_t) :: csf_info
 
         call EncodeBitDet_guga([1, 4, 5, 8], ilut)
 
-        currentB_ilut = calcB_vector_ilut(ilut)
-        currentOcc_ilut = calcOcc_vector_ilut(ilut)
-        currentOcc_int = calcOcc_vector_int(ilut)
-        current_stepvector = calcStepVector(ilut)
-        currentB_int = calcB_vector_int(ilut)
-        currentB_ilut = calcB_vector_ilut(ilut)
+        csf_info = CSF_Info_t(ilut)
 
         print *, ""
         print *, "testing calcAllExcitations_double(ilut,i,j,k,l,ex,nExits):"
@@ -9808,18 +9422,13 @@ contains
         type(ExcitationInformation_t) :: excitInfo
         integer(n_int), allocatable :: ex(:, :)
         real(dp) :: posSwitch(4), negSwitch(4)
+        type(CSF_Info_t) :: csf_info
 
         call EncodeBitDet_guga([3, 4, 7, 8], ilut)
-
-        currentB_ilut = calcB_vector_ilut(ilut)
-        currentOcc_ilut = calcOcc_vector_ilut(ilut)
-        currentOcc_int = calcOcc_vector_int(ilut)
-        current_stepvector = calcStepVector(ilut)
-        currentB_int = calcB_vector_int(ilut)
-        currentB_ilut = calcB_vector_ilut(ilut)
+        csf_info = CSF_Info_t(ilut)
 
         excitInfo = excitationIdentifier(1, 4, 1, 4)
-        call calcRemainingSwitches_excitInfo_double(excitInfo, posSwitch, negSwitch)
+        call calcRemainingSwitches_excitInfo_double(csf_info, excitInfo, posSwitch, negSwitch)
         call assert_true(excitInfo%typ == excit_type%fullstart_stop_alike)
 
         print *, ""
@@ -9837,23 +9446,16 @@ contains
         print *, ""
 
         call EncodeBitDet_guga([1, 2, 3, 4], ilut)
-
-        currentB_ilut = calcB_vector_ilut(ilut)
-        currentOcc_ilut = calcOcc_vector_ilut(ilut)
-        currentOcc_int = calcOcc_vector_int(ilut)
-        current_stepvector = calcStepVector(ilut)
-        currentB_int = calcB_vector_int(ilut)
-        currentB_ilut = calcB_vector_ilut(ilut)
+        csf_info = CSF_Info_t(ilut)
 
         excitInfo = excitationIdentifier(4, 1, 4, 1)
-        call calcRemainingSwitches_excitInfo_double(excitInfo, posSwitch, negSwitch)
-        currentB_ilut = calcB_vector_ilut(ilut)
+        call calcRemainingSwitches_excitInfo_double(csf_info, excitInfo, posSwitch, negSwitch)
         call assert_true(excitInfo%typ == excit_type%fullstart_stop_alike)
 
         print *, ""
         print *, "testing: calcFullStartFullStopAlike(ilut, exInfo, ex)"
         print *, ""
-        call calcFullStartFullStopAlike(ilut, excitInfo, ex)
+        call calcFullStartFullStopAlike(ilut, csf_info, excitInfo, ex)
 
         ! 3300
         ! 0303
@@ -9872,18 +9474,13 @@ contains
         integer(n_int), allocatable :: ex(:, :)
         integer :: num
         real(dp) :: posSwitch(4), negSwitch(4)
+        type(CSF_Info_t) :: csf_info
 
         call EncodeBitDet_guga([1, 4, 5, 8], ilut)
-
-        currentB_ilut = calcB_vector_ilut(ilut)
-        currentOcc_ilut = calcOcc_vector_ilut(ilut)
-        currentOcc_int = calcOcc_vector_int(ilut)
-        current_stepvector = calcStepVector(ilut)
-        currentB_int = calcB_vector_int(ilut)
-        currentB_ilut = calcB_vector_ilut(ilut)
+        csf_info = CSF_Info_t(ilut)
 
         excitInfo = excitationIdentifier(1, 4, 3, 1)
-        call calcRemainingSwitches_excitInfo_double(excitInfo, posSwitch, negSwitch)
+        call calcRemainingSwitches_excitInfo_double(csf_info, excitInfo, posSwitch, negSwitch)
         call assert_true(excitInfo%typ == excit_type%fullstart_L_to_R)
 
         print *, ""
@@ -9913,18 +9510,14 @@ contains
         integer(n_int), allocatable :: ex(:, :)
         integer :: num
         real(dp) :: posSwitch(4), negSwitch(4)
+        type(CSF_Info_t) :: csf_info
 
         call EncodeBitDet_guga([1, 4, 5, 8], ilut)
 
-        currentB_ilut = calcB_vector_ilut(ilut)
-        currentOcc_ilut = calcOcc_vector_ilut(ilut)
-        currentOcc_int = calcOcc_vector_int(ilut)
-        current_stepvector = calcStepVector(ilut)
-        currentB_int = calcB_vector_int(ilut)
-        currentB_ilut = calcB_vector_ilut(ilut)
+        csf_info = CSF_Info_t(ilut)
 
         excitInfo = excitationIdentifier(1, 3, 4, 1)
-        call calcRemainingSwitches_excitInfo_double(excitInfo, posSwitch, negSwitch)
+        call calcRemainingSwitches_excitInfo_double(csf_info, excitInfo, posSwitch, negSwitch)
         call assert_true(excitInfo%typ == excit_type%fullstart_R_to_L)
 
         print *, ""
@@ -9954,18 +9547,13 @@ contains
         integer(n_int), allocatable :: ex(:, :)
         integer :: num
         real(dp) :: posSwitch(4), negSwitch(4)
+        type(CSF_Info_t) :: csf_info
 
         call EncodeBitDet_guga([3, 4, 5, 8], ilut)
-
-        currentB_ilut = calcB_vector_ilut(ilut)
-        currentOcc_ilut = calcOcc_vector_ilut(ilut)
-        currentOcc_int = calcOcc_vector_int(ilut)
-        current_stepvector = calcStepVector(ilut)
-        currentB_int = calcB_vector_int(ilut)
-        currentB_ilut = calcB_vector_ilut(ilut)
+        csf_info = CSF_Info_t(ilut)
 
         excitInfo = excitationIdentifier(1, 4, 1, 3)
-        call calcRemainingSwitches_excitInfo_double(excitInfo, posSwitch, negSwitch)
+        call calcRemainingSwitches_excitInfo_double(csf_info, excitInfo, posSwitch, negSwitch)
         call assert_true(excitInfo%typ == excit_type%fullstart_raising)
 
         print *, ""
@@ -9991,18 +9579,13 @@ contains
         integer(n_int), allocatable :: ex(:, :)
         integer :: num
         real(dp) :: posSwitch(4), negSwitch(4)
+        type(CSF_Info_t) :: csf_info
 
         call EncodeBitDet_guga([1, 2, 5, 8], ilut)
-
-        currentB_ilut = calcB_vector_ilut(ilut)
-        currentOcc_ilut = calcOcc_vector_ilut(ilut)
-        currentOcc_int = calcOcc_vector_int(ilut)
-        current_stepvector = calcStepVector(ilut)
-        currentB_int = calcB_vector_int(ilut)
-        currentB_ilut = calcB_vector_ilut(ilut)
+        csf_info = CSF_Info_t(ilut)
 
         excitInfo = excitationIdentifier(4, 1, 3, 1)
-        call calcRemainingSwitches_excitInfo_double(excitInfo, posSwitch, negSwitch)
+        call calcRemainingSwitches_excitInfo_double(csf_info, excitInfo, posSwitch, negSwitch)
         call assert_true(excitInfo%typ == excit_type%fullstart_lowering)
 
         print *, ""
@@ -10027,18 +9610,13 @@ contains
         integer(n_int), allocatable :: ex(:, :)
         integer :: num
         real(dp) :: posSwitch(4), negSwitch(4)
+        type(CSF_Info_t) :: csf_info
 
         call EncodeBitDet_guga([1, 4, 5, 8], ilut)
-
-        currentB_ilut = calcB_vector_ilut(ilut)
-        currentOcc_ilut = calcOcc_vector_ilut(ilut)
-        currentOcc_int = calcOcc_vector_int(ilut)
-        current_stepvector = calcStepVector(ilut)
-        currentB_int = calcB_vector_int(ilut)
-        currentB_ilut = calcB_vector_ilut(ilut)
+        csf_info = CSF_Info_t(ilut)
 
         excitInfo = excitationIdentifier(1, 4, 4, 3)
-        call calcRemainingSwitches_excitInfo_double(excitInfo, posSwitch, negSwitch)
+        call calcRemainingSwitches_excitInfo_double(csf_info, excitInfo, posSwitch, negSwitch)
         call assert_true(excitInfo%typ == excit_type%fullstop_R_to_L)
 
         print *, ""
@@ -10070,23 +9648,19 @@ contains
         integer(n_int), allocatable :: ex(:, :)
         integer :: num
         real(dp) :: posSwitch(4), negSwitch(4)
+        type(CSF_Info_t) :: csf_info
 
         call EncodeBitDet_guga([1, 4, 5, 8], ilut)
-
-        currentB_ilut = calcB_vector_ilut(ilut)
-        currentOcc_ilut = calcOcc_vector_ilut(ilut)
-        currentOcc_int = calcOcc_vector_int(ilut)
-        current_stepvector = calcStepVector(ilut)
-        currentB_int = calcB_vector_int(ilut)
+        csf_info = CSF_Info_t(ilut)
 
         excitInfo = excitationIdentifier(4, 1, 3, 4)
-        call calcRemainingSwitches_excitInfo_double(excitInfo, posSwitch, negSwitch)
+        call calcRemainingSwitches_excitInfo_double(csf_info, excitInfo, posSwitch, negSwitch)
         call assert_true(excitInfo%typ == excit_type%fullstop_L_to_R)
 
         print *, ""
         print *, "testing: calcFullStopL2R(ilut, exInfo, ex, num, posSwitch, negSwitch)"
         print *, ""
-        call calcFullStopL2R(ilut, excitInfo, ex, num, posSwitch, negSwitch)
+        call calcFullStopL2R(ilut, csf_info, excitInfo, ex, num, posSwitch, negSwitch)
 
         ! 1212
         ! 0132
@@ -10094,7 +9668,7 @@ contains
         call assert_true(all(calcStepVector(ex(:, 1)) == [0, 1, 3, 2]))
 
         excitInfo = excitationIdentifier(3, 1, 2, 3)
-        call calcFullStopL2R(ilut, excitInfo, ex, num, posSwitch, negSwitch)
+        call calcFullStopL2R(ilut, csf_info, excitInfo, ex, num, posSwitch, negSwitch)
 
         ! 1212
         ! 0312
@@ -10113,17 +9687,13 @@ contains
         integer(n_int), allocatable :: ex(:, :)
         integer :: num
         real(dp) :: posSwitch(4), negSwitch(4)
+        type(CSF_Info_t) :: csf_info
 
         call EncodeBitDet_guga([5, 6, 7, 8], ilut)
-
-        currentB_ilut = calcB_vector_ilut(ilut)
-        currentOcc_ilut = calcOcc_vector_ilut(ilut)
-        currentOcc_int = calcOcc_vector_int(ilut)
-        current_stepvector = calcStepVector(ilut)
-        currentB_int = calcB_vector_int(ilut)
+        csf_info = CSF_Info_t(ilut)
 
         excitInfo = excitationIdentifier(1, 4, 2, 4)
-        call calcRemainingSwitches_excitInfo_double(excitInfo, posSwitch, negSwitch)
+        call calcRemainingSwitches_excitInfo_double(csf_info, excitInfo, posSwitch, negSwitch)
         call assert_true(excitInfo%typ == excit_type%fullstop_raising)
 
         print *, ""
@@ -10148,17 +9718,13 @@ contains
         integer(n_int), allocatable :: ex(:, :)
         integer :: num
         real(dp) :: posSwitch(4), negSwitch(4)
+        type(CSF_Info_t) :: csf_info
 
         call EncodeBitDet_guga([1, 2, 3, 4], ilut)
-
-        currentB_ilut = calcB_vector_ilut(ilut)
-        currentOcc_ilut = calcOcc_vector_ilut(ilut)
-        currentOcc_int = calcOcc_vector_int(ilut)
-        current_stepvector = calcStepVector(ilut)
-        currentB_int = calcB_vector_int(ilut)
+        csf_info = CSF_Info_t(ilut)
 
         excitInfo = excitationIdentifier(4, 1, 4, 2)
-        call calcRemainingSwitches_excitInfo_double(excitInfo, posSwitch, negSwitch)
+        call calcRemainingSwitches_excitInfo_double(csf_info, excitInfo, posSwitch, negSwitch)
         call assert_true(excitInfo%typ == excit_type%fullstop_lowering)
 
         print *, ""
@@ -10183,17 +9749,13 @@ contains
         integer(n_int), allocatable :: ex(:, :)
         integer :: num
         real(dp) :: posSwitch(4), negSwitch(4)
+        type(CSF_Info_t) :: csf_info
 
         call EncodeBitDet_guga([1, 4, 5, 8], ilut)
-
-        currentB_ilut = calcB_vector_ilut(ilut)
-        currentOcc_ilut = calcOcc_vector_ilut(ilut)
-        currentOcc_int = calcOcc_vector_int(ilut)
-        current_stepvector = calcStepVector(ilut)
-        currentB_int = calcB_vector_int(ilut)
+        csf_info = CSF_Info_t(ilut)
 
         excitInfo = excitationIdentifier(1, 3, 4, 2)
-        call calcRemainingSwitches_excitInfo_double(excitInfo, posSwitch, negSwitch)
+        call calcRemainingSwitches_excitInfo_double(csf_info, excitInfo, posSwitch, negSwitch)
         call assert_true(excitInfo%typ == excit_type%double_R_to_L)
 
         print *, ""
@@ -10222,17 +9784,13 @@ contains
         integer(n_int), allocatable :: ex(:, :)
         integer :: num
         real(dp) :: posSwitch(4), negSwitch(4)
+        type(CSF_Info_t) :: csf_info
 
         call EncodeBitDet_guga([1, 4, 5, 8], ilut)
-
-        currentB_ilut = calcB_vector_ilut(ilut)
-        currentOcc_ilut = calcOcc_vector_ilut(ilut)
-        currentOcc_int = calcOcc_vector_int(ilut)
-        current_stepvector = calcStepVector(ilut)
-        currentB_int = calcB_vector_int(ilut)
+        csf_info = CSF_Info_t(ilut)
 
         excitInfo = excitationIdentifier(3, 1, 2, 4)
-        call calcRemainingSwitches_excitInfo_double(excitInfo, posSwitch, negSwitch)
+        call calcRemainingSwitches_excitInfo_double(csf_info, excitInfo, posSwitch, negSwitch)
         call assert_true(excitInfo%typ == excit_type%double_L_to_R)
 
         print *, ""
@@ -10257,17 +9815,13 @@ contains
         integer(n_int), allocatable :: ex(:, :)
         integer :: num
         real(dp) :: posSwitch(4), negSwitch(4)
+        type(CSF_Info_t) :: csf_info
 
         call EncodeBitDet_guga([5, 6, 7, 8], ilut)
-
-        currentB_ilut = calcB_vector_ilut(ilut)
-        currentOcc_ilut = calcOcc_vector_ilut(ilut)
-        currentOcc_int = calcOcc_vector_int(ilut)
-        current_stepvector = calcStepVector(ilut)
-        currentB_int = calcB_vector_int(ilut)
+        csf_info = CSF_Info_t(ilut)
 
         excitInfo = excitationIdentifier(1, 3, 2, 4)
-        call calcRemainingSwitches_excitInfo_double(excitInfo, posSwitch, negSwitch)
+        call calcRemainingSwitches_excitInfo_double(csf_info, excitInfo, posSwitch, negSwitch)
         call assert_true(excitInfo%typ == excit_type%double_raising)
 
         print *, ""
@@ -10293,17 +9847,13 @@ contains
         integer(n_int), allocatable :: ex(:, :)
         integer :: num
         real(dp) :: posSwitch(4), negSwitch(4)
+        type(CSF_Info_t) :: csf_info
 
         call EncodeBitDet_guga([1, 2, 3, 4], ilut)
-
-        currentB_ilut = calcB_vector_ilut(ilut)
-        currentOcc_ilut = calcOcc_vector_ilut(ilut)
-        currentOcc_int = calcOcc_vector_int(ilut)
-        current_stepvector = calcStepVector(ilut)
-        currentB_int = calcB_vector_int(ilut)
+        csf_info = CSF_Info_t(ilut)
 
         excitInfo = excitationIdentifier(3, 1, 4, 2)
-        call calcRemainingSwitches_excitInfo_double(excitInfo, posSwitch, negSwitch)
+        call calcRemainingSwitches_excitInfo_double(csf_info, excitInfo, posSwitch, negSwitch)
 
         call assert_true(excitInfo%typ == excit_type%double_lowering)
         print *, ""
@@ -10330,17 +9880,13 @@ contains
         integer(n_int), allocatable :: ex(:, :)
         integer :: num
         real(dp) :: posSwitch(4), negSwitch(4)
+        type(CSF_Info_t) :: csf_info
 
         call EncodeBitDet_guga([5, 6, 7, 8], ilut)
-
-        currentB_ilut = calcB_vector_ilut(ilut)
-        currentOcc_ilut = calcOcc_vector_ilut(ilut)
-        currentOcc_int = calcOcc_vector_int(ilut)
-        current_stepvector = calcStepVector(ilut)
-        currentB_int = calcB_vector_int(ilut)
+        csf_info = CSF_Info_t(ilut)
 
         excitInfo = excitationIdentifier(1, 3, 3, 4)
-        call calcRemainingSwitches_excitInfo_double(excitInfo, posSwitch, negSwitch)
+        call calcRemainingSwitches_excitInfo_double(csf_info, excitInfo, posSwitch, negSwitch)
         print *, excitInfo%typ
 
         print *, "testing: calcSingleOverlapRaising(ilut, exInfo, ex, num, posSwitch, negSwitch)"
@@ -10362,17 +9908,13 @@ contains
         integer(n_int), allocatable :: ex(:, :)
         integer :: num
         real(dp) :: posSwitch(4), negSwitch(4)
+        type(CSF_Info_t) :: csf_info
 
         call EncodeBitDet_guga([1, 2, 7, 8], ilut)
-
-        currentB_ilut = calcB_vector_ilut(ilut)
-        currentOcc_ilut = calcOcc_vector_ilut(ilut)
-        currentOcc_int = calcOcc_vector_int(ilut)
-        current_stepvector = calcStepVector(ilut)
-        currentB_int = calcB_vector_int(ilut)
+        csf_info = CSF_Info_t(ilut)
 
         excitInfo = excitationIdentifier(3, 1, 3, 4)
-        call calcRemainingSwitches_excitInfo_double(excitInfo, posSwitch, negSwitch)
+        call calcRemainingSwitches_excitInfo_double(csf_info, excitInfo, posSwitch, negSwitch)
 
         print *, "testing: calcSingleOverlapMixed(ilut, exInfo, ex, num, posSwitch, negSwitch)"
         call calcSingleOverlapMixed(ilut, excitInfo, ex, num, posSwitch, negSwitch)
@@ -10393,21 +9935,17 @@ contains
         integer(n_int), allocatable :: ex(:, :)
         integer :: num
         real(dp) :: posSwitch(4), negSwitch(4)
+        type(CSF_Info_t) :: csf_info
 
         call EncodeBitDet_guga([1, 2, 3, 4], ilut)
-
-        currentB_ilut = calcB_vector_ilut(ilut)
-        currentOcc_ilut = calcOcc_vector_ilut(ilut)
-        currentOcc_int = calcOcc_vector_int(ilut)
-        current_stepvector = calcStepVector(ilut)
-        currentB_int = calcB_vector_int(ilut)
+        csf_info = CSF_Info_t(ilut)
 
         excitInfo = excitationIdentifier(2, 1, 4, 2)
-        call calcRemainingSwitches_excitInfo_double(excitInfo, posSwitch, negSwitch)
+        call calcRemainingSwitches_excitInfo_double(csf_info, excitInfo, posSwitch, negSwitch)
         print *, excitInfo%typ
 
         print *, "testing: calcSingleOverlapLowering(ilut, exInfo, ex, num, posSwitch, negSwitch)"
-        call calcSingleOverlapLowering(ilut, excitInfo, ex, num, posSwitch, negSwitch)
+        call calcSingleOverlapLowering(ilut, csf_info, excitInfo, ex, num, posSwitch, negSwitch)
 
         ! 3300
         ! 1302
@@ -10425,17 +9963,13 @@ contains
         integer(n_int), allocatable :: ex(:, :)
         integer :: num
         real(dp) :: posSwitch(4), negSwitch(4)
+        type(CSF_Info_t) :: csf_info
 
         call EncodeBitDet_guga([3, 4, 7, 8], ilut)
-
-        currentB_ilut = calcB_vector_ilut(ilut)
-        currentOcc_ilut = calcOcc_vector_ilut(ilut)
-        currentOcc_int = calcOcc_vector_int(ilut)
-        current_stepvector = calcStepVector(ilut)
-        currentB_int = calcB_vector_int(ilut)
+        csf_info = CSF_Info_t(ilut)
 
         excitInfo = excitationIdentifier(1, 2, 3, 4)
-        call calcRemainingSwitches_excitInfo_double(excitInfo, posSwitch, negSwitch)
+        call calcRemainingSwitches_excitInfo_double(csf_info, excitInfo, posSwitch, negSwitch)
         call assert_true(excitInfo%typ == excit_type%non_overlap)
 
         print *, "testing: calcNonOverlapDouble(ilut, exInfo, exs, num, posSwitch, negSwitch"
@@ -10462,21 +9996,17 @@ contains
         integer :: num
         real(dp) :: posSwitch(4), negSwitch(4)
         logical :: compFlag
+        type(CSF_Info_t) :: csf_info
 
         call EncodeBitDet_guga([3, 4, 7, 8], ilut)
-
-        currentB_ilut = calcB_vector_ilut(ilut)
-        currentOcc_ilut = calcOcc_vector_ilut(ilut)
-        currentOcc_int = calcOcc_vector_int(ilut)
-        current_stepvector = calcStepVector(ilut)
-        currentB_int = calcB_vector_int(ilut)
+        csf_info = CSF_Info_t(ilut)
 
         excitInfo = excitationIdentifier(2, 2, 1, 4)
-        call calcRemainingSwitches_excitInfo_single(excitInfo, posSwitch, negSwitch)
+        call calcRemainingSwitches_excitInfo_single(csf_info, excitInfo, posSwitch, negSwitch)
         call assert_true(excitInfo%typ == excit_type%raising)
 
         print *, "testing: calcDoubleExcitation_withWeight(ilut, exInfo, exc, num)"
-        call calcDoubleExcitation_withWeight(ilut, excitInfo, ex, num, posSwitch, &
+        call calcDoubleExcitation_withWeight(ilut, csf_info, excitInfo, ex, num, posSwitch, &
                                              negSwitch)
 
         ! 0303
@@ -10486,7 +10016,7 @@ contains
         call assert_true(abs(extract_matrix_element(ex(:, 1), 1) + 2.0_dp * Root2) < 1.0e-10_dp)
 
         excitInfo = excitationIdentifier(3, 3, 1, 4)
-        call checkCompatibility(ilut, excitInfo, compFlag, posSwitch, negSwitch)
+        call checkCompatibility(ilut, csf_info, excitInfo, compFlag, posSwitch, negSwitch)
         call assert_true(.not. compFlag)
 
         ! todo! have to write a only excitation calculating funciton
@@ -10501,41 +10031,38 @@ contains
         integer(n_int) :: ilut(0:nifguga)
         logical :: flag
         type(ExcitationInformation_t) :: excitInfo
+        type(CSF_Info_t) :: csf_info
 
         print *, "testing: checkCompatibility:"
         call EncodeBitDet_guga([1, 2, 3, 4], ilut)
+        csf_info = CSF_Info_t(ilut)
 
-        currentB_ilut = calcB_vector_ilut(ilut)
-        currentOcc_ilut = calcOcc_vector_ilut(ilut)
-        currentOcc_int = calcOcc_vector_int(ilut)
-        current_stepvector = calcStepVector(ilut)
-        currentB_int = calcB_vector_int(ilut)
         excitInfo = excitationIdentifier_double(1, 2, 3, 4)
-        call calcRemainingSwitches_excitInfo_double(excitInfo, posSwitch, negSwitch)
-        call checkCompatibility(ilut, excitInfo, flag, posSwitch, negSwitch)
+        call calcRemainingSwitches_excitInfo_double(csf_info, excitInfo, posSwitch, negSwitch)
+        call checkCompatibility(ilut, csf_info, excitInfo, flag, posSwitch, negSwitch)
 
         call assert_true(.not. flag)
 
         ! 3300
 
         excitInfo = excitationIdentifier_double(1, 2, 1, 4)
-        call checkCompatibility(ilut, excitInfo, flag, posSwitch, negSwitch)
+        call checkCompatibility(ilut, csf_info, excitInfo, flag, posSwitch, negSwitch)
         call assert_true(.not. flag)
 
         excitInfo = excitationIdentifier_double(3, 2, 4, 1)
-        call checkCompatibility(ilut, excitInfo, flag, posSwitch, negSwitch)
+        call checkCompatibility(ilut, csf_info, excitInfo, flag, posSwitch, negSwitch)
         call assert_true(flag)
 
         ! 0033
         call EncodeBitDet_guga([5, 6, 7, 8], ilut)
-        call fill_csf_info(ilut)
+        csf_info = CSF_Info_t(ilut)
 
         excitInfo = excitationIdentifier_double(1, 2, 1, 4)
-        call checkCompatibility(ilut, excitInfo, flag, posSwitch, negSwitch)
+        call checkCompatibility(ilut, csf_info, excitInfo, flag, posSwitch, negSwitch)
         call assert_true(.not. flag)
 
         excitInfo = excitationIdentifier_double(1, 3, 1, 4)
-        call checkCompatibility(ilut, excitInfo, flag, posSwitch, negSwitch)
+        call checkCompatibility(ilut, csf_info, excitInfo, flag, posSwitch, negSwitch)
         call assert_true(flag)
 
         print *, "checkCompatibility tests passed!"
@@ -10545,35 +10072,27 @@ contains
     subroutine test_calcRemainingSwitches_double
         real(dp) :: posSwitch(4), negSwitch(4)
         integer(n_int) :: ilut(0:nifguga)
+        type(CSF_Info_t) :: csf_info
 
         call EncodeBitDet_guga([1, 2, 3, 4], ilut)
 
-        currentB_ilut = calcB_vector_ilut(ilut)
-        currentOcc_ilut = calcOcc_vector_ilut(ilut)
-        currentOcc_int = calcOcc_vector_int(ilut)
-        current_stepvector = calcStepVector(ilut)
-        currentB_int = calcB_vector_int(ilut)
+        csf_info = CSF_Info_t(ilut)
 
         print *, "testing: calcRemainingSwitches_double"
         ! solche scheiß tests...
-        call calcRemainingSwitches_double(1, 2, 3, 4, posSwitch, negSwitch)
+        call calcRemainingSwitches_double(csf_info, 1, 2, 3, 4, posSwitch, negSwitch)
         call assert_true(all(posSwitch.isclose.0.0_dp))
         call assert_true(all(negSwitch.isclose.0.0_dp))
-        call calcRemainingSwitches_double(3, 2, 3, 1, posSwitch, negSwitch)
+        call calcRemainingSwitches_double(csf_info, 3, 2, 3, 1, posSwitch, negSwitch)
         call assert_true(all(posSwitch.isclose.0.0_dp))
         call assert_true(all(negSwitch.isclose.0.0_dp))
-        call calcRemainingSwitches_double(1, 4, 3, 4, posSwitch, negSwitch)
+        call calcRemainingSwitches_double(csf_info, 1, 4, 3, 4, posSwitch, negSwitch)
         call assert_true(all(posSwitch.isclose.0.0_dp))
         call assert_true(all(negSwitch.isclose.0.0_dp))
 
         call EncodeBitDet_guga([1, 4, 5, 6], ilut)
 
-        currentB_ilut = calcB_vector_ilut(ilut)
-        currentOcc_ilut = calcOcc_vector_ilut(ilut)
-        currentOcc_int = calcOcc_vector_int(ilut)
-        current_stepvector = calcStepVector(ilut)
-        currentB_int = calcB_vector_int(ilut)
-
+        csf_info = CSF_Info_t(ilut)
         ! 1212 todo
 
         print *, "calcRemainingSwitches_double tests passed!"
@@ -10622,18 +10141,14 @@ contains
         integer(n_int) :: ilut(0:nifguga)
         integer(n_int), allocatable :: ex(:, :)
         integer :: nEx
+        type(CSF_Info_t) :: csf_info
 
         ! 3300
         call EncodeBitDet_guga([1, 2, 3, 4], ilut)
-
-        currentB_ilut = calcB_vector_ilut(ilut)
-        currentOcc_ilut = calcOcc_vector_ilut(ilut)
-        currentOcc_int = calcOcc_vector_int(ilut)
-        current_stepvector = calcStepVector(ilut)
-        currentB_int = calcB_vector_int(ilut)
+        csf_info = CSF_Info_t(ilut)
 
         print *, "testing: calcAllExcitations_single"
-        call calcAllExcitations_single(ilut, 4, 1, ex, nEx)
+        call calcAllExcitations_single(ilut, csf_info, 4, 1, ex, nEx)
         call assert_equals(-Root2, extract_matrix_element(ex(:, 1), 1))
         call assert_equals(1, nEx)
 
@@ -10641,14 +10156,9 @@ contains
 
         ! 0123
         call EncodeBitDet_guga([3, 6, 7, 8], ilut)
+        csf_info = CSF_Info_t(ilut)
 
-        currentB_ilut = calcB_vector_ilut(ilut)
-        currentOcc_ilut = calcOcc_vector_ilut(ilut)
-        currentOcc_int = calcOcc_vector_int(ilut)
-        current_stepvector = calcStepVector(ilut)
-        currentB_int = calcB_vector_int(ilut)
-
-        call calcAllExcitations_single(ilut, 2, 4, ex, nEx)
+        call calcAllExcitations_single(ilut, csf_info, 2, 4, ex, nEx)
 
         call assert_equals(1, nex)
         call assert_equals(-1.0_dp, extract_matrix_element(ex(:, 1), 1), 1e-10_dp)
@@ -10667,38 +10177,34 @@ contains
         integer(n_int), allocatable :: excits(:, :), tmpEx(:, :)
         integer :: num
         type(WeightObj_t) :: weights
+        type(CSF_Info_t) :: csf_info
 
         print *, "testing: singleEnd(ilut, exInfo, tmpEx, nEx, excits)"
         ! test a [1,2,0,3] E_1,4 raising start:
         call EncodeBitDet_guga([1, 4, 7, 8], ilut)
-        currentB_ilut = calcB_vector_ilut(ilut)
-        currentOcc_ilut = calcOcc_vector_ilut(ilut)
-        currentOcc_int = calcOcc_vector_int(ilut)
-        current_stepvector = calcStepVector(ilut)
-        currentB_int = calcB_vector_int(ilut)
-
+        csf_info = CSF_Info_t(ilut)
         excitInfo = excitationIdentifier(1, 4)
-        call calcRemainingSwitches_excitInfo_single(excitInfo, posSwitch, negSwitch)
-        weights = init_singleWeight(ilut, 4)
+        call calcRemainingSwitches_excitInfo_single(csf_info, excitInfo, posSwitch, negSwitch)
+        weights = init_singleWeight(csf_info, 4)
 
-        call createSingleStart(ilut, excitInfo, posSwitch, negSwitch, weights, &
+        call createSingleStart(ilut, csf_info, excitInfo, posSwitch, negSwitch, weights, &
                                tmpEx, num)
 
         call assert_true(getDeltaB(tmpEx) == 1)
-        call singleUpdate(ilut, 2, excitInfo, posSwitch, negSwitch, weights, &
+        call singleUpdate(ilut, csf_info, 2, excitInfo, posSwitch, negSwitch, weights, &
                           tmpEx, num)
 
         call assert_true(getDeltaB(tmpEx) == -1)
         call assert_true(num == 1)
         call assert_true(abs(extract_matrix_element(tmpEx(:, 1), 1) + OverR2) < 1.0e-10_dp)
 
-        call singleUpdate(ilut, 3, excitInfo, posSwitch, negSwitch, weights, &
+        call singleUpdate(ilut, csf_info, 3, excitInfo, posSwitch, negSwitch, weights, &
                           tmpEx, num)
         call assert_true(num == 1)
         call assert_true(getDeltaB(tmpEx) == -1)
         call assert_true(abs(extract_matrix_element(tmpEx(:, 1), 1) + OverR2) < 1.0e-10_dp)
 
-        call singleEnd(ilut, excitInfo, tmpEx, num, excits)
+        call singleEnd(ilut, csf_info, excitInfo, tmpEx, num, excits)
 
         call assert_true(.not. allocated(tmpEx))
         call assert_true(num == 1)
@@ -10715,31 +10221,27 @@ contains
         integer(n_int), allocatable :: excits(:, :)
         integer :: num
         type(WeightObj_t) :: weights
+        type(CSF_Info_t) :: csf_info
 
-        print *, "testing: singleUpdate(ilut,orb,exInfo,posSwitch,negSwitch,excits,num)"
+        print *, "testing: singleUpdate(ilut,csf_info,orb,exInfo,posSwitch,negSwitch,excits,num)"
         ! test a [1,2,0,3] E_1,4 raising start:
         call EncodeBitDet_guga([1, 4, 7, 8], ilut)
 
-        currentB_ilut = calcB_vector_ilut(ilut)
-        currentOcc_ilut = calcOcc_vector_ilut(ilut)
-        currentOcc_int = calcOcc_vector_int(ilut)
-        current_stepvector = calcStepVector(ilut)
-        currentB_int = calcB_vector_int(ilut)
-
+        csf_info = CSF_Info_t(ilut)
         excitInfo = excitationIdentifier(1, 4)
-        call calcRemainingSwitches_excitInfo_single(excitInfo, posSwitch, negSwitch)
-        weights = init_singleWeight(ilut, 4)
+        call calcRemainingSwitches_excitInfo_single(csf_info, excitInfo, posSwitch, negSwitch)
+        weights = init_singleWeight(csf_info, 4)
 
-        call createSingleStart(ilut, excitInfo, posSwitch, negSwitch, weights, &
+        call createSingleStart(ilut, csf_info, excitInfo, posSwitch, negSwitch, weights, &
                                excits, num)
 
-        call singleUpdate(ilut, 2, excitInfo, posSwitch, negSwitch, weights, &
+        call singleUpdate(ilut, csf_info, 2, excitInfo, posSwitch, negSwitch, weights, &
                           excits, num)
 
         call assert_true(num == 1)
         call assert_true(abs(extract_matrix_element(excits(:, 1), 1) + OverR2) < 1.0e-10_dp)
 
-        call singleUpdate(ilut, 3, excitInfo, posSwitch, negSwitch, weights, &
+        call singleUpdate(ilut, csf_info, 3, excitInfo, posSwitch, negSwitch, weights, &
                           excits, num)
 
         ! 1203
@@ -10760,22 +10262,18 @@ contains
         integer(n_int), allocatable :: excits(:, :)
         integer :: num
         type(WeightObj_t) :: weights
+        type(CSF_Info_t) :: csf_info
 
-        print *, "testing: createSingleStart(ilut, excitInfo, posSwitch, negSwitch, excits, nExcits)"
+        print *, "testing: createSingleStart(ilut, csf_info, excitInfo, posSwitch, negSwitch, excits, nExcits)"
 
         ! test a [1,2,0,3] E_1,4 raising start:
         call EncodeBitDet_guga([1, 4, 7, 8], ilut)
-
-        currentB_ilut = calcB_vector_ilut(ilut)
-        currentOcc_ilut = calcOcc_vector_ilut(ilut)
-        currentOcc_int = calcOcc_vector_int(ilut)
-        current_stepvector = calcStepVector(ilut)
-        currentB_int = calcB_vector_int(ilut)
+        csf_info = CSF_Info_t(ilut)
 
         excitInfo = excitationIdentifier(1, 4)
-        call calcRemainingSwitches_excitInfo_single(excitInfo, posSwitch, negSwitch)
-        weights = init_singleWeight(ilut, 4)
-        call createSingleStart(ilut, excitInfo, posSwitch, negSwitch, weights, &
+        call calcRemainingSwitches_excitInfo_single(csf_info, excitInfo, posSwitch, negSwitch)
+        weights = init_singleWeight(csf_info, 4)
+        call createSingleStart(ilut, csf_info, excitInfo, posSwitch, negSwitch, weights, &
                                excits, num)
         call assert_true(num == 1)
         call assert_true(extract_matrix_element(excits(:, 1), 1) .isclose.Root2)
@@ -10784,20 +10282,15 @@ contains
         deallocate (excits)
 
         call EncodeBitDet_guga([1, 4, 7, 8], ilut)
+        csf_info = CSF_Info_t(ilut)
 
         excitInfo = excitationIdentifier(2, 4)
 
-        call calcRemainingSwitches_excitInfo_single(excitInfo, posSwitch, negSwitch)
+        call calcRemainingSwitches_excitInfo_single(csf_info, excitInfo, posSwitch, negSwitch)
 
-        currentB_ilut = calcB_vector_ilut(ilut)
-        currentOcc_ilut = calcOcc_vector_ilut(ilut)
-        currentOcc_int = calcOcc_vector_int(ilut)
-        current_stepvector = calcStepVector(ilut)
-        currentB_int = calcB_vector_int(ilut)
+        weights = init_singleWeight(csf_info, 4)
 
-        weights = init_singleWeight(ilut, 4)
-
-        call createSingleStart(ilut, excitInfo, posSwitch, negSwitch, weights, &
+        call createSingleStart(ilut, csf_info, excitInfo, posSwitch, negSwitch, weights, &
                                excits, num)
 
         call assert_true(num == 1)
@@ -10806,20 +10299,15 @@ contains
         deallocate (excits)
 
         call EncodeBitDet_guga([1, 2, 3, 4], ilut)
+        csf_info = CSF_Info_t(ilut)
 
         excitInfo = excitationIdentifier(4, 1)
 
-        currentB_ilut = calcB_vector_ilut(ilut)
-        currentOcc_ilut = calcOcc_vector_ilut(ilut)
-        currentOcc_int = calcOcc_vector_int(ilut)
-        current_stepvector = calcStepVector(ilut)
-        currentB_int = calcB_vector_int(ilut)
+        call calcRemainingSwitches_excitInfo_single(csf_info, excitInfo, posSwitch, negSwitch)
 
-        call calcRemainingSwitches_excitInfo_single(excitInfo, posSwitch, negSwitch)
+        weights = init_singleWeight(csf_info, 4)
 
-        weights = init_singleWeight(ilut, 4)
-
-        call createSingleStart(ilut, excitInfo, posSwitch, negSwitch, weights, &
+        call createSingleStart(ilut, csf_info, excitInfo, posSwitch, negSwitch, weights, &
                                excits, num)
         call assert_true(num == 1)
         call assert_true(getDeltaB(excits(:, 1)) == -1)
@@ -10832,19 +10320,15 @@ contains
         ! 1122
         ! 1212
         call EncodeBitDet_guga([1, 3, 4, 6], ilut)
+        csf_info = CSF_Info_t(ilut)
+
         excitInfo = excitationIdentifier(4, 2)
 
-        currentB_ilut = calcB_vector_ilut(ilut)
-        currentOcc_ilut = calcOcc_vector_ilut(ilut)
-        currentOcc_int = calcOcc_vector_int(ilut)
-        current_stepvector = calcStepVector(ilut)
-        currentB_int = calcB_vector_int(ilut)
+        weights = init_singleWeight(csf_info, 4)
 
-        weights = init_singleWeight(ilut, 4)
+        call calcRemainingSwitches_excitInfo_single(csf_info, excitInfo, posSwitch, negSwitch)
 
-        call calcRemainingSwitches_excitInfo_single(excitInfo, posSwitch, negSwitch)
-
-        call createSingleStart(ilut, excitInfo, posSwitch, negSwitch, weights, &
+        call createSingleStart(ilut, csf_info, excitInfo, posSwitch, negSwitch, weights, &
                                excits, num)
 
         call assert_true(num == 2)
@@ -11108,20 +10592,22 @@ contains
     subroutine test_count_open_orbs_ij
         integer :: det(4)
         integer(n_int) :: ilut(0:nifguga)
+        type(CSF_Info_t) :: csf_info
 
         det = [1, 2, 3, 4]
-
         call EncodeBitDet_guga(det, ilut)
+        csf_info = CSF_Info_t(ilut)
 
         print *, "testing: count_open_orbs_ij(ilut, i, j)"
-        print *, "open orbs in ([1,2,3,4],1,4): ", count_open_orbs_ij(1, 4, ilut(0:0))
-        call assert_true(count_open_orbs_ij(1, 4, ilut) == 0)
+        print *, "open orbs in ([1,2,3,4],1,4): ", count_open_orbs_ij(csf_info, 1, 4, ilut(0:0))
+        call assert_true(count_open_orbs_ij(csf_info, 1, 4, ilut) == 0)
 
         det = [1, 3, 5, 6]
-
         call EncodeBitDet_guga(det, ilut)
-        print *, "open orbs in ([1, 3, 5, 6], 1, 4): ", count_open_orbs_ij(1, 4, ilut)
-        call assert_true(count_open_orbs_ij(1, 4, ilut) == 2)
+        csf_info = CSF_Info_t(ilut)
+
+        print *, "open orbs in ([1, 3, 5, 6], 1, 4): ", count_open_orbs_ij(csf_info, 1, 4, ilut)
+        call assert_true(count_open_orbs_ij(csf_info, 1, 4, ilut) == 2)
 
         print *, "count_open_orbs_ij tests passed!"
 
@@ -11284,27 +10770,24 @@ contains
         real(dp) :: neg(nBasis / 2), pos(nBasis / 2)
         integer :: det(4)
         integer(n_int) :: ilut(0:nifguga)
+        type(CSF_Info_t) :: csf_info
 
         det = [1, 2, 3, 6] ! 3 1 2 0
-
         call EncodeBitDet_guga(det, ilut)
-        ! now need excitInfo for
-
-        current_stepvector = calcStepVector(ilut)
+        csf_info = CSF_Info_t(ilut)
 
         print *, "***"
         print *, "testing calcRemainingSwitches:"
-        call calcRemainingSwitches_single(1, 4, pos, neg)
+        call calcRemainingSwitches_single(csf_info, 1, 4, pos, neg)
         print *, "positive switches: ", pos
         call assert_true(all(pos.isclose. [1.0_dp, 1.0_dp, 0.0_dp, 0.0_dp]))
         print *, "negative switches: ", neg
         call assert_true(all(neg.isclose. [1.0_dp, 0.0_dp, 0.0_dp, 0.0_dp]))
 
         call EncodeBitDet_guga([1, 4, 5, 8], ilut) ! 1 2 1 2
+        csf_info = CSF_Info_t(ilut)
 
-        current_stepvector = calcStepVector(ilut)
-
-        call calcRemainingSwitches_single(2, 4, pos, neg)
+        call calcRemainingSwitches_single(csf_info, 2, 4, pos, neg)
         print *, "positive switches: ", pos
         call assert_true(all(pos.isclose. [0.0_dp, 0.0_dp, 0.0_dp, 0.0_dp]))
         print *, "negative switches: ", neg

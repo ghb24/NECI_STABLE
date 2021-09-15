@@ -650,17 +650,17 @@ contains
         ! so avoid using it..
 !         if (excit_lvl == 1 .or. excit_lvl == 2) then
             ! for HF -> nJ we do not have csf info intialized so use calc_type = 2
-            call add_rdm_from_ij_pair_guga_exact(spawn, one_rdms, iLutHF_True, &
+            call add_rdm_from_ij_pair_guga_exact(spawn, one_rdms, iLutHF_True, CSF_Info_t(iLutHF_True), &
                                                  ilutJ, av_sign_hf(2::2), iter_rdm*av_sign_j(1::2), calc_type=2)
 
             ! for nJ we have the csf info initialized (or maybe not..)
-            call add_rdm_from_ij_pair_guga_exact(spawn, one_rdms, ilutJ, &
+            call add_rdm_from_ij_pair_guga_exact(spawn, one_rdms, ilutJ, CSF_Info_t(ilutJ), &
                                                  iLutHF_True, av_sign_j(2::2), iter_rdm*av_sign_hf(1::2), calc_type=2)
 !         end if
 
     end subroutine Add_RDM_HFConnections_GUGA
 
-    subroutine add_rdm_from_ij_pair_guga_exact(spawn, one_rdms, ilutI, ilutJ, &
+    subroutine add_rdm_from_ij_pair_guga_exact(spawn, one_rdms, ilutI, csf_info, ilutJ, &
                                                sign_i, sign_j, calc_type)
         ! this routine is called for RDM sampling within the semi-stochastic
         ! space or for the connection to the 'true' HF det!
@@ -670,6 +670,7 @@ contains
         type(one_rdm_t), intent(inout) :: one_rdms(:)
         integer(n_int), intent(in) :: ilutI(0:IlutBits%len_tot), &
                                       ilutJ(0:IlutBits%len_tot)
+        type(CSF_Info_t), intent(in) :: csf_info
         real(dp), intent(in) :: sign_i(:), sign_j(:)
         integer, intent(in) :: calc_type
         character(*), parameter :: this_routine = "add_rdm_from_ij_pair_guga_exact"
@@ -679,10 +680,6 @@ contains
         HElement_t(dp) :: mat_ele
         integer :: p, q, r, s, n
         real(dp) :: full_sign(spawn%rdm_send%sign_length)
-        type(CSF_Info_t) :: csf_info
-
-        ! TODO(@Oskar): Perhaps precalculate?
-        csf_info = CSF_Info_t(ilutI)
 
         call calc_guga_matrix_element(ilutI, csf_info, ilutJ, excitInfo, mat_ele, &
                                       t_hamil=.false., calc_type=calc_type, &
@@ -780,6 +777,7 @@ contains
                         call EncodeBitDet_guga(nI, ilutGJ)
                         call EncodeBitDet_guga(nJ, ilutGi)
                     end if
+                    csf_info = CSF_Info_t(ilutGi)
 
                     call fill_sings_2rdm_guga(spawn, IlutGi, &
                                               ilutGj, sign_i, sign_j, x0, pure_ind)
@@ -795,6 +793,7 @@ contains
                     call EncodeBitDet_guga(nI, ilutGJ)
                     call EncodeBitDet_guga(nJ, ilutGi)
                 end if
+                csf_info = CSF_Info_t(ilutGi)
                 call create_all_rdm_contribs(rdm_ind_in, x0, x1, rdm_ind, rdm_mat)
 
                 do n = 1, size(rdm_ind)
@@ -820,9 +819,7 @@ contains
                 call EncodeBitDet_guga(nI, ilutGJ)
                 call EncodeBitDet_guga(nJ, ilutGi)
             end if
-            ! TODO(@Oskar): Perhaps precalculate?
             csf_info = CSF_Info_t(ilutGi)
-
             call calc_guga_matrix_element(IlutGi, csf_info, ilutGj, excitInfo, mat_ele, &
                                           t_hamil=.false., calc_type=2, rdm_ind=rdm_ind, &
                                           rdm_mat=rdm_mat)
@@ -862,8 +859,9 @@ contains
 
     end subroutine Add_RDM_From_IJ_Pair_GUGA
 
-    subroutine gen_exc_djs_guga(ilutI)
+    subroutine gen_exc_djs_guga(ilutI, csf_info)
         integer(n_int), intent(in) :: ilutI(0:niftot)
+        type(CSF_Info_t), intent(in) :: csf_info
         character(*), parameter :: this_routine = "gen_exc_djs_guga"
 
         integer :: nI(nel), flags_I, n_singles, n_doubles
@@ -888,7 +886,7 @@ contains
         ! but with my general two-body excitation routine i do not need
         ! to calculate this in case of more than singles:
         if (RDMExcitLevel == 1) then
-            call calc_explicit_1_rdm_guga(ilutG, n_singles, excits)
+            call calc_explicit_1_rdm_guga(ilutG, csf_info, n_singles, excits)
 
             ! and then sort them correctly in the communicated array
             call assign_excits_to_proc_guga(n_singles, excits, 1)
@@ -903,7 +901,7 @@ contains
             ! if i want to mimic stochastic RDM sampling I also
             ! have to explicitly create single excitations, but
             ! store them in the according 2-RDM entries
-            call calc_explicit_1_rdm_guga(ilutG, n_singles, excits)
+            call calc_explicit_1_rdm_guga(ilutG, csf_info, n_singles, excits)
 
             ! and then sort them correctly in the communicated array
             call assign_excits_to_proc_guga(n_singles, excits, 1)
@@ -911,7 +909,7 @@ contains
             deallocate(excits)
             call LogMemDealloc(this_routine, tag_excitations)
 
-            call calc_explicit_2_rdm_guga(ilutG, n_doubles, excits)
+            call calc_explicit_2_rdm_guga(ilutG, csf_info, n_doubles, excits)
 
             call assign_excits_to_proc_guga(n_doubles, excits, 2)
 
@@ -2295,8 +2293,9 @@ contains
 
     end subroutine assign_excits_to_proc_guga
 
-    subroutine calc_explicit_diag_2_rdm_guga(ilut, n_tot, excitations)
+    subroutine calc_explicit_diag_2_rdm_guga(ilut, csf_info, n_tot, excitations)
         integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
+        type(CSF_Info_t), intent(in) :: csf_info
         integer, intent(out) :: n_tot
         integer(n_int), intent(out), allocatable :: excitations(:, :)
         character(*), parameter :: this_routine = "calc_explicit_diag_2_rdm_guga"
@@ -2304,10 +2303,6 @@ contains
         integer :: i, j, k, l, nMax, ierr, n, n_excits, jl, ik
         integer(n_int), allocatable :: temp_excits(:, :), tmp_all_excits(:, :)
         integer(int_rdm) :: ijkl
-        type(CSF_Info_t) :: csf_info
-
-        ! TODO(@Oskar): Perhaps precalculate?
-        csf_info = CSF_Info_t(ilut)
 
         nMax = 6 + 4 * (nSpatOrbs)**3 * (count_open_orbs(ilut) + 1)
         allocate(tmp_all_excits(0:GugaBits%len_tot, nMax))
@@ -2320,7 +2315,7 @@ contains
 
                 if (i == j) cycle
 
-                call calc_all_excits_guga_rdm_doubles(ilut, i, j, j, i, &
+                call calc_all_excits_guga_rdm_doubles(ilut, csf_info, i, j, j, i, &
                                                       temp_excits, n_excits)
 #ifdef DEBUG_
                 do n = 1, n_excits
@@ -2362,8 +2357,9 @@ contains
 
     end subroutine calc_explicit_diag_2_rdm_guga
 
-    subroutine calc_explicit_2_rdm_guga(ilut, n_tot, excitations)
+    subroutine calc_explicit_2_rdm_guga(ilut, csf_info, n_tot, excitations)
         integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
+        type(CSF_Info_t), intent(in) :: csf_info
         integer, intent(out) :: n_tot
         integer(n_int), intent(out), allocatable :: excitations(:, :)
         character(*), parameter :: this_routine = "calc_explicit_2_rdm_guga"
@@ -2385,7 +2381,7 @@ contains
                         ! pure diagonal contribution:
                         if (i == j .and. k == l) cycle
 
-                        call calc_all_excits_guga_rdm_doubles(ilut, i, j, k, l, &
+                        call calc_all_excits_guga_rdm_doubles(ilut, csf_info, i, j, k, l, &
                                                               temp_excits, n_excits)
 
 #ifdef DEBUG_
@@ -2452,7 +2448,7 @@ contains
 
     end subroutine calc_explicit_2_rdm_guga
 
-    subroutine calc_explicit_1_rdm_guga(ilut, n_tot, excitations)
+    subroutine calc_explicit_1_rdm_guga(ilut, csf_info, n_tot, excitations)
         ! routine to calculate the one-RDM explicitly in the GUGA formalism
         ! the one RDM is given by rho_ij = <Psi|E_ij|Psi>
         ! so, similar to the actHamiltonian routine I need to loop over all
@@ -2461,16 +2457,13 @@ contains
         ! make this routine similar to GenExcDjs() in rdm_explicit.F90
         ! to insert it there to calculate the GUGA RDMs in this case
         integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
+        type(CSF_Info_t), intent(in) :: csf_info
         integer, intent(out) :: n_tot
         integer(n_int), intent(out), allocatable :: excitations(:, :)
         character(*), parameter :: this_routine = "calc_explicit_1_rdm_guga"
 
         integer :: i, j, nMax, ierr, n, n_excits
         integer(n_int), allocatable :: temp_excits(:, :), tmp_all_excits(:, :)
-        type(CSF_Info_t) :: csf_info
-
-        ! TODO(@Oskar): Perhaps precalculate?
-        csf_info = CSF_Info_t(ilut)
 
         nMax = 6 + 4 * (nSpatOrbs)**2 * (count_open_orbs(ilut) + 1)
         allocate(tmp_all_excits(0:GugaBits%len_tot, nMax), stat=ierr)
@@ -2482,7 +2475,7 @@ contains
             do j = 1, nSpatOrbs
                 if (i == j) cycle
 
-                call calc_all_excits_guga_rdm_singles(ilut, i, j, temp_excits, &
+                call calc_all_excits_guga_rdm_singles(ilut, csf_info, i, j, temp_excits, &
                                                       n_excits)
 
 #ifdef DEBUG_
@@ -2525,8 +2518,9 @@ contains
 
     end subroutine calc_explicit_1_rdm_guga
 
-    subroutine calc_all_excits_guga_rdm_doubles(ilut, i, j, k, l, excits, n_excits)
+    subroutine calc_all_excits_guga_rdm_doubles(ilut, csf_info, i, j, k, l, excits, n_excits)
         integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
+        type(CSF_Info_t), intent(in) :: csf_info
         integer, intent(in) :: i, j, k, l
         integer(n_int), intent(out), allocatable :: excits(:, :)
         integer, intent(out) :: n_excits
@@ -2538,7 +2532,6 @@ contains
         logical :: compFlag
         integer(n_int) :: tmp_ilut(0:niftot)
         integer(int_rdm) :: ijkl
-        type(CSF_Info_t) :: csf_info
 
         ASSERT(isProperCSF_ilut(ilut))
         ASSERT(i > 0 .and. i <= nSpatOrbs)
@@ -2546,7 +2539,7 @@ contains
 
         ! if called with k = l = 0 -> call single version of function
         if (k == 0 .and. l == 0) then
-            call calc_all_excits_guga_rdm_singles(ilut, i, j, excits, n_excits)
+            call calc_all_excits_guga_rdm_singles(ilut, csf_info, i, j, excits, n_excits)
             return
         end if
 
@@ -2558,8 +2551,6 @@ contains
 
         ! otherwise get excitation information
         excitInfo = excitationIdentifier(i, j, k, l)
-        ! TODO(@Oskar): Perhaps precalculate?
-        csf_info = CSF_Info_t(ilut)
 
         ! screw it. for now write a function which checks if indices and ilut
         ! are compatible, and not initiate the excitation right away
@@ -2780,8 +2771,9 @@ contains
 
     end subroutine calc_all_excits_guga_rdm_doubles
 
-    subroutine calc_all_excits_guga_rdm_singles(ilut, i, j, excits, n_excits)
+    subroutine calc_all_excits_guga_rdm_singles(ilut, csf_info, i, j, excits, n_excits)
         integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
+        type(CSF_Info_t), intent(in) :: csf_info
         integer, intent(in) :: i, j
         integer(n_int), intent(out), allocatable :: excits(:, :)
         integer, intent(out) :: n_excits
@@ -2793,7 +2785,6 @@ contains
         integer :: iEx, iOrb, ierr
         integer(n_int), allocatable :: tempExcits(:, :)
         real(dp) :: minusWeight, plusWeight
-        type(CSF_Info_t) :: csf_info
 
         ASSERT(i > 0 .and. i <= nSpatOrbs)
         ASSERT(j > 0 .and. j <= nSpatOrbs)
@@ -2801,8 +2792,6 @@ contains
         n_excits = 0
 
         excitInfo = excitationIdentifier(i, j)
-        ! TODO(@Oskar): Perhaps precalculate?
-        csf_info = CSF_Info_t(ilut)
 
         associate (gen1 => excitInfo%gen1, en => excitInfo%fullEnd, &
                    st => excitInfo%fullStart)

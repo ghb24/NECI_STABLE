@@ -427,7 +427,7 @@ contains
         call EncodeBitDet(test_det, ilutI)
         call convert_ilut_toGUGA(ilutI, ilutG)
         csf_info = CSF_Info_t(ilutG)
-        call actHamiltonian(ilutG, ex, nEx)
+        call actHamiltonian(ilutG, csf_info, ex, nEx)
 
         print *, "Testing matrix elements for nEx excitations of: ", nEx
         call write_det_guga(6, ilutG, .true.)
@@ -476,7 +476,7 @@ contains
 
             call write_det_guga(6, ex(:, i), .true.)
 
-            call actHamiltonian(ex(:, i), two_ex, nex_2)
+            call actHamiltonian(ex(:, i), CSF_Info_t(ex(:, i)), two_ex, nex_2)
 
             ! in acthamiltonian the current_stepvector quantity is set
             ! for the ilut input..
@@ -643,7 +643,7 @@ contains
 
         print *, "running", this_routine
 
-        call actHamiltonian(ilutG, ex, nEx)
+        call actHamiltonian(ilutG, CSF_Info_t(ilutG), ex, nEx)
 
         if (t_full_guga_tests .or. t_guga_testsuite) then
             ! in this case also check if not too many n_guga_excits are
@@ -746,7 +746,7 @@ contains
 
         call EncodeBitDet(test_det, ilut)
 
-        call actHamiltonian(ilut, ex, nEx)
+        call actHamiltonian(ilut, CSF_Info_t(ilut), ex, nEx)
 
 !         nTest = min(nEx, 20)
         nTest = nEx
@@ -2948,7 +2948,7 @@ contains
 
         if (pgen > 0.0_dp) then
             print *, "exact excitations for this ilut:"
-            call actHamiltonian(ilutI, ex, nEx)
+            call actHamiltonian(ilutI, CSF_Info_t(ilutI), ex, nEx)
             call write_guga_list(6, ex(:, 1:nEx))
 
             pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
@@ -2976,7 +2976,7 @@ contains
 
         if (pgen > 0.0_dp) then
             print *, "exact excitations for this ilut:"
-            call actHamiltonian(ilutI, ex, nEx)
+            call actHamiltonian(ilutI, CSF_Info_t(ilutI), ex, nEx)
             call write_guga_list(6, ex(:, 1:nEx))
             pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             ASSERT(pos > 0)
@@ -3003,7 +3003,7 @@ contains
 
         if (pgen > EPS) then
             print *, "exact excitations for this ilut:"
-            call actHamiltonian(ilutI, ex, nEx)
+            call actHamiltonian(ilutI, CSF_Info_t(ilutI), ex, nEx)
             call write_guga_list(6, ex(:, 1:nEx))
             pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             ASSERT(pos > 0)
@@ -3028,7 +3028,7 @@ contains
 
         if (pgen > EPS) then
             print *, "exact excitations for this ilut:"
-            call actHamiltonian(ilutI, ex, nEx)
+            call actHamiltonian(ilutI, CSF_Info_t(ilutI), ex, nEx)
             call write_guga_list(6, ex(:, 1:nEx))
             pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             ASSERT(pos > 0)
@@ -3053,7 +3053,7 @@ contains
 
         if (pgen > EPS) then
             print *, "exact excitations for this ilut:"
-            call actHamiltonian(ilutI, ex, nEx)
+            call actHamiltonian(ilutI, CSF_Info_t(ilutI), ex, nEx)
             call write_guga_list(6, ex(:, 1:nEx))
             pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             ASSERT(pos > 0)
@@ -3078,7 +3078,7 @@ contains
 
         if (pgen > EPS) then
             print *, "exact excitations for this ilut:"
-            call actHamiltonian(ilutI, ex, nEx)
+            call actHamiltonian(ilutI, CSF_Info_t(ilutI), ex, nEx)
             call write_guga_list(6, ex(:, 1:nEx))
             pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             ASSERT(pos > 0)
@@ -3104,7 +3104,7 @@ contains
 
         if (pgen > 0.0_dp) then
             print *, "exact excitations for this ilut:"
-            call actHamiltonian(ilutI, ex, nEx)
+            call actHamiltonian(ilutI, CSF_Info_t(ilutI), ex, nEx)
             call write_guga_list(6, ex(:, 1:nEx))
             pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             ASSERT(pos > 0)
@@ -3131,7 +3131,7 @@ contains
 
         if (pgen > 0.0_dp) then
             print *, "exact excitations for this ilut:"
-            call actHamiltonian(ilutI, ex, nEx)
+            call actHamiltonian(ilutI, CSF_Info_t(ilutI), ex, nEx)
             call write_guga_list(6, ex(:, 1:nEx))
             pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             ASSERT(pos > 0)
@@ -3158,7 +3158,7 @@ contains
 
         if (pgen > 0.0_dp) then
             print *, "exact excitations for this ilut:"
-            call actHamiltonian(ilutI, ex, nEx)
+            call actHamiltonian(ilutI, CSF_Info_t(ilutI), ex, nEx)
             call write_guga_list(6, ex(:, 1:nEx))
             pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             ASSERT(pos > 0)
@@ -3185,7 +3185,7 @@ contains
 
         if (pgen > 0.0_dp) then
             print *, "exact excitations for this ilut:"
-            call actHamiltonian(ilutI, ex, nEx)
+            call actHamiltonian(ilutI, CSF_Info_t(ilutI), ex, nEx)
             call write_guga_list(6, ex(:, 1:nEx))
             pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             ASSERT(pos > 0)
@@ -3212,7 +3212,7 @@ contains
 
         if (pgen > 0.0_dp) then
             print *, "exact excitations for this ilut:"
-            call actHamiltonian(ilutI, ex, nEx)
+            call actHamiltonian(ilutI, CSF_Info_t(ilutI), ex, nEx)
             call write_guga_list(6, ex(:, 1:nEx))
             pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             ASSERT(pos > 0)
@@ -3239,7 +3239,7 @@ contains
 
         if (pgen > 0.0_dp) then
             print *, "exact excitations for this ilut:"
-            call actHamiltonian(ilutI, ex, nEx)
+            call actHamiltonian(ilutI, CSF_Info_t(ilutI), ex, nEx)
             call write_guga_list(6, ex(:, 1:nEx))
             pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             ASSERT(pos > 0)
@@ -3266,7 +3266,7 @@ contains
 
         if (pgen > 0.0_dp) then
             print *, "exact excitations for this ilut:"
-            call actHamiltonian(ilutI, ex, nEx)
+            call actHamiltonian(ilutI, CSF_Info_t(ilutI), ex, nEx)
             call write_guga_list(6, ex(:, 1:nEx))
             pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             ASSERT(pos > 0)
@@ -3293,7 +3293,7 @@ contains
 
         if (pgen > 0.0_dp) then
             print *, "exact excitations for this ilut:"
-            call actHamiltonian(ilutI, ex, nEx)
+            call actHamiltonian(ilutI, CSF_Info_t(ilutI), ex, nEx)
             call write_guga_list(6, ex(:, 1:nEx))
             pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             ASSERT(pos > 0)
@@ -3320,7 +3320,7 @@ contains
 
         if (pgen > 0.0_dp) then
             print *, "exact excitations for this ilut:"
-            call actHamiltonian(ilutI, ex, nEx)
+            call actHamiltonian(ilutI, CSF_Info_t(ilutI), ex, nEx)
             call write_guga_list(6, ex(:, 1:nEx))
             pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             ASSERT(pos > 0)
@@ -3347,7 +3347,7 @@ contains
 
         if (pgen > 0.0_dp) then
             print *, "exact excitations for this ilut:"
-            call actHamiltonian(ilutI, ex, nEx)
+            call actHamiltonian(ilutI, CSF_Info_t(ilutI), ex, nEx)
             call write_guga_list(6, ex(:, 1:nEx))
             pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             ASSERT(pos > 0)
@@ -3374,7 +3374,7 @@ contains
 
         if (pgen > 0.0_dp) then
             print *, "exact excitations for this ilut:"
-            call actHamiltonian(ilutI, ex, nEx)
+            call actHamiltonian(ilutI, CSF_Info_t(ilutI), ex, nEx)
             call write_guga_list(6, ex(:, 1:nEx))
             pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             ASSERT(pos > 0)
@@ -3401,7 +3401,7 @@ contains
 
         if (pgen > 0.0_dp) then
             print *, "exact excitations for this ilut:"
-            call actHamiltonian(ilutI, ex, nEx)
+            call actHamiltonian(ilutI, CSF_Info_t(ilutI), ex, nEx)
             call write_guga_list(6, ex(:, 1:nEx))
             pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             ASSERT(pos > 0)
@@ -3428,7 +3428,7 @@ contains
 
         if (pgen > 0.0_dp) then
             print *, "exact excitations for this ilut:"
-            call actHamiltonian(ilutI, ex, nEx)
+            call actHamiltonian(ilutI, CSF_Info_t(ilutI), ex, nEx)
             call write_guga_list(6, ex(:, 1:nEx))
             pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             ASSERT(pos > 0)
@@ -3455,7 +3455,7 @@ contains
 
         if (pgen > 0.0_dp) then
             print *, "exact excitations for this ilut:"
-            call actHamiltonian(ilutI, ex, nEx)
+            call actHamiltonian(ilutI, CSF_Info_t(ilutI), ex, nEx)
             call write_guga_list(6, ex(:, 1:nEx))
             pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             ASSERT(pos > 0)
@@ -3506,7 +3506,7 @@ contains
 
         if (pgen > 0.0_dp) then
             print *, "exact excitations for this ilut:"
-            call actHamiltonian(ilutI, ex, nEx)
+            call actHamiltonian(ilutI, CSF_Info_t(ilutI), ex, nEx)
             call write_guga_list(6, ex(:, 1:nEx))
             pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             ASSERT(pos > 0)
@@ -3532,7 +3532,7 @@ contains
 
         if (pgen > 0.0_dp) then
             print *, "exact excitations for this ilut:"
-            call actHamiltonian(ilutI, ex, nEx)
+            call actHamiltonian(ilutI, CSF_Info_t(ilutI), ex, nEx)
             call write_guga_list(6, ex(:, 1:nEx))
             pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             ASSERT(pos > 0)
@@ -3558,7 +3558,7 @@ contains
 
         if (pgen > 0.0_dp) then
             print *, "exact excitations for this ilut:"
-            call actHamiltonian(ilutI, ex, nEx)
+            call actHamiltonian(ilutI, CSF_Info_t(ilutI), ex, nEx)
             call write_guga_list(6, ex(:, 1:nEx))
             pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             ASSERT(pos > 0)
@@ -3584,7 +3584,7 @@ contains
 
         if (pgen > 0.0_dp) then
             print *, "exact excitations for this ilut:"
-            call actHamiltonian(ilutI, ex, nEx)
+            call actHamiltonian(ilutI, CSF_Info_t(ilutI), ex, nEx)
             call write_guga_list(6, ex(:, 1:nEx))
             pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             ASSERT(pos > 0)
@@ -3610,7 +3610,7 @@ contains
 
         if (pgen > 0.0_dp) then
             print *, "exact excitations for this ilut:"
-            call actHamiltonian(ilutI, ex, nEx)
+            call actHamiltonian(ilutI, CSF_Info_t(ilutI), ex, nEx)
             call write_guga_list(6, ex(:, 1:nEx))
             pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             ASSERT(pos > 0)
@@ -3636,7 +3636,7 @@ contains
 
         if (pgen > 0.0_dp) then
             print *, "exact excitations for this ilut:"
-            call actHamiltonian(ilutI, ex, nEx)
+            call actHamiltonian(ilutI, CSF_Info_t(ilutI), ex, nEx)
             call write_guga_list(6, ex(:, 1:nEx))
             pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             ASSERT(pos > 0)
@@ -3663,7 +3663,7 @@ contains
 
         if (pgen > 0.0_dp) then
             print *, "exact excitations for this ilut:"
-            call actHamiltonian(ilutI, ex, nEx)
+            call actHamiltonian(ilutI, CSF_Info_t(ilutI), ex, nEx)
             call write_guga_list(6, ex(:, 1:nEx))
             pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             ASSERT(pos > 0)
@@ -3689,7 +3689,7 @@ contains
 
         if (pgen > 0.0_dp) then
             print *, "exact excitations for this ilut:"
-            call actHamiltonian(ilutI, ex, nEx)
+            call actHamiltonian(ilutI, CSF_Info_t(ilutI), ex, nEx)
             call write_guga_list(6, ex(:, 1:nEx))
             pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             ASSERT(pos > 0)
@@ -3715,7 +3715,7 @@ contains
 
         if (pgen > 0.0_dp) then
             print *, "exact excitations for this ilut:"
-            call actHamiltonian(ilutI, ex, nEx)
+            call actHamiltonian(ilutI, CSF_Info_t(ilutI), ex, nEx)
             call write_guga_list(6, ex(:, 1:nEx))
             pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             ASSERT(pos > 0)
@@ -3741,7 +3741,7 @@ contains
 
         if (pgen > 0.0_dp) then
             print *, "exact excitations for this ilut:"
-            call actHamiltonian(ilutI, ex, nEx)
+            call actHamiltonian(ilutI, CSF_Info_t(ilutI), ex, nEx)
             call write_guga_list(6, ex(:, 1:nEx))
             pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             ASSERT(pos > 0)
@@ -3767,7 +3767,7 @@ contains
 
         if (pgen > 0.0_dp) then
             print *, "exact excitations for this ilut:"
-            call actHamiltonian(ilutI, ex, nEx)
+            call actHamiltonian(ilutI, CSF_Info_t(ilutI), ex, nEx)
             call write_guga_list(6, ex(:, 1:nEx))
             pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             ASSERT(pos > 0)
@@ -3793,7 +3793,7 @@ contains
 
         if (pgen > 0.0_dp) then
             print *, "exact excitations for this ilut:"
-            call actHamiltonian(ilutI, ex, nEx)
+            call actHamiltonian(ilutI, CSF_Info_t(ilutI), ex, nEx)
             call write_guga_list(6, ex(:, 1:nEx))
             pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             ASSERT(pos > 0)
@@ -3819,7 +3819,7 @@ contains
 
         if (pgen > 0.0_dp) then
             print *, "exact excitations for this ilut:"
-            call actHamiltonian(ilutI, ex, nEx)
+            call actHamiltonian(ilutI, CSF_Info_t(ilutI), ex, nEx)
             call write_guga_list(6, ex(:, 1:nEx))
             pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             ASSERT(pos > 0)
@@ -3845,7 +3845,7 @@ contains
 
         if (pgen > 0.0_dp) then
             print *, "exact excitations for this ilut:"
-            call actHamiltonian(ilutI, ex, nEx)
+            call actHamiltonian(ilutI, CSF_Info_t(ilutI), ex, nEx)
             call write_guga_list(6, ex(:, 1:nEx))
             pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             ASSERT(pos > 0)
@@ -3871,7 +3871,7 @@ contains
 
         if (pgen > 0.0_dp) then
             print *, "exact excitations for this ilut:"
-            call actHamiltonian(ilutI, ex, nEx)
+            call actHamiltonian(ilutI, CSF_Info_t(ilutI), ex, nEx)
             call write_guga_list(6, ex(:, 1:nEx))
             pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             ASSERT(pos > 0)
@@ -3897,7 +3897,7 @@ contains
 
         if (pgen > 0.0_dp) then
             print *, "exact excitations for this ilut:"
-            call actHamiltonian(ilutI, ex, nEx)
+            call actHamiltonian(ilutI, CSF_Info_t(ilutI), ex, nEx)
             call write_guga_list(6, ex(:, 1:nEx))
             pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             ASSERT(pos > 0)
@@ -3923,7 +3923,7 @@ contains
 
         if (pgen > 0.0_dp) then
             print *, "exact excitations for this ilut:"
-            call actHamiltonian(ilutI, ex, nEx)
+            call actHamiltonian(ilutI, CSF_Info_t(ilutI), ex, nEx)
             call write_guga_list(6, ex(:, 1:nEx))
             pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             ASSERT(pos > 0)
@@ -3949,7 +3949,7 @@ contains
 
         if (pgen > 0.0_dp) then
             print *, "exact excitations for this ilut:"
-            call actHamiltonian(ilutI, ex, nEx)
+            call actHamiltonian(ilutI, CSF_Info_t(ilutI), ex, nEx)
             call write_guga_list(6, ex(:, 1:nEx))
             pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             ASSERT(pos > 0)
@@ -3975,7 +3975,7 @@ contains
 
         if (pgen > 0.0_dp) then
             print *, "exact excitations for this ilut:"
-            call actHamiltonian(ilutI, ex, nEx)
+            call actHamiltonian(ilutI, CSF_Info_t(ilutI), ex, nEx)
             call write_guga_list(6, ex(:, 1:nEx))
             pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             ASSERT(pos > 0)
@@ -4001,7 +4001,7 @@ contains
 
         if (pgen > 0.0_dp) then
             print *, "exact excitations for this ilut:"
-            call actHamiltonian(ilutI, ex, nEx)
+            call actHamiltonian(ilutI, CSF_Info_t(ilutI), ex, nEx)
             call write_guga_list(6, ex(:, 1:nEx))
             pos = binary_search(ex(0:nifd, 1:nex), ilutJ(0:nifd))
             ASSERT(pos > 0)
@@ -5371,7 +5371,7 @@ contains
 
         ! what should i test here?
         if (pgen > EPS) then
-            call actHamiltonian(ilut, all_ex, nex)
+            call actHamiltonian(ilut, CSF_Info_t(ilut), all_ex, nex)
 
             pos = binary_search(all_ex(0:nifd, 1:nex), ex(0:nifd))
 
@@ -5752,7 +5752,7 @@ contains
             print *, "stochastic excitation: "
             call write_det_guga(6, t, .true.)
             print *, "exact excitations for this ilut:"
-            call actHamiltonian(ilut, ex, nEx)
+            call actHamiltonian(ilut, csf_info, ex, nEx)
             call write_guga_list(6, ex(:, 1:nEx))
 
             pos = binary_search(ex(0:nifd, 1:nex), t(0:nifd))
@@ -5779,7 +5779,7 @@ contains
         call EncodeBitDet_guga([1, 2, 3, 4], ilut)
         csf_info = CSF_Info_t(ilut)
 
-        call actHamiltonian(ilut, ex, nEx)
+        call actHamiltonian(ilut, csf_info, ex, nEx)
         print *, "number of excitations for: ", nEx
         call write_det_guga(6, ilut)
         call write_guga_list(6, ex(:, 1:nEx))
@@ -5787,7 +5787,7 @@ contains
         ! 0330
         call EncodeBitDet_guga([3, 4, 5, 6], ilut)
         csf_info = CSF_Info_t(ilut)
-        call actHamiltonian(ilut, ex, nEx)
+        call actHamiltonian(ilut, csf_info, ex, nEx)
         print *, "number of excitations for: ", nEx
         call write_det_guga(6, ilut)
         call write_guga_list(6, ex(:, 1:nEx))
@@ -5795,14 +5795,14 @@ contains
         ! 0303
         call EncodeBitDet_guga([3, 4, 7, 8], ilut)
         csf_info = CSF_Info_t(ilut)
-        call actHamiltonian(ilut, ex, nEx)
+        call actHamiltonian(ilut, csf_info, ex, nEx)
         print *, "number of excitations for: ", nEx
         call write_det_guga(6, ilut)
         call write_guga_list(6, ex(:, 1:nEx))
         ASSERT(nEx == 14)
         ! 0033
         call EncodeBitDet_guga([5, 6, 7, 8], ilut)
-        call actHamiltonian(ilut, ex, nEx)
+        call actHamiltonian(ilut, csf_info, ex, nEx)
         print *, "number of excitations for: ", nEx
         call write_det_guga(6, ilut)
         call write_guga_list(6, ex(:, 1:nEx))
@@ -5810,7 +5810,7 @@ contains
         ! 1023
         call EncodeBitDet_guga([1, 6, 7, 8], ilut)
         csf_info = CSF_Info_t(ilut)
-        call actHamiltonian(ilut, ex, nEx)
+        call actHamiltonian(ilut, csf_info, ex, nEx)
         print *, "number of excitations for: ", nEx
         call write_det_guga(6, ilut)
         call write_guga_list(6, ex(:, 1:nEx))
@@ -5818,14 +5818,14 @@ contains
         ! 3102
         call EncodeBitDet_guga([1, 2, 3, 8], ilut)
         csf_info = CSF_Info_t(ilut)
-        call actHamiltonian(ilut, ex, nEx)
+        call actHamiltonian(ilut, csf_info, ex, nEx)
         print *, "number of excitations for: ", nEx
         call write_det_guga(6, ilut)
         call write_guga_list(6, ex(:, 1:nEx))
         ASSERT(nEx == 17)
         ! 3120
         call EncodeBitDet_guga([1, 2, 3, 6], ilut)
-        call actHamiltonian(ilut, ex, nEx)
+        call actHamiltonian(ilut, csf_info, ex, nEx)
         print *, "number of excitations for: ", nEx
         call write_det_guga(6, ilut)
         call write_guga_list(6, ex(:, 1:nEx))
@@ -5834,7 +5834,7 @@ contains
         ! 3030
         call EncodeBitDet_guga([1, 2, 5, 6], ilut)
         csf_info = CSF_Info_t(ilut)
-        call actHamiltonian(ilut, ex, nEx)
+        call actHamiltonian(ilut, csf_info, ex, nEx)
         print *, "number of excitations for: ", nEx
         call write_det_guga(6, ilut)
         call write_guga_list(6, ex(:, 1:nEx))
@@ -5842,7 +5842,7 @@ contains
         ! 3003:
         call EncodeBitDet_guga([1, 2, 7, 8], ilut)
         csf_info = CSF_Info_t(ilut)
-        call actHamiltonian(ilut, ex, nEx)
+        call actHamiltonian(ilut, csf_info, ex, nEx)
         print *, "number of excitations for: ", nEx
         call write_det_guga(6, ilut)
         call write_guga_list(6, ex(:, 1:nEx))
@@ -5850,21 +5850,23 @@ contains
         ! 3012
         call EncodeBitDet_guga([1, 2, 5, 8], ilut)
         csf_info = CSF_Info_t(ilut)
-        call actHamiltonian(ilut, ex, nEx)
+        call actHamiltonian(ilut, csf_info, ex, nEx)
         print *, "number of excitations for: ", nEx
         call write_det_guga(6, ilut)
         call write_guga_list(6, ex(:, 1:nEx))
         ASSERT(nEx == 16)
         ! 0312
         call EncodeBitDet_guga([3, 4, 5, 8], ilut)
-        call actHamiltonian(ilut, ex, nEx)
+        csf_info = CSF_Info_t(ilut)
+        call actHamiltonian(ilut, csf_info, ex, nEx)
         print *, "number of excitations for: ", nEx
         call write_det_guga(6, ilut)
         call write_guga_list(6, ex(:, 1:nEx))
         ASSERT(nEx == 16)
         ! 1230
         call EncodeBitDet_guga([1, 4, 5, 6], ilut)
-        call actHamiltonian(ilut, ex, nEx)
+        csf_info = CSF_Info_t(ilut)
+        call actHamiltonian(ilut, csf_info, ex, nEx)
         print *, "number of excitations for: ", nEx
         call write_det_guga(6, ilut)
         call write_guga_list(6, ex(:, 1:nEx))
@@ -5872,28 +5874,31 @@ contains
         ! 1203
         call EncodeBitDet_guga([1, 4, 7, 8], ilut)
         csf_info = CSF_Info_t(ilut)
-        call actHamiltonian(ilut, ex, nEx)
+        call actHamiltonian(ilut, csf_info, ex, nEx)
         print *, "number of excitations for: ", nEx
         call write_det_guga(6, ilut)
         call write_guga_list(6, ex(:, 1:nEx))
         ASSERT(nEx == 16)
         ! 1320
         call EncodeBitDet_guga([1, 3, 4, 6], ilut)
-        call actHamiltonian(ilut, ex, nEx)
+        csf_info = CSF_Info_t(ilut)
+        call actHamiltonian(ilut, csf_info, ex, nEx)
         print *, "number of excitations for: ", nEx
         call write_det_guga(6, ilut)
         call write_guga_list(6, ex(:, 1:nEx))
         ASSERT(nEx == 17)
         ! 1302
         call EncodeBitDet_guga([1, 3, 4, 8], ilut)
-        call actHamiltonian(ilut, ex, nEx)
+        csf_info = CSF_Info_t(ilut)
+        call actHamiltonian(ilut, csf_info, ex, nEx)
         print *, "number of excitations for: ", nEx
         call write_det_guga(6, ilut)
         call write_guga_list(6, ex(:, 1:nEx))
         ASSERT(nEx == 17)
         ! 1032
         call EncodeBitDet_guga([1, 5, 6, 8], ilut)
-        call actHamiltonian(ilut, ex, nEx)
+        csf_info = CSF_Info_t(ilut)
+        call actHamiltonian(ilut, csf_info, ex, nEx)
         print *, "number of excitations for: ", nEx
         call write_det_guga(6, ilut)
         call write_guga_list(6, ex(:, 1:nEx))
@@ -5901,7 +5906,8 @@ contains
         ! 0132
         call EncodeBitDet_guga([3, 5, 6, 8], ilut)
         csf_info = CSF_Info_t(ilut)
-        call actHamiltonian(ilut, ex, nEx)
+        csf_info = CSF_Info_t(ilut)
+        call actHamiltonian(ilut, csf_info, ex, nEx)
         print *, "number of excitations for: ", nEx
         call write_det_guga(6, ilut)
         call write_guga_list(6, ex(:, 1:nEx))
@@ -5909,7 +5915,7 @@ contains
         ! 0123
         call EncodeBitDet_guga([3, 6, 7, 8], ilut)
         csf_info = CSF_Info_t(ilut)
-        call actHamiltonian(ilut, ex, nEx)
+        call actHamiltonian(ilut, csf_info, ex, nEx)
         print *, "number of excitations for: ", nEx
         call write_det_guga(6, ilut)
         call write_guga_list(6, ex(:, 1:nEx))
@@ -5917,7 +5923,7 @@ contains
         ! 1122
         call EncodeBitDet_guga([1, 3, 6, 8], ilut)
         csf_info = CSF_Info_t(ilut)
-        call actHamiltonian(ilut, ex, nEx)
+        call actHamiltonian(ilut, csf_info, ex, nEx)
         print *, "number of excitations for: ", nEx
         call write_det_guga(6, ilut)
         call write_guga_list(6, ex(:, 1:nEx))
@@ -5925,7 +5931,7 @@ contains
         ! 1212
         call EncodeBitDet_guga([1, 4, 5, 8], ilut)
         csf_info = CSF_Info_t(ilut)
-        call actHamiltonian(ilut, ex, nEx)
+        call actHamiltonian(ilut, csf_info, ex, nEx)
         print *, "number of excitations for: ", nEx
         call write_det_guga(6, ilut)
         call write_guga_list(6, ex(:, 1:nEx))
