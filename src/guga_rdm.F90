@@ -2558,7 +2558,7 @@ contains
         ! in checkCompatibility the number of switches is already
         ! calulated to check if the probabilistic weights fit... maybe but
         ! that out and reuse.. to not waste any effort.
-        call checkCompatibility(ilut, csf_info, excitInfo, compFlag, posSwitches, negSwitches)
+        call checkCompatibility(csf_info, excitInfo, compFlag, posSwitches, negSwitches)
 
         ! for mixed type full starts and/or full stops i have to consider
         ! the possible diagonal/single excitations here!

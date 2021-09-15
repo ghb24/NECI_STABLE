@@ -276,7 +276,7 @@ contains
 
         excitInfo = excitationIdentifier(4, 1, 2, 3)
         call assert_true(excitInfo%typ == excit_type%double_L_to_R_to_L)
-        call checkCompatibility(ilut, csf_info, excitInfo, compFlag, posSwitches, negSwitches)
+        call checkCompatibility(csf_info, excitInfo, compFlag, posSwitches, negSwitches)
         call calcDoubleL2R2L_stochastic(ilut, csf_info, excitInfo, t, pgen, posSwitches, negSwitches)
         call assert_true(compFlag)
         call assert_true(all(calcStepVector(t) == [1, 3, 0, 2]))
@@ -2338,7 +2338,7 @@ contains
             call assert_true(excitInfo%valid)
 
             if (excitInfo%typ /= excit_type%single) then
-                call checkCompatibility(ilutG, csf_G, excitInfo, valid, pos, neg)
+                call checkCompatibility(csf_G, excitInfo, valid, pos, neg)
 
                 call assert_true(valid)
 
@@ -6977,8 +6977,8 @@ contains
         print *, ""
         call assert_true(excitInfo%typ == excit_type%double_R_to_L)
 
-        call checkCompatibility(ilut, csf_info, excitInfo, compFlag, posSwitches, negSwitches)
-        call calcDoubleR2L_stochastic(ilut, excitInfo, ex, pgen, posSwitches, negSwitches)
+        call checkCompatibility(csf_info, excitInfo, compFlag, posSwitches, negSwitches)
+        call calcDoubleR2L_stochastic(ilut, csf_info, excitInfo, ex, pgen, posSwitches, negSwitches)
 
         ! 1212
         ! 3003
@@ -7011,9 +7011,9 @@ contains
 
         call assert_true(excitInfo%typ == excit_type%double_R_to_L)
 
-        call checkCompatibility(ilut, csf_info, excitInfo, compFlag, posSwitches, negSwitches)
+        call checkCompatibility(csf_info, excitInfo, compFlag, posSwitches, negSwitches)
 
-        call calcDoubleR2L_stochastic(ilut, excitInfo, ex, pgen, posSwitches, negSwitches)
+        call calcDoubleR2L_stochastic(ilut, csf_info, excitInfo, ex, pgen, posSwitches, negSwitches)
 
         call assert_true(compFlag)
         call assert_true(pgen.isclose.1.0_dp)
@@ -7035,9 +7035,9 @@ contains
 
         call assert_true(excitInfo%typ == excit_type%double_R_to_L)
 
-        call checkCompatibility(ilut, csf_info, excitInfo, compFlag, posSwitches, negSwitches)
+        call checkCompatibility(csf_info, excitInfo, compFlag, posSwitches, negSwitches)
 
-        call calcDoubleR2L_stochastic(ilut, excitInfo, ex, pgen, posSwitches, negSwitches)
+        call calcDoubleR2L_stochastic(ilut, csf_info, excitInfo, ex, pgen, posSwitches, negSwitches)
 
         call assert_true(compFlag)
         call assert_true(pgen.isclose.1.0_dp)
@@ -7086,9 +7086,9 @@ contains
         print *, ""
         call assert_true(excitInfo%typ == excit_type%double_L_to_R)
 
-        call checkCompatibility(ilut, csf_info, excitInfo, compFlag, posSwitches, negSwitches)
+        call checkCompatibility(csf_info, excitInfo, compFlag, posSwitches, negSwitches)
 
-        call calcDoubleL2R_stochastic(ilut, excitInfo, ex, pgen, posSwitches, negSwitches)
+        call calcDoubleL2R_stochastic(ilut, csf_info, excitInfo, ex, pgen, posSwitches, negSwitches)
 
         ! 1212
         ! 0330
@@ -7121,9 +7121,9 @@ contains
 
         call assert_true(excitInfo%typ == excit_type%double_L_to_R)
 
-        call checkCompatibility(ilut, csf_info, excitInfo, compFlag, posSwitches, negSwitches)
+        call checkCompatibility(csf_info, excitInfo, compFlag, posSwitches, negSwitches)
 
-        call calcDoubleL2R_stochastic(ilut, excitInfo, ex, pgen, posSwitches, negSwitches)
+        call calcDoubleL2R_stochastic(ilut, csf_info, excitInfo, ex, pgen, posSwitches, negSwitches)
 
         call assert_true(compFlag)
         call assert_true(pgen.isclose.1.0_dp)
@@ -7173,9 +7173,9 @@ contains
         print *, ""
         call assert_true(excitInfo%typ == excit_type%double_R_to_L_to_R)
 
-        call checkCompatibility(ilut, csf_info, excitInfo, compFlag, posSwitches, negSwitches)
+        call checkCompatibility(csf_info, excitInfo, compFlag, posSwitches, negSwitches)
 
-        call calcDoubleR2L2R_stochastic(ilut, excitInfo, ex, pgen, posSwitches, negSwitches)
+        call calcDoubleR2L2R_stochastic(ilut, csf_info, excitInfo, ex, pgen, posSwitches, negSwitches)
 
         ! 1212
         ! 3030
@@ -7204,9 +7204,9 @@ contains
 
         call assert_true(excitInfo%typ == excit_type%double_R_to_L_to_R)
 
-        call checkCompatibility(ilut, excitInfo, compFlag, posSwitches, negSwitches)
+        call checkCompatibility(csf_info, excitInfo, compFlag, posSwitches, negSwitches)
 
-        call calcDoubleR2L2R_stochastic(ilut, excitInfo, ex, pgen, posSwitches, negSwitches)
+        call calcDoubleR2L2R_stochastic(ilut, csf_info, excitInfo, ex, pgen, posSwitches, negSwitches)
 
         call assert_true(compFlag)
         call assert_true(pgen.isclose.1.0_dp)
@@ -7256,9 +7256,9 @@ contains
         print *, ""
         call assert_true(excitInfo%typ == excit_type%double_L_to_R_to_L)
 
-        call checkCompatibility(ilut, excitInfo, compFlag, posSwitches, negSwitches)
+        call checkCompatibility(csf_info, excitInfo, compFlag, posSwitches, negSwitches)
 
-        call calcDoubleL2R2L_stochastic(ilut, excitInfo, ex, pgen, posSwitches, negSwitches)
+        call calcDoubleL2R2L_stochastic(ilut, csf_info, excitInfo, ex, pgen, posSwitches, negSwitches)
 
         ! 1212
         ! 0303
@@ -7290,9 +7290,9 @@ contains
 
         call assert_true(excitInfo%typ == excit_type%double_L_to_R_to_L)
 
-        call checkCompatibility(ilut, excitInfo, compFlag, posSwitches, negSwitches)
+        call checkCompatibility(csf_info, excitInfo, compFlag, posSwitches, negSwitches)
 
-        call calcDoubleL2R2L_stochastic(ilut, excitInfo, ex, pgen, posSwitches, negSwitches)
+        call calcDoubleL2R2L_stochastic(ilut, csf_info, excitInfo, ex, pgen, posSwitches, negSwitches)
 
         call assert_true(compFlag)
         call assert_true(pgen.isclose.1.0_dp)
@@ -7341,9 +7341,9 @@ contains
         print *, ""
         call assert_true(excitInfo%typ == excit_type%double_raising)
 
-        call checkCompatibility(ilut, excitInfo, compFlag, posSwitches, negSwitches)
+        call checkCompatibility(csf_info, excitInfo, compFlag, posSwitches, negSwitches)
 
-        call calcDoubleRaisingStochastic(ilut, excitInfo, ex, pgen, posSwitches, negSwitches)
+        call calcDoubleRaisingStochastic(ilut, csf_info, excitInfo, ex, pgen, posSwitches, negSwitches)
 
         ! 1212
         ! 3300
@@ -7366,8 +7366,8 @@ contains
 
         call assert_true(excitInfo%typ == excit_type%double_raising)
 
-        call checkCompatibility(ilut, excitInfo, compFlag, posSwitches, negSwitches)
-        call calcDoubleRaisingStochastic(ilut, excitInfo, ex, pgen, posSwitches, negSwitches)
+        call checkCompatibility(csf_info, excitInfo, compFlag, posSwitches, negSwitches)
+        call calcDoubleRaisingStochastic(ilut, csf_info, excitInfo, ex, pgen, posSwitches, negSwitches)
 
         ! 1212
         ! 3300
@@ -7397,9 +7397,9 @@ contains
 
         call assert_true(excitInfo%typ == excit_type%double_raising)
 
-        call checkCompatibility(ilut, excitInfo, compFlag, posSwitches, negSwitches)
+        call checkCompatibility(csf_info, excitInfo, compFlag, posSwitches, negSwitches)
 
-        call calcDoubleRaisingStochastic(ilut, excitInfo, ex, pgen, posSwitches, negSwitches)
+        call calcDoubleRaisingStochastic(ilut, csf_info, excitInfo, ex, pgen, posSwitches, negSwitches)
 
         call assert_true(compFlag)
         call assert_true(pgen.isclose.1.0_dp)
@@ -7420,9 +7420,9 @@ contains
 
         call assert_true(excitInfo%typ == excit_type%double_raising)
 
-        call checkCompatibility(ilut, excitInfo, compFlag, posSwitches, negSwitches)
+        call checkCompatibility(csf_info, excitInfo, compFlag, posSwitches, negSwitches)
 
-        call calcDoubleRaisingStochastic(ilut, excitInfo, ex, pgen, posSwitches, negSwitches)
+        call calcDoubleRaisingStochastic(ilut, csf_info, excitInfo, ex, pgen, posSwitches, negSwitches)
 
         call assert_true(compFlag)
         call assert_true(pgen.isclose.1.0_dp)
@@ -7470,9 +7470,9 @@ contains
         print *, ""
         call assert_true(excitInfo%typ == excit_type%double_lowering)
 
-        call checkCompatibility(ilut, excitInfo, compFlag, posSwitches, negSwitches)
+        call checkCompatibility(csf_info, excitInfo, compFlag, posSwitches, negSwitches)
 
-        call calcDoubleLoweringStochastic(ilut, excitInfo, ex, pgen, posSwitches, negSwitches)
+        call calcDoubleLoweringStochastic(ilut, csf_info, excitInfo, ex, pgen, posSwitches, negSwitches)
 
         ! 1212
         ! 0033
@@ -7496,8 +7496,8 @@ contains
 
         call assert_true(excitInfo%typ == excit_type%double_lowering)
 
-        call checkCompatibility(ilut, excitInfo, compFlag, posSwitches, negSwitches)
-        call calcDoubleLoweringStochastic(ilut, excitInfo, ex, pgen, posSwitches, negSwitches)
+        call checkCompatibility(csf_info, excitInfo, compFlag, posSwitches, negSwitches)
+        call calcDoubleLoweringStochastic(ilut, csf_info, excitInfo, ex, pgen, posSwitches, negSwitches)
         ! 1212
         ! 0033
         call assert_true(compFlag)
@@ -7526,9 +7526,9 @@ contains
 
         call assert_true(excitInfo%typ == excit_type%double_lowering)
 
-        call checkCompatibility(ilut, excitInfo, compFlag, posSwitches, negSwitches)
+        call checkCompatibility(csf_info, excitInfo, compFlag, posSwitches, negSwitches)
 
-        call calcDoubleLoweringStochastic(ilut, excitInfo, ex, pgen, posSwitches, negSwitches)
+        call calcDoubleLoweringStochastic(ilut, csf_info, excitInfo, ex, pgen, posSwitches, negSwitches)
 
         call assert_true(compFlag)
         call assert_true(pgen.isclose.1.0_dp)
@@ -7549,9 +7549,9 @@ contains
 
         call assert_true(excitInfo%typ == excit_type%double_lowering)
 
-        call checkCompatibility(ilut, excitInfo, compFlag, posSwitches, negSwitches)
+        call checkCompatibility(csf_info, excitInfo, compFlag, posSwitches, negSwitches)
 
-        call calcDoubleLoweringStochastic(ilut, excitInfo, ex, pgen, posSwitches, negSwitches)
+        call calcDoubleLoweringStochastic(ilut, csf_info, excitInfo, ex, pgen, posSwitches, negSwitches)
 
         call assert_true(compFlag)
         call assert_true(pgen.isclose.1.0_dp)
@@ -7593,13 +7593,13 @@ contains
         excitInfo = excitationIdentifier(1, 4, 4, 2)
 
         print *, ""
-        print *, "testing calcFullStopR2L_stochastic(ilut,exinfo,ex,pgen):"
+        print *, "testing calcFullStopR2L_stochastic(ilut,csf_info, exinfo,ex,pgen):"
         print *, ""
         call assert_equals(excit_type%fullstop_R_to_L, excitInfo%typ)
 
-        call checkCompatibility(ilut, excitInfo, compFlag, posSwitches, negSwitches)
+        call checkCompatibility(csf_info, excitInfo, compFlag, posSwitches, negSwitches)
 
-        call calcFullStopR2L_stochastic(ilut, excitInfo, ex, pgen, posSwitches, negSwitches)
+        call calcFullStopR2L_stochastic(ilut, csf_info, excitInfo, ex, pgen, posSwitches, negSwitches)
 
         ! 1212
         ! 3012
@@ -7620,9 +7620,9 @@ contains
 
         call assert_equals(excit_type%fullstop_R_to_L, excitInfo%typ)
 
-        call checkCompatibility(ilut, excitInfo, compFlag, posSwitches, negSwitches)
+        call checkCompatibility(csf_info, excitInfo, compFlag, posSwitches, negSwitches)
 
-        call calcFullStopR2L_stochastic(ilut, excitInfo, ex, pgen, posSwitches, negSwitches)
+        call calcFullStopR2L_stochastic(ilut, csf_info, excitInfo, ex, pgen, posSwitches, negSwitches)
 
         call assert_true(compFlag)
         call assert_true(pgen > EPS)
@@ -7643,9 +7643,9 @@ contains
 
         call assert_equals(excit_type%fullstop_R_to_L, excitInfo%typ)
 
-        call checkCompatibility(ilut, excitInfo, compFlag, posSwitches, negSwitches)
+        call checkCompatibility(csf_info, excitInfo, compFlag, posSwitches, negSwitches)
 
-        call calcFullStopR2L_stochastic(ilut, excitInfo, ex, pgen, posSwitches, negSwitches)
+        call calcFullStopR2L_stochastic(ilut, csf_info, excitInfo, ex, pgen, posSwitches, negSwitches)
 
         call assert_true(compFlag)
         call assert_true(pgen > EPS)
@@ -7689,9 +7689,9 @@ contains
         print *, ""
         call assert_equals(excit_type%fullstop_L_to_R, excitInfo%typ)
 
-        call checkCompatibility(ilut, excitInfo, compFlag, posSwitches, negSwitches)
+        call checkCompatibility(csf_info, excitInfo, compFlag, posSwitches, negSwitches)
 
-        call calcFullStopL2R_stochastic(ilut, excitInfo, ex, pgen, posSwitches, negSwitches)
+        call calcFullStopL2R_stochastic(ilut, csf_info, excitInfo, ex, pgen, posSwitches, negSwitches)
 
         ! 1212
         ! 0312
@@ -7709,9 +7709,9 @@ contains
 
         call assert_equals(excit_type%fullstop_L_to_R, excitInfo%typ)
 
-        call checkCompatibility(ilut, excitInfo, compFlag, posSwitches, negSwitches)
+        call checkCompatibility(csf_info, excitInfo, compFlag, posSwitches, negSwitches)
 
-        call calcFullStopL2R_stochastic(ilut, excitInfo, ex, pgen, posSwitches, negSwitches)
+        call calcFullStopL2R_stochastic(ilut, csf_info, excitInfo, ex, pgen, posSwitches, negSwitches)
 
         ! 1122
         ! 0312
@@ -7735,9 +7735,9 @@ contains
 
         call assert_equals(excit_type%fullstop_L_to_R, excitInfo%typ)
 
-        call checkCompatibility(ilut, excitInfo, compFlag, posSwitches, negSwitches)
+        call checkCompatibility(csf_info, excitInfo, compFlag, posSwitches, negSwitches)
 
-        call calcFullStopL2R_stochastic(ilut, excitInfo, ex, pgen, posSwitches, negSwitches)
+        call calcFullStopL2R_stochastic(ilut, csf_info, excitInfo, ex, pgen, posSwitches, negSwitches)
 
         call assert_true(compFlag)
         call assert_true(excitInfo%valid)
@@ -7782,9 +7782,9 @@ contains
         print *, ""
         call assert_equals(excit_type%fullstart_R_to_L, excitInfo%typ)
 
-        call checkCompatibility(ilut, excitInfo, compFlag, posSwitches, negSwitches)
+        call checkCompatibility(csf_info, excitInfo, compFlag, posSwitches, negSwitches)
 
-        call calcFullStartR2L_stochastic(ilut, excitInfo, ex, pgen, posSwitches, negSwitches)
+        call calcFullStartR2L_stochastic(ilut, csf_info, excitInfo, ex, pgen, posSwitches, negSwitches)
 
         ! also should not yield a valid excitation
         ! 1212
@@ -7801,9 +7801,9 @@ contains
 
         call assert_equals(excit_type%fullstart_R_to_L, excitInfo%typ)
 
-        call checkCompatibility(ilut, excitInfo, compFlag, posSwitches, negSwitches)
+        call checkCompatibility(csf_info, excitInfo, compFlag, posSwitches, negSwitches)
 
-        call calcFullStartR2L_stochastic(ilut, excitInfo, ex, pgen, posSwitches, negSwitches)
+        call calcFullStartR2L_stochastic(ilut, csf_info, excitInfo, ex, pgen, posSwitches, negSwitches)
 
         call assert_true(compFlag)
         call assert_true(excitInfo%valid)
@@ -7825,9 +7825,9 @@ contains
 
         call assert_equals(excit_type%fullstart_R_to_L, excitInfo%typ)
 
-        call checkCompatibility(ilut, excitInfo, compFlag, posSwitches, negSwitches)
+        call checkCompatibility(csf_info, excitInfo, compFlag, posSwitches, negSwitches)
 
-        call calcFullStartR2L_stochastic(ilut, excitInfo, ex, pgen, posSwitches, negSwitches)
+        call calcFullStartR2L_stochastic(ilut, csf_info, excitInfo, ex, pgen, posSwitches, negSwitches)
 
         call assert_true(compFlag)
         call assert_true(excitInfo%valid)
@@ -7872,9 +7872,9 @@ contains
         print *, ""
         call assert_equals(excit_type%fullstart_L_to_R, excitInfo%typ)
 
-        call checkCompatibility(ilut, excitInfo, compFlag, posSwitches, negSwitches)
+        call checkCompatibility(csf_info, excitInfo, compFlag, posSwitches, negSwitches)
 
-        call calcFullStartL2R_stochastic(ilut, excitInfo, ex, pgen, posSwitches, negSwitches)
+        call calcFullStartL2R_stochastic(ilut, csf_info, excitInfo, ex, pgen, posSwitches, negSwitches)
 
         ! 1212
         ! 1320 -> normal single!
@@ -7890,9 +7890,9 @@ contains
 
         call assert_equals(excit_type%fullstart_L_to_R, excitInfo%typ)
 
-        call checkCompatibility(ilut, excitInfo, compFlag, posSwitches, negSwitches)
+        call checkCompatibility(csf_info, excitInfo, compFlag, posSwitches, negSwitches)
 
-        call calcFullStartL2R_stochastic(ilut, excitInfo, ex, pgen, posSwitches, negSwitches)
+        call calcFullStartL2R_stochastic(ilut, csf_info, excitInfo, ex, pgen, posSwitches, negSwitches)
 
         call assert_true(compFlag)
         call assert_true(excitInfo%valid)
@@ -7914,9 +7914,9 @@ contains
 
         call assert_equals(excit_type%fullstart_L_to_R, excitInfo%typ)
 
-        call checkCompatibility(ilut, excitInfo, compFlag, posSwitches, negSwitches)
+        call checkCompatibility(csf_info, excitInfo, compFlag, posSwitches, negSwitches)
 
-        call calcFullStartL2R_stochastic(ilut, excitInfo, ex, pgen, posSwitches, negSwitches)
+        call calcFullStartL2R_stochastic(ilut, csf_info, excitInfo, ex, pgen, posSwitches, negSwitches)
 
         call assert_true(compFlag)
         call assert_true(excitInfo%valid)
@@ -7959,10 +7959,10 @@ contains
 
         ! set up correct weights
         ! but switches are not yet set up... wtf
-        weights = init_fullStartWeight(ilut, 2, 4, negSwitch(2), posSwitch(2), &
-                                       currentB_ilut(2))
+        weights = init_fullStartWeight(csf_info, 2, 4, negSwitch(2), posSwitch(2), &
+                                       csf_info%B_ilut(2))
 
-        call mixedFullStartStochastic(ilut, excitInfo, weights, posSwitch, &
+        call mixedFullStartStochastic(ilut, csf_info, excitInfo, weights, posSwitch, &
                                       negSwitch, ex, pgen)
 
         call assert_true(pgen.isclose.1.0_dp)
@@ -7972,7 +7972,7 @@ contains
         print *, ""
         print *, "testing calcRaisingSemiStopStochastic(ilut,exInfo,weight,negSwitch,posSwitch,ex,pgen):"
         print *, ""
-        call calcRaisingSemiStopStochastic(ilut, excitInfo, weights, negSwitch, &
+        call calcRaisingSemiStopStochastic(ilut, csf_info, excitInfo, weights, negSwitch, &
                                            posSwitch, ex, pgen)
 
         ! 1302: there should be 2 possible! why not?
@@ -7992,10 +7992,10 @@ contains
 
         ! set up correct weights
         ! but switches are not yet set up... wtf
-        weights = init_fullStartWeight(ilut, 3, 4, negSwitch(3), posSwitch(3), &
-                                       currentB_ilut(3))
+        weights = init_fullStartWeight(csf_info, 3, 4, negSwitch(3), posSwitch(3), &
+                                       csf_info%B_ilut(3))
 
-        call mixedFullStartStochastic(ilut, excitInfo, weights, posSwitch, &
+        call mixedFullStartStochastic(ilut, csf_info, excitInfo, weights, posSwitch, &
                                       negSwitch, ex, pgen)
 
         call assert_true(pgen.isclose.1.0_dp)
@@ -8003,7 +8003,7 @@ contains
         call assert_true(abs(extract_matrix_element(ex, 1)) < EPS)
         call assert_true(abs(extract_matrix_element(ex, 2) - sqrt(3.0_dp) / 2.0_dp) < 1.0e-10_dp)
 
-        call calcRaisingSemiStopStochastic(ilut, excitInfo, weights, negSwitch, &
+        call calcRaisingSemiStopStochastic(ilut, csf_info, excitInfo, weights, negSwitch, &
                                            posSwitch, ex, pgen)
 
         call assert_true(pgen.isclose.1.0_dp)
@@ -8036,16 +8036,16 @@ contains
         call calcRemainingSwitches_excitInfo_single(csf_info, excitInfo, posSwitch, negSwitch)
 
         ! set up correct weights
-        weights = init_fullStartWeight(ilut, 2, 4, negSwitch(2), posSwitch(2), &
-                                       currentB_ilut(2))
+        weights = init_fullStartWeight(csf_info, 2, 4, negSwitch(2), posSwitch(2), &
+                                       csf_info%B_ilut(2))
 
-        call mixedFullStartStochastic(ilut, excitInfo, weights, posSwitch, &
+        call mixedFullStartStochastic(ilut, csf_info, excitInfo, weights, posSwitch, &
                                       negSwitch, ex, pgen)
 
         print *, ""
         print *, "testing calcLoweringSemiStopStochastic(ilut,exInfo,weight,negSwitch,posSwitch,ex,pgen):"
         print *, ""
-        call calcLoweringSemiStopStochastic(ilut, excitInfo, weights, negSwitch, &
+        call calcLoweringSemiStopStochastic(ilut, csf_info, excitInfo, weights, negSwitch, &
                                             posSwitch, ex, pgen)
 
         ! 1032
@@ -8067,10 +8067,10 @@ contains
 
         ! set up correct weights
         ! but switches are not yet set up... wtf
-        weights = init_fullStartWeight(ilut, 3, 4, negSwitch(3), posSwitch(3), &
-                                       currentB_ilut(3))
+        weights = init_fullStartWeight(csf_info, 3, 4, negSwitch(3), posSwitch(3), &
+                                       csf_info%B_ilut(3))
 
-        call mixedFullStartStochastic(ilut, excitInfo, weights, posSwitch, &
+        call mixedFullStartStochastic(ilut, csf_info, excitInfo, weights, posSwitch, &
                                       negSwitch, ex, pgen)
 
         call assert_true(pgen.isclose.1.0_dp)
@@ -8078,7 +8078,7 @@ contains
         call assert_true(abs(extract_matrix_element(ex, 1)) < EPS)
         call assert_true(abs(extract_matrix_element(ex, 2) - sqrt(3.0_dp) / 2.0_dp) < 1.0e-10_dp)
 
-        call calcLoweringSemiStopStochastic(ilut, excitInfo, weights, negSwitch, &
+        call calcLoweringSemiStopStochastic(ilut, csf_info, excitInfo, weights, negSwitch, &
                                             posSwitch, ex, pgen)
 
         call assert_true(pgen.isclose.1.0_dp)
@@ -8114,10 +8114,10 @@ contains
         call calcRemainingSwitches_excitInfo_single(csf_info, excitInfo, posSwitch, negSwitch)
 
         ! set up correct weights
-        weights = init_semiStartWeight(ilut, 2, 4, negSwitch(2), posSwitch(2), &
-                                       currentB_ilut(2))
+        weights = init_semiStartWeight(csf_info, 2, 4, negSwitch(2), posSwitch(2), &
+                                       csf_info%B_ilut(2))
 
-        call createStochasticStart_single(ilut, excitInfo, weights, posSwitch, &
+        call createStochasticStart_single(ilut, csf_info, excitInfo, weights, posSwitch, &
                                           negSwitch, ex, pgen)
 
         ! 1032
@@ -8129,7 +8129,7 @@ contains
         print *, ""
         print *, "testing calcRaisingSemiStartStochastic(ilut,exInfo,weigh,negSwitch,posSwitch,ex,pgen):"
         print *, ""
-        call calcRaisingSemiStartStochastic(ilut, excitInfo, weights, negSwitch, &
+        call calcRaisingSemiStartStochastic(ilut, csf_info, excitInfo, weights, negSwitch, &
                                             posSwitch, ex, pgen)
 
         ! 1032
@@ -8164,7 +8164,8 @@ contains
         call calcRemainingSwitches_excitInfo_single(csf_info, excitInfo, posSwitch, negSwitch)
 
         ! set up correct weights
-        weights = init_semiStartWeight(ilut, 2, 4, negSwitch(2), posSwitch(2), currentB_ilut(2))
+        weights = init_semiStartWeight(csf_info, 2, 4, negSwitch(2), &
+                                       posSwitch(2), csf_info%B_ilut(2))
 
         ! modify the excitation so it fits test case:
         call createStochasticStart_single(ilut, csf_info, excitInfo, weights, posSwitch, &
@@ -8213,9 +8214,9 @@ contains
         print *, ""
         call assert_equals(excit_type%single_overlap_R_to_L, excitInfo%typ)
 
-        call checkCompatibility(ilut, excitInfo, compFlag, posSwitches, negSwitches)
+        call checkCompatibility(csf_info, excitInfo, compFlag, posSwitches, negSwitches)
 
-        call calcSingleOverlapMixedStochastic(ilut, excitInfo, ex, pgen, posSwitches, negSwitches)
+        call calcSingleOverlapMixedStochastic(ilut, csf_info, excitInfo, ex, pgen, posSwitches, negSwitches)
 
         ! 0330
         ! 1302
@@ -8245,9 +8246,9 @@ contains
 
         call assert_equals(excit_type%single_overlap_L_to_R, excitInfo%typ)
 
-        call checkCompatibility(ilut, excitInfo, compFlag, posSwitches, negSwitches)
+        call checkCompatibility(csf_info, excitInfo, compFlag, posSwitches, negSwitches)
 
-        call calcSingleOverlapMixedStochastic(ilut, excitInfo, ex, pgen, posSwitches, negSwitches)
+        call calcSingleOverlapMixedStochastic(ilut, csf_info, excitInfo, ex, pgen, posSwitches, negSwitches)
 
         ! 3003
         ! 1032
@@ -8297,8 +8298,8 @@ contains
         print *, ""
         call assert_equals(excit_type%fullstop_lowering, excitInfo%typ)
 
-        call checkCompatibility(ilut, excitInfo, compFlag, posSwitches, negSwitches)
-        call calcFullStopLoweringStochastic(ilut, excitInfo, ex, pgen, posSwitches, negSwitches)
+        call checkCompatibility(csf_info, excitInfo, compFlag, posSwitches, negSwitches)
+        call calcFullStopLoweringStochastic(ilut, csf_info, excitInfo, ex, pgen, posSwitches, negSwitches)
         ! 3030
         ! 1023
         call assert_true(compFlag)
@@ -8346,8 +8347,8 @@ contains
         print *, ""
         call assert_equals(excit_type%fullstop_raising, excitInfo%typ)
 
-        call checkCompatibility(ilut, excitInfo, compFlag, posSwitches, negSwitches)
-        call calcFullStopRaisingStochastic(ilut, excitInfo, ex, pgen, posSwitches, negSwitches)
+        call checkCompatibility(csf_info, excitInfo, compFlag, posSwitches, negSwitches)
+        call calcFullStopRaisingStochastic(ilut, csf_info, excitInfo, ex, pgen, posSwitches, negSwitches)
 
         ! 0303
         ! 1320
@@ -8392,12 +8393,12 @@ contains
 
         call assert_true(excitInfo%typ == excit_type%fullstart_lowering)
 
-        call checkCompatibility(ilut, excitInfo, compFlag, posSwitches, negSwitches)
+        call checkCompatibility(csf_info, excitInfo, compFlag, posSwitches, negSwitches)
         call assert_true(.not. compFlag)
         print *, ""
         print *, "testing calcFullStartLoweringStochastic(ilut, exInfo, ex, pgen):"
         print *, ""
-        call calcFullStartLoweringStochastic(ilut, excitInfo, ex, pgen, posSwitches, negSwitches)
+        call calcFullStartLoweringStochastic(ilut, csf_info, excitInfo, ex, pgen, posSwitches, negSwitches)
 
         call extract_stochastic_rdm_info(GugaBits, ex, rdm_ind, x0, x1)
         call extract_2_rdm_ind(rdm_ind, i, j, k, l, excit_lvl=ex_lvl, excit_typ=ex_typ)
@@ -8413,10 +8414,10 @@ contains
 
         call assert_true(excitInfo%typ == excit_type%fullstart_lowering)
 
-        call checkCompatibility(ilut, excitInfo, compFlag, posSwitches, negSwitches)
+        call checkCompatibility(csf_info, excitInfo, compFlag, posSwitches, negSwitches)
 
         call assert_true(compFlag)
-        call calcFullStartLoweringStochastic(ilut, excitInfo, ex, pgen, posSwitches, negSwitches)
+        call calcFullStartLoweringStochastic(ilut, csf_info, excitInfo, ex, pgen, posSwitches, negSwitches)
         ! 3030
         ! 0132
         call assert_true(compFlag)
@@ -8460,11 +8461,11 @@ contains
 
         call assert_true(excitInfo%typ == excit_type%fullstart_raising)
 
-        call checkCompatibility(ilut, excitInfo, compFlag, posSwitches, negSwitches)
+        call checkCompatibility(csf_info, excitInfo, compFlag, posSwitches, negSwitches)
         print *, ""
         print *, "testing calcFullStartRaisingStochastic(ilut, exInfo, ex, pgen):"
         print *, ""
-        call calcFullStartRaisingStochastic(ilut, excitInfo, ex, pgen, posSwitches, negSwitches)
+        call calcFullStartRaisingStochastic(ilut, csf_info, excitInfo, ex, pgen, posSwitches, negSwitches)
 
         ! only result is: pgen should be 1..
         ! 0033
@@ -8490,9 +8491,9 @@ contains
 
         call assert_true(excitInfo%typ == excit_type%fullstart_raising)
 
-        call checkCompatibility(ilut, excitInfo, compFlag, posSwitches, negSwitches)
+        call checkCompatibility(csf_info, excitInfo, compFlag, posSwitches, negSwitches)
 
-        call calcFullStartRaisingStochastic(ilut, excitInfo, ex, pgen, posSwitches, negSwitches)
+        call calcFullStartRaisingStochastic(ilut, csf_info, excitInfo, ex, pgen, posSwitches, negSwitches)
         ! 0033
         ! 0312
         call assert_true(compFlag)
@@ -8529,14 +8530,14 @@ contains
         csf_info = CSF_Info_t(ilut)
 
         excitInfo = excitationIdentifier(4, 1, 1, 4)
-        weights = init_doubleWeight(ilut, 4)
+        weights = init_doubleWeight(csf_info, 4)
         call calcRemainingSwitches_excitInfo_single(csf_info, excitInfo, posSwitch, negSwitch)
 
-        call mixedFullStartStochastic(ilut, excitInfo, weights, posSwitch, &
+        call mixedFullStartStochastic(ilut, csf_info, excitInfo, weights, posSwitch, &
                                       negSwitch, ex, pgen)
 
-        call doubleUpdateStochastic(ilut, 2, excitInfo, weights, negSwitch, posSwitch, ex, pgen)
-        call doubleUpdateStochastic(ilut, 3, excitInfo, weights, negSwitch, posSwitch, ex, pgen)
+        call doubleUpdateStochastic(ilut, csf_info, 2, excitInfo, weights, negSwitch, posSwitch, ex, pgen)
+        call doubleUpdateStochastic(ilut, csf_info, 3, excitInfo, weights, negSwitch, posSwitch, ex, pgen)
 
         ! i should never get the other matrix element.. due to the 0
         ! matrix element or?? hopefully!
@@ -8544,7 +8545,7 @@ contains
         print *, ""
         print *, "testing mixedFullStopStochastic(ilut, excitInfo, ex)"
         print *, ""
-        call mixedFullStopStochastic(ilut, excitInfo, ex)
+        call mixedFullStopStochastic(ilut, csf_info, excitInfo, ex)
 
         if (isOne(ex, 3)) then
             call assert_true(abs(extract_matrix_element(ex, 2)) < EPS)
@@ -8573,10 +8574,10 @@ contains
         csf_info = CSF_Info_t(ilut)
 
         excitInfo = excitationIdentifier(4, 1, 1, 4)
-        weights = init_doubleWeight(ilut, 4)
+        weights = init_doubleWeight(csf_info, 4)
         call calcRemainingSwitches_excitInfo_single(csf_info, excitInfo, posSwitch, negSwitch)
 
-        call mixedFullStartStochastic(ilut, excitInfo, weights, posSwitch, &
+        call mixedFullStartStochastic(ilut, csf_info, excitInfo, weights, posSwitch, &
                                       negSwitch, ex, pgen)
 
         ! 1212
@@ -8588,7 +8589,7 @@ contains
         print *, ""
         print *, "testing doubleUpdateStochastic(ilut,orb,exInfo,weight,negSwitch,posSwitch,ex,pgen):"
         print *, ""
-        call doubleUpdateStochastic(ilut, 2, excitInfo, weights, negSwitch, posSwitch, ex, pgen)
+        call doubleUpdateStochastic(ilut, csf_info, 2, excitInfo, weights, negSwitch, posSwitch, ex, pgen)
 
         ! now there are 2 possibs.
         ! although.. do i exclude the "diagonal" excitation??
@@ -8607,7 +8608,7 @@ contains
             call stop_all(this_routine, "wrong stepvalue")
         end if
 
-        call doubleUpdateStochastic(ilut, 3, excitInfo, weights, negSwitch, posSwitch, ex, pgen)
+        call doubleUpdateStochastic(ilut, csf_info, 3, excitInfo, weights, negSwitch, posSwitch, ex, pgen)
 
         call assert_true(pgen < 1.0_dp)
 
@@ -8649,7 +8650,7 @@ contains
 
         call assert_true(excitInfo%typ == excit_type%fullstart_stop_mixed)
 
-        call checkCompatibility(ilut, csf_info, excitInfo, compFlag, posSwitches, negSwitches)
+        call checkCompatibility(csf_info, excitInfo, compFlag, posSwitches, negSwitches)
         print *, ""
         print *, "testing calcFullStartFullStopMixedStochastic(ilut,exInfo,ex,pgen)"
         print *, ""
@@ -8667,7 +8668,7 @@ contains
 
         call assert_true(excitInfo%typ == excit_type%fullstart_stop_mixed)
 
-        call checkCompatibility(ilut, csf_info, excitInfo, compFlag, posSwitches, negSwitches)
+        call checkCompatibility(csf_info, excitInfo, compFlag, posSwitches, negSwitches)
         print *, ""
         print *, "testing calcFullStartFullStopMixedStochastic(ilut,exInfo,ex,pgen)"
         print *, ""
@@ -8703,7 +8704,7 @@ contains
         print *, "testing pickOrbitals_double(ilut, excitLvl):"
         print *, ""
         ! 3300
-        call pickOrbitals_double(ilut, nI, excitInfo, pgen)
+        call pickOrbitals_double(ilut, nI, csf_info, excitInfo, pgen)
 
         if (excitInfo%valid) then
             ! what can i test here?
@@ -8715,7 +8716,7 @@ contains
             call assert_equals(-1, excitInfo%gen2)
         end if
 
-        call pickOrbitals_double(ilut, nI, excitInfo, pgen)
+        call pickOrbitals_double(ilut, nI, csf_info, excitInfo, pgen)
 
         if (excitInfo%valid) then
             ! what can i test here?
@@ -8732,7 +8733,7 @@ contains
         csf_info = CSF_Info_t(ilut)
 
         ! 0033
-        call pickOrbitals_double(ilut, nI, excitInfo, pgen)
+        call pickOrbitals_double(ilut, nI, csf_info, excitInfo, pgen)
 
         if (excitInfo%valid) then
             ! what can i test here?
@@ -8744,7 +8745,7 @@ contains
             call assert_equals(1, excitInfo%gen2)
         end if
 
-        call pickOrbitals_double(ilut, nI, excitInfo, pgen)
+        call pickOrbitals_double(ilut, nI, csf_info, excitInfo, pgen)
 
         if (excitInfo%valid) then
             ! what can i test here?
@@ -8760,7 +8761,7 @@ contains
         call EncodeBitDet_guga(nI, ilut)
         csf_info = CSF_Info_t(ilut)
 
-        call pickOrbitals_double(ilut, nI, excitInfo, pgen)
+        call pickOrbitals_double(ilut, nI, csf_info, excitInfo, pgen)
 
         if (excitInfo%valid) then
             call assert_true(pgen > EPS)
@@ -8792,7 +8793,7 @@ contains
         print *, ""
         print *, "testing createStochasticExcitation_double(ilut, ex, pgen):"
         print *, ""
-        call createStochasticExcitation_double(ilut, csf_info, nI, ex, pgen, dummy)
+        call createStochasticExcitation_double(ilut, nI, csf_info, ex, pgen, dummy)
 
         ! what should i test here?
         if (pgen > EPS) then
@@ -8811,7 +8812,7 @@ contains
             call assert_true(pos > 0)
             call assert_equals(HElGen, mat_exact)
 
-            call calc_explicit_2_rdm_guga(ilut, nex, all_ex)
+            call calc_explicit_2_rdm_guga(ilut, csf_info, nex, all_ex)
 
             pos = binary_search(all_ex(0:nifd, 1:nex), ex(0:nifd))
             call assert_true(pos > 0)
@@ -8861,20 +8862,20 @@ contains
         call calcRemainingSwitches_excitInfo_single(csf_info, excitInfo, posSwitch, negSwitch)
         weights = init_singleWeight(csf_info, excitInfo%fullEnd)
 
-        call createStochasticStart_single(ilut, excitInfo, weights, posSwitch, &
+        call createStochasticStart_single(ilut, csf_info, excitInfo, weights, posSwitch, &
                                           negSwitch, ex, pgen)
 
-        call singleStochasticUpdate(ilut, 2, excitInfo, weights, posSwitch, &
+        call singleStochasticUpdate(ilut, csf_info, 2, excitInfo, weights, posSwitch, &
                                     negSwitch, ex, pgen)
 
-        call singleStochasticUpdate(ilut, 3, excitInfo, weights, posSwitch, &
+        call singleStochasticUpdate(ilut, csf_info, 3, excitInfo, weights, posSwitch, &
                                     negSwitch, ex, pgen)
 
         print *, ""
         print *, "testing singleStochasticEnd(excitInfo, excitation):"
         print *, ""
 
-        call singleStochasticEnd(excitInfo, ex)
+        call singleStochasticEnd(csf_info, excitInfo, ex)
 
         call assert_true(pgen.isclose.1.0_dp)
         call assert_true(all(calcStepVector(ex) == [1, 3, 0, 2]))
@@ -8911,7 +8912,7 @@ contains
         call assert_true(all(posSwitch < EPS))
         call assert_true(all(negSwitch < EPS))
 
-        call createStochasticStart_single(ilut, excitInfo, weights, posSwitch, &
+        call createStochasticStart_single(ilut, csf_info, excitInfo, weights, posSwitch, &
                                           negSwitch, ex, pgen)
 
         call assert_true(pgen.isclose.1.0_dp)
@@ -8921,14 +8922,14 @@ contains
         print *, ""
         print *, "testing singleStochasticUpdate(ilut, exInfo, weight, posSwitch, negSwitch, ex, pgen):"
         print *, ""
-        call singleStochasticUpdate(ilut, 2, excitInfo, weights, posSwitch, &
+        call singleStochasticUpdate(ilut, csf_info, 2, excitInfo, weights, posSwitch, &
                                     negSwitch, ex, pgen)
 
         call assert_true(pgen.isclose.1.0_dp)
         call assert_true(all(calcStepVector(ex) == [1, 3, 0, 0]))
         call assert_true(abs(extract_matrix_element(ex, 1) + Root2) < 1.0e-10_dp)
 
-        call singleStochasticUpdate(ilut, 3, excitInfo, weights, posSwitch, &
+        call singleStochasticUpdate(ilut, csf_info, 3, excitInfo, weights, posSwitch, &
                                     negSwitch, ex, pgen)
 
         call assert_true(pgen.isclose.1.0_dp)
@@ -8952,49 +8953,49 @@ contains
 
         pgen = 1.0_dp
 
-        call pickRandomOrb_scalar(1, pgen, orb)
+        call pickRandomOrb_scalar(csf_info, 1, pgen, orb)
         call assert_true(pgen.isclose.1.0_dp / 3.0_dp)
         call assert_true(orb > 1 .and. orb <= 4)
         pgen = 1.0_dp
-        call pickRandomOrb_forced(2, pgen, orb)
+        call pickRandomOrb_forced(csf_info, 2, pgen, orb)
         call assert_true(orb == 1)
         call assert_true(pgen.isclose.1.0_dp)
         pgen = 1.0_dp
-        call pickRandomOrb_vector([1, 2], pgen, orb)
+        call pickRandomOrb_vector(csf_info, [1, 2], pgen, orb)
         call assert_true(orb == 3 .or. orb == 4)
         call assert_true(pgen.isclose.1.0_dp / 2.0_dp)
         pgen = 1.0_dp
-        call pickRandomOrb_vector([2, 3], pgen, orb, 2)
+        call pickRandomOrb_vector(csf_info, [2, 3], pgen, orb, 2)
         call assert_true(orb == 4)
         call assert_true(pgen.isclose.1.0_dp)
 
         pgen = 1.0_dp
-        call pickRandomOrb_scalar(0, pgen, orb, 0)
+        call pickRandomOrb_scalar(csf_info, 0, pgen, orb, 0)
         call assert_true(pgen.isclose.1.0_dp / 3.0_dp)
         call assert_true(orb /= 3)
 
         pgen = 1.0_dp
-        call pickRandomOrb_scalar(2, pgen, orb, 2)
+        call pickRandomOrb_scalar(csf_info, 2, pgen, orb, 2)
         call assert_true(pgen.isclose.1.0_dp / 2.0_dp)
         call assert_true(orb == 3 .or. orb == 4)
 
         pgen = 1.0_dp
-        call pickRandomOrb_restricted(1, 2, pgen, orb)
+        call pickRandomOrb_restricted(csf_info, 1, 2, pgen, orb)
         call assert_true(pgen.isclose.0.0_dp)
         call assert_true(orb == 0)
 
         pgen = 1.0_dp
-        call pickRandomOrb_restricted(1, 4, pgen, orb)
+        call pickRandomOrb_restricted(csf_info, 1, 4, pgen, orb)
         call assert_true(pgen.isclose.1.0_dp / 2.0_dp)
         call assert_true(orb == 2 .or. orb == 3)
 
         pgen = 1.0_dp
-        call pickRandomOrb_restricted(1, 4, pgen, orb, 0)
+        call pickRandomOrb_restricted(csf_info, 1, 4, pgen, orb, 0)
         call assert_true(pgen.isclose.1.0_dp)
         call assert_true(orb == 2)
 
         pgen = 1.0_dp
-        call pickRandomOrb_restricted(1, 4, pgen, orb, 1)
+        call pickRandomOrb_restricted(csf_info, 1, 4, pgen, orb, 1)
         call assert_true(pgen.isclose.1.0_dp)
         call assert_true(orb == 3)
         print *, ""
@@ -9018,14 +9019,14 @@ contains
 
         excitInfo = excitationIdentifier(4, 1, 1, 3)
 
-        weights = init_doubleWeight(ilut, 4)
+        weights = init_doubleWeight(csf_info, 4)
         call calcRemainingSwitches_excitInfo_single(csf_info, excitInfo, posSwitch, negSwitch)
 
         print *, ""
         print *, "testing mixedFullStartStochastic:"
         print *, ""
 
-        call mixedFullStartStochastic(ilut, excitInfo, weights, posSwitch, &
+        call mixedFullStartStochastic(ilut, csf_info, excitInfo, weights, posSwitch, &
                                       negSwitch, ex, prob)
 
         call assert_true(prob.isclose.1.0_dp)
@@ -9035,10 +9036,10 @@ contains
 
         excitInfo = excitationIdentifier(4, 2, 2, 3)
 
-        weights = init_doubleWeight(ilut, 4)
+        weights = init_doubleWeight(csf_info, 4)
         call calcRemainingSwitches_excitInfo_single(csf_info, excitInfo, posSwitch, negSwitch)
 
-        call mixedFullStartStochastic(ilut, excitInfo, weights, posSwitch, &
+        call mixedFullStartStochastic(ilut, csf_info, excitInfo, weights, posSwitch, &
                                       negSwitch, ex, prob)
 
         ! i think i have two possibs here..
@@ -9095,7 +9096,7 @@ contains
         print *, ""
         print *, "testing createStochasticStart_single(ilut,exInfo, weighs, posSwitch, negSwitch, ex, probWeight):"
         print *, ""
-        call createStochasticStart_single(ilut, excitInfo, weights, posSwitch, negSwitch, ex, probWeight)
+        call createStochasticStart_single(ilut, csf_info, excitInfo, weights, posSwitch, negSwitch, ex, probWeight)
 
         ! i should check the matrix element and the excitation to be sure
         ! about the effect!
@@ -9128,7 +9129,7 @@ contains
         print *, ""
 
         ! 3300
-        call pickOrbitals_single(ilut, nI, excitInfo, pgen)
+        call pickOrbitals_single(ilut, nI, csf_info, excitInfo, pgen)
 
         if (excitInfo%valid) then
             call assert_true(pgen > 0.0_dp)
@@ -9138,7 +9139,7 @@ contains
             call assert_true(excitInfo%gen1 == -1)
         end if
 
-        call pickOrbitals_single(ilut, nI, excitInfo, pgen)
+        call pickOrbitals_single(ilut, nI, csf_info, excitInfo, pgen)
         if (excitInfo%valid) then
             call assert_true(pgen > 0.0_dp)
             call assert_true(excitInfo%typ == excit_type%single)
@@ -9147,7 +9148,7 @@ contains
             call assert_true(excitInfo%gen1 == -1)
         end if
 
-        call pickOrbitals_single(ilut, nI, excitInfo, pgen)
+        call pickOrbitals_single(ilut, nI, csf_info, excitInfo, pgen)
         if (excitInfo%valid) then
             call assert_true(pgen > 0.0_dp)
             call assert_true(excitInfo%typ == excit_type%single)
@@ -9162,7 +9163,7 @@ contains
 
         csf_info = CSF_Info_t(ilut)
 
-        call pickOrbitals_single(ilut, nI, excitInfo, pgen)
+        call pickOrbitals_single(ilut, nI, csf_info, excitInfo, pgen)
 
         if (excitInfo%valid) then
             call assert_true(pgen > 0.0_dp)
@@ -9172,7 +9173,7 @@ contains
             call assert_true(excitInfo%gen1 == 1)
         end if
 
-        call pickOrbitals_single(ilut, nI, excitInfo, pgen)
+        call pickOrbitals_single(ilut, nI, csf_info, excitInfo, pgen)
         if (excitInfo%valid) then
             call assert_true(pgen > 0.0_dp)
             call assert_true(excitInfo%typ == excit_type%single)
@@ -9181,7 +9182,7 @@ contains
             call assert_true(excitInfo%gen1 == 1)
         end if
 
-        call pickOrbitals_single(ilut, nI, excitInfo, pgen)
+        call pickOrbitals_single(ilut, nI, csf_info, excitInfo, pgen)
 
         if (excitInfo%valid) then
             call assert_true(pgen > 0.0_dp)
@@ -9197,13 +9198,13 @@ contains
         csf_info = CSF_Info_t(ilut)
 
         ! 1212
-        call pickOrbitals_single(ilut, nI, excitInfo, pgen)
+        call pickOrbitals_single(ilut, nI, csf_info, excitInfo, pgen)
         if (excitInfo%valid) then
             call assert_true(pgen > 0.0_dp)
             call assert_true(excitInfo%typ == excit_type%single)
         end if
 
-        call pickOrbitals_single(ilut, nI, excitInfo, pgen)
+        call pickOrbitals_single(ilut, nI, csf_info, excitInfo, pgen)
         if (excitInfo%valid) then
             call assert_true(pgen > 0.0_dp)
             call assert_true(excitInfo%typ == excit_type%single)
@@ -9236,10 +9237,10 @@ contains
         print *, ""
         print *, "testing: createStochasticExcitation_single(ilut,t,weight):"
         print *, ""
-        call createStochasticExcitation_single(ilut, nI, t, pgen)
+        call createStochasticExcitation_single(ilut, nI, csf_info, t, pgen)
 
         if (pgen > 0.0_dp) then
-            call actHamiltonian(ilut, ex, nEx)
+            call actHamiltonian(ilut, csf_info, ex, nEx)
 
             rdm_ind = extract_rdm_ind(t)
 
@@ -9249,7 +9250,7 @@ contains
             call assert_equals(1, extract_excit_lvl_rdm(rdm_ind))
             call assert_equals(excit_type%single, extract_excit_type_rdm(rdm_ind))
 
-            call calc_explicit_1_rdm_guga(ilut, nEx, ex)
+            call calc_explicit_1_rdm_guga(ilut, csf_info, nEx, ex)
             pos = binary_search(ex(0:nifd, 1:nex), t(0:nifd), nifd)
             call assert_true(pos > 0)
             call assert_equals(extract_rdm_ind(ex(:, pos)), pure_rdm_ind(rdm_ind))
@@ -9257,7 +9258,7 @@ contains
                                extract_stochastic_rdm_x0(GugaBits, t))
 
             ! also test with matrix element calculator!
-            call calc_guga_matrix_element(ilut, t, excitInfo, &
+            call calc_guga_matrix_element(ilut, csf_info, t, excitInfo, &
                                           mat_ele, t_hamil=.true., calc_type=2, rdm_ind=rdm_ind_v, &
                                           rdm_mat=rdm_mat)
             x0 = extract_stochastic_rdm_x0(GugaBits, t)
@@ -9277,6 +9278,7 @@ contains
         integer(n_int) :: ilut(0:nifguga)
         integer(n_int), allocatable :: ex(:, :)
         integer :: nEx
+        type(CSF_Info_t) :: csf_info
 
         nel = 4
 
@@ -9285,103 +9287,123 @@ contains
         print *, ""
         ! 3300:
         call EncodeBitDet_guga([1, 2, 3, 4], ilut)
-        call actHamiltonian(ilut, ex, nEx)
+        csf_info = CSF_Info_t(ilut)
+        call actHamiltonian(ilut, csf_info, ex, nEx)
         print *, "number of excitations for: ", nEx
         call assert_equals(13, nEx)
         ! 0330
         call EncodeBitDet_guga([3, 4, 5, 6], ilut)
-        call actHamiltonian(ilut, ex, nEx)
+        csf_info = CSF_Info_t(ilut)
+        call actHamiltonian(ilut, csf_info, ex, nEx)
         print *, "number of excitations for: ", nEx
         call assert_equals(14, nEx)
         ! 0303
         call EncodeBitDet_guga([3, 4, 7, 8], ilut)
-        call actHamiltonian(ilut, ex, nEx)
+        csf_info = CSF_Info_t(ilut)
+        call actHamiltonian(ilut, csf_info, ex, nEx)
         print *, "number of excitations for: ", nEx
         call assert_equals(14, nEx)
         ! 0033
         call EncodeBitDet_guga([5, 6, 7, 8], ilut)
-        call actHamiltonian(ilut, ex, nEx)
+        csf_info = CSF_Info_t(ilut)
+        call actHamiltonian(ilut, csf_info, ex, nEx)
         print *, "number of excitations for: ", nEx
         call assert_equals(13, nEx)
         ! 1023
         call EncodeBitDet_guga([1, 6, 7, 8], ilut)
-        call actHamiltonian(ilut, ex, nEx)
+        csf_info = CSF_Info_t(ilut)
+        call actHamiltonian(ilut, csf_info, ex, nEx)
         print *, "number of excitations for: ", nEx
         call assert_equals(17, nEx)
         ! 3102
         call EncodeBitDet_guga([1, 2, 3, 8], ilut)
-        call actHamiltonian(ilut, ex, nEx)
+        csf_info = CSF_Info_t(ilut)
+        call actHamiltonian(ilut, csf_info, ex, nEx)
         print *, "number of excitations for: ", nEx
         call assert_equals(17, nEx)
         ! 3120
         call EncodeBitDet_guga([1, 2, 3, 6], ilut)
-        call actHamiltonian(ilut, ex, nEx)
+        csf_info = CSF_Info_t(ilut)
+        call actHamiltonian(ilut, csf_info, ex, nEx)
         print *, "number of excitations for: ", nEx
         call assert_equals(17, nEx)
 
         ! 3030
         call EncodeBitDet_guga([1, 2, 5, 6], ilut)
-        call actHamiltonian(ilut, ex, nEx)
+        csf_info = CSF_Info_t(ilut)
+        call actHamiltonian(ilut, csf_info, ex, nEx)
         print *, "number of excitations for: ", nEx
         call assert_equals(14, nEx)
         ! 3003:
         call EncodeBitDet_guga([1, 2, 7, 8], ilut)
-        call actHamiltonian(ilut, ex, nEx)
+        csf_info = CSF_Info_t(ilut)
+        call actHamiltonian(ilut, csf_info, ex, nEx)
         print *, "number of excitations for: ", nEx
         call assert_equals(14, nEx)
         ! 3012
         call EncodeBitDet_guga([1, 2, 5, 8], ilut)
-        call actHamiltonian(ilut, ex, nEx)
+        csf_info = CSF_Info_t(ilut)
+        call actHamiltonian(ilut, csf_info, ex, nEx)
         print *, "number of excitations for: ", nEx
         call assert_equals(16, nEx)
         ! 0312
         call EncodeBitDet_guga([3, 4, 5, 8], ilut)
-        call actHamiltonian(ilut, ex, nEx)
+        csf_info = CSF_Info_t(ilut)
+        call actHamiltonian(ilut, csf_info, ex, nEx)
         print *, "number of excitations for: ", nEx
         call assert_equals(16, nEx)
         ! 1230
         call EncodeBitDet_guga([1, 4, 5, 6], ilut)
-        call actHamiltonian(ilut, ex, nEx)
+        csf_info = CSF_Info_t(ilut)
+        call actHamiltonian(ilut, csf_info, ex, nEx)
         print *, "number of excitations for: ", nEx
         call assert_equals(16, nEx)
         ! 1203
         call EncodeBitDet_guga([1, 4, 7, 8], ilut)
-        call actHamiltonian(ilut, ex, nEx)
+        csf_info = CSF_Info_t(ilut)
+        call actHamiltonian(ilut, csf_info, ex, nEx)
         print *, "number of excitations for: ", nEx
         call assert_equals(16, nEx)
         ! 1320
         call EncodeBitDet_guga([1, 3, 4, 6], ilut)
-        call actHamiltonian(ilut, ex, nEx)
+        csf_info = CSF_Info_t(ilut)
+        call actHamiltonian(ilut, csf_info, ex, nEx)
         print *, "number of excitations for: ", nEx
         call assert_equals(17, nEx)
         ! 1302
         call EncodeBitDet_guga([1, 3, 4, 8], ilut)
-        call actHamiltonian(ilut, ex, nEx)
+        csf_info = CSF_Info_t(ilut)
+        call actHamiltonian(ilut, csf_info, ex, nEx)
         print *, "number of excitations for: ", nEx
         call assert_equals(17, nEx)
         ! 1032
         call EncodeBitDet_guga([1, 5, 6, 8], ilut)
-        call actHamiltonian(ilut, ex, nEx)
+        csf_info = CSF_Info_t(ilut)
+        call actHamiltonian(ilut, csf_info, ex, nEx)
         print *, "number of excitations for: ", nEx
         call assert_equals(17, nEx)
         ! 0132
         call EncodeBitDet_guga([3, 5, 6, 8], ilut)
-        call actHamiltonian(ilut, ex, nEx)
+        csf_info = CSF_Info_t(ilut)
+        call actHamiltonian(ilut, csf_info, ex, nEx)
         print *, "number of excitations for: ", nEx
         call assert_equals(17, nEx)
         ! 0123
         call EncodeBitDet_guga([3, 6, 7, 8], ilut)
-        call actHamiltonian(ilut, ex, nEx)
+        csf_info = CSF_Info_t(ilut)
+        call actHamiltonian(ilut, csf_info, ex, nEx)
         print *, "number of excitations for: ", nEx
         call assert_equals(17, nEx)
         ! 1122
         call EncodeBitDet_guga([1, 3, 6, 8], ilut)
-        call actHamiltonian(ilut, ex, nEx)
+        csf_info = CSF_Info_t(ilut)
+        call actHamiltonian(ilut, csf_info, ex, nEx)
         print *, "number of excitations for: ", nEx
         call assert_equals(12, nEx)
         ! 1212
         call EncodeBitDet_guga([1, 4, 5, 8], ilut)
-        call actHamiltonian(ilut, ex, nEx)
+        csf_info = CSF_Info_t(ilut)
+        call actHamiltonian(ilut, csf_info, ex, nEx)
         print *, "number of excitations for: ", nEx
         call assert_equals(18, nEx)
 
@@ -9404,7 +9426,7 @@ contains
         print *, ""
         print *, "testing calcAllExcitations_double(ilut,i,j,k,l,ex,nExits):"
         print *, ""
-        call calcAllExcitations_double(ilut, 1, 2, 3, 4, ex, nExcits)
+        call calcAllExcitations_double(ilut, csf_info, 1, 2, 3, 4, ex, nExcits)
 
         ! meh... was soll ich hier testen?
         ! 1212
@@ -9434,7 +9456,7 @@ contains
         print *, ""
         print *, "testing: calcFullStartFullStopAlike(ilut, exInfo, ex)"
         print *, ""
-        call calcFullStartFullStopAlike(ilut, excitInfo, ex)
+        call calcFullStartFullStopAlike(ilut, csf_info, excitInfo, ex)
 
         ! 0303
         ! 3300
@@ -9486,7 +9508,7 @@ contains
         print *, ""
         print *, "testing: calcFullStartL2R(ilut, exInfo, ex, num, posSwitch, negSwitch)"
         print *, ""
-        call calcFullStartL2R(ilut, excitInfo, ex, num, posSwitch, negSwitch)
+        call calcFullStartL2R(ilut, csf_info, excitInfo, ex, num, posSwitch, negSwitch)
 
         ! 1212
         ! 1230
@@ -9495,7 +9517,7 @@ contains
         call assert_true(all(calcStepVector(ex(:, 1)) == [1, 2, 3, 0]))
 
         excitInfo = excitationIdentifier(2, 4, 3, 2)
-        call calcFullStartL2R(ilut, excitInfo, ex, num, posSwitch, negSwitch)
+        call calcFullStartL2R(ilut, csf_info, excitInfo, ex, num, posSwitch, negSwitch)
         call assert_true(num == 1)
         call assert_true(all(calcStepVector(ex(:, 1)) == [1, 2, 3, 0]))
         print *, ""
@@ -9523,7 +9545,7 @@ contains
         print *, ""
         print *, "testing: calcFullStartR2L(ilut, exInfo, ex, num, posSwitch, negSwitch)"
         print *, ""
-        call calcFullStartR2L(ilut, excitInfo, ex, num, posSwitch, negSwitch)
+        call calcFullStartR2L(ilut, csf_info, excitInfo, ex, num, posSwitch, negSwitch)
 
         ! 1212
         ! 1203
@@ -9531,7 +9553,7 @@ contains
         call assert_true(all(calcStepVector(ex(:, 1)) == [1, 2, 0, 3]))
 
         excitInfo = excitationIdentifier(2, 3, 4, 2)
-        call calcFullStartR2L(ilut, excitInfo, ex, num, posSwitch, negSwitch)
+        call calcFullStartR2L(ilut, csf_info, excitInfo, ex, num, posSwitch, negSwitch)
         call assert_true(num == 1)
         call assert_true(all(calcStepVector(ex(:, 1)) == [1, 2, 0, 3]))
 
@@ -9559,7 +9581,7 @@ contains
         print *, ""
         print *, "testing: calcFullStartRaising(ilut, exInfo, ex, num, posSwitch, negSwitch)"
         print *, ""
-        call calcFullStartRaising(ilut, excitInfo, ex, num, posSwitch, negSwitch)
+        call calcFullStartRaising(ilut, csf_info, excitInfo, ex, num, posSwitch, negSwitch)
 
         ! 0312
         ! 3300
@@ -9591,7 +9613,7 @@ contains
         print *, ""
         print *, "testing: calcFullStartLowering(ilut, exInfo, ex, num, posSwitch, negSwitch)"
         print *, ""
-        call calcFullStartLowering(ilut, excitInfo, ex, num, posSwitch, negSwitch)
+        call calcFullStartLowering(ilut, csf_info, excitInfo, ex, num, posSwitch, negSwitch)
 
         ! 3012
         ! 0033
@@ -9622,7 +9644,7 @@ contains
         print *, ""
         print *, "testing: calcFullStopR2L(ilut, exInfo, ex, num, posSwitch, negSwitch)"
         print *, ""
-        call calcFullStopR2L(ilut, excitInfo, ex, num, posSwitch, negSwitch)
+        call calcFullStopR2L(ilut, csf_info, excitInfo, ex, num, posSwitch, negSwitch)
 
         ! 1212
         ! 3102
@@ -9630,7 +9652,7 @@ contains
         call assert_true(all(calcStepVector(ex(:, 1)) == [3, 1, 0, 2]))
 
         excitInfo = excitationIdentifier(1, 3, 3, 2)
-        call calcFullStopR2L(ilut, excitInfo, ex, num, posSwitch, negSwitch)
+        call calcFullStopR2L(ilut, csf_info, excitInfo, ex, num, posSwitch, negSwitch)
         ! 1212
         ! 3012
         call assert_true(num == 1)
@@ -9699,7 +9721,7 @@ contains
         print *, ""
         print *, "testing: calcFullStopRaising(ilut, exInfo, ex, num, posSwitch, negSwitch)"
         print *, ""
-        call calcFullStopRaising(ilut, excitInfo, ex, num, posSwitch, negSwitch)
+        call calcFullStopRaising(ilut, csf_info, excitInfo, ex, num, posSwitch, negSwitch)
 
         ! 0033
         ! 1230
@@ -9730,7 +9752,7 @@ contains
         print *, ""
         print *, "testing: calcFullStopLowering(ilut, exInfo, ex, num, posSwitch, negSwitch)"
         print *, ""
-        call calcFullStopLowering(ilut, excitInfo, ex, num, posSwitch, negSwitch)
+        call calcFullStopLowering(ilut, csf_info, excitInfo, ex, num, posSwitch, negSwitch)
 
         ! 3300
         ! 1203
@@ -9761,7 +9783,7 @@ contains
         print *, ""
         print *, "testing: calcDoubleR2L(ilut, exInfo, ex, num, posSwitch, negSwitch)"
         print *, ""
-        call calcDoubleR2L(ilut, excitInfo, ex, num, posSwitch, negSwitch)
+        call calcDoubleR2L(ilut, csf_info, excitInfo, ex, num, posSwitch, negSwitch)
 
         ! 1212
         ! 3003
@@ -9796,7 +9818,7 @@ contains
         print *, ""
         print *, "testing: calcDoubleL2R(ilut, exInfo, ex, num, posSwitch, negSwitch)"
         print *, ""
-        call calcDoubleL2R(ilut, excitInfo, ex, num, posSwitch, negSwitch)
+        call calcDoubleL2R(ilut, csf_info, excitInfo, ex, num, posSwitch, negSwitch)
 
         ! 1212
         ! 0330
@@ -9827,7 +9849,7 @@ contains
         print *, ""
         print *, "testing: calcDoubleRaising(ilut, exInfo, ex, num, posSwitch, negSwitch)"
         print *, ""
-        call calcDoubleRaising(ilut, excitInfo, ex, num, posSwitch, negSwitch)
+        call calcDoubleRaising(ilut, csf_info, excitInfo, ex, num, posSwitch, negSwitch)
 
         ! 0033
         ! 1122
@@ -9859,7 +9881,7 @@ contains
         print *, ""
         print *, "testing: calcDoubleLowering(ilut, exInfo, ex, num, posSwitch, negSwitch)"
         print *, ""
-        call calcDoubleLowering(ilut, excitInfo, ex, num, posSwitch, negSwitch)
+        call calcDoubleLowering(ilut, csf_info, excitInfo, ex, num, posSwitch, negSwitch)
 
         ! 3300
         ! 1122
@@ -9890,7 +9912,7 @@ contains
         print *, excitInfo%typ
 
         print *, "testing: calcSingleOverlapRaising(ilut, exInfo, ex, num, posSwitch, negSwitch)"
-        call calcSingleOverlapRaising(ilut, excitInfo, ex, num, posSwitch, negSwitch)
+        call calcSingleOverlapRaising(ilut, csf_info, excitInfo, ex, num, posSwitch, negSwitch)
 
         ! 0033
         ! 1032
@@ -9917,7 +9939,7 @@ contains
         call calcRemainingSwitches_excitInfo_double(csf_info, excitInfo, posSwitch, negSwitch)
 
         print *, "testing: calcSingleOverlapMixed(ilut, exInfo, ex, num, posSwitch, negSwitch)"
-        call calcSingleOverlapMixed(ilut, excitInfo, ex, num, posSwitch, negSwitch)
+        call calcSingleOverlapMixed(ilut, csf_info, excitInfo, ex, num, posSwitch, negSwitch)
 
         ! 3003
         ! 1032
@@ -9973,7 +9995,7 @@ contains
         call assert_true(excitInfo%typ == excit_type%non_overlap)
 
         print *, "testing: calcNonOverlapDouble(ilut, exInfo, exs, num, posSwitch, negSwitch"
-        call calcNonOverlapDouble(ilut, excitInfo, ex, num, posSwitch, negSwitch)
+        call calcNonOverlapDouble(ilut, csf_info, excitInfo, ex, num, posSwitch, negSwitch)
 
         ! 0303
         ! 1212
@@ -10016,7 +10038,7 @@ contains
         call assert_true(abs(extract_matrix_element(ex(:, 1), 1) + 2.0_dp * Root2) < 1.0e-10_dp)
 
         excitInfo = excitationIdentifier(3, 3, 1, 4)
-        call checkCompatibility(ilut, csf_info, excitInfo, compFlag, posSwitch, negSwitch)
+        call checkCompatibility(csf_info, excitInfo, compFlag, posSwitch, negSwitch)
         call assert_true(.not. compFlag)
 
         ! todo! have to write a only excitation calculating funciton
@@ -10039,18 +10061,18 @@ contains
 
         excitInfo = excitationIdentifier_double(1, 2, 3, 4)
         call calcRemainingSwitches_excitInfo_double(csf_info, excitInfo, posSwitch, negSwitch)
-        call checkCompatibility(ilut, csf_info, excitInfo, flag, posSwitch, negSwitch)
+        call checkCompatibility(csf_info, excitInfo, flag, posSwitch, negSwitch)
 
         call assert_true(.not. flag)
 
         ! 3300
 
         excitInfo = excitationIdentifier_double(1, 2, 1, 4)
-        call checkCompatibility(ilut, csf_info, excitInfo, flag, posSwitch, negSwitch)
+        call checkCompatibility(csf_info, excitInfo, flag, posSwitch, negSwitch)
         call assert_true(.not. flag)
 
         excitInfo = excitationIdentifier_double(3, 2, 4, 1)
-        call checkCompatibility(ilut, csf_info, excitInfo, flag, posSwitch, negSwitch)
+        call checkCompatibility(csf_info, excitInfo, flag, posSwitch, negSwitch)
         call assert_true(flag)
 
         ! 0033
@@ -10058,11 +10080,11 @@ contains
         csf_info = CSF_Info_t(ilut)
 
         excitInfo = excitationIdentifier_double(1, 2, 1, 4)
-        call checkCompatibility(ilut, csf_info, excitInfo, flag, posSwitch, negSwitch)
+        call checkCompatibility(csf_info, excitInfo, flag, posSwitch, negSwitch)
         call assert_true(.not. flag)
 
         excitInfo = excitationIdentifier_double(1, 3, 1, 4)
-        call checkCompatibility(ilut, csf_info, excitInfo, flag, posSwitch, negSwitch)
+        call checkCompatibility(csf_info, excitInfo, flag, posSwitch, negSwitch)
         call assert_true(flag)
 
         print *, "checkCompatibility tests passed!"

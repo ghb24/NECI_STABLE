@@ -2695,8 +2695,8 @@ contains
                 pgen = 0.0_dp
                 return
             end if
-            call checkCompatibility(ilut, csf_info, excitInfo, compFlag, posSwitches, negSwitches, &
-                                    weights)
+            call checkCompatibility(&
+                    csf_info, excitInfo, compFlag, posSwitches, negSwitches, weights)
 
             if (.not. compFlag) then
                 exc = 0_n_int
@@ -4468,8 +4468,8 @@ contains
         ! or just dont do a compatibility check, since it will get aborted
         ! anyway if it does not work in the excitation generation..
 
-        call checkCompatibility(ilut, csf_info, excitInfo, compFlag, posSwitches, negSwitches, &
-                                weights)
+        call checkCompatibility(&
+                    csf_info, excitInfo, compFlag, posSwitches, negSwitches, weights)
 
         if (.not. compFlag) then
             excitation = 0
@@ -6844,7 +6844,7 @@ contains
                                                            posSwitches(se), csf_info%B_ilut(se))
 
             else
-                weights = init_semiStartWeight(ilut, csf_info, se, en, negSwitches(se), &
+                weights = init_semiStartWeight(csf_info, se, en, negSwitches(se), &
                                                posSwitches(se), csf_info%B_ilut(se))
             end if
         end if
@@ -7212,7 +7212,7 @@ contains
 
             call calcRemainingSwitches_excitInfo_double(csf_info, excitInfo, posSwitches, negSwitches)
 
-            weights = init_semiStartWeight(ilut, csf_info, se, i, negSwitches(se), &
+            weights = init_semiStartWeight(csf_info, se, i, negSwitches(se), &
                                            posSwitches(se), csf_info%B_ilut(se))
 
             ! deal with st seperately
@@ -7505,7 +7505,7 @@ contains
                 weights = init_forced_end_semistart_weight(csf_info, se, en, negSwitches(se), &
                                                            posSwitches(se), csf_info%B_ilut(se))
             else
-                weights = init_semiStartWeight(ilut, csf_info, se, en, negSwitches(se), &
+                weights = init_semiStartWeight(csf_info, se, en, negSwitches(se), &
                                                posSwitches(se), csf_info%B_ilut(se))
             end if
         end if
@@ -7899,7 +7899,7 @@ contains
                         excitInfo%fullEnd = i
                         excitInfo%firstEnd = i
 
-                        weights = init_semiStartWeight(ilut, csf_info, se, i, tmp_neg(se), &
+                        weights = init_semiStartWeight(csf_info, se, i, tmp_neg(se), &
                                                        tmp_pos(se), csf_info%B_ilut(se))
 
                         new_pgen = 1.0_dp
@@ -8037,7 +8037,7 @@ contains
                     excitInfo%fullEnd = i
                     excitInfo%firstEnd = i
 
-                    weights = init_semiStartWeight(ilut, csf_info, se, i, negSwitches(se), &
+                    weights = init_semiStartWeight(csf_info, se, i, negSwitches(se), &
                                                    posSwitches(se), csf_info%B_ilut(se))
 
                     new_pgen = 1.0_dp
@@ -8135,7 +8135,7 @@ contains
                 ! loop to get correct pgen
                 new_pgen = 1.0_dp
 
-                weights = init_semiStartWeight(ilut, csf_info, se, sw, negSwitches(se), &
+                weights = init_semiStartWeight(csf_info, se, sw, negSwitches(se), &
                                                posSwitches(se), csf_info%B_ilut(se))
 
                 ! deal with the start and semi-start seperately
@@ -8321,7 +8321,7 @@ contains
 
             call calcRemainingSwitches_excitInfo_double(csf_info, excitInfo, posSwitches, negSwitches)
 
-            weights = init_semiStartWeight(ilut, csf_info, se, i, negSwitches(se), &
+            weights = init_semiStartWeight(csf_info, se, i, negSwitches(se), &
                                            posSwitches(se), csf_info%B_ilut(se))
 
             ! deal with start seperately
@@ -13951,9 +13951,8 @@ contains
         forced_semistart%initialized = .true.
     end function init_forced_end_semistart_weight
 
-    function init_semiStartWeight(ilut, csf_info, sOrb, pOrb, negSwitches, posSwitches, bVal) &
+    function init_semiStartWeight(csf_info, sOrb, pOrb, negSwitches, posSwitches, bVal) &
         result(semiStart)
-        integer(n_int), intent(in) :: ilut(0:nifguga)
         type(CSF_Info_t), intent(in) :: csf_info
         integer, intent(in) :: sOrb, pOrb
         real(dp), intent(in) :: negSwitches, posSwitches, bVal
@@ -13962,7 +13961,6 @@ contains
 
         type(WeightObj_t), target, save :: double
 
-        ASSERT(isProperCSF_ilut(ilut))
         ASSERT(sOrb > 0 .and. sOrb <= nSpatOrbs)
         ASSERT(pOrb > 0 .and. pOrb <= nSpatOrbs)
         ASSERT(negSwitches >= 0.0_dp)
@@ -15898,7 +15896,7 @@ contains
         ! in checkCompatibility the number of switches is already
         ! calulated to check if the probabilistic weights fit... maybe but
         ! that out and reuse.. to not waste any effort.
-        call checkCompatibility(ilut, csf_info, excitInfo, compFlag, posSwitches, negSwitches)
+        call checkCompatibility(csf_info, excitInfo, compFlag, posSwitches, negSwitches)
 
         if (.not. compFlag) then
             allocate(excitations(0, 0), stat=ierr)
@@ -18408,7 +18406,7 @@ contains
         end if
 
         ! init weights
-        weights = init_semiStartWeight(ilut, csf_info, se, en, negSwitches(se), &
+        weights = init_semiStartWeight(csf_info, se, en, negSwitches(se), &
                                        posSwitches(se), csf_info%B_ilut(se))
 
         excitInfo%currentGen = excitInfo%firstGen
@@ -18531,7 +18529,7 @@ contains
         end if
 
         ! init weights
-        weights = init_semiStartWeight(ilut, csf_info, se, en, negSwitches(se), &
+        weights = init_semiStartWeight(csf_info, se, en, negSwitches(se), &
                                        posSwitches(se), csf_info%B_ilut(se))
 
         excitInfo%currentGen = excitInfo%firstGen
@@ -20626,14 +20624,13 @@ contains
     end subroutine checkCompatibility_single
 
 
-    subroutine checkCompatibility(L, csf_info, excitInfo, flag, posSwitches, negSwitches, opt_weight)
+    subroutine checkCompatibility(csf_info, excitInfo, flag, posSwitches, negSwitches, opt_weight)
         ! depending on the type of excitation determined in the
         ! excitationIdentifier check if the provided ilut and excitation and
         ! the probabilistic weight function allow an excitation
         ! dont do probabilistic weight for now. just check stepvector
         ! TODO use csf_info%stepvector quantity in here!
         ! to improve performance
-        integer(n_int), intent(in) :: L(0:nifguga)
         type(CSF_Info_t), intent(in) :: csf_info
         type(ExcitationInformation_t), intent(in) :: excitInfo
         logical, intent(out) :: flag
@@ -21046,7 +21043,7 @@ contains
 
             else
 
-                weights = init_semiStartWeight(L, csf_info, ss, en, negSwitches(ss), &
+                weights = init_semiStartWeight(csf_info, ss, en, negSwitches(ss), &
                                                posSwitches(ss), csf_info%B_ilut(ss))
 
             end if
@@ -21078,7 +21075,7 @@ contains
 
             else
 
-                weights = init_semiStartWeight(L, csf_info, ss, en, negSwitches(ss), &
+                weights = init_semiStartWeight(csf_info, ss, en, negSwitches(ss), &
                                                posSwitches(ss), csf_info%B_ilut(ss))
 
             end if
