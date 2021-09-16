@@ -746,14 +746,9 @@ contains
     end subroutine compare_rdm_all_excits_and_mat_eles
 
     subroutine init_guga_testsuite
-
-        integer :: nBasisMax(5, 3), lms, stot
-        real(dp) :: ecore
-
         call init_guga_plugin(t_testmode_=.true., nel_=4, nbasis_=8, &
                               nSpatOrbs_=4)
         t_full_guga_tests = .true.
-
     end subroutine init_guga_testsuite
 
     subroutine test_guga_explicit_rdms
@@ -774,6 +769,7 @@ contains
         call run_test_case(test_create_all_rdm_contribs, &
                            "test_create_all_rdm_contribs")
         call run_test_case(test_generator_sign, "test_generator_sign")
+
         print *, ""
         print *, "explicit RDM routines passed!"
         print *, ""
@@ -5014,7 +5010,6 @@ contains
         real(dp), allocatable :: rdm_mat(:)
         type(ExcitationInformation_t) :: excitInfo
         integer :: i
-        type(CSF_Info_t) :: csf_info
 
         exFlag = 1
         ! make only double excitations:
@@ -5029,6 +5024,7 @@ contains
         call EncodeBitDet(nI, ilutI)
         call convert_ilut_toGUGA(ilutI, ilutGi)
         global_csf_info = CSF_Info_t(ilutGi)
+
         call generate_excitation_guga(nI, ilutI, nJ, ilutJ, exFlag, IC, excitMat, &
                                       tParity, pgen, HElGen, store)
         call convert_ilut_toGUGA(ilutJ, ilutGj)

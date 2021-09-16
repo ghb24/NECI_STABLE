@@ -191,7 +191,7 @@ set( SRC_FILES
     guga_types.F90
 	guga_plugin.F90
     guga_pchb_class.F90
-    guga_gas_pchb_excitgen.F90
+    # guga_gas_pchb_excitgen.F90
     lattice_mod.F90
     tJ_model.F90
     k_space_hubbard.F90

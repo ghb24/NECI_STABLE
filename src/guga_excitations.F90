@@ -35,7 +35,7 @@ module guga_excitations
                          WeightData_t, orbitalIndex, funA_0_2overR2, minFunA_2_0_overR2, &
                          funA_m1_1_overR2, funA_3_1_overR2, minFunA_0_2_overR2, &
                          funA_2_0_overR2, getDoubleContribution, projE_replica, &
-                         tNewDet, tag_excitations, tag_tmp_excits, tag_proje_list, &
+                         tag_excitations, tag_tmp_excits, tag_proje_list, &
                          excit_type, gen_type, excit_names
 
     use guga_bitRepOps, only: isProperCSF_ilut, calcB_vector_ilut, getDeltaB, &
@@ -49,7 +49,7 @@ module guga_excitations
                               identify_excitation, calc_csf_info, &
                               extract_h_element, encode_stochastic_rdm_info, &
                               get_preceeding_opposites, &
-                              CSF_Info_t, fill_csf_info
+                              CSF_Info_t, fill_csf_info, is_compatible, current_csf_info
 
     use guga_matrixElements, only: calcDiagMatEleGUGA_ilut, calcDiagMatEleGuga_nI
 
@@ -423,7 +423,7 @@ contains
 
         do i = 1, size(ilut_list,2)
             do j = 1, size(ilut_list,2)
-                call fill_csf_info(ilut_list(:, j), csf_info)
+                csf_info = CSF_Info_t(ilut_list(:, j))
                 hamil(i,j) = calc_guga_mat_wrapper(ilut_list(:, j), csf_info, ilut_list(:,i))
             end do
         end do
@@ -2393,7 +2393,6 @@ contains
         ! set the not needed inputs for guga
         ex = 0
 
-        tNewDet = .true.
         ! Repeated generation, and summing-in loop
         ngen = 0
         contrib = 0.0_dp
@@ -2408,6 +2407,7 @@ contains
 !                 call gen_excit_4ind_weighted2 (src_det, ilut, det, tgt_ilut, 3, &
 !                                           ic, ex, par, pgen, helgen, store)
             else
+                current_csf_info = CSF_Info_t(ilut)
                 call generate_excitation_guga(src_det, ilut, det, tgt_ilut, 3, &
                                               ic, ex, par, pgen, helgen, store)
             end if
@@ -2559,10 +2559,11 @@ contains
 
     ! implement a crude approximation in the guga excitation, where we only
     ! do changes a the beginning and the end of excitations
-    subroutine generate_excitation_guga_crude(nI, ilutI, nJ, ilutJ, exFlag, IC, &
+    subroutine generate_excitation_guga_crude(nI, ilutI, csf_info, nJ, ilutJ, exFlag, IC, &
                                               excitMat, tParity, pgen, HElGen, store, part_type)
         integer, intent(in) :: nI(nEl), exFlag
         integer(n_int), intent(in) :: ilutI(0:niftot)
+        type(CSF_Info_t), intent(in) :: csf_info
         integer, intent(out) :: nJ(nEl), IC, excitMat(2, 2)
         integer(n_int), intent(out) :: ilutJ(0:niftot)
         logical, intent(out) :: tParity
@@ -2574,7 +2575,6 @@ contains
 
         integer(n_int) :: ilut(0:nifguga), excitation(0:nifguga)
         integer :: excit_typ(2)
-        type(CSF_Info_t) :: csf_info
 
         unused_var(exFlag); unused_var(store); unused_var(part_type)
 
@@ -2604,27 +2604,6 @@ contains
 
         ! maybe i need to copy the flags of ilutI onto ilutJ
         ilutJ = ilutI
-
-        ! TODO! probably have to do this allocation and calculation of
-        ! those lists outside of generate_excitation in the main loop of
-        ! NECI -> since it does this for every walker on an excitation
-
-        ! could essentially calc. b vector and occupation vector here...
-        ! do it only if tNewDet is set, so i only recalc this if i switch to a
-        ! new determinant -> is set in FciMCPar!
-        ! or just init_csf_info outside in FciMCPar to also use this info
-        ! for the matrix element calculation..
-
-        if (tNewDet) then
-            ! use new setup function for additional CSF informtation
-            ! instead of calculating it all seperately..
-            call fill_csf_info(ilut(0:nifd), csf_info)
-
-            ! then set tNewDet to false and only set it after the walker loop
-            ! in FciMCPar
-            tNewDet = .false.
-
-        end if
 
         if (genrand_real2_dSFMT() < pSingles) then
 
@@ -4237,9 +4216,11 @@ contains
 
     end subroutine gen_crude_guga_single_3
 
-    ! need an API interfacing function for generate_excitation to the rest of NECI:
     subroutine generate_excitation_guga(nI, ilutI, nJ, ilutJ, exFlag, IC, &
                                         excitMat, tParity, pgen, HElGen, store, part_type)
+        !! An API interfacing function for generate_excitation to the rest of NECI:
+        !!
+        !! Requires guga_bitRepOps::current_csf_info to be set according to the ilutI.
         integer, intent(in) :: nI(nEl), exFlag
         integer(n_int), intent(in) :: ilutI(0:niftot)
         integer, intent(out) :: nJ(nEl), IC, excitMat(2, maxExcit)
@@ -4255,14 +4236,12 @@ contains
         integer :: excit_typ(2)
 
         type(ExcitationInformation_t) :: excitInfo
-        type(CSF_Info_t) :: csf_info
         real(dp) :: diff
         HElement_t(dp) :: tmp_mat1
         HElement_t(dp) :: tmp_mat
 
-        unused_var(exFlag)
-        unused_var(part_type)
-        unused_var(store)
+        unused_var(exFlag); unused_var(part_type); unused_var(store)
+        ASSERT(is_compatible(ilutI, current_csf_info))
 
         ! think about default values and unneeded variables for GUGA, but
         ! which have to be processed anyway to interface to NECI
@@ -4291,37 +4270,16 @@ contains
         ! maybe i need to copy the flags of ilutI onto ilutJ
         ilutJ = ilutI
 
-        ! TODO! probably have to do this allocation and calculation of
-        ! those lists outside of generate_excitation in the main loop of
-        ! NECI -> since it does this for every walker on an excitation
-
-        ! could essentially calc. b vector and occupation vector here...
-        ! do it only if tNewDet is set, so i only recalc this if i switch to a
-        ! new determinant -> is set in FciMCPar!
-        ! or just init_csf_info outside in FciMCPar to also use this info
-        ! for the matrix element calculation..
-
-        if (tNewDet) then
-            ! use new setup function for additional CSF informtation
-            ! instead of calculating it all seperately..
-            call fill_csf_info(ilut(0:nifd), csf_info)
-
-            ! then set tNewDet to false and only set it after the walker loop
-            ! in FciMCPar
-            tNewDet = .false.
-
-        end if
-
         if (genrand_real2_dSFMT() < pSingles) then
 
             IC = 1
-            call createStochasticExcitation_single(ilut, nI, csf_info, excitation, pgen)
+            call createStochasticExcitation_single(ilut, nI, current_csf_info, excitation, pgen)
             pgen = pgen * pSingles
 
         else
 
             IC = 2
-            call createStochasticExcitation_double(ilut, nI, csf_info, excitation, pgen, excit_typ)
+            call createStochasticExcitation_double(ilut, nI, current_csf_info, excitation, pgen, excit_typ)
             pgen = pgen * pDoubles
 
             if (near_zero(pgen)) then
@@ -4338,7 +4296,7 @@ contains
 #ifdef DEBUG_
         if (.not. near_zero(pgen)) then
             call convert_ilut_toNECI(excitation, ilutJ, HElgen)
-            call calc_guga_matrix_element(ilutI, csf_info, ilutJ, excitInfo, tmp_mat, &
+            call calc_guga_matrix_element(ilutI, current_csf_info, ilutJ, excitInfo, tmp_mat, &
                                           .true., 2)
 
             diff = abs(HElGen - tmp_mat)
@@ -4356,8 +4314,7 @@ contains
             end if
 
             ! is the other order also fullfilled?
-            ! TODO(@Oskar): Here is probably an error
-            call calc_guga_matrix_element(ilutJ, csf_info, ilutI, excitInfo, tmp_mat1, &
+            call calc_guga_matrix_element(ilutJ, CSF_Info_t(ilutJ), ilutI, excitInfo, tmp_mat1, &
                                           .true., 2)
 
 #ifdef CMPLX_
@@ -20629,8 +20586,6 @@ contains
         ! excitationIdentifier check if the provided ilut and excitation and
         ! the probabilistic weight function allow an excitation
         ! dont do probabilistic weight for now. just check stepvector
-        ! TODO use csf_info%stepvector quantity in here!
-        ! to improve performance
         type(CSF_Info_t), intent(in) :: csf_info
         type(ExcitationInformation_t), intent(in) :: excitInfo
         logical, intent(out) :: flag
@@ -20673,9 +20628,9 @@ contains
             mw = weights%proc%minus(negSwitches(st), csf_info%B_ilut(st), weights%dat)
             pw = weights%proc%plus(posSwitches(st), csf_info%B_ilut(st), weights%dat)
 
-            if ((near_zero(pw) .and. near_zero(mw)) .or. &
-                (csf_info%stepvector(st) == 1 .and. near_zero(pw)) .or. &
-                (csf_info%stepvector(st) == 2 .and. near_zero(mw))) then
+            if (near_zero(pw) .and. near_zero(mw) &
+                 .or. csf_info%stepvector(st) == 1 .and. near_zero(pw) &
+                 .or. csf_info%stepvector(st) == 2 .and. near_zero(mw)) then
                 flag = .false.
                 return
             end if
@@ -20683,9 +20638,10 @@ contains
             ! weight + lowering generator:
         case (excit_type%lowering)
 
-            if (csf_info%stepvector(we) == 0 .or. csf_info%stepvector(en) == &
-                3 .or. csf_info%stepvector(st) == 0 .or. (we == st .and. &
-                                                         csf_info%stepvector(st) /= 3)) then
+            if (csf_info%stepvector(we) == 0 &
+                .or. csf_info%stepvector(en) == 3 &
+                .or. csf_info%stepvector(st) == 0 &
+                .or. (we == st .and. csf_info%stepvector(st) /= 3)) then
                 flag = .false.
                 return
             end if

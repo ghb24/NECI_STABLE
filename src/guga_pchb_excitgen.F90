@@ -3,7 +3,7 @@ module guga_pchb_excitgen
     use constants, only: n_int, dp, maxExcit, int64, stdout, int_rdm
     use bit_rep_data, only: IlutBits, GugaBits
     use SystemData, only: nel
-    use guga_data, only: tNewDet, ExcitationInformation_t, gen_type, excit_type
+    use guga_data, only: ExcitationInformation_t, gen_type, excit_type
     use guga_bitRepOps, only: CSF_Info_t
     use guga_pchb_class, only: GugaAliasSampler_t
 

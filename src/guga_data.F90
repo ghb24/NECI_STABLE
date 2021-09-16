@@ -16,7 +16,7 @@ module guga_data
     public :: ExcitationInformation_t, WeightData_t, projE_replica, &
               getSingleMatrixElement, getDoubleMatrixElement, getMixedFullStop, &
               orbitalIndex, funA_0_2overR2, minFunA_2_0_overR2, funA_m1_1_overR2, &
-              funa_2_0_overr2, getdoublecontribution, tnewdet, tag_excitations, &
+              funa_2_0_overr2, getdoublecontribution, tag_excitations, &
               tag_tmp_excits, tag_proje_list, funa_3_1_overr2, minfuna_0_2_overr2, &
               tGUGACore, bvectorref_ilut, bvectorref_ni, init_guga_data_procptrs, &
               excit_type, gen_type, excit_names, &
@@ -455,11 +455,6 @@ module guga_data
     ! also make a global integer list of orbital indices, so i do not have to
     ! remake them in every random orbital picker!
     integer, allocatable :: orbitalIndex(:)
-
-    ! use a global flag to indicate a switch to a new determinant in the
-    ! main routine to avoid recalculating b vector occupation and
-    ! stepvector
-    logical :: tNewDet
 
 contains
 

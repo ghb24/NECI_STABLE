@@ -70,10 +70,11 @@ module real_space_hubbard
 
     use MPI_wrapper, only: iProcIndex
 
-    use guga_data, only: ExcitationInformation_t, ExcitationInformation_t, tNewDet
+    use guga_data, only: ExcitationInformation_t, ExcitationInformation_t
     use guga_excitations, only: calc_guga_matrix_element, generate_excitation_guga, &
                                 global_excitinfo
-    use guga_bitRepOps, only: isProperCSF_ilut, convert_ilut_toGUGA, fill_csf_info, current_csf_info
+    use guga_bitRepOps, only: isProperCSF_ilut, convert_ilut_toGUGA, is_compatible, &
+                              current_csf_info, CSF_Info_t
 
     implicit none
 
@@ -1994,7 +1995,9 @@ contains
     ! Generic excitaiton generator
     subroutine gen_excit_rs_hubbard(nI, ilutI, nJ, ilutJ, exFlag, ic, &
                                     ex, tParity, pGen, hel, store, run)
-
+        !! An API interfacing function for generate_excitation to the rest of NECI:
+        !!
+        !! Requires guga_bitRepOps::current_csf_info to be set according to the ilutI.
         integer, intent(in) :: nI(nel), exFlag
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
         integer, intent(out) :: nJ(nel), ic, ex(2, maxExcit)
@@ -2016,6 +2019,7 @@ contains
         integer(n_int) :: ilutGi(0:nifguga), ilutGj(0:nifguga)
 
         unused_var(exFlag)
+        ASSERT(is_compatible(ilutI, current_csf_info))
         hel = h_cast(0.0_dp)
 #ifdef WARNING_WORKAROUND_
         if (present(run)) then
@@ -2070,18 +2074,6 @@ contains
             if (.not. isProperCSF_ilut(ilutGJ, .true.)) then
                 nJ(1) = 0
                 pgen = 0.0_dp
-            end if
-
-            if (tNewDet) then
-                call convert_ilut_toGUGA(ilutI, ilutGi)
-                ! use new setup function for additional CSF informtation
-                ! instead of calculating it all seperately..
-                call fill_csf_info(ilutGi(0:nifd), current_csf_info)
-
-                ! then set tNewDet to false and only set it after the walker loop
-                ! in FciMCPar
-                tNewDet = .false.
-
             end if
 
             call calc_guga_matrix_element(ilutI, current_csf_info, ilutJ, excitInfo, hel, .true., 1)

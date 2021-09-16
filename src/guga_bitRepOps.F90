@@ -45,6 +45,7 @@ module guga_bitRepOps
             calcOcc_vector_ilut, calcOcc_vector_int, &
             encodebitdet_guga, identify_excitation, &
             CSF_Info_t, current_csf_info, new_CSF_Info_t, fill_csf_info, &
+            is_compatible, &
             calc_csf_info, extract_h_element, getexcitation_guga, &
             getspatialoccupation, getExcitationRangeMask, &
             contract_1_rdm_ind, contract_2_rdm_ind, extract_1_rdm_ind, &
@@ -2932,6 +2933,14 @@ contains
         end do
 
     end subroutine fill_csf_info
+
+    pure function is_compatible(ilut, csf_info) result(res)
+        integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
+        type(CSF_Info_t), intent(in) :: csf_info
+        logical :: res
+        ! TODO(@Oskar): Implement
+        res = .true.
+    end function
 
     pure subroutine encode_stochastic_rdm_info(BitIndex, ilut, rdm_ind, x0, x1)
         ! make these function general by also providing the

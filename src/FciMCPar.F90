@@ -111,8 +111,6 @@ module FciMCParMod
     use FciMCData
     use constants
 
-    use guga_data, only: tNewDet
-
     use excit_gen_5, only: gen_excit_4ind_weighted2
 
     use guga_testsuite, only: run_test_excit_gen_det, runTestsGUGA
@@ -1287,9 +1285,6 @@ contains
             ! N.B. j indicates the number of determinants, not the number
             !      of walkers.
 
-            ! reset this flag for each det:
-            ! W.D. remove this option for now..
-
             ! Indicate that the scratch storage used for excitation generation
             ! from the same walker has not been filled (it is filled when we
             ! excite from the first particle on a determinant).
@@ -1594,11 +1589,6 @@ contains
                 ! determinant. CurrentSign gives number of walkers. Multiply
                 ! up by AvMCExcits if attempting multiple excitations from
                 ! each walker (default 1.0_dp).
-
-                ! GUGA addition: only recalc b vector and stuff once for each
-                ! CSF -> set tNewDet once for each determinant
-                ! which is set to false inside the guga excitaiton generator
-                tNewDet = .false.
 
                 AvMCExcitsLoc = AvMCExcits
                 ! optional: Adjust the number of spawns to the expected maximum
