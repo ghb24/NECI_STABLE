@@ -31,7 +31,7 @@ module sparse_arrays
     use guga_excitations, only: actHamiltonian, &
                                 calc_guga_matrix_element
     use guga_bitRepOps, only: convert_ilut_toGUGA, extract_h_element, &
-                              fill_csf_info, CSF_Info_t
+                              CSF_Info_t
     use util_mod, only: binary_search, near_zero
     use guga_data, only: tag_excitations, ExcitationInformation_t
     use guga_matrixElements, only: calcDiagMatEleGuga_nI
@@ -204,7 +204,7 @@ contains
             ! the diagonal have been counted (as the Hamiltonian is symmetric).
             sparse_diag_positions(i) = sparse_row_sizes(i)
 
-            if (tGUGA) call fill_csf_info(ilut_list(0:nifd, i), csf_info)
+            if (tGUGA) csf_info = CSF_Info_t(ilut_list(0:nifd, i))
 
             do j = i, num_states
 
@@ -337,7 +337,7 @@ contains
             hamiltonian_row = 0.0_dp
             ! Loop over all determinants on all processors.
 
-            if (tGUGA) call fill_csf_info(ilut_list(0:nifd, i), csf_info)
+            if (tGUGA) csf_info = CSF_Info_t(ilut_list(0:nifd, i))
 
             do j = 1, num_states_tot
 
@@ -464,7 +464,7 @@ contains
             row_size = 0
             hamiltonian_row = 0.0_dp
 
-            if (tGUGA) call fill_csf_info(ilutI(0 : nifd), csf_info)
+            if (tGUGA) csf_info = CSF_Info_t(ilutI)
 
             ! Loop over all deterministic states.
             do j = 1, rep%determ_space_size
@@ -498,15 +498,16 @@ contains
                         ! but this is a waste.. i do not have to do that for
                         ! every nJ i could just check the list generated
                         ! by H|nI>..
-                        call calc_guga_matrix_element(IlutI, csf_info, IlutJ, &
+                        ! TODO(@Oskar): Perhaps precalculate
+                        call calc_guga_matrix_element(IlutI, CSF_Info_t(IlutI), IlutJ, &
                                                       excitInfo, tmp_mat, .true., 1)
 #ifdef DEBUG_
-                        call calc_guga_matrix_element(IlutI, csf_info, IlutJ, &
+                        call calc_guga_matrix_element(IlutI,  CSF_Info_t(IlutI), IlutJ, &
                                                       excitInfo, tmp_mat_2, .true., 2)
                         if (.not. near_zero(tmp_mat - tmp_mat_2)) then
                             call stop_all(this_routine, "type 1 and 2 do not agree!")
                         end if
-                        call calc_guga_matrix_element(IlutJ, csf_info, IlutI, &
+                        call calc_guga_matrix_element(IlutJ, CSF_Info_t(ilutJ), IlutI, &
                                                       excitInfo, tmp_mat_2, .true., 2)
                         if (.not. near_zero(tmp_mat - tmp_mat_2)) then
                             call stop_all(this_routine, "not hermititan!")

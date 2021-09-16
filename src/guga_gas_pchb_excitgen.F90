@@ -128,11 +128,10 @@ contains
     end subroutine
 
     subroutine init_GugaAliasSampler_t(this, GAS_spec, use_lookup, create_lookup)
-        debug_function_name("init_GugaAliasSampler_t")
         class(GugaAliasSampler_t), intent(inout) :: this
         class(GASSpec_t), intent(in) :: GAS_spec
         logical, intent(in) :: use_lookup, create_lookup
-
+        character(*), parameter :: this_routine = "init_GugaAliasSampler_t"
 
         integer :: a, b
         integer(int64) :: abMax, ab

@@ -2851,7 +2851,7 @@ contains
         ! the seperate ones..
         integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
         type(CSF_Info_t), intent(inout) :: csf_info
-        debug_function_name("init_csf_information")
+        debug_function_name("fill_csf_info")
 
         integer :: i, step, b_int
         real(dp) :: b_real, cum_sum

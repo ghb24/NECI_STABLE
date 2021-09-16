@@ -637,7 +637,8 @@ contains
 
             ! but here i have to calculate all the double excitation
             ! influences which can lead to the same excitation(weights etc.)
-            call calc_single_excitation_ex(ilutJ, csf_info, excitInfo, mat_ele, &
+            ! TODO(@Oskar): Perhaps precalculate
+            call calc_single_excitation_ex(ilutJ, CSF_Info_t(ilutJ), excitInfo, mat_ele, &
                                            t_hamil, rdm_ind, rdm_mat)
 
         case (excit_type%single_overlap_L_to_R)

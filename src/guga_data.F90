@@ -270,14 +270,14 @@ module guga_data
     ! access the functions necessary for the matrix element calculation
     abstract interface
         function dummyFunction(bValue) result(ret)
-            use constants, only: dp
+            import :: dp
             implicit none
             real(dp), intent(in) :: bValue
             real(dp) :: ret
         end function dummyFunction
 
         subroutine dummySubroutine(bValue, x0, x1)
-            use constants, only: dp
+            import :: dp
             implicit none
             real(dp), intent(in) :: bValue
             real(dp), intent(out), optional :: x0, x1
@@ -621,7 +621,6 @@ contains
 
         ! get index
         ind = indContr(step1, step2, deltaB + (genFlag + 1) / 2)
-
         doubleContr = doubleContribution(ind)%ptr(bValue)
     end function getDoubleContribution
 
