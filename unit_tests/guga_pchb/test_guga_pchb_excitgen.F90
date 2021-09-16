@@ -179,10 +179,11 @@ contains
         integer(n_int) :: ilut(0:GugaBits%len_tot)
         real(dp) :: pgen
         type(ExcitationInformation_t) :: excitInfo
+        type(CSF_Info_t) :: csf_info
 
         nI = [1,2,3,4]
         call EncodeBitDet_guga(nI, ilut)
-        call init_csf_information(ilut)
+        csf_info = CSF_Info_t(ilut)
 
         ex(:,2) = 0
         ex(1,1) = 1
@@ -190,57 +191,57 @@ contains
 
         excitInfo%j = 1
         excitInfo%i = 1
-        pgen = calc_orb_pgen_uniform_singles(excitInfo)
+        pgen = calc_orb_pgen_uniform_singles(csf_info, excitInfo)
         call assert_equals(0.0_dp, pgen)
 
         excitInfo%i = 2
-        pgen = calc_orb_pgen_uniform_singles(excitInfo)
+        pgen = calc_orb_pgen_uniform_singles(csf_info, excitInfo)
         call assert_equals(0.0_dp, pgen)
 
         excitInfo%i = 3
-        pgen = calc_orb_pgen_uniform_singles(excitInfo)
+        pgen = calc_orb_pgen_uniform_singles(csf_info, excitInfo)
         call assert_equals(1.0_dp/4.0_dp, pgen)
 
         excitInfo%i = 4
-        pgen = calc_orb_pgen_uniform_singles(excitInfo)
+        pgen = calc_orb_pgen_uniform_singles(csf_info, excitInfo)
         call assert_equals(1.0_dp/4.0_dp, pgen)
 
         nI = [1,2,3,8]
         call EncodeBitDet_guga(nI, ilut)
-        call init_csf_information(ilut)
+        csf_info = CSF_Info_t(ilut)
 
         excitInfo%i = 4
-        pgen = calc_orb_pgen_uniform_singles(excitInfo)
+        pgen = calc_orb_pgen_uniform_singles(csf_info, excitInfo)
         call assert_equals(1.0_dp/9.0_dp, pgen)
 
         excitInfo%j = 2
         excitInfo%i = 4
-        pgen = calc_orb_pgen_uniform_singles(excitInfo)
+        pgen = calc_orb_pgen_uniform_singles(csf_info, excitInfo)
         call assert_equals(1.0_dp/6.0_dp, pgen)
 
         nI = [1,4,5,8]
         call EncodeBitDet_guga(nI, ilut)
-        call init_csf_information(ilut)
+        csf_info = CSF_Info_t(ilut)
 
         excitInfo%j = 4
         excitInfo%i = 2
-        pgen = calc_orb_pgen_uniform_singles(excitInfo)
+        pgen = calc_orb_pgen_uniform_singles(csf_info, excitInfo)
         call assert_equals(1.0_dp/12.0_dp, pgen)
 
     end subroutine calc_orb_pgen_uniform_singles_test
 
     subroutine pick_orbitals_pure_uniform_singles_test
-
         integer(n_int) :: ilut(0:GugaBits%len_tot)
         integer :: nI(4)
         type(ExcitationInformation_t) :: excitInfo
         real(dp) :: pgen
+        type(CSF_Info_t) :: csf_info
 
         nI = [1,2,3,4]
         call EncodeBitDet_guga(nI, ilut)
-        call init_csf_information(ilut)
+        csf_info = CSF_Info_t(ilut)
 
-        call pick_orbitals_pure_uniform_singles(ilut, nI, excitInfo, pgen)
+        call pick_orbitals_pure_uniform_singles(ilut, nI, csf_info, excitInfo, pgen)
 
         call assert_equals(excitInfo%typ, excit_type%single)
         call assert_equals(gen_type%L, excitInfo%gen1)
@@ -251,9 +252,9 @@ contains
 
         nI = [1,4,5,8]
         call EncodeBitDet_guga(nI, ilut)
-        call init_csf_information(ilut)
+        csf_info = CSF_Info_t(ilut)
 
-        call pick_orbitals_pure_uniform_singles(ilut, nI, excitInfo, pgen)
+        call pick_orbitals_pure_uniform_singles(ilut, nI, csf_info, excitInfo, pgen)
 
         call assert_equals(excitInfo%typ, excit_type%single)
         call assert_true(any(excitInfo%j == [1,2,3,4]))
@@ -268,47 +269,48 @@ contains
         integer :: nI(4), elec, s_orb
         real(dp) :: pgen
         integer(n_int) :: ilut(0:GugaBits%len_tot)
+        type(CSF_Info_t) :: csf_info
 
 
         nI = [1,2,3,4]
 
         call EncodeBitDet_guga(nI, ilut)
-        call init_csf_information(ilut)
+        csf_info = CSF_Info_t(ilut)
 
         elec = 1
-        call pick_uniform_spatial_hole(elec, s_orb, pgen)
+        call pick_uniform_spatial_hole(csf_info, elec, s_orb, pgen)
         call assert_true(pgen > 0.0_dp)
         call assert_true(s_orb == 3 .or. s_orb == 4)
         call assert_equals(0.5_dp, pgen)
 
         elec = 2
-        call pick_uniform_spatial_hole(elec, s_orb, pgen)
+        call pick_uniform_spatial_hole(csf_info, elec, s_orb, pgen)
         call assert_true(pgen > 0.0_dp)
         call assert_true(s_orb == 3 .or. s_orb == 4)
         call assert_equals(0.5_dp, pgen)
 
         nI = [1,2,3,8]
         call EncodeBitDet_guga(nI, ilut)
-        call init_csf_information(ilut)
+        csf_info = CSF_Info_t(ilut)
 
         elec = 1
-        call pick_uniform_spatial_hole(elec, s_orb, pgen)
+        call pick_uniform_spatial_hole(csf_info, elec, s_orb, pgen)
         call assert_true(pgen > 0.0_dp)
         call assert_true(s_orb == 3 .or. s_orb == 4 .or. s_orb == 2)
         call assert_equals(1.0_dp/3.0_dp, pgen)
 
         elec = 2
-        call pick_uniform_spatial_hole(elec, s_orb, pgen)
+        call pick_uniform_spatial_hole(csf_info, elec, s_orb, pgen)
         call assert_true(pgen > 0.0_dp)
         call assert_true(s_orb == 3 .or. s_orb == 4)
         call assert_equals(1.0_dp/2.0_dp, pgen)
 
         nI = [1,4,5,8]
         call EncodeBitDet_guga(nI, ilut)
-        call init_csf_information(ilut)
+        csf_info = CSF_Info_t(ilut)
 
         elec = 1
-        call pick_uniform_spatial_hole(elec, s_orb, pgen)
+        call pick_uniform_spatial_hole(csf_info, elec, s_orb, pgen)
         call assert_true(pgen > 0.0_dp)
         call assert_true(s_orb == 3 .or. s_orb == 4 .or. s_orb == 2)
         call assert_equals(1.0_dp/3.0_dp, pgen)
