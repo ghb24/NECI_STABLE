@@ -20,7 +20,7 @@ module guga_procedure_pointers
               calc_mixed_start_r2l_contr, calc_mixed_end_l2r_contr, &
               calc_mixed_start_l2r_contr, calc_mixed_end_r2l_contr, &
               pick_first_orbital, orb_pgen_contrib_type_3, orb_pgen_contrib_type_2, &
-              calc_off_diag_guga_ref, gen_single_excit_guga, gen_double_excit_guga, &
+              calc_off_diag_guga_ref, &
               calc_orbital_pgen_contrib_start, calc_orbital_pgen_contrib_end
 
     abstract interface
@@ -117,25 +117,6 @@ module guga_procedure_pointers
             HElement_t(dp) :: hel
         end function calc_off_diag_guga_t
 
-        subroutine CreateSingleExcitGUGA_t(ilut, nI, excitation, pgen)
-            import :: n_int, dp, GugaBits, nel
-            implicit none
-            integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
-            integer, intent(in) :: nI(nel)
-            integer(n_int), intent(out) :: excitation(0:GugaBits%len_tot)
-            real(dp), intent(out) :: pgen
-        end subroutine CreateSingleExcitGUGA_t
-
-        subroutine CreateDoubleExcitGUGA_t(ilut, nI, excitation, pgen, excit_typ)
-            import :: n_int, dp, GugaBits, nel
-            implicit none
-            integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
-            integer, intent(in) :: nI(nel)
-            integer(n_int), intent(out) :: excitation(0:GugaBits%len_tot)
-            real(dp), intent(out) :: pgen
-            integer, intent(out) :: excit_typ(2)
-        end subroutine CreateDoubleExcitGUGA_t
-
     end interface
 
     procedure(PickOrbitals_t), pointer :: pickOrbitals_single => null()
@@ -152,9 +133,6 @@ module guga_procedure_pointers
     procedure(orb_pgen_contrib_type_t), pointer :: orb_pgen_contrib_type_2 => null()
 
     procedure(calc_off_diag_guga_t), pointer :: calc_off_diag_guga_ref => null()
-
-    procedure(CreateSingleExcitGUGA_t), pointer :: gen_single_excit_guga => null()
-    procedure(CreateDoubleExcitGUGA_t), pointer :: gen_double_excit_guga => null()
 
     procedure(CalcOrbitalPgenContr_t), pointer :: calc_orbital_pgen_contrib_start => null()
     procedure(CalcOrbitalPgenContr_t), pointer :: calc_orbital_pgen_contrib_end => null()

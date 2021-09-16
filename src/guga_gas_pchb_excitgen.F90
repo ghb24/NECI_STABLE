@@ -8,7 +8,7 @@ module gas_guga_pchb_class
                           nBasis, nSpatOrbs, ElecPairs, &
                           t_analyze_pchb, t_old_pchb, t_exchange_pchb
     use FciMCData, only: excit_gen_store_type, pSingles, pDoubles, MaxTau
-    use guga_data, only: tNewDet, ExcitationInformation_t, gen_type, excit_type
+    use guga_data, only: ExcitationInformation_t, gen_type, excit_type
     use guga_bitrepops, only: convert_ilut_toGUGA, isProperCSF_ilut, CSF_Info_t
     use dSFMT_interface, only: genrand_real2_dSFMT
     use util_mod, only: near_zero, fuseIndex, intswap, binary_search_first_ge, &
@@ -26,7 +26,6 @@ module gas_guga_pchb_class
                                 pick_elec_pair_uniform_guga, &
                                 excitationIdentifier_double, get_guga_integral_contrib_spat, &
                                 calc_pgen_mol_guga_single, get_excit_level_from_excitInfo
-    use guga_procedure_pointers, only: gen_single_excit_guga, gen_double_excit_guga
     use guga_bitrepops, only: identify_excitation, encode_excit_info, extract_excit_info, &
                               contract_2_rdm_ind
     use bit_reps, only: decode_bit_det

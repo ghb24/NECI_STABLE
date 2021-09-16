@@ -164,12 +164,6 @@ module guga_excitations
               calc_orbital_pgen_contrib_end_def, create_hamiltonian_guga, &
               csf_to_sds_ilut, csf_vector_to_sds
 
-    ! use a "global" bVector variable here so that a b vector only has to be
-    ! initialized once, for a given CSF when calculating all or only one
-    ! excitations from it
-    ! also use a "global" occupation number vector, as it is needed in
-    ! the matrix element calculation.
-
     ! use a global excitationInformation type variable to store information
     ! about the last generated excitation to analyze matrix elements and
     ! pgens

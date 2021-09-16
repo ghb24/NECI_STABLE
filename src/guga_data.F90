@@ -247,7 +247,9 @@ module guga_data
         ! indicate if a spin_change happened
         logical :: spin_change = .false.
 
-        integer :: i_sg_start = -1, i_sg_end = -1
+        integer :: i_sg_start = -1
+            !! The supergroup from which the excitation starts.
+            !! Only relevant for GAS.
     end type ExcitationInformation_t
 
     ! logical to indicate that GUGA and core space, like doubles and singles
