@@ -1268,8 +1268,8 @@ keyword.
     shall be saved. Setting \(n=-1\) disables this option.
 
 -   **popsFileTimer \(n\)**<br>
-    Write out a the wave function to disk every \(n\) minutes, each time
-    overwriting the last output.
+    Write out a the wave function to disk every \(n\) hours, each time
+    renaming the last `<popsfile>` to `<popsfile>.bk`.
 
 -   **hdf5-pops-write**<br>
     Sets the format to write the wave function to HDF5. Requires
