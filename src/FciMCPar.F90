@@ -10,8 +10,7 @@ module FciMCParMod
                           tGen_guga_mixed, t_guga_mixed_init, t_guga_mixed_semi, &
                           tReal, t_mixed_excits, &
                           t_crude_exchange_noninits, t_approx_exchange_noninits, &
-                          is_init_guga, tGen_sym_guga_ueg, t_guga_unit_tests, &
-                          t_analyze_pchb
+                          is_init_guga, tGen_sym_guga_ueg, t_analyze_pchb
 
     use CalcData, only: tFTLM, tSpecLanc, tExactSpec, tDetermProj, tMaxBloom, &
                         tUseRealCoeffs, tWritePopsNorm, tExactDiagAllSym, &
@@ -113,7 +112,6 @@ module FciMCParMod
 
     use excit_gen_5, only: gen_excit_4ind_weighted2
 
-    use guga_testsuite, only: run_test_excit_gen_det, runTestsGUGA
     use guga_excitations, only: deallocate_projE_list, generate_excitation_guga, &
                                 global_excitInfo
     use guga_bitrepops, only: fill_csf_info, current_csf_info
@@ -283,20 +281,6 @@ contains
         ! In the normal case this is run between iterations, but it is
         ! helpful to do it here.
         call population_check()
-
-        ! call guga test routine here, so everything is correctly set up,
-        ! or atleast should be. only temporarily here.
-        if (tGUGA) then
-            ! only run guga - testsuite if flag is provided
-            if (t_guga_unit_tests) call runTestsGUGA()
-
-        end if
-
-#ifndef CMPLX_
-        if ((tGen_4ind_2 .or. tGen_4ind_weighted .or. tLatticeGens) .and. t_test_excit_gen) then
-            call run_test_excit_gen_det()
-        end if
-#endif
 
         if (n_int /= int64) then
             call stop_all('setup parameters', 'Use of realcoefficients requires 64 bit integers.')

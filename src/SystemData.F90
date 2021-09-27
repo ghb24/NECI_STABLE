@@ -249,8 +249,7 @@ module SystemData
 ! use a flag to determine if unit tests should be performed! with an
 ! additional optional input how often the the excitation generator should
 ! be tested!
-    logical :: t_guga_unit_tests = .false., t_full_guga_tests = .false., &
-               t_test_most_populated = .false.
+    logical :: t_full_guga_tests = .false., t_test_most_populated = .false.
     integer :: n_guga_excit_gen, n_most_populated
 ! introduce a new flag to indicate the testsuite is running!
     logical :: t_guga_testsuite = .false.
