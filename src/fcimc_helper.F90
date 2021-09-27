@@ -86,7 +86,7 @@ module fcimc_helper
 
     use guga_procedure_pointers, only: calc_off_diag_guga_ref
     use guga_excitations, only: create_projE_list
-    use guga_bitrepops, only: write_det_guga, calc_csf_info, &
+    use guga_bitrepops, only: write_det_guga, calc_csf_i, &
                               transfer_stochastic_rdm_info, CSF_Info_t
 
     use real_time_data, only: runge_kutta_step, tVerletSweep, &
@@ -679,7 +679,7 @@ contains
                 ! only calc. it to the reference det here
                 ! why is only the overlap to the first replica considered??
                 ! that does not make so much sense or... ?
-                ! TODO(@Oskar): Perhaps keep csf_info calculated?
+                ! TODO(@Oskar): Perhaps keep csf_i calculated?
                 HOffDiag(1:inum_runs) = &
                     calc_off_diag_guga_ref(ilut, CSF_Info_t(ilut), exlevel=ExcitLevel_local)
             end if
@@ -950,7 +950,7 @@ contains
 
             if (tGUGA) then
                 if (exLevel /= 0) then
-                    ! TODO(@Oskar): Perhaps keep csf_info calculated?
+                    ! TODO(@Oskar): Perhaps keep csf_i calculated?
                     hoffdiag = calc_off_diag_guga_ref(ilut, CSF_Info_t(ilut), run, exlevel)
                 end if
             else
@@ -2477,7 +2477,7 @@ contains
             ! also recreate the stepvector, etc. info stuff for the new
             ! reference determinant
             ASSERT(allocated(ref_stepvector))
-            call calc_csf_info(ilutRef, ref_stepvector, ref_b_vector_int, &
+            call calc_csf_i(ilutRef, ref_stepvector, ref_b_vector_int, &
                                ref_occ_vector)
 
             ref_b_vector_real = real(ref_b_vector_int, dp)

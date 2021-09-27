@@ -106,7 +106,7 @@ contains
         use SystemData, only: tHPHF, nel
         use guga_excitations, only: calc_guga_matrix_element
         use guga_data, only: ExcitationInformation_t
-        use guga_bitrepops, only: new_CSF_Info_t, fill_csf_info
+        use guga_bitrepops, only: new_CSF_Info_t, fill_csf_i
         use bit_rep_data, only: nifd
         integer(n_int), intent(in) :: ilut_list(0:, :)
         HElement_t(dp), intent(inout), allocatable :: local_hamil(:, :)
@@ -115,7 +115,7 @@ contains
         integer :: nI(nel), nJ(nel)
         character(*), parameter :: t_r = "calculate_full_hamiltonian"
         type(ExcitationInformation_t) :: excitInfo
-        type(CSF_Info_t) :: csf_info
+        type(CSF_Info_t) :: csf_i
 
         ! Initial checks that arrays passed in are consistent.
         ndets = size(ilut_list, 2)
@@ -134,10 +134,10 @@ contains
             call stop_all(t_r, "check this for non-hermitian hamil!")
         end if
 
-        call new_CSF_Info_t(nSpatOrbs, csf_info)
+        call new_CSF_Info_t(nSpatOrbs, csf_i)
         do i = 1, ndets
             call decode_bit_det(nI, ilut_list(:, i))
-            if (tGUGA) call fill_csf_info(ilut_list(0:nifd, i), csf_info)
+            if (tGUGA) call fill_csf_i(ilut_list(0:nifd, i), csf_i)
 
             do j = i, ndets
                 call decode_bit_det(nJ, ilut_list(:, j))
@@ -151,7 +151,7 @@ contains
                     if (tHPHF) then
                         local_hamil(i, j) = hphf_off_diag_helement(nI, nJ, ilut_list(:, i), ilut_list(:, j))
                     else if (tGUGA) then
-                        call calc_guga_matrix_element(ilut_list(:, i), csf_info, ilut_list(:, j), &
+                        call calc_guga_matrix_element(ilut_list(:, i), csf_i, ilut_list(:, j), &
                                                       excitInfo, local_hamil(i, j), .true., 1)
 ! #ifdef CMPLX_
 !                         local_hamil(i,j) = conjg(local_hamil(i,j))

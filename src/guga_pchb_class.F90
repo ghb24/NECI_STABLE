@@ -232,12 +232,12 @@ contains
         deallocate(this%tgtOrbs)
     end subroutine
 
-    subroutine pick_orbitals_double_pchb(this, ilut, nI, csf_info, excitInfo, pgen)
+    subroutine pick_orbitals_double_pchb(this, ilut, nI, csf_i, excitInfo, pgen)
         debug_function_name("pick_orbitals_double_pchb")
         class(GugaAliasSampler_t), intent(in) :: this
         integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
         integer, intent(in) :: nI(nel)
-        type(CSF_Info_t), intent(in) :: csf_info
+        type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(out) :: excitInfo
         real(dp), intent(out) :: pgen
 
@@ -258,8 +258,8 @@ contains
         j = gtID(src(2))
 
         if (i /= j) then
-            if (csf_info%stepvector(i) == 3) pgen_elec = 2.0_dp * pgen_elec
-            if (csf_info%stepvector(j) == 3) pgen_elec = 2.0_dp * pgen_elec
+            if (csf_i%stepvector(i) == 3) pgen_elec = 2.0_dp * pgen_elec
+            if (csf_i%stepvector(j) == 3) pgen_elec = 2.0_dp * pgen_elec
         end if
 
         ! use the sampler for this electron pair -> order of src electrons
@@ -292,9 +292,9 @@ contains
         ! these are the 'easy' checks for GUGA.. more checks need to be done
         ! to see if it is actually a valid combination..
         if (any(orbs == 0) &
-                .or. csf_info%stepvector(a) == 3 &
-                .or. csf_info%stepvector(b) == 3 &
-                .or. a == b .and. csf_info%stepvector(b) /= 0) then
+                .or. csf_i%stepvector(a) == 3 &
+                .or. csf_i%stepvector(b) == 3 &
+                .or. a == b .and. csf_i%stepvector(b) /= 0) then
             excitInfo%valid = .false.
             return
         end if
@@ -306,11 +306,11 @@ contains
 
     end subroutine pick_orbitals_double_pchb
 
-    subroutine pick_orbitals_pure_uniform_singles(ilut, nI, csf_info, excitInfo, pgen)
+    subroutine pick_orbitals_pure_uniform_singles(ilut, nI, csf_i, excitInfo, pgen)
         debug_function_name("pick_orbitals_pure_uniform_singles")
         integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
         integer, intent(in) :: nI(nel)
-        type(CSF_Info_t), intent(in) :: csf_info
+        type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(out) :: excitInfo
         real(dp), intent(out) :: pgen
 
@@ -337,9 +337,9 @@ contains
         ! r = genrand_real2_dSFMT() * s_elec(nel)
         ! elec = binary_search_first_ge(real(s_elec,dp), r)
         elec = s_elec(elec)
-        nOcc = count(csf_info%Occ_int /= 0)
+        nOcc = count(csf_i%Occ_int /= 0)
 
-        call pick_uniform_spatial_hole(csf_info, elec, orb, pgen)
+        call pick_uniform_spatial_hole(csf_i, elec, orb, pgen)
 
         if (near_zero(pgen) .or. orb == 0) then
             pgen = 0.0_dp
@@ -349,7 +349,7 @@ contains
 
         ! pgen = pgen / real(nOcc, dp)
         pgen = pgen / real(nel, dp)
-        if (csf_info%stepvector(elec) == 3) pgen = 2.0_dp * pgen
+        if (csf_i%stepvector(elec) == 3) pgen = 2.0_dp * pgen
 
         if (orb < elec) then
             excitInfo = assign_excitinfo_values_single(gen_type%R, orb, elec, &
@@ -361,8 +361,8 @@ contains
 
     end subroutine pick_orbitals_pure_uniform_singles
 
-    subroutine pick_uniform_spatial_hole(csf_info, s_elec, s_orb, pgen)
-        type(CSF_Info_t), intent(in) :: csf_info
+    subroutine pick_uniform_spatial_hole(csf_i, s_elec, s_orb, pgen)
+        type(CSF_Info_t), intent(in) :: csf_i
         integer, intent(in) :: s_elec
         integer, intent(out) :: s_orb
         real(dp), intent(out) :: pgen
@@ -393,7 +393,7 @@ contains
         ! and also is not the electron index!
         allocate(sym_orbs(nOrb), source = sym_label_list_spat(sym_index:sym_index+nOrb-1))
         allocate(mask(nOrb), &
-            source = csf_info%stepvector(sym_orbs) /= 3 .and. sym_orbs /= s_elec)
+            source = csf_i%stepvector(sym_orbs) /= 3 .and. sym_orbs /= s_elec)
 
         nValid = count(mask)
 
@@ -412,9 +412,9 @@ contains
 
     end subroutine pick_uniform_spatial_hole
 
-    function calc_orb_pgen_uniform_singles(csf_info, excitInfo) result(pgen)
+    function calc_orb_pgen_uniform_singles(csf_i, excitInfo) result(pgen)
         debug_function_name("calc_orb_pgen_uniform_singles")
-        type(CSF_Info_t), intent(in) :: csf_info
+        type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(in) :: excitInfo
         real(dp) :: pgen
 
@@ -426,10 +426,10 @@ contains
         pgen = 0.0_dp
 
         if (excitInfo%i == excitInfo%j) return
-        if (csf_info%stepvector(excitInfo%i) == 3) return
-        if (csf_info%stepvector(excitInfo%j) == 0) return
+        if (csf_i%stepvector(excitInfo%i) == 3) return
+        if (csf_i%stepvector(excitInfo%j) == 0) return
 
-        nOcc = count(csf_info%Occ_int /= 0)
+        nOcc = count(csf_i%Occ_int /= 0)
 
         so_elec = 2*excitInfo%j
 
@@ -440,7 +440,7 @@ contains
 
 
         nUnocc = count(&
-            (csf_info%stepvector(sym_label_list_spat(sym_index:sym_index+nOrb-1)) /= 3) &
+            (csf_i%stepvector(sym_label_list_spat(sym_index:sym_index+nOrb-1)) /= 3) &
             .and. (sym_label_list_spat(sym_index:sym_index+nOrb-1) /= excitInfo%j))
 
         pgen = 1.0_dp / real(nOcc * nUnocc, dp)
@@ -448,10 +448,10 @@ contains
 
     end function calc_orb_pgen_uniform_singles
 
-    function calc_pgen_guga_pchb(this, ilutI, csf_info, ilutJ, excitInfo_in) result(pgen)
+    function calc_pgen_guga_pchb(this, ilutI, csf_i, ilutJ, excitInfo_in) result(pgen)
         class(GugaAliasSampler_t), intent(in) :: this
         integer(n_int), intent(in) :: ilutI(0:GugaBits%len_tot), ilutJ(GugaBits%len_tot)
-        type(CSF_Info_t), intent(in) :: csf_info
+        type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(in), optional :: excitInfo_in
         type(ExcitationInformation_t) :: excitInfo
         real(dp) :: pgen
@@ -471,9 +471,9 @@ contains
                 call decode_bit_det(nI, ilutI)
                 call decode_bit_det(nJ, ilutJ)
                 pgen = calc_pgen_mol_guga_single( &
-                            ilutI, nI, csf_info, ilutJ, nJ, excitInfo)
+                            ilutI, nI, csf_i, ilutJ, nJ, excitInfo)
             else
-                pgen = calc_orb_pgen_uniform_singles(csf_info, excitInfo)
+                pgen = calc_orb_pgen_uniform_singles(csf_i, excitInfo)
             end if
 
             pgen = pgen * pSingles
@@ -509,14 +509,14 @@ contains
 
     ! I need the pgen-recalculation routines for exchange type excitations
     ! also for the PCHB excit-gen
-    pure subroutine calc_orbital_pgen_contr_pchb(this, csf_info, occ_orbs, cpt_a, cpt_b)
+    pure subroutine calc_orbital_pgen_contr_pchb(this, csf_i, occ_orbs, cpt_a, cpt_b)
         class(GugaAliasSampler_t), intent(in) :: this
-        type(CSF_Info_t), intent(in) :: csf_info
+        type(CSF_Info_t), intent(in) :: csf_i
         integer, intent(in) :: occ_orbs(2)
         real(dp), intent(out) :: cpt_a, cpt_b
 
         integer :: ij
-        unused_var(csf_info)
+        unused_var(csf_i)
         ! this function can in theory be called with both i < j and i > j..
         ! to take the correct values here!
         ! although for the fuseIndex function the order is irrelevant
@@ -538,17 +538,17 @@ contains
 
 
     ! i think it would be better if i 'just' reimplement:
-    pure subroutine calc_orbital_pgen_contr_start_pchb(this, csf_info, occ_orbs, a, orb_pgen)
+    pure subroutine calc_orbital_pgen_contr_start_pchb(this, csf_i, occ_orbs, a, orb_pgen)
         debug_function_name("calc_orbital_pgen_contr_start_pchb")
         class(GugaAliasSampler_t), intent(in) :: this
-        type(CSF_Info_t), intent(in) :: csf_info
+        type(CSF_Info_t), intent(in) :: csf_i
         integer, intent(in) :: occ_orbs(2), a
         real(dp), intent(out) :: orb_pgen
 
         integer :: i, j, ij, ab
 
         ! Has to be there for function pointer interface
-        unused_var(csf_info)
+        unused_var(csf_i)
 
         ! depending on type (R->L / L->R) a can be > j or < j, but always > i
         !
@@ -566,17 +566,17 @@ contains
 
     end subroutine calc_orbital_pgen_contr_start_pchb
 
-    pure subroutine calc_orbital_pgen_contr_end_pchb(this, csf_info, occ_orbs, a, orb_pgen)
+    pure subroutine calc_orbital_pgen_contr_end_pchb(this, csf_i, occ_orbs, a, orb_pgen)
         debug_function_name("calc_orbital_pgen_contr_end_pchb")
         class(GugaAliasSampler_t), intent(in) :: this
-        type(CSF_Info_t), intent(in) :: csf_info
+        type(CSF_Info_t), intent(in) :: csf_i
         integer, intent(in) :: occ_orbs(2), a
         real(dp), intent(out) :: orb_pgen
 
         integer :: i, j, ij, ab
 
         ! Has to be there for function pointer interface
-        unused_var(csf_info)
+        unused_var(csf_i)
 
         i = gtID(occ_orbs(1))
         j = gtID(occ_orbs(2))

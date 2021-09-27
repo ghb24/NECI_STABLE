@@ -44,9 +44,9 @@ module guga_bitRepOps
             count_beta_orbs_ij, count_alpha_orbs_ij, &
             calcOcc_vector_ilut, calcOcc_vector_int, &
             encodebitdet_guga, identify_excitation, &
-            CSF_Info_t, current_csf_info, new_CSF_Info_t, fill_csf_info, &
+            CSF_Info_t, current_csf_i, new_CSF_Info_t, fill_csf_i, &
             is_compatible, &
-            calc_csf_info, extract_h_element, getexcitation_guga, &
+            calc_csf_i, extract_h_element, getexcitation_guga, &
             getspatialoccupation, getExcitationRangeMask, &
             contract_1_rdm_ind, contract_2_rdm_ind, extract_1_rdm_ind, &
             extract_2_rdm_ind, encode_rdm_ind, extract_rdm_ind, &
@@ -121,7 +121,7 @@ module guga_bitRepOps
         module procedure construct_CSF_Info_t
     end interface
 
-    type(CSF_Info_t) :: current_csf_info
+    type(CSF_Info_t) :: current_csf_i
         !! Information about the current CSF, similar to ilut and nI.
 contains
 
@@ -1790,9 +1790,9 @@ contains
 
     end subroutine find_switches_ilut
 
-    subroutine find_switches_stepvector(csf_info, ind, lower, upper)
+    subroutine find_switches_stepvector(csf_i, ind, lower, upper)
         ! same as above but using the already calculated stepvector
-        type(CSF_Info_t), intent(in) :: csf_info
+        type(CSF_Info_t), intent(in) :: csf_i
         integer, intent(in) :: ind
         integer, intent(out) :: lower, upper
         character(*), parameter :: this_routine = "find_switches_stepvector"
@@ -1802,10 +1802,10 @@ contains
         lower = 1
         upper = nSpatOrbs
 
-        if (csf_info%stepvector(ind) == 1) then
+        if (csf_i%stepvector(ind) == 1) then
             switch = 2
 
-        else if (csf_info%stepvector(ind) == 2) then
+        else if (csf_i%stepvector(ind) == 2) then
             switch = 1
 
         else
@@ -1814,13 +1814,13 @@ contains
         end if
 
         do i = ind - 1, 2, -1
-            if (csf_info%stepvector(i) == switch) then
+            if (csf_i%stepvector(i) == switch) then
                 lower = i
                 exit
             end if
         end do
         do i = ind + 1, nSpatOrbs - 1
-            if (csf_info%stepvector(i) == switch) then
+            if (csf_i%stepvector(i) == switch) then
                 upper = i
                 exit
             end if
@@ -2208,10 +2208,10 @@ contains
     end subroutine update_matrix_element_cmplx
 #endif
 
-    function count_beta_orbs_ij(csf_info, i, j) result(nOpen)
+    function count_beta_orbs_ij(csf_i, i, j) result(nOpen)
         ! function to count the number of 1s in a CSF det between spatial
         ! orbitals i and j
-        type(CSF_Info_t), intent(in) :: csf_info
+        type(CSF_Info_t), intent(in) :: csf_i
         integer, intent(in) :: i, j
         integer :: nOpen
         character(*), parameter :: this_routine = "count_beta_orbs_ij"
@@ -2227,16 +2227,16 @@ contains
         ! do i always call that for the current det the excitation is
         ! calculated for?  i think so..
         do k = i, j
-            if (csf_info%stepvector(k) == 1) then
+            if (csf_i%stepvector(k) == 1) then
                 nOpen = nOpen + 1
             end if
         end do
     end function count_beta_orbs_ij
 
-    function count_alpha_orbs_ij(csf_info, i, j) result(nOpen)
+    function count_alpha_orbs_ij(csf_i, i, j) result(nOpen)
         ! function to count the number of 2s in a CSF det between spatial
         ! orbitals i and j
-        type(CSF_Info_t), intent(in) :: csf_info
+        type(CSF_Info_t), intent(in) :: csf_i
         integer, intent(in) :: i, j
         integer :: nOpen
         character(*), parameter :: this_routine = "count_alpha_orbs_ij"
@@ -2250,16 +2250,16 @@ contains
 
         ! quick fix for now to see if thats the problem: loop and check!
         do k = i, j
-            if (csf_info%stepvector(k) == 2) then
+            if (csf_i%stepvector(k) == 2) then
                 nOpen = nOpen + 1
             end if
         end do
     end function count_alpha_orbs_ij
 
-    function count_open_orbs_ij(csf_info, i, j, L) result(nOpen)
+    function count_open_orbs_ij(csf_i, i, j, L) result(nOpen)
         ! function to calculate the number of open orbitals between spatial
         ! orbitals i and j in ilut. i and j have to be given ordered i<j
-        type(CSF_Info_t), intent(in) :: csf_info
+        type(CSF_Info_t), intent(in) :: csf_i
         integer, intent(in) :: i, j
         integer(n_int), intent(in), optional :: L(0:GugaBits%len_orb)
         integer :: nOpen
@@ -2288,7 +2288,7 @@ contains
             end do
         else
             do k = i, j
-                if (csf_info%stepvector(k) == 1 .or. csf_info%stepvector(k) == 2) then
+                if (csf_i%stepvector(k) == 1 .or. csf_i%stepvector(k) == 2) then
                     nOpen = nOpen + 1
                 end if
             end do
@@ -2791,7 +2791,7 @@ contains
 
     end function convert_guga_to_ni
 
-    pure subroutine calc_csf_info(ilut, step_vector, b_vector, occ_vector)
+    pure subroutine calc_csf_i(ilut, step_vector, b_vector, occ_vector)
         ! routine to calculate the csf information for specific outputted
         ! information
         integer(n_int), intent(in) :: ilut(0:niftot)
@@ -2823,51 +2823,51 @@ contains
 
             b_vector(i) = b_int
         end do
-    end subroutine calc_csf_info
+    end subroutine calc_csf_i
 
-    pure function construct_CSF_Info_t(ilut) result(csf_info)
+    pure function construct_CSF_Info_t(ilut) result(csf_i)
         integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
-        type(CSF_Info_t) :: csf_info
-        call new_CSF_Info_t(nSpatOrbs, csf_info)
-        call fill_csf_info(ilut, csf_info)
+        type(CSF_Info_t) :: csf_i
+        call new_CSF_Info_t(nSpatOrbs, csf_i)
+        call fill_csf_i(ilut, csf_i)
     end function
 
-    pure subroutine new_CSF_Info_t(n_spat_orbs, csf_info)
+    pure subroutine new_CSF_Info_t(n_spat_orbs, csf_i)
         integer, intent(in) :: n_spat_orbs
-        type(CSF_Info_t), intent(out) :: csf_info
-        allocate(csf_info%stepvector(n_spat_orbs), &
-                 csf_info%B_ilut(n_spat_orbs), &
-                 csf_info%Occ_ilut(n_spat_orbs), &
-                 csf_info%B_int(n_spat_orbs), &
-                 csf_info%Occ_int(n_spat_orbs), &
-                 csf_info%cum_list(n_spat_orbs))
+        type(CSF_Info_t), intent(out) :: csf_i
+        allocate(csf_i%stepvector(n_spat_orbs), &
+                 csf_i%B_ilut(n_spat_orbs), &
+                 csf_i%Occ_ilut(n_spat_orbs), &
+                 csf_i%B_int(n_spat_orbs), &
+                 csf_i%Occ_int(n_spat_orbs), &
+                 csf_i%cum_list(n_spat_orbs))
     end subroutine
 
-    pure subroutine fill_csf_info(ilut, csf_info)
+    pure subroutine fill_csf_i(ilut, csf_i)
         ! routine which sets up all the additional csf information, like
         ! stepvector, b vector, occupation etc. in various formats in one
         ! place
         ! and combine all the necessary calcs. into one loop instead of
         ! the seperate ones..
         integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
-        type(CSF_Info_t), intent(inout) :: csf_info
-        debug_function_name("fill_csf_info")
+        type(CSF_Info_t), intent(inout) :: csf_i
+        debug_function_name("fill_csf_i")
 
         integer :: i, step, b_int
         real(dp) :: b_real, cum_sum
 
         ASSERT(isProperCSF_ilut(ilut))
-        ASSERT(allocated(csf_info%stepvector))
-        ASSERT(allocated(csf_info%B_ilut))
-        ASSERT(allocated(csf_info%Occ_ilut))
-        ASSERT(allocated(csf_info%B_int))
-        ASSERT(allocated(csf_info%Occ_int))
+        ASSERT(allocated(csf_i%stepvector))
+        ASSERT(allocated(csf_i%B_ilut))
+        ASSERT(allocated(csf_i%Occ_ilut))
+        ASSERT(allocated(csf_i%B_int))
+        ASSERT(allocated(csf_i%Occ_int))
 
-        csf_info%stepvector = 0
-        csf_info%B_ilut = 0.0_dp
-        csf_info%Occ_ilut = 0.0_dp
-        csf_info%B_int = 0
-        csf_info%Occ_int = 0
+        csf_i%stepvector = 0
+        csf_i%B_ilut = 0.0_dp
+        csf_i%Occ_ilut = 0.0_dp
+        csf_i%B_int = 0
+        csf_i%Occ_int = 0
 
         b_real = 0.0_dp
         b_int = 0
@@ -2881,28 +2881,28 @@ contains
         ! currentB_int = calcB_vector_int(ilut)
 
         ! also create a fake cum-list of the non-doubly occupied orbitals
-        csf_info%cum_list = 0.0_dp
+        csf_i%cum_list = 0.0_dp
         cum_sum = 0.0_dp
 
         do i = 1, nSpatOrbs
 
             step = getStepvalue(ilut, i)
 
-            csf_info%stepvector(i) = step
+            csf_i%stepvector(i) = step
 
             select case (step)
 
             case (0)
 
-                csf_info%Occ_ilut(i) = 0.0_dp
-                csf_info%Occ_int(i) = 0
+                csf_i%Occ_ilut(i) = 0.0_dp
+                csf_i%Occ_int(i) = 0
 
                 cum_sum = cum_sum + 1.0_dp
 
             case (1)
 
-                csf_info%Occ_ilut(i) = 1.0_dp
-                csf_info%Occ_int(i) = 1
+                csf_i%Occ_ilut(i) = 1.0_dp
+                csf_i%Occ_int(i) = 1
 
                 b_real = b_real + 1.0_dp
                 b_int = b_int + 1
@@ -2911,8 +2911,8 @@ contains
 
             case (2)
 
-                csf_info%Occ_ilut(i) = 1.0_dp
-                csf_info%Occ_int(i) = 1
+                csf_i%Occ_ilut(i) = 1.0_dp
+                csf_i%Occ_int(i) = 1
 
                 b_real = b_real - 1.0_dp
                 b_int = b_int - 1
@@ -2921,22 +2921,22 @@ contains
 
             case (3)
 
-                csf_info%Occ_ilut(i) = 2.0_dp
-                csf_info%Occ_int(i) = 2
+                csf_i%Occ_ilut(i) = 2.0_dp
+                csf_i%Occ_int(i) = 2
 
             end select
 
-            csf_info%B_ilut(i) = b_real
-            csf_info%B_int(i) = b_int
+            csf_i%B_ilut(i) = b_real
+            csf_i%B_int(i) = b_int
 
-            csf_info%cum_list(i) = cum_sum
+            csf_i%cum_list(i) = cum_sum
         end do
 
-    end subroutine fill_csf_info
+    end subroutine fill_csf_i
 
-    pure function is_compatible(ilut, csf_info) result(res)
+    pure function is_compatible(ilut, csf_i) result(res)
         integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
-        type(CSF_Info_t), intent(in) :: csf_info
+        type(CSF_Info_t), intent(in) :: csf_i
         logical :: res
         ! TODO(@Oskar): Implement
         res = .true.

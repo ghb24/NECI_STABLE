@@ -37,7 +37,7 @@
       type(timer), save :: proc_timer
       type(ExcitationInformation_t) :: excitInfo
       integer :: ic=0
-      type(CSF_Info_t) :: csf_info
+      type(CSF_Info_t) :: csf_i
 !      LOGICAL TSTAR
 C ==-------------------------------------------------------------------==
       proc_timer%timer_name='    DETHAM'
@@ -81,7 +81,7 @@ C..   Now we need to match up any two determinants
          ! try to use the new guga matrix element calc here.. for this
          ! misuse the current_stepvector quantities to init this only
          ! once for nI
-         if (tGUGA) csf_info = CSF_Info_t(ilutI)
+         if (tGUGA) csf_i = CSF_Info_t(ilutI)
 
          DO KJ=IBEGJ,IMAXJ,STEP
             call EncodeBitDet(NMRKS(:,KJ), ilutJ)
@@ -97,7 +97,7 @@ C..   Now we need to match up any two determinants
               if (KI == KJ) then
                   totsum = calcDiagMatEleGuga_nI(NMRKS(:,KI))
               else
-                  call calc_guga_matrix_element(ilutI,csf_info,ilutJ,
+                  call calc_guga_matrix_element(ilutI,csf_i,ilutJ,
      &              excitInfo, totsum, .true., 1)
               end if
 

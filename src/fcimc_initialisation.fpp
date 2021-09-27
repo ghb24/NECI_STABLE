@@ -208,7 +208,7 @@ module fcimc_initialisation
 
     use guga_bitRepOps, only: calcB_vector_nI, calcB_vector_ilut, convert_ilut_toNECI, &
                               convert_ilut_toGUGA, getDeltaB, write_det_guga, write_guga_list, &
-                              calc_csf_info, CSF_Info_t
+                              calc_csf_i, CSF_Info_t
 
     use guga_excitations, only: generate_excitation_guga, create_projE_list, &
                                 actHamiltonian
@@ -491,7 +491,7 @@ contains
 
             ASSERT(allocated(ref_stepvector))
 
-            call calc_csf_info(ilutRef, ref_stepvector, ref_b_vector_int, &
+            call calc_csf_i(ilutRef, ref_stepvector, ref_b_vector_int, &
                                ref_occ_vector)
 
             ref_b_vector_real = real(ref_b_vector_int, dp)

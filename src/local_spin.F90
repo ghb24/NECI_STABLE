@@ -27,9 +27,9 @@ module local_spin
 
 contains
 
-    subroutine measure_local_spin(real_sgn, csf_info)
+    subroutine measure_local_spin(real_sgn, csf_i)
         real(dp), intent(in) :: real_sgn(lenof_sign)
-        type(CSF_Info_t), intent(in) :: csf_info
+        type(CSF_Info_t), intent(in) :: csf_i
         real(dp) :: coeff, loc_spin(nSpatOrbs)
 #if defined PROG_NUMRUNS_ || defined DOUBLERUN_
 #ifdef CMPLX_
@@ -45,7 +45,7 @@ contains
 #endif
 
         ! the current b vector should be fine to get the total spin
-        loc_spin = csf_info%B_ilut / 2.0_dp * (csf_info%B_ilut / 2.0_dp + 1.0_dp)
+        loc_spin = csf_i%B_ilut / 2.0_dp * (csf_i%B_ilut / 2.0_dp + 1.0_dp)
 
         inst_local_spin = inst_local_spin + coeff * loc_spin
 

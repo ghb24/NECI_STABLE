@@ -37,7 +37,7 @@ module excit_gen_5
                           check_electron_location, pick_second_occupied_orbital
 
     use guga_bitRepOps, only: isProperCSF_ilut, convert_ilut_toGUGA, write_det_guga, &
-                              CSF_Info_t, current_csf_info
+                              CSF_Info_t, current_csf_i
     use guga_data, only: ExcitationInformation_t
     use guga_excitations, only: calc_guga_matrix_element, &
                                 global_excitinfo, print_excitInfo
@@ -50,7 +50,7 @@ contains
                                         ExcitMat, tParity, pGen, HelGen, store, part_type)
         !! An API interfacing function for generate_excitation to the rest of NECI:
         !!
-        !! Requires guga_bitRepOps::current_csf_info to be set according to the ilutI.
+        !! Requires guga_bitRepOps::current_csf_i to be set according to the ilutI.
         integer, intent(in) :: nI(nel), exFlag
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
         integer, intent(out) :: nJ(nel), IC, ExcitMat(2, maxExcit)
@@ -109,7 +109,7 @@ contains
                 return
             end if
 
-            call calc_guga_matrix_element(ilutI, current_csf_info, ilutJ, excitInfo, HelGen, .true., 1)
+            call calc_guga_matrix_element(ilutI, current_csf_i, ilutJ, excitInfo, HelGen, .true., 1)
 
             if (abs(HelGen) < EPS) then
                 nJ(1) = 0
@@ -601,7 +601,7 @@ contains
         do i = 1, iterations
             if (mod(i, 10000) == 0) &
                 write(stdout, *) i, '/', iterations, ' - ', contrib / (real(nexcit, dp) * i)
-            current_csf_info = CSF_Info_t(ilut)
+            current_csf_i = CSF_Info_t(ilut)
             call gen_excit_4ind_weighted2(src_det, ilut, det, tgt_ilut, 2, &
                                           ic, ex, par, pgen, helgen, store)
             if (det(1) == 0) cycle

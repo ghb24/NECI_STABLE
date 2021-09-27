@@ -380,14 +380,14 @@ contains
                 end if
                 ! off diagonal elements
                 block
-                    type(CSF_Info_t) :: csf_info
-                    if (tGUGA) csf_info = CSF_Info_t(ilut_list(:, i))
+                    type(CSF_Info_t) :: csf_i
+                    if (tGUGA) csf_i = CSF_Info_t(ilut_list(:, i))
                     do j = 1, i - 1
                         if (tHPHF) then
                             H_tmp(i, j) = hphf_off_diag_helement(det_list(:, i), det_list(:, j), ilut_list(:, i), &
                                                                  ilut_list(:, j))
                         else if (tGUGA) then
-                            call calc_guga_matrix_element(ilut_list(:, i), csf_info, &
+                            call calc_guga_matrix_element(ilut_list(:, i), csf_i, &
                                                           ilut_list(:, j), excitInfo, H_tmp(j, i), .true., 1)
 
     !                     H_tmp(j,i) = conjg(H_tmp(j,i))

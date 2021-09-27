@@ -79,7 +79,7 @@ module semi_stoch_procs
 
     use shared_memory_mpi, only: shared_allocate_mpi, shared_deallocate_mpi
 
-    use guga_bitrepops, only: fill_csf_info, CSF_Info_t
+    use guga_bitrepops, only: fill_csf_i, CSF_Info_t
 
     use util_mod, only: get_free_unit
 
@@ -1952,7 +1952,7 @@ contains
         use guga_data, only: ExcitationInformation_t
         use guga_excitations, only: calc_guga_matrix_element
         type(core_space_t) :: rep
-        type(CSF_Info_t) :: csf_info
+        type(CSF_Info_t) :: csf_i
         type(ExcitationInformation_t) :: excitInfo
 
         HElement_t(dp), allocatable, intent(out) :: hamil(:, :)
@@ -1964,7 +1964,7 @@ contains
 
         do i = 1, rep%determ_space_size
             call decode_bit_det(nI, rep%core_space(:, i))
-            if (tGUGA) csf_info = CSF_Info_t(rep%core_space(0:nifd, i))
+            if (tGUGA) csf_i = CSF_Info_t(rep%core_space(0:nifd, i))
 
             if (tHPHF) then
                 hamil(i, i) = hphf_diag_helement(nI, rep%core_space(:, i))
@@ -1983,7 +1983,7 @@ contains
                                      rep%core_space(:, i), rep%core_space(:, j))
                 else if (tGUGA) then
                     call calc_guga_matrix_element(&
-                        rep%core_space(:, i), csf_info, &
+                        rep%core_space(:, i), csf_i, &
                         rep%core_space(:, j), excitInfo, hamil(i, j), .true., 1)
                 else
                     hamil(i, j) = get_helement(nI, nJ, rep%core_space(:, i), &

@@ -74,7 +74,7 @@ module real_space_hubbard
     use guga_excitations, only: calc_guga_matrix_element, generate_excitation_guga, &
                                 global_excitinfo
     use guga_bitRepOps, only: isProperCSF_ilut, convert_ilut_toGUGA, is_compatible, &
-                              current_csf_info, CSF_Info_t
+                              current_csf_i, CSF_Info_t
 
     implicit none
 
@@ -1997,7 +1997,7 @@ contains
                                     ex, tParity, pGen, hel, store, run)
         !! An API interfacing function for generate_excitation to the rest of NECI:
         !!
-        !! Requires guga_bitRepOps::current_csf_info to be set according to the ilutI.
+        !! Requires guga_bitRepOps::current_csf_i to be set according to the ilutI.
         integer, intent(in) :: nI(nel), exFlag
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
         integer, intent(out) :: nJ(nel), ic, ex(2, maxExcit)
@@ -2019,7 +2019,7 @@ contains
         integer(n_int) :: ilutGi(0:nifguga), ilutGj(0:nifguga)
 
         unused_var(exFlag)
-        ASSERT(is_compatible(ilutI, current_csf_info))
+        ASSERT(is_compatible(ilutI, current_csf_i))
         hel = h_cast(0.0_dp)
 #ifdef WARNING_WORKAROUND_
         if (present(run)) then
@@ -2076,7 +2076,7 @@ contains
                 pgen = 0.0_dp
             end if
 
-            call calc_guga_matrix_element(ilutI, current_csf_info, ilutJ, excitInfo, hel, .true., 1)
+            call calc_guga_matrix_element(ilutI, current_csf_i, ilutJ, excitInfo, hel, .true., 1)
 
             if (abs(hel) < EPS) then
                 nJ(1) = 0
@@ -2494,7 +2494,7 @@ contains
             call EncodeBitDet(nI, ilut)
             ilutJ = make_ilutJ(ilut, ex, 1)
 
-            call calc_guga_matrix_element(ilut, current_csf_info, ilutJ, excitInfo, hel, .true., 2)
+            call calc_guga_matrix_element(ilut, current_csf_i, ilutJ, excitInfo, hel, .true., 2)
 
             if (tpar) hel = -hel
             return

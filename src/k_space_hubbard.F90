@@ -92,7 +92,7 @@ module k_space_hubbard
     use guga_excitations, only: generate_excitation_guga, generate_excitation_guga_crude, &
                                 calc_guga_matrix_element, global_excitinfo, print_excitInfo
     use guga_bitRepOps, only: convert_ilut_toGUGA, is_compatible, &
-                              isProperCSF_ilut, current_csf_info
+                              isProperCSF_ilut, current_csf_i
     use guga_data, only: ExcitationInformation_t
 
     implicit none
@@ -569,7 +569,7 @@ contains
                                      ex, tParity, pGen, hel, store, run)
         !! An API interfacing function for generate_excitation to the rest of NECI:
         !!
-        !! Requires guga_bitRepOps::current_csf_info to be set according to the ilutI.
+        !! Requires guga_bitRepOps::current_csf_i to be set according to the ilutI.
         integer, intent(in) :: nI(nel), exFlag
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
         integer, intent(out) :: nJ(nel), ic, ex(2, maxExcit)
@@ -590,7 +590,7 @@ contains
 
         unused_var(exFlag); unused_var(store); unused_var(run)
 
-        ASSERT(is_compatible(ilutI, current_csf_info))
+        ASSERT(is_compatible(ilutI, current_csf_i))
 
         hel = h_cast(0.0_dp)
         ic = 0
@@ -634,7 +634,7 @@ contains
                 return
             end if
 
-            call calc_guga_matrix_element(ilutI, current_csf_info, ilutJ, excitInfo, hel, .true., 1)
+            call calc_guga_matrix_element(ilutI, current_csf_i, ilutJ, excitInfo, hel, .true., 1)
 
             if (abs(hel) < EPS) then
                 nJ(1) = 0
