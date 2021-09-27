@@ -129,10 +129,10 @@ contains
             if (iProcIndex == iRefProc(run)) then
                 if ((.not. ref_found(run))) then
                     proj_energy(run) = -0.01_dp
-                    write(6, '("WARNING: The reference determinant was not spawned to in the last iteration.")')
+                    write(stdout, '("WARNING: The reference determinant was not spawned to in the last iteration.")')
                 else if (abs(proj_energy(run)) < 1.e-12_dp) then
                     proj_energy(run) = -0.01_dp
-                    write(6, '("WARNING: The projected energy from the last iteration was zero. Setting to -0.1.")')
+                    write(stdout, '("WARNING: The projected energy from the last iteration was zero. Setting to -0.1.")')
                 end if
 
                 call hash_table_lookup(ProjEDet(:, run), ilutRef(:, run), nifd, HashIndex, &
@@ -142,7 +142,7 @@ contains
                     call extract_sign(CurrentDets(:, PartInd), ref_pop)
                     proj_energy(run) = proj_energy(run) / ref_pop(run)
                 else
-                    write(6, '("WARNING: Reference determinant not found in main walker list.")')
+                    write(stdout, '("WARNING: Reference determinant not found in main walker list.")')
                 end if
             end if
 

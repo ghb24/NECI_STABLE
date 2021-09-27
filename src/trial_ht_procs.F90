@@ -216,8 +216,8 @@ contains
         call count_trial_this_proc(ntrial, ncon)
         call MPISumAll(ntrial, ntrialtot)
         call MPISumAll(ncon, ncontot)
-        write(iout, *) "Trial states ", ntrialtot
-        write(iout, *) "Connected states ", ncontot
+        write(stdout, *) "Trial states ", ntrialtot
+        write(stdout, *) "Connected states ", ncontot
     end subroutine count_trial
 
 !------------------------------------------------------------------------------------------!

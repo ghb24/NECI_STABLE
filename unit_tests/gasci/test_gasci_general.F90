@@ -21,7 +21,6 @@ module test_gasci_general_mod
 contains
 
     subroutine test_pgen()
-        use SystemData, only: tGASSpinRecoupling
         use FciMCData, only: pSingles, pDoubles, pParallel
         type(GAS_heat_bath_ExcGenerator_t) :: exc_generator
         type(LocalGASSpec_t) :: GAS_spec
@@ -34,8 +33,6 @@ contains
         pParallel = 0.05_dp
         pSingles = 0.5_dp
         pDoubles = 1.0_dp - pSingles
-
-        call assert_true(tGASSpinRecoupling)
 
         do n_interspace_exc = 0, 1
             GAS_spec = LocalGASSpec_t(n_min=[3, 3] - n_interspace_exc, n_max=[3, 3] + n_interspace_exc, &

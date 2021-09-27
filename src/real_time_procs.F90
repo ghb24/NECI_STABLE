@@ -24,7 +24,7 @@ module real_time_procs
     use real_time_aux, only: write_overlap_state, write_overlap_state_serial
 
     use kp_fciqmc_data_mod, only: perturbed_ground, overlap_pert
-    use constants, only: dp, lenof_sign, int64, n_int, EPS, iout, null_part, &
+    use constants, only: dp, lenof_sign, int64, n_int, EPS, stdout, null_part, &
                          sizeof_int, MPIArg
     use bit_reps, only: decode_bit_det, test_flag, encode_sign, &
                         set_flag, encode_bit_rep, extract_bit_rep, &
@@ -156,7 +156,7 @@ contains
             tDetermState = .false.
             CurrentSign = 0.0_dp
 
-!            write(6,*) 'i,DiagParts(:,i)',i,DiagParts(:,i)
+!            write(stdout,*) 'i,DiagParts(:,i)',i,DiagParts(:,i)
 
             if (tSuccess) then
 
@@ -401,8 +401,8 @@ contains
                         ! If we are early in the calculation, and are using tau
                         ! searching, then this is not a big deal. Just let the
                         ! searching deal with it
-                        write(iout, '("** WARNING ** Death probability > 2: Algorithm unstable.")')
-                        write(iout, '("** WARNING ** Truncating spawn to ensure stability")')
+                        write(stdout, '("** WARNING ** Death probability > 2: Algorithm unstable.")')
+                        write(stdout, '("** WARNING ** Truncating spawn to ensure stability")')
                         do run = 1, lenof_sign
                             fac(run) = min(2.0_dp, fac(run))
                         end do
@@ -411,9 +411,9 @@ contains
                     end if
                 else
                     do run = 1, inum_runs
-                        write(iout, '(1X,f13.7)', advance='no') fac(run)
+                        write(stdout, '(1X,f13.7)', advance='no') fac(run)
                     end do
-                    write(iout, '()')
+                    write(stdout, '()')
                 end if
             end if
             do run = 1, inum_runs
@@ -478,8 +478,8 @@ contains
                         ! If we are early in the calculation, and are using tau
                         ! searching, then this is not a big deal. Just let the
                         ! searching deal with it
-                        write(iout, '("** WARNING ** Death probability > 2: Algorithm unstable.")')
-                        write(iout, '("** WARNING ** Truncating spawn to ensure stability")')
+                        write(stdout, '("** WARNING ** Death probability > 2: Algorithm unstable.")')
+                        write(stdout, '("** WARNING ** Truncating spawn to ensure stability")')
                         do run = 1, lenof_sign
                             fac(run) = min(2.0_dp, fac(run))
                         end do
@@ -487,11 +487,11 @@ contains
                         call stop_all(this_routine, "Death probability > 2: Algorithm unstable. Reduce timestep.")
                     end if
                 else
-                    write(iout, *) "Warning, diagonal spawn probability > 1. Reduce timestep."
+                    write(stdout, *) "Warning, diagonal spawn probability > 1. Reduce timestep."
                     do run = 1, inum_runs
-                        write(iout, '(1X,f13.7)', advance='no') fac(run)
+                        write(stdout, '(1X,f13.7)', advance='no') fac(run)
                     end do
-                    write(iout, '()')
+                    write(stdout, '()')
                 end if
             end if
             do run = 1, inum_runs
@@ -1058,16 +1058,16 @@ contains
         ! Each node requires 16 bytes.
         nhashes_spawn = int(0.8_dp * real(MaxSpawned, dp))
         spawn_ht_mem = nhashes_spawn * 16 / 1000000
-        write(6, '(a78,'//int_fmt(spawn_ht_mem, 1)//')') "About to allocate hash table to the spawning array. &
+        write(stdout, '(a78,'//int_fmt(spawn_ht_mem, 1)//')') "About to allocate hash table to the spawning array. &
                                        &Memory required (MB):", spawn_ht_mem
-        write(6, '(a13)', advance='no') "Allocating..."; call neci_flush(6)
+        write(stdout, '(a13)', advance='no') "Allocating..."; call neci_flush(6)
         allocate(spawn_ht(nhashes_spawn), stat=ierr)
         if (ierr /= 0) then
-            write(6, '(1x,a11,1x,i5)') "Error code:", ierr
+            write(stdout, '(1x,a11,1x,i5)') "Error code:", ierr
             call stop_all(this_routine, "Error allocating spawn_ht array.")
         else
-            write(6, '(1x,a5)') "Done."
-            write(6, '(a106)') "Note that the hash table uses linked lists, and the memory usage will &
+            write(stdout, '(1x,a5)') "Done."
+            write(stdout, '(a106)') "Note that the hash table uses linked lists, and the memory usage will &
                               &increase as further nodes are added."
         end if
 
@@ -1360,8 +1360,8 @@ contains
             tmp_totwalkers = int(TotWalkers)
         end if
 
-        write(iout, *) "Creating the wavefunction to projected on!"
-        write(iout, *) "Initial number of walkers: ", tmp_totwalkers
+        write(stdout, *) "Creating the wavefunction to projected on!"
+        write(stdout, *) "Initial number of walkers: ", tmp_totwalkers
 
         if (allocated(overlap_pert)) then
             call MPISumAll(tmp_totwalkers, TotWalkers_orig_max)
@@ -1375,7 +1375,7 @@ contains
         allocate(overlap_states(gf_count), stat=ierr)
         if (t_use_perturbed_buf) &
             allocate(perturbed_buf(0:niftot, TotWalkers_orig_max), stat=ierr)
-        write(iout, *) "Read-in dets", TotWalkers_orig
+        write(stdout, *) "Read-in dets", TotWalkers_orig
         do i = 1, gf_count
             totwalkers_backup = tmp_totwalkers
             if (t_use_perturbed_buf) then
@@ -1412,22 +1412,22 @@ contains
 
                 call write_overlap_state_serial(perturbed_buf, TotWalkers_orig_max, i)
             else
-                write(6, *) "Generated overlap state"
+                write(stdout, *) "Generated overlap state"
                 call write_overlap_state_serial(CurrentDets, int(TotWalkers), i)
-                write(6, *) "Written overlap state to array"
+                write(stdout, *) "Written overlap state to array"
             end if
             call MPISumAll(overlap_states(i)%nDets, totNOccDets)
             if (totNOccDets == 0) then
                 if (gf_count == 1) then
                     call stop_all('create_perturbed_ground', 'No walkers survived perturbation')
                 else
-                    write(6, *) "WARNING, EMPTY PERTURBED STATE WITH INDEX", i
+                    write(stdout, *) "WARNING, EMPTY PERTURBED STATE WITH INDEX", i
                 end if
             end if
             tmp_totwalkers = totwalkers_backup
         end do
 
-        if (allocated(overlap_states)) write(iout, *) &
+        if (allocated(overlap_states)) write(stdout, *) &
             "Determinants remaining in perturbed ground state:", overlap_states(1)%nDets
         if (allocated(perturbed_buf)) deallocate(perturbed_buf, stat=ierr)
 
@@ -1483,15 +1483,15 @@ contains
         TotPartsStorage = TotParts
         if ((iProcIndex == root) .and. .not. tSpinProject .and. &
             any(abs(growth_tot - (allWalkers - allWalkersOld)) > 1.0e-4_dp)) then
-            write(iout, *) message
-            write(iout, *) "update_growth: ", growth_tot
-            write(iout, *) "AllTotParts: ", allWalkers
-            write(iout, *) "AllTotPartsOld: ", allWalkersOld
-            write(6, *) "nborn", allBorn
-            write(6, *) "ndied", allDied
-            write(6, *) "nannihil", allAnnihil
-            write(6, *) "naborted", allAbrt
-            write(6, *) "nremoved", allRmv
+            write(stdout, *) message
+            write(stdout, *) "update_growth: ", growth_tot
+            write(stdout, *) "AllTotParts: ", allWalkers
+            write(stdout, *) "AllTotPartsOld: ", allWalkersOld
+            write(stdout, *) "nborn", allBorn
+            write(stdout, *) "ndied", allDied
+            write(stdout, *) "nannihil", allAnnihil
+            write(stdout, *) "naborted", allAbrt
+            write(stdout, *) "nremoved", allRmv
 
             call stop_all("check_update_growth", &
                           "Assertation failed: all(iter_data_fciqmc%update_growth_tot.eq.AllTotParts_1-AllTotPartsOld_1)")

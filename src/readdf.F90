@@ -1,8 +1,7 @@
 ! lenrec is the number of auxiliary basis functions
 SUBROUTINE InitDFBasis(nBasisMax, Len)
     use SystemData, only: tStoreSpinOrbs
-!         use record_handler
-    use constants, only: dp, sp
+    use constants, only: dp, sp, stdout
     use UMatCache
     implicit none
     integer nBasisMax(5, *), Len
@@ -24,7 +23,7 @@ SUBROUTINE InitDFBasis(nBasisMax, Len)
     nBasisPairs = nrec
     nBasis = int(sqrt(nBasisPairs * 2.0_dp))
     nAuxBasis = lenrec
-    write(6, *) "DALTON/SITUS basis.", nBasis, " basis functions."
+    write(stdout, *) "DALTON/SITUS basis.", nBasis, " basis functions."
     nBasisMax(1:5, 1:3) = 0
     Len = 2 * nBasis
 !.. Note that it's a read in basis.
@@ -45,7 +44,7 @@ SUBROUTINE ReadDF2EIntegrals(nBasis, nOrbUsed)
 !         use record_handler
     use global_utilities
     use UMatCache
-    use constants, only: dp, sp
+    use constants, only: dp, sp, stdout
     implicit none
     character(*), parameter :: C_file = 'SAV_D____a'
     character(*), parameter :: I_file = 'SAV_T____a'
@@ -60,15 +59,15 @@ SUBROUTINE ReadDF2EIntegrals(nBasis, nOrbUsed)
     character(*), parameter :: this_routine = 'ReadDF2EIntegrals'
 
     call stop_all(this_routine, "Reading in of SITUS DF files depreciated")
-    write(6, *) "Opening Density fitting matrix files"
+    write(stdout, *) "Opening Density fitting matrix files"
     file_status = 'ADD'
 !.. We've already got C_file open
 !         call init_record_handler(I_file,file_status,info,printinfo=.TRUE.)
 !         call init_record_handler(S_file,file_status,info,printinfo=.TRUE.)
 !.. lenrec is the number of auxiliary basis functions
 !.. nrec is the number of pairs of orbitals.
-    write(6, *) "Basis Size:", nBasis / 2
-    write(6, *) "Auxiliary Basis Size:", nAuxBasis
+    write(stdout, *) "Basis Size:", nBasis / 2
+    write(stdout, *) "Auxiliary Basis Size:", nAuxBasis
 
     tDFInts = .TRUE.
     allocate(DFCoeffs(nAuxBasis, nBasisPairs), STAT=ierr)
@@ -92,15 +91,15 @@ SUBROUTINE ReadDF2EIntegrals(nBasis, nOrbUsed)
     case (0)
         call stop_all(this_routine, "No DF, but ReadDF2EIntegrals called.")
     case (1)
-        write(6, *) "DFMETHOD DFOVERLAP        1 - (ij|u|ab)= (ij|u|P)(P|ab)"
+        write(stdout, *) "DFMETHOD DFOVERLAP        1 - (ij|u|ab)= (ij|u|P)(P|ab)"
     case (2)
-        write(6, *) "DFMETHOD DFOVERLAP2NDORD  2 - (ij|u|ab)= (ij|u|P)(P|ab)+(ij|P)(P|u|ab)-(ij|P)(P|u|Q)(Q|ab)"
+        write(stdout, *) "DFMETHOD DFOVERLAP2NDORD  2 - (ij|u|ab)= (ij|u|P)(P|ab)+(ij|P)(P|u|ab)-(ij|P)(P|u|Q)(Q|ab)"
     case (3)
-        write(6, *) "DFMETHOD DFOVERLAP2       3 - (ij|u|ab)= (ij|P)(P|u|Q)(Q|ab)"
+        write(stdout, *) "DFMETHOD DFOVERLAP2       3 - (ij|u|ab)= (ij|P)(P|u|Q)(Q|ab)"
     case (4)
-        write(6, *) "DFMETHOD DFCOULOMB        4 - (ij|u|ab)= (ij|u|P)[(P|u|Q)^-1](Q|u|ab)"
+        write(stdout, *) "DFMETHOD DFCOULOMB        4 - (ij|u|ab)= (ij|u|P)[(P|u|Q)^-1](Q|u|ab)"
     case default
-        write(6, *) "Unknown DF Method: ", iDFMethod
+        write(stdout, *) "Unknown DF Method: ", iDFMethod
         call stop_all(this_routine, "Unknown DF Method")
     end select
 
@@ -111,7 +110,7 @@ SUBROUTINE ReadDF2EIntegrals(nBasis, nOrbUsed)
     select case (iDFMethod)
     case (3)
         call DFCalcInvFitInts(0.5_dp)
-        write(6, *) "Calculating B matrix"
+        write(stdout, *) "Calculating B matrix"
         do i = 1, nBasisPairs
             do j = 1, nAuxBasis
                 r = 0
@@ -124,7 +123,7 @@ SUBROUTINE ReadDF2EIntegrals(nBasis, nOrbUsed)
 !DFInts now contains B_ij,P = sum_Q (ij|Q)[(Q|u|P)^1/2]
     case (4)
         call DFCalcInvFitInts(-0.5_dp)
-        write(6, *) "Calculating B matrix"
+        write(stdout, *) "Calculating B matrix"
         do i = 1, nBasisPairs
             do j = 1, nAuxBasis
                 r = 0
@@ -162,7 +161,7 @@ SUBROUTINE GetDF2EInt(a, b, c, d, res)
     res = 0.0_dp
     x = GetDFIndex(a, c)
     y = GetDFIndex(b, d)
-!         write(6,"(7I4)") a,b,c,d,x,y,iDFMethod
+!         write(stdout,"(7I4)") a,b,c,d,x,y,iDFMethod
     select case (iDFMethod)
 ! 0 - no DF
     case (0)
@@ -207,7 +206,7 @@ INTEGER FUNCTION GetDFIndex(i, j)
     end if
 END
 SUBROUTINE ReadDalton2EIntegrals(nBasis, UMat2D, tUMat2D)
-    use constants, only: dp, sp
+    use constants, only: dp, sp, stdout
     implicit none
     integer nBasis, i, j, k, ilast
     real(dp) val, UMat2D(nBasis, nBasis)
@@ -230,12 +229,12 @@ SUBROUTINE ReadDalton2EIntegrals(nBasis, UMat2D, tUMat2D)
     tUMat2D = .true.
 20  close(11)
     IF (tUMat2D) THEN
-        write(6, *) "Read in 2-index 2-electron integrals up to orbital ", ilast * 2
+        write(stdout, *) "Read in 2-index 2-electron integrals up to orbital ", ilast * 2
     ELSE
-        write(6, *) "Have not read in 2-index 2-electron integrals."
+        write(stdout, *) "Have not read in 2-index 2-electron integrals."
     end if
     IF (ilast < nBasis) THEN
-        write(6, *) "Calculating remaining 2-index 2-electron integrals with density fitting."
+        write(stdout, *) "Calculating remaining 2-index 2-electron integrals with density fitting."
         open(78, file='UMAT', status='UNKNOWN')
         do i = ilast + 1, nBasis
             do j = 1, i
@@ -345,8 +344,6 @@ SUBROUTINE GetDF2EInt2OrderOverlap(a, b, c, d, res)
             res = res + DFCoeffs(i, x) * DFCoeffs(j, y) * DFFitInts(i, j)
         end do
     end do
-!         write(79,"(4I4,G)") a,b,c,d,res
-!         write(6,*) "D2",a,b,c,d,res,res1,res2,res3
 END
 
 SUBROUTINE GetDF2EInt2OrderCoulomb(a, b, c, d, res)
@@ -369,11 +366,9 @@ SUBROUTINE GetDF2EInt2OrderCoulomb(a, b, c, d, res)
             res = res + DFInts(i, x) * DFInts(j, y) * DFInvFitInts(i, j)
         end do
     end do
-!         write(79,"(4I4,G)") a,b,c,d,res
-!         write(6,*) "D2",a,b,c,d,res,res1,res2,res3
 END
 SUBROUTINE DFCalcInvFitInts(dPower)
-    use constants, only: dp, sp
+    use constants, only: dp, sp, stdout
     use UMatCache
     use global_utilities
     use MemoryManager, only: TagIntType
@@ -398,10 +393,10 @@ SUBROUTINE DFCalcInvFitInts(dPower)
         end do
     end do
     Workl = 3 * nAuxBasis
-    write(6, *) "Diagonalizing (P|u|Q)"
+    write(stdout, *) "Diagonalizing (P|u|Q)"
     CALL DSYEV('V', 'L', nAuxBasis, M, nAuxBasis, Eigenvalues, WORK, WORKL, INFO)
     IF (INFO /= 0) THEN
-        write(6, *) 'DYSEV error: ', INFO
+        write(stdout, *) 'DYSEV error: ', INFO
         call stop_all(t_r, "DSYEV error")
     end if
     iMinEigv = 1
@@ -409,12 +404,12 @@ SUBROUTINE DFCalcInvFitInts(dPower)
         do i = 1, nAuxBasis
             if (Eigenvalues(i) < 1d-10) iMinEigv = i + 1
         end do
-        write(6, *) "Ignoring ", iMinEigv - 1, " eigenvalues <1d-10"
+        write(stdout, *) "Ignoring ", iMinEigv - 1, " eigenvalues <1d-10"
     end if
 !M now contains eigenvectors.  Eigenvector i is in M(:,I)
 ! A=U^T L U (L is the matrix of eigenvalues on the diagonal)
 ! A^-1 = U^T L^-1 U
-    write(6, *) "Calculating (P|u|Q)^", dPower
+    write(stdout, *) "Calculating (P|u|Q)^", dPower
     do i = 1, nAuxBasis
         do j = 1, i
             r = 0

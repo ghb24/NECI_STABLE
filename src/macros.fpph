@@ -28,15 +28,15 @@ endif
 #ifdef DEBUG_
     block
         use util_mod, only: stop_all
-        use constants, only: iout
+        use constants, only: stderr
         if (.not. (${cond}$)) then
-            write(iout, *) ""
-            write(iout, *) "Assertion ${cond}$"
-            write(iout, *) "failed in ${_FILE_}$:${_LINE_}$"
+            write(stderr, *) ""
+            write(stderr, *) "Assertion ${cond}$"
+            write(stderr, *) "failed in ${_FILE_}$:${_LINE_}$"
 #:if args
-            write(iout, *) "Values leading to this error:"
+            write(stderr, *) "Values leading to this error:"
 #:for value in args
-            write(iout, *) "${value}$ = ", ${value}$
+            write(stderr, *) "${value}$ = ", ${value}$
 #:endfor
 #:endif
             call stop_all (this_routine, "Assert fail: ${cond}$")

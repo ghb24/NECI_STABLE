@@ -146,7 +146,7 @@ contains
 
         if (present(required)) then
             if (required .and. .not. exists_) then
-                write(6, *) nm
+                write(stdout, *) nm
                 call stop_all(t_r, "Required field does not exist")
             end if
         end if
@@ -227,7 +227,7 @@ contains
 
         if (present(required)) then
             if (required .and. .not. exists_) then
-                write(6,*) nm
+                write(stdout,*) nm
                 call stop_all(t_r, "Required field does not exist")
             end if
         end if
@@ -281,7 +281,7 @@ contains
 
         if (present(required)) then
             if (required .and. .not. exists_) then
-                write(6, *) nm
+                write(stdout, *) nm
                 call stop_all(t_r, "Required field does not exist")
             end if
         end if
@@ -365,7 +365,7 @@ contains
 
         if (present(required)) then
             if (required .and. .not. exists_) then
-                write(6, *) nm
+                write(stdout, *) nm
                 call stop_all(t_r, "Required field does not exist")
             end if
         end if
@@ -457,7 +457,7 @@ contains
 
         if (present(required)) then
             if (required .and. .not. exists_) then
-                write(6, *) nm
+                write(stdout, *) nm
                 call stop_all(t_r, "Required field does not exist")
             end if
         end if
@@ -600,7 +600,7 @@ contains
 
         if (present(required)) then
             if (required .and. .not. exists_) then
-                write(6, *) nm
+                write(stdout, *) nm
                 call stop_all(t_r, "Required field does not exist")
             end if
         end if
@@ -638,7 +638,7 @@ contains
 
       ! if buf is unallocated, this is not going anywhere
       if(.not. allocated(buf)) then
-         write(iout,*) "WARNING: Trying to move data from empty buffer"
+         write(stdout,*) "WARNING: Trying to move data from empty buffer"
          return
       endif
 
@@ -743,7 +743,7 @@ contains
 
         if (present(required)) then
             if (required .and. .not. exists_) then
-                write(6, *) nm
+                write(stdout, *) nm
                 call stop_all(t_r, "Required field does not exist")
             end if
         end if
@@ -922,7 +922,7 @@ contains
 
         if (present(required)) then
             if (required .and. .not. exists_) then
-                write(6, *) nm
+                write(stdout, *) nm
                 call stop_all(t_r, "Required field does not exist")
             end if
         end if
@@ -980,7 +980,7 @@ contains
             ! We can only read in if our buffer is big enough
             buf_sz = len(val)
             if (sz > buf_sz) then
-                write(6,*) 'WARNING: Insufficient read buffer in routine ', t_r
+                write(stdout,*) 'WARNING: Insufficient read buffer in routine ', t_r
                 exists_ = .false.
             else
                 ! Read in, and ensure that length/string termination is correct
@@ -994,7 +994,7 @@ contains
 
         if (present(required)) then
             if (required .and. .not. exists_) then
-                write(6, *) nm
+                write(stdout, *) nm
                 call stop_all(t_r, "Required field does not exist")
             end if
         end if
@@ -1061,7 +1061,7 @@ contains
 
         if (present(required)) then
             if (required .and. .not. exists_) then
-                write(6, *) nm
+                write(stdout, *) nm
                 call stop_all(t_r, "Required field does not exist")
             end if
         end if
@@ -1097,7 +1097,7 @@ contains
         call h5tclose_f(type_id, err)
 
         if (ds_sz /= sz .or. ds_class /= class_id) then
-            write(6,*) 'Dataset name: ', nm
+            write(stdout,*) 'Dataset name: ', nm
             call stop_all(t_r, "Invalid dataset type information found")
         end if
 
@@ -1108,14 +1108,14 @@ contains
 
         rank = size(dims)
         if (rank /= ds_rank) then
-            write(6,*) 'Dataset name: ', nm
+            write(stdout,*) 'Dataset name: ', nm
             call stop_all(t_r, "Invalid dataset rank found")
         end if
 
         call h5sget_simple_extent_dims_f(dataspace, ds_dims, ds_max_dims, err)
         if (.not. all(dims == ds_dims)) then
-            write(6,*) 'Dataset name: ', nm
-            write(6,*) "Dimensions", dims, ds_dims
+            write(stdout,*) 'Dataset name: ', nm
+            write(stdout,*) "Dimensions", dims, ds_dims
             call stop_all(t_r, "Invalid dataset dimensions found")
         end if
         call h5sclose_f(dataspace, err)
@@ -1149,7 +1149,7 @@ contains
       call h5tclose_f(type_id, err)
 
       if (ds_sz /= sz .or. ds_class /= class_id) then
-         write(6,*) 'Attribute name: ', nm
+         write(stdout,*) 'Attribute name: ', nm
          call stop_all(t_r, "Invalid attribute type information found")
       end if
 
@@ -1160,14 +1160,14 @@ contains
 
       rank = size(dims)
       if (rank /= ds_rank) then
-         write(6,*) 'Attribute name: ', nm
-         write(6,*) 'ranks', rank, ds_rank
+         write(stdout,*) 'Attribute name: ', nm
+         write(stdout,*) 'ranks', rank, ds_rank
          call stop_all(t_r, "Invalid attribute rank found")
       end if
 
       call h5sget_simple_extent_dims_f(dataspace, ds_dims, ds_max_dims, err)
       if (.not. all(dims == ds_dims)) then
-         write(6,*) 'Attribute name: ', nm
+         write(stdout,*) 'Attribute name: ', nm
          call stop_all(t_r, "Invalid attribute dimensions found")
       end if
       call h5sclose_f(dataspace, err)

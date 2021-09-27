@@ -476,7 +476,7 @@ contains
             do run = 1, size(cs_replicas)
                 cs_replicas(run)%full_determ_vecs_av = 0.0_dp
             end do
-            write(6, *) "Reset fdv av at iteration ", iter
+            write(stdout, *) "Reset fdv av at iteration ", iter
         end if
 
         ! The current iteration, converted to a double precision real.
@@ -608,7 +608,7 @@ contains
         do run = 1, size(cs_replicas)
             associate(rep => cs_replicas(run))
                 if (allocated(rep%determ_sizes)) then
-                    write(6, '(a56)') "Recalculating diagonal elements of the core Hamiltonian."
+                    write(stdout, '(a56)') "Recalculating diagonal elements of the core Hamiltonian."
 
                     Hii_shift = old_Hii - new_Hii
 
@@ -819,7 +819,7 @@ contains
 
         if (tot_num_states <= target_num_states) return
 
-        write(6, '(a32)') "Removing high energy orbitals..."
+        write(stdout, '(a32)') "Removing high energy orbitals..."
 
         ! Loop through all orbitals, from highest energy to lowest.
         do i = nBasis, 1, -1
@@ -874,17 +874,17 @@ contains
         num_states = counter
 
         ! Finally, output information:
-        write(6, '(a36)', advance='no') "The following orbitals were removed:"
+        write(stdout, '(a36)', advance='no') "The following orbitals were removed:"
         allocate(orbitals_rmvd(num_orbs_rmvd))
         orbitals_rmvd = BRR(nBasis - num_orbs_rmvd + 1:nBasis)
         call sort(orbitals_rmvd)
         do i = 1, num_orbs_rmvd
-            write(6, '(i5)', advance='no') orbitals_rmvd(i)
-            if (i == num_orbs_rmvd) write(6, '()', advance='yes')
+            write(stdout, '(i5)', advance='no') orbitals_rmvd(i)
+            if (i == num_orbs_rmvd) write(stdout, '()', advance='yes')
         end do
         deallocate(orbitals_rmvd)
-        write(6, '(i6,1x,a29)') states_rmvd_all_procs, "states were removed in total."
-        write(6, '(i6,1x,a17)') tot_num_states - states_rmvd_all_procs, "states were kept."
+        write(stdout, '(i6,1x,a29)') states_rmvd_all_procs, "states were removed in total."
+        write(stdout, '(i6,1x,a17)') tot_num_states - states_rmvd_all_procs, "states were kept."
         call neci_flush(6)
 
     end subroutine remove_high_energy_orbs
@@ -1033,7 +1033,7 @@ contains
         type(core_space_t), intent(in) :: rep
         integer :: i, k, iunit, ierr
 
-        write(6, '(a35)') "Writing the core space to a file..."
+        write(stdout, '(a35)') "Writing the core space to a file..."
 
         iunit = get_free_unit()
 
@@ -1163,13 +1163,13 @@ contains
             ! Test that SpawnedParts is going to be big enough
             if (rep%determ_sizes(iProcIndex) > MaxSpawned) then
 #ifdef DEBUG_
-                write(6, *) 'Spawned parts array will not be big enough for &
+                write(stderr, *) 'Spawned parts array will not be big enough for &
                     &Semi-Stochastic initialisation'
-                write(6, *) 'Please increase MEMORYFACSPAWN'
+                write(stderr, *) 'Please increase MEMORYFACSPAWN'
 #else
-                write(iout, *) 'Spawned parts array will not be big enough for &
+                write(stderr, *) 'Spawned parts array will not be big enough for &
                     &Semi-Stochastic initialisation on task ', iProcIndex
-                write(iout, *) 'Please increase MEMORYFACSPAWN'
+                write(stderr, *) 'Please increase MEMORYFACSPAWN'
 #endif
                 call stop_all(this_routine, "Insufficient memory assigned")
             end if
@@ -1236,13 +1236,13 @@ contains
                     ! spawned parts array...
                     if (i_non_core > MaxSpawned) then
 #ifdef DEBUG_
-                        write(6, *) 'Spawned parts array too small for &
+                        write(stderr, *) 'Spawned parts array too small for &
                             &semi-stochastic initialisation'
-                        write(6, *) 'Please increase MEMORYFACSPAWN'
+                        write(stderr, *) 'Please increase MEMORYFACSPAWN'
 #else
-                        write(iout, *) 'Spawned parts array too small for &
+                        write(stderr, *) 'Spawned parts array too small for &
                             &semi-stochastic initialisation on task ', iProcIndex
-                        write(iout, *) 'Please increase MEMORYFACSPAWN'
+                        write(stderr, *) 'Please increase MEMORYFACSPAWN'
 #endif
                         call stop_all(this_routine, 'Insufficient memory assigned')
                     end if
@@ -1709,8 +1709,8 @@ contains
         type(davidson_ss) :: dc
 
         if (tPrintInfo) then
-            write(6, '(a69)') "Using the deterministic ground state as initial walker configuration."
-            write(6, '(a34)') "Performing Davidson calculation..."
+            write(stdout, '(a69)') "Using the deterministic ground state as initial walker configuration."
+            write(stdout, '(a34)') "Performing Davidson calculation..."
             call neci_flush(6)
         end if
 
@@ -1718,8 +1718,8 @@ contains
         call perform_davidson_ss(dc, .true., run)
 
         if (tPrintInfo) then
-            write(6, '(a30)') "Davidson calculation complete."
-            write(6, '("Deterministic subspace correlation energy:",1X,f15.10)') dc%davidson_eigenvalue
+            write(stdout, '(a30)') "Davidson calculation complete."
+            write(stdout, '("Deterministic subspace correlation energy:",1X,f15.10)') dc%davidson_eigenvalue
             call neci_flush(6)
         end if
 
@@ -1770,8 +1770,8 @@ contains
         character(len=*), parameter :: t_r = "start_walkers_from_core_ground_nonhermit"
 
         if (tPrintInfo) then
-            write(6, '(a69)') "Using the deterministic ground state as initial walker configuration."
-            write(6, '(a53)') "Performing diagonalization of non-Hermitian matrix..."
+            write(stdout, '(a69)') "Using the deterministic ground state as initial walker configuration."
+            write(stdout, '(a53)') "Performing diagonalization of non-Hermitian matrix..."
             call neci_flush(6)
         end if
 
@@ -1780,8 +1780,8 @@ contains
             call diagonalize_core_non_hermitian(e_values, e_vectors, rep)
 
             if (tPrintInfo) then
-                write(6, '("Energies of the deterministic subspace:")')
-                write(6, *) e_values(1:rep%determ_space_size)
+                write(stdout, '("Energies of the deterministic subspace:")')
+                write(stdout, *) e_values(1:rep%determ_space_size)
                 call neci_flush(6)
             end if
 
@@ -1797,8 +1797,8 @@ contains
                 e_vectors(:, 1) = e_vectors(:, 1) * InitWalkers / eigenvec_pop
             end if
 
-            write(6, *) 'The ground state vector:'
-            write(6, *) e_vectors(:, 1)
+            write(stdout, *) 'The ground state vector:'
+            write(stdout, *) e_vectors(:, 1)
             ! Then copy these amplitudes across to the corresponding states in CurrentDets.
             counter = 0
             do i = 1, iProcIndex
@@ -1835,8 +1835,8 @@ contains
         allocate(e_vector(rep%determ_space_size))
         e_vector = davidsonCalc%davidson_eigenvector
 
-        write(6, '(a30)') "Davidson calculation complete."
-        write(6, '("Deterministic subspace correlation energy:",1X,f15.10)') &
+        write(stdout, '(a30)') "Davidson calculation complete."
+        write(stdout, '("Deterministic subspace correlation energy:",1X,f15.10)') &
             e_value
 
         call neci_flush(6)

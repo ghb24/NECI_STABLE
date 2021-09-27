@@ -605,16 +605,16 @@ contains
 
         print *, ""
         print *, "testing: right_most_zero:"
-        i = b'1001'
+        i = int(b'1001',n_int)
         call assert_equals(2, right_most_zero(i, 4))
 
-        i = b'0011'
+        i = int(b'0011',n_int)
         call assert_equals(3, right_most_zero(i, 4))
 
-        i = b'1010'
+        i = int(b'1010',n_int)
         call assert_equals(3, right_most_zero(i, 4))
 
-        i = b'1100'
+        i = int(b'1100',n_int)
         call assert_equals(5, right_most_zero(i, 4))
 
         call assert_equals(4, right_most_zero(int(b'1100',n_int), 3))

@@ -612,7 +612,7 @@ contains
                         SYMLABELCOUNTSCUM2(i) = SYMLABELCOUNTSCUM2(i) + SYMLABELCOUNTS(2, t)
                     end do
                 end if
-!                write(6,*) basirrep,SYMLABELINTSCUM(i),SYMLABELCOUNTSCUM(i)
+!                write(stdout,*) basirrep,SYMLABELINTSCUM(i),SYMLABELCOUNTSCUM(i)
 !                call neci_flush(6)
                 ! JSS: Label states of symmetry i by the order in which they come.
                 nStateIrrep = 0

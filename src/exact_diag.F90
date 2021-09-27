@@ -24,13 +24,13 @@ contains
         lwork = max(1, 3 * ndets_ed - 1)
         allocate(work(lwork))
 
-        write(6, '(1x,a28)', advance='no') "Diagonalising Hamiltonian..."
+        write(stdout, '(1x,a28)', advance='no') "Diagonalising Hamiltonian..."
         call neci_flush(6)
 
         ! Perform the diagonalisation.
         call dsyev('V', 'U', ndets_ed, hamiltonian, ndets_ed, eigv_ed, work, lwork, info)
 
-        write(6, '(1x,a9,/)') "Complete."
+        write(stdout, '(1x,a9,/)') "Complete."
         call neci_flush(6)
 
         call output_exact_spectrum()
@@ -53,10 +53,10 @@ contains
         character(len=*), parameter :: t_r = 'init_exact_diag'
         integer :: ierr
 
-        write(6, '(/,1x,a57,/)') "Beginning exact diagonalisation in all symmetry sectors."
+        write(stdout, '(/,1x,a57,/)') "Beginning exact diagonalisation in all symmetry sectors."
         call neci_flush(6)
 
-        write(6, '(1x,a56)', advance='no') "Enumerating and storing all determinants in the space..."
+        write(stdout, '(1x,a56)', advance='no') "Enumerating and storing all determinants in the space..."
         call neci_flush(6)
 
         ! Generate and count all the determinants on this processor, but don't store them.
@@ -65,34 +65,34 @@ contains
         ! Now generate them again and store them this time.
         call gndts_all_sym_this_proc(ilut_list, .false., ndets_ed)
 
-        write(6, '(1x,a9)') "Complete."
+        write(stdout, '(1x,a9)') "Complete."
         call neci_flush(6)
 
         expected_ndets_tot = int(choose(nbasis, nel))
         if (ndets_ed /= expected_ndets_tot) then
-            write(6, *) "ndets counted:", ndets_ed, "ndets expected:", expected_ndets_tot
+            write(stdout, *) "ndets counted:", ndets_ed, "ndets expected:", expected_ndets_tot
             call stop_all('t_r', 'The number of determinants generated is not &
                                     &consistent with the expected number.')
         end if
 
         allocate(eigv_ed(ndets_ed), stat=ierr)
         if (ierr /= 0) then
-            write(6, '(1x,a11,1x,i5)') "Error code:", ierr
+            write(stdout, '(1x,a11,1x,i5)') "Error code:", ierr
             call stop_all(t_r, "Error allocating eigenvalue array.")
         end if
         eigv_ed = 0.0_dp
 
-        write(6, '(1x,a48)') "Allocating and calculating Hamiltonian matrix..."
+        write(stdout, '(1x,a48)') "Allocating and calculating Hamiltonian matrix..."
         call neci_flush(6)
         allocate(hamiltonian(ndets_ed, ndets_ed), stat=ierr)
         if (ierr /= 0) then
-            write(6, '(1x,a11,1x,i5)') "Error code:", ierr
+            write(stdout, '(1x,a11,1x,i5)') "Error code:", ierr
             call stop_all(t_r, "Error allocating Hamiltonian array.")
         end if
-        write(6, '(1x,a46)') "Hamiltonian allocation completed successfully."
+        write(stdout, '(1x,a46)') "Hamiltonian allocation completed successfully."
         call neci_flush(6)
         call calculate_full_hamiltonian(ilut_list, hamiltonian)
-        write(6, '(1x,a33)') "Hamiltonian calculation complete."
+        write(stdout, '(1x,a33)') "Hamiltonian calculation complete."
         call neci_flush(6)
 
     end subroutine init_exact_diag
@@ -122,7 +122,7 @@ contains
         else
             allocate(local_hamil(ndets, ndets), stat=ierr)
             if (ierr /= 0) then
-                write(6, '(1x,a11,1x,i5)') "Error code:", ierr
+                write(stdout, '(1x,a11,1x,i5)') "Error code:", ierr
                 call stop_all(t_r, "Error allocating Hamiltonian array.")
             end if
         end if

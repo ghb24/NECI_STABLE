@@ -132,7 +132,7 @@ contains
 
                     call halt_timer(Rotation_Time)
 
-                    write(6, *) "Convergence criterion met. Finalizing new orbitals..."
+                    write(stdout, *) "Convergence criterion met. Finalizing new orbitals..."
 
                 end if
 
@@ -165,15 +165,15 @@ contains
         integer :: i, a, ierr, MinReadIn, MaxReadIn, iunit
         character(len=*), parameter :: this_routine = 'FindNatOrbitals'
 
-        if (tUseMP2VarDenMat) write(6, *) '*** Transforming the HF orbitals into the MP2 approximate natural orbitals. ***'
+        if (tUseMP2VarDenMat) write(stdout, *) '*** Transforming the HF orbitals into the MP2 approximate natural orbitals. ***'
         if (tFindCINatOrbs) then
-            write(6, *) '*** Transforming the HF orbitals into approximate natural orbitals'
-            write(6, *) 'based on the one-electron density matrix found from the wavefunction calculated above. ***'
+            write(stdout, *) '*** Transforming the HF orbitals into approximate natural orbitals'
+            write(stdout, *) 'based on the one-electron density matrix found from the wavefunction calculated above. ***'
         end if
 
         if (tSpinOrbs) then
             if (.not. tStoreSpinOrbs) then
-                write(6, *) "We want to use spin orbitals - turning on tStoreSpinOrbs."
+                write(stdout, *) "We want to use spin orbitals - turning on tStoreSpinOrbs."
                 tStoreSpinOrbs = .true.
             end if
         end if
@@ -300,7 +300,7 @@ contains
         else
             if (tReadInCoeff) then
 
-                write(6, '(A)') " Reading in the transformation matrix from TRANSFORMMAT, and using this to rotate the HF orbitals."
+                write(stdout, '(A)') " Reading in the transformation matrix from TRANSFORMMAT, and using this to rotate the HF orbitals."
 
                 iunit = get_free_unit()
                 open(iunit, file='TRANSFORMMAT', status='old')
@@ -328,13 +328,13 @@ contains
                 call LogMemAlloc('FourIndInts', (NoOrbs**4), 8, this_routine, FourIndIntsTag, ierr)
 
                 ! Then, transform2ElInts
-                write(6, *) 'Transforming the four index integrals'
+                write(stdout, *) 'Transforming the four index integrals'
                 call Transform2ElIntsMemSave()
 
-                write(6, *) 'Re-calculating the fock matrix'
+                write(stdout, *) 'Re-calculating the fock matrix'
                 call CalcFOCKMatrix()
 
-                write(6, *) 'Refilling the UMAT and TMAT2D'
+                write(stdout, *) 'Refilling the UMAT and TMAT2D'
                 ! The ROFCIDUMP is also printed out in here.
                 call RefillUMATandTMAT2D()
 
@@ -416,13 +416,13 @@ contains
             call LogMemAlloc('FourIndInts', (NoOrbs**4), 8, this_routine, FourIndIntsTag, ierr)
 
             ! Then, transform2ElInts.
-            write(6, *) 'Transforming the four index integrals.'
+            write(stdout, *) 'Transforming the four index integrals.'
             call Transform2ElIntsMemSave()
 
-            write(6, *) 'Re-calculating the fock matrix.'
+            write(stdout, *) 'Re-calculating the fock matrix.'
             call CalcFOCKMatrix()
 
-            write(6, *) 'Refilling the UMAT and TMAT2D.'
+            write(stdout, *) 'Refilling the UMAT and TMAT2D.'
             ! The ROFCIDUMP is also printed out in here.
             call RefillUMATandTMAT2D()
 
@@ -469,7 +469,7 @@ contains
             MemAllocRot = MemAllocRot + ((nBasis**2) * 8)
         end if
 
-        write(6, '(A72, F20.10, A15)') "Rough estimate of the memory required for the orbital transformation  =  ", &
+        write(stdout, '(A72, F20.10, A15)') "Rough estimate of the memory required for the orbital transformation  =  ", &
             real(MemAllocRot, dp) / 1048576.0_dp, " Mb/Processor"
 
     end subroutine ApproxMemReq
@@ -569,41 +569,41 @@ contains
         integer :: ierr
 
         ! Writing to output which PE is being maximised/minimised.
-        write(6, *) '*****'
+        write(stdout, *) '*****'
         if (tERLocalization) then
-            write(6, *) "Calculating new molecular orbitals based on Edmiston-Reudenberg localisation,"
-            write(6, *) "i.e. maximisation of the <ii|ii> integrals..."
-            write(6, *) "*****"
+            write(stdout, *) "Calculating new molecular orbitals based on Edmiston-Reudenberg localisation,"
+            write(stdout, *) "i.e. maximisation of the <ii|ii> integrals..."
+            write(stdout, *) "*****"
         end if
         if (tVirtCoulombMax) then
-            write(6, *) "Calculating new molecular orbitals based on maximisation of the sum of the"
-            write(6, *) "<ij|ij> integrals, where i and j are both virtuals..."
-            write(6, *) "*****"
+            write(stdout, *) "Calculating new molecular orbitals based on maximisation of the sum of the"
+            write(stdout, *) "<ij|ij> integrals, where i and j are both virtuals..."
+            write(stdout, *) "*****"
         end if
         if (tOffDiagSqrdMin) then
-            write(6, *) "Calculating new molecular orbitals based on mimimisation "
-            write(6, *) "of <ij|kl>^2 integrals..."
-            write(6, *) "*****"
+            write(stdout, *) "Calculating new molecular orbitals based on mimimisation "
+            write(stdout, *) "of <ij|kl>^2 integrals..."
+            write(stdout, *) "*****"
         end if
         if (tOffDiagMin) then
-            write(6, *) "Calculating new molecular orbitals based on mimimisation "
-            write(6, *) "of <ij|kl> integrals..."
-            write(6, *) "*****"
+            write(stdout, *) "Calculating new molecular orbitals based on mimimisation "
+            write(stdout, *) "of <ij|kl> integrals..."
+            write(stdout, *) "*****"
         end if
         if (tDoubExcMin) then
-            write(6, *) "Calculating new molecular orbitals based on mimimisation "
-            write(6, *) "of the double excitation hamiltonian elements."
-            write(6, *) "*****"
+            write(stdout, *) "Calculating new molecular orbitals based on mimimisation "
+            write(stdout, *) "of the double excitation hamiltonian elements."
+            write(stdout, *) "*****"
         end if
         if (tOnePartOrbEnMax) then
-            write(6, *) "Calculating new molecular orbitals based on maximisation "
-            write(6, *) "of the virtual one particle orbital energies."
-            write(6, *) "*****"
+            write(stdout, *) "Calculating new molecular orbitals based on maximisation "
+            write(stdout, *) "of the virtual one particle orbital energies."
+            write(stdout, *) "*****"
         else if (tMaxHLGap) then
             ! This will transform all the orbitals within a particlar group to
             ! have the same diagonal fock matrix element.
-            write(6, *) "Transforming orbitals based on equating their diagonal fock matrix elements."
-            write(6, *) "*****"
+            write(stdout, *) "Transforming orbitals based on equating their diagonal fock matrix elements."
+            write(stdout, *) "*****"
         end if
 
         ! Writing out which orthonormalisation method is being used...
@@ -613,12 +613,12 @@ contains
                 call Stop_All(this_routine, "ERROR. Both LAGRANGE and SHAKE keywords present in the input. &
                 & These two orthonormalisation methods clash.")
             end if
-            write(6, *) "Using a Lagrange multiplier to attempt to rotate orbitals in a way to maintain orthonormality"
+            write(stdout, *) "Using a Lagrange multiplier to attempt to rotate orbitals in a way to maintain orthonormality"
         else if (tShake) then
-            write(6, *) "Using the shake algorithm to iteratively find lambdas which maintain "
-            write(6, *) "orthonormalisation with rotation"
+            write(stdout, *) "Using the shake algorithm to iteratively find lambdas which maintain "
+            write(stdout, *) "orthonormalisation with rotation"
         else
-            write(6, *) "Explicity reorthonormalizing orbitals after each rotation."
+            write(stdout, *) "Explicity reorthonormalizing orbitals after each rotation."
         end if
 
         ! Check for a few possible errors.
@@ -628,8 +628,8 @@ contains
         end if
         if ((tRotateOccOnly .or. tRotateVirtOnly) .and. (.not. tSeparateOccVirt)) then
             tSeparateOccVirt = .true.
-            write(6, *) "NOTE. Cannot rotate only occupied or virtual without first separating them."
-            write(6, *) "SEPARATEOCCVIRT keyword is being turned on."
+            write(stdout, *) "NOTE. Cannot rotate only occupied or virtual without first separating them."
+            write(stdout, *) "SEPARATEOCCVIRT keyword is being turned on."
         end if
         if ((tOffDiagSqrdMax .and. tOffDiagSqrdMin) .or. (tOffDiagMax .and. tOffDiagMin)) then
             call neci_flush(6)
@@ -640,7 +640,7 @@ contains
             call Stop_All(this_routine, &
                           "ERROR. Cannot currently maximise the one particle orbital energies without separating occupied and virtual.")
         end if
-        write(6, *) "*****"
+        write(stdout, *) "*****"
 
         ! Zero values.
         OrthoNorm = 0.0_dp
@@ -672,12 +672,12 @@ contains
         ! value (Epsilon min).
         if (tRotateVirtOnly .and. tOnePartOrbEnMax) then
             EpsilonMin = ARR(NEl + 1, 1)
-            write(6, *) 'Taking EpsilonMin to be the LUMO of the HF orbitals...'
-            write(6, *) 'EpsilonMin  =  ', EpsilonMin
+            write(stdout, *) 'Taking EpsilonMin to be the LUMO of the HF orbitals...'
+            write(stdout, *) 'EpsilonMin  =  ', EpsilonMin
         else if (tOnePartOrbEnMax) then
             EpsilonMin = ChemPot
-            write(6, *) 'Taking EpsilonMin to be the chemical potential (midway between HF HOMO and LUMO)...'
-            write(6, *) 'therefore EpsilonMin  =  ', EpsilonMin
+            write(stdout, *) 'Taking EpsilonMin to be the chemical potential (midway between HF HOMO and LUMO)...'
+            write(stdout, *) 'therefore EpsilonMin  =  ', EpsilonMin
         end if
 
         ! Set timed routine names.
@@ -816,22 +816,22 @@ contains
             write(transform_unit, "(A12, 11A18)") "# Iteration", "2.PotEnergy", "3.PEInts", "4.PEOrtho", "5.Force", "6.ForceInts", &
             "7.OrthoForce", "8.Sum<ij|kl>^2",&
                         &"9.OrthoNormCondition", "10.DistMovedbyCs", "11.DistMovedByLs", "12.LambdaMag"
-            write(6, "(A12, 11A19)") "Iteration", "2.PotEnergy", "3.PEInts", "4.PEOrtho", "5.Force", "6.ForceInts", "7.OrthoForce", &
+            write(stdout, "(A12, 11A19)") "Iteration", "2.PotEnergy", "3.PEInts", "4.PEOrtho", "5.Force", "6.ForceInts", "7.OrthoForce", &
                     "8.Sum<ij|kl>^2",&
                     &"9.OrthoNormCondition", "10.DistMovedbyCs", "11.DistMovedbyLs", "12.LambdaMag"
         else if (tERLocalization .and. tHijSqrdMin) then
             write(transform_unit, "(A12, 7A24)") "# Iteration", "2.ERPotEnergy", "3.HijSqrdPotEnergy", "4.PotEnergy", "5.Force", &
                 "6.Totalcorrforce", "7.OrthoNormCondition", "8.DistMovedbyCs"
-            write(6, "(A12, 7A24)") "# Iteration", "2.ERPotEnergy", "3.HijSqrdPotEnergy", "4.PotEnergy", "5.Force", &
+            write(stdout, "(A12, 7A24)") "# Iteration", "2.ERPotEnergy", "3.HijSqrdPotEnergy", "4.PotEnergy", "5.Force", &
                 "6.Totalcorrforce", "7.OrthoNormCondition", "8.DistMovedbyCs"
         else if (tERLocalization) then
             write(transform_unit, "(A12, 5A24)") "# Iteration", "2.Sum_i<ii|ii>", "3.Force", "4.TotCorrForce", &
                 "5.OrthoNormCondition", "6.DistMovedbyCs"
-            write(6, "(A12, 5A24)") "Iteration", "2.Sum_i<ii|ii>", "3.Force", "4.TotCorrForce", "5.OrthoNormCondition", "6.DistMovedbyCs"
+            write(stdout, "(A12, 5A24)") "Iteration", "2.Sum_i<ii|ii>", "3.Force", "4.TotCorrForce", "5.OrthoNormCondition", "6.DistMovedbyCs"
         else
             write(transform_unit, "(A12, 5A24)") "# Iteration", "2.PotEnergy", "3.Force", "4.Totalcorrforce", &
                 "5.OrthoNormCondition", "6.DistMovedbyCs"
-            write(6, "(A12, 5A24)") "Iteration", "2.PotEnergy", "3.Force", "4.TotCorrForce", "5.OrthoNormCondition", "6.DistMovedbyCs"
+            write(stdout, "(A12, 5A24)") "Iteration", "2.PotEnergy", "3.Force", "4.TotCorrForce", "5.OrthoNormCondition", "6.DistMovedbyCs"
         end if
 
     end subroutine InitLocalOrbs
@@ -865,7 +865,7 @@ contains
 
         ! Just a check that the number of constraints labeled is the same as
         ! that calculated above.
-        write(6, *) 'Total number of constraints  =  ', TotNoConstraints
+        write(stdout, *) 'Total number of constraints  =  ', TotNoConstraints
         if (Const /= TotNoConstraints) then
             call Stop_all(this_routine, 'ERROR in the number of constraints calculated.  lmax does not equal TotNoConstraints')
         end if
@@ -1000,20 +1000,20 @@ contains
     subroutine WriteStats()
 
         if (tLagrange) then
-            write(6, "(I12, 11F18.10)") Iteration, PotEnergy, PEInts, PEOrtho, Force, ForceInts, OrthoForce, TwoEInts, &
+            write(stdout, "(I12, 11F18.10)") Iteration, PotEnergy, PEInts, PEOrtho, Force, ForceInts, OrthoForce, TwoEInts, &
                 OrthoNorm, DistCs, DistLs, LambdaMag
             write(transform_unit, "(I12, 11F18.10)") Iteration, PotEnergy, PEInts, PEOrtho, Force, ForceInts, OrthoForce, &
                 TwoEInts, OrthoNorm, DistCs, DistLs, LambdaMag
         else if (tERLocalization .and. tHijSqrdMin) then
             if (Mod(Iteration, 10) == 0) then
-                write(6, "(I12, 7F24.10)") Iteration, ERPotEnergy, HijSqrdPotEnergy, PotEnergy, Force, TotCorrectedForce, &
+                write(stdout, "(I12, 7F24.10)") Iteration, ERPotEnergy, HijSqrdPotEnergy, PotEnergy, Force, TotCorrectedForce, &
                     OrthoNorm, DistCs
                 write(transform_unit, "(I12, 7F24.10)") Iteration, ERPotEnergy, HijSqrdPotEnergy, PotEnergy, Force, &
                     TotCorrectedForce, OrthoNorm, DistCs
             end if
         else
             if (Mod(Iteration, 10) == 0) then
-                write(6, "(I12, 5F24.10)") Iteration, PotEnergy, Force, TotCorrectedForce, OrthoNorm, DistCs
+                write(stdout, "(I12, 5F24.10)") Iteration, PotEnergy, Force, TotCorrectedForce, OrthoNorm, DistCs
                 write(transform_unit, "(I12, 5F24.10)") Iteration, PotEnergy, Force, TotCorrectedForce, OrthoNorm, DistCs
             end if
         end if
@@ -1022,7 +1022,7 @@ contains
 
         ! After writing out stats, test for SOFTEXIT.
         if (test_SOFTEXIT()) then
-            write(6, *) 'SOFTEXIT detected, finalizing new orbitals.'
+            write(stdout, *) 'SOFTEXIT detected, finalizing new orbitals.'
             tNotConverged = .false.
         end if
 
@@ -1198,9 +1198,9 @@ contains
 
         do j = 1, NoOrbs
             do i = 1, NoOrbs
-                write(6, "(G13.5)", advance='no') CoeffT1(j, i)
+                write(stdout, "(G13.5)", advance='no') CoeffT1(j, i)
             end do
-            write(6, *) ""
+            write(stdout, *) ""
         end do
 
         !Check normalization.
@@ -1223,7 +1223,7 @@ contains
                     Norm = Norm + (CoeffT1(k, j) * CoeffT1(k, i))
                 end do
                 if (abs(Norm) > 1.0e-7_dp) then
-                    write(6, *) "COLUMNS: ", j, i
+                    write(stdout, *) "COLUMNS: ", j, i
                     call Stop_All("EquateDiagFock", "RotationCoefficients not orthogonal")
                 end if
             end do
@@ -1380,20 +1380,20 @@ contains
         real(dp), allocatable :: TMAT2DSymBlock(:, :), DiagTMAT2DBlock(:), Work(:)
         character(len=*), parameter :: this_routine = 'Diagonalizehij'
 
-        write(6, *) 'The original coefficient matrix'
+        write(stdout, *) 'The original coefficient matrix'
         do i = 1, NoOrbs
             do j = 1, NoOrbs
-                write(6, '(F20.10)', advance='no') CoeffT1(j, i)
+                write(stdout, '(F20.10)', advance='no') CoeffT1(j, i)
             end do
-            write(6, *) ''
+            write(stdout, *) ''
         end do
 
-        write(6, *) 'The original TMAT2D matrix'
+        write(stdout, *) 'The original TMAT2D matrix'
         do i = 1, NoOrbs
             do j = 1, NoOrbs
-                write(6, '(F20.10)', advance='no') TMAT2DTemp(j, i)
+                write(stdout, '(F20.10)', advance='no') TMAT2DTemp(j, i)
             end do
-            write(6, *) ''
+            write(stdout, *) ''
         end do
         TMAT2DRot(:, :) = 0.0_dp
         DiagTMAT2Dfull(:) = 0.0_dp
@@ -1430,31 +1430,31 @@ contains
                     end do
                 end do
 
-                write(6, *) '*****'
-                write(6, *) 'Symmetry ', Sym, ' has ', NoSymBlock, ' orbitals .'
-                write(6, *) 'The TMAT2D for this symmetry block is '
+                write(stdout, *) '*****'
+                write(stdout, *) 'Symmetry ', Sym, ' has ', NoSymBlock, ' orbitals .'
+                write(stdout, *) 'The TMAT2D for this symmetry block is '
                 do i = 1, NoSymBlock
                     do j = 1, NoSymBlock
-                        write(6, '(F20.10)', advance='no') TMAT2DSymBlock(j, i)
+                        write(stdout, '(F20.10)', advance='no') TMAT2DSymBlock(j, i)
                     end do
-                    write(6, *) ''
+                    write(stdout, *) ''
                 end do
 
                 call DSYEV('V', 'U', NoSymBlock, TMAT2DSymBlock, NoSymBlock, DiagTMAT2Dblock, Work, WorkSize, ierr)
                 ! TMAT2DSymBlock goes in as the original TMAT2DSymBlock, comes out as the eigenvectors (Coefficients).
                 ! TMAT2DBlock comes out as the eigenvalues in ascending order.
                 if (ierr /= 0) then
-                    write(6, *) 'Problem with symmetry, ', Sym, ' of TMAT2D'
+                    write(stdout, *) 'Problem with symmetry, ', Sym, ' of TMAT2D'
                     call neci_flush(6)
                     call Stop_All(this_routine, "Diagonalization of TMAT2DSymBlock failed...")
                 end if
 
-                write(6, *) 'After diagonalization, the e-vectors (diagonal elements) of this matrix are,'
+                write(stdout, *) 'After diagonalization, the e-vectors (diagonal elements) of this matrix are,'
                 do i = 1, NoSymBlock
-                    write(6, '(F20.10)', advance='no') DiagTMAT2Dblock(i)
+                    write(stdout, '(F20.10)', advance='no') DiagTMAT2Dblock(i)
                 end do
-                write(6, *) ''
-                write(6, *) 'These go from orbital,', SymStartInd + 1, ' to ', SymStartInd + NoSymBlock
+                write(stdout, *) ''
+                write(stdout, *) 'These go from orbital,', SymStartInd + 1, ' to ', SymStartInd + NoSymBlock
 
                 do i = 1, NoSymBlock
                     DiagTMAT2Dfull(SymStartInd + i - NoOcc) = DiagTMAT2DBlock(i)
@@ -1464,12 +1464,12 @@ contains
                 ! may be better to just take coefficients and transform TMAT2DRot in transform2elints.
                 ! a check that comes out as diagonal is a check of this routine anyway.
 
-                write(6, *) 'The eigenvectors (coefficients) for symmtry block ', Sym
+                write(stdout, *) 'The eigenvectors (coefficients) for symmtry block ', Sym
                 do i = 1, NoSymBlock
                     do j = 1, NoSymBlock
-                        write(6, '(F20.10)', advance='no') TMAT2DSymBlock(j, i)
+                        write(stdout, '(F20.10)', advance='no') TMAT2DSymBlock(j, i)
                     end do
-                    write(6, *) ''
+                    write(stdout, *) ''
                 end do
 
                 ! Directly fill the coefficient matrix with the eigenvectors from the diagonalization.
@@ -1489,27 +1489,27 @@ contains
                 call LogMemDealloc(this_routine, TMAT2DSymBlockTag)
             else if (NoSymBlock == 1) then
                 DiagTMAT2Dfull(SymStartInd + 1 - NoOcc) = TMAT2DTemp(SymStartInd + 1, SymStartInd + 1)
-                write(6, *) '*****'
-                write(6, *) 'Symmetry ', Sym, ' has only one orbital.'
-                write(6, *) 'Copying diagonal element,', SymStartInd + 1, 'to DiagTMAT2Dfull'
+                write(stdout, *) '*****'
+                write(stdout, *) 'Symmetry ', Sym, ' has only one orbital.'
+                write(stdout, *) 'Copying diagonal element,', SymStartInd + 1, 'to DiagTMAT2Dfull'
             end if
 
             Sym = Sym + 1
         end do
 
-        write(6, *) '*****'
-        write(6, *) 'The final coefficient matrix'
+        write(stdout, *) '*****'
+        write(stdout, *) 'The final coefficient matrix'
         do i = 1, NoOrbs
             do j = 1, NoOrbs
-                write(6, '(F20.10)', advance='no') CoeffT1(j, i)
+                write(stdout, '(F20.10)', advance='no') CoeffT1(j, i)
             end do
-            write(6, *) ''
+            write(stdout, *) ''
         end do
 
-        write(6, *) '*****'
-        write(6, *) 'The diagonal elements of TMAT2D'
+        write(stdout, *) '*****'
+        write(stdout, *) 'The diagonal elements of TMAT2D'
         do i = 1, (NoOrbs - NoOcc)
-            write(6, *) DiagTMAT2Dfull(i)
+            write(stdout, *) DiagTMAT2Dfull(i)
         end do
 
     end subroutine Diagonalizehij
@@ -2931,7 +2931,7 @@ contains
 ! LU decomposition.
         call dgetrf(TotNoConstraints, TotNoConstraints, DerivConstrT1T2, TotNoConstraints, ipiv, info)
         if (info /= 0) then
-            write(6, *) 'info ', info
+            write(stdout, *) 'info ', info
             call Stop_All(this_routine, "The LU decomposition of matrix inversion failed...")
         end if
 
@@ -2959,7 +2959,7 @@ contains
 
         ! Use 'shake' algorithm in which the iterative scheme is applied to
         ! each constraint in succession.
-        write(6, *) 'DerivConstrT1T2Diag calculated from the shake approx'
+        write(stdout, *) 'DerivConstrT1T2Diag calculated from the shake approx'
 
         DerivConstrT1T2Diag(:) = 0.0_dp
         do l = 1, TotNoConstraints
@@ -2967,7 +2967,7 @@ contains
                 DerivConstrT1T2Diag(l) = DerivConstrT1T2Diag(l) + Dot_Product(DerivConstrT2(:, m, l), DerivConstrT1(:, m, l))
             end do
             ShakeLambdaNew(l) = Constraint(l) / ((-1) * TimeStep * DerivConstrT1T2Diag(l))
-            write(6, *) DerivConstrT1T2Diag(l)
+            write(stdout, *) DerivConstrT1T2Diag(l)
         end do
 
     end subroutine ShakeApproximation
@@ -3086,19 +3086,19 @@ contains
 
 ! Write out some final results of interest, like values of the constraints, values of new coefficients.
 
-        write(6, *) 'The final transformation coefficients after gram schmidt orthonormalisation'
+        write(stdout, *) 'The final transformation coefficients after gram schmidt orthonormalisation'
         do i = 1, NoOrbs
             do a = 1, NoOrbs
-                write(6, '(F10.4)', advance='no') CoeffT1(a, i)
+                write(stdout, '(F10.4)', advance='no') CoeffT1(a, i)
             end do
-            write(6, *) ''
+            write(stdout, *) ''
         end do
 
         call WriteTransformMat()
 
         call CalcConstraints(CoeffT1, GSConstraint, TotGSConstraints)
 
-        write(6, *) 'Final Potential Energy before orthogonalisation', PotEnergy
+        write(stdout, *) 'Final Potential Energy before orthogonalisation', PotEnergy
 
         call Transform2ElInts()
 
@@ -3107,7 +3107,7 @@ contains
 ! New potential energy is calculated in this routine using the orthogonalised coefficients.
 ! Compare to that before this, to make sure the orthogonalisation hasn't shifted them back to a non-minimal place.
 
-        write(6, *) 'Final Potential Energy after orthogonalisation', PotEnergy
+        write(stdout, *) 'Final Potential Energy after orthogonalisation', PotEnergy
 
 ! Calculate the fock matrix, and print it out to see how much the off diagonal terms contribute.
 ! Also print out the sum of the diagonal elements to compare to the original value.
@@ -4280,7 +4280,7 @@ contains
             FOCKDiagSumHF = FOCKDiagSumHF + Arr(a, 2)
         end do
 
-        write(6, *) 'Sum of the fock matrix diagonal elements in the HF basis set = ', FOCKDiagSumHF
+        write(stdout, *) 'Sum of the fock matrix diagonal elements in the HF basis set = ', FOCKDiagSumHF
 
         FOCKDiagSumNew = 0.0_dp
         do j = 1, NoRotOrbs
@@ -4324,7 +4324,7 @@ contains
         ! If we are truncation the virtual space, only the unfrozen entries
         ! will be transformed.
 
-        write(6, *) 'Sum of the fock matrix diagonal elements in the transformed basis set = ', FOCKDiagSumNew
+        write(stdout, *) 'Sum of the fock matrix diagonal elements in the transformed basis set = ', FOCKDiagSumNew
 
 ! Refill ARR(:,1) (ordered in terms of energies), and ARR(:,2) (ordered in terms of orbital number).
 ! ARR(:,2) needs to be ordered in terms of symmetry and then energy (like SymLabelList), so currently this ordering will not be
@@ -4374,7 +4374,7 @@ contains
             call LogMemDealloc(this_routine, ArrNewTag)
         end if
 
-        write(6, *) 'end of calcfockmatrix'
+        write(stdout, *) 'end of calcfockmatrix'
         call neci_flush(6)
 
     end subroutine CalcFOCKMatrix
@@ -4412,7 +4412,7 @@ contains
         call set_timer(RefillUMAT_Time, 30)
 
         do i = 1, nBasis
-            write(6, *) SymLabelList2_rot(i), SymLabelList3_rot(i)
+            write(stdout, *) SymLabelList2_rot(i), SymLabelList3_rot(i)
         end do
 
         ! Make the UMAT elements the four index integrals. These are calculated
@@ -4527,7 +4527,7 @@ contains
             NoOrbs = nBasis / 2
         end if
 
-        write(6, '(A, I5, A)') ' Printing the new ROFCIDUMP file for a truncation of ', NoFrozenVirt, ' orbitals.'
+        write(stdout, '(A, I5, A)') ' Printing the new ROFCIDUMP file for a truncation of ', NoFrozenVirt, ' orbitals.'
         if (tROFciDump .and. (NoDumpTruncs > 1)) then
             call PrintRepeatROFCIDUMP()
         else if (tROFciDUmp) then

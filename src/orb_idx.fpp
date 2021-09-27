@@ -5,7 +5,7 @@
 #:set OrbIdxTypes = ['SpinOrbIdx_t', 'SpatOrbIdx_t']
 
 module orb_idx_mod
-    use constants, only: n_int, iout
+    use constants, only: n_int, stdout
     use fortran_strings, only: str
     use bit_rep_data, only: nIfTot, nIfD
     use bit_reps, only: decode_bit_det
@@ -249,7 +249,7 @@ contains
         integer :: i, i_unit_
         character(:), allocatable :: advance_str, format
 
-        @:def_default(i_unit_, i_unit, iout)
+        @:def_default(i_unit_, i_unit, stdout)
 
         if (present(advance)) then
             if (advance) then

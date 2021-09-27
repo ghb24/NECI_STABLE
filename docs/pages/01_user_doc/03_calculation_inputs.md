@@ -14,13 +14,13 @@ respective keywords is given.
 The first line of the input is always `title`, the last line is always
 `end`.
 
-Some keywords are mandatory, those are marked in **<span style="color: red">red</span>** and are given at the beginning of the
+Some keywords are mandatory, those are marked in **\textcolor{red}{red}** and are given at the beginning of the
 description of each paragraph. Then come recommended options, marked in
-**<span style="color: blue">blue</span>**, followed by further options
+**\textcolor{blue}{blue}**, followed by further options
 given in black.
 
 Keywords which are purely for debugging purposes and only interesting
-for developers are markes as **<span style="color: green">green</span>**.
+for developers are markes as **\textcolor{green}{green}**.
 
 ### SYSTEM Block
 
@@ -28,7 +28,7 @@ The SYSTEM block specifies the properties of the physical system that is
 considered. The block starts with the `system` keyword and ends with the
 `endsys` keyword.
 
--   **<span style="color: red">system</span>**<br>
+-   **\textcolor{red}{system}**<br>
     Starts the SYSTEM block. Has one mandatory additional
     argument to specify the type of the system. The options are
 
@@ -51,10 +51,10 @@ considered. The block starts with the `system` keyword and ends with the
     -   **ueg**<br>
         Uses the Hamiltonian of the uniform electron gas in a box.
 
--   **<span style="color: red">endsys</span>**<br>
+-   **\textcolor{red}{endsys}**<br>
  Terminates the SYSTEM block.
 
--   **<span style="color: red">electrons \(n\), nel \(n\)</span>**<br>
+-   **\textcolor{red}{electrons \(n\), nel \(n\)}**<br>
  Sets the number of electrons to \(n\)
 
 -   **spin-restrict [\(m\)]**<br>
@@ -147,13 +147,13 @@ considered. The block starts with the `system` keyword and ends with the
 
 #### Excitation generation options
 
--   **<span style="color: blue">nonUniformRandExcits</span>**<br>
+-   **\textcolor{blue}{nonUniformRandExcits}**<br>
     Use a non-uniform random excitation generator for picking
     the move in the FCIQMC spawn step. This can significantly speed up
     the calculation. Requires an additional argument, that can be chosen
     from the following
 
-    -   **<span style="color: blue">pchb</span>**<br>
+    -   **\textcolor{blue}{pchb}**<br>
         Generates excitations weighted directly with the matrix
         elements using pre-computed alias tables. This excitation
         generator is extremely fast, while maintaining high acceptance
@@ -256,6 +256,9 @@ considered. The block starts with the `system` keyword and ends with the
 
     In the given example the local and cumulative constraints are
     equivalent, but they are not always!
+
+    It is possible to switch off the spin recoupling between
+    different GAS spaces by appending `NO-RECOUPLING`.
 
 -   **GAS-CI**<br>
     *Optional keyword.* Specify the actual implementation for GAS. If it
@@ -378,23 +381,32 @@ considered. The block starts with the `system` keyword and ends with the
     Disables the generation of triple excitations, but still takes into
     account 3-body interactions for all other purposes.
 
+
+#### Spin purification
+
+-   **SD-SPIN-PURIFICATION \(J\)**<br>
+    Use an adjusted hamiltonian \(H + J S^2\) for the dynamic
+    to force antiferromagnetic ordering and ensure pure spin-states
+    in a Slater determinant (SD) basis.
+
+
 ### CALC Block
 
 The CALC block is used to set options concerning the simulation
 parameters and modes of FCIQMC. The block starts with the `calc` keyword
 and ends with the `endcalc` keyword.
 
--   **<span style="color: red">calc</span>**<br>
+-   **\textcolor{red}{calc}**<br>
  Starts the CALC block
 
--   **<span style="color: red">endcalc</span>**<br>
+-   **\textcolor{red}{endcalc}**<br>
  Terminates the CALC block
 
--   **<span style="color: blue">time \(t\)</span>**<br>
+-   **\textcolor{blue}{time \(t\)}**<br>
  Set the maximum time \(t\) in minutes the calculation is
     allowed to run. After \(t\) minutes, the calculation will end.
 
--   **<span style="color: blue">nmcyc \(n\)</span>**<br>
+-   **\textcolor{blue}{nmcyc \(n\)}**<br>
  Set the maximum number of iterations the calculation is
     allowed to do. After \(n\) iterations, the calculation will end.
 
@@ -445,21 +457,21 @@ and ends with the `endcalc` keyword.
 
 #### Population control options
 
--   **<span style="color: red">totalWalkers \(n\)</span>**<br>
+-   **\textcolor{red}{totalWalkers \(n\)}**<br>
  Sets the targeted number of walkers to \(n\). This means,
     the shift will be varied to keep the walker number constant once it
     reaches \(n\).
 
--   **<span style="color: blue">diagShift \(S\)</span>**<br>
+-   **\textcolor{blue}{diagShift \(S\)}**<br>
  Set the initial value of the shift to \(S\). A value of
     \(S<0\) is not recommended, as it will decrease the population from
     the beginning.
 
--   **<span style="color: blue">shiftDamp \(\zeta\)</span>**<br>
+-   **\textcolor{blue}{shiftDamp \(\zeta\)}**<br>
  Set the damping factor used in the shift update scheme to
     \(\zeta\). Defaults to \(10\).
 
--   **<span style="color: blue">stepsSft \(n\)</span>**<br>
+-   **\textcolor{blue}{stepsSft \(n\)}**<br>
  Sets the number of steps per update cycle of the shift to
     \(n\). Defaults to \(100\).
 
@@ -495,12 +507,12 @@ and ends with the `endcalc` keyword.
 
 #### Real walker coefficient options
 
--   **<span style="color: blue">allRealCoeff</span>**<br>
+-   **\textcolor{blue}{allRealCoeff}**<br>
  Allow determinants to have non-integer population. There is
     a minimal population below which the population of a determinant
     will be rounded stochastically. This defaults to \(1\).
 
--   **<span style="color: blue">realSpawnCutoff \(x\)</span>**<br>
+-   **\textcolor{blue}{realSpawnCutoff \(x\)}**<br>
  Continuous real spawning will be performed, unless the spawn
     has weight less than x. In this case, the weight of the spawning
     will be stochastically rounded up to x or down to zero, such that
@@ -530,7 +542,7 @@ and ends with the `endcalc` keyword.
 
 #### Time-step options
 
--   **<span style="color: red">tau \(\tau\)</span> [SEARCH]**<br>
+-   **\textcolor{red}{tau \(\tau\)} [SEARCH]**<br>
     Sets the timestep per iteration to \(\tau\). Has one optional
     argument SEARCH. If given, the time-step will be iteratively updated
     to keep the calculation stable.
@@ -548,7 +560,7 @@ and ends with the `endcalc` keyword.
     recommended! Otherwise the time-step can become quite small in these
     simulations.
 
--   **<span style="color: blue">max-tau \(\tau_\text{max}\)</span>**<br>
+-   **\textcolor{blue}{max-tau \(\tau_\text{max}\)}**<br>
  Sets the maximal value of the time-step to
     \(\tau_\text{max}\). Defaults to \(1\).
 
@@ -574,11 +586,11 @@ and ends with the `endcalc` keyword.
 
 #### Wave function initialization options
 
--   **<span style="color: blue">walkContGrow</span>**<br>
+-   **\textcolor{blue}{walkContGrow}**<br>
  When reading in a wave function from a file, do not set the
     shift or enter variable shift mode.
 
--   **<span style="color: blue">defineDet \(det\)</span>**<br>
+-   **\textcolor{blue}{defineDet \(det\)}**<br>
  Sets the reference determinant of the calculation to
     \(det\). If no other initialisation is specified, this will also be
     the initial wave function. The format can either be a
@@ -632,10 +644,10 @@ and ends with the `endcalc` keyword.
 
 #### Initiator options
 
--   **<span style="color: blue">truncInitiator</span>**<br>
+-   **\textcolor{blue}{truncInitiator}**<br>
  Use the initiator method [@Cleland2010].
 
--   **<span style="color: blue">addToInitiator \(x\)</span>**<br>
+-   **\textcolor{blue}{addToInitiator \(x\)}**<br>
  Sets the initiator threshold to \(x\), so any determinant
     with more than \(x\) walkers will be an initiator.
 
@@ -784,10 +796,10 @@ and ends with the `endcalc` keyword.
 
 #### Semi-stochastic options
 
--   **<span style="color: blue">semi-stochastic</span>**<br>
+-   **\textcolor{blue}{semi-stochastic}**<br>
  Turn on the semi-stochastic adaptation.
 
--   **<span style="color: blue">pops-core \(n\)</span>**<br>
+-   **\textcolor{blue}{pops-core \(n\)}**<br>
  This option will use the \(n\) most populated determinants
     to form the core space.
 
@@ -845,7 +857,7 @@ and ends with the `endcalc` keyword.
 
 #### Trial wave function options
 
--   **<span style="color: blue">trial-wavefunction [\(n\)]</span>**<br>
+-   **\textcolor{blue}{trial-wavefunction [\(n\)]}**<br>
  Use a trial wave function to obtain an estimate for the
     energy, as described in
     <a href="#sec:trial" data-reference-type="ref" data-reference="sec:trial">1.4</a>.
@@ -854,7 +866,7 @@ and ends with the `endcalc` keyword.
     started, else, at the start of the calculation. The trial wave
     function is defined through one of the following keywords
 
-    -   **<span style="color: blue">pops-trial \(n\)</span>**<br>
+    -   **\textcolor{blue}{pops-trial \(n\)}**<br>
  When starting from a POPSFILE, this option will use the
         \(n\) most populated determinants from the popsfile to form the
         trial space.
@@ -954,13 +966,13 @@ CALC block. It sets the main algorithm to be used in the calculation.
 The subblock is started with the `methods` keyword and terminated with
 the `endmethods` keyword.
 
--   **<span style="color: red">methods</span>**<br>
+-   **\textcolor{red}{methods}**<br>
  Starts the METHODS block
 
--   **<span style="color: red">endmethods</span>**<br>
+-   **\textcolor{red}{endmethods}**<br>
  Terminates the METHODS block.
 
--   **<span style="color: red">method \(mode\)</span>**<br>
+-   **\textcolor{red}{method \(mode\)}**<br>
  Sets the algorithm to be executed. The relevant choice for
     \(mode\) is VERTEX FCIMC to run an FCIQMC calculation. Alternative
     choices are DETERM-PROJ to run a deterministic calculation and
@@ -1012,7 +1024,7 @@ terminated with the `endint` keyword.
 
 ### Development keywords
 
--   **<span style="color: green">UNIT-TEST-PGEN</span>**<br>
+-   **\textcolor{green}{UNIT-TEST-PGEN}**<br>
     Test the pgens for the \(n(\text{most populated})\) configurations
     of an existing pops-file. Perform the tests \(n(\text{iterations})\)
     times for each configuration. The order of arguments is
@@ -1238,13 +1250,13 @@ status information of the calculation shall be collected. This block is
 started with the `logging` keyword and terminated with the `endlog`
 keyword.
 
--   **<span style="color: blue">logging</span>**<br>
+-   **\textcolor{blue}{logging}**<br>
  Starts the LOGGING block.
 
--   **<span style="color: blue">endlog</span>**<br>
+-   **\textcolor{blue}{endlog}**<br>
  Terminates the LOGGING block.
 
--   **<span style="color: blue">hdf5-pops</span>**\
+-   **\textcolor{blue}{hdf5-pops}**\
  Sets the format to read and write the wave function to HDF5.
     Requires building with the `ENABLE-HDF5` cmake option.
 
@@ -1256,8 +1268,8 @@ keyword.
     shall be saved. Setting \(n=-1\) disables this option.
 
 -   **popsFileTimer \(n\)**<br>
-    Write out a the wave function to disk every \(n\) minutes, each time
-    overwriting the last output.
+    Write out a the wave function to disk every \(n\) hours, each time
+    renaming the last `<popsfile>` to `<popsfile>.bk`.
 
 -   **hdf5-pops-write**<br>
     Sets the format to write the wave function to HDF5. Requires

@@ -107,19 +107,21 @@ contains
 
         ! Add column spacing
         write(state%%funit, '(" ")', advance='no')
-        if (state%%mc_out .and. mc_col) write(iout, '(" ")', advance='no')
+        if (state%%mc_out .and. mc_col) write(stdout, '(" ")', advance='no')
 
         if (state%%init) then
             write(colno, '(i5)') state%%cols
             title_str = trim(adjustl(colno)) // ". " // trim(adjustl(title))
             write(state%%funit, '(a)', advance='no') trim(title_str)
 
-            if (state%%mc_out .and. mc_col) &
-                write(iout, '(a%(width)s)', advance='no') title_str
+            if (state%%mc_out .and. mc_col) then
+                write(stdout, '(a%(width)s)', advance='no') title_str
+            end if
         else
             write(state%%funit, '(%(fmtstr)s)', advance='no') num
-            if (state%%mc_out .and. mc_col) &
-                write(iout, '(%(fmtstr)s)', advance='no') num
+            if (state%%mc_out .and. mc_col) then
+                write(stdout, '(%(fmtstr)s)', advance='no') num
+            end if
         end if
 
     end subroutine
