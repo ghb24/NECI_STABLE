@@ -431,7 +431,7 @@ contains
     Subroutine IntInit(iCacheFlag)
 !who knows what for
         Use global_utilities
-        Use OneEInts, only: SetupTMat, SetupPropInts, OneEPropInts, PropCore
+        Use OneEInts, only: SetupTMat, SetupPropInts, OneEPropInts, PropCore, SetupFieldInts, OneEFieldInts, FieldCore, UpdateOneEInts
         USE UMatCache, only: FreezeTransfer, CreateInvBRR, GetUMatSize, SetupUMat2D_df
         Use UMatCache, only: SetupUMatCache
         use SystemData, only: nBasisMax, Alpha, BHub, BRR, nmsh, nEl
@@ -441,6 +441,7 @@ contains
         use SystemData, only: uhub, arr, alat, treal, tReltvy
         use SymExcitDataMod, only: tBuildOccVirtList, tBuildSpinSepLists
         use LoggingData, only: tCalcPropEst, iNumPropToEst, EstPropFile
+        use CalcData, only: nFields_it, tCalcWithField, FieldFiles_it
         use Parallel_neci, only: iProcIndex, MPIBcast
         use MemoryManager, only: TagIntType
         use sym_mod, only: GenSymStatePairs
@@ -594,10 +595,23 @@ contains
                 CALL READFCIINT(UMAT, umat_win, NBASIS, ECORE, .false.)
             end if
             write(6, *) 'ECORE=', ECORE
+            if(tCalcWithField) then
+                call SetupFieldInts(nBasis,nFields_it)
+                do i=1,nFields_it
+                    call ReadPropInts(nBasis,FieldFiles_it(i),FieldCore(i),OneEFieldInts(:,:,i))
+                    WRITE(6,*) 'FieldCORE(', trim(FieldFiles_it(i)), ')=',FieldCore(i)
+                    call MPIBCast(FieldCore(i),1)
+                    IntSize = nBasis*nBasis
+                    call MPIBCast(OneEFieldInts(:,:,i),IntSize)
+                end do
+                call UpdateOneEInts(nBasis,nFields_it)
+            endif
+
             IF(tCalcPropEst) THEN
                 call SetupPropInts(nBasis)
                 do i = 1, iNumPropToEst
                     call ReadPropInts(nBasis, EstPropFile(i), PropCore(i), OneEPropInts(:, :, i))
+                    WRITE(6,*) 'PropCORE(', trim(EstPropFile(i)), ')=',PropCore(i)
                     call MPIBCast(PropCore(i), 1)
                     IntSize = nBasis * nBasis
                     call MPIBCast(OneEPropInts(:, :, i), IntSize)
@@ -913,12 +927,14 @@ contains
         use OneEInts, only: GetPropIntEl, GetTMATEl, TMATSYM2, TMAT2D2, PropCore, &
                             OneEPropInts2, OneEPropInts, tOneElecDiag, NewTMatInd, &
                             GetNEWTMATEl, tCPMDSymTMat, SetupTMAT2, SWAPTMAT, &
-                            SwapOneEPropInts, SetupPropInts2
+                            SwapOneEPropInts, SetupPropInts2, FieldCore, OneEFieldInts, &
+                            OneEFieldInts2, SetupFieldInts2, SwapOneEFieldInts
         USE UMatCache, only: FreezeTransfer, UMatCacheData
         Use UMatCache, only: FreezeUMatCache, CreateInvBrr2, FreezeUMat2D, SetupUMatTransTable
         use LoggingData, only: tCalcPropEst, iNumPropToEst
         use UMatCache, only: GTID
         use global_utilities
+        use CalcData, only: nFields_it, tCalcWithField, FieldFiles_it
         use sym_mod, only: getsym, SetupFREEZEALLSYM, FREEZESYMLABELS
         use util_mod, only: NECI_ICOPY
 
@@ -1085,6 +1101,8 @@ contains
 
         if(tCalcPropEst) call SetupPropInts2(NBASIS)
 
+       if (tCalcWithField) call SetupFieldInts2(NBASIS, nFields_it)
+
 !C.. First deal with Ecore
 !Adding the energy of the occupied orbitals to the core energy.
 !Need to do this for both the low energy frozen and inner frozen orbitals.
@@ -1152,6 +1170,30 @@ contains
                     write(iout, *) '1', PropCore(B), AB, B, GetPropIntEl(AB, AB, B)
                 end do
             end do
+
+! Now dealing with the zero body part of the field integrals if needed
+       write(6,*) 'FieldCore before freezing:', FieldCore
+       IF(tCalcWithField) then
+          DO A=1,NFROZEN
+             AB=BRR(A)
+             ! Ecore' = Ecore + sum_a <a|h|a> where a is a frozen spin orbital
+             ! TMATEL is the one electron integrals <a|h|a>.
+             DO B=1, nFields_it
+                FieldCore(B)=FieldCore(B)+OneEFieldInts(AB,AB,B)
+                write(6,*) '1', FieldCore(B), AB, B, OneEFieldInts(AB,AB,B)
+             ENDDO
+          ENDDO
+
+!Need to also account for when a is the frozen inner orbitals
+          DO A=NEL-NFROZENIN+1,NEL
+             AB=BRR(A)
+             DO B=1, nFields_it
+                FieldCore(B)=FieldCore(B)+OneEFieldInts(AB,AB,B)
+                write(6,*) '2', FieldCore(B), AB, B, OneEFieldInts(AB,AB,B)
+             ENDDO
+          ENDDO
+       ENDIF
+       write(6,*) 'FieldCore after freezing:', FieldCore
 
 !Need to also account for when a is the frozen inner orbitals
             DO A = NEL - NFROZENIN + 1, NEL
@@ -1385,6 +1427,61 @@ contains
             end do
         end if
 
+        if (tCalcWithField) then
+        
+           DO W=1,2
+              IF(W.eq.1) THEN
+                  BLOCKMINW=1 
+                  BLOCKMAXW=NEL-NFROZEN-NFROZENIN
+                  FROZENBELOWW=NFROZEN
+              ELSEIF(W.eq.2) THEN
+                  BLOCKMINW=NEL-NFROZEN-NFROZENIN+1 
+                  BLOCKMAXW=NBASIS
+                  FROZENBELOWW=NFROZEN+NFROZENIN+NTFROZENIN
+              ENDIF
+        
+              DO I=BLOCKMINW,BLOCKMAXW
+                  IP=I+FROZENBELOWW
+                  IB=BRR(IP)
+                  IPB=GG(IB)
+        
+                  DO Y=1,2
+                     IF(Y.eq.1) THEN
+                        BLOCKMINY=1 
+                        BLOCKMAXY=NEL-NFROZEN-NFROZENIN
+                        FROZENBELOWY=NFROZEN
+                     ELSEIF(Y.eq.2) THEN
+                        BLOCKMINY=NEL-NFROZEN-NFROZENIN+1 
+                        BLOCKMAXY=NBASIS
+                        FROZENBELOWY=NFROZEN+NFROZENIN+NTFROZENIN
+                     ENDIF
+        
+                     DO J=BLOCKMINY,BLOCKMAXY
+                        JP=J+FROZENBELOWY
+                        JB=BRR(JP)
+                        JPB=GG(JB)
+                        IF(tCPMDSymTMat) THEN
+                            call stop_all("IntFreezeBasis","Not implemented for tCPMD")
+                        ELSE
+!                          IF(IPB.eq.0.or.JPB.eq.0) THEN
+!                               WRITE(6,*) 'W',W,'I',I,'J',J,'IPB',IPB,'JPB',JPB
+!                               CALL neci_flush(6)
+!                               CALL Stop_All("","here 01")
+!                          ENDIF
+                           if(tOneElecDiag) then
+                              call stop_all("IntFreezeBasis","Not implemented for tOneElecDiag")
+                           else
+                              OneEFieldInts2(IPB,JPB,:)=OneEFieldInts(IB,JB,:)
+                           endif
+                        ENDIF
+!              WRITE(6,*) "T",TMAT(IB,JB),I,J,TMAT2(IPB,JPB)
+!           IF(abs(TMAT(IPB,JPB)).gt.1.0e-9_dp) WRITE(16,*) I,J,TMAT2(IPB,JPB)
+                     ENDDO
+                 ENDDO
+              ENDDO
+           ENDDO
+        endif
+
         IF(NBASISMAX(1, 3) >= 0 .AND. ISS /= 0) THEN
 
 !CC Only do the below if we've a stored UMAT
@@ -1510,6 +1607,8 @@ contains
 !C.. Copy the new BRR and ARR over the old ones
         CALL SWAPTMAT()
         IF(tCalcPropEst) call SwapOneEPropInts(nBasis, iNumPropToEst)
+
+        IF(tCalcWithField) call SwapOneEFieldInts(nBasis,nFields_it)
 
         deallocate(arr)
         LogDealloc(tagarr)

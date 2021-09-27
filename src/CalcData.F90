@@ -674,4 +674,16 @@ module CalcData
 !Use additional second shift damping factor for improved walker population
 !control.
     logical :: tTargetShiftdamp = .false.
+
+! variables used in running imaginary-time FCIQMC calculations in presence of external field
+logical :: tCalcWithField
+! Total number of external fields
+integer :: nFields_it
+
+! Properties of the Field
+real(dp), allocatable :: FieldStrength_it(:)
+
+! Name of the files from which integrals will be read for each of the external fields
+character(len=100), allocatable :: FieldFiles_it(:)
+
 end module CalcData

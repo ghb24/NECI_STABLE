@@ -256,6 +256,7 @@ contains
         I_HMAX = 0
         I_VMAX = 0
         g_MultiWeight(:) = 0.0_dp
+        tCalcWithField = .false.
 !This is whether to calculate the expected variance for a MC run when doing full sum (seperate denominator and numerator at present
         TVARCALC(:) = .false.
         TBIN = .false.
@@ -513,6 +514,9 @@ contains
         real(dp) :: InputDiagSftSingle, ShiftOffsetTmp
         integer(n_int) :: def_ilut(0:niftot), def_ilut_sym(0:niftot)
         logical :: t_force_global_core
+        integer :: last_nField
+        character(len=100) :: TempFieldFiles(5)
+        real(dp) :: TempStrength(5)
         ! Allocate and set this default here, because we don't have inum_runs
         ! set when the other defaults are set.
         if(.not. allocated(InputDiagSft)) allocate(InputDiagSft(inum_runs))
@@ -630,6 +634,27 @@ contains
 !                tConstructNOs = .true.
             case("ENDCALC")
                 exit calc
+            case("FIELD")
+                tCalcWithField= .true.
+                if (nitems==1) then
+                    call stop_all(t_r,'Please specify the type of field applied to the system.')
+                endif
+
+
+                ! nFields_it is obtained from the total number of integral files provided in this line
+                last_nField = nFields_it
+                nFields_it = nFields_it + 1
+
+                if (nFields_it.gt.5) then
+                    call stop_all(t_r,'Can not handle more than 5 fields...')
+                endif
+
+                ! Read the filename that provides the integral of the field
+                call readu(TempFieldFiles(nFields_it))
+
+                ! Read the strength of the Field
+                if (item < nitems) call readf(TempStrength(nFields_it))
+
             case("METHODS")
                 if(I_HMAX /= 0) call report("METHOD already set", .true.)
                 I_HMAX = -10
@@ -3492,6 +3517,12 @@ contains
         ! <ij|ab> and never need <ib|aj> for double excitations.  We do need
         ! them if we're doing a complete diagonalisation.
         gen2CPMDInts = MAXVAL(NWHTAY(3, :)) >= 3 .or. TEnergy
+
+        if (tCalcWithField) then
+            allocate(FieldFiles_it(nFields_it),FieldStrength_it(nFields_it))
+            FieldFiles_it(:) = TempFieldFiles(1:nFields_it)
+            FieldStrength_it(:) = TempStrength(1:nFields_it)
+        endif
 
         if(tOutputInitsRDM .and. tInitsRDMRef) call stop_all(t_r, &
                                                              "Incompatible keywords INITS-GAMMA0 and INITS-RDM")
