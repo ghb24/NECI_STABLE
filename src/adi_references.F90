@@ -334,37 +334,6 @@ contains
         deallocate(mpi_buf)
     end subroutine communicate_threshold_based_SIs
 
-! !------------------------------------------------------------------------------------------!
-!
-!     subroutine apply_population_threshold()
-!         implicit none
-!         integer :: iRef, counter
-!         real(dp) :: sgn(lenof_sign)
-!         integer(n_int) :: tmp(0:NIfTot, 1:nRefs)
-!
-!         tmp = 0
-!         counter = 1
-!         ! first, check for each SI if it meets the minimum population
-!         do iRef = 1, nRefs
-!             call extract_sign(ilutRefAdi(:, iRef), sgn)
-!             if (av_pop(sgn) >= NoTypeN) then
-!                 tmp(:, counter) = ilutRefAdi(:, iRef)
-!                 counter = counter + 1
-!             end if
-!         end do
-!
-!         ! if all SIs meet the minimum population, there is nothing to do
-!         if (counter < nRefs) then
-!             ! first, copy the elements to keep in the first counter slots of ilutRefAdi
-!             ilutRefAdi(0:NIfTot, 1:counter) = tmp(0:NIfTot, 1:counter)
-!             ! now, remove the remaining elements
-!             call resize_ilutRefAdi(counter)
-!
-!             ! give a notification
-!         end if
-!
-!     end subroutine apply_population_threshold
-
 !------------------------------------------------------------------------------------------!
 
     subroutine output_reference_space(filename)
@@ -476,45 +445,6 @@ contains
 
     end subroutine update_single_ref_sign
 
-! !------------------------------------------------------------------------------------------!
-!
-!     subroutine spin_symmetrize_references()
-!         use DetBitOps, only: spin_flip, DetBitEQ
-!         ! If using HPHF, we want to have the spinflipped version of each reference, too
-!         ! This is a bit cumbersome to implement, as the spinflipped version might or
-!         ! might not be already in the references
-!         implicit none
-!         integer :: iRef, jRef, cRef
-!         integer(n_int) :: ilutRef_new(0:NIfTot, 2 * nRefs), tmp_ilut(0:NIfTot)
-!         logical :: missing
-!
-!         cRef = 1
-!         do iRef = 1, nRefs
-!             ! First, copy the current ilut to a new buffer
-!             ilutRef_new(:, cRef) = ilutRefAdi(:, iRef)
-!             cRef = cRef + 1
-!             ! get the spinflipped determinant
-!             tmp_ilut = spin_flip(ilutRefAdi(:, iRef))
-!             missing = .true.
-!             ! check if it is already present
-!             do jRef = 1, nRefs
-!                 if (DetBitEQ(tmp_ilut, ilutRefAdi(:, jRef), nifd)) missing = .false.
-!             end do
-!             ! If not, also add it to the list
-!             if (missing) then
-!                 ilutRef_new(:, cRef) = tmp_ilut
-!                 cRef = cRef + 1
-!             end if
-!         end do
-!
-!         ! Resize the ilutRef array
-!         call reallocate_ilutRefAdi(cRef)
-!         nRefs = cRef
-!         ! Now, copy the newly constructed references back to the original array
-!         ilutRefAdi(:, 1:cRef) = ilutRef_new(:, 1:cRef)
-!     end subroutine spin_symmetrize_references
-
-!------------------------------------------------------------------------------------------!
 
     function check_sign_coherence(ilut, nI, ilut_sign, iRef, run) result(is_coherent)
         use Determinants, only: get_helement
@@ -901,47 +831,6 @@ contains
 
 !------------------------------------------------------------------------------------------!
 
-!     pure function ilut_not_in_list(ilut, buffer, buffer_size) result(t_is_new)
-!         use DetBitOps, only: DetBitEQ
-!         use bit_rep_data, only: NIfD
-!         implicit none
-!         integer, intent(in) :: buffer_size
-!         integer(n_int), intent(in) :: ilut(0:NIfTot), buffer(0:NIfTot, buffer_size)
-!         logical :: t_is_new
-!         integer :: i_ilut
-!
-!         t_is_new = .true.
-!         do i_ilut = 1, buffer_size
-!             if (DetBitEQ(ilut, buffer(:, i_ilut), NIfD)) t_is_new = .false.
-!         end do
-!     end function ilut_not_in_list
-!
-! ! !------------------------------------------------------------------------------------------!
-!
-!     function cpIndex(i, nRefs, cp) result(index)
-!         implicit none
-!         integer, intent(in) :: i, nRefs, cp
-!         integer :: index
-!
-!         index = mod(i / (nRefs**(cp - 1)), nRefs) + 1
-!     end function cpIndex
-
-!------------------------------------------------------------------------------------------!
-    !
-    ! function maxProdEx(nRefs, prodLvl) result(nProdsMax)
-    !     implicit none
-    !     integer, intent(in) :: nRefs, prodLvl
-    !     integer :: nProdsMax
-    !     integer :: cLvl
-    !
-    !     ! Gets the maximum number of possible product excitations of nRefs states up
-    !     ! to a product level of prodLvl
-    !     nProdsMax = 0
-    !     do cLvl = 2, prodLvl
-    !         nProdsMax = nProdsMax + nRefs**cLvl
-    !     end do
-    !
-    ! end function maxProdEx
 
 !------------------------------------------------------------------------------------------!
 
@@ -980,26 +869,6 @@ contains
 
         call setup_reference_space(all(.not. tSinglePartPhase))
     end subroutine update_first_reference
-
-! !------------------------------------------------------------------------------------------!
-!
-!     subroutine remove_superinitiator(iRef)
-!         ! calling this once changes the indices of the entries, the hash-table
-!         ! is hence invalidated
-!         implicit none
-!         integer, intent(in) :: iRef
-!         integer(n_int) :: tmp(0:NIfTot)
-!
-!         ! then, shrink ilutRefAdi
-!         ! as the last entry will be deleted, move iRef to the back
-!         if (iRef < nRefs) then
-!             tmp = ilutRefAdi(:, nRefs)
-!             ilutRefAdi(:, nRefs) = ilutRefAdi(:, iRef)
-!             ilutRefAdi(:, iRef) = tmp
-!         end if
-!         call resize_ilutRefAdi(nRefs - 1)
-!
-!     end subroutine remove_superinitiator
 
 !------------------------------------------------------------------------------------------!
 

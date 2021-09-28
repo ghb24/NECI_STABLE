@@ -594,20 +594,6 @@ contains
 
     end function
 
-!     subroutine extract_parent(ilut, parent_ilut)
-!
-!         integer(n_int), intent(in) :: ilut(0:IlutBits%len_bcast)
-!         integer(n_int), intent(out) :: parent_ilut(0:IlutBits%len_orb)
-! #ifdef DEBUG_
-!         character(*), parameter :: this_routine = 'extract_parent'
-! #endif
-!
-!         ASSERT(bit_rdm_init)
-!
-!         parent_ilut = ilut(IlutBits%ind_parent:IlutBits%ind_parent + IlutBits%len_orb)
-!
-!     end subroutine
-
     subroutine encode_parent(ilut, ilut_parent, RDMBiasFacCurr)
 
         integer(n_int), intent(inout) :: ilut(0:IlutBits%len_bcast)
@@ -958,34 +944,6 @@ contains
 
     end subroutine
 
-    ! pure subroutine decode_bit_det_bitwise(nI, iLut)
-    !
-    !     ! This is a routine to take a determinant in bit form and construct
-    !     ! the natural ordered integer forim of the det.
-    !     ! If CSFs are enabled, transfer the yamanouchi symbol as well.
-    !
-    !     integer(n_int), intent(in) :: iLut(0:NIfTot)
-    !     integer, intent(out) :: nI(:)
-    !     integer :: i, j, elec, pos, nopen
-    !     integer :: nel_loc
-    !
-    !     nel_loc = size(nI)
-    !
-    !     elec = 0
-    !     do i = 0, NIfD
-    !         do j = 0, end_n_int
-    !             if (btest(iLut(i), j)) then
-    !                 !An electron is at this orbital
-    !                 elec = elec + 1
-    !                 nI(elec) = (i * bits_n_int) + (j + 1)
-    !                 if (elec == nel_loc) exit
-    !             end if
-    !         end do
-    !         if (elec == nel_loc) exit
-    !     end do
-    !
-    ! end subroutine decode_bit_det_bitwise
-    !
     subroutine add_ilut_lists(ndets_1, ndets_2, sorted_lists, list_1, list_2, list_out, &
                               ndets_out, prefactor)
 
