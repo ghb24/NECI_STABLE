@@ -251,16 +251,16 @@ contains
 
     end subroutine analyze_full_wavefunction_sym
 
-    function apply_s_squared(ilut_list) result(ilut_spin)
-        ! function to apply the S^2 operator to a given wavefunction
-        ! figure that out, what we have to do here..
-        integer(n_int), intent(inout) :: ilut_list(:, :)
-        integer(n_int), allocatable :: ilut_spin(:, :)
-
-        allocate(ilut_spin(0:niftot, size(ilut_list, 2)))
-        ilut_spin = 0_n_int
-
-    end function apply_s_squared
+    ! function apply_s_squared(ilut_list) result(ilut_spin)
+    !     ! function to apply the S^2 operator to a given wavefunction
+    !     ! figure that out, what we have to do here..
+    !     integer(n_int), intent(inout) :: ilut_list(:, :)
+    !     integer(n_int), allocatable :: ilut_spin(:, :)
+    !
+    !     allocate(ilut_spin(0:niftot, size(ilut_list, 2)))
+    !     ilut_spin = 0_n_int
+    !
+    ! end function apply_s_squared
 
     function calc_overlap(ilutI, ilutJ) result(overlap)
         ! calculate the overlap between two wavefunction I and J

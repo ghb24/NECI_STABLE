@@ -2,7 +2,7 @@
 
 program countbits_tests
 
-    use DetBitOps, only: CountBits_sparse, CountBits_nifty, Countbits, &
+    use DetBitOps, only: CountBits_nifty, Countbits, &
                          CountBits_elemental
     use constants
     use fruit
@@ -36,8 +36,6 @@ contains
         ! We have multiple variants of the countbits function. Test that they
         ! all pass the tests!
         procedure(count_bits_t), pointer :: proc
-        proc => CountBits_sparse
-        call test_countbits_fn(proc, "sparse")
         proc => CountBits_nifty
         call test_countbits_fn(proc, "nifty")
         proc => CountBits_elemental
