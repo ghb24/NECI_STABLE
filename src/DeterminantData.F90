@@ -113,35 +113,35 @@ contains
         end if
     end subroutine
 
-    subroutine write_spins_heisenberg(ilut)
-
-        integer(n_int), intent(in) :: ilut(0:NIfTot)
-        integer :: i, nsites, beta_ind, alpha_ind, pos
-        logical :: is_alpha, is_beta
-
-        nsites = nbasis / 2
-
-        do i = 1, nsites
-            beta_ind = 2 * i - 1
-            alpha_ind = 2 * i
-            pos = (alpha_ind - 1) / bits_n_int
-
-            is_alpha = btest(ilut(pos), mod(alpha_ind - 1, bits_n_int))
-            is_beta = btest(ilut(pos), mod(beta_ind - 1, bits_n_int))
-
-            if (is_alpha .and. (.not. is_beta)) then
-                write(stdout, '(a1)', advance='no') "1"
-            else if (is_beta .and. (.not. is_alpha)) then
-                write(stdout, '(a1)', advance='no') "0"
-            else if (is_beta .and. is_alpha) then
-                call stop_all("t_r", "A spin is both up and down, this shouldn't happen!")
-            else if ((.not. is_beta) .and. (.not. is_alpha)) then
-                call stop_all("t_r", "A spin is neither up or down, this shouldn't happen!")
-            end if
-        end do
-
-        write(stdout, '()', advance='yes')
-
-    end subroutine write_spins_heisenberg
+    ! subroutine write_spins_heisenberg(ilut)
+    !
+    !     integer(n_int), intent(in) :: ilut(0:NIfTot)
+    !     integer :: i, nsites, beta_ind, alpha_ind, pos
+    !     logical :: is_alpha, is_beta
+    !
+    !     nsites = nbasis / 2
+    !
+    !     do i = 1, nsites
+    !         beta_ind = 2 * i - 1
+    !         alpha_ind = 2 * i
+    !         pos = (alpha_ind - 1) / bits_n_int
+    !
+    !         is_alpha = btest(ilut(pos), mod(alpha_ind - 1, bits_n_int))
+    !         is_beta = btest(ilut(pos), mod(beta_ind - 1, bits_n_int))
+    !
+    !         if (is_alpha .and. (.not. is_beta)) then
+    !             write(stdout, '(a1)', advance='no') "1"
+    !         else if (is_beta .and. (.not. is_alpha)) then
+    !             write(stdout, '(a1)', advance='no') "0"
+    !         else if (is_beta .and. is_alpha) then
+    !             call stop_all("t_r", "A spin is both up and down, this shouldn't happen!")
+    !         else if ((.not. is_beta) .and. (.not. is_alpha)) then
+    !             call stop_all("t_r", "A spin is neither up or down, this shouldn't happen!")
+    !         end if
+    !     end do
+    !
+    !     write(stdout, '()', advance='yes')
+    !
+    ! end subroutine write_spins_heisenberg
 
 end module

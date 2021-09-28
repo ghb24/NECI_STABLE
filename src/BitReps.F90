@@ -143,19 +143,6 @@ module bit_reps
 
 contains
 
-    subroutine allocate_currentdets()
-
-        ! Allocate memory of the correct size for the currentdets array.
-
-        integer :: ierr
-        character(*), parameter :: this_routine = 'allocate_currentdets'
-
-        allocate(WalkVecDets(0:NIfTot, MaxWalkersPart), stat=ierr)
-        if (ierr /= 0) &
-            call stop_all(this_routine, "Allocation failed for WalkVecDets")
-
-    end subroutine allocate_currentdets
-
     subroutine init_bit_rep()
 
         ! Set the values of nifd etc.
@@ -458,28 +445,28 @@ contains
 
     end subroutine encode_sign
 
-    subroutine encode_run_sign(ilut, real_sgn, imag_sgn, run)
-
-        ! Encode only the real AND imaginary component of the sign for the
-        ! walker. Sign argument is now a scalar.
-        !
-        ! In:    real_sgn  - The new sign component
-        !        imag_sgn  - The new imaginary sign component
-        !        run - Update given run. 1 ==> inum_runs
-        ! InOut:  ilut     - The bit representation to update
-        integer(n_int), intent(inout) :: ilut(0:NIfTot)
-        integer, intent(in) :: run
-        real(dp), intent(in) :: real_sgn, imag_sgn
-        character(*), parameter :: this_routine = 'encode_run_sign'
-
-        ASSERT(run <= inum_runs)
-        call encode_part_sign(ilut, real_sgn, min_part_type(run))
-#ifdef CMPLX_
-        call encode_part_sign(ilut, imag_sgn, max_part_type(run))
-#else
-        unused_var(imag_sgn)
-#endif
-    end subroutine encode_run_sign
+!     subroutine encode_run_sign(ilut, real_sgn, imag_sgn, run)
+!
+!         ! Encode only the real AND imaginary component of the sign for the
+!         ! walker. Sign argument is now a scalar.
+!         !
+!         ! In:    real_sgn  - The new sign component
+!         !        imag_sgn  - The new imaginary sign component
+!         !        run - Update given run. 1 ==> inum_runs
+!         ! InOut:  ilut     - The bit representation to update
+!         integer(n_int), intent(inout) :: ilut(0:NIfTot)
+!         integer, intent(in) :: run
+!         real(dp), intent(in) :: real_sgn, imag_sgn
+!         character(*), parameter :: this_routine = 'encode_run_sign'
+!
+!         ASSERT(run <= inum_runs)
+!         call encode_part_sign(ilut, real_sgn, min_part_type(run))
+! #ifdef CMPLX_
+!         call encode_part_sign(ilut, imag_sgn, max_part_type(run))
+! #else
+!         unused_var(imag_sgn)
+! #endif
+!     end subroutine encode_run_sign
 
     subroutine encode_part_sign(ilut, real_sgn, part_type)
 
@@ -557,20 +544,6 @@ contains
 
     end subroutine set_flag_single
 
-    subroutine copy_flag(ilut_src, ilut_dest, flg)
-
-        ! Copy the selected flag between iluts
-
-        integer(n_int), intent(in) :: ilut_src(0:niftot)
-        integer(n_int), intent(inout) :: ilut_dest(0:niftot)
-        integer, intent(in) :: flg
-        logical :: state
-
-        state = test_flag(ilut_src, flg)
-        call set_flag_general(ilut_dest, flg, state)
-
-    end subroutine
-
     subroutine clr_flag(ilut, flg)
 
         ! Clear the specified flag (0 indexed) in the bit representation
@@ -621,19 +594,19 @@ contains
 
     end function
 
-    subroutine extract_parent(ilut, parent_ilut)
-
-        integer(n_int), intent(in) :: ilut(0:IlutBits%len_bcast)
-        integer(n_int), intent(out) :: parent_ilut(0:IlutBits%len_orb)
-#ifdef DEBUG_
-        character(*), parameter :: this_routine = 'extract_parent'
-#endif
-
-        ASSERT(bit_rdm_init)
-
-        parent_ilut = ilut(IlutBits%ind_parent:IlutBits%ind_parent + IlutBits%len_orb)
-
-    end subroutine
+!     subroutine extract_parent(ilut, parent_ilut)
+!
+!         integer(n_int), intent(in) :: ilut(0:IlutBits%len_bcast)
+!         integer(n_int), intent(out) :: parent_ilut(0:IlutBits%len_orb)
+! #ifdef DEBUG_
+!         character(*), parameter :: this_routine = 'extract_parent'
+! #endif
+!
+!         ASSERT(bit_rdm_init)
+!
+!         parent_ilut = ilut(IlutBits%ind_parent:IlutBits%ind_parent + IlutBits%len_orb)
+!
+!     end subroutine
 
     subroutine encode_parent(ilut, ilut_parent, RDMBiasFacCurr)
 
@@ -985,34 +958,34 @@ contains
 
     end subroutine
 
-    pure subroutine decode_bit_det_bitwise(nI, iLut)
-
-        ! This is a routine to take a determinant in bit form and construct
-        ! the natural ordered integer forim of the det.
-        ! If CSFs are enabled, transfer the yamanouchi symbol as well.
-
-        integer(n_int), intent(in) :: iLut(0:NIfTot)
-        integer, intent(out) :: nI(:)
-        integer :: i, j, elec, pos, nopen
-        integer :: nel_loc
-
-        nel_loc = size(nI)
-
-        elec = 0
-        do i = 0, NIfD
-            do j = 0, end_n_int
-                if (btest(iLut(i), j)) then
-                    !An electron is at this orbital
-                    elec = elec + 1
-                    nI(elec) = (i * bits_n_int) + (j + 1)
-                    if (elec == nel_loc) exit
-                end if
-            end do
-            if (elec == nel_loc) exit
-        end do
-
-    end subroutine decode_bit_det_bitwise
-
+    ! pure subroutine decode_bit_det_bitwise(nI, iLut)
+    !
+    !     ! This is a routine to take a determinant in bit form and construct
+    !     ! the natural ordered integer forim of the det.
+    !     ! If CSFs are enabled, transfer the yamanouchi symbol as well.
+    !
+    !     integer(n_int), intent(in) :: iLut(0:NIfTot)
+    !     integer, intent(out) :: nI(:)
+    !     integer :: i, j, elec, pos, nopen
+    !     integer :: nel_loc
+    !
+    !     nel_loc = size(nI)
+    !
+    !     elec = 0
+    !     do i = 0, NIfD
+    !         do j = 0, end_n_int
+    !             if (btest(iLut(i), j)) then
+    !                 !An electron is at this orbital
+    !                 elec = elec + 1
+    !                 nI(elec) = (i * bits_n_int) + (j + 1)
+    !                 if (elec == nel_loc) exit
+    !             end if
+    !         end do
+    !         if (elec == nel_loc) exit
+    !     end do
+    !
+    ! end subroutine decode_bit_det_bitwise
+    !
     subroutine add_ilut_lists(ndets_1, ndets_2, sorted_lists, list_1, list_2, list_out, &
                               ndets_out, prefactor)
 
