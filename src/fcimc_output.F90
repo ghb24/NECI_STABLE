@@ -1495,12 +1495,12 @@ contains
         real(dp) :: HighSign, norm
         integer(n_int) , allocatable :: GlobalLargestWalkers(:, :)
         integer, allocatable :: GlobalProc(:), tmp_ni(:)
+        real(dp), allocatable :: GlobalHdiag(:)
         character(100) :: bufEnd, bufStart
         integer :: lenEnd, lenStart
         character(len=*), parameter :: t_r='PrintHighPops'
 
         character(1024) :: header
-        character(25) :: format_string
         character(11), allocatable :: walker_string(:)
         character(13), allocatable :: amplitude_string(:)
         character(9), allocatable :: init_string(:)
@@ -1513,6 +1513,7 @@ contains
         type(ExcitationInformation_t) :: excitInfo
 
         allocate(GlobalLargestWalkers(0:NIfTot,iHighPopWrite), source=0_n_int)
+        allocate(GlobalHdiag(iHighPopWrite), source=0.0_dp)
         allocate(GlobalProc(iHighPopWrite), source=0)
 
         ! Decide if each replica shall have its own output
@@ -1544,7 +1545,7 @@ contains
                 offset = 0
             end if
             call global_most_populated_states(iHighPopWrite, this_run, GlobalLargestWalkers, &
-                norm, rank_of_largest=GlobalProc)
+                norm, rank_of_largest=GlobalProc, hdiag_largest=GlobalHdiag)
 
             ! This has to be done by all procs
             if(tAdiActive) call update_ref_signs()
@@ -1606,24 +1607,22 @@ contains
                 write(stdout,*)
                 if(lenof_sign.eq.1) then
                     if(tHPHF) then
-                        write(stdout,"(A)") " Excitation   ExcitLevel   Seniority    Walkers    Amplitude    Init?   Proc  Spin-Coup?"
+                        write(stdout,"(A)") " Excitation   ExcitLevel   Seniority    Walkers    Amplitude    Init?   <D|H|D>  Proc  Spin-Coup?"
                     else
-                        write(stdout,"(A)") " Excitation   ExcitLevel   Seniority    Walkers    Amplitude    Init?   Proc"
+                        write(stdout,"(A)") " Excitation   ExcitLevel   Seniority    Walkers    Amplitude    Init?   <D|H|D>  Proc"
                     end if
                 else
 #ifdef CMPLX_
                     if(tHPHF) then
                         write(stdout,"(A)") " Excitation   ExcitLevel Seniority  Walkers(Re)   Walkers(Im)  Weight   &
-                            &Init?(Re)   Init?(Im)   Proc  Spin-Coup?"
+                            &Init?(Re)   Init?(Im)   <D|H|D>  Proc  Spin-Coup?"
                     else
                         write(stdout,"(A)") " Excitation   ExcitLevel Seniority   Walkers(Re)   Walkers(Im)  Weight   &
-                            &Init?(Re)   Init?(Im)   Proc"
+                            &Init?(Re)   Init?(Im)   <D|H|D>  Proc"
                     end if
 #else
                     ! output the weight of every replica, and do not only assume
                     ! it is a complex run
-                    write(format_string, '(a,i0,a,a,i0,a)') &
-                        '(3a11,', lenof_out, 'a11,', 'a13,', lenof_out,'a9,a)'
 
                     do i = 1, lenof_out
                         write(walker_string(i), '(a,i0,a)') "Walkers(", i, ")"
@@ -1631,8 +1630,12 @@ contains
                         write(init_string(i), '(a,i0,a)') "Init?(", i, ")"
                     end do
 
-                    write(header, format_string) "Excitation ", "ExcitLevel ", "Seniority ", &
-                        walker_string, "Amplitude ", init_string, "Proc "
+                    block
+                        character(:), allocatable :: fmt_str
+                        fmt_str = '(3a11,' // str(lenof_out) // 'a11, a13,' // str(lenof_out) // 'a9,1x,16a,1x,a)'
+                        write(header, fmt_str) "Excitation ", "ExcitLevel ", "Seniority ", &
+                            walker_string, "Amplitude ", init_string, "<D|H|D>", "Proc "
+                    end block
 
                     if (tHPHF) then
                         header = trim(header) // " Spin-Coup?"
@@ -1676,6 +1679,7 @@ contains
                             end if
                         end if
                     end do
+                    write(stdout,"(1x,es16.8,1x)",advance='no') GlobalHdiag(i)
                     if(tHPHF.and.(.not.TestClosedShellDet(GlobalLargestWalkers(:,i)))) then
                         write(stdout,"(I7)",advance='no') GlobalProc(i)
                         write(stdout,"(A3)") "*"
@@ -1697,7 +1701,7 @@ contains
             if(.not. t_replica_resolved_output) exit
         end do
 
-        deallocate(GlobalLargestWalkers,GlobalProc)
+        deallocate(GlobalLargestWalkers,GlobalProc,GlobalHdiag)
         deallocate(walker_string, init_string)
 
         contains
@@ -2438,4 +2442,3 @@ contains
     end subroutine getProjEOffset
 
 end module
-
