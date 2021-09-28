@@ -634,7 +634,6 @@ contains
                     ELSE
                         !!C.. Most normal Hubbards
                         IF(.NOT. TUEG) THEN
-                            !                CALL GEN_COUL_UEG(NEL,NBASISMAX,nBasis,G1,NMSH,NMAX,FCK,UMAT,ISPINSKIP,THUB,UHUB,OMEGA,ALAT)
                             ISPINSKIP = -1
                             NBASISMAX(2, 3) = -1
                             write(stdout, *) "Not precomputing HUBBARD 2-e integrals"

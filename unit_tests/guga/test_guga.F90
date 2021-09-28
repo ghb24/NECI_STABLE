@@ -36,8 +36,6 @@ program test_guga
     use bit_reps
     use FciMCData
     use dsfmt_interface, only: dsfmt_init
-    use genrandsymexcitnumod, only: testgenrandsymexcitnu
-    use symrandexcit3, only: test_sym_excit3
     use util_mod, only: operator(.isclose.), near_zero, operator(.div.), &
                         binary_search
     use sort_mod, only: sort
