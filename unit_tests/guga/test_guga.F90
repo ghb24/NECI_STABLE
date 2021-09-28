@@ -14,7 +14,7 @@ program test_guga
 
     use SystemData
     use guga_bitRepOps
-    use guga_bitRepOps, only: global_csf_info => current_csf_info
+    use guga_bitRepOps, only: global_csf_info => current_csf_i
     use guga_excitations
     use guga_matrixElements
     use guga_data
@@ -1562,7 +1562,6 @@ contains
         call run_test_case(test_count_beta_orbs_ij, "test_count_beta_orbs_ij")
         call run_test_case(test_matrix_element_ops, "test_matrix_element_ops")
         call run_test_case(test_count_open_orbs_ij, "test_count_open_orbs_ij")
-        call run_test_case(test_getExcitationRangeMask, "test_getExcitationRangeMask")
         call run_test_case(test_set_get_DeltaB, "test_set_get_DeltaB")
         call run_test_case(test_isProperCSF_ilut, "test_isProperCSF_ilut")
         call run_test_case(test_calcbvector, "test_calcbvector")
@@ -10630,15 +10629,6 @@ contains
         print *, "count_open_orbs_ij tests passed!"
 
     end subroutine test_count_open_orbs_ij
-
-    subroutine test_getExcitationRangeMask
-
-        print *, "testing: getExcitationRangeMask(i,j)"
-        print *, "i = 1, j = 4 :", getExcitationRangeMask(1, 4)
-        print *, "i = 2, j = 3 :", getExcitationRangeMask(2, 3)
-        print *, "getExcitationRangeMask tests passed!"
-
-    end subroutine test_getExcitationRangeMask
 
     subroutine check_calcDiagMatEleGUGA_nI
         integer :: det(4)

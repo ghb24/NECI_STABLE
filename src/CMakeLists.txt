@@ -158,8 +158,8 @@ set( SRC_FILES
     symrandexcit2.F90
     symrandexcit3.F90
     symrandexcit_Ex_Mag.F90
-    symrandexcit4.F90
-    symrandexcit5.F90
+    excit_gens_int_weighted.F90
+    excit_gen_5.F90
     symrandexcit.F
     symrandexcit_ueg.F90
     SystemData.F90
@@ -385,8 +385,8 @@ set( RELAX_WARNINGS_SRCS
     symrandexcit2.F90
     symrandexcit3.F90
     symrandexcit_Ex_Mag.F90
-    symrandexcit4.F90
-    symrandexcit5.F90
+    excit_gens_int_weighted.F90
+    excit_gen_5.F90
     symrandexcit.F
     symrandexcit_ueg.F90
     SystemData.F90

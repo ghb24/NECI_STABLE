@@ -127,7 +127,7 @@ module guga_excitations
               pickorbs_sym_uniform_mol_single, pickorbs_sym_uniform_mol_double, &
               pickorbitals_nosym_single, pickorbitals_nosym_double, &
               calc_orbital_pgen_contr_ueg, calc_orbital_pgen_contr_mol, &
-              calc_mixed_contr_sym, calc_mixed_contr_nosym, &
+              calc_mixed_contr_sym, &
               calc_mixed_start_l2r_contr_nosym, calc_mixed_start_r2l_contr_nosym, &
               calc_mixed_start_contr_sym, calc_mixed_x2x_ueg, &
               calc_mixed_end_l2r_contr_nosym, calc_mixed_end_r2l_contr_nosym, &
@@ -5009,20 +5009,6 @@ contains
         call encode_matrix_element(t, integral, 1)
 
     end subroutine calcFullStartFullStopMixedStochastic
-
-    subroutine calc_mixed_contr_nosym(ilut, csf_i, t, excitInfo, pgen, integral)
-        integer(n_int), intent(in) :: ilut(0:nifguga), t(0:nifguga)
-        type(CSF_Info_t), intent(in) :: csf_i
-        type(ExcitationInformation_t), intent(inout) :: excitInfo
-        real(dp), intent(out) :: pgen
-        HElement_t(dp), intent(out) :: integral
-
-        ! for now: just use old (inefficient) but already provided functions:
-        integral = calcMixedContribution(ilut, csf_i, t, excitInfo%fullStart, excitInfo%fullEnd)
-
-        pgen = calcMixedPgenContribution(ilut, csf_i, t, excitInfo)
-
-    end subroutine calc_mixed_contr_nosym
 
     subroutine calc_orbital_pgen_contr_mol(csf_i, occ_orbs, cpt_a, cpt_b)
         ! calculates the cumulatice probability list for different

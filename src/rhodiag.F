@@ -1,16 +1,3 @@
-      INTEGER FUNCTION BINOMIAL(N,R)
-         INTEGER N,R,I
-         IF(R.GT.N.OR.N.LT.0.OR.R.LT.0) THEN
-            BINOMIAL=0
-         ELSE
-            BINOMIAL=1
-            DO I=1,R
-               BINOMIAL=(BINOMIAL*(N-I+1))/I
-            ENDDO
-         ENDIF
-         RETURN
-      END
-
       FUNCTION RHODIAG_CP(RHOIJ,I_P,I_V)
          use global_utilities
          use constants, only: dp

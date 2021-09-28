@@ -1033,23 +1033,3 @@ SUBROUTINE LargestBitSet(iLut, NIfD, LargestOrb)
     end do
 
 END SUBROUTINE LargestBitSet
-
-!This routine will find the i and a orbitals from a single excitation.
-!NOTE! This routine will find i and a, but not distinguish between them. To calculate which one i is,
-!you would need to do another XOR with the original orbital and find out which bit this corresponded to.
-SUBROUTINE FindSingleOrbs(iLutnI, iLutnJ, NIfD, Orbs)
-    use constants, only: n_int, bits_n_int
-    IMPLICIT NONE
-    integer, intent(in) :: NIfD
-    INTEGER, intent(out) :: Orbs(2)
-    INTEGER(KIND=n_int), intent(in) :: iLutnI(0:NIfD), iLutnJ(0:NIfD)
-    INTEGER(kind=n_int) :: iLutExcited(0:NIfD)
-
-    iLutExcited(:) = IEOR(iLutnI(:), iLutnJ(:))
-    CALL LargestBitSet(iLutExcited, NIfD, Orbs(1))
-!Found first orbital. Now clear this from the list and search again for the second....
-    iLutExcited((Orbs(1) - 1) / bits_n_int) = IBCLR(iLutExcited((Orbs(1) - 1) / bits_n_int), mod(Orbs(1) - 1, bits_n_int))
-    CALL LargestBitSet(iLutExcited, NIfD, Orbs(2))
-
-END SUBROUTINE FindSingleOrbs
-

@@ -150,31 +150,3 @@ C ==-------------------------------------------------------------------==
       RETURN
       END
 C ==---------------------------------------------------------------==
-      SUBROUTINE CHK_MS(ND1,ND2,IFLG,G1)
-      use SystemData, only: BasisFN, nel
-      use constants, only: dp
-      IMPLICIT NONE
-C..
-      TYPE(BASISFN) G1(*)
-      integer, intent(in) :: iFlg
-      integer, intent(in) :: ND1(NEL), ND2(NEL)
-      integer :: i, MS1, MS2
-      character(*), parameter :: t_r = 'CHK_MS'
-C..
-      MS1=0
-      MS2=0
-      DO I=1,NEL
-        MS1=MS1+G1(ND1(I))%MS
-        MS2=MS2+G1(ND2(I))%MS
-      ENDDO
-      MS1=MS1/2
-      MS2=MS2/2
-C..
-      IF(MS1.NE.MS2) THEN
-       IF(IFLG.EQ.1) call stop_all(t_r,'PROBLEM IN TWO DIFFER')
-       IF(IFLG.EQ.2) call stop_all(t_r,'PROBLEM IN ONE DIFFER')
-       IF(IFLG.EQ.3) call stop_all(t_r,'PROBLEM IN SAME')
-      ENDIF
-C..
-      RETURN
-      END

@@ -438,23 +438,6 @@ contains
 
     end function
 
-    !> Wrapper function to create a weighted single excitation
-    subroutine weighted_single_excit_wrapper(nI, ilutI, nJ, ilutJ, ex, tpar, store, pgen)
-        implicit none
-        integer, intent(in) :: nI(nel)
-        integer(n_int), intent(in) :: ilutI(0:NIfTot)
-        integer, intent(out) :: nJ(nel), ex(2, maxExcit)
-        integer(n_int), intent(out) :: ilutJ(0:NIfTot)
-        logical, intent(out) :: tpar
-        real(dp), intent(out) :: pGen
-        type(excit_gen_store_type), intent(inout), target :: store
-
-        unused_var(store)
-        ! Call the 4ind-weighted single excitation generation
-        call gen_single_4ind_ex(nI, ilutI, nJ, ilutJ, ex, tpar, pgen)
-        pgen = pgen * pSingles
-    end subroutine weighted_single_excit_wrapper
-
     subroutine gen_single_4ind_ex(nI, ilutI, nJ, ilutJ, ex, par, pgen)
 
         integer, intent(in) :: nI(nel)
@@ -1493,49 +1476,6 @@ contains
 
     end function
 
-    subroutine gen_single_4ind_rev(nI, ilutI, nJ, ilutJ, ex, par, pgen)
-
-        ! Select a vacant hole, and then select an electron that is connected
-        ! to it.
-
-        integer, intent(in) :: nI(nel)
-        integer(n_int), intent(in) :: ilutI(0:NifTot)
-        integer, intent(out) :: nJ(nel)
-        integer(n_int), intent(out) :: ilutJ(0:NifTot)
-        integer, intent(out) :: ex(2, maxExcit)
-        logical, intent(out) :: par
-        real(dp), intent(out) :: pgen
-
-        integer :: nholes, src, elec, tgt
-
-        ! In this version of the excitation generator, we pick a hole at
-        ! random. Then we construct a list of connection strengths to each of
-        ! the available electrons.
-
-        ! Select a hole (uniformly) at random.
-        tgt = pick_hole(ilutI, -1)
-        nholes = nbasis - nel
-
-        ! Select the source electron by connection strength
-        elec = select_elec_sing(nI, tgt, src, pgen)
-        if (elec == 0) then
-            nJ(1) = 0
-            return
-        end if
-
-        ! Construct the new determinant, electron matrix, and parity
-        call make_single(nI, nJ, elec, tgt, ex, par)
-
-        ! Update the target ilut
-        ilutJ = ilutI
-        clr_orb(ilutJ, src)
-        set_orb(ilutJ, tgt)
-
-        ! And the generation probability
-        pgen = pgen / real(nholes, dp)
-
-    end subroutine
-
     function select_elec_sing(nI, tgt, src, pgen) result(elec)
 
         integer, intent(in) :: nI(nel), tgt
@@ -1815,30 +1755,6 @@ contains
 
     end function
 
-    subroutine pick_hole_pair(ilut, orbs, pgen, sym_prod, sum_ml, ispn)
-
-        integer(n_int), intent(in) :: ilut(0:NIfTot)
-        integer, intent(out) :: orbs(2), sym_prod, ispn, sum_ml
-        real(dp), intent(out) :: pgen
-        integer :: attempts, nvac, nchoose
-
-        ! Get two unoccupied orbitals
-        orbs(1) = pick_hole(ilut, -1)
-        orbs(2) = pick_hole(ilut, orbs(1))
-
-        ! What is the generation probability of picking this selection?
-        nvac = nbasis - nel
-        nchoose = nvac * (nvac - 1) / 2
-        pgen = 1.0_dp / real(nchoose, dp)
-
-        ! What are the symmetry/spin properties of this pick?
-        sym_prod = RandExcitSymLabelProd(SpinOrbSymLabel(orbs(1)), &
-                                         SpinOrbSymLabel(orbs(2)))
-        ispn = get_ispn(orbs(1), orbs(2))
-        sum_ml = sum(G1(orbs)%Ml)
-
-    end subroutine
-
     function pick_hole(ilut, exclude_orb) result(orb)
 
         ! Pick an unoccupied orbital at random, uniformly, from the available
@@ -1867,154 +1783,6 @@ contains
         end do
 
     end function
-
-    subroutine test_excit_gen_4ind(ilut, iterations)
-
-        integer(n_int), intent(in) :: ilut(0:NIfTot)
-        integer, intent(in) :: iterations
-        character(*), parameter :: this_routine = 'test_excit_gen_4ind'
-
-        integer :: src_det(nel), det(nel), nsing, ndoub, nexcit, ndet, ex(2, maxExcit)
-        integer :: flag, ngen, pos, iunit, i, ic
-        type(excit_gen_store_type) :: store
-        integer(n_int) :: tgt_ilut(0:NifTot)
-        integer(n_int), allocatable :: det_list(:, :)
-        real(dp), allocatable :: contrib_list(:), pgen_list(:)
-        HElement_t(dp), allocatable ::  matEle_list(:)
-        logical, allocatable :: generated_list(:)
-        logical :: found_all, par
-        real(dp) :: contrib, pgen, sum_pgens, sum_helement
-        HElement_t(dp) :: helgen, hel
-        character(255) :: filename
-
-        ! Decode the determiant
-        call decode_bit_det(src_det, ilut)
-
-        ! could just use my new calc_all_excitations
-        call calc_all_excitations(ilut, det_list, nexcit)
-
-        ! Initialise
-        call init_excit_gen_store(store)
-        store%tFilled = .false.
-
-        write(stdout, '("*****************************************")')
-        write(stdout, '("Enumerating excitations")')
-        write(stdout, '("Starting from: ")', advance='no')
-        call write_det(6, src_det, .true.)
-        write(stdout, *) 'Expecting ', nexcit, "excitations"
-
-        ! Lists to keep track of things
-        allocate(generated_list(nexcit))
-        allocate(contrib_list(nexcit))
-        allocate(pgen_list(nexcit))
-        allocate(matEle_list(nexcit))
-        generated_list = .false.
-        contrib_list = 0.0_dp
-        pgen_list = 0.0_dp
-        matEle_list = 0.0_dp
-
-        ! Repeated generation, and summing-in loop
-        ngen = 0
-        contrib = 0.0_dp
-        do i = 1, iterations
-            if (mod(i, 10000) == 0) &
-                write(stdout, *) i, '/', iterations, ' - ', contrib / (real(nexcit, dp) * i)
-
-            call gen_excit_4ind_weighted(src_det, ilut, det, tgt_ilut, 3, &
-                                         ic, ex, par, pgen, helgen, store)
-            if (det(1) == 0) cycle
-
-            call EncodeBitDet(det, tgt_ilut)
-
-            helgen = get_helement(src_det, det, ic, ex, par)
-
-            if (abs(helgen) < 1.0e-6_dp) cycle
-
-            pos = binary_search(det_list, tgt_ilut, NIfD + 1)
-            if (pos < 0) then
-                write(stdout, *) det
-                write(stdout, '(b64)') tgt_ilut(0)
-                write(stdout, *) 'FAILED DET', tgt_ilut
-                call writebitdet(6, tgt_ilut, .true.)
-                call stop_all(this_routine, 'Unexpected determinant generated')
-            else
-                generated_list(pos) = .true.
-
-                ! Count this det, and sum in its contribution.
-                ngen = ngen + 1
-                contrib = contrib + 1.0_dp / pgen
-                contrib_list(pos) = contrib_list(pos) + 1.0_dp / pgen
-                matEle_list(pos) = helgen
-                pgen_list(pos) = pgen
-            end if
-        end do
-
-        ! How many of the iterations generated a good det?
-        write(stdout, *) ngen, " dets generated in ", iterations, " iterations."
-        write(stdout, *) 100_dp * (iterations - ngen) / real(iterations, dp), &
-            '% abortion rate'
-        ! Contribution averages
-        write(stdout, '("Averaged contribution: ", f15.10)') &
-            contrib / (real(nexcit, dp) * iterations)
-
-        ! Output the determinant specific contributions
-        iunit = get_free_unit()
-        open(iunit, file="contribs_4ind", status='unknown')
-        do i = 1, nexcit
-            call writebitdet(iunit, det_list(:, i), .false.)
-            write(iunit, *) contrib_list(i) / real(iterations, dp)
-        end do
-        close(iunit)
-
-        ! Check that all of the determinants were generated!!!
-        if (.not. all(generated_list)) then
-            write(stdout, *) count(.not. generated_list), '/', size(generated_list), &
-                'not generated'
-            found_all = .true.
-            do i = 1, nexcit
-                if (.not. generated_list(i)) then
-                    call decode_bit_det(det, det_list(:, i))
-                    hel = get_helement(src_det, det, ilut, det_list(:, i))
-                    if (abs(hel) > 1.0e-6) then
-                        found_all = .false.
-                        call writebitdet(6, det_list(:, i), .false.)
-                        write(stdout, *) hel
-                    end if
-                end if
-            end do
-            if (.not. found_all) &
-                call stop_all(this_routine, "Determinant not generated")
-        end if
-        if (any(abs(contrib_list / iterations - 1.0_dp) > 0.01_dp)) then
-            do i = 1, nexcit
-                call writebitdet(6, det_list(:, i), .false.)
-                write(stdout, *) contrib_list(i) / (iterations - 1.0_dp)
-            end do
-        end if
-
-        sum_pgens = sum(pgen_list)
-        sum_helement = sum(abs(matEle_list))
-
-        iunit = get_free_unit()
-        call get_unique_filename("pgen_vs_matrixElements", .true., .true., 1, filename)
-        open(iunit, file=filename, status='unknown')
-        write(iunit, *) "pgens and matrix elements for CSF:"
-        call write_det(6, src_det, .true.)
-        do i = 1, nExcit
-            write(iunit, "(f16.7)", advance='no') pgen_list(i) !/sum_pgens
-            write(iunit, "(f16.7)", advance='no') matEle_list(i) !/sum_helement
-            write(iunit, "(f16.7)") contrib_list(i) / real(iterations, dp)
-        end do
-        close(iunit)
-
-        ! Clean up
-        deallocate(det_list)
-        deallocate(contrib_list)
-        deallocate(generated_list)
-        deallocate(pgen_list)
-        deallocate(matEle_list)
-
-    end subroutine
 
     subroutine pick_weighted_elecs(nI, elecs, src, sym_prod, ispn, sum_ml, &
                                    pgen)

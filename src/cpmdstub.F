@@ -40,16 +40,6 @@ C         OCC=F(ISTATE)
          istate=istate
       END
 
-      SUBROUTINE CPMDGEN1EINTS(INTS,XIS)
-         use constants, only: dp
-         use CPMDData, only: nStates
-         IMPLICIT NONE
-         real(dp) INTS(NSTATES,NSTATES)
-         real(dp) XIS
-         INTS=0.0_dp
-         xis=xis
-      END
-
       subroutine GetKPInd(IndA,IndB,IndC,IndD)
          implicit none
          integer  IndA,IndB,IndC,IndD
