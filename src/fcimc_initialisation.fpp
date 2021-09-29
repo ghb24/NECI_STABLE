@@ -3829,20 +3829,11 @@ contains
                 end if
             end do
 
-            !We have got a unique filename
-            !Do not use system call
-!            command = 'mv' // ' FCIMCStats ' // abstr
-!            stat = neci_system(trim(command))
-
             if (tMolpro) then
                 call rename('FCIQMCStats', trim(adjustl(abstr)))
             else
                 call rename('FCIMCStats', trim(adjustl(abstr)))
             end if
-            !Doesn't like the stat argument
-!            if(stat.ne.0) then
-!                call stop_all(t_r,"Error with renaming FCIMCStats file")
-!            end if
         end if
 
     end subroutine MoveFCIMCStatsFiles

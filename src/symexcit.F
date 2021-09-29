@@ -1131,26 +1131,6 @@ C         WRITE(6,*) "COUNT:",ICOUNT
       END SUBROUTINE GetSymExcitCount
 
 
-!GenSymExcitIt3Par and GenSymExcitIt3 are versions GenSymExcitIt2 which do not require information taken from System and Integrals modules to be specified on the command line
-      SUBROUTINE GENSYMEXCITIT3(NI,TSETUP,NMEM,NJ,IC,STORE,ILEVEL)
-         use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
-         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
-         use SystemData, only: nEl,G1, nBasis,nBasisMax
-         use legacy_data, only: irat
-         IMPLICIT NONE
-         INTEGER NI(NEL)
-         INTEGER, pointer :: DSTORE(:)
-!  STORE contains lengths of various components of the excitation generator
-         INTEGER STORE(6)
-!  STORE will contain the addesses of various components of the excitation generator, and is passed to SYMSETUPEXCITS2
-         INTEGER NMEM(*),NJ(NEL),IC
-         LOGICAL TSETUP
-         INTEGER ILEVEL
-
-         CALL GENSYMEXCITIT2Par(NI,NEL,G1,NBASIS,
-     &         TSETUP,NMEM,NJ,IC,STORE,ILEVEL,1,nEl)
-      END
-
       SUBROUTINE GENSYMEXCITIT3Par(NI,
      &         TSETUP,NMEM,NJ,IC,STORE,ILEVEL,iMinElec1,iMaxElec1)
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
@@ -2302,13 +2282,6 @@ C                     CALL WRITEDET(6,NK,NEL,.TRUE.)
          ENDIF
       End Subroutine SymGenExcitIt_MakeDouble
 
-
-      LOGICAL FUNCTION IsConnectedDet(nI,nJ)
-         use SystemData, only: nel
-         IMPLICIT NONE
-         INTEGER nI(nEl), nJ(nEl)
-         CALL IsConnectedDet2(nI,nJ,IsConnectedDet)
-      END
 
 !  We are required to enshroud GenExcitProbInternal as F90 doesn't seem to want to allow any casting.
       SUBROUTINE IsConnectedDet2(nI,nJ,tIsConnected)

@@ -119,49 +119,6 @@ C.. otherwise we need to add more electrons:
          RETURN
       END
 
-C.. Get the determinants of the same symmetry as KI, but which are only
-C.. singles and doubles of NI
-      SUBROUTINE GENSYMDETSSD(NI,KI,NEL,G1,BRR,NBASIS,LSTE,
-     &         NLIST,NBASISMAX)
-         use SystemData, only: BasisFN,BasisFNSize,Symmetry,NullBasisFn
-         IMPLICIT NONE
-         INTEGER NEL,NI(NEL),NBASIS,BRR(NBASIS)
-         INTEGER NLIST,LSTE(NEL,NLIST)
-         TYPE(BASISFN) G1(NBASIS),KI,KJ
-         INTEGER NJ(NEL),nBasisMax(5,*)
-         INTEGER NLMAX
-         KJ=NullBasisFn
-         NJ(1:NEL)=0
-         NLMAX=NLIST
-         NLIST=0
-         CALL GENSYMDETSSD_R(NI,KI,NEL,G1,BRR,NBASIS,LSTE,NLIST,
-     &                        NLMAX,NJ,KJ,1,1,NBASISMAX)
-         RETURN
-      END
-
-
-C.. Generate determinants of the same symmetry as NI (including NI).
-C.. As they are generated, they are placed in LSTE, which is of length
-C.. NLIST, up until LSTE is full.  NLIST at the end contains the total
-C.. number of determinants available (even if LSTE doesn't hold them all).
-      SUBROUTINE GENSYMDETS(NI,NEL,G1,BRR,NBASIS,LSTE,NLIST,NBASISMAX)
-         use SystemData, only: BasisFN,BasisFNSize,Symmetry,NullBasisFn
-         use sym_mod, only: getsym
-         IMPLICIT NONE
-         INTEGER NEL,NI(NEL),NBASIS,BRR(NBASIS)
-         INTEGER NLIST,LSTE(NEL,NLIST),nBasisMax(5,*)
-         TYPE(BASISFN) G1(NBASIS),KI,KJ
-         INTEGER NJ(NEL)
-         INTEGER NLMAX
-         KJ=NullBasisFn
-         CALL GETSYM(NI,NEL,G1,NBASISMAX,KI)
-         NLMAX=NLIST
-         NLIST=0
-         CALL GENSYMDETS_R(NI,KI,NEL,G1,BRR,NBASIS,LSTE,NLIST,
-     &                        NLMAX,NJ,KJ,1,1,NBASISMAX)
-         RETURN
-      END
-
       RECURSIVE SUBROUTINE GENSYMDETS_R(NI,KI,NEL,G1,BRR,NBASIS,LSTE,
      &                     NLIST,NLMAX,NJ,KJ,NELEC,NBF,NBASISMAX)
          use SystemData, only: BasisFN,BasisFNSize

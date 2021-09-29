@@ -40,14 +40,6 @@ C         OCC=F(ISTATE)
          istate=istate
       END
 
-      subroutine GetKPInd(IndA,IndB,IndC,IndD)
-         implicit none
-         integer  IndA,IndB,IndC,IndD
-
-         ! Eliminate warnings
-         IndA=IndA; IndB=IndB; IndC=IndC; IndD=IndD
-      end subroutine GetKPInd
-
       subroutine CalcHarPIInts(HarInt,nStates)
          use constants, only: dp
          implicit none
