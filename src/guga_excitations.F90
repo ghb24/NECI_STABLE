@@ -128,7 +128,7 @@ module guga_excitations
               calc_mixed_contr_sym, &
               calc_mixed_start_contr_sym, calc_mixed_x2x_ueg, &
               calc_mixed_end_contr_sym, &
-              temp_step_i, temp_step_j, &
+              temp_step_i, temp_step_j, test_excit_gen_guga, &
               temp_delta_b, temp_occ_i, temp_b_real_i, calc_off_diag_guga_ref_direct, &
               pickorbs_real_hubbard_single, pickorbs_real_hubbard_double, &
               excitationIdentifier_single, excitationIdentifier_double, &
@@ -5098,183 +5098,6 @@ contains
         end if
 
     end subroutine calc_mixed_contr_sym
-
-    function calcMixedPgenContribution(ilut, csf_i, t, excitInfo) result(pgen)
-        integer(n_int), intent(in) :: ilut(0:nifguga), t(0:nifguga)
-        type(CSF_Info_t), intent(in) :: csf_i
-        type(ExcitationInformation_t), intent(inout) :: excitInfo
-        real(dp) :: pgen
-
-        integer :: first, last, i, j, k, deltaB(nSpatOrbs)
-        real(dp) ::  posSwitches(nSpatOrbs), negSwitches(nSpatOrbs), &
-                    zeroWeight, minusWeight, plusWeight, probWeight, tempWeight
-        type(WeightObj_t) :: weights
-
-        ! also need the pgen contributions from all other index combinations
-        ! shich could lead to this excitation
-        first = findFirstSwitch(ilut, t, excitInfo%fullStart, excitInfo%fullEnd)
-        last = findLastSwitch(ilut, t, first, excitInfo%fullEnd)
-
-        deltaB = int(csf_i%B_ilut - calcB_vector_ilut(t(0:nifd)))
-
-        pgen = 0.0_dp
-
-        do i = 1, first
-            do j = last, nSpatOrbs
-                ! can cycle over 0 or 3 stepvalues
-                if (csf_i%Occ_int(i) /= 1 .or. csf_i%Occ_int(j) /= 1) then
-                    cycle
-                end if
-
-                excitInfo%fullStart = i
-                excitInfo%secondStart = i
-                excitInfo%fullEnd = j
-                excitInfo%firstEnd = j
-                ! reinit remainings switches and weights
-                call calcRemainingSwitches_excitInfo_double(csf_i, excitInfo, posSwitches, &
-                                                            negSwitches)
-
-                weights = init_doubleWeight(csf_i, j)
-
-                zeroWeight = weights%proc%zero(negSwitches(i), &
-                                               posSwitches(i), csf_i%B_ilut(i), weights%dat)
-
-                ! deal with the start seperately:
-                if (csf_i%stepvector(i) == 1) then
-                    plusWeight = weights%proc%plus(posSwitches(i), &
-                                                   csf_i%B_ilut(i), weights%dat)
-                    if (isOne(t, i)) then
-                        probWeight = zeroWeight / (zeroWeight + plusWeight)
-                    else
-                        probWeight = plusWeight / (zeroWeight + plusWeight)
-                    end if
-                else
-                    minusWeight = weights%proc%minus(negSwitches(i), &
-                                                     csf_i%B_ilut(i), weights%dat)
-                    if (isTwo(t, i)) then
-                        probWeight = zeroWeight / (zeroWeight + minusWeight)
-                    else
-                        probWeight = minusWeight / (zeroWeight + minusWeight)
-                    end if
-                end if
-
-                ! loop over excitation range
-                do k = i + 1, j - 1
-                    if (csf_i%Occ_int(k) /= 1) then
-                        cycle
-                    end if
-
-                    ! combine both deltaB and stepvalue info in the select
-                    ! case statement
-                    select case (deltaB(k - 1) + csf_i%stepvector(k))
-
-                    case (1)
-                        ! d=1 + b=0 : 1
-
-                        zeroWeight = weights%proc%zero(negSwitches(k), &
-                                                       posSwitches(k), csf_i%B_ilut(k), weights%dat)
-
-                        plusWeight = weights%proc%plus(posSwitches(k), &
-                                                       csf_i%B_ilut(k), weights%dat)
-                        if (isOne(t, k)) then
-                            probWeight = probWeight * calcStayingProb( &
-                                         zeroWeight, plusWeight, csf_i%B_ilut(k))
-
-                            call getDoubleMatrixElement(1, 1, 0, gen_type%L, gen_type%R, &
-                                                        csf_i%B_ilut(k), 1.0_dp, x1_element=tempWeight)
-                        else
-                            probWeight = probWeight * (1.0_dp - calcStayingProb( &
-                                                       zeroWeight, plusWeight, csf_i%B_ilut(k)))
-
-                            call getDoubleMatrixElement(2, 1, 0, gen_type%L, gen_type%R, &
-                                                        csf_i%B_ilut(k), 1.0_dp, x1_element=tempWeight)
-                        end if
-
-                    case (2)
-                        ! d=2 + b=0 : 2
-
-                        zeroWeight = weights%proc%zero(negSwitches(k), &
-                                                       posSwitches(k), csf_i%B_ilut(k), weights%dat)
-
-                        minusWeight = weights%proc%minus(negSwitches(k), &
-                                                         csf_i%B_ilut(k), weights%dat)
-                        if (isTwo(t, k)) then
-                            probWeight = probWeight * calcStayingProb( &
-                                         zeroWeight, minusWeight, csf_i%B_ilut(k))
-                            call getDoubleMatrixElement(2, 2, 0, gen_type%L, gen_type%R, &
-                                                        csf_i%B_ilut(k), 1.0_dp, x1_element=tempWeight)
-                        else
-                            probWeight = probWeight * (1.0_dp - calcStayingProb( &
-                                                       zeroWeight, minusWeight, csf_i%B_ilut(k)))
-                            call getDoubleMatrixElement(1, 2, 0, gen_type%L, gen_type%R, &
-                                                        csf_i%B_ilut(k), 1.0_dp, x1_element=tempWeight)
-                        end if
-
-                    case (-1)
-                        ! d=1 + b=-2 : -1
-
-                        zeroWeight = weights%proc%zero(negSwitches(k), &
-                                                       posSwitches(k), csf_i%B_ilut(k), weights%dat)
-
-                        minusWeight = weights%proc%minus(negSwitches(k), &
-                                                         csf_i%B_ilut(k), weights%dat)
-
-                        if (isOne(t, k)) then
-                            probWeight = probWeight * calcStayingProb(minusWeight, &
-                                                                      zeroWeight, csf_i%B_ilut(k))
-                            call getDoubleMatrixElement(1, 1, -2, gen_type%L, gen_type%R, &
-                                                        csf_i%B_ilut(k), 1.0_dp, x1_element=tempWeight)
-                        else
-                            probWeight = probWeight * (1.0_dp - calcStayingProb( &
-                                                       minusWeight, zeroWeight, csf_i%B_ilut(k)))
-                            call getDoubleMatrixElement(2, 1, -2, gen_type%L, gen_type%R, &
-                                                        csf_i%B_ilut(k), 1.0_dp, x1_element=tempWeight)
-                        end if
-
-                    case (4)
-                        ! d=2 + b=2 : 4
-
-                        zeroWeight = weights%proc%zero(negSwitches(k), &
-                                                       posSwitches(k), csf_i%B_ilut(k), weights%dat)
-
-                        plusWeight = weights%proc%plus(posSwitches(k), &
-                                                       csf_i%B_ilut(k), weights%dat)
-
-                        if (isTwo(t, k)) then
-                            probWeight = probWeight * calcStayingProb(plusWeight, &
-                                                                      zeroWeight, csf_i%B_ilut(k))
-                            call getDoubleMatrixElement(2, 2, 2, gen_type%L, gen_type%R, &
-                                                        csf_i%B_ilut(k), 1.0_dp, x1_element=tempWeight)
-                        else
-                            probWeight = probWeight * (1.0_dp - calcStayingProb( &
-                                                       plusWeight, zeroWeight, csf_i%B_ilut(k)))
-                            call getDoubleMatrixElement(1, 2, 2, gen_type%L, gen_type%R, &
-                                                        csf_i%B_ilut(k), 1.0_dp, x1_element=tempWeight)
-                        end if
-
-                    end select
-
-                    if (near_zero(tempWeight)) then
-                        probWeight = 0.0_dp
-                    end if
-                end do
-
-                ! that should be it...
-                ! as no probabillity involved in end step
-
-                ! add up for all the i,j combinations
-                pgen = pgen + probWeight
-            end do
-        end do
-
-        ! and modify with the general 2*p(iijj)p(i)p(j|i) prob.
-
-        pgen = pgen * orb_pgen_contrib_type_2()
-
-        ! this above must also be adjusted for the use of the pExcit4/3 etc.
-        ! quantities and depending if i consider diff bias!
-
-    end function calcMixedPgenContribution
 
     function calcMixedContribution(ilut, csf_i, t, start, ende, rdm_ind, rdm_mat) result(integral)
         integer(n_int), intent(in) :: ilut(0:nifguga), t(0:nifguga)
@@ -19193,27 +19016,6 @@ contains
 
     end function get_excit_level_from_excitInfo
 
-    function calc_pgen_mol_guga_double(ilutI, nI, ilutJ, nJ, excitInfo) result(pgen)
-        integer(n_int), intent(in) :: ilutI(0:niftot), ilutJ(0:niftot)
-        integer, intent(in) :: nI(nel), nJ(nel)
-        type(ExcitationInformation_t), intent(in) :: excitInfo
-        real(dp) :: pgen
-        character(*), parameter :: this_routine = "calc_pgen_mol_guga_double"
-        real(dp) :: p_elec
-
-        p_elec = 1.0_dp / real(ElecPairs, dp)
-
-        call stop_all(this_routine, "TODO")
-
-        unused_var(ilutI)
-        unused_var(nI)
-        unused_var(ilutJ)
-        unused_var(nJ)
-        unused_var(excitInfo)
-        pgen = 0.0_dp
-
-    end function calc_pgen_mol_guga_double
-
     function calc_pgen_mol_guga_single(ilutI, nI, csf_i, ilutJ, nJ, excitInfo) result(pgen)
         integer(n_int), intent(in) :: ilutI(0:niftot), ilutJ(0:niftot)
         integer, intent(in) :: nI(nel), nJ(nel)
@@ -22720,135 +22522,6 @@ contains
 
     end subroutine pick_elec_pair_uniform_guga
 
-    function calc_pgen_0022(csf_i) result(pgen)
-        ! specific functions to calculate the orbital picking pgen
-        ! for 4 differing indices depending on the occupation numbers
-        type(CSF_Info_t), intent(in) :: csf_i
-        real(dp) :: pgen
-
-        real(dp) :: nEmpty, nSingle, nDouble, nOrbs
-
-        nEmpty = real(count(csf_i%Occ_int == 0), dp)
-        nSingle = real(count(csf_i%Occ_int == 1), dp)
-        nDouble = real(count(csf_i%Occ_int == 2), dp)
-        nOrbs = real(nSpatOrbs, dp)
-
-        ! UDPATE 26.01.2016:
-        ! for implementation of non-weighted guga-excitation generator
-        ! tau-search i have to change  the previous p(ijkl) = 1/nOrbs factor
-        ! to pExcit4!!
-        ! also in all other functions of this type!
-
-        ! is a bit more involved than that:
-        ! previously the quantities were:
-        ! p(ijkl) = 1 - 1/nOrb
-        ! p(i) = 1/nOrb
-        ! p(j|i) = 1/(nOrb-1)
-        ! which leads to:
-        ! p(ijkl)p(i)p(j|i) = 1/(nOrb^2)
-
-        ! with the adaptive p(ijkl) = pExcit4
-        ! i need:
-        ! p(ijkl)p(i)p(j|i) = pExcit4/(nOrb(nOrb-1))
-
-        ! this also applies in all the others below
-
-        pgen = 4.0_dp / (nOrbs * (nOrbs - 1.0_dp)) * pExcit4 * ( &
-               2.0_dp / (nOrbs - 2.0_dp) * (1.0_dp / (nSingle + nDouble - 1.0_dp) + &
-                                            1.0_dp / (nSingle + nEmpty - 1.0_dp)) + &
-               1.0_dp / ((nSingle + nDouble) * (nSingle + nDouble - 1.0_dp)) + &
-               1.0_dp / ((nSingle + nEmpty) * (nSingle + nEmpty - 1.0_dp)))
-
-    end function calc_pgen_0022
-
-!
-    function calc_pgen_00xx(csf_i) result(pgen)
-        ! specific functions to calculate the orbital picking pgen
-        ! for 4 differing indices depending on the occupation numbers
-        type(CSF_Info_t), intent(in) :: csf_i
-        real(dp) :: pgen
-        real(dp) :: nSingle, nDouble, nOrbs
-
-        nSingle = real(count(csf_i%Occ_int == 1), dp)
-        nDouble = real(count(csf_i%Occ_int == 2), dp)
-        nOrbs = real(nSpatOrbs, dp)
-
-        pgen = 4.0_dp / (nOrbs * (nOrbs - 1.0_dp)) * pExcit4 * ( &
-               1.0_dp / (nOrbs - 2.0_dp) * (2.0_dp / (nSingle + nDouble - 1.0_dp) + &
-                                            3.0_dp / (nOrbs - 3.0_dp)) + &
-               1.0_dp / ((nSingle + nDouble) * (nSingle + nDouble - 1.0_dp)))
-
-    end function calc_pgen_00xx
-
-    function calc_pgen_22xx(csf_i) result(pgen)
-        ! specific functions to calculate the orbital picking pgen
-        ! for 4 differing indices depending on the occupation numbers
-        type(CSF_Info_t), intent(in) :: csf_i
-        real(dp) :: pgen
-        real(dp) :: nEmpty, nSingle, nOrbs
-
-        nEmpty = real(count(csf_i%Occ_int == 0), dp)
-        nSingle = real(count(csf_i%Occ_int == 1), dp)
-        nOrbs = real(nSpatOrbs, dp)
-
-        pgen = 4.0_dp / (nOrbs * (nOrbs - 1.0_dp)) * pExcit4 * ( &
-               1.0_dp / (nOrbs - 2.0_dp) * (2.0_dp / (nSingle + nEmpty - 1.0_dp) + &
-                                            3.0_dp / (nOrbs - 3.0_dp)) + &
-               1.0_dp / ((nSingle + nEmpty) * (nSingle + nEmpty - 1.0_dp)))
-
-    end function calc_pgen_22xx
-
-    function calc_pgen_1102() result(pgen)
-        ! specific functions to calculate the orbital picking pgen
-        ! for 4 differing indices depending on the occupation numbers
-        real(dp) :: pgen
-
-        real(dp) :: nOrbs
-
-        nOrbs = real(nSpatOrbs, dp)
-
-        pgen = 12.0_dp / (nOrbs * (nOrbs - 1.0_dp) * (nOrbs - 2.0_dp) * (nOrbs - 3.0_dp)) &
-               * pExcit4
-
-    end function calc_pgen_1102
-
-    subroutine pickRandomOrb_restricted_index(start, ende, pgen, orb, indRes)
-        ! picks a random orbital from a restricted range start + 1, ende - 1
-        ! with optional additional occupation restrictions
-        integer, intent(in) :: start, ende, indRes
-        real(dp), intent(inout) :: pgen
-        integer, intent(out) :: orb
-
-        integer :: r, nOrbs, ierr
-        logical :: mask(nSpatOrbs)
-        integer, allocatable :: resOrbs(:)
-
-        mask = .true.
-        mask = (mask .and. (orbitalIndex > start .and. orbitalIndex < ende &
-                            .and. orbitalIndex /= indRes))
-
-        nOrbs = count(mask)
-
-        if (nOrbs > 0) then
-            allocate(resOrbs(nOrbs), stat=ierr)
-
-            resOrbs = pack(orbitalIndex, mask)
-
-            r = 1 + floor(genrand_real2_dSFMT() * real(nOrbs, dp))
-
-            orb = resOrbs(r)
-
-            pgen = pgen / real(nOrbs, dp)
-
-            deallocate(resOrbs)
-        else
-            orb = 0
-
-            pgen = 0.0_dp
-        end if
-
-    end subroutine pickRandomOrb_restricted_index
-
     subroutine pickRandomOrb_restricted(csf_i, start, ende, pgen, orb, occRes)
         ! picks a random orbital from a restricted range start + 1, ende - 1
         ! with optional additional occupation restrictions
@@ -22947,41 +22620,6 @@ contains
         end if
 
     end subroutine pickRandomOrb_vector
-
-    subroutine pickRandomOrb_forced_negate(csf_i, occRes, pgen, orb)
-        ! the version where an orbitals MUST NOT have a certain occupation.
-        type(CSF_Info_t), intent(in) :: csf_i
-        integer, intent(in) :: occRes
-        real(dp), intent(inout) :: pgen
-        integer, intent(out) :: orb
-        character(*), parameter :: this_routine = "pickRandomOrb_forced_negate"
-
-        integer :: r, nOrbs, ierr
-        logical :: mask(nSpatOrbs)
-        integer, allocatable :: resOrbs(:)
-
-        ASSERT(occRes >= 0 .and. occRes <= 2)
-
-        mask = (csf_i%Occ_int /= occRes)
-
-        nOrbs = count(mask)
-
-        if (nOrbs > 0) then
-            allocate(resOrbs(nOrbs), stat=ierr)
-            resOrbs = pack(orbitalIndex, mask)
-
-            r = 1 + floor(genrand_real2_dSFMT() * real(nOrbs, dp))
-
-            orb = resOrbs(r)
-
-            pgen = pgen / real(nOrbs, dp)
-            deallocate(resOrbs)
-        else
-            orb = 0
-            pgen = 0.0_dp
-        end if
-
-    end subroutine pickRandomOrb_forced_negate
 
     subroutine pickRandomOrb_forced(csf_i, occRes, pgen, orb, orbRes1)
         ! the version where an orbitals has to have certain occupation.
@@ -23863,1809 +23501,6 @@ contains
 
     end function assign_excitInfo_values_single
 
-    function create_excitInfo_ik_jl(i, j, k, l) result(excitInfo)
-        ! specific excitation information creator for full double exctiations
-        integer, intent(in) :: i, j, k, l
-        type(ExcitationInformation_t) :: excitInfo
-        character(*), parameter :: this_routine = "create_excitInfo_ik_jl"
-
-        ! e_{ik,jl]
-        if (i < j .and. j < k .and. k < l) then
-            ! _R(i) > RR_*(j) > ^RR*(k) > ^R(l)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_raising, &
-                        gen_type%R, gen_type%R, gen_type%R, gen_type%R, gen_type%R, i, k, j, l, &
-                        i, j, k, l, 0, 4, -1.0_dp, -1.0_dp)
-
-        else if (i < j .and. j < l .and. l < k) then
-            ! _R(i) > RR_*(j) > RR^(l) > ^R(k)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_raising, &
-                        gen_type%R, gen_type%R, gen_type%R, gen_type%R, gen_type%R, i, k, j, l, &
-                        i, j, l, k, 0, 4, -1.0_dp, 1.0_dp)
-
-        else if (i < k .and. k < j .and. j < l) then
-            ! _R(i) > ^R(k) > _R(j) > ^R(l)
-            ! non-overlap version, so switch to other valid:
-            ! e_{il,jk}:
-            ! _R(i) > _LR(k) > ^LR(j) > ^R(l)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L_to_R, &
-                        gen_type%R, gen_type%L, gen_type%R, gen_type%R, gen_type%R, &
-                        i, l, j, k, i, k, j, l, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (i < k .and. k < l .and. l < j) then
-            ! _R(i) > ^R(k) > _L(l) > ^L(j)
-            ! non-overlap version, so switch to other valid gen:
-            ! e_{il,jk}:
-            ! _R(i) > _LR(k) > ^RL(l) > ^L(j)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L, &
-                        gen_type%R, gen_type%L, gen_type%R, gen_type%R, gen_type%L, &
-                        i, l, j, k, i, k, l, j, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (i < l .and. l < j .and. j < k) then
-            ! _R(i) > _LR(l) > ^LR(j) > ^R(k)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L_to_R, &
-                        gen_type%R, gen_type%L, gen_type%R, gen_type%R, gen_type%R, &
-                        i, k, j, l, i, l, j, k, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (i < l .and. l < k .and. k < j) then
-            ! _R(i) > _LR(l) > ^RL(k) > ^L(j)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L, &
-                        gen_type%R, gen_type%L, gen_type%R, gen_type%R, gen_type%L, &
-                        i, k, j, l, i, l, k, j, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (j < i .and. i < k .and. k < l) then
-            ! _R(j) > _RR(i) > ^RR*(k) > ^R(l)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_raising, &
-                        gen_type%R, gen_type%R, gen_type%R, gen_type%R, gen_type%R, &
-                        i, k, j, l, j, i, k, l, 0, 4, 1.0_dp, -1.0_dp)
-
-        else if (j < i .and. i < l .and. l < k) then
-            ! _R(j) > _RR(i) > ^RR(l) > ^R(k)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_raising, &
-                        gen_type%R, gen_type%R, gen_type%R, gen_type%R, gen_type%R, &
-                        i, k, j, l, j, i, l, k, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (j < k .and. k < i .and. i < l) then
-            ! _R(j) > _LR(k) > ^LR(i) > ^R(l)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L_to_R, &
-                        gen_type%L, gen_type%R, gen_type%R, gen_type%R, gen_type%R, &
-                        i, k, j, l, j, k, i, l, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (j < k .and. k < l .and. l < i) then
-            ! _R(j) > _LR(k) > ^RL(l) > ^L(i)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L, &
-                        gen_type%L, gen_type%R, gen_type%R, gen_type%R, gen_type%L, &
-                        i, k, j, l, j, k, l, i, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (j < l .and. l < i .and. i < k) then
-            ! _R(j) > ^R(l) > _R(i) > ^R(k)
-            ! non-overlap version, so switch to other valid gen:
-            ! e_{il,jk}:
-            ! _R(j) > _LR(l) > ^LR(i) > ^R(k)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L_to_R, &
-                        gen_type%L, gen_type%R, gen_type%R, gen_type%R, gen_type%R, &
-                        i, l, j, k, j, l, i, k, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (j < l .and. l < k .and. k < i) then
-            ! _R(j) > ^R(l) > _L(k) > ^L(i)
-            ! non-overlap version so switch to other valid gen:
-            ! e_{il,jk}:
-            ! _R(j) > _LR(l) > ^RL(k) > ^L(i)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L, &
-                        gen_type%L, gen_type%R, gen_type%R, gen_type%R, gen_type%L, &
-                        i, l, j, k, j, l, k, i, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (k < i .and. i < j .and. j < l) then
-            ! _L(k) > ^L(i) > _R(j) > ^R(l)
-            ! non-overlap -> e_{il,jk}:
-            ! _L(k) > _RL(i) > ^LR(j) > ^R(l)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R, &
-                        gen_type%R, gen_type%L, gen_type%L, gen_type%L, gen_type%R, &
-                        i, l, j, k, k, i, j, l, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (k < i .and. i < l .and. l < j) then
-            ! _L(k) > ^L(i) > _L(j) > ^L(l)
-            ! non-overlap -> e_{il,jk}
-            ! _L(k) > _RL(i) > ^RL(l) > ^L(j)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R_to_L, &
-                        gen_type%R, gen_type%L, gen_type%L, gen_type%L, gen_type%L, &
-                        i, l, j, k, k, i, l, j, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (k < j .and. j < i .and. i < l) then
-            ! _L(k) > _RL(j) > ^LR(i) > ^R(l)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R, &
-                        gen_type%L, gen_type%R, gen_type%L, gen_type%L, gen_type%R, &
-                        i, k, j, l, k, j, i, l, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (k < j .and. j < l .and. l < i) then
-            ! _L(k) > _RL(j) > ^RL(j) > ^L(i)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R_to_L, &
-                        gen_type%L, gen_type%R, gen_type%L, gen_type%L, gen_type%L, &
-                        i, k, j, l, k, j, l, i, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (k < l .and. l < i .and. i < j) then
-            ! _L(k) > LL_(l) > ^LL(i) > ^L(j)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_lowering, &
-                        gen_type%L, gen_type%L, gen_type%L, gen_type%L, gen_type%L, &
-                        i, k, j, l, k, l, i, j, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (k < l .and. l < j .and. j < i) then
-            ! _L(k) > LL_(l) > LL^*(j) > ^L(i)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_lowering, &
-                        gen_type%L, gen_type%L, gen_type%L, gen_type%L, gen_type%L, &
-                        i, k, j, l, k, l, j, i, 0, 4, 1.0_dp, -1.0_dp)
-
-        else if (l < i .and. i < j .and. j < k) then
-            ! _L(l) > _RL(i) > ^LR(j) > ^R(k)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R, &
-                        gen_type%R, gen_type%L, gen_type%L, gen_type%L, gen_type%R, &
-                        i, k, j, l, l, i, j, k, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (l < i .and. i < k .and. k < j) then
-            ! _L(l) > _RL(i) > ^RL(k) > ^L(j)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R_to_L, &
-                        gen_type%R, gen_type%L, gen_type%L, gen_type%L, gen_type%L, &
-                        i, k, j, l, l, i, k, j, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (l < j .and. j < i .and. i < k) then
-            ! _L(l) > ^L(j) > _R(i) > ^R(k)
-            ! non-overlap -> e_{il,jk}
-            ! _L(l) > _RL(j) > ^LR(i) > ^R(k)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R, &
-                        gen_type%L, gen_type%R, gen_type%L, gen_type%L, gen_type%R, &
-                        i, l, j, k, l, j, i, k, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (l < j .and. j < k .and. k < i) then
-            ! _L(l) > ^L(j) > _L(k) > ^L(i)
-            ! non-overlap -> e_{il,jk}
-            ! _L(l) > _RL(j) > ^RL(k) > ^L(i)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R_to_L, &
-                        gen_type%L, gen_type%R, gen_type%L, gen_type%L, gen_type%L, &
-                        i, l, j, k, l, j, k, i, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (l < k .and. k < i .and. i < j) then
-            ! _L(l) > _LL*(k) > ^LL(i) > ^L(j)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_lowering, &
-                        gen_type%L, gen_type%L, gen_type%L, gen_type%L, gen_type%L, &
-                        i, k, j, l, l, k, i, j, 0, 4, -1.0_dp, 1.0_dp)
-
-        else if (l < k .and. k < j .and. j < i) then
-            ! _L(l) > _LL*(k) > LL^*(j) > ^L(i)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_lowering, &
-                        gen_type%L, gen_type%L, gen_type%L, gen_type%L, gen_type%L, &
-                        i, k, j, l, l, k, j, i, 0, 4, -1.0_dp, -1.0_dp)
-
-        else
-            call stop_all(this_routine, "should not be here!")
-        end if
-
-    end function create_excitInfo_ik_jl
-
-    function create_excitInfo_il_kj(i, j, k, l) result(excitInfo)
-        integer, intent(in) :: i, j, k, l
-        type(ExcitationInformation_t) :: excitInfo
-        character(*), parameter :: this_routine = "create_excitInfo_il_kj"
-
-        ! e_{il,kj}:
-        if (i < j .and. j < k .and. k < l) then
-            ! i < j < k < l
-            ! _R_(i) > _LR(j) > ^LR(k) > ^R(l)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L_to_R, &
-                        gen_type%R, gen_type%L, gen_type%R, gen_type%R, gen_type%R, i, l, k, j, &
-                        i, j, k, l, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (i < j .and. j < l .and. l < k) then
-            ! i < j < l < k
-            ! _R(i) > _LR(j) > ^RL(l) > ^L(k)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L, &
-                        gen_type%R, gen_type%L, gen_type%R, gen_type%R, gen_type%L, i, l, k, j, &
-                        i, j, l, k, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (i < k .and. k < j .and. j < l) then
-            ! i < k < j < l
-            ! _R(i) > RR_*(k) > RR^(j) > ^R(l)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_raising, &
-                        gen_type%R, gen_type%R, gen_type%R, gen_type%R, gen_type%R, i, l, k, j, &
-                        i, k, j, l, 0, 4, -1.0_dp, 1.0_dp)
-
-        else if (i < k .and. k < l .and. l < j) then
-            ! i < k < l < j
-            ! _R(i) > RR_*(k) > ^RR*(l) > ^R(j)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_raising, &
-                        gen_type%R, gen_type%R, gen_type%R, gen_type%R, gen_type%R, i, l, k, j, &
-                        i, k, l, j, 0, 4, -1.0_dp, -1.0_dp)
-
-        else if (i < l .and. l < j .and. j < k) then
-            ! i < l < j < k
-            ! non-overlap one -> switch to other valid generator:
-            ! e_{ij,kl}:
-            ! _R(i) > _LR(l) > ^RL(j) > ^L(k)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L, &
-                        gen_type%R, gen_type%L, gen_type%R, gen_type%R, gen_type%L, i, j, k, l, &
-                        i, l, j, k, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (i < l .and. l < k .and. k < j) then
-            ! i < l < k < j
-            ! non-overlap! -> e_{ij,kl}:
-            ! _R(i) > _LR(l) > ^LR(k) > ^R(j)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L_to_R, &
-                        gen_type%R, gen_type%L, gen_type%R, gen_type%R, gen_type%R, i, j, k, l, &
-                        i, l, k, j, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (j < i .and. i < k .and. k < l) then
-            ! j < i < k < l
-            ! _L(j) > _RL(i) > ^LR(k) > ^R(l)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R, &
-                        gen_type%R, gen_type%L, gen_type%L, gen_type%L, gen_type%R, i, l, k, j, &
-                        j, i, k, l, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (j < i .and. i < l .and. l < k) then
-            ! j < i < l < k
-            ! _L(j) > _RL(i) > ^RL(l) > ^L(k)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R_to_L, &
-                        gen_type%R, gen_type%L, gen_type%L, gen_type%L, gen_type%L, i, l, k, j, &
-                        j, i, l, k, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (j < k .and. k < i .and. i < l) then
-            ! j < k < i < l
-            ! non-overlap -> e_{ij,kl}
-            ! _L(j) > _RL(k) > ^LR(i) > ^R(l)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R, &
-                        gen_type%L, gen_type%R, gen_type%L, gen_type%L, gen_type%R, i, j, k, l, &
-                        j, k, i, l, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (j < k .and. k < l .and. l < i) then
-            ! j < k < l < i
-            ! non-overlap -> e_{ij,kl}
-            ! _L(j) > _RL(k) > ^RL(l) > ^L(i)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R_to_L, &
-                        gen_type%L, gen_type%R, gen_type%L, gen_type%L, gen_type%L, i, j, k, l, &
-                        j, k, l, i, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (j < l .and. l < i .and. i < k) then
-            ! j < l < i < k
-            ! _L(j) > _LL*(l) > ^LL(i) > ^L(k)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_lowering, &
-                        gen_type%L, gen_type%L, gen_type%L, gen_type%L, gen_type%L, i, l, k, j, &
-                        j, l, i, k, 0, 4, -1.0_dp, 1.0_dp)
-
-        else if (j < l .and. l < k .and. k < i) then
-            ! j < l < k < i
-            ! _L(j) > _LL*(l) > LL^*(k) > ^L(i)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_lowering, &
-                        gen_type%L, gen_type%L, gen_type%L, gen_type%L, gen_type%L, i, l, k, j, &
-                        j, l, k, i, 0, 4, -1.0_dp, -1.0_dp)
-
-        else if (k < i .and. i < j .and. j < l) then
-            ! k < i < j < l
-            ! _R(k) > _RR(i) > RR^(j) > ^R(l)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_raising, &
-                        gen_type%R, gen_type%R, gen_type%R, gen_type%R, gen_type%R, i, l, k, j, &
-                        k, i, j, l, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (k < i .and. i < l .and. l < j) then
-            ! k < i < l < j
-            ! _R(k) > _RR(i) > ^RR*(l) > ^R(j)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_raising, &
-                        gen_type%R, gen_type%R, gen_type%R, gen_type%R, gen_type%R, i, l, k, j, &
-                        k, i, l, j, 0, 4, 1.0_dp, -1.0_dp)
-
-        else if (k < j .and. j < i .and. i < l) then
-            ! k < j < i < l
-            ! non-overlap -> e_{ij,kl}
-            ! _R(k) > _LR(j) > ^LR(i) > ^R(l)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L_to_R, &
-                        gen_type%L, gen_type%R, gen_type%R, gen_type%R, gen_type%R, i, j, k, l, &
-                        k, j, i, l, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (k < j .and. j < l .and. l < i) then
-            ! k < j < l < i
-            ! non-overlap -> e_{ij,kl}
-            ! _R(k) > _LR(j) > ^RL(l) > ^L(i)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L, &
-                        gen_type%L, gen_type%R, gen_type%R, gen_type%R, gen_type%L, i, j, k, l, &
-                        k, j, l, i, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (k < l .and. l < i .and. i < j) then
-            ! k < l < i < j
-            ! _R(k) > _LR(l) > ^LR(i) > ^R(j)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L_to_R, &
-                        gen_type%L, gen_type%R, gen_type%R, gen_type%R, gen_type%R, i, l, k, j, &
-                        k, l, i, j, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (k < l .and. l < j .and. j < i) then
-            ! k < l < j < i
-            ! _R(k) > _LR(l) > ^RL(j) > ^L(i)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L, &
-                        gen_type%L, gen_type%R, gen_type%R, gen_type%R, gen_type%L, i, l, k, j, &
-                        k, l, j, i, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (l < i .and. i < j .and. j < k) then
-            ! l < i < j < k
-            ! non-overlap -> e_{ij,kl}
-            ! _L(l) > _RL(i) > ^RL(j) > ^L(k)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R_to_L, &
-                        gen_type%R, gen_type%L, gen_type%L, gen_type%L, gen_type%L, i, j, k, l, &
-                        l, i, j, k, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (l < i .and. i < k .and. k < j) then
-            ! l < i < k < j
-            ! non-overlap -> e_{ij,kl}
-            ! _L(l) > _RL(i) > ^LR(k) > ^R(j)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R, &
-                        gen_type%R, gen_type%L, gen_type%L, gen_type%L, gen_type%R, i, j, k, l, &
-                        l, i, k, j, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (l < j .and. j < i .and. i < k) then
-            ! l < j < i < k
-            ! _L(l) > LL_(j) > ^LL(i) > ^L(k)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_lowering, &
-                        gen_type%L, gen_type%L, gen_type%L, gen_type%L, gen_type%L, i, l, k, j, &
-                        l, j, i, k, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (l < j .and. j < k .and. k < i) then
-            ! l < j < k < i
-            ! _L(l) > LL_(j) > LL^*(k) > ^L(i)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_lowering, &
-                        gen_type%L, gen_type%L, gen_type%L, gen_type%L, gen_type%L, i, l, k, j, &
-                        l, j, k, i, 0, 4, 1.0_dp, -1.0_dp)
-
-        else if (l < k .and. k < i .and. i < j) then
-            ! l < k < i < j
-            ! _L(l) > _RL(k) > ^LR(i) > ^R(j)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R, &
-                        gen_type%L, gen_type%R, gen_type%L, gen_type%L, gen_type%R, i, l, k, j, &
-                        l, k, i, j, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (l < k .and. k < j .and. j < i) then
-            ! l < k < j < i
-            ! _L(l) > _RL(k) > ^RL(j) > ^L(i)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R_to_L, &
-                        gen_type%L, gen_type%R, gen_type%L, gen_type%L, gen_type%L, i, l, k, j, &
-                        l, k, j, i, 0, 4, 1.0_dp, 1.0_dp)
-
-        else
-            call stop_all(this_routine, "should not be here!")
-        end if
-
-    end function create_excitInfo_il_kj
-
-    function create_excitInfo_ik_lj(i, j, k, l) result(excitInfo)
-        integer, intent(in) :: i, j, k, l
-        type(ExcitationInformation_t) :: excitInfo
-        character(*), parameter :: this_routine = "create_excitInfo_ik_lj"
-
-        ! e_{ik,lj}
-
-        if (i < j .and. j < k .and. k < l) then
-            ! i < j < k < l
-            ! _R(i) > _LR(j) > ^RL(k) > ^L(l)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L, &
-                        gen_type%R, gen_type%L, gen_type%R, gen_type%R, gen_type%L, i, k, l, j, &
-                        i, j, k, l, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (i < j .and. j < l .and. l < k) then
-            ! i < j < l < k
-            ! _R(i) > _LR(j) ^LR(l) > ^R(k)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L_to_R, &
-                        gen_type%R, gen_type%L, gen_type%R, gen_type%R, gen_type%R, i, k, l, j, &
-                        i, j, l, k, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (i < k .and. k < j .and. j < l) then
-            ! i < k < j < l
-            ! non-overlap -> e_{ij,lk}
-            ! _R(i) > _LR(k) > ^RL(j) > ^L(l)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L, &
-                        gen_type%R, gen_type%L, gen_type%R, gen_type%R, gen_type%L, i, j, l, k, &
-                        i, k, j, l, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (i < k .and. k < l .and. l < j) then
-            ! i < k < l < j
-            ! non-overlap -> e_{ij,lk}
-            ! _R(i) > _LR(k) > ^L(l) > ^R(j)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L_to_R, &
-                        gen_type%R, gen_type%L, gen_type%R, gen_type%R, gen_type%R, i, j, l, k, &
-                        i, k, l, j, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (i < l .and. l < j .and. j < k) then
-            ! i < l < j < k
-            ! _R(i) > RR_*(l) > RR^(j) > ^R(k)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_raising, &
-                        gen_type%R, gen_type%R, gen_type%R, gen_type%R, gen_type%R, i, k, l, j, &
-                        i, l, j, k, 0, 4, -1.0_dp, 1.0_dp)
-
-        else if (i < l .and. l < k .and. k < j) then
-            ! i < l < k < j
-            ! _R(i) > RR_*(l) > ^RR*(k) > ^R(j)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_raising, &
-                        gen_type%R, gen_type%R, gen_type%R, gen_type%R, gen_type%R, i, k, l, j, &
-                        i, l, k, j, 0, 4, -1.0_dp, -1.0_dp)
-
-        else if (j < i .and. i < k .and. k < l) then
-            ! j < i < k < l
-            ! _L(j) > _RL(i) > ^RL(k) > ^L(l)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R_to_L, &
-                        gen_type%R, gen_type%L, gen_type%L, gen_type%L, gen_type%L, i, k, l, j, &
-                        j, i, k, l, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (j < i .and. i < l .and. l < k) then
-            ! j < k < i < l
-            ! _L(j) > _RL(i) > ^LR(l) > ^R(k)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R, &
-                        gen_type%R, gen_type%L, gen_type%L, gen_type%L, gen_type%R, i, k, l, j, &
-                        j, i, l, k, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (j < k .and. k < i .and. i < l) then
-            ! j < k < i < l
-            ! _L(j) > _LL*(k) > ^LL(i) > ^L(l)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_lowering, &
-                        gen_type%L, gen_type%L, gen_type%L, gen_type%L, gen_type%L, i, k, l, j, &
-                        j, k, i, l, 0, 4, -1.0_dp, 1.0_dp)
-
-        else if (j < k .and. k < l .and. l < i) then
-            ! j < l < i < k
-            ! _L(j) > _LL*(k) > LL^*(k) > ^L(i)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_lowering, &
-                        gen_type%L, gen_type%L, gen_type%L, gen_type%L, gen_type%L, i, k, l, j, &
-                        j, k, l, i, 0, 4, -1.0_dp, -1.0_dp)
-
-        else if (j < l .and. l < i .and. i < k) then
-            ! j < l < i < k
-            ! non-overlap -> e_{ij,lk}
-            ! _L(j) > _RL(l) > ^LR(i) > ^R(k)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R, &
-                        gen_type%L, gen_type%R, gen_type%L, gen_type%L, gen_type%R, i, j, l, k, &
-                        j, l, i, k, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (j < l .and. l < k .and. k < i) then
-            ! j < l < k < i
-            ! non-overlap > e_{ij,lk}
-            ! _L(j) > _RL(l) > ^RL(k) > ^L(i)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R_to_L, &
-                        gen_type%L, gen_type%R, gen_type%L, gen_type%L, gen_type%L, i, j, l, k, &
-                        j, l, k, i, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (k < i .and. i < j .and. j < l) then
-            ! k < i < j < l
-            ! non-overlap -> e_{ij,lk}
-            ! _L(k) > _RL(i) > ^RL(j) > ^L(l)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R_to_L, &
-                        gen_type%R, gen_type%L, gen_type%L, gen_type%L, gen_type%L, i, j, l, k, &
-                        k, i, j, l, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (k < i .and. i < l .and. l < j) then
-            ! k < i < l < j
-            ! non-overlap > e_{ij,lk}
-            ! _L(k) > _RL(i) > ^LR(l) > ^R(j)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R, &
-                        gen_type%R, gen_type%L, gen_type%L, gen_type%L, gen_type%R, i, j, l, k, &
-                        k, i, l, j, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (k < j .and. j < i .and. i < l) then
-            ! k < j < i < l
-            ! _L(k) > LL_(j) > ^LL(i) > ^L(l)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_lowering, &
-                        gen_type%L, gen_type%L, gen_type%L, gen_type%L, gen_type%L, i, j, k, l, &
-                        k, j, i, l, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (k < j .and. j < l .and. l < i) then
-            ! k < j < l < i
-            ! _L(k) > LL_(j) > LL^*(l) > ^L(i)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_lowering, &
-                        gen_type%L, gen_type%L, gen_type%L, gen_type%L, gen_type%L, i, k, l, j, &
-                        k, j, l, i, 0, 4, 1.0_dp, -1.0_dp)
-
-        else if (k < l .and. l < i .and. i < j) then
-            ! k < l < i < j
-            ! _L(k) > _RL(l) > ^LR(i) > ^R(j)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R, &
-                        gen_type%L, gen_type%R, gen_type%L, gen_type%L, gen_type%R, i, k, l, j, &
-                        k, l, i, j, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (k < l .and. l < j .and. j < i) then
-            ! k < l < j < i
-            ! _L(k) > _RL(l) > ^RL(j) > ^L(i)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R_to_L, &
-                        gen_type%L, gen_type%R, gen_type%L, gen_type%L, gen_type%L, i, k, l, j, &
-                        k, l, j, i, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (l < i .and. i < j .and. j < k) then
-            ! l < i < j < k
-            ! _R(l) > _RR(i) > RR^(j) > ^R(k)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_raising, &
-                        gen_type%R, gen_type%R, gen_type%R, gen_type%R, gen_type%R, i, k, l, j, &
-                        l, i, j, k, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (l < i .and. i < k .and. k < j) then
-            ! l < i < k < j
-            ! _R(l) > _RR(i) > ^RR*(k) > ^R(j)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_raising, &
-                        gen_type%R, gen_type%R, gen_type%R, gen_type%R, gen_type%R, i, k, l, j, &
-                        l, i, k, j, 0, 4, 1.0_dp, -1.0_dp)
-
-        else if (l < j .and. j < i .and. i < k) then
-            ! l < j < i < k
-            ! non-overlap > e_{ij,lk}
-            ! _R(l) > _LR(j) > ^LR(i) > ^R(k)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L_to_R, &
-                        gen_type%L, gen_type%R, gen_type%R, gen_type%R, gen_type%R, i, j, l, k, &
-                        l, j, i, k, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (l < j .and. j < k .and. k < i) then
-            ! l < j < k < i
-            ! non-overlap > e_{ij,lk}
-            ! _R(l) > _LR(j) > ^RL(k) > ^L(i)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L, &
-                        gen_type%L, gen_type%R, gen_type%R, gen_type%R, gen_type%L, i, j, l, k, &
-                        l, j, k, i, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (l < k .and. k < i .and. i < j) then
-            ! l < k < i < j
-            ! _R(l) > _LR(k) > ^LR(i) > ^R(j)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L_to_R, &
-                        gen_type%L, gen_type%R, gen_type%R, gen_type%R, gen_type%R, i, k, l, j, &
-                        l, k, i, j, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (l < k .and. k < j .and. j < i) then
-            ! l < k < j < i
-            ! _R(l) > _LR(k) > ^RL(j) > ^L(i)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L, &
-                        gen_type%L, gen_type%R, gen_type%R, gen_type%R, gen_type%L, i, k, l, j, &
-                        l, k, j, i, 0, 4, 1.0_dp, 1.0_dp)
-
-        else
-            call stop_all(this_routine, "should not be here!")
-        end if
-
-    end function create_excitInfo_ik_lj
-
-    function create_excitInfo_il_jk(i, j, k, l) result(excitInfo)
-        integer, intent(in) :: i, j, k, l
-        type(ExcitationInformation_t) :: excitInfo
-        character(*), parameter :: this_routine = "create_excitInfo_il_jk"
-
-        ! e_{il,jk}:
-
-        if (i < j .and. j < k .and. k < l) then
-            ! i < j < k < l
-            ! R_{i} > RR_*(j) > RR^(k) > ^R(l)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_raising, &
-                        gen_type%R, gen_type%R, gen_type%R, gen_type%R, gen_type%R, i, l, j, k, &
-                        i, j, k, l, 0, 4, -1.0_dp, 1.0_dp)
-
-        else if (i < j .and. j < l .and. l < k) then
-            ! i < j < l < k
-            ! _R(i) > RR_*(j) > ^RR*(l) > ^R(k)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_raising, &
-                        gen_type%R, gen_type%R, gen_type%R, gen_type%R, gen_type%R, i, l, j, k, &
-                        i, j, l, k, 0, 4, -1.0_dp, -1.0_dp)
-
-        else if (i < k .and. k < j .and. j < l) then
-            ! i < k < j < l
-            ! _R(i) > _LR(k) > ^LR(j) > ^R(l)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L_to_R, &
-                        gen_type%R, gen_type%L, gen_type%R, gen_type%R, gen_type%R, i, l, j, k, &
-                        i, k, j, l, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (i < k .and. k < l .and. l < j) then
-            ! i < k < l < j
-            ! _R(i) > _LR(k) > ^RL(l) > ^L(j)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L, &
-                        gen_type%R, gen_type%L, gen_type%R, gen_type%R, gen_type%L, i, l, j, k, &
-                        i, k, l, j, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (i < l .and. l < j .and. j < k) then
-            ! i < l < j < k
-            ! _R(i) > ^R(l) _R(j) > ^R(k)
-            ! non-overlap -> e_{ik,jl}
-            ! _R(i) > _LR(l) > ^LR(j) > ^R(k)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L_to_R, &
-                        gen_type%R, gen_type%L, gen_type%R, gen_type%R, gen_type%R, i, k, j, l, &
-                        i, l, j, k, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (i < l .and. l < k .and. k < j) then
-            ! i < l < k < j
-            ! non-overlap -> e_{ik,jl}
-            ! _R(i) > _LR(l) > ^RL(k) > ^L(j)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L, &
-                        gen_type%R, gen_type%L, gen_type%R, gen_type%R, gen_type%L, i, k, j, l, &
-                        i, l, k, j, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (j < i .and. i < k .and. k < l) then
-            ! j < i < k < l
-            ! _R(j) > _RR(i) > RR^(k) > ^R(l)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_raising, &
-                        gen_type%R, gen_type%R, gen_type%R, gen_type%R, gen_type%R, i, l, j, k, &
-                        j, i, k, l, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (j < i .and. i < l .and. l < k) then
-            ! j < k < i < l
-            ! _R(j) > _RR(i) > ^RR*(l) > ^R(k)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_raising, &
-                        gen_type%R, gen_type%R, gen_type%R, gen_type%R, gen_type%R, i, l, j, k, &
-                        j, i, l, k, 0, 4, 1.0_dp, -1.0_dp)
-
-        else if (j < k .and. k < i .and. i < l) then
-            ! j < k < i < l
-            ! non-overlap -> e_{ik,jl}
-            ! _R(j) > _LR(k) > ^LR(i) > ^R(l)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L_to_R, &
-                        gen_type%L, gen_type%R, gen_type%R, gen_type%R, gen_type%R, i, k, j, l, &
-                        j, k, i, l, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (j < k .and. k < l .and. l < i) then
-            ! j < l < i < k
-            ! non-overlap > e_{ik,jl}
-            ! _R(j) > _LR(k) > ^RL(l) > ^L(i)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L, &
-                        gen_type%L, gen_type%R, gen_type%R, gen_type%R, gen_type%L, i, k, j, l, &
-                        j, k, l, i, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (j < l .and. l < i .and. i < k) then
-            ! j < l < i < k
-            ! _R(j) > _LR(l) > ^LR(i) > ^R(k)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L_to_R, &
-                        gen_type%L, gen_type%R, gen_type%R, gen_type%R, gen_type%R, i, l, j, k, &
-                        j, l, i, k, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (j < l .and. l < k .and. k < i) then
-            ! j < l < k < i
-            ! _R(j) > _LR(l) > ^RL(k) > ^L(i)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L, &
-                        gen_type%L, gen_type%R, gen_type%R, gen_type%R, gen_type%L, i, l, j, k, &
-                        j, l, k, i, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (k < i .and. i < j .and. j < l) then
-            ! k < i < j < l
-            ! _L(k) > _RL(i) > ^LR(j) > ^R(l)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R, &
-                        gen_type%R, gen_type%L, gen_type%L, gen_type%L, gen_type%R, i, l, j, k, &
-                        k, i, j, l, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (k < i .and. i < l .and. l < j) then
-            ! k < i < l < j
-            ! _L(k) > _RL(i) > ^RL(l) > ^L(j)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R_to_L, &
-                        gen_type%R, gen_type%L, gen_type%L, gen_type%L, gen_type%L, i, l, j, k, &
-                        k, i, l, j, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (k < j .and. j < i .and. i < l) then
-            ! k < j < i < l
-            ! non-overlap > e_{ik,jl}
-            ! _L(k) > _RL(j) > ^LR(i) > ^R(l)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R, &
-                        gen_type%L, gen_type%R, gen_type%L, gen_type%L, gen_type%R, i, k, j, l, &
-                        k, j, i, l, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (k < j .and. j < l .and. l < i) then
-            ! k < j < l < i
-            ! non-overlap > e_{ik,jl}
-            ! _L(k) > _RL(j) > ^RL(l) > ^L(i)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R_to_L, &
-                        gen_type%L, gen_type%R, gen_type%L, gen_type%L, gen_type%L, i, k, j, l, &
-                        k, j, l, i, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (k < l .and. l < i .and. i < j) then
-            ! k < l < i < j
-            ! _L(k) > _LL*(l) > ^LL(i) > ^L(j)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_lowering, &
-                        gen_type%L, gen_type%L, gen_type%L, gen_type%L, gen_type%L, i, l, j, k, &
-                        k, l, i, j, 0, 4, -1.0_dp, 1.0_dp)
-
-        else if (k < l .and. l < j .and. j < i) then
-            ! k < l < j < i
-            ! _L(k) > _LL*(l) > LL^*(j) > ^L(i)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_lowering, &
-                        gen_type%L, gen_type%L, gen_type%L, gen_type%L, gen_type%L, i, l, j, k, &
-                        k, l, j, i, 0, 4, -1.0_dp, -1.0_dp)
-
-        else if (l < i .and. i < j .and. j < k) then
-            ! l < i < j < k
-            ! non-overlap > e_{ik,jl}
-            ! _L(l) > _RL(i) > ^LR(j) > ^R(k)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R, &
-                        gen_type%R, gen_type%L, gen_type%L, gen_type%L, gen_type%R, i, k, j, l, &
-                        l, i, j, k, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (l < i .and. i < k .and. k < j) then
-            ! l < i < k < j
-            ! non-overlap > e_{ik,jl}
-            ! _L(l) > _RL(i) > ^RL(k) > ^L(j)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R_to_L, &
-                        gen_type%R, gen_type%L, gen_type%L, gen_type%L, gen_type%L, i, k, j, l, &
-                        l, i, k, j, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (l < j .and. j < i .and. i < k) then
-            ! l < j < i < k
-            ! _L(l) > _RL(j) > ^LR(i) > ^R(k)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R, &
-                        gen_type%L, gen_type%R, gen_type%L, gen_type%L, gen_type%R, i, l, j, k, &
-                        l, j, i, k, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (l < j .and. j < k .and. k < i) then
-            ! l < j < k < i
-            ! _L(l) > _RL(j) > ^RL(k) > ^L(i)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R_to_L, &
-                        gen_type%L, gen_type%R, gen_type%L, gen_type%L, gen_type%L, i, l, j, k, &
-                        l, j, k, i, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (l < k .and. k < i .and. i < j) then
-            ! l < k < i < j
-            ! _L(l) > LL_(k) > ^LL(i) > ^L(j)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_lowering, &
-                        gen_type%L, gen_type%L, gen_type%L, gen_type%L, gen_type%L, i, l, j, k, &
-                        l, k, i, j, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (l < k .and. k < j .and. j < i) then
-            ! l < k < j < i
-            ! _L(l) > LL_(k) > LL^*(j) > ^L(i)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_lowering, &
-                        gen_type%L, gen_type%L, gen_type%L, gen_type%L, gen_type%L, i, l, j, k, &
-                        l, k, j, i, 0, 4, 1.0_dp, -1.0_dp)
-
-        else
-            call stop_all(this_routine, "should not be here!")
-        end if
-
-    end function create_excitInfo_il_jk
-
-    function create_excitInfo_ki_lj(i, j, k, l) result(excitInfo)
-        integer, intent(in) :: i, j, k, l
-        type(ExcitationInformation_t) :: excitInfo
-        character(*), parameter :: this_routine = "create_excitInfo_ki_lj"
-
-        ! e_{ki,lj}
-
-        if (i < j .and. j < k .and. k < l) then
-            ! i < j < k < l
-            ! _L(i) > LL_(j) > ^LL(k) > ^L(l)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_lowering, &
-                        gen_type%L, gen_type%L, gen_type%L, gen_type%L, gen_type%L, k, i, l, j, &
-                        i, j, k, l, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (i < j .and. j < l .and. l < k) then
-            ! i < j < l < k
-            ! _L(i) > LL_(j) > LL^*(l) > ^L(k)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_lowering, &
-                        gen_type%L, gen_type%L, gen_type%L, gen_type%L, gen_type%L, k, i, l, j, &
-                        i, j, l, k, 0, 4, 1.0_dp, -1.0_dp)
-
-        else if (i < k .and. k < j .and. j < l) then
-            ! i < k < j < l
-            ! non-overlap > e_{li,kj}
-            ! _L(i) > _RL(k) > ^RL(j) > ^L(l)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R_to_L, &
-                        gen_type%L, gen_type%R, gen_type%L, gen_type%L, gen_type%L, l, i, k, j, &
-                        i, k, j, l, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (i < k .and. k < l .and. l < j) then
-            ! i < k < l < j
-            ! non-overlap > e_{li,kj}
-            ! _L(i) > ^RL(k) > ^LR(l) > ^R(j)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R, &
-                        gen_type%L, gen_type%R, gen_type%L, gen_type%L, gen_type%R, l, i, k, j, &
-                        i, k, l, j, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (i < l .and. l < j .and. j < k) then
-            ! i < l < j < k
-            ! _L(i) > _RL(l) > ^RL(j) > ^L(k)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R_to_L, &
-                        gen_type%L, gen_type%R, gen_type%L, gen_type%L, gen_type%L, k, i, l, j, &
-                        i, l, j, k, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (i < l .and. l < k .and. k < j) then
-            ! i < l < k < j
-            ! _L(i) > ^RL(l) > ^LR(k) > ^R(j)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R, &
-                        gen_type%L, gen_type%R, gen_type%L, gen_type%L, gen_type%R, k, i, l, j, &
-                        i, l, k, j, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (j < i .and. i < k .and. k < l) then
-            ! j < i < k < l
-            ! _L(j) > _LL*(i) > ^LL(k) > ^L(l)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_lowering, &
-                        gen_type%L, gen_type%L, gen_type%L, gen_type%L, gen_type%L, k, i, l, j, &
-                        j, i, k, l, 0, 4, -1.0_dp, 1.0_dp)
-
-        else if (j < i .and. i < l .and. l < k) then
-            ! j < k < i < l
-            ! _L(j) > _LL*(i) > LL^*(l) > ^L(k)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_lowering, &
-                        gen_type%L, gen_type%L, gen_type%L, gen_type%L, gen_type%L, k, i, l, j, &
-                        j, i, l, k, 0, 4, -1.0_dp, -1.0_dp)
-
-        else if (j < k .and. k < i .and. i < l) then
-            ! j < k < i < l
-            ! _L(j) > _RL(k) > ^RL(i) > ^L(l)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R_to_L, &
-                        gen_type%R, gen_type%L, gen_type%L, gen_type%L, gen_type%L, k, i, l, j, &
-                        j, k, i, l, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (j < k .and. k < l .and. l < i) then
-            ! j < l < i < k
-            ! _L(j) > ^RL(k) > ^LR(l) > ^R(i)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R, &
-                        gen_type%R, gen_type%L, gen_type%L, gen_type%L, gen_type%R, k, i, l, j, &
-                        j, k, l, i, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (j < l .and. l < i .and. i < k) then
-            ! j < l < i < k
-            ! non-overlap > e_{li,kj}
-            ! _L(j) > _RL(l) > ^RL(i) > ^L(k)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R_to_L, &
-                        gen_type%R, gen_type%L, gen_type%L, gen_type%L, gen_type%L, l, i, k, j, &
-                        j, l, i, k, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (j < l .and. l < k .and. k < i) then
-            ! j < l < k < i
-            ! non-overlap > e_{li,kj}
-            ! _L(l) > _RL(l) > ^LR(k) > ^R(i)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R, &
-                        gen_type%R, gen_type%L, gen_type%L, gen_type%L, gen_type%R, l, i, k, j, &
-                        j, l, k, i, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (k < i .and. i < j .and. j < l) then
-            ! k < i < j < l
-            ! non-overlap > e_{li,kj}
-            ! _R(k) > _LR(i) > ^RL(j) > ^L(l)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L, &
-                        gen_type%L, gen_type%R, gen_type%R, gen_type%R, gen_type%L, l, i, k, j, &
-                        k, i, j, l, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (k < i .and. i < l .and. l < j) then
-            ! k < i < l < j
-            ! non-overlap > e_{li,kj}
-            ! _R(k) > _LR(i) > ^LR(l) > ^R(j)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L_to_R, &
-                        gen_type%L, gen_type%R, gen_type%R, gen_type%R, gen_type%R, l, i, k, j, &
-                        k, i, l, j, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (k < j .and. j < i .and. i < l) then
-            ! k < j < i < l
-            ! _R(k) > _LR(j) > ^RL(i) > ^L(l)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L, &
-                        gen_type%R, gen_type%L, gen_type%R, gen_type%R, gen_type%L, k, i, l, j, &
-                        k, j, i, l, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (k < j .and. j < l .and. l < i) then
-            ! k < j < l < i
-            ! _R(k) > _LR(j) > ^LR(l) > ^R(i)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L_to_R, &
-                        gen_type%R, gen_type%L, gen_type%R, gen_type%R, gen_type%R, k, i, l, j, &
-                        k, j, l, i, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (k < l .and. l < i .and. i < j) then
-            ! k < l < i < j
-            ! _R(k) > RR_*(l) > ^RR*(i) > ^R(j)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_raising, &
-                        gen_type%R, gen_type%R, gen_type%R, gen_type%R, gen_type%R, k, i, l, j, &
-                        k, l, i, j, 0, 4, -1.0_dp, -1.0_dp)
-
-        else if (k < l .and. l < j .and. j < i) then
-            ! k < l < j < i
-            ! _R(k) > RR_*(l) > RR^(j) > ^R(i)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_raising, &
-                        gen_type%R, gen_type%R, gen_type%R, gen_type%R, gen_type%R, k, i, l, j, &
-                        k, l, j, i, 0, 4, -1.0_dp, 1.0_dp)
-
-        else if (l < i .and. i < j .and. j < k) then
-            ! l < i < j < k
-            ! _R(l) > _LR(i) > ^RL(j) > ^L(k)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L, &
-                        gen_type%L, gen_type%R, gen_type%R, gen_type%R, gen_type%L, k, i, l, j, &
-                        l, i, j, k, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (l < i .and. i < k .and. k < j) then
-            ! l < i < k < j
-            ! _R(l) > _LR(i) > ^LR(l) > ^R(j)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L_to_R, &
-                        gen_type%L, gen_type%R, gen_type%R, gen_type%R, gen_type%R, k, i, l, j, &
-                        l, i, k, j, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (l < j .and. j < i .and. i < k) then
-            ! l < j < i < k
-            ! non-overlap > e_{li,kj}
-            ! _R(l) > _LR(j) > ^RL(i) > ^L(k)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L, &
-                        gen_type%R, gen_type%L, gen_type%R, gen_type%R, gen_type%L, l, i, k, j, &
-                        l, j, i, k, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (l < j .and. j < k .and. k < i) then
-            ! l < j < k < i
-            ! non-overlap > e_{li,kj}
-            ! _R(l) > ^_LR(j) > ^LR(k) > ^R(i)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L_to_R, &
-                        gen_type%R, gen_type%L, gen_type%R, gen_type%R, gen_type%R, l, i, k, j, &
-                        l, j, k, i, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (l < k .and. k < i .and. i < j) then
-            ! l < k < i < j
-            ! _R(l) > _RR(k) > ^RR*(i) > ^R(j)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_raising, &
-                        gen_type%R, gen_type%R, gen_type%R, gen_type%R, gen_type%R, k, i, l, j, &
-                        l, k, i, j, 0, 4, 1.0_dp, -1.0_dp)
-
-        else if (l < k .and. k < j .and. j < i) then
-            ! l < k < j < i
-            ! _R(l) > _RR(k) > RR^(j) > ^R(i)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_raising, &
-                        gen_type%R, gen_type%R, gen_type%R, gen_type%R, gen_type%R, k, i, l, j, &
-                        l, k, j, i, 0, 4, 1.0_dp, 1.0_dp)
-
-        else
-            call stop_all(this_routine, "should not be here!")
-        end if
-
-    end function create_excitInfo_ki_lj
-
-    function create_excitInfo_ki_jl(i, j, k, l) result(excitInfo)
-        integer, intent(in) :: i, j, k, l
-        type(ExcitationInformation_t) :: excitInfo
-        character(*), parameter :: this_routine = "create_excitInfo_ki_jl"
-
-        ! e_{ki,jl}
-
-        if (i < j .and. j < k .and. k < l) then
-            ! i < j < k < l
-            ! _L(i) > _RL(j) > ^LR(k) > ^R(l)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R, &
-                        gen_type%L, gen_type%R, gen_type%L, gen_type%L, gen_type%R, k, i, j, l, &
-                        i, j, k, l, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (i < j .and. j < l .and. l < k) then
-            ! i < j < l < k
-            ! _L(i) > _RL(j) > ^RL(l) > ^L(k)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R_to_L, &
-                        gen_type%L, gen_type%R, gen_type%L, gen_type%L, gen_type%L, k, i, j, l, &
-                        i, j, l, k, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (i < k .and. k < j .and. j < l) then
-            ! i < k < j < l
-            ! non-overlap > e_{ji,kl}
-            ! _L(i) > _RL(k) > ^LR(j) > ^R(l)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R, &
-                        gen_type%L, gen_type%R, gen_type%L, gen_type%L, gen_type%R, j, i, k, l, &
-                        i, k, j, l, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (i < k .and. k < l .and. l < j) then
-            ! i < k < l < j
-            ! non-overlap > e_{ji,kl}
-            ! _L(i) > _RL(k) > ^RL(l) > ^L(l)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R_to_L, &
-                        gen_type%L, gen_type%R, gen_type%L, gen_type%L, gen_type%L, j, i, k, l, &
-                        i, k, l, j, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (i < l .and. l < j .and. j < k) then
-            ! i < l < j < k
-            ! _L(i) > LL_(l) > LL^*(j) > ^L(k)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_lowering, &
-                        gen_type%L, gen_type%L, gen_type%L, gen_type%L, gen_type%L, k, i, j, l, &
-                        i, l, j, k, 0, 4, 1.0_dp, -1.0_dp)
-
-        else if (i < l .and. l < k .and. k < j) then
-            ! i < l < k < j
-            ! _L(i) > LL_(l) > ^LL(k) > ^L(j)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_lowering, &
-                        gen_type%L, gen_type%L, gen_type%L, gen_type%L, gen_type%L, k, i, j, l, &
-                        i, l, k, j, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (j < i .and. i < k .and. k < l) then
-            ! j < i < k < l
-            ! _R(j) > _LR(i) > ^LR(k) > ^R(l)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L_to_R, &
-                        gen_type%L, gen_type%R, gen_type%R, gen_type%R, gen_type%R, k, i, j, l, &
-                        j, i, k, l, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (j < i .and. i < l .and. l < k) then
-            ! j < k < i < l
-            ! _R(j) > _LR(i) > ^RL(l) > ^L(k)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L, &
-                        gen_type%L, gen_type%R, gen_type%R, gen_type%R, gen_type%L, k, i, j, l, &
-                        j, i, l, k, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (j < k .and. k < i .and. i < l) then
-            ! j < k < i < l
-            ! _R(j) > _RR(k) > ^RR*(i) > ^R(l)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_raising, &
-                        gen_type%R, gen_type%R, gen_type%R, gen_type%R, gen_type%R, k, i, j, l, &
-                        j, k, i, l, 0, 4, 1.0_dp, -1.0_dp)
-
-        else if (j < k .and. k < l .and. l < i) then
-            ! j < l < i < k
-            ! _R(j) > _RR(k) > RR^(l) > ^R(i)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_raising, &
-                        gen_type%R, gen_type%R, gen_type%R, gen_type%R, gen_type%R, k, i, j, l, &
-                        j, k, l, i, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (j < l .and. l < i .and. i < k) then
-            ! j < l < i < k
-            ! non-overlap > e_{ji,kl}
-            ! _R(j) > _LR(l) > ^RL(i) > ^L(k)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L, &
-                        gen_type%R, gen_type%L, gen_type%R, gen_type%R, gen_type%L, j, i, k, l, &
-                        j, l, i, k, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (j < l .and. l < k .and. k < i) then
-            ! j < l < k < i
-            ! non-overlap > e_{ji,kl}
-            ! _R(j) > _LR(l) > ^LR(k) > ^R(i)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L_to_R, &
-                        gen_type%R, gen_type%L, gen_type%R, gen_type%R, gen_type%R, j, i, k, l, &
-                        j, l, k, i, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (k < i .and. i < j .and. j < l) then
-            ! k < i < j < l
-            ! non-overlap > e_{ji,kl}
-            ! _R(k) > _LR(i) > ^LR(j) > ^R(l)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L_to_R, &
-                        gen_type%L, gen_type%R, gen_type%R, gen_type%R, gen_type%R, j, i, k, l, &
-                        k, i, j, l, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (k < i .and. i < l .and. l < j) then
-            ! k < i < l < j
-            ! non-overlap > e_{ji,kl}
-            ! _R(k) > _LR(i) > ^RL(l) > ^L(j)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L, &
-                        gen_type%L, gen_type%R, gen_type%R, gen_type%R, gen_type%L, j, i, k, l, &
-                        k, i, l, j, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (k < j .and. j < i .and. i < l) then
-            ! k < j < i < l
-            ! _R(k) > RR_*(j) > ^RR*(i) > ^R(l)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_raising, &
-                        gen_type%R, gen_type%R, gen_type%R, gen_type%R, gen_type%R, k, i, j, l, &
-                        k, j, i, l, 0, 4, -1.0_dp, -1.0_dp)
-
-        else if (k < j .and. j < l .and. l < i) then
-            ! k < j < l < i
-            ! _R(k) > RR_*(j) > RR^(l) > ^R(i)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_raising, &
-                        gen_type%R, gen_type%R, gen_type%R, gen_type%R, gen_type%R, k, i, j, l, &
-                        k, j, l, i, 0, 4, -1.0_dp, 1.0_dp)
-
-        else if (k < l .and. l < i .and. i < j) then
-            ! k < l < i < j
-            ! _R(k) > _LR(l) > ^RL(i) > ^L(j)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L, &
-                        gen_type%R, gen_type%L, gen_type%R, gen_type%R, gen_type%L, k, i, j, l, &
-                        k, l, i, j, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (k < l .and. l < j .and. j < i) then
-            ! k < l < j < i
-            ! _R(k) > _LR(l) > ^LR(j) > ^R(i)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L_to_R, &
-                        gen_type%R, gen_type%L, gen_type%R, gen_type%R, gen_type%R, k, i, j, l, &
-                        k, l, j, i, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (l < i .and. i < j .and. j < k) then
-            ! l < i < j < k
-            ! _L(l) > _LL*(i) > LL^*(j) > ^L(k)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_lowering, &
-                        gen_type%L, gen_type%L, gen_type%L, gen_type%L, gen_type%L, k, i, j, l, &
-                        l, i, j, k, 0, 4, -1.0_dp, -1.0_dp)
-
-        else if (l < i .and. i < k .and. k < j) then
-            ! l < i < k < j
-            ! _L(l) > _LL*(i) > ^LL(k) > ^L(j)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_lowering, &
-                        gen_type%L, gen_type%L, gen_type%L, gen_type%L, gen_type%L, k, i, j, l, &
-                        l, i, k, j, 0, 4, -1.0_dp, 1.0_dp)
-
-        else if (l < j .and. j < i .and. i < k) then
-            ! l < j < i < k
-            ! npn-overlap > e_{ji,kl}
-            ! _L(l) > _RL(j) > ^RL(i) > ^L(k)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R_to_L, &
-                        gen_type%R, gen_type%L, gen_type%L, gen_type%L, gen_type%L, k, i, j, l, &
-                        l, j, i, k, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (l < j .and. j < k .and. k < i) then
-            ! l < j < k < i
-            ! non-overlap > e_{ji,kl}
-            ! _L(l) > _RL(k) > ^LR(k) > ^R(i)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R, &
-                        gen_type%R, gen_type%L, gen_type%L, gen_type%L, gen_type%R, j, i, k, l, &
-                        l, j, k, i, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (l < k .and. k < i .and. i < j) then
-            ! l < k < i < j
-            ! _L(l) > _RL(k) > ^RL(i) > ^L(j)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R_to_L, &
-                        gen_type%R, gen_type%L, gen_type%L, gen_type%L, gen_type%L, k, i, j, l, &
-                        l, k, i, j, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (l < k .and. k < j .and. j < i) then
-            ! l < k < j < i
-            ! _L(l) > _RL(k) > ^LR(j) > ^R(i)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R, &
-                        gen_type%R, gen_type%L, gen_type%L, gen_type%L, gen_type%R, k, i, j, l, &
-                        l, k, j, i, 0, 4, 1.0_dp, 1.0_dp)
-
-        else
-            call stop_all(this_routine, "should not be here!")
-        end if
-
-    end function create_excitInfo_ki_jl
-
-    function create_excitInfo_li_jk(i, j, k, l) result(excitInfo)
-        integer, intent(in) :: i, j, k, l
-        type(ExcitationInformation_t) :: excitInfo
-        character(*), parameter :: this_routine = "create_excitInfo_li_jk"
-
-        ! e_{li,jk}
-
-        if (i < j .and. j < k .and. k < l) then
-            ! i < j < k < l
-            ! _L(i) > _RL(j) > ^RL(k) > ^L(l)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R_to_L, &
-                        gen_type%L, gen_type%R, gen_type%L, gen_type%L, gen_type%L, l, i, j, k, &
-                        i, j, k, l, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (i < j .and. j < l .and. l < k) then
-            ! i < j < l < k
-            ! _L(i) > _RL(j) > ^LR(l) > ^R(k)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R, &
-                        gen_type%L, gen_type%R, gen_type%L, gen_type%L, gen_type%R, l, i, j, k, &
-                        i, j, l, k, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (i < k .and. k < j .and. j < l) then
-            ! i < k < j < l
-            ! _L(i) > LL_(k) > LL^*(j) > ^L(l)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_lowering, &
-                        gen_type%L, gen_type%L, gen_type%L, gen_type%L, gen_type%L, l, i, j, k, &
-                        i, k, j, l, 0, 4, 1.0_dp, -1.0_dp)
-
-        else if (i < k .and. k < l .and. l < j) then
-            ! i < k < l < j
-            ! _L(i) > LL_(k) > ^LL(l) > ^L(j)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_lowering, &
-                        gen_type%L, gen_type%L, gen_type%L, gen_type%L, gen_type%L, l, i, j, k, &
-                        i, k, l, j, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (i < l .and. l < j .and. j < k) then
-            ! i < l < j < k
-            ! non-overlap > e_{ji_lk}
-            ! _L(i) > _RL(l) > ^LR(j) > ^R(k)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R, &
-                        gen_type%L, gen_type%R, gen_type%L, gen_type%L, gen_type%R, j, i, l, k, &
-                        i, l, j, k, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (i < l .and. l < k .and. k < j) then
-            ! i < l < k < j
-            ! non-overlap > e_{ji,lk}
-            ! _L(i) > _RL(l) > ^RL(k) > ^L(j)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R_to_L, &
-                        gen_type%L, gen_type%R, gen_type%L, gen_type%L, gen_type%L, j, i, l, k, &
-                        i, l, k, j, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (j < i .and. i < k .and. k < l) then
-            ! j < i < k < l
-            ! _R(j) > _LR(i) > ^RL(k) > ^L(l)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L, &
-                        gen_type%L, gen_type%R, gen_type%R, gen_type%R, gen_type%L, l, i, j, k, &
-                        j, i, k, l, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (j < i .and. i < l .and. l < k) then
-            ! j < k < i < l
-            ! _R(j) > _LR(i) > ^LR(l) > ^R(k)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L_to_R, &
-                        gen_type%L, gen_type%R, gen_type%R, gen_type%R, gen_type%R, l, i, j, k, &
-                        j, i, l, k, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (j < k .and. k < i .and. i < l) then
-            ! j < k < i < l
-            ! non-overlap > e_{ji,lk}
-            ! _R(j) > _LR(k) > ^RL(i) > ^L(l)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L, &
-                        gen_type%R, gen_type%L, gen_type%R, gen_type%R, gen_type%L, j, i, l, k, &
-                        j, k, i, l, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (j < k .and. k < l .and. l < i) then
-            ! j < l < i < k
-            ! non-overlap > e_{ji,lk}
-            ! _R(j) > _LR(k) > ^LR(l) > ^R(i)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L_to_R, &
-                        gen_type%R, gen_type%L, gen_type%R, gen_type%R, gen_type%R, j, i, l, k, &
-                        j, k, l, i, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (j < l .and. l < i .and. i < k) then
-            ! j < l < i < k
-            ! _R(j) > _RR(l) > ^RR*(i) > ^R(k)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_raising, &
-                        gen_type%R, gen_type%R, gen_type%R, gen_type%R, gen_type%R, l, i, j, k, &
-                        j, l, i, k, 0, 4, 1.0_dp, -1.0_dp)
-
-        else if (j < l .and. l < k .and. k < i) then
-            ! j < l < k < i
-            ! _R(j) > _RR(l) > RR^(k) > ^R(i)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_raising, &
-                        gen_type%R, gen_type%R, gen_type%R, gen_type%R, gen_type%R, l, i, j, k, &
-                        j, l, k, i, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (k < i .and. i < j .and. j < l) then
-            ! k < i < j < l
-            ! _L(k) > _LL*(i) > LL^*(j) > ^L(l)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_lowering, &
-                        gen_type%L, gen_type%L, gen_type%L, gen_type%L, gen_type%L, l, i, j, k, &
-                        k, i, j, l, 0, 4, -1.0_dp, -1.0_dp)
-
-        else if (k < i .and. i < l .and. l < j) then
-            ! k < i < l < j
-            ! _L(k) > _LL*(i) > ^LL(l) > ^L(j)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_lowering, &
-                        gen_type%L, gen_type%L, gen_type%L, gen_type%L, gen_type%L, l, i, j, k, &
-                        k, i, l, j, 0, 4, -1.0_dp, 1.0_dp)
-
-        else if (k < j .and. j < i .and. i < l) then
-            ! k < j < i < l
-            ! non-overlap > e_{ji,lk}
-            ! _L(k) > _RL(j) > ^RL(i) > ^L(l)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R_to_L, &
-                        gen_type%R, gen_type%L, gen_type%L, gen_type%L, gen_type%L, j, i, l, k, &
-                        k, j, i, l, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (k < j .and. j < l .and. l < i) then
-            ! k < j < l < i
-            ! non-overlap > e_{ji,lk}
-            ! _L(k) > _RL(j) > ^LR(l) > ^R(i)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R, &
-                        gen_type%R, gen_type%L, gen_type%L, gen_type%L, gen_type%R, j, i, l, k, &
-                        k, j, l, i, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (k < l .and. l < i .and. i < j) then
-            ! k < l < i < j
-            ! _L(k) > _RL(l) > ^RL(i) > ^L(j)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R_to_L, &
-                        gen_type%R, gen_type%L, gen_type%L, gen_type%L, gen_type%L, l, i, j, k, &
-                        k, l, i, j, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (k < l .and. l < j .and. j < i) then
-            ! k < l < j < i
-            ! _L(k) > _RL(l) > ^LR(j) > ^R(i)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R, &
-                        gen_type%R, gen_type%L, gen_type%L, gen_type%L, gen_type%R, l, i, j, k, &
-                        k, l, j, i, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (l < i .and. i < j .and. j < k) then
-            ! l < i < j < k
-            ! non-overlap > e_{ji,lk}
-            ! _R(l) > _LR(i) > ^LR(j) > ^R(k)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L_to_R, &
-                        gen_type%L, gen_type%R, gen_type%R, gen_type%R, gen_type%R, j, i, l, k, &
-                        l, i, j, k, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (l < i .and. i < k .and. k < j) then
-            ! l < i < k < j
-            ! non-overlap > e_{ji,lk}
-            ! _R(l) > _LR(i) > ^RL(k) > ^L(j)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L, &
-                        gen_type%L, gen_type%R, gen_type%R, gen_type%R, gen_type%L, j, i, l, k, &
-                        l, i, k, j, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (l < j .and. j < i .and. i < k) then
-            ! l < j < i < k
-            ! _R(l) > RR_*(j) > ^RR*(i) > ^R(k)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_raising, &
-                        gen_type%R, gen_type%R, gen_type%R, gen_type%R, gen_type%R, l, i, j, k, &
-                        l, j, i, k, 0, 4, -1.0_dp, -1.0_dp)
-
-        else if (l < j .and. j < k .and. k < i) then
-            ! l < j < k < i
-            ! _R(l) > RR_*(j) > RR^(k) > ^R(i)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_raising, &
-                        gen_type%R, gen_type%R, gen_type%R, gen_type%R, gen_type%R, l, i, j, k, &
-                        l, j, k, i, 0, 4, -1.0_dp, 1.0_dp)
-
-        else if (l < k .and. k < i .and. i < j) then
-            ! l < k < i < j
-            ! _R(l) > _LR(k) > ^RL(i) > ^L(j)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L, &
-                        gen_type%R, gen_type%L, gen_type%R, gen_type%R, gen_type%L, l, i, j, k, &
-                        l, k, i, j, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (l < k .and. k < j .and. j < i) then
-            ! l < k < j < i
-            ! _R(l) > _LR(k) > ^LR(j) > ^R(i)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L_to_R, &
-                        gen_type%R, gen_type%L, gen_type%R, gen_type%R, gen_type%R, l, i, j, k, &
-                        l, k, j, i, 0, 4, 1.0_dp, 1.0_dp)
-
-        else
-            call stop_all(this_routine, "should not be here!")
-        end if
-
-    end function create_excitInfo_li_jk
-
-    function create_excitInfo_li_kj(i, j, k, l) result(excitInfo)
-        integer, intent(in) :: i, j, k, l
-        type(ExcitationInformation_t) :: excitInfo
-        character(*), parameter :: this_routine = "create_excitInfo_li_kj"
-
-        ! e_{li,kj}
-
-        if (i < j .and. j < k .and. k < l) then
-            ! i < j < k < l
-            ! _L(i) > LL_(j) > LL^*(k) > ^L(l)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_lowering, &
-                        gen_type%L, gen_type%L, gen_type%L, gen_type%L, gen_type%L, l, i, k, j, &
-                        i, j, k, l, 0, 4, 1.0_dp, -1.0_dp)
-
-        else if (i < j .and. j < l .and. l < k) then
-            ! i < j < l < k
-            ! _L(i) > LL_(j) > ^LL(l) > ^L(k)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_lowering, &
-                        gen_type%L, gen_type%L, gen_type%L, gen_type%L, gen_type%L, l, i, k, j, &
-                        i, j, l, k, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (i < k .and. k < j .and. j < l) then
-            ! i < k < j < l
-            ! _L(i) > _RL(k) > ^RL(j) > ^L(l)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R_to_L, &
-                        gen_type%L, gen_type%R, gen_type%L, gen_type%L, gen_type%L, l, i, k, j, &
-                        i, k, j, l, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (i < k .and. k < l .and. l < j) then
-            ! i < k < l < j
-            ! _L(i) > _RL(k) > ^LR(l) > ^R(j)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R, &
-                        gen_type%L, gen_type%R, gen_type%L, gen_type%L, gen_type%R, l, i, k, j, &
-                        i, k, l, j, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (i < l .and. l < j .and. j < k) then
-            ! i < l < j < k
-            ! non-overlap > e_{ki,lj}
-            ! _L(i) > _RL(l) > ^RL(j) > ^L(k)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R_to_L, &
-                        gen_type%L, gen_type%R, gen_type%L, gen_type%L, gen_type%L, k, i, l, j, &
-                        i, l, j, k, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (i < l .and. l < k .and. k < j) then
-            ! i < l < k < j
-            ! non-overlap > e_{ki,lj}
-            ! _L(i) > _RL(l) > ^LR(k) > ^R(j)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R, &
-                        gen_type%L, gen_type%R, gen_type%L, gen_type%L, gen_type%R, k, i, l, j, &
-                        i, l, k, j, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (j < i .and. i < k .and. k < l) then
-            ! j < i < k < l
-            ! _L(j) > _LL*(i) > LL^*(k) > ^L(l)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_lowering, &
-                        gen_type%L, gen_type%L, gen_type%L, gen_type%L, gen_type%L, l, i, k, j, &
-                        j, i, k, l, 0, 4, -1.0_dp, -1.0_dp)
-
-        else if (j < i .and. i < l .and. l < k) then
-            ! j < k < i < l
-            ! _L(j) > _LL*(i) > ^LL(l) > ^L(k)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_lowering, &
-                        gen_type%L, gen_type%L, gen_type%L, gen_type%L, gen_type%L, l, i, k, j, &
-                        j, i, l, k, 0, 4, -1.0_dp, 1.0_dp)
-
-        else if (j < k .and. k < i .and. i < l) then
-            ! j < k < i < l
-            ! non-overlap > e_{ki,lj}
-            ! _L(j) > _RL(k) > ^RL(i) > ^L(l)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R_to_L, &
-                        gen_type%R, gen_type%L, gen_type%L, gen_type%L, gen_type%L, k, i, l, j, &
-                        j, k, i, l, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (j < k .and. k < l .and. l < i) then
-            ! j < l < i < k
-            ! non-overlap > e_{ki,lj}
-            ! _L(j) > _RL(k) > ^LR(l) > ^R(i)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R, &
-                        gen_type%R, gen_type%L, gen_type%L, gen_type%L, gen_type%R, k, i, l, j, &
-                        j, k, l, i, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (j < l .and. l < i .and. i < k) then
-            ! j < l < i < k
-            ! _L(j) > _RL(l) > ^RL(i) > ^L(k)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R_to_L, &
-                        gen_type%R, gen_type%L, gen_type%L, gen_type%L, gen_type%L, l, i, k, j, &
-                        j, l, i, k, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (j < l .and. l < k .and. k < i) then
-            ! j < l < k < i
-            ! _L(j) > _RL(l) > ^LR(k) > ^R(i)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_L_to_R, &
-                        gen_type%R, gen_type%L, gen_type%L, gen_type%L, gen_type%R, l, i, k, j, &
-                        j, l, k, i, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (k < i .and. i < j .and. j < l) then
-            ! k < i < j < l
-            ! _R(k) > _LR(i) > ^RL(j) > ^L(l)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L, &
-                        gen_type%L, gen_type%R, gen_type%R, gen_type%R, gen_type%L, l, i, k, j, &
-                        k, i, j, l, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (k < i .and. i < l .and. l < j) then
-            ! k < i < l < j
-            ! _R(k) > _LR(i) > ^LR(l) > ^R(j)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L_to_R, &
-                        gen_type%L, gen_type%R, gen_type%R, gen_type%R, gen_type%R, l, i, k, j, &
-                        k, i, l, j, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (k < j .and. j < i .and. i < l) then
-            ! k < j < i < l
-            ! non-overlap > e_{ki,lj}
-            ! _R(k) > _LR(j) > ^RL(i) > ^L(l)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L, &
-                        gen_type%R, gen_type%L, gen_type%R, gen_type%R, gen_type%L, k, i, l, j, &
-                        k, j, i, l, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (k < j .and. j < l .and. l < i) then
-            ! k < j < l < i
-            ! non-overlap > e_{ki,lj}
-            ! _R(k) > _LR(j) > ^LR(l) > ^R(i)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L_to_R, &
-                        gen_type%R, gen_type%L, gen_type%R, gen_type%R, gen_type%R, k, i, l, j, &
-                        k, j, l, i, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (k < l .and. l < i .and. i < j) then
-            ! k < l < i < j
-            ! _R(k) > _RR(l) > ^RR*(i) > ^R(j)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_raising, &
-                        gen_type%R, gen_type%R, gen_type%R, gen_type%R, gen_type%R, l, i, k, j, &
-                        k, l, i, j, 0, 4, 1.0_dp, -1.0_dp)
-
-        else if (k < l .and. l < j .and. j < i) then
-            ! k < l < j < i
-            ! _R(k) > _RR(l) > RR^(j) > ^R(i)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_raising, &
-                        gen_type%R, gen_type%R, gen_type%R, gen_type%R, gen_type%R, l, i, k, j, &
-                        k, l, j, i, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (l < i .and. i < j .and. j < k) then
-            ! l < i < j < k
-            ! non-overlap > e_{ki,lj}
-            ! _R(l) > _LR(i) > ^RL(j) > ^L(k)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L, &
-                        gen_type%L, gen_type%R, gen_type%R, gen_type%R, gen_type%L, k, i, l, j, &
-                        l, i, j, k, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (l < i .and. i < k .and. k < j) then
-            ! l < i < k < j
-            ! non-overlap > e_{ki,lj}
-            ! _R(l) > _LR(i) > ^LR(k) > ^R(j)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L_to_R, &
-                        gen_type%L, gen_type%R, gen_type%R, gen_type%R, gen_type%R, k, i, l, j, &
-                        l, i, k, j, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (l < j .and. j < i .and. i < k) then
-            ! l < j < i < k
-            ! _R(l) > _LR(j) > ^RL(i) > ^L(k)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L, &
-                        gen_type%R, gen_type%L, gen_type%R, gen_type%R, gen_type%L, l, i, k, j, &
-                        l, j, i, k, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (l < j .and. j < k .and. k < i) then
-            ! l < j < k < i
-            ! _R(l) > _LR(j) > ^LR(k) > ^R(i)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_R_to_L_to_R, &
-                        gen_type%R, gen_type%L, gen_type%R, gen_type%R, gen_type%R, l, i, k, j, &
-                        l, j, k, i, 0, 4, 1.0_dp, 1.0_dp)
-
-        else if (l < k .and. k < i .and. i < j) then
-            ! l < k < i < j
-            ! _R(l) > RR_*(k) > ^RR*(i) > ^R(j)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_raising, &
-                        gen_type%R, gen_type%R, gen_type%R, gen_type%R, gen_type%R, l, i, k, j, &
-                        l, k, i, j, 0, 4, -1.0_dp, -1.0_dp)
-
-        else if (l < k .and. k < j .and. j < i) then
-            ! l < k < j < i
-            ! _R(l) > RR_*(k) > RR^*(j) > ^R(i)
-            excitInfo = assign_excitInfo_values_double( &
-                        excit_type%double_raising, &
-                        gen_type%R, gen_type%R, gen_type%R, gen_type%R, gen_type%R, l, i, k, j, &
-                        l, k, j, i, 0, 4, -1.0_dp, 1.0_dp)
-
-        else
-            call stop_all(this_routine, "should not be here!")
-        end if
-
-    end function create_excitInfo_li_kj
-
-    function calc_pgen_yix_start_02(csf_i, i) result(pgen)
-        type(CSF_Info_t), intent(in) :: csf_i
-        integer, intent(in) :: i
-        real(dp) :: pgen
-        character(*), parameter :: this_routine = "calc_pgen_yix_start_02"
-
-        ASSERT(count(csf_i%Occ_int(i + 1:nSpatOrbs) /= 0) /= 0)
-        ASSERT(count(csf_i%Occ_int(i + 1:nSpatOrbs) /= 2) /= 0)
-
-        pgen = 1.0_dp / real(count(csf_i%Occ_int(i + 1:nSpatOrbs) /= 0), dp) + &
-               1.0_dp / real(count(csf_i%Occ_int(i + 1:nSpatOrbs) /= 2), dp)
-
-    end function calc_pgen_yix_start_02
-
-    function calc_pgen_yix_start_01(csf_i, i) result(pgen)
-        type(CSF_Info_t), intent(in) :: csf_i
-        integer, intent(in) :: i
-        real(dp) :: pgen
-        character(*), parameter :: this_routine = "calc_pgen_yix_start_01"
-
-        ASSERT(count(csf_i%Occ_int(i + 1:nSpatOrbs) /= 0) /= 0)
-        ASSERT(nSpatOrbs - i - 1 /= 0)
-
-        pgen = 1.0_dp / real(count(csf_i%Occ_int(i + 1:nSpatOrbs) /= 0), dp) + &
-               1.0_dp / real(nSpatOrbs - i - 1, dp)
-
-    end function calc_pgen_yix_start_01
-
-    function calc_pgen_yix_start_21(csf_i, i) result(pgen)
-        type(CSF_Info_t), intent(in) :: csf_i
-        integer, intent(in) :: i
-        real(dp) :: pgen
-        character(*), parameter :: this_routine = "calc_pgen_yix_start_21"
-
-        ASSERT(count(csf_i%Occ_int(i + 1:nSpatOrbs) /= 2) /= 0)
-        ASSERT(nSpatOrbs - i - 1 /= 0)
-
-        pgen = 1.0_dp / real(count(csf_i%Occ_int(i + 1:nSpatOrbs) /= 2), dp) + &
-               1.0_dp / real(nSpatOrbs - i - 1, dp)
-
-    end function calc_pgen_yix_start_21
-
-    function calc_pgen_yix_start_11(csf_i, i) result(pgen)
-        type(CSF_Info_t), intent(in) :: csf_i
-        integer, intent(in) :: i
-        real(dp) :: pgen
-        character(*), parameter :: this_routine = "calc_pgen_yix_start_11"
-
-        ASSERT(nSpatOrbs - i - 1 /= 0)
-        unused_var(csf_i)
-
-        pgen = 1.0_dp / real(nSpatOrbs - i - 1, dp)
-
-    end function calc_pgen_yix_start_11
-
-    function calc_pgen_yix_end_02(csf_i, i) result(pgen)
-        type(CSF_Info_t), intent(in) :: csf_i
-        integer, intent(in) :: i
-        real(dp) :: pgen
-        character(*), parameter :: this_routine = "calc_pgen_yix_end_02"
-
-        ASSERT(count(csf_i%Occ_int(1:i - 1) /= 0) /= 0)
-        ASSERT(count(csf_i%Occ_int(1:i - 1) /= 2) /= 0)
-
-        pgen = 1.0_dp / real(count(csf_i%Occ_int(1:i - 1) /= 0), dp) + &
-               1.0_dp / real(count(csf_i%Occ_int(1:i - 1) /= 2), dp)
-
-    end function calc_pgen_yix_end_02
-
-    function calc_pgen_yix_end_01(csf_i, i) result(pgen)
-        type(CSF_Info_t), intent(in) :: csf_i
-        integer, intent(in) :: i
-        real(dp) :: pgen
-        character(*), parameter :: this_routine = "calc_pgen_yix_end_01"
-
-        ASSERT(count(csf_i%Occ_int(1:i - 1) /= 0) /= 0)
-        ASSERT(i - 2 /= 0)
-
-        pgen = 1.0_dp / real(count(csf_i%Occ_int(1:i - 1) /= 0), dp) + &
-               1.0_dp / real(i - 2, dp)
-
-    end function calc_pgen_yix_end_01
-
-    function calc_pgen_yix_end_21(csf_i, i) result(pgen)
-        type(CSF_Info_t), intent(in) :: csf_i
-        integer, intent(in) :: i
-        real(dp) :: pgen
-        character(*), parameter :: this_routine = "calc_pgen_yix_end_21"
-
-        ASSERT(count(csf_i%Occ_int(1:i - 1) /= 2) /= 0)
-        ASSERT(i - 2 /= 0)
-
-        pgen = 1.0_dp / real(count(csf_i%Occ_int(1:i - 1) /= 2), dp) + &
-               1.0_dp / real(i - 2, dp)
-
-    end function calc_pgen_yix_end_21
-
-    function calc_pgen_yix_end_11(csf_i, i) result(pgen)
-        type(CSF_Info_t), intent(in) :: csf_i
-        integer, intent(in) :: i
-        real(dp) :: pgen
-        character(*), parameter :: this_routine = "calc_pgen_yix_end_11"
-        unused_var(csf_i)
-
-        ASSERT(i - 2 /= 0)
-
-        pgen = 1.0_dp / real(i - 2, dp)
-
-    end function calc_pgen_yix_end_11
-
     subroutine print_indices(excitInfo)
         type(ExcitationInformation_t), intent(in) :: excitInfo
 
@@ -25693,5 +23528,267 @@ contains
         print *, "excit-level: ", excitInfo%excitLvl
 
     end subroutine print_excitInfo
+
+    subroutine test_excit_gen_guga(ilut, iterations)
+        integer(n_int), intent(in) :: ilut(0:NIfTot)
+        integer, intent(in) :: iterations
+        character(*), parameter :: this_routine = 'test_excit_gen_guga'
+
+        integer(n_int) :: ilutG(0:nifguga)
+        integer(n_int), allocatable :: excitations(:, :)
+
+        integer :: src_det(nel), det(nel), nexcit, ex(2, maxExcit)
+        integer :: ngen, pos, iunit, i, ic
+        type(excit_gen_store_type) :: store
+        integer(n_int) :: tgt_ilut(0:NifTot)
+        integer(n_int), allocatable :: det_list(:, :)
+        integer, allocatable :: excitTyp(:), excitLvl(:), excit_mat(:, :)
+        type(CSF_Info_t) :: csf_i
+        real(dp), allocatable :: contrib_list(:), pgen_list(:)
+        HElement_t(dp), allocatable :: matEle_list(:), exact_helements(:)
+        logical, allocatable :: generated_list(:)
+        logical :: par
+        real(dp) :: contrib, pgen, sum_helement, sum_pgens
+        HElement_t(dp) :: helgen, temp_mat
+        real(dp) :: diff
+        character(255) :: filename
+        type(ExcitationInformation_t) :: excitInfo
+
+        ! Decode the determiant
+        call decode_bit_det(src_det, ilut)
+
+        ! convert ilut to guga format
+        call convert_ilut_toGUGA(ilut, ilutG)
+
+        print *, ""
+        print *, "========================================================="
+        print *, "testing pgens for CSF: "
+        call write_det_guga(6, ilutG)
+        print *, "<Di|H|Di>: ", calcDiagMatEleGuga_ilut(ilutG)
+
+        ! calc. all excitations for the given ilut
+        csf_i = CSF_Info_t(ilutG)
+        call actHamiltonian(ilutG, csf_i, excitations, nexcit)
+
+        print *, "all excact excitations: ", nexcit
+
+        call write_guga_list(stdout, excitations(:, 1:nexcit))
+
+        ! and convert them back to a list of neci iluts
+        allocate(det_list(0:niftot, nexcit))
+        allocate(exact_helements(nExcit), source=h_cast(0.0_dp))
+        allocate(excitLvl(nexcit), source=-1)
+        allocate(excit_mat(nexcit, 4), source=0)
+
+        do i = 1, nexcit
+            call convert_ilut_toNECI(excitations(:, i), det_list(:, i), helgen)
+
+            ! if i use guga-mateles keyword, should i also test for the
+            ! matrix element here? since i am using those routines to
+            ! calculate the reference energy.. and not actually the
+            ! actHamiltonian routine.. i probably should.. but this is quite
+            ! costly.. hm.. init_csf_irmation is already called in
+            ! acthamiltonian..
+            exact_helements(i) = helgen
+            excitLvl(i) = getDeltaB(excitations(:, i))
+            call calc_guga_matrix_element(ilut, csf_i, det_list(:, i), excitInfo, &
+                                          temp_mat, .true., 1)
+
+            excit_mat(i, :) = [excitInfo%i, excitInfo%j, excitInfo%k, excitInfo%l]
+
+            diff = abs(helgen - temp_mat)
+
+            if (diff < 1.0e-10_dp) diff = 0.0_dp
+
+            if (.not. near_zero(diff)) then
+                print *, "different matrix elements for CSFs: "
+                call write_det_guga(6, ilut)
+                call write_det_guga(6, excitations(:, i))
+                print *, "actHamiltonian result: ", helgen
+                print *, "calc_guga_matrix_element result: ", temp_mat
+            end if
+        end do
+
+        ! Sort the dets, so they are easy to find by binary searching
+        call sort(det_list, ilut_lt, ilut_gt)
+
+        ! Lists to keep track of things
+        allocate(generated_list(nexcit))
+        allocate(contrib_list(nexcit))
+        allocate(pgen_list(nexcit))
+        allocate(matEle_list(nExcit))
+        matEle_list = h_cast(0.0_dp)
+        allocate(excitTyp(nExcit), source=-1)
+        generated_list = .false.
+        contrib_list = 0
+        pgen_list = 0.0_dp
+
+        ! set the not needed inputs for guga
+        ex = 0
+
+        ! Repeated generation, and summing-in loop
+        ngen = 0
+        contrib = 0.0_dp
+        do i = 1, iterations
+            if (mod(i, 10000) == 0) then
+                write(stdout, *) i, '/', iterations, ' - ', contrib / (real(nexcit, dp) * i)
+            end if
+
+            if (tgen_guga_crude) then
+                call stop_all(this_routine, &
+                              "change in source code below this line to activate tests!")
+!                 call gen_excit_4ind_weighted2 (src_det, ilut, det, tgt_ilut, 3, &
+!                                           ic, ex, par, pgen, helgen, store)
+            else
+                current_csf_i = CSF_Info_t(ilut)
+                call generate_excitation_guga(src_det, ilut, det, tgt_ilut, 3, &
+                                              ic, ex, par, pgen, helgen, store)
+            end if
+            if (det(1) == 0) cycle
+
+            call EncodeBitDet(det, tgt_ilut)
+            pos = binary_search(det_list(0:nifd, 1:nexcit), tgt_ilut(0:nifd))
+            if (pos < 0) then
+                write(stdout, *) 'FAILED DET', tgt_ilut
+                print *, "from CSF:"
+                call write_det_guga(6, ilutG)
+                call write_det_guga(6, tgt_ilut(0:nifd))
+                call print_excitInfo(global_excitInfo)
+                print *, "<i|H|j> = ", helgen
+                call stop_all(this_routine, 'Unexpected determinant generated')
+            else
+                generated_list(pos) = .true.
+
+                diff = abs(helgen - exact_helements(pos))
+
+                if (diff < 1.0e-10_dp) diff = 0.0_dp
+
+                if (.not. near_zero(diff)) then
+                    print *, "different matrix elements for CSFs: "
+                    call write_det_guga(6, ilut)
+                    call write_det_guga(6, excitations(:, i))
+                    print *, "actHamiltonian result: ", helgen
+                    print *, "calc_guga_matrix_element result: ", temp_mat
+                end if
+
+                ! Count this det, and sum in its contribution.
+                ngen = ngen + 1
+                contrib = contrib + 1.0_dp / pgen
+                matEle_list(pos) = HElGen
+                pgen_list(pos) = pgen
+                contrib_list(pos) = contrib_list(pos) + 1.0_dp / pgen
+                excitTyp(pos) = global_excitInfo%typ
+            end if
+        end do
+
+        ! normalize matrix elements and pgens to compare with pgens
+        sum_helement = sum(abs(matEle_list))
+        sum_pgens = sum(pgen_list)
+
+        ! How many of the iterations generated a good det?
+        write(stdout, *) ngen, " dets generated in ", iterations, " iterations."
+        write(stdout, *) 100_dp * (iterations - ngen) / real(iterations, dp), &
+            '% abortion rate'
+        ! Contribution averages
+        write(stdout, '("Averaged contribution: ", f15.10)') &
+            contrib / (real(nexcit, dp) * iterations)
+
+        if (t_full_guga_tests .or. t_guga_testsuite) then
+            ! do asserts in case of full guga tests to be certain no basic
+            ! bugs remain. but what should the threshold be??
+            ASSERT(abs((contrib / (real(nexcit, dp) * iterations)) - 1.0_dp) < 0.01_dp)
+        end if
+
+        print *, "for CSF: "
+        call write_det_guga(6, ilutG)
+
+        ! Output the determinant specific contributions
+        iunit = get_free_unit()
+        call get_unique_filename("contribs_guga", .true., .true., 1, filename)
+        open(iunit, file=filename, status='unknown')
+        write(iunit, *) "contributions for CSF:"
+        call write_det_guga(iunit, ilutG)
+        write(iunit, *) "=============================="
+        do i = 1, nexcit
+            call convert_ilut_toGUGA(det_list(:, i), ilutG, matEle_list(i), excitTyp(i))
+            call write_det_guga(iunit, ilutG, .false.)
+            write(iunit, "(f16.7)", advance='no') contrib_list(i) / real(iterations, dp)
+            write(iunit, "(e16.7)", advance='no') pgen_list(i)
+            write(iunit, "(e16.7)", advance='no') exact_helements(i)
+            write(iunit, "(I3)", advance='yes') excitLvl(i)
+        end do
+        close(iunit)
+
+        ! also output pgen and matrix elements only to compare
+        iunit = get_free_unit()
+        call get_unique_filename("pgen_vs_matrixElements", .true., .true., 1, filename)
+        open(iunit, file=filename, status='unknown')
+        write(iunit, *) "# pgens and matrix elements for CSF:"
+        call convert_ilut_toGUGA(ilut, ilutG)
+        call write_det_guga(iunit, ilutG)
+
+        do i = 1, nExcit
+            write(iunit, "(e16.7)", advance='no') pgen_list(i) !/sum_pgens
+            write(iunit, "(e16.7)", advance='no') exact_helements(i) !/sum_helement
+            write(iunit, "(f16.7)", advance='no') contrib_list(i) / real(iterations, dp)
+            write(iunit, "(i3)", advance='yes') excitLvl(i)
+        end do
+        close(iunit)
+
+        ! Check that all of the determinants were generated!!!
+        if (.not. all(generated_list)) then
+
+            write(stdout, *) count(.not. generated_list), '/', size(generated_list), &
+                'not generated'
+
+            if (near_zero(pDoubles)) then
+                print *, "expected ratio: ", 1.0_dp - real(count(.not. generated_list), dp) / &
+                    real(size(generated_list), dp)
+            end if
+
+            do i = 1, nexcit
+                if (.not. generated_list(i)) then
+                    call convert_ilut_toGUGA(det_list(:, i), ilutG, matEle_list(i), excitTyp(i))
+                    call write_det_guga(6, ilutG)
+                end if
+
+            end do
+            ! abort in the full-tests case!
+            if (t_full_guga_tests .or. t_guga_testsuite) then
+                call stop_all(this_routine, &
+                              "all excitations should be created in the full test setup!")
+            end if
+        end if
+        ! also do this again in the full-test case:
+        if (t_full_guga_tests .or. t_guga_testsuite) then
+            ! is 0.1 a small enough threshold?
+            if (any(abs(contrib_list / real(iterations, dp) - 1.0_dp) > 0.05_dp)) &
+                call stop_all(this_routine, "Insufficiently uniform generation")
+        end if
+
+        ! also check matrix elements if psingles and pdouble are > 0
+        do i = 1, nExcit
+            if (.not. near_zero(abs(extract_h_element(excitations(:, i)) - matEle_list(i)))) then
+                print *, "incorrect matrix element! for excitation: "
+                call write_det_guga(6, excitations(:, i), .false.)
+                print *, "stoch. <H>: ", matEle_list(i)
+                if (t_full_guga_tests .or. t_guga_testsuite) then
+                    call stop_all(this_routine, "incorrect matrix element!")
+                end if
+            end if
+        end do
+
+        ! Clean up
+        deallocate(det_list)
+        deallocate(contrib_list)
+        deallocate(generated_list)
+        deallocate(pgen_list)
+        deallocate(matEle_list)
+        deallocate(exact_helements)
+        deallocate(excitations)
+        call LogMemDealloc(this_routine, tag_excitations)
+
+    end subroutine test_excit_gen_guga
+
 
 end module guga_excitations

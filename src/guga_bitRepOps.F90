@@ -2939,6 +2939,7 @@ contains
         type(CSF_Info_t), intent(in) :: csf_i
         logical :: res
         ! TODO(@Oskar): Implement
+        unused_var(ilut); unused_var(csf_i)
         res = .true.
     end function
 
