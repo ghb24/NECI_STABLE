@@ -80,7 +80,6 @@ module guga_rdm
               send_proc_ex_djs, &
               calc_all_excits_guga_rdm_singles, calc_explicit_1_rdm_guga, &
               calc_all_excits_guga_rdm_doubles, calc_explicit_2_rdm_guga, &
-              calc_explicit_diag_2_rdm_guga, &
               Add_RDM_From_IJ_Pair_GUGA, fill_diag_1rdm_guga, &
               Add_RDM_HFConnections_GUGA, fill_spawn_rdm_diag_guga, &
               combine_x0_x1, pure_rdm_ind, generator_sign, &
@@ -365,36 +364,6 @@ contains
         if (r < s) sgn = -sgn
 
     end function molcas_sign
-
-    subroutine print_rdm_ind(rdm_ind, typ, t_newline)
-        integer(int_rdm), intent(in) :: rdm_ind
-        integer, intent(in) :: typ
-        logical, intent(in), optional :: t_newline
-
-        logical :: t_newline_
-        integer :: i, j, k, l
-        character(3) :: adv
-
-        def_default(t_newline_, t_newline, .true.)
-
-        if (t_newline_) then
-            adv = 'yes'
-        else
-            adv = 'no'
-        end if
-
-        if (typ == 1) then
-            call extract_1_rdm_ind(rdm_ind, i, j)
-
-            write(stdout, '(2i3)', advance=adv) i, j
-
-        else if (typ == 2) then
-            call extract_2_rdm_ind(rdm_ind, i, j, k, l)
-
-            write(stdout, '(4i3)', advance=adv) i, j, k, l
-        end if
-
-    end subroutine print_rdm_ind
 
     elemental function pure_rdm_ind(rdm_ind) result(pure_ind)
         ! return 'just' the rdm index without the excit-level and type info
@@ -1337,61 +1306,6 @@ contains
 
     end subroutine fill_sings_1rdm_guga
 
-    subroutine fill_mixed_2rdm_guga(spawn, ilutI, ilutJ, sign_i, sign_j, mat_ele, &
-                                    rdm_ind, excitInfo_opt)
-        ! this is the routine where I test the filling of 2-RDM based on
-        ! single excitations to mimic the workflow in the stochastic
-        ! RDM sampling
-        type(rdm_spawn_t), intent(inout) :: spawn
-        integer(n_int), intent(in) :: ilutI(0:GugaBits%len_tot), ilutJ(0:GugaBits%len_tot)
-        real(dp), intent(in) :: sign_i(:), sign_j(:), mat_ele
-        integer(int_rdm), intent(in) :: rdm_ind
-        type(ExcitationInformation_t), intent(in), optional :: excitInfo_opt
-        character(*), parameter :: this_routine = "fill_mixed_2rdm_guga"
-
-        type(ExcitationInformation_t) :: excitInfo
-        integer :: ij, kl, i, j, k, l
-        ! mimic the stochastic processes for the explicit excitation
-        ! generation
-
-        if (DetBitEQ(ilutI, ilutJ, nifd)) return
-
-        ! for the explicit code, I first need to recalculate the type
-        ! of excitation.. I am not sure how the indices will be encoded..
-        if (present(excitInfo_opt)) then
-            excitInfo = excitInfo_opt
-        else
-            call extract_2_rdm_ind(rdm_ind, i, j, k, l)
-
-            excitInfo = excitationIdentifier(i, j, k, l)
-        end if
-
-        select case (excitInfo%typ)
-
-        case (excit_type%fullstop_L_to_R, &
-              excit_type%fullstop_R_to_L)
-
-            call fill_mixed_end(spawn, ilutI, ilutJ, sign_i, sign_j, &
-                                mat_ele, excitInfo)
-
-        case (excit_type%fullstart_L_to_R, &
-              excit_type%fullstart_R_to_L)
-
-            call fill_mixed_start(spawn, ilutI, ilutJ, sign_i, sign_j, &
-                                  mat_ele, excitInfo)
-
-        case (excit_type%fullstart_stop_mixed)
-            call fill_mixed_start_end(spawn, ilutI, ilutJ, sign_i, sign_j, &
-                                      mat_ele, excitInfo)
-
-        case default
-            call print_excitInfo(excitInfo)
-            call Stop_All(this_routine, "wrong excitation type here")
-
-        end select
-
-    end subroutine fill_mixed_2rdm_guga
-
     subroutine fill_mixed_end(spawn, ilutI, ilutJ, sign_i, sign_j, &
                               mat_ele, excitInfo)
         type(rdm_spawn_t), intent(inout) :: spawn
@@ -2292,70 +2206,6 @@ contains
         end if
 
     end subroutine assign_excits_to_proc_guga
-
-    subroutine calc_explicit_diag_2_rdm_guga(ilut, csf_i, n_tot, excitations)
-        integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
-        type(CSF_Info_t), intent(in) :: csf_i
-        integer, intent(out) :: n_tot
-        integer(n_int), intent(out), allocatable :: excitations(:, :)
-        character(*), parameter :: this_routine = "calc_explicit_diag_2_rdm_guga"
-
-        integer :: i, j, k, l, nMax, ierr, n, n_excits, jl, ik
-        integer(n_int), allocatable :: temp_excits(:, :), tmp_all_excits(:, :)
-        integer(int_rdm) :: ijkl
-
-        nMax = 6 + 4 * (nSpatOrbs)**3 * (count_open_orbs(ilut) + 1)
-        allocate(tmp_all_excits(0:GugaBits%len_tot, nMax))
-        call LogMemAlloc('tmp_all_excits', (GugaBits%len_tot + 1) * nMax, 8, this_routine, tag_tmp_excits)
-
-        n_tot = 0
-
-        do i = 1, nSpatOrbs
-            do j = 1, nSpatOrbs
-
-                if (i == j) cycle
-
-                call calc_all_excits_guga_rdm_doubles(ilut, csf_i, i, j, j, i, &
-                                                      temp_excits, n_excits)
-#ifdef DEBUG_
-                do n = 1, n_excits
-                    ASSERT(isProperCSF_ilut(temp_excits(:, n), .true.))
-                end do
-#endif
-
-                if (n_excits > 1) then
-                    call add_guga_lists_rdm(n_tot, n_excits - 1, &
-                                            tmp_all_excits, temp_excits(:, 2:))
-                end if
-
-                deallocate(temp_excits)
-            end do
-        end do
-
-        j = 1
-        do i = 1, n_tot
-            if (near_zero(extract_matrix_element(tmp_all_excits(:, i), 1))) cycle
-
-            tmp_all_excits(:, j) = tmp_all_excits(:, i)
-
-            j = j + 1
-
-        end do
-
-        n_tot = j - 1
-
-        allocate(excitations(0:GugaBits%len_tot, n_tot), &
-                  source=tmp_all_excits(0:GugaBits%len_tot, 1:n_tot), stat=ierr)
-        ! hm to log that does not make so much sense.. since it gets called
-        ! more than once and is only a temporary array..
-        call LogMemAlloc('excitations', n_tot, 8, this_routine, tag_excitations)
-
-        call sort(excitations(:, 1:n_tot), ilut_lt, ilut_gt)
-
-        deallocate(tmp_all_excits)
-        call LogMemDealloc(this_routine, tag_tmp_excits)
-
-    end subroutine calc_explicit_diag_2_rdm_guga
 
     subroutine calc_explicit_2_rdm_guga(ilut, csf_i, n_tot, excitations)
         integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)

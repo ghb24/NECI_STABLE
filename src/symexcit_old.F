@@ -32,30 +32,6 @@ C.. If we're just counting, we don't need to keep DSTORE
          IF(TCOUNT) deallocate(dstore)
       END
 
-!We wish to calculate what excitation class the excitation NI->NJ falls into, with the appropriate
-! IFROM class and index within that, IFROMINDEX, and ITO class, and index within that. ITOINDEX
-! After that, we generate the probability that nJ would be an excitation from nI.
-! We require the excitation generator of I, which is used to pass info to GenExcitProbInternal (in symexcit2.F90)
-      SUBROUTINE GenExcitProb(nI,nJ,nEl,nIExcitor,G1,nBasisMax,Arr,
-     &      nBasis,pGen)
-         use constants, only: dp
-         use SystemData, only: Symmetry, BasisFN
-         use SymData, only: SymClassSize
-         IMPLICIT NONE
-         INTEGER nEl,nI(nEl),nJ(nEl),nBasis,nBasisMax(*)
-         INTEGER, target :: nIExcitor(*)
-         TYPE(BasisFN) G1(nBasis)
-         INTEGER, pointer :: DStore(:)
-         real(dp) pGen
-         real(dp) Arr(nBasis,2)
-         DSTORE=>nIExcitor(nIExcitor(1):niExcitor(2)-1)
-         CALL GenExcitProb2(nI,nJ,nEl,G1,nBasisMax,Arr,nBasis,
-     &      nIExcitor(nIExcitor(4)),nIExcitor(nIExcitor(5)),
-     &      DStore(SymClassSize*nEl+1),
-     &      DStore(SymClassSize*nEl+1+(nBasis/32)+1),
-     &      nIExcitor(nIExcitor(2)),nIExcitor(23),pGen)
-      END
-
 C.. IF(TSETUP) Generate an iterator which allows up to double excitations to be generated
 C.. one at a time (in an unordered fashion) from a given det.  THis needs to be called twice,
 C.. first with STORE(1)=0, and then again.  Finally it can be called with TSETUP=.FALSE.

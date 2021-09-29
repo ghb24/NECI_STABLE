@@ -77,7 +77,6 @@ set( SRC_FILES
     input.F90
     IntegralsData.F90
     Integrals_neci.F90
-    ISKRandExcit.F90
     kp_fciqmc_data.F90
     kp_fciqmc.F90
     kp_fciqmc_init.F90
@@ -306,7 +305,6 @@ set( RELAX_WARNINGS_SRCS
     input.F90
     IntegralsData.F90
     Integrals_neci.F90
-    ISKRandExcit.F90
     kp_fciqmc_data.F90
     kp_fciqmc.F90
     kp_fciqmc_init.F90

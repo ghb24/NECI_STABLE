@@ -23,7 +23,7 @@ program test_guga
     use guga_procedure_pointers
     use guga_plugin, only: init_guga_plugin
     use guga_rdm, only: calc_all_excits_guga_rdm_singles, calc_explicit_1_rdm_guga, &
-                        calc_explicit_diag_2_rdm_guga, calc_explicit_2_rdm_guga, &
+                        calc_explicit_2_rdm_guga, &
                         combine_x0_x1, &
                         pure_rdm_ind, generator_sign, create_all_rdm_contribs, &
                         extract_molcas_1_rdm_index, contract_molcas_1_rdm_index, &
@@ -841,211 +841,6 @@ contains
 
     end subroutine test_compare_RDM_indexing
 
-    subroutine test_calc_explicit_diag_2_rdm_guga
-        integer(n_int) :: ilut(0:nifguga)
-        integer :: n_tot, i, j, k, l
-        integer(n_int), allocatable :: excits(:, :)
-        integer(int_rdm) :: rdm_ind
-        type(CSF_Info_t) :: csf_info
-
-        print *, ""
-        print *, "testing: calc_explicit_diag_2_rdm_guga"
-        print *, ""
-
-        nel = 3
-        call EncodeBitDet_guga([1, 7, 8], ilut)
-        csf_info = CSF_Info_t(ilut)
-
-        call calc_explicit_diag_2_rdm_guga(ilut, csf_info, n_tot, excits)
-
-        call assert_equals(0, n_tot)
-
-        call EncodeBitDet_guga([1, 4, 5], ilut)
-        csf_info = CSF_Info_t(ilut)
-        call calc_explicit_diag_2_rdm_guga(ilut, csf_info, n_tot, excits)
-
-        call assert_equals(4, n_tot)
-
-        ! 1 3 - 3 1
-        rdm_ind = extract_rdm_ind(excits(:, 1))
-        call extract_2_rdm_ind(rdm_ind, i=i, j=j, k=k, l=l)
-        call assert_equals(1, i)
-        call assert_equals(3, j)
-        call assert_equals(3, k)
-        call assert_equals(1, l)
-
-        call assert_equals(-sqrt(3.0_dp) / 2.0_dp, real(extract_h_element(excits(:, 1)), dp))
-
-        ! 2 3 - 3 2
-        rdm_ind = extract_rdm_ind(excits(:, 2))
-        call extract_2_rdm_ind(rdm_ind, i=i, j=j, k=k, l=l)
-        call assert_equals(2, i)
-        call assert_equals(3, j)
-        call assert_equals(3, k)
-        call assert_equals(2, l)
-
-        call assert_equals(sqrt(3.0_dp) / 2.0_dp, real(extract_h_element(excits(:, 2)), dp))
-
-        ! 3 1 - 1 3
-        rdm_ind = extract_rdm_ind(excits(:, 3))
-        call extract_2_rdm_ind(rdm_ind, i=i, j=j, k=k, l=l)
-        call assert_equals(3, i)
-        call assert_equals(1, j)
-        call assert_equals(1, k)
-        call assert_equals(3, l)
-        call assert_equals(-sqrt(3.0_dp) / 2.0_dp, real(extract_h_element(excits(:, 3)), dp))
-
-        ! 3 2 - 2 3
-        rdm_ind = extract_rdm_ind(excits(:, 4))
-        call extract_2_rdm_ind(rdm_ind, i=i, j=j, k=k, l=l)
-        call assert_equals(3, i)
-        call assert_equals(2, j)
-        call assert_equals(2, k)
-        call assert_equals(3, l)
-        call assert_equals(sqrt(3.0_dp) / 2.0_dp, real(extract_h_element(excits(:, 4)), dp))
-
-        call EncodeBitDet_guga([1, 3, 6], ilut)
-        csf_info = CSF_Info_t(ilut)
-        call calc_explicit_diag_2_rdm_guga(ilut, csf_info, n_tot, excits)
-
-        call assert_equals(4, n_tot)
-
-        ! 1 3 - 3 1
-        rdm_ind = extract_rdm_ind(excits(:, 1))
-        call extract_2_rdm_ind(rdm_ind, i=i, j=j, k=k, l=l)
-        call assert_equals(1, i)
-        call assert_equals(3, j)
-        call assert_equals(3, k)
-        call assert_equals(1, l)
-
-        call assert_equals(-sqrt(3.0_dp) / 2.0_dp, real(extract_h_element(excits(:, 1)), dp), 1e-12_dp)
-
-        ! 2 3 - 3 2
-        rdm_ind = extract_rdm_ind(excits(:, 2))
-        call extract_2_rdm_ind(rdm_ind, i=i, j=j, k=k, l=l)
-        call assert_equals(2, i)
-        call assert_equals(3, j)
-        call assert_equals(3, k)
-        call assert_equals(2, l)
-
-        call assert_equals(sqrt(3.0_dp) / 2.0_dp, real(extract_h_element(excits(:, 2)), dp), 1e-12_dp)
-
-        ! 3 1 - 1 3
-        rdm_ind = extract_rdm_ind(excits(:, 3))
-        call extract_2_rdm_ind(rdm_ind, i=i, j=j, k=k, l=l)
-        call assert_equals(3, i)
-        call assert_equals(1, j)
-        call assert_equals(1, k)
-        call assert_equals(3, l)
-        call assert_equals(-sqrt(3.0_dp) / 2.0_dp, real(extract_h_element(excits(:, 3)), dp), 1e-12_dp)
-
-        ! 3 2 - 2 3
-        rdm_ind = extract_rdm_ind(excits(:, 4))
-        call extract_2_rdm_ind(rdm_ind, i=i, j=j, k=k, l=l)
-        call assert_equals(3, i)
-        call assert_equals(2, j)
-        call assert_equals(2, k)
-        call assert_equals(3, l)
-        call assert_equals(sqrt(3.0_dp) / 2.0_dp, real(extract_h_element(excits(:, 4)), dp), 1e-12_dp)
-
-        nel = 4
-        call EncodeBitDet_guga([1, 3, 6, 8], ilut)
-        csf_info = CSF_Info_t(ilut)
-
-        call calc_explicit_diag_2_rdm_guga(ilut, csf_info, n_tot, excits)
-
-        ! 1 3 - 3 1
-        rdm_ind = extract_rdm_ind(excits(:, 1))
-        call extract_2_rdm_ind(rdm_ind, i=i, j=j, k=k, l=l)
-        call assert_equals(1, i)
-        call assert_equals(3, j)
-        call assert_equals(3, k)
-        call assert_equals(1, l)
-
-        call assert_equals(-sqrt(3.0_dp) / 2.0_dp, real(extract_h_element(excits(:, 1)), dp), 1e-12_dp)
-
-        ! 1 4 - 4 1
-        rdm_ind = extract_rdm_ind(excits(:, 2))
-        call extract_2_rdm_ind(rdm_ind, i=i, j=j, k=k, l=l)
-        call assert_equals(1, i)
-        call assert_equals(4, j)
-        call assert_equals(4, k)
-        call assert_equals(1, l)
-
-        call assert_equals(sqrt(3.0_dp) / 2.0_dp, real(extract_h_element(excits(:, 2)), dp), 1e-12_dp)
-
-        ! 2 3 - 3 2
-        rdm_ind = extract_rdm_ind(excits(:, 3))
-        call extract_2_rdm_ind(rdm_ind, i=i, j=j, k=k, l=l)
-        call assert_equals(2, i)
-        call assert_equals(3, j)
-        call assert_equals(3, k)
-        call assert_equals(2, l)
-        call assert_equals(sqrt(3.0_dp) / 2.0_dp, real(extract_h_element(excits(:, 3)), dp), 1e-12_dp)
-
-        ! 2 4 - 4 2
-        rdm_ind = extract_rdm_ind(excits(:, 4))
-        call extract_2_rdm_ind(rdm_ind, i=i, j=j, k=k, l=l)
-        call assert_equals(2, i)
-        call assert_equals(4, j)
-        call assert_equals(4, k)
-        call assert_equals(2, l)
-        call assert_equals(-sqrt(3.0_dp) / 2.0_dp, real(extract_h_element(excits(:, 4)), dp), 1e-12_dp)
-
-        ! 3 1 - 1 3
-        rdm_ind = extract_rdm_ind(excits(:, 5))
-        call extract_2_rdm_ind(rdm_ind, i=i, j=j, k=k, l=l)
-        call assert_equals(3, i)
-        call assert_equals(1, j)
-        call assert_equals(1, k)
-        call assert_equals(3, l)
-
-        call assert_equals(-sqrt(3.0_dp) / 2.0_dp, real(extract_h_element(excits(:, 5)), dp), 1e-12_dp)
-
-        ! 3 2 - 2 3
-        rdm_ind = extract_rdm_ind(excits(:, 6))
-        call extract_2_rdm_ind(rdm_ind, i=i, j=j, k=k, l=l)
-        call assert_equals(3, i)
-        call assert_equals(2, j)
-        call assert_equals(2, k)
-        call assert_equals(3, l)
-
-        call assert_equals(sqrt(3.0_dp) / 2.0_dp, real(extract_h_element(excits(:, 6)), dp), 1e-12_dp)
-
-        ! 4 1 - 1 4
-        rdm_ind = extract_rdm_ind(excits(:, 7))
-        call extract_2_rdm_ind(rdm_ind, i=i, j=j, k=k, l=l)
-        call assert_equals(4, i)
-        call assert_equals(1, j)
-        call assert_equals(1, k)
-        call assert_equals(4, l)
-        call assert_equals(sqrt(3.0_dp) / 2.0_dp, real(extract_h_element(excits(:, 7)), dp), 1e-12_dp)
-
-        ! 4 2 - 2 4
-        rdm_ind = extract_rdm_ind(excits(:, 8))
-        call extract_2_rdm_ind(rdm_ind, i=i, j=j, k=k, l=l)
-        call assert_equals(4, i)
-        call assert_equals(2, j)
-        call assert_equals(2, k)
-        call assert_equals(4, l)
-        call assert_equals(-sqrt(3.0_dp) / 2.0_dp, real(extract_h_element(excits(:, 8)), dp), 1e-12_dp)
-
-        nel = 4
-        call EncodeBitDet_guga([1, 4, 5, 8], ilut)
-        csf_info = CSF_Info_t(ilut)
-
-        call calc_explicit_diag_2_rdm_guga(ilut, csf_info, n_tot, excits)
-
-        call calc_explicit_diag_2_rdm_guga(ilut, csf_info, n_tot, excits)
-
-        print *, ""
-        print *, "testing: calc_explicit_diag_2_rdm_guga DONE"
-        print *, ""
-
-        nel = 4
-
-    end subroutine test_calc_explicit_diag_2_rdm_guga
-
     subroutine test_calc_explicit_2_rdm_guga
 
         integer :: n_tot
@@ -1823,13 +1618,11 @@ contains
         print *, ""
         call run_test_case(test_calcRemainingSwitches, "test_calcRemainingSwitches")
         call run_test_case(test_actHamiltonian, "test_actHamiltonian")
-        call run_test_case(test_calcOverlapRange, "test_calcOverlapRange")
         call run_test_case(test_excitationIdentifier_single, "test_excitationIdentifier_single")
         call run_test_case(test_createSingleStart, "test_createSingleStart")
         call run_test_case(test_singleUpdate, "test_singleUpdate")
         call run_test_case(test_singleEnd, "test_singleEnd")
         call run_test_case(test_calcAllExcitations_single, "test_calcAllExcitations_single")
-        call run_test_case(test_calcRemainingSwitches_double, "test_calcRemainingSwitches_double")
         call run_test_case(test_excitationIdentifier_double, "test_excitationIdentifier_double")
         call run_test_case(test_checkCompatibility, "test_checkCompatibility")
         call run_test_case(test_calcSingleOverlapLowering, "test_calcSingleOverlapLowering")
@@ -10084,36 +9877,6 @@ contains
 
     end subroutine test_checkCompatibility
 
-    subroutine test_calcRemainingSwitches_double
-        real(dp) :: posSwitch(4), negSwitch(4)
-        integer(n_int) :: ilut(0:nifguga)
-        type(CSF_Info_t) :: csf_info
-
-        call EncodeBitDet_guga([1, 2, 3, 4], ilut)
-
-        csf_info = CSF_Info_t(ilut)
-
-        print *, "testing: calcRemainingSwitches_double"
-        ! solche scheiß tests...
-        call calcRemainingSwitches_double(csf_info, 1, 2, 3, 4, posSwitch, negSwitch)
-        call assert_true(all(posSwitch.isclose.0.0_dp))
-        call assert_true(all(negSwitch.isclose.0.0_dp))
-        call calcRemainingSwitches_double(csf_info, 3, 2, 3, 1, posSwitch, negSwitch)
-        call assert_true(all(posSwitch.isclose.0.0_dp))
-        call assert_true(all(negSwitch.isclose.0.0_dp))
-        call calcRemainingSwitches_double(csf_info, 1, 4, 3, 4, posSwitch, negSwitch)
-        call assert_true(all(posSwitch.isclose.0.0_dp))
-        call assert_true(all(negSwitch.isclose.0.0_dp))
-
-        call EncodeBitDet_guga([1, 4, 5, 6], ilut)
-
-        csf_info = CSF_Info_t(ilut)
-        ! 1212 todo
-
-        print *, "calcRemainingSwitches_double tests passed!"
-
-    end subroutine test_calcRemainingSwitches_double
-
     subroutine test_excitationIdentifier_double
         type(ExcitationInformation_t) :: excitInfo
 
@@ -10801,30 +10564,5 @@ contains
         print *, "calcRemainingSwitches tests successfull"
 
     end subroutine test_calcRemainingSwitches
-
-    subroutine test_calcOverlapRange()
-        integer, allocatable :: overlap(:), nonOverlap(:)
-        character(*), parameter :: testFun = "calcOverlapRange"
-        integer :: i, j, k, l
-
-        print *, ""
-        print *, " Testing ", testFun
-
-        ! anyway not used anymore..
-        i = 1
-        j = 4
-        k = 1
-        l = 4
-
-        call calcOverlapRange(i, j, k, l, overlap, nonOverlap)
-
-        print *, " overlap ind: ", overlap
-        print *, " overlap length: ", size(overlap)
-        print *, " non overlap ind ", nonOverlap
-        print *, " non overlap length ", size(nonOverlap)
-
-        print *, testFun, " tests successfull"
-
-    end subroutine test_calcOverlapRange
 
 end program test_guga

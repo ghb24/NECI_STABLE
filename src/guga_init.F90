@@ -36,15 +36,12 @@ module guga_init
 
     use guga_excitations, only: pickOrbs_sym_uniform_ueg_single, pickOrbs_sym_uniform_ueg_double, &
                         pickOrbs_sym_uniform_mol_single, pickOrbs_sym_uniform_mol_double, &
-                        pickOrbitals_nosym_single, pickOrbitals_nosym_double, &
                         calc_orbital_pgen_contr_ueg, calc_orbital_pgen_contr_mol, &
-                        calc_mixed_contr_sym, calc_mixed_start_l2r_contr_nosym, &
-                        calc_mixed_start_r2l_contr_nosym, calc_mixed_start_contr_sym,&
-                        calc_mixed_x2x_ueg, calc_mixed_end_l2r_contr_nosym, calc_mixed_end_r2l_contr_nosym, &
-                        calc_mixed_end_contr_sym, pick_first_orbital_nosym_guga_diff, &
-                        pick_first_orbital_nosym_guga_uniform, orb_pgen_contrib_type_2_diff, &
-                        orb_pgen_contrib_type_3_diff, orb_pgen_contrib_type_2_uniform, &
-                        orb_pgen_contrib_type_3_uniform, temp_step_i, temp_step_j, &
+                        calc_mixed_contr_sym, &
+                        calc_mixed_start_contr_sym,&
+                        calc_mixed_x2x_ueg, &
+                        calc_mixed_end_contr_sym, &
+                        temp_step_i, temp_step_j, &
                         temp_delta_b, temp_occ_i, temp_b_real_i, calc_off_diag_guga_ref_direct, &
                         pickOrbs_real_hubbard_single, pickOrbs_real_hubbard_double, &
                         calc_orbital_pgen_contrib_start_def, calc_orbital_pgen_contrib_end_def

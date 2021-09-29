@@ -112,8 +112,7 @@ module FciMCParMod
 
     use excit_gen_5, only: gen_excit_4ind_weighted2
 
-    use guga_excitations, only: deallocate_projE_list, generate_excitation_guga, &
-                                global_excitInfo
+    use guga_excitations, only: generate_excitation_guga, global_excitInfo
     use guga_bitrepops, only: fill_csf_i, current_csf_i
     use tJ_model, only: init_guga_heisenberg_model, init_guga_tj_model
 

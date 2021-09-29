@@ -89,7 +89,7 @@ module k_space_hubbard
                                     pick_spin_opp_elecs, pick_from_cum_list, &
                                     pick_spin_par_elecs, pick_three_opp_elecs
 
-    use guga_excitations, only: generate_excitation_guga, generate_excitation_guga_crude, &
+    use guga_excitations, only: generate_excitation_guga, &
                                 calc_guga_matrix_element, global_excitinfo, print_excitInfo
     use guga_bitRepOps, only: convert_ilut_toGUGA, is_compatible, &
                               isProperCSF_ilut, current_csf_i
@@ -322,35 +322,6 @@ contains
 #endif
 
     end subroutine setup_symmetry_table
-
-    subroutine gen_symreps()
-        ! i have to figure out what exactly those symreps do and how
-        ! i should set them up..
-        use SystemData, only: arr, brr
-        use SymData, only: symreps
-
-        integer :: i, j
-        if (allocated(symreps)) deallocate(symreps)
-        allocate(symreps(2, nbasis))
-        symreps = 0
-
-        j = 0
-
-        print *, "arr: "
-        do i = 1, nbasis
-            print *, arr(i, :)
-        end do
-
-        print *, "brr: "
-        do i = 1, nbasis
-            print *, brr(i)
-        end do
-
-        do i = 1, 2 * lat%get_nsites()
-
-        end do
-
-    end subroutine gen_symreps
 
     function get_umat_kspace(i, j, k, l) result(hel)
         ! simplify this get_umat function for the k-space hubbard..
@@ -2818,71 +2789,6 @@ contains
 
     end function get_offdiag_helement_k_sp_hub
 
-    subroutine get_transferred_momenta(ex, k_vec_a, k_vec_b)
-        ! routine to reobtain transferred momentum from a given excitation
-        ! for spin-opposite double excitations i am pretty sure how, but
-        ! for triple excitations and spin-parallel doubles not so much.. todo
-        integer, intent(in) :: ex(:, :)
-        integer, intent(out) :: k_vec_a(3), k_vec_b(3)
-#ifdef DEBUG_
-        character(*), parameter :: this_routine = "get_transferred_momenta"
-#endif
-        integer :: sort_ex(2, size(ex, 2))
-
-        ! just to be sure, sort ex again..
-        sort_ex(1, :) = [minval(ex(1, :)), maxval(ex(1, :))]
-        sort_ex(2, :) = [minval(ex(2, :)), maxval(ex(2, :))]
-
-        ASSERT(size(ex, 1) == 2)
-        ASSERT(size(ex, 2) == 2 .or. size(ex, 2) == 3)
-
-        if (size(sort_ex, 2) == 2) then
-            ! double excitation
-            if (same_spin(sort_ex(1, 1), sort_ex(1, 2))) then
-                ! spin-parallel excitation
-                ASSERT(same_spin(sort_ex(2, 1), sort_ex(2, 2)))
-                ASSERT(same_spin(sort_ex(1, 1), sort_ex(2, 1)))
-
-                ! for now just take the momentum of ex(1,2) - ex(2,1)
-                ! and ex(2,1) - ex(1,1)
-                k_vec_a = lat%subtract_k_vec(G1(sort_ex(1, 1))%k, G1(sort_ex(2, 1))%k)
-                k_vec_b = lat%subtract_k_vec(G1(sort_ex(1, 2))%k, G1(sort_ex(2, 1))%k)
-
-                if (.not. t_k_space_hubbard) then
-                    call mompbcsym(k_vec_a, nBasisMax)
-                    call mompbcsym(k_vec_b, nBasisMax)
-                end if
-
-            else
-                ! "normal" hubbard spin-opposite excitation
-                ASSERT(.not. same_spin(ex(2, 1), ex(2, 2)))
-                ! here it is easier, we need the momentum difference of the
-                ! same spin-electrons
-                ! the sign of k should be irrelevant or? todo!
-                if (same_spin(ex(1, 1), ex(2, 1))) then
-
-                    k_vec_a = lat%subtract_k_vec(G1(ex(1, 1))%k, G1(ex(2, 1))%k)
-                    k_vec_b = lat%subtract_k_vec(G1(ex(1, 2))%k, G1(ex(2, 2))%k)
-
-                else
-                    k_vec_a = lat%subtract_k_vec(G1(ex(1, 1))%k, G1(ex(2, 2))%k)
-                    k_vec_b = lat%subtract_k_vec(G1(ex(1, 2))%k, G1(ex(2, 1))%k)
-
-                end if
-
-                if (.not. t_k_space_hubbard) then
-                    call mompbcsym(k_vec_a, nBasisMax)
-                    call mompbcsym(k_vec_b, nBasisMax)
-                end if
-            end if
-        else
-            ! triple excitations..
-            ! i think i do not really need the triples..
-            ASSERT(.false.)
-        end if
-
-    end subroutine get_transferred_momenta
-
     subroutine setup_k_total(nI)
         integer, intent(in), optional :: nI(nel)
         character(*), parameter :: this_routine = "setup_k_total"
@@ -3684,19 +3590,6 @@ contains
         end if
 
     end function check_momentum_sym
-
-    logical function sym_equal(sym_1, sym_2)
-        type(BasisFN), intent(in) :: sym_1, sym_2
-
-        sym_equal = .true.
-
-        ! just check if every entries are the same!
-        if (.not. all(sym_1%k == sym_2%k)) sym_equal = .false.
-        if (sym_1%ms /= sym_2%ms) sym_equal = .false.
-        if (sym_1%ml /= sym_2%ml) sym_equal = .false.
-        if (sym_1%Sym%s /= sym_2%Sym%s) sym_equal = .false.
-
-    end function sym_equal
 
     subroutine make_triple(nI, nJ, elecs, orbs, ex, tPar)
         integer, intent(in) :: nI(nel), elecs(3), orbs(3)

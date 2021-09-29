@@ -210,8 +210,7 @@ module fcimc_initialisation
                               convert_ilut_toGUGA, getDeltaB, write_det_guga, write_guga_list, &
                               calc_csf_i, CSF_Info_t
 
-    use guga_excitations, only: generate_excitation_guga, create_projE_list, &
-                                actHamiltonian
+    use guga_excitations, only: generate_excitation_guga, actHamiltonian
     use guga_matrixElements, only: calcDiagMatEleGUGA_ilut, calcDiagMatEleGUGA_nI
 
     use real_time_data, only: t_real_time_fciqmc

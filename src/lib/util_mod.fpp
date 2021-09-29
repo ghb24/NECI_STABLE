@@ -1415,19 +1415,6 @@ end function
 
 #endif
 
-#ifdef GFORTRAN_
-function g_loc(var) result(addr)
-
-    use, intrinsic :: iso_c_binding, only: c_loc, c_ptr
-
-    integer, target :: var
-    type(c_ptr) :: addr
-
-    addr = c_loc(var)
-
-end function
-#endif
-
 subroutine neci_flush(un)
 #ifdef NAGF95
     use f90_unix, only: flush
