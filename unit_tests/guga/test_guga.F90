@@ -5,6 +5,7 @@
 ! like electrons, orbitals etc...
 ! since otherwise all test cases are quite input dependent...
 ! discuss with simon how to implement that optimally
+
 program test_guga
 
     ! check if i can use some sort of unit test framework, like fruit,
@@ -37,12 +38,12 @@ program test_guga
     use FciMCData
     use dsfmt_interface, only: dsfmt_init
     use util_mod, only: operator(.isclose.), near_zero, operator(.div.), &
-                        binary_search
+                        binary_search, get_free_unit, stop_all, get_unique_filename
     use sort_mod, only: sort
     use rdm_data_utils, only: calc_combined_rdm_label, calc_separate_rdm_labels
     use fruit_extensions, only: my_run_test_case
 
-    implicit none
+    better_implicit_none
 
     real(dp), parameter :: tol = 1.0e-10_dp
     integer :: failed_count
@@ -2853,59 +2854,6 @@ contains
 
     end subroutine test_count_alpha_orbs_ij
 
-    subroutine test_add_guga_lists
-        integer(n_int) :: l1(0:nifguga, 1), l2(0:nifguga, 1), l3(0:nifguga, 2)
-        integer(n_int) :: l4(0:nifguga, 3), l5(0:nifguga, 4), l6(0:nifguga, 5)
-
-        integer :: nOut
-
-        l1 = 0_n_int
-        l2 = 0_n_int
-        l3 = 0_n_int
-        l4 = 0_n_int
-        l5 = 0_n_int
-        l6 = 0_n_int
-
-        call EncodeBitDet_guga([1, 2, 3, 4], l6(:, 1))
-        call EncodeBitDet_guga([1, 4, 5, 8], l3(:, 1))
-
-        print *, "testing: add_guga_lists(n1,n2,l1,l2)"
-        print *, ""
-        nOut = 1
-        call add_guga_lists(nOut, 1, l6, l3)
-        call assert_true(nOut == 2)
-
-        call EncodeBitDet_guga([1, 2, 3, 6], l3(:, 1))
-
-        call add_guga_lists(nOut, 1, l6, l3)
-
-        call assert_true(nout == 3)
-
-        call EncodeBitDet_guga([5, 6, 7, 8], l3(:, 1))
-
-        call add_guga_lists(nOut, 1, l6, l3)
-
-        call assert_true(nout == 4)
-
-        l3(:, 2) = l6(:, 2)
-
-        call add_guga_lists(nOut, 2, l6, l3)
-
-        call assert_true(nOut == 4)
-
-        l5(:, 1) = l6(:, 1)
-        nOut = 1
-
-        call add_guga_lists(nOut, 4, l5, l6)
-
-        call assert_true(nOut == 4)
-
-        print *, ""
-        print *, "add_guga_lists tests passed!"
-        print *, ""
-
-    end subroutine test_add_guga_lists
-
     subroutine test_getSpatialOccupation
         integer(n_int) :: ilut(0:nifguga)
 
@@ -4628,139 +4576,6 @@ contains
         call test_excit_gen_guga(ilut, n_guga_excit_gen)
 
     end subroutine run_test_excit_gen_guga_S2
-
-    subroutine run_test_excit_gen_guga_S0
-        ! write a similar testing routine as Simons
-        integer(n_int) :: ilut(0:niftot)
-        integer :: nI(4)
-
-        pSingles = 0.1_dp
-        pDoubles = 1.0_dp - pSingles
-
-        pExcit4 = 0.5_dp
-        pExcit2 = 0.5_dp
-
-        if (t_consider_diff_bias) then
-            pExcit2_same = 0.5_dp
-            pExcit3_same = 0.5_dp
-        else
-            pExcit2_same = 1.0_dp
-            pExcit3_same = 1.0_dp
-        end if
-
-        pExcit2_same = 0.9_dp
-        pExcit3_same = 0.9_dp
-
-        print *, ""
-        print *, "running: test_excit_gen_guga_S0(ilut,n_guga_excit_gen)"
-        print *, "pSingles set to: ", pSingles
-        print *, "pDoubles set to: ", pDoubles
-        print *, ""
-
-        ! 1032
-        nI = [1, 5, 6, 8]
-        call EncodeBitDet(nI, ilut)
-        call test_excit_gen_guga(ilut, n_guga_excit_gen)
-
-        ! 0132
-        nI = [3, 5, 6, 8]
-        call EncodeBitDet(nI, ilut)
-        call test_excit_gen_guga(ilut, n_guga_excit_gen)
-
-        ! 1302
-        nI = [1, 3, 4, 8]
-        call EncodeBitDet(nI, ilut)
-        call test_excit_gen_guga(ilut, n_guga_excit_gen)
-
-        ! 3300
-        nI = [1, 2, 3, 4]
-        call EncodeBitDet(nI, ilut)
-        call test_excit_gen_guga(ilut, n_guga_excit_gen)
-
-        ! 3030
-        nI = [1, 2, 5, 6]
-        call EncodeBitDet(nI, ilut)
-        call test_excit_gen_guga(ilut, n_guga_excit_gen)
-
-        ! 3003
-        nI = [1, 2, 7, 8]
-        call EncodeBitDet(nI, ilut)
-        call test_excit_gen_guga(ilut, n_guga_excit_gen)
-
-        ! 0330
-        nI = [3, 4, 5, 6]
-        call EncodeBitDet(nI, ilut)
-        call test_excit_gen_guga(ilut, n_guga_excit_gen)
-
-        ! 0303
-        nI = [3, 4, 7, 8]
-        call EncodeBitDet(nI, ilut)
-        call test_excit_gen_guga(ilut, n_guga_excit_gen)
-
-        ! 0033
-        nI = [5, 6, 7, 8]
-        call EncodeBitDet(nI, ilut)
-        call test_excit_gen_guga(ilut, n_guga_excit_gen)
-
-        ! 3012
-        nI = [1, 2, 5, 8]
-        call EncodeBitDet(nI, ilut)
-        call test_excit_gen_guga(ilut, n_guga_excit_gen)
-
-        ! 3102
-        nI = [1, 2, 3, 8]
-        call EncodeBitDet(nI, ilut)
-        call test_excit_gen_guga(ilut, n_guga_excit_gen)
-
-        ! 1023
-        nI = [1, 6, 7, 8]
-        call EncodeBitDet(nI, ilut)
-        call test_excit_gen_guga(ilut, n_guga_excit_gen)
-
-        ! 3120
-        nI = [1, 2, 3, 6]
-        call EncodeBitDet(nI, ilut)
-        call test_excit_gen_guga(ilut, n_guga_excit_gen)
-
-        ! 0312
-        nI = [3, 4, 5, 8]
-        call EncodeBitDet(nI, ilut)
-        call test_excit_gen_guga(ilut, n_guga_excit_gen)
-
-        ! 1230
-        nI = [1, 4, 5, 6]
-        call EncodeBitDet(nI, ilut)
-        call test_excit_gen_guga(ilut, n_guga_excit_gen)
-
-        ! 1203
-        nI = [1, 4, 7, 8]
-        call EncodeBitDet(nI, ilut)
-        call test_excit_gen_guga(ilut, n_guga_excit_gen)
-
-        ! 1320
-        nI = [1, 3, 4, 6]
-        call EncodeBitDet(nI, ilut)
-        call test_excit_gen_guga(ilut, n_guga_excit_gen)
-        ! 0123
-        nI = [3, 6, 7, 8]
-        call EncodeBitDet(nI, ilut)
-        call test_excit_gen_guga(ilut, n_guga_excit_gen)
-
-        ! 1122
-        nI = [1, 3, 6, 8]
-        call EncodeBitDet(nI, ilut)
-        call test_excit_gen_guga(ilut, n_guga_excit_gen)
-
-        ! 1212
-        nI = [1, 4, 5, 8]
-        call EncodeBitDet(nI, ilut)
-        call test_excit_gen_guga(ilut, n_guga_excit_gen)
-
-        print *, ""
-        print *, "test_excit_gen_guga finished!"
-        print *, ""
-
-    end subroutine run_test_excit_gen_guga_S0
 
     subroutine test_calcMixedContribution
         integer(n_int) :: ilut(0:nifguga), t(0:nifguga)
@@ -10564,5 +10379,269 @@ contains
         print *, "calcRemainingSwitches tests successfull"
 
     end subroutine test_calcRemainingSwitches
+
+
+    subroutine test_excit_gen_guga(ilut, iterations)
+        integer(n_int), intent(in) :: ilut(0:NIfTot)
+        integer, intent(in) :: iterations
+        character(*), parameter :: this_routine = 'test_excit_gen_guga'
+
+        integer(n_int) :: ilutG(0:nifguga)
+        integer(n_int), allocatable :: excitations(:, :)
+
+        integer :: src_det(nel), det(nel), nexcit, ex(2, maxExcit)
+        integer :: ngen, pos, iunit, i, ic
+        type(excit_gen_store_type) :: store
+        integer(n_int) :: tgt_ilut(0:NifTot)
+        integer(n_int), allocatable :: det_list(:, :)
+        integer, allocatable :: excitTyp(:), excitLvl(:), excit_mat(:, :)
+        type(CSF_Info_t) :: csf_i
+        real(dp), allocatable :: contrib_list(:), pgen_list(:)
+        HElement_t(dp), allocatable :: matEle_list(:), exact_helements(:)
+        logical, allocatable :: generated_list(:)
+        logical :: par
+        real(dp) :: contrib, pgen, sum_helement, sum_pgens
+        HElement_t(dp) :: helgen, temp_mat
+        real(dp) :: diff
+        character(255) :: filename
+        type(ExcitationInformation_t) :: excitInfo
+
+        ! Decode the determiant
+        call decode_bit_det(src_det, ilut)
+
+        ! convert ilut to guga format
+        call convert_ilut_toGUGA(ilut, ilutG)
+
+        print *, ""
+        print *, "========================================================="
+        print *, "testing pgens for CSF: "
+        call write_det_guga(6, ilutG)
+        print *, "<Di|H|Di>: ", calcDiagMatEleGuga_ilut(ilutG)
+
+        ! calc. all excitations for the given ilut
+        csf_i = CSF_Info_t(ilutG)
+        call actHamiltonian(ilutG, csf_i, excitations, nexcit)
+
+        print *, "all excact excitations: ", nexcit
+
+        call write_guga_list(stdout, excitations(:, 1:nexcit))
+
+        ! and convert them back to a list of neci iluts
+        allocate(det_list(0:niftot, nexcit))
+        allocate(exact_helements(nExcit), source=h_cast(0.0_dp))
+        allocate(excitLvl(nexcit), source=-1)
+        allocate(excit_mat(nexcit, 4), source=0)
+
+        do i = 1, nexcit
+            call convert_ilut_toNECI(excitations(:, i), det_list(:, i), helgen)
+
+            ! if i use guga-mateles keyword, should i also test for the
+            ! matrix element here? since i am using those routines to
+            ! calculate the reference energy.. and not actually the
+            ! actHamiltonian routine.. i probably should.. but this is quite
+            ! costly.. hm.. init_csf_irmation is already called in
+            ! acthamiltonian..
+            exact_helements(i) = helgen
+            excitLvl(i) = getDeltaB(excitations(:, i))
+            call calc_guga_matrix_element(ilut, csf_i, det_list(:, i), excitInfo, &
+                                          temp_mat, .true., 1)
+
+            excit_mat(i, :) = [excitInfo%i, excitInfo%j, excitInfo%k, excitInfo%l]
+
+            diff = abs(helgen - temp_mat)
+
+            if (diff < 1.0e-10_dp) diff = 0.0_dp
+
+            if (.not. near_zero(diff)) then
+                print *, "different matrix elements for CSFs: "
+                call write_det_guga(6, ilut)
+                call write_det_guga(6, excitations(:, i))
+                print *, "actHamiltonian result: ", helgen
+                print *, "calc_guga_matrix_element result: ", temp_mat
+            end if
+        end do
+
+        ! Sort the dets, so they are easy to find by binary searching
+        call sort(det_list, ilut_lt, ilut_gt)
+
+        ! Lists to keep track of things
+        allocate(generated_list(nexcit))
+        allocate(contrib_list(nexcit))
+        allocate(pgen_list(nexcit))
+        allocate(matEle_list(nExcit))
+        matEle_list = h_cast(0.0_dp)
+        allocate(excitTyp(nExcit), source=-1)
+        generated_list = .false.
+        contrib_list = 0
+        pgen_list = 0.0_dp
+
+        ! set the not needed inputs for guga
+        ex = 0
+
+        ! Repeated generation, and summing-in loop
+        ngen = 0
+        contrib = 0.0_dp
+        do i = 1, iterations
+            if (mod(i, 10000) == 0) then
+                write(stdout, *) i, '/', iterations, ' - ', contrib / (real(nexcit, dp) * i)
+            end if
+
+            if (tgen_guga_crude) then
+                call stop_all(this_routine, &
+                              "change in source code below this line to activate tests!")
+!                 call gen_excit_4ind_weighted2 (src_det, ilut, det, tgt_ilut, 3, &
+!                                           ic, ex, par, pgen, helgen, store)
+            else
+                global_csf_info = CSF_Info_t(ilut)
+                call generate_excitation_guga(src_det, ilut, det, tgt_ilut, 3, &
+                                              ic, ex, par, pgen, helgen, store)
+            end if
+            if (det(1) == 0) cycle
+
+            call EncodeBitDet(det, tgt_ilut)
+            pos = binary_search(det_list(0:nifd, 1:nexcit), tgt_ilut(0:nifd))
+            if (pos < 0) then
+                write(stdout, *) 'FAILED DET', tgt_ilut
+                print *, "from CSF:"
+                call write_det_guga(6, ilutG)
+                call write_det_guga(6, tgt_ilut(0:nifd))
+                call print_excitInfo(global_excitInfo)
+                print *, "<i|H|j> = ", helgen
+                call stop_all(this_routine, 'Unexpected determinant generated')
+            else
+                generated_list(pos) = .true.
+
+                diff = abs(helgen - exact_helements(pos))
+
+                if (diff < 1.0e-10_dp) diff = 0.0_dp
+
+                if (.not. near_zero(diff)) then
+                    print *, "different matrix elements for CSFs: "
+                    call write_det_guga(6, ilut)
+                    call write_det_guga(6, excitations(:, i))
+                    print *, "actHamiltonian result: ", helgen
+                    print *, "calc_guga_matrix_element result: ", temp_mat
+                end if
+
+                ! Count this det, and sum in its contribution.
+                ngen = ngen + 1
+                contrib = contrib + 1.0_dp / pgen
+                matEle_list(pos) = HElGen
+                pgen_list(pos) = pgen
+                contrib_list(pos) = contrib_list(pos) + 1.0_dp / pgen
+                excitTyp(pos) = global_excitInfo%typ
+            end if
+        end do
+
+        ! normalize matrix elements and pgens to compare with pgens
+        sum_helement = sum(abs(matEle_list))
+        sum_pgens = sum(pgen_list)
+
+        ! How many of the iterations generated a good det?
+        write(stdout, *) ngen, " dets generated in ", iterations, " iterations."
+        write(stdout, *) 100_dp * (iterations - ngen) / real(iterations, dp), &
+            '% abortion rate'
+        ! Contribution averages
+        write(stdout, '("Averaged contribution: ", f15.10)') &
+            contrib / (real(nexcit, dp) * iterations)
+
+        if (t_full_guga_tests .or. t_guga_testsuite) then
+            ! do asserts in case of full guga tests to be certain no basic
+            ! bugs remain. but what should the threshold be??
+            ASSERT(abs((contrib / (real(nexcit, dp) * iterations)) - 1.0_dp) < 0.01_dp)
+        end if
+
+        print *, "for CSF: "
+        call write_det_guga(6, ilutG)
+
+        ! Output the determinant specific contributions
+        iunit = get_free_unit()
+        call get_unique_filename("contribs_guga", .true., .true., 1, filename)
+        open(iunit, file=filename, status='unknown')
+        write(iunit, *) "contributions for CSF:"
+        call write_det_guga(iunit, ilutG)
+        write(iunit, *) "=============================="
+        do i = 1, nexcit
+            call convert_ilut_toGUGA(det_list(:, i), ilutG, matEle_list(i), excitTyp(i))
+            call write_det_guga(iunit, ilutG, .false.)
+            write(iunit, "(f16.7)", advance='no') contrib_list(i) / real(iterations, dp)
+            write(iunit, "(e16.7)", advance='no') pgen_list(i)
+            write(iunit, "(e16.7)", advance='no') exact_helements(i)
+            write(iunit, "(I3)", advance='yes') excitLvl(i)
+        end do
+        close(iunit)
+
+        ! also output pgen and matrix elements only to compare
+        iunit = get_free_unit()
+        call get_unique_filename("pgen_vs_matrixElements", .true., .true., 1, filename)
+        open(iunit, file=filename, status='unknown')
+        write(iunit, *) "# pgens and matrix elements for CSF:"
+        call convert_ilut_toGUGA(ilut, ilutG)
+        call write_det_guga(iunit, ilutG)
+
+        do i = 1, nExcit
+            write(iunit, "(e16.7)", advance='no') pgen_list(i) !/sum_pgens
+            write(iunit, "(e16.7)", advance='no') exact_helements(i) !/sum_helement
+            write(iunit, "(f16.7)", advance='no') contrib_list(i) / real(iterations, dp)
+            write(iunit, "(i3)", advance='yes') excitLvl(i)
+        end do
+        close(iunit)
+
+        ! Check that all of the determinants were generated!!!
+        if (.not. all(generated_list)) then
+
+            write(stdout, *) count(.not. generated_list), '/', size(generated_list), &
+                'not generated'
+
+            if (near_zero(pDoubles)) then
+                print *, "expected ratio: ", 1.0_dp - real(count(.not. generated_list), dp) / &
+                    real(size(generated_list), dp)
+            end if
+
+            do i = 1, nexcit
+                if (.not. generated_list(i)) then
+                    call convert_ilut_toGUGA(det_list(:, i), ilutG, matEle_list(i), excitTyp(i))
+                    call write_det_guga(6, ilutG)
+                end if
+
+            end do
+            ! abort in the full-tests case!
+            if (t_full_guga_tests .or. t_guga_testsuite) then
+                call stop_all(this_routine, &
+                              "all excitations should be created in the full test setup!")
+            end if
+        end if
+        ! also do this again in the full-test case:
+        if (t_full_guga_tests .or. t_guga_testsuite) then
+            ! is 0.1 a small enough threshold?
+            if (any(abs(contrib_list / real(iterations, dp) - 1.0_dp) > 0.05_dp)) &
+                call stop_all(this_routine, "Insufficiently uniform generation")
+        end if
+
+        ! also check matrix elements if psingles and pdouble are > 0
+        do i = 1, nExcit
+            if (.not. near_zero(abs(extract_h_element(excitations(:, i)) - matEle_list(i)))) then
+                print *, "incorrect matrix element! for excitation: "
+                call write_det_guga(6, excitations(:, i), .false.)
+                print *, "stoch. <H>: ", matEle_list(i)
+                if (t_full_guga_tests .or. t_guga_testsuite) then
+                    call stop_all(this_routine, "incorrect matrix element!")
+                end if
+            end if
+        end do
+
+        ! Clean up
+        deallocate(det_list)
+        deallocate(contrib_list)
+        deallocate(generated_list)
+        deallocate(pgen_list)
+        deallocate(matEle_list)
+        deallocate(exact_helements)
+        deallocate(excitations)
+        call LogMemDealloc(this_routine, tag_excitations)
+
+    end subroutine test_excit_gen_guga
+
+
 
 end program test_guga

@@ -1,6 +1,6 @@
 macro (add_unit_test test_name)
 
-          neci_add_test(
+        neci_add_test(
     	    TARGET test_neci_${test_name}
 	    SOURCES test_${test_name}.F90
 	    LIBS libneci fruit

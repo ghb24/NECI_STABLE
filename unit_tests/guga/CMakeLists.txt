@@ -9,5 +9,6 @@ foreach( _config ${${PROJECT_NAME}_CONFIGURATIONS} )
         META_TARGET test_${_config}
 	DEFINITIONS
 	    "${${PROJECT_NAME}_${_config}_DEFINITIONS}"
+        "${NECI_GLOBAL_DEFINES}"
     )
 endforeach()

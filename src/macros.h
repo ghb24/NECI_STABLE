@@ -209,7 +209,7 @@ endif
 #endif
 
 ! At the moment only gfortran supports implicit none(type, external)
-#if defined(GFORTRAN_)
+#ifdef GFORTRAN_
 #define better_implicit_none implicit none(type, external)
 #else
 #define better_implicit_none implicit none
