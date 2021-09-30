@@ -391,9 +391,15 @@ contains
         ! or better determine the non-double occupied orbitals in this
         ! symmetry sector
         ! and also is not the electron index!
-        allocate(sym_orbs(nOrb), source = sym_label_list_spat(sym_index:sym_index+nOrb-1))
+        allocate(sym_orbs(nOrb), source=sym_label_list_spat(sym_index:sym_index+nOrb-1))
+#ifdef IFORT_
+        ! be nice to bad intel compilers
+        allocate(mask(nOrb))
+        mask(:) = csf_i%stepvector(sym_orbs) /= 3 .and. sym_orbs /= s_elec
+#else
         allocate(mask(nOrb), &
-            source = csf_i%stepvector(sym_orbs) /= 3 .and. sym_orbs /= s_elec)
+            source=csf_i%stepvector(sym_orbs) /= 3 .and. sym_orbs /= s_elec)
+#endif
 
         nValid = count(mask)
 
