@@ -208,6 +208,13 @@ endif
 #define loc_neci c_loc
 #endif
 
+! At the moment only gfortran supports implicit none(type, external)
+#if defined(GFORTRAN_)
+#define better_implicit_none implicit none(type, external)
+#else
+#define better_implicit_none implicit none
+#endif
+
 
 ! To make sure conjugations of both real and complex realisations of HElement_t behave on all compilers:
 #ifdef CMPLX_
