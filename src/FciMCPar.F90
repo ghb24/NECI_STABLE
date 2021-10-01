@@ -1483,9 +1483,9 @@ contains
 
             if (t_measure_local_spin) then
                 if (tGUGA) then
-                    call stop_all(this_routine, "measure_local_spin works only for GUGA")
-                else
                     call measure_local_spin(SignCurr, current_csf_i)
+                else
+                    call stop_all(this_routine, "measure_local_spin works only for GUGA")
                 end if
             end if
 
