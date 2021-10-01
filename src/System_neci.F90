@@ -453,15 +453,6 @@ contains
                 LMS = STOT
                 ! =============================================================
 
-            case ("GUGA-TESTS")
-                if (item < nitems) then
-                    call geti(n_guga_excit_gen)
-                else
-                    ! use a default value of 1M test runs..
-                    n_guga_excit_gen = 1000000
-                end if
-                t_guga_unit_tests = .true.
-
             case ("TEST-MOST-POPULATED")
                 if (item < nitems) then
                     call geti(n_most_populated)
@@ -499,7 +490,6 @@ contains
                 else
                     n_guga_excit_gen = 1000000
                 end if
-                t_guga_unit_tests = .true.
                 t_full_guga_tests = .true.
 
             case ("GUGA-TESTSUITE")
@@ -510,9 +500,6 @@ contains
                 else
                     n_guga_excit_gen = 1000000
                 end if
-
-                t_guga_unit_tests = .true.
-
                 t_guga_testsuite = .true.
 
             case ("GUGA-NOREORDER")

@@ -276,19 +276,3 @@ contains
     end subroutine
 
 end module
-
-subroutine mpibarrier_c(error) bind(c)
-    use MPI_wrapper, only: MPIBarrier
-    use constants
-    use, intrinsic :: iso_c_binding, only: c_int
-    implicit none
-    integer(c_int), intent(inout) :: error
-    integer :: ierr
-
-#ifdef USE_MPI
-    call MPIBarrier(ierr)
-    error = int(ierr, kind=kind(error))
-#else
-    error = 0
-#endif
-end subroutine
