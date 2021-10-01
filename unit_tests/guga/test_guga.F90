@@ -236,7 +236,7 @@ contains
         ! the obtained rdm_ind, x0 and x1 and then compare this to the
         ! calc_guga_matrix_element and calc_explicit_1/2_rdm_guga routines!!
 
-        call createStochasticExcitation_single(ilut, nI, csf_info, t, pgen)
+        call createStochasticExcitation_single(ilut, nI, csf_info, t, mat_ele, pgen)
 
         if (pgen > EPS) then
             call extract_stochastic_rdm_info(GugaBits, t, rdm_ind, x0, x1)
@@ -8838,7 +8838,7 @@ contains
         print *, ""
         print *, "testing: createStochasticExcitation_single(ilut,t,weight):"
         print *, ""
-        call createStochasticExcitation_single(ilut, nI, csf_info, t, pgen)
+        call createStochasticExcitation_single(ilut, nI, csf_info, t, mat_ele, pgen)
 
         if (pgen > 0.0_dp) then
             call actHamiltonian(ilut, csf_info, ex, nEx)

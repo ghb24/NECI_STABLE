@@ -2366,7 +2366,7 @@ contains
 
     subroutine convert_ilut_toNECI(ilutG, ilutN, HElement)
         integer(n_int), intent(in) :: ilutG(0:GugaBits%len_tot)
-        integer(n_int), intent(inout) :: ilutN(0:niftot)
+        integer(n_int), intent(out) :: ilutN(0:niftot)
         HElement_t(dp), intent(out), optional :: HElement
         character(*), parameter :: this_routine = "convert_ilut_toNECI"
 
