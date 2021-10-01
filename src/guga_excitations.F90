@@ -2983,11 +2983,6 @@ contains
             return
         end if
 
-        ! we also need to calculate the matrix element here!
-        ! i think calc_guga_matrix_element also work with guga iluts, but
-        ! just to be super safe here:
-        call convert_ilut_toNECI(ilut, ilutI)
-        call convert_ilut_toNECI(exc, ilutJ)
         call calc_guga_matrix_element(ilutI, csf_i, ilutJ, excitInfo, mat_ele, .true., 2)
 
         if (near_zero(mat_ele)) then

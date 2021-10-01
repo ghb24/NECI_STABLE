@@ -1589,7 +1589,7 @@ contains
                     end if
                 end if
                 call decide_num_to_spawn(SignCurr(part_type), AvMCExcitsLoc, WalkersToSpawn)
-                loop_over_particles : do p = 1, WalkersToSpawn
+                loop_over_walkers : do p = 1, WalkersToSpawn
 
                     ! Zero the bit representation, to ensure no extraneous
                     ! data gets through.
@@ -1728,7 +1728,7 @@ contains
                         end if
                     end if is_child_created ! (child /= 0), Child created.
 
-                end do loop_over_particles ! Cycling over mulitple particles on same determinant.
+                end do loop_over_walkers
 
             end do loop_over_type  ! Cycling over 'type' of particle on a given determinant.
 
