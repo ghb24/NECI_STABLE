@@ -3775,40 +3775,68 @@ contains
         unused_var(exFlag); unused_var(part_type); unused_var(store)
         ASSERT(is_compatible(ilutI, current_csf_i))
 
+        ! think about default values and unneeded variables for GUGA, but
+        ! which have to be processed anyway to interface to NECI
+
+        ! excitatioin matrix... i could set that up for GUGA too..
+        ! but its not needed specifically except for RDM and logging purposes
+
+        ! in new implementation with changing relative probabilites of different
+        ! types of excitation, misuse this array to log the type of excitation
+        excitMat = 0
+
         ! the parity flag is also unneccesary in GUGA
         tParity = .true.
 
         ! the inputted exFlag variable, is also not needed probably..
 
+        ! then choose between single or double excitations..
+        ! TODO: still have to think how to set up pSingles and pDoubles in
+        ! GUGA...
+
+        ! and before i have to convert to GUGA iluts..
         call convert_ilut_toGUGA(ilutI, ilut)
+
+        ASSERT(isProperCSF_ilut(ilut, .true.))
+
         ! maybe i need to copy the flags of ilutI onto ilutJ
         ilutJ = ilutI
 
         if (genrand_real2_dSFMT() < pSingles) then
+
             IC = 1
-            call createStochasticExcitation_single(ilut, nI, current_csf_i, new_ilut, HElGen, pgen)
+            call createStochasticExcitation_single(ilut, nI, current_csf_i, new_ilut, pgen)
             pgen = pgen * pSingles
+
         else
 
             IC = 2
             call createStochasticExcitation_double(ilut, nI, current_csf_i, new_ilut, pgen, excit_typ)
             pgen = pgen * pDoubles
+
+            if (near_zero(pgen)) then
+                nInvalidExcits = nInvalidExcits + 1
+            else
+                nValidExcits = nValidExcits + 1
+            end if
+
         end if
 
+        ! for now add a sanity check to compare the stochastic obtained
+        ! matrix elements with the exact calculation..
+        ! since something is going obviously wrong..
 #ifdef DEBUG_
         call additional_checks()
 #endif
 
+        ! check if excitation generation was successful
         if (near_zero(pgen)) then
-            excitMat = 0
-            HElgen = h_cast(0.0_dp)
+            ! indicate NullDet to skip spawn step
             nJ(1) = 0
-            pgen = 0.0_dp
+            HElGen = h_cast(0.0_dp)
+
         else
-            ! excitatioin matrix... i could set that up for GUGA too..
-            ! but its not needed specifically except for RDM and logging purposes
-            ! in new implementation with changing relative probabilites of different
-            ! types of excitation, misuse this array to log the type of excitation
+
             ! also store information on type of excitation for the automated
             ! tau-search for the non-weighted guga excitation generator in
             ! the excitMat variable
@@ -3824,7 +3852,6 @@ contains
             call convert_ilut_toNECI(new_ilut, ilutJ, HElgen)
 
             if (t_matele_cutoff .and. abs(HElGen) < matele_cutoff) then
-                excitMat = 0
                 HElgen = h_cast(0.0_dp)
                 nJ(1) = 0
                 pgen = 0.0_dp
@@ -10450,7 +10477,7 @@ contains
 
     end subroutine calcFullStartRaisingStochastic
 
-    subroutine createStochasticExcitation_single(ilut, nI, csf_i, exc, mat_ele, pgen)
+    subroutine createStochasticExcitation_single(ilut, nI, csf_i, exc, pgen)
         ! calculate one possible single excitation and the corresponding
         ! probabilistic weight and hamilton matrix element for a given CSF
         ! store matrix element in ilut for now... maybe change that later
@@ -10458,18 +10485,18 @@ contains
         integer, intent(in) :: nI(nel)
         type(CSF_Info_t), intent(in) :: csf_i
         integer(n_int), intent(out) :: exc(0:nifguga)
-        HElement_t(dp), intent(out) :: mat_ele
         real(dp), intent(out) :: pgen
         character(*), parameter :: this_routine = "createStochasticExcitation_single"
 
         type(ExcitationInformation_t) :: excitInfo
         real(dp) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs), &
                     branch_pgen, orb_pgen, temp_pgen
-        HElement_t(dp) :: integral
+        HElement_t(dp) :: integral, mat_ele
 
         type(WeightObj_t) :: weights
         integer :: iO, st, en, step, i, j, gen, deltaB, step2
         integer(n_int) :: ilutI(0:niftot), ilutJ(0:niftot)
+        logical :: compFlag
 
         ASSERT(isProperCSF_ilut(ilut))
 
@@ -10492,6 +10519,18 @@ contains
             pgen = 0.0_dp
             return
         end if
+
+        if (t_guga_pchb) then
+            call checkCompatibility_single(csf_i, excitInfo, compFlag, &
+                posSwitches, negSwitches, weights)
+
+            if (.not.compFlag) then
+                exc = 0_n_int
+                pgen = 0.0_dp
+                return
+            end if
+        end if
+
 
         if (t_guga_back_spawn) then
             ! do smth like this:
@@ -10672,6 +10711,7 @@ contains
 
         ! store the most recent excitation information
         global_excitInfo = excitInfo
+
     end subroutine createStochasticExcitation_single
 
     subroutine calc_integral_contribution_single(csf_i, exc, i, j, st, en, integral)
@@ -18247,6 +18287,73 @@ contains
         end do
 
     end subroutine calcDoubleExcitation_withWeight
+
+    subroutine checkCompatibility_single(csf_i, excitInfo, flag, posSwitches, negSwitches, opt_weight)
+        type(CSF_Info_t), intent(in) :: csf_i
+        type(ExcitationInformation_t), intent(in) :: excitInfo
+        logical, intent(out) :: flag
+        real(dp), intent(out), optional :: posSwitches(nSpatOrbs), &
+                                           negSwitches(nSpatOrbs)
+
+        type(WeightObj_t), intent(out), optional :: opt_weight
+        debug_function_name("checkCompatibility_single")
+
+        real(dp) :: pw, mw
+        integer ::  st, en
+        type(WeightObj_t) :: weights
+
+        ASSERT(excitInfo%typ == excit_type%single)
+        ASSERT(excitInfo%gen1 == gen_type%R .or. excitInfo%gen1 == gen_type%L)
+
+        call calcRemainingSwitches_excitInfo_single(csf_i, excitInfo, posSwitches, negSwitches)
+
+        st = excitInfo%fullStart
+        en = excitInfo%fullEnd
+        flag = .true.
+
+        if (excitInfo%gen1 == gen_type%R) then
+            ! raising
+            if (csf_i%stepvector(st) == 3 .or. csf_i%stepvector(en) == 0) then
+                flag = .false.
+                return
+            end if
+
+            weights = init_singleWeight(csf_i, en)
+            mw = weights%proc%minus(negSwitches(st), csf_i%B_ilut(st), weights%dat)
+            pw = weights%proc%plus(posSwitches(st), csf_i%B_ilut(st), weights%dat)
+
+            if ((near_zero(pw) .and. near_zero(mw)) &
+                .or. (csf_i%stepvector(st) == 1 .and. near_zero(pw)) &
+                .or. (csf_i%stepvector(st) == 2 .and. near_zero(mw))) then
+                flag = .false.
+                return
+            end if
+
+        else if (excitInfo%gen1 == gen_type%L) then
+            ! lowering
+
+            if (csf_i%stepvector(en) == 3 .or. csf_i%stepvector(st) == 0) then
+                flag = .false.
+                return
+            end if
+
+            weights = init_singleWeight(csf_i, en)
+            mw = weights%proc%minus(negSwitches(st), csf_i%B_ilut(st), weights%dat)
+            pw = weights%proc%plus(posSwitches(st), csf_i%B_ilut(st), weights%dat)
+
+
+            if ((csf_i%stepvector(st) == 1 .and. near_zero(pw)) &
+                .or. (csf_i%stepvector(st) == 2 .and. near_zero(mw)) &
+                .or. (near_zero(pw + mw))) then
+                flag = .false.
+                return
+            end if
+        end if
+
+        if (present(opt_weight)) opt_weight = weights
+
+    end subroutine checkCompatibility_single
+
 
     subroutine checkCompatibility(csf_i, excitInfo, flag, posSwitches, negSwitches, opt_weight)
         ! depending on the type of excitation determined in the
