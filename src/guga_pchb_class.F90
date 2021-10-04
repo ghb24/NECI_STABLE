@@ -24,7 +24,8 @@ module guga_pchb_class
                                 createStochasticExcitation_single, &
                                 pick_elec_pair_uniform_guga, &
                                 excitationIdentifier_double, get_guga_integral_contrib_spat, &
-                                calc_pgen_mol_guga_single, get_excit_level_from_excitInfo, init_singleWeight, calcRemainingSwitches_excitInfo_single
+                                calc_pgen_mol_guga_single, get_excit_level_from_excitInfo, init_singleWeight, &
+                                checkCompatibility_single
     use guga_bitrepops, only: identify_excitation, encode_excit_info, extract_excit_info, &
                               contract_2_rdm_ind
     use bit_reps, only: decode_bit_det
@@ -410,68 +411,6 @@ contains
     end function calc_orb_pgen_uniform_singles
 
 
-
-    function checkCompatibility_single(csf_i, excitInfo) result(flag)
-        use guga_types, only: WeightObj_t
-
-        type(CSF_Info_t), intent(in) :: csf_i
-        type(ExcitationInformation_t), intent(in) :: excitInfo
-        logical :: flag
-
-        debug_function_name("checkCompatibility_single")
-
-        real(dp) :: pw, mw, posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
-        integer ::  st, en
-        type(WeightObj_t) :: weights
-
-        ASSERT(excitInfo%typ == excit_type%single)
-        ASSERT(excitInfo%gen1 == gen_type%R .or. excitInfo%gen1 == gen_type%L)
-
-        call calcRemainingSwitches_excitInfo_single(csf_i, excitInfo, posSwitches, negSwitches)
-
-        st = excitInfo%fullStart
-        en = excitInfo%fullEnd
-        flag = .true.
-
-        if (excitInfo%gen1 == gen_type%R) then
-            ! raising
-            if (csf_i%stepvector(st) == 3 .or. csf_i%stepvector(en) == 0) then
-                flag = .false.
-                return
-            end if
-
-            weights = init_singleWeight(csf_i, en)
-            mw = weights%proc%minus(negSwitches(st), csf_i%B_ilut(st), weights%dat)
-            pw = weights%proc%plus(posSwitches(st), csf_i%B_ilut(st), weights%dat)
-
-            if ((near_zero(pw) .and. near_zero(mw)) &
-                .or. (csf_i%stepvector(st) == 1 .and. near_zero(pw)) &
-                .or. (csf_i%stepvector(st) == 2 .and. near_zero(mw))) then
-                flag = .false.
-                return
-            end if
-
-        else if (excitInfo%gen1 == gen_type%L) then
-            ! lowering
-
-            if (csf_i%stepvector(en) == 3 .or. csf_i%stepvector(st) == 0) then
-                flag = .false.
-                return
-            end if
-
-            weights = init_singleWeight(csf_i, en)
-            mw = weights%proc%minus(negSwitches(st), csf_i%B_ilut(st), weights%dat)
-            pw = weights%proc%plus(posSwitches(st), csf_i%B_ilut(st), weights%dat)
-
-
-            if ((csf_i%stepvector(st) == 1 .and. near_zero(pw)) &
-                .or. (csf_i%stepvector(st) == 2 .and. near_zero(mw)) &
-                .or. (near_zero(pw + mw))) then
-                flag = .false.
-                return
-            end if
-        end if
-    end function checkCompatibility_single
 
     function calc_pgen_guga_pchb(this, ilutI, csf_i, ilutJ, excitInfo_in) result(pgen)
         class(GugaAliasSampler_t), intent(in) :: this

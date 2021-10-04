@@ -156,7 +156,7 @@ module guga_excitations
               calc_pgen_mol_guga_single, get_excit_level_from_excitInfo, &
               get_guga_integral_contrib_spat, calc_orbital_pgen_contrib_start_def, &
               calc_orbital_pgen_contrib_end_def, create_hamiltonian_guga, &
-              csf_to_sds_ilut, csf_vector_to_sds
+              csf_to_sds_ilut, csf_vector_to_sds, checkCompatibility_single
 
     ! use a global excitationInformation type variable to store information
     ! about the last generated excitation to analyze matrix elements and
@@ -10496,7 +10496,6 @@ contains
         type(WeightObj_t) :: weights
         integer :: iO, st, en, step, i, j, gen, deltaB, step2
         integer(n_int) :: ilutI(0:niftot), ilutJ(0:niftot)
-        logical :: compFlag
 
         ASSERT(isProperCSF_ilut(ilut))
 
@@ -10519,18 +10518,6 @@ contains
             pgen = 0.0_dp
             return
         end if
-
-        if (t_guga_pchb) then
-            call checkCompatibility_single(csf_i, excitInfo, compFlag, &
-                posSwitches, negSwitches, weights)
-
-            if (.not.compFlag) then
-                exc = 0_n_int
-                pgen = 0.0_dp
-                return
-            end if
-        end if
-
 
         if (t_guga_back_spawn) then
             ! do smth like this:
@@ -10602,12 +10589,10 @@ contains
         ! not sure if i have to subtract that element or not...
         integral = getTmatEl(2 * i, 2 * j)
 
-        ! then calculate the remaing switche given indices
-        if (.not. t_guga_pchb) then
-            call calcRemainingSwitches_excitInfo_single(csf_i, excitInfo, posSwitches, negSwitches)
-            ! intitialize the weights
-            weights = init_singleWeight(csf_i, excitInfo%fullEnd)
-        end if
+        ! ! then calculate the remaing switche given indices
+        call calcRemainingSwitches_excitInfo_single(csf_i, excitInfo, posSwitches, negSwitches)
+        ! intitialize the weights
+        weights = init_singleWeight(csf_i, excitInfo%fullEnd)
 
         ! create the start randomly(if multiple possibilities)
         ! create the start in such a way to use it for double excitations too
@@ -18288,73 +18273,6 @@ contains
 
     end subroutine calcDoubleExcitation_withWeight
 
-    subroutine checkCompatibility_single(csf_i, excitInfo, flag, posSwitches, negSwitches, opt_weight)
-        type(CSF_Info_t), intent(in) :: csf_i
-        type(ExcitationInformation_t), intent(in) :: excitInfo
-        logical, intent(out) :: flag
-        real(dp), intent(out), optional :: posSwitches(nSpatOrbs), &
-                                           negSwitches(nSpatOrbs)
-
-        type(WeightObj_t), intent(out), optional :: opt_weight
-        debug_function_name("checkCompatibility_single")
-
-        real(dp) :: pw, mw
-        integer ::  st, en
-        type(WeightObj_t) :: weights
-
-        ASSERT(excitInfo%typ == excit_type%single)
-        ASSERT(excitInfo%gen1 == gen_type%R .or. excitInfo%gen1 == gen_type%L)
-
-        call calcRemainingSwitches_excitInfo_single(csf_i, excitInfo, posSwitches, negSwitches)
-
-        st = excitInfo%fullStart
-        en = excitInfo%fullEnd
-        flag = .true.
-
-        if (excitInfo%gen1 == gen_type%R) then
-            ! raising
-            if (csf_i%stepvector(st) == 3 .or. csf_i%stepvector(en) == 0) then
-                flag = .false.
-                return
-            end if
-
-            weights = init_singleWeight(csf_i, en)
-            mw = weights%proc%minus(negSwitches(st), csf_i%B_ilut(st), weights%dat)
-            pw = weights%proc%plus(posSwitches(st), csf_i%B_ilut(st), weights%dat)
-
-            if ((near_zero(pw) .and. near_zero(mw)) &
-                .or. (csf_i%stepvector(st) == 1 .and. near_zero(pw)) &
-                .or. (csf_i%stepvector(st) == 2 .and. near_zero(mw))) then
-                flag = .false.
-                return
-            end if
-
-        else if (excitInfo%gen1 == gen_type%L) then
-            ! lowering
-
-            if (csf_i%stepvector(en) == 3 .or. csf_i%stepvector(st) == 0) then
-                flag = .false.
-                return
-            end if
-
-            weights = init_singleWeight(csf_i, en)
-            mw = weights%proc%minus(negSwitches(st), csf_i%B_ilut(st), weights%dat)
-            pw = weights%proc%plus(posSwitches(st), csf_i%B_ilut(st), weights%dat)
-
-
-            if ((csf_i%stepvector(st) == 1 .and. near_zero(pw)) &
-                .or. (csf_i%stepvector(st) == 2 .and. near_zero(mw)) &
-                .or. (near_zero(pw + mw))) then
-                flag = .false.
-                return
-            end if
-        end if
-
-        if (present(opt_weight)) opt_weight = weights
-
-    end subroutine checkCompatibility_single
-
-
     subroutine checkCompatibility(csf_i, excitInfo, flag, posSwitches, negSwitches, opt_weight)
         ! depending on the type of excitation determined in the
         ! excitationIdentifier check if the provided ilut and excitation and
@@ -23533,4 +23451,67 @@ contains
         print *, "excit-level: ", excitInfo%excitLvl
 
     end subroutine print_excitInfo
+
+    function checkCompatibility_single(csf_i, excitInfo) result(flag)
+        use guga_types, only: WeightObj_t
+
+        type(CSF_Info_t), intent(in) :: csf_i
+        type(ExcitationInformation_t), intent(in) :: excitInfo
+        logical :: flag
+
+        debug_function_name("checkCompatibility_single")
+
+        real(dp) :: pw, mw, posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
+        integer ::  st, en
+        type(WeightObj_t) :: weights
+
+        ASSERT(excitInfo%typ == excit_type%single)
+        ASSERT(excitInfo%gen1 == gen_type%R .or. excitInfo%gen1 == gen_type%L)
+
+        call calcRemainingSwitches_excitInfo_single(csf_i, excitInfo, posSwitches, negSwitches)
+
+        st = excitInfo%fullStart
+        en = excitInfo%fullEnd
+        flag = .true.
+
+        if (excitInfo%gen1 == gen_type%R) then
+            ! raising
+            if (csf_i%stepvector(st) == 3 .or. csf_i%stepvector(en) == 0) then
+                flag = .false.
+                return
+            end if
+
+            weights = init_singleWeight(csf_i, en)
+            mw = weights%proc%minus(negSwitches(st), csf_i%B_ilut(st), weights%dat)
+            pw = weights%proc%plus(posSwitches(st), csf_i%B_ilut(st), weights%dat)
+
+            if ((near_zero(pw) .and. near_zero(mw)) &
+                .or. (csf_i%stepvector(st) == 1 .and. near_zero(pw)) &
+                .or. (csf_i%stepvector(st) == 2 .and. near_zero(mw))) then
+                flag = .false.
+                return
+            end if
+
+        else if (excitInfo%gen1 == gen_type%L) then
+            ! lowering
+
+            if (csf_i%stepvector(en) == 3 .or. csf_i%stepvector(st) == 0) then
+                flag = .false.
+                return
+            end if
+
+            weights = init_singleWeight(csf_i, en)
+            mw = weights%proc%minus(negSwitches(st), csf_i%B_ilut(st), weights%dat)
+            pw = weights%proc%plus(posSwitches(st), csf_i%B_ilut(st), weights%dat)
+
+
+            if ((csf_i%stepvector(st) == 1 .and. near_zero(pw)) &
+                .or. (csf_i%stepvector(st) == 2 .and. near_zero(mw)) &
+                .or. (near_zero(pw + mw))) then
+                flag = .false.
+                return
+            end if
+        end if
+    end function checkCompatibility_single
+
 end module guga_excitations
