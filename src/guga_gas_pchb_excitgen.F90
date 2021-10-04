@@ -12,7 +12,7 @@ module gas_guga_pchb_class
     use guga_bitrepops, only: convert_ilut_toGUGA, isProperCSF_ilut, CSF_Info_t
     use dSFMT_interface, only: genrand_real2_dSFMT
     use util_mod, only: near_zero, fuseIndex, intswap, binary_search_first_ge, &
-                        get_free_unit, stop_all
+                        get_free_unit, stop_all, operator(.isclose.)
     use CalcData, only: t_matele_cutoff, matele_cutoff, frq_ratio_cutoff, &
                         max_frequency_bound, n_frequency_bins, &
                         t_hist_tau_search, t_truncate_spawns
@@ -25,7 +25,8 @@ module gas_guga_pchb_class
                                 createStochasticExcitation_single, &
                                 pick_elec_pair_uniform_guga, &
                                 excitationIdentifier_double, get_guga_integral_contrib_spat, &
-                                calc_pgen_mol_guga_single, get_excit_level_from_excitInfo
+                                calc_pgen_mol_guga_single, get_excit_level_from_excitInfo, &
+                                checkCompatibility_single
     use guga_bitrepops, only: identify_excitation, encode_excit_info, extract_excit_info, &
                               contract_2_rdm_ind
     use bit_reps, only: decode_bit_det
@@ -360,87 +361,66 @@ contains
         type(ExcitationInformation_t), intent(out) :: excitInfo
         real(dp), intent(out) :: pgen
 
-        integer :: spat_src, spat_tgt
+        integer :: src_orb, tgt_orb, i
+        real(dp) :: pgen_hole
+        integer, allocatable :: occ_spat_orbs(:)
+            !! The occupied spatial orbitals
+        unused_var(ilut); unused_var(nI)
 
-        integer :: occ_spat_orbs(nEl)
+        occ_spat_orbs = pack([(i, i = 1, size(csf_i%Occ_int))], csf_i%stepvector /= 0)
+        src_orb = occ_spat_orbs(1 + int(genrand_real2_dSFMT() * size(occ_spat_orbs)))
 
-        unused_var(ilut)
-        ASSERT(isProperCSF_ilut(ilut, .true.))
+        call pick_uniform_spatial_hole(csf_i, src_orb, tgt_orb, pgen_hole)
 
-        ! pick random electron
-        ! have to modify pgen for doubly occupied orbs! since double the
-        ! chance!
-        ! i have this fake bias towards double occupied spatial orbitals
-        ! this way...
-        ! try it with a 'real pure' uniform picking here..
-        occ_spat_orbs = gtID(nI)
-
-        spat_src = occ_spat_orbs(1 + int(genrand_real2_dSFMT() * nel))
-
-        call this%pick_uniform_spatial_hole(csf_i, spat_src, spat_tgt, pgen)
-
-        if (near_zero(pgen) .or. spat_tgt == 0) then
+        if (near_zero(pgen_hole) .or. tgt_orb == 0) then
             pgen = 0.0_dp
-            spat_tgt = 0
-            return
-        end if
-
-        pgen = pgen / real(nEl, dp)
-
-        if (csf_i%stepvector(spat_src) == 3) pgen = 2.0_dp * pgen
-
-        if (spat_tgt < spat_src) then
-            excitInfo = assign_excitinfo_values_single(&
-                            gen_type%R, spat_tgt, spat_src, spat_tgt, spat_src)
+            tgt_orb = 0
+            excitInfo%valid = .false.
         else
-            excitInfo = assign_excitinfo_values_single(&
-                            gen_type%L, spat_tgt, spat_src, spat_src, spat_tgt)
+            pgen = 1._dp / real(size(occ_spat_orbs), dp) * pgen_hole
+            if (tgt_orb < src_orb) then
+                excitInfo = assign_excitinfo_values_single(&
+                                gen_type%R, tgt_orb, src_orb, tgt_orb, src_orb)
+            else
+                excitInfo = assign_excitinfo_values_single(&
+                                gen_type%L, tgt_orb, src_orb, src_orb, tgt_orb)
+            end if
+            excitInfo%valid = checkCompatibility_single(csf_i, excitInfo)
+            if (excitInfo%valid) then
+                ASSERT(pgen .isclose. calc_orb_pgen_uniform_singles(csf_i, excitInfo))
+            else
+                pgen = 0._dp
+            end if
         end if
+
     end subroutine pick_orbitals_pure_uniform_singles
 
-    subroutine pick_uniform_spatial_hole(csf_i, src, tgt, pgen)
+    subroutine pick_uniform_spatial_hole(csf_i, src_orb, tgt_orb, pgen)
         type(CSF_Info_t), intent(in) :: csf_i
-        integer, intent(in) :: src
-            !! Source spatial orbital
-        integer, intent(out) :: tgt
-            !! Target spatial orbital
+        integer, intent(in) :: src_orb
+        integer, intent(out) :: tgt_orb
         real(dp), intent(out) :: pgen
 
         integer :: cc_i, nOrb, sym_index
-        integer, allocatable :: valid_orbs(:)
-
-        pgen = 0.0_dp
-        tgt = 0
-
+        integer, allocatable :: sym_orbs(:), valid_orbs(:)
         ! get the symmetry index for this electron
-        cc_i = ClassCountInd(1, SpinOrbSymLabel(2*src), G1(2*src)%ml)
-
+        cc_i = ClassCountInd(1, SpinOrbSymLabel(2*src_orb), G1(2*src_orb)%ml)
         ! and the number of orbitals
         nOrb = OrbClassCount(cc_i)
-
-        if (nOrb == 0) return
-
         ! get the symmetry index for later use
         sym_index = SymLabelCounts2(1, cc_i)
+        sym_orbs = sym_label_list_spat(sym_index : sym_index + nOrb - 1)
+        ! now keep drawing from the symmetry orbitals until we pick an
+        ! non-doubly occupied orbital that is not the source.
+        valid_orbs = pack(sym_orbs, csf_i%stepvector(sym_orbs) /= 3 .and. sym_orbs /= src_orb)
 
-        ! or better determine the non-double occupied orbitals in this
-        ! symmetry sector and also is not the electron index!
-
-        block
-            integer, allocatable :: sym_orbs(:)
-            sym_orbs = sym_label_list_spat(sym_index : sym_index + nOrb - 1)
-            valid_orbs = pack(sym_orbs, csf_i%stepvector(sym_orbs) /= 3 .and. sym_orbs /= src)
-
-            ! GAS conditions
-        end block
-
-        if (size(valid_orbs) == 0) return
-
-        tgt = valid_orbs(1 + floor(genrand_real2_dSFMT() * size(valid_orbs)))
-
-        ! do i need nOrb now or the actual number of unoccupied in the
-        ! CSF? i think the second..
-        pgen = 1.0_dp / real(size(valid_orbs), dp)
+        if (size(valid_orbs) == 0) then
+            pgen = 0.0_dp
+            tgt_orb = 0
+        else
+            tgt_orb = valid_orbs(1 + floor(genrand_real2_dSFMT() * size(valid_orbs)))
+            pgen = 1.0_dp / real(size(valid_orbs), dp)
+        end if
     end subroutine pick_uniform_spatial_hole
 
     function calc_orb_pgen_uniform_singles(csf_i, excitInfo) result(pgen)
@@ -451,34 +431,29 @@ contains
 
         integer :: nOrb, so_elec, cc_i, nOcc, sym_index, nUnocc
 
-        ASSERT(excitInfo%i > 0 .and. excitInfo%i <= nSpatOrbs)
-        ASSERT(excitInfo%j > 0 .and. excitInfo%j <= nSpatOrbs)
-
-        pgen = 0.0_dp
+        ASSERT(1 <= excitInfo%i .and. excitInfo%i <= nSpatOrbs)
+        ASSERT(1 <= excitInfo%j .and. excitInfo%j <= nSpatOrbs)
 
         if (excitInfo%i == excitInfo%j &
                 .or. csf_i%stepvector(excitInfo%i) == 3 &
                 .or. csf_i%stepvector(excitInfo%j) == 0) then
-            return
+            pgen = 0.0_dp
+        else
+            nOcc = count(csf_i%Occ_int /= 0)
+            so_elec = 2 * excitInfo%j
+
+            cc_i = ClassCountInd(1, SpinOrbSymLabel(so_elec), G1(so_elec)%ml)
+            nOrb = OrbClassCount(cc_i)
+            ! get the symmetry index for later use
+            sym_index = SymLabelCounts2(1, cc_i)
+
+            associate(sym_allowed_orbs => sym_label_list_spat(sym_index : sym_index + nOrb - 1))
+                nUnocc = count(csf_i%stepvector(sym_allowed_orbs) /= 3 &
+                               .and. sym_allowed_orbs /= excitInfo%j)
+            end associate
+
+            pgen = 1.0_dp / real(nOcc * nUnocc, dp)
         end if
-
-        nOcc = count(csf_i%Occ_int /= 0)
-
-        so_elec = 2*excitInfo%j
-
-        cc_i = ClassCountInd(1, SpinOrbSymLabel(so_elec), G1(so_elec)%ml)
-        nOrb = OrbClassCount(cc_i)
-        ! get the symmetry index for later use
-        sym_index = SymLabelCounts2(1, cc_i)
-
-
-        nUnocc = count(&
-            (csf_i%stepvector(sym_label_list_spat(sym_index:sym_index+nOrb-1)) /= 3) &
-            .and. (sym_label_list_spat(sym_index:sym_index+nOrb-1) /= excitInfo%j))
-
-        pgen = 1.0_dp / real(nOcc * nUnocc, dp)
-
-
     end function calc_orb_pgen_uniform_singles
 
     function calc_pgen_guga_pchb(this, ilutI, csf_i, ilutJ, excitInfo_in) result(pgen)
