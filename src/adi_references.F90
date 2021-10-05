@@ -477,7 +477,9 @@ contains
         if (tHPHF) then
             h_el = hphf_off_diag_helement(nI, nJRef(:), ilut, ilutRefAdi(:, iRef))
         else if (tGUGA) then
-            call calc_guga_matrix_element(ilut, CSF_Info_t(ilut), ilutRefAdi(:, iref), excitInfo, h_el, .true., 2)
+            call calc_guga_matrix_element(&
+                ilut, CSF_Info_t(ilut), ilutRefAdi(:, iref), &
+                CSF_Info_t(ilutRefAdi(:, iref)), excitInfo, h_el, .true., 2)
         else
             h_el = get_helement(nI, nJRef(:), ilut, ilutRefAdi(:, iRef))
         end if
@@ -548,7 +550,9 @@ contains
         if (tHPHF) then
             h_el = hphf_off_diag_helement(nI, nIRef(:, i), ilut, ilutRefAdi(:, i))
         else if (tGUGA) then
-            call calc_guga_matrix_element(ilut, CSF_Info_t(ilut), ilutRefAdi(:, i), excitInfo, h_el, .true., 2)
+            call calc_guga_matrix_element(&
+                ilut, CSF_Info_t(ilut), ilutRefAdi(:, i), CSF_Info_t(ilutRefAdi(:, i)), &
+                excitInfo, h_el, .true., 2)
         else
             h_el = get_helement(nI, nIRef(:, i), ilut, ilutRefAdi(:, i))
         end if

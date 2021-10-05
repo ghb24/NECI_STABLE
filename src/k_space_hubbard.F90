@@ -92,7 +92,7 @@ module k_space_hubbard
     use guga_excitations, only: generate_excitation_guga, &
                                 calc_guga_matrix_element, global_excitinfo, print_excitInfo
     use guga_bitRepOps, only: convert_ilut_toGUGA, is_compatible, &
-                              isProperCSF_ilut, current_csf_i
+                              isProperCSF_ilut, current_csf_i, CSF_Info_t
     use guga_data, only: ExcitationInformation_t
 
     implicit none
@@ -605,7 +605,7 @@ contains
                 return
             end if
 
-            call calc_guga_matrix_element(ilutI, current_csf_i, ilutJ, excitInfo, hel, .true., 1)
+            call calc_guga_matrix_element(ilutI, current_csf_i, ilutJ, CSF_Info_t(ilutJ), excitInfo, hel, .true., 1)
 
             if (abs(hel) < EPS) then
                 nJ(1) = 0

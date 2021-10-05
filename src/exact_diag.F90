@@ -115,7 +115,7 @@ contains
         integer :: nI(nel), nJ(nel)
         character(*), parameter :: t_r = "calculate_full_hamiltonian"
         type(ExcitationInformation_t) :: excitInfo
-        type(CSF_Info_t) :: csf_i
+        type(CSF_Info_t) :: csf_i, csf_j
 
         ! Initial checks that arrays passed in are consistent.
         ndets = size(ilut_list, 2)
@@ -135,12 +135,14 @@ contains
         end if
 
         call new_CSF_Info_t(nSpatOrbs, csf_i)
+        call new_CSF_Info_t(nSpatOrbs, csf_j)
         do i = 1, ndets
             call decode_bit_det(nI, ilut_list(:, i))
             if (tGUGA) call fill_csf_i(ilut_list(0:nifd, i), csf_i)
 
             do j = i, ndets
                 call decode_bit_det(nJ, ilut_list(:, j))
+                if (tGUGA) call fill_csf_i(ilut_list(:, j), csf_j)
                 if (i == j) then
                     if (tHPHF) then
                         local_hamil(i, i) = hphf_diag_helement(nI, ilut_list(:, i))
@@ -151,7 +153,7 @@ contains
                     if (tHPHF) then
                         local_hamil(i, j) = hphf_off_diag_helement(nI, nJ, ilut_list(:, i), ilut_list(:, j))
                     else if (tGUGA) then
-                        call calc_guga_matrix_element(ilut_list(:, i), csf_i, ilut_list(:, j), &
+                        call calc_guga_matrix_element(ilut_list(:, i), csf_i, ilut_list(:, j), csf_j, &
                                                       excitInfo, local_hamil(i, j), .true., 1)
 ! #ifdef CMPLX_
 !                         local_hamil(i,j) = conjg(local_hamil(i,j))

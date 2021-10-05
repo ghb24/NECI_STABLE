@@ -109,7 +109,7 @@ contains
                 return
             end if
 
-            call calc_guga_matrix_element(ilutI, current_csf_i, ilutJ, excitInfo, HelGen, .true., 1)
+            call calc_guga_matrix_element(ilutI, current_csf_i, ilutJ, CSF_Info_t(ilutJ), excitInfo, HelGen, .true., 1)
 
             if (abs(HelGen) < EPS) then
                 nJ(1) = 0

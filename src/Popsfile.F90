@@ -2201,7 +2201,7 @@ contains
                     if (tGUGA) then
                         ASSERT(.not. t_non_hermitian)
                         call calc_guga_matrix_element(&
-                                det, CSF_Info_t(det), iLutRef(:, 1), &
+                                det, CSF_Info_t(det), iLutRef(:, 1), CSF_Info_t(iLutRef(:, 1)), &
                                 excitInfo, hf_helemt, .true., 2)
                         ex_level = excitInfo%excitLvl
                         if (ex_level == -1) ex_level = 0

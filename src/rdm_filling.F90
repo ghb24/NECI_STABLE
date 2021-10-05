@@ -971,7 +971,7 @@ contains
         real(dp) :: full_sign(spawn%rdm_send%sign_length)
         logical :: tParity
         integer(n_int) :: iLutI(0:niftot), iLutJ(0:niftot)
-        type(CSF_Info_t) :: csf_i
+        type(CSF_Info_t) :: csf_i, csf_j
         integer :: nI(nel), nJ(nel), IC, n
         integer :: IterRDM, connect_elem, num_j
         type(ExcitationInformation_t) :: excitInfo
@@ -1003,7 +1003,6 @@ contains
                     num_j = rep%sparse_core_ham(i)%num_elements - 1
                 end if
                 iLutI = rep%core_space(:, rep%determ_displs(iProcIndex) + i)
-                if (tGUGA) csf_i = CSF_Info_t(ilutI)
 
                 ! Connections to the HF are added in elsewhere, so skip them here.
                 if (DetBitEq(iLutI, iLutHF_True, nifd)) cycle
@@ -1014,6 +1013,7 @@ contains
                 end do
 
                 call decode_bit_det(nI, iLutI)
+                if (tGUGA) csf_i = CSF_Info_t(ilutI)
 
                 ! if (tGUGA) call fill_csf_i(ilutI(0:nifd))
 
@@ -1036,6 +1036,8 @@ contains
                     ! Connections to the HF are added in elsewhere, so skip them here.
                     if (DetBitEq(iLutJ, iLutHF_True, nifd)) cycle
                     if (DetBitEq(iLutJ, iLutI, nifd)) cycle
+
+                    if (tGUGA) csf_j = CSF_Info_t(ilutJ)
 
 
                     if (t_full_core_rdms) then
@@ -1077,7 +1079,7 @@ contains
                     else if (tGUGA) then
 
                         call add_rdm_from_ij_pair_guga_exact(spawn, one_rdms, &
-                                  ilutI, csf_i, ilutJ, AvSignI * IterRDM, AvSignJ, calc_type=1)
+                                  ilutI, csf_i, ilutJ, csf_j, AvSignI * IterRDM, AvSignJ, calc_type=1)
                     else
                         if (IC == 1) then
                             ! Single excitation - contributes to 1- and 2-RDM

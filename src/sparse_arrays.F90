@@ -172,7 +172,7 @@ contains
         integer(n_int) :: ilutG(0:nifguga)
         integer(n_int), pointer :: excitations(:, :)
         type(ExcitationInformation_t) :: excitInfo
-        type(CSF_Info_t) :: csf_i
+        type(CSF_Info_t) :: csf_i, csf_j
 
         allocate(sparse_ham(num_states))
         allocate(SparseHamilTags(2, num_states))
@@ -209,6 +209,7 @@ contains
             do j = i, num_states
 
                 call decode_bit_det(nJ, ilut_list(:, j))
+                if (tGUGA) csf_j = CSF_Info_t(ilut_list(:, j))
 
                 ! If on the diagonal of the Hamiltonian.
                 if (i == j) then
@@ -225,7 +226,7 @@ contains
                         hamiltonian_row(j) = hphf_off_diag_helement(nI, nJ, ilut_list(:, i), &
                                                                     ilut_list(:, j))
                     else if (tGUGA) then
-                        call calc_guga_matrix_element(ilut_list(:, i), csf_i, ilut_list(:, j), &
+                        call calc_guga_matrix_element(ilut_list(:, i), csf_i, ilut_list(:, j), csf_j, &
                                                       excitInfo, hamiltonian_row(j), .true., 1)
 #ifdef CMPLX_
                         hamiltonian_row(j) = conjg(hamiltonian_row(j))
@@ -308,7 +309,7 @@ contains
         integer(n_int) :: ilutG(0:nifguga)
         integer(n_int), pointer :: excitations(:, :)
         type(ExcitationInformation_t) :: excitInfo
-        type(CSF_Info_t) :: csf_i
+        type(CSF_Info_t) :: csf_i, csf_j
 
         num_states_tot = int(sum(num_states), sizeof_int)
         disps(0) = 0
@@ -342,6 +343,7 @@ contains
             do j = 1, num_states_tot
 
                 call decode_bit_det(nJ, temp_store(:, j))
+                if (tGUGA) csf_j = CSF_Info_t(temp_store(:, j))
 
                 ! If on the diagonal of the Hamiltonian.
                 if (DetBitEq(ilut_list(:, i), temp_store(:, j), nifd)) then
@@ -359,8 +361,9 @@ contains
                     if (tHPHF) then
                         hamiltonian_row(j) = hphf_off_diag_helement(nI, nJ, ilut_list(:, i), temp_store(:, j))
                     else if (tGUGA) then
-                        call calc_guga_matrix_element(ilut_list(:, i), csf_i, temp_store(:, j), &
-                                                      excitInfo, hamiltonian_row(j), .true., 1)
+                        call calc_guga_matrix_element(&
+                            ilut_list(:, i), csf_i, temp_store(:, j), &
+                            csf_j, excitInfo, hamiltonian_row(j), .true., 1)
 #ifdef CMPLX_
                         hamiltonian_row(j) = conjg(hamiltonian_row(j))
 #endif
@@ -437,7 +440,7 @@ contains
         integer(n_int) :: tmp(0:NIfD)
         integer :: IC
         integer(n_int) :: ilutI(0:niftot), ilutJ(0:niftot)
-        type(CSF_Info_t) :: csf_i
+        type(CSF_Info_t) :: csf_i, csf_j
         HElement_t(dp) :: tmp_mat, tmp_mat_2
 
         allocate(rep%sparse_core_ham(rep%determ_sizes(iProcIndex)), stat=ierr)
@@ -460,17 +463,16 @@ contains
 
             ilutI = SpawnedParts(0:niftot, i)
             call decode_bit_det(nI, IlutI)
+            if (tGUGA) csf_i = CSF_Info_t(ilutI)
 
             row_size = 0
             hamiltonian_row = 0.0_dp
-
-            if (tGUGA) csf_i = CSF_Info_t(ilutI)
-
             ! Loop over all deterministic states.
             do j = 1, rep%determ_space_size
 
                 ilutJ = temp_store(:, j)
                 call decode_bit_det(nJ, ilutJ)
+                if (tGUGA) csf_j = CSF_Info_t(ilutJ)
 
                 ! If on the diagonal of the Hamiltonian.
                 if (DetBitEq(IlutI, ilutJ, nifd)) then
@@ -493,22 +495,16 @@ contains
                     if (tHPHF) then
                         hamiltonian_row(j) = hphf_off_diag_helement(nI, nJ, IlutI, IlutJ)
                     else if (tGUGA) then
-                        ! for the off-diagonal elements i have to call the GUGA
-                        ! specific function
-                        ! but this is a waste.. i do not have to do that for
-                        ! every nJ i could just check the list generated
-                        ! by H|nI>..
-                        ! TODO(@Oskar): Perhaps precalculate
-                        call calc_guga_matrix_element(IlutI, CSF_Info_t(IlutI), IlutJ, &
-                                                      excitInfo, tmp_mat, .true., 1)
+                        call calc_guga_matrix_element(&
+                                IlutI, csf_i, IlutJ, csf_j, excitInfo, tmp_mat, .true., 1)
 #ifdef DEBUG_
-                        call calc_guga_matrix_element(IlutI,  CSF_Info_t(IlutI), IlutJ, &
-                                                      excitInfo, tmp_mat_2, .true., 2)
+                        call calc_guga_matrix_element(&
+                                IlutI,  csf_i, IlutJ, csf_j, excitInfo, tmp_mat_2, .true., 2)
                         if (.not. near_zero(tmp_mat - tmp_mat_2)) then
                             call stop_all(this_routine, "type 1 and 2 do not agree!")
                         end if
-                        call calc_guga_matrix_element(IlutJ, CSF_Info_t(ilutJ), IlutI, &
-                                                      excitInfo, tmp_mat_2, .true., 2)
+                        call calc_guga_matrix_element(&
+                                IlutJ, csf_j, IlutI, csf_i, excitInfo, tmp_mat_2, .true., 2)
                         if (.not. near_zero(tmp_mat - tmp_mat_2)) then
                             call stop_all(this_routine, "not hermititan!")
                         end if

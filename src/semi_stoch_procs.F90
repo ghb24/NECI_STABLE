@@ -2065,7 +2065,7 @@ contains
         use guga_data, only: ExcitationInformation_t
         use guga_excitations, only: calc_guga_matrix_element
         type(core_space_t) :: rep
-        type(CSF_Info_t) :: csf_i
+        type(CSF_Info_t) :: csf_i, csf_j
         type(ExcitationInformation_t) :: excitInfo
 
         HElement_t(dp), allocatable, intent(out) :: hamil(:, :)
@@ -2091,13 +2091,15 @@ contains
 
                 call decode_bit_det(nJ, rep%core_space(:, j))
 
+                if (tGUGA) csf_j = CSF_Info_t(rep%core_space(:, j))
+
                 if (tHPHF) then
                     hamil(i, j) = hphf_off_diag_helement(nI, nJ, &
                                      rep%core_space(:, i), rep%core_space(:, j))
                 else if (tGUGA) then
                     call calc_guga_matrix_element(&
                         rep%core_space(:, i), csf_i, &
-                        rep%core_space(:, j), excitInfo, hamil(i, j), .true., 1)
+                        rep%core_space(:, j), csf_j, excitInfo, hamil(i, j), .true., 1)
                 else
                     hamil(i, j) = get_helement(nI, nJ, rep%core_space(:, i), &
                         rep%core_space(:, j))
@@ -2176,9 +2178,8 @@ contains
             ! fock energies, so can consider either.
             hel = hphf_off_diag_helement(HFDet, nI, iLutHF, ilut)
         else if (tGUGA) then
-            ! TODO(@Oskar): Show Werner this beauty
             call calc_guga_matrix_element(&
-                ilut, CSF_Info_t(ilut), ilutHF, excitInfo, hel, .true., 2)
+                ilut, CSF_Info_t(ilut), ilutHF, CSF_Info_t(ilutHF), excitInfo, hel, .true., 2)
         else
             hel = get_helement(HFDet, nI, ic, ex, tParity)
         end if

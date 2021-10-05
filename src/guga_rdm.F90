@@ -599,6 +599,7 @@ contains
         integer(n_int), intent(in) :: ilutJ(0:IlutBits%len_tot)
         integer, intent(in) :: excit_lvl, iter_rdm(:)
         real(dp), intent(in) :: av_sign_j(:), av_sign_hf(:)
+        type(CSF_Info_t) :: csf_j, csf_HF_true
 
         unused_var(excit_lvl)
         ! damn.. here we need to do the 'slow' implementation i guess..
@@ -608,22 +609,17 @@ contains
         ! nah.. not for now.. otherwise i have to check everywhere also
         ! if i sampled this already.. for leave it at that and be done with
 
+        csf_HF_true = CSF_Info_t(iLutHF_True)
+        csf_j = CSF_Info_t(ilutJ)
 
-        ! excit-lvl information is not really correct for GUGA..
-        ! so avoid using it..
-!         if (excit_lvl == 1 .or. excit_lvl == 2) then
-            ! for HF -> nJ we do not have csf info intialized so use calc_type = 2
-            call add_rdm_from_ij_pair_guga_exact(spawn, one_rdms, iLutHF_True, CSF_Info_t(iLutHF_True), &
-                                                 ilutJ, av_sign_hf(2::2), iter_rdm*av_sign_j(1::2), calc_type=2)
+        call add_rdm_from_ij_pair_guga_exact(spawn, one_rdms, iLutHF_True, csf_HF_true, &
+                                                 ilutJ, csf_j, av_sign_hf(2::2), iter_rdm*av_sign_j(1::2), calc_type=2)
 
-            ! for nJ we have the csf info initialized (or maybe not..)
-            call add_rdm_from_ij_pair_guga_exact(spawn, one_rdms, ilutJ, CSF_Info_t(ilutJ), &
-                                                 iLutHF_True, av_sign_j(2::2), iter_rdm*av_sign_hf(1::2), calc_type=2)
-!         end if
-
+        call add_rdm_from_ij_pair_guga_exact(spawn, one_rdms, ilutJ, csf_j, &
+                                             iLutHF_True, csf_HF_true, av_sign_j(2::2), iter_rdm*av_sign_hf(1::2), calc_type=2)
     end subroutine Add_RDM_HFConnections_GUGA
 
-    subroutine add_rdm_from_ij_pair_guga_exact(spawn, one_rdms, ilutI, csf_i, ilutJ, &
+    subroutine add_rdm_from_ij_pair_guga_exact(spawn, one_rdms, ilutI, csf_i, ilutJ, csf_j, &
                                                sign_i, sign_j, calc_type)
         ! this routine is called for RDM sampling within the semi-stochastic
         ! space or for the connection to the 'true' HF det!
@@ -633,7 +629,7 @@ contains
         type(one_rdm_t), intent(inout) :: one_rdms(:)
         integer(n_int), intent(in) :: ilutI(0:IlutBits%len_tot), &
                                       ilutJ(0:IlutBits%len_tot)
-        type(CSF_Info_t), intent(in) :: csf_i
+        type(CSF_Info_t), intent(in) :: csf_i, csf_j
         real(dp), intent(in) :: sign_i(:), sign_j(:)
         integer, intent(in) :: calc_type
         character(*), parameter :: this_routine = "add_rdm_from_ij_pair_guga_exact"
@@ -644,7 +640,7 @@ contains
         integer :: p, q, r, s, n
         real(dp) :: full_sign(spawn%rdm_send%sign_length)
 
-        call calc_guga_matrix_element(ilutI, csf_i, ilutJ, excitInfo, mat_ele, &
+        call calc_guga_matrix_element(ilutI, csf_i, ilutJ, csf_j, excitInfo, mat_ele, &
                                       t_hamil=.false., calc_type=calc_type, &
                                       rdm_ind=rdm_ind, rdm_mat=rdm_mat)
 
@@ -708,7 +704,6 @@ contains
         integer(n_int) :: ilutGi(0:GugaBits%len_tot), ilutGj(0:GugaBits%len_tot)
         integer(int_rdm) :: pure_ind
         logical :: t_fast_
-        type(CSF_Info_t) :: csf_i
 
         def_default(t_fast_, t_fast, .true.)
 
@@ -740,10 +735,8 @@ contains
                         call EncodeBitDet_guga(nI, ilutGJ)
                         call EncodeBitDet_guga(nJ, ilutGi)
                     end if
-                    csf_i = CSF_Info_t(ilutGi)
-
-                    call fill_sings_2rdm_guga(spawn, IlutGi, &
-                                              ilutGj, sign_i, sign_j, x0, pure_ind)
+                    call fill_sings_2rdm_guga(&
+                            spawn, IlutGi, ilutGj, sign_i, sign_j, x0, pure_ind)
 
                 end if
 
@@ -756,7 +749,6 @@ contains
                     call EncodeBitDet_guga(nI, ilutGJ)
                     call EncodeBitDet_guga(nJ, ilutGi)
                 end if
-                csf_i = CSF_Info_t(ilutGi)
                 call create_all_rdm_contribs(rdm_ind_in, x0, x1, rdm_ind, rdm_mat)
 
                 do n = 1, size(rdm_ind)
@@ -782,10 +774,14 @@ contains
                 call EncodeBitDet_guga(nI, ilutGJ)
                 call EncodeBitDet_guga(nJ, ilutGi)
             end if
-            csf_i = CSF_Info_t(ilutGi)
-            call calc_guga_matrix_element(IlutGi, csf_i, ilutGj, excitInfo, mat_ele, &
-                                          t_hamil=.false., calc_type=2, rdm_ind=rdm_ind, &
-                                          rdm_mat=rdm_mat)
+            block
+                type(CSF_Info_t) :: csf_i, csf_j
+                csf_i = CSF_Info_t(ilutGi)
+                csf_j = CSF_Info_t(ilutGj)
+                call calc_guga_matrix_element(IlutGi, csf_i, ilutGj, csf_j, excitInfo, mat_ele, &
+                                              t_hamil=.false., calc_type=2, rdm_ind=rdm_ind, &
+                                              rdm_mat=rdm_mat)
+            end block
 
             ! i assume sign_i and sign_j are not 0 if we end up here..
             do n = 1, size(rdm_ind)

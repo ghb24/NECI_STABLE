@@ -363,13 +363,13 @@ contains
         if (present(run)) then
             tmp_ilut = ilutRef(0:niftot, run)
             if (run > 1) then
-                call calc_guga_matrix_element(ilut, csf_i, tmp_ilut, excitInfo, hel, .true.,  1)
+                call calc_guga_matrix_element(ilut, csf_i, tmp_ilut, CSF_Info_t(tmp_ilut), excitInfo, hel, .true.,  1)
             else
-                call calc_guga_matrix_element(ilut, csf_i, tmp_ilut, excitInfo, hel, .true.,  0)
+                call calc_guga_matrix_element(ilut, csf_i, tmp_ilut, CSF_Info_t(tmp_ilut), excitInfo, hel, .true.,  0)
             end if
         else
             tmp_ilut = ilutRef(0:niftot, 1)
-            call calc_guga_matrix_element(ilut, csf_i, tmp_ilut, excitInfo, hel, .true.,  0)
+            call calc_guga_matrix_element(ilut, csf_i, tmp_ilut, CSF_Info_t(tmp_ilut), excitInfo, hel, .true.,  0)
         end if
 
 
@@ -390,14 +390,14 @@ contains
 
     end function calc_off_diag_guga_ref_direct
 
-    function calc_guga_mat_wrapper(ilutI, csf_i, ilutJ) result(mat_ele)
-        type(CSF_Info_t), intent(in) :: csf_i
+    function calc_guga_mat_wrapper(ilutI, csf_i, ilutJ, csf_j) result(mat_ele)
         integer(n_int), intent(in) :: ilutI(0:niftot), ilutJ(0:niftot)
+        type(CSF_Info_t), intent(in) :: csf_i, csf_j
         HElement_t(dp) :: mat_ele
 
         type(ExcitationInformation_t) :: excitInfo
 
-        call calc_guga_matrix_element(ilutI, csf_i, ilutJ, excitInfo, mat_ele, &
+        call calc_guga_matrix_element(ilutI, csf_i, ilutJ, csf_j, excitInfo, mat_ele, &
             t_hamil = .true., calc_type = 2)
 
     end function calc_guga_mat_wrapper
@@ -406,20 +406,21 @@ contains
         integer(n_int), intent(in) :: ilut_list(:,:)
         HElement_t(dp) :: hamil(size(ilut_list,2), size(ilut_list,2))
 
-        type(CSF_Info_t) :: csf_i
+        type(CSF_Info_t) :: csf_i, csf_j
         integer :: i, j
 
         do i = 1, size(ilut_list,2)
+            csf_i = CSF_Info_t(ilut_list(:, i))
             do j = 1, size(ilut_list,2)
-                csf_i = CSF_Info_t(ilut_list(:, j))
-                hamil(i,j) = calc_guga_mat_wrapper(ilut_list(:, j), csf_i, ilut_list(:,i))
+                csf_j = CSF_Info_t(ilut_list(:, j))
+                hamil(i,j) = calc_guga_mat_wrapper(ilut_list(:, j), csf_j, ilut_list(:,i), csf_i)
             end do
         end do
 
     end function create_hamiltonian_guga
 
 
-    subroutine calc_guga_matrix_element(ilutI, csf_i, ilutJ, excitInfo, mat_ele, t_hamil, &
+    subroutine calc_guga_matrix_element(ilutI, csf_i, ilutJ, csf_j, excitInfo, mat_ele, t_hamil, &
                                         calc_type, rdm_ind, rdm_mat)
         ! function which, given the 2 CSFs ilutI/J and the excitation
         ! information, connecting those 2, calculates the Hamiltionian
@@ -438,7 +439,7 @@ contains
         !           (does this mean i could get rid of the t_hamil flag?)
 
         integer(n_int), intent(in) :: ilutI(0:niftot), ilutJ(0:niftot)
-        type(CSF_Info_t), intent(in) :: csf_i
+        type(CSF_Info_t), intent(in) :: csf_i, csf_j
         type(ExcitationInformation_t), intent(out) :: excitInfo
         HElement_t(dp), intent(out) :: mat_ele
         logical, intent(in) :: t_hamil
@@ -569,6 +570,7 @@ contains
         ! depending on the type of usage i have to init some csf information
         select case (calc_type)
         case (0)
+            call stop_all(this_routine, 'Pass explicitly the reference')
             ! reference energy calculation -> both nI and nJ info should
             ! already be initialized .. -> but i have to assigne it to
             ! intermediate variables here to be able to write the below
@@ -2259,7 +2261,7 @@ contains
         ! we also need to calculate the matrix element here!
         call convert_ilut_toNECI(ilut, ilutI)
         call convert_ilut_toNECI(exc, ilutJ)
-        call calc_guga_matrix_element(ilutI, csf_i, ilutJ, excitInfo, mat_ele, .true., 2)
+        call calc_guga_matrix_element(ilutI, csf_i, ilutJ, CSF_Info_t(ilutJ), excitInfo, mat_ele, .true., 2)
 
         if (near_zero(mat_ele)) then
             exc = 0_n_int
@@ -2983,7 +2985,7 @@ contains
             return
         end if
 
-        call calc_guga_matrix_element(ilutI, csf_i, ilutJ, excitInfo, mat_ele, .true., 2)
+        call calc_guga_matrix_element(ilutI, csf_i, ilutJ, CSF_Info_t(ilutJ), excitInfo, mat_ele, .true., 2)
 
         if (near_zero(mat_ele)) then
             exc = 0_n_int
@@ -3877,7 +3879,7 @@ contains
             ! since something is going obviously wrong..
             if (.not. near_zero(pgen)) then
                 call convert_ilut_toNECI(new_ilut, ilutJ, HElgen)
-                call calc_guga_matrix_element(ilutI, current_csf_i, ilutJ, excitInfo, tmp_mat, &
+                call calc_guga_matrix_element(ilutI, current_csf_i, ilutJ, CSF_Info_t(ilutJ), excitInfo, tmp_mat, &
                                               .true., 2)
 
                 diff = abs(HElGen - tmp_mat)
@@ -3895,7 +3897,7 @@ contains
                 end if
 
                 ! is the other order also fullfilled?
-                call calc_guga_matrix_element(ilutJ, CSF_Info_t(ilutJ), ilutI, excitInfo, tmp_mat1, &
+                call calc_guga_matrix_element(ilutJ, CSF_Info_t(ilutJ), ilutI, current_csf_i, excitInfo, tmp_mat1, &
                                               .true., 2)
 
 #ifdef CMPLX_
@@ -4012,7 +4014,7 @@ contains
             call convert_ilut_toNECI(ilut, ilutI)
             call convert_ilut_toNECI(excitation, ilutJ)
 
-            call calc_guga_matrix_element(ilutI, csf_i, ilutJ, excitInfo, mat_ele, &
+            call calc_guga_matrix_element(ilutI, csf_i, ilutJ, CSF_Info_t(ilutJ), excitInfo, mat_ele, &
                                           .true., 2)
 
             if (near_zero(mat_ele)) then
@@ -8808,7 +8810,7 @@ contains
         call convert_ilut_toNECI(ilut, ilutI)
         call convert_ilut_toNECI(excitation, ilutJ)
 
-        call calc_guga_matrix_element(ilutI, csf_i, ilutJ, dummy, mat_ele, &
+        call calc_guga_matrix_element(ilutI, csf_i, ilutJ, CSF_Info_t(ilutJ), dummy, mat_ele, &
                                       .true., 2)
 
         if (near_zero(mat_ele)) then
@@ -10559,7 +10561,7 @@ contains
             call convert_ilut_toNECI(ilut, ilutI)
             call convert_ilut_toNECI(exc, ilutJ)
 
-            call calc_guga_matrix_element(ilutI, csf_i, ilutJ, excitInfo, mat_ele, &
+            call calc_guga_matrix_element(ilutI, csf_i, ilutJ, CSF_Info_t(ilutJ), excitInfo, mat_ele, &
                                           .true., 2)
 
             if (near_zero(mat_ele)) then

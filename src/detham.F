@@ -37,7 +37,7 @@
       type(timer), save :: proc_timer
       type(ExcitationInformation_t) :: excitInfo
       integer :: ic=0
-      type(CSF_Info_t) :: csf_i
+      type(CSF_Info_t) :: csf_i, csf_j
 !      LOGICAL TSTAR
 C ==-------------------------------------------------------------------==
       proc_timer%timer_name='    DETHAM'
@@ -85,6 +85,7 @@ C..   Now we need to match up any two determinants
 
          DO KJ=IBEGJ,IMAXJ,STEP
             call EncodeBitDet(NMRKS(:,KJ), ilutJ)
+            if (tGUGA) csf_j = CSF_Info_t(ilutJ)
             if (tHPHF) then
               if (KI == KJ) then
                 totsum = hphf_diag_helement(NMRKS(:,KI), ilutI)
@@ -98,7 +99,7 @@ C..   Now we need to match up any two determinants
                   totsum = calcDiagMatEleGuga_nI(NMRKS(:,KI))
               else
                   call calc_guga_matrix_element(ilutI,csf_i,ilutJ,
-     &              excitInfo, totsum, .true., 1)
+     &              csf_j, excitInfo, totsum, .true., 1)
               end if
 
             else if (t_lattice_model) then
