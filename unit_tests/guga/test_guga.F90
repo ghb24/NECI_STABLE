@@ -7561,7 +7561,7 @@ contains
         ! set up correct weights
         ! but switches are not yet set up... wtf
         weights = init_fullStartWeight(csf_i, 2, 4, negSwitch(2), posSwitch(2), &
-                                       csf_i%B_ilut(2))
+                                       csf_i%B_real(2))
 
         call mixedFullStartStochastic(ilut, csf_i, excitInfo, weights, posSwitch, &
                                       negSwitch, ex, pgen)
@@ -7594,7 +7594,7 @@ contains
         ! set up correct weights
         ! but switches are not yet set up... wtf
         weights = init_fullStartWeight(csf_i, 3, 4, negSwitch(3), posSwitch(3), &
-                                       csf_i%B_ilut(3))
+                                       csf_i%B_real(3))
 
         call mixedFullStartStochastic(ilut, csf_i, excitInfo, weights, posSwitch, &
                                       negSwitch, ex, pgen)
@@ -7638,7 +7638,7 @@ contains
 
         ! set up correct weights
         weights = init_fullStartWeight(csf_i, 2, 4, negSwitch(2), posSwitch(2), &
-                                       csf_i%B_ilut(2))
+                                       csf_i%B_real(2))
 
         call mixedFullStartStochastic(ilut, csf_i, excitInfo, weights, posSwitch, &
                                       negSwitch, ex, pgen)
@@ -7669,7 +7669,7 @@ contains
         ! set up correct weights
         ! but switches are not yet set up... wtf
         weights = init_fullStartWeight(csf_i, 3, 4, negSwitch(3), posSwitch(3), &
-                                       csf_i%B_ilut(3))
+                                       csf_i%B_real(3))
 
         call mixedFullStartStochastic(ilut, csf_i, excitInfo, weights, posSwitch, &
                                       negSwitch, ex, pgen)
@@ -7716,7 +7716,7 @@ contains
 
         ! set up correct weights
         weights = init_semiStartWeight(csf_i, 2, 4, negSwitch(2), posSwitch(2), &
-                                       csf_i%B_ilut(2))
+                                       csf_i%B_real(2))
 
         call createStochasticStart_single(ilut, csf_i, excitInfo, weights, posSwitch, &
                                           negSwitch, ex, pgen)
@@ -7766,7 +7766,7 @@ contains
 
         ! set up correct weights
         weights = init_semiStartWeight(csf_i, 2, 4, negSwitch(2), &
-                                       posSwitch(2), csf_i%B_ilut(2))
+                                       posSwitch(2), csf_i%B_real(2))
 
         ! modify the excitation so it fits test case:
         call createStochasticStart_single(ilut, csf_i, excitInfo, weights, posSwitch, &

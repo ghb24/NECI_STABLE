@@ -2101,8 +2101,8 @@ contains
             call calcRemainingSwitches_excitInfo_single(csf_i, excitInfo, posSwitches, negSwitches)
 
             weights = init_singleWeight(csf_i, en)
-            plusWeight = weights%proc%plus(posSwitches(st), csf_i%B_ilut(st), weights%dat)
-            minusWeight = weights%proc%minus(negSwitches(st), csf_i%B_ilut(st), weights%dat)
+            plusWeight = weights%proc%plus(posSwitches(st), csf_i%B_real(st), weights%dat)
+            minusWeight = weights%proc%minus(negSwitches(st), csf_i%B_real(st), weights%dat)
 
             ! check compatibility of chosen indices
 

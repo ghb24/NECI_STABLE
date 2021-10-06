@@ -110,7 +110,7 @@ module guga_bitRepOps
     type :: CSF_Info_t
         integer, allocatable :: stepvector(:)
         integer, allocatable :: Occ_int(:), B_int(:)
-        real(dp), allocatable :: Occ_ilut(:), B_ilut(:), B_nI(:)
+        real(dp), allocatable :: Occ_real(:), B_real(:)
 
         real(dp), allocatable :: cum_list(:)
             !! also use a fake cum-list of the non-doubly occupied orbital to increase
@@ -2836,8 +2836,8 @@ contains
         integer, intent(in) :: n_spat_orbs
         type(CSF_Info_t), intent(out) :: csf_i
         allocate(csf_i%stepvector(n_spat_orbs), &
-                 csf_i%B_ilut(n_spat_orbs), &
-                 csf_i%Occ_ilut(n_spat_orbs), &
+                 csf_i%B_real(n_spat_orbs), &
+                 csf_i%Occ_real(n_spat_orbs), &
                  csf_i%B_int(n_spat_orbs), &
                  csf_i%Occ_int(n_spat_orbs), &
                  csf_i%cum_list(n_spat_orbs))
@@ -2858,14 +2858,14 @@ contains
 
         ASSERT(isProperCSF_ilut(ilut))
         ASSERT(allocated(csf_i%stepvector))
-        ASSERT(allocated(csf_i%B_ilut))
-        ASSERT(allocated(csf_i%Occ_ilut))
+        ASSERT(allocated(csf_i%B_real))
+        ASSERT(allocated(csf_i%Occ_real))
         ASSERT(allocated(csf_i%B_int))
         ASSERT(allocated(csf_i%Occ_int))
 
         csf_i%stepvector = 0
-        csf_i%B_ilut = 0.0_dp
-        csf_i%Occ_ilut = 0.0_dp
+        csf_i%B_real = 0.0_dp
+        csf_i%Occ_real = 0.0_dp
         csf_i%B_int = 0
         csf_i%Occ_int = 0
 
@@ -2894,14 +2894,14 @@ contains
 
             case (0)
 
-                csf_i%Occ_ilut(i) = 0.0_dp
+                csf_i%Occ_real(i) = 0.0_dp
                 csf_i%Occ_int(i) = 0
 
                 cum_sum = cum_sum + 1.0_dp
 
             case (1)
 
-                csf_i%Occ_ilut(i) = 1.0_dp
+                csf_i%Occ_real(i) = 1.0_dp
                 csf_i%Occ_int(i) = 1
 
                 b_real = b_real + 1.0_dp
@@ -2911,7 +2911,7 @@ contains
 
             case (2)
 
-                csf_i%Occ_ilut(i) = 1.0_dp
+                csf_i%Occ_real(i) = 1.0_dp
                 csf_i%Occ_int(i) = 1
 
                 b_real = b_real - 1.0_dp
@@ -2921,12 +2921,12 @@ contains
 
             case (3)
 
-                csf_i%Occ_ilut(i) = 2.0_dp
+                csf_i%Occ_real(i) = 2.0_dp
                 csf_i%Occ_int(i) = 2
 
             end select
 
-            csf_i%B_ilut(i) = b_real
+            csf_i%B_real(i) = b_real
             csf_i%B_int(i) = b_int
 
             csf_i%cum_list(i) = cum_sum
