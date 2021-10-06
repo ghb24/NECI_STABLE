@@ -585,6 +585,7 @@ contains
             temp_delta_b = csf_i%B_int - ref_b_vector_int
 
         case (1)
+            call stop_all(this_routine, 'case 1')
             ! this used in the initialization of semi-stochastic and
             ! trail-wavefunction calculation
             ! in this case "misuse" the current_ variables in the loop over nI
