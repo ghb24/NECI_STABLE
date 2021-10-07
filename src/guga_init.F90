@@ -8,7 +8,8 @@ module guga_init
                           tPickVirtUniform, tGenHelWeighted, tGen_4ind_2, tGen_4ind_weighted, &
                           tGen_4ind_reverse, tGen_sym_guga_ueg, tGen_sym_guga_mol, &
                           tGen_nosym_guga, nSpatOrbs, t_consider_diff_bias, &
-                          treal, tHUB, t_guga_noreorder, tgen_guga_crude, &
+                          ref_stepvector, ref_b_vector_int, ref_occ_vector, &
+                          ref_b_vector_real, treal, tHUB, t_guga_noreorder, tgen_guga_crude, &
                           t_new_real_space_hubbard, t_heisenberg_model, &
                           t_tJ_model, t_guga_pchb, t_pchb_weighted_singles
 
@@ -58,7 +59,7 @@ module guga_init
 
     use back_spawn, only: setup_virtual_mask
 
-    use guga_bitRepOps, only: init_guga_bitrep, new_CSF_Info_t, current_csf_i, csf_ref
+    use guga_bitRepOps, only: init_guga_bitrep, new_CSF_Info_t, current_csf_i
 
     use guga_pchb_excitgen, only: pick_orbitals_pure_uniform_singles, &
                                   pick_orbitals_double_pchb, &
@@ -228,7 +229,6 @@ contains
         ! In principle this is redundant and could be computed from nI or ilut,
         !   but we precompute it for performance reasons.
         call new_CSF_Info_t(nSpatOrbs, current_csf_i)
-        call new_CSF_Info_t(nSpatOrbs, csf_ref)
 
         ! also allocate the temporary variables used in the matrix element
         ! calculation and also the similar variables for the reference
@@ -244,6 +244,16 @@ contains
         allocate(temp_delta_b(nSpatOrbs))
         allocate(temp_occ_i(nSpatOrbs))
         allocate(temp_b_real_i(nSpatOrbs))
+
+        if (allocated(ref_stepvector)) deallocate(ref_stepvector)
+        if (allocated(ref_b_vector_int)) deallocate(ref_b_vector_int)
+        if (allocated(ref_b_vector_real)) deallocate(ref_b_vector_real)
+        if (allocated(ref_occ_vector)) deallocate(ref_occ_vector)
+
+        allocate(ref_stepvector(nSpatOrbs))
+        allocate(ref_b_vector_int(nSpatOrbs))
+        allocate(ref_b_vector_real(nSpatOrbs))
+        allocate(ref_occ_vector(nSpatOrbs))
 
         ! for now (time/iteration comparison) reasons, decide which
         ! reference energy calculation method we use

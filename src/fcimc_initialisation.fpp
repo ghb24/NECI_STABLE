@@ -12,7 +12,8 @@ module fcimc_initialisation
                           tRotatedOrbs, MolproID, nBasis, arr, brr, nel, &
                           tPickVirtUniform, tGen_4ind_reverse, &
                           tGenHelWeighted, tGen_4ind_weighted, tLatticeGens, &
-                          tGUGA, tUEGNewGenerator, &
+                          tGUGA, ref_stepvector, ref_b_vector_int, &
+                          ref_occ_vector, ref_b_vector_real, tUEGNewGenerator, &
                           tGen_4ind_2, tReltvy, t_new_real_space_hubbard, &
                           t_lattice_model, t_tJ_model, t_heisenberg_model, &
                           t_k_space_hubbard, t_3_body_excits, breathingCont, &
@@ -203,9 +204,11 @@ module fcimc_initialisation
 
     use constants
 
+    use guga_data, only: bVectorRef_ilut, bVectorRef_nI
+
     use guga_bitRepOps, only: calcB_vector_nI, calcB_vector_ilut, convert_ilut_toNECI, &
                               convert_ilut_toGUGA, getDeltaB, write_det_guga, write_guga_list, &
-                              calc_csf_i, CSF_Info_t, csf_ref
+                              calc_csf_i, CSF_Info_t
 
     use guga_excitations, only: generate_excitation_guga, actHamiltonian
     use guga_matrixElements, only: calcDiagMatEleGUGA_ilut, calcDiagMatEleGUGA_nI
@@ -475,7 +478,25 @@ contains
             HFDet_True = HFDet
         end if
 
-        if (tGUGA) csf_ref = CSF_Info_t(ilutRef(:, run))
+        ! for GUGA calculations also save the b vector of the reference det
+        ! also initialize the persistently stored list of H|ref> to
+        ! calculate the projected energy
+        if (tGUGA) then
+            allocate(bVectorRef_nI(nEl), stat=ierr)
+            allocate(bVectorRef_ilut(nBasis / 2), stat=ierr)
+
+            ! store more information of the reference determinant, like
+            ! stepvector and stuff
+
+            ASSERT(allocated(ref_stepvector))
+
+            call calc_csf_i(ilutRef, ref_stepvector, ref_b_vector_int, &
+                               ref_occ_vector)
+
+            ref_b_vector_real = real(ref_b_vector_int, dp)
+
+
+        end if
 
         if (tHPHF) then
             allocate(RefDetFlip(NEl, inum_runs), &

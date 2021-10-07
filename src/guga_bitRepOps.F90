@@ -44,7 +44,7 @@ module guga_bitRepOps
             count_beta_orbs_ij, count_alpha_orbs_ij, &
             calcOcc_vector_ilut, calcOcc_vector_int, &
             encodebitdet_guga, identify_excitation, &
-            CSF_Info_t, current_csf_i, csf_ref, new_CSF_Info_t, fill_csf_i, &
+            CSF_Info_t, current_csf_i, new_CSF_Info_t, fill_csf_i, &
             is_compatible, &
             calc_csf_i, extract_h_element, getexcitation_guga, &
             getspatialoccupation, getExcitationRangeMask, &
@@ -121,9 +121,8 @@ module guga_bitRepOps
         module procedure construct_CSF_Info_t
     end interface
 
-    type(CSF_Info_t) :: current_csf_i, csf_ref
+    type(CSF_Info_t) :: current_csf_i
         !! Information about the current CSF, similar to ilut and nI.
-        !! Information about the reference CSF, ...
 contains
 
     subroutine init_guga_bitrep(n_spatial_bits)
@@ -2827,7 +2826,7 @@ contains
     end subroutine calc_csf_i
 
     pure function construct_CSF_Info_t(ilut) result(csf_i)
-        integer(n_int), intent(in) :: ilut(0 : GugaBits%len_orb)
+        integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
         type(CSF_Info_t) :: csf_i
         call new_CSF_Info_t(nSpatOrbs, csf_i)
         call fill_csf_i(ilut, csf_i)
@@ -2844,51 +2843,95 @@ contains
                  csf_i%cum_list(n_spat_orbs))
     end subroutine
 
-    pure subroutine fill_csf_i(ilut, csf)
+    pure subroutine fill_csf_i(ilut, csf_i)
         ! routine which sets up all the additional csf information, like
         ! stepvector, b vector, occupation etc. in various formats in one
         ! place
         ! and combine all the necessary calcs. into one loop instead of
         ! the seperate ones..
-        integer(n_int), intent(in) :: ilut(0 : GugaBits%len_orb)
-        type(CSF_Info_t), intent(inout) :: csf
+        integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
+        type(CSF_Info_t), intent(inout) :: csf_i
         debug_function_name("fill_csf_i")
 
         integer :: i, step, b_int
-        real(dp) :: cum_sum
+        real(dp) :: b_real, cum_sum
 
         ASSERT(isProperCSF_ilut(ilut))
-        ASSERT(allocated(csf%stepvector))
-        ASSERT(allocated(csf%B_real))
-        ASSERT(allocated(csf%Occ_real))
-        ASSERT(allocated(csf%B_int))
-        ASSERT(allocated(csf%Occ_int))
+        ASSERT(allocated(csf_i%stepvector))
+        ASSERT(allocated(csf_i%B_real))
+        ASSERT(allocated(csf_i%Occ_real))
+        ASSERT(allocated(csf_i%B_int))
+        ASSERT(allocated(csf_i%Occ_int))
 
-        cum_sum = 0.0_dp
+        csf_i%stepvector = 0
+        csf_i%B_real = 0.0_dp
+        csf_i%Occ_real = 0.0_dp
+        csf_i%B_int = 0
+        csf_i%Occ_int = 0
+
+        b_real = 0.0_dp
         b_int = 0
+
+
+        ! TODO(@Oskar): Use these functions instead
+        ! currentB_ilut = calcB_vector_ilut(ilut)
+        ! currentOcc_ilut = calcOcc_vector_ilut(ilut)
+        ! currentOcc_int = calcOcc_vector_int(ilut)
+        ! current_stepvector = calcStepVector(ilut)
+        ! currentB_int = calcB_vector_int(ilut)
+
+        ! also create a fake cum-list of the non-doubly occupied orbitals
+        csf_i%cum_list = 0.0_dp
+        cum_sum = 0.0_dp
+
         do i = 1, nSpatOrbs
+
             step = getStepvalue(ilut, i)
-            csf%stepvector(i) = step
+
+            csf_i%stepvector(i) = step
+
             select case (step)
+
             case (0)
-                csf%Occ_int(i) = 0
+
+                csf_i%Occ_real(i) = 0.0_dp
+                csf_i%Occ_int(i) = 0
+
                 cum_sum = cum_sum + 1.0_dp
+
             case (1)
-                csf%Occ_int(i) = 1
+
+                csf_i%Occ_real(i) = 1.0_dp
+                csf_i%Occ_int(i) = 1
+
+                b_real = b_real + 1.0_dp
                 b_int = b_int + 1
+
                 cum_sum = cum_sum + 1.0_dp
+
             case (2)
-                csf%Occ_int(i) = 1
+
+                csf_i%Occ_real(i) = 1.0_dp
+                csf_i%Occ_int(i) = 1
+
+                b_real = b_real - 1.0_dp
                 b_int = b_int - 1
+
                 cum_sum = cum_sum + 1.0_dp
+
             case (3)
-                csf%Occ_int(i) = 2
+
+                csf_i%Occ_real(i) = 2.0_dp
+                csf_i%Occ_int(i) = 2
+
             end select
-            csf%B_int(i) = b_int
-            csf%cum_list(i) = cum_sum
+
+            csf_i%B_real(i) = b_real
+            csf_i%B_int(i) = b_int
+
+            csf_i%cum_list(i) = cum_sum
         end do
-        csf%B_real(:) = real(csf%B_int(:), dp)
-        csf%Occ_real(:) = real(csf%Occ_int(:), dp)
+
     end subroutine fill_csf_i
 
     pure function is_compatible(ilut, csf_i) result(res)

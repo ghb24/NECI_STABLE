@@ -6,7 +6,8 @@ module fcimc_helper
     use util_mod
     use systemData, only: nel, tHPHF, tNoBrillouin, G1, tUEG, &
                           tLatticeGens, nBasis, tRef_Not_HF, &
-                          tGUGA, t_3_body_excits, t_non_hermitian, &
+                          tGUGA, ref_stepvector, ref_b_vector_int, ref_occ_vector, &
+                          ref_b_vector_real, t_3_body_excits, t_non_hermitian, &
                           t_ueg_3_body, t_mol_3_body, t_pcpp_excitgen
     use core_space_util, only: cs_replicas
     use HPHFRandExcitMod, only: ReturnAlphaOpenDet
@@ -85,7 +86,7 @@ module fcimc_helper
 
     use guga_procedure_pointers, only: calc_off_diag_guga_ref
     use guga_bitrepops, only: write_det_guga, calc_csf_i, &
-                              transfer_stochastic_rdm_info, CSF_Info_t, csf_ref
+                              transfer_stochastic_rdm_info, CSF_Info_t
 
     use real_time_data, only: runge_kutta_step, tVerletSweep, &
                               t_rotated_time, t_real_time_fciqmc
@@ -2468,7 +2469,19 @@ contains
         write(stdout, "(A)", advance='no') " Symmetry: "
         call writeSym(6, isym%sym, .true.)
 
-        if (tGUGA) csf_ref = CSF_Info_t(ilutRef(:, run))
+        ! if in guga run, i also need to recreate the list of connected
+        ! determinnant to the new reference det
+        if (tGUGA) then
+
+            ! also recreate the stepvector, etc. info stuff for the new
+            ! reference determinant
+            ASSERT(allocated(ref_stepvector))
+            call calc_csf_i(ilutRef, ref_stepvector, ref_b_vector_int, &
+                               ref_occ_vector)
+
+            ref_b_vector_real = real(ref_b_vector_int, dp)
+
+        end if
 
         if (tHPHF) then
             if (.not. Allocated(RefDetFlip)) then
