@@ -1613,6 +1613,15 @@ contains
                 tSemiStochastic = .false.
                 tStartCoreGroundState = .false.
                 semistoch_shift_iter = 1
+            case("POPS-CORE-PROPORTION")
+                ss_space_in%tPops = .true.
+                ss_space_in%tPopsProportion = .true.
+                call getf(ss_space_in%npops_proportion)
+                t_fast_pops_core = .false.
+                if (.not. tForceFullPops) then
+                    ss_space_in%tApproxSpace = .true.
+                    t_fast_pops_core = .true.
+                end if
             case("POPS-CORE-APPROX")
                 ss_space_in%tPops = .true.
                 ss_space_in%tApproxSpace = .true.

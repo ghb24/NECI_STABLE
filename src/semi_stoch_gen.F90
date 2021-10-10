@@ -99,7 +99,7 @@ contains
                 if (.not. (tStartCAS .or. core_in%tPops .or. core_in%tDoubles .or. core_in%tCAS .or. core_in%tRAS .or. &
                            core_in%tOptimised .or. core_in%tLowE .or. core_in%tRead .or. core_in%tMP1 .or. &
                            core_in%tFCI .or. core_in%tHeisenbergFCI .or. core_in%tHF .or. &
-                           core_in%tPopsAuto)) then
+                           core_in%tPopsAuto .or. core_in%tPopsProportion)) then
                     call stop_all("init_semi_stochastic", "You have not selected a semi-stochastic core space to use.")
                 end if
                 if (.not. tUseRealCoeffs) call stop_all(t_r, "To use semi-stochastic you must also use real coefficients.")
@@ -121,6 +121,15 @@ contains
                     end if
                     ! might also need to check if the total space is too large so that
                     ! tApproxSpace should be used instead...
+                end if
+
+                if (core_in%tPopsProportion) then
+                    write(stdout, '("Choosing ",F7.2,"% of initiator space as core space")') 100 * core_in%npops_proportion
+                    call neci_flush(6)
+                    write(stdout, '("Estimated size of core space:",1X,i5)') int(AllNoInitDets(run) * core_in%npops_proportion)
+                    call neci_flush(6)
+                    !core_in%npops = max(1, int(AllNoInitDets(run) * core_in%npops_proportion))
+                    core_in%npops = max(1, int(AllNoInitDets(1) * core_in%npops_proportion))
                 end if
 
                 if (core_in%tApproxSpace) write(stdout, '(" ... approximately using the factor of",1X,i5)') core_in%nApproxSpace

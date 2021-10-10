@@ -34,6 +34,8 @@ module CalcData
         ! Automatically choosing 10% of the total initiator space, if this number
         ! is larger than 50000, then use npops = 50000
         logical :: tPopsAuto = .false.
+        ! Use a given proportion of initiator determinants as core space.
+        logical :: tPopsProportion = .false.
         ! Read states from a file.
         logical :: tRead = .false.
         ! Use the space of all single and double (+triple) excitations from the
@@ -79,6 +81,8 @@ module CalcData
         integer :: max_size = 0
         ! The number of states to use from a POPSFILE for the core space.
         integer :: npops = 0
+        ! This proportion is multiplied by the number of initiator determinants to obtain npops.
+        real(dp) :: npops_proportion
         ! If true then the space generated from the pops-core option may be very
         ! slightly unoptimal, but should be very good, and sometimes exactly the
         ! same as when this logical is false. Only applies to the pops-* options.
