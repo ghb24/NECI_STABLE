@@ -803,6 +803,11 @@ and ends with the `endcalc` keyword.
  This option will use the \(n\) most populated determinants
     to form the core space.
 
+-   **pops-core-proportion \(f\)**<br>
+    This option will use \(100 \times f\) percent of most populated initiator
+    determinants to form the core space. For example, about 50% of most
+    populated initiator determinants are chosen if \(f = 0.5\).
+
 -   **doubles-core**<br>
     Use the reference determinant and all single and double excitations
     from it to form the core space.
