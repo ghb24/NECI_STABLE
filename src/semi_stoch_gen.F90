@@ -145,6 +145,12 @@ contains
                 ! This is now the total size on the replica with the largest space
                 ! Typically, all replicas will have either similar or the same space size
                 write(stdout, '("Total size of deterministic space:",1X,i8)') rep%determ_space_size
+                if(rep%determ_space_size > 0.5 * AllNoInitDets(run)) then
+                    write(stdout, *)"WARNING: Total size of deterministic space is greater than&
+                        & 50% of the initiator space."
+                    write(stdout, *)"         Reducing the size of the deterministic space is&
+                        & encouraged."
+                end if
                 write(stdout, '("Size of deterministic space on this processor:",1X,i8)') rep%determ_sizes(iProcIndex)
                 call neci_flush(6)
 
