@@ -1617,6 +1617,9 @@ contains
                 ss_space_in%tPops = .true.
                 ss_space_in%tPopsProportion = .true.
                 call getf(ss_space_in%npops_proportion)
+                if(ss_space_in%npops_proportion < 0.0) then
+                    call stop_all(t_r, 'Popscore proportion should be positive')
+                end if
                 t_fast_pops_core = .false.
                 if (.not. tForceFullPops) then
                     ss_space_in%tApproxSpace = .true.
