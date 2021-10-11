@@ -128,8 +128,7 @@ contains
                     call neci_flush(6)
                     write(stdout, '("Estimated size of core space:",1X,i5)') int(AllNoInitDets(run) * core_in%npops_proportion)
                     call neci_flush(6)
-                    !core_in%npops = max(1, int(AllNoInitDets(run) * core_in%npops_proportion))
-                    core_in%npops = max(1, int(AllNoInitDets(1) * core_in%npops_proportion))
+                    core_in%npops = max(1, int(AllNoInitDets(run) * core_in%npops_proportion))
                 end if
 
                 if (core_in%tApproxSpace) write(stdout, '(" ... approximately using the factor of",1X,i5)') core_in%nApproxSpace
