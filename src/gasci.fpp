@@ -76,7 +76,7 @@ module gasci
         procedure(write_to_t), deferred :: write_to
         procedure(get_possible_spaces_t), deferred :: get_possible_spaces
         procedure :: get_possible_holes
-        procedure :: contains_det
+        procedure :: contains_conf
         procedure :: contains_ilut
         procedure :: is_connected => get_is_connected
         procedure :: nGAS => get_nGAS
@@ -274,12 +274,12 @@ contains
     end function
 
 
-    !>  Query wether a determinant is contained in the GAS space.
+    !>  Query wether a determinant or CSF is contained in the GAS space.
     !>
-    !>  It is **assumed** that the determinant is contained in the
+    !>  It is **assumed** that the configuration is contained in the
     !>  Full CI space and obeys e.g. the Pauli principle.
     !>  The return value is not defined, if that is not the case!
-    pure function contains_det(self, nI) result(res)
+    pure function contains_conf(self, nI) result(res)
         !> Specification of GAS spaces.
         class(GASSpec_t), intent(in) :: self
         !> An index of occupied spin orbitals.
@@ -307,7 +307,7 @@ contains
         logical :: res
         integer :: nI(sum(popcnt(ilut)))
         call decode_bit_det(nI, ilut)
-        res = self%contains_det(nI)
+        res = self%contains_conf(nI)
     end function
 
     !> Count the particles per GAS space. i.e. return the supergroup.

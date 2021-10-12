@@ -1620,12 +1620,4 @@ contains
         end if
 
     end function calc_pgen_back_spawn
-
-    subroutine test_gen_excit_back_spawn()
-        ! i need to write a routine, which tests the back spawn
-        ! excitation generator! like in the guga case with all the
-        ! pgen ratios and such..
-
-    end subroutine test_gen_excit_back_spawn
-
 end module back_spawn_excit_gen

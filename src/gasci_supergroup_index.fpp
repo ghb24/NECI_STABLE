@@ -262,7 +262,7 @@ contains
         integer :: idx
         character(*), parameter :: this_routine = 'get_supergroup_idx_det'
 
-        @:pure_ASSERT(self%GASspec%contains_det(nI))
+        @:pure_ASSERT(self%GASspec%contains_conf(nI))
         if (self%GASspec%is_connected()) then
             idx = self%idx_supergroup(self%GASspec%count_per_GAS(nI))
         else

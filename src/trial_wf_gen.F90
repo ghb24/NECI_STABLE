@@ -12,7 +12,7 @@ module trial_wf_gen
 
     use guga_data, only: ExcitationInformation_t
     use guga_excitations, only: calc_guga_matrix_element
-    use guga_bitrepops, only: write_det_guga, init_csf_information
+    use guga_bitrepops, only: write_det_guga, fill_csf_i
 
     use util_mod, only: get_free_unit, binary_search_custom, operator(.div.)
     use FciMCData, only: con_send_buf, NConEntry
@@ -535,6 +535,8 @@ contains
         HElement_t(dp) :: H_ij
         character(len=*), parameter :: this_routine = "generate_connected_space_vector"
         type(ExcitationInformation_t) :: excitInfo
+        type(CSF_Info_t) :: csf_i
+
         con_vecs = 0.0_dp
 
         ! do i need to change this here for the non-hermitian transcorrelated
@@ -544,7 +546,7 @@ contains
 
             ! i am only here in the guga case if i use the new way to calc
             ! the off-diagonal elements..
-            if (tGUGA) call init_csf_information(con_space(0:nifd, i))
+            if (tGUGA) csf_i = CSF_Info_t(con_space(0 : nifd, i))
 
             do j = 1, size(trial_vecs, 2)
 
@@ -568,7 +570,7 @@ contains
                         ! H_ij = hphf_off_diag_helement(nI, nJ, con_space(:,i), trial_space(:,j))
                     else if (tGUGA) then
                         ASSERT(.not. t_non_hermitian)
-                        call calc_guga_matrix_element(con_space(:, i), trial_space(:, j), &
+                        call calc_guga_matrix_element(con_space(:, i), csf_i, trial_space(:, j), &
                                                       excitInfo, H_ij, .true., 1)
 #ifdef CMPLX_
                         H_ij = conjg(H_ij)

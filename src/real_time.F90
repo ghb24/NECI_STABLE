@@ -1140,12 +1140,3 @@ contains
     end subroutine perform_verlet_iteration
 
 end module real_time
-
-! wrapper (dont know why this is necessary quite..)
-subroutine perform_real_time_fciqcm_wrap
-    use real_time, only: perform_real_time_fciqmc
-    implicit none
-
-    call perform_real_time_fciqmc
-
-end subroutine perform_real_time_fciqcm_wrap

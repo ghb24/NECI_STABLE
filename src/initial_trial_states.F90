@@ -379,20 +379,23 @@ contains
                     H_tmp(i, i) = get_helement(det_list(:, i), det_list(:, i), 0)
                 end if
                 ! off diagonal elements
-                if (tGUGA) call init_csf_information(ilut_list(0:nifd, i))
-                do j = 1, i - 1
-                    if (tHPHF) then
-                        H_tmp(i, j) = hphf_off_diag_helement(det_list(:, i), det_list(:, j), ilut_list(:, i), &
-                                                             ilut_list(:, j))
-                    else if (tGUGA) then
-                        call calc_guga_matrix_element(ilut_list(:, i), &
-                                                      ilut_list(:, j), excitInfo, H_tmp(j, i), .true., 1)
+                block
+                    type(CSF_Info_t) :: csf_i
+                    if (tGUGA) csf_i = CSF_Info_t(ilut_list(:, i))
+                    do j = 1, i - 1
+                        if (tHPHF) then
+                            H_tmp(i, j) = hphf_off_diag_helement(det_list(:, i), det_list(:, j), ilut_list(:, i), &
+                                                                 ilut_list(:, j))
+                        else if (tGUGA) then
+                            call calc_guga_matrix_element(ilut_list(:, i), csf_i, &
+                                                          ilut_list(:, j), excitInfo, H_tmp(j, i), .true., 1)
 
-!                     H_tmp(j,i) = conjg(H_tmp(j,i))
-                    else
-                        H_tmp(i, j) = get_helement(det_list(:, i), det_list(:, j), ilut_list(:, i), ilut_list(:, j))
-                    end if
-                end do
+    !                     H_tmp(j,i) = conjg(H_tmp(j,i))
+                        else
+                            H_tmp(i, j) = get_helement(det_list(:, i), det_list(:, j), ilut_list(:, i), ilut_list(:, j))
+                        end if
+                    end do
+                end block
             end do
 ! The H matrix if ready. Now diagonalize it.
             allocate(work(3 * ndets_all_procs), stat=ierr)

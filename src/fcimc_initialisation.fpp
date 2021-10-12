@@ -208,10 +208,9 @@ module fcimc_initialisation
 
     use guga_bitRepOps, only: calcB_vector_nI, calcB_vector_ilut, convert_ilut_toNECI, &
                               convert_ilut_toGUGA, getDeltaB, write_det_guga, write_guga_list, &
-                              calc_csf_info
+                              calc_csf_i, CSF_Info_t
 
-    use guga_excitations, only: generate_excitation_guga, create_projE_list, &
-                                actHamiltonian
+    use guga_excitations, only: generate_excitation_guga, actHamiltonian
     use guga_matrixElements, only: calcDiagMatEleGUGA_ilut, calcDiagMatEleGUGA_nI
 
     use real_time_data, only: t_real_time_fciqmc
@@ -491,7 +490,7 @@ contains
 
             ASSERT(allocated(ref_stepvector))
 
-            call calc_csf_info(ilutRef, ref_stepvector, ref_b_vector_int, &
+            call calc_csf_i(ilutRef, ref_stepvector, ref_b_vector_int, &
                                ref_occ_vector)
 
             ref_b_vector_real = real(ref_b_vector_int, dp)
@@ -2987,7 +2986,7 @@ contains
             ! should finally do some general routine, which does all this
             ! below...
             call convert_ilut_toGUGA(ilutHF, ilutG)
-            call actHamiltonian(ilutG, excitations, iExcits)
+            call actHamiltonian(ilutG, CSF_Info_t(ilutG), excitations, iExcits)
             do i = 1, iExcits
                 call convert_ilut_toNECI(excitations(:, i), ilutnJ)
                 call decode_bit_det(nJ, iLutnJ)
@@ -3830,20 +3829,11 @@ contains
                 end if
             end do
 
-            !We have got a unique filename
-            !Do not use system call
-!            command = 'mv' // ' FCIMCStats ' // abstr
-!            stat = neci_system(trim(command))
-
             if (tMolpro) then
                 call rename('FCIQMCStats', trim(adjustl(abstr)))
             else
                 call rename('FCIMCStats', trim(adjustl(abstr)))
             end if
-            !Doesn't like the stat argument
-!            if(stat.ne.0) then
-!                call stop_all(t_r,"Error with renaming FCIMCStats file")
-!            end if
         end if
 
     end subroutine MoveFCIMCStatsFiles
@@ -3900,9 +3890,9 @@ contains
                 ! i guess i have to change that for the real-space
                 ! hubbard model implementation!
                 if (tHUB .or. tUEG .or. .not. (tNoBrillouin)) then
-                    call actHamiltonian(ilutHF, excitations, n_excits)
+                    call actHamiltonian(ilutHF, CSF_Info_t(ilutHF), excitations, n_excits)
                 else
-                    call actHamiltonian(ilutHF, excitations, n_excits, .true.)
+                    call actHamiltonian(ilutHF, CSF_Info_t(ilutHF), excitations, n_excits, .true.)
                 end if
 
                 ! if no excitations possible... there is something wrong

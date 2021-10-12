@@ -1131,7 +1131,7 @@ Contains
             id = gInd
         else
             ! Storing as spatial orbitals (RHF or explicit input option ROHF)
-            id = (gInd - 1) / 2 + 1
+            id = (gInd + 1) .div. 2
         end if
         if(tTransGTID) id = TransTable(id)
     end function
