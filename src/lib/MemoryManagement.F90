@@ -449,7 +449,6 @@ contains
 
         deallocate (ObjectSizes)
         deallocate (AllMemEl)
-
     end subroutine LeaveMemoryManager
 
     subroutine PrintMemory(PrintDeallocated, iunit)
@@ -521,18 +520,18 @@ contains
         character(len=*), parameter :: fmt1 = '(f6.1, a2)'
         character(len=*), parameter :: fmt2 = '(i7, a1)'
         if (MemUnitsBytes) then
-            if (MemSize < 1024**2) then
+            if (MemSize < 1024_int64**2) then
                 ! output in KB.
-                write (iunit, fmt1) real(MemSize, dp) / 1024, 'KB'
-            else if (MemSize < 1024**3) then
+                write (iunit, fmt1) real(MemSize, dp) / 1024._dp, 'KB'
+            else if (MemSize < 1024_int64**3) then
                 ! output in MB.
-                write (iunit, fmt1) real(MemSize, dp) / 1024**2, 'MB'
-            else if (MemSize < 1024**4) then
+                write (iunit, fmt1) real(MemSize, dp) / 1024._dp**2, 'MB'
+            else if (MemSize < 1024_int64**4) then
                 ! output in GB.
-                write (iunit, fmt1) real(MemSize, dp) / 1024**3, 'GB'
+                write (iunit, fmt1) real(MemSize, dp) / 1024._dp**3, 'GB'
             else if (MemSize < 1024_int64**5) then
                 ! output in GB.
-                write (iunit, fmt1) real(MemSize, dp) / 1024_int64**4, 'TB'
+                write (iunit, fmt1) real(MemSize, dp) / 1024._dp**4, 'TB'
             else
                 write (iunit, '(A)') '> 1 PB'
             end if
