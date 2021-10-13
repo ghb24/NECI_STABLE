@@ -157,7 +157,7 @@ contains
                 sltcnd_3 => sltcnd_3_tc
             else if (tSD_spin_purification) then
                 if (tTruncatedLadderOps) then
-                    sltcnd_0 => sltcnd_0
+                    sltcnd_0 => sltcnd_0_base
                 else
                     sltcnd_0 => sltcnd_0_purify_spin
                 end if
