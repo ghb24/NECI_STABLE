@@ -1390,13 +1390,14 @@ contains
             if (allocated(spin_pure_J)) then
                 if (tTruncatedLadderOps) then
                     write(stdout, *)
-                    write(stdout, '(A)') 'Spin purification of Slater-Determinants with off &
-                        &diagonal elements of $ J * S_{+} S_{-} $ activated.'
+                    write(stdout, '(A)') 'Spin purification of Slater Determinants &
+                        &with off-diagonal $ J * S_{+} S_{-} $ correction.'
                     write(stdout, '(A, 1x, E10.5)') 'J =', spin_pure_J
                     write(stdout, *)
                 else
                     write(stdout, *)
-                    write(stdout, '(A)') 'Spin purification of Slater-Determinants with $ J * S^2 $ activated.'
+                    write(stdout, '(A)') 'Spin purification of Slater Determinants &
+                        &with full $ J *S^2 $ spin penalty.'
                     write(stdout, '(A, 1x, E10.5)') 'J =', spin_pure_J
                     write(stdout, *)
                 end if
