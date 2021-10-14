@@ -2196,19 +2196,7 @@ contains
                         if (diff < 1.0e-10) diff = 0.0_dp
 
                         if (diff > EPS) then
-                            print *, "sign check:"
-                            print *, "I:"
-                            call write_det_guga(6, ilutG, .true.)
-                            print *, "step: ", temp_step_i
-                            print *, "b:", temp_b_real_i
-                            print *, "n:", temp_occ_i
-                            print *, "J:"
-                            call write_det_guga(6, two_ex(:, j), .true.)
-                            print *, "step: ", temp_step_j
-                            print *, "db: ", temp_delta_b
-
                             call stop_all(this_routine, "incorrect sign!")
-
                         end if
                     end if
                 end if

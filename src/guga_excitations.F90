@@ -127,8 +127,7 @@ module guga_excitations
               calc_mixed_contr_sym, &
               calc_mixed_start_contr_sym, calc_mixed_x2x_ueg, &
               calc_mixed_end_contr_sym, &
-              temp_step_i, temp_step_j, &
-              temp_delta_b, temp_occ_i, temp_b_real_i, calc_off_diag_guga_ref_direct, &
+              calc_off_diag_guga_ref_direct, &
               pickorbs_real_hubbard_single, pickorbs_real_hubbard_double, &
               excitationIdentifier_single, excitationIdentifier_double, &
               init_doubleWeight, init_semiStartWeight, init_fullStartWeight, &
@@ -503,6 +502,13 @@ contains
             ASSERT(present(rdm_ind))
         end if
 #endif
+
+
+        if (.not. allocated(temp_step_i))   allocate(temp_step_i(nSpatOrbs))
+        if (.not. allocated(temp_step_j))   allocate(temp_step_j(nSpatOrbs))
+        if (.not. allocated(temp_delta_b))  allocate(temp_delta_b(nSpatOrbs))
+        if (.not. allocated(temp_occ_i))    allocate(temp_occ_i(nSpatOrbs))
+        if (.not. allocated(temp_b_real_i)) allocate(temp_b_real_i(nSpatOrbs))
 
         ! check diagonal case first
         if (DetBitEQ(ilutI, ilutJ)) then

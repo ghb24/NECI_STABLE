@@ -40,8 +40,7 @@ module guga_init
                         calc_mixed_start_contr_sym,&
                         calc_mixed_x2x_ueg, &
                         calc_mixed_end_contr_sym, &
-                        temp_step_i, temp_step_j, &
-                        temp_delta_b, temp_occ_i, temp_b_real_i, calc_off_diag_guga_ref_direct, &
+                        calc_off_diag_guga_ref_direct, &
                         pickOrbs_real_hubbard_single, pickOrbs_real_hubbard_double, &
                         calc_orbital_pgen_contrib_start_def, calc_orbital_pgen_contrib_end_def
 
@@ -229,21 +228,6 @@ contains
         !   but we precompute it for performance reasons.
         call new_CSF_Info_t(nSpatOrbs, current_csf_i)
         call new_CSF_Info_t(nSpatOrbs, csf_ref)
-
-        ! also allocate the temporary variables used in the matrix element
-        ! calculation and also the similar variables for the reference
-        ! determinant!
-        if (allocated(temp_step_i)) deallocate(temp_step_i)
-        if (allocated(temp_step_j)) deallocate(temp_step_j)
-        if (allocated(temp_delta_b)) deallocate(temp_delta_b)
-        if (allocated(temp_occ_i)) deallocate(temp_occ_i)
-        if (allocated(temp_b_real_i)) deallocate(temp_b_real_i)
-
-        allocate(temp_step_i(nSpatOrbs))
-        allocate(temp_step_j(nSpatOrbs))
-        allocate(temp_delta_b(nSpatOrbs))
-        allocate(temp_occ_i(nSpatOrbs))
-        allocate(temp_b_real_i(nSpatOrbs))
 
         ! for now (time/iteration comparison) reasons, decide which
         ! reference energy calculation method we use
