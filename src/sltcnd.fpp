@@ -41,8 +41,8 @@ module sltcnd_mod
     use bit_reps, only: NIfTot
     use LMat_mod, only: get_lmat_el, get_lmat_el_ua
     use gen_coul_ueg_mod, only: get_contact_umat_el_3b_sp, get_contact_umat_el_3b_sap
-    use SD_spin_purification_mod, only: tSD_spin_purification, spin_pure_J, &
-        S2_expval_exc, dyn_S2_expval_exc
+    use SD_spin_purification_mod, only: tSD_spin_purification, tTruncatedLadderOps, &
+                spin_pure_J, S2_expval_exc, dyn_S2_expval_exc
 
     implicit none
     private
@@ -156,8 +156,13 @@ contains
                 sltcnd_2 => sltcnd_2_tc
                 sltcnd_3 => sltcnd_3_tc
             else if (tSD_spin_purification) then
-                sltcnd_0 => sltcnd_0_purify_spin
+                if (tTruncatedLadderOps) then
+                    sltcnd_0 => sltcnd_0_base
+                else
+                    sltcnd_0 => sltcnd_0_purify_spin
+                end if
                 sltcnd_2 => sltcnd_2_purify_spin
+
                 ! Unaffected by < I | S^2 | J >
                 sltcnd_1 => sltcnd_1_base
                 sltcnd_3 => sltcnd_3_base
