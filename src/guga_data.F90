@@ -18,7 +18,7 @@ module guga_data
               orbitalIndex, funA_0_2overR2, minFunA_2_0_overR2, funA_m1_1_overR2, &
               funa_2_0_overr2, getdoublecontribution, tag_excitations, &
               tag_tmp_excits, tag_proje_list, funa_3_1_overr2, minfuna_0_2_overr2, &
-              tGUGACore, bvectorref_ilut, bvectorref_ni, init_guga_data_procptrs, &
+              tGUGACore, init_guga_data_procptrs, &
               excit_type, gen_type, excit_names, &
               rdm_ind_bitmask, pos_excit_lvl_bits, pos_excit_type_bits, &
               n_excit_lvl_bits, n_excit_type_bits, n_excit_info_bits, &
@@ -421,14 +421,6 @@ module guga_data
        1,  -1, -1, -1,  -1,  3, -1, -1, -1,  6,  1, -1, -1, -1, -1,  3, &! db = +1 & L
        1,  -1, -1, -1,  -1,  1, -1, -1, -1,  4,  3, -1, -1, -1, -1,  3 &! db = +1 & R
        ], [4,4,4])
-
-    ! =========================== VARIABLES =================================
-    ! b vector of the reference determinant should be kept as a saved variable
-    ! as it is always needed in the H|D> calculation to calc. the refence energy
-    ! not sure if still needed if a currentB_vector variable is used within
-    ! the guga_excitation module... -> decide later how to implement
-    ! ahh this is the bvecor of the reference determinant.. but make it real
-    real(dp), allocatable :: bVectorRef_ilut(:), bVectorRef_nI(:)
 
     ! also need a list of determinants and matrix elements connceted to the
     ! reference determinant

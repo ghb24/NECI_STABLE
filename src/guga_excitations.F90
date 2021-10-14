@@ -10,8 +10,7 @@ module guga_excitations
 
     use SystemData, only: nEl, nBasis, ElecPairs, G1, nmaxx, &
                           nmaxy, nmaxz, OrbECutoff, tOrbECutoff, nSpatOrbs, &
-                          tGen_guga_weighted, ref_stepvector, ref_b_vector_real, &
-                          ref_occ_vector, ref_b_vector_int, t_full_guga_tests, &
+                          tGen_guga_weighted, t_full_guga_tests, &
                           nBasisMax, tHub, treal, t_guga_testsuite, tgen_guga_crude, &
                           tgen_guga_mixed, t_new_hubbard, t_new_real_space_hubbard, &
                           t_crude_exchange, t_crude_exchange_noninits, &
@@ -49,7 +48,7 @@ module guga_excitations
                               identify_excitation, calc_csf_i, &
                               extract_h_element, encode_stochastic_rdm_info, &
                               get_preceeding_opposites, &
-                              CSF_Info_t, fill_csf_i, is_compatible, current_csf_i
+                              CSF_Info_t, fill_csf_i, is_compatible, current_csf_i, csf_ref
 
     use guga_matrixElements, only: calcDiagMatEleGUGA_ilut, calcDiagMatEleGuga_nI
 
@@ -570,9 +569,9 @@ contains
             temp_b_real_i = csf_i%B_real
             temp_occ_i = csf_i%Occ_real
 
-            temp_step_j = ref_stepvector
+            temp_step_j = csf_ref%stepvector
 
-            temp_delta_b = csf_i%B_int - ref_b_vector_int
+            temp_delta_b = csf_i%B_int - csf_ref%B_int
 
         case (1)
             ! call stop_all(this_routine, 'case 1')
