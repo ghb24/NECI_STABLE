@@ -251,7 +251,7 @@ module fcimc_initialisation
 
     use CAS_distribution_init, only: InitFCIMC_CAS
 
-    use SD_spin_purification_mod, only: tSD_spin_purification, spin_pure_J
+    use SD_spin_purification_mod, only: tSD_spin_purification, tTruncatedLadderOps, spin_pure_J
 
     use exc_gen_classes, only: init_exc_gen_class, finalize_exz_gen_class, class_managed
     implicit none
@@ -1367,10 +1367,19 @@ contains
 
         if (tSD_spin_purification) then
             if (allocated(spin_pure_J)) then
-                write(stdout, *)
-                write(stdout, '(A)') 'Spin purification of Slater-Determinants with $ H + J * S^2 $ activated.$'
-                write(stdout, '(A, 1x, E10.5)') 'J =', spin_pure_J
-                write(stdout, *)
+                if (tTruncatedLadderOps) then
+                    write(stdout, *)
+                    write(stdout, '(A)') 'Spin purification of Slater Determinants &
+                        &with off-diagonal $ J * S_{+} S_{-} $ correction.'
+                    write(stdout, '(A, 1x, E10.5)') 'J =', spin_pure_J
+                    write(stdout, *)
+                else
+                    write(stdout, *)
+                    write(stdout, '(A)') 'Spin purification of Slater Determinants &
+                        &with full $ J *S^2 $ spin penalty.'
+                    write(stdout, '(A, 1x, E10.5)') 'J =', spin_pure_J
+                    write(stdout, *)
+                end if
             else
                 call stop_all(this_routine, "spin_pure_J not allocated")
             end if
