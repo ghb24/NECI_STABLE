@@ -2076,7 +2076,7 @@ contains
                 pgen = 0.0_dp
             end if
 
-            call calc_guga_matrix_element(ilutI, current_csf_i, ilutJ, CSF_Info_t(ilutJ), excitInfo, hel, .true., 1)
+            call calc_guga_matrix_element(ilutI, current_csf_i, ilutJ, CSF_Info_t(ilutJ), excitInfo, hel, .true.)
 
             if (abs(hel) < EPS) then
                 nJ(1) = 0
@@ -2494,7 +2494,7 @@ contains
             call EncodeBitDet(nI, ilut)
             ilutJ = make_ilutJ(ilut, ex, 1)
 
-            call calc_guga_matrix_element(ilut, CSF_Info_t(ilut), ilutJ, CSF_Info_t(ilutJ), excitInfo, hel, .true., 2)
+            call calc_guga_matrix_element(ilut, CSF_Info_t(ilut), ilutJ, CSF_Info_t(ilutJ), excitInfo, hel, .true.)
 
             if (tpar) hel = -hel
             return

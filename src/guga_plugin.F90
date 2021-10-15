@@ -128,7 +128,7 @@ contains
             call EncodeBitDet(nJ, ilutJ)
             call calc_guga_matrix_element(&
                 ilutI, CSF_Info_t(ilutI), ilutJ, CSF_Info_t(ilutJ), &
-                excitInfo, matel, .true., 2)
+                excitInfo, matel, .true.)
         end if
 
     end function guga_matel

@@ -260,7 +260,7 @@ contains
 
             ! also test with matrix element calculator!
             call calc_guga_matrix_element(ilut, csf_i, t, CSF_Info_t(t), excitInfo, &
-                                          mat_ele, t_hamil=.true., calc_type=2, rdm_ind=rdm_ind_ex, &
+                                          mat_ele, t_hamil=.true., rdm_ind=rdm_ind_ex, &
                                           rdm_mat=rdm_mat_ex)
             x0 = extract_stochastic_rdm_x0(GugaBits, t)
             call assert_equals(1, size(rdm_ind_ex))
@@ -305,7 +305,7 @@ contains
 
         ! also test with matrix element calculator!
         call calc_guga_matrix_element(ilut, csf_i, t, CSF_Info_t(t), excitInfo, &
-                                      mat_ele, t_hamil=.true., calc_type=2, rdm_ind=rdm_ind_ex, &
+                                      mat_ele, t_hamil=.true., rdm_ind=rdm_ind_ex, &
                                       rdm_mat=rdm_mat_ex)
 
         cnt = 0
@@ -591,7 +591,7 @@ contains
             rdm_mat_1 = real(extract_h_element(ilutJ), dp)
 
             call calc_guga_matrix_element(ilutI, csf_i, ilutJ, CSF_Info_t(ilutJ), excitInfo, mat_ele, &
-                                          t_hamil=.false., calc_type=2, rdm_ind=rdm_ind, &
+                                          t_hamil=.false., rdm_ind=rdm_ind, &
                                           rdm_mat=rdm_mat)
 
             call assert_true(any(pure_rdm_ind(rdm_ind) == rdm_ind_1) .or. &
@@ -619,7 +619,7 @@ contains
             rdm_mat_1 = real(extract_h_element(ilutJ), dp)
 
             call calc_guga_matrix_element(ilutI, csf_i, ilutJ, CSF_Info_t(ilutJ), excitInfo, mat_ele, &
-                                          t_hamil=.false., calc_type=2, rdm_ind=rdm_ind, &
+                                          t_hamil=.false., rdm_ind=rdm_ind, &
                                           rdm_mat=rdm_mat)
 
             call assert_true(any(pure_rdm_ind(rdm_ind) == rdm_ind_1) .or. &
@@ -649,7 +649,7 @@ contains
             rdm_mat_1 = real(extract_h_element(ilutJ), dp)
 
             call calc_guga_matrix_element(ilutI, csf_i, ilutJ, CSF_Info_t(ilutJ), excitInfo, mat_ele, &
-                                          t_hamil=.false., calc_type=2, rdm_ind=rdm_ind, &
+                                          t_hamil=.false., rdm_ind=rdm_ind, &
                                           rdm_mat=rdm_mat)
 
             call assert_true(any(pure_rdm_ind(rdm_ind) == rdm_ind_1) .or. &
@@ -675,7 +675,7 @@ contains
             rdm_mat_1 = real(extract_h_element(ilutJ), dp)
 
             call calc_guga_matrix_element(ilutI, csf_i, ilutJ, CSF_Info_t(ilutJ), excitInfo, mat_ele, &
-                                          t_hamil=.false., calc_type=2, rdm_ind=rdm_ind, &
+                                          t_hamil=.false., rdm_ind=rdm_ind, &
                                           rdm_mat=rdm_mat)
 
             call assert_true(any(pure_rdm_ind(rdm_ind) == rdm_ind_1) .or. &
@@ -700,7 +700,7 @@ contains
             rdm_mat_1 = real(extract_h_element(ilutJ), dp)
 
             call calc_guga_matrix_element(ilutI, csf_i, ilutJ, CSF_Info_t(ilutJ), excitInfo, mat_ele, &
-                                          t_hamil=.false., calc_type=2, rdm_ind=rdm_ind, &
+                                          t_hamil=.false., rdm_ind=rdm_ind, &
                                           rdm_mat=rdm_mat)
 
             call assert_true(any(pure_rdm_ind(rdm_ind) == rdm_ind_1) .or. &
@@ -725,7 +725,7 @@ contains
             rdm_mat_1 = real(extract_h_element(ilutJ), dp)
 
             call calc_guga_matrix_element(ilutI, csf_i, ilutJ, CSF_Info_t(ilutJ), excitInfo, mat_ele, &
-                                          t_hamil=.false., calc_type=2, rdm_ind=rdm_ind, &
+                                          t_hamil=.false., rdm_ind=rdm_ind, &
                                           rdm_mat=rdm_mat)
 
             call assert_true(any(pure_rdm_ind(rdm_ind) == rdm_ind_1) .or. &
@@ -2132,7 +2132,7 @@ contains
             end if
 
             call calc_guga_matrix_element(ilutG, csf_G, ex(:, i), CSF_Info_t(ex(:, i)), excitInfo, mat_ele, &
-                                          .true., 1)
+                                          .true.)
 
             diff = abs(extract_matrix_element(ex(:, i), 1) - mat_ele)
 
@@ -2173,8 +2173,8 @@ contains
 
                 excitInfo = identify_excitation(ilutG, two_ex(:, j))
 
-                call calc_guga_matrix_element(ilutG, CSF_Info_t(ilutG), two_ex(:, j), CSF_Info_t(two_ex(:, j)), &
-                                              excitInfo, mat_ele, .true., 2)
+                call calc_guga_matrix_element(ilutG, csf_G, two_ex(:, j), CSF_Info_t(two_ex(:, j)), &
+                                              excitInfo, mat_ele, .true.)
 
                 if (abs(mat_ele) > EPS) then
 
@@ -2242,7 +2242,7 @@ contains
         call EncodeBitDet_guga([3], ilutJ)
 !
         call calc_guga_matrix_element(ilutI, CSF_Info_t(ilutI), ilutJ, CSF_Info_t(ilutJ), excitInfo, mat_ele, &
-                                      t_hamil=.false., calc_type=2, rdm_ind=rdm_ind, rdm_mat=rdm_mat)
+                                      t_hamil=.false., rdm_ind=rdm_ind, rdm_mat=rdm_mat)
 !
         ! Single excitations:
         call assert_equals(h_cast(1.0_dp), mat_ele)
@@ -2256,7 +2256,7 @@ contains
 !
 
         call calc_guga_matrix_element(ilutJ, CSF_Info_t(ilutJ), ilutI, CSF_Info_t(ilutI), excitInfo, mat_ele, &
-                                      t_hamil=.false., calc_type=2, rdm_ind=rdm_ind, rdm_mat=rdm_mat)
+                                      t_hamil=.false., rdm_ind=rdm_ind, rdm_mat=rdm_mat)
 !
         call assert_equals(h_cast(1.0_dp), mat_ele)
         call assert_equals(1.0_dp, rdm_mat(1))
@@ -2273,7 +2273,7 @@ contains
         call EncodeBitDet_guga([1, 4], ilutJ)
 !
         call calc_guga_matrix_element(ilutI, CSF_Info_t(ilutI), ilutJ, CSF_Info_t(ilutJ), excitInfo, mat_ele, &
-                                      t_hamil=.false., calc_type=2, rdm_ind=rdm_ind, rdm_mat=rdm_mat)
+                                      t_hamil=.false., rdm_ind=rdm_ind, rdm_mat=rdm_mat)
         call assert_equals(h_cast(sqrt(2.0_dp)), mat_ele)
         call assert_equals(sqrt(2.0_dp), rdm_mat(1))
         call assert_equals(5_int_rdm, rdm_ind(1))
@@ -2284,7 +2284,7 @@ contains
         call assert_equals(1, size(rdm_ind))
 !
         call calc_guga_matrix_element(ilutJ, CSF_Info_t(ilutJ), ilutI, CSF_Info_t(ilutI), excitInfo, mat_ele, &
-                                      t_hamil=.false., calc_type=2, rdm_ind=rdm_ind, rdm_mat=rdm_mat)
+                                      t_hamil=.false., rdm_ind=rdm_ind, rdm_mat=rdm_mat)
         call assert_equals(h_cast(sqrt(2.0_dp)), mat_ele)
         call assert_equals(sqrt(2.0_dp), rdm_mat(1))
         call assert_equals(2_int_rdm, rdm_ind(1))
@@ -2297,7 +2297,7 @@ contains
         call EncodeBitDet_guga([1, 6], ilutJ)
 !
         call calc_guga_matrix_element(ilutI, CSF_Info_t(ilutI), ilutJ, CSF_Info_t(ilutJ), excitInfo, mat_ele, &
-                                      t_hamil=.false., calc_type=2, rdm_ind=rdm_ind, rdm_mat=rdm_mat)
+                                      t_hamil=.false., rdm_ind=rdm_ind, rdm_mat=rdm_mat)
         call assert_equals(h_cast(sqrt(2.0_dp)), mat_ele)
         call assert_equals(sqrt(2.0_dp), rdm_mat(1))
         call extract_1_rdm_ind(rdm_ind(1), i, j)
@@ -2307,7 +2307,7 @@ contains
         call assert_equals(1, size(rdm_ind))
 !
         call calc_guga_matrix_element(ilutJ, CSF_Info_t(ilutJ), ilutI, CSF_Info_t(ilutI), excitInfo, mat_ele, &
-                                      t_hamil=.false., calc_type=2, rdm_ind=rdm_ind, rdm_mat=rdm_mat)
+                                      t_hamil=.false., rdm_ind=rdm_ind, rdm_mat=rdm_mat)
         call assert_equals(h_cast(sqrt(2.0_dp)), mat_ele)
         call assert_equals(sqrt(2.0_dp), rdm_mat(1))
         call extract_1_rdm_ind(rdm_ind(1), i, j)
@@ -2322,7 +2322,7 @@ contains
         call EncodeBitDet_guga([3, 4, 5], ilutJ)
 !
         call calc_guga_matrix_element(ilutI, csf_i, ilutJ, CSF_Info_t(ilutJ), excitInfo, mat_ele, &
-                                      t_hamil=.false., calc_type=2, rdm_ind=rdm_ind, rdm_mat=rdm_mat)
+                                      t_hamil=.false., rdm_ind=rdm_ind, rdm_mat=rdm_mat)
         call assert_equals(h_cast(-1.0_dp), mat_ele)
         call assert_equals(-1.0_dp, rdm_mat(1))
         call extract_1_rdm_ind(rdm_ind(1), i, j)
@@ -2332,7 +2332,7 @@ contains
         call assert_equals(1, size(rdm_ind))
 !
         call calc_guga_matrix_element(ilutJ, CSF_Info_t(ilutJ), ilutI, CSF_Info_t(ilutI), excitInfo, mat_ele, &
-                                      t_hamil=.false., calc_type=2, rdm_ind=rdm_ind, rdm_mat=rdm_mat)
+                                      t_hamil=.false., rdm_ind=rdm_ind, rdm_mat=rdm_mat)
         call assert_equals(h_cast(-1.0_dp), mat_ele)
         call assert_equals(-1.0_dp, rdm_mat(1))
         call extract_1_rdm_ind(rdm_ind(1), i, j)
@@ -2346,7 +2346,7 @@ contains
         call EncodeBitDet_guga([3, 5, 7], ilutJ)
 !
         call calc_guga_matrix_element(ilutI, csf_i, ilutJ, CSF_Info_t(ilutJ), excitInfo, mat_ele, &
-                                      t_hamil=.false., calc_type=2, rdm_ind=rdm_ind, rdm_mat=rdm_mat)
+                                      t_hamil=.false., rdm_ind=rdm_ind, rdm_mat=rdm_mat)
         call assert_equals(h_cast(1.0_dp), mat_ele)
         call assert_equals(1.0_dp, rdm_mat(1))
         call extract_1_rdm_ind(rdm_ind(1), i, j)
@@ -2356,7 +2356,7 @@ contains
         call assert_equals(1, size(rdm_ind))
 !
         call calc_guga_matrix_element(ilutj, CSF_Info_t(ilutJ), iluti, CSF_Info_t(iluti), excitInfo, mat_ele, &
-                                      t_hamil=.false., calc_type=2, rdm_ind=rdm_ind, rdm_mat=rdm_mat)
+                                      t_hamil=.false., rdm_ind=rdm_ind, rdm_mat=rdm_mat)
         call assert_equals(h_cast(1.0_dp), mat_ele)
         call assert_equals(1.0_dp, rdm_mat(1))
         call extract_1_rdm_ind(rdm_ind(1), i, j)
@@ -2371,7 +2371,7 @@ contains
         call EncodeBitDet_guga([3, 4], ilutJ)
 !
         call calc_guga_matrix_element(iluti, CSF_Info_t(ilutI), ilutj, CSF_Info_t(ilutj), excitInfo, mat_ele, &
-                                      t_hamil=.false., calc_type=2, rdm_ind=rdm_ind, rdm_mat=rdm_mat)
+                                      t_hamil=.false., rdm_ind=rdm_ind, rdm_mat=rdm_mat)
         call assert_equals(h_cast(2.0_dp), mat_ele)
         call assert_equals(2.0_dp, rdm_mat(1))
         call extract_2_rdm_ind(rdm_ind(1), i=i, j=j, k=k, l=l)
@@ -2383,7 +2383,7 @@ contains
         call assert_equals(1, size(rdm_ind))
 !
         call calc_guga_matrix_element(ilutJ, CSF_Info_t(ilutJ), ilutI, CSF_Info_t(ilutI), excitInfo, mat_ele, &
-                                      t_hamil=.false., calc_type=2, rdm_ind=rdm_ind, rdm_mat=rdm_mat)
+                                      t_hamil=.false., rdm_ind=rdm_ind, rdm_mat=rdm_mat)
         call assert_equals(h_cast(2.0_dp), mat_ele)
         call assert_equals(2.0_dp, rdm_mat(1))
         call extract_2_rdm_ind(rdm_ind(1), i=i, j=j, k=k, l=l)
@@ -2397,7 +2397,7 @@ contains
         call EncodeBitDet_guga([3, 6], ilutJ)
 !
         call calc_guga_matrix_element(ilutI, CSF_Info_t(ilutI), ilutJ, CSF_Info_t(ilutJ), excitInfo, mat_ele, &
-                                      t_hamil=.false., calc_type=2, rdm_ind=rdm_ind, rdm_mat=rdm_mat)
+                                      t_hamil=.false., rdm_ind=rdm_ind, rdm_mat=rdm_mat)
         call assert_equals(h_cast(sqrt(2.0_dp)), mat_ele)
         call assert_equals(sqrt(2.0_dp), rdm_mat(1))
         call extract_2_rdm_ind(rdm_ind(1), i=i, j=j, k=k, l=l)
@@ -4654,8 +4654,7 @@ contains
             call assert_equals(rdm_mat_ex, rdm_comb)
 
             call calc_guga_matrix_element(ilutGi, global_csf_i, ilutGj, CSF_Info_t(ilutGj), excitInfo, mat_ele, &
-                                          t_hamil=.true., calc_type=2, rdm_ind=rdm_ind_v, &
-                                          rdm_mat=rdm_mat)
+                                          t_hamil=.true., rdm_ind=rdm_ind_v, rdm_mat=rdm_mat)
 
             call assert_equals(mat_ele, HElGen)
             call assert_true(any(rdm_ind_ == rdm_ind_v))
@@ -4711,8 +4710,7 @@ contains
             call assert_equals(rdm_mat_ex, rdm_comb)
 
             call calc_guga_matrix_element(ilutGi, global_csf_i, ilutGj, CSF_Info_t(ilutGj), excitInfo, mat_ele, &
-                                          t_hamil=.true., calc_type=2, rdm_ind=rdm_ind_v, &
-                                          rdm_mat=rdm_mat)
+                                          t_hamil=.true., rdm_ind=rdm_ind_v, rdm_mat=rdm_mat)
 
             call assert_equals(mat_ele, HElGen)
             call assert_true(any(rdm_ind_ == rdm_ind_v) .or. &
@@ -4767,8 +4765,7 @@ contains
             call assert_equals(rdm_mat_ex, rdm_comb)
 
             call calc_guga_matrix_element(ilutGi, global_csf_i, ilutGj, CSF_Info_t(ilutGj), excitInfo, mat_ele, &
-                                          t_hamil=.true., calc_type=2, rdm_ind=rdm_ind_v, &
-                                          rdm_mat=rdm_mat)
+                                          t_hamil=.true., rdm_ind=rdm_ind_v, rdm_mat=rdm_mat)
 
             call assert_equals(mat_ele, HElGen)
             call assert_true(any(rdm_ind_ == rdm_ind_v))
@@ -4822,8 +4819,7 @@ contains
             call assert_equals(rdm_mat_ex, rdm_comb)
 
             call calc_guga_matrix_element(ilutGi, global_csf_i, ilutGj, CSF_Info_t(ilutGj), excitInfo, mat_ele, &
-                                          t_hamil=.true., calc_type=2, rdm_ind=rdm_ind_v, &
-                                          rdm_mat=rdm_mat)
+                                          t_hamil=.true., rdm_ind=rdm_ind_v, rdm_mat=rdm_mat)
 
             call assert_equals(mat_ele, HElGen)
             call assert_true(any(rdm_ind_ == rdm_ind_v))
@@ -4877,8 +4873,7 @@ contains
             call assert_equals(rdm_mat_ex, rdm_comb)
 
             call calc_guga_matrix_element(ilutGi, global_csf_i, ilutGj, CSF_Info_t(ilutGj), excitInfo, mat_ele, &
-                                          t_hamil=.true., calc_type=2, rdm_ind=rdm_ind_v, &
-                                          rdm_mat=rdm_mat)
+                                          t_hamil=.true., rdm_ind=rdm_ind_v, rdm_mat=rdm_mat)
 
             call assert_equals(mat_ele, HElGen)
             call assert_true(any(rdm_ind_ == rdm_ind_v))
@@ -4931,8 +4926,7 @@ contains
             call assert_equals(rdm_mat_ex, rdm_comb)
 
             call calc_guga_matrix_element(ilutGi, global_csf_i, ilutGj, CSF_Info_t(ilutGj), excitInfo, mat_ele, &
-                                          t_hamil=.true., calc_type=2, rdm_ind=rdm_ind_v, &
-                                          rdm_mat=rdm_mat)
+                                          t_hamil=.true., rdm_ind=rdm_ind_v, rdm_mat=rdm_mat)
 
             call assert_equals(mat_ele, HElGen)
             call assert_true(any(rdm_ind_ == rdm_ind_v))
@@ -4986,8 +4980,7 @@ contains
             call assert_equals(rdm_mat_ex, rdm_comb)
 
             call calc_guga_matrix_element(ilutGi, global_csf_i, ilutGj, CSF_Info_t(ilutGj), excitInfo, mat_ele, &
-                                          t_hamil=.true., calc_type=2, rdm_ind=rdm_ind_v, &
-                                          rdm_mat=rdm_mat)
+                                          t_hamil=.true., rdm_ind=rdm_ind_v, rdm_mat=rdm_mat)
 
             call assert_equals(mat_ele, HElGen)
             call assert_true(any(rdm_ind_ == rdm_ind_v))
@@ -5040,8 +5033,7 @@ contains
             call assert_equals(rdm_mat_ex, rdm_comb)
 
             call calc_guga_matrix_element(ilutGi, global_csf_i, ilutGj, CSF_Info_t(ilutGj), excitInfo, mat_ele, &
-                                          t_hamil=.true., calc_type=2, rdm_ind=rdm_ind_v, &
-                                          rdm_mat=rdm_mat)
+                                          t_hamil=.true., rdm_ind=rdm_ind_v, rdm_mat=rdm_mat)
 
             call assert_equals(mat_ele, HElGen)
             call assert_true(any(rdm_ind_ == rdm_ind_v))
@@ -5094,8 +5086,7 @@ contains
             call assert_equals(rdm_mat_ex, rdm_comb)
 
             call calc_guga_matrix_element(ilutGi, global_csf_i, ilutGj, CSF_Info_t(ilutGj), excitInfo, mat_ele, &
-                                          t_hamil=.true., calc_type=2, rdm_ind=rdm_ind_v, &
-                                          rdm_mat=rdm_mat)
+                                          t_hamil=.true., rdm_ind=rdm_ind_v, rdm_mat=rdm_mat)
 
             call assert_equals(mat_ele, HElGen)
             call assert_true(any(rdm_ind_ == rdm_ind_v))
@@ -5148,8 +5139,7 @@ contains
             call assert_equals(rdm_mat_ex, rdm_comb)
 
             call calc_guga_matrix_element(ilutGi, global_csf_i, ilutGj, CSF_Info_t(ilutGj),  excitInfo, mat_ele, &
-                                          t_hamil=.true., calc_type=2, rdm_ind=rdm_ind_v, &
-                                          rdm_mat=rdm_mat)
+                                          t_hamil=.true., rdm_ind=rdm_ind_v, rdm_mat=rdm_mat)
 
             call assert_equals(mat_ele, HElGen)
             call assert_true(any(rdm_ind_ == rdm_ind_v) .or. &
@@ -5204,7 +5194,7 @@ contains
             call assert_equals(rdm_mat_ex, rdm_comb)
 
             call calc_guga_matrix_element(ilutGi, global_csf_i, ilutGj, CSF_Info_t(ilutGj), excitInfo, mat_ele, &
-                                          t_hamil=.true., calc_type=2, rdm_ind=rdm_ind_v, &
+                                          t_hamil=.true., rdm_ind=rdm_ind_v, &
                                           rdm_mat=rdm_mat)
 
             call assert_equals(mat_ele, HElGen)
@@ -5258,8 +5248,7 @@ contains
             call assert_equals(rdm_mat_ex, rdm_comb)
 
             call calc_guga_matrix_element(ilutGi, global_csf_i, ilutGj, CSF_Info_t(ilutGj), excitInfo, mat_ele, &
-                                          t_hamil=.true., calc_type=2, rdm_ind=rdm_ind_v, &
-                                          rdm_mat=rdm_mat)
+                                          t_hamil=.true., rdm_ind=rdm_ind_v, rdm_mat=rdm_mat)
 
             call assert_equals(mat_ele, HElGen)
             call assert_true(any(rdm_ind_ == rdm_ind_v))
@@ -5312,8 +5301,7 @@ contains
             call assert_equals(rdm_mat_ex, rdm_comb)
 
             call calc_guga_matrix_element(ilutGi, global_csf_i, ilutGj, CSF_Info_t(ilutGj), excitInfo, mat_ele, &
-                                          t_hamil=.true., calc_type=2, rdm_ind=rdm_ind_v, &
-                                          rdm_mat=rdm_mat)
+                                          t_hamil=.true., rdm_ind=rdm_ind_v, rdm_mat=rdm_mat)
 
             call assert_equals(mat_ele, HElGen)
             call assert_true(any(rdm_ind_ == rdm_ind_v))
@@ -5366,8 +5354,7 @@ contains
             call assert_equals(rdm_mat_ex, rdm_comb)
 
             call calc_guga_matrix_element(ilutGi, global_csf_i, ilutGj, CSF_Info_t(ilutGj), excitInfo, mat_ele, &
-                                          t_hamil=.true., calc_type=2, rdm_ind=rdm_ind_v, &
-                                          rdm_mat=rdm_mat)
+                                          t_hamil=.true., rdm_ind=rdm_ind_v, rdm_mat=rdm_mat)
 
             call assert_equals(mat_ele, HElGen)
             call assert_true(any(rdm_ind_ == rdm_ind_v))
@@ -5420,8 +5407,7 @@ contains
             call assert_equals(rdm_mat_ex, rdm_comb)
 
             call calc_guga_matrix_element(ilutGi, global_csf_i, ilutGj, CSF_Info_t(ilutGj), excitInfo, mat_ele, &
-                                          t_hamil=.true., calc_type=2, rdm_ind=rdm_ind_v, &
-                                          rdm_mat=rdm_mat)
+                                          t_hamil=.true., rdm_ind=rdm_ind_v, rdm_mat=rdm_mat)
 
             call assert_equals(mat_ele, HElGen)
             call assert_true(any(rdm_ind_ == rdm_ind_v))
@@ -5474,8 +5460,7 @@ contains
             call assert_equals(rdm_mat_ex, rdm_comb)
 
             call calc_guga_matrix_element(ilutGi, global_csf_i, ilutGj, CSF_Info_t(ilutGj), excitInfo, mat_ele, &
-                                          t_hamil=.true., calc_type=2, rdm_ind=rdm_ind_v, &
-                                          rdm_mat=rdm_mat)
+                                          t_hamil=.true., rdm_ind=rdm_ind_v, rdm_mat=rdm_mat)
 
             call assert_equals(mat_ele, HElGen)
             call assert_true(any(rdm_ind_ == rdm_ind_v))
@@ -5528,8 +5513,7 @@ contains
             call assert_equals(rdm_mat_ex, rdm_comb)
 
             call calc_guga_matrix_element(ilutGi, global_csf_i, ilutGj, CSF_Info_t(ilutGj), excitInfo, mat_ele, &
-                                          t_hamil=.true., calc_type=2, rdm_ind=rdm_ind_v, &
-                                          rdm_mat=rdm_mat)
+                                          t_hamil=.true., rdm_ind=rdm_ind_v, rdm_mat=rdm_mat)
 
             call assert_equals(mat_ele, HElGen)
             call assert_true(any(rdm_ind_ == rdm_ind_v))
@@ -5582,8 +5566,7 @@ contains
             call assert_equals(rdm_mat_ex, rdm_comb)
 
             call calc_guga_matrix_element(ilutGi, global_csf_i, ilutGj, CSF_Info_t(ilutGj), excitInfo, mat_ele, &
-                                          t_hamil=.true., calc_type=2, rdm_ind=rdm_ind_v, &
-                                          rdm_mat=rdm_mat)
+                                          t_hamil=.true., rdm_ind=rdm_ind_v, rdm_mat=rdm_mat)
 
             call assert_equals(mat_ele, HElGen)
             call assert_true(any(rdm_ind_ == rdm_ind_v))
@@ -5637,8 +5620,7 @@ contains
             call assert_equals(rdm_mat_ex, rdm_comb)
 
             call calc_guga_matrix_element(ilutGi, global_csf_i, ilutGj, CSF_Info_t(ilutGj), excitInfo, mat_ele, &
-                                          t_hamil=.true., calc_type=2, rdm_ind=rdm_ind_v, &
-                                          rdm_mat=rdm_mat)
+                                          t_hamil=.true., rdm_ind=rdm_ind_v, rdm_mat=rdm_mat)
 
             call assert_equals(mat_ele, HElGen)
             call assert_true(any(rdm_ind_ == rdm_ind_v))
@@ -5692,8 +5674,7 @@ contains
             call assert_equals(rdm_mat_ex, rdm_comb)
 
             call calc_guga_matrix_element(ilutGi, CSF_Info_t(ilutGi), ilutGj, CSF_Info_t(ilutGj), excitInfo, mat_ele, &
-                                          t_hamil=.true., calc_type=2, rdm_ind=rdm_ind_v, &
-                                          rdm_mat=rdm_mat)
+                                          t_hamil=.true., rdm_ind=rdm_ind_v, rdm_mat=rdm_mat)
 
             call assert_equals(mat_ele, HElGen)
             call assert_true(any(rdm_ind_ == rdm_ind_v))
@@ -5765,8 +5746,7 @@ contains
 
             ! also test with matrix element calculator!
             call calc_guga_matrix_element(ilutI, global_csf_i, ex(:, pos), CSF_Info_t(ex(:, pos)), excitInfo, &
-                                          mat_ele, t_hamil=.true., calc_type=2, rdm_ind=rdm_ind_v, &
-                                          rdm_mat=rdm_mat)
+                                          mat_ele, t_hamil=.true., rdm_ind=rdm_ind_v, rdm_mat=rdm_mat)
             x0 = extract_stochastic_rdm_x0(IlutBits, ilutJ)
             rdm_ind_ = pure_rdm_ind(rdm_ind)
             call assert_equals(1, size(rdm_ind_v))
@@ -5805,8 +5785,7 @@ contains
 
             ! also test with matrix element calculator!
             call calc_guga_matrix_element(ilutI, global_csf_i, ex(:, pos), CSF_Info_t(ex(:, pos)), excitInfo, &
-                                          mat_ele, t_hamil=.true., calc_type=2, rdm_ind=rdm_ind_v, &
-                                          rdm_mat=rdm_mat)
+                                          mat_ele, t_hamil=.true., rdm_ind=rdm_ind_v, rdm_mat=rdm_mat)
             x0 = extract_stochastic_rdm_x0(IlutBits, ilutJ)
             rdm_ind_ = pure_rdm_ind(rdm_ind)
             call assert_equals(1, size(rdm_ind_v))
@@ -5845,8 +5824,7 @@ contains
 
             ! also test with matrix element calculator!
             call calc_guga_matrix_element(ilutI, global_csf_i, ex(:, pos), CSF_Info_t(ex(:, pos)), excitInfo, &
-                                          mat_ele, t_hamil=.true., calc_type=2, rdm_ind=rdm_ind_v, &
-                                          rdm_mat=rdm_mat)
+                                          mat_ele, t_hamil=.true., rdm_ind=rdm_ind_v, rdm_mat=rdm_mat)
             x0 = extract_stochastic_rdm_x0(IlutBits, ilutJ)
             rdm_ind_ = pure_rdm_ind(rdm_ind)
             call assert_equals(1, size(rdm_ind_v))
@@ -5885,8 +5863,7 @@ contains
 
             ! also test with matrix element calculator!
             call calc_guga_matrix_element(ilutI, global_csf_i, ex(:, pos), CSF_Info_t(ex(:, pos)), excitInfo, &
-                                          mat_ele, t_hamil=.true., calc_type=2, rdm_ind=rdm_ind_v, &
-                                          rdm_mat=rdm_mat)
+                                          mat_ele, t_hamil=.true., rdm_ind=rdm_ind_v, rdm_mat=rdm_mat)
             x0 = extract_stochastic_rdm_x0(IlutBits, ilutJ)
             rdm_ind_ = pure_rdm_ind(rdm_ind)
             call assert_equals(1, size(rdm_ind_v))
@@ -5925,8 +5902,7 @@ contains
 
             ! also test with matrix element calculator!
             call calc_guga_matrix_element(ilutI, global_csf_i, ex(:, pos), CSF_Info_t(ex(:, pos)), excitInfo, &
-                                          mat_ele, t_hamil=.true., calc_type=2, rdm_ind=rdm_ind_v, &
-                                          rdm_mat=rdm_mat)
+                                          mat_ele, t_hamil=.true., rdm_ind=rdm_ind_v, rdm_mat=rdm_mat)
             x0 = extract_stochastic_rdm_x0(IlutBits, ilutJ)
             rdm_ind_ = pure_rdm_ind(rdm_ind)
             call assert_equals(1, size(rdm_ind_v))
@@ -5965,8 +5941,7 @@ contains
 
             ! also test with matrix element calculator!
             call calc_guga_matrix_element(ilutI, global_csf_i, ex(:, pos), CSF_Info_t(ex(:, pos)), excitInfo, &
-                                          mat_ele, t_hamil=.true., calc_type=2, rdm_ind=rdm_ind_v, &
-                                          rdm_mat=rdm_mat)
+                                          mat_ele, t_hamil=.true., rdm_ind=rdm_ind_v, rdm_mat=rdm_mat)
             x0 = extract_stochastic_rdm_x0(IlutBits, ilutJ)
             rdm_ind_ = pure_rdm_ind(rdm_ind)
             call assert_equals(1, size(rdm_ind_v))
@@ -6005,8 +5980,7 @@ contains
 
             ! also test with matrix element calculator!
             call calc_guga_matrix_element(ilutI, global_csf_i, ex(:, pos), CSF_Info_t(ex(:, pos)), excitInfo, &
-                                          mat_ele, t_hamil=.true., calc_type=2, rdm_ind=rdm_ind_v, &
-                                          rdm_mat=rdm_mat)
+                                          mat_ele, t_hamil=.true., rdm_ind=rdm_ind_v, rdm_mat=rdm_mat)
             x0 = extract_stochastic_rdm_x0(IlutBits, ilutJ)
             rdm_ind_ = pure_rdm_ind(rdm_ind)
             call assert_equals(1, size(rdm_ind_v))
@@ -6045,8 +6019,7 @@ contains
 
             ! also test with matrix element calculator!
             call calc_guga_matrix_element(ilutI, global_csf_i, ex(:, pos), CSF_Info_t(ex(:, pos)), excitInfo, &
-                                          mat_ele, t_hamil=.true., calc_type=2, rdm_ind=rdm_ind_v, &
-                                          rdm_mat=rdm_mat)
+                                          mat_ele, t_hamil=.true., rdm_ind=rdm_ind_v, rdm_mat=rdm_mat)
             x0 = extract_stochastic_rdm_x0(IlutBits, ilutJ)
             rdm_ind_ = pure_rdm_ind(rdm_ind)
             call assert_equals(1, size(rdm_ind_v))
@@ -6085,8 +6058,7 @@ contains
 
             ! also test with matrix element calculator!
             call calc_guga_matrix_element(ilutI, global_csf_i, ex(:, pos), CSF_Info_t(ex(:, pos)), excitInfo, &
-                                          mat_ele, t_hamil=.true., calc_type=2, rdm_ind=rdm_ind_v, &
-                                          rdm_mat=rdm_mat)
+                                          mat_ele, t_hamil=.true., rdm_ind=rdm_ind_v, rdm_mat=rdm_mat)
             x0 = extract_stochastic_rdm_x0(IlutBits, ilutJ)
             rdm_ind_ = pure_rdm_ind(rdm_ind)
             call assert_equals(1, size(rdm_ind_v))
@@ -6125,8 +6097,7 @@ contains
 
             ! also test with matrix element calculator!
             call calc_guga_matrix_element(ilutI, global_csf_i, ex(:, pos), CSF_Info_t(ex(:, pos)), excitInfo, &
-                                          mat_ele, t_hamil=.true., calc_type=2, rdm_ind=rdm_ind_v, &
-                                          rdm_mat=rdm_mat)
+                                          mat_ele, t_hamil=.true., rdm_ind=rdm_ind_v, rdm_mat=rdm_mat)
             x0 = extract_stochastic_rdm_x0(IlutBits, ilutJ)
             rdm_ind_ = pure_rdm_ind(rdm_ind)
             call assert_equals(1, size(rdm_ind_v))
@@ -6165,8 +6136,7 @@ contains
 
             ! also test with matrix element calculator!
             call calc_guga_matrix_element(ilutI, global_csf_i, ex(:, pos), CSF_Info_t(ex(:, pos)), excitInfo, &
-                                          mat_ele, t_hamil=.true., calc_type=2, rdm_ind=rdm_ind_v, &
-                                          rdm_mat=rdm_mat)
+                                          mat_ele, t_hamil=.true., rdm_ind=rdm_ind_v, rdm_mat=rdm_mat)
             x0 = extract_stochastic_rdm_x0(IlutBits, ilutJ)
             rdm_ind_ = pure_rdm_ind(rdm_ind)
             call assert_equals(1, size(rdm_ind_v))
@@ -6205,8 +6175,7 @@ contains
 
             ! also test with matrix element calculator!
             call calc_guga_matrix_element(ilutI, global_csf_i, ex(:, pos), CSF_Info_t(ex(:, pos)), excitInfo, &
-                                          mat_ele, t_hamil=.true., calc_type=2, rdm_ind=rdm_ind_v, &
-                                          rdm_mat=rdm_mat)
+                                          mat_ele, t_hamil=.true., rdm_ind=rdm_ind_v, rdm_mat=rdm_mat)
             x0 = extract_stochastic_rdm_x0(IlutBits, ilutJ)
             rdm_ind_ = pure_rdm_ind(rdm_ind)
             call assert_equals(1, size(rdm_ind_v))
@@ -6245,8 +6214,7 @@ contains
 
             ! also test with matrix element calculator!
             call calc_guga_matrix_element(ilutI, global_csf_i, ex(:, pos), CSF_Info_t(ex(:, pos)), excitInfo, &
-                                          mat_ele, t_hamil=.true., calc_type=2, rdm_ind=rdm_ind_v, &
-                                          rdm_mat=rdm_mat)
+                                          mat_ele, t_hamil=.true., rdm_ind=rdm_ind_v, rdm_mat=rdm_mat)
             x0 = extract_stochastic_rdm_x0(IlutBits, ilutJ)
             rdm_ind_ = pure_rdm_ind(rdm_ind)
             call assert_equals(1, size(rdm_ind_v))
@@ -6285,8 +6253,7 @@ contains
 
             ! also test with matrix element calculator!
             call calc_guga_matrix_element(ilutI, global_csf_i, ex(:, pos), CSF_Info_t(ex(:, pos)), excitInfo, &
-                                          mat_ele, t_hamil=.true., calc_type=2, rdm_ind=rdm_ind_v, &
-                                          rdm_mat=rdm_mat)
+                                          mat_ele, t_hamil=.true., rdm_ind=rdm_ind_v, rdm_mat=rdm_mat)
             x0 = extract_stochastic_rdm_x0(IlutBits, ilutJ)
             rdm_ind_ = pure_rdm_ind(rdm_ind)
             call assert_equals(1, size(rdm_ind_v))
@@ -6325,8 +6292,7 @@ contains
 
             ! also test with matrix element calculator!
             call calc_guga_matrix_element(ilutI, global_csf_i, ex(:, pos), CSF_Info_t(ex(:, pos)), excitInfo, &
-                                          mat_ele, t_hamil=.true., calc_type=2, rdm_ind=rdm_ind_v, &
-                                          rdm_mat=rdm_mat)
+                                          mat_ele, t_hamil=.true., rdm_ind=rdm_ind_v, rdm_mat=rdm_mat)
             x0 = extract_stochastic_rdm_x0(IlutBits, ilutJ)
             rdm_ind_ = pure_rdm_ind(rdm_ind)
             call assert_equals(1, size(rdm_ind_v))
@@ -6365,8 +6331,7 @@ contains
 
             ! also test with matrix element calculator!
             call calc_guga_matrix_element(ilutI, global_csf_i, ex(:, pos), CSF_Info_t(ex(:, pos)), excitInfo, &
-                                          mat_ele, t_hamil=.true., calc_type=2, rdm_ind=rdm_ind_v, &
-                                          rdm_mat=rdm_mat)
+                                          mat_ele, t_hamil=.true., rdm_ind=rdm_ind_v, rdm_mat=rdm_mat)
             x0 = extract_stochastic_rdm_x0(IlutBits, ilutJ)
             rdm_ind_ = pure_rdm_ind(rdm_ind)
             call assert_equals(1, size(rdm_ind_v))
@@ -6405,8 +6370,7 @@ contains
 
             ! also test with matrix element calculator!
             call calc_guga_matrix_element(ilutI, global_csf_i, ex(:, pos), CSF_Info_t(ex(:, pos)), excitInfo, &
-                                          mat_ele, t_hamil=.true., calc_type=2, rdm_ind=rdm_ind_v, &
-                                          rdm_mat=rdm_mat)
+                                          mat_ele, t_hamil=.true., rdm_ind=rdm_ind_v, rdm_mat=rdm_mat)
             x0 = extract_stochastic_rdm_x0(IlutBits, ilutJ)
             rdm_ind_ = pure_rdm_ind(rdm_ind)
             call assert_equals(1, size(rdm_ind_v))
@@ -6445,8 +6409,7 @@ contains
 
             ! also test with matrix element calculator!
             call calc_guga_matrix_element(ilutI, global_csf_i, ex(:, pos), CSF_Info_t(ex(:, pos)), excitInfo, &
-                                          mat_ele, t_hamil=.true., calc_type=2, rdm_ind=rdm_ind_v, &
-                                          rdm_mat=rdm_mat)
+                                          mat_ele, t_hamil=.true., rdm_ind=rdm_ind_v, rdm_mat=rdm_mat)
             x0 = extract_stochastic_rdm_x0(IlutBits, ilutJ)
             rdm_ind_ = pure_rdm_ind(rdm_ind)
             call assert_equals(1, size(rdm_ind_v))
@@ -6485,8 +6448,7 @@ contains
 
             ! also test with matrix element calculator!
             call calc_guga_matrix_element(ilutI, global_csf_i, ex(:, pos), CSF_Info_t(ex(:, pos)), excitInfo, &
-                                          mat_ele, t_hamil=.true., calc_type=2, rdm_ind=rdm_ind_v, &
-                                          rdm_mat=rdm_mat)
+                                          mat_ele, t_hamil=.true., rdm_ind=rdm_ind_v, rdm_mat=rdm_mat)
             x0 = extract_stochastic_rdm_x0(IlutBits, ilutJ)
             rdm_ind_ = pure_rdm_ind(rdm_ind)
             call assert_equals(1, size(rdm_ind_v))
@@ -6525,8 +6487,7 @@ contains
 
             ! also test with matrix element calculator!
             call calc_guga_matrix_element(ilutI, global_csf_i, ex(:, pos), CSF_Info_t(ex(:, pos)), excitInfo, &
-                                          mat_ele, t_hamil=.true., calc_type=2, rdm_ind=rdm_ind_v, &
-                                          rdm_mat=rdm_mat)
+                                          mat_ele, t_hamil=.true., rdm_ind=rdm_ind_v, rdm_mat=rdm_mat)
             x0 = extract_stochastic_rdm_x0(IlutBits, ilutJ)
             rdm_ind_ = pure_rdm_ind(rdm_ind)
             call assert_equals(1, size(rdm_ind_v))
@@ -8416,8 +8377,7 @@ contains
             call assert_equals(rdm_mat_ex, rdm_comb)
 
             call calc_guga_matrix_element(ilut, csf_i, ex, CSF_Info_t(ex), excitInfo, mat_ele, &
-                                          t_hamil=.true., calc_type=2, rdm_ind=rdm_ind_v, &
-                                          rdm_mat=rdm_mat)
+                                          t_hamil=.true., rdm_ind=rdm_ind_v, rdm_mat=rdm_mat)
 
             call assert_equals(mat_ele, HElGen)
             call assert_true(any(rdm_ind_ == rdm_ind_v))
@@ -8848,8 +8808,7 @@ contains
 
             ! also test with matrix element calculator!
             call calc_guga_matrix_element(ilut, csf_i, t, CSF_Info_t(t), excitInfo, &
-                                          mat_ele, t_hamil=.true., calc_type=2, rdm_ind=rdm_ind_v, &
-                                          rdm_mat=rdm_mat)
+                                          mat_ele, t_hamil=.true., rdm_ind=rdm_ind_v, rdm_mat=rdm_mat)
             x0 = extract_stochastic_rdm_x0(GugaBits, t)
             rdm_ind_ = pure_rdm_ind(rdm_ind)
             call assert_equals(1, size(rdm_ind_v))
@@ -10432,7 +10391,7 @@ contains
             exact_helements(i) = helgen
             excitLvl(i) = getDeltaB(excitations(:, i))
             call calc_guga_matrix_element(ilut, csf_i, det_list(:, i), CSF_Info_t(det_list(:, i)), excitInfo, &
-                                          temp_mat, .true., 1)
+                                          temp_mat, .true.)
 
             excit_mat(i, :) = [excitInfo%i, excitInfo%j, excitInfo%k, excitInfo%l]
 

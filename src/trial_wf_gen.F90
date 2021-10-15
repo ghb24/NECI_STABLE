@@ -573,7 +573,7 @@ contains
                         ASSERT(.not. t_non_hermitian)
                         call calc_guga_matrix_element(&
                             con_space(:, i), csf_i, trial_space(:, j), csf_j, &
-                            excitInfo, H_ij, .true., 1)
+                            excitInfo, H_ij, .true.)
 #ifdef CMPLX_
                         H_ij = conjg(H_ij)
 #endif

@@ -479,7 +479,7 @@ contains
         else if (tGUGA) then
             call calc_guga_matrix_element(&
                 ilut, CSF_Info_t(ilut), ilutRefAdi(:, iref), &
-                CSF_Info_t(ilutRefAdi(:, iref)), excitInfo, h_el, .true., 2)
+                CSF_Info_t(ilutRefAdi(:, iref)), excitInfo, h_el, .true.)
         else
             h_el = get_helement(nI, nJRef(:), ilut, ilutRefAdi(:, iRef))
         end if
@@ -552,7 +552,7 @@ contains
         else if (tGUGA) then
             call calc_guga_matrix_element(&
                 ilut, CSF_Info_t(ilut), ilutRefAdi(:, i), CSF_Info_t(ilutRefAdi(:, i)), &
-                excitInfo, h_el, .true., 2)
+                excitInfo, h_el, .true.)
         else
             h_el = get_helement(nI, nIRef(:, i), ilut, ilutRefAdi(:, i))
         end if

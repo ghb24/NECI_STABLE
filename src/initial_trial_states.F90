@@ -388,7 +388,7 @@ contains
                                                                  ilut_list(:, j))
                         else if (tGUGA) then
                             call calc_guga_matrix_element(ilut_list(:, i), csf_i, &
-                                                          ilut_list(:, j), CSF_Info_t(ilut_list(:, j)), excitInfo, H_tmp(j, i), .true., 1)
+                                                          ilut_list(:, j), CSF_Info_t(ilut_list(:, j)), excitInfo, H_tmp(j, i), .true.)
                         else
                             H_tmp(i, j) = get_helement(det_list(:, i), det_list(:, j), ilut_list(:, i), ilut_list(:, j))
                         end if

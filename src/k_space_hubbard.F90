@@ -605,7 +605,7 @@ contains
                 return
             end if
 
-            call calc_guga_matrix_element(ilutI, current_csf_i, ilutJ, CSF_Info_t(ilutJ), excitInfo, hel, .true., 1)
+            call calc_guga_matrix_element(ilutI, current_csf_i, ilutJ, CSF_Info_t(ilutJ), excitInfo, hel, .true.)
 
             if (abs(hel) < EPS) then
                 nJ(1) = 0

@@ -1079,7 +1079,7 @@ contains
                     else if (tGUGA) then
 
                         call add_rdm_from_ij_pair_guga_exact(spawn, one_rdms, &
-                                  ilutI, csf_i, ilutJ, csf_j, AvSignI * IterRDM, AvSignJ, calc_type=1)
+                                  ilutI, csf_i, ilutJ, csf_j, AvSignI * IterRDM, AvSignJ)
                     else
                         if (IC == 1) then
                             ! Single excitation - contributes to 1- and 2-RDM

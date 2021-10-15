@@ -227,7 +227,7 @@ contains
                                                                     ilut_list(:, j))
                     else if (tGUGA) then
                         call calc_guga_matrix_element(ilut_list(:, i), csf_i, ilut_list(:, j), csf_j, &
-                                                      excitInfo, hamiltonian_row(j), .true., 1)
+                                                      excitInfo, hamiltonian_row(j), .true.)
 #ifdef CMPLX_
                         hamiltonian_row(j) = conjg(hamiltonian_row(j))
 #endif
@@ -363,7 +363,7 @@ contains
                     else if (tGUGA) then
                         call calc_guga_matrix_element(&
                             ilut_list(:, i), csf_i, temp_store(:, j), &
-                            csf_j, excitInfo, hamiltonian_row(j), .true., 1)
+                            csf_j, excitInfo, hamiltonian_row(j), .true.)
 #ifdef CMPLX_
                         hamiltonian_row(j) = conjg(hamiltonian_row(j))
 #endif
@@ -496,15 +496,15 @@ contains
                         hamiltonian_row(j) = hphf_off_diag_helement(nI, nJ, IlutI, IlutJ)
                     else if (tGUGA) then
                         call calc_guga_matrix_element(&
-                                IlutI, csf_i, IlutJ, csf_j, excitInfo, tmp_mat, .true., 1)
+                                IlutI, csf_i, IlutJ, csf_j, excitInfo, tmp_mat, .true.)
 #ifdef DEBUG_
                         call calc_guga_matrix_element(&
-                                IlutI,  csf_i, IlutJ, csf_j, excitInfo, tmp_mat_2, .true., 2)
+                                IlutI,  csf_i, IlutJ, csf_j, excitInfo, tmp_mat_2, .true.)
                         if (.not. near_zero(tmp_mat - tmp_mat_2)) then
                             call stop_all(this_routine, "type 1 and 2 do not agree!")
                         end if
                         call calc_guga_matrix_element(&
-                                IlutJ, csf_j, IlutI, csf_i, excitInfo, tmp_mat_2, .true., 2)
+                                IlutJ, csf_j, IlutI, csf_i, excitInfo, tmp_mat_2, .true.)
                         if (.not. near_zero(tmp_mat - tmp_mat_2)) then
                             call stop_all(this_routine, "not hermititan!")
                         end if

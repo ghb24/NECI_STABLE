@@ -41,7 +41,7 @@ contains
             type(ExcitationInformation_t) :: excit_info
             call calc_guga_matrix_element( &
                 ilutG_i, CSF_Info_t(ilutG_i), ilutG_j, CSF_Info_t(ilutG_j), excit_info, res, &
-                t_hamil=.true., calc_type=2)
+                t_hamil=.true.)
         end function
     end function
 

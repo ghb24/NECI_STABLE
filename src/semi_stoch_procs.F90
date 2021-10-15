@@ -2099,7 +2099,7 @@ contains
                 else if (tGUGA) then
                     call calc_guga_matrix_element(&
                         rep%core_space(:, i), csf_i, &
-                        rep%core_space(:, j), csf_j, excitInfo, hamil(i, j), .true., 1)
+                        rep%core_space(:, j), csf_j, excitInfo, hamil(i, j), .true.)
                 else
                     hamil(i, j) = get_helement(nI, nJ, rep%core_space(:, i), &
                         rep%core_space(:, j))
@@ -2179,7 +2179,7 @@ contains
             hel = hphf_off_diag_helement(HFDet, nI, iLutHF, ilut)
         else if (tGUGA) then
             call calc_guga_matrix_element(&
-                ilut, CSF_Info_t(ilut), ilutHF, CSF_Info_t(ilutHF), excitInfo, hel, .true., 2)
+                ilut, CSF_Info_t(ilut), ilutHF, CSF_Info_t(ilutHF), excitInfo, hel, .true.)
         else
             hel = get_helement(HFDet, nI, ic, ex, tParity)
         end if

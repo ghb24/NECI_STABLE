@@ -613,14 +613,14 @@ contains
         csf_j = CSF_Info_t(ilutJ)
 
         call add_rdm_from_ij_pair_guga_exact(spawn, one_rdms, iLutHF_True, csf_HF_true, &
-                                                 ilutJ, csf_j, av_sign_hf(2::2), iter_rdm*av_sign_j(1::2), calc_type=2)
+                                                 ilutJ, csf_j, av_sign_hf(2::2), iter_rdm*av_sign_j(1::2))
 
         call add_rdm_from_ij_pair_guga_exact(spawn, one_rdms, ilutJ, csf_j, &
-                                             iLutHF_True, csf_HF_true, av_sign_j(2::2), iter_rdm*av_sign_hf(1::2), calc_type=2)
+                                             iLutHF_True, csf_HF_true, av_sign_j(2::2), iter_rdm*av_sign_hf(1::2))
     end subroutine Add_RDM_HFConnections_GUGA
 
     subroutine add_rdm_from_ij_pair_guga_exact(spawn, one_rdms, ilutI, csf_i, ilutJ, csf_j, &
-                                               sign_i, sign_j, calc_type)
+                                               sign_i, sign_j)
         ! this routine is called for RDM sampling within the semi-stochastic
         ! space or for the connection to the 'true' HF det!
         ! i also need the calc-type input, as in the semi-stochastic space
@@ -631,7 +631,6 @@ contains
                                       ilutJ(0:IlutBits%len_tot)
         type(CSF_Info_t), intent(in) :: csf_i, csf_j
         real(dp), intent(in) :: sign_i(:), sign_j(:)
-        integer, intent(in) :: calc_type
         character(*), parameter :: this_routine = "add_rdm_from_ij_pair_guga_exact"
         integer(int_rdm), allocatable :: rdm_ind(:)
         real(dp), allocatable :: rdm_mat(:)
@@ -641,8 +640,7 @@ contains
         real(dp) :: full_sign(spawn%rdm_send%sign_length)
 
         call calc_guga_matrix_element(ilutI, csf_i, ilutJ, csf_j, excitInfo, mat_ele, &
-                                      t_hamil=.false., calc_type=calc_type, &
-                                      rdm_ind=rdm_ind, rdm_mat=rdm_mat)
+                                      t_hamil=.false., rdm_ind=rdm_ind, rdm_mat=rdm_mat)
 
         ! i assume sign_i and sign_j are not 0 if we end up here..
         if (allocated(rdm_ind)) then
@@ -779,7 +777,7 @@ contains
                 csf_i = CSF_Info_t(ilutGi)
                 csf_j = CSF_Info_t(ilutGj)
                 call calc_guga_matrix_element(IlutGi, csf_i, ilutGj, csf_j, excitInfo, mat_ele, &
-                                              t_hamil=.false., calc_type=2, rdm_ind=rdm_ind, &
+                                              t_hamil=.false., rdm_ind=rdm_ind, &
                                               rdm_mat=rdm_mat)
             end block
 

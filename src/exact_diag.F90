@@ -154,7 +154,7 @@ contains
                         local_hamil(i, j) = hphf_off_diag_helement(nI, nJ, ilut_list(:, i), ilut_list(:, j))
                     else if (tGUGA) then
                         call calc_guga_matrix_element(ilut_list(:, i), csf_i, ilut_list(:, j), csf_j, &
-                                                      excitInfo, local_hamil(i, j), .true., 1)
+                                                      excitInfo, local_hamil(i, j), .true.)
 ! #ifdef CMPLX_
 !                         local_hamil(i,j) = conjg(local_hamil(i,j))
 ! #endif

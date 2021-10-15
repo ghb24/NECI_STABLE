@@ -78,9 +78,6 @@ C..   Now we need to match up any two determinants
            ENDIF
          ENDIF
          IF(STEP.EQ.0) STEP=1
-         ! try to use the new guga matrix element calc here.. for this
-         ! misuse the current_stepvector quantities to init this only
-         ! once for nI
          if (tGUGA) csf_i = CSF_Info_t(ilutI)
 
          DO KJ=IBEGJ,IMAXJ,STEP
@@ -99,7 +96,7 @@ C..   Now we need to match up any two determinants
                   totsum = calcDiagMatEleGuga_nI(NMRKS(:,KI))
               else
                   call calc_guga_matrix_element(ilutI,csf_i,ilutJ,
-     &              csf_j, excitInfo, totsum, .true., 1)
+     &              csf_j, excitInfo, totsum, .true.)
               end if
 
             else if (t_lattice_model) then

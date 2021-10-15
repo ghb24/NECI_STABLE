@@ -361,13 +361,13 @@ contains
         if (present(run)) then
             tmp_ilut = ilutRef(0:niftot, run)
             if (run > 1) then
-                call calc_guga_matrix_element(ilut, csf_i, tmp_ilut, CSF_Info_t(tmp_ilut), excitInfo, hel, .true.,  1)
+                call calc_guga_matrix_element(ilut, csf_i, tmp_ilut, CSF_Info_t(tmp_ilut), excitInfo, hel, .true.)
             else
-                call calc_guga_matrix_element(ilut, csf_i, tmp_ilut, CSF_Info_t(tmp_ilut), excitInfo, hel, .true.,  0)
+                call calc_guga_matrix_element(ilut, csf_i, tmp_ilut, csf_ref, excitInfo, hel, .true.)
             end if
         else
             tmp_ilut = ilutRef(0:niftot, 1)
-            call calc_guga_matrix_element(ilut, csf_i, tmp_ilut, CSF_Info_t(tmp_ilut), excitInfo, hel, .true.,  0)
+            call calc_guga_matrix_element(ilut, csf_i, tmp_ilut, csf_ref, excitInfo, hel, .true.)
         end if
 
 
@@ -395,8 +395,7 @@ contains
 
         type(ExcitationInformation_t) :: excitInfo
 
-        call calc_guga_matrix_element(ilutI, csf_i, ilutJ, csf_j, excitInfo, mat_ele, &
-            t_hamil = .true., calc_type = 2)
+        call calc_guga_matrix_element(ilutI, csf_i, ilutJ, csf_j, excitInfo, mat_ele, t_hamil = .true.)
 
     end function calc_guga_mat_wrapper
 
@@ -419,7 +418,7 @@ contains
 
 
     subroutine calc_guga_matrix_element(ilutI, csf_i, ilutJ, csf_j, excitInfo, mat_ele, t_hamil, &
-                                        calc_type, rdm_ind, rdm_mat)
+                                        rdm_ind, rdm_mat)
         ! function which, given the 2 CSFs ilutI/J and the excitation
         ! information, connecting those 2, calculates the Hamiltionian
         ! matrix element between those 2
@@ -431,7 +430,6 @@ contains
         type(ExcitationInformation_t), intent(out) :: excitInfo
         HElement_t(dp), intent(out) :: mat_ele
         logical, intent(in) :: t_hamil
-        integer, intent(in) :: calc_type
         integer(int_rdm), intent(out), allocatable, optional :: rdm_ind(:)
         real(dp), intent(out), allocatable, optional :: rdm_mat(:)
         character(*), parameter :: this_routine = "calc_guga_matrix_element"
@@ -562,53 +560,13 @@ contains
                 return
         end if
 
-        ! depending on the type of usage i have to init some csf information
-        select case (calc_type)
-        case (0)
-            ! call stop_all(this_routine, 'Pass explicitly the reference')
-            ! reference energy calculation -> both nI and nJ info should
-            ! already be initialized .. -> but i have to assigne it to
-            ! intermediate variables here to be able to write the below
-            ! function generally
+        temp_step_i = csf_i%stepvector
+        temp_b_real_i = csf_i%B_real
+        temp_occ_i = csf_i%Occ_real
 
-            temp_step_i = csf_i%stepvector
-            temp_b_real_i = csf_i%B_real
-            temp_occ_i = csf_i%Occ_real
+        temp_step_j = csf_j%stepvector
 
-            temp_step_j = csf_ref%stepvector
-
-            temp_delta_b = csf_i%B_int - csf_ref%B_int
-
-        case (1)
-            ! call stop_all(this_routine, 'case 1')
-            ! this used in the initialization of semi-stochastic and
-            ! trail-wavefunction calculation
-            ! in this case "misuse" the current_ variables in the loop over nI
-            temp_step_i = csf_i%stepvector
-            temp_b_real_i = csf_i%B_real
-            temp_occ_i = csf_i%Occ_real
-
-            ! and i need a function which calculates the stepvector and the
-            ! b-vector for a given ilutJ
-            call calc_csf_i(ilutJ, temp_step_j, temp_b, temp_occ)
-
-            temp_delta_b = csf_i%B_int - temp_b
-
-        case (2)
-            ! thats the case of an rdm-matrix calculation here i do not
-            ! have any information on both CSFs. so i have to recalculate
-            ! everything
-            ! write the function above with a optional occupation number
-            ! output, since it is not much effort to also calc that
-            temp_step_i = csf_i%stepvector
-            temp_b_real_i = csf_i%B_real
-            temp_occ_i = csf_i%Occ_real
-
-            temp_step_j = csf_j%stepvector
-
-            temp_delta_b = csf_i%B_int - csf_j%B_int
-
-        end select
+        temp_delta_b = csf_i%B_int - csf_j%B_int
 
         ! i think in the excitation identification i can not find out if the
         ! delta B value is abs>2 so i have to do that here.. or specific for
@@ -2257,7 +2215,7 @@ contains
         ! we also need to calculate the matrix element here!
         call convert_ilut_toNECI(ilut, ilutI)
         call convert_ilut_toNECI(exc, ilutJ)
-        call calc_guga_matrix_element(ilutI, csf_i, ilutJ, CSF_Info_t(ilutJ), excitInfo, mat_ele, .true., 2)
+        call calc_guga_matrix_element(ilutI, csf_i, ilutJ, CSF_Info_t(ilutJ), excitInfo, mat_ele, .true.)
 
         if (near_zero(mat_ele)) then
             exc = 0_n_int
@@ -2981,7 +2939,7 @@ contains
             return
         end if
 
-        call calc_guga_matrix_element(ilutI, csf_i, ilutJ, CSF_Info_t(ilutJ), excitInfo, mat_ele, .true., 2)
+        call calc_guga_matrix_element(ilutI, csf_i, ilutJ, CSF_Info_t(ilutJ), excitInfo, mat_ele, .true.)
 
         if (near_zero(mat_ele)) then
             exc = 0_n_int
@@ -3875,8 +3833,7 @@ contains
             ! since something is going obviously wrong..
             if (.not. near_zero(pgen)) then
                 call convert_ilut_toNECI(new_ilut, ilutJ, HElgen)
-                call calc_guga_matrix_element(ilutI, current_csf_i, ilutJ, CSF_Info_t(ilutJ), excitInfo, tmp_mat, &
-                                              .true., 2)
+                call calc_guga_matrix_element(ilutI, current_csf_i, ilutJ, CSF_Info_t(ilutJ), excitInfo, tmp_mat, .true.)
 
                 diff = abs(HElGen - tmp_mat)
                 if (diff > 1.0e-10_dp) then
@@ -3893,8 +3850,7 @@ contains
                 end if
 
                 ! is the other order also fullfilled?
-                call calc_guga_matrix_element(ilutJ, CSF_Info_t(ilutJ), ilutI, current_csf_i, excitInfo, tmp_mat1, &
-                                              .true., 2)
+                call calc_guga_matrix_element(ilutJ, CSF_Info_t(ilutJ), ilutI, current_csf_i, excitInfo, tmp_mat1, .true.)
 
 #ifdef CMPLX_
                 diff = abs(tmp_mat1 - conjg(tmp_mat))
@@ -4010,8 +3966,7 @@ contains
             call convert_ilut_toNECI(ilut, ilutI)
             call convert_ilut_toNECI(excitation, ilutJ)
 
-            call calc_guga_matrix_element(ilutI, csf_i, ilutJ, CSF_Info_t(ilutJ), excitInfo, mat_ele, &
-                                          .true., 2)
+            call calc_guga_matrix_element(ilutI, csf_i, ilutJ, CSF_Info_t(ilutJ), excitInfo, mat_ele, .true.)
 
             if (near_zero(mat_ele)) then
                 excitation = 0
@@ -8806,8 +8761,7 @@ contains
         call convert_ilut_toNECI(ilut, ilutI)
         call convert_ilut_toNECI(excitation, ilutJ)
 
-        call calc_guga_matrix_element(ilutI, csf_i, ilutJ, CSF_Info_t(ilutJ), dummy, mat_ele, &
-                                      .true., 2)
+        call calc_guga_matrix_element(ilutI, csf_i, ilutJ, CSF_Info_t(ilutJ), dummy, mat_ele, .true.)
 
         if (near_zero(mat_ele)) then
             compFlag = .false.
@@ -10557,8 +10511,7 @@ contains
             call convert_ilut_toNECI(ilut, ilutI)
             call convert_ilut_toNECI(exc, ilutJ)
 
-            call calc_guga_matrix_element(ilutI, csf_i, ilutJ, CSF_Info_t(ilutJ), excitInfo, mat_ele, &
-                                          .true., 2)
+            call calc_guga_matrix_element(ilutI, csf_i, ilutJ, CSF_Info_t(ilutJ), excitInfo, mat_ele, .true.)
 
             if (near_zero(mat_ele)) then
                 exc = 0
