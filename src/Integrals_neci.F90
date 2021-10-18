@@ -662,7 +662,6 @@ contains
                     ELSE
                         !!C.. Most normal Hubbards
                         IF(.NOT. TUEG) THEN
-                            !                CALL GEN_COUL_UEG(NEL,NBASISMAX,nBasis,G1,NMSH,NMAX,FCK,UMAT,ISPINSKIP,THUB,UHUB,OMEGA,ALAT)
                             ISPINSKIP = -1
                             NBASISMAX(2, 3) = -1
                             write(stdout, *) "Not precomputing HUBBARD 2-e integrals"
@@ -2125,26 +2124,6 @@ contains
 #endif
 
     end function
-
-    SUBROUTINE WRITESYMCLASSES(nbasis)
-        use SystemData, only: BasisFN, Symmetry
-        USE UMatCache
-        use SymData, only: SymClasses, SymLabelCounts, nSymLabels
-        use util_mod, only: get_free_unit
-        IMPLICIT NONE
-        INTEGER I, nbasis, iunit
-        iunit = get_free_unit()
-        open(iunit, file="SYMCLASSES", status="unknown")
-        DO I = 1, nbasis / 2
-            write(iunit, *) I, SYMCLASSES(I)
-            CALL neci_flush(iunit)
-        end do
-        DO I = 1, NSYMLABELS
-            write(iunit, *) I, SYMLABELCOUNTS(2, I)
-        end do
-        write(iunit, *) "******************"
-        close(iunit)
-    END subroutine writesymclasses
 
     subroutine DumpFCIDUMP()
         use SystemData, only: G1, nBasis, nel

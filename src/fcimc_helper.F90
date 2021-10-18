@@ -85,9 +85,8 @@ module fcimc_helper
     use searching, only: BinSearchParts2
 
     use guga_procedure_pointers, only: calc_off_diag_guga_ref
-    use guga_excitations, only: create_projE_list
-    use guga_bitrepops, only: write_det_guga, calc_csf_info, &
-                              transfer_stochastic_rdm_info
+    use guga_bitrepops, only: write_det_guga, calc_csf_i, &
+                              transfer_stochastic_rdm_info, CSF_Info_t
 
     use real_time_data, only: runge_kutta_step, tVerletSweep, &
                               t_rotated_time, t_real_time_fciqmc
@@ -679,8 +678,9 @@ contains
                 ! only calc. it to the reference det here
                 ! why is only the overlap to the first replica considered??
                 ! that does not make so much sense or... ?
+                ! TODO(@Oskar): Perhaps keep csf_i calculated?
                 HOffDiag(1:inum_runs) = &
-                    calc_off_diag_guga_ref(ilut, exlevel=ExcitLevel_local)
+                    calc_off_diag_guga_ref(ilut, CSF_Info_t(ilut), exlevel=ExcitLevel_local)
             end if
         else
             if (ExcitLevel_local == 2 .or. &
@@ -949,7 +949,8 @@ contains
 
             if (tGUGA) then
                 if (exLevel /= 0) then
-                    hoffdiag = calc_off_diag_guga_ref(ilut, run, exlevel)
+                    ! TODO(@Oskar): Perhaps keep csf_i calculated?
+                    hoffdiag = calc_off_diag_guga_ref(ilut, CSF_Info_t(ilut), run, exlevel)
                 end if
             else
                 if (exlevel == 2 .or. (exlevel == 1 .and. tNoBrillouin)) then
@@ -2475,7 +2476,7 @@ contains
             ! also recreate the stepvector, etc. info stuff for the new
             ! reference determinant
             ASSERT(allocated(ref_stepvector))
-            call calc_csf_info(ilutRef, ref_stepvector, ref_b_vector_int, &
+            call calc_csf_i(ilutRef, ref_stepvector, ref_b_vector_int, &
                                ref_occ_vector)
 
             ref_b_vector_real = real(ref_b_vector_int, dp)

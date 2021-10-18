@@ -175,47 +175,6 @@ end subroutine constructConnections
 
 !------------------------------------------------------------------------------------------!
 
-  ! optional, only use in the star-geometry
-
-  subroutine verifyBath(isBath)
-    ! Here, we check if there are one-electron integrals between the bathsites. If there are,
-    ! we move the corresponding bathsites to the impurity
-    implicit none
-    logical, intent(inout) :: isBath(nBasis)
-    integer :: i,j
-    integer :: connectionCount(nBasis)
-    integer :: maxConnection, posMax
-    character(25), parameter :: this_routine = 'verifyBath'
-
-    do
-       ! We keep moving the most connected orbital to the impurity until the bath is a true bath
-       connectionCount = 0
-       do i=1,nBasis
-          ! for each bath orbital, check if it really does not have 1-el integrals with other bathsites
-          if(isBath(i)) then
-             do j=1,nBasis
-                if(isBath(j) .and. abs(getTMatEl(i,j))>eps) then
-                   ! here, we count how many 1-el integrals to the bath there are for i
-                   connectionCount(i) = connectionCount(i) + 1
-                endif
-             enddo
-          endif
-       enddo
-       if(SUM(connectionCount)==0) exit
-       maxConnection = 0
-       do j=1,nBasis
-          if(connectionCount(j)>maxConnection) then
-             posMax = j
-             maxConnection = connectionCount(j)
-          endif
-       enddo
-       if(posMax == 0) call stop_all(this_routine,"Error in checking bath for connections")
-       isBath(posMax) = .false.
-    enddo
-  end subroutine verifyBath
-
-!------------------------------------------------------------------------------------------!
-
   subroutine gen_excit_impurity_model(nI, ilut, nJ, ilutnJ, exFlag, IC, ExcitMat, &
                                          tParity, pGen, HElGen, store, part_type)
     use FciMCData, only: excit_gen_store_type
