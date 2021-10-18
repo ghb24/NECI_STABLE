@@ -4,6 +4,8 @@ module enumerate_excitations
 
     use SystemData, only: tReltvy, t_k_space_hubbard, t_new_real_space_hubbard
 
+    use util_mod, only: operator(.div.)
+
     use bit_rep_data, only: NIfD, NIfTot
 
     use bit_reps, only: decode_bit_det
@@ -32,7 +34,10 @@ module enumerate_excitations
 
     use SystemData, only: nel, nBasis, G1, tFixLz, Arr, Brr, tHPHF, tHub, &
                           tUEG, tKPntSym, tReal, tUseBrillouin, tGUGA, tReltvy
+
     use guga_data, only: tag_excitations
+    use guga_bitRepOps, only: CSF_Info_t
+
     use MemoryManager, only: LogMemDealloc
 
     use lattice_models_utils, only: gen_all_excits_k_space_hubbard, &
@@ -64,217 +69,6 @@ module enumerate_excitations
 
 contains
 
-    subroutine enumerate_spatial_excitations(ilutI, nI, ilut_ret, exflag, &
-                                             gen_store)
-
-        ! Generate all single and/or double spatial excitations (i.e. orbital
-        ! configurations) of a given determinant. This is done so that, if an
-        ! orbital is singly occupied, the electron is always placed in the beta
-        ! orbital, as is the convention used for specifying CSFs. The spin
-        ! eigenfunctions associated with an orbital configuration are *not*
-        ! generated.
-
-        ! In:  ilutI, nI - The determinant to excite
-        !      exflag    - Set bits 0, 1 to indicate if singles/doubles should
-        !                  be created
-        ! IO:  gen_store - Stores the state of the generator
-        ! Out: ilut_ret  - Returns the determinants produced. ilut_ret(0)
-        !                  should be set to -1 to initialise, and will return
-        !                  this once generation is complete.
-
-        integer(n_int), intent(in) :: ilutI(0:NIfTot)
-        integer(n_int), intent(inout) :: ilut_ret(0:NIfTot)
-        integer, intent(in) :: nI(nel), exflag
-        logical :: bSingle, bDouble
-        type(excit_store), intent(inout), target :: gen_store
-
-        integer, pointer :: i, j, orb1, orb2, ind1, ind2, sym1, sym2
-        integer, pointer :: count1, count2, sym_ind1, sym_ind2, norb_sym
-        integer, pointer :: sym_prod, npairs
-        integer :: orbI, orbJ, orb1a, orb2a, e1, e2, i1, i2
-
-        ! Ensure we only generate the correct excitations
-        bSingle = .false.
-        bDouble = .false.
-        if (btest(exflag, 0)) bSingle = .true.
-        if (btest(exflag, 1)) bDouble = .true.
-
-        ! Map the local variables onto the store
-        i => gen_store%i; j => gen_store%j
-        orb1 => gen_store%orb1; orb2 => gen_store%orb2
-        ind1 => gen_store%ind1; ind2 => gen_store%ind2
-        sym1 => gen_store%sym1; sym2 => gen_store%sym2
-        count1 => gen_store%count1; count2 => gen_store%count2
-        sym_ind1 => gen_store%sym_ind1; sym_ind2 => gen_store%sym_ind2
-        norb_sym => gen_store%norb_sym
-        sym_prod => gen_store%sym_prod
-        npairs => gen_store%npairs
-
-        ! Initialise the generator
-        if (ilut_ret(0) == -1) then
-            gen_store%gen_singles = .true.
-            sym1 = -1
-            i = 1
-            j = 0
-        end if
-
-        ! Consider single excitations
-        if (bSingle .and. gen_store%gen_singles) then
-            ! Find the next possible single excitation. Loop over
-            ! electrons, and vacant orbitals. Interrupt loop when we
-            ! find what we need.
-            do i = i, nel
-
-                if (j == 0) then
-                    orb1 = nI(i)
-                    sym_ind1 = ClassCountInd(2, G1(orb1)%Sym%S, 0)
-                    orb2 = ab_pair(orb1)
-
-                    ! We only want to excite one of doubly occupied pairs.
-                    if (IsOcc(ilutI, orb2) .and. is_beta(orb1)) cycle
-
-                    ind1 = SymLabelCounts2(1, sym_ind1)
-                    norb_sym = OrbClasscount(sym_ind1)
-                end if
-
-                j = j + 1
-                do j = j, norb_sym
-
-                    orbI = SymLabelList2(ind1 + j - 1)
-
-                    ! Cannot excite to the source of the excitation
-                    if (is_in_pair(orb1, orbI)) cycle
-
-                    ! Cannot excite to a doubly occupied orbital. If
-                    ! singly occupied, can only excite to the unoccupied
-                    ! bit!
-                    if (IsOcc(ilutI, orbI)) then
-                        orbI = ab_pair(orbI)
-                        if (IsOcc(ilutI, orbI)) cycle
-                    end if
-
-                    ! Now we can generate the determinant, and
-                    ! interrupt the loop!!!!!
-                    ilut_ret = ilutI
-                    clr_orb(ilut_ret, orb1)
-                    set_orb(ilut_ret, orbI)
-                    return
-                end do
-                j = 0 ! Reset loop
-            end do
-            i = 1 ! Reset loop
-
-            ! Finished generating singles
-            gen_store%gen_singles = .false.
-        else
-            ! If we aren't generating singles, skip them.
-            gen_store%gen_singles = .false.
-        end if
-
-        ! Consider double excitations
-        if (bDouble) then
-
-            npairs = nel * (nel - 1) / 2
-            do i = i, npairs
-
-                if (sym1 == -1) then
-                    ! Pick electrons uniformly
-                    e1 = ceiling((1.0_dp + sqrt(real(1 + 8 * i, 8))) / 2)
-                    e2 = i - ((e1 - 1) * (e1 - 2)) / 2
-                    orb1 = nI(e1); orb1a = ab_pair(orb1)
-                    orb2 = nI(e2); orb2a = ab_pair(orb2)
-
-                    ! If either of these is the beta electron from a doubly
-                    ! occupied pair, and they are not from the same pair,
-                    ! cycle
-                    if (((IsOcc(ilutI, orb1a) .and. is_beta(orb1)) .or. &
-                         (IsOcc(ilutI, orb2a) .and. is_beta(orb2))) .and. &
-                        .not. is_in_pair(orb1, orb2)) then
-                        cycle
-                    end if
-
-                    sym_prod = int(ieor(G1(orb1)%Sym%S, G1(orb2)%Sym%S))
-
-                    sym1 = 0
-                end if
-
-                do sym1 = sym1, nSymLabels - 1
-
-                    if (j == 0) then
-                        ! Generate the paired symmetry without double counting
-                        sym2 = ieor(sym_prod, sym1)
-                        if (sym2 < sym1) cycle
-
-                        ! Symmetry indices
-                        sym_ind1 = ClassCountInd(2, sym1, 0)
-                        sym_ind2 = ClassCountInd(2, sym2, 0)
-                        ind1 = SymLabelCounts2(1, sym_ind1)
-                        ind2 = SymLabelCounts2(1, sym_ind2)
-                        count1 = OrbClasscount(sym_ind1)
-                        count2 = OrbClasscount(sym_ind2)
-                        norb_sym = count1 * count2
-                    end if
-
-                    j = j + 1
-                    do j = j, norb_sym
-
-                        ! Direct mapping to orbitals
-                        i1 = mod(j - 1, count1)
-                        i2 = (j - 1 - i1) / count1
-                        orbI = SymLabelList2(ind1 + i1)
-                        orbJ = SymLabelList2(ind2 + i2)
-
-                        ! If the two symmetries are the same, only generate
-                        ! each pair one way around...
-                        if (sym1 == sym2 .and. orbJ < orbI) cycle
-
-                        ! We don't want to put two electrons into the same
-                        ! spin orbital...
-                        if (orbI == orbJ) orbJ = ab_pair(orbJ)
-
-                        ! Exclude excitations to the source
-                        if (is_in_pair(orbI, orb1) .or. &
-                            is_in_pair(orbI, orb2)) cycle
-                        if (is_in_pair(orbJ, orb1) .or. &
-                            is_in_pair(orbJ, orb2)) cycle
-
-                        ! Cannot excite to doubly occupied orbitals.
-                        if (IsOcc(ilutI, orbI)) then
-                            orbI = ab_pair(orbI)
-                            if (IsOcc(ilutI, orbI) .or. &
-                                is_in_pair(orbI, orbJ)) cycle
-                        end if
-                        if (IsOcc(ilutI, orbJ)) then
-                            orbJ = ab_pair(orbJ)
-                            if (IsOcc(ilutI, orbJ) .or. &
-                                is_in_pair(orbI, orbJ)) cycle
-                        end if
-
-                        ! Now we can generate the determinant, and interrupt
-                        ! the loop
-                        ilut_ret = ilutI
-                        clr_orb(ilut_ret, orb1)
-                        clr_orb(ilut_ret, orb2)
-                        set_orb(ilut_ret, orbI)
-                        set_orb(ilut_ret, orbJ)
-                        return
-                    end do
-                    j = 0 ! Break loop
-
-                end do
-                sym1 = -1 ! Break loop
-
-            end do
-
-            ! And we are done!
-            ilut_ret(0) = -1
-
-        else
-            ! If we aren't generating doubles, then we are done.
-            ilut_ret(0) = -1
-        end if
-
-    end subroutine enumerate_spatial_excitations
 
     subroutine init_generate_connected_space(nI, ex_flag, tAllExcitFound, excit, excit_gen, nstore, tTempUseBrill)
 
@@ -347,12 +141,6 @@ contains
         logical, intent(in), optional :: tSinglesOnlyOpt
         character(*), parameter :: this_routine = "generate_connected_space"
 
-        ! this restriction does not apply anymore:
-!         if (tGUGA .and. tKPntSym) then
-!             call stop_all(this_routine, &
-!                 "k-point symmetry and GUGA + semi-stochastic or trial-wavefunction not yet implemented!")
-!         end if
-
         if (tKPntSym) then
             call generate_connected_space_kpnt(original_space_size, original_space, &
                                                connected_space_size, connected_space, tSinglesOnlyOpt)
@@ -379,7 +167,7 @@ contains
         use bit_reps, only: nifguga
         use SystemData, only: tGUGA
         integer :: nexcit, j
-        integer(n_int), pointer :: excitations(:, :)
+        integer(n_int), allocatable :: excitations(:, :)
         integer(n_int) :: ilutG(0:nifguga)
 
         integer, intent(in) :: original_space_size
@@ -429,7 +217,7 @@ contains
                 ! why is this done??
                 call convert_ilut_toGUGA(original_space(:, i), ilutG)
 
-                call actHamiltonian(ilutG, excitations, nexcit)
+                call actHamiltonian(ilutG, CSF_Info_t(ilutG), excitations, nexcit)
 
                 ! and if store flag is present:
                 if (tStoreConnSpace) then
@@ -555,7 +343,7 @@ contains
 
         integer :: nexcit, j
         integer(n_int) :: ilutG(0:nifguga)
-        integer(n_int), pointer :: excitations(:, :)
+        integer(n_int), allocatable :: excitations(:, :)
 
         integer, intent(in) :: original_space_size
         integer(n_int), intent(in) :: original_space(0:, :)
@@ -611,7 +399,7 @@ contains
 
                 call convert_ilut_toGUGA(original_space(:, i), ilutG)
 
-                call actHamiltonian(ilutG, excitations, nexcit)
+                call actHamiltonian(ilutG, CSF_Info_t(ilutG), excitations, nexcit)
 
                 if (tStoreConnSpace) then
                     do j = 1, nexcit

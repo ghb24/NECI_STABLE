@@ -27,11 +27,11 @@ module k_space_hubbard
 
     use procedure_pointers, only: get_umat_el, generate_excitation
 
-    use constants, only: n_int, dp, EPS, bits_n_int, int64, maxExcit
+    use constants, only: n_int, dp, EPS, bits_n_int, int64, maxExcit, stdout
 
     use bit_rep_data, only: NIfTot, nifd
 
-    use DetBitOps, only: FindBitExcitLevel, EncodeBitDet, ilut_lt, ilut_gt
+    use DetBitOps, only: FindBitExcitLevel, EncodeBitDet, ilut_lt, ilut_gt, GetBitExcitation
 
     use real_space_hubbard, only: lat_tau_factor
 
@@ -39,11 +39,12 @@ module k_space_hubbard
                          excit_gen_store_type, pSingles
 
     use CalcData, only: tau, t_hist_tau_search, t_hist_tau_search_option, &
-                        t_fill_frequency_hists, pParallelIn, pDoublesIn
+                        t_fill_frequency_hists, pParallelIn, pSinglesIn, pDoublesIn
 
     use dsfmt_interface, only: genrand_real2_dsfmt
 
-    use util_mod, only: binary_search_first_ge, binary_search, near_zero
+    use util_mod, only: binary_search_first_ge, binary_search, near_zero, &
+                        operator(.isclose.), operator(.div.)
 
     use get_excit, only: make_double
 
@@ -80,7 +81,7 @@ module k_space_hubbard
 
     use SymData, only: tagSymTable
 
-    use ParallelHelper, only: iProcIndex, root
+    use MPI_wrapper, only: iProcIndex, root
 
     use lattice_models_utils, only: make_ilutJ, get_ispn, get_orb_from_kpoints, &
                                     create_all_dets, find_minority_spin, &
@@ -88,11 +89,11 @@ module k_space_hubbard
                                     pick_spin_opp_elecs, pick_from_cum_list, &
                                     pick_spin_par_elecs, pick_three_opp_elecs
 
-    use guga_excitations, only: generate_excitation_guga, generate_excitation_guga_crude, &
+    use guga_excitations, only: generate_excitation_guga, &
                                 calc_guga_matrix_element, global_excitinfo, print_excitInfo
-    use guga_bitRepOps, only: convert_ilut_toGUGA, init_csf_information, &
-                              isProperCSF_ilut
-    use guga_data, only: ExcitationInformation_t, tNewDet
+    use guga_bitRepOps, only: convert_ilut_toGUGA, is_compatible, &
+                              isProperCSF_ilut, current_csf_i
+    use guga_data, only: ExcitationInformation_t
 
     implicit none
 
@@ -170,10 +171,10 @@ contains
         nSymLabels = nsym
 
         ! copy the output from the old hubbard code:
-        write(6, "(A,I3,A)") "Generating abelian symmetry table with", &
+        write(stdout, "(A,I3,A)") "Generating abelian symmetry table with", &
             nsym, " generators for Hubbard momentum"
         if (allocated(SymLabels)) then
-            write(6, '(a/a)') &
+            write(stdout, '(a/a)') &
                 'Warning: symmetry info already allocated.', &
                 'Deallocating and reallocating.'
             deallocate(SymLabels)
@@ -292,7 +293,7 @@ contains
             end do
         end do
 #ifdef DEBUG_
-        write(6, *) "Symmetry, Symmetry Conjugate"
+        write(stdout, *) "Symmetry, Symmetry Conjugate"
         do i = 1, lat%get_nsites()
             print *, i, SymConjTab(i)
         end do
@@ -321,35 +322,6 @@ contains
 #endif
 
     end subroutine setup_symmetry_table
-
-    subroutine gen_symreps()
-        ! i have to figure out what exactly those symreps do and how
-        ! i should set them up..
-        use SystemData, only: arr, brr
-        use SymData, only: symreps
-
-        integer :: i, j
-        if (allocated(symreps)) deallocate(symreps)
-        allocate(symreps(2, nbasis))
-        symreps = 0
-
-        j = 0
-
-        print *, "arr: "
-        do i = 1, nbasis
-            print *, arr(i, :)
-        end do
-
-        print *, "brr: "
-        do i = 1, nbasis
-            print *, brr(i)
-        end do
-
-        do i = 1, 2 * lat%get_nsites()
-
-        end do
-
-    end subroutine gen_symreps
 
     function get_umat_kspace(i, j, k, l) result(hel)
         ! simplify this get_umat function for the k-space hubbard..
@@ -478,17 +450,28 @@ contains
             three_body_prefac = real(bhub, dp) * 2.0_dp * (cosh(trans_corr_param_2body) - 1.0_dp) / real(omega**2, dp)
             ! i also have to set some generation probability parameters..
 
-            if (.not. near_zero(pDoublesIn)) then
-                pDoubles = pDoublesIn
-            else
-                pDoubles = 0.8_dp
-            end if
-
             ! use pSingles for triples!
             ! BE CAREFUL and dont get confused!
-            pSingles = 1.0_dp - pDoubles
+            ! @Werner: does this make sense?
+            if (allocated(pSinglesIn) .and. allocated(pDoublesIn)) then
+                if (.not. (pSinglesIn + pDoublesIn .isclose. 1.0_dp)) then
+                    call stop_all(this_routine, "pSinglesIn + pDoublesIn /= 1.0!")
+                else
+                    pSingles = pSinglesIn
+                    pDoubles = pDoublesIn
+                end if
+            else if (allocated(pSinglesIn) .and. (.not. allocated(pDoublesIn))) then
+                pSingles = pSinglesIn
+                pDoubles = 1.0_dp - pSingles
+            else if (allocated(pDoublesIn) .and. (.not. allocated(pSinglesIn))) then
+                pDoubles = pDoublesIn
+                pSingles = 1.0_dp - pDoubles
+            else
+                pDoubles = 0.8_dp
+                pSingles = 1.0_dp - pDoubles
+            end if
 
-            if (.not. near_zero(pParallelIn)) then
+            if (allocated(pParallelIn)) then
                 pParallel = pParallelIn
             else
                 pParallel = 0.5_dp
@@ -555,6 +538,9 @@ contains
 
     subroutine gen_excit_k_space_hub(nI, ilutI, nJ, ilutJ, exFlag, ic, &
                                      ex, tParity, pGen, hel, store, run)
+        !! An API interfacing function for generate_excitation to the rest of NECI:
+        !!
+        !! Requires guga_bitRepOps::current_csf_i to be set according to the ilutI.
         integer, intent(in) :: nI(nel), exFlag
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
         integer, intent(out) :: nJ(nel), ic, ex(2, maxExcit)
@@ -573,14 +559,9 @@ contains
         type(ExcitationInformation_t) :: excitInfo
         integer(n_int) :: ilutGi(0:nifguga), ilutGj(0:nifguga)
 
-        unused_var(exFlag)
-        unused_var(store)
-#ifdef WARNING_WORKAROUND_
-        ! mark unused vars
-        if (present(run)) then
-            unused_var(run)
-        end if
-#endif
+        unused_var(exFlag); unused_var(store); unused_var(run)
+
+        ASSERT(is_compatible(ilutI, current_csf_i))
 
         hel = h_cast(0.0_dp)
         ic = 0
@@ -624,19 +605,7 @@ contains
                 return
             end if
 
-            if (tNewDet) then
-                call convert_ilut_toGUGA(ilutI, ilutGi)
-                ! use new setup function for additional CSF informtation
-                ! instead of calculating it all seperately..
-                call init_csf_information(ilutGi(0:nifd))
-
-                ! then set tNewDet to false and only set it after the walker loop
-                ! in FciMCPar
-                tNewDet = .false.
-
-            end if
-
-            call calc_guga_matrix_element(ilutI, ilutJ, excitInfo, hel, .true., 1)
+            call calc_guga_matrix_element(ilutI, current_csf_i, ilutJ, excitInfo, hel, .true., 1)
 
             if (abs(hel) < EPS) then
                 nJ(1) = 0
@@ -2518,6 +2487,8 @@ contains
 #endif
         ! change this routine to also use just the symmetry symbols
         type(symmetry) :: sym
+        logical :: t_sign_
+        def_default(t_sign_, t_sign, .false.)
 
         ! the spin input: -1 is beta, +1 is alpha, 0 is both!
         ! if spin is not present, default is both!
@@ -2526,7 +2497,7 @@ contains
         ! k_sym is actually always present..
         ! work on the newest, hopefully correct way to do this..
         ! i need -s k vector for the triples contribution to the doubles..
-        if (present(t_sign) .and. t_sign) then
+        if (t_sign_) then
             sgn = -1
         else
             sgn = 1
@@ -2583,6 +2554,8 @@ contains
         ! change this routine to also use just the symmetry symbols
         integer :: sym_shift
         type(symmetry) :: sym
+        logical :: t_sign_
+        def_default(t_sign_, t_sign, .false.)
 
         ! the spin input: -1 is beta, +1 is alpha, 0 is both!
         ! if spin is not present, default is both!
@@ -2591,7 +2564,7 @@ contains
         ! k_shift is actually always present..
         ! work on the newest, hopefully correct way to do this..
         ! i need -s k vector for the triples contribution to the doubles..
-        if (present(t_sign) .and. t_sign) then
+        if (t_sign_) then
             sgn = -1
         else
             sgn = 1
@@ -2816,71 +2789,6 @@ contains
 
     end function get_offdiag_helement_k_sp_hub
 
-    subroutine get_transferred_momenta(ex, k_vec_a, k_vec_b)
-        ! routine to reobtain transferred momentum from a given excitation
-        ! for spin-opposite double excitations i am pretty sure how, but
-        ! for triple excitations and spin-parallel doubles not so much.. todo
-        integer, intent(in) :: ex(:, :)
-        integer, intent(out) :: k_vec_a(3), k_vec_b(3)
-#ifdef DEBUG_
-        character(*), parameter :: this_routine = "get_transferred_momenta"
-#endif
-        integer :: sort_ex(2, size(ex, 2))
-
-        ! just to be sure, sort ex again..
-        sort_ex(1, :) = [minval(ex(1, :)), maxval(ex(1, :))]
-        sort_ex(2, :) = [minval(ex(2, :)), maxval(ex(2, :))]
-
-        ASSERT(size(ex, 1) == 2)
-        ASSERT(size(ex, 2) == 2 .or. size(ex, 2) == 3)
-
-        if (size(sort_ex, 2) == 2) then
-            ! double excitation
-            if (same_spin(sort_ex(1, 1), sort_ex(1, 2))) then
-                ! spin-parallel excitation
-                ASSERT(same_spin(sort_ex(2, 1), sort_ex(2, 2)))
-                ASSERT(same_spin(sort_ex(1, 1), sort_ex(2, 1)))
-
-                ! for now just take the momentum of ex(1,2) - ex(2,1)
-                ! and ex(2,1) - ex(1,1)
-                k_vec_a = lat%subtract_k_vec(G1(sort_ex(1, 1))%k, G1(sort_ex(2, 1))%k)
-                k_vec_b = lat%subtract_k_vec(G1(sort_ex(1, 2))%k, G1(sort_ex(2, 1))%k)
-
-                if (.not. t_k_space_hubbard) then
-                    call mompbcsym(k_vec_a, nBasisMax)
-                    call mompbcsym(k_vec_b, nBasisMax)
-                end if
-
-            else
-                ! "normal" hubbard spin-opposite excitation
-                ASSERT(.not. same_spin(ex(2, 1), ex(2, 2)))
-                ! here it is easier, we need the momentum difference of the
-                ! same spin-electrons
-                ! the sign of k should be irrelevant or? todo!
-                if (same_spin(ex(1, 1), ex(2, 1))) then
-
-                    k_vec_a = lat%subtract_k_vec(G1(ex(1, 1))%k, G1(ex(2, 1))%k)
-                    k_vec_b = lat%subtract_k_vec(G1(ex(1, 2))%k, G1(ex(2, 2))%k)
-
-                else
-                    k_vec_a = lat%subtract_k_vec(G1(ex(1, 1))%k, G1(ex(2, 2))%k)
-                    k_vec_b = lat%subtract_k_vec(G1(ex(1, 2))%k, G1(ex(2, 1))%k)
-
-                end if
-
-                if (.not. t_k_space_hubbard) then
-                    call mompbcsym(k_vec_a, nBasisMax)
-                    call mompbcsym(k_vec_b, nBasisMax)
-                end if
-            end if
-        else
-            ! triple excitations..
-            ! i think i do not really need the triples..
-            ASSERT(.false.)
-        end if
-
-    end subroutine get_transferred_momenta
-
     subroutine setup_k_total(nI)
         integer, intent(in), optional :: nI(nel)
         character(*), parameter :: this_routine = "setup_k_total"
@@ -2941,9 +2849,9 @@ contains
                 SpinOrbSymLabel(i) = SymClasses(((i + 1) / 2)) - 1
             end do
 #ifdef DEBUG_
-            write(6, *) "SpinOrbSymLabel: "
+            write(stdout, *) "SpinOrbSymLabel: "
             do i = 1, nBasis
-                write(6, *) i, SpinOrbSymLabel(i)
+                write(stdout, *) i, SpinOrbSymLabel(i)
             end do
 #endif
             if (allocated(SymTableLabels)) deallocate(SymTableLabels)
@@ -2971,12 +2879,12 @@ contains
                 end do
             end do
 #ifdef DEBUG_
-            write(6, *) "SymTable:"
+            write(stdout, *) "SymTable:"
             do i = 0, nSymLabels - 1
                 do j = 0, nSymLabels - 1
-                    write(6, "(I6)", advance='no') SymTableLabels(i, j)
+                    write(stdout, "(I6)", advance='no') SymTableLabels(i, j)
                 end do
-                write(6, *) ""
+                write(stdout, *) ""
             end do
 #endif
 
@@ -3004,7 +2912,7 @@ contains
                     ! rep
                     if (SymTableLabels(i, j) == sym0) then
                         if (SymInvLabel(i) /= -999) then
-                            write(6, *) "SymLabel: ", i
+                            write(stdout, *) "SymLabel: ", i
                             call stop_all(this_routine, &
                                           "Multiple inverse irreps found - error")
                         end if
@@ -3013,14 +2921,14 @@ contains
                     end if
                 end do
                 if (SymInvLabel(i) == -999) then
-                    write(6, *) "SymLabel: ", i
+                    write(stdout, *) "SymLabel: ", i
                     call stop_all(this_routine, "No inverse symmetry found - error")
                 end if
             end do
 #ifdef DEBUG_
-            write(6, *) "SymInvLabel: "
+            write(stdout, *) "SymInvLabel: "
             do i = 0, nSymLabels - 1
-                write(6, *) i, SymInvLabel(i)
+                write(stdout, *) i, SymInvLabel(i)
             end do
 #endif
 
@@ -3682,19 +3590,6 @@ contains
         end if
 
     end function check_momentum_sym
-
-    logical function sym_equal(sym_1, sym_2)
-        type(BasisFN), intent(in) :: sym_1, sym_2
-
-        sym_equal = .true.
-
-        ! just check if every entries are the same!
-        if (.not. all(sym_1%k == sym_2%k)) sym_equal = .false.
-        if (sym_1%ms /= sym_2%ms) sym_equal = .false.
-        if (sym_1%ml /= sym_2%ml) sym_equal = .false.
-        if (sym_1%Sym%s /= sym_2%Sym%s) sym_equal = .false.
-
-    end function sym_equal
 
     subroutine make_triple(nI, nJ, elecs, orbs, ex, tPar)
         integer, intent(in) :: nI(nel), elecs(3), orbs(3)

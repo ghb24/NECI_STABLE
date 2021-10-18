@@ -14,7 +14,7 @@ module rdm_explicit
     use SystemData, only: tReltvy, t_3_body_excits, tGUGA, nel
     use bit_reps, only: extract_bit_rep, decode_bit_det
 
-    use guga_bitRepOps, only: encode_matrix_element, convert_ilut_toGUGA
+    use guga_bitRepOps, only: encode_matrix_element, convert_ilut_toGUGA, CSF_Info_t
     use guga_rdm, only: gen_exc_djs_guga, send_proc_ex_djs
     use util_mod, only: near_zero
 
@@ -27,7 +27,7 @@ contains
         use FciMCData, only: CurrentDets
         use global_utilities, only: set_timer, halt_timer
         use Parallel_neci, only: iProcIndex, MPIAllReduceDataType
-        use ParallelHelper, only: MPI_MAXLOC, MPI_2integer
+        use MPI_wrapper, only: MPI_MAXLOC, MPI_2integer
         use rdm_data, only: nElRDM_Time
 
         integer(int64), intent(in) :: TotWalkers
@@ -197,7 +197,7 @@ contains
         ! double excitations from Dj, this will be done for each proc.
         if (.not. blank_det) then
             if (tGUGA) then
-                call gen_exc_djs_guga(ilutnI)
+                call gen_exc_djs_guga(ilutnI, CSF_Info_t(ilutnI))
             else
                 call GenExcDjs(iLutnI)
             end if
@@ -327,9 +327,11 @@ contains
             ! tested. RDMExcitLevel is passed through, if this is 1, only
             ! singles are generated, if it is 2 only doubles are found.
             if (tReltvy) then
-                call GenExcitations4(session, nI, nJ, exFlag, ExcitMat3(:, :), tParity, tAllExcitFound, .true.)
+                call GenExcitations4(session, nI, nJ, exFlag, ExcitMat3(:, :), &
+                    tParity, tAllExcitFound, .true.)
             else
-                call GenExcitations3(nI, iLutnI, nJ, exflag, ExcitMat3(:, :), tParity, tAllExcitFound, .true.)
+                call GenExcitations3(nI, iLutnI, nJ, exflag, ExcitMat3(:, :), &
+                    tParity, tAllExcitFound, .true.)
             end if
 
             if (tAllExcitFound) exit
@@ -344,9 +346,9 @@ contains
 
             ! Want a quick test to see if arrays are getting full.
             if (Sing_ExcList(Proc) > nint(OneEl_Gap * (Proc + 1))) then
-                write(6, *) 'Proc', Proc
-                write(6, *) 'Sing_ExcList', Sing_ExcList
-                write(6, *) 'No. spaces for each proc', nint(OneEl_Gap)
+                write(stdout, *) 'Proc', Proc
+                write(stdout, *) 'Sing_ExcList', Sing_ExcList
+                write(stdout, *) 'No. spaces for each proc', nint(OneEl_Gap)
                 call Stop_All('GenExcDjs', 'Too many excitations for space available.')
             end if
         end do
@@ -371,10 +373,12 @@ contains
                 ! it will be tested. RDMExcitLevel is passed through, if this
                 ! is 1, only singles are generated, if it is 2 only doubles are
                 if (tReltvy) then
-                    call GenExcitations4(session, nI, nJ, exFlag, ExcitMat3(:, :), tParity, tAllExcitFound, .true.)
+                    call GenExcitations4(session, nI, nJ, exFlag, ExcitMat3(:, :), &
+                        tParity, tAllExcitFound, .true.)
                 else
                     ! found.
-                    call GenExcitations3(nI, iLutnI, nJ, exflag, ExcitMat3(:, :), tParity, tAllExcitFound, .true.)
+                    call GenExcitations3(nI, iLutnI, nJ, exflag, ExcitMat3(:, :), &
+                        tParity, tAllExcitFound, .true.)
                 end if
 
                 if (tAllExcitFound) exit
@@ -392,14 +396,13 @@ contains
 
                 ! Want a quick test to see if arrays are getting full.
                 if (Doub_ExcList(Proc) > nint(TwoEl_Gap * (Proc + 1))) then
-                    write(6, *) 'Proc', Proc
-                    write(6, *) 'Doub_ExcList', Doub_ExcList
-                    write(6, *) 'No. spaces for each proc', nint(TwoEl_Gap)
+                    write(stdout, *) 'Proc', Proc
+                    write(stdout, *) 'Doub_ExcList', Doub_ExcList
+                    write(stdout, *) 'No. spaces for each proc', nint(TwoEl_Gap)
                     call Stop_All('GenExcDjs', 'Too many excitations for space available.')
                 end if
             end do
         end if
-!         end if
 
     end subroutine GenExcDjs
 
@@ -484,9 +487,9 @@ contains
 
             ! Want a quick test to see if arrays are getting full.
             if (Sing_ExcList(Proc) > nint(OneEl_Gap * (Proc + 1))) then
-                write(6, *) 'Proc', Proc
-                write(6, *) 'Sing_ExcList', Sing_ExcList
-                write(6, *) 'No. spaces for each proc', nint(OneEl_Gap)
+                write(stdout, *) 'Proc', Proc
+                write(stdout, *) 'Sing_ExcList', Sing_ExcList
+                write(stdout, *) 'No. spaces for each proc', nint(OneEl_Gap)
                 call Stop_All('GenExcDjs', 'Too many excitations for space available.')
             end if
         end do
@@ -530,9 +533,9 @@ contains
 
                 ! Want a quick test to see if arrays are getting full.
                 if (Doub_ExcList(Proc) > nint(TwoEl_Gap * (Proc + 1))) then
-                    write(6, *) 'Proc', Proc
-                    write(6, *) 'Doub_ExcList', Doub_ExcList
-                    write(6, *) 'No. spaces for each proc', nint(TwoEl_Gap)
+                    write(stdout, *) 'Proc', Proc
+                    write(stdout, *) 'Doub_ExcList', Doub_ExcList
+                    write(stdout, *) 'No. spaces for each proc', nint(TwoEl_Gap)
                     call Stop_All('GenExcDjs', 'Too many excitations for space available.')
                 end if
             end do
@@ -594,7 +597,7 @@ contains
             sing_recvdisps(i) = sing_recvdisps(i) * (int(NIfTot + 1, MPIArg))
         end do
 
-#ifdef PARALLEL
+#ifdef USE_MPI
         call MPIAlltoAllv(Sing_ExcDjs(:, 1:MaxSendIndex), sendcounts, disps, &
                           Sing_ExcDjs2, sing_recvcounts, sing_recvdisps, error)
 #else
@@ -639,7 +642,7 @@ contains
 
             ! This is the main send of all the single excitations to the
             ! corresponding processors.
-#ifdef PARALLEL
+#ifdef USE_MPI
             call MPIAlltoAllv(Doub_ExcDjs(:, 1:MaxSendIndex), sendcounts, disps, &
                               Doub_ExcDjs2, doub_recvcounts, doub_recvdisps, error)
 #else
@@ -704,7 +707,7 @@ contains
             sing_recvcounts(i) = sing_recvcounts(i) * (int(NIfTot + 1, MPIArg))
             sing_recvdisps(i) = sing_recvdisps(i) * (int(NIfTot + 1, MPIArg))
         end do
-#ifdef PARALLEL
+#ifdef USE_MPI
         call MPIAlltoAllv(Sing_ExcDjs(:, 1:MaxSendIndex), sendcounts, disps, Sing_ExcDjs2, sing_recvcounts, sing_recvdisps, error)
 #else
         Sing_ExcDjs2(0:NIfTot, 1:MaxIndex) = Sing_ExcDjs(0:NIfTot, 1:MaxSendIndex)
@@ -748,7 +751,7 @@ contains
 
             ! This is the main send of all the single excitations to the
             ! corresponding processors.
-#ifdef PARALLEL
+#ifdef USE_MPI
             call MPIAlltoAllv(Doub_ExcDjs(:, 1:MaxSendIndex), sendcounts, disps, &
                               Doub_ExcDjs2, doub_recvcounts, doub_recvdisps, error)
 #else
@@ -919,9 +922,11 @@ contains
                             full_sign = SignDi(1) * SignDj(lenof_sign)
                         end if
 
-                        call add_to_rdm_spawn_t(two_rdm_spawn, Ex(2, 1), Ex(2, 2), Ex(1, 1), Ex(1, 2), full_sign, .false.)
+                        call add_to_rdm_spawn_t(two_rdm_spawn, Ex(2, 1), Ex(2, 2), &
+                            Ex(1, 1), Ex(1, 2), full_sign, .false.)
                         ! Add in symmetric contribution.
-                        call add_to_rdm_spawn_t(two_rdm_spawn, Ex(1, 1), Ex(1, 2), Ex(2, 1), Ex(2, 2), full_sign, .false.)
+                        call add_to_rdm_spawn_t(two_rdm_spawn, Ex(1, 1), Ex(1, 2), &
+                            Ex(2, 1), Ex(2, 2), full_sign, .false.)
                     end if
                 end do
             end if

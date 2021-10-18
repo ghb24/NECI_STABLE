@@ -8,7 +8,7 @@ module spectral_lanczos
     use ftlm_neci, only: subspace_expansion_lanczos, calc_final_hamil_elem
     use Parallel_neci, only: iProcIndex, nProcessors, MPIAllGather, MPISumAll, &
                              MPIBCast, MPIBarrier
-    use ParallelHelper, only: root
+    use MPI_wrapper, only: root
     use sparse_arrays, only: calculate_sparse_ham_par, sparse_ham
     use spectral_data
 
@@ -38,7 +38,7 @@ contains
 
         do i = 1, n_lanc_vecs_sl - 1
             call subspace_expansion_lanczos(i, sl_vecs, full_vec_sl, sl_hamil, ndets_sl, disps_sl)
-            write(6, '(1x,a19,1x,i3)') "Iteration complete:", i
+            write(stdout, '(1x,a19,1x,i3)') "Iteration complete:", i
             call neci_flush(6)
         end do
 
@@ -48,7 +48,7 @@ contains
 
         call subspace_extraction_sl()
 
-        write(6, '(1x,a60,/)') "Spectral Lanczos calculation complete. Outputting results..."
+        write(stdout, '(1x,a60,/)') "Spectral Lanczos calculation complete. Outputting results..."
         call neci_flush(6)
 
         call output_spectrum(n_lanc_vecs_sl, sl_h_eigv, spec_low, spec_high)
@@ -81,13 +81,13 @@ contains
         real(dp) :: real_sign(lenof_sign)
         real(dp) :: norm_pert
 
-        write(6, '(/,1x,a39,/)') "Beginning spectral Lanczos calculation."
+        write(stdout, '(/,1x,a39,/)') "Beginning spectral Lanczos calculation."
         call neci_flush(6)
 
         allocate(ndets_sl(0:nProcessors - 1))
         allocate(disps_sl(0:nProcessors - 1))
 
-        write(6, '(1x,a56)', advance='yes') "Enumerating and storing all determinants in the space..."
+        write(stdout, '(1x,a56)', advance='yes') "Enumerating and storing all determinants in the space..."
         call neci_flush(6)
 
         ! Determine the total number of determinants.
@@ -118,7 +118,7 @@ contains
 
         call sort(sl_ilut_list, ilut_lt, ilut_gt)
 
-        write(6, '(1x,a9)') "Complete."
+        write(stdout, '(1x,a9)') "Complete."
         call neci_flush(6)
 
         mpi_temp = int(ndets_this_proc, MPIArg)
@@ -131,17 +131,17 @@ contains
 
         ndets_tot = int(sum(ndets_sl), sizeof_int)
 
-        write(6, '(1x,a44)', advance='no') "Allocating arrays to hold Lanczos vectors..."
+        write(stdout, '(1x,a44)', advance='no') "Allocating arrays to hold Lanczos vectors..."
         call neci_flush(6)
         allocate(sl_vecs(ndets_this_proc, n_lanc_vecs_sl))
         sl_vecs = 0.0_dp
         allocate(full_vec_sl(ndets_tot))
-        write(6, '(1x,a9)') "Complete."
+        write(stdout, '(1x,a9)') "Complete."
         call neci_flush(6)
 
         allocate(pert_ground_left(ndets_this_proc), stat=ierr)
         if (ierr /= 0) then
-            write(6, '(1x,a11,1x,i5)') "Error code:", ierr
+            write(stdout, '(1x,a11,1x,i5)') "Error code:", ierr
             call stop_all(t_r, "Error allocating array to hold left perturbed ground state components.")
         end if
 
@@ -156,10 +156,10 @@ contains
         trans_amps_left = 0.0_dp
         trans_amps_right = 0.0_dp
 
-        write(6, '(1x,a48)') "Allocating and calculating Hamiltonian matrix..."
+        write(stdout, '(1x,a48)') "Allocating and calculating Hamiltonian matrix..."
         call neci_flush(6)
         call calculate_sparse_ham_par(ndets_sl, sl_ilut_list, .true.)
-        write(6, '(1x,a48,/)') "Hamiltonian allocation and calculation complete."
+        write(stdout, '(1x,a48,/)') "Hamiltonian allocation and calculation complete."
         call neci_flush(6)
 
         call return_perturbed_ground_spec(left_perturb_spectral, sl_ilut_list, pert_ground_left, left_pert_norm)
@@ -353,7 +353,7 @@ contains
         end do
         close(temp_unit)
 
-        write(6, '(1x,a5,18X,a15)') "Omega", "Spectral_weight"
+        write(stdout, '(1x,a5,18X,a15)') "Omega", "Spectral_weight"
 
         ! Do we include the ground state in the spectrum or not?
         if (tIncludeGroundSpectral) then
@@ -379,7 +379,7 @@ contains
                                       (pi * (spectral_broadening**2 + (spectral_ground_energy - eigv(j) + omega)**2))
                 end if
             end do
-            write(6, '(f18.12, 4x, f18.12, 4x, f18.12, 4x, f18.12)') real(real(omega)), &
+            write(stdout, '(f18.12, 4x, f18.12, 4x, f18.12, 4x, f18.12)') real(real(omega)), &
                 real(aimag(omega)), real(real(spectral_weight)), real(aimag(spectral_weight))
             if (tIWSpec) then
                 omega = omega + iU * delta_omega_spectral
@@ -399,12 +399,12 @@ contains
 
         real(dp), intent(in) :: h_sum, spec_low, spec_high
 
-        write(6, '(/,1X,64("="))')
-        write(6, '(1X,"Spectral Lanczos testsuite data:")')
-        write(6, '(1X,"Sum of H elements from the last Lanczos space:",2X,es20.13)') h_sum
-        write(6, '(1X,"Spectral weight at the lowest omega value:",6X,es20.13)') spec_low
-        write(6, '(1X,"Spectral weight at the highest omega value:",5X,es20.13)') spec_high
-        write(6, '(1X,64("="))')
+        write(stdout, '(/,1X,64("="))')
+        write(stdout, '(1X,"Spectral Lanczos testsuite data:")')
+        write(stdout, '(1X,"Sum of H elements from the last Lanczos space:",2X,es20.13)') h_sum
+        write(stdout, '(1X,"Spectral weight at the lowest omega value:",6X,es20.13)') spec_low
+        write(stdout, '(1X,"Spectral weight at the highest omega value:",5X,es20.13)') spec_high
+        write(stdout, '(1X,64("="))')
 
     end subroutine write_spec_lanc_testsuite_data
 
@@ -422,7 +422,7 @@ contains
         deallocate(disps_sl)
         deallocate(sl_ilut_list)
 
-        write(6, '(/,1x,a30,/)') "Exiting Spectral Lanczos code."
+        write(stdout, '(/,1x,a30,/)') "Exiting Spectral Lanczos code."
         call neci_flush(6)
 
     end subroutine end_spectral_lanczos

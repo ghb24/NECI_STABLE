@@ -7,14 +7,14 @@ module cc_amplitudes
     use FciMCData, only: totwalkers, ilutref, currentdets, AllNoatHf, projedet, &
                          HashIndex, CurrentDets, ll_node
     use bit_reps, only: extract_sign
-    use constants, only: dp, lenof_sign, EPS, n_int, bits_n_int
+    use constants, only: dp, lenof_sign, EPS, n_int, bits_n_int, stdout
     use bit_reps, only: niftot, nifd, decode_bit_det
     use replica_data, only: AllEXLEVEL_WNorm
     use back_spawn, only: setup_virtual_mask, mask_virt_ni
     use hash, only: hash_table_lookup, FindWalkerHash
-    use util_mod, only: swap
+    use util_mod, only: swap, binomial => choose, operator(.div.)
     use bit_rep_data, only: nifd
-    use ParallelHelper, only: iProcIndex, root
+    use MPI_wrapper, only: iProcIndex, root
     use Parallel_neci, only: MPISumAll, MPIReduce, MPI_SUM, MPI_LOR, MPIAllLorLogical
 
     implicit none
@@ -521,23 +521,6 @@ contains
         end if
 
     end function get_amp_ind
-
-    function get_amp_ex(this, elec_ind, orb_ind) result(ind)
-        class(cc_amplitude) :: this
-        integer, intent(in) :: elec_ind(this%order), orb_ind(this%order)
-        real(dp) :: amp
-
-        integer :: ind
-
-        ind = this%get_ind(elec_ind, orb_ind)
-
-        if (ind == 0) then
-            amp = 0.0_dp
-        else
-            amp = this%amplitudes(ind)
-        end if
-
-    end function get_amp_ex
 
     subroutine setup_ind_matrix_singles()
         character(*), parameter :: this_routine = "setup_ind_matrix_singles"
@@ -1996,111 +1979,6 @@ contains
 
     end function get_ind
 
-    subroutine dongxia_amplitudes
-
-! dongxia test
-        integer :: IC, idet, ierr, Nvirt, ind, idi, idj, idk, ida, idb, idc
-        integer :: Ex(2, 3)
-        real(dp), allocatable :: C1(:), C2(:)
-        real(dp), allocatable :: T1(:), T2(:)
-        real(dp) :: sign_tmp(lenof_sign), C3, T3
-
-        Ex = 0
-
-! Dongxia 1.8.2017
-! to obtain CC amplitudes from walker numbers
-        Nvirt = Nbasis - Nel
-        allocate(C1(Nvirt * nel), stat=ierr)
-        c1 = 0.0_dp
-        allocate(C2(Nvirt * (Nvirt + 1) * nel * (nel + 1) / 4), stat=ierr)
-        c2 = 0.0_dp
-        allocate(T1(Nvirt * nel), stat=ierr)
-        t1 = 0.0_dp
-        allocate(T2(Nvirt * (Nvirt + 1) * nel * (nel + 1) / 4), stat=ierr)
-        t2 = 0.0_dp
-        write(6, *) 'dongxia testing C1 and T1'
-! look for C1 and obtain T1
-        do idet = 1, int(totwalkers)
-            IC = 4
-            call get_bit_excitmat(iLutRef, CurrentDets(:, idet), ex, IC)
-            if (IC == 1) then
-                call extract_sign(CurrentDets(:, idet), sign_tmp)
-                idi = Ex(1, 1)
-                ida = Ex(2, 1) - Nel
-                ind = ind1(idi, ida)
-                C1(ind) = sign_tmp(1) / AllNoatHf(1)
-                T1(ind) = C1(ind)
-                if (abs(c1(ind)) > 1.0d-3) &
-                    write(6, '(3I5,F20.12)') ex(1, 1), ex(2, 1), ind, C1(ind)
-            end if
-        end do
-! look for C2, and obtain T2
-        write(6, *) 'dongxia testing double excitations'
-        do idet = 1, int(totwalkers)
-            IC = 4
-            call get_bit_excitmat(iLutRef, CurrentDets(:, idet), ex, IC)
-            if (IC == 2) then
-                call extract_sign(CurrentDets(:, idet), sign_tmp)
-                idi = Ex(1, 1)
-                ida = Ex(2, 1) - Nel
-                idj = Ex(1, 2)
-                idb = Ex(2, 2) - Nel
-                ind = ind2(idi, idj, ida, idb)
-                C2(ind) = sign_tmp(1) / AllNoatHF(1)
-                T2(ind) = C2(ind) + T1(ind1(idj, ida)) * T1(ind1(idi, idb)) &
-                          - T1(ind1(idi, ida)) * T1(ind1(idj, idb))
-                if (abs(c2(ind)) > 1.0d-3) &
-                    write(6, '(4I10,2F20.12)') idi, idj, ida, idb, C2(ind), T2(ind)
-            end if
-        end do
-! look for C3, and compare it with T3 (from T1^3, T1T2)
-        write(6, *) 'dongxia testing triple excitations'
-        do idet = 1, int(totwalkers)
-            IC = 4
-            call get_bit_excitmat(iLutRef, CurrentDets(:, idet), ex, IC)
-            if (IC == 3) then
-                c3 = 0.0_dp
-                t3 = 0.0_dp
-                call extract_sign(CurrentDets(:, idet), sign_tmp)
-                idi = Ex(1, 1)
-                idj = Ex(1, 2)
-                idk = Ex(1, 3)
-                ida = Ex(2, 1) - Nel
-                idb = Ex(2, 2) - Nel
-                idc = Ex(2, 3) - Nel
-                C3 = sign_tmp(1) / AllNoatHF(1)
-! calculate t3 (by t1^3, t1^t2 and t2^t1)
-! contribution from t1^3/6.
-                t3 = t3 &
-                     + t1(ind1(idi, ida)) * t1(ind1(idj, idb)) * t1(ind1(idk, idc)) &
-                     + t1(ind1(idi, idb)) * t1(ind1(idj, idc)) * t1(ind1(idk, ida)) &
-                     + t1(ind1(idi, idc)) * t1(ind1(idj, ida)) * t1(ind1(idk, idb)) &
-                     - t1(ind1(idi, ida)) * t1(ind1(idj, idc)) * t1(ind1(idk, idb)) &
-                     - t1(ind1(idi, idc)) * t1(ind1(idj, idb)) * t1(ind1(idk, ida)) &
-                     - t1(ind1(idi, idb)) * t1(ind1(idj, ida)) * t1(ind1(idk, idc))
-! contribution from t1^t2 (and t2^t1, which is the same)
-                t3 = t3 &
-                     + t1(ind1(idi, ida)) * t2(ind2(idj, idk, idb, idc)) &
-                     - t1(ind1(idi, idb)) * t2(ind2(idj, idk, ida, idc)) &
-                     + t1(ind1(idi, idc)) * t2(ind2(idj, idk, ida, idb)) &
-                     - t1(ind1(idj, ida)) * t2(ind2(idi, idk, idb, idc)) &
-                     + t1(ind1(idj, idb)) * t2(ind2(idi, idk, ida, idc)) &
-                     - t1(ind1(idj, idc)) * t2(ind2(idi, idk, ida, idb)) &
-                     + t1(ind1(idk, ida)) * t2(ind2(idi, idj, idb, idc)) &
-                     - t1(ind1(idk, idb)) * t2(ind2(idi, idj, ida, idc)) &
-                     + t1(ind1(idk, idc)) * t2(ind2(idi, idj, ida, idb))
-
-                if (abs(c3) + abs(t3) > 1.0d-3) &
-                    write(6, '(3I5,4X,3I5,3F20.12)') idi, idj, idk, ida, idb, idc, c3, t3, t3 / c3 - 1
-            end if
-        end do
-
-        deallocate(T2, stat=ierr)
-        deallocate(T1, stat=ierr)
-        deallocate(C2, stat=ierr)
-        deallocate(C1, stat=ierr)
-! end
-    end subroutine dongxia_amplitudes
 
     pure integer function ind1(i, a)
 
@@ -2182,21 +2060,6 @@ contains
 
     end function calc_number_of_excitations
 
-    function calc_n_single_excits(n_elecs, n_orbs) result(n_single_excits)
-        ! this calculates the number of possible single excitations for a
-        ! given spin species of electrons and the number of spatial orbitals!
-        integer, intent(in) :: n_elecs, n_orbs
-        integer :: n_single_excits
-
-        ! it is the number of electrons which can be excited and the number
-        ! of available orbitals for this spin!
-!         n_single_excits = n_elecs * (n_orbs - n_elecs)
-
-        ! with binomial it is just:
-        n_single_excits = binomial(n_elecs, 1) * binomial(n_orbs - n_elecs, 1)
-
-    end function calc_n_single_excits
-
     function calc_n_parallel_excitations(n_elecs, n_orbs, ic) result(n_parallel)
         ! this function determines the number of parallel spin excitaiton
         ! with each electrons having the same spin for a given excitation
@@ -2204,27 +2067,7 @@ contains
         integer, intent(in) :: n_elecs, n_orbs, ic
         integer :: n_parallel
 
-        n_parallel = binomial(n_elecs, ic) * binomial(n_orbs - n_elecs, ic)
+        n_parallel = int(binomial(n_elecs, ic) * binomial(n_orbs - n_elecs, ic))
 
     end function calc_n_parallel_excitations
-
-    integer function binomial(n, k)
-        ! write a new binomial function using the fortran2008 standard
-        ! gamma function
-        integer, intent(in) :: n, k
-#ifdef DEBUG_
-        character(*), parameter :: this_routine = "binomial"
-#endif
-
-        ASSERT(n >= 0)
-        ASSERT(k >= 0)
-
-        if (k > n) then
-            binomial = 0
-        else
-            binomial = nint(gamma(real(n) + 1) / (gamma(real(n - k) + 1) * gamma(real(k) + 1)))
-        end if
-
-    end function binomial
-
 end module cc_amplitudes

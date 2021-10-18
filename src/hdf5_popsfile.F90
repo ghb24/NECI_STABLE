@@ -68,12 +68,12 @@ module hdf5_popsfile
     !     /ilut/             - The bit representations of the determinants
     !     /sgns/             - The occupation of the determinants
 
-    use ParallelHelper
+    use MPI_wrapper
     use Parallel_neci
     use constants
     use hdf5_util
     use util_mod
-    use CalcData, only: tAutoAdaptiveShift, tScaleBlooms
+    use CalcData, only: tAutoAdaptiveShift, tScaleBlooms, tSpecifiedTau, pSinglesIn, pDoublesIn
     use LoggingData, only: tPopAutoAdaptiveShift, tPopScaleBlooms, tAccumPops, tAccumPopsActive, &
                            iAccumPopsIter, iAccumPopsCounter, tReduceHDF5Pops, &
                            HDF5PopsMin, iHDF5PopsMinEx, tPopAccumPops
@@ -191,13 +191,13 @@ contains
 
         call MPIBCast(filename)
 
-        write(6, *)
+        write(stdout, *)
         if (present(MaxEx)) then
-            write(6, *) "========= Writing Truncated HDF5 popsfile ========="
+            write(stdout, *) "========= Writing Truncated HDF5 popsfile ========="
         else
-            write(6, *) "============== Writing HDF5 popsfile =============="
+            write(stdout, *) "============== Writing HDF5 popsfile =============="
         end if
-        write(6, *) "File name: ", trim(filename)
+        write(stdout, *) "File name: ", trim(filename)
 
         ! Initialise the hdf5 fortran interface
         call h5open_f(err)
@@ -212,22 +212,22 @@ contains
         call h5fcreate_f(filename, H5F_ACC_TRUNC_F, file_id, err, &
                          access_prp=plist_id)
         call h5pclose_f(plist_id, err)
-        write(6, *) "writing metadata"
+        write(stdout, *) "writing metadata"
         call write_metadata(file_id)
-        write(6, *) "writing calc_data"
+        write(stdout, *) "writing calc_data"
         call write_calc_data(file_id)
 
         call MPIBarrier(mpi_err)
 
         if (present(MaxEx)) then
-            write(6, *) "writing walkers up to excitation level: ", MaxExStr
+            write(stdout, *) "writing walkers up to excitation level: ", MaxExStr
         else
-            write(6, *) "writing walkers"
+            write(stdout, *) "writing walkers"
         end if
         call write_walkers(file_id, MaxEx)
 
         call MPIBarrier(mpi_err)
-        write(6, *) "closing popsfile"
+        write(stdout, *) "closing popsfile"
         ! And we are done!
         call h5fclose_f(file_id, err)
         call h5close_f(err)
@@ -235,7 +235,7 @@ contains
         call h5garbage_collect_f(err)
 
         call MPIBarrier(mpi_err)
-        write(6, *) "popsfile write successful"
+        write(stdout, *) "popsfile write successful"
 
 #else
         call stop_all(t_r, 'HDF5 support not enabled at compile time')
@@ -270,9 +270,9 @@ contains
                                      iPopsFileNoRead, filename, ext='.h5')
         call MPIBcast(filename)
 
-        write(6, *)
-        write(6, *) "========== Reading in from HDF5 popsfile =========="
-        write(6, *) 'File name: ', trim(filename)
+        write(stdout, *)
+        write(stdout, *) "========== Reading in from HDF5 popsfile =========="
+        write(stdout, *) 'File name: ', trim(filename)
 
         ! Initialise the hdf5 fortran interface
         call h5open_f(err)
@@ -354,25 +354,25 @@ contains
         logical :: exists
         character(100) :: str_buf
 
-        write(6, *) 'Previous calculation'
+        write(stdout, *) 'Previous calculation'
 
         call read_string_attribute(parent, nm_date, str_buf, exists)
-        if (exists) write(6, *) 'Date: ', trim(str_buf)
+        if (exists) write(stdout, *) 'Date: ', trim(str_buf)
         call read_int32_attribute(parent, nm_seq_no, calc_seq_no, &
                                   default=1_int32)
-        write(6, *) 'Sequence no.:', calc_seq_no
+        write(stdout, *) 'Sequence no.:', calc_seq_no
 
         ! Output nice details for usability
         call read_string_attribute(parent, nm_vcs_ver, str_buf, exists)
-        if (exists) write(6, *) 'VCS ver: ', trim(str_buf)
+        if (exists) write(stdout, *) 'VCS ver: ', trim(str_buf)
         call read_string_attribute(parent, nm_comp_config, str_buf, exists)
-        if (exists) write(6, *) 'Build config: ', trim(str_buf)
+        if (exists) write(stdout, *) 'Build config: ', trim(str_buf)
         call read_string_attribute(parent, nm_comp_status, str_buf, exists)
-        if (exists) write(6, *) 'Build status: ', trim(str_buf)
+        if (exists) write(stdout, *) 'Build status: ', trim(str_buf)
         call read_string_attribute(parent, nm_comp_date, str_buf, exists)
-        if (exists) write(6, *) 'Build date: ', trim(str_buf)
+        if (exists) write(stdout, *) 'Build date: ', trim(str_buf)
         call read_string_attribute(parent, nm_comp_time, str_buf, exists)
-        if (exists) write(6, *) 'Build time: ', trim(str_buf)
+        if (exists) write(stdout, *) 'Build time: ', trim(str_buf)
 
         ! Update values for the new calculation
         calc_seq_no = calc_seq_no + 1
@@ -549,12 +549,12 @@ contains
         call read_int64_scalar(grp_id, nm_iters, PreviousCycles, &
                                default=0_int64, exists=exists)
         if (exists) &
-            write(6, *) 'Completed iterations: ', PreviousCycles
+            write(stdout, *) 'Completed iterations: ', PreviousCycles
 
         call read_dp_scalar(grp_id, nm_tot_imag, TotImagTime, default=0.0_dp, &
                             exists=exists)
         if (exists) &
-            write(6, *) 'Resuming calculation after ', TotImagTime, ' a.u.'
+            write(stdout, *) 'Resuming calculation after ', TotImagTime, ' a.u.'
 
         ! Read in the diagsft. Note that it uses the absolute value (to be
         ! independent of choice of reference), so we must subtract out the
@@ -564,7 +564,7 @@ contains
             call read_dp_1d_dataset(grp_id, nm_shift, DiagSft, required=.true.)
             DiagSft = DiagSft - Hii
             tSinglePartPhase = (abs(DiagSft(1)) < 1.0e-6)
-            write(6, *) 'Initial shift: ', DiagSft
+            write(stdout, *) 'Initial shift: ', DiagSft
         else
             tSinglePartPhase = .true.
 
@@ -585,22 +585,18 @@ contains
         ! not use the read-in tau, but the one specified in the input!
         ! except the hist_tau was used the we want to use the
         ! one in the popsfile all the time
-!         if (tSearchTauOption) then
         call read_tau_opt(grp_id)
-!         else
-!             write(6,*) 'Skipping tau optimisation data as tau optimisation is &
-!                        &disabled'
-!         end if
+
         ! and also output some info:
-        write(6, *) "read-in tau optimization data: "
-        write(6, *) "time-step: ", tau
-        write(6, *) "pSingles: ", pSingles
-        write(6, *) "pDoubles: ", pDoubles
-        write(6, *) "pParallel: ", pParallel
+        write(stdout, *) "read-in tau optimization data: "
+        write(stdout, *) "time-step: ", tau
+        write(stdout, *) "pSingles: ", pSingles
+        write(stdout, *) "pDoubles: ", pDoubles
+        write(stdout, *) "pParallel: ", pParallel
         if (tSearchTau .or. t_hist_tau_search) then
-            write(6, *) "continuing tau-search!"
+            write(stdout, *) "continuing tau-search!"
         else
-            write(6, *) "Do not continue tau-search!"
+            write(stdout, *) "Do not continue tau-search!"
         end if
 
         call read_accumulator_data(grp_id)
@@ -656,8 +652,12 @@ contains
         call read_int64_scalar(grp_id, nm_cnt_opp, cnt_opp)
         call read_int64_scalar(grp_id, nm_cnt_par, cnt_par)
 
-        call read_dp_scalar(grp_id, nm_psingles, psingles)
-        call read_dp_scalar(grp_id, nm_pdoubles, pdoubles)
+        if (allocated(pSinglesIn) .or. allocated(pDoublesIn)) then
+            write(stdout,*) "pSingles or pDoubles specified in input file, which take precedence"
+        else
+            call read_dp_scalar(grp_id, nm_psingles, psingles)
+            call read_dp_scalar(grp_id, nm_pdoubles, pdoubles)
+        end if
         call read_dp_scalar(grp_id, nm_ptriples, ptriples, exists=tReadPTriples, default=0.1_dp, &
                             required=.false.)
         call read_dp_scalar(grp_id, nm_pparallel, pparallel, exists=ppar_set)
@@ -670,35 +670,39 @@ contains
 
         call h5gclose_f(grp_id, err)
 
-        if (tSearchTauOption .and. tau_set) then
-            tau = temp_tau
-        end if
+        if (tSpecifiedTau) then
+            write(stdout, *) "time-step specified in input, which takes precedence!"
+        else
+            if (tSearchTauOption .and. tau_set) then
+                tau = temp_tau
+            end if
 
-        ! also set if previous hist-tau
-        if (hist_tau) then
-            tau = temp_tau
-            ! and turn off if i dont want to force restart!
-            if (.not. t_restart_hist_tau) then
-                t_previous_hist_tau = temp_previous
+            ! also set if previous hist-tau
+            if (hist_tau .and. tau_set) then
+                tau = temp_tau
+                ! and turn off if i dont want to force restart!
+                if (.not. t_restart_hist_tau) then
+                    t_previous_hist_tau = temp_previous
 
-                if (t_previous_hist_tau) then
-                    tSearchTau = .false.
-                    tSearchTauOption = .false.
+                    if (t_previous_hist_tau) then
+                        tSearchTau = .false.
+                        tSearchTauOption = .false.
 
-                    if (t_hist_tau_search) then
-                        call deallocate_histograms()
-                        t_hist_tau_search = .false.
-                        t_fill_frequency_hists = .false.
+                        if (t_hist_tau_search) then
+                            call deallocate_histograms()
+                            t_hist_tau_search = .false.
+                            t_fill_frequency_hists = .false.
 
-                        t_hist_tau_search_option = .true.
-                        t_print_frq_histograms = .false.
+                            t_hist_tau_search_option = .true.
+                            t_print_frq_histograms = .false.
+                        end if
                     end if
                 end if
             end if
         end if
 
         ! if tau is 0, because no input provided, use the one here too
-        if (tau < EPS .and. (.not. temp_tau < EPS)) then
+        if (near_zero(tau) .and. (.not. near_zero(temp_tau))) then
             tau = temp_tau
         end if
 
@@ -739,7 +743,6 @@ contains
 
     subroutine write_walkers(parent, MaxEx)
 
-        use iso_c_hack
         use bit_rep_data, only: NIfD, NIfTot, IlutBits, extract_sign
         use FciMCData, only: AllTotWalkers, CurrentDets, MaxWalkersPart, &
                              TotWalkers, iLutHF, Iter, PreviousCycles
@@ -884,7 +887,7 @@ contains
         !complicated hyperslabs + collective buffering
         ! Write out the determinant bit-representations
         call write_2d_multi_arr_chunk_buff( &
-            wfn_grp_id, nm_ilut, H5T_NATIVE_INTEGER_8, &
+            wfn_grp_id, nm_ilut, h5kind_to_type(int64, H5_INTEGER_KIND), &
             PrintedDets, &
             [int(nifd + 1, hsize_t), int(printed_count, hsize_t)], & ! dims
             [0_hsize_t, 0_hsize_t], & ! offset
@@ -893,7 +896,7 @@ contains
             )
 
         call write_2d_multi_arr_chunk_buff( &
-            wfn_grp_id, nm_sgns, H5T_NATIVE_REAL_8, &
+            wfn_grp_id, nm_sgns, h5kind_to_type(dp, H5_REAL_KIND), &
             PrintedDets, &
             [int(lenof_sign, hsize_t), int(printed_count, hsize_t)], & ! dims
             [int(IlutBits%ind_pop, hsize_t), 0_hsize_t], & ! offset
@@ -905,7 +908,7 @@ contains
 
         if (gdata_size > 0) then
             call write_2d_multi_arr_chunk_buff( &
-                wfn_grp_id, nm_gdata, H5T_NATIVE_REAL_8, gdata_buf, &
+                wfn_grp_id, nm_gdata, h5kind_to_type(dp, H5_REAL_KIND), gdata_buf, &
                 [int(gdata_size, hsize_t), int(printed_count, hsize_t)], & ! dims
                 [0_hsize_t, 0_hsize_t], &
                 [int(gdata_size, hsize_t), all_count], &
@@ -1036,14 +1039,14 @@ contains
             call resize_attribute(pops_norm_sqr, lenof_sign)
             call resize_attribute(pops_num_parts, lenof_sign)
             ! notify
-            write(6, *) "WARNING: Popsfile and input lenof_sign mismatch. Cloning replicas"
+            write(stdout, *) "WARNING: Popsfile and input lenof_sign mismatch. Cloning replicas"
 #else
             call stop_all(t_r, "Mismatched sign length")
 #endif
         end if
 
-        write(6, *)
-        write(6, *) 'Reading in ', all_count, ' determinants'
+        write(stdout, *)
+        write(stdout, *) 'Reading in ', all_count, ' determinants'
 
         ! How many particles should each processor read in (try and distribute
         ! this as uniformly as possible. Also calculate the associated data
@@ -1059,7 +1062,7 @@ contains
             offsets(proc) = offsets(proc - 1) + counts(proc - 1)
         end do
 
-        write(6, *) 'Reading in ', counts(iProcIndex), &
+        write(stdout, *) 'Reading in ', counts(iProcIndex), &
             ' determinants on this process ...'
 
         ! TODO: Split this up into more manageable chunks!
@@ -1088,10 +1091,10 @@ contains
                 tAccumPopsActive = .true.
                 call read_int64_scalar(grp_id, nm_accum_counter, iAccumPopsCounter, &
                                        default=0_int64, required=.false.)
-                write(6, *) "Accumulated populations are found. Accumulation will continue."
+                write(stdout, *) "Accumulated populations are found. Accumulation will continue."
             else
-                write(6, *) "Accumulated populations are found, but will be discarded."
-                write(6, *) "Accumulation will restart at iteration: ", iAccumPopsIter
+                write(stdout, *) "Accumulated populations are found, but will be discarded."
+                write(stdout, *) "Accumulation will restart at iteration: ", iAccumPopsIter
             end if
         end if
 
@@ -1247,8 +1250,8 @@ contains
         deallocate(pops_num_parts)
         deallocate(pops_norm_sqr)
 
-        write(6, *) "... done"
-        write(6, *)
+        write(stdout, *) "... done"
+        write(stdout, *)
 
     end subroutine read_walkers
 
@@ -1277,13 +1280,13 @@ contains
 #ifdef INT64_
 
         call read_2d_multi_chunk( &
-            ds_ilut, temp_ilut, H5T_NATIVE_INTEGER_8, &
+            ds_ilut, temp_ilut, h5kind_to_type(int64, H5_INTEGER_KIND), &
             [int(bit_rep_width, hsize_t), block_size], &
             [0_hsize_t, block_start], &
             [0_hsize_t, 0_hsize_t])
 
         call read_2d_multi_chunk( &
-            ds_sgns, temp_sgns, H5T_NATIVE_REAL_8, &
+            ds_sgns, temp_sgns, h5kind_to_type(dp, H5_REAL_KIND), &
             [int(tmp_lenof_sign, hsize_t), block_size], &
             [0_hsize_t, block_start], &
             [0_hsize_t, 0_hsize_t])
@@ -1291,7 +1294,7 @@ contains
         gdata_size = size(gdata_buf, dim=1)
         if (gdata_size > 0) then
             call read_2d_multi_chunk( &
-                ds_gdata, gdata_buf, H5T_NATIVE_REAL_8, &
+                ds_gdata, gdata_buf, h5kind_to_type(dp, H5_REAL_KIND), &
                 [int(gdata_size, hsize_t), block_size], &
                 [0_hsize_t, block_start], &
                 [0_hsize_t, 0_hsize_t])
@@ -1399,275 +1402,275 @@ contains
 #ifdef localfirst
             if (p == iProcIndex) then
 #else
-                if (.false.) then
+            if (.false.) then
 #endif
-                    !elements that don't have to be communicated are written to SpawnedParts2
-                    do j = 1, int(block_size)
-                        if (targetproc(j) == p) then
-                            onepart(0:sizeilut - 1) = temp_ilut(:, j)
-                            onepart(sizeilut:sizeilut + int(lenof_sign) - 1) = temp_sgns(:, j)
-                            SpawnedParts2(:, index2) = onepart
-                            if (t_read_gdata) &
-                                gdata_loc(:, index2) = gdata_buf(:, j)
-                            index2 = index2 + 1
-                        end if
-                    end do
-                else
-                    !elements that have to be sent to other procs are written to SpawnedParts
-                    do j = 1, int(block_size)
-                        if (targetproc(j) == p) then
-                            onepart(0:sizeilut - 1) = temp_ilut(:, j)
-                            onepart(sizeilut:sizeilut + int(lenof_sign) - 1) = temp_sgns(:, j)
-                            SpawnedParts(:, index) = onepart
-                            if (t_read_gdata) &
-                                gdata_comm(:, index) = gdata_buf(:, j)
-                            index = index + 1
-                        end if
-                    end do
-                end if
+                !elements that don't have to be communicated are written to SpawnedParts2
+                do j = 1, int(block_size)
+                    if (targetproc(j) == p) then
+                        onepart(0:sizeilut - 1) = temp_ilut(:, j)
+                        onepart(sizeilut:sizeilut + int(lenof_sign) - 1) = temp_sgns(:, j)
+                        SpawnedParts2(:, index2) = onepart
+                        if (t_read_gdata) &
+                            gdata_loc(:, index2) = gdata_buf(:, j)
+                        index2 = index2 + 1
+                    end if
                 end do
-
-                end subroutine assign_dets_to_procs_buff
-
-                function communicate_read_walkers_buff(sendcounts, gdata_comm, &
-                                                       gdata_loc) result(num_received)
-                    integer(MPIArg), intent(in) :: sendcounts(0:nProcessors - 1)
-                    integer(hsize_t), intent(inout) :: gdata_comm(:, :)
-                    integer(hsize_t), allocatable, intent(inout) :: gdata_loc(:, :)
-                    integer :: num_received
-                    integer(int64) :: lnum_received
-
-                    integer(MPIArg) :: recvcounts(0:nProcessors - 1), recvcountsScaled(0:nProcessors - 1)
-                    integer(MPIArg) :: disps(0:nProcessors - 1), recvdisps(0:nProcessors - 1)
-                    integer(MPIArg) :: dispsScaled(0:nProcessors - 1), recvdispsScaled(0:nProcessors - 1)
-                    integer(MPIArg) :: sendcountsScaled(0:nProcessors - 1)
-                    integer :: j, ierr, gdata_size
-
-                    !offsets for data to the different procs
-                    disps(0) = 0
-                    do j = 1, nProcessors - 1
-                        disps(j) = disps(j - 1) + sendcounts(j - 1)
-                    end do
-
-                    ! Communicate the number of particles that need to go to each proc
-                    call MPIAllToAll(sendcounts, 1, recvcounts, 1, ierr)
-
-                    ! We want the data to be contiguous after the move. So calculate the
-                    ! offsets
-                    recvdisps(0) = 0
-                    do j = 1, nProcessors - 1
-                        recvdisps(j) = recvdisps(j - 1) + recvcounts(j - 1)
-                    end do
-                    num_received = recvdisps(nProcessors - 1) + recvcounts(nProcessors - 1)
-                    lnum_received = recvdisps(nProcessors - 1) + recvcounts(nProcessors - 1)
-                    gdata_size = size(gdata_loc, 1)
-                    ! Adjust offsets so that they match the size of the array
-                    call scaleCounts(size(SpawnedParts, 1))
-
-                    if (num_received > size(SpawnedParts2, 2)) then
-                        ! there could in principle be a memory problem because we are not limiting the
-                        ! size of receivebuff.
-                        write(6, *) 'Allocating additional buffer for communication on Processor ', iProcIndex, 'with ', &
-                            num_received * size(SpawnedParts, 1) * sizeof(SpawnedParts(1, 1)) / 1000000, 'MB'
-                        allocate(receivebuff(size(SpawnedParts, 1), num_received))
-                        call LogMemAlloc('receivebuff', size(receivebuff), int(sizeof(receivebuff(1, 1))), &
-                                         'communicate_read_walkers', receivebuff_tag, ierr)
-                        call MPIAllToAllV(SpawnedParts, sendcountsScaled, dispsScaled, receivebuff, &
-                                          recvcountsScaled, recvdispsScaled, ierr)
-
-                        ! gdata communication for auto-adaptive shift mode
-                        if (gdata_size > 0) then
-                            if (allocated(gdata_loc)) deallocate(gdata_loc)
-                            allocate(gdata_loc(gdata_size, num_received))
-                        end if
-                    else
-                        call MPIAllToAllV(SpawnedParts, sendcountsScaled, dispsScaled, SpawnedParts2, &
-                                          recvcountsScaled, recvdispsScaled, ierr)
+            else
+                !elements that have to be sent to other procs are written to SpawnedParts
+                do j = 1, int(block_size)
+                    if (targetproc(j) == p) then
+                        onepart(0:sizeilut - 1) = temp_ilut(:, j)
+                        onepart(sizeilut:sizeilut + int(lenof_sign) - 1) = temp_sgns(:, j)
+                        SpawnedParts(:, index) = onepart
+                        if (t_read_gdata) &
+                            gdata_comm(:, index) = gdata_buf(:, j)
+                        index = index + 1
                     end if
+                end do
+            end if
+        end do
 
-                    call scaleCounts(gdata_size)
+    end subroutine assign_dets_to_procs_buff
 
-                    if (gdata_size > 0) then
-                        call MPIAllToAllV(gdata_comm, sendcountsScaled, dispsScaled, gdata_loc, &
-                                          recvcountsScaled, recvdispsScaled, ierr)
-                    end if
+    function communicate_read_walkers_buff(sendcounts, gdata_comm, &
+                                           gdata_loc) result(num_received)
+        integer(MPIArg), intent(in) :: sendcounts(0:nProcessors - 1)
+        integer(hsize_t), intent(inout) :: gdata_comm(:, :)
+        integer(hsize_t), allocatable, intent(inout) :: gdata_loc(:, :)
+        integer :: num_received
+        integer(int64) :: lnum_received
 
-                contains
+        integer(MPIArg) :: recvcounts(0:nProcessors - 1), recvcountsScaled(0:nProcessors - 1)
+        integer(MPIArg) :: disps(0:nProcessors - 1), recvdisps(0:nProcessors - 1)
+        integer(MPIArg) :: dispsScaled(0:nProcessors - 1), recvdispsScaled(0:nProcessors - 1)
+        integer(MPIArg) :: sendcountsScaled(0:nProcessors - 1)
+        integer :: j, ierr, gdata_size
 
-                    subroutine scaleCounts(argSize)
-                        implicit none
-                        integer, intent(in) :: argSize
+        !offsets for data to the different procs
+        disps(0) = 0
+        do j = 1, nProcessors - 1
+            disps(j) = disps(j - 1) + sendcounts(j - 1)
+        end do
 
-                        recvcountsScaled = recvcounts * argSize
-                        recvdispsScaled = recvdisps * argSize
-                        sendcountsScaled = sendcounts * argSize
-                        dispsScaled = disps * argSize
-                    end subroutine scaleCounts
-                end function communicate_read_walkers_buff
+        ! Communicate the number of particles that need to go to each proc
+        call MPIAllToAll(sendcounts, 1, recvcounts, 1, ierr)
 
-                subroutine add_new_parts(dets, nreceived, CurrWalkers, norm, parts, &
-                                         gdata_write, gdata_read_handler)
-                    use CalcData, only: iWeightPopRead
-                    use bit_reps, only: extract_sign
+        ! We want the data to be contiguous after the move. So calculate the
+        ! offsets
+        recvdisps(0) = 0
+        do j = 1, nProcessors - 1
+            recvdisps(j) = recvdisps(j - 1) + recvcounts(j - 1)
+        end do
+        num_received = recvdisps(nProcessors - 1) + recvcounts(nProcessors - 1)
+        lnum_received = recvdisps(nProcessors - 1) + recvcounts(nProcessors - 1)
+        gdata_size = size(gdata_loc, 1)
+        ! Adjust offsets so that they match the size of the array
+        call scaleCounts(size(SpawnedParts, 1))
 
-                    ! Integrate the just-read block of walkers into the main list.
+        if (num_received > size(SpawnedParts2, 2)) then
+            ! there could in principle be a memory problem because we are not limiting the
+            ! size of receivebuff.
+            write(stdout, *) 'Allocating additional buffer for communication on Processor ', iProcIndex, 'with ', &
+                num_received * size(SpawnedParts, 1) * sizeof(SpawnedParts(1, 1)) / 1000000, 'MB'
+            allocate(receivebuff(size(SpawnedParts, 1), num_received))
+            call LogMemAlloc('receivebuff', size(receivebuff), int(sizeof(receivebuff(1, 1))), &
+                             'communicate_read_walkers', receivebuff_tag, ierr)
+            call MPIAllToAllV(SpawnedParts, sendcountsScaled, dispsScaled, receivebuff, &
+                              recvcountsScaled, recvdispsScaled, ierr)
 
-                    integer(n_int), intent(inout) :: dets(:, :)
-                    integer(hsize_t), intent(in) :: gdata_write(:, :)
-                    integer, intent(in) :: nreceived
+            ! gdata communication for auto-adaptive shift mode
+            if (gdata_size > 0) then
+                if (allocated(gdata_loc)) deallocate(gdata_loc)
+                allocate(gdata_loc(gdata_size, num_received))
+            end if
+        else
+            call MPIAllToAllV(SpawnedParts, sendcountsScaled, dispsScaled, SpawnedParts2, &
+                              recvcountsScaled, recvdispsScaled, ierr)
+        end if
 
-                    integer(int64), intent(inout) :: CurrWalkers
-                    real(dp), intent(inout) :: norm(lenof_sign), parts(lenof_sign)
-                    type(gdata_io_t), intent(in) :: gdata_read_handler
+        call scaleCounts(gdata_size)
 
-                    integer(int64) :: j
-                    real(dp) :: sgn(lenof_sign)
+        if (gdata_size > 0) then
+            call MPIAllToAllV(gdata_comm, sendcountsScaled, dispsScaled, gdata_loc, &
+                              recvcountsScaled, recvdispsScaled, ierr)
+        end if
 
-                    ! TODO: inum_runs == 2, PopNIfSgn == 1
-                    if (allocated(receivebuff)) then
+    contains
 
-                        do j = 1, nreceived
+        subroutine scaleCounts(argSize)
+            implicit none
+            integer, intent(in) :: argSize
 
-                            ! Check that the site is occupied, and passes the relevant
-                            ! thresholds before adding it to the system.
-                            ! However, when reading accumlated populations (APVals), we want
-                            ! to add even unoccupied sites who has accumlated values
-                            call extract_sign(receivebuff(:, j), sgn)
-                            if ((any(abs(sgn) >= iWeightPopRead) .and. .not. IsUnoccDet(sgn)) .or. &
-                                tAccumPopsActive) then
+            recvcountsScaled = recvcounts * argSize
+            recvdispsScaled = recvdisps * argSize
+            sendcountsScaled = sendcounts * argSize
+            dispsScaled = disps * argSize
+        end subroutine scaleCounts
+    end function communicate_read_walkers_buff
 
-                                ! Add this site to the main list
-                                CurrWalkers = CurrWalkers + 1
-                                dets(:, CurrWalkers) = receivebuff(:, j)
-                                call add_pops_norm_contrib(dets(:, CurrWalkers))
-                                call extract_sign(receivebuff(:, j), sgn)
-                                norm = norm + sgn**2
-                                parts = parts + abs(sgn)
+    subroutine add_new_parts(dets, nreceived, CurrWalkers, norm, parts, &
+                             gdata_write, gdata_read_handler)
+        use CalcData, only: iWeightPopRead
+        use bit_reps, only: extract_sign
 
-                                call gdata_read_handler%read_gdata_hdf5(gdata_write(:, j), int(CurrWalkers))
-                            end if
-                        end do
-                    else
-                        do j = 1, nreceived
+        ! Integrate the just-read block of walkers into the main list.
 
-                            ! Check that the site is occupied, and passes the relevant
-                            ! thresholds before adding it to the system.
-                            ! However, when reading accumlated populations (APVals), we want
-                            ! to add even unoccupied sites who has accumlated values
-                            call extract_sign(SpawnedParts2(:, j), sgn)
-                            if ((any(abs(sgn) >= iWeightPopRead) .and. .not. IsUnoccDet(sgn)) .or. &
-                                tAccumPopsActive) then
+        integer(n_int), intent(inout) :: dets(:, :)
+        integer(hsize_t), intent(in) :: gdata_write(:, :)
+        integer, intent(in) :: nreceived
 
-                                ! Add this site to the main list
-                                CurrWalkers = CurrWalkers + 1
-                                dets(:, CurrWalkers) = SpawnedParts2(:, j)
-                                call add_pops_norm_contrib(dets(:, CurrWalkers))
-                                call extract_sign(SpawnedParts2(:, j), sgn)
-                                norm = norm + sgn**2
-                                parts = parts + abs(sgn)
+        integer(int64), intent(inout) :: CurrWalkers
+        real(dp), intent(inout) :: norm(lenof_sign), parts(lenof_sign)
+        type(gdata_io_t), intent(in) :: gdata_read_handler
 
-                                call gdata_read_handler%read_gdata_hdf5(gdata_write(:, j), int(CurrWalkers))
-                            end if
-                        end do
+        integer(int64) :: j
+        real(dp) :: sgn(lenof_sign)
 
-                    end if
-                    ! TODO: Add check that we have read in the correct number of parts
-                end subroutine
+        ! TODO: inum_runs == 2, PopNIfSgn == 1
+        if (allocated(receivebuff)) then
 
-                subroutine check_read_particles(nread_walkers, norm, parts, &
-                                                pops_det_count, pops_num_parts, &
-                                                pops_norm_sqr)
+            do j = 1, nreceived
 
-                    use CalcData, only: pops_norm
+                ! Check that the site is occupied, and passes the relevant
+                ! thresholds before adding it to the system.
+                ! However, when reading accumlated populations (APVals), we want
+                ! to add even unoccupied sites who has accumlated values
+                call extract_sign(receivebuff(:, j), sgn)
+                if ((any(abs(sgn) >= iWeightPopRead) .and. .not. IsUnoccDet(sgn)) .or. &
+                    tAccumPopsActive) then
 
-                    ! Check that the values received in these routines are valid
-                    !
-                    ! nread_walkers  - Number of determinant/walker lines read (this proc)
-                    ! norm           - Norm (this proc)
-                    ! parts          - Coefficient weight (this proc)
-                    ! pops_det_count - Total dets in popsfile (from header)
-                    ! pops_num_parts - Total particle weight (from header)
-                    ! pops_norm_sqr  - Total norm of wavefunction (from header)
+                    ! Add this site to the main list
+                    CurrWalkers = CurrWalkers + 1
+                    dets(:, CurrWalkers) = receivebuff(:, j)
+                    call add_pops_norm_contrib(dets(:, CurrWalkers))
+                    call extract_sign(receivebuff(:, j), sgn)
+                    norm = norm + sgn**2
+                    parts = parts + abs(sgn)
 
-                    integer(int64), intent(in) :: nread_walkers, pops_det_count
-                    real(dp), intent(in) :: pops_num_parts(lenof_sign)
-                    real(dp), intent(in) :: pops_norm_sqr(lenof_sign)
-                    real(dp), intent(in) :: norm(lenof_sign), parts(lenof_sign)
-                    character(*), parameter :: t_r = 'check_read_particles'
+                    call gdata_read_handler%read_gdata_hdf5(gdata_write(:, j), int(CurrWalkers))
+                end if
+            end do
+        else
+            do j = 1, nreceived
 
-                    integer(int64) :: all_read_walkers, tot_walkers
-                    real(dp) :: all_norm(lenof_sign), all_parts(lenof_sign)
+                ! Check that the site is occupied, and passes the relevant
+                ! thresholds before adding it to the system.
+                ! However, when reading accumlated populations (APVals), we want
+                ! to add even unoccupied sites who has accumlated values
+                call extract_sign(SpawnedParts2(:, j), sgn)
+                if ((any(abs(sgn) >= iWeightPopRead) .and. .not. IsUnoccDet(sgn)) .or. &
+                    tAccumPopsActive) then
 
-                    ! Have all the sites been correctly read in from the file
-                    ! n.b. CurrWalkers may not equal pops_det_count, as any unoccupied
-                    !      sites, or sites below the specified threshold will have been
-                    !      dropped.
-                    call MPISum(nread_walkers, all_read_walkers)
-                    if (iProcIndex == 0 .and. all_read_walkers /= pops_det_count) then
-                        write(6, *) 'Determinants in popsfile header: ', pops_det_count
-                        write(6, *) 'Determinants read in: ', all_read_walkers
-                        call stop_all(t_r, 'Particle number mismatch')
-                    end if
+                    ! Add this site to the main list
+                    CurrWalkers = CurrWalkers + 1
+                    dets(:, CurrWalkers) = SpawnedParts2(:, j)
+                    call add_pops_norm_contrib(dets(:, CurrWalkers))
+                    call extract_sign(SpawnedParts2(:, j), sgn)
+                    norm = norm + sgn**2
+                    parts = parts + abs(sgn)
 
-                    ! Is the total number of walkers (sum of the sign values) correct?
-                    !
-                    ! This is relative to the total number to account for relative errors
-                    call MPISumAll(parts, all_parts)
-                    if (any(abs(all_parts - pops_num_parts) > (pops_num_parts * 1.0e-10_dp))) then
-                        write(6, *) 'popsfile particles: ', pops_num_parts
-                        write(6, *) 'read particles: ', all_parts
-                        call stop_all(t_r, 'Incorrect particle weight read from popsfile')
-                    end if
+                    call gdata_read_handler%read_gdata_hdf5(gdata_write(:, j), int(CurrWalkers))
+                end if
+            end do
 
-                    ! Is the total norm of the wavefunction correct
-                    ! The test condition is rather lax, as the hugely differing magnitudes
-                    ! of the total numbers on each processor combined with the varying
-                    ! summation orders can lead to larger errors here
-                    !
-                    ! Same relative error test as before
-                    call MPISumAll(norm, all_norm)
-                    if (any(abs(all_norm - pops_norm_sqr) > (pops_norm_sqr * 1.0e-10_dp))) then
-                        write(6, *) 'popsfile norm**2: ', pops_norm_sqr
-                        write(6, *) 'read norm**2: ', all_norm
-                        call stop_all(t_r, 'Wavefunction norm incorrect')
-                    end if
+        end if
+        ! TODO: Add check that we have read in the correct number of parts
+    end subroutine
 
-                    ! If the absolute sum, and the sum of the squares is correct, we can
-                    ! be fairly confident that they have all been read in!...
+    subroutine check_read_particles(nread_walkers, norm, parts, &
+                                    pops_det_count, pops_num_parts, &
+                                    pops_norm_sqr)
 
-                    ! [W.D.]
-                    ! on behalf of sasha bring back the feature that turns off the walker
-                    ! grow even if walkcontgrow was set unintentionally but the number of
-                    ! read-in walkers already exceeds or is close to the target number
-                    ! so i guess it is enough to set the global AllTotParts here
-                    ! of walkers
-                    AllTotParts = all_parts
+        use CalcData, only: pops_norm
 
-                end subroutine
+        ! Check that the values received in these routines are valid
+        !
+        ! nread_walkers  - Number of determinant/walker lines read (this proc)
+        ! norm           - Norm (this proc)
+        ! parts          - Coefficient weight (this proc)
+        ! pops_det_count - Total dets in popsfile (from header)
+        ! pops_num_parts - Total particle weight (from header)
+        ! pops_norm_sqr  - Total norm of wavefunction (from header)
+
+        integer(int64), intent(in) :: nread_walkers, pops_det_count
+        real(dp), intent(in) :: pops_num_parts(lenof_sign)
+        real(dp), intent(in) :: pops_norm_sqr(lenof_sign)
+        real(dp), intent(in) :: norm(lenof_sign), parts(lenof_sign)
+        character(*), parameter :: t_r = 'check_read_particles'
+
+        integer(int64) :: all_read_walkers, tot_walkers
+        real(dp) :: all_norm(lenof_sign), all_parts(lenof_sign)
+
+        ! Have all the sites been correctly read in from the file
+        ! n.b. CurrWalkers may not equal pops_det_count, as any unoccupied
+        !      sites, or sites below the specified threshold will have been
+        !      dropped.
+        call MPISum(nread_walkers, all_read_walkers)
+        if (iProcIndex == 0 .and. all_read_walkers /= pops_det_count) then
+            write(stdout, *) 'Determinants in popsfile header: ', pops_det_count
+            write(stdout, *) 'Determinants read in: ', all_read_walkers
+            call stop_all(t_r, 'Particle number mismatch')
+        end if
+
+        ! Is the total number of walkers (sum of the sign values) correct?
+        !
+        ! This is relative to the total number to account for relative errors
+        call MPISumAll(parts, all_parts)
+        if (any(abs(all_parts - pops_num_parts) > (pops_num_parts * 1.0e-10_dp))) then
+            write(stdout, *) 'popsfile particles: ', pops_num_parts
+            write(stdout, *) 'read particles: ', all_parts
+            call stop_all(t_r, 'Incorrect particle weight read from popsfile')
+        end if
+
+        ! Is the total norm of the wavefunction correct
+        ! The test condition is rather lax, as the hugely differing magnitudes
+        ! of the total numbers on each processor combined with the varying
+        ! summation orders can lead to larger errors here
+        !
+        ! Same relative error test as before
+        call MPISumAll(norm, all_norm)
+        if (any(abs(all_norm - pops_norm_sqr) > (pops_norm_sqr * 1.0e-10_dp))) then
+            write(stdout, *) 'popsfile norm**2: ', pops_norm_sqr
+            write(stdout, *) 'read norm**2: ', all_norm
+            call stop_all(t_r, 'Wavefunction norm incorrect')
+        end if
+
+        ! If the absolute sum, and the sum of the squares is correct, we can
+        ! be fairly confident that they have all been read in!...
+
+        ! [W.D.]
+        ! on behalf of sasha bring back the feature that turns off the walker
+        ! grow even if walkcontgrow was set unintentionally but the number of
+        ! read-in walkers already exceeds or is close to the target number
+        ! so i guess it is enough to set the global AllTotParts here
+        ! of walkers
+        AllTotParts = all_parts
+
+    end subroutine
 
 #endif
 
-                !
-                ! This is only here for dependency circuit breaking
-                subroutine add_pops_norm_contrib(ilut)
+    !
+    ! This is only here for dependency circuit breaking
+    subroutine add_pops_norm_contrib(ilut)
 
-                    use bit_rep_data, only: NIfTot
-                    use bit_reps, only: extract_sign
-                    use CalcData, only: pops_norm
+        use bit_rep_data, only: NIfTot
+        use bit_reps, only: extract_sign
+        use CalcData, only: pops_norm
 
-                    integer(n_int), intent(in) :: ilut(0:NIfTot)
-                    real(dp) :: real_sign(lenof_sign)
+        integer(n_int), intent(in) :: ilut(0:NIfTot)
+        real(dp) :: real_sign(lenof_sign)
 
-                    call extract_sign(ilut, real_sign)
+        call extract_sign(ilut, real_sign)
 
 #ifdef DOUBLERUN_
-                    pops_norm = pops_norm + real_sign(1) * real_sign(2)
+        pops_norm = pops_norm + real_sign(1) * real_sign(2)
 #elif CMPLX_
-                    pops_norm = pops_norm + real_sign(1)**2 + real_sign(2)**2
+        pops_norm = pops_norm + real_sign(1)**2 + real_sign(2)**2
 #else
-                    pops_norm = pops_norm + real_sign(1) * real_sign(1)
+        pops_norm = pops_norm + real_sign(1) * real_sign(1)
 #endif
 
-                end subroutine add_pops_norm_contrib
+    end subroutine add_pops_norm_contrib
 
-                end module
+end module

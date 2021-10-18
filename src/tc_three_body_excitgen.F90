@@ -244,7 +244,7 @@ contains
             pTriples = 0.0_dp
             return
         end if
-        write(iout, *) "pTriples set to ", pTriples
+        write(stdout, *) "pTriples set to ", pTriples
         ! pSingles and pDoubles add to 1, and pTriples is an additional bias not to do
         ! a two-body excitation
         if (tContact) then
@@ -824,7 +824,7 @@ contains
         end do
 
         if (k /= pool_size) then
-            write(iout, *) "Error: wrong number of targets", k, "/=", pool_size
+            write(stdout, *) "Error: wrong number of targets", k, "/=", pool_size
             call stop_all('create_full_pool', 'size mismatch')
         end if
     end subroutine create_full_pool
@@ -879,7 +879,7 @@ contains
         end do
 
         if (k /= pool_size) then
-            write(iout, *) "Error: wrong number of targets", k, "/=", pool_size
+            write(stdout, *) "Error: wrong number of targets", k, "/=", pool_size
             call stop_all('create_sym_pool', 'size mismatch')
         end if
     end subroutine create_sym_pool

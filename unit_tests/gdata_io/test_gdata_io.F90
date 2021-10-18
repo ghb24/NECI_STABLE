@@ -2,6 +2,10 @@
 program test_gdata_io
     use constants
     use fruit
+    use FciMCData, only: MaxWalkersPart
+    use LoggingData, only: tAccumPops, tExplicitAllRDM, tRDMonFly
+    use CalcData, only: tActivateLAS, tAutoAdaptiveShift, tContTimeFCIMC, tContTimeFull, &
+        tReplicaEstimates, tPairedReplicas, tScaleBlooms, tSeniorInitiators, tStoredDets
     use gdata_io, only: gdata_io_t
     use global_det_data
     implicit none
@@ -10,7 +14,7 @@ program test_gdata_io
     integer, parameter :: rd = 234
     real(dp), parameter :: acc_val = 1.234_dp
     real(dp), parameter :: tot_val = 2.48
-    real(dp), parameter :: mr_val = 5.678_dp 
+    real(dp), parameter :: mr_val = 5.678_dp
 
     call init_fruit()
     call gdata_io_test_driver()
@@ -20,7 +24,7 @@ program test_gdata_io
 contains
 
     !------------------------------------------------------------------------------------------!
-    
+
     subroutine gdata_io_test_driver()
         call init_gdata_io_test()
         call test_sizes()
@@ -107,10 +111,10 @@ contains
     subroutine test_read()
         ! Create a test object and read some data to global data
         type(gdata_io_t) :: test_handler
-        real(dp), allocatable :: gdata_buf(:,:)     
+        real(dp), allocatable :: gdata_buf(:,:)
 
         call test_handler%init_gdata_io(.true., .true., .false., fvals_size, max_ratio_size, apvals_size)
-        allocate(gdata_buf(test_handler%entry_size(),ndets))        
+        allocate(gdata_buf(test_handler%entry_size(),ndets))
         gdata_buf(1:inum_runs,:) = acc_val
         gdata_buf(inum_runs+1:2*inum_runs,:) = tot_val
         gdata_buf(fvals_size+1,:) = mr_val
@@ -129,16 +133,16 @@ contains
 
     subroutine test_write()
         type(gdata_io_t) :: test_handler
-        real(dp), allocatable :: gdata_buf(:,:)            
+        real(dp), allocatable :: gdata_buf(:,:)
 
         call set_global_det_data()
 
         call test_handler%init_gdata_io(.true., .true., .false., fvals_size, max_ratio_size, apvals_size)
 
         allocate(gdata_buf(test_handler%entry_size(),ndets))
-        ! zero the buffer        
-        gdata_buf = 0.0_dp        
-        ! write the global_determinant_data to gdata_buf        
+        ! zero the buffer
+        gdata_buf = 0.0_dp
+        ! write the global_determinant_data to gdata_buf
         call test_handler%write_gdata(gdata_buf, ndets)
 
         ! the entries in the buffer have to match the original ones
@@ -146,7 +150,7 @@ contains
         call assert_equals(get_acc_spawns(rd, 1), gdata_buf(1, rd))
         call assert_equals(get_max_ratio(rd), gdata_buf(fvals_size + 1, rd))
 
-        deallocate(gdata_buf)        
+        deallocate(gdata_buf)
     end subroutine test_write
 
     !------------------------------------------------------------------------------------------!
@@ -155,18 +159,18 @@ contains
         use hdf5, only: hsize_t
         type(gdata_io_t) :: test_handler
         integer(hsize_t), allocatable :: gdata_buf(:,:)
-        
+
         call set_global_det_data()
         call test_handler%init_gdata_io(.true., .true., .false., fvals_size, max_ratio_size, apvals_size)
 
         allocate(gdata_buf(test_handler%entry_size(),ndets))
         gdata_buf = 0_hsize_t
-        
+
         call test_handler%write_gdata_hdf5(gdata_buf, ndets)
         ! the entries in the buffer have to match the original ones
         call assert_equals(get_tot_spawns(rd, 1), transfer(gdata_buf(1, rd), acc_val))
         call assert_equals(get_acc_spawns(rd, 1), transfer(gdata_buf(inum_runs+1, rd), tot_val))
-        call assert_equals(get_max_ratio(rd), transfer(gdata_buf(fvals_size + 1, rd), mr_val))        
+        call assert_equals(get_max_ratio(rd), transfer(gdata_buf(fvals_size + 1, rd), mr_val))
         deallocate(gdata_buf)
     end subroutine test_write_hdf5
 
@@ -177,7 +181,7 @@ contains
         global_determinant_data = 0
         call set_max_ratio(mr_val, rd)
         global_determinant_data(pos_acc_spawns, rd) = acc_val
-        global_determinant_data(pos_tot_spawns, rd) = tot_val        
+        global_determinant_data(pos_tot_spawns, rd) = tot_val
     end subroutine set_global_det_data
 
 end program test_gdata_io

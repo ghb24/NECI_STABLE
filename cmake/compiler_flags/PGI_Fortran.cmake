@@ -10,6 +10,7 @@ set( ${PROJECT_NAME}_Fortran_LINK_FLAGS "-mcmodel=medium" )
 # Warning flags
 
 set( ${PROJECT_NAME}_Fortran_WARNING_FLAGS "-Minform=warn" )
+set( ${PROJECT_NAME}_Fortran_relaxed_WARNING_FLAGS "" )
 
 # Treat 32bit/64bit compilation differently
 

@@ -1,211 +1,3 @@
-!This wrapper also passes back the excitation matrix and parity of excitation permutation, so that matrix elements can be worked out simply between the original determinant
-!and the excitation.
-      SUBROUTINE GenRandSymExcitIt4(NI,NMEM,NJ,ISEED,IC,PGEN,
-     &        ICOUNT,EXCITMAT,TPARITY)
-         use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
-         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
-         use SystemData, only: nEl,G1, nBasis,nBasisMax
-         use constants, only: dp,sizeof_int, maxExcit
-         use SystemData, only: Arr,nMax,tAssumeSizeExcitgen
-         use IntegralsData, only: UMat
-         use SymData, only: SymClassSize,nSymPairProds,nSymLabels
-         use legacy_data, only: irat
-         IMPLICIT NONE
-         INTEGER NI(NEL)
-         INTEGER,pointer :: DSTORE(:)
-         INTEGER EXCITMAT(2,maxExcit)
-         LOGICAL TPARITY
-         INTEGER,target :: NMEM(*)
-         integer NJ(NEL),IC,ICOUNT
-         INTEGER ISEED,Pos1,Pos2,Pos3
-         real(dp) PGEN
-
-         IF(tAssumeSizeExcitgen) THEN
-!Excitgen is set up differently...
-! 1         NEXCIT
-! 2         NEXCITTYPES
-! 3                                 -    SymClassSize*NEL+nBasis/32+3                                 DSTORE
-! SymClassSize*NEL+nBasis/32+4      -    SymClassSize*NEL+nBasis/32+1+15*nSymPairProds+10*nSymLabels+2  EXCITTYPES
-! SymClassSize*NEL+nBasis/32+1+15*nSymPairProds+10*nSymLabels+3      -    SymClassSize*NEL+nBasis/32+1+15*nSymPairProds+10*nSymLabels+NEL*(NEL-1)+2  ORBPAIRS
-! SymClassSize*NEL+nBasis/32+1+15*nSymPairProds+10*nSymLabels+NEL*(NEL-1)+3   -   SymClassSize*NEL+nBasis/32+1+15*nSymPairProds+10*nSymLabels+NEL*(NEL-1)+(nSymLabels+1)*6+2  SYMPRODIND
-
-! DSTORE(1)      -   SymClassSize*NEL         CLASSES
-! DSTORE(NEL*SymClassSize+1)                     ILUT
-
-            DSTORE=>NMEM(3:NEL*SymClassSize+4)
-             Pos1=SymClassSize*NEL+nBasis/32+4
-             Pos2=SymClassSize*NEL+nBasis/32+4+15*nSymPairProds+
-     &             10*nSymLabels
-             Pos3=SymClassSize*NEL+nBasis/32+4+15*nSymPairProds+
-     &             10*nSymLabels+NEL*(NEL-1)
-
-            CALL SymGenRandExcitIt2(NI,NEL,NMEM(Pos1),DSTORE(1),
-     &         NMEM(Pos3),DSTORE(SymClassSize*NEL+1),NMEM(Pos2),
-     &         nMem(1),ISEED,NJ,IC,PGEN,EXCITMAT,TPARITY)
-            ICOUNT=NMEM(1)
-
-         ELSE
-C.. The second setup.  Now NMEM is allocated, we store all the info
-C.. NMEM is as follows:
-C..   1           -  5           STORE(1:5)
-C..   6           -  6           STORE(6) = NEXCITTYPES
-C.. Data for the iterators
-C..   23 NEXCIT      total number of excitations
-C..  (STORE(1)=24)-  STORE(2)-1  DSTORE
-C..   STORE(2)    -  STORE(3)-1  EXCITTYPES
-C..   STORE(3)    -  STORE(4)-1  NALLOWPPS
-C..   STORE(4)    -  STORE(5)-1  ORBPAIRS
-C..   STORE(5)    -  ...         SYMPRODIND
-
-C..   DSTORE(1)   -  DSTORE(NEL*SymClassSize) CLASSES
-C..   DSTORE(NEL*SymClassSize+1) - ...       ILUT
-C.. Actually generate a det
-            DSTORE=>NMEM(NMEM(1):NMEM(1)+
-     &                SymClassSize*NEL+(nBasis/32)+1
-     &                     +SymmetrySize*(NEL*NEL+1))  !Point to DSTORE
-!         CALL SYMGENRANDEXCITIT(NI,NEL,NMEM(NMEM(2)),NMEM(6),DSTORE(1),
-!     &         NMEM(NMEM(5)),DSTORE(SymClassSize*NEL+1),NMEM(NMEM(4)),
-!     &         NMEM(7),NMEM(8),NMEM(9),NMEM(10),NMEM(11),NMEM(12),
-!     &         NMEM(13),NMEM(14),NMEM(15),NMEM(19),NMEM(23),ISEED,NJ,IC,
-!     &         G1,NBASISMAX,UMAT,ARR,NBASIS,PGEN)
-            CALL SymGenRandExcitIt2(NI,NEL,NMEM(NMEM(2)),DSTORE(1),
-     &         NMEM(NMEM(5)),DSTORE(SymClassSize*NEL+1),NMEM(NMEM(4)),
-     &         nMem(23),ISEED,NJ,IC,PGEN,EXCITMAT,TPARITY)
-            ICOUNT=NMEM(23)
-         ENDIF
-      END SUBROUTINE GenRandSymExcitIt4
-
-
-
-C.. Generate a random symmetry allowed excitation.  GENSYMEXCITIT2 must be called twice
-C.. before this.
-C.. This version is based on GenRandSymExcitIt2, but does not need values it extracts from modules
-!  IC is the excitation level, and iCount the total number of allowed excitations
-      SUBROUTINE GenRandSymExcitIt3(NI,NMEM,NJ,ISEED,IC,PGEN,
-     &      ICOUNT)
-         use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
-         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
-         use SystemData, only: nEl,G1, nBasis,nBasisMax
-         use SystemData, only: Arr,nMax,tAssumeSizeExcitgen
-         use IntegralsData, only: UMat
-         use SymData, only: SymClassSize,nSymPairProds,nSymLabels
-         use legacy_data, only: irat
-         use constants, only: dp, maxExcit
-         IMPLICIT NONE
-         INTEGER NI(NEL)
-         INTEGER, pointer :: DSTORE(:)
-         INTEGER EXCITMAT(2,maxExcit)
-         LOGICAL TPARITY
-         INTEGER,target :: NMEM(*)
-         integer  NJ(NEL),IC,ICOUNT
-         INTEGER ISEED,Pos1,Pos2,Pos3
-         real(dp) PGEN
-         IF(tAssumeSizeExcitgen) THEN
-!Excitgen is set up differently...
-! 1         NEXCIT
-! 2         NEXCITTYPES
-! 3                                 -    SymClassSize*NEL+nBasis/32+3                                 DSTORE
-! SymClassSize*NEL+nBasis/32+4      -    SymClassSize*NEL+nBasis/32+1+15*nSymPairProds+10*nSymLabels+2  EXCITTYPES
-! SymClassSize*NEL+nBasis/32+1+15*nSymPairProds+10*nSymLabels+3      -    SymClassSize*NEL+nBasis/32+1+15*nSymPairProds+10*nSymLabels+NEL*(NEL-1)+2  ORBPAIRS
-! SymClassSize*NEL+nBasis/32+1+15*nSymPairProds+10*nSymLabels+NEL*(NEL-1)+3   -   SymClassSize*NEL+nBasis/32+1+15*nSymPairProds+10*nSymLabels+NEL*(NEL-1)+(nSymLabels+1)*6+2  SYMPRODIND
-
-! DSTORE(1)      -   SymClassSize*NEL         CLASSES
-! DSTORE(NEL*SymClassSize+1)                     ILUT
-
-             DSTORE=>NMEM(3:NEL*SymClassSize+4)
-             Pos1=SymClassSize*NEL+nBasis/32+4
-             Pos2=SymClassSize*NEL+nBasis/32+4+15*nSymPairProds+
-     &             10*nSymLabels
-             Pos3=SymClassSize*NEL+nBasis/32+4+15*nSymPairProds+
-     &             10*nSymLabels+NEL*(NEL-1)
-
-            CALL SymGenRandExcitIt2(NI,NEL,NMEM(Pos1),DSTORE(1),
-     &         NMEM(Pos3),DSTORE(SymClassSize*NEL+1),NMEM(Pos2),
-     &         nMem(1),ISEED,NJ,IC,PGEN,EXCITMAT,TPARITY)
-            ICOUNT=NMEM(1)
-
-         ELSE
-C.. The second setup.  Now NMEM is allocated, we store all the info
-C.. NMEM is as follows:
-C..   1           -  5           STORE(1:5)
-C..   6           -  6           STORE(6) = NEXCITTYPES
-C.. Data for the iterators
-C..   23 NEXCIT      total number of excitations
-C..  (STORE(1)=24)-  STORE(2)-1  DSTORE
-C..   STORE(2)    -  STORE(3)-1  EXCITTYPES
-C..   STORE(3)    -  STORE(4)-1  NALLOWPPS
-C..   STORE(4)    -  STORE(5)-1  ORBPAIRS
-C..   STORE(5)    -  ...         SYMPRODIND
-
-C..   DSTORE(1)   -  DSTORE(NEL*SymClassSize) CLASSES
-C..   DSTORE(NEL*SymClassSize+1) - ...       ILUT
-C.. Actually generate a det
-            DSTORE=>NMEM(NMEM(1):NMEM(1)+
-     &                SymClassSize*NEL+(nBasis/32)+1
-     &                     +SymmetrySize*(NEL*NEL+1))  !Point to DSTORE
-!         CALL SYMGENRANDEXCITIT(NI,NEL,NMEM(NMEM(2)),NMEM(6),DSTORE(1),
-!     &         NMEM(NMEM(5)),DSTORE(SymClassSize*NEL+1),NMEM(NMEM(4)),
-!     &         NMEM(7),NMEM(8),NMEM(9),NMEM(10),NMEM(11),NMEM(12),
-!     &         NMEM(13),NMEM(14),NMEM(15),NMEM(19),NMEM(23),ISEED,NJ,IC,
-!     &         G1,NBASISMAX,UMAT,ARR,NBASIS,PGEN)
-            CALL SymGenRandExcitIt2(NI,NEL,NMEM(NMEM(2)),DSTORE(1),
-     &         NMEM(NMEM(5)),DSTORE(SymClassSize*NEL+1),NMEM(NMEM(4)),
-     &         nMem(23),ISEED,NJ,IC,PGEN,EXCITMAT,TPARITY)
-            ICOUNT=NMEM(23)
-         ENDIF
-      END
-
-
-
-C.. Generate a random symmetry allowed excitation.  GENSYMEXCITIT2 must be called twice
-C.. before this.
-C.. ICOUNT returned is the total number of possible excitations.  To get the excitation level,
-C..   use GenRandSymExcitIt3
-      SUBROUTINE GENRANDSYMEXCITIT2(NI,NEL,
-     &         NMEM,NJ,ISEED,ICOUNT,PGEN)
-         use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
-         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB,nBasis
-         use SymData, only: SymClassSize
-         use legacy_data, only: irat
-         use constants, only: dp, maxExcit
-         IMPLICIT NONE
-         INTEGER NEL,NI(NEL)
-         INTEGER,pointer :: DSTORE(:)
-         INTEGER EXCITMAT(2,maxExcit)
-         INTEGER,target :: NMEM(*)
-         integer NJ(NEL),ICOUNT,IC
-         LOGICAL TPARITY
-         INTEGER ISEED
-         real(dp) PGEN
-C.. The second setup.  Now NMEM is allocated, we store all the info
-C.. NMEM is as follows:
-C..   1           -  5           STORE(1:5)
-C..   6           -  6           STORE(6) = NEXCITTYPES
-C.. Data for the iterators
-C..   23 NEXCIT      total number of excitations
-C..  (STORE(1)=24)-  STORE(2)-1  DSTORE
-C..   STORE(2)    -  STORE(3)-1  EXCITTYPES
-C..   STORE(3)    -  STORE(4)-1  NALLOWPPS
-C..   STORE(4)    -  STORE(5)-1  ORBPAIRS
-C..   STORE(5)    -  ...         SYMPRODIND
-
-C..   DSTORE(1)   -  DSTORE(NEL*SymClassSize) CLASSES
-C..   DSTORE(NEL*SymClassSize+1) - ...       ILUT
-C.. Actually generate a det
-            DSTORE=>NMEM(NMEM(1):NMEM(1)+
-     &                SymClassSize*NEL+(nBasis/32)+1
-     &                     +SymmetrySize*(NEL*NEL+1))  !Point to DSTORE
-!         CALL SYMGENRANDEXCITIT(NI,NEL,NMEM(NMEM(2)),NMEM(6),DSTORE(1),
-!     &         NMEM(NMEM(5)),DSTORE(SymClassSize*NEL+1),NMEM(NMEM(4)),
-!     &         NMEM(7),NMEM(8),NMEM(9),NMEM(10),NMEM(11),NMEM(12),
-!     &         NMEM(13),NMEM(14),NMEM(15),NMEM(19),NMEM(23),ISEED,NJ,IC,
-!     &         G1,NBASISMAX,UMAT,ARR,NBASIS,PGEN)
-         CALL SymGenRandExcitIt2(NI,NEL,NMEM(NMEM(2)),DSTORE(1),
-     &         NMEM(NMEM(5)),DSTORE(SymClassSize*NEL+1),NMEM(NMEM(4)),
-     &         nMem(23),ISEED,NJ,IC,PGEN,EXCITMAT,TPARITY)
-         ICOUNT=NMEM(23)
-!         call writedet(6,nI,nEl,.true.)
-      END
       SUBROUTINE SYMGENRANDEXCITIT(NI,NEL,EXCITTYPES,NEXCITTYPES,
      &               CLASSES,
      &               SYMPRODIND,ILUT,ORBPAIRS,IEXCIT,ISPN,IFROM,ITO,
@@ -217,6 +9,7 @@ C.. Actually generate a det
       use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
       use SymData, only: SymClass,SymLabelCounts,SymLabelList
       use Determinants, only: write_det
+
       IMPLICIT NONE
       INTEGER NBASIS
       INTEGER NEXCITTYPES
@@ -485,10 +278,6 @@ C.. Actually generate a det
 !We've found an allowed orbital
                     InvalidOrb=.false.
                     I=j
-!                    IF(.not.BTEST(ILUT((SpinOrb-1)/32)
-!     &                       ,mod(SpinOrb-1,32))) THEN
-!                        call stop_all(this_routine, 'ILUT failure')
-!                    ENDIF
                     EXIT
                 ENDIF
             ENDDO
@@ -626,8 +415,8 @@ C.. Actually generate a det
 !..  I is the index in I to excite from.
       Subroutine SymGenRandExcitIt2_Single_GetTo(iSeed,nI,nEl,I,iSpn,
      &   iTo,nK,ExcitMat,TParity)
-      use SymData, only: SymClass,SymLabelCounts,SymLabelList
-        use Determinants, only: write_det
+         use SymData, only: SymClass,SymLabelCounts,SymLabelList
+         use Determinants, only: write_det
          use constants, only: dp,sizeof_int, maxExcit
          IMPLICIT NONE
          INTEGER iSeed

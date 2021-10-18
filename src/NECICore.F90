@@ -36,7 +36,7 @@ Subroutine NECICore(iCacheFlag, tCPMD, tVASP, tMolpro_local, call_as_lib, &
                              neci_MPIInit_called, neci_MPINodes_called
     use read_fci, only: FCIDUMP_name
 
-    use ParallelHelper
+    use MPI_wrapper
     use UMatCache, only: UMat2D, tagUMat2D
 
     ! Utility modules.
@@ -122,7 +122,7 @@ Subroutine NECICore(iCacheFlag, tCPMD, tVASP, tMolpro_local, call_as_lib, &
                 j = INDEX(filename(i:), 'NECI'); IF (j /= 0) i = i + j - 1
                 MolproID = filename(i:MIN(i + LEN(MolproID) - 1, LEN(filename)))
 #endif
-                write(iout, "(A,A)") "Molpro unique filename suffix: ", MolproID
+                write(stdout, "(A,A)") "Molpro unique filename suffix: ", MolproID
             end if
         end if
     end if
@@ -227,7 +227,7 @@ subroutine NECICodeEnd(tCPMD, tVASP)
     use SystemData, only: tMolpro, tMolproMimic, called_as_lib, arr, brr, g1, &
                           tagArr, tagBrr, tagG1
     use Determinants, only: FDet, tagFDet
-#ifdef PARALLEL
+#ifdef USE_MPI
     use Parallel_neci, only: MPIEnd
     USE MolproPlugin
 #endif
@@ -245,7 +245,7 @@ subroutine NECICodeEnd(tCPMD, tVASP)
     call end_timing()
     call print_timing_report()
 
-#ifdef PARALLEL
+#ifdef USE_MPI
 ! Tell Molpro plugin server that we have finished
     CALL MolproPluginTerm(0)
 ! CPMD and VASP have their own MPI initialisation and termination routines.
@@ -264,7 +264,7 @@ subroutine NECICalcInit(iCacheFlag)
     !=                iCacheFlag=2,3: reuse the cache from the previous NECI
     !=                                calculation from within the same CPMD/VASP
     !=                                calculation.
-
+    use constants, only: stdout
     use System, only: SysInit
     use SystemData, only: tRotateOrbs, tFindCINatOrbs, tGUGA, tUEG, &
                           t_ueg_transcorr, t_ueg_dump, tContact, t_mol_3_body
@@ -317,16 +317,16 @@ subroutine NECICalcInit(iCacheFlag)
 !                  !allocate(UMat(UMatInt), stat=ierr)
 !                  LogAlloc(ierr, 'UMat_TC3', int(UMatInt),HElement_t_SizeB, tagUMat)
 !                  UMat_TC3 = 0.0_dp
-!                  write(6,*) "Size of UMat_TC3 is: ",UMATINT
+!                  write(stdout,*) "Size of UMat_TC3 is: ",UMATINT
 
-        write(6, *) 'prepare the convolution part of the 2 body transcorrelated operator'
+        write(stdout, *) 'prepare the convolution part of the 2 body transcorrelated operator'
 
         If (tContact) then
             call GEN_Umat_TC_contact
         else
             call GEN_Umat_TC
         end if
-        write(6, *) "The infinite sums for the transcorrelated approach is determined."
+        write(stdout, *) "The infinite sums for the transcorrelated approach is determined."
 
         if (t_ueg_dump) call prep_ueg_dump
 

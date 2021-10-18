@@ -1,6 +1,6 @@
 title
 
-system read 
+system read
 electrons 8
 nonuniformrandexcits pchb
 system-replicas 2
@@ -15,7 +15,6 @@ nmcyc 300
 totalwalkers 10000
 memoryfacspawn 10
 definedet 1-6 9-10
-tau 0.003 search
 shiftdamp 0.2
 stepsshift 1
 auto-adaptive-shift

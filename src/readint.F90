@@ -1,6 +1,11 @@
 module read_fci
+    implicit none
 
     character(len=1024) :: FCIDUMP_name
+
+    ! Variable for orbital re-ordering - a permutation of the
+    ! orbitals which is applied to the content of the FCIDUMP file
+    integer, allocatable, private :: orbital_permutation(:)
 
 contains
 
@@ -12,10 +17,9 @@ contains
         use SymData, only: nProp, PropBitLen, TwoCycleSymGens
         use Parallel_neci
         use util_mod, only: get_free_unit, near_zero
-        IMPLICIT NONE
         logical, intent(in) :: tbin
         integer, intent(out) :: nBasisMax(5, *), LEN, LMS
-        integer, intent(in) :: NEL
+        integer, intent(inout) :: NEL
         integer SYMLZ(1000)
         integer OCC(nIrreps), CLOSED(nIrreps), FROZEN(nIrreps)
         integer(int64) :: ORBSYM(1000)
@@ -64,6 +68,8 @@ contains
             close(iunit)
         end if
 
+        call reorder_sym_labels(ORBSYM, SYML, SYMLZ)
+
 !Now broadcast these values to the other processors
         CALL MPIBCast(NORB, 1)
         CALL MPIBCast(NELEC, 1)
@@ -90,7 +96,7 @@ contains
         IF (.not. TwoCycleSymGens .and. ((NPROP(1) + NPROP(2) + NPROP(3)) > 3)) THEN
             !We are using abelian k-point symmetry. Turn it on.
             tKPntSym = .true.
-            write(6, "(A,I5,A)") "Using abelian k-point symmetry - ", NPROP(1) * NPROP(2) * NPROP(3), " kpoints found."
+            write(stdout, "(A,I5,A)") "Using abelian k-point symmetry - ", NPROP(1) * NPROP(2) * NPROP(3), " kpoints found."
         ELSE
             tKPntSym = .false.
         end if
@@ -100,11 +106,11 @@ contains
             !We have compiled the code in real, but we are looking at a complex FCIDUMP, potentially
             !even with multiple k-points. However, these orbitals must be real, and ensure that the
             !integrals are read in as real.
-            write(6, "(A)") "Neci compiled in real mode, but kpoints detected."
-            write(6, "(A)") "This will be ok if kpoints are all at Gamma or BZ boundary and are correctly rotated."
+            write(stdout, "(A)") "Neci compiled in real mode, but kpoints detected."
+            write(stdout, "(A)") "This will be ok if kpoints are all at Gamma or BZ boundary and are correctly rotated."
             tRotatedOrbsReal = .true.
         else if (tRel) then
-            write(6, "(A)") "Relativistic integrals, but neci compiled in real mode."
+            write(stdout, "(A)") "Relativistic integrals, but neci compiled in real mode."
         end if
 #endif
 
@@ -117,11 +123,11 @@ contains
         tDetectSym = .true.
         DO i = 1, NORB
             IF (ORBSYM(i) == 0 .and. TwoCycleSymGens) THEN
-                write(6, *) "** WARNING **"
-                write(6, *) "** Unconverged symmetry of orbitals **"
-                write(6, *) "** Turning point group symmetry off for rest of run **"
+                write(stdout, *) "** WARNING **"
+                write(stdout, *) "** Unconverged symmetry of orbitals **"
+                write(stdout, *) "** Turning point group symmetry off for rest of run **"
                 if (.not. (tFixLz .or. tKPntSym .or. tUEG .or. tHub)) then
-                    write(6, *) "** No symmetry at all will be used in excitation generators **"
+                    write(stdout, *) "** No symmetry at all will be used in excitation generators **"
                     tNoSymGenRandExcits = .true.
                 end if
                 lNoSymmetry = .true.
@@ -139,7 +145,7 @@ contains
             end do
         end if
         if (.not. tDetectSym) then
-            write(6, *) "Only one irrep found. Turning off symmetry for rest of calculation."
+            write(stdout, *) "Only one irrep found. Turning off symmetry for rest of calculation."
             if (.not. tFixLz .or. tKPntSym) then
                 tNoSymGenRandExcits = .true.
                 lNoSymmetry = .true.
@@ -147,16 +153,21 @@ contains
         end if
 
         IF (NELEC /= NEL) THEN
-            write(6, *)                                                 &
-    &      '*** WARNING: NEL in FCIDUMP differs from input file ***'
-            write(6, *) ' NUMBER OF ELECTRONS : ', NEL
+            if( NEL == NEL_UNINITIALIZED ) then
+                write(stdout,*) "No number of electrons given, using NEL in FCIDUMP"
+                NEL = NELEC
+            else
+                write(stdout, *)                                                 &
+                    &      '*** WARNING: NEL in FCIDUMP differs from input file ***'
+                write(stdout, *) ' NUMBER OF ELECTRONS : ', NEL
+            endif
         end if
 !         NEL=NELEC
         IF (LMS /= MS2) THEN
-            write(6, *)                                                  &
+            write(stdout, *)                                                  &
      &      '*** WARNING: LMS in FCIDUMP differs from input file ***'
             LMS = MS2
-            write(6, *) ' BASIS MS : ', LMS
+            write(stdout, *) ' BASIS MS : ', LMS
         end if
         if (tMolpro) then
             !Molpros FCIDUMPs always indicate the number of spatial orbitals.
@@ -213,7 +224,6 @@ contains
         use Parallel_neci
         use constants, only: dp, sizeof_int
         use util_mod, only: get_free_unit
-        IMPLICIT NONE
         integer, intent(in) :: LEN
         integer, intent(inout) :: nBasisMax(5, *)
         integer, intent(out) :: BRR(LEN)
@@ -257,6 +267,9 @@ contains
             end if
         end if
 
+        ! Re-order the orbitals symmetry labels if required
+        call reorder_sym_labels(ORBSYM, SYML, SYMLZ)
+
 !Now broadcast these values to the other processors (the values are only read in on root)
         CALL MPIBCast(NORB, 1)
         CALL MPIBCast(NELEC, 1)
@@ -284,8 +297,8 @@ contains
 
         IF (tROHF) THEN
             if (.not. tMolpro) then
-                write(6, *) "Reading in Spin-orbital FCIDUMP but storing as spatial orbitals."
-!             write(6,*) "*** Warning - Fock energy of orbitals will be "&
+                write(stdout, *) "Reading in Spin-orbital FCIDUMP but storing as spatial orbitals."
+!             write(stdout,*) "*** Warning - Fock energy of orbitals will be "&
 !     &                //"incorrect ***"
 !We are reading in the symmetry of the orbitals in spin-orbitals - we need to change this to spatial orbitals
                 DO i = 1, NORB - 1, 2
@@ -306,13 +319,13 @@ contains
             else
                 !Molpro goes here. tROHF is handled exactly the same way as RHF.
                 !Therefore, the arrays should be the correct length anyway
-                write(6, *) "Reading in ROHF FCIDUMP, and storing as spatial orbitals."
+                write(stdout, *) "Reading in ROHF FCIDUMP, and storing as spatial orbitals."
             end if
         end if
 
         ! Count the number of orbs per irrep
         if (any(ORBSYM(1:NORB) == 0)) then
-            write(6, *) "WARNING: Invalid ORBSYM in FCIDUMP, are you sure you know what you are doing?"
+            write(stdout, *) "WARNING: Invalid ORBSYM in FCIDUMP, are you sure you know what you are doing?"
         else
             orbsPerIrrep = 0
             do i = 1, NORB
@@ -348,10 +361,10 @@ contains
 !If we are reading in and cacheing the FCIDUMP integrals, we need to know the maximum number j,l pairs of
 !integrals for a given i,k pair. (Or in chemical notation, the maximum number of k,l pairs for a given i,j pair.)
         IF (tCacheFCIDUMPInts) THEN
-            write(6, *) "Calculating number of slots needed for "       &
+            write(stdout, *) "Calculating number of slots needed for "       &
     &           //"integral Cache..."
             IF (tROHF) THEN
-                write(6, *) "This will be inefficient, since multiple " &
+                write(stdout, *) "This will be inefficient, since multiple " &
     &           //"versions of the same integral are present since we "&
     &           //"are converting to spatial orbitals, so nSlots will "&
     &           //"be too large."
@@ -359,7 +372,7 @@ contains
     &            //"working with Caching. ghb can fix if needed...")
             end if
             nPairs = NORB * (NORB + 1) / 2
-!             write(6,*) "NPAIRS: ",NORB,NPAIRS
+!             write(stdout,*) "NPAIRS: ",NORB,NPAIRS
             CALL neci_flush(6)
             allocate(MaxSlots(nPairs), stat=ierr)
             MaxSlots(:) = 0
@@ -432,13 +445,13 @@ contains
                     read(iunit, *, END=99) CompInt, I, J, K, L
                     Z = real(CompInt, dp)
                     if (abs(aimag(CompInt)) > 1.0e-7_dp) then
-                        write(6, *) "Using the *real* neci compiled code, &
+                        write(stdout, *) "Using the *real* neci compiled code, &
                                    &however non-zero imaginary parts of &
                                    &integrals found"
-                        write(6, *) "If all k-points are at Gamma or BZ &
+                        write(stdout, *) "If all k-points are at Gamma or BZ &
                                    &boundary, orbitals should be able to be &
                                    &rotated to be real"
-                        write(6, *) "Check this is the case, or rerun in &
+                        write(stdout, *) "Check this is the case, or rerun in &
                                    &complex mode to handle complex integrals."
                         call stop_all("GETFCIBASIS", "Real orbitals indicated,&
                                       & but imaginary part of integrals larger&
@@ -454,6 +467,11 @@ contains
                     end if
                 end if
 #endif
+                ! If a permutation is loaded, apply it to the read indices
+                call reorder_orb_label(I)
+                call reorder_orb_label(J)
+                call reorder_orb_label(K)
+                call reorder_orb_label(L)
 
                 IF (tROHF .and. (.not. tMolpro)) THEN
 !The FCIDUMP file is in spin-orbitals - we need to transfer them to spatial orbitals (unless from molpro, where already spatial).
@@ -504,7 +522,7 @@ contains
                     end if
 
                 else if (I1 /= 0 .AND. K == 0 .AND. J == 0) THEN
-!                    write(6,*) I
+!                    write(stdout,*) I
                     IF (ISPINS == 1) THEN
                         ARR(I1, 1) = real(Z, dp)
                     else if (tROHF) THEN
@@ -570,8 +588,8 @@ contains
             ! the actual number of symmetry representations spanned by the basis.
             SYMMAX = 2**ceiling(log(real(SYMMAX, dp)) / log(2.0_dp))
         end if
-        IF (tFixLz) write(6, "(A,I3)") "Maximum Lz orbital: ", iMaxLz
-        write(6, "(A,I3)") "  Maximum number of symmetries: ", SYMMAX
+        IF (tFixLz) write(stdout, "(A,I3)") "Maximum Lz orbital: ", iMaxLz
+        write(stdout, "(A,I3)") "  Maximum number of symmetries: ", SYMMAX
         NBASISMAX(1, 1) = 0
         NBASISMAX(1, 2) = 0
         NBASISMAX(5, 1) = 0
@@ -590,12 +608,12 @@ contains
 
             DEallocate(MaxSlots)
             nSlotsInit = MaxnSlot + 1
-            write(6, *) "Maximum number of slots needed in cache is: ", nSlotsInit
-            write(6, *) "Index corresponding to this maximum number:", MaxIndex
+            write(stdout, *) "Maximum number of slots needed in cache is: ", nSlotsInit
+            write(stdout, *) "Index corresponding to this maximum number:", MaxIndex
             CALL GetCacheIndexStates(MaxIndex, i, k)
-            write(6, "(A,2I6)") "This corresponds to an (i,k) pair of ", i, k
+            write(stdout, "(A,2I6)") "This corresponds to an (i,k) pair of ", i, k
         end if
-!         write(6,*) Arr(:,1)
+!         write(stdout,*) Arr(:,1)
         RETURN
     END SUBROUTINE GETFCIBASIS
 
@@ -619,7 +637,6 @@ contains
         use shared_memory_mpi
         use SymData, only: nProp, PropBitLen, TwoCycleSymGens
         use util_mod, only: get_free_unit, near_zero
-        IMPLICIT NONE
         integer, intent(in) :: NBASIS
         logical, intent(in) :: tReadFreezeInts
         real(dp), intent(out) :: ECORE
@@ -665,6 +682,10 @@ contains
             open(iunit, FILE=FCIDUMP_name, STATUS='OLD')
             read(iunit, FCI)
         end if
+
+        ! Re-order the orbitals symmetry labels if required
+        call reorder_sym_labels(ORBSYM, SYML, SYMLZ)
+
 !Now broadcast these values to the other processors (the values are only read in on root)
         CALL MPIBCast(NORB, 1)
         CALL MPIBCast(NELEC, 1)
@@ -753,16 +774,22 @@ contains
             end if
 #endif
 
+            ! If a permutation is loaded, apply it to the read indices
+            call reorder_orb_label(I)
+            call reorder_orb_label(J)
+            call reorder_orb_label(K)
+            call reorder_orb_label(L)
+
             ! Remove integrals that are too small
             if (abs(Z) < UMatEps) then
                 if (ZeroedInt < 100) then
-                    write(6, '(a,2i4,a,2i4,a)', advance='no') &
+                    write(stdout, '(a,2i4,a,2i4,a)', advance='no') &
                         'Ignoring integral (chem. notation) (', i, j, '|', k, &
                         l, '): '
-                    write(6, *) Z
+                    write(stdout, *) Z
                 else if (ZeroedInt == 100) then
-                    write(6, *) 'Ignored more than 100 integrals.'
-                    write(6, *) 'Further threshold truncations not reported explicitly'
+                    write(stdout, *) 'Ignored more than 100 integrals.'
+                    write(stdout, *) 'Further threshold truncations not reported explicitly'
                 end if
                 ZeroedInt = ZeroedInt + 1
                 goto 101
@@ -782,13 +809,13 @@ contains
                 end if
                 if (tbad) then
                     if (LzDisallowed < 100) then
-                        write(6, '(a,2i4,a,2i4,a)', advance='no') &
+                        write(stdout, '(a,2i4,a,2i4,a)', advance='no') &
                             'Ignoring Lz disallowed integral (chem. notation)&
                             & (', i, j, '|', k, l, '): '
-                        write(6, *) Z
+                        write(stdout, *) Z
                     else if (LzDisallowed == 100) then
-                        write(6, *) 'Ignored more than 100 integrals.'
-                        write(6, *) 'Further threshold truncations not reported explicitly'
+                        write(stdout, *) 'Ignored more than 100 integrals.'
+                        write(stdout, *) 'Further threshold truncations not reported explicitly'
                     end if
                     LzDisallowed = LzDisallowed + 1
                     goto 101
@@ -860,7 +887,7 @@ contains
                     ! (if T_ji has been read in).
                     diff = abs(TMAT2D(ISPINS * I - ISPN + 1, ISPINS * J - ISPN + 1) - Z)
           IF (.not. near_zero(TMAT2D(ISPINS * I - ISPN + 1, ISPINS * J - ISPN + 1)) .and. diff > 1.0e-7_dp .and. .not. t_non_hermitian) then
-                        write(6, *) i, j, Z, TMAT2D(ISPINS * I - ISPN + 1, ISPINS * J - ISPN + 1)
+                        write(stdout, *) i, j, Z, TMAT2D(ISPINS * I - ISPN + 1, ISPINS * J - ISPN + 1)
                         CALL Stop_All("ReadFCIInt", "Error filling TMAT - different values for same orbitals")
                     end if
 
@@ -974,16 +1001,16 @@ contains
         end if
 
         if (ZeroedInt /= 0 .and. iProcIndex == 0) then
-            write(6, *) 'Number of removed two-index integrals: ', zeroedint
+            write(stdout, *) 'Number of removed two-index integrals: ', zeroedint
         end if
         if (LzDisallowed /= 0 .and. iProcIndex == 0) then
-            write(6, *) 'Number of Lz disallowed two-index integrals: ', &
+            write(stdout, *) 'Number of Lz disallowed two-index integrals: ', &
                 LzDisallowed
         end if
-        write(6, *) 'Number of non-zero integrals: ', NonZeroInt
+        write(stdout, *) 'Number of non-zero integrals: ', NonZeroInt
 
         IF (tCacheFCIDUMPInts) THEN
-            write(6, *) "Ordering cache..."
+            write(stdout, *) "Ordering cache..."
             CALL FillUpCache()
             DEallocate(CacheInd)
 !             CALL DumpUMatCache()
@@ -993,7 +1020,7 @@ contains
         end if
 !.. If we've changed the eigenvalues, we write out the basis again
 !         IF(LWRITE) THEN
-!            write(6,*) "1-electron energies have been read in."
+!            write(stdout,*) "1-electron energies have been read in."
 !            CALL WRITEBASIS(6,G1,NBASIS,ARR,BRR)
 !         end if
         RETURN
@@ -1006,7 +1033,6 @@ contains
         USE UMatCache, only: UMatInd, UMAT2D, TUMAT2D
         use OneEInts, only: TMatind, TMat2D, TMATSYM
         use util_mod, only: get_free_unit
-        IMPLICIT NONE
         real(dp), intent(out) :: ECORE
         HElement_t(dp), intent(out) :: UMAT(*)
         HElement_t(dp) Z
@@ -1070,7 +1096,7 @@ contains
         close(iunit)
 ! If we've changed the eigenvalues, we write out the basis again
 !         IF(LWRITE) THEN
-!            write(6,*) "1-electron energies have been read in."
+!            write(stdout,*) "1-electron energies have been read in."
 !            CALL WRITEBASIS(6,G1,NBASIS,ARR,BRR)
 !         end if
         RETURN
@@ -1078,13 +1104,12 @@ contains
 
     SUBROUTINE ReadPropInts(nBasis, PropFile, CoreVal, OneElInts)
 
-        use constants, only: dp, int64, iout
+        use constants, only: dp, int64, stdout
         use util_mod, only: get_free_unit
         use SymData, only: PropBitLen, nProp
         use SystemData, only: UMatEps, tROHF, tReltvy
         use Parallel_neci, only: iProcIndex, MPIBcast
 
-        implicit none
         integer, intent(in) :: nBasis
         HElement_t(dp) :: OneElInts(nBasis, nBasis)
         HElement_t(dp) z
@@ -1107,10 +1132,12 @@ contains
         if (iProcIndex == 0) then
             iunit = get_free_unit()
             file_name = PropFile
-            write(iout, *) 'Reading integral from the file:', trim(file_name)
+            write(stdout, *) 'Reading integral from the file:', trim(file_name)
             open(iunit, FILE=file_name, STATUS='OLD')
             read(iunit, FCI)
         end if
+
+        ! Re-order the orbitals symmetry labels if required
 
 !Now broadcast these values to the other processors (the values are only read in on root)
         CALL MPIBCast(NORB, 1)
@@ -1137,13 +1164,13 @@ contains
             ! Remove integrals that are too small
             if (abs(z) < UMatEps) then
                 if (ZeroedInt < 100) then
-                    write(6, '(a,2i4,a,2i4,a)', advance='no') &
+                    write(stdout, '(a,2i4,a,2i4,a)', advance='no') &
                         'Ignoring integral (chem. notation) (', i, j, '|', k, &
                         l, '): '
-                    write(6, *) z
+                    write(stdout, *) z
                 else if (ZeroedInt == 100) then
-                    write(6, *) 'Ignored more than 100 integrals.'
-                    write(6, *) 'Further threshold truncations not reported explicitly'
+                    write(stdout, *) 'Ignored more than 100 integrals.'
+                    write(stdout, *) 'Further threshold truncations not reported explicitly'
                 end if
                 ZeroedInt = ZeroedInt + 1
                 goto 101
@@ -1159,7 +1186,7 @@ contains
                     ! (if T_ji has been read in).
                     diff = abs(OneElInts(iSpins * i - ispn + 1, iSpins * j - ispn + 1) - z)
                     if (abs(OneElInts(iSpins * i - ispn + 1, iSpins * j - ispn + 1)) > 0.0d-6 .and. diff > 1.0e-7_dp) then
-                        write(6, *) i, j, z, OneElInts(iSpins * i - ispn + 1, iSpins * j - ispn + 1)
+                        write(stdout, *) i, j, z, OneElInts(iSpins * i - ispn + 1, iSpins * j - ispn + 1)
                         call Stop_All(t_R, "Error filling OneElInts - different values for same orbitals")
                     end if
 
@@ -1182,5 +1209,38 @@ contains
         CoreVal = core
 
     END SUBROUTINE ReadPropInts
+
+    subroutine load_orb_perm(perm)
+        integer, intent(in) :: perm(:)
+
+        orbital_permutation = perm
+    end subroutine load_orb_perm
+
+    subroutine clear_orb_perm()
+        if (allocated (orbital_permutation)) deallocate(orbital_permutation)
+    end subroutine clear_orb_perm
+
+    subroutine reorder_sym_labels(ORBSYM, SYML, SYMLZ)
+        use constants, only: int64
+        integer(int64), intent(inout) :: ORBSYM(:)
+        integer, intent(inout) :: SYML(:), SYMLZ(:)
+
+        integer :: NORB
+
+        if (allocated(orbital_permutation)) then
+            NORB = size(orbital_permutation, dim = 1)
+            ORBSYM(1:NORB) = ORBSYM(orbital_permutation)
+            SYML(1:NORB) = SYML(orbital_permutation)
+            SYMLZ(1:NORB) = SYMLZ(orbital_permutation)
+        end if
+    end subroutine reorder_sym_labels
+
+    subroutine reorder_orb_label(label)
+        integer, intent(inout) :: label
+
+        if (allocated(orbital_permutation) .and. label > 0) then
+            label = orbital_permutation(label)
+        end if
+    end subroutine reorder_orb_label
 
 end module read_fci

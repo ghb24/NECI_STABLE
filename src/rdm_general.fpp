@@ -23,12 +23,12 @@ contains
         use DeterminantData, only: write_det
         use CalcData, only: MemoryFacPart, tEN2
         use FciMCData, only: MaxSpawned, Spawned_Parents, Spawned_Parents_Index
-        use FciMCData, only: Spawned_ParentsTag, Spawned_Parents_IndexTag, nhashes_spawn
+        use FciMCData, only: Spawned_ParentsTag, Spawned_Parents_IndexTag
         use FciMCData, only: HFDet_True, tSinglePartPhase, AvNoatHF, IterRDM_HF
         use global_det_data, only: len_av_sgn_tot, len_iter_occ_tot
         use LoggingData, only: tDo_Not_Calc_2RDM_est, RDMExcitLevel, tExplicitAllRDM
         use LoggingData, only: tDiagRDM, tDumpForcesInfo, tDipoles, tPrint1RDM
-        use LoggingData, only: tRDMInstEnergy, tReadRDMs, tPopsfile, tno_RDMs_to_read
+        use LoggingData, only: tReadRDMs, tPopsfile, tno_RDMs_to_read
         use LoggingData, only: twrite_RDMs_to_read, tPrint1RDMsFrom2RDMPops
         use LoggingData, only: tPrint1RDMsFromSpinfree, t_spin_resolved_rdms
         use Parallel_neci, only: iProcIndex, nProcessors
@@ -57,7 +57,7 @@ contains
         integer :: rdm_nrows, nhashes_rdm_main, nhashes_rdm_spawn
         integer :: standard_spawn_size, min_spawn_size
         integer :: max_nelems_main, max_nelems_spawn, max_nelems_recv, max_nelems_recv_2
-        integer :: memory_alloc, main_mem, spawn_mem, recv_mem
+        integer(int64) :: memory_alloc, main_mem, spawn_mem, recv_mem
         integer :: ndets_en_pert, nhashes_en_pert
         integer :: irdm, iproc, ierr
         character(len=*), parameter :: t_r = 'init_rdms'
@@ -824,7 +824,6 @@ contains
         !           AvSignI - the new average walker population during this time (also real).
 
         use bit_reps, only: extract_bit_rep
-        use CalcData, only: tPairedReplicas
         use FciMCData, only: PreviousCycles, Iter, IterRDMStart, excit_gen_store_type
         use global_det_data, only: get_iter_occ_tot, get_av_sgn_tot
         use global_det_data, only: len_av_sgn_tot, len_iter_occ_tot
@@ -839,7 +838,7 @@ contains
         real(dp), intent(out) :: IterRDMStartI(len_iter_occ_tot), AvSignI(len_av_sgn_tot)
         type(excit_gen_store_type), intent(inout), optional :: store
 
-        integer :: part_ind, irdm
+        integer :: irdm
         integer :: av_ind_1, av_ind_2
 
         unused_var(store)

@@ -201,7 +201,7 @@ module CalcData
     integer, allocatable :: user_input_seed
     INTEGER :: IMCSTEPS, IEQSTEPS, MDK(5), Iters, NDets, iDetGroup
     INTEGER :: CUR_VERT, NHISTBOXES, I_P, LinePoints, iMaxExcitLevel
-    INTEGER :: NMCyc, StepsSft, CLMax
+    INTEGER :: NMCyc, StepsSft, CLMax, eq_cyc
     INTEGER :: NEquilSteps, iSampleRDMIters
     real(dp) :: InitialPart
     real(dp), allocatable :: InitialPartVec(:)
@@ -226,7 +226,7 @@ module CalcData
     real(dp) :: g_MultiWeight(0:10), G_VMC_PI, G_VMC_FAC, BETAEQ
     real(dp) :: G_VMC_EXCITWEIGHT(10), G_VMC_EXCITWEIGHTS(6, 10)
     real(dp) :: BETAP, RHOEPSILON, DBETA, STARCONV, GraphBias
-    real(dp) :: GrowGraphsExpo, Tau, SftDamp, ScaleWalkers
+    real(dp) :: GrowGraphsExpo, Tau, SftDamp, SftDamp2, ScaleWalkers
     real(dp) :: PRet, FracLargerDet, pop_change_min
     real(dp) :: MemoryFacPart
     real(dp) :: MemoryFacSpawn, SinglesBias, TauFactor, StepsSftImag
@@ -606,10 +606,6 @@ module CalcData
 ! determine what we should do with the spawning events above that ..
     real(dp) :: int_ratio_singles, int_ratio_para, int_ratio_anti, int_ratio_doubles
 
-! make a flag to decide to calculate the projected energy directly and not
-! by initialising a list of all connected states
-    logical :: t_direct_guga_ref = .false.
-
 ! introduce a flag to read the pSingles/pDoubles quantity even though the
 ! tau-search may be turned off
 ! do i want to change this to the default behavior? and indicate it
@@ -635,7 +631,7 @@ module CalcData
     logical :: tDeathBeforeComms
 
 ! Allow the user to input the following values for the excitation generator
-    real(dp) :: pSinglesIn, pParallelIn, pDoublesIn
+    real(dp), allocatable :: pSinglesIn, pDoublesIn, pTriplesIn, pParallelIn
 
 ! If true then allow set_initial_run_references to be called
     logical :: tSetInitialRunRef
@@ -675,4 +671,7 @@ module CalcData
 ! already exist in CurrentDets.
     logical :: tAllowSpawnEmpty
 
+!Use additional second shift damping factor for improved walker population
+!control.
+    logical :: tTargetShiftdamp = .false.
 end module CalcData

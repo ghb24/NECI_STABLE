@@ -1,10 +1,6 @@
 #ifndef MACROS_INCLUDEGUARD_
 #define MACROS_INCLUDEGUARD_
 
-#define DELEGATED_STR(x) #x
-#define STR(x) DELEGATED_STR(x)
-#define AT __FILE__//":"//STR(__LINE__)
-
 #define LogAlloc(ERR,NAME,LEN,SIZE,TAG) CALL LogMemAlloc(NAME,LEN,SIZE,this_routine,TAG)
 #define LogDealloc(TAG) CALL LogMemDealloc(this_routine,TAG)
 #define log_dealloc(tag) LogDealloc(tag)
@@ -16,7 +12,7 @@
 
 ! Is the specified orbital occupied or not?
 ! TODO: Use ilut_int/ilut_off here?
-#define IsOcc(ilut,orb) btest(ilut((orb-1)/bits_n_int), mod(orb-1,bits_n_int))
+#define IsOcc(ilut,orb) btest(ilut((orb-1) .div. bits_n_int), mod(orb-1,bits_n_int))
 #define IsNotOcc(ilut,orb) (.not.IsOcc(ilut,orb))
 #define IsUnoccDet(sgn) all(abs(sgn) < 1.e-12_dp)
 
@@ -110,7 +106,6 @@ endif
 #define IFDEBUGTHEN(PrintLevel,ThisLevel) if (PrintLevel>=ThisLevel) then
 #define ENDIFDEBUG endif
 ! Use ASSERT in otherwise pure procedures.
-#define DEBUG_IMPURE
 #else
 #define ASSERT(x)
 #define ASSERTROOT(x)
@@ -119,7 +114,6 @@ endif
 #define IFDEBUGEQTHEN(PrintLevel,ThisLevel) if(.false.) then
 #define IFDEBUGTHEN(PrintLevel,ThisLevel) if(.false.) then
 #define ENDIFDEBUG endif
-#define DEBUG_IMPURE
 #endif
 
 ! define a precompiler setup for the warning workaround
@@ -199,7 +193,7 @@ endif
 
 ! Define types for C pointers to work between various compilers with
 ! differing levels of brokenness.
-#if defined(__PATHSCALE__) || defined(__ISO_C_HACK) || defined(__OPEN64__) || defined(NAGF95)
+#if defined(__PATHSCALE__) || defined(__OPEN64__) || defined(NAGF95)
 #define loc_neci loc
 #ifdef POINTER8
 #define c_ptr_t integer(int64)
@@ -214,20 +208,6 @@ endif
 #define loc_neci c_loc
 #endif
 
-! ***** HACK *****
-! gfortran was playing up using a parameter defined to equal C_NULL_PTR
-! --> use pre-processor defines instead!
-#ifdef CBINDMPI
-#if defined(__PATHSCALE__) || defined(ISO_C_HACK_) || defined(__OPEN64__)
-#ifdef POINTER8
-#define MPI_IN_PLACE (0_int64)
-#else
-#define MPI_IN_PLACE (0_int32)
-#endif
-#else
-#define MPI_IN_PLACE (C_NULL_PTR)
-#endif
-#endif
 
 ! To make sure conjugations of both real and complex realisations of HElement_t behave on all compilers:
 #ifdef CMPLX_
@@ -270,8 +250,6 @@ endif
 ! Shortcut for optional variables
 #define def_default(Var_, Var, Val) if(present(Var))then;Var_=Var;else;Var_=Val;endif
 
-#endif
-
 #define check_abort_excit(pgen,x) if (near_zero(pgen)) then; x = 0_n_int; return; endif
 
 #ifdef DEBUG_
@@ -279,3 +257,11 @@ endif
 #else
 #define debug_function_name(name)
 #endif
+
+#define routine_name(name) character(*), parameter :: this_routine = name
+#define test_name(name) character(*), parameter :: test_name = name
+
+
+! This should be the last end if
+#endif
+

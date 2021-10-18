@@ -6,7 +6,7 @@ module shared_rhash
     ! This makes hashed integrals usable in shared memory and increases their efficiency
     use constants
     use shared_array
-    use ParallelHelper, only: iProcIndex_intra, mpi_comm_intra
+    use MPI_wrapper, only: iProcIndex_intra, mpi_comm_intra
     implicit none
 
     private

@@ -66,9 +66,9 @@ contains
         end if
 
         if (tExplicitAllRDM) then
-            write(6, '(/,"****","'//trim(RDMName)//'"," CALCULATED EXPLICITLY ****",1X,/)')
+            write(stdout, '(/,"****","'//trim(RDMName)//'"," CALCULATED EXPLICITLY ****",1X,/)')
         else
-            write(6, '(/,"****","'//trim(RDMName)//'"," CALCULATED STOCHASTICALLY ****",1X,/)')
+            write(stdout, '(/,"****","'//trim(RDMName)//'"," CALCULATED STOCHASTICALLY ****",1X,/)')
         end if
 
         ! Combine the 1- or 2-RDM from all processors, etc.
@@ -102,7 +102,7 @@ contains
         ! Stuff using the 1-RDMs:
         if (RDMExcitLevel == 1 .or. RDMExcitLevel == 3) then
             ! Output banner for start of 1-RDM section in the output.
-            write(6, '(1x,2("="),1x,"INFORMATION FOR FINAL 1-","'//trim(RDMName)//'",1x,57("="))')
+            write(stdout, '(1x,2("="),1x,"INFORMATION FOR FINAL 1-","'//trim(RDMName)//'",1x,57("="))')
 
             if (RDMExcitLevel == 1) call finalise_1e_rdm(rdm_defs, one_rdms, norm_1rdm)
 
@@ -110,8 +110,8 @@ contains
                 call calc_rho_ii_and_sum_n(one_rdms, norm_1rdm, SumN_Rho_ii)
 
                 do irdm = 1, size(one_rdms)
-                    write(6, '(/,1x,"INFORMATION FOR 1-RDM",1x,'//int_fmt(irdm)//',":")') irdm
-                    write(6, '(/,1X,"SUM OF 1-RDM(i,i) FOR THE N LOWEST ENERGY HF ORBITALS:",1X,F20.13)') SumN_Rho_ii(irdm)
+                    write(stdout, '(/,1x,"INFORMATION FOR 1-RDM",1x,'//int_fmt(irdm)//',":")') irdm
+                    write(stdout, '(/,1X,"SUM OF 1-RDM(i,i) FOR THE N LOWEST ENERGY HF ORBITALS:",1X,F20.13)') SumN_Rho_ii(irdm)
 
                     if (RDMExcitLevel == 1 .or. tPrint1RDM) then
                         ! Write out the final, normalised, hermitian OneRDM.
@@ -135,7 +135,7 @@ contains
                 end if
             end do
             ! Output banner for the end of the 1-RDM section.
-            write(6, '(/,1x,89("="),/)')
+            write(stdout, '(/,1x,89("="),/)')
         end if
 
         ! Write the final instantaneous 2-RDM estimates, and also the final
@@ -147,7 +147,7 @@ contains
         if (print_2rdm_est .and. called_as_lib) then
             RDM_energy = rdm_estimates%energy_num(1) / rdm_estimates%norm(1)
             call MPIBCast(RDM_energy)
-            write(6, *) 'RDM_energy at rdm_finalising.F90 ', RDM_energy
+            write(stdout, *) 'RDM_energy at rdm_finalising.F90 ', RDM_energy
         end if
 
         ! this is allocated in find_nat_orb_occ_numbers and used later in
@@ -365,11 +365,11 @@ contains
             ! For closed shell systems we work with spatial orbitals, to
             ! calculate spin-free 1RDMs.
             if (open_shell) then
-                p = i; q = j; 
-                r = k; s = l; 
+                p = i; q = j;
+                r = k; s = l;
             else
-                p = spatial(i); q = spatial(j); 
-                r = spatial(k); s = spatial(l); 
+                p = spatial(i); q = spatial(j);
+                r = spatial(k); s = spatial(l);
             end if
 
             call extract_sign_rdm(two_rdms%elements(:, ielem), rdm_sign)
@@ -377,9 +377,9 @@ contains
             ! If abba or baab term - swap last two indices and sign.
             if (.not. same_spin(i, k)) then
                 if (open_shell) then
-                    r = l; s = k; 
+                    r = l; s = k;
                 else
-                    r = spatial(l); s = spatial(k); 
+                    r = spatial(l); s = spatial(k);
                 end if
                 rdm_sign = -rdm_sign
             end if
@@ -671,8 +671,8 @@ contains
         ! Within each file, therefore, only spatial orbital labels are printed.
         ! Thus, we need to use spatial orbitals to determine which RDM elements
         ! are  to kept, and which transformed.
-        p = spatial(i); q = spatial(j); 
-        r = spatial(k); s = spatial(l); 
+        p = spatial(i); q = spatial(j);
+        r = spatial(k); s = spatial(l);
         ! When we calculate the combined labels, pq and rs, we would
         ! usually have p and q swapped below, and similarly with r and s.
         ! However, the old RDM files prints only RDM elements with pq < rs,
@@ -683,9 +683,9 @@ contains
         ! Apply symmetry (for *real* RDMs), to only print elements from one
         ! half of the RDM, using the legacy ordering.
         if (pq_legacy > rs_legacy) then
-            i_temp = i; j_temp = j; 
-            i = k; j = l; 
-            k = i_temp; l = j_temp; 
+            i_temp = i; j_temp = j;
+            i = k; j = l;
+            k = i_temp; l = j_temp;
         end if
 
         ! If either i and j have the same spatial part, of k and l have the
@@ -808,7 +808,7 @@ contains
             call extract_sign_rdm(rdm%elements(:, ielem), rdm_sign)
 
             ! Store the original labels, before we possibly swap them.
-            k_orig = k; l_orig = l; 
+            k_orig = k; l_orig = l;
             ! If this term is abba or baab then we can make it abab or baba by
             ! swapping the last two indices, which introduces a minus sign.
             ! It will then contribute to a spinfree 2-RDM element.
@@ -819,8 +819,8 @@ contains
             end if
 
             ! Get the spatial orbital labels from the spin orbital ones.
-            p = spatial(i); q = spatial(j); 
-            r = spatial(k); s = spatial(l); 
+            p = spatial(i); q = spatial(j);
+            r = spatial(k); s = spatial(l);
             ! The 'combined' labels.
             pq = (p - 1) * nbasis + q
             rs = (r - 1) * nbasis + s
@@ -850,7 +850,7 @@ contains
                 call extract_sign_rdm(rdm%elements(:, ielem), rdm_sign)
 
                 ! Swap the spatial labels.
-                r = spatial(l_orig); s = spatial(k_orig); 
+                r = spatial(l_orig); s = spatial(k_orig);
                 rs = (r - 1) * nbasis + s
 
                 ! Half the sign of non-transition RDMs, where we apply
@@ -1110,8 +1110,8 @@ contains
                             ! Normalise.
                             rdm_sign = rdm_sign / rdm_trace
 
-                            p = spatial(i); q = spatial(j); 
-                            r = spatial(k); s = spatial(l); 
+                            p = spatial(i); q = spatial(j);
+                            r = spatial(k); s = spatial(l);
                             if ((.not. open_shell) .and. is_beta(i)) then
                                 call stop_all(t_r, "This is a closed shell system but we have an open shell type RDM element.&
                                                    & An error must have occured.")
@@ -1138,9 +1138,9 @@ contains
                             end if
                         end do
 
-                        close(iunit_aaaa); close (iunit_abab); close (iunit_abba); 
+                        close(iunit_aaaa); close (iunit_abab); close (iunit_abba);
                         if (open_shell) then
-                            close(iunit_bbbb); close (iunit_baba); close (iunit_baab); 
+                            close(iunit_bbbb); close (iunit_baba); close (iunit_baab);
                         end if
                     end if
                 end do
@@ -1304,7 +1304,7 @@ contains
         integer :: i, j
         real(dp) :: UpperBound
 
-        write(6, '("Ensuring that Cauchy--Schwarz inequality holds.")')
+        write(stdout, '("Ensuring that Cauchy--Schwarz inequality holds.")')
 
         associate(ind => SymLabelListInv_rot)
             do i = 1, nbasis
@@ -1319,7 +1319,7 @@ contains
                             matrix(ind(i), ind(j)) = UpperBound
                         end if
 
-                        write(6, '("Changing element:")') i, j
+                        write(stdout, '("Changing element:")') i, j
                     else
                         cycle
                     end if
@@ -1464,8 +1464,8 @@ contains
         end associate
 
         ! Output the hermiticity errors.
-        write(6, '(1X,"MAX ABS ERROR IN 1-RDM HERMITICITY",F20.13)') max_error_herm
-        write(6, '(1X,"MAX SUM ERROR IN 1-RDM HERMITICITY",F20.13)') sum_error_herm
+        write(stdout, '(1X,"MAX ABS ERROR IN 1-RDM HERMITICITY",F20.13)') max_error_herm
+        write(stdout, '(1X,"MAX SUM ERROR IN 1-RDM HERMITICITY",F20.13)') sum_error_herm
 
     end subroutine make_1e_rdm_hermitian
 
@@ -1519,7 +1519,7 @@ contains
             if (.not. tGUGA) then
                 if (tNormalise) then
                     ! Haven't got the capabilities to produce multiple 1-RDMs yet.
-                    write(6, '(1X,"Writing out the *normalised* 1 electron density matrix to file")')
+                    write(stdout, '(1X,"Writing out the *normalised* 1 electron density matrix to file")')
                     call neci_flush(6)
                     one_rdm_unit = get_free_unit()
 
@@ -1535,7 +1535,7 @@ contains
                     open(one_rdm_unit, file=trim(filename), status='unknown')
                 else
                     ! Only every write out 1 of these at the moment.
-                    write(6, '(1X,"Writing out the *unnormalised* 1 electron density matrix to file for reading in")')
+                    write(stdout, '(1X,"Writing out the *unnormalised* 1 electron density matrix to file for reading in")')
                     call neci_flush(6)
                     one_rdm_unit = get_free_unit()
                     if (is_transition_rdm) then

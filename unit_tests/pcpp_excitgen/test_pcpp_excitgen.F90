@@ -1,3 +1,4 @@
+#include "macros.h"
 program test_pcpp_excitgen
     use constants
     use Parallel_neci, only: MPIInit, MPIEnd
@@ -23,13 +24,13 @@ contains
     subroutine pcpp_test_driver()
         implicit none
         real(dp) :: pTot, pNull
-        integer :: numEx, nFound
+        integer :: numEx, nFound, i
         integer, parameter :: nSamples = 200000
 
         ! set the excitation we want to test
         generate_excitation => gen_rand_excit_pcpp
         ! prepare everything for testing the excitgen
-        call init_excitgen_test(n_el=5, fcidump_writer=FciDumpWriter_t(random_fcidump, 'FCIDUMP'))
+        call init_excitgen_test(ref_det=[(i, i = 1, 5)], fcidump_writer=FciDumpWriter_t(random_fcidump, 'FCIDUMP'))
 
         ! prepare the pcpp excitation generator: get the precomputed weights
 
@@ -96,6 +97,10 @@ contains
             integer, intent(in) :: ClassCount2(ScratchSize), ClassCountUnocc2(ScratchSize)
 
             real(dp) :: pgen
+
+            unused_var(nI)
+            unused_var(ClassCount2)
+            unused_var(ClassCountUnocc2)
 
             pgen = calc_pgen_pcpp(ilutI, ex, ic)
 

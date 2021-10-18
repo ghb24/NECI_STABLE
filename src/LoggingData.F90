@@ -57,6 +57,8 @@ module LoggingData
     logical :: tCalcInstantS2, tCalcInstSCpts, tCalcInstantS2Init
     integer :: instant_s2_multiplier, instant_s2_multiplier_init
     integer :: iHighPopWrite
+    ! Flag to determine procedure regarding multi-replica output
+    logical :: t_force_replica_output = .false.
 
     !Just do a blocking analysis on previous data
     logical :: tJustBlocking
@@ -227,6 +229,8 @@ module LoggingData
     logical :: t_spin_measurements = .false.
 
     logical :: t_print_core_info = .false.
+    logical :: t_print_core_hamil = .false.
+    logical :: t_print_core_vec = .false.
 
     ! for the histogramming of the acceptance rates used in the adaptive shift mode
     logical :: t_hist_fvals
@@ -237,4 +241,9 @@ module LoggingData
 
     ! output RDMs also in Molcas format in the GUGA RDMs implementation
     logical :: t_print_molcas_rdms = .false.
+
+    logical :: t_measure_local_spin = .false.
+
+    logical :: t_full_core_rdms = .false.
+
 end module LoggingData

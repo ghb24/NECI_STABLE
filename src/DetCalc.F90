@@ -1,9 +1,9 @@
 #include "macros.h"
 MODULE DetCalc
-        use constants, only: dp,n_int
-        use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB, tStoreSpinOrbs, &
-             t_non_hermitian
-        use sort_mod
+    use constants, only: dp,n_int
+    use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB, tStoreSpinOrbs, &
+         t_non_hermitian
+    use sort_mod
 
     use DetCalcData
 
@@ -65,14 +65,14 @@ CONTAINS
         character(25), parameter :: this_routine = 'DetCalcInit'
 
         IF (.NOT. TCALCHMAT) THEN
-            write(6, *) "Not storing the H matrix."
+            write(stdout, *) "Not storing the H matrix."
             IF (TENERGY .AND. .NOT. TBLOCK) THEN
-                write(6, *) "Cannot calculate energies without blocking the Hamiltonian."
+                write(stdout, *) "Cannot calculate energies without blocking the Hamiltonian."
                 TENERGY = .FALSE.
             end if
             IF (TENERGY .AND. NBLK /= 0) THEN
 !C.. We're doing a Lanczos without calculating the H mat
-                write(6, *) "Cannot perform Lanczos without Hamiltonian"
+                write(stdout, *) "Cannot perform Lanczos without Hamiltonian"
                 TENERGY = .FALSE.
             end if
         end if
@@ -92,10 +92,10 @@ CONTAINS
             if (.not. associated(specdet)) then
                 !specdet not allocated. Allocate it and copy fdet
                 allocate(specdet(nel))
-                write(6, *) "TSPECDET set, but not allocated.  using FDET"
+                write(stdout, *) "TSPECDET set, but not allocated.  using FDET"
                 CALL NECI_ICOPY(NEL, FDET, 1, SPECDET, 1)
             else if (.not. ISVALIDDET(SPECDET, NEL)) then
-                write(6, *) "TSPECDET set, but invalid.  using FDET"
+                write(stdout, *) "TSPECDET set, but invalid.  using FDET"
                 CALL NECI_ICOPY(NEL, FDET, 1, SPECDET, 1)
             end if
         end if
@@ -105,30 +105,30 @@ CONTAINS
         IF (tFindDets) THEN
 !C..Need to determine the determinants
             IF (iExcitLevel /= 0) THEN
-                write(6, *) "Performing truncated CI at level ", iExcitLevel
+                write(stdout, *) "Performing truncated CI at level ", iExcitLevel
                 IF (TSPECDET) THEN
-                    write(6, *) "Using SPECDET:"
+                    write(stdout, *) "Using SPECDET:"
                     call write_det(6, SPECDET, .true.)!
                     CALL NECI_ICOPY(NEL, SPECDET, 1, FDET, 1)
                 ELSE
-                    write(6, *) "Using Fermi DET:"
+                    write(stdout, *) "Using Fermi DET:"
                     call write_det(6, FDET, .true.)
                 end if
 !C.. if we're doing a truncated CI expansion
                 CALL GENEXCIT(FDET, iExcitLevel, NBASIS, NEL, 0, (/0.0_dp/), NDET, 1, G1, .TRUE., NBASISMAX, .TRUE.)
-                write(6, *) "NDET out of GENEXCIT ", NDET
+                write(stdout, *) "NDET out of GENEXCIT ", NDET
 !C.. We need to add in the FDET
                 NDET = NDET + 1
                 II = NDET
                 NBLOCKS = 1
             else if (TBLOCK) THEN
-                write(6, *) "Determining determinants and blocks."
+                write(stdout, *) "Determining determinants and blocks."
                 IF (TPARITY) THEN
-                    write(6, *) "Using symmetry restriction:"
+                    write(stdout, *) "Using symmetry restriction:"
                     CALL WRITEALLSYM(6, SymRestrict, .TRUE.)
                 end if
                 IF (TSPN) THEN
-                    write(6, *) "Using spin restriction:", LMS
+                    write(stdout, *) "Using spin restriction:", LMS
                 end if
                 if (tUHF .and. tMolpro) then
                     !When breaking spin symmetry in molpro, it is important to occupy alpha orbs preferentially
@@ -140,14 +140,14 @@ CONTAINS
          &                NDET, G1, II, NBLOCKSTARTS, NBLOCKS, TSPN, LMS2, TPARITY,        &
          &               SymRestrict, IFDET,.NOT. TREAD, NDETTOT, BLOCKSYM)
                 end if
-                write(6, *) "NBLOCKS:", NBLOCKS
-                write(6, *) "Determining determinants."
+                write(stdout, *) "NBLOCKS:", NBLOCKS
+                write(stdout, *) "Determining determinants."
                 IF (TPARITY) THEN
-                    write(6, *) "Using symmetry restriction:"
+                    write(stdout, *) "Using symmetry restriction:"
                     CALL WRITEALLSYM(6, SymRestrict, .TRUE.)
                 end if
                 IF (TSPN) THEN
-                    write(6, *) "Using spin restriction:", LMS
+                    write(stdout, *) "Using spin restriction:", LMS
                 end if
                 if (tUHF .and. tMolpro) then
                     !When breaking spin symmetry in molpro, it is important to occupy alpha orbs preferentially
@@ -160,12 +160,12 @@ CONTAINS
             end if
 !C..
             IF (II == 0) THEN
-                write(6, *) "No determinants found.  Cannot continue"
+                write(stdout, *) "No determinants found.  Cannot continue"
                 call stop_all(this_routine, "No determinants found.  Cannot continue")
             end if
 !C.. NEL now only includes active electrons
-            write(6, *) "Number of determinants found to be: ", II
-            write(6, *) "Allocating initial memory for calculation of energy..."
+            write(stdout, *) "Number of determinants found to be: ", II
+            write(stdout, *) "Allocating initial memory for calculation of energy..."
             CALL neci_flush(6)
             allocate(NMrks(nEl, II), stat=ierr)
             LogAlloc(ierr, 'NMRKS', NEL * II, 4, tagNMRKS)
@@ -240,21 +240,21 @@ CONTAINS
             END DO
             IF (IFDET == 0) call stop_all("DetCalcInit", "Fermi determinant is not found in NMRKS!")
 
-            write(6, *) ' NUMBER OF SYMMETRY UNIQUE DETS ', NDET
+            write(stdout, *) ' NUMBER OF SYMMETRY UNIQUE DETS ', NDET
 
-!C         write(6,*) ' TOTAL NUMBER OF DETS.' , NDETTOT
+!C         write(stdout,*) ' TOTAL NUMBER OF DETS.' , NDETTOT
             IF (NEVAL == 0) THEN
-                write(6, *) 'NEVAL=0.  Setting NEVAL=NDET'
+                write(stdout, *) 'NEVAL=0.  Setting NEVAL=NDET'
                 NEVAL = NDET
             end if
             IF (NEVAL > NDET) THEN
-                write(6, *) 'NEVAL>NDET.  Setting NEVAL=NDET'
+                write(stdout, *) 'NEVAL>NDET.  Setting NEVAL=NDET'
                 NEVAL = NDET
             end if
 
             IF (ABS(DETINV) > NDET) THEN
-                write(6, *) 'DETINV=', DETINV, '>NDET=', NDET
-                write(6, *) 'Setting DETINV to 0'
+                write(stdout, *) 'DETINV=', DETINV, '>NDET=', NDET
+                write(stdout, *) 'Setting DETINV to 0'
                 DETINV = 0
             end if
             CALL neci_flush(6)
@@ -262,7 +262,7 @@ CONTAINS
 !C ==----------------------------------------------------------------==
 !C..Set up memory for c's, nrow and the label
             IF (TCALCHMAT) THEN
-                write(6, *) "CK Size", NDET * NEVAL * HElement_t_size
+                write(stdout, *) "CK Size", NDET * NEVAL * HElement_t_size
                 allocate(CkN(nDet, nEval), stat=ierr)
                 LogAlloc(ierr, 'CKN', nDet * nEval, HElement_t_sizeB, tagCKN)
                 CKN = (0.0_dp)
@@ -335,7 +335,8 @@ CONTAINS
         INTEGER J, JR, iGetExcitLevel_2, ExcitLevel, iunit
         INTEGER LSCR, LISCR, MaxIndex
         LOGICAL tMC!,TestClosedShellDet,Found,tSign
-        real(dp) GetHElement, calct, calcmcen, calcdlwdb, norm, temp_hel
+        real(dp) :: GetHElement, calct, calcmcen, calcdlwdb, norm, temp_hel
+        external :: GetHElement
         integer:: ic, TempnI(NEl), MomSymDet(NEl), ICSym, ICConnect, PairedUnit, SelfInvUnit
         integer(n_int) :: iLutMomSym(0:NIfTot)
         logical :: tSuccess
@@ -348,17 +349,17 @@ CONTAINS
         !integer(TagIntType) :: IlutTag
 
         IF (tEnergy) THEN
-            write(6, '(1X,A,E19.3)') ' B2LIMIT : ', B2L
-            write(6, *) ' NBLK : ', NBLK
-            write(6, *) ' NKRY : ', NKRY
-            write(6, *) ' NEVAL : ', NEVAL
+            write(stdout, '(1X,A,E19.3)') ' B2LIMIT : ', B2L
+            write(stdout, *) ' NBLK : ', NBLK
+            write(stdout, *) ' NKRY : ', NKRY
+            write(stdout, *) ' NEVAL : ', NEVAL
 
-            write(6, *) ' NCYCLE : ', NCYCLE
-            write(6, *) ' TENERGY : ', TENERGY
-            write(6, *) ' IOBS : ', IOBS
-            write(6, *) ' JOBS : ', JOBS
-            write(6, *) ' KOBS : ', KOBS
-            write(6, *) ' NMSH : ', NMSH
+            write(stdout, *) ' NCYCLE : ', NCYCLE
+            write(stdout, *) ' TENERGY : ', TENERGY
+            write(stdout, *) ' IOBS : ', IOBS
+            write(stdout, *) ' JOBS : ', JOBS
+            write(stdout, *) ' KOBS : ', KOBS
+            write(stdout, *) ' NMSH : ', NMSH
             IF (IOBS > NMSH .OR. IOBS <= 0 .OR. JOBS > NMSH .OR. JOBS <= 0 .OR. KOBS > NMSH .OR. KOBS <= 0) THEN
                 call stop_all(this_routine, ' !!! REFERENCE PARTICLE NOT IN BOX !!! ')
             end if
@@ -369,7 +370,7 @@ CONTAINS
             if (t_new_real_space_hubbard) then
                 call init_real_space_hubbard()
             end if
-            write(6, *) "Calculating H matrix"
+            write(stdout, *) "Calculating H matrix"
 !C..We need to measure HAMIL and LAB first
             allocate(NROW(NDET), stat=ierr)
             CALL LogMemAlloc('NROW', NDET, 4, this_routine, NROWTag, ierr)
@@ -380,8 +381,8 @@ CONTAINS
             allocate(HAMIL(0), LAB(0))
             CALL DETHAM(NDET, NEL, NMRKS, HAMIL, LAB, NROW, .TRUE., ICMAX, GC, TMC)
             deallocate(HAMIL, LAB)
-            write(6, *) ' FINISHED COUNTING '
-            write(6, *) "Allocating memory for hamiltonian: ", GC * 2
+            write(stdout, *) ' FINISHED COUNTING '
+            write(stdout, *) "Allocating memory for hamiltonian: ", GC * 2
             CALL neci_flush(6)
 !C..Now we know size, allocate memory to HAMIL and LAB
             LENHAMIL = GC
@@ -430,8 +431,8 @@ CONTAINS
                 close(iunit)
             end if
             temp_hel = real(GETHELEMENT(IFDET, IFDET, HAMIL, LAB, NROW, NDET), dp)
-            write(6, *) '<D0|H|D0>=', temp_hel
-            write(6, *) '<D0|T|D0>=', CALCT(NMRKS(1, IFDET), NEL)
+            write(stdout, *) '<D0|H|D0>=', temp_hel
+            write(stdout, *) '<D0|T|D0>=', CALCT(NMRKS(1, IFDET), NEL)
             CALL neci_flush(6)
 !CC         CALL HAMHIST(HMIN,HMAX,LENHAMIL,NHISTBOXES)
         end if
@@ -447,11 +448,11 @@ CONTAINS
                 LSCR = MAX(NDET * NEVAL, 8 * NBLOCK * NKRY)
                 LISCR = 6 * NBLOCK * NKRY
 !C..
-!            write(6,'(/,/,8X,64(1H*))')
-                write(6, '(7X," *",62X,"*")')
-                write(6, '(7X," *",19X,A,18X,"*")') ' LANCZOS DIAGONALISATION '
-                write(6, '(7X," *",62X,"*")')
-!            write(6,'(7X,1X,64(1H*))')
+!            write(stdout,'(/,/,8X,64(1H*))')
+                write(stdout, '(7X," *",62X,"*")')
+                write(stdout, '(7X," *",19X,A,18X,"*")') ' LANCZOS DIAGONALISATION '
+                write(stdout, '(7X," *",62X,"*")')
+!            write(stdout,'(7X,1X,64(1H*))')
 !C..Set up memory for FRSBLKH
 
                 allocate(A(NEVAL, NEVAL), stat=ierr)
@@ -512,10 +513,10 @@ CONTAINS
             ELSE
 !C.. We splice in a non-Lanczos diagonalisin routine if NBLOCK=0
                 IF (NEVAL /= NDET) THEN
-                    write(6, *) "NEVAL.NE.NDET.", NEVAL, NDET, " Cannot exactly diagonalize."
+                    write(stdout, *) "NEVAL.NE.NDET.", NEVAL, NDET, " Cannot exactly diagonalize."
                     call stop_all(this_routine, "Cannot exactly diagonalise")
                 end if
-                write(6, *) "NBLK=0.  Doing exact diagonalization."
+                write(stdout, *) "NBLK=0.  Doing exact diagonalization."
                 IF (TCALCHMAT) THEN
                     allocate(WORK(4 * NDET), stat=ierr)
                     CALL LogMemAlloc('WORK', 4 * NDET, 8 * HElement_t_size, this_routine, WorkTag, ierr)
@@ -540,10 +541,10 @@ CONTAINS
             CALL LogMemAlloc('TKE', NEVAL, 8, this_routine, TKETag, ierr)
 
             EXEN = CALCMCEN(NEVAL, W, BETA)
-            write(6, "(A,F19.9)") "EXACT E(BETA)=", EXEN
+            write(stdout, "(A,F19.9)") "EXACT E(BETA)=", EXEN
             GSEN = CALCDLWDB(IFDET, NDET, NEVAL, CK, W, BETA)
-            write(6, "(A,F19.9)") "EXACT DLWDB(D0)=", GSEN
-            write(6, "(A,F19.9)") "GROUND E=", W(1)
+            write(stdout, "(A,F19.9)") "EXACT DLWDB(D0)=", GSEN
+            write(stdout, "(A,F19.9)") "GROUND E=", W(1)
 !C.. END ENERGY CALC
 !      end if
         else if (tFCIDavidson) THEN
@@ -579,9 +580,9 @@ CONTAINS
 !No longer used
 !      IF(TRHOIJ) THEN
 !         IF((.NOT.TENERGY).AND.(.NOT.TREADRHO)) THEN
-!            write(6,*) "Calculating approx RHOs"
-!            write(6,*) "Using Trotter decomposition? ",TTROT
-!            write(6,*) "Order of Taylor: ",ABS(NTAY)
+!            write(stdout,*) "Calculating approx RHOs"
+!            write(stdout,*) "Using Trotter decomposition? ",TTROT
+!            write(stdout,*) "Order of Taylor: ",ABS(NTAY)
 !            CALL CALCAPPROXRHOIJ(BETA,I_P,HAMIL,LAB,NROW,NDET,RHOMIN,RHOMAX,NRHOS,RHOEPS,TTROT,NTAY)
 !         end if
 !      end if
@@ -595,7 +596,7 @@ CONTAINS
 !Need to find symmetry of the reference determinant, so that we can only look for determinants of the correct symmetry.
                 CALL GETSYM(FDET, NEL, G1, NBASISMAX, IHFSYM)
                 IF (.not. associated(NMRKS)) THEN
-                    write(6, *) "NMRKS not allocated"
+                    write(stdout, *) "NMRKS not allocated"
                     CALL neci_flush(6)
                     CALL Stop_All("DoDetCalc", "NMRKS not allocated so cannot compress dets.")
                 end if
@@ -607,7 +608,6 @@ CONTAINS
                         CALL decode_bit_det(nI, davidson_ilut(:, i))
                         CALL GETSYM(nI, NEL, G1, NBASISMAX, ISYM)
                         !CALL GetLz(nI,NEL,Lz)
-                        !IF((ISym%Sym%S.eq.IHFSYM%Sym%S).and.(Lz.eq.LzTot)) THEN
                         IF (ISym%Sym%S == IHFSYM%Sym%S) THEN
                             Det = Det + 1
                             norm = norm + (davidsonCalc%davidson_eigenvector(i))**2
@@ -616,8 +616,6 @@ CONTAINS
                 else
                     do i = 1, NDET
                         CALL GETSYM(NMRKS(:, i), NEL, G1, NBASISMAX, ISYM)
-                        !CALL GetLz(NMRKS(:,i),NEL,Lz)
-                        !IF((ISym%Sym%S.eq.IHFSYM%Sym%S).and.(Lz.eq.LzTot)) THEN
                         IF (ISym%Sym%S == IHFSYM%Sym%S) THEN
                             Det = Det + 1
                             IF (tEnergy) THEN
@@ -626,8 +624,8 @@ CONTAINS
                         end if
                     end do
                 end if
-                write(6, "(I25,A,I4,A)") Det, " determinants of symmetry ", IHFSym%Sym%S, " found."
-                write(6, *) "Normalization of eigenvector 1 is: ", norm
+                write(stdout, "(I25,A,I4,A)") Det, " determinants of symmetry ", IHFSym%Sym%S, " found."
+                write(stdout, *) "Normalization of eigenvector 1 is: ", norm
                 CALL neci_flush(6)
 
                 allocate(FCIDets(0:NIfTot, Det), stat=ierr)
@@ -667,12 +665,6 @@ CONTAINS
                 else
                     do i = 1, NDet
                         CALL GETSYM(NMRKS(:, i), NEL, G1, NBASISMAX, ISYM)
-                        !CALL GetLz(NMRKS(:,i),NEL,Lz)
-                        !                IF((NMRKS(1,i).eq.28).and.(NMRKS(2,i).eq.29).and.(NMRKS(3,i).eq.30).and.(NMRKS(4,i).eq.31)) THEN
-                        !                    write(6,*) "Found Det: ",NMRKS(:,i)
-                        !                    write(6,*) i,iSym%Sym%S,REAL(CK(i),8)
-                        !                end if
-                        !IF((ISym%Sym%S.eq.IHFSYM%Sym%S).and.(Lz.eq.LzTot)) THEN
                         IF (ISym%Sym%S == IHFSYM%Sym%S) THEN
                             Det = Det + 1
                             ExcitLevel = iGetExcitLevel_2(FDet, NMRKS(:, i), NEl, NEl)
@@ -695,7 +687,7 @@ CONTAINS
                 end if
 !NB FCIDetIndex is off by 1 for later cumulation
                 do i = 1, MaxIndex
-                    write(6, *) "Number at excitation level: ", i, " is: ", FCIDetIndex(i + 1)
+                    write(stdout, *) "Number at excitation level: ", i, " is: ", FCIDetIndex(i + 1)
                 end do
 
                 ! We now want to sort the determinants according to the
@@ -708,8 +700,6 @@ CONTAINS
                     else
                         call sort(temp(1:Det), FCIDets(:, 1:Det), FCIGS(1:Det))
                     end if
-!                CALL Stop_All("DetCalc","Cannot do histogramming FCI without JUSTFINDDETS at the
-                    !moment (need new sorting - bug ghb24)")
                 end if
 
 !Test that HF determinant is the first determinant
@@ -721,22 +711,19 @@ CONTAINS
                 end do
 
 !Change it so that FCIDetIndex indexes the start of the block of that excitation level.
-!            FCIDetIndex(1)=2    !Singles start at index 2
                 FCIDetIndex(0) = 1
                 do i = 1, NEl + 1
                     FCIDetIndex(i) = FCIDetIndex(i - 1) + FCIDetIndex(i)
                 end do
                 FCIDetIndex(nEl + 1) = Det + 1
                 IF (FCIDetIndex(nEl + 1) /= Det + 1) THEN
-                    write(6, *) "FCIDETIndex:", FCIDetIndex(:)
+                    write(stdout, *) "FCIDETIndex:", FCIDetIndex(:)
                     CALL Stop_All("DetCalc", "Error in the indexing of determinant excitation level")
                 end if
 
 !We now need to sort within the excitation level by the "number" of the determinant
                 do i = 1, MaxIndex
                     IF (.not. tEnergy .and. .not. tFCIDavidson) THEN
-!                    write(6,*) i,FCIDetIndex(i),FCIDetIndex(i+1)-1
-!                    CALL neci_flush(6)
                         call sort(FCIDets(:, FCIDetIndex(i):FCIDetIndex(i + 1) - 1), &
                                   temp(FCIDetIndex(i):FCIDetIndex(i + 1) - 1))
                     ELSE
@@ -787,55 +774,6 @@ CONTAINS
                     end if
                 end if !tEnergy - for dumping compressed ordered GS wavefunction
                 DEallocate(Temp)
-!            do i=1,Det
-!                CALL DecodeBitDet(nK,iLut)
-!                CALL GETSYM(nK,NEL,G1,NBASISMAX,ISYM)
-!                IF((nK(1).eq.28).and.(nK(2).eq.29).and.(nK(3).eq.30).and.(nK(4).eq.31)) THEN
-!                    write(6,*) "Found Det: ",nK(:)
-!                    write(6,*) i,iSym%Sym%S,FCIGS(i)
-!                end if
-!            end do
-
-!             Det=0
-!             maxdet=0
-!             do i=1,nel
-!                 maxdet=maxdet+2**(nbasis-i)
-!             end do
-!             IF(.not.associated(NMRKS)) THEN
-!                 write(6,*) "NMRKS not allocated"
-!                 CALL neci_flush(6)
-!             end if
-!             norm=0.0_dp
-!             open(17,FILE='SymDETS',STATUS='UNKNOWN')
-!
-!             do i=1,MAXDET
-!                 Bits=0
-!                 do j=0,nbasis-1
-!                     IF(BTEST(i,j)) THEN
-!                         Bits=Bits+1
-!                     end if
-!                 end do
-!                 IF(Bits.eq.NEl) THEN
-!
-!                     DO j=1,NDET
-!                         CALL EncodeBitDet(NMRKS(:,j),iLut)
-!                         IF(iLut(0).eq.i) THEN
-!
-!                             CALL GETSYM(NMRKS(1,j),NEL,G1,NBASISMAX,ISYM)
-!                             IF(ISym%Sym%S.eq.0) THEN
-!                                 Det=Det+1
-!                                 write(17,"(2I12)",advance='no') Det,iLut(0)
-!                                 HEL=GetHElement3(NMRKS(:,j),NMRKS(:,j),0)
-!                                 norm=norm+(REAL(CK(j),8))**2
-!                                 write(17,"(3G25.16)") REAL(HEL,8),REAL(CK(j),8),norm
-!                             end if
-!                             EXIT
-!                         end if
-!                     end do
-!                 end if
-!
-!             end do
-!             close(17)
             end if !tCompressDets
         end if !tFindDets
 !C..
@@ -843,18 +781,18 @@ CONTAINS
             CALL CFF_CHCK(NDET, NEVAL, NMRKS, NEL, G1, CK, TKE)
             IF (BTEST(ILOGGING, 7)) CALL WRITE_PSI(BOX, BOA, COA, NDET, NEVAL, NBASISMAX, NEL, CK, W)
             IF (BTEST(ILOGGING, 8)) CALL WRITE_PSI_COMP(BOX, BOA, COA, NDET, NEVAL, NBASISMAX, NEL, CK, W)
-            write(6, *) '       ====================================================== '
-            write(6, '(A5,5X,A15,1X,A18,1x,A20)') 'STATE', 'KINETIC ENERGY', 'COULOMB ENERGY', 'TOTAL ENERGY'
+            write(stdout, *) '       ====================================================== '
+            write(stdout, '(A5,5X,A15,1X,A18,1x,A20)') 'STATE', 'KINETIC ENERGY', 'COULOMB ENERGY', 'TOTAL ENERGY'
             iunit = get_free_unit()
             open(iunit, FILE='ENERGIES', STATUS='UNKNOWN')
             DO IN = 1, NEVAL
-                write(6, '(I5,2X,3(F19.11,2x))') IN, TKE(IN), W(IN) - TKE(IN), W(IN)
+                write(stdout, '(I5,2X,3(F19.11,2x))') IN, TKE(IN), W(IN) - TKE(IN), W(IN)
                 !            write(iunit,"(I7)",advance='no') IN
                 !            CALL WRITEDET(iunit,NMRKS(1,IN),NEL,.FALSE.)
                 write(iunit, "(F19.11)") W(IN)
             end do
             close(iunit)
-            write(6, *) '       ====================================================== '
+            write(stdout, *) '       ====================================================== '
         else if (tFCIDavidson) THEN
             open(iunit, FILE='ENERGIES', STATUS='UNKNOWN')
             write(iunit, "(F19.11)") davidsonCalc%davidson_eigenvalue
@@ -965,7 +903,7 @@ SUBROUTINE CFF_CHCK(NDET, NEVAL, NM, NEL, G1, CG, TKE)
             DO I = 1, NDET
                 IF (abs(CG(I, J)) > 1.0e-15_dp) THEN
                     DO IEL = 1, NEL
-                        write(iunit, "(I3,I3,2I3,2X)", advance='no') (G1(NM(1, IEL))%K(L), L=1, 5)
+                        write(iunit, "(I3,I3,2I3,2X)", advance='no') (G1(NM(1, IEL))%K(L), L=1, 3)
                     end do
                     IF (HElement_t_size == 1) THEN
                         write(iunit, "(F19.9,1X,I7)") CG(I, J), I

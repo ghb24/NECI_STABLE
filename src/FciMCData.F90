@@ -1,7 +1,6 @@
 #include "macros.h"
 
 MODULE FciMCData
-    use iso_c_hack
     use SystemData, only: BasisFN
     use constants
     use SymExcitDataMod, only: excit_gen_store_type
@@ -664,5 +663,8 @@ MODULE FciMCData
     integer, parameter :: core_run = 1
 
     logical :: t_global_core_space = .true.
+
+    ! Stores the reference weight of the last run
+    real(dp) :: fciqmc_run_ref_weight
 
 end module FciMCData

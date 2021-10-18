@@ -34,7 +34,7 @@ contains
         character(len=*), parameter :: t_r = "store_krylov_vec"
 
         if (tPrintDataTables) then
-            write(6, '(a71)', advance='no') "# Adding the current walker configuration to the Krylov vector array..."
+            write(stdout, '(a71)', advance='no') "# Adding the current walker configuration to the Krylov vector array..."
             call neci_flush(6)
         end if
 
@@ -88,11 +88,11 @@ contains
         end do
 
         if (tPrintDataTables) then
-            write(6, '(1x,a5)', advance='yes') "Done."
-            write(6, '(a56,'//int_fmt(TotWalkersKP, 1)//',1x,a17,'//int_fmt(krylov_vecs_length, 1)//')') &
+            write(stdout, '(1x,a5)', advance='yes') "Done."
+            write(stdout, '(a56,'//int_fmt(TotWalkersKP, 1)//',1x,a17,'//int_fmt(krylov_vecs_length, 1)//')') &
                 "# Number unique determinants in the Krylov vector array:", TotWalkersKP, "out of a possible", krylov_vecs_length
             amp_fraction = real(nkrylov_amp_elems_used, dp) / real(nkrylov_amp_elems_tot, dp)
-            write(6, '(a69,1x,es10.4)') "# Fraction of the amplitude elements used in the Krylov vector array:", amp_fraction
+            write(stdout, '(a69,1x,es10.4)') "# Fraction of the amplitude elements used in the Krylov vector array:", amp_fraction
             call neci_flush(6)
         end if
 
@@ -312,7 +312,7 @@ contains
         ! Add all the overlap and projected Hamiltonian matrices together, with
         ! the result being held only on the root node.
 
-        use ParallelHelper, only: root
+        use MPI_wrapper, only: root
 
         real(dp), intent(inout) :: overlap_matrix(:, :)
         real(dp), intent(inout) :: hamil_matrix(:, :)
@@ -786,7 +786,7 @@ contains
 
         nullify (temp_node)
 
-        write(6, *) "krylov_vecs populations:", total_pop
+        write(stdout, *) "krylov_vecs populations:", total_pop
 
     end subroutine print_populations_kp
 
@@ -987,11 +987,11 @@ contains
 
         real(dp), intent(in) :: s_sum, h_sum
 
-        write(6, '(/,1X,64("="))')
-        write(6, '(1X,"KP-FCIQMC testsuite data:")')
-        write(6, '(1X,"Sum of overlap matrix elements:",12X,es20.13)') s_sum
-        write(6, '(1X,"Sum of H elements:",25X,es20.13)') h_sum
-        write(6, '(1X,64("="))')
+        write(stdout, '(/,1X,64("="))')
+        write(stdout, '(1X,"KP-FCIQMC testsuite data:")')
+        write(stdout, '(1X,"Sum of overlap matrix elements:",12X,es20.13)') s_sum
+        write(stdout, '(1X,"Sum of H elements:",25X,es20.13)') h_sum
+        write(stdout, '(1X,64("="))')
 
     end subroutine write_kpfciqmc_testsuite_data
 
