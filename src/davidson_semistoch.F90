@@ -12,7 +12,7 @@ module davidson_semistoch
     use Parallel_neci, only: iProcIndex, nProcessors, MPIArg, MPIBarrier
     use Parallel_neci, only: MPIBCast, MPIGatherV, MPIAllGather, MPISumAll
     use Parallel_neci, only: MPIAllGatherV
-    use ParallelHelper, only: root
+    use MPI_wrapper, only: root, MPI_WTIME
     use sparse_arrays, only: HDiagTag
     use core_space_util, only: cs_replicas
     implicit none
@@ -85,7 +85,7 @@ contains
 
         call init_davidson_ss(this, print_info, run)
 
-        if (print_info) write(6, '(1X,"Iteration",4X,"Residual norm",12X,"Energy",7X,"Time")'); call neci_flush(6)
+        if (print_info) write(stdout, '(1X,"Iteration",4X,"Residual norm",12X,"Energy",7X,"Time")'); call neci_flush(6)
 
         do i = 2, min(max_num_davidson_iters, this%space_size)
 
@@ -103,14 +103,14 @@ contains
 
             end_time = MPI_WTIME()
 
-            if (print_info) write(6, '(8X,i2,3X,f14.9,2x,f16.10,2x,f9.3)') i - 1, this%residual_norm, &
+            if (print_info) write(stdout, '(8X,i2,3X,f14.9,2x,f16.10,2x,f9.3)') i - 1, this%residual_norm, &
                 this%davidson_eigenvalue, end_time - start_time; call neci_flush(6)
 
             if (this%residual_norm < residual_norm_target) exit
 
         end do
 
-        if (print_info) write(6, '(/,1x,"Final calculated energy:",1X,f16.10)') this%davidson_eigenvalue
+        if (print_info) write(stdout, '(/,1x,"Final calculated energy:",1X,f16.10)') this%davidson_eigenvalue
 
         call free_davidson_ss(this)
 
@@ -182,7 +182,7 @@ contains
             mem_reqd_full = space_size * 8 / 1000000
 
             if (print_info) then
-                write(6, '(1x,"allocating array to hold subspace vectors (",'//int_fmt(mem_reqd, 0)//',1x,"mb).")') mem_reqd
+                write(stdout, '(1x,"allocating array to hold subspace vectors (",'//int_fmt(mem_reqd, 0)//',1x,"mb).")') mem_reqd
                 call neci_flush(6)
             end if
 
@@ -239,7 +239,7 @@ contains
             ! result in dividing by zero in the subspace expansion step.
             davidson_eigenvalue = hf_elem - 0.001_dp
 
-            if (print_info) write(6, '(1x,"calculating the initial residual vector...")', advance='no'); call neci_flush(6)
+            if (print_info) write(stdout, '(1x,"calculating the initial residual vector...")', advance='no'); call neci_flush(6)
 
             ! check that multiplying the initial vector by the hamiltonian doesn't give back
             ! the same vector. if it does then the initial vector (the hf determinant) is
@@ -267,7 +267,7 @@ contains
             call calculate_residual_ss(this, 1)
             call calculate_residual_norm_ss(this)
 
-            if (print_info) write(6, '(1x,"done.",/)'); call neci_flush(6)
+            if (print_info) write(stdout, '(1x,"done.",/)'); call neci_flush(6)
 
         end associate
 

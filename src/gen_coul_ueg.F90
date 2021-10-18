@@ -10,10 +10,9 @@ module gen_coul_ueg_mod
                           tInfSumTCPrint, tInfSumTCRead, Tperiodicinmom
     use IntegralsData, only: UMat, FCK
     use global_utilities
-    use constants, only: sp, dp, pi, pi2, THIRD
+    use constants, only: sp, dp, pi, pi2, THIRD, stdout
     use Parallel_neci, only: iProcIndex, root
     use util_mod, only: near_zero
-    use iso_c_hack
     use breathing_Hub, only: bHubIndexFunction
     implicit none
 
@@ -114,237 +113,6 @@ contains
 
         call halt_timer(proc_timer)
     end subroutine
-
-    ! THis is based upon the GEN_COUL for electrons in a cubic box but with a
-    ! simpler coulomb integral
-    subroutine gen_coul_ueg()
-
-        ! This routine generates *ALL* possible combinations of Coulomb
-        ! integrals stored in the form (u1 u2 | U | u1 u2) = UMAT(n1 n2 n3 n4)
-        !
-        ! This first call calculates the inner integral
-        ! The call to SCOUL calculates the outer integral
-
-        use sym_mod, only: roundsym, addelecsym, setupsym, lchksym
-
-        type(BasisFn) :: ka, kb
-        integer :: a, b, c, d, tx, ty
-        integer :: ii, i, j, k, l, id1, id2, id3, id4, ind
-        real(dp) :: lx, ly, p, q, t2, sum
-        complex(dp) :: s, ci
-        type(timer), save :: proc_timer
-        character(*), parameter :: this_routine = 'gen_coul_ueg'
-
-        proc_timer%timer_name = this_routine
-        call set_timer(proc_timer)
-
-        open(10, file='UMAT', status='unknown')
-        ii = 0
-        iSpinSkip = nBasismax(2, 3)
-        do i = 1, nBasis, iSpinSkip
-            do j = 1, nBasis, iSpinSkip
-                do k = 1, nBasis, iSpinSkip
-                    do l = 1, nBasis, iSpinSkip
-                        sum = 0.0_dp
-                        ! Original cal
-                        ! call SLATCOULFOU (G1(1,I), G1(1,J), G1(1,K), &
-                        !                   G1(1,L), NMSH, FCK, NMAX, SUM)
-                        id1 = GTID(i)
-                        id2 = GTID(j)
-                        id3 = GTID(k)
-                        id4 = GTID(l)
-                        if (tHub) then
-                            call SetupSym(ka)
-                            call SetupSym(kb)
-                            call AddElecSym(k, G1, nBasisMax, ka)
-                            call AddElecSym(l, G1, nBasisMax, ka)
-                            call AddElecSym(i, G1, nBasisMax, kb)
-                            call AddElecSym(j, G1, nBasisMax, kb)
-                            call RoundSym(ka, nBasisMax)
-                            call RoundSym(kb, nBasisMax)
-                            !if ( (i == 1) .and. (j == 1) .and. (k <= l) ) &
-                            !    write(40, '(6i3)', advance='no') &
-                            !        (G1(ii,k), ii=1,2), (G1(ii,l), ii=1,2), &
-                            !        (ka(ii), ii=1,2)
-                            if (lChkSym(ka, kb)) then
-                                !if (ChkMomEq (ka, kb, nBasisMax, 3)) then
-                                ! Omega for the hubbard model is the number
-                                ! of sites in the lattice, (G1(ii,k),ii=1,2)
-                                !    write(40,'(a10)',advance='no') "Y"
-                                sum = uHub / omega
-                            else
-                                sum = 0
-                            end if
-
-                            if (.false.) then
-                                s = 0.0_dp
-                                ci = (0.0_dp, 1.0_dp)
-                                ! Check the coulomb matrix elements by summing manually
-                                c = G1(k)%K(1) + G1(l)%K(1) - G1(i)%K(1) - G1(j)%K(1)
-                                d = G1(k)%K(2) + G1(l)%K(2) - G1(i)%K(2) - G1(j)%K(2)
-                                tx = nBasisMax(1, 4)
-                                ty = nBasisMax(2, 4)
-                                t2 = (tx * tx) + (ty * ty)
-                                lx = nBasisMax(1, 5)
-                                ly = nBasisMax(2, 5)
-                                do a = 1, nBasis, 2
-                                    q = (G1(a)%K(1) * tx + G1(a)%K(2) * ty) / t2
-                                    p = (G1(a)%K(1) * (-ty) + G1(a)%K(2) * tx) / t2
-                                    s = s + exp(ci * (p * c / lx + q * d / ly) * 2 * pi) &
-                                        * uHub / (omega**2)
-                                end do
-                                write(41, "(2I3)", advance='no') c, d
-                                if (abs(real(s) - sum) > 1.0e-7_dp) then
-                                    write(41, *) sum, s
-                                else
-                                    write(41, *) sum, sum
-                                end if
-                                ! sum = real(s)
-                            end if
-                        else
-                            ! We splice in the simple version of the fourier
-                            ! transform
-                            ! New, but not needed
-                            ! call SetupSym (nBasisMax, ka)
-                            ! call SetupSym (nBasisMax, kb)
-                            ! call AddElecSym (k, G1, nBasisMax, ka)
-                            ! call AddElecSym (l, G1, nBasisMax, ka)
-                            ! call AddElecSym (i, G1, nBasisMax, kb)
-                            ! call AddElecSym (j, G1, nBasisMax, kb)
-                            ! call RoundSym (ka, nBasisMax)
-                            ! call RoundSym (kb, nBasisMax)
-                            !if (lChkSym(ka, kb)) then
-                            a = G1(i)%K(1) - G1(k)%K(1)
-                            b = G1(i)%K(2) - G1(k)%K(2)
-                            c = G1(i)%K(3) - G1(k)%K(3)
-                            if (((G1(l)%K(1) - G1(j)%K(1)) == a) .and. &
-                                ((G1(l)%K(2) - G1(j)%K(2)) == b) .and. &
-                                ((G1(l)%K(3) - G1(j)%K(3)) == c) .and. &
-                                ((a /= 0) .or. (b /= 0) .or. (c /= 0))) then
-                                ! write(6,*) '(',i,j,'|',k,l,')',a,b,c
-                                ! ajwt <ij|r_12^-1|kl> = v_(G_i-G_k) delta_((G_i-G_k)-(G_l-G_k))
-                                ! v_G = 4 pi / G**2. G = 2 pi / L(nx, ny, nx) etc.
-                                sum = ((a / ALAT(1))**2 + (b / ALAT(2))**2)
-                                if (.not. near_zero(ALAT(3))) sum = sum + (c / ALAT(3))**2
-                                sum = 1 / (pi * sum * omega)
-                            else
-                                sum = 0.0_dp
-                            end if
-
-                        end if
-                        ! UMAT is stored as just spatial orbitals (not
-                        ! spin orbitals)
-                        ! We store <IJ|KL>
-                        ! Get the index of physical order UMAT element <IJ|KL>
-                        ! Indices are internally ! reordered such that:
-                        !i >= k, j >= l, (i,k) >= (j,l)
-                        UMAT(UMatInd(id1, id2, id3, id4)) = sum
-                        if (abs(sum) > 1.0e-10_dp) &
-                            write(10, '(4i7,f19.9)') id1, id2, id3, id4, sum
-                    end do
-                end do
-            end do
-        end do
-        close(10)
-        if (tHub) then
-            ! V0 is subtracted from the diagonal elements of the hamiltonian
-            ! for the UEG, but we don't want this for the hubbard model.
-            ! FCK is equiv to FCK(-nmsh/2:nmsh/2-1, ..., ...).
-            ! Set FCK(0,0,0) = 0.
-            ind = nbasis / 2 + 1 + (nbasis / 2) * nbasis * (nbasis + 1)
-            FCK(ind) = (0.0_sp, 0.0_sp)
-        end if
-        write(6, *) ' !!! FINISHED CALCULATING ALL 2E INTEGRALS !!! '
-
-        call halt_timer(proc_timer)
-
-    end subroutine
-
-    subroutine SlatCoulFouCou(G1, G2, G1P, G2P, N, CK, OUT)
-
-        ! Returns the coulomb integral between the Slater determinants of
-        ! plane wave basis, using the Fourier method.
-
-        integer, intent(in) :: n
-        integer, intent(in) :: G1(4), G2(4), G1P(4), G2P(4)
-        complex(dp) :: CK(-N / 2:N / 2 - 1, -N / 2:N / 2 - 1, -N / 2:N / 2 - 1)
-        real(dp), intent(out) :: OUT
-        integer :: GD1, GD2, i, GD(3)
-        real(dp) :: tot
-        logical :: T, T2
-
-        ! Check if the spins are correct
-        if (G1(4) /= G1P(4) .or. G2(4) /= G2P(4)) then
-            out = 0
-            return
-        end if
-
-        T = .true.
-        T2 = .true.
-        tot = 0
-        do i = 1, 3
-            GD1 = G1(i) - G1P(i)
-            GD2 = G2(i) - G2P(i)
-            ! The 2* is to account for the fact that the UEG has basis fns
-            ! which have k=2 pi n/L rather than pi n/L
-            GD(i) = 2 * GD1
-            if (GD1 /= GD2) T = .false.
-            if (GD1 /= 0) T2 = .false.
-        end do
-
-        if (T2) then
-            ! GD1=0,0,0, which has to be removed as this cancels the
-            ! background term.
-            T = .false.
-            ! write(6,*) CK(GD(1),GD(2),GD(3)),GD(1),GD(2),GD(3)
-        end if
-        ! if (T) then
-        OUT = real(CK(2 * GD(1), 2 * GD(2), 2 * GD(3)))
-        ! OUT=4*3.1415926535_dp/(GD(1)*GD(1)+GD(2)*GD(2)+GD(3)*GD(3))
-        !else
-        !    OUT = 0.0_dp
-        ! end if
-    end subroutine SlatCoulFouCou
-
-    function ChkMomEq(k1, k2, nBasismax, kdim) result(lCmp)
-        ! n.b. the third column of nBasisMax tells us whether it is tilted
-        integer, intent(in) :: kDim, k1(kDim), k2(kDim), nBasisMax(5, *)
-        integer :: j, lDim, kk1, kk2
-        logical lCmp
-
-        lCmp = .true.
-        do j = 1, 3
-            IF (NBASISMAX(1, 3) == 1) THEN
-                ! we have a tilted lattice
-                IF (J == 1) THEN
-                    KK1 = K1(1) + K1(2)
-                    KK2 = K2(1) + K2(2)
-                    LDIM = NBASISMAX(1, 2) * 2
-                else if (J == 2) THEN
-                    KK1 = K1(1) - K1(2)
-                    KK2 = K2(1) - K2(2)
-                    LDIM = NBASISMAX(1, 2) * 2
-                ELSE
-                    KK1 = K1(J)
-                    KK2 = K2(J)
-                    LDIM = NBASISMAX(J, 2) - NBASISMAX(J, 1) + 1
-                end if
-
-            ELSE
-                KK1 = K1(J)
-                KK2 = K2(J)
-                LDIM = NBASISMAX(J, 2) - NBASISMAX(J, 1) + 1
-            end if
-            KK1 = MOD(KK1, LDIM)
-            IF (KK1 < NBASISMAX(J, 1)) KK1 = KK1 + LDIM
-            IF (KK1 > NBASISMAX(J, 2)) KK1 = KK1 - LDIM
-            KK2 = MOD(KK2, LDIM)
-            IF (KK2 < NBASISMAX(J, 1)) KK2 = KK2 + LDIM
-            IF (KK2 > NBASISMAX(J, 2)) KK2 = KK2 - LDIM
-            IF (KK1 /= KK2) LCMP = .FALSE.
-        end do
-        IF (KDIM == 4 .AND. K1(4) /= K2(4)) LCMP = .FALSE.
-    end function ChkMomEq
 
     function get_hub_umat_el(i, j, k, l) result(hel)
         use sym_mod, only: roundsym, addelecsym, setupsym, lchksym
@@ -462,7 +230,7 @@ contains
                 ((G1(l)%k(3) - G1(j)%k(3)) == c)) then
 
                 if ((a /= 0) .or. (b /= 0) .or. (c /= 0)) then
-                    ! write(6,*) "(",I,J,"|",K,L,")",A,B,C
+                    ! write(stdout,*) "(",I,J,"|",K,L,")",A,B,C
                     ! Coulomb integrals are long-ranged, so calculated with
                     ! 4 pi/G**2.
                     !AJWT <IJ|r_12^-1|KL> = v_(G_I-G_K) delta_((G_I-G_K)-(G_L-G_J)
@@ -629,7 +397,7 @@ contains
             end if
 
         else
-            write(6, *) 'dimension error in get_ueg_umat_el', dimen
+            write(stdout, *) 'dimension error in get_ueg_umat_el', dimen
             stop
         end if
 
@@ -962,8 +730,8 @@ contains
 
                     hel = hel / ALAT(1)**3
 
-!                       write(6,*)'in hel'
-!                       write(6,*)hel, PotentialStrength, ALAT(1)
+!                       write(stdout,*)'in hel'
+!                       write(stdout,*)hel, PotentialStrength, ALAT(1)
 
                 else    !renormalization
 
@@ -1051,7 +819,7 @@ contains
             end if ! ((G1(k)%k(1) - G1(i)%k(1)) == a)
 
         else
-            write(6, *) 'dimension error in get_contact_umat_el', dimen
+            write(stdout, *) 'dimension error in get_contact_umat_el', dimen
             stop
         end if
 
@@ -1184,15 +952,15 @@ contains
                                         if (length >= TranscorrIntCutoff .or. length < kmaxcutoff) cycle
                                         diffk = shiftk - k
                                         difflength = dsqrt(dfloat(diffi**2 + diffj**2 + diffk**2))
-!                        write(6,*)'diff', diffi,diffj,diffk
+!                        write(stdout,*)'diff', diffi,diffj,diffk
                                         if (difflength < kmaxcutoff) cycle
                                         sprod = dfloat(k * diffk + sprodij)
                                         summasumma = summasumma + sprod / (length**3 * difflength**3)
-!                       write(6,*)'summasumma',i,j,k,summasumma,sprod/(length**3*difflength**3)
+!                       write(stdout,*)'summasumma',i,j,k,summasumma,sprod/(length**3*difflength**3)
                                     end do !k
                                 end do !j
                             end do !i
-!                       write(6,*)'summasumma',shifti,shiftj,shiftk,summasumma
+!                       write(stdout,*)'summasumma',shifti,shiftj,shiftk,summasumma
 !                      if(shiftk.eq.1) stop
                             summasumma = prefactk * summasumma
                             UMAT_TC2_Contact3D(shifti, shiftj, shiftk) = summasumma
@@ -1222,7 +990,7 @@ contains
 
                 read(32, *) dummyword, trcutoffread
                 if (trcutoffread /= kmaxcutoff) then
-                    write(6, *) "From TranscorrInfSum: ", trcutoffread, " From the input file:", kmaxcutoff
+                    write(stdout, *) "From TranscorrInfSum: ", trcutoffread, " From the input file:", kmaxcutoff
                     stop "The value of TrCutoff is different in TranscorrInfSum."
                 end if
 
@@ -1256,21 +1024,21 @@ contains
                         end if
                     end if
                 end do
-32              write(6, *) "The values of inifinite sums are readed from TranscorrInfSum."
+32              write(stdout, *) "The values of inifinite sums are readed from TranscorrInfSum."
             end if
 
             if (tInfSumTCPrint .or. tInfSumTCRead) close(32)
         else
-!       write(6,*) 'dimension error in GEN_Umat_TC', dimen
+!       write(stdout,*) 'dimension error in GEN_Umat_TC', dimen
 !       stop
         end if
 
-!     write(6,*)'UMAT_TC2_Contact3D'
+!     write(stdout,*)'UMAT_TC2_Contact3D'
 
 !     do i=0, twokmax
 !     do j=0, twokmax
 !     do k=0, twokmax
-!       write(6,*)i,j,k,UMAT_TC2_Contact3D(i,j,k)
+!       write(stdout,*)i,j,k,UMAT_TC2_Contact3D(i,j,k)
 !     end do
 !     end do
 !     end do
@@ -1380,7 +1148,7 @@ contains
             end do
 
         else
-            write(6, *) 'dimension error in GEN_Umat_TC', dimen
+            write(stdout, *) 'dimension error in GEN_Umat_TC', dimen
             stop
         end if
 
@@ -1398,23 +1166,7 @@ contains
 
     end subroutine
 
-    function uu_tc_interpl0(k2) result(u_tc)
-
-        !   use SystemData, only: tUEG2, kvec, k_lattice_constant, dimen
-        real(dp), intent(in) :: k2
-        real(dp) :: u_tc
-
-        if (k2 < 1.d-12) then
-            u_tc = 0.0
-        else
-            u_tc = -4 * PI / k2 / (k2 + omega_p)
-        end if
-
-    end function
-
     function uu_tc_interpl(k2) result(u_tc)
-
-        !   use SystemData, only: tUEG2, kvec, k_lattice_constant, dimen
         real(dp), intent(in) :: k2
         real(dp) :: u_tc
 
@@ -1423,7 +1175,6 @@ contains
         else
             u_tc = -4 * PI / k2 / (k2 + omega_p * 2)
         end if
-
     end function
 
     function uu_tc_trunc(k2) result(u_tc)
@@ -1444,7 +1195,7 @@ contains
                 u_tc = -6.283185307179586 / k2 / dsqrt(k2)
             end if
         else
-            write(6, *) 'dimension error in uu_tc_prod', dimen
+            write(stdout, *) 'dimension error in uu_tc_prod', dimen
             stop
         end if
 
@@ -1474,7 +1225,7 @@ contains
             uu_prod = k12 * u1 * u2
 
         else
-            write(6, *) 'dimension error in uu_tc_prod', dimen
+            write(stdout, *) 'dimension error in uu_tc_prod', dimen
             stop
         end if
 

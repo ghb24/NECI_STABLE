@@ -6,7 +6,7 @@ module guga_write_H_matrix
 
     use guga_data, only: ExcitationInformation_t
     use guga_excitations, only: calc_guga_matrix_element
-    use guga_bitRepOps, onlY: write_det_guga
+    use guga_bitRepOps, onlY: write_det_guga, CSF_Info_t
     use bit_reps, only: nifguga
     implicit none
 
@@ -40,7 +40,7 @@ contains
             HElement_t(dp) :: res
             type(ExcitationInformation_t) :: excit_info
             call calc_guga_matrix_element( &
-                ilutG_i, ilutG_j, excit_info, res, &
+                ilutG_i, CSF_Info_t(ilutG_i), ilutG_j, excit_info, res, &
                 t_hamil=.true., calc_type=2)
         end function
     end function

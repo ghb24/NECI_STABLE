@@ -17,7 +17,7 @@ module util_mod
     use fmt_utils
     use dSFMT_interface, only: genrand_real2_dSFMT
     use constants
-    use iso_c_hack
+    use, intrinsic :: iso_c_binding, only: c_char, c_int, c_double
 
     ! We want to use the builtin etime intrinsic with ifort to
     ! work around some broken behaviour.
@@ -75,23 +75,30 @@ module util_mod
 
     interface
         pure function strlen_wrap(str) result(len) bind(c)
-            use iso_c_hack
+            import :: c_char, c_int
             implicit none
             character(c_char), intent(in) :: str(*)
             integer(c_int) :: len
         end function
         pure function erf_local(x) result(e) bind(c, name='erf')
-            use iso_c_hack
+            import :: c_double
             implicit none
             real(c_double), intent(in) :: x
             real(c_double) :: e
         end function
         pure function erfc_local(x) result(ec) bind(c, name='erfc')
-            use iso_c_hack
+            import :: c_double
             implicit none
             real(c_double), intent(in) :: x
             real(c_double) :: ec
         end function
+        subroutine toggle_lprof() bind(C, name='toggle_lprof')
+            !! This call toggles the profiling using MAQAO
+            !!
+            !! It can be for example used to switch on profiling
+            !! right before the main loop
+            !! and to switch it off directly afterwards.
+        end subroutine
     end interface
 
     interface operator(.div.)
@@ -203,20 +210,6 @@ contains
         end if
 
     end function stochastic_round_r
-
-    subroutine print_cstr(str) bind(c, name='print_cstr')
-
-        ! Write a string outputted by calling fort_printf in C.
-        ! --> Ensure that it is redirected to the same place as the normal
-        !     STDOUT within fortran.
-
-        character(c_char), intent(in) :: str(*)
-        integer :: l
-
-        l = strlen_wrap(str)
-        call print_cstr_local(str, l)
-
-    end subroutine
 
     subroutine print_cstr_local(str, l)
 
@@ -1081,43 +1074,22 @@ contains
     function error_function_c(argument) result(res)
 
         use constants, only: dp
-        use iso_c_hack
         implicit none
 
         real(dp), intent(in) :: argument
         real(dp) :: res
 
-        !interface
-        !    pure function erfc_lm(x) bind(c, name='erfc') result (ret)
-        !        use iso_c_hack
-        !        implicit none
-        !        real(c_double) :: ret
-        !            real(c_double), intent(in), value :: x
-        !    end function erfc_lm
-        !!end interface
-
-        !res = erfc_lm(real(argument, c_double))
         res = erfc_local(real(argument, c_double))
     end function error_function_c
 
     function error_function(argument) result(res)
 
         use constants, only: dp
-        use iso_c_hack
         implicit none
 
         real(dp), intent(in) :: argument
         real(dp) :: res
 
-!        interface
-!                pure function erf_lm(x) bind(c, name='erf') result(ret)
-!                use iso_c_hack
-!                implicit none
-!                real(c_double) :: ret
-!                real(c_double), intent(in), value :: x
-!            end function erf_lm
-!        end interface
-!        res = erf_lm(real(argument, c_double))
         res = erf_local(real(argument, c_double))
 
     end function error_function
@@ -1338,25 +1310,14 @@ contains
         neq_EnumBase_t = this%val /= other%val
     end function
 
-
 end module
 
 !Hacks for compiler specific system calls.
 
 integer function neci_iargc()
     implicit none
-#if defined(CBINDMPI)
-    interface
-        function c_argc() result(ret) bind(c)
-            use iso_c_hack
-            integer(c_int) :: ret
-        end function
-    end interface
-    neci_iargc = c_argc()
-#else
     integer :: command_argument_count
     neci_iargc = command_argument_count()
-#endif
 end function
 
 subroutine neci_getarg(i, str)
@@ -1365,7 +1326,6 @@ subroutine neci_getarg(i, str)
     use f90_unix_env, only: getarg
 #endif
     use constants
-    use iso_c_hack
     use util_mod
     implicit none
     integer, intent(in) :: i
@@ -1377,30 +1337,11 @@ subroutine neci_getarg(i, str)
     integer :: j
 #endif
 
-    ! Eliminate compiler warnings
+#ifdef WARNING_WORKAROUND_
     j = i
+#endif
 
-#if defined(CBINDMPI)
-    ! Define interfaces that we need
-    interface
-        pure function c_getarg_len(i) result(ret) bind(c)
-            use iso_c_hack
-            integer(c_int), intent(in), value :: i
-            integer(c_int) :: ret
-        end function
-        pure subroutine c_getarg(i, str) bind(c)
-            use iso_c_hack
-            integer(c_int), intent(in), value :: i
-            character(c_char), intent(out) :: str
-        end subroutine
-    end interface
-    character(len=c_getarg_len(int(i, c_int))) :: str2
-
-    call c_getarg(int(i, c_int), str2)
-
-    str = str2
-
-#elif defined NAGF95
+#if defined NAGF95
     call getarg(i, str)
 #elif defined(BLUEGENE_HACKS)
     call getarg(int(i, 4), str)
@@ -1413,41 +1354,6 @@ subroutine neci_getarg(i, str)
 
 end subroutine neci_getarg
 
-subroutine neci_flush(un)
-#ifdef NAGF95
-    USe f90_unix, only: flush
-    use constants, only: int32
-#endif
-    implicit none
-    integer, intent(in) :: un
-#ifdef NAGF95
-    integer(kind=int32) :: dummy
-#endif
-#ifdef BLUEGENE_HACKS
-    call flush_(un)
-#else
-#ifdef NAGF95
-    dummy = un
-    call flush(dummy)
-#else
-    call flush(un)
-#endif
-#endif
-end subroutine neci_flush
-
-integer function neci_system(str)
-#ifdef NAGF95
-    Use f90_unix_proc, only: system
-#endif
-    character(*), intent(in) :: str
-#ifndef NAGF95
-    integer :: system
-    neci_system = system(str)
-#else
-    call system(str)
-    neci_system = 0
-#endif
-end function neci_system
 
 ! Hacks for the IBM compilers on BlueGenes.
 ! --> The compiler intrinsics are provided as flush_, etime_, sleep_ etc.
@@ -1481,15 +1387,37 @@ end function
 
 #endif
 
-#ifdef GFORTRAN_
-function g_loc(var) result(addr)
-
-    use iso_c_binding
-
-    integer, target :: var
-    type(c_ptr) :: addr
-
-    addr = c_loc(var)
-
-end function
+subroutine neci_flush(un)
+#ifdef NAGF95
+    use f90_unix, only: flush
+    use constants, only: int32
 #endif
+    integer, intent(in) :: un
+#ifdef NAGF95
+    integer(kind=int32) :: dummy
+#endif
+#ifdef BLUEGENE_HACKS
+    call flush_(un)
+#else
+#ifdef NAGF95
+    dummy = un
+    call flush(dummy)
+#else
+    call flush(un)
+#endif
+#endif
+end subroutine neci_flush
+
+subroutine warning_neci(sub_name,error_msg)
+    != Print a warning message in a (helpfully consistent) format.
+    !=
+    != In:
+    !=    sub_name:  calling subroutine name.
+    !=    error_msg: error message.
+    use, intrinsic :: iso_fortran_env, only: stderr => error_unit
+    character(*), intent(in) :: sub_name, error_msg
+
+    write (stderr,'(/a)') 'WARNING.  Error in '//adjustl(sub_name)
+    write (stderr,'(a/)') adjustl(error_msg)
+end subroutine warning_neci
+

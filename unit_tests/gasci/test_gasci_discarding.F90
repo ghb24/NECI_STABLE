@@ -6,7 +6,7 @@ module test_gasci_discarding_mod
     use orb_idx_mod, only: calc_spin_raw, sum, SpinOrbIdx_t
     use excitation_types, only: Excitation_t
 
-    use gasci, only: GASSpec_t
+    use gasci, only: LocalGASSpec_t
     use gasci_discarding, only: GAS_DiscardingGenerator_t
     use gasci_util, only: gen_all_excits
 
@@ -25,9 +25,8 @@ contains
 
 
     subroutine test_pgen()
-        use SystemData, only: tGASSpinRecoupling
         use FciMCData, only: pSingles, pDoubles, pParallel
-        type(GASSpec_t) :: GAS_spec
+        type(LocalGASSpec_t) :: GAS_spec
         type(GAS_DiscardingGenerator_t) :: exc_generator
         integer, parameter :: det_I(6) = [1, 2, 3, 7, 8, 10]
 
@@ -38,12 +37,10 @@ contains
         pSingles = 0.3_dp
         pDoubles = 1.0_dp - pSingles
 
-        call assert_true(tGASSpinRecoupling)
-
-        GAS_spec = GASSpec_t(n_min=[3, size(det_I)], n_max=[3, size(det_I)], &
+        GAS_spec = LocalGASSpec_t(n_min=[3, 3], n_max=[3, 3], &
                              spat_GAS_orbs=[1, 1, 1, 2, 2, 2])
         call assert_true(GAS_spec%is_valid())
-        call assert_true(GAS_spec%contains_det(det_I))
+        call assert_true(GAS_spec%contains_conf(det_I))
 
         call init_excitgen_test(det_I, FciDumpWriter_t(random_fcidump, 'FCIDUMP'))
         call exc_generator%init(GAS_spec)

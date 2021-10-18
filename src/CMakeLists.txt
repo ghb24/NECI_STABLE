@@ -77,7 +77,6 @@ set( SRC_FILES
     input.F90
     IntegralsData.F90
     Integrals_neci.F90
-    ISKRandExcit.F90
     kp_fciqmc_data.F90
     kp_fciqmc.F90
     kp_fciqmc_init.F90
@@ -107,8 +106,8 @@ set( SRC_FILES
     OneEInts.F90
     orthogonalise.F90
     Orthonorm.F90
+    MPI_wrapper.F90
     Parallel_Calc.F90
-    ParallelHelper.F90
     parallel_workarounds.F90
     pchb_excitgen.F90
     perturbations.F90
@@ -155,11 +154,11 @@ set( SRC_FILES
     sym.F90
     sym_general.F90
     symrandexcit1.F
-    symrandexcit2.F90
+    GenRandSymExcitNUMod.F90
     symrandexcit3.F90
     symrandexcit_Ex_Mag.F90
-    symrandexcit4.F90
-    symrandexcit5.F90
+    excit_gens_int_weighted.F90
+    excit_gen_5.F90
     symrandexcit.F
     symrandexcit_ueg.F90
     SystemData.F90
@@ -187,9 +186,9 @@ set( SRC_FILES
     guga_write_H_matrix.F90
     guga_matrixElements.F90
     guga_procedure_pointers.F90
-    guga_tausearch.F90
-    guga_testsuite.F90
     guga_types.F90
+	guga_plugin.F90
+    guga_pchb_class.F90
     lattice_mod.F90
     tJ_model.F90
     k_space_hubbard.F90
@@ -206,6 +205,8 @@ set( SRC_FILES
     real_time_procs.F90
     real_time_read_input.F90
     verlet_aux.F90
+    guga_pchb_excitgen.F90
+    local_spin.F90
     CAS_distribution_init.F90
     excitation_generators.F90
     exc_gen_class_wrappers.F90
@@ -218,19 +219,18 @@ set( SRC_FILES
     lib/environment_report.F90
     lib/error_handling_neci.F90
     lib/hdf5_util.F90
-    lib/iso_c_hack.F90
     lib/MemoryManagement.F90
-    lib/parallel_helper.cpp
     lib/ranlux.F
     lib/signals.F90
     lib/signals_helper.cpp
     lib/soft_exit.F90
     lib/timing.F90
     lib/util_mod_fmt.F90
-    lib/fortran_strings.f90
+    lib/fortran_strings.F90
     lib/matrix_util.F90
     lib/display_matrices.F90
     lib/binomial_lookup.F90
+    lib/MAQAO_toggle.c
 )
 
 set( RELAX_WARNINGS_SRCS
@@ -304,7 +304,6 @@ set( RELAX_WARNINGS_SRCS
     input.F90
     IntegralsData.F90
     Integrals_neci.F90
-    ISKRandExcit.F90
     kp_fciqmc_data.F90
     kp_fciqmc.F90
     kp_fciqmc_init.F90
@@ -334,7 +333,6 @@ set( RELAX_WARNINGS_SRCS
     orthogonalise.F90
     Orthonorm.F90
     Parallel_Calc.F90
-    ParallelHelper.F90
     parallel_workarounds.F90
     pchb_excitgen.F90
     perturbations.F90
@@ -381,11 +379,11 @@ set( RELAX_WARNINGS_SRCS
     sym.F90
     sym_general.F90
     symrandexcit1.F
-    symrandexcit2.F90
+    GenRandSymExcitNUMod.F90
     symrandexcit3.F90
     symrandexcit_Ex_Mag.F90
-    symrandexcit4.F90
-    symrandexcit5.F90
+    excit_gens_int_weighted.F90
+    excit_gen_5.F90
     symrandexcit.F
     symrandexcit_ueg.F90
     SystemData.F90
@@ -407,7 +405,6 @@ set( RELAX_WARNINGS_SRCS
     back_spawn.F90
     back_spawn_excit_gen.F90
     lattice_mod.F90
-    guga_testsuite.F90
     tJ_model.F90
     k_space_hubbard.F90
     lattice_models_utils.F90
@@ -449,6 +446,7 @@ set( FYPP_SRC_FILES
     lib/util_mod_epsilon_close.fpp
     sets_mod.fpp
 	shared_ragged_array.fpp
+    SD_spin_purification.fpp
 )
 
 set( TEMPLATED_SRC_FILES
@@ -480,11 +478,11 @@ endif()
 # ---------------------------------------------------------------------------------
 
 set( _library_link_libs
-    "${LAPACK_NECI_LIBRARIES}"
+    "${LAPACK_LIBRARIES}"
     "${LIBRT_LIBRARIES}"
     "${_conditional_libraries}"
-    "${MPI_NECI_LIBRARIES}"
-    "${MPI_NECI_Fortran_LIBRARIES}")
+    "${MPI_LIBRARIES}"
+    "${MPI_Fortran_LIBRARIES}")
 
 if( HAVE_SHARED )
     set( _link_type SHARED )
@@ -500,8 +498,8 @@ endif()
 
 foreach(_config ${${PROJECT_NAME}_CONFIGURATIONS})
 
-    message(STATUS "Adding library for configuration ${_config}")
-    message(STATUS "Library definitions: ${${PROJECT_NAME}_${_config}_DEFINITIONS}")
+    message(DEBUG "Adding library for configuration ${_config}")
+    message(DEBUG "Library definitions: ${${PROJECT_NAME}_${_config}_DEFINITIONS}")
     neci_add_library(
 
         TARGET lib${_config}
@@ -514,7 +512,7 @@ foreach(_config ${${PROJECT_NAME}_CONFIGURATIONS})
         LINKER_LANGUAGE Fortran
 
         PRIVATE_INCLUDES
-            "${MPI_NECI_INCLUDE_PATH}"
+            "${MPI_Fortran_INCLUDE_PATH}"
             "${HDF5_NECI_INCLUDE_PATH}"
 
         DEFINITIONS
@@ -523,10 +521,10 @@ foreach(_config ${${PROJECT_NAME}_CONFIGURATIONS})
             "${HDF5_NECI_DEFINITIONS}"
 
         LIBS "${_library_link_libs}"
-	WARNERR ${${PROJECT_NAME}_${_config}_WARNERR}
+	    WARNERR ${${PROJECT_NAME}_${_config}_WARNERR}
     )
 
-    message(STATUS "Adding executable for configuration ${_config}")
+    message(DEBUG "Adding executable for configuration ${_config}")
     neci_add_executable(
         TARGET ${_config}
         SOURCES necimain.F90

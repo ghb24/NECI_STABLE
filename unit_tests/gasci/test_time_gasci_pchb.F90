@@ -6,7 +6,7 @@ module test_time_pchb
     use orb_idx_mod, only: calc_spin_raw, sum, SpinOrbIdx_t
     use excitation_types, only: Excitation_t
 
-    use gasci, only: GASSpec_t
+    use gasci, only: LocalGASSpec_t
     use gasci_pchb, only: GAS_PCHB_ExcGenerator_t, possible_GAS_singles
     use gasci_discarding, only: GAS_DiscardingGenerator_t
     use excitation_generators, only: ExcitationGenerator_t
@@ -28,7 +28,7 @@ contains
         use FciMCData, only: pSingles, pDoubles, pParallel
         type(GAS_PCHB_ExcGenerator_t) :: GAS_PCHB
         type(GAS_DiscardingGenerator_t) :: GAS_discarding
-        type(GASSpec_t) :: GAS_spec
+        type(LocalGASSpec_t) :: GAS_spec
         integer, parameter :: det_I(6) = [1, 2, 3, 11, 12, 14]
 
         logical :: successful
@@ -40,11 +40,11 @@ contains
 
         pParallel = 0.10_dp
 
-        GAS_spec = GASSpec_t(n_min=[3 - n_interspace_exc, size(det_I)], n_max=[3 + n_interspace_exc, size(det_I)], &
+        GAS_spec = LocalGASSpec_t(n_min=[3 - n_interspace_exc, size(det_I)], n_max=[3 + n_interspace_exc, size(det_I)], &
                              spat_GAS_orbs=[1, 1, 1, 1, 1, 2, 2, 2, 2, 2])
 
         call assert_true(GAS_spec%is_valid())
-        call assert_true(GAS_spec%contains_det(det_I))
+        call assert_true(GAS_spec%contains_conf(det_I))
 
 !         do i_singles = 1, size(p_singles)
 !             pSingles = p_singles(i_singles)
@@ -104,7 +104,7 @@ contains
         use FciMCData, only: pSingles, pDoubles, pParallel
         type(GAS_PCHB_ExcGenerator_t) :: GAS_PCHB
         type(GAS_DiscardingGenerator_t) :: GAS_discarding
-        type(GASSpec_t) :: GAS_spec
+        type(LocalGASSpec_t) :: GAS_spec
         integer, parameter :: det_I(32) = [&
             1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, &
             33, 34, 35, 37, 38, 39, &
@@ -118,11 +118,11 @@ contains
 
         pParallel = 0.40_dp
 
-        GAS_spec = GASSpec_t(n_min=[18, size(det_I)], n_max=[18, size(det_I)], &
+        GAS_spec = LocalGASSpec_t(n_min=[18, size(det_I)], n_max=[18, size(det_I)], &
                              spat_GAS_orbs=[(1, i = 1, 16), (2, i = 1, 18)])
 
         call assert_true(GAS_spec%is_valid())
-        call assert_true(GAS_spec%contains_det(det_I))
+        call assert_true(GAS_spec%contains_conf(det_I))
 
 !         do i_singles = 1, size(p_singles)
 !             pSingles = p_singles(i_singles)

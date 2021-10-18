@@ -5,26 +5,24 @@
 module guga_data
     ! dependencies: be EXPLICIT about them!
     use SystemData, only: nBasis, tSPN, tHPHF, lNoSymmetry, STOT, nEl, &
-                          tNoBrillouin, tExactSizeSpace, tUHF, tGUGA
-    use constants, only: dp, Root2, OverR2, n_int, int_rdm
+                          tNoBrillouin, tExactSizeSpace, tUHF, tGUGA, nSpatOrbs
+    use constants, only: dp, Root2, OverR2, n_int, int_rdm, bn2_
     use MemoryManager, only: TagIntType
-    use bit_rep_data, only: BitRep_t
+    use bit_rep_data, only: BitRep_t, GugaBits
 
     implicit none
 
     private
-    public :: ExcitationInformation_t, projE_replica, WeightData_t, &
+    public :: ExcitationInformation_t, WeightData_t, projE_replica, &
               getSingleMatrixElement, getDoubleMatrixElement, getMixedFullStop, &
               orbitalIndex, funA_0_2overR2, minFunA_2_0_overR2, funA_m1_1_overR2, &
-              funa_2_0_overr2, getdoublecontribution, tnewdet, tag_excitations, &
+              funa_2_0_overr2, getdoublecontribution, tag_excitations, &
               tag_tmp_excits, tag_proje_list, funa_3_1_overr2, minfuna_0_2_overr2, &
               tGUGACore, bvectorref_ilut, bvectorref_ni, init_guga_data_procptrs, &
               excit_type, gen_type, excit_names, &
               rdm_ind_bitmask, pos_excit_lvl_bits, pos_excit_type_bits, &
               n_excit_lvl_bits, n_excit_type_bits, n_excit_info_bits, &
-              RdmContribList_t
-
-    ! ========================== type defs ===================================
+              RdmContribList_t, n_excit_index_bits
 
     ! define types for the probabilistic weights functions used in the
     ! stochastic excitations generations
@@ -92,6 +90,9 @@ module guga_data
     ! the rdm_ind
     integer(int_rdm), parameter :: rdm_ind_bitmask = not(excitInfo_bitmask)
 
+    ! define similar stuff as above for encoding the minimal excit-type
+    ! information into an 64bit integer
+    integer, parameter :: n_excit_index_bits = 8
     ! define a type structure to store excitation information between two
     ! CSFs needed in the matrix element calculation between them
     ! this may also be used/needed for the excitation generation
@@ -164,7 +165,7 @@ module guga_data
 
     type :: ExcitationInformation_t
 
-        integer :: typ = 25 ! 25 is the invalid indicator
+        integer :: typ = excit_type%invalid
         ! need the involved indices of the excitation: list of integers
         ! for now the convention is, that they are given in an ordered form
         ! and is not related to the involved generators E_{ij} (E_{kl})
@@ -246,6 +247,9 @@ module guga_data
         ! indicate if a spin_change happened
         logical :: spin_change = .false.
 
+        integer :: i_sg_start = -1
+            !! The supergroup from which the excitation starts.
+            !! Only relevant for GAS.
     end type ExcitationInformation_t
 
     ! logical to indicate that GUGA and core space, like doubles and singles
@@ -266,14 +270,14 @@ module guga_data
     ! access the functions necessary for the matrix element calculation
     abstract interface
         function dummyFunction(bValue) result(ret)
-            use constants, only: dp
+            import :: dp
             implicit none
             real(dp), intent(in) :: bValue
             real(dp) :: ret
         end function dummyFunction
 
         subroutine dummySubroutine(bValue, x0, x1)
-            use constants, only: dp
+            import :: dp
             implicit none
             real(dp), intent(in) :: bValue
             real(dp), intent(out), optional :: x0, x1
@@ -454,11 +458,6 @@ module guga_data
     ! remake them in every random orbital picker!
     integer, allocatable :: orbitalIndex(:)
 
-    ! use a global flag to indicate a switch to a new determinant in the
-    ! main routine to avoid recalculating b vector occupation and
-    ! stepvector
-    logical :: tNewDet
-
 contains
 
     subroutine init_guga_data_procPtrs()
@@ -622,7 +621,6 @@ contains
 
         ! get index
         ind = indContr(step1, step2, deltaB + (genFlag + 1) / 2)
-
         doubleContr = doubleContribution(ind)%ptr(bValue)
     end function getDoubleContribution
 

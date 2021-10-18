@@ -4,8 +4,8 @@ module guga_rdm
     ! RDM module specifically for the GUGA spin-adapted implementation
 
     use constants, only: n_int, dp, lenof_sign, EPS, sizeof_int, int_rdm, bn2_, &
-                         Root2, int64, int_rdm
-    use SystemData, only: nel, nSpatOrbs, current_stepvector, currentB_ilut
+                         Root2, int64, int_rdm, stdout
+    use SystemData, only: nel, nSpatOrbs
     use bit_reps, only: extract_bit_rep, decode_bit_det, niftot, nifd, &
                         any_run_is_initiator, all_runs_are_initiator
     use rdm_data, only: one_rdms, two_rdm_spawn, rdmCorrectionFactor
@@ -38,10 +38,10 @@ module guga_rdm
                          minFunA_0_2_overR2, getDoubleContribution, getMixedFullStop
     use guga_types, only: WeightObj_t
     use guga_bitRepOps, only: update_matrix_element, setDeltaB, extract_matrix_element
-    use guga_bitRepOps, only: isProperCSF_ilut, isDouble, init_csf_information
+    use guga_bitRepOps, only: isProperCSF_ilut, isDouble, CSF_Info_t, fill_csf_i
     use guga_bitRepOps, only: write_guga_list, write_det_guga, getSpatialOccupation
     use guga_bitRepOps, only: convert_ilut_toGUGA, convert_ilut_toNECI
-    use guga_bitRepOps, only: calc_csf_info, add_guga_lists, EncodeBitDet_guga
+    use guga_bitRepOps, only: calc_csf_i, add_guga_lists, EncodeBitDet_guga
     use guga_bitRepOps, only: findFirstSwitch, findLastSwitch
     use guga_bitRepOps, only: contract_1_rdm_ind, contract_2_rdm_ind, &
                               extract_1_rdm_ind, extract_2_rdm_ind, &
@@ -71,7 +71,7 @@ module guga_rdm
     use rdm_data, only: rdm_list_t, rdm_definitions_t
     use util_mod, only: get_free_unit
     use dSFMT_interface, only: genrand_real2_dSFMT
-    use ParallelHelper, only: root
+    use MPI_wrapper, only: root
 
     implicit none
 
@@ -80,7 +80,6 @@ module guga_rdm
               send_proc_ex_djs, &
               calc_all_excits_guga_rdm_singles, calc_explicit_1_rdm_guga, &
               calc_all_excits_guga_rdm_doubles, calc_explicit_2_rdm_guga, &
-              calc_explicit_diag_2_rdm_guga, &
               Add_RDM_From_IJ_Pair_GUGA, fill_diag_1rdm_guga, &
               Add_RDM_HFConnections_GUGA, fill_spawn_rdm_diag_guga, &
               combine_x0_x1, pure_rdm_ind, generator_sign, &
@@ -224,8 +223,6 @@ contains
             open(iunit_psmat, file='PSMAT', status='replace')
             do i = 1, size(psmat)
                 if (abs(psmat(i)) > 1e-12_dp) then
-                    !                 call extract_molcas_2_rdm_index(i, p, q, r, s, pq, rs)
-                    !                 write(iunit_psmat, '(I6,G25.17,4I6)') i, psmat(i), p, q, r, s
                     write(iunit_psmat, '(I6, G25.17)') i, psmat(i)
                 end if
             end do
@@ -234,8 +231,6 @@ contains
             open(iunit_pamat, file='PAMAT', status='replace')
             do i = 1, size(pamat)
                 if (abs(pamat(i)) > 1e-12_dp) then
-                    !                 call extract_molcas_2_rdm_index(i, p, q, r, s, pq, rs)
-                    !                 write(iunit_psmat, '(I6,G25.17,4I6)') i, pamat(i), p, q, r, s
                     write(iunit_pamat, '(I6, G25.17)') i, pamat(i)
                 end if
             end do
@@ -244,8 +239,6 @@ contains
             open(iunit_dmat, file='DMAT', status='replace')
             do i = 1, size(dmat)
                 if (abs(dmat(i)) > 1e-12_dp) then
-                    !                 call extract_molcas_1_rdm_index(i, p, q)
-                    !                 write(iunit_dmat, '(I6, G25.17,2I6)') i, dmat(i), p, q
                     write(iunit_dmat, '(I6, G25.17)') i, dmat(i)
                 end if
             end do
@@ -371,42 +364,6 @@ contains
         if (r < s) sgn = -sgn
 
     end function molcas_sign
-
-    ! function get_rdm_hash_entry()
-    !     ! make a function to easily extract the rdm element stored in the
-    !     ! hash table
-    !
-    ! end function get_rdm_hash_entry
-
-    subroutine print_rdm_ind(rdm_ind, typ, t_newline)
-        integer(int_rdm), intent(in) :: rdm_ind
-        integer, intent(in) :: typ
-        logical, intent(in), optional :: t_newline
-
-        logical :: t_newline_
-        integer :: i, j, k, l
-        character(3) :: adv
-
-        def_default(t_newline_, t_newline, .true.)
-
-        if (t_newline_) then
-            adv = 'yes'
-        else
-            adv = 'no'
-        end if
-
-        if (typ == 1) then
-            call extract_1_rdm_ind(rdm_ind, i, j)
-
-            write(6, '(2i3)', advance=adv) i, j
-
-        else if (typ == 2) then
-            call extract_2_rdm_ind(rdm_ind, i, j, k, l)
-
-            write(6, '(4i3)', advance=adv) i, j, k, l
-        end if
-
-    end subroutine print_rdm_ind
 
     elemental function pure_rdm_ind(rdm_ind) result(pure_ind)
         ! return 'just' the rdm index without the excit-level and type info
@@ -638,38 +595,6 @@ contains
 
     end function generator_sign
 
-    ! maybe sometimes:
-    ! subroutine create_hf_rdm_connections_guga(connections, ref_det, run)
-    !     type(RdmContribList_t), allocatable, intent(out) :: connections(:)
-    !     integer, intent(in), optional :: ref_det(nel)
-    !     integer, intent(in), optional :: run
-    !     character(*), parameter :: this_routine = "create_hf_rdm_connections_guga"
-    !     integer(n_int) :: ilutG(0:GugaBits%len_tot)
-    !     integer :: nI(nel), ind, n_singles, n_doubles, n_tot
-    !     integer(n_int), pointer :: singles(:,:), doubles(:,:), total(:,:)
-    !
-    !     def_default(ind, run, 1)
-    !     def_default(nI, ref_det, projEDet(:,ind))
-    !
-    !     call EncodeBitDet_guga(nI, ilutG)
-    !     ! create singles
-    !     call calc_explicit_1_rdm_guga(ilutG, n_singles, singles)
-    !
-    !     ! create doubles
-    !     call calc_explicit_2_rdm_guga(ilutG, n_doubles, doubles)
-    !
-    !     ! allocate..
-    !     allocate(total(0:GugaBits%len_tot, n_singles + n_doubles), &
-    !         source = 0_n_int)
-    !
-    !     n_tot = 0
-    !     call add_guga_lists_rdm(n_tot, n_singles, total, singles)
-    !     call add_guga_lists_rdm(n_tot, n_doubles, total, doubles)
-    !
-    !     call sort(total(:,1:n_tot), ilut_lt, ilut_gt)
-    !
-    ! end subroutine create_hf_rdm_connections_guga
-
     subroutine Add_RDM_HFConnections_GUGA(spawn, one_rdms, ilutJ, av_sign_j, &
                                           av_sign_hf, excit_lvl, iter_rdm)
         type(rdm_spawn_t), intent(inout) :: spawn
@@ -681,26 +606,30 @@ contains
         character(*), parameter :: this_routine = "Add_RDM_HFConnections_GUGA"
 #endif
 
+        unused_var(excit_lvl)
         ! damn.. here we need to do the 'slow' implementation i guess..
         ! since NJ does not come from a spawning event but is
         ! done deterministically for the HF connections..
         ! there should be a clever way to do this..
         ! nah.. not for now.. otherwise i have to check everywhere also
         ! if i sampled this already.. for leave it at that and be done with
-        ! it!
-        if (excit_lvl == 1 .or. excit_lvl == 2) then
+
+
+        ! excit-lvl information is not really correct for GUGA..
+        ! so avoid using it..
+!         if (excit_lvl == 1 .or. excit_lvl == 2) then
             ! for HF -> nJ we do not have csf info intialized so use calc_type = 2
-            call add_rdm_from_ij_pair_guga_exact(spawn, one_rdms, iLutHF_True, &
+            call add_rdm_from_ij_pair_guga_exact(spawn, one_rdms, iLutHF_True, CSF_Info_t(iLutHF_True), &
                                                  ilutJ, av_sign_hf(2::2), iter_rdm*av_sign_j(1::2), calc_type=2)
 
             ! for nJ we have the csf info initialized (or maybe not..)
-            call add_rdm_from_ij_pair_guga_exact(spawn, one_rdms, ilutJ, &
+            call add_rdm_from_ij_pair_guga_exact(spawn, one_rdms, ilutJ, CSF_Info_t(ilutJ), &
                                                  iLutHF_True, av_sign_j(2::2), iter_rdm*av_sign_hf(1::2), calc_type=2)
-        end if
+!         end if
 
     end subroutine Add_RDM_HFConnections_GUGA
 
-    subroutine add_rdm_from_ij_pair_guga_exact(spawn, one_rdms, ilutI, ilutJ, &
+    subroutine add_rdm_from_ij_pair_guga_exact(spawn, one_rdms, ilutI, csf_i, ilutJ, &
                                                sign_i, sign_j, calc_type)
         ! this routine is called for RDM sampling within the semi-stochastic
         ! space or for the connection to the 'true' HF det!
@@ -710,6 +639,7 @@ contains
         type(one_rdm_t), intent(inout) :: one_rdms(:)
         integer(n_int), intent(in) :: ilutI(0:IlutBits%len_tot), &
                                       ilutJ(0:IlutBits%len_tot)
+        type(CSF_Info_t), intent(in) :: csf_i
         real(dp), intent(in) :: sign_i(:), sign_j(:)
         integer, intent(in) :: calc_type
         character(*), parameter :: this_routine = "add_rdm_from_ij_pair_guga_exact"
@@ -720,41 +650,44 @@ contains
         integer :: p, q, r, s, n
         real(dp) :: full_sign(spawn%rdm_send%sign_length)
 
-        call calc_guga_matrix_element(ilutI, ilutJ, excitInfo, mat_ele, &
-                                      t_hamil=.false., calc_type=calc_type, rdm_ind=rdm_ind, &
-                                      rdm_mat=rdm_mat)
+        call calc_guga_matrix_element(ilutI, csf_i, ilutJ, excitInfo, mat_ele, &
+                                      t_hamil=.false., calc_type=calc_type, &
+                                      rdm_ind=rdm_ind, rdm_mat=rdm_mat)
 
         ! i assume sign_i and sign_j are not 0 if we end up here..
-        do n = 1, size(rdm_ind)
-            if (.not. near_zero(rdm_mat(n))) then
-                if (excitInfo%excitLvl == 1) then
-                    if (RDMExcitLevel == 1) then
-                        call fill_sings_1rdm_guga(one_rdms, sign_i, sign_j, &
-                                                  rdm_mat(n), rdm_ind(n))
-                    else
-                        call fill_sings_2rdm_guga(spawn, ilutI, &
-                                                  ilutJ, sign_i, sign_j, rdm_mat(n), rdm_ind(n))
-                    end if
-                else if (excitInfo%excitLvl == 2 .and. RDMExcitLevel /= 1) then
-                    call extract_2_rdm_ind(rdm_ind(n), p, q, r, s)
-                    full_sign = sign_i * sign_j * rdm_mat(n)
-
-                    ! here in the 'exact' filling (coming from HF or
-                    ! within the semistochastic space I think it makes
-                    ! sense to fill symmetrically.. since here no
-                    ! stochastic spawning is happening and this does not
-                    ! give us information about the hermiticity error!
-                    call add_to_rdm_spawn_t(spawn, p, q, r, s, &
-                                            full_sign, .true.)
-
-                    if (.not. &
-                        (excitInfo%typ == excit_type%fullstart_stop_alike)) then
-                        call add_to_rdm_spawn_t(spawn, r, s, p, q, &
+        if (allocated(rdm_ind)) then
+            ASSERT(allocated(rdm_mat))
+            ASSERT(size(rdm_ind) == size(rdm_mat))
+            do n = 1, size(rdm_ind)
+                if (.not. near_zero(rdm_mat(n))) then
+                    if (excitInfo%excitLvl == 1) then
+                        if (RDMExcitLevel == 1) then
+                            call fill_sings_1rdm_guga(one_rdms, sign_i, sign_j, &
+                                                      rdm_mat(n), rdm_ind(n))
+                        else
+                            call fill_sings_2rdm_guga(spawn, ilutI, &
+                                                      ilutJ, sign_i, sign_j, &
+                                                      rdm_mat(n), rdm_ind(n))
+                        end if
+                    else if (excitInfo%excitLvl == 2 .and. RDMExcitLevel /= 1) then
+                        call extract_2_rdm_ind(rdm_ind(n), p, q, r, s)
+                        full_sign = sign_i * sign_j * rdm_mat(n)
+                        ! here in the 'exact' filling (coming from HF or
+                        ! within the semistochastic space I think it makes
+                        ! sense to fill symmetrically.. since here no
+                        ! stochastic spawning is happening and this does not
+                        ! give us information about the hermiticity error!
+                        call add_to_rdm_spawn_t(spawn, p, q, r, s, &
                                                 full_sign, .true.)
+                        if (.not. &
+                            (excitInfo%typ == excit_type%fullstart_stop_alike)) then
+                            call add_to_rdm_spawn_t(spawn, r, s, p, q, &
+                                                    full_sign, .true.)
+                        end if
                     end if
                 end if
-            end if
-        end do
+            end do
+        end if
 
     end subroutine add_rdm_from_ij_pair_guga_exact
 
@@ -781,6 +714,7 @@ contains
         integer(n_int) :: ilutGi(0:GugaBits%len_tot), ilutGj(0:GugaBits%len_tot)
         integer(int_rdm) :: pure_ind
         logical :: t_fast_
+        type(CSF_Info_t) :: csf_i
 
         def_default(t_fast_, t_fast, .true.)
 
@@ -812,6 +746,7 @@ contains
                         call EncodeBitDet_guga(nI, ilutGJ)
                         call EncodeBitDet_guga(nJ, ilutGi)
                     end if
+                    csf_i = CSF_Info_t(ilutGi)
 
                     call fill_sings_2rdm_guga(spawn, IlutGi, &
                                               ilutGj, sign_i, sign_j, x0, pure_ind)
@@ -827,6 +762,7 @@ contains
                     call EncodeBitDet_guga(nI, ilutGJ)
                     call EncodeBitDet_guga(nJ, ilutGi)
                 end if
+                csf_i = CSF_Info_t(ilutGi)
                 call create_all_rdm_contribs(rdm_ind_in, x0, x1, rdm_ind, rdm_mat)
 
                 do n = 1, size(rdm_ind)
@@ -852,8 +788,8 @@ contains
                 call EncodeBitDet_guga(nI, ilutGJ)
                 call EncodeBitDet_guga(nJ, ilutGi)
             end if
-
-            call calc_guga_matrix_element(IlutGi, ilutGj, excitInfo, mat_ele, &
+            csf_i = CSF_Info_t(ilutGi)
+            call calc_guga_matrix_element(IlutGi, csf_i, ilutGj, excitInfo, mat_ele, &
                                           t_hamil=.false., calc_type=2, rdm_ind=rdm_ind, &
                                           rdm_mat=rdm_mat)
 
@@ -892,14 +828,15 @@ contains
 
     end subroutine Add_RDM_From_IJ_Pair_GUGA
 
-    subroutine gen_exc_djs_guga(ilutI)
+    subroutine gen_exc_djs_guga(ilutI, csf_i)
         integer(n_int), intent(in) :: ilutI(0:niftot)
+        type(CSF_Info_t), intent(in) :: csf_i
         character(*), parameter :: this_routine = "gen_exc_djs_guga"
 
         integer :: nI(nel), flags_I, n_singles, n_doubles
         real(dp) :: sign_i(lenof_sign), full_sign(1)
 
-        integer(n_int), pointer :: excits(:, :)
+        integer(n_int), allocatable :: excits(:, :)
         integer(n_int) :: ilutG(0:GugaBits%len_tot)
 
         call extract_bit_rep(ilutI, nI, sign_I, flags_I)
@@ -918,7 +855,7 @@ contains
         ! but with my general two-body excitation routine i do not need
         ! to calculate this in case of more than singles:
         if (RDMExcitLevel == 1) then
-            call calc_explicit_1_rdm_guga(ilutG, n_singles, excits)
+            call calc_explicit_1_rdm_guga(ilutG, csf_i, n_singles, excits)
 
             ! and then sort them correctly in the communicated array
             call assign_excits_to_proc_guga(n_singles, excits, 1)
@@ -933,7 +870,7 @@ contains
             ! if i want to mimic stochastic RDM sampling I also
             ! have to explicitly create single excitations, but
             ! store them in the according 2-RDM entries
-            call calc_explicit_1_rdm_guga(ilutG, n_singles, excits)
+            call calc_explicit_1_rdm_guga(ilutG, csf_i, n_singles, excits)
 
             ! and then sort them correctly in the communicated array
             call assign_excits_to_proc_guga(n_singles, excits, 1)
@@ -941,7 +878,7 @@ contains
             deallocate(excits)
             call LogMemDealloc(this_routine, tag_excitations)
 
-            call calc_explicit_2_rdm_guga(ilutG, n_doubles, excits)
+            call calc_explicit_2_rdm_guga(ilutG, csf_i, n_doubles, excits)
 
             call assign_excits_to_proc_guga(n_doubles, excits, 2)
 
@@ -1172,7 +1109,7 @@ contains
                 sing_recvdisps(i) = sing_recvdisps(i) * (int(GugaBits%len_tot + 1, MPIArg))
             end do
 
-#ifdef PARALLEL
+#ifdef USE_MPI
             call MPIAlltoAllv(Sing_ExcDjs(:, 1:MaxSendIndex), sendcounts, disps, &
                               Sing_ExcDjs2, sing_recvcounts, sing_recvdisps, error)
 #else
@@ -1220,7 +1157,7 @@ contains
 
             ! This is the main send of all the single excitations to the
             ! corresponding processors.
-#ifdef PARALLEL
+#ifdef USE_MPI
             call MPIAlltoAllv(Doub_ExcDjs(:, 1:MaxSendIndex), sendcounts, disps, &
                               Doub_ExcDjs2, doub_recvcounts, doub_recvdisps, error)
 #else
@@ -1369,61 +1306,6 @@ contains
 
     end subroutine fill_sings_1rdm_guga
 
-    subroutine fill_mixed_2rdm_guga(spawn, ilutI, ilutJ, sign_i, sign_j, mat_ele, &
-                                    rdm_ind, excitInfo_opt)
-        ! this is the routine where I test the filling of 2-RDM based on
-        ! single excitations to mimic the workflow in the stochastic
-        ! RDM sampling
-        type(rdm_spawn_t), intent(inout) :: spawn
-        integer(n_int), intent(in) :: ilutI(0:GugaBits%len_tot), ilutJ(0:GugaBits%len_tot)
-        real(dp), intent(in) :: sign_i(:), sign_j(:), mat_ele
-        integer(int_rdm), intent(in) :: rdm_ind
-        type(ExcitationInformation_t), intent(in), optional :: excitInfo_opt
-        character(*), parameter :: this_routine = "fill_mixed_2rdm_guga"
-
-        type(ExcitationInformation_t) :: excitInfo
-        integer :: ij, kl, i, j, k, l
-        ! mimic the stochastic processes for the explicit excitation
-        ! generation
-
-        if (DetBitEQ(ilutI, ilutJ, nifd)) return
-
-        ! for the explicit code, I first need to recalculate the type
-        ! of excitation.. I am not sure how the indices will be encoded..
-        if (present(excitInfo_opt)) then
-            excitInfo = excitInfo_opt
-        else
-            call extract_2_rdm_ind(rdm_ind, i, j, k, l)
-
-            excitInfo = excitationIdentifier(i, j, k, l)
-        end if
-
-        select case (excitInfo%typ)
-
-        case (excit_type%fullstop_L_to_R, &
-              excit_type%fullstop_R_to_L)
-
-            call fill_mixed_end(spawn, ilutI, ilutJ, sign_i, sign_j, &
-                                mat_ele, excitInfo)
-
-        case (excit_type%fullstart_L_to_R, &
-              excit_type%fullstart_R_to_L)
-
-            call fill_mixed_start(spawn, ilutI, ilutJ, sign_i, sign_j, &
-                                  mat_ele, excitInfo)
-
-        case (excit_type%fullstart_stop_mixed)
-            call fill_mixed_start_end(spawn, ilutI, ilutJ, sign_i, sign_j, &
-                                      mat_ele, excitInfo)
-
-        case default
-            call print_excitInfo(excitInfo)
-            call Stop_All(this_routine, "wrong excitation type here")
-
-        end select
-
-    end subroutine fill_mixed_2rdm_guga
-
     subroutine fill_mixed_end(spawn, ilutI, ilutJ, sign_i, sign_j, &
                               mat_ele, excitInfo)
         type(rdm_spawn_t), intent(inout) :: spawn
@@ -1454,7 +1336,7 @@ contains
 
             sw = findLastSwitch(ilutI, ilutJ, se, en)
 
-            call calc_csf_info(ilutI, step_i, b_i, occ_i)
+            call calc_csf_i(ilutI, step_i, b_i, occ_i)
             int_occ = int(occ_i)
 
             step = step_i(en)
@@ -1634,7 +1516,7 @@ contains
 
             sw = findFirstSwitch(ilutI, ilutJ, st, se)
 
-            call calc_csf_info(ilutI, step_i, b_i, occ_i)
+            call calc_csf_i(ilutI, step_i, b_i, occ_i)
             real_b = real(b_i, dp)
             int_occ = int(occ_i)
 
@@ -1806,8 +1688,8 @@ contains
         first = findFirstSwitch(ilutI, ilutJ, excitInfo%fullStart, excitInfo%fullEnd)
         last = findLastSwitch(ilutI, ilutJ, first, excitInfo%fullEnd)
 
-        call calc_csf_info(ilutI, step_i, b_i, occ_i)
-        call calc_csf_info(ilutJ, step_j, b_j, occ_j)
+        call calc_csf_i(ilutI, step_i, b_i, occ_i)
+        call calc_csf_i(ilutJ, step_j, b_j, occ_j)
         real_b = real(b_i, dp)
         int_occ = int(occ_i)
 
@@ -2016,8 +1898,8 @@ contains
         ! this would simplify things!
 
         ! for simplicity it is best to have these quantities:
-        call calc_csf_info(ilutI, step_i, b_i, occ_i)
-        call calc_csf_info(ilutJ, step_j, b_j, occ_j)
+        call calc_csf_i(ilutI, step_i, b_i, occ_i)
+        call calc_csf_i(ilutJ, step_j, b_j, occ_j)
 
         delta_b = b_i - b_j
 
@@ -2146,6 +2028,7 @@ contains
             if (step_i(iO) == 3 .or. ((occ_i(iO) .isclose.1.0_dp) .and. b_i(iO) == 0)) then
                 ! then it is easy:
                 ! just figure out correct indices
+
                 call add_to_rdm_spawn_t(spawn, i, iO, iO, a, &
                                         -occ_i(iO) / 2.0 * sign_i * sign_j * mat_ele, .true.)
                 call add_to_rdm_spawn_t(spawn, iO, a, i, iO, &
@@ -2270,7 +2153,7 @@ contains
 
     subroutine assign_excits_to_proc_guga(n_tot, excits, excit_lvl)
         integer, intent(in) :: n_tot, excit_lvl
-        integer(n_int), intent(in), pointer :: excits(:, :)
+        integer(n_int), intent(in), allocatable :: excits(:, :)
         character(*), parameter :: this_routine = "assign_excits_to_proc_guga"
 
         integer :: i, proc, nJ(nel)
@@ -2292,9 +2175,9 @@ contains
 
 #ifdef DEBUG_
                 if (Sing_ExcList(Proc) > nint(OneEl_Gap * (Proc + 1))) then
-                    write(6, *) 'Proc', Proc
-                    write(6, *) 'Sing_ExcList', Sing_ExcList
-                    write(6, *) 'No. spaces for each proc', nint(OneEl_Gap)
+                    write(stdout, *) 'Proc', Proc
+                    write(stdout, *) 'Sing_ExcList', Sing_ExcList
+                    write(stdout, *) 'No. spaces for each proc', nint(OneEl_Gap)
                     call Stop_All('GenExcDjs', 'Too many excitations for space available.')
                 end if
 #endif
@@ -2313,9 +2196,9 @@ contains
 
 #ifdef DEBUG_
                 if (Doub_ExcList(Proc) > nint(TwoEl_Gap * (Proc + 1))) then
-                    write(6, *) 'Proc', Proc
-                    write(6, *) 'Doub_ExcList', Doub_ExcList
-                    write(6, *) 'No. spaces for each proc', nint(TwoEl_Gap)
+                    write(stdout, *) 'Proc', Proc
+                    write(stdout, *) 'Doub_ExcList', Doub_ExcList
+                    write(stdout, *) 'No. spaces for each proc', nint(TwoEl_Gap)
                     call Stop_All('GenExcDjs', 'Too many excitations for space available.')
                 end if
 #endif
@@ -2324,82 +2207,16 @@ contains
 
     end subroutine assign_excits_to_proc_guga
 
-    subroutine calc_explicit_diag_2_rdm_guga(ilut, n_tot, excitations)
+    subroutine calc_explicit_2_rdm_guga(ilut, csf_i, n_tot, excitations)
         integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
+        type(CSF_Info_t), intent(in) :: csf_i
         integer, intent(out) :: n_tot
-        integer(n_int), intent(out), pointer :: excitations(:, :)
-        character(*), parameter :: this_routine = "calc_explicit_diag_2_rdm_guga"
-
-        integer :: i, j, k, l, nMax, ierr, n, n_excits, jl, ik
-        integer(n_int), pointer :: temp_excits(:, :), tmp_all_excits(:, :)
-        integer(int_rdm) :: ijkl
-
-        call init_csf_information(ilut)
-
-        nMax = 6 + 4 * (nSpatOrbs)**3 * (count_open_orbs(ilut) + 1)
-        allocate(tmp_all_excits(0:GugaBits%len_tot, nMax), stat=ierr)
-        call LogMemAlloc('tmp_all_excits', (GugaBits%len_tot + 1) * nMax, 8, this_routine, tag_tmp_excits)
-
-        n_tot = 0
-
-        do i = 1, nSpatOrbs
-            do j = 1, nSpatOrbs
-
-                if (i == j) cycle
-
-                call calc_all_excits_guga_rdm_doubles(ilut, i, j, j, i, &
-                                                      temp_excits, n_excits)
-#ifdef DEBUG_
-                do n = 1, n_excits
-                    ASSERT(isProperCSF_ilut(temp_excits(:, n), .true.))
-                end do
-#endif
-
-                if (n_excits > 1) then
-                    call add_guga_lists_rdm(n_tot, n_excits - 1, &
-                                            tmp_all_excits, temp_excits(:, 2:))
-                end if
-
-                deallocate(temp_excits)
-            end do
-        end do
-
-        j = 1
-        do i = 1, n_tot
-            if (near_zero(extract_matrix_element(tmp_all_excits(:, i), 1))) cycle
-
-            tmp_all_excits(:, j) = tmp_all_excits(:, i)
-
-            j = j + 1
-
-        end do
-
-        n_tot = j - 1
-
-        allocate(excitations(0:GugaBits%len_tot, n_tot), &
-                  source=tmp_all_excits(0:GugaBits%len_tot, 1:n_tot), stat=ierr)
-        ! hm to log that does not make so much sense.. since it gets called
-        ! more than once and is only a temporary array..
-        call LogMemAlloc('excitations', n_tot, 8, this_routine, tag_excitations)
-
-        call sort(excitations(:, 1:n_tot), ilut_lt, ilut_gt)
-
-        deallocate(tmp_all_excits)
-        call LogMemDealloc(this_routine, tag_tmp_excits)
-
-    end subroutine calc_explicit_diag_2_rdm_guga
-
-    subroutine calc_explicit_2_rdm_guga(ilut, n_tot, excitations)
-        integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
-        integer, intent(out) :: n_tot
-        integer(n_int), intent(out), pointer :: excitations(:, :)
+        integer(n_int), intent(out), allocatable :: excitations(:, :)
         character(*), parameter :: this_routine = "calc_explicit_2_rdm_guga"
 
         integer :: i, j, k, l, nMax, ierr, n, n_excits, jl, ik
-        integer(n_int), pointer :: temp_excits(:, :), tmp_all_excits(:, :)
+        integer(n_int), allocatable :: temp_excits(:, :), tmp_all_excits(:, :)
         integer(int_rdm) :: ijkl
-
-        call init_csf_information(ilut)
 
         nMax = 6 + 4 * (nSpatOrbs)**3 * (count_open_orbs(ilut) + 1)
         allocate(tmp_all_excits(0:GugaBits%len_tot, nMax), stat=ierr)
@@ -2414,7 +2231,7 @@ contains
                         ! pure diagonal contribution:
                         if (i == j .and. k == l) cycle
 
-                        call calc_all_excits_guga_rdm_doubles(ilut, i, j, k, l, &
+                        call calc_all_excits_guga_rdm_doubles(ilut, csf_i, i, j, k, l, &
                                                               temp_excits, n_excits)
 
 #ifdef DEBUG_
@@ -2481,7 +2298,7 @@ contains
 
     end subroutine calc_explicit_2_rdm_guga
 
-    subroutine calc_explicit_1_rdm_guga(ilut, n_tot, excitations)
+    subroutine calc_explicit_1_rdm_guga(ilut, csf_i, n_tot, excitations)
         ! routine to calculate the one-RDM explicitly in the GUGA formalism
         ! the one RDM is given by rho_ij = <Psi|E_ij|Psi>
         ! so, similar to the actHamiltonian routine I need to loop over all
@@ -2490,14 +2307,13 @@ contains
         ! make this routine similar to GenExcDjs() in rdm_explicit.F90
         ! to insert it there to calculate the GUGA RDMs in this case
         integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
+        type(CSF_Info_t), intent(in) :: csf_i
         integer, intent(out) :: n_tot
-        integer(n_int), intent(out), pointer :: excitations(:, :)
+        integer(n_int), intent(out), allocatable :: excitations(:, :)
         character(*), parameter :: this_routine = "calc_explicit_1_rdm_guga"
 
         integer :: i, j, nMax, ierr, n, n_excits
-        integer(n_int), pointer :: temp_excits(:, :), tmp_all_excits(:, :)
-
-        call init_csf_information(ilut)
+        integer(n_int), allocatable :: temp_excits(:, :), tmp_all_excits(:, :)
 
         nMax = 6 + 4 * (nSpatOrbs)**2 * (count_open_orbs(ilut) + 1)
         allocate(tmp_all_excits(0:GugaBits%len_tot, nMax), stat=ierr)
@@ -2509,7 +2325,7 @@ contains
             do j = 1, nSpatOrbs
                 if (i == j) cycle
 
-                call calc_all_excits_guga_rdm_singles(ilut, i, j, temp_excits, &
+                call calc_all_excits_guga_rdm_singles(ilut, csf_i, i, j, temp_excits, &
                                                       n_excits)
 
 #ifdef DEBUG_
@@ -2552,10 +2368,11 @@ contains
 
     end subroutine calc_explicit_1_rdm_guga
 
-    subroutine calc_all_excits_guga_rdm_doubles(ilut, i, j, k, l, excits, n_excits)
+    subroutine calc_all_excits_guga_rdm_doubles(ilut, csf_i, i, j, k, l, excits, n_excits)
         integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
+        type(CSF_Info_t), intent(in) :: csf_i
         integer, intent(in) :: i, j, k, l
-        integer(n_int), intent(out), pointer :: excits(:, :)
+        integer(n_int), intent(out), allocatable :: excits(:, :)
         integer, intent(out) :: n_excits
         character(*), parameter :: this_routine = "calc_all_excits_guga_rdm_doubles"
 
@@ -2572,7 +2389,7 @@ contains
 
         ! if called with k = l = 0 -> call single version of function
         if (k == 0 .and. l == 0) then
-            call calc_all_excits_guga_rdm_singles(ilut, i, j, excits, n_excits)
+            call calc_all_excits_guga_rdm_singles(ilut, csf_i, i, j, excits, n_excits)
             return
         end if
 
@@ -2591,7 +2408,7 @@ contains
         ! in checkCompatibility the number of switches is already
         ! calulated to check if the probabilistic weights fit... maybe but
         ! that out and reuse.. to not waste any effort.
-        call checkCompatibility(ilut, excitInfo, compFlag, posSwitches, negSwitches)
+        call checkCompatibility(csf_i, excitInfo, compFlag, posSwitches, negSwitches)
 
         ! for mixed type full starts and/or full stops i have to consider
         ! the possible diagonal/single excitations here!
@@ -2630,19 +2447,19 @@ contains
             ! can be treated almost like a single excitation
             ! essentially the same, except if d(w) == 3 in the excitaton regime
 
-            call calcDoubleExcitation_withWeight(ilut, excitInfo, excits, &
+            call calcDoubleExcitation_withWeight(ilut, csf_i, excitInfo, excits, &
                                                  n_excits, posSwitches, negSwitches)
 
             exlevel = 1
 
         case (excit_type%lowering) ! weight + lowering gen
-            call calcDoubleExcitation_withWeight(ilut, excitInfo, excits, &
+            call calcDoubleExcitation_withWeight(ilut, csf_i, excitInfo, excits, &
                                                  n_excits, posSwitches, negSwitches)
 
             exlevel = 1
 
         case (excit_type%non_overlap) ! non overlap
-            call calcNonOverlapDouble(ilut, excitInfo, excits, n_excits, &
+            call calcNonOverlapDouble(ilut, csf_i, excitInfo, excits, n_excits, &
                                       posSwitches, negSwitches)
 
             exlevel = 2
@@ -2651,61 +2468,61 @@ contains
             ! how can i efficiently adress that?
             ! can i write that efficiently in one function or do i need more?
             ! probably need more... i already determined
-            call calcSingleOverlapLowering(ilut, excitInfo, excits, n_excits, &
+            call calcSingleOverlapLowering(ilut, csf_i, excitInfo, excits, n_excits, &
                                            posSwitches, negSwitches)
 
             exlevel = 1
 
         case (excit_type%single_overlap_raising) ! single overlap raising
-            call calcSingleOverlapRaising(ilut, excitInfo, excits, n_excits, &
+            call calcSingleOverlapRaising(ilut, csf_i, excitInfo, excits, n_excits, &
                                           posSwitches, negSwitches)
 
             exlevel = 1
 
         case (excit_type%single_overlap_L_to_R) ! single overlap lowering into raising
-            call calcSingleOverlapMixed(ilut, excitInfo, excits, n_excits, &
+            call calcSingleOverlapMixed(ilut, csf_i, excitInfo, excits, n_excits, &
                                         posSwitches, negSwitches)
 
             exlevel = 2
 
         case (excit_type%single_overlap_R_to_L) ! single overlap raising into lowering
-            call calcSingleOverlapMixed(ilut, excitInfo, excits, n_excits, &
+            call calcSingleOverlapMixed(ilut, csf_i, excitInfo, excits, n_excits, &
                                         posSwitches, negSwitches)
 
             exlevel = 2
 
         case (excit_type%double_lowering) ! normal double overlap two lowering
-            call calcDoubleLowering(ilut, excitInfo, excits, n_excits, &
+            call calcDoubleLowering(ilut, csf_i, excitInfo, excits, n_excits, &
                                     posSwitches, negSwitches)
 
             exlevel = 2
 
         case (excit_type%double_raising) ! normal double overlap two raising
-            call calcDoubleRaising(ilut, excitInfo, excits, n_excits, &
+            call calcDoubleRaising(ilut, csf_i, excitInfo, excits, n_excits, &
                                    posSwitches, negSwitches)
 
             exlevel = 2
 
         case (excit_type%double_L_to_R_to_L) ! lowering into raising into lowering
-            call calcDoubleRaising(ilut, excitInfo, excits, n_excits, &
+            call calcDoubleRaising(ilut, csf_i, excitInfo, excits, n_excits, &
                                    posSwitches, negSwitches)
 
             exlevel = 2
 
         case (excit_type%double_R_to_L_to_R) ! raising into lowering into raising
-            call calcDoubleLowering(ilut, excitInfo, excits, n_excits, &
+            call calcDoubleLowering(ilut, csf_i, excitInfo, excits, n_excits, &
                                     posSwitches, negSwitches)
 
             exlevel = 2
 
         case (excit_type%double_L_to_R) ! lowering into raising double
-            call calcDoubleL2R(ilut, excitInfo, excits, n_excits, &
+            call calcDoubleL2R(ilut, csf_i, excitInfo, excits, n_excits, &
                                posSwitches, negSwitches)
 
             exlevel = 2
 
         case (excit_type%double_R_to_L) ! raising into lowering double
-            call calcDoubleR2L(ilut, excitInfo, excits, n_excits, &
+            call calcDoubleR2L(ilut, csf_i, excitInfo, excits, n_excits, &
                                posSwitches, negSwitches)
 
             exlevel = 2
@@ -2713,19 +2530,19 @@ contains
         case (excit_type%fullstop_lowering) ! full stop 2 lowering
             ! can i write a function for both alike generator combinations
             ! i think i can
-            call calcFullstopLowering(ilut, excitInfo, excits, n_excits, &
+            call calcFullstopLowering(ilut, csf_i, excitInfo, excits, n_excits, &
                                       posSwitches, negSwitches)
 
             exlevel = 2
 
         case (excit_type%fullstop_raising) ! full stop 2 raising
-            call calcFullstopRaising(ilut, excitInfo, excits, n_excits, &
+            call calcFullstopRaising(ilut, csf_i, excitInfo, excits, n_excits, &
                                      posSwitches, negSwitches)
 
             exlevel = 2
 
         case (excit_type%fullstop_L_to_R) ! full stop lowering into raising
-            call calcFullStopL2R(ilut, excitInfo, excits, n_excits, &
+            call calcFullStopL2R(ilut, csf_i, excitInfo, excits, n_excits, &
                                  posSwitches, negSwitches, t_no_singles_opt=.true.)
 
             ! in this case there is also the possibility for one single-like
@@ -2744,46 +2561,46 @@ contains
             exlevel = 2
 
         case (excit_type%fullstop_R_to_L) ! full stop raising into lowering
-            call calcFullStopR2L(ilut, excitInfo, excits, n_excits, &
+            call calcFullStopR2L(ilut, csf_i, excitInfo, excits, n_excits, &
                                  posSwitches, negSwitches, t_no_singles_opt=.true.)
 
             ! same as for 16
             exlevel = 2
 
         case (excit_type%fullstart_lowering) ! full start 2 lowering
-            call calcFullStartLowering(ilut, excitInfo, excits, n_excits, &
+            call calcFullStartLowering(ilut, csf_i, excitInfo, excits, n_excits, &
                                        posSwitches, negSwitches)
 
             exlevel = 2
 
         case (excit_type%fullstart_raising) ! full start 2 raising
-            call calcFulLStartRaising(ilut, excitInfo, excits, n_excits, &
+            call calcFulLStartRaising(ilut, csf_i, excitInfo, excits, n_excits, &
                                       posSwitches, negSwitches)
 
             exlevel = 2
 
         case (excit_type%fullstart_L_to_R) ! full start lowering into raising
-            call calcFullStartL2R(ilut, excitInfo, excits, n_excits, &
+            call calcFullStartL2R(ilut, csf_i, excitInfo, excits, n_excits, &
                                   posSwitches, negSwitches, t_no_singles_opt=.true.)
 
             ! same as for 16
             exlevel = 2
 
         case (excit_type%fullstart_R_to_L) ! full start raising into lowering
-            call calcFullStartR2L(ilut, excitInfo, excits, n_excits, &
+            call calcFullStartR2L(ilut, csf_i, excitInfo, excits, n_excits, &
                                   posSwitches, negSwitches, t_no_singles_opt=.true.)
 
             ! same as for 16
             exlevel = 2
 
         case (excit_type%fullstart_stop_alike) ! full start into full stop alike
-            call calcFullStartFullStopAlike(ilut, excitInfo, excits)
+            call calcFullStartFullStopAlike(ilut, csf_i, excitInfo, excits)
             n_excits = 1
 
             exlevel = 2
 
         case (excit_type%fullstart_stop_mixed) ! full start into full stop mixed
-            call calcFullStartFullStopMixed(ilut, excitInfo, excits, n_excits, &
+            call calcFullStartFullStopMixed(ilut, csf_i, excitInfo, excits, n_excits, &
                                             posSwitches, negSwitches)
 
             ! same as for 16
@@ -2804,10 +2621,11 @@ contains
 
     end subroutine calc_all_excits_guga_rdm_doubles
 
-    subroutine calc_all_excits_guga_rdm_singles(ilut, i, j, excits, n_excits)
+    subroutine calc_all_excits_guga_rdm_singles(ilut, csf_i, i, j, excits, n_excits)
         integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
+        type(CSF_Info_t), intent(in) :: csf_i
         integer, intent(in) :: i, j
-        integer(n_int), intent(out), pointer :: excits(:, :)
+        integer(n_int), intent(out), allocatable :: excits(:, :)
         integer, intent(out) :: n_excits
         character(*), parameter :: this_routine = "calc_all_excits_guga_rdm_singles"
 
@@ -2815,7 +2633,7 @@ contains
         type(WeightObj_t) :: weights
         real(dp) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
         integer :: iEx, iOrb, ierr
-        integer(n_int), pointer :: tempExcits(:, :)
+        integer(n_int), allocatable :: tempExcits(:, :)
         real(dp) :: minusWeight, plusWeight
 
         ASSERT(i > 0 .and. i <= nSpatOrbs)
@@ -2829,37 +2647,37 @@ contains
                    st => excitInfo%fullStart)
 
             if (gen1 /= 0) then
-                if (current_stepvector(i) == 3 .or. current_stepvector(j) == 0) then
-                    allocate(excits(0, 0), stat=ierr)
+                if (csf_i%stepvector(i) == 3 .or. csf_i%stepvector(j) == 0) then
+                    allocate(excits(0, 0))
                     return
                 end if
             end if
 
-            call calcRemainingSwitches_excitInfo_single(excitInfo, posSwitches, negSwitches)
+            call calcRemainingSwitches_excitInfo_single(csf_i, excitInfo, posSwitches, negSwitches)
 
-            weights = init_singleWeight(ilut, en)
-            plusWeight = weights%proc%plus(posSwitches(st), currentB_ilut(st), weights%dat)
-            minusWeight = weights%proc%minus(negSwitches(st), currentB_ilut(st), weights%dat)
+            weights = init_singleWeight(csf_i, en)
+            plusWeight = weights%proc%plus(posSwitches(st), csf_i%B_ilut(st), weights%dat)
+            minusWeight = weights%proc%minus(negSwitches(st), csf_i%B_ilut(st), weights%dat)
 
             ! check compatibility of chosen indices
 
-            if ((current_stepvector(st) == 1 .and. near_zero(plusWeight)) .or. &
-                (current_stepvector(st) == 2 .and. near_zero(minusWeight)) .or. &
-                near_zero(minusWeight + plusWeight)) then
-                allocate(excits(0, 0), stat=ierr)
+            if (csf_i%stepvector(st) == 1 .and. near_zero(plusWeight) &
+                    .or. csf_i%stepvector(st) == 2 .and. near_zero(minusWeight) &
+                    .or. near_zero(minusWeight + plusWeight)) then
+                allocate(excits(0, 0))
                 return
             end if
 
             ! have to give probabilistic weight object as input, to deal
-            call createSingleStart(ilut, excitInfo, posSwitches, &
+            call createSingleStart(ilut, csf_i, excitInfo, posSwitches, &
                                    negSwitches, weights, tempExcits, n_excits)
 
             do iOrb = st + 1, en - 1
-                call singleUpdate(ilut, iOrb, excitInfo, posSwitches, &
+                call singleUpdate(ilut, csf_i, iOrb, excitInfo, posSwitches, &
                                   negSwitches, weights, tempExcits, n_excits)
             end do
 
-            call singleEnd(ilut, excitInfo, tempExcits, &
+            call singleEnd(ilut, csf_i, excitInfo, tempExcits, &
                            n_excits, excits)
 
             ! encode the combined RDM-ind in the deltaB position for

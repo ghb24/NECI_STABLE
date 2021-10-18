@@ -17,6 +17,13 @@ module adi_references
     use util_mod, only: operator(.isclose.)
 
     implicit none
+    private
+    public :: initialize_c_caches, update_coherence_check, eval_coherence, &
+        check_sign_coherence, update_first_reference, enable_adi, clean_adi, &
+        adjust_nRefs, update_ref_signs, resize_ilutRefAdi, &
+        print_reference_notification, nRefs, setup_reference_space, &
+        reallocate_ilutRefAdi, reset_coherence_counter, update_reference_space
+
 
 contains
 
@@ -104,7 +111,7 @@ contains
             call MPIAllGather(mpi_refs_found, refs_found_per_proc, ierr)
             all_refs_found = sum(refs_found_per_proc)
             if (all_refs_found /= maxNRefs) then
-                write(6, *) "Warning: Less than ", maxNRefs, &
+                write(stdout, *) "Warning: Less than ", maxNRefs, &
                     " superinitiators found, using only ", all_refs_found, " superinitiators"
             end if
             ! Set the number of SIs to the number actually found
@@ -197,7 +204,7 @@ contains
         end if
 
         if (iProcIndex == root) &
-            write(6, *) "Getting superinitiators for all-doubs-initiators: ", nRefs, " SIs found"
+            write(stdout, *) "Getting superinitiators for all-doubs-initiators: ", nRefs, " SIs found"
 
         if (tWriteRefs) call output_reference_space(ref_filename)
     end subroutine generate_ref_space
@@ -251,7 +258,7 @@ contains
 
         ! we only keep at most maxNRefs determinants
         if (refs_found > maxNRefs .and. NoTypeN > 1) then
-            write(iout, '(A,I5,A,I5,A,I5,A)') "On proc ", iProcIndex, " found ", refs_found, &
+            write(stdout, '(A,I5,A,I5,A,I5,A)') "On proc ", iProcIndex, " found ", refs_found, &
                 " SIs, which is more than the maximum of ", maxNRefs, " - truncating"
             ! in case we found more, take the maxNRefs with the highest population
             call sort(tmp(0:NIfTot, 1:refs_found), sign_gt, sign_lt)
@@ -314,7 +321,7 @@ contains
                 si_buf(0:NIfTot, i) = mpi_buf(0:NIfTot, largest_inds(i))
             end do
             if (iProcIndex == root .and. NoTypeN > 1) &
-                write(6, '(A,I5,A,I5,A)') "In total ", all_refs_found, &
+                write(stdout, '(A,I5,A,I5,A)') "In total ", all_refs_found, &
                 " SIs were found, which is more than the maximum number of ", &
                 maxNRefs, " - truncating"
             ! make it look to the outside as though maxNRefs were found
@@ -329,39 +336,8 @@ contains
 
 !------------------------------------------------------------------------------------------!
 
-    subroutine apply_population_threshold()
-        implicit none
-        integer :: iRef, counter
-        real(dp) :: sgn(lenof_sign)
-        integer(n_int) :: tmp(0:NIfTot, 1:nRefs)
-
-        tmp = 0
-        counter = 1
-        ! first, check for each SI if it meets the minimum population
-        do iRef = 1, nRefs
-            call extract_sign(ilutRefAdi(:, iRef), sgn)
-            if (av_pop(sgn) >= NoTypeN) then
-                tmp(:, counter) = ilutRefAdi(:, iRef)
-                counter = counter + 1
-            end if
-        end do
-
-        ! if all SIs meet the minimum population, there is nothing to do
-        if (counter < nRefs) then
-            ! first, copy the elements to keep in the first counter slots of ilutRefAdi
-            ilutRefAdi(0:NIfTot, 1:counter) = tmp(0:NIfTot, 1:counter)
-            ! now, remove the remaining elements
-            call resize_ilutRefAdi(counter)
-
-            ! give a notification
-        end if
-
-    end subroutine apply_population_threshold
-
-!------------------------------------------------------------------------------------------!
-
     subroutine output_reference_space(filename)
-        use ParallelHelper, only: root
+        use MPI_wrapper, only: root
         use util_mod, only: get_free_unit
         implicit none
         character(255), intent(in) :: filename
@@ -392,8 +368,8 @@ contains
         if (iProcIndex == root .and. .not. tSuppressSIOutput) then
             ! print out the given SIs sorted according to population
             call sort(ilutRefAdi(0:NIfTot, iStart:iEnd), sign_gt, sign_lt)
-            write(iout, *) title
-            if (present(legend)) write(iout, "(4A25)") &
+            write(stdout, *) title
+            if (present(legend)) write(stdout, "(4A25)") &
                 ! TODO: Adapt legend for multiple runs
                 "Determinant (bitwise)", "Excitation level", "Coherence parameter", "Number of walkers"
             do i = iStart, iEnd
@@ -410,19 +386,19 @@ contains
         real(dp) :: temp_sgn(lenof_sign)
         integer :: j
         ! First, print the determinant (bitwise)
-        call WriteDetBit(iout, ilut, .false.)
+        call WriteDetBit(stdout, ilut, .false.)
         ! Then, the excitation level
-        write(iout, "(5X)", advance='no')
-        write(iout, "(G1.4)", advance='no') FindBitExcitLevel(ilut, ilutRef(:, 1))
+        write(stdout, "(5X)", advance='no')
+        write(stdout, "(G1.4)", advance='no') FindBitExcitLevel(ilut, ilutRef(:, 1))
         ! And the sign coherence parameter
-        write(iout, "(G16.7)", advance='no') get_sign_op(ilut)
+        write(stdout, "(G16.7)", advance='no') get_sign_op(ilut)
         ! And then the sign
         call extract_sign(ilut, temp_sgn)
         do j = 1, lenof_sign
-            write(iout, "(G16.7)", advance='no') temp_sgn(j)
+            write(stdout, "(G16.7)", advance='no') temp_sgn(j)
         end do
 
-        write(iout, '()')
+        write(stdout, '()')
 
     end subroutine print_bit_rep
 
@@ -469,51 +445,13 @@ contains
 
     end subroutine update_single_ref_sign
 
-!------------------------------------------------------------------------------------------!
-
-    subroutine spin_symmetrize_references()
-        use DetBitOps, only: spin_flip, DetBitEQ
-        ! If using HPHF, we want to have the spinflipped version of each reference, too
-        ! This is a bit cumbersome to implement, as the spinflipped version might or
-        ! might not be already in the references
-        implicit none
-        integer :: iRef, jRef, cRef
-        integer(n_int) :: ilutRef_new(0:NIfTot, 2 * nRefs), tmp_ilut(0:NIfTot)
-        logical :: missing
-
-        cRef = 1
-        do iRef = 1, nRefs
-            ! First, copy the current ilut to a new buffer
-            ilutRef_new(:, cRef) = ilutRefAdi(:, iRef)
-            cRef = cRef + 1
-            ! get the spinflipped determinant
-            tmp_ilut = spin_flip(ilutRefAdi(:, iRef))
-            missing = .true.
-            ! check if it is already present
-            do jRef = 1, nRefs
-                if (DetBitEQ(tmp_ilut, ilutRefAdi(:, jRef), nifd)) missing = .false.
-            end do
-            ! If not, also add it to the list
-            if (missing) then
-                ilutRef_new(:, cRef) = tmp_ilut
-                cRef = cRef + 1
-            end if
-        end do
-
-        ! Resize the ilutRef array
-        call reallocate_ilutRefAdi(cRef)
-        nRefs = cRef
-        ! Now, copy the newly constructed references back to the original array
-        ilutRefAdi(:, 1:cRef) = ilutRef_new(:, 1:cRef)
-    end subroutine spin_symmetrize_references
-
-!------------------------------------------------------------------------------------------!
 
     function check_sign_coherence(ilut, nI, ilut_sign, iRef, run) result(is_coherent)
         use Determinants, only: get_helement
         use SystemData, only: tHPHF
         use hphf_integrals, only: hphf_off_diag_helement
         use guga_excitations, only: calc_guga_matrix_element
+        use guga_bitRepOps, only: CSF_Info_t
         use guga_data, only: ExcitationInformation_t
         implicit none
         integer(n_int), intent(in) :: ilut(0:NIfTot)
@@ -539,7 +477,7 @@ contains
         if (tHPHF) then
             h_el = hphf_off_diag_helement(nI, nJRef(:), ilut, ilutRefAdi(:, iRef))
         else if (tGUGA) then
-            call calc_guga_matrix_element(ilut, ilutRefAdi(:, iref), excitInfo, h_el, .true., 2)
+            call calc_guga_matrix_element(ilut, CSF_Info_t(ilut), ilutRefAdi(:, iref), excitInfo, h_el, .true., 2)
         else
             h_el = get_helement(nI, nJRef(:), ilut, ilutRefAdi(:, iRef))
         end if
@@ -589,6 +527,7 @@ contains
         use Determinants, only: get_helement
         use hphf_integrals, only: hphf_off_diag_helement
         use guga_excitations, only: calc_guga_matrix_element
+        use guga_bitRepOps, only: CSF_Info_t
         use guga_data, only: ExcitationInformation_t
         implicit none
         integer, intent(in) :: nI(nel), i
@@ -609,7 +548,7 @@ contains
         if (tHPHF) then
             h_el = hphf_off_diag_helement(nI, nIRef(:, i), ilut, ilutRefAdi(:, i))
         else if (tGUGA) then
-            call calc_guga_matrix_element(ilut, ilutRefAdi(:, i), excitInfo, h_el, .true., 2)
+            call calc_guga_matrix_element(ilut, CSF_Info_t(ilut), ilutRefAdi(:, i), excitInfo, h_el, .true., 2)
         else
             h_el = get_helement(nI, nIRef(:, i), ilut, ilutRefAdi(:, i))
         end if
@@ -758,7 +697,7 @@ contains
             lastAllNoatHF = cAllNoatHF
             lastNRefs = nRefsOld
 
-            write(6, *) "Now at ", nRefs, " superinitiators"
+            write(stdout, *) "Now at ", nRefs, " superinitiators"
 
         end if
     end subroutine adjust_nRefs
@@ -892,47 +831,6 @@ contains
 
 !------------------------------------------------------------------------------------------!
 
-    pure function ilut_not_in_list(ilut, buffer, buffer_size) result(t_is_new)
-        use DetBitOps, only: DetBitEQ
-        use bit_rep_data, only: NIfD
-        implicit none
-        integer, intent(in) :: buffer_size
-        integer(n_int), intent(in) :: ilut(0:NIfTot), buffer(0:NIfTot, buffer_size)
-        logical :: t_is_new
-        integer :: i_ilut
-
-        t_is_new = .true.
-        do i_ilut = 1, buffer_size
-            if (DetBitEQ(ilut, buffer(:, i_ilut), NIfD)) t_is_new = .false.
-        end do
-    end function ilut_not_in_list
-
-!------------------------------------------------------------------------------------------!
-
-    function cpIndex(i, nRefs, cp) result(index)
-        implicit none
-        integer, intent(in) :: i, nRefs, cp
-        integer :: index
-
-        index = mod(i / (nRefs**(cp - 1)), nRefs) + 1
-    end function cpIndex
-
-!------------------------------------------------------------------------------------------!
-
-    function maxProdEx(nRefs, prodLvl) result(nProdsMax)
-        implicit none
-        integer, intent(in) :: nRefs, prodLvl
-        integer :: nProdsMax
-        integer :: cLvl
-
-        ! Gets the maximum number of possible product excitations of nRefs states up
-        ! to a product level of prodLvl
-        nProdsMax = 0
-        do cLvl = 2, prodLvl
-            nProdsMax = nProdsMax + nRefs**cLvl
-        end do
-
-    end function maxProdEx
 
 !------------------------------------------------------------------------------------------!
 
@@ -940,11 +838,11 @@ contains
         use adi_data, only: tAllDoubsInitiators, tAdiActive
         implicit none
 
-        write(iout, '()')
-        write(iout, *) "Setting all double excitations to initiators"
-        write(iout, *) "Using static references"
-        write(iout, *) "Further notification on additional references will be given"
-        write(iout, '()')
+        write(stdout, '()')
+        write(stdout, *) "Setting all double excitations to initiators"
+        write(stdout, *) "Using static references"
+        write(stdout, *) "Further notification on additional references will be given"
+        write(stdout, '()')
         tAllDoubsInitiators = .true.
         tAdiActive = .true.
 
@@ -971,26 +869,6 @@ contains
 
         call setup_reference_space(all(.not. tSinglePartPhase))
     end subroutine update_first_reference
-
-!------------------------------------------------------------------------------------------!
-
-    subroutine remove_superinitiator(iRef)
-        ! calling this once changes the indices of the entries, the hash-table
-        ! is hence invalidated
-        implicit none
-        integer, intent(in) :: iRef
-        integer(n_int) :: tmp(0:NIfTot)
-
-        ! then, shrink ilutRefAdi
-        ! as the last entry will be deleted, move iRef to the back
-        if (iRef < nRefs) then
-            tmp = ilutRefAdi(:, nRefs)
-            ilutRefAdi(:, nRefs) = ilutRefAdi(:, iRef)
-            ilutRefAdi(:, iRef) = tmp
-        end if
-        call resize_ilutRefAdi(nRefs - 1)
-
-    end subroutine remove_superinitiator
 
 !------------------------------------------------------------------------------------------!
 

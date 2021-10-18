@@ -3,7 +3,7 @@
 ! a small module with functions needed for the unit-tests
 module unit_test_helpers
 
-    use constants, only: dp, EPS, n_int, bits_n_int, maxExcit, int64, iout, lenof_sign, sp
+    use constants, only: dp, EPS, n_int, bits_n_int, maxExcit, int64, stdout, lenof_sign, sp
 
     use SymExcitDataMod, only: ScratchSize
 
@@ -28,7 +28,7 @@ module unit_test_helpers
     use semi_stoch_procs, only: global_most_populated_states, GLOBAL_RUN
 
     use DetBitOps, only: ilut_lt, ilut_gt, EncodeBitDet, findbitexcitlevel, &
-                         count_open_orbs
+                         count_open_orbs, GetBitExcitation
 
     use orb_idx_mod, only: SpinOrbIdx_t, new_write_det => write_det, size
 
@@ -56,10 +56,10 @@ module unit_test_helpers
 
     private
     public :: run_excit_gen_tester, batch_run_excit_gen_tester, &
-              create_spin_dependent_hopping, create_hamiltonian, &
+              create_spin_dependent_hopping, create_lattice_hamil_nI, &
               similarity_transform, setup_arr_brr, create_all_spin_flips, &
               get_tranformation_matrix, create_hamiltonian_old, &
-              create_hilbert_space
+              create_hilbert_space, create_lattice_hamil_ilut
 
     abstract interface
         real(dp) function calc_pgen_t(nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2)
@@ -108,19 +108,27 @@ contains
 
         call sort(arr(1:nBasis, 1), brr(1:nBasis), nskip=2)
         call sort(arr(2:nBasis, 1), brr(2:nBasis), nskip=2)
-!
-!         print *, "arr: "
-!         do i = 1, nBasis
-!             print *, arr(i,:)
-!         end do
-!         print *, "brr: "
-!         do i = 1, nBasis
-!             print *, brr(i)
-!         end do
 
     end subroutine setup_arr_brr
 
-    function create_hamiltonian(list_nI) result(hamil)
+    function create_lattice_hamil_ilut(list_ilut) result(hamil)
+        integer(n_int), intent(in) :: list_ilut(:,:)
+        HElement_t(dp) :: hamil(size(list_ilut,2),size(list_ilut,2))
+
+        integer :: i, j, nI(nel), nJ(nel)
+        hamil = h_cast(0.0_dp)
+
+        do i = 1, size(list_ilut,2)
+            do j = 1, size(list_ilut,2)
+                call decode_bit_det(nI, list_ilut(:,i))
+                call decode_bit_det(nJ, list_ilut(:,j))
+                hamil(i,j) = get_helement_lattice(nJ, nI)
+            end do
+        end do
+
+    end function create_lattice_hamil_ilut
+
+    function create_lattice_hamil_nI(list_nI) result(hamil)
         ! quite specific hamiltonian creation for my tests..
         integer, intent(in) :: list_nI(:, :)
         HElement_t(dp) :: hamil(size(list_nI, 2), size(list_nI, 2))
@@ -135,7 +143,7 @@ contains
             end do
         end do
 
-    end function create_hamiltonian
+    end function create_lattice_hamil_nI
 
     function create_spin_dependent_hopping(list_nI, spin_opt) result(hamil)
         ! function to create a spin-dependent hopping matrix for the
@@ -462,7 +470,7 @@ contains
         if (present(i_unit)) then
             i_unit_ = i_unit
         else
-            i_unit_ = iout
+            i_unit_ = stdout
         end if
 
         if (present(problem_filter)) then

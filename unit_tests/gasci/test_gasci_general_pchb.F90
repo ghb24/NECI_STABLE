@@ -7,7 +7,7 @@ module test_gasci_general_pchb
     use SystemData, only: nEl
     use excitation_types, only: Excitation_t
 
-    use gasci, only: GASSpec_t
+    use gasci, only: LocalGASSpec_t
     use gasci_pchb, only: GAS_PCHB_ExcGenerator_t, possible_GAS_singles
     use excitation_generators, only: ExcitationGenerator_t
 
@@ -27,7 +27,7 @@ contains
     subroutine test_pgen()
         use FciMCData, only: pSingles, pDoubles, pParallel
         type(GAS_PCHB_ExcGenerator_t) :: exc_generator
-        type(GASSpec_t) :: GAS_spec
+        type(LocalGASSpec_t) :: GAS_spec
         integer, parameter :: det_I(6) = [1, 2, 3, 7, 8, 10]
 
         logical :: successful
@@ -39,13 +39,13 @@ contains
         pDoubles = 1.0_dp - pSingles
 
         do n_interspace_exc = 0, 1
-            GAS_spec = GASSpec_t(n_min=[3 - n_interspace_exc, size(det_I)], n_max=[3 + n_interspace_exc, size(det_I)], &
+            GAS_spec = LocalGASSpec_t(n_min=[3, 3] - n_interspace_exc, n_max=[3, 3] + n_interspace_exc, &
                                  spat_GAS_orbs=[1, 1, 1, 2, 2, 2])
             call assert_true(GAS_spec%is_valid())
-            call assert_true(GAS_spec%contains_det(det_I))
+            call assert_true(GAS_spec%contains_conf(det_I))
 
             call init_excitgen_test(det_I, FciDumpWriter_t(random_fcidump, 'FCIDUMP'))
-            call exc_generator%init(GAS_spec, use_lookup=.false., create_lookup=.false., recoupling=.true., &
+            call exc_generator%init(GAS_spec, use_lookup=.false., create_lookup=.false., &
                                     used_singles_generator=possible_GAS_singles%PC_UNIFORM)
             call run_excit_gen_tester( &
                 exc_generator, 'general implementation, Li2 like system', &

@@ -1,8 +1,12 @@
-cmake_minimum_required(VERSION 2.8.4 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.12 FATAL_ERROR)
 
 
 if (POLICY CMP0074)
     cmake_policy(SET CMP0074 NEW)
+endif ()
+
+if (POLICY CMP0077)
+    cmake_policy(SET CMP0077 NEW)
 endif ()
 
 project(NECI Fortran CXX C)
@@ -14,20 +18,9 @@ set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake" ${CMAKE_MODULE_PATH})
 # install git hooks
 execute_process( COMMAND "${PROJECT_SOURCE_DIR}/tools/install_hooks.sh" ${PROJECT_SOURCE_DIR})
 
-
-if (CMAKE_VERSION VERSION_LESS "3.1")
-  # do an extra check just for old gnu compilers: does the compiler support c++11?
-  if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-       execute_process(COMMAND ${CMAKE_CXX_COMPILER} -dumpversion OUTPUT_VARIABLE GXX_VERSION)
-       if(GXX_VERSION VERSION_LESS 4.7)
-         message(FATAL_ERROR "C++ compiler does not support c++11 standard")
-       endif()
-  endif()
-  set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
-else ()
-#  set (CMAKE_CXX_STANDARD 11)
-   set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
-endif ()
+set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -fPIC")
 
 # We require at least ifort17, previous versions do not support all required options
 if(${CMAKE_Fortran_COMPILER_ID} STREQUAL "Intel")
@@ -47,7 +40,8 @@ include(neci_system)
 # toolchain on archer
 # PGI
 
-find_package( MPI_NECI REQUIRED )
+find_package( MPI REQUIRED )
+list(APPEND NECI_GLOBAL_DEFINES USE_MPI)
 
 # Declare options that this project uses
 # <Package>_NECI has a custom finder that does a bit more work than normal...
@@ -75,6 +69,11 @@ neci_add_option(
     DEFAULT OFF
     DESCRIPTION "Build using shared libraries, rather than static linking" )
 
+neci_add_option(
+    FEATURE DOC
+    DEFAULT OFF
+    DESCRIPTION "Enable the documentation. (Has additional requirements like pandoc or latexmk)")
+
 # Special option overrides
 
 if( HAVE_SHARED_MEMORY AND CMAKE_Fortran_COMPILER_ID STREQUAL "PGI" )
@@ -84,7 +83,8 @@ endif()
 # REQUIRED packages
 # <Package>_NECI has a custom finder that does a bit more work than normal...
 
-find_package( LAPACK_NECI REQUIRED )
+find_package( BLAS REQUIRED )
+find_package( LAPACK REQUIRED )
 
 # Build-type configuration
 
@@ -122,7 +122,6 @@ list(APPEND NECI_GLOBAL_DEFINES
     $<$<STREQUAL:${CMAKE_BUILD_TYPE},DEBUG>:DEBUG_>
 
     # Global defines that depend on options
-    $<$<BOOL:${HAVE_MPI}>:PARALLEL>
     $<$<BOOL:${HAVE_SHARED_MEMORY}>:SHARED_MEM_>
     $<$<NOT:$<BOOL:${HAVE_FFTW}>>:DISABLE_FFTW>
     $<$<BOOL:${HAVE_HDF5}>:USE_HDF_>
@@ -146,7 +145,12 @@ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME AND BUILD_TESTING)
     add_subdirectory(unit_tests)
 endif()
 
-# And we are done
+if (HAVE_DOC)
+    add_subdirectory(docs)
+endif()
 
+add_subdirectory(python)
+
+# And we are done
 neci_print_summary()
 

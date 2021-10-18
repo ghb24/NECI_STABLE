@@ -4,7 +4,7 @@
 
 module verlet_aux
 
-    use constants, only: n_int, lenof_sign, dp, EPS, inum_runs, null_part, maxExcit
+    use constants, only: n_int, lenof_sign, dp, EPS, inum_runs, null_part, maxExcit, stdout
 
     use AnnihilationMod, only: DirectAnnihilation, SendProcNewParts, CompressSpawnedList
 
@@ -49,7 +49,7 @@ module verlet_aux
 
     use load_balance_calcnodes, only: DetermineDetNode
 
-    use ParallelHelper, only: iProcIndex
+    use MPI_wrapper, only: iProcIndex
 
     implicit none
 
@@ -60,7 +60,7 @@ contains
         implicit none
         character(*), parameter :: this_routine = "init_"
 
-        write(6, *) "Prepared initial delta_psi, starting verlet calculation"
+        write(stdout, *) "Prepared initial delta_psi, starting verlet calculation"
         call build_initial_delta_psi()
         ! rescale the timestep
         tau = iterInit * tau
@@ -90,7 +90,7 @@ contains
     subroutine end_verlet_sweep()
         implicit none
         ! switch back to runge-kutta after adjusting alpha to get a new delta_psi
-        write(6, *) "Switching to runge-kutta for update of alpha"
+        write(stdout, *) "Switching to runge-kutta for update of alpha"
         tVerletSweep = .false.
         tau = tau / iterInit
     end subroutine end_verlet_sweep

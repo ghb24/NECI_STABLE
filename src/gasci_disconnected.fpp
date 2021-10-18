@@ -4,7 +4,7 @@
 #:set ExcitationTypes = ['SingleExc_t', 'DoubleExc_t']
 
 module gasci_disconnected
-    use SystemData, only: tGAS, tGASSpinRecoupling, nBasis, nel
+    use SystemData, only: tGAS, nBasis, nel
     use constants
     use SymExcitDataMod, only: ScratchSize
     use util_mod, only: get_free_unit, binary_search_first_ge, operator(.div.), &
@@ -50,7 +50,7 @@ module gasci_disconnected
 
     type, extends(ExcitationGenerator_t) :: GAS_disc_ExcGenerator_t
         private
-        type(GASSpec_t) :: GAS_spec
+        class(GASSpec_t), allocatable :: GAS_spec
         !> Bitmasks containing the active spaces
         !> (stored in the same format as an ilut)
         !> also have spin-resolved bitmasks
@@ -102,7 +102,7 @@ module gasci_disconnected
 contains
 
     pure function construct_GAS_disc_ExcGenerator_t(GAS_spec) result(res)
-        type(GASSpec_t), intent(in) :: GAS_spec
+        class(GASSpec_t), intent(in) :: GAS_spec
         type(GAS_disc_ExcGenerator_t) :: res
 
         !> GAS space for the i-th **spatial** orbital
@@ -293,7 +293,6 @@ contains
         integer :: ms
         real(dp) :: r, pgen_pick1, pgen_pick2
         logical :: tExchange
-        character(*), parameter :: this_routine = 'generate_nGAS_double'
         ! assuming that there are possible excitations within each active space,
         ! pick two random electrons (we would not include a full / empty space, so
         ! the assumption is very mild)
@@ -302,10 +301,8 @@ contains
         ! active spaces we consider
         srcGAS = this%GAS_table(src)
 
-        @:ASSERT(tGASSpinRecoupling)
-
         tExchange = (ispn == 2) &
-                    .and. (tGASSpinRecoupling .or. srcGAS(1) == srcGAS(2))
+                    .and. (this%GAS_spec%recoupling() .or. srcGAS(1) == srcGAS(2))
 
         ! pick an empty orb from each active space chosen
         ! number of empty orbs in this active space
@@ -655,7 +652,7 @@ contains
         pgen_pick_elec = get_pgen_pick_biased_elecs(parallel_spin, pParallel, par_elec_pairs, AB_elec_pairs)
 
         tExchange = .not. parallel_spin &
-                    .and. (tGASSpinRecoupling .or. this%GAS_table(src1) == this%GAS_table(src2))
+                    .and. (this%GAS_spec%recoupling() .or. this%GAS_table(src1) == this%GAS_table(src2))
 
         iGAS = this%GAS_table(tgt1)
         nEmpty = this%GAS_size(iGAS) &

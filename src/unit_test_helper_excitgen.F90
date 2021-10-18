@@ -17,7 +17,7 @@ module unit_test_helper_excitgen
     use OneEInts, only: Tmat2D
     use bit_rep_data, only: NIfTot, nifd, extract_sign
     use bit_reps, only: encode_sign, decode_bit_det
-    use DetBitOps, only: EncodeBitDet, DetBitEq
+    use DetBitOps, only: EncodeBitDet, DetBitEq, GetBitExcitation
     use SymExcit3, only: countExcitations3, GenExcitations3
     use FciMCData, only: pSingles, pDoubles, pParallel, ilutRef, projEDet, &
                          fcimc_excit_gen_store
@@ -77,7 +77,6 @@ contains
         ! We thus make sure that
         !   a) all possible excitations are generated with some weight
         !   b) no invalid excitations are obtained
-        implicit none
         integer, intent(in) :: sampleSize
         real(dp), intent(out) :: pTot, pNull
         integer, intent(out) :: numEx, nFound
@@ -128,7 +127,7 @@ contains
         numEx = 0
         tAllExFound = .false.
         do
-            call GenExcitations3(nI, ilut, nJ, exflag, ex, tPar, tAllExFound, .false.)
+            call GenExcitations3(nI, ilut, nJ, exflag, ex(:,1:2), tPar, tAllExFound, .false.)
             if (tAllExFound) exit
             call encodeBitDet(nJ, ilutJ)
             numEx = numEx + 1
@@ -136,8 +135,8 @@ contains
         end do
         call sort(nI)
 
-        write(iout, *) "In total", numEx, "excits, (", nSingles, nDoubles, ")"
-        write(iout, *) "Exciting from", nI
+        write(stdout, *) "In total", numEx, "excits, (", nSingles, nDoubles, ")"
+        write(stdout, *) "Exciting from", nI
 
         call EncodeBitDet(nI, ilut)
 
@@ -167,7 +166,7 @@ contains
             ! an excitaion
             if (.not. tFound .and. .not. nJ(1) == 0) then
                 call decode_bit_det(nJ, ilutJ)
-                write(iout, *) "Created excitation", nJ
+                write(stdout, *) "Created excitation", nJ
                 call stop_all(t_r, "Error: Invalid excitation")
             end if
             ! check if the generated excitation is invalid, if it is, mark this specific constellation
@@ -206,7 +205,7 @@ contains
             matel = get_helement(nI, nJ)
             if (pgenArr(1) > eps) then
                 nFound = nFound + 1
-                write(iout, *) i, pgenArr(1), real(allEx(NIfTot + 1, i)) / real(sampleSize), &
+                write(stdout, *) i, pgenArr(1), real(allEx(NIfTot + 1, i)) / real(sampleSize), &
                     abs(matel) / (pgenArr(1) * matelN)
                 ! compare the stored pgen to the directly computed one
                 if (t_calc_pgen) then
@@ -219,8 +218,8 @@ contains
                     call getBitExcitation(ilut, allEx(:, i), ex, tPar)
                     pgenCalc = calc_pgen(nI, ilut, ex, ic, ClassCountOcc, ClassCountUnocc)
                     if (abs(pgenArr(1) - pgenCalc) > eps) then
-                        write(iout, *) "Stored: ", pgenArr(1), "calculated:", pgenCalc
-                        write(iout, *) "For excit", nJ
+                        write(stdout, *) "Stored: ", pgenArr(1), "calculated:", pgenCalc
+                        write(stdout, *) "For excit", nJ
                         call stop_all(t_r, "Incorrect pgen")
                     end if
                 end if
@@ -229,21 +228,21 @@ contains
                 if (abs(matel) < eps) then
                     nFound = nFound + 1
                 else if (i < nSingles) then
-                    write(iout, *) "Unfound single excitation", nJ
+                    write(stdout, *) "Unfound single excitation", nJ
                 else
-                    write(iout, *) "Unfound double excitation", nJ, matel
+                    write(stdout, *) "Unfound double excitation", nJ, matel
                 end if
             end if
             pTot = pTot + pgenArr(1)
         end do
-        write(iout, *) "Total prob. ", pTot
-        write(iout, *) "pNull ", pNull
-        write(iout, *) "Null ratio", nullExcits / real(sampleSize)
-        write(iout, *) "In total", numEx, "excitations"
-        write(iout, *) "With", nSingles, "single excitation"
-        write(iout, *) "Found", nFound, "excitations"
-        write(iout, *) 'Elapsed Time in seconds:', dble(finish - start) / dble(rate)
-        write(iout, *) 'Elapsed Time in micro seconds per excitation:', dble(finish - start) * 1e6_dp / dble(sampleSize* rate)
+        write(stdout, *) "Total prob. ", pTot
+        write(stdout, *) "pNull ", pNull
+        write(stdout, *) "Null ratio", nullExcits / real(sampleSize)
+        write(stdout, *) "In total", numEx, "excitations"
+        write(stdout, *) "With", nSingles, "single excitation"
+        write(stdout, *) "Found", nFound, "excitations"
+        write(stdout, *) 'Elapsed Time in seconds:', dble(finish - start) / dble(rate)
+        write(stdout, *) 'Elapsed Time in micro seconds per excitation:', dble(finish - start) * 1e6_dp / dble(sampleSize* rate)
 
     end subroutine test_excitation_generator
 

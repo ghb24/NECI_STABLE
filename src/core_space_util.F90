@@ -6,7 +6,7 @@ module core_space_util
     use shared_rhash, only: shared_rhash_t
     use shared_memory_mpi
     use MemoryManager, only: TagIntType, LogMemAlloc, LogMemDealloc
-    use ParallelHelper
+    use MPI_wrapper
     implicit none
 
     private
@@ -197,15 +197,15 @@ contains
 
         if (allocated(this%determ_sizes)) then
             deallocate(this%determ_sizes, stat=ierr)
-            if (ierr /= 0) write(6, '("Error when deallocating determ_sizes:",1X,i8)') ierr
+            if (ierr /= 0) write(stdout, '("Error when deallocating determ_sizes:",1X,i8)') ierr
         end if
         if (allocated(this%determ_displs)) then
             deallocate(this%determ_displs, stat=ierr)
-            if (ierr /= 0) write(6, '("Error when deallocating determ_displs:",1X,i8)') ierr
+            if (ierr /= 0) write(stdout, '("Error when deallocating determ_displs:",1X,i8)') ierr
         end if
         if (allocated(this%determ_last)) then
             deallocate(this%determ_last, stat=ierr)
-            if (ierr /= 0) write(6, '("Error when deallocating determ_last:",1X,i8)') ierr
+            if (ierr /= 0) write(stdout, '("Error when deallocating determ_last:",1X,i8)') ierr
         end if
 
         if (allocated(this%partial_determ_vecs)) then
@@ -266,16 +266,16 @@ contains
             do i = 1, size(sparse_mat)
                 if (allocated(sparse_mat(i)%elements)) then
                     deallocate(sparse_mat(i)%elements, stat=ierr)
-                    if (ierr /= 0) write(6, '("Error when deallocating sparse matrix elements array:",1X,i8)') ierr
+                    if (ierr /= 0) write(stdout, '("Error when deallocating sparse matrix elements array:",1X,i8)') ierr
                 end if
                 if (allocated(sparse_mat(i)%positions)) then
                     deallocate(sparse_mat(i)%positions, stat=ierr)
-                    if (ierr /= 0) write(6, '("Error when deallocating sparse matrix positions array:",1X,i8)') ierr
+                    if (ierr /= 0) write(stdout, '("Error when deallocating sparse matrix positions array:",1X,i8)') ierr
                 end if
             end do
 
             deallocate(sparse_mat, stat=ierr)
-            if (ierr /= 0) write(6, '("Error when deallocating sparse matrix array:",1X,i8)') ierr
+            if (ierr /= 0) write(stdout, '("Error when deallocating sparse matrix array:",1X,i8)') ierr
         end if
 
     end subroutine deallocate_sparse_matrix_int

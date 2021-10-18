@@ -3,13 +3,14 @@ module aliasSampling
     ! requiring to precompute biases but making the lookup O(1)
     use constants
     use shared_memory_mpi
-    use ParallelHelper, only: iProcIndex_intra
+    use MPI_wrapper, only: iProcIndex_intra
     use dSFMT_interface, only: genrand_real2_dSFMT
     use shared_array
     implicit none
 
     private
-    public :: aliasSampler_t, AliasSampler_1D_t, AliasSampler_3D_t, clear_sampler_array, aliasTable_t
+    public :: aliasSampler_t, AliasSampler_1D_t, AliasSampler_2D_t, AliasSampler_3D_t, &
+        clear_sampler_array, aliasTable_t
 
     ! type for tables: contains everything you need to get a random number
     ! with given biases
@@ -87,13 +88,28 @@ module aliasSampling
     end type AliasSampler_3D_t
 
 
+    type AliasSampler_2D_t
+        private
+        type(AliasSampler_3D_t) :: alias_sampler
+    contains
+        ! constructor
+        procedure :: shared_alloc => setupSamplerArray_2D
+        procedure :: setup_entry => setupEntry_2D
+        ! destructor
+        procedure :: finalize => samplerArrayDestructor_2D
+        ! get a random element and the generation probability from one of the samplers
+        procedure :: sample => aSample_2D
+        procedure :: get_prob => aGetProb_2D
+    end type AliasSampler_2D_t
+
+
     type AliasSampler_1D_t
         private
         type(AliasSampler_3D_t) :: alias_sampler
     contains
         ! constructor
         procedure :: shared_alloc => setupSamplerArray_1D
-        procedure :: setup_entry => setupEntry_1d
+        procedure :: setup_entry => setupEntry_1D
         ! destructor
         procedure :: finalize => samplerArrayDestructor_1D
         ! get a random element and the generation probability from one of the samplers
@@ -386,6 +402,25 @@ contains
     end function getProb
 
     !------------------------------------------------------------------------------------------!
+    ! Public non-member function to deallocate 1d-arrays of samplers (common task)
+    !------------------------------------------------------------------------------------------!
+
+    !> call the destructor on all elements of an array, then deallocate it. This is for
+    !! intrinsic arrays, the sampler array class has its own deallocate routine.
+    !> @param[in, out] arr  array to deallocate
+    subroutine clear_sampler_array(arr)
+        type(aliasSampler_t), allocatable, intent(inout) :: arr(:)
+
+        integer :: i
+
+        do i = 1, size(arr)
+            call arr(i)%samplerDestructor()
+        end do
+        deallocate(arr)
+    end subroutine clear_sampler_array
+
+
+    !------------------------------------------------------------------------------------------!
     ! This is where stuff gets technical...
     ! A sampler array class is required since intel mpi cannot have more than 16381 shared
     ! memory windows (i.e. we could not handle more than ~5500 samplers, which is easily
@@ -396,10 +431,11 @@ contains
     !! with one of them each). This only does the allocation.
     !> @param[in] nEntries  number of samplers to initialise
     !> @param[in] entrySize  number of values per sampler
-    subroutine setupSamplerArray_1D(this, nEntries, entrySize)
+    subroutine setupSamplerArray_1D(this, nEntries, entrySize, name)
         class(AliasSampler_1D_t) :: this
         integer, intent(in) :: nEntries, entrySize
-        call this%alias_sampler%shared_alloc([nEntries, 1, 1], entrySize)
+        character(*), intent(in) :: name
+        call this%alias_sampler%shared_alloc([nEntries, 1, 1], entrySize, name)
     end subroutine setupSamplerArray_1D
 
     !------------------------------------------------------------------------------------------!
@@ -450,32 +486,75 @@ contains
         prob = this%alias_sampler%get_prob(iEntry, 1, 1, tgt)
     end function aGetProb_1D
 
+    !> Setup an array of samplers using a single shared resource (split into parts associated
+    !! with one of them each). This only does the allocation.
+    !> @param[in] nEntries  number of samplers to initialise
+    !> @param[in] entrySize  number of values per sampler
+    subroutine setupSamplerArray_2D(this, dims, entrySize, name)
+        class(AliasSampler_2D_t) :: this
+        integer, intent(in) :: dims(2), entrySize
+        character(*), intent(in) :: name
+        call this%alias_sampler%shared_alloc([dims(1), dims(2), 1], entrySize, name)
+    end subroutine setupSamplerArray_2D
+
     !------------------------------------------------------------------------------------------!
-    ! Public non-member function to deallocate 1d-arrays of samplers (common task)
+
+    !> Initialise one sampler of an array
+    !> @param[in] iEntry  index of the entry to initialize
+    !> @param[in] arr  data to be loaded by that entry
+    subroutine setupEntry_2D(this, i, j, arr)
+        class(AliasSampler_2D_t), intent(inout) :: this
+        integer, intent(in) :: i, j
+        real(dp), intent(in) :: arr(:)
+        call this%alias_sampler%setup_entry(i, j, 1, arr)
+    end subroutine setupEntry_2D
+
     !------------------------------------------------------------------------------------------!
 
-    !> call the destructor on all elements of an array, then deallocate it. This is for
-    !! intrinsic arrays, the sampler array class has its own deallocate routine.
-    !> @param[in, out] arr  array to deallocate
-    subroutine clear_sampler_array(arr)
-        type(aliasSampler_t), allocatable, intent(inout) :: arr(:)
+    !> Deallocate an array of samplers
+    subroutine samplerArrayDestructor_2D(this)
+        class(AliasSampler_2D_t), intent(inout) :: this
+        call this%alias_sampler%finalize()
+    end subroutine samplerArrayDestructor_2D
 
-        integer :: i
+    !------------------------------------------------------------------------------------------!
+    ! Array access functions
+    !------------------------------------------------------------------------------------------!
 
-        do i = 1, size(arr)
-            call arr(i)%samplerDestructor()
-        end do
-        deallocate(arr)
-    end subroutine clear_sampler_array
+    !> draw a random element from 1:entrySize with the probabilities listed in this entry's prob
+    !> @param[in] iEntry  index of the sampler to use
+    !> @param[out] tgt  on return, this is a random number in the sampling range of entrySize
+    !> @param[out] prob  on return, the probability of picking tgt
+    subroutine aSample_2D(this, i, j, tgt, prob)
+        class(AliasSampler_2D_t), intent(in) :: this
+        integer, intent(in) :: i, j
+        integer, intent(out) :: tgt
+        real(dp), intent(out) :: prob
+        call this%alias_sampler%sample(i, j, 1, tgt, prob)
+    end subroutine aSample_2D
+
+    !> Returns the probability to draw tgt from the sampler with index iEntry
+    !> @param[in] iEntry  index of the sampler to use
+    !> @param[in] tgt  the number for which we request the probability of sampling
+    !> @return prob  the probability of drawing tgt with the sample routine
+    pure function aGetProb_2D(this, i, j, tgt) result(prob)
+        class(AliasSampler_2D_t), intent(in) :: this
+        integer, intent(in) :: i, j
+        integer, intent(in) :: tgt
+        real(dp) :: prob
+        prob = this%alias_sampler%get_prob(i, j, 1, tgt)
+    end function aGetProb_2D
 
 
     !> Setup an array of samplers using a single shared resource (split into parts associated
     !! with one of them each). This only does the allocation.
     !> @param[in] dims Dimension of the three-dimensional array of samplers.
     !> @param[in] entry_size number of values per sampler
-    subroutine setupSamplerArray_3D(this, dims, entry_size)
+    subroutine setupSamplerArray_3D(this, dims, entry_size, name)
         class(AliasSampler_3D_t), intent(inout) :: this
+        ! NOTE: We might have to change dims and entry_size to int64 in the near future... :-(
         integer, intent(in) :: dims(3), entry_size
+        character(*), intent(in) :: name
 
         integer :: i, j, k
         integer(int64) :: window_start, window_end, total_size
@@ -484,10 +563,10 @@ contains
 
         ! all entries in the array use the same shared memory window, just different
         ! portions of it
-        total_size = entry_size * product(dims)
-        call this%allProbs%shared_alloc(total_size)
-        call this%allBiasTable%shared_alloc(total_size)
-        call this%allAliasTable%shared_alloc(total_size)
+        total_size = entry_size * product(int(dims, kind=int64))
+        call this%allProbs%shared_alloc(total_size, name//'_Probs')
+        call this%allBiasTable%shared_alloc(total_size, name//'_Bias')
+        call this%allAliasTable%shared_alloc(total_size, name//'_Alias')
 
         window_start = 1
         do k = 1, dims(3)

@@ -4,7 +4,7 @@ module tau_search_hist
 
     use SystemData, only: tGen_4ind_weighted, AB_hole_pairs, par_hole_pairs,tHub, &
                           tGen_4ind_reverse, nOccAlpha, nOccBeta, tUEG, tGen_4ind_2, &
-                          nBasis, tGen_sym_guga_mol, tGen_nosym_guga, &
+                          nBasis, tGen_sym_guga_mol, &
                           tReal, t_k_space_hubbard, t_trans_corr_2body, &
                           t_trans_corr, t_new_real_space_hubbard, t_3_body_excits, &
                           t_trans_corr_hop, tGUGA, tgen_guga_crude, t_mixed_hubbard, &
@@ -26,9 +26,9 @@ module tau_search_hist
     use Parallel_neci, only: MPIAllReduce, MPI_MAX, MPI_SUM, MPIAllLORLogical, &
                             MPISumAll, MPISUM, mpireduce, MPI_MIN
 
-    use ParallelHelper, only: iprocindex, root
+    use MPI_wrapper, only: iprocindex, root
 
-    use constants, only: dp, EPS, iout, maxExcit, int64
+    use constants, only: dp, EPS, stdout, maxExcit, int64
 
     use tau_search, only: FindMaxTauDoubs, integrate_frequency_histogram_spec
 
@@ -36,14 +36,12 @@ module tau_search_hist
 
     use procedure_pointers, only: get_umat_el
     use UMatCache, only: gtid, UMat2d
-    use util_mod, only: abs_l1, operator(.isclose.)
+    use util_mod, only: abs_l1, operator(.isclose.), near_zero
     use LoggingData, only: t_log_ija, ija_bins_sing, all_ija_bins_sing, ija_thresh, &
                             ija_bins_para, all_ija_bins, ija_bins_anti, &
                             ija_orbs_sing, all_ija_orbs_sing, &
                             ija_orbs_para, all_ija_orbs, ija_orbs_anti
     use tc_three_body_data, only: pTriples, lMatEps
-
-    use guga_tausearch, only: find_max_tau_doubs_guga
 
     implicit none
     ! variables which i might have to define differently:
@@ -195,7 +193,7 @@ contains
         if (tSearchTauOption .or. tSearchTau) then
             ! is it already too late here? maybe so better stop! but for now
             ! try to turn it off!
-            write(iout, '("WARNING: standard and histogramming tau-search are&
+            write(stdout, '("WARNING: standard and histogramming tau-search are&
                 & chosen! TURNING OFF STANDARD TAU-SEARCH!")')
             tSearchTauOption = .false.
             tSearchTau = .false.
@@ -204,8 +202,8 @@ contains
         ! if no truncating spawns is chosen warn here againg that that might
         ! cause problems!
         if (.not. t_truncate_spawns) then
-            write(iout, '("WARNING: NO spawn truncation chosen with keyword: &
-                &truncate-spawns [float] in input! this might cause &
+            write(stdout, '("WARNING: NO spawn truncation chosen with keyword: &
+                &truncate-spawns [float] in input. this might cause &
                 &bloom problems with histogramming tau-search! BE CAUTIOUS!")')
         end if
 
@@ -258,7 +256,7 @@ contains
             ! possible parallel excitations now. and to make the tau-search
             ! working we need to set this to true ofc:
             consider_par_bias = .true.
-        else if (t_pchb_excitgen) then
+        else if (t_pchb_excitgen .and. .not. tGUGA) then
             ! The default pchb excitgen also uses parallel biases
             consider_par_bias = .true.
         else if (tGAS) then
@@ -362,12 +360,6 @@ contains
             allocate(frequency_bins_doubles(n_frequency_bins))
             frequency_bins_doubles = 0
 
-            ! actually the noysm tau search is in a different module..
-        else if (tGen_nosym_guga) then
-            call stop_all(this_routine, &
-                "should not end up here when nosym_guga, but in guga_tausearch!")
-
-
 
         else
             ! just to be save also use my new flags..
@@ -414,18 +406,23 @@ contains
         ! should we use the same variables in both tau-searches??
 
         ! Unless it is already specified, set an initial value for tau
-        if (.not. tRestart .and. .not. tReadPops .and. tau < EPS) then
+        if (.not. tRestart .and. .not. tReadPops .and. near_zero(tau)) then
             if (tGUGA) then
-                root_print "Warning: FindMaxTauDoubs misused for GUGA!"
-                root_print "still need a specific implementation for that!"
+                if (near_zero(MaxTau)) then
+                    call stop_all(this_routine, &
+                        "please specify a sensible 'max-tau' in input for GUGA calculations!")
+                else
+                    tau = MaxTau
+                end if
+            else
+                call FindMaxTauDoubs()
             end if
-            call FindMaxTauDoubs()
         end if
 
         if (tReadPops) then
-            write(iout,*) "Using time-step from POPSFILE!"
+            write(stdout,*) "Using time-step from POPSFILE!"
         else
-            write(6,*) 'Using initial time-step: ', tau
+            write(stdout,*) 'Using initial time-step: ', tau
         end if
 
         ! Set the maximum spawn size
@@ -446,7 +443,7 @@ contains
         end if
 
         if (.not. (tReadPops .and. .not. tWalkContGrow)) then
-            write(iout, "(a,f10.5)") "Will dynamically update timestep to &
+            write(stdout, "(a,f10.5)") "Will dynamically update timestep to &
                          &limit spawning probability to", max_permitted_spawn
         end if
 
@@ -1342,7 +1339,7 @@ contains
         ! try to write one general one and not multiple as in my GUGA branch
         use constants, only: int64
         use util_mod, only: get_free_unit, get_unique_filename
-        use ParallelHelper, only: root
+        use MPI_wrapper, only: root
 
         character(*), parameter :: this_routine = "print_frequency_histograms"
         character(255) :: filename, exname
@@ -1396,7 +1393,7 @@ contains
 
                 cnt = 0.0_dp
 
-                write(iout,*) "writing frequency histogram..."
+                write(stdout,*) "writing frequency histogram..."
                 do i = 1, n_frequency_bins
                     if (all_frequency_bins(i) == 0) cycle
                     write(iunit, "(f16.7)", advance = 'no') frq_step_size * i
@@ -1410,7 +1407,7 @@ contains
                     if (frq_step_size * i > max_tmp) exit
                 end do
                 close(iunit)
-                write(iout,*) "Done!"
+                write(stdout,*) "Done!"
 
             end if
 
@@ -1418,9 +1415,9 @@ contains
             call mpisum(zero_doubles,  tmp_int_64)
 
             if (iProcIndex == root) then
-                write(iout,*) "Number of zero-valued excitations: ", tmp_int_64
-                write(iout,*) "Number of valid excitations: ", sum_all
-                write(iout,*) "ratio of zero-valued excitations: ", &
+                write(stdout,*) "Number of zero-valued excitations: ", tmp_int_64
+                write(stdout,*) "Number of valid excitations: ", sum_all
+                write(stdout,*) "ratio of zero-valued excitations: ", &
                     real(tmp_int_64, dp) / sum_all
                 ! i guess i should also output the number of excitations
                 ! above the threshold!
@@ -1432,20 +1429,20 @@ contains
             call mpisum(above_max_doubles, tmp_int)
 
             if (iProcIndex == root) then
-                write(iout,*) "Number of excitations above threshold: ", tmp_int
-                write(iout,*) "ratio of excitations above threshold: ", &
+                write(stdout,*) "Number of excitations above threshold: ", tmp_int
+                write(stdout,*) "ratio of excitations above threshold: ", &
                     real(tmp_int, dp) / sum_all
 
                 ! also output the obtained integrated threshold and the
                 ! maximum values H_ij/pgen ratio for this type of excitation:
-                write(iout,*) "integrated H_ij/pgen ratio: ", j * frq_step_size
-                write(iout,*) "for ", frq_ratio_cutoff, " percent coverage!"
+                write(stdout,*) "integrated H_ij/pgen ratio: ", j * frq_step_size
+                write(stdout,*) "for ", frq_ratio_cutoff, " percent coverage!"
 
                 ! also  output the maximum H_ij/pgen ratio.. and maybe the
                 ! improvement of the integrated tau search?
-                write(iout,*) "maximum H_ij/pgen ratio: ", max_tmp
-                write(iout,*) "maximum/integrated ratio: ", max_tmp / (j * frq_step_size)
-                write(iout,*) "minimum H_ij/pgen ratio: ", min_tmp
+                write(stdout,*) "maximum H_ij/pgen ratio: ", max_tmp
+                write(stdout,*) "maximum/integrated ratio: ", max_tmp / (j * frq_step_size)
+                write(stdout,*) "minimum H_ij/pgen ratio: ", min_tmp
 
             end if
          else
@@ -1507,7 +1504,7 @@ contains
 
                     cnt = 0.0_dp
 
-                    write(iout,*) "writing parallel frequency histogram..."
+                    write(stdout,*) "writing parallel frequency histogram..."
                     do i = 1, n_frequency_bins
                         if (all_frequency_bins_spec(i) == 0) cycle
                         write(iunit, "(f16.7)", advance = 'no') frq_step_size * i
@@ -1519,7 +1516,7 @@ contains
                         if (frq_step_size * i > max_tmp) exit
                     end do
                     close(iunit)
-                    write(iout,*) "Done!"
+                    write(stdout,*) "Done!"
 
                 end if
 
@@ -1527,9 +1524,9 @@ contains
                 call MPISum(zero_para, tmp_int_64)
 
                 if (iProcIndex == root) then
-                    write(iout,*) "Number of zero-valued parallel excitations: ", tmp_int_64
-                    write(iout,*) "Number of valid parallel excitations: ", sum_all
-                    write(iout,*) "ratio of zero-valued parallel excitations: ", &
+                    write(stdout,*) "Number of zero-valued parallel excitations: ", tmp_int_64
+                    write(stdout,*) "Number of valid parallel excitations: ", sum_all
+                    write(stdout,*) "ratio of zero-valued parallel excitations: ", &
                         real(tmp_int_64, dp) / sum_all
                 end if
 
@@ -1537,8 +1534,8 @@ contains
                 call mpisum(above_max_para,  tmp_int)
 
                 if (iProcIndex == root) then
-                    write(iout,*) "Number of parallel excitations above threshold: ", tmp_int
-                    write(iout,*) "ratio of parallel excitations above threshold: ", &
+                    write(stdout,*) "Number of parallel excitations above threshold: ", tmp_int
+                    write(stdout,*) "ratio of parallel excitations above threshold: ", &
                         real(tmp_int, dp) / sum_all
                 end if
 
@@ -1546,17 +1543,17 @@ contains
                 call MPISum(below_thresh_para, tmp_int)
 
                 if (iProcIndex == root) then
-                    write(iout,*) "Number of parallel excitations below threshold: ", tmp_int
-                    write(iout,*) "ratio of parallel excitations below threshold: ", &
+                    write(stdout,*) "Number of parallel excitations below threshold: ", tmp_int
+                    write(stdout,*) "ratio of parallel excitations below threshold: ", &
                         real(tmp_int, dp) / sum_all
 
-                    write(iout,*) "integrated parallel H_ij/pgen ratio: ", j * frq_step_size
-                    write(iout,*) "for ", frq_ratio_cutoff, " percent coverage!"
+                    write(stdout,*) "integrated parallel H_ij/pgen ratio: ", j * frq_step_size
+                    write(stdout,*) "for ", frq_ratio_cutoff, " percent coverage!"
 
-                    write(iout,*) "maximum parallel H_ij/pgen ratio: ", max_tmp
-                    write(iout,*) "maximum/integrated parallel ratio: ", &
+                    write(stdout,*) "maximum parallel H_ij/pgen ratio: ", max_tmp
+                    write(stdout,*) "maximum/integrated parallel ratio: ", &
                         max_tmp / (j * frq_step_size)
-                    write(iout,*) "minimum parallel H_ij/pgen ratio: ", min_tmp
+                    write(stdout,*) "minimum parallel H_ij/pgen ratio: ", min_tmp
 
                     ! and add them up for the final normed one
                     all_frequency_bins = all_frequency_bins + all_frequency_bins_spec
@@ -1585,7 +1582,7 @@ contains
 
                     cnt = 0.0_dp
 
-                    write(iout,*) "writing anti-parallel frequency histogram..."
+                    write(stdout,*) "writing anti-parallel frequency histogram..."
                     do i = 1, n_frequency_bins
                         if (all_frequency_bins_spec(i) == 0) cycle
                         write(iunit, "(f16.7)", advance = 'no') frq_step_size * i
@@ -1597,16 +1594,16 @@ contains
                         if (frq_step_size * i > max_tmp) exit
                     end do
                     close(iunit)
-                    write(iout,*) "Done!"
+                    write(stdout,*) "Done!"
                 end if
 
                 tmp_int_64 = 0
                 call MPISum(zero_anti, tmp_int_64)
 
                 if (iProcIndex == root) then
-                    write(iout,*) "Number of zero-valued anti-parallel excitations: ", tmp_int_64
-                    write(iout,*) "Number of valid anti-parallel excitations: ", sum_all
-                    write(iout,*) "ratio of zero-valued anti-parallel excitations: ", &
+                    write(stdout,*) "Number of zero-valued anti-parallel excitations: ", tmp_int_64
+                    write(stdout,*) "Number of valid anti-parallel excitations: ", sum_all
+                    write(stdout,*) "ratio of zero-valued anti-parallel excitations: ", &
                         real(tmp_int_64, dp) / sum_all
                 end if
 
@@ -1614,9 +1611,9 @@ contains
                 call mpisum(above_max_anti,  tmp_int)
 
                 if (iProcIndex == root) then
-                    write(iout,*) "Number of anti-parallel excitations above threshold: ", &
+                    write(stdout,*) "Number of anti-parallel excitations above threshold: ", &
                         tmp_int
-                    write(iout,*) "ratio of anti-parallel excitations above threshold: ", &
+                    write(stdout,*) "ratio of anti-parallel excitations above threshold: ", &
                         real(tmp_int, dp) / sum_all
                 end if
 
@@ -1624,18 +1621,18 @@ contains
                 call mpisum(below_thresh_anti, tmp_int)
 
                 if (iProcIndex == root) then
-                    write(iout,*) "Number of anti-parallel excitations below threshold: ", &
+                    write(stdout,*) "Number of anti-parallel excitations below threshold: ", &
                         tmp_int
-                    write(iout,*) "ratio of anti-parallel excitations below threshold: ", &
+                    write(stdout,*) "ratio of anti-parallel excitations below threshold: ", &
                         real(tmp_int, dp) / sum_all
 
-                    write(iout,*) "integrated anti-parallel H_ij/pgen ratio: ", j * frq_step_size
-                    write(iout,*) "for ", frq_ratio_cutoff, " percent coverage!"
+                    write(stdout,*) "integrated anti-parallel H_ij/pgen ratio: ", j * frq_step_size
+                    write(stdout,*) "for ", frq_ratio_cutoff, " percent coverage!"
 
-                    write(iout,*) "maximum anti-parallel H_ij/pgen ratio: ", max_tmp
-                    write(iout,*) "maximum/integrated anti-parallel ratio: ", &
+                    write(stdout,*) "maximum anti-parallel H_ij/pgen ratio: ", max_tmp
+                    write(stdout,*) "maximum/integrated anti-parallel ratio: ", &
                         max_tmp / (j * frq_step_size)
-                    write(iout,*) "minimum anti-parallel H_ij/pgen ratio: ", min_tmp
+                    write(stdout,*) "minimum anti-parallel H_ij/pgen ratio: ", min_tmp
 
                     ! and add them up for the final normed one
                     all_frequency_bins = all_frequency_bins + all_frequency_bins_spec
@@ -1666,7 +1663,7 @@ contains
 
                     cnt = 0.0_dp
 
-                    write(iout,*) "writing doubles frequency histogram..."
+                    write(stdout,*) "writing doubles frequency histogram..."
                     do i = 1, n_frequency_bins
                         if (all_frequency_bins_spec(i) == 0) cycle
                         write(iunit, "(f16.7)", advance = 'no') frq_step_size * i
@@ -1678,16 +1675,16 @@ contains
                         if (frq_step_size * i > max_tmp) exit
                     end do
                     close(iunit)
-                    write(iout,*) "Done!"
+                    write(stdout,*) "Done!"
                 end if
 
                 tmp_int_64 = 0
                 call MPISUM(zero_doubles, tmp_int_64)
 
                 if (iprocindex == root) then
-                    write(iout,*) "Number of zero-valued double excitations: ", tmp_int_64
-                    write(iout,*) "Number of valid double excitations: ", sum_all
-                    write(iout,*) "ratio of zero-valued double excitations: ", &
+                    write(stdout,*) "Number of zero-valued double excitations: ", tmp_int_64
+                    write(stdout,*) "Number of valid double excitations: ", sum_all
+                    write(stdout,*) "ratio of zero-valued double excitations: ", &
                         real(tmp_int_64, dp) / sum_all
                 end if
 
@@ -1695,8 +1692,8 @@ contains
                 call mpisum(above_max_doubles, tmp_int)
 
                 if (iprocindex == root) then
-                    write(iout,*) "Number of excitations above threshold: ", tmp_int
-                    write(iout,*) "ratio of excitations above threshold: ", &
+                    write(stdout,*) "Number of excitations above threshold: ", tmp_int
+                    write(stdout,*) "ratio of excitations above threshold: ", &
                         real(tmp_int, dp) / sum_all
 
                 end if
@@ -1705,16 +1702,16 @@ contains
                 call MPISUM(below_thresh_doubles, tmp_int)
 
                 if (iprocindex == root) then
-                    write(iout,*) "Number of excitations below threshold: ", tmp_int
-                    write(iout,*) "ratio of excitations below threshold: ", &
+                    write(stdout,*) "Number of excitations below threshold: ", tmp_int
+                    write(stdout,*) "ratio of excitations below threshold: ", &
                         real(tmp_int, dp) / sum_all
 
-                    write(iout,*) "integrated doubles H_ij/pgen ratio: ", j * frq_step_size
-                    write(iout,*) "for ", frq_ratio_cutoff, " percent coverage!"
+                    write(stdout,*) "integrated doubles H_ij/pgen ratio: ", j * frq_step_size
+                    write(stdout,*) "for ", frq_ratio_cutoff, " percent coverage!"
 
-                    write(iout,*) "maximum doubles H_ij/pgen ratio: ", max_tmp
-                    write(iout,*) "maximum/integrated doubles ratio: ", max_tmp / (j * frq_step_size)
-                    write(iout,*) "minimum doubles H_ij/pgen ratio: ", min_tmp
+                    write(stdout,*) "maximum doubles H_ij/pgen ratio: ", max_tmp
+                    write(stdout,*) "maximum/integrated doubles ratio: ", max_tmp / (j * frq_step_size)
+                    write(stdout,*) "minimum doubles H_ij/pgen ratio: ", min_tmp
                     ! and add them up for the final normed one
                     all_frequency_bins = all_frequency_bins + all_frequency_bins_spec
 
@@ -1746,8 +1743,8 @@ contains
 
                 close(iunit)
             else
-                write(iout,*) "Integer overflow in normed frequency histogram!"
-                write(iout,*) "DO NOT PRINT IT!"
+                write(stdout,*) "Integer overflow in normed frequency histogram!"
+                write(stdout,*) "DO NOT PRINT IT!"
             end if
         end if
 
@@ -1882,7 +1879,7 @@ contains
               threshold = frq_ratio_cutoff * sum_all
 
               iunit = get_free_unit()
-              write(iout,*) "writing "//trim(histname)//" frequency histogram..."
+              write(stdout,*) "writing "//trim(histname)//" frequency histogram..."
               open(iunit, file = filename, status = 'unknown')
               cnt = 0.0_dp
               ! also output here the integrated ratio!
@@ -1898,7 +1895,7 @@ contains
                  if (frq_step_size * i > max_tmp) exit
               end do
               close(iunit)
-              write(iout,*) "Done!"
+              write(stdout,*) "Done!"
            end if
 
 
@@ -1906,10 +1903,10 @@ contains
             call mpisum(zero_loc, tmp_int_64)
 
             if (iProcIndex == root) then
-                write(iout,*) "Number of zero-valued "//trim(histname)//" excitations: ", tmp_int_64
+                write(stdout,*) "Number of zero-valued "//trim(histname)//" excitations: ", tmp_int_64
                 ! maybe also check the number of valid excitations
-                write(iout,*) "Number of valid "//trim(histname)//" excitations: ", sum_all
-                write(iout,*) "ratio of zero-valued "//trim(histname)//" excitations: ", &
+                write(stdout,*) "Number of valid "//trim(histname)//" excitations: ", sum_all
+                write(stdout,*) "ratio of zero-valued "//trim(histname)//" excitations: ", &
                     real(tmp_int_64,dp) / sum_all
 
             end if
@@ -1918,8 +1915,8 @@ contains
             call mpisum(above_max_loc,  tmp_int)
 
             if (iProcIndex == root) then
-                write(iout,*) "Number of "//trim(histname)//" excitations above threshold: ", tmp_int
-                write(iout,*) "ratio of "//trim(histname)//" excitations above threshold: ", &
+                write(stdout,*) "Number of "//trim(histname)//" excitations above threshold: ", tmp_int
+                write(stdout,*) "ratio of "//trim(histname)//" excitations above threshold: ", &
                     real(tmp_int, dp) / sum_all
 
             end if
@@ -1928,17 +1925,17 @@ contains
             call MPISum(below_thresh_loc, tmp_int)
 
             if (iProcIndex == root) then
-               write(iout,*) "Number of "//trim(histname)//" excitations below threshold: ", tmp_int
-               write(iout,*) "ratio of "//trim(histname)//" excitations below threshold: ", &
+               write(stdout,*) "Number of "//trim(histname)//" excitations below threshold: ", tmp_int
+               write(stdout,*) "ratio of "//trim(histname)//" excitations below threshold: ", &
                     real(tmp_int, dp) / sum_all
 
-               write(iout,*) "integrated "//trim(histname)//" H_ij/pgen ratio: ", j * frq_step_size
-               write(iout,*) "for ", frq_ratio_cutoff, " percent coverage!"
+               write(stdout,*) "integrated "//trim(histname)//" H_ij/pgen ratio: ", j * frq_step_size
+               write(stdout,*) "for ", frq_ratio_cutoff, " percent coverage!"
 
-               write(iout,*) "maximum "//trim(histname)//" H_ij/pgen ratio: ", max_tmp
-               write(iout,*) ""//trim(histname)//" maximum/integrated ratio: ", max_tmp / (j * frq_step_size)
+               write(stdout,*) "maximum "//trim(histname)//" H_ij/pgen ratio: ", max_tmp
+               write(stdout,*) ""//trim(histname)//" maximum/integrated ratio: ", max_tmp / (j * frq_step_size)
 
-               write(iout,*) "minimum "//trim(histname)//" H_ij/pgen ratio: ", min_tmp
+               write(stdout,*) "minimum "//trim(histname)//" H_ij/pgen ratio: ", min_tmp
 
 
                ! and add them up for the final normed one

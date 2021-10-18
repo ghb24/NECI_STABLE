@@ -68,12 +68,12 @@ module hdf5_popsfile
     !     /ilut/             - The bit representations of the determinants
     !     /sgns/             - The occupation of the determinants
 
-    use ParallelHelper
+    use MPI_wrapper
     use Parallel_neci
     use constants
     use hdf5_util
     use util_mod
-    use CalcData, only: tAutoAdaptiveShift, tScaleBlooms
+    use CalcData, only: tAutoAdaptiveShift, tScaleBlooms, tSpecifiedTau, pSinglesIn, pDoublesIn
     use LoggingData, only: tPopAutoAdaptiveShift, tPopScaleBlooms, tAccumPops, tAccumPopsActive, &
                            iAccumPopsIter, iAccumPopsCounter, tReduceHDF5Pops, &
                            HDF5PopsMin, iHDF5PopsMinEx, tPopAccumPops
@@ -191,13 +191,13 @@ contains
 
         call MPIBCast(filename)
 
-        write(6, *)
+        write(stdout, *)
         if (present(MaxEx)) then
-            write(6, *) "========= Writing Truncated HDF5 popsfile ========="
+            write(stdout, *) "========= Writing Truncated HDF5 popsfile ========="
         else
-            write(6, *) "============== Writing HDF5 popsfile =============="
+            write(stdout, *) "============== Writing HDF5 popsfile =============="
         end if
-        write(6, *) "File name: ", trim(filename)
+        write(stdout, *) "File name: ", trim(filename)
 
         ! Initialise the hdf5 fortran interface
         call h5open_f(err)
@@ -212,22 +212,22 @@ contains
         call h5fcreate_f(filename, H5F_ACC_TRUNC_F, file_id, err, &
                          access_prp=plist_id)
         call h5pclose_f(plist_id, err)
-        write(6, *) "writing metadata"
+        write(stdout, *) "writing metadata"
         call write_metadata(file_id)
-        write(6, *) "writing calc_data"
+        write(stdout, *) "writing calc_data"
         call write_calc_data(file_id)
 
         call MPIBarrier(mpi_err)
 
         if (present(MaxEx)) then
-            write(6, *) "writing walkers up to excitation level: ", MaxExStr
+            write(stdout, *) "writing walkers up to excitation level: ", MaxExStr
         else
-            write(6, *) "writing walkers"
+            write(stdout, *) "writing walkers"
         end if
         call write_walkers(file_id, MaxEx)
 
         call MPIBarrier(mpi_err)
-        write(6, *) "closing popsfile"
+        write(stdout, *) "closing popsfile"
         ! And we are done!
         call h5fclose_f(file_id, err)
         call h5close_f(err)
@@ -235,7 +235,7 @@ contains
         call h5garbage_collect_f(err)
 
         call MPIBarrier(mpi_err)
-        write(6, *) "popsfile write successful"
+        write(stdout, *) "popsfile write successful"
 
 #else
         call stop_all(t_r, 'HDF5 support not enabled at compile time')
@@ -270,9 +270,9 @@ contains
                                      iPopsFileNoRead, filename, ext='.h5')
         call MPIBcast(filename)
 
-        write(6, *)
-        write(6, *) "========== Reading in from HDF5 popsfile =========="
-        write(6, *) 'File name: ', trim(filename)
+        write(stdout, *)
+        write(stdout, *) "========== Reading in from HDF5 popsfile =========="
+        write(stdout, *) 'File name: ', trim(filename)
 
         ! Initialise the hdf5 fortran interface
         call h5open_f(err)
@@ -354,25 +354,25 @@ contains
         logical :: exists
         character(100) :: str_buf
 
-        write(6, *) 'Previous calculation'
+        write(stdout, *) 'Previous calculation'
 
         call read_string_attribute(parent, nm_date, str_buf, exists)
-        if (exists) write(6, *) 'Date: ', trim(str_buf)
+        if (exists) write(stdout, *) 'Date: ', trim(str_buf)
         call read_int32_attribute(parent, nm_seq_no, calc_seq_no, &
                                   default=1_int32)
-        write(6, *) 'Sequence no.:', calc_seq_no
+        write(stdout, *) 'Sequence no.:', calc_seq_no
 
         ! Output nice details for usability
         call read_string_attribute(parent, nm_vcs_ver, str_buf, exists)
-        if (exists) write(6, *) 'VCS ver: ', trim(str_buf)
+        if (exists) write(stdout, *) 'VCS ver: ', trim(str_buf)
         call read_string_attribute(parent, nm_comp_config, str_buf, exists)
-        if (exists) write(6, *) 'Build config: ', trim(str_buf)
+        if (exists) write(stdout, *) 'Build config: ', trim(str_buf)
         call read_string_attribute(parent, nm_comp_status, str_buf, exists)
-        if (exists) write(6, *) 'Build status: ', trim(str_buf)
+        if (exists) write(stdout, *) 'Build status: ', trim(str_buf)
         call read_string_attribute(parent, nm_comp_date, str_buf, exists)
-        if (exists) write(6, *) 'Build date: ', trim(str_buf)
+        if (exists) write(stdout, *) 'Build date: ', trim(str_buf)
         call read_string_attribute(parent, nm_comp_time, str_buf, exists)
-        if (exists) write(6, *) 'Build time: ', trim(str_buf)
+        if (exists) write(stdout, *) 'Build time: ', trim(str_buf)
 
         ! Update values for the new calculation
         calc_seq_no = calc_seq_no + 1
@@ -549,12 +549,12 @@ contains
         call read_int64_scalar(grp_id, nm_iters, PreviousCycles, &
                                default=0_int64, exists=exists)
         if (exists) &
-            write(6, *) 'Completed iterations: ', PreviousCycles
+            write(stdout, *) 'Completed iterations: ', PreviousCycles
 
         call read_dp_scalar(grp_id, nm_tot_imag, TotImagTime, default=0.0_dp, &
                             exists=exists)
         if (exists) &
-            write(6, *) 'Resuming calculation after ', TotImagTime, ' a.u.'
+            write(stdout, *) 'Resuming calculation after ', TotImagTime, ' a.u.'
 
         ! Read in the diagsft. Note that it uses the absolute value (to be
         ! independent of choice of reference), so we must subtract out the
@@ -564,7 +564,7 @@ contains
             call read_dp_1d_dataset(grp_id, nm_shift, DiagSft, required=.true.)
             DiagSft = DiagSft - Hii
             tSinglePartPhase = (abs(DiagSft(1)) < 1.0e-6)
-            write(6, *) 'Initial shift: ', DiagSft
+            write(stdout, *) 'Initial shift: ', DiagSft
         else
             tSinglePartPhase = .true.
 
@@ -585,22 +585,18 @@ contains
         ! not use the read-in tau, but the one specified in the input!
         ! except the hist_tau was used the we want to use the
         ! one in the popsfile all the time
-!         if (tSearchTauOption) then
         call read_tau_opt(grp_id)
-!         else
-!             write(6,*) 'Skipping tau optimisation data as tau optimisation is &
-!                        &disabled'
-!         end if
+
         ! and also output some info:
-        write(6, *) "read-in tau optimization data: "
-        write(6, *) "time-step: ", tau
-        write(6, *) "pSingles: ", pSingles
-        write(6, *) "pDoubles: ", pDoubles
-        write(6, *) "pParallel: ", pParallel
+        write(stdout, *) "read-in tau optimization data: "
+        write(stdout, *) "time-step: ", tau
+        write(stdout, *) "pSingles: ", pSingles
+        write(stdout, *) "pDoubles: ", pDoubles
+        write(stdout, *) "pParallel: ", pParallel
         if (tSearchTau .or. t_hist_tau_search) then
-            write(6, *) "continuing tau-search!"
+            write(stdout, *) "continuing tau-search!"
         else
-            write(6, *) "Do not continue tau-search!"
+            write(stdout, *) "Do not continue tau-search!"
         end if
 
         call read_accumulator_data(grp_id)
@@ -656,8 +652,12 @@ contains
         call read_int64_scalar(grp_id, nm_cnt_opp, cnt_opp)
         call read_int64_scalar(grp_id, nm_cnt_par, cnt_par)
 
-        call read_dp_scalar(grp_id, nm_psingles, psingles)
-        call read_dp_scalar(grp_id, nm_pdoubles, pdoubles)
+        if (allocated(pSinglesIn) .or. allocated(pDoublesIn)) then
+            write(stdout,*) "pSingles or pDoubles specified in input file, which take precedence"
+        else
+            call read_dp_scalar(grp_id, nm_psingles, psingles)
+            call read_dp_scalar(grp_id, nm_pdoubles, pdoubles)
+        end if
         call read_dp_scalar(grp_id, nm_ptriples, ptriples, exists=tReadPTriples, default=0.1_dp, &
                             required=.false.)
         call read_dp_scalar(grp_id, nm_pparallel, pparallel, exists=ppar_set)
@@ -670,35 +670,39 @@ contains
 
         call h5gclose_f(grp_id, err)
 
-        if (tSearchTauOption .and. tau_set) then
-            tau = temp_tau
-        end if
+        if (tSpecifiedTau) then
+            write(stdout, *) "time-step specified in input, which takes precedence!"
+        else
+            if (tSearchTauOption .and. tau_set) then
+                tau = temp_tau
+            end if
 
-        ! also set if previous hist-tau
-        if (hist_tau) then
-            tau = temp_tau
-            ! and turn off if i dont want to force restart!
-            if (.not. t_restart_hist_tau) then
-                t_previous_hist_tau = temp_previous
+            ! also set if previous hist-tau
+            if (hist_tau .and. tau_set) then
+                tau = temp_tau
+                ! and turn off if i dont want to force restart!
+                if (.not. t_restart_hist_tau) then
+                    t_previous_hist_tau = temp_previous
 
-                if (t_previous_hist_tau) then
-                    tSearchTau = .false.
-                    tSearchTauOption = .false.
+                    if (t_previous_hist_tau) then
+                        tSearchTau = .false.
+                        tSearchTauOption = .false.
 
-                    if (t_hist_tau_search) then
-                        call deallocate_histograms()
-                        t_hist_tau_search = .false.
-                        t_fill_frequency_hists = .false.
+                        if (t_hist_tau_search) then
+                            call deallocate_histograms()
+                            t_hist_tau_search = .false.
+                            t_fill_frequency_hists = .false.
 
-                        t_hist_tau_search_option = .true.
-                        t_print_frq_histograms = .false.
+                            t_hist_tau_search_option = .true.
+                            t_print_frq_histograms = .false.
+                        end if
                     end if
                 end if
             end if
         end if
 
         ! if tau is 0, because no input provided, use the one here too
-        if (tau < EPS .and. (.not. temp_tau < EPS)) then
+        if (near_zero(tau) .and. (.not. near_zero(temp_tau))) then
             tau = temp_tau
         end if
 
@@ -739,7 +743,6 @@ contains
 
     subroutine write_walkers(parent, MaxEx)
 
-        use iso_c_hack
         use bit_rep_data, only: NIfD, NIfTot, IlutBits, extract_sign
         use FciMCData, only: AllTotWalkers, CurrentDets, MaxWalkersPart, &
                              TotWalkers, iLutHF, Iter, PreviousCycles
@@ -884,7 +887,7 @@ contains
         !complicated hyperslabs + collective buffering
         ! Write out the determinant bit-representations
         call write_2d_multi_arr_chunk_buff( &
-            wfn_grp_id, nm_ilut, H5T_NATIVE_INTEGER_8, &
+            wfn_grp_id, nm_ilut, h5kind_to_type(int64, H5_INTEGER_KIND), &
             PrintedDets, &
             [int(nifd + 1, hsize_t), int(printed_count, hsize_t)], & ! dims
             [0_hsize_t, 0_hsize_t], & ! offset
@@ -893,7 +896,7 @@ contains
             )
 
         call write_2d_multi_arr_chunk_buff( &
-            wfn_grp_id, nm_sgns, H5T_NATIVE_REAL_8, &
+            wfn_grp_id, nm_sgns, h5kind_to_type(dp, H5_REAL_KIND), &
             PrintedDets, &
             [int(lenof_sign, hsize_t), int(printed_count, hsize_t)], & ! dims
             [int(IlutBits%ind_pop, hsize_t), 0_hsize_t], & ! offset
@@ -905,7 +908,7 @@ contains
 
         if (gdata_size > 0) then
             call write_2d_multi_arr_chunk_buff( &
-                wfn_grp_id, nm_gdata, H5T_NATIVE_REAL_8, gdata_buf, &
+                wfn_grp_id, nm_gdata, h5kind_to_type(dp, H5_REAL_KIND), gdata_buf, &
                 [int(gdata_size, hsize_t), int(printed_count, hsize_t)], & ! dims
                 [0_hsize_t, 0_hsize_t], &
                 [int(gdata_size, hsize_t), all_count], &
@@ -1036,14 +1039,14 @@ contains
             call resize_attribute(pops_norm_sqr, lenof_sign)
             call resize_attribute(pops_num_parts, lenof_sign)
             ! notify
-            write(6, *) "WARNING: Popsfile and input lenof_sign mismatch. Cloning replicas"
+            write(stdout, *) "WARNING: Popsfile and input lenof_sign mismatch. Cloning replicas"
 #else
             call stop_all(t_r, "Mismatched sign length")
 #endif
         end if
 
-        write(6, *)
-        write(6, *) 'Reading in ', all_count, ' determinants'
+        write(stdout, *)
+        write(stdout, *) 'Reading in ', all_count, ' determinants'
 
         ! How many particles should each processor read in (try and distribute
         ! this as uniformly as possible. Also calculate the associated data
@@ -1059,7 +1062,7 @@ contains
             offsets(proc) = offsets(proc - 1) + counts(proc - 1)
         end do
 
-        write(6, *) 'Reading in ', counts(iProcIndex), &
+        write(stdout, *) 'Reading in ', counts(iProcIndex), &
             ' determinants on this process ...'
 
         ! TODO: Split this up into more manageable chunks!
@@ -1088,10 +1091,10 @@ contains
                 tAccumPopsActive = .true.
                 call read_int64_scalar(grp_id, nm_accum_counter, iAccumPopsCounter, &
                                        default=0_int64, required=.false.)
-                write(6, *) "Accumulated populations are found. Accumulation will continue."
+                write(stdout, *) "Accumulated populations are found. Accumulation will continue."
             else
-                write(6, *) "Accumulated populations are found, but will be discarded."
-                write(6, *) "Accumulation will restart at iteration: ", iAccumPopsIter
+                write(stdout, *) "Accumulated populations are found, but will be discarded."
+                write(stdout, *) "Accumulation will restart at iteration: ", iAccumPopsIter
             end if
         end if
 
@@ -1247,8 +1250,8 @@ contains
         deallocate(pops_num_parts)
         deallocate(pops_norm_sqr)
 
-        write(6, *) "... done"
-        write(6, *)
+        write(stdout, *) "... done"
+        write(stdout, *)
 
     end subroutine read_walkers
 
@@ -1277,13 +1280,13 @@ contains
 #ifdef INT64_
 
         call read_2d_multi_chunk( &
-            ds_ilut, temp_ilut, H5T_NATIVE_INTEGER_8, &
+            ds_ilut, temp_ilut, h5kind_to_type(int64, H5_INTEGER_KIND), &
             [int(bit_rep_width, hsize_t), block_size], &
             [0_hsize_t, block_start], &
             [0_hsize_t, 0_hsize_t])
 
         call read_2d_multi_chunk( &
-            ds_sgns, temp_sgns, H5T_NATIVE_REAL_8, &
+            ds_sgns, temp_sgns, h5kind_to_type(dp, H5_REAL_KIND), &
             [int(tmp_lenof_sign, hsize_t), block_size], &
             [0_hsize_t, block_start], &
             [0_hsize_t, 0_hsize_t])
@@ -1291,7 +1294,7 @@ contains
         gdata_size = size(gdata_buf, dim=1)
         if (gdata_size > 0) then
             call read_2d_multi_chunk( &
-                ds_gdata, gdata_buf, H5T_NATIVE_REAL_8, &
+                ds_gdata, gdata_buf, h5kind_to_type(dp, H5_REAL_KIND), &
                 [int(gdata_size, hsize_t), block_size], &
                 [0_hsize_t, block_start], &
                 [0_hsize_t, 0_hsize_t])
@@ -1467,7 +1470,7 @@ contains
         if (num_received > size(SpawnedParts2, 2)) then
             ! there could in principle be a memory problem because we are not limiting the
             ! size of receivebuff.
-            write(6, *) 'Allocating additional buffer for communication on Processor ', iProcIndex, 'with ', &
+            write(stdout, *) 'Allocating additional buffer for communication on Processor ', iProcIndex, 'with ', &
                 num_received * size(SpawnedParts, 1) * sizeof(SpawnedParts(1, 1)) / 1000000, 'MB'
             allocate(receivebuff(size(SpawnedParts, 1), num_received))
             call LogMemAlloc('receivebuff', size(receivebuff), int(sizeof(receivebuff(1, 1))), &
@@ -1604,8 +1607,8 @@ contains
         !      dropped.
         call MPISum(nread_walkers, all_read_walkers)
         if (iProcIndex == 0 .and. all_read_walkers /= pops_det_count) then
-            write(6, *) 'Determinants in popsfile header: ', pops_det_count
-            write(6, *) 'Determinants read in: ', all_read_walkers
+            write(stdout, *) 'Determinants in popsfile header: ', pops_det_count
+            write(stdout, *) 'Determinants read in: ', all_read_walkers
             call stop_all(t_r, 'Particle number mismatch')
         end if
 
@@ -1614,8 +1617,8 @@ contains
         ! This is relative to the total number to account for relative errors
         call MPISumAll(parts, all_parts)
         if (any(abs(all_parts - pops_num_parts) > (pops_num_parts * 1.0e-10_dp))) then
-            write(6, *) 'popsfile particles: ', pops_num_parts
-            write(6, *) 'read particles: ', all_parts
+            write(stdout, *) 'popsfile particles: ', pops_num_parts
+            write(stdout, *) 'read particles: ', all_parts
             call stop_all(t_r, 'Incorrect particle weight read from popsfile')
         end if
 
@@ -1627,8 +1630,8 @@ contains
         ! Same relative error test as before
         call MPISumAll(norm, all_norm)
         if (any(abs(all_norm - pops_norm_sqr) > (pops_norm_sqr * 1.0e-10_dp))) then
-            write(6, *) 'popsfile norm**2: ', pops_norm_sqr
-            write(6, *) 'read norm**2: ', all_norm
+            write(stdout, *) 'popsfile norm**2: ', pops_norm_sqr
+            write(stdout, *) 'read norm**2: ', all_norm
             call stop_all(t_r, 'Wavefunction norm incorrect')
         end if
 

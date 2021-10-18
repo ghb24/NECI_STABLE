@@ -96,11 +96,10 @@ contains
         ! this shouldn't be too big of a problem..
         if (.not. tRestart .and. (.not. tReadPops) .and. tau < EPS) then
             call FindMaxTauDoubs()
-!             call find_max_tau_doubs_guga()
         end if
-        write(6, *) "Using initial time-step: ", tau
-        write(6, *) "NOTE: this is not yet correctly adapted for the GUGA implementation"
-        write(6, *) " -> so use this with caution and check for erroneous values!"
+        write(stdout, *) "Using initial time-step: ", tau
+        write(stdout, *) "NOTE: this is not yet correctly adapted for the GUGA implementation"
+        write(stdout, *) " -> so use this with caution and check for erroneous values!"
 
         ! check maximum spawn size:
         if (int(MaxWalkerBloom) == -1) then
@@ -199,7 +198,7 @@ contains
             if (.not. tRestart .and. .not. tReadPops .and. (tau.isclose.0.0_dp)) &
                 call FindMaxTauDoubs()
 !                 call find_max_tau_doubs_guga()
-            write(6, *) 'Using initial time-step: ', tau
+            write(stdout, *) 'Using initial time-step: ', tau
 
             ! Set the maximum spawn size
             if (int(MaxWalkerBloom) == -1) then
@@ -231,7 +230,7 @@ contains
 
         character(*), parameter :: this_routine = "find_max_tau_doubs_guga"
         integer(n_int) :: ilutG(0:nifguga)
-        integer(n_int), pointer :: excitations(:, :)
+        integer(n_int), allocatable :: excitations(:, :)
         integer :: i, n_ex
         integer :: nHF(nel), nJ(nel)
         integer(n_int) :: ilutJ(0:niftot)

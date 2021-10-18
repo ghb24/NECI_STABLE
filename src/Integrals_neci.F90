@@ -47,7 +47,9 @@ module Integrals_neci
                                   init_hopping_transcorr
 
     use tc_three_body_data, only: tHDF5LMat, &
-                                  tSparseLMat, tLMatCalc, LMatCalcHFactor, tSymBrokenLMat
+        tSparseLMat, tLMatCalc, LMatCalcHFactor, tSymBrokenLMat
+
+    use read_fci, only: clear_orb_perm
     implicit none
 
 contains
@@ -137,75 +139,75 @@ contains
             end if
             call readu(w)
             select case(w)
-            case("DUMPFCIDUMP")
+            case ("DUMPFCIDUMP")
                 tDumpFCIDUMP = .true.
-            case("LINROOTCHANGE")
+            case ("LINROOTCHANGE")
                 TLinRootChange = .true.
-            case("RMROOTEXCITSTARSROOTCHANGE")
+            case ("RMROOTEXCITSTARSROOTCHANGE")
                 TRmRootExcitStarsRootChange = .true.
-            case("EXCITSTARSROOTCHANGE")
+            case ("EXCITSTARSROOTCHANGE")
                 TExcitStarsRootChange = .true.
-            case("DIAGSTARSTARS")
+            case ("DIAGSTARSTARS")
                 TDiagStarStars = .true.
-            case("STARQUADEXCITS")
+            case ("STARQUADEXCITS")
                 TJustQuads = .true.
-            case("STARNODOUBS")
+            case ("STARNODOUBS")
                 TNoDoubs = .true.
-            case("CALCEXCITSTAR")
+            case ("CALCEXCITSTAR")
                 TCalcExcitStar = .true.
-            case("QUADVECMAX")
+            case ("QUADVECMAX")
                 TQuadVecMax = .true.
-            case("QUADVALMAX")
+            case ("QUADVALMAX")
                 TQuadValMax = .true.
-            case("NRCONV")
+            case ("NRCONV")
                 call readf(NRCONV)
-            case("RFCONV")
+            case ("RFCONV")
                 call readf(RFCONV)
-            case("NRSTEPSMAX")
+            case ("NRSTEPSMAX")
                 call readi(NRSTEPSMAX)
-            case("INCLUDEQUADRHO")
+            case ("INCLUDEQUADRHO")
                 TQUADRHO = .true.
-            case("EXPRHO")
+            case ("EXPRHO")
                 TEXPRHO = .true.
-            case("RHO-1STORDER")
+            case ("RHO-1STORDER")
                 NTAY(2) = 4
-            case("FOCK-PARTITION")
+            case ("FOCK-PARTITION")
                 NTAY(2) = 2
-            case("FOCK-PARTITION-LOWDIAG")
+            case ("FOCK-PARTITION-LOWDIAG")
                 NTAY(2) = 3
-            case("FOCK-PARTITION-DCCORRECT-LOWDIAG")
+            case ("FOCK-PARTITION-DCCORRECT-LOWDIAG")
                 NTAY(2) = 5
-            case("DIAG-PARTITION")
+            case ("DIAG-PARTITION")
                 NTAY(2) = 1
-            case("CALCREALPROD")
+            case ("CALCREALPROD")
                 TCALCREALPROD = .TRUE.
                 IF(.NOT. TUSEBRILLOUIN) THEN
                     call report(trim(w)//" will not work unless "           &
            &        //"USEBRILLOUINTHEOREM set", .true.)
                 end if
-            case("CALCRHOPROD")
+            case ("CALCRHOPROD")
                 TCALCRHOPROD = .TRUE.
-            case("SUMPRODII")
+            case ("SUMPRODII")
                 TSUMPROD = .TRUE.
-            case("DISCONNECTNODES")
+            case ("DISCONNECTNODES")
                 TDISCONODES = .TRUE.
-            case("HF")
+            case ("HF")
                 THFBASIS = .true.
-            case("CALCULATE")
+            case ("CALCULATE")
                 THFCALC = .true.
-            case("MAXITERATIONS")
+            case ("MAXITERATIONS")
                 call geti(NHFIT)
-            case("MIX")
+            case ("MIX")
                 call getf(HFMIX)
-            case("RAND")
+            case ("RAND")
                 call getf(HFRAND)
-            case("THRESHOLD")
+            case ("THRESHOLD")
                 do while(item < nitems)
                     call readu(w)
                     select case(w)
-                    case("ENERGY")
+                    case ("ENERGY")
                         call readf(HFEDELTA)
-                    case("ORBITAL")
+                    case ("ORBITAL")
                         call readf(HFCDELTA)
                     case default
                         call report(trim(w)//" not valid THRESHOLD"         &
@@ -213,46 +215,48 @@ contains
            &           //" threshold.", .true.)
                     end select
                 end do
-            case("RHF")
+            case ("RHF")
                 TRHF = .true.
-            case("UHF")
+            case ("UHF")
                 TRHF = .false.
-            case("HFMETHOD")
+            case ("HFMETHOD")
                 call readu(w)
                 select case(w)
-                case("DESCENT")
+                case ("DESCENT")
                     call readu(w)
                     select case(w)
-                    case("OTHER")
+                    case ("OTHER")
                         IHFMETHOD = 2
-                    case("SINGLES")
+                    case ("SINGLES")
                         IHFMETHOD = 1
                     case default
                         call report(trim(w)//" not valid DESCENT"         &
          &              //" option", .true.)
                     end select
-                case("STANDARD")
+                case ("STANDARD")
                     IHFMETHOD = 0
-                case("MODIFIED")
+                case ("MODIFIED")
                     IHFMETHOD = 3
                 case default
                     call report(trim(w)//" not valid HF method",          &
          &           .true.)
                 end select
-            case("READ")
+
+            case ("READ")
                 do while(item < nitems)
                     call readu(w)
                     select case(w)
-                    case("MATRIX")
+                    case ("MATRIX")
                         TREADTUMAT = .true.
-                    case("BASIS")
+                    case ("BASIS")
                         TREADHF = .true.
                     case default
                         call report(trim(w)//" is an invalid HF read"       &
            &            //" option.", .true.)
                     end select
                 end do
-            case("FREEZE")
+
+            case ("FREEZE")
                 call readi(NFROZEN)
                 call readi(NTFROZEN)
                 if(mod(NFROZEN, 2) /= 0 .or.                             &
@@ -265,7 +269,8 @@ contains
                     call report("-ve NTFROZEN must be same parity  "      &
          &          //"as NEL", .true.)
                 end if
-            case("FREEZEINNER")
+
+            case ("FREEZEINNER")
 !This option allows us to freeze orbitals 'from the inside'.  This means that rather than freezing
 !the lowest energy occupied orbitals, the NFROZENIN occupied (spin) orbitals with the highest energy are
 !frozen, along with the NTFROZENIN lowest energy virtual (spin) orbitals.
@@ -279,7 +284,8 @@ contains
                     call report("NFROZENIN and NTFROZENIN must be"      &
          &          //"multiples of 2", .true.)
                 end if
-            case("PARTIALLYFREEZE")
+
+            case ("PARTIALLYFREEZE")
 !This option chooses a set of NPartFrozen SPIN orbitals as a core, and partially freezes the electrons
 !in these orbitals so that no more than NHolesFrozen holes may exist in this core at a time.
 !In practice, a walker attempts to spawn on a determinant - if this determinant has more than the
@@ -287,7 +293,8 @@ contains
                 tPartFreezeCore = .true.
                 call readi(NPartFrozen)
                 call readi(NHolesFrozen)
-            case("PARTIALLYFREEZEVIRT")
+
+            case ("PARTIALLYFREEZEVIRT")
 !This option works very similarly to the one above.  The integers following this keyword refer firstly to the number
 !of *spin* orbitals that are frozen from the highest energy virtual orbitals down.  The second integer refers to the
 !number of electrons that are allowed to occupy these 'partially frozen' virtual orbitals.  I.e. NElVirtFrozen = 1,
@@ -296,7 +303,8 @@ contains
                 tPartFreezeVirt = .true.
                 call readi(NVirtPartFrozen)
                 call readi(NElVirtFrozen)
-            case("ORDER")
+
+            case ("ORDER")
                 I = 1
                 do while(item < nitems)
                     call readf(ORBORDER2(I))
@@ -326,12 +334,12 @@ contains
            &                           0.000001_dp) * 1000) * 2
                     end if
                 end do
-            case("UMATCACHE")
+            case ("UMATCACHE")
                 call readu(w)
                 select case(w)
-                case("SLOTS")
+                case ("SLOTS")
                     call geti(NSLOTSINIT)
-                case("MB")
+                case ("MB")
                     call geti(NMEMINIT)
                     if(nMemInit == 0) then
                         ! Not using the cache...
@@ -339,53 +347,53 @@ contains
                     else
                         nSlotsInit = 1
                     end if
-                case("READ")
+                case ("READ")
                     tReadInCache = .true.
-                case("DUMP")
+                case ("DUMP")
                     if(iDumpCacheFlag == 0) iDumpCacheFlag = 1
-                case("FORCE")
+                case ("FORCE")
                     iDumpCacheFlag = 2
                 case default
                     call reread(-1)
                     call geti(NSLOTSINIT)
                 end select
-            case("NOUMATCACHE")
+            case ("NOUMATCACHE")
                 NSLOTSINIT = -1
-            case("DFMETHOD")
+            case ("DFMETHOD")
                 call readu(w)
                 select case(w)
-                case("DFOVERLAP")
+                case ("DFOVERLAP")
                     iDFMethod = 1
-                case("DFOVERLAP2NDORD")
+                case ("DFOVERLAP2NDORD")
                     iDFMethod = 2
-                case("DFOVERLAP2")
+                case ("DFOVERLAP2")
                     iDFMethod = 3
-                case("DFCOULOMB")
+                case ("DFCOULOMB")
                     iDFMethod = 4
                 case default
                     call report("keyword "//trim(w)//" not recognized in DFMETHOD block", .true.)
                 end select
-            case("POSTFREEZEHF")
+            case ("POSTFREEZEHF")
                 tPostFreezeHF = .true.
 
-            case("HDF5-INTEGRALS")
+            case ("HDF5-INTEGRALS")
                 ! Read the 6-index integrals from an hdf5 file
                 tHDF5LMat = .true.
-            case("SPARSE-LMAT")
+            case ("SPARSE-LMAT")
                 ! Allows for storing the 6-index integrals in a sparse format
                 tSparseLMat = .true.
-            case("SYM-BROKEN-LMAT")
+            case ("SYM-BROKEN-LMAT")
                 ! Can be used to disable the permuational symmetry of the 6-index integrals
                 tSymBrokenLMat = .true.
-            case("UNSYMMETRIC-INTEGRALS")
+            case ("UNSYMMETRIC-INTEGRALS")
                 ! the 6-index integrals are not symmetrized yet (has to be done
                 ! on the fly then)
                 tSymBrokenLMat = .true.
 
-            case("DMATEPSILON")
+            case ("DMATEPSILON")
                 call readf(DMatEpsilon)
 
-            case("LMATCALC")
+            case ("LMATCALC")
 
                 if(tSymBrokenLMat .or. t12FoldSym) then
                     call report("LMATCALC assumes 48-fold symmetry", .true.)
@@ -397,7 +405,7 @@ contains
                     call readf(lMatCalcHFactor)
                 end if
 
-            case("ENDINT")
+            case ("ENDINT")
                 exit integral
             case default
                 call report("keyword "//trim(w)//" not recognized in integral block", .true.)
@@ -443,20 +451,20 @@ contains
         FREEZETRANSFER = .false.
 
         IF(THFBASIS) THEN
-            WRITE(6, *) "Using Hartree-Fock Basis"
-            IF(.NOT. THFCALC) WRITE(6, *) "Reading Hartree-Fock Basis"
+            write(stdout, *) "Using Hartree-Fock Basis"
+            IF(.NOT. THFCALC) write(stdout, *) "Reading Hartree-Fock Basis"
         ENDIF
 
 !I_VMAX.EQ.1.AND..NOT.TENERGY.AND.
         IF(.not. tNeedsVirts .and. NTFROZEN == 0) THEN
-            write(6, *) "MaxVertices=1 and NTFROZEN=0."
+            write(stdout, *) "MaxVertices=1 and NTFROZEN=0."
             IF(ABS(ARR(NEL, 1) - ARR(NEL + 1, 1)) > 1.0e-3_dp) THEN
-                write(6, *) "NEL spinorbitals completely fills up degenerate set."
-                write(6, *) "Only calculating vertex sum, so freezing all virtuals."
+                write(stdout, *) "NEL spinorbitals completely fills up degenerate set."
+                write(stdout, *) "Only calculating vertex sum, so freezing all virtuals."
                 NTFROZEN = NBASIS - NEL
             ELSE
-                write(6, *) "NEL spinorbitals does not completely fill up degenerate set."
-                write(6, *) "NOT freezing all virtuals."
+                write(stdout, *) "NEL spinorbitals does not completely fill up degenerate set."
+                write(stdout, *) "NOT freezing all virtuals."
             end if
         end if
 
@@ -470,7 +478,7 @@ contains
         call setup_UMatInd()
         IF(TCPMD) THEN
 !.. We don't need to do init any 4-index integrals, but we do need to init the 2-index
-            write(6, *) " *** INITIALIZING CPMD 2-index integrals ***"
+            write(stdout, *) " *** INITIALIZING CPMD 2-index integrals ***"
             call shared_allocate_mpi(umat_win, umat,(/1_int64/))
             !allocate(UMat(1), stat=ierr)
             LogAlloc(ierr, 'UMat', 1, HElement_t_SizeB, tagUMat)
@@ -508,7 +516,7 @@ contains
             Call ReadRIIntegrals(nBasis, I)
             CALL READFCIINT(UMAT, umat_win, NBASIS, ECORE, .false.)
             NBASISMAX(2, 3) = 0
-            write(6, *) ' ECORE=', ECORE
+            write(stdout, *) ' ECORE=', ECORE
         else if(tReadInt .and. tCacheFCIDUMPInts) THEN
             call shared_allocate_mpi(umat_win, umat,(/1_int64/))
             !allocate(UMat(1),stat=ierr)
@@ -517,7 +525,7 @@ contains
 !Now set up the UMatCache (**what size is allocated**.)
             IF(nBasis /= I) THEN
 !We will freeze later - only allocate a small preliminary cache before freezing.
-                write(6, *) "Setting up pre-freezing UMatCache"
+                write(stdout, *) "Setting up pre-freezing UMatCache"
                 call SetupUMatCache(I / 2, .TRUE.)
 !Here, if we are freezing, we only want to read in the <ij|kj> integrals - not all of them.
                 tReadFreezeInts = .true.
@@ -525,11 +533,11 @@ contains
 !nBasisMax(2,3) is iSpinSkip = 1 if UHF and 2 if RHF/ROHF
                 iSpinSkip = nBasisMax(2, 3)
                 IF(iSpinSkip == 1) THEN
-                    write(6, *) "Setting up main UMatCache for open-shell system (inefficient - ~16x too much memory used for ROHF)"
+                    write(stdout, *) "Setting up main UMatCache for open-shell system (inefficient - ~16x too much memory used for ROHF)"
                     call SetupUMatCache(I, .FALSE.)
                 ELSE
                     call SetupUMatCache(I / 2, .FALSE.)
-                    write(6, *) "Setting up main UMatCache for closed-shell system"
+                    write(stdout, *) "Setting up main UMatCache for closed-shell system"
                 end if
                 tReadFreezeInts = .false.
             end if
@@ -539,17 +547,17 @@ contains
             CALL READFCIINT(UMAT, umat_win, NBASIS, ECORE, tReadFreezeInts)
 !This is generally iSpinSkp, but stupidly, needs to be .le.0 to indicate that we want to look up the integral.
             NBASISMAX(2, 3) = 0
-            write(6, *) ' ECORE=', ECORE
+            write(stdout, *) ' ECORE=', ECORE
         else if(TREADINT) THEN
-            write(6, '(A)') '*** READING PRIMITIVE INTEGRALS FROM FCIDUMP ***'
+            write(stdout, '(A)') '*** READING PRIMITIVE INTEGRALS FROM FCIDUMP ***'
 !.. Generate the 2e integrals (UMAT)
             ISPINSKIP = NBasisMax(2, 3)
             IF(ISPINSKIP <= 0) call stop_all(this_routine, 'NBASISMAX(2,3) ISpinSkip unset')
 !nBasisMax(2,3) is iSpinSkip = 1 if UHF and 2 if RHF/ROHF
             CALL GetUMatSize(nBasis, UMATINT)
-            write(6, *) "UMatSize: ", UMATINT
+            write(stdout, *) "UMatSize: ", UMATINT
             UMatMem = REAL(UMatInt, dp) * REAL(HElement_t_sizeB, dp) * (9.536743164e-7_dp)
-            write(6, "(A,G20.10,A)") "Memory required for integral storage: ", UMatMem, " Mb/Shared Memory"
+            write(stdout, "(A,G20.10,A)") "Memory required for integral storage: ", UMatMem, " Mb/Shared Memory"
             call neci_flush(6)
             call shared_allocate_mpi(umat_win, umat,(/UMatInt/))
             !allocate(UMat(UMatInt), stat=ierr)
@@ -571,7 +579,7 @@ contains
             ELSE
                 CALL READFCIINT(UMAT, umat_win, NBASIS, ECORE, .false.)
             end if
-            write(6, *) 'ECORE=', ECORE
+            write(stdout, *) 'ECORE=', ECORE
             IF(tCalcPropEst) THEN
                 call SetupPropInts(nBasis)
                 do i = 1, iNumPropToEst
@@ -590,7 +598,7 @@ contains
                         !!C.. we pre-compute the 2-e integrals
                         if((t_new_real_space_hubbard .and. .not. t_trans_corr_hop) &
                            .or. t_tJ_model .or. t_heisenberg_model) then
-                            write(6, *) "Not precomputing HUBBARD 2-e integrals"
+                            write(stdout, *) "Not precomputing HUBBARD 2-e integrals"
                             UMatInt = 1_int64
                             call shared_allocate_mpi(umat_win, umat,(/UMatInt/))
                             !allocate(UMat(1), stat=ierr)
@@ -601,20 +609,20 @@ contains
                             call init_hopping_transcorr()
                             call init_umat_rs_hub_transcorr()
                         else
-                            write(6, *) "Generating 2e integrals"
+                            write(stdout, *) "Generating 2e integrals"
                             !!C.. Generate the 2e integrals (UMAT)
                             CALL GetUMatSize(nBasis, UMATINT)
                             call shared_allocate_mpi(umat_win, umat,(/UMatInt/))
                             !allocate(UMat(UMatInt), stat=ierr)
                             LogAlloc(ierr, 'UMat', int(UMatInt), HElement_t_SizeB, tagUMat)
                             UMat = 0.0_dp
-                            write(6, *) "Size of UMat is: ", UMATINT
+                            write(stdout, *) "Size of UMat is: ", UMATINT
                             CALL CALCUMATHUBREAL(NBASIS, UHUB, UMAT)
                         end if
 
                     else if(THUB .AND. .NOT. TPBC) THEN
                         !!C.. we pre-compute the 2-e integrals
-                        write(6, *) "Generating 2e integrals"
+                        write(stdout, *) "Generating 2e integrals"
                         !!C.. Generate the 2e integrals (UMAT)
                         CALL GetUMatSize(nBasis, UMATINT)
                         call shared_allocate_mpi(umat_win, umat,(/UMatInt/))
@@ -626,10 +634,9 @@ contains
                     ELSE
                         !!C.. Most normal Hubbards
                         IF(.NOT. TUEG) THEN
-                            !                CALL GEN_COUL_UEG(NEL,NBASISMAX,nBasis,G1,NMSH,NMAX,FCK,UMAT,ISPINSKIP,THUB,UHUB,OMEGA,ALAT)
                             ISPINSKIP = -1
                             NBASISMAX(2, 3) = -1
-                            write(6, *) "Not precomputing HUBBARD 2-e integrals"
+                            write(stdout, *) "Not precomputing HUBBARD 2-e integrals"
                             call shared_allocate_mpi(umat_win, umat,(/1_int64/))
                             !allocate(UMat(1), stat=ierr)
                             LogAlloc(ierr, 'UMat', 1, HElement_t_SizeB, tagUMat)
@@ -647,7 +654,7 @@ contains
                     LogAlloc(ierr, 'FCK', NMSH**3, 16, tagFCK)
                     allocate(ZIA(2 * (NMSH + 1) * NMAX * NMAX))
                     LogAlloc(ierr, 'ZIA', 2 * (NMSH + 1) * NMAX * NMAX, 16, tagZIA)
-                    write(6, *) NMSH, NMAX
+                    write(stdout, *) NMSH, NMAX
                     !!C..
 !               CALL N_MEMORY_CHECK()
                     IF(NMAXZ == 0) THEN
@@ -658,7 +665,7 @@ contains
                     end if
 !               CALL N_MEMORY_CHECK()
                     !!C.. we pre-compute the 2-e integrals
-                    write(6, *) "Generating 2e integrals"
+                    write(stdout, *) "Generating 2e integrals"
                     !!C.. Generate the 2e integrals (UMAT)
                     CALL GetUMatSize(nBasis, UMATINT)
                     call shared_allocate_mpi(umat_win, umat,(/UMatInt/))
@@ -672,7 +679,7 @@ contains
                     Deallocate(FCK)
                 end if
             ELSE
-                write(6, *) "Not precomputing 2-e integrals"
+                write(stdout, *) "Not precomputing 2-e integrals"
                 call shared_allocate_mpi(umat_win, umat,(/1_int64/))
                 !allocate(UMat(1), stat=ierr)
                 LogAlloc(ierr, 'UMat', 1, HElement_t_SizeB, tagUMat)
@@ -707,13 +714,13 @@ contains
             call stop_all(this_routine, "pick-virt-uniform-mag option needs TREL=.TRUE. in FCIDUMP")
         end if
 
-!      write(6,*) "ONE ELECTRON"
+!      write(stdout,*) "ONE ELECTRON"
 !      do i=1,nBasis
 !          do j=1,nBasis
 !              write(36,"(2I5,G25.10)") i,j,GetTMatEl(i,j)
 !          end do
 !      end do
-!      write(6,*) "TWO ELECTRON"
+!      write(stdout,*) "TWO ELECTRON"
 !      do i=1,nBasis
 !          do j=1,nBasis
 !              do k=1,nBasis
@@ -755,9 +762,9 @@ contains
         nHG = nBasis
 
         if(NEL + 1 < nBasis) CHEMPOT = (ARR(NEL, 1) + ARR(NEL + 1, 1)) / 2.0_dp
-!      write(6,*) "Chemical Potential: ",CHEMPOT
+!      write(stdout,*) "Chemical Potential: ",CHEMPOT
         IF(NTFROZEN < 0) THEN
-            write(6, *) "NTFROZEN<0.  Leaving ", -NTFROZEN, " unfrozen virtuals."
+            write(stdout, *) "NTFROZEN<0.  Leaving ", -NTFROZEN, " unfrozen virtuals."
             NTFROZEN = NTFROZEN + nBasis - NEL
         end if
         IF((NFROZEN + NFROZENIN) > NEL) CALL Stop_All("IntFreeze", "Overlap between low energy frozen orbitals &
@@ -772,7 +779,7 @@ contains
             & systems with only 8 symmetry irreps.")
         end if
         IF(NFROZEN > 0 .OR. NTFROZEN > 0 .OR. NFROZENIN > 0 .OR. NTFROZENIN > 0) THEN
-            write(6, '(A)') '======== FREEZING ORBITALS =========='
+            write(stdout, '(A)') '======== FREEZING ORBITALS =========='
 !!C.. At this point, we transform the UMAT and TMAT into a new UMAT and
 !!C.. TMAT and Ecore with the frozen orbitals factored in
 !!C..
@@ -799,22 +806,21 @@ contains
             end if
 !         CALL N_MEMORY_CHECK()
 
-            write(6, *) "Freezing ", NFROZEN, " core orbitals."
-            write(6, *) "Freezing ", NTFROZEN, " virtual orbitals."
-            IF(NFROZENIN /= 0) write(6, *) "Freezing ", NFROZENIN, " of the highest energy occupied (inner) orbitals."
-            IF(NTFROZENIN /= 0) write(6, *) "Freezing ", NTFROZENIN, " of the lowest energy virtual (inner) orbitals."
+            write(stdout, *) "Freezing ", NFROZEN, " core orbitals."
+            write(stdout, *) "Freezing ", NTFROZEN, " virtual orbitals."
+            IF(NFROZENIN /= 0) write(stdout, *) "Freezing ", NFROZENIN, " of the highest energy occupied (inner) orbitals."
+            IF(NTFROZENIN /= 0) write(stdout, *) "Freezing ", NTFROZENIN, " of the lowest energy virtual (inner) orbitals."
 
 !At the end of IntFREEZEBASIS, NHG is reset to nBasis - the final number of active orbitals.
           CALL IntFREEZEBASIS(NHG, NBASIS, UMAT, UMAT2, ECORE, G1, NBASISMAX, ISPINSKIP, BRR, NFROZEN, NTFROZEN, NFROZENIN, NTFROZENIN, NEL)
             CALL neci_flush(6)
-!         CALL N_MEMORY_CHECK()
-            write(6, *) "ECORE now", ECORE
-            write(6, *) "Number of orbitals remaining: ", NBASIS
+            write(stdout, *) "ECORE now", ECORE
+            write(stdout, *) "Number of orbitals remaining: ", NBASIS
             nel_pre_freezing = nel
             NEL = NEL - NFROZEN - NFROZENIN
             NOCC = NEL / 2
 !!C.. NEL now only includes active electrons
-            write(6, *) "Number of active electrons:", NEL
+            write(stdout, *) "Number of active electrons:", NEL
 
             !CALL N_FREEM(IP_TMAT)
             !IP_TMAT=IP_TMAT2
@@ -830,22 +836,17 @@ contains
             tagUMat = tagUMat2
             tagUMat2 = 0
             call setup_UMatInd()
-!         CALL N_MEMORY_CHECK()
-!         write(6,*) "Active basis functions:",NHG
             CALL WRITEBASIS(6, G1, NHG, ARR, BRR)
         end if
-!      CALL WRITETMAT(NBASIS)
-!      CALL WRITESYMCLASSES(NBASIS)
 
         ! Setup the umatel pointers as well
         call init_getumatel_fn_pointers()
-
         call init_bit_rep()
 
         IF(COULDAMPORB > 0) THEN
             FCOULDAMPMU = (ARR(COULDAMPORB, 1) + ARR(COULDAMPORB + 1, 1)) / 2
-            write(6, *) "Setting Coulomb damping mu between orbitals ", ARR(COULDAMPORB, 1), " and ", ARR(COULDAMPORB + 1, 1)
-            write(6, *) "MU=", FCOULDAMPMU
+            write(stdout, *) "Setting Coulomb damping mu between orbitals ", ARR(COULDAMPORB, 1), " and ", ARR(COULDAMPORB + 1, 1)
+            write(stdout, *) "MU=", FCOULDAMPMU
         end if
 
     End Subroutine IntFreeze
@@ -885,6 +886,8 @@ contains
             LogDealloc(tagFrozenMap)
             deallocate(frozen_orb_reverse_map)
         end if
+
+        call clear_orb_perm()
 
     end subroutine
 
@@ -938,8 +941,8 @@ contains
      &        G1(BRR(NFROZEN))%SYM%s == G1(BRR(NFROZEN + 1))%SYM%s) THEN
                 call stop_all(this_routine, "Cannot freeze in the middle of a degenerate set")
             ELSE IF(ABS(ARR(NFROZEN, 1) - ARR(NFROZEN + 1, 1)) < 1.0e-6_dp) THEN
-                write(6, '(a)') 'WARNING: Freezing in the middle of a degenerate set.'
-                write(6, '(a)') 'This should only be done for debugging purposes.'
+                write(stdout, '(a)') 'WARNING: Freezing in the middle of a degenerate set.'
+                write(stdout, '(a)') 'This should only be done for debugging purposes.'
             end if
         end if
         IF(NTFROZEN > 0) THEN
@@ -948,8 +951,8 @@ contains
      &               == G1(BRR(NHG - NTFROZEN + 1))%SYM%s) THEN
                 call stop_all(this_routine, "Cannot freeze in the middle of a degenerate virtual set")
             ELSE IF(ABS(ARR(NHG - NTFROZEN, 1) - ARR(NHG - NTFROZEN + 1, 1)) < 1.0e-6_dp) THEN
-                write(6, '(a)') 'WARNING: Freezing in the middle of a degenerate set.'
-                write(6, '(a)') 'This should only be done for debugging purposes.'
+                write(stdout, '(a)') 'WARNING: Freezing in the middle of a degenerate set.'
+                write(stdout, '(a)') 'This should only be done for debugging purposes.'
             end if
         end if
         IF(NFROZENIN > 0) THEN
@@ -957,8 +960,8 @@ contains
      &        G1(BRR(NEL - NFROZENIN))%SYM%s == G1(BRR(NEL - NFROZENIN + 1))%SYM%s) THEN
                 call stop_all(this_routine, "Cannot freeze in the middle of a degenerate set")
             ELSE IF(ABS(ARR(NEL - NFROZENIN, 1) - ARR(NEL - NFROZENIN + 1, 1)) < 1.0e-6_dp) THEN
-                write(6, '(a)') 'WARNING: Freezing in the middle of a degenerate set.'
-                write(6, '(a)') 'This should only be done for debugging purposes.'
+                write(stdout, '(a)') 'WARNING: Freezing in the middle of a degenerate set.'
+                write(stdout, '(a)') 'This should only be done for debugging purposes.'
             end if
         end if
         IF(NTFROZENIN > 0) THEN
@@ -967,8 +970,8 @@ contains
      &               == G1(BRR(NEL + NTFROZENIN + 1))%SYM%s) THEN
                 call stop_all(this_routine, "Cannot freeze in the middle of a degenerate virtual set")
             ELSE IF(ABS(ARR(NEL + NTFROZENIN, 1) - ARR(NEL + NTFROZENIN + 1, 1)) < 1.0e-6_dp) THEN
-                write(6, '(a)') 'WARNING: Freezing in the middle of a degenerate set.'
-                write(6, '(a)') 'This should only be done for debugging purposes.'
+                write(stdout, '(a)') 'WARNING: Freezing in the middle of a degenerate set.'
+                write(stdout, '(a)') 'This should only be done for debugging purposes.'
             end if
         end if
 
@@ -1124,14 +1127,14 @@ contains
 ! Now dealing with the zero body part of the property integrals if needed
 
         IF(tCalcPropEst) then
-            write(iout, *) 'PropCore before freezing:', PropCore
+            write(stdout, *) 'PropCore before freezing:', PropCore
             DO A = 1, NFROZEN
                 AB = BRR(A)
                 ! Ecore' = Ecore + sum_a <a|h|a> where a is a frozen spin orbital
                 ! TMATEL is the one electron integrals <a|h|a>.
                 DO B = 1, iNumPropToEst
                     PropCore(B) = PropCore(B) + GetPropIntEl(AB, AB, B)
-                    write(iout, *) '1', PropCore(B), AB, B, GetPropIntEl(AB, AB, B)
+                    write(stdout, *) '1', PropCore(B), AB, B, GetPropIntEl(AB, AB, B)
                 end do
             end do
 
@@ -1140,10 +1143,10 @@ contains
                 AB = BRR(A)
                 DO B = 1, iNumPropToEst
                     PropCore(B) = PropCore(B) + GetPropIntEl(AB, AB, B)
-                    write(iout, *) '2', PropCore(B), AB, B, GetPropIntEl(AB, AB, B)
+                    write(stdout, *) '2', PropCore(B), AB, B, GetPropIntEl(AB, AB, B)
                 end do
             end do
-            write(iout, *) 'PropCore after freezing:', PropCore
+            write(stdout, *) 'PropCore after freezing:', PropCore
         end if
 
 !C.. now deal with the new TMAT
@@ -1191,7 +1194,7 @@ contains
                             TMATSYM2(NEWTMATInd(IPB, JPB)) = GetTMATEl(IB, JB)
                         ELSE
                             IF(IPB == 0 .or. JPB == 0) THEN
-!                           write(6,*) 'W',W,'I',I,'J',J,'IPB',IPB,'JPB',JPB
+!                           write(stdout,*) 'W',W,'I',I,'J',J,'IPB',IPB,'JPB',JPB
 !                           CALL neci_flush(6)
 !                           CALL Stop_All("","here 01")
                             end if
@@ -1303,7 +1306,7 @@ contains
                                 end if
                             end if
                         end do
-!             write(6,*) "T",TMAT(IB,JB),I,J,TMAT2(IPB,JPB)
+!             write(stdout,*) "T",TMAT(IB,JB),I,J,TMAT2(IPB,JPB)
 !          IF(abs(TMAT(IPB,JPB)).gt.1.0e-9_dp) write(16,*) I,J,TMAT2(IPB,JPB)
                     end do
                 end do
@@ -1349,7 +1352,7 @@ contains
                                 call stop_all("IntFreezeBasis", "Not implemented for tCPMD")
                             ELSE
 !                         IF(IPB.eq.0.or.JPB.eq.0) THEN
-!                              write(6,*) 'W',W,'I',I,'J',J,'IPB',IPB,'JPB',JPB
+!                              write(stdout,*) 'W',W,'I',I,'J',J,'IPB',IPB,'JPB',JPB
 !                              CALL neci_flush(6)
 !                              CALL Stop_All("","here 01")
 !                         end if
@@ -1359,7 +1362,7 @@ contains
                                     OneEPropInts2(IPB, JPB, :) = OneEPropInts(IB, JB, :)
                                 end if
                             end if
-!             write(6,*) "T",TMAT(IB,JB),I,J,TMAT2(IPB,JPB)
+!             write(stdout,*) "T",TMAT(IB,JB),I,J,TMAT2(IPB,JPB)
 !          IF(abs(TMAT(IPB,JPB)).gt.1.0e-9_dp) write(16,*) I,J,TMAT2(IPB,JPB)
                         end do
                     end do
@@ -1465,7 +1468,7 @@ contains
         IF(ISS == 0) CALL SetupUMatTransTable(GG, nHG, nBasis)
 
 !       do i=1,NBASIS
-!           write(6,*) i,G2(i)%Sym%S
+!           write(stdout,*) i,G2(i)%Sym%S
 !       end do
 
         IF(NFROZENIN > 0) THEN
@@ -1473,14 +1476,14 @@ contains
 !This is slightly dodgey... I have commented out the above routine that finds the symmetry of the frozen orbitals.
 !There is already a test to check we are not freezing in the middle of degenracies, so the symmetry should always come
 !out as 0 anyway, unless we are breaking up a set of symmetry irreps somehow ... I think.
-            write(6, *) "WARNING: Setting the symmetry of the frozen orbitals to 0. This will be incorrect &
+            write(stdout, *) "WARNING: Setting the symmetry of the frozen orbitals to 0. This will be incorrect &
                        &if orbitals are frozen in the middle of a degenerate set of the same symmetery irrep."
             KSym%Sym%S = 0
             CALL SetupFREEZEALLSYM(KSym)
         else if(NFROZEN > 0) THEN
             CALL GETSYM(BRR, NFROZEN, G1, NBASISMAX, KSym)
-!              write(6,*) '************'
-!              write(6,*) 'KSym',KSym
+!              write(stdout,*) '************'
+!              write(stdout,*) 'KSym',KSym
             CALL SetupFREEZEALLSYM(KSym)
         END IF
         CALL FREEZESYMLABELS(NHG, NBASIS, GG, .false.)
@@ -1569,7 +1572,7 @@ contains
                     end if
 
                 else
-                    write(6, '(" Setting normal GetUMatEl routine")')
+                    write(stdout, '(" Setting normal GetUMatEl routine")')
                     get_umat_el => get_umat_el_normal
                 end if
             else if(nBasisMax(1, 3) == -1) then
@@ -1587,12 +1590,12 @@ contains
         !     executed first.
         if(tFixLz) then
             if(tStoreSpinOrbs) then
-                write(6, '(" Setting GetUmatEl to use fixed lz with &
+                write(stdout, '(" Setting GetUmatEl to use fixed lz with &
                             &tStoreSpinOrbs set")')
                 get_umat_el_secondary => get_umat_el
                 get_umat_el => get_umat_el_fixlz_storespinorbs
             else
-                write(6, '(" Setting GetUmatEl to use fixed lz without &
+                write(stdout, '(" Setting GetUmatEl to use fixed lz without &
                             &tStoreSpinOrbs set")')
                 get_umat_el_secondary => get_umat_el
                 get_umat_el => get_umat_el_fixlz_notspinorbs
@@ -1604,11 +1607,11 @@ contains
         !symmetry, and one version will be zero, while the other is non-zero
         if(tComplexOrbs_RealInts) then
             if(tStoreSpinOrbs) then
-                write(6, '("Setting GetUMatEl to use momentum checking with spinorbital storage")')
+                write(stdout, '("Setting GetUMatEl to use momentum checking with spinorbital storage")')
                 get_umat_el_secondary => get_umat_el
                 get_umat_el => get_umat_el_comporb_spinorbs
             else
-                write(6, '("Setting GetUMatEl to use momentum checking without spinorbital storage")')
+                write(stdout, '("Setting GetUMatEl to use momentum checking without spinorbital storage")')
                 get_umat_el_secondary => get_umat_el
                 get_umat_el => get_umat_el_comporb_notspinorbs
             end if
@@ -1857,17 +1860,17 @@ contains
 !        call decomposeAbelianSym(SymX%s,ksymx)
 !        call decomposeAbelianSym(SymY%s,ksymy)
 !        call decomposeAbelianSym(SymX_C%s,ksymx_c)
-!        write(6,*) "SymX: ",ksymx(:)
-!        write(6,*) "SymY: ",ksymy(:)
-!        write(6,*) "SymX_C: ",ksymx_c(:)
+!        write(stdout,*) "SymX: ",ksymx(:)
+!        write(stdout,*) "SymY: ",ksymy(:)
+!        write(stdout,*) "SymX_C: ",ksymx_c(:)
 
         if(symtot%s == sym_sym%s) then
 !        if(SymX_C%S.eq.SymY%S) then
             !Symmetry allowed
             hel = get_umat_el_secondary(i, j, k, l)
-!            write(6,*) "symmetry allowed",i,j,k,l,hel
+!            write(stdout,*) "symmetry allowed",i,j,k,l,hel
         else
-!            write(6,*) "Symmetry forbidden", i,j,k,l
+!            write(stdout,*) "Symmetry forbidden", i,j,k,l
             hel = 0
         end if
 #ifdef CMPLX_
@@ -2009,26 +2012,6 @@ contains
 
     end function
 
-    SUBROUTINE WRITESYMCLASSES(nbasis)
-        use SystemData, only: BasisFN, Symmetry
-        USE UMatCache
-        use SymData, only: SymClasses, SymLabelCounts, nSymLabels
-        use util_mod, only: get_free_unit
-        IMPLICIT NONE
-        INTEGER I, nbasis, iunit
-        iunit = get_free_unit()
-        open(iunit, file="SYMCLASSES", status="unknown")
-        DO I = 1, nbasis / 2
-            write(iunit, *) I, SYMCLASSES(I)
-            CALL neci_flush(iunit)
-        end do
-        DO I = 1, NSYMLABELS
-            write(iunit, *) I, SYMLABELCOUNTS(2, I)
-        end do
-        write(iunit, *) "******************"
-        close(iunit)
-    END subroutine writesymclasses
-
     subroutine DumpFCIDUMP()
         use SystemData, only: G1, nBasis, nel
         implicit none
@@ -2104,7 +2087,7 @@ END MODULE Integrals_neci
 ! (one-electron) terms.
 
 SUBROUTINE CALCTMATUEG(nbasis, ALAT, G1, CST, TPERIODIC, OMEGA)
-    use constants, only: dp
+    use constants, only: dp, stdout
     use SystemData, only: BasisFN, k_offset, iPeriodicDampingType, kvec, k_lattice_constant
     USE OneEInts, only: SetupTMAT, TMAT2D
     use util_mod, only: get_free_unit
@@ -2125,7 +2108,7 @@ SUBROUTINE CALCTMATUEG(nbasis, ALAT, G1, CST, TPERIODIC, OMEGA)
 !=================================================
     if(tUEG2) then
 
-        IF(TPERIODIC) write(6, *) "Periodic UEG"
+        IF(TPERIODIC) write(stdout, *) "Periodic UEG"
         iunit = get_free_unit()
 
         if(iProcIndex == Root) open(iunit, FILE='TMAT', STATUS='UNKNOWN')
@@ -2144,7 +2127,7 @@ SUBROUTINE CALCTMATUEG(nbasis, ALAT, G1, CST, TPERIODIC, OMEGA)
     end if ! tUEG2
 !=================================================
 
-    IF(TPERIODIC) write(6, *) "Periodic UEG"
+    IF(TPERIODIC) write(stdout, *) "Periodic UEG"
     iunit = get_free_unit()
     if(iProcIndex == Root) open(iunit, FILE='TMAT', STATUS='UNKNOWN')
     CALL SetupTMAT(nbasis, 2, iSIZE)

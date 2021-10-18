@@ -1,0 +1,32 @@
+memory,800,m
+
+r=2.074
+
+nosym
+
+gprint,civector
+gprint,orbitals=14
+
+basis=avdz
+charge=0
+
+geometry={
+N1,,0,0,0
+N2,,r,0,0
+}
+
+hf
+{ccsd
+dm,2200.2
+natorb,record=2200.2,print=14,core=0
+}
+
+{put,molden,n2.molden
+orbital,record=2200.2,type=natural
+}
+
+{fci, dump=FCIDUMP
+orbital,2200.2
+occ,9 ! TODO 
+core,5
+}

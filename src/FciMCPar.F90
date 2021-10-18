@@ -8,9 +8,9 @@ module FciMCParMod
                           t_new_real_space_hubbard, t_tJ_model, t_heisenberg_model, &
                           t_k_space_hubbard, max_ex_level, t_uniform_excits, &
                           tGen_guga_mixed, t_guga_mixed_init, t_guga_mixed_semi, &
-                          tReal, t_mixed_excits, tgen_nosym_guga, &
+                          tReal, t_mixed_excits, &
                           t_crude_exchange_noninits, t_approx_exchange_noninits, &
-                          is_init_guga, tGen_sym_guga_ueg, t_guga_unit_tests
+                          is_init_guga, tGen_sym_guga_ueg, t_analyze_pchb
 
     use CalcData, only: tFTLM, tSpecLanc, tExactSpec, tDetermProj, tMaxBloom, &
                         tUseRealCoeffs, tWritePopsNorm, tExactDiagAllSym, &
@@ -26,7 +26,7 @@ module FciMCParMod
                         t_back_spawn_option, tDynamicCoreSpace, coreSpaceUpdateCycle, &
                         DiagSft, tDynamicTrial, trialSpaceUpdateCycle, semistochStartIter, &
                         tSkipRef, tTrialShift, tSpinProject, t_activate_decay, &
-                        t_direct_guga_ref, t_trunc_guga_pgen_noninits, &
+                        t_trunc_guga_pgen_noninits, &
                         tLogAverageSpawns, tActivateLAS, eq_cyc, &
                         t_guga_back_spawn, tEN2Init, tEN2Rigorous, tDeathBeforeComms, &
                         tDetermProjApproxHamil, tCoreAdaptiveShift, &
@@ -50,7 +50,7 @@ module FciMCParMod
                            tHDF5TruncPopsWrite, iHDF5TruncPopsEx, tAccumPops, &
                            tAccumPopsActive, iAccumPopsIter, iAccumPopsExpireIters, &
                            tPopsProjE, iHDF5TruncPopsIter, iAccumPopsCounter, &
-                           AccumPopsExpirePercent
+                           AccumPopsExpirePercent, t_print_core_vec
 
     use rdm_data, only: print_2rdm_est, ThisRDMIter, inits_one_rdms, two_rdm_inits_spawn, &
                         two_rdm_inits, rdm_inits_defs, RDMCorrectionFactor, inits_estimates, tSetupInitsEst, &
@@ -66,7 +66,8 @@ module FciMCParMod
                               refresh_semistochastic_space
     use semi_stoch_procs, only: is_core_state, check_determ_flag, &
                                 determ_projection, average_determ_vector, &
-                                determ_projection_no_death, core_space_pos
+                                determ_projection_no_death, core_space_pos, &
+                                print_determ_vec_av, print_determ_vec
     use trial_wf_gen, only: update_compare_trial_file, init_trial_wf, refresh_trial_wf
     use hist, only: write_zero_hist_excit_tofrom
     use orthogonalise, only: orthogonalise_replicas, calc_replica_overlaps, &
@@ -104,18 +105,15 @@ module FciMCParMod
     use fcimc_iter_utils
     use replica_estimates
     use neci_signals
-    use fcimc_helper
+    use fcimc_helper, only: create_particle, create_particle_with_hash_table
     use fcimc_output
     use FciMCData
     use constants
 
-    use guga_data, only: tNewDet
-
     use excit_gen_5, only: gen_excit_4ind_weighted2
 
-    use guga_testsuite, only: run_test_excit_gen_det, runTestsGUGA
-    use guga_excitations, only: deallocate_projE_list, generate_excitation_guga
-    use guga_bitrepops, only: init_csf_information
+    use guga_excitations, only: generate_excitation_guga, global_excitInfo
+    use guga_bitrepops, only: fill_csf_i, current_csf_i
     use tJ_model, only: init_guga_heisenberg_model, init_guga_tj_model
 
     use real_time_data, only: t_prepare_real_time, n_real_time_copies, &
@@ -125,7 +123,7 @@ module FciMCParMod
 
     use bit_reps, only: decode_bit_det
 
-    use util_mod, only: operator(.div.)
+    use util_mod, only: operator(.div.), toggle_lprof
 
     use hdiag_from_excit, only: get_hdiag_from_excit, get_hdiag_bare_hphf
 
@@ -151,6 +149,8 @@ module FciMCParMod
 
     use sltcnd_mod, only: sltcnd_excit
     use hdf5_popsfile, only: write_popsfile_hdf5
+    use local_spin, only: measure_local_spin, write_local_spin_stats, &
+                          finalize_local_spin_measurement
 
     implicit none
 
@@ -217,7 +217,7 @@ contains
 
         if (tJustBlocking) then
             ! Just reblock the current data, and do not perform an fcimc calculation.
-            write(6, "(A)") "Skipping FCIQMC calculation and simply reblocking previous output"
+            write(stdout, "(A)") "Skipping FCIQMC calculation and simply reblocking previous output"
             call Standalone_Errors()
             return
         end if
@@ -265,12 +265,12 @@ contains
 
 #ifdef DEBUG_
         call decode_bit_det(tmp_det, ilutHF)
-        write(iout, *) "HF: ", tmp_det
+        write(stdout, *) "HF: ", tmp_det
         call decode_bit_det(tmp_det, ilutHF_true)
-        write(iout, *) "HF_true: ", tmp_det
+        write(stdout, *) "HF_true: ", tmp_det
         call decode_bit_det(tmp_det, ilutRef(:, 1))
-        write(iout, *) "Ref: ", tmp_det
-        write(iout, *) "ProjEDet: ", ProjEDet
+        write(stdout, *) "Ref: ", tmp_det
+        write(stdout, *) "ProjEDet: ", ProjEDet
 #endif
 
         ! Attach signal handlers to give a more graceful death-mannerism
@@ -280,20 +280,6 @@ contains
         ! In the normal case this is run between iterations, but it is
         ! helpful to do it here.
         call population_check()
-
-        ! call guga test routine here, so everything is correctly set up,
-        ! or atleast should be. only temporarily here.
-        if (tGUGA) then
-            ! only run guga - testsuite if flag is provided
-            if (t_guga_unit_tests) call runTestsGUGA()
-
-        end if
-
-#ifndef CMPLX_
-        if ((tGen_4ind_2 .or. tGen_4ind_weighted .or. tLatticeGens) .and. t_test_excit_gen) then
-            call run_test_excit_gen_det()
-        end if
-#endif
 
         if (n_int /= int64) then
             call stop_all('setup parameters', 'Use of realcoefficients requires 64 bit integers.')
@@ -331,7 +317,7 @@ contains
             ! Prepend a # to the initial status line so analysis doesn't pick
             ! up repetitions in the FCIMCStats or INITIATORStats files from
             ! restarts.
-            !write(iout,'("#")', advance='no')
+            !write(stdout,'("#")', advance='no')
             if (iProcIndex == root) then
                 write(fcimcstats_unit, '("#")', advance='no')
                 if (inum_runs == 2) &
@@ -343,6 +329,10 @@ contains
             call WriteFCIMCStats()
         end if
 
+        if (t_measure_local_spin) then
+            call write_local_spin_stats(initial = .true.)
+            call write_local_spin_stats()
+        end if
         ! double occupancy:
         if (t_calc_double_occ) then
             call write_double_occ_stats(initial=.true.)
@@ -381,8 +371,9 @@ contains
         lt_arr = 0.
         lt_imb_cycle = 0.
 
-        do while (.true.)
-!Main iteration loop...
+
+        call toggle_lprof()
+        main_iteration_loop: do while (.true.)
             if (TestMCExit(Iter, iRDMSamplingIter)) then
                 ! The popsfile requires the right total walker number, so
                 ! update it (TotParts is updated in the annihilation step)
@@ -393,7 +384,7 @@ contains
             ! start logging average spawns once we enter the variable shift mode
             if (.not. any(tSinglePartPhase) .and. tActivateLAS) tLogAverageSpawns = .true.
 
-            IFDEBUG(FCIMCDebug, 2) write(iout, *) 'Iter', iter
+            IFDEBUG(FCIMCDebug, 2) write(stdout, *) 'Iter', iter
 
             if (iProcIndex == root) s_start = neci_etime(tstart)
 
@@ -402,11 +393,11 @@ contains
                 mod(iter - semistochStartIter, &
                     coreSpaceUpdateCycle) == 0) then
                 call refresh_semistochastic_space()
-                write(6, *) "Refereshing semistochastic space at iteration ", iter
+                write(stdout, *) "Refereshing semistochastic space at iteration ", iter
             end if
 
             ! Is this an iteration where semi-stochastic is turned on?
-            if (semistoch_shift_iter /= 0 .and. all(.not. tSinglePartPhase)) then
+            if (semistoch_shift_iter /= 0 .and. .not. any(tSinglePartPhase)) then
                 if ((Iter - maxval(VaryShiftIter)) == semistoch_shift_iter + 1) then
                     tSemiStochastic = .true.
                     call init_semi_stochastic(ss_space_in, tStartedFromCoreGround)
@@ -428,7 +419,7 @@ contains
                     call refresh_trial_wf(trial_space_in, ntrial_ex_calc, &
                                           inum_runs, .false.)
                 end if
-                write(6, *) "Refreshing trial wavefunction at iteration ", iter
+                write(stdout, *) "Refreshing trial wavefunction at iteration ", iter
             end if
 
             if (((Iter - maxval(VaryShiftIter)) == allDoubsInitsDelay + 1 &
@@ -496,12 +487,13 @@ contains
                 call iterate_cont_time(iter_data_fciqmc)
             else
                 call PerformFciMCycPar(iter_data_fciqmc, err)
+                if (err /= 0) call stop_all(this_routine, 'Failure from PerformFciMCycPar')
             end if
 
             if (tAccumPops .and. iter + PreviousCycles >= iAccumPopsIter) then
                 if (.not. tAccumPopsActive) then
                     tAccumPopsActive = .true.
-                    write(6, *) "Starting to accumulate populations ..."
+                    write(stdout, *) "Starting to accumulate populations ..."
                 end if
 
                 call update_pops_sum_all(TotWalkers, iter + PreviousCycles)
@@ -536,7 +528,9 @@ contains
             end if
 
             ! if the iteration failed, stop the calculation now
-            if (err /= 0) exit
+            if (err /= 0) then
+                call stop_all(this_routine, 'if the iteration failed, stop the calculation now')
+            end if
 
             if (iProcIndex == root) then
                 s_end = neci_etime(tend)
@@ -605,7 +599,7 @@ contains
                                 bloom_sizes(i) > bloom_max(i)) then
                                 bloom_max(i) = bloom_sizes(i)
 
-                                write(iout, bloom_warn_string) &
+                                write(stderr, bloom_warn_string) &
                                     trim(excit_descriptor(i)), bloom_sizes(i), &
                                     bloom_count(i)
 
@@ -631,6 +625,9 @@ contains
                                                                       tPairedReplicas, t_comm_req=.false.)
                 call halt_timer(Stats_Comms_Time)
 
+                if (t_measure_local_spin) then
+                    call write_local_spin_stats()
+                end if
                 ! in calculate_new_shift_wrapper output is plotted too!
                 ! so for now do it here for double occupancy
                 if (t_calc_double_occ) then
@@ -647,20 +644,20 @@ contains
                     .and. (iFullSpaceIter /= 0)) THEN
 !Test if we want to expand to the full space if an EXPANDSPACE variable has been set
                     IF (tHistSpawn .or. tCalcFCIMCPsi) THEN
-                        IF (iProcIndex == 0) write(iout, *) "Unable to expand space since histgramming the wavefunction..."
+                        IF (iProcIndex == 0) write(stdout, *) "Unable to expand space since histgramming the wavefunction..."
                     ELSE
                         ICILevel = 0
                         tTruncSpace = .false.
                         tTruncCAS = .false.
                         IF (tTruncInitiator) tTruncInitiator = .false.
                         IF (iProcIndex == 0) THEN
-                            write(iout, *) "Expanding to the full space on iteration ", Iter + PreviousCycles
+                            write(stdout, *) "Expanding to the full space on iteration ", Iter + PreviousCycles
                         end if
                     end if
                 end if
 
-                if (iProcIndex == root) &
-                    TotalTime8 = real(s_end - s_global_start, dp)
+                if (iProcIndex == root) TotalTime8 = real(s_end - s_global_start, dp)
+
                 call MPIBCast(TotalTime8)    !TotalTime is local - broadcast to all procs
 
 !This routine will check for a CHANGEVARS file and change the parameters of the calculation accordingly.
@@ -674,14 +671,14 @@ contains
                 end if
                 IF (tTimeExit .and. (TotalTime8 >= MaxTimeExit)) THEN
                     !Is it time to exit yet?
-                    write(iout, "(A,F8.2,A)") "Time limit reached for simulation of: ", MaxTimeExit / 60.0_dp, " minutes - exiting..."
+                    write(stdout, "(A,F8.2,A)") "Time limit reached for simulation of: ", MaxTimeExit / 60.0_dp, " minutes - exiting..."
                     NMCyc = Iter + StepsSft
                     ! Set this to false so that this if statement won't be entered next time.
                     tTimeExit = .false.
                 end if
                 IF (iExitWalkers /= -1_int64 .and. sum(AllTotParts) > iExitWalkers) THEN
                     !Exit criterion based on total walker number met.
-                    write(iout, "(A,I15)") "Total walker population exceeds that given by &
+                    write(stdout, "(A,I15)") "Total walker population exceeds that given by &
                         &EXITWALKERS criteria - exiting...", sum(AllTotParts)
                     tIncrement = .false.
                     exit
@@ -700,13 +697,13 @@ contains
                         CALL RENAME('popsfile.h5', 'popsfile.h5.bk')
                         CALL RENAME('POPSFILEBIN', 'POPSFILEBIN.bk')
                         CALL RENAME('POPSFILEHEAD', 'POPSFILEHEAD.bk')
-                        write(iout, "(A,F7.3,A)") "Writing out a popsfile after ", iPopsTimers * PopsfileTimer, " hours..."
+                        write(stdout, "(A,F7.3,A)") "Writing out a popsfile after ", iPopsTimers * PopsfileTimer, " hours..."
                     end if
                     call WriteToPopsfileParOneArr(CurrentDets, TotWalkers)
                     iPopsTimers = iPopsTimers + 1
                     if (iProcIndex == Root) then
                         s_end = neci_etime(tend)
-                        write(iout, "(A,F7.3,A)") "Time taken to write out POPSFILE: ", real(s_end, dp) - TotalTime8, " seconds."
+                        write(stdout, "(A,F7.3,A)") "Time taken to write out POPSFILE: ", real(s_end, dp) - TotalTime8, " seconds."
                     end if
                 end if
                 if (tHistExcitToFrom) &
@@ -739,8 +736,10 @@ contains
                 end if
             end if
 
-            if (TPopsFile .and. tHDF5TruncPopsWrite .and. iHDF5TruncPopsIter > 0 .and. (mod(Iter, iHDF5TruncPopsIter) == 0)) then
-                call write_popsfile_hdf5(iHDF5TruncPopsEx, .true.)
+            if (TPopsFile .and. tHDF5TruncPopsWrite .and. iHDF5TruncPopsIter > 0) then
+                if (mod(Iter, iHDF5TruncPopsIter) == 0) then
+                    call write_popsfile_hdf5(iHDF5TruncPopsEx, .true.)
+                end if
             end if
             IF (tHistSpawn .and. (mod(Iter, iWriteHistEvery) == 0) .and. (.not. tRDMonFly)) THEN
                 CALL WriteHistogram()
@@ -823,16 +822,16 @@ contains
             Iter = Iter + 1
             if (tFillingStochRDMonFly) iRDMSamplingIter = iRDMSamplingIter + 1
 
-            ! End of MC cycle
-        end do
+        end do main_iteration_loop
+        call toggle_lprof()
 
         ! Final output is always enabled
         tSuppressSIOutput = .false.
 
         ! We are at the end - get the stop-time. Output the timing details
         stop_time = neci_etime(tend)
-        write(iout, *) '- - - - - - - - - - - - - - - - - - - - - - - -'
-        write(iout, *) 'Total loop-time: ', stop_time - start_time
+        write(stdout, *) '- - - - - - - - - - - - - - - - - - - - - - - -'
+        write(stdout, *) 'Total loop-time: ', stop_time - start_time
 
         !add load imbalance from remaining iterations (if any)
         rest = mod(Iter - 1, lb_measure_cycle)
@@ -841,27 +840,20 @@ contains
             call MPIReduce(lt_arr, MPI_MAX, lt_max)
             lt_imb = lt_imb + sum(lt_max(1:rest) - lt_sum(1:rest) / nProcessors)
         end if
-        if (iProcIndex == 0) write(iout, *) 'Time lost due to load imbalance: ', lt_imb
-        write(iout, *) '- - - - - - - - - - - - - - - - - - - - - - - -'
+        if (iProcIndex == 0) write(stdout, *) 'Time lost due to load imbalance: ', lt_imb
+        write(stdout, *) '- - - - - - - - - - - - - - - - - - - - - - - -'
 
         ! [Werner Dobrautz 4.4.2017]
         ! for now always print out the frequency histograms for the
         ! tau-search.. maybe change that later to be an option
         ! to be turned off
         if (t_print_frq_histograms .and. t_hist_tau_search_option) then
-            if (tgen_nosym_guga) then
-                call print_frequency_histogram_spec()
-            else
-                call print_frequency_histograms()
-            end if
+            call print_frequency_histograms()
 
             ! also deallocate here after no use of the histograms anymore
             call deallocate_histograms()
         end if
 
-        if (tGUGA) then
-            if (.not. t_direct_guga_ref) call deallocate_projE_list()
-        end if
 
         if (t_cc_amplitudes .and. t_plot_cc_amplitudes) then
             call print_cc_amplitudes()
@@ -886,19 +878,19 @@ contains
                 if (iHDF5TruncPopsIter == 0 .or. (mod(Iter, iHDF5TruncPopsIter) /= 0)) then
                     call write_popsfile_hdf5(iHDF5TruncPopsEx)
                 else
-                    write(6, *)
-                    write(6, *) "============== Writing Truncated HDF5 popsfile =============="
-                    write(6, *) "Unnecessary duplication of truncated popsfile is avoided."
-                    write(6, *) "It has already been written in the last iteration."
+                    write(stdout, *)
+                    write(stdout, *) "============== Writing Truncated HDF5 popsfile =============="
+                    write(stdout, *) "Unnecessary duplication of truncated popsfile is avoided."
+                    write(stdout, *) "It has already been written in the last iteration."
                 end if
             end if
 
             if (tPopsProjE) then
                 call calc_proje(InstE, AccumE)
-                write(6, *)
-                write(6, *) 'Instantaneous projected energy of popsfile:', InstE + Hii
+                write(stdout, *)
+                write(stdout, *) 'Instantaneous projected energy of popsfile:', InstE + Hii
                 if (tAccumPopsActive) &
-                    write(6, *) 'Accumulated projected energy of popsfile:', AccumE + Hii
+                    write(stdout, *) 'Accumulated projected energy of popsfile:', AccumE + Hii
             end if
         end if
 
@@ -927,6 +919,10 @@ contains
             CALL PrintOrbOccs(OrbOccs)
         end if
 
+        if (t_measure_local_spin) then
+            call finalize_local_spin_measurement()
+        end if
+
         if (t_calc_double_occ) then
             ! also output the final estimates from the summed up
             ! variable:
@@ -941,6 +937,7 @@ contains
             end if
         end if
 
+
         if (tFillingStochRDMonFly .or. tFillingExplicRDMonFly) then
             call finalise_rdms(rdm_definitions, one_rdms, two_rdm_main, two_rdm_recv, &
                                two_rdm_recv_2, en_pert_main, two_rdm_spawn, rdm_estimates, &
@@ -951,10 +948,17 @@ contains
                                               .true.)
         end if
         if (tAdaptiveShift) then
-            write(iout, *) "Prefactor of RDM correction due to adaptive shift", RDMCorrectionFactor
+            write(stdout, *) "Prefactor of RDM correction due to adaptive shift", RDMCorrectionFactor
         end if
 
         call PrintHighPops()
+
+        if (tSemiStochastic .and. t_print_core_vec) then
+            call print_determ_vec()
+            if (tFillingStochRDMonFly) then
+                call print_determ_vec_av()
+            end if
+        end if
 
         if (t_symmetry_analysis) then
             call analyze_wavefunction_symmetry()
@@ -985,11 +989,11 @@ contains
         ! Print out some load balancing stats nicely to end.
         ! n.B. TotWalkers is the number of determinants. (Horrible naming indeed).
         !       TotParts is the number of walkers.
-        if (iProcIndex == Root) write(iout, *) ! linebreak
+        if (iProcIndex == Root) write(stdout, *) ! linebreak
         if (iProcIndex == Root) then
-            write(iout, '(/,1X,a55)') 'Load balancing information based on the last iteration:'
+            write(stdout, '(/,1X,a55)') 'Load balancing information based on the last iteration:'
         end if
-        if (iProcIndex == Root) write(iout, *) ! linebreak
+        if (iProcIndex == Root) write(stdout, *) ! linebreak
         block
             INTEGER(int64) :: MaxWalkers, MinWalkers
 
@@ -997,13 +1001,13 @@ contains
             CALL MPIReduce(TotWalkers, MPI_MIN, MinWalkers)
             CALL MPIAllReduce(TotWalkers, MPI_SUM, AllTotWalkers)
             if (iProcIndex == Root) then
-                write(iout, '(1X,a35,1X,f18.10)') 'Mean number of determinants/process:', &
+                write(stdout, '(1X,a35,1X,f18.10)') 'Mean number of determinants/process:', &
                         real(AllTotWalkers, dp) / real(nNodes, dp)
-                write(iout, '(1X,a34,1X,i18)') 'Min number of determinants/process:', MinWalkers
-                write(iout, '(1X,a34,1X,i18,/)') 'Max number of determinants/process:', MaxWalkers
+                write(stdout, '(1X,a34,1X,i18)') 'Min number of determinants/process:', MinWalkers
+                write(stdout, '(1X,a34,1X,i18,/)') 'Max number of determinants/process:', MaxWalkers
             end if
         end block
-        if (iProcIndex == Root) write(iout, *) ! linebreak
+        if (iProcIndex == Root) write(stdout, *) ! linebreak
         block
             real(dp) :: total_n_walkers, min_n_walkers, max_n_walkers
 
@@ -1011,14 +1015,14 @@ contains
             CALL MPIReduce(sum(abs(TotParts)), MPI_MIN, min_n_walkers)
             CALL MPIReduce(sum(abs(TotParts)), MPI_SUM, total_n_walkers)
             if (iProcIndex == Root) then
-                write(iout, '(/,1X,a55)') 'Load balancing information based on the last iteration:'
-                write(iout, '(1X,a35,1X,f18.10)') 'Mean number of walkers/process:', &
+                write(stdout, '(/,1X,a55)') 'Load balancing information based on the last iteration:'
+                write(stdout, '(1X,a35,1X,f18.10)') 'Mean number of walkers/process:', &
                         total_n_walkers / real(nNodes, dp)
-                write(iout, '(1X,a34,1X,f18.5)') 'Min number of walkers/process:', min_n_walkers
-                write(iout, '(1X,a34,1X,f18.5,/)') 'Max number of walkers/process:', max_n_walkers
+                write(stdout, '(1X,a34,1X,f18.5)') 'Min number of walkers/process:', min_n_walkers
+                write(stdout, '(1X,a34,1X,f18.5,/)') 'Max number of walkers/process:', max_n_walkers
             end if
         end block
-        if (iProcIndex == Root) write(iout, *) ! linebreak
+        if (iProcIndex == Root) write(stdout, *) ! linebreak
 
 
         ! Automatic error analysis.
@@ -1049,36 +1053,36 @@ contains
         iroot = 1
         CALL GetSym(ProjEDet(:, 1), NEl, G1, NBasisMax, RefSym)
         isymh = int(RefSym%Sym%S, sizeof_int) + 1
-        write(iout, '('' Current reference energy'',T52,F19.12)') OutputHii
+        write(stdout, '('' Current reference energy'',T52,F19.12)') OutputHii
         if (tNoProjEValue) then
-            write(iout, '('' Projected correlation energy'',T52,F19.12)') real(ProjectionE(1), dp)
-            write(iout, "(A)") " No automatic errorbar obtained for projected energy"
+            write(stdout, '('' Projected correlation energy'',T52,F19.12)') real(ProjectionE(1), dp)
+            write(stdout, "(A)") " No automatic errorbar obtained for projected energy"
         else
-            write(iout, '('' Projected correlation energy'',T52,F19.12)') mean_ProjE_re
-            write(iout, '('' Estimated error in Projected correlation energy'',T52,F19.12)') ProjE_Err_re
+            write(stdout, '('' Projected correlation energy'',T52,F19.12)') mean_ProjE_re
+            write(stdout, '('' Estimated error in Projected correlation energy'',T52,F19.12)') ProjE_Err_re
             if (lenof_sign == 2 .and. inum_runs == 1) then
-                write(iout, '('' Projected imaginary energy'',T52,F19.12)') mean_ProjE_im
-                write(iout, '('' Estimated error in Projected imaginary energy'',T52,F19.12)') ProjE_Err_im
+                write(stdout, '('' Projected imaginary energy'',T52,F19.12)') mean_ProjE_im
+                write(stdout, '('' Estimated error in Projected imaginary energy'',T52,F19.12)') ProjE_Err_im
             end if
         end if
         if (.not. tNoShiftValue) then
-            write(iout, '('' Shift correlation energy'',T52,F19.12)') mean_Shift
-            write(iout, '('' Estimated error in shift correlation energy'',T52,F19.12)') shift_err
+            write(stdout, '('' Shift correlation energy'',T52,F19.12)') mean_Shift
+            write(stdout, '('' Estimated error in shift correlation energy'',T52,F19.12)') shift_err
         else
-            write(6, "(A)") " No reliable averaged shift correlation energy could be obtained automatically"
+            write(stdout, "(A)") " No reliable averaged shift correlation energy could be obtained automatically"
         end if
         if ((.not. tNoProjEValue) .and. (.not. tNoShiftValue)) then
             !Do shift and projected energy agree?
-            write(iout, "(A)")
+            write(stdout, "(A)")
             EnergyDiff = abs(mean_Shift - mean_ProjE_re)
             if (EnergyDiff <= sqrt(shift_err**2 + ProjE_Err_re**2)) then
-                write(iout, "(A,F15.8)") " Projected and shift energy estimates agree " &
+                write(stdout, "(A,F15.8)") " Projected and shift energy estimates agree " &
                     & //"within errorbars: EDiff = ", EnergyDiff
             else if (EnergyDiff <= sqrt((max(shift_err, ProjE_Err_re) * 2)**2 + min(shift_err, ProjE_Err_re)**2)) then
-                write(iout, "(A,F15.8)") " Projected and shift energy estimates agree to within " &
+                write(stdout, "(A,F15.8)") " Projected and shift energy estimates agree to within " &
                     & //"two sigma of largest error: EDiff = ", EnergyDiff
             else
-                write(iout, "(A,F15.8)") " Projected and shift energy estimates do not agree to " &
+                write(stdout, "(A,F15.8)") " Projected and shift energy estimates do not agree to " &
                     & //"within approximate errorbars: EDiff = ", EnergyDiff
             end if
             if (ProjE_Err_re < shift_err) then
@@ -1098,44 +1102,44 @@ contains
             BestEnergy = ProjectionE(1) + OutputHii
             BestErr = 0.0_dp
         end if
-        write(iout, "(A)")
+        write(stdout, "(A)")
         if (tNoProjEValue) then
-            write(iout, "(A,F20.8)") " Total projected energy ", real(ProjectionE(1), dp) + OutputHii
+            write(stdout, "(A,F20.8)") " Total projected energy ", real(ProjectionE(1), dp) + OutputHii
         else
-            write(iout, "(A,F20.8,A,G15.6)") " Total projected energy ", &
+            write(stdout, "(A,F20.8,A,G15.6)") " Total projected energy ", &
                 mean_ProjE_re + OutputHii, " +/- ", ProjE_Err_re
         end if
         if (.not. tNoShiftValue) then
-            write(iout, "(A,F20.8,A,G15.6)") " Total shift energy     ", &
+            write(stdout, "(A,F20.8,A,G15.6)") " Total shift energy     ", &
                 mean_shift + Hii, " +/- ", shift_err
         end if
 
         ! Output replica_estimates data for the test suite
         if (tReplicaEstimates) then
-            write(iout, '(/,1x,"THE FOLLOWING IS FOR TEST SUITE USE ONLY!",/)')
+            write(stdout, '(/,1x,"THE FOLLOWING IS FOR TEST SUITE USE ONLY!",/)')
             do i = 1, replica_est_len
-                write(iout, '(1x,"REPLICA ESTIMATES FOR STATE",1x,'//int_fmt(i)//',":",)') i
+                write(stdout, '(1x,"REPLICA ESTIMATES FOR STATE",1x,'//int_fmt(i)//',":",)') i
 
-                write(iout, '(1x,"Variational energy from replica_estimates:",1x,es20.13)') &
+                write(stdout, '(1x,"Variational energy from replica_estimates:",1x,es20.13)') &
                     var_e_num_all(i) / rep_est_overlap_all(i)
-                write(iout, '(1x,"Energy squared from replica_estimates:",1x,es20.13)') &
+                write(stdout, '(1x,"Energy squared from replica_estimates:",1x,es20.13)') &
                     e_squared_num_all(i) / rep_est_overlap_all(i)
                 if (tEN2Init) then
-                    write(iout, '(1x,"EN2 estimate from replica_estimates:",1x,es20.13)') &
+                    write(stdout, '(1x,"EN2 estimate from replica_estimates:",1x,es20.13)') &
                         en2_pert_all(i) / rep_est_overlap_all(i)
                 end if
                 if (tEN2Rigorous) then
-                    write(iout, '(1x,"EN2 New estimate from replica_estimates:",1x,es20.13)') &
+                    write(stdout, '(1x,"EN2 New estimate from replica_estimates:",1x,es20.13)') &
                         en2_new_all(i) / rep_est_overlap_all(i)
                 end if
-                write(iout, '(1x,"Preconditioned energy from replica_estimates:",1x,es20.13,/)') &
+                write(stdout, '(1x,"Preconditioned energy from replica_estimates:",1x,es20.13,/)') &
                     precond_e_num_all(i) / precond_denom_all(i)
             end do
         end if
 
         CALL MolproPluginResult('ENERGY', [BestEnergy])
         CALL MolproPluginResult('FCIQMC_ERR', [min(ProjE_Err_re, shift_err)])
-        write(iout, "(/)")
+        write(stdout, "(/)")
 
         ! Deallocate memory
         call DeallocFCIMCMemPar()
@@ -1221,24 +1225,24 @@ contains
 
         precond_fac = 1.0_dp
 
-        IFDEBUGTHEN(FCIMCDebug, iout)
-            write(iout, "(A)") "Hash Table: "
-            write(iout, "(A)") "Position in hash table, Position in CurrentDets"
+        IFDEBUGTHEN(FCIMCDebug, stdout)
+            write(stdout, "(A)") "Hash Table: "
+            write(stdout, "(A)") "Position in hash table, Position in CurrentDets"
             do j = 1, nWalkerHashes
                 TempNode => HashIndex(j)
                 if (TempNode%Ind /= 0) then
-                    write(iout, '(i9)', advance='no') j
+                    write(stdout, '(i9)', advance='no') j
                     do while (associated(TempNode))
-                        write(iout, '(i9)', advance='no') TempNode%Ind
+                        write(stdout, '(i9)', advance='no') TempNode%Ind
                         TempNode => TempNode%Next
                     end do
-                    write(iout, '()', advance='yes')
+                    write(stdout, '()', advance='yes')
                 end if
             end do
         ENDIFDEBUG
 
-        IFDEBUG(FCIMCDebug, 3) write(iout, "(A,I12)") "Walker list length: ", TotWalkers
-        IFDEBUG(FCIMCDebug, 3) write(iout, "(A)") "TW: Walker  Det"
+        IFDEBUG(FCIMCDebug, 3) write(stdout, "(A,I12)") "Walker list length: ", TotWalkers
+        IFDEBUG(FCIMCDebug, 3) write(stdout, "(A)") "TW: Walker  Det"
 
         ! This block decides whether or not to calculate the contribution to the RDMs from
         ! the diagonal elements (and explicit connections to the HF) for each occupied determinant.
@@ -1259,13 +1263,10 @@ contains
             end if
         end if
         lstart = mpi_wtime()
-        do j = 1, int(TotWalkers, sizeof_int)
+        loop_over_determinants: do j = 1, int(TotWalkers, sizeof_int)
 
             ! N.B. j indicates the number of determinants, not the number
             !      of walkers.
-
-            ! reset this flag for each det:
-            ! W.D. remove this option for now..
 
             ! Indicate that the scratch storage used for excitation generation
             ! from the same walker has not been filled (it is filled when we
@@ -1445,13 +1446,13 @@ contains
 
             !Debug output.
             IFDEBUGTHEN(FCIMCDebug, 3)
-                write(iout, "(A,I10,a)", advance='no') 'TW:', j, '['
+                write(stdout, "(A,I10,a)", advance='no') 'TW:', j, '['
                 do part_type = 1, lenof_sign
-                    write(iout, "(f10.5)", advance='no') SignCurr(part_type)
+                    write(stdout, "(f10.5)", advance='no') SignCurr(part_type)
                 end do
-                write(iout, '(a,i7)', advance='no') '] ', FlagsCurr
-                call WriteBitDet(iout, CurrentDets(:, j), .true.)
-                call neci_flush(iout)
+                write(stdout, '(a,i7)', advance='no') '] ', FlagsCurr
+                call WriteBitDet(stdout, CurrentDets(:, j), .true.)
+                call neci_flush(stdout)
             ENDIFDEBUG
 
             if (walkExcitLevel_toHF == 0) HFInd = j
@@ -1465,10 +1466,10 @@ contains
             ENDIFDEBUG
 
             ! in the guga simulation it is probably better to initialize
-            ! the csf_information out here, so it can be used in the
+            ! the csf_irmation out here, so it can be used in the
             ! new way to calculate the reference energy and then the flag
             ! does not have to be checked each time we loop over the walkers..
-            if (tGUGA) call init_csf_information(CurrentDets(0:nifd, j))
+            if (tGUGA) call fill_csf_i(CurrentDets(0:nifd, j), current_csf_i)
 
             ! Sum in any energy contribution from the determinant, including
             ! other parameters, such as excitlevel info.
@@ -1478,6 +1479,14 @@ contains
             if (t_calc_double_occ) then
                 inst_double_occ = inst_double_occ + &
                                   get_double_occupancy(CurrentDets(:, j), SignCurr)
+            end if
+
+            if (t_measure_local_spin) then
+                if (tGUGA) then
+                    call measure_local_spin(SignCurr, current_csf_i)
+                else
+                    call stop_all(this_routine, "measure_local_spin works only for GUGA")
+                end if
             end if
 
             if (t_spin_measurements) then
@@ -1564,11 +1573,6 @@ contains
                 ! up by AvMCExcits if attempting multiple excitations from
                 ! each walker (default 1.0_dp).
 
-                ! GUGA addition: only recalc b vector and stuff once for each
-                ! CSF -> set tNewDet once for each determinant
-                ! which is set to false inside the guga excitaiton generator
-                tNewDet = .false.
-
                 AvMCExcitsLoc = AvMCExcits
                 ! optional: Adjust the number of spawns to the expected maximum
                 ! Hij/pgen ratio of this determinant -> prevent blooms
@@ -1614,9 +1618,10 @@ contains
                         end if
                     else
                         ! Generate a (random) excitation
-                        call generate_excitation(DetCurr, CurrentDets(:, j), nJ, &
-                                                 ilutnJ, exFlag, IC, ex, tParity, prob, &
-                                                 HElGen, fcimc_excit_gen_store, part_type)
+                        call generate_excitation(DetCurr, CurrentDets(:,j), nJ, &
+                            ilutnJ, exFlag, IC, ex, tParity, prob, &
+                            HElGen, fcimc_excit_gen_store, part_type)
+
                     end if
 
                     !If we are fixing the population of reference det, skip spawing into it.
@@ -1673,14 +1678,14 @@ contains
                     end if
 
                     IFDEBUG(FCIMCDebug, 3) then
-                        write(iout, '(a)', advance='no') 'SP: ['
+                        write(stdout, '(a)', advance='no') 'SP: ['
                         do y = 1, lenof_sign
-                            write(iout, '(f12.5)', advance='no') &
+                            write(stdout, '(f12.5)', advance='no') &
                                 child(y)
                         end do
-                        write(iout, '("] ")', advance='no')
+                        write(stdout, '("] ")', advance='no')
                         call write_det(6, nJ, .true.)
-                        call neci_flush(iout)
+                        call neci_flush(stdout)
                     end if
 
                     ! Children have been chosen to be spawned.
@@ -1714,16 +1719,13 @@ contains
                         if (use_spawn_hash_table) then
                             call create_particle_with_hash_table(nJ, ilutnJ, child, part_type, &
                                                                  CurrentDets(:, j), iter_data, err)
+                            if (err /= 0) call stop_all(this_routine, 'failure from create_particle_with_hash_table')
                         else
                             call create_particle(nJ, iLutnJ, child, part_type, hdiag_spawn, err, &
                                                  CurrentDets(:, j), SignCurr, p, &
                                                  RDMBiasFacCurr, WalkersToSpawn, abs(HElGen), j)
+                            if (err /= 0) call stop_all(this_routine, 'failure from create_particle')
                         end if
-                        if (err /= 0) then
-                            ! exit the fcimc calculation in a soft manner
-                            exit
-                        end if
-
                     end if is_child_created ! (child /= 0), Child created.
 
                 end do loop_over_particles ! Cycling over mulitple particles on same determinant.
@@ -1741,7 +1743,7 @@ contains
                                   t_core_die_=.false.)
             end if
 
-        end do ! Loop over determinants.
+        end do loop_over_determinants
 
         !loop timing for this iteration on this MPI rank
         lt_arr(mod(Iter - 1, 100) + 1) = mpi_wtime() - lstart
@@ -1754,8 +1756,8 @@ contains
         end if
 
         IFDEBUGTHEN(FCIMCDebug, 2)
-            write(iout, *) 'Finished loop over determinants'
-            write(iout, *) "Holes in list: ", iEndFreeSlot
+            write(stdout, *) 'Finished loop over determinants'
+            write(stdout, *) "Holes in list: ", iEndFreeSlot
         ENDIFDEBUG
 
         if (tSemiStochastic) then
@@ -1857,7 +1859,7 @@ contains
         tReferenceChanged = .false.
 
         CALL halt_timer(Annihil_Time)
-        IFDEBUG(FCIMCDebug, 2) write(iout, *) "Finished Annihilation step"
+        IFDEBUG(FCIMCDebug, 2) write(stdout, *) "Finished Annihilation step"
 
         ! If we are orthogonalising the replica wavefunctions, to generate
         ! excited states, then do that here.
@@ -1906,4 +1908,3 @@ contains
     end subroutine PerformFCIMCycPar
 
 END MODULE FciMCParMod
-

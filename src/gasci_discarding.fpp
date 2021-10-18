@@ -22,7 +22,7 @@ module gasci_discarding
     type, extends(ExcitationGenerator_t) :: GAS_DiscardingGenerator_t
         private
         type(PCHB_FCI_excit_generator_t) :: FCI_generator
-        type(GASSpec_t) :: GAS_spec
+        class(GASSpec_t), allocatable :: GAS_spec
     contains
         private
         procedure, public :: init
@@ -54,12 +54,12 @@ contains
 #ifdef WARNING_WORKAROUND_
         hel = h_cast(0.0_dp)
 #endif
-        ASSERT(this%GAS_spec%contains_det(nI))
+        ASSERT(this%GAS_spec%contains_conf(nI))
 
         call this%FCI_generator%gen_exc(nI, ilutI, nJ, ilutJ, exFlag, ic, &
                                         ex, tParity, pGen, hel, store, part_type)
         if (nJ(1) /= 0) then
-            if (.not. this%GAS_spec%contains_det(nJ)) then
+            if (.not. this%GAS_spec%contains_conf(nJ)) then
                 src_copy(:ic) = ex(1, :ic)
                 call sort(src_copy)
                 ex(1, :ic) = src_copy(:ic)
@@ -83,7 +83,7 @@ contains
 
     subroutine init(this, GAS_spec)
         class(GAS_DiscardingGenerator_t), intent(inout) :: this
-        type(GASSpec_t), intent(in) :: GAS_spec
+        class(GASSpec_t), intent(in) :: GAS_spec
         unused_var(this)
         this%GAS_spec = GAS_spec
         call this%FCI_generator%init()

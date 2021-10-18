@@ -4,12 +4,12 @@ module test_gasci_supergroup_index_mod
     use util_mod, only: operator(.div.), operator(.isclose.), near_zero, choose
     use util_mod, only: factrl, intswap, cumsum
 
-    use gasci, only: GASSpec_t
-    use gasci_supergroup_index
+    use gasci, only: LocalGASSpec_t, CumulGASSpec_t
+    use gasci_supergroup_index, only: SuperGroupIndexer_t, composition_idx, get_compositions
 
     implicit none
     private
-    public :: test_compositioning, test_supergroup_compositioning, test_supergroup_indexer_class
+    public :: test_compositioning, test_supergroup_indexer_class, test_count_supergroups
 
 contains
 
@@ -30,75 +30,21 @@ contains
         call assert_true(correct)
     end subroutine
 
-    subroutine test_supergroup_compositioning()
-        integer :: i, j, n, k
-
-        block
-            integer, allocatable :: supergroups(:, :), cn_min(:), cn_max(:)
-            logical :: correct
-
-
-            cn_min = [0, 1, 3]
-            cn_max = [2, 2, 3]
-
-            supergroups = get_supergroups(cn_min, cn_max)
-            correct = .true.
-            do i = 1, size(supergroups, 2)
-                if (i /= supergroup_idx(supergroups(:, i), cn_min, cn_max)) correct = .false.
-            end do
-            call assert_true(correct)
-        end block
-
-        block
-            integer, allocatable :: supergroups(:, :), cn_min(:), cn_max(:)
-            logical :: correct
-
-            cn_min = [5, 11, 17, 23, 30]
-            cn_max = [7, 13, 19, 25, 30]
-
-            supergroups = get_supergroups(cn_min, cn_max)
-            correct = .true.
-            do i = 1, size(supergroups, 2)
-                if (i /= supergroup_idx(supergroups(:, i), cn_min, cn_max)) correct = .false.
-            end do
-            call assert_true(correct)
-        end block
-
-
-        block
-            integer, allocatable :: supergroups(:, :), cn_min(:), cn_max(:)
-            integer(int64), allocatable :: allowed_composition_indices(:)
-            logical :: correct
-
-            cn_min = [5, 11, 17, 23, 30]
-            cn_max = [7, 13, 19, 25, 30]
-
-            supergroups = get_supergroups(cn_min, cn_max)
-            allowed_composition_indices = get_allowed_composition_indices(cn_min, cn_max)
-
-            correct = .true.
-            do i = 1, size(supergroups, 2)
-                if (i /= supergroup_idx_precomputed(supergroups(:, i), allowed_composition_indices)) correct = .false.
-            end do
-            call assert_true(correct)
-        end block
-    end subroutine
-
     subroutine test_supergroup_indexer_class()
         block
-            type(GASSpec_t) :: GAS_spec
+            type(LocalGASSpec_t) :: GAS_spec
             type(SuperGroupIndexer_t) :: indexer
             integer :: i, j
             integer, allocatable :: supergroups(:, :)
             logical :: correct
 
-            GAS_spec = GASSpec_t(&
-                n_min=[5, 11, 17, 23, 30], &
-                n_max=[7, 13, 19, 25, 30], &
+            GAS_spec = LocalGASSpec_t(&
+                n_min=[5,  4,  4,  4,  5], &
+                n_max=[7,  8,  8,  8,  7], &
                 spat_GAS_orbs = [([(j, i = 1, 6)], j = 1, 5)])
             call assert_true(GAS_spec%is_valid())
 
-            indexer = SuperGroupIndexer_t(GAS_spec)
+            indexer = SuperGroupIndexer_t(GAS_spec, 30)
             supergroups = indexer%get_supergroups()
 
             correct = .true.
@@ -109,19 +55,16 @@ contains
         end block
 
         block
-            type(GASSpec_t) :: GAS_spec
+            type(LocalGASSpec_t) :: GAS_spec
             type(SuperGroupIndexer_t) :: indexer
-            integer :: i, j
-            integer, allocatable :: supergroups(:, :), det_I(:)
-            logical :: correct
 
-            GAS_spec = GASSpec_t(&
-                n_min=[0, 1, 3], &
-                n_max=[2, 2, 3], &
+            GAS_spec = LocalGASSpec_t(&
+                n_min=[0, 0, 1], &
+                n_max=[2, 2, 2], &
                 spat_GAS_orbs = [1, 1, 2, 2, 3, 3])
             call assert_true(GAS_spec%is_valid())
 
-            indexer = SuperGroupIndexer_t(GAS_spec)
+            indexer = SuperGroupIndexer_t(GAS_spec, 3)
 
             call assert_true(5 == indexer%n_supergroups())
 
@@ -143,16 +86,39 @@ contains
         end block
     end subroutine
 
-    subroutine test_supergroup_offsets()
-        type(GASSpec_t) :: GAS_spec
-        integer, parameter :: nEl = 6
 
-        GAS_spec = GASSpec_t(n_min=[2, nEl], n_max=[4, nEl], &
-                             spat_GAS_orbs=[1, 1, 1, 2, 2, 2])
-        call assert_true(GAS_spec%is_valid())
+    subroutine test_count_supergroups()
+        type(SuperGroupIndexer_t), allocatable :: sg_indexer(:)
+        integer, allocatable :: expected(:)
+        integer :: i
 
+        sg_indexer = [(get_sg_indexer(i), i = 1, 5)]
+        expected = [1, 5, 25, 125, 625]
+
+        do i = 1, size(sg_indexer)
+            call assert_equals(expected(i), sg_indexer(i)%n_supergroups())
+        end do
+
+    contains
+
+        elemental function get_benzene_GAS_spec(n_benz, n_exc) result(res)
+            !! Create the GAS specification for [n_benz * (6, 6)] active spaces.
+            integer, intent(in) :: n_benz, n_exc
+            type(CumulGASSpec_t) :: res
+            integer :: i, j
+            res = CumulGASSpec_t(&
+                cn_min=[(6 * i - n_exc, i = 1, n_benz - 1), n_benz * 6], &
+                cn_max=[(6 * i + n_exc, i = 1, n_benz - 1), n_benz * 6], &
+                spat_GAS_orbs = [([(j, i = 1, 6)], j = 1, n_benz)])
+        end function
+
+        function get_sg_indexer(n_benz) result(res)
+            integer, intent(in) :: n_benz
+            integer, parameter :: n_exc = 2
+            type(SuperGroupIndexer_t) :: res
+            res = SuperGroupIndexer_t(get_benzene_GAS_spec(n_benz, n_exc), n_benz * 6)
+        end function
     end subroutine
-
 end module
 
 
@@ -161,14 +127,11 @@ program test_gasci_program
     use mpi
     use fruit
     use Parallel_neci, only: MPIInit, MPIEnd
-    use test_gasci_supergroup_index_mod, only: test_compositioning, &
-        test_supergroup_compositioning, test_supergroup_indexer_class
+    use test_gasci_supergroup_index_mod, only: test_compositioning, test_supergroup_indexer_class, test_count_supergroups
 
 
     implicit none
-    integer :: failed_count, err
-
-    integer :: n
+    integer :: failed_count
     block
 
         call MPIInit(.false.)
@@ -190,7 +153,7 @@ contains
 
     subroutine test_gasci_driver()
         call run_test_case(test_compositioning, "test_compositioning")
-        call run_test_case(test_supergroup_compositioning, "test_supergroup_compositioning")
         call run_test_case(test_supergroup_indexer_class, "test_supergroup_indexer_class")
+        call run_test_case(test_count_supergroups, "test_count_supergroups")
     end subroutine
 end program test_gasci_program

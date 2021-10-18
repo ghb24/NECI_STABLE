@@ -39,7 +39,7 @@
 # META_TARGET : optional
 #   add the test to the specified meta target (and create that target if required)
 #
-# DEFINITIONS : optional 
+# DEFINITIONS : optional
 #   list of definitions to add to preprocessor defines
 #	same as in neci_add_library, since unit-tests may also depend on build-target!
 #       but i cannot get it running yet with the preprocessor running across the file first..
@@ -73,7 +73,7 @@ macro( neci_add_test )
     if (DEFINED _p_DEFINITIONS )
         get_property( _target_defs TARGET ${_p_TARGET} PROPERTY COMPILE_DEFINITIONS )
         list( APPEND _target_defs ${_p_DEFINITIONS} )
-        message( STATUS "Library ${_p_TARGET} using definitions: ${_target_defs}" )
+        message( DEBUG "Library ${_p_TARGET} using definitions: ${_target_defs}" )
         set_property( TARGET ${_p_TARGET} PROPERTY COMPILE_DEFINITIONS ${_target_defs} )
     endif()
 
@@ -93,12 +93,8 @@ macro( neci_add_test )
     endif()
 
     # add MPI include dir
-    if( "${CMAKE_VERSION}" VERSION_LESS "2.8.11" ) # PRIVATE functionality doesn't exist before 2.8.11
-        target_include_directories( ${_p_TARGET} PUBLIC ${MPI_NECI_INCLUDE_PATH} )
-    else()
-	target_include_directories( ${_p_TARGET} PRIVATE ${MPI_NECI_INCLUDE_PATH} )
-    endif()
-    
+    target_include_directories(${_p_TARGET} PRIVATE ${MPI_Fortran_INCLUDE_PATH})
+
     # Specify the linker language (and additional associated properties)
 
     if( NOT DEFINED _p_LINKER_LANGUAGE OR NOT _p_LINKER_LANGUAGE MATCHES "(C|CXX|Fortran)" )
@@ -108,19 +104,19 @@ macro( neci_add_test )
     set_property( TARGET ${_p_TARGET} PROPERTY LINKER_LANGUAGE ${_p_LINKER_LANGUAGE} )
     if( DEFINED NECI_${_p_LINKER_LANGUAGE}_EXE_LINK_LIBRARIES )
       target_link_libraries( ${_p_TARGET} ${NECI_${_p_LINKER_LANGUAGE}_EXE_LINK_LIBRARIES} )
-      message(STATUS "Executable ${_p_TARGET}: Adding link libraries ${NECI_${_p_LINKER_LANGUAGE}_LINK_LIBRARIES}" )
+      message(DEBUG "Executable ${_p_TARGET}: Adding link libraries ${NECI_${_p_LINKER_LANGUAGE}_LINK_LIBRARIES}" )
     endif()
     if( DEFINED NECI_${_p_LINKER_LANGUAGE}_LINK_LIBRARIES )
       target_link_libraries( ${_p_TARGET} ${NECI_${_p_LINKER_LANGUAGE}_LINK_LIBRARIES} )
-      message(STATUS "Executable ${_p_TARGET}: Adding link libraries ${NECI_${_p_LINKER_LANGUAGE}_LINK_LIBRARIES}" )
+      message(DEBUG "Executable ${_p_TARGET}: Adding link libraries ${NECI_${_p_LINKER_LANGUAGE}_LINK_LIBRARIES}" )
     endif()
     if( DEFINED NECI_${_p_LINKER_LANGUAGE}_LINKER_FLAGS )
       target_link_libraries( ${_p_TARGET} ${NECI_${_p_LINKER_LANGUAGE}_LINKER_FLAGS} )
-      message(STATUS "Executable ${_p_TARGET}: Adding linker flags ${NECI_${_p_LINKER_LANGUAGE}_LINKER_FLAGS}" )
+      message(DEBUG "Executable ${_p_TARGET}: Adding linker flags ${NECI_${_p_LINKER_LANGUAGE}_LINKER_FLAGS}" )
     endif()
     if( DEFINED NECI_${_p_LINKER_LANGUAGE}_LINKER_FLAGS_${CMAKE_BUILD_TYPE} )
       target_link_libraries( ${_p_TARGET} ${NECI_${_p_LINKER_LANGUAGE}_LINKER_FLAGS_${CMAKE_BUILD_TYPE}} )
-      message(STATUS "Library ${_p_TARGET}: Adding linker flags ${NECI_${_p_LINKER_LANGUAGE}_LINKER_FLAGS_${CMAKE_BUILD_TYPE}}" )
+      message(DEBUG "Library ${_p_TARGET}: Adding linker flags ${NECI_${_p_LINKER_LANGUAGE}_LINKER_FLAGS_${CMAKE_BUILD_TYPE}}" )
     endif()
 
     # Add the testing infrastructure to the executable
@@ -129,7 +125,7 @@ macro( neci_add_test )
 
     set_tests_properties( ${_p_TARGET} PROPERTIES WORKING_DIRECTORY ${_test_dir} )
 
-    message(STATUS "Added unit test: ${_p_TARGET}" )
+    message(DEBUG "Added unit test: ${_p_TARGET}" )
 
     # Add to the global list of tests
 
@@ -144,7 +140,7 @@ macro( neci_add_test )
             set( ${PROJECT_NAME}_ALL_META_TARGETS ${${PROJECT_NAME}_ALL_META_TARGETS} ${_p_META_TARGET} CACHE INTERNAL "")
         endif()
         add_dependencies( ${_p_META_TARGET} ${_p_TARGET} )
-        message(STATUS "Added test ${_p_TARGET} to meta target ${_p_META_TARGET}")
+        message(DEBUG "Added test ${_p_TARGET} to meta target ${_p_META_TARGET}")
     endif()
 
 endmacro()

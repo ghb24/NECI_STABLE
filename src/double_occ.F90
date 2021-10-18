@@ -7,7 +7,7 @@ module double_occ_mod
     use SystemData, only: nel, nbasis
     use bit_rep_data, only: nifd, niftot
     use constants, only: n_int, lenof_sign, write_state_t, dp, int_rdm, inum_runs
-    use ParallelHelper, only: iProcIndex, root
+    use MPI_wrapper, only: iProcIndex, root, MPI_SUM
     use CalcData, only: tReadPops, StepsSft
     use LoggingData, only: tMCOutput, t_calc_double_occ_av, t_spin_measurements
     use util_mod
@@ -223,103 +223,6 @@ contains
         deallocate(all_sum_double_occ_vec)
 
     end subroutine finalize_double_occ_and_spin_diff
-
-    subroutine measure_spin_occupation_ilut(ilut, real_sgn)
-        ! routine to measure the spin occupation for each spatial orbital
-        ! individually
-        ! for now it is done in a really slow fashion, if this ends up
-        ! to be interesting it should be optimized
-        ! this is done for ilut inputs..
-        use DetBitOps, only: MaskBeta, MaskAlpha
-        integer(n_int), intent(in) :: ilut(0:niftot)
-        real(dp), intent(in) :: real_sgn(lenof_sign)
-        character(*), parameter :: this_routine = "measure_spin_occupation_ilut"
-
-        integer(n_int) :: alpha(0:niftot), beta(0:niftot)
-        integer :: i, x, y
-
-        ! first check the alpha and beta occupations:
-        alpha = iand(ilut, MaskAlpha)
-        beta = iand(ilut, MaskBeta)
-
-        ! i have to take care about how many integers are used to encode
-        ! the orbitals
-        do i = 1, nBasis / 2
-            ! i have to determine how to convert (i) to the correct
-            ! index in the ilut..
-            ! x = which integer?
-            ! y = which position in integer?
-            if (btest(alpha(x), y)) then
-#if defined PROG_NUMRUNS_ || defined DOUBLERUN_
-#ifdef CMPLX_
-                call stop_all(this_routine, &
-                              "complex double occupancy measurement not yet implemented!")
-#else
-                spin_up_occ(i) = spin_up_occ(i) + real_sgn(1) * real_sgn(2)
-#endif
-#else
-                spin_up_occ(i) = spin_up_occ(i) + abs(real_sgn(1))**2
-#endif
-            end if
-
-            if (btest(beta(x), y)) then
-#if defined PROG_NUMRUNS_ || defined DOUBLERUN_
-#ifdef CMPLX_
-                call stop_all(this_routine, &
-                              "complex double occupancy measurement not yet implemented!")
-
-#else
-                spin_down_occ(i) = spin_down_occ(i) + real_sgn(1) * real_sgn(2)
-#endif
-#else
-                spin_down_occ(i) = spin_down_occ(i) + abs(real_sgn(1))**2
-#endif
-            end if
-        end do
-
-    end subroutine measure_spin_occupation_ilut
-
-    subroutine measure_spin_occupation_nI(nI, real_sgn)
-        ! routine same as above, but for nI input of the determinant
-        use UMatCache, only: gtid
-        integer, intent(in) :: nI(nel)
-        real(dp), intent(in) :: real_sgn(lenof_sign)
-        character(*), parameter :: this_routine = "measure_spin_occupation_nI"
-        integer :: i, spin_orb, spat_orb
-
-        ! in this routine i loop over the nI and check if and which spins
-        ! are occupied
-
-        do i = 1, nel
-            spin_orb = nI(i)
-            spat_orb = gtid(spin_orb)
-            if (is_alpha(spin_orb)) then
-#if defined PROG_NUMRUNS_ || defined DOUBLERUN_
-#ifdef CMPLX_
-                call stop_all(this_routine, &
-                              "complex double occupancy measurement not yet implemented!")
-#else
-                spin_up_occ(spat_orb) = spin_up_occ(spat_orb) + real_sgn(1) * real_sgn(2)
-#endif
-#else
-                spin_up_occ(spat_orb) = spin_up_occ(spat_orb) + abs(real_sgn(1))**2
-#endif
-            end if
-            if (is_beta(spin_orb)) then
-#if defined PROG_NUMRUNS_ || defined DOUBLERUN_
-#ifdef CMPLX_
-                call stop_all(this_routine, &
-                              "complex double occupancy measurement not yet implemented!")
-#else
-                spin_down_occ(spat_orb) = spin_down_occ(spat_orb) + real_sgn(1) * real_sgn(2)
-#endif
-#else
-                spin_down_occ(spat_orb) = spin_up_occ(spat_orb) + abs(real_sgn(1))**2
-#endif
-            end if
-        end do
-
-    end subroutine measure_spin_occupation_nI
 
     function count_double_orbs(ilut) result(n_double_orbs)
         ! returns the number of doubly occupied orbitals for a given

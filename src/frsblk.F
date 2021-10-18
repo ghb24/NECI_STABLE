@@ -368,34 +368,6 @@ c        ENDDO
       RETURN
       END
 C ======================================================================
-      SUBROUTINE NECI_GETMAT(CHAR,T,M,N,A,MA,NA,IBEG,JBEG)
-      use constants, only: dp
-!      IMPLICIT real(dp) (A-H,O-Z)
-      IMPLICIT NONE
-      integer :: N,M,MA,NA,IBEG,JBEG,I,J
-      real(dp) :: T(M,N),A(MA,NA)
-      CHARACTER(1) :: CHAR
-      character(*), parameter :: this_routine = 'NECI_GETMAT'
-      IF(MA*IBEG.GT.M) call stop_all(this_routine, ' MA+IBEG.GT.M')
-      IF(NA*JBEG.GT.N) call stop_all(this_routine, ' MA+IBEG.GT.M')
-      IF(CHAR.EQ.'N') THEN
-        DO J=1,NA
-          DO I=1,MA
-            A(I,J)=T(I+MA*(IBEG-1),J+NA*(JBEG-1))
-          ENDDO
-        ENDDO
-      ELSEIF(CHAR.EQ.'T') THEN
-        DO J=1,NA
-          DO I=1,MA
-            A(J,I)=T(I+MA*(IBEG-1),J+NA*(JBEG-1))
-          ENDDO
-        ENDDO
-      ELSE
-        call stop_all(this_routine, 'ILLEGAL CHAR')
-      ENDIF
-      RETURN
-      END
-C ======================================================================
       SUBROUTINE NECI_REORDER(M,N,W,A)
       use constants, only: dp
 !      IMPLICIT real(dp) (A-H,O-Z)

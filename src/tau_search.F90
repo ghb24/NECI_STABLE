@@ -10,7 +10,8 @@ module tau_search
                           t_uniform_excits, t_new_real_space_hubbard, &
                           tGUGA, t_mixed_hubbard, t_olle_hubbard, max_ex_level, &
                           t_trans_corr, tHub, t_trans_corr_hop, tNoSinglesPossible, &
-                          t_exclude_3_body_excits, t_mol_3_body, t_ueg_3_body, t_pchb_excitgen, tGAS
+                          t_exclude_3_body_excits, t_mol_3_body, t_ueg_3_body, &
+                          t_pchb_excitgen, tGAS
 
     use CalcData
 
@@ -41,7 +42,7 @@ module tau_search
     use bit_reps, only: getExcitationType, decode_bit_det
 
     use DetBitOps, only: FindBitExcitLevel, TestClosedShellDet, &
-                         EncodeBitDet
+                         EncodeBitDet, GetBitExcitation
 
     use sym_general_mod, only: SymAllowedExcit
 
@@ -102,13 +103,18 @@ contains
         ! Unless it is already specified, set an initial value for tau
         if (.not. tRestart .and. .not. tReadPops .and. near_zero(tau)) then
             if (tGUGA) then
-                print *, "Warning: FindMaxTauDoubs misused for GUGA!"
-                print *, "still need a specific implementation for that!"
+                if (near_zero(MaxTau)) then
+                    call stop_all(this_routine, &
+                        "please specify a sensible 'max-tau' in input for GUGA calculations!")
+                else
+                    tau = MaxTau
+                end if
+            else
+                call FindMaxTauDoubs()
             end if
-            call FindMaxTauDoubs()
         end if
 
-        write(6, *) 'Using initial time-step: ', tau
+        write(stdout, *) 'Using initial time-step: ', tau
 
         ! Set the maximum spawn size
         if (MaxWalkerBloom.isclose.-1._dp) then
@@ -125,7 +131,7 @@ contains
         end if
 
         if (.not. (tReadPops .and. .not. tWalkContGrow)) then
-            write(iout, "(a,f10.5)") "Will dynamically update timestep to &
+            write(stdout, "(a,f10.5)") "Will dynamically update timestep to &
                          &limit spawning probability to", max_permitted_spawn
         end if
 
@@ -146,7 +152,7 @@ contains
             ! possible parallel excitations now. and to make the tau-search
             ! working we need to set this to true ofc:
             consider_par_bias = .true.
-        else if (t_pchb_excitgen) then
+        else if(t_pchb_excitgen .and.  .not. tGUGA) then
             ! The default pchb excitgen also uses parallel biases
             consider_par_bias = .true.
         else if (tGAS) then
@@ -634,7 +640,7 @@ contains
             print *, "Still need a specific implememtation for that"
         end if
 
-        if (MaxWalkerBloom.isclose.-1._dp) then
+        if(MaxWalkerBloom .isclose. -1._dp) then
             !No MaxWalkerBloom specified
             !Therefore, assume that we do not want blooms larger than n_add if initiator,
             !or 5 if non-initiator calculation.
@@ -703,10 +709,10 @@ contains
 
             if (tau > 0.075_dp) then
                 tau = 0.075_dp
-                write(iout, "(A,F8.5,A)") "Small system. Setting initial timestep to be ", Tau, " although this &
+                write(stdout, "(A,F8.5,A)") "Small system. Setting initial timestep to be ", Tau, " although this &
                                                 &may be inappropriate. Care needed"
             else
-                write(iout, "(A,F18.10)") "From analysis of reference determinant and connections, &
+                write(stdout, "(A,F18.10)") "From analysis of reference determinant and connections, &
                                          &an upper bound for the timestep is: ", Tau
             end if
 
@@ -839,10 +845,10 @@ contains
 
         if (tau > 0.075_dp) then
             tau = 0.075_dp
-            write(iout, "(A,F8.5,A)") "Small system. Setting initial timestep to be ", Tau, " although this &
+            write(stdout, "(A,F8.5,A)") "Small system. Setting initial timestep to be ", Tau, " although this &
                                             &may be inappropriate. Care needed"
         else
-            write(iout, "(A,F18.10)") "From analysis of reference determinant and connections, &
+            write(stdout, "(A,F18.10)") "From analysis of reference determinant and connections, &
                                      &an upper bound for the timestep is: ", Tau
         end if
 

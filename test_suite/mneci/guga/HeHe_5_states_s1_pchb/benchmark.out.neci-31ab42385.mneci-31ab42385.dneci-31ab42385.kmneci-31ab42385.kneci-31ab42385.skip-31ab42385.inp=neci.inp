@@ -1,0 +1,761 @@
+ Number of processors:            2
+ Processor            1 /           2  as head node.
+ Sum:            3
+ Memory Manager initialised with  99999.0 MB
+
+ ================================================================
+ Compiled on May  3 2021 at 19:56:43
+ Compiled using configuration:
+     cmake-GNU--RELEASE
+ VCS BASE repository version:
+     31ab423850f95c08e575af7782dc5a88f3c38d1d
+ Working directory: 
+     /home/dobrautz/neci-branches/guga-pchb/test_suite/mneci/guga/HeHe_5_states_s1_pchb
+ Running on: fkf-carbon
+ Started running on 03/05/2021 at 22:02:40
+ ================================================================
+
+ Processing argumentsneci.inp                                                                                                                                                                                                                                                       
+ Reading from file: neci.inp
+ Using the default set of defaults.
+
+****************************************************************
+
+title
+
+system read
+electrons 4
+nonuniformrandexcits guga-pchb
+system-replicas 5
+guga 2
+endsys
+
+calc
+methods
+method vertex fcimc
+endmethods
+memoryfacspawn 20.0
+memoryfacpart 20.0
+diagshift 0.5 2.0 2.0 2.0 2.5
+definedet 1 2 3 5
+totalwalkers 1000
+tau 0.01
+startsinglepart 300
+shiftdamp 0.5
+stepsshift 10
+nmcyc 2000
+allrealcoeff
+realspawncutoff 0.01
+orthogonalise-replicas
+doubles-init
+semi-stochastic
+doubles-core
+trial-wavefunction 1000
+pops-trial 60
+load-balance-blocks off
+seed 10
+endcalc
+
+integral
+endint
+
+logging
+popsfile -1
+endlog
+end
+
+****************************************************************
+
+ Allocating each processor as a separate node.
+ I am the node root for node            0
+======== SYSTEM ==========
+  NUMBER OF ELECTRONS :     4
+  No restriction on the S_z spin-projection of the system, TSPN :  F
+  *** GENERIC SYSTEM ***  
+ *** WARNING: LMS in FCIDUMP differs from input file ***
+  BASIS MS :            0
+  NUMBER OF SPIN ORBITALS IN BASIS :    20
+*** CREATING BASIS FNs FROM FCIDUMP ***
+  Maximum number of symmetries:   8
+  Generating abelian symmetry table with  3 generators
+  Number of symmetry classes: 8
+ 
+Ordering Basis (Closed):    0   0   0   0   0   0   0   0
+Ordering Basis (Open  ):    0   0   0   0   0   0   0   0
+HF determinant not yet defined.
+      1      1      0      0      0     -1 ( 0, 0, 0) 0   0       -0.970328723       -0.970328723
+      2      2      0      0      0      1 ( 0, 0, 0) 0   0       -0.970328723       -0.970328723
+      3      3      0      0      0     -1 ( 0, 0, 5) 5   0       -0.854768836       -0.854768836
+      4      4      0      0      0      1 ( 0, 0, 5) 5   0       -0.854768836       -0.854768836
+      5      5      0      0      0     -1 ( 0, 0, 0) 0   0        1.350805227        1.350805227
+      6      6      0      0      0      1 ( 0, 0, 0) 0   0        1.350805227        1.350805227
+      7      7      0      0      0     -1 ( 0, 0, 5) 5   0        1.506423311        1.506423311
+      8      8      0      0      0      1 ( 0, 0, 5) 5   0        1.506423311        1.506423311
+      9      9      0      0      0     -1 ( 0, 0, 0) 0   0        2.381814370        2.381814370
+     10     10      0      0      0      1 ( 0, 0, 0) 0   0        2.381814370        2.381814370
+     11     11      0      0      0     -1 ( 0, 0, 7) 7   0        2.502347398        2.502347398
+     12     12      0      0      0      1 ( 0, 0, 7) 7   0        2.502347398        2.502347398
+     13     13      0      0      0     -1 ( 0, 0, 6) 6   0        2.502347398        2.502347398
+     14     14      0      0      0      1 ( 0, 0, 6) 6   0        2.502347398        2.502347398
+     15     15      0      0      0     -1 ( 0, 0, 2) 2   0        2.548020639        2.548020639
+     16     16      0      0      0      1 ( 0, 0, 2) 2   0        2.548020639        2.548020639
+     17     17      0      0      0     -1 ( 0, 0, 3) 3   0        2.548020639        2.548020639
+     18     18      0      0      0      1 ( 0, 0, 3) 3   0        2.548020639        2.548020639
+     19     19      0      0      0     -1 ( 0, 0, 5) 5   0        2.840230366        2.840230366
+     20     20      0      0      0      1 ( 0, 0, 5) 5   0        2.840230366        2.840230366
+  ************ Using the GUGA-CSF implementation **********
+  Restricting the total spin of the system, tGUGA :  T
+  Restricting total spin S in units of h/2 to     2
+  So eg. S = 1 corresponds to one unpaired electron 
+  not quite sure yet how to deal with extensively used m_s quantum number..
+  NOTE: for now, although SPIN-RESTRICT is set off, internally m_s(LMS) 
+  is set to STOT, to make use of reference determinant creations already implemented
+  Since NECI always seems to take the beta orbitals first for open shell or 
+  spin restricted systems, associate those to positively coupled +h/2 orbitals 
+  to always ensure a S >= 0 value!
+  *********************************************************
+*** READING PRIMITIVE INTEGRALS FROM FCIDUMP ***
+ UMatSize:                  1540
+Memory required for integral storage:     0.1174926758E-01 Mb/Shared Memory
+Two-electron integrals with a magnitude over    0.1000000E-07 are screened
+ Number of non-zero integrals:                   898
+ ECORE=   1.3333333306333000     
+ Setting normal GetUMatEl routine
+ Defining FDet according to input
+ Fermi det (D0):(    1,    2,    3,    5)
+ Symmetry:  ( 0, 0, 5) 5
+ Fock operator energy: -0.11128772515495000     
+ Setting normal GetUMatEl routine
+ Calculation supports multiple parallel runs
+ Number of simultaneous walker distributions:            5
+ Number of sign components in bit representation of determinant:            5
+Setting integer length of determinants as bit-strings to:      7
+Setting integer bit-length of determinants as bit-strings to:     64
+For GUGA calculation set up a integer list of length:      4
+  ************ Using the GUGA-CSF implementation **********
+  Restricting the total spin of the system, tGUGA :  T
+  Restricting total spin S in units of h/2 to     2
+  So eg. S = 1 corresponds to one unpaired electron 
+  not quite sure yet how to deal with extensively used m_s quantum number..
+  NOTE: for now, although SPIN-RESTRICT is set off, internally m_s(LMS) 
+  is set to STOT, to make use of reference determinant creations already implemented
+  Since NECI always seems to take the beta orbitals first for open shell or 
+  spin restricted systems, associate those to positively coupled +h/2 orbitals 
+  to always ensure a S >= 0 value!
+  *********************************************************
+ SYMMETRY MULTIPLICATION TABLE
+ No Symmetry table found.
+          21  Symmetry PAIRS
+           8  DISTINCT ORBITAL PAIR PRODUCT SYMS
+ Symmetry and spin of orbitals correctly set up for excitation generators.
+ Simply transferring this into a spin orbital representation.
+ Not storing the H matrix.
+ <D0|H|D0>=  -4.1064882722485105     
+ <D0|T|D0>=  -8.7004475592161707     
+  !! NOTE: running a GUGA simulation, so following info makes no sense!
+  but is kept for now to not break remaining code!
+ FDet has     1 alpha electrons, and     3 beta electrons.
+                0  alpha-alpha occupied electron pairs
+                3  beta-beta occupied electron pairs
+                3  alpha-beta occupied electron pairs
+               36 alpha-alpha (vacant) hole pairs
+               21 beta-beta (vacant) hole pairs
+               63 alpha-beta (vacant) hole pairs
+
+ Performing Parallel FCIQMC....
+
+ Generated reference determinants:
+(    1,    2,    3,    5) E =     -4.106488272
+(    1,    2,    3,    9) E =     -3.107664882
+(    1,    3,    5,    6) E =     -2.461734737
+(    1,    2,    5,    7) E =     -2.240232647
+(    1,    3,    5,   10) E =     -1.499391580
+Symmetry of reference determinant is:          5
+Symmetry of reference determinant from spin orbital symmetry info is:          5
+Value for seed is:           10
+Reference Energy set to:        -4.1064882722
+ No brillouin theorem assumed. Single excitations also used to calculate projected energy.
+ Calculating approximate pDoubles for use with excitation generator by looking a excitations from reference.
+     44 double excitations, and       6 single excitations found from reference. This will be used to calculate pDoubles.
+ pDoubles set to:       0.880000
+ pSingles set to:       0.120000
+Initial Diagonal Shift:         0.5000000000
+ Connectivity of HF determinant is:           50
+Low memory requested for walkers, so increasing memory to 20Mb to avoid memory errors
+Memory allocated for a maximum particle number per node of:         327680
+ Determinant related persistent storage requires:      17.500000 Mb / processor
+Spawning vectors allowing for a total of        50000 particles to be spawned in any one iteration per core.
+ Memory requirement    2.2888183593750000      MB
+Storing walkers in hash-table. Algorithm is now formally linear scaling with walker number
+Length of hash-table:             350
+Length of hash-table as a fraction of targetwalkers:              0.70000
+Reference processor is:        1
+Initial reference is: (    1,    2,    3,    5)
+ Setting reasonable defaults for GUGA-PCHB:
+ max-tau zero or > 1e-3. setting it to: 1e-3
+ 'truncate-spawns' not activated! consider turning it on if too many blooms happen!
+ Allocating GUGA PCHB excitation generator objects
+ Excitation generator requires   1.3522803783416748E-004 GB of memory
+ Generating samplers for PCHB excitation generator
+ Finished GUGA PCHB excitation generator initialization
+  Initialising wavefunctions by the Lanczos algorithm
+  Aborting Lanczos and initialising trial states with direct diagonalisation
+  MAXIMUM WIDTH OF HAMIL :           45
+  TOTAL NUMBER OF NON-ZERO ELEMENTS :          717
+ Setting ref           1
+(    1,    2,    3,    5)
+Changing projected energy reference determinant for run  1 on the next update cycle to: (    1,    2,    3,    5)
+ Symmetry:  ( 0, 0, 5) 5
+ Ensuring that Brillouin's theorem is no longer used.
+Reference energy now set to:     -4.10648827224851    
+ Regenerating the stored diagonal HElements for all walkers.
+ Setting ref           2
+(    1,    3,    4,    7)
+Changing projected energy reference determinant for run  2 on the next update cycle to: (    1,    3,    4,    7)
+ Symmetry:  ( 0, 0, 5) 5
+ Ensuring that Brillouin's theorem is no longer used.
+ Setting ref           3
+(    1,    2,    3,    9)
+Changing projected energy reference determinant for run  3 on the next update cycle to: (    1,    2,    3,    9)
+ Symmetry:  ( 0, 0, 5) 5
+ Ensuring that Brillouin's theorem is no longer used.
+ Setting ref           4
+(    1,    3,    5,    6)
+Changing projected energy reference determinant for run  4 on the next update cycle to: (    1,    3,    5,    6)
+ Symmetry:  ( 0, 0, 5) 5
+ Ensuring that Brillouin's theorem is no longer used.
+ Setting ref           5
+(    1,    3,    4,   19)
+Changing projected energy reference determinant for run  5 on the next update cycle to: (    1,    3,    4,   19)
+ Symmetry:  ( 0, 0, 5) 5
+ Ensuring that Brillouin's theorem is no longer used.
+ Initial memory (without excitgens + temp arrays) consists of :      22.840576 Mb/Processor
+ Only one array of memory to store main particle list allocated...
+ Initial memory allocation sucessful...
+ =============================================
+
+============ Semi-stochastic initialisation ============
+Generating the deterministic space...
+Total size of deterministic space:       50
+Size of deterministic space on this processor:       22
+Generating the Hamiltonian in the deterministic space...
+Total time (seconds) taken for Hamiltonian generation:    0.003
+Generating the deterministic space...
+Total size of deterministic space:       50
+Size of deterministic space on this processor:       22
+Generating the Hamiltonian in the deterministic space...
+Total time (seconds) taken for Hamiltonian generation:    0.007
+Generating the deterministic space...
+Total size of deterministic space:       50
+Size of deterministic space on this processor:       22
+Generating the Hamiltonian in the deterministic space...
+Total time (seconds) taken for Hamiltonian generation:    0.010
+Generating the deterministic space...
+Total size of deterministic space:       50
+Size of deterministic space on this processor:       22
+Generating the Hamiltonian in the deterministic space...
+Total time (seconds) taken for Hamiltonian generation:    0.013
+Generating the deterministic space...
+Total size of deterministic space:       50
+Size of deterministic space on this processor:       22
+Generating the Hamiltonian in the deterministic space...
+Total time (seconds) taken for Hamiltonian generation:    0.016
+Semi-stochastic initialisation complete.
+Time (seconds) taken for semi-stochastic initialisation:    0.008
+
+ Highest weighted determinant on run           2 not reference det:          145         116         130          73         101   57.012682542902972     
+Changing projected energy reference determinant for run  2 on the next update cycle to: (    1,    3,    4,    7)
+ Symmetry:  ( 0, 0, 5) 5
+ Ensuring that Brillouin's theorem is no longer used.
+ Zeroing all energy estimators.
+ Highest weighted determinant on run           3 not reference det:          145         116         130          73         101   11.527249639549265     
+Changing projected energy reference determinant for run  3 on the next update cycle to: (    1,    2,    3,    9)
+ Symmetry:  ( 0, 0, 5) 5
+ Ensuring that Brillouin's theorem is no longer used.
+ Zeroing all energy estimators.
+ Highest weighted determinant on run           4 not reference det:          145         116         130          73         101   7.7291431280157328     
+Changing projected energy reference determinant for run  4 on the next update cycle to: (    1,    3,    5,    6)
+ Symmetry:  ( 0, 0, 5) 5
+ Ensuring that Brillouin's theorem is no longer used.
+ Zeroing all energy estimators.
+ Highest weighted determinant on run           5 not reference det:          145         116         130          73         101   4.1122061748379686     
+Changing projected energy reference determinant for run  5 on the next update cycle to: (    1,    3,    4,   19)
+ Symmetry:  ( 0, 0, 5) 5
+ Ensuring that Brillouin's theorem is no longer used.
+ Zeroing all energy estimators.
+#  1. Iter.             2. Proj. E (cyc)                         3. Shift. (cyc)                          9. Tot. Proj. E                          10. Dets occ.        11. Dets spawned     13. Iter. time                          
+#                0   0.00000000000        1.80000000000       -4.10648827225                    50                0   0.00000000000     
+                10 -0.102712418285        1.80000000000       -4.20920069053                    98              301  0.277252048254E-002
+                20 -0.104556583447        1.80000000000       -4.21104485570                   107              394  0.288312397897E-002
+                30 -0.104561045568        1.80000000000       -4.21104931782                   112              411  0.204124953598E-002
+                40 -0.102689704695        1.80000000000       -4.20917797694                   114              529  0.207692719996E-002
+                50 -0.100771164295        1.80000000000       -4.20725943654                   119              614  0.208048075438E-002
+                60 -0.985969067570E-001   1.80000000000       -4.20508517901                   120              673  0.249566510320E-002
+Exiting the single particle growth phase on iteration:            70 - Shift can now change for population2
+                70 -0.959272605545E-001   1.46487134062       -4.20241553280                   122              754  0.276477746665E-002
+                80 -0.955393553784E-001   1.37716521566       -4.20202762763                   123              789  0.295702200383E-002
+                90 -0.985116037693E-001   1.39702446966       -4.20499987602                   115              845  0.301226172596E-002
+Exiting the single particle growth phase on iteration:           100 - Shift can now change for population3
+               100 -0.101765249933        1.20783856795       -4.20825352218                   123              909  0.327723361552E-002
+               110 -0.103413935813        1.17252377385       -4.20990220806                   121              940  0.358015522361E-002
+Exiting the single particle growth phase on iteration:           120 - Shift can now change for population5
+               120 -0.103735059185        1.00608740864       -4.21022333143                   119              984  0.342158749700E-002
+               130 -0.104391179343       0.986294131769       -4.21087945159                   121             1021  0.336786694825E-002
+               140 -0.106531793533        1.00433769487       -4.21302006578                   126             1001  0.368424206972E-002
+               150 -0.109018686201        1.02968214321       -4.21550695845                   117             1023  0.354298390448E-002
+               160 -0.111351607724        1.04591341907       -4.21783987997                   117              968  0.402535460889E-002
+Exiting the single particle growth phase on iteration:           170 - Shift can now change for population1
+               170 -0.113747753229       0.925562679178       -4.22023602548                   117             1007  0.349507816136E-002
+               180 -0.115441722333       0.891294921667       -4.22192999458                   119             1020  0.379281379282E-002
+Exiting the single particle growth phase on iteration:           190 - Shift can now change for population4
+               190 -0.116376941421       0.760315392859       -4.22286521367                   127             1065  0.394553132355E-002
+               200 -0.116920698640       0.726330426416       -4.22340897089                   122             1069  0.381573587656E-002
+               210 -0.116730758257       0.748491062057       -4.22321903051                   124             1031  0.361160971224E-002
+               220 -0.116348958608       0.776653976941       -4.22283723086                   122             1047  0.413179062307E-002
+               230 -0.116232210742       0.788944914703       -4.22272048299                   125             1037  0.361125059426E-002
+               240 -0.116262064068       0.788988334254       -4.22275033632                   125             1090  0.383739024401E-002
+               250 -0.116284859025       0.782942607027       -4.22277313127                   127             1042  0.378809049726E-002
+               260 -0.116505801202       0.782015247369       -4.22299407345                   124             1043  0.367839336395E-002
+               270 -0.116482437432       0.792245401023       -4.22297070968                   120             1024  0.373402759433E-002
+               280 -0.116301958236       0.814119262928       -4.22279023048                   117             1052  0.387513898313E-002
+               290 -0.116220699217       0.799745652497       -4.22270897147                   118             1038  0.394259914756E-002
+               300 -0.116375523215       0.786175486646       -4.22286379546                   123             1059  0.364335663617E-002
+               310 -0.116232178812       0.775586114291       -4.22272045106                   124             1003  0.360651910305E-002
+               320 -0.116295664652       0.774348886915       -4.22278393690                   125             1029  0.391260199249E-002
+               330 -0.116269256990       0.785262846875       -4.22275752924                   122             1046  0.380752831697E-002
+               340 -0.116246821352       0.787417562122       -4.22273509360                   124             1078  0.366386398673E-002
+               350 -0.116452171645       0.788963141814       -4.22294044389                   121             1033  0.387948937714E-002
+               360 -0.116488512356       0.795242872629       -4.22297678460                   121             1062  0.367238633335E-002
+               370 -0.116752798259       0.781569878790       -4.22324107051                   121             1071  0.390539281070E-002
+               380 -0.116706843515       0.784682675340       -4.22319511576                   127             1013  0.385798253119E-002
+               390 -0.116443890487       0.785423013056       -4.22293216274                   125             1058  0.386241264641E-002
+               400 -0.116270088368       0.786021493451       -4.22275836062                   122             1055  0.362254381180E-002
+               410 -0.116076239411       0.793017244975       -4.22256451166                   124             1073  0.399635508657E-002
+               420 -0.116179771533       0.787281676607       -4.22266804378                   123             1036  0.367950536311E-002
+               430 -0.116024623602       0.795427009023       -4.22251289585                   121             1057  0.405062288046E-002
+               440 -0.116111186036       0.792248706768       -4.22259945828                   126             1078  0.406255610287E-002
+               450 -0.116448266653       0.776374087516       -4.22293653890                   121             1083  0.415733940899E-002
+               460 -0.116500431603       0.776470530673       -4.22298870385                   119             1067  0.359743125737E-002
+               470 -0.116612992222       0.785591686009       -4.22310126447                   120             1108  0.411897599697E-002
+               480 -0.116641036407       0.789511594725       -4.22312930866                   118             1060  0.366039797664E-002
+               490 -0.116497310569       0.788133410469       -4.22298558282                   120             1011  0.400497354567E-002
+               500 -0.116312781529       0.792806081505       -4.22280105378                   116             1043  0.364977233112E-002
+               510 -0.116509691029       0.803246629488       -4.22299796328                   115             1080  0.360376760364E-002
+               520 -0.116396451076       0.797918528709       -4.22288472332                   116             1032  0.398180522025E-002
+               530 -0.116387486601       0.789789963746       -4.22287575885                   118             1103  0.384094081819E-002
+               540 -0.116203723051       0.784942645678       -4.22269199530                   117             1017  0.363124385476E-002
+               550 -0.115988410615       0.783188406636       -4.22247668286                   121             1080  0.430887788534E-002
+               560 -0.116054736206       0.778190775632       -4.22254300845                   122             1054  0.376877859235E-002
+               570 -0.115991439102       0.785661938845       -4.22247971135                   124             1012  0.378082916141E-002
+               580 -0.115801001335       0.800858803327       -4.22228927358                   118             1001  0.367946773767E-002
+               590 -0.115966046803       0.800839651220       -4.22245431905                   119              973  0.362497754395E-002
+               600 -0.115974903112       0.785613806406       -4.22246317536                   124             1051  0.377498008311E-002
+               610 -0.116151944436       0.776597122684       -4.22264021668                   118             1053  0.365091040730E-002
+               620 -0.116327492804       0.783367699325       -4.22281576505                   121             1018  0.387375168502E-002
+               630 -0.116127862579       0.777197810496       -4.22261613483                   118             1019  0.379650406539E-002
+               640 -0.116127788991       0.781371648583       -4.22261606124                   116             1060  0.383535474539E-002
+               650 -0.116036734152       0.786814830625       -4.22252500640                   117              995  0.390127971768E-002
+               660 -0.115806521988       0.784777549647       -4.22229479424                   122             1043  0.398553051054E-002
+               670 -0.115581722922       0.785310715516       -4.22206999517                   120             1063  0.365054011345E-002
+               680 -0.115650295225       0.784779484733       -4.22213856747                   124             1088  0.401570387185E-002
+               690 -0.115943938106       0.780753902727       -4.22243221035                   121             1091  0.361116975546E-002
+               700 -0.116079637571       0.777749729099       -4.22256790982                   122             1083  0.399949438870E-002
+               710 -0.116072087786       0.785287833391       -4.22256036003                   121             1064  0.368977673352E-002
+               720 -0.116105938010       0.789780034885       -4.22259421026                   121             1048  0.417686887085E-002
+               730 -0.116012091392       0.784572936746       -4.22250036364                   121             1038  0.371916964650E-002
+               740 -0.115838615997       0.793890208993       -4.22232688825                   123             1057  0.388739220798E-002
+               750 -0.115805891676       0.798876571883       -4.22229416392                   119             1049  0.403820984066E-002
+               760 -0.115676839734       0.804469622939       -4.22216511198                   115             1032  0.377558358014E-002
+               770 -0.116085456627       0.789840450136       -4.22257372888                   120             1067  0.360054485500E-002
+               780 -0.116233759182       0.775808959612       -4.22272203143                   124             1008  0.380613096058E-002
+               790 -0.116498069017       0.776830075786       -4.22298634127                   124             1038  0.373999513686E-002
+               800 -0.116220503440       0.789845414361       -4.22270877569                   125             1029  0.391194596887E-002
+               810 -0.116018916387       0.799936466157       -4.22250718864                   115             1005  0.397352688015E-002
+               820 -0.115962099350       0.788033852279       -4.22245037160                   121             1132  0.374436415732E-002
+               830 -0.115994681426       0.778337434046       -4.22248295367                   117             1112  0.385613590479E-002
+               840 -0.116217114338       0.772155260208       -4.22270538659                   120             1047  0.411175303161E-002
+               850 -0.116346706140       0.782176100134       -4.22283497839                   120             1035  0.376753397286E-002
+               860 -0.116278791721       0.795474248323       -4.22276706397                   120             1057  0.387018173933E-002
+               870 -0.116268072877       0.785331991328       -4.22275634513                   128             1020  0.371679626405E-002
+               880 -0.116026789986       0.779386911417       -4.22251506223                   120             1050  0.390175469220E-002
+               890 -0.115859371304       0.785817578224       -4.22234764355                   120             1115  0.414706878364E-002
+               900 -0.116006156840       0.784396597327       -4.22249442909                   118             1052  0.393563657999E-002
+               910 -0.116066740929       0.791720924226       -4.22255501318                   120             1057  0.384660400450E-002
+               920 -0.116373988812       0.789374001448       -4.22286226106                   124             1041  0.411916822195E-002
+               930 -0.116198824374       0.790454221321       -4.22268709662                   119             1066  0.401111878455E-002
+               940 -0.116077464726       0.786693388379       -4.22256573697                   121             1032  0.415405966341E-002
+               950 -0.115987777859       0.790210892335       -4.22247605011                   121             1059  0.392929166555E-002
+               960 -0.115907534088       0.781034086121       -4.22239580634                   124             1026  0.415529385209E-002
+               970 -0.115702998449       0.794379440593       -4.22219127070                   127             1063  0.398055948317E-002
+               980 -0.115862528945       0.794162186483       -4.22235080119                   125             1016  0.397795997560E-002
+               990 -0.116176648217       0.777687758327       -4.22266492047                   122             1043  0.408275835216E-002
+              1000 -0.116317189358       0.776788788111       -4.22280546161                   120             1040  0.372088029981E-002
+              1010 -0.116332269965       0.785446502329       -4.22282054221                   123             1066  0.392289720476E-002
+              1020 -0.116348715433       0.793001508155       -4.22283698768                   125             1046  0.379277020693E-002
+              1030 -0.116120001830       0.798678776986       -4.22260827408                   122             1061  0.382826961577E-002
+              1040 -0.116193835293       0.788699040312       -4.22268210754                   123             1070  0.423077046871E-002
+              1050 -0.116056934779       0.785067148311       -4.22254520703                   122             1027  0.411157384515E-002
+              1060 -0.115992175657       0.783761818131       -4.22248044791                   122             1012  0.421590022743E-002
+Beginning to average shift value on iteration:           1070
+              1070 -0.115905897662       0.783385505559       -4.22239416991                   121             1072  0.375566929579E-002
+              1080 -0.115991639067       0.781540341783       -4.22247991132                   123             1126  0.383781529963E-002
+              1090 -0.116171674708       0.791754543237       -4.22265994696                   125             1054  0.376264154911E-002
+Beginning to average shift value on iteration:           1100
+              1100 -0.116290661665       0.786338825787       -4.22277893391                   121             1059  0.379066951573E-002
+              1110 -0.116237205589       0.787871524019       -4.22272547784                   125             1084  0.385451689363E-002
+Beginning to average shift value on iteration:           1120
+              1120 -0.115981669532       0.804257548389       -4.22246994178                   120             1091  0.380471684039E-002
+              1130 -0.115848722280       0.806427497620       -4.22233699453                   122             1026  0.414998456836E-002
+              1140 -0.116309807146       0.781323990825       -4.22279807939                   118             1030  0.422691553831E-002
+              1150 -0.116440376242       0.782759391079       -4.22292864849                   118             1058  0.378152169287E-002
+              1160 -0.116366951276       0.790097065808       -4.22285522352                   119             1012  0.392885319889E-002
+Beginning to average shift value on iteration:           1170
+              1170 -0.116335468801       0.783048286671       -4.22282374105                   118             1064  0.382885634899E-002
+              1180 -0.116298838868       0.780097334803       -4.22278711112                   117             1060  0.375289171934E-002
+Beginning to average shift value on iteration:           1190
+              1190 -0.116424358550       0.778091963999       -4.22291263080                   118             1087  0.378058291972E-002
+
+=========== Trial wavefunction initialisation ==========
+Generating the trial space...
+  Initialising wavefunctions by the Lanczos algorithm
+ Total core population   4730.9430731212869     
+  Aborting Lanczos and initialising trial states with direct diagonalisation
+ Total core population   4730.9430731212869     
+  MAXIMUM WIDTH OF HAMIL :           42
+  TOTAL NUMBER OF NON-ZERO ELEMENTS :          908
+Size of trial space on this processor:       26
+ trial state:            1  kept for replica            1  based on overlap, with energy:   -4.2855533150698335     
+ trial state:            2  kept for replica            2  based on overlap, with energy:   -3.7746071747061807     
+ trial state:            3  kept for replica            3  based on overlap, with energy:   -3.2499172266748246     
+ trial state:            4  kept for replica            4  based on overlap, with energy:   -2.7251132770853435     
+ trial state:            5  kept for replica            5  based on overlap, with energy:   -2.5441904403404871     
+Total size of the trial space:       60
+Calculating the number of states in the connected space...
+Attempting to allocate con_space. Size =        0.080 Mb
+States found on this processor, including repeats:     1503
+Generating and storing the connected space...
+Removing repeated states and sorting by processor...
+Performing MPI communication of connected states...
+Attempting to allocate temp_space. Size =        0.007 Mb
+Attempting to allocate con_space. Size =        0.007 Mb
+Total size of connected space:        142
+Size of connected space on this processor:         69
+Generating the vector \sum_j H_{ij} \psi^T_j...
+ Energy eigenvalue(s) of the trial space:  -4.2855533150698335       -3.7746071747061807       -3.2499172266748246       -2.7251132770853435       -2.5441904403404871     
+ Trial wavefunction initialisation complete.
+ Total time (seconds) taken for trial wavefunction initialisation:   7.6282392000000421E-002
+              1200 -0.116300060562       0.784504264914       -4.22278833281                   125             1017  0.318466633558E-001
+              1210 -0.116300275481       0.788354369776       -4.22278854773                   119             1088  0.354220755398E-002
+              1220 -0.116520221104       0.786730066807       -4.22300849335                   123             1064  0.421038120985E-002
+              1230 -0.116500745526       0.774000905468       -4.22298901777                   123             1069  0.374005176127E-002
+              1240 -0.116369904446       0.784691620061       -4.22285817669                   125             1079  0.410866402090E-002
+              1250 -0.116475131607       0.789584250062       -4.22296340386                   124             1105  0.384018756449E-002
+              1260 -0.116210702868       0.804351567897       -4.22269897512                   119             1026  0.407736189663E-002
+              1270 -0.115953197334       0.811716438613       -4.22244146958                   118             1057  0.405038744211E-002
+              1280 -0.115829019730       0.788523746058       -4.22231729198                   120             1022  0.390763171017E-002
+              1290 -0.115750693834       0.795910951532       -4.22223896608                   122             1067  0.384925901890E-002
+              1300 -0.115837486680       0.791476392670       -4.22232575893                   120             1018  0.427483581007E-002
+              1310 -0.115877373157       0.795975529307       -4.22236564541                   121             1076  0.371964275837E-002
+              1320 -0.116058581516       0.777167372512       -4.22254685376                   121             1092  0.393979437649E-002
+              1330 -0.116187900128       0.775807760488       -4.22267617238                   123             1073  0.381501987576E-002
+              1340 -0.116261901084       0.770092557297       -4.22275017333                   123             1004  0.388114266098E-002
+              1350 -0.116040897949       0.780578250540       -4.22252917020                   126             1056  0.373363159597E-002
+              1360 -0.116006176855       0.793944976333       -4.22249444910                   117             1042  0.385428741574E-002
+              1370 -0.116012967119       0.802131084804       -4.22250123937                   120             1038  0.401067957282E-002
+              1380 -0.115986315802       0.800682860273       -4.22247458805                   117             1040  0.430562831461E-002
+              1390 -0.116019896022       0.795638344483       -4.22250816827                   123             1110  0.372131206095E-002
+              1400 -0.115860861889       0.776029506316       -4.22234913414                   122             1025  0.391993708909E-002
+              1410 -0.115785384161       0.775010471119       -4.22227365641                   123             1020  0.383342541754E-002
+              1420 -0.115938544418       0.774868112797       -4.22242681667                   121             1052  0.392991490662E-002
+              1430 -0.115920345727       0.776602176652       -4.22240861798                   124             1061  0.385059490800E-002
+              1440 -0.115743406688       0.781269894937       -4.22223167894                   126             1058  0.428744032979E-002
+              1450 -0.115675991077       0.787280248611       -4.22216426333                   125             1007  0.405593551695E-002
+              1460 -0.115802640603       0.794692476596       -4.22229091285                   121             1055  0.445895828307E-002
+              1470 -0.116093897990       0.790230070593       -4.22258217024                   122             1099  0.384498834610E-002
+              1480 -0.116089112002       0.784809855748       -4.22257738425                   127             1037  0.405613183975E-002
+              1490 -0.116109933445       0.784239130935       -4.22259820569                   126             1103  0.395951941609E-002
+              1500 -0.116091415813       0.790972359631       -4.22257968806                   123             1042  0.404953882098E-002
+              1510 -0.116223984182       0.786294571194       -4.22271225643                   127             1070  0.386843942106E-002
+              1520 -0.116455377970       0.784458960020       -4.22294365022                   125             1040  0.397747531533E-002
+              1530 -0.116380818319       0.786372860928       -4.22286909057                   124             1112  0.385131686926E-002
+              1540 -0.116276300886       0.792384684444       -4.22276457313                   124             1017  0.443848893046E-002
+              1550 -0.116063482291       0.801421825530       -4.22255175454                   122             1048  0.387661270797E-002
+              1560 -0.115969538990       0.790176690153       -4.22245781124                   124             1044  0.407315976918E-002
+              1570 -0.116090009024       0.780710057580       -4.22257828127                   123             1025  0.397546142340E-002
+              1580 -0.116081057384       0.782261290721       -4.22256932963                   124             1012  0.394276641309E-002
+              1590 -0.115951747502       0.780266481640       -4.22244001975                   125             1034  0.394459106028E-002
+              1600 -0.116007911214       0.774574814183       -4.22249618346                   124             1030  0.413835383952E-002
+              1610 -0.116009904984       0.784413489480       -4.22249817723                   123             1022  0.383908972144E-002
+              1620 -0.116059308771       0.798713752609       -4.22254758102                   120             1042  0.416211858392E-002
+              1630 -0.116080767190       0.799091139731       -4.22256903944                   122             1053  0.379414297640E-002
+              1640 -0.116041307121       0.789524843342       -4.22252957937                   125             1039  0.419271364808E-002
+              1650 -0.115858890204       0.791741962220       -4.22234716245                   126             1066  0.402156822383E-002
+              1660 -0.115653801623       0.798171177320       -4.22214207387                   121             1023  0.407998710871E-002
+              1670 -0.115796663031       0.797133412726       -4.22228493528                   122             1085  0.398712232709E-002
+              1680 -0.115832918820       0.797004540646       -4.22232119107                   120             1087  0.380633026361E-002
+              1690 -0.116083985511       0.784340251397       -4.22257225776                   120             1065  0.387130416930E-002
+              1700 -0.116204607656       0.781277187007       -4.22269287990                   118             1070  0.402386225760E-002
+              1710 -0.116342493433       0.766561404910       -4.22283076568                   125             1067  0.384880267084E-002
+              1720 -0.116109163490       0.761758592165       -4.22259743574                   125             1039  0.390352383256E-002
+              1730 -0.115967468745       0.770741143111       -4.22245574099                   124             1088  0.392440669239E-002
+              1740 -0.116034432323       0.799209079769       -4.22252270457                   120             1052  0.393858700991E-002
+              1750 -0.116115513725       0.809785664511       -4.22260378597                   122             1019  0.392500869930E-002
+              1760 -0.115986406327       0.800723332731       -4.22247467858                   120             1047  0.418241024017E-002
+              1770 -0.116144797367       0.787040227007       -4.22263306962                   120             1034  0.418772697449E-002
+              1780 -0.116145408495       0.795272149584       -4.22263368074                   119             1049  0.414688028395E-002
+              1790 -0.116348627990       0.789743426815       -4.22283690024                   118             1005  0.388888940215E-002
+              1800 -0.116588624420       0.780770236853       -4.22307689667                   121             1084  0.395526029170E-002
+              1810 -0.116667298639       0.775435437773       -4.22315557089                   121             1104  0.385746099055E-002
+              1820 -0.116974081998       0.784137400944       -4.22346235425                   124             1056  0.409350953996E-002
+              1830 -0.116921163811       0.780597354313       -4.22340943606                   128             1059  0.389166995883E-002
+              1840 -0.116632315873       0.780434170511       -4.22312058812                   126             1061  0.397910960019E-002
+              1850 -0.116472982716       0.787338890450       -4.22296125496                   124             1022  0.426769442856E-002
+              1860 -0.116119110508       0.790288864062       -4.22260738276                   120             1066  0.406386964023E-002
+              1870 -0.115809575366       0.790290184410       -4.22229784761                   123             1074  0.418883711100E-002
+              1880 -0.115812422204       0.786832593376       -4.22230069445                   121             1043  0.394857414067E-002
+              1890 -0.115682065972       0.800164042061       -4.22217033822                   118             1082  0.398104302585E-002
+              1900 -0.115906377944       0.793004824660       -4.22239465019                   121             1037  0.391880907118E-002
+              1910 -0.116052055378       0.784234103436       -4.22254032763                   119             1085  0.388975553215E-002
+              1920 -0.116237111164       0.773245339009       -4.22272538341                   121             1043  0.447976477444E-002
+              1930 -0.116244886920       0.783007720133       -4.22273315917                   123             1068  0.394733399153E-002
+              1940 -0.116104903025       0.790865091482       -4.22259317527                   125             1052  0.388779900968E-002
+              1950 -0.116295132135       0.787803606337       -4.22278340438                   126             1054  0.393711440265E-002
+              1960 -0.116390636447       0.790800690869       -4.22287890870                   122             1043  0.473644174635E-002
+              1970 -0.116574515644       0.787190979180       -4.22306278789                   126             1034  0.419605001807E-002
+              1980 -0.116199193104       0.784118072476       -4.22268746535                   126             1034  0.440523661673E-002
+              1990 -0.115863159944       0.792363424343       -4.22235143219                   121             1060  0.398565605283E-002
+              2000 -0.116075855117       0.797175702138       -4.22256412737                   121             1107  0.416001603007E-002
+Total iteration number limit reached. Finishing FCIQMC loop...
+ - - - - - - - - - - - - - - - - - - - - - - - -
+ Total loop-time:    8.0381485719999990     
+ Time lost due to load imbalance:   0.25653843850000435     
+ - - - - - - - - - - - - - - - - - - - - - - - -
+ =============================================================
+ Reference and leading determinants for replica           1
+ =============================================================
+ 
+Current references: 
+(    1,    2,    3,    5)
+11101000000000000000
+
+Input DEFINEDET line (includes frozen orbs):
+definedet     1-3  5 
+ 
+Most occupied         15 determinants as excitations from reference: 
+
+Excitation ExcitLevel  Seniority Walkers(1)    Amplitude Init?(1) Proc
+11101000000000000000    0    2    442.0259      0.88175  Y      1
+10110010000000000000    2    2    230.0576      0.45892  Y      0
+10110000000000000010    2    2    20.94171      0.04177  Y      0
+10101100000000000000    1    2   -16.90682      0.03373  Y      0
+10001110000000000000    2    2   -23.32327      0.04653  Y      1
+11100000100000000000    1    2    11.65670      0.02325  Y      1
+00111010000000000000    2    2    11.10072      0.02214  Y      1
+10100011000000000000    2    2   -8.921306      0.01780  Y      1
+00101011000000000000    2    2   -16.88091      0.03367  Y      0
+11001010000000000000    1    2    13.36838      0.02667  Y      0
+00101000110000000000    2    2   -8.116197      0.01619  Y      0
+10001000001000010000    2    4    7.834310      0.01563  Y      0
+11001000000000000010    1    2    7.821267      0.01560  Y      0
+10001000000010000100    2    4    7.832172      0.01562  Y      1
+00101000001100000000    2    2   -7.171528      0.01431  Y      1
+ 
+ =============================================================
+ Reference and leading determinants for replica           2
+ =============================================================
+ 
+Current references: 
+(    1,    3,    4,    7)
+10110010000000000000
+
+Input DEFINEDET line (includes frozen orbs):
+definedet   1     3-4  7 
+ 
+Most occupied         15 determinants as excitations from reference: 
+
+Excitation ExcitLevel  Seniority Walkers(1)    Amplitude Init?(1) Proc
+11101000000000000000    0    2   -170.4072      0.43207  Y      1
+10110010000000000000    2    2    334.4596      0.84804  Y      0
+11100000100000000000    1    2    79.11597      0.20060  Y      1
+11001010000000000000    1    2   -51.69050      0.13106  Y      0
+10101100000000000000    1    2    50.62635      0.12837  Y      0
+10110000000000000010    2    2   -36.25480      0.09193  Y      0
+00111010000000000000    2    2   -24.30119      0.06162  Y      1
+10100011000000000000    2    2    19.29842      0.04893  Y      1
+00101011000000000000    2    2   -9.855766      0.02499  Y      0
+00100010001000010000    4    4   -6.946705      0.01761  Y      1
+00100010000010000100    4    4   -7.001147      0.01775  Y      0
+10000010000000110000    4    2    6.544123      0.01659  Y      0
+11001000000000000010    1    2   -6.481821      0.01643  Y      0
+10000010110000000000    4    2    6.042781      0.01532  Y      1
+00100010100000000001    4    4   -6.276129      0.01591  Y      0
+ 
+ =============================================================
+ Reference and leading determinants for replica           3
+ =============================================================
+ 
+Current references: 
+(    1,    2,    3,    9)
+11100000100000000000
+
+Input DEFINEDET line (includes frozen orbs):
+definedet     1-3  9 
+ 
+Most occupied         15 determinants as excitations from reference: 
+
+Excitation ExcitLevel  Seniority Walkers(1)    Amplitude Init?(1) Proc
+11100000100000000000    1    2    380.6844      0.90045  Y      1
+11101000000000000000    0    2    34.85637      0.08245  Y      1
+10110000000000000010    2    2   -145.7952      0.34486  Y      0
+10110010000000000000    2    2   -77.01873      0.18218  Y      0
+11001010000000000000    1    2    36.11682      0.08543  Y      0
+10101100000000000000    1    2   -32.19401      0.07615  Y      0
+10100100100000000000    1    4   -19.13875      0.04527  Y      1
+10100011000000000000    2    2   -10.34525      0.02447  Y      1
+10011000100000000000    1    4   -28.25183      0.06683  Y      0
+00110010100000000000    4    2   -20.21399      0.04781  Y      0
+11000010100000000000    2    2   -10.31136      0.02439  Y      1
+00101100100000000000    2    2    13.80940      0.03266  Y      0
+10001001100000000000    2    4    12.30021      0.02909  Y      0
+10100001000000000010    2    4    7.231208      0.01710  Y      0
+10000110100000000000    2    4    9.691253      0.02292  Y      1
+ 
+ =============================================================
+ Reference and leading determinants for replica           4
+ =============================================================
+ 
+Current references: 
+(    1,    3,    5,    6)
+10101100000000000000
+
+Input DEFINEDET line (includes frozen orbs):
+definedet   1   3     5-6
+ 
+Most occupied         15 determinants as excitations from reference: 
+
+Excitation ExcitLevel  Seniority Walkers(1)    Amplitude Init?(1) Proc
+10101100000000000000    1    2    227.3663      0.62779  Y      0
+11001010000000000000    1    2   -177.1704      0.48920  Y      0
+10110010000000000000    2    2   -34.39425      0.09497  Y      0
+10110000000000000010    2    2    29.51852      0.08151  Y      0
+00111010000000000000    2    2    155.6384      0.42974  Y      1
+10100011000000000000    2    2   -138.0224      0.38110  Y      1
+11100000100000000000    1    2    32.36989      0.08938  Y      1
+11101000000000000000    0    2    23.27900      0.06428  Y      1
+10101000010000000000    1    4    15.94742      0.04403  Y      0
+00110010100000000000    4    2   -13.55808      0.03744  Y      0
+11001000000000000010    1    2   -12.88487      0.03558  Y      0
+10011000100000000000    1    4   -6.492370      0.01793  Y      0
+00101011000000000000    2    2   -3.767262      0.01040  Y      0
+00101100100000000000    2    2    3.661061      0.01011  Y      0
+10100001000000000010    2    4   -2.266299      0.00626  Y      0
+ 
+ =============================================================
+ Reference and leading determinants for replica           5
+ =============================================================
+ 
+Current references: 
+(    1,    3,    4,   19)
+10110000000000000010
+
+Input DEFINEDET line (includes frozen orbs):
+definedet   1     3-4 19 
+ 
+Most occupied         15 determinants as excitations from reference: 
+
+Excitation ExcitLevel  Seniority Walkers(1)    Amplitude Init?(1) Proc
+11100000100000000000    1    2    109.5740      0.31642  Y      1
+10110000000000000010    2    2    301.9385      0.87191  Y      0
+11001010000000000000    1    2    64.46993      0.18617  Y      0
+10101100000000000000    1    2    43.97717      0.12699  Y      0
+00111010000000000000    2    2   -58.77768      0.16973  Y      1
+10100100100000000000    1    4   -45.91933      0.13260  Y      1
+11001000000000000010    1    2   -39.52265      0.11413  Y      0
+10101000010000000000    1    4   -24.32406      0.07024  Y      0
+10011000100000000000    1    4   -21.66690      0.06257  Y      0
+10010010000000000010    2    4   -25.15023      0.07263  Y      1
+10100011000000000000    2    2    15.85540      0.04579  Y      1
+11101000000000000000    0    2   -13.35367      0.03856  Y      1
+10100001000000000010    2    4    16.31761      0.04712  Y      0
+00110010100000000000    4    2   -11.12714      0.03213  Y      0
+00101001000000000010    2    4   -12.63436      0.03648  Y      1
+ 
+
+
+ Load balancing information based on the last iteration:
+
+ Mean number of determinants/process      67.5000000000
+ Min number of determinants/process                 65
+ Max number of determinants/process                 70
+
+
+
+ Load balancing information based on the last iteration:
+     Mean number of walkers/process:    2484.8092942422
+     Min number of walkers/process:         2392.22922
+     Max number of walkers/process:         2577.38937
+
+
+
+Calculating approximate errorbar for energy estimates...
+
+Attempting automatic reblocking analysis on data from iteration:          170
+ No FCIMCStats file found for error analysis
+ Current reference energy                              -4.106488272249
+ Projected correlation energy                          -0.180003646709
+ No automatic errorbar obtained for projected energy
+ No reliable averaged shift correlation energy could be obtained automatically
+
+ Total projected energy          -4.28649192
+
+
+ Final energy estimate for state 1:     -4.2867080434409    
+ Final energy estimate for state 2:     -3.7786452474756    
+ Final energy estimate for state 3:     -3.2556062794799    
+ Final energy estimate for state 4:     -2.7256276637396    
+ Final energy estimate for state 5:     -2.5486836707312    
+
+ ================================================================
+ Memory usage
+ Maximum memory defined is (MB) :   99999.0
+ Maximum memory used is    (MB) :     106.4
+ 
+ Large memory allocations:
+ 
+ Name              Allocated in       Deallocated in         Size
+ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ trial_space       init_trial_wf      create_trial_hashta   0.1GB
+ WalkVecDets       InitFCIMCPar       DeallocFciMCMemPar    0.0GB
+ global_determinantinit_global_det_datclean_global_det_da   0.0GB
+ current_trial_ampsinit_trial_wf      end_trial_wf          0.0GB
+ tmp_all_excits    actHamiltonian     actHamiltonian        0.0GB
+ tmp_all_excits    actHamiltonian     actHamiltonian        0.0GB
+ tmp_all_excits    actHamiltonian     actHamiltonian        0.0GB
+ tmp_all_excits    actHamiltonian     actHamiltonian        0.0GB
+ tmp_all_excits    actHamiltonian     actHamiltonian        0.0GB
+ tmp_all_excits    actHamiltonian     actHamiltonian        0.0GB
+ ================================================================
+
+ ================================================================
+ Timing report.
+
+ Timing of most expensive procedures.
+ Procedure                                 Calls       total time
+ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+ WalkerTime                                2000      6.86
+ actHamiltonian                              68      0.27
+ Compress Sort interface                   2000      0.24
+ NECICUBE                                     1      0.20
+ Compression interface                     2000      0.14
+ TrialInitTime                                1      0.08
+ AnnMainTime                               2000      0.06
+ DeathTime                                 2000      0.06
+ StatsCommsTime                             200      0.06
+ AnnihilTime                               2000      0.05
+ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+ Total                                   8.01
+
+ Global wall clock time          8.28
+ ================================================================
+ Calculation ended 03/05/2021 at 22:02:49
+ ================================================================

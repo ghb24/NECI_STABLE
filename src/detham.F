@@ -17,7 +17,7 @@
       use guga_matrixElements, only: calcDiagMatEleGuga_nI
       use guga_excitations, only: calc_guga_matrix_element
       use guga_data, only: ExcitationInformation_t
-      use guga_bitrepops, only: init_csf_information
+      use guga_bitrepops, only: CSF_Info_t
 
       use lattice_mod, only: get_helement_lattice
 
@@ -37,6 +37,7 @@
       type(timer), save :: proc_timer
       type(ExcitationInformation_t) :: excitInfo
       integer :: ic=0
+      type(CSF_Info_t) :: csf_i
 !      LOGICAL TSTAR
 C ==-------------------------------------------------------------------==
       proc_timer%timer_name='    DETHAM'
@@ -80,7 +81,7 @@ C..   Now we need to match up any two determinants
          ! try to use the new guga matrix element calc here.. for this
          ! misuse the current_stepvector quantities to init this only
          ! once for nI
-         if (tGUGA) call init_csf_information(ilutI)
+         if (tGUGA) csf_i = CSF_Info_t(ilutI)
 
          DO KJ=IBEGJ,IMAXJ,STEP
             call EncodeBitDet(NMRKS(:,KJ), ilutJ)
@@ -96,11 +97,8 @@ C..   Now we need to match up any two determinants
               if (KI == KJ) then
                   totsum = calcDiagMatEleGuga_nI(NMRKS(:,KI))
               else
-                  call calc_guga_matrix_element(ilutI,ilutJ,excitInfo,
-     &              totsum, .true., 1)
-! #ifdef CMPLX_
-!                     totsum = conjg(totsum)
-! #endif
+                  call calc_guga_matrix_element(ilutI,csf_i,ilutJ,
+     &              excitInfo, totsum, .true., 1)
               end if
 
             else if (t_lattice_model) then
@@ -120,8 +118,8 @@ C..   Now we need to match up any two determinants
 C            CALL SLTCND(NEL,NBASISMAX,NHG,
 C     &     FCK,NMAX,ALAT,UMAT,TOTSUM)
             if(tGAS) then
-                if (.not. GAS_spec%contains_det(NMRKS(:, KI))
-     &              .or. .not. GAS_spec%contains_det(NMRKS(:, KJ))) then
+                if(.not. GAS_spec%contains_conf(NMRKS(:, KI))
+     &          .or. .not. GAS_spec%contains_conf(NMRKS(:, KJ))) then
                         totsum = 0.0_dp
                 end if
             end if
@@ -152,31 +150,3 @@ C ==-------------------------------------------------------------------==
       RETURN
       END
 C ==---------------------------------------------------------------==
-      SUBROUTINE CHK_MS(ND1,ND2,IFLG,G1)
-      use SystemData, only: BasisFN, nel
-      use constants, only: dp
-      IMPLICIT NONE
-C..
-      TYPE(BASISFN) G1(*)
-      integer, intent(in) :: iFlg
-      integer, intent(in) :: ND1(NEL), ND2(NEL)
-      integer :: i, MS1, MS2
-      character(*), parameter :: t_r = 'CHK_MS'
-C..
-      MS1=0
-      MS2=0
-      DO I=1,NEL
-        MS1=MS1+G1(ND1(I))%MS
-        MS2=MS2+G1(ND2(I))%MS
-      ENDDO
-      MS1=MS1/2
-      MS2=MS2/2
-C..
-      IF(MS1.NE.MS2) THEN
-        IF(IFLG.EQ.1) call stop_all(t_r, ' PROBLEM IN TWO DIFFER ')
-        IF(IFLG.EQ.2) call stop_all(t_r, ' PROBLEM IN ONE DIFFER ')
-        IF(IFLG.EQ.3) call stop_all(t_r, ' PROBLEM IN SAME ')
-      ENDIF
-C..
-      RETURN
-      END

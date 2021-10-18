@@ -39,7 +39,7 @@ contains
         t_mol_3_body = .true.
         call initSltCndPtr()
 
-        write(iout, *) "Checking diagonal matrix elements"
+        write(stdout, *) "Checking diagonal matrix elements"
 
         ! Test the diagonal elements
         call test_freeze((/1,1,2,2,1,1/), exc_0)
@@ -60,7 +60,7 @@ contains
         call test_freeze((/3,3,4,1,1,4/), exc_0)
         call test_freeze((/1,3,3,4,1,4/), exc_0)
 
-        write(iout,*) "Checking single excitaion matrix elements"
+        write(stdout,*) "Checking single excitaion matrix elements"
 
         ! Test the single excitation matrix elements
         exc_1 = SingleExc_t((/5,21/))
@@ -80,7 +80,7 @@ contains
         call test_freeze((/1,2,11,1,2,3/), exc_1)
         call test_freeze((/11,2,2,1,1,3/), exc_1)
 
-        write(iout,*) "Checking double excitaion matrix elements"
+        write(stdout,*) "Checking double excitaion matrix elements"
 
         ! Test the double excitation matrix elements
         ex(:,1) = (/5,7/)
@@ -142,7 +142,7 @@ contains
         call freeLMat()
 
         call assert_true(e_freeze .isclose. e_ref)
-        write(iout, *) e_freeze, e_ref
+        write(stdout, *) e_freeze, e_ref
     end subroutine test_freeze
 
     subroutine write_single_tcdump(inds)

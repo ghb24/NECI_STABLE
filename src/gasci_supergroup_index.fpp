@@ -53,10 +53,11 @@
 ! for all allowed super groups.
 module gasci_supergroup_index
     use constants, only: int64, n_int
-    use util_mod, only: choose, cumsum, binary_search_first_ge
+    use util_mod, only: choose, cumsum, binary_search_first_ge, custom_findloc
     use bit_rep_data, only: nIfD
     use gasci, only: GASSpec_t
     use hash, only: hash_table_lookup
+    use growing_buffers, only: buffer_int_2D_t
 
     implicit none
 
@@ -65,20 +66,22 @@ module gasci_supergroup_index
     public :: SuperGroupIndexer_t, lookup_supergroup_indexer
 
     public :: n_compositions, get_compositions, composition_idx
-    public :: n_supergroups, get_supergroups, supergroup_idx
-    public :: supergroup_idx_precomputed, get_allowed_composition_indices
 
     type :: SuperGroupIndexer_t
         private
-        type(GASSpec_t) :: GASspec
+        class(GASSpec_t), allocatable :: GASspec
         integer(int64), allocatable :: allowed_composition_indices(:)
+        !> The particle number.
+        integer :: N
     contains
         private
+        procedure, public :: nEl => get_nEl
         procedure, public :: idx_supergroup => get_supergroup_idx
         procedure, public :: idx_nI => get_supergroup_idx_det
         procedure, public :: lookup_supergroup_idx
-        procedure, public :: n_supergroups => indexer_n_supergroups
+        procedure, public :: n_supergroups => get_n_supergroups
         procedure, public :: get_supergroups => indexer_get_supergroups
+        procedure :: get_allowed_composition_indices
     end type
 
     interface SuperGroupIndexer_t
@@ -88,6 +91,151 @@ module gasci_supergroup_index
     type(SuperGroupIndexer_t), pointer :: lookup_supergroup_indexer => null()
 
 contains
+
+    pure function construct_SuperGroupIndexer_t(GASspec, N) result(idxer)
+        class(GASSpec_t), intent(in) :: GASspec
+        integer, intent(in) :: N
+        type(SuperGroupIndexer_t) :: idxer
+
+        idxer%GASspec = GASspec
+        idxer%N = N
+        idxer%allowed_composition_indices = idxer%get_allowed_composition_indices()
+    end function
+
+
+    elemental function n_compositions(k, n) result(res)
+        integer, intent(in) :: k, n
+        integer(int64) :: res
+        res = choose(n + k - 1, k - 1)
+    end function
+
+
+    !> @brief
+    !> Get the ordered compositions of n into k summands.
+    !>
+    !> @details
+    !> Get all possible solutions for the k dimensional hypersurface.
+    !> \f[x_1 + ... + x_k = n  \f]
+    !> by taking into account the order.
+    !> \f[ 1 + 0 = 1 \f] is different from
+    !> \f[ 0 + 1 = 1 \f].
+    !> The German wikipedia has a nice article
+    !> https://de.wikipedia.org/wiki/Partitionsfunktion#Geordnete_Zahlcompositionen
+    !>
+    !> The compositions are returned in lexicographically decreasing order.
+    pure function get_compositions(k, n) result(res)
+        integer, intent(in) :: k, n
+        integer, allocatable :: res(:, :)
+        integer :: i
+
+        allocate(res(k, n_compositions(k, n)))
+
+        res(:, 1) = 0
+        res(1, 1) = n
+
+        do i = 2, size(res, 2)
+            res(:, i) = next_composition(res(:, i - 1))
+        end do
+    end function
+
+
+    pure function next_composition(previous) result(res)
+        integer, intent(in) :: previous(:)
+        integer :: res(size(previous))
+        integer :: k, n, i
+        k = size(previous)
+        n = sum(previous)
+
+        if (n == previous(k)) then
+            res(:) = -1
+        else
+            i = custom_findloc(previous(: k - 1) > 0, .true., back=.true.) + 1
+            ! Transfer 1 from left neighbour and everything from all right neighbours to res(i)
+            res(: i - 2) = previous(: i - 2)
+            res(i - 1) = previous(i - 1) - 1
+            res(i) = previous(i) + 1 + sum(previous(i + 1 :))
+            res(i + 1 :) = 0
+        end if
+    end function
+
+
+    pure function composition_idx(composition) result(idx)
+        integer, intent(in) :: composition(:)
+        integer(int64) :: idx
+
+        integer :: reminder, i_summand, leading_term
+
+        idx = 1_int64
+        i_summand = 1
+        reminder = sum(composition)
+        do while (reminder /= 0)
+            do leading_term = reminder, composition(i_summand) + 1, -1
+                idx = idx + n_compositions(size(composition) - i_summand, reminder - leading_term)
+            end do
+            reminder = reminder - composition(i_summand)
+            i_summand = i_summand + 1
+        end do
+    end function
+
+
+    pure function get_allowed_composition_indices(self) result(res)
+        class(SuperGroupIndexer_t), intent(in) :: self
+
+        integer(int64), allocatable :: res(:)
+        integer, allocatable :: supergroups(:, :)
+        integer :: i
+
+        supergroups = self%get_supergroups()
+        allocate(res(size(supergroups, 2)))
+        do i = 1, size(supergroups, 2)
+            res(i) = composition_idx(supergroups(:, i))
+        end do
+    end function
+
+
+    !> @brief
+    !> Get the number of possible supergroups.
+    !>
+    !> @details
+    !> GAS allowed compositions are called supergroups.
+    pure function get_n_supergroups(self) result(res)
+        class(SuperGroupIndexer_t), intent(in) :: self
+        integer(int64) :: res
+        res = size(self%allowed_composition_indices, kind=int64)
+    end function
+
+    integer elemental function get_nEl(self)
+        class(SuperGroupIndexer_t), intent(in) :: self
+        get_nEl = self%N
+    end function
+
+
+    !> @brief
+    !> Get the ordered compositions of n into k summands
+    !>  constrained by cumulative minima and maxima.
+    !>
+    !> @details
+    !> GAS allowed compositions are called supergroups.
+    pure function indexer_get_supergroups(self) result(res)
+        class(SuperGroupIndexer_t), intent(in) :: self
+        integer, allocatable :: res(:, :)
+        integer(int64) :: i
+        integer :: composition(self%GASspec%nGAS())
+        type(buffer_int_2D_t) :: supergroups
+
+        composition(:) = 0
+        composition(1) = self%nEl()
+
+        call supergroups%init(rows=self%GASspec%nGAS())
+        do i = 1_int64, n_compositions(self%GASspec%nGAS(), self%nEl())
+            if (self%GASspec%contains_supergroup(composition(:))) then
+                call supergroups%push_back(composition(:))
+            end if
+            composition = next_composition(composition)
+        end do
+        call supergroups%dump_reset(res)
+    end function
+
 
     pure function get_supergroup_idx(self, supergroup) result(idx)
         class(SuperGroupIndexer_t), intent(in) :: self
@@ -114,7 +262,7 @@ contains
         integer :: idx
         character(*), parameter :: this_routine = 'get_supergroup_idx_det'
 
-        @:pure_ASSERT(self%GASspec%contains_det(nI))
+        @:pure_ASSERT(self%GASspec%contains_conf(nI))
         if (self%GASspec%is_connected()) then
             idx = self%idx_supergroup(self%GASspec%count_per_GAS(nI))
         else
@@ -149,240 +297,6 @@ contains
         else
             idx = 1
         end if
-    end function
-
-
-    function construct_SuperGroupIndexer_t(GASspec) result(idxer)
-        type(GASSpec_t), intent(in) :: GASspec
-        type(SuperGroupIndexer_t) :: idxer
-
-        integer :: i
-
-        idxer%GASspec = GASspec
-        idxer%allowed_composition_indices = get_allowed_composition_indices(&
-                GASspec%cumulated_min([(i, i = 1, GASspec%nGAS())]) , &
-                GASspec%cumulated_max([(i, i = 1, GASspec%nGAS())]))
-    end function
-
-
-    elemental function n_compositions(k, n) result(res)
-        integer, intent(in) :: k, n
-        integer(int64) :: res
-
-        res = choose(n + k - 1, k - 1)
-    end function
-
-
-    !> @brief
-    !> Get the ordered compositions of n into k summands.
-    !>
-    !> @details
-    !> Get all possible solutions for the k dimensional hypersurface.
-    !> \f[x_1 + ... + x_k = n  \f]
-    !> by taking into account the order.
-    !> \f[ 1 + 0 = 1 \f] is different from
-    !> \f[ 0 + 1 = 1 \f].
-    !> The German wikipedia has a nice article
-    !> https://de.wikipedia.org/wiki/Partitionsfunktion#Geordnete_Zahlcompositionen
-    pure function get_compositions(k, n) result(res)
-        integer, intent(in) :: k, n
-        integer :: res(k, n_compositions(k, n))
-        integer :: idx_part, i
-
-        idx_part = 1
-        res(:, idx_part) = 0
-        res(1, idx_part) = n
-
-        if (k == 1) return
-
-        do idx_part = 2, size(res, 2) - 1
-            res(:, idx_part) = res(:, idx_part - 1)
-
-            do i = size(res, 1), 2, -1
-                if (res(i - 1, idx_part) > 0) exit
-            end do
-
-            ! Transfer 1 from left neighbour and everything from all right neighbours to res(j)
-            res(i, idx_part) = res(i, idx_part) + 1 + sum(res(i + 1 :, idx_part))
-            res(i + 1 :, idx_part) = 0
-            res(i - 1, idx_part) = res(i - 1, idx_part) - 1
-        end do
-
-        res(:, idx_part) = 0
-        res(size(res, 1), idx_part) = n
-    end function
-
-
-    pure function composition_idx(composition) result(idx)
-        integer, intent(in) :: composition(:)
-        integer(int64) :: idx
-
-        integer :: reminder, i_summand, leading_term
-
-        idx = 1_int64
-        i_summand = 1
-        reminder = sum(composition)
-        do while (reminder /= 0)
-            do leading_term = reminder, composition(i_summand) + 1, -1
-                idx = idx + n_compositions(size(composition) - i_summand, reminder - leading_term)
-            end do
-            reminder = reminder - composition(i_summand)
-            i_summand = i_summand + 1
-        end do
-    end function
-
-
-    !> @brief
-    !> Get the ordered compositions of n into k summands
-    !>  constrained by cumulative minima and maxima.
-    !>
-    !> @details
-    !> GAS allowed compositions are called supergroups.
-    pure function get_supergroups(cn_min, cn_max) result(res)
-        integer, intent(in) :: cn_min(:), cn_max(:)
-        integer, allocatable :: res(:, :)
-
-        integer :: i, j, k, n
-        integer, allocatable :: all_compositions(:, :)
-
-        k = size(cn_min)
-        n = cn_min(k)
-
-        all_compositions = get_compositions(k, n)
-
-
-        allocate(res(size(cn_min), n_supergroups(cn_min, cn_max)))
-        j = 1
-        do i = 1, size(res, 2)
-            do while (any(cn_min > cumsum(all_compositions(:, j)) .or. cumsum(all_compositions(:, j)) > cn_max))
-                j = j + 1
-            end do
-            res(:, i) = all_compositions(:, j)
-            j = j + 1
-        end do
-    end function
-
-
-    !> @brief
-    !> Get the idx of a given supergroup.
-    !>
-    !> @details
-    !> GAS allowed compositions are called supergroups.
-    !> Assume lexical decreasing sortedness.
-    pure function supergroup_idx(composition, in_cn_min, in_cn_max) result(idx)
-        integer, intent(in) :: composition(:), in_cn_min(:), in_cn_max(:)
-        integer(int64) :: idx
-        character(*), parameter :: this_routine = 'supergroup_idx'
-
-        integer :: reminder
-        integer :: i_summand, leading_term
-        integer :: cn_min(size(in_cn_min)), cn_max(size(in_cn_max))
-
-        @:pure_ASSERT(all(in_cn_min <= cumsum(composition) .and. cumsum(composition) <= in_cn_max))
-
-        cn_min = in_cn_min; cn_max = in_cn_max
-
-        idx = 1_int64
-        i_summand = 1
-        reminder = sum(composition)
-
-        do while (reminder /= 0)
-            do leading_term = min(reminder, cn_max(i_summand)), composition(i_summand) + 1, -1
-                idx = idx + n_supergroups(cn_min(i_summand + 1 : ) - leading_term, cn_max( i_summand + 1 :) - leading_term)
-            end do
-
-            reminder = reminder - composition(i_summand)
-            cn_min = cn_min - composition(i_summand)
-            cn_max = cn_max - composition(i_summand)
-            i_summand = i_summand + 1
-        end do
-    end function
-
-
-    pure function supergroup_idx_precomputed(composition, supergroup_indices) result(idx)
-        integer, intent(in) :: composition(:)
-        integer(int64), intent(in) :: supergroup_indices(:)
-        integer :: idx
-
-        idx = binary_search_first_ge(supergroup_indices, composition_idx(composition))
-    end function
-
-
-    pure function get_allowed_composition_indices(cn_min, cn_max) result(res)
-        integer, intent(in) :: cn_min(:), cn_max(:)
-
-        integer(int64), allocatable :: res(:)
-        integer, allocatable :: supergroups(:, :)
-        integer :: i
-
-        supergroups = get_supergroups(cn_min, cn_max)
-        allocate(res(size(supergroups, 2)))
-        do i = 1, size(supergroups, 2)
-            res(i) = composition_idx(supergroups(:, i))
-        end do
-    end function
-
-
-    !> @brief
-    !> Get the number of possible supergroups.
-    !>
-    !> @details
-    !> GAS allowed compositions are called supergroups.
-    recursive pure function n_supergroups(cn_min, cn_max) result(n_part)
-        integer, intent(in) :: cn_min(:), cn_max(:)
-        integer(int64) :: n_part
-
-        integer :: k, n, i
-        character(*), parameter :: this_routine = 'n_supergroups'
-
-        @:pure_ASSERT(size(cn_min) == size(cn_max))
-        k = size(cn_min)
-        @:pure_ASSERT(0 <= cn_max(1) .and. cn_min(k) == cn_max(k))
-        n = cn_min(k)
-        @:pure_ASSERT(all(cn_min(2:) >= cn_min(: k - 1)) .and. all(cn_max(2:) >= cn_max(: k - 1)))
-
-        if (k == 1 .or. n == 0) then
-            n_part = merge(1_int64, 0_int64, cn_min(1) <= n .and. n <= cn_max(1))
-        else
-            n_part = 0_int64
-            do i = max(0, cn_min(1)), min(n, cn_max(1))
-                n_part = n_part + n_supergroups(cn_min(2:) - i, cn_max(2:) - i)
-            end do
-        end if
-    end function
-
-
-    !> @brief
-    !> Get the number of possible supergroups.
-    !>
-    !> @details
-    !> GAS allowed compositions are called supergroups.
-    pure function indexer_n_supergroups(self) result(n_part)
-        class(SuperGroupIndexer_t), intent(in) :: self
-        integer(int64) :: n_part
-
-        integer :: i, idx(self%GASspec%nGAS())
-        idx = [(i, i = 1, size(idx))]
-        n_part = n_supergroups(self%GASspec%cumulated_min(idx), &
-                               self%GASspec%cumulated_max(idx))
-    end function
-
-
-    !> @brief
-    !> Get the ordered compositions of n into k summands
-    !>  constrained by cumulative minima and maxima.
-    !>
-    !> @details
-    !> GAS allowed compositions are called supergroups.
-    pure function indexer_get_supergroups(self) result(res)
-        class(SuperGroupIndexer_t), intent(in) :: self
-        integer :: res(self%GASspec%nGAS(), self%n_supergroups())
-
-        integer :: i, idx(self%GASspec%nGAS())
-
-        idx = [(i, i = 1, size(idx))]
-        res = get_supergroups(self%GASspec%cumulated_min(idx), &
-                              self%GASspec%cumulated_max(idx))
     end function
 
 end module gasci_supergroup_index

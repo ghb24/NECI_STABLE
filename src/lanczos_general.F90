@@ -12,7 +12,7 @@ module lanczos_general
     use MemoryManager, only: TagIntType, LogMemAlloc, LogMemDealloc
     use Parallel_neci, only: iProcIndex, nProcessors, MPIArg, MPIBarrier
     use Parallel_neci, only: MPIBCast, MPIGatherV, MPIAllGather
-    use ParallelHelper, only: root
+    use MPI_wrapper, only: root
     use ras_data
     use sparse_arrays, only: sparse_ham, hamil_diag, HDiagTag
     use hamiltonian_linalg, only: &
@@ -229,7 +229,7 @@ contains
                 ! of the nstates lowest lying determinants
 
                 do i = 1, n_states
-                    write(6, *) det_list(:, lowest_energy_det_indices(i))
+                    write(stdout, *) det_list(:, lowest_energy_det_indices(i))
                     this%lanczos_vector(lowest_energy_det_indices(i)) = 1.0_dp / sqrt(real(n_states, dp))
                 end do
 
@@ -282,13 +282,13 @@ contains
                         largest_overlap = abs(overlap)
                     end if
                     if (abs(overlap) > this%orthog_tolerance) then
-                        write(6, '(" Largest Ritz vector overlap: ", 5ES16.7)') largest_overlap
+                        write(stdout, '(" Largest Ritz vector overlap: ", 5ES16.7)') largest_overlap
                         call stop_all(t_r, "Ritz vector overlap is unacceptably large")
                     end if
                 end do
             end do
-            write(6, '(" Largest Ritz vector overlap: ", 5ES16.7)') largest_overlap
-            write(6, '(" Ritz vectors are mutually orthogonal to a tolerance of ", 5ES16.7)') this%orthog_tolerance
+            write(stdout, '(" Largest Ritz vector overlap: ", 5ES16.7)') largest_overlap
+            write(stdout, '(" Ritz vectors are mutually orthogonal to a tolerance of ", 5ES16.7)') this%orthog_tolerance
         end if
     end subroutine perform_orthogonality_test
 
@@ -555,11 +555,11 @@ contains
         end if
 
         if (print_info) then
-            write(6, '(1X,"Perfoming a Lanczos Diagonalisation of the trial space")')
+            write(stdout, '(1X,"Perfoming a Lanczos Diagonalisation of the trial space")')
             if (this%super%t_orthogonalise) then
-                write(6, '(/,1X,"Orthogonalising Lanczos vectors")')
+                write(stdout, '(/,1X,"Orthogonalising Lanczos vectors")')
             else
-                write(6, '(/,1X,"Not orthogonalising Lanczos vectors")')
+                write(stdout, '(/,1X,"Not orthogonalising Lanczos vectors")')
             end if
         end if
         associate ( &
@@ -580,7 +580,7 @@ contains
                 call project_hamiltonian_lanczos(this, 1)
 
                 if (print_info) then
-                    write(6, '(/,1X,"Iteration",4x,"State",12X,"Energy",7X,"Time")'); call neci_flush(6)
+                    write(stdout, '(/,1X,"Iteration",4x,"State",12X,"Energy",7X,"Time")'); call neci_flush(6)
                 end if
                 ! start Lanczos main loop
                 do k = 1, this%super%max_subspace_size - 1
@@ -640,12 +640,12 @@ contains
                             t_deltas_pass = t_deltas_pass .and. check_delta(this, k, i)
                             if (.not. this%t_states_converged(i)) then
                                 if (print_info) then
-                                    write(6, trim(main_output_fmt)) k, i, this%ritz_values(i), end_time - start_time
+                                    write(stdout, trim(main_output_fmt)) k, i, this%ritz_values(i), end_time - start_time
                                     call neci_flush(6)
                                 end if
                             end if
                         end do
-                        write(6, *)
+                        write(stdout, *)
                     end if
 
                     call MPIBCast(t_deltas_pass)
@@ -697,12 +697,12 @@ contains
                 restart_counter = restart_counter + 1
                 if (restart_counter < this%max_restarts) then
                     if (print_info) then
-                        write(6, '(/,1x,"Maximum iteration number reached, restarting Lanczos algorithm (",i3,"/",i3")")') &
+                        write(stdout, '(/,1x,"Maximum iteration number reached, restarting Lanczos algorithm (",i3,"/",i3")")') &
                             restart_counter, this%max_restarts
                     end if
                 else
                     if (print_info) then
-                        write(6, '(/,1x,"Maximum restart number reached. Some states may not be converged.")')
+                        write(stdout, '(/,1x,"Maximum restart number reached. Some states may not be converged.")')
                     end if
                     exit
                 end if
@@ -718,7 +718,7 @@ contains
 
                 if (check_deltas(this, k)) then
                     if (print_info) then
-                        write(6, '(i2" eigenvalues(s) were successfully converged to within ",5ES16.7)') &
+                        write(stdout, '(i2" eigenvalues(s) were successfully converged to within ",5ES16.7)') &
                             this%n_states, this%convergence_error
                         call neci_flush(6)
                     end if
@@ -727,34 +727,34 @@ contains
                 call perform_orthogonality_test(this)
 
                 if (print_info) then
-                    write(6, '(/,1x,"Final calculated energies:")')
+                    write(stdout, '(/,1x,"Final calculated energies:")')
                     do i = 1, this%n_states
-                        write(6, final_output_fmt) i, this%eigenvalues(i)
+                        write(stdout, final_output_fmt) i, this%eigenvalues(i)
                         call neci_flush(6)
                     end do
                 end if
             end if
 
             ! how good are the ritz vectors?
-            write(6, '(/,1x,"Ritz vector expectation energies:")')
+            write(stdout, '(/,1x,"Ritz vector expectation energies:")')
             do i = 1, this%n_states
                 exp_val = get_rayleigh_quotient(this, i)
                 if (print_info) then
-                    write(6, final_output_fmt) i, exp_val
+                    write(stdout, final_output_fmt) i, exp_val
                     call neci_flush(6)
                 end if
             end do
 
-            write(6, '(/,1x,"Ritz vector residual norms:")')
+            write(stdout, '(/,1x,"Ritz vector residual norms:")')
             do i = 1, this%n_states
                 exp_val = compute_residual_norm(this, i)
                 if (print_info) then
-                    write(6, final_output_fmt) i, exp_val
+                    write(stdout, final_output_fmt) i, exp_val
                     call neci_flush(6)
                 end if
             end do
 
-            write(6, '(/,1x,"End of Lanczos procedure.",/)')
+            write(stdout, '(/,1x,"End of Lanczos procedure.",/)')
 
             ! wait for final diagonalisation before freeing any memory
             call MPIBarrier(ierr)

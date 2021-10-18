@@ -30,7 +30,7 @@ contains
         use lanczos_wrapper, only: frsblk_wrapper
         use Parallel_neci, only: MPIScatterV, MPIGatherV, MPIBCast, MPIArg, iProcIndex
         use Parallel_neci, only: nProcessors
-        use ParallelHelper, only: root
+        use MPI_wrapper, only: root
         use semi_stoch_gen
         use sort_mod, only: sort
         use SystemData, only: nel, tAllSymSectors, tGUGA
@@ -70,7 +70,7 @@ contains
             call stop_all(this_routine, "non-supported trial space for GUGA!")
         end if
 
-        write(6, *) " Initialising wavefunctions by the Lanczos algorithm"
+        write(stdout, *) " Initialising wavefunctions by the Lanczos algorithm"
 
         ! Choose the correct generating routine.
         if (space_in%tHF) call add_state_to_space(ilutHF, trial_iluts, ndets_this_proc)
@@ -107,7 +107,7 @@ contains
         ndets_all_procs = sum(space_sizes)
 
         if (ndets_all_procs < lanczos_space_size_cutoff .and. .not. t_force_lanczos) then
-            write(6, *) " Aborting Lanczos and initialising trial states with direct diagonalisation"
+            write(stdout, *) " Aborting Lanczos and initialising trial states with direct diagonalisation"
             call calc_trial_states_direct(space_in, nexcit, ndets_this_proc, trial_iluts, evecs_this_proc, evals, &
                                           space_sizes, space_displs, reorder)
             return
@@ -241,7 +241,7 @@ contains
         use FciMCData, only: ilutHF, CurrentDets, TotWalkers
         use Parallel_neci, only: MPIScatterV, MPIGatherV, MPIBCast, MPIArg, iProcIndex
         use Parallel_neci, only: nProcessors
-        use ParallelHelper, only: root
+        use MPI_wrapper, only: root
         use semi_stoch_gen
         use sort_mod, only: sort
         use SystemData, only: nel, tAllSymSectors
@@ -379,20 +379,23 @@ contains
                     H_tmp(i, i) = get_helement(det_list(:, i), det_list(:, i), 0)
                 end if
                 ! off diagonal elements
-                if (tGUGA) call init_csf_information(ilut_list(0:nifd, i))
-                do j = 1, i - 1
-                    if (tHPHF) then
-                        H_tmp(i, j) = hphf_off_diag_helement(det_list(:, i), det_list(:, j), ilut_list(:, i), &
-                                                             ilut_list(:, j))
-                    else if (tGUGA) then
-                        call calc_guga_matrix_element(ilut_list(:, i), &
-                                                      ilut_list(:, j), excitInfo, H_tmp(j, i), .true., 1)
+                block
+                    type(CSF_Info_t) :: csf_i
+                    if (tGUGA) csf_i = CSF_Info_t(ilut_list(:, i))
+                    do j = 1, i - 1
+                        if (tHPHF) then
+                            H_tmp(i, j) = hphf_off_diag_helement(det_list(:, i), det_list(:, j), ilut_list(:, i), &
+                                                                 ilut_list(:, j))
+                        else if (tGUGA) then
+                            call calc_guga_matrix_element(ilut_list(:, i), csf_i, &
+                                                          ilut_list(:, j), excitInfo, H_tmp(j, i), .true., 1)
 
-!                     H_tmp(j,i) = conjg(H_tmp(j,i))
-                    else
-                        H_tmp(i, j) = get_helement(det_list(:, i), det_list(:, j), ilut_list(:, i), ilut_list(:, j))
-                    end if
-                end do
+    !                     H_tmp(j,i) = conjg(H_tmp(j,i))
+                        else
+                            H_tmp(i, j) = get_helement(det_list(:, i), det_list(:, j), ilut_list(:, i), ilut_list(:, j))
+                        end if
+                    end do
+                end block
             end do
 ! The H matrix if ready. Now diagonalize it.
             allocate(work(3 * ndets_all_procs), stat=ierr)

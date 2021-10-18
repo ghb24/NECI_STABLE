@@ -41,6 +41,9 @@ module sltcnd_mod
     use bit_reps, only: NIfTot
     use LMat_mod, only: get_lmat_el, get_lmat_el_ua
     use gen_coul_ueg_mod, only: get_contact_umat_el_3b_sp, get_contact_umat_el_3b_sap
+    use SD_spin_purification_mod, only: tSD_spin_purification, tTruncatedLadderOps, &
+                spin_pure_J, S2_expval_exc, dyn_S2_expval_exc
+
     implicit none
     private
     public :: initSltCndPtr, &
@@ -111,8 +114,8 @@ module sltcnd_mod
         end function sltcnd_2_t
 
         function sltcnd_3_t(ex, tSign) result(hel)
-            import :: dp, nel
-            integer, intent(in) :: ex(2, 3)
+            import :: dp, nel, TripleExc_t
+            type(TripleExc_t), intent(in) :: ex
             logical, intent(in) :: tSign
             HElement_t(dp) :: hel
         end function sltcnd_3_t
@@ -152,6 +155,18 @@ contains
                 sltcnd_1 => sltcnd_1_tc
                 sltcnd_2 => sltcnd_2_tc
                 sltcnd_3 => sltcnd_3_tc
+            else if (tSD_spin_purification) then
+                if (tTruncatedLadderOps) then
+                    sltcnd_0 => sltcnd_0_base
+                else
+                    sltcnd_0 => sltcnd_0_purify_spin
+                end if
+                sltcnd_2 => sltcnd_2_purify_spin
+
+                ! Unaffected by < I | S^2 | J >
+                sltcnd_1 => sltcnd_1_base
+                sltcnd_3 => sltcnd_3_base
+
             else
                 sltcnd_0 => sltcnd_0_base
                 sltcnd_1 => sltcnd_1_base
@@ -581,24 +596,25 @@ contains
     end function sltcnd_2_tc
 
     function sltcnd_3_tc(ex, tSign) result(hel)
-        integer, intent(in) :: ex(2, 3)
+        type(TripleExc_t), intent(in) :: ex
         logical, intent(in) :: tSign
         HElement_t(dp) :: hel
 
         ! this is directly the fully symmetrized entry of the L-matrix
-        hel = get_lmat_el(ex(1, 1), ex(1, 2), ex(1, 3), ex(2, 1), ex(2, 2), ex(2, 3))
+        associate(ex => ex%val)
+            hel = get_lmat_el(ex(1, 1), ex(1, 2), ex(1, 3), &
+                              ex(2, 1), ex(2, 2), ex(2, 3))
+        end associate
         ! take fermi sign into account
         if (tSign) hel = -hel
     end function sltcnd_3_tc
 
     ! dummy function for 3-body matrix elements without tc
     function sltcnd_3_base(ex, tSign) result(hel)
-        integer, intent(in) :: ex(2, 3)
+        type(TripleExc_t), intent(in) :: ex
         logical, intent(in) :: tSign
         HElement_t(dp) :: hel
-
         @:unused_var(ex, tSign)
-
         hel = 0
     end function sltcnd_3_base
 
@@ -842,16 +858,33 @@ contains
     end function sltcnd_2_tc_ua
 
     function sltcnd_3_tc_ua(ex, tSign) result(hel)
-        integer, intent(in) :: ex(2, 3)
+        type(TripleExc_t), intent(in) :: ex
         logical, intent(in) :: tSign
         HElement_t(dp) :: hel
 
         ! this is directly the fully symmetrized entry of the L-matrix
-        hel = get_lmat_el_ua(ex(1, 1), ex(1, 2), ex(1, 3), &
-                             ex(2, 1), ex(2, 2), ex(2, 3))
+        associate(ex => ex%val)
+            hel = get_lmat_el_ua(ex(1, 1), ex(1, 2), ex(1, 3), &
+                                 ex(2, 1), ex(2, 2), ex(2, 3))
+        end associate
         ! take fermi sign into account
         if (tSign) hel = -hel
     end function sltcnd_3_tc_ua
+
+    function sltcnd_0_purify_spin(nI, exc) result(hel)
+        integer, intent(in) :: nI(nel)
+        type(NoExc_t), intent(in) :: exc
+        HElement_t(dp) :: hel
+        hel = sltcnd_0_base(nI, exc) + spin_pure_J * S2_expval_exc(nI, exc)
+    end function
+
+    function sltcnd_2_purify_spin(nI, exc, tSign) result(hel)
+        integer, intent(in) :: nI(nel)
+        type(DoubleExc_t), intent(in) :: exc
+        logical, intent(in) :: tSign
+        HElement_t(dp) :: hel
+        hel = sltcnd_2_base(nI, exc, tSign) + spin_pure_J * S2_expval_exc(nI, exc, tSign)
+    end function
 
 !>  @brief
 !>      Evaluate Matrix Element for the reference (no Excitation).
@@ -930,7 +963,7 @@ contains
         type(TripleExc_t), intent(in) :: exc
         logical, intent(in) :: tParity
 
-        sltcnd_excit_TripleExc_t = sltcnd_3(exc%val, tParity)
+        sltcnd_excit_TripleExc_t = sltcnd_3(exc, tParity)
     end function
 
 !>  @brief

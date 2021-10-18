@@ -1,34 +1,121 @@
+#include "macros.h"
 
 module matrix_util
     use constants, only: sp, dp, EPS
-    use util_mod, only: near_zero
+    use util_mod, only: near_zero, get_free_unit
     use sort_mod, only: sort
     implicit none
     private
     public :: eig, print_matrix, matrix_exponential, det, blas_matmul, linspace, norm, &
-        calc_eigenvalues, check_symmetric, find_degeneracies, eig_sym, matrix_inverse
-
+        calc_eigenvalues, check_symmetric, find_degeneracies, eig_sym, norm_cmplx, &
+        store_hf_coeff, my_minloc, my_minval, matrix_inverse, print_vec
 
     interface linspace
         module procedure linspace_sp
         module procedure linspace_dp
     end interface linspace
 
+    interface eig
+        module procedure eig_cmplx
+        module procedure eig_real
+    end interface eig
+
+    interface calc_eigenvalues
+        module procedure calc_eigenvalues_real
+        module procedure calc_eigenvalues_cmplx
+    end interface calc_eigenvalues
+
 contains
 
-    subroutine eig(matrix, e_values, e_vectors, t_left_ev)
+    subroutine print_vec(vec, filename, t_index, t_zero)
+        class(*), intent(in) :: vec(:)
+        character(*), intent(in), optional :: filename
+        logical, intent(in), optional :: t_index, t_zero
+
+        logical :: t_index_, t_zero_
+        integer :: iunit, i
+        def_default(t_index_, t_index, .false.)
+        def_default(t_zero_, t_zero, .false.)
+
+        select type(vec)
+        type is (integer)
+            if (present(filename)) then
+                iunit = get_free_unit()
+                open(iunit, file = filename, status = 'replace', action = 'write')
+
+                if (t_zero_) then
+                    if (t_index_) then
+                        write(iunit, *) 0, 0.0_dp
+                    else
+                        write(iunit, *) 0.0_dp
+                    end if
+                end if
+
+
+                if (t_index_) then
+                    do i = 1, size(vec,1)
+                        write(iunit, *) i, vec(i)
+                    end do
+                else
+                    do i = 1, size(vec,1)
+                        write(iunit, *) vec(i)
+                    end do
+                end if
+
+                close(iunit)
+            else
+                do i = 1, size(vec,1)
+                    print *, vec(i)
+                end do
+            end if
+        type is (real(dp))
+            if (present(filename)) then
+                iunit = get_free_unit()
+                open(iunit, file = filename, status = 'replace', action = 'write')
+
+                if (t_zero_) then
+                    if (t_index_) then
+                        write(iunit, *) 0, 0.0_dp
+                    else
+                        write(iunit, *) 0.0_dp
+                    end if
+                end if
+
+
+                if (t_index_) then
+                    do i = 1, size(vec,1)
+                        write(iunit, *) i, vec(i)
+                    end do
+                else
+                    do i = 1, size(vec,1)
+                        write(iunit, *) vec(i)
+                    end do
+                end if
+
+                close(iunit)
+            else
+                do i = 1, size(vec,1)
+                    print *, vec(i)
+                end do
+            end if
+
+        end select
+
+    end subroutine print_vec
+
+    subroutine eig_real(matrix, e_values, e_vectors, t_left_ev)
         ! for very restricted matrices do a diag routine here!
-        HElement_t(dp), intent(in) :: matrix(:,:)
+        real(dp), intent(in) :: matrix(:,:)
         real(dp), intent(out) :: e_values(size(matrix,1))
-        HElement_t(dp), intent(out), optional :: e_vectors(size(matrix,1),size(matrix,1))
+        real(dp), intent(out), optional :: e_vectors(size(matrix,1),size(matrix,1))
         logical, intent(in), optional :: t_left_ev
 
         ! get the specifics for the eigenvectors still..
         ! i think i need a bigger work, and maybe also a flag for how many
         ! eigenvectors i want.. maybe also the number of eigenvalues..
         integer :: n, info
-        HElement_t(dp) :: work(4*size(matrix,1)), tmp_matrix(size(matrix,1),size(matrix,2))
-        HElement_t(dp) :: left_ev(size(matrix,1),size(matrix,1)), dummy_eval(size(matrix,1))
+        real(dp) :: work(4*size(matrix,1)), tmp_matrix(size(matrix,1),size(matrix,2))
+        real(dp) :: left_ev(size(matrix,1),size(matrix,1)), dummy_eval(size(matrix,1))
         real(dp) :: right_ev(size(matrix,1),size(matrix,1))
         integer :: sort_ind(size(matrix,1))
         character :: left, right
@@ -58,28 +145,6 @@ contains
             left = 'V'
             right = 'V'
 
-!             call print_matrix(tmp_matrix)
-
-!             print *, "bounds left_ev: ", lbound(left_ev,1),ubound(left_ev,1), &
-            !                 lbound(left_ev,2),ubound(left_ev,2)
-#ifdef CMPLX_
-            block
-                HElement_t(dp), allocatable :: rwork(:)
-                allocate(rwork(max(1,3*n-2)))
-                call zheev(&
-                     left, &
-                     right, &
-                     n, &
-                     tmp_matrix, &
-                     n, &
-                     e_values, &
-                     work, &
-                     4*n, &
-                     rwork,&
-                     info)
-                deallocate(rwork)
-            end block
-#else
             call dgeev(&
                 left, &
                 right, &
@@ -95,25 +160,10 @@ contains
                 work, &
                 4*n, &
                 info)
-#endif
 
             sort_ind = [(n, n = 1, size(matrix,1))]
 
             call sort(e_values, sort_ind)
-
-!             print *, "bounds left_ev: ", lbound(left_ev,1),ubound(left_ev,1), &
-!                 lbound(left_ev,2),ubound(left_ev,2)
-
-!             print *, "Re(eval):", e_values
-!             print *, "Im(eval):", dummy_eval(sort_ind)
-
-!             print *, "left evectors: "
-!             call print_matrix(left_ev(:,sort_ind))
-!             print *, "right evectors: "
-!             call print_matrix(right_ev(:,sort_ind))
-
-!             print *, "tmp matrix:"
-!             call print_matrix(tmp_matrix)
 
             if (present(t_left_ev)) then
                 if (t_left_ev) then
@@ -129,39 +179,135 @@ contains
             e_values = calc_eigenvalues(matrix)
         end if
 
-    end subroutine eig
+    end subroutine eig_real
 
-    function calc_eigenvalues(matrix) result(e_values)
-        HElement_t(dp), intent(in) :: matrix(:,:)
+
+    subroutine eig_cmplx(matrix, e_values, e_vectors, t_left_ev)
+        ! for very restricted matrices do a diag routine here!
+        complex(dp), intent(in) :: matrix(:,:)
+        real(dp), intent(out) :: e_values(size(matrix,1))
+        complex(dp), intent(out), optional :: e_vectors(size(matrix,1),size(matrix,1))
+        logical, intent(in), optional :: t_left_ev
+        character(*), parameter :: this_routine = 'eig_cmplx'
+
+        ! get the specifics for the eigenvectors still..
+        ! i think i need a bigger work, and maybe also a flag for how many
+        ! eigenvectors i want.. maybe also the number of eigenvalues..
+        integer :: n, info
+        complex(dp) :: work(4*size(matrix,1)), tmp_matrix(size(matrix,1),size(matrix,2))
+        complex(dp) :: left_ev(size(matrix,1),size(matrix,1))
+        real(dp), allocatable :: rwork(:)
+        real(dp) :: right_ev(size(matrix,1),size(matrix,1))
+        integer :: sort_ind(size(matrix,1))
+        character(len=1) :: left, right
+
+
+        ! and convention is: we only want the right eigenvectors!!
+        ! and always assume real-only eigenvalues
+        if (present(e_vectors)) then
+
+            if (present(t_left_ev)) then
+                if (t_left_ev) then
+                    left = 'V'
+                    right = 'N'
+                else
+                    left = 'N'
+                    right = 'V'
+                end if
+            else
+                left = 'N'
+                right = 'V'
+            end if
+
+            n = size(matrix,1)
+
+            tmp_matrix = matrix
+
+            left = 'V'
+            right = 'V'
+
+
+            allocate(rwork(max(1,3*n-2)))
+            call zheev(&
+                 left, &
+                 right, &
+                 n, &
+                 tmp_matrix, &
+                 n, &
+                 e_values, &
+                 work, &
+                 4*n, &
+                 rwork, &
+                 info)
+            if (info /= 0) call stop_all(this_routine, 'Failed in BLAS call.')
+            deallocate(rwork)
+
+            sort_ind = [(n, n = 1, size(matrix,1))]
+
+            call sort(e_values, sort_ind)
+
+            if (present(t_left_ev)) then
+                if (t_left_ev) then
+                    e_vectors = left_ev(:,sort_ind)
+                else
+                    e_vectors = right_ev(:,sort_ind)
+                end if
+            else
+                e_vectors = right_ev(:,sort_ind)
+            end if
+
+        else
+            e_values = calc_eigenvalues(matrix)
+        end if
+
+    end subroutine eig_cmplx
+
+    function calc_eigenvalues_real(matrix) result(e_values)
+        real(dp), intent(in) :: matrix(:,:)
         real(dp) :: e_values(size(matrix,1))
+        character(*), parameter :: this_routine = 'calc_eigenvalues_real'
 
         integer :: n, info
-        HElement_t(dp) :: work(3*size(matrix,1))
+        real(dp) :: work(3*size(matrix,1))
         real(dp) :: tmp_matrix(size(matrix,1),size(matrix,2)),dummy_val(size(matrix,1))
         real(dp) :: dummy_vec_1(1,size(matrix,1)), dummy_vec_2(1,size(matrix,1))
 
         n = size(matrix,1)
 
         tmp_matrix = matrix
-#ifdef CMPLX_
-        block
-            HElement_t(dp), allocatable :: rwork(:)
-            allocate(rwork(max(1,3*n-2)))
-            call zheev('N','N', n, tmp_matrix, n, e_values, work, 3*n, rwork)
-            deallocate(rwork)
-        end block
-#else
         call dgeev('N','N', n, tmp_matrix, n, e_values, &
             dummy_val, dummy_vec_1,1,dummy_vec_2,1,work,3*n,info)
-#endif
+        if (info /= 0) call stop_all(this_routine, 'Failed in BLAS call.')
         call sort(e_values)
 
-    end function calc_eigenvalues
+    end function calc_eigenvalues_real
+
+    function calc_eigenvalues_cmplx(matrix) result(e_values)
+        complex(dp), intent(in) :: matrix(:,:)
+        real(dp) :: e_values(size(matrix,1))
+        character(*), parameter :: this_routine = 'calc_eigenvalues_cmplx'
+
+        integer :: n, info
+        complex(dp) :: work(3*size(matrix,1))
+        complex(dp) :: tmp_matrix(size(matrix,1),size(matrix,2))
+        real(dp), allocatable :: rwork(:)
+
+        n = size(matrix,1)
+
+        tmp_matrix = matrix
+        allocate(rwork(max(1, 3*n - 2)))
+        call zheev('N','N', n, tmp_matrix, n, e_values, work, 3*n, rwork, info)
+        if (info /= 0) call stop_all(this_routine, 'Failed in BLAS call.')
+        deallocate(rwork)
+        call sort(e_values)
+
+    end function calc_eigenvalues_cmplx
 
     subroutine eig_sym(matrix, e_values, e_vectors)
         real(dp), intent(in) :: matrix(:,:)
         real(dp), intent(out) :: e_values(size(matrix,1))
         real(dp), intent(out), optional :: e_vectors(size(matrix,1),size(matrix,2))
+        character(*), parameter :: this_routine = 'eig_sym'
         integer :: n, info, lwork
         character(1) :: jobz
         real(dp) :: tmp_matrix(size(matrix,1),size(matrix,2))
@@ -188,6 +334,7 @@ contains
             work, &
             lwork, &
             info)
+        if (info /= 0) call stop_all(this_routine, 'Failed in BLAS call.')
 
         if (present(e_vectors)) then
             e_vectors = tmp_matrix
@@ -231,7 +378,10 @@ contains
         type is (real(dp))
             if (present(iunit)) then
                 do i = lbound(matrix,1),ubound(matrix,1)
-                    write(iunit,*) matrix(i,:)
+                    do j = lbound(matrix,2), ubound(matrix,2) - 1
+                        write(iunit,'(G25.17)', advance = 'no') matrix(i,j)
+                    end do
+                    write(iunit,'(G25.17)', advance = 'yes') matrix(i,j)
                 end do
             else
                 do i = lbound(matrix,1),ubound(matrix,1)
@@ -302,7 +452,8 @@ contains
 
         n = size(A,1)
 #ifdef CMPLX_
-        call zgemm('N','N', n, n, n, cmplx(1.0_dp,0.0_dp), A, n, B, n, cmplx(1.0_dp,0.0_dp), C, n)
+        call zgemm('N','N', n, n, n, cmplx(1.0_dp,0.0_dp,kind=dp), A, n, B, n, &
+            cmplx(1.0_dp,0.0_dp,kind=dp), C, n)
 #else
         call dgemm('N', 'N', n, n, n, 1.0_dp, A, n, B, n, 0.0_dp, C, n)
 #endif
@@ -378,8 +529,8 @@ contains
         vectors = matrix
 #ifdef CMPLX_
         block
-            HElement_t(dp), allocatable :: rwork(:)
-            allocate(rwork(max(1,3*n-2)))
+            real(dp), allocatable :: rwork(:)
+            allocate(rwork(max(1, 3*n - 2)))
             call zheev('V', 'U', n, vectors, n, values, work, 3*n-1, rwork, info)
             deallocate(rwork)
         end block
@@ -388,14 +539,12 @@ contains
 #endif
         ! now i have the eigenvectors, which i need the inverse of
         ! it is rotation only or? so i would just need a transpose or?
-!         inverse = matrix_inverse(vectors)
         inverse = transpose(vectors)
 
         ! i need to construct exp(eigenvalues) as a diagonal matrix!
         exp_diag = matrix_diag(exp(values))
 
-        exp_matrix = blas_matmul(blas_matmul(vectors,exp_diag),inverse)
-!         exp_matrix = matmul(matmul(vectors,exp_diag),inverse)
+        exp_matrix = blas_matmul(blas_matmul(vectors,exp_diag), inverse)
 
     end function matrix_exponential
 
@@ -464,6 +613,85 @@ contains
         end if
 
     end function norm
+
+    subroutine store_hf_coeff(e_values, e_vecs, target_state, hf_coeff, hf_ind, gs_ind)
+        real(dp), intent(in) :: e_values(:), e_vecs(:,:)
+        integer, intent(in), optional :: target_state
+        real(dp), intent(out) :: hf_coeff
+        integer, intent(out) :: hf_ind, gs_ind
+
+        real(dp) :: gs_vec(size(e_values))
+        integer :: target_state_
+        def_default(target_state_,target_state,1)
+
+        gs_ind = my_minloc(e_values, target_state)
+
+        gs_vec = abs(e_vecs(:,gs_ind))
+
+        hf_ind = maxloc(gs_vec,1)
+        hf_coeff = gs_vec(hf_ind)
+
+    end subroutine store_hf_coeff
+
+    pure real(dp) function my_minval(vec, target_state)
+        real(dp), intent(in) :: vec(:)
+        integer, intent(in), optional :: target_state
+
+        if (present(target_state)) then
+            my_minval = vec(my_minloc(vec,target_state))
+        else
+            my_minval = minval(vec)
+        end if
+
+    end function my_minval
+
+
+    pure integer function my_minloc(vec, target_state)
+        real(dp), intent(in) :: vec(:)
+        integer, intent(in), optional :: target_state
+
+        logical :: flag(size(vec))
+        integer :: i
+
+
+        if (present(target_state)) then
+            flag = .true.
+            do i = 1, target_state
+                my_minloc = minloc(vec, dim = 1, mask = flag)
+                flag(my_minloc) = .false.
+            end do
+        else
+            my_minloc = minloc(vec, 1)
+        end if
+
+    end function my_minloc
+
+    real(dp) function norm_cmplx(vec,p_in)
+        ! function to calculate the Lp norm of a given vector
+        ! if p_in = -1 this indicates the p_inf norm
+        complex(dp), intent(in) :: vec(:)
+        integer, intent(in), optional :: p_in
+        integer :: p, i
+
+        if (present(p_in)) then
+            p = p_in
+        else
+            ! default is the L2 norm
+            p = 2
+        end if
+
+        if (p == -1) then
+            norm_cmplx = maxval(abs(vec))
+        else
+            norm_cmplx = 0.0_dp
+            do i = 1, size(vec)
+                norm_cmplx = norm_cmplx + abs(vec(i))**p
+            end do
+
+            norm_cmplx = norm_cmplx**(1.0_dp/real(p,dp))
+        end if
+
+    end function norm_cmplx
 
 
     subroutine find_degeneracies(e_values, ind, pairs)

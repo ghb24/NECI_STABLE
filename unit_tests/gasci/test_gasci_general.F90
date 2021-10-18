@@ -6,7 +6,7 @@ module test_gasci_general_mod
     use orb_idx_mod, only: calc_spin_raw, sum, SpinOrbIdx_t
     use excitation_types, only: Excitation_t
 
-    use gasci, only: GASSpec_t
+    use gasci, only: LocalGASSpec_t
     use gasci_general, only: GAS_heat_bath_ExcGenerator_t
 
     use sltcnd_mod, only: dyn_sltcnd_excit_old
@@ -21,10 +21,9 @@ module test_gasci_general_mod
 contains
 
     subroutine test_pgen()
-        use SystemData, only: tGASSpinRecoupling
         use FciMCData, only: pSingles, pDoubles, pParallel
         type(GAS_heat_bath_ExcGenerator_t) :: exc_generator
-        type(GASSpec_t) :: GAS_spec
+        type(LocalGASSpec_t) :: GAS_spec
         integer, parameter :: det_I(6) = [1, 2, 3, 7, 8, 10]
 
         logical :: successful
@@ -35,13 +34,11 @@ contains
         pSingles = 0.5_dp
         pDoubles = 1.0_dp - pSingles
 
-        call assert_true(tGASSpinRecoupling)
-
         do n_interspace_exc = 0, 1
-            GAS_spec = GASSpec_t(n_min=[3 - n_interspace_exc, size(det_I)], n_max=[3 + n_interspace_exc, size(det_I)], &
+            GAS_spec = LocalGASSpec_t(n_min=[3, 3] - n_interspace_exc, n_max=[3, 3] + n_interspace_exc, &
                                  spat_GAS_orbs=[1, 1, 1, 2, 2, 2])
             call assert_true(GAS_spec%is_valid())
-            call assert_true(GAS_spec%contains_det(det_I))
+            call assert_true(GAS_spec%contains_conf(det_I))
 
             call init_excitgen_test(det_I, FciDumpWriter_t(random_fcidump, 'FCIDUMP'))
             exc_generator = GAS_heat_bath_ExcGenerator_t(GAS_spec)

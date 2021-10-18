@@ -1,6 +1,6 @@
 module sym_mod
 
-    use constants, only: dp, int64, sizeof_int
+    use constants, only: dp, int64, sizeof_int, stdout
     use SymExcitDataMod, only: SymTableLabels, SymLabelList2, SymLabelCounts2, &
                                OrbClassCount
     use SystemData, only: tKpntSym, tNoSymGenRandExcits, tHub, t_new_hubbard, &
@@ -153,7 +153,7 @@ contains
             write(IUNIT, *)
         end do
         IF (NSYM == 0) THEN
-            write(6, *) "No Symmetry table found."
+            write(stdout, *) "No Symmetry table found."
         end if
     END SUBROUTINE WRITESYMTABLE
 
@@ -184,9 +184,9 @@ contains
 
         TAbelian = .true.
         nSymGen = INT(log(NSYMMAX + 0.0_dp) / log(2.0_dp) + .4_dp)
-        write(6, "(A,I3,A)") "  Generating abelian symmetry table with", &
+        write(stdout, "(A,I3,A)") "  Generating abelian symmetry table with", &
             nSymGen, " generators"
-        write(6, '(A,'//int_fmt(nSymMax)//')') &
+        write(stdout, '(A,'//int_fmt(nSymMax)//')') &
             "  Number of symmetry classes: ", nSymMax
 
         ! We actually use momentum conservation directly for the UEG and
@@ -229,9 +229,9 @@ contains
                 SymConjTab(I) = I
             end do
 #ifdef DEBUG_
-            write(6, *) "Label, Sym, SymConjLabel, SymConj, SymProd"
+            write(stdout, *) "Label, Sym, SymConjLabel, SymConj, SymProd"
             do i = 1, nsymlabels
-                write(6, "(5I12)") i, symlabels(i), SymConjTab(i), symlabels(SymConjTab(i)), &
+                write(stdout, "(5I12)") i, symlabels(i), SymConjTab(i), symlabels(SymConjTab(i)), &
                     SYMPROD(symlabels(i), symlabels(SymConjTab(i)))
             end do
 #endif
@@ -263,9 +263,9 @@ contains
                 end do
             end do
 #ifdef DEBUG_
-            write(6, *) "Label, Sym, SymConjLabel, SymConj, SymProd"
+            write(stdout, *) "Label, Sym, SymConjLabel, SymConj, SymProd"
             do i = 1, nsymlabels
-                write(6, "(5I12)") i, symlabels(i), SymConjTab(i), symlabels(SymConjTab(i)), &
+                write(stdout, "(5I12)") i, symlabels(i), SymConjTab(i), symlabels(SymConjTab(i)), &
                     SYMPROD(symlabels(i), symlabels(SymConjTab(i)))
             end do
 #endif
@@ -301,7 +301,7 @@ contains
             end do
             DO I = 1, NBASIS / 2
                 SymClasses(I) = NSL(I)
-!               write(6,*) "SL",I,SymClasses(I)
+!               write(stdout,*) "SL",I,SymClasses(I)
             end do
             DO i = 1, nhg
                 IF (GG(i) /= 0) NSL(GG(i)) = Symreps(1, i)
@@ -320,7 +320,7 @@ contains
             end do
             DO I = 1, NBASIS / 2
                 SymClasses2(I) = NSL(I)
-!               write(6,*) "SL",I,SymClasses(I)
+!               write(stdout,*) "SL",I,SymClasses(I)
             end do
             DO i = 1, nhg
                 IF (GG(i) /= 0) NSL(GG(i)) = Symreps(1, i)
@@ -329,9 +329,9 @@ contains
                 Symreps(1, i) = NSL(i)
             end do
         end if
-!        write(6,*) "Sym Reps after Freezing"
+!        write(stdout,*) "Sym Reps after Freezing"
 !         DO i=1,nbasis
-!             write(6,*) i,Symreps(1,i),Symreps(2,i)
+!             write(stdout,*) i,Symreps(1,i),Symreps(2,i)
 !         end do
 
     END SUBROUTINE FREEZESYMLABELS
@@ -359,7 +359,7 @@ contains
         SymReps(:, :) = 0
         J = 0
         DO I = 1, NBASIS
-!             write(6,*) I,nbasis
+!             write(stdout,*) I,nbasis
             tNew = .true.
             IF (tSymIgnoreEnergies .AND. MOD(I, 2) == 0) THEN
 !Pair even orbs up with the odd ones.
@@ -380,9 +380,9 @@ contains
             end if
             SYMREPS(1, BRR(I)) = J
         end do
-!         write(6,*) "Sym Reps MOLPRO"
+!         write(stdout,*) "Sym Reps MOLPRO"
 !         DO i=1,nbasis
-!             write(6,*) i,Symreps(1,i),Symreps(2,i)
+!             write(stdout,*) i,Symreps(1,i),Symreps(2,i)
 !         end do
     END SUBROUTINE GENMOLPSYMREPS
 
@@ -468,7 +468,7 @@ contains
         character(*), parameter :: this_routine = 'GenSymStatePairs'
 
         if (tAbelianFastExcitGen .AND. .NOT. tAbelian) THEN
-            write(6, *) "Fast Abelian excitation generators specified,", &
+            write(stdout, *) "Fast Abelian excitation generators specified,", &
                 "but abelian symmetry not in use.  Using slow generators."
             tAbelianFastExcitGen = .false.
         end if
@@ -531,7 +531,7 @@ contains
         hi = lo + symLabelCounts(2, tempList(i - 1)) - 1
         call sort(symLabelList(lo:hi))
 !         DO I=1,NSYMLABELS
-!            write(6,*) "NSL",I,SYMLABELCOUNTS(1,I),SYMLABELCOUNTS(2,I)
+!            write(stdout,*) "NSL",I,SYMLABELCOUNTS(1,I),SYMLABELCOUNTS(2,I)
 !     &         SymLabels(I)
 !         end do
 
@@ -554,7 +554,7 @@ contains
             call sort(symPairProds(1:nSymPairProds))
             TOT = 0
             DO I = 1, nSymPairProds
-!               write(6,"(I4,Z8,4I4)")
+!               write(stdout,"(I4,Z8,4I4)")
 !     &             I,SymPairProds(I)%Sym,SymPairProds(I)%nPairs,
 !     &           SymPairProds(I)%nIndex, SymPairProds(I)%nPairsStateSS,
 !     &           SymPairProds(I)%nPairsStateOS
@@ -564,22 +564,22 @@ contains
                 SymPairProds(I)%nPairsStateSS = 0
                 SymPairProds(I)%nPairsStateOS = 0
             end do
-            write(6, *) TOT, " Symmetry PAIRS"
-            write(6, *) NSYMPAIRPRODS, " DISTINCT ORBITAL PAIR PRODUCT SYMS"
+            write(stdout, *) TOT, " Symmetry PAIRS"
+            write(stdout, *) NSYMPAIRPRODS, " DISTINCT ORBITAL PAIR PRODUCT SYMS"
             allocate(SymStatePairs(2, 0:TOT - 1))
             call LogMemAlloc('SymStatePairs', 2 * TOT, 4, this_routine, tagSymStatePairs)
             SymStatePairs(:, :) = 0
             CALL GenSymPairs(nSymLabels, 1)
-!            write(6,*) "Sym State Pairs"
+!            write(stdout,*) "Sym State Pairs"
 !            DO I=0,TOT-1
-!               write(6,*) I,SymStatePairs(1:2,I)
+!               write(stdout,*) I,SymStatePairs(1:2,I)
 !            end do
 
-!            write(6,*) "SymLabelList: ",SymLabelList(:)
-!            write(6,*) "***","SymLabelCounts..."
-!            write(6,*) SymLabelCounts(1,:)
-!            write(6,*) "***"
-!            write(6,*) SymLabelCounts(2,:)
+!            write(stdout,*) "SymLabelList: ",SymLabelList(:)
+!            write(stdout,*) "***","SymLabelCounts..."
+!            write(stdout,*) SymLabelCounts(1,:)
+!            write(stdout,*) "***"
+!            write(stdout,*) SymLabelCounts(2,:)
 
         else
 !.. Non-abelian symmetry requires us to go through and work out all the possible pairs of orbs.
@@ -593,14 +593,14 @@ contains
 !   Now sort the SymPairProds into order
             call sort(symPairProds(1:nSymPairProds))
             TOT = 0
-!            write(6,*) "SymPairs",nSymPairProds
+!            write(stdout,*) "SymPairs",nSymPairProds
             DO I = 1, nSymPairProds
                 SymPairProds(I)%nIndex = TOT
                 TOT = TOT + SymPairProds(I)%nPairs
                 SymPairProds(I)%nPairs = 0
             end do
-            write(6, *) TOT, " STATE PAIRS"
-            write(6, *) NSYMPAIRPRODS, " DISTINCT ORBITAL PAIR PRODUCT SYMS"
+            write(stdout, *) TOT, " STATE PAIRS"
+            write(stdout, *) NSYMPAIRPRODS, " DISTINCT ORBITAL PAIR PRODUCT SYMS"
             allocate(SymStatePairs(2, 0:TOT - 1))
             call LogMemAlloc('SymStatePairs', 2 * TOT, 4, this_routine, tagSymStatePairs)
             SymStatePairs(:, :) = 0
@@ -628,7 +628,7 @@ contains
         INTEGER iSS, iOS
         DO I = 1, nSymLabels
             DO J = I, nSymLabels
-!               write(6,*) I,J
+!               write(stdout,*) I,J
                 PROD = SYMPROD(SymLabels(I), SymLabels(J))
                 CALL FindSymProd(Prod, SymPairProds, nSymPairProds, iProd)
                 IF (iProd == nSymPairProds + 1) THEN
@@ -655,7 +655,7 @@ contains
 !   put the pair into the list of pairs.
                         SymStatePairs(1, SymPairProds(iProd)%nIndex + SymPairProds(iProd)%nPairs) = I
                         SymStatePairs(2, SymPairProds(iProd)%nIndex + SymPairProds(iProd)%nPairs) = J
-!                     write(6,"(3I5,Z10,3I5)")
+!                     write(stdout,"(3I5,Z10,3I5)")
 !     &                  iProd,I,J,PROD,SymPairProds(iProd)%nIndex
 !     &                            +SymPairProds(iProd)%nPairs,
 !     &                           SymPairProds(iProd)%nIndex,
@@ -666,7 +666,7 @@ contains
                     SymPairProds(iProd)%nPairs = SymPairProds(iProd)%nPairs + 1
                     SymPairProds(iProd)%nPairsStateOS = SymPairProds(iProd)%nPairsStateOS + iOS
                     SymPairProds(iProd)%nPairsStateSS = SymPairProds(iProd)%nPairsStateSS + iSS
-!                write(6,*) "NN",SymLabelCounts(2,I),SymLabelCounts(2,J),
+!                write(stdout,*) "NN",SymLabelCounts(2,I),SymLabelCounts(2,J),
 !     &           SymPairProds(iProd)%nPairsStateSS,
 !     &           SymPairProds(iProd)%nPairsStateOS
                 end if
@@ -682,7 +682,7 @@ contains
         INTEGER NSTATES, iProd
         DO I = 1, NSTATES
             DO J = I, NSTATES
-!               write(6,*) I,J,SymClasses(I),SymClasses(J)
+!               write(stdout,*) I,J,SymClasses(I),SymClasses(J)
                 IF (FRZ) THEN
                     PROD = SYMPROD(SymLabels(SymClasses2(I)), SymLabels(SymClasses2(J)))
                 ELSE
@@ -837,7 +837,7 @@ contains
         end do
         NSYM = 1
         IF (INV) THEN
-            write(6, *) "Inversion centre detected"
+            write(stdout, *) "Inversion centre detected"
             NSYM = NSYM + 1
 !   There's an inversion centre, so we can immediately create an A1u irrep
             DO I = 1, NROT
@@ -854,7 +854,7 @@ contains
         LDO2 = .TRUE.
         DO WHILE (LDO .OR. LDO2)
 !            CALL WRITEIRREPTAB(6,IRREPCHARS,NROT,NSYM)
-!            write(6,*) NREPS," non-reducible"
+!            write(stdout,*) NREPS," non-reducible"
 !            CALL WRITEIRREPTAB(6,REPCHARS,NROT,NREPS)
 !   First see if all the products of chars are decomposable
             LDO = .FALSE.
@@ -867,7 +867,7 @@ contains
                         REPCHARS(K, NREPS) = CONJG(IRREPCHARS(K, I)) * IRREPCHARS(K, J)
                     end do
 
-!                  write(6,*) NREPS,"PROD",I,J
+!                  write(stdout,*) NREPS,"PROD",I,J
 !                  CALL N_MEMORY_CHECK
 !                  CALL WRITECHARS(6,REPCHARS(1,NREPS),NROT,"ADDPRD")
                     IF (GETIRREPDECOMP(REPCHARS(1, NREPS), IRREPCHARS, NSYM, NROT, IDECOMP, NORM, TAbelian)) THEN
@@ -884,20 +884,20 @@ contains
                             LDO = .TRUE.
                             EXIT lp1
                         ELSE
-!                        write(6,*) "IDECOMP:", IDECOMP,NORM,"SYMS:",NSYM
+!                        write(stdout,*) "IDECOMP:", IDECOMP,NORM,"SYMS:",NSYM
 !                      CALL WRITECHARS(6,REPCHARS(1,NREPS),NROT,"REMAIN")
 !   It's not an irrep, but we cannot reduce it.  Store only if we think we've got all the irreps.
-!                        write(6,*) "NR",NREPS,LDO2
+!                        write(stdout,*) "NR",NREPS,LDO2
                             IF (LDO2) NREPS = NREPS - 1
 !                        NREPS=NREPS-1
                         end if
                     ELSE
-!                     write(6,*) "IDECOMP:", IDECOMP
+!                     write(stdout,*) "IDECOMP:", IDECOMP
                         NREPS = NREPS - 1
                     end if
                 END DO
             END DO lp1
-!            write(6,*) LDO,NEXTSYMLAB,NSYMLABELS
+!            write(stdout,*) LDO,NEXTSYMLAB,NSYMLABELS
             IF (LDO) CYCLE
 !   Check to see if the next symlabel's char is decomposable
             lp2: DO WHILE (NEXTSYMLAB <= NSYMLABELS)
@@ -921,13 +921,13 @@ contains
                         LDO = .TRUE.
                         EXIT lp2
                     ELSE
-!                     write(6,*) "IDECOMP:", IDECOMP,NORM,"SYMS:",NSYM
+!                     write(stdout,*) "IDECOMP:", IDECOMP,NORM,"SYMS:",NSYM
 !                     CALL WRITECHARS(6,REPCHARS(1,NREPS),NROT,"REMAIN")
 !   It's not an irrep, but we cannot reduce it.  Store only if we think we've got all the irreps.
                         IF (LDO2) NREPS = NREPS - 1
                     end if
                 ELSE
-!                  write(6,*) "IDECOMP:", IDECOMP
+!                  write(stdout,*) "IDECOMP:", IDECOMP
                     NREPS = NREPS - 1
                 end if
                 NEXTSYMLAB = NEXTSYMLAB + 1
@@ -941,10 +941,10 @@ contains
             END DO lp2
         end do
 !
-        write(6, *) "IRREP TABLE"
+        write(stdout, *) "IRREP TABLE"
         CALL WRITEIRREPTAB(6, IRREPCHARS, NROT, NSYM)
         IF (NREPS > 0) THEN
-            write(6, *) NREPS, " non-reducible"
+            write(stdout, *) NREPS, " non-reducible"
             CALL WRITEIRREPTAB(6, REPCHARS, NROT, NREPS)
 !            IF(NREPS.GT.1) THEN
             call stop_all(this_routine, "More than 1 non-reducible reps found.")
@@ -1064,7 +1064,7 @@ contains
         end if
         IDECOMP%s = 0
         CALL DCOPY(NROT * 2, CHARSIN, 1, CHARS, 1)
-!         write(6,*) "Decompose Rep"
+!         write(stdout,*) "Decompose Rep"
 !         CALL WRITECHARS(6,CHARS,NROT,"REP   ")
 !,. First check norm of this state
         CNORM = 0
@@ -1078,20 +1078,20 @@ contains
             DO J = 1, NROT
                 TOT = TOT + CONJG(IRREPCHARS(J, I)) * CHARS(J)
             end do
-!            write(6,*) I,TOT
+!            write(stdout,*) I,TOT
             IF (abs(TOT) > 1.0e-12_dp) THEN
 !   Calculate the normalization of the state I which matches (if it's an irrep, this will be 1)
                 NORM = 0
                 DO J = 1, NROT
                     NORM = NORM + real(CONJG(IRREPCHARS(J, I)) * IRREPCHARS(J, I), dp)
                 end do
-!               write(6,*) "IRREP ",I,(TOT+0.0_dp)/NORM
+!               write(stdout,*) "IRREP ",I,(TOT+0.0_dp)/NORM
                 DIFF = ABS(TOT - NINT(ABS(TOT / NORM)) * NORM)
                 IF (DIFF > 1.0e-2_dp) THEN
-                    write(6, *) 'Symmetry decomposition not complete'
+                    write(stdout, *) 'Symmetry decomposition not complete'
                     CALL WRITECHARS(6, IRREPCHARS(1, I), NROT, "IRREP ")
                     CALL WRITECHARS(6, CHARS, NROT, "CHARS ")
-                    write(6, *) "Dot product: ", (TOT + 0.0_dp) / NORM, TOT, NORM
+                    write(stdout, *) "Dot product: ", (TOT + 0.0_dp) / NORM, TOT, NORM
                     call stop_all(this_routine, 'Incomplete symmetry decomposition')
 !   The given representation CHARS has fewer irreps in it than the one in IRREPCHARS, and is an irrep
 !   Hurrah!  Remove it from the one in IRREPCHARS, and keep on going)
@@ -1099,7 +1099,7 @@ contains
 !   We've found an (ir)rep which is wholly in CHARS
                     IDECOMP%s = IBSET(IDECOMP%s, I - 1)
                     CNORM = 0
-!                  write(6,*) I,DIFF,TOT,TOT/NORM
+!                  write(stdout,*) I,DIFF,TOT,TOT/NORM
                     DO J = 1, NROT
                         CHARS(J) = CHARS(J) - (IRREPCHARS(J, I) * TOT) / NORM
                         CNORM = CNORM + real(CONJG(CHARS(J)) * CHARS(J), dp)
@@ -1148,7 +1148,7 @@ contains
                 DO J = 1, NROT
                     NORM = NORM + real(CONJG(IRREPCHARS(J, I)) * IRREPCHARS(J, I), dp)
                 end do
-!               write(6,*) "IRREP ",I,(TOT+0.0_dp)/NORM
+!               write(stdout,*) "IRREP ",I,(TOT+0.0_dp)/NORM
 !                CALL WRITECHARS(6,CHARS,NROT,"REP   ")
 !                CALL WRITECHARS(6,IRREPCHARS(1,I),NROT,"IRREP ")
                 DIFF = ABS(TOT - NINT(ABS(TOT / NORM)) * NORM)
@@ -1192,7 +1192,7 @@ contains
                 CHARS(K) = CONJG(IRREPCHARS(K, I))
             end do
             IF (GETIRREPDECOMP(CHARS, IRREPCHARS, NSYM, NROT, IDECOMP, CNORM, TAbelian)) THEN
-                write(6, *) "Conjugate of SYM ", I, " not reducible,"
+                write(stdout, *) "Conjugate of SYM ", I, " not reducible,"
                 CALL WRITECHARS(6, CHARS, NROT, "REMAIN")
                 call stop_all(this_routine, "Symmetry table element not conjugable")
             end if
@@ -1203,7 +1203,7 @@ contains
                 IDECOMP%s = ISHFT(IDECOMP%s, -1)
             end do
             IF (IDECOMP%s /= 1) THEN
-                write(6, *) "Conjugate of SYM ", I, " not a single SYM,"
+                write(stdout, *) "Conjugate of SYM ", I, " not a single SYM,"
                 call stop_all(this_routine, 'Incorrect sym conjugate')
             end if
             SymConjTab(I) = K + 1
@@ -1212,18 +1212,18 @@ contains
                     CHARS(K) = IRREPCHARS(K, I) * IRREPCHARS(K, J)
                 end do
                 IF (GETIRREPDECOMP(CHARS, IRREPCHARS, NSYM, NROT, IDECOMP, CNORM, TAbelian)) THEN
-                    write(6, *) "Multiplication of SYMS ", I, J, " not reducible,"
+                    write(stdout, *) "Multiplication of SYMS ", I, J, " not reducible,"
                     CALL WRITECHARS(6, CHARS, NROT, "REMAIN")
                     call stop_all(this_routine, "Symmetry table element not reducible")
                 end if
                 SYMTABLE(I, J) = IDECOMP
                 SYMTABLE(J, I) = IDECOMP
-!               write(6,"(2I3,B12)") I,J,IDECOMP
+!               write(stdout,"(2I3,B12)") I,J,IDECOMP
             end do
         end do
-        write(6, *) "Symmetry, Symmetry Conjugate"
+        write(stdout, *) "Symmetry, Symmetry Conjugate"
         DO I = 1, NSYM
-            write(6, *) I, SymConjTab(I)
+            write(stdout, *) I, SymConjTab(I)
         end do
     END SUBROUTINE GENSYMTABLE
 
@@ -1240,17 +1240,18 @@ contains
 !   now work out which reps are degenerate and label them
         allocate(SymReps(2, nBasis))
         call LogMemAlloc('SymReps', 2 * nBasis, 4, this_routine, tagSymReps)
-        J = 0
-        DO I = 1, NBASIS
-!            write(6,*) "SR2",I
+
+        symreps(2,1) = 1
+        symreps(1,1) = 1
+
+        J = 1
+        DO I = 2, NBASIS
             ltmp = .false.
-            if (i > 1) then
-                if (abs(arr(i, 2) - arr(i - 1, 2)) < degentol .and. &
-                    (tAbelian .or. symeq(G1(i)%sym, G1(i - 1)%sym))) then
-                    ! We have the same degenerate rep as the previous entry
-                    symreps(2, J) = symreps(2, J) + 1
-                    lTmp = .true.
-                end if
+            if (abs(arr(i, 2) - arr(i - 1, 2)) < degentol .and. &
+                (tAbelian .or. symeq(G1(i)%sym, G1(i - 1)%sym))) then
+                ! We have the same degenerate rep as the previous entry
+                symreps(2, J) = symreps(2, J) + 1
+                lTmp = .true.
             end if
             if (.not. lTmp) then
                 ! We have a new rep
@@ -1259,9 +1260,6 @@ contains
             end if
             SYMREPS(1, I) = J
         end do
-!         DO I=1,NBASIS
-!            write(6,*) "SR1",SYMREPS(1,I),SYMREPS(2,I)
-!         end do
     END SUBROUTINE GENSYMREPS
 
 !.  Irrep symmetries are specified in SYM(5).
@@ -1353,10 +1351,6 @@ contains
 !   (it is +/-CSF_NSBASIS)
         I = ISYM%MS + 0
         ISYM%Ms = I + SSYM
-!          if (t_new_hubbard) then
-        ! with the new lat%add_k_vec i should not need to map!
-!              isym%k = lat%map_k_vec(isym%k)
-!          end if
         RETURN
     END SUBROUTINE ADDELECSYM
 
@@ -1365,7 +1359,7 @@ contains
         TYPE(BasisFN) ISYM
         INTEGER nBasisMax(5, *)
         INTEGER I
-        if (t_new_hubbard) then
+        if (t_new_hubbard .and. t_k_space_hubbard) then
             ! deal differently with the new k-space hubbard
             ! use the lattice intrinsic function
             ! also do something in the real-space case!!
@@ -1391,11 +1385,6 @@ contains
 !ALEX PLEASE CHECK.
 
                 CALL MOMPBCSYM(ISYM%k, NBASISMAX)
-!            else if(NBASISMAX(1,3).EQ.2) THEN
-!   non-pbc mom space has parity symmetry
-!               DO I=1,3
-!                  ISYM(I)=MOD(ISYM(I),2)
-!               end do
             else if (NBASISMAX(1, 3) >= 2) THEN
 !   we're in real space so no sym
                 DO I = 1, 3
@@ -1602,7 +1591,7 @@ contains
         ILAST = J
         DO WHILE (J - I >= 1)
             N = (I + J) / 2
-!            write(6,"(3I4)",advance='no') I,J,N
+!            write(stdout,"(3I4)",advance='no') I,J,N
 !            CALL WRITESYM(6,TAB(1,I),.FALSE.)
 !            CALL WRITESYM(6,TAB(1,J),.FALSE.)
 !            CALL WRITESYM(6,TAB(1,N),.TRUE.)
@@ -1871,25 +1860,25 @@ contains
             SymClasses(I) = KpntInd(I)
             SymLabels(KPntInd(I))%s = ComposeAbelianSym(KpntSym(:, KPntInd(I)))
         END DO
-        write(6, *)
-        write(6, '(a11," |",a13,"|",a10)') ' K-vector', ' Label ', 'Conjugate'
-        write(6, '(39("-"))')
+        write(stdout, *)
+        write(stdout, '(a11," |",a13,"|",a10)') ' K-vector', ' Label ', 'Conjugate'
+        write(stdout, '(39("-"))')
         do i = 1, nSymLabels
-            write(6, '("(",3i3,")"," | ")', advance='no') KpntSym(:, I)
+            write(stdout, '("(",3i3,")"," | ")', advance='no') KpntSym(:, I)
             call writesym(6, SymLabels(I), .false.)
-            write(6, '(A)', advance='no') " | "
+            write(stdout, '(A)', advance='no') " | "
             call writesym(6, SymConj(SymLabels(I)), .true.)
         end do
-!      write(6,'(/,a)') 'Symmetry Multiplication Table'
+!      write(stdout,'(/,a)') 'Symmetry Multiplication Table'
 !      do i=1,nSymLabels
 !        do j=1,nSymLabels
-!          write(6,'(z12)',advance='no') SymProd(SymLabels(I),SymLabels(J))
+!          write(stdout,'(z12)',advance='no') SymProd(SymLabels(I),SymLabels(J))
 !        end do
-!        write(6,*)
+!        write(stdout,*)
 !      end do
-!      write(6,'(/)')
+!      write(stdout,'(/)')
 
-!        write(6,*) "SYMMETRY CLASSES"
+!        write(stdout,*) "SYMMETRY CLASSES"
 !        CALL WRITEIRREPTAB(6, SYMLABELCHARS,NROT,NSYMLABELS)
 !.. Allocate memory gor irreps.
 !.. Assume there will be no more than 64 irreps
@@ -2012,7 +2001,7 @@ contains
                     SYMLABELCOUNTSCUM(i) = SYMLABELCOUNTSCUM(i) + SYMLABELCOUNTS(2, t)
                 end do
             end if
-            write(6, *) basirrep, SYMLABELINTSCUM(i), SYMLABELCOUNTSCUM(i)
+            write(stdout, *) basirrep, SYMLABELINTSCUM(i), SYMLABELCOUNTSCUM(i)
             call neci_flush(6)
         end do
         iSize = iSize + 2
@@ -2032,7 +2021,7 @@ contains
             RandExcitSymLabelProd = SymTableLabels(SymLabel1, SymLabel2)
         ELSE
             RandExcitSymLabelProd = IEOR(SymLabel1, SymLabel2)
-!            write(6,*) "***",SymLabel1,SymLabel2,RandExcitSymLabelProd
+!            write(stdout,*) "***",SymLabel1,SymLabel2,RandExcitSymLabelProd
         end if
 
     END FUNCTION RandExcitSymLabelProd

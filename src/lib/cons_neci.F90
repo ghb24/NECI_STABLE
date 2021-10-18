@@ -1,11 +1,7 @@
 module constants
-
-!All use of mpi routines come from this module
-#ifdef PARALLEL
-#ifndef CBINDMPI
-use mpi
-#endif
-#endif
+use, intrinsic :: iso_fortran_env, only : stdin => input_unit, &
+                                          stdout => output_unit, &
+                                          stderr => error_unit
 implicit none
 
 ! Constant data.
@@ -124,7 +120,7 @@ integer, parameter :: rep_size = 1
     real(dp), parameter :: HEl_zero = 0.0_dp
 #endif
 #endif
-    
+
 real(dp), dimension(lenof_sign_max), parameter :: null_part = 0.0_dp
 
 !This is the integer type which is used in MPI call arguments
@@ -171,17 +167,19 @@ integer, parameter :: size_int_rdm = bits_int_rdm/8
 ! Index of last bit in an int_rdm integer (bits are indexed 0,1,...,bits_n_int-1).
 integer, parameter :: end_int_rdm = bits_int_rdm - 1
 
-    integer, parameter :: iout = 6
+! integer, parameter :: stdout = 6
 
-    ! Internal state storage for the stats_out integration
-    ! n.b. This shouldn't be here, but there is nowhere els eto put it
-    type write_state_t
-        integer :: funit, cols, cols_mc
-        logical :: init, mc_out, prepend
-    end type
+! Internal state storage for the stats_out integration
+! n.b. This shouldn't be here, but there is nowhere els eto put it
+type write_state_t
+    integer :: funit, cols, cols_mc
+    logical :: init, mc_out, prepend
+end type
 
 ! Typedef for HDF5 variables
 integer, parameter :: hdf_err = int32
 integer, parameter :: hdf_log = int32
+
+integer, parameter :: NEL_UNINITIALIZED = -1
 
 end module constants

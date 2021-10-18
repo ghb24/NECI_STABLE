@@ -2,7 +2,7 @@
 
 module fcimc_pointed_fns
 
-    use SystemData, only: nel, tGUGA, tGen_nosym_guga, &
+    use SystemData, only: nel, tGUGA, &
                           tGen_sym_guga_mol, t_consider_diff_bias, nSpatOrbs, thub, &
                           tUEG, nBasis, tgen_guga_crude, &
                           t_k_space_hubbard, t_new_real_space_hubbard, &
@@ -260,16 +260,6 @@ contains
                     call fill_frequency_histogram_4ind(abs(rh_used / precond_fac), prob, &
                                                        ic, t_par, ex)
 
-                else if (tGen_nosym_guga) then
-                    ! have to also check if diff bias is considered
-                    if (t_consider_diff_bias) then
-                        call fill_frequency_histogram_nosym_diff(abs(rh_used / precond_fac), prob, &
-                                                                 ic, ex(1, 1), ex(1, 2))
-                    else
-                        call fill_frequency_histogram_nosym_nodiff(abs(rh_used / precond_fac), &
-                                                                   prob, ic, ex(1, 1))
-                    end if
-
                 else
                     ! for any other excitation generator just use one histogram
                     ! for all the excitations..
@@ -376,25 +366,25 @@ contains
                 ! etc. are used
                 if (abs(nSpawn) > 10.0_dp) then
                     if (tGUGA) then
-                        write(iout, *) "=================================================="
+                        write(stdout, *) "=================================================="
                         call convert_ilut_toGUGA(iLutCurr, ilutTmpI)
                         call convert_ilut_toGUGA(ilutnj, ilutTmpJ)
-                        write(iout, *) "nSpawn > n_truncate_spawns!", nSpawn
-                        write(iout, *) "limit the number of spawned walkers to: ", n_truncate_spawns
-                        write(iout, *) "for spawn from determinant: "
+                        write(stdout, *) "nSpawn > n_truncate_spawns!", nSpawn
+                        write(stdout, *) "limit the number of spawned walkers to: ", n_truncate_spawns
+                        write(stdout, *) "for spawn from determinant: "
                         call write_det_guga(6, ilutTmpI)
-                        write(iout, *) "to: "
-                        call write_det_guga(iout, ilutTmpJ)
+                        write(stdout, *) "to: "
+                        call write_det_guga(stdout, ilutTmpJ)
                         nOpen = count_open_orbs(iLutCurr)
-                        write(iout, *) "# of openshell orbitals: ", nOpen, count_open_orbs(ilutnj)
-                        write(iout, *) "open/spatial: ", nOpen / real(nSpatOrbs, dp)
-                        write(iout, *) "(t |H_ij|/pgen) / #open ratio: ", abs(nSpawn) / real(nOpen, dp)
-                        write(iout, *) " H_ij, pgen: ", MatEl, prob
-                        write(iout, *) "=================================================="
+                        write(stdout, *) "# of openshell orbitals: ", nOpen, count_open_orbs(ilutnj)
+                        write(stdout, *) "open/spatial: ", nOpen / real(nSpatOrbs, dp)
+                        write(stdout, *) "(t |H_ij|/pgen) / #open ratio: ", abs(nSpawn) / real(nOpen, dp)
+                        write(stdout, *) " H_ij, pgen: ", MatEl, prob
+                        write(stdout, *) "=================================================="
                         ! excitation type would be cool too.. but how do i get it
                         ! to here?? do i still have global_excitInfo??
                         call print_excitInfo(global_excitInfo)
-                        call neci_flush(iout)
+                        call neci_flush(stdout)
                     end if
                 end if
             end if
@@ -412,7 +402,7 @@ contains
                 ! computed here for performance reasons (it was a huge performance bottleneck)
                 ! TODO: add some additional output if this event happens
 #ifdef DEBUG_
-                write(iout, *) "Truncating spawn magnitude from: ", abs(nspawn), " to ", n_truncate_spawns
+                write(stdout, *) "Truncating spawn magnitude from: ", abs(nspawn), " to ", n_truncate_spawns
 #endif
                 truncatedWeight = truncatedWeight + abs(nSpawn) - n_truncate_spawns
                 nSpawn = sign(n_truncate_spawns, nspawn)
@@ -578,15 +568,15 @@ contains
 
         ! Write out some debugging information if asked
         IFDEBUG(FCIMCDebug, 3) then
-            write(iout, "(A)", advance='no') "Creating "
+            write(stdout, "(A)", advance='no') "Creating "
             do i = 1, lenof_sign
-                write(iout, "(f10.5)", advance='no') child(i)
+                write(stdout, "(f10.5)", advance='no') child(i)
             end do
-            write(iout, "(A)", advance='no') " particles: "
-            write(iout, "(A,2I4,A)", advance='no') &
+            write(stdout, "(A)", advance='no') " particles: "
+            write(stdout, "(A,2I4,A)", advance='no') &
                 "Parent flag: ", parent_flags, part_type
-            call writebitdet(iout, ilutJ, .true.)
-            call neci_flush(iout)
+            call writebitdet(stdout, ilutJ, .true.)
+            call neci_flush(stdout)
         end if
 
         ! Count the number of children born
@@ -710,8 +700,8 @@ contains
                     ! If we are early in the calculation, and are using tau
                     ! searching, then this is not a big deal. Just let the
                     ! searching deal with it
-                    write(iout, '("** WARNING ** Death probability > 2: Algorithm unstable.")')
-                    write(iout, '("** WARNING ** Truncating spawn to ensure stability")')
+                    write(stderr, '("** WARNING ** Death probability > 2: Algorithm unstable.")')
+                    write(stderr, '("** WARNING ** Truncating spawn to ensure stability")')
                     do i = 1, inum_runs
                         fac(i) = min(2.0_dp, fac(i))
                     end do
@@ -721,12 +711,12 @@ contains
                     call stop_all(t_r, "Death probability > 2: Algorithm unstable. Reduce timestep.")
                 end if
             else
-                write (iout, '("** WARNING ** Death probability > 1: Creating Antiparticles. "&
+                write (stderr, '("** WARNING ** Death probability > 1: Creating Antiparticles. "&
                     & //"Timestep errors possible: ")', advance='no')
                 do i = 1, inum_runs
-                    write(iout, '(1X,f13.7)', advance='no') fac(i)
+                    write(stderr, '(1X,f13.7)', advance='no') fac(i)
                 end do
-                write(iout, '()')
+                write(stderr, '()')
             end if
         end if
 

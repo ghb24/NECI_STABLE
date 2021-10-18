@@ -1,6 +1,6 @@
 module SystemData
 
-    use constants, only: n_int, int64, dp
+    use constants, only: n_int, int64, dp, NEL_UNINITIALIZED
     use MemoryManager, only: TagIntType
 
     implicit none
@@ -72,7 +72,7 @@ module SystemData
     integer :: AA_hole_pairs, BB_hole_pairs, par_hole_pairs, AB_hole_pairs
     integer :: hole_pairs, nholes_a, nholes_b, nholes
 
-    integer :: nEl             ! Number of (non-frozen) electrons in the system
+    integer :: nEl = NEL_UNINITIALIZED             ! Number of (non-frozen) electrons in the system
     integer :: Stot            ! Restrict S to Stot when using CSFs
     integer :: LMS             ! Restrict determinants/CSFs to Ms == LMS
 
@@ -249,8 +249,7 @@ module SystemData
 ! use a flag to determine if unit tests should be performed! with an
 ! additional optional input how often the the excitation generator should
 ! be tested!
-    logical :: t_guga_unit_tests = .false., t_full_guga_tests = .false., &
-               t_test_most_populated = .false.
+    logical :: t_full_guga_tests = .false., t_test_most_populated = .false.
     integer :: n_guga_excit_gen, n_most_populated
 ! introduce a new flag to indicate the testsuite is running!
     logical :: t_guga_testsuite = .false.
@@ -276,20 +275,10 @@ module SystemData
 ! also store the number of spatial orbitals here, to use it generally
     integer :: nSpatOrbs
 
-! try to store current_stepvector here.. if that improves stuff
-    integer, allocatable :: current_stepvector(:)
-! maybe also define currentOcc and currentB here.. if that helps..
-    integer, allocatable :: currentOcc_int(:), currentB_int(:)
-    real(dp), allocatable :: currentOcc_ilut(:), currentB_ilut(:), currentB_nI(:)
-
 ! also use this kind of information for the reference determinant
 ! which i should initialize in the reference determinant init
     integer, allocatable :: ref_stepvector(:), ref_b_vector_int(:)
     real(dp), allocatable :: ref_b_vector_real(:), ref_occ_vector(:)
-
-! also use a fake cum-list of the non-doubly occupied orbital to increase
-! preformance in the picking of orbitals (a)
-    real(dp), allocatable :: current_cum_list(:)
 
 ! use a flag for only running the excitation generator test in the dets case
     logical :: t_test_excit_gen = .false.
@@ -300,7 +289,7 @@ module SystemData
     logical :: t_guga_noreorder = .false.
 
 ! Are we restricting excitations
-    logical :: tGAS = .false., tGASSpinRecoupling = .true.
+    logical :: tGAS = .false.
 
 ! twisted boundary implementation for the hubbard model:
 ! use keyword twisted-bc [real, real] in System Block of input
@@ -396,8 +385,10 @@ module SystemData
     logical :: t_pchb_excitgen = .false.
     logical :: t_pchb_weighted_singles = .false.
 
-! flag for the impurity excitation generator
-logical :: t_impurity_excitgen = .false.
+    logical :: t_guga_pchb = .false.
+
+    ! flag for the impurity excitation generator
+    logical :: t_impurity_excitgen = .false.
 
 ! also implement a next-nearest neighbor Hubbard model implementation:
 ! for k-space hubbard, this only affects the diagonal part!
@@ -419,6 +410,17 @@ logical :: t_impurity_excitgen = .false.
 
 ! flag for anti-periodic BCs in the real-space Hubbard implementation
     logical :: t_anti_periodic(2) = .false.
+
+
+! test-flags for guga-pchb testing
+    logical :: t_old_pchb = .false.
+    logical :: t_exchange_pchb = .false.
+    logical :: t_analyze_pchb = .false.
+
+
+    logical :: t_bipartite_order = .false.
+    logical :: t_input_order = .false.
+    integer, allocatable :: orbital_order(:)
 
 ! Operators for type(symmetry)
     interface assignment(=)
