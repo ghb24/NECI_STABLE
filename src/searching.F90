@@ -73,7 +73,7 @@ contains
 
         do while (j - i > 0)  !End when the upper and lower bound are the same.
             N = (i + j) / 2       !Find the midpoint of the two indices
-!            write(6,*) i,j,n
+!            write(stdout,*) i,j,n
 
 !Comp is 1 if CyrrebtDets(N) is "less" than iLut, and -1 if it is more or 0 if they are the same
             Comp = DetBitLT(CurrentDets(:, N), iLut(:), nifd)

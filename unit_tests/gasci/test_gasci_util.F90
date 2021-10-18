@@ -1,15 +1,15 @@
 module test_gasci_util_mod
     use fruit
-    use constants, only: dp, n_int
+    use constants, only: dp, n_int, int64
     use util_mod, only: operator(.div.), operator(.isclose.), near_zero
     use procedure_pointers, only: generate_excitation
-    use orb_idx_mod, only: calc_spin_raw, sum, alpha, beta, SpinOrbIdx_t
+    use orb_idx_mod, only: calc_spin_raw, sum, alpha, beta, SpinOrbIdx_t, SpinProj_t
     use excitation_types, only: Excitation_t, SingleExc_t, excite
     use SystemData, only: nEl
 
     use gasci, only: LocalGASSpec_t, CumulGASSpec_t
     use gasci_util, only: &
-        get_available_singles, get_available_doubles, gen_all_excits
+        get_available_singles, get_available_doubles, gen_all_excits, get_n_SDs
 
     use sltcnd_mod, only: dyn_sltcnd_excit
     use unit_test_helper_excitgen, only: test_excitation_generator, &
@@ -19,12 +19,10 @@ module test_gasci_util_mod
     implicit none
     private
     public :: Local_test_get_possible_spaces, Local_test_possible_holes, test_available, &
-        Cumul_test_possible_holes, Cumul_test_get_possible_spaces
-
-
+        Cumul_test_possible_holes, Cumul_test_get_possible_spaces, &
+        test_hilbert_space_size
 
 contains
-
 
     subroutine test_available()
         type(LocalGASSpec_t) :: GAS_spec
@@ -40,7 +38,7 @@ contains
         det_I = [1, 2, 5, 6]
 
         call assert_true(GAS_spec%is_valid())
-        call assert_true(GAS_spec%contains_det(det_I))
+        call assert_true(GAS_spec%contains_conf(det_I))
 
         expect_singles = reshape(&
                                 [[1, 2, 5, 8], [1, 2, 6, 7], &
@@ -69,7 +67,7 @@ contains
         GAS_spec = LocalGASSpec_t(n_min=[0, 0], n_max=[4, 4], spat_GAS_orbs = [1, 1, 2, 2])
         det_I = [1, 2, 5, 6]
         call assert_true(GAS_spec%is_valid())
-        call assert_true(GAS_spec%contains_det(det_I))
+        call assert_true(GAS_spec%contains_conf(det_I))
 
         expect_singles = reshape(&
                             [[1, 2, 3, 6], [1, 2, 4, 5], &
@@ -109,7 +107,7 @@ contains
         det_I = [1, 2, 3, 4, 5, 6, 13, 14, 15, 16, 17, 18]
 
         call assert_true(GAS_spec%is_valid())
-        call assert_true(GAS_spec%contains_det(det_I))
+        call assert_true(GAS_spec%contains_conf(det_I))
 
         expect_singles = reshape( &
                         [[1, 2, 3, 4, 5, 6, 13, 14, 15, 16, 17, 20], &
@@ -1096,6 +1094,34 @@ contains
         call assert_equals(expected, calculated, size(expected))
     end subroutine
 
+    subroutine test_hilbert_space_size()
+        integer :: i
+        type(LocalGASSpec_t) :: GAS_spec
+
+        GAS_spec = LocalGASSpec_t(n_min=[12], n_max=[12], spat_GAS_orbs=[(1, i = 1, 12)])
+
+        call assert_equals(853776_int64, get_n_SDs(GAS_spec, 12, SpinProj_t(0)))
+
+        block
+            integer(int64), parameter :: expected(4) = [47148_int64, 468942_int64, 802122_int64, 853776_int64]
+            integer(int64) :: calculated(size(expected))
+            calculated = get_n_SDs(create_N4_GAS_spec([0, 1, 2, 3]), 12, SpinProj_t(0))
+            call assert_true(all(expected == calculated))
+        end block
+
+        contains
+
+            elemental function create_N4_GAS_spec(n_exc) result(res)
+                integer, intent(in) :: n_exc
+                type(LocalGASSpec_t) :: res
+                integer, parameter :: n_N = 4
+                integer :: i, j
+                res = LocalGASSpec_t(n_min=[(3 - n_exc, i = 1, n_N)], &
+                                     n_max=[(3 + n_exc, i = 1, n_N)], &
+                                     spat_GAS_orbs=[((j, i = 1, 3), j = 1, n_N)])
+            end function
+    end subroutine
+
 end module test_gasci_util_mod
 
 program test_gasci_util_program
@@ -1105,7 +1131,8 @@ program test_gasci_util_program
     use Parallel_neci, only: MPIInit, MPIEnd
     use test_gasci_util_mod, only: &
         Local_test_get_possible_spaces, Local_test_possible_holes, test_available, &
-        Cumul_test_possible_holes, Cumul_test_get_possible_spaces
+        Cumul_test_possible_holes, Cumul_test_get_possible_spaces, &
+        test_hilbert_space_size
 
 
     implicit none
@@ -1135,5 +1162,6 @@ contains
         call run_test_case(Local_test_possible_holes, "test_possible_holes")
         call run_test_case(Cumul_test_possible_holes, "test_possible_holes")
         call run_test_case(test_available, "test_available")
+        call run_test_case(test_hilbert_space_size, "test_hilbert_space_size")
     end subroutine
 end program

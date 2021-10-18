@@ -81,6 +81,7 @@ MODULE HPHFRandExcitMod
                                gen_excit_uniform_k_space_hub
 
     use guga_pchb_excitgen, only: calc_pgen_guga_pchb
+    use guga_bitRepOps, only: current_csf_i
 
     IMPLICIT NONE
 !    SAVE
@@ -681,7 +682,7 @@ contains
         INTEGER :: i, j, N, Comp
         LOGICAL :: tSuccess
 
-!        write(6,*) "Binary searching between ",MinInd, " and ",MaxInd
+!        write(stdout,*) "Binary searching between ",MinInd, " and ",MaxInd
 !        CALL neci_flush(6)
         i = MinInd
         j = MaxInd
@@ -879,7 +880,7 @@ contains
                     pgen = calc_pgen_k_space_hubbard(nI, ilutI, ex, ic)
                 end if
             else if (t_guga_pchb) then
-                pgen = calc_pgen_guga_pchb(ilutI, ilutJ)
+                pgen = calc_pgen_guga_pchb(ilutI, current_csf_i, ilutJ)
             else if(t_pcpp_excitgen) then
                 pgen = calc_pgen_pcpp(ilutI, ex, ic)
             else if (allocated(current_exc_generator)) then

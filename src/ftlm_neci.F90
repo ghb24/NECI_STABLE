@@ -37,7 +37,7 @@ contains
 
         do i = 1, n_init_vecs_ftlm
 
-            write(6, '(1x,a28,1x,i3)') "Starting from initial vector", i
+            write(stdout, '(1x,a28,1x,i3)') "Starting from initial vector", i
             call neci_flush(6)
 
             ftlm_vecs = 0.0_dp
@@ -48,7 +48,7 @@ contains
             do j = 1, n_lanc_vecs_ftlm - 1
                 call subspace_expansion_lanczos(j, ftlm_vecs, full_vec_ftlm, &
                                                 ftlm_hamil, ndets_ftlm, disps_ftlm)
-                write(6, '(1x,a19,1x,i3)') "Iteration complete:", j
+                write(stdout, '(1x,a19,1x,i3)') "Iteration complete:", j
                 call neci_flush(6)
             end do
 
@@ -61,12 +61,12 @@ contains
 
             call add_in_contribs_to_energy()
 
-            write(6, '(1x,a45,/)') "Calculation complete for this initial vector."
+            write(stdout, '(1x,a45,/)') "Calculation complete for this initial vector."
             call neci_flush(6)
 
         end do
 
-        write(6, '(1x,a48,/)') "FTLM calculation complete. Outputting results..."
+        write(stdout, '(1x,a48,/)') "FTLM calculation complete. Outputting results..."
         call neci_flush(6)
 
         call output_ftlm()
@@ -89,11 +89,11 @@ contains
         character(len=*), parameter :: t_r = 'init_ftlm'
         integer :: i, ierr
 
-        write(6, '(/,1x,a49,/)') "Beginning finite-temperature Lanczos calculation."
+        write(stdout, '(/,1x,a49,/)') "Beginning finite-temperature Lanczos calculation."
         call neci_flush(6)
 
         expected_ndets_tot = int(choose(nbasis, nel))
-        write(6, *) "Expected number:", expected_ndets_tot
+        write(stdout, *) "Expected number:", expected_ndets_tot
         call neci_flush(6)
 
         ftlm_unit = get_free_unit()
@@ -102,7 +102,7 @@ contains
         allocate(ndets_ftlm(0:nProcessors - 1))
         allocate(disps_ftlm(0:nProcessors - 1))
 
-        write(6, '(1x,a56)', advance='no') "Enumerating and storing all determinants in the space..."
+        write(stdout, '(1x,a56)', advance='no') "Enumerating and storing all determinants in the space..."
         call neci_flush(6)
 
         ! Generate and count all the determinants on this processor, but don't store them.
@@ -111,7 +111,7 @@ contains
         ! Now generate them again and store them this time.
         call gndts_all_sym_this_proc(ilut_list, .false., ndets_this_proc)
 
-        write(6, '(1x,a9)') "Complete."
+        write(stdout, '(1x,a9)') "Complete."
         call neci_flush(6)
 
         mpi_temp = int(ndets_this_proc, MPIArg)
@@ -125,16 +125,16 @@ contains
         ndets_tot = int(sum(ndets_ftlm), sizeof_int)
         expected_ndets_tot = int(choose(nbasis, nel))
         if (ndets_tot /= expected_ndets_tot) then
-            write(6, *) "ndets counted:", ndets_tot, "ndets expected:", expected_ndets_tot
+            write(stdout, *) "ndets counted:", ndets_tot, "ndets expected:", expected_ndets_tot
             call stop_all('t_r', 'The number of determinants generated is not &
                                     &consistent with the expected number.')
         end if
 
-        write(6, '(1x,a44)', advance='no') "Allocating arrays to hold Lanczos vectors..."
+        write(stdout, '(1x,a44)', advance='no') "Allocating arrays to hold Lanczos vectors..."
         call neci_flush(6)
         allocate(ftlm_vecs(ndets_this_proc, n_lanc_vecs_ftlm))
         allocate(full_vec_ftlm(ndets_tot))
-        write(6, '(1x,a9)') "Complete."
+        write(stdout, '(1x,a9)') "Complete."
         call neci_flush(6)
 
         allocate(ftlm_hamil(n_lanc_vecs_ftlm, n_lanc_vecs_ftlm))
@@ -145,10 +145,10 @@ contains
         ftlm_e_num = 0.0_dp
         ftlm_h_eigv = 0.0_dp
 
-        write(6, '(1x,a48)') "Allocating and calculating Hamiltonian matrix..."
+        write(stdout, '(1x,a48)') "Allocating and calculating Hamiltonian matrix..."
         call neci_flush(6)
         call calculate_sparse_ham_par(ndets_ftlm, ilut_list, .true.)
-        write(6, '(1x,a48,/)') "Hamiltonian allocation and calculation complete."
+        write(stdout, '(1x,a48,/)') "Hamiltonian allocation and calculation complete."
         call neci_flush(6)
 
         deallocate(ilut_list)
@@ -312,11 +312,11 @@ contains
 
         if (iProcIndex /= root) return
 
-        write(6, '(1x,a4,18X,a11,11x,a11)') "Beta", "E_numerator", "Denominator"
+        write(stdout, '(1x,a4,18X,a11,11x,a11)') "Beta", "E_numerator", "Denominator"
 
         beta = 0.0_dp
         do i = 1, nbeta_ftlm + 1
-            write(6, '(es17.10,5x,es17.10,5x,es17.10)') beta, ftlm_e_num(i), ftlm_trace(i)
+            write(stdout, '(es17.10,5x,es17.10,5x,es17.10)') beta, ftlm_e_num(i), ftlm_trace(i)
             beta = beta + delta_beta_ftlm
         end do
 
@@ -326,12 +326,12 @@ contains
 
         real(dp), intent(in) :: h_sum
 
-        write(6, '(/,1X,64("="))')
-        write(6, '(1X,"FTLM testsuite data:")')
-        write(6, '(1X,"Sum of H elements from the last Lanczos space:",2X,es20.13)') h_sum
-        write(6, '(1X,"FT energy at lowest beta value:",17X,es20.13)') ftlm_e_num(1) / ftlm_trace(1)
-        write(6, '(1X,"FT energy at highest beta value:",16X,es20.13)') ftlm_e_num(nbeta_ftlm + 1) / ftlm_trace(nbeta_ftlm + 1)
-        write(6, '(1X,64("="))')
+        write(stdout, '(/,1X,64("="))')
+        write(stdout, '(1X,"FTLM testsuite data:")')
+        write(stdout, '(1X,"Sum of H elements from the last Lanczos space:",2X,es20.13)') h_sum
+        write(stdout, '(1X,"FT energy at lowest beta value:",17X,es20.13)') ftlm_e_num(1) / ftlm_trace(1)
+        write(stdout, '(1X,"FT energy at highest beta value:",16X,es20.13)') ftlm_e_num(nbeta_ftlm + 1) / ftlm_trace(nbeta_ftlm + 1)
+        write(stdout, '(1X,64("="))')
 
     end subroutine write_ftlm_testsuite_data
 
@@ -348,7 +348,7 @@ contains
         deallocate(ndets_ftlm)
         deallocate(disps_ftlm)
 
-        write(6, '(/,1x,a18,/)') "Exiting FTLM code."
+        write(stdout, '(/,1x,a18,/)') "Exiting FTLM code."
 
     end subroutine end_ftlm
 

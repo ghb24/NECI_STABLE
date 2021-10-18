@@ -121,28 +121,28 @@ contains
                         call init_kp_fciqmc_iter(iter_data_fciqmc, determ_ind)
 
                         !if (iter < 10) then
-                        !    write(6,*) "CurrentDets before:"
+                        !    write(stdout,*) "CurrentDets before:"
                         !    do idet = 1, int(TotWalkers, sizeof_int)
                         !        call extract_bit_rep(CurrentDets(:, idet), nI_parent, parent_sign, unused_flags, &
                         !                              fcimc_excit_gen_store)
                         !        if (tUseFlags) then
-                        !            write(6,'(i7, i12, 4x, f18.7, 4x, f18.7, 4x, l1)') idet, CurrentDets(0,idet), parent_sign, &
+                        !            write(stdout,'(i7, i12, 4x, f18.7, 4x, f18.7, 4x, l1)') idet, CurrentDets(0,idet), parent_sign, &
                         !                test_flag(CurrentDets(:,idet), flag_deterministic)
                         !        else
-                        !            write(6,'(i7, i12, 4x, f18.7, 4x, f18.7)') idet, CurrentDets(0,idet), parent_sign
+                        !            write(stdout,'(i7, i12, 4x, f18.7, 4x, f18.7)') idet, CurrentDets(0,idet), parent_sign
                         !        end if
                         !    end do
 
-                        !    write(6,"(A)") "Hash Table: "
+                        !    write(stdout,"(A)") "Hash Table: "
                         !    do idet = 1, nWalkerHashes
                         !        temp_node => HashIndex(idet)
                         !        if (temp_node%ind /= 0) then
-                        !            write(6,'(i9)',advance='no') idet
+                        !            write(stdout,'(i9)',advance='no') idet
                         !            do while (associated(temp_node))
-                        !                write(6,'(i9)',advance='no') temp_node%ind
+                        !                write(stdout,'(i9)',advance='no') temp_node%ind
                         !                temp_node => temp_node%next
                         !            end do
-                        !            write(6,'()',advance='yes')
+                        !            write(stdout,'()',advance='yes')
                         !        end if
                         !    end do
                         !end if
@@ -463,28 +463,28 @@ contains
                     end if
                 end if
 
-                !write(6,*) "CurrentDets before:"
+                !write(stdout,*) "CurrentDets before:"
                 !do idet = 1, int(TotWalkers, sizeof_int)
                 !    call extract_bit_rep(CurrentDets(:, idet), nI_parent, parent_sign, unused_flags, &
                 !                          fcimc_excit_gen_store)
                 !    if (tUseFlags) then
-                !        write(6,'(i7, i12, 4x, 3(f18.7, 4x), l1)') idet, CurrentDets(0,idet), parent_sign, &
+                !        write(stdout,'(i7, i12, 4x, 3(f18.7, 4x), l1)') idet, CurrentDets(0,idet), parent_sign, &
                 !            test_flag(CurrentDets(:,idet), flag_deterministic)
                 !    else
-                !        write(6,'(i7, i12, 3(4x, f18.7))') idet, CurrentDets(0,idet), parent_sign
+                !        write(stdout,'(i7, i12, 3(4x, f18.7))') idet, CurrentDets(0,idet), parent_sign
                 !    end if
                 !end do
 
-                !write(6,"(A)") "Hash Table: "
+                !write(stdout,"(A)") "Hash Table: "
                 !do idet = 1, nWalkerHashes
                 !    temp_node => HashIndex(idet)
                 !    if (temp_node%ind /= 0) then
-                !        write(6,'(i9)',advance='no') idet
+                !        write(stdout,'(i9)',advance='no') idet
                 !        do while (associated(temp_node))
-                !            write(6,'(i9)',advance='no') temp_node%ind
+                !            write(stdout,'(i9)',advance='no') temp_node%ind
                 !            temp_node => temp_node%next
                 !        end do
-                !        write(6,'()',advance='yes')
+                !        write(stdout,'()',advance='yes')
                 !    end if
                 !end do
 

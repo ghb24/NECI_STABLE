@@ -60,12 +60,12 @@ contains
         type(LocalGASSpec_t) :: GAS_spec
         GAS_spec = LocalGASSpec_t(n_min=[2, 2],  n_max=[2, 2], spat_GAS_orbs=[1, 1, 2, 2])
 
-        call assert_true( GAS_spec%contains_det([1, 2, 5, 6]))
-        call assert_true( GAS_spec%contains_det([1, 3, 5, 6]))
-        call assert_false(GAS_spec%contains_det([1, 2, 3, 4]))
-        call assert_false(GAS_spec%contains_det([1, 2, 3, 5]))
-        call assert_false(GAS_spec%contains_det([5, 6, 7, 8]))
-        call assert_false(GAS_spec%contains_det([1, 6, 7, 8]))
+        call assert_true( GAS_spec%contains_conf([1, 2, 5, 6]))
+        call assert_true( GAS_spec%contains_conf([1, 3, 5, 6]))
+        call assert_false(GAS_spec%contains_conf([1, 2, 3, 4]))
+        call assert_false(GAS_spec%contains_conf([1, 2, 3, 5]))
+        call assert_false(GAS_spec%contains_conf([5, 6, 7, 8]))
+        call assert_false(GAS_spec%contains_conf([1, 6, 7, 8]))
     end subroutine
 
     subroutine test_is_valid()

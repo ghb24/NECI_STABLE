@@ -753,8 +753,8 @@ contains
         memory_old = rdm_recv%max_nelements * (rdm_recv%sign_length + 1) * size_int_rdm
         memory_new = new_nelements * (rdm_recv%sign_length + 1) * size_int_rdm
 
-        write(6, '("Old RDM array had the following size (MB):", f14.6)') real(memory_old, dp) / 1048576.0_dp
-        write(6, '("Required new RDM array must have the following size (MB):", f14.6)') real(memory_new, dp) / 1048576.0_dp
+        write(stdout, '("Old RDM array had the following size (MB):", f14.6)') real(memory_old, dp) / 1048576.0_dp
+        write(stdout, '("Required new RDM array must have the following size (MB):", f14.6)') real(memory_new, dp) / 1048576.0_dp
 
         if (old_nelements > 0) then
             ! Allocate a temporary array to copy the old RDM list to, while we
@@ -823,8 +823,8 @@ contains
             memory_old = old_max_length * (rdm%sign_length + 1) * size_int_rdm
             memory_new = new_max_length * (rdm%sign_length + 1) * size_int_rdm
 
-            write(6, '("Old RDM spawning array had the following size (MB):", f14.6)') real(memory_old, dp) / 1048576.0_dp
-            write(6, '("Required new array must have the following size (MB):", f14.6)') real(memory_new, dp) / 1048576.0_dp
+            write(stdout, '("Old RDM spawning array had the following size (MB):", f14.6)') real(memory_old, dp) / 1048576.0_dp
+            write(stdout, '("Required new array must have the following size (MB):", f14.6)') real(memory_new, dp) / 1048576.0_dp
 
             ! Allocate a temporary array to copy the old RDM list to, while we
             ! reallocate that array.
@@ -1084,7 +1084,7 @@ contains
             slots_left = en_pert%max_ndets - en_pert%ndets
 
             if (slots_left < 0) then
-                write(6, '("ERROR: No space left in the EN2 array. Aborting to prevent incorrect results...")')
+                write(stdout, '("ERROR: No space left in the EN2 array. Aborting to prevent incorrect results...")')
                 call neci_flush(6)
                 call stop_all(t_r, 'No space left in the EN2 array. Please increase memoryfacspawn.')
             else if (slots_left < 20) then

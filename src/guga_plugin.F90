@@ -8,6 +8,7 @@ module guga_plugin
     use guga_matrixElements
     use guga_data
     use guga_init
+    use guga_bitRepOps, only: CSF_Info_t
     use read_fci
     use FciMCData
     use OneEInts, only: TMat2d
@@ -18,7 +19,7 @@ module guga_plugin
     use shared_memory_mpi, only: shared_allocate_mpi, shared_deallocate_mpi
     use IntegralsData, only: umat_win, umat
     use DetCalc, only: DetCalcInit
-    use LoggingData, only: tRDMonfly, tExplicitAllRDM  
+    use LoggingData, only: tRDMonfly, tExplicitAllRDM
     use shared_memory_mpi, only: shared_allocate_mpi
     use IntegralsData, only: umat_win, umat
     use Parallel_neci, only: MPIInit, clean_parallel
@@ -47,7 +48,7 @@ contains
         def_default(nel, nel_, 0)
         def_default(nbasis, nbasis_, 0)
         def_default(nSpatOrbs, nSpatOrbs_, 0)
-        def_default(stot, stot_, 0)    
+        def_default(stot, stot_, 0)
 
         umatsize = 0
         lms = 0
@@ -61,7 +62,7 @@ contains
         tgen_guga_weighted = .true.
         tdeferred_umat2d = .true.
         tumat2d = .false.
-        ! set this to false before the init to setup all the ilut variables    
+        ! set this to false before the init to setup all the ilut variables
         tExplicitAllRDM = .false.
 
         call init_guga()
@@ -125,7 +126,7 @@ contains
         else
             call EncodeBitDet(nI, ilutI)
             call EncodeBitDet(nJ, ilutJ)
-            call calc_guga_matrix_element(ilutI, ilutJ, excitInfo, matel, &
+            call calc_guga_matrix_element(ilutI, CSF_Info_t(ilutI), ilutJ, excitInfo, matel, &
                 .true., 2)
         end if
 

@@ -28,8 +28,8 @@ contains
         integer :: ierr
 
         if (inum_runs > inum_runs_max .or. lenof_sign > lenof_sign_max) then
-            write(6, *) "System has too many replicas"
-            write(6, *) "This breaks the use of initiator flags, and &
+            write(stdout, *) "System has too many replicas"
+            write(stdout, *) "This breaks the use of initiator flags, and &
                        &potentially other things."
             call stop_all(this_routine, "Too many replicas requested")
         end if

@@ -48,10 +48,10 @@ contains
             allocate(ham_times_hf(rep%determ_sizes(iProcIndex)))
             allocate(ham_times_wf(rep%determ_sizes(iProcIndex)))
 
-            write(6, '()')
-            write(6, '(a83)') "Performing a deterministic projection using the defined &
+            write(stdout, '()')
+            write(stdout, '(a83)') "Performing a deterministic projection using the defined &
                 &semi-stochastic core space."
-            write(6, '()')
+            write(stdout, '()')
 
             iter = 1
             energy_denom = 0.0_dp
@@ -87,7 +87,7 @@ contains
                 end do
             end do
 
-            write(6, '(a11,7X,a12,7X,a11)') "# Iteration", "Proj. Energy", "Var. Energy"
+            write(stdout, '(a11,7X,a12,7X,a11)') "# Iteration", "Proj. Energy", "Var. Energy"
             call neci_flush(6)
 
             do while (iter <= NMCyc .or. NMCyc == -1)
@@ -114,7 +114,7 @@ contains
                 call MPISum(energy_num, tot_e_num)
                 call MPISum(energy_denom, tot_e_denom)
 
-                write(6, '(i9,7X,f13.10,7X,f13.10)') iter, tot_e_num / tot_e_denom, tot_var_e_num / tot_var_e_denom
+                write(stdout, '(i9,7X,f13.10,7X,f13.10)') iter, tot_e_num / tot_e_denom, tot_var_e_num / tot_var_e_denom
                 call neci_flush(6)
 
                 iter = iter + 1
@@ -151,10 +151,10 @@ contains
             allocate(ham_times_hf(rep%determ_sizes(iProcIndex)))
             allocate(ham_times_wf(rep%determ_sizes(iProcIndex)))
 
-            write(6, '()')
-            write(6, '(a83)') "Performing a deterministic projection using the defined &
+            write(stdout, '()')
+            write(stdout, '(a83)') "Performing a deterministic projection using the defined &
                              &semi-stochastic core space."
-            write(6, '()')
+            write(stdout, '()')
 
             iter = 1
             energy_denom = 0.0_dp
@@ -190,7 +190,7 @@ contains
                 end do
             end do
 
-            write(6, '(a11,7X,a12,7X,a11)') "# Iteration", "Proj. Energy", "Var. Energy"
+            write(stdout, '(a11,7X,a12,7X,a11)') "# Iteration", "Proj. Energy", "Var. Energy"
             call neci_flush(6)
 
             do while (iter <= NMCyc .or. NMCyc == -1)
@@ -217,7 +217,7 @@ contains
                 call MPISum(energy_num, tot_e_num)
                 call MPISum(energy_denom, tot_e_denom)
 
-                write(6, '(i9,7X,f13.10,7X,f13.10)') iter, tot_e_num / tot_e_denom, tot_var_e_num / tot_var_e_denom
+                write(stdout, '(i9,7X,f13.10,7X,f13.10)') iter, tot_e_num / tot_e_denom, tot_var_e_num / tot_var_e_denom
                 call neci_flush(6)
 
                 ! Perform the actual projection used, with the approximate Hamiltonian

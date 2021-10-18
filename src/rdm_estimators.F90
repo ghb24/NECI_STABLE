@@ -334,7 +334,7 @@ contains
 
         integer :: irdm, iprop
 
-        write(6, *) "Writing RDMs to file at iteration ", iter
+        write(stdout, *) "Writing RDMs to file at iteration ", iter
 
         if (write_to_separate_file) then
             if (tRDMInstEnergy) then
@@ -407,67 +407,67 @@ contains
         if (final_output) then
             ! Banner for the start of the 2-RDM section in output.
             if (tInitsRDM) then
-                write(6, '(1x,2("="),1x,"INFORMATION FOR FINAL 2-RDMS (Initiators)",1x,57("="),/)')
+                write(stdout, '(1x,2("="),1x,"INFORMATION FOR FINAL 2-RDMS (Initiators)",1x,57("="),/)')
             else if (tAdaptiveShift) then
-                write(6, '(1x,2("="),1x,"INFORMATION FOR FINAL 2-RDMS (Lagrangian)",1x,57("="),/)')
+                write(stdout, '(1x,2("="),1x,"INFORMATION FOR FINAL 2-RDMS (Lagrangian)",1x,57("="),/)')
             else
-                write(6, '(1x,2("="),1x,"INFORMATION FOR FINAL 2-RDMS",1x,57("="),/)')
+                write(stdout, '(1x,2("="),1x,"INFORMATION FOR FINAL 2-RDMS",1x,57("="),/)')
             end if
 
             do irdm = 1, est%nrdms_standard
-                write(6, '(1x,"2-RDM ESTIMATES FOR STATE",1x,'//int_fmt(irdm)//',":",)') irdm
+                write(stdout, '(1x,"2-RDM ESTIMATES FOR STATE",1x,'//int_fmt(irdm)//',":",)') irdm
 
-                write(6, '(1x,"Trace of 2-el-RDM before normalisation:",1x,es17.10)') est%trace(irdm)
+                write(stdout, '(1x,"Trace of 2-el-RDM before normalisation:",1x,es17.10)') est%trace(irdm)
                 if (tGUGA) then
-                    write(6, '(1x,"Trace of 2-el-RDM after normalisation:",1x,es17.10)') est%trace(irdm) / est%norm(irdm) / 2.0_dp
+                    write(stdout, '(1x,"Trace of 2-el-RDM after normalisation:",1x,es17.10)') est%trace(irdm) / est%norm(irdm) / 2.0_dp
                 else
-                    write(6, '(1x,"Trace of 2-el-RDM after normalisation:",1x,es17.10)') est%trace(irdm) / est%norm(irdm)
+                    write(stdout, '(1x,"Trace of 2-el-RDM after normalisation:",1x,es17.10)') est%trace(irdm) / est%norm(irdm)
                 end if
 
-                write(6, '(1x,"Energy contribution from the 1-RDM:",1x,es17.10)') est%energy_1_num(irdm) / est%norm(irdm)
-                write(6, '(1x,"Energy contribution from the 2-RDM:",1x,es17.10)') est%energy_2_num(irdm) / est%norm(irdm)
-                write(6, '(1x,"*TOTAL ENERGY* CALCULATED USING THE *REDUCED DENSITY MATRICES*:",1x,es20.13,/)') &
+                write(stdout, '(1x,"Energy contribution from the 1-RDM:",1x,es17.10)') est%energy_1_num(irdm) / est%norm(irdm)
+                write(stdout, '(1x,"Energy contribution from the 2-RDM:",1x,es17.10)') est%energy_2_num(irdm) / est%norm(irdm)
+                write(stdout, '(1x,"*TOTAL ENERGY* CALCULATED USING THE *REDUCED DENSITY MATRICES*:",1x,es20.13,/)') &
                     est%energy_num(irdm) / est%norm(irdm)
 
                 if (tEN2) then
                     write (6, '(1x,"EN2 corrections are below. Note that these may have a much &
                                   &larger error bar than the",/," variational energy above. Please do a &
                                   &blocking analysis rather than just using the energies below.")')
-                    write(6, '(1x,"EN2 energy correction:",1x,es17.10)') est%energy_pert(irdm) / est%norm(irdm)
-                    write(6, '(1x,"*TOTAL ENERGY* including the EN2 correction:",1x,es17.10,/)') &
+                    write(stdout, '(1x,"EN2 energy correction:",1x,es17.10)') est%energy_pert(irdm) / est%norm(irdm)
+                    write(stdout, '(1x,"*TOTAL ENERGY* including the EN2 correction:",1x,es17.10,/)') &
                         (est%energy_num(irdm) + est%energy_pert(irdm)) / est%norm(irdm)
                 end if
 
                 ! Hermiticity error measures.
-                write(6, '(1x,"Hermiticty error estimates:")')
-                write(6, '(1x,i15,f30.20,5x,a41)') Iter + PreviousCycles, est%max_error_herm(irdm), &
+                write(stdout, '(1x,"Hermiticty error estimates:")')
+                write(stdout, '(1x,i15,f30.20,5x,a41)') Iter + PreviousCycles, est%max_error_herm(irdm), &
                     '(Iteration, MAX ABS ERROR IN HERMITICITY)'
-                write(6, '(1x,i15,f30.20,5x,a41,/)') Iter + PreviousCycles, est%sum_error_herm(irdm), &
+                write(stdout, '(1x,i15,f30.20,5x,a41,/)') Iter + PreviousCycles, est%sum_error_herm(irdm), &
                     '(Iteration, SUM ABS ERROR IN HERMITICITY)'
             end do
             do irdm = est%nrdms_standard + 1, est%nrdms
                 associate(state_labels => rdm_defs%state_labels, repeat_label => rdm_defs%repeat_label)
-                    write(6, '(1x,"2-RDM ESTIMATES FOR TRANSITION",1x,'//int_fmt(state_labels(2, irdm))//'," -> ",&
+                    write(stdout, '(1x,"2-RDM ESTIMATES FOR TRANSITION",1x,'//int_fmt(state_labels(2, irdm))//'," -> ",&
                               &'//int_fmt(state_labels(1, irdm))//',1x,"(",i1,")",)') &
                               state_labels(2, irdm), state_labels(1, irdm), repeat_label(irdm)
                 end associate
 
-                write(6, '(1x,"Trace of 2-el-RDM before normalisation:",1x,es17.10)') est%trace(irdm)
-                write(6, '(1x,"Trace of 2-el-RDM after normalisation:",1x,es17.10,/)') est%trace(irdm) / est%norm(irdm)
+                write(stdout, '(1x,"Trace of 2-el-RDM before normalisation:",1x,es17.10)') est%trace(irdm)
+                write(stdout, '(1x,"Trace of 2-el-RDM after normalisation:",1x,es17.10,/)') est%trace(irdm) / est%norm(irdm)
 
                 ! Hermiticity difference measures - these shouldn't be zero for
                 ! transition RDMs, but it useful to give them to the test
                 ! suite, to make sure somebody doesn't change something to
                 ! start adding an RDM element on the wrong side of the diagonal.
-                write(6, '(1x,"Hermiticty difference estimates, for test suite:")')
-                write(6, '(1x,i15,f30.20,5x,a41)') Iter + PreviousCycles, est%max_error_herm(irdm), &
+                write(stdout, '(1x,"Hermiticty difference estimates, for test suite:")')
+                write(stdout, '(1x,i15,f30.20,5x,a41)') Iter + PreviousCycles, est%max_error_herm(irdm), &
                     '(Iteration, MAX ABS DIFF IN HERMITICITY)'
-                write(6, '(1x,i15,f30.20,5x,a41,/)') Iter + PreviousCycles, est%sum_error_herm(irdm), &
+                write(stdout, '(1x,i15,f30.20,5x,a41,/)') Iter + PreviousCycles, est%sum_error_herm(irdm), &
                     '(Iteration, SUM ABS DIFF IN HERMITICITY)'
             end do
 
             ! Banner for the end of the 2-RDM section in output.
-            write(6, '(1x,89("="))')
+            write(stdout, '(1x,89("="))')
         end if
 
     end subroutine write_rdm_estimates
