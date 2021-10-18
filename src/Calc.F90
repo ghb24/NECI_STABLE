@@ -3735,7 +3735,6 @@ contains
                 call stop_all(this_routine, 'Cannot find MC start determinant of correct symmetry')
             end if
         ELSE
-!C             CALL GENRANDOMDET(NEL,NBASIS,MCDET)
             DO I = 1, NEL
                 MCDET(I) = FDET(I)
             end do

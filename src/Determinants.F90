@@ -740,94 +740,6 @@ contains
     Subroutine DetCleanup()
     End Subroutine DetCleanup
 
-    subroutine write_bit_rep(iUnit, iLut, lTerm)
-       implicit none
-       integer iUnit
-       logical lTerm
-       integer(n_int), intent(in) :: iLut(0:NIfTot)
-       integer :: nI(nel), flags,i
-       real(dp) :: sgn(lenof_sign)
-       call extract_bit_rep(iLut,nI,sgn,flags)
-       call write_det(iUnit,nI,.false.)
-       write(iUnit,"(A)",advance='no') "("
-       do i=1,lenof_sign
-          write(iUnit, "(f16.7)", advance='no') sgn(i)
-          if (i /= lenof_sign) write(iUnit, "(A)", advance='no') ","
-       end do
-       write(iUnit,"(A,I5)", advance='no') ") ",flags
-       if(lTerm) write(iUnit,*)
-    end subroutine write_bit_rep
-
-    subroutine get_lexicographic_dets (ilut_src, store, ilut_gen)
-
-
-        integer(n_int), intent(in) :: ilut_src(0:NIfTot)
-        type(lexicographic_store), intent(inout) :: store
-        integer(n_int), intent(out), optional :: ilut_gen(0:NIfTot)
-
-        integer :: i, nfound, orb, clro
-        integer(n_int) :: ilut_tmp(0:NIfTot)
-
-        ! If we haven't initialised the generator, do that now.
-        if (.not. associated(store%dorder)) then
-
-            ! Allocate dorder storage
-            allocate(store%dorder(nel))
-            store%dorder(1) = -1
-
-            ! How many unpaired electrons are there
-            store%nopen = count_open_orbs (ilut_src)
-            store%nup = (store%nopen + LMS) / 2
-
-            ! Obtain a list of unpaired orbitals
-            nfound = 0
-            !nelec = 0
-            !allocate(store%open_indices(nopen))
-            allocate(store%open_orbs(store%nopen))
-            ilut_tmp = spatial_bit_det(ilut_src)
-            do i = 1, nbasis-1, 2
-                if (IsOcc(ilut_tmp, i)) then
-                    if (IsNotOcc(ilut_tmp, i + 1)) then
-                        nfound = nfound + 1
-                        store%open_orbs(nfound) = i
-                        if (nfound == store%nopen) exit
-                    end if
-                end if
-            end do
-        end if
-
-        ! Generate the next term in the sequence
-        call get_lexicographic (store%dorder, store%nopen, store%nup)
-
-        if (store%dorder(1) == -1) then
-            deallocate(store%dorder)
-            nullify(store%dorder)
-            !deallocate(store%open_indices)
-            deallocate(store%open_orbs)
-            nullify(store%open_orbs)
-            if (present(ilut_gen)) ilut_gen = 0
-            !if (present(det)) det = 0
-        else
-            ! TODO: Test this with Ms /= 0.
-            if (present(ilut_gen)) then
-                ilut_gen = ilut_src
-                do i = 1,store%nopen
-                    if (store%dorder(i) == 0) then
-                        orb = get_alpha(store%open_orbs(i))
-                    else
-                        orb = get_beta(store%open_orbs(i))
-                    end if
-                    set_orb(ilut_gen, orb)
-                    clro=ab_pair(orb)
-                    clr_orb(ilut_gen, clro)
-                end do
-            end if
-
-            !if (present(det)) ...
-        end if
-
-    end subroutine
-
 END MODULE Determinants
 
       subroutine GetH0Element(nI,nEl,Arr,nBasis,ECore,hEl)
@@ -1005,32 +917,6 @@ END MODULE Determinants
          write(stdout,*) "Active space electrons:",nEl-nActiveBasis(1)+1
          RETURN
       END
-
-      SUBROUTINE GENRANDOMDET(NEL,NBASIS,MCDET)
-         use sort_mod
-         use constants, only: dp
-         IMPLICIT NONE
-         INTEGER NEL,NBASIS,MCDET(NEL)
-         INTEGER I,J,EL,SEED
-         LOGICAL BR
-         real(dp) RAN2
-         SEED=-7
-         DO I=1,NEL
-            BR=.TRUE.
-            DO WHILE (BR)
-               BR=.FALSE.
-               EL=INT(RAN2(SEED)*NBASIS+1)
-               DO J=1,I-1
-                  IF(MCDET(J).EQ.EL) BR=.TRUE.
-               end do
-            end do
-            MCDET(I)=EL
-         end do
-         call sort (mcDet)
-         RETURN
-      END
-
-
 
 ! Calculate the one-electron part of the energy of a det
       FUNCTION CALCT(NI,NEL)

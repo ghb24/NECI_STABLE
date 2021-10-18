@@ -54,12 +54,12 @@ contains
 #ifdef WARNING_WORKAROUND_
         hel = h_cast(0.0_dp)
 #endif
-        ASSERT(this%GAS_spec%contains_det(nI))
+        ASSERT(this%GAS_spec%contains_conf(nI))
 
         call this%FCI_generator%gen_exc(nI, ilutI, nJ, ilutJ, exFlag, ic, &
                                         ex, tParity, pGen, hel, store, part_type)
         if (nJ(1) /= 0) then
-            if (.not. this%GAS_spec%contains_det(nJ)) then
+            if (.not. this%GAS_spec%contains_conf(nJ)) then
                 src_copy(:ic) = ex(1, :ic)
                 call sort(src_copy)
                 ex(1, :ic) = src_copy(:ic)

@@ -32,7 +32,8 @@ MODULE System
     use gasci, only: GAS_specification, GAS_exc_gen, possible_GAS_exc_gen, &
         LocalGASSpec_t, CumulGASSpec_t, user_input_GAS_exc_gen
 
-    use SD_spin_purification_mod, only: tSD_spin_purification, spin_pure_J
+    use SD_spin_purification_mod, only: tSD_spin_purification, &
+        tTruncatedLadderOps, spin_pure_J
 
     use gasci_pchb, only: possible_GAS_singles, GAS_PCHB_singles_generator
 
@@ -453,15 +454,6 @@ contains
                 LMS = STOT
                 ! =============================================================
 
-            case ("GUGA-TESTS")
-                if (item < nitems) then
-                    call geti(n_guga_excit_gen)
-                else
-                    ! use a default value of 1M test runs..
-                    n_guga_excit_gen = 1000000
-                end if
-                t_guga_unit_tests = .true.
-
             case ("TEST-MOST-POPULATED")
                 if (item < nitems) then
                     call geti(n_most_populated)
@@ -499,7 +491,6 @@ contains
                 else
                     n_guga_excit_gen = 1000000
                 end if
-                t_guga_unit_tests = .true.
                 t_full_guga_tests = .true.
 
             case ("GUGA-TESTSUITE")
@@ -510,9 +501,6 @@ contains
                 else
                     n_guga_excit_gen = 1000000
                 end if
-
-                t_guga_unit_tests = .true.
-
                 t_guga_testsuite = .true.
 
             case ("GUGA-NOREORDER")
@@ -1910,6 +1898,18 @@ contains
                 call getf(spin_pure_J)
                 if (spin_pure_J <= 0) then
                     call stop_all(t_r, "Alpha should be positive and nonzero")
+                end if
+                if (item < nitems) then
+                block
+                    character(len=100) :: w
+                    call readu(w)
+                    select case(w)
+                    case ("TRUNCATE-LADDER-OPERATOR")
+                        tTruncatedLadderOps = .true.
+                    case default
+                        call stop_all(t_r, "Only TRUNCATE-LADDER-OPERATOR is allowed.")
+                    end select
+                end block
                 end if
 
             case ("ENDSYS")

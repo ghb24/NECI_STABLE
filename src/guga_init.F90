@@ -8,8 +8,6 @@ module guga_init
                           tPickVirtUniform, tGenHelWeighted, tGen_4ind_2, tGen_4ind_weighted, &
                           tGen_4ind_reverse, tGen_sym_guga_ueg, tGen_sym_guga_mol, &
                           tGen_nosym_guga, nSpatOrbs, t_consider_diff_bias, &
-                          current_stepvector, currentOcc_ilut, currentOcc_int, &
-                          currentB_ilut, currentB_int, current_cum_list, &
                           ref_stepvector, ref_b_vector_int, ref_occ_vector, &
                           ref_b_vector_real, treal, tHUB, t_guga_noreorder, tgen_guga_crude, &
                           t_new_real_space_hubbard, t_heisenberg_model, &
@@ -38,15 +36,12 @@ module guga_init
 
     use guga_excitations, only: pickOrbs_sym_uniform_ueg_single, pickOrbs_sym_uniform_ueg_double, &
                         pickOrbs_sym_uniform_mol_single, pickOrbs_sym_uniform_mol_double, &
-                        pickOrbitals_nosym_single, pickOrbitals_nosym_double, &
                         calc_orbital_pgen_contr_ueg, calc_orbital_pgen_contr_mol, &
-                        calc_mixed_contr_sym, calc_mixed_contr_nosym, calc_mixed_start_l2r_contr_nosym, &
-                        calc_mixed_start_r2l_contr_nosym, calc_mixed_start_contr_sym,&
-                        calc_mixed_x2x_ueg, calc_mixed_end_l2r_contr_nosym, calc_mixed_end_r2l_contr_nosym, &
-                        calc_mixed_end_contr_sym, pick_first_orbital_nosym_guga_diff, &
-                        pick_first_orbital_nosym_guga_uniform, orb_pgen_contrib_type_2_diff, &
-                        orb_pgen_contrib_type_3_diff, orb_pgen_contrib_type_2_uniform, &
-                        orb_pgen_contrib_type_3_uniform, temp_step_i, temp_step_j, &
+                        calc_mixed_contr_sym, &
+                        calc_mixed_start_contr_sym,&
+                        calc_mixed_x2x_ueg, &
+                        calc_mixed_end_contr_sym, &
+                        temp_step_i, temp_step_j, &
                         temp_delta_b, temp_occ_i, temp_b_real_i, calc_off_diag_guga_ref_direct, &
                         pickOrbs_real_hubbard_single, pickOrbs_real_hubbard_double, &
                         calc_orbital_pgen_contrib_start_def, calc_orbital_pgen_contrib_end_def
@@ -64,7 +59,7 @@ module guga_init
 
     use back_spawn, only: setup_virtual_mask
 
-    use guga_bitRepOps, only: init_guga_bitrep
+    use guga_bitRepOps, only: init_guga_bitrep, new_CSF_Info_t, current_csf_i
 
     use guga_pchb_excitgen, only: pick_orbitals_pure_uniform_singles, &
                                   pick_orbitals_double_pchb, &
@@ -229,23 +224,11 @@ contains
         allocate(orbitalIndex(nSpatOrbs), stat=ierr)
         orbitalIndex = [(i, i=1, nSpatOrbs)]
 
-        ! maybe more to come...
-        ! also allocate the currrent_ quantities
-        if (allocated(current_stepvector)) deallocate(current_stepvector)
-        if (allocated(currentB_ilut)) deallocate(currentB_ilut)
-        if (allocated(currentOcc_ilut)) deallocate(currentOcc_ilut)
-        if (allocated(currentB_int)) deallocate(currentB_int)
-        if (allocated(currentOcc_int)) deallocate(currentOcc_int)
 
-        allocate(current_stepvector(nSpatOrbs), stat=ierr)
-        allocate(currentB_ilut(nSpatOrbs), stat=ierr)
-        allocate(currentOcc_ilut(nSpatOrbs), stat=ierr)
-        allocate(currentB_int(nSpatOrbs), stat=ierr)
-        allocate(currentOcc_int(nSpatOrbs), stat=ierr)
-
-        if (allocated(current_cum_list)) deallocate(current_cum_list)
-
-        allocate(current_cum_list(nSpatOrbs), stat=ierr)
+        ! Store GUGA specific information about the current CSF.
+        ! In principle this is redundant and could be computed from nI or ilut,
+        !   but we precompute it for performance reasons.
+        call new_CSF_Info_t(nSpatOrbs, current_csf_i)
 
         ! also allocate the temporary variables used in the matrix element
         ! calculation and also the similar variables for the reference

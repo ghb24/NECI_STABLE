@@ -130,7 +130,7 @@ module gasci_pchb
 
     type(GAS_used_singles_t) :: GAS_PCHB_singles_generator = possible_GAS_singles%PC_UNIFORM
 
-    !> The GAS PCHB excitation generator for doubleles
+    !> The GAS PCHB excitation generator for doubles
     type, extends(DoubleExcitationGenerator_t) :: GAS_doubles_PCHB_ExcGenerator_t
         private
         !> Use a lookup for the supergroup index in global_det_data
@@ -381,13 +381,13 @@ contains
 
         integer :: src_copy(maxExcit)
 
-        ASSERT(this%GAS_spec%contains_det(nI))
+        ASSERT(this%GAS_spec%contains_conf(nI))
 
         call this%FCI_singles_generator%gen_exc(&
                     nI, ilutI, nJ, ilutJ, exFlag, ic, &
                     ex, tParity, pGen, hel, store, part_type)
         if (nJ(1) /= 0) then
-            if (.not. this%GAS_spec%contains_det(nJ)) then
+            if (.not. this%GAS_spec%contains_conf(nJ)) then
                 src_copy(:ic) = ex(1, :ic)
                 call sort(src_copy)
                 ex(1, :ic) = src_copy(:ic)

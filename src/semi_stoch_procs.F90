@@ -79,7 +79,7 @@ module semi_stoch_procs
 
     use shared_memory_mpi, only: shared_allocate_mpi, shared_deallocate_mpi
 
-    use guga_bitrepops, only: init_csf_information
+    use guga_bitrepops, only: fill_csf_i, CSF_Info_t
 
     use util_mod, only: get_free_unit
 
@@ -2065,6 +2065,7 @@ contains
         use guga_data, only: ExcitationInformation_t
         use guga_excitations, only: calc_guga_matrix_element
         type(core_space_t) :: rep
+        type(CSF_Info_t) :: csf_i
         type(ExcitationInformation_t) :: excitInfo
 
         HElement_t(dp), allocatable, intent(out) :: hamil(:, :)
@@ -2076,8 +2077,7 @@ contains
 
         do i = 1, rep%determ_space_size
             call decode_bit_det(nI, rep%core_space(:, i))
-
-            if (tGUGA) call init_csf_information(rep%core_space(0:nifd, i))
+            if (tGUGA) csf_i = CSF_Info_t(rep%core_space(0:nifd, i))
 
             if (tHPHF) then
                 hamil(i, i) = hphf_diag_helement(nI, rep%core_space(:, i))
@@ -2095,7 +2095,8 @@ contains
                     hamil(i, j) = hphf_off_diag_helement(nI, nJ, &
                                      rep%core_space(:, i), rep%core_space(:, j))
                 else if (tGUGA) then
-                    call calc_guga_matrix_element(rep%core_space(:, i), &
+                    call calc_guga_matrix_element(&
+                        rep%core_space(:, i), csf_i, &
                         rep%core_space(:, j), excitInfo, hamil(i, j), .true., 1)
                 else
                     hamil(i, j) = get_helement(nI, nJ, rep%core_space(:, i), &
@@ -2175,10 +2176,9 @@ contains
             ! fock energies, so can consider either.
             hel = hphf_off_diag_helement(HFDet, nI, iLutHF, ilut)
         else if (tGUGA) then
-            ! i am not sure if the ref_stepvector thingies are set up for
-            ! the ilutHF in this case..
-            call calc_guga_matrix_element(ilut, ilutHF, excitInfo, hel, &
-                                          .true., 2)
+            ! TODO(@Oskar): Show Werner this beauty
+            call calc_guga_matrix_element(&
+                ilut, CSF_Info_t(ilut), ilutHF, excitInfo, hel, .true., 2)
         else
             hel = get_helement(HFDet, nI, ic, ex, tParity)
         end if

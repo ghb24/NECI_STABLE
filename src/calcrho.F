@@ -100,27 +100,6 @@ C               IC=IC+1
       END
 
 
-! This function only finds the excitation level
-! w.r.t. HF, by comparing the orbital energy to the chemical potential of
-! the system. This can be made quicker by using an inverse BRR, which
-! would only involve integer comparisons, but this is not exactly large
-! speed increases...
-      INTEGER FUNCTION iGetExcitLevelwrtHF(nI,NEl)
-        USE IntegralsData , only : ChemPot
-        USE SystemData , only : Arr
-        IMPLICIT NONE
-        INTEGER i,NEl,nI(NEl),IC
-
-        IC=NEl
-        do i=1,NEl
-            IF(Arr(nI(i),2).lt.ChemPot) IC=IC-1
-        enddo
-        IGetExcitLevelwrtHF=IC
-
-        RETURN
-
-      END FUNCTION iGetExcitLevelwrtHF
-
 C.. GETHELEMENT
 C.. Get matrix element of the hamiltonian
       FUNCTION GETHELEMENT(II,IJ,HAMIL,LAB,NROW,NDET)
@@ -154,17 +133,3 @@ C.. Find the Ith row
       ENDDO
       RETURN
       END
-
-C.. GETHROW
-C.. Get the index within HAMIL of a row II of the H matrix
-      INTEGER FUNCTION IGETHROW(II,NROW,NDET)
-      IMPLICIT NONE
-      INTEGER NDET,NROW(NDET),K,II
-      IGETHROW=1
-C.. Find the Ith row
-      DO K=1,II-1
-         IGETHROW=IGETHROW+NROW(K)
-      ENDDO
-      RETURN
-      END
-
