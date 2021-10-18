@@ -535,13 +535,13 @@ contains
 
 #if (! defined(PROG_NUMRUNS_)) || (! defined(DOUBLERUN_))
         if (tRDMonFly) then
-            write(iout, *) 'RDM sampling is specified, but this version of neci'
-            write(iout, *) 'is not compiled with the replica trick.'
-            write(iout, *) 'You probably want to use dneci or mneci &
+            write(stdout, *) 'RDM sampling is specified, but this version of neci'
+            write(stdout, *) 'is not compiled with the replica trick.'
+            write(stdout, *) 'You probably want to use dneci or mneci &
                     &(or their complex counterparts).'
-            write(iout, *)
-            write(iout, *) 'If you think that there is a usecase for sampling RDMs'
-            write(iout, *) 'with normal `neci` please contact the developers.'
+            write(stdout, *)
+            write(stdout, *) 'If you think that there is a usecase for sampling RDMs'
+            write(stdout, *) 'with normal `neci` please contact the developers.'
             call stop_all(t_r, "Compiled version does not support RDM sampling.")
         end if
 #endif
