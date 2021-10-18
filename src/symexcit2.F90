@@ -647,13 +647,13 @@ CONTAINS
             ILUT(:) = 0
             DO I = 1, NEL
                 ILUT((NI(I) - 1) / 32) = IBSET(ILUT((NI(I) - 1) / 32), MOD(NI(I) - 1, 32))
-!                write(6,*) (NI(I)-1)/32,
+!                write(stdout,*) (NI(I)-1)/32,
 !     &               IBSET(ILUT((NI(I)-1)/32),MOD(NI(I)-1,32)),
 !     &               ILUT(0:NIfTot)
             end do
 !..            DO I=0,NIfTot
-!..                write(6,*) "ILUT: ",ILUT(i)
-!..                write(6,"(A,Z10)") "LUT: ",ILUT(I)
+!..                write(stdout,*) "ILUT: ",ILUT(i)
+!..                write(stdout,"(A,Z10)") "LUT: ",ILUT(I)
 !..            end do
         end if
 !.. Now look through the list of our pairs.  For each pair sym of the complete list which has a
@@ -661,7 +661,7 @@ CONTAINS
 !.. the complete list, and store that value in NALLOWPPS
         IF (STORE(3) == 0) THEN
             allocate(NALLOWPPS(3, NSYMPAIRPRODS))
-!          write(6,*) "Allocating memory for nallowpps"
+!          write(stdout,*) "Allocating memory for nallowpps"
         ELSE
             nAllowPPS => NAPin(1:3, 1:nSymPairProds)
         end if
@@ -692,10 +692,10 @@ CONTAINS
         IF (BTEST(ILEVEL, 0)) NEXCITS = NEXCITS + NSING
         IF (BTEST(ILEVEL, 1)) NEXCITS = NEXCITS + NDOUB
         ICOUNT = NEXCITS
-!         write(6,*) "Total number of singles: ",NSING
-!         write(6,*) "Total number of doubles: ",NDOUB
-!         write(6,*) "Total number of excitations: ",NEXCITS
-!         write(6,*) "Total number of excitation types: ",NEXCITTYPES
+!         write(stdout,*) "Total number of singles: ",NSING
+!         write(stdout,*) "Total number of doubles: ",NDOUB
+!         write(stdout,*) "Total number of excitations: ",NEXCITS
+!         write(stdout,*) "Total number of excitation types: ",NEXCITTYPES
 
         IF (TCOUNT) THEN
 !.. If we're just counting, we're done, so we get rid of some pointers.
@@ -763,7 +763,7 @@ CONTAINS
 
         end if
 !..      end if(.NOT.TCOUNT)
-!         write(6,*) "Total number of excitation types: ",NEXCITTYPES
+!         write(stdout,*) "Total number of excitation types: ",NEXCITTYPES
         call halt_timer(proc_timer)
 
     END Subroutine
@@ -839,7 +839,7 @@ CONTAINS
                     STORE(1) = SymClassSize * NEL + (nBasis / 32) + 1 + &
                                SymmetrySize * (NEL * NEL + 1)
                     NMEM(1) = 23 + STORE(1) + STORE(2) + STORE(3) + STORE(4) + STORE(5)
-!               write(6,"(A6,6I5)"), "SIZE:",NMEM(1),(STORE(I),I=1,5)
+!               write(stdout,"(A6,6I5)"), "SIZE:",NMEM(1),(STORE(I),I=1,5)
                 end if
 
             ELSE    !Second setup excitgen run - fill memory
@@ -967,7 +967,7 @@ CONTAINS
                     end do
 !.. Second setup finally complete.
 !               CALL DUMPIMEMORY(6,NMEM,ICOUNT-1)
-!               write(6,*) "DST",LOC(NMEM(NMEM(1)))
+!               write(stdout,*) "DST",LOC(NMEM(NMEM(1)))
                 end if
 
             end if
@@ -978,7 +978,7 @@ CONTAINS
                  &ExcitGens when enumerating all determinants.")
             end if
 !.. Actually generate a det
-!            write(6,"(A,Z10,8I4)",advance='no') "GET",LOC(NMEM(1)),
+!            write(stdout,"(A,Z10,8I4)",advance='no') "GET",LOC(NMEM(1)),
 !     &         (NMEM(I),I=7,14)
 !                  DSTORE=>NMEM(NMEM(1):NMEM(1)+&
 !                     SymClassSize*NEL+(nBasis/32)+1&
@@ -994,11 +994,11 @@ CONTAINS
                                 NMEM(13), NMEM(14), NMEM(15), NMEM(19), NJ, IC, iMinElec1, &
                                 iMaxElec1)
 !            CALL WRITEDET(6,NI,NEL,.FALSE.)
-!            write(6,"(A)",advance='no'), "->"
+!            write(stdout,"(A)",advance='no'), "->"
 !            IF(NJ(1).NE.0) THEN
 !               CALL WRITEDET(6,NJ,NEL,.TRUE.)
 !            ELSE
-!               write(6,*) "(    0,)"
+!               write(stdout,*) "(    0,)"
 !            end if
         end if
     END subroutine

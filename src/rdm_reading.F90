@@ -30,7 +30,7 @@ contains
         character(20) :: filename
         character(len=*), parameter :: t_r = 'read_1rdm'
 
-        write(6, '(1X,"Reading in the 1-RDMs...")')
+        write(stdout, '(1X,"Reading in the 1-RDMs...")')
 
         associate(state_labels => rdm_defs%state_labels, repeat_label => rdm_defs%repeat_label)
             if (state_labels(1, irdm) == state_labels(2, irdm)) then
@@ -88,7 +88,7 @@ contains
         logical :: file_exists, nearly_full, finished, all_finished
         character(len=*), parameter :: t_r = 'read_2rdm_popsfile'
 
-        write(6, '(1X,"Reading in the 2-RDMs...")')
+        write(stdout, '(1X,"Reading in the 2-RDMs...")')
 
         ! If we're about to fill up the spawn list, perform a communication.
         nearly_full = .false.
@@ -193,7 +193,7 @@ contains
         character(30) :: rdm_filename(rdm%sign_length)
         character(len=*), parameter :: t_r = 'read_2rdm_popsfile'
 
-        write(6, '(1X,"Reading in the spinfree 2-RDMs...")')
+        write(stdout, '(1X,"Reading in the spinfree 2-RDMs...")')
 
         ! If we're about to fill up the spawn list, perform a communication.
         nearly_full = .false.

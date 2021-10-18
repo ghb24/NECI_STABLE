@@ -136,30 +136,6 @@
       END SUBROUTINE FindExcitDet
 
 
-      LOGICAL FUNCTION AREDETSEXCITS(D1,D2,NEL,ICE)
-         IMPLICIT NONE
-         INTEGER ICE,NEL,D1(NEL),D2(NEL)
-         LOGICAL ISUHFDET
-         INTEGER IGETEXCITLEVEL_
-         ICE=IGETEXCITLEVEL_(D1,D2,NEL)
-         IF(ICE.LE.2) THEN
-C.. The new node is connected to this node
-            IF(ISUHFDET(D1,NEL).OR.
-     &         ISUHFDET(D2,NEL)) THEN
-               IF(ICE.NE.1) THEN
-                  AREDETSEXCITS=.TRUE.
-               ELSE
-                  AREDETSEXCITS=.FALSE.
-               ENDIF
-            ELSE
-               AREDETSEXCITS=.TRUE.
-            ENDIF
-         ELSE
-            AREDETSEXCITS=.FALSE.
-         ENDIF
-         RETURN
-      END
-
       LOGICAL FUNCTION ISVALIDDET(DET,NEL)
          IMPLICIT NONE
          INTEGER, intent(in) :: NEL

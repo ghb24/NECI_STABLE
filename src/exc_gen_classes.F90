@@ -1,17 +1,20 @@
 module exc_gen_classes
-    use constants, only: dp, n_int, maxExcit, iout
+    use constants, only: dp, n_int, maxExcit, stdout
     use procedure_pointers, only: generate_excitation, gen_all_excits
     use excitation_generators, only: ExcitationGenerator_t
     use FciMCData, only: excit_gen_store_type
     use procedure_pointers, only: generate_excitation_t, generate_all_excits_t
     use bit_rep_data, only: NIfTot
-    use SystemData, only: nel, tGAS, tGASSpinRecoupling
+    use SystemData, only: nel, tGAS
+    use Determinants, only: DefDet
 
+    use orb_idx_mod, only: SpinProj_t, calc_spin_raw, sum
     use gasci, only: GAS_exc_gen, GAS_specification, possible_GAS_exc_gen, get_name
     use gasci_discarding, only: GAS_DiscardingGenerator_t
     use gasci_pchb, only: GAS_PCHB_ExcGenerator_t, use_supergroup_lookup, GAS_PCHB_singles_generator
     use gasci_general, only: GAS_heat_bath_ExcGenerator_t
     use gasci_disconnected, only: GAS_disc_ExcGenerator_t
+    use gasci_util, only: write_GAS_info
 
     implicit none
     private
@@ -65,21 +68,22 @@ contains
                     select type(current_exc_generator)
                     type is (GAS_PCHB_ExcGenerator_t)
                         call current_exc_generator%init(GAS_specification, use_supergroup_lookup, &
-                                                        use_supergroup_lookup, tGASSpinRecoupling, GAS_PCHB_singles_generator)
+                                                        use_supergroup_lookup, GAS_PCHB_singles_generator)
                     end select
                 else if (GAS_exc_gen == possible_GAS_exc_gen%GENERAL) then
                     current_exc_generator = GAS_heat_bath_ExcGenerator_t(GAS_specification)
                 else if (GAS_exc_gen == possible_GAS_exc_gen%disconnected) then
                     current_exc_generator = GAS_disc_ExcGenerator_t(GAS_specification)
                 end if
-                write(iout, *)
-                write(iout, '(A" is activated")') get_name(GAS_exc_gen)
-                write(iout, '(A)') 'The following GAS specification was used: '
-                call GAS_specification%write_to(iout)
-                if (.not. tGASSpinRecoupling) then
-                    write(iout, '(A)') 'Double excitations with exchange are forbidden.'
-                end if
-                write(iout, *)
+                write(stdout, *)
+                write(stdout, '(A" is activated")') get_name(GAS_exc_gen)
+                write(stdout, '(A)') 'The following GAS specification was used: '
+                block
+                    type(SpinProj_t) :: S_z
+                    S_z = sum(calc_spin_raw(DefDet))
+                    call write_GAS_info(GAS_specification, nEl, S_z, stdout)
+                end block
+                write(stdout, *)
                 end if
         end block
 

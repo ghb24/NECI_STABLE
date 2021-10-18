@@ -180,11 +180,11 @@ contains
         end do
 
         if (allocated(perturb%ann_orbs) .and. allocated(perturb%crtn_orbs)) &
-            write(6, *) "Transfering from orbital ", perturb%ann_orbs(1), &
+            write(stdout, *) "Transfering from orbital ", perturb%ann_orbs(1), &
             " to ", perturb%crtn_orbs(1)
         ndets = ndets - nremoved
 
-        write(6, *) "Communicating perturbed dets"
+        write(stdout, *) "Communicating perturbed dets"
         ! Send perturbed determinants to their new processors.
         call SendProcNewParts(ndets, tSingleProc=.false.)
 

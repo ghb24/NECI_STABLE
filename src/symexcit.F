@@ -1131,26 +1131,6 @@ C         WRITE(6,*) "COUNT:",ICOUNT
       END SUBROUTINE GetSymExcitCount
 
 
-!GenSymExcitIt3Par and GenSymExcitIt3 are versions GenSymExcitIt2 which do not require information taken from System and Integrals modules to be specified on the command line
-      SUBROUTINE GENSYMEXCITIT3(NI,TSETUP,NMEM,NJ,IC,STORE,ILEVEL)
-         use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
-         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
-         use SystemData, only: nEl,G1, nBasis,nBasisMax
-         use legacy_data, only: irat
-         IMPLICIT NONE
-         INTEGER NI(NEL)
-         INTEGER, pointer :: DSTORE(:)
-!  STORE contains lengths of various components of the excitation generator
-         INTEGER STORE(6)
-!  STORE will contain the addesses of various components of the excitation generator, and is passed to SYMSETUPEXCITS2
-         INTEGER NMEM(*),NJ(NEL),IC
-         LOGICAL TSETUP
-         INTEGER ILEVEL
-
-         CALL GENSYMEXCITIT2Par(NI,NEL,G1,NBASIS,
-     &         TSETUP,NMEM,NJ,IC,STORE,ILEVEL,1,nEl)
-      END
-
       SUBROUTINE GENSYMEXCITIT3Par(NI,
      &         TSETUP,NMEM,NJ,IC,STORE,ILEVEL,iMinElec1,iMaxElec1)
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
@@ -2303,13 +2283,6 @@ C                     CALL WRITEDET(6,NK,NEL,.TRUE.)
       End Subroutine SymGenExcitIt_MakeDouble
 
 
-      LOGICAL FUNCTION IsConnectedDet(nI,nJ)
-         use SystemData, only: nel
-         IMPLICIT NONE
-         INTEGER nI(nEl), nJ(nEl)
-         CALL IsConnectedDet2(nI,nJ,IsConnectedDet)
-      END
-
 !  We are required to enshroud GenExcitProbInternal as F90 doesn't seem to want to allow any casting.
       SUBROUTINE IsConnectedDet2(nI,nJ,tIsConnected)
          use SystemData, only: nel
@@ -2359,78 +2332,3 @@ C                     CALL WRITEDET(6,NK,NEL,.TRUE.)
      &  nBasis,OrbPairs,SymProdInd,iLUT,SymProds,ExcitTypes,
      &   iTotal,pGen)
       END
-
-
-      SUBROUTINE DUMPIMEMORY(IUNIT,MEM,INLEN)
-
-         IMPLICIT NONE
-         INTEGER IUNIT, INLEN!,I,J
-         INTEGER*1 MEM(*)!,CH
-!         INTEGER ILEN,IPOST,LEN,ILEAD
-!         INTEGER ADDR,LEAD,POST,LINES
-!#ifdef POINTER8
-!         integer(int64) LOC
-!#else
-!         INTEGER LOC
-!#endif
-!         INTEGER,PARAMETER :: LINELEN=16
-         call stop_all('DUMPIMEMORY',
-     &   'Not functional with CRAY compilers.  Fix if you want to use!')
-
-         ! Stop warnings
-         iunit=iunit; inlen=inlen; mem(1)=mem(1)
-!         ILEN=INLEN*4
-!         LEN=ILEN
-!!         ADDR=16*(LOC(MEM)/LINELEN)
-!         ILEAD=LOC(MEM)-ADDR
-!         IPOST=MOD(LEAD+LEN,LINELEN)
-!         IF(IPOST.NE.0) IPOST=16-IPOST
-!         LINES=(ILEAD+ILEN+IPOST)/LINELEN
-!         DO I=0,LINES-1
-!            POST=IPOST
-!            LEN=ILEN
-!            LEAD=ILEAD
-!            WRITE(IUNIT,"(Z8.8)",advance='no') ADDR
-!            DO J=0,LINELEN-1
-!               IF(J.EQ.LINELEN/2) WRITE(IUNIT,'(A2)',advance='no') "  "
-!               IF(LEAD.EQ.0) THEN
-!                  IF(LEN.EQ.0) THEN
-!                     WRITE(IUNIT,"(A3)",advance='no') "   "
-!                  ELSE
-!                     WRITE(IUNIT,"(Z3.2)",advance='no')
-!     &                                              ,MEM(I*LINELEN+J+1)
-!                     LEN=LEN-1
-!                  ENDIF
-!               ELSE
-!                  WRITE(IUNIT,"(A3)",advance='no') "   "
-!                  LEAD=LEAD-1
-!               ENDIF
-!            ENDDO
-!            WRITE(IUNIT,"(A3)",advance='no'),"   "
-!            DO J=0,LINELEN-1
-!               IF(J.EQ.LINELEN/2) WRITE(IUNIT,'(A1)',advance='no') " "
-!               IF(ILEAD.EQ.0) THEN
-!                  IF(ILEN.NE.0) THEN
-!                     CH=MEM(I*LINELEN+J+1)
-!                     IF(CH.GE.32) THEN
-!                        WRITE(IUNIT,"(A1)",advance='no'),CHAR(CH)
-!                     ELSE
-!                        WRITE(IUNIT,"(A1)",advance='no'),"."
-!                     ENDIF
-!                     ILEN=ILEN-1
-!                  ELSE
-!                     WRITE(IUNIT,"(A1)",advance='no')," "
-!                  ENDIF
-!               ELSE
-!                  WRITE(IUNIT,"(A1)",advance='no')," "
-!                  ILEAD=ILEAD-1
-!               ENDIF
-!            ENDDO
-!            ILEAD=LEAD
-!            IPOST=POST
-!            ILEN=LEN
-!            WRITE(IUNIT,*)
-!            ADDR=ADDR+LINELEN
-!         ENDDO
-      END
-

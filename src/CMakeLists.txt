@@ -77,7 +77,6 @@ set( SRC_FILES
     input.F90
     IntegralsData.F90
     Integrals_neci.F90
-    ISKRandExcit.F90
     kp_fciqmc_data.F90
     kp_fciqmc.F90
     kp_fciqmc_init.F90
@@ -155,11 +154,11 @@ set( SRC_FILES
     sym.F90
     sym_general.F90
     symrandexcit1.F
-    symrandexcit2.F90
+    GenRandSymExcitNUMod.F90
     symrandexcit3.F90
     symrandexcit_Ex_Mag.F90
-    symrandexcit4.F90
-    symrandexcit5.F90
+    excit_gens_int_weighted.F90
+    excit_gen_5.F90
     symrandexcit.F
     symrandexcit_ueg.F90
     SystemData.F90
@@ -187,9 +186,9 @@ set( SRC_FILES
     guga_write_H_matrix.F90
     guga_matrixElements.F90
     guga_procedure_pointers.F90
-    guga_testsuite.F90
     guga_types.F90
 	guga_plugin.F90
+    guga_pchb_class.F90
     lattice_mod.F90
     tJ_model.F90
     k_space_hubbard.F90
@@ -231,6 +230,7 @@ set( SRC_FILES
     lib/matrix_util.F90
     lib/display_matrices.F90
     lib/binomial_lookup.F90
+    lib/MAQAO_toggle.c
 )
 
 set( RELAX_WARNINGS_SRCS
@@ -304,7 +304,6 @@ set( RELAX_WARNINGS_SRCS
     input.F90
     IntegralsData.F90
     Integrals_neci.F90
-    ISKRandExcit.F90
     kp_fciqmc_data.F90
     kp_fciqmc.F90
     kp_fciqmc_init.F90
@@ -380,11 +379,11 @@ set( RELAX_WARNINGS_SRCS
     sym.F90
     sym_general.F90
     symrandexcit1.F
-    symrandexcit2.F90
+    GenRandSymExcitNUMod.F90
     symrandexcit3.F90
     symrandexcit_Ex_Mag.F90
-    symrandexcit4.F90
-    symrandexcit5.F90
+    excit_gens_int_weighted.F90
+    excit_gen_5.F90
     symrandexcit.F
     symrandexcit_ueg.F90
     SystemData.F90
@@ -406,7 +405,6 @@ set( RELAX_WARNINGS_SRCS
     back_spawn.F90
     back_spawn_excit_gen.F90
     lattice_mod.F90
-    guga_testsuite.F90
     tJ_model.F90
     k_space_hubbard.F90
     lattice_models_utils.F90
@@ -448,6 +446,7 @@ set( FYPP_SRC_FILES
     lib/util_mod_epsilon_close.fpp
     sets_mod.fpp
 	shared_ragged_array.fpp
+    SD_spin_purification.fpp
 )
 
 set( TEMPLATED_SRC_FILES

@@ -1,7 +1,7 @@
 #include "macros.h"
 
 module display_matrices
-    use constants, only: dp, iout
+    use constants, only: dp, stdout
     use util_mod, only: get_free_unit
     implicit none
     private
@@ -22,7 +22,7 @@ contains
         integer :: unit_id_, i
         logical :: advance_
 
-        def_default(unit_id_, unit_id, iout)
+        def_default(unit_id_, unit_id, stdout)
         def_default(advance_, advance, .true.)
 
         write(unit_id_, '(A)') '['
@@ -50,7 +50,7 @@ contains
         integer :: i
 
         def_default(dec_places_, dec_places, 5)
-        def_default(unit_id_, unit_id, iout)
+        def_default(unit_id_, unit_id, stdout)
         def_default(advance_, advance, .true.)
 
         fmter = '(E'//str(dec_places_ + 6)//'.'//str(dec_places_)//', A2)'

@@ -5,7 +5,7 @@
 #:set OrbIdxTypes = ['SpinOrbIdx_t', 'SpatOrbIdx_t']
 
 module orb_idx_mod
-    use constants, only: n_int, iout
+    use constants, only: n_int, stdout
     use fortran_strings, only: str
     use bit_rep_data, only: nIfTot, nIfD
     use bit_reps, only: decode_bit_det
@@ -38,6 +38,7 @@ module orb_idx_mod
 
     type :: SpinProj_t
         integer :: val
+            !! Twice the spin projection as integer. \( S_z = 2 \cdot \text{val} \)
     end type
 
     type(SpinProj_t), parameter :: beta = SpinProj_t(-1), alpha = SpinProj_t(1)
@@ -248,7 +249,7 @@ contains
         integer :: i, i_unit_
         character(:), allocatable :: advance_str, format
 
-        @:def_default(i_unit_, i_unit, iout)
+        @:def_default(i_unit_, i_unit, stdout)
 
         if (present(advance)) then
             if (advance) then

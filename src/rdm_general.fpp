@@ -57,7 +57,7 @@ contains
         integer :: rdm_nrows, nhashes_rdm_main, nhashes_rdm_spawn
         integer :: standard_spawn_size, min_spawn_size
         integer :: max_nelems_main, max_nelems_spawn, max_nelems_recv, max_nelems_recv_2
-        integer :: memory_alloc, main_mem, spawn_mem, recv_mem
+        integer(int64) :: memory_alloc, main_mem, spawn_mem, recv_mem
         integer :: ndets_en_pert, nhashes_en_pert
         integer :: irdm, iproc, ierr
         character(len=*), parameter :: t_r = 'init_rdms'

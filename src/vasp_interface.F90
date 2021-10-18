@@ -1,6 +1,6 @@
 module vasp_interface
 
-    use constants, only: dp
+    use constants, only: dp, stdout
     implicit none
     public
     save
@@ -34,10 +34,10 @@ contains
         nKP = vasp_nkpts
         nStates = vasp_nbands * vasp_nkpts
 
-        write(6, *) 'nkp', nKP
-        write(6, *) 'kp'
+        write(stdout, *) 'nkp', nKP
+        write(stdout, *) 'kp'
         do i = 1, nKP
-            write(6, *) vasp_kpnts(:, i)
+            write(stdout, *) vasp_kpnts(:, i)
         end do
         nEl = vasp_nEl * nKP
 

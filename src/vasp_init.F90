@@ -4,7 +4,7 @@ subroutine VaspSystemInit(ArrLEN)
     use SystemData, only: BasisFN, BasisFNSize, BasisFNSizeB, NullBasisFn
     use vasp_interface
     use SymData, only: nRot, PropBitLen, tAbelian, nProp, KPntSym, tagKPntSym
-    use constants, only: dp, sizeof_int
+    use constants, only: dp, sizeof_int, stdout
     implicit none
     integer :: ArrLEN
     integer :: i, ik
@@ -15,7 +15,7 @@ subroutine VaspSystemInit(ArrLEN)
     PropBitLen = 15
     nProp(:) = KPMsh(:)
     tAbelian = .true.
-    write(6, *) tAbelian, nProp, PropBitLen, nRot, ArrLEN
+    write(stdout, *) tAbelian, nProp, PropBitLen, nRot, ArrLEN
 
     allocate(KPntSym(3, nKP))
     call LogMemAlloc('KPntSym', 3 * nKP, 4, this_routine, tagKPntSym)
@@ -25,12 +25,12 @@ subroutine VaspSystemInit(ArrLEN)
         end do
     end do
 
-    write(6, *) tAbelian, nProp, PropBitLen, nRot, ArrLEN
+    write(stdout, *) tAbelian, nProp, PropBitLen, nRot, ArrLEN
     return
 end subroutine VaspSystemInit
 
 subroutine VASPInitIntegrals(nOrbUsed, ECore, tOrder)
-    use constants, only: dp
+    use constants, only: dp, stdout
     use SystemData, only: BasisFN, nEl
     use OneEInts, only: TMatSym, TMatInd
     use vasp_interface
@@ -49,7 +49,7 @@ subroutine VASPInitIntegrals(nOrbUsed, ECore, tOrder)
     call set_timer(proc_timer)
     ! ECore=EIonIon???
     ECore = 0.0_dp
-    write(6, *) 'Core Energy: ', ECORE
+    write(stdout, *) 'Core Energy: ', ECORE
     nStatesUsed = nOrbUsed / 2
 
     call SetupUMatCache(nStatesUsed, NSTATESUSED /= NSTATES)
@@ -59,7 +59,7 @@ subroutine VASPInitIntegrals(nOrbUsed, ECore, tOrder)
 #else
     HarXCSum = 0.0_dp
 #endif
-    write(6, *) "Calculating TMAT"
+    write(stdout, *) "Calculating TMAT"
     open(10, file='TMAT', status='unknown')
     do I = 1, nStatesUsed
         ! Subtract out the double counting. Assume closed-shell.
@@ -84,7 +84,7 @@ subroutine VASPInitIntegrals(nOrbUsed, ECore, tOrder)
     if (tOrder) then
         call Stop_All('VASPInitIntegrals', 'tOrder not implemented in VASP interface yet.')
     end if
-    write(6, *) "Finished TMAT"
+    write(stdout, *) "Finished TMAT"
     close(10)
 
     call halt_timer(proc_timer)
@@ -99,7 +99,7 @@ subroutine VASPBasisInit(ARR, BRR, G1, LEN)
     use SystemData, only: BasisFN, BasisFNSize, BasisFNSizeB, nBASISMax, NullBasisFn
     use vasp_interface, only: nStates, nKP, KPntInd, eigv
     use SymData, only: KPntSym, nSym
-    use constants, only: dp
+    use constants, only: dp, stdout
     use sym_mod, only: ComposeAbelianSym, GenKPtIrreps
     implicit none
     integer :: LEN
@@ -137,7 +137,7 @@ subroutine VASPBasisInit(ARR, BRR, G1, LEN)
         BRR(2 * I) = 2 * I
     end do
 
-    write(6, *) 'Using Abelian symmetry formulation.'
+    write(stdout, *) 'Using Abelian symmetry formulation.'
     NBASISMAX(5, 1) = 0
     NBASISMAX(5, 2) = NSYM - 1
 

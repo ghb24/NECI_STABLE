@@ -1,4 +1,5 @@
 module guga_types
+    use constants, only: dp
     use guga_procedure_pointers, only: general_weight_dummy, general_weight_zero
     use guga_data, only: WeightData_t
 
@@ -25,5 +26,4 @@ module guga_types
         ! object as another pointer
         type(WeightObj_t), pointer :: ptr => null()
     end type WeightObj_t
-
 end module
