@@ -1,7 +1,7 @@
 #include "macros.h"
 
 module LMat_freeze
-    use IntegralsData, only: nFrozen, UMat, umat_win, t_mimic_manu_freeze
+    use IntegralsData, only: nFrozen, UMat, umat_win
     use UMatCache, only: numBasisIndices, UMatInd
     use constants
     use util_mod, only: operator(.div.), custom_findloc
@@ -113,9 +113,7 @@ contains
 
         ! Offset the orbital indexing
         call map_indices(indices)
-        if (.not. t_mimic_manu_freeze) then
-            call add_core_en(matel, indices)
-        end if
+        call add_core_en(matel, indices)
     end subroutine freeze_lmat
 
     !------------------------------------------------------------------------------------------!

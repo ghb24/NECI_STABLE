@@ -23,9 +23,6 @@ module IntegralsData
     Logical :: tPostFreezeHF ! Do we do HF after freezing
     logical :: tDumpFCIDUMP !Do we write out an FCIDUMP file (after freezing)
 
-    ! Flag to indicate usage of the external TCHINT library for st-FCIQMC
-    logical :: t_use_tchint_lib
-    character(50) :: tchint_mode
 !  From NECI.F
 ! UMAT stores 4-index, 2-electron integrals.  Lookup is via the UMATIND function
 ! (in the UMatCache module).
@@ -46,7 +43,6 @@ module IntegralsData
 ! Set if we need virtual orbitals  (usually set).  Will be unset (by Calc readinput) if I_VMAX=1 and TENERGY is false
     Logical :: tNeedsVirts
 
-    logical :: t_mimic_manu_freeze = .false.
 ! Details to permit reversing freezing for convenience.
     integer :: nel_pre_freezing
     integer, allocatable :: frozen_orb_list(:), frozen_orb_reverse_map(:)

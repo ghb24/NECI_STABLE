@@ -378,18 +378,6 @@ contains
             case ("POSTFREEZEHF")
                 tPostFreezeHF = .true.
 
-            case("TCHINT-LIB")
-                t_use_tchint_lib = .true.
-                if(item < nitems) then
-                    call readu(w)
-                    tchint_mode = trim(w)
-                else
-                    tchint_mode = "PC"
-                end if
-
-            case ("MIMIC-MANU-FREEZE")
-                t_mimic_manu_freeze = .true.
-
             case ("HDF5-INTEGRALS")
                 ! Read the 6-index integrals from an hdf5 file
                 tHDF5LMat = .true.
@@ -1427,34 +1415,34 @@ contains
         end if
 
         if (tCalcWithField) then
-        
+
            DO W=1,2
               IF(W.eq.1) THEN
-                  BLOCKMINW=1 
+                  BLOCKMINW=1
                   BLOCKMAXW=NEL-NFROZEN-NFROZENIN
                   FROZENBELOWW=NFROZEN
               ELSEIF(W.eq.2) THEN
-                  BLOCKMINW=NEL-NFROZEN-NFROZENIN+1 
+                  BLOCKMINW=NEL-NFROZEN-NFROZENIN+1
                   BLOCKMAXW=NBASIS
                   FROZENBELOWW=NFROZEN+NFROZENIN+NTFROZENIN
               ENDIF
-        
+
               DO I=BLOCKMINW,BLOCKMAXW
                   IP=I+FROZENBELOWW
                   IB=BRR(IP)
                   IPB=GG(IB)
-        
+
                   DO Y=1,2
                      IF(Y.eq.1) THEN
-                        BLOCKMINY=1 
+                        BLOCKMINY=1
                         BLOCKMAXY=NEL-NFROZEN-NFROZENIN
                         FROZENBELOWY=NFROZEN
                      ELSEIF(Y.eq.2) THEN
-                        BLOCKMINY=NEL-NFROZEN-NFROZENIN+1 
+                        BLOCKMINY=NEL-NFROZEN-NFROZENIN+1
                         BLOCKMAXY=NBASIS
                         FROZENBELOWY=NFROZEN+NFROZENIN+NTFROZENIN
                      ENDIF
-        
+
                      DO J=BLOCKMINY,BLOCKMAXY
                         JP=J+FROZENBELOWY
                         JB=BRR(JP)

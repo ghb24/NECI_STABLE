@@ -474,9 +474,6 @@ endif()
 if (HAVE_HDF5)
     list(APPEND _conditional_libraries ${HDF5_NECI_LIBRARIES} )
 endif()
-if (HAVE_TCHINT)
-    list(APPEND _conditional_libraries ${TCHINT_NECI_LIBRARIES})
-endif()
 
 # ---------------------------------------------------------------------------------
 
@@ -522,7 +519,6 @@ foreach(_config ${${PROJECT_NAME}_CONFIGURATIONS})
             "${NECI_GLOBAL_DEFINES}"
             "${${PROJECT_NAME}_${_config}_DEFINITIONS}"
             "${HDF5_NECI_DEFINITIONS}"
-            "${TCHINT_NECI_DEFINITIONS}"
 
         LIBS "${_library_link_libs}"
 	    WARNERR ${${PROJECT_NAME}_${_config}_WARNERR}
