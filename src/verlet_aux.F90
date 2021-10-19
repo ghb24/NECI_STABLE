@@ -38,7 +38,7 @@ module verlet_aux
 
     use DetBitOps, only: FindBitExcitLevel
 
-    use Determinants, only: get_helement
+    use matel_getter, only: get_diagonal_matel, get_off_diagonal_matel
 
     use fcimc_pointed_fns, only: attempt_create_normal
 
@@ -192,6 +192,7 @@ contains
         integer :: idet, nI(nel), determ_index, unused_flags, ex_level
         real(dp) :: parent_sign(lenof_sign), hdiag
         logical :: tEmptyDet, tCoreDet
+        HElement_t(dp) :: hoffdiag
 
         ! where to put this?
         ! attempt_create => attempt_create_normal
@@ -225,12 +226,13 @@ contains
             ! else, we just let the flags be
             hdiag = 0.0_dp
             if (tGetInitFlags) call CalcParentFlag(idet, unused_flags)
-            hdiag = get_helement(nI, nI, 0) - Hii
+            hdiag = get_diagonal_matel(nI, population(:, idet)) - Hii
             ! if desired, sum in the energy contribution
             if (tSumE) then
                 ex_level = FindBitExcitLevel(ilutRef, population(:, idet), max_calc_ex_level)
+                hoffdiag = get_off_diagonal_matel(nI, population(:, idet))
                 call SumEContrib(nI, ex_level, parent_sign, population(:, idet), &
-                                 hdiag, 1.0_dp, tPairedReplicas, idet)
+                                 hdiag, hoffdiag, 1.0_dp, tPairedReplicas, idet)
             end if
 
             tCoreDet = check_determ_flag(population(:, idet))

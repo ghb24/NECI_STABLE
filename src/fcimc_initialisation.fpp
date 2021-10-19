@@ -129,8 +129,10 @@ module fcimc_initialisation
     use hash, only: FindWalkerHash, add_hash_table_entry, init_hash_table, &
                     hash_table_lookup
     use load_balance_calcnodes, only: DetermineDetNode, RandomOrbIndex
-    use load_balance, only: tLoadBalanceBlocks, addNormContribution, get_diagonal_matel, &
-                            AddNewHashDet
+    use load_balance, only: tLoadBalanceBlocks, addNormContribution, &
+                            AddNewHashDet, clean_load_balance, &
+                            init_load_balance
+    use matel_getter, only: get_diagonal_matel, get_off_diagonal_matel
     use SymExcit3, only: CountExcitations3, GenExcitations3
     use SymExcit4, only: CountExcitations4, GenExcitations4
     use HPHFRandExcitMod, only: ReturnAlphaOpenDet
@@ -156,8 +158,9 @@ module fcimc_initialisation
     use initial_trial_states, only: calc_trial_states_lanczos, &
                                     set_trial_populations, set_trial_states, calc_trial_states_direct
     use global_det_data, only: global_determinant_data, set_det_diagH, &
-                               clean_global_det_data, init_global_det_data, &
-                               set_spawn_rate, store_decoding, set_supergroup_idx
+                               set_det_offdiagH, clean_global_det_data, &
+                               init_global_det_data, set_spawn_rate, &
+                               store_decoding, set_supergroup_idx
     use semi_stoch_gen, only: init_semi_stochastic, end_semistoch, &
                               enumerate_sing_doub_kpnt
     use semi_stoch_procs, only: return_mp1_amp_and_mp2_energy
@@ -165,7 +168,6 @@ module fcimc_initialisation
     use kp_fciqmc_data_mod, only: tExcitedStateKP
     use sym_general_mod, only: ClassCountInd
     use trial_wf_gen, only: init_trial_wf, end_trial_wf
-    use load_balance, only: clean_load_balance, init_load_balance
     use ueg_excit_gens, only: gen_ueg_excit
     use gndts_mod, only: gndts
     use excit_gen_5, only: gen_excit_4ind_weighted2
@@ -2330,6 +2332,7 @@ contains
         integer(n_int), allocatable :: openSubspace(:)
         real(dp), allocatable :: S2(:, :), eigsImag(:), eigs(:), evs(:, :), void(:, :), work(:)
         real(dp) :: normalization, rawWeight, HDiag, tmpSgn(lenof_sign)
+        HElement_t(dp) :: HOffDiag
         integer :: err
         real(dp) :: HFWeight(inum_runs)
         logical :: tSuccess
@@ -2395,6 +2398,7 @@ contains
             proc = DetermineDetNode(nel, nI, 0)
             if (iProcIndex == proc) then
                 HDiag = get_diagonal_matel(nI, initSpace(:, i))
+                HOffDiag = get_off_diagonal_matel(nI, initSpace(:, i))
                 DetHash = FindWalkerHash(nI, size(HashIndex))
                 TotWalkersTmp = int(TotWalkers)
                 tmpSgn = eigs(i)
@@ -2407,7 +2411,7 @@ contains
                     ! the spin-flipped version is stored
                     if (DetBitLT(initSpace(:, i), ilutJ, NIfD) == 1) cycle
                 end if
-                call AddNewHashDet(TotWalkersTmp, initSpace(:, i), DetHash, nI, HDiag, pos, err)
+                call AddNewHashDet(TotWalkersTmp, initSpace(:, i), DetHash, nI, HDiag, HOffDiag, pos, err)
                 TotWalkers = TotWalkersTmp
             end if
             ! reset the reference?
@@ -2630,16 +2634,13 @@ contains
 
             ! if no reference energy is used, explicitly get the HF energy
             if (tZeroRef) then
-                if (tHPHF) then
-                    h_temp = hphf_diag_helement(HFDet, ilutHF)
-                else
-                    h_temp = get_helement(HFDet, HFDet, 0)
-                end if
+                h_temp = get_diagonal_matel(HFDet, ilutHF)
             else
                 ! HF energy is equal to 0 (when used as reference energy)
                 h_temp = h_cast(0.0_dp)
             end if
             call set_det_diagH(1, real(h_temp, dp))
+            call set_det_offdiagH(1, h_cast(0.0_dp))
             HFInd = 1
 
             call store_decoding(1, HFDet)
@@ -2781,12 +2782,9 @@ contains
                 ! The global reference is the HF and is primary for printed
                 ! energies.
                 if (run == 1) HFInd = site
-                if (tHPHF) then
-                    hdiag = hphf_diag_helement(ProjEDet(:, run), ilutRef(:, run))
-                else
-                    hdiag = get_helement(ProjEDet(:, run), ProjEDet(:, run), 0)
-                end if
+                hdiag = get_diagonal_matel(ProjEDet(:, run), ilutRef(:, run))
                 call set_det_diagH(site, real(hdiag, dp) - Hii)
+                call set_det_offdiagH(site, h_cast(0_dp))
 
                 if (associated(lookup_supergroup_indexer)) then
                     call set_supergroup_idx(site, lookup_supergroup_indexer%idx_nI(ProjEDet(:, run)))
@@ -2947,7 +2945,7 @@ contains
     !This hopefully will help with close-lying excited states of the same sym.
     subroutine InitFCIMC_MP1()
         real(dp) :: TotMP1Weight, amp, MP2Energy, PartFac, rat, r, energy_contrib
-        HElement_t(dp) :: HDiagtemp
+        HElement_t(dp) :: HDiagtemp, HOffDiagtemp
         integer :: iExcits, exflag, Ex(2, maxExcit), nJ(NEl), DetIndex, iNode
         integer :: iInit, DetHash, ExcitLevel, run, part_type
         integer(n_int) :: iLutnJ(0:NIfTot)
@@ -3106,12 +3104,10 @@ contains
                     call encode_sign(CurrentDets(:, DetIndex), temp_sign)
 
                     ! Store the diagonal matrix elements
-                    if (tHPHF) then
-                        HDiagTemp = hphf_diag_helement(nJ, iLutnJ)
-                    else
-                        HDiagTemp = get_helement(nJ, nJ, 0)
-                    end if
+                    HDiagtemp = get_diagonal_matel(nJ, iLutnJ)
+                    HOffDiagtemp = get_off_diagonal_matel(nJ, iLutnJ)
                     call set_det_diagH(DetIndex, real(HDiagtemp, dp) - Hii)
+                    call set_det_offdiagH(DetIndex, HOffDiagtemp)
 
                     if (associated(lookup_supergroup_indexer)) then
                         call set_supergroup_idx(DetIndex, lookup_supergroup_indexer%idx_nI(nJ))
@@ -3176,6 +3172,7 @@ contains
                     end do
                 end if
                 call set_det_diagH(DetIndex, 0.0_dp)
+                call set_det_offdiagH(DetIndex, h_cast(0_dp))
 
                 ! store the determinant
                 call store_decoding(DetIndex, HFDet)

@@ -34,7 +34,8 @@ module AnnihilationMod
     use hist_data, only: tHistSpawn, HistMinInd2
     use LoggingData, only: tNoNewRDMContrib
     use load_balance, only: DetermineDetNode, AddNewHashDet, &
-                            CalcHashTableStats, get_diagonal_matel, RemoveHashDet
+                            CalcHashTableStats, RemoveHashDet
+    use matel_getter, only: get_diagonal_matel, get_off_diagonal_matel
     use searching
     use hash
 
@@ -965,6 +966,7 @@ contains
         real(dp), dimension(lenof_sign) :: TempCurrentSign, SignProd
         integer :: ExcitLevel, DetHash, nJ(nel)
         real(dp) :: ScaledOccupiedThresh, scFVal, diagH, weight_rev
+        HElement_t(dp) :: offdiagH
         logical :: tSuccess, tSuc, tDetermState
         logical :: abort(lenof_sign)
         logical :: tTruncSpawn, t_truncate_this_det
@@ -1225,7 +1227,7 @@ contains
                     if (.not. IsUnoccDet(SpawnedSign)) then
 
                         ! if we did not kill the walkers, get the scaling factor
-                        call getEScale(nJ, i, diagH, scFVal, ScaledOccupiedThresh)
+                        call getEScale(nJ, i, diagH, offdiagH, scFVal, ScaledOccupiedThresh)
                         do j = 1, lenof_sign
                             call stochRoundSpawn(iter_data, SpawnedSign, i, j, scFVal, &
                                                  ScaledOccupiedThresh, t_truncate_this_det)
@@ -1238,9 +1240,10 @@ contains
                             ! same one as was generated at the beginning of the loop.
                             if (.not. tEScaleWalkers) then
                                 diagH = get_diagonal_matel(nJ, SpawnedParts(:, i))
+                                offdiagH = get_off_diagonal_matel(nJ, SpawnedParts(:, i))
                             end if
                             call AddNewHashDet(TotWalkersNew, SpawnedParts(0:NIfTot, i), DetHash, nJ, &
-                                               diagH, PartInd, err)
+                                               diagH, offdiagH, PartInd, err)
                             ! abort upon error
                             if (err /= 0) return
                         end if
@@ -1253,7 +1256,7 @@ contains
 
                     ! no chance to kill the spawn by initiator criterium
                     ! so get the diagH immediately
-                    call getEScale(nJ, i, diagH, scFVal, ScaledOccupiedThresh)
+                    call getEScale(nJ, i, diagH, offdiagH, scFVal, ScaledOccupiedThresh)
 
                     ! If using an EN2 perturbation to correct a truncated
                     ! calculation, then this spawn may need to be truncated
@@ -1281,9 +1284,10 @@ contains
                             ! same one as was generated at the beginning of the loop.
                             if (.not. tEScaleWalkers) then
                                 diagH = get_diagonal_matel(nJ, SpawnedParts(:, i))
+                                offdiagH = get_off_diagonal_matel(nJ, SpawnedParts(:, i))
                             end if
                             call AddNewHashDet(TotWalkersNew, SpawnedParts(:, i), DetHash, nJ, &
-                                               diagH, PartInd, err)
+                                               diagH, offdiagH, PartInd, err)
                             ! abort annihilation upon error
                             if (err /= 0) return
                         end if
@@ -1418,16 +1422,18 @@ contains
 
     end subroutine truncateSpawn
 
-    subroutine getEScale(nJ, i, diagH, scFVal, ScaledOccupiedThresh)
+    subroutine getEScale(nJ, i, diagH, offdiagH, scFVal, ScaledOccupiedThresh)
         implicit none
         integer, intent(in) :: nJ(nel), i
         real(dp), intent(out) :: diagH, scFVal, ScaledOccupiedThresh
+        HElement_t(dp), intent(out) :: offdiagH
 
         if (tEScaleWalkers) then
             ! the diagonal element of H is needed anyway ONLY for scaled walkers
             ! if we dont scale walkers, we might not need it, if the round kills the
             ! walkers
             diagH = get_diagonal_matel(nJ, SpawnedParts(:, i))
+            offdiagH = get_off_diagonal_matel(nJ, SpawnedParts(:, i))
             ! evaluate the scaling function
             scFVal = scaleFunction(diagH - Hii)
         else

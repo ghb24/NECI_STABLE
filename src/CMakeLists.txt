@@ -95,6 +95,7 @@ set( SRC_FILES
     LoggingData.F90
     Logging.F90
     Makefile
+    matel_getter.F90
     matmul.F
     modifiedHub.F90
     molcas_interface.F90
