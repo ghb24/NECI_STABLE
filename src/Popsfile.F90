@@ -47,12 +47,14 @@ MODULE PopsfileMod
     use FciMcData, only: pSingles, pDoubles, pSing_spindiff1, pDoub_spindiff1, pDoub_spindiff2, &
                          t_initialized_roi
     use global_det_data, only: global_determinant_data, init_global_det_data, set_det_diagH, &
-                               store_decoding, max_ratio_size, fvals_size, apvals_size, set_supergroup_idx
+                               set_det_offdiagH, store_decoding, max_ratio_size, fvals_size, &
+                               apvals_size, set_supergroup_idx
     use gasci_supergroup_index, only: lookup_supergroup_indexer
     use tc_three_body_data, only: pTriples, tReadPTriples
     use fcimc_helper, only: update_run_reference, TestInitiator, calc_proje
     use replica_data, only: set_initial_global_data
-    use load_balance, only: pops_init_balance_blocks, get_diagonal_matel
+    use load_balance, only: pops_init_balance_blocks
+    use matel_getter, only: get_diagonal_matel, get_off_diagonal_matel
     use load_balance_calcnodes, only: tLoadBalanceBlocks, balance_blocks
     use hdf5_popsfile, only: write_popsfile_hdf5, read_popsfile_hdf5, &
                              add_pops_norm_contrib
@@ -117,7 +119,7 @@ contains
         real(dp), dimension(lenof_sign) :: SignTemp
         integer :: PopsVersion
         character(len=*), parameter :: this_routine = 'ReadFromPopsfile'
-        HElement_t(dp) :: HElemTemp
+        HElement_t(dp) :: HElemTemp, HElemTemp2
         character(255) :: popsfile
         !variables from header file
         logical :: tPopHPHF, tPopLz, tPop64Bit
@@ -323,17 +325,18 @@ contains
                         call stop_all(this_routine, "HF already found, but shouldn't have")
                     endif
                     CurrHF = CurrHF + SignTemp
-                    if (.not. tSemiStochastic) call set_det_diagH(int(i, sizeof_int), 0.0_dp)
+                    if (.not. tSemiStochastic) then
+                        call set_det_diagH(int(i, sizeof_int), 0.0_dp)
+                        call set_det_offdiagH(int(i, sizeof_int), h_cast(0_dp))
+                    end if
                 else
                     if (.not. tSemiStochastic) then
                         ! Calculate diagonal matrix element
                         call decode_bit_det(TempnI, Dets(:, i))
-                        if (tHPHF) then
-                            HElemTemp = hphf_diag_helement(TempnI, Dets(:, i))
-                        else
-                            HElemTemp = get_helement(TempnI, TempnI, 0)
-                        endif
+                        HElemTemp = get_diagonal_matel(TempnI, Dets(:,i))
+                        HElemTemp2 = get_off_diagonal_matel(TempnI, Dets(:,i))
                         call set_det_diagH(int(i, sizeof_int), real(HElemTemp, dp) - Hii)
+                        call set_det_offdiagH(int(i, sizeof_int), HElemTemp2)
                     endif
                 endif
             enddo
@@ -2300,7 +2303,7 @@ contains
         INTEGER :: AvSumNoatHF, IntegerPart, TempnI(NEl), ExcitLevel
         integer :: NIfWriteOut, pos, orb, PopsVersion, iunit, run
         real(dp) :: r, FracPart, Gap, DiagSftTemp, tmp_dp
-        HElement_t(dp) :: HElemTemp
+        HElement_t(dp) :: HElemTemp, HElemTemp2
         character(255) :: popsfile, FirstLine, stem
         character(len=24) :: junk, junk2, junk3, junk4
         LOGICAL :: tPop64BitDets, tPopHPHF, tPopLz, tPopInitiator
@@ -2757,14 +2760,11 @@ contains
             IF (Excitlevel == 0) THEN
                 call set_det_diagH(j, 0.0_dp)
             ELSE
-                if (tHPHF) then
-                    HElemTemp = hphf_diag_helement(TempnI, &
-                                                   CurrentDets(:, j))
-                else
-                    HElemTemp = get_helement(TempnI, TempnI, 0)
-                endif
+                HElemTemp = get_diagonal_matel(TempnI, CurrentDets(:,j))
                 call set_det_diagH(j, real(HElemTemp, dp) - Hii)
             ENDIF
+            HElemTemp2 = get_off_diagonal_matel (TempnI, CurrentDets(:,j))
+            call set_det_offdiagH(j, HElemTemp2)
             call store_decoding(j, TempnI)
             call extract_sign(CurrentDets(:, j), RealTempSign)
             TotParts(1) = TotParts(1) + abs(RealTempSign(1))

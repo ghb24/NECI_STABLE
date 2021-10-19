@@ -85,6 +85,8 @@ module semi_stoch_procs
 
     use DeterminantData, only: write_det
 
+    use matel_getter, only: get_diagonal_matel, get_off_diagonal_matel
+
     implicit none
 
     ! Distinguishing value for 'use all runs'
@@ -1006,22 +1008,21 @@ contains
     subroutine fill_in_diag_helements()
 
         use FciMCData, only: Hii
-        use global_det_data, only: set_det_diagH
+        use global_det_data, only: set_det_diagH, set_det_offdiagH
 
         integer :: i
         integer :: nI(nel)
         real(dp) :: tmpH
+        HElement_t(dp) :: tmpHoff
         real(dp) :: sgn(lenof_sign)
 
         do i = 1, int(TotWalkers)
             call decode_bit_det(nI, CurrentDets(:, i))
 
-            if (tHPHF) then
-                tmpH = hphf_diag_helement(nI, CurrentDets(:, i)) - Hii
-            else
-                tmpH = get_helement(nI, nI, 0) - Hii
-            end if
+            tmpH = get_diagonal_matel(nI, CurrentDets(:, i)) - Hii
+            tmpHoff = get_off_diagonal_matel(nI, CurrentDets(:, i))
             call set_det_diagh(i, tmpH)
+            call set_det_offdiagh(i, tmpHoff)
 
         end do
 
