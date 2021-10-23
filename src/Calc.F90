@@ -1614,6 +1614,16 @@ contains
                 tStartCoreGroundState = .false.
                 semistoch_shift_iter = 1
             case("POPS-CORE-PROPORTION")
+                if (.not. tSemiStochastic .and. semistoch_shift_iter < 1) then
+                    ! This option is valid only if SEMI-STOCHASTIC option is present
+                    call stop_all(t_r, 'SEMI-STOCHASTIC option is not present in input')
+                else if (semistoch_shift_iter == 0) then
+                    ! Force initialization of determinisitc space after initializing 
+                    ! initiator space.
+                    semistoch_shift_iter = 1
+                    tSemiStochastic = .false.
+                    tStartCoreGroundState = .false.
+                end if
                 ss_space_in%tPops = .true.
                 ss_space_in%tPopsProportion = .true.
                 call getf(ss_space_in%npops_proportion)
@@ -1624,13 +1634,6 @@ contains
                 if (.not. tForceFullPops) then
                     ss_space_in%tApproxSpace = .true.
                     t_fast_pops_core = .true.
-                end if
-                if (semistoch_shift_iter == 0) then
-                    ! Force initialization of determinisitc space after initializing 
-                    ! initiator space.
-                    semistoch_shift_iter = 1
-                    tSemiStochastic = .false.
-                    tStartCoreGroundState = .false.
                 end if
             case("POPS-CORE-APPROX")
                 ss_space_in%tPops = .true.
