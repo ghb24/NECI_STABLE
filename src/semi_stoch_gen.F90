@@ -125,9 +125,7 @@ contains
 
                 if (core_in%tPopsProportion) then
                     write(stdout, '("Choosing ",F7.2,"% of initiator space as core space")') 100 * core_in%npops_proportion
-                    call neci_flush(6)
                     write(stdout, '("Estimated size of core space:",1X,i5)') int(AllNoInitDets(run) * core_in%npops_proportion)
-                    call neci_flush(6)
                     core_in%npops = max(1, int(AllNoInitDets(run) * core_in%npops_proportion))
                 end if
 
@@ -144,11 +142,17 @@ contains
                 ! This is now the total size on the replica with the largest space
                 ! Typically, all replicas will have either similar or the same space size
                 write(stdout, '("Total size of deterministic space:",1X,i8)') rep%determ_space_size
-                if(rep%determ_space_size > 0.5 * AllNoInitDets(run)) then
+                if (rep%determ_space_size > 0.5 * AllNoInitDets(run)) then
                     write(stdout, *)"WARNING: Total size of deterministic space is greater than&
                         & 50% of the initiator space."
                     write(stdout, *)"         Reducing the size of the deterministic space is&
                         & encouraged."
+                    if (iProcIndex == 0) then
+                        write(stderr, *)"WARNING: Total size of deterministic space is greater than&
+                            & 50% of the initiator space."
+                        write(stderr, *)"         Reducing the size of the deterministic space is&
+                            & encouraged."
+                    end if
                 end if
                 write(stdout, '("Size of deterministic space on this processor:",1X,i8)') rep%determ_sizes(iProcIndex)
                 call neci_flush(6)

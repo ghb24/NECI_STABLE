@@ -804,7 +804,7 @@ and ends with the `endcalc` keyword.
     to form the core space.
 
 -   **pops-core-proportion \(f\)**<br>
-    This option will use \(100 \times f\) percent of most populated initiator
+    This option will use a fraction \(f\) of most populated initiator
     determinants to form the core space. For example, about 50% of most
     populated initiator determinants are chosen if \(f = 0.5\).
 
