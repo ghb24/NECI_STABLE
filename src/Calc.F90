@@ -1617,13 +1617,20 @@ contains
                 ss_space_in%tPops = .true.
                 ss_space_in%tPopsProportion = .true.
                 call getf(ss_space_in%npops_proportion)
-                if(ss_space_in%npops_proportion < 0.0) then
+                if (ss_space_in%npops_proportion < 0.0) then
                     call stop_all(t_r, 'Popscore proportion should be positive')
                 end if
                 t_fast_pops_core = .false.
                 if (.not. tForceFullPops) then
                     ss_space_in%tApproxSpace = .true.
                     t_fast_pops_core = .true.
+                end if
+                if (semistoch_shift_iter == 0) then
+                    ! Force initialization of determinisitc space after initializing 
+                    ! initiator space.
+                    semistoch_shift_iter = 1
+                    tSemiStochastic = .false.
+                    tStartCoreGroundState = .false.
                 end if
             case("POPS-CORE-APPROX")
                 ss_space_in%tPops = .true.
