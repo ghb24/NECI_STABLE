@@ -475,7 +475,11 @@ contains
             HFDet_True = HFDet
         end if
 
-        if (tGUGA) call fill_csf_i(ilutRef(:, 1), csf_ref)
+        if (tGUGA) then
+            do run = 1, inum_runs
+                call fill_csf_i(ilutRef(:, run), csf_ref(run))
+            end do
+        end if
 
         if (tHPHF) then
             allocate(RefDetFlip(NEl, inum_runs), &

@@ -2470,9 +2470,7 @@ contains
 
         ! if in guga run, i also need to recreate the list of connected
         ! determinnant to the new reference det
-        if (tGUGA) then
-            call fill_csf_i(ilutRef(:, 1), csf_ref)
-        end if
+        if (tGUGA) call fill_csf_i(ilutRef(:, run), csf_ref(run))
 
         if (tHPHF) then
             if (.not. Allocated(RefDetFlip)) then

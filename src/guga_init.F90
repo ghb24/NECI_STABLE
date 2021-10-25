@@ -46,7 +46,7 @@ module guga_init
 
     use FciMCData, only: pExcit2, pExcit4, pExcit2_same, pExcit3_same, tSearchTau
 
-    use constants, only: dp, int_rdm, n_int, stdout
+    use constants, only: dp, int_rdm, n_int, stdout, inum_runs
 
     use MPI_wrapper, only: iProcIndex
 
@@ -56,6 +56,8 @@ module guga_init
                         pick_orbitals_guga_tJ
 
     use back_spawn, only: setup_virtual_mask
+
+    use util_mod, only: operator(.div.)
 
     use guga_bitRepOps, only: init_guga_bitrep, new_CSF_Info_t, current_csf_i, csf_ref
 
@@ -127,6 +129,7 @@ contains
             else
                 pickOrbitals_single => pick_orbitals_pure_uniform_singles
             end if
+
 
             pickOrbitals_double => pick_orbitals_double_pchb
             ! rest has to be determined what needs a change..
@@ -215,18 +218,18 @@ contains
         ! eg
         ! i have to all this routine again from a point after freezing
         ! where the new number of NBasis is determined already..
-        nSpatOrbs = nBasis / 2
+        nSpatOrbs = nBasis .div. 2
 
-        if (allocated(orbitalIndex)) deallocate(orbitalIndex)
         ! but also have to set up the global orbitalIndex list
-        allocate(orbitalIndex(nSpatOrbs), stat=ierr)
-        orbitalIndex = [(i, i=1, nSpatOrbs)]
+        orbitalIndex = [(i, i = 1, nSpatOrbs)]
 
 
         ! Store GUGA specific information about the current CSF.
         ! In principle this is redundant and could be computed from nI or ilut,
         !   but we precompute it for performance reasons.
         call new_CSF_Info_t(nSpatOrbs, current_csf_i)
+        if (allocated(csf_ref)) deallocate(csf_ref)
+        allocate(csf_ref(inum_runs))
         call new_CSF_Info_t(nSpatOrbs, csf_ref)
 
         ! for now (time/iteration comparison) reasons, decide which

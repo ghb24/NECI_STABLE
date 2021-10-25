@@ -121,8 +121,10 @@ module guga_bitRepOps
         module procedure construct_CSF_Info_t
     end interface
 
-    type(CSF_Info_t) :: current_csf_i, csf_ref
+    type(CSF_Info_t) :: current_csf_i
         !! Information about the current CSF, similar to ilut and nI.
+    type(CSF_Info_t), allocatable :: csf_ref(:)
+        !! Information about the reference determinant of every run.
 contains
 
     subroutine init_guga_bitrep(n_spatial_bits)
@@ -2832,7 +2834,7 @@ contains
         call fill_csf_i(ilut, csf_i)
     end function
 
-    pure subroutine new_CSF_Info_t(n_spat_orbs, csf_i)
+    elemental subroutine new_CSF_Info_t(n_spat_orbs, csf_i)
         integer, intent(in) :: n_spat_orbs
         type(CSF_Info_t), intent(out) :: csf_i
         allocate(csf_i%stepvector(n_spat_orbs), &

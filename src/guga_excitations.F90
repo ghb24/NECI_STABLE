@@ -351,41 +351,20 @@ contains
         integer, intent(out), optional :: exlevel
         HElement_t(dp) :: hel
 
-        integer(n_int) :: tmp_ilut(0:niftot)
+        integer :: run_
         type(ExcitationInformation_t) :: excitInfo
 
-        ! hm.. why is the calc_type always set to 2??
-        ! thats a waste of effort actually and can improve the code quite a
-        ! bit if i change that back! but only, if i have the test-code
-        ! setup and working properly!
-        if (present(run)) then
-            tmp_ilut = ilutRef(0:niftot, run)
-            if (run > 1) then
-                call calc_guga_matrix_element(ilut, csf_i, tmp_ilut, CSF_Info_t(tmp_ilut), excitInfo, hel, .true.)
-            else
-                call calc_guga_matrix_element(ilut, csf_i, tmp_ilut, csf_ref, excitInfo, hel, .true.)
-            end if
-        else
-            tmp_ilut = ilutRef(0:niftot, 1)
-            call calc_guga_matrix_element(ilut, csf_i, tmp_ilut, csf_ref, excitInfo, hel, .true.)
-        end if
-
+        def_default(run_, run, 1)
+        call calc_guga_matrix_element(ilut, csf_i, ilutRef(0:niftot, run_), csf_ref(run_), excitInfo, hel, .true.)
 
         if (present(exlevel)) then
             if (excitInfo%valid) then
-                if (excitInfo%typ == excit_type%single) then
-                    ! singles:
-                    exlevel = 1
-                else
-                    ! doubles
-                    exlevel = 2
-                end if
+                exlevel = merge(1, 2, excitInfo%typ == excit_type%single)
             else
                 ! non-valid > 3 excit
                 exlevel = nel
             end if
         end if
-
     end function calc_off_diag_guga_ref_direct
 
     function calc_guga_mat_wrapper(ilutI, csf_i, ilutJ, csf_j) result(mat_ele)
