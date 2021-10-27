@@ -320,7 +320,6 @@ contains
                     call gndts_all_sym_this_proc(SpawnedParts, .false., space_size)
                 else
                     call generate_fci_core(SpawnedParts, space_size)
-
                 end if
             end if
 
