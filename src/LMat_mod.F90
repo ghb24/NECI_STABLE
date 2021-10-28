@@ -17,7 +17,7 @@ module LMat_mod
     use LMat_indexing, only: lMatIndSym, lMatIndSymBroken, oldLMatInd, strideInner, strideOuter, &
                              lMatIndSpin
     use LMat_calc, only: readlMatFactors, freelMatFactors, lMatCalc, &
-                         read_rs_lmat_factors, rs_lmat_calc, free_rs_factors
+                         read_rs_lmat_factors
     use LMat_class, only: lMat_t, sparse_lMat_t, dense_lMat_t
 #ifdef USE_HDF5_
     use hdf5
@@ -100,11 +100,9 @@ contains
 
                 if (tContact) then
                     lMatVal = get_lmat_ueg(ida, idb, idc, idp, idq, idr)
-                else if (tLMatCalc) then
+                else if (tLMatCalc .or. t_rs_factors) then
                     lMatVal = lMatCalc(ida, idb, idc, idp, idq, idr)
 
-                else if (t_rs_factors) then
-                    lMatVal = rs_lmat_calc(ida, idb, idc, idp, idq, idr)
                 else
                     ! the indexing function is contained in the lMat object
                     index = lMat%indexFunc(ida, idb, idc, idp, idq, idr)
@@ -201,10 +199,8 @@ contains
             call stop_all(t_r, "Did not compile with TCHINT support")
 #endif
         else
-            if (tLMatCalc) then
+            if (tLMatCalc .or. t_rs_factors) then
                 call freeLMatFactors()
-            else if (t_rs_factors) then
-                call free_rs_factors()
             else
                 ! These are always safe to call, regardless of allocation
                 call LMat%dealloc()

@@ -8,10 +8,10 @@ module LMat_calc
     use tc_three_body_data
     use LMat_Indexing, only: lMatIndSym, lMatIndSpin
     use util_mod, only: get_free_unit
+    use mpi_wrapper, only: iProcIndex
     implicit none
 
     real(dp), allocatable :: qwprod(:, :, :), ycoulomb(:, :, :, :)
-    real(dp), allocatable :: array_mos(:,:), array_ints(:,:,:,:)
 #ifdef USE_HDF5_
     integer(hsize_t) :: nBasis, nGrid
 #else
@@ -123,16 +123,11 @@ contains
 
     subroutine freeLMatFactors()
 
-        deallocate(ycoulomb)
-        deallocate(qwprod)
-        deallocate(lMatCalcHKeys)
-        deallocate(lMatCalcHVals)
+        if (allocated(ycoulomb))      deallocate(ycoulomb)
+        if (allocated(qwprod))        deallocate(qwprod)
+        if (allocated(lMatCalcHKeys)) deallocate(lMatCalcHKeys)
+        if (allocated(lMatCalcHVals)) deallocate(lMatCalcHVals)
     end subroutine freeLMatFactors
-
-    subroutine free_rs_factors()
-        deallocate(array_mos)
-        deallocate(array_ints)
-    end subroutine free_rs_factors
 
     function lMatCalc(i, k, m, j, l, n) result(matel)
         integer(int64), intent(in) :: i, j, k, l, m, n
@@ -193,9 +188,12 @@ contains
         character(*), parameter :: filename_info = 'num_mos_grid'
         character(*), parameter :: this_routine = "read_rs_lmat_factors"
 
-        integer :: iunit, ierr, num_mos, i, j, k, l
+        integer :: iunit, ierr, i, j, k, l
+        integer(int64) :: num_mos
+        real(dp) :: integral
+        real(dp), allocatable :: array_mos(:,:)
 
-        print *, "Reading in range-separated TC factors"
+        root_print "Reading in range-separated TC factors"
 
         iunit = get_free_unit()
         ! Read the number of grid points and MOs
@@ -203,8 +201,8 @@ contains
         read(iunit, *, iostat=ierr) num_mos, ngrid
         close(iunit)
 
-        print *, "with: ", ngrid, " grid points"
-        print *, "and ", num_mos, " orbitals"
+        root_print "with: ", ngrid, " grid points"
+        root_print "and ", num_mos, " orbitals"
 
         ! read the MOs file
         allocate(array_mos(ngrid, num_mos), source=0.0_dp)
@@ -220,43 +218,69 @@ contains
         end do
         close(iunit)
 
-        ! read integral factors
-        allocate(array_ints(ngrid, 3, num_mos, num_mos), source=0.0_dp)
+        ! fill in the qwprod file:
+        allocate(qwprod(ngrid, num_mos, num_mos), source=0.0_dp)
+        do i = 1, num_mos
+            do j = 1, num_mos
+                qwprod(:, i, j) = array_mos(:, i) * array_mos(:, j)
+            end do
+        end do
+        deallocate(array_mos)
+
+        allocate(ycoulomb(3, ngrid, num_mos, num_mos), source=0.0_dp)
         iunit = get_free_unit()
         open(iunit, file=filename_ints, status='old')
         do
-            read(iunit, *, iostat=ierr) i, j, k, l, array_ints(i,j,k,l)
+            read(iunit, *, iostat=ierr) i, j, k, l, integral
             if (ierr < 0) then
                 exit
             else if (ierr > 0) then
                 call stop_all(this_routine, "error reading " // filename_ints)
             end if
+            ycoulomb(j, i, k, l) = integral
         end do
         close(iunit)
-        print *, "Done: reading in range-separated TC factors"
+
+
+        lMatIndMax = lMatIndSym(num_mos, num_mos, num_mos, num_mos, num_mos, num_mos)
+        lMatCalcHSize = lMatCalcHFactor * lMatIndMax
+
+        root_print "Total Size of LMat: ", lMatIndMax
+        root_print "Size of LMatCalc Hash Table: ", lMatCalcHSize
+
+        allocate(lMatCalcHKeys(lMatCalcHSize))
+        allocate(lMatCalcHVals(lMatCalcHSize))
+        do i = 1, lMatCalcHSize
+            lMatCalcHKeys(i) = -1
+        end do
+        lMatCalcHit = 0
+        lMatCalcTot = 0
+        lMatCalcHUsed = 0
+
+        root_print "Done: reading in range-separated TC factors"
 
     end subroutine read_rs_lmat_factors
 
-    function rs_lmat_calc(i, j, m, k, l, n) result(matel)
-        integer(int64), intent(in) :: i, j, k, l, m, n
-        HElement_t(dp) :: matel
-        character(*), parameter :: this_routine = "rs_lmat_calc"
-
-        integer :: g, x
-
-        matel = 0.0_dp
-
-        do x = 1, 3
-            do g = 1, ngrid
-                matel = matel + array_mos(g, i) * array_mos(g, k) &
-                    * array_ints(g, x, m, n) * array_ints(g, x, j, l)
-                matel = matel + array_mos(g, j) * array_mos(g, l) &
-                    * array_ints(g, x, m, n) * array_ints(g, x, i, k)
-                matel = matel + array_mos(g, m) * array_mos(g, n) &
-                    * array_ints(g, x, j, l) * array_ints(g, x, i, k)
-            end do
-        end do
-
-    end function rs_lmat_calc
+!     function rs_lmat_calc(i, j, m, k, l, n) result(matel)
+!         integer(int64), intent(in) :: i, j, k, l, m, n
+!         HElement_t(dp) :: matel
+!         character(*), parameter :: this_routine = "rs_lmat_calc"
+!
+!         integer :: g, x
+!
+!         matel = 0.0_dp
+!
+!         do x = 1, 3
+!             do g = 1, ngrid
+!                 matel = matel + array_mos(g, i) * array_mos(g, k) &
+!                     * array_ints(g, x, m, n) * array_ints(g, x, j, l)
+!                 matel = matel + array_mos(g, j) * array_mos(g, l) &
+!                     * array_ints(g, x, m, n) * array_ints(g, x, i, k)
+!                 matel = matel + array_mos(g, m) * array_mos(g, n) &
+!                     * array_ints(g, x, j, l) * array_ints(g, x, i, k)
+!             end do
+!         end do
+!
+!     end function rs_lmat_calc
 
 end module LMat_calc
