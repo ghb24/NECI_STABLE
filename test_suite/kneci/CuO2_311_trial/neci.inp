@@ -3,7 +3,7 @@ title
 system read
 freeformat
 electrons 10
-spin-restrict 1
+spin-restrict 0
 nonuniformrandexcits 4ind-weighted
 hphf 0
 endsys

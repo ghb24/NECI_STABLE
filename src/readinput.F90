@@ -5,7 +5,6 @@
 !   ios is an Integer which is set to 0 on a successful return, or is non-zero if a file error has occurred, where it is the iostat.
 MODULE ReadInput_neci
     use constants, only: stdout
-    use orb_idx_mod, only: sum, calc_spin_raw, SpinProj_t
     Use Determinants, only: tDefineDet, DefDet
     use SystemData, only: lms, user_input_m_s
     Implicit none
