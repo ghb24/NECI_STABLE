@@ -10,7 +10,7 @@ calc
     endmethods
     memoryfacspawn 5.0
     memoryfacpart 2.0
-    totalwalkers 20000
+    totalwalkers 10000
     tau 0.01
     shiftdamp 0.5
     stepsshift 1
