@@ -566,8 +566,7 @@ contains
 
             ! but here i have to calculate all the double excitation
             ! influences which can lead to the same excitation(weights etc.)
-            ! TODO(@Oskar): Perhaps precalculate
-            call calc_single_excitation_ex(ilutJ, CSF_Info_t(ilutJ), excitInfo, mat_ele, &
+            call calc_single_excitation_ex(csf_i, csf_j, excitInfo, mat_ele, &
                                            t_hamil, rdm_ind, rdm_mat)
 
         case (excit_type%single_overlap_L_to_R)
@@ -721,13 +720,12 @@ contains
 
     end subroutine calc_guga_matrix_element
 
-    subroutine calc_single_excitation_ex(ilutJ, csf_i, excitInfo, mat_ele, &
+    subroutine calc_single_excitation_ex(csf_i, csf_j, excitInfo, mat_ele, &
                                          t_calc_full, rdm_ind, rdm_mat)
         ! routine to exactly calculate the matrix element between so singly
         ! connected CSFs, with the option to output also all the indices and
         ! overlap matrix elements necessary for the rdm calculation
-        integer(n_int), intent(in) :: ilutJ(0:niftot)
-        type(CSF_Info_t), value :: csf_i
+        type(CSF_Info_t), intent(in) :: csf_i, csf_j
         type(ExcitationInformation_t), intent(in) :: excitInfo
         HElement_t(dp), intent(out) :: mat_ele
         logical, intent(in), optional :: t_calc_full
@@ -741,11 +739,13 @@ contains
         logical :: t_calc_full_
         ! just mimick the stochastic single excitation!
         real(dp) :: tmp_mat
+        integer :: delta_b(nSpatOrbs)
 
         def_default(t_calc_full_, t_calc_full, .true.)
 
         ! set defaults for the output if we excit early..
         mat_ele = h_cast(0.0_dp)
+        delta_b = csf_i%B_int - csf_j%B_int
 
         associate (i => excitInfo%i, j => excitInfo%j, st => excitInfo%fullstart, &
                    en => excitInfo%fullEnd, gen => excitInfo%currentGen)
@@ -760,7 +760,7 @@ contains
             end if
 
             ! this deltaB info can slip through the excitation identifier..
-            if (any(abs(temp_delta_b) > 1)) return
+            if (any(abs(delta_b) > 1)) return
 
             if (t_calc_full_) then
                 integral = getTmatEl(2 * i, 2 * j)
@@ -788,9 +788,9 @@ contains
 
             ! here i have to calculate the starting element
             !
-            step1 = temp_step_i(st)
-            step2 = temp_step_j(st)
-            bVal = temp_b_real_i(st)
+            step1 = csf_i%stepvector(st)
+            step2 = csf_j%stepvector(st)
+            bVal = csf_i%b_real(st)
             ! i think i have to take the deltaB for the next orb or?
             ! because i need the outgoing deltaB value..
             ! nah.. i need the incoming!
@@ -799,7 +799,7 @@ contains
             ! convention how to access the matrix elements, but then i need the
             ! incoming deltaB value.. or lets check that out how this works
             ! exactly
-            db = temp_delta_b(st)
+            db = delta_b(st)
 
             tmp_mat = tmp_mat * getSingleMatrixElement(step2, step1, db, gen, bVal)
 
@@ -811,10 +811,10 @@ contains
 
             do iOrb = st + 1, en - 1
 
-                step1 = temp_step_i(iOrb)
-                step2 = temp_step_j(iOrb)
-                bVal = temp_b_real_i(iOrb)
-                db = temp_delta_b(iOrb - 1)
+                step1 = csf_i%stepvector(iOrb)
+                step2 = csf_j%stepvector(iOrb)
+                bVal = csf_i%b_real(iOrb)
+                db = delta_b(iOrb - 1)
 
                 tmp_mat = tmp_mat * getSingleMatrixElement(step2, step1, db, gen, bVal)
 
@@ -832,26 +832,20 @@ contains
 
             end do
 
-            step1 = temp_step_i(en)
-            step2 = temp_step_j(en)
-            bVal = temp_b_real_i(en)
-            db = temp_delta_b(en - 1)
+            step1 = csf_i%stepvector(en)
+            step2 = csf_j%stepvector(en)
+            bVal = csf_i%b_real(en)
+            db = delta_b(en - 1)
 
             tmp_mat = tmp_mat * getSingleMatrixElement(step2, step1, db, gen, bVal)
 
             if (near_zero(tmp_mat)) return
 
-            csf_i%stepvector = temp_step_i
-            csf_i%B_real = temp_b_real_i
-            csf_i%Occ_real = temp_occ_i
-            csf_i%B_int = int(csf_i%B_real)
-
             ! i think i could also exclude the treal case here.. try!
             if (t_calc_full_) then
                 if (.not. (treal .or. t_new_real_space_hubbard .or. &
                            t_heisenberg_model .or. t_tJ_model .or. t_mixed_hubbard)) then
-                    ! TODO(@Oskar): Check if ilutJ is correct
-                    call calc_integral_contribution_single(csf_i, ilutJ, i, j, st, en, integral)
+                    call calc_integral_contribution_single(csf_i, csf_j, i, j, st, en, integral)
                 end if
             end if
 
@@ -10601,7 +10595,8 @@ contains
         ! and also for the matrix element calculation maybe..
         if (.not. (treal .or. t_new_real_space_hubbard .or. &
                    t_heisenberg_model .or. t_tJ_model .or. t_mixed_hubbard)) then
-            call calc_integral_contribution_single(csf_i, exc, i, j, st, en, integral)
+            ! TODO(@Oskar): Don't calculate here
+            call calc_integral_contribution_single(csf_i, CSF_Info_t(exc), i, j, st, en, integral)
         end if
 
         if (tFillingStochRDMOnFly) then
@@ -10629,10 +10624,9 @@ contains
 
     end subroutine createStochasticExcitation_single
 
-    subroutine calc_integral_contribution_single(csf_i, exc, i, j, st, en, integral)
+    subroutine calc_integral_contribution_single(csf_i, csf_j, i, j, st, en, integral)
         ! calculates the double-excitaiton contribution to a single excitation
-        type(CSF_Info_t), intent(in) :: csf_i
-        integer(n_int), intent(in) :: exc(0:nifguga)
+        type(CSF_Info_t), intent(in) :: csf_i, csf_j
         integer, intent(in) :: i, j, st, en
         HElement_t(dp), intent(inout) :: integral
 
@@ -10643,7 +10637,7 @@ contains
         select case (csf_i%stepvector(st))
         case (0)
             ! this implicates a raising st:
-            if (isOne(exc, st)) then
+            if (csf_j%stepvector(st) == 1) then
                 call getDoubleMatrixElement(1, 0, 0, gen_type%L, gen_type%R, csf_i%B_real(st), &
                                             1.0_dp, x1_element=botCont)
 
@@ -10654,7 +10648,7 @@ contains
 
         case (3)
             ! implies lowering st
-            if (isOne(exc, st)) then
+            if (csf_j%stepvector(st) == 1) then
                 ! need tA(0,2)
                 botCont = funA_0_2overR2(csf_i%B_real(st))
 
@@ -10666,35 +10660,35 @@ contains
         case (1)
             botCont = funA_m1_1_overR2(csf_i%B_real(st))
             ! check which generator
-            if (isZero(exc, st)) botCont = -botCont
+            if (csf_j%stepvector(st) == 0) botCont = -botCont
 
         case (2)
             botCont = funA_3_1_overR2(csf_i%B_real(st))
-            if (isThree(exc, st)) botCont = -botCont
+            if (csf_j%stepvector(st) == 3) botCont = -botCont
         end select
 
         ! do top contribution also already
 
         select case (csf_i%stepvector(en))
         case (0)
-            if (isOne(exc, en)) then
+            if (csf_j%stepvector(en) == 1) then
                 topCont = funA_2_0_overR2(csf_i%B_real(en))
             else
                 topCont = minFunA_0_2_overR2(csf_i%B_real(en))
             end if
         case (3)
-            if (isOne(exc, en)) then
+            if (csf_j%stepvector(en) == 1) then
                 topCont = minFunA_2_0_overR2(csf_i%B_real(en))
             else
                 topCont = funA_0_2overR2(csf_i%B_real(en))
             end if
         case (1)
             topCont = funA_2_0_overR2(csf_i%B_real(en))
-            if (isThree(exc, en)) topCont = -topCont
+            if (csf_j%stepvector(en) == 3) topCont = -topCont
 
         case (2)
             topCont = funA_0_2overR2(csf_i%B_real(en))
-            if (isZero(exc, en)) topCont = -topCont
+            if (csf_j%stepvector(en) == 0) topCont = -topCont
 
         end select
 
