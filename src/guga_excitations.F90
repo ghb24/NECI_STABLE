@@ -1339,7 +1339,7 @@ contains
 
             if (near_zero(guga_mat)) return
 
-            nOpen = (-1.0_dp)**real(count_open_orbs_ij(csf_i, se + 1, en - 1, ilutJ), dp)
+            nOpen = (-1.0_dp)**real(count_open_orbs_ij(csf_i, se + 1, en - 1), dp)
 
             ! is this the same for both type of gens?
             mat_ele = guga_mat * nOpen * Root2 * umat
@@ -1407,7 +1407,7 @@ contains
 
             if (t_hamil_ .and. near_zero(umat)) return
 
-            nOpen = real(count_open_orbs_ij(csf_i, start, semi - 1, ilutJ), dp)
+            nOpen = real(count_open_orbs_ij(csf_i, start, semi - 1), dp)
 
             ! do semi-stop
             step1 = temp_step_i(semi)
@@ -1485,7 +1485,7 @@ contains
 
             if (t_hamil_ .and. near_zero(umat)) return
 
-            nOpen = real(count_open_orbs_ij(csf_i, start, ende, ilutJ(0:nifd)), dp)
+            nOpen = real(count_open_orbs_ij(csf_i, start, ende), dp)
 
             guga_mat = 2.0_dp * (-1.0_dp)**nOpen
             mat_ele = guga_mat * umat
@@ -9873,8 +9873,9 @@ contains
         ! only deltaB = 0 branch, so only number of open orbitals important
         ! for matrix element in overlap region
 
-        nOpen = (-1.0_dp)**real(count_open_orbs_ij(csf_i, excitInfo%secondStart + 1, &
-                                                   excitInfo%fullEnd - 1), dp)
+        nOpen = (-1.0_dp)**real(&
+                    count_open_orbs_ij(csf_i, excitInfo%secondStart + 1, excitInfo%fullEnd - 1), &
+                dp)
 
         iOrb = excitInfo%fullEnd
 
@@ -13327,7 +13328,7 @@ contains
         ! some additional room if 0/3 at start
         ! use already provided open orbital counting function.
         ! nMax = 2**(ende - start)
-        nMax = 4 + 4 * 2**count_open_orbs_ij(csf_i, st, excitInfo%fullEnd, ilut(0:nifd))
+        nMax = 4 + 4 * 2**count_open_orbs_ij(csf_i, st, excitInfo%fullEnd)
         allocate(tempExcits(0:nifguga, nMax), stat=ierr)
 
         ! create start depending on stepvalue of ilut at start, b value,
@@ -14144,7 +14145,7 @@ contains
 
         ! matrix element deüends only on the number of open orbitals in the
         ! excitaiton region
-        nOpen = real(count_open_orbs_ij(csf_i, excitInfo%fullStart, excitInfo%fullEnd, t(0:nifd)), dp)
+        nOpen = real(count_open_orbs_ij(csf_i, excitInfo%fullStart, excitInfo%fullEnd), dp)
 
         ! update! the sum over two-particle integrals involves a 1/2, which
         ! does not get compensated here by
@@ -15479,7 +15480,7 @@ contains
         bVal = csf_i%B_real(st)
 
         ! determine worst case amount of excitations:
-        nMax = 2 + 2**count_open_orbs_ij(csf_i, st, excitInfo%fullEnd, ilut(0:nifd))
+        nMax = 2 + 2**count_open_orbs_ij(csf_i, st, excitInfo%fullEnd)
         allocate(tempExcits(0:nifguga, nMax), stat=ierr)
 
         ! assert that at least one of the weights is non-zero
@@ -15678,7 +15679,7 @@ contains
         ! some additional room if 0/3 at start
         ! use already provided open orbital counting function.
         ! nMax = 2**(ende - start)
-        nMax = 2 + 2**count_open_orbs_ij(csf_i, start, ende, ilut(0:nifd))
+        nMax = 2 + 2**count_open_orbs_ij(csf_i, start, ende)
         allocate(tempExcits(0:nifguga, nMax), stat=ierr)
 
         t = ilut
@@ -15687,7 +15688,7 @@ contains
         ! additionally also already calculate the sign coming from the
         ! pseudo double excitation which only depends on the number of open
         ! orbitals in the overlap region
-        nOpen = real(count_open_orbs_ij(csf_i, start, semi - 1, ilut(0:nifd)), dp)
+        nOpen = real(count_open_orbs_ij(csf_i, start, semi - 1), dp)
 
         ! set 0->3
         set_orb(t, 2 * start)
@@ -15864,8 +15865,8 @@ contains
         ! some additional room if 0/3 at start
         ! use already provided open orbital counting function.
         ! nMax = 2**(ende - start)
-        nMax = 2 + 2**count_open_orbs_ij(csf_i, start, ende, ilut(0:nifd))
-        allocate(tempExcits(0:nifguga, nMax), stat=ierr)
+        nMax = 2 + 2**count_open_orbs_ij(csf_i, start, ende)
+        allocate(tempExcits(0:nifguga, nMax))
 
         t = ilut
 
@@ -15874,7 +15875,7 @@ contains
         ! pseudo double excitation which only depends on the number of open
         ! orbitals in the overlap region
         ! just also count the semi here to take that additional -sign into account
-        nOpen = real(count_open_orbs_ij(csf_i, start, semi, ilut(0:nifd)), dp)
+        nOpen = real(count_open_orbs_ij(csf_i, start, semi), dp)
 
         ! set 3->0
         clr_orb(t, 2 * start)
@@ -17526,7 +17527,7 @@ contains
         ! valid here, where there is no change in stepvector and matrix
         ! element only a sign dependent on the number of open orbitals
         sig = (-1.0_dp)**real(count_open_orbs_ij(csf_i, excitInfo%secondStart + 1, &
-                                                 excitInfo%fullEnd - 1, ilut(0:nifd)), dp)
+                                                 excitInfo%fullEnd - 1), dp)
 
         ! do the ending
         ASSERT(isZero(ilut, excitInfo%fullEnd))
@@ -17688,7 +17689,7 @@ contains
         ! valid here, where there is no change in stepvector and matrix
         ! element only a sign dependent on the number of open orbitals
         sig = (-1.0_dp)**real(count_open_orbs_ij(csf_i, excitInfo%secondStart + 1, &
-                                                 excitInfo%fullEnd - 1, ilut(0:nifd)), dp)
+                                                 excitInfo%fullEnd - 1), dp)
 
         ! do the ending
         ASSERT(isThree(ilut, excitInfo%fullEnd))
@@ -18109,8 +18110,8 @@ contains
 
         nExcits = 0
         ! have to allocate excitation list to worst casce
-        nOpen1 = count_open_orbs_ij(csf_i, excitInfo%fullStart, excitInfo%firstEnd, ilut(0:nifd))
-        nOpen2 = count_open_orbs_ij(csf_i, excitInfo%secondStart, excitInfo%fullEnd, ilut(0:nifd))
+        nOpen1 = count_open_orbs_ij(csf_i, excitInfo%fullStart, excitInfo%firstEnd)
+        nOpen2 = count_open_orbs_ij(csf_i, excitInfo%secondStart, excitInfo%fullEnd)
 
         nMax = 4 + 2**(nOpen1 + nOpen2 + 2)
         allocate(tmp_excitations(0:nifguga, nMax), stat=ierr)

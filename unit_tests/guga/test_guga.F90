@@ -10139,15 +10139,15 @@ contains
         csf_i = CSF_Info_t(ilut)
 
         print *, "testing: count_open_orbs_ij(ilut, i, j)"
-        print *, "open orbs in ([1,2,3,4],1,4): ", count_open_orbs_ij(csf_i, 1, 4, ilut(0:0))
-        call assert_true(count_open_orbs_ij(csf_i, 1, 4, ilut) == 0)
+        print *, "open orbs in ([1,2,3,4],1,4): ", count_open_orbs_ij(csf_i, 1, 4)
+        call assert_true(count_open_orbs_ij(csf_i, 1, 4) == 0)
 
         det = [1, 3, 5, 6]
         call EncodeBitDet_guga(det, ilut)
         csf_i = CSF_Info_t(ilut)
 
-        print *, "open orbs in ([1, 3, 5, 6], 1, 4): ", count_open_orbs_ij(csf_i, 1, 4, ilut)
-        call assert_true(count_open_orbs_ij(csf_i, 1, 4, ilut) == 2)
+        print *, "open orbs in ([1, 3, 5, 6], 1, 4): ", count_open_orbs_ij(csf_i, 1, 4)
+        call assert_true(count_open_orbs_ij(csf_i, 1, 4) == 2)
 
         print *, "count_open_orbs_ij tests passed!"
 

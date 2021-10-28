@@ -2258,44 +2258,19 @@ contains
         end do
     end function count_alpha_orbs_ij
 
-    function count_open_orbs_ij(csf_i, i, j, L) result(nOpen)
+    elemental function count_open_orbs_ij(csf_i, i, j) result(nOpen)
         ! function to calculate the number of open orbitals between spatial
         ! orbitals i and j in ilut. i and j have to be given ordered i<j
         type(CSF_Info_t), intent(in) :: csf_i
         integer, intent(in) :: i, j
-        integer(n_int), intent(in), optional :: L(0:GugaBits%len_orb)
         integer :: nOpen
         character(*), parameter :: this_routine = "count_open_orbs_ij"
-
-        logical :: flag
-        integer :: k
-
-        ASSERT(i > 0 .and. i <= nSpatOrbs)
-        ASSERT(j > 0 .and. j <= nSpatOrbs)
         ! scrap this assert and change in that way to output 0 if the indices
         ! dont fit or are reversed. to deal with to short overlap ranges
+        ASSERT(0 < i .and. i <= nSpatOrbs)
+        ASSERT(0 < j .and. j <= nSpatOrbs)
 
-        nOpen = 0
-
-        ! also here a quick fix do deal with excitrangemask probs:
-
-        ! if the ilut input is present use it otherwise just look at the
-        ! stepvector
-        if (present(L)) then
-            do k = i, j
-                flag = isOne(L, k)
-                if (flag .or. isTwo(L, k)) then
-                    nOpen = nOpen + 1
-                end if
-            end do
-        else
-            do k = i, j
-                if (csf_i%stepvector(k) == 1 .or. csf_i%stepvector(k) == 2) then
-                    nOpen = nOpen + 1
-                end if
-            end do
-        end if
-
+        nOpen = count(csf_i%stepvector(i : j) == 1 .or. csf_i%stepvector(i : j) == 2)
     end function count_open_orbs_ij
 
     function getExcitationRangeMask(i, j) result(mask)
