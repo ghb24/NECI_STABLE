@@ -44,6 +44,7 @@ contains
         !        i,j,k - indices of orbitals to excite from
         ! Output: matel - matrix element of this excitation, including all exchange terms
         use UMatCache, only: gtID
+        use SystemData, only: t_exclude_pure_parallel
         ! Gets an entry of the 3-body tensor L:
         ! L_{abc}^{ijk} - triple excitation from abc to ijk
         integer, value :: a, b, c
@@ -54,6 +55,15 @@ contains
         ! initialize spin-correlator check: if all spins are the same, use LMat
         ! without spin-dependent correlator, always use LMat
 
+        matel = h_cast(0.0_dp)
+
+        if (t_exclude_pure_parallel) then
+            if (     (G1(a)%ms == G1(b)%ms .and. G1(a)%ms == G1(c)%ms) &
+                .or. (G1(i)%ms == G1(j)%ms .and. G1(i)%ms == G1(k)%ms)) then
+                return
+            end if
+        end if
+
         ! convert to spatial orbs if required
         ida = gtID(a)
         idb = gtID(b)
@@ -62,7 +72,6 @@ contains
         idj = gtID(j)
         idk = gtID(k)
 
-        matel = 0
         ! only add the contribution if the spins match
 
         ! here, we add up all the exchange terms
@@ -158,7 +167,7 @@ contains
         if (nel <= 2) return
 
         if(t_use_tchint_lib) return
-        
+
         call initializeLMatPtrs()
 
         if (tLMatCalc) then
@@ -208,9 +217,9 @@ contains
       character(*), parameter :: t_r = "external_lMat_matel"
       call stop_all(t_r, "Did not compile with TCHINT support")
 #endif
-      
+
     end function external_lMat_matel
-      
+
 
     !------------------------------------------------------------------------------------------------
     !functions for contact interaction

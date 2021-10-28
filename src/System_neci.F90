@@ -719,6 +719,10 @@ contains
                 ! Do not generate 3-body excitations, even in the molecular-transcorr mode
                 t_exclude_3_body_excits = .true.
 
+            case ('EXCLUDE-3-BODY-PARALLEL', 'EXCLUDE-3-BODY-PAR')
+                ! exclude fully spin-parallel 3 body excitation
+                t_exclude_pure_parallel = .true.
+
             case ('TRANSCORRELATED', 'TRANSCORR', 'TRANS-CORR')
                 ! activate the transcorrelated Hamiltonian idea from hongjun for
                 ! the real-space hubbard model

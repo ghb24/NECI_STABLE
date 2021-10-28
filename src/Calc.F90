@@ -3528,7 +3528,7 @@ contains
 
         INTEGER I, IC, J, norb
         INTEGER nList
-        HElement_t(dp) HDiagTemp
+        HElement_t(dp) HDiagTemp, HDiagTemp2
         type(NoExc_t) :: NoExc
         character(*), parameter :: this_routine = 'CalcInit'
 
@@ -3622,8 +3622,9 @@ contains
             write(stdout, *) '<D0|H|D0>=', real(HDiagTemp, dp)
             write(stdout, *) '<D0|T|D0>=', CALCT(FDET, NEL)
             if (t_3_body_excits) then
+                HDiagTemp2 = sltcnd_0_tc(fdet, NoExc)
                 write(stdout, *) "<D0|U|D0>", sltcnd_0_base(fdet, NoExc) - calct(fdet,nel)
-                write(stdout, *) "<D0|L|D0>", sltcnd_0_tc(fdet, NoExc) - sltcnd_0_base(fdet,NoExc)
+                write(stdout, *) "<D0|L|D0>", HDiagTemp2 - sltcnd_0_base(fdet,NoExc)
             else
                 write(stdout, *) "<D0|U|D0>", real(HDiagTemp,dp) - calct(fdet, nel)
             end if

@@ -259,15 +259,11 @@ contains
             case ("FREEZE")
                 call readi(NFROZEN)
                 call readi(NTFROZEN)
-                if(mod(NFROZEN, 2) /= 0 .or.                             &
-         &       (NTFROZEN > 0 .and. mod(NTFROZEN, 2) /= 0)) then
-                    call report("NFROZEN and (+ve) NTFROZEN must be"      &
-         &          //"multiples of 2", .true.)
+                if (mod(NFROZEN, 2) /= 0 .or. (NTFROZEN > 0 .and. mod(NTFROZEN, 2) /= 0)) then
+                    call report("NFROZEN and (+ve) NTFROZEN must be multiples of 2", .true.)
                 end if
-                if(                                                      &
-         &       (NTFROZEN < 0 .and. mod(NEL - NTFROZEN, 2) /= 0)) then
-                    call report("-ve NTFROZEN must be same parity  "      &
-         &          //"as NEL", .true.)
+                if ((NTFROZEN < 0 .and. mod(NEL - NTFROZEN, 2) /= 0)) then
+                    call report("-ve NTFROZEN must be same parity as NEL", .true.)
                 end if
 
             case ("FREEZEINNER")

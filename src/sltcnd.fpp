@@ -539,6 +539,7 @@ contains
           do i = 1, nel - 2
             do j = i + 1, nel - 1
               do k = j + 1, nel
+
                 hel = hel + get_lmat_el(nI(i), nI(j), nI(k), nI(i), nI(j), nI(k))
               end do
             end do
@@ -614,7 +615,7 @@ contains
             associate(ex => ex%val)
                 hel = get_lmat_el(ex(1, 1), ex(1, 2), ex(1, 3), &
                               ex(2, 1), ex(2, 2), ex(2, 3))
-                end associate
+            end associate
         endif
         ! take fermi sign into account
         if (tSign) hel = -hel
