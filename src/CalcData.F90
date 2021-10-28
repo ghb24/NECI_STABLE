@@ -31,6 +31,9 @@ module CalcData
         logical :: tHF = .false.
         ! Use the most populated states in CurrentDets.
         logical :: tPops = .false.
+        ! This logical variable has been introduced to prevent inconsistency
+        ! of POPS-CORE-... keywords.
+        logical :: tPopsCore = .false.
         ! Automatically choosing 10% of the total initiator space, if this number
         ! is larger than 50000, then use npops = 50000
         logical :: tPopsAuto = .false.

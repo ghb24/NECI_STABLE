@@ -223,7 +223,8 @@ contains
                             G_VMC_EXCITWEIGHTS, EXCITFUNCS, TMCDIRECTSUM, &
                             TDIAGNODES, TSTARSTARS, TBiasing, TMoveDets, &
                             TNoSameExcit, TInitStar, tMP2Standalone, &
-                            MemoryFacPart, tSemiStochastic, &
+                            MemoryFacPart, &
+                            tSemiStochastic, semistoch_shift_iter, ss_space_in, &
                             tSpatialOnlyHash, InitWalkers, tUniqueHFNode, &
                             tCheckHighestPop, &
                             tKP_FCIQMC, tReplicaEstimates, &
@@ -544,6 +545,16 @@ contains
             write(stdout, *) 'Semi-stochastic simulations only supported when using &
                        &ALLREALCOEFF option'
             call stop_all(t_r, 'Semistochastic without ALLREALCOEFF')
+        end if
+
+        if (ss_space_in%tPopsProportion .and. &
+            (.not. tSemiStochastic .and. semistoch_shift_iter < 1)) then
+            call stop_all(t_r, 'POPS-CORE-PROPORTION requires SEMI-STOCHASTIC option')
+        end if
+
+        if (ss_space_in%tPopsCore .and. ss_space_in%tPopsProportion) then
+            call stop_all(t_r, 'POPS-CORE and POPS-CORE-PROPORTION cannot be used&
+                               & at the same time')
         end if
 
         if (tAllRealCoeff .and. tRealCoeffByExcitLevel) then
