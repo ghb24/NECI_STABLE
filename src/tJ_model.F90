@@ -54,8 +54,10 @@ module tJ_model
 
     use dsfmt_interface, only: genrand_real2_dsfmt
 
-    use guga_excitations, only: calc_guga_matrix_element, generate_excitation_guga, &
+    use guga_excitations, only: generate_excitation_guga, &
                                 assign_excitInfo_values_double, assign_excitInfo_values_single
+
+    use guga_matrixElements, only: calc_guga_matrix_element
 
     use guga_data, only: ExcitationInformation_t, excit_type, gen_type
 

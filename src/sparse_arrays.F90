@@ -28,8 +28,8 @@ module sparse_arrays
     use global_det_data, only: set_det_diagH
     use shared_rhash, only: shared_rhash_t
     use SystemData, only: tGUGA
-    use guga_excitations, only: actHamiltonian, &
-                                calc_guga_matrix_element
+    use guga_excitations, only: actHamiltonian
+    use guga_matrixElements, only: calc_guga_matrix_element
     use guga_bitRepOps, only: convert_ilut_toGUGA, extract_h_element, &
                               CSF_Info_t
     use util_mod, only: binary_search, near_zero

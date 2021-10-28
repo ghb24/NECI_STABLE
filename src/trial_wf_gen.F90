@@ -11,7 +11,7 @@ module trial_wf_gen
     use SystemData, only: nel, tHPHF, t_non_hermitian
 
     use guga_data, only: ExcitationInformation_t
-    use guga_excitations, only: calc_guga_matrix_element
+    use guga_matrixElements, only: calc_guga_matrix_element
     use guga_bitrepops, only: write_det_guga, fill_csf_i
 
     use util_mod, only: get_free_unit, binary_search_custom, operator(.div.)

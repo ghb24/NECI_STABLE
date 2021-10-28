@@ -28,8 +28,8 @@ module guga_rdm
                                 calcFulLStartRaising, calcFullStartL2R, &
                                 calcFullStartR2L, calcFullStartFullStopAlike, &
                                 calcFullStartFullStopMixed, &
-                                calcRemainingSwitches_excitInfo_double, &
-                                calc_guga_matrix_element
+                                calcRemainingSwitches_excitInfo_double
+    use guga_matrixElements, only: calc_guga_matrix_element, calcDiagExchangeGUGA_nI
     use guga_data, only: ExcitationInformation_t, tag_tmp_excits, tag_excitations, &
                          excit_type, gen_type, rdm_ind_bitmask, excit_names, &
                          RdmContribList_t
@@ -65,7 +65,6 @@ module guga_rdm
     use rdm_data_utils, only: add_to_rdm_spawn_t, extract_sign_rdm
     use OneEInts, only: GetTMatEl
     use procedure_pointers, only: get_umat_el
-    use guga_matrixElements, only: calcDiagExchangeGUGA_nI
     use util_mod, only: operator(.div.), near_zero, operator(.isclose.)
     use sort_mod, only: sort
     use rdm_data, only: rdm_list_t, rdm_definitions_t

@@ -39,8 +39,8 @@ module excit_gen_5
     use guga_bitRepOps, only: isProperCSF_ilut, convert_ilut_toGUGA, write_det_guga, &
                               CSF_Info_t, current_csf_i
     use guga_data, only: ExcitationInformation_t
-    use guga_excitations, only: calc_guga_matrix_element, &
-                                global_excitinfo, print_excitInfo
+    use guga_excitations, only: global_excitinfo, print_excitInfo
+    use guga_matrixElements, only: calc_guga_matrix_element
 
     implicit none
 

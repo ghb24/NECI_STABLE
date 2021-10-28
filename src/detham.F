@@ -14,8 +14,8 @@
       use orb_idx_mod, only: SpinOrbIdx_t
       use gasci, only: GAS_spec=>GAS_specification
 
-      use guga_matrixElements, only: calcDiagMatEleGuga_nI
-      use guga_excitations, only: calc_guga_matrix_element
+      use guga_matrixElements, only:
+     &      calcDiagMatEleGuga_nI, calc_guga_matrix_element
       use guga_data, only: ExcitationInformation_t
       use guga_bitrepops, only: CSF_Info_t
 

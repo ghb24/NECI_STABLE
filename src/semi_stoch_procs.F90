@@ -2063,7 +2063,7 @@ contains
 
     subroutine calc_determin_hamil_full(hamil, rep)
         use guga_data, only: ExcitationInformation_t
-        use guga_excitations, only: calc_guga_matrix_element
+        use guga_matrixElements, only: calc_guga_matrix_element
         type(core_space_t) :: rep
         type(CSF_Info_t) :: csf_i, csf_j
         type(ExcitationInformation_t) :: excitInfo
@@ -2151,8 +2151,7 @@ contains
         use FciMCData, only: ilutHF, HFDet, Fii
         use SystemData, only: tUEG
         use SystemData, only: tGUGA
-        use guga_matrixElements, only: calcDiagMatEleGUGA_nI
-        use guga_excitations, only: calc_guga_matrix_element
+        use guga_matrixElements, only: calcDiagMatEleGUGA_nI, calc_guga_matrix_element
         use guga_data, only: ExcitationInformation_t
         integer, intent(in) :: nI(nel)
         integer(n_int), intent(in) :: ilut(0:NIfTot)

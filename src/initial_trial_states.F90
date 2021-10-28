@@ -246,7 +246,7 @@ contains
         use sort_mod, only: sort
         use SystemData, only: nel, tAllSymSectors
         use lanczos_wrapper, only: frsblk_wrapper
-        use guga_excitations, only: calc_guga_matrix_element
+        use guga_matrixElements, only: calc_guga_matrix_element
         use guga_data, only: ExcitationInformation_t
 
         type(subspace_in) :: space_in

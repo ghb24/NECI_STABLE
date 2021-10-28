@@ -450,7 +450,7 @@ contains
         use Determinants, only: get_helement
         use SystemData, only: tHPHF
         use hphf_integrals, only: hphf_off_diag_helement
-        use guga_excitations, only: calc_guga_matrix_element
+        use guga_matrixElements, only: calc_guga_matrix_element
         use guga_bitRepOps, only: CSF_Info_t
         use guga_data, only: ExcitationInformation_t
         implicit none
@@ -528,7 +528,7 @@ contains
         use SystemData, only: tHPHF
         use Determinants, only: get_helement
         use hphf_integrals, only: hphf_off_diag_helement
-        use guga_excitations, only: calc_guga_matrix_element
+        use guga_matrixElements, only: calc_guga_matrix_element
         use guga_bitRepOps, only: CSF_Info_t
         use guga_data, only: ExcitationInformation_t
         implicit none

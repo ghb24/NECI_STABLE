@@ -104,7 +104,7 @@ contains
         use Determinants, only: get_helement
         use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement
         use SystemData, only: tHPHF, nel
-        use guga_excitations, only: calc_guga_matrix_element
+        use guga_matrixElements, only: calc_guga_matrix_element
         use guga_data, only: ExcitationInformation_t
         use guga_bitrepops, only: new_CSF_Info_t, fill_csf_i
         use bit_rep_data, only: nifd
