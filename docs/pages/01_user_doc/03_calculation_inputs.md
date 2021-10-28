@@ -384,10 +384,18 @@ considered. The block starts with the `system` keyword and ends with the
 
 #### Spin purification
 
--   **SD-SPIN-PURIFICATION \(J\)**<br>
+-   **sd-spin-purification \(J\) [truncate-ladder-operator]**<br>
     Use an adjusted hamiltonian \(H + J S^2\) for the dynamic
     to force antiferromagnetic ordering and ensure pure spin-states
     in a Slater determinant (SD) basis.
+
+    One can add the optional keyword `truncate-ladder-operator` after \(J\)
+    not to use the full \(S^2 = S_z (S_z - 1) + S_{+} S_{-} \)
+    operator but a truncated version,
+    which uses only the ladder operator term \(S_{+} S_{-}\) and
+    truncates it by removing its diagonal.
+    This implies that the counting of open shell \(\alpha\) electrons
+    is removed.
 
 
 ### CALC Block
@@ -1268,8 +1276,8 @@ keyword.
     shall be saved. Setting \(n=-1\) disables this option.
 
 -   **popsFileTimer \(n\)**<br>
-    Write out a the wave function to disk every \(n\) minutes, each time
-    overwriting the last output.
+    Write out a the wave function to disk every \(n\) hours, each time
+    renaming the last `<popsfile>` to `<popsfile>.bk`.
 
 -   **hdf5-pops-write**<br>
     Sets the format to write the wave function to HDF5. Requires

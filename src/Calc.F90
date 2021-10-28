@@ -988,7 +988,7 @@ contains
                 if(tGUGA) then
                     if(.not. isProperCSF_ni(defdet)) then
                         write(stdout, *) " automatic neel-state creation produced invalid CSF!"
-                        write(stdout, *) "created neel-state: "
+                        write(stdout, *) " created neel-state: "
                         call write_det(stdout, DefDet, .true.)
                         call stop_all(t_r, " definedet is not a proper CSF or has wrong SPIN!")
                     end if
@@ -1004,6 +1004,12 @@ contains
                     do i = 1, nel
                         call geti(initial_refs(i, line))
                     end do
+                    if(tGUGA) then
+                        if (.not. isProperCSF_ni(initial_refs(:, line))) then
+                            call write_det(stdout, initial_refs(:, line), .true.)
+                            call stop_all(t_r, "An initial_ref is not a proper CSF or has wrong SPIN!")
+                        end if
+                    end if
                 end do
 
             case("MULTIPLE-INITIAL-STATES")
@@ -1016,6 +1022,12 @@ contains
                     do i = 1, nel
                         call geti(initial_states(i, line))
                     end do
+                    if(tGUGA) then
+                        if (.not. isProperCSF_ni(initial_states(:, line))) then
+                            call write_det(stdout, initial_states(:, line), .true.)
+                            call stop_all(t_r, "An initial state is not a proper CSF or has wrong SPIN!")
+                        end if
+                    end if
                 end do
 
             case("FINDGUIDINGFUNCTION")
@@ -3724,7 +3736,6 @@ contains
                 call stop_all(this_routine, 'Cannot find MC start determinant of correct symmetry')
             end if
         ELSE
-!C             CALL GENRANDOMDET(NEL,NBASIS,MCDET)
             DO I = 1, NEL
                 MCDET(I) = FDET(I)
             end do

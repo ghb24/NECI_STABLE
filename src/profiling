@@ -5,7 +5,7 @@ but is this because of debug?
 
 yes it is. cont. on profiling with new results: 
 
-removed allocs in init_csf_information
+removed allocs in init_csf_irmation
 
 also decode_bit det is called more often than necessary, if i would just reuse nI info more often..
 
@@ -16,13 +16,13 @@ or I have to think how to use the integral influence to improve the pgens..
 
 do a long profiling run now, to see where the bottle necks in long calculations are!
 
-init_csf_info is a big bottle neck.. i probably should think about how to improve that piece of code.. 
+init_csf_i is a big bottle neck.. i probably should think about how to improve that piece of code.. 
 
 also the binary search in the off-diagonal matrix element calculation.. 
 this i could optimize for parallel atleast, if i only store the relevant CSFs on each core and not the whole list 
 calcremaingswitches also is a bitch, which is called in checkcompatibility.. maybe there is also a way to optimize that
 
-for csf_info, a bitwise decoder would be possible i guess.. but probably simon would be the expert to ask for that.. 
+for csf_i, a bitwise decoder would be possible i guess.. but probably simon would be the expert to ask for that.. 
 lets skype with him in the near future.. 
 
 but not much to improve anymore i guess. 

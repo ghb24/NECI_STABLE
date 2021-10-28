@@ -265,7 +265,6 @@ C.. If we're freezing we allocate a small cache first to store the <ij|kj> integ
             CALL SETUPUMATCACHE(NSTATESUSED,NSTATESUSED.NE.NSTATES)
          ENDIF
          call stop_all(this_routine,'Code depricated')
-         !CALL CPMDGEN1EINTS(NStatesUsed,G1,CPMD1EINT)
 !         CALL N_MEMORY_CHECK()
          OPEN(10,FILE='TMAT',STATUS='UNKNOWN')
          IF(.NOT.BTEST(iCacheFlag,1)) THEN

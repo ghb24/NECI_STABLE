@@ -129,8 +129,10 @@ module fcimc_initialisation
     use hash, only: FindWalkerHash, add_hash_table_entry, init_hash_table, &
                     hash_table_lookup
     use load_balance_calcnodes, only: DetermineDetNode, RandomOrbIndex
-    use load_balance, only: tLoadBalanceBlocks, addNormContribution, get_diagonal_matel, &
-                            AddNewHashDet
+    use load_balance, only: tLoadBalanceBlocks, addNormContribution, &
+                            AddNewHashDet, clean_load_balance, &
+                            init_load_balance
+    use matel_getter, only: get_diagonal_matel, get_off_diagonal_matel
     use SymExcit3, only: CountExcitations3, GenExcitations3
     use SymExcit4, only: CountExcitations4, GenExcitations4
     use HPHFRandExcitMod, only: ReturnAlphaOpenDet
@@ -156,8 +158,9 @@ module fcimc_initialisation
     use initial_trial_states, only: calc_trial_states_lanczos, &
                                     set_trial_populations, set_trial_states, calc_trial_states_direct
     use global_det_data, only: global_determinant_data, set_det_diagH, &
-                               clean_global_det_data, init_global_det_data, &
-                               set_spawn_rate, store_decoding, set_supergroup_idx
+                               set_det_offdiagH, clean_global_det_data, &
+                               init_global_det_data, set_spawn_rate, &
+                               store_decoding, set_supergroup_idx
     use semi_stoch_gen, only: init_semi_stochastic, end_semistoch, &
                               enumerate_sing_doub_kpnt
     use semi_stoch_procs, only: return_mp1_amp_and_mp2_energy
@@ -165,7 +168,6 @@ module fcimc_initialisation
     use kp_fciqmc_data_mod, only: tExcitedStateKP
     use sym_general_mod, only: ClassCountInd
     use trial_wf_gen, only: init_trial_wf, end_trial_wf
-    use load_balance, only: clean_load_balance, init_load_balance
     use ueg_excit_gens, only: gen_ueg_excit
     use gndts_mod, only: gndts
     use excit_gen_5, only: gen_excit_4ind_weighted2
@@ -208,10 +210,9 @@ module fcimc_initialisation
 
     use guga_bitRepOps, only: calcB_vector_nI, calcB_vector_ilut, convert_ilut_toNECI, &
                               convert_ilut_toGUGA, getDeltaB, write_det_guga, write_guga_list, &
-                              calc_csf_info
+                              calc_csf_i, CSF_Info_t
 
-    use guga_excitations, only: generate_excitation_guga, create_projE_list, &
-                                actHamiltonian
+    use guga_excitations, only: generate_excitation_guga, actHamiltonian
     use guga_matrixElements, only: calcDiagMatEleGUGA_ilut, calcDiagMatEleGUGA_nI
 
     use real_time_data, only: t_real_time_fciqmc
@@ -255,7 +256,7 @@ module fcimc_initialisation
 
     use CAS_distribution_init, only: InitFCIMC_CAS
 
-    use SD_spin_purification_mod, only: tSD_spin_purification, spin_pure_J
+    use SD_spin_purification_mod, only: tSD_spin_purification, tTruncatedLadderOps, spin_pure_J
 
     use exc_gen_classes, only: init_exc_gen_class, finalize_exz_gen_class, class_managed
     implicit none
@@ -491,7 +492,7 @@ contains
 
             ASSERT(allocated(ref_stepvector))
 
-            call calc_csf_info(ilutRef, ref_stepvector, ref_b_vector_int, &
+            call calc_csf_i(ilutRef, ref_stepvector, ref_b_vector_int, &
                                ref_occ_vector)
 
             ref_b_vector_real = real(ref_b_vector_int, dp)
@@ -1389,10 +1390,19 @@ contains
 
         if (tSD_spin_purification) then
             if (allocated(spin_pure_J)) then
-                write(stdout, *)
-                write(stdout, '(A)') 'Spin purification of Slater-Determinants with $ H + J * S^2 $ activated.$'
-                write(stdout, '(A, 1x, E10.5)') 'J =', spin_pure_J
-                write(stdout, *)
+                if (tTruncatedLadderOps) then
+                    write(stdout, *)
+                    write(stdout, '(A)') 'Spin purification of Slater Determinants &
+                        &with off-diagonal $ J * S_{+} S_{-} $ correction.'
+                    write(stdout, '(A, 1x, E10.5)') 'J =', spin_pure_J
+                    write(stdout, *)
+                else
+                    write(stdout, *)
+                    write(stdout, '(A)') 'Spin purification of Slater Determinants &
+                        &with full $ J *S^2 $ spin penalty.'
+                    write(stdout, '(A, 1x, E10.5)') 'J =', spin_pure_J
+                    write(stdout, *)
+                end if
             else
                 call stop_all(this_routine, "spin_pure_J not allocated")
             end if
@@ -2322,6 +2332,7 @@ contains
         integer(n_int), allocatable :: openSubspace(:)
         real(dp), allocatable :: S2(:, :), eigsImag(:), eigs(:), evs(:, :), void(:, :), work(:)
         real(dp) :: normalization, rawWeight, HDiag, tmpSgn(lenof_sign)
+        HElement_t(dp) :: HOffDiag
         integer :: err
         real(dp) :: HFWeight(inum_runs)
         logical :: tSuccess
@@ -2387,6 +2398,7 @@ contains
             proc = DetermineDetNode(nel, nI, 0)
             if (iProcIndex == proc) then
                 HDiag = get_diagonal_matel(nI, initSpace(:, i))
+                HOffDiag = get_off_diagonal_matel(nI, initSpace(:, i))
                 DetHash = FindWalkerHash(nI, size(HashIndex))
                 TotWalkersTmp = int(TotWalkers)
                 tmpSgn = eigs(i)
@@ -2399,7 +2411,7 @@ contains
                     ! the spin-flipped version is stored
                     if (DetBitLT(initSpace(:, i), ilutJ, NIfD) == 1) cycle
                 end if
-                call AddNewHashDet(TotWalkersTmp, initSpace(:, i), DetHash, nI, HDiag, pos, err)
+                call AddNewHashDet(TotWalkersTmp, initSpace(:, i), DetHash, nI, HDiag, HOffDiag, pos, err)
                 TotWalkers = TotWalkersTmp
             end if
             ! reset the reference?
@@ -2622,16 +2634,13 @@ contains
 
             ! if no reference energy is used, explicitly get the HF energy
             if (tZeroRef) then
-                if (tHPHF) then
-                    h_temp = hphf_diag_helement(HFDet, ilutHF)
-                else
-                    h_temp = get_helement(HFDet, HFDet, 0)
-                end if
+                h_temp = get_diagonal_matel(HFDet, ilutHF)
             else
                 ! HF energy is equal to 0 (when used as reference energy)
                 h_temp = h_cast(0.0_dp)
             end if
             call set_det_diagH(1, real(h_temp, dp))
+            call set_det_offdiagH(1, h_cast(0.0_dp))
             HFInd = 1
 
             call store_decoding(1, HFDet)
@@ -2773,12 +2782,9 @@ contains
                 ! The global reference is the HF and is primary for printed
                 ! energies.
                 if (run == 1) HFInd = site
-                if (tHPHF) then
-                    hdiag = hphf_diag_helement(ProjEDet(:, run), ilutRef(:, run))
-                else
-                    hdiag = get_helement(ProjEDet(:, run), ProjEDet(:, run), 0)
-                end if
+                hdiag = get_diagonal_matel(ProjEDet(:, run), ilutRef(:, run))
                 call set_det_diagH(site, real(hdiag, dp) - Hii)
+                call set_det_offdiagH(site, h_cast(0_dp))
 
                 if (associated(lookup_supergroup_indexer)) then
                     call set_supergroup_idx(site, lookup_supergroup_indexer%idx_nI(ProjEDet(:, run)))
@@ -2939,7 +2945,7 @@ contains
     !This hopefully will help with close-lying excited states of the same sym.
     subroutine InitFCIMC_MP1()
         real(dp) :: TotMP1Weight, amp, MP2Energy, PartFac, rat, r, energy_contrib
-        HElement_t(dp) :: HDiagtemp
+        HElement_t(dp) :: HDiagtemp, HOffDiagtemp
         integer :: iExcits, exflag, Ex(2, maxExcit), nJ(NEl), DetIndex, iNode
         integer :: iInit, DetHash, ExcitLevel, run, part_type
         integer(n_int) :: iLutnJ(0:NIfTot)
@@ -2987,7 +2993,7 @@ contains
             ! should finally do some general routine, which does all this
             ! below...
             call convert_ilut_toGUGA(ilutHF, ilutG)
-            call actHamiltonian(ilutG, excitations, iExcits)
+            call actHamiltonian(ilutG, CSF_Info_t(ilutG), excitations, iExcits)
             do i = 1, iExcits
                 call convert_ilut_toNECI(excitations(:, i), ilutnJ)
                 call decode_bit_det(nJ, iLutnJ)
@@ -3098,12 +3104,10 @@ contains
                     call encode_sign(CurrentDets(:, DetIndex), temp_sign)
 
                     ! Store the diagonal matrix elements
-                    if (tHPHF) then
-                        HDiagTemp = hphf_diag_helement(nJ, iLutnJ)
-                    else
-                        HDiagTemp = get_helement(nJ, nJ, 0)
-                    end if
+                    HDiagtemp = get_diagonal_matel(nJ, iLutnJ)
+                    HOffDiagtemp = get_off_diagonal_matel(nJ, iLutnJ)
                     call set_det_diagH(DetIndex, real(HDiagtemp, dp) - Hii)
+                    call set_det_offdiagH(DetIndex, HOffDiagtemp)
 
                     if (associated(lookup_supergroup_indexer)) then
                         call set_supergroup_idx(DetIndex, lookup_supergroup_indexer%idx_nI(nJ))
@@ -3168,6 +3172,7 @@ contains
                     end do
                 end if
                 call set_det_diagH(DetIndex, 0.0_dp)
+                call set_det_offdiagH(DetIndex, h_cast(0_dp))
 
                 ! store the determinant
                 call store_decoding(DetIndex, HFDet)
@@ -3830,20 +3835,11 @@ contains
                 end if
             end do
 
-            !We have got a unique filename
-            !Do not use system call
-!            command = 'mv' // ' FCIMCStats ' // abstr
-!            stat = neci_system(trim(command))
-
             if (tMolpro) then
                 call rename('FCIQMCStats', trim(adjustl(abstr)))
             else
                 call rename('FCIMCStats', trim(adjustl(abstr)))
             end if
-            !Doesn't like the stat argument
-!            if(stat.ne.0) then
-!                call stop_all(t_r,"Error with renaming FCIMCStats file")
-!            end if
         end if
 
     end subroutine MoveFCIMCStatsFiles
@@ -3900,9 +3896,9 @@ contains
                 ! i guess i have to change that for the real-space
                 ! hubbard model implementation!
                 if (tHUB .or. tUEG .or. .not. (tNoBrillouin)) then
-                    call actHamiltonian(ilutHF, excitations, n_excits)
+                    call actHamiltonian(ilutHF, CSF_Info_t(ilutHF), excitations, n_excits)
                 else
-                    call actHamiltonian(ilutHF, excitations, n_excits, .true.)
+                    call actHamiltonian(ilutHF, CSF_Info_t(ilutHF), excitations, n_excits, .true.)
                 end if
 
                 ! if no excitations possible... there is something wrong

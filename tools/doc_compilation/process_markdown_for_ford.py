@@ -113,7 +113,7 @@ def preprocess_markdown_file(f, bib_database, reffile='', n=1, refs=''):
 
 def process_dir(bibfile, md_files, out_dir, build_dir):
     outlitfile = out_dir / Path('{}.md'.format(bibfile.stem))
-    outlitfilehtml = build_dir / Path('page') / Path(out_dir.name) / Path('{}.html'.format(bibfile.stem))
+    outlitfilehtml = Path('..') / Path(out_dir.name) / Path('{}.html'.format(bibfile.stem))
 
     out_dir.mkdir(parents=True, exist_ok=True)
 

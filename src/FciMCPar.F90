@@ -10,8 +10,7 @@ module FciMCParMod
                           tGen_guga_mixed, t_guga_mixed_init, t_guga_mixed_semi, &
                           tReal, t_mixed_excits, &
                           t_crude_exchange_noninits, t_approx_exchange_noninits, &
-                          is_init_guga, tGen_sym_guga_ueg, t_guga_unit_tests, &
-                          t_analyze_pchb
+                          is_init_guga, tGen_sym_guga_ueg, t_analyze_pchb
 
     use CalcData, only: tFTLM, tSpecLanc, tExactSpec, tDetermProj, tMaxBloom, &
                         tUseRealCoeffs, tWritePopsNorm, tExactDiagAllSym, &
@@ -87,10 +86,10 @@ module FciMCParMod
     use exact_spectrum, only: get_exact_spectrum
     use determ_proj, only: perform_determ_proj, perform_determ_proj_approx_ham
     use cont_time, only: iterate_cont_time
-    use global_det_data, only: det_diagH, reset_tau_int, get_all_spawn_pops, &
-                               reset_shift_int, update_shift_int, &
-                               update_tau_int, set_spawn_pop, &
-                               get_tot_spawns, get_acc_spawns, &
+    use global_det_data, only: det_diagH, det_offdiagH, reset_tau_int, &
+                               get_all_spawn_pops, reset_shift_int, &
+                               update_shift_int, update_tau_int, &
+                               set_spawn_pop, get_tot_spawns, get_acc_spawns, &
                                update_pops_sum_all, get_pops_iter, &
                                replica_est_len, get_max_ratio, update_max_ratio
     use DetBitOps, only: tAccumEmptyDet
@@ -111,14 +110,10 @@ module FciMCParMod
     use FciMCData
     use constants
 
-    use guga_data, only: tNewDet
-
     use excit_gen_5, only: gen_excit_4ind_weighted2
 
-    use guga_testsuite, only: run_test_excit_gen_det, runTestsGUGA
-    use guga_excitations, only: deallocate_projE_list, generate_excitation_guga, &
-                                global_excitInfo
-    use guga_bitrepops, only: init_csf_information
+    use guga_excitations, only: generate_excitation_guga, global_excitInfo
+    use guga_bitrepops, only: fill_csf_i, current_csf_i
     use tJ_model, only: init_guga_heisenberg_model, init_guga_tj_model
 
     use real_time_data, only: t_prepare_real_time, n_real_time_copies, &
@@ -156,8 +151,6 @@ module FciMCParMod
     use hdf5_popsfile, only: write_popsfile_hdf5
     use local_spin, only: measure_local_spin, write_local_spin_stats, &
                           finalize_local_spin_measurement
-
-    use guga_pchb_excitgen, only: store_pchb_analysis
 
     implicit none
 
@@ -287,20 +280,6 @@ contains
         ! In the normal case this is run between iterations, but it is
         ! helpful to do it here.
         call population_check()
-
-        ! call guga test routine here, so everything is correctly set up,
-        ! or atleast should be. only temporarily here.
-        if (tGUGA) then
-            ! only run guga - testsuite if flag is provided
-            if (t_guga_unit_tests) call runTestsGUGA()
-
-        end if
-
-#ifndef CMPLX_
-        if ((tGen_4ind_2 .or. tGen_4ind_weighted .or. tLatticeGens) .and. t_test_excit_gen) then
-            call run_test_excit_gen_det()
-        end if
-#endif
 
         if (n_int /= int64) then
             call stop_all('setup parameters', 'Use of realcoefficients requires 64 bit integers.')
@@ -1193,7 +1172,7 @@ contains
         real(dp) :: lstart
         real(dp) :: AvSignCurr(len_av_sgn_tot), IterRDMStartCurr(len_iter_occ_tot)
         real(dp) :: av_sign(len_av_sgn_tot), iter_occ(len_iter_occ_tot)
-        HElement_t(dp) :: HDiagTemp, HElGen
+        HElement_t(dp) :: HDiagTemp, HElGen, HOffDiagCurr
         character(*), parameter :: this_routine = 'PerformFCIMCycPar'
         HElement_t(dp), dimension(inum_runs) :: delta
         integer :: proc, pos, determ_index, irdm
@@ -1288,9 +1267,6 @@ contains
 
             ! N.B. j indicates the number of determinants, not the number
             !      of walkers.
-
-            ! reset this flag for each det:
-            ! W.D. remove this option for now..
 
             ! Indicate that the scratch storage used for excitation generation
             ! from the same walker has not been filled (it is filled when we
@@ -1431,6 +1407,7 @@ contains
 
             ! The current diagonal matrix element is stored persistently.
             HDiagCurr = det_diagH(j)
+            HOffDiagCurr = det_offdiagH(j)
             EnergyCurr = det_diagH(j) + Hii
 
             if (tSeniorInitiators) then
@@ -1490,15 +1467,15 @@ contains
             ENDIFDEBUG
 
             ! in the guga simulation it is probably better to initialize
-            ! the csf_information out here, so it can be used in the
+            ! the csf_irmation out here, so it can be used in the
             ! new way to calculate the reference energy and then the flag
             ! does not have to be checked each time we loop over the walkers..
-            if (tGUGA) call init_csf_information(CurrentDets(0:nifd, j))
+            if (tGUGA) call fill_csf_i(CurrentDets(0:nifd, j), current_csf_i)
 
             ! Sum in any energy contribution from the determinant, including
             ! other parameters, such as excitlevel info.
             ! This is where the projected energy is calculated.
-            call SumEContrib(DetCurr, WalkExcitLevel, SignCurr, CurrentDets(:, j), HDiagCurr, 1.0_dp, tPairedReplicas, j)
+            call SumEContrib(DetCurr, WalkExcitLevel, SignCurr, CurrentDets(:, j), HDiagCurr, HOffDiagCurr, 1.0_dp, tPairedReplicas, j)
 
             if (t_calc_double_occ) then
                 inst_double_occ = inst_double_occ + &
@@ -1506,7 +1483,11 @@ contains
             end if
 
             if (t_measure_local_spin) then
-                call measure_local_spin(SignCurr)
+                if (tGUGA) then
+                    call measure_local_spin(SignCurr, current_csf_i)
+                else
+                    call stop_all(this_routine, "measure_local_spin works only for GUGA")
+                end if
             end if
 
             if (t_spin_measurements) then
@@ -1593,11 +1574,6 @@ contains
                 ! up by AvMCExcits if attempting multiple excitations from
                 ! each walker (default 1.0_dp).
 
-                ! GUGA addition: only recalc b vector and stuff once for each
-                ! CSF -> set tNewDet once for each determinant
-                ! which is set to false inside the guga excitaiton generator
-                tNewDet = .false.
-
                 AvMCExcitsLoc = AvMCExcits
                 ! optional: Adjust the number of spawns to the expected maximum
                 ! Hij/pgen ratio of this determinant -> prevent blooms
@@ -1653,11 +1629,6 @@ contains
                     if (tSkipRef(run) .and. all(nJ == projEdet(:, run))) then
                         !Set nJ to null
                         nJ(1) = 0
-                    end if
-
-                    if (t_analyze_pchb) then
-                        call store_pchb_analysis(real(HElGen,dp), prob, &
-                            global_excitInfo, IsNullDet(nJ))
                     end if
 
                     ! If a valid excitation, see if we should spawn children.
@@ -1938,4 +1909,3 @@ contains
     end subroutine PerformFCIMCycPar
 
 END MODULE FciMCParMod
-

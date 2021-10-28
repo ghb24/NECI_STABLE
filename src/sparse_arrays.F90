@@ -25,16 +25,17 @@ module sparse_arrays
     use MemoryManager, only: TagIntType, LogMemAlloc, LogMemDealloc
     use Parallel_neci, only: iProcIndex, nProcessors, MPIBarrier, MPIAllGatherV
     use SystemData, only: tHPHF, nel
-    use global_det_data, only: set_det_diagH
+    use global_det_data, only: set_det_diagH, set_det_offdiagH
     use shared_rhash, only: shared_rhash_t
     use SystemData, only: tGUGA
     use guga_excitations, only: actHamiltonian, &
                                 calc_guga_matrix_element
     use guga_bitRepOps, only: convert_ilut_toGUGA, extract_h_element, &
-                              init_csf_information
+                              CSF_Info_t
     use util_mod, only: binary_search, near_zero
     use guga_data, only: tag_excitations, ExcitationInformation_t
     use guga_matrixElements, only: calcDiagMatEleGuga_nI
+    use matel_getter, only: get_diagonal_matel, get_off_diagonal_matel
 
     implicit none
 
@@ -172,6 +173,7 @@ contains
         integer(n_int) :: ilutG(0:nifguga)
         integer(n_int), pointer :: excitations(:, :)
         type(ExcitationInformation_t) :: excitInfo
+        type(CSF_Info_t) :: csf_i
 
         allocate(sparse_ham(num_states))
         allocate(SparseHamilTags(2, num_states))
@@ -203,7 +205,7 @@ contains
             ! the diagonal have been counted (as the Hamiltonian is symmetric).
             sparse_diag_positions(i) = sparse_row_sizes(i)
 
-            if (tGUGA) call init_csf_information(ilut_list(0:nifd, i))
+            if (tGUGA) csf_i = CSF_Info_t(ilut_list(0:nifd, i))
 
             do j = i, num_states
 
@@ -224,7 +226,7 @@ contains
                         hamiltonian_row(j) = hphf_off_diag_helement(nI, nJ, ilut_list(:, i), &
                                                                     ilut_list(:, j))
                     else if (tGUGA) then
-                        call calc_guga_matrix_element(ilut_list(:, i), ilut_list(:, j), &
+                        call calc_guga_matrix_element(ilut_list(:, i), csf_i, ilut_list(:, j), &
                                                       excitInfo, hamiltonian_row(j), .true., 1)
 #ifdef CMPLX_
                         hamiltonian_row(j) = conjg(hamiltonian_row(j))
@@ -307,6 +309,7 @@ contains
         integer(n_int) :: ilutG(0:nifguga)
         integer(n_int), pointer :: excitations(:, :)
         type(ExcitationInformation_t) :: excitInfo
+        type(CSF_Info_t) :: csf_i
 
         num_states_tot = int(sum(num_states), sizeof_int)
         disps(0) = 0
@@ -335,7 +338,7 @@ contains
             hamiltonian_row = 0.0_dp
             ! Loop over all determinants on all processors.
 
-            if (tGUGA) call init_csf_information(ilut_list(0:nifd, i))
+            if (tGUGA) csf_i = CSF_Info_t(ilut_list(0:nifd, i))
 
             do j = 1, num_states_tot
 
@@ -357,7 +360,7 @@ contains
                     if (tHPHF) then
                         hamiltonian_row(j) = hphf_off_diag_helement(nI, nJ, ilut_list(:, i), temp_store(:, j))
                     else if (tGUGA) then
-                        call calc_guga_matrix_element(ilut_list(:, i), temp_store(:, j), &
+                        call calc_guga_matrix_element(ilut_list(:, i), csf_i, temp_store(:, j), &
                                                       excitInfo, hamiltonian_row(j), .true., 1)
 #ifdef CMPLX_
                         hamiltonian_row(j) = conjg(hamiltonian_row(j))
@@ -435,7 +438,8 @@ contains
         integer(n_int) :: tmp(0:NIfD)
         integer :: IC
         integer(n_int) :: ilutI(0:niftot), ilutJ(0:niftot)
-        HElement_t(dp) :: tmp_mat, tmp_mat_2
+        type(CSF_Info_t) :: csf_i
+        HElement_t(dp) :: tmp_mat, tmp_mat_2, HOffDiag
 
         allocate(rep%sparse_core_ham(rep%determ_sizes(iProcIndex)), stat=ierr)
         allocate(rep%SparseCoreHamilTags(2, rep%determ_sizes(iProcIndex)))
@@ -461,7 +465,7 @@ contains
             row_size = 0
             hamiltonian_row = 0.0_dp
 
-            if (tGUGA) call init_csf_information(ilutI(0:nifd))
+            if (tGUGA) csf_i = CSF_Info_t(ilutI)
 
             ! Loop over all deterministic states.
             do j = 1, rep%determ_space_size
@@ -471,18 +475,15 @@ contains
 
                 ! If on the diagonal of the Hamiltonian.
                 if (DetBitEq(IlutI, ilutJ, nifd)) then
-                    if (tHPHF) then
-                        hamiltonian_row(j) = hphf_diag_helement(nI, IlutI) - Hii
-                    else
-                        ! for guga: the diagonal is fine, since i overwrite
-                        ! that within get_helement
-                        hamiltonian_row(j) = get_helement(nI, nJ, 0) - Hii
-                    end if
+                    hamiltonian_row(j) = get_diagonal_matel(nI, IlutI) - Hii
                     rep%core_ham_diag(i) = hamiltonian_row(j)
                     ! We calculate and store the diagonal matrix element at
                     ! this point for later access.
-                    if (.not. tReadPops) &
+                    if (.not. tReadPops) then
                         call set_det_diagH(i, Real(hamiltonian_row(j), dp))
+                        HOffDiag = get_off_diagonal_matel(nI, IlutI)
+                        call set_det_offdiagH(i, HOffDiag)
+                    end if
                     ! Always include the diagonal elements.
                     row_size = row_size + 1
                 else
@@ -494,15 +495,16 @@ contains
                         ! but this is a waste.. i do not have to do that for
                         ! every nJ i could just check the list generated
                         ! by H|nI>..
-                        call calc_guga_matrix_element(IlutI, IlutJ, &
+                        ! TODO(@Oskar): Perhaps precalculate
+                        call calc_guga_matrix_element(IlutI, CSF_Info_t(IlutI), IlutJ, &
                                                       excitInfo, tmp_mat, .true., 1)
 #ifdef DEBUG_
-                        call calc_guga_matrix_element(IlutI, IlutJ, &
+                        call calc_guga_matrix_element(IlutI,  CSF_Info_t(IlutI), IlutJ, &
                                                       excitInfo, tmp_mat_2, .true., 2)
                         if (.not. near_zero(tmp_mat - tmp_mat_2)) then
                             call stop_all(this_routine, "type 1 and 2 do not agree!")
                         end if
-                        call calc_guga_matrix_element(IlutJ, IlutI, &
+                        call calc_guga_matrix_element(IlutJ, CSF_Info_t(ilutJ), IlutI, &
                                                       excitInfo, tmp_mat_2, .true., 2)
                         if (.not. near_zero(tmp_mat - tmp_mat_2)) then
                             call stop_all(this_routine, "not hermititan!")
@@ -568,6 +570,7 @@ contains
         integer, allocatable :: temp_store_nI(:, :)
         integer(TagIntType) :: HRTag, TempStoreTag
         HElement_t(dp), allocatable, dimension(:) :: hamiltonian_row
+        HElement_t(dp) :: HOffDiag
         character(len=*), parameter :: t_r = "calc_determ_hamil_sparse_hphf"
 
         integer(n_int) :: tmp(0:NIfD)
@@ -615,12 +618,15 @@ contains
 
                 ! If on the diagonal of the Hamiltonian.
                 if (j == i + rep%determ_displs(iProcIndex)) then
-                    hamiltonian_row(j) = hphf_diag_helement(nI, SpawnedParts(:, i)) - Hii
+                    hamiltonian_row(j) = get_diagonal_matel(nI, SpawnedParts(:, i)) - Hii
                     rep%core_ham_diag(i) = hamiltonian_row(j)
                     ! We calculate and store the diagonal matrix element at
                     ! this point for later access.
-                    if (.not. tReadPops) &
-                        call set_det_diagH(i, Real(hamiltonian_row(j), dp))
+                    if (.not. tReadPops) then
+                        call set_det_diagH(i, real(hamiltonian_row(j), dp))
+                        HOffDiag = get_off_diagonal_matel(nI, SpawnedParts(:, i))
+                        call set_det_offdiagH(i, HOffDiag)
+                    end if
                     ! Always include the diagonal elements.
                     row_size = row_size + 1
                 else
@@ -676,6 +682,7 @@ contains
         integer :: nI(nel), nJ(nel)
         integer, allocatable :: temp_store_nI(:, :)
         HElement_t(dp), allocatable, dimension(:) :: hamiltonian_row
+        HElement_t(dp) :: HOffDiag
         character(len=*), parameter :: t_r = "calc_approx_hamil_sparse_hphf"
 
         integer(n_int) :: tmp(0:NIfD)
@@ -714,12 +721,15 @@ contains
 
                 ! If on the diagonal of the Hamiltonian.
                 if (j == i + rep%determ_displs(iProcIndex)) then
-                    hamiltonian_row(j) = hphf_diag_helement(nI, rep%core_space(:, i + rep%determ_displs(iProcIndex))) - Hii
+                    hamiltonian_row(j) = get_diagonal_matel(nI, rep%core_space(:, i + rep%determ_displs(iProcIndex))) - Hii
                     !core_ham_diag(i) = hamiltonian_row(j)
                     ! We calculate and store the diagonal matrix element at
                     ! this point for later access.
-                    if (.not. tReadPops) &
-                        call set_det_diagH(i, Real(hamiltonian_row(j), dp))
+                    if (.not. tReadPops) then
+                        call set_det_diagH(i, real(hamiltonian_row(j), dp))
+                        HOffDiag = get_off_diagonal_matel ( nI, rep%core_space(:, i + rep%determ_displs(iProcIndex) ) )
+                        call set_det_offdiagH(i, HOffDiag)
+                    end if
                     ! Always include the diagonal elements.
                     row_size = row_size + 1
                 else

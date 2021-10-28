@@ -31,23 +31,6 @@ subroutine InitRIBasis(nBasisMax, Len)
     close(29)
 END
 
-SUBROUTINE GetRI2EInt(a, b, c, d, res)
-    use constants, only: dp
-    use UMatCache
-    implicit none
-    integer a, b, c, d
-    integer i, GetDFIndex
-    integer x, y
-    real(dp) res
-    res = 0.0_dp
-    x = GetDFIndex(a, c)
-    y = GetDFIndex(b, d)
-! DFOVERLAP        1 - (ij|u|ab)= (ij|u|P)(P|ab)
-    do i = 1, nAuxBasis
-        res = res + DFCoeffs(i, x) * DFInts(i, y)
-    end do
-end
-
 SUBROUTINE ReadRI2EIntegrals(nBasis, nOrbUsed)
     use UMatCache
     IMPLICIT NONE

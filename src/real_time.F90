@@ -56,7 +56,7 @@ module real_time
     use DetBitOps, only: FindBitExcitLevel, return_ms
     use semi_stoch_procs, only: check_determ_flag, determ_projection, write_core_space
     use semi_stoch_gen, only: init_semi_stochastic, write_most_pop_core_at_end
-    use global_det_data, only: det_diagH
+    use global_det_data, only: det_diagH, det_offdiagH
     use fcimc_helper, only: CalcParentFlag, decide_num_to_spawn, &
                             create_particle_with_hash_table, walker_death, &
                             SumEContrib, end_iter_stats, check_semistoch_flags
@@ -627,7 +627,7 @@ contains
         real(dp) :: parent_sign(lenof_sign), parent_hdiag, prob, child_sign(lenof_sign), &
                     unused_sign(lenof_sign), unused_rdm_real, diag_sign(lenof_sign)
         logical :: tParentIsDeterm, tParentUnoccupied, tParity, break
-        HElement_t(dp) :: HelGen
+        HElement_t(dp) :: HelGen, parent_hoffdiag
         integer :: determ_index
         real(dp) :: prefactor, unused_fac, unused_avEx
 
@@ -686,11 +686,12 @@ contains
             end if
             ! The current diagonal matrix element is stored persistently.
             parent_hdiag = det_diagH(idet)
+            parent_hoffdiag = det_offdiagH(idet)
 
             ! UPDATE: call this routine anyway to update info on noathf
             ! and noatdoubs, for the intermediate step
             call SumEContrib(nI_parent, ex_level_to_ref, parent_sign, CurrentDets(:, idet), &
-                             parent_hdiag, 1.0_dp, tPairedReplicas, idet)
+                             parent_hdiag, parent_hoffdiag, 1.0_dp, tPairedReplicas, idet)
 
             ! If we're on the Hartree-Fock, and all singles and
             ! doubles are in the core space, then there will be
@@ -798,7 +799,7 @@ contains
         real(dp) :: parent_sign(lenof_sign), parent_hdiag, prob, child_sign(lenof_sign), &
                     unused_sign(lenof_sign), prefactor, unused_rdm_real
         logical :: tParentIsDeterm, tParentUnoccupied, tParity, break
-        HElement_t(dp) :: HelGen
+        HElement_t(dp) :: HelGen, parent_hoffdiag
         integer :: TotWalkersNew, run, determ_index, MaxIndex
         real(dp) :: unused_fac, unused_avEx
 
@@ -856,13 +857,14 @@ contains
 
             ! The current diagonal matrix element is stored persistently.
             parent_hdiag = det_diagH(idet)
+            parent_hoffdiag = det_offdiagH(idet)
 
             if (tTruncInitiator) call CalcParentFlag(idet, parent_flags)
 
             ! do i need to calc. the energy contributions in the rt-fciqmc?
             ! leave it for now.. and figure out later..
             call SumEContrib(nI_parent, ex_level_to_ref, parent_sign, CurrentDets(:, idet), &
-                             parent_hdiag, 1.0_dp, tPairedReplicas, idet)
+                             parent_hdiag, parent_hoffdiag, 1.0_dp, tPairedReplicas, idet)
 
             ! If we're on the Hartree-Fock, and all singles and
             ! doubles are in the core space, then there will be
@@ -1140,12 +1142,3 @@ contains
     end subroutine perform_verlet_iteration
 
 end module real_time
-
-! wrapper (dont know why this is necessary quite..)
-subroutine perform_real_time_fciqcm_wrap
-    use real_time, only: perform_real_time_fciqmc
-    implicit none
-
-    call perform_real_time_fciqmc
-
-end subroutine perform_real_time_fciqcm_wrap

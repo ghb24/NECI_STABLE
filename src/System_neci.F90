@@ -32,7 +32,8 @@ MODULE System
     use gasci, only: GAS_specification, GAS_exc_gen, possible_GAS_exc_gen, &
         LocalGASSpec_t, CumulGASSpec_t, user_input_GAS_exc_gen
 
-    use SD_spin_purification_mod, only: tSD_spin_purification, spin_pure_J
+    use SD_spin_purification_mod, only: tSD_spin_purification, &
+        tTruncatedLadderOps, spin_pure_J
 
     use gasci_pchb, only: possible_GAS_singles, GAS_PCHB_singles_generator
 
@@ -453,15 +454,6 @@ contains
                 LMS = STOT
                 ! =============================================================
 
-            case ("GUGA-TESTS")
-                if (item < nitems) then
-                    call geti(n_guga_excit_gen)
-                else
-                    ! use a default value of 1M test runs..
-                    n_guga_excit_gen = 1000000
-                end if
-                t_guga_unit_tests = .true.
-
             case ("TEST-MOST-POPULATED")
                 if (item < nitems) then
                     call geti(n_most_populated)
@@ -499,7 +491,6 @@ contains
                 else
                     n_guga_excit_gen = 1000000
                 end if
-                t_guga_unit_tests = .true.
                 t_full_guga_tests = .true.
 
             case ("GUGA-TESTSUITE")
@@ -510,9 +501,6 @@ contains
                 else
                     n_guga_excit_gen = 1000000
                 end if
-
-                t_guga_unit_tests = .true.
-
                 t_guga_testsuite = .true.
 
             case ("GUGA-NOREORDER")
@@ -1018,6 +1006,8 @@ contains
                 ! where length to is optional if it is necessary to input it.
                 ! support
 
+                t_lattice_model = .true.
+
                 ! set some defaults:
                 lattice_type = "read"
 
@@ -1039,20 +1029,6 @@ contains
 
                 if (item < nitems) then
                     call geti(length_z)
-                end if
-
-                if (t_k_space_hubbard) then
-                    lat => lattice(lattice_type, length_x, length_y, length_z, &
-                                   .not. t_open_bc_x,.not. t_open_bc_y,.not. t_open_bc_z, 'k-space')
-                else if (t_new_real_space_hubbard) then
-                    lat => lattice(lattice_type, length_x, length_y, length_z, &
-                               .not. t_open_bc_x,.not. t_open_bc_y, &
-                                   .not. t_open_bc_z, 'real-space', t_bipartite_order = t_bipartite_order)
-                else
-                    lat => lattice(lattice_type, length_x, length_y, length_z, &
-                                   .not. t_open_bc_x,.not. t_open_bc_y,.not. t_open_bc_z, &
-                                   t_bipartite_order = t_bipartite_order)
-
                 end if
 
                 ! maybe i have to reuse the cell input functionality or set it
@@ -1927,28 +1903,57 @@ contains
                 if (spin_pure_J <= 0) then
                     call stop_all(t_r, "Alpha should be positive and nonzero")
                 end if
+                if (item < nitems) then
+                block
+                    character(len=100) :: w
+                    call readu(w)
+                    select case(w)
+                    case ("TRUNCATE-LADDER-OPERATOR")
+                        tTruncatedLadderOps = .true.
+                    case default
+                        call stop_all(t_r, "Only TRUNCATE-LADDER-OPERATOR is allowed.")
+                    end select
+                end block
+                end if
 
             case ("ENDSYS")
                 exit system
             case default
-                call report("Keyword "                                    &
-       &          //trim(w)//" not recognized in SYSTEM block", .true.)
+                call report("Keyword "  //trim(w)//" not recognized in SYSTEM block", .true.)
             end select
         end do system
 
-        if (NEL == 0)                                                    &
-     &     call report("Number of electrons cannot be zero.", .true.)
+        if (t_lattice_model) then
+            if (t_k_space_hubbard) then
+                lat => lattice(lattice_type, length_x, length_y, length_z, &
+                               .not. t_open_bc_x,.not. t_open_bc_y,.not. t_open_bc_z, 'k-space')
+            else if (t_new_real_space_hubbard) then
+                lat => lattice(lattice_type, length_x, length_y, length_z, &
+                           .not. t_open_bc_x,.not. t_open_bc_y, &
+                               .not. t_open_bc_z, 'real-space', t_bipartite_order = t_bipartite_order)
+            else
+                lat => lattice(lattice_type, length_x, length_y, length_z, &
+                               .not. t_open_bc_x,.not. t_open_bc_y,.not. t_open_bc_z, &
+                               t_bipartite_order = t_bipartite_order)
+            end if
+        end if
+
+        if (NEL == 0) then
+            call report("Number of electrons cannot be zero.", .true.)
+        end if
 
         if (.not. tUEG2) then
             if (THUB .OR. TUEG .OR. .NOT. (TREADINT .OR. TCPMD .or. tVASP)) then
-                if (NMAXX == 0)                                               &
-                &        call report("Must specify CELL "                          &
-                &        //"- the number of basis functions in each dim.",         &
-                &        .true.)
-                if (.NOT. THUB .AND. near_zero(BOX))                                &
-                &        call report("Must specify BOX size.", .true.)
-                if (TTILT .AND. .NOT. THUB)                                      &
-                &        call report("TILT can only be specified with HUBBARD.", .true.)
+                if (NMAXX == 0) then
+                    call report("Must specify CELL - &
+                        &the number of basis functions in each dim.", .true.)
+                end if
+                if (.NOT. THUB .AND. near_zero(BOX)) then
+                    call report("Must specify BOX size.", .true.)
+                end if
+                if (TTILT .AND. .NOT. THUB) then
+                    call report("TILT can only be specified with HUBBARD.", .true.)
+                end if
             end if
         end if
 

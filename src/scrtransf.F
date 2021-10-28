@@ -282,19 +282,6 @@ C..This routine compares NDET2 to NDET1
             ENDIF
          ENDDO
  200     CONTINUE
-C      ID2 = GTID(ND1(1))
-C      ID1 = GTID(ND1(2))
-C..
-C      ID4 = GTID(ND2(1))
-C      ID3 = GTID(ND2(2))
-C..Check the spin combinations of N', N'-1, N and N-1
-C      IDS(1:4)=0
-C      CALL GENKRON(G1,NBASISMAX,ND1,ND2,IDS)
-C..N'>N'-1 and N>N-1 *See Levine for rule 3*
-C      TOTSUM=UMAT(ID1,ID2,ID3,ID4)*DFLOAT(IDS(1)*IDS(2))-
-C     &      UMAT(ID1,ID2,ID4,ID3)*DFLOAT(IDS(3)*IDS(4))
-C      IF(TOTSUM.NE.0.0_dp) CALL CHK_MS(NDET1,NDET2,NBASISMAX,
-C     &   NEL,3,G)
 
          CALL GETTRUMATEL(ND1(2),ND1(1),ND2(2),ND2(1),
      &         BTRANS,NSBASIS,NSPINS,TRUMAT)

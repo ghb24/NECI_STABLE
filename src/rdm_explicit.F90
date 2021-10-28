@@ -14,7 +14,7 @@ module rdm_explicit
     use SystemData, only: tReltvy, t_3_body_excits, tGUGA, nel
     use bit_reps, only: extract_bit_rep, decode_bit_det
 
-    use guga_bitRepOps, only: encode_matrix_element, convert_ilut_toGUGA
+    use guga_bitRepOps, only: encode_matrix_element, convert_ilut_toGUGA, CSF_Info_t
     use guga_rdm, only: gen_exc_djs_guga, send_proc_ex_djs
     use util_mod, only: near_zero
 
@@ -197,7 +197,7 @@ contains
         ! double excitations from Dj, this will be done for each proc.
         if (.not. blank_det) then
             if (tGUGA) then
-                call gen_exc_djs_guga(ilutnI)
+                call gen_exc_djs_guga(ilutnI, CSF_Info_t(ilutnI))
             else
                 call GenExcDjs(iLutnI)
             end if
