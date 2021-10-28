@@ -202,11 +202,6 @@ module guga_excitations
         module procedure calcAllExcitations_excitInfo_single
     end interface calcAllExcitations
 
-    ! use some temporary permanently stored variables for the CSF matrix
-    ! calculation
-    integer, allocatable, save:: temp_step_i(:), temp_step_j(:), temp_delta_b(:)
-    real(dp), allocatable, save :: temp_occ_i(:), temp_b_real_i(:)
-
 contains
 
     subroutine csf_vector_to_sds(csfs, csf_coeffs, sds, sd_coeffs, ms)
@@ -415,58 +410,6 @@ contains
 
         integer(n_int) :: tmp_i(0:nifguga)
 
-        ! i have to decide which type of excitation it is and how to
-        ! calculate the corresponding matrix element then..
-        ! this probably involves a lot on intensive coding again..
-        ! but i probably can mimick a lot of stuff from the stochastic
-        ! implementation, with the benefit that i know the 2 CSFs already
-        ! and do not have to calculate branching stuff ..
-        ! having stepvector and b-vector information and stuff is probably
-        ! useful to have
-        ! i could also use the checkCompatibility routine to be 100% that
-        ! the determined excitation is actually possible
-
-        ! where do i need this function?
-        ! a) in the reference calculation! -> so i could initialize
-        !   stepvector and other information for this specific CSF once
-        !   and reuse it here, so i do not have to recompute this every
-        !   time..
-        ! b) in the semi-stochastic and trailwavefunction routines..
-        !    there i actually also have to do it only once in the loop
-        !    over 1 list of dets, i could also just calculate it once
-        !    for nI, and reuse it for the loop over nJ
-        ! c) in the rdm-calculation.. here i am not quite sure yet, since I
-        !    also only need the GUGA matrix element and not the 1 and 2 body
-        !    integral terms.. maybe write the function in such a way that
-        !    it can output both or additionally maybe only the GUGA element
-        !    (but for certain types of excitations multiple orbital index
-        !       combinations are possible to lead to the same CSF connection
-        !       there i would have to output all the different contributions.)
-
-        ! if the optional t_hamil is not there we assume we want to calc.
-        ! the full hamiltonian matrix element and not only the guga-csf overlap
-        ! matrix element, needed for the rdm calculation
-        ! change to not make this flag optional, but mandatory!
-        ! so i can use another flag to distinguish between the type of
-        ! calculation used ..
-
-        ! hm the nice thing is, in the loop over determinants, i also
-        ! initialize the csf information for the current determinant at
-        ! the beginning, so in the case of the reference calculation
-        ! i have both the current_ilut info and if i store it, also the
-        ! reference determinant info, like stepvector, bvalue etc..
-        ! so i do not have to recalculate that here..
-        ! only in the hamiltonian matrix element calculation for
-        ! semi-stochastic and trial wavefunction calculation i need to
-        ! recalc. that, but there also only once for nI, and then always
-        ! for the nJ loop!
-
-        ! if i only want to calculate the guga-csf overlap matrix element
-        ! i have to store the specific indices for different kind of
-        ! excitations connecting the same 2 CSFs in the rdm calculation
-        ! but do that later!
-
-        ! set defaults for early exits
         mat_ele = h_cast(0.0_dp)
 
 #ifdef DEBUG_
@@ -479,12 +422,6 @@ contains
 #endif
 
 
-        if (.not. allocated(temp_step_i))   allocate(temp_step_i(nSpatOrbs))
-        if (.not. allocated(temp_step_j))   allocate(temp_step_j(nSpatOrbs))
-        if (.not. allocated(temp_delta_b))  allocate(temp_delta_b(nSpatOrbs))
-        if (.not. allocated(temp_occ_i))    allocate(temp_occ_i(nSpatOrbs))
-        if (.not. allocated(temp_b_real_i)) allocate(temp_b_real_i(nSpatOrbs))
-
         ! check diagonal case first
         if (DetBitEQ(ilutI, ilutJ)) then
 
@@ -493,11 +430,6 @@ contains
             ! i think I should do a change here for the Heisenberg or
             ! tJ model..
             mat_ele = calcDiagMatEleGUGA_ilut(tmp_i)
-
-            ! should not be here for RDMs or?
-            ! otherwise I have to change smth here
-            ! print *, "3"
-            ! ASSERT(.not. present(rdm_ind))
             return
         end if
 
@@ -537,14 +469,6 @@ contains
                 return
         end if
 
-        temp_step_i = csf_i%stepvector
-        temp_b_real_i = csf_i%B_real
-        temp_occ_i = csf_i%Occ_real
-
-        temp_step_j = csf_j%stepvector
-
-        temp_delta_b = csf_i%B_int - csf_j%B_int
-
         ! i think in the excitation identification i can not find out if the
         ! delta B value is abs>2 so i have to do that here.. or specific for
         ! the type of excitations below.. for singles its not allowed
@@ -571,14 +495,14 @@ contains
             ! single overlap lowering into raising
 
             ! maybe i have to check special conditions on the overlap site.
-            call calc_single_overlap_mixed_ex(excitInfo, mat_ele, &
+            call calc_single_overlap_mixed_ex(csf_i, csf_j, excitInfo, mat_ele, &
                                               t_hamil, rdm_ind, rdm_mat)
 
         case (excit_type%single_overlap_R_to_L)
             ! single overlap raising into lowering
 
             ! maybe i have to check special conditions on the overlap site.
-            call calc_single_overlap_mixed_ex(excitInfo, mat_ele, &
+            call calc_single_overlap_mixed_ex(csf_i, csf_j, excitInfo, mat_ele, &
                                               t_hamil, rdm_ind, rdm_mat)
 
         case (excit_type%double_lowering)
@@ -588,7 +512,7 @@ contains
             ! both CSFs.. i think so!
 
             ! deal with order parameter for switched indices
-            call calc_normal_double_ex(excitInfo, mat_ele, &
+            call calc_normal_double_ex(csf_i, csf_j, excitInfo, mat_ele, &
                                        t_hamil, rdm_ind, rdm_mat)
 
         case (excit_type%double_raising)
@@ -596,7 +520,7 @@ contains
 
             ! here i have to deal with the order parameter for switched
             ! indices ..
-            call calc_normal_double_ex(excitInfo, mat_ele, &
+            call calc_normal_double_ex(csf_i, csf_j, excitInfo, mat_ele, &
                                        t_hamil, rdm_ind, rdm_mat)
 
         case (excit_type%double_L_to_R_to_L)
@@ -604,7 +528,7 @@ contains
 
             ! can i combine these 4 similar excitations in one routine?
             ! deal with non-overlap if no spin-coupling changes!
-            call calc_normal_double_ex(excitInfo, mat_ele, &
+            call calc_normal_double_ex(csf_i, csf_j, excitInfo, mat_ele, &
                                        t_hamil, rdm_ind, rdm_mat)
 
         case (excit_type%double_R_to_L_to_R)
@@ -612,14 +536,14 @@ contains
 
             ! here i have to consider the non-overlap contribution if no
             ! spin-coupling changes in the overlap range
-            call calc_normal_double_ex(excitInfo, mat_ele, &
+            call calc_normal_double_ex(csf_i, csf_j, excitInfo, mat_ele, &
                                        t_hamil, rdm_ind, rdm_mat)
 
         case (excit_type%double_L_to_R)
             ! lowering into raising double
 
             ! consider non-overlap if no spin-coupling changes!
-            call calc_normal_double_ex(excitInfo, mat_ele, &
+            call calc_normal_double_ex(csf_i, csf_j, excitInfo, mat_ele, &
                                        t_hamil, rdm_ind, rdm_mat)
 
         case (excit_type%double_R_to_L)
@@ -627,7 +551,7 @@ contains
 
             ! here i also have to consider the non-overlap contribution if no
             ! spin-coupling changes in the overlap range
-            call calc_normal_double_ex(excitInfo, mat_ele, &
+            call calc_normal_double_ex(csf_i, csf_j, excitInfo, mat_ele, &
                                        t_hamil, rdm_ind, rdm_mat)
 
         case (excit_type%fullstop_lowering)
@@ -635,14 +559,14 @@ contains
 
             ! here only x0 matrix element in overlap range!
             ! also combine fullstop-alike
-            call calc_fullstop_alike_ex(csf_i, excitInfo, mat_ele, &
+            call calc_fullstop_alike_ex(csf_i, csf_j, excitInfo, mat_ele, &
                                         t_hamil, rdm_ind, rdm_mat)
 
         case (excit_type%fullstop_raising)
             ! full-stop 2 raising
 
             ! here only x0 matrix elment in overlap range!
-            call calc_fullstop_alike_ex(csf_i, excitInfo, mat_ele, &
+            call calc_fullstop_alike_ex(csf_i, csf_j, excitInfo, mat_ele, &
                                         t_hamil, rdm_ind, rdm_mat)
 
         case (excit_type%fullstop_L_to_R)
@@ -652,7 +576,7 @@ contains
             ! influences ABOVE the last spin-coupling change
             ! this is more of a pain.. do later!
             ! finished the "easy" ones.. now to the annoying..
-            call calc_fullstop_mixed_ex(ilutI, csf_i, ilutJ, excitInfo, mat_ele, &
+            call calc_fullstop_mixed_ex(ilutI, csf_i, ilutJ, csf_j, excitInfo, mat_ele, &
                                         t_hamil, rdm_ind, rdm_mat)
 
         case (excit_type%fullstop_R_to_L)
@@ -661,14 +585,14 @@ contains
 
             ! here i have to consider all the singly occupied orbital
             ! influences ABOVE the last spin-coupling change
-            call calc_fullstop_mixed_ex(ilutI, csf_i, ilutJ, excitInfo, mat_ele, &
+            call calc_fullstop_mixed_ex(ilutI, csf_i, ilutJ, csf_j, excitInfo, mat_ele, &
                                         t_hamil, rdm_ind, rdm_mat)
 
         case (excit_type%fullstart_lowering)
             ! full-start 2 lowering
 
             ! here only x0 matrix element in overlap range!
-            call calc_fullstart_alike_ex(csf_i, excitInfo, mat_ele, &
+            call calc_fullstart_alike_ex(csf_i, csf_j, excitInfo, mat_ele, &
                                          t_hamil, rdm_ind, rdm_mat)
 
         case (excit_type%fullstart_raising)
@@ -676,7 +600,7 @@ contains
 
             ! here only the x0-matrix in the overlap range (this implies no
             ! spin-coupling changes, but i already dealt with that! (hopefully!))
-            call calc_fullstart_alike_ex(csf_i, excitInfo, mat_ele, &
+            call calc_fullstart_alike_ex(csf_i, csf_j, excitInfo, mat_ele, &
                                          t_hamil, rdm_ind, rdm_mat)
 
         case (excit_type%fullStart_L_to_R)
@@ -684,7 +608,7 @@ contains
 
             ! here i have to consider all the other singly occupied orbital
             ! influences BELOW the first spin-coupling change
-            call calc_fullstart_mixed_ex(ilutI, csf_i, ilutJ, excitInfo, mat_ele, &
+            call calc_fullstart_mixed_ex(ilutI, csf_i, ilutJ, csf_j, excitInfo, mat_ele, &
                                          t_hamil, rdm_ind, rdm_mat)
 
         case (excit_type%fullstart_R_to_L)
@@ -692,14 +616,14 @@ contains
 
             ! here i have to consider all the other singly occupied orbital
             ! influences BELOW the first spin-coupling change
-            call calc_fullstart_mixed_ex(ilutI, csf_i, ilutJ, excitInfo, mat_ele, &
+            call calc_fullstart_mixed_ex(ilutI, csf_i, ilutJ, csf_j, excitInfo, mat_ele, &
                                          t_hamil, rdm_ind, rdm_mat)
 
         case (excit_type%fullstart_stop_alike)
             ! full-start into full-stop alike
 
             ! here no spin-coupling changes are allowed!
-            call calc_fullstart_fullstop_alike_ex(csf_i, excitInfo, &
+            call calc_fullstart_fullstop_alike_ex(csf_i, csf_j, excitInfo, &
                                                   mat_ele, t_hamil, rdm_ind, rdm_mat)
 
         case (excit_type%fullstart_stop_mixed)
@@ -707,7 +631,7 @@ contains
 
             ! here i have to consider all the singly occupied orbitals
             ! below the first spin-change and above the last spin change
-            call calc_fullstart_fullstop_mixed_ex(ilutI, csf_i, ilutJ, excitInfo, &
+            call calc_fullstart_fullstop_mixed_ex(ilutI, csf_i, ilutJ, csf_j, excitInfo, &
                                                   mat_ele, t_hamil, rdm_ind, rdm_mat)
 
         case default
@@ -822,7 +746,7 @@ contains
                 if (t_calc_full_) then
                     if (.not. (t_new_real_space_hubbard .or. t_heisenberg_model &
                                .or. t_tJ_model .or. t_mixed_hubbard)) then
-                        integral = integral + get_umat_el(i, iOrb, j, iOrb) * temp_occ_i(iOrb)
+                        integral = integral + get_umat_el(i, iOrb, j, iOrb) * csf_i%Occ_real(iOrb)
 
                         integral = integral + get_umat_el(i, iOrb, iOrb, j) * &
                                    getDoubleContribution(step2, step1, db, gen, bVal)
@@ -856,10 +780,11 @@ contains
 
     end subroutine calc_single_excitation_ex
 
-    subroutine calc_single_overlap_mixed_ex(excitInfo, mat_ele, &
+    subroutine calc_single_overlap_mixed_ex(csf_i, csf_j, excitInfo, mat_ele, &
                                             t_calc_full, rdm_ind, rdm_mat)
         ! routine to exactly calculate the matrix element between 2 CSFs
         ! connected by a single overlap excitation with mixed generators
+        type(CSF_Info_t), intent(in) :: csf_i, csf_j
         type(ExcitationInformation_t), intent(in) :: excitInfo
         HElement_t(dp), intent(out) :: mat_ele
         logical, intent(in), optional :: t_calc_full
@@ -869,7 +794,7 @@ contains
 
         real(dp) :: bVal, temp_mat, guga_mat
         HElement_t(dp) :: umat
-        integer :: i, db, gen2, step1, step2
+        integer :: i, db, gen2, step1, step2, delta_b(nSpatOrbs)
         logical :: t_calc_full_
 
         ! in the case of rdm calculation, i know that this type of exitation
@@ -880,6 +805,7 @@ contains
 
         ! set some defaults in case of early exit
         mat_ele = h_cast(0.0_dp)
+        delta_b = csf_i%B_int - csf_j%B_int
 
         associate (ii => excitInfo%i, jj => excitInfo%j, kk => excitInfo%k, &
                    ll => excitInfo%l, st => excitInfo%fullStart, &
@@ -898,7 +824,7 @@ contains
                 rdm_ind(1) = contract_2_rdm_ind(ii, jj, kk, ll)
             end if
 
-            if (any(abs(temp_delta_b) > 1)) return
+            if (any(abs(delta_b) > 1)) return
 
             if (t_calc_full_) then
                 if (typ == excit_type%single_overlap_L_to_R) then
@@ -924,10 +850,10 @@ contains
 
             ! i have to do the start specifically, due to the access of the
             ! single matrix elements
-            step1 = temp_step_i(st)
-            step2 = temp_step_j(st)
-            bVal = temp_b_real_i(st)
-            db = temp_delta_b(st)
+            step1 = csf_i%stepvector(st)
+            step2 = csf_j%stepvector(st)
+            bVal = csf_i%b_real(st)
+            db = delta_b(st)
 
             guga_mat = guga_mat * getSingleMatrixElement(step2, step1, db, gen, bVal)
 
@@ -935,10 +861,10 @@ contains
 
             do i = st + 1, ss - 1
 
-                step1 = temp_step_i(i)
-                step2 = temp_step_j(i)
-                bVal = temp_b_real_i(i)
-                db = temp_delta_b(i - 1)
+                step1 = csf_i%stepvector(i)
+                step2 = csf_j%stepvector(i)
+                bVal = csf_i%b_real(i)
+                db = delta_b(i - 1)
 
                 guga_mat = guga_mat * getSingleMatrixElement(step2, step1, db, gen, bVal)
 
@@ -946,10 +872,10 @@ contains
 
             end do
 
-            step1 = temp_step_i(ss)
-            step2 = temp_step_j(ss)
-            bVal = temp_b_real_i(ss)
-            db = temp_delta_b(ss - 1)
+            step1 = csf_i%stepvector(ss)
+            step2 = csf_j%stepvector(ss)
+            bVal = csf_i%b_real(ss)
+            db = delta_b(ss - 1)
             gen2 = -gen
 
             call getDoubleMatrixElement(step2, step1, db, gen, gen2, bVal, 1.0_dp, temp_mat)
@@ -960,10 +886,10 @@ contains
 
             do i = ss + 1, en
 
-                step1 = temp_step_i(i)
-                step2 = temp_step_j(i)
-                bVal = temp_b_real_i(i)
-                db = temp_delta_b(i - 1)
+                step1 = csf_i%stepvector(i)
+                step2 = csf_j%stepvector(i)
+                bVal = csf_i%b_real(i)
+                db = delta_b(i - 1)
 
                 guga_mat = guga_mat * getSingleMatrixElement(step2, step1, db, gen2, bVal)
 
@@ -980,12 +906,13 @@ contains
 
     end subroutine calc_single_overlap_mixed_ex
 
-    subroutine calc_normal_double_ex(excitInfo, mat_ele, &
+    subroutine calc_normal_double_ex(csf_i, csf_j, excitInfo, mat_ele, &
                                      t_hamil, rdm_ind, rdm_mat)
         ! combined routine to calculate the mixed generator excitations with
         ! 4 different spatial orbitals. here i have to consider if a
         ! spin change happened in the overlap. if no, i also have to calc. the
         ! non-overlap contribution!
+        type(CSF_Info_t), intent(in) :: csf_i, csf_j
         type(ExcitationInformation_t), intent(in) :: excitInfo
         HElement_t(dp), intent(out) :: mat_ele
         logical, intent(in), optional :: t_hamil
@@ -993,7 +920,7 @@ contains
         real(dp), intent(out), allocatable, optional :: rdm_mat(:)
         character(*), parameter :: this_routine = "calc_normal_double_ex"
 
-        integer :: step1, step2, db, i
+        integer :: step1, step2, db, i, delta_b(nSpatOrbs)
         real(dp) :: temp_x0, temp_x1, temp_mat0, temp_mat1, bVal, guga_mat
         logical :: t_hamil_
 
@@ -1001,6 +928,7 @@ contains
 
         ! set defaults for early exits
         mat_ele = h_cast(0.0_dp)
+        delta_b = csf_i%B_int - csf_j%B_int
 
         associate (ii => excitInfo%i, jj => excitInfo%j, kk => excitInfo%k, &
                    ll => excitInfo%l, start1 => excitInfo%fullStart, &
@@ -1033,9 +961,9 @@ contains
 
             ! i have to check if the deltaB value is in its correct bounds for
             ! the specific parts of the excitations
-            if (any(abs(temp_delta_b(start1:start2 - 1)) > 1) .or. &
-                any(abs(temp_delta_b(start2:ende1 - 1)) > 2) .or. &
-                any(abs(temp_delta_b(ende1:ende2)) > 1)) return
+            if (any(abs(delta_b(start1:start2 - 1)) > 1) .or. &
+                any(abs(delta_b(start2:ende1 - 1)) > 2) .or. &
+                any(abs(delta_b(ende1:ende2)) > 1)) return
 
             ! depending on which type of excitation the non-overlap has a specific
             ! tbd generator! i should deal with that in the starting if statement
@@ -1046,10 +974,10 @@ contains
 
             ! have to do the start specifically as i need the outgoing deltaB
             ! value
-            step1 = temp_step_i(start1)
-            step2 = temp_step_j(start1)
-            db = temp_delta_b(start1)
-            bVal = temp_b_real_i(start1)
+            step1 = csf_i%stepvector(start1)
+            step2 = csf_j%stepvector(start1)
+            db = delta_b(start1)
+            bVal = csf_i%b_real(start1)
 
             guga_mat = guga_mat * getSingleMatrixElement(step2, step1, db, firstgen, bVal)
 
@@ -1057,10 +985,10 @@ contains
 
             do i = start1 + 1, start2 - 1
 
-                step1 = temp_step_i(i)
-                step2 = temp_step_j(i)
-                bVal = temp_b_real_i(i)
-                db = temp_delta_b(i - 1)
+                step1 = csf_i%stepvector(i)
+                step2 = csf_j%stepvector(i)
+                bVal = csf_i%b_real(i)
+                db = delta_b(i - 1)
 
                 guga_mat = guga_mat * getSingleMatrixElement(step2, step1, db, firstgen, bVal)
 
@@ -1074,10 +1002,10 @@ contains
             ! do overlap part
             do i = start2, ende1
 
-                step1 = temp_step_i(i)
-                step2 = temp_step_j(i)
-                bVal = temp_b_real_i(i)
-                db = temp_delta_b(i - 1)
+                step1 = csf_i%stepvector(i)
+                step2 = csf_j%stepvector(i)
+                bVal = csf_i%b_real(i)
+                db = delta_b(i - 1)
 
                 call getDoubleMatrixElement(step2, step1, db, gen1, gen2, bVal, 1.0_dp, &
                                             temp_mat0, temp_mat1)
@@ -1092,10 +1020,10 @@ contains
 
             do i = ende1 + 1, ende2
 
-                step1 = temp_step_i(i)
-                step2 = temp_step_j(i)
-                bVal = temp_b_real_i(i)
-                db = temp_delta_b(i - 1)
+                step1 = csf_i%stepvector(i)
+                step2 = csf_j%stepvector(i)
+                bVal = csf_i%b_real(i)
+                db = delta_b(i - 1)
 
                 temp_mat0 = getSingleMatrixElement(step2, step1, db, lastgen, bVal)
 
@@ -1246,9 +1174,9 @@ contains
 
     end subroutine calc_normal_double_ex
 
-    subroutine calc_fullstop_alike_ex(csf_i, excitInfo, mat_ele, &
+    subroutine calc_fullstop_alike_ex(csf_i, csf_j, excitInfo, mat_ele, &
                                       t_hamil, rdm_ind, rdm_mat)
-        type(CSF_Info_t), intent(in) :: csf_i
+        type(CSF_Info_t), intent(in) :: csf_i, csf_j
         type(ExcitationInformation_t), intent(in) :: excitInfo
         HElement_t(dp), intent(out) :: mat_ele
         logical, intent(in), optional :: t_hamil
@@ -1258,13 +1186,14 @@ contains
 
         real(dp) :: bVal, temp_mat, nOpen, guga_mat
         HElement_t(dp) :: umat
-        integer :: i, step1, step2, db
+        integer :: i, step1, step2, db, delta_b(nSpatOrbs)
         logical :: t_hamil_
 
         def_default(t_hamil_, t_hamil, .true.)
 
         ! set some defaults in case of early exit
         mat_ele = h_cast(0.0_dp)
+        delta_b = csf_i%B_int - csf_j%B_int
 
         associate (ii => excitInfo%i, jj => excitInfo%j, kk => excitInfo%k, &
                    ll => excitInfo%l, typ => excitInfo%typ, st => excitInfo%fullStart, &
@@ -1281,7 +1210,7 @@ contains
 
             ! can i exclude every deltaB > 1, since only db = 0 allowed in
             ! double overlap region? i think so..
-            if (any(abs(temp_delta_b) > 1)) return
+            if (any(abs(delta_b) > 1)) return
 
             if (t_hamil_) then
                 if (typ == excit_type%fullstop_lowering) then
@@ -1303,10 +1232,10 @@ contains
             guga_mat = 1.0_dp
 
             ! have to deal with start specifically
-            step1 = temp_step_i(st)
-            step2 = temp_step_j(st)
-            bVal = temp_b_real_i(st)
-            db = temp_delta_b(st)
+            step1 = csf_i%stepvector(st)
+            step2 = csf_j%stepvector(st)
+            bVal = csf_i%b_real(st)
+            db = delta_b(st)
 
             guga_mat = guga_mat * getSingleMatrixElement(step2, step1, db, gen, bVal)
 
@@ -1314,10 +1243,10 @@ contains
 
             do i = st + 1, se - 1
 
-                step1 = temp_step_i(i)
-                step2 = temp_step_j(i)
-                db = temp_delta_b(i - 1)
-                bVal = temp_b_real_i(i)
+                step1 = csf_i%stepvector(i)
+                step2 = csf_j%stepvector(i)
+                db = delta_b(i - 1)
+                bVal = csf_i%b_real(i)
 
                 guga_mat = guga_mat * getSingleMatrixElement(step2, step1, db, gen, bval)
 
@@ -1326,10 +1255,10 @@ contains
             end do
 
             ! do semi-start:
-            step1 = temp_step_i(se)
-            step2 = temp_step_j(se)
-            db = temp_delta_b(se - 1)
-            bVal = temp_b_real_i(se)
+            step1 = csf_i%stepvector(se)
+            step2 = csf_j%stepvector(se)
+            db = delta_b(se - 1)
+            bVal = csf_i%b_real(se)
 
             call getDoubleMatrixElement(step2, step1, db, gen, gen, bVal, 1.0_dp, temp_mat)
 
@@ -1350,9 +1279,9 @@ contains
 
     end subroutine calc_fullstop_alike_ex
 
-    subroutine calc_fullstart_alike_ex(csf_i, excitInfo, mat_ele, &
+    subroutine calc_fullstart_alike_ex(csf_i, csf_j, excitInfo, mat_ele, &
                                        t_hamil, rdm_ind, rdm_mat)
-        type(CSF_Info_t), intent(in) :: csf_i
+        type(CSF_Info_t), intent(in) :: csf_i, csf_j
         type(ExcitationInformation_t), intent(in) :: excitInfo
         HElement_t(dp), intent(out) :: mat_ele
         logical, intent(in), optional :: t_hamil
@@ -1360,7 +1289,7 @@ contains
         real(dp), intent(out), allocatable, optional :: rdm_mat(:)
         character(*), parameter :: this_routine = "calc_fullstart_alike_ex"
 
-        integer :: i, step1, step2, db
+        integer :: i, step1, step2, db, delta_b(nSpatOrbs)
         real(dp) :: bVal, nOpen, temp_mat, guga_mat
         HElement_t(dp) :: umat
         logical :: t_hamil_
@@ -1369,6 +1298,7 @@ contains
 
         ! set defaults for early exits
         mat_ele = h_cast(0.0_dp)
+        delta_b = csf_i%B_int - csf_j%B_int
 
         associate (ii => excitInfo%i, jj => excitInfo%j, kk => excitInfo%k, &
                    ll => excitInfo%l, start => excitInfo%fullstart, &
@@ -1385,7 +1315,7 @@ contains
 
             ! i think i can exclude every deltaB > 1 sinve only dB = 0 branch
             ! allowed for the alike..
-            if (any(abs(temp_delta_b) > 1)) return
+            if (any(abs(delta_b) > 1)) return
 
             if (t_hamil_) then
                 if (typ == excit_type%fullstart_lowering) then
@@ -1407,10 +1337,10 @@ contains
             nOpen = real(count_open_orbs_ij(csf_i, start, semi - 1), dp)
 
             ! do semi-stop
-            step1 = temp_step_i(semi)
-            step2 = temp_step_j(semi)
-            db = temp_delta_b(semi - 1)
-            bVal = temp_b_real_i(semi)
+            step1 = csf_i%stepvector(semi)
+            step2 = csf_j%stepvector(semi)
+            db = delta_b(semi - 1)
+            bVal = csf_i%b_real(semi)
 
             call getDoubleMatrixElement(step2, step1, db, gen, gen, bVal, 1.0_dp, temp_mat)
 
@@ -1421,10 +1351,10 @@ contains
             ! do single range
             do i = semi + 1, ende
 
-                step1 = temp_step_i(i)
-                step2 = temp_step_j(i)
-                db = temp_delta_b(i - 1)
-                bVal = temp_b_real_i(i)
+                step1 = csf_i%stepvector(i)
+                step2 = csf_j%stepvector(i)
+                db = delta_b(i - 1)
+                bVal = csf_i%b_real(i)
 
                 guga_mat = guga_mat * getSingleMatrixElement(step2, step1, db, gen, bVal)
 
@@ -1441,9 +1371,9 @@ contains
 
     end subroutine calc_fullstart_alike_ex
 
-    subroutine calc_fullstart_fullstop_alike_ex(csf_i, excitInfo, &
+    subroutine calc_fullstart_fullstop_alike_ex(csf_i, csf_j, excitInfo, &
                                                 mat_ele, t_hamil, rdm_ind, rdm_mat)
-        type(CSF_Info_t), intent(in) :: csf_i
+        type(CSF_Info_t), intent(in) :: csf_i, csf_j
         type(ExcitationInformation_t), intent(in) :: excitInfo
         HElement_t(dp), intent(out) :: mat_ele
         logical, intent(in), optional :: t_hamil
@@ -1492,12 +1422,12 @@ contains
 
     end subroutine calc_fullstart_fullstop_alike_ex
 
-    subroutine calc_fullstop_mixed_ex(ilutI, csf_i, ilutJ, excitInfo, mat_ele, &
+    subroutine calc_fullstop_mixed_ex(ilutI, csf_i, ilutJ, csf_j, excitInfo, mat_ele, &
                                       t_hamil, rdm_ind, rdm_mat)
         ! from the excitInfo i know the first switch position.
         ! this makes things a bit easier for the exact calculation
         integer(n_int), intent(in) :: ilutI(0:niftot), ilutJ(0:niftot)
-        type(CSF_Info_t), value :: csf_i
+        type(CSF_Info_t), intent(in) :: csf_i, csf_j
         type(ExcitationInformation_t), intent(inout) :: excitInfo
         HElement_t(dp), intent(out) :: mat_ele
         logical, intent(in), optional :: t_hamil
@@ -1509,11 +1439,12 @@ contains
         HElement_t(dp) :: integral
         integer(n_int) :: tmp_I(0:nifguga), tmp_J(0:nifguga)
 
-        integer :: st, se, en
+        integer :: st, se, en, delta_b(nSpatOrbs)
         real(dp) :: guga_mat
         logical :: t_hamil_
 
         def_default(t_hamil_, t_hamil, .true.)
+        delta_b = csf_i%B_int - csf_j%B_int
 
         ! i can not associate to all stuff of excitInfo, since it will
         ! get changed later on..
@@ -1528,16 +1459,16 @@ contains
             ! set defaults in case of early exit
             mat_ele = h_cast(0.0_dp)
 
-            if (any(abs(temp_delta_b(st:se - 1)) > 1) .or. &
-                any(abs(temp_delta_b(se:en)) > 2)) return
+            if (any(abs(delta_b(st:se - 1)) > 1) .or. &
+                any(abs(delta_b(se:en)) > 2)) return
 
             ! first do single overlap region
             guga_mat = 1.0_dp
 
-            step1 = temp_step_i(st)
-            step2 = temp_step_j(st)
-            bVal = temp_b_real_i(st)
-            db = temp_delta_b(st)
+            step1 = csf_i%stepvector(st)
+            step2 = csf_j%stepvector(st)
+            bVal = csf_i%b_real(st)
+            db = delta_b(st)
 
             guga_mat = guga_mat * getSingleMatrixElement(step2, step1, db, firstgen, bval)
 
@@ -1545,10 +1476,10 @@ contains
 
             do i = st + 1, se - 1
 
-                step1 = temp_step_i(i)
-                step2 = temp_step_j(i)
-                db = temp_delta_b(i - 1)
-                bVal = temp_b_real_i(i)
+                step1 = csf_i%stepvector(i)
+                step2 = csf_j%stepvector(i)
+                db = delta_b(i - 1)
+                bVal = csf_i%b_real(i)
 
                 guga_mat = guga_mat * getSingleMatrixElement(step2, step1, db, firstgen, bVal)
 
@@ -1568,10 +1499,10 @@ contains
 
             do i = se, en - 1
 
-                step1 = temp_step_i(i)
-                step2 = temp_step_j(i)
-                db = temp_delta_b(i - 1)
-                bVal = temp_b_real_i(i)
+                step1 = csf_i%stepvector(i)
+                step2 = csf_j%stepvector(i)
+                db = delta_b(i - 1)
+                bVal = csf_i%b_real(i)
 
                 call getDoubleMatrixElement(step2, step1, db, gen_type%R, gen_type%L, bVal, &
                                             1.0_dp, temp_mat0, temp_mat1)
@@ -1583,10 +1514,10 @@ contains
             end do
 
             ! to the fullstop
-            step1 = temp_step_i(en)
-            step2 = temp_step_j(en)
-            db = temp_delta_b(en - 1)
-            bVal = temp_b_real_i(en)
+            step1 = csf_i%stepvector(en)
+            step2 = csf_j%stepvector(en)
+            db = delta_b(en - 1)
+            bVal = csf_i%b_real(en)
 
             call getMixedFullStop(step2, step1, db, bVal, temp_mat0, temp_mat1)
 
@@ -1613,11 +1544,6 @@ contains
             ! need to input dummy variable into the end contr functions
             ! use temp_mat1
             temp_mat1 = 1.0_dp
-
-            csf_i%stepvector = temp_step_i
-            csf_i%B_real = temp_b_real_i
-            csf_i%Occ_int = int(temp_occ_i)
-            csf_i%B_int = int(temp_b_real_i)
 
             if (t_hamil_ .or. (tFillingStochRDMOnFly .and. present(rdm_mat))) then
                 if (typ == excit_type%fullstop_L_to_R) then
@@ -1659,10 +1585,10 @@ contains
 
     end subroutine calc_fullstop_mixed_ex
 
-    subroutine calc_fullstart_mixed_ex(ilutI, csf_i, ilutJ, excitInfo, mat_ele, &
+    subroutine calc_fullstart_mixed_ex(ilutI, csf_i, ilutJ, csf_j, excitInfo, mat_ele, &
                                        t_hamil, rdm_ind, rdm_mat)
         integer(n_int), intent(in) :: ilutI(0:niftot), ilutJ(0:niftot)
-        type(CSF_Info_t), value :: csf_i
+        type(CSF_Info_t), intent(in) :: csf_i, csf_j
         type(ExcitationInformation_t), intent(inout) :: excitInfo
         HElement_t(dp), intent(out) :: mat_ele
         logical, intent(in), optional :: t_hamil
@@ -1675,13 +1601,14 @@ contains
         integer(n_int) :: tmp_I(0:nifguga), tmp_J(0:nifguga)
         logical :: t_hamil_
 
-        integer :: st, en, se
+        integer :: st, en, se, delta_b(nSpatOrbs)
         real(dp) :: guga_mat
 
         def_default(t_hamil_, t_hamil, .true.)
 
         ! set defaults for early exit
         mat_ele = h_cast(0.0_dp)
+        delta_b = csf_i%B_int - csf_j%B_int
 
         ! i can not associate to all stuff of excitInfo, since it will
         ! get changed later on..
@@ -1692,16 +1619,16 @@ contains
         associate (ii => excitInfo%i, jj => excitInfo%j, kk => excitInfo%k, &
                    ll => excitInfo%l, gen => excitInfo%lastGen, typ => excitInfo%typ)
 
-            if (any(abs(temp_delta_b(st:se - 1)) > 2) .or. &
-                any(abs(temp_delta_b(se:en)) > 1)) return
+            if (any(abs(delta_b(st:se - 1)) > 2) .or. &
+                any(abs(delta_b(se:en)) > 1)) return
 
             ! do the full-start, and i know here that it is singly occupied
 
-            step1 = temp_step_i(st)
-            step2 = temp_step_j(st)
+            step1 = csf_i%stepvector(st)
+            step2 = csf_j%stepvector(st)
             ! to indicate the mixed fullstart matrix elements in the routine!
             db = -1
-            bVal = temp_b_real_i(st)
+            bVal = csf_i%b_real(st)
 
             call getDoubleMatrixElement(step2, step1, -1, gen_type%L, gen_type%R, bVal, 1.0_dp, &
                                         temp_x0, temp_x1)
@@ -1713,10 +1640,10 @@ contains
 
             do i = st + 1, se
 
-                step1 = temp_step_i(i)
-                step2 = temp_step_j(i)
-                db = temp_delta_b(i - 1)
-                bVal = temp_b_real_i(i)
+                step1 = csf_i%stepvector(i)
+                step2 = csf_j%stepvector(i)
+                db = delta_b(i - 1)
+                bVal = csf_i%b_real(i)
 
                 call getDoubleMatrixElement(step2, step1, db, gen_type%L, gen_type%R, bVal, 1.0_dp, &
                                             temp_mat0, temp_mat1)
@@ -1738,10 +1665,10 @@ contains
 
             do i = se + 1, en
 
-                step1 = temp_step_i(i)
-                step2 = temp_step_j(i)
-                db = temp_delta_b(i - 1)
-                bVal = temp_b_real_i(i)
+                step1 = csf_i%stepvector(i)
+                step2 = csf_j%stepvector(i)
+                db = delta_b(i - 1)
+                bVal = csf_i%b_real(i)
 
                 guga_mat = guga_mat * getSingleMatrixElement(step2, step1, db, gen, bVal)
 
@@ -1757,11 +1684,6 @@ contains
 
             ! need to input variable into start_contr routines, misuse temp_mat1
             temp_mat1 = 1.0_dp
-
-            csf_i%stepvector = temp_step_i
-            csf_i%B_real = temp_b_real_i
-            csf_i%Occ_int = int(temp_occ_i)
-            csf_i%B_int = int(temp_b_real_i)
 
             if (t_hamil .or. (tFillingStochRDMOnFly .and. present(rdm_mat))) then
                 if (typ == excit_type%fullstart_L_to_R) then
@@ -1799,10 +1721,10 @@ contains
 
     end subroutine calc_fullstart_mixed_ex
 
-    subroutine calc_fullstart_fullstop_mixed_ex(ilutI, csf_i, ilutJ, excitInfo, &
+    subroutine calc_fullstart_fullstop_mixed_ex(ilutI, csf_i, ilutJ, csf_j, excitInfo, &
                                                 mat_ele, t_hamil, rdm_ind, rdm_mat)
         integer(n_int), intent(in) :: ilutI(0:niftot), ilutJ(0:niftot)
-        type(CSF_Info_t), value :: csf_i
+        type(CSF_Info_t), intent(in) :: csf_i, csf_j
         type(ExcitationInformation_t), intent(in) :: excitInfo
         HElement_t(dp), intent(out) :: mat_ele
         logical, intent(in), optional :: t_hamil
@@ -1811,26 +1733,23 @@ contains
 
         integer(n_int) :: tmp_I(0:nifguga), tmp_J(0:nifguga)
         logical :: t_hamil_
+        integer :: delta_b(nSpatOrbs)
 
         def_default(t_hamil_, t_hamil, .true.)
 
         ! set default for early exits
         mat_ele = h_cast(0.0_dp)
+        delta_b = csf_i%B_int - csf_j%B_int
 
-        ! TODO(@Oskar): Show this beauty to Werner
         associate (ii => excitInfo%i, jj => excitInfo%j, kk => excitInfo%k, &
                    ll => excitInfo%l, start => excitInfo%fullstart, &
                    ende => excitInfo%fullEnd)
 
 
-            if (any(abs(temp_delta_b) > 2)) return
+            if (any(abs(delta_b) > 2)) return
 
             call convert_ilut_toGUGA(ilutI, tmp_I)
             call convert_ilut_toGUGA(ilutJ, tmp_J)
-
-            csf_i%stepvector = temp_step_i
-            csf_i%Occ_int = int(temp_occ_i)
-            csf_i%B_real = temp_b_real_i
 
             if (t_hamil_ .or. (tFillingStochRDMOnFly .and. present(rdm_mat))) then
                 if (present(rdm_mat)) then
