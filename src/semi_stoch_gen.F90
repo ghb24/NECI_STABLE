@@ -142,7 +142,7 @@ contains
                 ! This is now the total size on the replica with the largest space
                 ! Typically, all replicas will have either similar or the same space size
                 write(stdout, '("Total size of deterministic space:",1X,i8)') rep%determ_space_size
-                if (rep%determ_space_size > 0.5 * AllNoInitDets(run)) then
+                if (rep%determ_space_size > real(AllNoInitDets(run), kind = dp) * 0.5) then
                     write(stdout, *)"WARNING: Total size of deterministic space is greater than&
                         & 50% of the initiator space."
                     write(stdout, *)"         Reducing the size of the deterministic space is&
