@@ -47,6 +47,7 @@ module IntegralsData
     Logical :: tNeedsVirts
 
     logical :: t_mimic_manu_freeze = .false.
+    logical :: t_rs_factors = .false.
 ! Details to permit reversing freezing for convenience.
     integer :: nel_pre_freezing
     integer, allocatable :: frozen_orb_list(:), frozen_orb_reverse_map(:)

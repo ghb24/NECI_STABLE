@@ -16,12 +16,13 @@ module LMat_mod
     use UMatCache, only: numBasisIndices
     use LMat_indexing, only: lMatIndSym, lMatIndSymBroken, oldLMatInd, strideInner, strideOuter, &
                              lMatIndSpin
-    use LMat_calc, only: readlMatFactors, freelMatFactors, lMatCalc
+    use LMat_calc, only: readlMatFactors, freelMatFactors, lMatCalc, &
+                         read_rs_lmat_factors, rs_lmat_calc, free_rs_factors
     use LMat_class, only: lMat_t, sparse_lMat_t, dense_lMat_t
 #ifdef USE_HDF5_
     use hdf5
 #endif
-    use IntegralsData, only: t_use_tchint_lib, tchint_mode
+    use IntegralsData, only: t_use_tchint_lib, tchint_mode, t_rs_factors
 #ifdef USE_TCHINT_
     use tchint
 #endif
@@ -101,6 +102,9 @@ contains
                     lMatVal = get_lmat_ueg(ida, idb, idc, idp, idq, idr)
                 else if (tLMatCalc) then
                     lMatVal = lMatCalc(ida, idb, idc, idp, idq, idr)
+
+                else if (t_rs_factors) then
+                    lMatVal = rs_lmat_calc(ida, idb, idc, idp, idq, idr)
                 else
                     ! the indexing function is contained in the lMat object
                     index = lMat%indexFunc(ida, idb, idc, idp, idq, idr)
@@ -172,6 +176,8 @@ contains
 
         if (tLMatCalc) then
           call readLMatFactors()
+        else if (t_rs_factors) then
+            call read_rs_lmat_factors()
         else
           ! now, read lmat from file
           if (tHDF5LMat) then
@@ -197,6 +203,8 @@ contains
         else
             if (tLMatCalc) then
                 call freeLMatFactors()
+            else if (t_rs_factors) then
+                call free_rs_factors()
             else
                 ! These are always safe to call, regardless of allocation
                 call LMat%dealloc()

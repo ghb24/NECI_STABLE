@@ -383,6 +383,10 @@ contains
                     tchint_mode = "PC"
                 end if
 
+            case ("RS-FACTORS")
+                ! read the range-separated factors instead of a TCDUMP file
+                t_rs_factors = .true.
+
             case ("MIMIC-MANU-FREEZE")
                 t_mimic_manu_freeze = .true.
 
