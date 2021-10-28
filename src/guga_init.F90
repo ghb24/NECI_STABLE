@@ -170,7 +170,7 @@ contains
     ! so a initialization subroutine is needed, which has to be called in the
     ! other modules using the guga_data module
     subroutine init_guga()
-        integer :: i, ierr
+        integer :: i
         character(*), parameter :: this_routine = "init_guga"
         ! main initialization routine
 

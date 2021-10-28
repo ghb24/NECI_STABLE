@@ -413,8 +413,6 @@ contains
         real(dp), intent(out), allocatable, optional :: rdm_mat(:)
         character(*), parameter :: this_routine = "calc_guga_matrix_element"
 
-        integer :: temp_b(nSpatOrbs)
-        real(dp) :: temp_occ(nSpatOrbs)
         integer(n_int) :: tmp_i(0:nifguga)
 
         ! i have to decide which type of excitation it is and how to
@@ -637,14 +635,14 @@ contains
 
             ! here only x0 matrix element in overlap range!
             ! also combine fullstop-alike
-            call calc_fullstop_alike_ex(ilutJ, csf_i, excitInfo, mat_ele, &
+            call calc_fullstop_alike_ex(csf_i, excitInfo, mat_ele, &
                                         t_hamil, rdm_ind, rdm_mat)
 
         case (excit_type%fullstop_raising)
             ! full-stop 2 raising
 
             ! here only x0 matrix elment in overlap range!
-            call calc_fullstop_alike_ex(ilutJ, csf_i, excitInfo, mat_ele, &
+            call calc_fullstop_alike_ex(csf_i, excitInfo, mat_ele, &
                                         t_hamil, rdm_ind, rdm_mat)
 
         case (excit_type%fullstop_L_to_R)
@@ -660,6 +658,7 @@ contains
         case (excit_type%fullstop_R_to_L)
             ! full-stop raising into lowering
 
+
             ! here i have to consider all the singly occupied orbital
             ! influences ABOVE the last spin-coupling change
             call calc_fullstop_mixed_ex(ilutI, csf_i, ilutJ, excitInfo, mat_ele, &
@@ -669,7 +668,7 @@ contains
             ! full-start 2 lowering
 
             ! here only x0 matrix element in overlap range!
-            call calc_fullstart_alike_ex(ilutJ, csf_i, excitInfo, mat_ele, &
+            call calc_fullstart_alike_ex(csf_i, excitInfo, mat_ele, &
                                          t_hamil, rdm_ind, rdm_mat)
 
         case (excit_type%fullstart_raising)
@@ -677,7 +676,7 @@ contains
 
             ! here only the x0-matrix in the overlap range (this implies no
             ! spin-coupling changes, but i already dealt with that! (hopefully!))
-            call calc_fullstart_alike_ex(ilutJ, csf_i, excitInfo, mat_ele, &
+            call calc_fullstart_alike_ex(csf_i, excitInfo, mat_ele, &
                                          t_hamil, rdm_ind, rdm_mat)
 
         case (excit_type%fullStart_L_to_R)
@@ -700,7 +699,7 @@ contains
             ! full-start into full-stop alike
 
             ! here no spin-coupling changes are allowed!
-            call calc_fullstart_fullstop_alike_ex(ilutJ, csf_i, excitInfo, &
+            call calc_fullstart_fullstop_alike_ex(csf_i, excitInfo, &
                                                   mat_ele, t_hamil, rdm_ind, rdm_mat)
 
         case (excit_type%fullstart_stop_mixed)
@@ -1247,9 +1246,8 @@ contains
 
     end subroutine calc_normal_double_ex
 
-    subroutine calc_fullstop_alike_ex(ilutJ, csf_i, excitInfo, mat_ele, &
+    subroutine calc_fullstop_alike_ex(csf_i, excitInfo, mat_ele, &
                                       t_hamil, rdm_ind, rdm_mat)
-        integer(n_int), intent(in) :: ilutJ(0:niftot)
         type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(in) :: excitInfo
         HElement_t(dp), intent(out) :: mat_ele
@@ -1352,9 +1350,8 @@ contains
 
     end subroutine calc_fullstop_alike_ex
 
-    subroutine calc_fullstart_alike_ex(ilutJ, csf_i, excitInfo, mat_ele, &
+    subroutine calc_fullstart_alike_ex(csf_i, excitInfo, mat_ele, &
                                        t_hamil, rdm_ind, rdm_mat)
-        integer(n_int), intent(in) :: ilutJ(0:niftot)
         type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(in) :: excitInfo
         HElement_t(dp), intent(out) :: mat_ele
@@ -1444,9 +1441,8 @@ contains
 
     end subroutine calc_fullstart_alike_ex
 
-    subroutine calc_fullstart_fullstop_alike_ex(ilutJ, csf_i, excitInfo, &
+    subroutine calc_fullstart_fullstop_alike_ex(csf_i, excitInfo, &
                                                 mat_ele, t_hamil, rdm_ind, rdm_mat)
-        integer(n_int), intent(in) :: ilutJ(0:niftot)
         type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(in) :: excitInfo
         HElement_t(dp), intent(out) :: mat_ele
@@ -15843,7 +15839,7 @@ contains
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
         character(*), parameter :: this_routine = "calcFullStartLowering"
 
-        integer :: nMax, ierr, iOrb, start, ende, semi, gen
+        integer :: nMax, iOrb, start, ende, semi, gen
         integer(n_int) :: t(0:nifguga)
         real(dp) :: tempWeight, minusWeight, plusWeight, bVal, nOpen
         type(WeightObj_t) :: weights
