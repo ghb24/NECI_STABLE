@@ -8,7 +8,6 @@ calc
     methods
     method vertex fcimc
     endmethods
-    seed -7
     memoryfacspawn 5.0
     memoryfacpart 2.0
     totalwalkers 20000
@@ -24,6 +23,9 @@ calc
     readpops
     truncinitiator
     addtoinitiator 3
+
+
+    seed -7
     load-balance-blocks off
 endcalc
 
