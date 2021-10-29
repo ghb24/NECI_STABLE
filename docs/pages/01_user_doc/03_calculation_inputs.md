@@ -1433,3 +1433,23 @@ the RDMs are calculated and the content of the files, please see section
     This option activates a full sampling of RDMs,
     at least in the semi-stochastic space.
     This option does increase the cost though.
+
+
+### FCIMCStats output functions
+
+-   **instant-s2-full [\(x\)]**<br>
+    Calculate an instantaneous value for (\hat{S}^2\), and output it to the
+    relevant column (28) in the `FCIMCStats` file.
+
+    The second optional parameter is a multiplier such that we only calculate
+    (\hat{S}^2\) once for every n update cycles (it must be on an update
+    cycle such that (\|\Psi|^2\) is correct)
+
+-   **instant-s2-init**<br>
+    Calculate an instantaneous value for (\hat{S}^2\), considering only
+    the initiators, and output it to the relevant column (28)
+    in the `FCIMCStats` file.
+
+    The second optional parameter is a multiplier such that we only calculate
+    (\hat{S}^2\) once for every n update cycles (it must be on an update
+    cycle such that (\|\Psi|^2\) is correct)
