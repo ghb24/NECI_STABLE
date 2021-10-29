@@ -64,8 +64,7 @@ module guga_pchb_class
 
         procedure :: new_info_table
         procedure :: set_info_entry
-        ! made public for unit_tests:
-        procedure, public :: get_info_entry
+        procedure :: get_info_entry
 
         procedure :: calc_orb_pgen_guga_pchb_double
 

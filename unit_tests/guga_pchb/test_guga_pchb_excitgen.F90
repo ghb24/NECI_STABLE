@@ -130,48 +130,11 @@ contains
         call my_run_test_case(guga_pchb_sampler_test, &
                               "guga_pchb_sampler_test", "guga_pchb_sampler type")
 
-        call my_run_test_case(setup_pchb_sampler_conditional_test, &
-                              "setup_pchb_sampler_conditional_test", &
-                              "setup_pchb_sampler_conditional")
     end subroutine guga_pchb_test_driver
 
     subroutine guga_pchb_sampler_test
 
     end subroutine guga_pchb_sampler_test
-
-    subroutine setup_pchb_sampler_conditional_test
-
-        integer :: i, ijMax, j
-
-        call guga_pchb_sampler%init()
-
-        ! the first index: (1,1) - > 1 and (1,1) -> 1 should be 0 since
-        ! only weight
-        print *, "fuse"
-        do i = 1, 4
-            do j = 1, 4
-                print *, i, j, "fuse: ", fuseIndex(i, j)
-            end do
-        end do
-        print *, "--"
-        associate (sampler => guga_pchb_sampler, &
-                   a_sampler => guga_pchb_sampler%alias_sampler)
-
-            call assert_equals(0_int64, sampler%get_info_entry(1, 1))
-            call assert_equals(0.0_dp, a_sampler%get_prob(1, 1))
-
-        end associate
-
-        ijMax = fuseIndex(nSpatOrbs, nSpatOrbs)
-
-        do i = 1, ijMax
-            do j = 1, ijMax
-                print *, guga_pchb_sampler%get_info_entry(i, j), &
-                    guga_pchb_sampler%alias_sampler%get_prob(i, j)
-            end do
-        end do
-
-    end subroutine setup_pchb_sampler_conditional_test
 
     subroutine calc_orb_pgen_uniform_singles_test
 
