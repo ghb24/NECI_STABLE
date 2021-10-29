@@ -45,5 +45,6 @@ logging
     highlypopwrite 50
     hdf5-pops-read
     RDMlinspace 50 3 100
+    popsfile -1
 endlog
 end
