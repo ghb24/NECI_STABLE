@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 '''
 
 blocking.py [options] file1 file2 ... fileN
@@ -12,7 +12,7 @@ import operator
 import optparse
 import re
 import sys
-# import pylab
+import pylab
 import matplotlib.pyplot as plt
 import numpy
 
@@ -23,7 +23,7 @@ __author__ = 'James Spencer'
 class Stats(object):
     '''Class to store statistics about a set of data.
 
-block_size: the number of points in a set of data; 
+block_size: the number of points in a set of data;
 mean: the mean of the data;
 se: the standard error of the data (=std. dev./sqrt(block_size));
 se_error: the estimate of the error associated with the standard error.
@@ -60,14 +60,14 @@ data_col: index (starting from 0) of the column containing the data.'''
     def sort_by_index(self, indices):
         '''Sort data according to the (unsorted) list of indices.'''
 
-        combined = zip(indices, self.data)
+        combined = list(zip(indices, self.data))
         combined.sort()
-        (sorted_indices, self.data) = zip(*combined)
+        (sorted_indices, self.data) = list(zip(*combined))
 
     def reblock(self):
         '''Reblock the data by successively taking the mean of adjacent data points.'''
 
-        block_size = len(self.data)/2
+        block_size = len(self.data)//2
         self.data = [0.5*(self.data[2*i]+self.data[2*i+1]) for i in range(block_size)]
 
     def add_stats(self):
@@ -145,7 +145,7 @@ block_all: assume all lines contain data apart from comment lines.  The regular 
         if self.combination == '/':
             self.combination_fn = self.calculate_combination_division
         elif self.combination:
-            raise Exception, 'Unimplemented combination: %s.' % (self.combination)
+            raise Exception('Unimplemented combination: %s.' % (self.combination))
 
         # Dictionaries for storing the covariance and combination stats between
         # two different data sets at each given block size.
@@ -189,7 +189,7 @@ block_all: assume all lines contain data apart from comment lines.  The regular 
 
     def blocking(self):
         '''Perform a blocking analysis on the data.
-        
+
 This destroys the data stored in self.data.data'''
 
         # See "Error estimates on averages of correlated data" by Flyvbjerg and Petersen, JCP 91 461 (1989).
@@ -225,7 +225,7 @@ This destroys the data stored in self.data.data'''
 
     def calculate_covariance(self, i, j):
         '''Calculate the covariance between the i-th data item and the j-th data item.
-        
+
 Note that this assumes that the mean stored in the Data class corresponds to
 that of the current set of data.'''
 
@@ -255,11 +255,11 @@ the standard deviation of f can be evaluated using:
     (s(f)/f)^2 = (s(X_i)/<X_i>)^2 + (s(X_i)/<X_i>)^2 - 2 cov(X_i,X_j)/(<X_i> <X_j>)
 
 where cov(X_i,X_j) is the covariance between the two data sets.  The standard error then follows:
-    
+
     se(f) = s(f)/\sqrt(N)
-    
+
 where N is the number of elements in the data set and hence we obtain:
-    
+
     se(f) = f [ (se(X_i)/<X_i>)^2 + (se(X_j)/<X_j>)^2 - 2 cov(X_i,X_j)/(N <X_i> <X_j>) ]^1/2.'''
 
         meani = self.data[i].stats[-1].mean
@@ -278,39 +278,43 @@ where N is the number of elements in the data set and hence we obtain:
 
     def show_blocking(self, plotfile=''):
         '''Print out the blocking data and show a graph of the behaviour of the standard error with block size.
-        
+
 If plotfile is given, then the graph is saved to the specifed file rather than being shown on screen.'''
 
         # print blocking output
         # header...
-        print '%-11s' % ('# of blocks'),
+        print('%-11s' % ('# of blocks'), end=' ')
         fmt = '%-14s %-15s %-18s '
         header = ('mean (X_%i)', 'std.err. (X_%i)', 'std.err.err. (X_%i)')
         for data in self.data:
             data_header = tuple(x % (data.data_col) for x in header)
-            print fmt % data_header,
+            print(fmt % data_header, end=' ')
         for key in self.covariance:
             str = 'cov(X_%s,X_%s)' % tuple(key.split(','))
-            print '%-14s' % (str),
+            print('%-14s' % (str), end=' ')
         for key in self.combination_stats:
             fmt = ['mean (X_%s'+self.combination+'X_%s)', 'std.err. (X_%s'+self.combination+'X_%s)']
             strs = tuple([s % tuple(key.split(',')) for s in fmt])
-            print '%-16s %-18s' % strs,
-        print
+            print('%-16s %-18s' % strs, end=' ')
+        print()
+        # print range as it is usually of interest (easy reproducibility)
+        # I would rather get length of data if end_index==0 but self.data.data
+        # is already destroyed at this point
+        print('# from %i to %i' % (self.start_index,self.end_index))
         # data
         block_fmt = '%-11i'
         fmt = '%-#14.12g %-#12.8e  %-#18.8e  '
         for s in range(len(self.data[0].stats)):
-            print block_fmt % (self.data[0].stats[s].block_size),
+            print(block_fmt % (self.data[0].stats[s].block_size), end=' ')
             for data in self.data:
-                print fmt % (data.stats[s].mean, data.stats[s].se, data.stats[s].se_error),
-            for cov in self.covariance.itervalues():
-                print '%+-#14.5e' % (cov[s]),
-            for comb in self.combination_stats.itervalues():
-                print '%-#16.12f %-#18.12e' % (comb[s].mean, comb[s].se),
-            print
+                print(fmt % (data.stats[s].mean, data.stats[s].se, data.stats[s].se_error), end=' ')
+            for cov in self.covariance.values():
+                print('%+-#14.5e' % (cov[s]), end=' ')
+            for comb in self.combination_stats.values():
+                print('%-#16.12f %-#18.12e' % (comb[s].mean, comb[s].se), end=' ')
+            print()
 
-        # plot standard error 
+        # plot standard error
         if PYLAB:
             # one sub plot per data set.
             nplots = len(self.data)
@@ -320,7 +324,7 @@ If plotfile is given, then the graph is saved to the specifed file rather than b
                 se = [stat.se for stat in data.stats]
                 se_error = [stat.se_error for stat in data.stats]
                 plt.semilogx(blocks, se, 'g-', basex=2, label=r'$\sigma(X_{%s})$' % (data.data_col))
-                plt.errorbar(blocks, se, yerr=se_error, fmt=None, ecolor='g')
+                plt.errorbar(blocks, se, yerr=se_error, ecolor='g')
                 xmax = 2**numpy.ceil(numpy.log2(blocks[0]+1))
                 plt.xlim(xmax, 1)
                 plt.ylabel('Standard error')

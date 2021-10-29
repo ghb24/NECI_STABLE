@@ -26,7 +26,7 @@ module kp_fciqmc
                             CalcParentFlag, walker_death, decide_num_to_spawn
     use fcimc_output, only: end_iteration_print_warn
     use fcimc_iter_utils, only: calculate_new_shift_wrapper, update_iter_data
-    use global_det_data, only: det_diagH
+    use global_det_data, only: det_diagH, det_offdiagH
     use LoggingData, only: tPopsFile
     use Parallel_neci, only: iProcIndex
     use MPI_wrapper, only: root
@@ -63,7 +63,7 @@ contains
         real(dp), allocatable :: lowdin_evals(:, :)
         logical :: tChildIsDeterm, tParentIsDeterm, tParentUnoccupied
         logical :: tParity, tSingBiasChange, tWritePopsFound
-        HElement_t(dp) :: HElGen
+        HElement_t(dp) :: HElGen, parent_hoffdiag
 
         ! Stores of the overlap and projected Hamiltonian matrices.
         real(dp), pointer :: overlap_matrices(:, :, :)
@@ -199,11 +199,12 @@ contains
 
                             ! The current diagonal matrix element is stored persistently.
                             parent_hdiag = det_diagH(idet)
+                            parent_hoffdiag = det_offdiagH(idet)
 
                             if (tTruncInitiator) call CalcParentFlag(idet, parent_flags)
 
                             call SumEContrib(nI_parent, ex_level_to_ref, parent_sign, ilut_parent, &
-                                             parent_hdiag, 1.0_dp, tPairedReplicas, idet)
+                                             parent_hdiag, parent_hoffdiag, 1.0_dp, tPairedReplicas, idet)
 
                             ! If we're on the Hartree-Fock, and all singles and
                             ! doubles are in the core space, then there will be
@@ -394,7 +395,7 @@ contains
         real(dp), allocatable :: lowdin_evals(:, :), lowdin_spin(:, :)
         logical :: tChildIsDeterm, tParentIsDeterm, tParentUnoccupied
         logical :: tParity, tSingBiasChange, tWritePopsFound
-        HElement_t(dp) :: HElGen
+        HElement_t(dp) :: HElGen, parent_hoffdiag
 
         ! Stores of the overlap, projected Hamiltonian and spin matrices.
         real(dp), pointer :: overlap_matrices(:, :, :, :)
@@ -571,11 +572,12 @@ contains
 
                         ! The current diagonal matrix element is stored persistently.
                         parent_hdiag = det_diagH(idet)
+                        parent_hoffdiag = det_offdiagH(idet)
 
                         if (tTruncInitiator) call CalcParentFlag(idet, parent_flags)
 
                         call SumEContrib(nI_parent, ex_level_to_ref, parent_sign, ilut_parent, &
-                                         parent_hdiag, 1.0_dp, tPairedReplicas, idet)
+                                         parent_hdiag, parent_hoffdiag, 1.0_dp, tPairedReplicas, idet)
 
                         ! If we're on the Hartree-Fock, and all singles and
                         ! doubles are in the core space, then there will be no

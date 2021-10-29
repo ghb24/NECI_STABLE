@@ -13,12 +13,13 @@ module SD_spin_purification_mod
                                 UNKNOWN, get_excitation, get_bit_excitation, create_excitation
     implicit none
 
-    logical :: tSD_spin_purification = .false.
+    logical :: tSD_spin_purification = .false., tTruncatedLadderOps = .false.
     real(dp), allocatable :: spin_pure_J
 
     private
     public :: S2_expval, spin_momentum, spin_q_num, get_open_shell, &
-        tSD_spin_purification, spin_pure_J, S2_expval_exc, dyn_S2_expval_exc
+        tSD_spin_purification, spin_pure_J, S2_expval_exc, dyn_S2_expval_exc, &
+        tTruncatedLadderOps
 
 
     interface S2_expval_exc
@@ -43,7 +44,7 @@ contains
         !!
         !! The second summand is nonzero only, if \( D_i \) and \( D_j \)
         !! differ not at all, or if they differ by exactly one spin exchange.
-        !! In the former case it evaluates to the number of \( \alpha \) electrons,
+        !! In the former case it evaluates to the number of open shell \( \alpha \) electrons,
         !! in the latter case it is always one.
         integer, intent(in) :: nI(:)
             !! The bra Slater determinant in nI format.
