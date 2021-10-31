@@ -125,7 +125,7 @@ contains
 
                 if (core_in%tPopsProportion) then
                     write(stdout, '("Choosing ",F7.2,"% of initiator space as core space")') 100 * core_in%npops_proportion
-                    write(stdout, '("Estimated size of core space:",1X,i5)') int(AllNoInitDets(run) * core_in%npops_proportion)
+                    write(stdout, *) "Estimated size of core space: ", int(AllNoInitDets(run) * core_in%npops_proportion)
                     core_in%npops = max(1, int(AllNoInitDets(run) * core_in%npops_proportion))
                 end if
 
