@@ -547,8 +547,9 @@ contains
             call stop_all(t_r, 'Semistochastic without ALLREALCOEFF')
         end if
 
-        if (ss_space_in%tPopsProportion .and. &
-            (.not. tSemiStochastic .and. semistoch_shift_iter < 1)) then
+        if (ss_space_in%tPopsProportion &
+                .and. .not. tSemiStochastic &
+                .and. semistoch_shift_iter < 1) then
             call stop_all(t_r, 'POPS-CORE-PROPORTION requires SEMI-STOCHASTIC option')
         end if
 
