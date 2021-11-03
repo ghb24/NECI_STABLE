@@ -2114,6 +2114,7 @@ contains
         integer(n_int) :: mat_int ! integer version of real
 
         ASSERT(mat_type == 1 .or. mat_type == 2)
+        ASSERT(sizeof(mat_ele) == sizeof(mat_int))
 
         mat_int = transfer(mat_ele, mat_int)
 
@@ -2168,16 +2169,11 @@ contains
         character(*), parameter :: this_routine = "update_matrix_element_real"
 
         integer(n_int) :: mat_int
-        real(dp) :: temp_ele
 
         ASSERT(mat_type == 1 .or. mat_type == 2)
 
-        temp_ele = transfer(ilut(GugaBits%len_orb + mat_type), temp_ele)
-
-        mat_int = transfer(temp_ele * mat_ele, mat_int)
-
+        mat_int = transfer(extract_matrix_element(ilut, mat_type) * mat_ele, ilut(GugaBits%len_orb))
         ilut(GugaBits%len_orb + mat_type) = mat_int
-
     end subroutine update_matrix_element_real
 
 #ifdef CMPLX_
