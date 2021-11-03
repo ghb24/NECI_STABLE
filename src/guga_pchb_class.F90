@@ -21,7 +21,6 @@ module guga_pchb_class
                                sym_label_list_spat, SpinOrbSymLabel
     use UMatCache, only: gtID
     use guga_excitations, only: assign_excitinfo_values_single, &
-                                createStochasticExcitation_single, &
                                 pick_elec_pair_uniform_guga, &
                                 excitationIdentifier_double, get_guga_integral_contrib_spat, &
                                 calc_pgen_mol_guga_single, get_excit_level_from_excitInfo, init_singleWeight, &

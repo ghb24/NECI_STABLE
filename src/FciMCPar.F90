@@ -4,7 +4,7 @@ module FciMCParMod
     ! This module contains the main loop for FCIMC calculations, and the
     ! main per-iteration processing loop.
     use SystemData, only: nel, tUEG2, tGen_4ind_2, &
-                          tGen_4ind_weighted, t_test_excit_gen, tGUGA, &
+                          tGen_4ind_weighted, tGUGA, &
                           t_new_real_space_hubbard, t_tJ_model, t_heisenberg_model, &
                           t_k_space_hubbard, max_ex_level, t_uniform_excits, &
                           tGen_guga_mixed, t_guga_mixed_init, t_guga_mixed_semi, &
@@ -112,7 +112,8 @@ module FciMCParMod
 
     use excit_gen_5, only: gen_excit_4ind_weighted2
 
-    use guga_excitations, only: generate_excitation_guga, global_excitInfo
+    use guga_main, only: generate_excitation_guga
+    use guga_excitations, only: global_excitInfo
     use guga_bitrepops, only: fill_csf_i, current_csf_i
     use tJ_model, only: init_guga_heisenberg_model, init_guga_tj_model
 

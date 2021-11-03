@@ -246,14 +246,6 @@ module SystemData
 ! input for graphical unitary group approach (GUGA) CSF implementation
     logical :: tGUGA = .false. ! flag to indicate usage of GUGA
 
-! use a flag to determine if unit tests should be performed! with an
-! additional optional input how often the the excitation generator should
-! be tested!
-    logical :: t_full_guga_tests = .false., t_test_most_populated = .false.
-    integer :: n_guga_excit_gen, n_most_populated
-! introduce a new flag to indicate the testsuite is running!
-    logical :: t_guga_testsuite = .false.
-
 ! use new flags for the new guga excitation generator implementations
     logical :: tGen_nosym_guga = .false., &
                tGen_sym_guga_ueg = .false., &
@@ -274,9 +266,6 @@ module SystemData
 
 ! also store the number of spatial orbitals here, to use it generally
     integer :: nSpatOrbs
-
-! use a flag for only running the excitation generator test in the dets case
-    logical :: t_test_excit_gen = .false.
 
 ! put in a logical to not reorder the orbitals in the guga + hubbard case
 ! to directly compare it with the determinental implementation, even if

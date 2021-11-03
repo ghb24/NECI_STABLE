@@ -22,7 +22,6 @@ module gas_guga_pchb_class
     use excitation_types, only: DoubleExc_t
     use UMatCache, only: gtID
     use guga_excitations, only: assign_excitinfo_values_single, &
-                                createStochasticExcitation_single, &
                                 pick_elec_pair_uniform_guga, &
                                 excitationIdentifier_double, get_guga_integral_contrib_spat, &
                                 calc_pgen_mol_guga_single, get_excit_level_from_excitInfo, &
