@@ -62,7 +62,6 @@ contains
         tRDMonfly = .true.
         tFillingStochRDMOnFly = .true.
         call init_bit_rep()
-        t_full_guga_tests = .true.
 
         t_pchb_weighted_singles = .false.
         t_guga_pchb = .true.

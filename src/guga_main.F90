@@ -76,7 +76,8 @@ module guga_main
     better_implicit_none
 
     private
-    public :: generate_excitation_guga
+    public :: generate_excitation_guga, &
+        createStochasticExcitation_single, createStochasticExcitation_double
 
 contains
     subroutine generate_excitation_guga(nI, ilutI, nJ, ilutJ, exFlag, IC, &
