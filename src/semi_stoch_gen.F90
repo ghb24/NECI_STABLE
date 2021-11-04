@@ -176,7 +176,7 @@ contains
 
                 write(stdout, '("Generating the Hamiltonian in the deterministic space...")'); call neci_flush(6)
                 if (tAllSymSectors .or. tReltvy .or. nOccAlpha <= 1 .or. nOccBeta <= 1 &
-                    .or. tGUGA) then
+                    .or. tGUGA .or. t_non_hermitian) then
                     ! In the above cases the faster generation is not implemented, so
                     ! use the original algorithm.
                     call set_timer(SemiStoch_Hamil_Time)
