@@ -9,6 +9,7 @@ module LMat_calc
     use LMat_Indexing, only: lMatIndSym, lMatIndSpin
     use util_mod, only: get_free_unit
     use mpi_wrapper, only: iProcIndex
+    use IntegralsData, only: t_hash_lmat_calc
     implicit none
 
     real(dp), allocatable :: qwprod(:, :, :), ycoulomb(:, :, :, :)
@@ -139,13 +140,15 @@ contains
         lMatCalcTot = lMatCalcTot + 1
 
         !First look up the value in the hash table
-        hashKey = lMatIndSym(i, k, m, j, l, n)
-        hashInd = mod(hashKey - 1, lMatCalcHSize) + 1 !Try whether other hash functions could imporve the hit rate
+        if (t_hash_lmat_calc) then
+            hashKey = lMatIndSym(i, k, m, j, l, n)
+            hashInd = mod(hashKey - 1, lMatCalcHSize) + 1 !Try whether other hash functions could imporve the hit rate
 
-        if (hashKey == LMatCalcHKeys(hashInd)) then
-            lMatCalcHit = lMatCalcHit + 1
-            matel = LMatCalcHVals(hashInd)
-            return
+            if (hashKey == LMatCalcHKeys(hashInd)) then
+                lMatCalcHit = lMatCalcHit + 1
+                matel = LMatCalcHVals(hashInd)
+                return
+            end if
         end if
 
         !It does not exist. So let's calculate it
@@ -173,19 +176,21 @@ contains
                     ycoulomb(3, ii, k, l) * ycoulomb(3, ii, m, n))
         end do
 
-        !Store the new value in the hash table
-        if (LMatCalcHKeys(hashInd) == -1) then
-            LMatCalcHUsed = LMatCalcHUsed + 1
+        if (t_hash_lmat_calc) then
+            !Store the new value in the hash table
+            if (LMatCalcHKeys(hashInd) == -1) then
+                LMatCalcHUsed = LMatCalcHUsed + 1
+            end if
+            LMatCalcHKeys(hashInd) = hashKey
+            LMatCalcHVals(hashInd) = matel
         end if
-        LMatCalcHKeys(hashInd) = hashKey
-        LMatCalcHVals(hashInd) = matel
 
     end function
 
     subroutine read_rs_lmat_factors
         character(*), parameter :: filename_mo = "mos_in_r"
         character(*), parameter :: filename_ints = "x_w_ij_r"
-        character(*), parameter :: filename_info = 'num_mos_grid'
+        character(*), parameter :: filename_info = 'n_grid_pts_mo_num'
         character(*), parameter :: this_routine = "read_rs_lmat_factors"
 
         integer :: iunit, ierr, i, j, k, l
@@ -198,7 +203,8 @@ contains
         iunit = get_free_unit()
         ! Read the number of grid points and MOs
         open(iunit, file=filename_info, status='old')
-        read(iunit, *, iostat=ierr) num_mos, ngrid
+        read(iunit, *, iostat=ierr) ngrid
+        read(iunit, *, iostat=ierr) num_mos
         close(iunit)
 
         root_print "with: ", ngrid, " grid points"
@@ -241,21 +247,22 @@ contains
         end do
         close(iunit)
 
-
-        lMatIndMax = lMatIndSym(num_mos, num_mos, num_mos, num_mos, num_mos, num_mos)
-        lMatCalcHSize = lMatCalcHFactor * lMatIndMax
-
-        root_print "Total Size of LMat: ", lMatIndMax
-        root_print "Size of LMatCalc Hash Table: ", lMatCalcHSize
-
-        allocate(lMatCalcHKeys(lMatCalcHSize))
-        allocate(lMatCalcHVals(lMatCalcHSize))
-        do i = 1, lMatCalcHSize
-            lMatCalcHKeys(i) = -1
-        end do
-        lMatCalcHit = 0
-        lMatCalcTot = 0
-        lMatCalcHUsed = 0
+        if (t_hash_lmat_calc) then
+            lMatIndMax = lMatIndSym(num_mos, num_mos, num_mos, num_mos, num_mos, num_mos)
+            lMatCalcHSize = lMatCalcHFactor * lMatIndMax
+!
+            root_print "Total Size of LMat: ", lMatIndMax
+            root_print "Size of LMatCalc Hash Table: ", lMatCalcHSize
+!
+            allocate(lMatCalcHKeys(lMatCalcHSize))
+            allocate(lMatCalcHVals(lMatCalcHSize))
+            do i = 1, lMatCalcHSize
+                lMatCalcHKeys(i) = -1
+            end do
+            lMatCalcHit = 0
+            lMatCalcTot = 0
+            lMatCalcHUsed = 0
+        end if
 
         root_print "Done: reading in range-separated TC factors"
 

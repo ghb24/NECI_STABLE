@@ -48,6 +48,8 @@ module IntegralsData
 
     logical :: t_mimic_manu_freeze = .false.
     logical :: t_rs_factors = .false.
+    ! hash the lmat calc routine. True by default, turn of if big calcs crash
+    logical :: t_hash_lmat_calc = .true.
 ! Details to permit reversing freezing for convenience.
     integer :: nel_pre_freezing
     integer, allocatable :: frozen_orb_list(:), frozen_orb_reverse_map(:)

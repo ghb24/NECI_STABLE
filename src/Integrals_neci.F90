@@ -383,6 +383,9 @@ contains
                     tchint_mode = "PC"
                 end if
 
+            case ("NO-HASH-LMAT-CALC")
+                t_hash_lmat_calc = .false.
+
             case ("RS-FACTORS")
                 ! read the range-separated factors instead of a TCDUMP file
                 t_rs_factors = .true.
