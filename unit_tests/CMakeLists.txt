@@ -1,15 +1,34 @@
-macro (add_unit_test test_name)
-
+macro (flexible_add_unit_test _config test_name)
         neci_add_test(
-    	    TARGET test_neci_${test_name}
-	    SOURCES test_${test_name}.F90
-	    LIBS libneci fruit
-	    LINKER_LANGUAGE Fortran
-	    META_TARGET test_neci
+    	    TARGET test_${_config}_${test_name}
+	    SOURCES
+            test_${test_name}.F90
+	    LIBS
+            lib${_config} fruit
+	    LINKER_LANGUAGE
+            Fortran
+	    META_TARGET
+            test_${_config}
+        PRIVATE_INCLUDES
+            "${MPI_Fortran_INCLUDE_PATH}"
+            "${HDF5_NECI_INCLUDE_PATH}"
 	    DEFINITIONS
-	    	    "${${PROJECT_NAME}_neci_DEFINITIONS}"
+            "${NECI_GLOBAL_DEFINES}"
+	    	"${${PROJECT_NAME}_${_config}_DEFINITIONS}"
+        WARNERR
+            ${${PROJECT_NAME}_${_config}_WARNERR}
 	)
+endmacro()
 
+macro (add_unit_test test_name)
+    flexible_add_unit_test( neci ${test_name} )
+endmacro()
+
+
+macro (add_unit_test_all_configs test_name)
+    foreach( _config ${${PROJECT_NAME}_CONFIGURATIONS} )
+        flexible_add_unit_test( ${_config} ${test_name} )
+    endforeach()
 endmacro()
 
 # Make some stuff available to all the tests

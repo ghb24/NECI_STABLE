@@ -274,7 +274,7 @@ contains
             ! full-start into full-stop alike
 
             ! here no spin-coupling changes are allowed!
-            call calc_fullstart_fullstop_alike_ex(csf_i, csf_j, excitInfo, &
+            call calc_fullstart_fullstop_alike_ex(csf_i, excitInfo, &
                                                   mat_ele, t_hamil, rdm_ind, rdm_mat)
 
         case (excit_type%fullstart_stop_mixed)
@@ -1181,9 +1181,9 @@ contains
 
     end subroutine calc_fullstart_alike_ex
 
-    subroutine calc_fullstart_fullstop_alike_ex(csf_i, csf_j, excitInfo, &
+    subroutine calc_fullstart_fullstop_alike_ex(csf_i, excitInfo, &
                                                 mat_ele, t_hamil, rdm_ind, rdm_mat)
-        type(CSF_Info_t), intent(in) :: csf_i, csf_j
+        type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), intent(in) :: excitInfo
         HElement_t(dp), intent(out) :: mat_ele
         logical, intent(in), optional :: t_hamil

@@ -22,16 +22,15 @@ program test_guga_pchb_excitgen
     use guga_bitRepOps
     use guga_data
     use guga_types
- use guga_pchb_class, only: GugaAliasSampler_t, calc_orb_pgen_uniform_singles, pick_uniform_spatial_hole, pick_orbitals_pure_uniform_singles
-    ! use guga_pchb_excitgen
+    use guga_pchb_class, only: GugaAliasSampler_t, &
+        calc_orb_pgen_uniform_singles, pick_uniform_spatial_hole, &
+        pick_orbitals_pure_uniform_singles
     use util_mod
 
     use fruit
     use fruit_extensions
 
     implicit none
-
-    type(GugaAliasSampler_t) :: guga_pchb_sampler
 
     integer :: failed_count
 
