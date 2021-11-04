@@ -81,46 +81,30 @@ contains
         ! this routine, depending on the input set the orbital pickers
         ! to differentiate between the different excitation generators
 
-        ! now i have to differentiate between the real- and momentum space
-        ! hubbard models..
-        ! this is default for all, except PCHB excit-gens
-        calc_orbital_pgen_contrib_start => calc_orbital_pgen_contrib_start_def
-        calc_orbital_pgen_contrib_end => calc_orbital_pgen_contrib_end_def
+        calc_mixed_start_l2r_contr => calc_mixed_start_contr_sym
+        calc_mixed_start_r2l_contr => calc_mixed_start_contr_sym
+        calc_mixed_end_l2r_contr => calc_mixed_end_contr_sym
+        calc_mixed_end_r2l_contr => calc_mixed_end_contr_sym
+        calc_mixed_contr => calc_mixed_contr_sym
+
 
         if (tGen_sym_guga_ueg) then
             if (.not. (treal .or. t_new_real_space_hubbard)) then
-                pickOrbitals_single => pickOrbs_sym_uniform_ueg_single
                 pickOrbitals_double => pickOrbs_sym_uniform_ueg_double
-                calc_mixed_contr => calc_mixed_contr_sym
                 calc_orbital_pgen_contr => calc_orbital_pgen_contr_ueg
-                calc_mixed_start_r2l_contr => calc_mixed_x2x_ueg
-                calc_mixed_start_l2r_contr => calc_mixed_x2x_ueg
-                calc_mixed_end_r2l_contr => calc_mixed_x2x_ueg
-                calc_mixed_end_l2r_contr => calc_mixed_x2x_ueg
+                calc_orbital_pgen_contrib_start => calc_orbital_pgen_contrib_start_def
+                calc_orbital_pgen_contrib_end => calc_orbital_pgen_contrib_end_def
             else
                 pickOrbitals_single => pickOrbs_real_hubbard_single
-                pickOrbitals_double => pickOrbs_real_hubbard_double
-                ! what about the contributions? do i need dummy functions?
-                ! i do need these for the exact RDM contributions...
-                ! atleast as dummies..
-                calc_mixed_start_l2r_contr => calc_mixed_start_contr_sym
-                calc_mixed_start_r2l_contr => calc_mixed_start_contr_sym
-                calc_mixed_end_l2r_contr => calc_mixed_end_contr_sym
-                calc_mixed_end_r2l_contr => calc_mixed_end_contr_sym
-                calc_mixed_contr => calc_mixed_contr_sym
-
             end if
 
         else if (tGen_sym_guga_mol) then
 
-            pickOrbitals_single => pickOrbs_sym_uniform_mol_single
-            pickOrbitals_double => pickOrbs_sym_uniform_mol_double
-            calc_orbital_pgen_contr => calc_orbital_pgen_contr_mol
-            calc_mixed_start_l2r_contr => calc_mixed_start_contr_sym
-            calc_mixed_start_r2l_contr => calc_mixed_start_contr_sym
-            calc_mixed_end_l2r_contr => calc_mixed_end_contr_sym
-            calc_mixed_end_r2l_contr => calc_mixed_end_contr_sym
-            calc_mixed_contr => calc_mixed_contr_sym
+            pickOrbitals_single => pickOrbs_sym_uniform_mol_single    ! PickOrbitals_t
+            pickOrbitals_double => pickOrbs_sym_uniform_mol_double    ! PickOrbitals_t                          in beiden Fällen
+            calc_orbital_pgen_contr => calc_orbital_pgen_contr_mol    ! calc_orbital_pgen_contr_t               nur für doubles
+            calc_orbital_pgen_contrib_start => calc_orbital_pgen_contrib_start_def  ! CalcOrbitalPgenContr_t    nur für doubles
+            calc_orbital_pgen_contrib_end => calc_orbital_pgen_contrib_end_def  ! CalcOrbitalPgenContr_t        nur für doubles
 
         else if (t_guga_pchb) then
 
@@ -130,28 +114,24 @@ contains
                 pickOrbitals_single => pick_orbitals_pure_uniform_singles
             end if
 
-
             pickOrbitals_double => pick_orbitals_double_pchb
             ! rest has to be determined what needs a change..
             calc_orbital_pgen_contr => calc_orbital_pgen_contr_pchb
             calc_orbital_pgen_contrib_start => calc_orbital_pgen_contr_start_pchb
             calc_orbital_pgen_contrib_end => calc_orbital_pgen_contr_end_pchb
-            calc_mixed_start_l2r_contr => calc_mixed_start_contr_sym
-            calc_mixed_start_r2l_contr => calc_mixed_start_contr_sym
-            calc_mixed_end_l2r_contr => calc_mixed_end_contr_sym
-            calc_mixed_end_r2l_contr => calc_mixed_end_contr_sym
-            calc_mixed_contr => calc_mixed_contr_sym
 
         else if (t_heisenberg_model) then
             pickOrbitals_double => pick_orbitals_guga_heisenberg
             calc_orbital_pgen_contr => calc_orbital_pgen_contr_heisenberg
-            calc_mixed_contr => calc_mixed_contr_sym
+
+            ! No single excitations + pure exchange doubles
 
         else if (t_tJ_model) then
             pickOrbitals_single => pick_orbitals_guga_tJ
             pickOrbitals_double => pick_orbitals_guga_heisenberg
-            calc_mixed_contr => calc_mixed_contr_sym
             calc_orbital_pgen_contr => calc_orbital_pgen_contr_heisenberg
+
+            ! singles + pure exchange doubles
 
         else ! standardly also use nosymmetry version
             root_print "please specify guga excitation generator explicitly!"

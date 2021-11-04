@@ -3,7 +3,8 @@
 ! possible.
 module guga_matrixElements
     use SystemData, only: nEl, nBasis, ECore, t_tJ_model, t_heisenberg_model, t_new_hubbard, &
-        t_new_real_space_hubbard, treal, nSpatOrbs, t_mixed_hubbard
+        t_new_real_space_hubbard, treal, nSpatOrbs, t_mixed_hubbard, ElecPairs, &
+        is_init_guga
     use constants, only: dp, n_int, hel_zero, int_rdm, bn2_, Root2
     use bit_reps, only: decode_bit_det
     use OneEInts, only: GetTMatEl
@@ -12,11 +13,11 @@ module guga_matrixElements
         convert_ilut_toGUGA, identify_excitation, findFirstSwitch, findLastSwitch, &
         calcb_vector_ilut, count_open_orbs_ij
     use guga_bitRepOps, only: contract_1_rdm_ind, contract_2_rdm_ind
-    use util_mod, only: binary_search, operator(.isclose.), stop_all, near_zero
+    use util_mod, only: binary_search, operator(.isclose.), stop_all, near_zero, operator(.div.)
     use guga_data, only: projE_replica, ExcitationInformation_t, excit_type, gen_type
 
     use guga_data, only: funA_0_2overR2, minFunA_2_0_overR2, funA_2_0_overR2, &
-                         funA_m1_1_overR2, funA_3_1_overR2, minFunA_0_2_overR2
+                         funA_m1_1_overR2, funA_3_1_overR2, minFunA_0_2_overR2, WeightData_t
 
     use guga_data, only: getdoublematrixelement, getmixedfullstop, getSingleMatrixElement, &
         getdoublecontribution
@@ -25,11 +26,16 @@ module guga_matrixElements
         calc_mixed_start_l2r_contr, calc_mixed_end_l2r_contr, calc_mixed_end_r2l_contr, &
         calc_mixed_start_r2l_contr
 
+    use guga_types, only: WeightObj_t
+
     use bit_rep_data, only: niftot, nifd
     use MPI_wrapper, only: iprocindex
-    use CalcData, only: matele_cutoff, t_matele_cutoff
+    use CalcData, only: matele_cutoff, t_matele_cutoff, t_trunc_guga_pgen, t_trunc_guga_pgen_noninits, trunc_guga_pgen
     use bit_rep_data, only: nifguga
     use DetBitOps, only: DetBitEQ
+
+
+    use guga_procedure_pointers, only: calc_orbital_pgen_contrib_start, calc_orbital_pgen_contrib_end
 
 
     use FciMCData, only: tFillingStochRDMOnFly
@@ -39,6 +45,35 @@ module guga_matrixElements
     private
     public :: calc_guga_matrix_element, calcMixedContribution, calc_integral_contribution_single
     public :: calcDiagMatEleGuga_nI, calcDiagExchangeGUGA_nI, calcDiagMatEleGUGA_ilut
+    public :: calcremainingswitches_excitinfo_double, calcremainingswitches_excitinfo_single, &
+                calcstartprob, calcstayingprob, endfx, endgx, &
+                init_fullstartweight, init_singleweight
+
+    public :: calc_mixed_start_contr_sym, calc_mixed_end_contr_sym
+
+
+    public :: get_forced_zero_double, getminus_double, getminus_semistart, getplus_double, getplus_semistart, init_doubleweight, init_semistartweight
+
+    abstract interface
+        ! to make the recalculation of the branch-weights for mixed full-stop
+        ! excitations more efficient, set up an array of functions which
+        ! give the corresponding branching tree decision to easily recalculate
+        ! the branch_pgen for different fullends without having to check the
+        ! taken path for every iteration
+        function branch_weight_function(weight, bVal, negSwitches, posSwitches) &
+            result(prob)
+            use constants, only: dp
+            use guga_types, only: WeightObj_t
+            implicit none
+            type(WeightObj_t), intent(in) :: weight
+            real(dp), intent(in) :: bval, negSwitches, posSwitches
+            real(dp) :: prob
+        end function branch_weight_function
+    end interface
+
+    type :: BranchWeightArr_t
+        procedure(branch_weight_function), pointer, nopass :: ptr => null()
+    end type BranchWeightArr_t
 
 contains
 
@@ -63,15 +98,7 @@ contains
 
         mat_ele = h_cast(0.0_dp)
 
-#ifdef DEBUG_
-        if (present(rdm_ind)) then
-            ASSERT(present(rdm_mat))
-        end if
-        if (present(rdm_mat)) then
-            ASSERT(present(rdm_ind))
-        end if
-#endif
-
+        ASSERT(present(rdm_ind) .eqv. present(rdm_mat))
 
         ! check diagonal case first
         if (DetBitEQ(ilutI, ilutJ)) then
@@ -476,6 +503,8 @@ contains
 
         def_default(t_calc_full_, t_calc_full, .true.)
 
+        ASSERT(present(rdm_ind) .eqv. present(rdm_mat))
+
         ! set defaults for the output if we excit early..
         mat_ele = h_cast(0.0_dp)
         delta_b = csf_i%B_int - csf_j%B_int
@@ -483,9 +512,7 @@ contains
         associate (i => excitInfo%i, j => excitInfo%j, st => excitInfo%fullstart, &
                    en => excitInfo%fullEnd, gen => excitInfo%currentGen)
 
-            if (present(rdm_ind) .or. present(rdm_mat)) then
-                ASSERT(present(rdm_ind))
-                ASSERT(present(rdm_mat))
+            if (present(rdm_ind) .and. present(rdm_mat)) then
                 allocate(rdm_ind(1), source=0_int_rdm)
                 allocate(rdm_mat(1), source=0.0_dp)
                 rdm_ind = contract_1_rdm_ind(i, j)
@@ -611,6 +638,7 @@ contains
         ! only has one (or two, with switches 2-body integrals..??)
         ! rdm-contribution..
 
+        ASSERT(present(rdm_ind) .eqv. present(rdm_mat))
         def_default(t_calc_full_, t_calc_full, .true.)
 
         ! set some defaults in case of early exit
@@ -623,9 +651,7 @@ contains
                    gen => excitInfo%firstGen, fe => excitInfo%firstEnd, &
                    typ => excitInfo%typ)
 
-            if (present(rdm_ind) .or. present(rdm_mat)) then
-                ASSERT(present(rdm_ind))
-                ASSERT(present(rdm_mat))
+            if (present(rdm_ind) .and. present(rdm_mat)) then
                 ! i am not sure yet if I will use symmetries in the RDM
                 ! calculation (some are also left out in the SD based implo..
                 ! so for now sample both combinations
@@ -735,6 +761,7 @@ contains
         logical :: t_hamil_
 
         def_default(t_hamil_, t_hamil, .true.)
+        ASSERT(present(rdm_ind) .eqv. present(rdm_mat))
 
         ! set defaults for early exits
         mat_ele = h_cast(0.0_dp)
@@ -748,9 +775,7 @@ contains
                    lastgen => excitInfo%lastgen, order => excitInfo%order, &
                    order1 => excitInfo%order1, typ => excitInfo%typ)
 
-            if (present(rdm_ind) .or. present(rdm_mat)) then
-                ASSERT(present(rdm_ind))
-                ASSERT(present(rdm_mat))
+            if (present(rdm_ind) .and. present(rdm_mat)) then
                 allocate(rdm_ind(2), source=0_int_rdm)
                 allocate(rdm_mat(2), source=0.0_dp)
 
@@ -1000,6 +1025,7 @@ contains
         logical :: t_hamil_
 
         def_default(t_hamil_, t_hamil, .true.)
+        ASSERT(present(rdm_ind) .eqv. present(rdm_mat))
 
         ! set some defaults in case of early exit
         mat_ele = h_cast(0.0_dp)
@@ -1010,9 +1036,7 @@ contains
                    se => excitInfo%secondStart, gen => excitInfo%gen1, &
                    en => excitInfo%fullEnd)
 
-            if (present(rdm_ind) .or. present(rdm_mat)) then
-                ASSERT(present(rdm_ind))
-                ASSERT(present(rdm_mat))
+            if (present(rdm_ind) .and. present(rdm_mat)) then
                 allocate(rdm_ind(1), source=0_int_rdm)
                 allocate(rdm_mat(1), source=0.0_dp)
                 rdm_ind(1) = contract_2_rdm_ind(ii, jj, kk, ll)
@@ -1105,6 +1129,7 @@ contains
         logical :: t_hamil_
 
         def_default(t_hamil_, t_hamil, .true.)
+        ASSERT(present(rdm_ind) .eqv. present(rdm_mat))
 
         ! set defaults for early exits
         mat_ele = h_cast(0.0_dp)
@@ -1115,9 +1140,7 @@ contains
                    ende => excitInfo%fullEnd, semi => excitInfo%firstEnd, &
                    gen => excitInfo%firstGen, typ => excitInfo%typ)
 
-            if (present(rdm_ind) .or. present(rdm_mat)) then
-                ASSERT(present(rdm_ind))
-                ASSERT(present(rdm_mat))
+            if (present(rdm_ind) .and. present(rdm_mat)) then
                 allocate(rdm_ind(1), source=0_int_rdm)
                 allocate(rdm_mat(1), source=0.0_dp)
                 rdm_ind(1) = contract_2_rdm_ind(ii, jj, kk, ll)
@@ -1196,6 +1219,7 @@ contains
         logical :: t_hamil_
 
         def_default(t_hamil_, t_hamil, .true.)
+        ASSERT(present(rdm_ind) .eqv. present(rdm_mat))
 
         ! set defaults for early exit
         mat_ele = h_cast(0.0_dp)
@@ -1204,9 +1228,7 @@ contains
                    ll => excitInfo%l, start => excitInfo%fullStart, &
                    ende => excitInfo%fullEnd)
 
-            if (present(rdm_ind) .or. present(rdm_mat)) then
-                ASSERT(present(rdm_ind))
-                ASSERT(present(rdm_mat))
+            if (present(rdm_ind) .and. present(rdm_mat)) then
                 allocate(rdm_ind(1), source=0_int_rdm)
                 allocate(rdm_mat(1), source=0.0_dp)
                 ! only one element here, since indices are the same
@@ -1351,38 +1373,28 @@ contains
             ! no apparently not and not event touched.. so no need to encode the
             ! matrix element
 
-            ! need to input dummy variable into the end contr functions
-            ! use temp_mat1
-            temp_mat1 = 1.0_dp
 
+            block
+            real(dp) :: discard, also_discard
+            discard = 1.0_dp
             if (t_hamil_ .or. (tFillingStochRDMOnFly .and. present(rdm_mat))) then
                 if (typ == excit_type%fullstop_L_to_R) then
                     ! L -> R
                     ! what do i have to put in as the branch pgen?? does it have
                     ! an influence on the integral and matrix element calculation?
-                    if (present(rdm_mat)) then
-                        call calc_mixed_end_l2r_contr(tmp_I, csf_i, tmp_J, excitInfo, temp_mat1, &
-                                                      temp_mat0, integral, rdm_ind, rdm_mat)
-                        ! need to multiply by x1
-                        rdm_mat = rdm_mat * temp_x1
-                    else
-                        call calc_mixed_end_l2r_contr(tmp_I, csf_i, tmp_J, excitInfo, temp_mat1, &
-                                                      temp_mat0, integral)
-                    end if
+                    call calc_mixed_end_l2r_contr(tmp_I, csf_i, tmp_J, excitInfo, discard, &
+                                                  also_discard, integral, rdm_ind, rdm_mat)
+                    ! need to multiply by x1
+                    if (present(rdm_mat)) rdm_mat = rdm_mat * temp_x1
 
                     mat_ele = temp_x1 * ((get_umat_el(en, se, st, en) + &
                                           get_umat_el(se, en, en, st)) / 2.0_dp + integral)
 
                 else if (typ == excit_type%fullstop_R_to_L) then
                     ! R -> L
-                    if (present(rdm_mat)) then
-                        call calc_mixed_end_r2l_contr(tmp_I, csf_i, tmp_J, excitInfo, temp_mat1, &
-                                                      temp_mat0, integral, rdm_ind, rdm_mat)
-                        rdm_mat = rdm_mat * temp_x1
-                    else
-                        call calc_mixed_end_r2l_contr(tmp_I, csf_i, tmp_J, excitInfo, temp_mat1, &
-                                                      temp_mat0, integral)
-                    end if
+                    call calc_mixed_end_r2l_contr(tmp_I, csf_i, tmp_J, excitInfo, discard, &
+                                                  also_discard, integral, rdm_ind, rdm_mat)
+                    if (present(rdm_mat)) rdm_mat = rdm_mat * temp_x1
 
                     mat_ele = temp_x1 * ((get_umat_el(en, st, se, en) + &
                                           get_umat_el(st, en, en, se)) / 2.0_dp + integral)
@@ -1391,6 +1403,7 @@ contains
             else
                 mat_ele = h_cast(temp_x1)
             end if
+            end block
         end associate
 
     end subroutine calc_fullstop_mixed_ex
@@ -1492,41 +1505,25 @@ contains
             call convert_ilut_toGUGA(ilutI, tmp_I)
             call convert_ilut_toGUGA(ilutJ, tmp_J)
 
-            ! need to input variable into start_contr routines, misuse temp_mat1
-            temp_mat1 = 1.0_dp
+            block
+            real(dp) :: discard, also_discard
+            discard = 1.0_dp
 
             if (t_hamil .or. (tFillingStochRDMOnFly .and. present(rdm_mat))) then
+                call calc_mixed_start_contr_sym(tmp_I, csf_i, tmp_J, excitInfo, discard, &
+                                                also_discard, integral, rdm_ind, rdm_mat)
+                if (present(rdm_mat)) rdm_mat = rdm_mat * guga_mat
                 if (typ == excit_type%fullstart_L_to_R) then
-                    ! L -> R
-                    if (present(rdm_mat)) then
-                        call calc_mixed_start_l2r_contr(tmp_I, csf_i, tmp_J, excitInfo, temp_mat1, &
-                                                        temp_mat0, integral, rdm_ind, rdm_mat)
-                        ! need to multiply by guga-mat:
-                        rdm_mat = rdm_mat * guga_mat
-                    else
-                        call calc_mixed_start_l2r_contr(tmp_I, csf_i, tmp_J, excitInfo, temp_mat1, &
-                                                        temp_mat0, integral, rdm_ind, rdm_mat)
-                    end if
-
                     mat_ele = guga_mat * ((get_umat_el(st, se, en, st) + &
                                            get_umat_el(se, st, st, en)) / 2.0_dp + integral)
 
                 else if (typ == excit_type%fullstart_R_to_L) then
-
-                    if (present(rdm_mat)) then
-                        call calc_mixed_start_r2l_contr(tmp_I, csf_i, tmp_J, excitInfo, temp_mat1, &
-                                                        temp_mat0, integral, rdm_ind, rdm_mat)
-                        rdm_mat = rdm_mat * guga_mat
-                    else
-                        call calc_mixed_start_r2l_contr(tmp_I, csf_i, tmp_J, excitInfo, temp_mat1, &
-                                                        temp_mat0, integral)
-                    end if
-
                     mat_ele = guga_mat * ((get_umat_el(st, en, se, st) + &
                                            get_umat_el(en, st, st, se)) / 2.0_dp + integral)
 
                 end if
             end if
+            end block
         end associate
 
     end subroutine calc_fullstart_mixed_ex
@@ -1879,7 +1876,1873 @@ contains
 
     end subroutine calc_integral_contribution_single
 
+    subroutine calc_mixed_start_contr_sym(ilut, csf_i, t, excitInfo, branch_pgen, &
+                                          pgen, integral, rdm_ind, rdm_mat)
+        integer(n_int), intent(in) :: ilut(0:nifguga), t(0:nifguga)
+        type(CSF_Info_t), intent(in) :: csf_i
+        type(ExcitationInformation_t), intent(inout) :: excitInfo
+        real(dp), intent(inout) :: branch_pgen
+        real(dp), intent(out) :: pgen
+        HElement_t(dp), intent(out) :: integral
+        integer(int_rdm), intent(out), allocatable, optional :: rdm_ind(:)
+        real(dp), intent(out), allocatable, optional :: rdm_mat(:)
+        character(*), parameter :: this_routine = "calc_mixed_start_contr_sym"
+
+        integer :: sw, i, st, se, step, en, elecInd, holeInd
+        real(dp) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs), mat_ele, &
+                    new_pgen, zero_weight, switch_weight, stay_mat, start_mat, bot_cont, &
+                    orb_pgen, start_weight, stay_weight
+        type(WeightObj_t) :: weights
+        logical :: below_flag
+        integer(int_rdm), allocatable :: tmp_rdm_ind(:)
+        real(dp), allocatable :: tmp_rdm_mat(:)
+        integer :: rdm_count, max_num_rdm
+        logical :: rdm_flag
+
+        if (present(rdm_ind) .or. present(rdm_mat)) then
+            ASSERT(present(rdm_ind) .and. present(rdm_mat))
+            rdm_flag = .true.
+        else
+            rdm_flag = .false.
+        end if
+
+        ! whats different here?? what do i have to consider? and how to optimize?
+        ! to make it most similar to the full-start into full-stop calc.
+        ! i could loop from the first switch downwards and stop at
+        ! a d = 1, b = 1 stepvalue and definetly unify pgen and integral
+        ! calculation!
+        ! to similary reuse the already calculated quantities loop from
+        ! switch to start to 1
+        st = excitInfo%fullStart
+        se = excitInfo%firstEnd
+        en = excitInfo%fullEnd
+        ! depending on the type of excitaiton, calculation of orbital pgens
+        ! change
+        if (excitInfo%typ == excit_type%fullStart_L_to_R) then
+            elecInd = en
+            holeInd = se
+        else if (excitInfo%typ == excit_type%fullstart_R_to_L) then
+            elecInd = se
+            holeInd = en
+        else
+            call stop_all(this_routine, "should not be here!")
+        end if
+
+        sw = findFirstSwitch(ilut, t, st, se)
+
+
+        if (rdm_flag) then
+            max_num_rdm = sw
+            allocate(tmp_rdm_ind(max_num_rdm), source=0_int_rdm)
+            allocate(tmp_rdm_mat(max_num_rdm), source=0.0_dp)
+            rdm_count = 0
+        end if
+
+        ! what can i precalculate beforehand?
+        step = csf_i%stepvector(st)
+
+        integral = h_cast(0.0_dp)
+
+        ! do i actually deal with the actual start orbital influence??
+        ! fuck i don't think so.. wtf..
+        call calc_orbital_pgen_contrib_start(&
+            csf_i, [2 * st, 2 * elecInd], holeInd, orb_pgen)
+
+        pgen = orb_pgen * branch_pgen
+
+        ! since weights only depend on the number of switches at the
+        ! semistop and semistop and full-end index i can calculate
+        ! it beforehand for all?
+        excitInfo%fullStart = 1
+        excitInfo%secondStart = 1
+        call calcRemainingSwitches_excitInfo_double(csf_i, excitInfo, posSwitches, negSwitches)
+
+        weights = init_fullStartWeight(csf_i, se, en, negSwitches(se), &
+                                       posSwitches(se), csf_i%B_real(se))
+
+        ! determine the original starting weight
+        zero_weight = weights%proc%zero(negSwitches(st), posSwitches(st), &
+                                        csf_i%B_real(st), weights%dat)
+
+        if (step == 1) then
+
+            switch_weight = weights%proc%plus(posSwitches(st), csf_i%B_real(st), &
+                                              weights%dat)
+
+            if (isOne(t, st)) then
+
+                bot_cont = Root2 * sqrt((csf_i%B_real(st) - 1.0_dp) / &
+                                        (csf_i%B_real(st) + 1.0_dp))
+
+                stay_weight = calcStayingProb(zero_weight, switch_weight, &
+                                              csf_i%B_real(st))
+
+                start_weight = zero_weight / (zero_weight + switch_weight)
+
+            else
+
+                bot_cont = -sqrt(2.0_dp / ((csf_i%B_real(st) - 1.0_dp) * &
+                                           (csf_i%B_real(st) + 1.0_dp)))
+
+                stay_weight = 1.0_dp - calcStayingProb(zero_weight, switch_weight, &
+                                                       csf_i%B_real(st))
+
+                start_weight = switch_weight / (zero_weight + switch_weight)
+
+            end if
+        else
+
+            switch_weight = weights%proc%minus(negSwitches(st), &
+                                               csf_i%B_real(st), weights%dat)
+
+            if (isOne(t, st)) then
+                bot_cont = -sqrt(2.0_dp / ((csf_i%B_real(st) + 1.0_dp) * &
+                                           (csf_i%B_real(st) + 3.0_dp)))
+
+                stay_weight = 1.0_dp - calcStayingProb(zero_weight, switch_weight, &
+                                                       csf_i%B_real(st))
+
+                start_weight = switch_weight / (zero_weight + switch_weight)
+
+            else
+                bot_cont = -Root2 * sqrt((csf_i%B_real(st) + 3.0_dp) / &
+                                         (csf_i%B_real(st) + 1.0_dp))
+
+                stay_weight = calcStayingProb(zero_weight, switch_weight, &
+                                              csf_i%B_real(st))
+
+                start_weight = zero_weight / (zero_weight + switch_weight)
+            end if
+        end if
+
+        ASSERT(.not. near_zero(start_weight))
+        ! update the pgen stumbs here to reuse start_weight variable
+        new_pgen = stay_weight * branch_pgen / start_weight
+
+        ! divide out the original starting weight:
+        branch_pgen = branch_pgen / start_weight
+
+        ! loop from start backwards so i can abort at a d=1 & b=1 stepvalue
+        ! also consider if bot_cont < EPS to avoid unnecarry calculations
+        if (.not. near_zero(bot_cont)) then
+
+
+            mat_ele = 1.0_dp
+            below_flag = .false.
+
+            do i = st - 1, 1, -1
+                if (csf_i%Occ_int(i) /= 1) cycle
+
+                ! then check if thats the last stepvalue to consider
+                if (csf_i%stepvector(i) == 1 .and. csf_i%B_int(i) == 1) then
+                    below_flag = .true.
+                end if
+
+                ! then i need to calculate the orbital probability
+                ! from the fact that this is a lowering into raising fullstart
+                ! i know, more about the restrictions...
+                ! and that fullend is the electron eg.
+                ! depening on the type of excitation (r2l or l2r) the electron
+                ! orbitals change here
+                call calc_orbital_pgen_contrib_start(&
+                    csf_i, [2 * i, 2 * elecInd], holeInd, orb_pgen)
+
+                ! then deal with the matrix element and branching probabilities
+                step = csf_i%stepvector(i)
+
+                ! get both start and staying matrix elements -> and update
+                ! matrix element contributions on the fly to avoid second loop!
+                call getDoubleMatrixElement(step, step, -1, gen_type%R, gen_type%L, csf_i%B_real(i), &
+                                            1.0_dp, x1_element=start_mat)
+
+                call getDoubleMatrixElement(step, step, 0, gen_type%R, gen_type%L, csf_i%B_real(i), &
+                                            1.0_dp, x1_element=stay_mat)
+
+                ! check if orb_pgen is non-zero
+                if (near_zero(orb_pgen) .and. (.not. rdm_flag)) then
+                    ! still have to update matrix element, even if 0 pgen
+                    mat_ele = mat_ele * stay_mat
+
+                    cycle
+                end if
+
+                ! another check.. although this should not happen
+                ! except the other d = 1 & b = 1 condition is already met
+                ! above, to not continue:
+                if (near_zero(stay_mat)) below_flag = .true.
+
+                zero_weight = weights%proc%zero(negSwitches(i), &
+                                                posSwitches(i), csf_i%B_real(i), weights%dat)
+
+                if (step == 1) then
+                    switch_weight = weights%proc%plus(posSwitches(i), &
+                                                      csf_i%B_real(i), weights%dat)
+                else
+                    switch_weight = weights%proc%minus(negSwitches(i), &
+                                                       csf_i%B_real(i), weights%dat)
+                end if
+
+                start_weight = zero_weight / (zero_weight + switch_weight)
+                stay_weight = calcStayingProb(zero_weight, switch_weight, &
+                                              csf_i%B_real(i))
+
+                ! i think i could avoid the second loop over j
+                ! if i express everything in terms of already calculated
+                ! quantities!
+                ! "normally" matrix element shouldnt be 0 anymore... still check
+                if (.not. near_zero(start_mat)) then
+                    integral = integral + start_mat * mat_ele * (get_umat_el(i, holeInd, elecInd, i) &
+                                                                 + get_umat_el(holeInd, i, i, elecInd)) / 2.0_dp
+
+                    if (rdm_flag) then
+                        rdm_count = rdm_count + 1
+                        tmp_rdm_ind(rdm_count) = contract_2_rdm_ind(i, elecInd, holeInd, i)
+                        tmp_rdm_mat(rdm_count) = start_mat * mat_ele * bot_cont
+                    end if
+
+                    if (t_trunc_guga_pgen .or. &
+                        (t_trunc_guga_pgen_noninits .and. .not. is_init_guga)) then
+                        if (new_pgen < trunc_guga_pgen) then
+                            new_pgen = 0.0_dp
+                        end if
+                    end if
+
+                    pgen = pgen + orb_pgen * start_weight * new_pgen
+                end if
+
+                if (below_flag) exit
+
+                if (t_trunc_guga_pgen .or. &
+                    (t_trunc_guga_pgen_noninits .and. .not. is_init_guga)) then
+                    if (new_pgen < trunc_guga_pgen) then
+                        new_pgen = 0.0_dp
+                    end if
+                end if
+
+                ! update new_pgen for next cycle
+                new_pgen = stay_weight * new_pgen
+
+                ! also update matrix element on the fly
+                mat_ele = stay_mat * mat_ele
+
+            end do
+
+            ! and update matrix element finally with bottom contribution
+            integral = integral * bot_cont
+
+        end if
+
+        ! start to switch loop: here matrix elements are not 0!
+        ! and its only db = 0 branch and no stepvalue change!
+        ! if the start is the switch nothing happens
+
+        step = csf_i%stepvector(st)
+
+        ! calculate the necarry values needed to formulate everything in terms
+        ! of the already calculated quantities:
+        call getDoubleMatrixElement(step, step, -1, gen_type%L, gen_type%R, csf_i%B_real(st), &
+                                    1.0_dp, x1_element=mat_ele)
+
+        ! and calc. x1^-1
+        ! keep tempWweight as the running matrix element which gets updated
+        ! every iteration
+
+        ! for rdms (in this current setup) I need to make a dummy
+        ! output if sw == st)
+        if (rdm_flag .and. sw == st) then
+            rdm_count = rdm_count + 1
+            tmp_rdm_ind(rdm_count) = contract_2_rdm_ind(sw, elecInd, holeInd, sw)
+            tmp_rdm_mat(rdm_count) = 1.0_dp
+        end if
+
+        if (.not. near_zero(abs(mat_ele))) then
+
+
+            mat_ele = 1.0_dp / mat_ele
+
+            do i = st + 1, sw - 1
+                ! the good thing here is, i do not need to loop a second time,
+                ! since i can recalc. the matrix elements and pgens on-the fly
+                ! here the matrix elements should not be 0 or otherwise the
+                ! excitation wouldnt have happended anyways
+                if (csf_i%Occ_int(i) /= 1) cycle
+
+                ! calculate orbitals pgen first and cycle if 0
+                call calc_orbital_pgen_contrib_start(&
+                        csf_i, [2 * i, 2 * elecInd], holeInd, orb_pgen)
+
+                step = csf_i%stepvector(i)
+
+                ! update inverse product
+                call getDoubleMatrixElement(step, step, 0, gen_type%L, gen_type%R, csf_i%B_real(i), &
+                                            1.0_dp, x1_element=stay_mat)
+
+                ASSERT(.not. near_zero(stay_mat))
+
+                mat_ele = mat_ele / stay_mat
+
+                ! check if orb_pgen is non-zero
+                ! still have to update matrix element in this case..
+                ! so do the cycle only afterwards..
+
+                if (near_zero(orb_pgen) .and. (.not. rdm_flag)) cycle
+
+                ! and also get starting contribution
+                call getDoubleMatrixElement(step, step, -1, gen_type%L, gen_type%R, csf_i%B_real(i), &
+                                            1.0_dp, x1_element=start_mat)
+
+                ! because the rest of the matrix element is still the same in
+                ! both cases...
+                if (.not. near_zero(start_mat)) then
+                    integral = integral + mat_ele * start_mat * (get_umat_el(holeInd, i, i, elecInd) + &
+                                                                 get_umat_el(i, holeInd, elecInd, i)) / 2.0_dp
+
+                    if (rdm_flag) then
+                        rdm_count = rdm_count + 1
+                        tmp_rdm_ind(rdm_count) = contract_2_rdm_ind(i, elecInd, holeInd, i)
+                        tmp_rdm_mat(rdm_count) = start_mat * mat_ele
+                    end if
+
+                end if
+
+                ! and update pgens also
+                zero_weight = weights%proc%zero(negSwitches(i), &
+                                                posSwitches(i), csf_i%B_real(i), weights%dat)
+
+                if (step == 1) then
+                    switch_weight = weights%proc%plus(posSwitches(i), &
+                                                      csf_i%B_real(i), weights%dat)
+                else
+                    switch_weight = weights%proc%minus(negSwitches(i), &
+                                                       csf_i%B_real(i), weights%dat)
+                end if
+
+                stay_weight = calcStayingProb(zero_weight, switch_weight, &
+                                              csf_i%B_real(i))
+
+                start_weight = zero_weight / (zero_weight + switch_weight)
+
+                ! and update probWeight
+                ! i think i should not put in the intermediate start_weight
+                ! permanently..
+                branch_pgen = branch_pgen / stay_weight
+
+                if (t_trunc_guga_pgen .or. &
+                    (t_trunc_guga_pgen_noninits .and. .not. is_init_guga)) then
+
+                    if (branch_pgen * start_weight > trunc_guga_pgen) then
+                        pgen = pgen + orb_pgen * branch_pgen * start_weight
+                    end if
+                else
+                    ! and add up correctly
+                    pgen = pgen + orb_pgen * branch_pgen * start_weight
+                end if
+
+            end do
+
+            ! handle switch seperately (but only if switch > start)
+            if (sw > st) then
+
+                ! check orb_pgen otherwise no influencce
+                call calc_orbital_pgen_contrib_start(&
+                        csf_i, [2 * sw, 2 * elecInd], holeInd, orb_pgen)
+
+                if (.not. near_zero(orb_pgen) .or. rdm_flag) then
+
+                    step = csf_i%stepvector(sw)
+
+                    zero_weight = weights%proc%zero(negSwitches(sw), posSwitches(sw), &
+                                                    csf_i%B_real(sw), weights%dat)
+
+                    ! on the switch the original probability is:
+                    if (step == 1) then
+                        switch_weight = weights%proc%plus(posSwitches(sw), &
+                                                          csf_i%B_real(sw), weights%dat)
+
+                        call getDoubleMatrixElement(2, 1, 0, gen_type%L, gen_type%R, csf_i%B_real(sw), &
+                                                    1.0_dp, x1_element=stay_mat)
+
+                        call getDoubleMatrixElement(2, 1, -1, gen_type%L, gen_type%R, csf_i%B_real(sw), &
+                                                    1.0_dp, x1_element=start_mat)
+
+                    else
+                        switch_weight = weights%proc%minus(negSwitches(sw), &
+                                                           csf_i%B_real(sw), weights%dat)
+
+                        call getDoubleMatrixElement(1, 2, 0, gen_type%L, gen_type%R, csf_i%B_real(sw), &
+                                                    1.0_dp, x1_element=stay_mat)
+
+                        call getDoubleMatrixElement(1, 2, -1, gen_type%L, gen_type%R, csf_i%B_real(sw), &
+                                                    1.0_dp, x1_element=start_mat)
+
+                    end if
+
+                    ! update inverse product
+                    ! and also get starting contribution
+                    ASSERT(.not. near_zero(stay_mat))
+
+                    mat_ele = mat_ele * start_mat / stay_mat
+
+                    ! because the rest of the matrix element is still the same in
+                    ! both cases...
+                    integral = integral + mat_ele * (get_umat_el(holeInd, sw, sw, elecInd) + &
+                                                     get_umat_el(sw, holeInd, elecInd, sw)) / 2.0_dp
+
+                    if (rdm_flag) then
+                        rdm_count = rdm_count + 1
+                        tmp_rdm_ind(rdm_count) = contract_2_rdm_ind(sw, elecInd, holeInd, sw)
+                        tmp_rdm_mat(rdm_count) = mat_ele
+                    end if
+
+                    stay_weight = 1.0_dp - calcStayingProb(zero_weight, switch_weight, &
+                                                           csf_i%B_real(sw))
+
+                    ! and the new startProb is also the non-b=0 branch
+                    start_weight = switch_weight / (zero_weight + switch_weight)
+
+                    if (t_trunc_guga_pgen .or. &
+                        (t_trunc_guga_pgen_noninits .and. .not. is_init_guga)) then
+                        if (branch_pgen * start_weight / start_weight > trunc_guga_pgen) then
+                            pgen = pgen + orb_pgen * branch_pgen * start_weight / stay_weight
+                        end if
+
+                    else
+                        pgen = pgen + orb_pgen * branch_pgen * start_weight / stay_weight
+                    end if
+
+                end if
+            end if
+        end if
+
+        ! i also need to consider the electron pair picking probability..
+        pgen = pgen / real(ElecPairs, dp)
+        ! and if the second electron is in a double occupied orbital I have
+        ! to modify it with 2
+        if (csf_i%stepvector(elecInd) == 3) pgen = pgen * 2.0_dp
+
+        if (present(rdm_mat)) then
+            allocate(rdm_ind(rdm_count), source=tmp_rdm_ind(1:rdm_count))
+            allocate(rdm_mat(rdm_count), source=tmp_rdm_mat(1:rdm_count))
+
+            deallocate(tmp_rdm_ind)
+            deallocate(tmp_rdm_mat)
+        end if
+
+    end subroutine calc_mixed_start_contr_sym
+
+    subroutine calc_mixed_end_contr_sym(ilut, csf_i, t, excitInfo, branch_pgen, pgen, &
+                                        integral, rdm_ind, rdm_mat)
+        integer(n_int), intent(in) :: ilut(0:nifguga), t(0:nifguga)
+        type(CSF_Info_t), intent(in) :: csf_i
+        type(ExcitationInformation_t), intent(inout) :: excitInfo
+        real(dp), intent(inout) :: branch_pgen
+        real(dp), intent(out) :: pgen
+        HElement_t(dp), intent(out) :: integral
+        integer(int_rdm), intent(out), allocatable, optional :: rdm_ind(:)
+        real(dp), intent(out), allocatable, optional :: rdm_mat(:)
+        character(*), parameter :: this_routine = "calc_mixed_end_contr_sym"
+
+        integer :: st, se, en, step, sw, elecInd, holeInd, i, j
+        real(dp) :: top_cont, mat_ele, stay_mat, end_mat, orb_pgen, new_pgen, &
+                    posSwitches(nSpatOrbs), negSwitches(nSpatOrbs), &
+                    tmp_pos(nSpatOrbs), tmp_neg(nSpatOrbs)
+        logical :: above_flag
+        type(BranchWeightArr_t) :: weight_funcs(nSpatOrbs)
+        type(WeightObj_t) :: weights
+
+        integer(int_rdm), allocatable :: tmp_rdm_ind(:)
+        real(dp), allocatable :: tmp_rdm_mat(:)
+        logical :: rdm_flag
+        integer :: rdm_count, max_num_rdm
+
+        if (present(rdm_ind) .or. present(rdm_mat)) then
+            ASSERT(present(rdm_ind))
+            ASSERT(present(rdm_mat))
+            rdm_flag = .true.
+        else
+            rdm_flag = .false.
+        end if
+
+        ! do as much stuff as possible beforehand
+        st = excitInfo%fullStart
+        se = excitInfo%secondStart
+        en = excitInfo%fullEnd
+        if (excitInfo%typ == excit_type%fullstop_L_to_R) then
+            elecInd = st
+            holeInd = se
+        else if (excitInfo%typ == excit_type%fullstop_R_to_L) then
+            elecInd = se
+            holeInd = st
+        else
+            call stop_all(this_routine, "should not be here!")
+        end if
+
+        integral = h_cast(0.0_dp)
+        ! also here i didn't consider the actual end contribution or? ...
+        call calc_orbital_pgen_contrib_end(&
+                csf_i, [2 * elecInd, 2 * en], holeInd, orb_pgen)
+
+        pgen = orb_pgen * branch_pgen
+
+        step = csf_i%stepvector(en)
+
+        sw = findLastSwitch(ilut, t, se, en)
+
+        if (rdm_flag) then
+            max_num_rdm = (nSpatOrbs - sw + 1)
+            allocate(tmp_rdm_ind(max_num_rdm), source=0_int_rdm)
+            allocate(tmp_rdm_mat(max_num_rdm), source=0.0_dp)
+            rdm_count = 0
+        end if
+
+        call calcRemainingSwitches_excitInfo_double(csf_i, excitInfo, posSwitches, negSwitches)
+
+        ! need temporary switch arrays for more efficiently recalcing
+        ! weights
+        tmp_pos = posSwitches
+        tmp_neg = negSwitches
+        ! after last switch only dB = 0 branches! consider that
+        call setup_weight_funcs(t, csf_i, st, se, weight_funcs)
+
+        if (en < nSpatOrbs) then
+            select case (step)
+            case (1)
+                if (isOne(t, en)) then
+                    top_cont = -Root2 * sqrt((csf_i%B_real(en) + 2.0_dp) / &
+                                             csf_i%B_real(en))
+
+                else
+                    top_cont = -Root2 / sqrt(csf_i%B_real(en) * (csf_i%B_real(en) + 2.0_dp))
+
+                end if
+            case (2)
+                if (isOne(t, en)) then
+                    top_cont = -Root2 / sqrt(csf_i%B_real(en) * (csf_i%B_real(en) + 2.0_dp))
+
+                else
+                    top_cont = Root2 * sqrt(csf_i%B_real(en) / &
+                                            (csf_i%B_real(en) + 2.0_dp))
+                end if
+
+            case default
+                call stop_all(this_routine, "wrong stepvalues!")
+
+            end select
+
+            if (.not. near_zero(top_cont)) then
+
+                above_flag = .false.
+                mat_ele = 1.0_dp
+
+                ! to avoid to recalc. remaining switches all the time
+                ! just increment them correctly
+                if (step == 1) then
+                    tmp_neg(se:en - 1) = tmp_neg(se:en - 1) + 1.0_dp
+                else
+                    tmp_pos(se:en - 1) = tmp_pos(se:en - 1) + 1.0_dp
+                end if
+
+                do i = en + 1, nSpatOrbs
+                    if (csf_i%Occ_int(i) /= 1) cycle
+
+                    ! then check if thats the last step
+                    if (csf_i%stepvector(i) == 2 .and. csf_i%B_int(i) == 0) then
+                        above_flag = .true.
+                    end if
+
+                    ! then calc. orbital probability
+                    call calc_orbital_pgen_contrib_end(&
+                            csf_i, [2 * elecInd, 2 * i], holeInd, orb_pgen)
+
+                    ! should be able to do that without second loop too!
+                    ! figure out!
+                    step = csf_i%stepvector(i)
+
+                    call getDoubleMatrixElement(step, step, 0, gen_type%L, gen_type%R, csf_i%B_real(i), &
+                                                1.0_dp, x1_element=stay_mat)
+
+                    call getMixedFullStop(step, step, 0, csf_i%B_real(i), &
+                                          x1_element=end_mat)
+
+                    if (near_zero(orb_pgen) .and. (.not. rdm_flag)) then
+                        ! still have to update the switches before cycling
+                        ! update the switches
+                        if (csf_i%stepvector(i) == 1) then
+                            tmp_neg(se:i - 1) = tmp_neg(se:i - 1) + 1.0_dp
+                        else
+                            tmp_pos(se:i - 1) = tmp_pos(se:i - 1) + 1.0_dp
+                        end if
+
+                        ! also have to update the matrix element, even if
+                        ! the orb pgen is 0
+                        mat_ele = mat_ele * stay_mat
+
+                        cycle
+                    end if
+
+                    ! this check should never be true, but just to be sure
+                    if (near_zero(stay_mat)) above_flag = .true.
+
+                    if (.not. near_zero(end_mat)) then
+                        integral = integral + end_mat * mat_ele * &
+                                   (get_umat_el(i, holeInd, elecInd, i) + &
+                                    get_umat_el(holeInd, i, i, elecInd)) / 2.0_dp
+
+                        if (rdm_flag) then
+                            rdm_count = rdm_count + 1
+                            tmp_rdm_ind(rdm_count) = &
+                                contract_2_rdm_ind(i, elecInd, holeInd, i)
+                            tmp_rdm_mat(rdm_count) = top_cont * end_mat * mat_ele
+                        end if
+
+                        ! also only recalc. pgen if matrix element is not 0
+                        excitInfo%fullEnd = i
+                        excitInfo%firstEnd = i
+
+                        weights = init_semiStartWeight(csf_i, se, i, tmp_neg(se), &
+                                                       tmp_pos(se), csf_i%B_real(se))
+
+                        new_pgen = 1.0_dp
+
+                        ! deal with the start and semi-start seperately
+                        if (csf_i%Occ_int(st) /= 1) then
+                            new_pgen = new_pgen * weight_funcs(st)%ptr(weights, &
+                                                                       csf_i%B_real(st), tmp_neg(st), tmp_pos(st))
+                        end if
+
+                        do j = st + 1, se - 1
+                            ! can and do i have to cycle here if its not
+                            ! singly occupied??
+                            if (csf_i%Occ_int(j) /= 1) cycle
+
+                            new_pgen = new_pgen * weight_funcs(j)%ptr(weights, &
+                                                                      csf_i%B_real(j), tmp_neg(j), tmp_pos(j))
+                        end do
+
+                        ! then need to reinit double weight
+                        weights = weights%ptr
+
+                        ! and also with the semi-start
+                        if (csf_i%Occ_int(se) /= 1) then
+                            new_pgen = new_pgen * weight_funcs(se)%ptr(weights, &
+                                                                       csf_i%B_real(se), tmp_neg(se), tmp_pos(se))
+                        end if
+
+                        do j = se + 1, i - 1
+                            if (csf_i%Occ_int(j) /= 1) cycle
+
+                            new_pgen = new_pgen * weight_funcs(j)%ptr(weights, &
+                                                                      csf_i%B_real(j), tmp_neg(j), tmp_pos(j))
+                        end do
+
+                        if (t_trunc_guga_pgen .or. &
+                            (t_trunc_guga_pgen_noninits .and. .not. is_init_guga)) then
+                            if (new_pgen < trunc_guga_pgen) then
+                                new_pgen = 0.0_dp
+                            end if
+                        end if
+
+                        pgen = pgen + new_pgen * orb_pgen
+
+                    end if
+
+                    if (above_flag) exit
+
+                    ! otherwise update your running pgen and matrix element vars
+                    mat_ele = mat_ele * stay_mat
+
+                    ! update the switches
+                    if (csf_i%stepvector(i) == 1) then
+                        tmp_neg(se:i - 1) = tmp_neg(se:i - 1) + 1.0_dp
+                    else
+                        tmp_pos(se:i - 1) = tmp_pos(se:i - 1) + 1.0_dp
+                    end if
+
+                end do
+
+                integral = integral * top_cont
+            end if
+        end if
+
+        if (rdm_flag .and. sw == en) then
+            rdm_count = rdm_count + 1
+            tmp_rdm_ind(rdm_count) = &
+                contract_2_rdm_ind(sw, elecInd, holeInd, sw)
+            tmp_rdm_mat(rdm_count) = 1.0_dp
+        end if
+
+        if (sw < en) then
+
+            step = csf_i%stepvector(en)
+
+            ! inverse fullstop matrix element
+            call getMixedFullStop(step, step, 0, csf_i%B_real(en), x1_element=mat_ele)
+
+            ASSERT(.not. near_zero(mat_ele))
+
+            mat_ele = 1.0_dp / mat_ele
+
+            ! have to change the switches before the first cycle:
+            ! but for cycling backwards, thats not so easy.. need todo
+
+            do i = en - 1, sw + 1, -1
+
+                if (csf_i%Occ_int(i) /= 1) cycle
+
+                ! get orbital pgen
+                call calc_orbital_pgen_contrib_end(&
+                        csf_i, [2 * elecInd, 2 * i], holeInd, orb_pgen)
+
+                if (csf_i%stepvector(i) == 1) then
+                    ! by looping in this direction i have to reduce
+                    ! the number of switches at the beginning
+                    ! but only to the left or??
+                    ! i think i have to rethink that.. thats not so easy..
+                    negSwitches(se:i - 1) = negSwitches(se:i - 1) - 1.0_dp
+
+                else
+                    posSwitches(se:i - 1) = posSwitches(se:i - 1) - 1.0_dp
+
+                end if
+
+                step = csf_i%stepvector(i)
+                ! update inverse product
+                call getDoubleMatrixElement(step, step, 0, gen_type%L, gen_type%R, csf_i%B_real(i), &
+                                            1.0_dp, x1_element=stay_mat)
+
+                call getMixedFullStop(step, step, 0, csf_i%B_real(i), x1_element=end_mat)
+
+                ! update matrix element
+                ASSERT(.not. near_zero(stay_mat))
+                mat_ele = mat_ele / stay_mat
+
+                ! dont i still have to atleast update the matrix element
+                ! even if the orbital pgen is 0??
+                if (near_zero(orb_pgen) .and. (.not. rdm_flag)) cycle
+
+                if (.not. near_zero(end_mat)) then
+
+                    integral = integral + end_mat * mat_ele * &
+                               (get_umat_el(i, holeInd, elecInd, i) + &
+                                get_umat_el(holeInd, i, i, elecInd)) / 2.0_dp
+
+                    if (rdm_flag) then
+                        rdm_count = rdm_count + 1
+                        tmp_rdm_ind(rdm_count) = &
+                            contract_2_rdm_ind(i, elecInd, holeInd, i)
+                        tmp_rdm_mat(rdm_count) = end_mat * mat_ele
+                    end if
+
+                    ! only recalc. pgen if matrix element is not 0
+                    excitInfo%fullEnd = i
+                    excitInfo%firstEnd = i
+
+                    weights = init_semiStartWeight(csf_i, se, i, negSwitches(se), &
+                                                   posSwitches(se), csf_i%B_real(se))
+
+                    new_pgen = 1.0_dp
+
+                    ! deal with the start and semi-start seperately
+                    if (csf_i%Occ_int(st) /= 1) then
+                        new_pgen = new_pgen * weight_funcs(st)%ptr(weights, &
+                                                                   csf_i%B_real(st), negSwitches(st), posSwitches(st))
+                    end if
+
+                    do j = st + 1, se - 1
+                        if (csf_i%Occ_int(j) /= 1) cycle
+
+                        new_pgen = new_pgen * weight_funcs(j)%ptr(weights, &
+                                                                  csf_i%B_real(j), negSwitches(j), posSwitches(j))
+                    end do
+
+                    ! then need to reinit double weight
+                    weights = weights%ptr
+
+                    ! and also with the semi-start
+                    if (csf_i%Occ_int(se) /= 1) then
+                        new_pgen = new_pgen * weight_funcs(se)%ptr(weights, &
+                                                                   csf_i%B_real(se), negSwitches(se), posSwitches(se))
+                    end if
+
+                    do j = se + 1, i - 1
+                        if (csf_i%Occ_int(j) /= 1) cycle
+
+                        new_pgen = new_pgen * weight_funcs(j)%ptr(weights, &
+                                                                  csf_i%B_real(j), negSwitches(j), posSwitches(j))
+                    end do
+
+                    if (t_trunc_guga_pgen .or. &
+                        (t_trunc_guga_pgen_noninits .and. .not. is_init_guga)) then
+                        if (new_pgen < trunc_guga_pgen) then
+                            new_pgen = 0.0_dp
+                        end if
+                    end if
+
+                    pgen = pgen + new_pgen * orb_pgen
+
+                end if
+
+            end do
+
+            ! deal with switch specifically:
+
+            ! figure out orbital pgen
+            call calc_orbital_pgen_contrib_end(&
+                    csf_i, [2 * elecInd, 2 * sw], holeInd, orb_pgen)
+
+            if (.not. near_zero(orb_pgen) .or. rdm_flag) then
+
+                step = csf_i%stepvector(sw)
+
+                if (step == 1) then
+                    ! then a -2 branch arrived!
+                    call getDoubleMatrixElement(2, 1, -2, gen_type%L, gen_type%R, csf_i%B_real(sw), &
+                                                1.0_dp, x1_element=stay_mat)
+
+                    call getMixedFullStop(2, 1, -2, csf_i%B_real(sw), x1_element=end_mat)
+
+                    ! also reduce negative switches then
+                    ! only everything to the left or?
+                    negSwitches(se:sw - 1) = negSwitches(se:sw - 1) - 1.0_dp
+
+                else
+                    ! +2 branch arrived!
+
+                    call getDoubleMatrixElement(1, 2, 2, gen_type%L, gen_type%R, csf_i%B_real(sw), &
+                                                1.0_dp, x1_element=stay_mat)
+
+                    call getMixedFullStop(1, 2, 2, csf_i%B_real(sw), x1_element=end_mat)
+
+                    ! reduce positive switchtes otherwise
+                    posSwitches(se:sw - 1) = posSwitches(se:sw - 1) - 1.0_dp
+
+                end if
+
+                ASSERT(.not. near_zero(stay_mat))
+
+                mat_ele = mat_ele * end_mat / stay_mat
+
+                integral = integral + mat_ele * (get_umat_el(sw, holeInd, elecInd, sw) + &
+                                                 get_umat_el(holeInd, sw, sw, elecInd)) / 2.0_dp
+
+                if (rdm_flag) then
+                    rdm_count = rdm_count + 1
+                    tmp_rdm_ind(rdm_count) = &
+                        contract_2_rdm_ind(sw, elecInd, holeInd, sw)
+                    tmp_rdm_mat(rdm_count) = mat_ele
+                end if
+
+                ! loop to get correct pgen
+                new_pgen = 1.0_dp
+
+                weights = init_semiStartWeight(csf_i, se, sw, negSwitches(se), &
+                                               posSwitches(se), csf_i%B_real(se))
+
+                ! deal with the start and semi-start seperately
+                if (csf_i%Occ_int(st) /= 1) then
+                    new_pgen = new_pgen * weight_funcs(st)%ptr(weights, &
+                                                               csf_i%B_real(st), negSwitches(st), posSwitches(st))
+                end if
+
+                do j = st + 1, se - 1
+                    if (csf_i%Occ_int(j) /= 1) cycle
+
+                    new_pgen = new_pgen * weight_funcs(j)%ptr(weights, &
+                                                              csf_i%B_real(j), negSwitches(j), posSwitches(j))
+                end do
+
+                weights = weights%ptr
+
+                ! and also with the semi-start
+                if (csf_i%Occ_int(se) /= 1) then
+                    new_pgen = new_pgen * weight_funcs(se)%ptr(weights, &
+                                                               csf_i%B_real(se), negSwitches(se), posSwitches(se))
+                end if
+
+                do j = se + 1, sw - 1
+                    if (csf_i%Occ_int(j) /= 1) cycle
+
+                    new_pgen = new_pgen * weight_funcs(j)%ptr(weights, &
+                                                              csf_i%B_real(j), negSwitches(j), posSwitches(j))
+                end do
+
+                if (t_trunc_guga_pgen .or. &
+                    (t_trunc_guga_pgen_noninits .and. .not. is_init_guga)) then
+                    if (new_pgen < trunc_guga_pgen) then
+                        new_pgen = 0.0_dp
+                    end if
+                end if
+
+                pgen = pgen + new_pgen * orb_pgen
+
+            end if
+        end if
+
+        pgen = pgen / real(ElecPairs, dp)
+
+        if (csf_i%stepvector(elecInd) == 3) pgen = pgen * 2.0_dp
+
+        if (rdm_flag) then
+            allocate(rdm_ind(rdm_count), source=tmp_rdm_ind(1:rdm_count))
+            allocate(rdm_mat(rdm_count), source=tmp_rdm_mat(1:rdm_count))
+
+            deallocate(tmp_rdm_ind)
+            deallocate(tmp_rdm_mat)
+        end if
+
+    end subroutine calc_mixed_end_contr_sym
 
 
 
+    function calcStartProb(prob1, prob2) result(ret)
+        ! calculate the probability of a starting branch, given two possibilities
+        real(dp), intent(in) :: prob1, prob2
+        real(dp) :: ret
+        character(*), parameter :: this_routine = "calcStartProb"
+
+        ASSERT(prob1 >= 0.0_dp)
+        ASSERT(prob2 >= 0.0_dp)
+
+        ret = prob1 / (prob1 + prob2)
+
+    end function calcStartProb
+
+    function calcStayingProb(prob1, prob2, bVal) result(ret)
+        ! calculate the probability to stay on a certain excitation branch
+        real(dp), intent(in) :: prob1, prob2, bVal
+        real(dp) :: ret, tmp
+        character(*), parameter :: this_routine = "calcStayingProb"
+
+        ASSERT(prob1 >= 0.0_dp)
+        ASSERT(prob2 >= 0.0_dp)
+        ASSERT(bVal >= 0.0_dp)
+
+        ! if b == 0 its stupid to use it..
+        tmp = max(bVal, 1.0_dp)
+
+        ret = tmp * prob1 / (tmp * prob1 + prob2)
+
+    end function calcStayingProb
+
+    function init_fullStartWeight(csf_i, sOrb, pOrb, negSwitches, &
+                                  posSwitches, bVal) result(fullStart)
+        type(CSF_Info_t), intent(in) :: csf_i
+        integer, intent(in) :: sOrb, pOrb
+        real(dp), intent(in) :: negSwitches, posSwitches
+        real(dp), intent(in) :: bVal
+        type(WeightObj_t) :: fullStart
+        character(*), parameter :: this_routine = "init_fullStartWeight"
+
+        type(WeightObj_t), target, save :: single
+        ASSERT(sOrb > 0 .and. sOrb <= nSpatOrbs)
+        ASSERT(pOrb > 0 .and. pOrb <= nSpatOrbs)
+        ASSERT(negSwitches >= 0.0_dp)
+        ASSERT(posSwitches >= 0.0_dp)
+
+        fullStart%dat%F = endFx(csf_i, sOrb)
+        fullStart%dat%G = endGx(csf_i, sOrb)
+
+        ! have to set up a single weight obj.
+        single = init_singleWeight(csf_i, pOrb)
+
+        ! try to reuse the already initialized singles weight in the cause of
+        ! an excitation, i hope this works with the pointers and stuff.
+        fullstart%ptr => single
+
+        fullStart%dat%minus = single%proc%minus(negSwitches, bVal, single%dat)
+        fullStart%dat%plus = single%proc%plus(posSwitches, bVal, single%dat)
+
+        fullStart%proc%minus => getMinus_fullStart
+        fullStart%proc%plus => getPlus_fullStart
+        fullStart%proc%zero => getZero_fullStart
+
+        fullStart%initialized = .true.
+
+    end function init_fullStartWeight
+
+    elemental function endFx(csf_i, sOrb) result(fx)
+        ! flag function used in excitation tree generation to check if spatial
+        ! orbital sOrb
+        ! is 0,1 or 3. Probably possible to implement it on an efficient
+        ! bit-rep level, todo
+        type(CSF_Info_t), intent(in) :: csf_i
+        integer, intent(in) :: sOrb
+        real(dp) :: fx
+
+        ! always one except d=2 at end
+        if (csf_i%stepvector(sOrb) == 2) then
+            fx = 0.0_dp
+        else
+            fx = 1.0_dp
+        end if
+    end function endFx
+
+    elemental function endGx(csf_i, sOrb) result(gx)
+        ! flag function used in excitation tree generation to check if spatial
+        ! orbital sOrb is 0,2,3.
+        type(CSF_Info_t), intent(in) :: csf_i
+        integer, intent(in) :: sOrb
+        real(dp) :: gx
+
+
+        if (csf_i%stepvector(sOrb) == 1) then
+            gx = 0.0_dp
+        else
+            ! always one except d=1 at end
+            gx = 1.0_dp
+        end if
+    end function endGx
+
+    ! proabbilistic weight objects:
+    elemental function init_singleWeight(csf_i, sOrb) result(singleWeight)
+        type(CSF_Info_t), intent(in) :: csf_i
+        integer, intent(in) :: sOrb
+        type(WeightObj_t) :: singleWeight
+        character(*), parameter :: this_routine = "init_singleWeight"
+
+        ASSERT(sOrb > 0 .and. sOrb <= nSpatOrbs)
+
+        singleWeight%dat%F = endFx(csf_i, sOrb)
+        singleWeight%dat%G = endGx(csf_i, sOrb)
+
+        singleWeight%proc%minus => getMinus_single
+        singleWeight%proc%plus => getPlus_single
+
+        singleWeight%initialized = .true.
+
+    end function init_singleWeight
+
+    function getMinus_fullStart(nSwitches, bVal, fullStart) result(minusWeight)
+        real(dp), intent(in) :: nSwitches, bVal
+        type(WeightData_t), intent(in) :: fullStart
+        real(dp) :: minusWeight
+        character(*), parameter :: this_routine = "getMinus_fullStart"
+
+        ASSERT(nSwitches >= 0.0_dp)
+        ! here this assert is valid, since the bvalue really never should be
+        ! 0.. or else the parent CSF is invalid.
+        ! no of course it can still be 0 at a 0/3 start... but also
+        ! set it to the technical value only
+
+        ! try an adhoc second order fix..
+        minusWeight = fullStart%F * fullStart%minus + nSwitches / max(1.0_dp, bval) &
+                      * (fullStart%G * fullStart%minus + fullStart%F * fullStart%plus) &
+                      + (max(nSwitches - 1, 0.0_dp) * fullStart%G * fullStart%plus / (max(1.0_dp, bval)**2))
+
+        ASSERT(minusWeight >= 0.0_dp)
+
+    end function getMinus_fullStart
+
+    function getPlus_fullStart(nSwitches, bVal, fullStart) result(plusWeight)
+        real(dp), intent(in) :: nSwitches, bVal
+        type(WeightData_t), intent(in) :: fullStart
+        real(dp) :: plusWeight
+        character(*), parameter :: this_routine = "getPlus_fullStart"
+
+        ASSERT(nSwitches >= 0.0_dp)
+
+        ! same as above: have to check if < 2
+        if (bVal < 2.0_dp) then
+            plusWeight = 0.0_dp
+        else
+            plusWeight = fullStart%G * fullStart%plus + nSwitches / bVal * &
+                         (fullStart%G * fullStart%minus + fullStart%F * fullStart%plus) &
+                         + (max(nSwitches - 1, 0.0_dp) * fullStart%F * fullStart%minus / (max(1.0_dp, bval)**2))
+        end if
+
+        ASSERT(plusWeight >= 0.0_dp)
+
+    end function getPlus_fullStart
+
+    function getMinus_single(nSwitches, bVal, single) result(minusWeight)
+        real(dp), intent(in) :: nSwitches, bVal
+        type(WeightData_t), intent(in) :: single
+        real(dp) :: minusWeight
+        character(*), parameter :: this_routine = "getMinus_single"
+        ASSERT(nSwitches >= 0.0_dp)
+        ! change that, to make it independend if b is zero
+        if (near_zero(bVal)) then
+            ! make it only depend on f and nSwitches
+            ! will be normalized to 1 anyway in the calcStayingProb function
+            minusWeight = single%F + nSwitches * single%G
+
+        else
+            minusWeight = single%F + nSwitches * single%G / bVal
+
+        end if
+
+        ASSERT(minusWeight >= 0.0_dp)
+
+    end function getMinus_single
+
+    function getPlus_single(nSwitches, bVal, single) result(plusWeight)
+        real(dp), intent(in) :: nSwitches, bVal
+        type(WeightData_t), intent(in) :: single
+        real(dp) :: plusWeight
+        character(*), parameter :: this_routine = "getPlus_single"
+        ASSERT(nSwitches >= 0.0_dp)
+
+        if (near_zero(bVal)) then
+            plusWeight = 0.0_dp
+        else
+            plusWeight = single%G + nSwitches * single%F / bVal
+        end if
+
+        ASSERT(plusWeight >= 0.0_dp)
+
+    end function getPlus_single
+
+    function plus_start_single(weights, bVal, negSwitches, posSwitches) result(prob)
+        type(WeightObj_t), intent(in) :: weights
+        real(dp), intent(in) :: bVal, negSwitches, posSwitches
+        real(dp) :: prob
+
+        real(dp) :: plus, minus
+
+        plus = weights%proc%plus(posSwitches, bVal, weights%dat)
+        minus = weights%proc%minus(negSwitches, bVal, weights%dat)
+
+        prob = plus / (plus + minus)
+
+    end function plus_start_single
+
+    function minus_start_single(weights, bVal, negSwitches, posSwitches) result(prob)
+        type(WeightObj_t), intent(in) :: weights
+        real(dp), intent(in) :: bVal, negSwitches, posSwitches
+        real(dp) :: prob
+
+        real(dp) :: plus, minus
+
+        plus = weights%proc%plus(posSwitches, bVal, weights%dat)
+        minus = weights%proc%minus(negSwitches, bVal, weights%dat)
+
+        prob = minus / (plus + minus)
+
+    end function minus_start_single
+
+    function minus_staying_single(weights, bVal, negSwitches, posSwitches) result(prob)
+        type(WeightObj_t), intent(in) :: weights
+        real(dp), intent(in) :: bVal, negSwitches, posSwitches
+        real(dp) :: prob
+
+        real(dp) :: plus, minus
+
+        plus = weights%proc%plus(posSwitches, bVal, weights%dat)
+        minus = weights%proc%minus(negSwitches, bVal, weights%dat)
+
+        prob = calcStayingProb(minus, plus, bVal)
+
+    end function minus_staying_single
+
+    function plus_staying_single(weights, bVal, negSwitches, posSwitches) result(prob)
+        type(WeightObj_t), intent(in) :: weights
+        real(dp), intent(in) :: bVal, negSwitches, posSwitches
+        real(dp) :: prob
+
+        real(dp) :: plus, minus
+
+        plus = weights%proc%plus(posSwitches, bVal, weights%dat)
+        minus = weights%proc%minus(negSwitches, bVal, weights%dat)
+
+        prob = calcStayingProb(plus, minus, bVal)
+
+    end function plus_staying_single
+
+    function plus_switching_single(weights, bVal, negSwitches, posSwitches) result(prob)
+        type(WeightObj_t), intent(in) :: weights
+        real(dp), intent(in) :: bVal, negSwitches, posSwitches
+        real(dp) :: prob
+
+        real(dp) :: plus, minus
+
+        plus = weights%proc%plus(posSwitches, bVal, weights%dat)
+        minus = weights%proc%minus(negSwitches, bVal, weights%dat)
+
+        prob = 1.0_dp - calcStayingProb(plus, minus, bVal)
+
+    end function plus_switching_single
+
+    function minus_switching_single(weights, bVal, negSwitches, posSwitches) result(prob)
+        type(WeightObj_t), intent(in) :: weights
+        real(dp), intent(in) :: bVal, negSwitches, posSwitches
+        real(dp) :: prob
+
+        real(dp) :: plus, minus
+
+        plus = weights%proc%plus(posSwitches, bVal, weights%dat)
+        minus = weights%proc%minus(negSwitches, bVal, weights%dat)
+
+        prob = 1.0_dp - calcStayingProb(minus, plus, bVal)
+
+    end function minus_switching_single
+
+    function minus_start_double(weights, bVal, negSwitches, posSwitches) result(prob)
+        type(WeightObj_t), intent(in) :: weights
+        real(dp), intent(in) :: bVal, negSwitches, posSwitches
+        real(dp) :: prob
+
+        real(dp) :: zero, minus
+
+        zero = weights%proc%zero(negSwitches, posSwitches, bVal, weights%dat)
+        minus = weights%proc%minus(negSwitches, bVal, weights%dat)
+
+        prob = minus / (zero + minus)
+
+    end function minus_start_double
+
+    function plus_start_double(weights, bVal, negSwitches, posSwitches) result(prob)
+        type(WeightObj_t), intent(in) :: weights
+        real(dp), intent(in) :: bVal, negSwitches, posSwitches
+        real(dp) :: prob
+
+        real(dp) :: plus, zero
+
+        zero = weights%proc%zero(negSwitches, posSwitches, bVal, weights%dat)
+        plus = weights%proc%plus(posSwitches, bVal, weights%dat)
+
+        prob = plus / (zero + plus)
+
+    end function plus_start_double
+
+    function zero_plus_start_double(weights, bVal, negSwitches, posSwitches) result(prob)
+        type(WeightObj_t), intent(in) :: weights
+        real(dp), intent(in) :: bVal, negSwitches, posSwitches
+        real(dp) :: prob
+
+        real(dp) :: plus, zero
+
+        zero = weights%proc%zero(negSwitches, posSwitches, bVal, weights%dat)
+        plus = weights%proc%plus(posSwitches, bVal, weights%dat)
+
+        prob = zero / (zero + plus)
+
+    end function zero_plus_start_double
+
+    function zero_minus_start_double(weights, bVal, negSwitches, posSwitches) result(prob)
+        type(WeightObj_t), intent(in) :: weights
+        real(dp), intent(in) :: bVal, negSwitches, posSwitches
+        real(dp) :: prob
+
+        real(dp) :: zero, minus
+
+        zero = weights%proc%zero(negSwitches, posSwitches, bVal, weights%dat)
+        minus = weights%proc%minus(negSwitches, bVal, weights%dat)
+
+        prob = zero / (zero + minus)
+
+    end function zero_minus_start_double
+
+    function zero_plus_staying_double(weights, bVal, negSwitches, posSwitches) result(prob)
+        type(WeightObj_t), intent(in) :: weights
+        real(dp), intent(in) :: bVal, negSwitches, posSwitches
+        real(dp) :: prob
+
+        real(dp) :: plus, zero
+
+        zero = weights%proc%zero(negSwitches, posSwitches, bVal, weights%dat)
+        plus = weights%proc%plus(posSwitches, bVal, weights%dat)
+
+        prob = calcStayingProb(zero, plus, bVal)
+
+    end function zero_plus_staying_double
+
+    function zero_minus_staying_double(weights, bVal, negSwitches, posSwitches) result(prob)
+        type(WeightObj_t), intent(in) :: weights
+        real(dp), intent(in) :: bVal, negSwitches, posSwitches
+        real(dp) :: prob
+
+        real(dp) :: zero, minus
+
+        zero = weights%proc%zero(negSwitches, posSwitches, bVal, weights%dat)
+        minus = weights%proc%minus(negSwitches, bVal, weights%dat)
+
+        prob = calcStayingProb(zero, minus, bVal)
+
+    end function zero_minus_staying_double
+
+    function zero_plus_switching_double(weights, bVal, negSwitches, posSwitches) result(prob)
+        type(WeightObj_t), intent(in) :: weights
+        real(dp), intent(in) :: bVal, negSwitches, posSwitches
+        real(dp) :: prob
+
+        real(dp) :: plus, zero
+
+        zero = weights%proc%zero(negSwitches, posSwitches, bVal, weights%dat)
+        plus = weights%proc%plus(posSwitches, bVal, weights%dat)
+
+        prob = 1.0_dp - calcStayingProb(zero, plus, bVal)
+
+    end function zero_plus_switching_double
+
+    function zero_minus_switching_double(weights, bVal, negSwitches, posSwitches) result(prob)
+        type(WeightObj_t), intent(in) :: weights
+        real(dp), intent(in) :: bVal, negSwitches, posSwitches
+        real(dp) :: prob
+
+        real(dp) :: zero, minus
+
+        zero = weights%proc%zero(negSwitches, posSwitches, bVal, weights%dat)
+        minus = weights%proc%minus(negSwitches, bVal, weights%dat)
+
+        prob = 1.0_dp - calcStayingProb(zero, minus, bVal)
+
+    end function zero_minus_switching_double
+
+    function minus_staying_double(weights, bVal, negSwitches, posSwitches) result(prob)
+        type(WeightObj_t), intent(in) :: weights
+        real(dp), intent(in) :: bVal, negSwitches, posSwitches
+        real(dp) :: prob
+
+        real(dp) :: zero, minus
+
+        zero = weights%proc%zero(negSwitches, posSwitches, bVal, weights%dat)
+        minus = weights%proc%minus(negSwitches, bVal, weights%dat)
+
+        prob = calcStayingProb(minus, zero, bVal)
+
+    end function minus_staying_double
+
+    function plus_staying_double(weights, bVal, negSwitches, posSwitches) result(prob)
+        type(WeightObj_t), intent(in) :: weights
+        real(dp), intent(in) :: bVal, negSwitches, posSwitches
+        real(dp) :: prob
+
+        real(dp) :: plus, zero
+
+        zero = weights%proc%zero(negSwitches, posSwitches, bVal, weights%dat)
+        plus = weights%proc%plus(posSwitches, bVal, weights%dat)
+
+        prob = calcStayingProb(plus, zero, bVal)
+
+    end function plus_staying_double
+
+    function minus_switching_double(weights, bVal, negSwitches, posSwitches) result(prob)
+        type(WeightObj_t), intent(in) :: weights
+        real(dp), intent(in) :: bVal, negSwitches, posSwitches
+        real(dp) :: prob
+
+        real(dp) :: zero, minus
+
+        zero = weights%proc%zero(negSwitches, posSwitches, bVal, weights%dat)
+        minus = weights%proc%minus(negSwitches, bVal, weights%dat)
+
+        prob = 1.0_dp - calcStayingProb(minus, zero, bVal)
+
+    end function minus_switching_double
+
+    function plus_switching_double(weights, bVal, negSwitches, posSwitches) result(prob)
+        type(WeightObj_t), intent(in) :: weights
+        real(dp), intent(in) :: bVal, negSwitches, posSwitches
+        real(dp) :: prob
+
+        real(dp) :: plus, zero
+
+        zero = weights%proc%zero(negSwitches, posSwitches, bVal, weights%dat)
+        plus = weights%proc%plus(posSwitches, bVal, weights%dat)
+
+        prob = 1.0_dp - calcStayingProb(plus, zero, bVal)
+
+    end function plus_switching_double
+
+    function probability_one(weights, bVal, negSwitches, posSwitches) result(prob)
+        type(WeightObj_t), intent(in) :: weights
+        real(dp), intent(in) :: bVal, negSwitches, posSwitches
+        real(dp) :: prob
+
+        unused_var(weights)
+        unused_var(bVal)
+        unused_var(negSwitches)
+        unused_var(posSwitches)
+
+        prob = 1.0_dp
+
+    end function probability_one
+
+    function getZero_fullStart(negSwitches, posSwitches, bVal, fullStart) &
+        result(zeroWeight)
+        real(dp), intent(in) :: negSwitches, posSwitches, bVal
+        type(WeightData_t), intent(in) :: fullStart
+        real(dp) :: zeroWeight
+        character(*), parameter :: this_routine = "getZero_fullStart"
+
+        ASSERT(negSwitches >= 0.0_dp)
+        ASSERT(posSwitches >= 0.0_dp)
+
+        zeroWeight = fullStart%F * fullStart%plus + fullStart%G * fullStart%minus + &
+                     (negSwitches * fullStart%G * fullStart%plus + &
+                      posSwitches * fullStart%F * fullStart%minus) / max(1.0_dp, bval)
+
+        ASSERT(zeroWeight >= 0.0_dp)
+
+    end function getZero_fullStart
+
+    subroutine calcRemainingSwitches_excitInfo_double(csf_i, excitInfo, &
+                                                      posSwitches, negSwitches)
+        ! subroutine to determine the number of remaining switches for double
+        ! excitations between spatial orbitals (i,j,k,l). orbital indices are
+        ! given in type(excitationInformation), extra flag is needed to
+        ! indicate that this is a double excitaiton then
+        type(CSF_Info_t), intent(in) :: csf_i
+        type(ExcitationInformation_t), intent(in) :: excitInfo
+        real(dp), intent(out) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
+
+        integer :: iOrb, end1
+        real(dp) :: oneCount, twoCount
+
+        ! have to calc. the overlap range of the excitations to more
+        ! efficiently decide between different kind of double excitations
+        ! even better, get all possible information through excitationIdentifier
+        ! assume exitInfo already calculated in calling function
+        ! update: already given as input
+        !excitInfo = excitationIdentifier(i, j, k, l)
+
+        ! intitialize values
+        oneCount = 0.0_dp
+        twoCount = 0.0_dp
+        posSwitches = 0.0_dp
+        negSwitches = 0.0_dp
+
+        if (excitInfo%typ == excit_type%raising .or. &
+            excitInfo%typ == excit_type%lowering) then
+
+            call calcRemainingSwitches_excitInfo_single(csf_i, excitInfo, &
+                                                        posSwitches, negSwitches)
+        else
+
+            select case (excitInfo%overlap)
+            case (0)
+                do iOrb = excitInfo%fullEnd - 1, excitInfo%secondStart, -1
+                    posSwitches(iOrb) = twoCount
+                    negSwitches(iOrb) = oneCount
+
+                    select case (csf_i%stepvector(iOrb))
+                    case (1)
+                        oneCount = oneCount + 1.0_dp
+                    case (2)
+                        twoCount = twoCount + 1.0_dp
+                    end select
+                end do
+
+                ! reset count past second excitations:
+                oneCount = 0.0_dp
+                twoCount = 0.0_dp
+
+                do iOrb = excitInfo%firstEnd - 1, excitInfo%fullStart, -1
+                    posSwitches(iOrb) = twoCount
+                    negSwitches(iOrb) = oneCount
+
+                    select case (csf_i%stepvector(iOrb))
+                    case (1)
+                        oneCount = oneCount + 1.0_dp
+                    case (2)
+                        twoCount = twoCount + 1.0_dp
+                    end select
+                end do
+
+            case (1)
+                ! not quite sure anymore why, but have to treat single overlap
+                ! excitations with alike generators different then mixed
+                ! because it is like a single excitation over the whole excitation
+                ! range
+                if (excitInfo%gen1 /= excitInfo%gen2) then
+                    end1 = 0
+                else
+                    end1 = excitInfo%firstEnd
+                end if
+
+                do iOrb = excitInfo%fullEnd - 1, excitInfo%firstEnd, -1
+                    posSwitches(iOrb) = twoCount
+                    negSwitches(iOrb) = oneCount
+
+                    select case (csf_i%stepvector(iOrb))
+                    case (1)
+                        oneCount = oneCount + 1.0_dp
+                    case (2)
+                        twoCount = twoCount + 1.0_dp
+                    end select
+                end do
+
+                ! reset the switch number if alike generators are present.
+                ! now i am confused.. no its fine.. we actually never want to
+                ! go into single overlap with alike generators, since it is
+                ! actually a single excitation then!
+                if (excitInfo%gen1 == excitInfo%gen2) then
+                    oneCount = 0.0_dp
+                    twoCount = 0.0_dp
+                end if
+
+                do iOrb = excitInfo%firstEnd - 1, excitInfo%fullStart, -1
+                    posSwitches(iOrb) = twoCount
+                    negSwitches(iOrb) = oneCount
+
+                    select case (csf_i%stepvector(iOrb))
+                    case (1)
+                        oneCount = oneCount + 1.0_dp
+                    case (2)
+                        twoCount = twoCount + 1.0_dp
+                    end select
+                end do
+
+            case default
+                ! proper overlap ranges:
+
+                ! do all those excitations in the same way, although this means
+                ! for some, that too much work is done.. e.g. for full-start
+                ! excitations with alike generators. where only the delta b = 0
+                ! branch has non-zero matrix elements in the overlap region
+                ! but these things can be handled in the excitations calculation
+
+                ! for certain index combinations some loops wont get executed
+                do iOrb = excitInfo%fullEnd - 1, excitInfo%firstEnd, -1
+                    posSwitches(iOrb) = twoCount
+                    negSwitches(iOrb) = oneCount
+
+                    select case (csf_i%stepvector(iOrb))
+                    case (1)
+                        oneCount = oneCount + 1.0_dp
+                    case (2)
+                        twoCount = twoCount + 1.0_dp
+                    end select
+                end do
+
+                oneCount = 0.0_dp
+                twoCount = 0.0_dp
+
+                do iOrb = excitInfo%firstEnd - 1, excitInfo%secondStart, -1
+                    posSwitches(iOrb) = twoCount
+                    negSwitches(iOrb) = oneCount
+
+                    select case (csf_i%stepvector(iOrb))
+                    case (1)
+                        oneCount = oneCount + 1.0_dp
+                    case (2)
+                        twoCount = twoCount + 1.0_dp
+                    end select
+                end do
+
+                oneCount = 0.0_dp
+                twoCount = 0.0_dp
+
+                do iOrb = excitInfo%secondStart - 1, excitInfo%fullStart, -1
+                    posSwitches(iOrb) = twoCount
+                    negSwitches(iOrb) = oneCount
+
+                    select case (csf_i%stepvector(iOrb))
+                    case (1)
+                        oneCount = oneCount + 1.0_dp
+                    case (2)
+                        twoCount = twoCount + 1.0_dp
+                    end select
+                end do
+
+                oneCount = 0.0_dp
+                twoCount = 0.0_dp
+
+            end select
+
+        end if
+
+    end subroutine calcRemainingSwitches_excitInfo_double
+
+    subroutine calcRemainingSwitches_excitInfo_single(csf_i, excitInfo, &
+                                                      posSwitches, negSwitches)
+        ! subroutine to determine the number of remaining switches for single
+        ! excitations between orbitals s, p given in type of excitationInformation.
+        ! The switches are given
+        ! as a list, to access it for each spatial orbital
+        ! stepValue = 1 -> positive delta B switch possibility
+        ! stepValue = 2 -> negative delta B switch possibility
+        ! assume exitInfo is already calculated
+        type(CSF_Info_t), intent(in) :: csf_i
+        type(ExcitationInformation_t), intent(in) :: excitInfo
+        real(dp), intent(out) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
+
+        integer :: iOrb
+        real(dp) :: oneCount, twoCount
+
+        ! ignore b > 0 forced switches for now. As they only change the bias
+        ! do not make the excitations calculations wrong if ignored.
+
+        oneCount = 0.0_dp
+        twoCount = 0.0_dp
+        posSwitches = 0.0_dp
+        negSwitches = 0.0_dp
+        ! have to count from the reversed ilut entries
+        do iOrb = excitInfo%fullEnd - 1, excitInfo%fullStart, -1
+            posSwitches(iOrb) = twoCount
+            negSwitches(iOrb) = oneCount
+
+            select case (csf_i%stepvector(iOrb))
+            case (1)
+                oneCount = oneCount + 1.0_dp
+            case (2)
+                twoCount = twoCount + 1.0_dp
+            end select
+        end do
+
+    end subroutine calcRemainingSwitches_excitInfo_single
+
+    subroutine setup_weight_funcs(t, csf_i, st, se, weight_funcs)
+        integer(n_int), intent(in) :: t(0:nifguga)
+        type(CSF_Info_t), intent(in) :: csf_i
+        integer, intent(in) :: st, se
+        type(BranchWeightArr_t), intent(out) :: weight_funcs(nSpatOrbs)
+
+        integer :: i, step, delta_b(nSpatOrbs)
+
+        delta_b = int(csf_i%B_real - calcB_vector_ilut(t(0:nifd)))
+
+        ! i know that a start was possible -> only check what the excitation
+        ! stepvalue is
+        ! damn.. where are my notes? im not sure about that..
+        if (isOne(t, st)) then
+            weight_funcs(st)%ptr => minus_start_single
+        else if (isTwo(t, st)) then
+            weight_funcs(st)%ptr => plus_start_single
+            ! i also need to consider an non-choosing start or deal with
+            ! that in the routines above..
+        end if
+
+        do i = st + 1, se - 1
+            if (csf_i%Occ_int(i) /= 1) cycle
+
+            step = csf_i%stepvector(i)
+
+            if (step == 1 .and. delta_b(i - 1) == -1) then
+                if (isOne(t, i)) then
+                    weight_funcs(i)%ptr => minus_staying_single
+                else
+                    weight_funcs(i)%ptr => minus_switching_single
+                end if
+            else if (step == 2 .and. delta_b(i - 1) == 1) then
+                if (isTwo(t, i)) then
+                    weight_funcs(i)%ptr => plus_staying_single
+                else
+                    weight_funcs(i)%ptr => plus_switching_single
+                end if
+                ! here i need a one-prob. if no switch was possible.. damn..
+            else
+                weight_funcs(i)%ptr => probability_one
+            end if
+
+        end do
+
+        ! similar to the start, only need to check  the stepvalue of the
+        ! excitaiton, since we know something must have worked
+        if (isOne(t, se)) then
+            if (delta_b(se - 1) == -1) then
+                weight_funcs(se)%ptr => minus_start_double
+            else
+                weight_funcs(se)%ptr => zero_plus_start_double
+            end if
+        else if (isTwo(t, se)) then
+            if (delta_b(se - 1) == -1) then
+                weight_funcs(se)%ptr => zero_minus_start_double
+            else
+                weight_funcs(se)%ptr => plus_start_double
+            end if
+        end if
+
+        do i = se + 1, nSpatOrbs
+            if (csf_i%Occ_int(i) /= 1) cycle
+
+            step = csf_i%stepvector(i)
+
+            ! also combine step and deltab value in a select case statement
+            select case (delta_b(i - 1) + step)
+            case (1)
+                ! d=1 + b=0 : 1
+                if (isOne(t, i)) then
+                    weight_funcs(i)%ptr => zero_plus_staying_double
+                else
+                    weight_funcs(i)%ptr => zero_plus_switching_double
+                end if
+            case (2)
+                ! d=2 + b=0 :2
+                if (isTwo(t, i)) then
+                    weight_funcs(i)%ptr => zero_minus_staying_double
+                else
+                    weight_funcs(i)%ptr => zero_minus_switching_double
+                end if
+
+            case (-1)
+                if (isOne(t, i)) then
+                    weight_funcs(i)%ptr => minus_staying_double
+                else
+                    weight_funcs(i)%ptr => minus_switching_double
+                end if
+
+            case (4)
+                if (isTwo(t, i)) then
+                    weight_funcs(i)%ptr => plus_staying_double
+                else
+                    weight_funcs(i)%ptr => plus_switching_double
+                end if
+
+                ! i also need a case default to prob 1. for a no-choice..
+            case default
+                weight_funcs(i)%ptr => probability_one
+
+            end select
+        end do
+
+    end subroutine setup_weight_funcs
+
+    function init_semiStartWeight(csf_i, sOrb, pOrb, negSwitches, posSwitches, bVal) &
+        result(semiStart)
+        type(CSF_Info_t), intent(in) :: csf_i
+        integer, intent(in) :: sOrb, pOrb
+        real(dp), intent(in) :: negSwitches, posSwitches, bVal
+        type(WeightObj_t) :: semiStart
+        character(*), parameter :: this_routine = "init_semiStartWeight"
+
+        type(WeightObj_t), target, save :: double
+
+        ASSERT(sOrb > 0 .and. sOrb <= nSpatOrbs)
+        ASSERT(pOrb > 0 .and. pOrb <= nSpatOrbs)
+        ASSERT(negSwitches >= 0.0_dp)
+        ASSERT(posSwitches >= 0.0_dp)
+
+        semiStart%dat%F = endFx(csf_i, sOrb)
+        semiStart%dat%G = endGx(csf_i, sOrb)
+
+        double = init_doubleWeight(csf_i, pOrb)
+
+        semiStart%ptr => double
+
+        semiStart%dat%minus = double%proc%minus(negSwitches, bVal, double%dat)
+        semiStart%dat%plus = double%proc%plus(posSwitches, bVal, double%dat)
+        semiStart%dat%zero = double%proc%zero(negSwitches, posSwitches, bVal, double%dat)
+
+        semiStart%proc%minus => getMinus_semiStart
+        semiStart%proc%plus => getPlus_semiStart
+
+        semiStart%initialized = .true.
+
+    end function init_semiStartWeight
+
+
+    function init_doubleWeight(csf_i, sOrb) result(doubleWeight)
+        ! obj has the same structure as the semi-start weight, reuse them!
+        type(CSF_Info_t), intent(in) :: csf_i
+        integer, intent(in) :: sOrb
+        type(WeightObj_t) :: doubleWeight
+        character(*), parameter :: this_routine = "init_doubleWeight"
+        ASSERT(sOrb > 0 .and. sOrb <= nSpatOrbs)
+
+        doubleWeight%dat%F = endFx(csf_i, sOrb)
+        doubleWeight%dat%G = endGx(csf_i, sOrb)
+
+        doubleWeight%proc%minus => getMinus_double
+        doubleWeight%proc%plus => getPlus_double
+        doubleWeight%proc%zero => getZero_double
+
+        doubleWeight%initialized = .true.
+
+    end function init_doubleWeight
+
+
+    function getMinus_double(nSwitches, bVal, double) result(minusWeight)
+        real(dp), intent(in) :: nSwitches, bVal
+        type(WeightData_t), intent(in) :: double
+        real(dp) :: minusWeight
+        character(*), parameter :: this_routine = "getMinus_double"
+        ASSERT(nSwitches >= 0.0_dp)
+
+        minusWeight = double%F + nSwitches / max(1.0_dp, bVal)
+
+        ASSERT(minusWeight >= 0.0_dp)
+    end function getMinus_double
+
+    function getPlus_double(nSwitches, bVal, double) result(plusWeight)
+        real(dp), intent(in) :: nSwitches, bVal
+        type(WeightData_t), intent(in) :: double
+        real(dp) :: plusWeight
+        character(*), parameter :: this_routine = "getPlus_double"
+        ASSERT(nSwitches >= 0.0_dp)
+
+        ! update: the correct check for the b value in the case of the +2
+        ! double excitation branch should be that its not allowed to be
+        ! less than 2 on the current orbital with the new bVector
+        ! implementation:
+        ! or otherwise the excitation would lead to negative be values
+        if (bVal < 2.0_dp) then
+            plusWeight = 0.0_dp
+        else
+            plusWeight = double%G + nSwitches / bVal
+        end if
+
+        ASSERT(plusWeight >= 0.0_dp)
+    end function getPlus_double
+
+    function get_forced_zero_double(negSwitches, posSwitches, bVal, double) &
+        result(zeroWeight)
+        real(dp), intent(in) :: posSwitches, negSwitches, bVal
+        type(WeightData_t), intent(in) :: double
+        real(dp) :: zeroWeight
+
+        ! remove the order(1) branch as we want to switch at the end!
+        if (near_zero(bVal)) then
+            zeroWeight = negSwitches * double%G + posSwitches * double%F
+        else
+            zeroWeight = 1.0_dp / bVal * (negSwitches * double%G + posSwitches * double%F)
+        end if
+
+    end function get_forced_zero_double
+
+    function getZero_double(negSwitches, posSwitches, bVal, double) &
+        result(zeroWeight)
+        real(dp), intent(in) :: posSwitches, negSwitches, bVal
+        type(WeightData_t), intent(in) :: double
+        real(dp) :: zeroWeight
+        character(*), parameter :: this_routine = "getZero_double"
+        ASSERT(negSwitches >= 0.0_dp)
+        ASSERT(posSwitches >= 0.0_dp)
+
+        ! UPDATE: cant set it to one, because there are cases, when a 0
+        ! branch comes to a 2 in a double excitation, where one has to
+        ! compare against the -2 branch, which can also be non-zero
+        ! so to have the correct weights, just ignore b
+        zeroWeight = 1.0_dp + &
+                     (negSwitches * double%G + posSwitches * double%F) / max(1.0_dp, bVal)
+
+        ASSERT(zeroWeight >= 0.0_dp)
+    end function getZero_double
+
+    function getMinus_semiStart(nSwitches, bVal, semiStart) result(minusWeight)
+        real(dp), intent(in) :: nSwitches, bVal
+        type(WeightData_t), intent(in) :: semiStart
+        real(dp) :: minusWeight
+        character(*), parameter :: this_routine = "getMinus_semiStart"
+
+        ASSERT(nSwitches >= 0.0_dp)
+        ! change b value treatment, by just checking if excitations is
+        ! technically possible if b == 0
+
+        minusWeight = semiStart%F * semiStart%zero + semiStart%G * semiStart%minus + &
+                      nSwitches / max(1.0_dp, bval) * (semiStart%F * semiStart%plus + semiStart%G * semiStart%zero)
+
+        ASSERT(minusWeight >= 0.0_dp)
+
+    end function getMinus_semiStart
+
+    function getPlus_semiStart(nSwitches, bVal, semiStart) result(plusWeight)
+        real(dp), intent(in) :: nSwitches, bVal
+        type(WeightData_t), intent(in) :: semiStart
+        real(dp) :: plusWeight
+        character(*), parameter :: this_routine = "getPlus_semiStart"
+
+        ASSERT(nSwitches >= 0.0_dp)
+        ! just set +1 branch probability to 0 if b == 0
+
+        if (near_zero(bVal)) then
+            plusWeight = 0.0_dp
+        else
+            plusWeight = semiStart%G * semiStart%zero + semiStart%F * semiStart%plus + &
+                         nSwitches / bVal * (semiStart%G * semiStart%minus + semiStart%F * semiStart%zero)
+        end if
+
+        ASSERT(plusWeight >= 0.0_dp)
+
+    end function getPlus_semiStart
 end module guga_matrixElements
