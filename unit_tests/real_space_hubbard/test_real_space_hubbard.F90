@@ -125,7 +125,6 @@ contains
         real(dp), allocatable :: e_values(:)
         HElement_t(dp), allocatable :: e_vecs(:,:), e_vecs_right(:,:), e_vecs_left(:,:)
         integer(n_int), allocatable :: dummy(:,:)
-        real(dp) :: j
         real(dp), allocatable :: j_vec(:), e_orig(:), test_evec(:,:)
         real(dp) :: exact_double_occ, e_pot_orig, e_kin_orig, overlap, &
                     double_occ_t, e_pot_t, e_kin_t, e_kin_sim
@@ -425,7 +424,6 @@ contains
         integer :: n_j = 100, i, iunit
         integer(n_int), allocatable :: hf_states(:,:), phi_states(:,:)
         real(dp) :: J
-        logical :: t_full_ed = .true.
 
         ! first we need the HF solution in real-space
         ! is still need to decide, if i want to store the basis in ilut or
@@ -484,6 +482,7 @@ contains
         unused_var(phi_L_states)
         unused_var(phi_L_coeff)
         unused_var(phi_R_coeff)
+        unused_var(phi_R_states)
         get_overlap = 0.0_dp
         call stop_all("get_overlap", "TODO")
 
@@ -657,9 +656,8 @@ contains
         integer, intent(in) :: nI(nel)
         real(dp) :: J(:), U
         integer, intent(in) :: hilbert_space(:,:)
-        character(*), parameter :: this_routine = "exact_transcorrelation"
 
-        integer :: n_states, iunit, ind, i, k, l, flip(nel), hf_ind
+        integer :: n_states, iunit, ind, i, k, flip(nel), hf_ind
         real(dp), allocatable :: e_values(:)
         HElement_t(dp), allocatable :: e_vec(:,:), gs_vec(:)
         real(dp) :: gs_energy_orig, gs_energy, hf_coeff_hop(size(J)), gs_energy_spin, &
@@ -677,7 +675,7 @@ contains
         HElement_t(dp), allocatable :: t_mat(:,:), t_mat_spin(:,:), gutzwiller(:,:)
         real(dp), allocatable :: neci_eval(:), e_vec_hop(:,:), e_vec_spin(:,:), neci_spin_eval(:)
         real(dp), allocatable :: e_vec_hop_left(:,:), e_vec_onsite(:,:), &
-                                 neci_onsite_eval(:), e_vec_onsite_left(:,:)
+                                 e_vec_onsite_left(:,:)
         character(30) :: filename, J_str
         logical :: t_calc_singles, t_flip, t_norm_inside, t_norm_inside_sen, &
                    t_degen
@@ -1506,7 +1504,6 @@ contains
 
         integer, allocatable :: nI(:)
         integer :: n_iters, n_orbs, i
-        type(excit_gen_store_type) :: store
 
         n_iters = 1000000
 
@@ -1661,7 +1658,6 @@ contains
         integer(n_int), allocatable :: ilut(:)
         real(dp) :: cum_sum
         real(dp), allocatable :: cum_arr(:)
-        integer, allocatable :: neighbors(:)
 
         trans_corr_param = 0.0
         nel = 2
@@ -1922,7 +1918,7 @@ contains
 
     subroutine init_real_space_hubbard_test
         use SystemData, only: lattice_type, length_x, length_y, nbasis, nel, &
-                              bhub, uhub, ecore, t_new_real_space_hubbard
+                              bhub, ecore
         use OneEInts, only: tmat2d
         use fcimcdata, only: pSingles, pDoubles, tsearchtau, tsearchtauoption
         use CalcData, only: tau
@@ -2661,10 +2657,6 @@ contains
     end subroutine init_tmat_test
 
 
-    subroutine test_init_lattice()
-
-    end subroutine test_init_lattice
-
     subroutine get_umat_el_hub_test
         use SystemData, only: uhub, nbasis
 
@@ -2690,7 +2682,7 @@ contains
 
     subroutine determine_optimal_time_step_test
         use SystemData, only: nel, nOccAlpha, nOccBeta, uhub, bhub, &
-                              t_new_real_space_hubbard, t_tJ_model, t_heisenberg_model
+                              t_new_real_space_hubbard
         use lattice_mod, only: lattice, determine_optimal_time_step
 
         real(dp) :: time, time_death

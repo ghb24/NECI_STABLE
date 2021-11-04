@@ -1,4 +1,4 @@
-macro (flexible_add_unit_test _config test_name)
+macro (add_unit_test _config test_name)
         neci_add_test(
     	    TARGET test_${_config}_${test_name}
 	    SOURCES
@@ -20,14 +20,9 @@ macro (flexible_add_unit_test _config test_name)
 	)
 endmacro()
 
-macro (add_unit_test test_name)
-    flexible_add_unit_test( neci ${test_name} )
-endmacro()
-
-
 macro (add_unit_test_all_configs test_name)
     foreach( _config ${${PROJECT_NAME}_CONFIGURATIONS} )
-        flexible_add_unit_test( ${_config} ${test_name} )
+        add_unit_test( ${_config} ${test_name} )
     endforeach()
 endmacro()
 
