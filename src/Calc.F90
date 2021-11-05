@@ -1627,7 +1627,7 @@ contains
                     t_fast_pops_core = .true.
                 end if
                 if (tSemiStochastic .and. semistoch_shift_iter == 0) then
-                    ! Force initialization of determinisitc space after initializing 
+                    ! Force initialization of determinisitc space after initializing
                     ! initiator space.
                     semistoch_shift_iter = 1
                     tSemiStochastic = .false.

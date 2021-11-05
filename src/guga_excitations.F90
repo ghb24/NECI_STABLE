@@ -54,7 +54,7 @@ module guga_excitations
     use FciMCData, only: ilutRef, tFillingStochRDMOnFly
 
     use util_mod, only: binary_search_first_ge, abs_l1, operator(.isclose.), &
-                        operator(.div.), near_zero, stop_all
+                        operator(.div.), near_zero, stop_all, neci_flush
 
     use GenRandSymExcitNUMod, only: RandExcitSymLabelProd
 
@@ -68,8 +68,7 @@ module guga_excitations
     use umatcache, only: gtID
 
     use guga_procedure_pointers, only: &
-                calc_orbital_pgen_contr, calc_mixed_contr, calc_mixed_start_r2l_contr, &
-                calc_mixed_start_l2r_contr, calc_mixed_end_l2r_contr, calc_mixed_end_r2l_contr, &
+                calc_orbital_pgen_contr, &
                 calc_orbital_pgen_contrib_start, calc_orbital_pgen_contrib_end
 
     use Umatcache, only: UMat2D
@@ -88,12 +87,18 @@ module guga_excitations
 
 
 
-    use guga_matrixElements, only: calc_mixed_start_contr_sym, calc_mixed_end_contr_sym
+    use guga_matrixElements, only: &
+        calc_mixed_start_contr_sym, calc_mixed_end_contr_sym, &
+        calc_mixed_contr_sym
 
 
-    use guga_matrixElements, only: get_forced_zero_double, getminus_double, getminus_semistart, getplus_double, getplus_semistart, init_doubleweight, init_semistartweight
 
-    implicit none
+    use guga_matrixElements, only: &
+        get_forced_zero_double, getminus_double, getminus_semistart, &
+        getplus_double, getplus_semistart, init_doubleweight, &
+        init_semistartweight
+
+    better_implicit_none
 
     private
     public :: global_excitinfo, print_excitinfo, &
@@ -111,8 +116,7 @@ module guga_excitations
               pickorbs_sym_uniform_ueg_single, pickorbs_sym_uniform_ueg_double, &
               pickorbs_sym_uniform_mol_single, pickorbs_sym_uniform_mol_double, &
               calc_orbital_pgen_contr_ueg, calc_orbital_pgen_contr_mol, &
-              calc_mixed_contr_sym, &
-              calc_mixed_start_contr_sym, calc_mixed_x2x_ueg, &
+              calc_mixed_x2x_ueg, &
               calc_mixed_end_contr_sym, &
               calc_off_diag_guga_ref_direct, &
               pickorbs_real_hubbard_single, pickorbs_real_hubbard_double, &
@@ -468,7 +472,7 @@ contains
             ! just to be save that a switch always happens at the end
             ! print that out for now
         else
-            call calc_mixed_contr(ilut, t, csf_i, excitInfo, pgen, integral)
+            call calc_mixed_contr_sym(ilut, t, csf_i, excitInfo, pgen, integral)
         end if
 
         if (near_zero(integral)) then
@@ -617,424 +621,6 @@ contains
         end if
 
     end subroutine calc_orbital_pgen_contr_ueg
-
-    subroutine calc_mixed_contr_sym(ilut, t, csf_i, excitInfo, pgen, integral)
-        ! new implementation of the pgen contribution calculation for
-        ! fullstart into fullstop excitation with mixed generators
-        ! this is a specific implementation for the hubbard/ueg model with
-        ! full k-point symmetry information, since in this case the condition
-        ! ki + kj = ka + kb is always fullfilled since ka = ki, kj = kb or vv.
-        ! NEW: combine pgen and matrix element contribution finally!
-        ! to optimize!
-        integer(n_int), intent(in) :: ilut(0:nifguga), t(0:nifguga)
-        type(CSF_Info_t), intent(in) :: csf_i
-        type(ExcitationInformation_t), intent(inout) :: excitInfo
-        real(dp), intent(out) :: pgen
-        HElement_t(dp), intent(out) :: integral
-
-        integer :: first, last, deltaB(nSpatOrbs), i, j, k, step1, step2
-        real(dp) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs), &
-                    zeroWeight, minusWeight, plusWeight, branch_weight, tempWeight, &
-                    inter, tempWeight_1, &
-                    above_cpt, below_cpt
-        type(WeightObj_t) :: weights
-        logical :: above_flag, below_flag
-        HElement_t(dp) :: temp_int
-        type(ExcitationInformation_t) :: tmp_excitInfo
-
-        tmp_excitInfo = excitInfo
-
-        ! also need the pgen contributions from all other index combinations
-        ! shich could lead to this excitation
-        first = findFirstSwitch(ilut, t, excitInfo%fullStart, excitInfo%fullEnd)
-        last = findLastSwitch(ilut, t, first, excitInfo%fullEnd)
-
-        below_flag = .false.
-        above_flag = .false.
-        pgen = 0.0_dp
-
-        deltaB = int(csf_i%B_real - calcB_vector_ilut(t(0:nifd)))
-
-        inter = 1.0_dp
-        integral = h_cast(0.0_dp)
-
-        ! calculate the always involved intermediate matrix element from
-        ! first switch to last switch
-        do i = first + 1, last - 1
-            if (csf_i%Occ_int(i) /= 1) cycle
-
-            step1 = csf_i%stepvector(i)
-            step2 = getStepvalue(t, i)
-            call getDoubleMatrixElement(step2, step1, deltaB(i - 1), gen_type%L, gen_type%R, &
-                                        csf_i%B_real(i), 1.0_dp, x1_element=tempWeight)
-
-            inter = inter * tempWeight
-        end do
-
-        ! also have to recalc. the ab-orbital cumulative probability distrib
-        ! essentially this should be the only difference to molucular
-        ! calculations.. where i additionally have to check if the corresponding
-        ! orbitals are symmetry allowed.. todo
-        ! cant do that so generally out here.. since this list depends on the
-        ! picked electrons too! -> which i have to recalc.
-
-        ! use a global list of open orbitals to reduce computational amount
-        ! and also check for (d=1,b=1) / (d=2,b=0) spot below/above there
-        ! is no additional contribution, due to 0 matrix element
-        ! hm... or is it too much effort to recalc. a list of open orbitals
-        ! generally .. since its actually only used here,
-        ! or think about storing a persistent list of open orbitals, and
-        ! the number of open orbitals for every CSF updated and calculated
-        ! during excitation generation...
-
-        ! still think about that and then make a new efficient implementation
-        ! todo!
-        ! better to first loop over j, since only for each new end, the weights
-        ! have to be recalced..
-
-        do j = last, nSpatOrbs
-            if (csf_i%Occ_int(j) /= 1) cycle
-
-            ! calculate the remaining switches once for each (j) but do it
-            ! for the worst case until i = 1
-
-            ! check if this is the last end needed to consider
-            if (csf_i%stepvector(j) == 2 .and. csf_i%B_int(j) == 0) then
-                above_flag = .true.
-            end if
-
-            excitInfo%fullStart = 1
-            excitInfo%secondStart = 1
-            excitInfo%fullEnd = j
-            excitInfo%firstEnd = j
-            ! reinit remainings switches and weights
-            ! i think i could also do a on-the fly switch recalculation..
-            ! so only the weights have to be reinited
-            call calcRemainingSwitches_excitInfo_double(csf_i, excitInfo, posSwitches, &
-                                                        negSwitches)
-
-            weights = init_doubleWeight(csf_i, j)
-
-            ! i have to reset the below flag each iteration of j..
-            below_flag = .false.
-
-            do i = first, 1, -1
-                if (csf_i%Occ_int(i) /= 1) cycle
-
-                if (below_flag) exit
-
-                ! this is the only difference for molecular/hubbard/ueg
-                ! calculations
-                call calc_orbital_pgen_contr(csf_i, [2 * i, 2 * j], above_cpt, &
-                                             below_cpt)
-
-                ! yes they can, and then this orbital does not contribute to the
-                ! obtained excitaiton -> cycle..
-                ! only from the names.. shouldnt here be below_cpt?
-                ! ah ok below is the below_flag!
-
-                ! if the bottom stepvector d = 1 and b = 1 there is no
-                ! additional contribution from below, since the x1 matrix
-                ! element is 0
-                ! same if d = 2 and b = 0 for fullstop stepvector
-                if (csf_i%stepvector(i) == 1 .and. csf_i%B_int(i) == 1) then
-                    below_flag = .true.
-                end if
-
-                if (near_zero(above_cpt)) cycle
-
-                if (near_zero(below_cpt)) cycle
-
-                ! calculate the branch probability
-
-                temp_int = (get_umat_el(i, j, j, i) + get_umat_el(j, i, i, j)) / 2.0_dp
-
-                if (t_heisenberg_model .or. t_tJ_model) then
-                    ! in the heisenberg and t-J i never pick combinations,
-                    ! with 0 matrix element..
-                    if (near_zero(temp_int)) cycle
-                end if
-
-                zeroWeight = weights%proc%zero(negSwitches(i), &
-                                               posSwitches(i), csf_i%B_real(i), weights%dat)
-
-                ! deal with the start seperately:
-                if (csf_i%stepvector(i) == 1) then
-                    plusWeight = weights%proc%plus(posSwitches(i), &
-                                                   csf_i%B_real(i), weights%dat)
-                    if (isOne(t, i)) then
-                        branch_weight = zeroWeight / (zeroWeight + plusWeight)
-                    else
-                        branch_weight = plusWeight / (zeroWeight + plusWeight)
-                    end if
-                else
-                    minusWeight = weights%proc%minus(negSwitches(i), &
-                                                     csf_i%B_real(i), weights%dat)
-                    if (isTwo(t, i)) then
-                        branch_weight = zeroWeight / (zeroWeight + minusWeight)
-                    else
-                        branch_weight = minusWeight / (zeroWeight + minusWeight)
-                    end if
-                end if
-
-                ! get the starting matrix element
-                step1 = csf_i%stepvector(i)
-                step2 = getStepvalue(t, i)
-                call getDoubleMatrixElement(step2, step1, -1, gen_type%L, gen_type%R, &
-                                            csf_i%B_real(i), 1.0_dp, x1_element=tempWeight)
-
-                ! loop over excitation range
-                ! distinguish between different regimes
-                ! if i do it until switch - 1 -> i know that dB = 0 and
-                ! the 2 stepvalues are always the same..
-                do k = i + 1, first - 1
-                    if (csf_i%Occ_int(k) /= 1) cycle
-
-                    step1 = csf_i%stepvector(k)
-                    ! only 0 branch here
-                    call getDoubleMatrixElement(step1, step1, 0, gen_type%L, gen_type%R, &
-                                                csf_i%B_real(k), 1.0_dp, x1_element=tempWeight_1)
-
-                    tempWeight = tempWeight * tempWeight_1
-
-                    zeroWeight = weights%proc%zero(negSwitches(k), &
-                                                   posSwitches(k), csf_i%B_real(k), weights%dat)
-
-                    if (step1 == 1) then
-                        plusWeight = weights%proc%plus(posSwitches(k), &
-                                                       csf_i%B_real(k), weights%dat)
-
-                        branch_weight = branch_weight * calcStayingProb( &
-                                        zeroWeight, plusWeight, csf_i%B_real(k))
-
-                    else
-                        minusWeight = weights%proc%minus(negSwitches(k), &
-                                                         csf_i%B_real(k), weights%dat)
-
-                        branch_weight = branch_weight * calcStayingProb( &
-                                        zeroWeight, minusWeight, csf_i%B_real(k))
-                    end if
-
-                end do
-
-                ! then do first switch site seperately, if (i) is not first
-                ! and what if (i) is first??
-                if (i /= first) then
-                    step1 = csf_i%stepvector(first)
-
-                    zeroWeight = weights%proc%zero(negSwitches(first), &
-                           posSwitches(first), csf_i%B_real(first), weights%dat)
-
-                    if (step1 == 1) then
-                        ! i know that step2 = 2
-                        call getDoubleMatrixElement(2, 1, 0, gen_type%L, gen_type%R, &
-                                csf_i%B_real(first), 1.0_dp, x1_element=tempWeight_1)
-
-                        plusWeight = weights%proc%plus(posSwitches(first), &
-                                                       csf_i%B_real(first), weights%dat)
-
-                        branch_weight = branch_weight * (1.0_dp - calcStayingProb( &
-                                         zeroWeight, plusWeight, csf_i%B_real(first)))
-
-                    else
-                        ! i know that step2 = 1
-                        call getDoubleMatrixElement(1, 2, 0, gen_type%L, gen_type%R, &
-                            csf_i%B_real(first), 1.0_dp, x1_element=tempWeight_1)
-
-                        minusWeight = weights%proc%minus(negSwitches(first), &
-                                             csf_i%B_real(first), weights%dat)
-
-                        branch_weight = branch_weight * (1.0_dp - calcStayingProb( &
-                                         zeroWeight, minusWeight, csf_i%B_real(first)))
-
-                    end if
-                    tempWeight = tempWeight * tempWeight_1
-
-                end if
-
-                ! loop over the range where switch happened
-                do k = first + 1, last - 1
-                    ! in this region i know, that the matrix element is
-                    ! definetly not 0, since otherwise the excitation would
-                    ! have been aborted before
-                    ! combine stepvalue and deltaB info in select statement
-
-                    if (csf_i%Occ_int(k) /= 1) cycle
-
-                    zeroWeight = weights%proc%zero(negSwitches(k), &
-                                       posSwitches(k), csf_i%B_real(k), weights%dat)
-
-                    select case (deltaB(k - 1) + csf_i%stepvector(k))
-
-                    case (1)
-                        ! d=1 + b=0 : 1
-                        plusWeight = weights%proc%plus(posSwitches(k), &
-                                                       csf_i%B_real(k), weights%dat)
-                        if (isOne(t, k)) then
-                            branch_weight = branch_weight * calcStayingProb( &
-                                            zeroWeight, plusWeight, csf_i%B_real(k))
-                        else
-                            branch_weight = branch_weight * (1.0_dp - calcStayingProb( &
-                                             zeroWeight, plusWeight, csf_i%B_real(k)))
-                        end if
-
-                    case (2)
-                        ! d=2 + b=0 : 2
-                        minusWeight = weights%proc%minus(negSwitches(k), &
-                                                         csf_i%B_real(k), weights%dat)
-
-                        if (isTwo(t, k)) then
-                            branch_weight = branch_weight * calcStayingProb( &
-                                            zeroWeight, minusWeight, csf_i%B_real(k))
-                        else
-                            branch_weight = branch_weight * (1.0_dp - calcStayingProb( &
-                                                 zeroWeight, minusWeight, csf_i%B_real(k)))
-                        end if
-
-                    case (-1)
-                        ! d=1 + b=-2 : -1
-                        minusWeight = weights%proc%minus(negSwitches(k), &
-                                                 csf_i%B_real(k), weights%dat)
-
-                        if (isOne(t, k)) then
-                            branch_weight = branch_weight * calcStayingProb(minusWeight, &
-                                                            zeroWeight, csf_i%B_real(k))
-                        else
-                            branch_weight = branch_weight * (1.0_dp - calcStayingProb( &
-                                             minusWeight, zeroWeight, csf_i%B_real(k)))
-                        end if
-
-                    case (4)
-                        ! d=2 + b=2 : 4
-                        zeroWeight = weights%proc%zero(negSwitches(k), &
-                                           posSwitches(k), csf_i%B_real(k), weights%dat)
-
-                        plusWeight = weights%proc%plus(posSwitches(k), &
-                                                   csf_i%B_real(k), weights%dat)
-
-                        if (isTwo(t, k)) then
-                            branch_weight = branch_weight * calcStayingProb(plusWeight, &
-                                                            zeroWeight, csf_i%B_real(k))
-                        else
-                            branch_weight = branch_weight * (1.0_dp - calcStayingProb( &
-                                                 plusWeight, zeroWeight, csf_i%B_real(k)))
-                        end if
-
-                    end select
-
-                end do
-
-                ! more efficient to do "last" step seperately, since i have to
-                ! check deltaB value and also have to consider matrix element
-                ! but only of (j) is not last or otherwise already dealt with
-                if (j /= last) then
-
-                    if (csf_i%stepvector(last) == 1) then
-                        ! then i know step2 = 2 & dB = -2!
-                        call getDoubleMatrixElement(2, 1, -2, gen_type%L, gen_type%R, &
-                                    csf_i%B_real(last), 1.0_dp, x1_element=tempWeight_1)
-
-                        zeroWeight = weights%proc%zero(negSwitches(last), &
-                                       posSwitches(last), csf_i%B_real(last), weights%dat)
-
-                        minusWeight = weights%proc%minus(negSwitches(last), &
-                                             csf_i%B_real(last), weights%dat)
-
-                        branch_weight = branch_weight * (1.0_dp - calcStayingProb( &
-                                             minusWeight, zeroWeight, csf_i%B_real(last)))
-
-                    else
-                        ! i know step2 == 1 and dB = +2
-                        call getDoubleMatrixElement(1, 2, +2, gen_type%L, gen_type%R, &
-                                        csf_i%B_real(last), 1.0_dp, x1_element=tempWeight_1)
-
-                        zeroWeight = weights%proc%zero(negSwitches(last), &
-                                           posSwitches(last), csf_i%B_real(last), weights%dat)
-
-                        plusWeight = weights%proc%plus(posSwitches(last), &
-                                                   csf_i%B_real(last), weights%dat)
-
-                        branch_weight = branch_weight * (1.0_dp - calcStayingProb( &
-                                             plusWeight, zeroWeight, csf_i%B_real(last)))
-
-                    end if
-
-                    tempWeight = tempWeight * tempWeight_1
-                end if
-
-                ! then do remaining top range, where i know stepvalues are
-                ! the same again and dB = 0 always!
-                do k = last + 1, j - 1
-                    if (csf_i%Occ_int(k) /= 1) cycle
-
-                    step1 = csf_i%stepvector(k)
-                    ! only 0 branch here
-                    call getDoubleMatrixElement(step1, step1, 0, gen_type%L, gen_type%R, &
-                                    csf_i%B_real(k), 1.0_dp, x1_element=tempWeight_1)
-
-                    tempWeight = tempWeight * tempWeight_1
-
-                    zeroWeight = weights%proc%zero(negSwitches(k), &
-                               posSwitches(k), csf_i%B_real(k), weights%dat)
-
-                    if (step1 == 1) then
-                        ! i know step2 = 1 als
-                        plusWeight = weights%proc%plus(posSwitches(k), &
-                                               csf_i%B_real(k), weights%dat)
-
-                        branch_weight = branch_weight * calcStayingProb( &
-                                        zeroWeight, plusWeight, csf_i%B_real(k))
-                    else
-                        minusWeight = weights%proc%minus(negSwitches(k), &
-                                                         csf_i%B_real(k), weights%dat)
-                        branch_weight = branch_weight * calcStayingProb( &
-                                        zeroWeight, minusWeight, csf_i%B_real(k))
-                    end if
-                end do
-
-                ! and handle fullend
-                ! and then do the the end value at j
-                step1 = csf_i%stepvector(j)
-                step2 = getStepvalue(t, j)
-                call getMixedFullStop(step2, step1, deltaB(j - 1), csf_i%B_real(j), &
-                                      x1_element=tempWeight_1)
-
-                temp_int = tempWeight * tempWeight_1 * inter * temp_int
-
-                ! and multiply and add up all contribution elements
-                integral = integral + temp_int
-
-                if (t_trunc_guga_pgen .or. &
-                    (t_trunc_guga_pgen_noninits .and. .not. is_init_guga)) then
-                    if (branch_weight < trunc_guga_pgen) then
-                        branch_weight = 0.0_dp
-                    end if
-                end if
-
-                if (t_trunc_guga_matel) then
-                    if (abs(tempWeight * tempWeight_1 * inter) < trunc_guga_matel) then
-                        branch_weight = 0.0_dp
-                    end if
-                end if
-
-                ! add up pgen contributions..
-                pgen = pgen + (below_cpt + above_cpt) * branch_weight
-
-                ! check if i deal with that correctly...
-                if (below_flag) exit
-            end do
-            ! todo: i cant use tthat like that.. or else some combinations
-            ! of i and j get left out! i have to reinit it somehow..
-            ! not yet sure how..
-            if (above_flag) exit
-        end do
-
-        ! multiply by always same probability to pick the 2 electrons
-        if (.not. (t_heisenberg_model .or. t_tJ_model)) then
-            pgen = pgen / real(ElecPairs, dp)
-        end if
-
-    end subroutine calc_mixed_contr_sym
 
     subroutine calcDoubleR2L_stochastic(ilut, csf_i, excitInfo, t, branch_pgen, &
                                         posSwitches, negSwitches, opt_weight)
@@ -2062,7 +1648,7 @@ contains
             pgen = branch_pgen
 
         else
-            call calc_mixed_end_l2r_contr(ilut, csf_i, t, excitInfo, branch_pgen, pgen, &
+            call calc_mixed_end_contr_sym(ilut, csf_i, t, excitInfo, branch_pgen, pgen, &
                                           integral)
         end if
 
@@ -2317,7 +1903,7 @@ contains
             pgen = branch_pgen
 
         else
-            call calc_mixed_end_r2l_contr(ilut, csf_i, t, excitInfo, branch_pgen, pgen, integral)
+            call calc_mixed_end_contr_sym(ilut, csf_i, t, excitInfo, branch_pgen, pgen, integral)
         end if
 
         if (tFillingStochRDMOnFly) then
@@ -3531,7 +3117,7 @@ contains
             pgen = branch_pgen
 
         else
-            call calc_mixed_start_r2l_contr(ilut, csf_i, t, excitInfo, branch_pgen, pgen, &
+            call calc_mixed_start_contr_sym(ilut, csf_i, t, excitInfo, branch_pgen, pgen, &
                                             integral)
         end if
 
@@ -3807,7 +3393,7 @@ contains
             call calc_mixed_start_contr_approx(t, csf_i, excitInfo, integral)
             pgen = branch_pgen
         else
-            call calc_mixed_start_l2r_contr(ilut, csf_i, t, excitInfo, branch_pgen, pgen, integral)
+            call calc_mixed_start_contr_sym(ilut, csf_i, t, excitInfo, branch_pgen, pgen, integral)
         end if
 
         if (tFillingStochRDMOnFly) then

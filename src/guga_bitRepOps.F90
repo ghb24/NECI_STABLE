@@ -2254,19 +2254,13 @@ contains
         end do
     end function count_alpha_orbs_ij
 
-    elemental function count_open_orbs_ij(csf_i, i, j) result(nOpen)
+    integer elemental function count_open_orbs_ij(csf_i, i, j)
         ! function to calculate the number of open orbitals between spatial
         ! orbitals i and j in ilut. i and j have to be given ordered i<j
         type(CSF_Info_t), intent(in) :: csf_i
         integer, intent(in) :: i, j
-        integer :: nOpen
-        character(*), parameter :: this_routine = "count_open_orbs_ij"
-        ! scrap this assert and change in that way to output 0 if the indices
-        ! dont fit or are reversed. to deal with to short overlap ranges
-        ASSERT(0 < i .and. i <= nSpatOrbs)
-        ASSERT(0 < j .and. j <= nSpatOrbs)
-
-        nOpen = count(csf_i%stepvector(i : j) == 1 .or. csf_i%stepvector(i : j) == 2)
+        count_open_orbs_ij = count(csf_i%stepvector(i : j) == 1 &
+                                   .or. csf_i%stepvector(i : j) == 2)
     end function count_open_orbs_ij
 
     function getExcitationRangeMask(i, j) result(mask)

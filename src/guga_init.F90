@@ -27,8 +27,7 @@ module guga_init
                          n_excit_info_bits
 
     use guga_procedure_pointers, only: pickOrbitals_single, pickOrbitals_double, &
-                        calc_orbital_pgen_contr, calc_mixed_contr, calc_mixed_start_l2r_contr, &
-                        calc_mixed_start_r2l_contr, calc_mixed_end_r2l_contr, calc_mixed_end_l2r_contr, &
+                        calc_orbital_pgen_contr, &
                         pick_first_orbital, orb_pgen_contrib_type_2, orb_pgen_contrib_type_3, &
                         calc_off_diag_guga_ref, calc_orbital_pgen_contrib_start, &
                         calc_orbital_pgen_contrib_end
@@ -36,8 +35,6 @@ module guga_init
     use guga_excitations, only: pickOrbs_sym_uniform_ueg_single, pickOrbs_sym_uniform_ueg_double, &
                         pickOrbs_sym_uniform_mol_single, pickOrbs_sym_uniform_mol_double, &
                         calc_orbital_pgen_contr_ueg, calc_orbital_pgen_contr_mol, &
-                        calc_mixed_contr_sym, &
-                        calc_mixed_start_contr_sym,&
                         calc_mixed_x2x_ueg, &
                         calc_mixed_end_contr_sym, &
                         calc_off_diag_guga_ref_direct, &
@@ -57,7 +54,7 @@ module guga_init
 
     use back_spawn, only: setup_virtual_mask
 
-    use util_mod, only: operator(.div.)
+    use util_mod, only: operator(.div.), stop_all
 
     use guga_bitRepOps, only: init_guga_bitrep, new_CSF_Info_t, current_csf_i, csf_ref
 
@@ -67,8 +64,7 @@ module guga_init
                                   calc_orbital_pgen_contr_start_pchb, &
                                   calc_orbital_pgen_contr_end_pchb
 
-    ! variable declaration
-    implicit none
+    better_implicit_none
 
     private
 
@@ -80,12 +76,6 @@ contains
         character(*), parameter :: this_routine = "init_guga_orbital_pickers"
         ! this routine, depending on the input set the orbital pickers
         ! to differentiate between the different excitation generators
-
-        calc_mixed_start_l2r_contr => calc_mixed_start_contr_sym
-        calc_mixed_start_r2l_contr => calc_mixed_start_contr_sym
-        calc_mixed_end_l2r_contr => calc_mixed_end_contr_sym
-        calc_mixed_end_r2l_contr => calc_mixed_end_contr_sym
-        calc_mixed_contr => calc_mixed_contr_sym
 
 
         if (tGen_sym_guga_ueg) then
