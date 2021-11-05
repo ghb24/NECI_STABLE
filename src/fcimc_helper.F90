@@ -72,16 +72,17 @@ module fcimc_helper
     use DetCalcData, only: FCIDetIndex, ICILevel, det
     use hash, only: remove_hash_table_entry, add_hash_table_entry, hash_table_lookup
     use load_balance_calcnodes, only: DetermineDetNode, tLoadBalanceBlocks
-    use load_balance, only: adjust_load_balance, RemoveHashDet, get_diagonal_matel
+    use load_balance, only: adjust_load_balance, RemoveHashDet
+    use matel_getter, only: get_diagonal_matel, get_off_diagonal_matel
     use rdm_filling, only: det_removed_fill_diag_rdm
     use rdm_general, only: store_parent_with_spawned, extract_bit_rep_avsign_norm
     use Parallel_neci
     use FciMCLoggingMod, only: HistInitPopulations, WriteInitPops
     use hphf_integrals, only: hphf_diag_helement
     use global_det_data, only: get_av_sgn_tot, set_av_sgn_tot, set_det_diagH, &
-                               global_determinant_data, det_diagH, &
-                               get_spawn_pop, get_tau_int, get_shift_int, &
-                               get_neg_spawns, get_pos_spawns
+                               set_det_offdiagH, global_determinant_data, &
+                               det_diagH, get_spawn_pop, get_tau_int, &
+                               get_shift_int, get_neg_spawns, get_pos_spawns
     use searching, only: BinSearchParts2
 
     use guga_procedure_pointers, only: calc_off_diag_guga_ref
@@ -502,7 +503,7 @@ contains
     ! det (only in the projected energy) by dividing its contribution by
     ! this number
     subroutine SumEContrib(nI, ExcitLevel, RealWSign, ilut, HDiagCurr, &
-                           dProbFin, tPairedReplicas, ind)
+                           HOffDiagCurr, dProbFin, tPairedReplicas, ind)
 
         use CalcData, only: qmc_trial_wf
         use searching, only: get_con_amp_trial_space
@@ -512,6 +513,7 @@ contains
         real(dp), intent(in) :: RealwSign(lenof_sign)
         integer(n_int), intent(in) :: ilut(0:NIfTot)
         real(dp), intent(in) :: HDiagCurr, dProbFin
+        HElement_t(dp), intent(in) :: HOffDiagCurr
         logical, intent(in) :: tPairedReplicas
         integer, intent(in), optional :: ind
 
@@ -666,37 +668,7 @@ contains
         end if
 
         ! Perform normal projection onto reference determinant
-        if (tGUGA) then
-            ! for guga csfs its quite hard to determine the excitation to a
-            ! reference determinant, due to the many possibilities
-            ! of stepvector differences -> just brute force search in the
-            ! reference_list all the time for non-zero excitLvl..
-            ! since atleast excitLvl = 0 gets determined correctly
-            if (ExcitLevel_local /= 0) then
-                ! also the NoAtDoubs is probably not correct in guga for now
-                ! so jsut ignore it
-                ! only calc. it to the reference det here
-                ! why is only the overlap to the first replica considered??
-                ! that does not make so much sense or... ?
-                ! TODO(@Oskar): Perhaps keep csf_i calculated?
-                HOffDiag(1:inum_runs) = &
-                    calc_off_diag_guga_ref(ilut, CSF_Info_t(ilut), exlevel=ExcitLevel_local)
-            end if
-        else
-            if (ExcitLevel_local == 2 .or. &
-                (ExcitLevel_local == 1 .and. tNoBrillouin) .or. (ExcitLevel_local == 3 .and. &
-                     (t_3_body_excits .or. t_ueg_3_body .or. t_mol_3_body))) then
-                ! Obtain off-diagonal element
-                if (tHPHF) then
-                    HOffDiag(1:inum_runs) = &
-                        hphf_off_diag_helement(ProjEDet(:, 1), nI, iLutRef(:, 1), ilut)
-
-                else
-                    HOffDiag(1:inum_runs) = &
-                        get_helement(ProjEDet(:, 1), nI, ExcitLevel, ilutRef(:, 1), ilut)
-                end if
-            end if
-        end if ! GUGA
+        HOffDiag(1:inum_runs) = HOffDiagCurr
 
         ! For the real-space Hubbard model, determinants are only
         ! connected to excitations one level away, and Brillouins
@@ -2452,7 +2424,7 @@ contains
         integer, intent(in) :: run
         character(*), parameter :: this_routine = 'update_run_reference'
 
-        HElement_t(dp) :: h_tmp
+        HElement_t(dp) :: h_tmp, hoff_tmp
         real(dp) :: old_hii
         integer :: i, det(nel)
         logical :: tSwapped
@@ -2548,13 +2520,10 @@ contains
                            &HElements for all walkers.'
             do i = 1, int(Totwalkers, sizeof_int)
                 call decode_bit_det(det, CurrentDets(:, i))
-                if (tHPHF) then
-                    h_tmp = hphf_diag_helement(det, &
-                                               CurrentDets(:, i))
-                else
-                    h_tmp = get_helement(det, det, 0)
-                end if
+                h_tmp =  get_diagonal_matel(det, CurrentDets(:, i))
+                hoff_tmp =  get_off_diagonal_matel(det, CurrentDets(:, i))
                 call set_det_diagH(i, real(h_tmp, dp) - Hii)
+                call set_det_offdiagH(i, hoff_tmp)
             end do
             if (allocated(cs_replicas)) &
                 call recalc_core_hamil_diag(old_Hii, Hii)

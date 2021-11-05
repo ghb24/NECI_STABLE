@@ -1624,6 +1624,7 @@ contains
                 ss_space_in%tHF = .true.
             case("POPS-CORE")
                 ss_space_in%tPops = .true.
+                ss_space_in%tPopsCore = .true.
                 call geti(ss_space_in%npops)
                 t_fast_pops_core = .false.
                 if (int(ss_space_in%npops,int64) * int(nProcessors,int64) > 1000000_int64 &
@@ -1639,6 +1640,25 @@ contains
                 tSemiStochastic = .false.
                 tStartCoreGroundState = .false.
                 semistoch_shift_iter = 1
+            case("POPS-CORE-PROPORTION")
+                ss_space_in%tPops = .true.
+                ss_space_in%tPopsProportion = .true.
+                call getf(ss_space_in%npops_proportion)
+                if (ss_space_in%npops_proportion < 0.0) then
+                    call stop_all(t_r, 'Popscore proportion should be positive')
+                end if
+                t_fast_pops_core = .false.
+                if (.not. tForceFullPops) then
+                    ss_space_in%tApproxSpace = .true.
+                    t_fast_pops_core = .true.
+                end if
+                if (tSemiStochastic .and. semistoch_shift_iter == 0) then
+                    ! Force initialization of determinisitc space after initializing 
+                    ! initiator space.
+                    semistoch_shift_iter = 1
+                    tSemiStochastic = .false.
+                    tStartCoreGroundState = .false.
+                end if
             case("POPS-CORE-APPROX")
                 ss_space_in%tPops = .true.
                 ss_space_in%tApproxSpace = .true.
