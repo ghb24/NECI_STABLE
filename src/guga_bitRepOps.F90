@@ -20,7 +20,7 @@ module guga_bitRepOps
                             flag_deltaB_double, flag_deltaB_sign, niftot, &
                             nIfGUGA, nIfd, BitRep_t, GugaBits
     use util_mod, only: binary_search, binary_search_custom, operator(.div.), &
-                        near_zero, stop_all
+                        near_zero, stop_all, operator(.isclose.)
 
     use sort_mod, only: sort
 
@@ -115,6 +115,12 @@ module guga_bitRepOps
         real(dp), allocatable :: cum_list(:)
             !! also use a fake cum-list of the non-doubly occupied orbital to increase
             !! preformance in the picking of orbitals (a)
+    contains
+        private
+        procedure :: eq_CSF_Info_t
+        procedure :: neq_CSF_Info_t
+        generic, public :: operator(==) => eq_CSF_Info_t
+        generic, public :: operator(/=) => neq_CSF_Info_t
     end type
 
     interface CSF_Info_t
@@ -2810,6 +2816,24 @@ contains
                  csf_i%cum_list(n_spat_orbs))
     end subroutine
 
+    elemental function eq_CSF_Info_t(csf_i, csf_j) result(res)
+        class(CSF_Info_t), intent(in) :: csf_i, csf_j
+        logical :: res
+        res = size(csf_i%stepvector) == size(csf_j%stepvector) &
+                .and. all(csf_i%stepvector == csf_j%stepvector) &
+                .and. all(csf_i%Occ_int == csf_j%Occ_int) &
+                .and. all(csf_i%B_int == csf_j%B_int) &
+                .and. all(csf_i%Occ_real .isclose. csf_j%Occ_real) &
+                .and. all(csf_i%B_real .isclose. csf_j%B_real) &
+                .and. all(csf_i%cum_list .isclose. csf_j%cum_list)
+    end function
+
+    elemental function neq_CSF_Info_t(csf_i, csf_j) result(res)
+        class(CSF_Info_t), intent(in) :: csf_i, csf_j
+        logical :: res
+        res = .not. (csf_i == csf_j)
+    end function
+
     pure subroutine fill_csf_i(ilut, csf_i)
         ! routine which sets up all the additional csf information, like
         ! stepvector, b vector, occupation etc. in various formats in one
@@ -2905,9 +2929,7 @@ contains
         integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
         type(CSF_Info_t), intent(in) :: csf_i
         logical :: res
-        ! TODO(@Oskar): Implement
-        unused_var(ilut); unused_var(csf_i)
-        res = .true.
+        res = CSF_Info_t(ilut) == csf_i
     end function
 
     pure subroutine encode_stochastic_rdm_info(BitIndex, ilut, rdm_ind, x0, x1)
