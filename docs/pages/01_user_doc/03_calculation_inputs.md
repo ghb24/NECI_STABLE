@@ -810,6 +810,14 @@ and ends with the `endcalc` keyword.
 -   **\textcolor{blue}{pops-core \(n\)}**<br>
  This option will use the \(n\) most populated determinants
     to form the core space.
+    This keyword cannot be used with `pops-core-proportion`.
+
+-   **pops-core-proportion \(f\)**<br>
+    This option will use a fraction \(f\) of most populated initiator
+    determinants to form the core space. For example, about 50% of most
+    populated initiator determinants are chosen if \(f = 0.5\).
+    This keyword cannot be used with `pops-core` and requires 
+    `semi-stochastic`.
 
 -   **doubles-core**<br>
     Use the reference determinant and all single and double excitations

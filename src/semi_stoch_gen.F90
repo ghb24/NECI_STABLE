@@ -99,7 +99,7 @@ contains
                 if (.not. (tStartCAS .or. core_in%tPops .or. core_in%tDoubles .or. core_in%tCAS .or. core_in%tRAS .or. &
                            core_in%tOptimised .or. core_in%tLowE .or. core_in%tRead .or. core_in%tMP1 .or. &
                            core_in%tFCI .or. core_in%tHeisenbergFCI .or. core_in%tHF .or. &
-                           core_in%tPopsAuto)) then
+                           core_in%tPopsAuto .or. core_in%tPopsProportion)) then
                     call stop_all("init_semi_stochastic", "You have not selected a semi-stochastic core space to use.")
                 end if
                 if (.not. tUseRealCoeffs) call stop_all(t_r, "To use semi-stochastic you must also use real coefficients.")
@@ -123,6 +123,12 @@ contains
                     ! tApproxSpace should be used instead...
                 end if
 
+                if (core_in%tPopsProportion) then
+                    write(stdout, '("Choosing ",F7.2,"% of initiator space as core space")') 100 * core_in%npops_proportion
+                    write(stdout, *) "Estimated size of core space: ", int(AllNoInitDets(run) * core_in%npops_proportion)
+                    core_in%npops = max(1, int(AllNoInitDets(run) * core_in%npops_proportion))
+                end if
+
                 if (core_in%tApproxSpace) write(stdout, '(" ... approximately using the factor of",1X,i5)') core_in%nApproxSpace
                 call generate_space(core_in, run)
 
@@ -136,6 +142,18 @@ contains
                 ! This is now the total size on the replica with the largest space
                 ! Typically, all replicas will have either similar or the same space size
                 write(stdout, '("Total size of deterministic space:",1X,i8)') rep%determ_space_size
+                if (rep%determ_space_size > (AllNoInitDets(run) .div. 2_int64)) then
+                    write(stdout, *)"WARNING: Total size of deterministic space is greater than&
+                        & 50% of the initiator space."
+                    write(stdout, *)"         Reducing the size of the deterministic space is&
+                        & encouraged."
+                    if (iProcIndex == 0) then
+                        write(stderr, *)"WARNING: Total size of deterministic space is greater than&
+                            & 50% of the initiator space."
+                        write(stderr, *)"         Reducing the size of the deterministic space is&
+                            & encouraged."
+                    end if
+                end if
                 write(stdout, '("Size of deterministic space on this processor:",1X,i8)') rep%determ_sizes(iProcIndex)
                 call neci_flush(6)
 
