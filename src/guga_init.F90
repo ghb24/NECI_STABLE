@@ -89,11 +89,11 @@ contains
 
 
         if (tGen_sym_guga_ueg) then
+            calc_orbital_pgen_contrib_start => calc_orbital_pgen_contrib_start_def
+            calc_orbital_pgen_contrib_end => calc_orbital_pgen_contrib_end_def
             if (.not. (treal .or. t_new_real_space_hubbard)) then
                 pickOrbitals_double => pickOrbs_sym_uniform_ueg_double
                 calc_orbital_pgen_contr => calc_orbital_pgen_contr_ueg
-                calc_orbital_pgen_contrib_start => calc_orbital_pgen_contrib_start_def
-                calc_orbital_pgen_contrib_end => calc_orbital_pgen_contrib_end_def
             else
                 pickOrbitals_single => pickOrbs_real_hubbard_single
             end if
