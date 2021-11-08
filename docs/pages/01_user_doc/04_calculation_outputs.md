@@ -161,15 +161,11 @@ Instantaneous L2-norm of the current wavefunction.
   | \Psi | = \sqrt{\sum_i |c_i|^2}
 \end{equation}
 
-<!-- Broken  -->
-<!-- Confirm -->
 **28 Expectation value of \(S^2\) operator over all determinants (Inst S^2)**<br>
-TODO
+Requires the `instant-s2-full` keyword in the logging block.
 
-<!-- Broken  -->
-<!-- Confirm -->
 **29 Expectation value of \(S^2\) operator over initiator determinants (Inst S^2)**<br>
-TODO
+Requires the `instant-s2-init` keyword in the logging block.
 
 <!-- Unimportant -->
 <!-- Confirm -->
