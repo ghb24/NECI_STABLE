@@ -2020,7 +2020,6 @@ contains
         integer(n_int) :: ilutGi(0:nifguga), ilutGj(0:nifguga)
 
         unused_var(exFlag)
-        ASSERT(is_compatible(ilutI, current_csf_i))
         hel = h_cast(0.0_dp)
 #ifdef WARNING_WORKAROUND_
         if (present(run)) then
@@ -2077,6 +2076,7 @@ contains
                 pgen = 0.0_dp
             end if
 
+            ASSERT(is_compatible(ilutI, current_csf_i))
             call calc_guga_matrix_element(ilutI, current_csf_i, ilutJ, CSF_Info_t(ilutJ), excitInfo, hel, .true.)
 
             if (abs(hel) < EPS) then

@@ -562,8 +562,6 @@ contains
 
         unused_var(exFlag); unused_var(store); unused_var(run)
 
-        ASSERT(is_compatible(ilutI, current_csf_i))
-
         hel = h_cast(0.0_dp)
         ic = 0
         pgen = 0.0_dp
@@ -606,6 +604,7 @@ contains
                 return
             end if
 
+            ASSERT(is_compatible(ilutI, current_csf_i))
             call calc_guga_matrix_element(ilutI, current_csf_i, ilutJ, CSF_Info_t(ilutJ), excitInfo, hel, .true.)
 
             if (abs(hel) < EPS) then
