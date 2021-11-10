@@ -84,7 +84,7 @@ module fcimc_initialisation
                            tDiagWalkerSubspace, tPrintOrbOcc, OrbOccs, &
                            tHistInitPops, OrbOccsTag, tHistEnergies, tMCOutput, &
                            HistInitPops, AllHistInitPops, OffDiagMax, &
-                           OffDiagBinRange, iDiagSubspaceIter, &
+                           OffDiagBinRange, iDiagSubspaceIter, t_store_ci_coeff, &
                            AllHistInitPopsTag, HistInitPopsTag, tHDF5PopsRead, &
                            tTransitionRDMs, tLogEXLEVELStats, t_no_append_stats, &
                            t_spin_measurements,  t_measure_local_spin, &
@@ -228,6 +228,8 @@ module fcimc_initialisation
     use back_spawn, only: init_back_spawn, setup_virtual_mask
 
     use real_space_hubbard, only: init_real_space_hubbard, init_get_helement_hubbard
+
+    use sdt_amplitudes, only: init_ciCoeff
 
     use back_spawn_excit_gen, only: gen_excit_back_spawn, gen_excit_back_spawn_ueg, &
                                     gen_excit_back_spawn_hubbard, gen_excit_back_spawn_ueg_new
@@ -1229,6 +1231,10 @@ contains
             write(stdout, *) "TauFactor detected. Resetting Tau based on connectivity of: ", HFConn
             Tau = TauFactor / REAL(HFConn, dp)
             write(stdout, *) "Timestep set to: ", Tau
+        end if
+
+        if (t_store_ci_coeff) then
+           call init_ciCoeff()
         end if
 
         ! [W.D.] I guess I want to initialize that before the tau-search,

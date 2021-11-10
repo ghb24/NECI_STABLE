@@ -248,6 +248,16 @@ contains
             call readu(w)
             select case (w)
 
+            case('CI-COEFFICIENTS')
+                ! collects ci coefficients of the wave function up to 3rd excitation level over a number of iter
+                t_store_ci_coeff = .true.
+                if (item < nitems) then
+                   call readi(n_iter_ci_coeff)
+                end if
+                if (item < nitems) then
+                   call readi(n_store_ci_level)
+                end if
+
             case ("PRINT-MOLCAS-RDMS")
                 ! output density matrices also in Molcas format in the GUGA RDM
                 ! implementation
