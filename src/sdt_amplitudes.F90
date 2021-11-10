@@ -2,8 +2,8 @@
 module sdt_amplitudes
 
   use bit_reps, only: extract_sign, decode_bit_det, encode_sign, niftot, nifd
-  use constants, only: dp, lenof_sign, n_int, int64, iout
-  use DetBitOps, only: get_bit_excitmat, EncodeBitDet!, FindBitExcitLevel
+  use constants, only: dp, lenof_sign, n_int, int64, stdout
+  use DetBitOps, only: get_bit_excitmat, EncodeBitDet, GetBitExcitation!, FindBitExcitLevel
   use util_mod, only: near_zero
   use FciMCData, only: TotWalkers, iLutRef, CurrentDets, AllNoatHf, projedet, &
                        ll_node
@@ -12,7 +12,7 @@ module sdt_amplitudes
   use LoggingData, only: n_store_ci_level, n_iter_ci_coeff
   use SystemData, only: nel, nbasis, symmax
   use Parallel_neci, only: iProcIndex, MPIcollection
-  use ParallelHelper, only: root
+  use MPI_wrapper, only: root
 
   implicit none
 
@@ -76,7 +76,7 @@ contains
        call extract_sign(ciCoeff_storage(:, ind), sign_tmp)
        sign_tmp = sign_tmp + sgn
 !        if(all(nIEx.eq.projEDet(:,1))) then  !it is true only with the reference determinant
-!           write(iout,*) 'sign_tmp = sign_tmp + sgn = ', sign_tmp, sgn
+!           write(stdout,*) 'sign_tmp = sign_tmp + sgn = ', sign_tmp, sgn
 !        endif
     call encode_sign(ciCoeff_storage(:, ind), sign_tmp)
 
@@ -103,15 +103,15 @@ contains
     logical  :: tPar
 
     if(iProcIndex.eq.root) then
-      write(iout,*) ''
-      write(iout,*) '-- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --'
-      write(iout,*) ''
-      write(iout,*) '*** CI COEFFICIENTS COLLECTION ***'
-      write(iout,*) ''
-      write(iout,"(A44,I10)") 'Maximum excitation level of the CI coeffs = ', n_store_ci_level
-      write(iout,"(A44,I10)") 'Number of iterations set for average      = ', n_iter_ci_coeff
+      write(stdout,*) ''
+      write(stdout,*) '-- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --'
+      write(stdout,*) ''
+      write(stdout,*) '*** CI COEFFICIENTS COLLECTION ***'
+      write(stdout,*) ''
+      write(stdout,"(A44,I10)") 'Maximum excitation level of the CI coeffs = ', n_store_ci_level
+      write(stdout,"(A44,I10)") 'Number of iterations set for average      = ', n_iter_ci_coeff
       if(nCyc.ne.n_iter_ci_coeff) then
-         write(iout,"(A44,I10)") ' -> actual iterations used for average    = ', nCyc
+         write(stdout,"(A44,I10)") ' -> actual iterations used for average    = ', nCyc
       endif
     endif
 
@@ -134,11 +134,11 @@ contains
               if(tPar) sign_tmp = -sign_tmp
                select case(icI)
                case(0)
-                  write(iout,"(A44,F14.3)") 'Instantaneous number of walkers on HF     = ', AllNoatHf
+                  write(stdout,"(A44,F14.3)") 'Instantaneous number of walkers on HF     = ', AllNoatHf
                   AllNoatHf = -sign_tmp/nCyc
-                  write(iout,"(A44,F14.3)") 'Averaged number of walkers on HF          = ', AllNoatHf
-                  write(iout,"(A44,I10)") 'Total entries of CI coefficients          = ', root_first_free_entry
-!                  write(iout,*) 'sign_tmp/(AllNoatHf*nCyc) =', sign_tmp/(AllNoatHf*nCyc)
+                  write(stdout,"(A44,F14.3)") 'Averaged number of walkers on HF          = ', AllNoatHf
+                  write(stdout,"(A44,I10)") 'Total entries of CI coefficients          = ', root_first_free_entry
+!                  write(stdout,*) 'sign_tmp/(AllNoatHf*nCyc) =', sign_tmp/(AllNoatHf*nCyc)
                case(1)
                   write(31,'(G20.12,2I5)') sign_tmp/(AllNoatHf(1)*nCyc), &
                                            ex(1,1),ex(2,1)
@@ -156,9 +156,9 @@ contains
 
       call sorting()
 
-      write(iout,*) '-> CI coefficients written in ASCII files ci_coeff_*'
-      write(iout,*) ''
-      write(iout,*) '-- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --'
+      write(stdout,*) '-> CI coefficients written in ASCII files ci_coeff_*'
+      write(stdout,*) ''
+      write(stdout,*) '-- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --'
     endif
 
     call fin_ciCoeff()
@@ -204,11 +204,11 @@ contains
       NorbTot(iSym) = Norb(iSym) + NorbTot(iSym-1)
     enddo
 
-      write(iout,*) 'Coefficients listed in the following way:'
+      write(stdout,*) 'Coefficients listed in the following way:'
       if (symmax.eq.1) then
-        write(iout,*) '  OCC(alpha),OCC(beta),VIR(alpha),VIR(beta)'
+        write(stdout,*) '  OCC(alpha),OCC(beta),VIR(alpha),VIR(beta)'
       else
-        write(iout,*) '  OCC(alpha_sym1),OCC(beta_sym1),OCC(alpha_sym2),OCC(beta_sym2),...'
+        write(stdout,*) '  OCC(alpha_sym1),OCC(beta_sym1),OCC(alpha_sym2),OCC(beta_sym2),...'
       endif
 
     totEl = 0
@@ -236,7 +236,7 @@ contains
       enddo
       totEl = totEl + ibe(iSym)
     enddo
-    if(totEl.ne.nel) write(iout,*) 'WARNING: not matching number of electrons!'
+    if(totEl.ne.nel) write(stdout,*) 'WARNING: not matching number of electrons!'
 
     totOrb=0
     ! loop to find all the non-occupied alpha spin orbitals
@@ -269,7 +269,7 @@ contains
       enddo
       totOrb = totOrb + ibe(iSym)
     enddo
-    if(nel+totOrb.ne.nbasis) write(iout,*) 'WARNING: not matching number of orbitals!'
+    if(nel+totOrb.ne.nbasis) write(stdout,*) 'WARNING: not matching number of orbitals!'
 
 
     ! loop to read all the CI coefficients from ASCII files

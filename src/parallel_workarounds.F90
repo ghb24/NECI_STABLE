@@ -246,4 +246,39 @@ contains
 
     end subroutine
 
+ 
+    subroutine MPIcollection(size1_sendarray,size2_sendarray,sendarray,size_root_array,root_array)
+  
+        integer, intent(in) :: size1_sendarray, size2_sendarray
+        integer(n_int), intent(in) :: sendarray(0:size1_sendarray,1:size2_sendarray)
+        integer, intent(out) :: size_root_array
+        integer(n_int), intent(out), allocatable :: root_array(:,:)
+        integer(MPIArg) :: space_sizes(0:nProcessors-1), space_displs(0:nProcessors-1)
+        integer :: ierr, i
+  
+          ! it gathers the number of sendarray entries from every process
+          call MPIAllGather(size2_sendarray, space_sizes, ierr)
+          size_root_array = int(sum(space_sizes), sizeof_int)
+  
+          ! it calculates the necessary displacement to collect all the entries in the root_array
+          space_displs(0) = 0_MPIArg
+          do i = 1, nProcessors-1
+              space_displs(i) = space_displs(i-1) + space_sizes(i-1)
+          enddo
+  
+          if (iProcIndex == root) then
+              allocate(root_array(0:size1_sendarray,size_root_array))
+          else
+              ! On these other processes root_array is not needed, but
+              ! we need them to be allocated for the MPI wrapper function to work
+              allocate(root_array(0,0))
+          endif
+  
+          ! it gathers all the entries in root_array
+          call MPIGatherV(sendarray(0:size1_sendarray,1:space_sizes(iProcIndex)), root_array, &
+                            space_sizes, space_displs,ierr)
+  
+    end subroutine MPIcollection
+
+
 end module

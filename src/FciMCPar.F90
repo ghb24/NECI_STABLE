@@ -756,14 +756,14 @@ contains
             end if
 
             if ((t_store_ci_coeff).and.all(.not.tSinglePartPhase).and.(iter.ge.(NMCyc-n_iter_ci_coeff+1))) then
-                if(t_start_ci_coeff) write(iout,'(A45,I9)') 'START CI COEFFICIENTS COLLECTION at iteration',iter
+                if(t_start_ci_coeff) write(stdout,'(A45,I9)') 'START CI COEFFICIENTS COLLECTION at iteration',iter
                 t_start_ci_coeff = .false.
                 call storeCiCoeffs()
             else if ((t_store_ci_coeff).and.(iter.eq.NMCyc)) then
                 t_store_ci_coeff=.false.
-                write(iout,*) ''
-                write(iout,*) '***CI COEFFICIENTS COLLECTION HAS NOT OCCURRED: NMCyc too small***'
-                write(iout,*) ''
+                write(stdout,*) ''
+                write(stdout,*) '***CI COEFFICIENTS COLLECTION HAS NOT OCCURRED: NMCyc too small***'
+                write(stdout,*) ''
             end if
 
             ! accumulate the rdm correction due to adaptive shift
