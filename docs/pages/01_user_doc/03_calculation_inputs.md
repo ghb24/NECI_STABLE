@@ -481,7 +481,7 @@ and ends with the `endcalc` keyword.
 
 -   **\textcolor{blue}{stepsSft \(n\)}**<br>
  Sets the number of steps per update cycle of the shift to
-    \(n\). Defaults to \(100\).
+    \(n\). Defaults to \(10\).
 
 -   **fixed-n0 \(n_0\)**<br>
     Instead of varying the shift to fix the total number of walkers,
@@ -816,7 +816,7 @@ and ends with the `endcalc` keyword.
     This option will use a fraction \(f\) of most populated initiator
     determinants to form the core space. For example, about 50% of most
     populated initiator determinants are chosen if \(f = 0.5\).
-    This keyword cannot be used with `pops-core` and requires 
+    This keyword cannot be used with `pops-core` and requires
     `semi-stochastic`.
 
 -   **doubles-core**<br>
