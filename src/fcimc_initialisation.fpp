@@ -101,7 +101,7 @@ module fcimc_initialisation
     use bit_reps, only: encode_det, clear_all_flags, set_flag, encode_sign, &
                         decode_bit_det, nullify_ilut, encode_part_sign, &
                         extract_run_sign, tBuildSpinSepLists, nifguga, &
-                        get_initiator_flag, &
+                        get_initiator_flag, writebitdet, &
                         get_initiator_flag_by_run
     use hist_data, only: tHistSpawn, HistMinInd, HistMinInd2, Histogram, &
                          BeforeNormHist, InstHist, iNoBins, AllInstHist, &
@@ -119,7 +119,7 @@ module fcimc_initialisation
                                   get_spawn_helement, encode_child, &
                                   attempt_die, extract_bit_rep_avsign, &
                                   fill_rdm_diag_currdet, &
-                                  new_child_stats, get_conn_helement, scaleFunction, &
+                                  get_conn_helement, scaleFunction, &
                                   generate_two_body_excitation, shiftFactorFunction, gen_all_excits
     use symrandexcit3, only: gen_rand_excit3
     use symrandexcit_Ex_Mag, only: gen_rand_excit_Ex_Mag
@@ -147,7 +147,6 @@ module fcimc_initialisation
     use fcimc_pointed_fns, only: att_create_trunc_spawn_enc, &
                                  attempt_create_normal, &
                                  attempt_create_trunc_spawn, &
-                                 new_child_stats_hist_hamil, &
                                  new_child_stats_normal, &
                                  null_encode_child, attempt_die_normal, attempt_die_precond, &
                                  powerScaleFunction, expScaleFunction, negScaleFunction, &
@@ -2089,9 +2088,6 @@ contains
                                 &i8, " blooms occurred.")'
         end if
         bloom_max = 0
-
-        ! Perform the correct statistics on new child particles
-        new_child_stats => new_child_stats_normal
 
         if (tPreCond) then
             attempt_die => attempt_die_precond

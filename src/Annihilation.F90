@@ -23,7 +23,7 @@ module AnnihilationMod
     use core_space_util, only: cs_replicas
     use constants, only: n_int, lenof_sign, null_part, sizeof_int
     use bit_rep_data
-    use bit_reps, only: decode_bit_det, &
+    use bit_reps, only: decode_bit_det, writebitdet, &
                         encode_sign, test_flag, set_flag, &
                         flag_initiator, encode_part_sign, &
                         extract_part_sign, extract_bit_rep, &

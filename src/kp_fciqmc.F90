@@ -26,13 +26,13 @@ module kp_fciqmc
                             CalcParentFlag, walker_death, decide_num_to_spawn
     use fcimc_output, only: end_iteration_print_warn
     use fcimc_iter_utils, only: calculate_new_shift_wrapper, update_iter_data
+    use fcimc_pointed_fns, only: new_child_stats_normal
     use global_det_data, only: det_diagH, det_offdiagH
     use LoggingData, only: tPopsFile
     use Parallel_neci, only: iProcIndex
     use MPI_wrapper, only: root
     use PopsFileMod, only: WriteToPopsFileParOneArr
-    use procedure_pointers, only: generate_excitation, attempt_create, encode_child
-    use procedure_pointers, only: new_child_stats, extract_bit_rep_avsign
+    use procedure_pointers, only: generate_excitation, attempt_create, encode_child, extract_bit_rep_avsign
     use semi_stoch_procs, only: is_core_state, check_determ_flag, determ_projection
     use soft_exit, only: ChangeVars, tSoftExitFound
     use SystemData, only: nel, lms, nbasis, tAllSymSectors, nOccAlpha, nOccBeta
@@ -40,7 +40,7 @@ module kp_fciqmc
     use timing_neci, only: set_timer, halt_timer
     use util_mod, only: near_zero
 
-    implicit none
+    better_implicit_none
 
 contains
 
@@ -266,7 +266,7 @@ contains
                                         ! If any (valid) children have been spawned.
                                         if (.not. (all(near_zero(child_sign) .or. ic == 0 .or. ic > 2))) then
 
-                                            call new_child_stats(iter_data_fciqmc, ilut_parent, &
+                                            call new_child_stats_normal(iter_data_fciqmc, ilut_parent, &
                                                                  nI_child, ilut_child, ic, ex_level_to_ref, &
                                                                  child_sign, parent_flags, ireplica)
 
@@ -628,7 +628,7 @@ contains
                                 ! If any (valid) children have been spawned.
                                 if (.not. (all(near_zero(child_sign) .or. ic == 0 .or. ic > 2))) then
 
-                                    call new_child_stats(iter_data_fciqmc, ilut_parent, &
+                                    call new_child_stats_normal(iter_data_fciqmc, ilut_parent, &
                                                          nI_child, ilut_child, ic, ex_level_to_ref, &
                                                          child_sign, parent_flags, ireplica)
 

@@ -34,7 +34,7 @@ module fcimc_pointed_fns
     use tau_search, only: log_death_magnitude, fill_frequency_histogram_nosym_diff, &
                           fill_frequency_histogram_nosym_nodiff, log_spawn_magnitude
 
-    use bit_reps, only: get_initiator_flag, get_initiator_flag_by_run
+    use bit_reps, only: get_initiator_flag, get_initiator_flag_by_run, writebitdet
 
     use rdm_general, only: calc_rdmbiasfac
     use hist, only: add_hist_excit_tofrom
@@ -492,65 +492,6 @@ contains
 
     end subroutine
 
-    subroutine new_child_stats_hist_hamil(iter_data, iLutI, nJ, iLutJ, ic, &
-                                          walkExLevel, child, parent_flags, &
-                                          part_type)
-        ! Based on old AddHistHamilEl. Histograms the hamiltonian matrix, and
-        ! then calls the normal statistics routine.
-
-        integer(kind=n_int), intent(in) :: iLutI(0:niftot), iLutJ(0:niftot)
-        integer, intent(in) :: ic, walkExLevel, parent_flags, nJ(nel)
-        integer, intent(in) :: part_type
-        real(dp), dimension(lenof_sign), intent(in) :: child
-        type(fcimc_iter_data), intent(inout) :: iter_data
-        character(*), parameter :: this_routine = 'new_child_stats_hist_hamil'
-        integer :: partInd, partIndChild, childExLevel
-        logical :: tSuccess
-
-        if (walkExLevel == nel) then
-            call BinSearchParts2(iLutI, FCIDetIndex(walkExLevel), Det, &
-                                 PartInd, tSuccess)
-        else
-            call BinSearchParts2(iLutI, FCIDetIndex(walkExLevel), &
-                                 FciDetIndex(walkExLevel + 1) - 1, partInd, &
-                                 tSuccess)
-        end if
-
-        if (.not. tSuccess) &
-            call stop_all(this_routine, 'Cannot find determinant nI in list')
-
-        childExLevel = FindBitExcitLevel(iLutHF, iLutJ, nel)
-        if (tGUGA) call stop_all(this_routine, &
-                                 "excit level does not work with GUGA here...")
-
-        if (childExLevel == nel) then
-            call BinSearchParts2(iLutJ, FCIDetIndex(childExLevel), Det, &
-                                 partIndChild, tSuccess)
-        else if (childExLevel == 0) then
-            partIndChild = 1
-            tSuccess = .true.
-        else
-            call BinSearchParts2(iLutJ, FCIDetIndex(childExLevel), &
-                                 FciDetIndex(childExLevel + 1) - 1, &
-                                 partIndChild, tSuccess)
-        end if
-
-        histHamil(partIndChild, partInd) = &
-            histHamil(partIndChild, partInd) + (1.0_dp * child(1))
-        histHamil(partInd, partIndChild) = &
-            histHamil(partInd, partIndChild) + (1.0_dp * child(1))
-        avHistHamil(partIndChild, partInd) = &
-            avHistHamil(partIndChild, partInd) + (1.0_dp * child(1))
-        avHistHamil(partInd, partIndChild) = &
-            avHistHamil(partInd, partIndChild) + (1.0_dp * child(1))
-
-        ! Call the normal stats routine
-        call new_child_stats_normal(iter_data, iLutI, nJ, iLutJ, ic, &
-                                    walkExLevel, child, parent_flags, &
-                                    part_type)
-
-    end subroutine
-
     subroutine new_child_stats_normal(iter_data, iLutI, nJ, iLutJ, ic, &
                                       walkExLevel, child, parent_flags, &
                                       part_type)
@@ -931,7 +872,7 @@ contains
         else if (pop < LAS_Sigma) then
             f = 0.0
         else
-            if (InitiatorWalkNo.isclose.LAS_Sigma) then
+            if (InitiatorWalkNo .isclose. LAS_Sigma) then
                 !In this case the slope is ill-defined.
                 !Since initiators are strictly large than InitiatorWalkNo, set shift to zero
                 f = 0.0
