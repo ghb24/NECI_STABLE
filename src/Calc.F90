@@ -202,7 +202,7 @@ contains
         iPopsFileNoRead = 0
         iPopsFileNoWrite = 0
         tWalkContGrow = .false.
-        StepsSft = 100
+        StepsSft = 10
         SftDamp = 0.1_dp
         Tau = 0.0_dp
         InitWalkers = 3000.0_dp
@@ -1627,7 +1627,7 @@ contains
                     t_fast_pops_core = .true.
                 end if
                 if (tSemiStochastic .and. semistoch_shift_iter == 0) then
-                    ! Force initialization of determinisitc space after initializing 
+                    ! Force initialization of determinisitc space after initializing
                     ! initiator space.
                     semistoch_shift_iter = 1
                     tSemiStochastic = .false.

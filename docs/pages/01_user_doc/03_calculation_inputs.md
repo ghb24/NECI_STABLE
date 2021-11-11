@@ -481,7 +481,7 @@ and ends with the `endcalc` keyword.
 
 -   **\textcolor{blue}{stepsSft \(n\)}**<br>
  Sets the number of steps per update cycle of the shift to
-    \(n\). Defaults to \(100\).
+    \(n\). Defaults to \(10\).
 
 -   **fixed-n0 \(n_0\)**<br>
     Instead of varying the shift to fix the total number of walkers,
