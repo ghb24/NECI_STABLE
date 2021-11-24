@@ -482,7 +482,6 @@ contains
     ! This is a null routine for encoding spawned sites
     ! --> DOES NOTHING!!!
     subroutine null_encode_child(ilutI, ilutJ, ic, ex)
-        implicit none
         integer(kind=n_int), intent(in) :: ilutI(0:niftot)
         integer, intent(in) :: ic
         integer, intent(in) :: ex(2, ic)
@@ -770,8 +769,6 @@ contains
 !------------------------------------------------------------------------------------------!
 
     pure function powerScaleFunction(hdiag) result(Si)
-        implicit none
-
         real(dp), intent(in) :: hdiag
         real(dp) :: Si
 
@@ -781,8 +778,6 @@ contains
 !------------------------------------------------------------------------------------------!
 
     pure function expScaleFunction(hdiag) result(Si)
-        implicit none
-
         real(dp), intent(in) :: hdiag
         real(dp) :: Si
 
@@ -792,8 +787,6 @@ contains
 !------------------------------------------------------------------------------------------!
 
     pure function expCOScaleFunction(hdiag) result(Si)
-        implicit none
-
         real(dp), intent(in) :: hdiag
         real(dp) :: Si
 
@@ -803,8 +796,6 @@ contains
 !------------------------------------------------------------------------------------------!
 
     pure function negScaleFunction(hdiag) result(Si)
-        implicit none
-
         real(dp), intent(in) :: hdiag
         real(dp) :: Si
 
@@ -817,7 +808,6 @@ contains
 !------------------------------------------------------------------------------------------!
 
     pure function expShiftFactorFunction(pos, run, pop) result(f)
-        implicit none
         ! Exponential scale function for the shift
         ! Input: pos - position of given determinant in CurrentDets
         ! Input: run - run for which the factor is needed
@@ -830,13 +820,11 @@ contains
         unused_var(pos); unused_var(run)
 
         f = 1.0 - exp(-pop / EAS_Scale)
-
     end function expShiftFactorFunction
 
 !------------------------------------------------------------------------------------------!
 
     pure function constShiftFactorFunction(pos, run, pop) result(f)
-        implicit none
         ! Dummy scale function for the shift: S' = S
         ! Input: pos - position of given determinant in CurrentDets
         ! Input: run - run for which the factor is needed
@@ -854,7 +842,6 @@ contains
 !------------------------------------------------------------------------------------------!
 
     pure function linearShiftFactorFunction(pos, run, pop) result(f)
-        implicit none
         ! Piecewise-linear scale function for the shift
         ! Input: pos - position of given determinant in CurrentDets
         ! Input: run - run for which the factor is needed
@@ -867,7 +854,7 @@ contains
 
         unused_var(pos); unused_var(run)
 
-        if (pop > InitiatorWalkNo) then
+        if (test_flag(CurrentDets(:, pos), get_initiator_flag_by_run(run))) then
             f = 1.0
         else if (pop < LAS_Sigma) then
             f = 0.0
@@ -886,7 +873,6 @@ contains
 !------------------------------------------------------------------------------------------!
 
     pure function autoShiftFactorFunction(pos, run, pop) result(f)
-        implicit none
         ! Scale function for the shift based on the ratio of reject spawns
         ! Input: pos - position of given determinant in CurrentDets
         ! Input: run - run for which the factor is needed
