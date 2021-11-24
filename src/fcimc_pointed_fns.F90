@@ -20,7 +20,7 @@ module fcimc_pointed_fns
                         tTruncInitiator, tSkipRef, t_truncate_unocc, t_consider_par_bias, &
                         tAdaptiveShift, LAS_Sigma, LAS_F1, LAS_F2, &
                         AAS_Thresh, AAS_Expo, AAS_Cut, &
-                        tPrecond, AAS_Const, EAS_Scale, ShiftOffset, tAS_Offset
+                        tPrecond, AAS_Const, ShiftOffset, tAS_Offset
     use DetCalcData, only: FciDetIndex, det
     use procedure_pointers, only: get_spawn_helement, shiftFactorFunction
     use fcimc_helper, only: CheckAllowedTruncSpawn
@@ -804,23 +804,6 @@ contains
         Si = -1
 
     end function negScaleFunction
-
-!------------------------------------------------------------------------------------------!
-
-    pure function expShiftFactorFunction(pos, run, pop) result(f)
-        ! Exponential scale function for the shift
-        ! Input: pos - position of given determinant in CurrentDets
-        ! Input: run - run for which the factor is needed
-        ! Input: pop - population of given determinant
-        ! Output: f - scaling factor for the shift
-        integer, intent(in) :: pos
-        integer, intent(in) :: run
-        real(dp), intent(in) :: pop
-        real(dp) :: f
-        unused_var(pos); unused_var(run)
-
-        f = 1.0 - exp(-pop / EAS_Scale)
-    end function expShiftFactorFunction
 
 !------------------------------------------------------------------------------------------!
 

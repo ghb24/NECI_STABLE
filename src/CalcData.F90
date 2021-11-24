@@ -168,8 +168,6 @@ module CalcData
     logical :: tAAS_MatEle4 !Same as MatEle2 but use E_0 in the weight of accepted moves.
     real(dp) :: AAS_DenCut !Threshold on the denominators of MatEles
     real(dp) :: AAS_Const
-    logical :: tExpAdaptiveShift !Make the shift depends on the population exponentialy
-    real(dp) :: EAS_Scale !Scale parameter of exponentail adaptive shift
 
     logical :: tAS_Offset !Whether the adaptive shift scheme should be applied with respect to a custom energy instead of ref energy
     real(dp) ShiftOffset(1:inum_runs_max)! Offset of the adaptive shift (Full offset including the reference energy Hii)

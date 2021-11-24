@@ -51,7 +51,7 @@ module fcimc_initialisation
                         ntrial_ex_calc, tPairedReplicas, tMultiRefShift, tPreCond, &
                         tMultipleInitialStates, initial_states, t_hist_tau_search, &
                         t_previous_hist_tau, t_fill_frequency_hists, t_back_spawn, &
-                        t_trunc_nopen_diff, t_guga_back_spawn, tExpAdaptiveShift, &
+                        t_trunc_nopen_diff, t_guga_back_spawn, &
                         t_back_spawn_option, t_back_spawn_flex_option, &
                         t_back_spawn_flex, back_spawn_delay, ScaleWalkers, tfixedN0, &
                         tReplicaEstimates, tDeathBeforeComms, pSinglesIn, pDoublesIn, pTriplesIn, pParallelIn, &
@@ -60,7 +60,7 @@ module fcimc_initialisation
                         tInitializeCSF, S2Init, tWalkContgrow, tSkipRef, &
                         AAS_Cut, &
                         tInitiatorSpace, i_space_in, tLinearAdaptiveShift, &
-                        tExpAdaptiveShift, tAS_TrialOffset, ShiftOffset, &
+                        tAS_TrialOffset, ShiftOffset, &
                         tSpinProject
 
     use adi_data, only: tReferenceChanged, tAdiActive, nExChecks, nExCheckFails, &
@@ -150,8 +150,7 @@ module fcimc_initialisation
                                  new_child_stats_normal, &
                                  null_encode_child, attempt_die_normal, attempt_die_precond, &
                                  powerScaleFunction, expScaleFunction, negScaleFunction, &
-                                 expCOScaleFunction, &
-                                 expShiftFactorFunction, constShiftFactorFunction, &
+                                 expCOScaleFunction, constShiftFactorFunction, &
                                  linearShiftFactorFunction, autoShiftFactorFunction
 
     use initial_trial_states, only: calc_trial_states_lanczos, &
@@ -2112,9 +2111,9 @@ contains
             call stop_all(this_routine, "Invalid scale function specified")
         end select
 
-        if (tExpAdaptiveShift) then
-            shiftFactorFunction => expShiftFactorFunction
-        else if (tLinearAdaptiveShift) then
+        ! if (tExpAdaptiveShift) then
+        !     shiftFactorFunction => expShiftFactorFunction
+        if (tLinearAdaptiveShift) then
             shiftFactorFunction => linearShiftFactorFunction
         else if (tAutoAdaptiveShift) then
             shiftFactorFunction => autoShiftFactorFunction

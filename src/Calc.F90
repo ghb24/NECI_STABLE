@@ -167,8 +167,6 @@ contains
         LAS_Sigma = 1.0
         LAS_F1 = 0.0
         LAS_F2 = 1.0
-        tExpAdaptiveShift = .false.
-        EAS_Scale = 2.0
         tAutoAdaptiveShift = .false.
         AAS_Thresh = 10
         AAS_Expo = 1
@@ -2015,12 +2013,6 @@ contains
                         call stop_all(t_r, 'F2 is a scaling parameter and should be between 0.0 and 1.0')
                     end if
                 end if
-            case("EXP-ADAPTIVE-SHIFT", "ALL-ADAPTIVE-SHIFT")
-                ! scale the shift down per determinant exponentailly depending on the local population
-                tAdaptiveShift = .true.
-                tExpAdaptiveShift = .true.
-                ! optional argument: value of the parameter of the scaling function
-                if(item < nitems) call getf(EAS_Scale)
 
             case("CORE-ADAPTIVE-SHIFT")
                 ! Also apply the adaptive shift in the corespace
