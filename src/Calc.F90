@@ -98,7 +98,7 @@ contains
 !       Calc defaults
         iSampleRDMIters = -1
         tStartCoreGroundState = .true.
-        t_core_inits = .false.
+        t_core_inits = .true.
         HashLengthFrac = 0.7_dp
         nWalkerHashes = 0
         tTrialHash = .true.
@@ -1862,7 +1862,19 @@ contains
                 tStartCoreGroundState = .false.
             case("CORE-INITS")
                 ! Make all determinants in the core-space initiators
-                t_core_inits = .true.
+                if(item < nitems) then
+                    call readu(w)
+                    select case(w)
+                    case("ON")
+                        t_core_inits = .true.
+                    case ("OFF")
+                        t_core_inits = .false.
+                    case default
+                        call stop_all(t_r, 'One can pass only ON or OFF to core-inits.')
+                    end select
+                else
+                    t_core_inits = .true.
+                end if
             case("INITIATOR-SPACE")
                 tTruncInitiator = .true.
                 tInitiatorSpace = .true.
