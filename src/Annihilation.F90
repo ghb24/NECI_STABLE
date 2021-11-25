@@ -5,7 +5,7 @@ module AnnihilationMod
     use SystemData, only: NEl, tHPHF, tGUGA
     use CalcData, only: tTruncInitiator, OccupiedThresh, tSemiStochastic, &
                         tTrialWavefunction, tKP_FCIQMC, tContTimeFCIMC, tInitsRDM, &
-                        tContTimeFull, InitiatorWalkNo, tau, tEN2, tEN2Init, &
+                        tContTimeFull, tau, tEN2, tEN2Init, &
                         tEN2Started, tEN2Truncated, tInitCoherentRule, t_truncate_spawns, &
                         n_truncate_spawns, t_prone_walkers, t_truncate_unocc, &
                         tLogAverageSpawns, tAutoAdaptiveShift, tSkipRef, &
