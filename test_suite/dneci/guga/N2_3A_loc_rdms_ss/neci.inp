@@ -41,9 +41,9 @@ calc
 endcalc
 
 logging
-calcrdmonfly          3    100 10
-popsfile -1
-highlypopwrite 100
+    calcrdmonfly          3    100 10
+    popsfile -1
+    highlypopwrite 100
 endlog
 end
 
