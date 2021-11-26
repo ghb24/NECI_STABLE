@@ -805,12 +805,16 @@ and ends with the `endcalc` keyword.
 #### Semi-stochastic options
 
 -   **\textcolor{blue}{semi-stochastic}**<br>
- Turn on the semi-stochastic adaptation.
+    Turn on the semi-stochastic adaptation.
 
 -   **\textcolor{blue}{pops-core \(n\)}**<br>
- This option will use the \(n\) most populated determinants
+    This option will use the \(n\) most populated determinants
     to form the core space.
     This keyword cannot be used with `pops-core-proportion`.
+    Note that core-space configurations behave like initiators
+    and are treated as such by default.
+    See also the `core-inits` keyword.
+
 
 -   **pops-core-proportion \(f\)**<br>
     This option will use a fraction \(f\) of most populated initiator
@@ -870,6 +874,14 @@ and ends with the `endcalc` keyword.
     Update the core space every \(n\) iterations, where \(n\) is
     optional and defaults to \(400\). This is enabled by default if the
     `superinitiators` option is given.
+
+-   **core-inits [{OFF, ON}]**<br>
+    Declare all determinants in the core-space as initiators,
+    independent from their population.
+    Since core-space determinants behave like initiators regardless
+    of their population this option is enabled by default.
+    There is an optional keyword which is either ON, or OFF.
+    If the optional keyword is ommitted it defaults to ON.
 
 #### Trial wave function options
 

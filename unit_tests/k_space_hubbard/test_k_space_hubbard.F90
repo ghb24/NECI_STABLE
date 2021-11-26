@@ -45,7 +45,7 @@ program test_k_space_hubbard
 
     use util_mod, only: choose, get_free_unit
 
-    use bit_reps, only: decode_bit_det, encode_sign
+    use bit_reps, only: decode_bit_det, encode_sign, writebitdet
 
     use SymExcitDataMod, only: kTotal
 
