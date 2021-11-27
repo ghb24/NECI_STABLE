@@ -5,6 +5,7 @@
 !   ios is an Integer which is set to 0 on a successful return, or is non-zero if a file error has occurred, where it is the iostat.
 MODULE ReadInput_neci
     use constants, only: stdout
+    use util_mod, only: operator(.implies.)
     Use Determinants, only: tDefineDet, DefDet
     use SystemData, only: lms, user_input_m_s
     Implicit none
@@ -662,6 +663,10 @@ contains
 
         if (allocated(pgen_unit_test_spec) .and. .not. tReadPops) then
             call stop_all(t_r, "UNIT-TEST-PGEN requires READPOPS.")
+        end if
+
+        if (.not. (tInfInit .implies. t_core_inits)) then
+            call stop_all(t_r, 'INFINITE-INIT requires CORE-INITS OFF.')
         end if
 
         block

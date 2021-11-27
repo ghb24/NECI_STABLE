@@ -534,7 +534,7 @@ contains
                 if (ic == 1) SpawnFromSing(run) = SpawnFromSing(run) + sum(abs(child(min_part_type(run):max_part_type(run))))
 
                 ! Count particle blooms, and their sources
-                if (sum(abs(child(min_part_type(run):max_part_type(run)))) > InitiatorWalkNo) then
+                if (sum(abs(child(min_part_type(run) : max_part_type(run)))) > InitiatorWalkNo) then
                     bloom_count(ic) = bloom_count(ic) + 1
                     bloom_sizes(ic) = max(real(sum(abs(child(min_part_type(run):max_part_type(run)))), dp), bloom_sizes(ic))
                 end if
