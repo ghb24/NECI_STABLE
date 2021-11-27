@@ -245,7 +245,8 @@ contains
                             tStartCAS, tUniqueHFNode, tContTimeFCIMC, &
                             tContTimeFull, tFCIMC, tPreCond, tOrthogonaliseReplicas, &
                             tMultipleInitialStates, pgen_unit_test_spec, &
-                            user_input_seed
+                            user_input_seed, t_core_inits
+        use real_time_data, only: tInfInit
         use Calc, only : RDMsamplingiters_in_inp
         Use Determinants, only: SpecDet, tagSpecDet, tDefinedet, DefDet
         use IntegralsData, only: nFrozen, tDiscoNodes, tQuadValMax, &
