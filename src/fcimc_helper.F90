@@ -1066,6 +1066,10 @@ contains
         if ((tHistInitPops .and. mod(iter, histInitPopsIter) == 0) &
             .or. tPrintHighPop) then
             call HistInitPopulations(CurrentSign(1), j)
+            if (t_core_inits) then
+                write(stdout, '(A)') 'Note that core-space determinants are also initiators because core-inits is ON.'
+                write(stdout, '(A)') 'Nevertheless they are not counted in this histogramming.'
+            end if
         end if
 
     end subroutine CalcParentFlag_det
