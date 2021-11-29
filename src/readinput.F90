@@ -683,6 +683,7 @@ contains
                 end if
             end if
         end block
+
     end subroutine checkinput
 
 end Module ReadInput_neci
