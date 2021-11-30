@@ -440,6 +440,8 @@ module real_time_read_input_module
                 ! this is not equivalent to switching on initiators without the
                 ! addtoinitiator keyword as infinite-init will also remove all
                 ! existing inititators
+                !
+                ! Note that this option requires `core-inits OFF`
                 tInfInit = .true.
                 tAddtoInitiator = .true.
                 tTruncInitiator = .true.
