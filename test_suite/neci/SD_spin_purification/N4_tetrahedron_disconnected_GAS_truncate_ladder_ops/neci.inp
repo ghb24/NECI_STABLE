@@ -4,7 +4,7 @@ System read
     electrons  12
     nobrillouintheorem
     FCIDUMP-name N4.FciDmp
-    spin-restrict 8
+    spin-restrict -8
     freeformat
     sd-spin-purification 5d-4 TRUNCATE-LADDER-OPERATOR
     GAS-SPEC LOCAL 4 +++

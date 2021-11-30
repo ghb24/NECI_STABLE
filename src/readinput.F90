@@ -5,6 +5,8 @@
 !   ios is an Integer which is set to 0 on a successful return, or is non-zero if a file error has occurred, where it is the iostat.
 MODULE ReadInput_neci
     use constants, only: stdout
+    Use Determinants, only: tDefineDet, DefDet
+    use SystemData, only: lms, user_input_m_s
     Implicit none
 !   Used to specify which default set of inputs to use
 !    An enum would be nice, but is sadly not supported
@@ -204,6 +206,14 @@ contains
 
         if (allocated(user_input_seed)) then
             G_VMC_SEED = user_input_seed
+        end if
+
+        if (allocated(user_input_m_s)) then
+            lms = user_input_m_s
+        else if (tDefinedet) then
+            lms = sum(merge(1, -1, mod(DefDet, 2) == 0))
+        else
+            lms = 0
         end if
     end subroutine
 
@@ -449,15 +459,14 @@ contains
         ! if the LMS value specified is not reachable with the number of electrons,
         ! fix this
         if (mod(abs(lms), 2) /= mod(nel, 2)) then
-            write(stdout, *) "WARNING: LMS Value is not reachable with the given number of electrons."
-            write(stdout, *) "Resetting LMS"
-            LMS = -mod(nel, 2)
+            call stop_all(t_r, "LMS Value is not reachable with the given number of electrons.")
         end if
 
         if (tCalcInstantS2 .or. tCalcInstantS2Init) then
-            if (tUHF) &
+            if (tUHF) then
                 call stop_all(t_r, 'Cannot calculate instantaneous values of&
                               & S^2 with UF enabled.')
+            end if
             write(stdout, *) 'Enabling calculation of instantaneous S^2 each &
                        &iteration.'
         end if
@@ -642,6 +651,12 @@ contains
             end if
             if (GAS_exc_gen == possible_GAS_exc_gen%DISCONNECTED .and.  GAS_specification%is_connected()) then
                 call stop_all(t_r, "Running GAS-CI = DISCONNECTED requires disconnected spaces.")
+            end if
+        end if
+
+        if (tDefineDet .and. allocated(user_input_m_s)) then
+            if (sum(merge(1, -1, mod(DefDet, 2) == 0)) /= user_input_m_s) then
+                call stop_all(t_r, "Spin of Definedet and Spin-restrict is not consistent.")
             end if
         end if
 

@@ -94,6 +94,7 @@ module FciMCParMod
                                replica_est_len, get_max_ratio, update_max_ratio
     use DetBitOps, only: tAccumEmptyDet
 
+
     use RotateOrbsMod, only: RotateOrbs
     use NatOrbsMod, only: PrintOrbOccs
     use ftlm_neci, only: perform_ftlm
@@ -121,9 +122,9 @@ module FciMCParMod
 
     use real_time_init, only: init_overlap_buffers
 
-    use bit_reps, only: decode_bit_det
+    use bit_reps, only: decode_bit_det, writebitdet
 
-    use util_mod, only: operator(.div.), toggle_lprof
+    use util_mod, only: operator(.div.), toggle_lprof, neci_flush
 
     use hdiag_from_excit, only: get_hdiag_from_excit, get_hdiag_bare_hphf
 
@@ -152,7 +153,7 @@ module FciMCParMod
     use local_spin, only: measure_local_spin, write_local_spin_stats, &
                           finalize_local_spin_measurement
 
-    implicit none
+    better_implicit_none
 
     !array for timings of the main compute loop
     real(dp), dimension(100) :: lt_arr
@@ -1713,7 +1714,7 @@ contains
 
                         if (tScaleBlooms) call update_max_ratio(abs(HElGen) / prob, j)
 
-                        call new_child_stats(iter_data, CurrentDets(:, j), &
+                        call new_child_stats_normal(iter_data, CurrentDets(:, j), &
                                              nJ, iLutnJ, ic, walkExcitLevel, &
                                              child_for_stats, parent_flags, part_type)
 

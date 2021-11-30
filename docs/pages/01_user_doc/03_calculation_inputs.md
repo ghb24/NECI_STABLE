@@ -481,7 +481,7 @@ and ends with the `endcalc` keyword.
 
 -   **\textcolor{blue}{stepsSft \(n\)}**<br>
  Sets the number of steps per update cycle of the shift to
-    \(n\). Defaults to \(100\).
+    \(n\). Defaults to \(10\).
 
 -   **fixed-n0 \(n_0\)**<br>
     Instead of varying the shift to fix the total number of walkers,
@@ -805,18 +805,22 @@ and ends with the `endcalc` keyword.
 #### Semi-stochastic options
 
 -   **\textcolor{blue}{semi-stochastic}**<br>
- Turn on the semi-stochastic adaptation.
+    Turn on the semi-stochastic adaptation.
 
 -   **\textcolor{blue}{pops-core \(n\)}**<br>
- This option will use the \(n\) most populated determinants
+    This option will use the \(n\) most populated determinants
     to form the core space.
     This keyword cannot be used with `pops-core-proportion`.
+    Note that core-space configurations behave like initiators
+    and are treated as such by default.
+    See also the `core-inits` keyword.
+
 
 -   **pops-core-proportion \(f\)**<br>
     This option will use a fraction \(f\) of most populated initiator
     determinants to form the core space. For example, about 50% of most
     populated initiator determinants are chosen if \(f = 0.5\).
-    This keyword cannot be used with `pops-core` and requires 
+    This keyword cannot be used with `pops-core` and requires
     `semi-stochastic`.
 
 -   **doubles-core**<br>
@@ -870,6 +874,14 @@ and ends with the `endcalc` keyword.
     Update the core space every \(n\) iterations, where \(n\) is
     optional and defaults to \(400\). This is enabled by default if the
     `superinitiators` option is given.
+
+-   **core-inits [{OFF, ON}]**<br>
+    Declare all determinants in the core-space as initiators,
+    independent from their population.
+    Since core-space determinants behave like initiators regardless
+    of their population this option is enabled by default.
+    There is an optional keyword which is either ON, or OFF.
+    If the optional keyword is ommitted it defaults to ON.
 
 #### Trial wave function options
 
@@ -1441,3 +1453,23 @@ the RDMs are calculated and the content of the files, please see section
     This option activates a full sampling of RDMs,
     at least in the semi-stochastic space.
     This option does increase the cost though.
+
+
+### FCIMCStats output functions
+
+-   **instant-s2-full [\(x\)]**<br>
+    Calculate an instantaneous value for \(\hat{S}^2\), and output it to the
+    relevant column (28) in the `FCIMCStats` file.
+
+    The second optional parameter is a multiplier such that we only calculate
+    \(\hat{S}^2\) once for every n update cycles (it must be on an update
+    cycle such that \(|\Psi|^2\) is correct)
+
+-   **instant-s2-init [\(x\)]**<br>
+    Calculate an instantaneous value for \(\hat{S}^2\), considering only
+    the initiators, and output it to the relevant column (29)
+    in the `FCIMCStats` file.
+
+    The second optional parameter is a multiplier such that we only calculate
+    \(\hat{S}^2\) once for every n update cycles (it must be on an update
+    cycle such that \(|\Psi|^2\) is correct)

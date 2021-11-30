@@ -424,9 +424,8 @@ contains
                 call geti(NEL)
             case ("SPIN-RESTRICT")
                 if (item < nitems) then
-                    call geti(LMS)
-                else
-                    LMS = 0
+                    allocate(user_input_m_s)
+                    call geti(user_input_m_s)
                 end if
                 TSPN = .true.
 
