@@ -5,6 +5,7 @@
 !   ios is an Integer which is set to 0 on a successful return, or is non-zero if a file error has occurred, where it is the iostat.
 MODULE ReadInput_neci
     use constants, only: stdout
+    use util_mod, only: operator(.implies.)
     Use Determinants, only: tDefineDet, DefDet
     use SystemData, only: lms, user_input_m_s
     Implicit none
@@ -244,7 +245,8 @@ contains
                             tStartCAS, tUniqueHFNode, tContTimeFCIMC, &
                             tContTimeFull, tFCIMC, tPreCond, tOrthogonaliseReplicas, &
                             tMultipleInitialStates, pgen_unit_test_spec, &
-                            user_input_seed
+                            user_input_seed, t_core_inits
+        use real_time_data, only: tInfInit
         use Calc, only : RDMsamplingiters_in_inp
         Use Determinants, only: SpecDet, tagSpecDet, tDefinedet, DefDet
         use IntegralsData, only: nFrozen, tDiscoNodes, tQuadValMax, &
@@ -664,6 +666,10 @@ contains
             call stop_all(t_r, "UNIT-TEST-PGEN requires READPOPS.")
         end if
 
+        if (.not. (tInfInit .implies. t_core_inits)) then
+            call stop_all(t_r, 'INFINITE-INIT requires CORE-INITS OFF.')
+        end if
+
         block
             use load_balance_calcnodes, only: &
                 tLoadBalanceBlocks, loadBalanceInterval
@@ -677,6 +683,7 @@ contains
                 end if
             end if
         end block
+
     end subroutine checkinput
 
 end Module ReadInput_neci
