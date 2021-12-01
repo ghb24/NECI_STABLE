@@ -89,6 +89,8 @@ considered. The block starts with the `system` keyword and ends with the
     arguments set the momentum \((k_x,k_y,k_z)\) and are only used for
     Hubbard and ueg-type systems, the last argument \(s\) specifies the
     irrep within \(d_{2h}\) and is only used for ab-initio systems.
+    Note that the symmetry label is zero-indexed, so \(A_{1g}\)
+    corresponds to 0.
 
 -   **lztot**<br>
     Set the total \(L_s\) quantum number. Has one mandatory additional
@@ -864,6 +866,8 @@ and ends with the `endcalc` keyword.
 -   **fci-core**<br>
     Use all determinants to form the core space. A fully deterministic
     projection is therefore performed with this option.
+    This option requires information about spin(-projection) and spatial
+    symmetry, so the keywords `sym` and `spin-restrict` are required.
 
 -   **read-core**<br>
     Use the determinants in the CORESPACE file to form the core space. A
