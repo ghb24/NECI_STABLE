@@ -51,7 +51,8 @@ MODULE Calc
                                   init_get_helement_hubbard
     use tJ_model, only: init_get_helement_heisenberg, init_get_helement_tj, &
                         init_get_helement_heisenberg_guga, init_get_helement_tj_guga
-    use k_space_hubbard, only: init_get_helement_k_space_hub
+    use k_space_hubbard, only: init_get_helement_k_space_hub, get_2_body_diag_transcorr, &
+                                get_3_body_diag_transcorr
     use kp_fciqmc_data_mod, only: overlap_pert, tOverlapPert
     use DetBitOps, only: DetBitEq, EncodeBitDet, return_hphf_sym_det
     use DeterminantData, only: write_det
@@ -3595,7 +3596,7 @@ contains
 
         INTEGER I, IC, J, norb
         INTEGER nList
-        HElement_t(dp) HDiagTemp
+        HElement_t(dp) HDiagTemp, h_2_temp, h_3_temp
         type(NoExc_t) :: NoExc
         character(*), parameter :: this_routine = 'CalcInit'
 
@@ -3684,14 +3685,23 @@ contains
         end if
 
         IF(.NOT. TREAD) THEN
-!             CALL WRITETMAT(NBASIS)
             IC = 0
             HDiagTemp = get_helement(fDet, fDet, 0)
             write(stdout, *) '<D0|H|D0>=', real(HDiagTemp, dp)
             write(stdout, *) '<D0|T|D0>=', CALCT(FDET, NEL)
             if (t_3_body_excits) then
-                write(stdout, *) "<D0|U|D0>", sltcnd_0_base(fdet, NoExc) - calct(fdet,nel)
-                write(stdout, *) "<D0|L|D0>", sltcnd_0_tc(fdet, NoExc) - sltcnd_0_base(fdet,NoExc)
+                if (t_k_space_hubbard) then
+                    h_2_temp = get_2_body_diag_transcorr(fdet)
+                    h_3_temp = get_3_body_diag_transcorr(fdet)
+                    write(stdout, *) "<D0|U|D0>", h_2_temp
+                    write(stdout, *) "<D0|L|D0>", h_3_temp
+                else
+                    HDiagTemp = sltcnd_0_tc(fdet, NoExc)
+                    h_2_temp = sltcnd_0_base(fdet, NoExc) - calct(fdet, nel)
+                    h_3_temp = HDiagTemp - sltcnd_0_base(fdet, NoExc)
+                    write(stdout, *) "<D0|U|D0>", h_2_temp
+                    write(stdout, *) "<D0|L|D0>", h_3_temp
+                end if
             else
                 write(stdout, *) "<D0|U|D0>", real(HDiagTemp,dp) - calct(fdet, nel)
             end if
