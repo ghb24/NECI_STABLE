@@ -1617,7 +1617,6 @@ contains
         inter = 1.0_dp
         integral = h_cast(0.0_dp)
 
-
         do i = first + 1, last - 1
             if (csf_i%Occ_int(i) /= 1) cycle
 
@@ -1897,7 +1896,9 @@ contains
         integer(int_rdm), allocatable :: tmp_rdm_ind(:)
         real(dp), allocatable :: tmp_rdm_mat(:)
         integer :: rdm_count, max_num_rdm
-        logical :: rdm_flag
+        logical :: rdm_flag, test_skip
+
+        test_skip = .true.
 
         if (present(rdm_ind) .or. present(rdm_mat)) then
             ASSERT(present(rdm_ind) .and. present(rdm_mat))
@@ -2052,18 +2053,20 @@ contains
 
                 ! get both start and staying matrix elements -> and update
                 ! matrix element contributions on the fly to avoid second loop!
-                call getDoubleMatrixElement(step, step, -1, gen_type%R, gen_type%L, csf_i%B_real(i), &
-                                            1.0_dp, x1_element=start_mat)
+                call getDoubleMatrixElement(step, step, -1, gen_type%R, gen_type%L, &
+                    csf_i%B_real(i), 1.0_dp, x1_element=start_mat)
 
-                call getDoubleMatrixElement(step, step, 0, gen_type%R, gen_type%L, csf_i%B_real(i), &
-                                            1.0_dp, x1_element=stay_mat)
+                call getDoubleMatrixElement(step, step, 0, gen_type%R, gen_type%L, &
+                    csf_i%B_real(i), 1.0_dp, x1_element=stay_mat)
 
                 ! check if orb_pgen is non-zero
-                if (near_zero(orb_pgen) .and. (.not. rdm_flag)) then
-                    ! still have to update matrix element, even if 0 pgen
-                    mat_ele = mat_ele * stay_mat
+                if (.not. test_skip) then
+                    if (near_zero(orb_pgen) .and. (.not. rdm_flag)) then
+                        ! still have to update matrix element, even if 0 pgen
+                        mat_ele = mat_ele * stay_mat
 
-                    cycle
+                        cycle
+                    end if
                 end if
 
                 ! another check.. although this should not happen
@@ -2071,8 +2074,8 @@ contains
                 ! above, to not continue:
                 if (near_zero(stay_mat)) below_flag = .true.
 
-                zero_weight = weights%proc%zero(negSwitches(i), &
-                                                posSwitches(i), csf_i%B_real(i), weights%dat)
+                zero_weight = weights%proc%zero(negSwitches(i), posSwitches(i), &
+                    csf_i%B_real(i), weights%dat)
 
                 if (step == 1) then
                     switch_weight = weights%proc%plus(posSwitches(i), &
@@ -2091,8 +2094,9 @@ contains
                 ! quantities!
                 ! "normally" matrix element shouldnt be 0 anymore... still check
                 if (.not. near_zero(start_mat)) then
-                    integral = integral + start_mat * mat_ele * (get_umat_el(i, holeInd, elecInd, i) &
-                                                                 + get_umat_el(holeInd, i, i, elecInd)) / 2.0_dp
+                    integral = integral + start_mat * mat_ele * &
+                        (get_umat_el(i, holeInd, elecInd, i) &
+                            + get_umat_el(holeInd, i, i, elecInd)) / 2.0_dp
 
                     if (rdm_flag) then
                         rdm_count = rdm_count + 1
@@ -2168,8 +2172,8 @@ contains
                 if (csf_i%Occ_int(i) /= 1) cycle
 
                 ! calculate orbitals pgen first and cycle if 0
-                call calc_orbital_pgen_contrib_start(&
-                        csf_i, [2 * i, 2 * elecInd], holeInd, orb_pgen)
+                call calc_orbital_pgen_contrib_start(csf_i, [2 * i, 2 * elecInd], &
+                    holeInd, orb_pgen)
 
                 step = csf_i%stepvector(i)
 
@@ -2185,7 +2189,9 @@ contains
                 ! still have to update matrix element in this case..
                 ! so do the cycle only afterwards..
 
-                if (near_zero(orb_pgen) .and. (.not. rdm_flag)) cycle
+                if (.not. test_skip) then
+                    if (near_zero(orb_pgen) .and. (.not. rdm_flag)) cycle
+                end if
 
                 ! and also get starting contribution
                 call getDoubleMatrixElement(step, step, -1, gen_type%L, gen_type%R, csf_i%B_real(i), &
@@ -2247,7 +2253,7 @@ contains
                 call calc_orbital_pgen_contrib_start(&
                         csf_i, [2 * sw, 2 * elecInd], holeInd, orb_pgen)
 
-                if (.not. near_zero(orb_pgen) .or. rdm_flag) then
+                if (.not. near_zero(orb_pgen) .or. rdm_flag .or. test_skip) then
 
                     step = csf_i%stepvector(sw)
 
@@ -2352,8 +2358,10 @@ contains
 
         integer(int_rdm), allocatable :: tmp_rdm_ind(:)
         real(dp), allocatable :: tmp_rdm_mat(:)
-        logical :: rdm_flag
+        logical :: rdm_flag, test_skip
         integer :: rdm_count, max_num_rdm
+
+        test_skip = .true.
 
         if (present(rdm_ind) .or. present(rdm_mat)) then
             ASSERT(present(rdm_ind))
@@ -2379,8 +2387,8 @@ contains
 
         integral = h_cast(0.0_dp)
         ! also here i didn't consider the actual end contribution or? ...
-        call calc_orbital_pgen_contrib_end(&
-                csf_i, [2 * elecInd, 2 * en], holeInd, orb_pgen)
+        call calc_orbital_pgen_contrib_end(csf_i, [2 * elecInd, 2 * en], &
+            holeInd, orb_pgen)
 
         pgen = orb_pgen * branch_pgen
 
@@ -2451,8 +2459,8 @@ contains
                     end if
 
                     ! then calc. orbital probability
-                    call calc_orbital_pgen_contrib_end(&
-                            csf_i, [2 * elecInd, 2 * i], holeInd, orb_pgen)
+                    call calc_orbital_pgen_contrib_end(csf_i, [2 * elecInd, 2 * i], &
+                        holeInd, orb_pgen)
 
                     ! should be able to do that without second loop too!
                     ! figure out!
@@ -2464,20 +2472,22 @@ contains
                     call getMixedFullStop(step, step, 0, csf_i%B_real(i), &
                                           x1_element=end_mat)
 
-                    if (near_zero(orb_pgen) .and. (.not. rdm_flag)) then
-                        ! still have to update the switches before cycling
-                        ! update the switches
-                        if (csf_i%stepvector(i) == 1) then
-                            tmp_neg(se:i - 1) = tmp_neg(se:i - 1) + 1.0_dp
-                        else
-                            tmp_pos(se:i - 1) = tmp_pos(se:i - 1) + 1.0_dp
+                    if (.not. test_skip) then
+                        if (near_zero(orb_pgen) .and. (.not. rdm_flag)) then
+                            ! still have to update the switches before cycling
+                            ! update the switches
+                            if (csf_i%stepvector(i) == 1) then
+                                tmp_neg(se:i - 1) = tmp_neg(se:i - 1) + 1.0_dp
+                            else
+                                tmp_pos(se:i - 1) = tmp_pos(se:i - 1) + 1.0_dp
+                            end if
+
+                            ! also have to update the matrix element, even if
+                            ! the orb pgen is 0
+                            mat_ele = mat_ele * stay_mat
+
+                            cycle
                         end if
-
-                        ! also have to update the matrix element, even if
-                        ! the orb pgen is 0
-                        mat_ele = mat_ele * stay_mat
-
-                        cycle
                     end if
 
                     ! this check should never be true, but just to be sure
@@ -2590,8 +2600,8 @@ contains
                 if (csf_i%Occ_int(i) /= 1) cycle
 
                 ! get orbital pgen
-                call calc_orbital_pgen_contrib_end(&
-                        csf_i, [2 * elecInd, 2 * i], holeInd, orb_pgen)
+                call calc_orbital_pgen_contrib_end(csf_i, [2 * elecInd, 2 * i], &
+                    holeInd, orb_pgen)
 
                 if (csf_i%stepvector(i) == 1) then
                     ! by looping in this direction i have to reduce
@@ -2618,7 +2628,9 @@ contains
 
                 ! dont i still have to atleast update the matrix element
                 ! even if the orbital pgen is 0??
-                if (near_zero(orb_pgen) .and. (.not. rdm_flag)) cycle
+                if (.not. test_skip) then
+                    if (near_zero(orb_pgen) .and. (.not. rdm_flag)) cycle
+                end if
 
                 if (.not. near_zero(end_mat)) then
 
@@ -2687,10 +2699,10 @@ contains
             ! deal with switch specifically:
 
             ! figure out orbital pgen
-            call calc_orbital_pgen_contrib_end(&
-                    csf_i, [2 * elecInd, 2 * sw], holeInd, orb_pgen)
+            call calc_orbital_pgen_contrib_end(csf_i, [2 * elecInd, 2 * sw], &
+                holeInd, orb_pgen)
 
-            if (.not. near_zero(orb_pgen) .or. rdm_flag) then
+            if (.not. near_zero(orb_pgen) .or. rdm_flag .or. test_skip) then
 
                 step = csf_i%stepvector(sw)
 
@@ -2813,9 +2825,11 @@ contains
                     inter, tempWeight_1, &
                     above_cpt, below_cpt
         type(WeightObj_t) :: weights
-        logical :: above_flag, below_flag
+        logical :: above_flag, below_flag, test_skip
         HElement_t(dp) :: temp_int
         type(ExcitationInformation_t) :: tmp_excitInfo
+
+        test_skip = .true.
 
         tmp_excitInfo = excitInfo
 
@@ -2916,9 +2930,10 @@ contains
                     below_flag = .true.
                 end if
 
-                if (near_zero(above_cpt)) cycle
-
-                if (near_zero(below_cpt)) cycle
+                if (.not. test_skip) then
+                    if (near_zero(above_cpt)) cycle
+                    if (near_zero(below_cpt)) cycle
+                end if
 
                 ! calculate the branch probability
 
