@@ -94,11 +94,11 @@ contains
                     KI%Sym%s = 0 ! Ignore symmetry in generation of determinants.
                 end if
                 IF (.NOT. TSPN) KI%Ms = 0
-                !        write(6,*) KI
+                !        write(stdout,*) KI
                 if (tTruncNOpen) then
                     call EncodeBitDet(nI, ilut)
-                    !write(6,*) 'ilut:',ilut
-                    !write(6,*) "Number of open orbitals: ",count_open_orbs(ilut),trunc_nopen_max
+                    !write(stdout,*) 'ilut:',ilut
+                    !write(stdout,*) "Number of open orbitals: ",count_open_orbs(ilut),trunc_nopen_max
                     if (count_open_orbs(ilut) > trunc_nopen_max) then
                         tSkip = .true.
                     else

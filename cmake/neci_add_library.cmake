@@ -93,30 +93,41 @@ macro( neci_add_library )
       message( FATAL_ERROR "Library ${_p_TARGET}: Type not specified. Must be one of [ STATIC | SHARED ]" )
     endif()
 
+    add_library( ${_p_TARGET} ${_p_TYPE} ${_p_SOURCES})
+
     # Add .F90.template files if supplied
 
     set( ${_p_TARGET}_TEMPLATED_SOURCES )
     if ( _p_TEMPLATED_SOURCES )
-      find_package(Python3 REQUIRED)
+        find_package(Python3 REQUIRED)
 
-      # Ensure that the templates get put somewhere unique for each target
-      set( _template_dir ${CMAKE_BINARY_DIR}/templated/${_p_TARGET} )
-      file( MAKE_DIRECTORY ${_template_dir} )
+        # Ensure that the templates get put somewhere unique for each target
+        set( _template_dir ${CMAKE_BINARY_DIR}/templated/${_p_TARGET} )
+        file( MAKE_DIRECTORY ${_template_dir} )
 
-      get_filename_component( _templater_tool ${PROJECT_SOURCE_DIR}/tools/f90_template.py ABSOLUTE )
+        get_filename_component( _templater_tool ${PROJECT_SOURCE_DIR}/tools/f90_template.py ABSOLUTE )
 
-      foreach(_templated_file ${_p_TEMPLATED_SOURCES})
-        get_filename_component( _templated_file_base ${_templated_file} NAME_WE )
-        get_filename_component( _templated_file_absolute ${_templated_file} ABSOLUTE)
-        set( _templated_target_file ${_template_dir}/${_templated_file_base}.F90 )
-        list( APPEND ${_p_TARGET}_TEMPLATED_SOURCES ${_templated_target_file} )
-        add_custom_command(
-            COMMAND ${Python3_EXECUTABLE} ${_templater_tool} ${_templated_file_absolute} ${_templated_target_file}
-            WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-            OUTPUT ${_templated_target_file}
-            DEPENDS ${_templated_file_absolute} )
-        set_property(SOURCE ${_templated_target_file}  PROPERTY COMPILE_FLAGS ${${PROJECT_NAME}_Fortran_relaxed_WARNING_FLAGS})
-      endforeach()
+        foreach(_templated_file ${_p_TEMPLATED_SOURCES})
+            get_filename_component( _templated_file_base ${_templated_file} NAME_WE )
+            get_filename_component( _templated_file_absolute ${_templated_file} ABSOLUTE)
+            set( _templated_target_file ${_template_dir}/${_templated_file_base}.F90 )
+            list( APPEND ${_p_TARGET}_TEMPLATED_SOURCES ${_templated_target_file} )
+            add_custom_command(
+                COMMAND ${Python3_EXECUTABLE} ${_templater_tool} ${_templated_file_absolute} ${_templated_target_file}
+                WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+                OUTPUT ${_templated_target_file}
+                DEPENDS ${_templated_file_absolute} )
+            set_property(SOURCE ${_templated_target_file}  PROPERTY COMPILE_FLAGS ${${PROJECT_NAME}_Fortran_relaxed_WARNING_FLAGS})
+        endforeach()
+
+        # Some tools like the documentation only require the preprocessed files.
+        # That's why we need a separate target for it.
+        add_custom_target( ${_p_TARGET}_templated
+            DEPENDS
+                ${${_p_TARGET}_TEMPLATED_SOURCES}
+        )
+
+        target_sources( ${_p_TARGET} PRIVATE ${${_p_TARGET}_TEMPLATED_SOURCES})
     endif()
 
 
@@ -132,9 +143,12 @@ macro( neci_add_library )
             message(STATUS "Submodule update")
             find_package(Git QUIET)
             if(GIT_FOUND)
-                execute_process(COMMAND ${GIT_EXECUTABLE} submodule update --init --recursive
-                                WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-                                RESULT_VARIABLE GIT_SUBMOD_RESULT)
+                execute_process(COMMAND
+                                    ${GIT_EXECUTABLE} submodule update --init --recursive
+                                WORKING_DIRECTORY
+                                    ${PROJECT_SOURCE_DIR}
+                                RESULT_VARIABLE
+                                    GIT_SUBMOD_RESULT)
                 if(NOT GIT_SUBMOD_RESULT EQUAL "0")
                     message(FATAL_ERROR "git submodule update --init failed with ${GIT_SUBMOD_RESULT}, please checkout submodules.")
                 endif()
@@ -161,11 +175,16 @@ macro( neci_add_library )
                 OUTPUT ${_fypp_target_file}
                 DEPENDS ${_fypp_file_absolute})
         endforeach()
+
+        # Some tools like the documentation only require the preprocessed files.
+        # That's why we need a separate target for it.
+        add_custom_target( ${_p_TARGET}_fypp_preprocessed
+            DEPENDS
+                ${${_p_TARGET}_FYPP_SOURCES}
+        )
+
+        target_sources( ${_p_TARGET} PRIVATE ${${_p_TARGET}_FYPP_SOURCES})
     endif()
-
-
-    # Actually add the library to the cmake build
-    add_library( ${_p_TARGET} ${_p_TYPE} ${_p_SOURCES} ${${_p_TARGET}_FYPP_SOURCES} ${${_p_TARGET}_TEMPLATED_SOURCES})
 
 
     # Add definitions to the compliation
@@ -188,11 +207,8 @@ macro( neci_add_library )
         endif()
     endif()
 
-    if( HAVE_WARNINGS )
-#         set( ${_p_TARGET}_RELAX_WARNINGS )
-        if (_p_RELAX_WARNINGS )
-            set_property(SOURCE ${_p_RELAX_WARNINGS} PROPERTY COMPILE_FLAGS ${${PROJECT_NAME}_Fortran_relaxed_WARNING_FLAGS})
-        endif()
+    if (_p_RELAX_WARNINGS )
+        set_property(SOURCE ${_p_RELAX_WARNINGS} PROPERTY COMPILE_FLAGS ${${PROJECT_NAME}_Fortran_relaxed_WARNING_FLAGS})
     endif()
 
 

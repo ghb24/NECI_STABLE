@@ -1,0 +1,580 @@
+ Number of processors:            2
+ Processor            1 /           2  as head node.
+ Sum:            3
+ Memory Manager initialised with  99999.0 MB
+
+ ================================================================
+ Compiled on Oct 28 2021 at 09:14:39
+ Compiled using configuration:
+     cmake-GNU--RELEASE
+ VCS BASE repository version:
+     c2474579850bb01db098efc5bdd3139afb71daf5
+ Working directory: 
+     /home/weser/code/neci/test_suite/hdf5/dneci/rdm/Ne_atom
+ Running on: pcal029.fkf.mpg.de
+ Started running on 28/10/2021 at 09:47:58
+ ================================================================
+
+ Processing argumentsneci.inp                                                                                                                                                                                                                                                       
+ Reading from file: neci.inp
+ Using the default set of defaults.
+
+****************************************************************
+
+Title
+
+System read
+    electrons  6
+    nobrillouintheorem
+    freeformat
+    spin-restrict 0
+    FCIDUMP-name Li2.FciDmp
+    nonuniformrandexcits pchb
+endsys
+
+calc
+    seed 7
+    load-balance-interval 1000
+
+    definedet 1 2 3 11 12 14
+    readpops
+
+
+    totalwalkers 10000
+    semi-stochastic
+    pops-core 1000
+
+    methods
+        method vertex fcimc
+    endmethods
+
+    diagshift .00
+    shiftdamp .02
+    stepsshift 10
+    proje-changeref 1.20
+    truncinitiator
+    addtoinitiator  3
+    allrealcoeff
+    realspawncutoff .30
+    tau 0.01 search
+    max-tau .02
+    maxwalkerbloom 1
+    memoryfacspawn 10.00
+    memoryfacpart 5.00
+    startsinglepart 10
+endcalc
+
+logging
+    highlypopwrite 50
+    hdf5-pops-read
+    RDMlinspace 50 3 100
+endlog
+end
+
+****************************************************************
+
+ Allocating each processor as a separate node.
+ I am the node root for node            0
+======== SYSTEM ==========
+  NUMBER OF ELECTRONS :     6
+  Restricting the S_z spin-projection of the system, TSPN :  T
+ S_z quantum number :     0
+  GLOBAL MS :            0
+  *** GENERIC SYSTEM ***  
+ Only one irrep found. Turning off symmetry for rest of calculation.
+  NUMBER OF SPIN ORBITALS IN BASIS :    20
+*** CREATING BASIS FNs FROM FCIDUMP ***
+  Maximum number of symmetries:   1
+ Turning Symmetry off
+  Generating abelian symmetry table with  0 generators
+  Number of symmetry classes: 1
+ 
+Ordering Basis (Closed):    0   0   0   0   0   0   0   0
+Ordering Basis (Open  ):    0   0   0   0   0   0   0   0
+HF determinant not yet defined.
+      1      1      0      0      0     -1 ( 0, 0, 0) 0   0       -2.482500000       -2.482500000
+      2      2      0      0      0      1 ( 0, 0, 0) 0   0       -2.482500000       -2.482500000
+      3      3      0      0      0     -1 ( 0, 0, 0) 0   0       -2.475000000       -2.475000000
+      4      4      0      0      0      1 ( 0, 0, 0) 0   0       -2.475000000       -2.475000000
+      5      5      0      0      0     -1 ( 0, 0, 0) 0   0       -0.306820000       -0.306820000
+      6      6      0      0      0      1 ( 0, 0, 0) 0   0       -0.306820000       -0.306820000
+      7      7      0      0      0     -1 ( 0, 0, 0) 0   0       -0.084108000       -0.084108000
+      8      8      0      0      0      1 ( 0, 0, 0) 0   0       -0.084108000       -0.084108000
+      9      9      0      0      0     -1 ( 0, 0, 0) 0   0        3.129200000        3.129200000
+     10     10      0      0      0      1 ( 0, 0, 0) 0   0        3.129200000        3.129200000
+     11     11      0      0      0     -1 ( 0, 0, 0) 0   0        3.129200000        3.129200000
+     12     12      0      0      0      1 ( 0, 0, 0) 0   0        3.129200000        3.129200000
+     13     13      0      0      0     -1 ( 0, 0, 0) 0   0        3.213700000        3.213700000
+     14     14      0      0      0      1 ( 0, 0, 0) 0   0        3.213700000        3.213700000
+     15     15      0      0      0     -1 ( 0, 0, 0) 0   0        3.239700000        3.239700000
+     16     16      0      0      0      1 ( 0, 0, 0) 0   0        3.239700000        3.239700000
+     17     17      0      0      0     -1 ( 0, 0, 0) 0   0        3.239700000        3.239700000
+     18     18      0      0      0      1 ( 0, 0, 0) 0   0        3.239700000        3.239700000
+     19     19      0      0      0     -1 ( 0, 0, 0) 0   0        3.430600000        3.430600000
+     20     20      0      0      0      1 ( 0, 0, 0) 0   0        3.430600000        3.430600000
+ Turning Symmetry off
+*** READING PRIMITIVE INTEGRALS FROM FCIDUMP ***
+ UMatSize:                  1540
+Memory required for integral storage:     0.1174926758E-01 Mb/Shared Memory
+Two-electron integrals with a magnitude over    0.1000000E-07 are screened
+ Number of non-zero integrals:                   544
+ ECORE=   1.7817547824000000     
+ Setting normal GetUMatEl routine
+ Defining FDet according to input
+ Fermi det (D0):(    1,    2,    3,   11,   12,   14)
+ Symmetry:  ( 0, 0, 0) 0
+ Fock operator energy:   3.8138547824000004     
+ Setting normal GetUMatEl routine
+ Double run in use.
+ Number of simultaneous walker distributions:            2
+ Number of sign components in bit representation of determinant:            2
+Setting integer length of determinants as bit-strings to:      4
+Setting integer bit-length of determinants as bit-strings to:     64
+ SYMMETRY MULTIPLICATION TABLE
+ No Symmetry table found.
+           1  Symmetry PAIRS
+           1  DISTINCT ORBITAL PAIR PRODUCT SYMS
+ Symmetry and spin of orbitals correctly set up for excitation generators.
+ Simply transferring this into a spin orbital representation.
+ Not storing the H matrix.
+ <D0|H|D0>=  -14.626848341592840     
+ <D0|T|D0>=  -22.730849435400000     
+ FDet has     3 alpha electrons, and     3 beta electrons.
+                3  alpha-alpha occupied electron pairs
+                3  beta-beta occupied electron pairs
+                9  alpha-beta occupied electron pairs
+               21 alpha-alpha (vacant) hole pairs
+               21 beta-beta (vacant) hole pairs
+               49 alpha-beta (vacant) hole pairs
+
+ Performing Parallel FCIQMC....
+
+ Generated reference determinants:
+(    1,    2,    3,   11,   12,   14) E =    -14.626848342
+(    1,    2,    3,   11,   12,   14) E =    -14.626848342
+Symmetry of reference determinant is:          0
+Symmetry of reference determinant from spin orbital symmetry info is:          0
+*********** INITIATOR METHOD IN USE ***********
+Starting with only the reference determinant in the fixed initiator space.
+Value for seed is:            7
+Reference Energy set to:       -14.6268483416
+Highest energy determinant is (approximately):     -2.24317285867400    
+Corresponding to a correlation energy of:      12.3836754829188    
+This means tau should be no more than about         0.080751470060672
+ Highest energy determinant is:           15          16          17          18          19          20
+ Calculating approximate pDoubles for use with excitation generator by looking a excitations from reference.
+    567 double excitations, and      42 single excitations found from reference. This will be used to calculate pDoubles.
+ pDoubles set to:       0.931034
+ pSingles set to:       0.068966
+ Connectivity of HF determinant is:          609
+ Allocating PCHB excitation generator objects
+ Excitation generator requires   2.0284205675125122E-004 GB of memory
+ The number of supergroups is           1
+ Generating samplers for PCHB excitation generator
+ Depending on the number of supergroups this can take up to 10min.
+ Finished excitation generator initialization
+Low memory requested for walkers, so increasing memory to 20Mb to avoid memory errors
+Memory allocated for a maximum particle number per node of:         524288
+ The average current signs before death will be stored for use in the RDMs.
+ Determinant related persistent storage requires:      40.000000 Mb / processor
+Spawning vectors allowing for a total of       100000 particles to be spawned in any one iteration per core.
+ Memory requirement    2.2888183593750000      MB
+Storing walkers in hash-table. Algorithm is now formally linear scaling with walker number
+Length of hash-table:            3500
+Length of hash-table as a fraction of targetwalkers:              0.70000
+Reference processor is:        1
+Initial reference is: (    1,    2,    3,   11,   12,   14)
+
+ ========== Reading in from HDF5 popsfile ==========
+ File name: popsfile.h5
+ Previous calculation
+ Date: 2021-10-28 09:41:43
+ Sequence no.:           1
+ VCS ver: c2474579850bb01db098efc5bdd3139afb71daf5
+ Build config: cmake-GNU--RELEASE
+ Build date: Oct 28 2021
+ Build time: 09:17:50
+
+ Reading in                  1042  determinants
+ Reading in                   521  determinants on this process ...
+ ... done
+
+ Completed iterations:        10000
+ Resuming calculation after    197.47267222132186       a.u.
+ Initial shift:  -0.26617255020302721      -0.26617678341706785     
+ time-step specified in input, which takes precedence!
+ read-in tau optimization data: 
+ time-step:    1.0000000000000000E-002
+ pSingles:   0.32316051683061719     
+ pDoubles:   0.67683948316938281     
+ pParallel:   0.11257119030744356     
+ continuing tau-search!
+Moving load balancing block       108 from processor      1 to      0
+Moving load balancing block       163 from processor      1 to      0
+Moving load balancing block       188 from processor      1 to      0
+Moving load balancing block       156 from processor      1 to      0
+Moving load balancing block       190 from processor      1 to      0
+Moving load balancing block       194 from processor      1 to      0
+Moving load balancing block       102 from processor      1 to      0
+Moving load balancing block       174 from processor      1 to      0
+Moving load balancing block       200 from processor      1 to      0
+Moving load balancing block       105 from processor      1 to      0
+Moving load balancing block       168 from processor      1 to      0
+Moving load balancing block       151 from processor      1 to      0
+Moving load balancing block       179 from processor      1 to      0
+Moving load balancing block       184 from processor      1 to      0
+Moving load balancing block       117 from processor      1 to      0
+Moving load balancing block       131 from processor      1 to      0
+Moving load balancing block       166 from processor      1 to      0
+Moving load balancing block       121 from processor      1 to      0
+Moving load balancing block       134 from processor      1 to      0
+Moving load balancing block       135 from processor      1 to      0
+Moving load balancing block       101 from processor      1 to      0
+Moving load balancing block       110 from processor      1 to      0
+Moving load balancing block       130 from processor      1 to      0
+Moving load balancing block       140 from processor      1 to      0
+Moving load balancing block       172 from processor      1 to      0
+Moving load balancing block       173 from processor      1 to      0
+Moving load balancing block       191 from processor      1 to      0
+Moving load balancing block       139 from processor      1 to      0
+Moving load balancing block       181 from processor      1 to      0
+Moving load balancing block       154 from processor      1 to      0
+Moving load balancing block       123 from processor      1 to      0
+Moving load balancing block       167 from processor      1 to      0
+Moving load balancing block       178 from processor      1 to      0
+Moving load balancing block       192 from processor      1 to      0
+Moving load balancing block       146 from processor      1 to      0
+Moving load balancing block       149 from processor      1 to      0
+Moving load balancing block       162 from processor      1 to      0
+Moving load balancing block       112 from processor      1 to      0
+Moving load balancing block       187 from processor      1 to      0
+Moving load balancing block       199 from processor      1 to      0
+Moving load balancing block       137 from processor      1 to      0
+Moving load balancing block       143 from processor      1 to      0
+Moving load balancing block       124 from processor      1 to      0
+Moving load balancing block       171 from processor      1 to      0
+Moving load balancing block       189 from processor      1 to      0
+Moving load balancing block       182 from processor      1 to      0
+Moving load balancing block       198 from processor      1 to      0
+Moving load balancing block       106 from processor      1 to      0
+Moving load balancing block       150 from processor      1 to      0
+Moving load balancing block       161 from processor      1 to      0
+Moving load balancing block       111 from processor      1 to      0
+Moving load balancing block       185 from processor      1 to      0
+Moving load balancing block       197 from processor      1 to      0
+Moving load balancing block       107 from processor      1 to      0
+Moving load balancing block       147 from processor      1 to      0
+Moving load balancing block       157 from processor      1 to      0
+Moving load balancing block       160 from processor      1 to      0
+Moving load balancing block       129 from processor      1 to      0
+Moving load balancing block       180 from processor      1 to      0
+Moving load balancing block       165 from processor      1 to      0
+Moving load balancing block       122 from processor      1 to      0
+Moving load balancing block       155 from processor      1 to      0
+Moving load balancing block       170 from processor      1 to      0
+Moving load balancing block       120 from processor      1 to      0
+Moving load balancing block       177 from processor      1 to      0
+Moving load balancing block       186 from processor      1 to      0
+Moving load balancing block       133 from processor      1 to      0
+Moving load balancing block       118 from processor      1 to      0
+Moving load balancing block       136 from processor      1 to      0
+Moving load balancing block       193 from processor      1 to      0
+Moving load balancing block       114 from processor      1 to      0
+ Initial memory (without excitgens + temp arrays) consists of :      22.103516 Mb/Processor
+ Only one array of memory to store main particle list allocated...
+ Initial memory allocation sucessful...
+ =============================================
+ Using initial time-step:    1.0000000000000000E-002
+ Stochastically calculating the reduced density matrices from the FCIQMC wavefunction
+ incl. explicit connections to the following HF determinant:(    1,    2,    3,    4,    5,    6)
+ Calculating the energy from the reduced density matrix. This requires the 2 electron RDM from which the 1-RDM can also be constructed.
+
+ About to allocate main RDM array, size per MPI process (MB):      0.051636
+ Allocation of main RDM array complete.
+ About to allocate RDM spawning array, size per MPI process (MB):      0.344269
+ Allocation of RDM spawning array complete.
+ About to allocate RDM receiving arrays, size per MPI process (MB):      0.206558
+ Allocation of RDM receiving arrays complete.
+
+ Main RDM memory arrays consists of:       5.943802 MB per MPI process.
+ RDM memory allocation complete.
+
+Moving load balancing block       132 from processor      1 to      0
+Moving load balancing block       138 from processor      1 to      0
+Moving load balancing block       195 from processor      1 to      0
+Moving load balancing block         6 from processor      0 to      1
+Moving load balancing block       174 from processor      0 to      1
+Moving load balancing block       188 from processor      0 to      1
+Moving load balancing block        55 from processor      0 to      1
+Moving load balancing block        89 from processor      0 to      1
+Moving load balancing block       108 from processor      0 to      1
+Moving load balancing block       151 from processor      0 to      1
+Moving load balancing block       200 from processor      0 to      1
+Moving load balancing block        12 from processor      0 to      1
+
+============ Semi-stochastic initialisation ============
+Generating the deterministic space...
+ Total core population   24436.139998869912     
+Total size of deterministic space:      802
+Size of deterministic space on this processor:      670
+Generating the Hamiltonian in the deterministic space...
+Time to create auxiliary arrays:    0.001
+Time to sort auxiliary arrays:    0.000
+Arrays for Hamiltonian successfully allocated...
+Time to create the Hamiltonian:    0.017
+total_time:    0.018
+Semi-stochastic initialisation complete.
+Time (seconds) taken for semi-stochastic initialisation:    0.029
+
+ Allocating temporary array for walkers spawned from a particular Di.
+ This requires       0.009430 Mb/Processor
+ 
+        Step    Shift           WalkerCng       GrowRate        TotWalkers      Annihil         NoDied          NoBorn          Proj.E          Av.Shift        Proj.E.Cyc      NoatHF          NoatDoubs       AccRat        UniqueDets    NumDetsSpawned   IterTime
+       10000  -0.2661726        0.000000        0.000000        12565.50        0.000000        0.000000        0.000000      -0.2633672        0.000000        0.000000        1071.717        0.000000        0.000000            1384           0   0.0000    
+ Updating time-step. New time-step =    1.9999800000000002E-002 in: update_tau
+ Updating singles/doubles bias. pSingles =   0.31831886682477700     
+  pDoubles =   0.68168113317522305     
+       10010  -0.2662348        16.02530        1.000622        12581.52        25.91557        1569.505        324.7623      -0.2633702        0.000000      -0.2661262        1071.713        5805.256       0.1418884E-02         910          94  0.50657E-02
+       10020  -0.2662648       -3.908275        1.000300        12577.61        87.20759        3136.163        488.1679      -0.2633731        0.000000      -0.2661165        1071.690        5807.602       0.2552000E-02         997         156  0.52304E-02
+       10030  -0.2662304      -0.3205729       0.9996558        12577.29        108.1257        3133.637        523.9001      -0.2633761        0.000000      -0.2661102        1071.658        5799.787       0.2748891E-02        1025         166  0.52479E-02
+       10040  -0.2662559       -12.57220        1.000256        12564.72        108.6063        3138.333        536.4826      -0.2633790        0.000000      -0.2661118        1071.631        5801.678       0.2790098E-02        1014         160  0.52647E-02
+       10050  -0.2661619       0.1160356       0.9990606        12564.84        99.19371        3121.664        504.6127      -0.2633820        0.000000      -0.2661198        1071.602        5800.167       0.2773006E-02        1004         175  0.51191E-02
+ Memory requirement for spawned arrays increased from     6.1035 to    10.6812 Mb/Processor
+Calculating the 2 electron density matrix on the fly.
+Beginning to fill the RDMs during iteration        51
+ Reset fdv av at iteration           51
+       10060  -0.2661335       -9.205523       0.9997154        12555.63        117.2070        3121.460        502.3109      -0.2633849        0.000000      -0.2661160        1071.590        5796.603       0.2708910E-02        1012         165  0.52363E-02
+       10070  -0.2662043        14.63468        1.000709        12570.26        79.52595        3131.251        525.4046      -0.2633878        0.000000      -0.2661108        1071.584        5801.820       0.2790604E-02        1013         165  0.50989E-02
+       10080  -0.2662513        6.579341        1.000470        12576.84        88.31398        3139.966        524.9836      -0.2633907        0.000000      -0.2661081        1071.566        5799.756       0.2683267E-02        1013         153  0.51031E-02
+       10090  -0.2661441       -11.01350       0.9989287        12565.83        82.61831        3123.053        470.8911      -0.2633936        0.000000      -0.2661060        1071.536        5798.941       0.2470463E-02        1027         148  0.51195E-02
+       10100  -0.2661656       -13.12968        1.000215        12552.70        84.19441        3127.276        496.0406      -0.2633966        0.000000      -0.2661178        1071.528        5797.283       0.2699341E-02        1009         162  0.54971E-02
+       10110  -0.2660264       0.1778193       0.9986085        12552.88        67.39993        3106.940        437.1034      -0.2633995        0.000000      -0.2661245        1071.520        5791.225       0.2346303E-02        1001         142  0.55563E-02
+       10120  -0.2661418        17.29293        1.001155        12570.17        76.79508        3128.453        512.7053      -0.2634024        0.000000      -0.2661143        1071.537        5795.155       0.2804563E-02        1000         178  0.54957E-02
+       10130  -0.2662024       -22.60332        1.000607        12547.57        96.90697        3135.159        491.4140      -0.2634053        0.000000      -0.2661145        1071.533        5797.379       0.2584011E-02         988         147  0.54944E-02
+       10140  -0.2660642        6.787190       0.9986183        12554.36        83.19790        3115.225        488.1735      -0.2634082        0.000000      -0.2661241        1071.517        5800.992       0.2611976E-02        1001         146  0.54937E-02
+       10150  -0.2661191        14.50092        1.000549        12568.86        97.83601        3121.923        524.5830      -0.2634110        0.000000      -0.2660889        1071.521        5801.123       0.2787560E-02        1008         164  0.77804E-02
+ Writing RDMs to file at iteration          150
+ Reset fdv av at iteration          151
+       10160  -0.2661479       -3.948183        1.000288        12564.91        99.53752        3125.135        524.3533      -0.2634139        0.000000      -0.2660872        1071.516        5806.125       0.2729659E-02        1013         146  0.51502E-02
+       10170  -0.2661241        4.276348       0.9997626        12569.18        95.41789        3119.870        536.2184      -0.2634167        0.000000      -0.2660905        1071.506        5801.806       0.2943942E-02         997         166  0.52791E-02
+       10180  -0.2662643        11.23364        1.001403        12580.42        109.8329        3143.629        537.1373      -0.2634195        0.000000      -0.2660939        1071.500        5800.964       0.2897111E-02        1005         167  0.53007E-02
+       10190  -0.2663305        4.743294        1.000662        12585.16        96.74054        3148.868        543.7761      -0.2634224        0.000000      -0.2660860        1071.464        5806.738       0.2775575E-02        1010         175  0.51841E-02
+       10200  -0.2662679       -20.78445       0.9993737        12564.38        100.4719        3142.083        514.8831      -0.2634252        0.000000      -0.2660593        1071.408        5801.774       0.2716346E-02        1004         167  0.53678E-02
+       10210  -0.2661682        14.70612       0.9990035        12579.08        90.68765        3130.839        514.0079      -0.2634279        0.000000      -0.2660485        1071.360        5797.451       0.2641429E-02        1009         156  0.55187E-02
+       10220  -0.2662195       -12.33263        1.000514        12566.75        100.3464        3140.531        525.6083      -0.2634307        0.000000      -0.2660857        1071.340        5798.572       0.2742041E-02         999         159  0.55460E-02
+       10230  -0.2660604       -28.20333       0.9984099        12538.55        102.6267        3120.638        492.7121      -0.2634335        0.000000      -0.2661022        1071.315        5795.850       0.2692591E-02         998         158  0.50849E-02
+       10240  -0.2659635        6.225419       0.9990313        12544.77        93.87651        3102.813        494.0665      -0.2634364        0.000000      -0.2660953        1071.318        5794.297       0.2733350E-02         987         154  0.51406E-02
+       10250  -0.2660880        19.71724        1.001246        12564.49        90.33275        3120.313        521.7655      -0.2634391        0.000000      -0.2660928        1071.344        5798.797       0.2822647E-02        1007         175  0.72135E-02
+ Writing RDMs to file at iteration          250
+ Reset fdv av at iteration          251
+       10260  -0.2661442        5.359426        1.000563        12569.85        90.19210        3129.907        515.8133      -0.2634419        0.000000      -0.2660969        1071.350        5801.902       0.2775287E-02        1011         151  0.51689E-02
+       10270  -0.2662147       -12.34437        1.000705        12557.51        98.90600        3138.969        520.2947      -0.2634447        0.000000      -0.2660970        1071.342        5796.023       0.2769400E-02        1004         163  0.55369E-02
+       10280  -0.2660374       -10.87521       0.9982292        12546.63        89.83731        3113.876        476.7602      -0.2634475        0.000000      -0.2661006        1071.319        5794.074       0.2525564E-02        1007         173  0.55144E-02
+       10290  -0.2660931       0.7703210        1.000557        12547.40        102.8317        3121.356        515.7834      -0.2634503        0.000000      -0.2661056        1071.328        5797.777       0.2723368E-02         983         175  0.55279E-02
+       10300  -0.2660313        1.523503       0.9993825        12548.92        92.61700        3111.654        495.3970      -0.2634531        0.000000      -0.2661098        1071.331        5802.507       0.2672274E-02         994         149  0.51907E-02
+       10310  -0.2660451       -6.174240        1.000138        12542.75        116.2591        3114.378        533.2021      -0.2634559        0.000000      -0.2660993        1071.343        5802.618       0.2947615E-02         993         157  0.52483E-02
+       10320  -0.2660851       -2.957384        1.000401        12539.79        94.19028        3116.900        495.9654      -0.2634586        0.000000      -0.2660997        1071.354        5798.497       0.2628814E-02         982         134  0.55201E-02
+       10330  -0.2660264        6.819168       0.9994124        12546.61        104.6913        3108.962        498.9936      -0.2634614        0.000000      -0.2661005        1071.358        5795.429       0.2707870E-02         996         162  0.52164E-02
+       10340  -0.2660901        10.56714        1.000638        12557.18        99.51355        3119.391        508.2862      -0.2634641        0.000000      -0.2661057        1071.372        5794.694       0.2676386E-02        1000         132  0.53121E-02
+       10350  -0.2660970       -6.123193        1.000069        12551.06        103.5177        3122.622        492.7464      -0.2634669        0.000000      -0.2661028        1071.376        5794.674       0.2570078E-02        1003         145  0.73498E-02
+ Writing RDMs to file at iteration          350
+RDM Sampling iteration number limit reached. Finishing FCIQMC loop...
+ - - - - - - - - - - - - - - - - - - - - - - - -
+ Total loop-time:    2.0203039110056125     
+ Time lost due to load imbalance:    6.3050388358533382E-002
+ - - - - - - - - - - - - - - - - - - - - - - - -
+
+*********************************
+Writing a 64-bit POPSFILE...
+Writing a total of 1003 determinants.
+*********************************
+
+ WRITINGPOPSFILE                                                                                                                                                                                                                                                        F
+
+****RDMs CALCULATED STOCHASTICALLY ****
+
+ == INFORMATION FOR FINAL 1-RDMs =========================================================
+
+ INFORMATION FOR 1-RDM 1:
+
+ SUM OF 1-RDM(i,i) FOR THE N LOWEST ENERGY HF ORBITALS:      2.8538323936580
+
+ =========================================================================================
+
+ Writing RDMs to file at iteration          350
+ == INFORMATION FOR FINAL 2-RDMS =========================================================
+
+ 2-RDM ESTIMATES FOR STATE 1:
+ Trace of 2-el-RDM before normalisation:  2.1868689984E+10
+ Trace of 2-el-RDM after normalisation:  1.5000000000E+01
+ Energy contribution from the 1-RDM: -2.3062017105E+01
+ Energy contribution from the 2-RDM:  6.3873103664E+00
+ *TOTAL ENERGY* CALCULATED USING THE *REDUCED DENSITY MATRICES*: -1.4892951955833E+01
+
+ Hermiticty error estimates:
+           10350        0.00257323081455993179     (Iteration, MAX ABS ERROR IN HERMITICITY)
+           10350        0.03828166979450264851     (Iteration, SUM ABS ERROR IN HERMITICITY)
+
+ =========================================================================================
+ 
+Current reference: 
+(    1,    2,    3,   11,   12,   14)
+ Number of superinitiators           1
+
+Input DEFINEDET line (includes frozen orbs):
+definedet     1-3  11-12 14 
+ 
+Most occupied         50 determinants as excitations from reference: 
+
+Excitation ExcitLevel  Seniority Walkers(1) Walkers(2)    Amplitude Init?(1) Init?(2)  <D|H|D>Proc
+11100000001101000000    0    2    1071.376        1012.487      0.47249  Y  Y  -1.46268483E+01       1
+11010000001110000000    2    2   -1071.168       -1012.553      0.47246  Y  Y  -1.46268483E+01       1
+11000000001111000000    1    0    823.7936        778.6516      0.36334  Y  Y  -1.45435964E+01       0
+11110000001100000000    1    0    823.7898        778.6323      0.36333  Y  Y  -1.45435964E+01       1
+11100000011100000000    1    2   -419.9245       -397.0625      0.18524  Y  Y  -1.45466639E+01       1
+11000000001101000010    1    2   -419.7993       -396.7162      0.18514  Y  Y  -1.45466639E+01       1
+11000000001110000001    2    2    419.6929        396.7799      0.18513  Y  Y  -1.45466639E+01       0
+11010000101100000000    2    2    419.6780        396.7783      0.18512  Y  Y  -1.45466639E+01       0
+11100000001100000001    1    2    296.1508        280.0103      0.13064  Y  Y  -1.46155628E+01       1
+11000000101101000000    1    2   -296.0305       -280.0325      0.13062  Y  Y  -1.46155628E+01       0
+11000000011110000000    2    2    296.1221        279.6231      0.13054  Y  Y  -1.46155628E+01       1
+11010000001100000010    2    2   -296.1244       -279.5674      0.13053  Y  Y  -1.46155628E+01       1
+11001100001100000000    2    0   -195.9374       -185.6334      0.08652  Y  Y  -1.45141032E+01       1
+11000000001100110000    2    0   -196.1332       -185.3804      0.08650  Y  Y  -1.45141032E+01       0
+11000000001100001100    2    0   -196.0692       -185.1952      0.08645  Y  Y  -1.45141032E+01       1
+11000011001100000000    2    0   -195.9345       -185.3190      0.08645  Y  Y  -1.45141032E+01       0
+11001000001100010000    2    2   -180.7240       -170.5659      0.07965  Y  Y  -1.46025157E+01       0
+11000001001100001000    2    2    180.5527        170.2849      0.07955  Y  Y  -1.46025157E+01       0
+11000100001100100000    2    2    180.3415        170.3313      0.07951  Y  Y  -1.46025157E+01       0
+11000010001100000100    2    2   -180.0155       -170.2397      0.07942  Y  Y  -1.46025157E+01       0
+11100000011001000000    1    4    84.10827        79.48852      0.03709  Y  Y  -1.22418959E+01       0
+01100000001101000010    1    4   -84.10856       -79.48137      0.03709  Y  Y  -1.22418959E+01       1
+10010000001110000001    3    4   -84.09024       -79.48657      0.03709  Y  Y  -1.22418959E+01       0
+11010000100110000000    3    4    84.09347        79.48292      0.03709  Y  Y  -1.22418959E+01       1
+11000000011100000010    2    2    79.31180        75.09181      0.03501  Y  Y  -1.46057190E+01       1
+11000000101100000001    2    2   -79.16118       -75.05657      0.03497  Y  Y  -1.46057190E+01       0
+01010000001110000010    3    4    65.05003        61.50486      0.02869  Y  Y  -1.22719919E+01       0
+10100000001101000001    1    4    65.05674        61.47947      0.02869  Y  Y  -1.22719919E+01       1
+11010000011010000000    3    4   -65.04317       -61.48625      0.02869  Y  Y  -1.22719919E+01       0
+11100000100101000000    1    4   -65.04781       -61.46950      0.02869  Y  Y  -1.22719919E+01       1
+11000000100111000000    2    2   -64.53987       -61.00214      0.02847  Y  Y  -1.23827352E+01       1
+10110000001100000001    2    2    64.53298        61.00383      0.02846  Y  Y  -1.23827352E+01       0
+01110000001100000010    2    2   -64.53406       -60.99213      0.02846  Y  Y  -1.23827352E+01       0
+11000000011011000000    2    2    64.53360        60.99237      0.02846  Y  Y  -1.23827352E+01       1
+01100000001111000000    1    2    61.66320        58.26353      0.02719  Y  Y  -1.22355758E+01       1
+10010000001111000000    2    2   -61.64432       -58.26279      0.02719  Y  Y  -1.22355758E+01       0
+11110000001001000000    1    2   -61.64024       -58.26221      0.02719  Y  Y  -1.22355758E+01       0
+11110000000110000000    2    2    61.64435        58.25295      0.02719  Y  Y  -1.22355758E+01       1
+10110000001101000000    1    2    51.01696        48.21156      0.02250  Y  Y  -1.23907681E+01       0
+11100000000111000000    1    2    51.01750        48.20202      0.02250  Y  Y  -1.23907681E+01       1
+11010000001011000000    2    2   -51.00465       -48.20904      0.02250  Y  Y  -1.23907681E+01       1
+01110000001110000000    2    2   -51.00432       -48.19249      0.02249  Y  Y  -1.23907681E+01       0
+11110000100100000000    2    2   -40.11683       -38.21283      0.01776  Y  Y  -1.19646487E+01       0
+01000000001111000010    2    2   -40.10650       -37.94000      0.01770  Y  Y  -1.19646487E+01       0
+10000000001111000001    2    2    40.11093        37.90764      0.01769  Y  Y  -1.19646487E+01       0
+11110000011000000000    2    2    40.10511        37.90302      0.01769  Y  Y  -1.19646487E+01       0
+10100000011100000001    2    4   -35.77477       -33.82695      0.01578  Y  Y  -1.23740528E+01       1
+11000000011010000001    3    4    35.67390        33.89231      0.01577  Y  Y  -1.23740528E+01       1
+01010000101100000010    3    4   -35.74582       -33.80279      0.01577  Y  Y  -1.23740528E+01       0
+11000000100101000010    2    4    35.70408        33.80883      0.01576  Y  Y  -1.23740528E+01       0
+ 
+
+
+ Load balancing information based on the last iteration:
+
+ Mean number of determinants/process     692.0000000000
+ Min number of determinants/process                507
+ Max number of determinants/process                877
+
+
+
+ Load balancing information based on the last iteration:
+     Mean number of walkers/process:   12207.7025345381
+     Min number of walkers/process:        12066.83602
+     Max number of walkers/process:        12348.56905
+
+
+
+Calculating approximate errorbar for energy estimates...
+
+Attempting automatic reblocking analysis on data from iteration:            0
+Reading back in FCIMCStats datafile...
+ This is a DNECI run! But we just analyse the first FCIMCStats!
+Number of comment lines found in file:            6
+Number of data points found in file:           70
+Number of useable data points:           70
+Relaxation time for projected energy estimated to be        0 update cycles.
+Relaxation time for shift estimated to be        0 update cycles.
+WARNING: Error increases monotonically on the blocking graph for *denominator of projected energy*
+         whilst performing Flyvbjerg and Petersen blocking analysis.
+         Inspect BLOCKING files carefully. Manual reblocking may be necessary.
+Number of blocks assumed for calculation of error in projected energy denominator:       8
+WARNING: Error increases monotonically on the blocking graph for *numerator of projected energy*
+         whilst performing Flyvbjerg and Petersen blocking analysis.
+         Inspect BLOCKING files carefully. Manual reblocking may be necessary.
+Number of blocks assumed for calculation of error in projected energy numerator:       8
+WARNING: Error increases monotonically on the blocking graph for *shift*
+         whilst performing Flyvbjerg and Petersen blocking analysis.
+         Inspect BLOCKING files carefully. Manual reblocking may be necessary.
+Number of blocks assumed for calculation of error in shift:       8
+ProjE_denominator:       1071.8445400394 +/-       0.13160847     Relative error:       0.1227869027E-03
+ProjE_numerator:         -285.2242639594 +/-       0.37656454E-01 Relative error:       0.1320240192E-03
+ Current reference energy                             -14.626848341593
+ Projected correlation energy                          -0.266106000735
+ Estimated error in Projected correlation energy        0.000017339966
+ Shift correlation energy                              -0.266069404688
+ Estimated error in shift correlation energy            0.000030493956
+
+ Projected and shift energy estimates agree to within two sigma of largest error: EDiff =      0.00003660
+
+ Total projected energy         -14.89295434 +/-    0.173400E-04
+ Total shift energy             -14.89291775 +/-    0.304940E-04
+
+
+ Final energy estimate for state 1:     -14.890315223779    
+ Final energy estimate for state 2:     -14.890976729591    
+
+ ================================================================
+ Memory usage
+ Maximum memory defined is (MB) :   99999.0
+ Maximum memory used is    (MB) :      70.0
+ 
+ Large memory allocations:
+ 
+ Name              Allocated in       Deallocated in         Size
+ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ global_determinantinit_global_det_datclean_global_det_da  40.0MB
+ WalkVecDets       InitFCIMCPar       DeallocFciMCMemPar   16.0MB
+ SpawnVec2         realloc_SpawnedPartDeallocFciMCMemPar    5.3MB
+ SpawnVec          realloc_SpawnedPartDeallocFciMCMemPar    5.3MB
+ SpawnVec          InitFCIMCPar       realloc_SpawnedPart   3.1MB
+ SpawnVec2         InitFCIMCPar       realloc_SpawnedPart   3.1MB
+ Spawned_Parents   init_rdms          dealloc_global_rdm_   2.3MB
+ Spawned_Parents_Ininit_rdms          dealloc_global_rdm_ 781.2KB
+ PCHB_Probs        shared_alloc       shared_dealloc       70.9KB
+ PCHB_Bias         shared_alloc       shared_dealloc       70.9KB
+ ================================================================
+
+ ================================================================
+ Timing report.
+
+ Timing of most expensive procedures.
+ Procedure                                 Calls       total time
+ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+ WalkerTime                                 350      1.68
+ StatsCommsTime                              35      0.10
+ NECICUBE                                     1      0.09
+ SemiStochMultiplyTime                      350      0.07
+ DeathTime                                  350      0.05
+ AnnMainTime                                350      0.03
+ SemiStochInitTime                            1      0.03
+ SortTime                                   350      0.02
+                                              1      0.02
+ POPS-read                                    1      0.01
+ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+ Total                                   2.10
+
+ Global wall clock time          2.19
+ ================================================================
+ Calculation ended 28/10/2021 at 09:48:00
+ ================================================================

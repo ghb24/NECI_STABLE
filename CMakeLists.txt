@@ -18,20 +18,9 @@ set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake" ${CMAKE_MODULE_PATH})
 # install git hooks
 execute_process( COMMAND "${PROJECT_SOURCE_DIR}/tools/install_hooks.sh" ${PROJECT_SOURCE_DIR})
 
-
-if (CMAKE_VERSION VERSION_LESS "3.1")
-  # do an extra check just for old gnu compilers: does the compiler support c++11?
-  if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-       execute_process(COMMAND ${CMAKE_CXX_COMPILER} -dumpversion OUTPUT_VARIABLE GXX_VERSION)
-       if(GXX_VERSION VERSION_LESS 4.7)
-         message(FATAL_ERROR "C++ compiler does not support c++11 standard")
-       endif()
-  endif()
-  set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -fPIC")
-else ()
-#  set (CMAKE_CXX_STANDARD 11)
-   set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -fPIC")
-endif ()
+set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -fPIC")
 
 # We require at least ifort17, previous versions do not support all required options
 if(${CMAKE_Fortran_COMPILER_ID} STREQUAL "Intel")
@@ -79,6 +68,11 @@ neci_add_option(
     FEATURE SHARED
     DEFAULT OFF
     DESCRIPTION "Build using shared libraries, rather than static linking" )
+
+neci_add_option(
+    FEATURE DOC
+    DEFAULT OFF
+    DESCRIPTION "Enable the documentation. (Has additional requirements like pandoc or latexmk)")
 
 # Special option overrides
 
@@ -151,8 +145,12 @@ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME AND BUILD_TESTING)
     add_subdirectory(unit_tests)
 endif()
 
-add_subdirectory(python)
-# And we are done
+if (HAVE_DOC)
+    add_subdirectory(docs)
+endif()
 
+add_subdirectory(python)
+
+# And we are done
 neci_print_summary()
 

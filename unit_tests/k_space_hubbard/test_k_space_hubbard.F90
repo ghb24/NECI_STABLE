@@ -45,7 +45,7 @@ program test_k_space_hubbard
 
     use util_mod, only: choose, get_free_unit
 
-    use bit_reps, only: decode_bit_det, encode_sign
+    use bit_reps, only: decode_bit_det, encode_sign, writebitdet
 
     use SymExcitDataMod, only: kTotal
 
@@ -126,7 +126,6 @@ contains
         call run_test_case(pick_bc_orbitals_hubbard_test,"pick_bc_orbitals_hubbard_test")
         call run_test_case(create_ab_list_par_hubbard_test, "create_ab_list_par_hubbard_test")
         call run_test_case(pick_ab_orbitals_par_hubbard_test, "pick_ab_orbitals_par_hubbard_test")
-        call run_test_case(get_transferred_momenta_test, "get_transferred_momenta_test")
         call run_test_case(create_bc_list_hubbard_test, "create_bc_list_hubbard_test")
         call run_test_case(get_3_body_helement_ks_hub_test, "get_3_body_helement_ks_hub_test")
         call run_test_case(check_momentum_sym_test, "check_momentum_sym_test")
@@ -3159,28 +3158,6 @@ contains
         t_trans_corr_2body = .false.
 
     end subroutine pick_ab_orbitals_par_hubbard_test
-
-    subroutine get_transferred_momenta_test
-
-        integer :: ex(2,2), k_vec_a(3), k_vec_b(3)
-
-        print *, ""
-        print *, "testing: get_transferred_momenta"
-        ex(1,:) = [1,2]
-        ex(2,:) = [3,4]
-        call get_transferred_momenta(ex, k_vec_a, k_vec_b)
-
-        call assert_equals(-1, k_vec_a(1))
-        call assert_equals(-1, k_vec_b(1))
-
-        ex(1,:) = [1,3]
-        ex(2,:) = [5,7]
-        call get_transferred_momenta(ex, k_vec_a, k_vec_b)
-
-        call assert_equals(2, k_vec_a(1))
-        call assert_equals(-1, k_vec_b(1))
-
-    end subroutine get_transferred_momenta_test
 
     subroutine create_bc_list_hubbard_test
 

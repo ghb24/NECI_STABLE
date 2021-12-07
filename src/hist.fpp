@@ -21,7 +21,7 @@ module hist
     use bit_rep_data, only: NIfTot, NIfD, extract_sign
     use bit_reps, only: encode_sign, extract_bit_rep, &
                         decode_bit_det, flag_initiator, test_flag, &
-                        get_initiator_flag, &
+                        get_initiator_flag, writebitdet, &
                         any_run_is_initiator
     use parallel_neci
     use searching, only: BinSearchParts2

@@ -60,6 +60,10 @@ module util_mod
         pure subroutine stop_all(sub_name, error_msg)
             character(*), intent(in) :: sub_name, error_msg
         end subroutine
+
+        subroutine neci_flush(n)
+            integer, intent(in) :: n
+        end subroutine
     end interface
 
     interface operator(.implies.)
@@ -92,6 +96,13 @@ module util_mod
             real(c_double), intent(in) :: x
             real(c_double) :: ec
         end function
+        subroutine toggle_lprof() bind(C, name='toggle_lprof')
+            !! This call toggles the profiling using MAQAO
+            !!
+            !! It can be for example used to switch on profiling
+            !! right before the main loop
+            !! and to switch it off directly afterwards.
+        end subroutine
     end interface
 
     interface operator(.div.)
@@ -203,20 +214,6 @@ contains
         end if
 
     end function stochastic_round_r
-
-    subroutine print_cstr(str) bind(c, name='print_cstr')
-
-        ! Write a string outputted by calling fort_printf in C.
-        ! --> Ensure that it is redirected to the same place as the normal
-        !     STDOUT within fortran.
-
-        character(c_char), intent(in) :: str(*)
-        integer :: l
-
-        l = strlen_wrap(str)
-        call print_cstr_local(str, l)
-
-    end subroutine
 
     subroutine print_cstr_local(str, l)
 
@@ -1362,20 +1359,6 @@ subroutine neci_getarg(i, str)
 end subroutine neci_getarg
 
 
-integer function neci_system(str)
-#ifdef NAGF95
-    Use f90_unix_proc, only: system
-#endif
-    character(*), intent(in) :: str
-#ifndef NAGF95
-    integer :: system
-    neci_system = system(str)
-#else
-    call system(str)
-    neci_system = 0
-#endif
-end function neci_system
-
 ! Hacks for the IBM compilers on BlueGenes.
 ! --> The compiler intrinsics are provided as flush_, etime_, sleep_ etc.
 ! --> We need to either change the names used in the code, or provide wrappers
@@ -1406,19 +1389,6 @@ function etime(tarr) result(tret)
     tarr = tret
 end function
 
-#endif
-
-#ifdef GFORTRAN_
-function g_loc(var) result(addr)
-
-    use, intrinsic :: iso_c_binding, only: c_loc, c_ptr
-
-    integer, target :: var
-    type(c_ptr) :: addr
-
-    addr = c_loc(var)
-
-end function
 #endif
 
 subroutine neci_flush(un)

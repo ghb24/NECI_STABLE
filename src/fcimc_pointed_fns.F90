@@ -20,7 +20,7 @@ module fcimc_pointed_fns
                         tTruncInitiator, tSkipRef, t_truncate_unocc, t_consider_par_bias, &
                         tAdaptiveShift, LAS_Sigma, LAS_F1, LAS_F2, &
                         AAS_Thresh, AAS_Expo, AAS_Cut, &
-                        tPrecond, AAS_Const, EAS_Scale, ShiftOffset, tAS_Offset
+                        tPrecond, AAS_Const, ShiftOffset, tAS_Offset
     use DetCalcData, only: FciDetIndex, det
     use procedure_pointers, only: get_spawn_helement, shiftFactorFunction
     use fcimc_helper, only: CheckAllowedTruncSpawn
@@ -34,7 +34,7 @@ module fcimc_pointed_fns
     use tau_search, only: log_death_magnitude, fill_frequency_histogram_nosym_diff, &
                           fill_frequency_histogram_nosym_nodiff, log_spawn_magnitude
 
-    use bit_reps, only: get_initiator_flag, get_initiator_flag_by_run
+    use bit_reps, only: get_initiator_flag, get_initiator_flag_by_run, writebitdet
 
     use rdm_general, only: calc_rdmbiasfac
     use hist, only: add_hist_excit_tofrom
@@ -366,25 +366,25 @@ contains
                 ! etc. are used
                 if (abs(nSpawn) > 10.0_dp) then
                     if (tGUGA) then
-                        write(iout, *) "=================================================="
+                        write(stdout, *) "=================================================="
                         call convert_ilut_toGUGA(iLutCurr, ilutTmpI)
                         call convert_ilut_toGUGA(ilutnj, ilutTmpJ)
-                        write(iout, *) "nSpawn > n_truncate_spawns!", nSpawn
-                        write(iout, *) "limit the number of spawned walkers to: ", n_truncate_spawns
-                        write(iout, *) "for spawn from determinant: "
+                        write(stdout, *) "nSpawn > n_truncate_spawns!", nSpawn
+                        write(stdout, *) "limit the number of spawned walkers to: ", n_truncate_spawns
+                        write(stdout, *) "for spawn from determinant: "
                         call write_det_guga(6, ilutTmpI)
-                        write(iout, *) "to: "
-                        call write_det_guga(iout, ilutTmpJ)
+                        write(stdout, *) "to: "
+                        call write_det_guga(stdout, ilutTmpJ)
                         nOpen = count_open_orbs(iLutCurr)
-                        write(iout, *) "# of openshell orbitals: ", nOpen, count_open_orbs(ilutnj)
-                        write(iout, *) "open/spatial: ", nOpen / real(nSpatOrbs, dp)
-                        write(iout, *) "(t |H_ij|/pgen) / #open ratio: ", abs(nSpawn) / real(nOpen, dp)
-                        write(iout, *) " H_ij, pgen: ", MatEl, prob
-                        write(iout, *) "=================================================="
+                        write(stdout, *) "# of openshell orbitals: ", nOpen, count_open_orbs(ilutnj)
+                        write(stdout, *) "open/spatial: ", nOpen / real(nSpatOrbs, dp)
+                        write(stdout, *) "(t |H_ij|/pgen) / #open ratio: ", abs(nSpawn) / real(nOpen, dp)
+                        write(stdout, *) " H_ij, pgen: ", MatEl, prob
+                        write(stdout, *) "=================================================="
                         ! excitation type would be cool too.. but how do i get it
                         ! to here?? do i still have global_excitInfo??
                         call print_excitInfo(global_excitInfo)
-                        call neci_flush(iout)
+                        call neci_flush(stdout)
                     end if
                 end if
             end if
@@ -402,7 +402,7 @@ contains
                 ! computed here for performance reasons (it was a huge performance bottleneck)
                 ! TODO: add some additional output if this event happens
 #ifdef DEBUG_
-                write(iout, *) "Truncating spawn magnitude from: ", abs(nspawn), " to ", n_truncate_spawns
+                write(stdout, *) "Truncating spawn magnitude from: ", abs(nspawn), " to ", n_truncate_spawns
 #endif
                 truncatedWeight = truncatedWeight + abs(nSpawn) - n_truncate_spawns
                 nSpawn = sign(n_truncate_spawns, nspawn)
@@ -482,72 +482,12 @@ contains
     ! This is a null routine for encoding spawned sites
     ! --> DOES NOTHING!!!
     subroutine null_encode_child(ilutI, ilutJ, ic, ex)
-        implicit none
         integer(kind=n_int), intent(in) :: ilutI(0:niftot)
         integer, intent(in) :: ic
         integer, intent(in) :: ex(2, ic)
         integer(kind=n_int), intent(inout) :: ilutj(0:niftot)
 
         unused_var(ilutI); unused_var(ilutJ); unused_var(ic); unused_var(ex)
-
-    end subroutine
-
-    subroutine new_child_stats_hist_hamil(iter_data, iLutI, nJ, iLutJ, ic, &
-                                          walkExLevel, child, parent_flags, &
-                                          part_type)
-        ! Based on old AddHistHamilEl. Histograms the hamiltonian matrix, and
-        ! then calls the normal statistics routine.
-
-        integer(kind=n_int), intent(in) :: iLutI(0:niftot), iLutJ(0:niftot)
-        integer, intent(in) :: ic, walkExLevel, parent_flags, nJ(nel)
-        integer, intent(in) :: part_type
-        real(dp), dimension(lenof_sign), intent(in) :: child
-        type(fcimc_iter_data), intent(inout) :: iter_data
-        character(*), parameter :: this_routine = 'new_child_stats_hist_hamil'
-        integer :: partInd, partIndChild, childExLevel
-        logical :: tSuccess
-
-        if (walkExLevel == nel) then
-            call BinSearchParts2(iLutI, FCIDetIndex(walkExLevel), Det, &
-                                 PartInd, tSuccess)
-        else
-            call BinSearchParts2(iLutI, FCIDetIndex(walkExLevel), &
-                                 FciDetIndex(walkExLevel + 1) - 1, partInd, &
-                                 tSuccess)
-        end if
-
-        if (.not. tSuccess) &
-            call stop_all(this_routine, 'Cannot find determinant nI in list')
-
-        childExLevel = FindBitExcitLevel(iLutHF, iLutJ, nel)
-        if (tGUGA) call stop_all(this_routine, &
-                                 "excit level does not work with GUGA here...")
-
-        if (childExLevel == nel) then
-            call BinSearchParts2(iLutJ, FCIDetIndex(childExLevel), Det, &
-                                 partIndChild, tSuccess)
-        else if (childExLevel == 0) then
-            partIndChild = 1
-            tSuccess = .true.
-        else
-            call BinSearchParts2(iLutJ, FCIDetIndex(childExLevel), &
-                                 FciDetIndex(childExLevel + 1) - 1, &
-                                 partIndChild, tSuccess)
-        end if
-
-        histHamil(partIndChild, partInd) = &
-            histHamil(partIndChild, partInd) + (1.0_dp * child(1))
-        histHamil(partInd, partIndChild) = &
-            histHamil(partInd, partIndChild) + (1.0_dp * child(1))
-        avHistHamil(partIndChild, partInd) = &
-            avHistHamil(partIndChild, partInd) + (1.0_dp * child(1))
-        avHistHamil(partInd, partIndChild) = &
-            avHistHamil(partInd, partIndChild) + (1.0_dp * child(1))
-
-        ! Call the normal stats routine
-        call new_child_stats_normal(iter_data, iLutI, nJ, iLutJ, ic, &
-                                    walkExLevel, child, parent_flags, &
-                                    part_type)
 
     end subroutine
 
@@ -568,15 +508,15 @@ contains
 
         ! Write out some debugging information if asked
         IFDEBUG(FCIMCDebug, 3) then
-            write(iout, "(A)", advance='no') "Creating "
+            write(stdout, "(A)", advance='no') "Creating "
             do i = 1, lenof_sign
-                write(iout, "(f10.5)", advance='no') child(i)
+                write(stdout, "(f10.5)", advance='no') child(i)
             end do
-            write(iout, "(A)", advance='no') " particles: "
-            write(iout, "(A,2I4,A)", advance='no') &
+            write(stdout, "(A)", advance='no') " particles: "
+            write(stdout, "(A,2I4,A)", advance='no') &
                 "Parent flag: ", parent_flags, part_type
-            call writebitdet(iout, ilutJ, .true.)
-            call neci_flush(iout)
+            call writebitdet(stdout, ilutJ, .true.)
+            call neci_flush(stdout)
         end if
 
         ! Count the number of children born
@@ -594,7 +534,7 @@ contains
                 if (ic == 1) SpawnFromSing(run) = SpawnFromSing(run) + sum(abs(child(min_part_type(run):max_part_type(run))))
 
                 ! Count particle blooms, and their sources
-                if (sum(abs(child(min_part_type(run):max_part_type(run)))) > InitiatorWalkNo) then
+                if (sum(abs(child(min_part_type(run) : max_part_type(run)))) > InitiatorWalkNo) then
                     bloom_count(ic) = bloom_count(ic) + 1
                     bloom_sizes(ic) = max(real(sum(abs(child(min_part_type(run):max_part_type(run)))), dp), bloom_sizes(ic))
                 end if
@@ -700,8 +640,8 @@ contains
                     ! If we are early in the calculation, and are using tau
                     ! searching, then this is not a big deal. Just let the
                     ! searching deal with it
-                    write(iout, '("** WARNING ** Death probability > 2: Algorithm unstable.")')
-                    write(iout, '("** WARNING ** Truncating spawn to ensure stability")')
+                    write(stderr, '("** WARNING ** Death probability > 2: Algorithm unstable.")')
+                    write(stderr, '("** WARNING ** Truncating spawn to ensure stability")')
                     do i = 1, inum_runs
                         fac(i) = min(2.0_dp, fac(i))
                     end do
@@ -711,12 +651,12 @@ contains
                     call stop_all(t_r, "Death probability > 2: Algorithm unstable. Reduce timestep.")
                 end if
             else
-                write (iout, '("** WARNING ** Death probability > 1: Creating Antiparticles. "&
+                write (stderr, '("** WARNING ** Death probability > 1: Creating Antiparticles. "&
                     & //"Timestep errors possible: ")', advance='no')
                 do i = 1, inum_runs
-                    write(iout, '(1X,f13.7)', advance='no') fac(i)
+                    write(stderr, '(1X,f13.7)', advance='no') fac(i)
                 end do
-                write(iout, '()')
+                write(stderr, '()')
             end if
         end if
 
@@ -829,8 +769,6 @@ contains
 !------------------------------------------------------------------------------------------!
 
     pure function powerScaleFunction(hdiag) result(Si)
-        implicit none
-
         real(dp), intent(in) :: hdiag
         real(dp) :: Si
 
@@ -840,8 +778,6 @@ contains
 !------------------------------------------------------------------------------------------!
 
     pure function expScaleFunction(hdiag) result(Si)
-        implicit none
-
         real(dp), intent(in) :: hdiag
         real(dp) :: Si
 
@@ -851,8 +787,6 @@ contains
 !------------------------------------------------------------------------------------------!
 
     pure function expCOScaleFunction(hdiag) result(Si)
-        implicit none
-
         real(dp), intent(in) :: hdiag
         real(dp) :: Si
 
@@ -862,8 +796,6 @@ contains
 !------------------------------------------------------------------------------------------!
 
     pure function negScaleFunction(hdiag) result(Si)
-        implicit none
-
         real(dp), intent(in) :: hdiag
         real(dp) :: Si
 
@@ -875,27 +807,7 @@ contains
 
 !------------------------------------------------------------------------------------------!
 
-    pure function expShiftFactorFunction(pos, run, pop) result(f)
-        implicit none
-        ! Exponential scale function for the shift
-        ! Input: pos - position of given determinant in CurrentDets
-        ! Input: run - run for which the factor is needed
-        ! Input: pop - population of given determinant
-        ! Output: f - scaling factor for the shift
-        integer, intent(in) :: pos
-        integer, intent(in) :: run
-        real(dp), intent(in) :: pop
-        real(dp) :: f
-        unused_var(pos); unused_var(run)
-
-        f = 1.0 - exp(-pop / EAS_Scale)
-
-    end function expShiftFactorFunction
-
-!------------------------------------------------------------------------------------------!
-
     pure function constShiftFactorFunction(pos, run, pop) result(f)
-        implicit none
         ! Dummy scale function for the shift: S' = S
         ! Input: pos - position of given determinant in CurrentDets
         ! Input: run - run for which the factor is needed
@@ -913,7 +825,6 @@ contains
 !------------------------------------------------------------------------------------------!
 
     pure function linearShiftFactorFunction(pos, run, pop) result(f)
-        implicit none
         ! Piecewise-linear scale function for the shift
         ! Input: pos - position of given determinant in CurrentDets
         ! Input: run - run for which the factor is needed
@@ -926,12 +837,12 @@ contains
 
         unused_var(pos); unused_var(run)
 
-        if (pop > InitiatorWalkNo) then
+        if (test_flag(CurrentDets(:, pos), get_initiator_flag_by_run(run))) then
             f = 1.0
         else if (pop < LAS_Sigma) then
             f = 0.0
         else
-            if (InitiatorWalkNo.isclose.LAS_Sigma) then
+            if (InitiatorWalkNo .isclose. LAS_Sigma) then
                 !In this case the slope is ill-defined.
                 !Since initiators are strictly large than InitiatorWalkNo, set shift to zero
                 f = 0.0
@@ -945,7 +856,6 @@ contains
 !------------------------------------------------------------------------------------------!
 
     pure function autoShiftFactorFunction(pos, run, pop) result(f)
-        implicit none
         ! Scale function for the shift based on the ratio of reject spawns
         ! Input: pos - position of given determinant in CurrentDets
         ! Input: run - run for which the factor is needed

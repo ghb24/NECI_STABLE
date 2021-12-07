@@ -114,7 +114,7 @@ contains
             end if
         end if
 
-        write(6, *) 'Using initial time-step: ', tau
+        write(stdout, *) 'Using initial time-step: ', tau
 
         ! Set the maximum spawn size
         if (MaxWalkerBloom.isclose.-1._dp) then
@@ -131,7 +131,7 @@ contains
         end if
 
         if (.not. (tReadPops .and. .not. tWalkContGrow)) then
-            write(iout, "(a,f10.5)") "Will dynamically update timestep to &
+            write(stdout, "(a,f10.5)") "Will dynamically update timestep to &
                          &limit spawning probability to", max_permitted_spawn
         end if
 
@@ -709,10 +709,10 @@ contains
 
             if (tau > 0.075_dp) then
                 tau = 0.075_dp
-                write(iout, "(A,F8.5,A)") "Small system. Setting initial timestep to be ", Tau, " although this &
+                write(stdout, "(A,F8.5,A)") "Small system. Setting initial timestep to be ", Tau, " although this &
                                                 &may be inappropriate. Care needed"
             else
-                write(iout, "(A,F18.10)") "From analysis of reference determinant and connections, &
+                write(stdout, "(A,F18.10)") "From analysis of reference determinant and connections, &
                                          &an upper bound for the timestep is: ", Tau
             end if
 
@@ -845,10 +845,10 @@ contains
 
         if (tau > 0.075_dp) then
             tau = 0.075_dp
-            write(iout, "(A,F8.5,A)") "Small system. Setting initial timestep to be ", Tau, " although this &
+            write(stdout, "(A,F8.5,A)") "Small system. Setting initial timestep to be ", Tau, " although this &
                                             &may be inappropriate. Care needed"
         else
-            write(iout, "(A,F18.10)") "From analysis of reference determinant and connections, &
+            write(stdout, "(A,F18.10)") "From analysis of reference determinant and connections, &
                                      &an upper bound for the timestep is: ", Tau
         end if
 

@@ -26,13 +26,13 @@ module kp_fciqmc
                             CalcParentFlag, walker_death, decide_num_to_spawn
     use fcimc_output, only: end_iteration_print_warn
     use fcimc_iter_utils, only: calculate_new_shift_wrapper, update_iter_data
-    use global_det_data, only: det_diagH
+    use fcimc_pointed_fns, only: new_child_stats_normal
+    use global_det_data, only: det_diagH, det_offdiagH
     use LoggingData, only: tPopsFile
     use Parallel_neci, only: iProcIndex
     use MPI_wrapper, only: root
     use PopsFileMod, only: WriteToPopsFileParOneArr
-    use procedure_pointers, only: generate_excitation, attempt_create, encode_child
-    use procedure_pointers, only: new_child_stats, extract_bit_rep_avsign
+    use procedure_pointers, only: generate_excitation, attempt_create, encode_child, extract_bit_rep_avsign
     use semi_stoch_procs, only: is_core_state, check_determ_flag, determ_projection
     use soft_exit, only: ChangeVars, tSoftExitFound
     use SystemData, only: nel, lms, nbasis, tAllSymSectors, nOccAlpha, nOccBeta
@@ -40,7 +40,7 @@ module kp_fciqmc
     use timing_neci, only: set_timer, halt_timer
     use util_mod, only: near_zero
 
-    implicit none
+    better_implicit_none
 
 contains
 
@@ -63,7 +63,7 @@ contains
         real(dp), allocatable :: lowdin_evals(:, :)
         logical :: tChildIsDeterm, tParentIsDeterm, tParentUnoccupied
         logical :: tParity, tSingBiasChange, tWritePopsFound
-        HElement_t(dp) :: HElGen
+        HElement_t(dp) :: HElGen, parent_hoffdiag
 
         ! Stores of the overlap and projected Hamiltonian matrices.
         real(dp), pointer :: overlap_matrices(:, :, :)
@@ -121,28 +121,28 @@ contains
                         call init_kp_fciqmc_iter(iter_data_fciqmc, determ_ind)
 
                         !if (iter < 10) then
-                        !    write(6,*) "CurrentDets before:"
+                        !    write(stdout,*) "CurrentDets before:"
                         !    do idet = 1, int(TotWalkers, sizeof_int)
                         !        call extract_bit_rep(CurrentDets(:, idet), nI_parent, parent_sign, unused_flags, &
                         !                              fcimc_excit_gen_store)
                         !        if (tUseFlags) then
-                        !            write(6,'(i7, i12, 4x, f18.7, 4x, f18.7, 4x, l1)') idet, CurrentDets(0,idet), parent_sign, &
+                        !            write(stdout,'(i7, i12, 4x, f18.7, 4x, f18.7, 4x, l1)') idet, CurrentDets(0,idet), parent_sign, &
                         !                test_flag(CurrentDets(:,idet), flag_deterministic)
                         !        else
-                        !            write(6,'(i7, i12, 4x, f18.7, 4x, f18.7)') idet, CurrentDets(0,idet), parent_sign
+                        !            write(stdout,'(i7, i12, 4x, f18.7, 4x, f18.7)') idet, CurrentDets(0,idet), parent_sign
                         !        end if
                         !    end do
 
-                        !    write(6,"(A)") "Hash Table: "
+                        !    write(stdout,"(A)") "Hash Table: "
                         !    do idet = 1, nWalkerHashes
                         !        temp_node => HashIndex(idet)
                         !        if (temp_node%ind /= 0) then
-                        !            write(6,'(i9)',advance='no') idet
+                        !            write(stdout,'(i9)',advance='no') idet
                         !            do while (associated(temp_node))
-                        !                write(6,'(i9)',advance='no') temp_node%ind
+                        !                write(stdout,'(i9)',advance='no') temp_node%ind
                         !                temp_node => temp_node%next
                         !            end do
-                        !            write(6,'()',advance='yes')
+                        !            write(stdout,'()',advance='yes')
                         !        end if
                         !    end do
                         !end if
@@ -199,11 +199,12 @@ contains
 
                             ! The current diagonal matrix element is stored persistently.
                             parent_hdiag = det_diagH(idet)
+                            parent_hoffdiag = det_offdiagH(idet)
 
                             if (tTruncInitiator) call CalcParentFlag(idet, parent_flags)
 
                             call SumEContrib(nI_parent, ex_level_to_ref, parent_sign, ilut_parent, &
-                                             parent_hdiag, 1.0_dp, tPairedReplicas, idet)
+                                             parent_hdiag, parent_hoffdiag, 1.0_dp, tPairedReplicas, idet)
 
                             ! If we're on the Hartree-Fock, and all singles and
                             ! doubles are in the core space, then there will be
@@ -265,7 +266,7 @@ contains
                                         ! If any (valid) children have been spawned.
                                         if (.not. (all(near_zero(child_sign) .or. ic == 0 .or. ic > 2))) then
 
-                                            call new_child_stats(iter_data_fciqmc, ilut_parent, &
+                                            call new_child_stats_normal(iter_data_fciqmc, ilut_parent, &
                                                                  nI_child, ilut_child, ic, ex_level_to_ref, &
                                                                  child_sign, parent_flags, ireplica)
 
@@ -394,7 +395,7 @@ contains
         real(dp), allocatable :: lowdin_evals(:, :), lowdin_spin(:, :)
         logical :: tChildIsDeterm, tParentIsDeterm, tParentUnoccupied
         logical :: tParity, tSingBiasChange, tWritePopsFound
-        HElement_t(dp) :: HElGen
+        HElement_t(dp) :: HElGen, parent_hoffdiag
 
         ! Stores of the overlap, projected Hamiltonian and spin matrices.
         real(dp), pointer :: overlap_matrices(:, :, :, :)
@@ -463,28 +464,28 @@ contains
                     end if
                 end if
 
-                !write(6,*) "CurrentDets before:"
+                !write(stdout,*) "CurrentDets before:"
                 !do idet = 1, int(TotWalkers, sizeof_int)
                 !    call extract_bit_rep(CurrentDets(:, idet), nI_parent, parent_sign, unused_flags, &
                 !                          fcimc_excit_gen_store)
                 !    if (tUseFlags) then
-                !        write(6,'(i7, i12, 4x, 3(f18.7, 4x), l1)') idet, CurrentDets(0,idet), parent_sign, &
+                !        write(stdout,'(i7, i12, 4x, 3(f18.7, 4x), l1)') idet, CurrentDets(0,idet), parent_sign, &
                 !            test_flag(CurrentDets(:,idet), flag_deterministic)
                 !    else
-                !        write(6,'(i7, i12, 3(4x, f18.7))') idet, CurrentDets(0,idet), parent_sign
+                !        write(stdout,'(i7, i12, 3(4x, f18.7))') idet, CurrentDets(0,idet), parent_sign
                 !    end if
                 !end do
 
-                !write(6,"(A)") "Hash Table: "
+                !write(stdout,"(A)") "Hash Table: "
                 !do idet = 1, nWalkerHashes
                 !    temp_node => HashIndex(idet)
                 !    if (temp_node%ind /= 0) then
-                !        write(6,'(i9)',advance='no') idet
+                !        write(stdout,'(i9)',advance='no') idet
                 !        do while (associated(temp_node))
-                !            write(6,'(i9)',advance='no') temp_node%ind
+                !            write(stdout,'(i9)',advance='no') temp_node%ind
                 !            temp_node => temp_node%next
                 !        end do
-                !        write(6,'()',advance='yes')
+                !        write(stdout,'()',advance='yes')
                 !    end if
                 !end do
 
@@ -571,11 +572,12 @@ contains
 
                         ! The current diagonal matrix element is stored persistently.
                         parent_hdiag = det_diagH(idet)
+                        parent_hoffdiag = det_offdiagH(idet)
 
                         if (tTruncInitiator) call CalcParentFlag(idet, parent_flags)
 
                         call SumEContrib(nI_parent, ex_level_to_ref, parent_sign, ilut_parent, &
-                                         parent_hdiag, 1.0_dp, tPairedReplicas, idet)
+                                         parent_hdiag, parent_hoffdiag, 1.0_dp, tPairedReplicas, idet)
 
                         ! If we're on the Hartree-Fock, and all singles and
                         ! doubles are in the core space, then there will be no
@@ -626,7 +628,7 @@ contains
                                 ! If any (valid) children have been spawned.
                                 if (.not. (all(near_zero(child_sign) .or. ic == 0 .or. ic > 2))) then
 
-                                    call new_child_stats(iter_data_fciqmc, ilut_parent, &
+                                    call new_child_stats_normal(iter_data_fciqmc, ilut_parent, &
                                                          nI_child, ilut_child, ic, ex_level_to_ref, &
                                                          child_sign, parent_flags, ireplica)
 

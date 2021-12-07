@@ -29,8 +29,9 @@ module CAS_distribution_init
     use initial_trial_states, only: calc_trial_states_lanczos, &
                                     set_trial_populations, set_trial_states, calc_trial_states_direct
     use global_det_data, only: global_determinant_data, set_det_diagH, &
-                               clean_global_det_data, init_global_det_data, &
-                               set_spawn_rate, store_decoding
+                               set_det_offdiagH, clean_global_det_data, &
+                               init_global_det_data, set_spawn_rate, &
+                               store_decoding
     use semi_stoch_gen, only: init_semi_stochastic, end_semistoch, &
                               enumerate_sing_doub_kpnt
     use semi_stoch_procs, only: return_mp1_amp_and_mp2_energy
@@ -39,6 +40,7 @@ module CAS_distribution_init
     use sym_general_mod, only: ClassCountInd
     use trial_wf_gen, only: init_trial_wf, end_trial_wf
     use load_balance, only: clean_load_balance, init_load_balance
+    use matel_getter, only: get_diagonal_matel, get_off_diagonal_matel
     use ueg_excit_gens, only: gen_ueg_excit
     use gndts_mod, only: gndts
     use excit_gen_5, only: gen_excit_4ind_weighted2
@@ -87,7 +89,7 @@ contains
         integer, pointer :: CASDetList(:, :) => null()
         integer(n_int) :: iLutnJ(0:NIfTot)
         logical :: tMC, tHPHF_temp, tHPHFInts_temp
-        HElement_t(dp) :: HDiagTemp
+        HElement_t(dp) :: HDiagTemp, HOffDiagTemp
         HElement_t(dp), allocatable :: Hamil(:)
         real(dp), allocatable :: CK(:, :), W(:), CKN(:, :), A_Arr(:, :), V(:), BM(:), T(:), WT(:)
         real(dp), allocatable :: SCR(:), WH(:), Work2(:), V2(:, :), AM(:)
@@ -109,21 +111,21 @@ contains
         if (tStartSinglePart) call stop_all(this_routine, "StartCAS cannot work with StartSinglePart")
         if (tRestartHighPop) call stop_all(this_routine, "StartCAS cannot with with dynamically restarting calculations")
 
-        write(iout, *) "Initialising walkers proportional to a CAS diagonalisation..."
-        write(iout, '(A,I2,A,I2,A)') " In CAS notation, (spatial orbitals, electrons), this has been chosen as: (" &
+        write(stdout, *) "Initialising walkers proportional to a CAS diagonalisation..."
+        write(stdout, '(A,I2,A,I2,A)') " In CAS notation, (spatial orbitals, electrons), this has been chosen as: (" &
             , (OccCASOrbs + VirtCASOrbs) / 2, ",", OccCASOrbs, ")"
         do I = NEl - OccCASorbs + 1, NEl
-            write(iout, '(6I7)', advance='no') I, BRR(I), G1(BRR(I))%K(1), G1(BRR(I))%K(2), G1(BRR(I))%K(3), G1(BRR(I))%MS
-            CALL WRITESYM(iout, G1(BRR(I))%SYM, .FALSE.)
-            write(iout, '(I4)', advance='no') G1(BRR(I))%Ml
-            write(iout, '(2F19.9)') ARR(I, 1), ARR(BRR(I), 2)
+            write(stdout, '(6I7)', advance='no') I, BRR(I), G1(BRR(I))%K(1), G1(BRR(I))%K(2), G1(BRR(I))%K(3), G1(BRR(I))%MS
+            CALL WRITESYM(stdout, G1(BRR(I))%SYM, .FALSE.)
+            write(stdout, '(I4)', advance='no') G1(BRR(I))%Ml
+            write(stdout, '(2F19.9)') ARR(I, 1), ARR(BRR(I), 2)
         end do
-        write(iout, '(A)') " ================================================================================================="
+        write(stdout, '(A)') " ================================================================================================="
         do I = NEl + 1, NEl + VirtCASOrbs
-            write(iout, '(6I7)', advance='no') I, BRR(I), G1(BRR(I))%K(1), G1(BRR(I))%K(2), G1(BRR(I))%K(3), G1(BRR(I))%MS
-            CALL WRITESYM(iout, G1(BRR(I))%SYM, .FALSE.)
-            write(iout, '(I4)', advance='no') G1(BRR(I))%Ml
-            write(iout, '(2F19.9)') ARR(I, 1), ARR(BRR(I), 2)
+            write(stdout, '(6I7)', advance='no') I, BRR(I), G1(BRR(I))%K(1), G1(BRR(I))%K(2), G1(BRR(I))%K(3), G1(BRR(I))%MS
+            CALL WRITESYM(stdout, G1(BRR(I))%SYM, .FALSE.)
+            write(stdout, '(I4)', advance='no') G1(BRR(I))%Ml
+            write(stdout, '(2F19.9)') ARR(I, 1), ARR(BRR(I), 2)
         end do
 
         CASSpinBasisSize = OccCASorbs + VirtCASorbs
@@ -140,15 +142,15 @@ contains
         CASDet = CasBRR(1:OccCasOrbs)
         call sort(CasDet)
 
-        write(iout, *) "CAS Det is: "
-        call write_det_len(iout, CASDet, OccCASOrbs, .true.)
+        write(stdout, *) "CAS Det is: "
+        call write_det_len(stdout, CASDet, OccCASOrbs, .true.)
         call GetSym(CASDet, OccCASOrbs, G1, nBasisMax, CASSym)
-        write(iout, *) "Spatial symmetry of CAS determinants: ", CASSym%Sym%S
-        write(iout, *) "Ms of CAS determinants: ", CASSym%Ms
+        write(stdout, *) "Spatial symmetry of CAS determinants: ", CASSym%Sym%S
+        write(stdout, *) "Ms of CAS determinants: ", CASSym%Ms
         if (tFixLz) then
-            write(iout, *) "Ml of CAS determinants: ", CASSym%Ml
+            write(stdout, *) "Ml of CAS determinants: ", CASSym%Ml
         end if
-        call neci_flush(iout)
+        call neci_flush(stdout)
 
         if (CASSym%Ml /= LzTot) call stop_all(this_routine, "Ml of CAS ref det does not match Ml of full reference det")
         if (CASSym%Ms /= 0) call stop_all(this_routine, "CAS diagonalisation can only work with closed shell CAS spaces initially")
@@ -160,7 +162,7 @@ contains
         call gndts(OccCASorbs, CASSpinBasisSize, CASBrr, nBasisMax, CASDetList, .true., G1, tSpn, LMS, .true., CASSym, nCASDet, iCASDet)
 
         if (nCASDet == 0) call stop_all(this_routine, "No CAS determinants found.")
-        write(iout, *) "Number of symmetry allowed CAS determinants found to be: ", nCASDet
+        write(stdout, *) "Number of symmetry allowed CAS determinants found to be: ", nCASDet
         allocate(CASDetList(OccCASorbs, nCASDet), stat=ierr)
         if (ierr /= 0) call stop_all(this_routine, "Error allocating CASDetList")
         CASDetList(:, :) = 0
@@ -191,8 +193,8 @@ contains
         end do
         deallocate(CASDetList)
 
-        write(iout, *) "First CAS determinant in list is: "
-        call write_det(iout, CASFullDets(:, 1), .true.)
+        write(stdout, *) "First CAS determinant in list is: "
+        call write_det(stdout, CASFullDets(:, 1), .true.)
 
         if (nCASDet > 1300) then
             !Do lanczos
@@ -200,14 +202,14 @@ contains
         else
             nEval = nCASDet
         end if
-        write(iout, "(A,I4,A)") "Calculating lowest ", nEval, " eigenstates of CAS Hamiltonian..."
+        write(stdout, "(A,I4,A)") "Calculating lowest ", nEval, " eigenstates of CAS Hamiltonian..."
         allocate(Ck(nCASDet, nEval), stat=ierr)
         Ck = 0.0_dp
         allocate(W(nEval), stat=ierr)    !Eigenvalues
         W = 0.0_dp
         if (ierr /= 0) call stop_all(this_routine, "Error allocating")
 
-        write(iout, *) "Calculating hamiltonian..."
+        write(stdout, *) "Calculating hamiltonian..."
         allocate(nRow(nCASDet), stat=ierr)
         nRow = 0
         ICMax = 1
@@ -227,7 +229,7 @@ contains
         deallocate(Lab)
         deallocate(Hamil)
         LenHamil = GC
-        write(iout, *) "Allocating memory for hamiltonian: ", LenHamil * 2
+        write(stdout, *) "Allocating memory for hamiltonian: ", LenHamil * 2
         allocate(Hamil(LenHamil), stat=ierr)
         if (ierr /= 0) call stop_all(this_routine, "Error allocating Hamil")
         Hamil = 0.0_dp
@@ -238,7 +240,7 @@ contains
 
         ! Assuming that this routine does not work with complex
         CASRefEnergy = GETHELEMENT(1, 1, HAMIL, LAB, NROW, NCASDET)
-        write(iout, *) "Energy of first CAS det is: ", CASRefEnergy
+        write(stdout, *) "Energy of first CAS det is: ", CASRefEnergy
 
         ! Turn back on HPHFs if needed.
         tHPHF = tHPHF_temp
@@ -340,9 +342,9 @@ contains
         deallocate(nrow, lab, work2)
         call logmemdealloc(this_routine, Work2Tag)
 
-        write(iout, *) "Diagonalisation complete. Lowest energy CAS eigenvalues/corr E are: "
+        write(stdout, *) "Diagonalisation complete. Lowest energy CAS eigenvalues/corr E are: "
         do i = 1, min(NEval, 10)
-            write(iout, *) i, W(i), W(i) - CASRefEnergy
+            write(stdout, *) i, W(i), W(i) - CASRefEnergy
         end do
 
         TotWeight = 0.0_dp
@@ -377,34 +379,34 @@ contains
         end do
 
         ! Output details
-        write(iout, *) "Total weight of lowest eigenfunction: ", TotWeight
-        write(iout, *) "Maximum weighted det: ", det_max, max_wt
+        write(stdout, *) "Total weight of lowest eigenfunction: ", TotWeight
+        write(stdout, *) "Maximum weighted det: ", det_max, max_wt
 
         !If the reference det is not the maximum weighted det, suggest that
         !we change it!
         if (.not. all(CASFullDets(:, det_max) == ProjEDet(:, 1))) then
-            write(iout, *) 'The specified reference determinant is not the &
+            write(stdout, *) 'The specified reference determinant is not the &
                        &maximum weighted determinant in the CAS expansion'
-            write(iout, *) 'Use following det as reference:'
+            write(stdout, *) 'Use following det as reference:'
             call write_det(6, CASFullDets(:, det_max), .true.)
             call warning_neci(this_routine, "Poor reference chosen")
         end if
 
-        if (tHPHF) write(iout, *) "Converting into HPHF space. Total HPHF CAS functions: ", nHPHFCAS
+        if (tHPHF) write(stdout, *) "Converting into HPHF space. Total HPHF CAS functions: ", nHPHFCAS
 
         if ((InitialPart.isclose.1._dp) .or. (InitialPart >= (InitWalkers * nNodes) - 50)) then
             !Here, all the walkers will be assigned to the CAS wavefunction.
             !InitialPart = 1 by default
-            write(iout, "(A)") "All walkers specified in input will be distributed according to the CAS wavefunction."
-            write(iout, "(A)") "Shift will be allowed to vary from the beginning"
-            write(iout, "(A,F20.9)") "Setting initial shift to equal CAS correlation energy", W(1) - CASRefEnergy
+            write(stdout, "(A)") "All walkers specified in input will be distributed according to the CAS wavefunction."
+            write(stdout, "(A)") "Shift will be allowed to vary from the beginning"
+            write(stdout, "(A,F20.9)") "Setting initial shift to equal CAS correlation energy", W(1) - CASRefEnergy
             DiagSft = W(1) - CASRefEnergy
             !PartFac is the number of walkers that should reside on the HF determinant
             PartFac = (real(InitWalkers, dp) * real(nNodes, dp)) / TotWeight
         else
             !Here, not all walkers allowed will be initialised to the CAS wavefunction.
-            write(iout, "(A,I15,A)") "Initialising ", int(InitialPart), " walkers according to the CAS distribution."
-            write(iout, "(A,I15)") "Shift will remain fixed until the walker population reaches ", int(InitWalkers * nNodes)
+            write(stdout, "(A,I15,A)") "Initialising ", int(InitialPart), " walkers according to the CAS distribution."
+            write(stdout, "(A,I15)") "Shift will remain fixed until the walker population reaches ", int(InitWalkers * nNodes)
             !PartFac is the number of walkers that should reside on the HF determinant
             PartFac = real(InitialPart, dp) / TotWeight
             tSinglePartPhase(:) = .true.
@@ -456,13 +458,11 @@ contains
                     end do
                     call encode_sign(CurrentDets(:, DetIndex), temp_sign)
 
-                    ! Store the diagonal matrix elements
-                    if (tHPHF) then
-                        HDiagTemp = hphf_diag_helement(CASFullDets(:, i), iLutnJ)
-                    else
-                        HDiagTemp = get_helement(CASFullDets(:, i), CASFullDets(:, i), 0)
-                    end if
+                    ! Store the diagonal and off-diagonal matrix elements
+                    HDiagTemp = get_diagonal_matel(CASFullDets(:, i), iLutnJ)
+                    HOffDiagTemp = get_off_diagonal_matel(CASFullDets(:, i), iLutnJ)
                     call set_det_diagH(DetIndex, real(HDiagTemp, dp) - Hii)
+                    call set_det_offdiagH(DetIndex, HOffDiagTemp)
                     call store_decoding(DetIndex, CASFullDets(:, i))
 
                     if (tTruncInitiator) then

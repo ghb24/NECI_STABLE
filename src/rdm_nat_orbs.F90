@@ -49,26 +49,26 @@ contains
             call write_evales_and_transform_mat(rdm, irdm, SumDiag)
 
             if (tPrintRODump .and. tROHF) then
-                write(6, *) 'ROFCIDUMP not implemented for ROHF. Skip generation of ROFCIDUMP file.'
+                write(stdout, *) 'ROFCIDUMP not implemented for ROHF. Skip generation of ROFCIDUMP file.'
             else if (tPrintRODump) then
-                write(6, "(A,F10.5,A)") "This will require at least ", (real(NoOrbs, dp)**4) * 8 / 10**9, "Gb to be available on head node"
+                write(stdout, "(A,F10.5,A)") "This will require at least ", (real(NoOrbs, dp)**4) * 8 / 10**9, "Gb to be available on head node"
                 allocate(FourIndInts(NoOrbs, NoOrbs, NoOrbs, NoOrbs), stat=ierr)
                 call LogMemAlloc('FourIndInts', (NoOrbs**4), 8, t_r, &
                                  FourIndIntsTag, ierr)
                 if (ierr /= 0) then
-                    write(6, *) "ierr: ", ierr
+                    write(stdout, *) "ierr: ", ierr
                     call Stop_All(t_r, 'Problem allocating FourIndInts array,')
                 end if
 
                 ! Then, transform2ElInts.
-                write(6, *) ''
-                write(6, *) 'Transforming the four index integrals'
+                write(stdout, *) ''
+                write(stdout, *) 'Transforming the four index integrals'
                 call Transform2ElIntsMemSave_RDM(rdm%matrix, rdm%sym_list_no)
 
-                write(6, *) 'Re-calculating the fock matrix'
+                write(stdout, *) 'Re-calculating the fock matrix'
                 call CalcFOCKMatrix_RDM(rdm)
 
-                write(6, *) 'Refilling the UMAT and TMAT2D'
+                write(stdout, *) 'Refilling the UMAT and TMAT2D'
 
                 ! The ROFCIDUMP is also printed out in here.
                 call RefillUMATandTMAT2D_RDM(rdm%matrix, rdm%sym_list_no)
@@ -148,11 +148,11 @@ contains
         end do
         close(Evalues_unit)
 
-        write(6, '(1X,A45,F30.20)') 'SUM OF THE N LARGEST NO OCCUPATION NUMBERS: ', SumN_NO_Occ
+        write(stdout, '(1X,A45,F30.20)') 'SUM OF THE N LARGEST NO OCCUPATION NUMBERS: ', SumN_NO_Occ
 
-        write(6, '(1X,A20,F30.20)') 'CORRELATION ENTROPY', Corr_Entropy
-        write(6, '(1X,A33,F30.20)') 'CORRELATION ENTROPY PER ELECTRON', Corr_Entropy / real(NEl, dp)
-        if (tNegEvalue) write(6, '(1X,"WARNING: Negative NO occupation numbers found.")')
+        write(stdout, '(1X,A20,F30.20)') 'CORRELATION ENTROPY', Corr_Entropy
+        write(stdout, '(1X,A33,F30.20)') 'CORRELATION ENTROPY PER ELECTRON', Corr_Entropy / real(NEl, dp)
+        if (tNegEvalue) write(stdout, '(1X,"WARNING: Negative NO occupation numbers found.")')
 
         ! Write out the evectors to file.
         ! This is the matrix that transforms the molecular orbitals into the
@@ -279,26 +279,26 @@ contains
                 end if
                 if (tDiffSym) then
                     if (abs(rdm%matrix(i, j)) >= 1.0E-15_dp) then
-                        write(6, '(6A8,A20)') 'i', 'j', 'Label i', 'Label j', 'Sym i', &
+                        write(stdout, '(6A8,A20)') 'i', 'j', 'Label i', 'Label j', 'Sym i', &
                             'Sym j', 'Matrix value'
                         if (tOpenShell) then
-                            write(6, '(6I3,F40.20)') i, j, SymLabelList2_rot(i), SymLabelList2_rot(j), &
+                            write(stdout, '(6I3,F40.20)') i, j, SymLabelList2_rot(i), SymLabelList2_rot(j), &
                                 int(G1(SymLabelList2_rot(i))%sym%S), &
                                 int(G1(SymLabelList2_rot(j))%sym%S), rdm%matrix(i, j)
                         else
-                            write(6, '(6I3,F40.20)') i, j, SymLabelList2_rot(i), SymLabelList2_rot(j), &
+                            write(stdout, '(6I3,F40.20)') i, j, SymLabelList2_rot(i), SymLabelList2_rot(j), &
                                 int(G1(2 * SymLabelList2_rot(i))%sym%S), &
                                 int(G1(2 * SymLabelList2_rot(j))%sym%S), rdm%matrix(i, j)
                         end if
                         if (tUseMP2VarDenMat) then
-                            write(6, *) '**WARNING** - There is a non-zero 1-RDM &
+                            write(stdout, *) '**WARNING** - There is a non-zero 1-RDM &
                             &value between orbitals of different symmetry.'
-                            write(6, *) 'These elements will be ignored, and the symmetry &
+                            write(stdout, *) 'These elements will be ignored, and the symmetry &
                             &maintained in the final transformation matrix.'
                         else
-                            write(6, *) 'k,SymLabelList2_rot(k),SymLabelListInv_rot(k)'
+                            write(stdout, *) 'k,SymLabelList2_rot(k),SymLabelListInv_rot(k)'
                             do k = 1, NoOrbs
-                                write(6, *) k, SymLabelList2_rot(k), SymLabelListInv_rot(k)
+                                write(stdout, *) k, SymLabelList2_rot(k), SymLabelListInv_rot(k)
                             end do
                             call neci_flush(6)
                             call Stop_All(t_r, 'Non-zero rdm%matrix value between &
@@ -309,18 +309,18 @@ contains
                 end if
                 if (tDiffLzSym) then
                     if (abs(rdm%matrix(i, j)) >= 1.0E-15_dp) then
-                        write(6, '(6A8,A40)') 'i', 'j', 'Label i', 'Label j', 'Lz i', &
+                        write(stdout, '(6A8,A40)') 'i', 'j', 'Label i', 'Label j', 'Lz i', &
                             'Lz j', 'Matrix value'
                         if (tOpenShell) then
-                            write(6, '(6I8,F40.20)') i, j, SymLabelList2_rot(i), SymLabelList2_rot(j), &
+                            write(stdout, '(6I8,F40.20)') i, j, SymLabelList2_rot(i), SymLabelList2_rot(j), &
                                 int(G1(SymLabelList2_rot(i))%Ml), &
                                 int(G1(SymLabelList2_rot(j))%Ml), rdm%matrix(i, j)
                         else
-                            write(6, '(6I8,F40.20)') i, j, SymLabelList2_rot(i), SymLabelList2_rot(j), &
+                            write(stdout, '(6I8,F40.20)') i, j, SymLabelList2_rot(i), SymLabelList2_rot(j), &
                                 int(G1(2 * SymLabelList2_rot(i))%Ml), &
                                 int(G1(2 * SymLabelList2_rot(j))%Ml), rdm%matrix(i, j)
                         end if
-                        write(6, '(A)') ' **WARNING** - There is a non-zero 1-RDM element &
+                        write(stdout, '(A)') ' **WARNING** - There is a non-zero 1-RDM element &
                         &between orbitals of different Lz symmetry.'
                     end if
                 end if
@@ -328,8 +328,8 @@ contains
             SumTrace = SumTrace + rdm%matrix(i, i)
         end do
 
-        write(6, *) ''
-        write(6, *) 'Calculating eigenvectors and eigenvalues of the 1-RDM'
+        write(stdout, *) ''
+        write(stdout, *) 'Calculating eigenvectors and eigenvalues of the 1-RDM'
         call neci_flush(6)
 
         ! If we want to maintain the symmetry, we cannot have all the orbitals
@@ -422,7 +422,7 @@ contains
             Sym = Sym + 1
         end do
 
-        write(6, *) 'Matrix diagonalised'
+        write(stdout, *) 'Matrix diagonalised'
         call neci_flush(6)
 
         SumDiagTrace = 0.0_dp
@@ -431,11 +431,11 @@ contains
         end do
 
         if ((abs(SumDiagTrace - SumTrace)) > 1.0_dp) then
-            write(6, *) 'Sum of diagonal 1-RDM elements : ', SumTrace
-            write(6, *) 'Sum of eigenvalues : ', SumDiagTrace
-            write(6, *) 'WARNING : &
+            write(stdout, *) 'Sum of diagonal 1-RDM elements : ', SumTrace
+            write(stdout, *) 'Sum of eigenvalues : ', SumDiagTrace
+            write(stdout, *) 'WARNING : &
             &The trace of the 1RDM matrix before diagonalisation is '
-            write(6, *) 'not equal to that after.'
+            write(stdout, *) 'not equal to that after.'
         end if
 
         ! The MO's still correspond to SymLabelList2_rot.
@@ -1065,14 +1065,14 @@ contains
                 call Stop_all("BrokenSymNO", "Broken symmetry NOs currently not implemented for UHF")
             end if
 
-            write(6, *) '------------------------------------------------------------------------------'
-            write(6, *) 'Localising NOs whose occupation numbers differ by less than threshold'
-            write(6, *) '------------------------------------------------------------------------------'
+            write(stdout, *) '------------------------------------------------------------------------------'
+            write(stdout, *) 'Localising NOs whose occupation numbers differ by less than threshold'
+            write(stdout, *) '------------------------------------------------------------------------------'
 
             if (tBreakSymNOs) then
-                write(6, *) 'Rotating specified NOs'
+                write(stdout, *) 'Rotating specified NOs'
             else
-                write(6, *) 'Threshold for orbitals to rotate:', occ_numb_diff
+                write(stdout, *) 'Threshold for orbitals to rotate:', occ_numb_diff
             end if
 
             ! Self-interactions.
@@ -1081,11 +1081,11 @@ contains
                 selfint(l1) = Umat(UmatInd(l1, l1, l1, l1))
             end do
 
-            write(6, *) 'Self-interactions for NOs:'
+            write(stdout, *) 'Self-interactions for NOs:'
             do l1 = 1, NoOrbs
-                write(6, '(I3,3X,G25.12)') l1, selfint(l1)
+                write(stdout, '(I3,3X,G25.12)') l1, selfint(l1)
             end do
-            write(6, *) 'Sum of NO selfinteractions:', sum(selfint)
+            write(stdout, *) 'Sum of NO selfinteractions:', sum(selfint)
             selfint_old = sum(selfint)
 
             ! If the NOs to be rotated are specified in the input file.
@@ -1145,17 +1145,17 @@ contains
                             ! this is for up to 2-fold degenearcy
 !                                if (n.gt.2) then
 !                                    n = 2
-!                                    write(6,*) '***Warning***'
-!                                    write(6,*) 'Threshold generated more than 2-fold degeneracy'
-!                                    write(6,*) 'NOs around:',l2
+!                                    write(stdout,*) '***Warning***'
+!                                    write(stdout,*) 'Threshold generated more than 2-fold degeneracy'
+!                                    write(stdout,*) 'NOs around:',l2
 !                                    cycle  ! don't want to rotate more than 2 orbitals
 !                                end if
                             ! this is for up to four-fold degeneracy
                             if (n > 4) then
                                 n = 4
-                                write(6, *) '***Warning***'
-                                write(6, *) 'Threshold generated more than 4-fold degeneracy'
-                                write(6, *) 'NOs around:', l2
+                                write(stdout, *) '***Warning***'
+                                write(stdout, *) 'Threshold generated more than 4-fold degeneracy'
+                                write(stdout, *) 'NOs around:', l2
                                 cycle  ! don't want to rotate more than 4 orbitals
                             end if
                             rotate_list(m, n) = l2
@@ -1165,9 +1165,9 @@ contains
                 end do
             end if
 
-            write(6, *) 'The following pairs of orbitals will be rotated:'
+            write(stdout, *) 'The following pairs of orbitals will be rotated:'
             do l1 = 1, m
-                write(6, '(I3,3X,4(I3))') l1, rotate_list(l1, :)
+                write(stdout, '(I3,3X,4(I3))') l1, rotate_list(l1, :)
             end do
 
             one_rdm(:, :) = 0.0_dp
@@ -1179,7 +1179,7 @@ contains
             do l1 = 1, m
                 ! If only two orbitals have the same occupation numbers.
                 if (rotate_list(l1, 3) == 0) then
-                    write(6, '(A20,4(I3))') 'Rotating NOs:', rotate_list(l1, :)
+                    write(stdout, '(A20,4(I3))') 'Rotating NOs:', rotate_list(l1, :)
                     iumat = rotate_list(l1, 1)
                     jumat = rotate_list(l1, 2)
                     if (jumat <= local_cutoff) then
@@ -1198,7 +1198,7 @@ contains
                     one_rdm(iumat, jumat) = trans_2orbs_coeffs(1, 2)
                     one_rdm(jumat, jumat) = trans_2orbs_coeffs(2, 2)
 
-                    write(6, *) 'Sum of rotated NO self-interactions:', sum(selfint)
+                    write(stdout, *) 'Sum of rotated NO self-interactions:', sum(selfint)
 
                     selfint_old = sum(selfint)
                 end if
@@ -1227,7 +1227,7 @@ contains
                     ! three orbitals can intermix.
                     do
                         sum_old = sum_new
-                        write(6, '(A20,4(I3))') 'Rotating NOs:', rotate_list(l1, :)
+                        write(stdout, '(A20,4(I3))') 'Rotating NOs:', rotate_list(l1, :)
                         do l3 = 1, 3
                             iumat = rotate_list(l1, rotorbs(l3, 1))
                             jumat = rotate_list(l1, rotorbs(l3, 2))
@@ -1264,14 +1264,14 @@ contains
 
                         ! Check for convergence.
                         sum_new = sum(selfint)
-                        write(6, '(A50,2G20.12)') 'Current and previous selfinteraction:',&
+                        write(stdout, '(A50,2G20.12)') 'Current and previous selfinteraction:',&
                             &sum_new, sum_old
                         if (abs(sum_new - sum_old) < 1e-12_dp) then
                             exit
                         end if
                     end do
 
-                    write(6, *) 'Sum of rotated NO self-interactions:', sum(selfint)
+                    write(stdout, *) 'Sum of rotated NO self-interactions:', sum(selfint)
 
                     selfint_old = sum(selfint)
 
@@ -1295,7 +1295,7 @@ contains
                     ! three orbitals can intermix.
                     do
                         sum_old = sum_new
-                        write(6, '(A20,4(I3))') 'Rotating NOs:', rotate_list(l1, :)
+                        write(stdout, '(A20,4(I3))') 'Rotating NOs:', rotate_list(l1, :)
                         do l3 = 1, 3
                             one_rdm(:, :) = 0.0_dp
                             do l4 = 1, NoOrbs
@@ -1335,7 +1335,7 @@ contains
                         ! Check for convergence.
                         sum_new = sum(selfint)
 
-                        write(6, "(A50,2G20.12)") 'Current and previous selfinteractions:',&
+                        write(stdout, "(A50,2G20.12)") 'Current and previous selfinteractions:',&
                             &sum_new, sum_old
 
                         if (abs(sum_new - sum_old) < 1e-12_dp) then
@@ -1343,21 +1343,21 @@ contains
                         end if
                     end do
 
-                    write(6, *) 'Sum of rotated NO self-interactions:', sum(selfint)
+                    write(stdout, *) 'Sum of rotated NO self-interactions:', sum(selfint)
 
                     selfint_old = sum(selfint)
                 end if
             end do
 
-            write(6, *) 'Final self-interactions for rotated NOs:'
+            write(stdout, *) 'Final self-interactions for rotated NOs:'
             do l1 = 1, NoOrbs
-                write(6, '(I3,3X,G25.12)') l1, selfint(l1)
+                write(stdout, '(I3,3X,G25.12)') l1, selfint(l1)
             end do
-            write(6, *) 'Sum of rotated NO self-interactions:', sum(selfint)
+            write(stdout, *) 'Sum of rotated NO self-interactions:', sum(selfint)
 
-            write(6, *) '------------------------------------------------------'
-            write(6, *) 'Writing out BSFCIDUMP...'
-            write(6, *) '------------------------------------------------------'
+            write(stdout, *) '------------------------------------------------------'
+            write(stdout, *) 'Writing out BSFCIDUMP...'
+            write(stdout, *) '------------------------------------------------------'
 
             call PrintROFCIDUMP_RDM("BSFCIDUMP")
 

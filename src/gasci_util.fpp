@@ -7,15 +7,16 @@
 !> This module contains functions for GAS that are not bound
 !>  to a specific GAS excitation generator.
 module gasci_util
-    use constants, only: n_int, dp
-    use SystemData, only: nEl
+    use constants, only: n_int, dp, int64
+    use SystemData, only: nEl, nBasis
     use gasci, only: GASSpec_t, LocalGASSpec_t, CumulGASSpec_t, GAS_specification
+    use gasci_supergroup_index, only: SuperGroupIndexer_t
     use orb_idx_mod, only: SpinProj_t, calc_spin_raw, operator(==), operator(/=), operator(-), sum, &
         alpha, beta
     use sort_mod, only: sort
     use excitation_types, only: SingleExc_t, DoubleExc_t, excite, get_last_tgt, set_last_tgt, UNKNOWN
     use util_mod, only: lex_leq, cumsum, operator(.div.), near_zero, binary_search_first_ge, &
-        operator(.isclose.), custom_findloc
+        operator(.isclose.), custom_findloc, choose
     use dSFMT_interface, only: genrand_real2_dSFMT
     use DetBitOps, only: ilut_lt, ilut_gt, EncodeBitDet
     use bit_rep_data, only: NIfTot, NIfD
@@ -25,9 +26,13 @@ module gasci_util
     use bit_reps, only: decode_bit_det
     implicit none
     private
-    public :: get_available_singles, get_available_doubles, gen_all_excits
+    public :: get_available_singles, get_available_doubles, &
+        gen_all_excits, get_n_SDs
+
 
     public :: get_cumulative_list, draw_from_cum_list
+
+    public :: write_GAS_info
 
     interface get_cumulative_list
         #:for Excitation_t in ExcitationTypes
@@ -52,7 +57,7 @@ contains
         type(buffer_int_2D_t) :: buffer
 
 
-        @:pure_ASSERT(GAS_spec%contains_det(det_I))
+        @:pure_ASSERT(GAS_spec%contains_conf(det_I))
 
         call buffer%init(size(det_I))
 
@@ -85,7 +90,7 @@ contains
         type(SpinProj_t) :: m_s_1
         type(buffer_int_2D_t) :: buffer
 
-        @:pure_ASSERT(GAS_spec%contains_det(det_I))
+        @:pure_ASSERT(GAS_spec%contains_conf(det_I))
 
         call buffer%init(size(det_I))
 
@@ -264,4 +269,108 @@ contains
         end if
     end subroutine
 
+    pure function get_alpha_supergroups(sg, n_orbs, S_z) result(sg_alpha)
+        !! Return the possible supergroups/distributions for alpha electrons.
+        !!
+        !! If `sg_alpha` and `sg_beta` are the distributions of alpha/beta electrons among the
+        !! GAS spaces. Then we have `sg(:) = sg_alpha(:) + sg_beta(:)`.
+        !! We want to generate all possible `sg_alpha` such that
+        !! The GAS constraints are still fullfilled and the total
+        !! spin projection is maintained. (`sum(sg_alpha) + sum(sg_beta) == 2*S_z`)
+        integer, intent(in) :: sg(:)
+            !! The overall supergroup
+        integer, intent(in) :: n_orbs(size(sg))
+            !! The number of spatial orbitals per GAS space
+        type(SpinProj_t), intent(in) :: S_z
+            !! The Spin projection
+        integer, allocatable :: sg_alpha(:, :)
+            !! All possible distributions of alpha electrons among the
+            !!      GAS spaces.
+        integer :: N, i, j
+
+        N = sum(sg)
+        if (mod(S_z%val + N, 2) == 0) then
+        block
+            type(LocalGASSpec_t) :: sg_alpha_constraint
+            type(SuperGroupIndexer_t) :: sg_indexer
+            integer :: N_alpha
+            N_alpha = (N + S_z%val) .div. 2
+            sg_alpha_constraint = LocalGASSpec_t(&
+                                n_min=max(sg - n_orbs, 0), &
+                                n_max=min(sg, n_orbs), &
+                                spat_GAS_orbs=[((j, i = 1, n_orbs(j)), j = 1, size(n_orbs))])
+            sg_indexer = SuperGroupIndexer_t(sg_alpha_constraint, N_alpha)
+            sg_alpha = sg_indexer%get_supergroups()
+        end block
+        else
+            allocate(sg_alpha(0, 0))
+        end if
+    end function
+
+    elemental function get_n_SDs(GAS_spec, N, S_z) result(n_SDs)
+        !! Return the number of Slater-determinants.
+        class(GASSpec_t), intent(in) :: GAS_spec
+            !! GAS specification.
+        integer, intent(in) :: N
+            !! The number of particles
+        type(SpinProj_t), intent(in) :: S_z
+            !! Spin projection
+        integer(int64) :: n_SDs
+        integer, allocatable :: supergroups(:, :), alpha_supergroups(:, :)
+        type(SuperGroupIndexer_t) :: sg_indexer
+        integer :: i, j
+
+        sg_indexer = SuperGroupIndexer_t(GAS_spec, N)
+        supergroups = sg_indexer%get_supergroups()
+
+        block
+            integer :: N_alpha(GAS_spec%nGAS()), N_beta(GAS_spec%nGAS()), n_spat_orbs(GAS_spec%nGAS())
+                !! These are the number of alpha/beta electrons and the number of
+                !!  spatial orbitals per GAS space
+            n_spat_orbs = GAS_spec%GAS_size() .div. 2
+
+            n_SDs = 0_int64
+            do j = 1, size(supergroups, 2)
+                alpha_supergroups = get_alpha_supergroups(supergroups(:, j), n_spat_orbs, S_z)
+                do i = 1, size(alpha_supergroups, 2)
+                    N_alpha = alpha_supergroups(:, i)
+                    N_beta = supergroups(:, j) - N_alpha(:)
+                    ! Note that choose is elemental.
+                    ! For a given supergroup and S_z in each GAS space
+                    !   (coming from the distribution of alpha electrons)
+                    !   the number of possible configurations in each GAS space is calculated.
+                    ! The overall number is just the product over the GAS spaces.
+                    n_SDs = n_SDs + product(choose(n_spat_orbs, N_alpha) * choose(n_spat_orbs, N_beta))
+                end do
+            end do
+        end block
+    end function
+
+    subroutine write_GAS_info(GAS_spec, N, S_z, iunit)
+        !! Write info about the GAS constraints to `iunit`
+        !!
+        !! The routine especially compares the CAS and GAS Hilbert space sizes.
+        class(GASSpec_t), intent(in) :: GAS_spec
+            !! GAS constraints.
+        integer, intent(in) :: N
+            !! The particle number.
+        type(SpinProj_t), intent(in) :: S_z
+            !! The total spin projection.
+        integer, intent(in) :: iunit
+
+        call GAS_spec%write_to(iunit)
+
+        block
+            integer :: n_alpha, n_beta, n_spat_orbs
+            integer(int64) :: size_CAS, size_GAS
+            N_alpha = (N + S_z%val) .div. 2
+            N_beta = N - N_alpha
+            n_spat_orbs = GAS_spec%n_spin_orbs() .div. 2
+            size_CAS = choose(n_spat_orbs, N_alpha) * choose(n_spat_orbs, N_beta)
+            size_GAS = get_n_SDs(GAS_spec, nEl, S_z)
+            write(iunit, '(A, 1x, I0)') 'The size of the CAS space is:', size_CAS
+            write(iunit, '(A, 1x, I0)') 'The size of the GAS space is:', size_GAS
+            write(iunit, '(A, 1x, E10.5)') 'The fraction of the GAS space is:', real(size_GAS, dp) / real(size_CAS, dp)
+        end block
+    end subroutine
 end module

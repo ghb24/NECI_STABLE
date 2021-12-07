@@ -12,7 +12,7 @@ module cont_time
                                secondary_gen_store
     use hash, only: remove_hash_table_entry, clear_hash_table
     use DetBitOps, only: FindBitExcitLevel, count_open_orbs
-    use global_det_data, only: det_diagH, get_spawn_rate
+    use global_det_data, only: det_diagH, det_offdiagH, get_spawn_rate
     use GenRandSymExcitNUMod, only: init_excit_gen_store
     use Determinants, only: get_helement, write_det
     use orthogonalise, only: orthogonalise_replicas
@@ -22,7 +22,7 @@ module cont_time
     use fcimc_iter_utils, only: update_iter_data
     use hphf_integrals, only: hphf_diag_helement
     use SystemData, only: nel, tHPHF, LMS
-    use bit_reps, only: extract_bit_rep
+    use bit_reps, only: extract_bit_rep, writebitdet
     use LoggingData, only: FCIMCDebug
     use bit_rep_data, only: NIfTot
     use rdm_data, only: rdm_definitions
@@ -43,6 +43,7 @@ contains
         character(*), parameter :: this_routine = 'iterate_cont_time'
 
         real(dp) :: sgn(lenof_sign), rate, hdiag
+        HElement_t(dp) :: hoffdiag
         integer :: sgn_abs, iunused, flags, det(nel), j, p, TotWalkersNew
 
         integer :: part_type, ic_hf, nopen, err, MaxIndex
@@ -79,17 +80,18 @@ contains
             end if
 
             IFDEBUG(FCIMCDebug, 3) then
-                write(iout, "(A,I10,a)", advance='no') 'TW:', j, '['
+                write(stdout, "(A,I10,a)", advance='no') 'TW:', j, '['
                 do part_type = 1, lenof_sign
-                    write(iout, "(f10.5)", advance='no') sgn(part_type)
+                    write(stdout, "(f10.5)", advance='no') sgn(part_type)
                 end do
-                write(iout, '(a)', advance='no') '] '
-                call WriteBitDet(iout, CurrentDets(:, j), .true.)
-                call neci_flush(iout)
+                write(stdout, '(a)', advance='no') '] '
+                call WriteBitDet(stdout, CurrentDets(:, j), .true.)
+                call neci_flush(stdout)
             end if
 
             ! Global stored data to make things efficient
             hdiag = det_diagH(j)
+            hoffdiag = det_offdiagH(j)
             if (tContTimeFull) then
                 rate = get_spawn_rate(j)
                 ASSERT(rate.isclose.spawn_rate_full(det, CurrentDets(:, j)))
@@ -102,8 +104,8 @@ contains
 
             ! Sum in the energy terms, yeah!
             ic_hf = FindBitExcitLevel(ilutRef(:, 1), CurrentDets(:, j))
-            call SumEContrib(det, ic_hf, sgn, CurrentDets(:, j), hdiag, 1.0_dp, &
-                             tPairedReplicas, j)
+            call SumEContrib(det, ic_hf, sgn, CurrentDets(:, j), hdiag, &
+                             hoffdiag, 1.0_dp, tPairedReplicas, j)
 
             ! Needed for calculating oversample factors
             nopen = count_open_orbs(CurrentDets(:, j))
@@ -144,7 +146,7 @@ contains
             end if
 
         end do
-        IFDEBUG(FCIMCDebug, 2) write(iout, '("Finnished loop over sites")')
+        IFDEBUG(FCIMCDebug, 2) write(stdout, '("Finnished loop over sites")')
         call halt_timer(walker_time)
 
         ! Update statistics. This is done before annihilation as the output
@@ -160,7 +162,7 @@ contains
 
         TotWalkers = TotWalkersNew
         call halt_timer(annihil_time)
-        IFDEBUG(FCIMCDebug, 2) write(iout, '("Finished annihilation")')
+        IFDEBUG(FCIMCDebug, 2) write(stdout, '("Finished annihilation")')
 
         ! If we are orthogonalising the replica wavefunctions, to generate
         ! excited states, then do that here.
@@ -237,7 +239,7 @@ contains
                 ! the current particle, rather than generating antiparticles.
                 if (ic == 0) then
                     survives = .false.
-                    IFDEBUG(FCIMCDebug, 3) write(iout, '("Particle died")')
+                    IFDEBUG(FCIMCDebug, 3) write(stdout, '("Particle died")')
                     exit
                 end if
 
@@ -299,14 +301,14 @@ contains
                     child(part_type) = spwn_sgn
 
                     IFDEBUG(FCIMCDebug, 3) then
-                        write(iout, '(a)', advance='no') 'SP: ['
+                        write(stdout, '(a)', advance='no') 'SP: ['
                         do y = 1, lenof_sign
-                            write(iout, '(f12.5)', advance='no') &
+                            write(stdout, '(f12.5)', advance='no') &
                                 child(y)
                         end do
-                        write(iout, '("] ")', advance='no')
+                        write(stdout, '("] ")', advance='no')
                         call write_det(6, det_spwn, .true.)
-                        call neci_flush(iout)
+                        call neci_flush(stdout)
                     end if
 
                     if (use_spawn_hash_table) then
