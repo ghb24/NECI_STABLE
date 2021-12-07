@@ -98,7 +98,7 @@ contains
 !       Calc defaults
         iSampleRDMIters = -1
         tStartCoreGroundState = .true.
-        t_core_inits = .false.
+        t_core_inits = .true.
         HashLengthFrac = 0.7_dp
         nWalkerHashes = 0
         tTrialHash = .true.
@@ -167,8 +167,6 @@ contains
         LAS_Sigma = 1.0
         LAS_F1 = 0.0
         LAS_F2 = 1.0
-        tExpAdaptiveShift = .false.
-        EAS_Scale = 2.0
         tAutoAdaptiveShift = .false.
         AAS_Thresh = 10
         AAS_Expo = 1
@@ -202,7 +200,7 @@ contains
         iPopsFileNoRead = 0
         iPopsFileNoWrite = 0
         tWalkContGrow = .false.
-        StepsSft = 100
+        StepsSft = 10
         SftDamp = 0.1_dp
         Tau = 0.0_dp
         InitWalkers = 3000.0_dp
@@ -1598,6 +1596,7 @@ contains
                 ss_space_in%tHF = .true.
             case("POPS-CORE")
                 ss_space_in%tPops = .true.
+                ss_space_in%tPopsCore = .true.
                 call geti(ss_space_in%npops)
                 t_fast_pops_core = .false.
                 if (int(ss_space_in%npops,int64) * int(nProcessors,int64) > 1000000_int64 &
@@ -1613,6 +1612,25 @@ contains
                 tSemiStochastic = .false.
                 tStartCoreGroundState = .false.
                 semistoch_shift_iter = 1
+            case("POPS-CORE-PROPORTION")
+                ss_space_in%tPops = .true.
+                ss_space_in%tPopsProportion = .true.
+                call getf(ss_space_in%npops_proportion)
+                if (ss_space_in%npops_proportion < 0.0) then
+                    call stop_all(t_r, 'Popscore proportion should be positive')
+                end if
+                t_fast_pops_core = .false.
+                if (.not. tForceFullPops) then
+                    ss_space_in%tApproxSpace = .true.
+                    t_fast_pops_core = .true.
+                end if
+                if (tSemiStochastic .and. semistoch_shift_iter == 0) then
+                    ! Force initialization of determinisitc space after initializing
+                    ! initiator space.
+                    semistoch_shift_iter = 1
+                    tSemiStochastic = .false.
+                    tStartCoreGroundState = .false.
+                end if
             case("POPS-CORE-APPROX")
                 ss_space_in%tPops = .true.
                 ss_space_in%tApproxSpace = .true.
@@ -1842,7 +1860,19 @@ contains
                 tStartCoreGroundState = .false.
             case("CORE-INITS")
                 ! Make all determinants in the core-space initiators
-                t_core_inits = .true.
+                if(item < nitems) then
+                    call readu(w)
+                    select case(w)
+                    case("ON")
+                        t_core_inits = .true.
+                    case ("OFF")
+                        t_core_inits = .false.
+                    case default
+                        call stop_all(t_r, 'One can pass only ON or OFF to core-inits.')
+                    end select
+                else
+                    t_core_inits = .true.
+                end if
             case("INITIATOR-SPACE")
                 tTruncInitiator = .true.
                 tInitiatorSpace = .true.
@@ -1983,12 +2013,6 @@ contains
                         call stop_all(t_r, 'F2 is a scaling parameter and should be between 0.0 and 1.0')
                     end if
                 end if
-            case("EXP-ADAPTIVE-SHIFT", "ALL-ADAPTIVE-SHIFT")
-                ! scale the shift down per determinant exponentailly depending on the local population
-                tAdaptiveShift = .true.
-                tExpAdaptiveShift = .true.
-                ! optional argument: value of the parameter of the scaling function
-                if(item < nitems) call getf(EAS_Scale)
 
             case("CORE-ADAPTIVE-SHIFT")
                 ! Also apply the adaptive shift in the corespace

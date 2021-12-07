@@ -1098,11 +1098,14 @@ pGen = pDoubles * ((1.0_dp / real(NExcitB, dp)) + (1.0_dp / real(NExcitOtherWay,
         call createSingleExcit(nI, nJ, store%ClassCountOcc, store%classCountUnocc, ilutI, &
                                ex, tPar, pGen)
 
-        ! set the output ilut
-        ilutJ = ilutI
-        clr_orb(ilutJ, ex(1, 1))
-        set_orb(ilutJ, ex(2, 1))
-
+        if (nJ(1) /= 0) then
+            ! set the output ilut
+            ilutJ = ilutI
+            clr_orb(ilutJ, ex(1, 1))
+            set_orb(ilutJ, ex(2, 1))
+        else
+            ilutJ = 0_n_int
+        end if
     end subroutine uniform_single_excit_wrapper
 
     SUBROUTINE CreateSingleExcit(nI, nJ, ClassCount2, ClassCountUnocc2, ILUT, ExcitMat, tParity, pGen)

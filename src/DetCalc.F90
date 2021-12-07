@@ -5,6 +5,8 @@ MODULE DetCalc
          t_non_hermitian
     use sort_mod
 
+    use bit_reps, only: writebitdet
+
     use DetCalcData
 
     use MemoryManager, only: TagIntType
