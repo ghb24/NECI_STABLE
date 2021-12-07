@@ -259,7 +259,7 @@ contains
                                tCalcVariationalEnergy, tCalcInstantS2Init, &
                                tPopsFile, tRDMOnFly, tExplicitAllRDM, &
                                tHDF5PopsRead, tHDF5PopsWrite, tCalcFcimcPsi, &
-                               tHistEnergies, tPrintOrbOcc
+                               tHistEnergies, tPrintOrbOcc, tUserKnowsBiasedRDMS
         use Logging, only: calcrdmonfly_in_inp, RDMlinspace_in_inp
         use real_time_data, only: t_real_time_fciqmc
         use DetCalc, only: tEnergy, tCalcHMat, tFindDets, tCompressDets
@@ -547,14 +547,14 @@ contains
 
 
 #if ! (defined(PROG_NUMRUNS_) || defined(DOUBLERUN_))
-        if (tRDMonFly) then
+        if (tRDMonFly .and. .not. tUserKnowsBiasedRDMS) then
             write(stdout, *) 'RDM sampling is specified, but this version of neci'
             write(stdout, *) 'is not compiled with the replica trick.'
             write(stdout, *) 'You probably want to use dneci or mneci &
                     &(or their complex counterparts).'
             write(stdout, *)
-            write(stdout, *) 'If you think that there is a usecase for sampling RDMs'
-            write(stdout, *) 'with normal `neci` please contact the developers.'
+            write(stdout, *) 'If you know what you do and really want to sample biased RDMS'
+            write(stdout, *) 'you can also add `BIASED-RDMS` to the Logging block.'
             call stop_all(t_r, "Compiled version does not support RDM sampling.")
         end if
 #endif

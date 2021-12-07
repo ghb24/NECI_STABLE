@@ -648,6 +648,9 @@ contains
                         &turned on before RDMs are turned on.")
                 end if
 
+            case ("BIASED-RDMS")
+                tUserKnowsBiasedRDMS = .true.
+
             case ("OLDRDMS")
                 call stop_all(t_r, "OLDRDMS not supported anymore.")
 
