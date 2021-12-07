@@ -545,7 +545,8 @@ contains
         end if
 #endif
 
-#if (! defined(PROG_NUMRUNS_)) || (! defined(DOUBLERUN_))
+
+#if ! (defined(PROG_NUMRUNS_) || defined(DOUBLERUN_))
         if (tRDMonFly) then
             write(stdout, *) 'RDM sampling is specified, but this version of neci'
             write(stdout, *) 'is not compiled with the replica trick.'
