@@ -1,0 +1,42 @@
+title
+
+system read
+nonuniformrandexcits 4ind-weighted-2
+electrons 4
+system-replicas 2
+endsys
+
+calc
+
+methods
+method vertex fcimc
+endmethods
+memoryfacspawn 20.0
+memoryfacpart 10.0
+totalwalkers 1000
+startsinglepart 100
+stepsshift 10
+seed 7
+semi-stochastic 100
+pops-core 100
+shiftdamp 0.05
+load-balance-blocks off
+allrealcoeff
+truncinitiator
+addtoinitiator 3
+rdmsamplingiters 20
+max-tau 0.02
+field DIPZ 0.001
+endcalc
+
+logging
+popsfile -1
+calcrdmonfly 3 500 10
+write-spin-free-rdm
+printonerdm
+rdm-main-size-fac 10
+rdm-spawn-size-fac 10
+rdm-recv-size-fac 10
+calc-prop-estimates DIPZ
+endlog
+end
