@@ -649,6 +649,10 @@ contains
                 end if
 
             case ("BIASED-RDMS")
+                ! Only relevant for (k)-neci runs.
+                ! By default the calculation stops with an error if RDMs are sampled with (k)-neci
+                ! to prevent user error.
+                ! With this keyword the user can explicitly say that they want to sample RDMs without replica.
                 tUserKnowsBiasedRDMS = .true.
 
             case ("OLDRDMS")
