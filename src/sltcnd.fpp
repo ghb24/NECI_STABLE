@@ -52,7 +52,7 @@ module sltcnd_mod
               ! dynamically known
               dyn_sltcnd_excit_old, dyn_sltcnd_excit, &
               sltcnd_compat, sltcnd, sltcnd_knowIC, &
-              CalcFockOrbEnergy, sumfock
+              CalcFockOrbEnergy, sumfock, sltcnd_0_base, sltcnd_0_tc
 
 !>  @brief
 !>      Evaluate Matrix Element for different excitations
@@ -150,7 +150,7 @@ contains
         else
             ! six-index integrals are only used for three and more
             ! electrons
-            if (t_mol_3_body .or. t_ueg_3_body .and. nel > 2) then
+            if (t_mol_3_body .or. t_ueg_3_body .and. nel >= 2) then
                 sltcnd_0 => sltcnd_0_tc
                 sltcnd_1 => sltcnd_1_tc
                 sltcnd_2 => sltcnd_2_tc
@@ -544,7 +544,6 @@ contains
                 end do
             end do
         end do
-
     end function sltcnd_0_tc
 
     function sltcnd_1_tc(nI, ex, tSign) result(hel)
@@ -565,7 +564,6 @@ contains
                 end if
             end do
         end do
-
         ! take fermi sign into account
         if (tSign) hel = -hel
     end function sltcnd_1_tc
@@ -579,17 +577,17 @@ contains
 
         ! get the matrix element up to 2-body terms
         hel = sltcnd_2_kernel(exc)
+
         ! and the 3-body term
         associate(src1 => exc%val(1, 1), tgt1 => exc%val(2, 1), &
-                   src2 => exc%val(1, 2), tgt2 => exc%val(2, 2))
+            src2 => exc%val(1, 2), tgt2 => exc%val(2, 2))
             do i = 1, nel
                 if (src1 /= nI(i) .and. src2 /= nI(i)) then
-                    hel = hel + get_lmat_el( &
-                          src1, src2, nI(i), tgt1, tgt2, nI(i))
+                hel = hel + get_lmat_el( &
+                    src1, src2, nI(i), tgt1, tgt2, nI(i))
                 end if
             end do
         end associate
-
         ! take fermi sign into account
         if (tSign) hel = -hel
 
@@ -600,7 +598,6 @@ contains
         logical, intent(in) :: tSign
         HElement_t(dp) :: hel
 
-        ! this is directly the fully symmetrized entry of the L-matrix
         associate(ex => ex%val)
             hel = get_lmat_el(ex(1, 1), ex(1, 2), ex(1, 3), &
                               ex(2, 1), ex(2, 2), ex(2, 3))
