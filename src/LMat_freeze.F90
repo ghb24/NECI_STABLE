@@ -436,7 +436,7 @@ contains
         if(t_quad) then
             ! The only options with a quadruple index are
             ! a) one direct excitation => -2
-            ! b) three direct exctiations => +2            
+            ! b) three direct exctiations => +2
             prefactor = merge(-2.0_dp, 2.0_dp, directs == 1)
         else
             ! In the other case, there are three relevant cases:
