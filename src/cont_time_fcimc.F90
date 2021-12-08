@@ -12,7 +12,7 @@ module cont_time
                                secondary_gen_store
     use hash, only: remove_hash_table_entry, clear_hash_table
     use DetBitOps, only: FindBitExcitLevel, count_open_orbs
-    use global_det_data, only: det_diagH, get_spawn_rate
+    use global_det_data, only: det_diagH, det_offdiagH, get_spawn_rate
     use GenRandSymExcitNUMod, only: init_excit_gen_store
     use Determinants, only: get_helement, write_det
     use orthogonalise, only: orthogonalise_replicas
@@ -22,7 +22,7 @@ module cont_time
     use fcimc_iter_utils, only: update_iter_data
     use hphf_integrals, only: hphf_diag_helement
     use SystemData, only: nel, tHPHF, LMS
-    use bit_reps, only: extract_bit_rep
+    use bit_reps, only: extract_bit_rep, writebitdet
     use LoggingData, only: FCIMCDebug
     use bit_rep_data, only: NIfTot
     use rdm_data, only: rdm_definitions
@@ -43,6 +43,7 @@ contains
         character(*), parameter :: this_routine = 'iterate_cont_time'
 
         real(dp) :: sgn(lenof_sign), rate, hdiag
+        HElement_t(dp) :: hoffdiag
         integer :: sgn_abs, iunused, flags, det(nel), j, p, TotWalkersNew
 
         integer :: part_type, ic_hf, nopen, err, MaxIndex
@@ -90,6 +91,7 @@ contains
 
             ! Global stored data to make things efficient
             hdiag = det_diagH(j)
+            hoffdiag = det_offdiagH(j)
             if (tContTimeFull) then
                 rate = get_spawn_rate(j)
                 ASSERT(rate.isclose.spawn_rate_full(det, CurrentDets(:, j)))
@@ -102,8 +104,8 @@ contains
 
             ! Sum in the energy terms, yeah!
             ic_hf = FindBitExcitLevel(ilutRef(:, 1), CurrentDets(:, j))
-            call SumEContrib(det, ic_hf, sgn, CurrentDets(:, j), hdiag, 1.0_dp, &
-                             tPairedReplicas, j)
+            call SumEContrib(det, ic_hf, sgn, CurrentDets(:, j), hdiag, &
+                             hoffdiag, 1.0_dp, tPairedReplicas, j)
 
             ! Needed for calculating oversample factors
             nopen = count_open_orbs(CurrentDets(:, j))

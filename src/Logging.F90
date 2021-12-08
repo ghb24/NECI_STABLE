@@ -1207,8 +1207,7 @@ contains
                 ! S^2 once for every n update cycles (it must be on an update
                 ! cycle such that norm_psi_squared is correct)
                 tCalcInstantS2 = .true.
-                if (item < nitems) &
-                    call readi(instant_s2_multiplier)
+                if (item < nitems) call readi(instant_s2_multiplier)
 
             case ("PLOT-CC-AMPLITUDES")
                 t_plot_cc_amplitudes = .true.

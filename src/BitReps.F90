@@ -36,6 +36,8 @@ module bit_reps
 
     use guga_bitRepOps, only: transfer_stochastic_rdm_info
 
+    use DeterminantData, only: write_det
+
     implicit none
 
     ! Structure of a bit representation:
@@ -1021,4 +1023,12 @@ contains
 
     end subroutine add_ilut_lists
 
+    ! Write bit-determinant NI to unit NUnit.  Set LTerm if to add a newline at end.  Also prints CSFs
+    subroutine writebitdet(nunit, ilutni, lterm)
+        integer nunit, ni(nel)
+        integer(kind=n_int) :: ilutni(0:niftot)
+        logical lterm
+        call decode_bit_det(ni, ilutni)
+        call write_det(nunit, ni, lterm)
+    end
 end module bit_reps

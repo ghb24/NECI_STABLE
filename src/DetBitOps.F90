@@ -780,7 +780,6 @@ contains
 
     pure function spin_flip(ilut) result(ilut_flip)
         ! Take the determinant represented by ilut and flip every spin
-        implicit none
         integer(n_int), intent(in) :: ilut(0:niftot)
         integer(n_int) :: ilut_flip(0:niftot)
         integer :: i, orb
@@ -892,7 +891,6 @@ contains
         use bit_rep_data, only: NIfD
 !         use DetBitOps, only: count_set_bits
         use constants, only: n_int, bits_n_int, end_n_int
-        implicit none
         integer(kind=n_int), intent(in) :: iLutnI(0:NIfD), iLutnJ(0:NIfD)
         integer, intent(inout) :: Ex(2, *)
         logical, intent(out) :: tSign
@@ -994,7 +992,6 @@ contains
         end if
 
     end subroutine GetBitExcitation
-
 
 end module
 
