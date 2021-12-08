@@ -64,10 +64,19 @@ contains
         write(unit_id, '(A)') '    time 200'
         write(unit_id, '(A)') '    startsinglepart 10'
         write(unit_id, '(A)') '    pops-core 10'
+        if (.not. flag_guga_) then
+            write(unit_id, '(A)') '    rdmsamplingiters 30'
+        end if
         write(unit_id, '(A)') 'endcalc'
 
         write(unit_id, '(A)') 'logging'
         write(unit_id, '(A)') '    highlypopwrite 50'
+        if (.not. flag_guga_) then
+            write(unit_id, '(A)') '    biased-RDMs'
+            write(unit_id, '(A)') '    print-spin-resolved-RDMs'
+            write(unit_id, '(A)') '    printonerdm'
+            write(unit_id, '(A)') '    calcrdmonfly 3 10 10'
+        end if
         write(unit_id, '(A)') 'endlog'
         write(unit_id, '(A)') 'end'
     end subroutine create_input
