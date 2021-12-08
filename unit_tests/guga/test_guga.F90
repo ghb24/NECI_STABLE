@@ -2696,6 +2696,7 @@ contains
 
     subroutine test_calcMixedContribution
         integer(n_int) :: ilut(0:nifguga), t(0:nifguga)
+        HElement_t(dp) :: temp
 
         call EncodeBitDet_guga([1, 4, 5, 8], ilut)
 
@@ -2706,10 +2707,12 @@ contains
         print *, ""
         ! 1212
         ! 1122
-        call assert_true(calcMixedContribution(ilut, CSF_Info_t(ilut), t, 1, 4) .isclose.h_cast(0.0_dp))
+        call calc_mixed_contr_integral(ilut, CSF_Info_t(ilut), t, 1, 4, temp)
+        call assert_true(temp .isclose. h_cast(0.0_dp))
 
 
-        call assert_true(calcMixedContribution(t, CSF_Info_t(t), ilut, 1, 4) .isclose.h_cast(0.0_dp))
+        call calc_mixed_contr_integral(t, CSF_Info_t(t), t, 1, 4, temp)
+        call assert_true(temp .isclose. h_cast(0.0_dp))
 
         print *, ""
         print *, "calcMixedContribution tests passed!"
