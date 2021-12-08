@@ -11,7 +11,8 @@ MODULE Calc
                           nholes, UMATEPS, tHub, t_lattice_model, t_tJ_model, &
                           t_new_real_space_hubbard, t_heisenberg_model, &
                           t_k_space_hubbard, tHPHF, t_non_hermitian, &
-                          tGUGA, t_mixed_hubbard, t_olle_hubbard
+                          tGUGA, t_mixed_hubbard, t_olle_hubbard, &
+                          t_3_body_excits
     use Determinants, only: write_det
     use default_sets
     use read_fci, only: reorder_orb_label
@@ -50,7 +51,8 @@ MODULE Calc
                                   init_get_helement_hubbard
     use tJ_model, only: init_get_helement_heisenberg, init_get_helement_tj, &
                         init_get_helement_heisenberg_guga, init_get_helement_tj_guga
-    use k_space_hubbard, only: init_get_helement_k_space_hub
+    use k_space_hubbard, only: init_get_helement_k_space_hub, get_2_body_diag_transcorr, &
+                                get_3_body_diag_transcorr
     use kp_fciqmc_data_mod, only: overlap_pert, tOverlapPert
     use DetBitOps, only: DetBitEq, EncodeBitDet, return_hphf_sym_det
     use DeterminantData, only: write_det
@@ -253,6 +255,7 @@ contains
         I_HMAX = 0
         I_VMAX = 0
         g_MultiWeight(:) = 0.0_dp
+        tCalcWithField = .false.
 !This is whether to calculate the expected variance for a MC run when doing full sum (seperate denominator and numerator at present
         TVARCALC(:) = .false.
         TBIN = .false.
@@ -510,6 +513,9 @@ contains
         real(dp) :: InputDiagSftSingle, ShiftOffsetTmp
         integer(n_int) :: def_ilut(0:niftot), def_ilut_sym(0:niftot)
         logical :: t_force_global_core
+        integer :: last_nField
+        character(len=100) :: TempFieldFiles(5)
+        real(dp) :: TempStrength(5)
         ! Allocate and set this default here, because we don't have inum_runs
         ! set when the other defaults are set.
         if(.not. allocated(InputDiagSft)) allocate(InputDiagSft(inum_runs))
@@ -627,6 +633,27 @@ contains
 !                tConstructNOs = .true.
             case("ENDCALC")
                 exit calc
+            case("FIELD")
+                tCalcWithField= .true.
+                if (nitems==1) then
+                    call stop_all(t_r,'Please specify the type of field applied to the system.')
+                endif
+
+
+                ! nFields_it is obtained from the total number of integral files provided in this line
+                last_nField = nFields_it
+                nFields_it = nFields_it + 1
+
+                if (nFields_it.gt.5) then
+                    call stop_all(t_r,'Can not handle more than 5 fields...')
+                endif
+
+                ! Read the filename that provides the integral of the field
+                call readu(TempFieldFiles(nFields_it))
+
+                ! Read the strength of the Field
+                if (item < nitems) call readf(TempStrength(nFields_it))
+
             case("METHODS")
                 if(I_HMAX /= 0) call report("METHOD already set", .true.)
                 I_HMAX = -10
@@ -3528,6 +3555,12 @@ contains
         ! them if we're doing a complete diagonalisation.
         gen2CPMDInts = MAXVAL(NWHTAY(3, :)) >= 3 .or. TEnergy
 
+        if (tCalcWithField) then
+            allocate(FieldFiles_it(nFields_it),FieldStrength_it(nFields_it))
+            FieldFiles_it(:) = TempFieldFiles(1:nFields_it)
+            FieldStrength_it(:) = TempStrength(1:nFields_it)
+        endif
+
         if(tOutputInitsRDM .and. tInitsRDMRef) call stop_all(t_r, &
                                                              "Incompatible keywords INITS-GAMMA0 and INITS-RDM")
 
@@ -3557,12 +3590,14 @@ contains
         use hilbert_space_size, only: FindSymSizeofSpace, FindSymSizeofTruncSpace
         use hilbert_space_size, only: FindSymMCSizeofSpace, FindSymMCSizeExcitLevel
         use global_utilities
-        use sltcnd_mod, only: initSltCndPtr
+        use sltcnd_mod, only: initSltCndPtr, sltcnd_0_base, sltcnd_0_tc
+        use excitation_types, only: NoExc_t
         real(dp) CalcT, CalcT2, GetRhoEps
 
         INTEGER I, IC, J, norb
         INTEGER nList
-        HElement_t(dp) HDiagTemp
+        HElement_t(dp) HDiagTemp, h_2_temp, h_3_temp
+        type(NoExc_t) :: NoExc
         character(*), parameter :: this_routine = 'CalcInit'
 
         !Checking whether we have large enoguh basis for ultracold atoms and
@@ -3650,11 +3685,26 @@ contains
         end if
 
         IF(.NOT. TREAD) THEN
-!             CALL WRITETMAT(NBASIS)
             IC = 0
             HDiagTemp = get_helement(fDet, fDet, 0)
             write(stdout, *) '<D0|H|D0>=', real(HDiagTemp, dp)
             write(stdout, *) '<D0|T|D0>=', CALCT(FDET, NEL)
+            if (t_3_body_excits) then
+                if (t_k_space_hubbard) then
+                    h_2_temp = get_2_body_diag_transcorr(fdet)
+                    h_3_temp = get_3_body_diag_transcorr(fdet)
+                    write(stdout, *) "<D0|U|D0>", h_2_temp
+                    write(stdout, *) "<D0|L|D0>", h_3_temp
+                else
+                    HDiagTemp = sltcnd_0_tc(fdet, NoExc)
+                    h_2_temp = sltcnd_0_base(fdet, NoExc) - calct(fdet, nel)
+                    h_3_temp = HDiagTemp - sltcnd_0_base(fdet, NoExc)
+                    write(stdout, *) "<D0|U|D0>", h_2_temp
+                    write(stdout, *) "<D0|L|D0>", h_3_temp
+                end if
+            else
+                write(stdout, *) "<D0|U|D0>", real(HDiagTemp,dp) - calct(fdet, nel)
+            end if
 
             IF(TUEG) THEN
 !  The actual KE rather than the one-electron part of the Hamiltonian
