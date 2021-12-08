@@ -40,7 +40,7 @@ module guga_excitations
                               get_preceeding_opposites, &
                               CSF_Info_t, csf_ref
 
-    use guga_matrixElements, only: calc_guga_matrix_element, calcMixedContribution, &
+    use guga_matrixElements, only: calc_guga_matrix_element, calc_mixed_contr_integral, &
                 calcremainingswitches_excitinfo_double, calcremainingswitches_excitinfo_single, &
                 calcstartprob, calcstayingprob, endfx, endgx, &
                 init_fullstartweight, init_singleweight
@@ -466,7 +466,9 @@ contains
                 return
             end if
 
-            integral = calcMixedContribution(ilut, csf_i, t, excitInfo%fullStart, excitInfo%fullEnd)
+            call calc_mixed_contr_integral(ilut, csf_i, t, excitInfo%fullStart, &
+                excitInfo%fullEnd, integral)
+
             pgen = branch_pgen
 
             ! just to be save that a switch always happens at the end
