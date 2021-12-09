@@ -1354,6 +1354,13 @@ keyword.
     Needs two replicas for an unbiased measurement.
     Since this is a diagonal property for the GUGA, there is no additional cost.
 
+-   **biased-RDMs**<br>
+    Only relevant for (k)-neci runs.
+    By default the calculation stops with an error if RDMs are sampled with (k)-neci
+    to prevent user error.
+    With this keyword the user can explicitly say that they want to sample RDMs without
+    replica.
+
 
 
 #### Semi-stochastic output options
