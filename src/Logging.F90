@@ -5,7 +5,7 @@ MODULE Logging
     use constants, only: dp, int64, nreplicas
     use input_neci
     use MemoryManager, only: LogMemAlloc, LogMemDealloc, TagIntType
-    use SystemData, only: nel, LMS, nbasis
+    use SystemData, only: nel, LMS, nbasis, tGUGA
     use CalcData, only: tCheckHighestPop, semistoch_shift_iter, trial_shift_iter, &
                         tPairedReplicas, tReplicaEstimates, iSampleRDMIters, tMoveGlobalDetData
     use constants, only: n_int, size_n_int, bits_n_int
@@ -64,6 +64,7 @@ contains
         iBlockEquilProjE = 0
         ErrorDebug = 0
         iHighPopWrite = 15    !How many highest weighted determinants to write out at the end of an FCIQMC calc.
+        t_force_replica_output = .false.
         tDiagWalkerSubspace = .false.
         iDiagSubspaceIter = 1
         PopsfileTimer = 0.0_dp
@@ -232,6 +233,7 @@ contains
         character(100) :: w
         character(100) :: PertFile(3)
         character(*), parameter :: t_r = 'LogReadInput'
+        character(*), parameter :: this_routine = 'LogReadInput'
 
         tUseOnlySingleReplicas = .false.
 
@@ -267,6 +269,10 @@ contains
             case ("HIGHLYPOPWRITE")
                 !At the end of an FCIMC calculation, how many highly populated determinants should we write out?
                 call readi(iHighPopWrite)
+            case("REPLICAS-POPWRITE")
+                ! Print out the highest populated determinants from all replicas
+                t_force_replica_output = .true.
+                if( item < nitems) call readi(iHighPopWrite)
             case ("DIAGWALKERSUBSPACE")
                 !Diagonalise walker subspaces every iDiagSubspaceIter iterations
                 tDiagWalkerSubspace = .true.
@@ -576,6 +582,11 @@ contains
                 tPairedReplicas = .true.
                 nreplicas = 2
 #endif
+
+            case ("FULL-CORE-RDMS")
+                ! samples the rdms within the core space between ALL
+                ! states and not only the one connected by H
+                t_full_core_rdms = .true.
 
             case ("CALCRDMONFLY")
 !This keyword sets the calculation to calculate the reduced density matrix on the fly.
@@ -1196,8 +1207,7 @@ contains
                 ! S^2 once for every n update cycles (it must be on an update
                 ! cycle such that norm_psi_squared is correct)
                 tCalcInstantS2 = .true.
-                if (item < nitems) &
-                    call readi(instant_s2_multiplier)
+                if (item < nitems) call readi(instant_s2_multiplier)
 
             case ("PLOT-CC-AMPLITUDES")
                 t_plot_cc_amplitudes = .true.
@@ -1235,6 +1245,13 @@ contains
             case ("PRINT-CORE-INFO")
                 ! print core info, like energy, and maybe also the gs vector
                 t_print_core_info = .true.
+
+            case ("PRINT-CORE-HAMIL")
+                t_print_core_info = .true.
+                t_print_core_hamil = .true.
+
+            case ("PRINT-CORE-VEC")
+                t_print_core_vec = .true.
 
             case ("WRITE-MOST-POP-CORE-END")
                 ! At the end of a calculation, find the write_end_core_size most
@@ -1322,6 +1339,14 @@ contains
                     call geti(equi_iter_double_occ)
                 end if
 
+            case ("LOCAL-SPIN")
+                t_measure_local_spin = .true.
+
+                if (.not. tGUGA) then
+                    call stop_all(this_routine, &
+                        "Guga required for local spin measurement!")
+                end if
+
             case ("PRINT-SPIN-RESOLVED-RDMS")
                 ! for giovanni enable the output of the spin-resolved rdms not
                 ! only for ROHF calculations
@@ -1386,7 +1411,7 @@ contains
                             symmertry_mirror_axis = 'x'
                         end if
 
-                    case ('inverstion')
+                    case ('inversion')
                         t_symmetry_inversion = .true.
 
                     case default

@@ -28,7 +28,6 @@ addtoinitiator 3
 allrealcoeff
  realspawncutoff 0.30
 jump-shift
-tau 0.001 search
 max-tau 0.02
 maxwalkerbloom 1
 memoryfacspawn 10.0

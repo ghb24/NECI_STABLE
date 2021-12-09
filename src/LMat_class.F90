@@ -4,7 +4,7 @@ module LMat_class
     use LMat_indexing, only: lMatIndSym
     use shared_array
     use SystemData, only: nBasis
-    use ParallelHelper
+    use MPI_wrapper
     use Parallel_neci
     use procedure_pointers, only: lMatInd_t
     use constants
@@ -25,7 +25,7 @@ module LMat_class
 
     private
     public :: lMat_t, sparse_lMat_t, dense_lMat_t
-    
+
     !> Abstract base class for lMat_t objects (6-index integrals)
     type, abstract :: lMat_t
         private
@@ -242,7 +242,7 @@ contains
         class(dense_lMat_t), intent(inout) :: this
         integer(int64), intent(in) :: size
 
-        write(iout, *) "Six-index integrals require", real(size) * real(HElement_t_SizeB) / (2.0**30), "GB"
+        write(stdout, *) "Six-index integrals require", real(size) * real(HElement_t_SizeB) / (2.0**30), "GB"
         call this%lmat_vals%shared_alloc(size, "LMat")
         if (iProcIndex_intra == 0) then
             this%lmat_vals%ptr = 0.0_dp
@@ -323,14 +323,14 @@ contains
                         matel = 3.0_dp * matel
                         call freeze_lmat(matel,indices)
                         ! else assign the matrix element
-                        
+
                         if(abs(matel) > LMatEps) then
                             counter = counter + 1
                             index = this%indexFunc(&
                                 indices(1),indices(2),indices(3),indices(4),indices(5), indices(6))
                             if(index > this%lMat_size()) then
                                 counter = index
-                                write(iout, *) "Warning, exceeding size"
+                                write(stdout, *) "Warning, exceeding size"
                             endif
                             this%lMat_vals%ptr(index) = matel
                         endif
@@ -338,9 +338,9 @@ contains
 
                 end do
 
-                write(iout, *) "Sparsity of LMat", real(counter) / real(this%lMat_size())
-                write(iout, *) "Nonzero elements in LMat", counter
-                write(iout, *) "Allocated size of LMat", this%lMat_size()
+                write(stdout, *) "Sparsity of LMat", real(counter) / real(this%lMat_size())
+                write(stdout, *) "Nonzero elements in LMat", counter
+                write(stdout, *) "Allocated size of LMat", this%lMat_size()
                 close(iunit)
             end if
             call MPIBcast(counter)
@@ -412,11 +412,11 @@ contains
         integer(int64), intent(in) :: size
         character(*), parameter :: t_r = "alloc_sparse"
 
-        write(iout, *) "Six-index integrals require", real(size) * real(HElement_t_SizeB) / (2.0**30), "GB"
+        write(stdout, *) "Six-index integrals require", real(size) * real(HElement_t_SizeB) / (2.0**30), "GB"
         call this%nonzero_vals%shared_alloc(size, "LMat")
         ! For now, have the htable of the same size as the integrals
         call this%htable%alloc(size, size)
-        write(iout, *) "Sparse format overhead is", 2 * real(size) * real(sizeof_int64) / (2.0**30), "GB"
+        write(stdout, *) "Sparse format overhead is", 2 * real(size) * real(sizeof_int64) / (2.0**30), "GB"
     end subroutine alloc_sparse
 
     !------------------------------------------------------------------------------------------!
@@ -522,7 +522,7 @@ contains
         integer(int64), allocatable, intent(inout) :: indices(:, :), entries(:, :)
 
         integer(int64) :: block_size, i
-        integer(int64), allocatable :: combined_inds(:)        
+        integer(int64), allocatable :: combined_inds(:)
         integer(int64) :: dummy
         HElement_t(dp) :: rVal
         block_size = size(indices, dim=2)
@@ -535,17 +535,17 @@ contains
                 ! Only freeze once, when filling in the values (this read_op can be called
                 ! multiple times for the same block)
                 if(this%htable%known_conflicts()) then
-                    rVal = transfer(entries(1,i),rVal)                
+                    rVal = transfer(entries(1,i),rVal)
                     call add_core_en(rVal,indices(:,i))
                     entries(1,i) = transfer(rVal,entries(1,i))
                 end if
             end if
-            
+
             combined_inds(i) = this%indexFunc(indices(1, i), indices(2, i), indices(3, i), &
                 indices(4, i), indices(5, i), indices(6, i))
 
             ! If the entry is frozen, do not count it
-            if(t_freeze(indices)) combined_inds(i) = 0            
+            if(t_freeze(indices)) combined_inds(i) = 0
         end do
         ! We might need this memory - all these operations can be memory critical
         deallocate(indices)
@@ -689,12 +689,12 @@ contains
 
         ratios(:) = real(histogram(:)) / real(this%lMat_size())
         ! print the ratios
-        write(iout, *) "Matrix elements below", 0.1**(minExp), ":", ratios(minExp)
+        write(stdout, *) "Matrix elements below", 0.1**(minExp), ":", ratios(minExp)
         do i = minExp - 1, 1, -1
-            write(iout, *) "Matrix elements from", 0.1**(i + 1), "to", 0.1**(i), ":", ratios(i)
+            write(stdout, *) "Matrix elements from", 0.1**(i + 1), "to", 0.1**(i), ":", ratios(i)
         end do
-        write(iout, *) "Matrix elements above", 0.1, ":", ratios(0)
-        write(iout, *) "Total number of logged matrix elements", sum(histogram)
+        write(stdout, *) "Matrix elements above", 0.1, ":", ratios(0)
+        write(stdout, *) "Total number of logged matrix elements", sum(histogram)
 
     end subroutine histogram_lMat
 
@@ -712,7 +712,7 @@ contains
         integer(hsize_t), intent(out) :: nInts
 
         integer :: proc, i
-        integer(hid_t) :: err
+        integer :: err
         integer(hsize_t) :: rest
         integer(hsize_t), allocatable :: counts(:)
         integer(MPIArg) :: procs_per_node, ierr
@@ -729,7 +729,7 @@ contains
 
         ! get the number of integrals
         call read_int64_attribute(this%grp_id, nm_nInts, nInts, required=.true.)
-        write(iout, *) "Reading", nInts, "integrals"
+        write(stdout, *) "Reading", nInts, "integrals"
 
         ! how many entries does each proc get?
         call MPI_Comm_Size(mpi_comm_intra, procs_per_node, ierr)
@@ -791,13 +791,13 @@ contains
 
             ! read in the data
             call read_2d_multi_chunk( &
-                this%ds_vals, entries, H5T_NATIVE_REAL_8, &
+                this%ds_vals, entries, h5kind_to_type(dp,H5_REAL_KIND), &
                 [1_hsize_t, this_blocksize], &
                 [0_hsize_t, blockstart], &
                 [0_hsize_t, 0_hsize_t])
 
             call read_2d_multi_chunk( &
-                this%ds_inds, indices, H5T_NATIVE_INTEGER_8, &
+                this%ds_inds, indices, h5kind_to_type(int64,H5_INTEGER_KIND), &
                 [6_hsize_t, this_blocksize], &
                 [0_hsize_t, blockstart], &
                 [0_hsize_t, 0_hsize_t])
@@ -806,7 +806,7 @@ contains
             ! If umat is updated, it has to be done using MPI RMA calls, so synchronization is
             ! required
             call umat_fence()
-            ! This has to be threadsafe !!!            
+            ! This has to be threadsafe !!!
             call lMat%read_op_hdf5(indices, entries)
             call umat_fence()
 
@@ -829,7 +829,7 @@ contains
 
         subroutine umat_fence()
             use IntegralsData, only: umat_win, nFrozen
-            
+
             if(nFrozen > 0) call MPI_Win_fence(0,umat_win,ierr)
         end subroutine umat_fence
 
@@ -840,7 +840,7 @@ contains
     !> Close the currently opened hdf5 file - requires a previous call to open()
     subroutine close(this)
         class(lMat_hdf5_read_t) :: this
-        integer(hid_t) :: err
+        integer :: err
         call h5dclose_f(this%ds_vals, err)
         call h5dclose_f(this%ds_inds, err)
         ! close the file, finalize hdf5

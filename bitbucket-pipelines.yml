@@ -1,7 +1,5 @@
 # i have two more images, which mimick the office setting, prepared now:
-# TODO: build the newest open-suse leap image
-
-image: dobrautz/neci_base:opensuse-leap15.1
+image: dobrautz/neci_base:opensuse-leap-15.2
 
 options:
   docker: true
@@ -43,10 +41,31 @@ pipelines:
         - echo "running unit tests"
         - ctest
         - echo "unit tests passed"
-        - echo "running limited test_suite(to save build-minutes)"
-        - useradd temp
-        - cd ../test_suite
-        - su -c "/testcode/bin/testcode.py -c dneci/double_occ/hub_2x2 -c kmneci/Rn_lanczos_fci -c kneci/C_221_int -c mneci/cfqmc/HeHe_5_states -c neci/parallel/C_Solid -vvv" -s /bin/sh temp
+        # - echo "running limited test_suite(to save build-minutes)"
+        # - useradd temp
+        # - cd ../test_suite
+        # - su -c "/testcode/bin/testcode.py -c dneci/double_occ/hub_2x2 -c kmneci/Rn_lanczos_fci -c kneci/C_221_int -c mneci/cfqmc/HeHe_5_states -c neci/parallel/C_Solid -vvv" -s /bin/sh temp
+
+   devel:
+    - step:
+       size: 2x
+       script:
+        - git submodule update --init
+        - rm -rf build
+        - mkdir build
+        - cd build
+        - echo "building release version"
+        - cmake ..
+        - make -j
+        - echo "done building release version"
+        - echo "running unit tests"
+        - ctest
+        - echo "unit tests passed"
+        # - echo "running limited test_suite(to save build-minutes)"
+        # - useradd temp
+        # - cd ../test_suite
+        # - su -c "/testcode/bin/testcode.py -c dneci/double_occ/hub_2x2 -c kmneci/Rn_lanczos_fci -c kneci/C_221_int -c mneci/cfqmc/HeHe_5_states -c neci/parallel/C_Solid -vvv" -s /bin/sh temp
+
 
 
  custom:

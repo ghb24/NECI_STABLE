@@ -37,6 +37,7 @@ tau 0.02 search
 truncinitiator
 addtoinitiator 3
 definedet 1 2 3 4 5 6 23 24 33 34
+core-inits
 endcalc
 
 integral

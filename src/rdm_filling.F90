@@ -10,18 +10,19 @@ module rdm_filling
     use constants
     use SystemData, only: tGUGA, nbasis, nel
     use guga_bitRepOps, only: extract_stochastic_rdm_info, extract_2_rdm_ind, &
-                              init_csf_information
+                              fill_csf_i, identify_excitation, CSF_Info_t
     use rdm_data, only: rdm_spawn_t, rdmCorrectionFactor
     use CalcData, only: tAdaptiveShift, tNonInitsForRDMs, tInitsRDMRef, &
                         tNonVariationalRDMs
     use FciMCData, only: projEDet, ilutRef
-    use DetBitOps, only: DetBitEq
+    use DetBitOps, only: DetBitEq, GetBitExcitation
     use guga_rdm, only: Add_RDM_From_IJ_Pair_GUGA, fill_diag_1rdm_guga, &
                         fill_spawn_rdm_diag_guga, Add_RDM_HFConnections_GUGA, &
                         fill_sings_1rdm_guga, fill_sings_2rdm_guga, &
                         add_rdm_from_ij_pair_guga_exact
     use util_mod, only: near_zero
     use guga_data, only: excit_type, ExcitationInformation_t
+    use LoggingData, only: t_full_core_rdms
 
     implicit none
 
@@ -234,6 +235,7 @@ contains
                         call fill_diag_1rdm_guga(one_rdms, nI, av_sign)
                     else
                         full_sign = IterRDM_new*av_sign(1::2)*av_sign(2::2)
+                        call applyRDMCorrection()
                         call fill_spawn_rdm_diag_guga(spawn, nI, full_sign)
                     end if
                 end if
@@ -564,7 +566,7 @@ contains
 
                 if (tGUGA) then
                     call extract_stochastic_rdm_info(IlutBitsParent, &
-                                                     Spawned_Parents(:, i), guga_rdm_ind, x0, x1)
+                             Spawned_Parents(:, i), guga_rdm_ind, x0, x1)
                 end if
 
                 if (spawning_from_ket_to_bra) then
@@ -575,8 +577,8 @@ contains
 
                     else if (tGUGA) then
                         call Add_RDM_From_IJ_Pair_GUGA(spawn, one_rdms, &
-                                                       nI, nJ, input_sign_i, input_sign_j, spawning_from_ket_to_bra, &
-                                                       rdm_ind_in=guga_rdm_ind, x0=x0, x1=x1)
+                           nI, nJ, input_sign_i, input_sign_j, spawning_from_ket_to_bra, &
+                           rdm_ind_in=guga_rdm_ind, x0=x0, x1=x1)
 
                     else
                         call Add_RDM_From_IJ_Pair(spawn, one_rdms, nI, nJ, &
@@ -592,8 +594,8 @@ contains
 
                     else if (tGUGA) then
                         call Add_RDM_From_IJ_Pair_GUGA(spawn, one_rdms, &
-                                                       nJ, nI, input_sign_j, input_sign_i, spawning_from_ket_to_bra, &
-                                                       rdm_ind_in=guga_rdm_ind, x0=x0, x1=x1)
+                           nJ, nI, input_sign_j, input_sign_i, spawning_from_ket_to_bra, &
+                           rdm_ind_in=guga_rdm_ind, x0=x0, x1=x1)
 
                     else
                         call Add_RDM_From_IJ_Pair(spawn, one_rdms, nJ, nI, &
@@ -944,7 +946,7 @@ contains
 
         use bit_rep_data, only: NIfD
         use bit_reps, only: decode_bit_det
-        use DetBitOps, only: get_bit_excitmat
+        use DetBitOps, only: get_bit_excitmat, FindBitExcitLevel
         use FciMCData, only: Iter, IterRDMStart, PreviousCycles, iLutHF_True, core_run
         use core_space_util, only: cs_replicas
         use LoggingData, only: RDMExcitLevel, RDMEnergyIter
@@ -963,9 +965,12 @@ contains
         real(dp) :: full_sign(spawn%rdm_send%sign_length)
         logical :: tParity
         integer(n_int) :: iLutI(0:niftot), iLutJ(0:niftot)
+        type(CSF_Info_t) :: csf_i
         integer :: nI(nel), nJ(nel), IC, n
-        integer :: IterRDM, connect_elem
+        integer :: IterRDM, connect_elem, num_j
+        type(ExcitationInformation_t) :: excitInfo
         character(*), parameter :: this_routine = "fill_rdm_offdiag_deterministic"
+
 
         ! IterRDM will be the number of iterations that the contributions are
         ! ech weighted by.
@@ -981,22 +986,32 @@ contains
 
         Ex = 0
         associate(rep => cs_replicas(core_run))
+            if (t_full_core_rdms) then
+                ! num_j = rep%determ_sizes(iProcIndex)
+                num_j = rep%determ_space_size
+            end if
+
             ! Cycle over all core dets on this process.
             do i = 1, rep%determ_sizes(iProcIndex)
+                if (.not. t_full_core_rdms) then
+                    num_j = rep%sparse_core_ham(i)%num_elements - 1
+                end if
                 iLutI = rep%core_space(:, rep%determ_displs(iProcIndex) + i)
+                if (tGUGA) csf_i = CSF_Info_t(ilutI)
 
                 ! Connections to the HF are added in elsewhere, so skip them here.
                 if (DetBitEq(iLutI, iLutHF_True, nifd)) cycle
 
                 do irdm = 1, rdm_defs%nrdms
-                    AvSignI(irdm) = rep%full_determ_vecs_av(rdm_defs%sim_labels(2, irdm), rep%determ_displs(iProcIndex) + i)
+                    AvSignI(irdm) = rep%full_determ_vecs_av(rdm_defs%sim_labels(2, irdm), &
+                        rep%determ_displs(iProcIndex) + i)
                 end do
 
                 call decode_bit_det(nI, iLutI)
 
-                if (tGUGA) call init_csf_information(ilutI(0:nifd))
+                ! if (tGUGA) call fill_csf_i(ilutI(0:nifd))
 
-                do j = 1, rep%sparse_core_ham(i)%num_elements - 1
+                do j = 1, num_j
                     ! Running over all non-zero off-diag matrix elements
                     ! Connections to whole space (1 row), excluding diagonal elements
 
@@ -1006,36 +1021,57 @@ contains
                     ! to this proc (using determ_displs) and then select the
                     ! correct one, i.
 
-                    iLutJ = rep%core_space(:, rep%core_connections(i)%positions(j))
+                    if (t_full_core_rdms) then
+                        iLutJ = rep%core_space(:, j)
+                    else
+                        iLutJ = rep%core_space(:, rep%core_connections(i)%positions(j))
+                    end if
 
                     ! Connections to the HF are added in elsewhere, so skip them here.
                     if (DetBitEq(iLutJ, iLutHF_True, nifd)) cycle
+                    if (DetBitEq(iLutJ, iLutI, nifd)) cycle
 
-                    do irdm = 1, rdm_defs%nrdms
-                        AvSignJ(irdm) = rep%full_determ_vecs_av(rdm_defs%sim_labels(1, irdm), rep%core_connections(i)%positions(j))
-                    end do
 
-                    connect_elem = rep%core_connections(i)%elements(j)
+                    if (t_full_core_rdms) then
+                        if (.not. tGUGA) then
+                            ic = FindBitExcitLevel(iLutI, ilutJ)
+                            call GetBitExcitation(ilutI, ilutJ, ex, tParity)
+                        end if
 
-                    IC = abs(connect_elem)
-
-                    if (sign(1, connect_elem) > 0) then
-                        tParity = .false.
-                        full_sign = AvSignI * AvSignJ * IterRDM
+                        do irdm = 1, rdm_defs%nrdms
+                            AvSignJ(irdm) = rep%full_determ_vecs_av(rdm_defs%sim_labels(1, irdm), j)
+                        end do
                     else
-                        tParity = .true.
+                        do irdm = 1, rdm_defs%nrdms
+                            AvSignJ(irdm) = rep%full_determ_vecs_av(rdm_defs%sim_labels(1, irdm), &
+                                                rep%core_connections(i)%positions(j))
+                        end do
+                        connect_elem = rep%core_connections(i)%elements(j)
+                        IC = abs(connect_elem)
+                        if (sign(1, connect_elem) > 0) then
+                            tParity = .false.
+                        else
+                            tParity = .true.
+                        end if
+                    end if
+
+                    ! if (ic > 2) cycle
+
+                    if (tParity) then
                         full_sign = -AvSignI * AvSignJ * IterRDM
+                    else
+                        full_sign = AvSignI * AvSignJ * IterRDM
                     end if
 
                     if (tHPHF) then
                         call decode_bit_det(nJ, iLutJ)
-                        call Fill_Spin_Coupled_RDM(spawn, one_rdms, iLutI, iLutJ, nI, nJ, AvSignI * IterRDM, AvSignJ)
+                        call Fill_Spin_Coupled_RDM(spawn, one_rdms, iLutI, iLutJ, &
+                            nI, nJ, AvSignI * IterRDM, AvSignJ)
 
                     else if (tGUGA) then
 
                         call add_rdm_from_ij_pair_guga_exact(spawn, one_rdms, &
-                                                             ilutI, ilutJ, AvSignI * IterRDM, AvSignJ, calc_type=1)
-
+                                  ilutI, csf_i, ilutJ, AvSignI * IterRDM, AvSignJ, calc_type=1)
                     else
                         if (IC == 1) then
                             ! Single excitation - contributes to 1- and 2-RDM

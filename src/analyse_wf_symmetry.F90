@@ -18,7 +18,7 @@ module analyse_wf_symmetry
 
     use bit_rep_data, only: niftot, nifd
 
-    use constants, only: n_int, dp, pi, lenof_sign
+    use constants, only: n_int, dp, pi, lenof_sign, stdout
 
     use util_mod, only: binary_search, binary_search_int, near_zero, &
                         operator(.isclose.)
@@ -249,22 +249,7 @@ contains
         ms = sum(get_spin_pn(nI))
         sym_labels(n_syms) = sym_labels(n_syms) + real(ms * (ms + 2) / 4.0, dp)
 
-!         ilut_spin = apply_s_squared(ilut_list)
-!
-!         sym_labels(n_syms) = calc_overlap(ilut_list, ilut_spin)
-
     end subroutine analyze_full_wavefunction_sym
-
-    function apply_s_squared(ilut_list) result(ilut_spin)
-        ! function to apply the S^2 operator to a given wavefunction
-        ! figure that out, what we have to do here..
-        integer(n_int), intent(inout) :: ilut_list(:, :)
-        integer(n_int), allocatable :: ilut_spin(:, :)
-
-        allocate(ilut_spin(0:niftot, size(ilut_list, 2)))
-        ilut_spin = 0_n_int
-
-    end function apply_s_squared
 
     function calc_overlap(ilutI, ilutJ) result(overlap)
         ! calculate the overlap between two wavefunction I and J
@@ -323,20 +308,6 @@ contains
         end do
 
         trans_wf(:, :, 9) = apply_inversion_wf(ilut_list)
-
-        ! test to output the matrix representation of the symmetry operation
-!         print *, "sort_ind: ", sort_ind
-!         matrix = 0
-!         do i = 1, size(ilut_list,2)
-!             call extract_sign(ilut_list(:,i), signI)
-!             call extract_sign(trans_wf(:,sort_ind(i),8), signJ)
-!
-! !             matrix(i,sort_ind(i)) = int(sign(1.0_dp, signI(1)*signJ(1)))
-!
-!         end do
-
-!         print *, "m_o: "
-!         call print_matrix(matrix)
 
     end function apply_2D_point_group
 
@@ -615,7 +586,7 @@ contains
         if (present(nUnit)) then
             iout = nunit
         else
-            iout = 6
+            iout = stdout
         end if
 
         call extract_sign(left, left_sign)

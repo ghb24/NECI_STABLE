@@ -3,9 +3,9 @@ title
 system read
 freeformat
 electrons 10
-spin-restrict 1
+spin-restrict 0
 nonuniformrandexcits 4ind-weighted
-hphf 0 
+hphf 0
 endsys
 
 calc
@@ -30,13 +30,12 @@ pops-trial 100
 allrealcoeff
 realspawncutoff 0.02
 jump-shift
-tau 0.005 search
 max-tau 0.02
 maxwalkerbloom 1
 memoryfacspawn 25.0
 memoryfacpart 5.0
 time 1200.0
-nmcyc 2000
+nmcyc 1000
 endcalc
 
 integral

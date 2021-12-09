@@ -27,12 +27,13 @@ program test_real_space_hubbard
 
     use sort_mod, only: sort
 
-    use util_mod, only: get_free_unit
+    use util_mod, only: get_free_unit, operator(.div.)
 
-    use unit_test_helpers, only: create_spin_dependent_hopping, create_hamiltonian, &
+    use unit_test_helpers, only: create_spin_dependent_hopping, create_lattice_hamil_nI, &
         similarity_transform, run_excit_gen_tester, setup_arr_brr
 
-    use matrix_util, only: norm, calc_eigenvalues, linspace, matrix_exponential, print_matrix, eig
+    use matrix_util, only: norm, calc_eigenvalues, matrix_exponential, &
+                           print_matrix, eig, linspace, norm_cmplx
 
     use dsfmt_interface, only: dsfmt_init
 
@@ -139,11 +140,11 @@ contains
         real(dp), allocatable :: sign_list(:), flip_sign(:)
         logical :: t_start_neel, t_flip, t_input_nel, t_input_lattice
 
-        t_optimize_corr_param  = .false.
+        t_optimize_corr_param  = .true.
         t_do_diag_elements = .false.
         t_do_exact_transcorr = .true.
         t_do_exact_double_occ = .false.
-        t_j_vec = .false.
+        t_j_vec = .true.
         t_input_U = .true.
         t_calc_singles = .true.
         t_start_neel = .true.
@@ -159,8 +160,13 @@ contains
             read(*,*) lattice_type
             print *, "input x-dim: "
             read(*,*) length_x
-            print *, "input y-dim: "
-            read(*,*) length_y
+
+            if (lattice_type == 'chain') then
+                length_y = 1
+            else
+                print *, "input y-dim: "
+                read(*,*) length_y
+            end if
         else
             lattice_type = 'square'
             length_x = 2
@@ -220,7 +226,7 @@ contains
         call setup_arr_brr(lat)
 
         if (t_j_vec) then
-            j_vec = linspace(-0.5,0.5,100)
+            j_vec = linspace(-1.0,1.0,200)
         else
             allocate(j_vec(1), source = 0.05_dp)
         end if
@@ -297,10 +303,10 @@ contains
         allocate(e_vecs_left(n_eig, size(hilbert_space,2)))
 
         print *, "size hilbert: ", size(hilbert_space, 2)
-        hamil = create_hamiltonian(hilbert_space)
+        hamil = create_lattice_hamil_nI(hilbert_space)
 
-        print *, "hamil:"
-        call print_matrix(hamil)
+        ! print *, "hamil:"
+        ! call print_matrix(hamil)
 
 #ifndef CMPLX_
         call eig(hamil, e_orig, e_vecs)
@@ -311,6 +317,7 @@ contains
         do i = 1, size(t_mat,1)
             t_mat(i,i) = 0.0_dp
         end do
+
         allocate(gutzwiller(size(hamil,1),size(hamil,2)), source = h_cast(0.0_dp))
         allocate(u_mat(size(hamil,1),size(hamil,2)), source = h_cast(0.0_dp))
         do i = 1, size(hamil,1)
@@ -326,11 +333,11 @@ contains
 
         call eig(hamil_onsite, e_values, e_vecs_right)
 
-        print *, "hamil on-site exact:"
-        call print_matrix(hamil_onsite)
-
-        print *, "hamil-hop exact:"
-        call print_matrix(hamil_hop)
+        ! print *, "hamil on-site exact:"
+        ! call print_matrix(hamil_onsite)
+        !
+        ! print *, "hamil-hop exact:"
+        ! call print_matrix(hamil_hop)
 
 
         print *, "onsite e_values correct?: "
@@ -548,6 +555,102 @@ contains
 
     end function calc_exact_double_occ
 
+    real(dp) function calc_spin_corr(nI)
+        integer, intent(in) :: nI(nel)
+
+        integer :: i, j, n
+        integer(n_int) :: ilutI(0:niftot)
+
+        call EncodeBitDet(nI, ilutI)
+
+        calc_spin_corr = 0.0_dp
+
+        do i = 1, lat%get_nsites()
+
+            associate (next => lat%get_neighbors(lat%get_site_index(i)))
+
+                do j = 1, size(next)
+
+                    n = next(j)
+                    if (isOne(ilutI,i)) then
+                        if (isOne(ilutI,n)) then
+                            calc_spin_corr = calc_spin_corr + 0.25
+                        else if (isTwo(ilutI,n)) then
+                            calc_spin_corr = calc_spin_corr - 0.25
+                        end if
+                    else if (isTwo(ilutI,i)) then
+                        if (isOne(ilutI,n)) then
+                            calc_spin_corr = calc_spin_corr - 0.25
+                        else if (isTwo(ilutI,n)) then
+                            calc_spin_corr = calc_spin_corr + 0.25
+                        end if
+                    end if
+                end do
+            end associate
+        end do
+
+    end function calc_spin_corr
+
+    subroutine optimize_degenerate_states(eigenvectors, eigenvalues, max_coeff)
+        real(dp), intent(in) :: eigenvectors(:,:), eigenvalues(:)
+        real(dp), intent(out) :: max_coeff
+
+        integer :: i, n
+        integer, allocatable :: ind(:)
+
+        real(dp) :: vec_1(size(eigenvalues)), vec_2(size(eigenvalues))
+        real(dp), allocatable :: c(:), max_weight(:)
+        complex(dp) :: degen_vec_1(size(eigenvalues)), degen_vec_2(size(eigenvalues)), &
+                       psi(size(eigenvalues))
+
+
+        ! first determine the indices of the lowest eigenvalues
+
+        allocate(ind(size(eigenvalues)), source = [(i, i = 1, size(eigenvalues))])
+
+        print *, "eigenvalues before: ", eigenvalues
+
+        ! check again if they are degenerate
+        if (abs(eigenvalues(1) - eigenvalues(2)) > 1.0e-8) then
+            print *, "not actually degenerate dude!"
+
+            call stop_all("here","now")
+        end if
+
+        vec_1 = eigenvectors(:,1)
+        vec_2 = eigenvectors(:,2)
+
+        degen_vec_1 = vec_1 + cmplx(0.0_dp, vec_2, dp)
+        degen_vec_2 = vec_1 - cmplx(0.0_dp, vec_2, dp)
+
+        print *, "norms: ", norm_cmplx(degen_vec_1), norm_cmplx(degen_vec_2)
+
+        degen_vec_1 = degen_vec_1 / norm_cmplx(degen_vec_1)
+        degen_vec_2 = degen_vec_2 / norm_cmplx(degen_vec_2)
+
+        print *, "<1|2>: ", dot_product(degen_vec_1, degen_vec_2)
+        print *, "<2|1>: ", dot_product(degen_vec_2, degen_vec_1)
+
+        n = 100
+        c = linspace(0.0,1.0,n)
+
+        allocate(max_weight(n), source = 0.0_dp)
+
+        do i = 1, n
+
+            ! psi = c(i) * degen_vec_1 + sqrt(1 - c(i)**2) * degen_vec_2
+            psi = c(i) * degen_vec_1 + (1 - c(i)) * degen_vec_2
+            psi = psi / norm_cmplx(psi)
+
+            max_weight(i) = maxval(abs(psi),1)
+
+        end do
+
+        max_coeff = maxval(max_weight,1)
+
+
+    end subroutine optimize_degenerate_states
+
 #ifndef CMPLX_
     subroutine exact_transcorrelation(lat, nI, J, U, hilbert_space)
         class(lattice), intent(in) :: lat
@@ -556,24 +659,37 @@ contains
         integer, intent(in) :: hilbert_space(:,:)
         character(*), parameter :: this_routine = "exact_transcorrelation"
 
-        integer :: n_states, iunit, ind, i, k, l, flip(nel)
+        integer :: n_states, iunit, ind, i, k, l, flip(nel), hf_ind
         real(dp), allocatable :: e_values(:)
         HElement_t(dp), allocatable :: e_vec(:,:), gs_vec(:)
         real(dp) :: gs_energy_orig, gs_energy, hf_coeff_hop(size(J)), gs_energy_spin, &
-                    hf_coeff_spin(size(J))
+                    hf_coeff_spin(size(J)), hf_coeff_onsite(size(J)), gs_energy_onsite, &
+                    ref_hop(size(J)), ref_spin(size(J)), ref_onsite(size(J)), &
+                    hop_ref_double_occ(size(J)), spin_ref_double_occ(size(J)), &
+                    onsite_ref_double_occ(size(J)), hop_neel_weight(size(J)), &
+                    spin_neel_weight(size(J)), onsite_neel_weight(size(J)), &
+                    spin_corr_hop(size(J)), spin_corr_spin(size(J)), spin_corr_onsite(size(J)), &
+                    degen_weight_hop(size(J)), degen_weight_spin(size(J)), &
+                    degen_weight_onsite(size(J))
         HElement_t(dp), allocatable :: hamil(:,:), hamil_hop(:,:), hamil_hop_neci(:,:), &
-                                       diff(:,:), hamil_spin(:,:), hamil_spin_neci(:,:)
-        HElement_t(dp), allocatable :: t_mat(:,:), t_mat_spin(:,:)
+                                       diff(:,:), hamil_spin(:,:), hamil_spin_neci(:,:), &
+                                       hamil_onsite(:,:)
+        HElement_t(dp), allocatable :: t_mat(:,:), t_mat_spin(:,:), gutzwiller(:,:)
         real(dp), allocatable :: neci_eval(:), e_vec_hop(:,:), e_vec_spin(:,:), neci_spin_eval(:)
-        real(dp), allocatable :: e_vec_hop_left(:,:)
+        real(dp), allocatable :: e_vec_hop_left(:,:), e_vec_onsite(:,:), &
+                                 neci_onsite_eval(:), e_vec_onsite_left(:,:)
         character(30) :: filename, J_str
-        logical :: t_calc_singles, t_flip, t_norm_inside, t_norm_inside_sen
-        real(dp), allocatable :: neel_states(:), singles(:), j_opt(:), &
+        logical :: t_calc_singles, t_flip, t_norm_inside, t_norm_inside_sen, &
+                   t_degen
+        real(dp), allocatable :: neel_states(:), singles(:), j_opt_hop(:), &
             norm_inside(:), norm_inside_left(:), norm_inside_sen(:), &
-            norm_inside_sen_left(:)
+            norm_inside_sen_left(:), j_opt_spin(:), j_opt_onsite(:)
         integer :: neel_ind, flip_ind, ic_inside, ic, sen, sen_inside
         real(dp) :: phase
         integer(n_int) :: ilutI(0:niftot), ilutJ(0:niftot)
+        integer :: ref_state_hop(size(J), size(nI)), ref_state_spin(size(J), size(nI)), &
+                   ref_state_onsite(size(J), size(nI))
+        complex(dp) :: degen_vec_1(size(hilbert_space,2)), degen_vec_2(size(hilbert_space,2))
 
         unused_var(U)
 
@@ -598,7 +714,7 @@ contains
         t_trans_corr_hop = .false.
         t_spin_dependent_transcorr = .false.
 
-        hamil = create_hamiltonian(hilbert_space)
+        hamil = create_lattice_hamil_nI(hilbert_space)
         t_mat_spin = create_spin_dependent_hopping(hilbert_space)
 
         print *, "diagonalizing original hamiltonian: "
@@ -611,6 +727,14 @@ contains
             end do
         end do
         call eig(hamil, e_values, e_vec)
+
+        if (abs(e_values(1) - e_values(2)) < 1.0e-6) then
+            t_degen = .true.
+        else
+            t_degen = .false.
+        end if
+
+        print *, "all the eigen-values: ", e_values
 
         ! find the ground-state
         ind = minloc(e_values,1)
@@ -648,11 +772,11 @@ contains
             t_mat(i,i) = 0.0_dp
         end do
 
-        allocate(e_vec_hop(n_states, size(J)))
-        e_vec_hop = 0.0_dp
+        allocate(e_vec_hop(n_states, size(J)), source = 0.0_dp)
         allocate(e_vec_hop_left(n_states,size(J)), source = 0.0_dp)
-        allocate(e_vec_spin(n_states, size(J)))
-        e_vec_spin = 0.0_dp
+        allocate(e_vec_spin(n_states, size(J)), source = 0.0_dp)
+        allocate(e_vec_onsite(n_states, size(J)), source = 0.0_dp)
+        allocate(e_vec_onsite_left(n_states, size(J)), source = 0.0_dp)
 
         t_recalc_umat = .true.
         t_recalc_tmat = .true.
@@ -665,18 +789,20 @@ contains
 
         end if
 
-        if (t_calc_singles) then
-            allocate(neel_states(n_states), source = 0.0_dp)
-            allocate(singles(n_states), source = 0.0_dp)
-            allocate(j_opt(size(j)), source = 0.0_dp)
+        allocate(neel_states(n_states), source = 0.0_dp)
+        ! find neel-state(only one for now..)
+        do i = 1, n_states
+            if (all(hilbert_space(:,i) == nI)) then
+                neel_ind = i
+                neel_states(i) = 1.0_dp
+            end if
+        end do
 
-            ! find neel-state(only one for now..)
-            do i = 1, n_states
-                if (all(hilbert_space(:,i) == nI)) then
-                    neel_ind = i
-                    neel_states(i) = 1.0_dp
-                end if
-            end do
+        if (t_calc_singles) then
+            allocate(singles(n_states), source = 0.0_dp)
+            allocate(j_opt_hop(size(j)), source = 0.0_dp)
+            allocate(j_opt_spin(size(j)), source = 0.0_dp)
+            allocate(j_opt_onsite(size(j)), source = 0.0_dp)
 
             if (t_flip) then
                 call finddetspinsym(nI,flip,nel)
@@ -690,8 +816,13 @@ contains
                 neel_states = neel_states/norm(neel_states,2)
             end if
 
-            singles = matmul(hamil,neel_states)
+            singles = matmul(hamil, neel_states)
             singles(neel_ind) = 0.0_dp
+
+            ! does not change the fact:
+            ! singles = abs(singles)
+            ! where (singles < 0.0001) singles = 0.0_dp
+            ! where (singles > 0.0) singles = singles / singles
 
             if (t_flip) then
                 singles(flip_ind) = 0.0_dp
@@ -699,6 +830,11 @@ contains
 
         end if
 
+        ! get the original gutzwiller factor
+        allocate(gutzwiller(size(hamil,1),size(hamil,2)), source = h_cast(0.0_dp))
+        do i = 1, size(hamil,1)
+            gutzwiller(i,i) =  hamil(i,i) / real(uhub,dp)
+        end do
 
         do i = 1, size(J)
             print *, "J = ", J(i)
@@ -706,11 +842,7 @@ contains
             write(J_str, *) J(i)
             filename = 'gs_vec_trans_J_' // trim(adjustl((J_str)))
 
-            hamil_hop = similarity_transform(hamil, J(i) * t_mat)
-
-            if (t_calc_singles) then
-                j_opt(i) = dot_product(singles, matmul(hamil_hop, neel_states))
-            end if
+            hamil_hop = similarity_transform(hamil, J(i) / 4.0 * t_mat)
 
             trans_corr_param = J(i)
 
@@ -719,7 +851,7 @@ contains
             if (allocated(umat_rs_hub_trancorr_hop)) deallocate(umat_rs_hub_trancorr_hop)
             call init_realspace_tests()
 
-            hamil_hop_neci = create_hamiltonian(hilbert_space)
+            hamil_hop_neci = create_lattice_hamil_nI(hilbert_space)
             t_trans_corr_hop = .false.
 
             ! for the neci hopping hamiltonian:
@@ -740,23 +872,46 @@ contains
             if (allocated(tmat_rs_hub_spin_transcorr)) deallocate(tmat_rs_hub_spin_transcorr)
             call init_realspace_tests()
 
-            hamil_spin_neci = create_hamiltonian(hilbert_space)
+            hamil_spin_neci = create_lattice_hamil_nI(hilbert_space)
             t_spin_dependent_transcorr = .false.
 
             print *, "diagonalizing the transformed hamiltonian: "
             call eig(hamil_hop, e_values, e_vec)
 
+            if (t_degen) then
+                degen_vec_1 = e_vec(:,1) + cmplx(0.0_dp, e_vec(:,2),dp)
+                degen_vec_1 = degen_vec_1 / norm_cmplx(degen_vec_1)
+                degen_vec_2 = e_vec(:,1) - cmplx(0.0_dp, e_vec(:,2),dp)
+                degen_vec_2 = degen_vec_2 / norm_cmplx(degen_vec_2)
+                ! print *, "norm degen: ", norm_cmplx(degen_vec_1)
+                !degen_weight_hop(i) = maxval(abs(degen_vec_1),1)
+                call optimize_degenerate_states(e_vec, e_values, degen_weight_hop(i))
+                ! print *, "is the first: deg. eigenvector good?", &
+                    ! dot_product(degen_vec_1, matmul(hamil_hop, degen_vec_1))
+                ! print *, "is the second: deg. eigenvector good?", &
+                    ! dot_product(degen_vec_2, matmul(hamil_hop, degen_vec_2))
+            end if
             ! find the ground-state
             ind = minloc(e_values,1)
             gs_energy = e_values(ind)
             print *, "transformed ground-state energy: ", gs_energy
 
-            if (abs(gs_energy - gs_energy_orig) > 1.e-10) then
-                call stop_all("HERE!", "energy incorrect!")
+            if (abs(gs_energy - gs_energy_orig) > 1.e-6) then
+                call stop_all("HERE!", " hamil hop energy incorrect!")
             end if
             ! how do i need to access the vectors to get the energy?
             e_vec_hop(:,i) = e_vec(:,ind)
             gs_vec = abs(e_vec(:,ind))
+
+            hf_ind = maxloc(gs_vec,1)
+            ref_state_hop(i,:) = hilbert_space(:,hf_ind)
+
+            hop_neel_weight(i) = gs_vec(neel_ind)
+
+            call EncodeBitDet(ref_state_hop(i,:), ilutI)
+            hop_ref_double_occ(i) = count_double_orbs(ilutI)
+            spin_corr_hop(i) = calc_spin_corr(ref_state_hop(i,:))
+
             call sort(gs_vec)
 
             gs_vec = gs_vec(n_states:1:-1)
@@ -765,12 +920,29 @@ contains
 
             ! also do the left-ev for the norm calcs
             call eig(hamil_hop, e_values, e_vec, .true.)
+
             ind = minloc(e_values,1)
             e_vec_hop_left(:,i) = e_vec(:,ind)
 
+            hamil_onsite = similarity_transform(hamil, 5 * J(i) * gutzwiller)
             hamil_spin = similarity_transform(hamil, J(i) * t_mat_spin)
 
+            if (t_calc_singles) then
+                j_opt_hop(i) = dot_product(singles, matmul(hamil_hop, neel_states))
+                j_opt_spin(i) = dot_product(singles, matmul(hamil_spin, neel_states))
+                j_opt_onsite(i) = dot_product(singles, matmul(hamil_onsite, neel_states))
+            end if
+
+            ref_hop(i) = hamil_hop(neel_ind, neel_ind)
+            ref_spin(i) = hamil_spin(neel_ind, neel_ind)
+            ref_onsite(i) = hamil_onsite(neel_ind, neel_ind)
+
             call eig(hamil_spin, e_values, e_vec)
+
+            if (t_degen) then
+                call optimize_degenerate_states(e_vec, e_values, degen_weight_spin(i))
+            end if
+
             ind = minloc(e_values,1)
             gs_energy_spin = e_values(ind)
             print *, "spin-transformed ground-state energy: ", gs_energy_spin
@@ -780,17 +952,55 @@ contains
             end if
 
             gs_vec = abs(e_vec(:,ind))
+
+            hf_ind = maxloc(gs_vec,1)
+            ref_state_spin(i,:) = hilbert_space(:,hf_ind)
+
+            spin_neel_weight(i) = gs_vec(neel_ind)
+
+            call EncodeBitDet(ref_state_spin(i,:), ilutI)
+            spin_ref_double_occ(i) = count_double_orbs(ilutI)
+            spin_corr_spin(i) = calc_spin_corr(ref_state_spin(i,:))
+
             call sort(gs_vec)
             gs_vec = gs_vec(n_states:1:-1)
 
             hf_coeff_spin(i) = gs_vec(1)
-            e_vec_spin(:,i) = gs_vec
+            e_vec_spin(:,i) = e_vec(:,ind)
 
             neci_eval = calc_eigenvalues(hamil_hop_neci)
 
             print *, "neci ground-state energy: ", minval(neci_eval)
 
-            if (abs(gs_energy_orig - minval(neci_eval)) > 1.0e-8) then
+            call eig(hamil_onsite, e_values, e_vec)
+            if (t_degen) then
+                call optimize_degenerate_states(e_vec, e_values, degen_weight_onsite(i))
+            end if
+
+            ind = minloc(e_values, 1)
+            gs_energy_onsite = e_values(ind)
+
+            if (abs(gs_energy_onsite - gs_energy_orig) > 1.e-8) then
+                call stop_all("HERE", "on-site energy incorrect!")
+            end if
+
+            gs_vec = abs(e_vec(:,ind))
+
+            hf_ind = maxloc(gs_vec,1)
+            ref_state_onsite(i,:) = hilbert_space(:,hf_ind)
+
+            call EncodeBitDet(ref_state_onsite(i,:), ilutI)
+            onsite_ref_double_occ(i) = count_double_orbs(ilutI)
+            spin_corr_onsite(i) = calc_spin_corr(ref_state_onsite(i,:))
+
+            onsite_neel_weight(i) = gs_vec(neel_ind)
+
+            call sort(gs_vec)
+            gs_vec = gs_vec(n_states:1:-1)
+            hf_coeff_onsite(i) = gs_vec(1)
+            e_vec_onsite(:,i) = e_vec(:,ind)
+
+            if (abs(gs_energy_orig - minval(neci_eval)) > 1.0e-6) then
                 if (n_states < 20) then
                     print *, "hopping transformed NECI eigenvalue wrong"
                     print *, "basis: "
@@ -911,18 +1121,87 @@ contains
         if (t_calc_singles) then
             iunit = get_free_unit()
             open(iunit, file = 'exact_j_opt')
+            write(iunit, *) "# j    |   hop     |   spin    |   onsite"
             do i = 1, size(j)
-                write(iunit,*) j(i), j_opt(i)
+                write(iunit,*) j(i), j_opt_hop(i), j_opt_spin(i), j_opt_onsite(i)
             end do
             close(iunit)
         end if
 
         iunit = get_free_unit()
-        open(iunit, file = "hf_coeff_hop")
+        open(iunit, file = "ref_energy")
+        write(iunit, *) "# J    |   hop     |   spin    |   onsite"
         do i = 1, size(J)
-            write(iunit, *) J(i), hf_coeff_hop(i)
+            write(iunit, *) J(i), ref_hop(i), ref_spin(i), ref_onsite(i)
         end do
         close(iunit)
+
+        iunit = get_free_unit()
+        open(iunit, file = "hf_coeff")
+        write(iunit, *) "# J    |   hop     |   spin    |   onsite"
+        do i = 1, size(J)
+            write(iunit, *) J(i), hf_coeff_hop(i), hf_coeff_spin(i), hf_coeff_onsite(i)
+        end do
+        close(iunit)
+
+        iunit = get_free_unit()
+        open(iunit, file = "ref_double_occ")
+        write(iunit, *) "# J    |   hop     |   spin    |   onsite"
+        do i = 1, size(J)
+            write(iunit, *) J(i), hop_ref_double_occ(i), spin_ref_double_occ(i), &
+                onsite_ref_double_occ(i)
+        end do
+        close(iunit)
+
+        iunit = get_free_unit()
+        open(iunit, file = "neel_weight")
+        write(iunit, *) "# J    |   hop     |   spin    |   onsite"
+        do i = 1, size(J)
+            write(iunit, *) J(i), hop_neel_weight(i), spin_neel_weight(i), &
+                onsite_neel_weight(i)
+        end do
+        close(iunit)
+
+        iunit = get_free_unit()
+        open(iunit, file = "degen_weight")
+        write(iunit, *) "# J    |   hop     |   spin    |   onsite"
+        do i = 1, size(J)
+            write(iunit, *) J(i), degen_weight_hop(i), degen_weight_spin(i), &
+                degen_weight_onsite(i)
+        end do
+        close(iunit)
+
+        iunit = get_free_unit()
+        open(iunit, file = "ref_spin_corr")
+        write(iunit, *) "# J    |   hop     |   spin    |   onsite"
+        do i = 1, size(J)
+            write(iunit, *) J(i), spin_corr_hop(i), spin_corr_spin(i), &
+                spin_corr_onsite(i)
+        end do
+        close(iunit)
+
+        iunit = get_free_unit()
+        open(iunit, file = 'ref-hop')
+        do i = 1, size(J)
+            write(iunit, *) J(i), ref_state_hop(i,:)
+        end do
+        close(iunit)
+
+        iunit = get_free_unit()
+        open(iunit, file = 'ref-spin')
+        do i = 1, size(J)
+            write(iunit, *) J(i), ref_state_spin(i,:)
+        end do
+        close(iunit)
+
+        iunit = get_free_unit()
+        open(iunit, file = 'ref-onsite')
+        do i = 1, size(J)
+            write(iunit, *) J(i), ref_state_onsite(i,:)
+        end do
+        close(iunit)
+
+
 
         ! maybe plot all transformed into one file..
         iunit = get_free_unit()
@@ -932,13 +1211,6 @@ contains
         write(iunit, *) "# J: ", J
         do i = 1, n_states
             write(iunit, *) e_vec_hop(i,:)
-        end do
-        close(iunit)
-
-        iunit = get_free_unit()
-        open(iunit, file = "hf_coeff_spin")
-        do i = 1, size(J)
-            write(iunit, *) J(i), hf_coeff_spin(i)
         end do
         close(iunit)
 
@@ -954,6 +1226,7 @@ contains
         close(iunit)
 
         t_trans_corr_hop = .false.
+        print *, "all eigenvalues: ", e_values
 
     end subroutine exact_transcorrelation
 #endif

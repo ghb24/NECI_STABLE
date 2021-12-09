@@ -33,6 +33,9 @@ RDMEstimates*
 TwoRDM*
 OneRDM*
 spinfree_TwoRDM*
+Inits_TwoRDM_*
+InitsOneRDM.*
+InitsRDMEstimates
 NO_*
 FTLM_EIGV
 EIGV_DATA
@@ -74,3 +77,5 @@ neci.fdb_latexmk
 neci.fls
 neci.synctex.gz
 neci_dev.pdf
+doc/*
+*pdf

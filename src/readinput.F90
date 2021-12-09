@@ -4,6 +4,10 @@
 !               Failing that, we use stdin
 !   ios is an Integer which is set to 0 on a successful return, or is non-zero if a file error has occurred, where it is the iostat.
 MODULE ReadInput_neci
+    use constants, only: stdout
+    use util_mod, only: operator(.implies.)
+    Use Determinants, only: tDefineDet, DefDet
+    use SystemData, only: lms, user_input_m_s
     Implicit none
 !   Used to specify which default set of inputs to use
 !    An enum would be nice, but is sadly not supported
@@ -56,7 +60,7 @@ contains
         idDef = idDefault                 !use the Default defaults (pre feb08)
         ir = get_free_unit()              !default to a free unit which we'll open below
         If (trim(adjustl(cFilename)) /= '') Then
-            write(6, *) "Reading from file: ", Trim(cFilename)
+            write(stdout, *) "Reading from file: ", Trim(cFilename)
             inquire (file=cFilename, exist=tExists)
             if (.not. tExists) call stop_all('ReadInputMain', 'File '//Trim(cFilename)//' does not exist.')
             open(ir, File=cFilename, Status='OLD', err=99, iostat=ios)
@@ -67,14 +71,14 @@ contains
 #else
             Call neci_GetArg(1, cInp)      !Read argument 1 into inp
 #endif
-            write(6, *) "Processing arguments", cinp
-            write(6, *) "Reading from file: ", Trim(cInp)
+            write(stdout, *) "Processing arguments", cinp
+            write(stdout, *) "Reading from file: ", Trim(cInp)
             inquire (file=cInp, exist=tExists)
             if (.not. tExists) call stop_all('ReadInputMain', 'File '//Trim(cInp)//' does not exist.')
             open(ir, File=cInp, Status='OLD', FORM="FORMATTED", err=99, iostat=ios)
         Else
             ir = 5                    !file descriptor 5 is stdin
-            write(6, *) "Reading from STDIN"
+            write(stdout, *) "Reading from STDIN"
             ! Save the input to a temporary file so we can scan for the
             ! defaults option and then re-read it for all other options.
             open(7, status='scratch', iostat=ios)
@@ -99,7 +103,7 @@ contains
                 case ("NOV11")
                     idDef = idNov11
                 case default
-                    write(6, *) "No defaults selected - using 'default' defaults"
+                    write(stdout, *) "No defaults selected - using 'default' defaults"
                     idDef = idDefault
                 end select
             case ("END")
@@ -109,13 +113,13 @@ contains
 
         select case (idDef)
         case (0)
-            write(6, *) 'Using the default set of defaults.'
+            write(stdout, *) 'Using the default set of defaults.'
         case (idFeb08)
             Feb08 = .true.
-            write(6, *) 'Using the Feb08 set of defaults.'
+            write(stdout, *) 'Using the Feb08 set of defaults.'
         case (idNov11)
             Nov11 = .true.
-            write(6, *) 'Using the November 2011 set of defaults'
+            write(stdout, *) 'Using the November 2011 set of defaults'
         end select
 
         ! Set up defaults.
@@ -132,7 +136,7 @@ contains
             Call input_options(echo_lines=.false., skip_blank_lines=.true.)
         else
             Call input_options(echo_lines=iProcIndex == 0, skip_blank_lines=.true.)
-            write(6, '(/,64("*"),/)')
+            write(stdout, '(/,64("*"),/)')
         end if
 
         Do
@@ -167,11 +171,11 @@ contains
                 call report("Keyword "//trim(w)//" not recognized", .true.)
             end select
         end do
-        write(6, '(/,64("*"),/)')
+        write(stdout, '(/,64("*"),/)')
 !        IF(IR.EQ.1.or.IR.EQ.7) close(ir)
         close(ir)
 99      IF (ios > 0) THEN
-            write(6, *) 'Problem reading input file ', TRIM(cFilename)
+            write(stdout, *) 'Problem reading input file ', TRIM(cFilename)
             call stop_all('ReadInputMain', 'Input error.')
         END IF
         call sanitize_input()
@@ -197,18 +201,20 @@ contains
             if (allocated(user_input_GAS_exc_gen)) then
                 GAS_exc_gen = user_input_GAS_exc_gen
             else
-                ! at the moment the discarding GAS is unfortunately the fastest
-                ! (even for disconnected spaces).
-                if (GAS_specification%is_connected()) then
-                    GAS_exc_gen = possible_GAS_exc_gen%DISCARDING
-                else
-                    GAS_exc_gen = possible_GAS_exc_gen%DISCONNECTED_PCHB
-                end if
+                GAS_exc_gen = possible_GAS_exc_gen%GENERAL_PCHB
             end if
         end if
 
         if (allocated(user_input_seed)) then
             G_VMC_SEED = user_input_seed
+        end if
+
+        if (allocated(user_input_m_s)) then
+            lms = user_input_m_s
+        else if (tDefinedet) then
+            lms = sum(merge(1, -1, mod(DefDet, 2) == 0))
+        else
+            lms = 0
         end if
     end subroutine
 
@@ -222,13 +228,14 @@ contains
                               tGen_4ind_weighted, tGen_4ind_reverse, &
                               tMultiReplicas, tGen_4ind_part_exact, &
                               tGUGA, tgen_guga_weighted, &
-                              tGen_4ind_lin_exact, tGen_4ind_2, tGAS, tGASSpinRecoupling, &
+                              tGen_4ind_lin_exact, tGen_4ind_2, tGAS, &
                               tComplexOrbs_RealInts, tLatticeGens
         use CalcData, only: I_VMAX, NPATHS, G_VMC_EXCITWEIGHT, &
                             G_VMC_EXCITWEIGHTS, EXCITFUNCS, TMCDIRECTSUM, &
                             TDIAGNODES, TSTARSTARS, TBiasing, TMoveDets, &
                             TNoSameExcit, TInitStar, tMP2Standalone, &
-                            MemoryFacPart, tSemiStochastic, &
+                            MemoryFacPart, &
+                            tSemiStochastic, semistoch_shift_iter, ss_space_in, &
                             tSpatialOnlyHash, InitWalkers, tUniqueHFNode, &
                             tCheckHighestPop, &
                             tKP_FCIQMC, tReplicaEstimates, &
@@ -238,7 +245,8 @@ contains
                             tStartCAS, tUniqueHFNode, tContTimeFCIMC, &
                             tContTimeFull, tFCIMC, tPreCond, tOrthogonaliseReplicas, &
                             tMultipleInitialStates, pgen_unit_test_spec, &
-                            user_input_seed
+                            user_input_seed, t_core_inits
+        use real_time_data, only: tInfInit
         use Calc, only : RDMsamplingiters_in_inp
         Use Determinants, only: SpecDet, tagSpecDet, tDefinedet, DefDet
         use IntegralsData, only: nFrozen, tDiscoNodes, tQuadValMax, &
@@ -263,7 +271,7 @@ contains
         use hist_data, only: tHistSpawn
         use Parallel_neci, only: nNodes, nProcessors
         use UMatCache, only: tDeferred_Umat2d
-        use gasci, only: GAS_specification, GAS_exc_gen, possible_GAS_exc_gen, operator(==), operator(/=)
+        use gasci, only: GAS_specification, GAS_exc_gen, possible_GAS_exc_gen
 
         use guga_init, only: checkInputGUGA
         implicit none
@@ -446,40 +454,39 @@ contains
         end do
 
         if (tNoRenormRandExcits .and. (.not. ExcitFuncs(10))) then
-            write(6, *) "Random excitations WILL have to be renormalised, &
+            write(stdout, *) "Random excitations WILL have to be renormalised, &
                        &since an excitation weighting has been detected."
         end if
 
         ! if the LMS value specified is not reachable with the number of electrons,
         ! fix this
         if (mod(abs(lms), 2) /= mod(nel, 2)) then
-            write(6, *) "WARNING: LMS Value is not reachable with the given number of electrons."
-            write(6, *) "Resetting LMS"
-            LMS = -mod(nel, 2)
+            call stop_all(t_r, "LMS Value is not reachable with the given number of electrons.")
         end if
 
         if (tCalcInstantS2 .or. tCalcInstantS2Init) then
-            if (tUHF) &
+            if (tUHF) then
                 call stop_all(t_r, 'Cannot calculate instantaneous values of&
                               & S^2 with UF enabled.')
-            write(6, *) 'Enabling calculation of instantaneous S^2 each &
+            end if
+            write(stdout, *) 'Enabling calculation of instantaneous S^2 each &
                        &iteration.'
         end if
 
         if (tUniqueHFNode .and. nProcessors < 2) then
-            write(6, *) "nNodes: ", nNodes
-            write(6, *) 'nProcessors: ', nProcessors
+            write(stdout, *) "nNodes: ", nNodes
+            write(stdout, *) 'nProcessors: ', nProcessors
             call stop_all(t_r, 'At least two nodes required to designate &
                           &a node uniquely to the HF determinant')
         end if
 
         if (tGenHelWeighted) then
-            write(6, *)
-            write(6, *) '*** WARNING ***'
-            write(6, *) 'Slow HElement biased excitation generators in use.'
-            write(6, *) 'NOT FOR PRODUCTION RUNS'
-            write(6, *) '***************'
-            write(6, *)
+            write(stdout, *)
+            write(stdout, *) '*** WARNING ***'
+            write(stdout, *) 'Slow HElement biased excitation generators in use.'
+            write(stdout, *) 'NOT FOR PRODUCTION RUNS'
+            write(stdout, *) '***************'
+            write(stdout, *)
         end if
 
         if (tGen_4ind_weighted .or. tGen_4ind_reverse .or. tGen_4ind_2 &
@@ -497,9 +504,9 @@ contains
 #if PROG_NUMRUNS_
         if (tKP_FCIQMC .and. .not. tMultiReplicas) then
 
-            write(6, *) 'Using KPFCIQMC without explicitly specifying the &
+            write(stdout, *) 'Using KPFCIQMC without explicitly specifying the &
                        &number of replica simulations'
-            write(6, *) 'Defaulting to using 2 replicas'
+            write(stdout, *) 'Defaulting to using 2 replicas'
             tMultiReplicas = .true.
 #ifdef CMPLX_
             lenof_sign = 4
@@ -518,13 +525,13 @@ contains
 
 #if PROG_NUMRUNS_
         if (tRDMonFly) then
-            write(6, *) 'RDM on fly'
+            write(stdout, *) 'RDM on fly'
 
             if (.not. tMultiReplicas) then
-                write(6, *) 'unspecified'
-                write(6, *) 'Filling RDMs without explicitly specifying the &
+                write(stdout, *) 'unspecified'
+                write(stdout, *) 'Filling RDMs without explicitly specifying the &
                            &number of replica simplations'
-                write(6, *) 'Defaulting to using 2 replicas'
+                write(stdout, *) 'Defaulting to using 2 replicas'
                 tMultiReplicas = .true.
                 lenof_sign = 2
                 inum_runs = 2
@@ -539,16 +546,27 @@ contains
 #endif
 
         if (tRDMOnFly .and. .not. tCheckHighestPop) then
-            write(6, *) 'Highest population checking required for calculating &
+            write(stdout, *) 'Highest population checking required for calculating &
                        &RDMs on the fly'
-            write(6, *) 'If you are seeing this, it is an input parsing error'
+            write(stdout, *) 'If you are seeing this, it is an input parsing error'
             call stop_all(t_r, 'RDMs without CheckHighestPop')
         end if
 
         if (tSemiStochastic .and. .not. (tAllRealCoeff .and. tUseRealCoeffs)) then
-            write(6, *) 'Semi-stochastic simulations only supported when using &
+            write(stdout, *) 'Semi-stochastic simulations only supported when using &
                        &ALLREALCOEFF option'
             call stop_all(t_r, 'Semistochastic without ALLREALCOEFF')
+        end if
+
+        if (ss_space_in%tPopsProportion &
+                .and. .not. tSemiStochastic &
+                .and. semistoch_shift_iter < 1) then
+            call stop_all(t_r, 'POPS-CORE-PROPORTION requires SEMI-STOCHASTIC option')
+        end if
+
+        if (ss_space_in%tPopsCore .and. ss_space_in%tPopsProportion) then
+            call stop_all(t_r, 'POPS-CORE and POPS-CORE-PROPORTION cannot be used&
+                               & at the same time')
         end if
 
         if (tAllRealCoeff .and. tRealCoeffByExcitLevel) then
@@ -583,7 +601,7 @@ contains
             ! If there is only one node, then load balancing doesn't make
             ! a great deal of sense, and only slows things down...
             if (nNodes == 1) then
-                write(6, *) 'Disabling load balancing for single node calculation'
+                write(stdout, *) 'Disabling load balancing for single node calculation'
                 tLoadBalanceBlocks = .false.
             end if
 
@@ -601,16 +619,16 @@ contains
 #endif
 
         if (tFixLz .and. tComplexOrbs_RealInts) then
-            write(6, *) 'Options LZTOT and COMPLEXORBS_REALINTS incompatible'
-            write(6, *)
-            write(6, *) '1. Using multiple options that filter integrals at runtime is unsupported.'
-            write(6, *) '   Only one integral filter may be used at once.'
-            write(6, *)
-            write(6, *) '2. This is almost certainly not what you intended to do.  LZTOT works using'
-            write(6, *) '   abelian symmetries combined with momentum information. COMPLEXORBS_REALINTS'
-            write(6, *) '   provides support for non-abelian symmetries in FCIDUMP files produced'
-            write(6, *) '   using VASP'
-            write(6, *)
+            write(stdout, *) 'Options LZTOT and COMPLEXORBS_REALINTS incompatible'
+            write(stdout, *)
+            write(stdout, *) '1. Using multiple options that filter integrals at runtime is unsupported.'
+            write(stdout, *) '   Only one integral filter may be used at once.'
+            write(stdout, *)
+            write(stdout, *) '2. This is almost certainly not what you intended to do.  LZTOT works using'
+            write(stdout, *) '   abelian symmetries combined with momentum information. COMPLEXORBS_REALINTS'
+            write(stdout, *) '   provides support for non-abelian symmetries in FCIDUMP files produced'
+            write(stdout, *) '   using VASP'
+            write(stdout, *)
             call stop_all(t_r, 'Options incompatible')
         end if
 
@@ -624,25 +642,32 @@ contains
             if (.not. tDefineDet) then
                 call stop_all(t_r, "Running GAS requires a user-defined reference via definedet.")
             endif
-            if (.not. GAS_specification%contains(DefDet)) then
+            if (.not. GAS_specification%contains_conf(DefDet)) then
                 call stop_all(t_r, "Reference determinant has to be contained in GAS space.")
             endif
             if (.not. GAS_specification%is_valid()) then
                 call stop_all(t_r, "GAS specification not valid.")
             end if
-            if (.not. tGASSpinRecoupling .and. all(GAS_exc_gen /= [possible_GAS_exc_gen%DISCONNECTED, possible_GAS_exc_gen%DISCONNECTED_PCHB])) then
-                call stop_all(t_r, "Running GAS without spin-recoupling requires disconnected implementations.")
+            if (.not. GAS_specification%recoupling() .and. all(GAS_exc_gen /= [possible_GAS_exc_gen%DISCONNECTED, possible_GAS_exc_gen%GENERAL_PCHB])) then
+                call stop_all(t_r, "Running GAS without spin-recoupling requires {DISCONNECTED, GENERAL_PCHB} implementations.")
             end if
             if (GAS_exc_gen == possible_GAS_exc_gen%DISCONNECTED .and.  GAS_specification%is_connected()) then
                 call stop_all(t_r, "Running GAS-CI = DISCONNECTED requires disconnected spaces.")
             end if
-            if (GAS_exc_gen == possible_GAS_exc_gen%DISCONNECTED_PCHB .and.  GAS_specification%is_connected()) then
-                call stop_all(t_r, "Running GAS-CI = DISCONNECTED_PCHB requires disconnected spaces.")
+        end if
+
+        if (tDefineDet .and. allocated(user_input_m_s)) then
+            if (sum(merge(1, -1, mod(DefDet, 2) == 0)) /= user_input_m_s) then
+                call stop_all(t_r, "Spin of Definedet and Spin-restrict is not consistent.")
             end if
         end if
 
         if (allocated(pgen_unit_test_spec) .and. .not. tReadPops) then
             call stop_all(t_r, "UNIT-TEST-PGEN requires READPOPS.")
+        end if
+
+        if (.not. (tInfInit .implies. t_core_inits)) then
+            call stop_all(t_r, 'INFINITE-INIT requires CORE-INITS OFF.')
         end if
 
         block
@@ -652,12 +677,13 @@ contains
             if (allocated(user_input_seed)) then
                 deterministic = loadBalanceInterval /= 0
                 if (tLoadBalanceBlocks .and. .not. deterministic) then
-        write(iout, *) 'Seed was specified in input.'
-        write(iout, *) 'Please note that because of load-balancing the calculation is not fully deterministic (CPU load).'
-        write(iout, *) 'If a fully deterministic calculation is required use the `load-balance-interval` keyword.'
+        write(stdout, *) 'Seed was specified in input.'
+        write(stdout, *) 'Please note that because of load-balancing the calculation is not fully deterministic (CPU load).'
+        write(stdout, *) 'If a fully deterministic calculation is required use the `load-balance-interval` keyword.'
                 end if
             end if
         end block
+
     end subroutine checkinput
 
 end Module ReadInput_neci

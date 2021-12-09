@@ -5,7 +5,7 @@ module AnnihilationMod
     use SystemData, only: NEl, tHPHF, tGUGA
     use CalcData, only: tTruncInitiator, OccupiedThresh, tSemiStochastic, &
                         tTrialWavefunction, tKP_FCIQMC, tContTimeFCIMC, tInitsRDM, &
-                        tContTimeFull, InitiatorWalkNo, tau, tEN2, tEN2Init, &
+                        tContTimeFull, tau, tEN2, tEN2Init, &
                         tEN2Started, tEN2Truncated, tInitCoherentRule, t_truncate_spawns, &
                         n_truncate_spawns, t_prone_walkers, t_truncate_unocc, &
                         tLogAverageSpawns, tAutoAdaptiveShift, tSkipRef, &
@@ -23,7 +23,7 @@ module AnnihilationMod
     use core_space_util, only: cs_replicas
     use constants, only: n_int, lenof_sign, null_part, sizeof_int
     use bit_rep_data
-    use bit_reps, only: decode_bit_det, &
+    use bit_reps, only: decode_bit_det, writebitdet, &
                         encode_sign, test_flag, set_flag, &
                         flag_initiator, encode_part_sign, &
                         extract_part_sign, extract_bit_rep, &
@@ -34,7 +34,8 @@ module AnnihilationMod
     use hist_data, only: tHistSpawn, HistMinInd2
     use LoggingData, only: tNoNewRDMContrib
     use load_balance, only: DetermineDetNode, AddNewHashDet, &
-                            CalcHashTableStats, get_diagonal_matel, RemoveHashDet
+                            CalcHashTableStats, RemoveHashDet
+    use matel_getter, only: get_diagonal_matel, get_off_diagonal_matel
     use searching
     use hash
 
@@ -206,9 +207,9 @@ contains
         ! ordered in each processor
         if (MaxIndex > (0.9_dp * MaxSpawned)) then
 #ifdef DEBUG_
-            write(6, *) MaxIndex, MaxSpawned
+            write(stdout, *) MaxIndex, MaxSpawned
 #else
-            write(iout, *) 'On task ', iProcIndex, ': ', MaxIndex, MaxSpawned
+            write(stdout, *) 'On task ', iProcIndex, ': ', MaxIndex, MaxSpawned
 #endif
             call Warning_neci("SendProcNewParts", "Maximum index of newly-spawned array is " &
             & //"close to maximum length after annihilation send. Increase MemoryFacSpawn")
@@ -640,10 +641,10 @@ contains
 
         if (tHistSpawn) HistMinInd2(1:NEl) = FCIDetIndex(1:NEl)
 
-        !write(6,*) "SpawnedParts before:"
+        !write(stdout,*) "SpawnedParts before:"
         !do i = 1, ValidSpawned
         !    call extract_sign (SpawnedParts(:, i), temp_sign)
-        !    write(6,'(i7, 4x, i16, 4x, f18.7, 4x, l1)') i, SpawnedParts(0,i), temp_sign, &
+        !    write(stdout,'(i7, 4x, i16, 4x, f18.7, 4x, l1)') i, SpawnedParts(0,i), temp_sign, &
         !        test_flag(SpawnedParts(:,i), get_initiator_flag(1))
         !end do
 
@@ -811,11 +812,11 @@ contains
         SpawnedParts2 => SpawnedParts
         SpawnedParts => PointTemp
 
-        !write(6,*) "SpawnedParts after:"
+        !write(stdout,*) "SpawnedParts after:"
         !do i = 1, ValidSpawned
-        !    if (SpawnedParts(0,i) == SpawnedParts(0,i+1)) write(6,*) "Here!"
+        !    if (SpawnedParts(0,i) == SpawnedParts(0,i+1)) write(stdout,*) "Here!"
         !    call extract_sign (SpawnedParts(:, i), temp_sign)
-        !    write(6,'(i7, 4x, i16, 4x, f18.7, 4x, l1)') i, SpawnedParts(0,i), temp_sign, &
+        !    write(stdout,'(i7, 4x, i16, 4x, f18.7, 4x, l1)') i, SpawnedParts(0,i), temp_sign, &
         !        test_flag(SpawnedParts(:,i), get_initiator_flag(1))
         !end do
 
@@ -897,11 +898,11 @@ contains
 
         ValidSpawned = length_new
 
-        !write(6,*) "SpawnedParts final:"
+        !write(stdout,*) "SpawnedParts final:"
         !do i = 1, ValidSpawned
-        !    if (SpawnedParts(0,i) == SpawnedParts(0,i+1)) write(6,*) "ERROR!"
+        !    if (SpawnedParts(0,i) == SpawnedParts(0,i+1)) write(stdout,*) "ERROR!"
         !    call extract_sign (SpawnedParts(:, i), spawned_sign)
-        !    write(6,'(i7, 4x, i16, 4x, f18.7, 4x, l1)') i, SpawnedParts(0,i), spawned_sign, &
+        !    write(stdout,'(i7, 4x, i16, 4x, f18.7, 4x, l1)') i, SpawnedParts(0,i), spawned_sign, &
         !        test_flag(SpawnedParts(:,i), get_initiator_flag(1))
         !end do
 
@@ -965,6 +966,7 @@ contains
         real(dp), dimension(lenof_sign) :: TempCurrentSign, SignProd
         integer :: ExcitLevel, DetHash, nJ(nel)
         real(dp) :: ScaledOccupiedThresh, scFVal, diagH, weight_rev
+        HElement_t(dp) :: offdiagH
         logical :: tSuccess, tSuc, tDetermState
         logical :: abort(lenof_sign)
         logical :: tTruncSpawn, t_truncate_this_det
@@ -1123,7 +1125,7 @@ contains
                                     InstAnnihil(j, PartIndex) = InstAnnihil(j, PartIndex) + &
                                                                 real(2 * (min(abs(CurrentSign(j)), abs(SpawnedSign(j)))), dp)
                                 else
-                                    write(6, *) "***", SpawnedParts(0:NIftot, i)
+                                    write(stdout, *) "***", SpawnedParts(0:NIftot, i)
                                     Call WriteBitDet(6, SpawnedParts(0:NIfTot, i), .true.)
                                     call stop_all("AnnihilateSpawnedParts", "Cannot find corresponding FCI "&
                                             & //"determinant when histogramming")
@@ -1225,7 +1227,7 @@ contains
                     if (.not. IsUnoccDet(SpawnedSign)) then
 
                         ! if we did not kill the walkers, get the scaling factor
-                        call getEScale(nJ, i, diagH, scFVal, ScaledOccupiedThresh)
+                        call getEScale(nJ, i, diagH, offdiagH, scFVal, ScaledOccupiedThresh)
                         do j = 1, lenof_sign
                             call stochRoundSpawn(iter_data, SpawnedSign, i, j, scFVal, &
                                                  ScaledOccupiedThresh, t_truncate_this_det)
@@ -1238,9 +1240,10 @@ contains
                             ! same one as was generated at the beginning of the loop.
                             if (.not. tEScaleWalkers) then
                                 diagH = get_diagonal_matel(nJ, SpawnedParts(:, i))
+                                offdiagH = get_off_diagonal_matel(nJ, SpawnedParts(:, i))
                             end if
                             call AddNewHashDet(TotWalkersNew, SpawnedParts(0:NIfTot, i), DetHash, nJ, &
-                                               diagH, PartInd, err)
+                                               diagH, offdiagH, PartInd, err)
                             ! abort upon error
                             if (err /= 0) return
                         end if
@@ -1253,7 +1256,7 @@ contains
 
                     ! no chance to kill the spawn by initiator criterium
                     ! so get the diagH immediately
-                    call getEScale(nJ, i, diagH, scFVal, ScaledOccupiedThresh)
+                    call getEScale(nJ, i, diagH, offdiagH, scFVal, ScaledOccupiedThresh)
 
                     ! If using an EN2 perturbation to correct a truncated
                     ! calculation, then this spawn may need to be truncated
@@ -1281,9 +1284,10 @@ contains
                             ! same one as was generated at the beginning of the loop.
                             if (.not. tEScaleWalkers) then
                                 diagH = get_diagonal_matel(nJ, SpawnedParts(:, i))
+                                offdiagH = get_off_diagonal_matel(nJ, SpawnedParts(:, i))
                             end if
                             call AddNewHashDet(TotWalkersNew, SpawnedParts(:, i), DetHash, nJ, &
-                                               diagH, PartInd, err)
+                                               diagH, offdiagH, PartInd, err)
                             ! abort annihilation upon error
                             if (err /= 0) return
                         end if
@@ -1418,16 +1422,18 @@ contains
 
     end subroutine truncateSpawn
 
-    subroutine getEScale(nJ, i, diagH, scFVal, ScaledOccupiedThresh)
+    subroutine getEScale(nJ, i, diagH, offdiagH, scFVal, ScaledOccupiedThresh)
         implicit none
         integer, intent(in) :: nJ(nel), i
         real(dp), intent(out) :: diagH, scFVal, ScaledOccupiedThresh
+        HElement_t(dp), intent(out) :: offdiagH
 
         if (tEScaleWalkers) then
             ! the diagonal element of H is needed anyway ONLY for scaled walkers
             ! if we dont scale walkers, we might not need it, if the round kills the
             ! walkers
             diagH = get_diagonal_matel(nJ, SpawnedParts(:, i))
+            offdiagH = get_off_diagonal_matel(nJ, SpawnedParts(:, i))
             ! evaluate the scaling function
             scFVal = scaleFunction(diagH - Hii)
         else
@@ -1496,7 +1502,8 @@ contains
                 contrib_sign = 0.0_dp
                 do istate = 1, en_pert_main%sign_length
                     if (pert_contrib(istate)) then
-                        contrib_sign(istate) = SpawnedSign(2 * istate - 1) * SpawnedSign(2 * istate) / (tau**2)
+                        contrib_sign(istate) = SpawnedSign(2 * istate - 1) &
+                            * SpawnedSign(2 * istate) / (tau**2)
                     end if
                 end do
 

@@ -3,9 +3,9 @@ title
 system read
 freeformat
 electrons 10
-spin-restrict 1
+spin-restrict 0
 nonuniformrandexcits 4ind-weighted
-hphf 0 
+hphf 0
 endsys
 
 calc
@@ -22,7 +22,7 @@ proje-changeref 1.2
 truncinitiator
 addtoinitiator 3
 walkcontgrow
-semi-stochastic,100
+semi-stochastic 100
 pops-core 100
 core-inits
 allrealcoeff
@@ -34,7 +34,7 @@ maxwalkerbloom 1
 memoryfacspawn 25.0
 memoryfacpart 5.0
 time 1200.0
-nmcyc 6000
+nmcyc 600
 endcalc
 
 integral

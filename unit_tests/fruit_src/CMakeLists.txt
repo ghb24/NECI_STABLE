@@ -4,5 +4,5 @@
 neci_add_library(
     TARGET fruit
     TYPE STATIC
-    SOURCES fruit.f90
+    SOURCES fruit.f90 fruit_extensions.F90
     LINKER_LANGUAGE Fortran )

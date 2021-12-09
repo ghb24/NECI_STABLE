@@ -9,7 +9,7 @@ module hphf_integrals
     use IntegralsData, only: UMat, FCK, NMAX
     use HPHFRandExcitMod, only: FindDetSpinSym, FindExcitBitDetSym
     use DetBitOps, only: DetBitEQ, FindExcitBitDet, FindBitExcitLevel, &
-                         TestClosedShellDet, CalcOpenOrbs
+                         TestClosedShellDet, CalcOpenOrbs, GetBitExcitation
     use excitation_types, only: NoExc_t, DoubleExc_t
     use sltcnd_mod, only: sltcnd, sltcnd_excit, sltcnd_knowIC, dyn_sltcnd_excit_old
     use bit_reps, only: NIfD, NIfTot, decode_bit_det
@@ -50,8 +50,7 @@ contains
 
         hel = hphf_off_diag_helement_norm(nI, nJ, iLutI, iLutJ)
 
-        if(IC /= 0 .and. modk_offdiag) &
-            hel = -abs(hel)
+        if(IC /= 0 .and. modk_offdiag) hel = -abs(hel)
 
     end function
 
@@ -182,11 +181,17 @@ contains
         logical, intent(in) :: CS_I, CS_J
         HElement_t(dp) :: hel
 
-        integer :: nI2(nel)
+        integer :: nI2(nel), nJ(nel)
         integer(n_int) :: iLutnI2(0:NIfTot)
         integer :: ExcitLevel, OpenOrbsI, OpenOrbsJ, Ex(2, maxExcit)
         HElement_t(dp) :: MatEl2
         logical :: tSign
+
+        if (t_lattice_model) then
+            call decode_bit_det(nJ, ilutnJ)
+            hel = hphf_off_diag_helement(nI, nJ, iLutnI, iLutnJ)
+            return
+        end if
 
         hel = 0.0_dp
 
@@ -283,7 +288,7 @@ contains
         integer, intent(in) :: ExcitLevel, OpenOrbsI
         HElement_t(dp) :: hel
 
-        integer :: OpenOrbsJ, Ex(2, maxExcit)
+        integer :: OpenOrbsJ, Ex(2, maxExcit), nJ(nel)
         HElement_t(dp) :: MatEl2
         logical :: tSign
 
@@ -301,7 +306,12 @@ contains
         Ex(1, 1) = ExcitLevel
         call GetBitExcitation(iLutnI2, iLutnJ, Ex, tSign)
 
-        MatEl2 = dyn_sltcnd_excit_old(nI2, ExcitLevel, Ex, tSign)
+        if (t_lattice_model) then
+            call decode_bit_det(nJ, iLutnJ)
+            MatEl2 = hphf_off_diag_helement(nI2, nJ, iLutnI2, ilutnJ)
+        else
+            MatEl2 = dyn_sltcnd_excit_old(nI2, ExcitLevel, Ex, tSign)
+        end if
 
         if(tOddS_HPHF) then
             if(((mod(OpenOrbsI, 2) == 1) .and. (mod(OpenOrbsJ, 2) == 1)) &

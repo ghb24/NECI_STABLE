@@ -11,29 +11,32 @@ module load_balance
                         t_activate_decay, tAutoAdaptiveShift, tMoveGlobalDetData
     use global_det_data, only: global_determinant_data, &
                                global_determinant_data_tmp, &
-                               set_det_diagH, set_spawn_rate, &
+                               set_det_diagH, set_det_offdiagH, &
+                               set_spawn_rate, set_supergroup_idx, &
                                set_all_spawn_pops, reset_all_tau_ints, &
-                               reset_all_shift_ints, det_diagH, store_decoding, &
-                               reset_all_tot_spawns, reset_all_acc_spawns
+                               reset_all_shift_ints, det_diagH, &
+                               store_decoding, reset_all_tot_spawns, &
+                               reset_all_acc_spawns
     use bit_rep_data, only: flag_initiator, nifd, &
                             flag_connected, flag_trial, flag_prone, flag_removed
     use bit_reps, only: set_flag, nullify_ilut_part, &
-                        encode_part_sign, nullify_ilut
+                        encode_part_sign, nullify_ilut, writebitdet
     use FciMCData, only: HashIndex, FreeSlot, CurrentDets, iter_data_fciqmc, &
                          tFillingStochRDMOnFly, ntrial_excits, &
                          con_space_size, NConEntry, con_send_buf, sFAlpha, sFBeta, &
                          n_prone_dets
     use core_space_util, only: cs_replicas
-    use SystemData, only: tHPHF
+    use gasci_supergroup_index, only: lookup_supergroup_indexer
+    use SystemData, only: nel
     use procedure_pointers, only: scaleFunction
     use searching, only: hash_search_trial, bin_search_trial
     use determinants, only: get_helement, write_det
-    use hphf_integrals, only: hphf_diag_helement
     use LoggingData, only: tOutputLoadDistribution, tAccumPopsActive
     use cont_time_rates, only: spawn_rate_full
     use DetBitOps, only: DetBitEq, tAccumEmptyDet
     use sparse_arrays, only: con_ht, trial_ht, trial_hashtable
     use trial_ht_procs, only: buffer_trial_ht_entries, add_trial_ht_entries
+    use matel_getter, only: get_diagonal_matel, get_off_diagonal_matel
     use load_balance_calcnodes
     use Parallel_neci
     use constants
@@ -41,6 +44,7 @@ module load_balance
     use hash
 
     implicit none
+
 
     ! TODO:
     ! - Integrate with POPSFILES. Need to output the mapping for restarts.
@@ -136,7 +140,7 @@ contains
         call MPISumAll(mapping_test, mapping_test_all)
         if (.not. all(mapping_test_all == 1 .or. mapping_test_all == 0)) then
             call stop_all(this_routine, "Multi-processor mapping not &
-                         &correctly determined")
+                &correctly determined")
         end if
 
         ! And do a load balancing before anything else happens
@@ -153,7 +157,7 @@ contains
             log_dealloc(lb_tag)
         end if
 
-    end subroutine
+    end subroutine clean_load_balance
 
     subroutine adjust_load_balance(iter_data)
 
@@ -164,9 +168,10 @@ contains
         integer(int64) :: smallest_size
         integer :: j, proc, det(nel), block, TotWalkersTmp
         integer :: min_parts, max_parts, min_proc, max_proc
-        integer :: smallest_block, iBlockMoves
+        integer :: smallest_block, iBlockMoves, iblock, ierr
         real(dp) :: sgn(lenof_sign), avg_parts
         logical :: unbalanced
+        integer, allocatable:: movelist(:, :)
         character(*), parameter :: this_routine = 'adjust_load_balance'
 
         ! TODO: Need to ensure we don't move around the semi-stochastic sites,
@@ -210,15 +215,17 @@ contains
             block_parts(block) = block_parts(block) + sum(ceiling(abs(sgn)))
         end do
 
-        ! Accumulate the data from all of the processors (on root)
+          ! Accumulate the data from all of the processors (on root)
         call MPISum(block_parts, block_parts_all)
 
         iBlockMoves = 0
-        do while (.true.)
 
-            ! n.b. the required data is only available on the root node.
-            if (iProcIndex == root) then
+        allocate(movelist(3, balance_blocks))
 
+          !determine changes required to achieve a balanced layout
+          ! n.b. the required data is only available on the root node.
+        if (iProcIndex == root) then
+            do while (.true.)
                 ! How many particles are on each processor?
                 proc_parts = 0
                 do block = 1, balance_blocks
@@ -238,8 +245,9 @@ contains
                 ASSERT(min_proc >= 0)
                 ASSERT(max_proc >= 0)
 
-                if (min_proc > nProcessors - 1 .or. max_proc > nProcessors - 1) &
+                if (min_proc > nProcessors - 1 .or. max_proc > nProcessors - 1) then
                     call stop_all(this_routine, 'invalid value')
+                end if
 
                 ! Create a list of the blocks associated with the most
                 ! heavily utilised processor in increasing size order.
@@ -247,9 +255,9 @@ contains
                 smallest_size = -1
                 do block = 1, balance_blocks
                     if (LoadBalanceMapping(block) == max_proc) then
-                        if (block_parts_all(block) > 0 .and. &
-                            (block_parts_all(block) < smallest_size .or. &
-                             smallest_size == -1)) then
+                        if (block_parts_all(block) > 0  &
+                                .and.  (block_parts_all(block) < smallest_size &
+                                        .or.  smallest_size == -1)) then
                             smallest_block = block
                             smallest_size = block_parts_all(block)
                         end if
@@ -258,37 +266,41 @@ contains
 
                 ! If moving a block of the smallest size between the largest
                 ! and the smallest is a helpful thing to do, then move it!
-                if (smallest_block /= 0) then
-                    if ((abs(min_parts + smallest_size - avg_parts) < abs(min_parts - avg_parts)) .and. &
-                        (abs(max_parts - smallest_size - avg_parts) < abs(max_parts - avg_parts))) then
-                        unbalanced = .true.
-                    else
-                        unbalanced = .false.
-                    end if
+                unbalanced = smallest_block /= 0 &
+                             .and. abs(min_parts + smallest_size - avg_parts) < abs(min_parts - avg_parts) &
+                             .and. abs(max_parts - smallest_size - avg_parts) < abs(max_parts - avg_parts)
+
+                ! If this is sufficiently balanced, then we make no (further)
+                ! changes.
+                if (.not. unbalanced) then
+                    exit
                 else
-                    unbalanced = .false.
-                end if
-            end if
-            call MPIBcast(unbalanced)
+                    iBlockMoves = iBlockMoves + 1
+                endif
 
-            ! If this is sufficiently balanced, then we make no (further)
-            ! changes.
-            if (.not. unbalanced) then
-                exit
-            else
-                iBlockMoves = iBlockMoves + 1
-            end if
+                ! register the parameters for the change!
+                movelist(1, iBlockMoves) = smallest_block
+                movelist(2, iBlockMoves) = LoadBalanceMapping(smallest_block)
+                movelist(3, iBlockMoves) = min_proc
 
-            ! Broadcast the parameters for the change!
-            call MPIBCast(min_proc)
-            call MPIBCast(max_proc)
-            call MPIBcast(smallest_block)
+                ! mapping after this change
+                LoadBalanceMapping(smallest_block) = min_proc
+            end do
+        end if
+        call MPIBarrier(ierr)
 
-            ! Move the block from where it is to the currently least worked
-            ! processor
-            call move_block(smallest_block, min_proc)
+        ! Broadcast movelist
+        call MPIBcast(iBlockMoves)
+        call MPIBcast(movelist, 3 * iBlockMoves)
 
+        ! Actually move the blocks identified above
+        do iblock=1, iBlockMoves
+           call move_block(movelist(:, iblock))
         end do
+        deallocate(movelist)
+
+        ! Broadcast the new LoadBalanceMapping to all procs
+        call MPIBcast(LoadBalanceMapping)
 
         if (iProcIndex == root .and. tOutputLoadDistribution) then
             write(6, '("Load balancing distribution:")')
@@ -322,15 +334,16 @@ contains
 
     end subroutine
 
-    subroutine move_block(block, tgt_proc)
+    subroutine move_block(exchangedata)
         implicit none
-        integer, intent(in) :: block, tgt_proc
+        integer, intent(in) :: exchangedata(3)
 
-        integer :: src_proc, ierr, nsend, nelem, j, k, det_block, hash_val, PartInd
-        integer :: det(nel), TotWalkersTmp, nconsend, clashes, ntrial, ncon, err
-        integer(n_int) :: con_state(0:NConEntry)
+        integer :: src_proc, tgt_proc, block
+        integer :: ierr, nsend, nelem, j, det_block, hash_val, PartInd
+        integer :: det(nel), TotWalkersTmp, nconsend, err
         real(dp) :: sgn(lenof_sign)
         real(dp) :: HDiag
+        HElement_t(dp) :: HOffDiag
 
         ! A tag is used to identify this send/recv pair over any others
         integer, parameter :: mpi_tag_nsend = 223456
@@ -341,7 +354,9 @@ contains
         integer, parameter :: mpi_tag_trial = 223461
         integer, parameter :: mpi_tag_glob = 223462
 
-        src_proc = LoadBalanceMapping(block)
+        block =  exchangedata(1)
+        src_proc = exchangedata(2)
+        tgt_proc = exchangedata(3)
 
         ! Provide some feedback to the user.
         if (iProcIndex == root) then
@@ -437,8 +452,9 @@ contains
 
                 ! Calculate the diagonal hamiltonian matrix element for the new particle to be merged.
                 HDiag = get_diagonal_matel(det, SpawnedParts(:, j))
+                HOffDiag = get_off_diagonal_matel(det, SpawnedParts(:, j))
                 call AddNewHashDet(TotWalkersTmp, SpawnedParts(:, j), &
-                                   hash_val, det, HDiag, PartInd, err)
+                                   hash_val, det, HDiag, HOffDiag, PartInd, err)
 
                 if (tMoveGlobalDetData) then
                     global_determinant_data(:, PartInd) = global_determinant_data_tmp(:, j)
@@ -475,18 +491,11 @@ contains
                                               trial_ht, trial_space_size)
                 end if
             end if
-
         end if
-
-        ! Adjust the load balancing mapping
-        LoadBalanceMapping(block) = tgt_proc
-
-        ! And synchronise when everything is done
-        call MPIBarrier(ierr)
 
     end subroutine
 
-    subroutine AddNewHashDet(TotWalkersNew, iLutCurr, DetHash, nJ, HDiag, DetPosition, err)
+    subroutine AddNewHashDet(TotWalkersNew, iLutCurr, DetHash, nJ, HDiag, HOffDiag, DetPosition, err)
         ! Add a new determinant to the main list. This involves updating the
         ! list length, copying it across, updating its flag, adding its diagonal
         ! helement (if neccessary). We also need to update the hash table to
@@ -496,11 +505,11 @@ contains
         integer, intent(in) :: DetHash, nJ(nel)
         integer, intent(out) :: DetPosition
         real(dp), intent(in) :: HDiag
+        HElement_t(dp), intent(in) :: HOffDiag
         integer, intent(out) :: err
         HElement_t(dp) :: trial_amps(ntrial_excits)
         logical :: tTrial, tCon
         real(dp), dimension(lenof_sign) :: SignCurr
-        character(len=*), parameter :: t_r = "AddNewHashDet"
 
         err = 0
         if (iStartFreeSlot <= iEndFreeSlot) then
@@ -522,7 +531,7 @@ contains
             ! if the list is almost full, activate the walker decay
             if (t_prone_walkers .and. TotWalkersNew > 0.95_dp * real(MaxWalkersPart, dp)) then
                 t_activate_decay = .true.
-                write(iout, *) "Warning: Starting to randomly kill singly-spawned walkers"
+                write(stderr, *) "Warning: Starting to randomly kill singly-spawned walkers"
             end if
         end if
         CurrentDets(:, DetPosition) = iLutCurr(:)
@@ -531,6 +540,7 @@ contains
         ! except the first one, holding the diagonal Hamiltonian element.
         global_determinant_data(:, DetPosition) = 0.0_dp
         call set_det_diagH(DetPosition, real(HDiag, dp) - Hii)
+        call set_det_offdiagH(DetPosition, HOffDiag)
 
         ! we reset the death timer, so this determinant can linger again if
         ! it died before
@@ -593,6 +603,10 @@ contains
         !In case we are filling a hole, clear the removed flag
         call set_flag(CurrentDets(:, DetPosition), flag_removed, .false.)
 
+        if (associated(lookup_supergroup_indexer)) then
+            call set_supergroup_idx(DetPosition, lookup_supergroup_indexer%idx_nI(nJ))
+        end if
+
         ! Add the new determinant to the hash table.
         call add_hash_table_entry(HashIndex, DetPosition, DetHash)
 
@@ -613,30 +627,9 @@ contains
 
     end subroutine RemoveHashDet
 
-    function get_diagonal_matel(nI, ilut) result(diagH)
-        ! Get the diagonal element for a determinant nI with ilut representation ilut
-
-        ! In:  nI        - The determinant to evaluate
-        !      ilut      - Bit representation (only used with HPHF
-        ! Ret: diagH     - The diagonal matrix element
-        implicit none
-        integer, intent(in) :: nI(nel)
-        integer(n_int), intent(in) :: ilut(0:NIfTot)
-        real(dp) :: diagH
-
-        if (tHPHF) then
-            diagH = hphf_diag_helement(nI, ilut)
-        else
-            diagH = get_helement(nI, nI, 0)
-        end if
-
-    end function get_diagonal_matel
-
     subroutine CalcHashTableStats(TotWalkersNew, iter_data)
 
-        use DetBitOps, only: FindBitExcitLevel
-        use hphf_integrals, only: hphf_off_diag_helement
-        use FciMCData, only: ProjEDet, CurrentDets, n_prone_dets
+        use FciMCData, only: CurrentDets, n_prone_dets
         use LoggingData, only: FCIMCDebug
         use bit_rep_data, only: IlutBits
 
@@ -646,9 +639,9 @@ contains
         integer :: i, j, AnnihilatedDet, lbnd, ubnd, part_type
         real(dp) :: CurrentSign(lenof_sign)
         real(dp) :: pRemove, r
-        integer :: nI(nel), run, ic
+        integer :: nI(nel), run
         logical :: tIsStateDeterm
-        real(dp) :: hij, scaledOccupiedThresh
+        real(dp) :: scaledOccupiedThresh
         character(*), parameter :: t_r = 'CalcHashTableStats'
 
         if (.not. bNodeRoot) return
@@ -762,23 +755,23 @@ contains
         end if
 
         IFDEBUGTHEN(FCIMCDebug, 6)
-        write(6, *) "After annihilation: "
-        write(6, *) "TotWalkersNew: ", TotWalkersNew
-        write(6, *) "AnnihilatedDet: ", AnnihilatedDet
-        write(6, *) "HolesInList: ", HolesInList
-        write(iout, "(A,I12)") "Walker list length: ", TotWalkersNew
-        write(iout, "(A)") "TW: Walker  Det"
-        do j = 1, int(TotWalkersNew, sizeof_int)
-            CurrentSign = &
-                transfer(CurrentDets(IlutBits%ind_pop:IlutBits%ind_pop + lenof_sign - 1, j), &
-                         CurrentSign)
-            write(iout, "(A,I10,a)", advance='no') 'TW:', j, '['
-            do part_type = 1, lenof_sign
-                write(iout, "(f16.3)", advance='no') CurrentSign(part_type)
+            write(6, *) "After annihilation: "
+            write(6, *) "TotWalkersNew: ", TotWalkersNew
+            write(6, *) "AnnihilatedDet: ", AnnihilatedDet
+            write(6, *) "HolesInList: ", HolesInList
+            write(stdout, "(A,I12)") "Walker list length: ", TotWalkersNew
+            write(stdout, "(A)") "TW: Walker  Det"
+            do j = 1, int(TotWalkersNew, sizeof_int)
+                CurrentSign = &
+                    transfer(CurrentDets(IlutBits%ind_pop:IlutBits%ind_pop + lenof_sign - 1, j), &
+                             CurrentSign)
+                write(stdout, "(A,I10,a)", advance='no') 'TW:', j, '['
+                do part_type = 1, lenof_sign
+                    write(stdout, "(f16.3)", advance='no') CurrentSign(part_type)
+                end do
+                call WriteBitDet(stdout, CurrentDets(:, j), .true.)
+                call neci_flush(stdout)
             end do
-            call WriteBitDet(iout, CurrentDets(:, j), .true.)
-            call neci_flush(iout)
-        end do
         ENDIFDEBUG
 
         ! RT_M_Merge: i have to ask werner why this check makes sense
@@ -799,9 +792,10 @@ contains
         implicit none
         real(dp), intent(in) :: CurrentSign(lenof_sign)
         logical, intent(in) :: tIsStateDeterm
+
+#ifdef CMPLX_
         integer :: run
 
-#if defined(CMPLX_)
         do run = 1, inum_runs
             norm_psi_squared(run) = norm_psi_squared(run) + sum(CurrentSign(min_part_type(run):max_part_type(run))**2)
             if (tIsStateDeterm) then

@@ -7,7 +7,7 @@ module kMatProjE
     use UMatCache, only: gtID
     use FciMCData, only: all_sum_proje_denominator
     use shared_memory_mpi, only: shared_allocate_mpi, shared_deallocate_mpi
-    use ParallelHelper, only: iProcIndex_intra
+    use MPI_wrapper, only: iProcIndex_intra
     use Parallel_neci
     use LoggingData, only: tLogKMatProjE
 
@@ -237,7 +237,7 @@ contains
             end do
 
             tmp = sum(kMatProjEContrib) / sum(all_sum_proje_denominator)
-            write(iout, *) "Total transcorrelated 2-Body correlation energy", tmp
+            write(stdout, *) "Total transcorrelated 2-Body correlation energy", tmp
         else
             call MPI_Reduce(kMatProjEContrib, kMatProjEContrib, kMatSize, MPI_DOUBLE_PRECISION, &
                             root, MPI_SUM, MPI_COMM_WORLD, ierror)

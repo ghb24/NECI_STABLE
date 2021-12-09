@@ -33,7 +33,7 @@ contains
         integer i, a, b
         character(*), parameter :: this_routine = "readLMatFactors"
 #ifdef USE_HDF5_
-        write(iout, *) "**************** Reading TcFactors File ****************"
+        write(stdout, *) "**************** Reading TcFactors File ****************"
         call h5open_f(err)
 
         ! open the file
@@ -42,10 +42,10 @@ contains
         call h5gopen_f(file_id, nm_grp, grp_id, err)
 
         call read_int64_attribute(grp_id, nm_nBasis, nBasis, required=.true.)
-        write(iout, *) "Number of basis function: ", nBasis
+        write(stdout, *) "Number of basis function: ", nBasis
 
         call read_int64_attribute(grp_id, nm_nGrid, nGrid, required=.true.)
-        write(iout, *) "Number of grid points: ", nGrid
+        write(stdout, *) "Number of grid points: ", nGrid
 
         ! load weights
         allocate(weights(nGrid))
@@ -100,8 +100,8 @@ contains
         lMatIndMax = lMatIndSym(nBasis, nBasis, nBasis, nBasis, nBasis, nBasis)
         lMatCalcHSize = lMatCalcHFactor * lMatIndMax
 
-        write(iout, *) "Total Size of LMat: ", lMatIndMax
-        write(iout, *) "Size of LMatCalc Hash Table: ", lMatCalcHSize
+        write(stdout, *) "Total Size of LMat: ", lMatIndMax
+        write(stdout, *) "Size of LMatCalc Hash Table: ", lMatCalcHSize
 
         allocate(lMatCalcHKeys(lMatCalcHSize))
         allocate(lMatCalcHVals(lMatCalcHSize))
@@ -112,7 +112,7 @@ contains
         lMatCalcTot = 0
         lMatCalcHUsed = 0
 
-        write(iout, *) "********************************************************"
+        write(stdout, *) "********************************************************"
 #else
         call stop_all(this_routine, 'HDF5 support not enabled at compile time')
         unused_var(filename)

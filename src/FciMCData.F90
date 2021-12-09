@@ -1,7 +1,6 @@
 #include "macros.h"
 
 MODULE FciMCData
-    use iso_c_hack
     use SystemData, only: BasisFN
     use constants
     use SymExcitDataMod, only: excit_gen_store_type
@@ -668,5 +667,8 @@ MODULE FciMCData
     ! Potentially evolve some replicas with the adjoint hamiltonian (only makes
     ! sense for non-hermitian operator)
     logical :: t_adjoint_replicas = .false.
+
+    ! Stores the reference weight of the last run
+    real(dp) :: fciqmc_run_ref_weight
 
 end module FciMCData

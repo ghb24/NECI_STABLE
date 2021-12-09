@@ -199,8 +199,7 @@ contains
                               fill_rdm_iter         = 35, &
                               diag_one_rdm          = 36, &
                               frequency_cutoff      = 37, & !for the histogram integration
-                              prepare_real_time     = 38, &
-                              time                  = 39
+                              time                  = 38
 
         integer, parameter :: last_item = time
         integer, parameter :: max_item_len = 30
@@ -233,7 +232,6 @@ contains
                                    "not_option                   ", &
                                    "not_option                   ", &
                                    "changeref                    ", &
-                                   "not_option                   ", &
                                    "not_option                   ", &
                                    "not_option                   ", &
                                    "not_option                   ", &
@@ -283,7 +281,6 @@ contains
                                    "fillrdmiter                  ", &
                                    "diagflyonerdm                ", &
                                    "frequency-cutoff             ", &
-                                   "prepare_real_time            ", &
                                    "time                         "/)
 
         ! Logical(4) datatypes for compilation with builds of openmpi that don't
@@ -480,7 +477,7 @@ contains
             ! Write POPS file
             if (opts_selected(writepops)) then
                 tWritePopsFound = .true.
-                write(6,*) 'Asked to write out a popsfile on iteration: ',iter
+                write(stdout,*) 'Asked to write out a popsfile on iteration: ',iter
             endif
 
             ! Enter variable shift mode
@@ -492,7 +489,7 @@ contains
                     else
                         tSinglePartPhase(run) = .false.
                         VaryShiftIter(run) = iter
-                        write(6,*) 'Request to vary the shift detected on a node on iteration: ',iter
+                        write(stdout,*) 'Request to vary the shift detected on a node on iteration: ',iter
 
                         ! If specified, jump the value of the shift to that
                         ! predicted by the projected energy
@@ -521,14 +518,14 @@ contains
             ! Change Tau
             if (opts_selected(tau)) then
                 call MPIBCast (tau_value, tSource)
-                write(6,*) 'TAU changed to: ', tau_value, 'on iteration: ', iter
+                write(stdout,*) 'TAU changed to: ', tau_value, 'on iteration: ', iter
                 if (tSearchTau) then
-                    write(6,*) "Ceasing the searching for tau."
+                    write(stdout,*) "Ceasing the searching for tau."
                     tSearchTau = .false.
                 endif
                 ! also use that CHANGEVARS option to stop the new tau-search
                 if (t_hist_tau_search) then
-                    write(6,*) "Ceasing new tau-search!"
+                    write(stdout,*) "Ceasing new tau-search!"
                     t_hist_tau_search = .false.
                     ! i could also use that option to stop the histogramming
                     ! of the H_ij/pgen ratios.. since i do not need it anymore
@@ -539,32 +536,32 @@ contains
 
             if(opts_selected(targetgrowrate)) then
                 call MPIBCast(target_grow_rate, tSource)
-                write(6,*) "TARGETGROWRATE changed to: ",target_grow_rate, "on iteration: ",iter
+                write(stdout,*) "TARGETGROWRATE changed to: ",target_grow_rate, "on iteration: ",iter
             endif
 
             ! Change the shift value
             if (opts_selected(diagshift)) then
                 call MPIBCast (DiagSft, tSource)
-                write(6,*) 'DIAGSHIFT changed to: ', DiagSft, 'on iteration: ',iter
+                write(stdout,*) 'DIAGSHIFT changed to: ', DiagSft, 'on iteration: ',iter
             endif
 
             ! Change the shift damping parameter
             if (opts_selected(shiftdamp)) then
                 call MPIBCast (SftDamp, tSource)
-                write(6,*) 'SHIFTDAMP changed to: ', SftDamp, 'on iteration: ',iter
+                write(stdout,*) 'SHIFTDAMP changed to: ', SftDamp, 'on iteration: ',iter
             endif
 
             ! Change the shift update (and output) interval
             if (opts_selected(stepsshift)) then
                 call MPIBCast (StepsSft, tSource)
-                write(6,*) 'STEPSSHIFT changed to: ', StepsSft, 'on iteration: ',iter
+                write(stdout,*) 'STEPSSHIFT changed to: ', StepsSft, 'on iteration: ',iter
             endif
 
             ! Change the singles bias
             if (opts_selected(singlesbias)) then
                 call MPIBcast (SinglesBias_value, tSource)
                 tSingBiasChange = .true.
-                write(6,*) 'SINGLESBIAS changed to: ', SinglesBias, 'on iteration: ',iter
+                write(stdout,*) 'SINGLESBIAS changed to: ', SinglesBias, 'on iteration: ',iter
             endif
 
             ! Zero the average energy estimators
@@ -573,7 +570,7 @@ contains
                 SumNoatHF = 0
                 VaryShiftCycles = 0
                 SumDiagSft = 0
-                write(6,*) 'Zeroing all average energy estimators on iteration: ',iter
+                write(stdout,*) 'Zeroing all average energy estimators on iteration: ',iter
             endif
 
             ! Zero average histograms
@@ -588,14 +585,14 @@ contains
                 call MPIBCast (NPartFrozen, tSource)
                 call MPIBcast (NHolesFrozen, tSource)
 
-                write(6,*) 'Allowing ', nHolesFrozen, ' holes in ', &
+                write(stdout,*) 'Allowing ', nHolesFrozen, ' holes in ', &
                            nPartFrozen, ' partially frozen orbitals on iteration: ',iter
 
                 if (nHolesFrozen == nPartFrozen) then
                     ! Allowing as many holes as there are orbitals
                     !  --> equivalent to not freezing at all.
                     tPartFreezeCore = .false.
-                    write(6,*) 'Unfreezing any partially frozen core on iteration: ',iter
+                    write(stdout,*) 'Unfreezing any partially frozen core on iteration: ',iter
                 else
                     tPartFreezeCore = .true.
                 endif
@@ -605,14 +602,14 @@ contains
                 call MPIBcast (nVirtPartFrozen, tSource)
                 call MPIBcast (nelVirtFrozen, tSource)
 
-                write(6,*) 'Allowing ', nelVirtFrozen, ' electrons in ', &
+                write(stdout,*) 'Allowing ', nelVirtFrozen, ' electrons in ', &
                            nVirtPartFrozen, ' partially frozen virtual &
                           &orbitals on iteration: ',iter
                 if (nelVirtFrozen == nel) then
                     ! Allowing as many holes as there are orbitals
                     ! --> Equivalent ton not freezing at all
                     tPartFreezeVirt = .false.
-                    write(6,*) 'Unfreezing any partially frozen virtual &
+                    write(stdout,*) 'Unfreezing any partially frozen virtual &
                                &orbitals on iteration: ',iter
                 else
                     tPartFreezeVirt = .true.
@@ -637,14 +634,14 @@ contains
 
             ! Restart error blocking
             if (opts_selected(restarterrorblocking)) then
-                write(6,*) 'Restarting the error calculations. All blocking &
+                write(stdout,*) 'Restarting the error calculations. All blocking &
                            &arrays are re-set to zero on iteration: ',iter
                 if (iProcIndex == 0) call RestartBlocking (iter)
             endif
 
             ! Print shift blocking analysis here
             if (opts_selected(printshiftblocking)) then
-                write(6,*) 'Printing shift error blocking on iteration: ',iter
+                write(stdout,*) 'Printing shift error blocking on iteration: ',iter
                 if (iProcIndex == 0) call PrintShiftBlocking_proc (iter)
             endif
 
@@ -726,7 +723,7 @@ contains
             ! Print the determinants with the largest +- populations
             if (opts_selected(printhighpopdet)) then
                 tPrintHighPop = .true.
-                write(6,*) 'Request to print the determinants with the &
+                write(stdout,*) 'Request to print the determinants with the &
                            &largest populations detected on iteration: ',iter
             endif
 
@@ -736,7 +733,7 @@ contains
                 tCheckHighestPop = .true.
                 tChangeProjEDet = .true.
                 FracLargerDet = 1.0
-                write(6,*) 'Changing the reference determinant to the most &
+                write(stdout,*) 'Changing the reference determinant to the most &
                            &highly weighted determinant on iteration: ',iter
             endif
 
@@ -777,7 +774,7 @@ contains
             ! varyshift according to reference population
             if (opts_selected(refshift)) then
                 tShiftonHFPop = .true.
-                write(6,*) 'Request to change default shift action to REFSHIFT &
+                write(stdout,*) 'Request to change default shift action to REFSHIFT &
                 &detected on a node on iteration: ',iter
             endif
 

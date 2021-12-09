@@ -40,6 +40,11 @@ module OneEInts
     HElement_t(dp), dimension(:), POINTER :: TMATSYM2
     HElement_t(dp), dimension(:, :), POINTER :: TMAT2D2
 
+! One electron integrals corresponding to the external fields. These fields 
+! are applied during the imaginary time propagation in FCIQMC
+HElement_t(dp), dimension(:,:,:), pointer :: OneEFieldInts
+real(dp), dimension(:), pointer :: FieldCore
+
 ! One electron integrals corresponding to properties that would be estimated
 ! using 1 body RDM
     HElement_t(dp), dimension(:, :, :), pointer :: OneEPropInts
@@ -47,6 +52,9 @@ module OneEInts
 
 ! A second pointer to get the integrals after freezing orbitals
     HElement_t(dp), dimension(:, :, :), pointer :: OneEPropInts2
+
+! A second pointer to get the field integrals after freezing orbitals
+HElement_t(dp), dimension(:,:,:), pointer :: OneEFieldInts2
 
 ! True if using TMatSym in CPMD (currently only if using k-points, which form
 ! an Abelian group).
@@ -61,7 +69,10 @@ module OneEInts
     integer(TagIntType) :: tagTMATSYM = 0, tagTMATSYM2 = 0
     integer(TagIntType) :: tagOneEPropInts = 0
     integer(TagIntType) :: tagOneEPropInts2 = 0
+    integer(TagIntType) :: tagOneEFieldInts = 0
+    integer(TagIntType) :: tagOneEFieldInts2 = 0
     integer(TagIntType) :: tagPropCore = 0
+    integer(TagIntType) :: tagFieldCore = 0
 
 contains
 
@@ -467,6 +478,47 @@ contains
 
     END SUBROUTINE SetupTMAT
 
+    subroutine SetupFieldInts(nBasis, nFlds)
+ 
+      use HElem, only: HElement_t_size
+      use MemoryManager, only: LogMemalloc
+ 
+      implicit none
+      integer, intent(in) :: nBasis, nFlds
+      integer :: ierr,iSize
+      character(*),parameter :: t_r = 'SetupFieldInts'
+ 
+      ! Using a square array to hold <i|h|j> (incl. elements which are
+      ! zero by symmetry).
+      Allocate(OneEFieldInts(nBasis,nBasis,nFlds),STAT=ierr)
+      iSize = NBasis*NBasis*nFlds
+      call LogMemAlloc('OneEFieldInts',nBasis*nBasis*nFlds,HElement_t_size*8,t_r,tagOneEFieldInts)
+      OneEFieldInts = (0.0_dp)
+      Allocate(FieldCore(nFlds),STAT=ierr)
+      call LogMemAlloc('FieldCore',nFlds,dp,t_r,tagFieldCore)
+      FieldCore = 0.0d0
+ 
+    end subroutine SetupFieldInts
+
+    subroutine SetupFieldInts2(nBasis, nFlds)
+ 
+      use HElem, only: HElement_t_size
+      use MemoryManager, only: LogMemalloc
+ 
+      implicit none
+      integer, intent(in) :: nBasis, nFlds
+      integer :: ierr,iSize
+      character(*),parameter :: t_r = 'SetupFieldInts2'
+ 
+      ! Using a square array to hold <i|h|j> (incl. elements which are
+      ! zero by symmetry).
+      Allocate(OneEFieldInts2(nBasis,nBasis,nFlds),STAT=ierr)
+      iSize = NBasis*NBasis*nFlds
+      call LogMemAlloc('OneEFieldInts2',nBasis*nBasis*nFlds,HElement_t_size*8,t_r,tagOneEFieldInts2)
+      OneEFieldInts2 = (0.0_dp)
+ 
+    end subroutine SetupFieldInts2
+
     subroutine SetupPropInts(nBasis)
         implicit none
         integer, intent(in) :: nBasis
@@ -560,7 +612,7 @@ contains
                         SYMLABELCOUNTSCUM2(i) = SYMLABELCOUNTSCUM2(i) + SYMLABELCOUNTS(2, t)
                     end do
                 end if
-!                write(6,*) basirrep,SYMLABELINTSCUM(i),SYMLABELCOUNTSCUM(i)
+!                write(stdout,*) basirrep,SYMLABELINTSCUM(i),SYMLABELCOUNTSCUM(i)
 !                call neci_flush(6)
                 ! JSS: Label states of symmetry i by the order in which they come.
                 nStateIrrep = 0
@@ -690,4 +742,51 @@ contains
 
     END SUBROUTINE SwapOneEPropInts
 
+    SUBROUTINE SwapOneEFieldInts(nBasisFrz,iNum)
+ 
+      ! IN: iNum is the number of perturbation operator used in the calculation
+      ! During freezing, we need to know the OneEFieldInts arrays both pre- and
+      ! post-freezing.  Once freezing is done, clear all the pre-freezing
+      ! arrays and point them to the post-freezing arrays, so the code
+      ! referencing pre-freezing arrays can be used post-freezing.
+      use MemoryManager, only: LogMemDealloc, LogMemAlloc
+      use HElem, only: HElement_t_size
+      implicit none
+      integer, intent(in) :: nBasisFrz,iNum
+      integer :: iSize, ierr
+      character(*),parameter :: t_r = 'SwapOneEFieldInts'
+
+      Deallocate(OneEFieldInts)
+      call LogMemDealloc(t_r,tagOneEFieldInts)
+      NULLIFY(OneEFieldInts)
+
+      Allocate(OneEFieldInts(nBasisFrz,nBasisFrz,iNum),STAT=ierr)
+      iSize = nBasisFrz*nBasisFrz*iNum
+      call LogMemAlloc('OneEFieldInts',iSize,HElement_t_size*8,t_r,tagOneEFieldInts)
+
+      OneEFieldInts => OneEFieldInts2
+      write(72,*) 'Swaped the integrals'
+
+      NULLIFY(OneEFieldInts2)
+ 
+    END SUBROUTINE SwapOneEFieldInts
+
+    subroutine UpdateOneEInts(nBasis, nFields)
+
+      use CalcData,  only: FieldStrength_it
+      integer, intent(in) :: nBasis, nFields
+      integer :: i, j, iField
+      HElement_t(dp) :: MatTemp
+      
+      do i = 1, nBasis
+        do j = i, nBasis
+          MatTemp = TMAT2D(i,j) 
+          do iField = 1, nFields
+            MatTemp = MatTemp + FieldStrength_it(iField)*OneEFieldInts(i,j,iField)
+          end do
+          TMAT2D(i,j) = MatTemp
+        enddo
+      enddo
+
+    end subroutine UpdateOneEInts
 end module OneEInts

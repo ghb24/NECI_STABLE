@@ -12,15 +12,6 @@ module neci_intfce
             LOGICAL TSETUP
             INTEGER ILEVEL
         END SUBROUTINE GENSYMEXCITIT2
-        SUBROUTINE GENRANDSYMEXCITIT2(NI, NEL, NMEM, NJ, ISEED, ICOUNT, PGEN)
-            use constants, only: dp
-            IMPLICIT NONE
-            INTEGER NEL, NI(NEL)
-            INTEGER, target :: NMEM(*)
-            integer NJ(NEL), ICOUNT
-            INTEGER ISEED
-            real(dp) PGEN
-        END SUBROUTINE GENRANDSYMEXCITIT2
         SUBROUTINE GENSYMEXCITIT3Par(NI, TSETUP, NMEM, NJ, IC, STORE, ILEVEL, iMinElec1, iMaxElec1)
             use SystemData, only: nEl
             IMPLICIT NONE

@@ -17,7 +17,7 @@ module unit_test_helper_excitgen
     use OneEInts, only: Tmat2D
     use bit_rep_data, only: NIfTot, nifd, extract_sign
     use bit_reps, only: encode_sign, decode_bit_det
-    use DetBitOps, only: EncodeBitDet, DetBitEq
+    use DetBitOps, only: EncodeBitDet, DetBitEq, GetBitExcitation
     use SymExcit3, only: countExcitations3, GenExcitations3
     use FciMCData, only: pSingles, pDoubles, pParallel, ilutRef, projEDet, &
                          fcimc_excit_gen_store
@@ -25,7 +25,7 @@ module unit_test_helper_excitgen
     use GenRandSymExcitNUMod, only: init_excit_gen_store, construct_class_counts
     use Calc, only: CalcInit, CalcCleanup, SetCalcDefaults
     use dSFMT_interface, only: dSFMT_init, genrand_real2_dSFMT
-    use Determinants, only: DetInit, DetPreFreezeInit, get_helement
+    use Determinants, only: DetInit, DetPreFreezeInit, get_helement, DefDet, tDefineDet
     use util_mod, only: get_free_unit
     use orb_idx_mod, only: SpinProj_t
     implicit none
@@ -77,7 +77,6 @@ contains
         ! We thus make sure that
         !   a) all possible excitations are generated with some weight
         !   b) no invalid excitations are obtained
-        implicit none
         integer, intent(in) :: sampleSize
         real(dp), intent(out) :: pTot, pNull
         integer, intent(out) :: numEx, nFound
@@ -96,10 +95,12 @@ contains
         logical :: exDoneSingle(0:nBasis, 0:nBasis)
         integer :: ic, part, nullExcits
         integer :: ClassCountOcc(scratchSize), ClassCountUnocc(scratchSize)
+        integer(int64) :: start, finish, rate
         character(*), parameter :: t_r = "test_excitation_generator"
         HElement_t(dp) :: HEl
         exDoneDouble = .false.
         exDoneSingle = .false.
+        call system_clock(count_rate=rate)
 
         ! some starting det - do NOT use the reference for the pcpp test, that would
         ! defeat the purpose
@@ -126,7 +127,7 @@ contains
         numEx = 0
         tAllExFound = .false.
         do
-            call GenExcitations3(nI, ilut, nJ, exflag, ex, tPar, tAllExFound, .false.)
+            call GenExcitations3(nI, ilut, nJ, exflag, ex(:,1:2), tPar, tAllExFound, .false.)
             if (tAllExFound) exit
             call encodeBitDet(nJ, ilutJ)
             numEx = numEx + 1
@@ -134,8 +135,8 @@ contains
         end do
         call sort(nI)
 
-        write(iout, *) "In total", numEx, "excits, (", nSingles, nDoubles, ")"
-        write(iout, *) "Exciting from", nI
+        write(stdout, *) "In total", numEx, "excits, (", nSingles, nDoubles, ")"
+        write(stdout, *) "Exciting from", nI
 
         call EncodeBitDet(nI, ilut)
 
@@ -145,6 +146,7 @@ contains
         pDoubles = 0.9_dp
         pNull = 0.0_dp
         nullExcits = 0
+        call system_clock(start)
         do i = 1, sampleSize
             fcimc_excit_gen_store%tFilled = .false.
             call generate_excitation(nI, ilut, nJ, ilutJ, exFlag, ic, ex, tPar, pgen, HEl, fcimc_excit_gen_store, part)
@@ -164,7 +166,7 @@ contains
             ! an excitaion
             if (.not. tFound .and. .not. nJ(1) == 0) then
                 call decode_bit_det(nJ, ilutJ)
-                write(iout, *) "Created excitation", nJ
+                write(stdout, *) "Created excitation", nJ
                 call stop_all(t_r, "Error: Invalid excitation")
             end if
             ! check if the generated excitation is invalid, if it is, mark this specific constellation
@@ -184,6 +186,7 @@ contains
                 end if
             end if
         end do
+        call system_clock(finish)
 
         ! check that all excits have been generated and all pGens are right
         ! probability normalization
@@ -202,7 +205,7 @@ contains
             matel = get_helement(nI, nJ)
             if (pgenArr(1) > eps) then
                 nFound = nFound + 1
-                write(iout, *) i, pgenArr(1), real(allEx(NIfTot + 1, i)) / real(sampleSize), &
+                write(stdout, *) i, pgenArr(1), real(allEx(NIfTot + 1, i)) / real(sampleSize), &
                     abs(matel) / (pgenArr(1) * matelN)
                 ! compare the stored pgen to the directly computed one
                 if (t_calc_pgen) then
@@ -215,8 +218,8 @@ contains
                     call getBitExcitation(ilut, allEx(:, i), ex, tPar)
                     pgenCalc = calc_pgen(nI, ilut, ex, ic, ClassCountOcc, ClassCountUnocc)
                     if (abs(pgenArr(1) - pgenCalc) > eps) then
-                        write(iout, *) "Stored: ", pgenArr(1), "calculated:", pgenCalc
-                        write(iout, *) "For excit", nJ
+                        write(stdout, *) "Stored: ", pgenArr(1), "calculated:", pgenCalc
+                        write(stdout, *) "For excit", nJ
                         call stop_all(t_r, "Incorrect pgen")
                     end if
                 end if
@@ -225,29 +228,31 @@ contains
                 if (abs(matel) < eps) then
                     nFound = nFound + 1
                 else if (i < nSingles) then
-                    write(iout, *) "Unfound single excitation", nJ
+                    write(stdout, *) "Unfound single excitation", nJ
                 else
-                    write(iout, *) "Unfound double excitation", nJ, matel
+                    write(stdout, *) "Unfound double excitation", nJ, matel
                 end if
             end if
             pTot = pTot + pgenArr(1)
         end do
-        write(iout, *) "Total prob. ", pTot
-        write(iout, *) "pNull ", pNull
-        write(iout, *) "Null ratio", nullExcits / real(sampleSize)
-        write(iout, *) "In total", numEx, "excitations"
-        write(iout, *) "With", nSingles, "single excitation"
-        write(iout, *) "Found", nFound, "excitations"
+        write(stdout, *) "Total prob. ", pTot
+        write(stdout, *) "pNull ", pNull
+        write(stdout, *) "Null ratio", nullExcits / real(sampleSize)
+        write(stdout, *) "In total", numEx, "excitations"
+        write(stdout, *) "With", nSingles, "single excitation"
+        write(stdout, *) "Found", nFound, "excitations"
+        write(stdout, *) 'Elapsed Time in seconds:', dble(finish - start) / dble(rate)
+        write(stdout, *) 'Elapsed Time in micro seconds per excitation:', dble(finish - start) * 1e6_dp / dble(sampleSize* rate)
 
     end subroutine test_excitation_generator
 
     !------------------------------------------------------------------------------------------!
 
-    subroutine init_excitgen_test(n_el, fcidump_writer)
+    subroutine init_excitgen_test(ref_det, fcidump_writer)
         ! mimick the initialization of an FCIQMC calculation to the point where we can generate
         ! excitations with a weighted excitgen
         ! This requires setup of the basis, the symmetries and the integrals
-        integer, intent(in) :: n_el
+        integer, intent(in) :: ref_det(:)
         type(FciDumpWriter_t), intent(in) :: fcidump_writer
         integer :: nBasisMax(5, 3), lms
         integer(int64) :: umatsize
@@ -256,7 +261,7 @@ contains
         integer, parameter :: seed = 25
 
         umatsize = 0
-        nel = n_el
+        nel = size(ref_det)
 
         IlutBits%len_orb = 0
         IlutBits%ind_pop = 1
@@ -290,6 +295,7 @@ contains
 
         call shared_allocate_mpi(umat_win, umat, [umatsize])
 
+        UMat = h_cast(0._dp)
         call readfciint(UMat, umat_win, nBasis, ecore, .false.)
 
         ! init the umat2d storage
@@ -301,6 +307,8 @@ contains
         call DetInit()
         ! call SpinOrbSymSetup()
 
+        tDefineDet = .true.
+        DefDet = ref_det
         call DetPreFreezeInit()
 
         call CalcInit()
@@ -420,12 +428,12 @@ contains
     ! set the reference to the determinant with the first nel orbitals occupied
     subroutine set_ref()
         integer :: i
-        projEDet = reshape([(i + 2, i = 1, nel)], [nel, 1])
 
+        projEDet = reshape([(i + 2, i = 1, nel)], [nel, 1])
         if (allocated(ilutRef)) deallocate(ilutRef)
         allocate(ilutRef(0:NifTot, 1))
         call encodeBitDet(projEDet(:, 1), ilutRef(:, 1))
-    end subroutine set_ref
+    end subroutine
 
     subroutine free_ref()
         deallocate(ilutRef)
