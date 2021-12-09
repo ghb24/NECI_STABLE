@@ -1,0 +1,46 @@
+title
+
+system hubbard k-space
+2-body-transcorr 0.1
+lattice chain 6 1
+b -1
+u  1
+electrons 6
+adjoint-replicas
+system-replicas 4
+endsys
+
+calc
+methods
+method vertex fcimc
+endmethods
+
+
+tau 0.01
+definedet  3 4 5 6 7 8
+
+totalwalkers   500
+
+truncinitiator
+addtoinitiator 3.
+allrealcoeff
+
+startsinglepart 10
+shiftdamp 0.1
+stepsshift 10
+time 5400
+seed 1
+load-balance-blocks off
+nmcyc 6000
+
+endcalc
+
+logging
+highlypopwrite 100
+binarypops
+calcrdmonfly 3 100 100
+transition-rdms 1
+1 2
+replica-estimates
+endlog
+end

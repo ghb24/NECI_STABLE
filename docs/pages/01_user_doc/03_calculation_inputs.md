@@ -384,6 +384,13 @@ considered. The block starts with the `system` keyword and ends with the
     account 3-body interactions for all other purposes.
 
 
+-   **evolve-adjoint**<br>
+    For multiple replicas (mneci, system-replicas >=2) or a dneci run,
+    evolves the left eigenvector for the even replicas, while still
+    evolving the right eigenvector for the odd replicas.
+    This gives access to stochastically independent \(|Psi_{R}>\) and
+    \(\Psi_{L}\) in the same simulation, for RDM calculation e.g.
+
 #### Spin purification
 
 -   **sd-spin-purification \(J\) [truncate-ladder-operator]**<br>
