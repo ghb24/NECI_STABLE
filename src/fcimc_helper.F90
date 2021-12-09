@@ -23,7 +23,7 @@ module fcimc_helper
                         get_initiator_flag, get_initiator_flag_by_run, &
                         log_spawn, increase_spawn_counter, encode_spawn_hdiag, &
                         extract_spawn_hdiag, flag_static_init, flag_determ_parent, &
-                        all_runs_are_initiator
+                        all_runs_are_initiator, writebitdet
 
     use DetBitOps, only: FindBitExcitLevel, FindSpatialBitExcitLevel, &
                          DetBitEQ, count_open_orbs, EncodeBitDet, &
@@ -1065,6 +1065,10 @@ contains
         if ((tHistInitPops .and. mod(iter, histInitPopsIter) == 0) &
             .or. tPrintHighPop) then
             call HistInitPopulations(CurrentSign(1), j)
+            if (t_core_inits) then
+                write(stdout, '(A)') 'Note that core-space determinants are also initiators because core-inits is ON.'
+                write(stdout, '(A)') 'Nevertheless they are not counted in this histogramming.'
+            end if
         end if
 
     end subroutine CalcParentFlag_det

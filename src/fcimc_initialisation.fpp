@@ -50,7 +50,7 @@ module fcimc_initialisation
                         ntrial_ex_calc, tPairedReplicas, tMultiRefShift, tPreCond, &
                         tMultipleInitialStates, initial_states, t_hist_tau_search, &
                         t_previous_hist_tau, t_fill_frequency_hists, t_back_spawn, &
-                        t_trunc_nopen_diff, t_guga_back_spawn, tExpAdaptiveShift, &
+                        t_trunc_nopen_diff, t_guga_back_spawn, &
                         t_back_spawn_option, t_back_spawn_flex_option, &
                         t_back_spawn_flex, back_spawn_delay, ScaleWalkers, tfixedN0, &
                         tReplicaEstimates, tDeathBeforeComms, pSinglesIn, pDoublesIn, pTriplesIn, pParallelIn, &
@@ -59,7 +59,7 @@ module fcimc_initialisation
                         tInitializeCSF, S2Init, tWalkContgrow, tSkipRef, &
                         AAS_Cut, &
                         tInitiatorSpace, i_space_in, tLinearAdaptiveShift, &
-                        tExpAdaptiveShift, tAS_TrialOffset, ShiftOffset, &
+                        tAS_TrialOffset, ShiftOffset, &
                         tSpinProject
 
     use adi_data, only: tReferenceChanged, tAdiActive, nExChecks, nExCheckFails, &
@@ -100,7 +100,7 @@ module fcimc_initialisation
     use bit_reps, only: encode_det, clear_all_flags, set_flag, encode_sign, &
                         decode_bit_det, nullify_ilut, encode_part_sign, &
                         extract_run_sign, tBuildSpinSepLists, nifguga, &
-                        get_initiator_flag, &
+                        get_initiator_flag, writebitdet, &
                         get_initiator_flag_by_run
     use hist_data, only: tHistSpawn, HistMinInd, HistMinInd2, Histogram, &
                          BeforeNormHist, InstHist, iNoBins, AllInstHist, &
@@ -118,7 +118,7 @@ module fcimc_initialisation
                                   get_spawn_helement, encode_child, &
                                   attempt_die, extract_bit_rep_avsign, &
                                   fill_rdm_diag_currdet, &
-                                  new_child_stats, get_conn_helement, scaleFunction, &
+                                  get_conn_helement, scaleFunction, &
                                   generate_two_body_excitation, shiftFactorFunction, gen_all_excits
     use symrandexcit3, only: gen_rand_excit3
     use symrandexcit_Ex_Mag, only: gen_rand_excit_Ex_Mag
@@ -146,12 +146,10 @@ module fcimc_initialisation
     use fcimc_pointed_fns, only: att_create_trunc_spawn_enc, &
                                  attempt_create_normal, &
                                  attempt_create_trunc_spawn, &
-                                 new_child_stats_hist_hamil, &
                                  new_child_stats_normal, &
                                  null_encode_child, attempt_die_normal, attempt_die_precond, &
                                  powerScaleFunction, expScaleFunction, negScaleFunction, &
-                                 expCOScaleFunction, &
-                                 expShiftFactorFunction, constShiftFactorFunction, &
+                                 expCOScaleFunction, constShiftFactorFunction, &
                                  linearShiftFactorFunction, autoShiftFactorFunction
 
     use initial_trial_states, only: calc_trial_states_lanczos, &
@@ -229,7 +227,7 @@ module fcimc_initialisation
 
     use back_spawn_excit_gen, only: gen_excit_back_spawn, gen_excit_back_spawn_ueg, &
                                     gen_excit_back_spawn_hubbard, gen_excit_back_spawn_ueg_new
-    use gasci, only: GAS_exc_gen, possible_GAS_exc_gen, GAS_specification, get_name
+
     use gasci_supergroup_index, only: lookup_supergroup_indexer
 
     use cepa_shifts, only: t_cepa_shift, init_cepa_shifts
@@ -2074,9 +2072,6 @@ contains
         end if
         bloom_max = 0
 
-        ! Perform the correct statistics on new child particles
-        new_child_stats => new_child_stats_normal
-
         if (tPreCond) then
             attempt_die => attempt_die_precond
         else
@@ -2100,9 +2095,9 @@ contains
             call stop_all(this_routine, "Invalid scale function specified")
         end select
 
-        if (tExpAdaptiveShift) then
-            shiftFactorFunction => expShiftFactorFunction
-        else if (tLinearAdaptiveShift) then
+        ! if (tExpAdaptiveShift) then
+        !     shiftFactorFunction => expShiftFactorFunction
+        if (tLinearAdaptiveShift) then
             shiftFactorFunction => linearShiftFactorFunction
         else if (tAutoAdaptiveShift) then
             shiftFactorFunction => autoShiftFactorFunction

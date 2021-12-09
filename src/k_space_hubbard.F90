@@ -2343,6 +2343,67 @@ contains
 
     end function get_diag_helement_k_sp_hub
 
+    function get_2_body_diag_transcorr(nI) result(two_body)
+        integer, intent(in) :: nI(nel)
+        HElement_t(dp) :: two_body
+        integer :: i, j, id(nel), idX, idN
+
+        two_body = h_cast(0.0_dp)
+
+        id = get_spatial(nI)
+
+        do i = 1, nel
+            do j = 1, nel
+                if (.not. same_spin(nI(i), nI(j))) then
+
+                    idX = max(id(i), id(j))
+                    idN = min(id(i), id(j))
+
+                    ! now we need 1/2, since we loop over all electrons
+                    two_body = two_body + 0.5_dp * get_umat_kspace(idN, idX, idN, idX)
+
+                    two_body = two_body + epsilon_kvec(G1(nI(i))%Sym) &
+                              * omega * three_body_prefac
+
+                end if
+            end do
+        end do
+
+    end function get_2_body_diag_transcorr
+
+    function get_3_body_diag_transcorr(nI) result(three_body)
+        integer, intent(in) :: nI(nel)
+        HElement_t(dp) :: three_body
+
+        integer :: i, j, k
+        type(symmetry) :: p_sym, k_sym
+
+        three_body = h_cast(0.0_dp)
+
+        do i = 1, nel
+            do j = 1, nel
+                if (.not. same_spin(nI(i), nI(j))) then
+
+                    do k = 1, nel
+
+                        if (j == k) cycle
+
+                        if (same_spin(nI(j), nI(k))) then
+                            p_sym = G1(nI(i))%sym
+                            k_sym = SymTable(G1(nI(j))%sym%s, SymConjTab(G1(nI(k))%sym%s))
+
+                            three_body = three_body - three_body_prefac * ( &
+                                        epsilon_kvec(p_sym) - &
+                                        (epsilon_kvec(SymTable(p_sym%s, k_sym%s))))
+
+                        end if
+                    end do
+                end if
+            end do
+        end do
+
+    end function get_3_body_diag_transcorr
+
     real(dp) function get_j_opt(nI, corr_J)
         ! routine to evaluate Hongjuns J-optimization formulas
         integer, intent(in) :: nI(nel)

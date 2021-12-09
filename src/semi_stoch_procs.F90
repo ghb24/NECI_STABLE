@@ -1176,7 +1176,7 @@ contains
             end if
 
             call reorder_handler%init_gdata_io(tAutoAdaptiveShift, tScaleBlooms, tAccumPopsActive, &
-                                               2 * inum_runs, 1, lenof_sign + 1)
+              2 * inum_runs, 1, lenof_sign + 1)
             ! we need to reorder the adaptive shift data, too
             ! the maximally required buffer size is the current size of the
             ! determinant list plus the size of the semi-stochastic space (in case
@@ -2078,6 +2078,7 @@ contains
 
         do i = 1, rep%determ_space_size
             call decode_bit_det(nI, rep%core_space(:, i))
+
             if (tGUGA) csf_i = CSF_Info_t(rep%core_space(0:nifd, i))
 
             if (tHPHF) then

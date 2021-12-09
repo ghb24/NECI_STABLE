@@ -128,7 +128,7 @@ module CalcData
     LOGICAL :: tTruncCAS ! Truncation of the FCIMC excitation space by a CAS
     logical :: tTruncInitiator, tAddtoInitiator, tInitCoherentRule, tGlobalInitFlag
 ! Are all core-space determinants initiators?
-    logical :: t_core_inits = .false.
+    logical :: t_core_inits = .true.
     logical :: tEN2, tEN2Init, tEN2Truncated, tEN2Started, tEN2Rigorous
 
     LOGICAL :: tSeniorInitiators !If a det. has lived long enough (called a senior det.), it is added to the initiator space.
@@ -168,8 +168,6 @@ module CalcData
     logical :: tAAS_MatEle4 !Same as MatEle2 but use E_0 in the weight of accepted moves.
     real(dp) :: AAS_DenCut !Threshold on the denominators of MatEles
     real(dp) :: AAS_Const
-    logical :: tExpAdaptiveShift !Make the shift depends on the population exponentialy
-    real(dp) :: EAS_Scale !Scale parameter of exponentail adaptive shift
 
     logical :: tAS_Offset !Whether the adaptive shift scheme should be applied with respect to a custom energy instead of ref energy
     real(dp) ShiftOffset(1:inum_runs_max)! Offset of the adaptive shift (Full offset including the reference energy Hii)
@@ -681,4 +679,16 @@ module CalcData
 !Use additional second shift damping factor for improved walker population
 !control.
     logical :: tTargetShiftdamp = .false.
+
+! variables used in running imaginary-time FCIQMC calculations in presence of external field
+logical :: tCalcWithField
+! Total number of external fields
+integer :: nFields_it
+
+! Properties of the Field
+real(dp), allocatable :: FieldStrength_it(:)
+
+! Name of the files from which integrals will be read for each of the external fields
+character(len=100), allocatable :: FieldFiles_it(:)
+
 end module CalcData

@@ -72,6 +72,7 @@ contains
         write(unit_id, '(A)') 'logging'
         write(unit_id, '(A)') '    highlypopwrite 50'
         if (.not. flag_guga_) then
+            write(unit_id, '(A)') '    biased-RDMs'
             write(unit_id, '(A)') '    print-spin-resolved-RDMs'
             write(unit_id, '(A)') '    printonerdm'
             write(unit_id, '(A)') '    calcrdmonfly 3 10 10'

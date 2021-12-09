@@ -424,9 +424,8 @@ contains
                 call geti(NEL)
             case ("SPIN-RESTRICT")
                 if (item < nitems) then
-                    call geti(LMS)
-                else
-                    LMS = 0
+                    allocate(user_input_m_s)
+                    call geti(user_input_m_s)
                 end if
                 TSPN = .true.
 
@@ -611,8 +610,12 @@ contains
             case ("NONHERMITIAN")
                 ! just use a non-hermitian Hamiltonian, no additional tweaks
                 t_non_hermitian = .true.
+                tNoBrillouin = .true.
+                tBrillouinsDefault = .false.
 
             case ('MOLECULAR-TRANSCORR')
+                tNoBrillouin = .true.
+                tBrillouinsDefault = .false.
                 t_non_hermitian = .true.
                 ! optionally supply the three-body integrals of the TC Hamiltonian
                 t_3_body_excits = .true.

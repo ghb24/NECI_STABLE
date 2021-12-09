@@ -23,6 +23,7 @@ calc
 
     semi-stochastic 10
     pops-core 20
+    core-inits OFF
 
     trial-wavefunction 10
     pops-trial 5

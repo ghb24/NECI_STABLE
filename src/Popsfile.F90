@@ -9,7 +9,7 @@ MODULE PopsfileMod
                         ScaleWalkers, tReadPopsRestart, tPopsJumpShift, t_hist_tau_search_option, &
                         InitWalkers, tReadPopsChangeRef, nShiftEquilSteps, &
                         iWeightPopRead, iPopsFileNoRead, Tau, tPopsAlias, &
-                        InitiatorWalkNo, MemoryFacPart, tLetInitialPopDie, &
+                        MemoryFacPart, tLetInitialPopDie, &
                         MemoryFacSpawn, tSemiStochastic, tTrialWavefunction, &
                         pops_norm, tWritePopsNorm, t_keep_tau_fixed, t_hist_tau_search, &
                         t_restart_hist_tau, t_fill_frequency_hists, t_previous_hist_tau, &
