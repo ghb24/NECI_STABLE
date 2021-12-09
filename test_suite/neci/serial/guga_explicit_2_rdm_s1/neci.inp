@@ -40,6 +40,7 @@ time 2700
 endcalc
 
 logging
+biased-RDMs
 printonerdm
 calcrdmonfly          3    100 10
 explicitallrdm

@@ -229,7 +229,7 @@ module fcimc_initialisation
 
     use back_spawn_excit_gen, only: gen_excit_back_spawn, gen_excit_back_spawn_ueg, &
                                     gen_excit_back_spawn_hubbard, gen_excit_back_spawn_ueg_new
-    use gasci, only: GAS_exc_gen, possible_GAS_exc_gen, GAS_specification, get_name
+
     use gasci_supergroup_index, only: lookup_supergroup_indexer
 
     use cepa_shifts, only: t_cepa_shift, init_cepa_shifts
