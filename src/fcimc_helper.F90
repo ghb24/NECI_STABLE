@@ -100,6 +100,8 @@ module fcimc_helper
 
     use pcpp_excitgen, only: update_pcpp_excitgen
 
+    use sparse_arrays, only: t_evolve_adjoint
+
     implicit none
 
     save
@@ -702,7 +704,8 @@ contains
                 else
                     if (t_adjoint_replicas) then
                         do run = 1, inum_runs
-                            if(t_evolve_adjoint(part_type_to_run(run))) then
+!                             if(t_evolve_adjoint(part_type_to_run(run))) then
+                            if(t_evolve_adjoint(run)) then
                                 HOffDiag(run) = &
                                     get_helement(nI, ProjEDet(:,1), ExcitLevel, ilut,  ilutRef(:, 1))
                             else
