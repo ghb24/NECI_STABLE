@@ -898,7 +898,6 @@ SUBROUTINE GenActiveBasis(ARR, nBasis, nEl, nActiveBasis, nDown, nUp)
     I = nEl - 1
     nLeft = nDown
     Do WHILE (nLeft > 0 .AND. I > 0)
-
         DO WHILE (I > 0 .AND. ABS(ARR(I) - ARR(I + 1)) < 1.0e-5_dp)
             I = I - 1
         end do

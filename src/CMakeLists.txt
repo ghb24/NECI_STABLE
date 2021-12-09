@@ -154,13 +154,11 @@ set( SRC_FILES
     symexcit_old.F
     sym.F90
     sym_general.F90
-    symrandexcit1.F
     GenRandSymExcitNUMod.F90
     symrandexcit3.F90
     symrandexcit_Ex_Mag.F90
     excit_gens_int_weighted.F90
     excit_gen_5.F90
-    symrandexcit.F
     symrandexcit_ueg.F90
     SystemData.F90
     System_neci.F90

@@ -1,6 +1,6 @@
       SUBROUTINE NECI_FRSBLKH(M,ICMAX,N,H,LAB,V0,VS,NKRY,NKRY1,
      &    NBLOCK,NROW,LSCR,LISCR,A,W,V,AM,BM,T,WT,SCR,ISCR,INDEX,
-     &    NCYCLE,B2LIMIT,PRINTOUT,TLargest,TSeeded,tDie)
+     &    NCYCLE,B2LIMIT,PRINTOUT,TLargest,tDie)
 !      IMPLICIT real(dp) (A-H,O-Z)
       use constants, only: dp
       IMPLICIT NONE
@@ -9,13 +9,11 @@ C ==    M is NDET : the number of rows in Hamil                     ==
 C ==    ICMAX : the MAX. number of columns in Hamil                 ==
 C ==    N is NEVAL : the number of columns in the wavevector        ==
 C ==    PRINTOUT is a logical testing whether to print results      ==
-C ==    TSeeded if true, means that a seed for RAN2 has been set,   ==
-C ==    and shouldn't be reset.
 C ==    tDie indicates whether STOP should be called if it fails
 C ==    to diagonalise
 C ==----------------------------------------------------------------==
 
-      LOGICAL :: PRINTOUT,TLargest,TSeeded,tDie2,tFail
+      LOGICAL :: PRINTOUT,TLargest,tDie2,tFail
       LOGICAL :: tDie
       integer :: LISCR,ISCR(LISCR),LSCR,NBLOCK,NKRY1,NKRY,N,ICMAX,M
       REAL(dp) :: V0(M,N),VS(M,N),A(N,N),W(N)
@@ -35,7 +33,7 @@ C ==----------------------------------------------------------------==
       tFail=.false.
 
 C..Initialise V0
-      CALL NECI_SETUP_MATRIX(M,N,V0,.FALSE.,TSeeded)
+      CALL NECI_SETUP_MATRIX(M,N,V0,.FALSE.)
       CALL NECI_MGS(M,N,V0,M,A,N,tDie2,tFail)
       if(tFail) then
           W(1) = sqrt(ReturnNan)
@@ -291,32 +289,27 @@ C     ==================================================================
       RETURN
       END
 C =======================================================================
-      SUBROUTINE NECI_SETUP_MATRIX(M,N,A,TSYM,TSeeded)
-!      IMPLICIT real(dp) (A-H,O-Z)
+      SUBROUTINE NECI_SETUP_MATRIX(M,N,A,TSYM)
       use constants, only : dp
+      use dSFMT_interface, only: genrand_real2_dSFMT
       IMPLICIT NONE
 C..M = NDET
 C..N = NEVAL
       integer :: M,N,I,J
-      real(dp) :: A(M,N),RAN2
-      LOGICAL TSYM,TSeeded
+      real(dp) :: A(M,N)
+      LOGICAL TSYM
       integer iseed
-      IF(TSeeded) THEN
-          iseed=0
-      ELSE
-          iseed=1
-      ENDIF
       IF(TSYM) THEN
         DO I=1,N
           DO J=I,M
-            A(J,I)=RAN2(iseed)
-            A(I,J)=A(J,I)
+            A(J,I) = genrand_real2_dSFMT()
+            A(I,J) = A(J,I)
           ENDDO
         ENDDO
       ELSE
         DO I=1,N
           DO J=1,M
-            A(J,I)=RAN2(iseed)
+            A(J,I) = genrand_real2_dSFMT()
           ENDDO
         ENDDO
       ENDIF
