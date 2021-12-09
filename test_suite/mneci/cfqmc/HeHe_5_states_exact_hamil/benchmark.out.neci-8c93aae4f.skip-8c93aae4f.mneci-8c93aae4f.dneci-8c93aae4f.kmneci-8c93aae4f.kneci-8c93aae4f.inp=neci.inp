@@ -1,0 +1,434 @@
+ Number of processors:            2
+ Processor            1 /           2  as head node.
+ Sum:            3
+ Memory Manager initialised with  99999.0 MB
+
+ ================================================================
+ Compiled on Mar 22 2021 at 14:00:16
+ Compiled using configuration:
+     cmake-Intel-par-RELEASE
+ VCS BASE repository version:
+     90dea2ab8685eb99fe2fb0ca47c937da01239b47
+ Working directory: 
+     /home/weser/code/neci/test_suite/mneci/cfqmc/HeHe_5_states_exact_hamil
+ Running on: pcal029.fkf.mpg.de
+ Started running on 22/03/2021 at 15:15:23
+ ================================================================
+
+ Processing arguments
+ neci.inp                                                                       
+                                                                                
+                                                                                
+                   
+ Reading from file: neci.inp
+ Using the default set of defaults.
+
+****************************************************************
+
+title
+
+system read
+nonuniformrandexcits 4ind-weighted
+system-replicas 10
+electrons 4
+spin-restrict 0
+endsys
+
+calc
+lanczos-max-subspace-size 30
+lanczos-energy-precision 6
+lanczos-ritz-overlap-precision 3
+tau 0.005
+totalwalkers 500
+startsinglepart 600
+shiftdamp 0.5
+diagshift 0.0
+stepsshift 10
+memoryfacpart 5.0
+memoryfacspawn 1.0
+allrealcoeff
+realspawncutoff 0.25
+semi-stochastic
+doubles-core
+seed 11
+load-balance-blocks off
+endcalc
+
+kp-fciqmc
+excited-state-kp 5
+doubles-trial
+nreports 25
+num-iters-between-reports 20
+num-repeats-per-init-config 1
+exact-hamil-spawning
+exact-hamil-spawning-frac 0.0
+end-kp-fciqmc
+
+integral
+endint
+
+logging
+popsfile -1
+endlog
+end
+
+****************************************************************
+
+ Allocating each processor as a separate node.
+ I am the node root for node            0
+======== SYSTEM ==========
+  NUMBER OF ELECTRONS :     4
+  Restricting the S_z spin-projection of the system, TSPN :  T
+ S_z quantum number :     0
+  GLOBAL MS :            0
+  *** GENERIC SYSTEM ***  
+  NUMBER OF SPIN ORBITALS IN BASIS :    20
+*** CREATING BASIS FNs FROM FCIDUMP ***
+  Maximum number of symmetries:   8
+  Generating abelian symmetry table with  3 generators
+  Number of symmetry classes: 8
+ 
+Ordering Basis (Closed):    0   0   0   0   0   0   0   0
+Ordering Basis (Open  ):    0   0   0   0   0   0   0   0
+HF determinant not yet defined.
+      1      1      0      0      0     -1 ( 0, 0, 0) 0   0       -0.970328723       -0.970328723
+      2      2      0      0      0      1 ( 0, 0, 0) 0   0       -0.970328723       -0.970328723
+      3      3      0      0      0     -1 ( 0, 0, 5) 5   0       -0.854768836       -0.854768836
+      4      4      0      0      0      1 ( 0, 0, 5) 5   0       -0.854768836       -0.854768836
+      5      5      0      0      0     -1 ( 0, 0, 0) 0   0        1.350805227        1.350805227
+      6      6      0      0      0      1 ( 0, 0, 0) 0   0        1.350805227        1.350805227
+      7      7      0      0      0     -1 ( 0, 0, 5) 5   0        1.506423311        1.506423311
+      8      8      0      0      0      1 ( 0, 0, 5) 5   0        1.506423311        1.506423311
+      9      9      0      0      0     -1 ( 0, 0, 0) 0   0        2.381814370        2.381814370
+     10     10      0      0      0      1 ( 0, 0, 0) 0   0        2.381814370        2.381814370
+     11     11      0      0      0     -1 ( 0, 0, 7) 7   0        2.502347398        2.502347398
+     12     12      0      0      0      1 ( 0, 0, 7) 7   0        2.502347398        2.502347398
+     13     13      0      0      0     -1 ( 0, 0, 6) 6   0        2.502347398        2.502347398
+     14     14      0      0      0      1 ( 0, 0, 6) 6   0        2.502347398        2.502347398
+     15     15      0      0      0     -1 ( 0, 0, 2) 2   0        2.548020639        2.548020639
+     16     16      0      0      0      1 ( 0, 0, 2) 2   0        2.548020639        2.548020639
+     17     17      0      0      0     -1 ( 0, 0, 3) 3   0        2.548020639        2.548020639
+     18     18      0      0      0      1 ( 0, 0, 3) 3   0        2.548020639        2.548020639
+     19     19      0      0      0     -1 ( 0, 0, 5) 5   0        2.840230366        2.840230366
+     20     20      0      0      0      1 ( 0, 0, 5) 5   0        2.840230366        2.840230366
+*** READING PRIMITIVE INTEGRALS FROM FCIDUMP ***
+ UMatSize:                   1540
+Memory required for integral storage:     0.1174926758E-01 Mb/Shared Memory
+Two-electron integrals with a magnitude over    0.1000000E-07 are screened
+ Number of non-zero integrals:                    898
+ ECORE=   1.33333333063330     
+ Setting normal GetUMatEl routine
+ N_alpha:2 ; N_beta:2 ; LMS:0 ; NEl:4
+ Fermi det (D0):(    1,    2,    3,    4)
+ Symmetry:  ( 0, 0, 0) 0
+ Fock operator energy:  -2.31686178784132     
+ Setting normal GetUMatEl routine
+ Calculation supports multiple parallel runs
+ Number of simultaneous walker distributions:           10
+ Number of sign components in bit representation of determinant:           10
+Setting integer length of determinants as bit-strings to:     12
+Setting integer bit-length of determinants as bit-strings to:     64
+ SYMMETRY MULTIPLICATION TABLE
+ No Symmetry table found.
+          21  Symmetry PAIRS
+           8  DISTINCT ORBITAL PAIR PRODUCT SYMS
+ Symmetry and spin of orbitals correctly set up for excitation generators.
+ Simply transferring this into a spin orbital representation.
+ Not storing the H matrix.
+ BETAP=  1.000000000000000E-004
+ RESETTING P 
+ *** WARNING I_P=    10000000
+ BETA, P :   1000.00000000000         10000000
+ <D0|H|D0>=  -5.69708312235797     
+ <D0|T|D0>=  -10.4106369933570     
+ FDet has     2 alpha electrons, and     2 beta electrons.
+                1  alpha-alpha occupied electron pairs
+                1  beta-beta occupied electron pairs
+                4  alpha-beta occupied electron pairs
+               28 alpha-alpha (vacant) hole pairs
+               28 beta-beta (vacant) hole pairs
+               64 alpha-beta (vacant) hole pairs
+ 
+ Performing Parallel FCIQMC....
+ 
+ Generated reference determinants:
+(    1,    2,    3,    4) E =     -5.697083122
+(    1,    2,    3,    4) E =     -5.697083122
+(    1,    2,    3,    4) E =     -5.697083122
+(    1,    2,    3,    4) E =     -5.697083122
+(    1,    2,    3,    4) E =     -5.697083122
+(    1,    2,    3,    4) E =     -5.697083122
+(    1,    2,    3,    4) E =     -5.697083122
+(    1,    2,    3,    4) E =     -5.697083122
+(    1,    2,    3,    4) E =     -5.697083122
+(    1,    2,    3,    4) E =     -5.697083122
+Symmetry of reference determinant is:          0
+Symmetry of reference determinant from spin orbital symmetry info is:          0
+Value for seed is:           11
+Reference Energy set to:        -5.6970831224
+Highest energy determinant is (approximately):      6.24071158603921    
+Corresponding to a correlation energy of:      11.9377947083972    
+This means tau should be no more than about         0.083767565486495
+ Highest energy determinant is:           17          18          19          20
+Brillouin theorem in use for calculation of projected energy.
+ Calculating approximate pDoubles for use with excitation generator by looking a excitations from reference.
+     60 double excitations, and       8 single excitations found from reference. This will be used to calculate pDoubles.
+ pDoubles set to:       0.882353
+ pSingles set to:       0.117647
+Initial Diagonal Shift:         0.0000000000
+ Connectivity of HF determinant is:           68
+Low memory requested for walkers, so increasing memory to 20Mb to avoid memory errors
+Memory allocated for a maximum particle number per node of:         201649
+ Determinant related persistent storage requires:      18.461517 Mb / processor
+Spawning vectors allowing for a total of         2500 particles to be spawned in any one iteration per core.
+ Memory requirement   0.209808349609375      MB
+Storing walkers in hash-table. Algorithm is now formally linear scaling with walker number
+Length of hash-table:             175
+Length of hash-table as a fraction of targetwalkers:              0.70000
+Reference processor is:        0
+Initial reference is: (    1,    2,    3,    4)
+Initial number of particles set to        600 and shift will be held at     0.000 until particle number gets to             500
+ Initial memory (without excitgens + temp arrays) consists of :      18.919281 Mb/Processor
+ Only one array of memory to store main particle list allocated...
+ Initial memory allocation sucessful...
+ =============================================
+
+============ Semi-stochastic initialisation ============
+Generating the deterministic space...
+Total size of deterministic space:       69
+Size of deterministic space on this processor:       43
+Generating the Hamiltonian in the deterministic space...
+Time to create auxiliary arrays:    0.001
+Time to sort auxiliary arrays:    0.000
+Arrays for Hamiltonian successfully allocated...
+Time to create the Hamiltonian:    0.001
+total_time:    0.001
+Using the deterministic ground state as initial walker configuration.
+Performing Davidson calculation...
+ allocating array to hold subspace vectors (0 mb).
+ allocating array to hold multiplied krylov vectors (0 mb).
+ allocating temporary vector (0 mb).
+
+ calculating the initial residual vector... done.
+
+ Iteration    Residual norm            Energy       Time
+         1      0.011049104     -0.0646023926      0.001
+         2      0.001630888     -0.0646311356      0.000
+         3      0.000191041     -0.0646316599      0.000
+         4      0.000020315     -0.0646316670      0.000
+         5      0.000002876     -0.0646316671      0.000
+         6      0.000000510     -0.0646316671      0.000
+         7      0.000000043     -0.0646316671      0.000
+
+ Final calculated energy:    -0.0646316671
+Davidson calculation complete.
+Deterministic subspace correlation energy:   -0.0646316671
+Total time (seconds) taken for Davidson calculation:    0.002
+Semi-stochastic initialisation complete.
+Time (seconds) taken for semi-stochastic initialisation:    0.001
+
+ Setting ref           1
+(    1,    2,    3,    4)
+Changing projected energy reference determinant for run  1 on the next update cycle to: (    1,    2,    3,    4)
+ Symmetry:  ( 0, 0, 0) 0
+ Ensuring that Brillouin's theorem is no longer used.
+Reference energy now set to:     -5.69708312235797    
+ Regenerating the stored diagonal HElements for all walkers.
+Recalculating diagonal elements of the core Hamiltonian.
+ Setting ref           2
+(    1,    2,    3,    4)
+Changing projected energy reference determinant for run  2 on the next update cycle to: (    1,    2,    3,    4)
+ Symmetry:  ( 0, 0, 0) 0
+ Ensuring that Brillouin's theorem is no longer used.
+ Setting ref           3
+(    1,    2,    3,    4)
+Changing projected energy reference determinant for run  3 on the next update cycle to: (    1,    2,    3,    4)
+ Symmetry:  ( 0, 0, 0) 0
+ Ensuring that Brillouin's theorem is no longer used.
+ Setting ref           4
+(    1,    2,    3,    4)
+Changing projected energy reference determinant for run  4 on the next update cycle to: (    1,    2,    3,    4)
+ Symmetry:  ( 0, 0, 0) 0
+ Ensuring that Brillouin's theorem is no longer used.
+ Setting ref           5
+(    1,    2,    3,    4)
+Changing projected energy reference determinant for run  5 on the next update cycle to: (    1,    2,    3,    4)
+ Symmetry:  ( 0, 0, 0) 0
+ Ensuring that Brillouin's theorem is no longer used.
+ Setting ref           6
+(    1,    2,    3,    4)
+Changing projected energy reference determinant for run  6 on the next update cycle to: (    1,    2,    3,    4)
+ Symmetry:  ( 0, 0, 0) 0
+ Ensuring that Brillouin's theorem is no longer used.
+ Setting ref           7
+(    1,    2,    3,    4)
+Changing projected energy reference determinant for run  7 on the next update cycle to: (    1,    2,    3,    4)
+ Symmetry:  ( 0, 0, 0) 0
+ Ensuring that Brillouin's theorem is no longer used.
+ Setting ref           8
+(    1,    2,    3,    4)
+Changing projected energy reference determinant for run  8 on the next update cycle to: (    1,    2,    3,    4)
+ Symmetry:  ( 0, 0, 0) 0
+ Ensuring that Brillouin's theorem is no longer used.
+ Setting ref           9
+(    1,    2,    3,    4)
+Changing projected energy reference determinant for run  9 on the next update cycle to: (    1,    2,    3,    4)
+ Symmetry:  ( 0, 0, 0) 0
+ Ensuring that Brillouin's theorem is no longer used.
+ Setting ref          10
+(    1,    2,    3,    4)
+Changing projected energy reference determinant for run 10 on the next update cycle to: (    1,    2,    3,    4)
+ Symmetry:  ( 0, 0, 0) 0
+ Ensuring that Brillouin's theorem is no longer used.
+
+============ KP-FCIQMC ============
+     About to allocate hash table to the spawning array. Memory required (MB): 0
+Allocating... Done.
+Note that the hash table uses linked lists, and the memory usage will increase as further nodes are added.
+About to allocate various subspace matrices. Memory required (MB): 0
+Allocating... Done.
+#  1. Iter.             2. Tot. parts real                       3. Tot. ref                              4. Proj. E (cyc)                         5. Shift. (cyc)                          11. Tot. Proj. E                         12. Dets occ.        13. Dets spawned     15. Iter. time                          
+ Starting repeat number 1
+  Initialising wavefunctions by the Lanczos algorithm
+  Aborting Lanczos and initialising trial states with direct diagonalisation
+  MAXIMUM WIDTH OF HAMIL :           69
+  TOTAL NUMBER OF NON-ZERO ELEMENTS :         1075
+#                0   600.000000000        70.4100959843        0.00000000000        0.00000000000       -5.69708312236                    69                0   0.00000000000     
+ Highest weighted determinant on run           3 not reference det:          350
+         350         135         135         194         194         101
+         101         187         187  1.174296143809109E-004
+Changing projected energy reference determinant for run  3 on the next update cycle to: (    2,    3,    4,    5)
+ Symmetry:  ( 0, 0, 0) 0
+ Ensuring that Brillouin's theorem is no longer used.
+ Zeroing all energy estimators.
+ Highest weighted determinant on run           4 not reference det:          350
+         350         135         135         194         194         101
+         101         187         187  3.897940828605290E-010
+Changing projected energy reference determinant for run  4 on the next update cycle to: (    2,    3,    4,    5)
+ Symmetry:  ( 0, 0, 0) 0
+ Ensuring that Brillouin's theorem is no longer used.
+ Zeroing all energy estimators.
+ Highest weighted determinant on run           5 not reference det:          350
+         350         135         135         194         194         101
+         101         187         187   1.71280735925966     
+Changing projected energy reference determinant for run  5 on the next update cycle to: (    2,    3,    4,    5)
+ Symmetry:  ( 0, 0, 0) 0
+ Ensuring that Brillouin's theorem is no longer used.
+ Zeroing all energy estimators.
+ Highest weighted determinant on run           6 not reference det:          350
+         350         135         135         194         194         101
+         101         187         187   1.71300203632617     
+Changing projected energy reference determinant for run  6 on the next update cycle to: (    2,    3,    4,    5)
+ Symmetry:  ( 0, 0, 0) 0
+ Ensuring that Brillouin's theorem is no longer used.
+ Zeroing all energy estimators.
+ Highest weighted determinant on run           7 not reference det:          350
+         350         135         135         194         194         101
+         101         187         187  4.248918368920037E-004
+Changing projected energy reference determinant for run  7 on the next update cycle to: (    1,    2,    3,    8)
+ Symmetry:  ( 0, 0, 0) 0
+ Ensuring that Brillouin's theorem is no longer used.
+ Zeroing all energy estimators.
+ Highest weighted determinant on run           8 not reference det:          350
+         350         135         135         194         194         101
+         101         187         187  1.917409921587420E-004
+Changing projected energy reference determinant for run  8 on the next update cycle to: (    1,    2,    3,    8)
+ Symmetry:  ( 0, 0, 0) 0
+ Ensuring that Brillouin's theorem is no longer used.
+ Zeroing all energy estimators.
+ Highest weighted determinant on run           9 not reference det:          350
+         350         135         135         194         194         101
+         101         187         187  0.513659138338210     
+Changing projected energy reference determinant for run  9 on the next update cycle to: (    1,    2,    3,    8)
+ Symmetry:  ( 0, 0, 0) 0
+ Ensuring that Brillouin's theorem is no longer used.
+ Zeroing all energy estimators.
+ Highest weighted determinant on run          10 not reference det:          350
+         350         135         135         194         194         101
+         101         187         187  0.513781838392867     
+Changing projected energy reference determinant for run 10 on the next update cycle to: (    1,    2,    3,    8)
+ Symmetry:  ( 0, 0, 0) 0
+ Ensuring that Brillouin's theorem is no longer used.
+ Zeroing all energy estimators.
+Exiting the single particle growth phase on iteration:            10 - Shift can now change for population1
+Exiting the single particle growth phase on iteration:            10 - Shift can now change for population2
+Exiting the single particle growth phase on iteration:            10 - Shift can now change for population3
+Exiting the single particle growth phase on iteration:            10 - Shift can now change for population4
+Exiting the single particle growth phase on iteration:            10 - Shift can now change for population5
+Exiting the single particle growth phase on iteration:            10 - Shift can now change for population6
+Exiting the single particle growth phase on iteration:            10 - Shift can now change for population7
+Exiting the single particle growth phase on iteration:            10 - Shift can now change for population8
+Exiting the single particle growth phase on iteration:            10 - Shift can now change for population9
+Exiting the single particle growth phase on iteration:            10 - Shift can now change for population*
+ Highest weighted determinant on run           5 not reference det:          331
+         331          36          35          52          45          30
+          35          41          34   7.85873785374779     
+Changing projected energy reference determinant for run  5 on the next update cycle to: (    4,    5,    6,    7)
+ Symmetry:  ( 0, 0, 0) 0
+ Ensuring that Brillouin's theorem is no longer used.
+ Zeroing all energy estimators.
+ Highest weighted determinant on run           6 not reference det:          324
+         324          40          41          58          51          37
+          41          44          38   6.99512214211893     
+Changing projected energy reference determinant for run  6 on the next update cycle to: (    3,    5,    6,    8)
+ Symmetry:  ( 0, 0, 0) 0
+ Ensuring that Brillouin's theorem is no longer used.
+ Zeroing all energy estimators.
+ Highest weighted determinant on run           8 not reference det:          330
+         330          47          48          66          61          43
+          52          46          44   3.59012094291579     
+Changing projected energy reference determinant for run  8 on the next update cycle to: (    3,    5,    6,    8)
+ Symmetry:  ( 0, 0, 0) 0
+ Ensuring that Brillouin's theorem is no longer used.
+ Zeroing all energy estimators.
+
+ ================================================================
+ KP-FCIQMC testsuite data:
+ Sum of overlap matrix elements:             1.4154439995381E+05
+ Sum of H elements:                         -6.5675881765903E+05
+ ================================================================
+ 
+ ================================================================
+ Memory usage
+ Maximum memory defined is (MB) :   99999.0
+ Maximum memory used is    (MB) :      37.4
+ 
+ Large memory allocations:
+ 
+ Name              Allocated in       Deallocated in         Size
+ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ WalkVecDets       InitFCIMCPar       not deallocated       0.0GB
+ global_determinantinit_global_det_datnot deallocated       0.0GB
+ SpawnVec          InitFCIMCPar       not deallocated       0.2MB
+ SpawnVec2         InitFCIMCPar       not deallocated       0.2MB
+ UMat              IntInit            IntCleanup            0.0MB
+ full_determ_vecs  core_space_t%alloc_not deallocated       0.0MB
+ full_determ_vecs_acore_space_t%alloc_not deallocated       0.0MB
+ core_space        store_whole_core_spnot deallocated       0.0MB
+ partial_determ_veccore_space_t%alloc_not deallocated       0.0MB
+ TMAT2D            SetupTMAT          DestroyTMat           0.0MB
+ ================================================================
+
+ ================================================================
+ Timing report.
+
+ Timing of most expensive procedures.
+ Procedure                                 Calls       total time
+ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+ WalkerTime                                 480      1.41
+ NECICUBE                                     1      0.16
+ SubspaceHamilTime                           25      0.09
+ SortTime                                   480      0.01
+ AnnMainTime                                480      0.01
+ SysInit                                      1      0.01
+ SyncTime                                  1038      0.01
+ SemiStochMultiplyTime                      505      0.01
+ Compress Sort interface                    480      0.00
+ CommsTime                                  505      0.00
+ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+ Total                                   1.71
+
+ Global wall clock time          1.80
+ ================================================================
+ Calculation ended 22/03/2021 at 15:15:24
+ ================================================================

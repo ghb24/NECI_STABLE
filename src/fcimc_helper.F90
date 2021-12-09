@@ -1868,7 +1868,7 @@ contains
                               "NECI_FRSBLKH not adapted for non-hermitian Hamiltonians!")
             end if
           CALL NECI_FRSBLKH(DetLen, ICMAX, NEVAL, HAMIL, LAB, CK, CKN, NKRY, NKRY1, NBLOCK, NROW, LSCR, LISCR, A_Arr, W, V, AM, BM, T, WT, &
-             &  SCR, ISCR, INDEX, NCYCLE, B2L, .true., .false., .false., .false.)
+             &  SCR, ISCR, INDEX, NCYCLE, B2L, .true., .false., .false.)
 
             !Eigenvalues may come out wrong sign - multiply by -1
             if (W(1) > 0.0_dp) then
