@@ -191,6 +191,10 @@ tolerance = (1e-9, None, 'final_energy_1'), (1e-9, None, 'final_energy_2')
 program = mneci
 tolerance = (1e-9, None, 'final_energy_1'), (1e-9, None, 'final_energy_2')
 
+[mneci/excited_state/HeHe_8_states/]
+program = mneci
+tolerance = (5e-10, None, 'final_energy_7')
+
 [mneci/guga/Ne_2_states/]
 program = mneci
 tolerance = (1e-10, None, 'final_energy_1'), (1e-8, None, 'final_energy_2')
