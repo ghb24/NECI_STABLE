@@ -40,11 +40,6 @@ module guga_excitations
                               get_preceeding_opposites, &
                               CSF_Info_t, csf_ref
 
-    use guga_matrixElements, only: calc_guga_matrix_element, calc_mixed_contr_integral, &
-                calcremainingswitches_excitinfo_double, calcremainingswitches_excitinfo_single, &
-                calcstartprob, calcstayingprob, endfx, endgx, &
-                init_fullstartweight, init_singleweight
-
     use OneEInts, only: GetTMatEl
 
     use procedure_pointers, only: get_umat_el
@@ -85,18 +80,15 @@ module guga_excitations
 
     use lattice_models_utils, only: create_all_open_shell_dets
 
-
-
-    use guga_matrixElements, only: &
-        calc_mixed_start_contr_sym, calc_mixed_end_contr_sym, &
-        calc_mixed_contr_sym
-
-
-
-    use guga_matrixElements, only: &
-        get_forced_zero_double, getminus_double, getminus_semistart, &
+    use guga_matrixElements, only:  calc_mixed_start_contr_sym, calc_mixed_end_contr_sym, &
+        calc_mixed_contr_sym, get_forced_zero_double, getminus_double, getminus_semistart, &
         getplus_double, getplus_semistart, init_doubleweight, &
-        init_semistartweight
+        init_semistartweight, calc_guga_matrix_element, calc_mixed_contr_integral, &
+        calcremainingswitches_excitinfo_double, calcremainingswitches_excitinfo_single, &
+        calcstartprob, calcstayingprob, endfx, endgx, &
+        init_fullstartweight, init_singleweight, calc_mixed_start_contr_integral, &
+        calc_mixed_end_contr_integral, calc_mixed_contr_pgen, calc_mixed_start_contr_pgen, &
+        calc_mixed_end_contr_pgen
 
     better_implicit_none
 
@@ -117,7 +109,6 @@ module guga_excitations
               pickorbs_sym_uniform_mol_single, pickorbs_sym_uniform_mol_double, &
               calc_orbital_pgen_contr_ueg, calc_orbital_pgen_contr_mol, &
               calc_mixed_x2x_ueg, &
-              calc_mixed_end_contr_sym, &
               calc_off_diag_guga_ref_direct, &
               pickorbs_real_hubbard_single, pickorbs_real_hubbard_double, &
               excitationIdentifier_single, excitationIdentifier_double, &
@@ -474,7 +465,13 @@ contains
             ! just to be save that a switch always happens at the end
             ! print that out for now
         else
-            call calc_mixed_contr_sym(ilut, t, csf_i, excitInfo, pgen, integral)
+            call calc_mixed_contr_integral(ilut, csf_i, t, excitInfo%fullStart, &
+                excitInfo%fullEnd, integral)
+            if (.not. near_zero(integral)) then
+                call calc_mixed_contr_pgen(ilut, csf_i, t, excitInfo, pgen)
+            end if
+
+!             call calc_mixed_contr_sym(ilut, csf_i, t, excitInfo, pgen, integral)
         end if
 
         if (near_zero(integral)) then
@@ -1650,8 +1647,13 @@ contains
             pgen = branch_pgen
 
         else
-            call calc_mixed_end_contr_sym(ilut, csf_i, t, excitInfo, branch_pgen, pgen, &
-                                          integral)
+            call calc_mixed_end_contr_integral(ilut, csf_i, t, excitInfo, &
+                integral)
+            call calc_mixed_end_contr_pgen(ilut, csf_i, t, excitInfo, &
+                branch_pgen, pgen)
+
+!             call calc_mixed_end_contr_sym(ilut, csf_i, t, excitInfo, branch_pgen, pgen, &
+!                                           integral)
         end if
 
         if (tFillingStochRDMOnFly) then
@@ -1905,7 +1907,12 @@ contains
             pgen = branch_pgen
 
         else
-            call calc_mixed_end_contr_sym(ilut, csf_i, t, excitInfo, branch_pgen, pgen, integral)
+            call calc_mixed_end_contr_integral(ilut, csf_i, t, excitInfo, &
+                integral)
+            call calc_mixed_end_contr_pgen(ilut, csf_i, t, excitInfo, &
+                branch_pgen, pgen)
+
+!             call calc_mixed_end_contr_sym(ilut, csf_i, t, excitInfo, branch_pgen, pgen, integral)
         end if
 
         if (tFillingStochRDMOnFly) then
@@ -3119,8 +3126,13 @@ contains
             pgen = branch_pgen
 
         else
-            call calc_mixed_start_contr_sym(ilut, csf_i, t, excitInfo, branch_pgen, pgen, &
-                                            integral)
+            call calc_mixed_start_contr_integral(ilut, csf_i, t, excitInfo, &
+                integral)
+            call calc_mixed_start_contr_pgen(ilut, csf_i, t, excitInfo, &
+                branch_pgen, pgen)
+
+!             call calc_mixed_start_contr_sym(ilut, csf_i, t, excitInfo, branch_pgen, pgen, &
+!                                             integral)
         end if
 
         if (tFillingStochRDMOnFly) then
@@ -3395,7 +3407,12 @@ contains
             call calc_mixed_start_contr_approx(t, csf_i, excitInfo, integral)
             pgen = branch_pgen
         else
-            call calc_mixed_start_contr_sym(ilut, csf_i, t, excitInfo, branch_pgen, pgen, integral)
+            call calc_mixed_start_contr_integral(ilut, csf_i, t, excitInfo, &
+                integral)
+            call calc_mixed_start_contr_pgen(ilut, csf_i, t, excitInfo, &
+                branch_pgen, pgen)
+
+!             call calc_mixed_start_contr_sym(ilut, csf_i, t, excitInfo, branch_pgen, pgen, integral)
         end if
 
         if (tFillingStochRDMOnFly) then

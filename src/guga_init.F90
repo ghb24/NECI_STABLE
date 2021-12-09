@@ -36,7 +36,6 @@ module guga_init
                         pickOrbs_sym_uniform_mol_single, pickOrbs_sym_uniform_mol_double, &
                         calc_orbital_pgen_contr_ueg, calc_orbital_pgen_contr_mol, &
                         calc_mixed_x2x_ueg, &
-                        calc_mixed_end_contr_sym, &
                         calc_off_diag_guga_ref_direct, &
                         pickOrbs_real_hubbard_single, pickOrbs_real_hubbard_double, &
                         calc_orbital_pgen_contrib_start_def, calc_orbital_pgen_contrib_end_def

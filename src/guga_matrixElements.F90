@@ -49,8 +49,10 @@ module guga_matrixElements
                 calcstartprob, calcstayingprob, endfx, endgx, &
                 init_fullstartweight, init_singleweight
 
-    public :: calc_mixed_start_contr_sym, calc_mixed_end_contr_sym, calc_mixed_contr_sym
-
+    public :: calc_mixed_start_contr_sym, calc_mixed_end_contr_sym, calc_mixed_contr_sym, &
+        calc_mixed_start_contr_integral, calc_mixed_start_contr_pgen, &
+        calc_mixed_end_contr_pgen, calc_mixed_end_contr_integral, &
+        calc_mixed_contr_pgen
 
     public :: get_forced_zero_double, getminus_double, getminus_semistart, getplus_double, getplus_semistart, init_doubleweight, init_semistartweight
 
@@ -3862,7 +3864,7 @@ contains
 
     end subroutine calc_mixed_end_contr_integral
 
-    subroutine calc_mixed_contr_sym(ilut, t, csf_i, excitInfo, pgen, integral)
+    subroutine calc_mixed_contr_sym(ilut, csf_i, t, excitInfo, pgen, integral)
         ! new implementation of the pgen contribution calculation for
         ! fullstart into fullstop excitation with mixed generators
         ! this is a specific implementation for the hubbard/ueg model with
@@ -4424,7 +4426,7 @@ contains
         end if
     end subroutine calc_mixed_contr_integral
 
-    subroutine calc_mixed_contr_pgen(ilut, t, csf_i, excitInfo, pgen)
+    subroutine calc_mixed_contr_pgen(ilut, csf_i, t, excitInfo, pgen)
         integer(n_int), intent(in) :: ilut(0:nifguga), t(0:nifguga)
         type(CSF_Info_t), intent(in) :: csf_i
         type(ExcitationInformation_t), value :: excitInfo

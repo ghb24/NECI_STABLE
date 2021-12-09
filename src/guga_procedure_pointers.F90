@@ -48,7 +48,7 @@ module guga_procedure_pointers
             real(dp), intent(out) :: above_cpt, below_cpt
         end subroutine calc_orbital_pgen_contr_t
 
-        subroutine calc_mixed_contr_t(ilut, t, csf_i, excitInfo, pgen, integral)
+        subroutine calc_mixed_contr_t(ilut, csf_i, t, excitInfo, pgen, integral)
             import :: dp, n_int, CSF_Info_t, GugaBits, ExcitationInformation_t
             implicit none
             integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot), &
