@@ -2711,7 +2711,7 @@ contains
         call assert_true(temp .isclose. h_cast(0.0_dp))
 
 
-        call calc_mixed_contr_integral(t, CSF_Info_t(t), t, 1, 4, temp)
+        call calc_mixed_contr_integral(t, CSF_Info_t(t), ilut, 1, 4, temp)
         call assert_true(temp .isclose. h_cast(0.0_dp))
 
         print *, ""
