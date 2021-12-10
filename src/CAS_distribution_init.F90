@@ -300,7 +300,7 @@ contains
                               "NECI_FRSBLKH not adapted for non-hermitian Hamiltonians!")
             end if
          CALL NECI_FRSBLKH(nCASDet, ICMAX, NEVAL, HAMIL, LAB, CK, CKN, NKRY, NKRY1, NBLOCK, NROW, LSCR, LISCR, A_Arr, W, V, AM, BM, T, WT, &
-         &  SCR, ISCR, INDEX, NCYCLE, B2L, .false., .false., .false., .true.)
+         &  SCR, ISCR, INDEX, NCYCLE, B2L, .false., .false., .true.)
             !Multiply all eigenvalues by -1.
             CALL DSCAL(NEVAL, -1.0_dp, W, 1)
             if (CK(1, 1) < 0.0_dp) then

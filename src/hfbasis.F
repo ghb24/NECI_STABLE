@@ -738,12 +738,12 @@ C.. Generate initial density matrix, as well as a guess at the HF DET
          use Determinants, only: write_det
          use sort_mod
          use constants, only: dp
+         use dSFMT_interface, only: genrand_real2_dSFMT
          IMPLICIT NONE
          INTEGER NSPINS,NSBASIS
          HElement_t(dp) FMAT(NSBASIS,NSBASIS,NSPINS)
          real(dp) PI,R
-         INTEGER ISPN,I,J,ISEED,irand
-         real(dp) RAN2
+         INTEGER ISPN,I,J
          INTEGER BRR(NSBASIS*NSPINS),NELR,IREAL,IS
          TYPE(BasisFN) G1(*)
          INTEGER LMS
@@ -755,9 +755,7 @@ C.. Working space
 C.. eigenvector N is in FMAT(i,N,ISPN), where i is the component of the
 C.. vector unless transposed
          PI=3.141592653589793_dp
-         ISEED=1007
-         irand=1
-         R=RAN2(irand)
+         R = genrand_real2_dSFMT()
          FMAT=(0.0_dp)
          WRITE(6,*) "Generating HF Guess..."
          NEL=0
@@ -791,7 +789,7 @@ C.. vector unless transposed
             DO I=1,NSBASIS
                DO J=1,NSBASIS
                   FMAT(I,J,ISPN)=FMAT(I,J,ISPN)+
-     &               (FRAND*RAN2(irand))
+     &               (FRAND * genrand_real2_dSFMT())
                ENDDO
             ENDDO
             CALL GRAMSCHMIDT_NECI(FMAT(1,1,ISPN),NSBASIS)
