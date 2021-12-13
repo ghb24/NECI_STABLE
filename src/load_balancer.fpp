@@ -11,31 +11,32 @@ module load_balance
                         t_activate_decay, tAutoAdaptiveShift, tMoveGlobalDetData
     use global_det_data, only: global_determinant_data, &
                                global_determinant_data_tmp, &
-                               set_det_diagH, set_spawn_rate, &
-                               set_supergroup_idx, &
+                               set_det_diagH, set_det_offdiagH, &
+                               set_spawn_rate, set_supergroup_idx, &
                                set_all_spawn_pops, reset_all_tau_ints, &
-                               reset_all_shift_ints, det_diagH, store_decoding, &
-                               reset_all_tot_spawns, reset_all_acc_spawns
+                               reset_all_shift_ints, det_diagH, &
+                               store_decoding, reset_all_tot_spawns, &
+                               reset_all_acc_spawns
     use bit_rep_data, only: flag_initiator, nifd, &
                             flag_connected, flag_trial, flag_prone, flag_removed
     use bit_reps, only: set_flag, nullify_ilut_part, &
-                        encode_part_sign, nullify_ilut
+                        encode_part_sign, nullify_ilut, writebitdet
     use FciMCData, only: HashIndex, FreeSlot, CurrentDets, iter_data_fciqmc, &
                          tFillingStochRDMOnFly, ntrial_excits, &
                          con_space_size, NConEntry, con_send_buf, sFAlpha, sFBeta, &
                          n_prone_dets
     use core_space_util, only: cs_replicas
     use gasci_supergroup_index, only: lookup_supergroup_indexer
-    use SystemData, only: tHPHF
+    use SystemData, only: nel
     use procedure_pointers, only: scaleFunction
     use searching, only: hash_search_trial, bin_search_trial
     use determinants, only: get_helement, write_det
-    use hphf_integrals, only: hphf_diag_helement
     use LoggingData, only: tOutputLoadDistribution, tAccumPopsActive
     use cont_time_rates, only: spawn_rate_full
     use DetBitOps, only: DetBitEq, tAccumEmptyDet
     use sparse_arrays, only: con_ht, trial_ht, trial_hashtable
     use trial_ht_procs, only: buffer_trial_ht_entries, add_trial_ht_entries
+    use matel_getter, only: get_diagonal_matel, get_off_diagonal_matel
     use load_balance_calcnodes
     use Parallel_neci
     use constants
@@ -342,6 +343,7 @@ contains
         integer :: det(nel), TotWalkersTmp, nconsend, err
         real(dp) :: sgn(lenof_sign)
         real(dp) :: HDiag
+        HElement_t(dp) :: HOffDiag
 
         ! A tag is used to identify this send/recv pair over any others
         integer, parameter :: mpi_tag_nsend = 223456
@@ -450,8 +452,9 @@ contains
 
                 ! Calculate the diagonal hamiltonian matrix element for the new particle to be merged.
                 HDiag = get_diagonal_matel(det, SpawnedParts(:, j))
+                HOffDiag = get_off_diagonal_matel(det, SpawnedParts(:, j))
                 call AddNewHashDet(TotWalkersTmp, SpawnedParts(:, j), &
-                                   hash_val, det, HDiag, PartInd, err)
+                                   hash_val, det, HDiag, HOffDiag, PartInd, err)
 
                 if (tMoveGlobalDetData) then
                     global_determinant_data(:, PartInd) = global_determinant_data_tmp(:, j)
@@ -492,7 +495,7 @@ contains
 
     end subroutine
 
-    subroutine AddNewHashDet(TotWalkersNew, iLutCurr, DetHash, nJ, HDiag, DetPosition, err)
+    subroutine AddNewHashDet(TotWalkersNew, iLutCurr, DetHash, nJ, HDiag, HOffDiag, DetPosition, err)
         ! Add a new determinant to the main list. This involves updating the
         ! list length, copying it across, updating its flag, adding its diagonal
         ! helement (if neccessary). We also need to update the hash table to
@@ -502,6 +505,7 @@ contains
         integer, intent(in) :: DetHash, nJ(nel)
         integer, intent(out) :: DetPosition
         real(dp), intent(in) :: HDiag
+        HElement_t(dp), intent(in) :: HOffDiag
         integer, intent(out) :: err
         HElement_t(dp) :: trial_amps(ntrial_excits)
         logical :: tTrial, tCon
@@ -536,6 +540,7 @@ contains
         ! except the first one, holding the diagonal Hamiltonian element.
         global_determinant_data(:, DetPosition) = 0.0_dp
         call set_det_diagH(DetPosition, real(HDiag, dp) - Hii)
+        call set_det_offdiagH(DetPosition, HOffDiag)
 
         ! we reset the death timer, so this determinant can linger again if
         ! it died before
@@ -622,29 +627,8 @@ contains
 
     end subroutine RemoveHashDet
 
-    function get_diagonal_matel(nI, ilut) result(diagH)
-        ! Get the diagonal element for a determinant nI with ilut representation ilut
-
-        ! In:  nI        - The determinant to evaluate
-        !      ilut      - Bit representation (only used with HPHF
-        ! Ret: diagH     - The diagonal matrix element
-        implicit none
-        integer, intent(in) :: nI(nel)
-        integer(n_int), intent(in) :: ilut(0:NIfTot)
-        real(dp) :: diagH
-
-        if (tHPHF) then
-            diagH = hphf_diag_helement(nI, ilut)
-        else
-            diagH = get_helement(nI, nI, 0)
-        end if
-
-    end function get_diagonal_matel
-
     subroutine CalcHashTableStats(TotWalkersNew, iter_data)
 
-        use DetBitOps, only: FindBitExcitLevel
-        use hphf_integrals, only: hphf_off_diag_helement
         use FciMCData, only: CurrentDets, n_prone_dets
         use LoggingData, only: FCIMCDebug
         use bit_rep_data, only: IlutBits

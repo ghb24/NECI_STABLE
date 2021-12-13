@@ -29,8 +29,9 @@ module CAS_distribution_init
     use initial_trial_states, only: calc_trial_states_lanczos, &
                                     set_trial_populations, set_trial_states, calc_trial_states_direct
     use global_det_data, only: global_determinant_data, set_det_diagH, &
-                               clean_global_det_data, init_global_det_data, &
-                               set_spawn_rate, store_decoding
+                               set_det_offdiagH, clean_global_det_data, &
+                               init_global_det_data, set_spawn_rate, &
+                               store_decoding
     use semi_stoch_gen, only: init_semi_stochastic, end_semistoch, &
                               enumerate_sing_doub_kpnt
     use semi_stoch_procs, only: return_mp1_amp_and_mp2_energy
@@ -39,6 +40,7 @@ module CAS_distribution_init
     use sym_general_mod, only: ClassCountInd
     use trial_wf_gen, only: init_trial_wf, end_trial_wf
     use load_balance, only: clean_load_balance, init_load_balance
+    use matel_getter, only: get_diagonal_matel, get_off_diagonal_matel
     use ueg_excit_gens, only: gen_ueg_excit
     use gndts_mod, only: gndts
     use excit_gen_5, only: gen_excit_4ind_weighted2
@@ -87,7 +89,7 @@ contains
         integer, pointer :: CASDetList(:, :) => null()
         integer(n_int) :: iLutnJ(0:NIfTot)
         logical :: tMC, tHPHF_temp, tHPHFInts_temp
-        HElement_t(dp) :: HDiagTemp
+        HElement_t(dp) :: HDiagTemp, HOffDiagTemp
         HElement_t(dp), allocatable :: Hamil(:)
         real(dp), allocatable :: CK(:, :), W(:), CKN(:, :), A_Arr(:, :), V(:), BM(:), T(:), WT(:)
         real(dp), allocatable :: SCR(:), WH(:), Work2(:), V2(:, :), AM(:)
@@ -298,7 +300,7 @@ contains
                               "NECI_FRSBLKH not adapted for non-hermitian Hamiltonians!")
             end if
          CALL NECI_FRSBLKH(nCASDet, ICMAX, NEVAL, HAMIL, LAB, CK, CKN, NKRY, NKRY1, NBLOCK, NROW, LSCR, LISCR, A_Arr, W, V, AM, BM, T, WT, &
-         &  SCR, ISCR, INDEX, NCYCLE, B2L, .false., .false., .false., .true.)
+         &  SCR, ISCR, INDEX, NCYCLE, B2L, .false., .false., .true.)
             !Multiply all eigenvalues by -1.
             CALL DSCAL(NEVAL, -1.0_dp, W, 1)
             if (CK(1, 1) < 0.0_dp) then
@@ -456,13 +458,11 @@ contains
                     end do
                     call encode_sign(CurrentDets(:, DetIndex), temp_sign)
 
-                    ! Store the diagonal matrix elements
-                    if (tHPHF) then
-                        HDiagTemp = hphf_diag_helement(CASFullDets(:, i), iLutnJ)
-                    else
-                        HDiagTemp = get_helement(CASFullDets(:, i), CASFullDets(:, i), 0)
-                    end if
+                    ! Store the diagonal and off-diagonal matrix elements
+                    HDiagTemp = get_diagonal_matel(CASFullDets(:, i), iLutnJ)
+                    HOffDiagTemp = get_off_diagonal_matel(CASFullDets(:, i), iLutnJ)
                     call set_det_diagH(DetIndex, real(HDiagTemp, dp) - Hii)
+                    call set_det_offdiagH(DetIndex, HOffDiagTemp)
                     call store_decoding(DetIndex, CASFullDets(:, i))
 
                     if (tTruncInitiator) then

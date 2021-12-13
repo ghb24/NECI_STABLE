@@ -5,6 +5,9 @@
 !   ios is an Integer which is set to 0 on a successful return, or is non-zero if a file error has occurred, where it is the iostat.
 MODULE ReadInput_neci
     use constants, only: stdout
+    use util_mod, only: operator(.implies.)
+    Use Determinants, only: tDefineDet, DefDet
+    use SystemData, only: lms, user_input_m_s
     Implicit none
 !   Used to specify which default set of inputs to use
 !    An enum would be nice, but is sadly not supported
@@ -205,6 +208,14 @@ contains
         if (allocated(user_input_seed)) then
             G_VMC_SEED = user_input_seed
         end if
+
+        if (allocated(user_input_m_s)) then
+            lms = user_input_m_s
+        else if (tDefinedet) then
+            lms = sum(merge(1, -1, mod(DefDet, 2) == 0))
+        else
+            lms = 0
+        end if
     end subroutine
 
     subroutine checkinput()
@@ -223,7 +234,8 @@ contains
                             G_VMC_EXCITWEIGHTS, EXCITFUNCS, TMCDIRECTSUM, &
                             TDIAGNODES, TSTARSTARS, TBiasing, TMoveDets, &
                             TNoSameExcit, TInitStar, tMP2Standalone, &
-                            MemoryFacPart, tSemiStochastic, &
+                            MemoryFacPart, &
+                            tSemiStochastic, semistoch_shift_iter, ss_space_in, &
                             tSpatialOnlyHash, InitWalkers, tUniqueHFNode, &
                             tCheckHighestPop, &
                             tKP_FCIQMC, tReplicaEstimates, &
@@ -233,7 +245,8 @@ contains
                             tStartCAS, tUniqueHFNode, tContTimeFCIMC, &
                             tContTimeFull, tFCIMC, tPreCond, tOrthogonaliseReplicas, &
                             tMultipleInitialStates, pgen_unit_test_spec, &
-                            user_input_seed
+                            user_input_seed, t_core_inits
+        use real_time_data, only: tInfInit
         use Calc, only : RDMsamplingiters_in_inp
         Use Determinants, only: SpecDet, tagSpecDet, tDefinedet, DefDet
         use IntegralsData, only: nFrozen, tDiscoNodes, tQuadValMax, &
@@ -246,7 +259,7 @@ contains
                                tCalcVariationalEnergy, tCalcInstantS2Init, &
                                tPopsFile, tRDMOnFly, tExplicitAllRDM, &
                                tHDF5PopsRead, tHDF5PopsWrite, tCalcFcimcPsi, &
-                               tHistEnergies, tPrintOrbOcc
+                               tHistEnergies, tPrintOrbOcc, tUserKnowsBiasedRDMS
         use Logging, only: calcrdmonfly_in_inp, RDMlinspace_in_inp
         use real_time_data, only: t_real_time_fciqmc
         use DetCalc, only: tEnergy, tCalcHMat, tFindDets, tCompressDets
@@ -448,15 +461,14 @@ contains
         ! if the LMS value specified is not reachable with the number of electrons,
         ! fix this
         if (mod(abs(lms), 2) /= mod(nel, 2)) then
-            write(stdout, *) "WARNING: LMS Value is not reachable with the given number of electrons."
-            write(stdout, *) "Resetting LMS"
-            LMS = -mod(nel, 2)
+            call stop_all(t_r, "LMS Value is not reachable with the given number of electrons.")
         end if
 
         if (tCalcInstantS2 .or. tCalcInstantS2Init) then
-            if (tUHF) &
+            if (tUHF) then
                 call stop_all(t_r, 'Cannot calculate instantaneous values of&
                               & S^2 with UF enabled.')
+            end if
             write(stdout, *) 'Enabling calculation of instantaneous S^2 each &
                        &iteration.'
         end if
@@ -533,6 +545,20 @@ contains
         end if
 #endif
 
+
+#if ! (defined(PROG_NUMRUNS_) || defined(DOUBLERUN_))
+        if (tRDMonFly .and. .not. tUserKnowsBiasedRDMS) then
+            write(stdout, *) 'RDM sampling is specified, but this version of neci'
+            write(stdout, *) 'is not compiled with the replica trick.'
+            write(stdout, *) 'You probably want to use dneci or mneci &
+                    &(or their complex counterparts).'
+            write(stdout, *)
+            write(stdout, *) 'If you know what you do and really want to sample biased RDMS'
+            write(stdout, *) 'you can also add `BIASED-RDMS` to the Logging block.'
+            call stop_all(t_r, "Compiled version does not support RDM sampling.")
+        end if
+#endif
+
         if (tRDMOnFly .and. .not. tCheckHighestPop) then
             write(stdout, *) 'Highest population checking required for calculating &
                        &RDMs on the fly'
@@ -544,6 +570,17 @@ contains
             write(stdout, *) 'Semi-stochastic simulations only supported when using &
                        &ALLREALCOEFF option'
             call stop_all(t_r, 'Semistochastic without ALLREALCOEFF')
+        end if
+
+        if (ss_space_in%tPopsProportion &
+                .and. .not. tSemiStochastic &
+                .and. semistoch_shift_iter < 1) then
+            call stop_all(t_r, 'POPS-CORE-PROPORTION requires SEMI-STOCHASTIC option')
+        end if
+
+        if (ss_space_in%tPopsCore .and. ss_space_in%tPopsProportion) then
+            call stop_all(t_r, 'POPS-CORE and POPS-CORE-PROPORTION cannot be used&
+                               & at the same time')
         end if
 
         if (tAllRealCoeff .and. tRealCoeffByExcitLevel) then
@@ -633,8 +670,18 @@ contains
             end if
         end if
 
+        if (tDefineDet .and. allocated(user_input_m_s)) then
+            if (sum(merge(1, -1, mod(DefDet, 2) == 0)) /= user_input_m_s) then
+                call stop_all(t_r, "Spin of Definedet and Spin-restrict is not consistent.")
+            end if
+        end if
+
         if (allocated(pgen_unit_test_spec) .and. .not. tReadPops) then
             call stop_all(t_r, "UNIT-TEST-PGEN requires READPOPS.")
+        end if
+
+        if (.not. (tInfInit .implies. t_core_inits)) then
+            call stop_all(t_r, 'INFINITE-INIT requires CORE-INITS OFF.')
         end if
 
         block
@@ -650,6 +697,7 @@ contains
                 end if
             end if
         end block
+
     end subroutine checkinput
 
 end Module ReadInput_neci
