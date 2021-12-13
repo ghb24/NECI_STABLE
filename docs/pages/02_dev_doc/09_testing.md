@@ -126,8 +126,9 @@ then you can do:
 $ git add neci/parallel/new_test/*dneci-c3462e0.kneci-c3462e0.neci-c3462e0*
 ```
 
-You should then commit the newly added files. You might like to try
-running testcode on the new test, and making sure it runs and passes as
+You should then commit the newly added files.
+Please delete old benchmark files if you recreated benchmark files for existing tests.
+You might like to try running testcode on the new test, and making sure it runs and passes as
 expected, confirming the that the test was added correctly:
 
 ```bash
