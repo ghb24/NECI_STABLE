@@ -2,7 +2,6 @@
 title: Tooling
 ---
 
-
 ### Using CTAGS with VIM
 
 It is useful, especially for new developers, to be able to easily
