@@ -144,24 +144,22 @@ contains
         call initializeLMatPtrs()
 
         if (tLMatCalc) then
-            call readLMatFactors()
+          call readLMatFactors()
         else
-            ! now, read lmat from file
-            if (tHDF5LMat) then
-                tcdump_name = "tcdump.h5"
-            else
-                tcdump_name = "TCDUMP"
-            end if
-            call lMat%read(trim(tcdump_name))
+          ! now, read lmat from file
+          if (tHDF5LMat) then
+            tcdump_name = "tcdump.h5"
+          else
+            tcdump_name = "TCDUMP"
+          end if
+          call lMat%read(trim(tcdump_name))
         end if
-
     end subroutine readLMat
 
     !------------------------------------------------------------------------------------------!
 
     subroutine freeLMat()
         character(*), parameter :: t_r = "freeLMat"
-
         if (tLMatCalc) then
             call freeLMatFactors()
         else

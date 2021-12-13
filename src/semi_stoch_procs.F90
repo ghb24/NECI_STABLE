@@ -85,6 +85,8 @@ module semi_stoch_procs
 
     use DeterminantData, only: write_det
 
+    use matel_getter, only: get_diagonal_matel, get_off_diagonal_matel
+
     implicit none
 
     ! Distinguishing value for 'use all runs'
@@ -1006,22 +1008,21 @@ contains
     subroutine fill_in_diag_helements()
 
         use FciMCData, only: Hii
-        use global_det_data, only: set_det_diagH
+        use global_det_data, only: set_det_diagH, set_det_offdiagH
 
         integer :: i
         integer :: nI(nel)
         real(dp) :: tmpH
+        HElement_t(dp) :: tmpHoff
         real(dp) :: sgn(lenof_sign)
 
         do i = 1, int(TotWalkers)
             call decode_bit_det(nI, CurrentDets(:, i))
 
-            if (tHPHF) then
-                tmpH = hphf_diag_helement(nI, CurrentDets(:, i)) - Hii
-            else
-                tmpH = get_helement(nI, nI, 0) - Hii
-            end if
+            tmpH = get_diagonal_matel(nI, CurrentDets(:, i)) - Hii
+            tmpHoff = get_off_diagonal_matel(nI, CurrentDets(:, i))
             call set_det_diagh(i, tmpH)
+            call set_det_offdiagh(i, tmpHoff)
 
         end do
 
@@ -1175,7 +1176,7 @@ contains
             end if
 
             call reorder_handler%init_gdata_io(tAutoAdaptiveShift, tScaleBlooms, tAccumPopsActive, &
-                                               2 * inum_runs, 1, lenof_sign + 1)
+              2 * inum_runs, 1, lenof_sign + 1)
             ! we need to reorder the adaptive shift data, too
             ! the maximally required buffer size is the current size of the
             ! determinant list plus the size of the semi-stochastic space (in case
@@ -2077,6 +2078,7 @@ contains
 
         do i = 1, rep%determ_space_size
             call decode_bit_det(nI, rep%core_space(:, i))
+
             if (tGUGA) csf_i = CSF_Info_t(rep%core_space(0:nifd, i))
 
             if (tHPHF) then

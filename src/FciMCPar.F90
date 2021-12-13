@@ -86,13 +86,14 @@ module FciMCParMod
     use exact_spectrum, only: get_exact_spectrum
     use determ_proj, only: perform_determ_proj, perform_determ_proj_approx_ham
     use cont_time, only: iterate_cont_time
-    use global_det_data, only: det_diagH, reset_tau_int, get_all_spawn_pops, &
-                               reset_shift_int, update_shift_int, &
-                               update_tau_int, set_spawn_pop, &
-                               get_tot_spawns, get_acc_spawns, &
+    use global_det_data, only: det_diagH, det_offdiagH, reset_tau_int, &
+                               get_all_spawn_pops, reset_shift_int, &
+                               update_shift_int, update_tau_int, &
+                               set_spawn_pop, get_tot_spawns, get_acc_spawns, &
                                update_pops_sum_all, get_pops_iter, &
                                replica_est_len, get_max_ratio, update_max_ratio
     use DetBitOps, only: tAccumEmptyDet
+
 
     use RotateOrbsMod, only: RotateOrbs
     use NatOrbsMod, only: PrintOrbOccs
@@ -121,9 +122,9 @@ module FciMCParMod
 
     use real_time_init, only: init_overlap_buffers
 
-    use bit_reps, only: decode_bit_det
+    use bit_reps, only: decode_bit_det, writebitdet
 
-    use util_mod, only: operator(.div.), toggle_lprof
+    use util_mod, only: operator(.div.), toggle_lprof, neci_flush
 
     use hdiag_from_excit, only: get_hdiag_from_excit, get_hdiag_bare_hphf
 
@@ -152,7 +153,7 @@ module FciMCParMod
     use local_spin, only: measure_local_spin, write_local_spin_stats, &
                           finalize_local_spin_measurement
 
-    implicit none
+    better_implicit_none
 
     !array for timings of the main compute loop
     real(dp), dimension(100) :: lt_arr
@@ -1172,7 +1173,7 @@ contains
         real(dp) :: lstart
         real(dp) :: AvSignCurr(len_av_sgn_tot), IterRDMStartCurr(len_iter_occ_tot)
         real(dp) :: av_sign(len_av_sgn_tot), iter_occ(len_iter_occ_tot)
-        HElement_t(dp) :: HDiagTemp, HElGen
+        HElement_t(dp) :: HDiagTemp, HElGen, HOffDiagCurr
         character(*), parameter :: this_routine = 'PerformFCIMCycPar'
         HElement_t(dp), dimension(inum_runs) :: delta
         integer :: proc, pos, determ_index, irdm
@@ -1407,6 +1408,7 @@ contains
 
             ! The current diagonal matrix element is stored persistently.
             HDiagCurr = det_diagH(j)
+            HOffDiagCurr = det_offdiagH(j)
             EnergyCurr = det_diagH(j) + Hii
 
             if (tSeniorInitiators) then
@@ -1474,7 +1476,7 @@ contains
             ! Sum in any energy contribution from the determinant, including
             ! other parameters, such as excitlevel info.
             ! This is where the projected energy is calculated.
-            call SumEContrib(DetCurr, WalkExcitLevel, SignCurr, CurrentDets(:, j), HDiagCurr, 1.0_dp, tPairedReplicas, j)
+            call SumEContrib(DetCurr, WalkExcitLevel, SignCurr, CurrentDets(:, j), HDiagCurr, HOffDiagCurr, 1.0_dp, tPairedReplicas, j)
 
             if (t_calc_double_occ) then
                 inst_double_occ = inst_double_occ + &
@@ -1712,7 +1714,7 @@ contains
 
                         if (tScaleBlooms) call update_max_ratio(abs(HElGen) / prob, j)
 
-                        call new_child_stats(iter_data, CurrentDets(:, j), &
+                        call new_child_stats_normal(iter_data, CurrentDets(:, j), &
                                              nJ, iLutnJ, ic, walkExcitLevel, &
                                              child_for_stats, parent_flags, part_type)
 

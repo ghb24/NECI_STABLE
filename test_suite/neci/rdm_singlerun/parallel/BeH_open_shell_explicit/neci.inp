@@ -41,6 +41,7 @@ freeze 2,0
 endint
 
 logging
+biased-RDMs
 popsfile -1
 write-spin-free-rdm
 printonerdm

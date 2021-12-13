@@ -33,6 +33,9 @@ RDMEstimates*
 TwoRDM*
 OneRDM*
 spinfree_TwoRDM*
+Inits_TwoRDM_*
+InitsOneRDM.*
+InitsRDMEstimates
 NO_*
 FTLM_EIGV
 EIGV_DATA
