@@ -1470,6 +1470,8 @@ contains
                 this_run = GLOBAL_RUN
                 offset = 0
             end if
+            ! TODO: for single core calculations and mneci
+            ! global largest walkers does not work (yields empty list)
             call global_most_populated_states(iHighPopWrite, this_run, GlobalLargestWalkers, &
                 norm, rank_of_largest=GlobalProc, hdiag_largest=GlobalHdiag)
 
