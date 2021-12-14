@@ -71,6 +71,12 @@ double_occupancy_stat*
 popsfile.h5*
 RDM_POPSFILE
 replica_estimates
+replica_estimates.*
+!replica_estimates/
+spatial-tmat
+spinfree-1-RDM
+local_spin_stats
+local_spin_stats.*
 
 # Documentation
 neci.fdb_latexmk
