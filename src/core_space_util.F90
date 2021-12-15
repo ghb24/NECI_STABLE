@@ -281,7 +281,7 @@ contains
 
     end subroutine deallocate_sparse_matrix_int
 
-    function get_core_run(run) result(crun)
+    pure function get_core_run(run) result(crun)
         integer, intent(in) :: run
         integer :: crun
 

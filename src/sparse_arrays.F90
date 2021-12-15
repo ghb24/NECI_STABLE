@@ -897,9 +897,8 @@ contains
         end function loc_verify
     end function is_var_state
 
-    function t_evolve_adjoint(run) result(transp)
+    elemental function t_evolve_adjoint(run) result(transp)
         use FciMCData, only: t_adjoint_replicas
-        implicit none
         integer, intent(in) :: run
 
         logical :: transp

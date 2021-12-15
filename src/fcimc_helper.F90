@@ -671,12 +671,12 @@ contains
 
         ! Perform normal projection onto reference determinant
         if (t_adjoint_replicas) then
-            if (ExcitLevel_local == 2 .or. &
-                (ExcitLevel_local == 1 .and. tNoBrillouin) .or. (ExcitLevel_local == 3 .and. &
-                (t_3_body_excits .or. t_ueg_3_body .or. t_mol_3_body))) then
+            if (      ExcitLevel_local == 2 &
+                .or. (ExcitLevel_local == 1 .and. tNoBrillouin) &
+                .or. (ExcitLevel_local == 3 &
+                    .and. (t_3_body_excits .or. t_ueg_3_body .or. t_mol_3_body))) then
                 ! Obtain off-diagonal element
                 do run = 1, inum_runs
-!                     if(t_evolve_adjoint(run)) then ! on pcal i only had run
                     if(t_evolve_adjoint(part_type_to_run(run))) then
                         HOffDiag(run) = &
                             get_helement(nI, ProjEDet(:,1), ExcitLevel, ilut,  ilutRef(:, 1))
