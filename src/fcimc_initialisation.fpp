@@ -2013,11 +2013,7 @@ contains
         else if (t_pchb_excitgen) then
             call class_managed(generate_excitation, gen_all_excits)
         else if (t_k_space_hubbard) then
-            if (.not. tHPHF .and. .not. t_uniform_excits) then
-                generate_excitation => gen_excit_k_space_hub
-            else if (t_uniform_excits) then
-                generate_excitation => gen_excit_uniform_k_space_hub
-            else if (t_3_body_excits) then
+            if (t_3_body_excits) then
                 if (t_uniform_excits) then
                     generate_excitation => gen_excit_uniform_k_space_hub_transcorr
                 else if (t_mixed_excits) then
@@ -2025,10 +2021,16 @@ contains
                 else
                     generate_excitation => gen_excit_k_space_hub_transcorr
                 end if
+            else
+                if (t_uniform_excits) then
+                    generate_excitation => gen_excit_uniform_k_space_hub
+                else
+                    generate_excitation => gen_excit_k_space_hub
+                end if
             end if
 
         else if (t_new_real_space_hubbard) then
-            if (t_trans_corr_hop .and. .not. tHPHF) then
+            if (t_trans_corr_hop) then
                 if (t_hole_focus_excits) then
                     generate_excitation => gen_excit_rs_hubbard_transcorr_hole_focus
                 else if (t_uniform_excits) then
@@ -2036,16 +2038,16 @@ contains
                 else
                     generate_excitation => gen_excit_rs_hubbard_transcorr
                 end if
-            else if (t_spin_dependent_transcorr .and. .not. tHPHF) then
+            else if (t_spin_dependent_transcorr) then
                 generate_excitation => gen_excit_rs_hubbard_spin_dependent_transcorr
             else
                 generate_excitation => gen_excit_rs_hubbard
             end if
 
-        else if (t_tJ_model .and. .not. tHPHF) then
+        else if (t_tJ_model) then
             generate_excitation => gen_excit_tJ_model
 
-        else if (t_heisenberg_model .and. .not. tHPHF) then
+        else if (t_heisenberg_model) then
             generate_excitation => gen_excit_heisenberg_model
         else
             generate_excitation => gen_rand_excit

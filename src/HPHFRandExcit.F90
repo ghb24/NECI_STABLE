@@ -212,7 +212,7 @@ contains
 #endif
 
         call exc_generator_for_HPHF(nI, iLutnI, nJ, iLutnJ, exFlag, IC, ExcitMat, &
-                                    tSignOrig, pGen, HEl, store)
+                                    tSignOrig, pGen, HEl, store, part_type)
         ! Create excitation of uniquely chosen determinant in this HPHF
         ! function.
         IF(IsNullDet(nJ)) RETURN
