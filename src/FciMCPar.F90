@@ -1477,7 +1477,8 @@ contains
             ! Sum in any energy contribution from the determinant, including
             ! other parameters, such as excitlevel info.
             ! This is where the projected energy is calculated.
-            call SumEContrib(DetCurr, WalkExcitLevel, SignCurr, CurrentDets(:, j), HDiagCurr, HOffDiagCurr, 1.0_dp, tPairedReplicas, j)
+            call SumEContrib(DetCurr, WalkExcitLevel, SignCurr, CurrentDets(:, j), &
+                HDiagCurr, HOffDiagCurr, 1.0_dp, tPairedReplicas, j)
 
             if (t_calc_double_occ) then
                 inst_double_occ = inst_double_occ + &
