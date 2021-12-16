@@ -42,7 +42,7 @@ module fcimc_helper
                            HistInitPopsIter, tHistInitPops, iterRDMOnFly, &
                            FciMCDebug, tLogEXLEVELStats, maxInitExLvlWrite, &
                            initsPerExLvl, tAccumPopsActive
-
+    use sparse_arrays, only: t_evolve_adjoint
     use CalcData, only: NEquilSteps, tFCIMC, tTruncCAS, &
                         InitiatorWalkNo, t_core_inits, eq_cyc, &
                         tTruncInitiator, tTruncNopen, trunc_nopen_max, &
@@ -99,6 +99,8 @@ module fcimc_helper
     use initiator_space_procs, only: is_in_initiator_space
 
     use pcpp_excitgen, only: update_pcpp_excitgen
+
+    use sparse_arrays, only: t_evolve_adjoint
 
     implicit none
 
@@ -518,7 +520,7 @@ contains
         integer, intent(in), optional :: ind
 
         integer :: i, ExcitLevel_local, ExcitLevelSpinCoup
-        integer :: run, tmp_exlevel
+        integer :: run, tmp_exlevel, step
         HElement_t(dp) :: HOffDiag(inum_runs), tmp_off_diag(inum_runs), tmp_diff(inum_runs)
         character(*), parameter :: this_routine = 'SumEContrib'
 
@@ -668,7 +670,25 @@ contains
         end if
 
         ! Perform normal projection onto reference determinant
-        HOffDiag(1:inum_runs) = HOffDiagCurr
+        if (t_adjoint_replicas) then
+            if (      ExcitLevel_local == 2 &
+                .or. (ExcitLevel_local == 1 .and. tNoBrillouin) &
+                .or. (ExcitLevel_local == 3 &
+                    .and. (t_3_body_excits .or. t_ueg_3_body .or. t_mol_3_body))) then
+                ! Obtain off-diagonal element
+                do run = 1, inum_runs
+                    if(t_evolve_adjoint(part_type_to_run(run))) then
+                        HOffDiag(run) = &
+                            get_helement(nI, ProjEDet(:,1), ExcitLevel, ilut,  ilutRef(:, 1))
+                    else
+                        HOffDiag(run) = &
+                            get_helement(ProjEDet(:, 1), nI, ExcitLevel, ilutRef(:, 1), ilut)
+                    end if
+                end do
+            end if
+        else
+            HOffDiag(1:inum_runs) = HOffDiagCurr
+        endif
 
         ! For the real-space Hubbard model, determinants are only
         ! connected to excitations one level away, and Brillouins
@@ -765,6 +785,17 @@ contains
 
             dE = (HOffDiag(run) * ARR_RE_OR_CPLX(RealwSign, run)) / dProbFin
         end function enum_contrib
+
+        function assigned_matrix_element(nA, nB, ilutA, ilutB) result(matel)
+            integer, intent(in) :: nA(nel), nB(nel)
+            integer(n_int), intent(in) :: ilutA(0:NIfTot), ilutB(0:NIfTot)
+            HElement_t(dp) :: matel
+            if(tHPHF) then
+                matel = hphf_off_diag_helement(nA, nB, ilutA, ilutB)
+            else
+                matel = get_helement(nA, nB, ExcitLevel, ilutA, ilutB)
+            endif
+        end function assigned_matrix_element
     end subroutine SumEContrib
 
     subroutine SumEContrib_different_refs(nI, sgn, ilut, dProbFin, tPairedReplicas, ind)
