@@ -1847,7 +1847,7 @@ contains
         use OneEInts, only: tmat2d
         use FciMCData, only: tsearchtau, tsearchtauoption, ilutref
         use CalcData, only: tau
-        use procedure_pointers, only: get_umat_el, generate_excitation
+        use procedure_pointers, only: get_umat_el
         use real_space_hubbard, only: lat_tau_factor
         use bit_rep_data, only: nifd, NIfTot
         use bit_reps, only: init_bit_rep
@@ -1894,7 +1894,6 @@ contains
         call assert_true(.not. tsearchtau)
         call assert_true(tsearchtauoption)
         call assert_true(associated(get_umat_el))
-        call assert_true(associated(generate_excitation))
         call assert_equals(0.25 * lat_tau_factor, tau)
 
         length_x = -1
@@ -1913,7 +1912,7 @@ contains
         use OneEInts, only: tmat2d
         use FciMCData, only: tsearchtau, tsearchtauoption
         use CalcData, only: tau
-        use procedure_pointers, only: get_umat_el, generate_excitation
+        use procedure_pointers, only: get_umat_el
         use real_space_hubbard, only: lat_tau_factor
         use bit_rep_data, only: nifd, NIfTot
 
@@ -1955,7 +1954,6 @@ contains
         call assert_true(.not. tsearchtau)
         call assert_true(tsearchtauoption)
         call assert_true(associated(get_umat_el))
-        call assert_true(associated(generate_excitation))
         call assert_equals(0.25 * lat_tau_factor, tau)
 
         length_x = -1

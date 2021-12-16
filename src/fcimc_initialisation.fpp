@@ -20,10 +20,11 @@ module fcimc_initialisation
                           momIndexTable, t_trans_corr_2body, t_non_hermitian, &
                           tgen_guga_crude, t_impurity_excitgen, &
                           t_uniform_excits, t_mol_3_body,t_ueg_transcorr,t_ueg_3_body,tLatticeGens, &
-                          irrepOrbOffset, nIrreps, &
+                          irrepOrbOffset, nIrreps, t_trans_corr_hop, &
                           tTrcorrExgen, nClosedOrbs, irrepOrbOffset, nIrreps, &
                           nOccOrbs, tNoSinglesPossible, t_pcpp_excitgen, &
-                          t_pchb_excitgen, tGAS, t_guga_pchb
+                          t_pchb_excitgen, tGAS, t_guga_pchb, t_spin_dependent_transcorr
+
     use tc_three_body_data, only: ptriples
     use SymExcitDataMod, only: tBuildOccVirtList, tBuildSpinSepLists
     use core_space_util, only: cs_replicas
@@ -225,7 +226,13 @@ module fcimc_initialisation
 
     use back_spawn, only: init_back_spawn, setup_virtual_mask
 
-    use real_space_hubbard, only: init_real_space_hubbard, init_get_helement_hubbard
+    use real_space_hubbard, only: init_real_space_hubbard, init_get_helement_hubbard, &
+                                  t_hole_focus_excits, gen_excit_rs_hubbard, &
+                                  gen_excit_rs_hubbard_transcorr_hole_focus, &
+                                  gen_excit_rs_hubbard_transcorr_uniform, &
+                                  gen_excit_rs_hubbard_transcorr, &
+                                  gen_excit_rs_hubbard_spin_dependent_transcorr
+
 
     use back_spawn_excit_gen, only: gen_excit_back_spawn, gen_excit_back_spawn_ueg, &
                                     gen_excit_back_spawn_hubbard, gen_excit_back_spawn_ueg_new
@@ -235,10 +242,14 @@ module fcimc_initialisation
     use cepa_shifts, only: t_cepa_shift, init_cepa_shifts
 
     use tj_model, only: init_get_helement_tj, init_get_helement_heisenberg, &
-                        init_get_helement_heisenberg_guga, init_get_helement_tj_guga
+                        init_get_helement_heisenberg_guga, init_get_helement_tj_guga, &
+                        gen_excit_tJ_model, gen_excit_heisenberg_model
 
     use k_space_hubbard, only: init_get_helement_k_space_hub, init_k_space_hubbard, &
-                               gen_excit_k_space_hub_transcorr, gen_excit_uniform_k_space_hub_transcorr
+                               gen_excit_k_space_hub_transcorr, gen_excit_uniform_k_space_hub_transcorr, &
+                               t_mixed_excits, gen_excit_k_space_hub, &
+                               gen_excit_uniform_k_space_hub, &
+                               gen_excit_mixed_k_space_hub_transcorr
 
     use OneEInts, only: tmat2d
 
@@ -1986,7 +1997,13 @@ contains
 
         else if (tGUGA) then
             if (tgen_guga_crude) then
-                generate_excitation => gen_excit_4ind_weighted2
+                if (t_k_space_hubbard) then
+                    generate_excitation => gen_excit_k_space_hub
+                else if (t_new_real_space_hubbard) then
+                    generate_excitation => gen_excit_rs_hubbard
+                else
+                    generate_excitation => gen_excit_4ind_weighted2
+                end if
             else
                 generate_excitation => generate_excitation_guga
             end if
@@ -1995,6 +2012,41 @@ contains
             generate_excitation => gen_rand_excit_pcpp
         else if (t_pchb_excitgen) then
             call class_managed(generate_excitation, gen_all_excits)
+        else if (t_k_space_hubbard) then
+            if (.not. tHPHF .and. .not. t_uniform_excits) then
+                generate_excitation => gen_excit_k_space_hub
+            else if (t_uniform_excits) then
+                generate_excitation => gen_excit_uniform_k_space_hub
+            else if (t_3_body_excits) then
+                if (t_uniform_excits) then
+                    generate_excitation => gen_excit_uniform_k_space_hub_transcorr
+                else if (t_mixed_excits) then
+                    generate_excitation => gen_excit_mixed_k_space_hub_transcorr
+                else
+                    generate_excitation => gen_excit_k_space_hub_transcorr
+                end if
+            end if
+
+        else if (t_new_real_space_hubbard) then
+            if (t_trans_corr_hop .and. .not. tHPHF) then
+                if (t_hole_focus_excits) then
+                    generate_excitation => gen_excit_rs_hubbard_transcorr_hole_focus
+                else if (t_uniform_excits) then
+                    generate_excitation => gen_excit_rs_hubbard_transcorr_uniform
+                else
+                    generate_excitation => gen_excit_rs_hubbard_transcorr
+                end if
+            else if (t_spin_dependent_transcorr .and. .not. tHPHF) then
+                generate_excitation => gen_excit_rs_hubbard_spin_dependent_transcorr
+            else
+                generate_excitation => gen_excit_rs_hubbard
+            end if
+
+        else if (t_tJ_model .and. .not. tHPHF) then
+            generate_excitation => gen_excit_tJ_model
+
+        else if (t_heisenberg_model .and. .not. tHPHF) then
+            generate_excitation => gen_excit_heisenberg_model
         else
             generate_excitation => gen_rand_excit
         end if
