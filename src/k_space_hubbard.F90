@@ -25,7 +25,7 @@ module k_space_hubbard
                            dispersion_rel_cached, init_dispersion_rel_cache, &
                            epsilon_kvec
 
-    use procedure_pointers, only: get_umat_el, generate_excitation
+    use procedure_pointers, only: get_umat_el
 
     use constants, only: n_int, dp, EPS, bits_n_int, int64, maxExcit, stdout
 
@@ -379,24 +379,6 @@ contains
             root_print "    use uniform for doubles!"
             t_uniform_excits = .true.
         end if
-
-        if (.not. tHPHF .and. .not. t_uniform_excits) then
-            generate_excitation => gen_excit_k_space_hub
-        end if
-
-        ! for more efficiency, use the uniform excitation generation
-        if (t_uniform_excits) then
-            generate_excitation => gen_excit_uniform_k_space_hub
-        end if
-
-        if (tGUGA) then
-            if (tgen_guga_crude) then
-                generate_excitation => gen_excit_k_space_hub
-            else
-                generate_excitation => generate_excitation_guga
-            end if
-        end if
-
         tau_opt = determine_optimal_time_step()
 
         if (tau < EPS) then

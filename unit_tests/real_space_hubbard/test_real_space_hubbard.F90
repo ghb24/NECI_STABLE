@@ -1926,7 +1926,7 @@ contains
         use OneEInts, only: tmat2d
         use fcimcdata, only: pSingles, pDoubles, tsearchtau, tsearchtauoption
         use CalcData, only: tau
-        use procedure_pointers, only: get_umat_el, generate_excitation
+        use procedure_pointers, only: get_umat_el
         use lattice_mod, only: lattice_deconstructor
 
         print *, ""
@@ -1972,7 +1972,6 @@ contains
         call assert_true(.not. tsearchtau)
         call assert_true(tsearchtauoption)
         call assert_true(associated(get_umat_el))
-        call assert_true(associated(generate_excitation))
         call assert_equals(0.25 * lat_tau_factor, tau)
 
         call lattice_deconstructor(lat)
@@ -1986,7 +1985,6 @@ contains
         tau = 0.0_dp
         deallocate(tmat2d)
         nullify(get_umat_el)
-        nullify(generate_excitation)
 
         print *, ""
         print *, "testing: 3x3 square lattice with 2 electrons"
@@ -2011,7 +2009,6 @@ contains
         call assert_true(.not. tsearchtau)
         call assert_true(tsearchtauoption)
         call assert_true(associated(get_umat_el))
-        call assert_true(associated(generate_excitation))
         call assert_equals(1.0/8.0_dp * lat_tau_factor, tau)
 
 
@@ -2026,7 +2023,6 @@ contains
         tau = 0.0
         deallocate(tmat2d)
         nullify(get_umat_el)
-        nullify(generate_excitation)
 
         print *, ""
         print *, "testing: 3x3 square lattice with 2 electrons"
@@ -2051,7 +2047,6 @@ contains
         call assert_true(.not. tsearchtau)
         call assert_true(tsearchtauoption)
         call assert_true(associated(get_umat_el))
-        call assert_true(associated(generate_excitation))
         call assert_equals(1.0/12.0_dp * lat_tau_factor, tau)
 
         call lattice_deconstructor(lat)
@@ -2064,7 +2059,6 @@ contains
         nbasis = -1
         deallocate(tmat2d)
         nullify(get_umat_el)
-        nullify(generate_excitation)
 
 
     end subroutine init_real_space_hubbard_test
