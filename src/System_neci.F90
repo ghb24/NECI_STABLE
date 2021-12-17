@@ -8,7 +8,7 @@ MODULE System
                         occCASorbs, virtCASorbs, tPairedReplicas, &
                         S2Init, tDynamicAvMcEx
 
-    use FciMCData, only: tGenMatHEl, t_initialized_roi
+    use FciMCData, only: tGenMatHEl, t_initialized_roi, t_adjoint_replicas
 
     use sort_mod
 
@@ -227,6 +227,7 @@ contains
         ! use weighted singles for the pchb excitgen?
         t_pchb_weighted_singles = .false.
         tMultiReplicas = .false.
+        t_adjoint_replicas = .false.
         tGiovannisBrokenInit = .false.
         ! GAS options
         tGAS = .false.
@@ -1751,6 +1752,15 @@ contains
                     call stop_all(t_r, "mneci.x build must be used for running &
                                        &with multiple simultaneous replicas")
                 end if
+#endif
+            case("ADJOINT-REPLICAS")
+                ! some replicas will be evolved according to the adjoint H,
+                ! useful to get the left eigenvector in ST-FCIQMC
+#if defined(PROG_NUMRUNS_) || defined(DOUBLERUN_)
+                t_adjoint_replicas = .true.
+#else
+                call stop_all(this_routine, &
+                    "mneci or dneci necessary for 'adjoint-replicas'")
 #endif
 
             case ("HEISENBERG")
