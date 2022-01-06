@@ -223,6 +223,7 @@ contains
       matel = tc_matel(nI, ex)
 #else
       character(*), parameter :: t_r = "external_lMat_matel"
+      unused_var(nI); unused_var(ex); unused_var(matel)
       call stop_all(t_r, "Did not compile with TCHINT support")
 #endif
 

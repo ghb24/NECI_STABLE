@@ -194,7 +194,7 @@ contains
         character(*), parameter :: this_routine = "read_rs_lmat_factors"
 
         integer :: iunit, ierr, i, j, k, l
-        integer(int64) :: num_mos
+        integer(int64) :: ii, num_mos
         real(dp) :: integral
         real(dp), allocatable :: array_mos(:,:)
 
@@ -226,8 +226,8 @@ contains
 
         ! fill in the qwprod file:
         allocate(qwprod(ngrid, num_mos, num_mos), source=0.0_dp)
-        do i = 1, num_mos
-            do j = 1, num_mos
+        do i = 1, int(num_mos)
+            do j = 1, int(num_mos)
                 qwprod(:, i, j) = array_mos(:, i) * array_mos(:, j)
             end do
         end do
@@ -249,14 +249,14 @@ contains
 
         if (t_hash_lmat_calc) then
             lMatIndMax = lMatIndSym(num_mos, num_mos, num_mos, num_mos, num_mos, num_mos)
-            lMatCalcHSize = lMatCalcHFactor * lMatIndMax
+            lMatCalcHSize = int( real(lMatCalcHFactor,dp) * real(lMatIndMax,dp), int64)
 !
             root_print "Total Size of LMat: ", lMatIndMax
             root_print "Size of LMatCalc Hash Table: ", lMatCalcHSize
 !
             allocate(lMatCalcHKeys(lMatCalcHSize))
             allocate(lMatCalcHVals(lMatCalcHSize))
-            do i = 1, lMatCalcHSize
+            do ii = 1_int64, lMatCalcHSize
                 lMatCalcHKeys(i) = -1
             end do
             lMatCalcHit = 0
