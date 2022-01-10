@@ -179,7 +179,7 @@ contains
         integer, intent(in) :: ValidSpawned
         real(dp), intent(in) :: proj_energy(lenof_sign)
 
-        character(*), parameter :: this_routine = 'calc_ests_and_set_init_flags'
+        character(*), parameter :: t_r = 'calc_ests_and_set_init_flags'
 #if defined(PROG_NUMRUNS_) || defined(DOUBLERUN_)
         integer :: i, j, PartInd, DetHash, determ_pos, ierr
         integer :: nI_spawn(nel)
@@ -466,7 +466,7 @@ contains
         end associate
 #else
         unused_var(ValidSpawned); unused_var(proj_energy)
-        call stop_all(this_routine, "Should not be here")
+        call stop_all(t_r, "Should not be here")
 #endif
 
     end subroutine calc_ests_and_set_init_flags
