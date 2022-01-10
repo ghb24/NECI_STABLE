@@ -54,7 +54,6 @@ CONTAINS
         use SystemData, only: tParity, tSpn, Symmetry, STot, NullBasisFn, tUHF, tMolpro
         use sym_mod
         use LoggingData, only: tLogDets
-        use legacy_data, only: irat
         use HElem
         use util_mod, only: get_free_unit, NECI_ICOPY
         Type(BasisFn) ISym
@@ -299,7 +298,6 @@ CONTAINS
         use Parallel_neci, only: iProcIndex
         use DetBitops, only: DetBitEQ, EncodeBitDet, FindBitExcitLevel
         use bit_rep_data, only: nifd, NIfTot, NIfD
-        use legacy_data, only: irat
         use bit_reps, only: decode_bit_det
         use sym_mod
         use HElem

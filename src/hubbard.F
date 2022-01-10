@@ -463,23 +463,20 @@ C.. now work out which reps are degenerate and label them
          if (allocated(SymReps)) deallocate(symreps)
          allocate(SymReps(2,nBasis))
          call LogMemAlloc('SymReps',2*nBasis,4,this_routine,tagSymReps)
-         J=0
          ! this does not make sense..
          SYMREPS = 0
-         DO I=1,NBASIS
-            IF(I.EQ.1) THEN
+C.. we have a new rep
+         J = 1
+         SYMREPS(2,J)=1
+         SYMREPS(1,BRR(I))=J
+         DO I=2,NBASIS
+            IF(ABS(ARR(I)-ARR(I-1)).LT.1.0e-5_dp) THEN
+C.. we have the same degenerate rep as the previous entry
+               SYMREPS(2,J)=SYMREPS(2,J)+1
+            ELSE
 C.. we have a new rep
                J=J+1
                SYMREPS(2,J)=1
-            ELSE
-                IF(ABS(ARR(I)-ARR(I-1)).LT.1.0e-5_dp) THEN
-C.. we have the same degenerate rep as the previous entry
-                   SYMREPS(2,J)=SYMREPS(2,J)+1
-                ELSE
-C.. we have a new rep
-                   J=J+1
-                   SYMREPS(2,J)=1
-                ENDIF
             ENDIF
             SYMREPS(1,BRR(I))=J
          ENDDO
