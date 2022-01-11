@@ -1729,9 +1729,8 @@ contains
             NoInFrozenCore = 0
             bAllowed = .false.
             do i = 1, nel
-                if (SpinInvBRR(nJ(i)) <= NPartFrozen) then
+                if (SpinInvBRR(nJ(i)) <= NPartFrozen) &
                     NoInFrozenCore = NoInFrozenCore + 1
-                end if
                 if (NoInFrozenCore == (NPartFrozen - NHolesFrozen)) then
                     bAllowed = .true.
                     exit
