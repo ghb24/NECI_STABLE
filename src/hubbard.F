@@ -467,10 +467,10 @@ C.. now work out which reps are degenerate and label them
          SYMREPS = 0
 C.. we have a new rep
          J = 1
-         SYMREPS(2,J)=1
-         SYMREPS(1,BRR(I))=J
+         SYMREPS(1, BRR(1)) = 1
+         SYMREPS(2, 1) = 1
          DO I=2,NBASIS
-            IF(ABS(ARR(I)-ARR(I-1)).LT.1.0e-5_dp) THEN
+            IF(ABS(ARR(I)-ARR(I-1)) < 1.0e-5_dp) THEN
 C.. we have the same degenerate rep as the previous entry
                SYMREPS(2,J)=SYMREPS(2,J)+1
             ELSE
