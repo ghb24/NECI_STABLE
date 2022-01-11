@@ -8,7 +8,7 @@ MODULE System
                         occCASorbs, virtCASorbs, tPairedReplicas, &
                         S2Init, tDynamicAvMcEx
 
-    use FciMCData, only: tGenMatHEl, t_initialized_roi
+    use FciMCData, only: tGenMatHEl, t_initialized_roi, t_adjoint_replicas
 
     use sort_mod
 
@@ -227,6 +227,7 @@ contains
         ! use weighted singles for the pchb excitgen?
         t_pchb_weighted_singles = .false.
         tMultiReplicas = .false.
+        t_adjoint_replicas = .false.
         tGiovannisBrokenInit = .false.
         ! GAS options
         tGAS = .false.
@@ -424,9 +425,8 @@ contains
                 call geti(NEL)
             case ("SPIN-RESTRICT")
                 if (item < nitems) then
-                    call geti(LMS)
-                else
-                    LMS = 0
+                    allocate(user_input_m_s)
+                    call geti(user_input_m_s)
                 end if
                 TSPN = .true.
 
@@ -1757,6 +1757,15 @@ contains
                                        &with multiple simultaneous replicas")
                 end if
 #endif
+            case("ADJOINT-REPLICAS")
+                ! some replicas will be evolved according to the adjoint H,
+                ! useful to get the left eigenvector in ST-FCIQMC
+#if defined(PROG_NUMRUNS_) || defined(DOUBLERUN_)
+                t_adjoint_replicas = .true.
+#else
+                call stop_all(this_routine, &
+                    "mneci or dneci necessary for 'adjoint-replicas'")
+#endif
 
             case ("HEISENBERG")
                 tHeisenberg = .true.
@@ -1963,7 +1972,6 @@ contains
         Use global_utilities
         use SymData, only: tAbelian, TwoCycleSymGens, nSymLabels
         use constants, only: Pi, Pi2, THIRD
-        use legacy_data, only: CSF_NBSTART
         use read_fci
         use sym_mod
         use SymExcitDataMod, only: kPointToBasisFn

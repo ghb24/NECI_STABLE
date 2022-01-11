@@ -154,13 +154,11 @@ set( SRC_FILES
     symexcit_old.F
     sym.F90
     sym_general.F90
-    symrandexcit1.F
     GenRandSymExcitNUMod.F90
     symrandexcit3.F90
     symrandexcit_Ex_Mag.F90
     excit_gens_int_weighted.F90
     excit_gen_5.F90
-    symrandexcit.F
     symrandexcit_ueg.F90
     SystemData.F90
     System_neci.F90
@@ -221,7 +219,6 @@ set( SRC_FILES
     lib/error_handling_neci.F90
     lib/hdf5_util.F90
     lib/MemoryManagement.F90
-    lib/ranlux.F
     lib/signals.F90
     lib/signals_helper.cpp
     lib/soft_exit.F90
@@ -475,9 +472,6 @@ endif()
 if (HAVE_HDF5)
     list(APPEND _conditional_libraries ${HDF5_NECI_LIBRARIES} )
 endif()
-if (HAVE_TCHINT)
-    list(APPEND _conditional_libraries ${TCHINT_NECI_LIBRARIES})
-endif()
 
 # ---------------------------------------------------------------------------------
 
@@ -523,7 +517,6 @@ foreach(_config ${${PROJECT_NAME}_CONFIGURATIONS})
             "${NECI_GLOBAL_DEFINES}"
             "${${PROJECT_NAME}_${_config}_DEFINITIONS}"
             "${HDF5_NECI_DEFINITIONS}"
-            "${TCHINT_NECI_DEFINITIONS}"
 
         LIBS "${_library_link_libs}"
 	    WARNERR ${${PROJECT_NAME}_${_config}_WARNERR}

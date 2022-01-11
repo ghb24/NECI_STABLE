@@ -998,6 +998,11 @@ contains
             CALL FillUpCache()
             DEallocate(CacheInd)
         end if
+!.. If we've changed the eigenvalues, we write out the basis again
+!         IF(LWRITE) THEN
+!            write(stdout,*) "1-electron energies have been read in."
+!            CALL WRITEBASIS(6,G1,NBASIS,ARR,BRR)
+!         end if
         RETURN
     END SUBROUTINE READFCIINT
 

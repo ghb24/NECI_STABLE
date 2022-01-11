@@ -94,6 +94,7 @@ module FciMCParMod
                                replica_est_len, get_max_ratio, update_max_ratio
     use DetBitOps, only: tAccumEmptyDet
 
+
     use RotateOrbsMod, only: RotateOrbs
     use NatOrbsMod, only: PrintOrbOccs
     use ftlm_neci, only: perform_ftlm
@@ -121,9 +122,9 @@ module FciMCParMod
 
     use real_time_init, only: init_overlap_buffers
 
-    use bit_reps, only: decode_bit_det
+    use bit_reps, only: decode_bit_det, writebitdet
 
-    use util_mod, only: operator(.div.), toggle_lprof
+    use util_mod, only: operator(.div.), toggle_lprof, neci_flush
 
     use hdiag_from_excit, only: get_hdiag_from_excit, get_hdiag_bare_hphf
 
@@ -152,7 +153,7 @@ module FciMCParMod
     use local_spin, only: measure_local_spin, write_local_spin_stats, &
                           finalize_local_spin_measurement
 
-    implicit none
+    better_implicit_none
 
     !array for timings of the main compute loop
     real(dp), dimension(100) :: lt_arr
@@ -1475,7 +1476,8 @@ contains
             ! Sum in any energy contribution from the determinant, including
             ! other parameters, such as excitlevel info.
             ! This is where the projected energy is calculated.
-            call SumEContrib(DetCurr, WalkExcitLevel, SignCurr, CurrentDets(:, j), HDiagCurr, HOffDiagCurr, 1.0_dp, tPairedReplicas, j)
+            call SumEContrib(DetCurr, WalkExcitLevel, SignCurr, CurrentDets(:, j), &
+                HDiagCurr, HOffDiagCurr, 1.0_dp, tPairedReplicas, j)
 
             if (t_calc_double_occ) then
                 inst_double_occ = inst_double_occ + &
@@ -1601,29 +1603,11 @@ contains
                     ! all the interfaces to the other excitation generators,
                     ! which all just assume ex(2,2) as size.. so use a
                     ! if here..
-                    if (t_k_space_hubbard .and. t_3_body_excits) then
-                        if (t_uniform_excits) then
-                            call gen_excit_uniform_k_space_hub_transcorr(DetCurr, CurrentDets(:, j), &
-                                                                         nJ, ilutnJ, exFlag, ic, ex, tParity, prob, &
-                                                                         HElGen, fcimc_excit_gen_store, part_type)
+                    ! Generate a (random) excitation
+                    call generate_excitation(DetCurr, CurrentDets(:,j), nJ, &
+                        ilutnJ, exFlag, IC, ex, tParity, prob, &
+                        HElGen, fcimc_excit_gen_store, part_type)
 
-                        else if (t_mixed_excits) then
-                            call gen_excit_mixed_k_space_hub_transcorr(DetCurr, CurrentDets(:, j), &
-                                                                       nJ, ilutnJ, exFlag, ic, ex, tParity, prob, &
-                                                                       HElGen, fcimc_excit_gen_store, part_type)
-
-                        else
-                            call gen_excit_k_space_hub_transcorr(DetCurr, CurrentDets(:, j), &
-                                                                 nJ, ilutnJ, exFlag, ic, ex, tParity, prob, &
-                                                                 HElGen, fcimc_excit_gen_store, part_type)
-                        end if
-                    else
-                        ! Generate a (random) excitation
-                        call generate_excitation(DetCurr, CurrentDets(:,j), nJ, &
-                            ilutnJ, exFlag, IC, ex, tParity, prob, &
-                            HElGen, fcimc_excit_gen_store, part_type)
-
-                    end if
 
                     !If we are fixing the population of reference det, skip spawing into it.
                     if (tSkipRef(run) .and. all(nJ == projEdet(:, run))) then
@@ -1713,7 +1697,7 @@ contains
 
                         if (tScaleBlooms) call update_max_ratio(abs(HElGen) / prob, j)
 
-                        call new_child_stats(iter_data, CurrentDets(:, j), &
+                        call new_child_stats_normal(iter_data, CurrentDets(:, j), &
                                              nJ, iLutnJ, ic, walkExcitLevel, &
                                              child_for_stats, parent_flags, part_type)
 

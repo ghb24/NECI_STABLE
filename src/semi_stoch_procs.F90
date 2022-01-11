@@ -2078,6 +2078,7 @@ contains
 
         do i = 1, rep%determ_space_size
             call decode_bit_det(nI, rep%core_space(:, i))
+
             if (tGUGA) csf_i = CSF_Info_t(rep%core_space(0:nifd, i))
 
             if (tHPHF) then

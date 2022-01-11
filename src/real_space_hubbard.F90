@@ -33,7 +33,7 @@ module real_space_hubbard
 
     use constants, only: dp, EPS, n_int, bits_n_int, pi, maxExcit
 
-    use procedure_pointers, only: get_umat_el, generate_excitation
+    use procedure_pointers, only: get_umat_el
 
     use OneEInts, only: tmat2d, GetTMatEl, spin_free_tmat
 
@@ -71,7 +71,7 @@ module real_space_hubbard
     use MPI_wrapper, only: iProcIndex
 
     use guga_data, only: ExcitationInformation_t, ExcitationInformation_t
-    use guga_excitations, only: calc_guga_matrix_element, generate_excitation_guga, &
+    use guga_excitations, only: calc_guga_matrix_element, &
                                 global_excitinfo
     use guga_bitRepOps, only: isProperCSF_ilut, convert_ilut_toGUGA, is_compatible, &
                               current_csf_i, CSF_Info_t
@@ -223,26 +223,7 @@ contains
                 call stop_all(this_routine, &
                               "twisted BC + Transcorr not yet implemented!")
             end if
-            if (t_hole_focus_excits) then
-                generate_excitation => gen_excit_rs_hubbard_transcorr_hole_focus
-            else if (t_uniform_excits) then
-                generate_excitation => gen_excit_rs_hubbard_transcorr_uniform
-            else
-                generate_excitation => gen_excit_rs_hubbard_transcorr
-            end if
-        else if (t_spin_dependent_transcorr .and. .not. tHPHF) then
-            generate_excitation => gen_excit_rs_hubbard_spin_dependent_transcorr
-
-        else
-            if (.not. tHPHF) then
-                if (tGUGA .and. .not. tgen_guga_crude) then
-                    generate_excitation => generate_excitation_guga
-                else
-                    generate_excitation => gen_excit_rs_hubbard
-                end if
-            end if
         end if
-
         ! i have to calculate the optimal time-step
         ! and maybe i have to be a bit more safe here and not be too near to
         ! the optimal time-step

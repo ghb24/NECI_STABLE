@@ -150,7 +150,9 @@ contains
     !------------------------------------------------------------------------------------------!
 
     subroutine setup_tchint_ints()
+#ifndef USE_TCHINT_
       character(*), parameter :: t_r = "setup_tchint_ints"
+#endif
 
       if(t_use_tchint_lib) then
 #ifdef USE_TCHINT_
@@ -190,7 +192,9 @@ contains
     !------------------------------------------------------------------------------------------!
 
     subroutine freeLMat()
+#ifndef USE_TCHINT_
         character(*), parameter :: t_r = "freeLMat"
+#endif
 
         if (t_use_tchint_lib) then
 #ifdef USE_TCHINT_
@@ -223,7 +227,6 @@ contains
 #endif
 
     end function external_lMat_matel
-
 
     !------------------------------------------------------------------------------------------------
     !functions for contact interaction

@@ -89,6 +89,8 @@ considered. The block starts with the `system` keyword and ends with the
     arguments set the momentum \((k_x,k_y,k_z)\) and are only used for
     Hubbard and ueg-type systems, the last argument \(s\) specifies the
     irrep within \(d_{2h}\) and is only used for ab-initio systems.
+    Note that the symmetry label is zero-indexed, so \(A_{1g}\)
+    corresponds to 0.
 
 -   **lztot**<br>
     Set the total \(L_s\) quantum number. Has one mandatory additional
@@ -382,6 +384,13 @@ considered. The block starts with the `system` keyword and ends with the
     account 3-body interactions for all other purposes.
 
 
+-   **evolve-adjoint**<br>
+    For multiple replicas (mneci, system-replicas >=2) or a dneci run,
+    evolves the left eigenvector for the even replicas, while still
+    evolving the right eigenvector for the odd replicas.
+    This gives access to stochastically independent \(|Psi_{R}>\) and
+    \(\Psi_{L}\) in the same simulation, for RDM calculation e.g.
+
 #### Spin purification
 
 -   **sd-spin-purification \(J\) [truncate-ladder-operator]**<br>
@@ -481,7 +490,7 @@ and ends with the `endcalc` keyword.
 
 -   **\textcolor{blue}{stepsSft \(n\)}**<br>
  Sets the number of steps per update cycle of the shift to
-    \(n\). Defaults to \(100\).
+    \(n\). Defaults to \(10\).
 
 -   **fixed-n0 \(n_0\)**<br>
     Instead of varying the shift to fix the total number of walkers,
@@ -805,11 +814,23 @@ and ends with the `endcalc` keyword.
 #### Semi-stochastic options
 
 -   **\textcolor{blue}{semi-stochastic}**<br>
- Turn on the semi-stochastic adaptation.
+    Turn on the semi-stochastic adaptation.
 
 -   **\textcolor{blue}{pops-core \(n\)}**<br>
- This option will use the \(n\) most populated determinants
+    This option will use the \(n\) most populated determinants
     to form the core space.
+    This keyword cannot be used with `pops-core-proportion`.
+    Note that core-space configurations behave like initiators
+    and are treated as such by default.
+    See also the `core-inits` keyword.
+
+
+-   **pops-core-proportion \(f\)**<br>
+    This option will use a fraction \(f\) of most populated initiator
+    determinants to form the core space. For example, about 50% of most
+    populated initiator determinants are chosen if \(f = 0.5\).
+    This keyword cannot be used with `pops-core` and requires
+    `semi-stochastic`.
 
 -   **doubles-core**<br>
     Use the reference determinant and all single and double excitations
@@ -852,6 +873,8 @@ and ends with the `endcalc` keyword.
 -   **fci-core**<br>
     Use all determinants to form the core space. A fully deterministic
     projection is therefore performed with this option.
+    This option requires information about spin(-projection) and spatial
+    symmetry, so the keywords `sym` and `spin-restrict` are required.
 
 -   **read-core**<br>
     Use the determinants in the CORESPACE file to form the core space. A
@@ -862,6 +885,14 @@ and ends with the `endcalc` keyword.
     Update the core space every \(n\) iterations, where \(n\) is
     optional and defaults to \(400\). This is enabled by default if the
     `superinitiators` option is given.
+
+-   **core-inits [{OFF, ON}]**<br>
+    Declare all determinants in the core-space as initiators,
+    independent from their population.
+    Since core-space determinants behave like initiators regardless
+    of their population this option is enabled by default.
+    There is an optional keyword which is either ON, or OFF.
+    If the optional keyword is ommitted it defaults to ON.
 
 #### Trial wave function options
 
@@ -1330,6 +1361,13 @@ keyword.
     Needs two replicas for an unbiased measurement.
     Since this is a diagonal property for the GUGA, there is no additional cost.
 
+-   **biased-RDMs**<br>
+    Only relevant for (k)-neci runs.
+    By default the calculation stops with an error if RDMs are sampled with (k)-neci
+    to prevent user error.
+    With this keyword the user can explicitly say that they want to sample RDMs without
+    replica.
+
 
 
 #### Semi-stochastic output options
@@ -1433,3 +1471,23 @@ the RDMs are calculated and the content of the files, please see section
     This option activates a full sampling of RDMs,
     at least in the semi-stochastic space.
     This option does increase the cost though.
+
+
+### FCIMCStats output functions
+
+-   **instant-s2-full [\(x\)]**<br>
+    Calculate an instantaneous value for \(\hat{S}^2\), and output it to the
+    relevant column (28) in the `FCIMCStats` file.
+
+    The second optional parameter is a multiplier such that we only calculate
+    \(\hat{S}^2\) once for every n update cycles (it must be on an update
+    cycle such that \(|\Psi|^2\) is correct)
+
+-   **instant-s2-init [\(x\)]**<br>
+    Calculate an instantaneous value for \(\hat{S}^2\), considering only
+    the initiators, and output it to the relevant column (29)
+    in the `FCIMCStats` file.
+
+    The second optional parameter is a multiplier such that we only calculate
+    \(\hat{S}^2\) once for every n update cycles (it must be on an update
+    cycle such that \(|\Psi|^2\) is correct)

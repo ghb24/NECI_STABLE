@@ -3,7 +3,7 @@ title
 system read
 freeformat
 electrons 10
-spin-restrict 1
+spin-restrict 0
 nonuniformrandexcits 4ind-weighted-unbound
 hphf 0
 endsys
@@ -34,7 +34,7 @@ maxwalkerbloom 1
 memoryfacspawn 25.0
 memoryfacpart 5.0
 time 1200.0
-nmcyc 3000
+nmcyc 300
 readpops
 endcalc
 

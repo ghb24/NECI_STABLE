@@ -23,7 +23,7 @@ module excit_gens_int_weighted
     use Determinants, only: get_helement, write_det
     use DetBitOps, only: FindBitExcitLevel, EncodeBitDet, ilut_lt, ilut_gt, GetBitExcitation
     use bit_rep_data, only: NIfTot, NIfD, test_flag
-    use bit_reps, only: decode_bit_det, get_initiator_flag
+    use bit_reps, only: decode_bit_det, get_initiator_flag, writebitdet
     use symdata, only: nSymLabels
     use procedure_pointers, only: get_umat_el
     use UMatCache, only: gtid, UMat2d

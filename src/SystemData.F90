@@ -440,6 +440,9 @@ module SystemData
         module procedure SymLt
     end interface
 
+    ! The inputted m_s value of spin-restrict
+    integer, allocatable :: user_input_m_s
+
 contains
     ! Operations on type(symmetry)
     elemental subroutine SymAssign(lhs, rhs)
