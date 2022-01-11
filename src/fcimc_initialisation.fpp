@@ -282,7 +282,10 @@ contains
         CHARACTER(len=*), PARAMETER :: t_r = 'SetupParameters'
         CHARACTER(*), parameter :: this_routine = t_r
         CHARACTER(len=12) :: abstr
-        character(len=40) :: filename, filename2
+        character(len=40) :: filename
+#ifndef PROG_NUMRUNS_
+        character(len=40) :: filename2
+#endif
         LOGICAL :: tSuccess, tFoundOrbs(nBasis), FoundPair, tSwapped, tAlreadyOcc
         INTEGER :: HFLz, ChosenOrb, step, SymFinal, run
         integer(int64) :: SymHF

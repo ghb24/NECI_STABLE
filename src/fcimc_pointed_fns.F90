@@ -401,8 +401,11 @@ contains
             end if
 #endif
 
-            if (tGUGA .and. t_precond_hub .and. abs(Eii_curr) > 10.0_dp) then
-                nSpawn = nSpawn / (1.0_dp + dble(Eii_curr))
+            if (tGUGA .and. t_precond_hub) then
+                ! Because there is no short circuiting in Fortran... :-(
+                if (abs(Eii_curr) > 10.0_dp) then
+                    nSpawn = nSpawn / (1.0_dp + real(Eii_curr, dp))
+                end if
             end if
 
             ! [Werner Dobrautz 4.4.2017:]
