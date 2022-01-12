@@ -133,7 +133,7 @@ module LMat_class
 #endif
 
     ! Names of the LMat hdf5 datasets
-    character(*), parameter :: nm_grp = "tcdump", nm_nInts = "nInts", nm_vals = "values", nm_indices = "indices", nm_nOrbs = "nOrbs"
+    character(*), parameter :: nm_grp = "tcdump", nm_nInts = "nInts", nm_vals = "values", nm_indices = "indices"
 
     !------------------------------------------------------------------------------------------!
 
@@ -310,7 +310,7 @@ contains
                 iunit = get_free_unit()
                 open(iunit, file=filename, status='old')
                 read(iunit,*, iostat = ierr) idum
-                if (ierr /= 0) call stop_all(t_r, "Error reading TCDUMP file")
+                if (ierr /= 0) rewind(iunit)
                 counter = 0
                 do
                     read(iunit,*, iostat = ierr) matel, indices
@@ -361,9 +361,9 @@ contains
         character(*), intent(in) :: filename
 #ifdef USE_HDF_
         type(lMat_hdf5_read_t) :: reader
-        integer(hsize_t) :: nInts, nOrbs
+        integer(hsize_t) :: nInts
 
-        call reader%open(filename, nInts, nOrbs)
+        call reader%open(filename, nInts)
         call reader%loop_file(this)
         call reader%close()
 #else
@@ -708,11 +708,10 @@ contains
     !> Open an hdf5 file containing 6-index integrals
     !> @param[in] filename  name of the file
     !> @param[out] nInts  number of integrals stored in the file (normally only nonzeros)
-    subroutine open(this, filename, nInts, nOrbs)
+    subroutine open(this, filename, nInts)
         class(lMat_hdf5_read_t) :: this
         character(*), intent(in) :: filename
         integer(hsize_t), intent(out) :: nInts
-        integer(hsize_t), intent(out) :: nOrbs
 
         integer :: proc, i
         integer :: err
@@ -733,7 +732,6 @@ contains
         ! get the number of integrals
         call read_int64_attribute(this%grp_id, nm_nInts, nInts, required=.true.)
         write(stdout, *) "Reading", nInts, "integrals"
-        call read_int64_attribute(this%grp_id, nm_nOrbs, nOrbs, required=.true.)
 
         ! how many entries does each proc get?
         call MPI_Comm_Size(mpi_comm_intra, procs_per_node, ierr)
