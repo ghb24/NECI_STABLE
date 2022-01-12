@@ -291,11 +291,12 @@ contains
     subroutine read_dense(this, filename)
         class(dense_lMat_t), intent(inout) :: this
         character(*), intent(in) :: filename
-        integer :: iunit, ierr, idum
+        integer :: iunit, ierr
         integer(int64) :: indices(6)
         HElement_t(dp) :: matel
         character(*), parameter :: t_r = "readLMat"
         integer(int64) :: counter, index
+        character(1024) :: char1024
 
         call this%alloc(this%lMat_size())
 
@@ -309,8 +310,12 @@ contains
             if (iProcIndex_intra == 0) then
                 iunit = get_free_unit()
                 open(iunit, file=filename, status='old')
-                read(iunit,*, iostat = ierr) idum
-                if (ierr /= 0) rewind(iunit)
+                ! If first line cannot be parsed as matrix element we skip it
+                ! (it would contain the number of orbitals then).
+                read(iunit, '(a)', iostat=ierr) char1024
+                if (ierr/=0) call stop_all(t_r, "Error reading TCDUMP file")
+                read(char1024, *, iostat=ierr) matel, indices
+                if (ierr==0) rewind(iunit)
                 counter = 0
                 do
                     read(iunit,*, iostat = ierr) matel, indices
