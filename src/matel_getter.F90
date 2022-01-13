@@ -7,7 +7,7 @@ module matel_getter
     ! to avoid circular dependencies.
 
     use constants
-    use FciMCData, only: ilutRef
+    use FciMCData, only: ilutRef, GetDiagMatel_Time, GetOffDiagMatel_Time
     use SystemData, only: nel, tHPHF, tNoBrillouin, tGUGA, t_3_body_excits, &
         t_ueg_3_body, t_mol_3_body
     use DetBitOps, only: FindBitExcitLevel
@@ -17,6 +17,7 @@ module matel_getter
     use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement
     use guga_procedure_pointers, only: calc_off_diag_guga_ref
     use guga_bitRepOps, only: CSF_Info_t
+    use timing_neci, only: set_timer, halt_timer
 
     implicit none
     private
@@ -35,11 +36,15 @@ contains
         integer(n_int), intent(in) :: ilut(0:NIfTot)
         real(dp) :: diagH
 
+        call set_timer(GetDiagMatel_Time)
+
         if (tHPHF) then
             diagH = hphf_diag_helement(nI, ilut)
         else
             diagH = get_helement(nI, nI, 0)
         end if
+
+        call halt_timer(GetDiagMatel_Time)
 
     end function get_diagonal_matel
 
@@ -57,6 +62,8 @@ contains
         HElement_t(dp) :: offdiagH
         integer(n_int) :: ilut0(0:NIfTot)
         integer :: exlevel, det0(nel)
+
+        call set_timer(GetOffDiagMatel_Time)
 
         ! We operate with the reference for run=1 here, which works for
         ! inum_runs==1 and inum_runs>1 with a common reference.  The projected
@@ -87,6 +94,8 @@ contains
                 end if
             end if
         end if
+
+        call halt_timer(GetOffDiagMatel_Time)
 
     end function get_off_diagonal_matel
 
