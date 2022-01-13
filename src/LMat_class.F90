@@ -314,7 +314,8 @@ contains
                 ! (it would contain the number of orbitals then).
                 read(iunit, '(a)', iostat=ierr) char1024
                 if (ierr/=0) call stop_all(t_r, "Error reading TCDUMP file")
-                read(char1024, *, iostat=ierr) matel, indices
+                ! Only assume first two indices are on same line.
+                read(char1024, *, iostat=ierr) matel, indices(1:2)
                 if (ierr==0) rewind(iunit)
                 counter = 0
                 do
