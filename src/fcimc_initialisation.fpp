@@ -19,10 +19,11 @@ module fcimc_initialisation
                           momIndexTable, t_trans_corr_2body, t_non_hermitian, &
                           tgen_guga_crude, t_impurity_excitgen, &
                           t_uniform_excits, t_mol_3_body,t_ueg_transcorr,t_ueg_3_body,tLatticeGens, &
-                          irrepOrbOffset, nIrreps, &
+                          irrepOrbOffset, nIrreps, t_trans_corr_hop, &
                           tTrcorrExgen, nClosedOrbs, irrepOrbOffset, nIrreps, &
                           nOccOrbs, tNoSinglesPossible, t_pcpp_excitgen, &
-                          t_pchb_excitgen, tGAS, t_guga_pchb
+                          t_pchb_excitgen, tGAS, t_guga_pchb, t_spin_dependent_transcorr
+
     use tc_three_body_data, only: ptriples
     use SymExcitDataMod, only: tBuildOccVirtList, tBuildSpinSepLists
     use core_space_util, only: cs_replicas
@@ -110,7 +111,7 @@ module fcimc_initialisation
     use PopsfileMod, only: FindPopsfileVersion, initfcimc_pops, &
                            ReadFromPopsfilePar, ReadPopsHeadv3, &
                            ReadPopsHeadv4, open_pops_head, checkpopsparams
-    use HPHFRandExcitMod, only: gen_hphf_excit, FindDetSpinSym
+    use HPHFRandExcitMod, only: gen_hphf_excit, FindDetSpinSym, exc_generator_for_HPHF
     use GenRandSymExcitNUMod, only: gen_rand_excit, init_excit_gen_store, &
                                     clean_excit_gen_store
     use replica_estimates, only: open_replica_est_file
@@ -223,7 +224,13 @@ module fcimc_initialisation
 
     use back_spawn, only: init_back_spawn, setup_virtual_mask
 
-    use real_space_hubbard, only: init_real_space_hubbard, init_get_helement_hubbard
+    use real_space_hubbard, only: init_real_space_hubbard, init_get_helement_hubbard, &
+                                  t_hole_focus_excits, gen_excit_rs_hubbard, &
+                                  gen_excit_rs_hubbard_transcorr_hole_focus, &
+                                  gen_excit_rs_hubbard_transcorr_uniform, &
+                                  gen_excit_rs_hubbard_transcorr, &
+                                  gen_excit_rs_hubbard_spin_dependent_transcorr
+
 
     use back_spawn_excit_gen, only: gen_excit_back_spawn, gen_excit_back_spawn_ueg, &
                                     gen_excit_back_spawn_hubbard, gen_excit_back_spawn_ueg_new
@@ -233,10 +240,14 @@ module fcimc_initialisation
     use cepa_shifts, only: t_cepa_shift, init_cepa_shifts
 
     use tj_model, only: init_get_helement_tj, init_get_helement_heisenberg, &
-                        init_get_helement_heisenberg_guga, init_get_helement_tj_guga
+                        init_get_helement_heisenberg_guga, init_get_helement_tj_guga, &
+                        gen_excit_tJ_model, gen_excit_heisenberg_model
 
     use k_space_hubbard, only: init_get_helement_k_space_hub, init_k_space_hubbard, &
-                               gen_excit_k_space_hub_transcorr, gen_excit_uniform_k_space_hub_transcorr
+                               gen_excit_k_space_hub_transcorr, gen_excit_uniform_k_space_hub_transcorr, &
+                               t_mixed_excits, gen_excit_k_space_hub, &
+                               gen_excit_uniform_k_space_hub, &
+                               gen_excit_mixed_k_space_hub_transcorr
 
     use OneEInts, only: tmat2d
 
@@ -269,7 +280,10 @@ contains
         CHARACTER(len=*), PARAMETER :: t_r = 'SetupParameters'
         CHARACTER(*), parameter :: this_routine = t_r
         CHARACTER(len=12) :: abstr
-        character(len=40) :: filename, filename2
+        character(len=40) :: filename
+#ifndef PROG_NUMRUNS_
+        character(len=40) :: filename2
+#endif
         LOGICAL :: tSuccess, tFoundOrbs(nBasis), FoundPair, tSwapped, tAlreadyOcc
         INTEGER :: HFLz, ChosenOrb, step, SymFinal, run
         integer(int64) :: SymHF
@@ -287,6 +301,8 @@ contains
 !Set timed routine names
         Walker_Time%timer_name = 'WalkerTime'
         Annihil_Time%timer_name = 'AnnihilTime'
+        GetDiagMatel_Time%timer_name = 'GetDiagMatelTime'
+        GetOffDiagMatel_Time%timer_name = 'GetOffDiagMatelTime'
         Sort_Time%timer_name = 'SortTime'
         Comms_Time%timer_name = 'CommsTime'
         ACF_Time%timer_name = 'ACFTime'
@@ -1917,10 +1933,11 @@ contains
     subroutine init_fcimc_fn_pointers()
         character(*), parameter :: this_routine = "init_fcimc_fn_pointers"
 
+        ! Almost all excitation generators in NECI are Full CI generators.
+        gen_all_excits => gen_all_excits_default
+
         ! Select the excitation generator.
-        if (tHPHF .and. .not. (t_mol_3_body .or. t_ueg_3_body)) then
-            generate_excitation => gen_hphf_excit
-        else if (tGAS) then
+        if (tGAS) then
             call class_managed(generate_excitation, gen_all_excits)
         else if (t_3_body_excits .and. .not. (t_mol_3_body .or. t_ueg_3_body)) then
             if (t_uniform_excits) then
@@ -1928,8 +1945,6 @@ contains
             else
                 generate_excitation => gen_excit_k_space_hub_transcorr
             end if
-        else if (tHPHF .and. .not. (t_mol_3_body .or. t_ueg_3_body)) then
-            generate_excitation => gen_hphf_excit
         else if (t_ueg_3_body) then
             if (tTrcorrExgen) then
                 generate_two_body_excitation => gen_ueg_excit
@@ -1971,7 +1986,13 @@ contains
 
         else if (tGUGA) then
             if (tgen_guga_crude) then
-                generate_excitation => gen_excit_4ind_weighted2
+                if (t_k_space_hubbard) then
+                    generate_excitation => gen_excit_k_space_hub
+                else if (t_new_real_space_hubbard) then
+                    generate_excitation => gen_excit_rs_hubbard
+                else
+                    generate_excitation => gen_excit_4ind_weighted2
+                end if
             else
                 generate_excitation => generate_excitation_guga
             end if
@@ -1980,20 +2001,71 @@ contains
             generate_excitation => gen_rand_excit_pcpp
         else if (t_pchb_excitgen) then
             call class_managed(generate_excitation, gen_all_excits)
+        else if (t_k_space_hubbard) then
+            if (t_3_body_excits) then
+                if (t_uniform_excits) then
+                    generate_excitation => gen_excit_uniform_k_space_hub_transcorr
+                else if (t_mixed_excits) then
+                    generate_excitation => gen_excit_mixed_k_space_hub_transcorr
+                else
+                    generate_excitation => gen_excit_k_space_hub_transcorr
+                end if
+            else
+                if (t_uniform_excits) then
+                    generate_excitation => gen_excit_uniform_k_space_hub
+                else
+                    generate_excitation => gen_excit_k_space_hub
+                end if
+            end if
+
+        else if (t_new_real_space_hubbard) then
+            if (t_trans_corr_hop) then
+                if (t_hole_focus_excits) then
+                    generate_excitation => gen_excit_rs_hubbard_transcorr_hole_focus
+                else if (t_uniform_excits) then
+                    generate_excitation => gen_excit_rs_hubbard_transcorr_uniform
+                else
+                    generate_excitation => gen_excit_rs_hubbard_transcorr
+                end if
+            else if (t_spin_dependent_transcorr) then
+                generate_excitation => gen_excit_rs_hubbard_spin_dependent_transcorr
+            else
+                generate_excitation => gen_excit_rs_hubbard
+            end if
+
+        else if (t_tJ_model) then
+            generate_excitation => gen_excit_tJ_model
+
+        else if (t_heisenberg_model) then
+            generate_excitation => gen_excit_heisenberg_model
         else
             generate_excitation => gen_rand_excit
         end if
 
+
+        ! yes, fortran pointers work this way
+            ! Pointer assignment with =>
+                ! Fortran
+                !> ptr1 => ptr2
+                ! C
+                !> T *ptr1, *ptr2;
+                !> ptr1 = ptr2;
+            ! Copy/value assignment with =
+                ! Fortran
+                !> ptr1 = ptr2
+                ! C
+                !> *ptr1 = *ptr2;
+
         ! if we are using the 3-body excitation generator, embed the chosen excitgen
         ! in the three-body one
         if (t_mol_3_body) then
-            ! yes, fortran pointers work this way
             generate_two_body_excitation => generate_excitation
-            if(tHPHF) then
-                generate_excitation => gen_hphf_excit
-            else
-                generate_excitation => gen_excit_mol_tc
-            end if
+            generate_excitation => gen_excit_mol_tc
+        end if
+        ! Do the same for HPHF
+        if (tHPHF) then
+            exc_generator_for_HPHF => generate_excitation
+            generate_excitation => gen_hphf_excit
         end if
 
         ! In the main loop, we only need to find out if a determinant is
@@ -2110,8 +2182,6 @@ contains
             gen_all_excits => gen_all_excits_k_space_hubbard
         else if (t_new_real_space_hubbard) then
             gen_all_excits => gen_all_excits_r_space_hubbard
-        else
-            gen_all_excits => gen_all_excits_default
         end if
 
     end subroutine init_fcimc_fn_pointers

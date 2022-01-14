@@ -16,7 +16,7 @@ module tJ_model
                                   check_real_space_hubbard_input, init_tmat, &
                                   init_spin_free_tmat
 
-    use procedure_pointers, only: get_umat_el, generate_excitation
+    use procedure_pointers, only: get_umat_el
 
     use FciMCData, only: tsearchtau, tsearchtauoption, excit_gen_store_type, &
                          pSingles, pDoubles
@@ -158,8 +158,6 @@ contains
             root_print "but tau specified in input!"
         end if
 
-        generate_excitation => generate_excitation_guga
-
     end subroutine init_guga_tJ_model
 
     subroutine init_tJ_model
@@ -225,10 +223,6 @@ contains
 
         ! and i have to calculate the optimal time-step for the hubbard models.
         ! where i need the connectivity of the lattice i guess?
-        if (.not. tHPHF) then
-            generate_excitation => gen_excit_tJ_model
-        end if
-
         tau_opt = determine_optimal_time_step()
         if (tau < EPS) then
             root_print "setting time-step to optimally determined time-step: ", tau_opt
@@ -340,8 +334,6 @@ contains
         t_hist_tau_search = .false.
         t_hist_tau_search_option = .false.
 
-        generate_excitation => generate_excitation_guga
-
     end subroutine init_guga_heisenberg_model
 
     subroutine init_heisenberg_model
@@ -405,10 +397,6 @@ contains
 
         ! and i have to calculate the optimal time-step for the hubbard models.
         ! where i need the connectivity of the lattice i guess?
-        if (.not. tHPHF) then
-            generate_excitation => gen_excit_heisenberg_model
-        end if
-
         tau_opt = determine_optimal_time_step()
         if (tau < EPS) then
             root_print "setting time-step to optimally determined time-step: ", tau_opt

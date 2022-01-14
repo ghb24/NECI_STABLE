@@ -1933,7 +1933,6 @@ contains
         Use global_utilities
         use SymData, only: tAbelian, TwoCycleSymGens, nSymLabels
         use constants, only: Pi, Pi2, THIRD
-        use legacy_data, only: CSF_NBSTART
         use read_fci
         use sym_mod
         use SymExcitDataMod, only: kPointToBasisFn

@@ -221,7 +221,6 @@ set( SRC_FILES
     lib/error_handling_neci.F90
     lib/hdf5_util.F90
     lib/MemoryManagement.F90
-    lib/ranlux.F
     lib/signals.F90
     lib/signals_helper.cpp
     lib/soft_exit.F90

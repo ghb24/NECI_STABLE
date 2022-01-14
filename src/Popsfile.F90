@@ -1367,7 +1367,8 @@ contains
         logical :: Pop64Bit, PopLz, PopHPHF
         integer :: PopLensign, PopNEl, PopCyc, PopiBlockingIter
         integer, parameter :: max_nodes = 30000
-        integer(int64) :: PopTotwalk, PopWalkersOnNodes(max_nodes)
+        integer(int64) :: PopTotwalk
+        integer(int64), allocatable :: PopWalkersOnNodes(:)
         integer :: PopNNodes
         real(dp) :: PopSft, PopTau, PopPSingles, PopPParallel, PopGammaSing, PopPTriples
         real(dp) :: PopPDoubles, PopPSing_spindiff1, PopPDoub_spindiff1, PopPDoub_spindiff2
@@ -1395,6 +1396,7 @@ contains
             PopPreviousHistTau, tPopAutoAdaptiveShift, tPopScaleBlooms, &
             tPopAccumPops, PopAccumPopsCounter
 
+
         PopsVersion = FindPopsfileVersion(iunithead)
         if (PopsVersion /= 4) call stop_all("ReadPopsfileHeadv4", "Wrong popsfile version for this routine.")
 
@@ -1405,6 +1407,7 @@ contains
         PopMultiSft = 0.0_dp
         PopMaxDeathCpt = 0.0_dp
         PopTotImagTime = 0.0_dp
+        allocate(PopWalkersOnNodes(max_nodes), source=0_int64)
 
         PopBalanceBlocks = -1
         PopNNodes = 0

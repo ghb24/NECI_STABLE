@@ -1604,29 +1604,11 @@ contains
                     ! all the interfaces to the other excitation generators,
                     ! which all just assume ex(2,2) as size.. so use a
                     ! if here..
-                    if (t_k_space_hubbard .and. t_3_body_excits) then
-                        if (t_uniform_excits) then
-                            call gen_excit_uniform_k_space_hub_transcorr(DetCurr, CurrentDets(:, j), &
-                                                                         nJ, ilutnJ, exFlag, ic, ex, tParity, prob, &
-                                                                         HElGen, fcimc_excit_gen_store, part_type)
+                    ! Generate a (random) excitation
+                    call generate_excitation(DetCurr, CurrentDets(:,j), nJ, &
+                        ilutnJ, exFlag, IC, ex, tParity, prob, &
+                        HElGen, fcimc_excit_gen_store, part_type)
 
-                        else if (t_mixed_excits) then
-                            call gen_excit_mixed_k_space_hub_transcorr(DetCurr, CurrentDets(:, j), &
-                                                                       nJ, ilutnJ, exFlag, ic, ex, tParity, prob, &
-                                                                       HElGen, fcimc_excit_gen_store, part_type)
-
-                        else
-                            call gen_excit_k_space_hub_transcorr(DetCurr, CurrentDets(:, j), &
-                                                                 nJ, ilutnJ, exFlag, ic, ex, tParity, prob, &
-                                                                 HElGen, fcimc_excit_gen_store, part_type)
-                        end if
-                    else
-                        ! Generate a (random) excitation
-                        call generate_excitation(DetCurr, CurrentDets(:,j), nJ, &
-                            ilutnJ, exFlag, IC, ex, tParity, prob, &
-                            HElGen, fcimc_excit_gen_store, part_type)
-
-                    end if
 
                     !If we are fixing the population of reference det, skip spawing into it.
                     if (tSkipRef(run) .and. all(nJ == projEdet(:, run))) then
