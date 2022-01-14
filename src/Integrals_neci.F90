@@ -1794,6 +1794,10 @@ contains
         HElement_t(dp) :: hel, UElems(0:nTypes - 1)
         logical :: calc2ints
         complex(dp) :: vasp_int(1, 0:1)
+        character(*), parameter :: this_routine = 'get_umat_el_cache'
+
+
+        call stop_all(this_routine, 'I was called')
 
         i = idi
         j = idj
