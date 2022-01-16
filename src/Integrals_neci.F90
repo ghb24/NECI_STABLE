@@ -394,9 +394,6 @@ contains
                 ! read the range-separated factors instead of a TCDUMP file
                 t_rs_factors = .true.
 
-            case ("MIMIC-MANU-FREEZE")
-                t_mimic_manu_freeze = .true.
-
             case ("HDF5-INTEGRALS")
                 ! Read the 6-index integrals from an hdf5 file
                 tHDF5LMat = .true.

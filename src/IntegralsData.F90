@@ -46,7 +46,6 @@ module IntegralsData
 ! Set if we need virtual orbitals  (usually set).  Will be unset (by Calc readinput) if I_VMAX=1 and TENERGY is false
     Logical :: tNeedsVirts
 
-    logical :: t_mimic_manu_freeze = .false.
     logical :: t_rs_factors = .false.
     ! hash the lmat calc routine. True by default, turn of if big calcs crash
     logical :: t_hash_lmat_calc = .true.
