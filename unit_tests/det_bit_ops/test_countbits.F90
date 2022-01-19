@@ -36,19 +36,17 @@ contains
         ! all pass the tests!
         procedure(count_bits_t), pointer :: proc
         proc => CountBits_elemental
-        call test_countbits_fn(proc, "elemental")
+        call test_countbits_fn(proc)
     end subroutine
 
-    subroutine test_countbits_fn(proc, subname)
+    subroutine test_countbits_fn(proc)
         ! This calls each of the relevant tests on the supplied function
         procedure(count_bits_t), pointer :: proc
-        character(*), intent(in) :: subname
 
         TEST1(test_zero_bits, proc)
         TEST1(test_max_bits, proc)
         TEST1(test_nlast_restriction, proc)
         TEST1(test_max_bits2, proc)
-
     end subroutine
 
     subroutine test_zero_bits(proc)

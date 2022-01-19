@@ -447,29 +447,6 @@ contains
 
     end subroutine encode_sign
 
-!     subroutine encode_run_sign(ilut, real_sgn, imag_sgn, run)
-!
-!         ! Encode only the real AND imaginary component of the sign for the
-!         ! walker. Sign argument is now a scalar.
-!         !
-!         ! In:    real_sgn  - The new sign component
-!         !        imag_sgn  - The new imaginary sign component
-!         !        run - Update given run. 1 ==> inum_runs
-!         ! InOut:  ilut     - The bit representation to update
-!         integer(n_int), intent(inout) :: ilut(0:NIfTot)
-!         integer, intent(in) :: run
-!         real(dp), intent(in) :: real_sgn, imag_sgn
-!         character(*), parameter :: this_routine = 'encode_run_sign'
-!
-!         ASSERT(run <= inum_runs)
-!         call encode_part_sign(ilut, real_sgn, min_part_type(run))
-! #ifdef CMPLX_
-!         call encode_part_sign(ilut, imag_sgn, max_part_type(run))
-! #else
-!         unused_var(imag_sgn)
-! #endif
-!     end subroutine encode_run_sign
-
     subroutine encode_part_sign(ilut, real_sgn, part_type)
 
         ! Encode only the real OR imaginary component of the sign for the

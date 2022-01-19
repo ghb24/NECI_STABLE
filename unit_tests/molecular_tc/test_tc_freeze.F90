@@ -163,7 +163,6 @@ contains
     end subroutine random_fcidump
 
     subroutine reset_ints()
-        integer :: i
         if(iProcIndex_intra == 0) then
             UMat = 0.0_dp
         end if

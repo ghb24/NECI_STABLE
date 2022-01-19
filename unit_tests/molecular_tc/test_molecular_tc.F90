@@ -15,9 +15,9 @@ program test_molecular_tc
   call MPIInit(.false.)
 
   call init_fruit()
-  
+
   call molecular_tc_test_driver()
-  
+
   call fruit_summary()
   call fruit_finalize()
 
@@ -33,7 +33,7 @@ program test_molecular_tc
 
       call clear_resources()
     end subroutine molecular_tc_test_driver
-    
+
     subroutine setup_tests()
       ! initialization of the tests: mimic the environment of a NECI calculation
       use procedure_pointers, only: get_umat_el
@@ -47,7 +47,7 @@ program test_molecular_tc
       implicit none
 
       integer :: i
-      
+
       nBasis = 14
       tStoreSpinOrbs = .false.
       nel = 6
@@ -83,7 +83,7 @@ program test_molecular_tc
       NIfTot = 2
       ! random number generator initialization
       call dSFMT_init(4)
-      
+
       pSingles = 0.0_dp
       pDoubles = 0.0_dp
       pTriples = 1.0_dp
@@ -113,7 +113,7 @@ program test_molecular_tc
       integer(n_int) :: ilut(0:NIfTot), ilutJ(0:NIfTot)
       integer :: i
       integer, parameter :: nTest = 100
-     
+
       nI = (/1,2,4,11,13,14/)
       pTriples = 1.0
 
@@ -128,8 +128,7 @@ program test_molecular_tc
     end subroutine run_excitgen_test
 
     subroutine init_dummy()
-      use OneEInts, only: TMat2D, tOneElecDiag
-      use UMatCache, only: UMat2D
+      use OneEInts, only: tOneElecDiag
       use SymData
       use SymExcitDataMod, only: SpinOrbSymLabel
       implicit none
@@ -144,19 +143,17 @@ program test_molecular_tc
 
 
       allocate(spinorbsymlabel(nBasis), source = 0)
-      
+
     end subroutine init_dummy
 
     subroutine clear_resources()
-      use OneEInts, only: TMat2D
-      use UMatCache, only: UMat2D
       use SymData
       implicit none
-      
+
       deallocate(StateSymMap)
       deallocate(symlabelintscum)
       deallocate(Symclasses)
     end subroutine clear_resources
 
-    
+
 end program test_molecular_tc

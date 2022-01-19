@@ -454,23 +454,6 @@ contains
                 LMS = STOT
                 ! =============================================================
 
-            case ("TEST-MOST-POPULATED")
-                if (item < nitems) then
-                    call geti(n_most_populated)
-                else
-                    n_most_populated = 10**4
-                end if
-                t_test_most_populated = .true.
-
-            case ("TEST-EXCIT-GEN")
-                t_test_excit_gen = .true.
-
-                if (item < nitems) then
-                    call geti(n_guga_excit_gen)
-                else
-                    n_guga_excit_gen = 1000000
-                end if
-
             case ("TEST-DOUBLE")
                 t_test_double = .true.
 
@@ -484,24 +467,6 @@ contains
 
                 call geti(test_i)
                 call geti(test_j)
-
-            case ("FULL-GUGA-TESTS")
-                if (item < nitems) then
-                    call geti(n_guga_excit_gen)
-                else
-                    n_guga_excit_gen = 1000000
-                end if
-                t_full_guga_tests = .true.
-
-            case ("GUGA-TESTSUITE")
-                ! introduce a new flag to indicate the testsuite is running
-                ! this enforces more strict tolerances
-                if (item < nitems) then
-                    call geti(n_guga_excit_gen)
-                else
-                    n_guga_excit_gen = 1000000
-                end if
-                t_guga_testsuite = .true.
 
             case ("GUGA-NOREORDER")
                 ! do not reorder the orbitals in the hubbard + guga implementation

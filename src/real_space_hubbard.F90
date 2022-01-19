@@ -71,8 +71,9 @@ module real_space_hubbard
     use MPI_wrapper, only: iProcIndex
 
     use guga_data, only: ExcitationInformation_t, ExcitationInformation_t
-    use guga_excitations, only: calc_guga_matrix_element, &
-                                global_excitinfo
+    use guga_excitations, only: global_excitinfo
+    use guga_main, only: generate_excitation_guga
+    use guga_matrixElements, only: calc_guga_matrix_element
     use guga_bitRepOps, only: isProperCSF_ilut, convert_ilut_toGUGA, is_compatible, &
                               current_csf_i, CSF_Info_t
 
@@ -2000,7 +2001,6 @@ contains
         integer(n_int) :: ilutGi(0:nifguga), ilutGj(0:nifguga)
 
         unused_var(exFlag)
-        ASSERT(is_compatible(ilutI, current_csf_i))
         hel = h_cast(0.0_dp)
 #ifdef WARNING_WORKAROUND_
         if (present(run)) then
@@ -2057,7 +2057,8 @@ contains
                 pgen = 0.0_dp
             end if
 
-            call calc_guga_matrix_element(ilutI, current_csf_i, ilutJ, excitInfo, hel, .true., 1)
+            ASSERT(is_compatible(ilutI, current_csf_i))
+            call calc_guga_matrix_element(ilutI, current_csf_i, ilutJ, CSF_Info_t(ilutJ), excitInfo, hel, .true.)
 
             if (abs(hel) < EPS) then
                 nJ(1) = 0
@@ -2475,7 +2476,7 @@ contains
             call EncodeBitDet(nI, ilut)
             ilutJ = make_ilutJ(ilut, ex, 1)
 
-            call calc_guga_matrix_element(ilut, current_csf_i, ilutJ, excitInfo, hel, .true., 2)
+            call calc_guga_matrix_element(ilut, CSF_Info_t(ilut), ilutJ, CSF_Info_t(ilutJ), excitInfo, hel, .true.)
 
             if (tpar) hel = -hel
             return

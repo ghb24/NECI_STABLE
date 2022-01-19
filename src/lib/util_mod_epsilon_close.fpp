@@ -62,7 +62,7 @@ contains
             res = abs(a - b) <= max(atol_, rtol_ * min(abs(a), abs(b)))
         end function
 
-    !> Operator functions may only have two arguments.
+        !> Operator functions may only have two arguments.
         elemental function isclose_for_operator_${type}$_${kind}$(a, b) result(res)
             ${type}$(${kind}$), intent(in) :: a, b
             logical :: res
@@ -81,7 +81,6 @@ contains
 
             res = isclose(x, ${ZEROS[type][kind]}$, atol=epsilon_, rtol=0._dp)
         end function
-
     #:endfor
     #:endfor
 

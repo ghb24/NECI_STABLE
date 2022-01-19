@@ -66,7 +66,7 @@ MODULE PopsfileMod
 
     use SystemData, only: tGUGA
     use guga_data, only: ExcitationInformation_t
-    use guga_excitations, only: calc_guga_matrix_element
+    use guga_matrixElements, only: calc_guga_matrix_element
 
     use real_time_data, only: t_real_time_fciqmc, phase_factors, t_kspace_operators, &
                               TotWalkers_orig
@@ -2207,8 +2207,8 @@ contains
                     if (tGUGA) then
                         ASSERT(.not. t_non_hermitian)
                         call calc_guga_matrix_element(&
-                                det, CSF_Info_t(det), iLutRef(:, 1), &
-                                excitInfo, hf_helemt, .true., 2)
+                                det, CSF_Info_t(det), iLutRef(:, 1), CSF_Info_t(iLutRef(:, 1)), &
+                                excitInfo, hf_helemt, .true.)
                         ex_level = excitInfo%excitLvl
                         if (ex_level == -1) ex_level = 0
                     else

@@ -87,9 +87,7 @@ program test_gasci_program
 
 
     implicit none
-    integer :: failed_count, err
-
-    integer :: n
+    integer :: failed_count
     block
 
         call MPIInit(.false.)

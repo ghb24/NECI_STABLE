@@ -178,6 +178,7 @@ set( SRC_FILES
     real_space_hubbard.F90
     back_spawn.F90
     back_spawn_excit_gen.F90
+    guga_main.F90
     guga_bitRepOps.F90
     guga_data.F90
     guga_excitations.F90
@@ -188,6 +189,7 @@ set( SRC_FILES
     guga_types.F90
 	guga_plugin.F90
     guga_pchb_class.F90
+    guga_crude_approx.F90
     lattice_mod.F90
     tJ_model.F90
     k_space_hubbard.F90
