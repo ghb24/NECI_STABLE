@@ -13,7 +13,7 @@ contains
         use SystemData, only: tNoSymGenRandExcits, lNoSymmetry, tROHF, tHub, tUEG
         use SystemData, only: tStoreSpinOrbs, tKPntSym, tRotatedOrbsReal, tFixLz, tUHF
         use SystemData, only: tMolpro, tReadFreeFormat, tReltvy, nclosedOrbs, nOccOrbs
-        use SystemData, only: nIrreps, t_non_hermitian
+        use SystemData, only: nIrreps
         use SymData, only: nProp, PropBitLen, TwoCycleSymGens
         use Parallel_neci
         use util_mod, only: get_free_unit, near_zero
@@ -217,7 +217,7 @@ contains
         use SystemData, only: BasisFN, BasisFNSize, Symmetry, NullBasisFn, tMolpro, tUHF
         use SystemData, only: tCacheFCIDUMPInts, tROHF, tFixLz, iMaxLz, tRotatedOrbsReal
         use SystemData, only: tReadFreeFormat, SYMMAX, tReltvy, irrepOrbOffset, &
-            nIrreps, t_non_hermitian, t_complex_ints
+            nIrreps, t_complex_ints
         use UMatCache, only: nSlotsInit, CalcNSlotsInit
         use UMatCache, only: GetCacheIndexStates, GTID
         use SymData, only: nProp, PropBitLen, TwoCycleSymGens
@@ -609,7 +609,7 @@ contains
         use constants, only: dp, sizeof_int
         use SystemData, only: Symmetry, SymmetrySize, SymmetrySizeB, NEl
         use SystemData, only: BasisFN, BasisFNSize, BasisFNSizeB, tMolpro
-        use SystemData, only: UMatEps, tCacheFCIDUMPInts, tUHF, t_non_hermitian
+        use SystemData, only: UMatEps, tCacheFCIDUMPInts, tUHF
         use SystemData, only: tRIIntegrals, nBasisMax, tROHF, tRotatedOrbsReal
         use SystemData, only: tReadFreeFormat, G1, tFixLz, tReltvy, nIrreps, t_complex_ints
         USE UMatCache, only: UMatInd, UMatConj, UMAT2D, TUMAT2D, nPairs, CacheFCIDUMP
@@ -870,19 +870,17 @@ contains
                     ! Have read in T_ij.  Check it's consistent with T_ji
                     ! (if T_ji has been read in).
                     diff = abs(TMAT2D(ISPINS * I - ISPN + 1, ISPINS * J - ISPN + 1) - Z)
-          IF (.not. near_zero(TMAT2D(ISPINS * I - ISPN + 1, ISPINS * J - ISPN + 1)) .and. diff > 1.0e-7_dp .and. .not. t_non_hermitian) then
+                    IF (.not. near_zero(TMAT2D(ISPINS * I - ISPN + 1, ISPINS * J - ISPN + 1)) .and. diff > 1.0e-7_dp) then
                         write(stdout, *) i, j, Z, TMAT2D(ISPINS * I - ISPN + 1, ISPINS * J - ISPN + 1)
                         CALL Stop_All("ReadFCIInt", "Error filling TMAT - different values for same orbitals")
                     end if
 
                     TMAT2D(ISPINS * I - ISPN + 1, ISPINS * J - ISPN + 1) = Z
-                    if (.not. t_non_hermitian) then
 #ifdef CMPLX_
-                        TMAT2D(ISPINS * J - ISPN + 1, ISPINS * I - ISPN + 1) = conjg(Z)
+                    TMAT2D(ISPINS * J - ISPN + 1, ISPINS * I - ISPN + 1) = conjg(Z)
 #else
-                        TMAT2D(ISPINS * J - ISPN + 1, ISPINS * I - ISPN + 1) = Z
+                    TMAT2D(ISPINS * J - ISPN + 1, ISPINS * I - ISPN + 1) = Z
 #endif
-                    end if
                 end do
             ELSE
 !.. 2-e integrals
@@ -1009,7 +1007,7 @@ contains
     !This is a copy of the routine above, but now for reading in binary files of integrals
     SUBROUTINE READFCIINTBIN(UMAT, ECORE)
         use constants, only: dp, int64, sizeof_int
-        use SystemData, only: Symmetry, BasisFN, t_non_hermitian
+        use SystemData, only: Symmetry, BasisFN
         USE UMatCache, only: UMatInd, UMAT2D, TUMAT2D
         use OneEInts, only: TMatind, TMat2D, TMATSYM
         use util_mod, only: get_free_unit
@@ -1060,10 +1058,9 @@ contains
 !.. These are stored as spinorbitals (with elements between different spins being 0
             TMAT2D(2 * I - 1, 2 * J - 1) = Z
             TMAT2D(2 * I, 2 * J) = Z
-            if (.not. t_non_hermitian) then
-                TMAT2D(2 * J - 1, 2 * I - 1) = Z
-                TMAT2D(2 * J, 2 * I) = Z
-            end if
+
+            TMAT2D(2 * J - 1, 2 * I - 1) = Z
+            TMAT2D(2 * J, 2 * I) = Z
         ELSE
 !.. 2-e integrals
 !.. UMAT is stored as just spatial orbitals (not spinorbitals)
