@@ -242,6 +242,9 @@ contains
         LOGICAL TBIN
         logical :: uhf, tRel
         integer :: orbsPerIrrep(nIrreps)
+#ifdef CMPLX_
+        real(dp) :: real_time_Z
+#endif
         NAMELIST /FCI/ NORB, NELEC, MS2, ORBSYM, OCC, CLOSED, FROZEN, &
             ISYM, IUHF, UHF, TREL, SYML, SYMLZ, PROPBITLEN, NPROP
 
@@ -391,15 +394,12 @@ contains
                 ! This means it won't work with more than 999 basis
                 ! functions...
 #ifdef CMPLX_
-                block
-                    real(dp) :: real_time_Z
 1                   if (t_complex_ints) then
-                        read(iunit, *, END=99) Z, I, J, K, L
-                    else
-                        read(iunit, *, END=99) real_time_Z, I, J, K, L
-                        Z = dcmplx(real_time_Z, 0.0_dp)
-                    end if
-                end block
+                    read(iunit, *, END=99) Z, I, J, K, L
+                else
+                    read(iunit, *, END=99) real_time_Z, I, J, K, L
+                    Z = dcmplx(real_time_Z, 0.0_dp)
+                end if
 #else
 1               CONTINUE
                 !It is possible that the FCIDUMP can be written out in complex notation, but still only
@@ -595,6 +595,9 @@ contains
         integer(int64) :: start_ind, end_ind
         integer(int64), parameter :: chunk_size = 1000000
         integer:: bytecount
+#if defined(CMPLX_)
+        real(dp) :: real_time_Z
+#endif
         NAMELIST /FCI/ NORB, NELEC, MS2, ORBSYM, OCC, CLOSED, FROZEN, &
             ISYM, IUHF, UHF, TREL, SYML, SYMLZ, PROPBITLEN, NPROP
 
@@ -673,15 +676,12 @@ contains
             ! This means it won't work with more than 999 basis
             ! functions...
 #if defined(CMPLX_)
-            block
-                real(dp) :: real_time_Z
-101             if (t_complex_ints) then
-                    read(iunit, *, END=199) Z, I, J, K, L
-                else
-                    read(iunit, *, END=199) real_time_Z, I, J, K, L
-                    Z = dcmplx(real_time_Z, 0.0_dp)
-                end if
-            end block
+101         if (t_complex_ints) then
+                read(iunit, *, END=199) Z, I, J, K, L
+            else
+                read(iunit, *, END=199) real_time_Z, I, J, K, L
+                Z = dcmplx(real_time_Z, 0.0_dp)
+            end if
 #else
 101         CONTINUE
             !It is possible that the FCIDUMP can be written out in complex notation, but still only
