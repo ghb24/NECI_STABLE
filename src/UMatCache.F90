@@ -213,22 +213,22 @@ Contains
         nBI_umat = numBasisIndices(nBasis)
     end subroutine setup_UMatInd
 
-    function UMat2Ind(i, j, k, l) result(ind)
+    elemental function UMat2Ind(i, j, k, l) result(ind)
         use SystemData, only: nBasis
-        integer :: i, j, k, l
+        integer, intent(in) :: i, j, k, l
         integer(int64) :: ind
 
         ind = UMatInd_base(i, j, k, l, numBasisIndices(nBasis))
     end function UMat2Ind
 
-    function UMatInd(i, j, k, l) result(ind)
-        integer :: i, j, k, l
+    elemental function UMatInd(i, j, k, l) result(ind)
+        integer, intent(in) :: i, j, k, l
         integer(int64) :: ind
 
         ind = UMatInd_base(i, j, k, l, nBI_umat)
     end function UMatInd
 
-    FUNCTION UMatInd_base(I, J, K, L, nBI) result(UMatInd)
+    elemental FUNCTION UMatInd_base(I, J, K, L, nBI) result(UMatInd)
         ! Get the index of physical order UMAT element <IJ|KL>.
         ! Indices are internally reordered such that I>K, J>L,(I,K)>(J,L)
         ! Note: (i,k)>(j,l) := (k>l) || ((k==l)&&(i>j))
@@ -280,7 +280,7 @@ Contains
 #endif
     END FUNCTION UMatInd_Base
 
-    HElement_t(dp) function UMatConj(I, J, K, L, val)
+    HElement_t(dp) elemental function UMatConj(I, J, K, L, val)
         integer, intent(in) :: I, J, K, L
         HElement_t(dp), intent(in) :: val
 #ifdef CMPLX_
@@ -1282,7 +1282,7 @@ Contains
 
     !------------------------------------------------------------------------------------------!
 
-    function numBasisIndices(nBasis) result(nBI)
+    elemental function numBasisIndices(nBasis) result(nBI)
         integer, intent(in) :: nBasis
         integer :: nBI
 

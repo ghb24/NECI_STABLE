@@ -39,7 +39,7 @@ module Integrals_neci
 
     USE OneEInts, only: TMAT2D
 
-    use util_mod, only: get_free_unit
+    use util_mod, only: get_free_unit, stop_all
 
     use sym_mod, only: symProd, symConj, lSymSym, TotSymRep
 
@@ -1685,7 +1685,7 @@ contains
 
     end subroutine
 
-    function get_umat_el_comporb_spinorbs(i, j, k, l) result(hel)
+    pure function get_umat_el_comporb_spinorbs(i, j, k, l) result(hel)
         use sym_mod, only: symProd, symConj, decomposeabeliansym, totsymrep
 
         ! Obtains the Coulomb integral <ij|kl>.
@@ -1722,13 +1722,6 @@ contains
         symtot = SymProd(SymX_C, SymY)
         sym_sym = totsymrep()
 
-!        call decomposeAbelianSym(SymX%s,ksymx)
-!        call decomposeAbelianSym(SymY%s,ksymy)
-!        call decomposeAbelianSym(SymX_C%s,ksymx_c)
-!        write(stdout,*) "SymX: ",ksymx(:)
-!        write(stdout,*) "SymY: ",ksymy(:)
-!        write(stdout,*) "SymX_C: ",ksymx_c(:)
-
         if(symtot%s == sym_sym%s) then
 !        if(SymX_C%S.eq.SymY%S) then
             !Symmetry allowed
@@ -1744,7 +1737,7 @@ contains
 
     end function
 
-    function get_umat_el_comporb_notspinorbs(i, j, k, l) result(hel)
+    pure function get_umat_el_comporb_notspinorbs(i, j, k, l) result(hel)
         use SystemData, only: G1
 
         ! Obtains the Coulomb integral <ij|kl>.
@@ -1795,7 +1788,7 @@ contains
 
     end function
 
-    function get_umat_el_fixlz_storespinorbs(i, j, k, l) result(hel)
+    pure function get_umat_el_fixlz_storespinorbs(i, j, k, l) result(hel)
 
         ! Obtains the Coulomb integral <ij|kl>.
 
@@ -1823,7 +1816,7 @@ contains
 
     end function
 
-    function get_umat_el_fixlz_notspinorbs(i, j, k, l) result(hel)
+    pure function get_umat_el_fixlz_notspinorbs(i, j, k, l) result(hel)
 
         ! Obtains the Coulomb integral <ij|kl>.
 
@@ -1852,7 +1845,7 @@ contains
 
     end function
 
-    function get_umat_el_normal(idi, idj, idk, idl) result(hel)
+    pure function get_umat_el_normal(idi, idj, idk, idl) result(hel)
 
         ! Obtains the Coulomb integral <ij|kl>.
 
