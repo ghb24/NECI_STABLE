@@ -7,7 +7,7 @@ MODULE UMatCache
     use SystemData, only: tROHF, tStoreSpinOrbs, tComplexWalkers_RealInts, &
                           Symmetry, BasisFN, UMatEps, tROHF
 
-    use SystemData, only: tRIIntegrals, tCacheFCIDUMPInts, t_non_hermitian
+    use SystemData, only: tRIIntegrals, t_non_hermitian
 
     use util_mod, only: swap, get_free_unit, NECI_ICOPY, near_zero, operator(.div.)
 
@@ -438,9 +438,6 @@ Contains
 
             UMatCacheData = (0.0_dp)
             UMATLABELS(1:nSlots, 1:nPairs) = 0
-!If tSmallUMat is set here, and have set tCacheFCIDUMPInts, then we need to read in
-!the <ik|u|jk> integrals from the FCIDUMP file, then disperse them using the
-!FillUMatCache routine. Otherwise, we need to read in all the integrals.
             if(.not. tSmallUMat .and. tReadInCache) then
                 write(stdout, *) 'reading in cache'
                 call ReadInUMatCache
@@ -488,10 +485,7 @@ Contains
             UMat2D = 0.0_dp
 !            write(stdout,*) "nStates for UMat2D: ",nStates
             call LogMemAlloc('UMat2D', nStates**2, 8 * HElement_t_size, thisroutine, tagUMat2D, ierr)
-            IF(tRIIntegrals .or. tCacheFCIDUMPInts) THEN
-                !        CALL ReadRI2EIntegrals(nStates,UMat2D,tUMat2D)
-                !  This happens later
-            ELSE
+            IF (.not. tRIIntegrals) THEN
                 CALL ReadDalton2EIntegrals(nStates, UMat2D, tUMat2D)
             end if
         end if
@@ -970,57 +964,6 @@ Contains
 
 !After we have filled all of the cache, this will want to be sorted.
     END SUBROUTINE CacheFCIDUMP
-
-!This is a routine to calculate the maximum size needed for nSlotsInit to hold all the needed two-electron
-!integrals in the cache.
-!We are assuming that there is no more than one integral per i,j pair and so permutational
-!symmetry is taken into account when determining islotsmax.
-    SUBROUTINE CalcNSlotsInit(I, J, K, L, Z, nPairs2, MaxSlots)
-        IMPLICIT NONE
-        INTEGER :: I, J, K, L, nPairs2, MaxSlots(1:nPairs2), A, B, C, D, X, Y
-        HElement_t(dp) :: Z
-
-!The (ii|jj) and (ij|ij) integrals are not stored in the cache (they are stored in UMAT2D, so
-!we do not want to include them in the consideration of the size of the cache.
-        IF((I == J) .and. (K == L)) THEN
-            RETURN
-        else if((I == K) .and. (J == L)) THEN
-            RETURN
-        else if(min(I, J, K, L) == 0) THEN
-            RETURN
-        end if
-        A = I
-        B = J
-        C = K
-        D = L
-        IF(B < A) THEN
-            CALL SWAP(B, A)
-        end if
-        IF(D < C) THEN
-            CALL SWAP(C, D)
-        end if
-        CALL GETCACHEINDEX(A, B, X)
-        CALL GETCACHEINDEX(C, D, Y)
-        IF(X > Y) THEN
-            CALL SWAP(X, Y)
-            CALL SWAP(A, B)
-            CALL SWAP(C, D)
-        end if
-
-        IF(abs(Z) > UMatEps) THEN
-            MaxSlots(X) = MaxSlots(X) + 1
-            IF(X > nPairs2) THEN
-                CALL Stop_All("CalcNSlotsInit", "Problem since X > nPairs")
-            end if
-            IF((MaxSlots(X) > nPairs2) .and. (.not. tROHF)) THEN
-                write(stdout, *) "Final Phys ordering: ", I, J, K, L
-                write(stdout, *) "Pair indices: ", X, Y
-                write(stdout, *) "nPairs,nSlots: ", nPairs2, MaxSlots(X)
-                CALL Stop_All("CalcNSlotsInit", "Problem since more integrals for a given ik pair found than possible.")
-            end if
-        end if
-
-    END SUBROUTINE CalcNSlotsInit
 
     subroutine ReadInUMatCache()
         ! Read in cache file from CacheDump.

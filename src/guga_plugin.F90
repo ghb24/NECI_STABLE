@@ -94,7 +94,7 @@ contains
         call shared_allocate_mpi(umat_win, umat, (/umatsize/))
         UMat = 0.0_dp
         call SysInit()
-        call readfciint(UMat,umat_win,nBasis,ecore,.false.)
+        call readfciint(UMat,umat_win,nBasis,ecore)
         ! required: set up the spin info
 
         call DetInit()

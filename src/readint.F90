@@ -215,10 +215,9 @@ contains
 
     SUBROUTINE GETFCIBASIS(NBASISMAX, ARR, BRR, G1, LEN, TBIN)
         use SystemData, only: BasisFN, BasisFNSize, Symmetry, NullBasisFn, tMolpro, tUHF
-        use SystemData, only: tCacheFCIDUMPInts, tROHF, tFixLz, iMaxLz, tRotatedOrbsReal
+        use SystemData, only: tROHF, tFixLz, iMaxLz, tRotatedOrbsReal
         use SystemData, only: tReadFreeFormat, SYMMAX, tReltvy, irrepOrbOffset, &
             nIrreps, t_non_hermitian, t_complex_ints
-        use UMatCache, only: nSlotsInit, CalcNSlotsInit
         use UMatCache, only: GetCacheIndexStates, GTID
         use SymData, only: nProp, PropBitLen, TwoCycleSymGens
         use Parallel_neci
@@ -342,25 +341,6 @@ contains
         G1(1:LEN) = NullBasisFn
         ARR = 0.0_dp
 
-!If we are reading in and cacheing the FCIDUMP integrals, we need to know the maximum number j,l pairs of
-!integrals for a given i,k pair. (Or in chemical notation, the maximum number of k,l pairs for a given i,j pair.)
-        IF (tCacheFCIDUMPInts) THEN
-            write(stdout, *) "Calculating number of slots needed for "       &
-    &           //"integral Cache..."
-            IF (tROHF) THEN
-                write(stdout, *) "This will be inefficient, since multiple " &
-    &           //"versions of the same integral are present since we "&
-    &           //"are converting to spatial orbitals, so nSlots will "&
-    &           //"be too large."
-                CALL Stop_All("readint", "ROHF doesn't seem to be "     &
-    &            //"working with Caching. ghb can fix if needed...")
-            end if
-            nPairs = NORB * (NORB + 1) / 2
-!             write(stdout,*) "NPAIRS: ",NORB,NPAIRS
-            CALL neci_flush(6)
-            allocate(MaxSlots(nPairs), stat=ierr)
-            MaxSlots(:) = 0
-        end if
 
         IF (iProcIndex == 0 .and. (.not. tMolpro)) THEN
 !Just read in integrals on head node. This is only trying to read in fock energies, which aren't written out by molpro anyway
@@ -477,10 +457,6 @@ contains
                     I1 = I    !Create new I index, since ROHF wants both spin and spatial indicies to get the fock energies right.
                 end if
 
-                IF (tCacheFCIDUMPInts) THEN
-                    CALL CalcNSlotsInit(I1, J, K, L, Z, nPairs, MaxSlots)
-                end if
-
 !.. Each orbital in the file corresponds to alpha and beta spinorbitals
                 !Fill ARR with the energy levels
                 IF (I1 /= 0 .AND. K == 0 .AND. I1 == J) THEN
@@ -532,9 +508,6 @@ contains
         if (tMolpro .and. (iProcIndex == 0)) close(iunit)
 
 !We now need to broadcast all the information we've just read in...
-        IF (tCacheFCIDUMPInts) THEN
-            CALL MPIBCast(MaxSlots, nPairs)
-        end if
         CALL MPIBCast(ISNMAX, 1)
         CALL MPIBCast(ISYMNUM, 1)
         CALL MPIBCast(Arr, LEN * 2)
@@ -580,36 +553,13 @@ contains
         NBASISMAX(5, 2) = SYMMAX - 1
         NBASISMAX(2, 1) = 0
         NBASISMAX(2, 2) = 0
-        IF (tCacheFCIDUMPInts) THEN
-!Calculate the minimum required value for nSlotsInit
-            MaxnSlot = 0
-            do i = 1, nPairs
-                IF (MaxSlots(i) > MaxnSlot) THEN
-                    MaxnSlot = MaxSlots(i)
-                    MaxIndex = i
-                end if
-            end do
-
-            DEallocate(MaxSlots)
-            nSlotsInit = MaxnSlot + 1
-            write(stdout, *) "Maximum number of slots needed in cache is: ", nSlotsInit
-            write(stdout, *) "Index corresponding to this maximum number:", MaxIndex
-            CALL GetCacheIndexStates(MaxIndex, i, k)
-            write(stdout, "(A,2I6)") "This corresponds to an (i,k) pair of ", i, k
-        end if
-!         write(stdout,*) Arr(:,1)
-        RETURN
     END SUBROUTINE GETFCIBASIS
 
-!tReadFreezeInts only matters when we are cacheing the FCIDUMP file.
-!It is set if we want to cache the integrals to enable the freezing routine to take place, i.e. the <ij|kj> integrals.
-!The UMAT2D integrals will also be read in in this case.
-!If tReadFreezeInts is false, then if we are cacheing the FCIDUMP file, then we will read and cache all the integrals.
-    SUBROUTINE READFCIINT(UMAT, umat_win, NBASIS, ECORE, tReadFreezeInts)
+    SUBROUTINE READFCIINT(UMAT, umat_win, NBASIS, ECORE)
         use constants, only: dp, sizeof_int
         use SystemData, only: Symmetry, SymmetrySize, SymmetrySizeB, NEl
         use SystemData, only: BasisFN, BasisFNSize, BasisFNSizeB, tMolpro
-        use SystemData, only: UMatEps, tCacheFCIDUMPInts, tUHF, t_non_hermitian
+        use SystemData, only: UMatEps, tUHF, t_non_hermitian
         use SystemData, only: tRIIntegrals, nBasisMax, tROHF, tRotatedOrbsReal
         use SystemData, only: tReadFreeFormat, G1, tFixLz, tReltvy, nIrreps, t_complex_ints
         USE UMatCache, only: UMatInd, UMatConj, UMAT2D, TUMAT2D, nPairs, CacheFCIDUMP
@@ -622,7 +572,6 @@ contains
         use SymData, only: nProp, PropBitLen, TwoCycleSymGens
         use util_mod, only: get_free_unit, near_zero
         integer, intent(in) :: NBASIS
-        logical, intent(in) :: tReadFreezeInts
         real(dp), intent(out) :: ECORE
         HElement_t(dp), intent(inout) :: UMAT(:)
         integer(MPIArg) :: umat_win
@@ -698,12 +647,6 @@ contains
 !We are reading in the symmetry of the orbitals in spin-orbitals - we need to change this to spatial orbitals
 !NORB is the length in spatial orbitals, LEN is spin orbitals (both spin for UHF)
             NORB = NORB / 2
-        end if
-
-        IF (tCacheFCIDUMPInts) THEN
-!We need to fill the cache. We do this by filling it contiguously, then ordering.
-            allocate(CacheInd(nPairs), stat=ierr)
-            CacheInd(:) = 1
         end if
 
         IF (iProcIndex == 0) THEN
@@ -914,21 +857,12 @@ contains
                         CALL Stop_All("ReadFCIINTS", "we should not be " &
      &                        //"reading in generic 2e integrals from " &
      &                        //"the FCIDUMP file with ri.")
-                    else if (tCacheFCIDUMPInts) THEN
-!Read in the FCIDUMP integrals to a cache.
-                        IF (tReadFreezeInts) THEN
-!Here, we only want to cache the <ij|kj> integrals, since they are the only integrals which are needed for the freezing process.
-                            CALL Stop_All("READFCIINTS", "Freezing is not yet compatible with caching the FCIDUMP file")
-                        ELSE
-                            CALL CacheFCIDUMP(I, K, J, L, Z, CacheInd, ZeroedInt, NonZeroInt)
-
-                        end if
                     ELSE
                         NonZeroInt = NonZeroInt + 1
 !Read in all integrals as normal.
                         UMAT(UMatInd(I, K, J, L)) = Z
                     end if
-                else if (tCacheFCIDUMPInts .or. tRIIntegrals) THEN
+                else if (tRIIntegrals) THEN
                     CALL Stop_All("ReadFCIInts", "TUMAT2D should be set")
                 ELSE
                     UMAT(UMatInd(I, K, J, L)) = Z
@@ -957,7 +891,7 @@ contains
 !Broadcast TUMAT2D...
             CALL MPIBCast(UMAT2D, nStates**2)
         end if
-        IF ((.not. tRIIntegrals) .and. (.not. tCacheFCIDUMPInts)) THEN
+        IF (.not. tRIIntegrals) THEN
             CALL GetUMATSize(nBasis, UMatSize)
 
             ! If we are on a 64bit system, the maximum dimensions for MPI are
@@ -978,12 +912,6 @@ contains
             call shared_sync_mpi(umat_win)
         end if
 
-        IF (tCacheFCIDUMPInts) THEN
-!Need to broadcast the cache...
-            CALL MPIBCast(UMATLABELS, nSlots * nPairs)
-            CALL MPIBCast(UMatCacheData, nTypes * nSlots * nPairs)
-        end if
-
         if (ZeroedInt /= 0 .and. iProcIndex == 0) then
             write(stdout, *) 'Number of removed two-index integrals: ', zeroedint
         end if
@@ -993,17 +921,6 @@ contains
         end if
         write(stdout, *) 'Number of non-zero integrals: ', NonZeroInt
 
-        IF (tCacheFCIDUMPInts) THEN
-            write(stdout, *) "Ordering cache..."
-            CALL FillUpCache()
-            DEallocate(CacheInd)
-        end if
-!.. If we've changed the eigenvalues, we write out the basis again
-!         IF(LWRITE) THEN
-!            write(stdout,*) "1-electron energies have been read in."
-!            CALL WRITEBASIS(6,G1,NBASIS,ARR,BRR)
-!         end if
-        RETURN
     END SUBROUTINE READFCIINT
 
     !This is a copy of the routine above, but now for reading in binary files of integrals

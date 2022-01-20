@@ -2,7 +2,7 @@
 module Integrals_neci
 
     use SystemData, only: tStoreSpinOrbs, nBasisMax, iSpinSkip, &
-                          tFixLz, nBasis, G1, Symmetry, tCacheFCIDUMPInts, &
+                          tFixLz, nBasis, G1, Symmetry, &
                           tRIIntegrals, tVASP, tComplexOrbs_RealInts, NEl, LMS, &
                           ECore, t_new_real_space_hubbard, t_trans_corr_hop, &
                           t_new_hubbard, t_k_space_hubbard, t_mol_3_body, &
@@ -449,7 +449,6 @@ contains
         real(dp) :: UMatMem
         integer iErr, IntSize
         character(25), parameter :: this_routine = 'IntInit'
-        LOGICAL :: tReadFreezeInts
 
         FREEZETRANSFER = .false.
 
@@ -515,40 +514,8 @@ contains
 !Why is this called twice here?!
             CALL SetupTMAT(nBasis, 2, TMATINT)
             CALL SetupTMAT(nBasis, iSpinSkip, TMATINT)
-            !   CALL READFCIINTBIN(UMAT,NBASIS,ECORE,ARR,BRR,G1)
             Call ReadRIIntegrals(nBasis, I)
-            CALL READFCIINT(UMAT, umat_win, NBASIS, ECORE, .false.)
-            NBASISMAX(2, 3) = 0
-            write(stdout, *) ' ECORE=', ECORE
-        else if(tReadInt .and. tCacheFCIDUMPInts) THEN
-            call shared_allocate_mpi(umat_win, umat,(/1_int64/))
-            !allocate(UMat(1),stat=ierr)
-            LogAlloc(ierr, 'UMat', 1, HElement_t_SizeB, tagUMat)
-            CALL SetupTMAT(nBasis, iSpinSkip, TMATINT)
-!Now set up the UMatCache (**what size is allocated**.)
-            IF(nBasis /= I) THEN
-!We will freeze later - only allocate a small preliminary cache before freezing.
-                write(stdout, *) "Setting up pre-freezing UMatCache"
-                call SetupUMatCache(I / 2, .TRUE.)
-!Here, if we are freezing, we only want to read in the <ij|kj> integrals - not all of them.
-                tReadFreezeInts = .true.
-            ELSE
-!nBasisMax(2,3) is iSpinSkip = 1 if UHF and 2 if RHF/ROHF
-                iSpinSkip = nBasisMax(2, 3)
-                IF(iSpinSkip == 1) THEN
-                    write(stdout, *) "Setting up main UMatCache for open-shell system (inefficient - ~16x too much memory used for ROHF)"
-                    call SetupUMatCache(I, .FALSE.)
-                ELSE
-                    call SetupUMatCache(I / 2, .FALSE.)
-                    write(stdout, *) "Setting up main UMatCache for closed-shell system"
-                end if
-                tReadFreezeInts = .false.
-            end if
-!Set up UMat2D for storing the <ij|u|ij> and <ij|u|ji> integrals
-            call SetupUMat2D_df()  !This needs to be changed
-!The actual UMat2D integrals are read here into UMat2D here, as well as the integrals needed into the cache.
-            CALL READFCIINT(UMAT, umat_win, NBASIS, ECORE, tReadFreezeInts)
-!This is generally iSpinSkp, but stupidly, needs to be .le.0 to indicate that we want to look up the integral.
+            CALL READFCIINT(UMAT, umat_win, NBASIS, ECORE)
             NBASISMAX(2, 3) = 0
             write(stdout, *) ' ECORE=', ECORE
         else if(TREADINT) THEN
@@ -580,7 +547,7 @@ contains
             IF(TBIN) THEN
                 CALL READFCIINTBIN(UMAT, ECORE)
             ELSE
-                CALL READFCIINT(UMAT, umat_win, NBASIS, ECORE, .false.)
+                CALL READFCIINT(UMAT, umat_win, NBASIS, ECORE)
             end if
             write(stdout, *) 'ECORE=', ECORE
             if(tCalcWithField) then
@@ -1640,7 +1607,7 @@ contains
                 get_umat_el => get_umat_el_hub
             end if
         else
-            if(nBasisMax(1, 3) >= 0) then
+            if (nBasisMax(1, 3) >= 0) then
                 ! This is a hack. iss is not what it should be. grr.
                 iss = nBasisMax(2, 3)
                 if(iss == 0) then
@@ -1658,22 +1625,26 @@ contains
 
                     if(tumat2d) then
                         ! call umat2d routine
+                        write(stdout, '(A)') 'setting get_umat_el_tumat2d'
                         get_umat_el => get_umat_el_tumat2d
                     else
                         ! see if in the cache. This is the fallback if ids are
                         ! such that umat2d canot be used anyway.
+                        write(stdout, '(A)') 'setting get_umat_el_cache'
                         get_umat_el => get_umat_el_cache
                     end if
                 else if(iss == -1) then
                     ! Non-stored hubbard integral
                     if(t_k_space_hubbard) then
+                        write(stdout, '(A)') 'setting get_umat_kspace'
                         get_umat_el => get_umat_kspace
                     else
+                        write(stdout, '(A)') 'setting get_umat_el'
                         get_umat_el => get_hub_umat_el
                     end if
 
                 else
-                    write(stdout, '(" Setting normal GetUMatEl routine")')
+                    write(stdout, '(" Setting normal get_umat_el_normal routine")')
                     get_umat_el => get_umat_el_normal
                 end if
             else if(nBasisMax(1, 3) == -1) then
@@ -1752,7 +1723,7 @@ contains
             i = max(idi, idj)
             j = min(idi, idj)
             hel = umat2d(i, j)
-        else if((tCacheFCIDumpInts .or. tRIIntegrals) .and. &
+        else if(tRIIntegrals .and. &
                 (idi == idj) .and. (idk == idl) .and. &
                 (HElement_t_size == 1)) then
             ! <ii|jj> = <ij|ji>, only for real systems (andn not for the local
@@ -1858,8 +1829,6 @@ contains
                 ! We're using density fitting
                 call GetDF2EInt(i, j, k, l, UElems)
                 hel = UElems(0)
-            else if(tCacheFCIDumpInts) then
-                hel = 0
             else if(tVASP) then
                 if(tTransFIndx) then
                     call construct_ijab_one(TransTable(i), TransTable(j), &
@@ -1916,8 +1885,9 @@ contains
 
             ! Because we've asked for the integral in the form to be stored,
             ! we shore as iType = 0.
-            if((iCache /= 0) .and. (.not. tCacheFCIDUMPInts)) &
+            if (iCache /= 0) then
                 call CacheUMatEl(b, UElems, iCache, iCacheI, 0)
+            end if
             nMisses = nMisses + 1
         else
             nHits = nHits + 1
