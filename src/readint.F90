@@ -10,10 +10,9 @@ module read_fci
 contains
 
     SUBROUTINE INITFROMFCID(NEL, NBASISMAX, LEN, LMS, TBIN)
-        use SystemData, only: tNoSymGenRandExcits, lNoSymmetry, tROHF, tHub, tUEG
-        use SystemData, only: tStoreSpinOrbs, tKPntSym, tRotatedOrbsReal, tFixLz, tUHF
-        use SystemData, only: tMolpro, tReadFreeFormat, tReltvy, nclosedOrbs, nOccOrbs
-        use SystemData, only: nIrreps, t_non_hermitian
+        use SystemData, only: tNoSymGenRandExcits, lNoSymmetry, tROHF, tHub, tUEG, &
+            tStoreSpinOrbs, tKPntSym, tRotatedOrbsReal, tFixLz, tUHF, &
+            tMolpro, tReltvy, nclosedOrbs, nOccOrbs, nIrreps
         use SymData, only: nProp, PropBitLen, TwoCycleSymGens
         use Parallel_neci
         use util_mod, only: get_free_unit, near_zero
@@ -214,10 +213,10 @@ contains
     END SUBROUTINE INITFROMFCID
 
     SUBROUTINE GETFCIBASIS(NBASISMAX, ARR, BRR, G1, LEN, TBIN)
-        use SystemData, only: BasisFN, BasisFNSize, Symmetry, NullBasisFn, tMolpro, tUHF
-        use SystemData, only: tROHF, tFixLz, iMaxLz, tRotatedOrbsReal
-        use SystemData, only: tReadFreeFormat, SYMMAX, tReltvy, irrepOrbOffset, &
-            nIrreps, t_non_hermitian, t_complex_ints
+        use SystemData, only: BasisFN, Symmetry, NullBasisFn, tMolpro, &
+            tROHF, tFixLz, iMaxLz, tRotatedOrbsReal, &
+            tReadFreeFormat, SYMMAX, tReltvy, irrepOrbOffset, &
+            nIrreps
         use UMatCache, only: GetCacheIndexStates, GTID
         use SymData, only: nProp, PropBitLen, TwoCycleSymGens
         use Parallel_neci
@@ -236,13 +235,11 @@ contains
         INTEGER NORB, NELEC, MS2, ISYM, ISPINS, ISPN, SYML(1000)
         integer OCC(nIrreps), CLOSED(nIrreps), FROZEN(nIrreps)
         integer(int64) ORBSYM(1000)
-        INTEGER nPairs, iErr, MaxnSlot, MaxIndex, IUHF
-        INTEGER, ALLOCATABLE :: MaxSlots(:)
+        INTEGER IUHF
         character(len=*), parameter :: t_r = 'GETFCIBASIS'
         LOGICAL TBIN
         logical :: uhf, tRel
         integer :: orbsPerIrrep(nIrreps)
-        real(dp) :: real_time_Z
         NAMELIST /FCI/ NORB, NELEC, MS2, ORBSYM, OCC, CLOSED, FROZEN, &
             ISYM, IUHF, UHF, TREL, SYML, SYMLZ, PROPBITLEN, NPROP
 
@@ -556,16 +553,13 @@ contains
     END SUBROUTINE GETFCIBASIS
 
     SUBROUTINE READFCIINT(UMAT, umat_win, NBASIS, ECORE)
-        use constants, only: dp, sizeof_int
-        use SystemData, only: Symmetry, SymmetrySize, SymmetrySizeB, NEl
-        use SystemData, only: BasisFN, BasisFNSize, BasisFNSizeB, tMolpro
-        use SystemData, only: UMatEps, tUHF, t_non_hermitian
-        use SystemData, only: tRIIntegrals, nBasisMax, tROHF, tRotatedOrbsReal
-        use SystemData, only: tReadFreeFormat, G1, tFixLz, tReltvy, nIrreps, t_complex_ints
-        USE UMatCache, only: UMatInd, UMatConj, UMAT2D, TUMAT2D, nPairs, CacheFCIDUMP
-        USE UMatCache, only: FillUpCache, GTID, nStates, nSlots, nTypes
-        USE UMatCache, only: UMatCacheData, UMatLabels, GetUMatSize
-        use OneEInts, only: TMatind, TMat2D, TMATSYM
+        use constants, only: dp
+        use SystemData, only: Symmetry, BasisFN, tMolpro, UMatEps, tUHF, &
+            t_non_hermitian, tRIIntegrals, tROHF, tRotatedOrbsReal, &
+            tReadFreeFormat, tFixLz, tReltvy, nIrreps
+        USE UMatCache, only: UMatInd, UMatConj, UMAT2D, TUMAT2D, CacheFCIDUMP, &
+            FillUpCache, GTID, nStates, GetUMatSize
+        use OneEInts, only: TMatind, TMat2D
         use OneEInts, only: CalcTMatSize
         use Parallel_neci
         use shared_memory_mpi
@@ -583,18 +577,16 @@ contains
         integer(int64) ORBSYM(1000)
         LOGICAL LWRITE
         logical :: uhf
-        INTEGER ISPINS, ISPN, ierr, SYMLZ(1000)!,IDI,IDJ,IDK,IDL
+        INTEGER ISPINS, ISPN, SYMLZ(1000)!,IDI,IDJ,IDK,IDL
         integer OCC(nIrreps), CLOSED(nIrreps), FROZEN(nIrreps)
         INTEGER TMatSize, IUHF
         integer(int64) :: UMatSize
-        INTEGER, ALLOCATABLE :: CacheInd(:)
         character(len=*), parameter :: t_r = 'READFCIINT'
         real(dp) :: diff
         logical :: tbad, tRel
         integer(int64) :: start_ind, end_ind
         integer(int64), parameter :: chunk_size = 1000000
         integer:: bytecount
-        real(dp) :: real_time_Z
         NAMELIST /FCI/ NORB, NELEC, MS2, ORBSYM, OCC, CLOSED, FROZEN, &
             ISYM, IUHF, UHF, TREL, SYML, SYMLZ, PROPBITLEN, NPROP
 
@@ -927,23 +919,17 @@ contains
     SUBROUTINE READFCIINTBIN(UMAT, ECORE)
         use constants, only: dp, int64, sizeof_int
         use SystemData, only: Symmetry, BasisFN, t_non_hermitian
-        USE UMatCache, only: UMatInd, UMAT2D, TUMAT2D
-        use OneEInts, only: TMatind, TMat2D, TMATSYM
+        USE UMatCache, only: UMatInd
+        use OneEInts, only: TMatind, TMat2D
         use util_mod, only: get_free_unit
         real(dp), intent(out) :: ECORE
         HElement_t(dp), intent(out) :: UMAT(*)
         HElement_t(dp) Z
         integer(int64) MASK, IND
-        INTEGER I, J, K, L, X, Y, iunit
+        INTEGER I, J, K, L, iunit
         LOGICAL LWRITE
-        character(*), parameter :: this_routine = 'READFCIINTBIN'
-        !NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,UHF
         LWRITE = .FALSE.
-        !UHF=.FALSE.
         iunit = get_free_unit()
-        !open(iunit,FILE='FCISYM',STATUS='OLD',FORM='FORMATTED')
-        !read(iunit,FCI)
-        !close(iunit)
         open(iunit, FILE=FCIDUMP_name, STATUS='OLD', FORM='UNFORMATTED')
 
         MASK = (2**16) - 1
@@ -956,10 +942,6 @@ contains
         J = int(iand(IND, MASK), sizeof_int)
         IND = Ishft(IND, -16)
         I = int(iand(IND, MASK), sizeof_int)
-!         I=Index(I)
-!         J=Index(J)
-!         K=Index(K)
-!         L=Index(L)
 
 !.. Each orbital in the file corresponds to alpha and beta spinorbitalsa
         IF (I == 0) THEN
@@ -1016,7 +998,6 @@ contains
         integer(int64) :: ORBSYM(1000)
         integer :: iSpins, ispn, SYMLZ(1000)
         integer(int64) :: ZeroedInt
-        integer :: IntSize
         real(dp) :: diff, core
         character(len=100) :: file_name, PropFile
         logical :: TREL, UHF

@@ -888,7 +888,7 @@ contains
         use LoggingData, only: tCalcPropEst, iNumPropToEst
         use UMatCache, only: GTID
         use global_utilities
-        use CalcData, only: nFields_it, tCalcWithField, FieldFiles_it
+        use CalcData, only: nFields_it, tCalcWithField
         use sym_mod, only: getsym, SetupFREEZEALLSYM, FREEZESYMLABELS
         use util_mod, only: NECI_ICOPY
 
@@ -2178,7 +2178,6 @@ SUBROUTINE CALCTMATUEG(nbasis, ALAT, G1, CST, TPERIODIC, OMEGA)
     real(dp) OMEGA
     LOGICAL TPERIODIC
     real(dp), PARAMETER :: PI = 3.1415926535897932384626433832795029_dp
-    character(*), parameter :: this_routine = 'CALCTMATUEG'
 
 !=================================================
     if(tUEG2) then
