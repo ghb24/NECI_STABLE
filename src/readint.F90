@@ -215,8 +215,10 @@ contains
     SUBROUTINE GETFCIBASIS(NBASISMAX, ARR, BRR, G1, LEN, TBIN)
         use SystemData, only: BasisFN, Symmetry, NullBasisFn, tMolpro, &
             tROHF, tFixLz, iMaxLz, tRotatedOrbsReal, &
-            tReadFreeFormat, SYMMAX, tReltvy, irrepOrbOffset, &
-            nIrreps
+            tReadFreeFormat, SYMMAX, tReltvy, irrepOrbOffset, nIrreps
+#if defined(CMPLX_)
+        use SystemData, only: t_complex_ints
+#endif
         use UMatCache, only: GetCacheIndexStates, GTID
         use SymData, only: nProp, PropBitLen, TwoCycleSymGens
         use Parallel_neci
@@ -389,12 +391,15 @@ contains
                 ! This means it won't work with more than 999 basis
                 ! functions...
 #ifdef CMPLX_
-1               if (t_complex_ints) then
-                    read(iunit, *, END=99) Z, I, J, K, L
-                else
-                    read(iunit, *, END=99) real_time_Z, I, J, K, L
-                    Z = dcmplx(real_time_Z, 0.0_dp)
-                end if
+                block
+                    real(dp) :: real_time_Z
+1                   if (t_complex_ints) then
+                        read(iunit, *, END=99) Z, I, J, K, L
+                    else
+                        read(iunit, *, END=99) real_time_Z, I, J, K, L
+                        Z = dcmplx(real_time_Z, 0.0_dp)
+                    end if
+                end block
 #else
 1               CONTINUE
                 !It is possible that the FCIDUMP can be written out in complex notation, but still only
@@ -557,6 +562,9 @@ contains
         use SystemData, only: Symmetry, BasisFN, tMolpro, UMatEps, tUHF, &
             t_non_hermitian, tRIIntegrals, tROHF, tRotatedOrbsReal, &
             tReadFreeFormat, tFixLz, tReltvy, nIrreps
+#if defined(CMPLX_)
+        use SystemData, only: t_complex_ints
+#endif
         USE UMatCache, only: UMatInd, UMatConj, UMAT2D, TUMAT2D, CacheFCIDUMP, &
             FillUpCache, GTID, nStates, GetUMatSize
         use OneEInts, only: TMatind, TMat2D
@@ -665,12 +673,15 @@ contains
             ! This means it won't work with more than 999 basis
             ! functions...
 #if defined(CMPLX_)
-101         if (t_complex_ints) then
-                read(iunit, *, END=199) Z, I, J, K, L
-            else
-                read(iunit, *, END=199) real_time_Z, I, J, K, L
-                Z = dcmplx(real_time_Z, 0.0_dp)
-            end if
+            block
+                real(dp) :: real_time_Z
+101             if (t_complex_ints) then
+                    read(iunit, *, END=199) Z, I, J, K, L
+                else
+                    read(iunit, *, END=199) real_time_Z, I, J, K, L
+                    Z = dcmplx(real_time_Z, 0.0_dp)
+                end if
+            end block
 #else
 101         CONTINUE
             !It is possible that the FCIDUMP can be written out in complex notation, but still only

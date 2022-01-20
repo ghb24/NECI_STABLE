@@ -1592,6 +1592,7 @@ contains
         use SystemData, only: t_k_space_hubbard
         use k_space_hubbard, only: get_umat_kspace
         use real_space_hubbard, only: get_umat_el_hub
+        character(*), parameter :: this_routine = 'init_getumatel_fn_pointers'
 
         integer :: iss
 
@@ -1620,13 +1621,11 @@ contains
 
                     if(tumat2d) then
                         ! call umat2d routine
-                        write(stdout, '(A)') 'setting get_umat_el_tumat2d'
-                        get_umat_el => get_umat_el_tumat2d
+                        call stop_all(this_routine, 'Should not be here')
                     else
                         ! see if in the cache. This is the fallback if ids are
                         ! such that umat2d canot be used anyway.
-                        write(stdout, '(A)') 'setting get_umat_el_cache'
-                        get_umat_el => get_umat_el_cache
+                        call stop_all(this_routine, 'Should not be here')
                     end if
                 else if(iss == -1) then
                     ! Non-stored hubbard integral
@@ -1685,210 +1684,6 @@ contains
         end if
 
     end subroutine
-
-    function get_umat_el_tumat2d(idi, idj, idk, idl) result(hel)
-
-        ! Obtains the Coulomb integral <ij|kl>.
-
-        ! This version is when we store the <ij|ij> and <ij|ji> integrals in
-        ! a 2D array and the rest in a cache.
-
-        ! It is safest to use the get_umat_el wrapper function to access
-        ! get_umat_el_* functions.
-
-        ! In:
-        !    i,j,k,l: orbital indices. These refer to spin orbitals in
-        !      unrestricted calculations and spatial orbitals in restricted
-        !      calculations.
-
-        integer, intent(in) :: idi, idj, idk, idl
-        integer :: i, j
-        HElement_t(dp) :: hel
-
-        if((idi == idj) .and. (idi == idk) .and. (idi == idl)) then
-            ! <ii|ii>
-            hel = umat2d(idi, idi)
-        else if((idi == idk) .and. (idj == idl)) then
-            ! <ij|ij>
-            i = min(idi, idj)
-            j = max(idi, idj)
-            hel = umat2d(i, j)
-        else if((idi == idl) .and. (idj == idk)) then
-            ! <ij|ji>
-            i = max(idi, idj)
-            j = min(idi, idj)
-            hel = umat2d(i, j)
-        else if(tRIIntegrals .and. &
-                (idi == idj) .and. (idk == idl) .and. &
-                (HElement_t_size == 1)) then
-            ! <ii|jj> = <ij|ji>, only for real systems (andn not for the local
-            !                    exchange scheme.
-            i = max(idi, idk)
-            j = min(idi, idk)
-            hel = umat2d(i, j)
-        else
-            hel = get_umat_el_cache(idi, idj, idk, idl)
-        end if
-
-    end function get_umat_el_tumat2d
-
-    function get_umat_el_cache(idi, idj, idk, idl) result(hel)
-
-        ! Obtains the Coulomb integral <ij|kl>.
-
-        ! This version is when we store the <ij|ij> and <ij|ji> integrals in
-        ! a 2D array and the rest in a cache.
-
-        ! It is safest to use the get_umat_el wrapper function to access
-        ! get_umat_el_* functions.
-
-        ! In:
-        !    i,j,k,l: orbital indices. These refer to spin orbitals in
-        !      unrestricted calculations and spatial orbitals in restricted
-        !      calculations.
-
-        ! For some reason gfortran (4.4 on OSX) really needs to have Symmetry
-        ! used locally (even though it's in the module-level use statement) in
-        ! order to avoid an internal gfortran segfault when compiling the
-        ! TotSymRep call.  Weird!
-        use SystemData, only: G1
-
-        integer, intent(in) :: idi, idj, idk, idl
-        integer :: i, j, k, l, a, b
-        integer :: iType, iCache, iCacheI
-        type(Symmetry) :: isym
-        HElement_t(dp) :: hel, UElems(0:nTypes - 1)
-        logical :: calc2ints
-        complex(dp) :: vasp_int(1, 0:1)
-        character(*), parameter :: this_routine = 'get_umat_el_cache'
-
-
-        call stop_all(this_routine, 'I was called')
-
-        i = idi
-        j = idj
-        k = idk
-        l = idl
-        isym = totSymRep()
-
-        ! UHF/ROHF (but not explicit ROHF in input) calculation. Integrals
-        ! stored as spin-orbitals already...
-        ! Also assume real orbitals, since this can only be done by
-        ! tCacheFCIDumpInts
-        if(tStoreSpinOrbs) then
-            isym = symProd(isym, G1(i)%Sym)
-            isym = symProd(isym, G1(j)%Sym)
-            isym = symProd(isym, G1(k)%Sym)
-            isym = symProd(isym, G1(l)%Sym)
-        else
-            isym = symProd(isym, symConj(G1(2 * i - 1)%Sym))
-            isym = symProd(isym, symConj(G1(2 * j - 1)%Sym))
-            isym = symProd(isym, G1(2 * k - 1)%Sym)
-            isym = symProd(isym, G1(2 * l - 1)%Sym)
-        end if
-
-        ! Check the symmetry of the 4-index integrals
-        if(.not. lSymSym(isym)) then
-            hel = 0
-            return
-        end if
-
-        ! First check whether we can reduce a set of k-points to a simpler
-        ! symmetry related one.
-        ! TODO: can we function pointer out this bit?
-        if(HasKPoints()) then
-            if(tTransFIndx) then
-                i = TransTable(i)
-                j = TransTable(j)
-                k = TransTable(k)
-                l = TransTable(l)
-            end if
-
-            ! As we're not looping over i,j,k,l it's safe to return the k-pnt
-            ! related labels in the same variables
-            call KPntSymInt(i, j, k, l, i, j, k, l)
-            if(tTransFIndx) then
-                i = TransTable(i)
-                j = TransTable(j)
-                k = TransTable(k)
-                l = TransTable(l)
-            end if
-        end if
-
-        ! This will rearrange i,j,k,l into the correct order (i,k) <= (j,l)
-        ! and i <= k, j <= l.
-        if(GetCachedUmatEl(i, j, k, l, hel, iCache, iCacheI, a, b, &
-                           iType)) then
-            ! We don't have a stored UMAt - we call to generate it
-            if(tDFInts .or. tRIIntegrals) then
-                ! We're using density fitting
-                call GetDF2EInt(i, j, k, l, UElems)
-                hel = UElems(0)
-            else if(tVASP) then
-                if(tTransFIndx) then
-                    call construct_ijab_one(TransTable(i), TransTable(j), &
-                                            TransTable(k), TransTable(l), &
-                                            vasp_int(1, 0))
-                    call construct_ijab_one(TransTable(i), TransTable(l), &
-                                            TransTable(k), TransTable(j), &
-                                            vasp_int(1, 1))
-                else
-                    call construct_ijab_one(i, j, k, l, vasp_int(1, 0))
-                    call construct_ijab_one(i, l, k, j, vasp_int(1, 1))
-                end if
-#ifdef CMPLX_
-                !cpp to avoid gfortran compiler warnings
-                UElems(0) = vasp_int(1, 0)
-                UElems(1) = vasp_int(1, 1)
-#endif
-                ! TODO: This bit seems broken. Why hel = ? twice
-                !       Why not iand(iType, 0)
-                hel = UElems(0)
-                ! Bit 0 tells us which integral in the slot we need
-                hel = UElems(iand(iType, 1))
-                ! Bit 1 tells us whether we need to complex conj the integral
-#ifdef CMPLX_
-                if(btest(iType, 1)) hel = conjg(hel)
-#endif
-            else
-                ! We call CPMD.
-                ! Only need <ij|kl> if we're doing a 2-vertex calculation
-                ! unless the intgral is for a single excitation, in which
-                ! case we need <il|jk> as well.
-                calc2ints = gen2CPMDInts .or. ((idi == idj) .or. &
-                                               (idi == idk) .or. (idi == idl) .or. &
-                                               (idj == idk) .or. (idj == idl))
-                if(tTransFIndx) then
-                    call InitFindXI(TransTable(i), TransTable(j), &
-                                    TransTable(k), TransTable(l), &
-                                    UElems, calc2ints)
-                else
-                    ! InitFindxI returns up to two integrals in UElems.
-                    ! <id|u|kl> and <kj|u|il> (which are distinct when cplx
-                    !                          orbitals are used)
-                    call InitFindXI(i, j, k, l, UElems, calc2ints)
-                end if
-
-                ! TODO: Once again, should this not be iand(itype, 0)?
-                ! Bit 0 tells us which integral in the slot we need
-                hel = UElems(iand(iType, 1))
-                ! Bit 1 tells us whether we need to complex conj the integral
-#ifdef CMPLX_
-                if(btest(iType, 1)) hel = conjg(hel)
-#endif
-            end if
-
-            ! Because we've asked for the integral in the form to be stored,
-            ! we shore as iType = 0.
-            if (iCache /= 0) then
-                call CacheUMatEl(b, UElems, iCache, iCacheI, 0)
-            end if
-            nMisses = nMisses + 1
-        else
-            nHits = nHits + 1
-        end if
-
-    end function
 
     function get_umat_el_comporb_spinorbs(i, j, k, l) result(hel)
         use sym_mod, only: symProd, symConj, decomposeabeliansym, totsymrep
