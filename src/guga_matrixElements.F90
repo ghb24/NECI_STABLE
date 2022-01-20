@@ -1377,7 +1377,7 @@ contains
 
 
             block
-            real(dp) :: discard, also_discard
+            real(dp) :: discard
             discard = 1.0_dp
             if (t_hamil_ .or. (tFillingStochRDMOnFly .and. present(rdm_mat))) then
                 if (typ == excit_type%fullstop_L_to_R) then
@@ -1516,7 +1516,7 @@ contains
             call convert_ilut_toGUGA(ilutJ, tmp_J)
 
             block
-            real(dp) :: discard, also_discard
+            real(dp) :: discard
             discard = 1.0_dp
 
             if (t_hamil .or. (tFillingStochRDMOnFly .and. present(rdm_mat))) then
@@ -3652,13 +3652,13 @@ contains
         real(dp), intent(out), allocatable, optional :: rdm_mat(:)
         character(*), parameter :: this_routine = "calc_mixed_end_contr_integral"
 
-        integer :: st, se, en, step, sw, elecInd, holeInd, i, j
+        integer :: st, se, en, step, sw, elecInd, holeInd, i
         real(dp) :: top_cont, mat_ele, stay_mat, end_mat
         logical :: above_flag
 
         integer(int_rdm), allocatable :: tmp_rdm_ind(:)
         real(dp), allocatable :: tmp_rdm_mat(:)
-        logical :: rdm_flag, test_skip
+        logical :: rdm_flag
         integer :: rdm_count, max_num_rdm
 
         if (present(rdm_ind) .or. present(rdm_mat)) then
@@ -4432,7 +4432,7 @@ contains
         type(ExcitationInformation_t), value :: excitInfo
         real(dp), intent(out) :: pgen
 
-        integer :: first, last, deltaB(nSpatOrbs), i, j, k, step1, step2
+        integer :: first, last, deltaB(nSpatOrbs), i, j, k, step1
         real(dp) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs), &
                     zeroWeight, minusWeight, plusWeight, branch_weight, &
                     above_cpt, below_cpt
