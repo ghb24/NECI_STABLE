@@ -156,7 +156,6 @@ Contains
         !    nBasis: size of bais
         ! InvBRR is the inverse of BRR.  InvBRR(j)=i: the j-th lowest energy
         ! orbital corresponds to the i-th orbital in the original basis.
-        IMPLICIT NONE
         INTEGER NBASIS
         INTEGER BRR2(NBASIS), ierr, I, t
         character(*), parameter :: t_r = 'CreateInvBRR2'
@@ -188,7 +187,6 @@ Contains
         !    nBasis: size of bais
         ! InvBRR is the inverse of BRR.  InvBRR(j)=i: the j-th lowest energy
         ! orbital corresponds to the i-th orbital in the original basis.
-        IMPLICIT NONE
         INTEGER NBASIS
         INTEGER BRR(NBASIS), ierr, I, t
         character(*), parameter :: t_r = 'CreateInvBRR'
@@ -241,10 +239,9 @@ Contains
         !    nBasis: size of basis. If =0, use nStates instead.
         !    nOccupied: # of occupied orbitals.  If =0, then nOcc is used.
         !    Should only be passed as non-zero during the freezing process.
-        IMPLICIT NONE
         INTEGER, intent(in) :: I, J, K, L, nBI
         integer(int64) :: UMatInd
-        INTEGER A, B, iss
+        integer :: A, B
 
         if(t_non_hermitian) then
             A = (I - 1) * nBi + K
@@ -367,7 +364,6 @@ Contains
         !         iSS=-1 flag for the Hubbard model.
         ! Out:
         !    iSize: size of UMAT.
-        IMPLICIT NONE
         INTEGER nBasis, iSS
         INTEGER iPairs, nBi
         INTEGER(int64), intent(out) :: iSize
@@ -393,7 +389,6 @@ Contains
     SUBROUTINE SETUPUMATCACHE(NSTATE, TSMALL)
         ! nState: # states.
         ! TSMALL is used if we create a pre-freezing cache to hold just the <ij|kj> integrals.
-        IMPLICIT NONE
         INTEGER NSTATE
         real(dp) Memory
         LOGICAL TSMALL
@@ -453,7 +448,6 @@ Contains
         !    G1: symmetry and momentum information on the basis functions.
         ! Out:
         !    HarInt(i,j)=<i|v_har|j>, where v_har is the Hartree potential.
-        IMPLICIT NONE
         TYPE(BasisFN) G1(*)
         INTEGER ierr
         complex(dp) HarInt(nStates, nStates)
@@ -473,7 +467,6 @@ Contains
     SUBROUTINE SETUPUMAT2D_DF()
         ! Set up UMat2D for storing the <ij|u|ij> and <ij|u|ji> integrals for
         ! density fitting calculations.
-        IMPLICIT NONE
         INTEGER ierr
         character(len=*), parameter :: thisroutine = 'SETUPUMAT2D_DF'
         IF(NSLOTSINIT < 0) THEN
@@ -497,7 +490,6 @@ Contains
         ! Currently only called in cpmdinit to re-order states by the
         ! one-particle energies (option is rarely used).
         ! Copy to UMatCache's translation table.
-        IMPLICIT NONE
         INTEGER TRANS(NSTATES), ierr
         character(*), parameter :: thisroutine = 'SetupUMatTrans'
         allocate(TransTable(nStates), STAT=ierr)
@@ -513,7 +505,6 @@ Contains
         !    nNew: # of new states.
         !    OldNew: convert index in the old (pre-freezing) indexing scheme to
         !            the new (post-freezing) indexing scheme.
-        IMPLICIT NONE
         INTEGER nNew, nOld, I
         INTEGER OldNew(*), ierr
         LOGICAL tDiff
@@ -541,7 +532,6 @@ Contains
     END SUBROUTINE SetupUMatTransTable
 
     SUBROUTINE DESTROYUMATCACHE
-        IMPLICIT NONE
         character(len=*), parameter :: thisroutine = 'DESTROYUMATCACHE'
         CALL WriteUMatCacheStats()
         IF(ASSOCIated(UMatCacheData)) THEN
@@ -566,7 +556,6 @@ Contains
     END SUBROUTINE DESTROYUMATCACHE
 
     SUBROUTINE WriteUMatCacheStats
-        IMPLICIT NONE
         IF(ASSOCIated(UMatCacheData)) THEN
             write(stdout, *) "UMAT Cache Statistics"
             write(stdout, *) NHITS, " hits"
@@ -586,7 +575,6 @@ Contains
         !  in (and only have room to do so).
         !  flag=0: Distribute integrals throughout the cache in the scheme
         !  described at the top.
-        IMPLICIT NONE
         INTEGER NEWFLAG
         SELECT CASE(UMATCACHEFLAG)
         CASE(1)
@@ -614,7 +602,6 @@ Contains
         ! The cache consists of an unordered set (in the standard UMatCache
         ! sense) of labels and elements.
         ! We must order this, and then distribute the elements throughout each set of SLOTS.
-        IMPLICIT NONE
         INTEGER I, J, K, N, nK
         DO I = 1, nPairs
 ! Find the last value in the cache
@@ -648,7 +635,6 @@ Contains
 !   If the search is successful, the location of VAL in TAB is returned in LOC
 !   (and LOC1,LOC2).
 !   If the search fails, then VAL should fit between LOC1 and LOC2 in TAB.
-        IMPLICIT NONE
         INTEGER VAL, A, B, LOC, LOC1, LOC2
         INTEGER TAB(A:B)
         INTEGER I, J, IFIRST, N, ILAST
@@ -723,7 +709,6 @@ Contains
         !    I,J (I<=J): state indices
         ! Out:
         !    Cache indexing scheme.
-        IMPLICIT NONE
         INTEGER I, J, RET
         RET = J * (J - 1) / 2 + I
     END SUBROUTINE GetCacheIndex
@@ -754,7 +739,6 @@ Contains
         ! Out:
         !   I,J (I<=J): states corresponding to cache index.
         ! Reverse of GetCacheIndex.
-        IMPLICIT NONE
         INTEGER I, J, IND
         J = int(SQRT(2.0d0 * IND))
         IF(J * (J + 1) / 2 < IND) J = J + 1
@@ -764,7 +748,6 @@ Contains
     SUBROUTINE FreezeUMatCache(OrbTrans, nOld, nNew)
         ! We're in the middle of freezing some orbitals.
         ! OrbTrans(i) will give us the new position of the old orbital i.
-        IMPLICIT NONE
         INTEGER nOld, nNew, OrbTrans(nOld)
         INTEGER onSlots, onPairs
         if(nNew / 2 /= nStates .OR. tSmallUMat) THEN
@@ -778,7 +761,6 @@ Contains
     END SUBROUTINE FreezeUMatCache
 
     SUBROUTINE FreezeUMAT2D(OldBasis, NewBasis, OrbTrans, iSS)
-        IMPLICIT NONE
         INTEGER NewBasis, OldBasis, iSS, ierr, OrbTrans(OldBasis), i, j
         HElement_t(dp), POINTER :: NUMat2D(:, :)
         integer(TagIntType) :: tagNUMat2D = 0
@@ -805,7 +787,6 @@ Contains
     END SUBROUTINE FreezeUMAT2D
 
     SUBROUTINE FreezeUMatCacheInt(OrbTrans, nOld, nNew, onSlots, onPairs)
-        IMPLICIT NONE
         INTEGER nOld, nNew, OrbTrans(nOld)
         HElement_t(dp), Pointer :: NUMat2D(:, :) !(nNew/2,nNew/2)
         integer(TagIntType) :: tagNUMat2D = 0
@@ -903,7 +884,6 @@ Contains
     END SUBROUTINE FreezeUMatCacheInt
 
     SUBROUTINE CacheFCIDUMP(I, J, K, L, Z, CacheInd, ZeroedInt, NonZeroInt)
-        IMPLICIT NONE
         INTEGER :: I, J, K, L, CacheInd(nPairs)
         INTEGER(int64) :: ZeroedInt, NonZeroInt
         INTEGER :: A, B
@@ -967,7 +947,6 @@ Contains
 
     subroutine ReadInUMatCache()
         ! Read in cache file from CacheDump.
-        implicit none
         integer i, j, k, l, iCache1, iCache2, A, B, readerr, iType, iunit
         HElement_t(dp) UMatEl(0:nTypes - 1), DummyUMatEl(0:nTypes - 1)
         logical tDummy, testfile
@@ -1009,7 +988,6 @@ Contains
         ! Print out the cache contents so they can be read back in for a future
         ! calculation.  Need to print out the full set of indices, as the number of
         ! states may change with the next calculation.
-        implicit none
         ! Variables
         integer iPair, iSlot, i, j, k, l, iCache1, iCache2, A, B, iType
         HElement_t(dp) UMatEl
@@ -1050,7 +1028,6 @@ Contains
     end subroutine DumpUMatCache
 
     logical function HasKPoints()
-        IMPLICIT NONE
         IF(NKPS > 1) THEN
             HasKPoints = .TRUE.
         ELSE
@@ -1117,7 +1094,6 @@ Contains
 ! Note: (i,k)>(j,l) := (k>l) || ((k==l)&&(i>j))
 
 !         use SystemData, only : nBasis,G1
-        IMPLICIT NONE
         INTEGER IDI, IDJ, IDK, IDL, ICACHE, ICACHEI
         INTEGER ICACHEI1, ICACHEI2
         HElement_t(dp) UMATEL
@@ -1307,7 +1283,6 @@ Contains
     !------------------------------------------------------------------------------------------!
 
     function numBasisIndices(nBasis) result(nBI)
-        implicit none
         integer, intent(in) :: nBasis
         integer :: nBI
 
@@ -1322,9 +1297,8 @@ Contains
     !------------------------------------------------------------------------------------------!
 
     subroutine SetupUMat2d_dense(nBasis)
-        implicit none
         integer, intent(in) :: nBasis
-        integer :: nBI, i, j, idX, idN
+        integer :: nBI, i, j
         integer :: ierr
         character(*), parameter :: t_r = 'SetupUMat2d_dense'
 

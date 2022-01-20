@@ -60,7 +60,6 @@ contains
         use SystemData, only: OrbOrder
         use UMatCache, only: tReadInCache, nSlotsInit, nMemInit, iDumpCacheFlag, iDFMethod
         use default_sets
-        implicit none
 
         tDumpFCIDUMP = .false.
         TLinRootChange = .false.
@@ -127,7 +126,6 @@ contains
         USE input_neci
         use SystemData, only: NEL, TUSEBRILLOUIN, OrbOrder, BasisFN
         use UMatCache, only: tReadInCache, nSlotsInit, nMemInit, iDumpCacheFlag, iDFMethod
-        IMPLICIT NONE
         LOGICAL eof
         CHARACTER(LEN=100) w
         INTEGER :: i
@@ -439,7 +437,6 @@ contains
         use k_space_hubbard, only: init_tmat_kspace
         use lattice_mod, only: lat
 
-        implicit none
         INTEGER iCacheFlag
         complex(dp), ALLOCATABLE :: ZIA(:)
         INTEGER(TagIntType), SAVE :: tagZIA = 0
@@ -892,7 +889,6 @@ contains
         use sym_mod, only: getsym, SetupFREEZEALLSYM, FREEZESYMLABELS
         use util_mod, only: NECI_ICOPY
 
-        IMPLICIT NONE
         INTEGER NHG, NBASIS, nBasisMax(5, *), ISS
         TYPE(BASISFN) G1(NHG), KSYM
         HElement_t(dp) UMAT(*)
@@ -1584,7 +1580,6 @@ contains
         !    I,J,A,B: indices of integral.  These are in spin indices in
         !    unrestricted calculations and spatial indices in restricted.
         ! Returns <ij|ab>
-        implicit none
         HElement_t(dp) GetUMatEl2
         integer :: I, J, A, B
 
@@ -2089,7 +2084,6 @@ contains
 
     subroutine DumpFCIDUMP()
         use SystemData, only: G1, nBasis, nel
-        implicit none
         integer :: i, j, k, l, iunit
         character(len=*), parameter :: t_r = 'DumpFCIDUMP'
 
