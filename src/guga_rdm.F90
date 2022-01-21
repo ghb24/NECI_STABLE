@@ -256,6 +256,7 @@ contains
         integer, intent(in) :: irdm
         real(dp), intent(in) :: rdm_trace(rdm%sign_length)
         real(dp), intent(out), allocatable :: psmat(:), pamat(:), dmat(:)
+        integer :: irdm
 
         integer :: n_one_rdm, n_two_rdm, iproc, ielem
         integer :: pq, rs, pqrs_m, pq_m, rs_m, p, q, r, s, p_m, q_m, r_m, s_m
