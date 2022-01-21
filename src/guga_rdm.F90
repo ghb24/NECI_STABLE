@@ -209,6 +209,7 @@ contains
         real(dp), allocatable :: psmat(:), pamat(:), dmat(:)
         real(dp), parameter :: thresh = 1e-12
         integer :: iunit_psmat, iunit_pamat, iunit_dmat, i, irdm
+        character(*), parameter :: this_routine = "output_molcas_rdms"
 
         if (rdm_defs%nrdms_transition > 0) then
             call stop_all(this_routine,"GUGA transition RDMs yet to be implemented")
@@ -256,7 +257,6 @@ contains
         integer, intent(in) :: irdm
         real(dp), intent(in) :: rdm_trace(rdm%sign_length)
         real(dp), intent(out), allocatable :: psmat(:), pamat(:), dmat(:)
-        integer :: irdm
 
         integer :: n_one_rdm, n_two_rdm, iproc, ielem
         integer :: pq, rs, pqrs_m, pq_m, rs_m, p, q, r, s, p_m, q_m, r_m, s_m
@@ -355,7 +355,9 @@ contains
     pure function molcas_sign(p, q, r, s) result(sgn)
         ! gives me the sign to fill the anti-symmetric molcas RDM with
         integer, intent(in) :: p, q, r, s
-        real(dp), parameter :: sgn = 1.0
+        real(dp) :: sgn
+
+        sgn = 1.0_dp
 
         ! i know p /= q and r /= s when coming here
 
