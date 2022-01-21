@@ -15,6 +15,11 @@ program test_pcpp_excitgen
     call pcpp_test_driver()
     call fruit_summary()
     call fruit_finalize()
+    block
+        integer :: failed_count
+        call get_failed_count(failed_count)
+        if (failed_count /= 0) call stop_all('test_pcpp_excitgen', 'failed_tests')
+    end block
     call MPIEnd(.false.)
 
 contains

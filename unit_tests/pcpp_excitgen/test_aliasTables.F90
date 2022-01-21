@@ -11,6 +11,11 @@ program test_aliasTables
   call aliasSampling_test_driver()
   call fruit_summary()
   call fruit_finalize()
+  block
+    integer :: failed_count
+    call get_failed_count(failed_count)
+    if (failed_count /= 0) call stop_all('test_aliasTable', 'failed_tests')
+  end block
 
 contains
 

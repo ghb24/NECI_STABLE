@@ -14,8 +14,8 @@
       use orb_idx_mod, only: SpinOrbIdx_t
       use gasci, only: GAS_spec=>GAS_specification
 
-      use guga_matrixElements, only: calcDiagMatEleGuga_nI
-      use guga_excitations, only: calc_guga_matrix_element
+      use guga_matrixElements, only:
+     &      calcDiagMatEleGuga_nI, calc_guga_matrix_element
       use guga_data, only: ExcitationInformation_t
       use guga_bitrepops, only: CSF_Info_t
 
@@ -37,7 +37,7 @@
       type(timer), save :: proc_timer
       type(ExcitationInformation_t) :: excitInfo
       integer :: ic=0
-      type(CSF_Info_t) :: csf_i
+      type(CSF_Info_t) :: csf_i, csf_j
 !      LOGICAL TSTAR
 C ==-------------------------------------------------------------------==
       proc_timer%timer_name='    DETHAM'
@@ -78,13 +78,11 @@ C..   Now we need to match up any two determinants
            ENDIF
          ENDIF
          IF(STEP.EQ.0) STEP=1
-         ! try to use the new guga matrix element calc here.. for this
-         ! misuse the current_stepvector quantities to init this only
-         ! once for nI
          if (tGUGA) csf_i = CSF_Info_t(ilutI)
 
          DO KJ=IBEGJ,IMAXJ,STEP
             call EncodeBitDet(NMRKS(:,KJ), ilutJ)
+            if (tGUGA) csf_j = CSF_Info_t(ilutJ)
             if (tHPHF) then
               if (KI == KJ) then
                 totsum = hphf_diag_helement(NMRKS(:,KI), ilutI)
@@ -98,7 +96,7 @@ C..   Now we need to match up any two determinants
                   totsum = calcDiagMatEleGuga_nI(NMRKS(:,KI))
               else
                   call calc_guga_matrix_element(ilutI,csf_i,ilutJ,
-     &              excitInfo, totsum, .true., 1)
+     &              csf_j, excitInfo, totsum, .true.)
               end if
 
             else if (t_lattice_model) then

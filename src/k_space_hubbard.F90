@@ -89,10 +89,11 @@ module k_space_hubbard
                                     pick_spin_opp_elecs, pick_from_cum_list, &
                                     pick_spin_par_elecs, pick_three_opp_elecs
 
-    use guga_excitations, only: generate_excitation_guga, &
-                                calc_guga_matrix_element, global_excitinfo, print_excitInfo
+    use guga_main, only: generate_excitation_guga
+    use guga_excitations, only: global_excitinfo, print_excitInfo
+    use guga_matrixElements, only: calc_guga_matrix_element
     use guga_bitRepOps, only: convert_ilut_toGUGA, is_compatible, &
-                              isProperCSF_ilut, current_csf_i
+                              isProperCSF_ilut, current_csf_i, CSF_Info_t
     use guga_data, only: ExcitationInformation_t
 
     implicit none
@@ -543,8 +544,6 @@ contains
 
         unused_var(exFlag); unused_var(store); unused_var(run)
 
-        ASSERT(is_compatible(ilutI, current_csf_i))
-
         hel = h_cast(0.0_dp)
         ic = 0
         pgen = 0.0_dp
@@ -587,7 +586,8 @@ contains
                 return
             end if
 
-            call calc_guga_matrix_element(ilutI, current_csf_i, ilutJ, excitInfo, hel, .true., 1)
+            ASSERT(is_compatible(ilutI, current_csf_i))
+            call calc_guga_matrix_element(ilutI, current_csf_i, ilutJ, CSF_Info_t(ilutJ), excitInfo, hel, .true.)
 
             if (abs(hel) < EPS) then
                 nJ(1) = 0
