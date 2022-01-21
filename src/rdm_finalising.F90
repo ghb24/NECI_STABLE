@@ -1284,7 +1284,7 @@ contains
 
             if (RDMExcitLevel == 1) then
                 ! Only non-transition RDMs should be hermitian and obey the
-                ! Cauchy-Schwarz inequalityo.
+                ! Cauchy-Schwarz inequality.
                 do irdm = 1, rdm_defs%nrdms_standard
                     call make_1e_rdm_hermitian(one_rdms(irdm)%matrix, norm_1rdm(irdm))
                     if (tForceCauchySchwarz) call Force_Cauchy_Schwarz(one_rdms(irdm)%matrix)
