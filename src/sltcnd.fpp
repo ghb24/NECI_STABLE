@@ -121,10 +121,10 @@ module sltcnd_mod
         end function sltcnd_3_t
     end interface
 
-    procedure(sltcnd_0_t), pointer :: sltcnd_0
-    procedure(sltcnd_1_t), pointer :: sltcnd_1
-    procedure(sltcnd_2_t), pointer :: sltcnd_2
-    procedure(sltcnd_3_t), pointer :: sltcnd_3
+    procedure(sltcnd_0_t), pointer :: sltcnd_0 => null()
+    procedure(sltcnd_1_t), pointer :: sltcnd_1 => null()
+    procedure(sltcnd_2_t), pointer :: sltcnd_2 => null()
+    procedure(sltcnd_3_t), pointer :: sltcnd_3 => null()
 
 contains
 
@@ -392,7 +392,7 @@ contains
 
     end function SumFock
 
-    function sltcnd_0_base(nI, exc) result(hel)
+    pure function sltcnd_0_base(nI, exc) result(hel)
         ! Calculate the  by the SlaterCondon Rules when the two
         ! determinants are the same (so we only need to specify one).
         integer, intent(in) :: nI(nel)
@@ -619,7 +619,7 @@ contains
     !      slater condon rules for ultracold atoms
     !------------------------------------------------------------------------------------------!
 
-    function sltcnd_0_base_ua(nI, exc) result(hel)
+    pure function sltcnd_0_base_ua(nI, exc) result(hel)
         ! Calculate the  by the SlaterCondon Rules when the two
         ! determinants are the same (so we only need to specify one).
         integer, intent(in) :: nI(nel)
@@ -796,7 +796,7 @@ contains
 
     end function sltcnd_2_kernel_ua_3b
 
-    function sltcnd_0_tc_ua(nI, exc) result(hel)
+    pure function sltcnd_0_tc_ua(nI, exc) result(hel)
         integer, intent(in) :: nI(nel)
         type(NoExc_t), intent(in) :: exc
         HElement_t(dp) :: hel
@@ -880,7 +880,7 @@ contains
         type(DoubleExc_t), intent(in) :: exc
         logical, intent(in) :: tSign
         HElement_t(dp) :: hel
-        hel = sltcnd_2_base(nI, exc, tSign) + spin_pure_J * S2_expval_exc(nI, exc, tSign)
+        hel = sltcnd_2_base(nI, exc, tSign) + spin_pure_J * S2_expval_exc(nI, exc)
     end function
 
 !>  @brief

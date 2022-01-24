@@ -1392,13 +1392,14 @@ contains
         stop
     end subroutine
 
-    function get_lmat_ueg(l1, l2, l3, r1, r2, r3) result(hel)
+    pure function get_lmat_ueg(l1, l2, l3, r1, r2, r3) result(hel)
 
         use SystemData, only: dimen
         use constants, only: int64
         integer(int64), intent(in) :: l1, l2, l3, r1, r2, r3
         integer(int64) :: i, j, k, a, b, c, k1(3), k2(3), k3(3)
         real(dp) :: hel, ak(3), bk(3), ck(3), a2, b2, c2
+        character(*), parameter :: this_routine = 'get_lmat_ueg'
         i = (l1 - 1) * 2 + 1
         j = (l2 - 1) * 2 + 1
         k = (l3 - 1) * 2 + 1
@@ -1448,19 +1449,18 @@ contains
                 hel = 0.d0
             end if
         else
-            print *, 'at moment Lmat is only available for 3D UEG'
-            stop
+            call stop_all(this_routine, 'at moment Lmat is only available for 3D UEG')
         end if
 
     end function
 
-    function get_lmat_ua(l1, l2, l3, r1, r2, r3) result(hel)
+    pure function get_lmat_ua(l1, l2, l3, r1, r2, r3) result(hel)
         use SystemData, only: dimen, TranscorrCutoff, PotentialStrength, TranscorrGaussCutoff, t_trcorr_gausscutoff
         integer, intent(in) :: l1, l2, l3, r1, r2, r3
         integer :: i, j, k, a, b, c, k1(3), k2(3), k3(3)
         real(dp) :: hel, ak(3), bk(3), ck(3), a3, b3, c3, klength1, klength2
         real(dp) :: GaussCutoff, GaussCutoff2, Gaussfact
-!       logical :: tSpinCorrect
+        character(*), parameter :: this_routine = 'get_lmat_ua'
 
         if (dimen == 3) then
 
@@ -1548,8 +1548,7 @@ contains
 
             hel = hel / ALAT(1)
         else
-            print *, 'at moment Lmat is only available for 1D and 3D contact interactions'
-            stop
+            call stop_all(this_routine, 'at moment Lmat is only available for 1D and 3D contact interactions')
         end if
 
     end function
