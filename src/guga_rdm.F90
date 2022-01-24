@@ -272,75 +272,67 @@ contains
         allocate(psmat_loc(n_two_rdm), source=0.0_dp)
         allocate(pamat_loc(n_two_rdm), source=0.0_dp)
 
-        ! first
-        do iproc = 0, nProcessors - 1
-            if (iproc == iProcIndex) then
-                do ielem = 1, rdm%nelements
-                    pqrs = rdm%elements(0, ielem)
-                    call extract_2_rdm_ind(pqrs, p, q, r, s, pq_, rs_)
-                    pq = int(pq_)
-                    rs = int(rs_)
-                    pqrs_m = contract_molcas_2_rdm_index(p, q, r, s)
-                    call extract_molcas_2_rdm_index(pqrs_m, &
-                                                    p_m, q_m, r_m, s_m, pq_m, rs_m)
+        do ielem = 1, rdm%nelements
+            pqrs = rdm%elements(0, ielem)
+            call extract_2_rdm_ind(pqrs, p, q, r, s, pq_, rs_)
+            pq = int(pq_)
+            rs = int(rs_)
+            pqrs_m = contract_molcas_2_rdm_index(p, q, r, s)
+            call extract_molcas_2_rdm_index(pqrs_m, &
+                                            p_m, q_m, r_m, s_m, pq_m, rs_m)
 
-                    call extract_sign_rdm(rdm%elements(:, ielem), rdm_sign)
-                    rdm_sign_ = rdm_sign(irdm)
+            call extract_sign_rdm(rdm%elements(:, ielem), rdm_sign)
+            rdm_sign_ = rdm_sign(irdm)
 
-                    ! now make the fill logic
-                    ! the molcas rdm elements are given by
-                    ! if r /= s (and probably here p /= q)
-                    ! psmat_loc(pqrs) = (two_rdm(pqrs) + two_rdm(pqsr)) / 2
-                    ! pamat_loc(pqrs) = (two_rdm(pqrs) - two_rdm(pqsr)) / 2
-                    ! if r == s (and probably .or. p == q)
-                    ! psmat_loc(pqrs) = 2 * two_rdm(pqrs)
-                    ! es geht eigentlich nur drum wann das element
-                    ! negativ zur anti-symmetrischen beiträgt..
-                    ! und wenn es nur zur diagonalen beiträgt..
+            ! now make the fill logic
+            ! the molcas rdm elements are given by
+            ! if r /= s (and probably here p /= q)
+            ! psmat_loc(pqrs) = (two_rdm(pqrs) + two_rdm(pqsr)) / 2
+            ! pamat_loc(pqrs) = (two_rdm(pqrs) - two_rdm(pqsr)) / 2
+            ! if r == s (and probably .or. p == q)
+            ! psmat_loc(pqrs) = 2 * two_rdm(pqrs)
+            ! es geht eigentlich nur drum wann das element
+            ! negativ zur anti-symmetrischen beiträgt..
+            ! und wenn es nur zur diagonalen beiträgt..
 
-                    if (pq_m == rs_m) then
-                        if (p_m == q_m) then
-                            psmat_loc(pqrs_m) = psmat_loc(pqrs_m) + rdm_sign_ / 2.0_dp
-                        else
-                            psmat_loc(pqrs_m) = psmat_loc(pqrs_m) + rdm_sign_ / 4.0_dp
-                            pamat_loc(pqrs_m) = pamat_loc(pqrs_m) + &
-                                                molcas_sign(p, q, r, s) * rdm_sign_ / 4.0_dp
-                        end if
-                    else
-                        if (p_m == q_m) then
-                            psmat_loc(pqrs_m) = psmat_loc(pqrs_m) + rdm_sign_ / 4.0_dp
-                        else
-                            psmat_loc(pqrs_m) = psmat_loc(pqrs_m) + rdm_sign_ / 8.0_dp
-                            if (r_m /= s_m) then
-                                pamat_loc(pqrs_m) = pamat_loc(pqrs_m) + &
-                                                    molcas_sign(p, q, r, s) * rdm_sign_ / 8.0_dp
-                            end if
-                        end if
+            if (pq_m == rs_m) then
+                if (p_m == q_m) then
+                    psmat_loc(pqrs_m) = psmat_loc(pqrs_m) + rdm_sign_ / 2.0_dp
+                else
+                    psmat_loc(pqrs_m) = psmat_loc(pqrs_m) + rdm_sign_ / 4.0_dp
+                    pamat_loc(pqrs_m) = pamat_loc(pqrs_m) + &
+                                        molcas_sign(p, q, r, s) * rdm_sign_ / 4.0_dp
+                end if
+            else
+                if (p_m == q_m) then
+                    psmat_loc(pqrs_m) = psmat_loc(pqrs_m) + rdm_sign_ / 4.0_dp
+                else
+                    psmat_loc(pqrs_m) = psmat_loc(pqrs_m) + rdm_sign_ / 8.0_dp
+                    if (r_m /= s_m) then
+                        pamat_loc(pqrs_m) = pamat_loc(pqrs_m) + &
+                                            molcas_sign(p, q, r, s) * rdm_sign_ / 8.0_dp
                     end if
-
-                    pq_m = contract_molcas_1_rdm_index(p, q)
-                    rs_m = contract_molcas_1_rdm_index(r, s)
-                    ! convert to 1-RDM
-                    if (r == s .and. p == q) then
-                        dmat_loc(pq_m) = dmat_loc(pq_m) + rdm_sign_
-                        dmat_loc(rs_m) = dmat_loc(rs_m) + rdm_sign_
-                    else
-                        if (r == s) then
-                            dmat_loc(pq_m) = dmat_loc(pq_m) + rdm_sign_ / 2.0_dp
-                        else if (p == q) then
-                            dmat_loc(rs_m) = dmat_loc(rs_m) + rdm_sign_ / 2.0_dp
-                        end if
-                    end if
-                end do
+                end if
             end if
-            ! Wait for the current processor to finish summing its RDM elements
-            call MPIBarrier(ierr)
 
+            pq_m = contract_molcas_1_rdm_index(p, q)
+            rs_m = contract_molcas_1_rdm_index(r, s)
+            ! convert to 1-RDM
+            if (r == s .and. p == q) then
+                dmat_loc(pq_m) = dmat_loc(pq_m) + rdm_sign_
+                dmat_loc(rs_m) = dmat_loc(rs_m) + rdm_sign_
+            else
+                if (r == s) then
+                    dmat_loc(pq_m) = dmat_loc(pq_m) + rdm_sign_ / 2.0_dp
+                else if (p == q) then
+                    dmat_loc(rs_m) = dmat_loc(rs_m) + rdm_sign_ / 2.0_dp
+                end if
+            end if
         end do
 
         psmat_loc = psmat_loc / rdm_trace(1)
         pamat_loc = pamat_loc / rdm_trace(1)
-        dmat_loc = dmat_loc / (2.0 * rdm_trace(1) * real(nel - 1, dp))
+        dmat_loc = dmat_loc / (2.0_dp * rdm_trace(1) * real(nel - 1, dp))
 
         allocate(dmat(n_one_rdm), source=0.0_dp)
         allocate(psmat(n_two_rdm), source=0.0_dp)
@@ -352,18 +344,13 @@ contains
 
     end subroutine fill_molcas_rdms
 
-    pure function molcas_sign(p, q, r, s) result(sgn)
+    elemental function molcas_sign(p, q, r, s) result(sgn)
         ! gives me the sign to fill the anti-symmetric molcas RDM with
         integer, intent(in) :: p, q, r, s
         real(dp) :: sgn
 
-        sgn = 1.0_dp
-
-        ! i know p /= q and r /= s when coming here
-
-        if (p < q) sgn = -sgn
-        if (r < s) sgn = -sgn
-
+        ASSERT(p /= q .and. r /= s)
+        sgn = merge(-1.0_dp, 1.0_dp, p < q .neqv. r < s)
     end function molcas_sign
 
     elemental function pure_rdm_ind(rdm_ind) result(pure_ind)
