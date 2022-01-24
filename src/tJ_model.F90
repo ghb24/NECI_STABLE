@@ -27,7 +27,7 @@ module tJ_model
 
     use umatcache, only: gtid
 
-    use util_mod, only: operator(.div.), near_zero, get_free_unit
+    use util_mod, only: operator(.div.), near_zero, get_free_unit, stop_all
 
     use util_mod_numerical, only: binary_search_first_ge
 
@@ -1803,7 +1803,7 @@ contains
 
     end function determine_optimal_time_step_heisenberg
 
-    function get_umat_heisenberg_spin_free(i, j, k, l) result(hel)
+    pure function get_umat_heisenberg_spin_free(i, j, k, l) result(hel)
         ! for the spin-free form, I do not need information about
         ! the spin-orbitals
         integer, intent(in) :: i, j, k, l
@@ -1828,7 +1828,7 @@ contains
 
     end function get_umat_heisenberg_spin_free
 
-    function get_umat_el_heisenberg(i, j, k, l) result(hel)
+    pure function get_umat_el_heisenberg(i, j, k, l) result(hel)
         integer, intent(in) :: i, j, k, l
         HElement_t(dp) :: hel
 #ifdef DEBUG_

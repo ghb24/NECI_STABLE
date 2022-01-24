@@ -31,7 +31,7 @@ module SystemData
     logical :: tNoRenormRandExcits, tAssumeSizeExcitgen, tCycleOrbs, tROIteration
     logical :: tShakeIter, tRotateOccOnly, tDoubExcMin, tUseHFOrbs, tRotateOrbs
     logical :: tNonUniRandExcits, tNoSymGenRandExcits, tLagrange, tShakeApprox
-    logical :: tShake, tRotateVirtOnly, tMaxHLGap, tCacheFCIDUMPInts
+    logical :: tShake, tRotateVirtOnly, tMaxHLGap
     logical :: tKPntSym        !Are we using KPoint symmetry?
     logical :: tRotatedOrbsReal     !This means we are reading in a complex FCIDUMP, but all
     !orbitals have been rotated to be real. This requires all

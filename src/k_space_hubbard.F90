@@ -324,7 +324,7 @@ contains
 
     end subroutine setup_symmetry_table
 
-    function get_umat_kspace(i, j, k, l) result(hel)
+    pure function get_umat_kspace(i, j, k, l) result(hel)
         ! simplify this get_umat function for the k-space hubbard..
         ! since there was a lot of unnecessary stuff going on in the other
         ! essentially we only have to check if the momenta involved
@@ -345,9 +345,6 @@ contains
         else
             hel = 0.0_dp
         end if
-
-        ! old implo:
-
     end function get_umat_kspace
 
     subroutine init_k_space_hubbard()
