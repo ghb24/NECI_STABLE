@@ -652,7 +652,14 @@ contains
                     !allocate(UMat(UMatInt), stat=ierr)
                     LogAlloc(ierr, 'UMat', int(UMatInt), HElement_t_SizeB, tagUMat)
                     UMat = 0.0_dp
+#ifndef CMPLX_
                     CALL GEN_COUL(NBASISMAX, nBasis, G1, NMSH, NMAX, FCK, UMAT, ZIA)
+#else
+                    ! From my (Oskar) limited understanding of GEN_COUL,
+                    !  I don't think it makes sense for
+                    !  complex code.
+                    call stop_all(this_routine, 'Should not be here')
+#endif
                     deallocate(ZIA)
                     LogDealloc(tagZIA)
                     LogDealloc(tagFCK)
