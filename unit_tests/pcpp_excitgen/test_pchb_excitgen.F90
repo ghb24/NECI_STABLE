@@ -1,4 +1,4 @@
-program test_pcpp_excitgen
+program test_pchb_excitgen
   use constants
   use fruit
   use Parallel_neci, only: MPIInit, MPIEnd
@@ -15,6 +15,11 @@ program test_pcpp_excitgen
   call pchb_test_driver()
   call fruit_summary()
   call fruit_finalize()
+  block
+    integer :: failed_count
+    call get_failed_count(failed_count)
+    if (failed_count /= 0) call stop_all('test_pchb_excitgen', 'failed_tests')
+  end block
   call MPIEnd(.false.)
 
 contains
@@ -97,4 +102,4 @@ contains
     call generate_random_integrals(&
       iunit, n_el=5, n_spat_orb=12, sparse=0.9_dp, sparseT=0.1_dp, total_ms=beta)
   end subroutine
-end program test_pcpp_excitgen
+end program test_pchb_excitgen
