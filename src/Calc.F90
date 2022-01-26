@@ -1501,19 +1501,38 @@ contains
                 max_allowed_spawn = MaxWalkerBloom
             case("SHIFTDAMP")
                 !For FCIMC, this is the damping parameter with respect to the update in the DiagSft value for a given number of MC cycles.
-                call getf(SftDamp)
+                if (allocated(user_input_SftDamp)) then
+                    call stop_all(t_r, "Shiftdamp specified twice")
+                else
+                    allocate(user_input_SftDamp)
+                    call getf(user_input_SftDamp)
+                    SftDamp = user_input_SftDamp
+                end if
+                if ((SftDamp >= 1.0) .or. (SftDamp <= 0.0)) then
+                    call stop_all(t_r, "Shift damping factor has to be between 0 and 1")
+                end if
             case("TARGET-SHIFTDAMP")
                 !Introduces a second term in the shift update procedure
                 !depending on the target population with
                 !a second shift damping parameter SftDamp2 to avoid overshooting the
                 !target population.
                 tTargetShiftdamp = .true.
+                if (allocated(user_input_SftDamp)) then
+                    call stop_all(t_r, "Shiftdamp specified twice")
+                else
+                    allocate(user_input_SftDamp)
+                    call getf(user_input_SftDamp)
+                    SftDamp = user_input_SftDamp
+                end if
                 if (item < nitems) then
                     call getf(SftDamp2)
                 else
                     !If no value for SftDamp2 is chosen, it is automatically set
                     !to a value that leads to a critically damped shift.
                     SftDamp2 = SftDamp**2./4.
+                end if
+                if ((SftDamp >= 1.0) .or. (SftDamp <= 0.0) .or. (SftDamp2 >= SftDamp) .or. (SftDamp2 <= 0.0)) then
+                    call stop_all(t_r, "Shift damping factors have to be between 0 and 1 and SftDamp2 has to be smaller than SftDamp")
                 end if
             case("LINSCALEFCIMCALGO")
                 ! Use the linear scaling FCIMC algorithm
@@ -3890,7 +3909,7 @@ contains
         call LogMemDealloc(this_routine, tagMCDet)
 
         if (allocated(user_input_seed)) deallocate(user_input_seed)
-
+        if (allocated(user_input_SftDamp)) deallocate(user_input_SftDamp)
     End Subroutine CalcCleanup
 
 END MODULE Calc

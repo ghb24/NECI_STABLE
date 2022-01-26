@@ -243,7 +243,7 @@ contains
                             tStartCAS, tUniqueHFNode, tContTimeFCIMC, &
                             tContTimeFull, tFCIMC, tPreCond, tOrthogonaliseReplicas, &
                             tMultipleInitialStates, pgen_unit_test_spec, &
-                            user_input_seed
+                            user_input_seed, tTargetShiftdamp, tFixedN0
         use Calc, only : RDMsamplingiters_in_inp
         Use Determinants, only: SpecDet, tagSpecDet, tDefinedet, DefDet
         use IntegralsData, only: nFrozen, tDiscoNodes, tQuadValMax, &
@@ -650,6 +650,10 @@ contains
 
         if (allocated(pgen_unit_test_spec) .and. .not. tReadPops) then
             call stop_all(t_r, "UNIT-TEST-PGEN requires READPOPS.")
+        end if
+
+        if (tTargetShiftdamp .and. tFixedN0) then
+            call stop_all(t_r, "TARGET-SHIFTDAMP and FIXED-N0 not compatible.")
         end if
 
         block
