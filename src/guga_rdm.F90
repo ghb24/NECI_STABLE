@@ -252,6 +252,7 @@ contains
 
     subroutine fill_molcas_rdms(rdm_defs, rdm, rdm_trace, &
                                 psmat, pamat, dmat, irdm)
+
         type(rdm_definitions_t), intent(in) :: rdm_defs
         type(rdm_list_t), intent(in) :: rdm
         integer, intent(in) :: irdm
@@ -282,7 +283,7 @@ contains
                                             p_m, q_m, r_m, s_m, pq_m, rs_m)
 
             call extract_sign_rdm(rdm%elements(:, ielem), rdm_sign)
-            rdm_sign_ = rdm_sign(irdm)
+            rdm_sign_ = rdm_sign(irdm) / rdm_trace(irdm)
 
             ! now make the fill logic
             ! the molcas rdm elements are given by
@@ -330,9 +331,13 @@ contains
             end if
         end do
 
-        psmat_loc = psmat_loc / rdm_trace(1)
-        pamat_loc = pamat_loc / rdm_trace(1)
-        dmat_loc = dmat_loc / (2.0_dp * rdm_trace(1) * real(nel - 1, dp))
+        ! psmat_loc = psmat_loc / rdm_trace(1)
+        ! pamat_loc = pamat_loc / rdm_trace(1)
+        ! dmat_loc = dmat_loc / (2.0_dp * rdm_trace(1) * real(nel - 1, dp))
+
+        psmat_loc = psmat_loc
+        pamat_loc = pamat_loc
+        dmat_loc = dmat_loc / (2.0_dp * real(nel - 1, dp))
 
         allocate(dmat(n_one_rdm), source=0.0_dp)
         allocate(psmat(n_two_rdm), source=0.0_dp)
