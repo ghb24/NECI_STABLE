@@ -89,7 +89,6 @@ contains
         tNoBrillouin = .true.
         tBrillouinsDefault = .true.
         tROHF = .false.
-        tCacheFCIDUMPInts = .false.
         tHPHFInts = .false.
         tHPHF = .false.
         tMaxHLGap = .false.
@@ -419,8 +418,6 @@ contains
                 ! General options.
             case ("RIINTEGRALS")
                 tRIIntegrals = .true.
-            case ("READCACHEINTS")
-                tCacheFCIDUMPInts = .true.
             case ("ELECTRONS", "NEL")
                 call geti(NEL)
             case ("SPIN-RESTRICT")
@@ -2078,8 +2075,7 @@ contains
                 write(stdout, '(A)') "  Reading Density fitted integrals.  "
                 LMSBASIS = LMS
                 CALL InitDFBasis(nBasisMax, Len)
-            else if (tRIIntegrals .or. tCacheFCIDUMPInts) THEN
-!tCacheFCIDUMPInts means that we read in all the integrals from the FCIDUMP integral file, but store them contiguously in the cache
+            else if (tRIIntegrals) THEN
                 LMSBASIS = LMS
                 IF (tRIIntegrals) THEN
                     write(stdout, '(A)') "  Reading RI integrals.  "

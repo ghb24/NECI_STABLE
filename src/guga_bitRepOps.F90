@@ -2107,7 +2107,7 @@ contains
 
     end subroutine write_det_guga
 
-    subroutine encode_matrix_element_real(ilut, mat_ele, mat_type)
+    pure subroutine encode_matrix_element_real(ilut, mat_ele, mat_type)
         ! encodes the x0 or x1 matrix element needed during the excitation
         ! creation.
         ! mat_ele   ... x0 or x1 matrix element
@@ -2129,7 +2129,7 @@ contains
     end subroutine encode_matrix_element_real
 
 #ifdef CMPLX_
-    subroutine encode_matrix_element_cmplx(ilut, mat_ele, mat_type)
+    pure subroutine encode_matrix_element_cmplx(ilut, mat_ele, mat_type)
         ! this is specific for complex matrix elements.. here
         ! i can use the two storage slots for x0 and x1 to encode
         ! both the real and imaginary parts of the Hamiltonian matrix elements
@@ -2388,7 +2388,7 @@ contains
 
     end subroutine transfer_stochastic_rdm_info
 
-    subroutine convert_ilut_toGUGA(ilutN, ilutG, HElement, delta_b)
+    pure subroutine convert_ilut_toGUGA(ilutN, ilutG, HElement, delta_b)
         integer(n_int), intent(in) :: ilutN(0:niftot)
         integer(n_int), intent(out) :: ilutG(0:GugaBits%len_tot)
         HElement_t(dp), intent(in), optional :: HElement

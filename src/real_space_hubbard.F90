@@ -52,7 +52,7 @@ module real_space_hubbard
 
     use util_mod, only: binary_search_first_ge, choose, swap, get_free_unit, &
                         binary_search, near_zero, operator(.isclose.), &
-                        operator(.div.)
+                        operator(.div.), stop_all
 
     use bit_reps, only: decode_bit_det
 
@@ -2613,7 +2613,7 @@ contains
 
     end function get_2_body_contrib_transcorr_hop
 
-    function get_umat_el_hub(i, j, k, l) result(hel)
+    pure function get_umat_el_hub(i, j, k, l) result(hel)
         integer, intent(in) :: i, j, k, l
         HElement_t(dp) :: hel
 #ifdef DEBUG_
@@ -2637,7 +2637,7 @@ contains
 
     end function get_umat_el_hub
 
-    function get_umat_rs_hub_trans(i, j, k, l) result(hel)
+    pure function get_umat_rs_hub_trans(i, j, k, l) result(hel)
         ! do i need an explicit get_umat_rs_hub_trans? or can i just reuse
         ! the one, whhich access the "normal" fcidump.. figure out!
         integer, intent(in) :: i, j, k, l

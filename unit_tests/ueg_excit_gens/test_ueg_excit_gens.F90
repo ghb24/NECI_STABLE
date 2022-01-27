@@ -213,7 +213,7 @@ contains
 
     end subroutine calc_pgen_ueg_test
 
-    function get_umat_test(i, j, k, l) result(hel)
+    pure function get_umat_test(i, j, k, l) result(hel)
         use constants, only: dp
         implicit none
         integer, intent(in) :: i, j, k, l

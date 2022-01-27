@@ -22,7 +22,7 @@ module tc_three_body_excitgen
     implicit none
     ! Factors accounting for permutation of electrons
     real(dp), parameter :: same_spin_perm = 6.0_dp
-    real(dp), parameter :: opp_spin_perm = 4.0_dp
+    real(dp), parameter :: opp_spin_perm = 2.0_dp
 
 contains
 
