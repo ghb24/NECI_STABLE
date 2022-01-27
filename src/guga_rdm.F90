@@ -331,10 +331,6 @@ contains
             end if
         end do
 
-        ! psmat_loc = psmat_loc / rdm_trace(1)
-        ! pamat_loc = pamat_loc / rdm_trace(1)
-        ! dmat_loc = dmat_loc / (2.0_dp * rdm_trace(1) * real(nel - 1, dp))
-
         psmat_loc = psmat_loc
         pamat_loc = pamat_loc
         dmat_loc = dmat_loc / (2.0_dp * real(nel - 1, dp))
