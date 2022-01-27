@@ -200,14 +200,19 @@ contains
 
     subroutine output_molcas_rdms(rdm_defs, rdm, rdm_trace)
 
-        ! routine which prints spin-free GUGA RDMs directly in molcas format
+        !! Print spin-free GUGA RDMs directly in Molcas format
 
         type(rdm_definitions_t), intent(in) :: rdm_defs
+            !! Type contanining the number of RDMs sampled and which states
+            !! contribute to each RDM.
         type(rdm_list_t), intent(in) :: rdm
+            !! Stores RDMs as 1D lists whose elements can be accessed through
+            !! a has table.
         real(dp), intent(in) :: rdm_trace(rdm%sign_length)
+            !! Trace of RDMs required for normalisation of sampled arrays.
 
         real(dp), allocatable :: psmat(:), pamat(:), dmat(:)
-        real(dp), parameter :: thresh = 1e-12
+        real(dp), parameter :: thresh = 1e-12_dp
         integer :: iunit_psmat, iunit_pamat, iunit_dmat, i, irdm
         character(*), parameter :: this_routine = "output_molcas_rdms"
 
@@ -253,11 +258,21 @@ contains
     subroutine fill_molcas_rdms(rdm_defs, rdm, rdm_trace, &
                                 psmat, pamat, dmat, irdm)
 
+        !! Populate the Molcas RDM arrays PSMAT/PAMAT/DMAT.
+
         type(rdm_definitions_t), intent(in) :: rdm_defs
+            !! Type contanining the number of RDMs sampled and which states
+            !! contribute to each RDM.
         type(rdm_list_t), intent(in) :: rdm
-        integer, intent(in) :: irdm
+            !! Stores RDMs as 1D lists whose elements can be accessed through
+            !! a has table.
         real(dp), intent(in) :: rdm_trace(rdm%sign_length)
+            !! Trace of RDMs required for normalisation of sampled arrays.
         real(dp), intent(out), allocatable :: psmat(:), pamat(:), dmat(:)
+            !! Molcas RDM arrays to be populated.
+        integer, intent(in) :: irdm
+            !! loop index over the different states to be sampled;
+            !! 2 replicas are required per state.
 
         integer :: n_one_rdm, n_two_rdm, iproc, ielem
         integer :: pq, rs, pqrs_m, pq_m, rs_m, p, q, r, s, p_m, q_m, r_m, s_m
@@ -266,8 +281,8 @@ contains
         real(dp) :: rdm_sign(rdm%sign_length), rdm_sign_
         real(dp), allocatable :: dmat_loc(:), psmat_loc(:), pamat_loc(:)
 
-        n_one_rdm = nSpatorbs * (nSpatorbs + 1) / 2
-        n_two_rdm = n_one_rdm * (n_one_rdm + 1) / 2
+        n_one_rdm = nSpatorbs * (nSpatorbs + 1) .div. 2
+        n_two_rdm = n_one_rdm * (n_one_rdm + 1) .div. 2
 
         allocate(dmat_loc(n_one_rdm), source=0.0_dp)
         allocate(psmat_loc(n_two_rdm), source=0.0_dp)
@@ -331,9 +346,7 @@ contains
             end if
         end do
 
-        psmat_loc = psmat_loc
-        pamat_loc = pamat_loc
-        dmat_loc = dmat_loc / (2.0_dp * real(nel - 1, dp))
+        dmat_loc(:) = dmat_loc(:) / (2.0_dp * real(nel - 1, dp))
 
         allocate(dmat(n_one_rdm), source=0.0_dp)
         allocate(psmat(n_two_rdm), source=0.0_dp)
