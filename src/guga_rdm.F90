@@ -221,8 +221,7 @@ contains
         end if
 
         do irdm = 1, rdm_defs%nrdms_standard
-            call fill_molcas_rdms(rdm_defs, rdm, rdm_trace, psmat, pamat, &
-                                  dmat, irdm)
+            call fill_molcas_rdms(rdm, rdm_trace, psmat, pamat, dmat, irdm)
             if (iProcIndex == root) then
                 open(newunit=iunit_psmat, file='PSMAT.'//str(irdm), &
                      status='replace')
@@ -255,14 +254,11 @@ contains
 
     end subroutine output_molcas_rdms
 
-    subroutine fill_molcas_rdms(rdm_defs, rdm, rdm_trace, &
+    subroutine fill_molcas_rdms(rdm, rdm_trace, &
                                 psmat, pamat, dmat, irdm)
 
         !! Populate the Molcas RDM arrays PSMAT/PAMAT/DMAT.
 
-        type(rdm_definitions_t), intent(in) :: rdm_defs
-            !! Type contanining the number of RDMs sampled and which states
-            !! contribute to each RDM.
         type(rdm_list_t), intent(in) :: rdm
             !! Stores RDMs as 1D lists whose elements can be accessed through
             !! a has table.
