@@ -1,12 +1,12 @@
 #include "macros.h"
 
 module fortran_strings
-    use constants, only: int32, int64
+    use constants, only: int32, int64, sp, dp
     implicit none
     save
     private
     public :: str, to_lower, to_upper, operator(.in.), split, Token_t, &
-        count_char
+        count_char, join, to_int32, to_int64, to_realsp, to_realdp
 
 !>  @brief
 !>    Convert to Fortran string
@@ -132,6 +132,19 @@ contains
         res = tmp(: n)
     end function
 
+    !> Join an array of tokens into one string
+    pure function join(tokens, delimiter) result(res)
+        type(Token_t), intent(in) :: tokens(:)
+        character(*), intent(in) :: delimiter
+        character(:), allocatable :: res
+        integer :: i
+        res = ''
+        do i = 1, size(tokens) - 1
+            res = res // tokens(i)%str // delimiter
+        end do
+        res = res // tokens(size(tokens))%str
+    end function
+
     !> @brief
     !> Count the occurence of a character in a string.
     pure function count_char(str, char) result(c)
@@ -144,5 +157,25 @@ contains
         do i = 1, len(str)
             if (str(i : i) == char) c = c + 1
         end do
+    end function
+
+    integer(int32) elemental function to_int32(str)
+        character(*), intent(in) :: str
+        read(unit=str, fmt=*) to_int32
+    end function
+
+    integer(int64) elemental function to_int64(str)
+        character(*), intent(in) :: str
+        read(unit=str, fmt=*) to_int64
+    end function
+
+    real(sp) elemental function to_realsp(str)
+        character(*), intent(in) :: str
+        read(unit=str, fmt=*) to_realsp
+    end function
+
+    real(dp) elemental function to_realdp(str)
+        character(*), intent(in) :: str
+        read(unit=str, fmt=*) to_realdp
     end function
 end module fortran_strings

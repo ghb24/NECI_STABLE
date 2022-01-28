@@ -75,6 +75,7 @@ set( SRC_FILES
     initial_trial_states.F90
     initiator_space_procs.F90
     input.F90
+    input_parser.F90
     IntegralsData.F90
     Integrals_neci.F90
     kp_fciqmc_data.F90
@@ -301,7 +302,6 @@ set( RELAX_WARNINGS_SRCS
     init_coul.F
     initial_trial_states.F90
     initiator_space_procs.F90
-    input.F90
     IntegralsData.F90
     kp_fciqmc_data.F90
     kp_fciqmc.F90

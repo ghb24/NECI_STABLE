@@ -23,7 +23,6 @@ MODULE input_neci
 
     CHARACTER(len=*), parameter :: concat = "+++"
     INTEGER, parameter :: lc = len(concat)
-    CHARACTER(LEN=455) :: file = ""
 
     external :: neci_getarg
 
@@ -173,7 +172,7 @@ CONTAINS
         CHARACTER :: term
 
         INTEGER, SAVE :: lrecl = 466
-        INTEGER :: in, fail, i, k, l, m, ierr
+        INTEGER :: in, l, m, ierr
 
         eof = .false.
         if (present(inunit)) then

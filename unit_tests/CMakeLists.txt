@@ -83,3 +83,5 @@ add_subdirectory( shared_array )
 add_subdirectory( SD_spin_purification )
 
 add_subdirectory( lib )
+
+add_subdirectory( test_parser )
