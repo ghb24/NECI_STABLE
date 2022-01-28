@@ -359,12 +359,17 @@ contains
     end subroutine fill_molcas_rdms
 
     elemental function molcas_sign(p, q, r, s) result(sgn)
-        ! gives me the sign to fill the anti-symmetric molcas RDM with
+
+        !! Gives me the sign to fill the anti-symmetric molcas RDM with
+
         integer, intent(in) :: p, q, r, s
         real(dp) :: sgn
 
+        character(*), parameter :: this_routine = "molcas_sign"
+
         ASSERT(p /= q .and. r /= s)
         sgn = merge(-1.0_dp, 1.0_dp, p < q .neqv. r < s)
+
     end function molcas_sign
 
     elemental function pure_rdm_ind(rdm_ind) result(pure_ind)
