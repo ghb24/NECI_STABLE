@@ -2455,7 +2455,7 @@ contains
 
         close(iunit)
 
-        Call input_options(echo_lines=.false., skip_blank_lines=.true.)
+        Call input_options(echo_lines=.false.)
 
     end subroutine read_sites
 
@@ -5205,7 +5205,7 @@ contains
 
         close(iunit)
 
-        Call input_options(echo_lines=.false., skip_blank_lines=.true.)
+        Call input_options(echo_lines=.false.)
 
     end function read_lattice_n_sites
 
@@ -5282,7 +5282,7 @@ contains
         call this%set_length(1,3)
         !call this%set_nconnect_max(4)
 
-        Call input_options(echo_lines=.false., skip_blank_lines=.true.)
+        Call input_options(echo_lines=.false.)
 
     end subroutine read_lattice_struct
 

@@ -83,7 +83,7 @@ contains
             ! defaults option and then re-read it for all other options.
             open(7, status='scratch', iostat=ios)
         end if
-        Call input_options(echo_lines=.false., skip_blank_lines=.true.)
+        Call input_options(echo_lines=.false.)
 
         !Look to find default options (line can be added anywhere in input)
         Do
@@ -133,9 +133,9 @@ contains
         Rewind (ir)
         if (tMolpro .and. (.not. tOverride_input)) then
 !Molpro writes out its own input file
-            Call input_options(echo_lines=.false., skip_blank_lines=.true.)
+            Call input_options(echo_lines=.false.)
         else
-            Call input_options(echo_lines=iProcIndex == 0, skip_blank_lines=.true.)
+            Call input_options(echo_lines=iProcIndex == 0)
             write(stdout, '(/,64("*"),/)')
         end if
 

@@ -325,8 +325,7 @@ contains
                         write (6, *) 'Problem reading CHANGEVARS file.'
                         cycle
                     endif
-                    call input_options (echo_lines=.true., &
-                                        skip_blank_lines=.true.)
+                    call input_options(echo_lines=.true.)
 
                     ! Loop over all options specified in the file.
                     do

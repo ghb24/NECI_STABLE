@@ -7,11 +7,12 @@ MODULE input_neci
 
     IMPLICIT NONE
 
+    integer, parameter :: max_len = 300
     CHARACTER(LEN=1900) :: char = ""
-    LOGICAL :: skipbl = .false., clear = .true., echo = .false., &
-               debug = .false., more
-    INTEGER :: item = 0, nitems = 0, loc(0:120) = 0, end(120) = 0, &
-                     line(0:10) = 0, level = 0, nerror = 0, ir = 5, last = 0, unit(0:10)
+    logical, parameter :: skipbl = .true., clear = .true.
+    LOGICAL :: echo = .false., more
+    INTEGER :: item = 0, nitems = 0, loc(0 : max_len) = 0, end(max_len) = 0, &
+                     line = 0, nerror = 0, ir = 5, last = 0, unit(0:10)
 
     CHARACTER(LEN=26), PARAMETER :: &
         upper_case = "ABCDEFGHIJKLMNOPQRSTUVWXYZ", &
@@ -20,9 +21,9 @@ MODULE input_neci
                             comma = ",", squote = "'", dquote = '"', tab = achar(9), &
                             plus = "+", minus = "-", dot = "."
 
-    CHARACTER(LEN=455) :: concat = "+++"
-    INTEGER :: lc = 3
-    CHARACTER(LEN=455) :: file(10) = ""
+    CHARACTER(len=*), parameter :: concat = "+++"
+    INTEGER, parameter :: lc = len(concat)
+    CHARACTER(LEN=455) :: file = ""
 
     external :: neci_getarg
 
@@ -85,17 +86,6 @@ MODULE input_neci
 !     CALL GETx
 !  Same as the corresponding READx, but a new record is read if there are
 !  no more items in the current one.
-
-!     CALL READ_COLOUR(fmt,col,clamp)
-!  Read a colour definition, in a form specified by FMT:
-!  FMT="GREY": read a single number between 0 and 1
-!  FMT="RGB": read 3 numbers, which are RGB colour values between 0 and 1
-!  FMT="RGB255": read 3 numbers, which are RGB colour values between 0 and 255
-!  FMT="RGBX": read a single 6-character string giving the RGB colour
-!        values in hexadecimal.
-!  In the last two cases the colour values are scaled to the range from 0 to 1.
-!  CLAMP is an optional logical argument. If present and true, the colour
-!        values are clamped (after scaling, if appropriate) to the range 0 to 1.
 
 !  ITEM    is the number of the last item read from the buffer
 
@@ -177,11 +167,13 @@ CONTAINS
         LOGICAL, INTENT(OUT) :: eof
         INTEGER, INTENT(IN), OPTIONAL :: inunit
 
+        character(*), parameter :: this_routine = 'read_line'
+
         CHARACTER(LEN=455) :: w, f
         CHARACTER :: term
 
         INTEGER, SAVE :: lrecl = 466
-        INTEGER :: in, fail, i, k, l, m
+        INTEGER :: in, fail, i, k, l, m, ierr
 
         eof = .false.
         if (present(inunit)) then
@@ -196,21 +188,84 @@ CONTAINS
             m = 1
             do while (more)
                 last = m + lrecl - 1
-                line(level) = line(level) + 1
-                read(in, "(a)", end=900) char(m:last)
-                go to 10
-!  End of file
-900             if (more .and. m > 1) then
+                line = line + 1
+                read(in, "(a)", iostat=ierr) char(m:last)
+                if (ierr > 0) then
+                    call stop_all(this_routine, 'Error during read')
+                else if (ierr < 0) then
+                    ! EOF reached
+                    eof = .true.
+                    exit
+                else
+    !  Find last non-blank character
+                    last = verify(char, space//tab, back=.true.)
+                    if (echo) write(stdout, "(a)") char(m:last)
+    !  Look for concatenation string
+                    if (lc > 0 .and. last >= lc) then
+                        more = (char(last - lc + 1:last) == concat)
+                        if (more) then
+                            m = last - lc + 1
+                        end if
+                    else
+                        more = .false.
+                    end if
+                end if
+            end do  ! while (more)
+
+            is_EOF_reached: if (.not. eof) then
+
+    !  Replace tab by single space
+                do while (index(char, tab) > 0)
+                    L = index(char, tab)
+                    char(L:L) = space
+                end do
+
+    !  Logical line assembled. First look for input directives
+                L = 1
+                do while (char(L:L) == space .and. L < last)
+                    L = L + 1
+                end do
+                if (char(L:L) == "#") then
+                    M = L
+                    do while (char(M:M) /= space .and. M <= last)
+                        M = M + 1
+                    end do
+                    w = char(L:M - 1)
+                    call upcase(w)
+                    if (M > last) then
+                        f = " "
+                    else
+                        do while (char(M:M) == space)
+                            M = M + 1
+                        end do
+                        if (char(M:M) == squote .or. char(M:M) == dquote) then
+                            term = char(M:M)
+                            M = M + 1
+                        else
+                            term = space
+                        end if
+                        L = M
+                        do while (char(M:M) /= term .and. M <= last)
+                            M = M + 1
+                        end do
+                        f = char(L:M - 1)
+                    end if
+                    cycle lines
+                end if
+
+                call parse
+
+    !  Blank except for comment?
+                if (nitems == 0 .and. skipbl) then
+                    cycle lines   !  Read another line
+                else
+                    exit lines    !  Finished
+                end if
+            else
+    !  End of file
+                if (more .and. m > 1) then
                     write(stdout, "(a)") "Apparently concatenating at end-of-file"
                     call report("Unexpected end of data file", .true.)
-                end if
-                if (level > 0) then
-                    !  Revert to previous input
-                    close(in)
-                    level = level - 1
-                    ir = unit(level)
-                    in = ir
-                    cycle lines
                 else
                     !  End of input
                     char(1:last) = ""
@@ -219,119 +274,8 @@ CONTAINS
                     eof = .true.
                     return
                 end if
-
-!  Find last non-blank character
-10              last = verify(char, space//tab, back=.true.)
-                if (echo) write(stdout, "(a)") char(m:last)
-!  Look for concatenation string
-                if (lc > 0 .and. last >= lc) then
-                    more = (char(last - lc + 1:last) == concat)
-                    if (more) then
-                        m = last - lc + 1
-                    end if
-                else
-                    more = .false.
-                end if
-            end do  ! while (more)
-
-!  Replace tab by single space
-            do while (index(char, tab) > 0)
-                L = index(char, tab)
-                char(L:L) = space
-            end do
-
-!  Logical line assembled. First look for input directives
-            L = 1
-            do while (char(L:L) == space .and. L < last)
-                L = L + 1
-            end do
-            if (char(L:L) == "#") then
-                !       M=index(char(L:),space)+L-1
-                M = L
-                do while (char(M:M) /= space .and. M <= last)
-                    M = M + 1
-                end do
-                w = char(L:M - 1)
-                call upcase(w)
-                if (M > last) then
-                    f = " "
-                else
-                    do while (char(M:M) == space)
-                        M = M + 1
-                    end do
-                    if (char(M:M) == squote .or. char(M:M) == dquote) then
-                        term = char(M:M)
-                        M = M + 1
-                    else
-                        term = space
-                    end if
-                    !         L=index(char(M:),term)+M-1
-                    L = M
-                    do while (char(M:M) /= term .and. M <= last)
-                        M = M + 1
-                    end do
-                    f = char(L:M - 1)
-                end if
-                select case (w)
-                case ("#")          ! Comment -- ignore
-                case ("#INCLUDE")   ! Take input from specified file
-                    if (f == " ") call report &
-                        ("No filename given in #include directive", .true.)
-                    if (level == 0) unit(0) = ir
-                    level = level + 1
-                    line(level) = 0
-                    ir = get_free_unit()
-                    unit(level) = ir
-                    open(unit=ir, file=f, status="old", iostat=fail)
-                    if (fail /= 0) then
-                        call report(trim(f)//" could not be opened", .true.)
-                    end if
-                    in = ir
-                    file(level) = f
-                case ("#CONCAT")
-                    concat = f
-                    lc = len(trim(concat))
-                case ("#REVERT")
-                    close(in)
-                    file(level) = ""
-                    level = level - 1
-                    ir = unit(level)
-                    in = ir
-                case ("#WIDTH")
-                    read(unit=f, fmt="(i6)") lrecl
-                case ("#ECHO")
-                    echo = .true.
-                    if (f == "OFF") echo = .false.
-                case ("#DEBUG")
-                    debug = .true.
-                    if (f == "OFF") debug = .false.
-                case default
-                    call report("Unrecognized directive "//trim(w)//"in input", .true.)
-                end select
-                cycle lines
-            end if
-
-            call parse
-
-!  Blank except for comment?
-            if (nitems == 0 .and. skipbl) then
-                cycle lines   !  Read another line
-            else
-                exit lines    !  Finished
-            end if
-
+            end if is_EOF_reached
         end do lines
-
-        if (debug) then
-            !       print "(8(I6,I4))", (loc(i), end(i), i=1,nitems)
-            if (echo .and. nitems > 0) then
-                write(stdout, "(100a1)") (" ", i=1, loc(1) - 1), &
-                    (("+", i=loc(k), end(k)), (" ", i=end(k) + 1, loc(k + 1) - 1), k=1, nitems - 1), &
-                    ("+", i=loc(nitems), end(nitems))
-            end if
-            write(stdout, "(I2,A)") nitems, " items"
-        end if
-
     END SUBROUTINE read_line
 
 !-----------------------------------------------------------------------
@@ -382,8 +326,6 @@ CONTAINS
             end if
 
             c = char(L:L)
-!   if (debug) print "(A,I3,A,A,A,I1)",                                &
-!       "L = ", L, "  Character ", c, "  state ", state
             select case (state)
             case (0)                ! Looking for next item
                 select case (c)
@@ -474,43 +416,11 @@ CONTAINS
 
 !-----------------------------------------------------------------------
 
-    SUBROUTINE input_options(default, clear_if_null, skip_blank_lines, &
-                             echo_lines, error_flag, concat_string)
+    SUBROUTINE input_options(echo_lines)
 
-        IMPLICIT NONE
-        LOGICAL, OPTIONAL :: default, clear_if_null, skip_blank_lines, &
-                             echo_lines
-        INTEGER, OPTIONAL :: error_flag
-        CHARACTER(LEN=*), optional :: concat_string
+        LOGICAL, intent(in) :: echo_lines
 
-        if (present(default)) then
-            if (default) then
-                clear = .true.
-                skipbl = .false.
-                echo = .false.
-                nerror = 0
-                concat = "+++"
-            end if
-        end if
-        if (present(clear_if_null)) then
-            clear = clear_if_null
-        end if
-        if (present(skip_blank_lines)) then
-            skipbl = skip_blank_lines
-        end if
-        if (present(echo_lines)) then
-            echo = echo_lines
-        end if
-        if (present(error_flag)) then
-            nerror = error_flag
-        end if
-        if (present(concat_string)) then
-            if (len(trim(concat_string)) > 8) call report &
-                ("Concatenation string must be 8 characters or fewer", .false.)
-            concat = concat_string
-            lc = len(trim(concat_string))
-        end if
-
+        echo = echo_lines
     END SUBROUTINE input_options
 
 !-----------------------------------------------------------------------
@@ -781,7 +691,6 @@ CONTAINS
 !-----------------------------------------------------------------------
 
     subroutine getRange(w, start, end)
-        implicit none
         character(*), intent(inout) :: w
         integer, intent(out) :: start, end
         integer :: index
@@ -838,12 +747,7 @@ CONTAINS
                 if (i1 > 1) s1 = "..."
                 s2 = " "
                 if (i2 < last) s2 = "..."
-                if (level > 0) then
-                    write(stdout, "(a, I5, a,a)") "Input line ", line(level), &
-                        " in file ", trim(file(level))
-                else
-                    write(stdout, "(a, I5)") "Input line ", line(level)
-                end if
+                write(stdout, "(a, I5)") "Input line ", line
                 write(stdout, "(a3,1x,a,1x,a3)") s1, char(i1:i2), s2
                 write(stdout, "(3x,80a1)") (" ", i=i1, l), "*"
             end if
