@@ -3,42 +3,38 @@
 MODULE input_neci
 
     use constants, only: sp, dp, int64, stdout
+    use util_mod, only: stop_all, get_free_unit
 
     IMPLICIT NONE
 
-    CHARACTER(LEN=1900), SAVE :: char = ""
-    LOGICAL, SAVE :: skipbl = .false., clear = .true., echo = .false., &
-                     debug = .false., more
-    INTEGER, SAVE :: item = 0, nitems = 0, loc(0:120) = 0, end(120) = 0, &
+    CHARACTER(LEN=1900) :: char = ""
+    LOGICAL :: skipbl = .false., clear = .true., echo = .false., &
+               debug = .false., more
+    INTEGER :: item = 0, nitems = 0, loc(0:120) = 0, end(120) = 0, &
                      line(0:10) = 0, level = 0, nerror = 0, ir = 5, last = 0, unit(0:10)
 
     CHARACTER(LEN=26), PARAMETER :: &
         upper_case = "ABCDEFGHIJKLMNOPQRSTUVWXYZ", &
         lower_case = "abcdefghijklmnopqrstuvwxyz"
-    CHARACTER, PARAMETER :: space = " ", bra = "(", ket = ")", &
+    CHARACTER(len=1), PARAMETER :: space = " ", bra = "(", ket = ")", &
                             comma = ",", squote = "'", dquote = '"', tab = achar(9), &
                             plus = "+", minus = "-", dot = "."
 
-    CHARACTER(LEN=455), SAVE :: concat = "+++"
+    CHARACTER(LEN=455) :: concat = "+++"
+    INTEGER :: lc = 3
     CHARACTER(LEN=455) :: file(10) = ""
 
-    INTEGER, SAVE :: lc = 3
-    external :: stop_all, neci_getarg
-!INTEGER, PARAMETER :: sp=kind(1.0_4),dp=kind(1.0_8)!, qp=selected_real_kind(30)
+    external :: neci_getarg
 
     interface readf
-#ifndef SX
         module procedure read_single
-#endif
         module procedure read_double
-!    module procedure read_quad
     end interface
 
+    save
     PRIVATE
-    PUBLIC :: item, nitems, read_line, stream, reada, readu, readl, &
-              readf, readi, readiLong, getf, geta, geti, getiLong, reread, &
-              input_options, upcase, locase, report, die, assert, find_io, &
-              read_colour, getargs, parse, char, ir, readt_default, getRange
+    public :: item, nitems, read_line, input_options, readu, geti, ir, char, &
+        readi, readf, readl, reada, reread, report, getilong, getf, getrange
 !  AJWT - added , ir to above
 !  Free-format input routines
 
@@ -284,7 +280,7 @@ CONTAINS
                     if (level == 0) unit(0) = ir
                     level = level + 1
                     line(level) = 0
-                    ir = find_io(91)
+                    ir = get_free_unit()
                     unit(level) = ir
                     open(unit=ir, file=f, status="old", iostat=fail)
                     if (fail /= 0) then
@@ -478,31 +474,6 @@ CONTAINS
 
 !-----------------------------------------------------------------------
 
-    SUBROUTINE getargs
-
-        CHARACTER(LEN=120) :: word
-
-        nitems = 0
-        last = -1
-
-        do
-            nitems = nitems + 1
-            call neci_getarg(nitems, word)
-            if (word == "") then
-                nitems = nitems - 1
-                exit
-            else
-                loc(nitems) = last + 2
-                char(last + 2:) = word
-                last = len_trim(char)
-                end(nitems) = last
-            end if
-        end do
-
-    END SUBROUTINE getargs
-
-!-----------------------------------------------------------------------
-
     SUBROUTINE input_options(default, clear_if_null, skip_blank_lines, &
                              echo_lines, error_flag, concat_string)
 
@@ -544,17 +515,6 @@ CONTAINS
 
 !-----------------------------------------------------------------------
 
-    SUBROUTINE stream(n)
-
-        INTEGER, INTENT(IN) :: n
-!  Set the input stream for subsequent data to be N.
-
-        ir = n
-
-    END SUBROUTINE stream
-
-!-----------------------------------------------------------------------
-
     SUBROUTINE reada(m)
 
 !  Copy characters from the next item into the character variable M.
@@ -580,46 +540,6 @@ CONTAINS
         end if
 
     END SUBROUTINE reada
-
-!-----------------------------------------------------------------------
-
-! SUBROUTINE read_quad(A,factor)
-!
-! !  Read the next item from the buffer as a real (quadruple precision) number.
-! !  If the optional argument factor is present, the value read should be
-! !  divided by it. (External value = factor*internal value)
-!
-! REAL(KIND=qp), INTENT(INOUT) :: a
-! REAL(KIND=qp), INTENT(IN), OPTIONAL :: factor
-!
-! CHARACTER(LEN=50) :: string
-!
-! if (clear) a=0.0_qp
-!
-! !  If there are no more items on the line, I is unchanged
-! if (item .ge. nitems) return
-!
-! string=""
-! call reada(string)
-! !  If the item is null, I is unchanged
-! if (string == "") return
-! read(unit=string,fmt=*,err=99) a
-! if (present(factor)) then
-!   a=a/factor
-! end if
-! return
-!
-! 99 a=0.0_qp
-! select case(nerror)
-! case(-1,0)
-!   call report("Error while reading real number",.true.)
-! case(1)
-!   print "(2a)", "Error while reading real number. Input is ", trim(string)
-! case(2)
-!   nerror=-1
-! end select
-!
-! END SUBROUTINE read_quad
 
 !-----------------------------------------------------------------------
 
@@ -716,52 +636,6 @@ CONTAINS
     END SUBROUTINE readi
 
 !---------------------------------------------------
-
-    function readt_default(def) result(val)
-
-        logical, intent(in), optional :: def
-        logical :: val
-        character(210) :: w
-
-        ! Default value
-        if (present(def)) then
-            val = def
-        else
-            val = .true.
-        end if
-
-        ! Or read it in from the input file if present.
-        if (item < nitems) then
-            call readu(w)
-            select case (w)
-            case ("OFF")
-                val = .false.
-            case ("NO")
-                val = .false.
-            case ("N")
-                val = .false.
-            case ("FALSE")
-                val = .false.
-            case ("F")
-                val = .false.
-            case ("ON")
-                val = .true.
-            case ("YES")
-                val = .true.
-            case ("Y")
-                val = .true.
-            case ("TRUE")
-                val = .true.
-            case ("T")
-                val = .true.
-            case default
-                write(stdout, *) 'Error interpreting value: ', trim(w)
-            end select
-        end if
-
-    end function
-
-!-----------------------------------------------------------------------
 
     SUBROUTINE readiLong(I)
 !  Read a long integer from the current record
@@ -885,27 +759,6 @@ CONTAINS
 
 !-----------------------------------------------------------------------
 
-    SUBROUTINE geta(m)
-!  Get a character string
-        CHARACTER(LEN=*) m
-
-        LOGICAL eof
-
-        do
-            if (item < nitems) then
-                call reada(m)
-                exit
-            else
-                call read_line(eof)
-                if (eof) then
-                    call stop_all('geta', "End of file while attempting to read a character string")
-                end if
-            end if
-        end do
-
-    END SUBROUTINE geta
-
-!-----------------------------------------------------------------------
 
     SUBROUTINE reread(k)
 
@@ -967,17 +820,6 @@ CONTAINS
 
 !-----------------------------------------------------------------------
 
-    SUBROUTINE die(c, reflect)
-
-        CHARACTER(LEN=*), INTENT(IN) :: c
-        LOGICAL, INTENT(IN), OPTIONAL :: reflect
-
-        call report(c, reflect)
-
-    END SUBROUTINE die
-
-!-----------------------------------------------------------------------
-
     SUBROUTINE report(c, reflect)
 
         CHARACTER(LEN=*), INTENT(IN) :: c
@@ -1010,100 +852,5 @@ CONTAINS
 
     END SUBROUTINE report
 
-!----------------------------------------------------------------
-
-    SUBROUTINE assert(test, string, reflect)
-
-        LOGICAL, INTENT(IN) :: test
-        CHARACTER(LEN=*), INTENT(IN) :: string
-        LOGICAL, INTENT(IN), OPTIONAL :: reflect
-
-        if (.not. test) call report(string, reflect)
-
-    END SUBROUTINE assert
-
-!----------------------------------------------------------------
-
-    INTEGER FUNCTION find_io(start)
-
-!  Find an unused unit number for input or output. Unit n=start is used
-!  if available; otherwise n is incremented until an unused unit is found.
-!  Unit numbers are limited to the range 1-100; if n reaches 100 the
-!  search starts again at 1.
-
-        IMPLICIT NONE
-        INTEGER, INTENT(IN) :: start
-        LOGICAL :: in_use, exists
-        CHARACTER(LEN=90) :: string
-        INTEGER :: n, n0
-        INTEGER, PARAMETER :: max_unit = 199
-
-        n0 = start
-        if (n0 <= 1 .or. n0 > max_unit) n0 = 1
-        n = n0
-        in_use = .true.
-        do while (in_use)
-            inquire (n, opened=in_use, exist=exists)
-            if (exists) then
-                if (.not. in_use) exit
-            else
-                write(unit=string, fmt="(a,i3,a)") "Unit number", n, " out of range"
-                call report(string)
-            end if
-            n = n + 1
-            if (n > max_unit) n = 1
-            if (n == n0) then
-                call report("No i/o unit available")
-            end if
-        end do
-        find_io = n
-
-    END FUNCTION find_io
-
-!----------------------------------------------------------------
-
-    SUBROUTINE read_colour(fmt, colour, clamp)
-
-        CHARACTER(LEN=*), INTENT(IN) :: fmt
-        REAL(kind=sp), INTENT(OUT) :: colour(3)
-        LOGICAL, INTENT(IN), OPTIONAL :: clamp
-        CHARACTER(LEN=6) :: x
-        INTEGER :: i, r, g, b
-        REAL(kind=dp) :: c
-
-        select case (fmt)
-        case ("GREY", "GRAY")
-            call readf(c)
-            colour(:) = real(c, sp)
-        case ("RGB")
-            call readf(colour(1))
-            call readf(colour(2))
-            call readf(colour(3))
-        case ("RGB255")
-            call readf(colour(1), 255.0_sp)
-            call readf(colour(2), 255.0_sp)
-            call readf(colour(3), 255.0_sp)
-        case ("RGBX")
-            call readu(x)
-            read(x(1:2), "(z2)") r
-            colour(1) = real(real(r, dp) / 255.0_dp, sp)
-            read(x(3:4), "(z2)") g
-            colour(2) = real(real(g, dp) / 255.0_dp, sp)
-            read(x(5:6), "(z2)") b
-            colour(3) = real(real(b, dp) / 255.0_dp, sp)
-        case default
-            call die('COLOUR keyword not recognised', .true.)
-        end select
-
-        if (present(clamp)) then
-            if (clamp) then
-                do i = 1, 3
-                    if (colour(i) > 1d0) colour(i) = 1d0
-                    if (colour(i) < 0d0) colour(i) = 0d0
-                end do
-            end if
-        end if
-
-    END SUBROUTINE read_colour
 
 END MODULE input_neci
