@@ -15,8 +15,8 @@ module lattice_mod
                           symmetry, brr, t_input_order, orbital_order, &
                           t_k_space_hubbard, t_trans_corr_hop, &
                           t_new_real_space_hubbard
-    use input_neci, only: item, nitems, input_options, readu, geti, read_line
-    use util_mod, only: get_free_unit, stop_all
+    use input_parser_mod, only: FileReader_t, TokenIterator_t
+    use util_mod, only: stop_all
 
     implicit none
     private
@@ -2410,52 +2410,27 @@ contains
 
         CHARACTER(len=3) :: fmat
         CHARACTER(LEN=100) w
+        type(FileReader_t) :: file_reader
+        type(TokenIterator_t) :: tokens
 
-        fmat = 'NO'
+        file_reader = FileReader_t("lattice.file")
 
-        iunit = get_free_unit()
+        readsites: do while (file_reader%nextline(tokens))
+            w = tokens%get_upper()
+            select case (w)
+            case ('SITE')
+                n_site = tokens%get_int()
 
-        INQUIRE (FILE="lattice.file", EXIST=exists, FORMATTED=fmat)
-
-        IF (.not. exists) THEN
-                CALL Stop_All('lattice.file', 'lattice.file file does not exist')
-        end if
-
-        open(iunit, File="lattice.file",Status='OLD', FORM="FORMATTED", iostat=ios)
-
-        readsites: do
-                call read_line(leof,iunit)
-                if (leof) then
-                        exit
-                end if
-                call readu(w)
-                select case (w)
-                case('SITE')
-                        if (item < nitems) then
-                                call geti(n_site)
-                        end if
-                        if (item < nitems) then
-                                call geti(n_neighbors)
-                                if (allocated(neighs)) then
-                                        deallocate(neighs)
-                                end if
-                                allocate(neighs(n_neighbors))
-                                neighs(:) = 0
-                        end if
-
-                        i = 1
-                        do while (item < nitems)
-                                call geti(neigh)
-                                neighs(i) = neigh
-                                i = i+1
-                        end do
-                        this%sites(n_site) = site(n_site, n_neighbors, neighs)
-                end select
+                n_neighbors = tokens%get_int()
+                if (allocated(neighs)) deallocate(neighs)
+                allocate(neighs(n_neighbors), source=0)
+                do i = 1, size(neighs)
+                    neighs(i) = tokens%get_int()
+                end do
+                this%sites(n_site) = site(n_site, n_neighbors, neighs)
+            end select
         end do readsites
 
-        close(iunit)
-
-        Call input_options(echo_lines=.false.)
 
     end subroutine read_sites
 
@@ -5170,6 +5145,9 @@ contains
         CHARACTER(LEN=100) w
         character(*), parameter :: this_routine = "calc_nsites_gen"
 
+        type(FileReader_t) :: file_reader
+        type(TokenIterator_t) :: tokens
+
         unused_var(this)
         unused_var(length_x)
         unused_var(length_y)
@@ -5178,34 +5156,15 @@ contains
             unused_var(length_z)
         end if
 
-        iunit = get_free_unit()
-        fmat = 'NO'
+        file_reader = FileReader_t("lattice.file")
 
-        INQUIRE (FILE="lattice.file", EXIST=exists, FORMATTED=fmat)
-        IF (.not. exists) THEN
-                CALL Stop_All('lattice.file', 'lattice.file file does not exist')
-        end if
-
-        open(iunit, File="lattice.file",Status='OLD', FORM="FORMATTED", iostat=ios)
-
-        lat: do
-                call read_line(leof,iunit)
-                if (leof) then
-                        exit
-                end if
-                call readu(w)
-                select case (w)
-
-                case('N_SITES')
-                        if (item < nitems) then
-                                call geti(n_sites)
-                        end if
-                end select
+        lat: do while (file_reader%nextline(tokens))
+            w = tokens%get_upper()
+            select case (w)
+            case ('N_SITES')
+                n_sites = tokens%get_int()
+            end select
         end do lat
-
-        close(iunit)
-
-        Call input_options(echo_lines=.false.)
 
     end function read_lattice_n_sites
 
@@ -5221,68 +5180,36 @@ contains
         CHARACTER(len=3) :: fmat
         CHARACTER(LEN=100) w
         CHARACTER(LEN=NAME_LEN) lat_typ
+        type(FileReader_t) :: file_reader
+        type(TokenIterator_t) :: tokens
 
+        file_reader = FileReader_t("lattice.file")
 
-        iunit = get_free_unit()
-        fmat = 'NO'
+        lat: do while (file_reader%nextline(tokens))
+            w = tokens%get_upper()
 
-        INQUIRE (FILE="lattice.file", EXIST=exists, FORMATTED=fmat)
-        IF (.not. exists) THEN
-                CALL Stop_All('lattice.file', 'lattice.file file does not exist')
-        end if
+            select case (w)
+            case ('DIM')
+                call this%set_ndim(tokens%get_int())
 
-        open(iunit, File="lattice.file",Status='OLD', FORM="FORMATTED", iostat=ios)
+            case ('LATTICE_TYPE')
+                this%name = tokens%get_upper()
 
-        lat: do
-                call read_line(leof,iunit)
-                if (leof) then
-                        exit
-                end if
+            case ('LATTICE_PARAM')
+                x1 = tokens%get_int()
+                y1 = tokens%get_int()
+                x2 = tokens%get_int()
+                y2 = tokens%get_int()
 
-                call readu(w)
-                select case (w)
+                this%lat_vec(1:2, 1) = [x1, y1]
+                this%lat_vec(1:2, 2) = [x2, y2]
 
-                case('DIM')
-                        if (item < nitems) then
-                                call geti(lat_dim)
-                        end if
-                        call this%set_ndim(lat_dim)
-
-                case('LATTICE_TYPE')
-                        if (item < nitems) then
-                                call readu(lat_typ)
-                        end if
-                        this%name = lat_typ
-
-                case('LATTICE_PARAM')
-                        if (item < nitems) then
-                                call geti(x1)
-                        end if
-                        if (item < nitems) then
-                                call geti(y1)
-                        end if
-                        if (item < nitems) then
-                                call geti(x2)
-                        end if
-                        if (item < nitems) then
-                                call geti(y2)
-                        end if
-                        this%lat_vec(1:2, 1) = [x1,y1]
-                        this%lat_vec(1:2, 2) = [x2,y2]
-
-                case('N_CONNECT_MAX')
-                        if (item < nitems) then
-                                call geti(this%n_connect_max)
-                        end if
-                end select
+            case ('N_CONNECT_MAX')
+                this%n_connect_max = tokens%get_int()
+            end select
         end do lat
 
-        close(iunit)
-
-        call this%set_length(1,3)
-        !call this%set_nconnect_max(4)
-
-        Call input_options(echo_lines=.false.)
+        call this%set_length(1, 3)
 
     end subroutine read_lattice_struct
 

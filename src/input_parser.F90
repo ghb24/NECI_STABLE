@@ -36,6 +36,7 @@ module input_parser_mod
         integer :: i_curr_token = 1
     contains
         private
+        procedure, public :: size => size_TokenIterator_t
         procedure, public :: remaining_items
         procedure, public :: get_char
         procedure, public :: get_upper
@@ -60,9 +61,9 @@ contains
         type(FileReader_t) :: res
         res%file_name = file_name
         if (present(err)) then
-            open(file=res%file_name, newunit=res%file_id, action='read', form='formatted', iostat=err)
+            open(file=res%file_name, newunit=res%file_id, action='read', status='old', form='formatted', iostat=err)
         else
-            open(file=res%file_name, newunit=res%file_id, action='read', form='formatted')
+            open(file=res%file_name, newunit=res%file_id, action='read', status='old', form='formatted')
         end if
     end function
 
@@ -175,15 +176,29 @@ contains
     integer elemental function remaining_items(this)
         class(TokenIterator_t), intent(in) :: this
         character(*), parameter :: this_routine = 'remaining_items'
-        remaining_items = size(this%tokens) - this%i_curr_token + 1
+        remaining_items = this%size() - this%i_curr_token + 1
         ASSERT(remaining_items >= 0)
+    end function
+
+    integer elemental function size_TokenIterator_t(this)
+        class(TokenIterator_t), intent(in) :: this
+        size_TokenIterator_t = size(this%tokens)
     end function
 
     function get_char(this) result(res)
         class(TokenIterator_t), intent(inout) :: this
         character(:), allocatable :: res
         character(*), parameter :: this_routine = 'get_char'
-        ASSERT(this%remaining_items() >= 1)
+        integer :: i
+        if (this%remaining_items() < 1) then
+            write(stderr, *) 'There are no tokens remaining and the next item was requested.'
+            write(stderr, *) 'The tokens are:'
+            call this%reset()
+            do i = 1, this%size()
+                write(stderr, *) this%tokens(i)%str
+            end do
+            call stop_all(this_routine, 'No tokens for get_char.')
+        end if
         res = this%tokens(this%i_curr_token)%str
         this%i_curr_token = this%i_curr_token + 1
     end function
