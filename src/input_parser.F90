@@ -3,7 +3,8 @@
 module input_parser_mod
     use constants, only: sp, dp, int32, int64, stderr, stdout
     use util_mod, only: stop_all, operator(.div.)
-    use fortran_strings, only: Token_t, to_int32, to_int64, to_realsp, to_realdp, split
+    use fortran_strings, only: Token_t, to_int, to_int32, to_int64, &
+        to_realsp, to_realdp, split, to_upper, to_lower
     use growing_buffers, only: buffer_token_1D_t
     better_implicit_none
     private
@@ -37,8 +38,11 @@ module input_parser_mod
         private
         procedure, public :: remaining_items
         procedure, public :: get_char
+        procedure, public :: get_upper
+        procedure, public :: get_lower
         procedure, public :: get_realsp
         procedure, public :: get_realdp
+        procedure, public :: get_int
         procedure, public :: get_int32
         procedure, public :: get_int64
         procedure, public :: reset
@@ -184,6 +188,22 @@ contains
         this%i_curr_token = this%i_curr_token + 1
     end function
 
+    function get_lower(this) result(res)
+        class(TokenIterator_t), intent(inout) :: this
+        character(:), allocatable :: res
+        res = to_lower(this%get_char())
+    end function
+
+    function get_upper(this) result(res)
+        class(TokenIterator_t), intent(inout) :: this
+        character(:), allocatable :: res
+        res = to_upper(this%get_char())
+    end function
+
+    integer impure elemental function get_int(this)
+        class(TokenIterator_t), intent(inout) :: this
+        get_int = to_int(this%get_char())
+    end function
 
     integer(int32) impure elemental function get_int32(this)
         class(TokenIterator_t), intent(inout) :: this

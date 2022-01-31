@@ -6,7 +6,7 @@ module fortran_strings
     save
     private
     public :: str, to_lower, to_upper, operator(.in.), split, Token_t, &
-        count_char, join, to_int32, to_int64, to_realsp, to_realdp
+        count_char, join, to_int, to_int32, to_int64, to_realsp, to_realdp
 
 !>  @brief
 !>    Convert to Fortran string
@@ -165,6 +165,11 @@ contains
         do i = 1, len(str)
             if (str(i : i) == char) c = c + 1
         end do
+    end function
+
+    integer elemental function to_int(str)
+        character(*), intent(in) :: str
+        read(unit=str, fmt=*) to_int
     end function
 
     integer(int32) elemental function to_int32(str)

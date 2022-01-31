@@ -5,6 +5,7 @@ module test_parser_mod
     use constants, only: dp, n_int, int64, stdout
     use input_parser_mod, only: FileReader_t, TokenIterator_t, tokenize
     use fortran_strings, only: Token_t
+    ! use util_mod, only: remove
     better_implicit_none
     private
     public :: test_parser_driver
@@ -19,21 +20,65 @@ contains
     end subroutine
 
     subroutine test_open_close()
+        integer :: file_id
+        character(*), parameter :: file_name = 'test.FciInp'
+
+        open(file=file_name, newunit=file_id, action='write')
+            write(file_id, '(A)') 'System read'
+            write(file_id, '(A)') ''
+            write(file_id, '(A)') '    # electrons           30'
+            write(file_id, '(A)') '    GAS-CI GENERAL-PCHB # This is a comment'
+            write(file_id, '(A)') '    GAS-SPEC LOCAL 30 +++'
+            write(file_id, '(A)') '       1 4 9 +++'
+            write(file_id, '(A)') '       16 25 36 # This is a comment'
+        close(file_id)
+
+
         block
             type(FileReader_t) :: file_reader
-            ! character(:), allocatable :: line
             type(TokenIterator_t) :: tokens
+            file_reader = FileReader_t(file_name)
 
-            file_reader = FileReader_t('H_30.FciInp')
+            call assert_true(file_reader%nextline(tokens))
+            call assert_equals(2, tokens%remaining_items())
+            call assert_equals('System', tokens%get_char())
+            call assert_equals('read', tokens%get_lower())
+            call assert_equals(0, tokens%remaining_items())
 
-            do while (file_reader%nextline(tokens))
-                write(stdout, *)
-                do while (tokens%remaining_items() >= 1)
-                    write(stdout, *) tokens%get_char()
+            call assert_true(file_reader%nextline(tokens))
+            call assert_equals(0, tokens%remaining_items())
+
+            call assert_true(file_reader%nextline(tokens))
+            call assert_equals(0, tokens%remaining_items())
+
+            call assert_true(file_reader%nextline(tokens))
+            call assert_equals(2, tokens%remaining_items())
+            call assert_equals('GAS-CI', tokens%get_upper())
+            call assert_equals('GENERAL-PCHB', tokens%get_upper())
+            call assert_equals(0, tokens%remaining_items())
+
+            call assert_true(file_reader%nextline(tokens))
+            call assert_equals(9, tokens%remaining_items())
+            call assert_equals('GAS-SPEC', tokens%get_upper())
+            call assert_equals('LOCAL', tokens%get_upper())
+            call assert_equals(30_int64, tokens%get_int64())
+            block
+                integer :: i
+                do i = 1, 6
+                    call assert_equals(i**2, tokens%get_int())
                 end do
-            end do
+            end block
+            call assert_equals(0, tokens%remaining_items())
 
+            call assert_false(file_reader%nextline(tokens))
+            ! Note that the FileReader_t closes the file automatically,
+            ! when leaving scope.
         end block
+
+        ! Delete the file
+        open(file=file_name, newunit=file_id, action='read')
+        close(file_id, status='delete')
+
     end subroutine
 
     subroutine test_tokenize()
