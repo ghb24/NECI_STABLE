@@ -73,13 +73,6 @@ contains
         call this%close()
     end subroutine
 
-    ! integer elemental function get_file_id(this)
-    !     class(FileReader_t), intent(in) :: this
-    !     character(*), parameter :: this_routine = 'get_file_id'
-    !     if (.not. this%is_open()) call stop_all(this_routine, 'File not open and file_id not defined.')
-    !     get_file_id = this%file_id
-    ! end function
-
     logical elemental function is_open(this)
         class(FileReader_t), intent(in) :: this
         is_open = allocated(this%file_name)
@@ -134,15 +127,17 @@ contains
         nextline = this%raw_nextline(line)
         if (line /= '') then
             tokens = tokenize(line)
-            await_new_line = tokens(size(tokens))%str == concat
-            do while (await_new_line)
-                if (this%raw_nextline(line)) then
-                    tokens = [tokens(: size(tokens) - 1), tokenize(line)]
-                    await_new_line = tokens(size(tokens))%str == concat
-                else
-                    call stop_all(this_routine, 'Open line continuation, but EOF reached.')
-                end if
-            end do
+            if (size(tokens) /= 0) then
+                await_new_line = tokens(size(tokens))%str == concat
+                do while (await_new_line)
+                    if (this%raw_nextline(line)) then
+                        tokens = [tokens(: size(tokens) - 1), tokenize(line)]
+                        await_new_line = tokens(size(tokens))%str == concat
+                    else
+                        call stop_all(this_routine, 'Open line continuation, but EOF reached.')
+                    end if
+                end do
+            end if
             tokenized_line = TokenIterator_t(tokens)
         else
             allocate(tokenized_line%tokens(0))
@@ -156,7 +151,6 @@ contains
         !!  this token and every following token is removed from the output.
         character(*), intent(in) :: line
         type(Token_t), allocatable :: res(:)
-        ! character(*), parameter :: this_routine = 'tokenize'
 
         integer :: i
 
@@ -165,11 +159,11 @@ contains
             if (res(i)%str(1 : len(comment)) == comment) then
                 exit
             end if
-            ! if (res(i)%str(1 : len(alt_comment)) == alt_comment) then
-            !     write(stderr, '(A)') 'The usage of "' // alt_comment // '" as comment is deprecated.'
-            !     write(stdout, '(A)') 'The usage of "' // alt_comment // '" as comment is deprecated.'
-            !     exit
-            ! end if
+            if (res(i)%str(1 : len(alt_comment)) == alt_comment) then
+                write(stderr, '(A)') 'The usage of "' // alt_comment // '" as comment is deprecated.'
+                write(stdout, '(A)') 'The usage of "' // alt_comment // '" as comment is deprecated.'
+                exit
+            end if
         end do
         res = res(: i - 1)
     end function

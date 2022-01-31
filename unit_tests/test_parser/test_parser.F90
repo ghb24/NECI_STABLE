@@ -2,7 +2,7 @@
 
 module test_parser_mod
     use fruit
-    use constants, only: dp, n_int, int64
+    use constants, only: dp, n_int, int64, stdout
     use input_parser_mod, only: FileReader_t, TokenIterator_t, tokenize
     use fortran_strings, only: Token_t
     better_implicit_none
@@ -14,8 +14,8 @@ module test_parser_mod
 contains
 
     subroutine test_parser_driver()
-        call run_test_case(test_open_close, "test_open_close")
         call run_test_case(test_tokenize, "test_tokenize")
+        call run_test_case(test_open_close, "test_open_close")
     end subroutine
 
     subroutine test_open_close()
