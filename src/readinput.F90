@@ -46,7 +46,6 @@ contains
         Character(len=255) cInp         !temp storage for command line params
         Character(len=32) cTitle
 !  Predeclared
-!        Integer             ir         !The file descriptor we are reading from
         Character(len=100) w, x         !strings for input storage
         Logical tEof        !set when read_line runs out of lines
         logical tExists     !test for existence of input file.
@@ -55,6 +54,8 @@ contains
         logical, intent(in) :: tOverride_input  !If running through molpro, is this an override input?
         integer, allocatable :: tmparr(:)
         type(kp_fciqmc_data), intent(inout) :: kp
+        integer :: ir         !The file descriptor we are reading from
+        type(AttachedFileReader_t) :: file_reader
 
         cTitle = ""
         idDef = idDefault                 !use the Default defaults (pre feb08)
@@ -77,23 +78,25 @@ contains
             if (.not. tExists) call stop_all('ReadInputMain', 'File '//Trim(cInp)//' does not exist.')
             open(ir, File=cInp, Status='OLD', FORM="FORMATTED", err=99, iostat=ios)
         Else
-            ir = 5                    !file descriptor 5 is stdin
+            ir = stdin                    !file descriptor 5 is stdin
             write(stdout, *) "Reading from STDIN"
             ! Save the input to a temporary file so we can scan for the
             ! defaults option and then re-read it for all other options.
             open(7, status='scratch', iostat=ios)
         end if
-        Call input_options(echo_lines=.false.)
 
         !Look to find default options (line can be added anywhere in input)
-        Do
-            Call read_line(tEof)
-            if (ir == 5) write(7, *) trim(char) ! Dump line from STDIN to temporary file.
-            If (tEof) Exit
-            Call readu(w)
+        if (ir == stdin) then
+            ! Dump line from STDIN to temporary file.
+            file_reader = AttachedFileReader_t(file_id=ir, echo_lines=7)
+        else
+            file_reader = AttachedFileReader_t(file_id=ir)
+        end if
+        Do while (file_reader%nextline(tokens))
+            w = tokens%get_upper()
             Select case (w)
             Case ("DEFAULTS")
-                call readu(x)
+                x = tokens%get_upper()
                 select case (x)
 !Add default options here
                 case ("DEFAULT")
@@ -129,42 +132,44 @@ contains
         call SetLogDefaults
 
 !Now return to the beginning and process the whole input file
-        if (ir == 5) ir = 7 ! If read from STDIN, re-read from our temporary scratch file.
-        Rewind (ir)
-        if (tMolpro .and. (.not. tOverride_input)) then
+        if (ir == stdin) ir = 7 ! If read from STDIN, re-read from our temporary scratch file.
+        if (ir == stdin) file_reader = AttachedFileReader_t(file_id=7)
+        call file_reader%rewind()
+
 !Molpro writes out its own input file
-            Call input_options(echo_lines=.false.)
-        else
-            Call input_options(echo_lines=iProcIndex == 0)
+        if (.not. tMolpro .or. tOverride_input) then
+            if (iProcIndex == 0) then
+                call file_reader%set_echo_lines(stdout)
+            else
+                call file_reader%set_echo_lines()
+            end if
             write(stdout, '(/,64("*"),/)')
         end if
 
-        Do
-            Call read_line(tEof)
-            If (tEof) exit
-            call readu(w)
+        Do while (file_reader%nextline(tokens))
+            w = tokens%get_upper()
             select case (w)
             case ("TITLE")
-                do while (item < nitems)
-                    call reada(w)
+                do while (tokens%remaining_items() > 0)
+                    w = tokens%get_char()
                     cTitle = trim(cTitle)//" "//trim(w)
                 end do
             case ("DEFAULTS")
                 CONTINUE
             case ("SYSTEM")
-                call SysReadInput()
+                call SysReadInput(file_reader, tokens)
             case ("CALC")
-                call CalcReadInput()
+                call CalcReadInput(file_reader)
             case ("INTEGRAL")
-                call IntReadInput()
+                call IntReadInput(file_reader)
             case ("LOGGING")
-                call LogReadInput()
+                call LogReadInput(file_reader)
             case ("KP-FCIQMC")
                 tKP_FCIQMC = .true.
                 tUseProcsAsNodes = .true.
-                call kp_fciqmc_read_inp(kp)
+                call kp_fciqmc_read_inp(file_reader, kp)
             case ("REALTIME")
-                call real_time_read_input()
+                call real_time_read_input(file_reader)
             case ("END")
                 exit
             case default

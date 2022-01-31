@@ -8,26 +8,38 @@ module input_parser_mod
     use growing_buffers, only: buffer_token_1D_t
     better_implicit_none
     private
-    public :: FileReader_t, TokenIterator_t, tokenize
+    public :: FileReader_t, ManagingFileReader_t, AttachedFileReader_t, TokenIterator_t, tokenize
 
     integer, parameter :: max_line_length = 1028
 
     character(*), parameter :: delimiter = ' ', comment = '#', alt_comment = '(', concat = '+++'
 
-    type :: FileReader_t
+    type, abstract :: FileReader_t
+        private
+        integer :: file_id
+        integer, allocatable :: echo_lines
+    contains
+        private
+        procedure :: raw_nextline
+        procedure, public :: nextline
+        procedure, public :: rewind => my_rewind
+        procedure, public :: set_echo_lines
+    end type
+
+    type, extends(FileReader_t) :: ManagingFileReader_t
         private
         character(:), allocatable :: file_name
-        integer :: file_id
-        integer :: current_line = 0
-
     contains
         private
         procedure, public :: close => my_close
         final :: automatic_finalize
-
         procedure, public :: is_open
-        procedure, public :: raw_nextline
-        procedure, public :: nextline
+    end type
+
+    type, extends(FileReader_t) :: AttachedFileReader_t
+        private
+    contains
+        private
     end type
 
     type :: TokenIterator_t
@@ -49,17 +61,23 @@ module input_parser_mod
         procedure, public :: reset
     end type
 
-    interface FileReader_t
-        module procedure construct_File_t
+    interface ManagingFileReader_t
+        module procedure construct_ManagingFileReader_t
+    end interface
+
+    interface AttachedFileReader_t
+        module procedure construct_AttachedFileReader_t
     end interface
 
 contains
 
-    function construct_File_t(file_name, err) result(res)
+    function construct_ManagingFileReader_t(file_name, echo_lines, err) result(res)
         character(*), intent(in) :: file_name
+        integer, intent(in), optional :: echo_lines
         integer, intent(out), optional :: err
-        type(FileReader_t) :: res
+        type(ManagingFileReader_t) :: res
         res%file_name = file_name
+        res%echo_lines = echo_lines
         if (present(err)) then
             open(file=res%file_name, newunit=res%file_id, action='read', status='old', form='formatted', iostat=err)
         else
@@ -67,8 +85,16 @@ contains
         end if
     end function
 
+    function construct_AttachedFileReader_t(file_id, echo_lines) result(res)
+        integer, intent(in) :: file_id
+        integer, intent(in), optional :: echo_lines
+        type(ManagingFileReader_t) :: res
+        res%file_id = file_id
+        res%echo_lines = echo_lines
+    end function
+
     impure elemental subroutine my_close(this, delete)
-        class(FileReader_t), intent(inout) :: this
+        class(ManagingFileReader_t), intent(inout) :: this
         logical, intent(in), optional :: delete
         deallocate(this%file_name)
         if (present(delete)) then
@@ -81,19 +107,13 @@ contains
     end subroutine
 
     impure elemental subroutine automatic_finalize(this)
-        type(FileReader_t), intent(inout) :: this
+        type(ManagingFileReader_t), intent(inout) :: this
         call this%close()
     end subroutine
 
     logical elemental function is_open(this)
-        class(FileReader_t), intent(in) :: this
+        class(ManagingFileReader_t), intent(in) :: this
         is_open = allocated(this%file_name)
-    end function
-
-
-    integer elemental function get_current_line(this)
-        class(FileReader_t), intent(in) :: this
-        get_current_line = this%current_line
     end function
 
 
@@ -107,7 +127,6 @@ contains
         character(*), parameter :: this_routine = 'nextline'
         character(max_line_length) :: buffer
         integer :: iread
-        ASSERT(this%is_open())
         read(this%file_id, '(A)', iostat=iread) buffer
         raw_nextline = .false.
         if (iread > 0) then
@@ -117,7 +136,7 @@ contains
         else
             raw_nextline = .true.
             line = trim(buffer)
-            this%current_line = this%current_line + 1
+            if (allocated(this%echo_lines)) write(this%echo_lines, '(A)') line
         end if
     end function
 
@@ -155,6 +174,21 @@ contains
             allocate(tokenized_line%tokens(0))
         end if
     end function
+
+    subroutine my_rewind(this)
+        class(FileReader_t), intent(inout) :: this
+        rewind(this%file_id)
+    end subroutine
+
+    subroutine set_echo_lines(this, echo_lines)
+        class(FileReader_t), intent(inout) :: this
+        integer, intent(in), optional :: echo_lines
+        if (present(echo_lines)) then
+            this%echo_lines = echo_lines
+        else
+            if (allocated(this%echo_lines)) deallocate(this%echo_lines)
+        end if
+    end subroutine
 
     function tokenize(line) result(res)
         !! Tokenize a line.

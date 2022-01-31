@@ -129,7 +129,7 @@ module soft_exit
     use DetCalcData, only: ICILevel
     use IntegralsData, only: tPartFreezeCore, NPartFrozen, NHolesFrozen, &
                              NVirtPartFrozen, NelVirtFrozen, tPartFreezeVirt
-    use input_parser_mod, only: FileReader_t, TokenIterator_t
+    use input_parser_mod, only: ManagingFileReader_t, TokenIterator_t
     Use LoggingData, only: tCalcFCIMCPsi, tIterStartBlock, &
                        IterStartBlocking, tHFPopStartBlock, NHistEquilSteps, &
                        IterRDMonFly_value => IterRDMonFly, RDMExcitLevel, &
@@ -296,7 +296,7 @@ contains
         real(dp) :: hfScaleFactor
         character(len=100) :: w
         character(*), parameter :: file_name = 'CHANGEVARS'
-        type(FileReader_t) :: file_reader
+        type(ManagingFileReader_t) :: file_reader
         integer :: file_id
         type(TokenIterator_t) :: tokens
 
@@ -323,7 +323,7 @@ contains
                 if (proc == iProcIndex .and. exists) then
 
                     ! Set unit for read_line routine
-                    file_reader = FileReader_t(file_name, ios)
+                    file_reader = ManagingFileReader_t(file_name, err=ios)
                     if (ios /= 0) then
                         write(stdout, *) 'Problem reading CHANGEVARS file.'
                         write(stderr, *) 'Problem reading CHANGEVARS file.'

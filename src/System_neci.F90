@@ -56,7 +56,6 @@ contains
         USE SymData, only: tAbelianFastExcitGen
         USE SymData, only: tStoreStateList
         use OneEInts, only: tOneElecDiag
-        implicit none
 
         ! Default from SymExcitDataMod
         tBuildOccVirtList = .false.
@@ -267,29 +266,33 @@ contains
 
     end subroutine SetSysDefaults
 
-    SUBROUTINE SysReadInput()
-        USE input_neci
+    SUBROUTINE SysReadInput(file_reader, incompletely_parsed_tokens)
+        use input_parser_mod, only: FileReader_t, TokenIterator_t
         USE SymData, only: tAbelianFastExcitGen
         USE SymData, only: tStoreStateList
         use OneEInts, only: tOneElecDiag
-        IMPLICIT NONE
+        ! TODO(Change into inout)
+        class(FileReader_t), intent(in) :: file_reader
+        type(TokenIterator_t), intent(inout) :: incompletely_parsed_tokens
+
         LOGICAL eof
         CHARACTER(LEN=100) w
         INTEGER I, Odd_EvenHPHF, Odd_EvenMI
         integer :: ras_size_1, ras_size_2, ras_size_3, ras_min_1, ras_max_3, itmp
+        type(TokenIterator_t) :: tokens
         character(*), parameter :: t_r = 'SysReadInput'
         character(*), parameter :: this_routine = 'SysReadInput'
         integer :: temp_n_orbs
 
         ! The system block is specified with at least one keyword on the same
         ! line, giving the system type being used.
-        call readu(w)
+        w = incompletely_parsed_tokens%get_upper()
         select case (w)
 
         case ("DFREAD")             ! Instead, specify DensityFitted within the system block.
             TREADINT = .true.
             TDFREAD = .true.
-            call readu(w)
+            w = incompletely_parsed_tokens%get_upper()
             select case (w)
             case ("ORDER")
                 THFORDER = .true.
@@ -299,7 +302,7 @@ contains
         case ("BINREAD")            ! Instead, specify Binary within the system block.
             TREADINT = .true.
             TBIN = .true.
-            call readu(w)
+            w = incompletely_parsed_tokens%get_upper()
             select case (w)
             case ("ORDER")
                 THFORDER = .true.
@@ -308,7 +311,7 @@ contains
             end select
         case ("READ", "GENERIC")
             TREADINT = .true.
-            call readu(w)
+            w = incompletely_parsed_tokens%get_upper()
             select case (w)
             case ("ORDER")
                 THFORDER = .true.
@@ -320,7 +323,7 @@ contains
             THUB = .true.
             TPBC = .true.
 
-            if (item < nitems) then
+            if (incompletely_parsed_tokens%remaining_items() > 0) then
                 ! this indicates the new hubbard implementation
                 ! for consistency turn off the old hubbard indication
                 ! and for now this is only done for the real-space hubbard
@@ -329,7 +332,7 @@ contains
                 ! use the already provided setup routine and just modify the
                 ! necessary stuff, like excitation generators!
                 t_new_hubbard = .true.
-                call readl(w)
+                w = incompletely_parsed_tokens%get_lower()
                 select case (w)
                 case ('real-space', 'real')
                     treal = .true.
@@ -339,8 +342,8 @@ contains
                     ! if no further input is given a provided fcidump is
                     ! assumed! but this still needs to be implemented
                     ! this fcidump gives the lattice structure!
-                    if (item < nitems) then
-                        call readl(lattice_type)
+                    if (incompletely_parsed_tokens%remaining_items() > 0) then
+                        lattice_type = incompletely_parsed_tokens%get_lower()
                     else
                         lattice_type = 'read'
                     end if
@@ -389,7 +392,7 @@ contains
             tVASP = .true.
         case ("CPMD")
             TCPMD = .true.
-            call readu(w)
+            w = incompletely_parsed_tokens%get_upper()
             select case (w)
             case ("ORDER")
                 THFORDER = .true.
@@ -401,12 +404,8 @@ contains
         end select
 
         ! Now parse the rest of the system block.
-        system: do
-            call read_line(eof)
-            if (eof) then
-                call report("Incomplete input file", .true.)
-            end if
-            call readu(w)
+        system: do while (file_reader%nextline(tokens))
+            w = tokens%get_upper()
             select case (w)
 
                 ! Options for molecular (READ) systems: control how the integral file
@@ -421,9 +420,8 @@ contains
             case ("ELECTRONS", "NEL")
                 call geti(NEL)
             case ("SPIN-RESTRICT")
-                if (item < nitems) then
-                    allocate(user_input_m_s)
-                    call geti(user_input_m_s)
+                if (tokens%remaining_items() > 0) then
+                    user_input_m_s = tokens%get_int()
                 end if
                 TSPN = .true.
 
@@ -433,8 +431,8 @@ contains
                 ! CONVENTION: give S in units of h/2, so S directly relates to the
                 ! number of unpaired electrons
             case ("GUGA")
-                if (item < nitems) then
-                    call geti(STOT)
+                if (tokens%remaining_items() > 0) then
+                    STOT = tokens%get_int()
                 else
                     STOT = 0
                 end if
@@ -492,7 +490,7 @@ contains
                 ! "FREEFORMAT OFF" or "FREEFORMAT FALSE"
 
                 tReadFreeFormat = .true.
-                if (item < nitems) then
+                if (tokens%remaining_items() > 0) then
                     call readu(w)
                     select case (w)
                     case ("OFF", "FALSE")
@@ -537,12 +535,12 @@ contains
                 call getf(FUEGRS)
             case ("EXCHANGE-CUTOFF")
                 iPeriodicDampingType = 2
-                if (item < nitems) then
+                if (tokens%remaining_items() > 0) then
                     call getf(fRc)
                 end if
             case ("EXCHANGE-ATTENUATE")
                 iPeriodicDampingType = 1
-                if (item < nitems) then
+                if (tokens%remaining_items() > 0) then
                     call getf(fRc)
                 end if
             case ("EXCHANGE")
@@ -598,7 +596,7 @@ contains
             case ('SPIN-TRANSCORR')
                 ! make a spin-dependent transcorrelation factor
                 t_spin_dependent_transcorr = .true.
-                if (item < nitems) then
+                if (tokens%remaining_items() > 0) then
                     call getf(trans_corr_param)
                 else
                     trans_corr_param = 0.1_dp
@@ -617,7 +615,7 @@ contains
                 t_non_hermitian = .true.
                 ! optionally supply the three-body integrals of the TC Hamiltonian
                 t_3_body_excits = .true.
-                if (item < nitems) then
+                if (tokens%remaining_items() > 0) then
                     call readu(w)
                     select case (w)
                     case ("3-BODY")
@@ -675,7 +673,7 @@ contains
                 t_trans_corr = .true.
                 t_non_hermitian = .true.
 
-                if (item < nitems) then
+                if (tokens%remaining_items() > 0) then
                     call getf(trans_corr_param)
                 else
                     ! defaul value 1 for now, since i have no clue how this behaves
@@ -687,7 +685,7 @@ contains
                 t_trans_corr_new = .true.
                 t_non_hermitian = .true.
 
-                if (item < nitems) then
+                if (tokens%remaining_items() > 0) then
                     call getf(trans_corr_param)
                 else
                     ! defaul value 1 for now, since i have no clue how this behaves
@@ -700,7 +698,7 @@ contains
                 t_trans_corr_2body = .true.
                 t_non_hermitian = .true.
 
-                if (item < nitems) then
+                if (tokens%remaining_items() > 0) then
                     call getf(trans_corr_param_2body)
 
                 else
@@ -717,7 +715,7 @@ contains
                 t_trans_corr_2body = .true.
                 t_non_hermitian = .true.
 
-                if (item < nitems) then
+                if (tokens%remaining_items() > 0) then
                     call getf(trans_corr_param_2body)
                 else
                     trans_corr_param_2body = 0.25_dp
@@ -733,7 +731,7 @@ contains
                 t_trans_corr_hop = .true.
                 t_non_hermitian = .true.
 
-                if (item < nitems) then
+                if (tokens%remaining_items() > 0) then
                     call getf(trans_corr_param)
                 else
                     trans_corr_param = 0.5_dp
@@ -742,7 +740,7 @@ contains
             case ("HOLE-FOCUS")
                 t_hole_focus_excits = .true.
 
-                if (item < nitems) then
+                if (tokens%remaining_items() > 0) then
                     call getf(pholefocus)
                 else
                     pholefocus = 0.5_dp
@@ -764,7 +762,7 @@ contains
                 ! Options for transcorrelated method (only: UEG 2D 3D, Homogeneous 1D 3D
                 ! gas with contact interaction)
             case ("TRANSCORRCUTOFF")
-                if (item < nitems) then
+                if (tokens%remaining_items() > 0) then
                     call readu(w)
                     select case (w)
                     case ("GAUSS")
@@ -810,7 +808,7 @@ contains
                 ! Option for infinite summation at transcorrelated method for homogeneous
                 ! 3D gas with contact interaction
             case ("TRANSCORRINFSUM")
-                if (item < nitems) then
+                if (tokens%remaining_items() > 0) then
                     call readu(w)
                     select case (w)
                     case ("CALC")
@@ -849,7 +847,7 @@ contains
                 call geti(NMSH)
             case ("BOXSIZE")
                 call getf(BOX)
-                if (item < nitems) then
+                if (tokens%remaining_items() > 0) then
                     call getf(BOA)
                     call getf(COA)
                 else
@@ -876,12 +874,12 @@ contains
             case ("TWISTED-BC")
                 t_twisted_bc = .true.
                 call getf(twisted_bc(1))
-                if (item < nitems) then
+                if (tokens%remaining_items() > 0) then
                     call getf(twisted_bc(2))
                 end if
 
             case ("ANTI-PERIODIC-BC")
-                if (item < nitems) then
+                if (tokens%remaining_items() > 0) then
                     call readu(w)
 
                     select case (w)
@@ -918,7 +916,7 @@ contains
                 ! (periodic + open) but not in the tilted where always full
                 ! open boundary conditions are used if this keyword is present!
 
-                if (item < nitems) then
+                if (tokens%remaining_items() > 0) then
                     call readu(w)
 
                     select case (w)
@@ -944,7 +942,7 @@ contains
             case ("BIPARTITE", "BIPARTITE-ORDER")
                 t_bipartite_order = .true.
 
-                if (item < nitems) then
+                if (tokens%remaining_items() > 0) then
                     t_input_order = .true.
                     call geti(temp_n_orbs)
 
@@ -972,20 +970,20 @@ contains
                 length_x = -1
                 length_y = -1
 
-                if (item < nitems) then
+                if (tokens%remaining_items() > 0) then
                     ! use only new hubbard flags in this case
                     call readl(lattice_type)
                 end if
 
-                if (item < nitems) then
+                if (tokens%remaining_items() > 0) then
                     call geti(length_x)
                 end if
 
-                if (item < nitems) then
+                if (tokens%remaining_items() > 0) then
                     call geti(length_y)
                 end if
 
-                if (item < nitems) then
+                if (tokens%remaining_items() > 0) then
                     call geti(length_z)
                 end if
 
@@ -1029,7 +1027,7 @@ contains
                 !   the excitation generators should use optimized routines
                 !   to take this into account.  Not all excitation generator functions
                 !   currently work with this.  USE WITH CARE
-                if (item < nitems) then
+                if (tokens%remaining_items() > 0) then
                     call readu(w)
                     select case (w)
                     case ("OFF")
@@ -1063,7 +1061,7 @@ contains
                 call stop_all(t_r, 'Deprecated function. Look in defunct_code folder if you want to see it')
             case ("HPHF")
                 tHPHF = .true.
-                if (item < nitems) then
+                if (tokens%remaining_items() > 0) then
                     call geti(Odd_EvenHPHF)
                     if (Odd_EvenHPHF == 1) then
                         !Want to converge onto an Odd S State
@@ -1080,7 +1078,7 @@ contains
 ! and finds the optimal set of transformation coefficients to fit a particular criteria specified below.
 ! This new set of orbitals can then used to produce a ROFCIDUMP file and perform the FCIMC calculation.
                 tRotateOrbs = .true.
-                if (item < nitems) then
+                if (tokens%remaining_items() > 0) then
                     call Getf(TimeStep)
                     call Getf(ConvergedForce)
                 end if
@@ -1358,7 +1356,7 @@ contains
                     case ("UEG_GUGA", "UEG-GUGA")
                         tGen_sym_guga_ueg = .true.
 
-                        if (item < nitems) then
+                        if (tokens%remaining_items() > 0) then
                             call readu(w)
 
                             select case (w)
@@ -1366,7 +1364,7 @@ contains
                             case ("MIXED")
                                 tgen_guga_mixed = .true.
 
-                                if (item < nitems) then
+                                if (tokens%remaining_items() > 0) then
                                     call readu(w)
 
                                     select case (w)
@@ -1415,7 +1413,7 @@ contains
                             tGen_sym_guga_mol = .true.
                         end if
 
-                        if (item < nitems) then
+                        if (tokens%remaining_items() > 0) then
                             call readu(w)
 
                             select case (w)
@@ -1440,7 +1438,7 @@ contains
                             tGen_sym_guga_mol = .true.
                         end if
 
-                        if (item < nitems) then
+                        if (tokens%remaining_items() > 0) then
                             call readu(w)
                             select case (w)
                             case ('NON-INITS')
@@ -1465,7 +1463,7 @@ contains
                             tGen_sym_guga_mol = .true.
                         end if
 
-                        if (item < nitems) then
+                        if (tokens%remaining_items() > 0) then
                             call readu(w)
 
                             select case (w)
@@ -1556,7 +1554,7 @@ contains
                         tGen_4ind_unbound = .true.
 
                         ! make a few small tests for the frequency histograms
-                        if (item < nitems) then
+                        if (tokens%remaining_items() > 0) then
                             call readu(w)
 
                             select case (w)
@@ -1803,7 +1801,7 @@ contains
                         end do
                     end block
 
-                    if (item < nitems) then
+                    if (tokens%remaining_items() > 0) then
                         call readu(w)
                         select case (w)
                         case ('RECOUPLING')
@@ -1841,7 +1839,7 @@ contains
                 case ('GENERAL_PCHB', 'GENERAL-PCHB')
                     user_input_GAS_exc_gen = possible_GAS_exc_gen%GENERAL_PCHB
 
-                    if (item < nitems) then
+                    if (tokens%remaining_items() > 0) then
                         call readu(w)
                         if (w == 'SINGLES') then
                             call readu(w)
@@ -1870,7 +1868,7 @@ contains
                 if (spin_pure_J <= 0) then
                     call stop_all(t_r, "Alpha should be positive and nonzero")
                 end if
-                if (item < nitems) then
+                if (tokens%remaining_items() > 0) then
                 block
                     character(len=100) :: w
                     call readu(w)
@@ -1933,7 +1931,6 @@ contains
         use read_fci
         use sym_mod
         use SymExcitDataMod, only: kPointToBasisFn
-        implicit none
         character(*), parameter :: this_routine = 'SysInit'
         integer ierr
 

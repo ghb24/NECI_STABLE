@@ -15,7 +15,7 @@ module lattice_mod
                           symmetry, brr, t_input_order, orbital_order, &
                           t_k_space_hubbard, t_trans_corr_hop, &
                           t_new_real_space_hubbard
-    use input_parser_mod, only: FileReader_t, TokenIterator_t
+    use input_parser_mod, only: ManagingFileReader_t, TokenIterator_t
     use util_mod, only: stop_all
 
     implicit none
@@ -2410,10 +2410,10 @@ contains
 
         CHARACTER(len=3) :: fmat
         CHARACTER(LEN=100) w
-        type(FileReader_t) :: file_reader
+        type(ManagingFileReader_t) :: file_reader
         type(TokenIterator_t) :: tokens
 
-        file_reader = FileReader_t("lattice.file")
+        file_reader = ManagingFileReader_t("lattice.file")
 
         readsites: do while (file_reader%nextline(tokens))
             w = tokens%get_upper()
@@ -5145,7 +5145,7 @@ contains
         CHARACTER(LEN=100) w
         character(*), parameter :: this_routine = "calc_nsites_gen"
 
-        type(FileReader_t) :: file_reader
+        type(ManagingFileReader_t) :: file_reader
         type(TokenIterator_t) :: tokens
 
         unused_var(this)
@@ -5156,7 +5156,7 @@ contains
             unused_var(length_z)
         end if
 
-        file_reader = FileReader_t("lattice.file")
+        file_reader = ManagingFileReader_t("lattice.file")
 
         lat: do while (file_reader%nextline(tokens))
             w = tokens%get_upper()
@@ -5180,10 +5180,10 @@ contains
         CHARACTER(len=3) :: fmat
         CHARACTER(LEN=100) w
         CHARACTER(LEN=NAME_LEN) lat_typ
-        type(FileReader_t) :: file_reader
+        type(ManagingFileReader_t) :: file_reader
         type(TokenIterator_t) :: tokens
 
-        file_reader = FileReader_t("lattice.file")
+        file_reader = ManagingFileReader_t("lattice.file")
 
         lat: do while (file_reader%nextline(tokens))
             w = tokens%get_upper()
