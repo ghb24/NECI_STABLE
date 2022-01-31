@@ -129,7 +129,7 @@ module soft_exit
     use DetCalcData, only: ICILevel
     use IntegralsData, only: tPartFreezeCore, NPartFrozen, NHolesFrozen, &
                              NVirtPartFrozen, NelVirtFrozen, tPartFreezeVirt
-    use Input_neci
+    use input_parser_mod, only: FileReader_t, TokenIterator_t
     Use LoggingData, only: tCalcFCIMCPsi, tIterStartBlock, &
                        IterStartBlocking, tHFPopStartBlock, NHistEquilSteps, &
                        IterRDMonFly_value => IterRDMonFly, RDMExcitLevel, &
@@ -295,10 +295,14 @@ contains
         integer :: i, proc, nmcyc_new, ios, pos, trunc_nop_new, IterRDMonFly_new, run
         real(dp) :: hfScaleFactor
         character(len=100) :: w
+        character(*), parameter :: file_name = 'CHANGEVARS'
+        type(FileReader_t) :: file_reader
+        integer :: file_id
+        type(TokenIterator_t) :: tokens
 
         ! Test if the changevars file exists, and broadcast to all nodes.
         any_exist=.false.
-        inquire (file='CHANGEVARS', exist=exists)
+        inquire (file=file_name, exist=exists)
         call MPIAllLorLogical(exists, any_exist)
 
         ! Default values
@@ -319,19 +323,16 @@ contains
                 if (proc == iProcIndex .and. exists) then
 
                     ! Set unit for read_line routine
-                    ir = get_free_unit ()
-                    open (ir, file='CHANGEVARS', status='old', iostat=ios)
+                    file_reader = FileReader_t(file_name, ios)
                     if (ios /= 0) then
-                        write (6, *) 'Problem reading CHANGEVARS file.'
+                        write(stdout, *) 'Problem reading CHANGEVARS file.'
+                        write(stderr, *) 'Problem reading CHANGEVARS file.'
                         cycle
                     endif
-                    call input_options(echo_lines=.true.)
 
                     ! Loop over all options specified in the file.
-                    do
-                        call read_line (eof)
-                        if (eof) exit
-                        call readl (w)
+                    do while (file_reader%nextline(tokens))
+                        w = tokens%get_lower()
 
                         ! Mark any selected options.
                         do i = 1, last_item
@@ -343,61 +344,59 @@ contains
 
                         ! Do we have any other items to read in?
                         if (i == tau) then
-                            call readf (tau_value)
+                            tau_value = tokens%get_realdp()
                         elseif (i == TargetGrowRate) then
-                            call readf (target_grow_rate(1))
-                            if(inum_runs.eq.2) target_grow_rate(inum_runs)=target_grow_rate(1)
+                            target_grow_rate(1) = tokens%get_realdp()
+                            if(inum_runs == 2) target_grow_rate(inum_runs)=target_grow_rate(1)
                         elseif (i == diagshift) then
-                            call readf (DiagSft(1))
-                            if(inum_runs.eq.2) DiagSft(inum_runs)=DiagSft(1)
+                            DiagSft(1) = tokens%get_realdp()
+                            if(inum_runs == 2) DiagSft(inum_runs)=DiagSft(1)
                         elseif (i == shiftdamp) then
-                            call readf (SftDamp)
+                            SftDamp = tokens%get_realdp()
                         elseif (i == stepsshift) then
-                            call readi (StepsSft)
+                            StepsSft = tokens%get_int()
                         elseif (i == excite) then
-                            call readi (ICILevel)
+                            ICILevel = tokens%get_int()
                         elseif (i == singlesbias) then
-                            call readf (singlesbias_value)
+                            singlesbias_value = tokens%get_realdp()
                         elseif (i == truncatecas) then
-                            call readi (OccCASOrbs)
-                            call readi (VirtCASOrbs)
+                            OccCASOrbs = tokens%get_int()
+                            VirtCASOrbs = tokens%get_int()
                         elseif (i == nmcyc) then
-                            call readi (nmcyc_new)
+                            nmcyc_new = tokens%get_int()
                         elseif (i == partiallyfreeze) then
-                            call readi (nPartFrozen)
-                            call readi (nHolesFrozen)
+                            nPartFrozen = tokens%get_int()
+                            nHolesFrozen = tokens%get_int()
                         elseif (i == equilsteps) then
-                            call readi (nEquilSteps)
+                            nEquilSteps = tokens%get_int()
                         elseif (i == histequilsteps) then
-                            call readi (nHistEquilSteps)
+                            nHistEquilSteps = tokens%get_int()
                         elseif (i == partiallyfreezevirt) then
-                            call readi (nVirtPartFrozen)
-                            call readi (nElVirtFrozen)
+                            nVirtPartFrozen = tokens%get_int()
+                            nElVirtFrozen = tokens%get_int()
                         elseif (i == addtoinit) then
-                            call readf (InitiatorWalkNo)
+                            InitiatorWalkNo = tokens%get_realdp()
                         elseif (i == scalehf) then
-                            call readf (hfScaleFactor)
+                            hfScaleFactor = tokens%get_realdp()
                         elseif (i == trunc_nopen) then
-                            call readi (trunc_nop_new)
+                            trunc_nop_new = tokens%get_int()
                         elseif (i == calc_rdm) then
-                            call readi (RDMExcitLevel)
-                            call readi (IterRDMonFly_new)
-                            call readi (RDMEnergyIter)
+                            RDMExcitLevel = tokens%get_int()
+                            IterRDMonFly_new = tokens%get_int()
+                            RDMEnergyIter = tokens%get_int()
                         elseif (i == calc_explic_rdm) then
-                            call readi (RDMExcitLevel)
-                            call readi (IterRDMonFly_new)
-                            call readi (RDMEnergyIter)
+                            RDMExcitLevel = tokens%get_int()
+                            IterRDMonFly_new = tokens%get_int()
+                            RDMEnergyIter = tokens%get_int()
                         elseif (i == fill_rdm_iter) then
-                            call readi (IterRDMonFly_new)
+                            IterRDMonFly_new = tokens%get_int()
                         elseif (i == frequency_cutoff) then
-                            call readf(frq_ratio_cutoff)
+                            frq_ratio_cutoff = tokens%get_realdp()
                         elseif (i == time) then
-                            call readf (MaxTimeExit)
+                            MaxTimeExit = tokens%get_realdp()
                         endif
                     enddo
-
-                    ! Close and delete the file
-                    close (ir, status='delete')
+                    call file_reader%close(delete=.true.)
                     deleted = .true.
                 endif
 

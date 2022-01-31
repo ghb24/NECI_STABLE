@@ -67,10 +67,17 @@ contains
         end if
     end function
 
-    impure elemental subroutine my_close(this)
+    impure elemental subroutine my_close(this, delete)
         class(FileReader_t), intent(inout) :: this
+        logical, intent(in), optional :: delete
         deallocate(this%file_name)
-        close(this%file_id)
+        if (present(delete)) then
+            if (delete) then
+                close(this%file_id, status='delete')
+            end if
+        else
+            close(this%file_id)
+        end if
     end subroutine
 
     impure elemental subroutine automatic_finalize(this)
