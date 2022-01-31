@@ -1,9 +1,9 @@
 #include "macros.h"
 
 module input_parser_mod
-    use constants, only: sp, dp, int32, int64
+    use constants, only: sp, dp, int32, int64, stderr, stdout
     use util_mod, only: stop_all, operator(.div.)
-    use fortran_strings, only: Token_t, to_int32, to_int64, to_realsp, to_realdp
+    use fortran_strings, only: Token_t, to_int32, to_int64, to_realsp, to_realdp, split
     use growing_buffers, only: buffer_token_1D_t
     better_implicit_none
     private
@@ -11,7 +11,7 @@ module input_parser_mod
 
     integer, parameter :: max_line_length = 1028
 
-    character(*), parameter :: delimiter = ' ', comment = '#', concat = '+++'
+    character(*), parameter :: delimiter = ' ', comment = '#', alt_comment = '(', concat = '+++'
 
     type :: FileReader_t
         private
@@ -31,7 +31,7 @@ module input_parser_mod
 
     type :: TokenIterator_t
         private
-        type(Token_t), allocatable :: tokens(:)
+        type(Token_t), allocatable, public :: tokens(:)
         integer :: i_curr_token = 1
     contains
         private
@@ -93,6 +93,10 @@ contains
 
 
     logical function raw_nextline(this, line)
+        !! Return if the next line can be read and return it
+        !!
+        !! Note that it just reads the next line and does not
+        !! know about line-continuation etc.
         class(FileReader_t), intent(inout) :: this
         character(:), allocatable, intent(out) :: line
         character(*), parameter :: this_routine = 'nextline'
@@ -113,6 +117,11 @@ contains
     end function
 
     logical function nextline(this, tokenized_line)
+        !! Return if the next line can be read and get it tokenized.
+        !!
+        !! Note that it reads the next **logical** line,
+        !! so if there are two lines connected by a line-continuation
+        !! symbol, the two lines will be read.
         class(FileReader_t), intent(inout) :: this
         type(TokenIterator_t), intent(out) :: tokenized_line
         character(*), parameter :: this_routine = 'nextline'
@@ -140,39 +149,29 @@ contains
         end if
     end function
 
-    pure function tokenize(line) result(res)
+    function tokenize(line) result(res)
+        !! Tokenize a line.
+        !!
+        !! If a token starts with the `comment` symbol,
+        !!  this token and every following token is removed from the output.
         character(*), intent(in) :: line
         type(Token_t), allocatable :: res(:)
+        ! character(*), parameter :: this_routine = 'tokenize'
 
-        type(buffer_token_1D_t) :: buffer
-        integer :: low, high
+        integer :: i
 
-        call buffer%init(start_size=len(line, kind=int64) .div. 2_int64 + 1_int64)
-
-        low = 1
-        do while (low <= len(line))
-            do while (line(low : low) == delimiter)
-                low = low + 1
-                if (low > len(line)) exit
-            end do
-            if (low > len(line)) exit
-
-            high = low
-            if (high < len(line)) then
-                if (line(high : high) == comment) then
-                    high = len(line)
-                else
-                    do while (line(high + 1 : high + 1) /= delimiter)
-                        high = high + 1
-                        if (high == len(line)) exit
-                    end do
-                end if
+        res = split(line, delimiter)
+        do i = 1, size(res)
+            if (res(i)%str(1 : len(comment)) == comment) then
+                exit
             end if
-            call buffer%push_back(Token_t(line(low : high)))
-            low = high + 2
+            ! if (res(i)%str(1 : len(alt_comment)) == alt_comment) then
+            !     write(stderr, '(A)') 'The usage of "' // alt_comment // '" as comment is deprecated.'
+            !     write(stdout, '(A)') 'The usage of "' // alt_comment // '" as comment is deprecated.'
+            !     exit
+            ! end if
         end do
-
-        call buffer%dump_reset(res)
+        res = res(: i - 1)
     end function
 
     integer elemental function remaining_items(this)
@@ -192,27 +191,27 @@ contains
     end function
 
 
-    integer(int32) function get_int32(this)
+    integer(int32) impure elemental function get_int32(this)
         class(TokenIterator_t), intent(inout) :: this
         get_int32 = to_int32(this%get_char())
     end function
 
-    integer(int64) function get_int64(this)
+    integer(int64) impure elemental function get_int64(this)
         class(TokenIterator_t), intent(inout) :: this
         get_int64 = to_int64(this%get_char())
     end function
 
-    real(sp) function get_realsp(this)
+    real(sp) impure elemental function get_realsp(this)
         class(TokenIterator_t), intent(inout) :: this
         get_realsp = to_realsp(this%get_char())
     end function
 
-    real(dp) function get_realdp(this)
+    real(dp) impure elemental function get_realdp(this)
         class(TokenIterator_t), intent(inout) :: this
         get_realdp = to_realdp(this%get_char())
     end function
 
-    impure elemental subroutine reset(this)
+    elemental subroutine reset(this)
         class(TokenIterator_t), intent(inout) :: this
         this%i_curr_token = 1
     end subroutine

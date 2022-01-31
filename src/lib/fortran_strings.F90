@@ -32,6 +32,14 @@ character(*), parameter ::  &
 
     type :: Token_t
         character(len=:), allocatable :: str
+    contains
+        private
+        procedure :: eq_Token_t
+        generic, public :: operator(==) => eq_Token_t
+        procedure :: neq_Token_t
+        generic, public :: operator(/=) => neq_Token_t
+        procedure :: add_Token_t
+        generic, public :: operator(+) => add_Token_t
     end type
 
 contains
@@ -177,5 +185,20 @@ contains
     real(dp) elemental function to_realdp(str)
         character(*), intent(in) :: str
         read(unit=str, fmt=*) to_realdp
+    end function
+
+    logical elemental function eq_Token_t(self, other)
+        class(Token_t), intent(in) :: self, other
+        eq_Token_t = self%str == other%str
+    end function
+
+    logical elemental function neq_Token_t(self, other)
+        class(Token_t), intent(in) :: self, other
+        neq_Token_t = self%str /= other%str
+    end function
+
+    type(Token_t) elemental function add_Token_t(self, other)
+        class(Token_t), intent(in) :: self, other
+        add_Token_t%str = self%str // other%str
     end function
 end module fortran_strings

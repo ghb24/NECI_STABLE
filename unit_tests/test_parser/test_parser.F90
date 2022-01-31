@@ -2,7 +2,7 @@
 
 module test_parser_mod
     use fruit
-    use constants, only: dp, n_int
+    use constants, only: dp, n_int, int64
     use input_parser_mod, only: FileReader_t, TokenIterator_t, tokenize
     use fortran_strings, only: Token_t
     better_implicit_none
@@ -15,6 +15,7 @@ contains
 
     subroutine test_parser_driver()
         call run_test_case(test_open_close, "test_open_close")
+        call run_test_case(test_tokenize, "test_tokenize")
     end subroutine
 
     subroutine test_open_close()
@@ -26,13 +27,41 @@ contains
             file_reader = FileReader_t('H_30.FciInp')
 
             do while (file_reader%nextline(tokens))
-                write(*, *)
+                write(stdout, *)
                 do while (tokens%remaining_items() >= 1)
-                    write(*, *) tokens%get_char()
+                    write(stdout, *) tokens%get_char()
                 end do
             end do
 
         end block
+    end subroutine
+
+    subroutine test_tokenize()
+        type(Token_t), allocatable :: calculated(:), expected(:)
+        type(TokenIterator_t) :: tokens
+
+        calculated = tokenize('A B C')
+        expected = [Token_t('A'), Token_t('B'), Token_t('C')]
+        call assert_equals(size(calculated), 3)
+        call assert_true(all(calculated == expected))
+
+
+        calculated = tokenize('')
+        expected = [Token_t ::]
+        call assert_true(size(calculated) == 0)
+        call assert_true(all(calculated == expected))
+
+        tokens = TokenIterator_t(tokenize('A 123 B # sadfsfd'))
+        call assert_equals(3, tokens%remaining_items())
+        call assert_equals(tokens%get_char(), 'A')
+        call assert_equals(tokens%get_int64(), 123_int64)
+        call assert_equals(tokens%get_char(), 'B')
+        call assert_equals(0, tokens%remaining_items())
+        !
+        ! expected = [Token_t('A'), Token_t('B'), Token_t('C')]
+        ! call assert_true(size(calculated) == 3)
+        ! call assert_true(all(calculated == expected))
+
     end subroutine
 
 end module test_parser_mod
