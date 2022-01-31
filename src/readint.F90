@@ -20,7 +20,7 @@ contains
         logical, intent(in) :: tbin
         integer, intent(out) :: nBasisMax(5, *), LEN, LMS
         integer, intent(inout) :: NEL
-        integer SYMLZ(1000)
+        integer SYMLZ(1000), ST, III
         integer OCC(nIrreps), CLOSED(nIrreps), FROZEN(nIrreps)
         integer(int64) :: ORBSYM(1000)
         INTEGER NORB, NELEC, MS2, ISYM, i, SYML(1000), iunit, iuhf
@@ -29,7 +29,7 @@ contains
 
         CHARACTER(len=3) :: fmat
         NAMELIST /FCI/ NORB, NELEC, MS2, ORBSYM, OCC, CLOSED, FROZEN, &
-            ISYM, IUHF, UHF, TREL, SYML, SYMLZ, PROPBITLEN, NPROP
+            ISYM, IUHF, UHF, TREL, SYML, SYMLZ, PROPBITLEN, NPROP, ST, III
         UHF = .FALSE.
         fmat = 'NO'
         PROPBITLEN = 0
@@ -234,7 +234,7 @@ contains
         integer(int64) IND, MASK
         INTEGER I, J, K, L, I1
         INTEGER ISYMNUM, ISNMAX, SYMLZ(1000), iunit
-        INTEGER NORB, NELEC, MS2, ISYM, ISPINS, ISPN, SYML(1000)
+        INTEGER NORB, NELEC, MS2, ISYM, ISPINS, ISPN, SYML(1000), ST, III
         integer OCC(nIrreps), CLOSED(nIrreps), FROZEN(nIrreps)
         integer(int64) ORBSYM(1000)
         INTEGER nPairs, iErr, MaxnSlot, MaxIndex, IUHF
@@ -245,7 +245,7 @@ contains
         integer :: orbsPerIrrep(nIrreps)
         real(dp) :: real_time_Z
         NAMELIST /FCI/ NORB, NELEC, MS2, ORBSYM, OCC, CLOSED, FROZEN, &
-            ISYM, IUHF, UHF, TREL, SYML, SYMLZ, PROPBITLEN, NPROP
+            ISYM, IUHF, UHF, TREL, SYML, SYMLZ, PROPBITLEN, NPROP, ST, III
 
         iunit = 0
         UHF = .FALSE.
@@ -634,7 +634,7 @@ contains
         integer(int64) ORBSYM(1000)
         LOGICAL LWRITE
         logical :: uhf
-        INTEGER ISPINS, ISPN, ierr, SYMLZ(1000)!,IDI,IDJ,IDK,IDL
+        INTEGER ISPINS, ISPN, ierr, SYMLZ(1000), ST, III !,IDI,IDJ,IDK,IDL
         integer OCC(nIrreps), CLOSED(nIrreps), FROZEN(nIrreps)
         INTEGER TMatSize, IUHF
         integer(int64) :: UMatSize
@@ -647,7 +647,7 @@ contains
         integer:: bytecount
         real(dp) :: real_time_Z
         NAMELIST /FCI/ NORB, NELEC, MS2, ORBSYM, OCC, CLOSED, FROZEN, &
-            ISYM, IUHF, UHF, TREL, SYML, SYMLZ, PROPBITLEN, NPROP
+            ISYM, IUHF, UHF, TREL, SYML, SYMLZ, PROPBITLEN, NPROP, ST, III
 
         LWRITE = .FALSE.
         UHF = .FALSE.
@@ -1094,14 +1094,14 @@ contains
         integer :: i, j, k, l, iunit
         integer :: NORB, NELEC, MS2, ISYM, SYML(1000), IUHF
         integer(int64) :: ORBSYM(1000)
-        integer :: iSpins, ispn, SYMLZ(1000)
+        integer :: iSpins, ispn, SYMLZ(1000), ST, III
         integer(int64) :: ZeroedInt
         integer :: IntSize
         real(dp) :: diff, core
         character(len=100) :: file_name, PropFile
         logical :: TREL, UHF
         character(*), parameter :: t_r = 'ReadPropInts'
-        NAMELIST /FCI/ NORB, NELEC, MS2, ORBSYM, ISYM, IUHF, UHF, TREL, SYML, SYMLZ, PROPBITLEN, NPROP
+        NAMELIST /FCI/ NORB, NELEC, MS2, ORBSYM, ISYM, IUHF, UHF, TREL, SYML, SYMLZ, PROPBITLEN, NPROP, ST, III
 
         ZeroedInt = 0
         UHF = .false.
