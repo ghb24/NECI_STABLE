@@ -7,12 +7,12 @@ endsys
 
 calc
 methods
-method vertex fcimc 
+method vertex fcimc
 endmethods
 seed -7
 nmcyc 1000
 totalwalkers 20000
-(tau 0.001 search
+# tau 0.001 search
 new-tau-search 0.9999
 max-tau 0.02
 readpops

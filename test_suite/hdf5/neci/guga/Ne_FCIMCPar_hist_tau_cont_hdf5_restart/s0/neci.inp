@@ -13,7 +13,7 @@ endmethods
 seed -7
 nmcyc 1000
 totalwalkers 1000
-(tau 0.001 search
+# tau 0.001 search
 new-tau-search 0.9999
 max-tau 0.02
 restart-hist-tau-search
@@ -35,7 +35,7 @@ endint
 logging
 popsfile -1
 hdf5-pops-read
-(hdf5-pops-write
+# hdf5-pops-write
 no-append-stats
 endlog
 end

@@ -31,7 +31,7 @@ jump-shift
 hist-tau-search 0.999
 max-tau 0.02
 tau 0.005
-(tau 0.005 search
+# tau 0.005 search
 maxwalkerbloom 1
 memoryfacspawn 25.0
 memoryfacpart 5.0

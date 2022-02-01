@@ -15,7 +15,7 @@ seed -7
 load-balance-interval 1000
 nmcyc 100
 totalwalkers 20000
-(tau 0.001 search
+# tau 0.001 search
 new-tau-search 0.9999
 max-tau 0.02
 restart-hist-tau-search
