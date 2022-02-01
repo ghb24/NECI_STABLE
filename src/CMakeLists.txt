@@ -74,7 +74,6 @@ set( SRC_FILES
     init_coul.F
     initial_trial_states.F90
     initiator_space_procs.F90
-    # input.F90
     input_parser.F90
     IntegralsData.F90
     Integrals_neci.F90
