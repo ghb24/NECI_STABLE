@@ -4,10 +4,11 @@
 !               Failing that, we use stdin
 !   ios is an Integer which is set to 0 on a successful return, or is non-zero if a file error has occurred, where it is the iostat.
 MODULE ReadInput_neci
-    use constants, only: stdout
+    use constants, only: stdout, stdin
     use util_mod, only: operator(.implies.)
     Use Determinants, only: tDefineDet, DefDet
     use SystemData, only: lms, user_input_m_s
+    use input_parser_mod, only: TokenIterator_t, AttachedFileReader_t
     Implicit none
 !   Used to specify which default set of inputs to use
 !    An enum would be nice, but is sadly not supported
@@ -18,7 +19,6 @@ MODULE ReadInput_neci
 contains
 
     Subroutine ReadInputMain(cFilename, ios, tOverride_input, kp)
-        USE input_neci
         use SystemData, only: tMolpro
         use System, only: SysReadInput, SetSysDefaults
         use Calc, only: CalcReadInput, SetCalcDefaults
@@ -56,6 +56,7 @@ contains
         type(kp_fciqmc_data), intent(inout) :: kp
         integer :: ir         !The file descriptor we are reading from
         type(AttachedFileReader_t) :: file_reader
+        type(TokenIterator_t) :: tokens
 
         cTitle = ""
         idDef = idDefault                 !use the Default defaults (pre feb08)
@@ -269,7 +270,6 @@ contains
         use real_time_data, only: t_real_time_fciqmc
         use DetCalc, only: tEnergy, tCalcHMat, tFindDets, tCompressDets
         use load_balance_calcnodes, only: tLoadBalanceBlocks
-        use input_neci
         use constants
         use global_utilities
         use FciMCData, only: nWalkerHashes, HashLengthFrac, InputDiagSft, t_global_core_space

@@ -77,7 +77,7 @@ contains
         integer, intent(out), optional :: err
         type(ManagingFileReader_t) :: res
         res%file_name = file_name
-        res%echo_lines = echo_lines
+        if (present(echo_lines)) res%echo_lines = echo_lines
         if (present(err)) then
             open(file=res%file_name, newunit=res%file_id, action='read', status='old', form='formatted', iostat=err)
         else
@@ -88,9 +88,9 @@ contains
     function construct_AttachedFileReader_t(file_id, echo_lines) result(res)
         integer, intent(in) :: file_id
         integer, intent(in), optional :: echo_lines
-        type(ManagingFileReader_t) :: res
+        type(AttachedFileReader_t) :: res
         res%file_id = file_id
-        res%echo_lines = echo_lines
+        if (present(echo_lines)) res%echo_lines = echo_lines
     end function
 
     impure elemental subroutine my_close(this, delete)

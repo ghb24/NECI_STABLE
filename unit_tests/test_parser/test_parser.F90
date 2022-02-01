@@ -3,7 +3,7 @@
 module test_parser_mod
     use fruit
     use constants, only: dp, n_int, int64, stdout
-    use input_parser_mod, only: FileReader_t, TokenIterator_t, tokenize
+    use input_parser_mod, only: ManagingFileReader_t, TokenIterator_t, tokenize
     use fortran_strings, only: Token_t
     ! use util_mod, only: remove
     better_implicit_none
@@ -35,9 +35,9 @@ contains
 
 
         block
-            type(FileReader_t) :: file_reader
+            type(ManagingFileReader_t) :: file_reader
             type(TokenIterator_t) :: tokens
-            file_reader = FileReader_t(file_name)
+            file_reader = ManagingFileReader_t(file_name)
 
             call assert_true(file_reader%nextline(tokens))
             call assert_equals(2, tokens%remaining_items())
