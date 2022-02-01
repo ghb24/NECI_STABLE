@@ -22,6 +22,9 @@ given in black.
 Keywords which are purely for debugging purposes and only interesting
 for developers are markes as **\textcolor{green}{green}**.
 
+Comments can be added in the code with `#`. (A deprecated comment symbol found in legacy inputs is `(`)
+Line continuation is achieved with `\`. (A deprecated line continuation string found in legacy inputs is `+++`.)
+
 ### SYSTEM Block
 
 The SYSTEM block specifies the properties of the physical system that is
