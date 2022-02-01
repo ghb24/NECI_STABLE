@@ -174,7 +174,7 @@ contains
                     has_concat_symbol = .true.
                 else if (tokens(size(tokens))%str == alt_concat) then
                     write(stderr, '(A)') 'The usage of "' // alt_concat // '" as line-continuation is deprecated. '
-                    write(stderr, '(A)') 'Please use ' // concat // ' instead.'
+                    write(stderr, '(A)') 'Please use "' // concat // '" instead.'
                     write(stdout, '(A)') 'The usage of "' // alt_concat // '" as line-continuation is deprecated. '
                     write(stdout, '(A)') 'Please use "' // concat // '" instead.'
                     has_concat_symbol = .true.
