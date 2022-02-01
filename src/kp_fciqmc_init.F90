@@ -146,15 +146,15 @@ contains
                 end do
                 kp%niters(kp%nreports) = 0
             case ("MEMORY-FACTOR")
-                call getf(memory_factor_kp)
+                memory_factor_kp = tokens%get_realdp()
             case ("NUM-WALKERS-PER-SITE-INIT")
-                call getf(nwalkers_per_site_init)
+                nwalkers_per_site_init = tokens%get_realdp()
             case ("AVERAGEMCEXCITS-HAMIL")
-                call getf(av_mc_excits_kp)
+                av_mc_excits_kp = tokens%get_realdp()
             case ("EXACT-HAMIL-SPAWNING")
                 tExactHamilSpawning = .true.
             case ("EXACT-HAMIL-SPAWNING-FRAC")
-                call getf(kp_hamil_exact_frac)
+                kp_hamil_exact_frac = tokens%get_realdp()
             case ("EXACT-HAMIL")
                 tExactHamil = .true.
             case ("FULLY-STOCHASTIC-HAMIL")
@@ -310,7 +310,7 @@ contains
                     orthog_kp_iter = tokens%get_int()
                 end if
             case default
-                call report("Keyword "//trim(w)//" not recognized in kp-fciqmc block", .true.)
+                call stop_all(this_routine, "Keyword "//trim(w)//" not recognized in kp-fciqmc block", .true.)
             end select
         end do read_inp
 

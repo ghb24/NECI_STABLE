@@ -17,6 +17,7 @@ contains
     subroutine test_parser_driver()
         call run_test_case(test_tokenize, "test_tokenize")
         call run_test_case(test_open_close, "test_open_close")
+        call run_test_case(test_range, "test_range")
     end subroutine
 
     subroutine test_open_close()
@@ -80,6 +81,14 @@ contains
         close(file_id, status='delete')
 
     end subroutine
+
+    subroutine test_range()
+        integer, allocatable :: expected(:), calculated(:)
+
+        expected = [1]
+        calculated = get_range('1')
+        call assert_equals(expected, calculated)
+    end subroutine test_range
 
     subroutine test_tokenize()
         type(Token_t), allocatable :: calculated(:), expected(:)

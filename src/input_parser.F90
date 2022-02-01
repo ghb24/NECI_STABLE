@@ -4,11 +4,11 @@ module input_parser_mod
     use constants, only: sp, dp, int32, int64, stderr, stdout
     use util_mod, only: stop_all, operator(.div.)
     use fortran_strings, only: Token_t, to_int, to_int32, to_int64, &
-        to_realsp, to_realdp, split, to_upper, to_lower
+        to_realsp, to_realdp, split, to_upper, to_lower, operator(.in.)
     use growing_buffers, only: buffer_token_1D_t
     better_implicit_none
     private
-    public :: FileReader_t, ManagingFileReader_t, AttachedFileReader_t, TokenIterator_t, tokenize
+    public :: FileReader_t, ManagingFileReader_t, AttachedFileReader_t, TokenIterator_t, tokenize, get_range
 
     integer, parameter :: max_line_length = 1028
 
@@ -281,9 +281,38 @@ contains
         get_realdp = to_realdp(this%get_char())
     end function
 
-    elemental subroutine reset(this)
+    elemental subroutine reset(this, k)
         class(TokenIterator_t), intent(inout) :: this
-        this%i_curr_token = 1
+        integer, intent(in), optional :: k
+        character(*), parameter :: this_routine = 'reset'
+        if (present(k)) then
+            if (k < 0 .and. (this%i_curr_token + k) >= 1) then
+                this%i_curr_token = this%i_curr_token + k
+            else
+                call stop_all(this_routine, 'k has to be smaller 0 and one cannot reset past the beginning.')
+            end if
+        else
+            this%i_curr_token = 1
+        end if
     end subroutine
+
+    pure function get_range(str_range) result(res)
+        character(*), intent(in) :: str_range
+        integer, allocatable :: res(:)
+
+        character(*), parameter :: this_routine = 'get_range'
+        type(Token_t), allocatable :: tokens(:)
+        integer :: i
+
+        tokens = split(str_range, '-')
+
+        if (size(tokens) == 1) then
+            res = [to_int(tokens(1)%str)]
+        else if (size(tokens) == 2) then
+            res = [(i, i = to_int(tokens(1)%str), to_int(tokens(2)%str))]
+        else
+            call stop_all(this_routine, 'Invalid input: '//str_range)
+        end if
+    end function
 
 end module

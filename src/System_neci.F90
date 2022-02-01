@@ -399,7 +399,7 @@ contains
         case ("BOX")
             tOneElecDiag = .true.   !One electron integrals diagonal
         case default
-            call report("System type "//trim(w)//" not valid", .true.)
+            call stop_all(this_routine, "System type "//trim(w)//" not valid", .true.)
         end select
 
         ! Now parse the rest of the system block.
@@ -550,13 +550,13 @@ contains
                 case ("OFF")
                     TEXCH = .FALSE.
                 case default
-                    call report("EXCHANGE "//trim(w)//" not valid", .true.)
+                    call stop_all(this_routine, "EXCHANGE "//trim(w)//" not valid", .true.)
                 end select
             case ("COULOMB")
-                call report("Coulomb feature removed", .true.)
+                call stop_all(this_routine, "Coulomb feature removed", .true.)
 
             case ("COULOMB-DAMPING")
-                call report("Coulomb damping feature removed", .true.)
+                call stop_all(this_routine, "Coulomb damping feature removed", .true.)
 
             case ("ENERGY-CUTOFF")
                 tOrbECutoff = .true.
@@ -753,7 +753,7 @@ contains
 
                 ! Options for the type of the reciprocal lattice (eg sc, fcc, bcc)
             case ("REAL_LATTICE_TYPE")
-                call readl(real_lattice_type)
+                real_lattice_type = tokens%get_lower()
                 ! Options for the dimension (1, 2, or 3)
             case ("DIMENSION")
                 dimen = tokens%get_int()
@@ -947,10 +947,13 @@ contains
 
                     allocate(orbital_order(temp_n_orbs), source = 0)
 
-                    call read_line(eof)
-                    do i = 1, temp_n_orbs
-                        orbital_order(i) = tokens%get_int()
-                    end do
+                    if (file_reader%nextline(tokens)) then
+                        do i = 1, temp_n_orbs
+                            orbital_order(i) = tokens%get_int()
+                        end do
+                    else
+                        call stop_all(this_routine, 'Unexpected EOF reached.')
+                    end if
                 end if
 
             case ("LATTICE")
@@ -971,7 +974,7 @@ contains
 
                 if (tokens%remaining_items() > 0) then
                     ! use only new hubbard flags in this case
-                    call readl(lattice_type)
+                    lattice_type = tokens%get_lower()
                 end if
 
                 if (tokens%remaining_items() > 0) then
@@ -1015,7 +1018,7 @@ contains
             case ("STATE")
                 ISTATE = tokens%get_int()
                 if (ISTATE /= 1) then
-                    call report("Require ISTATE to be left set as 1", .true.)
+                    call stop_all(this_routine, "Require ISTATE to be left set as 1", .true.)
                 end if
             case ("MODK-OFFDIAG")
                 modk_offdiag = .true.
@@ -1078,8 +1081,8 @@ contains
 ! This new set of orbitals can then used to produce a ROFCIDUMP file and perform the FCIMC calculation.
                 tRotateOrbs = .true.
                 if (tokens%remaining_items() > 0) then
-                    call Getf(TimeStep)
-                    call Getf(ConvergedForce)
+                    TimeStep = tokens%get_realdp()
+                    ConvergedForce = tokens%get_realdp()
                 end if
 ! The SHAKE orthonormalisation algorithm is automatically turned on with a default of 5 iterations.
                 tShake = .true.
@@ -1100,7 +1103,7 @@ contains
                 tOffDiagSqrdMin = .true.
                 MaxMinFac = 1
                 if (tokens%remaining_items() > 0) then
-                    call Getf(OffDiagWeight)
+                    OffDiagWeight = tokens%get_realdp()
                 ELSE
                     OffDiagWeight = 1.0
                 end if
@@ -1112,7 +1115,7 @@ contains
                 tOffDiagSqrdMax = .true.
                 MaxMinFac = -1
                 if (tokens%remaining_items() > 0) then
-                    call Getf(OffDiagWeight)
+                    OffDiagWeight = tokens%get_realdp()
                 ELSE
                     OffDiagWeight = 1.0
                 end if
@@ -1122,7 +1125,7 @@ contains
                 tOffDiagMin = .true.
                 MaxMinFac = 1
                 if (tokens%remaining_items() > 0) then
-                    call Getf(OffDiagWeight)
+                    OffDiagWeight = tokens%get_realdp()
                 ELSE
                     OffDiagWeight = 1.0
                 end if
@@ -1132,7 +1135,7 @@ contains
                 tOffDiagMax = .true.
                 MaxMinFac = -1
                 if (tokens%remaining_items() > 0) then
-                    call Getf(OffDiagWeight)
+                    OffDiagWeight = tokens%get_realdp()
                 ELSE
                     OffDiagWeight = 1.0
                 end if
@@ -1142,7 +1145,7 @@ contains
                 tDoubExcMin = .true.
                 MaxMinFac = 1
                 if (tokens%remaining_items() > 0) then
-                    call Getf(OffDiagWeight)
+                    OffDiagWeight = tokens%get_realdp()
                 ELSE
                     OffDiagWeight = 1.0
                 end if
@@ -1153,7 +1156,7 @@ contains
                 OneElMaxMinFac = 1
                 tRotateVirtOnly = .true.
                 if (tokens%remaining_items() > 0) then
-                    call Getf(OneElWeight)
+                    OneElWeight = tokens%get_realdp()
                 ELSE
                     OneElWeight = 1.0
                 end if
@@ -1171,7 +1174,7 @@ contains
                 MaxMinFac = -1
                 tRotateVirtOnly = .true.
                 if (tokens%remaining_items() > 0) then
-                    call Getf(OrbEnMaxAlpha)
+                    OrbEnMaxAlpha = tokens%get_realdp()
                 ELSE
                     OrbEnMaxAlpha = 1.0_dp
                 end if
@@ -1182,7 +1185,7 @@ contains
                 tERLocalization = .true.
                 DiagMaxMinFac = -1
                 if (tokens%remaining_items() > 0) then
-                    call Getf(DiagWeight)
+                    DiagWeight = tokens%get_realdp()
                 ELSE
                     DiagWeight = 1.0
                 end if
@@ -1226,14 +1229,14 @@ contains
 ! Much like 'ROIteration', this overwrites the convergence criteria for the iterations of the shake constraints
 ! and instead performs only the number of iterations specified on this line.
                 tShakeIter = .true.
-                call Geti(ShakeIterMax)
+                ShakeIterMax = tokens%get_int()
 
             case ("SHAKEDELAY")
 ! This option sets the shake orthonomalisation algorithm to only kick in after a certain number of rotatation iterations.  This
 ! potentially allows a large shift in the coefficients away from their starting point, followed by orthonormalisation to a
 ! significantly different position.
                 tShakeDelay = .true.
-                call Geti(ShakeStart)
+                ShakeStart = tokens%get_int()
             case ("LAGRANGE")
 ! This will use a non-iterative lagrange multiplier for each component of each rotated vector
 ! in the rotateorbs routines in order to
@@ -1263,7 +1266,7 @@ contains
 ! and instead runs the orbital rotation for as many
 ! iterations as chosen on this line.
                 tROIteration = .true.
-                call Geti(ROIterMax)
+                ROIterMax = tokens%get_int()
 
             case ("MAXHLGAP")
                 tMaxHLGap = .true.
@@ -1324,16 +1327,16 @@ contains
 !This option will approximate the exact size of the symmetry allowed truncated space of determinants by MC.
 !The variance on the value will decrease as 1/N_steps
                 tMCSizeTruncSpace = .true.
-                CALL Geti(iMCCalcTruncLev)
-                CALL GetiLong(CalcDetCycles)
-                CALL GetiLong(CalcDetPrint)
+                iMCCalcTruncLev = tokens%get_int()
+                CalcDetCycles = tokens%get_int64()
+                CalcDetPrint = tokens%get_int64()
 
             case ("CALCMCSIZESPACE")
 !This option will approximate the exact size of the symmetry allowed space of determinants by MC.
 ! The variance on the value will decrease as 1/N_steps
                 tMCSizeSpace = .true.
-                CALL GetiLong(CalcDetCycles)
-                CALL GetiLong(CalcDetPrint)
+                CalcDetCycles = tokens%get_int64()
+                CalcDetPrint = tokens%get_int64()
 
             case ("NONUNIFORMRANDEXCITS")
 !This indicates that the new, non-uniform O[N] random excitation generators are to be used.
@@ -1634,11 +1637,11 @@ contains
                 ! this they are ignored.
                 !
                 ! By default, this parameter is 10-e8, but it can be changed here.
-                call readf(UMatEps)
+                UMatEps = tokens%get_realdp()
 
             case ("LMATEPSILON")
                 ! Six-index integrals are screened, too, with the default being 1e-10
-                call readf(LMatEps)
+                LMatEps = tokens%get_realdp()
 
             case ("NOSINGEXCITS")
 !This will mean that no single excitations are ever attempted to be generated.
@@ -1672,7 +1675,7 @@ contains
             case ("READ_ROFCIDUMP")
                 call stop_all(t_r, 'Deprecated function. Use FCIDUMP-NAME ROFCIDUMP instead.')
             case ("FCIDUMP-NAME")
-                call reada(FCIDUMP_name)
+                FCIDUMP_name = tokens%get_char()
             case ("COMPLEXORBS_REALINTS")
                 !We have complex orbitals, but real integrals. This means that we only have 4x permutational symmetry,
                 !so we need to check the (momentum) symmetry before we look up any integrals
@@ -1882,7 +1885,7 @@ contains
             case ("ENDSYS")
                 exit system
             case default
-                call report("Keyword "  //trim(w)//" not recognized in SYSTEM block", .true.)
+                call stop_all(this_routine, "Keyword "  //trim(w)//" not recognized in SYSTEM block", .true.)
             end select
         end do system
 
@@ -1902,20 +1905,20 @@ contains
         end if
 
         if (NEL == 0) then
-            call report("Number of electrons cannot be zero.", .true.)
+            call stop_all(this_routine, "Number of electrons cannot be zero.", .true.)
         end if
 
         if (.not. tUEG2) then
             if (THUB .OR. TUEG .OR. .NOT. (TREADINT .OR. TCPMD .or. tVASP)) then
                 if (NMAXX == 0) then
-                    call report("Must specify CELL - &
+                    call stop_all(this_routine, "Must specify CELL - &
                         &the number of basis functions in each dim.", .true.)
                 end if
                 if (.NOT. THUB .AND. near_zero(BOX)) then
-                    call report("Must specify BOX size.", .true.)
+                    call stop_all(this_routine, "Must specify BOX size.", .true.)
                 end if
                 if (TTILT .AND. .NOT. THUB) then
-                    call report("TILT can only be specified with HUBBARD.", .true.)
+                    call stop_all(this_routine, "TILT can only be specified with HUBBARD.", .true.)
                 end if
             end if
         end if

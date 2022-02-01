@@ -40,6 +40,7 @@ contains
 !        Integer :: iargc
 !#endif
         !  INPUT/OUTPUT params
+        character(*), parameter :: this_routine = 'ReadInputMain'
         Character(len=*) cFilename    !Input  filename or "" if we check arg list or stdin
         Integer ios         !Output 0 if no error or nonzero iostat if error
 
@@ -174,7 +175,7 @@ contains
             case ("END")
                 exit
             case default
-                call report("Keyword "//trim(w)//" not recognized", .true.)
+                call stop_all(this_routine, "Keyword "//trim(w)//" not recognized", .true.)
             end select
         end do
         write(stdout, '(/,64("*"),/)')
@@ -284,7 +285,7 @@ contains
         integer :: vv, kk, cc, ierr
         real(dp) :: InputDiagSftSingle
         logical :: check
-        character(*), parameter :: t_r = 'checkinput'
+        character(*), parameter :: t_r = 'checkinput', this_routine = t_r
 
         if (tDiagAllSpaceEver .and. .not. tHistSpawn) then
             call stop_all(t_r, "DIAGALLSPACEEVER requires HISTSPAWN option")
@@ -321,7 +322,7 @@ contains
         ! the other random graph algorithm cannot remove same excitation
         ! links yet.
         if (tNoSameExcit .and. .not. tInitStar) then
-            call report("If we are using TNoSameExcit, then we have to start&
+            call stop_all(this_routine, "If we are using TNoSameExcit, then we have to start&
                          & with the star. The other random graph algorithm &
                          &cannot remove same excitation links yet.", .true.)
         end if
@@ -329,89 +330,89 @@ contains
         ! The MoveDets and Biasing algorithms cannot both be used in the
         ! GraphMorph Algorithm.
         if (tBiasing .and. tMoveDets) then
-            call report("Biasing algorithm and MoveDets algorithm cannot both&
+            call stop_all(this_routine, "Biasing algorithm and MoveDets algorithm cannot both&
                         & be used", .true.)
         end if
 
         ! ..RmRootExcitStarsRootChange must be used with DiagStarStars, and not
         ! with ExcitStarsRootChange
         if (tRmRootExcitStarsRootChange .and. .not. tDiagStarStars) then
-            call report("RmRootExcitStarsRootChange can only with used with &
+            call stop_all(this_routine, "RmRootExcitStarsRootChange can only with used with &
                         &DiagStarStars currently", .true.)
         end if
 
         if (TRmRootExcitStarsRootChange .and. TExcitStarsRootChange) then
-            call report("RmRootExcitStarsRootChange and ExcitStarsRootChange &
+            call stop_all(this_routine, "RmRootExcitStarsRootChange and ExcitStarsRootChange &
                         &cannot both be used as they are both different &
                         &options with diagstarstars", .true.)
         end if
 
         !..ExcitStarsRootChange must be used with TDiagStarStars
         if (tExcitStarsRootChange .and. .not. tDiagStarStars) then
-            call report("ExcitStarsRootChange can only with used with &
+            call stop_all(this_routine, "ExcitStarsRootChange can only with used with &
                         &DiagStarStars currently", .true.)
         end if
 
         ! ..TDiagStarStars must be used with TStarStars, and cannot be used
         ! with TCalcExcitStar
         if (tDiagStarStars .and. .not. tStarStars) then
-            call report("DiagStarStars must be used with StarStars", .true.)
+            call stop_all(this_routine, "DiagStarStars must be used with StarStars", .true.)
         end if
         if (tDiagStarStars .and. tCalcExcitStar) then
-            call report("DiagStarStars is incompatable with CalcExcitStar", &
+            call stop_all(this_routine, "DiagStarStars is incompatable with CalcExcitStar", &
                         .true.)
         end if
         if (tDiagStarStars .and. (tNoDoubs .or. tJustQuads)) then
-            call report("NoDoubs/JustQuads cannot be used with DiagStarStars &
+            call stop_all(this_routine, "NoDoubs/JustQuads cannot be used with DiagStarStars &
                         &- try CalcExcitStar")
         end if
 
         ! ..TNoDoubs is only an option which applied to TCalcExcitStar, and
         ! cannot occurs with TJustQuads.
         if (tNoDoubs .and. .not. tCalcExcitStar) then
-            call report("STARNODOUBS is only an option which applied to &
+            call stop_all(this_routine, "STARNODOUBS is only an option which applied to &
                         &TCalcExcitStar", .true.)
         end if
 
         if (tNoDoubs .and. tJustQuads) then
-            call report("STARNODOUBS and STARQUADEXCITS cannot be applied &
+            call stop_all(this_routine, "STARNODOUBS and STARQUADEXCITS cannot be applied &
                         &together!", .true.)
         end if
 
         ! .. TJustQuads is only an option which applies to TCalcExcitStar
         if (tJustQuads .and. .not. tCalcExcitStar) then
-            call report("STARQUADEXCITS is only an option which applies to &
+            call stop_all(this_routine, "STARQUADEXCITS is only an option which applies to &
                         &tCalcExcitStar", .true.)
         end if
 
         !.. tCalcExcitStar can only be used with tStarStars
         if (tCalcExcitStar .and. .not. tStarStars) then
-            call report("CalcExcitStar can only be used with StarStars set", &
+            call stop_all(this_routine, "CalcExcitStar can only be used with StarStars set", &
                         .true.)
         end if
 
         !.. Brillouin Theorem must be applied when using TStarStars
         if (tStarStars .and. .not. tUseBrillouin) then
-            call report("Brillouin Theorem must be used when using &
+            call stop_all(this_routine, "Brillouin Theorem must be used when using &
                         &CalcExcitStar", .true.)
         end if
 
         !.. TQuadValMax and TQuadVecMax can only be used if TLINESTARSTARS set
         if ((tQuadValMax .or. tQuadVecMax) .and. .not. tStarStars) then
-            call report("TQuadValMax or TQuadVecMax can only be specified if &
+            call stop_all(this_routine, "TQuadValMax or TQuadVecMax can only be specified if &
                         &STARSTARS specified in method line", .true.)
         end if
 
         !.. TQuadValMax and TQuadVecMax cannot both be set
         if (tQuadValMax .and. tQuadVecMax) then
-            call report("TQuadValMax and TQuadVecMax cannot both be set", &
+            call stop_all(this_routine, "TQuadValMax and TQuadVecMax cannot both be set", &
                         .true.)
         end if
 
         !.. TDISCONODES can only be set if NODAL is set in the star methods
         ! section
         if (tDiscoNodes .and. .not. tDiagNodes) then
-            call report("DISCONNECTED NODES ONLY POSSIBLE IF NODAL SET IN &
+            call stop_all(this_routine, "DISCONNECTED NODES ONLY POSSIBLE IF NODAL SET IN &
                         &METHOD", .true.)
         end if
 
@@ -419,15 +420,15 @@ contains
             tPreCond) then
             if (tHistSpawn .or. &
                 (tCalcFCIMCPsi .and. tFCIMC) .or. tHistEnergies .or. tPrintOrbOcc) then
-                call report("HistSpawn and PrintOrbOcc not yet supported for multi-replica with different references" &
+                call stop_all(this_routine, "HistSpawn and PrintOrbOcc not yet supported for multi-replica with different references" &
                             , .true.)
             end if
         end if
 
         if (.not. t_global_core_space) then
-            if (t_real_time_fciqmc) call report("Real-time FCIQMC requires a global core space")
-            if (tKP_FCIQMC) call report("KP-FCIQMC requires a global core space")
-            if (tReplicaEstimates) call report("Replica estimates require a global core space")
+            if (t_real_time_fciqmc) call stop_all(this_routine, "Real-time FCIQMC requires a global core space")
+            if (tKP_FCIQMC) call stop_all(this_routine, "KP-FCIQMC requires a global core space")
+            if (tReplicaEstimates) call stop_all(this_routine, "Replica estimates require a global core space")
         end if
 
         !.. We still need a specdet space even if we don't have a specdet.
@@ -439,13 +440,13 @@ contains
         !..   Testing ILOGGING
         !     ILOGGING = 0771
         if (I_VMAX == 0 .and. nPaths /= 0 .and. (.not. tKP_FCIQMC)) then
-            call report('NPATHS!=0 and I_VMAX=0.  VERTEX SUM max level not &
+            call stop_all(this_routine, 'NPATHS!=0 and I_VMAX=0.  VERTEX SUM max level not &
                          &set', .true.)
         end if
 
         !Ensure beta is set.
         if (beta < 1.0e-6_dp .and. .not. tMP2Standalone) then
-            call report("No beta value provided.", .true.)
+            call stop_all(this_routine, "No beta value provided.", .true.)
         end if
 
         do vv = 2, I_VMAX

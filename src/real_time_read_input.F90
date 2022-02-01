@@ -470,7 +470,7 @@ module real_time_read_input_module
 
             case ("CORESPACE-THRESHOLD")
                 ! Set the threshold from which on a determinant is in the corespace
-                CALL readf(wn_threshold)
+                wn_threshold = tokens%get_realdp()
 
             case ("CORESPACE-LOG-INTERVAL")
                 ! Set the number of iterations after which we get the new candidates for the
@@ -501,7 +501,7 @@ module real_time_read_input_module
                 exit real_time
 
             case default
-                call report("Keyword "//trim(w)//" not recognized in REALTIME block", .true.)
+                call stop_all(this_routine, "Keyword "//trim(w)//" not recognized in REALTIME block", .true.)
 
             end select
         end do real_time

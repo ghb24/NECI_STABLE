@@ -129,6 +129,8 @@ contains
         use UMatCache, only: tReadInCache, nSlotsInit, nMemInit, iDumpCacheFlag, iDFMethod
         class(FileReader_t), intent(inout) :: file_reader
 
+        character(*), parameter :: this_routine = 'IntReadInput'
+
         type(TokenIterator_t) :: tokens
         CHARACTER(LEN=100) w
         INTEGER :: i
@@ -180,8 +182,8 @@ contains
             case ("CALCREALPROD")
                 TCALCREALPROD = .TRUE.
                 IF(.NOT. TUSEBRILLOUIN) THEN
-                    call report(trim(w)//" will not work unless "           &
-           &        //"USEBRILLOUINTHEOREM set", .true.)
+                    call stop_all(this_routine, trim(w)//" will not work unless "           &
+           &        //"USEBRILLOUINTHEOREM set")
                 end if
             case ("CALCRHOPROD")
                 TCALCRHOPROD = .TRUE.
@@ -208,9 +210,9 @@ contains
                     case ("ORBITAL")
                         HFCDELTA = tokens%get_realdp()
                     case default
-                        call report(trim(w)//" not valid THRESHOLD"         &
+                        call stop_all(this_routine, trim(w)//" not valid THRESHOLD"         &
            &         //"OPTION.  Specify ENERGY or ORBITAL convergence"     &
-           &           //" threshold.", .true.)
+           &           //" threshold.")
                     end select
                 end do
             case ("RHF")
@@ -228,16 +230,15 @@ contains
                     case ("SINGLES")
                         IHFMETHOD = 1
                     case default
-                        call report(trim(w)//" not valid DESCENT"         &
-         &              //" option", .true.)
+                        call stop_all(this_routine, trim(w)//" not valid DESCENT"         &
+         &              //" option")
                     end select
                 case ("STANDARD")
                     IHFMETHOD = 0
                 case ("MODIFIED")
                     IHFMETHOD = 3
                 case default
-                    call report(trim(w)//" not valid HF method",          &
-         &           .true.)
+                    call stop_all(this_routine, trim(w)//" not valid HF method")
                 end select
 
             case ("READ")
@@ -249,8 +250,7 @@ contains
                     case ("BASIS")
                         TREADHF = .true.
                     case default
-                        call report(trim(w)//" is an invalid HF read"       &
-           &            //" option.", .true.)
+                        call stop_all(this_routine, trim(w)//" is an invalid HF read option.")
                     end select
                 end do
 
@@ -259,13 +259,11 @@ contains
                 NTFROZEN = tokens%get_int()
                 if(mod(NFROZEN, 2) /= 0 .or.                             &
          &       (NTFROZEN > 0 .and. mod(NTFROZEN, 2) /= 0)) then
-                    call report("NFROZEN and (+ve) NTFROZEN must be"      &
-         &          //"multiples of 2", .true.)
+                    call stop_all(this_routine, "NFROZEN and (+ve) NTFROZEN must be multiples of 2")
                 end if
                 if(                                                      &
          &       (NTFROZEN < 0 .and. mod(NEL - NTFROZEN, 2) /= 0)) then
-                    call report("-ve NTFROZEN must be same parity  "      &
-         &          //"as NEL", .true.)
+                    call stop_all(this_routine, "-ve NTFROZEN must be same parity as NEL")
                 end if
 
             case ("FREEZEINNER")
@@ -279,8 +277,7 @@ contains
                 NFROZENIN = ABS(NFROZENIN)
                 NTFROZENIN = ABS(NTFROZENIN)
                 if((mod(NFROZENIN, 2) /= 0) .or. (mod(NTFROZENIN, 2) /= 0)) then
-                    call report("NFROZENIN and NTFROZENIN must be"      &
-         &          //"multiples of 2", .true.)
+                    call stop_all(this_routine, "NFROZENIN and NTFROZENIN must be multiples of 2")
                 end if
 
             case ("PARTIALLYFREEZE")
@@ -352,7 +349,7 @@ contains
                 case ("FORCE")
                     iDumpCacheFlag = 2
                 case default
-                    call reread(-1)
+                    call tokens%reset(-1)
                     NSLOTSINIT = tokens%get_int()
                 end select
             case ("NOUMATCACHE")
@@ -370,7 +367,7 @@ contains
                 case ("DFCOULOMB")
                     iDFMethod = 4
                 case default
-                    call report("keyword "//trim(w)//" not recognized in DFMETHOD block", .true.)
+                    call stop_all(this_routine, "keyword "//trim(w)//" not recognized in DFMETHOD block")
                 end select
 
             case ("POSTFREEZEHF")
@@ -396,7 +393,7 @@ contains
             case ("LMATCALC")
 
                 if(tSymBrokenLMat .or. t12FoldSym) then
-                    call report("LMATCALC assumes 48-fold symmetry", .true.)
+                    call stop_all(this_routine, "LMATCALC assumes 48-fold symmetry")
                 end if
 
                 tLMatCalc = .true.
@@ -406,7 +403,7 @@ contains
             case ("ENDINT")
                 exit integral
             case default
-                call report("keyword "//trim(w)//" not recognized in integral block", .true.)
+                call stop_all(this_routine, "keyword "//trim(w)//" not recognized in integral block")
             end select
         end do integral
 
