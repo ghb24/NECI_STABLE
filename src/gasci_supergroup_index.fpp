@@ -185,11 +185,15 @@ contains
         integer, allocatable :: supergroups(:, :)
         integer :: i
 
-        supergroups = self%get_supergroups()
-        allocate(res(size(supergroups, 2)))
-        do i = 1, size(supergroups, 2)
-            res(i) = composition_idx(supergroups(:, i))
-        end do
+        if (self%GASspec%is_connected()) then
+            supergroups = self%get_supergroups()
+            allocate(res(size(supergroups, 2)))
+            do i = 1, size(supergroups, 2)
+                res(i) = composition_idx(supergroups(:, i))
+            end do
+        else
+            res = [integer(int64)::]
+        end if
     end function
 
 
