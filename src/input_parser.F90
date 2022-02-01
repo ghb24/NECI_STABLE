@@ -101,7 +101,7 @@ contains
 
     impure elemental subroutine automatic_finalize(this)
         type(ManagingFileReader_t), intent(inout) :: this
-        call this%close()
+        if (this%is_open()) call this%close()
     end subroutine
 
     logical elemental function is_open(this)
