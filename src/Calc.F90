@@ -988,7 +988,7 @@ contains
                     integer, allocatable :: def_det(:), input_range(:)
                     def_det = [integer ::]
                     do while(tokens%remaining_items() > 0)
-                        input_range = get_range(tokens%get_char())
+                        input_range = get_range(tokens%next())
                         if (disjoint(def_det, input_range)) then
                             def_det = def_det .U. input_range
                         else
@@ -2152,7 +2152,7 @@ contains
             case("POPS-ALIAS")
                 !use a given popsfile instead of the default POPSFILE.
                 tPopsAlias = .true.
-                aliasStem = tokens%get_char()
+                aliasStem = tokens%next()
 
             case("WALKERREADBATCH")
                 !The number of walkers to read in on the head node in each batch during a popsread

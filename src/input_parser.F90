@@ -50,7 +50,7 @@ module input_parser_mod
         private
         procedure, public :: size => size_TokenIterator_t
         procedure, public :: remaining_items
-        procedure, public :: get_char
+        procedure, public :: next
         procedure, public :: get_upper
         procedure, public :: get_lower
         procedure, public :: get_realsp
@@ -226,59 +226,66 @@ contains
         size_TokenIterator_t = size(this%tokens)
     end function
 
-    function get_char(this) result(res)
+    function next(this, if_exhausted) result(res)
         class(TokenIterator_t), intent(inout) :: this
+        character(*), intent(in), optional :: if_exhausted
         character(:), allocatable :: res
-        character(*), parameter :: this_routine = 'get_char'
+        character(*), parameter :: this_routine = 'next'
         integer :: i
-        if (this%remaining_items() < 1) then
-            write(stderr, *) 'There are no tokens remaining and the next item was requested.'
-            write(stderr, *) 'The tokens are:'
-            call this%reset()
-            do i = 1, this%size()
-                write(stderr, *) this%tokens(i)%str
-            end do
-            call stop_all(this_routine, 'No tokens for get_char.')
+        if (this%remaining_items() == 0) then
+            if (present(if_exhausted)) then
+                res = if_exhausted
+            else
+                write(stderr, *) 'There are no tokens remaining and the next item was requested.'
+                write(stderr, *) 'The tokens are:'
+                call this%reset()
+                do i = 1, this%size()
+                    write(stderr, *) this%tokens(i)%str
+                end do
+                res = ''
+                call stop_all(this_routine, 'No tokens for next remaining.')
+            end if
+        else
+            res = this%tokens(this%i_curr_token)%str
+            this%i_curr_token = this%i_curr_token + 1
         end if
-        res = this%tokens(this%i_curr_token)%str
-        this%i_curr_token = this%i_curr_token + 1
     end function
 
     function get_lower(this) result(res)
         class(TokenIterator_t), intent(inout) :: this
         character(:), allocatable :: res
-        res = to_lower(this%get_char())
+        res = to_lower(this%next())
     end function
 
     function get_upper(this) result(res)
         class(TokenIterator_t), intent(inout) :: this
         character(:), allocatable :: res
-        res = to_upper(this%get_char())
+        res = to_upper(this%next())
     end function
 
     integer impure elemental function get_int(this)
         class(TokenIterator_t), intent(inout) :: this
-        get_int = to_int(this%get_char())
+        get_int = to_int(this%next())
     end function
 
     integer(int32) impure elemental function get_int32(this)
         class(TokenIterator_t), intent(inout) :: this
-        get_int32 = to_int32(this%get_char())
+        get_int32 = to_int32(this%next())
     end function
 
     integer(int64) impure elemental function get_int64(this)
         class(TokenIterator_t), intent(inout) :: this
-        get_int64 = to_int64(this%get_char())
+        get_int64 = to_int64(this%next())
     end function
 
     real(sp) impure elemental function get_realsp(this)
         class(TokenIterator_t), intent(inout) :: this
-        get_realsp = to_realsp(this%get_char())
+        get_realsp = to_realsp(this%next())
     end function
 
     real(dp) impure elemental function get_realdp(this)
         class(TokenIterator_t), intent(inout) :: this
-        get_realdp = to_realdp(this%get_char())
+        get_realdp = to_realdp(this%next())
     end function
 
     elemental subroutine reset(this, k)

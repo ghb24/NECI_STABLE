@@ -155,7 +155,7 @@ contains
             select case (w)
             case ("TITLE")
                 do while (tokens%remaining_items() > 0)
-                    w = tokens%get_char()
+                    w = tokens%next()
                     cTitle = trim(cTitle)//" "//trim(w)
                 end do
             case ("DEFAULTS")

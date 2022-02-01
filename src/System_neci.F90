@@ -1676,7 +1676,7 @@ contains
             case ("READ_ROFCIDUMP")
                 call stop_all(t_r, 'Deprecated function. Use FCIDUMP-NAME ROFCIDUMP instead.')
             case ("FCIDUMP-NAME")
-                FCIDUMP_name = tokens%get_char()
+                FCIDUMP_name = tokens%next()
             case ("COMPLEXORBS_REALINTS")
                 !We have complex orbitals, but real integrals. This means that we only have 4x permutational symmetry,
                 !so we need to check the (momentum) symmetry before we look up any integrals
