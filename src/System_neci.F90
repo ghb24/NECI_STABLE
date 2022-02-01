@@ -45,7 +45,7 @@ MODULE System
 
     use guga_data, only: tGUGACore
 
-    use fortran_strings, only: to_upper, to_lower, to_int, to_realdp
+    use fortran_strings, only: to_upper, to_lower, to_int, to_int64, to_realdp
 
     IMPLICIT NONE
 
@@ -420,10 +420,10 @@ contains
             case ("RIINTEGRALS")
                 tRIIntegrals = .true.
             case ("ELECTRONS", "NEL")
-                NEL = tokens%get_int()
+                NEL = to_int(tokens%next())
             case ("SPIN-RESTRICT")
                 if (tokens%remaining_items() > 0) then
-                    user_input_m_s = tokens%get_int()
+                    user_input_m_s = to_int(tokens%next())
                 end if
                 TSPN = .true.
 
@@ -434,7 +434,7 @@ contains
                 ! number of unpaired electrons
             case ("GUGA")
                 if (tokens%remaining_items() > 0) then
-                    STOT = tokens%get_int()
+                    STOT = to_int(tokens%next())
                 else
                     STOT = 0
                 end if
@@ -454,16 +454,16 @@ contains
             case ("TEST-DOUBLE")
                 t_test_double = .true.
 
-                test_i = tokens%get_int()
-                test_j = tokens%get_int()
-                test_k = tokens%get_int()
-                test_l = tokens%get_int()
+                test_i = to_int(tokens%next())
+                test_j = to_int(tokens%next())
+                test_k = to_int(tokens%next())
+                test_l = to_int(tokens%next())
 
             case ("TEST-SINGLE")
                 t_test_single = .true.
 
-                test_i = tokens%get_int()
-                test_j = tokens%get_int()
+                test_i = to_int(tokens%next())
+                test_j = to_int(tokens%next())
 
             case ("GUGA-NOREORDER")
                 ! do not reorder the orbitals in the hubbard + guga implementation
@@ -516,7 +516,7 @@ contains
             case ("SYM")
                 TPARITY = .true.
                 do I = 1, 4
-                    IPARITY(I) = tokens%get_int()
+                    IPARITY(I) = to_int(tokens%next())
                 end do
 ! the last number is the symmetry specification - and is placed in position 5
                 IPARITY(5) = IPARITY(4)
@@ -579,20 +579,20 @@ contains
                 tStoreAsExcitations = .true.
             case ("MP2-UEG-RESTRICT")
                 tMP2UEGRestrict = .true.
-                kiRestrict(1) = tokens%get_int()
-                kiRestrict(2) = tokens%get_int()
-                kiRestrict(3) = tokens%get_int()
-                kiMsRestrict = tokens%get_int()
-                kjRestrict(1) = tokens%get_int()
-                kjRestrict(2) = tokens%get_int()
-                kjRestrict(3) = tokens%get_int()
-                kjMsRestrict = tokens%get_int()
+                kiRestrict(1) = to_int(tokens%next())
+                kiRestrict(2) = to_int(tokens%next())
+                kiRestrict(3) = to_int(tokens%next())
+                kiMsRestrict = to_int(tokens%next())
+                kjRestrict(1) = to_int(tokens%next())
+                kjRestrict(2) = to_int(tokens%next())
+                kjRestrict(3) = to_int(tokens%next())
+                kjMsRestrict = to_int(tokens%next())
 
                 ! Options for model systems (electrons in a box/Hubbard).
             case ("CELL")
-                NMAXX = tokens%get_int()
-                NMAXY = tokens%get_int()
-                NMAXZ = tokens%get_int()
+                NMAXX = to_int(tokens%next())
+                NMAXY = to_int(tokens%next())
+                NMAXZ = to_int(tokens%next())
 
 
             case ('SPIN-TRANSCORR')
@@ -759,7 +759,7 @@ contains
                 real_lattice_type = to_lower(tokens%next())
                 ! Options for the dimension (1, 2, or 3)
             case ("DIMENSION")
-                dimen = tokens%get_int()
+                dimen = to_int(tokens%next())
 
                 ! Options for transcorrelated method (only: UEG 2D 3D, Homogeneous 1D 3D
                 ! gas with contact interaction)
@@ -774,10 +774,10 @@ contains
 
                     case ("STEP")
                         t_trcorr_gausscutoff = .false.
-                        TranscorrCutoff = tokens%get_int()
+                        TranscorrCutoff = to_int(tokens%next())
                         if (tContact .and. dimen == 3) then
                             tInfSumTCCalc = .true.
-                            TranscorrIntCutoff = tokens%get_int()
+                            TranscorrIntCutoff = to_int(tokens%next())
                         end if
 
                     end select
@@ -846,7 +846,7 @@ contains
                 t_mixed_excits = .true.
 
             case ("MESH")
-                NMSH = tokens%get_int()
+                NMSH = to_int(tokens%next())
             case ("BOXSIZE")
                 BOX = tokens%get_realdp()
                 if (tokens%remaining_items() > 0) then
@@ -946,13 +946,13 @@ contains
 
                 if (tokens%remaining_items() > 0) then
                     t_input_order = .true.
-                    temp_n_orbs = tokens%get_int()
+                    temp_n_orbs = to_int(tokens%next())
 
                     allocate(orbital_order(temp_n_orbs), source = 0)
 
                     if (file_reader%nextline(tokens)) then
                         do i = 1, temp_n_orbs
-                            orbital_order(i) = tokens%get_int()
+                            orbital_order(i) = to_int(tokens%next())
                         end do
                     else
                         call stop_all(this_routine, 'Unexpected EOF reached.')
@@ -981,15 +981,15 @@ contains
                 end if
 
                 if (tokens%remaining_items() > 0) then
-                    length_x = tokens%get_int()
+                    length_x = to_int(tokens%next())
                 end if
 
                 if (tokens%remaining_items() > 0) then
-                    length_y = tokens%get_int()
+                    length_y = to_int(tokens%next())
                 end if
 
                 if (tokens%remaining_items() > 0) then
-                    length_z = tokens%get_int()
+                    length_z = to_int(tokens%next())
                 end if
 
                 ! maybe i have to reuse the cell input functionality or set it
@@ -1008,18 +1008,18 @@ contains
                 tUEGTrueEnergies = .true.
             case ("UEG-MOMENTUM")
                 tUEGSpecifyMomentum = .true.
-                k_momentum(1) = tokens%get_int()
-                k_momentum(2) = tokens%get_int()
-                k_momentum(3) = tokens%get_int()
+                k_momentum(1) = to_int(tokens%next())
+                k_momentum(2) = to_int(tokens%next())
+                k_momentum(3) = to_int(tokens%next())
             case ("TILT")
                 TTILT = .true.
-                ITILTX = tokens%get_int()
-                ITILTY = tokens%get_int()
+                ITILTX = to_int(tokens%next())
+                ITILTY = to_int(tokens%next())
             case ("ALPHA")
                 TALPHA = .true.
                 ALPHA = tokens%get_realdp()
             case ("STATE")
-                ISTATE = tokens%get_int()
+                ISTATE = to_int(tokens%next())
                 if (ISTATE /= 1) then
                     call stop_all(this_routine, "Require ISTATE to be left set as 1", .true.)
                 end if
@@ -1067,7 +1067,7 @@ contains
             case ("HPHF")
                 tHPHF = .true.
                 if (tokens%remaining_items() > 0) then
-                    Odd_EvenHPHF = tokens%get_int()
+                    Odd_EvenHPHF = to_int(tokens%next())
                     if (Odd_EvenHPHF == 1) then
                         !Want to converge onto an Odd S State
                         tOddS_HPHF = .true.
@@ -1232,14 +1232,14 @@ contains
 ! Much like 'ROIteration', this overwrites the convergence criteria for the iterations of the shake constraints
 ! and instead performs only the number of iterations specified on this line.
                 tShakeIter = .true.
-                ShakeIterMax = tokens%get_int()
+                ShakeIterMax = to_int(tokens%next())
 
             case ("SHAKEDELAY")
 ! This option sets the shake orthonomalisation algorithm to only kick in after a certain number of rotatation iterations.  This
 ! potentially allows a large shift in the coefficients away from their starting point, followed by orthonormalisation to a
 ! significantly different position.
                 tShakeDelay = .true.
-                ShakeStart = tokens%get_int()
+                ShakeStart = to_int(tokens%next())
             case ("LAGRANGE")
 ! This will use a non-iterative lagrange multiplier for each component of each rotated vector
 ! in the rotateorbs routines in order to
@@ -1269,7 +1269,7 @@ contains
 ! and instead runs the orbital rotation for as many
 ! iterations as chosen on this line.
                 tROIteration = .true.
-                ROIterMax = tokens%get_int()
+                ROIterMax = to_int(tokens%next())
 
             case ("MAXHLGAP")
                 tMaxHLGap = .true.
@@ -1320,7 +1320,7 @@ contains
 
             case ("RANLUXLEV")
 !This is the level of quality for the random number generator. Values go from 1 -> 4. 3 is default.
-                iRanLuxLev = tokens%get_int()
+                iRanLuxLev = to_int(tokens%next())
 
             case ("CALCEXACTSIZESPACE")
 !This option will calculate the exact size of the symmetry allowed space of determinants. Will scale badly.
@@ -1330,16 +1330,16 @@ contains
 !This option will approximate the exact size of the symmetry allowed truncated space of determinants by MC.
 !The variance on the value will decrease as 1/N_steps
                 tMCSizeTruncSpace = .true.
-                iMCCalcTruncLev = tokens%get_int()
-                CalcDetCycles = tokens%get_int64()
-                CalcDetPrint = tokens%get_int64()
+                iMCCalcTruncLev = to_int(tokens%next())
+                CalcDetCycles = to_int64(tokens%next())
+                CalcDetPrint = to_int64(tokens%next())
 
             case ("CALCMCSIZESPACE")
 !This option will approximate the exact size of the symmetry allowed space of determinants by MC.
 ! The variance on the value will decrease as 1/N_steps
                 tMCSizeSpace = .true.
-                CalcDetCycles = tokens%get_int64()
-                CalcDetPrint = tokens%get_int64()
+                CalcDetCycles = to_int64(tokens%next())
+                CalcDetPrint = to_int64(tokens%next())
 
             case ("NONUNIFORMRANDEXCITS")
 !This indicates that the new, non-uniform O[N] random excitation generators are to be used.
@@ -1665,7 +1665,7 @@ contains
 
             case ("LZTOT")
                 tFixLz = .true.
-                LzTot = tokens%get_int()
+                LzTot = to_int(tokens%next())
             case ("KPOINTS")
                 tKPntSym = .true.
             case ("IMPURITY-EXCITGEN")
@@ -1695,7 +1695,7 @@ contains
                 ! This can only be done using mneci.x, where the size of the
                 ! representation (i.e. lenof_sign) is permitted to vary at runtime
 #ifdef PROG_NUMRUNS_
-                inum_runs = tokens%get_int()
+                inum_runs = to_int(tokens%next())
                 tMultiReplicas = .true.
 #ifdef CMPLX_
                 lenof_sign = 2 * inum_runs
@@ -1708,7 +1708,7 @@ contains
                                        &permitted value')
                 end if
 #else
-                itmp = tokens%get_int()
+                itmp = to_int(tokens%next())
 #ifdef DOUBLERUN_
                 if (itmp /= 2) then
 #else
@@ -1742,7 +1742,7 @@ contains
                   n_orb = 0
                   do while (tokens%remaining_items() > 0)
                       n_orb = n_orb + 1
-                      buf(n_orb) = tokens%get_int()
+                      buf(n_orb) = to_int(tokens%next())
                   end do
                   call load_orb_perm(buf(1:n_orb))
                 end block
@@ -1775,12 +1775,12 @@ contains
                         call stop_all(t_r, 'You may pass either LOCAL or CUMULATIVE constraints.')
                     end if
 
-                    nGAS = tokens%get_int()
+                    nGAS = to_int(tokens%next())
                     allocate(n_orbs(nGAS), cn_min(nGAS), cn_max(nGAS), source=0)
                     do iGAS = 1, nGAS
-                        n_orbs(iGAS) = tokens%get_int()
-                        cn_min(iGAS) = tokens%get_int()
-                        cn_max(iGAS) = tokens%get_int()
+                        n_orbs(iGAS) = to_int(tokens%next())
+                        cn_min(iGAS) = to_int(tokens%next())
+                        cn_max(iGAS) = to_int(tokens%next())
                     end do
 
                     n_spat_orbs = sum(n_orbs)

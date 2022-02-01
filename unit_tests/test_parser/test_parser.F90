@@ -4,7 +4,7 @@ module test_parser_mod
     use fruit
     use constants, only: dp, n_int, int64, stdout
     use input_parser_mod, only: ManagingFileReader_t, TokenIterator_t, tokenize, get_range
-    use fortran_strings, only: Token_t, to_lower, to_upper
+    use fortran_strings, only: Token_t, to_lower, to_upper, to_int, to_int64
     ! use util_mod, only: remove
     better_implicit_none
     private
@@ -62,11 +62,11 @@ contains
             call assert_equals(9, tokens%remaining_items())
             call assert_equals('GAS-SPEC', to_upper(tokens%next()))
             call assert_equals('LOCAL', to_upper(tokens%next()))
-            call assert_equals(30_int64, tokens%get_int64())
+            call assert_equals(30_int64, to_int64(tokens%next()))
             block
                 integer :: i
                 do i = 1, 6
-                    call assert_equals(i**2, tokens%get_int())
+                    call assert_equals(i**2, to_int(tokens%next()))
                 end do
             end block
             call assert_equals(0, tokens%remaining_items())
@@ -124,7 +124,7 @@ contains
         tokens = TokenIterator_t(tokenize('A 123 B # sadfsfd'))
         call assert_equals(3, tokens%remaining_items())
         call assert_equals(tokens%next(), 'A')
-        call assert_equals(tokens%get_int64(), 123_int64)
+        call assert_equals(to_int64(tokens%next()), 123_int64)
         call assert_equals(tokens%next(), 'B')
         call assert_equals(0, tokens%remaining_items())
         !

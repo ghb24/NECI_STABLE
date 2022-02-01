@@ -145,7 +145,7 @@ module soft_exit
     use load_balance_calcnodes, only: DetermineDetNode
     use hist_data, only: Histogram, tHistSpawn
     use Parallel_neci
-    use fortran_strings, only: to_lower
+    use fortran_strings, only: to_lower, to_int
 
     implicit none
 
@@ -289,7 +289,7 @@ contains
         logical :: deleted, any_deleted, opts_selected(last_item)
         logical :: exists, any_exist
 
-        logical :: eof, tSource
+        logical :: tSource
         logical, intent(out) :: tSingBiasChange
         logical, intent(out) :: tWritePopsFound
         real(dp), dimension(lenof_sign) :: hfsign
@@ -298,7 +298,6 @@ contains
         character(len=100) :: w
         character(*), parameter :: file_name = 'CHANGEVARS'
         type(ManagingFileReader_t) :: file_reader
-        integer :: file_id
         type(TokenIterator_t) :: tokens
 
         ! Test if the changevars file exists, and broadcast to all nodes.
@@ -355,42 +354,42 @@ contains
                         elseif (i == shiftdamp) then
                             SftDamp = tokens%get_realdp()
                         elseif (i == stepsshift) then
-                            StepsSft = tokens%get_int()
+                            StepsSft = to_int(tokens%next())
                         elseif (i == excite) then
-                            ICILevel = tokens%get_int()
+                            ICILevel = to_int(tokens%next())
                         elseif (i == singlesbias) then
                             singlesbias_value = tokens%get_realdp()
                         elseif (i == truncatecas) then
-                            OccCASOrbs = tokens%get_int()
-                            VirtCASOrbs = tokens%get_int()
+                            OccCASOrbs = to_int(tokens%next())
+                            VirtCASOrbs = to_int(tokens%next())
                         elseif (i == nmcyc) then
-                            nmcyc_new = tokens%get_int()
+                            nmcyc_new = to_int(tokens%next())
                         elseif (i == partiallyfreeze) then
-                            nPartFrozen = tokens%get_int()
-                            nHolesFrozen = tokens%get_int()
+                            nPartFrozen = to_int(tokens%next())
+                            nHolesFrozen = to_int(tokens%next())
                         elseif (i == equilsteps) then
-                            nEquilSteps = tokens%get_int()
+                            nEquilSteps = to_int(tokens%next())
                         elseif (i == histequilsteps) then
-                            nHistEquilSteps = tokens%get_int()
+                            nHistEquilSteps = to_int(tokens%next())
                         elseif (i == partiallyfreezevirt) then
-                            nVirtPartFrozen = tokens%get_int()
-                            nElVirtFrozen = tokens%get_int()
+                            nVirtPartFrozen = to_int(tokens%next())
+                            nElVirtFrozen = to_int(tokens%next())
                         elseif (i == addtoinit) then
                             InitiatorWalkNo = tokens%get_realdp()
                         elseif (i == scalehf) then
                             hfScaleFactor = tokens%get_realdp()
                         elseif (i == trunc_nopen) then
-                            trunc_nop_new = tokens%get_int()
+                            trunc_nop_new = to_int(tokens%next())
                         elseif (i == calc_rdm) then
-                            RDMExcitLevel = tokens%get_int()
-                            IterRDMonFly_new = tokens%get_int()
-                            RDMEnergyIter = tokens%get_int()
+                            RDMExcitLevel = to_int(tokens%next())
+                            IterRDMonFly_new = to_int(tokens%next())
+                            RDMEnergyIter = to_int(tokens%next())
                         elseif (i == calc_explic_rdm) then
-                            RDMExcitLevel = tokens%get_int()
-                            IterRDMonFly_new = tokens%get_int()
-                            RDMEnergyIter = tokens%get_int()
+                            RDMExcitLevel = to_int(tokens%next())
+                            IterRDMonFly_new = to_int(tokens%next())
+                            RDMEnergyIter = to_int(tokens%next())
                         elseif (i == fill_rdm_iter) then
-                            IterRDMonFly_new = tokens%get_int()
+                            IterRDMonFly_new = to_int(tokens%next())
                         elseif (i == frequency_cutoff) then
                             frq_ratio_cutoff = tokens%get_realdp()
                         elseif (i == time) then

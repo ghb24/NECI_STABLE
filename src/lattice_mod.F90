@@ -2420,13 +2420,13 @@ contains
             w = to_upper(tokens%next())
             select case (w)
             case ('SITE')
-                n_site = tokens%get_int()
+                n_site = to_int(tokens%next())
 
-                n_neighbors = tokens%get_int()
+                n_neighbors = to_int(tokens%next())
                 if (allocated(neighs)) deallocate(neighs)
                 allocate(neighs(n_neighbors), source=0)
                 do i = 1, size(neighs)
-                    neighs(i) = tokens%get_int()
+                    neighs(i) = to_int(tokens%next())
                 end do
                 this%sites(n_site) = site(n_site, n_neighbors, neighs)
             end select
@@ -5163,7 +5163,7 @@ contains
             w = to_upper(tokens%next())
             select case (w)
             case ('N_SITES')
-                n_sites = tokens%get_int()
+                n_sites = to_int(tokens%next())
             end select
         end do lat
 
@@ -5191,22 +5191,22 @@ contains
 
             select case (w)
             case ('DIM')
-                call this%set_ndim(tokens%get_int())
+                call this%set_ndim(to_int(tokens%next()))
 
             case ('LATTICE_TYPE')
                 this%name = to_upper(tokens%next())
 
             case ('LATTICE_PARAM')
-                x1 = tokens%get_int()
-                y1 = tokens%get_int()
-                x2 = tokens%get_int()
-                y2 = tokens%get_int()
+                x1 = to_int(tokens%next())
+                y1 = to_int(tokens%next())
+                x2 = to_int(tokens%next())
+                y2 = to_int(tokens%next())
 
                 this%lat_vec(1:2, 1) = [x1, y1]
                 this%lat_vec(1:2, 2) = [x2, y2]
 
             case ('N_CONNECT_MAX')
-                this%n_connect_max = tokens%get_int()
+                this%n_connect_max = to_int(tokens%next())
             end select
         end do lat
 

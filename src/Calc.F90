@@ -72,7 +72,7 @@ MODULE Calc
 
     use sets_mod, only: disjoint, operator(.U.)
 
-    use fortran_strings, only: to_upper, to_lower, to_int, to_realdp
+    use fortran_strings, only: to_upper, to_lower, to_int, to_int64, to_realdp
     implicit none
 
     logical, public :: RDMsamplingiters_in_inp
@@ -562,21 +562,21 @@ contains
             case("LANCZOS-FORCE")
                 t_force_lanczos = .true.
             case("LANCZOS-MAX-SUBSPACE-SIZE")
-                lanczos_max_vecs = tokens%get_int()
+                lanczos_max_vecs = to_int(tokens%next())
             case("LANCZOS-MAX-RESTARTS")
-                lanczos_max_restarts = tokens%get_int()
+                lanczos_max_restarts = to_int(tokens%next())
             case("LANCZOS-ENERGY-PRECISION")
-                lanczos_energy_precision = tokens%get_int()
+                lanczos_energy_precision = to_int(tokens%next())
             case("LANCZOS-RITZ-OVERLAP-PRECISION")
-                lanczos_ritz_overlap_precision = tokens%get_int()
+                lanczos_ritz_overlap_precision = to_int(tokens%next())
             case("FCI-DAVIDSON")
                 tFCIDavidson = .True.
                 tLogDets = .true.
-                ras_size_1 = tokens%get_int()  ! Number of spatial orbitals in RAS1.
-                ras_size_2 = tokens%get_int()  ! Number of spatial orbitals in RAS2.
-                ras_size_3 = tokens%get_int()  ! Number of spatial orbitals in RAS3.
-                ras_min_1 = tokens%get_int()  ! Min number of electrons (alpha and beta = tokens%get_int() in RAS1 orbs.
-                ras_max_3 = tokens%get_int()  ! Max number of electrons (alpha and beta = tokens%get_int() in RAS3 orbs.
+                ras_size_1 = to_int(tokens%next())  ! Number of spatial orbitals in RAS1.
+                ras_size_2 = to_int(tokens%next())  ! Number of spatial orbitals in RAS2.
+                ras_size_3 = to_int(tokens%next())  ! Number of spatial orbitals in RAS3.
+                ras_min_1 = to_int(tokens%next())  ! Min number of electrons (alpha and beta = to_int(tokens%next()) in RAS1 orbs.
+                ras_max_3 = to_int(tokens%next())  ! Max number of electrons (alpha and beta = to_int(tokens%next()) in RAS3 orbs.
                 davidson_ras%size_1 = int(ras_size_1, sp)
                 davidson_ras%size_2 = int(ras_size_2, sp)
                 davidson_ras%size_3 = int(ras_size_3, sp)
@@ -586,15 +586,15 @@ contains
 !Sets the diagonaliser for the GraphMorph algorithm to be Lanczos
                 tLanczos = .true.
             case("EIGENVALUES")
-                NEVAL = tokens%get_int()
+                NEVAL = to_int(tokens%next())
             case("READ")
                 TREAD = .true.
             case("COMPLETE")
                 NBLK = 0
             case("BLOCKS")
-                NBLK = tokens%get_int()
+                NBLK = to_int(tokens%next())
             case("KRYLOV")
-                NKRY = tokens%get_int()
+                NKRY = to_int(tokens%next())
             case("ACCURACY")
                 B2L = tokens%get_realdp()
             case("BLOCK")
@@ -608,7 +608,7 @@ contains
                     TBLOCK = .true.
                 end select
             case("EXCITE", "EXCIT-LEVEL", "EXCITLEVEL")
-                ICILEVEL = tokens%get_int()
+                ICILEVEL = to_int(tokens%next())
             case("EXCITATIONS")
                 w = to_upper(tokens%next())
                 select case(w)
@@ -620,13 +620,13 @@ contains
                     call inpgetexcitations(NWHTAY(1, 1), w)
                 end select
             case("STEPS")
-                NCYCLE = tokens%get_int()
+                NCYCLE = to_int(tokens%next())
             case("POSITION")
-                IOBS = tokens%get_int()
-                JOBS = tokens%get_int()
-                KOBS = tokens%get_int()
+                IOBS = to_int(tokens%next())
+                JOBS = to_int(tokens%next())
+                KOBS = to_int(tokens%next())
             case("WORKOUT")
-                NDETWORK = tokens%get_int()
+                NDETWORK = to_int(tokens%next())
 ! Using the keyword CONSTRUCTNATORBS includes a calculation of the 1 electron reduced
 ! density matrix (1-RDM) as the FCIMC calculation progresses.
 ! Diagonalisation of this matrix gives linear combinations of the HF orbitals which
@@ -680,14 +680,14 @@ contains
                         w = to_upper(tokens%next())
                         call inpgetexcitations(NWHTAY(2, I_VMAX), w)
                     case("CYCLES")
-                        NWHTAY(2, I_VMAX) = tokens%get_int()
+                        NWHTAY(2, I_VMAX) = to_int(tokens%next())
                         if(NWHTAY(1, I_VMAX) /= -7 .and.                  &
        &                     NWHTAY(1, I_VMAX) /= -19) then
                             call stop_all(this_routine, trim(w)//" only valid for MC "      &
         &                    //"method", .true.)
                         end if
                     case("VERTICES")
-                        NWHTAY(3, I_VMAX) = tokens%get_int()
+                        NWHTAY(3, I_VMAX) = to_int(tokens%next())
                     case("MULTIMCWEIGHT")
                         g_MultiWeight(I_VMAX) = tokens%get_realdp()
                     case("CALCVAR")
@@ -700,11 +700,11 @@ contains
                     case("DAVIDSON")
                         I_VMAX = I_VMAX + 1
                         tDavidson = .true.
-                        ras_size_1 = tokens%get_int()  ! Number of spatial orbitals in RAS1.
-                        ras_size_2 = tokens%get_int()  ! Number of spatial orbitals in RAS2.
-                        ras_size_3 = tokens%get_int()  ! Number of spatial orbitals in RAS3.
-                        ras_min_1 = tokens%get_int() ! Min number of electrons (alpha and beta = tokens%get_int() in RAS1 orbs.
-                        ras_max_3 = tokens%get_int() ! Max number of electrons (alpha and beta = tokens%get_int() in RAS3 orbs.
+                        ras_size_1 = to_int(tokens%next())  ! Number of spatial orbitals in RAS1.
+                        ras_size_2 = to_int(tokens%next())  ! Number of spatial orbitals in RAS2.
+                        ras_size_3 = to_int(tokens%next())  ! Number of spatial orbitals in RAS3.
+                        ras_min_1 = to_int(tokens%next()) ! Min number of electrons (alpha and beta = to_int(tokens%next()) in RAS1 orbs.
+                        ras_max_3 = to_int(tokens%next()) ! Max number of electrons (alpha and beta = to_int(tokens%next()) in RAS3 orbs.
                         davidson_ras%size_1 = int(ras_size_1, sp)
                         davidson_ras%size_2 = int(ras_size_2, sp)
                         davidson_ras%size_3 = int(ras_size_3, sp)
@@ -728,10 +728,10 @@ contains
             case("RDMSAMPLINGITERS")
                 !How many iterations do we want to sample the RDM for?
                 RDMsamplingiters_in_inp = .true.
-                iSampleRDMIters = tokens%get_int()
+                iSampleRDMIters = to_int(tokens%next())
 
             case("CYCLES")
-                NWHTAY(1, 1) = tokens%get_int()
+                NWHTAY(1, 1) = to_int(tokens%next())
                 if(I_HMAX /= -7 .and.                              &
      &               I_HMAX /= -19) then
                     call stop_all(this_routine, trim(w)//" only valid for MC "        &
@@ -786,7 +786,7 @@ contains
                 if (I_VMAX /= 0) then
                     call stop_all(this_routine, "Cannot reset MAXVERTICES", .true.)
                 end if
-                I_VMAX = tokens%get_int()
+                I_VMAX = to_int(tokens%next())
 
             case ("IMPORTANCE")
                 G_VMC_PI = tokens%get_realdp()
@@ -796,7 +796,7 @@ contains
                     call stop_all(t_r, "Seed given twice")
                 else
                     allocate(user_input_seed)
-                    user_input_seed = tokens%get_int()
+                    user_input_seed = to_int(tokens%next())
                 end if
 
             case ("BIAS")
@@ -901,12 +901,12 @@ contains
                         select case(w)
                         case("ORBITALS")
                             NPATHS = -3
-                            nActiveSpace(1) = tokens%get_int()
-                            nActiveSpace(2) = tokens%get_int()
+                            nActiveSpace(1) = to_int(tokens%next())
+                            nActiveSpace(2) = to_int(tokens%next())
                         case("SETS")
                             NPATHS = -2
-                            nActiveSpace(1) = tokens%get_int()
-                            nActiveSpace(2) = tokens%get_int()
+                            nActiveSpace(1) = to_int(tokens%next())
+                            nActiveSpace(2) = to_int(tokens%next())
                         case default
                             call stop_all(this_routine, trim(w)//" unknown", .true.)
                         end select
@@ -916,7 +916,7 @@ contains
                     end if
                 case default
                     call tokens%reset(-1)
-                    NPATHS = tokens%get_int()
+                    NPATHS = to_int(tokens%next())
                 end select
                 iActiveBasis = nPaths
             case("ALLPATHS")
@@ -931,13 +931,13 @@ contains
             case("CIMC")
                 TMONTE = .true.
             case("MCSTEPS")
-                IMCSTEPS = tokens%get_int()
+                IMCSTEPS = to_int(tokens%next())
                 if(.not. TMONTE) then
                     call stop_all(this_routine, trim(w)//" only relevant if CI space" &
      &              //" monte carlo is performed.", .true.)
                 end if
             case("EQSTEPS")
-                IEQSTEPS = tokens%get_int()
+                IEQSTEPS = to_int(tokens%next())
                 if(.not. TMONTE) then
                     call stop_all(this_routine, trim(w)//" only relevant if CI space" &
      &              //" monte carlo is performed.", .true.)
@@ -951,14 +951,14 @@ contains
             case("DETSYM")
                 TMCDET = .true.
                 do I = 1, 5
-                    MDK(I) = tokens%get_int()
+                    MDK(I) = to_int(tokens%next())
                 end do
                 if(.not. TMONTE) then
                     call stop_all(this_routine, trim(w)//" only relevant if CI space" &
      &               //" monte carlo is performed.", .true.)
                 end if
             case("DETINV")
-                DETINV = tokens%get_int()
+                DETINV = to_int(tokens%next())
             case("INSPECT")
                 TSPECDET = .true.
                 allocate(SPECDET(NEL - NFROZEN), STAT=ierr)
@@ -968,13 +968,13 @@ contains
 !Cannot specify frozen core orbitals if want to specify a determinant?
 !This is because LOGREAD has not been called yet, and NFROZEN not specified.
                     do I = 1, NEL - NFROZEN
-                        SPECDET(I) = tokens%get_int()
+                        SPECDET(I) = to_int(tokens%next())
                     end do
                 end if
             case("LOGICALNODESIZE")
 !Sets the Logical node size to this value, rather than using the physical node size.
 !Use to simulate a multi-node process on a single node.
-                iLogicalNodeSize = tokens%get_int()
+                iLogicalNodeSize = to_int(tokens%next())
             case("DEFINEDET")
 !This defines the reference determinant to be that specified in the input here, rather than the determinant
 !chosen from the lowest energy orbitals.
@@ -1036,7 +1036,7 @@ contains
                 do line = 1, inum_runs
                     if (file_reader%nextline(tokens)) then
                         do i = 1, nel
-                            initial_refs(i, line) = tokens%get_int()
+                            initial_refs(i, line) = to_int(tokens%next())
                         end do
                         if(tGUGA) then
                             if (.not. isProperCSF_ni(initial_refs(:, line))) then
@@ -1057,7 +1057,7 @@ contains
                 do line = 1, inum_runs
                     if (file_reader%nextline(tokens)) then
                         do i = 1, nel
-                            initial_states(i, line) = tokens%get_int()
+                            initial_states(i, line) = to_int(tokens%next())
                         end do
                         if(tGUGA) then
                             if (.not. isProperCSF_ni(initial_states(:, line))) then
@@ -1075,7 +1075,7 @@ contains
 ! most populated determinants, to be read in as a guiding (or annihilating) function in a following calculation.
                 CALL Stop_All(t_r, "FINDGUIDINGFUNCTION option depreciated")
 !                tFindGuide=.true.
-!                iGuideDets = tokens%get_int()
+!                iGuideDets = to_int(tokens%next())
 
             case("USEGUIDINGFUNCTION")
 ! This keyword sets the calculationg to read in a guiding function from a file GUIDINGFUNC.  This function then sits
@@ -1084,7 +1084,7 @@ contains
 ! based on their populations from the previous calculation relative to the HF.
                 CALL Stop_All(t_r, "USEGUIDINGFUNCTION option depreciated")
 !                tUseGuide=.true.
-!                iInitGuideParts = tokens%get_int()
+!                iInitGuideParts = to_int(tokens%next())
 
             case("SPAWNDOMINANTONLY")
 ! This option sets the calculation to read in from a file DOMINANTDETS.  The determinants from this file make up a list of
@@ -1101,9 +1101,9 @@ contains
 !for spawing in a restricted calc.
                 CALL Stop_All(t_r, "PRINTDOMINANTDETS option depreciated")
 !                tPrintDominant=.true.
-!                iNoDominantDets = tokens%get_int()
-!                MinExcDom = tokens%get_int()
-!                MaxExcDom = tokens%get_int()
+!                iNoDominantDets = to_int(tokens%next())
+!                MinExcDom = to_int(tokens%next())
+!                MaxExcDom = to_int(tokens%next())
 
             case("PRINTDOMSPINCOUPLED")
 ! This option finds the iNoDominantDets most populated determinants with excitation level between
@@ -1141,7 +1141,7 @@ contains
                 TBETAP = .true.
             case("TIMESTEPS")
                 BETAP = 0
-                I_P = tokens%get_int()
+                I_P = to_int(tokens%next())
                 if(TBETAP) then
                     call stop_all(this_routine, "Warning - declared beta/p and p. Using p.", .true.)
                 end if
@@ -1156,19 +1156,19 @@ contains
 !This indicates the number of times the eigenvalues of the star matrix should be evaluated to
 !achieve the linear approximation when STARSTARS set,
             case("LINEPOINTSSTAR")
-                LinePoints = tokens%get_int()
+                LinePoints = to_int(tokens%next())
 !This is the number of vertices in the Graph Morph graph. Alternativly, it is used by ResumFCIMC, as the
 !size of their graphs. Then, if it is negative, the graph is all possible connections
             case("GRAPHSIZE")
-                NDets = tokens%get_int()
+                NDets = to_int(tokens%next())
 !This is the number of times to systematically improve the Graph using the morphing algorithm
             case("ITERATIONS")
-                Iters = tokens%get_int()
+                Iters = to_int(tokens%next())
             case("GRAPHBIAS")
                 GraphBias = tokens%get_realdp()
                 TBiasing = .true.
             case("MOVEDETS")
-                NoMoveDets = tokens%get_int()
+                NoMoveDets = to_int(tokens%next())
                 TMoveDets = .true.
             case("INITSTAR")
                 TInitStar = .true.
@@ -1202,12 +1202,12 @@ contains
             case("HAPP")
 !For graph MC, this indicates the number of local applications of the hamiltonian to random determinants
 !before the trial eigenvector is updated
-                HApp = tokens%get_int()
+                HApp = to_int(tokens%next())
             case("MAXEXCIT")
 !This imposes a maximum excitation level to the space that GraphMorph can explore. Note: FCIMC uses EXCIT
 !to indicate a maximum excit level.
                 TMaxExcit = .true.
-                iMaxExcitLevel = tokens%get_int()
+                iMaxExcitLevel = to_int(tokens%next())
             case("INITWALKERS")
 !For FCIMC, this is the number of walkers to start with
                 InitWalkers = tokens%get_realdp()
@@ -1227,22 +1227,22 @@ contains
 !population drops below MaxNoatHF-HFPopThresh, the
 !number of walkers is allowed to grow again until MaxNoatHF is reachieved.
 !Without the second integer, MaxNoatHF-HFPopThresh=0, and the HF population can drop to 0 without any consequences.
-                tempMaxNoatHF = tokens%get_int()
+                tempMaxNoatHF = to_int(tokens%next())
                 MaxNoatHF = tempMaxNoatHF
                 if(tokens%remaining_items() > 0) then
-                    tempHFPopThresh = tokens%get_int()
+                    tempHFPopThresh = to_int(tokens%next())
                     HFPopThresh = tempHFPopThresh
                 else
                     HFPopThresh = int(MaxNoatHF, int64)
                 end if
             case("HASH_SHIFT")
-                hash_shift = tokens%get_int()
+                hash_shift = to_int(tokens%next())
             case("NMCYC")
 !For FCIMC, this is the number of MC cycles to perform
-                NMCyc = tokens%get_int()
+                NMCyc = to_int(tokens%next())
             case("EQ-CYC")
                 ! This is the number of MC cycles to perform after equilibration
-                eq_cyc = tokens%get_int()
+                eq_cyc = to_int(tokens%next())
             case("DIAGSHIFT")
 !For FCIMC, this is the amount extra the diagonal elements will be shifted. This is proportional to the deathrate of
 !walkers on the determinant
@@ -1366,7 +1366,7 @@ contains
                     !  1    also treat singly excits increasing excit-lvl up to 1 full
 
                     ! default = 0
-                    n_guga_back_spawn_lvl = tokens%get_int()
+                    n_guga_back_spawn_lvl = to_int(tokens%next())
                 end if
 
                 if(tokens%remaining_items() > 0) then
@@ -1421,7 +1421,7 @@ contains
                 end if
 
                 if(tokens%remaining_items() > 0) then
-                    n_frequency_bins = tokens%get_int()
+                    n_frequency_bins = to_int(tokens%next())
 
                     ! check that not too many bins are used which may crash
                     ! the MPI communication of the histograms!
@@ -1445,7 +1445,7 @@ contains
                 t_restart_hist_tau = .true.
 
                 if(tokens%remaining_items() > 0) then
-                    hist_search_delay = tokens%get_int()
+                    hist_search_delay = to_int(tokens%next())
                 end if
 
             case("TEST-HIST-TAU", "LESS-MPI-HEAVY")
@@ -1580,7 +1580,7 @@ contains
                 ! semi-stochastic on later.
                 if(tokens%remaining_items() > 0) then
                     if(tokens%remaining_items() > 0) &
-                        semistoch_shift_iter = tokens%get_int()
+                        semistoch_shift_iter = to_int(tokens%next())
                     tSemiStochastic = .false.
                     tStartCoreGroundState = .false.
                 end if
@@ -1601,15 +1601,15 @@ contains
             case("CAS-CORE")
                 ss_space_in%tCAS = .true.
                 tSpn = .true.
-                ss_space_in%occ_cas = tokens%get_int()  !Number of electrons in CAS
-                ss_space_in%virt_cas = tokens%get_int()  !Number of virtual spin-orbitals in CAS
+                ss_space_in%occ_cas = to_int(tokens%next())  !Number of electrons in CAS
+                ss_space_in%virt_cas = to_int(tokens%next())  !Number of virtual spin-orbitals in CAS
             case("RAS-CORE")
                 ss_space_in%tRAS = .true.
-                ras_size_1 = tokens%get_int()  ! Number of spatial orbitals in RAS1.
-                ras_size_2 = tokens%get_int()  ! Number of spatial orbitals in RAS2.
-                ras_size_3 = tokens%get_int()  ! Number of spatial orbitals in RAS3.
-                ras_min_1 = tokens%get_int()  ! Min number of electrons (alpha and beta = tokens%get_int() in RAS1 orbs.
-                ras_max_3 = tokens%get_int()  ! Max number of electrons (alpha and beta = tokens%get_int() in RAS3 orbs.
+                ras_size_1 = to_int(tokens%next())  ! Number of spatial orbitals in RAS1.
+                ras_size_2 = to_int(tokens%next())  ! Number of spatial orbitals in RAS2.
+                ras_size_3 = to_int(tokens%next())  ! Number of spatial orbitals in RAS3.
+                ras_min_1 = to_int(tokens%next())  ! Min number of electrons (alpha and beta = to_int(tokens%next()) in RAS1 orbs.
+                ras_max_3 = to_int(tokens%next())  ! Max number of electrons (alpha and beta = to_int(tokens%next()) in RAS3 orbs.
                 ss_space_in%ras%size_1 = int(ras_size_1, sp)
                 ss_space_in%ras%size_2 = int(ras_size_2, sp)
                 ss_space_in%ras%size_3 = int(ras_size_3, sp)
@@ -1629,7 +1629,7 @@ contains
                 ss_space_in%opt_data%ngen_loops = tokens%remaining_items()
                 allocate(ss_space_in%opt_data%cutoff_nums(ss_space_in%opt_data%ngen_loops))
                 do I = 1, ss_space_in%opt_data%ngen_loops
-                    ss_space_in%opt_data%cutoff_nums(I) = tokens%get_int()
+                    ss_space_in%opt_data%cutoff_nums(I) = to_int(tokens%next())
                 end do
             case("FCI-CORE")
                 ss_space_in%tFCI = .true.
@@ -1640,7 +1640,7 @@ contains
             case("POPS-CORE")
                 ss_space_in%tPops = .true.
                 ss_space_in%tPopsCore = .true.
-                ss_space_in%npops = tokens%get_int()
+                ss_space_in%npops = to_int(tokens%next())
                 t_fast_pops_core = .false.
                 if (int(ss_space_in%npops,int64) * int(nProcessors,int64) > 1000000_int64 &
                         .and. .not. tForceFullPops) then
@@ -1677,23 +1677,23 @@ contains
             case("POPS-CORE-APPROX")
                 ss_space_in%tPops = .true.
                 ss_space_in%tApproxSpace = .true.
-                ss_space_in%npops = tokens%get_int()
+                ss_space_in%npops = to_int(tokens%next())
                 if(tokens%remaining_items() > 0) then
-                    ss_space_in%nApproxSpace = tokens%get_int()
+                    ss_space_in%nApproxSpace = to_int(tokens%next())
                 end if
             case("MP1-CORE")
                 ss_space_in%tMP1 = .true.
-                ss_space_in%mp1_ndets = tokens%get_int()
+                ss_space_in%mp1_ndets = to_int(tokens%next())
             case("READ-CORE")
                 ss_space_in%tRead = .true.
                 ss_space_in%read_filename = 'CORESPACE'
             case("MAX-CORE-SIZE")
                 ss_space_in%tLimitSpace = .true.
-                ss_space_in%max_size = tokens%get_int()
+                ss_space_in%max_size = to_int(tokens%next())
             case("DYNAMIC-CORE")
                 tDynamicCoreSpace = .true.
                 tIntervalSet = .true.
-                if(tokens%remaining_items() > 0) coreSpaceUpdateCycle = tokens%get_int()
+                if(tokens%remaining_items() > 0) coreSpaceUpdateCycle = to_int(tokens%next())
             case("STATIC-CORE")
                 tDynamicCoreSpace = .false.
                 tIntervalSet = .true.
@@ -1708,11 +1708,11 @@ contains
                     tTrialWavefunction = .true.
                 else
                     tStartTrialLater = .true.
-                    trial_shift_iter = tokens%get_int()
+                    trial_shift_iter = to_int(tokens%next())
                 end if
 
             case("NUM-TRIAL-STATES-CALC")
-                ntrial_ex_calc = tokens%get_int()
+                ntrial_ex_calc = to_int(tokens%next())
 
                 ! assure that we do not reset this value due to wrong input
                 if(allocated(trial_excit_choice)) then
@@ -1735,11 +1735,11 @@ contains
                 if(tokens%remaining_items() > 0) then
                     if(tPairedReplicas) then
                         do i = 1, inum_runs.div.2
-                            trial_excit_choice(i) = tokens%get_int()
+                            trial_excit_choice(i) = to_int(tokens%next())
                         end do
                     else
                         do i = 1, inum_runs
-                            trial_excit_choice(i) = tokens%get_int()
+                            trial_excit_choice(i) = to_int(tokens%next())
                         end do
                     end if
                 else
@@ -1758,28 +1758,28 @@ contains
                 qmc_trial_wf = .true.
             case("MAX-TRIAL-SIZE")
                 trial_space_in%tLimitSpace = .true.
-                trial_space_in%max_size = tokens%get_int()
+                trial_space_in%max_size = to_int(tokens%next())
             case("MP1-TRIAL")
                 trial_space_in%tMP1 = .true.
-                trial_space_in%mp1_ndets = tokens%get_int()
+                trial_space_in%mp1_ndets = to_int(tokens%next())
             case("DOUBLES-TRIAL")
                 trial_space_in%tDoubles = .true.
             case("DYNAMIC-TRIAL")
                 ! Update the trial wavefunction periodically
                 tDynamicTrial = .true.
-                if(tokens%remaining_items() > 0) trialSpaceUpdateCycle = tokens%get_int()
+                if(tokens%remaining_items() > 0) trialSpaceUpdateCycle = to_int(tokens%next())
             case("CAS-TRIAL")
                 trial_space_in%tCAS = .true.
                 tSpn = .true.
-                trial_space_in%occ_cas = tokens%get_int() ! Number of electrons in CAS
-                trial_space_in%virt_cas = tokens%get_int() ! Number of virtual spin-orbitals in CAS
+                trial_space_in%occ_cas = to_int(tokens%next()) ! Number of electrons in CAS
+                trial_space_in%virt_cas = to_int(tokens%next()) ! Number of virtual spin-orbitals in CAS
             case("RAS-TRIAL")
                 trial_space_in%tRAS = .true.
-                ras_size_1 = tokens%get_int()  ! Number of spatial orbitals in RAS1.
-                ras_size_2 = tokens%get_int()  ! Number of spatial orbitals in RAS2.
-                ras_size_3 = tokens%get_int()  ! Number of spatial orbitals in RAS3.
-                ras_min_1 = tokens%get_int()  ! Min number of electrons (alpha and beta = tokens%get_int() in RAS1 orbs.
-                ras_max_3 = tokens%get_int()  ! Max number of electrons (alpha and beta = tokens%get_int() in RAS3 orbs.
+                ras_size_1 = to_int(tokens%next())  ! Number of spatial orbitals in RAS1.
+                ras_size_2 = to_int(tokens%next())  ! Number of spatial orbitals in RAS2.
+                ras_size_3 = to_int(tokens%next())  ! Number of spatial orbitals in RAS3.
+                ras_min_1 = to_int(tokens%next())  ! Min number of electrons (alpha and beta = to_int(tokens%next()) in RAS1 orbs.
+                ras_max_3 = to_int(tokens%next())  ! Max number of electrons (alpha and beta = to_int(tokens%next()) in RAS3 orbs.
                 trial_space_in%ras%size_1 = int(ras_size_1, sp)
                 trial_space_in%ras%size_2 = int(ras_size_2, sp)
                 trial_space_in%ras%size_3 = int(ras_size_3, sp)
@@ -1799,13 +1799,13 @@ contains
                 trial_space_in%opt_data%ngen_loops = tokens%remaining_items()
                 allocate(trial_space_in%opt_data%cutoff_nums(trial_space_in%opt_data%ngen_loops))
                 do I = 1, trial_space_in%opt_data%ngen_loops
-                    trial_space_in%opt_data%cutoff_nums(I) = tokens%get_int()
+                    trial_space_in%opt_data%cutoff_nums(I) = to_int(tokens%next())
                 end do
             case("HF-TRIAL")
                 trial_space_in%tHF = .true.
             case("POPS-TRIAL")
                 trial_space_in%tPops = .true.
-                trial_space_in%npops = tokens%get_int()
+                trial_space_in%npops = to_int(tokens%next())
                 if(trial_space_in%npops * nProcessors > 1000000) then
                     if(.not. tForceFullPops) then
                         trial_space_in%tApproxSpace = .true.
@@ -1814,7 +1814,7 @@ contains
             case("POPS-TRIAL-APPROX")
                 trial_space_in%tPops = .true.
                 trial_space_in%tApproxSpace = .true.
-                trial_space_in%npops = tokens%get_int()
+                trial_space_in%npops = to_int(tokens%next())
             case("READ-TRIAL")
                 trial_space_in%tRead = .true.
                 trial_space_in%read_filename = 'TRIALSPACE'
@@ -1830,17 +1830,17 @@ contains
                 allocate(trial_est_reorder(inum_runs))
                 trial_est_reorder = 0
                 do i = 1, inum_runs
-                    trial_est_reorder(i) = tokens%get_int()
+                    trial_est_reorder(i) = to_int(tokens%next())
                 end do
             case("TRIAL-INIT-REORDER")
                 allocate(trial_init_reorder(inum_runs))
                 trial_init_reorder = 0
                 do i = 1, inum_runs
-                    trial_init_reorder(i) = tokens%get_int()
+                    trial_init_reorder(i) = to_int(tokens%next())
                 end do
             case("MP1-INIT")
                 init_trial_in%tMP1 = .true.
-                init_trial_in%mp1_ndets = tokens%get_int()
+                init_trial_in%mp1_ndets = to_int(tokens%next())
                 tTrialInit = .true.
             case("DOUBLES-INIT")
                 init_trial_in%tDoubles = .true.
@@ -1848,16 +1848,16 @@ contains
             case("CAS-INIT")
                 init_trial_in%tCAS = .true.
                 tSpn = .true.
-                init_trial_in%occ_cas = tokens%get_int() ! Number of electrons in CAS
-                init_trial_in%virt_cas = tokens%get_int() ! Number of virtual spin-orbitals in CAS
+                init_trial_in%occ_cas = to_int(tokens%next()) ! Number of electrons in CAS
+                init_trial_in%virt_cas = to_int(tokens%next()) ! Number of virtual spin-orbitals in CAS
                 tTrialInit = .true.
             case("RAS-INIT")
                 init_trial_in%tRAS = .true.
-                ras_size_1 = tokens%get_int()  ! Number of spatial orbitals in RAS1.
-                ras_size_2 = tokens%get_int()  ! Number of spatial orbitals in RAS2.
-                ras_size_3 = tokens%get_int()  ! Number of spatial orbitals in RAS3.
-                ras_min_1 = tokens%get_int()  ! Min number of electrons (alpha and beta = tokens%get_int() in RAS1 orbs.
-                ras_max_3 = tokens%get_int()  ! Max number of electrons (alpha and beta = tokens%get_int() in RAS3 orbs.
+                ras_size_1 = to_int(tokens%next())  ! Number of spatial orbitals in RAS1.
+                ras_size_2 = to_int(tokens%next())  ! Number of spatial orbitals in RAS2.
+                ras_size_3 = to_int(tokens%next())  ! Number of spatial orbitals in RAS3.
+                ras_min_1 = to_int(tokens%next())  ! Min number of electrons (alpha and beta = to_int(tokens%next()) in RAS1 orbs.
+                ras_max_3 = to_int(tokens%next())  ! Max number of electrons (alpha and beta = to_int(tokens%next()) in RAS3 orbs.
                 init_trial_in%ras%size_1 = int(ras_size_1, sp)
                 init_trial_in%ras%size_2 = int(ras_size_2, sp)
                 init_trial_in%ras%size_3 = int(ras_size_3, sp)
@@ -1879,14 +1879,14 @@ contains
                 init_trial_in%opt_data%ngen_loops = tokens%remaining_items()
                 allocate(init_trial_in%opt_data%cutoff_nums(init_trial_in%opt_data%ngen_loops))
                 do I = 1, init_trial_in%opt_data%ngen_loops
-                    init_trial_in%opt_data%cutoff_nums(I) = tokens%get_int()
+                    init_trial_in%opt_data%cutoff_nums(I) = to_int(tokens%next())
                 end do
             case("HF-INIT")
                 init_trial_in%tHF = .true.
                 tTrialInit = .true.
             case("POPS-INIT")
                 init_trial_in%tPops = .true.
-                init_trial_in%npops = tokens%get_int()
+                init_trial_in%npops = to_int(tokens%next())
                 tTrialInit = .true.
             case("READ-INIT")
                 init_trial_in%tRead = .true.
@@ -1948,15 +1948,15 @@ contains
             case("CAS-INITIATOR")
                 i_space_in%tCAS = .true.
                 tSpn = .true.
-                i_space_in%occ_cas = tokens%get_int()  !Number of electrons in CAS
-                i_space_in%virt_cas = tokens%get_int()  !Number of virtual spin-orbitals in CAS
+                i_space_in%occ_cas = to_int(tokens%next())  !Number of electrons in CAS
+                i_space_in%virt_cas = to_int(tokens%next())  !Number of virtual spin-orbitals in CAS
             case("RAS-INITIATOR")
                 i_space_in%tRAS = .true.
-                ras_size_1 = tokens%get_int()  ! Number of spatial orbitals in RAS1.
-                ras_size_2 = tokens%get_int()  ! Number of spatial orbitals in RAS2.
-                ras_size_3 = tokens%get_int()  ! Number of spatial orbitals in RAS3.
-                ras_min_1 = tokens%get_int()  ! Min number of electrons (alpha and beta = tokens%get_int() in RAS1 orbs.
-                ras_max_3 = tokens%get_int()  ! Max number of electrons (alpha and beta = tokens%get_int() in RAS3 orbs.
+                ras_size_1 = to_int(tokens%next())  ! Number of spatial orbitals in RAS1.
+                ras_size_2 = to_int(tokens%next())  ! Number of spatial orbitals in RAS2.
+                ras_size_3 = to_int(tokens%next())  ! Number of spatial orbitals in RAS3.
+                ras_min_1 = to_int(tokens%next())  ! Min number of electrons (alpha and beta = to_int(tokens%next()) in RAS1 orbs.
+                ras_max_3 = to_int(tokens%next())  ! Max number of electrons (alpha and beta = to_int(tokens%next()) in RAS3 orbs.
                 i_space_in%ras%size_1 = int(ras_size_1, sp)
                 i_space_in%ras%size_2 = int(ras_size_2, sp)
                 i_space_in%ras%size_3 = int(ras_size_3, sp)
@@ -1976,7 +1976,7 @@ contains
                 i_space_in%opt_data%ngen_loops = tokens%remaining_items()
                 allocate(i_space_in%opt_data%cutoff_nums(i_space_in%opt_data%ngen_loops))
                 do I = 1, i_space_in%opt_data%ngen_loops
-                    i_space_in%opt_data%cutoff_nums(I) = tokens%get_int()
+                    i_space_in%opt_data%cutoff_nums(I) = to_int(tokens%next())
                 end do
             case("FCI-INITIATOR")
                 i_space_in%tFCI = .true.
@@ -1986,17 +1986,17 @@ contains
                 i_space_in%tHF = .true.
             case("POPS-INITIATOR")
                 i_space_in%tPops = .true.
-                i_space_in%npops = tokens%get_int()
+                i_space_in%npops = to_int(tokens%next())
             case("POPS-INITIATOR-APPROX")
                 i_space_in%tPops = .true.
                 i_space_in%tApproxSpace = .true.
-                i_space_in%npops = tokens%get_int()
+                i_space_in%npops = to_int(tokens%next())
                 if(tokens%remaining_items() > 0) then
-                    i_space_in%nApproxSpace = tokens%get_int()
+                    i_space_in%nApproxSpace = to_int(tokens%next())
                 end if
             case("MP1-INITIATOR")
                 i_space_in%tMP1 = .true.
-                i_space_in%mp1_ndets = tokens%get_int()
+                i_space_in%mp1_ndets = to_int(tokens%next())
             case("READ-INITIATOR")
                 i_space_in%tRead = .true.
                 i_space_in%read_filename = 'INITIATOR_SPACE'
@@ -2013,7 +2013,7 @@ contains
                     write(stdout, *) "WARNING: 'STEPSSHIFT' cannot be changed. &
 & 'FIXED-N0' or 'TRIAL-SHIFT' is already specified and sets this parameter to 1."
                 else
-                    StepsSft = tokens%get_int()
+                    StepsSft = to_int(tokens%next())
                 end if
 
             case("FIXED-N0")
@@ -2021,7 +2021,7 @@ contains
                 call stop_all(t_r, 'FIXED-N0 currently not implemented for complex')
 #endif
                 tFixedN0 = .true.
-                N0_Target = tokens%get_int()
+                N0_Target = to_int(tokens%next())
                 !In this mode, the shift should be updated every iteration.
                 !Otherwise, the dynamics is biased.
                 StepsSft = 1
@@ -2133,12 +2133,12 @@ contains
                 tInitsRDM = .true.
             case("EXITWALKERS")
 !For FCIMC, this is an exit criterion based on the total number of walkers in the system.
-                iExitWalkers = tokens%get_int64()
+                iExitWalkers = to_int64(tokens%next())
 
             case("TARGETGROWRATE")
                 ! For FCIMC, this is the target growth rate once in vary shift mode.
                 InputTargetGrowRate = tokens%get_realdp()
-                InputTargetGrowRateWalk = tokens%get_int64()
+                InputTargetGrowRateWalk = to_int64(tokens%next())
 
             case("READPOPS")
 !For FCIMC, this indicates that the initial walker configuration will be read in from the file POPSFILE, which must be present.
@@ -2146,7 +2146,7 @@ contains
                 TReadPops = .true.
                 tStartSinglePart = .false.
                 if(tokens%remaining_items() > 0) then
-                    iPopsFileNoRead = tokens%get_int()
+                    iPopsFileNoRead = to_int(tokens%next())
                     iPopsFileNoWrite = iPopsFileNoRead
                     iPopsFileNoRead = -iPopsFileNoRead - 1
                 end if
@@ -2158,7 +2158,7 @@ contains
 
             case("WALKERREADBATCH")
                 !The number of walkers to read in on the head node in each batch during a popsread
-                iReadWalkersRoot = tokens%get_int()
+                iReadWalkersRoot = to_int(tokens%next())
             case("POPSFILEMAPPING")
 !This indicates that we will be mapping a popsfile from a smaller basis calculation, into a bigger basis calculation.
 !Requires a "mapping" file.
@@ -2169,7 +2169,7 @@ contains
                 tReadPops = .true.
                 iWeightPopRead = tokens%get_realdp()
                 if(tokens%remaining_items() > 0) then
-                    iPopsFileNoRead = tokens%get_int()
+                    iPopsFileNoRead = to_int(tokens%next())
                     iPopsFileNoWrite = iPopsFileNoRead
                     iPopsFileNoRead = -iPopsFileNoRead - 1
                 end if
@@ -2199,8 +2199,8 @@ contains
                 ! Test the pgens n_iter times on the n_most_populated configurations
                 ! of a supplied popsfile
                 allocate(pgen_unit_test_spec)
-                pgen_unit_test_spec%n_most_populated = tokens%get_int()
-                pgen_unit_test_spec%n_iter = tokens%get_int()
+                pgen_unit_test_spec%n_most_populated = to_int(tokens%next())
+                pgen_unit_test_spec%n_iter = to_int(tokens%next())
 
             case("BINCANCEL")
 !This is a seperate method to cancel down to find the residual walkers from a list, involving binning the walkers
@@ -2223,8 +2223,8 @@ contains
 !For FCIMC, this has an initial configuration of walkers which is proportional to the MP1 wavefunction
                 TStartCAS = .true.
                 TStartSinglePart = .false.
-                OccCASOrbs = tokens%get_int()  !Number of electrons in CAS
-                VirtCASOrbs = tokens%get_int()  !Number of virtual spin-orbitals in CAS
+                OccCASOrbs = to_int(tokens%next())  !Number of electrons in CAS
+                VirtCASOrbs = to_int(tokens%next())  !Number of virtual spin-orbitals in CAS
                 if(tokens%remaining_items() > 0) then
                     !Allow us to specify a desired number of particles to start with, so that the shift doesn't
                     !change dramatically to start with.
@@ -2234,10 +2234,10 @@ contains
 !For FCIMC, this indicates the number of cycles which have to
 !pass before the energy of the system from the doubles (HF)
 !or singles (natural orbitals) population is counted.
-                NEquilSteps = tokens%get_int()
+                NEquilSteps = to_int(tokens%next())
             case("SHIFTEQUILSTEPS")
 !This is the number of steps after the shift is allowed to change that it begins averaging the shift value.
-                NShiftEquilSteps = tokens%get_int()
+                NShiftEquilSteps = to_int(tokens%next())
             case("NOBIRTH")
 !For FCIMC, this means that the off-diagonal matrix elements become zero, and so all we get is an exponential
 !decay of the initial populations on the determinants, at a rate which can be exactly calculated and compared against.
@@ -2253,7 +2253,7 @@ contains
 !help with undersampling problems.
                 CALL Stop_All(t_r, "FLIPTAU option depreciated")
 !                TFlipTau=.true.
-!                FlipTauCyc = tokens%get_int()
+!                FlipTauCyc = to_int(tokens%next())
             case("NON-PARTCONSDIFF")
 !This is a seperate partitioning of the diffusion matrices in FCIMC in which the antidiffusion matrix (+ve connections)
 !create a net increase of two particles.
@@ -2274,7 +2274,7 @@ contains
                 TNoAnnihil = .true.
             case("MAXCHAINLENGTH")
 !For closed path MC, this is the maximum allowed chain length before it is forced to come back
-                CLMAX = tokens%get_int()
+                CLMAX = to_int(tokens%next())
             case("RETURNBIAS")
 !For closed path MC, this is the return bias at any point to spawn at the parent determinant
                 PRet = tokens%get_realdp()
@@ -2282,7 +2282,7 @@ contains
 !This is for resummed FCIMC, it indicates the number of propagation steps around each subgraph before
 !particles are assigned to the nodes
                 CALL Stop_All(t_r, "RHOAPP option depreciated")
-!                RhoApp = tokens%get_int()
+!                RhoApp = to_int(tokens%next())
             case("SIGNSHIFT")
 !This is for FCIMC and involves calculating the change in shift depending on the absolute value of the
 !sum of the signs of the walkers.
@@ -2367,7 +2367,7 @@ contains
                     FracLargerDet = tokens%get_realdp()
                 end if
                 IF(tokens%remaining_items() > 0) then
-                    iRestartWalkNum = tokens%get_int()
+                    iRestartWalkNum = to_int(tokens%next())
                 end if
             case("FIXPARTICLESIGN")
 !This uses a modified hamiltonian, whereby all the positive off-diagonal hamiltonian matrix elements are zero.
@@ -2436,7 +2436,7 @@ contains
 !out the data and letting the shift change.
                 CALL Stop_All(t_r, "FIXSHELLSHIFT option depreciated")
 !                TFixShiftShell=.true.
-!                ShellFix = tokens%get_int()
+!                ShellFix = to_int(tokens%next())
 !                FixShift = tokens%get_realdp()
             case("FIXKIISHIFT")
 !A Parallel FCIMC option. Similar to FixShellShift option, but will fix the shifts of the particles which have a diagonal
@@ -2454,8 +2454,8 @@ contains
 !and completely unoccupied spin orbitals above the active space.  i.e. the electrons are only excited within the active space.
                 CALL Stop_All(t_r, "FIXKIISHIFT option depreciated")
 !                TFixCASShift=.true.
-!                OccCASorbs = tokens%get_int()
-!                VirtCASorbs = tokens%get_int()
+!                OccCASorbs = to_int(tokens%next())
+!                VirtCASorbs = to_int(tokens%next())
 !                FixShift = tokens%get_realdp()
 
             case("TRUNCATECAS")
@@ -2467,8 +2467,8 @@ contains
 !which have completely occupied spin orbitals for those lower in energy than the active space,
 !and completely unoccupied spin orbitals above the active space.  i.e. the electrons are only excited within the active space.
                 tTruncCAS = .true.
-                OccCASOrbs = tokens%get_int()
-                VirtCASOrbs = tokens%get_int()
+                OccCASOrbs = to_int(tokens%next())
+                VirtCASOrbs = to_int(tokens%next())
 
             case("TRUNCINITIATOR")
 !This option goes along with the above TRUNCATECAS option.  This means that walkers are allowed to spawn on
@@ -2479,7 +2479,7 @@ contains
 ! Create initiators based on the average spawn onto some determinant
                 tActivateLAS = .true.
                 if(tokens%remaining_items() > 0) spawnSgnThresh = tokens%get_realdp()
-                if(tokens%remaining_items() > 0) minInitSpawns = tokens%get_int()
+                if(tokens%remaining_items() > 0) minInitSpawns = to_int(tokens%next())
 
             case("REPLICA-GLOBAL-INITIATORS")
 ! with this option, all replicas will use the same initiator flag, which is then set
@@ -2598,7 +2598,7 @@ contains
 !                Lambda = tokens%get_realdp()
             case("ANNIHILATEEVERY")
 !In FCIMC, this will result in annihilation only every iAnnInterval iterations
-                iAnnInterval = tokens%get_int()
+                iAnnInterval = to_int(tokens%next())
             case("GLOBALSHIFT")
                 ! Parallel FCIMC option which has been removed.
                 call stop_all(t_r, "GLOBALSHIFT - option removed")
@@ -2634,7 +2634,7 @@ contains
                 CALL Stop_All(t_r, "MAGNETIZE option depreciated")
 !                tMagnetize=.true.
 !                tSymmetricField=.false.
-!                NoMagDets = tokens%get_int()
+!                NoMagDets = to_int(tokens%next())
 !                BField = tokens%get_realdp()
 
             case("FINDGROUNDDET")
@@ -2644,7 +2644,7 @@ contains
 !A parallel FCIMC option. Star orbs means that determinants which contain these orbitals can only be spawned
 !at from the HF determinant, and conversly, can only spawn back at the HF determinant.
                 CALL Stop_All(t_r, "STARORBS option depreciated")
-!                iStarOrbs = tokens%get_int()
+!                iStarOrbs = to_int(tokens%next())
 !                if(item.lt.nitems) then
 !                    w = to_upper(tokens%next())
 !                    select case(w)
@@ -2666,13 +2666,13 @@ contains
 !is above iHighExcitsSing will be restricted to be single excitations.
                 CALL Stop_All(t_r, "EXCITETRUNCSING option depreciated")
 !                tHighExcitsSing=.true.
-!                iHighExcitsSing = tokens%get_int()
+!                iHighExcitsSing = to_int(tokens%next())
             case("MAGNETIZESYM")
 !A parallel FCIMC option. Similar to the MAGNETIZE option, but in addition to the energy being raised for
 !particles of the opposite sign, the energy is lowered by the same amount for particles
 !of 'parallel' sign.
                 CALL Stop_All(t_r, "MAGNETIZESYM option depreciated")
-!                NoMagDets = tokens%get_int()
+!                NoMagDets = to_int(tokens%next())
 !                BField = tokens%get_realdp()
 !                tSymmetricField=.true.
 !                tMagnetize=.true.
@@ -2689,25 +2689,25 @@ contains
                 call stop_all(this_routine, " "//trim(w)//" is a depreciated option - look at EXPANDFULLSPACE", .true.)
             case("EXPANDFULLSPACE")
 !Read in a value of the iteration to expand to the full space.
-                iFullSpaceIter = tokens%get_int()
+                iFullSpaceIter = to_int(tokens%next())
             case("MULTIPLEDETSSPAWN")
 !This option creates connections from iDetGroup randomly chosen determinants and attempts to spawn from them
 !all at once. This should hopefully mean that annihilations are implicitly done.
                 CALL Stop_All(t_r, "MULTIPLEDETSSPAWN option depreciated")
 !                tMultipleDetsSpawn=.true.
-!                iDetGroup = tokens%get_int()
+!                iDetGroup = to_int(tokens%next())
 
             case("TRUNC-NOPEN")
                 ! Truncate determinant spawning at a specified number of
                 ! unpaired electrons.
                 tTruncNOpen = .true.
-                trunc_nopen_max = tokens%get_int()
+                trunc_nopen_max = to_int(tokens%next())
 
             case("TRUNC-NOPEN-DIFF")
                 ! trunc the seniority based on the difference to the seniority
                 ! of the reference determinant
                 t_trunc_nopen_diff = .true.
-                trunc_nopen_diff = tokens%get_int()
+                trunc_nopen_diff = to_int(tokens%next())
 
             case("WEAKINITIATORS")
                 !Additionally allow the children of initiators to spawn freely
@@ -2724,7 +2724,7 @@ contains
             case("REALCOEFFBYEXCITLEVEL")
                 tRealCoeffByExcitLevel = .true.
                 tUseRealCoeffs = .true.
-                RealCoeffExcitThresh = tokens%get_int()
+                RealCoeffExcitThresh = to_int(tokens%next())
             case("KEEPWALKSMALL")
                 call stop_all(t_r, 'Deprecated Option')
             case("REALSPAWNCUTOFF")
@@ -2767,7 +2767,7 @@ contains
 
                 ! Read in the number of perturbation operators which are about
                 ! to be read in.
-                npops_pert = tokens%get_int()
+                npops_pert = to_int(tokens%next())
                 if(.not. allocated(pops_pert)) then
                     allocate(pops_pert(npops_pert))
                 else
@@ -2781,7 +2781,7 @@ contains
                         pops_pert(i)%nannihilate = tokens%size()
                         allocate(pops_pert(i)%ann_orbs(tokens%size()))
                         do j = 1, tokens%size()
-                            pops_pert(i)%ann_orbs(j) = tokens%get_int()
+                            pops_pert(i)%ann_orbs(j) = to_int(tokens%next())
                         end do
                         ! Create the rest of the annihilation-related
                         ! components of the pops_pert object.
@@ -2797,7 +2797,7 @@ contains
 
                 ! Read in the number of perturbation operators which are about
                 ! to be read in.
-                npops_pert = tokens%get_int()
+                npops_pert = to_int(tokens%next())
                 if(.not. allocated(pops_pert)) then
                     allocate(pops_pert(npops_pert))
                 else
@@ -2811,7 +2811,7 @@ contains
                         pops_pert(i)%ncreate = tokens%size()
                         allocate(pops_pert(i)%crtn_orbs(tokens%size()))
                         do j = 1, tokens%size()
-                            pops_pert(i)%crtn_orbs(j) = tokens%get_int()
+                            pops_pert(i)%crtn_orbs(j) = to_int(tokens%next())
                         end do
                         ! Create the rest of the creation-related
                         ! components of the pops_pert object.
@@ -2826,19 +2826,19 @@ contains
 
                 ! Options relating to finite-temperature Lanczos calculations.
             case("NUM-INIT-VECS-FTLM")
-                n_init_vecs_ftlm = tokens%get_int()
+                n_init_vecs_ftlm = to_int(tokens%next())
             case("NUM-LANC-VECS-FTLM")
-                n_lanc_vecs_ftlm = tokens%get_int()
+                n_lanc_vecs_ftlm = to_int(tokens%next())
             case("NUM-BETA-FTLM")
-                nbeta_ftlm = tokens%get_int()
+                nbeta_ftlm = to_int(tokens%next())
             case("BETA-FTLM")
                 delta_beta_ftlm = tokens%get_realdp()
 
                 ! Options relating to exact spectral calculations.
             case("NUM-LANC-VECS-SPECTRAL")
-                n_lanc_vecs_sl = tokens%get_int()
+                n_lanc_vecs_sl = to_int(tokens%next())
             case("NUM-OMEGA-SPECTRAL")
-                nomega_spectral = tokens%get_int()
+                nomega_spectral = to_int(tokens%next())
             case("OMEGA-SPECTRAL")
                 delta_omega_spectral = tokens%get_realdp()
             case("MIN-OMEGA-SPECTRAL")
@@ -2859,7 +2859,7 @@ contains
 
                 ! Read in the number of perturbation operators which are about
                 ! to be read in.
-                npert_spectral_left = tokens%get_int()
+                npert_spectral_left = to_int(tokens%next())
                 if(.not. allocated(left_perturb_spectral)) then
                     allocate(left_perturb_spectral(npert_spectral_left))
                 else
@@ -2873,7 +2873,7 @@ contains
                         left_perturb_spectral(i)%nannihilate = tokens%size()
                         allocate(left_perturb_spectral(i)%ann_orbs(tokens%size()))
                         do j = 1, tokens%size()
-                            left_perturb_spectral(i)%ann_orbs(j) = tokens%get_int()
+                            left_perturb_spectral(i)%ann_orbs(j) = to_int(tokens%next())
                         end do
                         ! Create the rest of the annihilation-related
                         ! components of the left_perturb_spectral object.
@@ -2888,7 +2888,7 @@ contains
 
                 ! Read in the number of perturbation operators which are about
                 ! to be read in.
-                npert_spectral_left = tokens%get_int()
+                npert_spectral_left = to_int(tokens%next())
                 if(.not. allocated(left_perturb_spectral)) then
                     allocate(left_perturb_spectral(npert_spectral_left))
                 else
@@ -2902,7 +2902,7 @@ contains
                         left_perturb_spectral(i)%ncreate = tokens%size()
                         allocate(left_perturb_spectral(i)%crtn_orbs(tokens%size()))
                         do j = 1, tokens%size()
-                            left_perturb_spectral(i)%crtn_orbs(j) = tokens%get_int()
+                            left_perturb_spectral(i)%crtn_orbs(j) = to_int(tokens%next())
                         end do
                         ! Create the rest of the creation-related
                         ! components of the left_perturb_spectral object.
@@ -2918,7 +2918,7 @@ contains
 
                 ! Read in the number of perturbation operators which are about
                 ! to be read in.
-                npert_spectral_right = tokens%get_int()
+                npert_spectral_right = to_int(tokens%next())
                 if(.not. allocated(right_perturb_spectral)) then
                     allocate(right_perturb_spectral(npert_spectral_right))
                 else
@@ -2932,7 +2932,7 @@ contains
                         right_perturb_spectral(i)%nannihilate = tokens%size()
                         allocate(right_perturb_spectral(i)%ann_orbs(tokens%size()))
                         do j = 1, tokens%size()
-                            right_perturb_spectral(i)%ann_orbs(j) = tokens%get_int()
+                            right_perturb_spectral(i)%ann_orbs(j) = to_int(tokens%next())
                         end do
                         ! Create the rest of the annihilation-related
                         ! components of the right_perturb_spectral object.
@@ -2946,7 +2946,7 @@ contains
 
                 ! Read in the number of perturbation operators which are about
                 ! to be read in.
-                npert_spectral_right = tokens%get_int()
+                npert_spectral_right = to_int(tokens%next())
                 if(.not. allocated(right_perturb_spectral)) then
                     allocate(right_perturb_spectral(npert_spectral_right))
                 else
@@ -2960,7 +2960,7 @@ contains
                         right_perturb_spectral(i)%ncreate = tokens%size()
                         allocate(right_perturb_spectral(i)%crtn_orbs(tokens%size()))
                         do j = 1, tokens%size()
-                            right_perturb_spectral(i)%crtn_orbs(j) = tokens%get_int()
+                            right_perturb_spectral(i)%crtn_orbs(j) = to_int(tokens%next())
                         end do
                         ! Create the rest of the creation-related
                         ! components of the right_perturb_spectral object.
@@ -3007,7 +3007,7 @@ contains
                 ! a given symmetry
                 tOrthogonaliseReplicas = .true.
                 if(tokens%remaining_items() > 0) then
-                    orthogonalise_iter = tokens%get_int()
+                    orthogonalise_iter = to_int(tokens%next())
                 end if
                 ! With orthogonalisation, each replica needs its own core space
                 if(.not. t_force_global_core) t_global_core_space = .false.
@@ -3022,7 +3022,7 @@ contains
                 tOrthogonaliseReplicas = .true.
                 tOrthogonaliseSymmetric = .true.
                 if(tokens%remaining_items() > 0) then
-                    orthogonalise_iter = tokens%get_int()
+                    orthogonalise_iter = to_int(tokens%next())
                 end if
 
                 ! Don't start all replicas from the deterministic ground state
@@ -3043,7 +3043,7 @@ contains
                 end if
 
                 if(tokens%remaining_items() > 0) then
-                    n_stop_ortho = tokens%get_int()
+                    n_stop_ortho = to_int(tokens%next())
                 end if
 
             case("REPLICA-SINGLE-DET-START")
@@ -3108,7 +3108,7 @@ contains
             case("LOAD-BALANCE-INTERVAL")
                 ! Do the load-balancing in a periodic fashion instead of based on
                 ! current load imbalance
-                loadBalanceInterval = tokens%get_int()
+                loadBalanceInterval = to_int(tokens%next())
 
             case("POPS-JUMP-SHIFT")
                 ! Use the same logic as JUMP-SHIFT, but reset the shift value
@@ -3159,7 +3159,7 @@ contains
 
                 if(tokens%remaining_items() > 0) then
                     t_back_spawn = .false.
-                    back_spawn_delay = tokens%get_int()
+                    back_spawn_delay = to_int(tokens%next())
                 end if
 
             case("BACK-SPAWN-OCC-VIRT")
@@ -3171,7 +3171,7 @@ contains
                 if(tokens%remaining_items() > 0) then
                     t_back_spawn = .false.
 
-                    back_spawn_delay = tokens%get_int()
+                    back_spawn_delay = to_int(tokens%next())
                 end if
 
             case("BACK-SPAWN-FLEX")
@@ -3181,13 +3181,13 @@ contains
                 if(tokens%remaining_items() > 0) then
                     t_back_spawn_flex = .false.
 
-                    back_spawn_delay = tokens%get_int()
+                    back_spawn_delay = to_int(tokens%next())
                 end if
 
                 ! can be value: -1, 0(default), 1, 2)
                 ! to indicate (de-)excitation
                 if(tokens%remaining_items() > 0) then
-                    occ_virt_level = tokens%get_int()
+                    occ_virt_level = to_int(tokens%next())
                 end if
 
             case("LOG-GREENSFUNCTION")
@@ -3224,7 +3224,7 @@ contains
                     allocate(pops_pert(1))
                     pops_pert%nannihilate = 1
                     allocate(pops_pert(1)%ann_orbs(1))
-                    pops_pert(1)%ann_orbs(1) = tokens%get_int()
+                    pops_pert(1)%ann_orbs(1) = to_int(tokens%next())
                     call init_perturbation_annihilation(pops_pert(1))
                 else
                     call stop_all(t_r, "Invalid input for Green's function")
@@ -3239,7 +3239,7 @@ contains
                     allocate(overlap_pert(1)%ann_orbs(1))
 
                     ! read left hand operator first
-                    overlap_pert(1)%ann_orbs(1) = tokens%get_int()
+                    overlap_pert(1)%ann_orbs(1) = to_int(tokens%next())
                     call init_perturbation_annihilation(overlap_pert(1))
 
                 else
@@ -3273,7 +3273,7 @@ contains
                     allocate(pops_pert(1))
                     pops_pert%ncreate = 1
                     allocate(pops_pert(1)%crtn_orbs(1))
-                    pops_pert(1)%crtn_orbs(1) = tokens%get_int()
+                    pops_pert(1)%crtn_orbs(1) = to_int(tokens%next())
                     call init_perturbation_creation(pops_pert(1))
                 else
                     call stop_all(t_r, "Invalid input for Green's function")
@@ -3283,7 +3283,7 @@ contains
                     allocate(overlap_pert(1))
                     overlap_pert%ncreate = 1
                     allocate(overlap_pert(1)%crtn_orbs(1))
-                    overlap_pert(1)%crtn_orbs(1) = tokens%get_int()
+                    overlap_pert(1)%crtn_orbs(1) = to_int(tokens%next())
                     call init_perturbation_creation(overlap_pert(1))
                 else
                     if(tokens%size() == 2) then
@@ -3304,9 +3304,9 @@ contains
             case("CC-AMPLITUDES")
                 t_cc_amplitudes = .true.
                 if(tokens%remaining_items() > 0) then
-                    cc_order = tokens%get_int()
+                    cc_order = to_int(tokens%next())
                     if(tokens%remaining_items() > 0) then
-                        cc_delay = tokens%get_int()
+                        cc_delay = to_int(tokens%next())
                     else
                         cc_delay = 1000
                     end if
@@ -3378,12 +3378,12 @@ contains
                 ! If truncinitiator is not set, this does nothing
                 tAllDoubsInitiators = .true.
                 ! If given, take the number of references for doubles
-                if(tokens%remaining_items() > 0) maxNRefs = tokens%get_int()
+                if(tokens%remaining_items() > 0) maxNRefs = to_int(tokens%next())
 
             case("SUPERINITIATORS-DELAY")
                 ! Only start after this number of steps in variable shift mode with
                 ! the all-doubs-initiators
-                if(tokens%remaining_items() > 0) allDoubsInitsDelay = tokens%get_int()
+                if(tokens%remaining_items() > 0) allDoubsInitsDelay = to_int(tokens%next())
                 tSetDelayAllDoubsInits = .true.
 
             case("READ-REFERENCES")
@@ -3439,7 +3439,7 @@ contains
                 ! Re-evaluate the superinitiators every SIUpdateInterval steps
                 ! Beware, this can be very expensive
                 ! By default, it is 100, to turn it off, use 0
-                SIUpdateInterval = tokens%get_int()
+                SIUpdateInterval = to_int(tokens%next())
 
             case("STATIC-SUPERINITIATORS")
                 ! Do not re-evaluate the superinitiators
@@ -3457,7 +3457,7 @@ contains
             case("MIN-SI-CONNECTIONS")
                 ! set the minimal number of connections with superinititators for
                 ! superinitiators-related initiators
-                minSIConnect = tokens%get_int()
+                minSIConnect = to_int(tokens%next())
                 ! optionally, allow to weight the connections with the population
                 if(tokens%remaining_items() > 0) then
                     w = to_upper(tokens%next())
@@ -3535,7 +3535,7 @@ contains
 
             case("TARGET-REFERENCE-POP")
                 tVariableNRef = .true.
-                if(tokens%remaining_items() > 0) targetRefPop = tokens%get_int()
+                if(tokens%remaining_items() > 0) targetRefPop = to_int(tokens%next())
 
             case("PRECOND")
                 tPreCond = .true.

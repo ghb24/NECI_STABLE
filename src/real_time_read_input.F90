@@ -50,7 +50,7 @@ module real_time_read_input_module
             case ("VERLET")
                 ! using a verlet algorithm instead of the second order runge-kutta
                 tVerletScheme = .true.
-                if (tokens%remaining_items() > 0) iterInit = tokens%get_int()
+                if (tokens%remaining_items() > 0) iterInit = to_int(tokens%next())
                 if (stepsAlpha == 1) write(stdout, *) "Warning: STEPSALPHA is 1. Ignoring VERLET keyword"
 
             case ("DAMPING")
@@ -88,8 +88,8 @@ module real_time_read_input_module
                 pops_pert%ncreate = 1
                 allocate(pops_pert(1)%crtn_orbs(1))
                 allocate(pops_pert(1)%ann_orbs(1))
-                pops_pert(1)%ann_orbs(1) = tokens%get_int()
-                pops_pert(1)%crtn_orbs(1) = tokens%get_int()
+                pops_pert(1)%ann_orbs(1) = to_int(tokens%next())
+                pops_pert(1)%crtn_orbs(1) = to_int(tokens%next())
                 call init_perturbation_annihilation(pops_pert(1))
                 call init_perturbation_creation(pops_pert(1))
 
@@ -110,7 +110,7 @@ module real_time_read_input_module
                 ! first, read all orbitals to which particles shall be added
                 do
                     if (tokens%remaining_items() == 0) exit
-                    i = tokens%get_int()
+                    i = to_int(tokens%next())
                     ! -1 is the terminator for creation and indicates that all following
                     ! orbitals are to be annihilated
                     if (i == -1) exit
@@ -134,7 +134,7 @@ module real_time_read_input_module
                 ! now, read in all orbitals from which particles shall be removed
                 do while (tokens%remaining_items() > 0)
                     j = j + 1
-                    buffer(j) = tokens%get_int()
+                    buffer(j) = to_int(tokens%next())
                 end do
                 ! again, allocate annihilation operators
                 if (j > 0) then
@@ -185,7 +185,7 @@ module real_time_read_input_module
                     allocate(pops_pert(1))
                     pops_pert%nannihilate = 1
                     allocate(pops_pert(1)%ann_orbs(1))
-                    pops_pert(1)%ann_orbs(1) = tokens%get_int()
+                    pops_pert(1)%ann_orbs(1) = to_int(tokens%next())
                     call init_perturbation_annihilation(pops_pert(1))
                 else
                     call stop_all(this_routine, "Invalid input for Green's function")
@@ -200,7 +200,7 @@ module real_time_read_input_module
                     allocate(overlap_pert(1)%ann_orbs(1))
 
                     ! read left hand operator first
-                    overlap_pert(1)%ann_orbs(1) = tokens%get_int()
+                    overlap_pert(1)%ann_orbs(1) = to_int(tokens%next())
                     call init_perturbation_annihilation(overlap_pert(1))
 
                     ! If the created and annihilated orbital are the same, we
@@ -238,7 +238,7 @@ module real_time_read_input_module
                     allocate(pops_pert(1))
                     pops_pert%ncreate = 1
                     allocate(pops_pert(1)%crtn_orbs(1))
-                    pops_pert(1)%crtn_orbs(1) = tokens%get_int()
+                    pops_pert(1)%crtn_orbs(1) = to_int(tokens%next())
                     call init_perturbation_creation(pops_pert(1))
                 else
                     call stop_all(this_routine, "Invalid input for Green's function")
@@ -248,7 +248,7 @@ module real_time_read_input_module
                     allocate(overlap_pert(1))
                     overlap_pert%ncreate = 1
                     allocate(overlap_pert(1)%crtn_orbs(1))
-                    overlap_pert(1)%crtn_orbs(1) = tokens%get_int()
+                    overlap_pert(1)%crtn_orbs(1) = to_int(tokens%next())
                     call init_perturbation_creation(overlap_pert(1))
 
                     ! If the created and annihilated orbital are the same, we
@@ -296,7 +296,7 @@ module real_time_read_input_module
                         ! nBasis is not defined at this point, so we cannot check if
                         ! there are too many items given - no serious input will contain
                         ! more arguments than basis states anyway
-                        buffer(numSnapShotOrbs) = tokens%get_int()
+                        buffer(numSnapShotOrbs) = to_int(tokens%next())
                     else
                         exit
                     end if
@@ -364,7 +364,7 @@ module real_time_read_input_module
             case ("NSPAWNMAX")
                 ! specify a maximum number of spawn attempts per determinant in
                 ! regulation mode (i.e. for large number of spawns)
-                nspawnMax = tokens%get_int()
+                nspawnMax = to_int(tokens%next())
 
             case ("COMPLEXWALKERS-COMPLEXINTS")
                 ! if we really use complex integrals, we have to tell as the
@@ -408,12 +408,12 @@ module real_time_read_input_module
             case ("ROTATION-THRESHOLD")
                 ! number of walkers at which the variation of rotation angle starts
                 ! 0 by default
-                rotThresh = tokens%get_int()
+                rotThresh = to_int(tokens%next())
 
             case ("STEPSALPHA")
                 ! length of the decay channel update cycle (in timesteps)
                 ! i.e. angle of rotation and damping
-                stepsAlpha = tokens%get_int()
+                stepsAlpha = to_int(tokens%next())
                 if (stepsAlpha == 1 .and. tVerletScheme) write(stdout, *) &
                     "Warning: STEPSALPHA is 1. Ignoring VERLET keyword"
 
@@ -463,7 +463,7 @@ module real_time_read_input_module
                 ! optionally, we can supply the number of states to log
                 ss_space_in%tpops = .true.
                 if (tokens%remaining_items() > 0) then
-                    ss_space_in%npops = tokens%get_int()
+                    ss_space_in%npops = to_int(tokens%next())
                 else
                     ss_space_in%npops = 1000
                 end if
@@ -477,7 +477,7 @@ module real_time_read_input_module
             case ("CORESPACE-LOG-INTERVAL")
                 ! Set the number of iterations after which we get the new candidates for the
                 ! corespace
-                corespace_log_interval = tokens%get_int()
+                corespace_log_interval = to_int(tokens%next())
 
             case ("READ-TRAJECTORY")
                 ! This reads in a trajectory and performs the time-evolution along

@@ -53,9 +53,6 @@ module input_parser_mod
         procedure, public :: next
         procedure, public :: get_realsp
         procedure, public :: get_realdp
-        procedure, public :: get_int
-        procedure, public :: get_int32
-        procedure, public :: get_int64
         procedure, public :: reset
     end type
 

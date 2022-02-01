@@ -166,7 +166,7 @@ contains
             case ("RFCONV")
                 RFCONV = tokens%get_realdp()
             case ("NRSTEPSMAX")
-                NRSTEPSMAX = tokens%get_int()
+                NRSTEPSMAX = to_int(tokens%next())
             case ("INCLUDEQUADRHO")
                 TQUADRHO = .true.
             case ("EXPRHO")
@@ -198,7 +198,7 @@ contains
             case ("CALCULATE")
                 THFCALC = .true.
             case ("MAXITERATIONS")
-                NHFIT = tokens%get_int()
+                NHFIT = to_int(tokens%next())
             case ("MIX")
                 HFMIX = tokens%get_realdp()
             case ("RAND")
@@ -257,8 +257,8 @@ contains
                 end do
 
             case ("FREEZE")
-                NFROZEN = tokens%get_int()
-                NTFROZEN = tokens%get_int()
+                NFROZEN = to_int(tokens%next())
+                NTFROZEN = to_int(tokens%next())
                 if(mod(NFROZEN, 2) /= 0 .or.                             &
          &       (NTFROZEN > 0 .and. mod(NTFROZEN, 2) /= 0)) then
                     call stop_all(this_routine, "NFROZEN and (+ve) NTFROZEN must be multiples of 2")
@@ -274,8 +274,8 @@ contains
 !frozen, along with the NTFROZENIN lowest energy virtual (spin) orbitals.
 !The main purpose of this is to select an active space and calculate the energy of the orbitals NOT in this
 !active space.
-                NFROZENIN = tokens%get_int()
-                NTFROZENIN = tokens%get_int()
+                NFROZENIN = to_int(tokens%next())
+                NTFROZENIN = to_int(tokens%next())
                 NFROZENIN = ABS(NFROZENIN)
                 NTFROZENIN = ABS(NTFROZENIN)
                 if((mod(NFROZENIN, 2) /= 0) .or. (mod(NTFROZENIN, 2) /= 0)) then
@@ -288,8 +288,8 @@ contains
 !In practice, a walker attempts to spawn on a determinant - if this determinant has more than the
 !allowed number of holes in the partially frozen core, the spawning is forbidden.
                 tPartFreezeCore = .true.
-                NPartFrozen = tokens%get_int()
-                NHolesFrozen = tokens%get_int()
+                NPartFrozen = to_int(tokens%next())
+                NHolesFrozen = to_int(tokens%next())
 
             case ("PARTIALLYFREEZEVIRT")
 !This option works very similarly to the one above.  The integers following this keyword refer firstly to the number
@@ -298,8 +298,8 @@ contains
 !means that spawning is accepted if is to a determinant that only has one or less of the partially frozen virtual
 !orbitals occupied.  Any more than this, and the spawning is rejected.
                 tPartFreezeVirt = .true.
-                NVirtPartFrozen = tokens%get_int()
-                NElVirtFrozen = tokens%get_int()
+                NVirtPartFrozen = to_int(tokens%next())
+                NElVirtFrozen = to_int(tokens%next())
 
             case ("ORDER")
                 I = 1
@@ -335,9 +335,9 @@ contains
                 w = to_upper(tokens%next())
                 select case(w)
                 case ("SLOTS")
-                    NSLOTSINIT = tokens%get_int()
+                    NSLOTSINIT = to_int(tokens%next())
                 case ("MB")
-                    NMEMINIT = tokens%get_int()
+                    NMEMINIT = to_int(tokens%next())
                     if(nMemInit == 0) then
                         ! Not using the cache...
                         nSlotsInit = 0
@@ -352,7 +352,7 @@ contains
                     iDumpCacheFlag = 2
                 case default
                     call tokens%reset(-1)
-                    NSLOTSINIT = tokens%get_int()
+                    NSLOTSINIT = to_int(tokens%next())
                 end select
             case ("NOUMATCACHE")
                 NSLOTSINIT = -1
