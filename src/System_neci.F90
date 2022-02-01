@@ -404,6 +404,7 @@ contains
 
         ! Now parse the rest of the system block.
         system: do while (file_reader%nextline(tokens))
+            if (tokens%size() == 0) cycle
             w = tokens%get_upper()
             select case (w)
 

@@ -528,6 +528,7 @@ contains
         InputDiagSft = 0.0_dp
         t_force_global_core = .false.
         calc: do while (file_reader%nextline(tokens))
+            if (tokens%size() == 0) cycle
             w = tokens%get_upper()
             select case(w)
 

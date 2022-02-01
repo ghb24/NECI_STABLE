@@ -40,6 +40,7 @@ module real_time_read_input_module
         call set_real_time_defaults()
 
         real_time: do while (file_reader%nextline(tokens))
+            if (tokens%size() == 0) cycle
             w = tokens%get_upper()
 
             select case (w)

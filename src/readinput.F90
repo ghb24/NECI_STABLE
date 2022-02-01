@@ -95,6 +95,7 @@ contains
             file_reader = AttachedFileReader_t(file_id=ir)
         end if
         Do while (file_reader%nextline(tokens))
+            if (tokens%size() == 0) cycle
             w = tokens%get_upper()
             Select case (w)
             Case ("DEFAULTS")
@@ -149,6 +150,7 @@ contains
         end if
 
         Do while (file_reader%nextline(tokens))
+            if (tokens%size() == 0) cycle
             w = tokens%get_upper()
             select case (w)
             case ("TITLE")

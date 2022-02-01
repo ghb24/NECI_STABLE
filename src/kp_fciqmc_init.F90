@@ -72,6 +72,7 @@ contains
         orthog_kp_iter = 0
 
         read_inp: do while (file_reader%nextline(tokens))
+            if (tokens%size() == 0) cycle
             w = tokens%get_upper()
             select case (w)
             case ("END-KP-FCIQMC")

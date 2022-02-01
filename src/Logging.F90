@@ -244,6 +244,7 @@ contains
 
         PertFile(:) = ''
         logging: do while (file_reader%nextline(tokens))
+            if (tokens%size() == 0) cycle
             w = tokens%get_upper()
             select case (w)
 

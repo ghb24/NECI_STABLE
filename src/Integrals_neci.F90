@@ -136,7 +136,7 @@ contains
         INTEGER :: i
 
         integral: do while (file_reader%nextline(tokens))
-            w = tokens%get_upper()
+            if (tokens%size() == 0) cycle
             w = tokens%get_upper()
             select case(w)
             case ("DUMPFCIDUMP")
