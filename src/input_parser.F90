@@ -12,7 +12,7 @@ module input_parser_mod
 
     integer, parameter :: max_line_length = 1028
 
-    character(*), parameter :: delimiter = ' ', comment = '#', alt_comment = '(', concat = '+++'
+    character(*), parameter :: delimiter = ' ', comment = '#', alt_comment = '(', concat = '\', alt_concat = '+++'
 
     type, abstract :: FileReader_t
         private
@@ -152,11 +152,11 @@ contains
         if (line /= '') then
             tokens = tokenize(line)
             if (size(tokens) /= 0) then
-                await_new_line = tokens(size(tokens))%str == concat
+                await_new_line = has_concat_symbol(tokens)
                 do while (await_new_line)
                     if (this%raw_nextline(line)) then
                         tokens = [tokens(: size(tokens) - 1), tokenize(line)]
-                        await_new_line = tokens(size(tokens))%str == concat
+                        await_new_line = has_concat_symbol(tokens)
                     else
                         call stop_all(this_routine, 'Open line continuation, but EOF reached.')
                     end if
@@ -166,6 +166,23 @@ contains
         else
             allocate(tokenized_line%tokens(0))
         end if
+        contains
+
+            logical function has_concat_symbol(tokens)
+                type(Token_t), intent(in) :: tokens(:)
+                if (tokens(size(tokens))%str == concat) then
+                    has_concat_symbol = .true.
+                else if (tokens(size(tokens))%str == alt_concat) then
+                    write(stderr, '(A)') 'The usage of "' // alt_concat // '" as line-continuation is deprecated. '
+                    write(stderr, '(A)') 'Please use ' // concat // ' instead.'
+                    write(stdout, '(A)') 'The usage of "' // alt_concat // '" as line-continuation is deprecated. '
+                    write(stdout, '(A)') 'Please use "' // concat // '" instead.'
+                    has_concat_symbol = .true.
+                else
+                    has_concat_symbol = .false.
+                end if
+            end function
+
     end function
 
     subroutine my_rewind(this)
@@ -199,8 +216,10 @@ contains
                 exit
             end if
             if (res(i)%str(1 : len(alt_comment)) == alt_comment) then
-                write(stderr, '(A)') 'The usage of "' // alt_comment // '" as comment is deprecated.'
-                write(stdout, '(A)') 'The usage of "' // alt_comment // '" as comment is deprecated.'
+                write(stderr, '(A)') 'The usage of "' // alt_comment // '" as comment is deprecated. '
+                write(stderr, '(A)') 'Please use "' // comment // '" instead.'
+                write(stdout, '(A)') 'The usage of "' // alt_comment // '" as comment is deprecated. '
+                write(stdout, '(A)') 'Please use "' // comment // '" instead.'
                 exit
             end if
         end do
