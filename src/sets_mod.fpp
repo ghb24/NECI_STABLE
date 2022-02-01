@@ -9,8 +9,8 @@ module sets_mod
     implicit none
     private
     public :: subset, is_sorted, special_union_complement, disjoint, &
-              union, intersect, complement, operator(.in.), &
-              operator(.complement.)
+              operator(.intersect.), operator(.in.), &
+              operator(.complement.), operator(.U.)
 
     !> Check if V is sorted.
     interface is_sorted
@@ -39,7 +39,7 @@ module sets_mod
     #:endfor
     end interface
 
-    interface union
+    interface operator(.U.)
     #:for T, kinds in countable_types.items()
     #:for kind in kinds
         module procedure union_${T}$_${kind}$
@@ -47,18 +47,10 @@ module sets_mod
     #:endfor
     end interface
 
-    interface intersect
+    interface operator(.intersect.)
     #:for T, kinds in countable_types.items()
     #:for kind in kinds
         module procedure intersect_${T}$_${kind}$
-    #:endfor
-    #:endfor
-    end interface
-
-    interface complement
-    #:for T, kinds in countable_types.items()
-    #:for kind in kinds
-        module procedure complement_${T}$_${kind}$
     #:endfor
     #:endfor
     end interface

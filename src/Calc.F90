@@ -68,7 +68,9 @@ MODULE Calc
     use real_time_data, only: allGfs, gf_count, gf_type, t_real_time_fciqmc
     use real_time, only: perform_real_time_fciqmc
 
-    use input_parser_mod, only: FileReader_t, TokenIterator_t
+    use input_parser_mod, only: FileReader_t, TokenIterator_t, get_range
+
+    use sets_mod, only: disjoint, operator(.U.)
     implicit none
 
     logical, public :: RDMsamplingiters_in_inp
@@ -981,20 +983,25 @@ contains
                 end if
                 DefDet(:) = 0
 
-                i = 1
-                do while(tokens%remaining_items() > 0)
-                    w = tokens%get_upper()
-                    if(scan(w, "-") == 0) then
-                        read(w, *) start
-                        call setDefdet(i, start)
+                block
+                    integer, allocatable :: def_det(:), input_range(:)
+                    def_det = [integer ::]
+                    do while(tokens%remaining_items() > 0)
+                        input_range = get_range(tokens%get_char())
+                        if (disjoint(def_det, input_range)) then
+                            def_det = def_det .U. input_range
+                        else
+                            call stop_all(this_routine, 'Every value of definedet has to be given only once.')
+                        end if
+                    end do
+                    if (size(def_det) < nEl) then
+                        call stop_all(this_routine, 'Too few elements specified for Definedet.')
+                    else if (size(def_det) > nEl) then
+                        call stop_all(this_routine, 'Too many elements specified for Definedet.')
                     else
-                        call getRange(w, start, end)
-                        do j = start, end
-                            call setDefdet(i, j)
-                        end do
+                        DefDet(:) = def_det
                     end if
-                end do
-                if(i - 1 /= nel) call stop_all(t_r, "Insufficient orbitals given in DEFINEDET")
+                end block
 
                 ! there is something going wrong later in the init, so
                 ! do it actually here

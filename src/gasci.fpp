@@ -12,7 +12,7 @@ module gasci
     use orb_idx_mod, only: SpinProj_t, calc_spin_raw, operator(==)
     use util_mod, only: lex_leq, cumsum, operator(.div.), near_zero, binary_search_first_ge, &
         operator(.isclose.), custom_findloc, EnumBase_t
-    use sets_mod, only: disjoint, union, complement, is_sorted
+    use sets_mod, only: disjoint, operator(.U.), is_sorted, operator(.complement.)
     use orb_idx_mod, only: SpinProj_t, calc_spin_raw, operator(==), operator(/=), operator(-), sum, &
         alpha, beta
     use excitation_types, only: SingleExc_t, DoubleExc_t, excite, get_last_tgt, set_last_tgt, UNKNOWN
@@ -520,9 +520,9 @@ contains
             end do
 
             if (present(add_particles)) then
-                possible_holes = complement(possible_values, union(det_I, add_particles))
+                possible_holes = possible_values .complement. (det_I .U. add_particles)
             else
-                possible_holes = complement(possible_values, det_I)
+                possible_holes = possible_values .complement. det_I
             end if
         end block
     end function

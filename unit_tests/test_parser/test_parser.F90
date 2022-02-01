@@ -3,7 +3,7 @@
 module test_parser_mod
     use fruit
     use constants, only: dp, n_int, int64, stdout
-    use input_parser_mod, only: ManagingFileReader_t, TokenIterator_t, tokenize
+    use input_parser_mod, only: ManagingFileReader_t, TokenIterator_t, tokenize, get_range
     use fortran_strings, only: Token_t
     ! use util_mod, only: remove
     better_implicit_none
@@ -87,7 +87,23 @@ contains
 
         expected = [1]
         calculated = get_range('1')
-        call assert_equals(expected, calculated)
+        call assert_equals(size(expected), size(calculated))
+        call assert_equals(expected, calculated, size(expected))
+
+        expected = [1]
+        calculated = get_range('1-1')
+        call assert_equals(size(expected), size(calculated))
+        call assert_equals(expected, calculated, size(calculated))
+
+        expected = [1, 2, 3, 4]
+        calculated = get_range('1-4')
+        call assert_equals(size(expected), size(calculated))
+        call assert_equals(expected, calculated, size(expected))
+
+        expected = [integer :: ]
+        calculated = get_range('4-1')
+        call assert_equals(size(expected), size(calculated))
+        call assert_equals(expected, calculated, size(calculated))
     end subroutine test_range
 
     subroutine test_tokenize()

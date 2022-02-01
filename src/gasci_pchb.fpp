@@ -41,7 +41,6 @@ module gasci_pchb
     use shared_ragged_array, only: shared_ragged_array_int32_t
     use growing_buffers, only: buffer_int32_1D_t
     use parallel_neci, only: iProcIndex_intra
-    use sets_mod, only: complement, operator(.complement.)
     use get_excit, only: make_single
     use growing_buffers, only: buffer_int_2D_t
     use timing_neci, only: timer, set_timer, halt_timer
