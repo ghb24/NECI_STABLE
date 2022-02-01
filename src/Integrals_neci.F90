@@ -50,6 +50,8 @@ module Integrals_neci
         tSparseLMat, tLMatCalc, LMatCalcHFactor, tSymBrokenLMat
 
     use read_fci, only: clear_orb_perm
+
+    use input_parser_mod, only: FileReader_t, TokenIterator_t
     implicit none
 
 contains
@@ -122,20 +124,18 @@ contains
 
     end subroutine SetIntDefaults
 
-    SUBROUTINE IntReadInput()
-        USE input_neci
+    SUBROUTINE IntReadInput(file_reader)
         use SystemData, only: NEL, TUSEBRILLOUIN, OrbOrder, BasisFN
         use UMatCache, only: tReadInCache, nSlotsInit, nMemInit, iDumpCacheFlag, iDFMethod
-        LOGICAL eof
+        class(FileReader_t), intent(inout) :: file_reader
+
+        type(TokenIterator_t) :: tokens
         CHARACTER(LEN=100) w
         INTEGER :: i
 
-        integral: do
-            call read_line(eof)
-            if(eof) then
-                exit
-            end if
-            call readu(w)
+        integral: do while (file_reader%nextline(tokens))
+            w = tokens%get_upper()
+            w = tokens%get_upper()
             select case(w)
             case ("DUMPFCIDUMP")
                 tDumpFCIDUMP = .true.
@@ -158,11 +158,11 @@ contains
             case ("QUADVALMAX")
                 TQuadValMax = .true.
             case ("NRCONV")
-                call readf(NRCONV)
+                NRCONV = tokens%get_realdp()
             case ("RFCONV")
-                call readf(RFCONV)
+                RFCONV = tokens%get_realdp()
             case ("NRSTEPSMAX")
-                call readi(NRSTEPSMAX)
+                NRSTEPSMAX = tokens%get_int()
             case ("INCLUDEQUADRHO")
                 TQUADRHO = .true.
             case ("EXPRHO")
@@ -194,19 +194,19 @@ contains
             case ("CALCULATE")
                 THFCALC = .true.
             case ("MAXITERATIONS")
-                call geti(NHFIT)
+                NHFIT = tokens%get_int()
             case ("MIX")
-                call getf(HFMIX)
+                HFMIX = tokens%get_realdp()
             case ("RAND")
-                call getf(HFRAND)
+                HFRAND = tokens%get_realdp()
             case ("THRESHOLD")
-                do while(item < nitems)
-                    call readu(w)
+                do while (tokens%remaining_items() > 0)
+                    w = tokens%get_upper()
                     select case(w)
                     case ("ENERGY")
-                        call readf(HFEDELTA)
+                        HFEDELTA = tokens%get_realdp()
                     case ("ORBITAL")
-                        call readf(HFCDELTA)
+                        HFCDELTA = tokens%get_realdp()
                     case default
                         call report(trim(w)//" not valid THRESHOLD"         &
            &         //"OPTION.  Specify ENERGY or ORBITAL convergence"     &
@@ -218,10 +218,10 @@ contains
             case ("UHF")
                 TRHF = .false.
             case ("HFMETHOD")
-                call readu(w)
+                w = tokens%get_upper()
                 select case(w)
                 case ("DESCENT")
-                    call readu(w)
+                    w = tokens%get_upper()
                     select case(w)
                     case ("OTHER")
                         IHFMETHOD = 2
@@ -241,8 +241,8 @@ contains
                 end select
 
             case ("READ")
-                do while(item < nitems)
-                    call readu(w)
+                do while (tokens%remaining_items() > 0)
+                    w = tokens%get_upper()
                     select case(w)
                     case ("MATRIX")
                         TREADTUMAT = .true.
@@ -255,8 +255,8 @@ contains
                 end do
 
             case ("FREEZE")
-                call readi(NFROZEN)
-                call readi(NTFROZEN)
+                NFROZEN = tokens%get_int()
+                NTFROZEN = tokens%get_int()
                 if(mod(NFROZEN, 2) /= 0 .or.                             &
          &       (NTFROZEN > 0 .and. mod(NTFROZEN, 2) /= 0)) then
                     call report("NFROZEN and (+ve) NTFROZEN must be"      &
@@ -274,8 +274,8 @@ contains
 !frozen, along with the NTFROZENIN lowest energy virtual (spin) orbitals.
 !The main purpose of this is to select an active space and calculate the energy of the orbitals NOT in this
 !active space.
-                call readi(NFROZENIN)
-                call readi(NTFROZENIN)
+                NFROZENIN = tokens%get_int()
+                NTFROZENIN = tokens%get_int()
                 NFROZENIN = ABS(NFROZENIN)
                 NTFROZENIN = ABS(NTFROZENIN)
                 if((mod(NFROZENIN, 2) /= 0) .or. (mod(NTFROZENIN, 2) /= 0)) then
@@ -289,8 +289,8 @@ contains
 !In practice, a walker attempts to spawn on a determinant - if this determinant has more than the
 !allowed number of holes in the partially frozen core, the spawning is forbidden.
                 tPartFreezeCore = .true.
-                call readi(NPartFrozen)
-                call readi(NHolesFrozen)
+                NPartFrozen = tokens%get_int()
+                NHolesFrozen = tokens%get_int()
 
             case ("PARTIALLYFREEZEVIRT")
 !This option works very similarly to the one above.  The integers following this keyword refer firstly to the number
@@ -299,13 +299,13 @@ contains
 !means that spawning is accepted if is to a determinant that only has one or less of the partially frozen virtual
 !orbitals occupied.  Any more than this, and the spawning is rejected.
                 tPartFreezeVirt = .true.
-                call readi(NVirtPartFrozen)
-                call readi(NElVirtFrozen)
+                NVirtPartFrozen = tokens%get_int()
+                NElVirtFrozen = tokens%get_int()
 
             case ("ORDER")
                 I = 1
-                do while(item < nitems)
-                    call readf(ORBORDER2(I))
+                do while (tokens%remaining_items() > 0)
+                    ORBORDER2(I) = tokens%get_realdp()
                     I = I + 1
                 end do
                 DO I = 1, 8
@@ -333,12 +333,12 @@ contains
                     end if
                 end do
             case ("UMATCACHE")
-                call readu(w)
+                w = tokens%get_upper()
                 select case(w)
                 case ("SLOTS")
-                    call geti(NSLOTSINIT)
+                    NSLOTSINIT = tokens%get_int()
                 case ("MB")
-                    call geti(NMEMINIT)
+                    NMEMINIT = tokens%get_int()
                     if(nMemInit == 0) then
                         ! Not using the cache...
                         nSlotsInit = 0
@@ -353,13 +353,13 @@ contains
                     iDumpCacheFlag = 2
                 case default
                     call reread(-1)
-                    call geti(NSLOTSINIT)
+                    NSLOTSINIT = tokens%get_int()
                 end select
             case ("NOUMATCACHE")
                 NSLOTSINIT = -1
 
             case ("DFMETHOD")
-                call readu(w)
+                w = tokens%get_upper()
                 select case(w)
                 case ("DFOVERLAP")
                     iDFMethod = 1
@@ -391,7 +391,7 @@ contains
                 tSymBrokenLMat = .true.
 
             case ("DMATEPSILON")
-                call readf(DMatEpsilon)
+                DMatEpsilon = tokens%get_realdp()
 
             case ("LMATCALC")
 
@@ -401,9 +401,7 @@ contains
 
                 tLMatCalc = .true.
 
-                if(item < nitems) then
-                    call readf(lMatCalcHFactor)
-                end if
+                if(tokens%remaining_items() > 0) lMatCalcHFactor = tokens%get_realsp()
 
             case ("ENDINT")
                 exit integral

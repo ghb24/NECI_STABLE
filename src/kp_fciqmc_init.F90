@@ -10,25 +10,27 @@ module kp_fciqmc_init
     use util_mod, only: near_zero
     use FciMCData, only: core_run
     use core_space_util, only: cs_replicas
+  use input_parser_mod, only: FileReader_t, TokenIterator_t
     implicit none
 
 contains
 
-    subroutine kp_fciqmc_read_inp(kp)
+    subroutine kp_fciqmc_read_inp(file_reader, kp)
 
         use CalcData, only: tWritePopsNorm, iPopsFileNoRead, tPairedReplicas
         use FciMCData, only: alloc_popsfile_dets
-        use input_neci
         use LoggingData, only: tIncrementPops
         use perturbations, only: init_perturbation_creation, init_perturbation_annihilation
         use SystemData, only: tAllSymSectors, tSpn
 
         type(kp_fciqmc_data), intent(inout) :: kp
+        class(FileReader_t), intent(inout) :: file_reader
         logical :: eof
+        type(TokenIterator_t) :: tokens
         character(len=100) :: w
         integer :: i, j, niters_temp, nvecs_temp, nreports_temp, npert, nexcit
         integer :: ras_size_1, ras_size_2, ras_size_3, ras_min_1, ras_max_3
-        character(len=*), parameter :: t_r = "kp_fciqmc_read_inp"
+        character(len=*), parameter :: t_r = "kp_fciqmc_read_inp", this_routine = t_r
 
         ! Default values.
         tExcitedStateKP = .false.
@@ -69,19 +71,15 @@ contains
         tOrthogKPReplicas = .false.
         orthog_kp_iter = 0
 
-        read_inp: do
-            call read_line(eof)
-            if (eof) then
-                exit
-            end if
-            call readu(w)
+        read_inp: do while (file_reader%nextline(tokens))
+            w = tokens%get_upper()
             select case (w)
             case ("END-KP-FCIQMC")
                 exit read_inp
             case ("EXCITED-STATE-KP")
 #ifdef PROG_NUMRUNS_
                 tExcitedStateKP = .true.
-                call geti(kp%nvecs)
+                kp%nvecs = tokens%get_int()
 #else
                 call stop_all(t_r, "NECI must be compiled with multiple replicas (mneci) to use the excited-state-kp option.")
 #endif
@@ -96,11 +94,11 @@ contains
                 tIncrementPops = .true.
                 iPopsFileNoRead = -1
             case ("NUM-INIT-CONFIGS")
-                call geti(kp%nconfigs)
+                kp%nconfigs = tokens%get_int()
             case ("NUM-REPEATS-PER-INIT-CONFIG")
-                call geti(kp%nrepeats)
+                kp%nrepeats = tokens%get_int()
             case ("NUM-KRYLOV-VECS")
-                call geti(nvecs_temp)
+                nvecs_temp = tokens%get_int()
                 if (kp%nvecs /= 0) then
                     if (kp%nvecs /= nvecs_temp) call stop_all(t_r, 'The number of values specified for the number of iterations &
                         &between Krylov vectors is not consistent with the number of Krylov vectors requested.')
@@ -110,7 +108,7 @@ contains
                     kp%niters(kp%nvecs) = 0
                 end if
             case ("NREPORTS")
-                call geti(nreports_temp)
+                nreports_temp = tokens%get_int()
                 if (kp%nreports /= 0) then
                     if (kp%nreports /= nreports_temp) call stop_all(t_r, 'The number of values specified for the number of &
                         &iterations between reports is not consistent with the number of reports requested.')
@@ -120,31 +118,31 @@ contains
                     kp%niters(kp%nreports) = 0
                 end if
             case ("NUM-ITERS-BETWEEN-VECS")
-                call geti(niters_temp)
+                niters_temp = tokens%get_int()
             case ("NUM-ITERS-BETWEEN-REPORTS")
-                call geti(niters_temp)
+                niters_temp = tokens%get_int()
             case ("NUM-ITERS-BETWEEN-VECS-VARY")
                 vary_niters = .true.
                 if (kp%nvecs /= 0) then
-                    if (kp%nvecs /= nitems) call stop_all(t_r, 'The number of values specified for the number of iterations &
+                    if (kp%nvecs /= tokens%size()) call stop_all(t_r, 'The number of values specified for the number of iterations &
                         &between Krylov vectors is not consistent with the number of Krylov vectors requested.')
                 end if
-                kp%nvecs = nitems
+                kp%nvecs = tokens%size()
                 if (.not. allocated(kp%niters)) allocate(kp%niters(kp%nvecs))
                 do i = 1, kp%nvecs - 1
-                    call geti(kp%niters(i))
+                    kp%niters(i) = tokens%get_int()
                 end do
                 kp%niters(kp%nvecs) = 0
             case ("NUM-ITERS-BETWEEN-REPORTS-VARY")
                 vary_niters = .true.
                 if (kp%nreports /= 0) then
-                    if (kp%nreports /= nitems) call stop_all(t_r, 'The number of values specified for the number of &
+                    if (kp%nreports /= tokens%size()) call stop_all(t_r, 'The number of values specified for the number of &
                         &iterations between reports is not consistent with the number of reports requested.')
                 end if
-                kp%nreports = nitems
+                kp%nreports = tokens%size()
                 if (.not. allocated(kp%niters)) allocate(kp%niters(kp%nreports))
                 do i = 1, kp%nreports - 1
-                    call geti(kp%niters(i))
+                    kp%niters(i) = tokens%get_int()
                 end do
                 kp%niters(kp%nreports) = 0
             case ("MEMORY-FACTOR")
@@ -171,7 +169,7 @@ contains
                 tUseInitConfigSeeds = .true.
                 allocate(init_config_seeds(kp%nconfigs))
                 do i = 1, kp%nconfigs
-                    call geti(init_config_seeds(i))
+                    init_config_seeds(i) = tokens%get_int()
                 end do
             case ("ALL-SYM-SECTORS")
                 tAllSymSectors = .true.
@@ -182,22 +180,29 @@ contains
             case ("EXCITED-INIT-STATE")
                 tExcitedInitState = .true.
                 ! Read in the number of excited states to be used.
-                call readi(nexcit)
+                nexcit = tokens%get_int()
                 allocate(kpfciqmc_ex_labels(nexcit))
                 allocate(kpfciqmc_ex_weights(nexcit))
 
                 ! Read in which excited states to use.
-                call read_line(eof)
-                do j = 1, nitems
-                    call readi(kpfciqmc_ex_labels(j))
-                end do
+                if (file_reader%nextline(tokens)) then
+                    do j = 1, nexcit
+                        kpfciqmc_ex_labels(j) = tokens%get_int()
+                    end do
+                else
+                    call stop_all(this_routine, 'Unexpected EOF reached.')
+                end if
 
                 ! Read in the relative weights for the trial excited states in
                 ! the initial state.
-                call read_line(eof)
-                do j = 1, nitems
-                    call getf(kpfciqmc_ex_weights(j))
-                end do
+                if (file_reader%nextline(tokens)) then
+                    do j = 1, nexcit
+                        kpfciqmc_ex_weights(j) = tokens%get_realdp()
+                    end do
+                else
+                    call stop_all(this_routine, 'Unexpected EOF reached.')
+                end if
+
                 ! Normalise weights so that they sum to 1.
                 kpfciqmc_ex_weights = kpfciqmc_ex_weights / sum(kpfciqmc_ex_weights)
 
@@ -208,7 +213,7 @@ contains
 
                 ! Read in the number of perturbation operators which are about
                 ! to be read in.
-                call readi(npert)
+                npert = tokens%get_int()
                 if (.not. allocated(overlap_pert)) then
                     allocate(overlap_pert(npert))
                 else
@@ -218,15 +223,18 @@ contains
                 end if
 
                 do i = 1, npert
-                    call read_line(eof)
-                    overlap_pert(i)%nannihilate = nitems
-                    allocate(overlap_pert(i)%ann_orbs(nitems))
-                    do j = 1, nitems
-                        call readi(overlap_pert(i)%ann_orbs(j))
-                    end do
-                    ! Create the rest of the annihilation-related
-                    ! components of the pops_pert object.
-                    call init_perturbation_annihilation(overlap_pert(i))
+                    if (file_reader%nextline(tokens)) then
+                        overlap_pert(i)%nannihilate = tokens%remaining_items()
+                        allocate(overlap_pert(i)%ann_orbs(tokens%remaining_items()))
+                        do j = 1, size(overlap_pert(i)%ann_orbs)
+                            overlap_pert(i)%ann_orbs(j) = tokens%get_int()
+                        end do
+                        ! Create the rest of the annihilation-related
+                        ! components of the pops_pert object.
+                        call init_perturbation_annihilation(overlap_pert(i))
+                    else
+                        call stop_all(this_routine, 'Unexpected EOF reached.')
+                    end if
                 end do
 
             case ("OVERLAP-PERTURB-CREATION")
@@ -236,7 +244,7 @@ contains
 
                 ! Read in the number of perturbation operators which are about
                 ! to be read in.
-                call readi(npert)
+                npert = tokens%get_int()
                 if (.not. allocated(overlap_pert)) then
                     allocate(overlap_pert(npert))
                 else
@@ -246,15 +254,18 @@ contains
                 end if
 
                 do i = 1, npert
-                    call read_line(eof)
-                    overlap_pert(i)%ncreate = nitems
-                    allocate(overlap_pert(i)%crtn_orbs(nitems))
-                    do j = 1, nitems
-                        call readi(overlap_pert(i)%crtn_orbs(j))
-                    end do
-                    ! Create the rest of the creation-related
-                    ! components of the pops_pert object.
-                    call init_perturbation_creation(overlap_pert(i))
+                    if (file_reader%nextline(tokens)) then
+                        overlap_pert(i)%ncreate = tokens%remaining_items()
+                        allocate(overlap_pert(i)%crtn_orbs(tokens%remaining_items()))
+                        do j = 1, size(overlap_pert(i)%crtn_orbs)
+                            overlap_pert(i)%crtn_orbs(j) = tokens%get_int()
+                        end do
+                        ! Create the rest of the creation-related
+                        ! components of the pops_pert object.
+                        call init_perturbation_creation(overlap_pert(i))
+                    else
+                        call stop_all(this_routine, 'Unexpected EOF reached.')
+                    end if
                 end do
 
             case ("DOUBLES-TRIAL")
@@ -262,15 +273,15 @@ contains
             case ("CAS-TRIAL")
                 kp_trial_space_in%tCAS = .true.
                 tSpn = .true.
-                call geti(kp_trial_space_in%occ_cas)  ! Number of electrons in the CAS
-                call geti(kp_trial_space_in%virt_cas) ! Number of virtual spin-orbitals in the CAS
+                kp_trial_space_in%occ_cas = tokens%get_int()  ! Number of electrons in the CAS
+                kp_trial_space_in%virt_cas = tokens%get_int() ! Number of virtual spin-orbitals in the CAS
             case ("RAS-TRIAL")
                 kp_trial_space_in%tRAS = .true.
-                call geti(ras_size_1)  ! Number of spatial orbitals in RAS1.
-                call geti(ras_size_2)  ! Number of spatial orbitals in RAS2.
-                call geti(ras_size_3)  ! Number of spatial orbitals in RAS3.
-                call geti(ras_min_1)  ! Min number of electrons (alpha and beta) in RAS1 orbs.
-                call geti(ras_max_3)  ! Max number of electrons (alpha and beta) in RAS3 orbs.
+                ras_size_1 = tokens%get_int()  ! Number of spatial orbitals in RAS1.
+                ras_size_2 = tokens%get_int()  ! Number of spatial orbitals in RAS2.
+                ras_size_3 = tokens%get_int()  ! Number of spatial orbitals in RAS3.
+                ras_min_1 = tokens%get_int() ! Min number of electrons (alpha and beta) in RAS1 orbs.
+                ras_max_3 = tokens%get_int() ! Max number of electrons (alpha and beta) in RAS3 orbs.
                 kp_trial_space_in%ras%size_1 = int(ras_size_1, sp)
                 kp_trial_space_in%ras%size_2 = int(ras_size_2, sp)
                 kp_trial_space_in%ras%size_3 = int(ras_size_3, sp)
@@ -278,12 +289,12 @@ contains
                 kp_trial_space_in%ras%max_3 = int(ras_max_3, sp)
             case ("MP1-TRIAL")
                 kp_trial_space_in%tMP1 = .true.
-                call geti(kp_trial_space_in%mp1_ndets)
+                kp_trial_space_in%mp1_ndets = tokens%get_int()
             case ("HF-TRIAL")
                 kp_trial_space_in%tHF = .true.
             case ("POPS-TRIAL")
                 kp_trial_space_in%tPops = .true.
-                call geti(kp_trial_space_in%npops)
+                kp_trial_space_in%npops = tokens%get_int()
             case ("READ-TRIAL")
                 kp_trial_space_in%tRead = .true.
             case ("FCI-TRIAL")
@@ -295,8 +306,8 @@ contains
 #endif
             case ("ORTHOGONALISE-REPLICAS")
                 tOrthogKPReplicas = .true.
-                if (item < nitems) then
-                    call readi(orthog_kp_iter)
+                if (tokens%remaining_items() > 0) then
+                    orthog_kp_iter = tokens%get_int()
                 end if
             case default
                 call report("Keyword "//trim(w)//" not recognized in kp-fciqmc block", .true.)

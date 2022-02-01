@@ -67,6 +67,8 @@ MODULE Calc
 
     use real_time_data, only: allGfs, gf_count, gf_type, t_real_time_fciqmc
     use real_time, only: perform_real_time_fciqmc
+
+    use input_parser_mod, only: FileReader_t, TokenIterator_t
     implicit none
 
     logical, public :: RDMsamplingiters_in_inp
@@ -481,8 +483,7 @@ contains
         max_allowed_spawn = MaxWalkerBloom
     end subroutine SetCalcDefaults
 
-    SUBROUTINE CalcReadInput()
-        USE input_neci
+    SUBROUTINE CalcReadInput(file_reader)
         Use Determinants, only: iActiveBasis, SpecDet, tagSpecDet, tSpecDet, nActiveSpace
         Use Determinants, only: tDefineDet, DefDet, tagDefDet
         use SystemData, only: Beta, nEl
@@ -3971,7 +3972,6 @@ END MODULE Calc
 
 subroutine inpgetmethod(I_HMAX, NWHTAY, I_V)
     use constants
-    use input_neci
     use CalcData, only: calcp_sub2vstar, calcp_logWeight, tMCDirectSum, &
                         g_multiweight, g_vmc_fac, tMPTheory, StarProd, &
                         tDiagNodes, tStarStars, tGraphMorph, tStarTrips, &
@@ -4181,7 +4181,6 @@ subroutine inpgetmethod(I_HMAX, NWHTAY, I_V)
 end subroutine inpgetmethod
 
 subroutine inpgetexcitations(NWHTAY, w)
-    use input_neci
     IMPLICIT NONE
     INTEGER NWHTAY
     CHARACTER(LEN=16) w
