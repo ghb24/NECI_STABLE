@@ -127,10 +127,7 @@ contains
         call assert_equals(to_int64(tokens%next()), 123_int64)
         call assert_equals(tokens%next(), 'B')
         call assert_equals(0, tokens%remaining_items())
-        !
-        ! expected = [Token_t('A'), Token_t('B'), Token_t('C')]
-        ! call assert_true(size(calculated) == 3)
-        ! call assert_true(all(calculated == expected))
+        call assert_equals(tokens%next(if_exhausted='asdf'), 'asdf')
 
     end subroutine
 
