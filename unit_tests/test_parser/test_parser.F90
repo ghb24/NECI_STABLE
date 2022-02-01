@@ -29,8 +29,8 @@ contains
             write(file_id, '(A)') ''
             write(file_id, '(A)') '    # electrons           30'
             write(file_id, '(A)') '    GAS-CI GENERAL-PCHB # This is a comment'
-            write(file_id, '(A)') '    GAS-SPEC LOCAL 30 +++'
-            write(file_id, '(A)') '       1 4 9 +++'
+            write(file_id, '(A)') '    GAS-SPEC LOCAL 30 \'
+            write(file_id, '(A)') '       1 4 9 \'
             write(file_id, '(A)') '       16 25 36 # This is a comment'
         close(file_id)
 
