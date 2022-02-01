@@ -57,13 +57,13 @@ module real_time_read_input_module
                 ! to reduce the explosive spread of walkers through the
                 ! Hilbert space a small imaginery energy can be introduced in
                 ! the Schroedinger equation id/dt y(t) = (H-E0-ie)y(t)
-                real_time_info%damping = tokens%get_realdp()
+                real_time_info%damping = to_realdp(tokens%next())
 
             case ("ROTATE-TIME")
                 ! If the time is to be rotated by some angle time_angle to increase
                 ! stability, this can be set here
                 t_rotated_time = .true.
-                real_time_info%time_angle = tokens%get_realdp()
+                real_time_info%time_angle = to_realdp(tokens%next())
 
                 ! use nicks perturbation & kp-fciqmc stuff here as much as
                 ! possible too
@@ -327,7 +327,7 @@ module real_time_read_input_module
                 ! below 80% of the peak value
                 tStabilizerShift = .true.
                 if (tokens%remaining_items() > 0) then
-                    asymptoticShift = tokens%get_realdp()
+                    asymptoticShift = to_realdp(tokens%next())
                     tStaticShift = .true.
                 end if
 
@@ -346,7 +346,7 @@ module real_time_read_input_module
             case ("ENERGY-BENCHMARK")
                 ! one can specify an energy which shall be added as a global shift
                 ! to the hamiltonian. Useful for getting transition energies
-                benchmarkEnergy = tokens%get_realdp()
+                benchmarkEnergy = to_realdp(tokens%next())
 
             case ("DYNAMIC-CORE")
                 tDynamicCoreSpace = .true.
@@ -393,7 +393,7 @@ module real_time_read_input_module
                 ! so this is done via the stabilize-walkers feature
                 tStabilizerShift = .true.
                 if (tokens%remaining_items() > 0) then
-                    asymptoticShift = tokens%get_realdp()
+                    asymptoticShift = to_realdp(tokens%next())
                 else
                     asymptoticShift = 2.0_dp
                 end if
@@ -403,7 +403,7 @@ module real_time_read_input_module
                 ! alpha guaranteeing a fixed walker number
                 tDynamicAlpha = .true.
                 t_rotated_time = .true.
-                if (tokens%remaining_items() > 0) alphaDamping = tokens%get_realdp()
+                if (tokens%remaining_items() > 0) alphaDamping = to_realdp(tokens%next())
 
             case ("ROTATION-THRESHOLD")
                 ! number of walkers at which the variation of rotation angle starts
@@ -421,14 +421,14 @@ module real_time_read_input_module
                 ! allow the damping to be time-dependent
                 ! optional: damping parameter for the adjustment of eta
                 tDynamicDamping = .true.
-                if (tokens%remaining_items() > 0) etaDamping = tokens%get_realdp()
+                if (tokens%remaining_items() > 0) etaDamping = to_realdp(tokens%next())
 
             case ("LIMIT-SHIFT")
                 ! limits the shift to some maximum value. On short times, the threshold
                 ! can be exceeded.
                 tLimitShift = .true.
                 ! optional argument: threshold value (absolute value!). Default is 3
-                if (tokens%remaining_items() > 0) shiftLimit = tokens%get_realdp()
+                if (tokens%remaining_items() > 0) shiftLimit = to_realdp(tokens%next())
 
             case ("INFINITE-INIT")
                 ! use the initiator adaptiation without any inititators - works well
@@ -450,7 +450,7 @@ module real_time_read_input_module
              case("QUAD-DAMP")
                 ! Additional energy-dependent damping (quadratic in H)
                 if (tokens%remaining_items() > 0) then
-                    real_time_info%quad_damp_fac = tokens%get_realdp()
+                    real_time_info%quad_damp_fac = to_realdp(tokens%next())
                 else
                     real_time_info%quad_damp_fac = 0.5d0
                 end if
@@ -472,7 +472,7 @@ module real_time_read_input_module
 
             case ("CORESPACE-THRESHOLD")
                 ! Set the threshold from which on a determinant is in the corespace
-                wn_threshold = tokens%get_realdp()
+                wn_threshold = to_realdp(tokens%next())
 
             case ("CORESPACE-LOG-INTERVAL")
                 ! Set the number of iterations after which we get the new candidates for the

@@ -312,7 +312,7 @@ contains
             end select
         case ("READ", "GENERIC")
             TREADINT = .true.
-            w = to_upper(incompletely_parsed_tokens%next())
+            w = to_upper(incompletely_parsed_tokens%next(if_exhausted=''))
             select case (w)
             case ("ORDER")
                 THFORDER = .true.
@@ -534,16 +534,16 @@ contains
 ! but do not want to include singles in the energy calculations.
                 tUHF = .true.
             case ("RS")
-                FUEGRS = tokens%get_realdp()
+                FUEGRS = to_realdp(tokens%next())
             case ("EXCHANGE-CUTOFF")
                 iPeriodicDampingType = 2
                 if (tokens%remaining_items() > 0) then
-                    fRc = tokens%get_realdp()
+                    fRc = to_realdp(tokens%next())
                 end if
             case ("EXCHANGE-ATTENUATE")
                 iPeriodicDampingType = 1
                 if (tokens%remaining_items() > 0) then
-                    fRc = tokens%get_realdp()
+                    fRc = to_realdp(tokens%next())
                 end if
             case ("EXCHANGE")
                 w = to_upper(tokens%next())
@@ -563,16 +563,16 @@ contains
 
             case ("ENERGY-CUTOFF")
                 tOrbECutoff = .true.
-                OrbECutoff = tokens%get_realdp()
+                OrbECutoff = to_realdp(tokens%next())
             case ("G-CUTOFF")
                 tgCutoff = .true.
-                gCutoff = tokens%get_realdp()
+                gCutoff = to_realdp(tokens%next())
             case ("FREEZE-CUTOFF")
                 tUEGFreeze = .true.
-                FreezeCutoff = tokens%get_realdp()
+                FreezeCutoff = to_realdp(tokens%next())
             case ("MADELUNG")
                 tMadelung = .true.
-                Madelung = tokens%get_realdp()
+                Madelung = to_realdp(tokens%next())
             case ("UEG2")
                 tUEG2 = .true.
             case ("STORE-AS-EXCITATIONS")
@@ -599,7 +599,7 @@ contains
                 ! make a spin-dependent transcorrelation factor
                 t_spin_dependent_transcorr = .true.
                 if (tokens%remaining_items() > 0) then
-                    trans_corr_param = tokens%get_realdp()
+                    trans_corr_param = to_realdp(tokens%next())
                 else
                     trans_corr_param = 0.1_dp
                 end if
@@ -676,7 +676,7 @@ contains
                 t_non_hermitian = .true.
 
                 if (tokens%remaining_items() > 0) then
-                    trans_corr_param = tokens%get_realdp()
+                    trans_corr_param = to_realdp(tokens%next())
                 else
                     ! defaul value 1 for now, since i have no clue how this behaves
                     trans_corr_param = 1.0_dp
@@ -688,7 +688,7 @@ contains
                 t_non_hermitian = .true.
 
                 if (tokens%remaining_items() > 0) then
-                    trans_corr_param = tokens%get_realdp()
+                    trans_corr_param = to_realdp(tokens%next())
                 else
                     ! defaul value 1 for now, since i have no clue how this behaves
                     trans_corr_param = 1.0_dp
@@ -701,7 +701,7 @@ contains
                 t_non_hermitian = .true.
 
                 if (tokens%remaining_items() > 0) then
-                    trans_corr_param_2body = tokens%get_realdp()
+                    trans_corr_param_2body = to_realdp(tokens%next())
 
                 else
                     trans_corr_param_2body = 0.25_dp
@@ -718,7 +718,7 @@ contains
                 t_non_hermitian = .true.
 
                 if (tokens%remaining_items() > 0) then
-                    trans_corr_param_2body = tokens%get_realdp()
+                    trans_corr_param_2body = to_realdp(tokens%next())
                 else
                     trans_corr_param_2body = 0.25_dp
                 end if
@@ -734,7 +734,7 @@ contains
                 t_non_hermitian = .true.
 
                 if (tokens%remaining_items() > 0) then
-                    trans_corr_param = tokens%get_realdp()
+                    trans_corr_param = to_realdp(tokens%next())
                 else
                     trans_corr_param = 0.5_dp
                 end if
@@ -743,7 +743,7 @@ contains
                 t_hole_focus_excits = .true.
 
                 if (tokens%remaining_items() > 0) then
-                    pholefocus = tokens%get_realdp()
+                    pholefocus = to_realdp(tokens%next())
                 else
                     pholefocus = 0.5_dp
                 end if
@@ -769,7 +769,7 @@ contains
                     select case (w)
                     case ("GAUSS")
                         if (dimen /= 1) stop 'Gauss cutoff is developed only for 1D!'
-                        TranscorrGaussCutoff = tokens%get_realdp()
+                        TranscorrGaussCutoff = to_realdp(tokens%next())
                         t_trcorr_gausscutoff = .true.
 
                     case ("STEP")
@@ -796,7 +796,7 @@ contains
                 ! Contact interaction for homogenous one dimensional Fermi gas is applied
             case ("CONTACTINTERACTION")
                 tContact = .true.
-                PotentialStrength = tokens%get_realdp()
+                PotentialStrength = to_realdp(tokens%next())
                 if (dimen /= 1) &
                     stop 'Contact interaction only for 1D!'
 
@@ -848,36 +848,36 @@ contains
             case ("MESH")
                 NMSH = to_int(tokens%next())
             case ("BOXSIZE")
-                BOX = tokens%get_realdp()
+                BOX = to_realdp(tokens%next())
                 if (tokens%remaining_items() > 0) then
-                    BOA = tokens%get_realdp()
-                    COA = tokens%get_realdp()
+                    BOA = to_realdp(tokens%next())
+                    COA = to_realdp(tokens%next())
                 else
                     BOA = 1.0_dp
                     COA = 1.0_dp
                 end if
             case ("U")
-                UHUB = tokens%get_realdp()
+                UHUB = to_realdp(tokens%next())
             case ("B")
-                BHUB = tokens%get_realdp()
+                BHUB = to_realdp(tokens%next())
 
             case ("J")
                 ! specify the tJ exchange here, the default is 1.0
                 ! this could also be used for the heisenberg model..
-                exchange_j = tokens%get_realdp()
+                exchange_j = to_realdp(tokens%next())
 
             case ("C")
-                btHub = tokens%get_realdp()
+                btHub = to_realdp(tokens%next())
                 tmodHub = .true.
 
             case ("NEXT-NEAREST-HOPPING")
-                nn_bhub = tokens%get_realdp()
+                nn_bhub = to_realdp(tokens%next())
 
             case ("TWISTED-BC")
                 t_twisted_bc = .true.
-                twisted_bc(1) = tokens%get_realdp()
+                twisted_bc(1) = to_realdp(tokens%next())
                 if (tokens%remaining_items() > 0) then
-                    twisted_bc(2) = tokens%get_realdp()
+                    twisted_bc(2) = to_realdp(tokens%next())
                 end if
 
             case ("ANTI-PERIODIC-BC")
@@ -1001,9 +1001,9 @@ contains
 
             case ("UEG-OFFSET")
                 tUEGOffset = .true.
-                k_offset(1) = tokens%get_realdp()
-                k_offset(2) = tokens%get_realdp()
-                k_offset(3) = tokens%get_realdp()
+                k_offset(1) = to_realdp(tokens%next())
+                k_offset(2) = to_realdp(tokens%next())
+                k_offset(3) = to_realdp(tokens%next())
             case ("UEG-SCALED-ENERGIES")
                 tUEGTrueEnergies = .true.
             case ("UEG-MOMENTUM")
@@ -1017,7 +1017,7 @@ contains
                 ITILTY = to_int(tokens%next())
             case ("ALPHA")
                 TALPHA = .true.
-                ALPHA = tokens%get_realdp()
+                ALPHA = to_realdp(tokens%next())
             case ("STATE")
                 ISTATE = to_int(tokens%next())
                 if (ISTATE /= 1) then
@@ -1084,8 +1084,8 @@ contains
 ! This new set of orbitals can then used to produce a ROFCIDUMP file and perform the FCIMC calculation.
                 tRotateOrbs = .true.
                 if (tokens%remaining_items() > 0) then
-                    TimeStep = tokens%get_realdp()
-                    ConvergedForce = tokens%get_realdp()
+                    TimeStep = to_realdp(tokens%next())
+                    ConvergedForce = to_realdp(tokens%next())
                 end if
 ! The SHAKE orthonormalisation algorithm is automatically turned on with a default of 5 iterations.
                 tShake = .true.
@@ -1106,7 +1106,7 @@ contains
                 tOffDiagSqrdMin = .true.
                 MaxMinFac = 1
                 if (tokens%remaining_items() > 0) then
-                    OffDiagWeight = tokens%get_realdp()
+                    OffDiagWeight = to_realdp(tokens%next())
                 ELSE
                     OffDiagWeight = 1.0
                 end if
@@ -1118,7 +1118,7 @@ contains
                 tOffDiagSqrdMax = .true.
                 MaxMinFac = -1
                 if (tokens%remaining_items() > 0) then
-                    OffDiagWeight = tokens%get_realdp()
+                    OffDiagWeight = to_realdp(tokens%next())
                 ELSE
                     OffDiagWeight = 1.0
                 end if
@@ -1128,7 +1128,7 @@ contains
                 tOffDiagMin = .true.
                 MaxMinFac = 1
                 if (tokens%remaining_items() > 0) then
-                    OffDiagWeight = tokens%get_realdp()
+                    OffDiagWeight = to_realdp(tokens%next())
                 ELSE
                     OffDiagWeight = 1.0
                 end if
@@ -1138,7 +1138,7 @@ contains
                 tOffDiagMax = .true.
                 MaxMinFac = -1
                 if (tokens%remaining_items() > 0) then
-                    OffDiagWeight = tokens%get_realdp()
+                    OffDiagWeight = to_realdp(tokens%next())
                 ELSE
                     OffDiagWeight = 1.0
                 end if
@@ -1148,7 +1148,7 @@ contains
                 tDoubExcMin = .true.
                 MaxMinFac = 1
                 if (tokens%remaining_items() > 0) then
-                    OffDiagWeight = tokens%get_realdp()
+                    OffDiagWeight = to_realdp(tokens%next())
                 ELSE
                     OffDiagWeight = 1.0
                 end if
@@ -1159,7 +1159,7 @@ contains
                 OneElMaxMinFac = 1
                 tRotateVirtOnly = .true.
                 if (tokens%remaining_items() > 0) then
-                    OneElWeight = tokens%get_realdp()
+                    OneElWeight = to_realdp(tokens%next())
                 ELSE
                     OneElWeight = 1.0
                 end if
@@ -1177,7 +1177,7 @@ contains
                 MaxMinFac = -1
                 tRotateVirtOnly = .true.
                 if (tokens%remaining_items() > 0) then
-                    OrbEnMaxAlpha = tokens%get_realdp()
+                    OrbEnMaxAlpha = to_realdp(tokens%next())
                 ELSE
                     OrbEnMaxAlpha = 1.0_dp
                 end if
@@ -1188,7 +1188,7 @@ contains
                 tERLocalization = .true.
                 DiagMaxMinFac = -1
                 if (tokens%remaining_items() > 0) then
-                    DiagWeight = tokens%get_realdp()
+                    DiagWeight = to_realdp(tokens%next())
                 ELSE
                     DiagWeight = 1.0
                 end if
@@ -1216,7 +1216,7 @@ contains
 ! but not majorly affecting the new coefficients.
                 tShake = .true.
                 if (tokens%remaining_items() > 0) then
-                    ShakeConverged = tokens%get_realdp()
+                    ShakeConverged = to_realdp(tokens%next())
                 end if
 
             case ("SHAKEAPPROX")
@@ -1640,11 +1640,11 @@ contains
                 ! this they are ignored.
                 !
                 ! By default, this parameter is 10-e8, but it can be changed here.
-                UMatEps = tokens%get_realdp()
+                UMatEps = to_realdp(tokens%next())
 
             case ("LMATEPSILON")
                 ! Six-index integrals are screened, too, with the default being 1e-10
-                LMatEps = tokens%get_realdp()
+                LMatEps = to_realdp(tokens%next())
 
             case ("NOSINGEXCITS")
 !This will mean that no single excitations are ever attempted to be generated.
@@ -1868,7 +1868,7 @@ contains
 
             case ("SD-SPIN-PURIFICATION")
                 tSD_spin_purification = .true.
-                spin_pure_J = tokens%get_realdp()
+                spin_pure_J = to_realdp(tokens%next())
                 if (spin_pure_J <= 0) then
                     call stop_all(t_r, "Alpha should be positive and nonzero")
                 end if

@@ -145,7 +145,7 @@ module soft_exit
     use load_balance_calcnodes, only: DetermineDetNode
     use hist_data, only: Histogram, tHistSpawn
     use Parallel_neci
-    use fortran_strings, only: to_lower, to_int
+    use fortran_strings, only: to_lower, to_int, to_realdp
 
     implicit none
 
@@ -344,21 +344,21 @@ contains
 
                         ! Do we have any other items to read in?
                         if (i == tau) then
-                            tau_value = tokens%get_realdp()
+                            tau_value = to_realdp(tokens%next())
                         elseif (i == TargetGrowRate) then
-                            target_grow_rate(1) = tokens%get_realdp()
+                            target_grow_rate(1) = to_realdp(tokens%next())
                             if(inum_runs == 2) target_grow_rate(inum_runs)=target_grow_rate(1)
                         elseif (i == diagshift) then
-                            DiagSft(1) = tokens%get_realdp()
+                            DiagSft(1) = to_realdp(tokens%next())
                             if(inum_runs == 2) DiagSft(inum_runs)=DiagSft(1)
                         elseif (i == shiftdamp) then
-                            SftDamp = tokens%get_realdp()
+                            SftDamp = to_realdp(tokens%next())
                         elseif (i == stepsshift) then
                             StepsSft = to_int(tokens%next())
                         elseif (i == excite) then
                             ICILevel = to_int(tokens%next())
                         elseif (i == singlesbias) then
-                            singlesbias_value = tokens%get_realdp()
+                            singlesbias_value = to_realdp(tokens%next())
                         elseif (i == truncatecas) then
                             OccCASOrbs = to_int(tokens%next())
                             VirtCASOrbs = to_int(tokens%next())
@@ -375,9 +375,9 @@ contains
                             nVirtPartFrozen = to_int(tokens%next())
                             nElVirtFrozen = to_int(tokens%next())
                         elseif (i == addtoinit) then
-                            InitiatorWalkNo = tokens%get_realdp()
+                            InitiatorWalkNo = to_realdp(tokens%next())
                         elseif (i == scalehf) then
-                            hfScaleFactor = tokens%get_realdp()
+                            hfScaleFactor = to_realdp(tokens%next())
                         elseif (i == trunc_nopen) then
                             trunc_nop_new = to_int(tokens%next())
                         elseif (i == calc_rdm) then
@@ -391,9 +391,9 @@ contains
                         elseif (i == fill_rdm_iter) then
                             IterRDMonFly_new = to_int(tokens%next())
                         elseif (i == frequency_cutoff) then
-                            frq_ratio_cutoff = tokens%get_realdp()
+                            frq_ratio_cutoff = to_realdp(tokens%next())
                         elseif (i == time) then
-                            MaxTimeExit = tokens%get_realdp()
+                            MaxTimeExit = to_realdp(tokens%next())
                         endif
                     enddo
                     call file_reader%close(delete=.true.)

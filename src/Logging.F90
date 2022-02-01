@@ -405,7 +405,7 @@ contains
                 CALL LogMemAlloc('TruncEvalues', NoDumpTruncs, 8, 'Logging', TruncEvaluesTag, ierr)
                 TruncEvalues(:) = 0.0_dp
                 do i = 1, NoDumpTruncs
-                    TruncEvalues(i) = tokens%get_realdp()
+                    TruncEvalues(i) = to_realdp(tokens%next())
                 end do
 
             case ("WRITETRANSFORMMAT")
@@ -530,7 +530,7 @@ contains
 !In one, the triangular connections that combine
 !to be sign coherent are recorded, and in the other, those which are sign incoherent.
                 CALL Stop_All(t_r, "PRINTTRICONNECTIONS option depreciated")
-!            TriConMax = tokens%get_realdp()
+!            TriConMax = to_realdp(tokens%next())
 !            NoTriConBins = to_int(tokens%next())
 !            tPrintTriConnections=.true.
 
@@ -540,8 +540,8 @@ contains
 !It then prints these according to whether they are single or double connecting elements.
 !It also prints a histogram and the average size of the Hjk elements (regardless of whether or not they are zero).
                 CALL Stop_All(t_r, "HISTTRICONNELEMENTS option depreciated")
-!            TriConHElSingMax = tokens%get_realdp()
-!            TriConHElDoubMax = tokens%get_realdp()
+!            TriConHElSingMax = to_realdp(tokens%next())
+!            TriConHElDoubMax = to_realdp(tokens%next())
 !            NoTriConHElBins = to_int(tokens%next())
 !            tHistTriConHEls=.true.
 
@@ -661,11 +661,11 @@ contains
                 call stop_all(t_r, "OLDRDMS not supported anymore.")
 
             case ("RDM-MAIN-SIZE-FAC")
-                rdm_main_size_fac = tokens%get_realdp()
+                rdm_main_size_fac = to_realdp(tokens%next())
             case ("RDM-SPAWN-SIZE-FAC")
-                rdm_spawn_size_fac = tokens%get_realdp()
+                rdm_spawn_size_fac = to_realdp(tokens%next())
             case ("RDM-RECV-SIZE-FAC")
-                rdm_recv_size_fac = tokens%get_realdp()
+                rdm_recv_size_fac = to_realdp(tokens%next())
 
             case ("TRANSITION-RDMS")
                 tTransitionRDMs = .true.
@@ -734,7 +734,7 @@ contains
                 rotthree = to_int(tokens%next())
                 rotfour = to_int(tokens%next())
                 local_cutoff = to_int(tokens%next())
-                occ_numb_diff = tokens%get_realdp()
+                occ_numb_diff = to_realdp(tokens%next())
 ! This is to rotate the obtained natural orbitals (NOs) again in order to obtain
 ! symmetry broken NOs: pairs of NOs whose occupation numbers differ by less
 ! than the specified threshold occ_numb_diff (relative difference, i.e. difference
@@ -866,7 +866,7 @@ contains
                 ! Only add in a contribution to the diagonal elements of the RDM if the average sign
                 ! of the determinant is greater than [ThreshOccRDM]
                 tThreshOccRDMDiag = .true.
-                ThreshOccRDM = tokens%get_realdp()
+                ThreshOccRDM = to_realdp(tokens%next())
 
             case ("DUMPFORCESINFO")
 ! Using the finalised 2RDM, calculate the Lagrangian X used for the calculation of the forces,
@@ -894,10 +894,10 @@ contains
             case ("HISTPARTENERGIES")
 !This will histogram the hamiltonian matrix elements of the particles in the parallel FCIMC algorithm.
                 tHistEnergies = .true.
-                BinRange = tokens%get_realdp()
+                BinRange = to_realdp(tokens%next())
                 iNoBins = to_int(tokens%next())
-                OffDiagBinRange = tokens%get_realdp()
-                OffDiagMax = tokens%get_realdp()
+                OffDiagBinRange = to_realdp(tokens%next())
+                OffDiagMax = to_realdp(tokens%next())
                 IF (OffDiagMax < 0.0_dp) THEN
                     OffDiagMax = -OffDiagMax
                 end if
@@ -966,7 +966,7 @@ contains
                 iWritePopsEvery = to_int(tokens%next())
                 iPopsPartEvery = to_int(tokens%next())
             case ("POPSFILETIMER")
-                PopsfileTimer = tokens%get_realdp()   !Write out a POPSFILE every "PopsfileTimer" hours.
+                PopsfileTimer = to_realdp(tokens%next())   !Write out a POPSFILE every "PopsfileTimer" hours.
 
             case ("BINARYPOPS")
                 ! This means that the popsfile (full or reduced) will now be
@@ -978,7 +978,7 @@ contains
                 ! that weight are included.
                 tBinPops = .true.
                 if (tokens%remaining_items() > 0) then
-                    binarypops_min_weight = tokens%get_realdp()
+                    binarypops_min_weight = to_realdp(tokens%next())
                 end if
 
             case ("HDF5-POPS")
@@ -995,7 +995,7 @@ contains
                 tReduceHDF5Pops = .true.
 
                 if (tokens%remaining_items() > 0) then
-                    HDF5PopsMin = tokens%get_realdp()
+                    HDF5PopsMin = to_realdp(tokens%next())
                     if (HDF5PopsMin < 0.0_dp) then
                         call stop_all(t_r, 'Minimum population should be greater than or equal zero')
                     end if
@@ -1080,7 +1080,7 @@ contains
                     ! This parameter represents how full CurrentDets should be before
                     ! removing accumulated empty dets according to the above criteria.
                     ! Default value: 0.9
-                    AccumPopsExpirePercent = tokens%get_realdp()
+                    AccumPopsExpirePercent = to_realdp(tokens%next())
                     if (AccumPopsExpirePercent < 0.0_dp .or. AccumPopsExpirePercent > 1.0) then
                         call stop_all(t_r, 'iAccumPopsExpirePercent should be between zero and one.')
                     end if
@@ -1107,7 +1107,7 @@ contains
 ! The two input options are the number of bins, and the maximum determinant energy to be histogrammed.
                 TWriteDetE = .true.
                 IF (tokens%remaining_items() > 0) NoHistBins = to_int(tokens%next())
-                IF (tokens%remaining_items() > 0) MaxHistE = tokens%get_realdp()
+                IF (tokens%remaining_items() > 0) MaxHistE = to_realdp(tokens%next())
             case ("ZEROPROJE")
 ! This is for FCIMC when reading in from a POPSFILE. If this is on, then the energy
 ! estimator will be restarted.
@@ -1368,7 +1368,7 @@ contains
                 t_log_ija = .true.
 
                 if (tokens%remaining_items() > 0) then
-                    ija_thresh = tokens%get_realdp()
+                    ija_thresh = to_realdp(tokens%next())
                 end if
 
             case ("WRITE-REFERENCES")
@@ -1408,7 +1408,7 @@ contains
                         t_symmetry_rotation = .true.
 
                         if (tokens%remaining_items() > 0) then
-                            symmetry_rotation_angle = tokens%get_realdp()
+                            symmetry_rotation_angle = to_realdp(tokens%next())
                         else
                             symmetry_rotation_angle = 90.0_dp
                         end if

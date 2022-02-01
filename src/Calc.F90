@@ -596,7 +596,7 @@ contains
             case("KRYLOV")
                 NKRY = to_int(tokens%next())
             case("ACCURACY")
-                B2L = tokens%get_realdp()
+                B2L = to_realdp(tokens%next())
             case("BLOCK")
                 w = to_upper(tokens%next())
                 select case(w)
@@ -657,7 +657,7 @@ contains
                 TempFieldFiles(nFields_it) = to_upper(tokens%next())
 
                 ! Read the strength of the Field
-                if (tokens%remaining_items() > 0) TempStrength(nFields_it) = tokens%get_realdp()
+                if (tokens%remaining_items() > 0) TempStrength(nFields_it) = to_realdp(tokens%next())
 
             case("METHODS")
                 if(I_HMAX /= 0) call stop_all(this_routine, "METHOD already set", .true.)
@@ -689,7 +689,7 @@ contains
                     case("VERTICES")
                         NWHTAY(3, I_VMAX) = to_int(tokens%next())
                     case("MULTIMCWEIGHT")
-                        g_MultiWeight(I_VMAX) = tokens%get_realdp()
+                        g_MultiWeight(I_VMAX) = to_realdp(tokens%next())
                     case("CALCVAR")
                         if(NWHTAY(1, I_VMAX) /= -20) then
                             call stop_all(this_routine, "Keyword "//trim(w)//"            &
@@ -789,7 +789,7 @@ contains
                 I_VMAX = to_int(tokens%next())
 
             case ("IMPORTANCE")
-                G_VMC_PI = tokens%get_realdp()
+                G_VMC_PI = to_realdp(tokens%next())
 
             case ("SEED")
                 if (allocated(user_input_seed)) then
@@ -800,10 +800,10 @@ contains
                 end if
 
             case ("BIAS")
-                G_VMC_FAC = tokens%get_realdp()
+                G_VMC_FAC = to_realdp(tokens%next())
 
             case ("STARCONVERGE")
-                STARCONV = tokens%get_realdp()
+                STARCONV = to_realdp(tokens%next())
                 if((NWHTAY(1, I_VMAX) /= 0) .and. (NWHTAY(1, I_VMAX) /= -21)&
      &               .and. (NWHTAY(1, I_VMAX) /= -9)) then
                     call stop_all(this_routine, trim(w)//" only valid for STAR method", .true.)
@@ -811,9 +811,9 @@ contains
             case("UFORM-POWER")
                 TUPOWER = .true.
             case("CHEMPOTWEIGHTING")
-                g_VMC_ExcitWeights(1, 1) = tokens%get_realdp()
-                g_VMC_ExcitWeights(2, 1) = tokens%get_realdp()
-                G_VMC_EXCITWEIGHT(1) = tokens%get_realdp()
+                g_VMC_ExcitWeights(1, 1) = to_realdp(tokens%next())
+                g_VMC_ExcitWeights(2, 1) = to_realdp(tokens%next())
+                G_VMC_EXCITWEIGHT(1) = to_realdp(tokens%next())
                 DO l = 1, 6
                     IF(EXCITFUNCS(l)) THEN
                         call stop_all(this_routine, trim(w)//" only valid if another weighting scheme not specified", .true.)
@@ -821,10 +821,10 @@ contains
                 end do
                 EXCITFUNCS(4) = .true.
             case("CHEMPOT-TWOFROM")
-                g_VMC_ExcitWeights(1, 1) = tokens%get_realdp()
-                g_VMC_ExcitWeights(2, 1) = tokens%get_realdp()
-                g_VMC_ExcitWeights(3, 1) = tokens%get_realdp()
-                G_VMC_EXCITWEIGHT(1) = tokens%get_realdp()
+                g_VMC_ExcitWeights(1, 1) = to_realdp(tokens%next())
+                g_VMC_ExcitWeights(2, 1) = to_realdp(tokens%next())
+                g_VMC_ExcitWeights(3, 1) = to_realdp(tokens%next())
+                G_VMC_EXCITWEIGHT(1) = to_realdp(tokens%next())
                 DO l = 1, 6
                     IF(EXCITFUNCS(l)) THEN
                         call stop_all(this_routine, trim(w)//" only valid if "          &
@@ -833,10 +833,10 @@ contains
                 end do
                 EXCITFUNCS(5) = .true.
             case("POLYEXCITWEIGHT")
-                g_VMC_ExcitWeights(1, 1) = tokens%get_realdp()
-                g_VMC_ExcitWeights(2, 1) = tokens%get_realdp()
-                g_VMC_ExcitWeights(3, 1) = tokens%get_realdp()
-                G_VMC_EXCITWEIGHT(1) = tokens%get_realdp()
+                g_VMC_ExcitWeights(1, 1) = to_realdp(tokens%next())
+                g_VMC_ExcitWeights(2, 1) = to_realdp(tokens%next())
+                g_VMC_ExcitWeights(3, 1) = to_realdp(tokens%next())
+                G_VMC_EXCITWEIGHT(1) = to_realdp(tokens%next())
                 DO l = 1, 6
                     IF(EXCITFUNCS(l)) THEN
                         call stop_all(this_routine, trim(w)//" only valid if "          &
@@ -845,11 +845,11 @@ contains
                 end do
                 EXCITFUNCS(2) = .true.
             case("POLYEXCITBOTH")
-                g_VMC_ExcitWeights(1, 1) = tokens%get_realdp()
-                g_VMC_ExcitWeights(2, 1) = tokens%get_realdp()
-                g_VMC_ExcitWeights(3, 1) = tokens%get_realdp()
-                g_VMC_ExcitWeights(4, 1) = tokens%get_realdp()
-                G_VMC_EXCITWEIGHT(1) = tokens%get_realdp()
+                g_VMC_ExcitWeights(1, 1) = to_realdp(tokens%next())
+                g_VMC_ExcitWeights(2, 1) = to_realdp(tokens%next())
+                g_VMC_ExcitWeights(3, 1) = to_realdp(tokens%next())
+                g_VMC_ExcitWeights(4, 1) = to_realdp(tokens%next())
+                G_VMC_EXCITWEIGHT(1) = to_realdp(tokens%next())
                 DO l = 1, 6
                     IF(EXCITFUNCS(l)) THEN
                         call stop_all(this_routine, trim(w)//" only valid if "          &
@@ -860,10 +860,10 @@ contains
             case("EXCITWEIGHTING")
                 write(stdout, *) '---------------->excitweighting'
                 call neci_flush(6)
-                g_VMC_ExcitWeights(1, 1) = tokens%get_realdp()
-                g_VMC_ExcitWeights(2, 1) = tokens%get_realdp()
-                G_VMC_EXCITWEIGHT(1) = tokens%get_realdp()
-                IF(tokens%remaining_items() > 0) g_VMC_ExcitWeights(3, 1) = tokens%get_realdp()
+                g_VMC_ExcitWeights(1, 1) = to_realdp(tokens%next())
+                g_VMC_ExcitWeights(2, 1) = to_realdp(tokens%next())
+                G_VMC_EXCITWEIGHT(1) = to_realdp(tokens%next())
+                IF(tokens%remaining_items() > 0) g_VMC_ExcitWeights(3, 1) = to_realdp(tokens%next())
                 DO l = 1, 6
                     IF(EXCITFUNCS(l)) THEN
                         call stop_all(this_routine, trim(w)//" only valid if "          &
@@ -880,9 +880,9 @@ contains
 !and the probability of selecting it is
 !1 if the electron is in the occupied manifold and g_VMC_ExcitWeights(2,1) if in the occupied manifold.
 !U-weighting is the third parameter as before.
-                g_VMC_ExcitWeights(1, 1) = tokens%get_realdp()
-                g_VMC_ExcitWeights(2, 1) = tokens%get_realdp()
-                G_VMC_EXCITWEIGHT(1) = tokens%get_realdp()
+                g_VMC_ExcitWeights(1, 1) = to_realdp(tokens%next())
+                g_VMC_ExcitWeights(2, 1) = to_realdp(tokens%next())
+                G_VMC_EXCITWEIGHT(1) = to_realdp(tokens%next())
                 DO l = 1, 6
                     IF(EXCITFUNCS(l)) THEN
                         call stop_all(this_routine, trim(w)//" only valid if "          &
@@ -943,7 +943,7 @@ contains
      &              //" monte carlo is performed.", .true.)
                 end if
             case("BETAEQ")
-                BETAEQ = tokens%get_realdp()
+                BETAEQ = to_realdp(tokens%next())
                 if(.not. TMONTE) then
                     call stop_all(this_routine, trim(w)//" only relevant if CI space" &
      &              //" monte carlo is performed.", .true.)
@@ -1135,9 +1135,9 @@ contains
             case("TROTTER")
                 TTROT = .true.
             case("BETA")
-                BETA = tokens%get_realdp()
+                BETA = to_realdp(tokens%next())
             case("BETAOVERP")
-                BETAP = tokens%get_realdp()
+                BETAP = to_realdp(tokens%next())
                 TBETAP = .true.
             case("TIMESTEPS")
                 BETAP = 0
@@ -1146,13 +1146,13 @@ contains
                     call stop_all(this_routine, "Warning - declared beta/p and p. Using p.", .true.)
                 end if
             case("DELTABETA")
-                DBETA = tokens%get_realdp()
+                DBETA = to_realdp(tokens%next())
             case("RHOEPSILON")
-                RHOEPSILON = tokens%get_realdp()
+                RHOEPSILON = to_realdp(tokens%next())
             case("GRAPHEPSILON")
-                GraphEpsilon = tokens%get_realdp()
+                GraphEpsilon = to_realdp(tokens%next())
             case("PGENEPSILON")
-                PGenEpsilon = tokens%get_realdp()
+                PGenEpsilon = to_realdp(tokens%next())
 !This indicates the number of times the eigenvalues of the star matrix should be evaluated to
 !achieve the linear approximation when STARSTARS set,
             case("LINEPOINTSSTAR")
@@ -1165,7 +1165,7 @@ contains
             case("ITERATIONS")
                 Iters = to_int(tokens%next())
             case("GRAPHBIAS")
-                GraphBias = tokens%get_realdp()
+                GraphBias = to_realdp(tokens%next())
                 TBiasing = .true.
             case("MOVEDETS")
                 NoMoveDets = to_int(tokens%next())
@@ -1187,7 +1187,7 @@ contains
                 TFullDiag = .true.
             case("AVERAGEMCEXCITS")
 ! This sets the average number of spawning attempts from each walker.
-                AvMCExcits = tokens%get_realdp()
+                AvMCExcits = to_realdp(tokens%next())
             case("ADJUST-AVERAGEMCEXCITS")
 ! This allows for an automatic update of the number of spawning attempts from each walker
                 tDynamicAvMCEx = .true.
@@ -1198,7 +1198,7 @@ contains
             case("GROWGRAPHSEXPO")
 !In GraphMorph, this is the exponent to which the components of the excitation vector and eigenvector
 !will be raised to turn them into probabilities.
-                GrowGraphsExpo = tokens%get_realdp()
+                GrowGraphsExpo = to_realdp(tokens%next())
             case("HAPP")
 !For graph MC, this indicates the number of local applications of the hamiltonian to random determinants
 !before the trial eigenvector is updated
@@ -1210,14 +1210,14 @@ contains
                 iMaxExcitLevel = to_int(tokens%next())
             case("INITWALKERS")
 !For FCIMC, this is the number of walkers to start with
-                InitWalkers = tokens%get_realdp()
+                InitWalkers = to_realdp(tokens%next())
             case("TOTALWALKERS")
 !This is now input as the total number, rather than the number per processor, and it is changed to the number per processor here.
-                InitWalkers = tokens%get_realdp()
+                InitWalkers = to_realdp(tokens%next())
                 InitWalkers = NINT(REAL(InitWalkers, dp) / REAL(nProcessors, dp), int64)
             case("TIME")
                 !Input the desired runtime (in MINUTES) before exiting out of the MC.
-                MaxTimeExit = tokens%get_realdp()
+                MaxTimeExit = to_realdp(tokens%next())
                 MaxTimeExit = MaxTimeExit * 60.0_dp    !Change straightaway so that MaxTimeExit corresponds to SECONDS!
                 tTimeExit = .true.
             case("MAXNOATHF")
@@ -1247,13 +1247,13 @@ contains
 !For FCIMC, this is the amount extra the diagonal elements will be shifted. This is proportional to the deathrate of
 !walkers on the determinant
                 if (tokens%remaining_items() == 1) then
-                    InputDiagSftSingle = tokens%get_realdp()
+                    InputDiagSftSingle = to_realdp(tokens%next())
                     InputDiagSft = InputDiagSftSingle
                 else
                     if(inum_runs /= tokens%remaining_items()) call stop_all(t_r, "The number of initial shifts input is not equal to &
                                            &the number of replicas being used.")
                     do i = 1, inum_runs
-                        InputDiagSft(i) = tokens%get_realdp()
+                        InputDiagSft(i) = to_realdp(tokens%next())
                     end do
                 end if
 
@@ -1261,12 +1261,12 @@ contains
 !For FCIMC, this is the factor by which 1/(HF connectivity) will be multiplied by to give the timestep for the calculation.
                 tSearchTau = .false.  !Tau is set, so don't search for it.
                 tSearchTauOption = .false.
-                TauFactor = tokens%get_realdp()
+                TauFactor = to_realdp(tokens%next())
             case("TAU")
                 ! For FCIMC, this can be considered the timestep of the
                 ! simulation. It is a constant which will increase/decrease
                 ! the rate of spawning/death for a given iteration.
-                Tau = tokens%get_realdp()
+                Tau = to_realdp(tokens%next())
                 tSpecifiedTau = .true.
 
                 ! If SEARCH is provided, use this value as the starting value
@@ -1293,7 +1293,7 @@ contains
                 t_min_tau = .true.
 
                 if(tokens%remaining_items() > 0) then
-                    min_tau_global = tokens%get_realdp()
+                    min_tau_global = to_realdp(tokens%next())
                 end if
 
                 ! assume thats only for the tau-search so enable all the
@@ -1304,7 +1304,7 @@ contains
             case("MAX-TAU")
                 ! For tau searching, set a maximum value of tau. This places
                 ! a limit to prevent craziness at the start of a calculation
-                MaxTau = tokens%get_realdp()
+                MaxTau = to_realdp(tokens%next())
 
             case("READ-PROBABILITIES")
                 ! introduce a new flag to read pSingles/pParallel etc. from
@@ -1332,7 +1332,7 @@ contains
                 t_trunc_guga_pgen = .true.
 
                 if(tokens%remaining_items() > 0) then
-                    trunc_guga_pgen = tokens%get_realdp()
+                    trunc_guga_pgen = to_realdp(tokens%next())
                 end if
 
             case('TRUNC-GUGA-PGEN-NONINITS')
@@ -1341,7 +1341,7 @@ contains
                 t_trunc_guga_pgen_noninits = .true.
 
                 if(tokens%remaining_items() > 0) then
-                    trunc_guga_pgen = tokens%get_realdp()
+                    trunc_guga_pgen = to_realdp(tokens%next())
                 end if
 
             case('TRUNC-GUGA-MATEL')
@@ -1350,7 +1350,7 @@ contains
                 t_trunc_guga_matel = .true.
 
                 if(tokens%remaining_items() > 0) then
-                    trunc_guga_matel = tokens%get_realdp()
+                    trunc_guga_matel = to_realdp(tokens%next())
                 end if
 
             case('GUGA-BACK-SPAWN')
@@ -1417,7 +1417,7 @@ contains
                 end if
 
                 if(tokens%remaining_items() > 0) then
-                    frq_ratio_cutoff = tokens%get_realdp()
+                    frq_ratio_cutoff = to_realdp(tokens%next())
                 end if
 
                 if(tokens%remaining_items() > 0) then
@@ -1433,7 +1433,7 @@ contains
                 end if
 
                 if(tokens%remaining_items() > 0) then
-                    max_frequency_bound = tokens%get_realdp()
+                    max_frequency_bound = to_realdp(tokens%next())
                 end if
 
             case("RESTART-HIST-TAU-SEARCH", "RESTART-NEW-TAU-SEARCH")
@@ -1464,7 +1464,7 @@ contains
                 t_truncate_spawns = .true.
                 tLogNumSpawns = .true.
                 if(tokens%remaining_items() > 0) then
-                    n_truncate_spawns = tokens%get_realdp()
+                    n_truncate_spawns = to_realdp(tokens%next())
                     if(tokens%remaining_items() > 0) then
                         w = to_upper(tokens%next())
                         select case(w)
@@ -1490,7 +1490,7 @@ contains
                 t_mix_ratios = .true.
 
                 if(tokens%remaining_items() > 0) then
-                    mix_ratio = tokens%get_realdp()
+                    mix_ratio = to_realdp(tokens%next())
                 else
                     ! if no additional input default it to 0.7
                     mix_ratio = 0.7_dp
@@ -1502,7 +1502,7 @@ contains
                 ! UMATEPS quantity when ignoring 2-body integrals
                 t_matele_cutoff = .true.
                 if(tokens%remaining_items() > 0) then
-                    matele_cutoff = tokens%get_realdp()
+                    matele_cutoff = to_realdp(tokens%next())
                 else
                     ! does this work? is umateps already defined properly?
                     matele_cutoff = UMATEPS
@@ -1537,12 +1537,12 @@ contains
 
             case("MAXWALKERBLOOM")
                 !Set the maximum allowed walkers to create in one go, before reducing tau to compensate.
-                MaxWalkerBloom = tokens%get_realdp()
+                MaxWalkerBloom = to_realdp(tokens%next())
                 ! default the maximum spaw to MaxWalkerBloom
                 max_allowed_spawn = MaxWalkerBloom
             case("SHIFTDAMP")
                 !For FCIMC, this is the damping parameter with respect to the update in the DiagSft value for a given number of MC cycles.
-                SftDamp = tokens%get_realdp()
+                SftDamp = to_realdp(tokens%next())
             case("TARGET-SHIFTDAMP")
                 !Introduces a second term in the shift update procedure
                 !depending on the target population with
@@ -1550,7 +1550,7 @@ contains
                 !target population.
                 tTargetShiftdamp = .true.
                 if (tokens%remaining_items() > 0) then
-                    SftDamp2 = tokens%get_realdp()
+                    SftDamp2 = to_realdp(tokens%next())
                 else
                     !If no value for SftDamp2 is chosen, it is automatically set
                     !to a value that leads to a critically damped shift.
@@ -1568,7 +1568,7 @@ contains
                 ! the target number of walkers (InitWalkers)
                 !
                 ! By default this value is 0.7 (see above)
-                HashLengthFrac = tokens%get_realdp()
+                HashLengthFrac = to_realdp(tokens%next())
 
             case("OLD-POPS-CORE")
                 ! Use the old way of creating a pops-core space
@@ -1622,7 +1622,7 @@ contains
                 ss_space_in%opt_data%ngen_loops = tokens%remaining_items()
                 allocate(ss_space_in%opt_data%cutoff_amps(ss_space_in%opt_data%ngen_loops))
                 do I = 1, ss_space_in%opt_data%ngen_loops
-                    ss_space_in%opt_data%cutoff_amps(I) = tokens%get_realdp()
+                    ss_space_in%opt_data%cutoff_amps(I) = to_realdp(tokens%next())
                 end do
             case("OPTIMISED-CORE-CUTOFF-NUM")
                 ss_space_in%opt_data%tAmpCutoff = .false.
@@ -1658,7 +1658,7 @@ contains
             case("POPS-CORE-PROPORTION")
                 ss_space_in%tPops = .true.
                 ss_space_in%tPopsProportion = .true.
-                ss_space_in%npops_proportion = tokens%get_realdp()
+                ss_space_in%npops_proportion = to_realdp(tokens%next())
                 if (ss_space_in%npops_proportion < 0.0) then
                     call stop_all(t_r, 'Popscore proportion should be positive')
                 end if
@@ -1792,7 +1792,7 @@ contains
                 trial_space_in%opt_data%ngen_loops = tokens%remaining_items()
                 allocate(trial_space_in%opt_data%cutoff_amps(trial_space_in%opt_data%ngen_loops))
                 do I = 1, trial_space_in%opt_data%ngen_loops
-                    trial_space_in%opt_data%cutoff_amps(I) = tokens%get_realdp()
+                    trial_space_in%opt_data%cutoff_amps(I) = to_realdp(tokens%next())
                 end do
             case("OPTIMISED-TRIAL-CUTOFF-NUM")
                 trial_space_in%opt_data%tAmpCutoff = .false.
@@ -1872,7 +1872,7 @@ contains
                 init_trial_in%opt_data%ngen_loops = tokens%remaining_items()
                 allocate(init_trial_in%opt_data%cutoff_amps(init_trial_in%opt_data%ngen_loops))
                 do I = 1, init_trial_in%opt_data%ngen_loops
-                    init_trial_in%opt_data%cutoff_amps(I) = tokens%get_realdp()
+                    init_trial_in%opt_data%cutoff_amps(I) = to_realdp(tokens%next())
                 end do
             case("OPTIMISED-INIT-CUTOFF-NUM")
                 init_trial_in%opt_data%tAmpCutoff = .false.
@@ -1969,7 +1969,7 @@ contains
                 i_space_in%opt_data%ngen_loops = tokens%remaining_items()
                 allocate(i_space_in%opt_data%cutoff_amps(i_space_in%opt_data%ngen_loops))
                 do I = 1, i_space_in%opt_data%ngen_loops
-                    i_space_in%opt_data%cutoff_amps(I) = tokens%get_realdp()
+                    i_space_in%opt_data%cutoff_amps(I) = to_realdp(tokens%next())
                 end do
             case("OPTIMISED-INITIATOR-CUTOFF-NUM")
                 i_space_in%opt_data%tAmpCutoff = .false.
@@ -2006,7 +2006,7 @@ contains
                 tIncCancelledInitEnergy = .true.
             case("STEPSSHIFTIMAG")
 !For FCIMC, this is the amount of imaginary time which will elapse between updates of the shift.
-                StepsSftImag = tokens%get_realdp()
+                StepsSftImag = to_realdp(tokens%next())
             case("STEPSSHIFT")
 !For FCIMC, this is the number of steps taken before the Diag shift is updated
                 if(tFixedN0 .or. tTrialShift) then
@@ -2033,7 +2033,7 @@ contains
                 call stop_all(t_r, 'TRIAL-SHIFT currently not implemented for complex')
 #endif
                 if(tokens%remaining_items() > 0) then
-                    TrialTarget = tokens%get_realdp()
+                    TrialTarget = to_realdp(tokens%next())
                 end if
                 tTrialShift = .true.
                 StepsSft = 1
@@ -2042,16 +2042,16 @@ contains
                 tAdaptiveShift = .true.
                 tLinearAdaptiveShift = .true.
                 if(tokens%remaining_items() > 0) then
-                    LAS_Sigma = tokens%get_realdp()
+                    LAS_Sigma = to_realdp(tokens%next())
                 end if
                 if(tokens%remaining_items() > 0) then
-                    LAS_F1 = tokens%get_realdp()
+                    LAS_F1 = to_realdp(tokens%next())
                     if(LAS_F1 < 0.0 .or. LAS_F1 > 1.0) then
                         call stop_all(t_r, 'F1 is a scaling parameter and should be between 0.0 and 1.0')
                     end if
                 end if
                 if(tokens%remaining_items() > 0) then
-                    LAS_F2 = tokens%get_realdp()
+                    LAS_F2 = to_realdp(tokens%next())
                     if(LAS_F2 < 0.0 .or. LAS_F2 > 1.0) then
                         call stop_all(t_r, 'F2 is a scaling parameter and should be between 0.0 and 1.0')
                     end if
@@ -2066,15 +2066,15 @@ contains
                 tAdaptiveShift = .true.
                 tAutoAdaptiveShift = .true.
                 if(tokens%remaining_items() > 0) then
-                    AAS_Thresh = tokens%get_realdp()
+                    AAS_Thresh = to_realdp(tokens%next())
                 end if
 
                 if(tokens%remaining_items() > 0) then
-                    AAS_Expo = tokens%get_realdp()
+                    AAS_Expo = to_realdp(tokens%next())
                 end if
 
                 if(tokens%remaining_items() > 0) then
-                    AAS_Cut = tokens%get_realdp()
+                    AAS_Cut = to_realdp(tokens%next())
                 end if
 
                 ! Ratios of rejected spawns are stored in global det data, so we need
@@ -2098,11 +2098,11 @@ contains
                 !When using the MatEle, the default value of 10 becomes meaningless
                 AAS_Thresh = 0.0
             case("AAS-DEN-CUT")
-                AAS_DenCut = tokens%get_realdp()
+                AAS_DenCut = to_realdp(tokens%next())
             case("AAS-CONST")
                 !Adds a positive constant to both the numerator and denominator
                 !in auto-adaptive-shift's modification factor
-                AAS_Const = tokens%get_realdp()
+                AAS_Const = to_realdp(tokens%next())
                 if(AAS_Const < 0.0) then
                     call stop_all(t_r, 'AAS-CONST should be greater than or equal zero.')
                 end if
@@ -2115,13 +2115,13 @@ contains
                 ! offset for each replica sperately
                 tAS_Offset = .true.
                 if(tokens%remaining_items() == 1) then
-                    ShiftOffsetTmp = tokens%get_realdp()
+                    ShiftOffsetTmp = to_realdp(tokens%next())
                     ShiftOffset = ShiftOffsetTmp
                 else
                     if(inum_runs /= tokens%remaining_items()) call stop_all(t_r, "The number of shift offsets is not equal to &
                                            &the number of replicas being used.")
                     do i = 1, inum_runs
-                        ShiftOffset(i) = tokens%get_realdp()
+                        ShiftOffset(i) = to_realdp(tokens%next())
                     end do
                 end if
             case("INITS-PROJE")
@@ -2137,7 +2137,7 @@ contains
 
             case("TARGETGROWRATE")
                 ! For FCIMC, this is the target growth rate once in vary shift mode.
-                InputTargetGrowRate = tokens%get_realdp()
+                InputTargetGrowRate = to_realdp(tokens%next())
                 InputTargetGrowRateWalk = to_int64(tokens%next())
 
             case("READPOPS")
@@ -2167,7 +2167,7 @@ contains
 !When reading in a popsfile, this will only save the determinant, if the number of particles on this
 !determinant is greater than iWeightPopRead.
                 tReadPops = .true.
-                iWeightPopRead = tokens%get_realdp()
+                iWeightPopRead = to_realdp(tokens%next())
                 if(tokens%remaining_items() > 0) then
                     iPopsFileNoRead = to_int(tokens%next())
                     iPopsFileNoWrite = iPopsFileNoRead
@@ -2193,7 +2193,7 @@ contains
                 tWalkContGrow = .true.
             case("SCALEWALKERS")
 !For FCIMC, if this is a way to scale up the number of walkers, after having read in a POPSFILE
-                ScaleWalkers = tokens%get_realdp()
+                ScaleWalkers = to_realdp(tokens%next())
 
             case("UNIT-TEST-PGEN")
                 ! Test the pgens n_iter times on the n_most_populated configurations
@@ -2217,7 +2217,7 @@ contains
                 if(tokens%remaining_items() > 0) then
                     !Allow us to specify a desired number of particles to start with, so that the shift doesn't
                     !change dramatically to start with.
-                    InitialPart = tokens%get_realdp()
+                    InitialPart = to_realdp(tokens%next())
                 end if
             case("STARTCAS")
 !For FCIMC, this has an initial configuration of walkers which is proportional to the MP1 wavefunction
@@ -2228,7 +2228,7 @@ contains
                 if(tokens%remaining_items() > 0) then
                     !Allow us to specify a desired number of particles to start with, so that the shift doesn't
                     !change dramatically to start with.
-                    InitialPart = tokens%get_realdp()
+                    InitialPart = to_realdp(tokens%next())
                 end if
             case("EQUILSTEPS")
 !For FCIMC, this indicates the number of cycles which have to
@@ -2247,7 +2247,7 @@ contains
                 CALL Stop_All(t_r, "MCDIFFUSE option depreciated")
 !                TDiffuse=.true.
 !Lambda indicates the amount of diffusion compared to spawning in the FCIMC algorithm.
-!                Lambda = tokens%get_realdp()
+!                Lambda = to_realdp(tokens%next())
             case("FLIPTAU")
 !This indicates that time is to be reversed every FlipTauCyc cycles in the FCIMC algorithm. This might
 !help with undersampling problems.
@@ -2268,7 +2268,7 @@ contains
 !that determinant, if the normalised component of the MP1 wavefunction is greater than the NodalCutoff value.
                 CALL Stop_All(t_r, "NODALCUTOFF option depreciated")
 !                TNodalCutoff=.true.
-!                NodalCutoff = tokens%get_realdp()
+!                NodalCutoff = to_realdp(tokens%next())
             case("NOANNIHIL")
 !For FCIMC, this removes the annihilation of particles on the same determinant step.
                 TNoAnnihil = .true.
@@ -2277,7 +2277,7 @@ contains
                 CLMAX = to_int(tokens%next())
             case("RETURNBIAS")
 !For closed path MC, this is the return bias at any point to spawn at the parent determinant
-                PRet = tokens%get_realdp()
+                PRet = to_realdp(tokens%next())
             case("RHOAPP")
 !This is for resummed FCIMC, it indicates the number of propagation steps around each subgraph before
 !particles are assigned to the nodes
@@ -2293,7 +2293,7 @@ contains
 !determinant with a probability PRet.
 !This is unbiased by the acceptance probability of returning to HF.
                 THFRetBias = .true.
-                PRet = tokens%get_realdp()
+                PRet = to_realdp(tokens%next())
             case("EXCLUDERANDGUIDE")
 !This is an alternative method to unbias for the HFRetBias. It invloves disallowing random
 !excitations back to the guiding function (HF Determinant)
@@ -2320,10 +2320,10 @@ contains
                 tCheckHighestPop = .true.
                 tChangeProjEDet = .true.
                 IF(tokens%remaining_items() > 0) then
-                    FracLargerDet = tokens%get_realdp()
+                    FracLargerDet = to_realdp(tokens%next())
                 end if
                 if(tokens%remaining_items() > 0) then
-                    pop_change_min = tokens%get_realdp()
+                    pop_change_min = to_realdp(tokens%next())
                 end if
 
             case("FORCE-FULL-POPS")
@@ -2364,7 +2364,7 @@ contains
                 tCheckHighestPop = .true.
                 tRestartHighPop = .true.
                 IF(tokens%remaining_items() > 0) then
-                    FracLargerDet = tokens%get_realdp()
+                    FracLargerDet = to_realdp(tokens%next())
                 end if
                 IF(tokens%remaining_items() > 0) then
                     iRestartWalkNum = to_int(tokens%next())
@@ -2384,7 +2384,7 @@ contains
                 IF(tokens%remaining_items() > 0) THEN
                     !If an optional integer keyword is added, then InitialPart will indicate the number of
                     !particles to start at the HF determinant.
-                    InitialPart = tokens%get_realdp()
+                    InitialPart = to_realdp(tokens%next())
                     if(InitialPart < 0) then
                         ! Turn StartSinglePart off.
                         tStartSinglePart = .false.
@@ -2393,7 +2393,7 @@ contains
                 end if
             case("MEMORYFACPART")
 !An FCIMC option - MemoryFac is the factor by which space will be made available for extra walkers compared to InitWalkers
-                MemoryFacPart = tokens%get_realdp()
+                MemoryFacPart = to_realdp(tokens%next())
             case("MEMORYFACANNIHIL")
 !!An FCIMC option - MemoryFac is the factor by which space will be made available for particles sent to
 !the processor during annihilation compared to InitWalkers. This will generally want to be larger than
@@ -2405,18 +2405,18 @@ contains
 !available for spawned particles each iteration.
 !Several of these arrays are needed for the annihilation process. With ROTOANNIHILATION, MEMORYFACANNIHIL
 !is redundant, but MEMORYFACPART still need to be specified.
-                MemoryFacSpawn = tokens%get_realdp()
+                MemoryFacSpawn = to_realdp(tokens%next())
             case("MEMORYFACINIT")
                 ! If we are maintaining a list of initiators on each
                 ! processor, this is the factor of InitWalkers which will be
                 ! used for the size
-                MemoryFacInit = tokens%get_realdp()
+                MemoryFacInit = to_realdp(tokens%next())
             case("MEMORYFACHASH")
                 ! Determine the absolute length of the hash table relative to
                 ! the target number of walkers (InitWalkers)
                 !
                 ! By default this value is 0.7 (see above)
-                HashLengthFrac = tokens%get_realdp()
+                HashLengthFrac = to_realdp(tokens%next())
             case("REGENEXCITGENS")
 !An FCIMC option. With this, the excitation generators for the walkers will NOT be stored, and regenerated
 !each time. This will be slower, but save on memory.
@@ -2437,14 +2437,14 @@ contains
                 CALL Stop_All(t_r, "FIXSHELLSHIFT option depreciated")
 !                TFixShiftShell=.true.
 !                ShellFix = to_int(tokens%next())
-!                FixShift = tokens%get_realdp()
+!                FixShift = to_realdp(tokens%next())
             case("FIXKIISHIFT")
 !A Parallel FCIMC option. Similar to FixShellShift option, but will fix the shifts of the particles which have a diagonal
 !matrix element Kii of less than the cutoff, FixedKiiCutOff.
                 CALL Stop_All(t_r, "FIXKIISHIFT option depreciated")
 !                TFixShiftKii=.true.
-!                FixedKiiCutoff = tokens%get_realdp()
-!                FixShift = tokens%get_realdp()
+!                FixedKiiCutoff = to_realdp(tokens%next())
+!                FixShift = to_realdp(tokens%next())
 
             case("FIXCASSHIFT")
 !A Parallel FCIMC option similar to the FixShellShift and FixShiftKii options.
@@ -2456,7 +2456,7 @@ contains
 !                TFixCASShift=.true.
 !                OccCASorbs = to_int(tokens%next())
 !                VirtCASorbs = to_int(tokens%next())
-!                FixShift = tokens%get_realdp()
+!                FixShift = to_realdp(tokens%next())
 
             case("TRUNCATECAS")
 !A Parallel FCIMC option. With this, the excitation space of the determinants will only include
@@ -2478,7 +2478,7 @@ contains
             case("AVSPAWN-INITIATORS")
 ! Create initiators based on the average spawn onto some determinant
                 tActivateLAS = .true.
-                if(tokens%remaining_items() > 0) spawnSgnThresh = tokens%get_realdp()
+                if(tokens%remaining_items() > 0) spawnSgnThresh = to_realdp(tokens%next())
                 if(tokens%remaining_items() > 0) minInitSpawns = to_int(tokens%next())
 
             case("REPLICA-GLOBAL-INITIATORS")
@@ -2514,14 +2514,14 @@ contains
 !it is essentially added to the initiator space and is allowed to spawn where it likes.
 !The minimum walker population for a determinant to be added to the initiator space is InitiatorWalkNo.
                 tAddtoInitiator = .true.
-                InitiatorWalkNo = tokens%get_realdp()
+                InitiatorWalkNo = to_realdp(tokens%next())
 
             case("SENIOR-INITIATORS")
 !This option means that if a determinant has lived  long enough (called a 'senior determinant'),
 !it is added to the initiaor space. A determinant is considered 'senior' if its life time (measured in its halftime) exceeds SeniortyAge.
                 tSeniorInitiators = .true.
                 if(tokens%remaining_items() > 0) then
-                    SeniorityAge = tokens%get_realdp()
+                    SeniorityAge = to_realdp(tokens%next())
                 end if
             case("INITIATOR-ENERGY-CUTOFF")
                 !
@@ -2558,7 +2558,7 @@ contains
 !they are connected, which they will do with probability = Lambda*Hij
                 CALL Stop_All(t_r, "ANNIHILATEONPROCS option depreciated")
 !                TDistAnnihil=.true.
-!                Lambda = tokens%get_realdp()
+!                Lambda = to_realdp(tokens%next())
             case("ANNIHILATERANGE")
 !This option should give identical results whether on or off. It means that hashes are histogrammed and sent
 !to processors, rather than sent due to the value of mod(hash,nprocs).
@@ -2595,7 +2595,7 @@ contains
 !as a variable, but should not be used at the same time.
                 CALL Stop_All(t_r, "LOCALANNIHIL option depreciated")
 !                TLocalAnnihilation=.true.
-!                Lambda = tokens%get_realdp()
+!                Lambda = to_realdp(tokens%next())
             case("ANNIHILATEEVERY")
 !In FCIMC, this will result in annihilation only every iAnnInterval iterations
                 iAnnInterval = to_int(tokens%next())
@@ -2635,7 +2635,7 @@ contains
 !                tMagnetize=.true.
 !                tSymmetricField=.false.
 !                NoMagDets = to_int(tokens%next())
-!                BField = tokens%get_realdp()
+!                BField = to_realdp(tokens%next())
 
             case("FINDGROUNDDET")
                 call stop_all(t_r, 'Option (FINDGROUNDDET) deprecated')
@@ -2673,13 +2673,13 @@ contains
 !of 'parallel' sign.
                 CALL Stop_All(t_r, "MAGNETIZESYM option depreciated")
 !                NoMagDets = to_int(tokens%next())
-!                BField = tokens%get_realdp()
+!                BField = to_realdp(tokens%next())
 !                tSymmetricField=.true.
 !                tMagnetize=.true.
             case("SINGLESBIAS")
 !This is a parallel FCIMC option, where the single excitations from any determinant will be favoured compared
 !to the simple ratio of number of doubles to singles from HF by multiplying the number of singles by this factor.
-                SinglesBias = tokens%get_realdp()
+                SinglesBias = to_realdp(tokens%next())
             case("JUSTFINDDETS")
 !This option is to be used in conjunction with the diagonalization methods. With this, all the determinants
 !will be enumerated, but the hamiltonian will not be calculated,
@@ -2729,9 +2729,9 @@ contains
                 call stop_all(t_r, 'Deprecated Option')
             case("REALSPAWNCUTOFF")
                 tRealSpawnCutoff = .true.
-                RealSpawnCutoff = tokens%get_realdp()
+                RealSpawnCutoff = to_realdp(tokens%next())
             case("SETOCCUPIEDTHRESH")
-                OccupiedThresh = tokens%get_realdp()
+                OccupiedThresh = to_realdp(tokens%next())
             case("SETINITOCCUPIEDTHRESH")
                 call stop_all(t_r, 'Deprecated option')
 
@@ -2832,7 +2832,7 @@ contains
             case("NUM-BETA-FTLM")
                 nbeta_ftlm = to_int(tokens%next())
             case("BETA-FTLM")
-                delta_beta_ftlm = tokens%get_realdp()
+                delta_beta_ftlm = to_realdp(tokens%next())
 
                 ! Options relating to exact spectral calculations.
             case("NUM-LANC-VECS-SPECTRAL")
@@ -2840,18 +2840,18 @@ contains
             case("NUM-OMEGA-SPECTRAL")
                 nomega_spectral = to_int(tokens%next())
             case("OMEGA-SPECTRAL")
-                delta_omega_spectral = tokens%get_realdp()
+                delta_omega_spectral = to_realdp(tokens%next())
             case("MIN-OMEGA-SPECTRAL")
-                min_omega_spectral = tokens%get_realdp()
+                min_omega_spectral = to_realdp(tokens%next())
             case("I-OMEGA-SPECTRAL")
                 ! get the spectrum as a function of 1i*w
                 tIWSpec = .true.
             case("BROADENING_SPECTRAL")
-                spectral_broadening = tokens%get_realdp()
+                spectral_broadening = to_realdp(tokens%next())
             case("INCLUDE-GROUND-SPECTRAL")
                 tIncludeGroundSpectral = .true.
             case("GROUND-ENERGY-SPECTRAL")
-                spectral_ground_energy = tokens%get_realdp()
+                spectral_ground_energy = to_realdp(tokens%next())
 
             case("LEFT-ANNIHILATE-SPECTRAL")
                 alloc_popsfile_dets = .true.
@@ -3039,7 +3039,7 @@ contains
                 ! orthogonal
                 t_test_overlap = .true.
                 if(tokens%remaining_items() > 0) then
-                    overlap_eps = tokens%get_realdp()
+                    overlap_eps = to_realdp(tokens%next())
                 end if
 
                 if(tokens%remaining_items() > 0) then
@@ -3080,7 +3080,7 @@ contains
                 ! Efficient continuous time propagation requires a fine
                 ! interplay between the oversampling rate, and the maximum
                 ! spawn allowed
-                cont_time_max_overspawn = tokens%get_realdp()
+                cont_time_max_overspawn = to_realdp(tokens%next())
 
             case("POSITIVE-HF-SIGN")
                 tPositiveHFSign = .true.
@@ -3448,11 +3448,11 @@ contains
             case("INITIATOR-COHERENCE-THRESHOLD")
                 ! Set the minimal coherence parameter for superinitiator-related
                 ! initiators
-                coherenceThreshold = tokens%get_realdp()
+                coherenceThreshold = to_realdp(tokens%next())
 
             case("SUPERINITIATOR-COHERENCE-THRESHOLD")
                 ! set the minimal coherence parameter for superinitiators
-                SIThreshold = tokens%get_realdp()
+                SIThreshold = to_realdp(tokens%next())
 
             case("MIN-SI-CONNECTIONS")
                 ! set the minimal number of connections with superinititators for
@@ -3510,10 +3510,10 @@ contains
                 end if
                 if(tokens%remaining_items() > 0) &
                     ! an optional prefactor for scaling
-                    sFAlpha = tokens%get_realdp()
+                    sFAlpha = to_realdp(tokens%next())
                 if(tokens%remaining_items() > 0) &
                     ! an optional exponent for scaling
-                    sFBeta = tokens%get_realdp()
+                    sFBeta = to_realdp(tokens%next())
                 ! set the cutoff to the minimal value
                 RealSpawnCutoff = sFBeta
 
@@ -3524,7 +3524,7 @@ contains
 
             case("SUPERINITIATOR-POPULATION-THRESHOLD")
                 ! set the minimum value for superinitiator population
-                NoTypeN = tokens%get_realdp()
+                NoTypeN = to_realdp(tokens%next())
 
             case("SUPPRESS-SUPERINITIATOR-OUTPUT")
                 ! just for backwards-compatibility
@@ -3540,20 +3540,20 @@ contains
             case("PRECOND")
                 tPreCond = .true.
 
-                InitialPart = tokens%get_realdp()
+                InitialPart = to_realdp(tokens%next())
                 InitWalkers = nint(real(InitialPart, dp) / real(nProcessors, dp), int64)
 
             case("PSINGLES")
-                pSinglesIn = tokens%get_realdp()
+                pSinglesIn = to_realdp(tokens%next())
 
             case("PPARALLEL")
-                pParallelIn = tokens%get_realdp()
+                pParallelIn = to_realdp(tokens%next())
 
             case("PDOUBLES")
-                pDoublesIn = tokens%get_realdp()
+                pDoublesIn = to_realdp(tokens%next())
 
             case("PTRIPLES")
-                pTriplesIn = tokens%get_realdp()
+                pTriplesIn = to_realdp(tokens%next())
 
             case("NO-INIT-REF-CHANGE")
                 tSetInitialRunRef = .false.

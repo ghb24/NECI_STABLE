@@ -148,15 +148,15 @@ contains
                 end do
                 kp%niters(kp%nreports) = 0
             case ("MEMORY-FACTOR")
-                memory_factor_kp = tokens%get_realdp()
+                memory_factor_kp = to_realdp(tokens%next())
             case ("NUM-WALKERS-PER-SITE-INIT")
-                nwalkers_per_site_init = tokens%get_realdp()
+                nwalkers_per_site_init = to_realdp(tokens%next())
             case ("AVERAGEMCEXCITS-HAMIL")
-                av_mc_excits_kp = tokens%get_realdp()
+                av_mc_excits_kp = to_realdp(tokens%next())
             case ("EXACT-HAMIL-SPAWNING")
                 tExactHamilSpawning = .true.
             case ("EXACT-HAMIL-SPAWNING-FRAC")
-                kp_hamil_exact_frac = tokens%get_realdp()
+                kp_hamil_exact_frac = to_realdp(tokens%next())
             case ("EXACT-HAMIL")
                 tExactHamil = .true.
             case ("FULLY-STOCHASTIC-HAMIL")
@@ -199,7 +199,7 @@ contains
                 ! the initial state.
                 if (file_reader%nextline(tokens)) then
                     do j = 1, nexcit
-                        kpfciqmc_ex_weights(j) = tokens%get_realdp()
+                        kpfciqmc_ex_weights(j) = to_realdp(tokens%next())
                     end do
                 else
                     call stop_all(this_routine, 'Unexpected EOF reached.')

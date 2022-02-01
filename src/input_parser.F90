@@ -51,8 +51,6 @@ module input_parser_mod
         procedure, public :: size => size_TokenIterator_t
         procedure, public :: remaining_items
         procedure, public :: next
-        procedure, public :: get_realsp
-        procedure, public :: get_realdp
         procedure, public :: reset
     end type
 
@@ -244,31 +242,6 @@ contains
             res = this%tokens(this%i_curr_token)%str
             this%i_curr_token = this%i_curr_token + 1
         end if
-    end function
-
-    integer impure elemental function get_int(this)
-        class(TokenIterator_t), intent(inout) :: this
-        get_int = to_int(this%next())
-    end function
-
-    integer(int32) impure elemental function get_int32(this)
-        class(TokenIterator_t), intent(inout) :: this
-        get_int32 = to_int32(this%next())
-    end function
-
-    integer(int64) impure elemental function get_int64(this)
-        class(TokenIterator_t), intent(inout) :: this
-        get_int64 = to_int64(this%next())
-    end function
-
-    real(sp) impure elemental function get_realsp(this)
-        class(TokenIterator_t), intent(inout) :: this
-        get_realsp = to_realsp(this%next())
-    end function
-
-    real(dp) impure elemental function get_realdp(this)
-        class(TokenIterator_t), intent(inout) :: this
-        get_realdp = to_realdp(this%next())
     end function
 
     elemental subroutine reset(this, k)

@@ -53,7 +53,7 @@ module Integrals_neci
 
     use input_parser_mod, only: FileReader_t, TokenIterator_t
 
-    use fortran_strings, only: to_upper, to_lower, to_int, to_realdp
+    use fortran_strings, only: to_upper, to_lower, to_int, to_realsp, to_realdp
     implicit none
 
 contains
@@ -162,9 +162,9 @@ contains
             case ("QUADVALMAX")
                 TQuadValMax = .true.
             case ("NRCONV")
-                NRCONV = tokens%get_realdp()
+                NRCONV = to_realdp(tokens%next())
             case ("RFCONV")
-                RFCONV = tokens%get_realdp()
+                RFCONV = to_realdp(tokens%next())
             case ("NRSTEPSMAX")
                 NRSTEPSMAX = to_int(tokens%next())
             case ("INCLUDEQUADRHO")
@@ -200,17 +200,17 @@ contains
             case ("MAXITERATIONS")
                 NHFIT = to_int(tokens%next())
             case ("MIX")
-                HFMIX = tokens%get_realdp()
+                HFMIX = to_realdp(tokens%next())
             case ("RAND")
-                HFRAND = tokens%get_realdp()
+                HFRAND = to_realdp(tokens%next())
             case ("THRESHOLD")
                 do while (tokens%remaining_items() > 0)
                     w = to_upper(tokens%next())
                     select case(w)
                     case ("ENERGY")
-                        HFEDELTA = tokens%get_realdp()
+                        HFEDELTA = to_realdp(tokens%next())
                     case ("ORBITAL")
-                        HFCDELTA = tokens%get_realdp()
+                        HFCDELTA = to_realdp(tokens%next())
                     case default
                         call stop_all(this_routine, trim(w)//" not valid THRESHOLD"         &
            &         //"OPTION.  Specify ENERGY or ORBITAL convergence"     &
@@ -304,7 +304,7 @@ contains
             case ("ORDER")
                 I = 1
                 do while (tokens%remaining_items() > 0)
-                    ORBORDER2(I) = tokens%get_realdp()
+                    ORBORDER2(I) = to_realdp(tokens%next())
                     I = I + 1
                 end do
                 DO I = 1, 8
@@ -390,7 +390,7 @@ contains
                 tSymBrokenLMat = .true.
 
             case ("DMATEPSILON")
-                DMatEpsilon = tokens%get_realdp()
+                DMatEpsilon = to_realdp(tokens%next())
 
             case ("LMATCALC")
 
@@ -400,7 +400,7 @@ contains
 
                 tLMatCalc = .true.
 
-                if(tokens%remaining_items() > 0) lMatCalcHFactor = tokens%get_realsp()
+                if(tokens%remaining_items() > 0) lMatCalcHFactor = to_realsp(tokens%next())
 
             case ("ENDINT")
                 exit integral
